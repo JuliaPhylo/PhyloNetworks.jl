@@ -11,7 +11,7 @@ git clone https://github.com/crsl4/CFnetworks (only once)
 
 **in Mac:git_laptop**
 
-1. git pull origin master (or other branch)
+1. git pull (origin master (or other branch))
 
 2. make changes
 
@@ -19,13 +19,13 @@ git clone https://github.com/crsl4/CFnetworks (only once)
 
 4. git commit -m "message"
 
-5. git push origin master (or other branch)
+5. git push (origin master (or other branch))
 
 **in stat:git_work**
 
 need to compare to version in ane/public/quartetNetwork
 
-1. git pull origin master (or other branch)
+1. git pull (origin master (or other branch))
 
 2. run compare_jl.sh to check if two versions are equal
 
@@ -37,7 +37,7 @@ need to compare to version in ane/public/quartetNetwork
 
 6. git commit -m "message"
 
-7. git push origin master (or other branch)
+7. git push (origin master (or other branch))
 
 8. run update_public.sh to have same version in ane/public
 
