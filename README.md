@@ -11,7 +11,11 @@ git clone https://github.com/crsl4/CFnetworks (only once)
 
 **in Mac:git_laptop**
 
-1. git pull (origin master (or other branch))
+1. git pull (origin master (or other branch)):
+
+better to do: git fetch
+              git status (to check if remote is ahead of local)
+              git merge FETCH_HEAD
 
 2. make changes
 
@@ -25,13 +29,18 @@ git clone https://github.com/crsl4/CFnetworks (only once)
 
 need to compare to version in ane/public/quartetNetwork
 
+2. run compare_jl.sh to check if two versions are equal, or check date file
+
 1. git pull (origin master (or other branch))
 
-2. run compare_jl.sh to check if two versions are equal
+better to do: git fetch
+              git status (to check if remote is ahead of local)
+              git merge FETCH_HEAD
+              
 
-3. if not, adapt changes, keep different branches
+3. adapt changes from public, consider different branches
 
-4. after having one file in git_work, make changes
+4. make new changes if needed
 
 5. git add .
 
