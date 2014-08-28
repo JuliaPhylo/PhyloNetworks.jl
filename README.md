@@ -29,7 +29,7 @@ better to do: git fetch
 
 need to compare to version in ane/public/quartetNetwork
 
-2. run compare_jl.sh to check if two versions are equal, or check date file
+2. run compare_jl.sh (with argument "classes",...) to check if two versions are equal, or check date file
 
 1. git pull (origin master (or other branch))
 
