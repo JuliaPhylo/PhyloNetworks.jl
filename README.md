@@ -48,7 +48,7 @@ better to do: git fetch
 
 7. git push (origin master (or other branch))
 
-8. run update_public.sh to have same version in ane/public
+8. run sync_public.sh to have same version in ane/public, add date in date file
 
 ### Create branches
 
