@@ -1,4 +1,5 @@
-# functions for pseudolikelihood implementation (Stage2)
+# functions written in classes.jl and moved here after tested
+# for pseudolikelihood implementation (Stage2)
 # Claudia August 2014
 #
 # in julia: include("functions.jl")
@@ -7,8 +8,8 @@
 
 #------------- EDGE functions --------------------#
 
-#Node needs to be defined as hybrid before adding to a hybrid edge
-#First, an edge is defined as hybrid, and then the nodes are added to it
+# warning: node needs to be defined as hybrid before adding to a hybrid edge
+#          First, an edge is defined as hybrid, and then the nodes are added to it
 function setNode!(edge::Edge, node::Node)
   if(size(edge.node,1) == 2)
     error("vector of nodes already has 2 values");
@@ -41,6 +42,8 @@ function setNode!(edge::Edge, node::Node)
   end
 end
 
+# warning: node needs to be defined as hybrid before adding to a hybrid edge
+#          First, an edge is defined as hybrid, and then the nodes are added to it
 function setNode!(edge::Edge,node::Array{Node,1})
   size(node,1) != 2 ?
   error("vector of nodes must have exactly 2 values") :
@@ -62,6 +65,7 @@ end
 
 # -------------- NODE -------------------------#
 
+# warning: not really used, read types.jl
 function setEdge!(node::Node,edge::Edge)
    push!(node.edge,edge);
    edge.hybrid ? node.hasHybEdge=true : node.hasHybEdge=false;
@@ -105,24 +109,77 @@ function getIndex(bool::Bool, array::Array{Any,1})
 end
 
 
-# search the hybrid node in network. assumes only one hybrid node, or it returns the first one
-# fixit: generalize to more hybrid nodes, need to change getIndex
+# find the index in net.node for a node with given number
+# warning: assumes number uniquely determined
+function getIndexNumNode(number::Int64,net::HybridNetwork)
+    if(sum([net.node[i].number==number?1:0 for i=1:size(net.node,1)])==0)
+        error("node number $(number) not in network")
+    else
+        getIndex(true,[net.node[i].number==number for i=1:size(net.node,1)])
+    end
+end
+
+# search the hybrid node(s) in network: returns the index in net.node
+# return int if only one hybrid, or array of ints if more than one
+# throws error if no hybrid in network
 function searchHybridNode(net::HybridNetwork)
-     getIndex(true,[net.node[i].hybrid for i=1:size(net.node,1)])
+    suma=sum([net.node[i].hybrid?1:0 for i=1:size(net.node,1)]);
+    if(suma==0)
+        error("network has no hybrid node");
+    end
+    k=getIndex(true,[net.node[i].hybrid for i=1:size(net.node,1)]);
+    if(suma>1)
+        a=[k];
+        count=suma-1;
+        index=k;
+        vect=[net.node[i].hybrid for i=1:size(net.node,1)];
+        while(count>0 && count<size(net.node,1))
+            index==1 ? vect=[false,vect[2:size(net.node,1)]] : vect=[vect[1:(index-1)],false,vect[(index+1):size(net.node,1)]]
+            index=getIndex(true,vect);
+            push!(a,index);
+            count=count-1;
+        end
+        return a
+    else
+        return k
+    end
 end
 
-# search the hybrid edge in network. assumes only one hybrid edge, or it returns the first one
-# fixit: change to return the minor edge
+# search the hybrid edges in network: returns the index in net.edge
+# hybrid edges come in pairs, both edges indeces are returned
+# throws error if no hybrid in network
+# check: change to return only the minor edge?
 function searchHybridEdge(net::HybridNetwork)
-     getIndex(true,[net.edge[i].hybrid for i=1:size(net.edge,1)])
+    suma=sum([net.edge[i].hybrid?1:0 for i=1:size(net.edge,1)]);
+    if(suma==0)
+        error("network has no hybrid edge");
+    end
+    k=getIndex(true,[net.edge[i].hybrid for i=1:size(net.edge,1)]);
+    if(suma>1)
+        a=[k];
+        count=suma-1;
+        index=k;
+        vect=[net.edge[i].hybrid for i=1:size(net.edge,1)];
+        while(count>0 && count<size(net.edge,1))
+            index==1 ? vect=[false,vect[2:size(net.node,1)]] : vect=[vect[1:(index-1)],false,vect[(index+1):size(net.node,1)]]
+            index=getIndex(true,vect);
+            push!(a,index);
+            count=count-1;
+        end
+        return a
+    else
+        return k
+    end
 end
 
-# function to update gammaz in a network. assumes: only one hybrid node
-# needs to have inCycle attributes updated already
+
+# function to update gammaz in a network for one particular hybrid node (bad diamond case)
+# index: corresponds to the index on net.node of the hybrid node whose hybridization events we want to update
+# index can come from searchHybridNode
+# better to update one hybridization event at a time to avoid redundant updates
+# warning: needs to have inCycle attributes updated already
 # check: assume any tree node that has hybrid Edge has only one tree edge in cycle (true?)
-# fixit: add possibility of more hybrid nodes!
-function updateGammaz!(net::HybridNetwork)
-    index=searchHybridNode(net);
+function updateGammaz!(net::HybridNetwork,index::Int64)
     node=net.node[index];
     if(node.hybrid)
         edge_maj=nothing;
@@ -151,7 +208,7 @@ function updateGammaz!(net::HybridNetwork)
         end
         other_min.gammaz=edge_min.gamma*edge_min2.z;
         other_maj.gammaz=edge_maj.gamma*edge_maj2.z;
-        node.gammaz=edge_maj.gamma^2*edge_maj.z+edge_min.gamma^2*edge_min2.z;
+        # node.gammaz=edge_maj.gamma^2*edge_maj.z+edge_min.gamma^2*edge_min2.z;
    end
 end
 
@@ -193,41 +250,3 @@ function hybridEdges(node::Node)
    end
 end
 
-
-# setLength using updateGammaz
-# check: do we want edge as parameter? or its number?
-function setLength!(edge::Edge, new_length::Float64,net::HybridNetwork)
-  if(new_length<0)
-      error("length has to be nonnegative");
-  else
-      edge.length = new_length;
-      edge.y = exp(-new_length);
-      edge.z = 1 - edge.y;
-      updateGammaz!(net);
-  end
-end
-
-
-# setGamma using updateGammaz
-# check: we need to put edge as parameter still, maybe we can have a function to search for the hybrid edge?
-#        maybe we don't have the actual edge as parameter, only its number? the number of the hybrid node?
-function setGamma!(edge::Edge, new_gamma::Float64, net::HybridNetwork)
- if(edge.hybrid)
-	if(0 < new_gamma < 1)
-	     edge.gamma = new_gamma;
-	     new_gamma<0.5 ? edge.isMajor=false : edge.isMajor=true;
-	     edge.isChild1 ? ind=1 : ind=2 ; # hybrid edge pointing at node 1 or 2
-             hybedges=hybridEdges(edge.node[ind]); # hybrid edges for hybrid node
-	     if(!isempty(hybedges) && !isa(hybedges,Nothing)) # change 1-gamma in other hybrid edge
-	          isequal(hybedges[1],edge) ? other=2 : other=1;
-		  hybedges[other].gamma=1.0-new_gamma;
-       	          new_gamma<0.5 ? hybedges[other].isMajor=true : hybedges[other].isMajor=false;
-	    end
-        updateGammaz!(net);
-	else
-	     error("gamma has to be between 0 and 1");
-        end
-  else
-	error("cannot change gamma in a tree edge");
-  end
-end

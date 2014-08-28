@@ -1,12 +1,18 @@
 # things to do:
 
 
-2. tener una carpeta en stat de work, copiar de ane/public a work, 
+1. checar compare_jl.sh si funciona, y tener otro para pasar de git_work a ane/public: update_public.sh
 
-3. comparar ahi, trabajar y push
+4. write test functions for functions.jl
 
-set up procedure:
-0) pull from github into work
-1) copy from ane/public into work (maybe call classes_old?)
-2) compare differences with simple diff
-3) work in it and push
+5. print README.md para tenerlo y enmicarlo en stat y home
+
+----
+
+1. todo: function to identify bad triangle and update gamma2z, change setGamma and setLength accordingly
+
+2. todo: function to update inCycles and containRoot
+
+3. todo: function to say if a hybrid node is bad triangle or bad diamond
+
+4. other functions in classes.jl

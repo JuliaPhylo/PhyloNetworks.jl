@@ -3,6 +3,14 @@
 # in julia: include("types.jl")
 #
 # Types: Edge, Node, HybridNetwork
+################################################################
+
+# procedure to create hybrid network:
+# 1) create edges defined as hybrid or not
+# 2) create nodes with such edges
+# 3) setNode! to add nodes into edges
+# 4) create hybrid network
+# 5) updateGammaz!
 
 # -------------- EDGE -------------------------#
 
@@ -55,6 +63,8 @@ type Node <: ANode
 end
 
 # warning: no attempt to make sure the direction of edges matches with the root
+# warning: no check if it is network or tree, node array can have no hybrids
+# warning: nodes and edges need to be defined and linked before adding to a network
 type HybridNetwork
      numTaxa::Int64 # cannot set in constructor for congruence
      numNodes::Int64 # cannot set in constructor for congruence
