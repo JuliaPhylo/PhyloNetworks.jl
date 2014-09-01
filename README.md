@@ -36,7 +36,7 @@ need to compare to version in ane/public/quartetNetwork
 better to do: git fetch
               git status (to check if remote is ahead of local)
               git merge FETCH_HEAD
-              
+
 
 3. adapt changes from public, consider different branches
 
@@ -76,4 +76,4 @@ include("case_f_example.jl")
 
 4. create hybrid network
 
-5. updateGammaz!
+5. updateGammaz! updateGamma2z!

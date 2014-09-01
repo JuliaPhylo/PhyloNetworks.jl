@@ -10,7 +10,7 @@
 # 2) create nodes with such edges
 # 3) setNode! to add nodes into edges
 # 4) create hybrid network
-# 5) updateGammaz!
+# 5) updateGammaz! updateGamma2z!
 
 # -------------- EDGE -------------------------#
 
@@ -52,14 +52,17 @@ type Node <: ANode
     number::Int64
     leaf::Bool
     hybrid::Bool
-    gammaz::Float64  # notes file for explanation. gammaz if tree node, gamma2z if hybrid node. updated after node is part of network
+    gammaz::Float64  # notes file for explanation. gammaz if tree node, gamma2z if hybrid node.
+                     # updated after node is part of network with updateGammaz!
     edge::Array{Edge,1}
     hasHybEdge::Bool #is there a hybrid edge in edge? only needed when hybrid=false (tree node)
+    isBadDiamond::Bool # for hybrid node, is it bad diamond case, update in updateGammaz!
+    isBadTriangle::Bool # for hybrid node, is it bad triangle case, udpate in updateGamma2z!
     # inner constructor: set hasHybEdge depending on edge
-    Node(number::Int64, leaf::Bool) = new(number,leaf,false,-1.,[],false)
-    Node(number::Int64, leaf::Bool, hybrid::Bool) = new(number,leaf,hybrid,-1.,[],hybrid)
-    Node(number::Int64, leaf::Bool, hybrid::Bool, edge::Array{Edge,1})=new(number,leaf,hybrid,-1.,edge,!all([!edge[i].hybrid for i=1:size(edge,1)]))
-    Node(number::Int64, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Array{Edge,1}) = new(number,leaf,hybrid,gammaz,edge,!all([!edge[i].hybrid for i=1:size(edge,1)]))
+    Node(number::Int64, leaf::Bool) = new(number,leaf,false,-1.,[],false,false,false)
+    Node(number::Int64, leaf::Bool, hybrid::Bool) = new(number,leaf,hybrid,-1.,[],hybrid,false,false)
+    Node(number::Int64, leaf::Bool, hybrid::Bool, edge::Array{Edge,1})=new(number,leaf,hybrid,-1.,edge,!all([!edge[i].hybrid for i=1:size(edge,1)]),false,false)
+    Node(number::Int64, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Array{Edge,1}) = new(number,leaf,hybrid,gammaz,edge,!all([!edge[i].hybrid for i=1:size(edge,1)]),false,false)
 end
 
 # warning: no attempt to make sure the direction of edges matches with the root

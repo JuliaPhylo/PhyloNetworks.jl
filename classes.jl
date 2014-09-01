@@ -15,8 +15,12 @@ include("types.jl")
 # functions in "functions.jl"
 include("functions.jl")
 
+# examples
+include("case_f_example.jl")
+include("bad_triangle_example.jl")
 
 # -------------- NETWORK ----------------------- #
+
 
 # old searchHybrid that traverses the graph looking for the hybrid node (assumes only one hybrid node)
 # (assumes only one hybrid, stops after finding one hybrid node)
@@ -50,23 +54,13 @@ function searchHybrid(node::Node,visited::Array{Bool,1},net::HybridNetwork,hybri
 end
 
 # todo: function to update edges (inCycle, containRoot) information after becoming part of a network,
-# better to include node as parameter, like in updateGammaz
 # check cecile notes for traversal and inCycle updating
 
-# todo: function to identify bad diamond, only updateGammaz in bad diamond cases?
-
-# todo: function to identify hybridization event as bad triangle, identify the network or the hybrid node?
-
-# todo: function to update gammaz in the bad triangle case
-# cecile: update gammaz for bad triangle only inside the bad triangle case,
-# note that the gammaz for hybrid node depends on the topology, not value of gamma
 
 # cecile: check updategammaz function, maybe we need two functions, one to update when changing length
 # one to update when changing gamma? what i like about updategammaz is that you use that directly at the beginning
 # of network, so maybe we should consider doing things ourselves inside setLength and setGamma, instead of calling
 # update gamma
-
-# cecile: attribute for bad diamond, bad triangle for node type, use in setLength, setGamma and updateGammaz
 
 
 # cecile: print more information
@@ -87,50 +81,6 @@ function printNodes(net::HybridNetwork)
         print("\n")
     end;
 end;
-
-# setLength using updateGammaz
-# check: do we want edge as parameter? or its number?
-# fixit: need to update gamma2z as well for bad triangle case
-function setLength!(edge::Edge, new_length::Float64,net::HybridNetwork)
-  if(new_length<0)
-      error("length has to be nonnegative");
-  else
-      edge.length = new_length;
-      edge.y = exp(-new_length);
-      edge.z = 1 - edge.y;
-      if(edge.hybrid && edge.isMajor)
-          #updateGamma2z for bad triangle
-      elseif (!edge.hybrid && edge.inCycle!=-1 && !all([!edge.node[i].hasHybEdge for i=1:size(edge.node,1)])) # tree edge with node.hasHybEdge true
-          updateGammaz!(net,getIndexNumNode(edge.inCycle,net));
-      end
-  end
-end
-
-
-# setGamma using updateGammaz
-# check: we need to put edge as parameter still, maybe we can have a function to search for the hybrid edge?
-#        maybe we don't have the actual edge as parameter, only its number? the number of the hybrid node?
-# fixit: need to update gamma2z as well for bad triangle case
-function setGamma!(edge::Edge, new_gamma::Float64, net::HybridNetwork)
- if(edge.hybrid)
-	if(0 < new_gamma < 1)
-	     edge.gamma = new_gamma;
-	     new_gamma<0.5 ? edge.isMajor=false : edge.isMajor=true;
-	     edge.isChild1 ? ind=1 : ind=2 ; # hybrid edge pointing at node 1 or 2
-             hybedges=hybridEdges(edge.node[ind]); # hybrid edges for hybrid node
-	     if(!isempty(hybedges) && !isa(hybedges,Nothing)) # change 1-gamma in other hybrid edge
-	          isequal(hybedges[1],edge) ? other=2 : other=1;
-		  hybedges[other].gamma=1.0-new_gamma;
-       	          new_gamma<0.5 ? hybedges[other].isMajor=true : hybedges[other].isMajor=false;
-	    end
-        updateGammaz!(net, getIndex(edge.node[ind],net));
-	else
-	     error("gamma has to be between 0 and 1");
-        end
-  else
-	error("cannot change gamma in a tree edge");
-  end
-end
 
 
 # todo: function to create an hybrid edge:
