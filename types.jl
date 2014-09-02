@@ -58,11 +58,12 @@ type Node <: ANode
     hasHybEdge::Bool #is there a hybrid edge in edge? only needed when hybrid=false (tree node)
     isBadDiamond::Bool # for hybrid node, is it bad diamond case, update in updateGammaz!
     isBadTriangle::Bool # for hybrid node, is it bad triangle case, udpate in updateGamma2z!
+    inCycle::Int64 # = hybrid node if this node is part of a cycle created by such hybrid node, -1 if not part of cycle
     # inner constructor: set hasHybEdge depending on edge
-    Node(number::Int64, leaf::Bool) = new(number,leaf,false,-1.,[],false,false,false)
-    Node(number::Int64, leaf::Bool, hybrid::Bool) = new(number,leaf,hybrid,-1.,[],hybrid,false,false)
-    Node(number::Int64, leaf::Bool, hybrid::Bool, edge::Array{Edge,1})=new(number,leaf,hybrid,-1.,edge,!all([!edge[i].hybrid for i=1:size(edge,1)]),false,false)
-    Node(number::Int64, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Array{Edge,1}) = new(number,leaf,hybrid,gammaz,edge,!all([!edge[i].hybrid for i=1:size(edge,1)]),false,false)
+    Node(number::Int64, leaf::Bool) = new(number,leaf,false,-1.,[],false,false,false,-1.)
+    Node(number::Int64, leaf::Bool, hybrid::Bool) = new(number,leaf,hybrid,-1.,[],hybrid,false,false,-1.)
+    Node(number::Int64, leaf::Bool, hybrid::Bool, edge::Array{Edge,1})=new(number,leaf,hybrid,-1.,edge,!all([!edge[i].hybrid for i=1:size(edge,1)]),false,false,-1.)
+    Node(number::Int64, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Array{Edge,1}) = new(number,leaf,hybrid,gammaz,edge,!all([!edge[i].hybrid for i=1:size(edge,1)]),false,false,-1.)
 end
 
 # warning: no attempt to make sure the direction of edges matches with the root
