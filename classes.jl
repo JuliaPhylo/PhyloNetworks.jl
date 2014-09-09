@@ -15,9 +15,12 @@ include("types.jl")
 # functions in "functions.jl"
 include("functions.jl")
 
+# needed modules:
+using DataStructures
+
 # examples
 include("case_f_example.jl");
-include("bad_triangle_example.jl")
+include("bad_triangle_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
@@ -53,77 +56,11 @@ function searchHybrid(node::Node,visited::Array{Bool,1},net::HybridNetwork,hybri
     end
 end
 
-# function that given a hybrid node, it gives you the minor hybrid edge
-function getHybridEdge(node::Node)
-    if(node.hybrid)
-        a=nothing;
-        for(i in 1:size(node.edge,1))
-            (node.edge[i].hybrid && !node.edge[i].isMajor) ? a=node.edge[i] : nothing;
-        end
-        isa(a,Nothing) ? error("hybrid node does not have minor hybrid edge") : return a
-    else
-        error("node is not hybrid node")
-    end
-end
-
-# todo: function to update edges (inCycle, containRoot) information after becoming part of a network,
-# check cecile notes for traversal and inCycle updating
-# outside:
-# if(node.hybrid)
-#    hybedge=getHybridEdge(node);
-#    node1=getOtherNode(hybedge,node);
-visited=[false for i=1:size(net.node,1)];
-# fixit: still not working, two main problems:
-# one, how to define how is child? so that it is not in infinite loop child<->parent
-# and two, node.inCycle propagates outside the cycle, how to contain?
-function updateInCycle!(net::HybridNetwork, node::Node, node1::Node,visited::Array{Bool})
-    println("start in $(node.number)");
-    visited[getIndex(node,net)]=true;
-    for(i in 1:size(node.edge,1))
-        if(node.edge[i].isMajor || !node.edge[i].hybrid)
-            println("we go to edge: $(node.edge[i].number)");
-            child=getOtherNode(node.edge[i],node);
-            if(isequal(node1,child) || child.inCycle!=-1)
-                println("condition true: $(node1.number)=$(child.number) OR $(child.inCycle) NOT -1");
-                println("we will make this edge in cycle: $(node.edge[i].number)");
-                node.edge[i].inCycle=1;
-                println("we will make the current node in cycle: $(node.number)");
-                node.inCycle=1;
-            elseif(!visited[getIndex(child,net)])
-                println("condition NOT true: $(node1.number) NOT $(child.number) OR $(child.inCycle) = -1");
-                println("we will go now to child: $(child.number)");
-                updateInCycle!(net,child,node1,visited);
-            end
-        end
-    end
-end
-
-
 
 # cecile: check updategammaz function, maybe we need two functions, one to update when changing length
 # one to update when changing gamma? what i like about updategammaz is that you use that directly at the beginning
 # of network, so maybe we should consider doing things ourselves inside setLength and setGamma, instead of calling
 # update gamma
-
-
-# cecile: print more information
-function printEdges(net::HybridNetwork)
-    println("Edge#\tNode1\tNode2")
-    for i in (1:net.numEdges)
-        println("$(net.edge[i].number)\t$(net.edge[i].node[1].number)\t$(net.edge[i].node[2].number)")
-    end;
-end;
-
-function printNodes(net::HybridNetwork)
-    println("Node#\tEdges numbers")
-    for i in (1:net.numNodes)
-        print(net.node[i].number)
-        for j in (1:length(net.node[i].edge))
-            print("\t$(net.node[i].edge[j].number)")
-        end;
-        print("\n")
-    end;
-end;
 
 
 # todo: function to create an hybrid edge:

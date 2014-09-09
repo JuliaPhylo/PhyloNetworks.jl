@@ -46,7 +46,8 @@ setNode!(ed10,[n9,n10]);
 #ed5.inCycle=2;
 
 net=HybridNetwork([n1,n2,n3,n4,n5,n6,n7,n8,n9,n10],[ed1,ed2,ed3,ed4,ed5,ed6,ed7,ed8,ed9,ed10]);
-#node=searchHybridNode(net);
+node=searchHybridNode(net);
 
-#updateGammaz!(net,node);
-#updateGamma2z!(net,node);
+updateInCycle!(net,node);
+updateGammaz!(net,node);
+updateGamma2z!(net,node);

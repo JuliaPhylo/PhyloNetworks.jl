@@ -173,16 +173,16 @@ end
 
 
 function printEdges(net::HybridNetwork)
-    println("Edge#\tNode1\tNode2")
+    println("Edge#\tNode1\tNode2\tInCycle")
     for i in (1:net.numEdges)
-        println("$(net.edge[i].number)\t$(net.edge[i].node[1].number)\t$(net.edge[i].node[2].number)")
+        println("$(net.edge[i].number)\t$(net.edge[i].node[1].number)\t$(net.edge[i].node[2].number)\t$(net.edge[i].inCycle)")
     end;
 end;
 
 function printNodes(net::HybridNetwork)
-    println("Node#\tEdges numbers")
+    println("Node#\tIn Cycle\tEdges numbers")
     for i in (1:net.numNodes)
-        print(net.node[i].number)
+        print("$(net.node[i].number)\t$(net.node[i].inCycle)")
         for j in (1:length(net.node[i].edge))
             print("\t$(net.node[i].edge[j].number)")
         end;
@@ -208,6 +208,84 @@ function hybridEdges(node::Node)
    else
       error("node is not hybrid");
    end
+end
+
+
+
+# function to update inCycle after becoming part of a network
+# based on program 3 CS367
+# input: hybrid node around which we want to update inCycle
+# needs module "DataStructure"
+# returns error if no cycle in the network
+# returns error if cycle intersects existing cycle
+#         (there is the possibility of returning edges in intersection: path)
+# check: visited is an aux array, do we prefer as attribute in Node?
+# check: prev is attribute in Node, do we prefer as aux array?
+# warning: it is not checking if hybrid node or minor hybrid edge
+#          were already part of a cycle (inCycle!=-1)
+#          But it is checking so for the other edges in cycle
+function updateInCycle!(net::HybridNetwork,node::Node)
+    if(node.hybrid)
+        start=node;
+        node.inCycle=node.number;
+        hybedge=getHybridEdge(node);
+        hybedge.inCycle=node.number;
+        last=getOtherNode(hybedge,node);
+        queue=Queue(Node);
+        path=Queue(Node);
+        found=false;
+        visited=[false for i=1:size(net.node,1)];
+        enqueue!(queue,node);
+        while(!found)
+            if(isempty(queue))
+                error("no cycle in network")
+            else
+                curr=dequeue!(queue);
+                if(isequal(curr,last))
+                    found=true;
+                    enqueue!(path,curr);
+                else
+                    if(!visited[getIndex(curr,net)])
+                        visited[getIndex(curr,net)]=true;
+                        if(isequal(curr,start))
+                            for(i in 1:size(curr.edge,1))
+                                if(curr.edge[i].isMajor && curr.edge[i].hybrid)
+                                    other=getOtherNode(curr.edge[i],curr);
+                                    other.prev=curr;
+                                    enqueue!(queue,other);
+                                end
+                            end
+                        else
+                            for(i in 1:size(curr.edge,1))
+                                other=getOtherNode(curr.edge[i],curr);
+                                if(!other.leaf && !visited[getIndex(other,net)])
+                                    other.prev=curr;
+                                    enqueue!(queue,other);
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end # while
+        curr=dequeue!(path);
+        while(!isequal(curr, start))
+            if(curr.inCycle!=-1)
+                enqueue!(path,curr);
+                curr=curr.prev;
+            else
+                curr.inCycle=start.number;
+                edge=getConnectingEdge(curr,curr.prev);
+                edge.inCycle=start.number;
+                curr=curr.prev;
+            end
+        end
+        if(!isempty(path))
+            error("new cycle intersects existing cycle")
+        end
+    else
+        error("node is not hybrid")
+    end
 end
 
 
@@ -375,4 +453,39 @@ function setGamma!(edge::Edge, new_gamma::Float64, net::HybridNetwork)
   else
 	error("cannot change gamma in a tree edge");
   end
+end
+
+
+
+
+# function that given a hybrid node, it gives you the minor hybrid edge
+function getHybridEdge(node::Node)
+    if(node.hybrid)
+        a=nothing;
+        for(i in 1:size(node.edge,1))
+            (node.edge[i].hybrid && !node.edge[i].isMajor) ? a=node.edge[i] : nothing;
+        end
+        isa(a,Nothing) ? error("hybrid node does not have minor hybrid edge") : return a
+    else
+        error("node is not hybrid node")
+    end
+end
+
+
+# function that given two nodes, it gives you the edge that connects them
+# returns error if they are not connected by an edge
+function getConnectingEdge(node1::Node,node2::Node)
+    found=false;
+    i=1;
+    while(i<=size(node1.edge,1) && !found)
+        if(isequal(getOtherNode(node1.edge[i],node1),node2))
+            found=true;
+        end
+        i=i+1;
+    end
+    if(found)
+        return node1.edge[i-1]
+    else
+        error("nodes not connected")
+    end
 end
