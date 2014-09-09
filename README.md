@@ -70,10 +70,10 @@ include("case_f_example.jl")
 
 1. create edges defined as hybrid or not
 
-2. create nodes with such edges
+2. create nodes defined as hybrid, leaves or tree with such edges
 
 3. setNode! to add nodes into edges
 
 4. create hybrid network
 
-5. updateGammaz! updateGamma2z!
+5. updateInCycle! updateGammaz! updateGamma2z! updateContainRoot!

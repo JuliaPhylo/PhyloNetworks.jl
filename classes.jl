@@ -25,37 +25,6 @@ include("bad_triangle_example.jl");
 # -------------- NETWORK ----------------------- #
 
 
-# old searchHybrid that traverses the graph looking for the hybrid node (assumes only one hybrid node)
-# (assumes only one hybrid, stops after finding one hybrid node)
-# visited=Array{Bool,1} created with same length as network.node and keeps track of which nodes have been visited
-# hybrid=Array{Bool,1} created with same length as network.node and keeps track of which node is the hybrid
-# (check: hybrid array needed to use because return function never worked!)
-# check: this is better or having attribute "visit::Bool" in Node and Edge for traversals?
-# maybe better to have attribute instead of creating new arrays everytime
-# cecile: ideas of preorder, postorder, inorder. in tree travsersals, you don't need to keep track of visited or not
-    # for network: isMajor edge treat as tree edge, then same traversal as tree
-# check: do we need traversals? we have node and edge arrays for the network.
-function searchHybrid(node::Node,visited::Array{Bool,1},net::HybridNetwork,hybrid::Array{Bool,1})
-    visited[getIndex(node,net)]=true;
-    if(node.hybrid)
-        #println("this is the hybrid: $(getIndex(node,net))")
-	hybrid[getIndex(node,net)]=true
-    elseif(node.hasHybEdge)
-         for(i=1:size(node.edge,1))
-             node.edge[i].hybrid ? searchHybrid(getOtherNode(node.edge[i],node),visited,net,hybrid): nothing;
-         end
-    else
-         i=1;
-         other=getOtherNode(node.edge[i],node);
-         while(i<=size(node.edge,1) && other.leaf && visited[getIndex(other,net)])
-              i=i+1;
-              other=getOtherNode(node.edge[i],node);
-         end
-         #println("vamos a ir a $(other.number)");
-         searchHybrid(other,visited,net,hybrid);
-    end
-end
-
 
 # cecile: check updategammaz function, maybe we need two functions, one to update when changing length
 # one to update when changing gamma? what i like about updategammaz is that you use that directly at the beginning
@@ -63,16 +32,46 @@ end
 # update gamma
 
 
+
+# function to traverse the network
+# simply prints the traversal path, can be modified to do other things
+# needs:
+visited=[false for i=1:size(net.node,1)];
+
+function traverse(net::HybridNetwork, node::Node, visited::Array{Bool,1})
+    println("estamos en $(node.number)");
+    visited[getIndex(node,net)]=true;
+    if(node.leaf)
+        println("llegamos a leaf $(node.number)");
+    else
+        for(i in 1:size(node.edge,1))
+            other=getOtherNode(node.edge[i],node);
+            if(!visited[getIndex(other,net)])
+                println("vamos a ir a $(other.number)");
+                traverse(net,other,visited);
+            end
+        end
+    end
+end
+
+# need function to check if after updateContainRoot! there is no place for the root
+# careful because updateContainRoot changes things, so maybe we want to be careful and only change
+# if the new hybridization is going to stay
+
+# think of the process of adding a hybrid edge:
+# updateInCycle: what happens if cycle intersects, can we go back?
+# updateContainRoot: what happens if containRoot is empty, can we go back?
+
 # todo: function to create an hybrid edge:
 # - make sure the hybridization is "identifiable": not between the same edge, or in a cherry
 # - detect whether the new cycle would overlap with another cycle already in the network.
 #   just check that the 2 edges to be connected are not already marked as
-#   being on a cycle.
-# - detect where the cycle is
-# - mark edges along the cycle with the number of the hybrid edge/node
+#   being on a cycle: updateInCycle! returns false
+# - detect where the cycle is: i think it always starts in the hybrid node, so simply use searchHybridNode, or use the hybrid node just created
+# - mark edges along the cycle with the number of the hybrid edge/node: updateInCycle!
 # - create the new nodes and edges, with correct hybrid labels
 # - mark which edges can contain the root, check that the set of edges that
-#   can contain the root is non-empty
+#   can contain the root is non-empty: updateContainRoot, still need function to check if empty
 # - check cycle configuration (value of k, and clade sizes ni)
 #   if bad triangle: set gammaz and gamma2z for appropriate nodes
 #   if bad diamond: gammaz for the "other" node (one just created) of each hybrid edge

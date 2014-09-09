@@ -51,3 +51,4 @@ node=searchHybridNode(net);
 updateInCycle!(net,node);
 updateGammaz!(net,node);
 updateGamma2z!(net,node);
+updateContainRoot!(net,node);

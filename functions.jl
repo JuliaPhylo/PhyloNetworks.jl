@@ -171,14 +171,15 @@ function searchHybridEdge(net::HybridNetwork)
     end
 end
 
-
+# print for every edge, nodes, inCycle, containRoot
 function printEdges(net::HybridNetwork)
-    println("Edge#\tNode1\tNode2\tInCycle")
+    println("Edge\tNode1\tNode2\tInCycle\tcontainRoot")
     for i in (1:net.numEdges)
-        println("$(net.edge[i].number)\t$(net.edge[i].node[1].number)\t$(net.edge[i].node[2].number)\t$(net.edge[i].inCycle)")
+        println("$(net.edge[i].number)\t$(net.edge[i].node[1].number)\t$(net.edge[i].node[2].number)\t$(net.edge[i].inCycle)\t$(net.edge[i].containRoot)")
     end;
 end;
 
+# print for every node, inCycle and edges
 function printNodes(net::HybridNetwork)
     println("Node#\tIn Cycle\tEdges numbers")
     for i in (1:net.numNodes)
@@ -217,8 +218,9 @@ end
 # input: hybrid node around which we want to update inCycle
 # needs module "DataStructure"
 # returns error if no cycle in the network
-# returns error if cycle intersects existing cycle
+# returns false if cycle intersects existing cycle
 #         (there is the possibility of returning edges in intersection: path)
+#         true if cycle does not intersect existing cycle
 # check: visited is an aux array, do we prefer as attribute in Node?
 # check: prev is attribute in Node, do we prefer as aux array?
 # warning: it is not checking if hybrid node or minor hybrid edge
@@ -267,7 +269,7 @@ function updateInCycle!(net::HybridNetwork,node::Node)
                     end
                 end
             end
-        end # while
+        end # end while
         curr=dequeue!(path);
         while(!isequal(curr, start))
             if(curr.inCycle!=-1)
@@ -281,7 +283,10 @@ function updateInCycle!(net::HybridNetwork,node::Node)
             end
         end
         if(!isempty(path))
-            error("new cycle intersects existing cycle")
+            #error("new cycle intersects existing cycle")
+            return false
+        else
+            return true
         end
     else
         error("node is not hybrid")
@@ -290,8 +295,8 @@ end
 
 
 # function to update gammaz in a network for one particular hybrid node (bad diamond case)
-# node: hybrid node around which we want to update gammaz
-# node can come from searchHybridNode
+# input: hybrid node around which we want to update gammaz
+#         (can come from searchHybridNode)
 # better to update one hybridization event at a time to avoid redundant updates
 # warning: update gammaz only inside the bad diamond case,
 # warning: needs to have inCycle attributes updated already
@@ -351,8 +356,8 @@ function updateGammaz!(net::HybridNetwork,node::Node)
 end
 
 # function to update gammaz in a network for one particular hybrid node (bad triangle case)
-# node: hybrid node around which we want to update gamma2z
-# node can come from searchHybridNode
+# input: hybrid node around which we want to update gamma2z
+#        (can come from searchHybridNode)
 # warning: update gammaz only inside the bad triangle case,
 # warning: needs to have inCycle attributes updated already
 # warning: assumes the network is identifiable, does not check if it is
@@ -397,6 +402,38 @@ function updateGamma2z!(net::HybridNetwork, node::Node)
     end
 end
 
+
+# function to traverse the network for updateContainRoot
+# it changes the containRoot argument to false
+# of all the edges visited
+function traverseContainRoot(net::HybridNetwork, node::Node, visited::Array{Bool,1})
+    visited[getIndex(node,net)]=true;
+    if(!node.leaf)
+        for(i in 1:size(node.edge,1))
+            other=getOtherNode(node.edge[i],node);
+            if(!visited[getIndex(other,net)])
+                node.edge[i].containRoot=false;
+                traverseContainRoot(net,other,visited);
+            end
+        end
+    end
+end
+
+
+# function to update containRoot (by default true)
+# depending on the network
+# input: hybrid node (can come from searchHybridNode)
+function updateContainRoot!(net::HybridNetwork, node::Node)
+    if(node.hybrid)
+        visited=[false for i=1:size(net.node,1)];
+        hybedges=hybridEdges(node);
+        visited[getIndex(getOtherNode(hybedges[1],node),net)]=true;
+        visited[getIndex(getOtherNode(hybedges[2],node),net)]=true;
+        traverseContainRoot(net,node,visited);
+    else
+        error("node is not hybrid")
+    end
+end
 
 
 # setLength using updateGammaz
