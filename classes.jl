@@ -16,13 +16,19 @@ include("types.jl")
 include("functions.jl")
 
 # needed modules:
-using DataStructures
+using DataStructures # for updateInCycle with queue
+using Base.Collections # for updateInCycle with priority queue
 
 # examples
 include("case_f_example.jl");
 include("bad_triangle_example.jl");
 
 # -------------- NETWORK ----------------------- #
+
+
+
+
+
 
 
 

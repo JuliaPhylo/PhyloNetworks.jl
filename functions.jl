@@ -174,31 +174,30 @@ end
 # print for every edge, nodes, inCycle, containRoot
 function printEdges(net::HybridNetwork)
     println("Edge\tNode1\tNode2\tInCycle\tcontainRoot")
-    for i in (1:net.numEdges)
-        println("$(net.edge[i].number)\t$(net.edge[i].node[1].number)\t$(net.edge[i].node[2].number)\t$(net.edge[i].inCycle)\t$(net.edge[i].containRoot)")
-    end;
-end;
+    for e in net.edge
+        println("$(e.number)\t$(e.node[1].number)\t$(e.node[2].number)\t$(e.inCycle)\t$(e.containRoot)")
+    end
+end
 
 # print for every node, inCycle and edges
 function printNodes(net::HybridNetwork)
-    println("Node#\tIn Cycle\tEdges numbers")
-    for i in (1:net.numNodes)
-        print("$(net.node[i].number)\t$(net.node[i].inCycle)")
-        for j in (1:length(net.node[i].edge))
-            print("\t$(net.node[i].edge[j].number)")
-        end;
+    println("Node\tIn Cycle\tEdges numbers")
+    for n in net.node
+        print("$(n.number)\t$(n.inCycle)")
+        for e in n.edge
+            print("\t$(e.number)")
+        end
         print("\n")
-    end;
-end;
+    end
+end
 
 # find the hybrid edges for a given hybrid node
 function hybridEdges(node::Node)
    if(node.hybrid)
-      n=size(node.edge,1);
       hybedges=Edge[];
-      for(i=1:n)
-        if(node.edge[i].hybrid)
-	   push!(hybedges,node.edge[i]);
+      for(e in node.edge)
+        if(e.hybrid)
+	   push!(hybedges,e);
 	end
       end
       if(size(hybedges,1)==2)
@@ -212,32 +211,38 @@ function hybridEdges(node::Node)
 end
 
 
-
-# function to update inCycle after becoming part of a network
-# based on program 3 CS367
+# function to update inCycle (with priority queue) after becoming part of a network
+# based on program 3 CS367 with priority queue
+# expected to be much faster than the other two udpateInCycle (queue and recursive)
 # input: hybrid node around which we want to update inCycle
-# needs module "DataStructure"
+# needs module "Base.Collections"
 # returns error if no cycle in the network
 # returns false if cycle intersects existing cycle
 #         (there is the possibility of returning edges in intersection: path)
 #         true if cycle does not intersect existing cycle
-# check: visited is an aux array, do we prefer as attribute in Node?
+# calculates also the number of nodes in the cycle and put as hybrid node attribute "k"
+# check: visited is an aux array, do we prefer as attribute in Node? other data structure more efficient?
 # check: prev is attribute in Node, do we prefer as aux array?
 # warning: it is not checking if hybrid node or minor hybrid edge
 #          were already part of a cycle (inCycle!=-1)
 #          But it is checking so for the other edges in cycle
+# warning: it needs extra things: visited array, prev attribute
+#          unlike updateInCycle recursive, but it is expected
+#          to be much faster
 function updateInCycle!(net::HybridNetwork,node::Node)
     if(node.hybrid)
         start=node;
         node.inCycle=node.number;
+        node.k=1;
         hybedge=getHybridEdge(node);
         hybedge.inCycle=node.number;
         last=getOtherNode(hybedge,node);
-        queue=Queue(Node);
-        path=Queue(Node);
+        dist=0;
+        queue=PriorityQueue();
+        path=Node[];
         found=false;
         visited=[false for i=1:size(net.node,1)];
-        enqueue!(queue,node);
+        enqueue!(queue,node,dist);
         while(!found)
             if(isempty(queue))
                 error("no cycle in network")
@@ -245,24 +250,26 @@ function updateInCycle!(net::HybridNetwork,node::Node)
                 curr=dequeue!(queue);
                 if(isequal(curr,last))
                     found=true;
-                    enqueue!(path,curr);
+                    push!(path,curr);
                 else
                     if(!visited[getIndex(curr,net)])
                         visited[getIndex(curr,net)]=true;
                         if(isequal(curr,start))
-                            for(i in 1:size(curr.edge,1))
-                                if(curr.edge[i].isMajor && curr.edge[i].hybrid)
-                                    other=getOtherNode(curr.edge[i],curr);
+                            for(e in curr.edge)
+                                if(e.isMajor && e.hybrid)
+                                    other=getOtherNode(e,curr);
                                     other.prev=curr;
-                                    enqueue!(queue,other);
+                                    dist=dist+1;
+                                    enqueue!(queue,other,dist);
                                 end
                             end
                         else
-                            for(i in 1:size(curr.edge,1))
-                                other=getOtherNode(curr.edge[i],curr);
+                            for(e in curr.edge)
+                                other=getOtherNode(e,curr);
                                 if(!other.leaf && !visited[getIndex(other,net)])
                                     other.prev=curr;
-                                    enqueue!(queue,other);
+                                    dist=dist+1;
+                                    enqueue!(queue,other,dist);
                                 end
                             end
                         end
@@ -270,13 +277,14 @@ function updateInCycle!(net::HybridNetwork,node::Node)
                 end
             end
         end # end while
-        curr=dequeue!(path);
+        curr=pop!(path);
         while(!isequal(curr, start))
             if(curr.inCycle!=-1)
-                enqueue!(path,curr);
+                Data.Structures.enqueue!(path,curr);
                 curr=curr.prev;
             else
                 curr.inCycle=start.number;
+                node.k = node.k + 1;
                 edge=getConnectingEdge(curr,curr.prev);
                 edge.inCycle=start.number;
                 curr=curr.prev;
@@ -315,34 +323,34 @@ function updateGammaz!(net::HybridNetwork,node::Node)
         tree_edge1=nothing;
         tree_edge2=nothing;
         tree_edge3=nothing;
-        for(i=1:size(node.edge,1))
+        for(e in node.edge)
             if(isa(edge_maj,Nothing))
-	       edge_maj=(node.edge[i].hybrid && node.edge[i].isMajor)? node.edge[i]:nothing;
+	       edge_maj=(e.hybrid && e.isMajor)? e : nothing;
             end
             if(isa(edge_min,Nothing))
-               edge_min=(node.edge[i].hybrid && !node.edge[i].isMajor)? node.edge[i]:nothing;
+               edge_min=(e.hybrid && !e.isMajor)? e : nothing;
             end
             if(isa(tree_edge2,Nothing))
-              tree_edge2=(!node.edge[i].hybrid && node.edge[i].inCycle == -1)? node.edge[i]:nothing;
+              tree_edge2=(!e.hybrid && e.inCycle == -1)? e : nothing;
             end
 
         end
         other_maj=getOtherNode(edge_maj,node);
         other_min=getOtherNode(edge_min,node);
-        for(j=1:size(other_min.edge,1))
+        for(e in other_min.edge)
             if(isa(edge_min2,Nothing))
-               edge_min2=(!other_min.edge[j].hybrid && other_min.edge[j].inCycle != -1)? other_min.edge[j]:nothing;
+               edge_min2=(!e.hybrid && e.inCycle != -1)? e : nothing;
             end
             if(isa(tree_edge3,Nothing))
-              tree_edge3=(!other_min.edge[j].hybrid && other_min.edge[j].inCycle == -1)? other_min.edge[j]:nothing;
+              tree_edge3=(!e.hybrid && e.inCycle == -1)? e : nothing;
             end
         end
-        for(j=1:size(other_maj.edge,1))
+        for(e in other_maj.edge)
             if(isa(edge_maj2,Nothing))
-              edge_maj2=(!other_maj.edge[j].hybrid && other_maj.edge[j].inCycle != -1)? other_maj.edge[j]:nothing;
+              edge_maj2=(!e.hybrid && e.inCycle != -1)? e : nothing;
             end
             if(isa(tree_edge1,Nothing))
-              tree_edge1=(!other_maj.edge[j].hybrid && other_maj.edge[j].inCycle == -1)? other_maj.edge[j]:nothing;
+              tree_edge1=(!e.hybrid && e.inCycle == -1)? e : nothing;
             end
         end
         if(isequal(getOtherNode(edge_min2,other_min),getOtherNode(edge_maj2,other_maj)) && getOtherNode(tree_edge1,other_maj).leaf && getOtherNode(tree_edge2,node).leaf && getOtherNode(tree_edge3,other_min).leaf) # if this, you have bad diamond (or opposite direction of bad diamond)
@@ -372,24 +380,24 @@ function updateGamma2z!(net::HybridNetwork, node::Node)
         edge_min=nothing;
         edge_maj2=nothing;
         edge_min2=nothing;
-        for(i=1:size(node.edge,1))
+        for(e in node.edge)
             if(isa(edge_maj,Nothing))
-	       edge_maj=(node.edge[i].hybrid && node.edge[i].isMajor)? node.edge[i]:nothing;
+	       edge_maj=(e.hybrid && e.isMajor)? e:nothing;
             end
             if(isa(edge_min,Nothing))
-               edge_min=(node.edge[i].hybrid && !node.edge[i].isMajor)? node.edge[i]:nothing;
+               edge_min=(e.hybrid && !e.isMajor)? e:nothing;
             end
         end
         other_maj=getOtherNode(edge_maj,node);
         other_min=getOtherNode(edge_min,node);
         tree_edge=nothing;
         tree_edge_incycle=nothing;
-        for(i=1:size(other_min.edge,1))
+        for(e in other_min.edge)
             if(isa(tree_edge,Nothing))
-	       tree_edge=(!other_min.edge[i].hybrid && other_min.edge[i].inCycle==-1)? other_min.edge[i]:nothing;
+	       tree_edge=(!e.hybrid && e.inCycle==-1)? e:nothing;
             end
             if(isa(tree_edge_incycle,Nothing))
-	       tree_edge_incycle=(!other_min.edge[i].hybrid && other_min.edge[i].inCycle!=-1)? other_min.edge[i]:nothing;
+	       tree_edge_incycle=(!e.hybrid && e.inCycle!=-1)? e:nothing;
             end
         end
         isLeaf=getOtherNode(tree_edge,other_min);
@@ -406,14 +414,14 @@ end
 # function to traverse the network for updateContainRoot
 # it changes the containRoot argument to false
 # of all the edges visited
-function traverseContainRoot(net::HybridNetwork, node::Node, visited::Array{Bool,1})
-    visited[getIndex(node,net)]=true;
+# changed to recursive after Cecile's idea
+function traverseContainRoot(node::Node, edge::Edge)
     if(!node.leaf)
-        for(i in 1:size(node.edge,1))
-            other=getOtherNode(node.edge[i],node);
-            if(!visited[getIndex(other,net)])
-                node.edge[i].containRoot=false;
-                traverseContainRoot(net,other,visited);
+        for(e in node.edge)
+            if(!isequal(edge,e))
+                other=getOtherNode(e,node);
+                e.containRoot=false;
+                traverseContainRoot(other,e);
             end
         end
     end
@@ -425,11 +433,13 @@ end
 # input: hybrid node (can come from searchHybridNode)
 function updateContainRoot!(net::HybridNetwork, node::Node)
     if(node.hybrid)
-        visited=[false for i=1:size(net.node,1)];
-        hybedges=hybridEdges(node);
-        visited[getIndex(getOtherNode(hybedges[1],node),net)]=true;
-        visited[getIndex(getOtherNode(hybedges[2],node),net)]=true;
-        traverseContainRoot(net,node,visited);
+        for (e in node.edge)
+            if(!e.hybrid)
+                other=getOtherNode(e,node);
+                e.containRoot=false;
+                traverseContainRoot(other,e);
+            end
+        end
     else
         error("node is not hybrid")
     end
@@ -499,8 +509,8 @@ end
 function getHybridEdge(node::Node)
     if(node.hybrid)
         a=nothing;
-        for(i in 1:size(node.edge,1))
-            (node.edge[i].hybrid && !node.edge[i].isMajor) ? a=node.edge[i] : nothing;
+        for(e in node.edge)
+            (e.hybrid && !e.isMajor) ? a=e : nothing;
         end
         isa(a,Nothing) ? error("hybrid node does not have minor hybrid edge") : return a
     else
