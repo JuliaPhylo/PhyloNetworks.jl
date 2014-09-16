@@ -32,18 +32,20 @@ type Edge
     # -1 if not part of cycle. used to add new hybrid edge. updated after edge is part of a network
     containRoot::Bool # true if this edge can contain a root given the direction of hybrid edges
                       # used to add new hybrid edge. updated after edge is part of a network
+    istIdentifiable::Bool # true if the parameter t (length) for this edge is identifiable as part of a network
+                          # updated after part of a network
     # inner constructors: ensure congruence among (length, y, z) and (gamma, hybrid, isMajor), and size(node)=2
-    Edge(number::Int64, length::Float64) = new(number,length,false,exp(-length),1-exp(-length),1.,[],true,true,-1,true)
-    Edge(number::Int64, length::Float64,hybrid::Bool,gamma::Float64)= new(number,length,hybrid,exp(-length),1-exp(-length),hybrid?gamma:1.,[],true,(!hybrid || gamma>0.5)?true:false,-1,true)
+    Edge(number::Int64, length::Float64) = new(number,length,false,exp(-length),1-exp(-length),1.,[],true,true,-1,true,true)
+    Edge(number::Int64, length::Float64,hybrid::Bool,gamma::Float64)= new(number,length,hybrid,exp(-length),1-exp(-length),hybrid?gamma:1.,[],true,(!hybrid || gamma>0.5)?true:false,-1,true,true)
     function Edge(number::Int64, length::Float64,hybrid::Bool,gamma::Float64,node::Array{ANode,1})
         size(node,1) != 2 ?
         error("vector of nodes must have exactly 2 values") :
-        new(number,length,hybrid,exp(-length),1-exp(-length),hybrid?gamma:1.,node,true,(!hybrid || gamma>0.5)?true:false,-1,true)
+        new(number,length,hybrid,exp(-length),1-exp(-length),hybrid?gamma:1.,node,true,(!hybrid || gamma>0.5)?true:false,-1,true,true)
     end
-    function Edge(number::Int64, length::Float64,hybrid::Bool,gamma::Float64,node::Array{ANode,1},isChild1::Bool, inCycle::Int32, containRoot::Bool)
+    function Edge(number::Int64, length::Float64,hybrid::Bool,gamma::Float64,node::Array{ANode,1},isChild1::Bool, inCycle::Int32, containRoot::Bool, istIdentifiable::Bool)
         size(node,1) != 2 ?
         error("vector of nodes must have exactly 2 values") :
-        new(number,length,hybrid,exp(-length),1-exp(-length),hybrid?gamma:1.,node,isChild1,(!hybrid || gamma>0.5)?true:false,inCycle,containRoot)
+        new(number,length,hybrid,exp(-length),1-exp(-length),hybrid?gamma:1.,node,isChild1,(!hybrid || gamma>0.5)?true:false,inCycle,containRoot,istIdentifiable)
     end
 end
 
@@ -57,7 +59,7 @@ type Node <: ANode
     edge::Array{Edge,1}
     hasHybEdge::Bool #is there a hybrid edge in edge? only needed when hybrid=false (tree node)
     isBadDiamond::Bool # for hybrid node, is it bad diamond case, update in updateGammaz!
-    isBadTriangle::Bool # for hybrid node, is it bad triangle case, udpate in updateGamma2z!
+    isBadTriangle::Bool # for hybrid node, is it bad triangle case, udpate in updateGammaz!
     inCycle::Int64 # = hybrid node if this node is part of a cycle created by such hybrid node, -1 if not part of cycle
     prev # previous node in cycle, used in updateInCycle. defined as "Any", set as "nothing" to begin with
     k::Int64 # number of nodes in cycle, only stored in hybrid node and updated after node becomes part of network

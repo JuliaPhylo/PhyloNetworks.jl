@@ -31,7 +31,6 @@ include("bad_triangle_example.jl");
 
 
 
-
 # cecile: check updategammaz function, maybe we need two functions, one to update when changing length
 # one to update when changing gamma? what i like about updategammaz is that you use that directly at the beginning
 # of network, so maybe we should consider doing things ourselves inside setLength and setGamma, instead of calling
@@ -42,16 +41,16 @@ include("bad_triangle_example.jl");
 # function to traverse the network
 # simply prints the traversal path, can be modified to do other things
 # needs:
-visited=[false for i=1:size(net.node,1)];
+visited  =  [false for i  =  1:size(net.node,1)];
 
 function traverse(net::HybridNetwork, node::Node, visited::Array{Bool,1})
     println("estamos en $(node.number)");
-    visited[getIndex(node,net)]=true;
+    visited[getIndex(node,net)]  =  true;
     if(node.leaf)
         println("llegamos a leaf $(node.number)");
     else
         for(i in 1:size(node.edge,1))
-            other=getOtherNode(node.edge[i],node);
+            other  =  getOtherNode(node.edge[i],node);
             if(!visited[getIndex(other,net)])
                 println("vamos a ir a $(other.number)");
                 traverse(net,other,visited);
@@ -87,7 +86,7 @@ end
 
 # todo: functions to propose a new network
 # example: pick 2 edges and add a hybrid edge to link the 2
-# todo: function to change direction of hybrid edge (hybrid edge=hybrid&&!isMajor),
+# todo: function to change direction of hybrid edge (hybrid edge  =  hybrid&&!isMajor),
 #                    source or recipient of either hybrid edge, to propose new network
 
 
