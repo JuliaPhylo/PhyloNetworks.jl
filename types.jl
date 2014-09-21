@@ -27,7 +27,7 @@ type Edge
     node::Array{ANode,1} # we can also leave blank: node (see issues.jl)
     isChild1::Bool # used for hybrid edges to set the direction (default true)
     isMajor::Bool  # major edge treated as tree edge for network traversal
-                   # true if gamma>.5, cannot be set in constructor
+                   # true if gamma>.5, or if it is the original tree edge
     inCycle::Int64 # = Hybrid node number if this edge is part of a cycle created by such hybrid node
     # -1 if not part of cycle. used to add new hybrid edge. updated after edge is part of a network
     containRoot::Bool # true if this edge can contain a root given the direction of hybrid edges
@@ -37,6 +37,7 @@ type Edge
     # inner constructors: ensure congruence among (length, y, z) and (gamma, hybrid, isMajor), and size(node)=2
     Edge(number::Int64, length::Float64) = new(number,length,false,exp(-length),1-exp(-length),1.,[],true,true,-1,true,true)
     Edge(number::Int64, length::Float64,hybrid::Bool,gamma::Float64)= new(number,length,hybrid,exp(-length),1-exp(-length),hybrid?gamma:1.,[],true,(!hybrid || gamma>0.5)?true:false,-1,true,true)
+        Edge(number::Int64, length::Float64,hybrid::Bool,gamma::Float64,isMajor::Bool)= new(number,length,hybrid,exp(-length),1-exp(-length),hybrid?gamma:1.,[],true,isMajor,-1,true,true)
     function Edge(number::Int64, length::Float64,hybrid::Bool,gamma::Float64,node::Array{ANode,1})
         size(node,1) != 2 ?
         error("vector of nodes must have exactly 2 values") :

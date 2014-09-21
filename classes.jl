@@ -23,11 +23,67 @@ using Base.Collections # for updateInCycle with priority queue
 include("case_f_example.jl");
 include("bad_triangle_example.jl");
 
+include("tree_example.jl");
 # -------------- NETWORK ----------------------- #
 
-
-
-
+# function to delete a hybridization event
+# input: hybrid node and network
+function deleteHybrid!(node::Node,net::HybridNetwork)
+    if(node.hybrid)
+        hybedges = hybridEdges(node);
+        if(hybedges[1].isMajor)
+            hybedge1 = hybedges[1];
+            hybedge2 = hybedges[2];
+        else
+            hybedge1 = hybedges[2];
+            hybedge2 = hybedges[1];
+        end
+        other1 = getOtherNode(hybedge1,node);
+        other2 = getOtherNode(hybedge2,node);
+        for(e in node.edge)
+            if(!e.hybrid)
+                treeedge1 = e;
+                other3 = getOtherNode(e,node);
+            end
+        end
+        max_node = maximum([e.number for e in net.node]);
+        max_edge = maximum([e.number for e in net.edge]);
+        edge1 = Edge(max_edge+1,hybedge1.length+treeedge1.length);
+        setNode!(edge1,[other1,other3]);
+        removeEdge!(other1,hybedge1);
+        setEdge!(other1,edge1);
+        removeEdge!(other3,treeedge1);
+        setEdge!(other3,edge1);
+        index = getIndex(hybedge1,net);
+        deleteat!(net.edge,index);
+        index = getIndex(hybedge2,net);
+        deleteat!(net.edge,index);
+        index = getIndex(treeedge1,net);
+        deleteat!(net.edge,index);
+        index = getIndex(other2,net);
+        deleteat!(net.edge,index);
+        index = getIndex(node,net);
+        deleteat!(net.edge,index);
+        push!(net.edge,edge1);
+        tree_edge = Edge[];
+        for(e in other2.edge)
+            if(!e.hybrid)
+                push!(tree_edge,e);
+            end
+        end
+        #assume node has only 2 tree edges
+        treenode1 = getOtherNode(tree_edge[1],other2);
+        treenode2 = getOtherNode(tree_edge[2],other2);
+        edge2 = Edge(max_edge+2,tree_edge[1].length+tree_edge[2].length);
+        setNode!(edge2,[treenode1,treenode2]);
+        removeEdge!(treenode1,tree_edge[1]);
+        removeEdge!(treenode2,tree_edge[2]);
+        setEdge!(treenode1,edge2);
+        setEdge!(treenode2,edge2);
+    else
+        error("node has to be hybrid")
+    end
+end
 
 
 
