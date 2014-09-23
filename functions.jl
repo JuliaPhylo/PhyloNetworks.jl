@@ -137,6 +137,16 @@ function getIndexNumNode(number::Int64,net::HybridNetwork)
     end
 end
 
+# find the index in net.edge for a edge with given number
+# warning: assumes number uniquely determined
+function getIndexNumEdge(number::Int64,net::HybridNetwork)
+    if(sum([net.edge[i].number == number?1:0 for i = 1:size(net.edge,1)]) == 0)
+        error("edge number $(number) not in network")
+    else
+        getIndex(true,[net.edge[i].number == number for i = 1:size(net.edge,1)])
+    end
+end
+
 
 # function that given a hybrid node, it gives you the minor hybrid edge
 function getHybridEdge(node::Node)
@@ -227,17 +237,17 @@ end
 
 # print for every edge, nodes, inCycle, containRoot, istIdentifiable
 function printEdges(net::HybridNetwork)
-    println("Edge\tNode1\tNode2\tInCycle\tcontainRoot\tistIdentitiable\tLength\isHybrid")
+    println("Edge\tNode1\tNode2\tInCycle\tcontainRoot\tistIdentitiable\tLength\tisHybrid")
     for e in net.edge
-        println("$(e.number)\t$(e.node[1].number)\t$(e.node[2].number)\t$(e.inCycle)\t$(e.containRoot)\t\t$(e.istIdentifiable)\t$(e.length)\t$(e.hybrid)")
+        println("$(e.number)\t$(e.node[1].number)\t$(e.node[2].number)\t$(e.inCycle)\t$(e.containRoot)\t\t$(e.istIdentifiable)\t\t$(e.length)\t$(e.hybrid)")
     end
 end
 
 # print for every node, inCycle and edges
 function printNodes(net::HybridNetwork)
-    println("Node\tIn Cycle\tEdges numbers")
+    println("Node\tIn Cycle\tisHybrid\thasHybEdge\tEdges numbers")
     for n in net.node
-        print("$(n.number)\t$(n.inCycle)")
+        print("$(n.number)\t$(n.inCycle)\t\t$(n.hybrid)\t$(n.hasHybEdge)\t")
         for e in n.edge
             print("\t$(e.number)")
         end
@@ -245,25 +255,53 @@ function printNodes(net::HybridNetwork)
     end
 end
 
-# find the hybrid edges for a given hybrid node
+# find the edges for a given hybrid node
+# in the order: hybrid major, hybrid minor, tree edge
 function hybridEdges(node::Node)
    if(node.hybrid)
-      hybedges = Edge[];
-      for(e in node.edge)
-        if(e.hybrid)
-	   push!(hybedges,e);
-	end
-      end
-      if(size(hybedges,1) == 2)
-        return hybedges
-      else
-        error("node has more or less than 2 hybrid edges");
-      end
+       if(size(node.edge,1) == 3)
+           hybmajor = nothing;
+           hybminor = nothing;
+           tree = nothing;
+           for(e in node.edge)
+               (e.hybrid && e.isMajor) ? hybmajor = e : nothing
+               (e.hybrid && !e.isMajor) ? hybminor = e : nothing
+               !e.hybrid ? tree = e : nothing
+           end
+           return hybmajor, hybminor, tree
+       else
+           error("node has more or less than 3 edges");
+       end
    else
-      error("node is not hybrid");
+       error("node is not hybrid");
    end
 end
 
+
+# function to remove an edge from a node
+# warning: deletion is final, you can only
+#          have edge back by pushing it again
+# warning: if the edge removed is hybrid and node is tree,
+#          node.hasHybEdge is set to false
+#          assuming any tree node can only have one
+#          one hybrid edge
+function removeEdge!(node::Node,edge::Edge)
+    try
+        index = getIndexEdge(edge,node);
+    catch e
+        if isa(e, ErrorException)
+            error("edge not in node")
+        end
+    end
+    index = getIndexEdge(edge,node);
+    deleteat!(node.edge,index);
+    if(edge.hybrid && !node.hybrid)
+        node.hasHybEdge = false;
+    end
+end
+
+
+# --------------------------------------- update incycle, root, gammaz -------------------------------------------
 
 # function to update inCycle (with priority queue) after becoming part of a network
 # based on program 3 CS367 with priority queue
@@ -271,7 +309,6 @@ end
 # input: hybrid node around which we want to update inCycle
 # needs module "Base.Collections"
 # returns tuple: flag, nocycle, array of edges changed, array of nodes changed
-#                      without including the minor hybrid edge and hybrid node
 #   flag: false if cycle intersects existing cycle or number of nodes in cycle < 3
 #         (there is the possibility of returning edges in intersection: path)
 #         true if cycle does not intersect existing cycle
@@ -298,6 +335,8 @@ function updateInCycle!(net::HybridNetwork,node::Node)
         path = Node[];
         edges_changed = Edge[];
         nodes_changed = Node[];
+        push!(edges_changed,hybedge);
+        push!(nodes_changed,node);
         found = false;
         visited = [false for i = 1:size(net.node,1)];
         enqueue!(queue,node,dist);
@@ -472,6 +511,8 @@ function updateGammaz!(net::HybridNetwork, node::Node)
                 edge_min.istIdentifiable = false;
                 push!(edges_changed,edge_min2);
                 push!(edges_changed,edge_maj2);
+                push!(edges_changed,edge_min);
+                push!(edges_changed,edge_maj);
                 node.isBadDiamond = true;
             else
                 node.isBadDiamond = false;
@@ -525,6 +566,8 @@ function updateGammaz!(net::HybridNetwork, node::Node)
                 node.isBadTriangle = true;
                 push!(edges_changed,tree_edge_incycle);
                 push!(edges_changed,tree_edge2);
+                push!(edges_changed,edge_maj);
+                push!(edges_changed,edge_min);
                 tree_edge2.length = 0.0;
                 edge_min.length = 0.0;
             elseif(!isLeaf1.leaf && !isLeaf2.leaf && isLeaf3.leaf) # set to zero case1
@@ -538,15 +581,18 @@ function updateGammaz!(net::HybridNetwork, node::Node)
                 edge_min.istIdentifiable = false;
                 push!(edges_changed,tree_edge2);
                 push!(edges_changed,tree_edge1);
+                push!(edges_changed,edge_min);
                 node.isBadTriangle = false;
             elseif(!isLeaf1.leaf && isLeaf2.leaf && !isLeaf3.leaf) # set to zero case2
                 tree_edge_incycle.length = tree_edge_incycle.length + tree_edge1.length;
                 tree_edge1.length = 0.0;
                 edge_min.length = 0.0;
                 tree_edge1.istIdentifiable = false;
+                edge_min.istIdentifiable = false;
                 push!(edges_changed,tree_edge1);
+                push!(edges_changed,edge_min);
                 node.isBadTriangle = false;
-            elseif(sum([isLeaf1?1:0, isLeaf2?1:0, isLeaf3?1:0]) == 2) # non identifiable network
+            elseif(sum([isLeaf1.leaf?1:0, isLeaf2.leaf?1:0, isLeaf3.leaf?1:0]) == 2) # non identifiable network
                 return false, edges_changed
             end
         end
@@ -557,90 +603,8 @@ function updateGammaz!(net::HybridNetwork, node::Node)
 end
 
 
-# function to remove an edge from a node
-# warning: deletion is final, you can only
-#          have edge back by pushing it again
-# warning: if the edge removed is hybrid and node is tree,
-#          node.hasHybEdge is set to false
-#          assuming any tree node can only have one
-#          one hybrid edge
-function removeEdge!(node::Node,edge::Edge)
-    try
-        index = getIndexEdge(edge,node);
-    catch e
-        if isa(e, ErrorException)
-            error("edge not in node")
-        end
-    end
-    index = getIndexEdge(edge,node);
-    deleteat!(node.edge,index);
-    if(edge.hybrid && !node.hybrid)
-        node.hasHybEdge = false;
-    end
-end
 
-
-
-# function to add hybridization event
-# input: edge1, edge2 are the edges to remove
-#        edge3, edge4, edge5 are the new tree edges to add
-#        net is the network
-#        gamma is the gamma for the hybridization
-# warning: assumes that edge1, edge2 are tree edges with inCycle=-1
-#          assumes the hybrid edge goes from edge1 to edge2
-#          sets minor hybrid edge length to zero
-# this function create the hybrid node/edges and connect everything
-# and deletes edge1,2 from the nodes, and removes the nodes from edge1,2
-# returns the hybrid node to start future updates there
-function createHybrid!(edge1::Edge, edge2::Edge, edge3::Edge, edge4::Edge, edge5::Edge, net::HybridNetwork, gamma::Float64)
-    if(0 < gamma < 1)
-        (edge1.hybrid || edge2.hybrid) ? error("edges to delete must be tree edges") : nothing
-        (edge3.hybrid || edge4.hybrid || edge5.hybrid) ? error("edges to add must be tree edges") : nothing
-        (edge3.length + edge4.length != edge1.length) ? error("lengths for edge3,4 are not set to sum to length of edge1") : nothing
-        (edge5.length > edge2.length) ? error("length of edge5 must be smaller than length of edge2") : nothing
-        push!(net.edge,edge3);
-        push!(net.edge,edge4);
-        push!(net.edge,edge5);
-        # create hybridization
-        max_node = maximum([e.number for e in net.node]);
-        max_edge = maximum([e.number for e in net.edge]);
-        hybrid_edge1 = Edge(max_edge+1,0.,true,gamma,false);
-        hybrid_edge2 = Edge(max_edge+2,edge2.length-edge5.length,true,1-gamma,true);
-        hybrid_node = Node(max_node+1,false,true,[hybrid_edge1,hybrid_edge2,edge5]);
-        tree_node = Node(max_node+2,false,false,[edge3,edge4,hybrid_edge1]);
-        setNode!(hybrid_edge1,[tree_node,hybrid_node]);
-        setNode!(hybrid_edge2,[hybrid_node,edge2.node[1]]);
-        setNode!(edge3,[tree_node,edge1.node[1]]);
-        setNode!(edge4,[tree_node,edge1.node[2]]);
-        setNode!(edge5,[hybrid_node,edge2.node[2]]);
-        push!(net.edge,hybrid_edge1);
-        push!(net.edge,hybrid_edge2);
-        push!(net.node,hybrid_node);
-        push!(net.node,tree_node);
-        # reconnect
-        setEdge!(edge1.node[1],edge3);
-        setEdge!(edge1.node[2],edge4);
-        setEdge!(edge2.node[1],hybrid_edge2);
-        setEdge!(edge2.node[2],edge5);
-        # delete old edges
-        removeEdge!(edge1.node[1],edge1);
-        removeEdge!(edge1.node[2],edge1);
-        removeEdge!(edge2.node[1],edge2);
-        removeEdge!(edge2.node[2],edge2);
-        deleteat!(edge1.node,1);
-        deleteat!(edge1.node,1);
-        deleteat!(edge2.node,1);
-        deleteat!(edge2.node,1);
-        index1 = getIndex(edge1,net);
-        deleteat!(net.edge,index1);
-        index2 = getIndex(edge2,net);
-        deleteat!(net.edge,index2);
-        return hybrid_node
-    else
-        error("gamma must be between 0 and 1")
-    end
-end
-
+# ---------------------------------------- delete/undo new hybridization --------------------------------
 
 # function to delete a hybridization event
 # input: hybrid node and network
@@ -654,25 +618,12 @@ end
 function deleteHybrid!(node::Node,net::HybridNetwork)
     if(node.hybrid)
         hybedges = hybridEdges(node);
-        if(hybedges[1].isMajor)
-            hybedge1 = hybedges[1];
-            hybedge2 = hybedges[2];
-        else
-            hybedge1 = hybedges[2];
-            hybedge2 = hybedges[1];
-        end
+        hybedge1 = hybedges[1];
+        hybedge2 = hybedges[2];
         other1 = getOtherNode(hybedge1,node);
         other2 = getOtherNode(hybedge2,node);
-        treeedge1 = nothing;
-        other3 = nothing;
-        for(e in node.edge)
-            if(isa(treeedge1,Nothing))
-                treeedge1 = !e.hybrid ? e : nothing;
-            end
-            if(!isa(treeedge1,Nothing))
-                other3 = getOtherNode(e,node);
-            end
-        end
+        treeedge1 = hybedges[3];
+        other3 =  getOtherNode(treeedge1,node);
         max_node = maximum([e.number for e in net.node]);
         max_edge = maximum([e.number for e in net.edge]);
         edge1 = Edge(max_edge+1,hybedge1.length+treeedge1.length);
@@ -746,6 +697,204 @@ function undoistIdentifiable!(edges::Array{Edge,1})
     end
 end
 
+
+# ------------------------------------------------ add new hybridization------------------------------------
+
+
+# function to add hybridization event
+# input: edge1, edge2 are the edges to remove
+#        edge3, edge4, edge5 are the new tree edges to add
+#        net is the network
+#        gamma is the gamma for the hybridization
+# warning: assumes that edge1, edge2 are tree edges with inCycle=-1
+#          assumes the hybrid edge goes from edge1 to edge2
+#          sets minor hybrid edge length to zero
+# this function create the hybrid node/edges and connect everything
+# and deletes edge1,2 from the nodes, and removes the nodes from edge1,2
+# returns the hybrid node to start future updates there
+function createHybrid!(edge1::Edge, edge2::Edge, edge3::Edge, edge4::Edge, edge5::Edge, net::HybridNetwork, gamma::Float64)
+    if(0 < gamma < 1)
+        (edge1.hybrid || edge2.hybrid) ? error("edges to delete must be tree edges") : nothing
+        (edge3.hybrid || edge4.hybrid || edge5.hybrid) ? error("edges to add must be tree edges") : nothing
+        (edge3.length + edge4.length != edge1.length) ? error("lengths for edge3,4 are not set to sum to length of edge1") : nothing
+        (edge5.length > edge2.length) ? error("length of edge5 must be smaller than length of edge2") : nothing
+        push!(net.edge,edge3);
+        push!(net.edge,edge4);
+        push!(net.edge,edge5);
+        # create hybridization
+        max_node = maximum([e.number for e in net.node]);
+        max_edge = maximum([e.number for e in net.edge]);
+        hybrid_edge1 = Edge(max_edge+1,0.,true,gamma,false);
+        hybrid_edge2 = Edge(max_edge+2,edge2.length-edge5.length,true,1-gamma,true);
+        hybrid_node = Node(max_node+1,false,true,[hybrid_edge1,hybrid_edge2,edge5]);
+        tree_node = Node(max_node+2,false,false,[edge3,edge4,hybrid_edge1]);
+        setNode!(hybrid_edge1,[tree_node,hybrid_node]);
+        setNode!(hybrid_edge2,[hybrid_node,edge2.node[1]]);
+        setNode!(edge3,[tree_node,edge1.node[1]]);
+        setNode!(edge4,[tree_node,edge1.node[2]]);
+        setNode!(edge5,[hybrid_node,edge2.node[2]]);
+        push!(net.edge,hybrid_edge1);
+        push!(net.edge,hybrid_edge2);
+        push!(net.node,hybrid_node);
+        push!(net.node,tree_node);
+        # reconnect
+        setEdge!(edge1.node[1],edge3);
+        setEdge!(edge1.node[2],edge4);
+        setEdge!(edge2.node[1],hybrid_edge2);
+        setEdge!(edge2.node[2],edge5);
+        # delete old edges
+        removeEdge!(edge1.node[1],edge1);
+        removeEdge!(edge1.node[2],edge1);
+        removeEdge!(edge2.node[1],edge2);
+        removeEdge!(edge2.node[2],edge2);
+        deleteat!(edge1.node,1);
+        deleteat!(edge1.node,1);
+        deleteat!(edge2.node,1);
+        deleteat!(edge2.node,1);
+        index1 = getIndex(edge1,net);
+        deleteat!(net.edge,index1);
+        index2 = getIndex(edge2,net);
+        deleteat!(net.edge,index2);
+        return hybrid_node
+    else
+        error("gamma must be between 0 and 1")
+    end
+end
+
+# aux function to addHybridization
+# it chooses the edges in the network and the gamma value
+# warning: chooses edge1, edge2, gamma randomly, but
+#          we could do better later
+# check: gamma is uniform(0,1/2) to avoid big gammas
+function chooseEdgesGamma(net::HybridNetwork)
+    index1 = 1;
+    index2 = 1;
+    while(index1 == index2 || index1 == 0 || index2 == 0 || index1 > size(net.edge,1) || index2 > size(net.edge,1) || net.edge[index1].inCycle != -1 || net.edge[index2].inCycle != -1)
+        index1 = iround(rand()*size(net.edge,1));
+        index2 = iround(rand()*size(net.edge,1));
+    end
+    edge1 = net.edge[index1];
+    edge2 = net.edge[index2];
+    gamma = rand()*0.5;
+    println("from $(edge1.number) to $(edge2.number), $(gamma)");
+end
+
+
+# aux function for addHybridization
+# that takes the output edge1, edge2, gamma from
+# chooseEdgesGamma and created necessary edges
+# returns edge3, edge4, edge5
+function parameters4createHybrid(edge1::Edge, edge2::Edge)
+    t1 = rand()*edge1.length;
+    t2 = rand()*edge2.length;
+    max_edge = maximum([e.number for e in net.edge]);
+    edge3 = Edge(max_edge+1,t1);
+    edge4 = Edge(max_edge+2,edge1.length-t1);
+    edge5 = Edge(max_edge+3,t2);
+    return edge3, edge4, edge5
+end
+
+# aux function to add the hybridization
+# without checking all the updates
+# returns the hybrid node of the new hybridization
+# calls chooseEdgesGamma, parameter4createHybrid and createHybrid
+function addHybridization!(net::HybridNetwork)
+    edge1, edge2, gamma = chooseEdgesGamma(net);
+    edge3, edge4, edge5 = parameters4createHybrid(edge1,edge2);
+    hybrid = createHybrid!(edge1, edge2, edge3, edge4, edge5, net, gamma);
+    return hybrid
+end
+
+# function to switch the major hybrid edge for the case when
+# there is no cycle found after updateInCycle
+# input: hybrid node, network
+function switchMajor!(node::Node, net::HybridNetwork)
+    if(node.hybrid)
+        hybedges = hybridEdges(node);
+        hybedges[1].hybrid = false;
+        hybedges[1].gamma = 1.0;
+        getOtherNode(hybedges[1],node).hasHybEdge = false;
+        getOtherNode(hybedges[3],node).hasHybEdge = true;
+        hybedges[3].hybrid = true;
+        hybedges[3].isMajor = true;
+        hybedges[3].gamma = 1- hybedges[2].gamma;
+        isequal(hybedges[3].node[1],node) ? hybedges[3].isChild1 = true : hybedges[3].isChild1 = false
+    else
+        error("node is not hybrid")
+    end
+end
+
+# function to add a new hybridization event
+# it calls chooseEdgesGamma and createHybrid!
+# input: network
+# check: assumes that one of the two possibilities for
+#        major hybrid edge gives you a cycle, true?
+# check: you do not need undoInCycle if flag3=false
+function addHybridizationUpdate!(net::HybridNetwork)
+    hybrid = addHybridization!(net);
+    flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,hybrid);
+    println("flag is $(flag)")
+    println("nocycle is $(nocycle)")
+    if(flag && !nocycle)
+        flag2, edgesRoot = updateContainRoot!(net,hybrid);
+        if(flag2)
+            flag3, edgesGammaz = updateGammaz!(net,hybrid);
+        else
+            flag3 = false;
+        end
+    else
+        flag2 = false;
+        flag3 = false;
+    end
+    println("flag2 is $(flag2)")
+    println("flag3 is $(flag3)")
+    while(!flag || nocycle || !flag2 || !flag3)
+        println("we went inside the while")
+        if(nocycle)
+            println("nocycle is $(nocycle) so we have to switch")
+            undoInCycle!(edgesInCycle, nodesInCycle);
+            switchMajor!(hybrid,net);
+        else
+            if(!flag)
+                println("flag is $(flag) so we have to undo incycle")
+                undoInCycle!(edgesInCycle, nodesInCycle);
+                deleteHybrid!(hybrid,net);
+                hybrid = addHybridization!(net);
+            else
+                if(!flag2)
+                    println("flag2 is $(flag2) so we have to undo contain root")
+                    undoContainRoot!(edgesRoot);
+                    undoInCycle!(edgesInCycle, nodesInCycle);
+                    deleteHybrid!(hybrid,net);
+                    hybrid = addHybridization!(net);
+                else
+                    if(!flag3)
+                        println("flag3 is $(flag3) so we have to undo gammaz")
+                        undoistIdentifiable!(edgesGammaz);
+                        undoContainRoot!(edgesRoot);
+                        #undoInCycle!(edgesInCycle, nodesInCycle);
+                        deleteHybrid!(hybrid,net);
+                        hybrid = addHybridization!(net);
+                    end
+                end
+            end
+        end
+        flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,hybrid);
+        if(flag && !nocycle)
+            flag2, edgesRoot = updateContainRoot!(net,hybrid);
+            if(flag2)
+                flag3, edgesGammaz = updateGammaz!(net,hybrid);
+            else
+                flag3 = false;
+            end
+        else
+            flag2 = false;
+            flag3 = false;
+        end
+    end # end while
+end
+
+# ----------------------------------------------------------------------------------------
 
 # setLength
 # warning: does not allow to change edge length for istIdentifiable=false
