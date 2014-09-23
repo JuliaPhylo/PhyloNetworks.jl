@@ -24,68 +24,113 @@ include("case_f_example.jl");
 include("bad_triangle_example.jl");
 
 include("tree_example.jl");
+
 # -------------- NETWORK ----------------------- #
 
-# function to delete a hybridization event
-# input: hybrid node and network
-function deleteHybrid!(node::Node,net::HybridNetwork)
-    if(node.hybrid)
-        hybedges = hybridEdges(node);
-        if(hybedges[1].isMajor)
-            hybedge1 = hybedges[1];
-            hybedge2 = hybedges[2];
-        else
-            hybedge1 = hybedges[2];
-            hybedge2 = hybedges[1];
-        end
-        other1 = getOtherNode(hybedge1,node);
-        other2 = getOtherNode(hybedge2,node);
-        for(e in node.edge)
-            if(!e.hybrid)
-                treeedge1 = e;
-                other3 = getOtherNode(e,node);
-            end
-        end
-        max_node = maximum([e.number for e in net.node]);
-        max_edge = maximum([e.number for e in net.edge]);
-        edge1 = Edge(max_edge+1,hybedge1.length+treeedge1.length);
-        setNode!(edge1,[other1,other3]);
-        removeEdge!(other1,hybedge1);
-        setEdge!(other1,edge1);
-        removeEdge!(other3,treeedge1);
-        setEdge!(other3,edge1);
-        index = getIndex(hybedge1,net);
-        deleteat!(net.edge,index);
-        index = getIndex(hybedge2,net);
-        deleteat!(net.edge,index);
-        index = getIndex(treeedge1,net);
-        deleteat!(net.edge,index);
-        index = getIndex(other2,net);
-        deleteat!(net.edge,index);
-        index = getIndex(node,net);
-        deleteat!(net.edge,index);
-        push!(net.edge,edge1);
-        tree_edge = Edge[];
-        for(e in other2.edge)
-            if(!e.hybrid)
-                push!(tree_edge,e);
-            end
-        end
-        #assume node has only 2 tree edges
-        treenode1 = getOtherNode(tree_edge[1],other2);
-        treenode2 = getOtherNode(tree_edge[2],other2);
-        edge2 = Edge(max_edge+2,tree_edge[1].length+tree_edge[2].length);
-        setNode!(edge2,[treenode1,treenode2]);
-        removeEdge!(treenode1,tree_edge[1]);
-        removeEdge!(treenode2,tree_edge[2]);
-        setEdge!(treenode1,edge2);
-        setEdge!(treenode2,edge2);
-    else
-        error("node has to be hybrid")
+# aux function to addHybridization
+# it chooses the edges in the network and the gamma value
+# warning: chooses edge1, edge2, gamma randomly, but
+#          we could do better later
+function chooseEdgesGamma(net::HybridNetwork)
+    index1 = 1;
+    index2 = 1;
+    while(index1 == index2 || index1 == 0 || index2 == 0 || net.edge[index1].inCycle != -1 || net.edge[index2].inCycle != -1)
+        index1 = iround(rand()*size(net.edge,1));
+        index2 = iround(rand()*size(net.edge,1));
     end
+    edge1 = net.edge[index1];
+    edge2 = net.edge[index2];
+    gamma = rand();
+    return edge1, edge2, gamma
 end
 
+# aux function for addHybridization
+# that takes the output edge1, edge2, gamma from
+# chooseEdgesGamma and created necessary edges
+# returns edge3, edge4, edge5
+function parameters4createHybrid(edge1::Edge, edge2::Edge)
+    t1 = rand()*edge1.length;
+    t2 = rand()*edge2.length;
+    max_edge = maximum([e.number for e in net.edge]);
+    edge3 = Edge(max_edge+1,t1);
+    edge4 = Edge(max_edge+2,edge1.length-t1);
+    edge5 = Edge(max_edge+3,t2);
+    return edge3, edge4, edge5
+end
 
+# aux function to add the hybridization
+# without checking all the updates
+# returns the hybrid node of the new hybridization
+# calls chooseEdgesGamma, parameter4createHybrid and createHybrid
+function addHybridization!(net::HybridNetwork)
+    edge1, edge2, gamma = chooseEdgesGamma(net);
+    edge3, edge4, edge5 = parameters4createHybrid(edge1,edge2);
+    hybrid = createHybrid!(edge1, edge2, edge3, edge4, edge5, net, gamma);
+    return hybrid
+end
+
+# function to add a new hybridization event
+# it calls chooseEdgesGamma and createHybrid!
+# input: network
+# returns the two edges where hybridization is placed
+# fixit: need to remove the return after tests
+# check: assumes that one of the two possibilities for
+#        major hybrid edge gives you a cycle, true?
+# check: you do not need undoInCycle if flag3=false
+function addHybridizationUpdate!(net::HybridNetwork)
+    hybrid = addHybridization!(net);
+    flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,hybrid);
+    if(flag && !nocycle)
+        flag2, edgesRoot = updateContainRoot!(net,node);
+        if(flag2)
+            flag3, edgesGammaz = updateGammaz!(net,hybrid);
+        else
+            flag3 = false;
+        end
+    else
+        flag2 = false;
+        flag3 = false;
+    end
+    while(!flag || nocycle || !flag2 || !flag3)
+        if(nocycle)
+            # run the function to switch
+        else
+            if(!flag)
+                undoInCycle!(edgesInCycle, nodeInCycle);
+                deleteHybrid!(hybrid,net);
+                hybrid = addHybridization!(net);
+            else
+                if(!flag2)
+                    undoContainRoot!(edgesRoot);
+                    undoInCycle!(edgesInCycle, nodeInCycle);
+                    deleteHybrid!(hybrid,net);
+                    hybrid = addHybridization!(net);
+                else
+                    if(!flag3)
+                        undoistIdentifiable!(edgesGammaz);
+                        undoContainRoot!(edgesRoot);
+                        #undoInCycle!(edgesInCycle, nodeInCycle);
+                        deleteHybrid!(hybrid,net);
+                        hybrid = addHybridization!(net);
+                    end
+                end
+            end
+        end
+        flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,hybrid);
+        if(flag && !nocycle)
+            flag2, edgesRoot = updateContainRoot!(net,node);
+            if(flag2)
+                flag3, edgesGammaz = updateGammaz!(net,hybrid);
+            else
+                flag3 = false;
+            end
+        else
+            flag2 = false;
+            flag3 = false;
+        end
+    end # end while
+    return edge1.number, edge2.number
+end
 
 # cecile: check updategammaz function, maybe we need two functions, one to update when changing length
 # one to update when changing gamma? what i like about updategammaz is that you use that directly at the beginning

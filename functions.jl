@@ -227,9 +227,9 @@ end
 
 # print for every edge, nodes, inCycle, containRoot, istIdentifiable
 function printEdges(net::HybridNetwork)
-    println("Edge\tNode1\tNode2\tInCycle\tcontainRoot\tistIdentitiable\tLength")
+    println("Edge\tNode1\tNode2\tInCycle\tcontainRoot\tistIdentitiable\tLength\isHybrid")
     for e in net.edge
-        println("$(e.number)\t$(e.node[1].number)\t$(e.node[2].number)\t$(e.inCycle)\t$(e.containRoot)\t$(e.istIdentifiable)\t$(e.length)")
+        println("$(e.number)\t$(e.node[1].number)\t$(e.node[2].number)\t$(e.inCycle)\t$(e.containRoot)\t\t$(e.istIdentifiable)\t$(e.length)\t$(e.hybrid)")
     end
 end
 
@@ -270,12 +270,12 @@ end
 # expected to be much faster than the other two udpateInCycle (queue and recursive)
 # input: hybrid node around which we want to update inCycle
 # needs module "Base.Collections"
-# returns error if no cycle in the network
-# returns tuple: flag, array of edges changed, array of nodes changed
+# returns tuple: flag, nocycle, array of edges changed, array of nodes changed
 #                      without including the minor hybrid edge and hybrid node
 #   flag: false if cycle intersects existing cycle or number of nodes in cycle < 3
 #         (there is the possibility of returning edges in intersection: path)
 #         true if cycle does not intersect existing cycle
+#   nocycle: true if there is no cycle (instead of error). it is used in addHybridization
 # calculates also the number of nodes in the cycle and put as hybrid node attribute "k"
 # check: visited is an aux array, do we prefer as attribute in Node? other data structure more efficient?
 # check: prev is attribute in Node, do we prefer as aux array?
@@ -296,12 +296,14 @@ function updateInCycle!(net::HybridNetwork,node::Node)
         dist = 0;
         queue = PriorityQueue();
         path = Node[];
+        edges_changed = Edge[];
+        nodes_changed = Node[];
         found = false;
         visited = [false for i = 1:size(net.node,1)];
         enqueue!(queue,node,dist);
         while(!found)
             if(isempty(queue))
-                error("no cycle in network")
+                return false, true, edges_changed, nodes_changed
             else
                 curr = dequeue!(queue);
                 if(isequal(curr,last))
@@ -334,8 +336,6 @@ function updateInCycle!(net::HybridNetwork,node::Node)
             end
         end # end while
         curr = pop!(path);
-        edges_changed = Edge[];
-        nodes_changed = Node[];
         while(!isequal(curr, start))
             if(curr.inCycle!= -1)
                 Data.Structures.enqueue!(path,curr);
@@ -352,9 +352,9 @@ function updateInCycle!(net::HybridNetwork,node::Node)
         end
         if(!isempty(path) || node.k<3)
             #error("new cycle intersects existing cycle")
-            return false, edges_changed, nodes_changed
+            return false, false, edges_changed, nodes_changed
         else
-            return true, edges_changed, nodes_changed
+            return true, false, edges_changed, nodes_changed
         end
     else
         error("node is not hybrid")
@@ -413,7 +413,10 @@ end
 # k = 2 (bad diamond)
 # input: hybrid node around which to check (can come from searchHybridNode)
 # updates gammaz with whatever edge lengths are originally in the network
-# returns false if the network is not identifiable for k=3
+# returns flag, array of edges changed (istIdentifiable)
+#               without the major/minor hybrid edges
+#               that would be the eliminated ones
+#         false if the network is not identifiable for k=3
 #         in this case, we need to redo updateContainRoot only
 # warning: needs to have updateInCycle already done as it needs
 #          inCycle, and k attributes
@@ -422,6 +425,7 @@ end
 #        here assumed: 1,1,1,> = 2 (see ipad figure)
 function updateGammaz!(net::HybridNetwork, node::Node)
     if(node.hybrid)
+        edges_changed = Edge[];
         if(node.k == 4) # could be bad diamond
             edge_maj = nothing;
             edge_min = nothing;
@@ -466,6 +470,8 @@ function updateGammaz!(net::HybridNetwork, node::Node)
                 edge_maj2.istIdentifiable = false;
                 edge_maj.istIdentifiable = false;
                 edge_min.istIdentifiable = false;
+                push!(edges_changed,edge_min2);
+                push!(edges_changed,edge_maj2);
                 node.isBadDiamond = true;
             else
                 node.isBadDiamond = false;
@@ -517,6 +523,8 @@ function updateGammaz!(net::HybridNetwork, node::Node)
                 tree_edge2.istIdentifiable = false;
                 edge_min.istIdentifiable = false;
                 node.isBadTriangle = true;
+                push!(edges_changed,tree_edge_incycle);
+                push!(edges_changed,tree_edge2);
                 tree_edge2.length = 0.0;
                 edge_min.length = 0.0;
             elseif(!isLeaf1.leaf && !isLeaf2.leaf && isLeaf3.leaf) # set to zero case1
@@ -528,18 +536,21 @@ function updateGammaz!(net::HybridNetwork, node::Node)
                 tree_edge1.istIdentifiable = false;
                 tree_edge2.istIdentifiable = false;
                 edge_min.istIdentifiable = false;
+                push!(edges_changed,tree_edge2);
+                push!(edges_changed,tree_edge1);
                 node.isBadTriangle = false;
             elseif(!isLeaf1.leaf && isLeaf2.leaf && !isLeaf3.leaf) # set to zero case2
                 tree_edge_incycle.length = tree_edge_incycle.length + tree_edge1.length;
                 tree_edge1.length = 0.0;
                 edge_min.length = 0.0;
                 tree_edge1.istIdentifiable = false;
+                push!(edges_changed,tree_edge1);
                 node.isBadTriangle = false;
             elseif(sum([isLeaf1?1:0, isLeaf2?1:0, isLeaf3?1:0]) == 2) # non identifiable network
-                return false
+                return false, edges_changed
             end
         end
-        return true
+        return true, edges_changed
     else
         error("node is not hybrid")
     end
@@ -580,6 +591,7 @@ end
 #          sets minor hybrid edge length to zero
 # this function create the hybrid node/edges and connect everything
 # and deletes edge1,2 from the nodes, and removes the nodes from edge1,2
+# returns the hybrid node to start future updates there
 function createHybrid!(edge1::Edge, edge2::Edge, edge3::Edge, edge4::Edge, edge5::Edge, net::HybridNetwork, gamma::Float64)
     if(0 < gamma < 1)
         (edge1.hybrid || edge2.hybrid) ? error("edges to delete must be tree edges") : nothing
@@ -623,71 +635,87 @@ function createHybrid!(edge1::Edge, edge2::Edge, edge3::Edge, edge4::Edge, edge5
         deleteat!(net.edge,index1);
         index2 = getIndex(edge2,net);
         deleteat!(net.edge,index2);
+        return hybrid_node
     else
         error("gamma must be between 0 and 1")
     end
 end
 
 
-# setLength using updateGammaz
-# calls updateGammaz, updateGamma2z when needed
-# warning: network needs to be updated to have isBadDiamond/Triangle set
-function setLength!(edge::Edge, new_length::Float64,net::HybridNetwork)
-  if(new_length<0)
-      error("length has to be nonnegative");
-  else
-      edge.length = new_length;
-      edge.y = exp(-new_length);
-      edge.z = 1 - edge.y;
-      if(edge.inCycle!= -1)
-          node = net.node[getIndexNumNode(edge.inCycle,net)]; #hybrid node for this edge
-          if(edge.hybrid && edge.isMajor && node.isBadTriangle)
-              updateGamma2z!(net,node);
-          elseif (!edge.hybrid && edge.inCycle!= -1 && !all([!edge.node[i].hasHybEdge for i = 1:size(edge.node,1)])) # tree edge with node.hasHybEdge true
-              if(node.isBadDiamond)
-                  updateGammaz!(net,node);
-              elseif(node.isBadTriangle)
-                  updateGamma2z!(net,node);
-              end
-          end
-      end
-  end
-end
-
-
-# setGamma using updateGammaz
-# calls updateGammaz when needed, and updateGamma2z always
-# warning: network needs to be updated to have isBadDiamond/Triangle set
-# check: bad triangle status depends on value of gamma!
-function setGamma!(edge::Edge, new_gamma::Float64, net::HybridNetwork)
- if(edge.hybrid)
-	if(0 < new_gamma < 1)
-	     edge.gamma = new_gamma;
-	     new_gamma<0.5 ? edge.isMajor = false : edge.isMajor = true;
-	     edge.isChild1 ? ind = 1 : ind = 2 ; # hybrid edge pointing at node 1 or 2
-             hybedges = hybridEdges(edge.node[ind]); # hybrid edges for hybrid node
-	     if(!isempty(hybedges) && !isa(hybedges,Nothing)) # change 1-gamma in other hybrid edge
-	          isequal(hybedges[1],edge) ? other = 2 : other = 1;
-		  hybedges[other].gamma = 1.0-new_gamma;
-       	          new_gamma<0.5 ? hybedges[other].isMajor = true : hybedges[other].isMajor = false;
-	     end
-            if(edge.node[ind].isBadDiamond)
-                updateGammaz!(net, edge.node[ind]);
-            end
-            #if(edge.node[ind].isBadTriangle), check: bad triangle status depends on gamma, it can become bad triangle
-                updateGamma2z!(net, edge.node[ind]);
-            #end
-	else
-	     error("gamma has to be between 0 and 1");
+# function to delete a hybridization event
+# input: hybrid node and network
+# warning: it is meant to undo a newly added hybridization
+#          if it is used to propose new network, we have
+#          no way to undo incycle, containRoot, istId.
+#          because we do not have array of edges/nodes
+#          affected by the hybridization
+# check: do we want to save that information in the
+#        hybrid node?
+function deleteHybrid!(node::Node,net::HybridNetwork)
+    if(node.hybrid)
+        hybedges = hybridEdges(node);
+        if(hybedges[1].isMajor)
+            hybedge1 = hybedges[1];
+            hybedge2 = hybedges[2];
+        else
+            hybedge1 = hybedges[2];
+            hybedge2 = hybedges[1];
         end
-  else
-	error("cannot change gamma in a tree edge");
-  end
+        other1 = getOtherNode(hybedge1,node);
+        other2 = getOtherNode(hybedge2,node);
+        treeedge1 = nothing;
+        other3 = nothing;
+        for(e in node.edge)
+            if(isa(treeedge1,Nothing))
+                treeedge1 = !e.hybrid ? e : nothing;
+            end
+            if(!isa(treeedge1,Nothing))
+                other3 = getOtherNode(e,node);
+            end
+        end
+        max_node = maximum([e.number for e in net.node]);
+        max_edge = maximum([e.number for e in net.edge]);
+        edge1 = Edge(max_edge+1,hybedge1.length+treeedge1.length);
+        setNode!(edge1,[other1,other3]);
+        removeEdge!(other1,hybedge1);
+        setEdge!(other1,edge1);
+        removeEdge!(other3,treeedge1);
+        setEdge!(other3,edge1);
+        index = getIndex(hybedge1,net);
+        deleteat!(net.edge,index);
+        index = getIndex(hybedge2,net);
+        deleteat!(net.edge,index);
+        index = getIndex(treeedge1,net);
+        deleteat!(net.edge,index);
+        index = getIndex(other2,net);
+        deleteat!(net.node,index);
+        index = getIndex(node,net);
+        deleteat!(net.node,index);
+        push!(net.edge,edge1);
+        tree_edge = Edge[];
+        for(e in other2.edge)
+            if(!e.hybrid)
+                push!(tree_edge,e);
+            end
+        end
+        #assume node has only 2 tree edges
+        treenode1 = getOtherNode(tree_edge[1],other2);
+        treenode2 = getOtherNode(tree_edge[2],other2);
+        edge2 = Edge(max_edge+2,tree_edge[1].length+tree_edge[2].length);
+        setNode!(edge2,[treenode1,treenode2]);
+        removeEdge!(treenode1,tree_edge[1]);
+        removeEdge!(treenode2,tree_edge[2]);
+        setEdge!(treenode1,edge2);
+        setEdge!(treenode2,edge2);
+        index = getIndex(tree_edge[1],net);
+        deleteat!(net.edge,index);
+        index = getIndex(tree_edge[2],net);
+        deleteat!(net.edge,index);
+        push!(net.edge,edge2);
+    else
+        error("node has to be hybrid")
+    end
 end
-
-
-
-
 
 
 # function to undo updateInCycle which returns an array
@@ -708,3 +736,57 @@ function undoContainRoot!(edges::Array{Edge,1})
         e.containRoot = true;
     end
 end
+
+# function to undo updateGammaz which returns an array
+# of edges changed
+# it only changes the status of istIdentifiable to true
+function undoistIdentifiable!(edges::Array{Edge,1})
+    for(e in edges)
+        e.istIdentifiable = true;
+    end
+end
+
+
+# setLength
+# warning: does not allow to change edge length for istIdentifiable=false
+function setLength!(edge::Edge, new_length::Float64,net::HybridNetwork)
+  if(new_length<0)
+      error("length has to be nonnegative");
+  else
+      if(edge.istIdentifiable)
+          edge.length = new_length;
+          edge.y = exp(-new_length);
+          edge.z = 1 - edge.y;
+      else
+          error("edge length is not identifiable")
+      end
+  end
+end
+
+
+# setGamma
+# warning: does not allow to change gamma in the bad diamond/triangle cases
+# because gamma is not identifiable
+# warning: we are not updating the status of isMajor with the value of gamma
+#          see ipad notes. isMajor is the original tree edge
+function setGamma!(edge::Edge, new_gamma::Float64, net::HybridNetwork)
+ if(edge.hybrid)
+	if(0 < new_gamma < 1)
+            edge.isChild1 ? ind = 1 : ind = 2 ; # hybrid edge pointing at node 1 or 2
+            if(edge.node[ind].hybrid)
+                if(edge.node[ind].isBadDiamond || edge.node[ind].isBadTriangle)
+                    error("bad diamond or triangle situation: gamma not identifiable")
+                else
+                    edge.gamma = new_gamma;
+                end
+            else
+                error("hybrid edge not pointing at hybrid node")
+            end
+	else
+	     error("gamma has to be between 0 and 1");
+        end
+  else
+	error("cannot change gamma in a tree edge");
+  end
+end
+

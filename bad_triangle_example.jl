@@ -46,7 +46,7 @@ setNode!(ed10,[n1,n4]);
 net=HybridNetwork([n1,n2,n3,n4,n5,n6,n7,n8,n9,n10],[ed1,ed2,ed3,ed4,ed5,ed6,ed7,ed8,ed9,ed10]);
 node=searchHybridNode(net);
 
-flag, edges, nodes = updateInCycle!(net,node);
-flag, edges = updateContainRoot!(net,node);
-updateGammaz!(net,node);
+flag, nocycle, edges, nodes = updateInCycle!(net,node);
+flag2, edges2 = updateContainRoot!(net,node);
+flag3, edges3 = updateGammaz!(net,node);
 
