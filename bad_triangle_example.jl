@@ -48,5 +48,5 @@ node=searchHybridNode(net);
 
 flag, nocycle, edges, nodes = updateInCycle!(net,node);
 flag2, edges2 = updateContainRoot!(net,node);
-flag3, edges3 = updateGammaz!(net,node);
+#flag3, edges3 = updateGammaz!(net,node);
 
