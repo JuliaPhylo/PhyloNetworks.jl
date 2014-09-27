@@ -388,7 +388,7 @@ function updateInCycle!(net::HybridNetwork,node::Node)
         push!(edges_changed,hybedge);
         push!(nodes_changed,node);
         found = false;
-        visited = [false for i = 1:size(net.node,1)];
+        net.visited = [false for i = 1:size(net.node,1)];
         enqueue!(queue,node,dist);
         while(!found)
             if(isempty(queue))
@@ -399,8 +399,8 @@ function updateInCycle!(net::HybridNetwork,node::Node)
                     found = true;
                     push!(path,curr);
                 else
-                    if(!visited[getIndex(curr,net)])
-                        visited[getIndex(curr,net)] = true;
+                    if(!net.visited[getIndex(curr,net)])
+                        net.visited[getIndex(curr,net)] = true;
                         if(isequal(curr,start))
                             for(e in curr.edge)
                                 if(!e.hybrid || e.isMajor)
@@ -413,7 +413,7 @@ function updateInCycle!(net::HybridNetwork,node::Node)
                         else
                             for(e in curr.edge)
                                 other = getOtherNode(e,curr);
-                                if(!other.leaf && !visited[getIndex(other,net)])
+                                if(!other.leaf && !net.visited[getIndex(other,net)])
                                     other.prev = curr;
                                     dist = dist+1;
                                     enqueue!(queue,other,dist);
@@ -514,10 +514,12 @@ end
 function updateGammaz!(net::HybridNetwork, node::Node)
     if(node.hybrid)
         edges_changed = Edge[];
+        edge_maj, edge_min, tree_edge2 = hybridEdges(node);
+        other_maj = getOtherNode(edge_maj,node);
+        other_min = getOtherNode(edge_min,node);
+        edge_min.istIdentifiable = false;
+        push!(edges_changed, edge_min);
         if(node.k == 4) # could be bad diamond
-            edge_maj, edge_min, tree_edge2 = hybridEdges(node);
-            other_maj = getOtherNode(edge_maj,node);
-            other_min = getOtherNode(edge_min,node);
             edgebla,edge_min2,tree_edge3 = hybridEdges(other_min);
             edgebla,edge_maj2,tree_edge1 = hybridEdges(other_maj);
             if(isequal(getOtherNode(edge_min2,other_min),getOtherNode(edge_maj2,other_maj)) && getOtherNode(tree_edge1,other_maj).leaf && getOtherNode(tree_edge2,node).leaf && getOtherNode(tree_edge3,other_min).leaf) # if this, you have bad diamond
@@ -526,19 +528,14 @@ function updateGammaz!(net::HybridNetwork, node::Node)
                 edge_min2.istIdentifiable = false;
                 edge_maj2.istIdentifiable = false;
                 edge_maj.istIdentifiable = false;
-                edge_min.istIdentifiable = false;
                 push!(edges_changed,edge_min2);
                 push!(edges_changed,edge_maj2);
-                push!(edges_changed,edge_min);
                 push!(edges_changed,edge_maj);
                 node.isBadDiamond = true;
             else
                 node.isBadDiamond = false;
             end
         elseif(node.k == 3) # could be bad triangle, non identifiable or set to zero cases
-            edge_maj,edge_min,tree_edge2 = hybridEdges(node)
-            other_maj = getOtherNode(edge_maj,node);
-            other_min = getOtherNode(edge_min,node);
             edgebla,tree_edge_incycle,tree_edge1 = hybridEdges(other_min);
             edgebla,edgebla,tree_edge3 = hybridEdges(other_maj);
             isLeaf1 = getOtherNode(tree_edge1,other_min);
@@ -550,12 +547,10 @@ function updateGammaz!(net::HybridNetwork, node::Node)
                 tree_edge_incycle.istIdentifiable = false;
                 edge_maj.istIdentifiable = false;
                 tree_edge2.istIdentifiable = false;
-                edge_min.istIdentifiable = false;
                 node.isBadTriangle = true;
                 push!(edges_changed,tree_edge_incycle);
                 push!(edges_changed,tree_edge2);
                 push!(edges_changed,edge_maj);
-                push!(edges_changed,edge_min);
                 edge_maj.length = edge_maj.length + tree_edge2.length;
                 tree_edge2.length = 0.0;
                 edge_min.length = 0.0;
@@ -567,22 +562,29 @@ function updateGammaz!(net::HybridNetwork, node::Node)
                 tree_edge1.length = 0.0;
                 tree_edge1.istIdentifiable = false;
                 tree_edge2.istIdentifiable = false;
-                edge_min.istIdentifiable = false;
                 push!(edges_changed,tree_edge2);
                 push!(edges_changed,tree_edge1);
-                push!(edges_changed,edge_min);
                 node.isBadTriangle = false;
             elseif(!isLeaf1.leaf && isLeaf2.leaf && !isLeaf3.leaf) # set to zero case2
                 tree_edge_incycle.length = tree_edge_incycle.length + tree_edge1.length;
                 tree_edge1.length = 0.0;
                 edge_min.length = 0.0;
                 tree_edge1.istIdentifiable = false;
-                edge_min.istIdentifiable = false;
                 push!(edges_changed,tree_edge1);
-                push!(edges_changed,edge_min);
                 node.isBadTriangle = false;
             elseif(sum([isLeaf1.leaf?1:0, isLeaf2.leaf?1:0, isLeaf3.leaf?1:0]) == 2) # non identifiable network
                 return false, edges_changed
+            end
+        end
+        if(node.k > 3 && !node.isBadDiamond)
+            edgebla,tree_edge_incycle,tree_edge1 = hybridEdges(other_min);
+            if(!tree_edge_incycle.istIdentifiable)
+                tree_edge_incycle.istIdentifiable = true;
+                push!(edges_changed,tree_edge_incycle);
+            end
+            if(getOtherNode(tree_edge2,node).leaf && edge_maj.istIdentifiable)
+                edge_maj.istIdentifiable = false;
+                push!(edges_changed,edge_maj);
             end
         end
         return true, edges_changed
@@ -673,7 +675,7 @@ end
 # of edges changed
 function undoContainRoot!(edges::Array{Edge,1})
     for(e in edges)
-        e.containRoot = true;
+        !e.containRoot ? e.containRoot = true : e.containRoot = false;
     end
 end
 
@@ -682,7 +684,7 @@ end
 # it only changes the status of istIdentifiable to true
 function undoistIdentifiable!(edges::Array{Edge,1})
     for(e in edges)
-        e.istIdentifiable = true;
+        !e.istIdentifiable ? e.istIdentifiable = true : e.istIdentifiable = false;
     end
 end
 
@@ -746,10 +748,9 @@ function chooseEdgesGamma(net::HybridNetwork)
         index1 = iround(rand()*size(net.edge,1));
         index2 = iround(rand()*size(net.edge,1));
     end
-    edge1 = net.edge[index1];
-    edge2 = net.edge[index2];
     gamma = rand()*0.5;
     println("from $(edge1.number) to $(edge2.number), $(gamma)");
+    return net.edge[index1],net.edge[index2],gamma
 end
 
 

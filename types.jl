@@ -76,14 +76,15 @@ end
 # warning: no check if it is network or tree, node array can have no hybrids
 # warning: nodes and edges need to be defined and linked before adding to a network
 type HybridNetwork
-     numTaxa::Int64 # cannot set in constructor for congruence
-     numNodes::Int64 # cannot set in constructor for congruence
-     numEdges::Int64 # cannot set in constructor for congruence
-     node::Array{Node,1}
-     edge::Array{Edge,1}
-     root::Int64 # node[root] is the root node, default 1
-     # maxTaxNumber::Int32 --in case it's needed later when we prune taxa
-     # inner constructor
-     HybridNetwork(node::Array{Node,1},edge::Array{Edge,1})=new(sum([node[i].leaf?1:0 for i=1:size(node,1)]),size(node,1),size(edge,1),node,edge,1)
-     HybridNetwork(node::Array{Node,1},edge::Array{Edge,1},root::Int64)=new(sum([node[i].leaf?1:0 for i=1:size(node,1)]),size(node,1),size(edge,1),node,edge,root)
+    numTaxa::Int64 # cannot set in constructor for congruence
+    numNodes::Int64 # cannot set in constructor for congruence
+    numEdges::Int64 # cannot set in constructor for congruence
+    node::Array{Node,1}
+    edge::Array{Edge,1}
+    root::Int64 # node[root] is the root node, default 1
+    visited::Array{Bool,1} # reusable array of booleans
+    # maxTaxNumber::Int32 --in case it's needed later when we prune taxa
+    # inner constructor
+    HybridNetwork(node::Array{Node,1},edge::Array{Edge,1})=new(sum([node[i].leaf?1:0 for i=1:size(node,1)]),size(node,1),size(edge,1),node,edge,1)
+    HybridNetwork(node::Array{Node,1},edge::Array{Edge,1},root::Int64)=new(sum([node[i].leaf?1:0 for i=1:size(node,1)]),size(node,1),size(edge,1),node,edge,root)
 end
