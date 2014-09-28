@@ -804,23 +804,37 @@ function updateMajorHybrid!(net::HybridNetwork, node::Node)
     end
 end
 
-
-# function to switch the major hybrid edge for the case when
-# there is no cycle found after updateInCycle
-# input: hybrid node, network
-function switchMajor!(node::Node, net::HybridNetwork)
-    if(node.hybrid)
-        hybedges = hybridEdges(node);
-        hybedges[1].hybrid = false;
-        hybedges[1].gamma = 1.0;
-        getOtherNode(hybedges[1],node).hasHybEdge = false;
-        getOtherNode(hybedges[3],node).hasHybEdge = true;
-        hybedges[3].hybrid = true;
-        hybedges[3].isMajor = true;
-        hybedges[3].gamma = 1- hybedges[2].gamma;
-        isequal(hybedges[3].node[1],node) ? hybedges[3].isChild1 = true : hybedges[3].isChild1 = false
+# function to update everything of a new hybridization
+# it follows the flow diagram in ipad
+# input: new added hybrid, network
+# returns: success (bool), hybrid, flag, nocycle, flag2, flag3
+function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork)
+    flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,hybrid);
+    if(nocycle)
+        return false, hybrid, flag, nocycle, flag2, flag3
     else
-        error("node is not hybrid")
+        if(flag)
+            updateMajorHybrid!(net,hybrid);
+            flag2, edgesGammaz = updateGammaz!(net,hybrid);
+            if(flag2)
+                flag3, edgesRoot = updateContainRoot!(net,hybrid);
+                if(flag3)
+                    return true, hybrid, flag, nocycle, flag2, flag3
+                else
+                    undoContainRoot!(edgesRoot);
+                    undoistIdentifiable!(edgesGammaz);
+                    undoInCycle!(edgesInCycle, nodesInCycle);
+                    return false, hybrid, flag, nocycle, flag2, flag3
+                end
+            else
+                undoistIdentifiable!(edgesGammaz);
+                undoInCycle!(edgesInCycle, nodesInCycle);
+                return false, hybrid, flag, nocycle, flag2, flag3
+            end
+        else
+            undoInCycle!(edgesInCycle, nodesInCycle);
+            return false, hybrid, flag, nocycle, flag2, flag3
+        end
     end
 end
 
@@ -829,70 +843,14 @@ end
 # input: network
 # check: assumes that one of the two possibilities for
 #        major hybrid edge gives you a cycle, true?
-# check: you do not need undoInCycle if flag3=false
+# warning: while removed, it does not attempt to add until
+#          success, it attempts to add once
+# returns: success (bool), hybrid, flag, nocycle, flag2, flag3
 function addHybridizationUpdate!(net::HybridNetwork)
     hybrid = addHybridization!(net);
-    flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,hybrid);
-    println("flag is $(flag)")
-    println("nocycle is $(nocycle)")
-    if(flag && !nocycle)
-        updateMajorHybrid!(net,hybrid);
-        flag2, edgesGammaz = updateGammaz!(net,hybrid);
-        if(flag2)
-            flag3, edgesRoot = updateContainRoot!(net,hybrid);
-        else
-            flag3 = false;
-        end
-    else
-        flag2 = false;
-        flag3 = false;
-    end
-    println("flag2 is $(flag2)")
-    println("flag3 is $(flag3)")
-    while(!flag || nocycle || !flag2 || !flag3)
-        println("we went inside the while")
-        if(nocycle)
-            error("no cycle found")
-        else
-            if(!flag)
-                println("flag is $(flag) so we have to undo incycle")
-                undoInCycle!(edgesInCycle, nodesInCycle);
-                deleteHybrid!(hybrid,net);
-                hybrid = addHybridization!(net);
-            else
-                if(!flag2)
-                    println("flag2 is $(flag2) so we have to undo gammaz")
-                    undoistIdentifiable!(edgesGammaz);
-                    undoInCycle!(edgesInCycle, nodesInCycle);
-                    deleteHybrid!(hybrid,net);
-                    hybrid = addHybridization!(net);
-                else
-                    if(!flag3)
-                        println("flag3 is $(flag3) so we have to undo contain root")
-                        undoContainRoot!(edgesRoot);
-                        undoistIdentifiable!(edgesGammaz);
-                        undoInCycle!(edgesInCycle, nodesInCycle);
-                        deleteHybrid!(hybrid,net);
-                        hybrid = addHybridization!(net);
-                    end
-                end
-            end
-        end
-        flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,hybrid);
-        if(flag && !nocycle)
-            updateMajorHybrid!(net,hybrid);
-            flag2, edgesGammaz = updateGammaz!(net,hybrid);
-            if(flag2)
-                flag3, edgesRoot = updateRoot!(net,hybrid);
-            else
-                flag3 = false;
-            end
-        else
-            flag2 = false;
-            flag3 = false;
-        end
-    end # end while
+    updateAllNewHybrid!(hybrid,net)
 end
+
 
 # ----------------------------------------------------------------------------------------
 

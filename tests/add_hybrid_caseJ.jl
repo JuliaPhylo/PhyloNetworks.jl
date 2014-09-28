@@ -1,5 +1,5 @@
 # function that chooses the right index1, index2
-# to add hybridization for Case C to tree_example.jl
+# to add hybridization for Case J to tree_example.jl
 # warning: requires other functions not updated here
 #          as this function will only run as part of
 #          tests_5taxon.jl
@@ -11,8 +11,8 @@
 # warning: not real chooseEdgesGamma, the real one is in functions.jl
 function chooseEdgesGamma(net::HybridNetwork)
 warn("function chooseEdgesGamma is deterministic")
-    index1 = 4;
-    index2 = 7;
+    index1 = 5;
+    index2 = 2;
     edge1 = net.edge[index1];
     edge2 = net.edge[index2];
     gamma = rand()*0.5;
@@ -20,6 +20,6 @@ warn("function chooseEdgesGamma is deterministic")
 end
 
 
-# index1=4, index2=7 => case C
+# index1=5, index2=2 => case J
 include("print_add.jl")
-testCaseC(net)
+testCaseJ(net)

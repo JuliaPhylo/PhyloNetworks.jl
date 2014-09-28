@@ -4,61 +4,40 @@
 ##########################################################
 
 # types in "types.jl"
-include("types.jl")
-
-# functions in "functions.jl"
-include("functions.jl")
+include("../types.jl")
 
 # needed modules:
 using Base.Collections # for updateInCycle with priority queue
 
-# examples
-include("tree_example.jl");
-
 # test functions
-include("/Users/Clauberry/Documents/phylo/software/CFimplementation/julia/test_functions_5taxon.jl")
+include("test_functions_5taxon.jl")
 
-# we need a different chooseEdgesGamma to control the edges1,2 chosen
-# change index1, index2 according to the specific case
-# warning: not real chooseEdgesGamma, the real one is in functions.jl
-function chooseEdgesGamma(net::HybridNetwork)
-warn("function chooseEdgesGamma is deterministic")
-    index1 = 1;
-    index2 = 3;
-    edge1 = net.edge[index1];
-    edge2 = net.edge[index2];
-    gamma = rand()*0.5;
-    return edge1, edge2, gamma
+tests = ["C","F","G","H","J","D","E","I"];
+wrong = String[];
+
+for t in tests
+    include("../functions.jl")
+    include("tree_example.jl");
+    tp = string("add_hybrid_case","$(t).jl");
+    println("running $(tp)");
+    try
+        include(tp)
+    catch
+        println("error in $(tp)");
+        push!(wrong,t);
+    end
 end
 
-# addHybridization! only to check that the createHybrid is working fine, before updating
-#node = addHybridization!(net);
+if(!isempty(wrong))
+    for t in wrong
+        include("../functions.jl")
+        include("tree_example.jl");
+        tp = string("add_hybrid_case","$(t).jl");
+        println("running $(tp)");
+        include(tp)
+    end
+else
+    println("----------NO ERRORS!----------");
+end
 
-# index1=7, index2=6 => case F (bad diamond)
-include("/Users/Clauberry/Documents/phylo/software/CFimplementation/julia/print_add.jl")
-testCaseF(net)
-
-# index1=3, index2=7 => case G
-include("/Users/Clauberry/Documents/phylo/software/CFimplementation/julia/print_add.jl")
-testCaseG(net)
-
-# index1=1, index2=3 => case H
-include("/Users/Clauberry/Documents/phylo/software/CFimplementation/julia/print_add.jl")
-testCaseH(net)
-
-# index1=5, index2=2 => case J
-include("/Users/Clauberry/Documents/phylo/software/CFimplementation/julia/print_add.jl")
-testCaseJ(net)
-
-# index1=7, index2=1 => case D (bad triangle)
-include("/Users/Clauberry/Documents/phylo/software/CFimplementation/julia/print_add.jl")
-testCaseD(net)
-
-# index1=1, index2=4 => case E
-include("/Users/Clauberry/Documents/phylo/software/CFimplementation/julia/print_add.jl")
-testCaseE(net)
-
-# index1=6, index2=4 => case I
-include("/Users/Clauberry/Documents/phylo/software/CFimplementation/julia/print_add.jl")
-testCaseI(net)
 
