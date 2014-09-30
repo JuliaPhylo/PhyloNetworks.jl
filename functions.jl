@@ -17,8 +17,7 @@ function setNode!(edge::Edge, node::Node)
     error("vector of nodes already has 2 values");
   else
     push!(edge.node,node);
-    n = size(edge.node,1);
-    if(n == 1)
+    if(size(edge.node) == 1)
         if(edge.hybrid)
             if(node.hybrid)
                 edge.isChild1 = true;
