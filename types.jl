@@ -83,6 +83,8 @@ type HybridNetwork
     edge::Array{Edge,1}
     root::Int64 # node[root] is the root node, default 1
     visited::Array{Bool,1} # reusable array of booleans
+    edges_changed::Array{Edge,1} # reusable array of edges
+    nodes_changed::Array{Node,1} # reusable array of nodes
     # maxTaxNumber::Int32 --in case it's needed later when we prune taxa
     # inner constructor
     HybridNetwork(node::Array{Node,1},edge::Array{Edge,1})=new(sum([node[i].leaf?1:0 for i=1:size(node,1)]),size(node,1),size(edge,1),node,edge,1)

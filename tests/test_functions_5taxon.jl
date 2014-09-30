@@ -231,3 +231,24 @@ function testCaseI(net::HybridNetwork)
     net.visited[edge14] = false;
     !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
 end
+
+
+# tree example
+function testTree(net::HybridNetwork)
+    !all([!e.hybrid for e in net.edge]) ? error("some edge is still hybrid") : nothing
+    !all([!e.hybrid for e in net.node]) ? error("some node is still hybrid") : nothing
+    !all([!e.hasHybEdge for e in net.node]) ? error("some node has hybrid edge") : nothing
+    !all([e.isMajor for e in net.edge]) ? error("some edge is not major") : nothing
+    !all([e.containRoot for e in net.edge]) ? error("some edge cannot contain root") : nothing
+    edge9 = getIndexNumEdge(9,net);
+    edge5 = getIndexNumEdge(5,net);
+    (!net.edge[edge9].istIdentifiable || !net.edge[edge5].istIdentifiable) ? error("edge9,5 not identifiable") : nothing
+    net.visited = [e.istIdentifiable for e in net.edge];
+    net.visited[edge9] = false;
+    net.visited[edge5] = false;
+    !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
+    edge11 = getIndexNumEdge(11,net);
+    edge12 = getIndexNumEdge(12,net);
+    net.edge[edge11].length != 1.5 ? error("edge length for 11 is wrong") : nothing
+    net.edge[edge12].length != 0.2 ? error("edge length for 12 is wrong") : nothing
+end
