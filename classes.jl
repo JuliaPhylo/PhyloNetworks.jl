@@ -27,6 +27,11 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
+# aux function to read subtree
+function readSubtree(s::IOStream, parent::Node, numLeft::Int64)
+    c = Base.peekchar(s);
+    if(c=='(')
+       n = Node(numLeft,false);
 
 # cecile: check updategammaz function, maybe we need two functions,
 # one to update when changing length one to update when changing
