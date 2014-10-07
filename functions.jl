@@ -201,15 +201,15 @@ end
 # update numNodes and numTaxa
 function pushNode!(net::HybridNetwork, n::Node)
     push!(net.node,n);
-    numNodes += 1;
-    numTaxa += n.leaf ? 1 : 0;
+    net.numNodes += 1;
+    net.numTaxa += n.leaf ? 1 : 0;
 end
 
 # function to push an Edge in net.edge and
 # update numEdges
 function pushEdge!(net::HybridNetwork, e::Edge)
     push!(net.edge,e);
-    numEdges += 1;
+    net.numEdges += 1;
 end
 
 # function to delete a Node in net.node and
@@ -1085,6 +1085,170 @@ function deleteHybrid!(node::Node,net::HybridNetwork)
     end
 end
 
+# ------------------------------- Read topology ------------------------------------------
+
+
+# aux function to advance stream in readSubtree
+# warning: s IOStream needs to be a file, not a stream converted
+#          from string
+function advance!(s::IOStream, c::Char, numLeft::Int64)
+    c = Base.peekchar(s)
+    if(Base.eof(s))
+        error("Tree ends prematurely while reading subtree after left parenthesis $(numLeft).")
+    end
+    return read(s,Char)
+end
+
+
+# aux function to read all digits of taxon name
+function readNum(s::IOStream, c::Char)
+    if(isdigit(c))
+        num = read(s,Char)
+        c = Base.peekchar(s)
+        while(isdigit(c))
+            d = read(s,Char)
+            num = string(num,d)
+            c = Base.peekchar(s);
+        end
+        return int(num)
+    else
+        error("Expected int digit but received $(c)");
+    end
+end
+
+# aux function to read floats like length
+function readFloat(s::IOStream, c::Char)
+    if(isdigit(c))
+        num = read(s,Char);
+        c = Base.peekchar(s);
+        while(isdigit(c) || c == '.')
+            d = read(s,Char);
+            num = string(num,d);
+            c = Base.peekchar(s);
+        end
+        return float(num)
+    else
+        error("Expected float digit after : but received $(c)");
+    end
+end
+
+
+# aux function to read subtree
+# warning: s IOStream needs to be a file, not a stream converted
+#          from string
+# warning: assumes taxon numbers, not taxon names
+# fixit: allow taxon names also
+function readSubtree!(s::IOStream, parent::Node, numLeft::Int64,net::HybridNetwork)
+    c = Base.peekchar(s)
+    e = nothing;
+    if(c =='(')
+       numLeft += 1
+       println(numLeft)
+       n = Node(numLeft,false);
+       c = read(s,Char)
+       bl = readSubtree!(s,n,numLeft,net)
+       c = advance!(s,c,numLeft)
+       br = false;
+       if(c == ',')
+           br = readSubtree!(s,n,numLeft,net);
+       else
+           a = readall(s);
+           error("Expected comma after left parenthesis $(numLeft) but read $(c). The remainder of line is $(a).")
+       end
+       c = advance!(s,c,numLeft)
+       if(c != ')')
+           a = readall(s);
+           error("Expected right parenthesis after left parenthesis $(numLeft) but read $(c). The remainder of line is $(a).")
+       end
+       if(bl && br)
+           pushNode!(net,n);
+           e = Edge(net.numEdges+1,1.0);
+           pushEdge!(net,e);
+           setNode!(e,[n,parent]);
+           setEdge!(n,e);
+           setEdge!(parent,e);
+           n.leaf = false;
+       else
+           if(size(n.edge,1) == 1) # root only has one child
+               edge = n.edge[1]; # assume it has only one edge
+               child = getOtherNode(edge,n);
+               setNode!(edge,[child,parent]);
+               setEdge!(parent,edge);
+           end
+           return true
+       end
+    elseif(isdigit(c))
+        num = readNum(s,c)
+        println("creating node $(num)")
+        n = Node(num,true);
+        pushNode!(net,n);
+        e = Edge(net.numEdges+1,1.0);
+        pushEdge!(net,e);
+        setNode!(e,[n,parent]);
+        setEdge!(n,e);
+        setEdge!(parent,e);
+    else
+        error("Expected beginning of subtree but read $(c)");
+    end
+    c = Base.peekchar(s)
+    if(isa(e,Nothing))
+        return false
+    end
+    if(c == ':')
+        c = read(s,Char);
+        c = Base.peekchar(s);
+        length = readFloat(s,c);
+        setLength!(e,length);
+    end
+    return true
+end
+
+# function to read topology from parenthetical format
+# input: file name
+# warning: at the moment, assumes a tree
+# warning: assumes taxon numbers, not taxon names
+function readTopology(file::String)
+    net = HybridNetwork()
+    try
+        s = open(file)
+    catch
+        error("Could not find or open $(file) file");
+    end
+    s = open(file)
+    c = Base.peekchar(s)
+    numLeft = 0
+    if(c == '(')
+       numLeft += 1
+       println(numLeft)
+       n = Node(numLeft,false);
+       c = read(s,Char)
+       b = false;
+       while(c != ';')
+           numLeft += 1;
+           b |= readSubtree!(s,n,numLeft,net)
+           c = read(s,Char);
+           if(eof(s))
+               error("Tree ended while reading in subtree beginning with left parenthesis number $(numLeft).")
+           elseif(c == ',')
+               continue;
+           elseif(c == ')')
+               c = Base.peekchar(s);
+           end
+       end
+       if(size(n.edge,1) == 1) # root has only one child
+           edge = n.edge[1]; # assume it has only one edge
+           child = getOtherNode(edge,n);
+           removeEdge!(child,edge);
+           net.root = getIndex(child,net);
+       else
+           pushNode!(net,n);
+           net.root = getIndex(n,net);
+       end
+    else
+       error("Expected beginning of tree with ( but received $(c) instead")
+    end
+    return net
+end
 
 
 
