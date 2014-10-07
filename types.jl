@@ -89,4 +89,5 @@ type HybridNetwork
     # inner constructor
     HybridNetwork(node::Array{Node,1},edge::Array{Edge,1})=new(sum([node[i].leaf?1:0 for i=1:size(node,1)]),size(node,1),size(edge,1),node,edge,1,[],[],[])
     HybridNetwork(node::Array{Node,1},edge::Array{Edge,1},root::Int64)=new(sum([node[i].leaf?1:0 for i=1:size(node,1)]),size(node,1),size(edge,1),node,edge,root,[],[],[])
+    HybridNetwork() = new(0,0,0,[],[],0,[],[],[]);
 end

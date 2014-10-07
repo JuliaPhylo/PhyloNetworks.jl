@@ -197,6 +197,51 @@ function getConnectingEdge(node1::Node,node2::Node)
 end
 
 
+# function to push a Node in net.node and
+# update numNodes and numTaxa
+function pushNode!(net::HybridNetwork, n::Node)
+    push!(net.node,n);
+    numNodes += 1;
+    numTaxa += n.leaf ? 1 : 0;
+end
+
+# function to push an Edge in net.edge and
+# update numEdges
+function pushEdge!(net::HybridNetwork, e::Edge)
+    push!(net.edge,e);
+    numEdges += 1;
+end
+
+# function to delete a Node in net.node and
+# update numNodes and numTaxa
+function deleteNode!(net::HybridNetwork, n::Node)
+    try
+        index = getIndex(n,net);
+    catch
+        error("Node not in network");
+    end
+    index = getIndex(n,net);
+    deleteat!(net.node,index);
+    net.numNodes -= 1;
+    net.numTaxa -= n.leaf ? 1 : 0;
+    if(net.root == index)
+        warn("Root node deleted")
+    end
+end
+
+# function to delete an Edge in net.edge and
+# update numEdges
+function deleteEdge!(net::HybridNetwork, e::Edge)
+    try
+        index = getIndex(e,net);
+    catch
+        error("Edge not in network");
+    end
+    index = getIndex(e,net);
+    deleteat!(net.edge,index);
+    net.numEdges -= 1;
+end
+
 
 # search the hybrid node(s) in network: returns the hybrid node(s)
 # if more than one hybrid, return an array of nodes
@@ -1047,7 +1092,7 @@ end
 
 # setLength
 # warning: does not allow to change edge length for istIdentifiable=false
-function setLength!(edge::Edge, new_length::Float64,net::HybridNetwork)
+function setLength!(edge::Edge, new_length::Float64)
   if(new_length<0)
       error("length has to be nonnegative");
   else
@@ -1067,7 +1112,7 @@ end
 # because gamma is not identifiable
 # warning: we are not updating the status of isMajor with the value of gamma
 #          see ipad notes. isMajor is the original tree edge
-function setGamma!(edge::Edge, new_gamma::Float64, net::HybridNetwork)
+function setGamma!(edge::Edge, new_gamma::Float64)
  if(edge.hybrid)
 	if(0 < new_gamma < 1)
             edge.isChild1 ? ind = 1 : ind = 2 ; # hybrid edge pointing at node 1 or 2
