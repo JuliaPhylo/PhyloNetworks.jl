@@ -690,13 +690,13 @@ function createHybrid!(edge1::Edge, edge2::Edge, edge3::Edge, edge4::Edge, net::
     if(0 < gamma < 1)
         (edge1.hybrid || edge2.hybrid) ? error("edges to delete must be tree edges") : nothing
         (edge3.hybrid || edge4.hybrid) ? error("edges to add must be tree edges") : nothing
-        push!(net.edge,edge3);
-        push!(net.edge,edge4);
+        pushEdge!(net,edge3);
+        pushEdge!(net,edge4);
         # create hybridization
         max_node = maximum([e.number for e in net.node]);
         max_edge = maximum([e.number for e in net.edge]);
         hybrid_edge = Edge(max_edge+1,0.0,true,gamma,false);
-        push!(net.edge,hybrid_edge);
+        pushEdge!(net,hybrid_edge);
         hybrid_node = Node(max_node+1,false,true,[edge2,hybrid_edge,edge4]);
         tree_node = Node(max_node+2,false,false,[edge1,edge3,hybrid_edge]);
         setNode!(hybrid_edge,[tree_node,hybrid_node]);
@@ -711,8 +711,8 @@ function createHybrid!(edge1::Edge, edge2::Edge, edge3::Edge, edge4::Edge, net::
         removeNode!(edge2.node[2],edge2);
         #[n.number for n in edge2.node]
         setNode!(edge2,hybrid_node)
-        push!(net.node,hybrid_node);
-        push!(net.node,tree_node);
+        pushNode!(net,hybrid_node);
+        pushNode!(net,tree_node);
         return hybrid_node
     else
         error("gamma must be between 0 and 1")
@@ -1023,8 +1023,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork)
             setNode!(treeedge1,other1);
             setEdge!(other1,treeedge1);
             removeEdge!(other1, hybedge1);
-            index = getIndex(hybedge1,net);
-            deleteat!(net.edge,index);
+            deleteEdge!(net,hybedge1);
             treeedge1.containRoot = (!treeedge1.containRoot || !hybedge1.containRoot) ? false : true
         else
             hybedge1.hybrid = false;
@@ -1036,8 +1035,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork)
             setNode!(hybedge1,other3);
             setEdge!(other3,hybedge1);
             removeEdge!(other3,treeedge1);
-            index = getIndex(treeedge1,net);
-            deleteat!(net.edge,index);
+            deleteEdge!(net,treeedge1);
             hybedge1.containRoot = (!treeedge1.containRoot || !hybedge1.containRoot) ? false : true
         end
         hybindex = getIndex(true,[e.hybrid for e in other2.edge]);
@@ -1061,8 +1059,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork)
             setNode!(treeedge2,treenode1);
             setEdge!(treenode1,treeedge2);
             removeEdge!(treenode1,treeedge1);
-            index = getIndex(treeedge1,net);
-            deleteat!(net.edge,index);
+            deleteEdge!(net,treeedge1);
             treeedge2.containRoot = (!treeedge1.containRoot || !treeedge2.containRoot) ? false : true
         else
             treeedge1.length = treeedge2.length + treeedge1.length;
@@ -1070,16 +1067,12 @@ function deleteHybrid!(node::Node,net::HybridNetwork)
             setNode!(treeedge1,treenode2);
             setEdge!(treenode2,treeedge1);
             removeEdge!(treenode2,treeedge2);
-            index = getIndex(treeedge2,net);
-            deleteat!(net.edge,index);
+            deleteEdge!(net,treeedge2);
             treeedge1.containRoot = (!treeedge1.containRoot || !treeedge2.containRoot) ? false : true
         end
-        index = getIndex(node,net);
-        deleteat!(net.node,index);
-        index = getIndex(other2,net);
-        deleteat!(net.node,index);
-        index = getIndex(hybedge2,net);
-        deleteat!(net.edge,index);
+        deleteNode!(net,node);
+        deleteNode!(net,other2);
+        deleteEdge!(net,hybedge2);
     else
         error("node has to be hybrid")
     end
