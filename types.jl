@@ -35,6 +35,7 @@ type Edge
     istIdentifiable::Bool # true if the parameter t (length) for this edge is identifiable as part of a network
                           # updated after part of a network
     # inner constructors: ensure congruence among (length, y, z) and (gamma, hybrid, isMajor), and size(node)=2
+    Edge(number::Int64) = new(number,1.0,false,exp(-1.0),1-exp(-1.0),1.,[],true,true,-1,true,true)
     Edge(number::Int64, length::Float64) = new(number,length,false,exp(-length),1-exp(-length),1.,[],true,true,-1,true,true)
     Edge(number::Int64, length::Float64,hybrid::Bool,gamma::Float64)= new(number,length,hybrid,exp(-length),1-exp(-length),hybrid?gamma:1.,[],true,(!hybrid || gamma>0.5)?true:false,-1,true,true)
         Edge(number::Int64, length::Float64,hybrid::Bool,gamma::Float64,isMajor::Bool)= new(number,length,hybrid,exp(-length),1-exp(-length),hybrid?gamma:1.,[],true,isMajor,-1,true,true)
@@ -66,6 +67,7 @@ type Node <: ANode
     k::Int64 # number of nodes in cycle, only stored in hybrid node and updated after node becomes part of network
              # default -1
     # inner constructor: set hasHybEdge depending on edge
+    Node() = new(-1.,false,false,-1.,[],false,false,false,-1.,nothing,-1.)
     Node(number::Int64, leaf::Bool) = new(number,leaf,false,-1.,[],false,false,false,-1.,nothing,-1.)
     Node(number::Int64, leaf::Bool, hybrid::Bool) = new(number,leaf,hybrid,-1.,[],hybrid,false,false,-1.,nothing,-1.)
     Node(number::Int64, leaf::Bool, hybrid::Bool, edge::Array{Edge,1})=new(number,leaf,hybrid,-1.,edge,!all([!edge[i].hybrid for i=1:size(edge,1)]),false,false,-1.,nothing,-1.)
@@ -82,12 +84,13 @@ type HybridNetwork
     node::Array{Node,1}
     edge::Array{Edge,1}
     root::Int64 # node[root] is the root node, default 1
+    names::Array{ASCIIString,1} # translate table for taxon names
     visited::Array{Bool,1} # reusable array of booleans
     edges_changed::Array{Edge,1} # reusable array of edges
     nodes_changed::Array{Node,1} # reusable array of nodes
     # maxTaxNumber::Int32 --in case it's needed later when we prune taxa
     # inner constructor
-    HybridNetwork(node::Array{Node,1},edge::Array{Edge,1})=new(sum([node[i].leaf?1:0 for i=1:size(node,1)]),size(node,1),size(edge,1),node,edge,1,[],[],[])
-    HybridNetwork(node::Array{Node,1},edge::Array{Edge,1},root::Int64)=new(sum([node[i].leaf?1:0 for i=1:size(node,1)]),size(node,1),size(edge,1),node,edge,root,[],[],[])
-    HybridNetwork() = new(0,0,0,[],[],0,[],[],[]);
+    HybridNetwork(node::Array{Node,1},edge::Array{Edge,1})=new(sum([node[i].leaf?1:0 for i=1:size(node,1)]),size(node,1),size(edge,1),node,edge,1,[],[],[],[])
+    HybridNetwork(node::Array{Node,1},edge::Array{Edge,1},root::Int64)=new(sum([node[i].leaf?1:0 for i=1:size(node,1)]),size(node,1),size(edge,1),node,edge,root,[],[],[],[])
+    HybridNetwork() = new(0,0,0,[],[],0,[],[],[],[]);
 end

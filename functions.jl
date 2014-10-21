@@ -143,26 +143,6 @@ function getIndexNode(edge::Edge,node::Node)
     end
 end
 
-# find the index in net.node for a node with given number
-# warning: assumes number uniquely determined
-function getIndexNumNode(number::Int64,net::HybridNetwork)
-    if(sum([net.node[i].number == number?1:0 for i = 1:size(net.node,1)]) == 0)
-        error("node number $(number) not in network")
-    else
-        getIndex(true,[net.node[i].number == number for i = 1:size(net.node,1)])
-    end
-end
-
-# find the index in net.edge for a edge with given number
-# warning: assumes number uniquely determined
-function getIndexNumEdge(number::Int64,net::HybridNetwork)
-    if(sum([net.edge[i].number == number?1:0 for i = 1:size(net.edge,1)]) == 0)
-        error("edge number $(number) not in network")
-    else
-        getIndex(true,[net.edge[i].number == number for i = 1:size(net.edge,1)])
-    end
-end
-
 
 # function that given a hybrid node, it gives you the minor hybrid edge
 function getHybridEdge(node::Node)
@@ -240,6 +220,25 @@ function deleteEdge!(net::HybridNetwork, e::Edge)
     index = getIndex(e,net);
     deleteat!(net.edge,index);
     net.numEdges -= 1;
+end
+
+# function to delete an internal node with only 2 edges
+function deleteIntNode!(net::HybridNetwork, n::Node)
+    if(size(n.edge,1) == 2)
+        index = n.edge[1].number < n.edge[2].number ? 1 : 2;
+        edge1 = n.edge[index];
+        edge2 = n.edge[index==1?2:1];
+        node1 = getOtherNode(edge1,n);
+        node2 = getOtherNode(edge2,n);
+        removeEdge!(node2,edge2);
+        removeNode!(n,edge1);
+        setEdge!(node2,edge1);
+        setNode!(edge1,node2);
+        deleteNode!(net,n);
+        deleteEdge!(net,edge2);
+    else
+        error("node does not have only two edges")
+    end
 end
 
 
@@ -1084,28 +1083,38 @@ end
 # aux function to advance stream in readSubtree
 # warning: s IOStream needs to be a file, not a stream converted
 #          from string
-function advance!(s::IOStream, c::Char, numLeft::Int64)
+function advance!(s::IOStream, c::Char, numLeft::Array{Int64,1})
     c = Base.peekchar(s)
     if(Base.eof(s))
-        error("Tree ends prematurely while reading subtree after left parenthesis $(numLeft).")
+        error("Tree ends prematurely while reading subtree after left parenthesis $(numLeft[1]).")
     end
     return read(s,Char)
 end
 
 
 # aux function to read all digits of taxon name
-function readNum(s::IOStream, c::Char)
-    if(isdigit(c))
+# it allows names with letters and numbers
+# warning: allows only numbers or letters, not other characters
+function readNum(s::IOStream, c::Char, net::HybridNetwork)
+    if(isdigit(c) || isalpha(c))
+        flag = true && isdigit(c); # to know if it is all numbers
         num = read(s,Char)
         c = Base.peekchar(s)
-        while(isdigit(c))
+        while(isdigit(c) || isalpha(c))
+            flag &= isdigit(c);
             d = read(s,Char)
             num = string(num,d)
             c = Base.peekchar(s);
         end
-        return int(num)
+        if(flag)
+            num = string(0,num);
+            return int(num)
+        else
+            push!(net.names,string(num));
+            return net.numTaxa + 1
+        end
     else
-        error("Expected int digit but received $(c)");
+        error("Expected int digit or alphanum but received $(c)");
     end
 end
 
@@ -1129,15 +1138,15 @@ end
 # aux function to read subtree
 # warning: s IOStream needs to be a file, not a stream converted
 #          from string
-# warning: assumes taxon numbers, not taxon names
-# fixit: allow taxon names also
-function readSubtree!(s::IOStream, parent::Node, numLeft::Int64,net::HybridNetwork)
+# warning: reads additional info :length:bootstrap:gamma
+#          if gamma is read, assumes hybrid edge
+function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1},net::HybridNetwork)
     c = Base.peekchar(s)
     e = nothing;
     if(c =='(')
-       numLeft += 1
-       println(numLeft)
-       n = Node(numLeft,false);
+       numLeft[1] += 1
+       #println(numLeft)
+       n = Node(-1*numLeft[1],false);
        c = read(s,Char)
        bl = readSubtree!(s,n,numLeft,net)
        c = advance!(s,c,numLeft)
@@ -1146,21 +1155,22 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Int64,net::HybridNetwo
            br = readSubtree!(s,n,numLeft,net);
        else
            a = readall(s);
-           error("Expected comma after left parenthesis $(numLeft) but read $(c). The remainder of line is $(a).")
+           error("Expected comma after left parenthesis $(numLeft[1]) but read $(c). The remainder of line is $(a).")
        end
        c = advance!(s,c,numLeft)
        if(c != ')')
            a = readall(s);
-           error("Expected right parenthesis after left parenthesis $(numLeft) but read $(c). The remainder of line is $(a).")
+           error("Expected right parenthesis after left parenthesis $(numLeft[1]) but read $(c). The remainder of line is $(a).")
        end
        if(bl && br)
            pushNode!(net,n);
-           e = Edge(net.numEdges+1,1.0);
+           e = Edge(net.numEdges+1);
            pushEdge!(net,e);
            setNode!(e,[n,parent]);
            setEdge!(n,e);
            setEdge!(parent,e);
            n.leaf = false;
+           # n.number =
        else
            if(size(n.edge,1) == 1) # root only has one child
                edge = n.edge[1]; # assume it has only one edge
@@ -1170,12 +1180,12 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Int64,net::HybridNetwo
            end
            return true
        end
-    elseif(isdigit(c))
-        num = readNum(s,c)
-        println("creating node $(num)")
+    elseif(isdigit(c) || isalpha(c))
+        num = readNum(s,c,net)
+        #println("creating node $(num)")
         n = Node(num,true);
         pushNode!(net,n);
-        e = Edge(net.numEdges+1,1.0);
+        e = Edge(net.numEdges+1);
         pushEdge!(net,e);
         setNode!(e,[n,parent]);
         setEdge!(n,e);
@@ -1190,8 +1200,72 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Int64,net::HybridNetwo
     if(c == ':')
         c = read(s,Char);
         c = Base.peekchar(s);
-        length = readFloat(s,c);
-        setLength!(e,length);
+        if(isdigit(c))
+            length = readFloat(s,c);
+            setLength!(e,length);
+            c = Base.peekchar(s);
+            if(c == ':')
+                c = read(s,Char);
+                c = Base.peekchar(s);
+                if(isdigit(c))
+                    length = readFloat(s,c); #bootstrap value
+                    c = Base.peekchar(s);
+                    if(c == ':')
+                        c = read(s, Char);
+                        c = Base.peekchar(s);
+                        if(isdigit(c))
+                            length = readFloat(s,c); #gamma
+                            warn("gamma read, current edge $(e.number) assumed hybrid")
+                            e.hybrid = true;
+                            setGamma!(e,length);
+                        else
+                            error("third : without gamma value after in $(numLeft[1]) left parenthesis")
+                        end
+                    end
+                elseif(c == ':')
+                    c = read(s, Char);
+                    c = Base.peekchar(s);
+                    if(isdigit(c))
+                        length = readFloat(s,c); #gamma
+                        warn("gamma read, current edge $(e.number) assumed hybrid")
+                        e.hybrid = true;
+                        setGamma!(e,length);
+                    else
+                        error("third : without gamma value after in $(numLeft[1]) left parenthesis")
+                    end
+                end
+            end
+        elseif(c == ':')
+            c = read(s,Char);
+            c = Base.peekchar(s);
+            if(isdigit(c))
+                length = readFloat(s,c); #bootstrap value
+                c = Base.peekchar(s);
+                if(c == ':')
+                    c = read(s, Char);
+                    c = Base.peekchar(s);
+                    if(isdigit(c))
+                        length = readFloat(s,c); #gamma
+                        warn("gamma read, current edge $(e.number) assumed hybrid")
+                        e.hybrid = true;
+                        setGamma!(e,length);
+                    else
+                        error("third : without gamma value after in $(numLeft[1]) left parenthesis")
+                    end
+                end
+            elseif(c == ':')
+                c = read(s, Char);
+                c = Base.peekchar(s);
+                if(isdigit(c))
+                    length = readFloat(s,c); #gamma
+                    warn("gamma read for edge $(e.number), assumed hybrid")
+                    e.hybrid = true;
+                    setGamma!(e,length);
+                else
+                    error("third : without gamma value after in left parenthesis number $(numLeft[1])")
+                end
+            end
+        end
     end
     return true
 end
@@ -1199,7 +1273,9 @@ end
 # function to read topology from parenthetical format
 # input: file name
 # warning: at the moment, assumes a tree
-# warning: assumes taxon numbers, not taxon names
+# warning: allows numbers and/or letters in taxon names
+#          but not other characters
+# warning: infinite loop if file does not have ";"
 function readTopology(file::String)
     net = HybridNetwork()
     try
@@ -1208,20 +1284,24 @@ function readTopology(file::String)
         error("Could not find or open $(file) file");
     end
     s = open(file)
+    line = readuntil(s,";");
+    if(line[end] != ';')
+        error("file does not end in ;")
+    end
+    seekstart(s)
     c = Base.peekchar(s)
-    numLeft = 0
+    numLeft = [0]; # made Array to make it mutable
     if(c == '(')
-       numLeft += 1
-       println(numLeft)
-       n = Node(numLeft,false);
+       numLeft[1] += 1;
+       #println(numLeft)
+       n = Node(-1*numLeft[1],false);
        c = read(s,Char)
        b = false;
        while(c != ';')
-           numLeft += 1;
            b |= readSubtree!(s,n,numLeft,net)
            c = read(s,Char);
            if(eof(s))
-               error("Tree ended while reading in subtree beginning with left parenthesis number $(numLeft).")
+               error("Tree ended while reading in subtree beginning with left parenthesis number $(numLeft[1]).")
            elseif(c == ',')
                continue;
            elseif(c == ')')
@@ -1233,6 +1313,7 @@ function readTopology(file::String)
            child = getOtherNode(edge,n);
            removeEdge!(child,edge);
            net.root = getIndex(child,net);
+           deleteEdge!(net,edge);
        else
            pushNode!(net,n);
            net.root = getIndex(n,net);
@@ -1240,25 +1321,65 @@ function readTopology(file::String)
     else
        error("Expected beginning of tree with ( but received $(c) instead")
     end
+    cleanAfterRead!(net);
     return net
 end
 
+# function to solve a polytomy
+# warning: chooses one resolution at random
+#          assumes only 4 edges in polytomy
+# warning: two internal edges will have same number
+function solvePolytomy!(net::HybridNetwork, n::Node)
+    if(size(n.edge,1) == 4)
+        edge1 = n.edge[1];
+        edge2 = n.edge[2];
+        edge3 = n.edge[3];
+        edge4 = n.edge[4];
+        removeEdge!(n,edge3);
+        removeEdge!(n,edge4);
+        removeNode!(n,edge3);
+        removeNode!(n,edge4);
+        ednew = Edge(net.numEdges+1);
+        n1 = Node(n.number,false,false,[edge3,edge4,ednew]);
+        setEdge!(n,ednew);
+        pushNode!(net,n1);
+        pushEdge!(net,ednew);
+    else
+        error("polytomy with more than 4 edges")
+    end
+end
+
+# function to clean topology after readTopology
+# looks for internal nodes with only 2 edges
+# and solves this case.
+# also looks for polytomies and choose one resolution
+# at random, issuing a warning
+function cleanAfterRead!(net::HybridNetwork)
+    for(n in net.node)
+        if(size(n.edge,1) == 2)
+            deleteIntNode!(net,n);
+        elseif(size(n.edge,1) > 3)
+            warn("polytomy found in node $(n.number), random resolution chosen")
+            solvePolytomy!(net,n);
+        end
+    end
+end
 
 
 # ----------------------------------------------------------------------------------------
 
 # setLength
-# warning: does not allow to change edge length for istIdentifiable=false
+# warning: allows to change edge length for istIdentifiable=false
+#          but issues a warning
 function setLength!(edge::Edge, new_length::Float64)
   if(new_length<0)
       error("length has to be nonnegative");
   else
-      if(edge.istIdentifiable)
-          edge.length = new_length;
-          edge.y = exp(-new_length);
-          edge.z = 1 - edge.y;
-      else
-          error("edge length is not identifiable")
+      edge.length = new_length;
+      edge.y = exp(-new_length);
+      edge.z = 1 - edge.y;
+      if(!edge.istIdentifiable)
+          warn("edge length is not identifiable")
       end
   end
 end
@@ -1280,7 +1401,7 @@ function setGamma!(edge::Edge, new_gamma::Float64)
                     edge.gamma = new_gamma;
                 end
             else
-                error("hybrid edge not pointing at hybrid node")
+                warn("hybrid edge not pointing at hybrid node")
             end
 	else
 	     error("gamma has to be between 0 and 1");

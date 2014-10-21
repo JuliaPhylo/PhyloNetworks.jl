@@ -1,18 +1,14 @@
 # things to do:
 
 
-1. checar compare_jl.sh si funciona, y tener otro para pasar de git_work a ane/public: update_public.sh
+1. finish read topology for networks
 
-4. write test functions for functions.jl
+2. last details add/delete hybrid
 
-5. print README.md para tenerlo y enmicarlo en stat y home
+3. network proposals: move direction, move to neighbor, tree move NNI
 
-----
+4. examples with conflicting hybrids
 
-1. todo: function to identify bad triangle and update gamma2z, change setGamma and setLength accordingly
+5. write topology
 
-2. todo: function to update inCycles and containRoot
-
-3. todo: function to say if a hybrid node is bad triangle or bad diamond
-
-4. other functions in classes.jl
+6. delete leaf: quartet stuff
