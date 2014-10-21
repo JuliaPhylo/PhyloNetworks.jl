@@ -1170,7 +1170,6 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1},net::Hy
            setEdge!(n,e);
            setEdge!(parent,e);
            n.leaf = false;
-           # n.number =
        else
            if(size(n.edge,1) == 1) # root only has one child
                edge = n.edge[1]; # assume it has only one edge
@@ -1266,6 +1265,15 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1},net::Hy
                 end
             end
         end
+#    elseif(c == '#')
+#        c = read(s,Char);
+           # readNum as before? but reject if does not start with H, LGT or R
+           # flag to know it comes from ) or digit
+           # if comes from digit: only make it hybrid and put warning? (leaves cannot be hybrid, but one of them can)
+           # if comes from ), make n hybrid and give it number from readNum, keep it there
+           # need to know somehow if it is the first or second time we see the hybrid: this will be hard, because you would have had created the leaf already
+           # before reaching this point, also you can create the leaf before the internal node, so you cannot do the shortcut (the internal node has to be created
+           # always
     end
     return true
 end
