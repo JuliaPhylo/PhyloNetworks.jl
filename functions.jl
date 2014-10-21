@@ -1094,8 +1094,12 @@ end
 
 # aux function to read all digits of taxon name
 # it allows names with letters and numbers
+# input: push boolean to say if you want to push the name into
+#        the net.names list or not
 # warning: allows only numbers or letters, not other characters
-function readNum(s::IOStream, c::Char, net::HybridNetwork)
+# warning: weird leaves labels can occur if some taxon names are
+#          all numbers and others have letters
+function readNum(s::IOStream, c::Char, net::HybridNetwork, push::Bool)
     if(isdigit(c) || isalpha(c))
         flag = true && isdigit(c); # to know if it is all numbers
         num = read(s,Char)
@@ -1110,7 +1114,9 @@ function readNum(s::IOStream, c::Char, net::HybridNetwork)
             num = string(0,num);
             return int(num)
         else
-            push!(net.names,string(num));
+            if(push)
+                push!(net.names,string(num));
+            end
             return net.numTaxa + 1
         end
     else
@@ -1140,143 +1146,137 @@ end
 #          from string
 # warning: reads additional info :length:bootstrap:gamma
 #          if gamma is read, assumes hybrid edge
-function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1},net::HybridNetwork)
-    c = Base.peekchar(s)
-    e = nothing;
-    if(c =='(')
-       numLeft[1] += 1
-       #println(numLeft)
-       n = Node(-1*numLeft[1],false);
-       c = read(s,Char)
-       bl = readSubtree!(s,n,numLeft,net)
-       c = advance!(s,c,numLeft)
-       br = false;
-       if(c == ',')
-           br = readSubtree!(s,n,numLeft,net);
-       else
-           a = readall(s);
-           error("Expected comma after left parenthesis $(numLeft[1]) but read $(c). The remainder of line is $(a).")
-       end
-       c = advance!(s,c,numLeft)
-       if(c != ')')
-           a = readall(s);
-           error("Expected right parenthesis after left parenthesis $(numLeft[1]) but read $(c). The remainder of line is $(a).")
-       end
-       if(bl && br)
-           pushNode!(net,n);
-           e = Edge(net.numEdges+1);
-           pushEdge!(net,e);
-           setNode!(e,[n,parent]);
-           setEdge!(n,e);
-           setEdge!(parent,e);
-           n.leaf = false;
-       else
-           if(size(n.edge,1) == 1) # root only has one child
-               edge = n.edge[1]; # assume it has only one edge
-               child = getOtherNode(edge,n);
-               setNode!(edge,[child,parent]);
-               setEdge!(parent,edge);
-           end
-           return true
-       end
-    elseif(isdigit(c) || isalpha(c))
-        num = readNum(s,c,net)
-        #println("creating node $(num)")
-        n = Node(num,true);
-        pushNode!(net,n);
-        e = Edge(net.numEdges+1);
-        pushEdge!(net,e);
-        setNode!(e,[n,parent]);
-        setEdge!(n,e);
-        setEdge!(parent,e);
-    else
-        error("Expected beginning of subtree but read $(c)");
-    end
-    c = Base.peekchar(s)
-    if(isa(e,Nothing))
-        return false
-    end
-    if(c == ':')
-        c = read(s,Char);
-        c = Base.peekchar(s);
-        if(isdigit(c))
-            length = readFloat(s,c);
-            setLength!(e,length);
-            c = Base.peekchar(s);
-            if(c == ':')
-                c = read(s,Char);
-                c = Base.peekchar(s);
-                if(isdigit(c))
-                    length = readFloat(s,c); #bootstrap value
-                    c = Base.peekchar(s);
-                    if(c == ':')
-                        c = read(s, Char);
-                        c = Base.peekchar(s);
-                        if(isdigit(c))
-                            length = readFloat(s,c); #gamma
-                            warn("gamma read, current edge $(e.number) assumed hybrid")
-                            e.hybrid = true;
-                            setGamma!(e,length);
-                        else
-                            error("third : without gamma value after in $(numLeft[1]) left parenthesis")
-                        end
-                    end
-                elseif(c == ':')
-                    c = read(s, Char);
-                    c = Base.peekchar(s);
-                    if(isdigit(c))
-                        length = readFloat(s,c); #gamma
-                        warn("gamma read, current edge $(e.number) assumed hybrid")
-                        e.hybrid = true;
-                        setGamma!(e,length);
-                    else
-                        error("third : without gamma value after in $(numLeft[1]) left parenthesis")
-                    end
-                end
-            end
-        elseif(c == ':')
-            c = read(s,Char);
-            c = Base.peekchar(s);
-            if(isdigit(c))
-                length = readFloat(s,c); #bootstrap value
-                c = Base.peekchar(s);
-                if(c == ':')
-                    c = read(s, Char);
-                    c = Base.peekchar(s);
-                    if(isdigit(c))
-                        length = readFloat(s,c); #gamma
-                        warn("gamma read, current edge $(e.number) assumed hybrid")
-                        e.hybrid = true;
-                        setGamma!(e,length);
-                    else
-                        error("third : without gamma value after in $(numLeft[1]) left parenthesis")
-                    end
-                end
-            elseif(c == ':')
-                c = read(s, Char);
-                c = Base.peekchar(s);
-                if(isdigit(c))
-                    length = readFloat(s,c); #gamma
-                    warn("gamma read for edge $(e.number), assumed hybrid")
-                    e.hybrid = true;
-                    setGamma!(e,length);
-                else
-                    error("third : without gamma value after in left parenthesis number $(numLeft[1])")
-                end
-            end
-        end
-#    elseif(c == '#')
-#        c = read(s,Char);
-           # readNum as before? but reject if does not start with H, LGT or R
-           # flag to know it comes from ) or digit
-           # if comes from digit: only make it hybrid and put warning? (leaves cannot be hybrid, but one of them can)
-           # if comes from ), make n hybrid and give it number from readNum, keep it there
-           # need to know somehow if it is the first or second time we see the hybrid: this will be hard, because you would have had created the leaf already
-           # before reaching this point, also you can create the leaf before the internal node, so you cannot do the shortcut (the internal node has to be created
-           # always
-    end
-    return true
-end
+# fixit: it would be better to assure that all tree edges have gamma 1.0
+#        two stages: clean network to verify all this: gammas, sum of gamma =1, etc
+## function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1},net::HybridNetwork)
+##     c = Base.peekchar(s)
+##     e = nothing;
+##     if(c =='(')
+##        numLeft[1] += 1
+##        #println(numLeft)
+##        n = Node(-1*numLeft[1],false);
+##        c = read(s,Char)
+##        bl = readSubtree!(s,n,numLeft,net)
+##        c = advance!(s,c,numLeft)
+##        br = false;
+##        if(c == ',')
+##            br = readSubtree!(s,n,numLeft,net);
+##        else
+##            a = readall(s);
+##            error("Expected comma after left parenthesis $(numLeft[1]) but read $(c). The remainder of line is $(a).")
+##        end
+##        c = advance!(s,c,numLeft)
+##        if(c != ')')
+##            a = readall(s);
+##            error("Expected right parenthesis after left parenthesis $(numLeft[1]) but read $(c). The remainder of line is $(a).")
+##        end
+##        if(bl && br)
+##            pushNode!(net,n);
+##            e = Edge(net.numEdges+1);
+##            pushEdge!(net,e);
+##            setNode!(e,[n,parent]);
+##            setEdge!(n,e);
+##            setEdge!(parent,e);
+##            n.leaf = false;
+##        else
+##            if(size(n.edge,1) == 1) # root only has one child
+##                edge = n.edge[1]; # assume it has only one edge
+##                child = getOtherNode(edge,n);
+##                setNode!(edge,[child,parent]);
+##                setEdge!(parent,edge);
+##            end
+##            return true
+##        end
+##     elseif(isdigit(c) || isalpha(c))
+##         num = readNum(s,c,net,true)
+##         #println("creating node $(num)")
+##         n = Node(num,true);
+##         pushNode!(net,n);
+##         e = Edge(net.numEdges+1);
+##         pushEdge!(net,e);
+##         setNode!(e,[n,parent]);
+##         setEdge!(n,e);
+##         setEdge!(parent,e);
+##     else
+##         error("Expected beginning of subtree but read $(c)");
+##     end
+##     c = Base.peekchar(s)
+##     if(isa(e,Nothing))
+##         return false
+##     end
+##     if(c == ':')
+##         c = read(s,Char);
+##         c = Base.peekchar(s);
+##         if(isdigit(c))
+##             length = readFloat(s,c);
+##             setLength!(e,length);
+##             c = Base.peekchar(s);
+##             if(c == ':')
+##                 c = read(s,Char);
+##                 c = Base.peekchar(s);
+##                 if(isdigit(c))
+##                     length = readFloat(s,c); #bootstrap value
+##                     c = Base.peekchar(s);
+##                     if(c == ':')
+##                         c = read(s, Char);
+##                         c = Base.peekchar(s);
+##                         if(isdigit(c))
+##                             length = readFloat(s,c); #gamma
+##                             warn("gamma read, current edge $(e.number) assumed hybrid")
+##                             e.hybrid = true;
+##                             setGamma!(e,length);
+##                         else
+##                             error("third : without gamma value after in $(numLeft[1]) left parenthesis")
+##                         end
+##                     end
+##                 elseif(c == ':')
+##                     c = read(s, Char);
+##                     c = Base.peekchar(s);
+##                     if(isdigit(c))
+##                         length = readFloat(s,c); #gamma
+##                         warn("gamma read, current edge $(e.number) assumed hybrid")
+##                         e.hybrid = true;
+##                         setGamma!(e,length);
+##                     else
+##                         error("third : without gamma value after in $(numLeft[1]) left parenthesis")
+##                     end
+##                 end
+##             end
+##         elseif(c == ':')
+##             c = read(s,Char);
+##             c = Base.peekchar(s);
+##             if(isdigit(c))
+##                 length = readFloat(s,c); #bootstrap value
+##                 c = Base.peekchar(s);
+##                 if(c == ':')
+##                     c = read(s, Char);
+##                     c = Base.peekchar(s);
+##                     if(isdigit(c))
+##                         length = readFloat(s,c); #gamma
+##                         warn("gamma read, current edge $(e.number) assumed hybrid")
+##                         e.hybrid = true;
+##                         setGamma!(e,length);
+##                     else
+##                         error("third : without gamma value after in $(numLeft[1]) left parenthesis")
+##                     end
+##                 end
+##             elseif(c == ':')
+##                 c = read(s, Char);
+##                 c = Base.peekchar(s);
+##                 if(isdigit(c))
+##                     length = readFloat(s,c); #gamma
+##                     warn("gamma read for edge $(e.number), assumed hybrid")
+##                     e.hybrid = true;
+##                     setGamma!(e,length);
+##                 else
+##                     error("third : without gamma value after in left parenthesis number $(numLeft[1])")
+##                 end
+##             end
+##         end
+##     end
+##     return true
+## end
+
 
 # function to read topology from parenthetical format
 # input: file name
@@ -1373,6 +1373,10 @@ function cleanAfterRead!(net::HybridNetwork)
     end
 end
 
+# fixit: create function to check the network after reading it, even before the update step
+#        need to check that both hybrid edges have gamma and they sum to one,
+#        that all tree edges have gamma of 1.0
+#        check that hybrid node only has one child
 
 # ----------------------------------------------------------------------------------------
 
