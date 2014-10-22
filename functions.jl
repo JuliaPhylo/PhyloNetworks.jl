@@ -1329,7 +1329,7 @@ function readTopology(file::String)
     else
        error("Expected beginning of tree with ( but received $(c) instead")
     end
-    cleanAfterRead!(net);
+    #cleanAfterRead!(net);
     return net
 end
 

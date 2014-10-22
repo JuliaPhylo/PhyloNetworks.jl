@@ -21,7 +21,6 @@ f = open("prueba_tree.txt","w")
 #tree = "(A,B,(C,D));"
 #tree = "(A:0.1,B:0.2,(C:0.3,D:0.4):0.5);"
 #tree = "((((((1,2),3),4),5),6),7,8);" # yeast data tree0
-tree = "(((1)#H1,2),3,4);"
 write(f,tree)
 close(f)
 
@@ -62,3 +61,25 @@ net = readTopology("prueba_tree.txt")
 printEdges(net)
 printNodes(net)
 net.names
+
+# beginning of networks ---------------------------
+include("../types.jl")
+include("../functions.jl")
+
+using Base.Collections # for updateInCycle with priority queue
+
+
+f = open("prueba_tree.txt","w")
+#tree = "((1,2),3,4);"
+tree = "(((6,7)9#H1,1),((8)9#H1,2));"
+tree = "(((6,7)9#H1:1.2:0.9:0.4,1),((8)9#H1,2));"
+#tree = "(1,2,(3,4));"
+#tree = "(((1)#H1,2),3,4);"
+write(f,tree)
+close(f)
+
+net = readTopology("prueba_tree.txt")
+printEdges(net)
+printNodes(net)
+net.names
+

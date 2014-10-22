@@ -31,8 +31,8 @@ include("tree_example.jl");
 # warning: s IOStream needs to be a file, not a stream converted
 #          from string
 # warning: reads additional info :length:bootstrap:gamma
-#          if gamma is read, assumes hybrid edge
 # warning: does not allow for name of internal nodes without # after: (1,2)A,...
+# warning: error if hybrid edge without gamma value, warning if gamma value (ignored) without hybrid edge
 # fixit: it would be better to assure that all tree edges have gamma 1.0
 #        two stages: clean network to verify all this: gammas, sum of gamma =1, etc
 function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1},net::HybridNetwork)
@@ -120,6 +120,7 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1},net::Hy
             c = Base.peekchar(s);
             hybrid = true;
         end
+           # fixit: what about 8#H1?
         num = readNum(s,c,net,true)
         #println("creating node $(num)")
         n = Node(num,true);
@@ -160,6 +161,7 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1},net::Hy
                                 warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
                             else
                                 setGamma!(e,length);
+                                # fixit: make isMajor for gamma>0.5
                             end
                         else
                             error("third colon : without gamma value after in $(numLeft[1]) left parenthesis")
@@ -176,6 +178,7 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1},net::Hy
                             warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
                         else
                             setGamma!(e,length);
+                            # fixit: make isMajor for gamma>0.5
                         end
                     else
                         error("third colon : without gamma value after in $(numLeft[1]) left parenthesis")
@@ -197,6 +200,7 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1},net::Hy
                             warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
                         else
                             setGamma!(e,length);
+                            # fixit: make isMajor for gamma>0.5
                         end
                     else
                         error("third colon : without gamma value after in $(numLeft[1]) left parenthesis")
@@ -213,6 +217,7 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1},net::Hy
                         warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
                     else
                         setGamma!(e,length);
+                        # fixit: make isMajor for gamma>0.5
                     end
                 else
                     error("third colon : without gamma value after in left parenthesis number $(numLeft[1])")
