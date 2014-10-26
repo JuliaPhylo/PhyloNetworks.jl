@@ -1097,30 +1097,23 @@ end
 # input: push boolean to say if you want to push the name into
 #        the net.names list or not
 # warning: allows only numbers or letters, not other characters
-# warning: weird leaves labels can occur if some taxon names are
-#          all numbers and others have letters
+# warning: treats digit taxon numbers as strings to avoid repeated node numbers
 function readNum(s::IOStream, c::Char, net::HybridNetwork, push::Bool)
     if(isdigit(c) || isalpha(c))
-        flag = true && isdigit(c); # to know if it is all numbers
         num = read(s,Char)
         c = Base.peekchar(s)
         while(isdigit(c) || isalpha(c))
-            flag &= isdigit(c);
             d = read(s,Char)
             num = string(num,d)
             c = Base.peekchar(s);
         end
-        if(flag)
-            num = string(0,num);
-            return int(num)
-        else
-            if(push)
-                push!(net.names,string(num));
-            end
-            return net.numTaxa + 1
+        if(push)
+            push!(net.names,string(num));
         end
+        return size(net.names,1)
     else
-        error("Expected int digit or alphanum but received $(c)");
+        a = readall(s);
+        error("Expected int digit or alphanum but received $(c). remaining is $(a).");
     end
 end
 
@@ -1136,7 +1129,8 @@ function readFloat(s::IOStream, c::Char)
         end
         return float(num)
     else
-        error("Expected float digit after : but received $(c)");
+        a = readall(s);
+        error("Expected float digit after : but received $(c). remaining is $(a).");
     end
 end
 
@@ -1145,137 +1139,202 @@ end
 # warning: s IOStream needs to be a file, not a stream converted
 #          from string
 # warning: reads additional info :length:bootstrap:gamma
-#          if gamma is read, assumes hybrid edge
+# warning: allows for name of internal nodes without # after: (1,2)A,...
+# warning: warning if hybrid edge without gamma value, warning if gamma value (ignored) without hybrid edge
 # fixit: it would be better to assure that all tree edges have gamma 1.0
 #        two stages: clean network to verify all this: gammas, sum of gamma =1, etc
-## function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1},net::HybridNetwork)
-##     c = Base.peekchar(s)
-##     e = nothing;
-##     if(c =='(')
-##        numLeft[1] += 1
-##        #println(numLeft)
-##        n = Node(-1*numLeft[1],false);
-##        c = read(s,Char)
-##        bl = readSubtree!(s,n,numLeft,net)
-##        c = advance!(s,c,numLeft)
-##        br = false;
-##        if(c == ',')
-##            br = readSubtree!(s,n,numLeft,net);
-##        else
-##            a = readall(s);
-##            error("Expected comma after left parenthesis $(numLeft[1]) but read $(c). The remainder of line is $(a).")
-##        end
-##        c = advance!(s,c,numLeft)
-##        if(c != ')')
-##            a = readall(s);
-##            error("Expected right parenthesis after left parenthesis $(numLeft[1]) but read $(c). The remainder of line is $(a).")
-##        end
-##        if(bl && br)
-##            pushNode!(net,n);
-##            e = Edge(net.numEdges+1);
-##            pushEdge!(net,e);
-##            setNode!(e,[n,parent]);
-##            setEdge!(n,e);
-##            setEdge!(parent,e);
-##            n.leaf = false;
-##        else
-##            if(size(n.edge,1) == 1) # root only has one child
-##                edge = n.edge[1]; # assume it has only one edge
-##                child = getOtherNode(edge,n);
-##                setNode!(edge,[child,parent]);
-##                setEdge!(parent,edge);
-##            end
-##            return true
-##        end
-##     elseif(isdigit(c) || isalpha(c))
-##         num = readNum(s,c,net,true)
-##         #println("creating node $(num)")
-##         n = Node(num,true);
-##         pushNode!(net,n);
-##         e = Edge(net.numEdges+1);
-##         pushEdge!(net,e);
-##         setNode!(e,[n,parent]);
-##         setEdge!(n,e);
-##         setEdge!(parent,e);
-##     else
-##         error("Expected beginning of subtree but read $(c)");
-##     end
-##     c = Base.peekchar(s)
-##     if(isa(e,Nothing))
-##         return false
-##     end
-##     if(c == ':')
-##         c = read(s,Char);
-##         c = Base.peekchar(s);
-##         if(isdigit(c))
-##             length = readFloat(s,c);
-##             setLength!(e,length);
-##             c = Base.peekchar(s);
-##             if(c == ':')
-##                 c = read(s,Char);
-##                 c = Base.peekchar(s);
-##                 if(isdigit(c))
-##                     length = readFloat(s,c); #bootstrap value
-##                     c = Base.peekchar(s);
-##                     if(c == ':')
-##                         c = read(s, Char);
-##                         c = Base.peekchar(s);
-##                         if(isdigit(c))
-##                             length = readFloat(s,c); #gamma
-##                             warn("gamma read, current edge $(e.number) assumed hybrid")
-##                             e.hybrid = true;
-##                             setGamma!(e,length);
-##                         else
-##                             error("third : without gamma value after in $(numLeft[1]) left parenthesis")
-##                         end
-##                     end
-##                 elseif(c == ':')
-##                     c = read(s, Char);
-##                     c = Base.peekchar(s);
-##                     if(isdigit(c))
-##                         length = readFloat(s,c); #gamma
-##                         warn("gamma read, current edge $(e.number) assumed hybrid")
-##                         e.hybrid = true;
-##                         setGamma!(e,length);
-##                     else
-##                         error("third : without gamma value after in $(numLeft[1]) left parenthesis")
-##                     end
-##                 end
-##             end
-##         elseif(c == ':')
-##             c = read(s,Char);
-##             c = Base.peekchar(s);
-##             if(isdigit(c))
-##                 length = readFloat(s,c); #bootstrap value
-##                 c = Base.peekchar(s);
-##                 if(c == ':')
-##                     c = read(s, Char);
-##                     c = Base.peekchar(s);
-##                     if(isdigit(c))
-##                         length = readFloat(s,c); #gamma
-##                         warn("gamma read, current edge $(e.number) assumed hybrid")
-##                         e.hybrid = true;
-##                         setGamma!(e,length);
-##                     else
-##                         error("third : without gamma value after in $(numLeft[1]) left parenthesis")
-##                     end
-##                 end
-##             elseif(c == ':')
-##                 c = read(s, Char);
-##                 c = Base.peekchar(s);
-##                 if(isdigit(c))
-##                     length = readFloat(s,c); #gamma
-##                     warn("gamma read for edge $(e.number), assumed hybrid")
-##                     e.hybrid = true;
-##                     setGamma!(e,length);
-##                 else
-##                     error("third : without gamma value after in left parenthesis number $(numLeft[1])")
-##                 end
-##             end
-##         end
-##     end
-##     return true
-## end
+function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1},net::HybridNetwork)
+    c = Base.peekchar(s)
+    e = nothing;
+    intnohybrid = false; # for internal node not hybrid
+    leafnoname = false; # for leaves name #H1
+    intname = false; # for hybrid int nodes with name
+    if(c =='(')
+       numLeft[1] += 1
+       #println(numLeft)
+       n = Node(-1*numLeft[1],false);
+       c = read(s,Char)
+       bl = readSubtree!(s,n,numLeft,net)
+       c = advance!(s,c,numLeft)
+       br = false;
+       if(c == ',')
+           br = readSubtree!(s,n,numLeft,net);
+           c = advance!(s,c,numLeft)
+       end
+       if(c != ')')
+           a = readall(s);
+           error("Expected right parenthesis after left parenthesis $(numLeft[1]) but read $(c). The remainder of line is $(a).")
+       end
+        c = Base.peekchar(s);
+        if(isdigit(c) || isalpha(c))
+            intname = true;
+            num = readNum(s,c,net,true);
+            n.number = num;
+            c = Base.peekchar(s);
+            if(c != '#')
+                warn("internal node with name without it being a hybrid node. node name might be meaningless after tree modifications.")
+               intnohybrid = true;
+            end
+        end
+       #println("aqui n.hybrid es $(n.hybrid), bl is $(bl), br is $(br)")
+       if(bl || br)
+           pushNode!(net,n);
+           e = Edge(net.numEdges+1);
+           pushEdge!(net,e);
+           setNode!(e,[n,parent]);
+           setEdge!(n,e);
+           setEdge!(parent,e);
+           n.leaf = false;
+           if(size(n.edge,1) == 1 && intnohybrid) # internal node only has one child but is not hybrid
+               edge = n.edge[1]; # assume it has only one edge
+               child = getOtherNode(edge,n);
+               setNode!(edge,[child,parent]);
+               setEdge!(parent,edge);
+           end
+       end
+    elseif(isdigit(c) || isalpha(c) || c == '#')
+        if(c == '#') # maybe leaf has no name, only #H1
+            c = read(s,Char);
+            c = Base.peekchar(s);
+            leafnoname = true;
+        end
+        num = readNum(s,c,net,true)
+        n = Node(num,true);
+        pushNode!(net,n);
+        e = Edge(net.numEdges+1);
+        pushEdge!(net,e);
+        setNode!(e,[n,parent]);
+        setEdge!(n,e);
+        setEdge!(parent,e);
+    else
+        a = readall(s);
+        error("Expected beginning of subtree but read $(c), remaining is $(a).");
+    end
+    c = Base.peekchar(s);
+    if(c == '#')
+        if(!leafnoname)
+            c = read(s,Char);
+            c = Base.peekchar(s);
+            if(isdigit(c) || isalpha(c))
+                if(c != 'L' && c != 'R' && c != 'H')
+                    warn("Expected H, R or LGT after # but received $(c) in left parenthesis $(numLeft[1]).")
+                end
+                n.hybrid = true;
+                if(intname)
+                    num = readNum(s,c,net,false); #ignored because there is node name
+                else
+                    num = readNum(s,c,net,true);
+                    n.number = num;
+                end
+            else
+                a = readall(s);
+                error("Expected name after # but received $(c) in left parenthesis $(numLeft[1]). Remaining is $(a).")
+            end
+        else
+            a = readall(s);
+            error("strange node name with two # signs in left parenthesis $(numLeft[1]). remaining is $(a).")
+        end
+    end
+    c = Base.peekchar(s);
+    if(isa(e,Nothing))
+        return false
+    end
+    n.hybrid ? e.hybrid = true : e.hybrid =false
+    if(c == ':')
+        c = read(s,Char);
+        c = Base.peekchar(s);
+        if(isdigit(c))
+            length = readFloat(s,c);
+            setLength!(e,length);
+            c = Base.peekchar(s);
+            if(c == ':')
+                c = read(s,Char);
+                c = Base.peekchar(s);
+                if(isdigit(c))
+                    length = readFloat(s,c); #bootstrap value
+                    c = Base.peekchar(s);
+                    if(c == ':')
+                        c = read(s, Char);
+                        c = Base.peekchar(s);
+                        if(isdigit(c))
+                            length = readFloat(s,c); #gamma
+                            if(!e.hybrid)
+                                warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
+                            else
+                                setGamma!(e,length);
+                                # fixit: make isMajor for gamma>0.5
+                            end
+                        else
+                            error("third colon : without gamma value after in $(numLeft[1]) left parenthesis")
+                        end
+                    else
+                        e.hybrid ? error("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1])") : nothing
+                    end
+                elseif(c == ':')
+                    c = read(s, Char);
+                    c = Base.peekchar(s);
+                    if(isdigit(c))
+                        length = readFloat(s,c); #gamma
+                        if(!e.hybrid)
+                            warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
+                        else
+                            setGamma!(e,length);
+                            # fixit: make isMajor for gamma>0.5
+                        end
+                    else
+                        warn("third colon : without gamma value after in $(numLeft[1]) left parenthesis, ignored.")
+                    end
+                else
+                    warn("second colon : read without any double in left parenthesis $(numLeft[1]), ignored.")
+                end
+            end
+        elseif(c == ':')
+            c = read(s,Char);
+            c = Base.peekchar(s);
+            if(isdigit(c))
+                length = readFloat(s,c); #bootstrap value
+                c = Base.peekchar(s);
+                if(c == ':')
+                    c = read(s, Char);
+                    c = Base.peekchar(s);
+                    if(isdigit(c))
+                        length = readFloat(s,c); #gamma
+                        if(!e.hybrid)
+                            warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
+                        else
+                            setGamma!(e,length);
+                            # fixit: make isMajor for gamma>0.5
+                        end
+                    else
+                        warn("third colon : without gamma value after in $(numLeft[1]) left parenthesis")
+                    end
+                else
+                    e.hybrid ? error("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1])") : nothing
+                end
+            elseif(c == ':')
+                c = read(s, Char);
+                c = Base.peekchar(s);
+                if(isdigit(c))
+                    length = readFloat(s,c); #gamma
+                    if(!e.hybrid)
+                        warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
+                    else
+                        setGamma!(e,length);
+                        # fixit: make isMajor for gamma>0.5
+                    end
+                else
+                    warn("third colon : without gamma value after in left parenthesis number $(numLeft[1])")
+                end
+            else
+                warn("second colon : read without any double in left parenthesis $(numLeft[1]), ignored.")
+            end
+        else
+            warn("one colon read without double in left parenthesis $(numLeft[1]), ignored.")
+        end
+    end
+    return true
+end
+
 
 
 # function to read topology from parenthetical format
@@ -1391,7 +1450,7 @@ function setLength!(edge::Edge, new_length::Float64)
       edge.y = exp(-new_length);
       edge.z = 1 - edge.y;
       if(!edge.istIdentifiable)
-          warn("edge length is not identifiable")
+          warn("set edge length that is not identifiable")
       end
   end
 end

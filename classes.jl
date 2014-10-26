@@ -38,6 +38,9 @@ include("tree_example.jl");
 function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1},net::HybridNetwork)
     c = Base.peekchar(s)
     e = nothing;
+    intnohybrid = false; # for internal node not hybrid
+    leafnoname = false; # for leaves name #H1
+    intname = false; # for hybrid int nodes with name
     if(c =='(')
        numLeft[1] += 1
        #println(numLeft)
@@ -56,44 +59,17 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1},net::Hy
        end
         c = Base.peekchar(s);
         if(isdigit(c) || isalpha(c))
+            intname = true;
             num = readNum(s,c,net,true);
             n.number = num;
             c = Base.peekchar(s);
-            if(c == '#')
-                c = read(s,Char);
-                c = Base.peekchar(s);
-               if(isdigit(c) || isalpha(c))
-                   if(c != 'L' && c != 'R' && c != 'H')
-                       warn("Expected H, R or LGT after # but received $(c) in left parenthesis $(numLeft[1]).")
-                   end
-                   n.hybrid = true;
-                   num = readNum(s,c,net,false); #ignored because there is node name
-               else
-                   a = readall(s);
-                   error("Expected name after # but received $(c) in left parenthesis $(numLeft[1]). Remaining is $(a).")
-               end
-            else
-                a = readall(s);
-                error("Expected # but received $(c): internal node $(num) with name but no hybrid #. Remaining is $(a).")
-            end
-        elseif(c == '#')
-            c = read(s,Char);
-            c = Base.peekchar(s);
-            if(isdigit(c) || isalpha(c))
-                if(c != 'L' && c != 'R' && c != 'H')
-                    warn("Expected H, R or LGT after # but received $(c) in left parenthesis $(numLeft[1])")
-                end
-                println("making $(n.number) hybrid")
-                n.hybrid = true;
-                num = readNum(s,c,net,true);
-                n.number = num;
-            else
-                a = readall(s);
-                error("Expected name after # but received $(c) in left parenthesis $(numLeft[1]). Remaining is $(a).")
+            if(c != '#')
+                warn("internal node with name without it being a hybrid node. node name might be meaningless after tree modifications.")
+               intnohybrid = true;
             end
         end
-        println("aqui n.hybrid es $(n.hybrid), bl is $(bl), br is $(br)")
-       if((bl && br) || n.hybrid)
+       #println("aqui n.hybrid es $(n.hybrid), bl is $(bl), br is $(br)")
+       if(bl || br)
            pushNode!(net,n);
            e = Edge(net.numEdges+1);
            pushEdge!(net,e);
@@ -101,44 +77,61 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1},net::Hy
            setEdge!(n,e);
            setEdge!(parent,e);
            n.leaf = false;
-           n.hybrid ? e.hybrid = true : e.hybrid = false
-       else
-           println("vamos a borrar el node $(n.number) xq solo tiene un child y es hybrid=$(n.hybrid)")
-           if(size(n.edge,1) == 1) # internal node only has one child but is not hybrid
+           if(size(n.edge,1) == 1 && intnohybrid) # internal node only has one child but is not hybrid
                edge = n.edge[1]; # assume it has only one edge
                child = getOtherNode(edge,n);
                setNode!(edge,[child,parent]);
                setEdge!(parent,edge);
            end
-           println("not sure if this return should be here")
-           return true # fixit: do we want this return here? what about (1,(2)3:0.9)?
        end
     elseif(isdigit(c) || isalpha(c) || c == '#')
-        hybrid = false;
         if(c == '#') # maybe leaf has no name, only #H1
             c = read(s,Char);
             c = Base.peekchar(s);
-            hybrid = true;
+            leafnoname = true;
         end
-           # fixit: what about 8#H1?
         num = readNum(s,c,net,true)
-        #println("creating node $(num)")
         n = Node(num,true);
-        n.hybrid = hybrid;
         pushNode!(net,n);
         e = Edge(net.numEdges+1);
         pushEdge!(net,e);
         setNode!(e,[n,parent]);
         setEdge!(n,e);
         setEdge!(parent,e);
-        n.hybrid ? e.hybrid = true : e.hybrid =false
     else
-        error("Expected beginning of subtree but read $(c)");
+        a = readall(s);
+        error("Expected beginning of subtree but read $(c), remaining is $(a).");
     end
-    c = Base.peekchar(s)
+    c = Base.peekchar(s);
+    if(c == '#')
+        if(!leafnoname)
+            c = read(s,Char);
+            c = Base.peekchar(s);
+            if(isdigit(c) || isalpha(c))
+                if(c != 'L' && c != 'R' && c != 'H')
+                    warn("Expected H, R or LGT after # but received $(c) in left parenthesis $(numLeft[1]).")
+                end
+                n.hybrid = true;
+                if(intname)
+                    num = readNum(s,c,net,false); #ignored because there is node name
+                else
+                    num = readNum(s,c,net,true);
+                    n.number = num;
+                end
+            else
+                a = readall(s);
+                error("Expected name after # but received $(c) in left parenthesis $(numLeft[1]). Remaining is $(a).")
+            end
+        else
+            a = readall(s);
+            error("strange node name with two # signs in left parenthesis $(numLeft[1]). remaining is $(a).")
+        end
+    end
+    c = Base.peekchar(s);
     if(isa(e,Nothing))
         return false
     end
+    n.hybrid ? e.hybrid = true : e.hybrid =false
     if(c == ':')
         c = read(s,Char);
         c = Base.peekchar(s);
@@ -181,8 +174,10 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1},net::Hy
                             # fixit: make isMajor for gamma>0.5
                         end
                     else
-                        error("third colon : without gamma value after in $(numLeft[1]) left parenthesis")
+                        warn("third colon : without gamma value after in $(numLeft[1]) left parenthesis, ignored.")
                     end
+                else
+                    warn("second colon : read without any double in left parenthesis $(numLeft[1]), ignored.")
                 end
             end
         elseif(c == ':')
@@ -203,7 +198,7 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1},net::Hy
                             # fixit: make isMajor for gamma>0.5
                         end
                     else
-                        error("third colon : without gamma value after in $(numLeft[1]) left parenthesis")
+                        warn("third colon : without gamma value after in $(numLeft[1]) left parenthesis")
                     end
                 else
                     e.hybrid ? error("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1])") : nothing
@@ -220,9 +215,13 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1},net::Hy
                         # fixit: make isMajor for gamma>0.5
                     end
                 else
-                    error("third colon : without gamma value after in left parenthesis number $(numLeft[1])")
+                    warn("third colon : without gamma value after in left parenthesis number $(numLeft[1])")
                 end
+            else
+                warn("second colon : read without any double in left parenthesis $(numLeft[1]), ignored.")
             end
+        else
+            warn("one colon read without double in left parenthesis $(numLeft[1]), ignored.")
         end
     end
     return true
