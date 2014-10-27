@@ -115,6 +115,14 @@ function getIndex(bool::Bool, array::Array{Bool,1})
     i>size(array,1)?error("$(bool) not in array"):return i;
 end
 
+function getIndex(bool::Bool, array::Array{Bool,1})
+    i = 1;
+    while(i<= size(array,1) && !isequal(bool,array[i]))
+        i = i+1;
+    end
+    i>size(array,1)?error("$(bool) not in array"):return i;
+end
+
 function getIndex(bool::Bool, array::Array{Any,1})
     i = 1;
     while(i<= size(array,1) && !isequal(bool,array[i]))

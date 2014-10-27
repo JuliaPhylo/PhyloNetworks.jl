@@ -32,7 +32,6 @@ include("tree_example.jl");
 # it allows names with letters and numbers
 # it also reads # as part of the name and returns pound=true
 # it returns the node name as string as well to check if it exists already (as hybrid)
-# warning: allows only numbers or letters, not other characters
 # warning: treats digit taxon numbers as strings to avoid repeated node numbers
 function readNum(s::IOStream, c::Char, net::HybridNetwork)
     pound = 0;
@@ -58,9 +57,9 @@ function readNum(s::IOStream, c::Char, net::HybridNetwork)
             c = Base.peekchar(s);
         end
         if(pound == 0)
-            return size(net.names,1), num, false
+            return size(net.names,1)+1, num, false
         elseif(pound == 1)
-            return size(net.names,1), num, true
+            return size(net.names,1)+1, num, true
         else
             a = readall(s);
             error("strange node name with $(pound) # signs. remaining is $(a).")
@@ -68,6 +67,16 @@ function readNum(s::IOStream, c::Char, net::HybridNetwork)
         a = readall(s);
         error("Expected int digit, alphanum or # but received $(c). remaining is $(a).");
     end
+end
+
+# aux function to find the index of a string in a
+# string array
+function getIndex(name::ASCIIString, array::Array{ASCIIString,1})
+    i = 1;
+    while(i<= size(array,1) && !isequal(name,array[i]))
+        i = i+1;
+    end
+    i>size(array,1)?error("$(name) not in array"):return i;
 end
 
 
@@ -82,8 +91,7 @@ end
 function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::HybridNetwork, hybrids::Array{Int64}, index::Array{Int64})
     c = Base.peekchar(s)
     e = nothing;
-    leafnoname = false; # for leaves name #H1
-    intname = false; # for hybrid int nodes with name
+    hasname = false; # to know if the current node has name
     if(c =='(')
        numLeft[1] += 1
        #println(numLeft)
@@ -101,16 +109,17 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
            error("Expected right parenthesis after left parenthesis $(numLeft[1]) but read $(c). The remainder of line is $(a).")
        end
         c = Base.peekchar(s);
-        if(isdigit(c) || isalpha(c))
-            intname = true;
+        if(isdigit(c) || isalpha(c) || c == '#') # internal node has name
+            hasname = true;
             num,name,pound = readNum(s,c,net);
             n.number = num;
             c = Base.peekchar(s);
-            if(c != '#')
+            if(!pound)
                 warn("internal node with name without it being a hybrid node. node name might be meaningless after tree modifications.")
             end
         end
     elseif(isdigit(c) || isalpha(c) || c == '#')
+        hasname = true;
         bl = true;
         num,name,pound = readNum(s,c,net,true)
         n = Node(num,true);
@@ -118,31 +127,60 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
         a = readall(s);
         error("Expected beginning of subtree but read $(c), remaining is $(a).");
     end
-    if(pound) # found pound sign in name fixit
-        n.hybrid = true;
-        if(intname)
-            num = readNum(s,c,net,false); #ignored because there is node name
+    if(pound) # found pound sign in name
+        if(in(hybrids,name))
+            ind = getIndex(name,hybrids);
+            net.node[index[ind]] #this is the node
+            e = Edge(net.numEdges+1);
+            pushEdge!(net,e);
+            setNode!(e,[net.node[index[ind]],parent]);
+            setEdge!(net.node[index[ind]],e);
+            setEdge!(parent,e);
+            if(!n.leaf && !net.node[index[ind]].leaf)
+                error("both hybrid nodes are internal nodes: successors of the hybrid node must only be included in the node list of a single occurrence of the hybrid node.")
+            end
+            if(!n.leaf) #have to pass the children to net.node[index[ind]]
+                # fixit here: cambiar todo esto (desde if(in(hybrids,name)) a verificar primero quien es la leaf, xq si se leyo primero la leaf, en vez de pasar los hijos, podemos mejor despegar esa leaf y ya, buscar a su padre y conectarlo con el nuevo H1 no leaf
+            end
         else
-            num = readNum(s,c,net,true);
-            n.number = num;
+            if(bl || br)
+                n.hybrid = true;
+                push!(name,net.names);
+                push!(name,hybrids);
+                pushNode!(net,n);
+                push!(size(net.node,1),index);
+                e = Edge(net.numEdges+1);
+                pushEdge!(net,e);
+                setNode!(e,[n,parent]);
+                setEdge!(n,e);
+                setEdge!(parent,e);
+                if(size(n.edge,1) == 1)
+                    edge = n.edge[1]; # assume it has only one edge
+                    child = getOtherNode(edge,n);
+                    setNode!(edge,[child,parent]);
+                    setEdge!(parent,edge);
+                end
+            end
         end
     else
-     if(bl || br)
-         # fixit: need to push name in net.names
-         pushNode!(net,n);
-         e = Edge(net.numEdges+1);
-         pushEdge!(net,e);
-         setNode!(e,[n,parent]);
-         setEdge!(n,e);
-         setEdge!(parent,e);
-         n.leaf = false;
-         if(size(n.edge,1) == 1 && intnohybrid) # internal node only has one child but is not hybrid
-             edge = n.edge[1]; # assume it has only one edge
-             child = getOtherNode(edge,n);
-             setNode!(edge,[child,parent]);
-             setEdge!(parent,edge);
-         end
-     end
+        if(bl || br)
+            if(hasname)
+                push!(name,net.names);
+            end
+            pushNode!(net,n);
+            e = Edge(net.numEdges+1);
+            pushEdge!(net,e);
+            setNode!(e,[n,parent]);
+            setEdge!(n,e);
+            setEdge!(parent,e);
+            n.leaf = false;
+            if(size(n.edge,1) == 1)
+                edge = n.edge[1]; # assume it has only one edge
+                child = getOtherNode(edge,n);
+                setNode!(edge,[child,parent]);
+                setEdge!(parent,edge);
+            end
+        end
     end
     c = Base.peekchar(s);
     if(isa(e,Nothing))
