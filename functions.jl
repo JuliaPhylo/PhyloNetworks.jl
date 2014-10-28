@@ -1508,14 +1508,22 @@ end
 # fixit: not working!
 function expandChild!(net::HybridNetwork, n::Node)
     if(n.hybrid)
+        suma = sum([!e.hybrid?1:0 for e in n.edge]);
+        println("create edge $(net.numEdges+1)")
         ed1 = Edge(net.numEdges+1);
         n1 = Node(size(net.names,1)+1,false,false,[ed1]);
-        for(e in n.edge)
-            if(!e.hybrid)
-                removeEdge!(n,e);
-                setEdge!(n1,e);
-            end
+        println("create node $(n1.number)")
+        hyb = Int64[];
+        for(i in 1:size(n.edge,1)) #fixit: dont save index, save the edge number and use getindex later
+            !n.edge[i].hybrid ? push!(hyb,i) : nothing
         end
+        for(i in hyb)
+            println("we will delete node $(n.edge[i].number)")
+            removeEdge!(n,n.edge[i]);
+            removeNode!(n,n.edge[i]);
+            setEdge!(n1,n.edge[i]);
+        end
+        println("now node $(n1.number) has the edges $([e.number for e in n1.edge])")
         setEdge!(n,ed1);
         setNode!(ed1,[n,n1]);
         pushNode!(net,n1);

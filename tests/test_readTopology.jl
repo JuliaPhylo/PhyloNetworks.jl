@@ -95,4 +95,5 @@ printEdges(net)
 printNodes(net)
 net.names
 
+expandChild!(net,net.node[3])
 cleanAfterRead!(net)
