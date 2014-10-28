@@ -9,6 +9,6 @@ using Base.Collections
 
 file = "prueba_tree.txt" # change here
 
-net = readTopology("prueba_tree.txt") # warning: run without ; to see errors
+net = readTopology(file) # warning: run without ; to see errors
 printEdges(net)
 printNodes(net)
