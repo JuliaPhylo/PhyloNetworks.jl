@@ -29,12 +29,15 @@ printEdges(net)
 printNodes(net)
 net.names
 
+cleanAfterRead!(net)
+
 # bad trees --------------------------
 f = open("prueba_tree.txt","w")
 tree = "(((1,2),(3,4)));" # extra parenthesis
 tree = "((1,2,(3,4)));" # extra parenthesis
 tree = "(((1,2),3,4));" # extra parenthesis
 tree = "((1),2,3,4,5);" # not tree
+tree = "((1,2),3,4,5);" # polytomy
 tree = "((1,*),(3,4));" # not letter/number taxon name
 tree = "(1,2::,(3,4));" #double :
 tree = "(1,2:::,(3,4));" #triple :
@@ -45,18 +48,21 @@ tree = "((1,2),(3,4))" # no ;
 write(f,tree)
 close(f)
 
-net = readTopology("prueba_tree.txt");
+net = readTopology("prueba_tree.txt")
 printEdges(net)
 printNodes(net)
 net.names
 
+cleanAfterRead!(net)
+
+
 # trees with additional info -----------------
 f = open("prueba_tree.txt","w")
-#tree = "((1:1.2,2:0.3),3:1.8,4);"
-#tree = "((1:1.2,2:0.3):1.2:0.6:0.3,3:1.8,4);"
-#tree = "((1:1.2,2:0.3):1.2::0.6,3:1.8,4);" # no bootstrap
-#tree = "((1:1.2,2:0.3):::0.6,3:1.8,4);" # no length nor bootstrap
-#tree = "((1:1.2,2:0.3):1.2:2.5:1.6,3:1.8,4);" # wrong value gamma
+tree = "((1:1.2,2:0.3),3:1.8,4);"
+tree = "((1:1.2,2:0.3):1.2:0.6:0.3,3:1.8,4);"
+tree = "((1:1.2,2:0.3):1.2::0.6,3:1.8,4);" # no bootstrap
+tree = "((1:1.2,2:0.3):::0.6,3:1.8,4);" # no length nor bootstrap
+tree = "((1:1.2,2:0.3):1.2:2.5:1.6,3:1.8,4);" # wrong value gamma
 tree = "((1:1.2,2:0.3):1.2:2.5:,3:1.8,4);" # missing value gamma
 write(f,tree)
 close(f)
@@ -74,15 +80,13 @@ using Base.Collections # for updateInCycle with priority queue
 
 
 f = open("prueba_tree.txt","w")
-#tree = "((1,2),3,4);"
-tree = "(((6,7)9#H1,1),((8)9#H1,2));"
-tree = "(((6,7)9#H1:1.2:0.9:0.4,1),((8)9#H1,2));"
-#tree = "(1,2,(3,4));"
+tree = "(((3,4)Z#H1,1),(Z#H1,2));"
+tree = "(((3,4)Z#H1:::0.9,1),(Z#H1:::0.2,2));"
+tree = "(((3,4)Z#H1:5.0::0.9,1),(Z#H1:::0.2,2));"
 tree = "(1,2,(3,4)A);"
 tree = "(1,2,(3,4)A:0.8);"
-tree = "(((1)#H1,2),3,4);"
-tree = "((1#H1,2),3,4);"
-tree = "(#H1,2,(3,4));"
+tree = "(((1)#H1,2),#H1,4);"
+tree = "((1,2)#H1,(3,4)#H1);" #error
 write(f,tree)
 close(f)
 
@@ -91,3 +95,4 @@ printEdges(net)
 printNodes(net)
 net.names
 
+cleanAfterRead!(net)
