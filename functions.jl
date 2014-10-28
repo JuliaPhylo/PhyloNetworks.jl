@@ -166,6 +166,11 @@ function getIndexEdge(edge::Edge,node::Node)
     getIndex(true,[isequal(edge,e) for e in node.edge])
 end
 
+# find the index of an edge with given number in node.edge
+function getIndexEdge(number::Int64,node::Node)
+    getIndex(true,[isequal(edge,e) for e in node.edge])
+end
+
 # find the index of a node in edge.node
 function getIndexNode(edge::Edge,node::Node)
     if(size(edge.node,1) == 2)
@@ -274,6 +279,7 @@ function deleteIntNode!(net::HybridNetwork, n::Node)
         setNode!(edge1,node2);
         deleteNode!(net,n);
         deleteEdge!(net,edge2);
+        edge1.hybrid = false;
     else
         error("node does not have only two edges")
     end
@@ -1241,10 +1247,10 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
     end
     if(pound) # found pound sign in name
         n.hybrid = true;
-        println("encontro un hybrid $(name).")
-        println("hybrids list tiene size $(size(hybrids,1))")
+        #println("encontro un hybrid $(name).")
+        #println("hybrids list tiene size $(size(hybrids,1))")
         if(in(name,hybrids))
-            println("dice que $(name) esta en hybrids")
+            #println("dice que $(name) esta en hybrids")
             ind = getIndex(name,hybrids);
             other = net.node[index[ind]];
             if(!n.leaf && !other.leaf)
@@ -1268,11 +1274,11 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
                 end
             end
         else
-            println("dice que $(name) no esta en hybrids")
+            #println("dice que $(name) no esta en hybrids")
             if(bl || br)
                 n.hybrid = true;
                 push!(net.names,string(name));
-                println("aqui vamos a meter a $(name) en hybrids")
+                #println("aqui vamos a meter a $(name) en hybrids")
                 push!(hybrids,string(name));
                 pushNode!(net,n);
                 push!(index,size(net.node,1));
@@ -1447,7 +1453,7 @@ function readTopology(file::String)
     else
        error("Expected beginning of tree with ( but received $(c) instead")
     end
-    #cleanAfterRead!(net);
+    cleanAfterRead!(net)
     return net
 end
 
@@ -1494,7 +1500,7 @@ end
 # aux function to add a child to a leaf hybrid
 function addChild!(net::HybridNetwork, n::Node)
     if(n.hybrid)
-        ed1 = Edge(numEdges+1);
+        ed1 = Edge(net.numEdges+1);
         n1 = Node(size(net.names,1)+1,true,false,[ed1]);
         setEdge!(n,ed1);
         setNode!(ed1,[n,n1]);
@@ -1505,25 +1511,26 @@ function addChild!(net::HybridNetwork, n::Node)
     end
 end
 # aux function to expand the children of a hybrid node
-# fixit: not working!
 function expandChild!(net::HybridNetwork, n::Node)
     if(n.hybrid)
         suma = sum([!e.hybrid?1:0 for e in n.edge]);
-        println("create edge $(net.numEdges+1)")
+        #println("create edge $(net.numEdges+1)")
         ed1 = Edge(net.numEdges+1);
         n1 = Node(size(net.names,1)+1,false,false,[ed1]);
-        println("create node $(n1.number)")
-        hyb = Int64[];
-        for(i in 1:size(n.edge,1)) #fixit: dont save index, save the edge number and use getindex later
-            !n.edge[i].hybrid ? push!(hyb,i) : nothing
+        #println("create node $(n1.number)")
+        hyb = Edge[];
+        for(i in 1:size(n.edge,1))
+            !n.edge[i].hybrid ? push!(hyb,n.edge[i]) : nothing
         end
-        for(i in hyb)
-            println("we will delete node $(n.edge[i].number)")
-            removeEdge!(n,n.edge[i]);
-            removeNode!(n,n.edge[i]);
-            setEdge!(n1,n.edge[i]);
+        #println("hyb tiene $([e.number for e in hyb])")
+        for(e in hyb)
+            #println("se va a borrar a $(e.number)")
+            removeEdge!(n,e);
+            removeNode!(n,e);
+            setEdge!(n1,e);
+            setNode!(e,n1);
         end
-        println("now node $(n1.number) has the edges $([e.number for e in n1.edge])")
+        #println("now node $(n1.number) has the edges $([e.number for e in n1.edge])")
         setEdge!(n,ed1);
         setNode!(ed1,[n,n1]);
         pushNode!(net,n1);
@@ -1557,7 +1564,14 @@ end
 function cleanAfterRead!(net::HybridNetwork)
     for(n in net.node)
         if(size(n.edge,1) == 2)
-            deleteIntNode!(net,n);
+            if(!n.hybrid)
+                deleteIntNode!(net,n);
+            else
+                hyb = sum([e.hybrid?1:0 for e in n.edge]);
+                if(hyb == 1)
+                    deleteIntNode!(net,n);
+                end
+            end
         end
         if(!n.hybrid)
             if(size(n.edge,1) > 3)
