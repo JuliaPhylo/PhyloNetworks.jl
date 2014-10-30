@@ -287,7 +287,7 @@ end
 
 
 # search the hybrid node(s) in network: returns the hybrid node(s)
-# if more than one hybrid, return an array of nodes
+# in an array
 # throws error if no hybrid in network
 function searchHybridNode(net::HybridNetwork)
     suma = sum([net.node[i].hybrid?1:0 for i = 1:size(net.node,1)]);
@@ -308,7 +308,7 @@ function searchHybridNode(net::HybridNetwork)
         end
         return a
     else
-        return net.node[k]
+        return [net.node[k]]
     end
 end
 
@@ -716,7 +716,7 @@ end
 
 
 # ------------------------------------------------ add new hybridization------------------------------------
-
+# fixit: update net.hybrid and numHybrids (push hybrid function?)
 
 # function to add hybridization event
 # input: edge1, edge2 are the edges to remove
@@ -879,7 +879,7 @@ end
 
 
 # --------------------------------- delete hybridization -------------------------------
-
+# fixit: update net.hybrid and numHybrids (push hybrid function?)
 
 # function to identify inCycle (with priority queue)
 # based on updateInCycle as it is the exact same code
@@ -1257,6 +1257,8 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
                 error("both hybrid nodes are internal nodes: successors of the hybrid node must only be included in the node list of a single occurrence of the hybrid node.")
             elseif(n.leaf)
                 e = Edge(net.numEdges+1);
+                e.hybrid = true
+                e.isMajor = false;
                 pushEdge!(net,e);
                 setNode!(e,[other,parent]);
                 setEdge!(other,e);
@@ -1266,6 +1268,7 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
                     parent = getOtherNode(other.edge[1],other);
                     removeEdge!(parent,other.edge[1]);
                     e = Edge(net.numEdges+1);
+                    e.hybrid = true
                     setNode!(e,[n,parent]);
                     setEdge!(n,e);
                     setEdge!(parent,e);
@@ -1283,6 +1286,8 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
                 pushNode!(net,n);
                 push!(index,size(net.node,1));
                 e = Edge(net.numEdges+1);
+                e.hybrid = true
+                n.leaf ? e.isMajor = false : e.isMajor = true
                 pushEdge!(net,e);
                 setNode!(e,[n,parent]);
                 setEdge!(n,e);
@@ -1306,7 +1311,8 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
     if(isa(e,Nothing))
         return false
     end
-    n.hybrid ? e.hybrid = true : e.hybrid =false
+    #n.hybrid ? e.hybrid = true : e.hybrid =false
+    println("parent is $(parent.number) and hasHybEdge is $(parent.hasHybEdge) before reading :")
     if(c == ':')
         c = read(s,Char);
         c = Base.peekchar(s);
@@ -1453,7 +1459,8 @@ function readTopology(file::String)
     else
        error("Expected beginning of tree with ( but received $(c) instead")
     end
-    cleanAfterRead!(net)
+#    cleanAfterRead!(net)
+    storeHybrids!(net)
     return net
 end
 
@@ -1470,7 +1477,7 @@ function solvePolytomyRecursive!(net::HybridNetwork, n::Node)
         removeEdge!(n,edge4);
         removeNode!(n,edge3);
         removeNode!(n,edge4);
-        ednew = Edge(net.numEdges+1);
+        ednew = Edge(net.numEdges+1,0.0);
         n1 = Node(n.number,false,false,[edge3,edge4,ednew]);
         setEdge!(n,ednew);
         setNode!(edge3,n1);
@@ -1500,7 +1507,7 @@ end
 # aux function to add a child to a leaf hybrid
 function addChild!(net::HybridNetwork, n::Node)
     if(n.hybrid)
-        ed1 = Edge(net.numEdges+1);
+        ed1 = Edge(net.numEdges+1,0.0);
         n1 = Node(size(net.names,1)+1,true,false,[ed1]);
         setEdge!(n,ed1);
         setNode!(ed1,[n,n1]);
@@ -1515,7 +1522,7 @@ function expandChild!(net::HybridNetwork, n::Node)
     if(n.hybrid)
         suma = sum([!e.hybrid?1:0 for e in n.edge]);
         #println("create edge $(net.numEdges+1)")
-        ed1 = Edge(net.numEdges+1);
+        ed1 = Edge(net.numEdges+1,0.0);
         n1 = Node(size(net.names,1)+1,false,false,[ed1]);
         #println("create node $(n1.number)")
         hyb = Edge[];
@@ -1550,7 +1557,7 @@ end
 # - polytomies and choose one resolution at random, issuing a warning
 # NETWORK:
 # - number of hybrid edges per hybrid node:
-#   if 0,1: warning and transformed to tree node
+#   if 0,1: error (with warning in old functions)
 #   if >2: error of hybrid polytomy
 #   if 2: check number of tree edges
 # - number of tree edges per hybrid node:
@@ -1560,7 +1567,7 @@ end
 # - gammas: need to sum to one and be present.
 #   error if they do not sum up to one
 #   default values of 0.9,0.1 if not present
-# fixit: better traversing the network?
+# fixit: for only one hybrid, better error than warning
 function cleanAfterRead!(net::HybridNetwork)
     for(n in net.node)
         if(size(n.edge,1) == 2)
@@ -1590,34 +1597,11 @@ function cleanAfterRead!(net::HybridNetwork)
             if(hyb > 2)
                 error("hybrid node $(n.number) has more than two hybrid edges attached to it: polytomy that cannot be resolved without intersecting cycles.")
             elseif(hyb == 1)
-                if(tre == 0)
-                    warn("hybrid node $(n.number) is leaf with only one hybrid edge. it is transformed to leaf tree edge.")
-                    n.hybrid = false;
-                    n.edge[1].hybrid = false;
-                    n.edge[1].gamma = 1.0;
-                elseif(tre == 2)
-                    warn("hybrid node $(n.number) with only one hybrid edge. it is transformed to tree edge.")
-                    n.hybrid = false;
-                    edge = nothing;
-                    i = 1;
-                    while(isa(edge,Nothing) && i < size(n.edge,1))
-                        n.edge[i].hybrid ? edge=n.edge[i] : nothing
-                    end
-                    edge.hybrid = false;
-                    edge.gamma = 1.0;
-                    getOtherNode(edge,n).hasHybEdge = false;
-                elseif(tre > 2)
-                    warn("hybrid node $(n.number) with only one hybrid edge. it is transformed to tree edge. polytomy also discovered.")
-                    n.hybrid = false;
-                    edge = nothing;
-                    i = 1;
-                    while(isa(edge,Nothing) && i < size(n.edge,1))
-                        n.edge[i].hybrid ? edge=n.edge[i] : nothing
-                    end
-                    edge.hybrid = false;
-                    edge.gamma = 1.0;
-                    getOtherNode(edge,n).hasHybEdge = false;
-                    solvePolytomy!(net,n);
+                hybnodes = sum([n.hybrid?1:0 for n in net.node]);
+                if(hybnodes == 1)
+                    error("only one hybrid node number $(n.number) with name $(net.names[n.number]) found with one hybrid edge attached")
+                else
+                    error("current hybrid node $(n.number) with name S(net.names[n.number]) has only one hybrid edge attached. there are other $(hybnodes-1) hybrids out there but this one remained unmatched")
                 end
             elseif(hyb == 0)
                 warn("hybrid node $(n.number) is not connected to any hybrid edges, it was transformed to tree edge")
@@ -1633,11 +1617,9 @@ function cleanAfterRead!(net::HybridNetwork)
                 suma = sum([e.hybrid?e.gamma:0 for e in n.edge]);
                 if(suma == 2)
                     warn("hybrid edges for hybrid node $(n.number) do not contain gamma value, set default: 0.9,0.1")
-                    i = 0;
                     for(e in n.edge)
                         if(e.hybrid)
-                            i += 1;
-                            (i == 1) ? setGamma!(e,0.9) : setGamma!(e,0.1)
+                            (!e.isMajor) ? setGamma!(e,0.1) : setGamma!(e,0.9)
                         end
                     end
                 elseif(suma != 1)
@@ -1664,10 +1646,18 @@ function cleanAfterRead!(net::HybridNetwork)
 end
 
 
-# fixit: create function to check the network after reading it, even before the update step
-#        need to check that both hybrid edges have gamma and they sum to one,
-#        that all tree edges have gamma of 1.0
-#        check that hybrid node only has one child
+# function to search for the hybrid nodes in a read network after cleaning it
+# and store this information as a network's attribute
+function storeHybrids!(net::HybridNetwork)
+    try
+        hybrid = searchHybridNode(net)
+    catch
+        warn("topology read not a network, but a tree as it has no hybrid nodes")
+    end
+    hybrid = searchHybridNode(net);
+    net.hybrid = hybrid;
+    net.numHybrids = size(hybrid,1);
+end
 
 # ----------------------------------------------------------------------------------------
 

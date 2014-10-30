@@ -71,7 +71,7 @@ type Node <: ANode
     Node(number::Int64, leaf::Bool) = new(number,leaf,false,-1.,[],false,false,false,-1.,nothing,-1.)
     Node(number::Int64, leaf::Bool, hybrid::Bool) = new(number,leaf,hybrid,-1.,[],hybrid,false,false,-1.,nothing,-1.)
     Node(number::Int64, leaf::Bool, hybrid::Bool, edge::Array{Edge,1})=new(number,leaf,hybrid,-1.,edge,!all([!edge[i].hybrid for i=1:size(edge,1)]),false,false,-1.,nothing,-1.)
-    Node(number::Int64, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Array{Edge,1}) = new(number,leaf,hybrid,gammaz,edge,!all([!edge[i].hybrid for i=1:size(edge,1)]),false,false,-1.,nothing,-1.)
+    Node(number::Int64, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Array{Edge,1}) = new(number,leaf,hybrid,gammaz,edge,!all([!e.hybrid for e in edge]),false,false,-1.,nothing,-1.)
 end
 
 # warning: no attempt to make sure the direction of edges matches with the root
@@ -85,12 +85,22 @@ type HybridNetwork
     edge::Array{Edge,1}
     root::Int64 # node[root] is the root node, default 1
     names::Array{ASCIIString,1} # translate table for taxon names
+    hybrid::Array{Node,1} # array of hybrid nodes in network
+    numHybrids::Int64 # number of hybrid nodes
     visited::Array{Bool,1} # reusable array of booleans
     edges_changed::Array{Edge,1} # reusable array of edges
     nodes_changed::Array{Node,1} # reusable array of nodes
     # maxTaxNumber::Int32 --in case it's needed later when we prune taxa
     # inner constructor
-    HybridNetwork(node::Array{Node,1},edge::Array{Edge,1})=new(sum([node[i].leaf?1:0 for i=1:size(node,1)]),size(node,1),size(edge,1),node,edge,1,[],[],[],[])
-    HybridNetwork(node::Array{Node,1},edge::Array{Edge,1},root::Int64)=new(sum([node[i].leaf?1:0 for i=1:size(node,1)]),size(node,1),size(edge,1),node,edge,root,[],[],[],[])
-    HybridNetwork() = new(0,0,0,[],[],0,[],[],[],[]);
+    function HybridNetwork(node::Array{Node,1},edge::Array{Edge,1})
+        hybrid=Node[];
+        [n.hybrid?push!(hybrid,n):nothing for n in node];
+        new(sum([node[i].leaf?1:0 for i=1:size(node,1)]),size(node,1),size(edge,1),node,edge,1,[],hybrid,size(hybrid,1),[],[],[])
+    end
+    function HybridNetwork(node::Array{Node,1},edge::Array{Edge,1},root::Int64)
+        hybrid=Node[];
+        [n.hybrid?push!(hybrid,n):nothing for n in node];
+        new(sum([node[i].leaf?1:0 for i=1:size(node,1)]),size(node,1),size(edge,1),node,edge,root,[],hybrid,size(hybrid,1),[],[],[])
+    end
+    HybridNetwork() = new(0,0,0,[],[],0,[],[],0,[],[],[]);
 end
