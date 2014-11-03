@@ -60,18 +60,20 @@ type Node <: ANode
                      # updated after node is part of network with updateGammaz!
     edge::Array{Edge,1}
     hasHybEdge::Bool #is there a hybrid edge in edge? only needed when hybrid=false (tree node)
-    isBadDiamond::Bool # for hybrid node, is it bad diamond case, update in updateGammaz!
-    isBadTriangle::Bool # for hybrid node, is it bad triangle case, udpate in updateGammaz!
+    isBadDiamondI::Bool # for hybrid node, is it bad diamond case I, update in updateGammaz!
+    isBadDiamondII::Bool # for hybrid node, is it bad diamond case II, update in updateGammaz!
+    isBadTriangleI::Bool # for hybrid node, is it bad triangle case I, udpate in updateGammaz!
+    isBadTriangleII::Bool # for hybrid node, is it bad triangle case II, udpate in updateGammaz!
     inCycle::Int64 # = hybrid node if this node is part of a cycle created by such hybrid node, -1 if not part of cycle
     prev # previous node in cycle, used in updateInCycle. defined as "Any", set as "nothing" to begin with
     k::Int64 # number of nodes in cycle, only stored in hybrid node and updated after node becomes part of network
              # default -1
     # inner constructor: set hasHybEdge depending on edge
-    Node() = new(-1.,false,false,-1.,[],false,false,false,-1.,nothing,-1.)
-    Node(number::Int64, leaf::Bool) = new(number,leaf,false,-1.,[],false,false,false,-1.,nothing,-1.)
-    Node(number::Int64, leaf::Bool, hybrid::Bool) = new(number,leaf,hybrid,-1.,[],hybrid,false,false,-1.,nothing,-1.)
-    Node(number::Int64, leaf::Bool, hybrid::Bool, edge::Array{Edge,1})=new(number,leaf,hybrid,-1.,edge,!all([!edge[i].hybrid for i=1:size(edge,1)]),false,false,-1.,nothing,-1.)
-    Node(number::Int64, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Array{Edge,1}) = new(number,leaf,hybrid,gammaz,edge,!all([!e.hybrid for e in edge]),false,false,-1.,nothing,-1.)
+    Node() = new(-1.,false,false,-1.,[],false,false,false,false,false,-1.,nothing,-1.)
+    Node(number::Int64, leaf::Bool) = new(number,leaf,false,-1.,[],false,false,false,false,false,-1.,nothing,-1.)
+    Node(number::Int64, leaf::Bool, hybrid::Bool) = new(number,leaf,hybrid,-1.,[],hybrid,false,false,false,false,-1.,nothing,-1.)
+    Node(number::Int64, leaf::Bool, hybrid::Bool, edge::Array{Edge,1})=new(number,leaf,hybrid,-1.,edge,!all([!edge[i].hybrid for i=1:size(edge,1)]),false,false,false,false,-1.,nothing,-1.)
+    Node(number::Int64, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Array{Edge,1}) = new(number,leaf,hybrid,gammaz,edge,!all([!e.hybrid for e in edge]),false,false,false,false,-1.,nothing,-1.)
 end
 
 # warning: no attempt to make sure the direction of edges matches with the root

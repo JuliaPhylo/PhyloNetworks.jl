@@ -83,7 +83,7 @@ end
 
 function setEdge!(node::Node,edge::Edge)
    push!(node.edge,edge);
-   edge.hybrid ? node.hasHybEdge = true : node.hasHybEdge = false;
+   all([!e.hybrid for e in node.edge]) ? node.hasHybEdge = false : node.hasHybEdge = true;
 end
 
 function getOtherNode(edge::Edge,node::Node)
@@ -417,9 +417,7 @@ function removeEdge!(node::Node,edge::Edge)
     end
     index = getIndexEdge(edge,node);
     deleteat!(node.edge,index);
-    if(edge.hybrid && !node.hybrid)
-        node.hasHybEdge = false;
-    end
+    all([!e.hybrid for e in node.edge]) ? node.hasHybEdge = false : node.hasHybEdge = true;
 end
 
 # function to remove an node from a edge
@@ -586,13 +584,11 @@ function updateContainRoot!(net::HybridNetwork, node::Node)
 end
 
 # function to identify if the network is one of the pathological cases
-# see ipad notes: k = 0 (nonidentifiable), k = 1 (nonidentifiable, set to zero, bad triangle)
-# k = 2 (bad diamond)
+# see ipad notes: k = 0 (nonidentifiable), k = 1 (nonidentifiable, bad triangle I,II)
+# k = 2 (bad diamond I,II)
 # input: hybrid node around which to check (can come from searchHybridNode)
 # updates gammaz with whatever edge lengths are originally in the network
 # returns flag, array of edges changed (istIdentifiable)
-#               without the major/minor hybrid edges
-#               that would be the eliminated ones
 #         false if the network is not identifiable for k=3
 # warning: needs to have updateInCycle already done as it needs
 #          inCycle, and k attributes
@@ -610,7 +606,17 @@ function updateGammaz!(net::HybridNetwork, node::Node)
         if(node.k == 4) # could be bad diamond
             edgebla,edge_min2,tree_edge3 = hybridEdges(other_min);
             edgebla,edge_maj2,tree_edge1 = hybridEdges(other_maj);
-            if(isequal(getOtherNode(edge_min2,other_min),getOtherNode(edge_maj2,other_maj)) && getOtherNode(tree_edge1,other_maj).leaf && getOtherNode(tree_edge2,node).leaf && getOtherNode(tree_edge3,other_min).leaf) # if this, you have bad diamond
+            other_min2 = getOtherNode(edge_min2,other_min);
+            isLeaf1 = getOtherNode(tree_edge1,other_maj);
+            isLeaf2 = getOtherNode(tree_edge2,node);
+            isLeaf3 = getOtherNode(tree_edge3,other_min);
+            tree_edge4 = nothing;
+            for(e in other_min2.edge)
+                if(isa(tree_edge4,Nothing) && e.inCycle == -1 && !e.hybrid)
+                    tree_edge4 = e;
+                end
+            end
+            if(isequal(other_min2,getOtherNode(edge_maj2,other_maj)) && isLeaf1.leaf && isLeaf2.leaf && isLeaf3.leaf) # bad diamond I
                 other_min.gammaz = edge_min.gamma*edge_min2.z;
                 other_maj.gammaz = edge_maj.gamma*edge_maj2.z;
                 edge_min2.istIdentifiable = false;
@@ -619,52 +625,63 @@ function updateGammaz!(net::HybridNetwork, node::Node)
                 push!(net.edges_changed,edge_min2);
                 push!(net.edges_changed,edge_maj2);
                 push!(net.edges_changed,edge_maj);
-                node.isBadDiamond = true;
-            else
-                node.isBadDiamond = false;
+                node.isBadDiamondI = true;
+            elseif(isequal(other_min2,getOtherNode(edge_maj2,other_maj)) && isLeaf1.leaf && !isLeaf2.leaf && isLeaf3.leaf && getOtherNode(tree_edge4,other_min2).leaf) # bad diamond II
+                warn("bad diamond II found, treatment not decided yet")
+                node.isBadDiamondII = true;
             end
-        elseif(node.k == 3) # could be bad triangle, non identifiable or set to zero cases
+        elseif(node.k == 3) # could be bad triangle I, II or non identifiable cases
             edgebla,tree_edge_incycle,tree_edge1 = hybridEdges(other_min);
             edgebla,edgebla,tree_edge3 = hybridEdges(other_maj);
             isLeaf1 = getOtherNode(tree_edge1,other_min);
             isLeaf2 = getOtherNode(tree_edge2,node);
             isLeaf3 = getOtherNode(tree_edge3,other_maj);
-            if(isLeaf1.leaf && !isLeaf2.leaf && !isLeaf3.leaf) # if this, you have bad triangle
+            if(isLeaf1.leaf && !isLeaf2.leaf && !isLeaf3.leaf) # bad triangle I
                 node.gammaz = edge_maj.gamma*edge_maj.gamma*edge_maj.z+edge_min.gamma*edge_min.gamma*tree_edge_incycle.z;
                 other_min.gammaz = edge_min.gamma*tree_edge_incycle.z;
                 tree_edge_incycle.istIdentifiable = false;
                 edge_maj.istIdentifiable = false;
+                edge_min.istIdentifiable = false;
                 tree_edge2.istIdentifiable = false;
-                node.isBadTriangle = true;
+                node.isBadTriangleI = true;
                 push!(net.edges_changed,tree_edge_incycle);
                 push!(net.edges_changed,tree_edge2);
                 push!(net.edges_changed,edge_maj);
+                push!(net.edges_changed,edge_min);
                 edge_maj.length = edge_maj.length + tree_edge2.length;
                 tree_edge2.length = 0.0;
                 edge_min.length = 0.0;
-            elseif(!isLeaf1.leaf && !isLeaf2.leaf && isLeaf3.leaf) # set to zero case1
-                edge_maj.length = edge_maj.length + tree_edge2.length;
-                tree_edge2.length = 0.0;
-                edge_min.length = 0.0;
-                tree_edge_incycle.length = tree_edge_incycle.length + tree_edge1.length;
-                tree_edge1.length = 0.0;
-                tree_edge1.istIdentifiable = false;
+            elseif(!isLeaf1.leaf && !isLeaf2.leaf && isLeaf3.leaf) # bad triangle I
+                node.gammaz = edge_min.gamma*edge_min.gamma*edge_min.z+edge_maj.gamma*edge_maj.gamma*tree_edge_incycle.z;
+                other_maj.gammaz = edge_maj.gamma*tree_edge_incycle.z;
+                tree_edge_incycle.istIdentifiable = false;
+                edge_maj.istIdentifiable = false;
+                edge_min.istIdentifiable = false;
                 tree_edge2.istIdentifiable = false;
+                node.isBadTriangleI = true;
+                push!(net.edges_changed,tree_edge_incycle);
                 push!(net.edges_changed,tree_edge2);
-                push!(net.edges_changed,tree_edge1);
-                node.isBadTriangle = false;
-            elseif(!isLeaf1.leaf && isLeaf2.leaf && !isLeaf3.leaf) # set to zero case2
-                tree_edge_incycle.length = tree_edge_incycle.length + tree_edge1.length;
-                tree_edge1.length = 0.0;
-                edge_min.length = 0.0;
+                push!(net.edges_changed,edge_maj);
+                push!(net.edges_changed,edge_min);
+                edge_min.length = edge_min.length + tree_edge2.length;
+                tree_edge2.length = 0.0;
+                edge_maj.length = 0.0;
+            elseif(!isLeaf1.leaf && isLeaf2.leaf && !isLeaf3.leaf) # bad triangle II
+                tree_edge3.istIdentifiable = false;
                 tree_edge1.istIdentifiable = false;
+                tree_edge_incycle.istIdentifiable = false;
+                other_min.gammaz = tree_edge1.y*(1-(1-edge_min.gamma)*tree_edge_incycle.z)
+                other_maj.gammaz = tree_edge3.y*(1-(1-edge_maj.gamma)*tree_edge_incycle.z)
+                node.gammaz = tree_edge1.y*tree_edge3.y*(edge_min.gamma*tree_edge_incycle.z*tree_edge_incycle.z*(edge_min.gamma-1))
+                node.isBadTriangleII = true;
                 push!(net.edges_changed,tree_edge1);
-                node.isBadTriangle = false;
+                push!(net.edges_changed,tree_edge3);
+                push!(net.edges_changed,tree_edge_incycle);
             elseif(sum([isLeaf1.leaf?1:0, isLeaf2.leaf?1:0, isLeaf3.leaf?1:0]) == 2) # non identifiable network
                 return false, net.edges_changed
             end
         end
-        if(node.k > 3 && !node.isBadDiamond)
+        if(node.k > 3 && !node.isBadDiamondI && !node.isBadDiamondII)
             edgebla,tree_edge_incycle,tree_edge1 = hybridEdges(other_min);
             if(!tree_edge_incycle.istIdentifiable)
                 tree_edge_incycle.istIdentifiable = true;
@@ -972,7 +989,7 @@ function identifyGammaz(net::HybridNetwork, node::Node)
     if(node.hybrid)
         edge_maj, edge_min, tree_edge2 = hybridEdges(node);
         other_maj = getOtherNode(edge_maj,node);
-        if(node.isBadDiamond)
+        if(node.isBadDiamond) #fixit it
             edgebla,edge_maj2,tree_edge1 = hybridEdges(other_maj);
             edge_maj2.istIdentifiable = true;
             return true #, edge_maj2
@@ -1312,7 +1329,7 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
         return false
     end
     #n.hybrid ? e.hybrid = true : e.hybrid =false
-    println("parent is $(parent.number) and hasHybEdge is $(parent.hasHybEdge) before reading :")
+    #println("parent is $(parent.number) and hasHybEdge is $(parent.hasHybEdge) before reading :")
     if(c == ':')
         c = read(s,Char);
         c = Base.peekchar(s);
@@ -1459,7 +1476,7 @@ function readTopology(file::String)
     else
        error("Expected beginning of tree with ( but received $(c) instead")
     end
-#    cleanAfterRead!(net)
+    cleanAfterRead!(net)
     storeHybrids!(net)
     return net
 end
@@ -1686,7 +1703,7 @@ function setGamma!(edge::Edge, new_gamma::Float64)
 	if(0 < new_gamma < 1)
             edge.isChild1 ? ind = 1 : ind = 2 ; # hybrid edge pointing at node 1 or 2
             if(edge.node[ind].hybrid)
-                if(edge.node[ind].isBadDiamond || edge.node[ind].isBadTriangle)
+                if(edge.node[ind].isBadDiamondI || edge.node[ind].isBadDiamondII || edge.node[ind].isBadTriangleI || edge.node[ind].isBadTriangleII)
                     error("bad diamond or triangle situation: gamma not identifiable")
                 else
                     edge.gamma = new_gamma;
