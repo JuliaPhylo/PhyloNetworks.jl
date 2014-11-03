@@ -99,9 +99,7 @@ printNodes(net)
 net.names
 net.numHybrids
 
-#expandChild!(net,net.node[3])
-#cleanAfterRead!(net)
+updateAllReadTopology!(net)
 
-updateInCycle!(net,net.node[3]);
-updateContainRoot!(net,net.node[3]);
-updateGammaz!(net,net.node[3])
+readTopologyUpdate("prueba_tree.txt")
+

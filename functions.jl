@@ -849,15 +849,19 @@ end
 
 # function to update everything of a new hybridization
 # it follows the flow diagram in ipad
-# input: new added hybrid, network
+# input: new added hybrid, network,
+#        updatemajor (bool) to decide if we need to update major edge
+#        only need to update if new hybrid added, if read from file not needed
 # returns: success (bool), hybrid, flag, nocycle, flag2, flag3
-function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork)
+function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool)
     flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,hybrid);
     if(nocycle)
-        return false, hybrid, flag, nocycle, flag2, flag3
+        return false, hybrid, flag, nocycle, true, true
     else
         if(flag)
-            updateMajorHybrid!(net,hybrid);
+            if(updatemajor)
+                updateMajorHybrid!(net,hybrid);
+            end
             flag2, edgesGammaz = updateGammaz!(net,hybrid);
             if(flag2)
                 flag3, edgesRoot = updateContainRoot!(net,hybrid);
@@ -872,11 +876,11 @@ function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork)
             else
                 undoistIdentifiable!(edgesGammaz);
                 undoInCycle!(edgesInCycle, nodesInCycle);
-                return false, hybrid, flag, nocycle, flag2, flag3
+                return false, hybrid, flag, nocycle, flag2, true
             end
         else
             undoInCycle!(edgesInCycle, nodesInCycle);
-            return false, hybrid, flag, nocycle, flag2, flag3
+            return false, hybrid, flag, nocycle, true, true
         end
     end
 end
@@ -891,7 +895,7 @@ end
 # returns: success (bool), hybrid, flag, nocycle, flag2, flag3
 function addHybridizationUpdate!(net::HybridNetwork)
     hybrid = addHybridization!(net);
-    updateAllNewHybrid!(hybrid,net)
+    updateAllNewHybrid!(hybrid,net,true)
 end
 
 
@@ -1426,9 +1430,6 @@ end
 # input: file name
 # warning: allows numbers and/or letters (or #) in taxon names
 #          but not other characters
-# fixit: still needs to check the resulting network after
-# fixit: it would be better to assure that all tree edges have gamma 1.0
-#        two stages: clean network to verify all this: gammas, sum of gamma =1, etc
 function readTopology(file::String)
     net = HybridNetwork()
     try
@@ -1570,6 +1571,8 @@ end
 # function to clean topology after readTopology
 # looks for:
 # TREE:
+# - all tree edges must have gamma=1. fixit: cannot point out which doesn't,
+#   only shows error.
 # - internal nodes with only 2 edges and solves this case.
 # - polytomies and choose one resolution at random, issuing a warning
 # NETWORK:
@@ -1586,6 +1589,7 @@ end
 #   default values of 0.9,0.1 if not present
 # fixit: for only one hybrid, better error than warning
 function cleanAfterRead!(net::HybridNetwork)
+    mod(sum([!e.hybrid?e.gamma:0 for e in net.edge]),1) == 0 ? nothing : error("some tree edge has gamma different than 1")
     for(n in net.node)
         if(size(n.edge,1) == 2)
             if(!n.hybrid)
@@ -1674,6 +1678,37 @@ function storeHybrids!(net::HybridNetwork)
     hybrid = searchHybridNode(net);
     net.hybrid = hybrid;
     net.numHybrids = size(hybrid,1);
+end
+
+# function to update the read topology after reading
+# it will go over the net.hybrid array and check each
+# of the hybridization events defined to update:
+# - in cycle
+# - contain root
+# - gammaz
+# it uses updateAllNewHybrid! function that
+# returns: success (bool), hybrid, flag, nocycle, flag2, flag3
+# warning: needs to have run storeHybrids! before
+# warning: it will stop when finding one conflicting hybrid
+function updateAllReadTopology!(net::HybridNetwork)
+    if(isempty(net.hybrid))
+        warn("not a network read, but a tree as it does not have hybrid nodes")
+    else
+        for(n in net.hybrid)
+            success,hyb,flag,nocycle,flag2,flag3 = updateAllNewHybrid!(n,net,false)
+            if(!success)
+                error("current hybrid $(n.number) conflicts with previous hybrid by intersecting cycles: $(!flag), nonidentifiable topology: $(!flag2), empty space for contain root: $(!flag3), or does not create a cycle: $(nocycle).")
+            end
+        end
+    end
+end
+
+# function to read a topology from file name and update it
+# by calling updateAllReadTopology after
+function readTopologyUpdate(file::String)
+    net = readTopology(file)
+    updateAllReadTopology!(net)
+    return net
 end
 
 # ----------------------------------------------------------------------------------------
