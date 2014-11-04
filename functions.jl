@@ -1268,12 +1268,13 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
     end
     if(pound) # found pound sign in name
         n.hybrid = true;
-        #println("encontro un hybrid $(name).")
-        #println("hybrids list tiene size $(size(hybrids,1))")
+        println("encontro un hybrid $(name).")
+        println("hybrids list tiene size $(size(hybrids,1))")
         if(in(name,hybrids))
-            #println("dice que $(name) esta en hybrids")
+            println("dice que $(name) esta en hybrids")
             ind = getIndex(name,hybrids);
             other = net.node[index[ind]];
+            println("other is leaf? $(other.leaf), n is leaf? $(n.leaf)")
             if(!n.leaf && !other.leaf)
                 error("both hybrid nodes are internal nodes: successors of the hybrid node must only be included in the node list of a single occurrence of the hybrid node.")
             elseif(n.leaf)
@@ -1285,24 +1286,33 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
                 setEdge!(other,e);
                 setEdge!(parent,e);
             else # !n.leaf
-                if(size(other.edge,1) == 1) #net.node[index[ind]] should be a leaf
-                    parent = getOtherNode(other.edge[1],other);
-                    removeEdge!(parent,other.edge[1]);
+                if(size(other.edge,1) == 1) #other should be a leaf
+                    println("other is $(other.number), n is $(n.number), edge of other is $(other.edge[1].number)")
+                    otheredge = other.edge[1];
+                    otherparent = getOtherNode(otheredge,other);
+                    println("parent of other is $(otherparent.number)")
+                    removeNode!(other,otheredge);
+                    deleteNode!(net,other);
+                    setNode!(otheredge,n);
+                    setEdge!(n,otheredge);
                     e = Edge(net.numEdges+1);
                     e.hybrid = true
                     setNode!(e,[n,parent]);
                     setEdge!(n,e);
                     setEdge!(parent,e);
+                    pushNode!(net,n);
+                    pushEdge!(net,e);
+                    n.number = other.number;
                 else
                     error("strange: node $(other.number) is a leaf hybrid node so it should have only one edge and it has $(size(other.edge,1))")
                 end
             end
         else
-            #println("dice que $(name) no esta en hybrids")
+            println("dice que $(name) no esta en hybrids")
             if(bl || br)
                 n.hybrid = true;
                 push!(net.names,string(name));
-                #println("aqui vamos a meter a $(name) en hybrids")
+                println("aqui vamos a meter a $(name) en hybrids")
                 push!(hybrids,string(name));
                 pushNode!(net,n);
                 push!(index,size(net.node,1));
@@ -1589,7 +1599,7 @@ end
 #   default values of 0.9,0.1 if not present
 # fixit: for only one hybrid, better error than warning
 function cleanAfterRead!(net::HybridNetwork)
-    mod(sum([!e.hybrid?e.gamma:0 for e in net.edge]),1) == 0 ? nothing : error("some tree edge has gamma different than 1")
+    mod(sum([!e.hybrid?e.gamma:0 for e in net.edge]),1) == 0 ? nothing : error("tree (not network) read and some tree edge has gamma different than 1")
     for(n in net.node)
         if(size(n.edge,1) == 2)
             if(!n.hybrid)
@@ -1670,14 +1680,18 @@ end
 # function to search for the hybrid nodes in a read network after cleaning it
 # and store this information as a network's attribute
 function storeHybrids!(net::HybridNetwork)
+    flag = true;
     try
         hybrid = searchHybridNode(net)
     catch
         warn("topology read not a network, but a tree as it has no hybrid nodes")
+        flag = false;
     end
-    hybrid = searchHybridNode(net);
-    net.hybrid = hybrid;
-    net.numHybrids = size(hybrid,1);
+    if(flag)
+        hybrid = searchHybridNode(net);
+        net.hybrid = hybrid;
+        net.numHybrids = size(hybrid,1);
+    end
 end
 
 # function to update the read topology after reading
@@ -1688,16 +1702,20 @@ end
 # - gammaz
 # it uses updateAllNewHybrid! function that
 # returns: success (bool), hybrid, flag, nocycle, flag2, flag3
+# if tree read, also check that contain root is true for all, ishybrid and hashybedge is false
 # warning: needs to have run storeHybrids! before
 # warning: it will stop when finding one conflicting hybrid
 function updateAllReadTopology!(net::HybridNetwork)
     if(isempty(net.hybrid))
         warn("not a network read, but a tree as it does not have hybrid nodes")
+        all([e.containRoot for e in net.edge]) ? nothing : error("some tree edge has contain root as false")
+        all([!e.isHybrid for e in net.edge]) ? nothing : error("some edge is hybrid and should be all tree edges in a tree")
+        all([!n.hasHybEdge for n in net.node]) ? nothing : error("some tree node has hybrid edge true, but it is a tree, there are no hybrid edges")
     else
         for(n in net.hybrid)
             success,hyb,flag,nocycle,flag2,flag3 = updateAllNewHybrid!(n,net,false)
             if(!success)
-                error("current hybrid $(n.number) conflicts with previous hybrid by intersecting cycles: $(!flag), nonidentifiable topology: $(!flag2), empty space for contain root: $(!flag3), or does not create a cycle: $(nocycle).")
+                error("current hybrid $(n.number) conflicts with previous hybrid by intersecting cycles: $(!flag), nonidentifiable topology: $(!flag2), empty space for contain root: $(!flag3), or does not create a cycle (probably problem with the root placement): $(nocycle).")
             end
         end
     end

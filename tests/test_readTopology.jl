@@ -81,6 +81,7 @@ using Base.Collections # for updateInCycle with priority queue
 
 f = open("prueba_tree.txt","w")
 tree = "(((3,4)Z#H1,1),(Z#H1,2));" # expand child, no gammas
+tree = "((Z#H1,2),((3,4)Z#H1,1));" # expand child, no gammas, leaf read first
 tree = "(((3,4)Z#H1:::0.9,1),(Z#H1:::0.2,2));" # gammas do not sum up to 1
 tree = "(((3,4)Z#H1:5.0::0.9,1),(Z#H1:::0.2,2));"
 tree = "(1,2,(3,4)A);"
