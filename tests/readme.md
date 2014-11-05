@@ -20,3 +20,9 @@ It calls delete_hybrid_caseC,D,E,F,G,H,I,J.jl
 
 aux functions: test_functions_5taxon.jl
 
+#### read topology
+
+test_5taxon_readTopology.jl runs all the tests for the eight 5taxon
+networks by reading from parenthetical format and then updating
+
+aux functions: test_functions_5taxon_read.jl

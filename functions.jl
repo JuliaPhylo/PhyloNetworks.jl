@@ -586,6 +586,7 @@ end
 # function to identify if the network is one of the pathological cases
 # see ipad notes: k = 0 (nonidentifiable), k = 1 (nonidentifiable, bad triangle I,II)
 # k = 2 (bad diamond I,II)
+# also checks if hybrid node has leaf child, in which case, major edge is non identifiable
 # input: hybrid node around which to check (can come from searchHybridNode)
 # updates gammaz with whatever edge lengths are originally in the network
 # returns flag, array of edges changed (istIdentifiable)
@@ -601,9 +602,7 @@ function updateGammaz!(net::HybridNetwork, node::Node)
         edge_maj, edge_min, tree_edge2 = hybridEdges(node);
         other_maj = getOtherNode(edge_maj,node);
         other_min = getOtherNode(edge_min,node);
-        edge_min.istIdentifiable = false;
-        push!(net.edges_changed, edge_min);
-        if(node.k == 4) # could be bad diamond
+        if(node.k == 4) # could be bad diamond I,II
             edgebla,edge_min2,tree_edge3 = hybridEdges(other_min);
             edgebla,edge_maj2,tree_edge1 = hybridEdges(other_maj);
             other_min2 = getOtherNode(edge_min2,other_min);
@@ -622,7 +621,9 @@ function updateGammaz!(net::HybridNetwork, node::Node)
                 edge_min2.istIdentifiable = false;
                 edge_maj2.istIdentifiable = false;
                 edge_maj.istIdentifiable = false;
+                edge_min.istIdentifiable = false;
                 push!(net.edges_changed,edge_min2);
+                push!(net.edges_changed,edge_min);
                 push!(net.edges_changed,edge_maj2);
                 push!(net.edges_changed,edge_maj);
                 node.isBadDiamondI = true;
@@ -670,6 +671,10 @@ function updateGammaz!(net::HybridNetwork, node::Node)
                 tree_edge3.istIdentifiable = false;
                 tree_edge1.istIdentifiable = false;
                 tree_edge_incycle.istIdentifiable = false;
+                edge_maj.istIdentifiable = false;
+                edge_min.istIdentifiable = false;
+                push!(net.edges_changed,edge_maj);
+                push!(net.edges_changed,edge_min);
                 other_min.gammaz = tree_edge1.y*(1-(1-edge_min.gamma)*tree_edge_incycle.z)
                 other_maj.gammaz = tree_edge3.y*(1-(1-edge_maj.gamma)*tree_edge_incycle.z)
                 node.gammaz = tree_edge1.y*tree_edge3.y*(edge_min.gamma*tree_edge_incycle.z*tree_edge_incycle.z*(edge_min.gamma-1))
@@ -680,16 +685,32 @@ function updateGammaz!(net::HybridNetwork, node::Node)
             elseif(sum([isLeaf1.leaf?1:0, isLeaf2.leaf?1:0, isLeaf3.leaf?1:0]) == 2) # non identifiable network
                 return false, net.edges_changed
             end
+        else
+            if(getOtherNode(tree_edge2,node).leaf)
+                edge_min.istIdentifiable = false;
+                edge_maj.istIdentifiable = false;
+                push!(net.edges_changed, edge_min);
+                push!(net.edges_changed, edge_maj);
+            end
         end
         if(node.k > 3 && !node.isBadDiamondI && !node.isBadDiamondII)
+            #println("si entra el ultimo if de k>3 y no bad diamondI,II")
             edgebla,tree_edge_incycle,tree_edge1 = hybridEdges(other_min);
             if(!tree_edge_incycle.istIdentifiable)
                 tree_edge_incycle.istIdentifiable = true;
                 push!(net.edges_changed,tree_edge_incycle);
             end
-            if(getOtherNode(tree_edge2,node).leaf && edge_maj.istIdentifiable)
-                edge_maj.istIdentifiable = false;
-                push!(net.edges_changed,edge_maj);
+            if(getOtherNode(tree_edge2,node).leaf)
+                #println("si se da cuenta de q hybrid node tiene child leaf. here edge min is $(edge_min.number) y su istId is $(edge_min.istIdentifiable)")
+                if(edge_maj.istIdentifiable)
+                    edge_maj.istIdentifiable = false;
+                    push!(net.edges_changed, edge_maj);
+                end
+                if(edge_min.istIdentifiable)
+                    #println("si entra a cambiar edge min $(edge_min.number)")
+                    edge_min.istIdentifiable = false;
+                    push!(net.edges_changed, edge_min);
+                end
             end
         end
         return true, net.edges_changed
@@ -900,7 +921,8 @@ end
 
 
 # --------------------------------- delete hybridization -------------------------------
-# fixit: update net.hybrid and numHybrids (push hybrid function?)
+# fixit: update net.hybrid and numHybrids (push hybrid function?), change identifygammaz to new reparametrization:
+# bad diamondI,II, bad triangle I,II
 
 # function to identify inCycle (with priority queue)
 # based on updateInCycle as it is the exact same code
@@ -1268,13 +1290,13 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
     end
     if(pound) # found pound sign in name
         n.hybrid = true;
-        println("encontro un hybrid $(name).")
-        println("hybrids list tiene size $(size(hybrids,1))")
+        #println("encontro un hybrid $(name).")
+        #println("hybrids list tiene size $(size(hybrids,1))")
         if(in(name,hybrids))
-            println("dice que $(name) esta en hybrids")
+            #println("dice que $(name) esta en hybrids")
             ind = getIndex(name,hybrids);
             other = net.node[index[ind]];
-            println("other is leaf? $(other.leaf), n is leaf? $(n.leaf)")
+            #println("other is leaf? $(other.leaf), n is leaf? $(n.leaf)")
             if(!n.leaf && !other.leaf)
                 error("both hybrid nodes are internal nodes: successors of the hybrid node must only be included in the node list of a single occurrence of the hybrid node.")
             elseif(n.leaf)
@@ -1287,10 +1309,10 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
                 setEdge!(parent,e);
             else # !n.leaf
                 if(size(other.edge,1) == 1) #other should be a leaf
-                    println("other is $(other.number), n is $(n.number), edge of other is $(other.edge[1].number)")
+                    #println("other is $(other.number), n is $(n.number), edge of other is $(other.edge[1].number)")
                     otheredge = other.edge[1];
                     otherparent = getOtherNode(otheredge,other);
-                    println("parent of other is $(otherparent.number)")
+                    #println("parent of other is $(otherparent.number)")
                     removeNode!(other,otheredge);
                     deleteNode!(net,other);
                     setNode!(otheredge,n);
@@ -1308,11 +1330,11 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
                 end
             end
         else
-            println("dice que $(name) no esta en hybrids")
+            #println("dice que $(name) no esta en hybrids")
             if(bl || br)
                 n.hybrid = true;
                 push!(net.names,string(name));
-                println("aqui vamos a meter a $(name) en hybrids")
+                #println("aqui vamos a meter a $(name) en hybrids")
                 push!(hybrids,string(name));
                 pushNode!(net,n);
                 push!(index,size(net.node,1));
