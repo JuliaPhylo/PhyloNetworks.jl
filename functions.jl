@@ -596,6 +596,7 @@ end
 # check: assume any tree node that has hybrid Edge has only one tree edge in cycle (true?)
 # fixit: we still need to be certain of generalization n> = 5 of bad diamond case,
 #        here assumed: 1,1,1,> = 2 (see ipad figure)
+# fixit: still unknown treatment for bad diamond II
 function updateGammaz!(net::HybridNetwork, node::Node)
     if(node.hybrid)
         net.edges_changed = Edge[];
@@ -753,6 +754,85 @@ function undoistIdentifiable!(edges::Array{Edge,1})
 end
 
 
+# function to undo updategammaz for the 4 cases:
+# bad triangle I,II and bad diamond I,II
+# input: hybrid node
+# set length to edges that were not identifiable and
+# changed the gammaz to -1
+# warning: needs to know incycle attributes
+# fixit: still unknown treatment for bad diamond II
+function undoGammaz!(node::Node)
+    if(node.hybrid)
+        if(node.isBadTriangleI)
+            edge_maj, edge_min, tree_edge2 = hybridEdges(node);
+            other_maj = getOtherNode(edge_maj,node);
+            other_min = getOtherNode(edge_min,node);
+            edgebla,tree_edge_incycle,tree_edge1 = hybridEdges(other_min);
+            if(node.gammaz != -1)
+                setLength!(tree_edge2,-log(1-node.gammaz))
+            else
+                error("bad triangle I in node $(node.number) but no gammaz updated correctly")
+            end
+            if(other_maj.gammaz != -1)
+                setLength!(tree_edge_incycle,-log(1-other_maj.gammaz))
+            elseif(other_min.gammaz != -1)
+                setLength!(tree_edge_incycle,-log(1-other_min.gammaz))
+            else
+                error("bad triangle I in node $(node.number) but no gammaz updated correctly")
+            end
+            setLength!(edge_maj,0.0) # t12 (tree_edge2) already has the right length
+            setLength!(edge_min,0.0)
+            node.gammaz = -1.0
+            other_maj.gammaz = -1.0
+            other_min.gammaz = -1.0
+        elseif(node.isBadTriangleII)
+            edge_maj, edge_min, tree_edge2 = hybridEdges(node);
+            other_maj = getOtherNode(edge_maj,node);
+            other_min = getOtherNode(edge_min,node);
+            edgebla,tree_edge_incycle,tree_edge1 = hybridEdges(other_min);
+            edgebla,edgebla,tree_edge3 = hybridEdges(other_maj)
+            if(other_min.gammaz != -1)
+                setLength!(tree_edge1,-log(1-other_min.gammaz))
+            else
+                error("bad triangle II in node $(node.number) but no gammaz updated correctly")
+            end
+            if(other_maj.gammaz != -1)
+                setLength!(tree_edge3,-log(1-other_maj.gammaz))
+            else
+                error("bad triangle II in node $(node.number) but no gammaz updated correctly")
+            end
+            setLength!(tree_edge_incycle,0.0) #t11 and t10 already have the right length
+            node.gammaz = -1.0
+            other_maj.gammaz = -1.0
+            other_min.gammaz = -1.0
+        elseif(node.isBadDiamondI)
+            edge_maj, edge_min, tree_edge2 = hybridEdges(node);
+            other_maj = getOtherNode(edge_maj,node);
+            other_min = getOtherNode(edge_min,node);
+            edgebla,tree_edge_incycle1,tree_edge = hybridEdges(other_min);
+            edgebla,tree_edge_incycle2,tree_edge = hybridEdges(other_maj);
+            if(other_min.gammaz != -1)
+                setLength!(tree_edge_incycle1,-log(1-other_min.gammaz))
+            else
+                error("bad diamond I in node $(node.number) but no gammaz updated correctly")
+            end
+            if(other_maj.gammaz != -1)
+                setLength!(tree_edge_incycle2,-log(1-other_maj.gammaz))
+            else
+                error("bad diamond I in node $(node.number) but no gammaz updated correctly")
+            end
+            other_min.gammaz = -1.0
+            other_maj.gammaz = -1.0
+        elseif(node.isBadDiamondII)
+            warn("still no treatment for bad diamond II")
+        end
+    else
+        error("cannot undo gammaz if starting node is not hybrid")
+    end
+end
+
+
+
 # ------------------------------------------------ add new hybridization------------------------------------
 # fixit: update net.hybrid and numHybrids (push hybrid function?)
 
@@ -800,6 +880,44 @@ function createHybrid!(edge1::Edge, edge2::Edge, edge3::Edge, edge4::Edge, net::
     end
 end
 
+# aux function for chooseEdgesGamma to identify
+# if two edges are sisters and if they are cherry
+# (have leaves)
+# returns true/false for sisters, true/false for cherry
+#         true/false for nonidentifiable (two leaves, k=1 node crossed by hybridization)
+function sisterOrCherry(edge1::Edge,edge2::Edge)
+    sisters = false
+    cherry = false
+    nonidentifiable = false
+    node = nothing;
+    if(isequal(edge1.node[1],edge2.node[1]) || isequal(edge1.node[1],edge2.node[2]))
+        node = edge1.node[1];
+    elseif(isequal(edge1.node[2],edge2.node[1]) || isequal(edge1.node[2],edge2.node[2]))
+        node = edge1.node[2];
+    end
+    if(!isa(node,Nothing))
+        if(size(node.edge,1) == 3)
+            sisters = true
+            if(getOtherNode(edge1,node).leaf && getOtherNode(edge2,node).leaf)
+                cherry = true
+            elseif(getOtherNode(edge1,node).leaf || getOtherNode(edge2,node).leaf)
+                edge = nothing
+                for(e in node.edge)
+                    if(!isequal(e,edge1) && !isequal(e,edge2))
+                        edge = e
+                    end
+                end
+                if(getOtherNode(edge,node).leaf)
+                    nonidentifiable = true
+                end
+            end
+        else
+            error("node found $(node.number) that does not have exactly 3 edges, it has $(size(node.edge,1)) edges instead.")
+        end
+    end
+    return sisters, cherry, nonidentifiable
+end
+
 # aux function to addHybridization
 # it chooses the edges in the network and the gamma value
 # warning: chooses edge1, edge2, gamma randomly, but
@@ -808,9 +926,10 @@ end
 function chooseEdgesGamma(net::HybridNetwork)
     index1 = 1;
     index2 = 1;
-    while(index1 == index2 || index1 == 0 || index2 == 0 || index1 > size(net.edge,1) || index2 > size(net.edge,1) || net.edge[index1].inCycle != -1 || net.edge[index2].inCycle != -1)
+    while(index1 == index2 || index1 == 0 || index2 == 0 || index1 > size(net.edge,1) || index2 > size(net.edge,1) || net.edge[index1].inCycle != -1 || net.edge[index2].inCycle != -1 || cherry || nonidentifiable)
         index1 = iround(rand()*size(net.edge,1));
         index2 = iround(rand()*size(net.edge,1));
+        sisters, cherry, nonidentifiable = sisterOrCherry(net.edge[index1],net.edge[index2]);
     end
     gamma = rand()*0.5;
     println("from $(edge1.number) to $(edge2.number), $(gamma)");
@@ -891,11 +1010,13 @@ function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool)
                 else
                     undoContainRoot!(edgesRoot);
                     undoistIdentifiable!(edgesGammaz);
+                    undoGammaz!(hybrid);
                     undoInCycle!(edgesInCycle, nodesInCycle);
                     return false, hybrid, flag, nocycle, flag2, flag3
                 end
             else
                 undoistIdentifiable!(edgesGammaz);
+                undoGammaz!(hybrid);
                 undoInCycle!(edgesInCycle, nodesInCycle);
                 return false, hybrid, flag, nocycle, flag2, true
             end
@@ -918,6 +1039,7 @@ function addHybridizationUpdate!(net::HybridNetwork)
     hybrid = addHybridization!(net);
     updateAllNewHybrid!(hybrid,net,true)
 end
+
 
 
 # --------------------------------- delete hybridization -------------------------------

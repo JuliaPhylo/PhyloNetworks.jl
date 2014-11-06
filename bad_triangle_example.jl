@@ -3,6 +3,11 @@
 #
 # in julia: include("bad_triangle_example.jl")
 
+include("types.jl")
+include("functions.jl")
+using DataStructures # for updateInCycle with queue
+using Base.Collections # for updateInCycle with priority queue
+
 ed1=Edge(1,0.6,true,0.7);
 ed2=Edge(2,0.7,true,0.3);
 ed3=Edge(3,0.9);
@@ -46,7 +51,10 @@ setNode!(ed10,[n1,n4]);
 net=HybridNetwork([n1,n2,n3,n4,n5,n6,n7,n8,n9,n10],[ed1,ed2,ed3,ed4,ed5,ed6,ed7,ed8,ed9,ed10]);
 node=searchHybridNode(net);
 
-flag, nocycle, edges, nodes = updateInCycle!(net,node);
-flag2, edges2 = updateContainRoot!(net,node);
-#flag3, edges3 = updateGammaz!(net,node);
+flag, nocycle, edges, nodes = updateInCycle!(net,node[1]);
+flag2, edges2 = updateContainRoot!(net,node[1]);
+flag3, edges3 = updateGammaz!(net,node[1]);
 
+printEdges(net)
+
+undoGammaz!(node[1])

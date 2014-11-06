@@ -27,6 +27,249 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
+# --------------------------------- delete hybridization -------------------------------
+# fixit: update net.hybrid and numHybrids (push hybrid function?), change identifygammaz to new reparametrization:
+# bad diamondI,II, bad triangle I,II
+
+# function to identify inCycle (with priority queue)
+# based on updateInCycle as it is the exact same code
+# only without changing the incycle attribute
+# only returning array of edges/nodes affected by the hybrid
+# used when attempting to delete
+# input: hybrid node around which we want to identify inCycle
+# needs module "Base.Collections"
+# returns tuple: nocycle, array of edges changed, array of nodes changed
+# check: is this traversal much faster than a simple loop over
+#        all edges/nodes and check if incycle==hybrid.number?
+function identifyInCycle(net::HybridNetwork,node::Node)
+    if(node.hybrid)
+        start = node;
+        hybedge = getHybridEdge(node);
+        last = getOtherNode(hybedge,node);
+        dist = 0;
+        queue = PriorityQueue();
+        path = Node[];
+        net.edges_changed = Edge[];
+        net.nodes_changed = Node[];
+        push!(net.edges_changed,hybedge);
+        push!(net.nodes_changed,node);
+        found = false;
+        net.visited = [false for i = 1:size(net.node,1)];
+        enqueue!(queue,node,dist);
+        while(!found)
+            if(isempty(queue))
+                return true, net.edges_changed, net.nodes_changed
+            else
+                curr = dequeue!(queue);
+                if(isequal(curr,last))
+                    found = true;
+                    push!(path,curr);
+                else
+                    if(!net.visited[getIndex(curr,net)])
+                        net.visited[getIndex(curr,net)] = true;
+                        if(isequal(curr,start))
+                            for(e in curr.edge)
+                                if(!e.hybrid || e.isMajor)
+                                    other = getOtherNode(e,curr);
+                                    other.prev = curr;
+                                    dist = dist+1;
+                                    enqueue!(queue,other,dist);
+                                end
+                            end
+                        else
+                            for(e in curr.edge)
+                                other = getOtherNode(e,curr);
+                                if(!other.leaf && !net.visited[getIndex(other,net)])
+                                    other.prev = curr;
+                                    dist = dist+1;
+                                    enqueue!(queue,other,dist);
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end # end while
+        curr = pop!(path);
+        while(!isequal(curr, start))
+            if(curr.inCycle == start.number)
+                push!(net.nodes_changed, curr);
+                edge = getConnectingEdge(curr,curr.prev);
+                if(edge.inCycle == start.number)
+                    push!(net.edges_changed, edge);
+                end
+                curr = curr.prev;
+            end
+        end
+        return false, net.edges_changed, net.nodes_changed
+    else
+        error("node is not hybrid")
+    end
+end
+
+
+# function to identify the edges that need to be changed to identifiable
+# if the hybridization is deleted
+# it also does the change the istIdentifiable attribute of such edges
+# see ipad notes: only two cases, bad diamond/triangle
+# input: hybrid node which will later be deleted
+# returns true if changed something, false o.w.
+# warning: the hybridization needs to be fully updated already:
+#          inCycle, gammaz
+# warning: this is the only of the "identify" functions that
+#          does change the attributes
+function identifyGammaz(net::HybridNetwork, node::Node)
+    if(node.hybrid)
+        edge_maj, edge_min, tree_edge2 = hybridEdges(node);
+        other_maj = getOtherNode(edge_maj,node);
+        if(node.isBadDiamond) #fixit it
+            edgebla,edge_maj2,tree_edge1 = hybridEdges(other_maj);
+            edge_maj2.istIdentifiable = true;
+            return true #, edge_maj2
+        elseif(node.isBadTriangle)
+            edge_maj.istIdentifiable = true;
+            return true #, edge_maj
+        end
+        return false #, nothing
+    else
+        error("node is not hybrid")
+    end
+end
+
+
+# aux function to traverse the network
+# similar to traverseContainRoot but only
+# identifying the edges that would be changed by a given
+# hybridization
+# warning: it does not go accross hybrid node/edge,
+#          nor tree node with minor hybrid edge
+function traverseIdentifyRoot(node::Node, edge::Edge, edges_changed::Array{Edge,1})
+    if(!node.leaf && !node.hybrid)
+        for(e in node.edge)
+            if(!isequal(edge,e) && e.isMajor)
+                other = getOtherNode(e,node);
+                push!(edges_changed, e);
+                if(!other.hybrid)
+                    if(!other.hasHybEdge)
+                        traverseIdentifyRoot(other,e, edges_changed);
+                    else
+                        if(hybridEdges(other)[1].isMajor)
+                            traverseIdentifyRoot(other,e, edges_changed);
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+
+# function to identify containRoot
+# depending on a hybrid node on the network
+# input: hybrid node (can come from searchHybridNode)
+# return array of edges affected by the hybrid node
+function identifyContainRoot(net::HybridNetwork, node::Node)
+    if(node.hybrid)
+        net.edges_changed = Edge[];
+        for (e in node.edge)
+            if(!e.hybrid)
+                other = getOtherNode(e,node);
+                push!(net.edges_changed,e);
+                traverseIdentifyRoot(other,e, net.edges_changed);
+            end
+        end
+        return net.edges_changed
+    else
+        error("node is not hybrid")
+    end
+end
+
+# function to undo the effect of a hybridization
+# and then delete it
+function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node)
+    nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,hybrid);
+    if(!nocycle)
+        edgesRoot = identifyContainRoot(net,hybrid);
+        identifyGammaz(net,hybrid);
+        undoInCycle!(edgesInCycle, nodesInCycle);
+        undoContainRoot!(edgesRoot);
+        deleteHybrid!(hybrid,net)
+    else
+        error("the hybrid does not create a cycle")
+    end
+end
+
+# function to delete a hybridization event
+# input: hybrid node and network
+# warning: it is meant after undoing the effect of the
+#          hybridization in deleteHybridizationUpdate!
+#          by itself, it leaves things as if
+function deleteHybrid!(node::Node,net::HybridNetwork)
+    if(node.hybrid)
+        hybedge1,hybedge2,treeedge1 = hybridEdges(node);
+        other1 = getOtherNode(hybedge1,node);
+        other2 = getOtherNode(hybedge2,node);
+        other3 =  getOtherNode(treeedge1,node);
+        if(hybedge1.number > treeedge1.number)
+            treeedge1.length = treeedge1.length + hybedge1.length;
+            removeNode!(node,treeedge1);
+            setNode!(treeedge1,other1);
+            setEdge!(other1,treeedge1);
+            removeEdge!(other1, hybedge1);
+            deleteEdge!(net,hybedge1);
+            treeedge1.containRoot = (!treeedge1.containRoot || !hybedge1.containRoot) ? false : true
+        else
+            hybedge1.hybrid = false;
+            hybedge1.gamma = 1.0;
+            hybedge1.isMajor = true;
+            other1.hasHybEdge = false;
+            hybedge1.length = hybedge1.length + treeedge1.length;
+            removeNode!(node,hybedge1);
+            setNode!(hybedge1,other3);
+            setEdge!(other3,hybedge1);
+            removeEdge!(other3,treeedge1);
+            deleteEdge!(net,treeedge1);
+            hybedge1.containRoot = (!treeedge1.containRoot || !hybedge1.containRoot) ? false : true
+        end
+        hybindex = getIndex(true,[e.hybrid for e in other2.edge]);
+        if(hybindex == 1)
+            treeedge1 = other2.edge[2];
+            treeedge2 = other2.edge[3];
+        elseif(hybindex == 2)
+            treeedge1 = other2.edge[1];
+            treeedge2 = other2.edge[3];
+        elseif(hybindex == 3)
+            treeedge1 = other2.edge[1];
+            treeedge2 = other2.edge[2];
+        else
+            error("strange node has more than three edges")
+        end
+        treenode1 = getOtherNode(treeedge1,other2);
+        treenode2 = getOtherNode(treeedge2,other2);
+        if(treeedge1.number > treeedge2.number)
+            treeedge2.length = treeedge2.length + treeedge1.length;
+            removeNode!(other2,treeedge2);
+            setNode!(treeedge2,treenode1);
+            setEdge!(treenode1,treeedge2);
+            removeEdge!(treenode1,treeedge1);
+            deleteEdge!(net,treeedge1);
+            treeedge2.containRoot = (!treeedge1.containRoot || !treeedge2.containRoot) ? false : true
+        else
+            treeedge1.length = treeedge2.length + treeedge1.length;
+            removeNode!(other2,treeedge1);
+            setNode!(treeedge1,treenode2);
+            setEdge!(treenode2,treeedge1);
+            removeEdge!(treenode2,treeedge2);
+            deleteEdge!(net,treeedge2);
+            treeedge1.containRoot = (!treeedge1.containRoot || !treeedge2.containRoot) ? false : true
+        end
+        deleteNode!(net,node);
+        deleteNode!(net,other2);
+        deleteEdge!(net,hybedge2);
+    else
+        error("node has to be hybrid")
+    end
+end
 
 
 # cecile: check updategammaz function, maybe we need two functions,
