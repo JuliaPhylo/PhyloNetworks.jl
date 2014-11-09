@@ -4,6 +4,9 @@
 #
 # in julia: include("case_f_example.jl")
 
+include("types.jl")
+include("functions.jl")
+
 ed1=Edge(1,0.6,true,0.7);
 ed2=Edge(2,0.7,true,0.3);
 ed3=Edge(3,0.9);
@@ -26,8 +29,8 @@ n8=Node(8,true, false,[ed8]);
 n9=Node(9,false,false,[ed8,ed9,ed10]);
 n10=Node(10,true, false,[ed10]);
 
-setNode!(ed1,n1);
-setNode!(ed1,n2);
+setNode!(ed1,n1)
+setNode!(ed1,n2)
 setNode!(ed2,n2);
 setNode!(ed2,n3);
 setNode!(ed5,[n5,n1]);
@@ -48,7 +51,8 @@ setNode!(ed10,[n9,n10]);
 net=HybridNetwork([n1,n2,n3,n4,n5,n6,n7,n8,n9,n10],[ed1,ed2,ed3,ed4,ed5,ed6,ed7,ed8,ed9,ed10]);
 node=searchHybridNode(net);
 
-flag, nocycle,edges, nodes = updateInCycle!(net,node);
-flag2, edges2 = updateContainRoot!(net,node);
-flag3, edges3 = updateGammaz!(net,node);
+#flag, nocycle,edges, nodes = updateInCycle!(net,node);
+#flag2, edges2 = updateContainRoot!(net,node);
+#flag3, edges3 = updateGammaz!(net,node);
 
+deleteHybrid!(node[1],net,false)

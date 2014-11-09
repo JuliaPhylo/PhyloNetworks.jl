@@ -54,6 +54,7 @@ function testCaseF(net::HybridNetwork)
     net.edge[edge14].containRoot ? error("edge can contain root") : nothing
     (!net.edge[edge11].hybrid || !net.edge[edge11].isMajor) ? error("edge 11 is not hybrid or major") : nothing
     net.node[node12].gammaz != net.edge[edge15].gamma*net.edge[edge12].z ? error("node 12 gammaz not correctly calculated") : nothing
+    net.node[1].gammaz != net.edge[edge11].gamma*net.edge[edge5].z ? error("node 11 gammaz not correctly calculated") : nothing
     !net.edge[edge9].istIdentifiable ? error("edge9 not identifiable") : nothing
     net.visited[edge9] = false;
     !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
@@ -250,6 +251,8 @@ end
 
 
 # tree example
+# warning: if added hybridization (bad diamond/triangle) and then delete,
+#          original edge lengths cannot be recovered
 function testTree(net::HybridNetwork)
     !all([!e.hybrid for e in net.edge]) ? error("some edge is still hybrid") : nothing
     !all([!e.hybrid for e in net.node]) ? error("some node is still hybrid") : nothing
@@ -263,8 +266,8 @@ function testTree(net::HybridNetwork)
     net.visited[edge9] = false;
     net.visited[edge5] = false;
     !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
-    edge11 = getIndexEdge(11,net);
-    edge12 = getIndexEdge(12,net);
-    net.edge[edge11].length != 1.5 ? error("edge length for 11 is wrong") : nothing
-    net.edge[edge12].length != 0.2 ? error("edge length for 12 is wrong") : nothing
+    #edge11 = getIndexEdge(11,net);
+    #edge12 = getIndexEdge(12,net);
+    #net.edge[edge11].length != 1.5 ? error("edge length for 11 is wrong") : nothing
+    #net.edge[edge12].length != 0.2 ? error("edge length for 12 is wrong") : nothing
 end

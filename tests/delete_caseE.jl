@@ -23,5 +23,5 @@ end
 
 
 success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(net);
-deleteHybridizationUpdate!(net,hybrid);
+deleteHybridizationUpdate!(net,hybrid,false);
 testTree(net)
