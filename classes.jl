@@ -28,15 +28,6 @@ include("tree_example.jl");
 # -------------- NETWORK ----------------------- #
 
 
-# cecile: check updategammaz function, maybe we need two functions,
-# one to update when changing length one to update when changing
-# gamma? what i like about updategammaz is that you use that directly
-# at the beginning of network, so maybe we should consider doing
-# things ourselves inside setLength and setGamma, instead of calling
-# update gamma
-
-
-
 # function to traverse the network
 # simply prints the traversal path, can be modified to do other things
 # needs:

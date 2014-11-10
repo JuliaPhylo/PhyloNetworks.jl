@@ -29,6 +29,7 @@ function testCaseC(net::HybridNetwork)
     node.isBadTriangleI ? error("thinks it is bad triangle I") : nothing
     !node.isBadTriangleII ? error("does not know it is bad triangle II") : nothing
     (net.edge[edge12].hybrid && net.edge[edge15].hybrid) ? nothing : error("hybrid edges not recognized as hybrids")
+    net.numHybrids != 1 ? error("should have 1 hybrid, but net.numHybrids is $(net.numHybrids)") : nothing
 end
 
 # Case F bad diamond
@@ -58,6 +59,7 @@ function testCaseF(net::HybridNetwork)
     !net.edge[edge9].istIdentifiable ? error("edge9 not identifiable") : nothing
     net.visited[edge9] = false;
     !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
+    net.numHybrids != 1 ? error("should have 1 hybrid, but net.numHybrids is $(net.numHybrids)") : nothing
 end
 
 # Case G
@@ -87,6 +89,7 @@ function testCaseG(net::HybridNetwork)
     net.visited[edge5] = false;
     net.visited[edge13] = false;
     !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
+    net.numHybrids != 1 ? error("should have 1 hybrid, but net.numHybrids is $(net.numHybrids)") : nothing
 end
 
 # Case H
@@ -116,6 +119,7 @@ function testCaseH(net::HybridNetwork)
     net.visited[edge5] = false;
     net.visited[edge13] = false;
     !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
+    net.numHybrids != 1 ? error("should have 1 hybrid, but net.numHybrids is $(net.numHybrids)") : nothing
 end
 
 
@@ -146,6 +150,7 @@ function testCaseJ(net::HybridNetwork)
     net.visited[edge5] = false;
     net.visited[edge10] = false;
     !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
+    net.numHybrids != 1 ? error("should have 1 hybrid, but net.numHybrids is $(net.numHybrids)") : nothing
 end
 
 # Case D bad triangle I
@@ -178,6 +183,7 @@ function testCaseD(net::HybridNetwork)
     !net.edge[edge9].istIdentifiable ? error("edge9 not identifiable") : nothing
     net.visited[edge9] = false;
     !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
+    net.numHybrids != 1 ? error("should have 1 hybrid, but net.numHybrids is $(net.numHybrids)") : nothing
 end
 
 # Case E bad triangle I
@@ -210,6 +216,7 @@ function testCaseE(net::HybridNetwork)
     !net.edge[edge13].istIdentifiable ? error("edge 13 not identifiable") : nothing
     net.visited[edge13] = false;
     !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
+    net.numHybrids != 1 ? error("should have 1 hybrid, but net.numHybrids is $(net.numHybrids)") : nothing
 end
 
 
@@ -219,6 +226,7 @@ function testCaseI(net::HybridNetwork)
     node = n[1];
     node.isBadDiamondII ? nothing : error("does not know it is bad diamond II")
     !node.isBadDiamondI ? nothing : error("thinks it is bad diamond I")
+    net.numHybrids != 1 ? error("should have 1 hybrid, but net.numHybrids is $(net.numHybrids)") : nothing
     ## net.visited = [e.istIdentifiable for e in net.edge];
     ## n = searchHybridNode(net);
     ## node = n[1];
@@ -266,6 +274,8 @@ function testTree(net::HybridNetwork)
     net.visited[edge9] = false;
     net.visited[edge5] = false;
     !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
+    isempty(net.hybrid) ? nothing : error("something in net.hybrid")
+    net.numHybrids != 0 ? error("should have 0 hybrid, but net.numHybrids is $(net.numHybrids)") : nothing
     #edge11 = getIndexEdge(11,net);
     #edge12 = getIndexEdge(12,net);
     #net.edge[edge11].length != 1.5 ? error("edge length for 11 is wrong") : nothing

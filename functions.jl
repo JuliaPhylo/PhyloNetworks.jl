@@ -186,6 +186,19 @@ function getIndexNode(edge::Edge,node::Node)
     end
 end
 
+# function to find hybrid index in net.hybrid
+function getIndexHybrid(node::Node, net::HybridNetwork)
+    if(node.hybrid)
+        i = 1;
+        while(i<= size(net.hybrid,1) && !isequal(node,net.hybrid[i]))
+            i = i+1;
+        end
+        i>size(net.hybrid,1)?error("hybrid node not in network"):return i;
+    else
+        error("node $(node.number) is not hybrid so it cannot be in net.hybrid")
+    end
+end
+
 
 # function that given a hybrid node, it gives you the minor hybrid edge
 function getHybridEdge(node::Node)
@@ -235,6 +248,19 @@ function pushEdge!(net::HybridNetwork, e::Edge)
     net.numEdges += 1;
 end
 
+
+# function to push a hybrid Node in net.hybrid and
+# update numHybrids
+function pushHybrid!(net::HybridNetwork, n::Node)
+    if(n.hybrid)
+        push!(net.hybrid,n);
+        net.numHybrids += 1;
+    else
+        error("node $(n.number) is not hybrid, so cannot be pushed in net.hybrid")
+    end
+end
+
+
 # function to delete a Node in net.node and
 # update numNodes and numTaxa
 function deleteNode!(net::HybridNetwork, n::Node)
@@ -263,6 +289,24 @@ function deleteEdge!(net::HybridNetwork, e::Edge)
     index = getIndex(e,net);
     deleteat!(net.edge,index);
     net.numEdges -= 1;
+end
+
+
+# function to delete a hybrid Node in net.hybrid and
+# update numHybrid
+function removeHybrid!(net::HybridNetwork, n::Node)
+    if(n.hybrid)
+        try
+            index = getIndexHybrid(n,net);
+        catch
+            error("Hybrid Node $(n.number) not in network");
+        end
+        index = getIndexHybrid(n,net);
+        deleteat!(net.hybrid,index);
+        net.numHybrids -= 1;
+    else
+        error("cannot delete node $(n.number) from net.hybrid because it is not hybrid")
+    end
 end
 
 # function to delete an internal node with only 2 edges
@@ -392,10 +436,10 @@ function hybridEdges(node::Node)
            end
            return hybrid, treecycle, tree
        else
-           error("node has more or less than 3 edges");
+           error("node $(node.number) has more or less than 3 edges");
        end
    else
-       error("node is not hybrid nor tree with hybrid edges");
+       error("node $(node.number) is not hybrid $(node.hybrid) nor tree with hybrid edges (hasHybEdge) $(node.hasHybEdge)");
    end
 end
 
@@ -599,6 +643,10 @@ end
 # fixit: still unknown treatment for bad diamond II
 function updateGammaz!(net::HybridNetwork, node::Node)
     if(node.hybrid)
+        node.isBadTriangleI = false
+        node.isBadTriangleII = false
+        node.isBadDiamondI = false
+        node.isBadDiamondII = false
         net.edges_changed = Edge[];
         edge_maj, edge_min, tree_edge2 = hybridEdges(node);
         other_maj = getOtherNode(edge_maj,node);
@@ -846,7 +894,6 @@ end
 
 
 # ------------------------------------------------ add new hybridization------------------------------------
-# fixit: update net.hybrid and numHybrids (push hybrid function?)
 
 # function to add hybridization event
 # input: edge1, edge2 are the edges to remove
@@ -886,6 +933,7 @@ function createHybrid!(edge1::Edge, edge2::Edge, edge3::Edge, edge4::Edge, net::
         setNode!(edge2,hybrid_node)
         pushNode!(net,hybrid_node);
         pushNode!(net,tree_node);
+        pushHybrid!(net,hybrid_node);
         return hybrid_node
     else
         error("gamma must be between 0 and 1")
@@ -1279,6 +1327,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool)
                 deleteEdge!(net,treeedge2);
                 treeedge1.containRoot = (!treeedge1.containRoot || !treeedge2.containRoot) ? false : true
             end
+            removeHybrid!(net,node);
             deleteNode!(net,node);
             deleteNode!(net,other2);
             deleteEdge!(net,hybedge2);
@@ -1291,6 +1340,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool)
             removeNode!(node,treeedge1)
             setEdge!(other2,treeedge1)
             setNode!(treeedge1,other2)
+            removeHybrid!(net,node);
             deleteNode!(net,node)
             deleteEdge!(net,hybedge1)
             deleteEdge!(net,hybedge2)
@@ -1319,6 +1369,119 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool)
     end
 end
 
+
+# -------------------------- change direction of minor hybrid edge ---------------------------------
+
+# aux function to transform tree edge into hybrid edge
+# input: new edge, hybrid node (needs to be attached to new edge)
+#        new gamma
+function makeEdgeHybrid!(edge::Edge,node::Node,gamma::Float64)
+    if(!edge.hybrid)
+        if(node.hybrid)
+            println("estamos en make edge hybrid en edge $(edge.number) y node $(node.number)")
+            println("vamos a hacer hashybedge true para $(getOtherNode(edge,node).number)")
+            getOtherNode(edge,node).hasHybEdge = true
+            println("$(getOtherNode(edge,node).hasHybEdge) debe ser true")
+            if(size(edge.node,1) == 2)
+                if(isequal(edge.node[1],node))
+                    edge.isChild1 = true
+                elseif(isequal(edge.node[2],node))
+                    edge.isChild1 = false
+                else
+                    error("node $(node.number) is not attached to edge $(edge.number)")
+                end
+                edge.hybrid = true
+                setGamma!(edge,gamma)
+            else
+                error("strange edge $(edge.number) has $(size(edge.node,1)) nodes instead of 2")
+            end
+        else
+            error("to make edge $(edge.number) hybrid, you need to give the hybrid node it is going to point to and node $(node.number) is not hybrid")
+        end
+    else
+        error("edge $(edge.number) already hybrid, cannot make it hybrid")
+    end
+end
+
+# aux function to exchange who is the hybrid node
+# input: current hybrid, new hybrid
+# returns false if there is no need to updategammaz after
+#         true if there is need to updategammaz after
+function exchangeHybridNode!(current::Node,new::Node)
+    if(current.hybrid && !new.hybrid)
+        update = true
+        new.hybrid = true
+        removeHybrid!(net,current)
+        pushHybrid!(net,new)
+        current.hybrid = false
+        new.k = current.k
+        current.k = -1
+        if(current.isBadDiamondI || current.isBadDiamondII)
+            current.isBadDiamondI = false
+            current.isBadDiamondII = false
+            update = false
+        elseif(current.isBadTriangleII || current.isBadTriangleI)
+            current.isBadTriangleII = false
+            current.isBadTriangleI = false
+            update = true
+        end
+        return update
+    else
+        error("either current node $(current.number) is not hybrid: current.hybrid $(current.hybrid) or new node $(new.number) is already hybrid: new.hybrid $(new.hybrid)")
+    end
+end
+
+
+# function to change the direction of a hybrid edge
+# input: hybrid node, network
+# warning: it assumes that undoGammaz has been run before
+#          and that the new hybridization has been
+#          approved by the containRoot criterion
+# warning: it can only move direction of minor edge
+#          because ow the minor hybrid edge becomes
+#          tree edge (gamma=1.0)
+# warning: it needs incycle attributes
+# returns flag of whether it needs update gammaz
+#         and new hybrid node
+function changeDirection!(node::Node, net::HybridNetwork)
+    if(node.hybrid)
+        major,minor,tree = hybridEdges(node);
+        othermin = getOtherNode(minor,node);
+        othermaj = getOtherNode(major,node);
+        edgebla,treecycle,edgebla = hybridEdges(othermin)
+        update = exchangeHybridNode!(node,othermin)
+        makeEdgeHybrid!(treecycle,othermin,major.gamma)
+        if(othermin.k > 3)
+            othermaj.hasHybEdge = false
+        end
+        major.hybrid = false
+        major.gamma = 1.0
+        major.isMajor = true
+        return update,othermin
+    else
+        error("node $(node.number) is not hybrid, so we cannot change the direction of the hybrid edge")
+    end
+end
+
+# function to change the direction of the minor hybrid edge
+# and update necessary stepts before and after
+# input: hybrid node and network
+function changeDirectionUpdate!(node::Node,net::HybridNetwork)
+    if(node.hybrid)
+        undoGammaz!(node)
+        edgesRoot = identifyContainRoot(net,node);
+        undoContainRoot!(edgesRoot);
+        update,hybrid = changeDirection!(node,net)
+        if(hybrid.k == 3)
+            updateGammaz!(net,hybrid)
+        elseif(hybrid.k == 4 && update)
+            updateGammaz!(net,hybrid)
+        end
+        updateContainRoot!(net,hybrid);
+    else
+        error("cannot change the direction of minor hybrid edge since node $(node.number) is not hybrid")
+    end
+end
 
 # ------------------------------- Read topology ------------------------------------------
 
