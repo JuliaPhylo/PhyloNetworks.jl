@@ -61,4 +61,6 @@ printEdges(net)
 
 #deleteHybrid!(node[1],net,false)
 
-changeDirectionUpdate!(node[1],net)
+#changeDirectionUpdate!(node[1],net)
+
+moveOriginUpdate!(net,node[1],false)

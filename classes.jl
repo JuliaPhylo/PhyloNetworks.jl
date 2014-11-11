@@ -27,7 +27,6 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
-
 # function to traverse the network
 # simply prints the traversal path, can be modified to do other things
 # needs:

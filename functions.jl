@@ -1236,28 +1236,32 @@ end
 #        random = true, deletes one hybrid egde at random
 #        (minor with prob 1-gamma, major with prob gamma)
 #        random = false, deletes the minor edge always
-# warning: it uses the gamma of the hybrid edges even if
+# fixit: it uses the gamma of the hybrid edges even if
 #          it is not identifiable
 function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bool)
-    nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,hybrid);
-    if(!nocycle)
-        edgesRoot = identifyContainRoot(net,hybrid);
-        edges = hybridEdges(hybrid);
-        undoGammaz!(hybrid);
-        undoInCycle!(edgesInCycle, nodesInCycle);
-        undoContainRoot!(edgesRoot);
-        if(random)
-            if(edges[1].gamma > 0.5 && edges[1].gamma != 1.0)
-                minor = rand() < edges[1].gamma ? true : false
+    if(hybrid.hybrid)
+        nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,hybrid);
+        if(!nocycle)
+            edgesRoot = identifyContainRoot(net,hybrid);
+            edges = hybridEdges(hybrid);
+            undoGammaz!(hybrid);
+            undoInCycle!(edgesInCycle, nodesInCycle);
+            undoContainRoot!(edgesRoot);
+            if(random)
+                if(edges[1].gamma > 0.5 && edges[1].gamma != 1.0)
+                    minor = rand() < edges[1].gamma ? false : true
+                else
+                    error("strange major hybrid edge $(edges[1].number) with gamma either less than 0.5 or equal to 1.0")
+                end
             else
-                error("strange major hybrid edge $(edges[1].number) with gamma either less than 0.5 or equal to 1.0")
+                minor = true;
             end
+            deleteHybrid!(hybrid,net,minor)
         else
-            minor = true;
+            error("the hybrid does not create a cycle")
         end
-        deleteHybrid!(hybrid,net,minor)
     else
-        error("the hybrid does not create a cycle")
+        error("node $(hybrid.number) is not hybrid, so we cannot delete hybridization event around it")
     end
 end
 
@@ -1482,6 +1486,128 @@ function changeDirectionUpdate!(node::Node,net::HybridNetwork)
         error("cannot change the direction of minor hybrid edge since node $(node.number) is not hybrid")
     end
 end
+
+# ------------------------- move origin of hybrid edge ---------------------------------
+
+
+# aux function to choose the edge to move the origin
+# or target of a hybrid edge
+# input: network and hybrid node, and some tree edges that
+#        cannot be picked (see ipad notes)
+# it needs those edges as arguments, because to find them
+# we need incycle attributes, but to choose we need to have
+# undone the incycle
+# returns new edge
+# warning: excludes edges with incycle != -1, but
+#          assumes the incycle for this particular
+#          hybrid node have been undone already
+#          also excludes tree1 and tree2 around
+#          othermin, and all hybrid edges
+function chooseEdge(net::HybridNetwork,node::Node,tree::Edge,tree1::Edge,tree2::Edge)
+    index1 = 1;
+    while(index1 == 0 || index1 > size(net.edge,1) || net.edge[index1].inCycle != -1 || isequal(net.edge[index1],tree) || isequal(net.edge[index1],tree1) || isequal(net.edge[index1],tree2) || net.edge[index1].hybrid)
+        index1 = iround(rand()*size(net.edge,1));
+    end
+    return net.edge[index1]
+end
+
+# function to move the origin of a hybrid edge
+# warning: it does not do any update
+# input: necessary nodes/edges, see moveOriginUpdate and
+#        ipad notes
+# warning: it changes the branch lengths of newedge, tree1, tree2 to match the
+#          optimum branch lengths in the corresponding other edge (see ipad notes)
+function moveOrigin(node::Node, other1::Node, other2::Node, tree1::Edge, tree2::Edge,newedge::Edge)
+    if(node.hybrid)
+        if(size(newedge.node,1) == 2)
+            node1 = newedge.node[1];
+            node2 = newedge.node[2];
+        else
+            error("strange edge $(newedge.number) that has $(size(newedge.node,1)) nodes instead of 2")
+        end
+        removeEdge!(other1,tree1)
+        removeNode!(other1,tree1)
+        removeEdge!(node1,newedge)
+        removeNode!(node1,newedge)
+        setEdge!(other1,newedge)
+        setNode!(newedge,other1)
+        setEdge!(node1,tree1)
+        setNode!(tree1,node1)
+        removeEdge!(other2,tree2)
+        removeNode!(other2,tree2)
+        removeEdge!(node2,newedge)
+        removeNode!(node2,newedge)
+        setEdge!(other2,newedge)
+        setNode!(newedge,other2)
+        setEdge!(node2,tree2)
+        setNode!(tree2,node2)
+        t = newedge.length
+        t1 = tree1.length
+        t2 = tree2.length
+        setLength!(newedge,t1+t2)
+        setLength!(tree1,(t1/(t1+t2))*t)
+        setLength!(tree2,(t2/(t1+t2))*t)
+    else
+        error("cannot move origin of hybridization because node $(node.number) is not hybrid")
+    end
+end
+
+# function to move the origin of a hybrid edge
+# and update everything that needs update: gammaz, incycle
+# input: network, hybrid node, random flag
+#        random = true, moves the origin of hybrid egde at random
+#        (minor with prob 1-gamma, major with prob gamma)
+#        random = false, moves the origin of the minor edge always
+# returns: success (bool), flag, nocycle, flag2
+function moveOriginUpdate!(net::HybridNetwork, node::Node, random::Bool)
+    if(node.hybrid)
+        nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,node);
+        if(!nocycle)
+            major,minor,tree = hybridEdges(node);
+            if(random)
+                if(major.gamma > 0.5 && major.gamma != 1.0)
+                    othermin = rand() < major.gamma ? getOtherNode(major,node) : getOtherNode(minor,node)
+                else
+                    error("strange major hybrid edge $(major.number) with gamma $(major.gamma) either less than 0.5 or equal to 1.0")
+                end
+            else
+                othermin = getOtherNode(minor,node);
+            end
+            edgebla, tree1, tree2 = hybridEdges(othermin);
+            other1 = getOtherNode(tree1,othermin);
+            other2 = getOtherNode(tree2,othermin);
+            undoGammaz!(node);
+            undoInCycle!(edgesInCycle, nodesInCycle);
+            newedge = chooseEdge(net,node,tree,tree1,tree2)
+            println("chosen edge $(newedge.number)")
+            moveOrigin(node,other1,other2,tree1,tree2,newedge)
+            flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,node);
+            if(nocycle)
+                return false,flag,nocycle,true
+            else
+                if(flag)
+                    flag2, edgesGammaz = updateGammaz!(net,node)
+                    if(flag2)
+                        return true,flag,nocycle,flag2
+                    else
+                        undoistIdentifiable!(edgesGammaz);
+                        undoGammaz!(node);
+                        undoInCycle!(edgesInCycle, nodesInCycle);
+                        return false, flag, nocycle, flag2
+                    end
+                else
+                    undoInCycle!(edgesInCycle, nodesInCycle);
+                    return false, flag, nocycle, true
+                end
+            end
+        else
+            error("the hybrid $(node.number) does not create a cycle")
+        end
+    else
+        error("node $(hybrid.number) is not hybrid, so we cannot delete hybridization event around it")
+    end
+end
+
 
 # ------------------------------- Read topology ------------------------------------------
 
