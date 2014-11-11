@@ -27,6 +27,53 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
+# function to delete a leaf from a network
+# input: network, leaf node number
+# warning: it will delete from the actual network
+#          need to create a copy before calling this
+#          function
+# warning: depends on the translate table (net.names)
+#          to be correctly specified
+function deleteLeaf!(net::HybridNetwork, leaf::Node)
+    if(leaf.leaf)
+        if(size(leaf.edge,1) == 1)
+            other = getOtherNode(leaf.edge[1],leaf);
+            if(other.hybrid)
+                f
+            else
+                if(other.hasHybEdge)
+                    f
+                else
+                    edge1,edge2 = hybridEdges(other,leaf.edge[1]);
+                    other1 = getOtherNode(edge1,other);
+                    other2 = getOtherNode(edge2,other);
+                    if(abs(edge1.number) < abs(edge2.number))
+                        setLength!(edge1, edge1.length+edge2.length)
+                        removeEdge!(other2,edge2)
+                        removeNode!(other,edge1)
+                        setNode!(edge1,other2)
+                        deleteEdge!(net,edge2)
+                    else
+                        setLength!(edge2, edge1.length+edge2.length)
+                        removeEdge!(other1,edge1)
+                        removeNode!(other,edge2)
+                        setNode!(edge2,other1)
+                        deleteEdge!(net,edge1)
+                    end
+                    deleteNode!(net,other)
+                    deleteNode!(net,leaf)
+                    deleteEdge!(net,leaf.edge[1])
+                end
+            end
+        else
+            error("strange leaf with $(size(leaf.edge,1)) edges instead of 1")
+        end
+    else
+        error("node $(leaf.number) is not a leaf, cannot delete it")
+    end
+end
+
+
 # function to traverse the network
 # simply prints the traversal path, can be modified to do other things
 # needs:

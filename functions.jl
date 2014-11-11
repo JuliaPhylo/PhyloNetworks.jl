@@ -263,11 +263,13 @@ end
 
 # function to delete a Node in net.node and
 # update numNodes and numTaxa
+# note that net.names is never updated to keep it
+# accurate
 function deleteNode!(net::HybridNetwork, n::Node)
     try
         index = getIndex(n,net);
     catch
-        error("Node not in network");
+        error("Node $(n.number) not in network");
     end
     index = getIndex(n,net);
     deleteat!(net.node,index);
@@ -422,7 +424,7 @@ function hybridEdges(node::Node)
            end
            return hybmajor, hybminor, tree
        else
-           error("node has more or less than 3 edges");
+           error("node $(node.number) has $(size(node.edge,1)) edges instead of 3");
        end
    elseif(node.hasHybEdge)
        if(size(node.edge,1) == 3)
@@ -441,6 +443,23 @@ function hybridEdges(node::Node)
    else
        error("node $(node.number) is not hybrid $(node.hybrid) nor tree with hybrid edges (hasHybEdge) $(node.hasHybEdge)");
    end
+end
+
+# function to get the other two edges of a node
+# besides the one specified
+function hybridEdges(node::Node, edge::Edge)
+    if(size(node.edge,1) == 3)
+        edge1 = nothing
+        edge2 = nothing
+        for(e in node.edge)
+            if(!isequal(e,edge))
+                isa(edge1,Nothing) ? edge1 = e : edge2 = e
+            end
+        end
+        return edge1,edge2
+    else
+        error("node $(node.number) has $(size(node.edge,1)) edges instead of 3");
+    end
 end
 
 
@@ -698,9 +717,9 @@ function updateGammaz!(net::HybridNetwork, node::Node)
                 push!(net.edges_changed,tree_edge2);
                 push!(net.edges_changed,edge_maj);
                 push!(net.edges_changed,edge_min);
-                edge_maj.length = edge_maj.length + tree_edge2.length;
-                tree_edge2.length = 0.0;
-                edge_min.length = 0.0;
+                setLength!(edge_maj,edge_maj.length+tree_edge2.length)
+                setLength!(tree_edge2, 0.0);
+                setLength!(edge_min, 0.0);
             elseif(!isLeaf1.leaf && !isLeaf2.leaf && isLeaf3.leaf) # bad triangle I
                 node.gammaz = edge_min.gamma*edge_min.gamma*edge_min.z+edge_maj.gamma*edge_maj.gamma*tree_edge_incycle.z;
                 other_maj.gammaz = edge_maj.gamma*tree_edge_incycle.z;
@@ -713,9 +732,9 @@ function updateGammaz!(net::HybridNetwork, node::Node)
                 push!(net.edges_changed,tree_edge2);
                 push!(net.edges_changed,edge_maj);
                 push!(net.edges_changed,edge_min);
-                edge_min.length = edge_min.length + tree_edge2.length;
-                tree_edge2.length = 0.0;
-                edge_maj.length = 0.0;
+                setLength!(edge_min,edge_min.length + tree_edge2.length);
+                setLength!(tree_edge2, 0.0);
+                setLength!(edge_maj, 0.0);
             elseif(!isLeaf1.leaf && isLeaf2.leaf && !isLeaf3.leaf) # bad triangle II
                 tree_edge3.istIdentifiable = false;
                 tree_edge1.istIdentifiable = false;
@@ -1279,7 +1298,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool)
             other2 = getOtherNode(hybedge2,node);
             other3 =  getOtherNode(treeedge1,node);
             if(hybedge1.number > treeedge1.number)
-                treeedge1.length = treeedge1.length + hybedge1.length;
+                setLength!(treeedge1, treeedge1.length + hybedge1.length);
                 removeNode!(node,treeedge1);
                 setNode!(treeedge1,other1);
                 setEdge!(other1,treeedge1);
@@ -1291,7 +1310,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool)
                 hybedge1.gamma = 1.0;
                 hybedge1.isMajor = true;
                 other1.hasHybEdge = false;
-                hybedge1.length = hybedge1.length + treeedge1.length;
+                setLength!(hybedge1, hybedge1.length + treeedge1.length);
                 removeNode!(node,hybedge1);
                 setNode!(hybedge1,other3);
                 setEdge!(other3,hybedge1);
@@ -1315,7 +1334,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool)
             treenode1 = getOtherNode(treeedge1,other2);
             treenode2 = getOtherNode(treeedge2,other2);
             if(abs(treeedge1.number) > abs(treeedge2.number))
-                treeedge2.length = treeedge2.length + treeedge1.length;
+                setLength!(treeedge2, treeedge2.length + treeedge1.length);
                 removeNode!(other2,treeedge2);
                 setNode!(treeedge2,treenode1);
                 setEdge!(treenode1,treeedge2);
@@ -1323,7 +1342,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool)
                 deleteEdge!(net,treeedge1);
                 treeedge2.containRoot = (!treeedge1.containRoot || !treeedge2.containRoot) ? false : true
             else
-                treeedge1.length = treeedge2.length + treeedge1.length;
+                setLength!(treeedge1, treeedge2.length + treeedge1.length);
                 removeNode!(other2,treeedge1);
                 setNode!(treeedge1,treenode2);
                 setEdge!(treenode2,treeedge1);
@@ -1339,7 +1358,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool)
             hybedge1,hybedge2,treeedge1 = hybridEdges(node);
             other1 = getOtherNode(hybedge1,node);
             other2 = getOtherNode(hybedge2,node);
-            treeedge1.length = treeedge1.length + hybedge2.length
+            setLength!(treeedge1, treeedge1.length + hybedge2.length)
             removeEdge!(other2,hybedge2)
             removeNode!(node,treeedge1)
             setEdge!(other2,treeedge1)
@@ -1359,7 +1378,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool)
                 edge = other1.edge[2]
                 otheredge = other1.edge[1]
             end
-            other1.edge[1].length = other1.edge[1].length + other1.edge[2].length
+            setLength!(other1.edge[1], other1.edge[1].length + other1.edge[2].length)
             other3 =  getOtherNode(otheredge,other1);
             removeNode!(other1,edge)
             removeEdge!(other3,otheredge)
