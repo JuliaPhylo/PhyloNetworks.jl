@@ -27,22 +27,94 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
+# aux function to make a hybrid edge tree edge
+# used in deleteLeaf
+# input: edge and hybrid node it pointed to
+function makeEdgeTree!(edge::Edge, node::Node)
+    if(edge.hybrid)
+        if(node.hybrid)
+            warn("we make edge $(edge.number) a tree edge, but it will still point to hybrid node $(node.number)")
+            edge.hybrid = false
+            edge.isMajor = true
+            edge.gamma = 1.0
+            getOtherNode(edge,node).hasHybEdge = false
+        else
+            error("need the hybrid node at which edge $(edge.number) is pointing to, node $(node.number) is tree node")
+        end
+    else
+        error("cannot make edge $(edge.number) tree because it is tree already")
+    end
+end
+
 # function to delete a leaf from a network
-# input: network, leaf node number
+# input: network, leaf node
 # warning: it will delete from the actual network
 #          need to create a copy before calling this
 #          function
-# warning: depends on the translate table (net.names)
-#          to be correctly specified
 function deleteLeaf!(net::HybridNetwork, leaf::Node)
     if(leaf.leaf)
         if(size(leaf.edge,1) == 1)
             other = getOtherNode(leaf.edge[1],leaf);
             if(other.hybrid)
-                f
+                if(other.isBadTriangleII)
+                    #fixit
+                else
+                    edge1,edge2 = hybridEdges(other,leaf.edge[1]);
+                    if(!edge1.hybrid || !edge2.hybrid)
+                        error("hybrid node $(other.node) does not have two hybrid edges, they are tree edges: $(edge1.number), $(edge2.number)")
+                    end
+                    other1 = getOtherNode(edge1,other);
+                    other2 = getOtherNode(edge2,other);
+                    removeEdge!(other1,edge1)
+                    removeEdge!(other2,edge2)
+                    deleteEdge!(net,edge1)
+                    deleteEdge!(net,edge2)
+                    deleteEdge!(net,leaf.edge[1])
+                    deleteNode!(net,other)
+                    deleteNode!(net,leaf)
+                end
             else
                 if(other.hasHybEdge)
-                    f
+                    edge1,edge2 = hybridEdges(other,leaf.edge[1]);
+                    if(!edge1.hybrid && !edge2.hybrid)
+                        error("node $(other.number) has hybrid edge attribute true, but the edges $(edge1.number), $(edge2.number) are not hybrid (and the third edge has a leaf $(leaf.number)")
+                    end
+                    other1 = getOtherNode(edge1,other);
+                    other2 = getOtherNode(edge2,other);
+                    if(other1.hybrid)
+                        if(other1.isBadDiamondII || other1.isBadDiamondI || other1.isBadTriangleI)
+                            #fixit
+                            removeEdge!(other2,edge2)
+                            removeNode!(other,edge1)
+                            setNode!(edge1,other2)
+                            deleteEdge!(net,edge2)
+                        else
+                            setLength!(edge1,edge1.length+edge2.length)
+                            removeEdge!(other2,edge2)
+                            removeNode!(other,edge1)
+                            setNode!(edge1,other2)
+                            deleteEdge!(net,edge2)
+                        end
+                    elseif(other2.hybrid)
+                        if(other2.isBadDiamondII || other2.isBadDiamondI || other2.isBadTriangleI)
+                            #fixit
+                            removeEdge!(other1,edge1)
+                            removeNode!(other,edge2)
+                            setNode!(edge2,other1)
+                            deleteEdge!(net,edge1)
+                        else
+                            setLength!(edge2,edge2.length+edge1.length)
+                            removeEdge!(other1,edge1)
+                            removeNode!(other,edge2)
+                            setNode!(edge1,other1)
+                            deleteEdge!(net,edge1)
+                        end
+                        deleteNode!(net,other)
+                        deleteNode!(net,leaf)
+                        deleteEdge!(net,leaf.edge[1])
+                    else
+                        error("node $(other.number) has hybrid edge, but neither of the other nodes $(other1.number), $(other2.number )are hybrid")
+                    end
                 else
                     edge1,edge2 = hybridEdges(other,leaf.edge[1]);
                     other1 = getOtherNode(edge1,other);
