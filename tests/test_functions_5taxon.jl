@@ -227,34 +227,28 @@ function testCaseI(net::HybridNetwork)
     node.isBadDiamondII ? nothing : error("does not know it is bad diamond II")
     !node.isBadDiamondI ? nothing : error("thinks it is bad diamond I")
     net.numHybrids != 1 ? error("should have 1 hybrid, but net.numHybrids is $(net.numHybrids)") : nothing
-    ## net.visited = [e.istIdentifiable for e in net.edge];
-    ## n = searchHybridNode(net);
-    ## node = n[1];
-    ## node.k != 4 ? error("k diff than 4") : nothing
-    ## edge5 = getIndexEdge(5,net);
-    ## edge9 = getIndexEdge(9,net);
-    ## edge10 = getIndexEdge(10,net);
-    ## edge14 = getIndexEdge(14,net);
-    ## edge15 = getIndexEdge(15,net);
-    ## edge11 = getIndexEdge(11,net);
-    ## edge8 = getIndexEdge(8,net);
-    ## node1 = getIndexNode(1,net);
-    ## node5 = getIndexNode(5,net);
-    ## node11 = getIndexNode(11,net);
-    ## node12 = getIndexNode(12,net);
-    ## (net.edge[edge5].inCycle != node.number || net.edge[edge9].inCycle != node.number || net.edge[edge15].inCycle != node.number || net.edge[edge11].inCycle != node.number ) ? error("edges not correctly in cycle") : nothing
-    ## (net.node[node1].inCycle  != node.number || net.node[node5].inCycle  != node.number || net.node[node11].inCycle  != node.number || net.node[node12].inCycle  != node.number) ? error("nodes 1,5,11,12 not correctly in cycle") : nothing
-    ## node.isBadDiamond ? error("thinks it is bad diamond") : nothing
-    ## (net.edge[edge14].containRoot || net.edge[edge8].containRoot || net.edge[edge10].containRoot) ? error("14,8,10 can contain root") : nothing
-    ## (!net.edge[edge9].hybrid || !net.edge[edge9].isMajor) ? error("edge 9 is not hybrid or major") : nothing
-    ## net.node[node12].gammaz != -1 ? error("node 12 gammaz not correctly calculated") : nothing
-    ## (net.edge[edge15].length != 0.0 || net.edge[edge15].istIdentifiable) ? error("edge 15 not non identifiable or length not 0") : nothing
-    ##  (!net.edge[edge9].istIdentifiable || !net.edge[edge5].istIdentifiable || !net.edge[edge11].istIdentifiable || !net.edge[edge14].istIdentifiable) ? error("edge9,5,11,14 not identifiable") : nothing
-    ## net.visited[edge9] = false;
-    ## net.visited[edge5] = false;
-    ## net.visited[edge11] = false;
-    ## net.visited[edge14] = false;
-    ## !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
+    net.visited = [e.istIdentifiable for e in net.edge];
+    edge14 = getIndexEdge(14,net);
+    edge10 = getIndexEdge(10,net);
+    edge5 = getIndexEdge(5,net);
+    edge15 = getIndexEdge(15,net);
+    edge9 = getIndexEdge(9,net);
+    edge11 = getIndexEdge(11,net);
+    edge8 = getIndexEdge(8,net);
+    node1 = getIndexNode(1,net);
+    node12 = getIndexNode(12,net);
+    node5 = getIndexNode(5,net);
+    node11 = getIndexNode(11,net);
+    (net.edge[edge5].inCycle != node.number || net.edge[edge9].inCycle != node.number || net.edge[edge11].inCycle != node.number || net.edge[edge15].inCycle != node.number ) ? error("edges not correctly in cycle") : nothing
+    (net.node[node1].inCycle  != node.number || net.node[node12].inCycle  != node.number || net.node[node5].inCycle  != node.number || net.node[node11].inCycle  != node.number) ? error("nodes 1,5,11,12 not correctly in cycle") : nothing
+    (net.edge[edge14].containRoot || net.edge[edge10].containRoot || net.edge[edge8].containRoot) ? error("edges can contain root and shouldn't") : nothing
+    (!net.edge[edge9].hybrid || !net.edge[edge9].isMajor) ? error("edge 4 is not hybrid or major") : nothing
+    (net.edge[edge15].length != 0 || net.edge[edge9].length != 0) ? error("edges should have length 0") : nothing
+    (net.edge[edge9].istIdentifiable || net.edge[edge15].istIdentifiable) ? error("edge9,4 identifiable and should not") : nothing
+    net.visited[edge14] = false;
+    net.visited[edge5] = false;
+    net.visited[edge11] = false;
+    !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
 end
 
 

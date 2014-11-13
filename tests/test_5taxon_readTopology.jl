@@ -10,6 +10,7 @@ include("../functions.jl")
 using Base.Collections # for updateInCycle with priority queue
 
 # test functions
+
 include("test_functions_5taxon_read.jl")
 
 tests = ["C","F","G","H","J","D","E","I"];
