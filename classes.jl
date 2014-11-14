@@ -124,6 +124,7 @@ function deleteLeaf!(net::HybridNetwork, leaf::Node)
                         removeEdge!(other2,edge2)
                         removeNode!(other,edge1)
                         setNode!(edge1,other2)
+                        setEdge!(other2,edge1)
                         deleteEdge!(net,edge2)
                     else
                         setLength!(edge2, edge1.length+edge2.length)

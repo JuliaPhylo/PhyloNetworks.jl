@@ -839,6 +839,7 @@ end
 # input: hybrid node
 # set length to edges that were not identifiable and
 # changed the gammaz to -1
+# recalculates the branch lengths in terms of gammaz
 # warning: needs to know incycle attributes
 # fixit: still unknown treatment for bad diamond II
 function undoGammaz!(node::Node)
@@ -876,16 +877,20 @@ function undoGammaz!(node::Node)
             edgebla,tree_edge_incycle,tree_edge1 = hybridEdges(other_min);
             edgebla,edgebla,tree_edge3 = hybridEdges(other_maj)
             if(other_min.gammaz != -1)
-                setLength!(tree_edge1,-log(1-other_min.gammaz))
+                setLength!(tree_edge1,-log(other_min.gammaz))
             else
                 error("bad triangle II in node $(node.number) but no gammaz updated correctly")
             end
             if(other_maj.gammaz != -1)
-                setLength!(tree_edge3,-log(1-other_maj.gammaz))
+                setLength!(tree_edge3,-log(other_maj.gammaz))
             else
                 error("bad triangle II in node $(node.number) but no gammaz updated correctly")
             end
-            setLength!(tree_edge_incycle,0.0) #t11 and t10 already have the right length
+            if(node.gammaz != -1)
+                setLength!(tree_edge_incycle,-log(node.gammaz+other_min.gammaz*other_maj.gammaz)+log(other_min.gammaz)+log(other_maj.gammaz))
+            else
+                error("bad triangle II in node $(node.number) but no gammaz updated correctly")
+            end
             node.gammaz = -1.0
             other_maj.gammaz = -1.0
             other_min.gammaz = -1.0
@@ -909,6 +914,8 @@ function undoGammaz!(node::Node)
             else
                 error("bad diamond I in node $(node.number) but no gammaz updated correctly")
             end
+            edge_maj.gamma = other_maj.gammaz / (other_maj.gammaz+other_min.gammaz)
+            edge_min.gamma = other_min.gammaz / (other_maj.gammaz+other_min.gammaz)
             other_min.gammaz = -1.0
             other_maj.gammaz = -1.0
             tree_edge_incycle1.istIdentifiable = true;
@@ -1280,12 +1287,17 @@ function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bo
             undoGammaz!(hybrid);
             undoInCycle!(edgesInCycle, nodesInCycle);
             undoContainRoot!(edgesRoot);
-            if(random)
+            if(hybrid.isBadTriangleI || hybrid.isBadTriangleII)
+                limit = 0.5
+            else
                 if(edges[1].gamma > 0.5 && edges[1].gamma != 1.0)
-                    minor = rand() < edges[1].gamma ? false : true
+                    limit = edges[1].gamma
                 else
                     error("strange major hybrid edge $(edges[1].number) with gamma either less than 0.5 or equal to 1.0")
                 end
+            end
+            if(random)
+                minor = rand() < limit ? false : true
             else
                 minor = true;
             end
