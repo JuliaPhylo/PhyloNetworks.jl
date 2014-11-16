@@ -119,23 +119,35 @@ function deleteLeaf!(net::HybridNetwork, leaf::Node)
                     edge1,edge2 = hybridEdges(other,leaf.edge[1]);
                     other1 = getOtherNode(edge1,other);
                     other2 = getOtherNode(edge2,other);
-                    if(abs(edge1.number) < abs(edge2.number))
-                        setLength!(edge1, edge1.length+edge2.length)
-                        removeEdge!(other2,edge2)
-                        removeNode!(other,edge1)
-                        setNode!(edge1,other2)
-                        setEdge!(other2,edge1)
-                        deleteEdge!(net,edge2)
-                    else
-                        setLength!(edge2, edge1.length+edge2.length)
-                        removeEdge!(other1,edge1)
-                        removeNode!(other,edge2)
-                        setNode!(edge2,other1)
-                        deleteEdge!(net,edge1)
-                    end
-                    deleteNode!(net,other)
+                    removeEdge!(other,leaf.edge[1])
                     deleteNode!(net,leaf)
                     deleteEdge!(net,leaf.edge[1])
+                    if(other1.leaf || other2.leaf)
+                        if(other1.leaf && other2.leaf)
+                            error("just deleted a leaf $(leaf.number) and its two attached nodes are leaves also $(other1.number), $(other2.number)")
+                        end
+                        newleaf = other1.leaf ? other1 : other2
+                        middle = other
+                        leafedge = other1.leaf ? edge1 : edge2
+                        otheredge = other1.leaf ? edge2 : edge1
+                        othernode = other1.leaf ? other2 : other1
+                        first = true
+                        while(size(middle.edge,1) == 2)
+                            if(!first)
+                                otheredge = isequal(middle.edge[1],leafedge) ? middle.edge[2] : middle.edge[1]
+                                othernode = getOtherNode(otheredge,middle)
+                            end
+                            setLength!(leafedge,leafedge.length + otheredge.length)
+                            removeNode!(middle,leafedge)
+                            removeEdge!(othernode,otheredge)
+                            setNode!(leafedge,othernode)
+                            setEdge!(othernode,leafedge)
+                            deleteNode!(net,middle)
+                            deleteEdge!(net,otheredge)
+                            middle = othernode
+                            first = false
+                        end
+                    end
                 end
             end
         else
