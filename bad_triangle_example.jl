@@ -63,4 +63,4 @@ printEdges(net)
 
 #changeDirectionUpdate!(node[1],net)
 
-moveOriginUpdate!(net,node[1],false)
+#moveOriginUpdate!(net,node[1],false)
