@@ -91,7 +91,7 @@ function getOtherNode(edge::Edge,node::Node)
 end
 # -------------- NETWORK ----------------------- #
 
-function getIndex(node::Node, net::HybridNetwork)
+function getIndex(node::Node, net::Network)
     i = 1;
     while(i<= size(net.node,1) && !isequal(node,net.node[i]))
         i = i+1;
@@ -99,7 +99,7 @@ function getIndex(node::Node, net::HybridNetwork)
     i>size(net.node,1)?error("node not in network"):return i;
 end
 
-function getIndex(edge::Edge, net::HybridNetwork)
+function getIndex(edge::Edge, net::Network)
     i = 1;
     while(i<= size(net.edge,1) && !isequal(edge,net.edge[i]))
         i = i+1;
@@ -143,7 +143,7 @@ function getIndex(name::ASCIIString, array::Array{ASCIIString,1})
 end
 
 
-function getIndexNode(number::Int64,net::HybridNetwork)
+function getIndexNode(number::Int64,net::Network)
     try
         getIndex(true,[number==n.number for n in net.node])
     catch
@@ -152,7 +152,7 @@ function getIndexNode(number::Int64,net::HybridNetwork)
     return getIndex(true,[number==n.number for n in net.node])
 end
 
-function getIndexEdge(number::Int64,net::HybridNetwork)
+function getIndexEdge(number::Int64,net::Network)
     try
         getIndex(true,[number==n.number for n in net.edge])
     catch
@@ -187,7 +187,7 @@ function getIndexNode(edge::Edge,node::Node)
 end
 
 # function to find hybrid index in net.hybrid
-function getIndexHybrid(node::Node, net::HybridNetwork)
+function getIndexHybrid(node::Node, net::Network)
     if(node.hybrid)
         i = 1;
         while(i<= size(net.hybrid,1) && !isequal(node,net.hybrid[i]))
@@ -232,13 +232,56 @@ function getConnectingEdge(node1::Node,node2::Node)
     end
 end
 
+# function to determine if two edges are equal
+# used when comparing edges in QuartetNetwork
+# and HybridNetwork (in particular in
+# updateHasEdge)
+# compares only the numbers of the edges
+# warning: if number not uniquely determined,
+#          it fails
+function isequalEdge(ed1::Edge, ed2::Edge)
+    if(ed1.number == ed2.number)
+        return true
+    else
+        return false
+    end
+end
+
+# function to determine if two nodes are equal
+# compares only the numbers of the nodes
+# warning: if number not uniquely determined,
+#          it fails
+function isequalNode(ed1::Node, ed2::Node)
+    if(ed1.number == ed2.number)
+        return true
+    else
+        return false
+    end
+end
+
+# function to check in an edge is in an array by comparing
+# the edges numbers (uses isequalEdge)
+# needed for updateHasEdge
+function isEdgeNumIn(edge::Edge,array::Array{Edge,1})
+    return all([!isequalEdge(edge,e) for e in array]) ? false : true
+end
+
+# function to check in a leaf is in an array by comparing
+# the numbers (uses isequalNode)
+# needed for updateHasEdge
+function isNodeNumIn(node::Node,array::Array{Node,1})
+    return all([!isequalNode(node,e) for e in array]) ? false : true
+end
 
 # function to push a Node in net.node and
 # update numNodes and numTaxa
-function pushNode!(net::HybridNetwork, n::Node)
+function pushNode!(net::Network, n::Node)
     push!(net.node,n);
     net.numNodes += 1;
-    net.numTaxa += n.leaf ? 1 : 0;
+    if(n.leaf)
+        net.numTaxa += 1
+        push!(net.leaf,n);
+    end
     if(n.hybrid)
         pushHybrid!(net,n)
     end
@@ -246,7 +289,7 @@ end
 
 # function to push an Edge in net.edge and
 # update numEdges
-function pushEdge!(net::HybridNetwork, e::Edge)
+function pushEdge!(net::Network, e::Edge)
     push!(net.edge,e);
     net.numEdges += 1;
 end
@@ -254,7 +297,7 @@ end
 
 # function to push a hybrid Node in net.hybrid and
 # update numHybrids
-function pushHybrid!(net::HybridNetwork, n::Node)
+function pushHybrid!(net::Network, n::Node)
     if(n.hybrid)
         push!(net.hybrid,n);
         net.numHybrids += 1;
@@ -265,7 +308,7 @@ end
 
 
 # function to delete a Node in net.node and
-# update numNodes and numTaxa
+# update numNodes and numTaxa for HybridNetwork
 # if hybrid node, it deletes also from net.hybrid
 # and updates numHybrids
 # note that net.names is never updated to keep it
@@ -288,9 +331,31 @@ function deleteNode!(net::HybridNetwork, n::Node)
     end
 end
 
+# function to delete a Node in net.node and
+# update numNodes and numTaxa for QuartetNetwork
+# if hybrid node, it deletes also from net.hybrid
+# and updates numHybrids
+# note that net.names is never updated to keep it
+# accurate
+function deleteNode!(net::QuartetNetwork, n::Node)
+    try
+        index = getIndex(n,net);
+    catch
+        error("Node $(n.number) not in network");
+    end
+    index = getIndex(n,net);
+    deleteat!(net.node,index);
+    net.numNodes -= 1;
+    net.numTaxa -= n.leaf ? 1 : 0;
+    if(n.hybrid)
+       removeHybrid!(net,n)
+    end
+end
+
 # function to delete an Edge in net.edge and
-# update numEdges
-function deleteEdge!(net::HybridNetwork, e::Edge)
+# update numEdges from a Network
+function deleteEdge!(net::Network, e::Edge)
+    warn("call delete edge for hybrid network")
     try
         index = getIndex(e,net);
     catch
@@ -306,7 +371,7 @@ end
 # update numHybrid
 # used when you do not want to delete the actual node
 # only remove it from net.hybrid
-function removeHybrid!(net::HybridNetwork, n::Node)
+function removeHybrid!(net::Network, n::Node)
     if(n.hybrid)
         try
             index = getIndexHybrid(n,net);
@@ -322,7 +387,7 @@ function removeHybrid!(net::HybridNetwork, n::Node)
 end
 
 # function to delete an internal node with only 2 edges
-function deleteIntNode!(net::HybridNetwork, n::Node)
+function deleteIntNode!(net::Network, n::Node)
     if(size(n.edge,1) == 2)
         index = n.edge[1].number < n.edge[2].number ? 1 : 2;
         edge1 = n.edge[index];
@@ -345,7 +410,7 @@ end
 # search the hybrid node(s) in network: returns the hybrid node(s)
 # in an array
 # throws error if no hybrid in network
-function searchHybridNode(net::HybridNetwork)
+function searchHybridNode(net::Network)
     suma = sum([net.node[i].hybrid?1:0 for i = 1:size(net.node,1)]);
     if(suma == 0)
         error("network has no hybrid node");
@@ -372,7 +437,7 @@ end
 # hybrid edges come in pairs, both edges are returned
 # throws error if no hybrid in network
 # check: change to return only the minor edge?
-function searchHybridEdge(net::HybridNetwork)
+function searchHybridEdge(net::Network)
     suma = sum([net.edge[i].hybrid?1:0 for i = 1:size(net.edge,1)]);
     if(suma == 0)
         error("network has no hybrid edge");
@@ -396,7 +461,7 @@ function searchHybridEdge(net::HybridNetwork)
 end
 
 # print for every edge, nodes, inCycle, containRoot, istIdentifiable
-function printEdges(net::HybridNetwork)
+function printEdges(net::Network)
     println("Edge\tNode1\tNode2\tInCycle\tcontainRoot\tistIdentitiable\tLength\tisHybrid\tGamma")
     for e in net.edge
         println("$(e.number)\t$(e.node[1].number)\t$(e.node[2].number)\t$(e.inCycle)\t$(e.containRoot)\t\t$(e.istIdentifiable)\t\t$(e.length)\t$(e.hybrid)\t$(e.gamma)")
@@ -404,7 +469,7 @@ function printEdges(net::HybridNetwork)
 end
 
 # print for every node, inCycle and edges
-function printNodes(net::HybridNetwork)
+function printNodes(net::Network)
     println("Node\tIn Cycle\tisHybrid\thasHybEdge\tEdges numbers")
     for n in net.node
         print("$(n.number)\t$(n.inCycle)\t\t$(n.hybrid)\t$(n.hasHybEdge)\t")
@@ -1153,7 +1218,6 @@ end
 
 
 # --------------------------------- delete hybridization -------------------------------
-# fixit: update net.hybrid and numHybrids (push hybrid function?),
 
 # function to identify inCycle (with priority queue)
 # based on updateInCycle as it is the exact same code
@@ -1165,7 +1229,7 @@ end
 # returns tuple: nocycle, array of edges changed, array of nodes changed
 # check: is this traversal much faster than a simple loop over
 #        all edges/nodes and check if incycle==hybrid.number?
-function identifyInCycle(net::HybridNetwork,node::Node)
+function identifyInCycle(net::Network,node::Node)
     if(node.hybrid)
         start = node;
         hybedge = getHybridEdge(node);
@@ -1325,7 +1389,7 @@ end
 #        minor: true (deletes minor edge), false (deletes major)
 # warning: it is meant after undoing the effect of the
 #          hybridization in deleteHybridizationUpdate!
-#          by itself, it leaves things as if
+#          by itself, it leaves things as is
 function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool)
     if(node.hybrid)
         if(minor)
@@ -2304,7 +2368,7 @@ end
 # aux function to make a hybrid node a tree node
 # used in deleteLeaf
 # input: hybrid node
-function makeNodeTree!(net::HybridNetwork, hybrid::Node)
+function makeNodeTree!(net::Network, hybrid::Node)
     if(hybrid.hybrid)
         warn("we make node $(hybrid.number) a tree node, but it can still have hybrid edges pointing at it")
         hybrid.hybrid = false
@@ -2342,7 +2406,8 @@ end
 # function to delete an internal node in an external edge
 # input: network, internal node and leaf
 # returns the new middle
-function deleteIntLeaf!(net::HybridNetwork, middle::Node, leaf::Node)
+function deleteIntLeaf!(net::Network, middle::Node, leaf::Node)
+    println("calling deleteIntLeaf for middle $(middle.number) and leaf $(leaf.number)")
     if(size(middle.edge,1) == 2)
         if(isequal(getOtherNode(middle.edge[1],middle),leaf))
             leafedge = middle.edge[1]
@@ -2367,7 +2432,6 @@ function deleteIntLeaf!(net::HybridNetwork, middle::Node, leaf::Node)
     end
 end
 
-
 # function to delete a leaf from a network
 # input: network, leaf node
 # warning: it will delete from the actual network
@@ -2376,8 +2440,8 @@ end
 # fixit: still missing to test hybrid-> bad triangle II and
 #        normal case (not bad triangle/diamond) of hasHybEdge
 #        and normal case, delete not hybrid leaf bad triangle II
-function deleteLeaf!(net::HybridNetwork, leaf::Node)
-    if(leaf.leaf)
+function deleteLeaf!(net::Network, leaf::Node)
+    if(leaf.leaf && isNodeNumIn(leaf,net.leaf))
         if(size(leaf.edge,1) == 1)
             other = getOtherNode(leaf.edge[1],leaf);
             if(other.hybrid)
@@ -2637,6 +2701,48 @@ function deleteLeaf!(net::HybridNetwork, leaf::Node)
             error("strange leaf with $(size(leaf.edge,1)) edges instead of 1")
         end
     else
-        error("node $(leaf.number) is not a leaf, cannot delete it")
+        if(!leaf.leaf)
+            error("node $(leaf.number) is not a leaf, cannot delete it")
+        else
+            error("node $(leaf.number) is not in net.leaf, cannot delete it")
+        end
     end
 end
+
+# -------------------- extract quartet ---------------------------------------
+
+# function to update hasEdge attribute in a
+# QuartetNetwork after leaves deleted
+# with deleteLeaf!
+function updateHasEdge!(qnet::QuartetNetwork, net::HybridNetwork)
+    warn("function to compare edges depends on edges number being unique")
+    qnet.hasEdge = [isEdgeNumIn(e,qnet.edge) for e in net.edge]
+end
+
+
+
+# function to extract a quartet from a network
+# input: quartetNetwork (already copied from a hybrid network
+#        quartet: array with the 4 leaf nodes to keep
+function extractQuartet(net::HybridNetwork,quartet::Array{Node,1})
+    if(size(quartet,1) != 4)
+        error("quartet array should have 4 nodes, it has $(size(quartet,1))")
+    else
+        if(!quartet[1].leaf || !quartet[2].leaf || !quartet[3].leaf || !quartet[4].leaf)
+            error("all four nodes to keep when extracting the quartet should be leaves: $([q.number for q in quartet])")
+        else
+            qnet = QuartetNetwork(net);
+            leaves = copy(qnet.leaf)
+            for(n in leaves)
+                if(!isNodeNumIn(n,quartet))
+                    println("delete leaf $(n.number)")
+                    deleteLeaf!(qnet,n)
+                end
+            end
+            updateHasEdge!(qnet,net)
+            return qnet
+        end
+    end
+end
+
+

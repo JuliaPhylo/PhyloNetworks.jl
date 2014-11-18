@@ -27,17 +27,6 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
-# function to extract a quartet from a network
-# input: quartetNetwork (already copied from a hybrid network
-#        the 4 leaf nodes to keep
-function extractQuartet!(qnet::QuartetNetwork,leaf1::Node,leaf2::Node,leaf3::Node,leaf4::Node)
-    if(!leaf1.leaf || !leaf2.leaf || !leaf3.leaf || !leaf4.leaf)
-        error("all four nodes to keep when extracting the quartet should be leaves: $(leaf1.number),$(leaf2.number),$(leaf3.number),$(leaf4.number)")
-    else
-        #fixit: need to change deleteLeaf to have QuartetNetwork as input, do we?
-    end
-end
-
 # function to traverse the network
 # simply prints the traversal path, can be modified to do other things
 # needs:

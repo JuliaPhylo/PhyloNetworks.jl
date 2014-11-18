@@ -76,10 +76,12 @@ type Node <: ANode
     Node(number::Int64, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Array{Edge,1}) = new(number,leaf,hybrid,gammaz,edge,!all([!e.hybrid for e in edge]),false,false,false,false,-1.,nothing,-1.)
 end
 
+abstract Network
+
 # warning: no attempt to make sure the direction of edges matches with the root
 # warning: no check if it is network or tree, node array can have no hybrids
 # warning: nodes and edges need to be defined and linked before adding to a network
-type HybridNetwork
+type HybridNetwork <: Network
     numTaxa::Int64 # cannot set in constructor for congruence
     numNodes::Int64 # cannot set in constructor for congruence
     numEdges::Int64 # cannot set in constructor for congruence
@@ -92,19 +94,24 @@ type HybridNetwork
     visited::Array{Bool,1} # reusable array of booleans
     edges_changed::Array{Edge,1} # reusable array of edges
     nodes_changed::Array{Node,1} # reusable array of nodes
+    leaf::Array{Node,1} # array of leaves
     # maxTaxNumber::Int32 --in case it's needed later when we prune taxa
     # inner constructor
     function HybridNetwork(node::Array{Node,1},edge::Array{Edge,1})
         hybrid=Node[];
+        leaf=Node[];
         [n.hybrid?push!(hybrid,n):nothing for n in node];
-        new(sum([node[i].leaf?1:0 for i=1:size(node,1)]),size(node,1),size(edge,1),node,edge,1,[],hybrid,size(hybrid,1),[],[],[])
+        [n.leaf?push!(leaf,n):nothing for n in node];
+        new(size(leaf,1),size(node,1),size(edge,1),node,edge,1,[],hybrid,size(hybrid,1),[],[],[],leaf)
     end
     function HybridNetwork(node::Array{Node,1},edge::Array{Edge,1},root::Int64)
         hybrid=Node[];
+        leaf=Node[];
         [n.hybrid?push!(hybrid,n):nothing for n in node];
-        new(sum([node[i].leaf?1:0 for i=1:size(node,1)]),size(node,1),size(edge,1),node,edge,root,[],hybrid,size(hybrid,1),[],[],[])
+        [n.leaf?push!(leaf,n):nothing for n in node];
+        new(size(leaf,1),size(node,1),size(edge,1),node,edge,root,[],hybrid,size(hybrid,1),[],[],[],leaf)
     end
-    HybridNetwork() = new(0,0,0,[],[],0,[],[],0,[],[],[]);
+    HybridNetwork() = new(0,0,0,[],[],0,[],[],0,[],[],[],[]);
 end
 
 type Quartet
@@ -123,17 +130,29 @@ type Quartet
 end
 
 # type created from a HybridNetwork only to extract a given quartet
-type QuartetNetwork
+type QuartetNetwork <: Network
+    numTaxa::Int64
+    numNodes::Int64
+    numEdges::Int64
     node::Array{Node,1}
     edge::Array{Edge,1}
     hybrid::Array{Node,1} # array of hybrid nodes in network
+    leaf::Array{Node,1} # array of leaves
     numHybrids::Int64 # number of hybrid nodes
     hasEdge::Array{Bool,1} # array of boolean with all the original edges of HybridNetwork
-    quartet::Quartet # the quartet it represent
+    quartet # the quartet it represents
     visited::Array{Bool,1} # reusable array of booleans
     edges_changed::Array{Edge,1} # reusable array of edges
     nodes_changed::Array{Node,1} # reusable array of nodes
     # inner constructor
-    QuartetNetwork(net::HybridNetwork) = new(net.node,net.edge,net.hybrid,net.numHybrids,[true for e in net.edge],nothing,[],[],[])
-    QuartetNetwork(net::HybridNetwork,quartet::Quartet) = new(net.node,net.edge,net.hybrid,net.numHybrids,[true for e in net.edge],quartet,[],[],[])
+    function QuartetNetwork(net::HybridNetwork)
+        net2 = deepcopy(net); #fixit: maybe we dont need deepcopy of all, maybe only arrays
+        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],nothing,[],[],[])
+        #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],nothing,[],[],[])
+    end
+    function QuartetNetwork(net::HybridNetwork,quartet::Quartet)
+        net2 = deepcopy(net);
+        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],quartet,[],[],[])
+        #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],quartet,[],[],[])
+    end
 end

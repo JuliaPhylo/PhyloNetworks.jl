@@ -12,6 +12,8 @@ using Base.Collections # for updateInCycle with priority queue
 # test functions
 include("test_functions_5taxon.jl")
 
+warn("BUG IN CASE C: sometimes it shows errors, but if Julia is closed and reopened, no more error shown")
+
 tests = ["C","F","G","H","J","D","E","I"];
 wrong = String[];
 
@@ -19,7 +21,7 @@ for t in tests
     include("../functions.jl")
     include("tree_example.jl");
     tp = string("add_hybrid_case","$(t).jl");
-    println("running $(tp)");
+    println("running $(tp)-----");
     try
         include(tp)
     catch
