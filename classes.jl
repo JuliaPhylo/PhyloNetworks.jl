@@ -27,6 +27,77 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
+# function to identify the QuartetNetwork as
+# 0 (tree), 1 (equivalent to tree), 2
+# around a given hybrid node
+# it also cleans the hybridizations of type 1
+# returns 0,1,2
+function identifyQuartet!(qnet::QuartetNetwork, node::Node)
+    if(node.hybrid)
+        k = sum([(n.inCycle == node.number && size(n.edge,1) == 3) ? 1 : 0 for n in qnet.node])
+        if(k < 2)
+            error("strange quartet network with a hybrid node $(node.number) but no cycle")
+        elseif(k == 2)
+            other = qnet.node[getIndex(true, [(n.inCycle == node.number && size(n.edge,1) == 3) for n in qnet.node])]
+            edgemaj,edgemin,edge1 = hybridEdges(node)
+            edgemin2,edgebla,edge2 = hybridEdges(other)
+            if(getOtherNode(edge1,node).leaf || getOtherNode(edge2,other).leaf) # k=2, unidentifiable
+                leaf = getOtherNode(edge1,node)
+                middle = node
+                if(!leaf.leaf)
+                    leaf = getOtherNode(edge2,node)
+                    middle = other
+                end
+                if(isequal(getOtherNode(edgemaj,node),other))
+                    removeEdge!(node,edgemaj)
+                    removeEdge!(other,edgemaj)
+                    deleteEdge!(qnet,edgemaj)
+                    makeNodeTree!(qnet,node)
+                    deleteIntLeaf!(qnet,middle,leaf)
+                elseif(isequal(getOtherNode(edgemin,node),other))
+                    removeEdge!(node,edgemin)
+                    removeEdge!(other,edgemin)
+                    deleteEdge!(qnet,edgemin)
+                    makeNodeTree!(qnet,node)
+                    deleteIntLeaf!(qnet,middle,leaf)
+                else
+                    error("nodes $(node.number) and $(other.number) should be united by a hybrid edge but are not")
+                end
+                qnet.which = 0
+            else
+
+        elseif(k == 3)
+            f
+        elseif(k == 4)
+            f
+        else
+            error("strange quartet network with $(k) nodes in cycle, maximum should be 4")
+        end
+    else
+        error("cannot identify the hybridization around node $(node.number) because it is not hybrid node.")
+    end
+end
+
+# function to identify the QuartetNetwork as one of the
+# 6 possibilities
+function identifyQuartet!(qnet::QuartetNetwork)
+    if(qnet.which != -1)
+        if(qnet.numHybrids == 0)
+            qnet.which = 0
+        elseif(qnet.numHybrids == 1)
+            qnet.which = identifyQuartet!(qnet,qnet.hybrid[1])
+        elseif(qnet.numHybrids > 1)
+            for(n in qnet.hybrid)
+                identifyQuartet!()
+        else
+            error("strange quartet network with negative number of hybrids: $(qnet.numHybrids).")
+        end
+    else
+        error("Quartet has already been identified as $(qnet.which)")
+    end
+end
+
+
 # function to traverse the network
 # simply prints the traversal path, can be modified to do other things
 # needs:

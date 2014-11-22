@@ -144,15 +144,16 @@ type QuartetNetwork <: Network
     visited::Array{Bool,1} # reusable array of booleans
     edges_changed::Array{Edge,1} # reusable array of edges
     nodes_changed::Array{Node,1} # reusable array of nodes
+    which::Int64 # 0 it tree quartet, 1 is equivalent to tree quartet and 2 if two minor CF different, default -1
     # inner constructor
     function QuartetNetwork(net::HybridNetwork)
         net2 = deepcopy(net); #fixit: maybe we dont need deepcopy of all, maybe only arrays
-        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],nothing,[],[],[])
-        #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],nothing,[],[],[])
+        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],nothing,[],[],[],-1)
+        #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],nothing,[],[],[],-1)
     end
     function QuartetNetwork(net::HybridNetwork,quartet::Quartet)
         net2 = deepcopy(net);
-        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],quartet,[],[],[])
-        #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],quartet,[],[],[])
+        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],quartet,[],[],[],-1)
+        #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],quartet,[],[],[],-1)
     end
 end
