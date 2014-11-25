@@ -27,8 +27,9 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
+# ORIGINAL
 # function to identify the QuartetNetwork as
-# 0 (tree), 1 (equivalent to tree), 2
+# 1 (equivalent to tree), 2 (minor CF different)
 # around a given hybrid node
 # it also cleans the hybridizations of type 1
 # returns 0,1,2
@@ -78,10 +79,13 @@ function identifyQuartet!(qnet::QuartetNetwork, node::Node)
     end
 end
 
+
+
+
 # function to identify the QuartetNetwork as one of the
 # 6 possibilities
 function identifyQuartet!(qnet::QuartetNetwork)
-    if(qnet.which != -1)
+    if(qnet.which == -1)
         if(qnet.numHybrids == 0)
             qnet.which = 0
         elseif(qnet.numHybrids == 1)
@@ -97,6 +101,11 @@ function identifyQuartet!(qnet::QuartetNetwork)
     end
 end
 
+# -------------
+
+
+
+# ------------------
 
 # function to traverse the network
 # simply prints the traversal path, can be modified to do other things

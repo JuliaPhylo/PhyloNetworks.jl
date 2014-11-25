@@ -68,12 +68,13 @@ type Node <: ANode
     prev # previous node in cycle, used in updateInCycle. defined as "Any", set as "nothing" to begin with
     k::Int64 # number of nodes in cycle, only stored in hybrid node and updated after node becomes part of network
              # default -1
+    typeHyb::Int64 # type of hybridization, needed for quartet network only, default -1
     # inner constructor: set hasHybEdge depending on edge
-    Node() = new(-1.,false,false,-1.,[],false,false,false,false,false,-1.,nothing,-1.)
-    Node(number::Int64, leaf::Bool) = new(number,leaf,false,-1.,[],false,false,false,false,false,-1.,nothing,-1.)
-    Node(number::Int64, leaf::Bool, hybrid::Bool) = new(number,leaf,hybrid,-1.,[],hybrid,false,false,false,false,-1.,nothing,-1.)
-    Node(number::Int64, leaf::Bool, hybrid::Bool, edge::Array{Edge,1})=new(number,leaf,hybrid,-1.,edge,!all([!edge[i].hybrid for i=1:size(edge,1)]),false,false,false,false,-1.,nothing,-1.)
-    Node(number::Int64, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Array{Edge,1}) = new(number,leaf,hybrid,gammaz,edge,!all([!e.hybrid for e in edge]),false,false,false,false,-1.,nothing,-1.)
+    Node() = new(-1.,false,false,-1.,[],false,false,false,false,false,-1.,nothing,-1,-1)
+    Node(number::Int64, leaf::Bool) = new(number,leaf,false,-1.,[],false,false,false,false,false,-1.,nothing,-1,-1)
+    Node(number::Int64, leaf::Bool, hybrid::Bool) = new(number,leaf,hybrid,-1.,[],hybrid,false,false,false,false,-1.,nothing,-1,-1)
+    Node(number::Int64, leaf::Bool, hybrid::Bool, edge::Array{Edge,1})=new(number,leaf,hybrid,-1.,edge,!all([!edge[i].hybrid for i=1:size(edge,1)]),false,false,false,false,-1.,nothing,-1,-1)
+    Node(number::Int64, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Array{Edge,1}) = new(number,leaf,hybrid,gammaz,edge,!all([!e.hybrid for e in edge]),false,false,false,false,-1.,nothing,-1,-1)
 end
 
 abstract Network
@@ -116,16 +117,19 @@ end
 
 type Quartet
     number::Int64
-    taxon1::ASCIIString
-    taxon2::ASCIIString
-    taxon3::ASCIIString
-    taxon4::ASCIIString
+    taxon::Array{ASCIIString,1}
     obsCF::Array{Float64,1} # three observed CF in order 12|34, 13|24, 14|23
     # inner constructor: to guarantee obsCF are only three and add up to 1
     function Quartet(number::Int64,t1::ASCIIString,t2::ASCIIString,t3::ASCIIString,t4::ASCIIString,obsCF::Array{Float64,1})
         size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing
         sum(obsCF) != 1 ? error("observed CF should add up to 1, not $(sum(obsCF))") : nothing
-        new(number,t1,t2,t3,t4,obsCF);
+        new(number,[t1,t2,t3,t4],obsCF);
+    end
+    function Quartet(number::Int64,t1::Array{ASCIIString,1},obsCF::Array{Float64,1})
+        size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing
+        sum(obsCF) != 1 ? error("observed CF should add up to 1, not $(sum(obsCF))") : nothing
+        size(t1,1) != 4 ? error("array of taxa should have size 4, not $(size(t1,1))") : nothing
+        new(number,t1,obsCF);
     end
 end
 
@@ -141,19 +145,21 @@ type QuartetNetwork <: Network
     numHybrids::Int64 # number of hybrid nodes
     hasEdge::Array{Bool,1} # array of boolean with all the original edges of HybridNetwork
     quartet # the quartet it represents
-    visited::Array{Bool,1} # reusable array of booleans
-    edges_changed::Array{Edge,1} # reusable array of edges
-    nodes_changed::Array{Node,1} # reusable array of nodes
     which::Int64 # 0 it tree quartet, 1 is equivalent to tree quartet and 2 if two minor CF different, default -1
+    typeHyb::Array{Int64,1} #array with the type of hybridization of each hybrid node in the quartet
+    t1::Float64 # length of internal edge, used when qnet.which=1, default = -1
+    names::Array{ASCIIString,1} # translate table for taxon names
+    split::Array{Int64,1} # split that denotes to which side each leaf is from the split, i.e. [1,2,2,1] means that leaf1 and 4 are on the same side of the split, default -1,-1,-1,-1
+    formula::Array{Int64,1} # array for qnet.which=1 that indicates if the expCf is major (2) or minor (1) at qnet.expCF[i] depending on qnet.formula[i], default -1,-1,-1
     # inner constructor
     function QuartetNetwork(net::HybridNetwork)
         net2 = deepcopy(net); #fixit: maybe we dont need deepcopy of all, maybe only arrays
-        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],nothing,[],[],[],-1)
-        #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],nothing,[],[],[],-1)
+        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],nothing,-1,[], -1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1])
+        #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],nothing,-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1])
     end
     function QuartetNetwork(net::HybridNetwork,quartet::Quartet)
         net2 = deepcopy(net);
-        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],quartet,[],[],[],-1)
-        #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],quartet,[],[],[],-1)
+        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],quartet,-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1])
+        #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],quartet,-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1])
     end
 end

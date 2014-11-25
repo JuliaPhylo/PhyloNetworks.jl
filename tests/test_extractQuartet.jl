@@ -1,4 +1,5 @@
 # test to extract quartet from a "good" 5taxon network (Case G)
+# and calculate expCF
 # Claudia November 2014
 
 
@@ -15,3 +16,15 @@ write(f,tree)
 close(f)
 net = readTopologyUpdate("prueba_tree.txt");
 
+printEdges(net)
+printNodes(net)
+net.names
+
+q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1])
+
+qnet = extractQuartet(net,q1);
+printEdges(qnet)
+printNodes(qnet)
+
+calculateExpCFAll!(qnet)
+# has errors: calculates t1 wrong, and qnet.leaf is not updated when extracting quartet (still has 5 leaves)
