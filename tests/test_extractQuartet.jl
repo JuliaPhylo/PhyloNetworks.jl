@@ -20,9 +20,9 @@ printEdges(net)
 printNodes(net)
 net.names
 
-q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1])
+q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
 
-qnet = extractQuartet(net,q1);
+qnet = extractQuartet(net,q1)
 printEdges(qnet)
 printNodes(qnet)
 

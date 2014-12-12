@@ -2408,7 +2408,6 @@ end
 function makeNodeTree!(net::Network, hybrid::Node)
     if(hybrid.hybrid)
         warn("we make node $(hybrid.number) a tree node, but it can still have hybrid edges pointing at it")
-        hybrid.hybrid = false
         hybrid.gammaz = -1
         hybrid.isBadDiamondI = false
         hybrid.isBadDiamondII = false
@@ -2416,6 +2415,7 @@ function makeNodeTree!(net::Network, hybrid::Node)
         hybrid.isBadTriangleII = false
         hybrid.k = -1
         removeHybrid!(net,hybrid)
+        hybrid.hybrid = false
     else
         error("cannot make node $(hybrid.number) tree node because it already is")
     end
@@ -2806,8 +2806,9 @@ end
 
 
 # function to extract a quartet from a network
-# input: quartetNetwork (already copied from a hybrid network
+# input: HybridNetwork
 #        quartet: array with the 4 leaf nodes to keep
+# return: QuartetNetwork with only 4 tips
 function extractQuartet(net::HybridNetwork,quartet::Array{Node,1})
     if(size(quartet,1) != 4)
         error("quartet array should have 4 nodes, it has $(size(quartet,1))")
