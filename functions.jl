@@ -2854,6 +2854,7 @@ end
 # sets node.k to the updated count
 # sets the node.typeHyb (1,2,3,4,5 see ipad notes) and pushes into qnet.typeHyb
 # sets node.prev = other to keep track of the "other" node
+# fixit: I think qnet.typeHyb is never used
 function identifyQuartet!(qnet::QuartetNetwork, node::Node)
     if(node.hybrid)
         k = sum([(n.inCycle == node.number && size(n.edge,1) == 3) ? 1 : 0 for n in qnet.node])
@@ -3125,6 +3126,7 @@ end
 
 # aux function to eliminate all internal nodes with only
 # two edges in a quartet network with qnet.which=1
+# fixit: no hay forma de saber quien es node sin tener que encontrarlo cada vez?
 function internalLength!(qnet::QuartetNetwork)
     if(qnet.which == 1)
         node = qnet.node[getIndex(true,[size(n.edge,1) == 3 for n in qnet.node])]
@@ -3224,7 +3226,7 @@ function updateSplit!(qnet::QuartetNetwork)
             middle = qnet.node[getIndex(true,[size(n.edge,1) == 3 for n in qnet.node])]
             leaf1 = middle.edge[getIndex(true,[getOtherNode(e,middle).leaf for e in middle.edge])]
             leaf2 = middle.edge[getIndex(true,[(getOtherNode(e,middle).leaf && !isequal(leaf1,e)) for e in middle.edge])]
-            leaf1 = getOtherNode(leaf1,middle)
+            leaf1 = getOtherNode(leaf1,middle) #fixit: weird here?
             leaf2 = getOtherNode(leaf2,middle)
             ind1 = getIndex(leaf1,qnet.leaf)
             ind2 = getIndex(leaf2,qnet.leaf)
