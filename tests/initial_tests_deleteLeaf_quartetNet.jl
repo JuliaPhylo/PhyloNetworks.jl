@@ -8,6 +8,7 @@ qnet = QuartetNetwork(net);
 printEdges(qnet)
 printNodes(qnet)
 printEdges(net)
+printNodes(net)
 qnet.hasEdge
 
 
@@ -23,9 +24,10 @@ deleteLeaf!(qnet,qnet.node[10])
 deleteLeaf!(qnet,qnet.node[8])
 deleteLeaf!(qnet,qnet.node[6])
 deleteLeaf!(qnet,qnet.node[7])
+deleteLeaf!(qnet,qnet.node[4])
 
 # Case G : no simplification in deleteLeaf!
-include("case_g_example.jl")
+include("../case_g_example.jl")
 
 qnet = QuartetNetwork(net);
 printEdges(qnet)
@@ -36,6 +38,20 @@ deleteLeaf!(qnet,qnet.node[7]) # 7
 deleteLeaf!(qnet,qnet.node[4]) # 4
 deleteLeaf!(qnet,qnet.node[2]) # 2
 deleteLeaf!(qnet,qnet.node[1]) # 1
+
+
+# Case C: bad triangle II
+include("../case_c_example.jl")
+
+qnet = QuartetNetwork(net);
+printEdges(qnet)
+printNodes(qnet)
+
+deleteLeaf!(qnet,qnet.node[1]) # 1
+deleteLeaf!(qnet,qnet.node[2]) # 2
+deleteLeaf!(qnet,qnet.node[8]) # 5
+deleteLeaf!(qnet,qnet.node[9]) # 6
+deleteLeaf!(qnet,qnet.node[4]) # 3
 
 
 
