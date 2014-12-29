@@ -210,6 +210,19 @@ function getIndexHybrid(node::Node, net::Network)
     end
 end
 
+# function to find leaf index in qnet.leaf
+function getIndexLeaf(node::Node, qnet::QuartetNetwork)
+    if(node.leaf)
+        i = 1;
+        while(i<= size(qnet.leaf,1) && !isequal(node,qnet.leaf[i]))
+            i = i+1;
+        end
+        i>size(qnet.leaf,1)?error("leaf node not in q.network"):return i;
+    else
+        error("node $(node.number) is not leaf so it cannot be in qnet.leaf")
+    end
+end
+
 
 # function that given a hybrid node, it gives you the minor hybrid edge
 function getHybridEdge(node::Node)
@@ -348,6 +361,7 @@ end
 # and updates numHybrids
 # note that net.names is never updated to keep it
 # accurate
+# if n is leaf, we delete from qnet.leaf
 function deleteNode!(net::QuartetNetwork, n::Node)
     try
         index = getIndex(n,net);
@@ -361,12 +375,15 @@ function deleteNode!(net::QuartetNetwork, n::Node)
     if(n.hybrid)
        removeHybrid!(net,n)
     end
+    if(n.leaf)
+        index = getIndexLeaf(n,net)
+        deleteat!(net.leaf,index)
+    end
 end
 
 # function to delete an Edge in net.edge and
 # update numEdges from a Network
 function deleteEdge!(net::Network, e::Edge)
-    warn("call delete edge for hybrid network")
     try
         index = getIndex(e,net);
     catch
