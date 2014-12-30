@@ -151,15 +151,16 @@ type QuartetNetwork <: Network
     names::Array{ASCIIString,1} # translate table for taxon names
     split::Array{Int64,1} # split that denotes to which side each leaf is from the split, i.e. [1,2,2,1] means that leaf1 and 4 are on the same side of the split, default -1,-1,-1,-1
     formula::Array{Int64,1} # array for qnet.which=1 that indicates if the expCf is major (2) or minor (1) at qnet.expCF[i] depending on qnet.formula[i], default -1,-1,-1
+    expCF::Array{Float64,1} # three expected CF in order 12|34, 13|24, 14|23 (matching obsCF from qnet.quartet), default [0,0,0]
     # inner constructor
     function QuartetNetwork(net::HybridNetwork)
         net2 = deepcopy(net); #fixit: maybe we dont need deepcopy of all, maybe only arrays
-        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],nothing,-1,[], -1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1])
+        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],nothing,-1,[], -1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1],[0,0,0])
         #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],nothing,-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1])
     end
     function QuartetNetwork(net::HybridNetwork,quartet::Quartet)
         net2 = deepcopy(net);
-        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],quartet,-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1])
+        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],quartet,-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1],[0,0,0])
         #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],quartet,-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1])
     end
 end

@@ -2845,7 +2845,7 @@ end
 
 
 # function to extract a quartet from a network
-# input: HybridNetwork
+# input: QuartetNetwork (already created from HybridNetwork)
 #        quartet: array with the 4 leaf nodes to keep
 # return: QuartetNetwork with only 4 tips
 function extractQuartet(net::HybridNetwork,quartet::Array{Node,1})
@@ -2855,7 +2855,7 @@ function extractQuartet(net::HybridNetwork,quartet::Array{Node,1})
         if(!quartet[1].leaf || !quartet[2].leaf || !quartet[3].leaf || !quartet[4].leaf)
             error("all four nodes to keep when extracting the quartet should be leaves: $([q.number for q in quartet])")
         else
-            qnet = QuartetNetwork(net);
+            qnet = QuartetNetwork(net)
             leaves = copy(qnet.leaf)
             for(n in leaves)
                 if(!isNodeNumIn(n,quartet))
@@ -2881,7 +2881,9 @@ function extractQuartet(net::HybridNetwork, quartet::Quartet)
         end
         push!(list, net.node[getIndexNode(getIndex(q,net.names),net)])
     end
-    extractQuartet(net,list)
+    qnet = extractQuartet(net,list)
+    qnet.quartet = quartet
+    return qnet
 end
 
 # ------------------------------- calculate expCF -------------------------------------
@@ -3034,6 +3036,7 @@ end
 #        node, other nodes in the hybridization
 #        case: 1 (global case 2),2 (global case 4), 1 (global case 5)
 function eliminateTriangle!(qnet::QuartetNetwork, node::Node, other::Node, case::Int64)
+    println("start eliminateTriangle----")
     if(node.hybrid)
         edgemaj, edgemin, treeedge = hybridEdges(node)
         deleteIntLeafWhile!(qnet, edgemaj, node)
@@ -3047,21 +3050,30 @@ function eliminateTriangle!(qnet::QuartetNetwork, node::Node, other::Node, case:
         else
             error("node $(node.number) and other node $(other.number) are not connected by an edge")
         end
+        println("hybedge is $(hybedge.number), otheredge is $(otheredge.number)")
         middle = qnet.node[getIndex(true, [(n.inCycle == node.number && size(n.edge,1) == 3 && !isequal(n,other) && !isequal(n,node)) for n in qnet.node])]
+        println("middle node is $(middle.number) in eliminateTriangle")
         ind = getIndex(true,[(e.inCycle == node.number && !isequal(getOtherNode(e,middle),node)) for e in middle.edge])
         edge = middle.edge[ind]
+        println("edge is $(edge.number) with length $(edge.length) in eliminateTriangle, will do deleteIntLeaf from middle through edge")
         deleteIntLeafWhile!(qnet,edge,middle)
+        println("after deleteIntLeaf, edge $(edge.number) has length $(edge.length)")
         if(!isequal(getOtherNode(edge,middle),other))
             error("middle node $(middle.number) and other node $(other.number) are not connected by an edge")
         end
         if(case == 1)
-            setLength!(edge,-log(1 - (1-hybedge.gamma)*edge.z))
+            setLength!(edge,-log(1 - hybedge.gamma*edge.z))
+            println("edge $(edge.number) length is $(edge.length) after updating")
             removeEdge!(middle,otheredge)
-            removeEdge!(node,otheredge)
+            removeEdge!(other,hybedge)
+            removeEdge!(node,treeedge)
+            setEdge!(other, treeedge)
             deleteEdge!(qnet,otheredge)
-            deleteIntLeafWhile!(qnet, node, getOtherNode(treeedge,node))
+            deleteEdge!(qnet,hybedge)
+            deleteNode!(qnet,node)
         elseif(case == 2)
             setLength!(edge, -log(otheredge.gamma*otheredge.gamma*otheredge.y + hybedge.gamma*otheredge.gamma*(3-edge.y) + hybedge.gamma*hybedge.gamma*hybedge.y))
+            println("edge $(edge.number) length is $(edge.length) after updating")
             removeEdge!(middle,otheredge)
             removeEdge!(node,otheredge)
             deleteEdge!(qnet,otheredge)
@@ -3072,6 +3084,7 @@ function eliminateTriangle!(qnet::QuartetNetwork, node::Node, other::Node, case:
     else
         error("cannot eliminate triangle around node $(node.number) since it is not hybrid")
     end
+    println("end eliminateTriangle ---")
 end
 
 # function to polish quartet with hybridization type 5
@@ -3152,8 +3165,10 @@ function eliminateHybridization!(qnet::QuartetNetwork, node::Node)
         elseif(node.typeHyb == 3)
             eliminateLoop!(qnet,node,true)
         elseif(node.typeHyb == 4)
+            println("node is $(node.number), other node is $(node.prev.number)")
             eliminateTriangle!(qnet,node,node.prev,2)
         elseif(node.typeHyb == 2)
+            println("node is $(node.number), other node is $(node.prev.number)")
             eliminateTriangle!(qnet,node,node.prev,1)
         elseif(node.typeHyb != 5)
             error("node type of hybridization should be 1,2,3,4 or 5, but for node $(node.number), it is $(node.typeHyb)")
@@ -3169,15 +3184,16 @@ end
 function internalLength!(qnet::QuartetNetwork)
     if(qnet.which == 1)
         node = qnet.node[getIndex(true,[size(n.edge,1) == 3 for n in qnet.node])]
+        println("node is $(node.number)")
         edge = nothing
         for(e in node.edge)
             if(!getOtherNode(e,node).leaf)
                 edge = e
             end
         end
-        println("edge has length $(edge.length) before lumping all internal edges into it")
+        println("edge $(edge.number) has length $(edge.length) before lumping all internal edges into it")
         deleteIntLeafWhile!(qnet,edge,node)
-        println("edge has length $(edge.length) after lumping all internal edges into it, and set to qnet.t1")
+        println("edge $(edge.number) has length $(edge.length) after lumping all internal edges into it, and set to qnet.t1")
         qnet.t1 = edge.length
     end
 end
@@ -3256,6 +3272,8 @@ function whichLeaves(qnet::QuartetNetwork, taxon1::ASCIIString, taxon2::ASCIIStr
 end
 
 # function to update the attribute split in qnet
+# qnet.leaf is a vector [x,y,z,w] and qnet.split is a vector
+# [1,1,2,2] that says in which side of the split is each leaf
 # warning: it needs to be run after eliminating hybridization and uniting
 # internal edge
 function updateSplit!(qnet::QuartetNetwork)
@@ -3265,7 +3283,7 @@ function updateSplit!(qnet::QuartetNetwork)
             middle = qnet.node[getIndex(true,[size(n.edge,1) == 3 for n in qnet.node])]
             leaf1 = middle.edge[getIndex(true,[getOtherNode(e,middle).leaf for e in middle.edge])]
             leaf2 = middle.edge[getIndex(true,[(getOtherNode(e,middle).leaf && !isequal(leaf1,e)) for e in middle.edge])]
-            leaf1 = getOtherNode(leaf1,middle) #fixit: weird here?
+            leaf1 = getOtherNode(leaf1,middle) #leaf1 was edge, now it is node
             leaf2 = getOtherNode(leaf2,middle)
             ind1 = getIndex(leaf1,qnet.leaf)
             ind2 = getIndex(leaf2,qnet.leaf)
@@ -3305,6 +3323,8 @@ function updateFormula!(qnet::QuartetNetwork)
     end
 end
 
+
+# --------------- calculate exp CF ----------------------
 
 
 # function to calculate expCF for a quartet network
