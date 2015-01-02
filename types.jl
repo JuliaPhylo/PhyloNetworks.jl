@@ -115,10 +115,45 @@ type HybridNetwork <: Network
     HybridNetwork() = new(0,0,0,[],[],0,[],[],0,[],[],[],[]);
 end
 
+# type created from a HybridNetwork only to extract a given quartet
+type QuartetNetwork <: Network
+    numTaxa::Int64
+    numNodes::Int64
+    numEdges::Int64
+    node::Array{Node,1}
+    edge::Array{Edge,1}
+    hybrid::Array{Node,1} # array of hybrid nodes in network
+    leaf::Array{Node,1} # array of leaves
+    numHybrids::Int64 # number of hybrid nodes
+    hasEdge::Array{Bool,1} # array of boolean with all the original edges of HybridNetwork
+    quartetTaxon::Array{ASCIIString,1} # the quartet taxa in the order it represents
+    which::Int64 # 0 it tree quartet, 1 is equivalent to tree quartet and 2 if two minor CF different, default -1
+    typeHyb::Array{Int64,1} #array with the type of hybridization of each hybrid node in the quartet
+    t1::Float64 # length of internal edge, used when qnet.which=1, default = -1
+    names::Array{ASCIIString,1} # translate table for taxon names
+    split::Array{Int64,1} # split that denotes to which side each leaf is from the split, i.e. [1,2,2,1] means that leaf1 and 4 are on the same side of the split, default -1,-1,-1,-1
+    formula::Array{Int64,1} # array for qnet.which=1 that indicates if the expCf is major (2) or minor (1) at qnet.expCF[i] depending on qnet.formula[i], default -1,-1,-1
+    expCF::Array{Float64,1} # three expected CF in order 12|34, 13|24, 14|23 (matching obsCF from qnet.quartet), default [0,0,0]
+    # inner constructor
+    function QuartetNetwork(net::HybridNetwork)
+        net2 = deepcopy(net); #fixit: maybe we dont need deepcopy of all, maybe only arrays
+        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],[],-1,[], -1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1],[0,0,0])
+        #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],[],-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1])
+    end
+    function QuartetNetwork(net::HybridNetwork,quartet::Array{ASCIIString,1})
+        net2 = deepcopy(net);
+        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],quartet,-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1],[0,0,0])
+        #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],quartet,-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1])
+    end
+    QuartetNetwork() = new(0,0,0,[],[],[],[],0,[],[],0,[],0.0,[],[],[],[])
+end
+
+
 type Quartet
     number::Int64
     taxon::Array{ASCIIString,1}
     obsCF::Array{Float64,1} # three observed CF in order 12|34, 13|24, 14|23
+    qnet::QuartetNetwork # quartet network for the current network
     # inner constructor: to guarantee obsCF are only three and add up to 1
     function Quartet(number::Int64,t1::ASCIIString,t2::ASCIIString,t3::ASCIIString,t4::ASCIIString,obsCF::Array{Float64,1})
         size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing
@@ -131,36 +166,5 @@ type Quartet
         size(t1,1) != 4 ? error("array of taxa should have size 4, not $(size(t1,1))") : nothing
         new(number,t1,obsCF);
     end
-end
-
-# type created from a HybridNetwork only to extract a given quartet
-type QuartetNetwork <: Network
-    numTaxa::Int64
-    numNodes::Int64
-    numEdges::Int64
-    node::Array{Node,1}
-    edge::Array{Edge,1}
-    hybrid::Array{Node,1} # array of hybrid nodes in network
-    leaf::Array{Node,1} # array of leaves
-    numHybrids::Int64 # number of hybrid nodes
-    hasEdge::Array{Bool,1} # array of boolean with all the original edges of HybridNetwork
-    quartet # the quartet it represents
-    which::Int64 # 0 it tree quartet, 1 is equivalent to tree quartet and 2 if two minor CF different, default -1
-    typeHyb::Array{Int64,1} #array with the type of hybridization of each hybrid node in the quartet
-    t1::Float64 # length of internal edge, used when qnet.which=1, default = -1
-    names::Array{ASCIIString,1} # translate table for taxon names
-    split::Array{Int64,1} # split that denotes to which side each leaf is from the split, i.e. [1,2,2,1] means that leaf1 and 4 are on the same side of the split, default -1,-1,-1,-1
-    formula::Array{Int64,1} # array for qnet.which=1 that indicates if the expCf is major (2) or minor (1) at qnet.expCF[i] depending on qnet.formula[i], default -1,-1,-1
-    expCF::Array{Float64,1} # three expected CF in order 12|34, 13|24, 14|23 (matching obsCF from qnet.quartet), default [0,0,0]
-    # inner constructor
-    function QuartetNetwork(net::HybridNetwork)
-        net2 = deepcopy(net); #fixit: maybe we dont need deepcopy of all, maybe only arrays
-        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],nothing,-1,[], -1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1],[0,0,0])
-        #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],nothing,-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1])
-    end
-    function QuartetNetwork(net::HybridNetwork,quartet::Quartet)
-        net2 = deepcopy(net);
-        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],quartet,-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1],[0,0,0])
-        #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],quartet,-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1])
-    end
+    Quartet() = new(0,[],[],QuartetNetwork())
 end

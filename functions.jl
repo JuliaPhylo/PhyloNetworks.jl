@@ -2871,6 +2871,8 @@ end
 
 # function to extract a quartet from a Quartet object
 # it calls the previous extractQuartet
+# returns qnet (check: maybe not needed later) and assigns
+# quartet.qnet = qnet
 function extractQuartet(net::HybridNetwork, quartet::Quartet)
     list = Node[]
     for(q in quartet.taxon)
@@ -2882,7 +2884,8 @@ function extractQuartet(net::HybridNetwork, quartet::Quartet)
         push!(list, net.node[getIndexNode(getIndex(q,net.names),net)])
     end
     qnet = extractQuartet(net,list)
-    qnet.quartet = quartet
+    qnet.quartetTaxon = quartet.taxon
+    quartet.qnet = qnet
     return qnet
 end
 
@@ -3104,42 +3107,48 @@ function quartetType5!(qnet::QuartetNetwork, node::Node)
         cf1 = edge1.gamma*(1-2/3*edge5.y) + edge2.gamma*1/3*edge6.y
         cf2 = edge1.gamma*1/3*edge5.y + edge2.gamma*(1-2/3*edge6.y)
         cf3 = edge1.gamma*1/3*edge5.y + edge2.gamma*1/3*edge6.y
+        println("cf1,cf2,cf3: $(cf1),$(cf2),$(cf3)")
         leaf1 = getOtherNode(edge3,node)
         leaf2 = getOtherNode(edgetree1,other1)
         leaf3 = getOtherNode(edgetree2, other2)
         leaf4 = qnet.leaf[getIndex(true,[(!isequal(n,leaf1) && !isequal(n,leaf2) && !isequal(n,leaf3)) for n in qnet.leaf])]
-        tx = whichLeaves(qnet,qnet.quartet.taxon[1],qnet.quartet.taxon[2], leaf1,leaf2,leaf3,leaf4)
-        if(tx == [1,2] || tx == [2,1] || tx == [3,4] || tx == [4,3])
+        println("leaf1 is $(leaf1.number)")
+        println("leaf2 is $(leaf2.number)")
+        println("leaf3 is $(leaf3.number)")
+        println("leaf4 is $(leaf4.number)")
+        tx = whichLeaves(qnet,qnet.quartetTaxon[1],qnet.quartetTaxon[2], leaf1,leaf2,leaf3,leaf4)
+        println("tx is $(tx)")
+        if(tx == (1,2) || tx == (2,1) || tx == (3,4) || tx == (4,3))
             qnet.expCF[1] = cf1
-            tx = whichLeaves(qnet,qnet.quartet.taxon[1],qnet.quartet.taxon[3], leaf1,leaf2,leaf3,leaf4)
-            if(tx == [1,3] || tx == [3,1] || tx == [2,4] || tx == [4,2])
+            tx = whichLeaves(qnet,qnet.quartetTaxon[1],qnet.quartetTaxon[3], leaf1,leaf2,leaf3,leaf4)
+            if(tx == (1,3) || tx == (3,1) || tx == (2,4) || tx == (4,2))
                 qnet.expCF[2] = cf2
                 qnet.expCF[3] = cf3
-            elseif(tx == [1,4] || tx == [4,1] || tx == [3,2] || tx == [2,3])
+            elseif(tx == (1,4) || tx == (4,1) || tx == (3,2) || tx == (2,3))
                 qnet.expCF[2] = cf3
                 qnet.expCF[3] = cf2
             else
                 error("strange quartet network, could not find which leaves correspond to taxon1, taxon3")
             end
-        elseif(tx == [1,3] || tx == [3,1] || tx == [2,4] || tx == [4,2])
+        elseif(tx == (1,3) || tx == (3,1) || tx == (2,4) || tx == (4,2))
             qnet.expCF[1] = cf2
-            tx = whichLeaves(qnet,qnet.quartet.taxon[1],qnet.quartet.taxon[3], leaf1,leaf2,leaf3,leaf4)
-            if(tx == [1,2] || tx == [2,1] || tx == [3,4] || tx == [4,3])
+            tx = whichLeaves(qnet,qnet.quartetTaxon[1],qnet.quartetTaxon[3], leaf1,leaf2,leaf3,leaf4)
+            if(tx == (1,2) || tx == (2,1) || tx == (3,4) || tx == (4,3))
                 qnet.expCF[2] = cf1
                 qnet.expCF[3] = cf3
-            elseif(tx == [1,4] || tx == [4,1] || tx == [3,2] || tx == [2,3])
+            elseif(tx == (1,4) || tx == (4,1) || tx == (3,2) || tx == (2,3))
                 qnet.expCF[2] = cf3
                 qnet.expCF[3] = cf1
             else
                 error("strange quartet network, could not find which leaves correspond to taxon1, taxon3")
             end
-        elseif(tx == [1,4] || tx == [4,1] || tx == [2,4] || tx == [2,3])
+        elseif(tx == (1,4) || tx == (4,1) || tx == (2,4) || tx == (2,3))
             qnet.expCF[1] = cf3
-            tx = whichLeaves(qnet,qnet.quartet.taxon[1],qnet.quartet.taxon[3], leaf1,leaf2,leaf3,leaf4)
-            if(tx == [1,3] || tx == [3,1] || tx == [2,4] || tx == [4,2])
+            tx = whichLeaves(qnet,qnet.quartetTaxon[1],qnet.quartetTaxon[3], leaf1,leaf2,leaf3,leaf4)
+            if(tx == (1,3) || tx == (3,1) || tx == (2,4) || tx == (4,2))
                 qnet.expCF[2] = cf2
                 qnet.expCF[3] = cf1
-            elseif(tx == [1,2] || tx == [2,1] || tx == [3,4] || tx == [4,3])
+            elseif(tx == (1,2) || tx == (2,1) || tx == (3,4) || tx == (4,3))
                 qnet.expCF[2] = cf1
                 qnet.expCF[3] = cf2
             else
@@ -3148,7 +3157,7 @@ function quartetType5!(qnet::QuartetNetwork, node::Node)
         else
             error("strange quartet network, could not find which leaves correspond to taxon1, taxon2")
         end
-        if(sum(qnet.expCF) != 1.0)
+        if(sum(qnet.expCF) < 0.99999 || sum(qnet.expCF) > 1.0000001)
             error("strange quartet network with hybridization in node $(node.number) of type 5: expCF do not add up to 1")
         end
     else
@@ -3207,9 +3216,9 @@ function eliminateHybridization!(qnet::QuartetNetwork)
             for(n in qnet.hybrid)
                 eliminateHybridization!(qnet,n)
             end
-            if(qnet.which == 1)
-                internalLength!(qnet)
-            end
+        end
+        if(qnet.which == 1)
+            internalLength!(qnet)
         end
     else
         error("qnet which has to be updated by now to 1 or 2, and it is $(qnet.which)")
@@ -3308,7 +3317,7 @@ function updateFormula!(qnet::QuartetNetwork)
                     if(size(qnet.leaf,1) != 4)
                         error("strange quartet with $(size(qnet.leaf,1)) leaves instead of 4")
                     end
-                    tx1,tx2 = whichLeaves(qnet,qnet.quartet.taxon[1],qnet.quartet.taxon[i], qnet.leaf[1], qnet.leaf[2], qnet.leaf[3], qnet.leaf[4]) # index of leaf in qnet.leaf
+                    tx1,tx2 = whichLeaves(qnet,qnet.quartetTaxon[1],qnet.quartetTaxon[i], qnet.leaf[1], qnet.leaf[2], qnet.leaf[3], qnet.leaf[4]) # index of leaf in qnet.leaf
                     if(qnet.split[tx1] == qnet.split[tx2])
                         qnet.formula[i-1] = 1
                         break
@@ -3362,4 +3371,34 @@ function calculateExpCFAll!(qnet::QuartetNetwork)
 end
 
 
+# ---------------------------- Pseudolik for a quartet -------------------------
 
+# function to calculate the log pseudolikelihood function for a single
+# quartet
+# sum_i=1,2,3 (obsCF_i)*log(expCF_i)
+# warning: assumes that quartet.qnet is already updated with extractQuartet and
+#          calculateExpCF
+function logPseudoLik(quartet::Quartet)
+    if(sum(quartet.qnet.expCF) != 0.0)
+        suma = 0
+        for(i in 1:3)
+            suma += quartet.obsCF[i]*log(quartet.qnet.expCF[i])
+        end
+        return suma
+    else
+        error("expCF not updated for quartet $(quartet.number)")
+    end
+end
+
+# function to calculate the log pseudolikelihood function for array of
+# quartets
+# sum_q [sum_i=1,2,3 (obsCF_i)*log(expCF_i)]
+# warning: assumes that quartet.qnet is already updated with extractQuartet and
+#          calculateExpCF for all quartets
+function logPseudoLik(quartet::Array{Quartet,1})
+    suma = 0
+    for(q in quartet)
+        suma += logPseudoLik(q)
+    end
+    return suma
+end
