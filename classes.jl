@@ -27,6 +27,45 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
+type Data
+    quartet::Quartet[] # array of quartets read from CF output table
+    numQuartets::Int64 # number of quartets
+end
+
+# pseudolikelihood calculation (objective function in optimization)
+function
+
+end
+
+# function to get the branch lengths to optimize for a given
+# network
+function branches(net::Network)
+    t = Float64[]
+    for(e in net.edge)
+        e.isIdentifiable ? push!(t,e.length) : nothing
+    end
+    size(t,1) == 0 ? error("net does not have identifiable branch lengths") : nothing
+    return t
+end
+
+# numerical optimization of branch lengths given a network (or tree)
+# and data (set of quartets with obsCF)
+function optBL(net::HybridNetwork, d::Data)
+    t = branches(net); #branches to optimize
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ORIGINAL
 # function to identify the QuartetNetwork as
 # 1 (equivalent to tree), 2 (minor CF different)
