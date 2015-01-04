@@ -3402,3 +3402,6 @@ function logPseudoLik(quartet::Array{Quartet,1})
     end
     return suma
 end
+
+logPseudoLik(d::Data) = logPseudoLik(d.quartet)
+

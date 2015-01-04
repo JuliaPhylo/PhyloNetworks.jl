@@ -32,28 +32,67 @@ type Data
     numQuartets::Int64 # number of quartets
 end
 
-# pseudolikelihood calculation (objective function in optimization)
-function
+# ----optimization branch lengths/gammas ------
 
-end
-
-# function to get the branch lengths to optimize for a given
+# function to get the branch lengths/gammas to optimize for a given
 # network
-function branches(net::Network)
+# fixit: it is ignoring "bad" cases, listing all the parameters
+# warning: order of parameters (h,t)
+function parameters(net::Network)
+    warn("ignores bad cases, listing all the parameters")
     t = Float64[]
+    h = Float64[]
     for(e in net.edge)
         e.isIdentifiable ? push!(t,e.length) : nothing
+        e.hybrid && !e.isMajor ? push!(h,e.gamma) : nothing
     end
     size(t,1) == 0 ? error("net does not have identifiable branch lengths") : nothing
-    return t
+    return vcat(h,t)
 end
+
+# function to update the branch lengths/gammas for a network
+# fixit: it is ignoring "bad" cases, assumes list of all the parameters
+# warning: order of parameters (h,t)
+function update!(net::Network, ht::Vector{Float64})
+    warn("ignores bad cases, assumes list of all the parameters")
+    i = 1
+    j = 1
+    for(e in net.edge)
+        if(e.isIdentifiable)
+            e.length = ht[i+net.numHybrids]
+            i += 1
+        end
+        if(e.hybrid && !e.isMajor)
+            e.gamma = ht[j]
+            j += 1
+        end
+    end
+
+end
+
+# objective function for the new parameters
+function objective!(net::Network, x::Vector{Float64}, d::Data)
+
+# note we dont have to extract each time!! only once and save the quartetNet in Quartet, but before uniting the edges
+# then keep that qnet as it is throughout the entire process, and mayeb have another attribute qnet2 that is the clean version to calculate the pseudolik
+
 
 # numerical optimization of branch lengths given a network (or tree)
 # and data (set of quartets with obsCF)
+# using BOBYQA from NLopt package
 function optBL(net::HybridNetwork, d::Data)
-    t = branches(net); #branches to optimize
-
-
+    t = parameters(net); #branches/gammas to optimize
+    k = length(t)
+    opt = NLopt.Opt(:LN_BOBYQA,k) # fixit :LD_MMA if use gradient
+    # criterion based on prof Bates code
+    NLopt.ftol_rel!(opt,1e-12) # relative criterion
+    NLopt.ftol_abs!(opt,1e-8) # absolute critetion
+    NLopt.xtol_abs!(opt,1e-10) # criterion on parameter value changes
+    NLopt.lower_bounds!(opt, zeros(k))
+    NLopt.upper_bounds!(opt,vcat(ones(net.numHybrids),zeros(k-net.numHybrids)))
+    function obj(x::Vector{Float64}) # fixit g::Vector{Float64} for gradient
+        objective!(net,x)
+    end
 
 
 
