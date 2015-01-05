@@ -2873,7 +2873,7 @@ end
 # it calls the previous extractQuartet
 # returns qnet (check: maybe not needed later) and assigns
 # quartet.qnet = qnet
-function extractQuartet(net::HybridNetwork, quartet::Quartet)
+function extractQuartet!(net::HybridNetwork, quartet::Quartet)
     list = Node[]
     for(q in quartet.taxon)
         try

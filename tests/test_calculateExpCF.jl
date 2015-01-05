@@ -10,7 +10,7 @@ error = false
 ind = 0
 
 q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
-qnet = extractQuartet(net,q1);
+qnet = extractQuartet!(net,q1);
 try
     identifyQuartet!(qnet)
     qnet.which != 1 ? error("qnet which not correctly assigned") : nothing
@@ -38,7 +38,7 @@ end
 
 
 q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
-qnet = extractQuartet(net,q2);
+qnet = extractQuartet!(net,q2);
 try
     identifyQuartet!(qnet)
     qnet.which != 2 ? error("qnet which not correctly assigned") : nothing
@@ -65,7 +65,7 @@ catch
 end
 
 q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);
-qnet = extractQuartet(net,q3);
+qnet = extractQuartet!(net,q3);
 try
     identifyQuartet!(qnet)
     qnet.which != 2 ? error("qnet which not correctly assigned") : nothing
@@ -92,7 +92,7 @@ catch
 end
 
 q4 = Quartet(4,["6","10","4","8"],[0.5,0.4,0.1]);
-qnet = extractQuartet(net,q4);
+qnet = extractQuartet!(net,q4);
 try
     identifyQuartet!(qnet)
     qnet.which != 1 ? error("qnet which not correctly assigned") : nothing
@@ -117,7 +117,7 @@ end
 
 
 q5 = Quartet(5,["6","7","4","10"],[0.5,0.4,0.1]);
-qnet = extractQuartet(net,q5);
+qnet = extractQuartet!(net,q5);
 try
     identifyQuartet!(qnet)
     qnet.which != 1 ? error("qnet which not correctly assigned") : nothing
