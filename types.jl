@@ -155,17 +155,26 @@ type Quartet
     taxon::Array{ASCIIString,1}
     obsCF::Array{Float64,1} # three observed CF in order 12|34, 13|24, 14|23
     qnet::QuartetNetwork # quartet network for the current network
+    changed::Bool # true if the expCF would be changed with the current parameters in the optimization, to recalculate
     # inner constructor: to guarantee obsCF are only three and add up to 1
     function Quartet(number::Int64,t1::ASCIIString,t2::ASCIIString,t3::ASCIIString,t4::ASCIIString,obsCF::Array{Float64,1})
         size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing
         sum(obsCF) != 1 ? error("observed CF should add up to 1, not $(sum(obsCF))") : nothing
-        new(number,[t1,t2,t3,t4],obsCF);
+        new(number,[t1,t2,t3,t4],obsCF,QuartetNetwork(),true);
     end
     function Quartet(number::Int64,t1::Array{ASCIIString,1},obsCF::Array{Float64,1})
         size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing
         sum(obsCF) != 1 ? error("observed CF should add up to 1, not $(sum(obsCF))") : nothing
         size(t1,1) != 4 ? error("array of taxa should have size 4, not $(size(t1,1))") : nothing
-        new(number,t1,obsCF);
+        new(number,t1,obsCF,QuartetNetwork(),true);
     end
-    Quartet() = new(0,[],[],QuartetNetwork())
+    Quartet() = new(0,[],[],QuartetNetwork(),true)
+end
+
+# Data -------
+
+type DataCF
+    quartet::Array{Quartet,1} # array of quartets read from CF output table
+    numQuartets::Int64 # number of quartets
+    DataCF(quartet::Array{Quartet,1}) = new(quartet,length(quartet))
 end

@@ -1,5 +1,7 @@
 # test to extract quartet from a "good" 5taxon network (Case G)
 # Claudia November 2014
+# also test to extract all quartets from a Data object
+# Claudia January 2015
 
 # Case G ---------
 
@@ -105,3 +107,17 @@ printNodes(qnet)
 
 [n.number for n in qnet.leaf]
 qnet.numTaxa
+
+# ------------------------------------
+# extract all quartets
+include("../case_g_example.jl");
+
+q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
+q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
+q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);
+q4 = Quartet(4,["6","10","4","8"],[0.5,0.4,0.1]);
+q5 = Quartet(5,["6","7","4","10"],[0.5,0.4,0.1]);
+
+d = DataCF([q1,q2,q3,q4,q5]);
+extractQuartet!(net,d);
+calculateExpCFAll!(d)

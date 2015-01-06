@@ -27,11 +27,6 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
-type Data
-    quartet::Quartet[] # array of quartets read from CF output table
-    numQuartets::Int64 # number of quartets
-end
-
 # ----optimization branch lengths/gammas ------
 
 # function to get the branch lengths/gammas to optimize for a given
@@ -50,6 +45,9 @@ function parameters(net::Network)
     return vcat(h,t)
 end
 
+# todo: update function for net.ht and for all quartet.qnet, changing quartet.changed=F
+# if not changed
+
 # function to update the branch lengths/gammas for a network
 # fixit: it is ignoring "bad" cases, assumes list of all the parameters
 # warning: order of parameters (h,t)
@@ -67,18 +65,24 @@ function update!(net::Network, x::Vector{Float64})
             j += 1
         end
     end
-
 end
 
-# objective function for the new parameters
-function objective!(net::Network, x::Vector{Float64}, d::Data)
-
-
+# function to compare a vector of parameters with the current vector in net.ht
+# to know which parameters were changed
+function changed(net::HybridNetwork, x::Vector{Float64})
+    if(length(net.ht) == length(x))
+        return [net.ht[i] != x[i] for i in 1:length(x)]
+    else
+        error("net.ht (length $(length(net.ht))) and vector x (length $(length(x))) need to have same length")
+    end
+end
 
 # numerical optimization of branch lengths given a network (or tree)
 # and data (set of quartets with obsCF)
 # using BOBYQA from NLopt package
 function optBL(net::HybridNetwork, d::Data)
+    extractQuartet!(net,d)
+    calculateExpCFAll!(d)
     net.ht = parameters(net); #branches/gammas to optimize
     k = length(t)
     opt = NLopt.Opt(:LN_BOBYQA,k) # fixit :LD_MMA if use gradient
@@ -89,8 +93,15 @@ function optBL(net::HybridNetwork, d::Data)
     NLopt.lower_bounds!(opt, zeros(k))
     NLopt.upper_bounds!(opt,vcat(ones(net.numHybrids),zeros(k-net.numHybrids)))
     function obj(x::Vector{Float64}) # fixit g::Vector{Float64} for gradient
-        objective!(net,x)
+        changed = changed(net,x)
+        #here: update!(net,data,changed)
+        calculateExpCFAll!(d)
+        val = logPseudoLik(d)
+        return val
     end
+    NLopt.min_objective!(opt,obj)
+    fmin, xmin, ret = NLopt.optimize(opt,net.ht) #fixit: net.ht ot just ht? change parameters to put into net.ht
+end
 
 
 

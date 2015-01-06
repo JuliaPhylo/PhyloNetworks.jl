@@ -2889,6 +2889,16 @@ function extractQuartet!(net::HybridNetwork, quartet::Quartet)
     return qnet
 end
 
+
+# function to extract all quartets from net according
+# to the array of quartets of a Data object
+function extractQuartet!(net::HybridNetwork, d::DataCF)
+    for(q in d.quartet)
+        extractQuartet!(net,q)
+    end
+end
+
+
 # ------------------------------- calculate expCF -------------------------------------
 
 # ------- Identify Quartet
@@ -3370,6 +3380,20 @@ function calculateExpCFAll!(qnet::QuartetNetwork)
     calculateExpCF!(qnet)
 end
 
+# function to calculate expCF for all the quartets in data
+# after extractQuartet(net,data) that updates quartet.qnet
+# warning: only updates expCF for quartet.changed=true
+function calculateExpCFAll!(data::DataCF)
+    !all([q.qnet.numTaxa != 0 for q in data.quartet]) ? error("qnet in quartets on data are not correctly updated with extractQuartet") : nothing
+    for(q in data.quartet)
+        if(q.changed)
+            qnet = deepcopy(q.qnet);
+            calculateExpCFAll!(qnet);
+            q.qnet.expCF = qnet.expCF
+        end
+    end
+end
+
 
 # ---------------------------- Pseudolik for a quartet -------------------------
 
@@ -3403,5 +3427,5 @@ function logPseudoLik(quartet::Array{Quartet,1})
     return suma
 end
 
-logPseudoLik(d::Data) = logPseudoLik(d.quartet)
+logPseudoLik(d::DataCF) = logPseudoLik(d.quartet)
 
