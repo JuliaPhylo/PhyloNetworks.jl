@@ -103,6 +103,14 @@ function optBL(net::HybridNetwork, d::Data)
     fmin, xmin, ret = NLopt.optimize(opt,net.ht) #fixit: net.ht ot just ht? change parameters to put into net.ht
 end
 
+# ----- read data --------
+
+using DataFrames
+
+df = readtable("../output.csv")
+
+# todo: function to get df and created DataCF object with all the
+# Quartets
 
 
 
@@ -112,8 +120,7 @@ end
 
 
 
-
-
+# -------------------------------------------------------------------------------------------------
 # ORIGINAL
 # function to identify the QuartetNetwork as
 # 1 (equivalent to tree), 2 (minor CF different)

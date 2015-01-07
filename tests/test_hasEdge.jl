@@ -1,6 +1,7 @@
 # test for hasEdge of a QuartetNetwork
 # Claudia January 2015
 
+println("----- Case G ------")
 include("../case_g_example.jl")
 
 q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);

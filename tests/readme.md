@@ -26,3 +26,19 @@ test_5taxon_readTopology.jl runs all the tests for the eight 5taxon
 networks by reading from parenthetical format and then updating
 
 aux functions: test_functions_5taxon_read.jl
+
+#### calculate exp CF
+
+test_calculateExpCF.jl runs all the tests for Case G, bad diamond and
+bad triangle for calculation of expCF
+
+#### has Edge
+
+test_hasEdge.jl tests if the attribute qnet.hasEdge is correctly
+updated after extracting quartets for case G
+
+#### not automatic functions:
+
+test_extractQuartet.jl
+
+initial_tests_deleteLeaf_quartetNet.jl
