@@ -84,17 +84,17 @@ function optBL(net::HybridNetwork, d::Data)
     extractQuartet!(net,d)
     calculateExpCFAll!(d)
     net.ht = parameters(net); #branches/gammas to optimize
-    k = length(t)
+    k = length(net.ht)
     opt = NLopt.Opt(:LN_BOBYQA,k) # fixit :LD_MMA if use gradient
     # criterion based on prof Bates code
     NLopt.ftol_rel!(opt,1e-12) # relative criterion
     NLopt.ftol_abs!(opt,1e-8) # absolute critetion
     NLopt.xtol_abs!(opt,1e-10) # criterion on parameter value changes
     NLopt.lower_bounds!(opt, zeros(k))
-    NLopt.upper_bounds!(opt,vcat(ones(net.numHybrids),zeros(k-net.numHybrids)))
+    NLopt.upper_bounds!(opt,vcat(ones(net.numHybrids),zeros(k-net.numHybrids))) #fixit: infinity, not zero
     function obj(x::Vector{Float64}) # fixit g::Vector{Float64} for gradient
         changed = changed(net,x)
-        #here: update!(net,data,changed)
+        #fixit here: update!(net,d,changed)
         calculateExpCFAll!(d)
         val = logPseudoLik(d)
         return val
