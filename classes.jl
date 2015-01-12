@@ -27,7 +27,7 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
-# ----optimization branch lengths/gammas ------
+# ---- optimization branch lengths/gammas ------
 
 # function to get the branch lengths/gammas to optimize for a given
 # network
@@ -37,16 +37,31 @@ function parameters(net::Network)
     warn("ignores bad cases, listing all the parameters")
     t = Float64[]
     h = Float64[]
+    n = Int64[]
     for(e in net.edge)
-        e.isIdentifiable ? push!(t,e.length) : nothing
+        if(e.isIdentifiable)
+            push!(t,e.length)
+            push!(n,e.number)
+        end
         e.hybrid && !e.isMajor ? push!(h,e.gamma) : nothing
     end
     size(t,1) == 0 ? error("net does not have identifiable branch lengths") : nothing
-    return vcat(h,t)
+    return vcat(h,t),n
+end
+
+function parameters!(net::Network)
+    warn("ignores bad cases, listing all the parameters")
+    warn("deleting net.ht,net.numht and updating with current edge lengths (numbers)")
+    net.ht,net.numht = parameters(net)
 end
 
 # todo: update function for net.ht and for all quartet.qnet, changing quartet.changed=F
 # if not changed
+
+# function to update a QuartetNetwork for a given
+# vector of parameters
+function update!(qnet::QuartetNetwork,x::Vector{Float64}, changed::Array{Bool,1})
+
 
 # function to update the branch lengths/gammas for a network
 # fixit: it is ignoring "bad" cases, assumes list of all the parameters
@@ -77,13 +92,49 @@ function changed(net::HybridNetwork, x::Vector{Float64})
     end
 end
 
+
+# function to calculate expCF for all the quartets in data
+# after extractQuartet(net,data) that updates quartet.qnet
+# it updates qnet.indexht also with net.numht info
+# warning: only updates expCF for quartet.changed=true
+function calculateExpCFAll!(data::DataCF, net::HybridNetwork)
+    !all([q.qnet.numTaxa != 0 for q in data.quartet]) ? error("qnet in quartets on data are not correctly updated with extractQuartet") : nothing
+    for(q in data.quartet)
+        parameters!(q,net)
+        if(q.changed)
+            qnet = deepcopy(q.qnet);
+            calculateExpCFAll!(qnet);
+            q.qnet.expCF = qnet.expCF
+        end
+    end
+end
+
+# function to calculate expCF for all the quartets in data
+# after extractQuartet(net,data) that updates quartet.qnet
+# first updates the edge lengths according to x
+# warning: assumes qnet.indexht is updated alredy
+# warning: only updates expCF for quartet.changed=true
+function calculateExpCFAll!(data::DataCF, x::Vector{Float64})
+    !all([q.qnet.numTaxa != 0 for q in data.quartet]) ? error("qnet in quartets on data are not correctly updated with extractQuartet") : nothing
+    for(q in data.quartet)
+        update!(q,x)
+        if(q.changed)
+            qnet = deepcopy(q.qnet);
+            calculateExpCFAll!(qnet);
+            q.qnet.expCF = qnet.expCF
+        end
+    end
+end
+
+
+
 # numerical optimization of branch lengths given a network (or tree)
 # and data (set of quartets with obsCF)
 # using BOBYQA from NLopt package
 function optBL(net::HybridNetwork, d::Data)
     extractQuartet!(net,d)
-    calculateExpCFAll!(d)
-    net.ht = parameters(net); #branches/gammas to optimize
+    parameters!(net); #branches/gammas to optimize
+    calculateExpCFAll!(d,net)
     k = length(net.ht)
     opt = NLopt.Opt(:LN_BOBYQA,k) # fixit :LD_MMA if use gradient
     # criterion based on prof Bates code
@@ -92,10 +143,9 @@ function optBL(net::HybridNetwork, d::Data)
     NLopt.xtol_abs!(opt,1e-10) # criterion on parameter value changes
     NLopt.lower_bounds!(opt, zeros(k))
     NLopt.upper_bounds!(opt,vcat(ones(net.numHybrids),zeros(k-net.numHybrids))) #fixit: infinity, not zero
-    function obj(x::Vector{Float64}) # fixit g::Vector{Float64} for gradient
-        changed = changed(net,x)
-        #fixit here: update!(net,d,changed)
-        calculateExpCFAll!(d)
+    function obj(x::Vector{Float64}) # add g::Vector{Float64} for gradient
+        changed = changed(net,x) # donde entra changed ya?
+        calculateExpCFAll!(d,x)
         val = logPseudoLik(d)
         return val
     end
