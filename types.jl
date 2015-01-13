@@ -127,7 +127,7 @@ type QuartetNetwork <: Network
     hybrid::Array{Node,1} # array of hybrid nodes in network
     leaf::Array{Node,1} # array of leaves
     numHybrids::Int64 # number of hybrid nodes
-    hasEdge::Array{Bool,1} # array of boolean with all the original edges of HybridNetwork
+    hasEdge::Array{Bool,1} # array of boolean with all the original identifiable edges of HybridNetwork (net.ht)
     quartetTaxon::Array{ASCIIString,1} # the quartet taxa in the order it represents
     which::Int64 # 0 it tree quartet, 1 is equivalent to tree quartet and 2 if two minor CF different, default -1
     typeHyb::Array{Int64,1} #array with the type of hybridization of each hybrid node in the quartet
@@ -137,18 +137,19 @@ type QuartetNetwork <: Network
     formula::Array{Int64,1} # array for qnet.which=1 that indicates if the expCf is major (2) or minor (1) at qnet.expCF[i] depending on qnet.formula[i], default -1,-1,-1
     expCF::Array{Float64,1} # three expected CF in order 12|34, 13|24, 14|23 (matching obsCF from qnet.quartet), default [0,0,0]
     indexht::Vector{Int64} # index in net.ht for each edge in qnet.ht
+    changed::Bool # true if the expCF would be changed with the current parameters in the optimization, to recalculate, default true
     # inner constructor
     function QuartetNetwork(net::HybridNetwork)
         net2 = deepcopy(net); #fixit: maybe we dont need deepcopy of all, maybe only arrays
-        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],[],-1,[], -1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1],[0,0,0],[])
-        #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],[],-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1])
+        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],[],-1,[], -1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1],[0,0,0],[],true)
+        #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],[],-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1],[],true)
     end
     function QuartetNetwork(net::HybridNetwork,quartet::Array{ASCIIString,1})
         net2 = deepcopy(net);
-        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],quartet,-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1],[0,0,0],[])
-        #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],quartet,-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1])
+        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],quartet,-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1],[0,0,0],[],true)
+        #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],quartet,-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1],[],true)
     end
-    QuartetNetwork() = new(0,0,0,[],[],[],[],0,[],[],0,[],0.0,[],[],[],[],[])
+    QuartetNetwork() = new(0,0,0,[],[],[],[],0,[],[],0,[],0.0,[],[],[],[],[],true)
 end
 
 
@@ -157,20 +158,19 @@ type Quartet
     taxon::Array{ASCIIString,1}
     obsCF::Array{Float64,1} # three observed CF in order 12|34, 13|24, 14|23
     qnet::QuartetNetwork # quartet network for the current network
-    changed::Bool # true if the expCF would be changed with the current parameters in the optimization, to recalculate
     # inner constructor: to guarantee obsCF are only three and add up to 1
     function Quartet(number::Int64,t1::ASCIIString,t2::ASCIIString,t3::ASCIIString,t4::ASCIIString,obsCF::Array{Float64,1})
         size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing
         sum(obsCF) != 1 ? error("observed CF should add up to 1, not $(sum(obsCF))") : nothing
-        new(number,[t1,t2,t3,t4],obsCF,QuartetNetwork(),true);
+        new(number,[t1,t2,t3,t4],obsCF,QuartetNetwork());
     end
     function Quartet(number::Int64,t1::Array{ASCIIString,1},obsCF::Array{Float64,1})
         size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing
         sum(obsCF) != 1 ? error("observed CF should add up to 1, not $(sum(obsCF))") : nothing
         size(t1,1) != 4 ? error("array of taxa should have size 4, not $(size(t1,1))") : nothing
-        new(number,t1,obsCF,QuartetNetwork(),true);
+        new(number,t1,obsCF,QuartetNetwork());
     end
-    Quartet() = new(0,[],[],QuartetNetwork(),true)
+    Quartet() = new(0,[],[],QuartetNetwork())
 end
 
 # Data -------

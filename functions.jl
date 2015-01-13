@@ -142,6 +142,16 @@ function getIndex(name::ASCIIString, array::Array{ASCIIString,1})
     i>size(array,1)?error("$(name) not in array"):return i;
 end
 
+# aux function to find the index of a int64 in a
+# int64 array
+function getIndex(name::Int64, array::Array{Int64,1})
+    i = 1;
+    while(i<= size(array,1) && !isequal(name,array[i]))
+        i = i+1;
+    end
+    i>size(array,1)?error("$(name) not in array"):return i;
+end
+
 
 # aux function to find the index of a node in a
 # node array
@@ -2839,7 +2849,8 @@ end
 # with deleteLeaf!
 function updateHasEdge!(qnet::QuartetNetwork, net::HybridNetwork)
     warn("function to compare edges depends on edges number being unique")
-    qnet.hasEdge = [isEdgeNumIn(e,qnet.edge) for e in net.edge]
+    warn("assumes no bad scenario, that is, all gammas and internal t are identifiable")
+    qnet.hasEdge = vcat([isNodeNumIn(n,qnet.hybrid) for n in net.hybrid],[e.istIdentifiable & isEdgeNumIn(e,qnet.edge) for e in net.edge])
 end
 
 
@@ -2848,6 +2859,7 @@ end
 # input: QuartetNetwork (already created from HybridNetwork)
 #        quartet: array with the 4 leaf nodes to keep
 # return: QuartetNetwork with only 4 tips
+# it updates qnet.hasEdge and qnet.indexht
 function extractQuartet(net::HybridNetwork,quartet::Array{Node,1})
     if(size(quartet,1) != 4)
         error("quartet array should have 4 nodes, it has $(size(quartet,1))")
@@ -2864,6 +2876,7 @@ function extractQuartet(net::HybridNetwork,quartet::Array{Node,1})
                 end
             end
             updateHasEdge!(qnet,net)
+            parameters!(qnet,net)
             return qnet
         end
     end
@@ -2886,15 +2899,19 @@ function extractQuartet!(net::HybridNetwork, quartet::Quartet)
     qnet = extractQuartet(net,list)
     qnet.quartetTaxon = quartet.taxon
     quartet.qnet = qnet
-    return qnet
+    #return qnet
 end
 
 
 # function to extract all quartets from net according
 # to the array of quartets of a Data object
+# it updates expCF, hasEdgem indexht
 function extractQuartet!(net::HybridNetwork, d::DataCF)
     for(q in d.quartet)
         extractQuartet!(net,q)
+        qnet = deepcopy(q.qnet);
+        calculateExpCFAll!(qnet);
+        q.qnet.expCF = qnet.expCF
     end
 end
 
@@ -2994,6 +3011,54 @@ function identifyQuartet!(qnet::QuartetNetwork)
         end
     end
 end
+
+# ---------------------- branch length optimization ---------------------------------
+
+
+# function to get the branch lengths/gammas to optimize for a given
+# network
+# fixit: it is ignoring "bad" cases, listing all the parameters
+# warning: order of parameters (h,t)
+function parameters(net::Network)
+    warn("ignores bad cases, listing all the parameters")
+    t = Float64[]
+    h = Float64[]
+    n = Int64[]
+    for(e in net.edge)
+        if(e.istIdentifiable)
+            push!(t,e.length)
+            push!(n,e.number)
+        end
+        e.hybrid && !e.isMajor ? push!(h,e.gamma) : nothing
+    end
+    size(t,1) == 0 ? error("net does not have identifiable branch lengths") : nothing
+    return vcat(h,t),n
+end
+
+function parameters!(net::Network)
+    warn("ignores bad cases, listing all the parameters")
+    warn("deleting net.ht,net.numht and updating with current edge lengths (numbers)")
+    net.ht,net.numht = parameters(net)
+end
+
+# function to update qnet.indexht based on net.numht
+# warning: assumes net.numht is updated already with parameters!(net)
+function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
+    if(size(net.numht,1) > 0)
+        size(qnet.indexht,1) > 0 ? warn("deleting qnet.indexht to replace with info in net") : nothing
+        qnet.indexht = Int64[]
+        for(e in qnet.edge)
+            if(e.istIdentifiable)
+                push!(qnet.indexht, getIndex(e.number,net.numht))
+             end
+        end
+    else
+        error("net.numht not correctly updated, need to run parameters!(net) first")
+    end
+end
+
+
+
 
 # ----------------------- Eliminate Hybridizations
 

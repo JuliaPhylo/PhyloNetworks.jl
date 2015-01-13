@@ -18,6 +18,7 @@ include("functions.jl")
 # needed modules:
 using DataStructures # for updateInCycle with queue
 using Base.Collections # for updateInCycle with priority queue
+using DataFrames # for rep function and read/write csv tables
 
 # examples
 include("case_f_example.jl");
@@ -29,56 +30,39 @@ include("tree_example.jl");
 
 # ---- optimization branch lengths/gammas ------
 
-# function to get the branch lengths/gammas to optimize for a given
-# network
-# fixit: it is ignoring "bad" cases, listing all the parameters
-# warning: order of parameters (h,t)
-function parameters(net::Network)
-    warn("ignores bad cases, listing all the parameters")
-    t = Float64[]
-    h = Float64[]
-    n = Int64[]
-    for(e in net.edge)
-        if(e.isIdentifiable)
-            push!(t,e.length)
-            push!(n,e.number)
-        end
-        e.hybrid && !e.isMajor ? push!(h,e.gamma) : nothing
-    end
-    size(t,1) == 0 ? error("net does not have identifiable branch lengths") : nothing
-    return vcat(h,t),n
-end
+# todo: update function for all quartet.qnet, changing quartet.changed=F
+# if not changed, and changing branch lengths in qnet
+# testing steps in optimization
+# read/write tables with data frames
 
-function parameters!(net::Network)
-    warn("ignores bad cases, listing all the parameters")
-    warn("deleting net.ht,net.numht and updating with current edge lengths (numbers)")
-    net.ht,net.numht = parameters(net)
-end
-
-# todo: update function for net.ht and for all quartet.qnet, changing quartet.changed=F
-# if not changed
 
 # function to update a QuartetNetwork for a given
 # vector of parameters
+# fixit: parameter quartet or qnet?
 function update!(qnet::QuartetNetwork,x::Vector{Float64}, changed::Array{Bool,1})
-
+    if(length(x) == length(changed))
+        if(length(changed) == length(qnet.hasEdge) + qnet.numHybrids)
+            qnet.changed = false
+            for(i in i:length(changed)-qnet.numHybrids)
+                qnet.changed |= (changed[i+qnet.numHybrids] & qnet.hasEdge[i])
+            end
+            # fixit: change branch lengths in qnet
+        else
+            error("changed (length $(length(changed))) and qnet.hasEdge (length $(length(qnet.hasEdge))) should have same length")
+        end
+    else
+        error("x (length $(length(x))) and changed $(length(changed)) should have the same length")
+    end
+end
 
 # function to update the branch lengths/gammas for a network
 # fixit: it is ignoring "bad" cases, assumes list of all the parameters
 # warning: order of parameters (h,t)
 function update!(net::Network, x::Vector{Float64})
-    warn("ignores bad cases, assumes list of all the parameters")
-    i = 1
-    j = 1
-    for(e in net.edge)
-        if(e.isIdentifiable)
-            e.length = x[i+net.numHybrids]
-            i += 1
-        end
-        if(e.hybrid && !e.isMajor)
-            e.gamma = x[j]
-            j += 1
-        end
+    if(length(x) == length(net.ht))
+        net.ht = x
+    else
+        error("net.ht (length $(length(net.ht))) and x (length $(length(x))) must have the same length")
     end
 end
 
@@ -95,30 +79,14 @@ end
 
 # function to calculate expCF for all the quartets in data
 # after extractQuartet(net,data) that updates quartet.qnet
-# it updates qnet.indexht also with net.numht info
-# warning: only updates expCF for quartet.changed=true
-function calculateExpCFAll!(data::DataCF, net::HybridNetwork)
-    !all([q.qnet.numTaxa != 0 for q in data.quartet]) ? error("qnet in quartets on data are not correctly updated with extractQuartet") : nothing
-    for(q in data.quartet)
-        parameters!(q,net)
-        if(q.changed)
-            qnet = deepcopy(q.qnet);
-            calculateExpCFAll!(qnet);
-            q.qnet.expCF = qnet.expCF
-        end
-    end
-end
-
-# function to calculate expCF for all the quartets in data
-# after extractQuartet(net,data) that updates quartet.qnet
 # first updates the edge lengths according to x
 # warning: assumes qnet.indexht is updated alredy
-# warning: only updates expCF for quartet.changed=true
-function calculateExpCFAll!(data::DataCF, x::Vector{Float64})
+# warning: only updates expCF for quartet.qnet.changed=true
+function calculateExpCFAll!(data::DataCF, x::Vector{Float64},changed::Vector{Bool})
     !all([q.qnet.numTaxa != 0 for q in data.quartet]) ? error("qnet in quartets on data are not correctly updated with extractQuartet") : nothing
     for(q in data.quartet)
-        update!(q,x)
-        if(q.changed)
+        update!(q,x,changed)
+        if(q.qnet.changed)
             qnet = deepcopy(q.qnet);
             calculateExpCFAll!(qnet);
             q.qnet.expCF = qnet.expCF
@@ -132,20 +100,20 @@ end
 # and data (set of quartets with obsCF)
 # using BOBYQA from NLopt package
 function optBL(net::HybridNetwork, d::Data)
-    extractQuartet!(net,d)
-    parameters!(net); #branches/gammas to optimize
-    calculateExpCFAll!(d,net)
+    parameters!(net); # branches/gammas to optimize: net.ht, net.numht
+    extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
     k = length(net.ht)
-    opt = NLopt.Opt(:LN_BOBYQA,k) # fixit :LD_MMA if use gradient
+    opt = NLopt.Opt(:LN_BOBYQA,k) # :LD_MMA if use gradient
     # criterion based on prof Bates code
     NLopt.ftol_rel!(opt,1e-12) # relative criterion
     NLopt.ftol_abs!(opt,1e-8) # absolute critetion
     NLopt.xtol_abs!(opt,1e-10) # criterion on parameter value changes
     NLopt.lower_bounds!(opt, zeros(k))
-    NLopt.upper_bounds!(opt,vcat(ones(net.numHybrids),zeros(k-net.numHybrids))) #fixit: infinity, not zero
+    NLopt.upper_bounds!(opt,vcat(ones(net.numHybrids),DataFrames.rep(Inf,k-net.numHybrids)))
     function obj(x::Vector{Float64}) # add g::Vector{Float64} for gradient
-        changed = changed(net,x) # donde entra changed ya?
-        calculateExpCFAll!(d,x)
+        changed = changed(net,x)
+        update!(net,x) # update net.ht
+        calculateExpCFAll!(d,x,changed) # update qnet branches and calculate expCF
         val = logPseudoLik(d)
         return val
     end
