@@ -24,11 +24,13 @@ q5.qnet.hasEdge == [true, false, false, true, false, false, true, false, false, 
 
 
 net.ht == [0.1,0.2,0.1,1.0] ? nothing : error("net.ht not correct")
-net.numht == [3,6,9] ? nothing : error("net.numth not correct")
+net.numht == [5,3,6,9] ? nothing : error("net.numth not correct")
 
-q1.qnet.indexht == [1,2,3] ? nothing : error("q1.qnet.indexht not correct")
-q2.qnet.indexht == [2,3] ? nothing : error("q2.qnet.indexht not correct")
-q3.qnet.indexht == [2,3] ? nothing : error("q3.qnet.indexht not correct")
-q4.qnet.indexht == [1,2] ? nothing : error("q4.qnet.indexht not correct")
-q5.qnet.indexht == [1,2] ? nothing : error("q5.qnet.indexht not correct")
+q1.qnet.indexht == [1,2,3,4] ? nothing : error("q1.qnet.indexht not correct")
+q2.qnet.indexht == [1,3,4] ? nothing : error("q2.qnet.indexht not correct")
+q3.qnet.indexht == [1,3,4] ? nothing : error("q3.qnet.indexht not correct")
+q4.qnet.indexht == [2,3] ? nothing : error("q4.qnet.indexht not correct")
+q5.qnet.indexht == [1,2,3] ? nothing : error("q5.qnet.indexht not correct")
+
+
 # fixit: need to do bad triangle/bad diamond

@@ -3019,20 +3019,29 @@ end
 # network
 # fixit: it is ignoring "bad" cases, listing all the parameters
 # warning: order of parameters (h,t)
+# updates net.numht also with the number of hybrid nodes and number of identifiable edges (n2,n)
 function parameters(net::Network)
     warn("ignores bad cases, listing all the parameters")
     t = Float64[]
     h = Float64[]
     n = Int64[]
+    n2 = Int64[]
     for(e in net.edge)
         if(e.istIdentifiable)
             push!(t,e.length)
             push!(n,e.number)
         end
-        e.hybrid && !e.isMajor ? push!(h,e.gamma) : nothing
+        if(e.hybrid && !e.isMajor)
+            push!(h,e.gamma)
+            if(e.node[e.isChild1 ? 1 : 2].hybrid)
+                push!(n2,e.node[e.isChild1 ? 1 : 2].number)
+            else
+                error("strange thing, hybrid edge $(e.number) pointing at tree node $(e.node[isChild1?1:2].number)")
+            end
+        end
     end
     size(t,1) == 0 ? error("net does not have identifiable branch lengths") : nothing
-    return vcat(h,t),n
+    return vcat(h,t),vcat(n2,n)
 end
 
 function parameters!(net::Network)
@@ -3046,12 +3055,19 @@ end
 function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
     if(size(net.numht,1) > 0)
         size(qnet.indexht,1) > 0 ? warn("deleting qnet.indexht to replace with info in net") : nothing
-        qnet.indexht = Int64[]
+        n2 = net.numht[1:net.numHybrids]
+        n = net.numht[net.numHybrids + 1 : length(net.numht)]
+        qn2 = Int64[]
+        qn = Int64[]
         for(e in qnet.edge)
             if(e.istIdentifiable)
-                push!(qnet.indexht, getIndex(e.number,net.numht))
-             end
+                push!(qn, getIndex(e.number,n)+net.numHybrids)
+            end
+            if(e.hybrid && !e.isMajor)
+                push!(qn2, getIndex(e.node[e.isChild1 ? 1 : 2].number,n2))
+            end
         end
+        qnet.indexht = vcat(qn2,qn)
     else
         error("net.numht not correctly updated, need to run parameters!(net) first")
     end

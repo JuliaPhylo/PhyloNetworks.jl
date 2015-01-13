@@ -97,7 +97,7 @@ type HybridNetwork <: Network
     nodes_changed::Array{Node,1} # reusable array of nodes
     leaf::Array{Node,1} # array of leaves
     ht::Vector{Float64} # vector of parameters to optimize
-    numht::Vector{Int64} # vector of number of the edges in ht e.g. [3,6,8,...], edge 3 is the 1st identifiable
+    numht::Vector{Int64} # vector of number of the hybrid nodes and edges in ht e.g. [3,6,8,...], 2 hybrid nodes 3,6, and edge 8 is the 1st identifiable
     # maxTaxNumber::Int32 --in case it's needed later when we prune taxa
     # inner constructor
     function HybridNetwork(node::Array{Node,1},edge::Array{Edge,1})
@@ -127,7 +127,7 @@ type QuartetNetwork <: Network
     hybrid::Array{Node,1} # array of hybrid nodes in network
     leaf::Array{Node,1} # array of leaves
     numHybrids::Int64 # number of hybrid nodes
-    hasEdge::Array{Bool,1} # array of boolean with all the original identifiable edges of HybridNetwork (net.ht)
+    hasEdge::Array{Bool,1} # array of boolean with all the original identifiable edges of HybridNetwork and gammas (net.ht)
     quartetTaxon::Array{ASCIIString,1} # the quartet taxa in the order it represents
     which::Int64 # 0 it tree quartet, 1 is equivalent to tree quartet and 2 if two minor CF different, default -1
     typeHyb::Array{Int64,1} #array with the type of hybridization of each hybrid node in the quartet

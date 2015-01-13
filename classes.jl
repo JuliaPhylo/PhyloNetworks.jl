@@ -37,16 +37,30 @@ include("tree_example.jl");
 
 
 # function to update a QuartetNetwork for a given
-# vector of parameters
-# fixit: parameter quartet or qnet?
-function update!(qnet::QuartetNetwork,x::Vector{Float64}, changed::Array{Bool,1})
+# vector of parameters based on a boolean vector "changed"
+# which shows which parameters have changed
+function update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork)
+    changed = changed(net,x)
     if(length(x) == length(changed))
-        if(length(changed) == length(qnet.hasEdge) + qnet.numHybrids)
+        if(length(changed) == length(qnet.hasEdge))
             qnet.changed = false
-            for(i in i:length(changed)-qnet.numHybrids)
-                qnet.changed |= (changed[i+qnet.numHybrids] & qnet.hasEdge[i])
+            for(i in i:length(changed))
+                qnet.changed |= (changed[i] & qnet.hasEdge[i])
             end
-            # fixit: change branch lengths in qnet
+            if(qnet.changed)
+                i = 1
+                j = 1
+                for(e in qnet.edge)
+                    if(e.istIdentifiable)
+                        setLength!(e,x[qnet.indexht[i+qnet.numHybrids]])
+                        i += 1
+                    end
+                    if(e.hybrid && !e.isMajor)
+                        setGamma!(e,x[qnet.indexht[j]])
+                        j += 1
+                    end
+                end
+            end
         else
             error("changed (length $(length(changed))) and qnet.hasEdge (length $(length(qnet.hasEdge))) should have same length")
         end
@@ -80,12 +94,12 @@ end
 # function to calculate expCF for all the quartets in data
 # after extractQuartet(net,data) that updates quartet.qnet
 # first updates the edge lengths according to x
-# warning: assumes qnet.indexht is updated alredy
+# warning: assumes qnet.indexht is updated already
 # warning: only updates expCF for quartet.qnet.changed=true
-function calculateExpCFAll!(data::DataCF, x::Vector{Float64},changed::Vector{Bool})
+function calculateExpCFAll!(data::DataCF, x::Vector{Float64},net::HybridNetwork)
     !all([q.qnet.numTaxa != 0 for q in data.quartet]) ? error("qnet in quartets on data are not correctly updated with extractQuartet") : nothing
     for(q in data.quartet)
-        update!(q,x,changed)
+        update!(q.qnet,x,net)
         if(q.qnet.changed)
             qnet = deepcopy(q.qnet);
             calculateExpCFAll!(qnet);
@@ -111,9 +125,8 @@ function optBL(net::HybridNetwork, d::Data)
     NLopt.lower_bounds!(opt, zeros(k))
     NLopt.upper_bounds!(opt,vcat(ones(net.numHybrids),DataFrames.rep(Inf,k-net.numHybrids)))
     function obj(x::Vector{Float64}) # add g::Vector{Float64} for gradient
-        changed = changed(net,x)
+        calculateExpCFAll!(d,x,net) # update qnet branches and calculate expCF
         update!(net,x) # update net.ht
-        calculateExpCFAll!(d,x,changed) # update qnet branches and calculate expCF
         val = logPseudoLik(d)
         return val
     end
