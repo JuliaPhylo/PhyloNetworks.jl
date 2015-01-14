@@ -18,7 +18,6 @@ include("functions.jl")
 # needed modules:
 using DataStructures # for updateInCycle with queue
 using Base.Collections # for updateInCycle with priority queue
-using DataFrames # for rep function and read/write csv tables
 
 # examples
 include("case_f_example.jl");
@@ -28,209 +27,16 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
-# ---- optimization branch lengths/gammas ------
-
-# todo: update function for all quartet.qnet, changing quartet.changed=F
-# if not changed, and changing branch lengths in qnet
-# testing steps in optimization
-# read/write tables with data frames
 
 
-# function to update a QuartetNetwork for a given
-# vector of parameters based on a boolean vector "changed"
-# which shows which parameters have changed
-function update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork)
-    changed = changed(net,x)
-    if(length(x) == length(changed))
-        if(length(changed) == length(qnet.hasEdge))
-            qnet.changed = false
-            for(i in i:length(changed))
-                qnet.changed |= (changed[i] & qnet.hasEdge[i])
-            end
-            if(qnet.changed)
-                i = 1
-                j = 1
-                for(e in qnet.edge)
-                    if(e.istIdentifiable)
-                        setLength!(e,x[qnet.indexht[i+qnet.numHybrids]])
-                        i += 1
-                    end
-                    if(e.hybrid && !e.isMajor)
-                        setGamma!(e,x[qnet.indexht[j]])
-                        j += 1
-                    end
-                end
-            end
-        else
-            error("changed (length $(length(changed))) and qnet.hasEdge (length $(length(qnet.hasEdge))) should have same length")
-        end
-    else
-        error("x (length $(length(x))) and changed $(length(changed)) should have the same length")
-    end
-end
-
-# function to update the branch lengths/gammas for a network
-# fixit: it is ignoring "bad" cases, assumes list of all the parameters
-# warning: order of parameters (h,t)
-function update!(net::Network, x::Vector{Float64})
-    if(length(x) == length(net.ht))
-        net.ht = x
-    else
-        error("net.ht (length $(length(net.ht))) and x (length $(length(x))) must have the same length")
-    end
-end
-
-# function to compare a vector of parameters with the current vector in net.ht
-# to know which parameters were changed
-function changed(net::HybridNetwork, x::Vector{Float64})
-    if(length(net.ht) == length(x))
-        return [net.ht[i] != x[i] for i in 1:length(x)]
-    else
-        error("net.ht (length $(length(net.ht))) and vector x (length $(length(x))) need to have same length")
-    end
-end
+# cecile: check updategammaz function, maybe we need two functions,
+# one to update when changing length one to update when changing
+# gamma? what i like about updategammaz is that you use that directly
+# at the beginning of network, so maybe we should consider doing
+# things ourselves inside setLength and setGamma, instead of calling
+# update gamma
 
 
-# function to calculate expCF for all the quartets in data
-# after extractQuartet(net,data) that updates quartet.qnet
-# first updates the edge lengths according to x
-# warning: assumes qnet.indexht is updated already
-# warning: only updates expCF for quartet.qnet.changed=true
-function calculateExpCFAll!(data::DataCF, x::Vector{Float64},net::HybridNetwork)
-    !all([q.qnet.numTaxa != 0 for q in data.quartet]) ? error("qnet in quartets on data are not correctly updated with extractQuartet") : nothing
-    for(q in data.quartet)
-        update!(q.qnet,x,net)
-        if(q.qnet.changed)
-            qnet = deepcopy(q.qnet);
-            calculateExpCFAll!(qnet);
-            q.qnet.expCF = qnet.expCF
-        end
-    end
-end
-
-
-
-# numerical optimization of branch lengths given a network (or tree)
-# and data (set of quartets with obsCF)
-# using BOBYQA from NLopt package
-function optBL(net::HybridNetwork, d::Data)
-    parameters!(net); # branches/gammas to optimize: net.ht, net.numht
-    extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
-    k = length(net.ht)
-    opt = NLopt.Opt(:LN_BOBYQA,k) # :LD_MMA if use gradient
-    # criterion based on prof Bates code
-    NLopt.ftol_rel!(opt,1e-12) # relative criterion
-    NLopt.ftol_abs!(opt,1e-8) # absolute critetion
-    NLopt.xtol_abs!(opt,1e-10) # criterion on parameter value changes
-    NLopt.lower_bounds!(opt, zeros(k))
-    NLopt.upper_bounds!(opt,vcat(ones(net.numHybrids),DataFrames.rep(Inf,k-net.numHybrids)))
-    function obj(x::Vector{Float64}) # add g::Vector{Float64} for gradient
-        calculateExpCFAll!(d,x,net) # update qnet branches and calculate expCF
-        update!(net,x) # update net.ht
-        val = logPseudoLik(d)
-        return val
-    end
-    NLopt.min_objective!(opt,obj)
-    fmin, xmin, ret = NLopt.optimize(opt,net.ht) #fixit: net.ht ot just ht? change parameters to put into net.ht
-end
-
-# ----- read data --------
-
-using DataFrames
-
-df = readtable("../output.csv")
-
-# todo: function to get df and created DataCF object with all the
-# Quartets
-
-
-
-
-
-
-
-
-
-# -------------------------------------------------------------------------------------------------
-# ORIGINAL
-# function to identify the QuartetNetwork as
-# 1 (equivalent to tree), 2 (minor CF different)
-# around a given hybrid node
-# it also cleans the hybridizations of type 1
-# returns 0,1,2
-function identifyQuartet!(qnet::QuartetNetwork, node::Node)
-    if(node.hybrid)
-        k = sum([(n.inCycle == node.number && size(n.edge,1) == 3) ? 1 : 0 for n in qnet.node])
-        if(k < 2)
-            error("strange quartet network with a hybrid node $(node.number) but no cycle")
-        elseif(k == 2)
-            other = qnet.node[getIndex(true, [(n.inCycle == node.number && size(n.edge,1) == 3) for n in qnet.node])]
-            edgemaj,edgemin,edge1 = hybridEdges(node)
-            edgemin2,edgebla,edge2 = hybridEdges(other)
-            if(getOtherNode(edge1,node).leaf || getOtherNode(edge2,other).leaf) # k=2, unidentifiable
-                leaf = getOtherNode(edge1,node)
-                middle = node
-                if(!leaf.leaf)
-                    leaf = getOtherNode(edge2,node)
-                    middle = other
-                end
-                if(isequal(getOtherNode(edgemaj,node),other))
-                    removeEdge!(node,edgemaj)
-                    removeEdge!(other,edgemaj)
-                    deleteEdge!(qnet,edgemaj)
-                    makeNodeTree!(qnet,node)
-                    deleteIntLeaf!(qnet,middle,leaf)
-                elseif(isequal(getOtherNode(edgemin,node),other))
-                    removeEdge!(node,edgemin)
-                    removeEdge!(other,edgemin)
-                    deleteEdge!(qnet,edgemin)
-                    makeNodeTree!(qnet,node)
-                    deleteIntLeaf!(qnet,middle,leaf)
-                else
-                    error("nodes $(node.number) and $(other.number) should be united by a hybrid edge but are not")
-                end
-                qnet.which = 0
-            else
-
-        elseif(k == 3)
-            f
-        elseif(k == 4)
-            f
-        else
-            error("strange quartet network with $(k) nodes in cycle, maximum should be 4")
-        end
-    else
-        error("cannot identify the hybridization around node $(node.number) because it is not hybrid node.")
-    end
-end
-
-
-
-
-# function to identify the QuartetNetwork as one of the
-# 6 possibilities
-function identifyQuartet!(qnet::QuartetNetwork)
-    if(qnet.which == -1)
-        if(qnet.numHybrids == 0)
-            qnet.which = 0
-        elseif(qnet.numHybrids == 1)
-            qnet.which = identifyQuartet!(qnet,qnet.hybrid[1])
-        elseif(qnet.numHybrids > 1)
-            for(n in qnet.hybrid)
-                identifyQuartet!()
-        else
-            error("strange quartet network with negative number of hybrids: $(qnet.numHybrids).")
-        end
-    else
-        error("Quartet has already been identified as $(qnet.which)")
-    end
-end
-
-# -------------
-
-
-
-# ------------------
 
 # function to traverse the network
 # simply prints the traversal path, can be modified to do other things
