@@ -2378,6 +2378,7 @@ end
 function readTopologyUpdate(file::String)
     net = readTopology(file)
     updateAllReadTopology!(net)
+    parameters!(net)
     return net
 end
 
@@ -3069,7 +3070,7 @@ function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
         end
         qnet.indexht = vcat(qn2,qn)
     else
-        error("net.numht not correctly updated, need to run parameters!(net) first")
+        error("net.numht not correctly updated, need to run parameters first")
     end
 end
 

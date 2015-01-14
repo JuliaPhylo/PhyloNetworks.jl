@@ -5,7 +5,7 @@
 
 # Case G ---------
 
-include("../case_g_example.jl")
+include("../case_g_example.jl");
 net.names
 
 q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
