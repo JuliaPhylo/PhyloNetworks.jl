@@ -24,9 +24,7 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
-# ---- optimization branch lengths/gammas ------
 
-# read/write tables with data frames
 
 
 

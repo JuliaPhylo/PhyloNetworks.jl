@@ -3475,7 +3475,7 @@ function logPseudoLik(quartet::Quartet)
     end
 end
 
-# function to calculate the log pseudolikelihood function for array of
+# function to calculate the -log pseudolikelihood function for array of
 # quartets
 # sum_q [sum_i=1,2,3 (obsCF_i)*log(expCF_i)]
 # warning: assumes that quartet.qnet is already updated with extractQuartet and
@@ -3485,7 +3485,7 @@ function logPseudoLik(quartet::Array{Quartet,1})
     for(q in quartet)
         suma += logPseudoLik(q)
     end
-    return suma
+    return -suma
 end
 
 logPseudoLik(d::DataCF) = logPseudoLik(d.quartet)
@@ -3641,7 +3641,7 @@ function optBL(net::HybridNetwork, d::DataCF)
     function obj(x::Vector{Float64},g::Vector{Float64}) # added g::Vector{Float64} for gradient, ow error
         count += 1
         calculateExpCFAll!(d,x,net) # update qnet branches and calculate expCF
-        update!(net,x) # update net.ht
+        #update!(net,x) # update net.ht
         val = logPseudoLik(d)
         println("f_$count: $(round(val,5)), x: $(x), net.ht $(net.ht), ht: $(ht)")
         return val
