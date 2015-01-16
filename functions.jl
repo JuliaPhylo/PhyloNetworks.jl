@@ -6,6 +6,20 @@
 
 # tests of functions in examples_classes.jl outside git_laptop
 
+# needed modules:
+using DataStructures # for updateInCycle with queue
+using Base.Collections # for updateInCycle with priority queue
+using DataFrames # for rep function and read/write csv tables
+using NLopt # for branch lengths optimization
+
+
+# ----- aux general functions ---------------
+
+function approxEq(a::Number,b::Number)
+    abs(a-b) < 100*eps(abs(a)+abs(b))
+end
+
+
 #------------- EDGE functions --------------------#
 
 # warning: node needs to be defined as hybrid before adding to a
@@ -1173,7 +1187,7 @@ function chooseEdgesGamma(net::HybridNetwork)
         sisters, cherry, nonidentifiable = sisterOrCherry(net.edge[index1],net.edge[index2]);
     end
     gamma = rand()*0.5;
-    println("from $(edge1.number) to $(edge2.number), $(gamma)");
+    #println("from $(edge1.number) to $(edge2.number), $(gamma)");
     return net.edge[index1],net.edge[index2],gamma
 end
 
@@ -1567,10 +1581,10 @@ end
 function makeEdgeHybrid!(edge::Edge,node::Node,gamma::Float64)
     if(!edge.hybrid)
         if(node.hybrid)
-            println("estamos en make edge hybrid en edge $(edge.number) y node $(node.number)")
-            println("vamos a hacer hashybedge true para $(getOtherNode(edge,node).number)")
+            #println("estamos en make edge hybrid en edge $(edge.number) y node $(node.number)")
+            #println("vamos a hacer hashybedge true para $(getOtherNode(edge,node).number)")
             getOtherNode(edge,node).hasHybEdge = true
-            println("$(getOtherNode(edge,node).hasHybEdge) debe ser true")
+            #println("$(getOtherNode(edge,node).hasHybEdge) debe ser true")
             if(size(edge.node,1) == 2)
                 if(isequal(edge.node[1],node))
                     edge.isChild1 = true
@@ -1764,7 +1778,7 @@ function moveOriginUpdate!(net::HybridNetwork, node::Node, random::Bool)
             undoGammaz!(node);
             undoInCycle!(edgesInCycle, nodesInCycle);
             newedge = chooseEdge(net,node,tree,tree1,tree2)
-            println("chosen edge $(newedge.number)")
+            #println("chosen edge $(newedge.number)")
             moveOrigin(node,other1,other2,tree1,tree2,newedge)
             flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,node);
             if(nocycle)
@@ -2407,7 +2421,7 @@ end
 # updates isMajor according to gamma value
 function setGamma!(edge::Edge, new_gamma::Float64)
  if(edge.hybrid)
-	if(0 < new_gamma < 1)
+	if(0 <= new_gamma <= 1)
             edge.isChild1 ? ind = 1 : ind = 2 ; # hybrid edge pointing at node 1 or 2
             if(edge.node[ind].hybrid)
                 if(edge.node[ind].isBadDiamondI || edge.node[ind].isBadDiamondII || edge.node[ind].isBadTriangleI || edge.node[ind].isBadTriangleII)
@@ -2497,7 +2511,7 @@ end
 # returns the new middle
 # note: leafedge is the edge that survives
 function deleteIntLeaf!(net::Network, middle::Node, leaf::Node)
-    println("calling deleteIntLeaf for middle $(middle.number) and leaf $(leaf.number)")
+    #println("calling deleteIntLeaf for middle $(middle.number) and leaf $(leaf.number)")
     if(size(middle.edge,1) == 2)
         if(isequal(getOtherNode(middle.edge[1],middle),leaf))
             leafedge = middle.edge[1]
@@ -2754,7 +2768,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                         error("node $(other.number) has hybrid edge, but neither of the other nodes $(other1.number), $(other2.number )are hybrid")
                     end
                 else # other is tree node without hybrid edges
-                    println("entra al caso (1)")
+                    #println("entra al caso (1)")
                     edge1,edge2 = hybridEdges(other,leaf.edge[1]);
                     other1 = getOtherNode(edge1,other);
                     other2 = getOtherNode(edge2,other);
@@ -2767,9 +2781,9 @@ function deleteLeaf!(net::Network, leaf::Node)
                         end
                         newleaf = other1.leaf ? other1 : other2
                         middle = other
-                        println("middle is $(middle.number), middle.hybrid $(middle.hybrid), middle.hasHybEdge $(middle.hasHybEdge)")
+                        #println("middle is $(middle.number), middle.hybrid $(middle.hybrid), middle.hasHybEdge $(middle.hasHybEdge)")
                         middle = deleteIntLeafWhile!(net,middle,newleaf)
-                        println("middle is $(middle.number), middle.hybrid $(middle.hybrid), middle.hasHybEdge $(middle.hasHybEdge)")
+                        #println("middle is $(middle.number), middle.hybrid $(middle.hybrid), middle.hasHybEdge $(middle.hasHybEdge)")
                         if(middle.hybrid)
                             if(middle.isBadTriangleI)
                                 edgemaj,edgemin,treeedge = hybridEdges(middle)
@@ -2804,7 +2818,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                                 edgebla,edgebla,treeedge = hybridEdges(other2)
                                 leaf2 = getOtherNode(treeedge,other2)
                                 removeEdge!(middle,edge1)
-                                println("delete edge1 which is $(edge1.number)")
+                                #println("delete edge1 which is $(edge1.number)")
                                 deleteEdge!(net,edge1)
                                 deleteIntLeafWhile!(net,middle,newleaf);
                                 removeNode!(other2,treeedge)
@@ -2851,7 +2865,13 @@ end
 function updateHasEdge!(qnet::QuartetNetwork, net::HybridNetwork)
     warn("function to compare edges depends on edges number being unique")
     warn("assumes no bad scenario, that is, all gammas and internal t are identifiable")
-    qnet.hasEdge = vcat([isNodeNumIn(n,qnet.hybrid) for n in net.hybrid],[e.istIdentifiable & isEdgeNumIn(e,qnet.edge) for e in net.edge])
+    edges = Bool[]
+    for e in net.edge
+        if e.istIdentifiable
+            push!(edges,isEdgeNumIn(e,qnet.edge))
+        end
+    end
+    qnet.hasEdge = vcat([isNodeNumIn(n,qnet.hybrid) for n in net.hybrid],edges)
 end
 
 
@@ -3013,68 +3033,6 @@ function identifyQuartet!(qnet::QuartetNetwork)
     end
 end
 
-# ---------------------- branch length optimization ---------------------------------
-
-
-# function to get the branch lengths/gammas to optimize for a given
-# network
-# fixit: it is ignoring "bad" cases, listing all the parameters
-# warning: order of parameters (h,t)
-# updates net.numht also with the number of hybrid nodes and number of identifiable edges (n2,n)
-function parameters(net::Network)
-    warn("ignores bad cases, listing all the parameters")
-    t = Float64[]
-    h = Float64[]
-    n = Int64[]
-    n2 = Int64[]
-    for(e in net.edge)
-        if(e.istIdentifiable)
-            push!(t,e.length)
-            push!(n,e.number)
-        end
-        if(e.hybrid && !e.isMajor)
-            push!(h,e.gamma)
-            if(e.node[e.isChild1 ? 1 : 2].hybrid)
-                push!(n2,e.node[e.isChild1 ? 1 : 2].number)
-            else
-                error("strange thing, hybrid edge $(e.number) pointing at tree node $(e.node[isChild1?1:2].number)")
-            end
-        end
-    end
-    size(t,1) == 0 ? error("net does not have identifiable branch lengths") : nothing
-    return vcat(h,t),vcat(n2,n)
-end
-
-function parameters!(net::Network)
-    warn("ignores bad cases, listing all the parameters")
-    warn("deleting net.ht,net.numht and updating with current edge lengths (numbers)")
-    net.ht,net.numht = parameters(net)
-end
-
-# function to update qnet.indexht based on net.numht
-# warning: assumes net.numht is updated already with parameters!(net)
-function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
-    if(size(net.numht,1) > 0)
-        size(qnet.indexht,1) > 0 ? warn("deleting qnet.indexht to replace with info in net") : nothing
-        n2 = net.numht[1:net.numHybrids]
-        n = net.numht[net.numHybrids + 1 : length(net.numht)]
-        qn2 = Int64[]
-        qn = Int64[]
-        for(e in qnet.edge)
-            if(e.istIdentifiable)
-                push!(qn, getIndex(e.number,n)+net.numHybrids)
-            end
-            if(e.hybrid && !e.isMajor)
-                push!(qn2, getIndex(e.node[e.isChild1 ? 1 : 2].number,n2))
-            end
-        end
-        qnet.indexht = vcat(qn2,qn)
-    else
-        error("net.numht not correctly updated, need to run parameters first")
-    end
-end
-
-
 
 
 # ----------------------- Eliminate Hybridizations
@@ -3131,7 +3089,7 @@ end
 #        node, other nodes in the hybridization
 #        case: 1 (global case 2),2 (global case 4), 1 (global case 5)
 function eliminateTriangle!(qnet::QuartetNetwork, node::Node, other::Node, case::Int64)
-    println("start eliminateTriangle----")
+    #println("start eliminateTriangle----")
     if(node.hybrid)
         edgemaj, edgemin, treeedge = hybridEdges(node)
         deleteIntLeafWhile!(qnet, edgemaj, node)
@@ -3145,20 +3103,20 @@ function eliminateTriangle!(qnet::QuartetNetwork, node::Node, other::Node, case:
         else
             error("node $(node.number) and other node $(other.number) are not connected by an edge")
         end
-        println("hybedge is $(hybedge.number), otheredge is $(otheredge.number)")
+        #println("hybedge is $(hybedge.number), otheredge is $(otheredge.number)")
         middle = qnet.node[getIndex(true, [(n.inCycle == node.number && size(n.edge,1) == 3 && !isequal(n,other) && !isequal(n,node)) for n in qnet.node])]
-        println("middle node is $(middle.number) in eliminateTriangle")
+        #println("middle node is $(middle.number) in eliminateTriangle")
         ind = getIndex(true,[(e.inCycle == node.number && !isequal(getOtherNode(e,middle),node)) for e in middle.edge])
         edge = middle.edge[ind]
-        println("edge is $(edge.number) with length $(edge.length) in eliminateTriangle, will do deleteIntLeaf from middle through edge")
+        #println("edge is $(edge.number) with length $(edge.length) in eliminateTriangle, will do deleteIntLeaf from middle through edge")
         deleteIntLeafWhile!(qnet,edge,middle)
-        println("after deleteIntLeaf, edge $(edge.number) has length $(edge.length)")
+        #println("after deleteIntLeaf, edge $(edge.number) has length $(edge.length)")
         if(!isequal(getOtherNode(edge,middle),other))
             error("middle node $(middle.number) and other node $(other.number) are not connected by an edge")
         end
         if(case == 1)
             setLength!(edge,-log(1 - hybedge.gamma*edge.z))
-            println("edge $(edge.number) length is $(edge.length) after updating")
+            #println("edge $(edge.number) length is $(edge.length) after updating")
             removeEdge!(middle,otheredge)
             removeEdge!(other,hybedge)
             removeEdge!(node,treeedge)
@@ -3168,7 +3126,7 @@ function eliminateTriangle!(qnet::QuartetNetwork, node::Node, other::Node, case:
             deleteNode!(qnet,node)
         elseif(case == 2)
             setLength!(edge, -log(otheredge.gamma*otheredge.gamma*otheredge.y + hybedge.gamma*otheredge.gamma*(3-edge.y) + hybedge.gamma*hybedge.gamma*hybedge.y))
-            println("edge $(edge.number) length is $(edge.length) after updating")
+            #println("edge $(edge.number) length is $(edge.length) after updating")
             removeEdge!(middle,otheredge)
             removeEdge!(node,otheredge)
             deleteEdge!(qnet,otheredge)
@@ -3179,7 +3137,7 @@ function eliminateTriangle!(qnet::QuartetNetwork, node::Node, other::Node, case:
     else
         error("cannot eliminate triangle around node $(node.number) since it is not hybrid")
     end
-    println("end eliminateTriangle ---")
+    #println("end eliminateTriangle ---")
 end
 
 # function to polish quartet with hybridization type 5
@@ -3199,17 +3157,17 @@ function quartetType5!(qnet::QuartetNetwork, node::Node)
         cf1 = edge1.gamma*(1-2/3*edge5.y) + edge2.gamma*1/3*edge6.y
         cf2 = edge1.gamma*1/3*edge5.y + edge2.gamma*(1-2/3*edge6.y)
         cf3 = edge1.gamma*1/3*edge5.y + edge2.gamma*1/3*edge6.y
-        println("cf1,cf2,cf3: $(cf1),$(cf2),$(cf3)")
+        #println("cf1,cf2,cf3: $(cf1),$(cf2),$(cf3)")
         leaf1 = getOtherNode(edge3,node)
         leaf2 = getOtherNode(edgetree1,other1)
         leaf3 = getOtherNode(edgetree2, other2)
         leaf4 = qnet.leaf[getIndex(true,[(!isequal(n,leaf1) && !isequal(n,leaf2) && !isequal(n,leaf3)) for n in qnet.leaf])]
-        println("leaf1 is $(leaf1.number)")
-        println("leaf2 is $(leaf2.number)")
-        println("leaf3 is $(leaf3.number)")
-        println("leaf4 is $(leaf4.number)")
+        #println("leaf1 is $(leaf1.number)")
+        #println("leaf2 is $(leaf2.number)")
+        #println("leaf3 is $(leaf3.number)")
+        #println("leaf4 is $(leaf4.number)")
         tx = whichLeaves(qnet,qnet.quartetTaxon[1],qnet.quartetTaxon[2], leaf1,leaf2,leaf3,leaf4)
-        println("tx is $(tx)")
+        #println("tx is $(tx)")
         if(tx == (1,2) || tx == (2,1) || tx == (3,4) || tx == (4,3))
             qnet.expCF[1] = cf1
             tx = whichLeaves(qnet,qnet.quartetTaxon[1],qnet.quartetTaxon[3], leaf1,leaf2,leaf3,leaf4)
@@ -3266,10 +3224,10 @@ function eliminateHybridization!(qnet::QuartetNetwork, node::Node)
         elseif(node.typeHyb == 3)
             eliminateLoop!(qnet,node,true)
         elseif(node.typeHyb == 4)
-            println("node is $(node.number), other node is $(node.prev.number)")
+            #println("node is $(node.number), other node is $(node.prev.number)")
             eliminateTriangle!(qnet,node,node.prev,2)
         elseif(node.typeHyb == 2)
-            println("node is $(node.number), other node is $(node.prev.number)")
+            #println("node is $(node.number), other node is $(node.prev.number)")
             eliminateTriangle!(qnet,node,node.prev,1)
         elseif(node.typeHyb != 5)
             error("node type of hybridization should be 1,2,3,4 or 5, but for node $(node.number), it is $(node.typeHyb)")
@@ -3285,16 +3243,16 @@ end
 function internalLength!(qnet::QuartetNetwork)
     if(qnet.which == 1)
         node = qnet.node[getIndex(true,[size(n.edge,1) == 3 for n in qnet.node])]
-        println("node is $(node.number)")
+        #println("node is $(node.number)")
         edge = nothing
         for(e in node.edge)
             if(!getOtherNode(e,node).leaf)
                 edge = e
             end
         end
-        println("edge $(edge.number) has length $(edge.length) before lumping all internal edges into it")
+        #println("edge $(edge.number) has length $(edge.length) before lumping all internal edges into it")
         deleteIntLeafWhile!(qnet,edge,node)
-        println("edge $(edge.number) has length $(edge.length) after lumping all internal edges into it, and set to qnet.t1")
+        #println("edge $(edge.number) has length $(edge.length) after lumping all internal edges into it, and set to qnet.t1")
         qnet.t1 = edge.length
     end
 end
@@ -3477,6 +3435,26 @@ function calculateExpCFAll!(data::DataCF)
 end
 
 
+# function to calculate expCF for all the quartets in data
+# after extractQuartet(net,data) that updates quartet.qnet
+# first updates the edge lengths according to x
+# warning: assumes qnet.indexht is updated already
+# warning: only updates expCF for quartet.qnet.changed=true
+function calculateExpCFAll!(data::DataCF, x::Vector{Float64},net::HybridNetwork)
+    !all([q.qnet.numTaxa != 0 for q in data.quartet]) ? error("qnet in quartets on data are not correctly updated with extractQuartet") : nothing
+    println("calculateExpCFAll in x: $(x) with net.ht $(net.ht)")
+    for(q in data.quartet)
+        update!(q.qnet,x,net)
+        if(q.qnet.changed)
+            println("enters to recalculate expCF for some quartet")
+            qnet = deepcopy(q.qnet);
+            calculateExpCFAll!(qnet);
+            q.qnet.expCF = qnet.expCF
+        end
+    end
+end
+
+
 # ---------------------------- Pseudolik for a quartet -------------------------
 
 # function to calculate the log pseudolikelihood function for a single
@@ -3486,6 +3464,7 @@ end
 #          calculateExpCF
 function logPseudoLik(quartet::Quartet)
     if(sum(quartet.qnet.expCF) != 0.0)
+        println("obsCF = $(quartet.obsCF), expCF = $(quartet.qnet.expCF)")
         suma = 0
         for(i in 1:3)
             suma += quartet.obsCF[i]*log(quartet.qnet.expCF[i])
@@ -3511,3 +3490,191 @@ end
 
 logPseudoLik(d::DataCF) = logPseudoLik(d.quartet)
 
+
+# ---------------------- branch length optimization ---------------------------------
+
+
+# function to get the branch lengths/gammas to optimize for a given
+# network
+# fixit: it is ignoring "bad" cases, listing all the parameters
+# warning: order of parameters (h,t)
+# updates net.numht also with the number of hybrid nodes and number of identifiable edges (n2,n)
+function parameters(net::Network)
+    warn("ignores bad cases, listing all the parameters")
+    t = Float64[]
+    h = Float64[]
+    n = Int64[]
+    n2 = Int64[]
+    for(e in net.edge)
+        if(e.istIdentifiable)
+            push!(t,e.length)
+            push!(n,e.number)
+        end
+        if(e.hybrid && !e.isMajor)
+            push!(h,e.gamma)
+            if(e.node[e.isChild1 ? 1 : 2].hybrid)
+                push!(n2,e.node[e.isChild1 ? 1 : 2].number)
+            else
+                error("strange thing, hybrid edge $(e.number) pointing at tree node $(e.node[isChild1?1:2].number)")
+            end
+        end
+    end
+    size(t,1) == 0 ? error("net does not have identifiable branch lengths") : nothing
+    return vcat(h,t),vcat(n2,n)
+end
+
+function parameters!(net::Network)
+    warn("ignores bad cases, listing all the parameters")
+    warn("deleting net.ht,net.numht and updating with current edge lengths (numbers)")
+    net.ht,net.numht = parameters(net)
+    return net.ht
+end
+
+# function to update qnet.indexht based on net.numht
+# warning: assumes net.numht is updated already with parameters!(net)
+function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
+    if(size(net.numht,1) > 0)
+        size(qnet.indexht,1) > 0 ? warn("deleting qnet.indexht to replace with info in net") : nothing
+        n2 = net.numht[1:net.numHybrids]
+        n = net.numht[net.numHybrids + 1 : length(net.numht)]
+        qn2 = Int64[]
+        qn = Int64[]
+        for(e in qnet.edge)
+            if(e.istIdentifiable)
+                push!(qn, getIndex(e.number,n)+net.numHybrids)
+            end
+            if(e.hybrid && !e.isMajor)
+                push!(qn2, getIndex(e.node[e.isChild1 ? 1 : 2].number,n2))
+            end
+        end
+        qnet.indexht = vcat(qn2,qn)
+    else
+        error("net.numht not correctly updated, need to run parameters first")
+    end
+end
+
+
+# function to compare a vector of parameters with the current vector in net.ht
+# to know which parameters were changed
+function changed(net::HybridNetwork, x::Vector{Float64})
+    if(length(net.ht) == length(x))
+        return [!approxEq(net.ht[i],x[i]) for i in 1:length(x)]
+    else
+        error("net.ht (length $(length(net.ht))) and vector x (length $(length(x))) need to have same length")
+    end
+end
+
+
+# function to update a QuartetNetwork for a given
+# vector of parameters based on a boolean vector "changed"
+# which shows which parameters have changed
+function update!(qnet::QuartetNetwork,x::Vector{Float64}, ch::Vector{Bool})
+    if(length(x) == length(ch))
+        if(length(ch) == length(qnet.hasEdge))
+            qnet.changed = false
+            for(i in 1:length(ch))
+                qnet.changed |= (ch[i] & qnet.hasEdge[i])
+            end
+            if(qnet.changed)
+                i = 1
+                j = 1
+                for(e in qnet.edge)
+                    if(e.istIdentifiable)
+                        setLength!(e,x[qnet.indexht[i+qnet.numHybrids]])
+                        i += 1
+                    end
+                    if(e.hybrid && !e.isMajor)
+                        0 <= x[qnet.indexht[j]] <= 1 || error("new gamma value should be between 0,1: $(x[qnet.indexht[j]]).")
+                        setGamma!(e,x[qnet.indexht[j]])
+                        e.node[e.isChild1?1:2].hybrid || error("hybrid edge $(e.number) points at tree node.")
+                        edges = hybridEdges(e.node[e.isChild1 ? 1 : 2],e)
+                        length(edges) == 2 || error("strange here: node $(e.node[e.isChild1?1:2].number) should have 3 edges and it has $(length(edges)-1).")
+                        if(edges[1].hybrid && edges[1].isMajor)
+                            setGamma!(edges[1],1-x[qnet.indexht[j]])
+                        elseif(edges[2].hybrid && edges[2].isMajor)
+                            setGamma!(edges[2],1-x[qnet.indexht[j]])
+                        else
+                            error("strange hybrid node with only one hybrid edge $(e.number)")
+                        end
+                        j += 1
+                    end
+                end
+            end
+        else
+            error("changed (length $(length(changed))) and qnet.hasEdge (length $(length(qnet.hasEdge))) should have same length")
+        end
+    else
+        error("x (length $(length(x))) and changed $(length(changed)) should have the same length")
+    end
+end
+
+update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork) = update!(qnet,x,changed(net,x))
+
+# function to update the branch lengths/gammas for a network
+# fixit: it is ignoring "bad" cases, assumes list of all the parameters
+# warning: order of parameters (h,t)
+function update!(net::Network, x::Vector{Float64})
+    if(length(x) == length(net.ht))
+        net.ht = x
+    else
+        error("net.ht (length $(length(net.ht))) and x (length $(length(x))) must have the same length")
+    end
+end
+
+
+
+# numerical optimization of branch lengths given a network (or tree)
+# and data (set of quartets with obsCF)
+# using BOBYQA from NLopt package
+function optBL(net::HybridNetwork, d::DataCF)
+    ht = parameters!(net); # branches/gammas to optimize: net.ht, net.numht
+    extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
+    k = length(net.ht)
+    opt = NLopt.Opt(:LN_BOBYQA,k) # :LD_MMA if use gradient
+    # criterion based on prof Bates code
+    NLopt.ftol_rel!(opt,1e-12) # relative criterion
+    NLopt.ftol_abs!(opt,1e-8) # absolute critetion
+    NLopt.xtol_abs!(opt,1e-10) # criterion on parameter value changes
+    NLopt.lower_bounds!(opt, zeros(k))
+    NLopt.upper_bounds!(opt,vcat(ones(net.numHybrids),DataFrames.rep(Inf,k-net.numHybrids)))
+    count = 0
+    function obj(x::Vector{Float64},g::Vector{Float64}) # added g::Vector{Float64} for gradient, ow error
+        count += 1
+        calculateExpCFAll!(d,x,net) # update qnet branches and calculate expCF
+        update!(net,x) # update net.ht
+        val = logPseudoLik(d)
+        println("f_$count: $(round(val,5)), x: $(x), net.ht $(net.ht), ht: $(ht)")
+        return val
+    end
+    NLopt.min_objective!(opt,obj)
+    fmin, xmin, ret = NLopt.optimize(opt,ht) #fixit: net.ht ot just ht? change parameters to put into net.ht
+    return fmin,xmin
+end
+
+# fixit: when deleting update!(net,x), it still does not work, and it should
+
+# ----- read data --------
+
+# function to write a csv table from the expCF of an
+# array of quartets
+# warning: does not check if the expCF have been calculated
+function writeExpCF(quartets::Array{Quartet,1})
+    df = DataFrames.DataFrame(t1="",t2="",t3="",t4="",CF1234=0.,CF1324=0.,CF1423=0.)
+    for(q in quartets)
+        length(q.taxon) == 4 || error("quartet $(q.number) does not have 4 taxa")
+        length(q.qnet.expCF) == 3 || error("quartet $(q.number) does have qnet with 3 expCF")
+        append!(df,DataFrames.DataFrame(t1=q.taxon[1],t2=q.taxon[2],t3=q.taxon[3],t4=q.taxon[4],CF1234=q.qnet.expCF[1],CF1324=q.qnet.expCF[2],CF1423=q.qnet.expCF[3]))
+    end
+    df = df[2:size(df,1),1:size(df,2)]
+    return df
+end
+
+# function that takes a dataframe and creates a DataCF object
+function readDataCF(df::DataFrame)
+    size(df,2) == 7 || error("Dataframe should have 7 columns: 4taxa, 3CF")
+    quartets = Quartet[]
+    for(i in 1:size(df,1))
+        push!(quartets,Quartet(i,string(df[i,1]),string(df[i,2]),string(df[i,3]),string(df[i,4]),[df[i,5],df[i,6],df[i,7]]))
+    end
+    return DataCF(quartets)
+end

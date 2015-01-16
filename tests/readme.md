@@ -35,7 +35,14 @@ bad triangle for calculation of expCF
 #### has Edge
 
 test_hasEdge.jl tests if the attribute qnet.hasEdge is correctly
-updated after extracting quartets for case G
+updated after extracting quartets for case G. It also checks if
+net.ht, net.numht, qnet.indexht are correctly set for Case G.
+
+#### parts of optBL
+
+test_optBLparts.jl tests the parts of optBL separately to see if they
+work.
+
 
 #### not automatic functions:
 

@@ -161,7 +161,7 @@ type Quartet
     # inner constructor: to guarantee obsCF are only three and add up to 1
     function Quartet(number::Int64,t1::ASCIIString,t2::ASCIIString,t3::ASCIIString,t4::ASCIIString,obsCF::Array{Float64,1})
         size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing
-        sum(obsCF) != 1 ? error("observed CF should add up to 1, not $(sum(obsCF))") : nothing
+        !approxEq(sum(obsCF),1.) ? error("observed CF should add up to 1, not $(sum(obsCF))") : nothing
         new(number,[t1,t2,t3,t4],obsCF,QuartetNetwork());
     end
     function Quartet(number::Int64,t1::Array{ASCIIString,1},obsCF::Array{Float64,1})
@@ -179,4 +179,5 @@ type DataCF
     quartet::Array{Quartet,1} # array of quartets read from CF output table
     numQuartets::Int64 # number of quartets
     DataCF(quartet::Array{Quartet,1}) = new(quartet,length(quartet))
+    DataCF() = new([],0)
 end

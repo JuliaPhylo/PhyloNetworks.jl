@@ -6,9 +6,6 @@
 include("types.jl")
 include("functions.jl")
 
-# needed modules:
-using Base.Collections # for updateInCycle with priority queue
-
 tree = "((((6:0.1,4:1.5)1:0.2,(7)11#H1)5:0.1,(11#H1,8)),10:0.1);" # Case G
 f = open("prueba_tree.txt","w")
 write(f,tree)

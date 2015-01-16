@@ -15,10 +15,6 @@ include("types.jl")
 # functions in "functions.jl"
 include("functions.jl")
 
-# needed modules:
-using DataStructures # for updateInCycle with queue
-using Base.Collections # for updateInCycle with priority queue
-using DataFrames # for rep function and read/write csv tables
 
 # examples
 include("case_f_example.jl");
@@ -30,121 +26,7 @@ include("tree_example.jl");
 
 # ---- optimization branch lengths/gammas ------
 
-# todo: update function for all quartet.qnet, changing quartet.changed=F
-# if not changed, and changing branch lengths in qnet
-# testing steps in optimization
 # read/write tables with data frames
-
-
-# function to update a QuartetNetwork for a given
-# vector of parameters based on a boolean vector "changed"
-# which shows which parameters have changed
-function update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork)
-    changed = changed(net,x)
-    if(length(x) == length(changed))
-        if(length(changed) == length(qnet.hasEdge))
-            qnet.changed = false
-            for(i in i:length(changed))
-                qnet.changed |= (changed[i] & qnet.hasEdge[i])
-            end
-            if(qnet.changed)
-                i = 1
-                j = 1
-                for(e in qnet.edge)
-                    if(e.istIdentifiable)
-                        setLength!(e,x[qnet.indexht[i+qnet.numHybrids]])
-                        i += 1
-                    end
-                    if(e.hybrid && !e.isMajor)
-                        setGamma!(e,x[qnet.indexht[j]])
-                        j += 1
-                    end
-                end
-            end
-        else
-            error("changed (length $(length(changed))) and qnet.hasEdge (length $(length(qnet.hasEdge))) should have same length")
-        end
-    else
-        error("x (length $(length(x))) and changed $(length(changed)) should have the same length")
-    end
-end
-
-# function to update the branch lengths/gammas for a network
-# fixit: it is ignoring "bad" cases, assumes list of all the parameters
-# warning: order of parameters (h,t)
-function update!(net::Network, x::Vector{Float64})
-    if(length(x) == length(net.ht))
-        net.ht = x
-    else
-        error("net.ht (length $(length(net.ht))) and x (length $(length(x))) must have the same length")
-    end
-end
-
-# function to compare a vector of parameters with the current vector in net.ht
-# to know which parameters were changed
-function changed(net::HybridNetwork, x::Vector{Float64})
-    if(length(net.ht) == length(x))
-        return [net.ht[i] != x[i] for i in 1:length(x)]
-    else
-        error("net.ht (length $(length(net.ht))) and vector x (length $(length(x))) need to have same length")
-    end
-end
-
-
-# function to calculate expCF for all the quartets in data
-# after extractQuartet(net,data) that updates quartet.qnet
-# first updates the edge lengths according to x
-# warning: assumes qnet.indexht is updated already
-# warning: only updates expCF for quartet.qnet.changed=true
-function calculateExpCFAll!(data::DataCF, x::Vector{Float64},net::HybridNetwork)
-    !all([q.qnet.numTaxa != 0 for q in data.quartet]) ? error("qnet in quartets on data are not correctly updated with extractQuartet") : nothing
-    for(q in data.quartet)
-        update!(q.qnet,x,net)
-        if(q.qnet.changed)
-            qnet = deepcopy(q.qnet);
-            calculateExpCFAll!(qnet);
-            q.qnet.expCF = qnet.expCF
-        end
-    end
-end
-
-
-
-# numerical optimization of branch lengths given a network (or tree)
-# and data (set of quartets with obsCF)
-# using BOBYQA from NLopt package
-function optBL(net::HybridNetwork, d::Data)
-    parameters!(net); # branches/gammas to optimize: net.ht, net.numht
-    extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
-    k = length(net.ht)
-    opt = NLopt.Opt(:LN_BOBYQA,k) # :LD_MMA if use gradient
-    # criterion based on prof Bates code
-    NLopt.ftol_rel!(opt,1e-12) # relative criterion
-    NLopt.ftol_abs!(opt,1e-8) # absolute critetion
-    NLopt.xtol_abs!(opt,1e-10) # criterion on parameter value changes
-    NLopt.lower_bounds!(opt, zeros(k))
-    NLopt.upper_bounds!(opt,vcat(ones(net.numHybrids),DataFrames.rep(Inf,k-net.numHybrids)))
-    function obj(x::Vector{Float64}) # add g::Vector{Float64} for gradient
-        calculateExpCFAll!(d,x,net) # update qnet branches and calculate expCF
-        update!(net,x) # update net.ht
-        val = logPseudoLik(d)
-        return val
-    end
-    NLopt.min_objective!(opt,obj)
-    fmin, xmin, ret = NLopt.optimize(opt,net.ht) #fixit: net.ht ot just ht? change parameters to put into net.ht
-end
-
-# ----- read data --------
-
-using DataFrames
-
-df = readtable("../output.csv")
-
-# todo: function to get df and created DataCF object with all the
-# Quartets
-
-
-
 
 
 

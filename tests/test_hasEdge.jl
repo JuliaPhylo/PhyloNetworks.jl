@@ -17,11 +17,11 @@ d = DataCF([q1,q2,q3,q4,q5]);
 extractQuartet!(net,d)
 error = false
 try
-    q1.qnet.hasEdge == [true,false,false,true,false,false,true,false,false,true,false] ? nothing : error("q1 wrong hasEdge")
-    q2.qnet.hasEdge == [true,false,false,false,false,false,true,false,false,true,false] ? nothing : error("q2 wrong hasEdge")
-    q3.qnet.hasEdge == [true,false,false,false,false,false,true,false,false,true,false] ? nothing : error("q3 wrong hasEdge")
-    q4.qnet.hasEdge == [false,false,false,true,false,false,true,false,false,false,false] ? nothing : error("q4 wrong hasEdge")
-    q5.qnet.hasEdge == [true, false, false, true, false, false, true, false, false, false, false] ? nothing : error("q5 wrong hasEdge")
+    q1.qnet.hasEdge == [true,true,true,true] ? nothing : error("q1 wrong hasEdge")
+    q2.qnet.hasEdge == [true,false,true,true] ? nothing : error("q2 wrong hasEdge")
+    q3.qnet.hasEdge == [true,false,true,true] ? nothing : error("q3 wrong hasEdge")
+    q4.qnet.hasEdge == [false,true,true,false] ? nothing : error("q4 wrong hasEdge")
+    q5.qnet.hasEdge == [true, true,true,false] ? nothing : error("q5 wrong hasEdge")
 
 
     net.ht == [0.1,0.2,0.1,1.0] ? nothing : error("net.ht not correct")
