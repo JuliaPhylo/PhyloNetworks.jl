@@ -32,4 +32,73 @@ printEdges(net)
 net.ht
 realht = [0.1,0.2,0.1,1.0]
 
-fmin,xmin=optBL(net,d2)
+@time fmin,xmin=optBL(net,d2)
+@allocated fmin,xmin=optBL(net,d2)
+
+# -------- different starting point ------
+
+# (0.12,1.,1.,1.)
+tree = "((((6,4)1,(7)11#H1:::0.88)5,(11#H1:::0.12,8)),10);" # Case G different starting branch lengths
+f = open("prueba_tree.txt","w")
+write(f,tree)
+close(f)
+net = readTopologyUpdate("prueba_tree.txt");
+printEdges(net)
+
+@time fmin,xmin=optBL(net,d2)
+
+
+# (0.1,1.,1.,1.)
+tree = "((((6,4)1,(7)11#H1)5,(11#H1,8)),10);" # Case G different starting branch lengths
+f = open("prueba_tree.txt","w")
+write(f,tree)
+close(f)
+net = readTopologyUpdate("prueba_tree.txt");
+printEdges(net)
+
+@time fmin,xmin=optBL(net,d2)
+
+
+# (0.05,1.,1.,1.)
+tree = "((((6,4)1,(7)11#H1:::0.95)5,(11#H1:::0.05,8)),10);" # Case G different starting branch lengths
+f = open("prueba_tree.txt","w")
+write(f,tree)
+close(f)
+net = readTopologyUpdate("prueba_tree.txt");
+printEdges(net)
+
+@time fmin,xmin=optBL(net,d2)
+
+
+# (0.15,1.,1.,1.)
+tree = "((((6,4)1,(7)11#H1:::0.85)5,(11#H1:::0.15,8)),10);" # Case G different starting branch lengths
+f = open("prueba_tree.txt","w")
+write(f,tree)
+close(f)
+net = readTopologyUpdate("prueba_tree.txt");
+printEdges(net)
+
+@time fmin,xmin=optBL(net,d2)
+
+
+# (0.35,1.,1.,1.)
+tree = "((((6,4)1,(7)11#H1:::0.65)5,(11#H1:::0.35,8)),10);" # Case G different starting branch lengths
+f = open("prueba_tree.txt","w")
+write(f,tree)
+close(f)
+net = readTopologyUpdate("prueba_tree.txt");
+printEdges(net)
+
+@time fmin,xmin=optBL(net,d2)
+
+
+# (0.24,1.,1.,1.)
+tree = "((((6,4)1,(7)11#H1:::0.75)5,(11#H1:::0.25,8)),10);" # Case G different starting branch lengths
+f = open("prueba_tree.txt","w")
+write(f,tree)
+close(f)
+net = readTopologyUpdate("prueba_tree.txt");
+printEdges(net)
+printNodes(net)
+
+@time fmin,xmin=optBL(net,d2)

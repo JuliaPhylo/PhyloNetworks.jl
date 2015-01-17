@@ -2428,12 +2428,12 @@ function setGamma!(edge::Edge, new_gamma::Float64)
                     error("bad diamond or triangle situation: gamma not identifiable")
                 else
                     edge.gamma = new_gamma;
-                    edge.isMajor = (new_gamma>0.5) ? true : false
+                    edge.isMajor = (new_gamma>=0.5) ? true : false
                 end
             else
                 warn("hybrid edge $(edge.number) not pointing at hybrid node")
                 edge.gamma = new_gamma;
-                edge.isMajor = (new_gamma>0.5) ? true : false
+                edge.isMajor = (new_gamma>=0.5) ? true : false
             end
 	else
 	     error("gamma has to be between 0 and 1: $(new_gamma)");
@@ -3091,7 +3091,10 @@ end
 function eliminateTriangle!(qnet::QuartetNetwork, node::Node, other::Node, case::Int64)
     #println("start eliminateTriangle----")
     if(node.hybrid)
+        println("hybrid node is $(node.number), with edges $([e.number for e in node.edge]), with gammas $([e.gamma for e in node.edge])")
         edgemaj, edgemin, treeedge = hybridEdges(node)
+        isa(edgemaj,Nothing) ? error("edge maj is nothing") : nothing
+        isa(edgemin,Nothing) ? error("edge min is nothing") : nothing
         deleteIntLeafWhile!(qnet, edgemaj, node)
         deleteIntLeafWhile!(qnet, edgemin, node)
         if(isequal(getOtherNode(edgemaj,node),other))
@@ -3615,7 +3618,7 @@ update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork) = update!(q
 # warning: order of parameters (h,t)
 function update!(net::Network, x::Vector{Float64})
     if(length(x) == length(net.ht))
-        net.ht = x
+        net.ht = deepcopy(x) # to avoid linking them
     else
         error("net.ht (length $(length(net.ht))) and x (length $(length(x))) must have the same length")
     end
@@ -3632,22 +3635,23 @@ function optBL(net::HybridNetwork, d::DataCF)
     k = length(net.ht)
     opt = NLopt.Opt(:LN_BOBYQA,k) # :LD_MMA if use gradient
     # criterion based on prof Bates code
-    NLopt.ftol_rel!(opt,1e-12) # relative criterion
-    NLopt.ftol_abs!(opt,1e-8) # absolute critetion
-    NLopt.xtol_abs!(opt,1e-10) # criterion on parameter value changes
+    NLopt.ftol_rel!(opt,1e-12) # relative criterion -12
+    NLopt.ftol_abs!(opt,1e-12) # absolute critetion -8
+    NLopt.xtol_abs!(opt,1e-10) # criterion on parameter value changes -10
     NLopt.lower_bounds!(opt, zeros(k))
     NLopt.upper_bounds!(opt,vcat(ones(net.numHybrids),DataFrames.rep(Inf,k-net.numHybrids)))
     count = 0
     function obj(x::Vector{Float64},g::Vector{Float64}) # added g::Vector{Float64} for gradient, ow error
         count += 1
         calculateExpCFAll!(d,x,net) # update qnet branches and calculate expCF
-        #update!(net,x) # update net.ht
+        update!(net,x) # update net.ht
         val = logPseudoLik(d)
         println("f_$count: $(round(val,5)), x: $(x), net.ht $(net.ht), ht: $(ht)")
         return val
     end
     NLopt.min_objective!(opt,obj)
     fmin, xmin, ret = NLopt.optimize(opt,ht) #fixit: net.ht ot just ht? change parameters to put into net.ht
+    println("got $(round(fmin,5)) at $(round(xmin,5)) after $(count) iterations (returned $(ret))")
     return fmin,xmin
 end
 
