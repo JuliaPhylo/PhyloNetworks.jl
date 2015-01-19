@@ -1942,7 +1942,7 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
                 warn("internal node with name without it being a hybrid node. node name might be meaningless after tree modifications.")
             end
         end
-    elseif(isdigit(c) || isalpha(c) || c == '#')
+    elseif(isdigit(c) || isalpha(c) || c == '#') # fixit: names can have _ or - and this will not allow it
         hasname = true;
         bl = true;
         num,name,pound = readNum(s,c,net,numLeft)
