@@ -18,6 +18,7 @@ function testCaseC(net::HybridNetwork)
     node.isBadTriangleI ? error("thinks it is bad triangle I") : nothing
     !node.isBadTriangleII ? error("does not know it is bad triangle II") : nothing
     (net.edge[5].hybrid && net.edge[7].hybrid) ? nothing : error("hybrid edges not recognized as hybrids")
+    [n.number for n in net.leaf] == [1,2,3,5,6] ? nothing : error("net.leaf is wrong")
 end
 
 # Case F bad diamond I
@@ -39,6 +40,7 @@ function testCaseF(net::HybridNetwork)
     !net.edge[8].istIdentifiable ? error("edge 8 not identifiable") : nothing
     net.visited[8] = false;
     !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
+    [n.number for n in net.leaf] == [1,2,5,7,8] ? nothing : error("net.leaf is wrong")
 end
 
 # Case G
@@ -59,6 +61,7 @@ function testCaseG(net::HybridNetwork)
     net.visited[3] = false;
     net.visited[9] = false;
     !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
+    [n.number for n in net.leaf] == [1,2,4,7,8] ? nothing : error("net.leaf is wrong")
 end
 
 # Case H
@@ -79,6 +82,7 @@ function testCaseH(net::HybridNetwork)
     net.visited[5] = false;
     net.visited[7] = false;
     !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
+    [n.number for n in net.leaf] == [1,2,4,5,6] ? nothing : error("net.leaf is wrong")
 end
 
 
@@ -98,6 +102,7 @@ function testCaseJ(net::HybridNetwork)
     net.visited[6] = false;
     net.visited[10] = false;
     !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
+    [n.number for n in net.leaf] == [1,3,4,5,6] ? nothing : error("net.leaf is wrong")
 end
 
 # Case D bad triangle I
@@ -120,6 +125,7 @@ function testCaseD(net::HybridNetwork)
     !net.edge[8].istIdentifiable ? error("edge 8 not identifiable") : nothing
     net.visited[8] = false;
     !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
+    [n.number for n in net.leaf] == [1,2,4,5,6] ? nothing : error("net.leaf is wrong")
 end
 
 # Case E bad triangle I
@@ -142,6 +148,7 @@ function testCaseE(net::HybridNetwork)
     !net.edge[8].istIdentifiable ? error("edge 8 not identifiable") : nothing
     net.visited[8] = false;
     !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
+    [n.number for n in net.leaf] == [1,2,4,5,6] ? nothing : error("net.leaf is wrong")
 end
 
 
@@ -174,6 +181,7 @@ function testCaseI(net::HybridNetwork)
     net.visited[edge6] = false;
     net.visited[edge10] = false;
     !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
+    [n.number for n in net.leaf] == [1,2,4,5,6] ? nothing : error("net.leaf is wrong")
 end
 
 
@@ -193,4 +201,5 @@ function testTree(net::HybridNetwork)
     !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
     net.edge[2].length != 1.5 ? error("edge length for 2 is wrong") : nothing
     net.edge[4].length != 0.2 ? error("edge length for 4 is wrong") : nothing
+    [n.number for n in net.leaf] == [1,2,4,6,7] ? nothing : error("net.leaf is wrong")
 end

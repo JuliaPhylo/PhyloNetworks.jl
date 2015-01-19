@@ -235,15 +235,15 @@ function getIndexHybrid(node::Node, net::Network)
 end
 
 # function to find leaf index in qnet.leaf
-function getIndexLeaf(node::Node, qnet::QuartetNetwork)
+function getIndexLeaf(node::Node, net::Network)
     if(node.leaf)
         i = 1;
-        while(i<= size(qnet.leaf,1) && !isequal(node,qnet.leaf[i]))
+        while(i<= size(net.leaf,1) && !isequal(node,net.leaf[i]))
             i = i+1;
         end
-        i>size(qnet.leaf,1)?error("leaf node not in q.network"):return i;
+        i>size(net.leaf,1)?error("leaf node not in network"):return i;
     else
-        error("node $(node.number) is not leaf so it cannot be in qnet.leaf")
+        error("node $(node.number) is not leaf so it cannot be in net.leaf")
     end
 end
 
@@ -370,12 +370,14 @@ function deleteNode!(net::HybridNetwork, n::Node)
     index = getIndex(n,net);
     deleteat!(net.node,index);
     net.numNodes -= 1;
-    net.numTaxa -= n.leaf ? 1 : 0;
     if(net.root == index)
         warn("Root node deleted")
     end
     if(n.hybrid)
        removeHybrid!(net,n)
+    end
+    if(n.leaf)
+        removeLeaf!(net,n)
     end
 end
 
@@ -435,6 +437,23 @@ function removeHybrid!(net::Network, n::Node)
         net.numHybrids -= 1;
     else
         error("cannot delete node $(n.number) from net.hybrid because it is not hybrid")
+    end
+end
+
+# function to delete a leaf node in net.leaf
+# and update numTaxa
+function removeLeaf!(net::Network,n::Node)
+    if(n.leaf)
+        try
+            index = getIndexLeaf(n,net)
+        catch
+            error("Leaf node $(n.number) not in network")
+        end
+        index = getIndexLeaf(n,net)
+        deleteat!(net.leaf,index)
+        net.numTaxa -= 1
+    else
+        error("cannot delete node $(n.number) from net.leaf because it is not leaf")
     end
 end
 
@@ -3522,7 +3541,7 @@ function parameters(net::Network)
             end
         end
     end
-    size(t,1) == 0 ? error("net does not have identifiable branch lengths") : nothing
+    size(t,1) == 0 ? warn("net does not have identifiable branch lengths") : nothing
     return vcat(h,t),vcat(n2,n)
 end
 
