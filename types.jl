@@ -98,6 +98,7 @@ type HybridNetwork <: Network
     leaf::Array{Node,1} # array of leaves
     ht::Vector{Float64} # vector of parameters to optimize
     numht::Vector{Int64} # vector of number of the hybrid nodes and edges in ht e.g. [3,6,8,...], 2 hybrid nodes 3,6, and edge 8 is the 1st identifiable
+    numBad::Int64 # number of bad hybrid nodes, set as 0
     # maxTaxNumber::Int32 --in case it's needed later when we prune taxa
     # inner constructor
     function HybridNetwork(node::Array{Node,1},edge::Array{Edge,1})
@@ -105,16 +106,16 @@ type HybridNetwork <: Network
         leaf=Node[];
         [n.hybrid?push!(hybrid,n):nothing for n in node];
         [n.leaf?push!(leaf,n):nothing for n in node];
-        new(size(leaf,1),size(node,1),size(edge,1),node,edge,1,[],hybrid,size(hybrid,1),[],[],[],leaf,[],[])
+        new(size(leaf,1),size(node,1),size(edge,1),node,edge,1,[],hybrid,size(hybrid,1),[],[],[],leaf,[],[],0)
     end
     function HybridNetwork(node::Array{Node,1},edge::Array{Edge,1},root::Int64)
         hybrid=Node[];
         leaf=Node[];
         [n.hybrid?push!(hybrid,n):nothing for n in node];
         [n.leaf?push!(leaf,n):nothing for n in node];
-        new(size(leaf,1),size(node,1),size(edge,1),node,edge,root,[],hybrid,size(hybrid,1),[],[],[],leaf,[],[])
+        new(size(leaf,1),size(node,1),size(edge,1),node,edge,root,[],hybrid,size(hybrid,1),[],[],[],leaf,[],[],0)
     end
-    HybridNetwork() = new(0,0,0,[],[],0,[],[],0,[],[],[],[],[],[]);
+    HybridNetwork() = new(0,0,0,[],[],0,[],[],0,[],[],[],[],[],[],0);
 end
 
 # type created from a HybridNetwork only to extract a given quartet

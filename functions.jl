@@ -831,9 +831,7 @@ end
 # warning: needs to have updateInCycle already done as it needs
 #          inCycle, and k attributes
 # check: assume any tree node that has hybrid Edge has only one tree edge in cycle (true?)
-# fixit: we still need to be certain of generalization n> = 5 of bad diamond case,
-#        here assumed: 1,1,1,> = 2 (see ipad figure)
-# fixit: still unknown treatment for bad diamond II
+# updates net.numBad attribute when found a bad situation
 function updateGammaz!(net::HybridNetwork, node::Node)
     if(node.hybrid)
         node.isBadTriangleI = false
@@ -859,6 +857,8 @@ function updateGammaz!(net::HybridNetwork, node::Node)
             end
             if(isequal(other_min2,getOtherNode(edge_maj2,other_maj)) && isLeaf1.leaf && isLeaf2.leaf && isLeaf3.leaf) # bad diamond I
                 warn("bad diamond I found")
+                net.numBad += 1
+                node.isBadDiamondI = true;
                 other_min.gammaz = edge_min.gamma*edge_min2.z;
                 other_maj.gammaz = edge_maj.gamma*edge_maj2.z;
                 edge_min2.istIdentifiable = false;
@@ -869,9 +869,9 @@ function updateGammaz!(net::HybridNetwork, node::Node)
                 push!(net.edges_changed,edge_min);
                 push!(net.edges_changed,edge_maj2);
                 push!(net.edges_changed,edge_maj);
-                node.isBadDiamondI = true;
             elseif(isequal(other_min2,getOtherNode(edge_maj2,other_maj)) && isLeaf1.leaf && !isLeaf2.leaf && isLeaf3.leaf && getOtherNode(tree_edge4,other_min2).leaf) # bad diamond II
                 warn("bad diamond II found")
+                net.numBad += 1
                 node.isBadDiamondII = true;
                 setLength!(tree_edge2,tree_edge2.length+edge_maj.length)
                 setLength!(edge_maj,0.0)
@@ -891,6 +891,7 @@ function updateGammaz!(net::HybridNetwork, node::Node)
             isLeaf3 = getOtherNode(tree_edge3,other_maj);
             if(isLeaf1.leaf && !isLeaf2.leaf && !isLeaf3.leaf) # bad triangle I
                 warn("bad triangle I found")
+                net.numBad += 1
                 setLength!(edge_maj,edge_maj.length+tree_edge2.length)
                 setLength!(tree_edge2, 0.0);
                 setLength!(edge_min, 0.0);
@@ -907,6 +908,7 @@ function updateGammaz!(net::HybridNetwork, node::Node)
                 push!(net.edges_changed,edge_min);
             elseif(!isLeaf1.leaf && !isLeaf2.leaf && isLeaf3.leaf) # bad triangle I
                 warn("bad triangle I found")
+                net.numBad += 1
                 setLength!(edge_min,edge_min.length + tree_edge2.length);
                 setLength!(tree_edge2, 0.0);
                 setLength!(edge_maj, 0.0);
@@ -923,6 +925,7 @@ function updateGammaz!(net::HybridNetwork, node::Node)
                 push!(net.edges_changed,edge_min);
             elseif(!isLeaf1.leaf && isLeaf2.leaf && !isLeaf3.leaf) # bad triangle II
                 warn("bad triangle II found")
+                net.numBad += 1
                 tree_edge3.istIdentifiable = false;
                 tree_edge1.istIdentifiable = false;
                 tree_edge_incycle.istIdentifiable = false;
@@ -2902,6 +2905,7 @@ end
 # function to update hasEdge attribute in a
 # QuartetNetwork after leaves deleted
 # with deleteLeaf!
+# fixit: missing bad triangleI,II, bad diamondII cases
 function updateHasEdge!(qnet::QuartetNetwork, net::HybridNetwork)
     warn("function to compare edges depends on edges number being unique")
     edges = Bool[]
@@ -2993,7 +2997,7 @@ function extractQuartet(net::HybridNetwork,quartet::Array{Node,1})
                 end
             end
             updateHasEdge!(qnet,net)
-            #parameters!(qnet,net)
+            parameters!(qnet,net)
             return qnet
         end
     end
@@ -3654,25 +3658,90 @@ end
 # fixit: working on new in classes.jl
 # function to update qnet.indexht based on net.numht
 # warning: assumes net.numht is updated already with parameters!(net)
+## function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
+##     if(size(net.numht,1) > 0)
+##         size(qnet.indexht,1) > 0 ? warn("deleting qnet.indexht to replace with info in net") : nothing
+##         n2 = net.numht[1:net.numHybrids]
+##         n = net.numht[net.numHybrids + 1 : length(net.numht)]
+##         qn2 = Int64[]
+##         qn = Int64[]
+##         for(e in qnet.edge)
+##             if(e.istIdentifiable)
+##                 push!(qn, getIndex(e.number,n)+net.numHybrids)
+##             end
+##             if(e.hybrid && !e.isMajor)
+##                 push!(qn2, getIndex(e.node[e.isChild1 ? 1 : 2].number,n2))
+##             end
+##         end
+##         qnet.indexht = vcat(qn2,qn)
+##     else
+##         error("net.numht not correctly updated, need to run parameters first")
+##     end
+## end
+
+
+# function to update qnet.indexht based on net.numht
+# warning: assumes net.numht is updated already with parameters!(net)
 function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
-    if(size(net.numht,1) > 0)
-        size(qnet.indexht,1) > 0 ? warn("deleting qnet.indexht to replace with info in net") : nothing
-        n2 = net.numht[1:net.numHybrids]
-        n = net.numht[net.numHybrids + 1 : length(net.numht)]
-        qn2 = Int64[]
-        qn = Int64[]
-        for(e in qnet.edge)
-            if(e.istIdentifiable)
-                push!(qn, getIndex(e.number,n)+net.numHybrids)
+    size(net.numht,1) > 0 || error("net.numht not correctly updated, need to run parameters first")
+    size(qnet.indexht,1) == 0 ||  warn("deleting qnet.indexht to replace with info in net")
+    nh = net.numht[1 : net.numHybrids - net.numBad]
+    k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
+    nt = net.numht[net.numHybrids - net.numBad + 1 : net.numHybrids - net.numBad + k]
+    nhz = net.numht[k + 1 : length(net.numht)]
+    qnh = Int64[]
+    qnt = Int64[]
+    qnhz = Int64[]
+    for(e in qnet.edge)
+        if(e.istIdentifiable)
+            try
+                getIndex(e.number,nt)
+            catch
+                error("identifiable edge $(e.number) in qnet not found in net")
             end
-            if(e.hybrid && !e.isMajor)
-                push!(qn2, getIndex(e.node[e.isChild1 ? 1 : 2].number,n2))
+            push!(qnt, getIndex(e.number,nt) + net.numHybrids - net.numBad)
+        end
+        if(net.numBad > 0) # fixit: problem is that it tries to look for edges 4,5 but shouldnt because the node is in qnet, need to put that if before
+            if(!e.istIdentifiable && all([!n.leaf for n in e.node]) && !e.hybrid) # tree edge not identifiable but internal
+                println("inside net.numBad, try to find index of edge $(e.number) in nhz")
+                try
+                    getIndex(e.number,nhz)
+                catch
+                    error("internal edge $(e.number) corresponding to gammaz in qnet not found in net.ht")
+                end
+                push!(qnhz, getIndex(e.number,nhz) + net.numHybrids - net.numBad + k)
             end
         end
-        qnet.indexht = vcat(qn2,qn)
-    else
-        error("net.numht not correctly updated, need to run parameters first")
-    end
+        if(e.hybrid && !e.isMajor)
+            node = e.node[e.isChild1 ? 1 : 2]
+            node.hybrid || error("strange hybrid edge $(e.number) poiting to tree node $(node.number)")
+            if(!node.isBadDiamondI && !node.isBadTriangleI && !node.isBadTriangleII)
+                found = true
+                try
+                    getIndex(node.number,nh)
+                catch
+                    found = false
+                end
+                found  ? push!(qnh, getIndex(node.number,nh)) : nothing
+            else
+                if(node.isBadDiamondI)
+                    ind1 = int(string(string(node.number),"1"))
+                    ind2 = int(string(string(node.number),"2"))
+                    if(isNodeNumIn(node,qnet.hybrid))
+                        try
+                            getIndex(ind1,nhz)
+                        catch
+                            error("qnet with hybrid node bad diamond I that does not have gammaz1")
+                        end
+                        i = getIndex(ind1,nhz)
+                        push!(qnhz,i+net.numHybrids-net.numBad+k)
+                        push!(qnhz,i+1+net.numHybrids-net.numBad+k)
+                    end
+                end
+            end
+        end
+    end # for qnet.edge
+    qnet.indexht = vcat(qnh,qnt,qnhz)
 end
 
 

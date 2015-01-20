@@ -58,29 +58,6 @@ end
 
 # ---------------------- branch length optimization ---------------------------------
 
-# function to update qnet.indexht based on net.numht
-# warning: assumes net.numht is updated already with parameters!(net)
-function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
-    if(size(net.numht,1) > 0)
-        size(qnet.indexht,1) > 0 ? warn("deleting qnet.indexht to replace with info in net") : nothing
-        n2 = net.numht[1:net.numHybrids]
-        n = net.numht[net.numHybrids + 1 : length(net.numht)]
-        qn2 = Int64[]
-        qn = Int64[]
-        for(e in qnet.edge)
-            if(e.istIdentifiable)
-                push!(qn, getIndex(e.number,n)+net.numHybrids)
-            end
-            if(e.hybrid && !e.isMajor)
-                push!(qn2, getIndex(e.node[e.isChild1 ? 1 : 2].number,n2))
-            end
-        end
-        qnet.indexht = vcat(qn2,qn)
-    else
-        error("net.numht not correctly updated, need to run parameters first")
-    end
-end
-
 
 # function to update a QuartetNetwork for a given
 # vector of parameters based on a boolean vector "changed"
