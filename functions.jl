@@ -2659,6 +2659,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                             edgemaj,edgemin,edgebla = hybridEdges(other1)
                             edge4 = isequal(edge1,edgemaj) ? edgemin : edgemaj
                             other3 = getOtherNode(edge4,other1)
+                            ind = isequal(getOtherNode(edgemaj,other1),other3) ? 1 : 2
                             edgebla,edge3,edge5 = hybridEdges(other3)
                             leaf5 = getOtherNode(edge5,other3)
                             removeNode!(other,edge2)
@@ -2668,7 +2669,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                             if(other3.gammaz != -1)
                                 #println("entro a cambiar length en edge $(edge2.number) con gammaz $(other3.gammaz)")
                                 setLength!(edge2,-log(1-other3.gammaz))
-                                #edge2.istIdentifiable = true
+                                edge2.number = int(string(string(other1.number),string(ind)))
                             else
                                 error("hybrid node $(other1.number) is bad diamond, but for node $(other3.number), gammaz is not well updated, it is $(other3.gammaz)")
                             end
@@ -2726,6 +2727,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                             edgemaj,edgemin,edgebla = hybridEdges(other2)
                             edge4 = isequal(edge2,edgemaj) ? edgemin : edgemaj
                             other3 = getOtherNode(edge4,other2)
+                            ind = isequal(getOtherNode(edgemaj,other2),other3) ? 1 : 2
                             edgebla,edge3,edge5 = hybridEdges(other3)
                             leaf5 = getOtherNode(edge5,other3)
                             removeNode!(other,edge1)
@@ -2734,7 +2736,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                             setEdge!(other2,edge1)
                             if(other3.gammaz != -1)
                                 setLength!(edge1,-log(1-other3.gammaz))
-                                #edge1.istIdentifiable = true
+                                edge1.number = int(string(string(other2.number),string(ind)))
                             else
                                 error("hybrid node $(other2.number) is bad diamond, but for node $(other3.number), gammaz is not well updated, it is $(other3.gammaz)")
                             end
@@ -2880,20 +2882,92 @@ end
 
 # -------------------- extract quartet ---------------------------------------
 
-# fixit: working on new in classes.jl
+## # fixit: working on new in classes.jl
+## # function to update hasEdge attribute in a
+## # QuartetNetwork after leaves deleted
+## # with deleteLeaf!
+## function updateHasEdge!(qnet::QuartetNetwork, net::HybridNetwork)
+##     warn("function to compare edges depends on edges number being unique")
+##     warn("assumes no bad scenario, that is, all gammas and internal t are identifiable")
+##     edges = Bool[]
+##     for e in net.edge
+##         if e.istIdentifiable
+##             push!(edges,isEdgeNumIn(e,qnet.edge))
+##         end
+##     end
+##     qnet.hasEdge = vcat([isNodeNumIn(n,qnet.hybrid) for n in net.hybrid],edges)
+## end
+
+
 # function to update hasEdge attribute in a
 # QuartetNetwork after leaves deleted
 # with deleteLeaf!
 function updateHasEdge!(qnet::QuartetNetwork, net::HybridNetwork)
     warn("function to compare edges depends on edges number being unique")
-    warn("assumes no bad scenario, that is, all gammas and internal t are identifiable")
     edges = Bool[]
+    h = Bool[]
+    hz = Bool[]
     for e in net.edge
         if e.istIdentifiable
             push!(edges,isEdgeNumIn(e,qnet.edge))
         end
-    end
-    qnet.hasEdge = vcat([isNodeNumIn(n,qnet.hybrid) for n in net.hybrid],edges)
+        if e.hybrid && !e.isMajor
+            node = e.node[e.isChild1 ? 1 : 2]
+            node.hybrid || error("strange thing, hybrid edge $(e.number) pointing at tree node $(node.number)")
+            if(!node.isBadDiamondI && !node.isBadTriangleI && !node.isBadTriangleII)
+                push!(h,isNodeNumIn(node,qnet.hybrid))
+            else
+                if(node.isBadDiamondI)
+                    if(isNodeNumIn(node,qnet.hybrid))
+                        push!(hz,true)
+                        push!(hz,true)
+                    else
+                        ind1 = int(string(string(node.number),"1"))
+                        ind2 = int(string(string(node.number),"2"))
+                        found1 = true
+                        found2 = true
+                        try
+                            getIndexEdge(ind1,qnet)
+                        catch
+                            found1 = false
+                        end
+                        try
+                            getIndexEdge(ind2,qnet)
+                        catch
+                            found2 = false
+                        end
+                        if(!found1 && !found2)
+                            push!(hz,false)
+                            push!(hz,false)
+                        elseif(found1 && !found2)
+                            index = getIndexEdge(ind1,qnet)
+                            if(!qnet.edge[index].istIdentifiable && all([!n.leaf for n in qnet.edge[index].node]))
+                                push!(hz,true)
+                            else
+                                push!(hz,false)
+                            end
+                            push!(hz,false)
+                        elseif(found2 && !found1)
+                            push!(hz,false)
+                            index = getIndexEdge(ind2,qnet)
+                            if(!qnet.edge[index].istIdentifiable && all([!n.leaf for n in qnet.edge[index].node]))
+                                push!(hz,true)
+                            else
+                                push!(hz,false)
+                            end
+                        else
+                            index1 = getIndexEdge(ind1,qnet)
+                            index2 = getIndexEdge(ind2,qnet)
+                            if(!qnet.edge[index1].istIdentifiable && all([!n.leaf for n in qnet.edge[index1].node]) && !qnet.edge[index2].istIdentifiable && all([!n.leaf for n in qnet.edge[index2].node]))
+                                error("strange qnet when net has node $(node.number) Bad Diamond I: qnet should have only one of the gammaz if it does not have node, but it has two")
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end # for in net.edge
+    qnet.hasEdge = vcat(h,edges,hz)
 end
 
 
@@ -2919,7 +2993,7 @@ function extractQuartet(net::HybridNetwork,quartet::Array{Node,1})
                 end
             end
             updateHasEdge!(qnet,net)
-            parameters!(qnet,net)
+            #parameters!(qnet,net)
             return qnet
         end
     end
@@ -3536,7 +3610,7 @@ function parameters(net::Network)
         end
         if(e.hybrid && !e.isMajor)
             node = e.node[e.isChild1 ? 1 : 2]
-            node.hybrid || error("strange thing, hybrid edge $(e.number) pointing at tree node $(e.node[isChild1?1:2].number)")
+            node.hybrid || error("strange thing, hybrid edge $(e.number) pointing at tree node $(node.number)")
             if(!node.isBadDiamondI && !node.isBadTriangleI && !node.isBadTriangleII)
                 push!(h,e.gamma)
                 push!(n2,e.node[e.isChild1 ? 1 : 2].number)

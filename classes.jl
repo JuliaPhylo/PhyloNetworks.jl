@@ -26,22 +26,6 @@ include("tree_example.jl");
 
 
 
-# working on new in classes.jl
-# function to update hasEdge attribute in a
-# QuartetNetwork after leaves deleted
-# with deleteLeaf!
-function updateHasEdge!(qnet::QuartetNetwork, net::HybridNetwork)
-    warn("function to compare edges depends on edges number being unique")
-    warn("assumes no bad scenario, that is, all gammas and internal t are identifiable")
-    edges = Bool[]
-    for e in net.edge
-        if e.istIdentifiable
-            push!(edges,isEdgeNumIn(e,qnet.edge))
-        end
-    end
-    qnet.hasEdge = vcat([isNodeNumIn(n,qnet.hybrid) for n in net.hybrid],edges)
-end
-
 
 # function to extract a quartet from a network
 # input: QuartetNetwork (already created from HybridNetwork)
