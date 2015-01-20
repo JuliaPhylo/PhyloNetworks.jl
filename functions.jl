@@ -7,7 +7,7 @@
 # tests of functions in examples_classes.jl outside git_laptop
 
 # needed modules:
-using DataStructures # for updateInCycle with queue
+#using DataStructures # for updateInCycle with queue
 using Base.Collections # for updateInCycle with priority queue
 using DataFrames # for rep function and read/write csv tables
 using NLopt # for branch lengths optimization
@@ -2668,6 +2668,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                             if(other3.gammaz != -1)
                                 #println("entro a cambiar length en edge $(edge2.number) con gammaz $(other3.gammaz)")
                                 setLength!(edge2,-log(1-other3.gammaz))
+                                #edge2.istIdentifiable = true
                             else
                                 error("hybrid node $(other1.number) is bad diamond, but for node $(other3.number), gammaz is not well updated, it is $(other3.gammaz)")
                             end
@@ -2733,6 +2734,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                             setEdge!(other2,edge1)
                             if(other3.gammaz != -1)
                                 setLength!(edge1,-log(1-other3.gammaz))
+                                #edge1.istIdentifiable = true
                             else
                                 error("hybrid node $(other2.number) is bad diamond, but for node $(other3.number), gammaz is not well updated, it is $(other3.gammaz)")
                             end
@@ -2878,6 +2880,7 @@ end
 
 # -------------------- extract quartet ---------------------------------------
 
+# fixit: working on new in classes.jl
 # function to update hasEdge attribute in a
 # QuartetNetwork after leaves deleted
 # with deleteLeaf!
@@ -2894,7 +2897,7 @@ function updateHasEdge!(qnet::QuartetNetwork, net::HybridNetwork)
 end
 
 
-
+# fixit: working on new in classes.jl
 # function to extract a quartet from a network
 # input: QuartetNetwork (already created from HybridNetwork)
 #        quartet: array with the 4 leaf nodes to keep
@@ -3516,33 +3519,55 @@ logPseudoLik(d::DataCF) = logPseudoLik(d.quartet)
 # ---------------------- branch length optimization ---------------------------------
 
 
-# function to get the branch lengths/gammas to optimize for a given
-# network
-# fixit: it is ignoring "bad" cases, listing all the parameters
-# warning: order of parameters (h,t)
-# updates net.numht also with the number of hybrid nodes and number of identifiable edges (n2,n)
+# function to get the branch lengths/gammas to optimize for a given network
+# warning: order of parameters (h,t,gammaz)
+# updates net.numht also with the number of hybrid nodes and number of identifiable edges (n2,n,hzn)
 function parameters(net::Network)
-    warn("ignores bad cases, listing all the parameters")
     t = Float64[]
     h = Float64[]
     n = Int64[]
     n2 = Int64[]
+    hz = Float64[]
+    hzn = Int64[]
     for(e in net.edge)
         if(e.istIdentifiable)
             push!(t,e.length)
             push!(n,e.number)
         end
         if(e.hybrid && !e.isMajor)
-            push!(h,e.gamma)
-            if(e.node[e.isChild1 ? 1 : 2].hybrid)
+            node = e.node[e.isChild1 ? 1 : 2]
+            node.hybrid || error("strange thing, hybrid edge $(e.number) pointing at tree node $(e.node[isChild1?1:2].number)")
+            if(!node.isBadDiamondI && !node.isBadTriangleI && !node.isBadTriangleII)
+                push!(h,e.gamma)
                 push!(n2,e.node[e.isChild1 ? 1 : 2].number)
             else
-                error("strange thing, hybrid edge $(e.number) pointing at tree node $(e.node[isChild1?1:2].number)")
+                if(node.isBadDiamondI)
+                    edges = hybridEdges(node)
+                    push!(hz,getOtherNode(edges[1],node).gammaz)
+                    push!(hz,getOtherNode(edges[2],node).gammaz)
+                    push!(hzn,int(string(string(node.number),"1")))
+                    push!(hzn,int(string(string(node.number),"2")))
+                elseif(node.isBadTriangleI)
+                    edges = hybridEdges(node)
+                    ind = getOtherNode(edges[1],node).gammaz == -1 ? 2 : 1
+                    push!(hz,getOtherNode(edges[ind],node).gammaz)
+                    push!(hz,node.gammaz)
+                    push!(hzn,int(string(string(node.number),"1")))
+                    push!(hzn,int(string(string(node.number),"2")))
+                elseif(node.isBadTriangleII)
+                    edges = hybridEdges(node)
+                    push!(hz,getOtherNode(edges[1],node).gammaz)
+                    push!(hz,getOtherNode(edges[2],node).gammaz)
+                    push!(hz,node.gammaz)
+                    push!(hzn,int(string(string(node.number),"1")))
+                    push!(hzn,int(string(string(node.number),"2")))
+                    push!(hzn,int(string(string(node.number),"3")))
+                end
             end
         end
     end
     size(t,1) == 0 ? warn("net does not have identifiable branch lengths") : nothing
-    return vcat(h,t),vcat(n2,n)
+    return vcat(h,t,hz),vcat(n2,n,hzn)
 end
 
 function parameters!(net::Network)
@@ -3552,6 +3577,7 @@ function parameters!(net::Network)
     return net.ht
 end
 
+# fixit: working on new in classes.jl
 # function to update qnet.indexht based on net.numht
 # warning: assumes net.numht is updated already with parameters!(net)
 function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
@@ -3586,7 +3612,7 @@ function changed(net::HybridNetwork, x::Vector{Float64})
     end
 end
 
-
+# fixit: working on new in classes.jl
 # function to update a QuartetNetwork for a given
 # vector of parameters based on a boolean vector "changed"
 # which shows which parameters have changed

@@ -143,7 +143,7 @@ function testCaseE(net::HybridNetwork)
     (!net.edge[7].hybrid || net.edge[7].isMajor) ? error("edge 7 is not hybrid or is major") : nothing
     node.gammaz != net.edge[4].gamma*net.edge[4].gamma*net.edge[6].z+(1-net.edge[4].gamma)*(1-net.edge[4].gamma)*net.edge[7].z ? error("hybrid node gammaz not correctly calculated") : nothing
     (net.edge[3].length != 0.0 || net.edge[3].istIdentifiable) ? error("edge 3 not correctly non identifiable length 0") : nothing
-    (net.edge[4].length != 0.0 || net.edge[4].istIdentifiable) ? error("edge 4 not correctly non identifiable length 0") : nothing
+    (net.edge[4].length != 0.0 || net.edge[4].istIdentifiable) ? error("edge 7 not correctly non identifiable length 0") : nothing
     net.node[6].gammaz != net.edge[4].gamma*net.edge[6].z ? error("node 6 gammaz not correctly calculated") : nothing
     !net.edge[8].istIdentifiable ? error("edge 8 not identifiable") : nothing
     net.visited[8] = false;

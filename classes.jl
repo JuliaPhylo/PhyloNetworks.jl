@@ -26,7 +26,120 @@ include("tree_example.jl");
 
 
 
+# working on new in classes.jl
+# function to update hasEdge attribute in a
+# QuartetNetwork after leaves deleted
+# with deleteLeaf!
+function updateHasEdge!(qnet::QuartetNetwork, net::HybridNetwork)
+    warn("function to compare edges depends on edges number being unique")
+    warn("assumes no bad scenario, that is, all gammas and internal t are identifiable")
+    edges = Bool[]
+    for e in net.edge
+        if e.istIdentifiable
+            push!(edges,isEdgeNumIn(e,qnet.edge))
+        end
+    end
+    qnet.hasEdge = vcat([isNodeNumIn(n,qnet.hybrid) for n in net.hybrid],edges)
+end
 
+
+# function to extract a quartet from a network
+# input: QuartetNetwork (already created from HybridNetwork)
+#        quartet: array with the 4 leaf nodes to keep
+# return: QuartetNetwork with only 4 tips
+# it updates qnet.hasEdge and qnet.indexht
+function extractQuartet(net::HybridNetwork,quartet::Array{Node,1})
+    if(size(quartet,1) != 4)
+        error("quartet array should have 4 nodes, it has $(size(quartet,1))")
+    else
+        if(!quartet[1].leaf || !quartet[2].leaf || !quartet[3].leaf || !quartet[4].leaf)
+            error("all four nodes to keep when extracting the quartet should be leaves: $([q.number for q in quartet])")
+        else
+            qnet = QuartetNetwork(net)
+            leaves = copy(qnet.leaf)
+            for(n in leaves)
+                if(!isNodeNumIn(n,quartet))
+                    println("delete leaf $(n.number)")
+                    deleteLeaf!(qnet,n)
+                end
+            end
+            # fixit: do something for bad cases when there are no identifiable parameters, but you could not detect them when deleting
+            updateHasEdge!(qnet,net)
+            parameters!(qnet,net)
+            return qnet
+        end
+    end
+end
+
+
+# ---------------------- branch length optimization ---------------------------------
+
+# function to update qnet.indexht based on net.numht
+# warning: assumes net.numht is updated already with parameters!(net)
+function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
+    if(size(net.numht,1) > 0)
+        size(qnet.indexht,1) > 0 ? warn("deleting qnet.indexht to replace with info in net") : nothing
+        n2 = net.numht[1:net.numHybrids]
+        n = net.numht[net.numHybrids + 1 : length(net.numht)]
+        qn2 = Int64[]
+        qn = Int64[]
+        for(e in qnet.edge)
+            if(e.istIdentifiable)
+                push!(qn, getIndex(e.number,n)+net.numHybrids)
+            end
+            if(e.hybrid && !e.isMajor)
+                push!(qn2, getIndex(e.node[e.isChild1 ? 1 : 2].number,n2))
+            end
+        end
+        qnet.indexht = vcat(qn2,qn)
+    else
+        error("net.numht not correctly updated, need to run parameters first")
+    end
+end
+
+
+# function to update a QuartetNetwork for a given
+# vector of parameters based on a boolean vector "changed"
+# which shows which parameters have changed
+function update!(qnet::QuartetNetwork,x::Vector{Float64}, ch::Vector{Bool})
+    if(length(x) == length(ch))
+        if(length(ch) == length(qnet.hasEdge))
+            qnet.changed = false
+            for(i in 1:length(ch))
+                qnet.changed |= (ch[i] & qnet.hasEdge[i])
+            end
+            if(qnet.changed)
+                i = 1
+                j = 1
+                for(e in qnet.edge)
+                    if(e.istIdentifiable)
+                        setLength!(e,x[qnet.indexht[i+qnet.numHybrids]])
+                        i += 1
+                    end
+                    if(e.hybrid && !e.isMajor)
+                        0 <= x[qnet.indexht[j]] <= 1 || error("new gamma value should be between 0,1: $(x[qnet.indexht[j]]).")
+                        setGamma!(e,x[qnet.indexht[j]])
+                        e.node[e.isChild1?1:2].hybrid || error("hybrid edge $(e.number) points at tree node.")
+                        edges = hybridEdges(e.node[e.isChild1 ? 1 : 2],e)
+                        length(edges) == 2 || error("strange here: node $(e.node[e.isChild1?1:2].number) should have 3 edges and it has $(length(edges)-1).")
+                        if(edges[1].hybrid && edges[1].isMajor)
+                            setGamma!(edges[1],1-x[qnet.indexht[j]])
+                        elseif(edges[2].hybrid && edges[2].isMajor)
+                            setGamma!(edges[2],1-x[qnet.indexht[j]])
+                        else
+                            error("strange hybrid node with only one hybrid edge $(e.number)")
+                        end
+                        j += 1
+                    end
+                end
+            end
+        else
+            error("changed (length $(length(changed))) and qnet.hasEdge (length $(length(qnet.hasEdge))) should have same length")
+        end
+    else
+        error("x (length $(length(x))) and changed $(length(changed)) should have the same length")
+    end
+end
 
 
 
