@@ -43,9 +43,14 @@ net.ht, net.numht, qnet.indexht are correctly set for Case G.
 test_optBLparts.jl tests the parts of optBL separately to see if they
 work.
 
+#### parameters
+
+test_parameters.jl get net.ht and net.numht for all the 5 taxon networks
 
 #### not automatic functions:
 
 test_extractQuartet.jl
 
 initial_tests_deleteLeaf_quartetNet.jl
+
+test_optBL.jl
