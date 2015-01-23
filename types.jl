@@ -98,7 +98,7 @@ type HybridNetwork <: Network
     leaf::Array{Node,1} # array of leaves
     ht::Vector{Float64} # vector of parameters to optimize
     numht::Vector{Int64} # vector of number of the hybrid nodes and edges in ht e.g. [3,6,8,...], 2 hybrid nodes 3,6, and edge 8 is the 1st identifiable
-    numBad::Int64 # number of bad hybrid nodes, set as 0
+    numBad::Int64 # number of bad hybrid nodes, not including bad diamond II (because gamma IS identifiable in that case), set as 0
     # maxTaxNumber::Int32 --in case it's needed later when we prune taxa
     # inner constructor
     function HybridNetwork(node::Array{Node,1},edge::Array{Edge,1})
