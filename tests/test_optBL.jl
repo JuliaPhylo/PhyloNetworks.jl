@@ -236,3 +236,46 @@ realht = [0.1,0.127,0.0285]
 #got 5.40235 at [0.1,0.12689,0.02855] after 116 iterations (returned FTOL_REACHED)
 #elapsed time: 15.648447251 seconds (17823396 bytes allocated, 0.18% gc time)
 #(5.402353356033268,[0.1,0.126887,0.0285486])
+
+# ==================================================================================================================================
+
+# test optBL with Case I Bad Diamond II
+# Claudia January 2015
+
+
+## include("../case_i_example.jl");
+## q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
+## q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
+## q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);
+## q4 = Quartet(4,["6","10","4","8"],[0.5,0.4,0.1]);
+## q5 = Quartet(5,["6","7","4","10"],[0.5,0.4,0.1]);
+
+## d = DataCF([q1,q2,q3,q4,q5]);
+## extractQuartet!(net,d)
+
+## df = writeExpCF(d.quartet)
+## writetable("CaseI_output.csv",df)
+
+include("../types.jl")
+include("../functions.jl")
+
+df = readtable("CaseI_output.csv")
+d2 = readDataCF(df)
+
+# starting ht (gamma,t3,t6,t10)
+ht = [0.2,0.0,2.0,2.0]
+
+tree = string("((((8,10):",string(ht[2]),")#H1:::",string(1-ht[1]),",7):",string(ht[3]),",6,(4,#H1:::",string(ht[1]),"):",string(ht[4]),");") # Case I Bad diamond II
+f = open("prueba_tree.txt","w")
+write(f,tree)
+close(f)
+net = readTopologyUpdate("prueba_tree.txt");
+printEdges(net)
+
+net.ht
+realht = [0.1,2.0,1.0,1.0]
+
+@time fmin,xmin=optBL(net,d2)
+#got 2.61161 at [0.10003,1.99999,1.00009,0.99932] after 252 iterations (returned FTOL_REACHED)
+#elapsed time: 48.902761577 seconds (79841272 bytes allocated, 0.12% gc time)
+#(2.6116079961283196,[0.100033,1.99999,1.00009,0.999322])
