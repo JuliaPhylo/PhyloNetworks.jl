@@ -344,7 +344,7 @@ try
 
     eliminateHybridization!(qnet)
     size(qnet.hybrid,1) != 0 || qnet.numHybrids != 0 ? error("qnet should have 0 hybrid nodes") : nothing
-    !approxEq(qnet.t1,2.0) ? error("internal edge length not correctly updated") : nothing
+    !approxEq(qnet.t1,-log(1+0.1*(1-exp(-1))-0.1*0.1*(1-exp(-1-1))-0.1*0.1*(1-exp(-1))-0.9*0.9*(1-exp(-2.)))) ? error("internal edge length not correctly updated") : nothing
 
     updateSplit!(qnet)
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
@@ -371,7 +371,7 @@ try
 
     eliminateHybridization!(qnet)
     size(qnet.hybrid,1) != 0 || qnet.numHybrids != 0 ? error("qnet should have 0 hybrid nodes") : nothing
-    !approxEq(qnet.t1,2.0) ? error("internal edge length not correctly updated") : nothing
+    !approxEq(qnet.t1,-log(1+0.1*(1-exp(-2))-0.1*0.1*(1-exp(-1))-0.1*0.1*(1-exp(-2))-0.9*0.9*(1-exp(-2.)))) ? error("internal edge length not correctly updated") : nothing
 
     updateSplit!(qnet)
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
@@ -400,7 +400,7 @@ try
 
     eliminateHybridization!(qnet)
     size(qnet.hybrid,1) != 0 || qnet.numHybrids != 0 ? error("qnet should have 0 hybrid nodes") : nothing
-    !approxEq(qnet.t1,2.-log(1+0.1*(1-exp(-1))-0.1*0.1*(1-exp(-1))-0.9*0.9*(1-exp(-1)))) ? error("internal edge length not correctly updated") : nothing
+    !approxEq(qnet.t1,-log(1+0.1*(1-exp(-1))-0.1*0.1*(1-exp(-1))-0.1*0.1*(1-exp(-1))-0.9*0.9*(1-exp(-3)))) ? error("internal edge length not correctly updated") : nothing
 
     updateSplit!(qnet)
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
@@ -447,6 +447,6 @@ end
 if(!error)
     println("----- NO ERRORS! -------")
 else
-    println("error Case F in quartet $(ind)")
+    println("error Case I in quartet $(ind)")
 end
 

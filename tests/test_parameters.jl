@@ -11,7 +11,8 @@ using Base.Collections # for updateInCycle with priority queue
 
 # test functions
 
-tests = ["C","F","G","H","J","D","E","I"];
+#tests = ["C","F","G","H","J","D","E","I"];
+tests = ["F","G","H","J","I"];
 wrong = String[];
 
 function whichtree(t::ASCIIString)
@@ -63,8 +64,8 @@ function whichtest(t::ASCIIString,net::HybridNetwork)
         all(map(approxEq,net.ht,[1.0,0.9*(1-exp(-1.)),0.1*0.1*(1-exp(-2.))+0.9*0.9*(1-exp(-1.))])) || error("net.ht wrong in case $(t)")
         net.numht == [8,31,32] || error("net.numht wrong in case $(t)")
     elseif(t == "I")
-        all(map(approxEq,net.ht,[0.1,2.0,1.0,1.0])) || error("net.ht wrong in case $(t)")
-        net.numht == [9,3,6,10] || error("net.numht wrong in case $(t)")
+        all(map(approxEq,net.ht,[0.1,2.0,1.0,1.0,1.0])) || error("net.ht wrong in case $(t)")
+        net.numht == [9,4,6,9,10] || error("net.numht wrong in case $(t)")
     else
         error("not a known 5 taxon network case")
     end

@@ -9,26 +9,10 @@ function testCaseC(net::HybridNetwork)
     n=searchHybridNode(net);
     node = n[1];
     node.k != 3 ? error("k diff than 3") : nothing
-    edge9 = getIndexEdge(9,net);
-    edge5 = getIndexEdge(5,net);
-    edge13 = getIndexEdge(13,net);
-    edge15 = getIndexEdge(15,net);
-    edge12 = getIndexEdge(12,net);
-    edge14 = getIndexEdge(14,net);
-    node5 = getIndexNode(5,net);
-    node11 = getIndexNode(11,net);
-    node12 = getIndexNode(12,net);
-    net.visited = [e.istIdentifiable for e in net.edge];
-    (net.edge[edge9].inCycle != node.number || net.edge[edge12].inCycle != node.number || net.edge[edge15].inCycle != node.number) ? error("edges not incycle") : nothing
-    (net.node[node5].inCycle != node.number || net.node[node11].inCycle != node.number || net.node[node12].inCycle != node.number) ? error("nodes not incycle") : nothing
-    net.edge[edge14].containRoot ? error("contain root wrong") : nothing
-    net.node[node5].gammaz != net.edge[edge5].y*(1-net.edge[edge15].gamma*net.edge[edge9].z) ? error("gammaz node5 updated wrong") : nothing
-    net.node[node12].gammaz != net.edge[edge13].y*(1-net.edge[edge12].gamma*net.edge[edge9].z) ? error("gammaz node 12 updated wrong") : nothing
-    net.node[node11].gammaz != net.edge[edge5].y*net.edge[edge13].y*net.edge[edge15].gamma*net.edge[edge9].z*net.edge[edge9].z*(-net.edge[edge12].gamma) ? error("gammaz node 11 updated wrong") : nothing
-    all([!e.istIdentifiable for e in net.edge]) ? nothing : error("all edges should be not identifiable and some are not")
-    node.isBadTriangleI ? error("thinks it is bad triangle I") : nothing
-    !node.isBadTriangleII ? error("does not know it is bad triangle II") : nothing
-    (net.edge[edge12].hybrid && net.edge[edge15].hybrid) ? nothing : error("hybrid edges not recognized as hybrids")
+    node.isVeryBadTriangle ? nothing : error("does not know it is very bad triangle")
+    node.isExtBadTriangle ? error("thinks it is extremely bad triangle") : nothing
+    net.hasVeryBadTriangle ? nothing : error("net does not know it has very bad triangle")
+    net.numBad == 0 ? nothing : error("net.numBad should be 0")
     net.numHybrids != 1 ? error("should have 1 hybrid, but net.numHybrids is $(net.numHybrids): $([n.number for n in net.hybrid])") : nothing
 end
 
@@ -60,6 +44,7 @@ function testCaseF(net::HybridNetwork)
     net.visited[edge9] = false;
     !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
     net.numHybrids != 1 ? error("should have 1 hybrid, but net.numHybrids is $(net.numHybrids): $([n.number for n in net.hybrid])") : nothing
+    net.numBad == 1 ? nothing : error("net.numBad should be 1")
 end
 
 # Case G
@@ -158,31 +143,11 @@ function testCaseD(net::HybridNetwork)
     net.visited = [e.istIdentifiable for e in net.edge];
     n = searchHybridNode(net);
     node = n[1];
-    edge = getHybridEdge(node);
     node.k != 3 ? error("k diff than 3") : nothing
-    edge6 = getIndexEdge(6,net);
-    edge9 = getIndexEdge(9,net);
-    edge11 = getIndexEdge(11,net);
-    edge14 = getIndexEdge(14,net);
-    edge15 = getIndexEdge(15,net);
-    edge12 = getIndexEdge(12,net);
-    edge5 = getIndexEdge(5,net);
-    node5 = getIndexNode(5,net);
-    node11 = getIndexNode(11,net);
-    node12 = getIndexNode(12,net);
-    (net.edge[edge12].inCycle != node.number || net.edge[edge15].inCycle != node.number || net.edge[edge5].inCycle != node.number ) ? error("edges not correctly in cycle") : nothing
-    (net.node[node5].inCycle  != node.number || net.node[node11].inCycle  != node.number || net.node[node12].inCycle  != node.number) ? error("nodes 5,11,12 not correctly in cycle") : nothing
-    !node.isBadTriangleI ? error("does not know it is bad triangle I") : nothing
-    node.isBadTriangleII ? error("thinks it is bad triangle II") : nothing
-    (net.edge[edge14].containRoot || net.edge[edge6].containRoot || net.edge[edge11].containRoot)  ? error("14,6,11 can contain root") : nothing
-    (!net.edge[edge5].hybrid || !net.edge[edge5].isMajor) ? error("edge 5 is not hybrid or major") : nothing
-    net.node[node11].gammaz != edge.gamma*edge.gamma*net.edge[edge12].z+(1-edge.gamma)*(1-edge.gamma)*net.edge[edge5].z ? error("node 11 gammaz not correctly calculated") : nothing
-    (net.edge[edge14].length != 0.0 || net.edge[edge14].istIdentifiable) ? error("edge 14 not correctly non identifiable length 0") : nothing
-    (net.edge[edge15].length != 0.0 || net.edge[edge15].istIdentifiable) ? error("edge 15 not correctly non identifiable length 0") : nothing
-    net.node[node12].gammaz != edge.gamma*net.edge[edge12].z ? error("node 12 gammaz not correctly calculated") : nothing
-    !net.edge[edge9].istIdentifiable ? error("edge9 not identifiable") : nothing
-    net.visited[edge9] = false;
-    !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
+    node.isVeryBadTriangle ? nothing : error("does not know it is very bad triangle")
+    node.isExtBadTriangle ? error("thinks it is extremely bad triangle") : nothing
+    net.hasVeryBadTriangle ? nothing : error("net does not know it has very bad triangle")
+    net.numBad == 0 ? nothing : error("net.numBad should be 0")
     net.numHybrids != 1 ? error("should have 1 hybrid, but net.numHybrids is $(net.numHybrids): $([n.number for n in net.hybrid])") : nothing
 end
 
@@ -191,31 +156,11 @@ function testCaseE(net::HybridNetwork)
     net.visited = [e.istIdentifiable for e in net.edge];
     n = searchHybridNode(net);
     node = n[1];
-    edge = getHybridEdge(node);
     node.k != 3 ? error("k diff than 3") : nothing
-    edge8 = getIndexEdge(8,net);
-    edge10 = getIndexEdge(10,net);
-    edge14 = getIndexEdge(14,net);
-    edge13 = getIndexEdge(13,net);
-    edge15 = getIndexEdge(15,net);
-    edge9 = getIndexEdge(9,net);
-    edge5 = getIndexEdge(5,net);
-    node5 = getIndexNode(5,net);
-    node11 = getIndexNode(11,net);
-    node12 = getIndexNode(12,net);
-    (net.edge[edge9].inCycle != node.number || net.edge[edge5].inCycle != node.number || net.edge[edge15].inCycle != node.number ) ? error("edges not correctly in cycle") : nothing
-    (net.node[node5].inCycle  != node.number || net.node[node11].inCycle  != node.number || net.node[node12].inCycle  != node.number) ? error("nodes 5,11,12 not correctly in cycle") : nothing
-    !node.isBadTriangleI ? error("does not know it is bad triangle I") : nothing
-    node.isBadTriangleII ? error("thinks it is bad triangle II") : nothing
-    (net.edge[edge8].containRoot || net.edge[edge14].containRoot || net.edge[edge10].containRoot)  ? error("14,8,10 can contain root") : nothing
-    (!net.edge[edge9].hybrid || !net.edge[edge9].isMajor) ? error("edge 9 is not hybrid or major") : nothing
-    node.gammaz != net.edge[edge9].gamma*net.edge[edge9].gamma*net.edge[edge5].z+(1-net.edge[edge9].gamma)*(1-net.edge[edge9].gamma)*net.edge[edge15].z ? error("hybrid node gammaz not correctly calculated") : nothing
-    (net.edge[edge14].length != 0.0 || net.edge[edge14].istIdentifiable) ? error("edge 14 not correctly non identifiable length 0") : nothing
-    (net.edge[edge9].length != 0.0 || net.edge[edge9].istIdentifiable) ? error("edge 9 not correctly non identifiable length 0") : nothing
-    net.node[node5].gammaz != net.edge[edge9].gamma*net.edge[edge5].z ? error("node 5 gammaz not correctly calculated") : nothing
-    !net.edge[edge13].istIdentifiable ? error("edge 13 not identifiable") : nothing
-    net.visited[edge13] = false;
-    !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
+    node.isVeryBadTriangle ? nothing : error("does not know it is very bad triangle")
+    node.isExtBadTriangle ? error("thinks it is extremely bad triangle") : nothing
+    net.hasVeryBadTriangle ? nothing : error("net does not know it has very bad triangle")
+    net.numBad == 0 ? nothing : error("net.numBad should be 0")
     net.numHybrids != 1 ? error("should have 1 hybrid, but net.numHybrids is $(net.numHybrids): $([n.number for n in net.hybrid])") : nothing
 end
 
@@ -243,12 +188,14 @@ function testCaseI(net::HybridNetwork)
     (net.node[node1].inCycle  != node.number || net.node[node12].inCycle  != node.number || net.node[node5].inCycle  != node.number || net.node[node11].inCycle  != node.number) ? error("nodes 1,5,11,12 not correctly in cycle") : nothing
     (net.edge[edge14].containRoot || net.edge[edge10].containRoot || net.edge[edge8].containRoot) ? error("edges can contain root and shouldn't") : nothing
     (!net.edge[edge9].hybrid || !net.edge[edge9].isMajor) ? error("edge 4 is not hybrid or major") : nothing
-    (net.edge[edge15].length != 0 || net.edge[edge9].length != 0) ? error("edges should have length 0") : nothing
-    (net.edge[edge9].istIdentifiable || net.edge[edge15].istIdentifiable) ? error("edge9,4 identifiable and should not") : nothing
-    net.visited[edge14] = false;
+    net.edge[edge14].length != 0 ? error("edges should have length 0") : nothing
+    net.edge[edge14].istIdentifiable ? error("edge14 identifiable and should not") : nothing
+    net.visited[edge9] = false;
     net.visited[edge5] = false;
     net.visited[edge11] = false;
+    net.visited[edge15] = false;
     !all([!id for id in net.visited]) ? error("edges not identifiable as identifiable") : nothing
+    net.numBad == 0 ? nothing : error("net.numBad should be 0")
 end
 
 

@@ -62,19 +62,20 @@ type Node <: ANode
     hasHybEdge::Bool #is there a hybrid edge in edge? only needed when hybrid=false (tree node)
     isBadDiamondI::Bool # for hybrid node, is it bad diamond case I, update in updateGammaz!
     isBadDiamondII::Bool # for hybrid node, is it bad diamond case II, update in updateGammaz!
-    isBadTriangleI::Bool # for hybrid node, is it bad triangle case I, udpate in updateGammaz!
-    isBadTriangleII::Bool # for hybrid node, is it bad triangle case II, udpate in updateGammaz!
+    isExtBadTriangle::Bool # for hybrid node, is it extremely bad triangle, udpate in updateGammaz!
+    isVeryBadTriangle::Bool # for hybrid node, is it very bad triangle, udpate in updateGammaz!
+    isBadTriangle::Bool # for hybrid node, is it very bad triangle, udpate in updateGammaz!
     inCycle::Int64 # = hybrid node if this node is part of a cycle created by such hybrid node, -1 if not part of cycle
     prev # previous node in cycle, used in updateInCycle. defined as "Any", set as "nothing" to begin with
     k::Int64 # number of nodes in cycle, only stored in hybrid node and updated after node becomes part of network
              # default -1
     typeHyb::Int64 # type of hybridization, needed for quartet network only, default -1
     # inner constructor: set hasHybEdge depending on edge
-    Node() = new(-1.,false,false,-1.,[],false,false,false,false,false,-1.,nothing,-1,-1)
-    Node(number::Int64, leaf::Bool) = new(number,leaf,false,-1.,[],false,false,false,false,false,-1.,nothing,-1,-1)
-    Node(number::Int64, leaf::Bool, hybrid::Bool) = new(number,leaf,hybrid,-1.,[],hybrid,false,false,false,false,-1.,nothing,-1,-1)
-    Node(number::Int64, leaf::Bool, hybrid::Bool, edge::Array{Edge,1})=new(number,leaf,hybrid,-1.,edge,!all([!edge[i].hybrid for i=1:size(edge,1)]),false,false,false,false,-1.,nothing,-1,-1)
-    Node(number::Int64, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Array{Edge,1}) = new(number,leaf,hybrid,gammaz,edge,!all([!e.hybrid for e in edge]),false,false,false,false,-1.,nothing,-1,-1)
+    Node() = new(-1.,false,false,-1.,[],false,false,false,false,false,false,-1.,nothing,-1,-1)
+    Node(number::Int64, leaf::Bool) = new(number,leaf,false,-1.,[],false,false,false,false,false,false,-1.,nothing,-1,-1)
+    Node(number::Int64, leaf::Bool, hybrid::Bool) = new(number,leaf,hybrid,-1.,[],hybrid,false,false,false,false,false,-1.,nothing,-1,-1)
+    Node(number::Int64, leaf::Bool, hybrid::Bool, edge::Array{Edge,1})=new(number,leaf,hybrid,-1.,edge,!all([!edge[i].hybrid for i=1:size(edge,1)]),false,false,false,false,false,-1.,nothing,-1,-1)
+    Node(number::Int64, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Array{Edge,1}) = new(number,leaf,hybrid,gammaz,edge,!all([!e.hybrid for e in edge]),false,false,false,false,false,-1.,nothing,-1,-1)
 end
 
 abstract Network
@@ -98,7 +99,8 @@ type HybridNetwork <: Network
     leaf::Array{Node,1} # array of leaves
     ht::Vector{Float64} # vector of parameters to optimize
     numht::Vector{Int64} # vector of number of the hybrid nodes and edges in ht e.g. [3,6,8,...], 2 hybrid nodes 3,6, and edge 8 is the 1st identifiable
-    numBad::Int64 # number of bad hybrid nodes, not including bad diamond II (because gamma IS identifiable in that case), set as 0
+    numBad::Int64 # number of bad diamond I hybrid nodes, set as 0
+    hasVeryBadTriangle::Bool # true if the network has extremely/very bad triangles that should be ignored
     # maxTaxNumber::Int32 --in case it's needed later when we prune taxa
     # inner constructor
     function HybridNetwork(node::Array{Node,1},edge::Array{Edge,1})

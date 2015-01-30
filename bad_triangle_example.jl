@@ -5,7 +5,7 @@
 
 include("types.jl")
 include("functions.jl")
-using DataStructures # for updateInCycle with queue
+#using DataStructures # for updateInCycle with queue
 using Base.Collections # for updateInCycle with priority queue
 
 ed1=Edge(1,0.6,true,0.7);

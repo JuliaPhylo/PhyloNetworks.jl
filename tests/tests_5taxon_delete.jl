@@ -3,6 +3,7 @@
 # Claudia September 2014
 ##########################################################
 
+warn("to run tests_5taxon_delete.jl, you need to set updateGammaz to return true always. this is because we have bad triangles in here")
 # types in "types.jl"
 include("../types.jl")
 
@@ -14,7 +15,7 @@ include("test_functions_5taxon.jl")
 
 tests = ["C","F","G","H","J","D","E","I"];
 wrong = String[];
-
+t="C"
 for t in tests
     include("../functions.jl")
     include("tree_example.jl");
