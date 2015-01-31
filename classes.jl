@@ -31,6 +31,77 @@ include("tree_example.jl");
 # ---------------------- branch length optimization ---------------------------------
 
 
+# function to update qnet.indexht,qnet.index based on net.numht
+# warning: assumes net.numht is updated already with parameters!(net)
+function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
+    size(net.numht,1) > 0 || error("net.numht not correctly updated, need to run parameters first")
+    size(qnet.indexht,1) == 0 ||  warn("deleting qnet.indexht to replace with info in net")
+    nh = net.numht[1 : net.numHybrids - net.numBad]
+    k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
+    nt = net.numht[net.numHybrids - net.numBad + 1 : net.numHybrids - net.numBad + k]
+    nhz = net.numht[net.numHybrids - net.numBad + k + 1 : length(net.numht)]
+    qnh = Int64[]
+    qnt = Int64[]
+    qnhz = Int64[]
+    qindxh = Int64[]
+    qindxt = Int64[]
+    qindxhz = Int64[]
+    for(e in qnet.edge)
+        if(e.istIdentifiable)
+            try
+                getIndex(e.number,nt)
+            catch
+                error("identifiable edge $(e.number) in qnet not found in net")
+            end
+            push!(qnt, getIndex(e.number,nt) + net.numHybrids - net.numBad)
+            push!(qindxt, getIndex(e,qnet))
+        end
+        if(!e.istIdentifiable && all([!n.leaf for n in e.node]) && !e.hybrid && !approxEq(e.length,0.0)) # tree edge not identifiable but internal with length!=0 (not bad diamII nor bad triangle)
+            if(qnet.numHybrids != 1 || !qnet.hybrid[1].isBadDiamondI)
+                try
+                    getIndex(e.number,nhz)
+                catch
+                    error("internal edge $(e.number) corresponding to gammaz in qnet not found in net.ht")
+                end
+                push!(qnhz, getIndex(e.number,nhz) + net.numHybrids - net.numBad + k)
+                push!(qindxhz, getIndex(node,qnet))
+            end
+        end
+        if(e.hybrid && !e.isMajor)
+            node = e.node[e.isChild1 ? 1 : 2]
+            node.hybrid || error("strange hybrid edge $(e.number) poiting to tree node $(node.number)")
+            if(!node.isBadDiamondI)
+                found = true
+                try
+                    getIndex(e.number,nh)
+                catch
+                    found = false
+                end
+                found  ? push!(qnh, getIndex(e.number,nh)) : nothing
+                found ? push!(qindxh, getIndex(e,qnet)) : nothing
+            else
+                ind1 = int(string(string(node.number),"1"))
+                ind2 = int(string(string(node.number),"2"))
+                if(isNodeNumIn(node,qnet.hybrid))
+                    try
+                        getIndex(ind1,nhz)
+                    catch
+                        error("qnet with hybrid node bad diamond I that does not have gammaz1")
+                    end
+                    i = getIndex(ind1,nhz)
+                    edges = hybridEdges(node)
+                    push!(qnhz,i+net.numHybrids-net.numBad+k)
+                    push!(qnhz,i+1+net.numHybrids-net.numBad+k)
+                    push!(qindxhz,getIndex(getOtherNode(edges[1],node)))
+                    push!(qindxhz,getIndex(getOtherNode(edges[2],node)))
+                end
+            end
+        end
+    end # for qnet.edge
+    qnet.indexht = vcat(qnh,qnt,qnhz)
+    qnet.index = vact(qindxh,qindxt,qindxhz)
+end
+
 
 
 
