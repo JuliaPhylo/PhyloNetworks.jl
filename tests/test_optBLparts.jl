@@ -1,6 +1,7 @@
 # test the components in optBL separately
 # Claudia January 2015
 
+globalerror = false
 println("--------- Case G --------------")
 include("../case_g_example.jl");
 
@@ -148,6 +149,8 @@ end
 
 if(!error)
     println("-------------Case G: NO ERRORS!------------")
+else
+    globalerror = true
 end
 
 println("--------- Case F Bad Diamond I --------------")
@@ -165,7 +168,7 @@ extractQuartet!(net,d)
 
 oldht = net.ht
 
-x = [0.3,0.2,0.1]
+x = [0.4,0.2,0.1]
 error = false
 
 println("x is $(x) all changed-----------")
@@ -256,7 +259,10 @@ end
 
 if(!error)
     println("-------------Case F: NO ERRORS!------------")
+else
+    globalerror = true
 end
+
 
 println("--------- Case I Bad Diamond II --------------")
 include("../case_i_example.jl");
@@ -272,7 +278,7 @@ extractQuartet!(net,d)
 
 oldht = net.ht
 
-x = [0.2,0.2,0.1,0.1]
+x = [0.2,0.2,0.1,0.1,0.1]
 error = false
 
 println("x is $(x) all changed-----------")
@@ -284,15 +290,15 @@ try
 
     update!(q2.qnet,x,net)
     q2.qnet.edge[8].gamma != x[1] || q2.qnet.edge[4].gamma != 1-x[1]  ? error("qnet gamma not correct") : nothing
-    (q2.qnet.edge[3].length !=x[2] || q2.qnet.edge[6].length !=x[3] || q2.qnet.edge[9].length !=x[4])  ? error("qnet edges lengths not correct") : nothing
+    (q2.qnet.edge[4].length !=x[2] || q2.qnet.edge[6].length !=x[3] || q2.qnet.edge[8].length !=x[4] || q2.qnet.edge[9].length !=x[5])  ? error("qnet edges lengths not correct") : nothing
 
     update!(q3.qnet,x,net)
     q3.qnet.edge[8].gamma != x[1] || q3.qnet.edge[4].gamma != 1-x[1]  ? error("qnet gamma not correct") : nothing
-    (q3.qnet.edge[3].length !=x[2] || q3.qnet.edge[6].length !=x[3] || q3.qnet.edge[9].length !=x[4])  ? error("qnet edges lengths not correct") : nothing
+    (q2.qnet.edge[4].length !=x[2] || q2.qnet.edge[6].length !=x[3] || q2.qnet.edge[8].length !=x[4] || q2.qnet.edge[9].length !=x[5])  ? error("qnet edges lengths not correct") : nothing
 
     update!(q4.qnet,x,net)
     q4.qnet.edge[8].gamma != x[1] || q4.qnet.edge[4].gamma != 1-x[1]  ? error("qnet gamma not correct") : nothing
-    (q4.qnet.edge[3].length !=x[2] || q4.qnet.edge[5].length !=x[3] || q4.qnet.edge[9].length !=x[4])  ? error("qnet edges lengths not correct") : nothing
+    (q2.qnet.edge[4].length !=x[2] || q2.qnet.edge[6].length !=x[3] || q2.qnet.edge[8].length !=x[4] || q2.qnet.edge[9].length !=x[5])  ? error("qnet edges lengths not correct") : nothing
 
     update!(q5.qnet,x,net)
     q5.qnet.edge[7].gamma != x[1] || q5.qnet.edge[2].gamma != 1-x[1]  ? error("qnet gamma not correct") : nothing
@@ -311,7 +317,7 @@ for q in d.quartet
 end
 update!(net,oldht)
 
-x = [0.1,0.2,1.,1.] # changing t3 only
+x = [0.1,0.2,1.,1.,1.] # changing t3 only
 error = false
 
 println("x is $(x) changing t3 only-----------")
@@ -323,15 +329,15 @@ try
 
     update!(q2.qnet,x,net)
     q2.qnet.edge[8].gamma != x[1] || q2.qnet.edge[4].gamma != 1-x[1]  ? error("qnet gamma not correct") : nothing
-    (q2.qnet.edge[3].length !=x[2] || q2.qnet.edge[6].length !=x[3] || q2.qnet.edge[9].length !=x[4])  ? error("qnet edges lengths not correct") : nothing
+    (q2.qnet.edge[4].length !=x[2] || q2.qnet.edge[6].length !=x[3] || q2.qnet.edge[8].length !=x[4] || q2.qnet.edge[9].length !=x[5])  ? error("qnet edges lengths not correct") : nothing
 
     update!(q3.qnet,x,net)
     q3.qnet.edge[8].gamma != x[1] || q3.qnet.edge[4].gamma != 1-x[1]  ? error("qnet gamma not correct") : nothing
-    (q3.qnet.edge[3].length !=x[2] || q3.qnet.edge[6].length !=x[3] || q3.qnet.edge[9].length !=x[4])  ? error("qnet edges lengths not correct") : nothing
+    (q2.qnet.edge[4].length !=x[2] || q2.qnet.edge[6].length !=x[3] || q2.qnet.edge[8].length !=x[4] || q2.qnet.edge[9].length !=x[5])  ? error("qnet edges lengths not correct") : nothing
 
     update!(q4.qnet,x,net)
     q4.qnet.edge[8].gamma != x[1] || q4.qnet.edge[4].gamma != 1-x[1]  ? error("qnet gamma not correct") : nothing
-    (q4.qnet.edge[3].length !=x[2] || q4.qnet.edge[5].length !=x[3] || q4.qnet.edge[9].length !=x[4])  ? error("qnet edges lengths not correct") : nothing
+    (q2.qnet.edge[4].length !=x[2] || q2.qnet.edge[6].length !=x[3] || q2.qnet.edge[8].length !=x[4] || q2.qnet.edge[9].length !=x[5])  ? error("qnet edges lengths not correct") : nothing
 
     update!(q5.qnet,x,net)
     q5.qnet.edge[7].gamma != x[1] || q5.qnet.edge[2].gamma != 1-x[1]  ? error("qnet gamma not correct") : nothing
@@ -353,14 +359,17 @@ update!(net,oldht)
 
 
 # ---- calculateExpCF
-x = [0.2,0.2,0.1,0.1]
+x = [0.2,0.2,0.1,0.1,0.1]
 println("---- calculate expCF for $(x)")
 try
     calculateExpCFAll!(d,x,net)
     all(map(approxEq,q1.qnet.expCF,[(1-x[1])*(1/3*exp(-x[3]))+x[1]*(1-2/3*exp(-x[4])),(1-x[1])*(1-2/3*exp(-x[3]))+x[1]*(1/3*exp(-x[4])),(1-x[1])*(1/3*exp(-x[3]))+x[1]*(1/3*exp(-x[4]))])) || error("q1 expCF wrong")
-    all(map(approxEq,q2.qnet.expCF, [1-2/3*exp(-x[2]),1/3*exp(-x[2]),1/3*exp(-x[2])])) || error("q2 expCF wrong")
-    all(map(approxEq,q3.qnet.expCF, [1/3*exp(-x[2]),1/3*exp(-x[2]),1-2/3*exp(-x[2])])) || error("q3 expCF wrong")
-    all(map(approxEq,q4.qnet.expCF,[1/3*exp(-x[1]+log(1+x[1]*(1-exp(-x[4]))-x[1]*x[1]*(1-exp(-x[4]))-(1-x[1])*(1-x[1])*(1-exp(-x[3])))),1-2/3*exp(-x[1]+log(1+x[1]*(1-exp(-x[4]))-x[1]*x[1]*(1-exp(-x[4]))-(1-x[1])*(1-x[1])*(1-exp(-x[3])))),1/3*exp(-x[1]+log(1+x[1]*(1-exp(-x[4]))-x[1]*x[1]*(1-exp(-x[4]))-(1-x[1])*(1-x[1])*(1-exp(-x[3]))))])) || error("q4 expCF wrong")
+    t=-log(1+x[1]*(1-exp(-x[3]))-x[1]*x[1]*(1-exp(-x[5]-x[4]))-x[1]*x[1]*(1-exp(-x[3]))-(1-x[1])*(1-x[1])*(1-exp(-x[2])))
+    all(map(approxEq,q2.qnet.expCF, [1-2/3*exp(-t),1/3*exp(-t),1/3*exp(-t)])) || error("q2 expCF wrong")
+    t=-log(1+x[1]*(1-exp(-x[3]-x[5]))-x[1]*x[1]*(1-exp(-x[4]))-x[1]*x[1]*(1-exp(-x[3]-x[5]))-(1-x[1])*(1-x[1])*(1-exp(-x[2])))
+    all(map(approxEq,q3.qnet.expCF, [1/3*exp(-t),1/3*exp(-t),1-2/3*exp(-t)])) || error("q3 expCF wrong")
+    t=-log(1+x[1]*(1-exp(-x[5]))-x[1]*x[1]*(1-exp(-x[5]))-x[1]*x[1]*(1-exp(-x[4]))-(1-x[1])*(1-x[1])*(1-exp(-x[3]-x[2])))
+    all(map(approxEq,q4.qnet.expCF, [1/3*exp(-t),1-2/3*exp(-t),1/3*exp(-t)])) || error("q4 expCF wrong")
     all(map(approxEq,q5.qnet.expCF,[(1-x[1])*(1/3*exp(-x[3]))+x[1]*(1-2/3*exp(-x[4])),(1-x[1])*(1-2/3*exp(-x[3]))+x[1]*(1/3*exp(-x[4])),(1-x[1])*(1/3*exp(-x[3]))+x[1]*(1/3*exp(-x[4]))])) || error("q5 expCF wrong")
 
 catch
@@ -371,4 +380,10 @@ end
 
 if(!error)
     println("-------------Case I: NO ERRORS!------------")
+else
+    globalerror = true
+end
+
+if(!globalerror)
+    println("-------- NO ERRORS!-------------")
 end

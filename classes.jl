@@ -30,6 +30,7 @@ include("tree_example.jl");
 
 # ---------------------- branch length optimization ---------------------------------
 
+
 # function to update a QuartetNetwork for a given
 # vector of parameters based on a boolean vector "changed"
 # which shows which parameters have changed
@@ -39,25 +40,34 @@ function update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork)
     length(ch) == length(qnet.hasEdge) || error("changed (length $(length(changed))) and qnet.hasEdge (length $(length(qnet.hasEdge))) should have same length")
     qnet.changed = false
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
-    if(qnet.numHybrids == 1 || qnet.hybrid[1].isBadDiamondI)
-        for(i in (net.numHybrids - net.numBad + k + 1):length(x))
-            if(qnet.hasEdge[i] && ch[i])
-                qnet.changed = true
+    for(i in 1:length(ch))
+        qnet.changed |= (ch[i] & qnet.hasEdge[i])
+    end
+    if(qnet.changed)
+        if(qnet.numHybrids == 1 && qnet.hybrid[1].isBadDiamondI) # qnet.indexht is only two values: gammaz1,gammaz2
+            length(qnet.indexht) == 2 || error("strange qnet from bad diamond I with hybrid node, it should have only 2 elements: gammaz1,gammaz2, not $(length(qnet.indexht))")
+            for(i in 1:2)
                 0 <= x[qnet.indexht[i]] <= 1 || error("new gammaz value should be between 0,1: $(x[qnet.indexht[i]]).")
                 qnet.node[qnet.index[i]].gammaz = x[qnet.indexht[i]]
-                0 <= x[qnet.indexht[i+1]] <= 1 || error("new gammaz value should be between 0,1: $(x[qnet.indexht[i+1]]).")
-                qnet.node[qnet.index[i+1]].gammaz = x[qnet.indexht[i+1]]
-                break
             end
-        end
-    else
-        for(i in 1:length(x))
-            if(qnet.hasEdge[i] && ch[i])
-                qnet.changed |= true
-                if(i <= net.numHybrids - net.numBad)
+        else
+            for i in 1:length(qnet.indexht)
+                if(qnet.indexht[i] <= net.numHybrids - net.numBad)
                     0 <= x[qnet.indexht[i]] <= 1 || error("new gamma value should be between 0,1: $(x[qnet.indexht[i]]).")
+                    qnet.edge[qnet.index[i]].hybrid || error("something odd here, optimizing gamma for tree edge $(qnet.edge[qnet.index[i]].number)")
                     setGamma!(qnet.edge[qnet.index[i]],x[qnet.indexht[i]])
-                elseif(i <= net.numHybrids - net.numBad + k)
+                    node = qnet.edge[qnet.index[i]].node[qnet.edge[qnet.index[i]].isChild1 ? 1 : 2]
+                    node.hybrid || error("hybrid edge $(qnet.edge[qnet.index[i]].number) pointing at tree node $(node.number)")
+                    edges = hybridEdges(node,qnet.edge[qnet.index[i]])
+                    length(edges) == 2 || error("strange here: node $(node.number) should have 3 edges and it has $(length(edges)+1).")
+                    if(edges[1].hybrid && !edges[2].hybrid)
+                        setGamma!(edges[1],1-x[qnet.indexht[i]])
+                    elseif(edges[2].hybrid && !edges[1].hybrid)
+                        setGamma!(edges[2],1-x[qnet.indexht[i]])
+                    else
+                        error("strange hybrid node $(node.number) with only one hybrid edge or with three hybrid edges")
+                    end
+                elseif(qnet.indexht[i] <= net.numHybrids - net.numBad + k)
                     setLength!(qnet.edge[qnet.index[i]],x[qnet.indexht[i]])
                 else
                     0 <= x[qnet.indexht[i]] <= 1 || error("new gammaz value should be between 0,1: $(x[qnet.indexht[i]]).")

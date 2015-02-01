@@ -262,10 +262,11 @@ include("../functions.jl")
 df = readtable("CaseI_output.csv")
 d2 = readDataCF(df)
 
-# starting ht (gamma,t3,t6,t10)
-ht = [0.2,0.0,2.0,2.0]
+# starting ht (gamma,t4,t6,t9,t10)
+ht = [0.2,0.0,2.0,2.0,2.0]
+ht = [0.2,0.0,0.5,0.5,0.5]
 
-tree = string("((((8,10):",string(ht[2]),")#H1:::",string(1-ht[1]),",7):",string(ht[3]),",6,(4,#H1:::",string(ht[1]),"):",string(ht[4]),");") # Case I Bad diamond II
+tree = string("((((8,10):",string(ht[2]),")#H1:::",string(1-ht[1]),",7):",string(ht[3]),",6,(4,#H1:",string(ht[4]),"::",string(ht[1]),"):",string(ht[5]),");") # Case I Bad diamond II
 f = open("prueba_tree.txt","w")
 write(f,tree)
 close(f)
@@ -273,9 +274,15 @@ net = readTopologyUpdate("prueba_tree.txt");
 printEdges(net)
 
 net.ht
-realht = [0.1,2.0,1.0,1.0]
+realht = [0.1,2.0,1.0,1.0,1.0]
 
 @time fmin,xmin=optBL(net,d2)
-#got 2.61161 at [0.10003,1.99999,1.00009,0.99932] after 252 iterations (returned FTOL_REACHED)
-#elapsed time: 48.902761577 seconds (79841272 bytes allocated, 0.12% gc time)
-#(2.6116079961283196,[0.100033,1.99999,1.00009,0.999322])
+# with ht = [0.2,0.0,0.5,0.5,0.5]
+#got 3.69564 at [0.09753,1.97129,0.99532,0.46822,1.04214] after 267 iterations (returned FTOL_REACHED)
+#elapsed time: 45.70869142 seconds (35023452 bytes allocated, 0.06% gc time)
+#(3.6956398763931144,[0.0975269,1.97129,0.995318,0.468224,1.04214])
+
+#ht: [0.2,1.0,2.0,2.0,2.0]
+#got 3.69564 at [0.1034,2.03878,1.00653,3.58586,0.94929] after 176 iterations (returned FTOL_REACHED)
+#elapsed time: 15.743171805 seconds (17639780 bytes allocated)
+#(3.6956415275081724,[0.103403,2.03878,1.00653,3.58586,0.949288])
