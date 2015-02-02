@@ -24,59 +24,61 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
-
-
-
-
-# ---------------------- branch length optimization ---------------------------------
-
-
-# function to update a QuartetNetwork for a given
-# vector of parameters based on a boolean vector "changed"
-# which shows which parameters have changed
-function update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork)
-    ch = changed(net,x)
-    length(x) == length(ch) || error("x (length $(length(x))) and changed $(length(changed)) should have the same length")
-    length(ch) == length(qnet.hasEdge) || error("changed (length $(length(changed))) and qnet.hasEdge (length $(length(qnet.hasEdge))) should have same length")
-    qnet.changed = false
-    k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
-    for(i in 1:length(ch))
-        qnet.changed |= (ch[i] & qnet.hasEdge[i])
-    end
-    if(qnet.changed)
-        if(qnet.numHybrids == 1 && qnet.hybrid[1].isBadDiamondI) # qnet.indexht is only two values: gammaz1,gammaz2
-            length(qnet.indexht) == 2 || error("strange qnet from bad diamond I with hybrid node, it should have only 2 elements: gammaz1,gammaz2, not $(length(qnet.indexht))")
-            for(i in 1:2)
-                0 <= x[qnet.indexht[i]] <= 1 || error("new gammaz value should be between 0,1: $(x[qnet.indexht[i]]).")
-                qnet.node[qnet.index[i]].gammaz = x[qnet.indexht[i]]
-            end
-        else
-            for i in 1:length(qnet.indexht)
-                if(qnet.indexht[i] <= net.numHybrids - net.numBad)
-                    0 <= x[qnet.indexht[i]] <= 1 || error("new gamma value should be between 0,1: $(x[qnet.indexht[i]]).")
-                    qnet.edge[qnet.index[i]].hybrid || error("something odd here, optimizing gamma for tree edge $(qnet.edge[qnet.index[i]].number)")
-                    setGamma!(qnet.edge[qnet.index[i]],x[qnet.indexht[i]])
-                    node = qnet.edge[qnet.index[i]].node[qnet.edge[qnet.index[i]].isChild1 ? 1 : 2]
-                    node.hybrid || error("hybrid edge $(qnet.edge[qnet.index[i]].number) pointing at tree node $(node.number)")
-                    edges = hybridEdges(node,qnet.edge[qnet.index[i]])
-                    length(edges) == 2 || error("strange here: node $(node.number) should have 3 edges and it has $(length(edges)+1).")
-                    if(edges[1].hybrid && !edges[2].hybrid)
-                        setGamma!(edges[1],1-x[qnet.indexht[i]])
-                    elseif(edges[2].hybrid && !edges[1].hybrid)
-                        setGamma!(edges[2],1-x[qnet.indexht[i]])
-                    else
-                        error("strange hybrid node $(node.number) with only one hybrid edge or with three hybrid edges")
-                    end
-                elseif(qnet.indexht[i] <= net.numHybrids - net.numBad + k)
-                    setLength!(qnet.edge[qnet.index[i]],x[qnet.indexht[i]])
-                else
-                    0 <= x[qnet.indexht[i]] <= 1 || error("new gammaz value should be between 0,1: $(x[qnet.indexht[i]]).")
-                    setLength!(qnet.edge[qnet.index[i]],-log(1-x[qnet.indexht[i]]))
-                end
-            end
-        end
-    end
+# function to check if an edge is internal edge
+function isInternalEdge(edge::Edge)
+    length(edge.node) == 2 || error("edge $(edge.number) has $(length(edge.node)) nodes, should be 2")
+    return !edge.node[1].leaf && !edge.node[2].leaf
 end
+
+# function to check if the two node of an edge
+# do not have hybrid edges
+function hasNeighborHybrid(edge::Edge)
+    length(edge.node) == 2 || error("edge $(edge.number) has $(length(edge.node)) nodes, should be 2")
+    return edge.node[1].hasHybEdge || edge.node[2].hasHybEdge
+end
+
+# function to choose a tree edge for NNI
+# its two nodes must have hasHybEdge=false
+# fixit: how to stop from infinite loop if there are no options
+function chooseEdgeNNI(net::Network)
+    index1 = 0
+    while(index1 == 0 || index1 > size(net.edge,1) || net.edge[index1].hybrid || hasNeighborHybrid(net.edge[index1]) || !isInternalEdge(net.edge[index1]))
+        index1 = iround(rand()*size(net.edge,1));
+    end
+    return net.edge[index1]
+end
+
+# tree move NNI
+# it does not consider keeping the same setup
+# as a possibility
+function NNI!(net::Network)
+    edge = chooseEdgeNNI(net)
+    edges1 = hybridEdges(edge.node[1],edge)
+    edges2 = hybridEdges(edge.node[2],edge)
+    (!edges1[1].hybrid && !edges1[2].hybrid) || error("cannot do tree move NNI if one of the edges is hybrid: check neighbors of edge $(edge.number)")
+    (!edges2[1].hybrid && !edges2[2].hybrid) || error("cannot do tree move NNI if one of the edges is hybrid: check neighbors of edge $(edge.number)")
+    removeEdge!(edge.node[1],edges1[2])
+    removeNode!(edge.node[1],edges1[2])
+    removeEdge!(edge.node[2],edges2[1])
+    removeNode!(edge.node[2],edges2[1])
+    removeEdge!(edge.node[2],edges2[2])
+    removeNode!(edge.node[2],edges2[2])
+    if(rand() < 0.5)
+        i = 1
+        j = 2
+    else
+        i = 2
+        j = 1
+    end
+    setNode!(edges2[i],edge.node[1])
+    setEdge!(edge.node[1],edges2[i])
+    setNode!(edges1[2],edge.node[2])
+    setEdge!(edge.node[2],edges1[2])
+    setNode!(edges2[j],edge.node[2])
+    setEdge!(edge.node[2],edges2[j])
+    println("tree move NNI done on edge $(edge.number)")
+end
+
 
 
 
