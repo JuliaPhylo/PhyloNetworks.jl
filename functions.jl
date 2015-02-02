@@ -208,16 +208,13 @@ end
 
 # find the index of a node in edge.node
 function getIndexNode(edge::Edge,node::Node)
-    if(size(edge.node,1) == 2)
-        if(isequal(node,edge.node[1]))
-            return 1
-        elseif(isequal(node,edge.node[2]))
-            return 2
-        else
-            error("node not in edge.node")
-        end
+    size(edge.node,1) == 2 || warn("this edge $(edge.number) has more or less than 2 nodes")
+    if(isequal(node,edge.node[1]))
+        return 1
+    elseif(isequal(node,edge.node[2]))
+        return 2
     else
-        error("this edge has more than 2 nodes")
+        error("node not in edge.node")
     end
 end
 
@@ -644,7 +641,7 @@ function removeEdge!(node::Node,edge::Edge)
     all([!e.hybrid for e in node.edge]) ? node.hasHybEdge = false : node.hasHybEdge = true;
 end
 
-# function to remove an node from a edge
+# function to remove a node from a edge
 # warning: deletion is final, you can only
 #          have node back by pushing it again
 # warning: only removes node from edge, edge might still
@@ -654,7 +651,7 @@ function removeNode!(node::Node,edge::Edge)
         index = getIndexNode(edge,node);
     catch e
         if isa(e, ErrorException)
-            error("node not in edge or strange edge with more than 2 nodes")
+            error("node $(node.number) not in edge or strange edge with more than 2 nodes")
         end
     end
     index = getIndexNode(edge,node);
@@ -1603,10 +1600,11 @@ end
 #          also excludes tree1 and tree2 around
 #          othermin, and all hybrid edges
 function chooseEdgeOrigin(net::HybridNetwork,tree::Edge,tree1::Edge,tree2::Edge)
-    index1 = 1;
+    index1 = 0;
     while(index1 == 0 || index1 > size(net.edge,1) || net.edge[index1].inCycle != -1 || isequal(net.edge[index1],tree) || isequal(net.edge[index1],tree1) || isequal(net.edge[index1],tree2) || net.edge[index1].hybrid)
         index1 = iround(rand()*size(net.edge,1));
     end
+    println("chosen edge $(net.edge[index1].number) for move origin or target")
     return net.edge[index1]
 end
 
@@ -1619,7 +1617,7 @@ end
 function moveOrigin(node::Node, other1::Node, other2::Node, tree1::Edge, tree2::Edge,newedge::Edge)
     node.hybrid || error("cannot move origin of hybridization because node $(node.number) is not hybrid")
     size(newedge.node,1) == 2 || error("strange edge $(newedge.number) that has $(size(newedge.node,1)) nodes instead of 2")
-    node1 = newedge.node[1];
+    node1 = newedge.node[1]; # not waste of memory, needed step
     node2 = newedge.node[2];
     removeEdge!(other1,tree1)
     removeNode!(other1,tree1)
@@ -1659,7 +1657,7 @@ function moveOriginUpdate!(net::HybridNetwork, node::Node, random::Bool)
     major,minor,tree = hybridEdges(node);
     if(random)
         (major.gamma > 0.5 && major.gamma != 1.0) || error("strange major hybrid edge $(major.number) with gamma $(major.gamma) either less than 0.5 or equal to 1.0")
-        othermin = rand() < major.gamma ? getOtherNode(major,node) : getOtherNode(minor,node)
+        othermin = rand() < major.gamma ? getOtherNode(minor,node) : getOtherNode(major,node)
     else
         othermin = getOtherNode(minor,node);
     end
@@ -1705,10 +1703,77 @@ function moveTarget(node::Node, major::Edge, tree::Edge, newedge::Edge)
     length(newedge.node) == 2 || error("strange edge $(newedge.number) that has $(size(newedge.node,1)) nodes instead of 2")
     othermajor = getOtherNode(major,node)
     treenode = getOtherNode(tree,node)
+    node1 = newedge.node[1] # not waste of memory, needed step
+    node2 = newedge.node[2]
+    println("newedge is $(newedge.number), othermajor $(othermajor.number), treenode $(treenode.number), node1 $(node1.number), node2 $(node2.number)")
     removeEdge!(othermajor,major)
     removeNode!(othermajor,major)
     removeEdge!(treenode,tree)
     removeNode!(treenode,tree)
+    removeEdge!(node1,newedge)
+    removeNode!(node1,newedge)
+    removeEdge!(node2,newedge)
+    removeNode!(node2,newedge)
+    setNode!(newedge,othermajor)
+    setEdge!(othermajor,newedge)
+    setNode!(newedge,treenode)
+    setEdge!(treenode,newedge)
+    setNode!(major,node1)
+    setEdge!(node1,major)
+    setNode!(tree,node2)
+    setEdge!(node2,tree)
+    t1 = major.length
+    t2 = tree.length
+    t = newedge.length
+    setLength!(newedge,t1+t2)
+    setLength!(major,t1/(t1+t2)*t)
+    setLength!(tree,t2/(t1+t2)*t)
+end
+
+
+# function to move the target of a hybrid edge
+# and update everything that needs update: gammaz, incycle
+# input: network, hybrid node, random flag
+#        random = true, moves the target of hybrid egde at random
+#        (minor with prob 1-gamma, major with prob gamma)
+#        random = false, moves the target of the minor edge always
+# returns: success (bool), flag, nocycle, flag2
+function moveTargetUpdate!(net::HybridNetwork, node::Node, random::Bool)
+    node.hybrid || error("node $(node.number) is not hybrid, so we cannot delete hybridization event around it")
+    nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,node);
+    !nocycle || error("hybrid node $(node.number) does not create a cycle")
+    major,minor,tree = hybridEdges(node);
+    if(random)
+        (major.gamma > 0.5 && major.gamma != 1.0) || error("strange major hybrid edge $(major.number) with gamma $(major.gamma) either less than 0.5 or equal to 1.0")
+        othermajor = rand() < major.gamma ? getOtherNode(major,node) : getOtherNode(minor,node)
+        othermin = rand() < major.gamma ? getOtherNode(minor,node) : getOtherNode(major,node)
+    else
+        othermajor = getOtherNode(major,node);
+        othermin = getOtherNode(minor,node);
+    end
+    edgebla, tree1, tree2 = hybridEdges(othermin);
+    undoGammaz!(node);
+    undoInCycle!(edgesInCycle, nodesInCycle);
+    newedge = chooseEdgeOrigin(net,tree,tree1,tree2)
+    #println("chosen edge $(newedge.number)")
+    moveTarget(node,major,tree,newedge)
+    flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,node);
+    !nocycle || return false,flag,nocycle,true
+    if(flag)
+        flag2, edgesGammaz = updateGammaz!(net,node)
+        if(flag2)
+            return true,flag,nocycle,flag2
+        else
+            undoistIdentifiable!(edgesGammaz);
+            undoGammaz!(node);
+            undoInCycle!(edgesInCycle, nodesInCycle);
+            return false, flag, nocycle, flag2
+        end
+    else
+        undoInCycle!(edgesInCycle, nodesInCycle);
+        return false, flag, nocycle, true
+    end
+end
 
 
 
@@ -2398,37 +2463,28 @@ end
 # used in deleteLeaf
 # input: hybrid node
 function makeNodeTree!(net::Network, hybrid::Node)
-    if(hybrid.hybrid)
-        warn("we make node $(hybrid.number) a tree node, but it can still have hybrid edges pointing at it")
-        hybrid.gammaz = -1
-        hybrid.isBadDiamondI = false
-        hybrid.isBadDiamondII = false
-        hybrid.isBadTriangle = false
-        hybrid.k = -1
-        removeHybrid!(net,hybrid)
-        hybrid.hybrid = false
-    else
-        error("cannot make node $(hybrid.number) tree node because it already is")
-    end
+    hybrid.hybrid || error("cannot make node $(hybrid.number) tree node because it already is")
+    warn("we make node $(hybrid.number) a tree node, but it can still have hybrid edges pointing at it")
+    hybrid.gammaz = -1
+    hybrid.isBadDiamondI = false
+    hybrid.isBadDiamondII = false
+    hybrid.isBadTriangle = false
+    hybrid.k = -1
+    removeHybrid!(net,hybrid)
+    hybrid.hybrid = false
 end
 
 # aux function to make a hybrid edge tree edge
 # used in deleteLeaf
 # input: edge and hybrid node it pointed to
 function makeEdgeTree!(edge::Edge, node::Node)
-    if(edge.hybrid)
-        if(node.hybrid)
-            warn("we make edge $(edge.number) a tree edge, but it will still point to hybrid node $(node.number)")
-            edge.hybrid = false
-            edge.isMajor = true
-            edge.gamma = 1.0
-            getOtherNode(edge,node).hasHybEdge = false
-        else
-            error("need the hybrid node at which edge $(edge.number) is pointing to, node $(node.number) is tree node")
-        end
-    else
-        error("cannot make edge $(edge.number) tree because it is tree already")
-    end
+    edge.hybrid || error("cannot make edge $(edge.number) tree because it is tree already")
+    node.hybrid || error("need the hybrid node at which edge $(edge.number) is pointing to, node $(node.number) is tree node")
+    warn("we make edge $(edge.number) a tree edge, but it will still point to hybrid node $(node.number)")
+    edge.hybrid = false
+    edge.isMajor = true
+    edge.gamma = 1.0
+    getOtherNode(edge,node).hasHybEdge = false
 end
 
 # function to delete internal nodes until there is no
