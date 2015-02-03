@@ -17,9 +17,7 @@ end
 #          the nodes are added to it. If the node added is leaf, the
 #          edge length is set unidentifiable (as it is external edge)
 function setNode!(edge::Edge, node::Node)
-  if(size(edge.node,1)  ==  2)
-    error("vector of nodes already has 2 values");
-  else
+    size(edge.node,1)  ==  2 || error("vector of nodes already has 2 values");
     push!(edge.node,node);
     if(size(edge.node,1) == 1)
         if(edge.hybrid)
@@ -35,46 +33,32 @@ function setNode!(edge::Edge, node::Node)
     else
         if(edge.hybrid)
 	    if(node.hybrid)
-                if(edge.node[1].hybrid)
-                    error("hybrid edge has two hybrid nodes");
-                else
-                    edge.isChild1 = false;
-	        end
+                !edge.node[1].hybrid || error("hybrid edge $(edge.number) has two hybrid nodes");
+                edge.isChild1 = false;
 	    else
-	        if(!edge.node[1].hybrid)
-	            Error("hybrid edge has no hybrid nodes");
-	        else
-	            edge.isChild1 = true;
-	        end
+	        edge.node[1].hybrid || error("hybrid edge $(edge.number) has no hybrid nodes");
+	        edge.isChild1 = true;
 	    end
         end
         if(node.leaf)
-            if(edge.node[1].leaf)
-                error("edge has two leaves")
-            else
-                edge.istIdentifiable=false;
-            end
+            !edge.node[1].leaf || error("edge has two leaves")
+            edge.istIdentifiable=false;
         end
     end
-  end
 end
 
 # warning: node needs to be defined as hybrid before adding to a hybrid edge.
 #          First, an edge is defined as hybrid, and then the nodes are added to it.
 #          If there is a leaf in node, the edge.istIdentifiable=false
 function setNode!(edge::Edge,node::Array{Node,1})
-    size(node,1) !=  2 ?
-    error("vector of nodes must have exactly 2 values") :
+    size(node,1) ==  2 || error("vector of nodes must have exactly 2 values") :
     edge.node = node;
     if(edge.hybrid)
       if(node[1].hybrid)
           edge.isChild1 = true;
       else
-          if(node[2].hybrid)
-              edge.isChild1 = false;
-          else
-              error("hybrid edge without hybrid node");
-          end
+          node[2].hybrid || error("hybrid edge without hybrid node");
+          edge.isChild1 = false;
       end
     end
     if(edge.node[1].leaf || edge.node[2].leaf)
