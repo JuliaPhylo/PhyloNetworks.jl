@@ -95,18 +95,41 @@ function proposedTop(move::Integer, T::HybridNetwork, random::Bool)
     elseif(move == 6)
         NNI!(newT)
     end
-    !success || return newT # fixit: what if one of this fails?
+    !success || return newT # fixit: what if one of this fails? need to check that the code undoes what the move did
     error("new proposed topology failed for move $(move): success $(success), incycle $(flag), nocycle $(nocycle), updategammaz $(flag2), containroot $(flag3)")
 end
+
+proposedTop(move::Symbol, T::HybridNetwork, random::Bool) = proposedTop(try move2int[move] catch error("invalid move $(string(move))") end,T,random)
 
 function optTopLevel(net0::HybridNetwork, epsilon::Float64, d::DataCF)
     epsilon > 0 || error("epsilon must be greater than zero: $(epsilon)")
     delta = epsilon - 1
     currT = net0
-    currloglik,currxmin = optBL(net0,d)
+    currloglik,currxmin = optBL(net0,d) # do we want to updateParameters in net0?
     while(delta < epsilon)
-        move = whichMove(currT)
-
+        success = false
+        while(!success) # will propose a new move after failure, not the same move
+            move = whichMove(currT)
+            try
+                newT = proposedTop(move,currT,true)
+            catch
+                success = false
+            end
+            newT = proposedTop(move,currT,true)
+            success = true
+        end
+        newloglik, newxmin = optBL(newT,d)
+        if(newloglik > currloglik)
+            delta = abs(newloglik - currloglik)
+            currT = newT
+            currloglik = newloglik
+            currxmin = newxmin
+        end
+    end
+    updateParameters!(newT)
+    updateLik!(newT,newloglik)
+    return newT
+end
 
 
 
