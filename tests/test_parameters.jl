@@ -7,6 +7,7 @@ include("../types.jl")
 include("../functions.jl")
 
 # needed modules:
+
 using Base.Collections # for updateInCycle with priority queue
 
 # test functions
@@ -48,15 +49,19 @@ function whichtest(t::ASCIIString,net::HybridNetwork)
     elseif(t == "F")
         all(map(approxEq,net.ht,[0.1,0.9*(1-exp(-.2)),0.1*(1-exp(-1.))])) || error("net.ht wrong in case $(t)")
         net.numht == [8,31,32] || error("net.numht wrong in case $(t)")
+        net.index == [8,4,6] || error("net.index wrong in case $(t)")
     elseif(t == "G")
         all(map(approxEq,net.ht,[0.1,0.2,0.1,1.0])) || error("net.ht wrong in case $(t)")
         net.numht == [7,3,6,9] || error("net.numht wrong in case $(t)")
+        net.index == [7,3,6,9] || error("net.index wrong in case $(t)")
     elseif(t == "H")
         all(map(approxEq,net.ht,[0.1,1.0,1.0,1.0])) || error("net.ht wrong in case $(t)")
         net.numht == [4,3,5,7] || error("net.numht wrong in case $(t)")
+        net.index == [4,3,5,7] || error("net.index wrong in case $(t)")
     elseif(t == "J")
         all(map(approxEq,net.ht,[0.1,1.0,1.0,1.0])) || error("net.ht wrong in case $(t)")
         net.numht == [8,4,6,10] || error("net.numht wrong in case $(t)")
+        net.index == [8,4,6,10] || error("net.index wrong in case $(t)")
     elseif(t == "D")
         all(map(approxEq,net.ht,[1.0,0.1*(1-exp(-1.)),0.1*0.1*(1-exp(-1.))+0.9*0.9*(1-exp(-2.))])) || error("net.ht wrong in case $(t)")
         net.numht == [8,31,32] || error("net.numht wrong in case $(t)")
@@ -66,10 +71,10 @@ function whichtest(t::ASCIIString,net::HybridNetwork)
     elseif(t == "I")
         all(map(approxEq,net.ht,[0.1,2.0,1.0,1.0,1.0])) || error("net.ht wrong in case $(t)")
         net.numht == [9,4,6,9,10] || error("net.numht wrong in case $(t)")
+        net.index == [9,4,6,9,10] || error("net.index wrong in case $(t)")
     else
         error("not a known 5 taxon network case")
     end
-    return tree
 end
 
 for t in tests
@@ -87,6 +92,7 @@ for t in tests
         whichtest(t,net)
     catch
         println("error in $(t)")
+        #whichtest(t,net)
         push!(wrong,t);
     end
 end

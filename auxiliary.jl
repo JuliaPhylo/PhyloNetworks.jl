@@ -17,7 +17,7 @@ end
 #          the nodes are added to it. If the node added is leaf, the
 #          edge length is set unidentifiable (as it is external edge)
 function setNode!(edge::Edge, node::Node)
-    size(edge.node,1)  ==  2 || error("vector of nodes already has 2 values");
+    size(edge.node,1)  !=  2 || error("vector of nodes already has 2 values");
     push!(edge.node,node);
     if(size(edge.node,1) == 1)
         if(edge.hybrid)
@@ -51,7 +51,7 @@ end
 #          First, an edge is defined as hybrid, and then the nodes are added to it.
 #          If there is a leaf in node, the edge.istIdentifiable=false
 function setNode!(edge::Edge,node::Array{Node,1})
-    size(node,1) ==  2 || error("vector of nodes must have exactly 2 values") :
+    size(node,1) ==  2 || error("vector of nodes must have exactly 2 values")
     edge.node = node;
     if(edge.hybrid)
       if(node[1].hybrid)
