@@ -24,61 +24,88 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
-# function to check if an edge is internal edge
-function isInternalEdge(edge::Edge)
-    length(edge.node) == 2 || error("edge $(edge.number) has $(length(edge.node)) nodes, should be 2")
-    return !edge.node[1].leaf && !edge.node[2].leaf
+# -------------- heuristic search for topology -----------------------
+
+move2int = Dict{Symbol,Int64}([:add=>1,:MVorigin=>2,:MVtarget=>3,:CHdir=>4,:delete=>5, :nni=>6])
+
+function isTree(net::HybridNetwork)
+    net.numHybrids == length(net.hybrid) || error("numHybrids does not match to length of net.hybrid")
+    net.numHybrids != 0 || return true
+    return false
 end
 
-# function to check if the two node of an edge
-# do not have hybrid edges
-function hasNeighborHybrid(edge::Edge)
-    length(edge.node) == 2 || error("edge $(edge.number) has $(length(edge.node)) nodes, should be 2")
-    return edge.node[1].hasHybEdge || edge.node[2].hasHybEdge
-end
-
-# function to choose a tree edge for NNI
-# its two nodes must have hasHybEdge=false
-# fixit: how to stop from infinite loop if there are no options
-function chooseEdgeNNI(net::Network)
-    index1 = 0
-    while(index1 == 0 || index1 > size(net.edge,1) || net.edge[index1].hybrid || hasNeighborHybrid(net.edge[index1]) || !isInternalEdge(net.edge[index1]))
-        index1 = iround(rand()*size(net.edge,1));
-    end
-    return net.edge[index1]
-end
-
-# tree move NNI
-# it does not consider keeping the same setup
-# as a possibility
-function NNI!(net::Network)
-    edge = chooseEdgeNNI(net)
-    edges1 = hybridEdges(edge.node[1],edge)
-    edges2 = hybridEdges(edge.node[2],edge)
-    (!edges1[1].hybrid && !edges1[2].hybrid) || error("cannot do tree move NNI if one of the edges is hybrid: check neighbors of edge $(edge.number)")
-    (!edges2[1].hybrid && !edges2[2].hybrid) || error("cannot do tree move NNI if one of the edges is hybrid: check neighbors of edge $(edge.number)")
-    removeEdge!(edge.node[1],edges1[2])
-    removeNode!(edge.node[1],edges1[2])
-    removeEdge!(edge.node[2],edges2[1])
-    removeNode!(edge.node[2],edges2[1])
-    removeEdge!(edge.node[2],edges2[2])
-    removeNode!(edge.node[2],edges2[2])
-    if(rand() < 0.5)
-        i = 1
-        j = 2
+# function to decide what next move to do when searching
+# for topology that maximizes the P-loglik within the space of
+# topologies with the same number of hybridizations
+# possible moves: move origin/target, change direction hybrid edge, tree nni
+# needs the network to know if it is a tree
+function whichMove(net::HybridNetwork)
+    if(isTree(net))
+        return :nni
     else
-        i = 2
-        j = 1
+        r = rand()
+        if(r < 1/3)
+            return :MVorigin
+        elseif(r < 2/3)
+            return :MVtarget
+        else
+            return :CHdir
+        end
     end
-    setNode!(edges2[i],edge.node[1])
-    setEdge!(edge.node[1],edges2[i])
-    setNode!(edges1[2],edge.node[2])
-    setEdge!(edge.node[2],edges1[2])
-    setNode!(edges2[j],edge.node[2])
-    setEdge!(edge.node[2],edges2[j])
-    println("tree move NNI done on edge $(edge.number)")
 end
 
+#function to choose a hybrid node for the given moves
+function chooseHybrid(net::HybridNetwork)
+    !isTree(net) || error("net is a tree, cannot choose hybrid node")
+    net.numHybrids > 1 || return net.hybrid[1]
+    index1 = 0
+    while(index1 == 0 || index1 > size(net.hybrid,1))
+        index1 = iround(rand()*size(net.hybrid,1));
+    end
+    return net.hybrid[index1]
+end
+
+# function to propose a new topology given a move
+# random = false uses the minor hybrid edge always
+function proposedTop(move::Integer, T::HybridNetwork, random::Bool)
+    1 <= move <= 6 || error("invalid move $(move)")
+    newT = deepcopy(T)
+    if(move == 1)
+        success,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(newT)
+    elseif(move == 2)
+        node = chooseHybrid(newT)
+        success,flag,nocycle,flag2 = moveOriginUpdate!(newT,node,random)
+        flag3 = true
+    elseif(move == 3)
+        node = chooseHybrid(newT)
+        success,flag,nocycle,flag2 = moveTargetUpdate!(newT,node,random) #fixit: add flag3
+    elseif(move == 4)
+        node = chooseHybrid(newT)
+        success,flag2,flag3 = changeDirectionUpdate!(node,newT)
+        flag = true
+        nocycle = false
+    elseif(move == 5)
+        node = chooseHybrid(newT)
+        deleteHybridizationUpdate!(newT,node,random)
+        success = true
+        flag = true
+        flag2 = true
+        flag3 = true
+        nocycle = false
+    elseif(move == 6)
+        NNI!(newT)
+    end
+    !success || return newT # fixit: what if one of this fails?
+    error("new proposed topology failed for move $(move): success $(success), incycle $(flag), nocycle $(nocycle), updategammaz $(flag2), containroot $(flag3)")
+end
+
+function optTopLevel(net0::HybridNetwork, epsilon::Float64, d::DataCF)
+    epsilon > 0 || error("epsilon must be greater than zero: $(epsilon)")
+    delta = epsilon - 1
+    currT = net0
+    currloglik,currxmin = optBL(net0,d)
+    while(delta < epsilon)
+        move = whichMove(currT)
 
 
 

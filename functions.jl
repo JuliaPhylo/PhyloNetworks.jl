@@ -1567,6 +1567,7 @@ end
 # function to change the direction of the minor hybrid edge
 # and update necessary stepts before and after
 # input: hybrid node and network
+# returns success, flag2, flag3
 function changeDirectionUpdate!(node::Node,net::HybridNetwork)
     if(node.hybrid)
         undoGammaz!(node)
@@ -1574,11 +1575,16 @@ function changeDirectionUpdate!(node::Node,net::HybridNetwork)
         undoContainRoot!(edgesRoot);
         update,hybrid = changeDirection!(node,net)
         if(hybrid.k == 3)
-            updateGammaz!(net,hybrid)
+            flag2, edgesgammaz = updateGammaz!(net,hybrid)
         elseif(hybrid.k == 4 && update)
-            updateGammaz!(net,hybrid)
+            flag2, edgesgammaz = updateGammaz!(net,hybrid)
         end
-        updateContainRoot!(net,hybrid);
+        flag3,edgesroot = updateContainRoot!(net,hybrid);
+        if(flag2 && flag3)
+            return true, flag2, flag3
+        else
+            return false, flag2, flag3
+        end
     else
         error("cannot change the direction of minor hybrid edge since node $(node.number) is not hybrid")
     end
