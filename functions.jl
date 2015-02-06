@@ -2606,10 +2606,10 @@ end
 # warning: needs to have run storeHybrids! before
 # warning: it will stop when finding one conflicting hybrid
 function updateAllReadTopology!(net::HybridNetwork)
-    if(isempty(net.hybrid))
+    if(isTree(net))
         warn("not a network read, but a tree as it does not have hybrid nodes")
         all([e.containRoot for e in net.edge]) ? nothing : error("some tree edge has contain root as false")
-        all([!e.isHybrid for e in net.edge]) ? nothing : error("some edge is hybrid and should be all tree edges in a tree")
+        all([!e.hybrid for e in net.edge]) ? nothing : error("some edge is hybrid and should be all tree edges in a tree")
         all([!n.hasHybEdge for n in net.node]) ? nothing : error("some tree node has hybrid edge true, but it is a tree, there are no hybrid edges")
     else
         for(n in net.hybrid)
