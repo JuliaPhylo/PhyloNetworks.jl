@@ -9,6 +9,13 @@ function approxEq(a::Number,b::Number)
     abs(a-b) < 100*eps(abs(a)+abs(b))
 end
 
+function isEqual(n1::Node,n2::Node)
+    return (n1.number == n2.number && approxEq(n1.gammaz,n2.gammaz) && n1.inCycle == n2.inCycle)
+end
+
+function isEqual(n1::Edge,n2::Edge)
+    return (n1.number == n2.number && approxEq(n1.length,n2.length))
+end
 
 #------------- EDGE functions --------------------#
 
@@ -81,7 +88,7 @@ end
 
 function getIndex(node::Node, net::Network)
     i = 1;
-    while(i<= size(net.node,1) && !isequal(node,net.node[i]))
+    while(i<= size(net.node,1) && !isEqual(node,net.node[i]))
         i = i+1;
     end
     i>size(net.node,1)?error("node not in network"):return i;
@@ -89,7 +96,7 @@ end
 
 function getIndex(edge::Edge, net::Network)
     i = 1;
-    while(i<= size(net.edge,1) && !isequal(edge,net.edge[i]))
+    while(i<= size(net.edge,1) && !isEqual(edge,net.edge[i]))
         i = i+1;
     end
     i>size(net.edge,1)?error("edge not in network"):return i;
@@ -194,22 +201,19 @@ end
 
 # function to find hybrid index in net.hybrid
 function getIndexHybrid(node::Node, net::Network)
-    if(node.hybrid)
-        i = 1;
-        while(i<= size(net.hybrid,1) && !isequal(node,net.hybrid[i]))
-            i = i+1;
-        end
-        i>size(net.hybrid,1)?error("hybrid node not in network"):return i;
-    else
-        error("node $(node.number) is not hybrid so it cannot be in net.hybrid")
+    node.hybrid || error("node $(node.number) is not hybrid so it cannot be in net.hybrid")
+    i = 1;
+    while(i<= size(net.hybrid,1) && !isEqual(node,net.hybrid[i]))
+        i = i+1;
     end
+    i>size(net.hybrid,1)?error("hybrid node not in network"):return i;
 end
 
 # function to find leaf index in qnet.leaf
 function getIndexLeaf(node::Node, net::Network)
     if(node.leaf)
         i = 1;
-        while(i<= size(net.leaf,1) && !isequal(node,net.leaf[i]))
+        while(i<= size(net.leaf,1) && !isEqual(node,net.leaf[i]))
             i = i+1;
         end
         i>size(net.leaf,1)?error("leaf node not in network"):return i;
@@ -251,45 +255,18 @@ function getConnectingEdge(node1::Node,node2::Node)
     end
 end
 
-# function to determine if two edges are equal
-# used when comparing edges in QuartetNetwork
-# and HybridNetwork (in particular in
-# updateHasEdge)
-# compares only the numbers of the edges
-# warning: if number not uniquely determined,
-#          it fails
-function isequalEdge(ed1::Edge, ed2::Edge)
-    if(ed1.number == ed2.number)
-        return true
-    else
-        return false
-    end
-end
-
-# function to determine if two nodes are equal
-# compares only the numbers of the nodes
-# warning: if number not uniquely determined,
-#          it fails
-function isequalNode(ed1::Node, ed2::Node)
-    if(ed1.number == ed2.number)
-        return true
-    else
-        return false
-    end
-end
-
 # function to check in an edge is in an array by comparing
-# the edges numbers (uses isequalEdge)
+# the edges numbers (uses isEqual)
 # needed for updateHasEdge
 function isEdgeNumIn(edge::Edge,array::Array{Edge,1})
-    return all([!isequalEdge(edge,e) for e in array]) ? false : true
+    return all([!isEqual(edge,e) for e in array]) ? false : true
 end
 
 # function to check in a leaf is in an array by comparing
-# the numbers (uses isequalNode)
+# the numbers (uses isEqual)
 # needed for updateHasEdge
 function isNodeNumIn(node::Node,array::Array{Node,1})
-    return all([!isequalNode(node,e) for e in array]) ? false : true
+    return all([!isEqual(node,e) for e in array]) ? false : true
 end
 
 # function to push a Node in net.node and
@@ -397,18 +374,15 @@ end
 # used when you do not want to delete the actual node
 # only remove it from net.hybrid
 function removeHybrid!(net::Network, n::Node)
-    if(n.hybrid)
-        try
-            index = getIndexHybrid(n,net);
-        catch
-            error("Hybrid Node $(n.number) not in network");
-        end
+    n.hybrid || error("cannot delete node $(n.number) from net.hybrid because it is not hybrid")
+    try
         index = getIndexHybrid(n,net);
-        deleteat!(net.hybrid,index);
-        net.numHybrids -= 1;
-    else
-        error("cannot delete node $(n.number) from net.hybrid because it is not hybrid")
+    catch
+        error("Hybrid Node $(n.number) not in network");
     end
+    index = getIndexHybrid(n,net);
+    deleteat!(net.hybrid,index);
+    net.numHybrids -= 1;
 end
 
 # function to delete a leaf node in net.leaf
