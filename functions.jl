@@ -1568,52 +1568,64 @@ end
 # and update necessary stepts before and after
 # input: hybrid node and network
 # returns success, flag2, flag3
-function changeDirectionUpdate!(node::Node,net::HybridNetwork)
-    if(node.hybrid)
-        undoGammaz!(node)
-        edgesRoot = identifyContainRoot(net,node);
-        undoContainRoot!(edgesRoot);
-        update,hybrid = changeDirection!(node,net)
-        if(hybrid.k == 3)
-            flag2, edgesgammaz = updateGammaz!(net,hybrid)
-        elseif(hybrid.k == 4 && update)
-            flag2, edgesgammaz = updateGammaz!(net,hybrid)
-        end
+function changeDirectionUpdate!(net::HybridNetwork,node::Node)
+    node.hybrid || error("cannot change the direction of minor hybrid edge since node $(node.number) is not hybrid")
+    undoGammaz!(node)
+    edgesRoot = identifyContainRoot(net,node);
+    undoContainRoot!(edgesRoot);
+    update,hybrid = changeDirection!(node,net)
+    if(hybrid.k == 3)
+        flag2, edgesgammaz = updateGammaz!(net,hybrid)
+    elseif(hybrid.k == 4 && update)
+        flag2, edgesgammaz = updateGammaz!(net,hybrid)
+    else
+        flag2 = true
+    end
+    if(flag2)
         flag3,edgesroot = updateContainRoot!(net,hybrid);
-        if(flag2 && flag3)
-            return true, flag2, flag3
+        if(flag3)
+            return true
         else
-            return false, flag2, flag3
+            undoGammaz!(node)
+            undoContainRoot!(edgesroot)
+            changeDirection!(node,net);
+            return false
         end
     else
-        error("cannot change the direction of minor hybrid edge since node $(node.number) is not hybrid")
+        undoGammaz!(node)
+        changeDirection!(node,net);
+        return false
     end
 end
 
 # ------------------------- move origin of hybrid edge ---------------------------------
 
 
-# aux function to choose the edge to move the origin
-# or target of a hybrid edge
-# input: network and hybrid node, and some tree edges that
-#        cannot be picked (see ipad notes)
-# it needs those edges as arguments, because to find them
-# we need incycle attributes, but to choose we need to have
-# undone the incycle
-# returns new edge
-# warning: excludes edges with incycle != -1, but
-#          assumes the incycle for this particular
-#          hybrid node have been undone already
-#          also excludes tree1 and tree2 around
-#          othermin, and all hybrid edges
-function chooseEdgeOrigin(net::HybridNetwork,tree::Edge,tree1::Edge,tree2::Edge)
-    index1 = 0;
-    while(index1 == 0 || index1 > size(net.edge,1) || net.edge[index1].inCycle != -1 || isequal(net.edge[index1],tree) || isequal(net.edge[index1],tree1) || isequal(net.edge[index1],tree2) || net.edge[index1].hybrid)
-        index1 = iround(rand()*size(net.edge,1));
+# function to choose an edge to move origin of hybrid
+# but for a nni-like move: only to neighbors
+# input: othernode
+# will choose one of 4 neighbor edges at random and see if
+# it is suitable. if none is suitable, stops
+# vector a is the vector of possible edges: comes from getNeighborsOrigin/Target
+# returns: success (bool), edge, ind
+function chooseEdgeOriginTarget!(net::HybridNetwork, neighbor::Vector{Edge})
+    length(neighbor) < 5 || error("aux vector a should have only 4 entries: $([n.number for n in neighbor])")
+    while(!isempty(neighbor))
+        ind = 0
+        while(ind == 0 || ind > length(neighbor))
+            ind = iround(rand()*length(neighbor));
+        end
+        println("ind es $(ind), neighbor edge $(neighbor[ind].number)")
+        if(!neighbor[ind].hybrid && neighbor[ind].inCycle == -1)
+            return true, neighbor[ind], ind
+        else
+            deleteat!(neighbor,ind)
+        end
     end
-    println("chosen edge $(net.edge[index1].number) for move origin or target")
-    return net.edge[index1]
+    return false, nothing, ind
 end
+
+
 
 # function to move the origin of a hybrid edge
 # warning: it does not do any update
@@ -1621,9 +1633,13 @@ end
 #        ipad notes
 # warning: it changes the branch lengths of newedge, tree1, tree2 to match the
 #          optimum branch lengths in the corresponding other edge (see ipad notes)
-function moveOrigin(node::Node, other1::Node, other2::Node, tree1::Edge, tree2::Edge,newedge::Edge)
+# needed tree1 and tree2 as parameters because we need to do undogammaz before moveOrigin
+function moveOrigin(node::Node,othermin::Node,tree1::Edge, tree2::Edge,newedge::Edge)
     node.hybrid || error("cannot move origin of hybridization because node $(node.number) is not hybrid")
     size(newedge.node,1) == 2 || error("strange edge $(newedge.number) that has $(size(newedge.node,1)) nodes instead of 2")
+    println("othermin $(othermin.number) with edges $([e.number for e in othermin.edge])")
+    other1 = getOtherNode(tree1,othermin);
+    other2 = getOtherNode(tree2,othermin);
     node1 = newedge.node[1]; # not waste of memory, needed step
     node2 = newedge.node[2];
     removeEdge!(other1,tree1)
@@ -1650,54 +1666,154 @@ function moveOrigin(node::Node, other1::Node, other2::Node, tree1::Edge, tree2::
     setLength!(tree2,(t2/(t1+t2))*t)
 end
 
-# function to move the origin of a hybrid edge
-# and update everything that needs update: gammaz, incycle
-# input: network, hybrid node, random flag
-#        random = true, moves the origin of hybrid egde at random
-#        (minor with prob 1-gamma, major with prob gamma)
-#        random = false, moves the origin of the minor edge always
-# returns: success (bool), flag, nocycle, flag2
-function moveOriginUpdate!(net::HybridNetwork, node::Node, random::Bool)
+# function to choose minor/major hybrid edge
+# to move the origin or target
+# random=false always chooses the minor edge
+# returns the othermin node and majoredge for target
+function chooseMinorMajor(node::Node, random::Bool, target::Bool)
     node.hybrid || error("node $(node.number) is not hybrid, so we cannot delete hybridization event around it")
-    nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,node);
-    !nocycle || error("hybrid node $(node.number) does not create a cycle")
     major,minor,tree = hybridEdges(node);
     if(random)
         (major.gamma > 0.5 && major.gamma != 1.0) || error("strange major hybrid edge $(major.number) with gamma $(major.gamma) either less than 0.5 or equal to 1.0")
         othermin = rand() < major.gamma ? getOtherNode(minor,node) : getOtherNode(major,node)
+        majoredge = rand() < major.gamma ? major : minor
     else
+        majoredge = major
         othermin = getOtherNode(minor,node);
     end
+    if(target)
+        return othermin, majoredge
+    else
+        return othermin
+    end
+end
+
+chooseMinorMajor(node::Node, random::Bool) = chooseMinorMajor(node, random, false)
+
+# function to give the vector of edges neighbor
+# that includes all the suitable neighbors of othermin
+# to move the origin
+function getNeighborsOrigin(othernode::Node)
+    othernode.hasHybEdge || error("other node $(othernode.number) should the attach to the hybrid edge whose origin will be moved")
+    !othernode.hybrid || error("other node $(othernode.number) must not be the hybrid node to move origin")
+    edges = hybridEdges(othernode)
+    length(edges) == 3 || error("length of node.edge for node $(othernode.number) should be 3, not $(length(edges))")
+    edges[1].hybrid || error("edge $(edges[1].number) should be hybrid because it is the one to move the origin from")
+    neighbor = Edge[]
+    n1 = getOtherNode(edges[2],othernode)
+    n2 = getOtherNode(edges[3],othernode)
+    if(!n1.leaf)
+        e = hybridEdges(n1,edges[2])
+        length(e) == 2 || error("node $(n1.number) is not a leaf but has $(length(e)+1) edges")
+        push!(neighbor, e[1])
+        push!(neighbor, e[2])
+    end
+    if(!n2.leaf)
+        e = hybridEdges(n2,edges[3])
+        length(e) == 2 || error("node $(n1.number) is not a leaf but has $(length(e)+1) edges")
+        push!(neighbor, e[1])
+        push!(neighbor, e[2])
+    end
+    return neighbor
+end
+
+# function to move the origin of a hybrid edge
+# and update everything that needs update: gammaz, incycle
+# input: network, hybrid node, othermin already chosen with chooseMinorMajor
+# returns: success (bool), flag, nocycle, flag2
+function moveOriginUpdate!(net::HybridNetwork, node::Node, othermin::Node, newedge::Edge)
+    println("entre a moveOriginUpdate")
+    node.hybrid || error("node $(node.number) is not hybrid, so we cannot delete hybridization event around it")
+    nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,node);
+    !nocycle || error("hybrid node $(node.number) does not create a cycle")
     edgebla, tree1, tree2 = hybridEdges(othermin);
-    other1 = getOtherNode(tree1,othermin);
-    other2 = getOtherNode(tree2,othermin);
     undoGammaz!(node);
     undoInCycle!(edgesInCycle, nodesInCycle);
-    newedge = chooseEdgeOrigin(net,tree,tree1,tree2)
-    #println("chosen edge $(newedge.number)")
-    moveOrigin(node,other1,other2,tree1,tree2,newedge)
+    println("othermin is $(othermin.number)")
+    moveOrigin(node,othermin,tree1,tree2,newedge)
     flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,node);
     if(nocycle)
+        warn("undoing move origin for conflict")
+        moveOrigin(node,othermin,tree1,tree2,newedge)
         return false,flag,nocycle,true
     else
         if(flag)
             flag2, edgesGammaz = updateGammaz!(net,node)
             if(flag2)
+                println("returns success true in moveOriginUpdate")
                 return true,flag,nocycle,flag2
             else
                 undoistIdentifiable!(edgesGammaz);
                 undoGammaz!(node);
                 undoInCycle!(edgesInCycle, nodesInCycle);
+                warn("undoing move origin for conflict")
+                moveOrigin(node,othermin,tree1,tree2,newedge)
                 return false, flag, nocycle, flag2
             end
         else
+            warn("undoing move origin for conflict")
             undoInCycle!(edgesInCycle, nodesInCycle);
+            moveOrigin(node,othermin,tree1,tree2,newedge)
             return false, flag, nocycle, true
         end
     end
 end
 
+# function to repeat moveOriginUpdate with all the neighbors
+# until success or failure of all for a given hybrid node
+# returns success (bool): failure from: neighbors not suitable to begin
+# with, or conflicts incycle
+function moveOriginUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
+    node.hybrid || error("cannot move origin because node $(node.number) is not hybrid")
+    othermin = chooseMinorMajor(node,random)
+    println("othermin is $(othermin.number) with edges $([e.number for e in othermin.edge])")
+    neighbor = getNeighborsOrigin(othermin)
+    println("neighbors list is $([n.number for n in neighbor])")
+    success = false
+    while(!isempty(neighbor) && !success)
+        success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor)
+        println("newedge is $(newedge.number), success1 is $(success1)")
+        success1 || return false
+        success,flag,nocycle,flag2 = moveOriginUpdate!(net, node, othermin, newedge)
+        println("after update, success is $(success)")
+        if(!success)
+            println("entra a borrar neighbor")
+            deleteat!(neighbor,ind)
+        end
+        println("neighbor list is $([n.number for n in neighbor])")
+    end
+    success || return false
+    return true
+end
+
 # ------------------------------ move target of hybridization -------------------------------
+
+
+# function to give the vector of edges neighbor
+# that includes all the suitable neighbors of othermin
+# to move the target
+function getNeighborsTarget(node::Node,majoredge::Edge)
+    node.hybrid || error("node $(node.number) must be the hybrid node to move target")
+    major,minor,tree = hybridEdges(node)
+    othermajor = getOtherNode(majoredge,node)
+    println("othermajor is $(othermajor.number)")
+    neighbor = Edge[]
+    n1 = getOtherNode(majoredge,node)
+    n2 = getOtherNode(tree,node)
+    if(!n1.leaf)
+        e = hybridEdges(n1,majoredge)
+        length(e) == 2 || error("node $(n1.number) is not a leaf but has $(length(e)+1) edges")
+        push!(neighbor, e[1])
+        push!(neighbor, e[2])
+    end
+    if(!n2.leaf)
+        e = hybridEdges(n2,tree)
+        length(e) == 2 || error("node $(n1.number) is not a leaf but has $(length(e)+1) edges")
+        push!(neighbor, e[1])
+        push!(neighbor, e[2])
+    end
+    return neighbor
+end
 
 # function to move the target of a hybrid edge
 # warning: it does not do any update
@@ -1740,48 +1856,81 @@ end
 
 # function to move the target of a hybrid edge
 # and update everything that needs update: gammaz, incycle
-# input: network, hybrid node, random flag
-#        random = true, moves the target of hybrid egde at random
-#        (minor with prob 1-gamma, major with prob gamma)
-#        random = false, moves the target of the minor edge always
+# input: network, hybrid node, othermin, majoredge (chosen with chooseMinorMajor), newedge
 # returns: success (bool), flag, nocycle, flag2
-function moveTargetUpdate!(net::HybridNetwork, node::Node, random::Bool)
+function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, majoredge::Edge, newedge::Edge)
     node.hybrid || error("node $(node.number) is not hybrid, so we cannot delete hybridization event around it")
     nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,node);
     !nocycle || error("hybrid node $(node.number) does not create a cycle")
-    major,minor,tree = hybridEdges(node);
-    if(random)
-        (major.gamma > 0.5 && major.gamma != 1.0) || error("strange major hybrid edge $(major.number) with gamma $(major.gamma) either less than 0.5 or equal to 1.0")
-        othermajor = rand() < major.gamma ? getOtherNode(major,node) : getOtherNode(minor,node)
-        othermin = rand() < major.gamma ? getOtherNode(minor,node) : getOtherNode(major,node)
-    else
-        othermajor = getOtherNode(major,node);
-        othermin = getOtherNode(minor,node);
-    end
-    edgebla, tree1, tree2 = hybridEdges(othermin);
+    major,minor,tree = hybridEdges(node)
     undoGammaz!(node);
     undoInCycle!(edgesInCycle, nodesInCycle);
-    newedge = chooseEdgeOrigin(net,tree,tree1,tree2)
-    #println("chosen edge $(newedge.number)")
-    moveTarget(node,major,tree,newedge)
+    edgesRoot = identifyContainRoot(net,node);
+    undoContainRoot!(edgesRoot);
+    moveTarget(node,majoredge,tree,newedge)
     flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,node);
-    !nocycle || return false,flag,nocycle,true
+    if(nocycle)
+        warn("undoing move target for conflict")
+        moveTarget(node,majoredge,tree,newedge)
+        return false,flag,nocycle,true
+    end
     if(flag)
         flag2, edgesGammaz = updateGammaz!(net,node)
         if(flag2)
-            return true,flag,nocycle,flag2
+            flag3,edgesroot = updateContainRoot!(net,node)
+            if(flag3)
+                return true,flag,nocycle,flag2
+            else
+                undoContainRoot!(edgesroot);
+                undoistIdentifiable!(edgesGammaz);
+                undoGammaz!(node);
+                undoInCycle!(edgesInCycle, nodesInCycle);
+                warn("undoing move target for conflict")
+                moveTarget(node,majoredge,tree,newedge)
+                return false, flag, nocycle, flag2
+            end
         else
             undoistIdentifiable!(edgesGammaz);
             undoGammaz!(node);
             undoInCycle!(edgesInCycle, nodesInCycle);
+            warn("undoing move target for conflict")
+            moveTarget(node,majoredge,tree,newedge)
             return false, flag, nocycle, flag2
         end
     else
         undoInCycle!(edgesInCycle, nodesInCycle);
+        warn("undoing move target for conflict")
+        moveTarget(node,majoredge,tree,newedge)
         return false, flag, nocycle, true
     end
 end
 
+
+# function to repeat moveTargetUpdate with all the neighbors
+# until success or failure of all for a given hybrid node
+# returns success (bool): failure from: neighbors not suitable to begin
+# with, or conflicts incycle
+function moveTargetUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
+    node.hybrid || error("cannot move origin because node $(node.number) is not hybrid")
+    othermin,majoredge = chooseMinorMajor(node,random, true)
+    println("othermin is $(othermin.number), majoredge $(majoredge.number)")
+    neighbor = getNeighborsTarget(node,majoredge)
+    println("neighbors list is $([n.number for n in neighbor])")
+    success = false
+    while(!isempty(neighbor) && !success)
+        success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor)
+        println("newedge is $(newedge.number), success1 is $(success1)")
+        success1 || return false
+        success,flag,nocycle,flag2 = moveTargetUpdate!(net, node, othermin, majoredge,newedge)
+        println("after update, success is $(success)")
+        if(!success)
+            deleteat!(neighbor,ind)
+        end
+        println("neighbor list is $([n.number for n in neighbor])")
+    end
+    success || return false
+    return true
+end
 
 
 # ------------------------------------- tree move NNI -------------------------------------------
@@ -1802,45 +1951,91 @@ end
 # function to choose a tree edge for NNI
 # its two nodes must have hasHybEdge=false
 # fixit: how to stop from infinite loop if there are no options
-function chooseEdgeNNI(net::Network)
+function chooseEdgeNNI(net::Network,N::Int64)
+    N > 0 || error("N must be positive: $(N)")
     index1 = 0
-    while(index1 == 0 || index1 > size(net.edge,1) || net.edge[index1].hybrid || hasNeighborHybrid(net.edge[index1]) || !isInternalEdge(net.edge[index1]))
+    i = 0
+    while((index1 == 0 || index1 > size(net.edge,1) || net.edge[index1].hybrid || hasNeighborHybrid(net.edge[index1]) || !isInternalEdge(net.edge[index1])) && i < N)
         index1 = iround(rand()*size(net.edge,1));
+        i += 1
     end
-    return net.edge[index1]
+    if(i < N)
+        return true,net.edge[index1]
+    else
+        return false,nothing
+    end
 end
+
 
 # tree move NNI
 # it does not consider keeping the same setup
 # as a possibility
-function NNI!(net::Network)
-    edge = chooseEdgeNNI(net)
+# input: edge from chooseEdgeNNI
+# returns success; failure if cannot do nni without creating intersecting cycles
+function NNI!(net::Network,edge::Edge)
     edges1 = hybridEdges(edge.node[1],edge)
     edges2 = hybridEdges(edge.node[2],edge)
-    (!edges1[1].hybrid && !edges1[2].hybrid) || error("cannot do tree move NNI if one of the edges is hybrid: check neighbors of edge $(edge.number)")
-    (!edges2[1].hybrid && !edges2[2].hybrid) || error("cannot do tree move NNI if one of the edges is hybrid: check neighbors of edge $(edge.number)")
-    removeEdge!(edge.node[1],edges1[2])
-    removeNode!(edge.node[1],edges1[2])
-    removeEdge!(edge.node[2],edges2[1])
-    removeNode!(edge.node[2],edges2[1])
-    removeEdge!(edge.node[2],edges2[2])
-    removeNode!(edge.node[2],edges2[2])
+     (!edges1[1].hybrid && !edges1[2].hybrid) || error("cannot do tree move NNI if one of the edges is hybrid: check neighbors of edge $(edge.number)")
+     (!edges2[1].hybrid && !edges2[2].hybrid) || error("cannot do tree move NNI if one of the edges is hybrid: check neighbors of edge $(edge.number)")
     if(rand() < 0.5)
-        i = 1
-        j = 2
+        e1 = edges1[1]
+        e2 = edges1[2]
     else
-        i = 2
-        j = 1
+        e1 = edges1[2]
+        e2 = edges1[1]
     end
-    setNode!(edges2[i],edge.node[1])
-    setEdge!(edge.node[1],edges2[i])
-    setNode!(edges1[2],edge.node[2])
-    setEdge!(edge.node[2],edges1[2])
-    setNode!(edges2[j],edge.node[2])
-    setEdge!(edge.node[2],edges2[j])
-    println("tree move NNI done on edge $(edge.number)")
+     if(rand() < 0.5)
+        e3 = edges2[1]
+        e4 = edges2[2]
+    else
+        e3 = edges2[2]
+        e4 = edges2[1]
+    end
+    if(edge.inCycle != -1)
+        if((e2.inCycle == e3.inCycle == edge.inCycle && e1.inCycle == e4.inCycle == -1) || (e1.inCycle == e4.inCycle == edge.inCycle && e2.inCycle == e3.inCycle == -1))
+            nothing
+        elseif((e2.inCycle == e4.inCycle == edge.inCycle && e1.inCycle == e3.inCycle == -1) || (e1.inCycle == e3.inCycle == edge.inCycle && e2.inCycle == e4.inCycle == -1))
+            edge.inCycle = -1
+        else
+            error("internal edge $(edge.number) is in cycle $(edge.inCycle), but it is not consistent with other edges")
+        end
+    else
+        (e1.inCycle == e2.inCycle && e3.inCycle == e4.inCycle) || error("both edges in edges1 $([e.number for e in edges1]) (or edges2 $([e.number for e in edges2])) must have the same inCycle attribute")
+        if(e1.inCycle != -1 && e3.inCycle != -1)
+            warn("cannot do tree NNI because it will create intersecting cycles, nothing done")
+            return false
+        elseif(e1.inCycle != -1)
+            edge.inCycle = e1.inCycle
+        elseif(e3.inCycle != -1)
+            edge.inCycle = e3.inCycle
+        end
+    end
+    n1 = edge.node[1]
+    n2 = edge.node[2]
+    removeNode!(n1,e2)
+    removeEdge!(n1,e2)
+    removeNode!(n2,e3)
+    removeEdge!(n2,e3)
+    setNode!(e3,n1)
+    setEdge!(n1,e3)
+    setNode!(e2,n2)
+    setEdge!(n2,e2)
+    return true
 end
 
+# function to repeat NNI until success
+function NNIRepeat!(net::HybridNetwork,N::Int64)
+    N > 0 || error("N must be positive: $(N)")
+    flag,edge = chooseEdgeNNI(net,N)
+    flag || error("cannot find suitable tree edge for NNI after $(N) attempts")
+    i = 0
+    while(!success && i < N)
+        success = NNI!(net,edge)
+        i += 1
+    end
+    success || return false
+    return true
+end
 
 # ------------------------------- Read topology ------------------------------------------
 
@@ -2384,7 +2579,7 @@ function storeHybrids!(net::HybridNetwork)
     try
         hybrid = searchHybridNode(net)
     catch
-        warn("topology read not a network, but a tree as it has no hybrid nodes")
+        warn("topology read is a tree as it has no hybrid nodes")
         flag = false;
     end
     if(flag)

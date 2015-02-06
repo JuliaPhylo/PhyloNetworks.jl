@@ -26,7 +26,8 @@ include("tree_example.jl");
 
 # -------------- heuristic search for topology -----------------------
 
-move2int = Dict{Symbol,Int64}([:add=>1,:MVorigin=>2,:MVtarget=>3,:CHdir=>4,:delete=>5, :nni=>6])
+const move2int = Dict{Symbol,Int64}([:add=>1,:MVorigin=>2,:MVtarget=>3,:CHdir=>4,:delete=>5, :nni=>6])
+const int2move = (Int64=>Symbol)[move2int[k]=>k for k in keys(move2int)]
 
 function isTree(net::HybridNetwork)
     net.numHybrids == length(net.hybrid) || error("numHybrids does not match to length of net.hybrid")
@@ -44,12 +45,14 @@ function whichMove(net::HybridNetwork)
         return :nni
     else
         r = rand()
-        if(r < 1/3)
+        if(r < 1/4)
             return :MVorigin
-        elseif(r < 2/3)
+        elseif(r < 2/4)
             return :MVtarget
-        else
+        elseif(r < 3/4)
             return :CHdir
+        else
+            return :nni
         end
     end
 end
@@ -67,23 +70,22 @@ end
 
 # function to propose a new topology given a move
 # random = false uses the minor hybrid edge always
-function proposedTop(move::Integer, T::HybridNetwork, random::Bool)
+# fixit: add print of the current move, need int2move
+function proposedTop!(move::Integer, T::HybridNetwork, newT::HybridNetwork, random::Bool)
     1 <= move <= 6 || error("invalid move $(move)")
-    newT = deepcopy(T)
+    newT = deepcopy(T) #fixit: bret, maybe do not need to copy all
+    println("current move: $(int2alg[move])")
     if(move == 1)
         success,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(newT)
     elseif(move == 2)
         node = chooseHybrid(newT)
-        success,flag,nocycle,flag2 = moveOriginUpdate!(newT,node,random)
-        flag3 = true
-    elseif(move == 3)
+        success = moveOriginUpdateRepeat!(newT,node,random)
+     elseif(move == 3)
         node = chooseHybrid(newT)
-        success,flag,nocycle,flag2 = moveTargetUpdate!(newT,node,random) #fixit: add flag3
+        success = moveTargetUpdateRepeat!(newT,node,random)
     elseif(move == 4)
         node = chooseHybrid(newT)
-        success,flag2,flag3 = changeDirectionUpdate!(node,newT)
-        flag = true
-        nocycle = false
+        success = changeDirectionUpdate!(newT,node)
     elseif(move == 5)
         node = chooseHybrid(newT)
         deleteHybridizationUpdate!(newT,node,random)
@@ -93,10 +95,11 @@ function proposedTop(move::Integer, T::HybridNetwork, random::Bool)
         flag3 = true
         nocycle = false
     elseif(move == 6)
-        NNI!(newT)
+        success = NNIRepeat!(newT)
     end
-    !success || return newT # fixit: what if one of this fails? need to check that the code undoes what the move did
-    error("new proposed topology failed for move $(move): success $(success), incycle $(flag), nocycle $(nocycle), updategammaz $(flag2), containroot $(flag3)")
+    !success || return true
+    println("new proposed topology failed for move $(int2move[move])")
+    return false
 end
 
 proposedTop(move::Symbol, T::HybridNetwork, random::Bool) = proposedTop(try move2int[move] catch error("invalid move $(string(move))") end,T,random)
@@ -106,24 +109,18 @@ function optTopLevel(net0::HybridNetwork, epsilon::Float64, d::DataCF)
     delta = epsilon - 1
     currT = net0
     currloglik,currxmin = optBL(net0,d) # do we want to updateParameters in net0?
+    newT = HybridNetwork()
     while(delta < epsilon)
-        success = false
-        while(!success) # will propose a new move after failure, not the same move
-            move = whichMove(currT)
-            try
-                newT = proposedTop(move,currT,true)
-            catch
-                success = false
+        move = whichMove(currT)
+        flag = proposedTop!(move,currT,newT,true)
+        if(flag)
+            newloglik, newxmin = optBL(newT,d)
+            if(newloglik > currloglik)
+                delta = abs(newloglik - currloglik)
+                currT = newT
+                currloglik = newloglik
+                currxmin = newxmin
             end
-            newT = proposedTop(move,currT,true)
-            success = true
-        end
-        newloglik, newxmin = optBL(newT,d)
-        if(newloglik > currloglik)
-            delta = abs(newloglik - currloglik)
-            currT = newT
-            currloglik = newloglik
-            currxmin = newxmin
         end
     end
     updateParameters!(newT)
