@@ -189,7 +189,7 @@ end
 
 # find the index of a node in edge.node
 function getIndexNode(edge::Edge,node::Node)
-    size(edge.node,1) == 2 || warn("this edge $(edge.number) has more or less than 2 nodes")
+    size(edge.node,1) == 2 || warn("this edge $(edge.number) has more or less than 2 nodes: $([n.number for n in edge.node])")
     if(isequal(node,edge.node[1]))
         return 1
     elseif(isequal(node,edge.node[2]))
@@ -225,15 +225,12 @@ end
 
 # function that given a hybrid node, it gives you the minor hybrid edge
 function getHybridEdge(node::Node)
-    if(node.hybrid)
-        a = nothing;
-        for(e in node.edge)
-            (e.hybrid && !e.isMajor) ? a = e : nothing;
-        end
-        isa(a,Nothing) ? error("hybrid node does not have minor hybrid edge") : return a
-    else
-        error("node is not hybrid node")
+    node.hybrid || error("node $(node.number) is not hybrid node, cannot get hybrid edges")
+    a = nothing;
+    for(e in node.edge)
+        (e.hybrid && !e.isMajor) ? a = e : nothing;
     end
+    isa(a,Nothing) ? error("hybrid node $(node.number) does not have minor hybrid edge, edges: $([e.number for e in node.edge])") : return a
 end
 
 
@@ -480,7 +477,7 @@ end
 function printEdges(net::Network)
     println("Edge\tNode1\tNode2\tInCycle\tcontainRoot\tistIdentitiable\tLength\tisHybrid\tGamma")
     for e in net.edge
-        println("$(e.number)\t$(e.node[1].number)\t$(e.node[2].number)\t$(e.inCycle)\t$(e.containRoot)\t\t$(e.istIdentifiable)\t\t$(e.length)\t$(e.hybrid)\t$(e.gamma)")
+        println("$(e.number)\t$(e.node[1].number)\t$(e.node[2].number)\t$(e.inCycle)\t$(e.containRoot)\t\t$(e.istIdentifiable)\t\t$(round(e.length,2))\t$(e.hybrid)\t$(round(e.gamma,2))")
     end
 end
 

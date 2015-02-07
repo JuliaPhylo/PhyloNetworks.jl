@@ -15,7 +15,7 @@ d = readDataCF(df)
 currloglik,currxmin = optBL!(currT,d)
 newT = deepcopy(currT);
 count = 0
-N = 10
+N = 100
 #move = whichMove(currT)
 move = :CHdir
 move = :MVorigin
@@ -23,9 +23,9 @@ move = :MVtarget
 move = :nni
 
 flag = proposedTop!(move,newT,true,count,N)
-flag
 printEdges(newT)
 printNodes(newT)
+sum([e.hybrid?1:0 for e in newT.edge]) == 2 || error("there are not 2 hybrid edges")
 
 newloglik, newxmin = optBL!(newT,d)
 newloglik - currloglik
@@ -35,17 +35,36 @@ currloglik = newloglik
 currxmin = newxmin
 
 # -------------------5taxon tree------------------
-include("../tree_example_read.jl");
-printEdges(net)
-q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
-q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
-q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);
-q4 = Quartet(4,["6","10","4","8"],[0.5,0.4,0.1]);
-q5 = Quartet(5,["6","7","4","10"],[0.5,0.4,0.1]);
 
-d = DataCF([q1,q2,q3,q4,q5]);
-extractQuartet!(net,d)
+include("../types.jl")
+include("../functions.jl")
 
-df = writeExpCF(d.quartet)
-writetable("CaseG_output.csv",df)
+df = readtable("Tree_output.csv")
+d = readDataCF(df)
 
+# starting tree:
+tree = "((6,4),(7,8),10);"
+f = open("prueba_tree.txt","w")
+write(f,tree)
+close(f)
+currT = readTopologyUpdate("prueba_tree.txt");
+printEdges(currT)
+
+
+currloglik,currxmin = optBL!(currT,d)
+newT = deepcopy(currT);
+count = 0
+N = 100
+move = :nni
+
+flag = proposedTop!(move,newT,true,count,N)
+flag
+printEdges(newT)
+printNodes(newT)
+
+newloglik, newxmin = optBL!(newT,d)
+newloglik - currloglik
+`
+currT = deepcopy(newT);
+currloglik = newloglik
+currxmin = newxmin

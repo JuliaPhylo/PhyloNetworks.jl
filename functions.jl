@@ -1605,12 +1605,12 @@ end
 
 # function to choose an edge to move origin of hybrid
 # but for a nni-like move: only to neighbors
-# input: othernode
+# input: hybridnode for the move
 # will choose one of 4 neighbor edges at random and see if
 # it is suitable. if none is suitable, stops
 # vector a is the vector of possible edges: comes from getNeighborsOrigin/Target
 # returns: success (bool), edge, ind
-function chooseEdgeOriginTarget!(net::HybridNetwork, neighbor::Vector{Edge})
+function chooseEdgeOriginTarget!(net::HybridNetwork, neighbor::Vector{Edge}, node::Node)
     length(neighbor) < 5 || error("aux vector a should have only 4 entries: $([n.number for n in neighbor])")
     while(!isempty(neighbor))
         ind = 0
@@ -1618,7 +1618,7 @@ function chooseEdgeOriginTarget!(net::HybridNetwork, neighbor::Vector{Edge})
             ind = iround(rand()*length(neighbor));
         end
         println("ind es $(ind), neighbor edge $(neighbor[ind].number)")
-        if(!neighbor[ind].hybrid && neighbor[ind].inCycle == -1)
+        if(!neighbor[ind].hybrid && (neighbor[ind].inCycle == -1 || neighbor[ind].inCycle == node.number))
             return true, neighbor[ind], ind
         else
             deleteat!(neighbor,ind)
@@ -1675,10 +1675,12 @@ end
 function chooseMinorMajor(node::Node, random::Bool, target::Bool)
     node.hybrid || error("node $(node.number) is not hybrid, so we cannot delete hybridization event around it")
     major,minor,tree = hybridEdges(node);
+    #println("hybrid node $(node.number) has major $(major.number), minor $(minor.number) and tree $(tree.number)")
     if(random)
+        r = rand()
         (major.gamma > 0.5 && major.gamma != 1.0) || error("strange major hybrid edge $(major.number) with gamma $(major.gamma) either less than 0.5 or equal to 1.0")
-        othermin = rand() < major.gamma ? getOtherNode(minor,node) : getOtherNode(major,node)
-        majoredge = rand() < major.gamma ? major : minor
+        othermin = r < major.gamma ? getOtherNode(minor,node) : getOtherNode(major,node)
+        majoredge = r < major.gamma ? major : minor
     else
         majoredge = major
         othermin = getOtherNode(minor,node);
@@ -1773,7 +1775,7 @@ function moveOriginUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
     println("neighbors list is $([n.number for n in neighbor])")
     success = false
     while(!isempty(neighbor) && !success)
-        success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor)
+        success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor,node)
         println("newedge is $(newedge.number), success1 is $(success1)")
         success1 || return false
         success,flag,nocycle,flag2 = moveOriginUpdate!(net, node, othermin, newedge)
@@ -1831,20 +1833,28 @@ function moveTarget(node::Node, major::Edge, tree::Edge, newedge::Edge)
     node1 = newedge.node[1] # not waste of memory, needed step
     node2 = newedge.node[2]
     println("newedge is $(newedge.number), othermajor $(othermajor.number), treenode $(treenode.number), node1 $(node1.number), node2 $(node2.number)")
+    println("removing major edge $(major.number) from othermajor node $(othermajor.number) and viceverse")
     removeEdge!(othermajor,major)
     removeNode!(othermajor,major)
+    println("removing treenode $(treenode.number) from tree edge $(tree.number) and viceversa")
     removeEdge!(treenode,tree)
     removeNode!(treenode,tree)
+    println("removing node1 $(node1.number) from newedge $(newedge.number) and viceversa")
     removeEdge!(node1,newedge)
     removeNode!(node1,newedge)
+    println("removing node2 $(node2.number) from newedge $(newedge.number) and viceversa")
     removeEdge!(node2,newedge)
     removeNode!(node2,newedge)
+    println("setting newedge $(newedge.number) to othermajor $(othermajor.number) and viceversa")
     setNode!(newedge,othermajor)
     setEdge!(othermajor,newedge)
+    println("setting newedge $(newedge.number) to treenode $(treenode.number) and viceversa")
     setNode!(newedge,treenode)
     setEdge!(treenode,newedge)
+    println("setting major edge $(major.number) to node1 $(node1.number) and viceversa")
     setNode!(major,node1)
     setEdge!(node1,major)
+    println("setting tree edge $(tree.number) to node2 $(node2.number) and viceversa")
     setNode!(tree,node2)
     setEdge!(node2,tree)
     t1 = major.length
@@ -1917,12 +1927,12 @@ end
 function moveTargetUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
     node.hybrid || error("cannot move origin because node $(node.number) is not hybrid")
     othermin,majoredge = chooseMinorMajor(node,random, true)
-    println("othermin is $(othermin.number), majoredge $(majoredge.number)")
+    println("othermin is $(othermin.number), will move edge: majoredge $(majoredge.number)")
     neighbor = getNeighborsTarget(node,majoredge)
     println("neighbors list is $([n.number for n in neighbor])")
     success = false
     while(!isempty(neighbor) && !success)
-        success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor)
+        success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor,node)
         println("newedge is $(newedge.number), success1 is $(success1)")
         success1 || return false
         success,flag,nocycle,flag2 = moveTargetUpdate!(net, node, othermin, majoredge,newedge)
@@ -2034,6 +2044,7 @@ function NNIRepeat!(net::HybridNetwork,N::Int64)
     flag,edge = chooseEdgeNNI(net,N)
     flag || return false
     i = 0
+    success = false
     while(!success && i < N)
         success = NNI!(net,edge)
         i += 1
@@ -3425,7 +3436,6 @@ end
 # returns leaf for taxon1, leaf for taxon2 (i.e. 12)
 # warning: assumes that the numbers for the taxon in the output.csv table are the names
 function whichLeaves(qnet::QuartetNetwork, taxon1::ASCIIString, taxon2::ASCIIString, leaf1::Node, leaf2::Node, leaf3::Node, leaf4::Node)
-    warn("assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network")
     if(taxon1 == qnet.names[leaf1.number])
         if(taxon2 == qnet.names[leaf2.number])
             return 1,2
@@ -3566,6 +3576,7 @@ end
 # warning: only updates expCF for quartet.changed=true
 function calculateExpCFAll!(data::DataCF)
     !all([q.qnet.numTaxa != 0 for q in data.quartet]) ? error("qnet in quartets on data are not correctly updated with extractQuartet") : nothing
+    #warn("assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network")
     for(q in data.quartet)
         if(q.qnet.changed)
             qnet = deepcopy(q.qnet);
@@ -3824,7 +3835,6 @@ end
 # input: ht, vector of size net.ht
 # warning: optBL need to be run before to have xmin in net.ht
 function updateParameters!(net::HybridNetwork)
-    length(ht) == length(net.ht) || error("vector ht must have the same length as net.ht")
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
     for(i in 1:length(net.ht))
         if(i <= net.numHybrids - net.numBad)
@@ -3979,18 +3989,25 @@ proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Int64,N::In
 function optTopLevel!(currT::HybridNetwork, epsilon::Float64, N::Int64, d::DataCF)
     epsilon > 0 || error("epsilon must be greater than zero: $(epsilon)")
     delta = epsilon - 1
-    currloglik,currxmin = optBL!(currT,d) # do we want to updateParameters in net0?
+    currloglik,currxmin = optBL!(currT,d)
+    updateParameters!(currT)
+    updateLik!(currT,currloglik)
     count = 0
     newT = deepcopy(currT)
-    println("loglik_$(count) = $(currloglik)")
+    println("--------- loglik_$(count) = $(round(currloglik,5)) -----------")
+    printEdges(newT)
     while(delta < epsilon)
         count += 1
         move = whichMove(newT)
         flag = proposedTop!(move,newT,true, count,N)
         if(flag)
-            println("accepted proposed new topology in step $(count)")
+            println("accepted proposed new topology in step $(count): net.ht=$(net.ht), net.index=$(net.index)")
+            printEdges(newT)
             newloglik, newxmin = optBL!(newT,d)
-            if(newloglik > currloglik)
+            if(newloglik < currloglik)
+                println("proposed new topology with better loglik in step $(count): oldloglik=$(round(currloglik,3)), newloglik=$(round(newloglik,3))")
+                updateParameters!(newT)
+                updateLik!(newT,newloglik)
                 delta = abs(newloglik - currloglik)
                 currT = deepcopy(newT)
                 currloglik = newloglik
@@ -3999,10 +4016,10 @@ function optTopLevel!(currT::HybridNetwork, epsilon::Float64, N::Int64, d::DataC
                 newT = deepcopy(currT)
             end
         end
-        println("loglik_$(count) = $(currloglik)")
+        println("--------- loglik_$(count) = $(round(currloglik,5)) -----------")
     end
-    updateParameters!(newT)
-    updateLik!(newT,newloglik)
+    println("END optTopLevel: found minimizer topology at step $(count) with -loglik=$(round(currloglik,5)) and ht_min=$(round(currxmin,5))")
+    printEdges(newT)
     return newT
 end
 
@@ -4025,6 +4042,7 @@ end
 
 # function that takes a dataframe and creates a DataCF object
 function readDataCF(df::DataFrame)
+    warn("assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network")
     size(df,2) == 7 || error("Dataframe should have 7 columns: 4taxa, 3CF")
     quartets = Quartet[]
     for(i in 1:size(df,1))

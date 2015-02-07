@@ -286,3 +286,43 @@ realht = [0.1,2.0,1.0,1.0,1.0]
 #got 3.69564 at [0.1034,2.03878,1.00653,3.58586,0.94929] after 176 iterations (returned FTOL_REACHED)
 #elapsed time: 15.743171805 seconds (17639780 bytes allocated)
 #(3.6956415275081724,[0.103403,2.03878,1.00653,3.58586,0.949288])
+
+
+# -------------------5taxon tree------------------
+## include("../tree_example_read.jl");
+## printEdges(net)
+## q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
+## q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
+## q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);
+## q4 = Quartet(4,["6","10","4","8"],[0.5,0.4,0.1]);
+## q5 = Quartet(5,["6","7","4","10"],[0.5,0.4,0.1]);
+
+## d = DataCF([q1,q2,q3,q4,q5]);
+## extractQuartet!(net,d)
+
+## df = writeExpCF(d.quartet)
+## writetable("Tree_output.csv",df)
+
+
+include("../types.jl")
+include("../functions.jl")
+
+df = readtable("Tree_output.csv")
+d2 = readDataCF(df)
+
+# starting tree:
+ht = [1.0,1.0]
+tree = string("(((6:0.1,4:1.5)1:",string(ht[1]),",7:0.2)5:",string(ht[2]),",8:0.1,10:0.1);") # normal tree
+f = open("prueba_tree.txt","w")
+write(f,tree)
+close(f)
+net = readTopologyUpdate("prueba_tree.txt");
+
+
+net.ht
+realht = [0.2,0.1]
+
+@time fmin,xmin=optBL!(net,d2)
+#got 5.34957 at [0.2,0.1] after 28 iterations (returned FTOL_REACHED)
+#elapsed time: 5.533522804 seconds (54162200 bytes allocated, 0.41% gc time)
+#(5.349567420518451,[0.2,0.1])
