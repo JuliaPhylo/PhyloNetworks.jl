@@ -35,7 +35,9 @@ function setNode!(edge::Edge, node::Node)
 	    end
         end
         if(node.leaf)
-            edge.istIdentifiable=false;
+            edge.istIdentifiable = false;
+        else
+            edge.istIdentifiable = true
         end
     else
         if(edge.hybrid)
@@ -49,7 +51,13 @@ function setNode!(edge::Edge, node::Node)
         end
         if(node.leaf)
             !edge.node[1].leaf || error("edge has two leaves")
-            edge.istIdentifiable=false;
+            edge.istIdentifiable = false;
+        else
+            if(!edge.node[1].leaf)
+                edge.istIdentifiable = true
+            else
+                edge.istIdentifiable = false
+            end
         end
     end
 end
@@ -69,7 +77,9 @@ function setNode!(edge::Edge,node::Array{Node,1})
       end
     end
     if(edge.node[1].leaf || edge.node[2].leaf)
-        edge.istIdentifiable=false;
+        edge.istIdentifiable = false;
+    else
+        edge.istIdentifiable = true;
     end
 end
 
@@ -578,7 +588,7 @@ function removeEdge!(node::Node,edge::Edge)
         index = getIndexEdge(edge,node);
     catch e
         if isa(e, ErrorException)
-            error("edge not in node")
+            error("edge $(edge.number) not in node $(node.number)")
         end
     end
     index = getIndexEdge(edge,node);
@@ -602,3 +612,4 @@ function removeNode!(node::Node,edge::Edge)
     index = getIndexNode(edge,node);
     deleteat!(edge.node,index);
 end
+

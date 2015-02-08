@@ -10,7 +10,7 @@
 # 2) create nodes with such edges
 # 3) setNode! to add nodes into edges
 # 4) create hybrid network
-# 5) updateGammaz! updateGamma2z!
+# 5) updateGammaz!
 
 # -------------- EDGE -------------------------#
 
