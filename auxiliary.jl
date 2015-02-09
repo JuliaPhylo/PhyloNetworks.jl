@@ -40,23 +40,38 @@ function setNode!(edge::Edge, node::Node)
             edge.istIdentifiable = true
         end
     else
-        if(edge.hybrid)
-	    if(node.hybrid)
-                !edge.node[1].hybrid || error("hybrid edge $(edge.number) has two hybrid nodes");
-                edge.isChild1 = false;
-	    else
-	        edge.node[1].hybrid || error("hybrid edge $(edge.number) has no hybrid nodes");
-	        edge.isChild1 = true;
-	    end
-        end
         if(node.leaf)
-            !edge.node[1].leaf || error("edge has two leaves")
+            !edge.node[1].leaf || error("edge $(edge.number) has two leaves")
             edge.istIdentifiable = false;
         else
-            if(!edge.node[1].leaf)
-                edge.istIdentifiable = true
-            else
-                edge.istIdentifiable = false
+            if(edge.hybrid)
+	        if(node.hybrid)
+                    !edge.node[1].hybrid || error("hybrid edge $(edge.number) has two hybrid nodes");
+                    edge.isChild1 = false;
+	        else
+	            edge.node[1].hybrid || error("hybrid edge $(edge.number) has no hybrid nodes");
+	            edge.isChild1 = true;
+	        end
+            else #edge is tree
+                if(!edge.node[1].leaf)
+                    if(!node.hybrid && !edge.node[1].hybrid)
+                        if(edge.fromBadDiamondI)
+                            edge.istIdentifiable = false
+                        else
+                            edge.istIdentifiable = true
+                        end
+                    else
+                        if(node.hybrid && (node.isBadDiamondI || node.isBadDiamondII || node.isBadTriangle))
+                            edge.istIdentifiable = false
+                        elseif(edge.node[1].hybrid && (edge.node[1].isBadDiamondI ||edge.node[1].isBadDiamondII || edge.node[1].isBadTriangle))
+                            edge.istIdentifiable = false
+                        else
+                            edge.istIdentifiable = true
+                        end
+                    end
+                else
+                    edge.istIdentifiable = false
+                end
             end
         end
     end
@@ -411,22 +426,19 @@ end
 
 # function to delete an internal node with only 2 edges
 function deleteIntNode!(net::Network, n::Node)
-    if(size(n.edge,1) == 2)
-        index = n.edge[1].number < n.edge[2].number ? 1 : 2;
-        edge1 = n.edge[index];
-        edge2 = n.edge[index==1?2:1];
-        node1 = getOtherNode(edge1,n);
-        node2 = getOtherNode(edge2,n);
-        removeEdge!(node2,edge2);
-        removeNode!(n,edge1);
-        setEdge!(node2,edge1);
-        setNode!(edge1,node2);
-        deleteNode!(net,n);
-        deleteEdge!(net,edge2);
-        edge1.hybrid = false;
-    else
-        error("node does not have only two edges")
-    end
+    size(n.edge,1) == 2 || error("node $(n.number) does not have only two edges")
+    index = n.edge[1].number < n.edge[2].number ? 1 : 2;
+    edge1 = n.edge[index];
+    edge2 = n.edge[index==1?2:1];
+    (!edge1.hybrid && !edge2.hybrid) || error("the two edges $([edge1.number,edge2.number]) attached to node $(node.number) must be tree edges to delete node")
+    node1 = getOtherNode(edge1,n);
+    node2 = getOtherNode(edge2,n);
+    removeEdge!(node2,edge2);
+    removeNode!(n,edge1);
+    setEdge!(node2,edge1);
+    setNode!(edge1,node2);
+    deleteNode!(net,n);
+    deleteEdge!(net,edge2);
 end
 
 
@@ -613,3 +625,36 @@ function removeNode!(node::Node,edge::Edge)
     deleteat!(edge.node,index);
 end
 
+
+# ----------------------------------------------------------------------------------------
+
+# setLength
+# warning: allows to change edge length for istIdentifiable=false
+#          but issues a warning
+# negative=true meanes it allows negative branch lengths (useful in qnet typeHyb=4)
+function setLength!(edge::Edge, new_length::Float64, negative::Bool)
+    (negative || new_length >= 0) || error("length has to be nonnegative: $(new_length), cannot set to edge $(edge.number)")
+    edge.length = new_length;
+    edge.y = exp(-new_length);
+    edge.z = 1 - edge.y;
+    edge.istIdentifiable || warn("set edge length for edge $(edge.number) that is not identifiable")
+end
+
+setLength!(edge::Edge, new_length::Float64) = setLength!(edge, new_length, false)
+
+
+# setGamma
+# warning: does not allow to change gamma in the bad diamond/triangle cases
+# because gamma is not identifiable
+# updates isMajor according to gamma value
+function setGamma!(edge::Edge, new_gamma::Float64)
+    new_gamma >= 0 || error("gamma has to be positive: $(new_gamma)")
+    new_gamma <= 1 || error("gamma has to be less than 1: $(new_gamma)")
+    edge.hybrid || error("cannot change gamma in a tree edge");
+    edge.isChild1 ? ind = 1 : ind = 2 ; # hybrid edge pointing at node 1 or 2
+    node = edge.node[ind]
+    node.hybrid || warn("hybrid edge $(edge.number) not pointing at hybrid node")
+    !node.isBadDiamondI || error("bad diamond situation: gamma not identifiable")
+    edge.gamma = new_gamma;
+    edge.isMajor = (new_gamma>=0.5) ? true : false
+end

@@ -928,8 +928,8 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
             end
         end
     end
-    #edge_maj.istIdentifiable = isHybridIdentifiable(edge_maj)
-    #edge_min.istIdentifiable = isHybridIdentifiable(edge_min)
+    edge_maj.istIdentifiable = isEdgeIdentifiable(edge_maj)
+    edge_min.istIdentifiable = isEdgeIdentifiable(edge_min)
     if(allow)
         return true, net.edges_changed
     else
@@ -940,16 +940,30 @@ end
 updateGammaz!(net::HybridNetwork, node::Node) = updateGammaz!(net, node, false)
 
 #function to check if hybrid edge should be identifiable
-#it is not only if followed by leaf
-function isHybridIdentifiable(edge::Edge)
-    edge.hybrid || error("cannot check if edge $(edge.number) since it is not hybrid")
-    node = edge.node[edge.isChild1 ? 1 : 2]
-    node.hybrid || error("hybrid edge $(edge.number) pointing at tree node $(node.number)")
-    major,minor,tree = hybridEdges(node)
-    if(getOtherNode(tree,node).leaf)
-        return false
+#it is not only if followed by leaf, or if a newly converted tree edge
+function isEdgeIdentifiable(edge::Edge)
+    if(edge.hybrid)
+        node = edge.node[edge.isChild1 ? 1 : 2]
+        node.hybrid || error("hybrid edge $(edge.number) pointing at tree node $(node.number)")
+        major,minor,tree = hybridEdges(node)
+        if(getOtherNode(tree,node).leaf)
+            return false
+        else
+            return true
+        end
     else
-        return true
+        if(all([!edge.node[1].leaf,!edge.node[2].leaf]))
+            if(!edge.node[1].hybrid && !edge.node[2].hybrid && !edge.fromBadDiamondI)
+                return true
+            elseif(edge.node[1].hybrid || edge.node[2].hybrid)
+                ind = edge.node[1].hybrid ? 1 : 2
+                if(!edge.node[ind].isBadDiamondII && !edge.node[ind].isBadTriangle)
+                    return true
+                else
+                    return false
+                end
+            end
+        end
     end
 end
 
@@ -1184,11 +1198,7 @@ function updateMajorHybrid!(net::HybridNetwork, node::Node)
     !isa(hybedge,Nothing) || error("hybrid node $(node.number) does not have hybrid edge")
     !isa(edgecycle,Nothing) || error("hybrid node $(node.number) does not have tree edge in cycle to update to hybrid edge after updateInCycle")
     println("updating hybrid status to edgeincycle $(edgecycle.number) for hybedge $(hybedge.number)")
-    edgecycle.hybrid = true;
-    getOtherNode(edgecycle,node).hasHybEdge = true;
-    setGamma!(edgecycle, 1-hybedge.gamma)
-    isEqual(edgecycle.node[1],node) ? edgecycle.isChild1 = true : edgecycle.isChild1 = false
-    #return edgecycle
+    makeEdgeHybrid!(edgeincycle,node,1-hybedge.gamma)
 end
 
 # function to update everything of a new hybridization
@@ -1390,7 +1400,8 @@ function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bo
     undoGammaz!(hybrid,net);
     undoInCycle!(edgesInCycle, nodesInCycle);
     undoContainRoot!(edgesRoot);
-    edges[1].gamma > 0.5 && edges[1].gamma != 1.0 || error("strange major hybrid edge $(edges[1].number) with gamma either less than 0.5 or equal to 1.0")
+    edges[1].gamma > 0.5 || error("strange major hybrid edge $(edges[1].number) with gamma $(edge.gamma) either less than 0.5")
+    edges[1].gamma != 1.0 || warn("strange major hybrid edge $(edges[1].number) with gamma $(edge.gamma) equal to 1.0")
     limit = edges[1].gamma
     if(random)
         minor = rand() < limit ? false : true
@@ -1422,9 +1433,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool)
             deleteEdge!(net,hybedge1);
             treeedge1.containRoot = (!treeedge1.containRoot || !hybedge1.containRoot) ? false : true
         else
-            hybedge1.hybrid = false;
-            hybedge1.gamma = 1.0;
-            hybedge1.isMajor = true;
+            makeEdgeTree!(hybedge1,node)
             other1.hasHybEdge = false;
             setLength!(hybedge1, hybedge1.length + treeedge1.length);
             removeNode!(node,hybedge1);
@@ -1510,28 +1519,23 @@ end
 # input: new edge, hybrid node (needs to be attached to new edge)
 #        new gamma
 function makeEdgeHybrid!(edge::Edge,node::Node,gamma::Float64)
-    if(!edge.hybrid)
-        node.hybrid || error("to make edge $(edge.number) hybrid, you need to give the hybrid node it is going to point to and node $(node.number) is not hybrid")
-        #println("estamos en make edge hybrid en edge $(edge.number) y node $(node.number)")
-        #println("vamos a hacer hashybedge true para $(getOtherNode(edge,node).number)")
-        getOtherNode(edge,node).hasHybEdge = true
-        #println("$(getOtherNode(edge,node).hasHybEdge) debe ser true")
-        if(size(edge.node,1) == 2)
-            if(isEqual(edge.node[1],node))
-                edge.isChild1 = true
-            elseif(isEqual(edge.node[2],node))
-                edge.isChild1 = false
-            else
-                error("node $(node.number) is not attached to edge $(edge.number)")
-            end
-            edge.hybrid = true
-            setGamma!(edge,gamma)
-        else
-            error("strange edge $(edge.number) has $(size(edge.node,1)) nodes instead of 2")
-        end
+    !edge.hybrid || error("edge $(edge.number) already hybrid, cannot make it hybrid")
+    node.hybrid || error("to make edge $(edge.number) hybrid, you need to give the hybrid node it is going to point to and node $(node.number) is not hybrid")
+    #println("estamos en make edge hybrid en edge $(edge.number) y node $(node.number)")
+    #println("vamos a hacer hashybedge true para $(getOtherNode(edge,node).number)")
+    getOtherNode(edge,node).hasHybEdge = true
+    #println("$(getOtherNode(edge,node).hasHybEdge) debe ser true")
+    size(edge.node,1) == 2 || error("strange edge $(edge.number) has $(size(edge.node,1)) nodes instead of 2")
+    if(isEqual(edge.node[1],node))
+        edge.isChild1 = true
+    elseif(isEqual(edge.node[2],node))
+        edge.isChild1 = false
     else
-        error("edge $(edge.number) already hybrid, cannot make it hybrid")
+        error("node $(node.number) is not attached to edge $(edge.number)")
     end
+    edge.hybrid = true
+    setGamma!(edge,gamma)
+    edge.istIdentifiable = isEdgeIdentifiable(edge)
 end
 
 # aux function to exchange who is the hybrid node
@@ -1540,10 +1544,10 @@ end
 #         true if there is need to updategammaz after
 function exchangeHybridNode!(net::HybridNetwork, current::Node,new::Node)
     (current.hybrid && !new.hybrid) || error("either current node $(current.number) is not hybrid: current.hybrid $(current.hybrid) or new node $(new.number) is already hybrid: new.hybrid $(new.hybrid)")
-    println("find cycle for current node $(current.number)")
+    #println("find cycle for current node $(current.number)")
     nocycle,edgesInCycle,nodesInCycle = identifyInCycle(net,current)
     !nocycle || error("strange here: change direction on hybrid node $(current.number) that does not have a cycle to begin with")
-    println("edges in cycle for node $(current.number) are $([e.number for e in edgesInCycle]) and nodes in cycle $([n.number for n in nodesInCycle])")
+    #println("edges in cycle for node $(current.number) are $([e.number for e in edgesInCycle]) and nodes in cycle $([n.number for n in nodesInCycle])")
     for(e in edgesInCycle)
         e.inCycle = new.number
     end
@@ -1585,16 +1589,15 @@ function changeDirection!(node::Node, net::HybridNetwork)
     major,minor,tree = hybridEdges(node);
     othermin = getOtherNode(minor,node);
     othermaj = getOtherNode(major,node);
+    gamma = major.gamma
+    makeEdgeTree!(major,node)
     edgebla,treecycle,edgebla = hybridEdges(othermin);
     update = exchangeHybridNode!(net,node,othermin)
     minor.isChild1 = minor.isChild1 ? false : true
-    makeEdgeHybrid!(treecycle,othermin,major.gamma)
+    makeEdgeHybrid!(treecycle,othermin,gamma)
     if(othermin.k > 3)
         othermaj.hasHybEdge = false
     end
-    major.hybrid = false
-    major.gamma = 1.0
-    major.isMajor = true
     return update,othermin
 end
 
@@ -1712,31 +1715,31 @@ function moveOrigin(node::Node,othermin::Node,tree1::Edge, tree2::Edge,newedge::
     end
     println("neighbor $(neighbor), from otheri $(from_otheri), from otherj $(from_otherj), n1 $(n1.number), n2 $(n2.number)")
     if(neighbor && from_otheri)
-        println("leaving n1 $(n1.number) as it is")
-        println("removing n2 $(n2.number) from newedge $(newedge.number) and viceversa")
+        #println("leaving n1 $(n1.number) as it is")
+        #println("removing n2 $(n2.number) from newedge $(newedge.number) and viceversa")
         removeEdge!(n2,newedge)
         removeNode!(n2,newedge)
-        println("removing otherj $(otherj.number) from treej $(treej.number) and viceversa")
+        #println("removing otherj $(otherj.number) from treej $(treej.number) and viceversa")
         removeEdge!(otherj,treej)
         removeNode!(otherj,treej)
-        println("setting newedge $(newedge.number) to otherj $(otherj.number) and viceversa")
+        #println("setting newedge $(newedge.number) to otherj $(otherj.number) and viceversa")
         setNode!(newedge,otherj)
         setEdge!(otherj,newedge)
-        println("setting treej edge $(treej.number) to n2 $(n2.number) and viceversa")
+        #println("setting treej edge $(treej.number) to n2 $(n2.number) and viceversa")
         setNode!(treej,n2)
         setEdge!(n2,treej)
     elseif(neighbor && from_otherj)
-        println("leaving n1 $(n1.number) as it is")
-        println("removing n2 $(n2.number) from newedge $(newedge.number) and viceversa")
+        #println("leaving n1 $(n1.number) as it is")
+        #println("removing n2 $(n2.number) from newedge $(newedge.number) and viceversa")
         removeEdge!(n2,newedge)
         removeNode!(n2,newedge)
-        println("removing otheri $(otheri.number) from treei edge $(treei.number) and viceversa")
+        #println("removing otheri $(otheri.number) from treei edge $(treei.number) and viceversa")
         removeEdge!(otheri,treei)
         removeNode!(otheri,treei)
-        println("setting newedge $(newedge.number) to otheri $(otheri.number) and viceversa")
+        #println("setting newedge $(newedge.number) to otheri $(otheri.number) and viceversa")
         setNode!(newedge,otheri)
         setEdge!(otheri,newedge)
-        println("setting treei edge $(treei.number) to n2 $(n2.number) and viceversa")
+        #println("setting treei edge $(treei.number) to n2 $(n2.number) and viceversa")
         setNode!(treei,n2)
         setEdge!(n2,treei)
     else
@@ -1821,7 +1824,8 @@ function chooseMinorMajor(node::Node, random::Bool, target::Bool)
     #println("hybrid node $(node.number) has major $(major.number), minor $(minor.number) and tree $(tree.number)")
     if(random)
         r = rand()
-        (major.gamma > 0.5 && major.gamma != 1.0) || error("strange major hybrid edge $(major.number) with gamma $(major.gamma) either less than 0.5 or equal to 1.0")
+        major.gamma > 0.5 || error("strange major hybrid edge $(major.number) with gamma $(major.gamma) less than 0.5")
+        major.gamma != 1.0 || warn("strange major hybrid edge $(major.number) with gamma $(major.gamma) equal to 1.0")
         othermin = r < major.gamma ? getOtherNode(minor,node) : getOtherNode(major,node)
         majoredge = r < major.gamma ? major : minor
     else
@@ -1949,12 +1953,8 @@ end
 function switchMajorTree!(major::Edge, tree::Edge, node::Node)
     !tree.hybrid || error("tree edge $(tree.number) cannot be hybrid to switch to major")
     major.hybrid || error("major edge $(major.number) has to be hybrid to switch to tree")
-    tree.hybrid = true
+    makeEdgeHybrid!(tree,node,major.gamma)
     tree.inCycle = major.inCycle
-    setGamma!(tree,major.gamma)
-    tree.isChild1 = isEqual(tree.node[1],node) ? true : false
-    tree.node[1].hasHybEdge = true
-    tree.node[2].hasHybEdge = true
     makeEdgeTree!(major,node)
     major.inCycle = -1
 end
@@ -2002,57 +2002,57 @@ function moveTarget(node::Node, major::Edge, tree::Edge, newedge::Edge, undo::Bo
     end
     println("neighbor $(neighbor), from othermajor $(from_othermajor), from treenode $(from_treenode), n1 $(n1.number), n2 $(n2.number)")
     if(neighbor && from_othermajor)
-        println("leaving n1 $(n1.number) as it is")
-        println("removing n2 $(n2.number) from newedge $(newedge.number) and viceversa")
+        #println("leaving n1 $(n1.number) as it is")
+        #println("removing n2 $(n2.number) from newedge $(newedge.number) and viceversa")
         removeEdge!(n2,newedge)
         removeNode!(n2,newedge)
-        println("removing treenode $(treenode.number) from tree edge $(tree.number) and viceversa")
+        #println("removing treenode $(treenode.number) from tree edge $(tree.number) and viceversa")
         removeEdge!(treenode,tree)
         removeNode!(treenode,tree)
-        println("setting newedge $(newedge.number) to treenode $(treenode.number) and viceversa")
+        #println("setting newedge $(newedge.number) to treenode $(treenode.number) and viceversa")
         setNode!(newedge,treenode)
         setEdge!(treenode,newedge)
-        println("setting tree edge $(tree.number) to n2 $(n2.number) and viceversa")
+        #println("setting tree edge $(tree.number) to n2 $(n2.number) and viceversa")
         setNode!(tree,n2)
         setEdge!(n2,tree)
     elseif(neighbor && from_treenode)
-        println("leaving n1 $(n1.number) as it is")
-        println("removing n2 $(n2.number) from newedge $(newedge.number) and viceversa")
+        #println("leaving n1 $(n1.number) as it is")
+        #println("removing n2 $(n2.number) from newedge $(newedge.number) and viceversa")
         removeEdge!(n2,newedge)
         removeNode!(n2,newedge)
-        println("removing othermajor $(othermajor.number) from major edge $(major.number) and viceversa")
+        #println("removing othermajor $(othermajor.number) from major edge $(major.number) and viceversa")
         removeEdge!(othermajor,major)
         removeNode!(othermajor,major)
-        println("setting newedge $(newedge.number) to othermajor $(othermajor.number) and viceversa")
+        #println("setting newedge $(newedge.number) to othermajor $(othermajor.number) and viceversa")
         setNode!(newedge,othermajor)
         setEdge!(othermajor,newedge)
-        println("setting major edge $(major.number) to n2 $(n2.number) and viceversa")
+        #println("setting major edge $(major.number) to n2 $(n2.number) and viceversa")
         setNode!(major,n2)
         setEdge!(n2,major)
     else
         warn("move target to edge $(newedge.number) not neighbor to major edge $(major.number) nor tree edge $(tree.number), function not debugged!")
-        println("removing major edge $(major.number) from othermajor node $(othermajor.number) and viceverse")
+        #println("removing major edge $(major.number) from othermajor node $(othermajor.number) and viceverse")
         removeEdge!(othermajor,major)
         removeNode!(othermajor,major)
-        println("removing treenode $(treenode.number) from tree edge $(tree.number) and viceversa")
+        #println("removing treenode $(treenode.number) from tree edge $(tree.number) and viceversa")
         removeEdge!(treenode,tree)
         removeNode!(treenode,tree)
-        println("removing node1 $(node1.number) from newedge $(newedge.number) and viceversa")
+        #println("removing node1 $(node1.number) from newedge $(newedge.number) and viceversa")
         removeEdge!(node1,newedge)
         removeNode!(node1,newedge)
-        println("removing node2 $(node2.number) from newedge $(newedge.number) and viceversa")
+        #println("removing node2 $(node2.number) from newedge $(newedge.number) and viceversa")
         removeEdge!(node2,newedge)
         removeNode!(node2,newedge)
-        println("setting newedge $(newedge.number) to othermajor $(othermajor.number) and viceversa")
+        #println("setting newedge $(newedge.number) to othermajor $(othermajor.number) and viceversa")
         setNode!(newedge,othermajor)
         setEdge!(othermajor,newedge)
-        println("setting newedge $(newedge.number) to treenode $(treenode.number) and viceversa")
+        #println("setting newedge $(newedge.number) to treenode $(treenode.number) and viceversa")
         setNode!(newedge,treenode)
         setEdge!(treenode,newedge)
-        println("setting major edge $(major.number) to node1 $(node1.number) and viceversa")
+        #println("setting major edge $(major.number) to node1 $(node1.number) and viceversa")
         setNode!(major,node1)
         setEdge!(node1,major)
-        println("setting tree edge $(tree.number) to node2 $(node2.number) and viceversa")
+        #println("setting tree edge $(tree.number) to node2 $(node2.number) and viceversa")
         setNode!(tree,node2)
         setEdge!(node2,tree)
     end
@@ -2064,14 +2064,14 @@ function moveTarget(node::Node, major::Edge, tree::Edge, newedge::Edge, undo::Bo
     setLength!(tree,t2/(t1+t2)*t)
     if(!undo)
         if(from_treenode)
-            println("from treenode treatment")
+            #println("from treenode treatment")
             switchMajorTree!(major,tree,node)
             node.k += 1
             newedge.inCycle = node.number
             treenode.inCycle = node.number
         elseif(from_othermajor)
             if(newedge.inCycle == node.number)
-                println("from othermajor and newedge incycle treatment")
+                #println("from othermajor and newedge incycle treatment")
                 switchMajorTree!(major,tree,node)
                 node.k -= 1
                 newedge.inCycle = -1
@@ -2645,27 +2645,21 @@ end
 
 # function to solve a polytomy among tree edges recursively
 function solvePolytomy!(net::HybridNetwork, n::Node)
-    if(!n.hybrid)
-        while(size(n.edge,1) > 3)
-            solvePolytomyRecursive!(net,n);
-        end
-    else
-        error("cannot solve polytomy in a hybrid node $(n.number).")
+    !n.hybrid || error("cannot solve polytomy in a hybrid node $(n.number).")
+    while(size(n.edge,1) > 3)
+        solvePolytomyRecursive!(net,n);
     end
 end
 
 # aux function to add a child to a leaf hybrid
 function addChild!(net::HybridNetwork, n::Node)
-    if(n.hybrid)
-        ed1 = Edge(net.numEdges+1,0.0);
-        n1 = Node(size(net.names,1)+1,true,false,[ed1]);
-        setEdge!(n,ed1);
-        setNode!(ed1,[n,n1]);
-        pushNode!(net,n1);
-        pushEdge!(net,ed1);
-    else
-        error("cannot add child to tree node.")
-    end
+    n.hybrid || error("cannot add child to tree node $(n.number).")
+    ed1 = Edge(net.numEdges+1,0.0);
+    n1 = Node(size(net.names,1)+1,true,false,[ed1]);
+    setEdge!(n,ed1);
+    setNode!(ed1,[n,n1]);
+    pushNode!(net,n1);
+    pushEdge!(net,ed1);
 end
 # aux function to expand the children of a hybrid node
 function expandChild!(net::HybridNetwork, n::Node)
@@ -2852,38 +2846,39 @@ function readTopologyUpdate(file::String)
     return net
 end
 
-# ----------------------------------------------------------------------------------------
+# in auxiliary.jl now
+## # ----------------------------------------------------------------------------------------
 
-# setLength
-# warning: allows to change edge length for istIdentifiable=false
-#          but issues a warning
-# negative=true meanes it allows negative branch lengths (useful in qnet typeHyb=4)
-function setLength!(edge::Edge, new_length::Float64, negative::Bool)
-    (negative || new_length >= 0) || error("length has to be nonnegative: $(new_length)")
-    edge.length = new_length;
-    edge.y = exp(-new_length);
-    edge.z = 1 - edge.y;
-    edge.istIdentifiable || warn("set edge length for edge $(edge.number) that is not identifiable")
-end
+## # setLength
+## # warning: allows to change edge length for istIdentifiable=false
+## #          but issues a warning
+## # negative=true meanes it allows negative branch lengths (useful in qnet typeHyb=4)
+## function setLength!(edge::Edge, new_length::Float64, negative::Bool)
+##     (negative || new_length >= 0) || error("length has to be nonnegative: $(new_length)")
+##     edge.length = new_length;
+##     edge.y = exp(-new_length);
+##     edge.z = 1 - edge.y;
+##     edge.istIdentifiable || warn("set edge length for edge $(edge.number) that is not identifiable")
+## end
 
-setLength!(edge::Edge, new_length::Float64) = setLength!(edge, new_length, false)
+## setLength!(edge::Edge, new_length::Float64) = setLength!(edge, new_length, false)
 
 
-# setGamma
-# warning: does not allow to change gamma in the bad diamond/triangle cases
-# because gamma is not identifiable
-# updates isMajor according to gamma value
-function setGamma!(edge::Edge, new_gamma::Float64)
-    new_gamma >= 0 || error("gamma has to be positive: $(new_gamma)")
-    new_gamma <= 1 || error("gamma has to be less than 1: $(new_gamma)")
-    edge.hybrid || error("cannot change gamma in a tree edge");
-    edge.isChild1 ? ind = 1 : ind = 2 ; # hybrid edge pointing at node 1 or 2
-    node = edge.node[ind]
-    node.hybrid || warn("hybrid edge $(edge.number) not pointing at hybrid node")
-    !node.isBadDiamondI || error("bad diamond situation: gamma not identifiable")
-    edge.gamma = new_gamma;
-    edge.isMajor = (new_gamma>=0.5) ? true : false
-end
+## # setGamma
+## # warning: does not allow to change gamma in the bad diamond/triangle cases
+## # because gamma is not identifiable
+## # updates isMajor according to gamma value
+## function setGamma!(edge::Edge, new_gamma::Float64)
+##     new_gamma >= 0 || error("gamma has to be positive: $(new_gamma)")
+##     new_gamma <= 1 || error("gamma has to be less than 1: $(new_gamma)")
+##     edge.hybrid || error("cannot change gamma in a tree edge");
+##     edge.isChild1 ? ind = 1 : ind = 2 ; # hybrid edge pointing at node 1 or 2
+##     node = edge.node[ind]
+##     node.hybrid || warn("hybrid edge $(edge.number) not pointing at hybrid node")
+##     !node.isBadDiamondI || error("bad diamond situation: gamma not identifiable")
+##     edge.gamma = new_gamma;
+##     edge.isMajor = (new_gamma>=0.5) ? true : false
+## end
 
 # -------------------- delete Leaf-------------------------------------
 
@@ -3051,6 +3046,8 @@ function deleteLeaf!(net::Network, leaf::Node)
                     ind = isEqual(getOtherNode(edgemaj,other1),other3) ? 1 : 2
                     edgebla,edge3,edge5 = hybridEdges(other3)
                     leaf5 = getOtherNode(edge5,other3)
+                    println("edge2 is $(edge2.number) and is identifiable $(edge2.istIdentifiable)")
+                    edge2.fromBadDiamondI = true
                     removeNode!(other,edge2)
                     removeEdge!(other1,edge1)
                     setNode!(edge2,other1)
@@ -3059,6 +3056,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                     #println("entro a cambiar length en edge $(edge2.number) con gammaz $(other3.gammaz)")
                     setLength!(edge2,-log(1-other3.gammaz))
                     edge2.number = int(string(string(other1.number),string(ind)))
+                    println("edge2 is $(edge2.number) should be not identifiable now $(edge2.istIdentifiable)")
                     makeEdgeTree!(edge4,other1)
                     makeNodeTree!(net,other1)
                     removeEdge!(other2,edge3)
@@ -3096,6 +3094,8 @@ function deleteLeaf!(net::Network, leaf::Node)
                     ind = isEqual(getOtherNode(edgemaj,other2),other3) ? 1 : 2
                     edgebla,edge3,edge5 = hybridEdges(other3)
                     leaf5 = getOtherNode(edge5,other3)
+                    println("edge1 is $(edge1.number) and is identifiable $(edge1.istIdentifiable)")
+                    edge1.fromBadDiamondI = true
                     removeNode!(other,edge1)
                     removeEdge!(other2,edge2)
                     setNode!(edge1,other2)
@@ -3103,6 +3103,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                     other3.gammaz != -1 || error("hybrid node $(other2.number) is bad diamond, but for node $(other3.number), gammaz is not well updated, it is $(other3.gammaz)")
                     setLength!(edge1,-log(1-other3.gammaz))
                     edge1.number = int(string(string(other2.number),string(ind)))
+                    println("edge1 is $(edge1.number) should be not identifiable now $(edge1.istIdentifiable)")
                     makeEdgeTree!(edge4,other2)
                     makeNodeTree!(net,other2)
                     removeEdge!(other1,edge3)
@@ -3174,10 +3175,10 @@ function updateHasEdge!(qnet::QuartetNetwork, net::HybridNetwork)
     for e in net.edge
         if(e.istIdentifiable)
             if(isEdgeNumIn(e,qnet.edge) && qnet.edge[getIndexEdge(e.number,qnet)].istIdentifiable)
-                println("found identifiable edge $(e.number) in net and qnet")
+                #println("found identifiable edge $(e.number) in net and qnet")
                 push!(edges,true)
             else
-                println("not found identifiable edge $(e.number) in qnet but identifiable in net")
+                #println("not found identifiable edge $(e.number) in qnet but identifiable in net")
                 push!(edges,false)
             end
         end
@@ -3185,7 +3186,7 @@ function updateHasEdge!(qnet::QuartetNetwork, net::HybridNetwork)
             node = e.node[e.isChild1 ? 1 : 2]
             node.hybrid || error("strange thing, hybrid edge $(e.number) pointing at tree node $(node.number)")
             if(!node.isBadDiamondI)
-                println("found hybrid edge $(e.number) in net and qnet")
+                #println("found hybrid edge $(e.number) in net and qnet")
                 push!(h,isNodeNumIn(node,qnet.hybrid))
             else
                 if(isNodeNumIn(node,qnet.hybrid))
@@ -3236,7 +3237,7 @@ function updateHasEdge!(qnet::QuartetNetwork, net::HybridNetwork)
             end
         end
     end # for in net.edge
-    println("edges $(edges), h $(h), hz $(hz)")
+    #println("edges $(edges), h $(h), hz $(hz)")
     qnet.hasEdge = vcat(h,edges,hz)
 end
 
@@ -3446,12 +3447,12 @@ end
 #        case: 1 (global case 2),2 (global case 4), 1 (global case 5)
 # warning: special treatment for bad diamond II
 function eliminateTriangle!(qnet::QuartetNetwork, node::Node, other::Node, case::Int64)
-    #println("start eliminateTriangle----")
+    println("start eliminateTriangle----")
     node.hybrid || error("cannot eliminate triangle around node $(node.number) since it is not hybrid")
-    #println("hybrid node is $(node.number), with edges $([e.number for e in node.edge]), with gammas $([e.gamma for e in node.edge])")
+    println("hybrid node is $(node.number), with edges $([e.number for e in node.edge]), with gammas $([e.gamma for e in node.edge])")
     edgemaj, edgemin, treeedge = hybridEdges(node)
-    isa(edgemaj,Nothing) ? error("edge maj is nothing") : nothing
-    isa(edgemin,Nothing) ? error("edge min is nothing") : nothing
+    isa(edgemaj,Nothing) ? error("edge maj is nothing for node $(node.number), other $(other.number) and taxon $(qnet.quartetTaxon), $(printEdges(qnet))") : nothing
+    isa(edgemin,Nothing) ? error("edge min is nothing for node $(node.number), other $(other.number) and taxon $(qnet.quartetTaxon), $(printEdges(qnet))") : nothing
     deleteIntLeafWhile!(qnet, edgemaj, node)
     deleteIntLeafWhile!(qnet, edgemin, node)
     if(isEqual(getOtherNode(edgemaj,node),other))
@@ -3465,16 +3466,16 @@ function eliminateTriangle!(qnet::QuartetNetwork, node::Node, other::Node, case:
     end
     println("hybedge is $(hybedge.number), otheredge is $(otheredge.number)")
     middle = qnet.node[getIndex(true, [(n.inCycle == node.number && size(n.edge,1) == 3 && !isEqual(n,other) && !isEqual(n,node)) for n in qnet.node])]
-    #println("middle node is $(middle.number) in eliminateTriangle")
+    println("middle node is $(middle.number) in eliminateTriangle")
     ind = getIndex(true,[(e.inCycle == node.number && !isEqual(getOtherNode(e,middle),node)) for e in middle.edge])
     edge = middle.edge[ind]
-    #println("edge is $(edge.number) with length $(edge.length) in eliminateTriangle, will do deleteIntLeaf from middle through edge")
+    println("edge is $(edge.number) with length $(edge.length) in eliminateTriangle, will do deleteIntLeaf from middle through edge")
     deleteIntLeafWhile!(qnet,edge,middle)
-    #println("after deleteIntLeaf, edge $(edge.number) has length $(edge.length)")
+    println("after deleteIntLeaf, edge $(edge.number) has length $(edge.length)")
     isEqual(getOtherNode(edge,middle),other) || error("middle node $(middle.number) and other node $(other.number) are not connected by an edge")
     if(case == 1)
         setLength!(edge,-log(1 - hybedge.gamma*edge.z))
-        #println("edge $(edge.number) length is $(edge.length) after updating")
+        println("edge $(edge.number) length is $(edge.length) after updating")
         removeEdge!(middle,otheredge)
         removeEdge!(other,hybedge)
         removeEdge!(node,treeedge)
@@ -3485,15 +3486,15 @@ function eliminateTriangle!(qnet::QuartetNetwork, node::Node, other::Node, case:
     elseif(case == 2)
         (hybedge.hybrid && otheredge.hybrid) || error("hybedge $(hybedge.number) and otheredge $(otheredge.number) should by hybrid edges in eliminateTriangle Case 2")
         setLength!(hybedge, -log(otheredge.gamma*otheredge.gamma*otheredge.y + hybedge.gamma*otheredge.gamma*(3-edge.y) + hybedge.gamma*hybedge.gamma*hybedge.y), true)
-        #println("edge $(edge.number) length is $(edge.length) after updating")
+        println("edge $(edge.number) length is $(edge.length) after updating")
         removeEdge!(middle,otheredge)
         removeEdge!(node,otheredge)
         deleteEdge!(qnet,otheredge)
-        deleteIntLeafWhile!(qnet, node, getOtherNode(treeedge,node))
+        deleteIntLeafWhile!(qnet, node, getOtherNode(treeedge,node),true)
     else
         error("unknown case $(case), should be 1 or 2")
     end
-    #println("end eliminateTriangle ---")
+    println("end eliminateTriangle ---")
 end
 
 # function to polish quartet with hybridization type 5
