@@ -939,13 +939,15 @@ end
 
 updateGammaz!(net::HybridNetwork, node::Node) = updateGammaz!(net, node, false)
 
-#function to check if hybrid edge should be identifiable
+#function to check if edge should be identifiable
 #it is not only if followed by leaf, or if a newly converted tree edge
 function isEdgeIdentifiable(edge::Edge)
     if(edge.hybrid)
         node = edge.node[edge.isChild1 ? 1 : 2]
+        println("is edge $(edge.number) identifiable, node $(node.number)")
         node.hybrid || error("hybrid edge $(edge.number) pointing at tree node $(node.number)")
         major,minor,tree = hybridEdges(node)
+        println("major $(major.number), minor $(minor.number), tree $(tree.number)")
         if(getOtherNode(tree,node).leaf)
             return false
         else
@@ -963,6 +965,8 @@ function isEdgeIdentifiable(edge::Edge)
                     return false
                 end
             end
+        else
+            return false
         end
     end
 end
@@ -1018,8 +1022,8 @@ function undoGammaz!(node::Node, net::HybridNetwork)
         setLength!(tree_edge_incycle1,-log(1-other_min.gammaz))
         other_maj.gammaz != -1 || error("bad diamond I in node $(node.number) but no gammaz updated correctly")
         setLength!(tree_edge_incycle2,-log(1-other_maj.gammaz))
-        edge_maj.gamma = other_maj.gammaz / (other_maj.gammaz+other_min.gammaz)
-        edge_min.gamma = other_min.gammaz / (other_maj.gammaz+other_min.gammaz)
+        setGamma!(edge_maj,other_maj.gammaz / (other_maj.gammaz+other_min.gammaz))
+        setGamma!(edge_min,other_min.gammaz / (other_maj.gammaz+other_min.gammaz))
         other_min.gammaz = -1.0
         other_maj.gammaz = -1.0
         tree_edge_incycle1.istIdentifiable = true;
@@ -1521,10 +1525,9 @@ end
 function makeEdgeHybrid!(edge::Edge,node::Node,gamma::Float64)
     !edge.hybrid || error("edge $(edge.number) already hybrid, cannot make it hybrid")
     node.hybrid || error("to make edge $(edge.number) hybrid, you need to give the hybrid node it is going to point to and node $(node.number) is not hybrid")
-    #println("estamos en make edge hybrid en edge $(edge.number) y node $(node.number)")
-    #println("vamos a hacer hashybedge true para $(getOtherNode(edge,node).number)")
-    getOtherNode(edge,node).hasHybEdge = true
-    #println("$(getOtherNode(edge,node).hasHybEdge) debe ser true")
+    println("estamos en make edge hybrid en edge $(edge.number) y node $(node.number)")
+    println("vamos a hacer hashybedge true para $(getOtherNode(edge,node).number)")
+    println("$(getOtherNode(edge,node).hasHybEdge) debe ser true")
     size(edge.node,1) == 2 || error("strange edge $(edge.number) has $(size(edge.node,1)) nodes instead of 2")
     if(isEqual(edge.node[1],node))
         edge.isChild1 = true
@@ -1534,6 +1537,7 @@ function makeEdgeHybrid!(edge::Edge,node::Node,gamma::Float64)
         error("node $(node.number) is not attached to edge $(edge.number)")
     end
     edge.hybrid = true
+    getOtherNode(edge,node).hasHybEdge = true
     setGamma!(edge,gamma)
     edge.istIdentifiable = isEdgeIdentifiable(edge)
 end
@@ -1953,9 +1957,11 @@ end
 function switchMajorTree!(major::Edge, tree::Edge, node::Node)
     !tree.hybrid || error("tree edge $(tree.number) cannot be hybrid to switch to major")
     major.hybrid || error("major edge $(major.number) has to be hybrid to switch to tree")
-    makeEdgeHybrid!(tree,node,major.gamma)
-    tree.inCycle = major.inCycle
+    println("switch major $(major.number) tree $(tree.number), node $(node.number)")
+    g = major.gamma
     makeEdgeTree!(major,node)
+    makeEdgeHybrid!(tree,node,g)
+    tree.inCycle = major.inCycle
     major.inCycle = -1
 end
 
@@ -2064,19 +2070,21 @@ function moveTarget(node::Node, major::Edge, tree::Edge, newedge::Edge, undo::Bo
     setLength!(tree,t2/(t1+t2)*t)
     if(!undo)
         if(from_treenode)
-            #println("from treenode treatment")
+            println("from treenode treatment, switch major $(major.number) to tree $(tree.number)")
             switchMajorTree!(major,tree,node)
             node.k += 1
             newedge.inCycle = node.number
             treenode.inCycle = node.number
         elseif(from_othermajor)
             if(newedge.inCycle == node.number)
-                #println("from othermajor and newedge incycle treatment")
+                println("from othermajor and newedge incycle treatment, switch major $(major.number) to tree $(tree.number)")
                 switchMajorTree!(major,tree,node)
                 node.k -= 1
                 newedge.inCycle = -1
                 othermajor.inCycle = -1
                 return true
+            else
+                major.istIdentifiable = isEdgeIdentifiable(major)
             end
         end
     else
@@ -2091,6 +2099,8 @@ function moveTarget(node::Node, major::Edge, tree::Edge, newedge::Edge, undo::Bo
                 node.k += 1
                 newedge.inCycle = node.number
                 othermajor.inCycle = node.number
+            else
+                major.istIdentifiable = isEdgeIdentifiable(major)
             end
         end
     end
@@ -2217,7 +2227,10 @@ function NNI!(net::Network,edge::Edge)
         e3 = edges2[2]
         e4 = edges2[1]
     end
-    if(edge.inCycle != -1)
+    t1 = e1.length
+    t = edge.length
+    t4 = e4.length
+    if(edge.inCycle != -1) # update inCycle
         if((e2.inCycle == e3.inCycle == edge.inCycle && e1.inCycle == e4.inCycle == -1) || (e1.inCycle == e4.inCycle == edge.inCycle && e2.inCycle == e3.inCycle == -1))
             nothing
         elseif((e2.inCycle == e4.inCycle == edge.inCycle && e1.inCycle == e3.inCycle == -1) || (e1.inCycle == e3.inCycle == edge.inCycle && e2.inCycle == e4.inCycle == -1))
@@ -2246,6 +2259,17 @@ function NNI!(net::Network,edge::Edge)
     setEdge!(n1,e3)
     setNode!(e2,n2)
     setEdge!(n2,e2)
+    if(rand() < 0.5) # update lengths
+        r = rand()
+        setLength!(e1,r*t1)
+        setLength!(edge,(1-r)*t1)
+        setLength!(e4,t4+t)
+    else
+        r = rand()
+        setLength!(e1,t1+t)
+        setLength!(edge,(1-r)*t4)
+        setLength!(e4,r*t4)
+    end
     return true
 end
 
@@ -2909,35 +2933,42 @@ function makeEdgeTree!(edge::Edge, node::Node)
     edge.isMajor = true
     edge.gamma = 1.0
     getOtherNode(edge,node).hasHybEdge = false
+    edge.istIdentifiable = isEdgeIdentifiable(edge)
 end
 
 # function to delete internal nodes until there is no
 # more internal node with only two edges
 # calls deleteIntLeaf! inside a while
 # returns middle node (see ipad drawing)
-function deleteIntLeafWhile!(net::Network, middle::Node, leaf::Node)
+# negative=true allows negative branch lengths
+function deleteIntLeafWhile!(net::Network, middle::Node, leaf::Node, negative::Bool)
     while(size(middle.edge,1) == 2)
-        middle = deleteIntLeaf!(net,middle,leaf)
+        middle = deleteIntLeaf!(net,middle,leaf, negative)
     end
     return middle
 end
 
+deleteIntLeafWhile!(net::Network, middle::Node, leaf::Node) = deleteIntLeafWhile!(net, middle, leaf, false)
+
 # function to delete internal nodes until there is no
 # more internal node with only two edges
 # calls deleteIntLeaf! inside a while
-function deleteIntLeafWhile!(net::Network, leafedge::Edge, leaf::Node)
+# negative=true allows negative branch lengths
+function deleteIntLeafWhile!(net::Network, leafedge::Edge, leaf::Node, negative::Bool)
     middle = getOtherNode(leafedge, leaf)
     while(size(middle.edge,1) == 2)
-        middle = deleteIntLeaf!(net,middle,leaf)
+        middle = deleteIntLeaf!(net,middle,leaf, negative)
     end
 end
 
+deleteIntLeafWhile!(net::Network, leafedge::Edge, leaf::Node) = deleteIntLeafWhile!(net, leafedge, leaf, false)
 
 # function to delete an internal node in an external edge
 # input: network, internal node and leaf
 # returns the new middle
 # note: leafedge is the edge that survives
-function deleteIntLeaf!(net::Network, middle::Node, leaf::Node)
+# negative=true allows negative branch lengths
+function deleteIntLeaf!(net::Network, middle::Node, leaf::Node, negative::Bool)
     #println("calling deleteIntLeaf for middle $(middle.number) and leaf $(leaf.number)")
     if(size(middle.edge,1) == 2)
         if(isEqual(getOtherNode(middle.edge[1],middle),leaf))
@@ -2950,7 +2981,7 @@ function deleteIntLeaf!(net::Network, middle::Node, leaf::Node)
             error("leaf $(leaf.number) is not attached to internal node $(middle.number) by any edge")
         end
         othernode = getOtherNode(otheredge,middle)
-        setLength!(leafedge,leafedge.length + otheredge.length)
+        setLength!(leafedge,leafedge.length + otheredge.length, negative)
         removeNode!(middle,leafedge)
         removeEdge!(othernode,otheredge)
         setNode!(leafedge,othernode)
@@ -2963,11 +2994,14 @@ function deleteIntLeaf!(net::Network, middle::Node, leaf::Node)
     end
 end
 
+deleteIntLeaf!(net::Network, middle::Node, leaf::Node) = deleteIntLeaf!(net, middle, leaf, false)
+
 # function to delete an internal node in an external edge
 # input: network, edge (from leaf.edge) to move in that direction and leaf
 # returns the new middle
 # note: leafedge is the edge that survives
-function deleteIntLeaf!(net::Network, leafedge::Edge, leaf::Node)
+# negative=true allows negative branch lengths
+function deleteIntLeaf!(net::Network, leafedge::Edge, leaf::Node, negative::Bool)
     middle = getOtherNode(leafedge,leaf)
     if(size(middle.edge,1) == 2)
         if(isEqual(getOtherNode(middle.edge[1],middle),leaf))
@@ -2978,7 +3012,7 @@ function deleteIntLeaf!(net::Network, leafedge::Edge, leaf::Node)
             error("leaf $(leaf.number) is not attached to internal node $(middle.number) by any edge")
         end
         othernode = getOtherNode(otheredge,middle)
-        setLength!(leafedge,leafedge.length + otheredge.length)
+        setLength!(leafedge,leafedge.length + otheredge.length, negative)
         removeNode!(middle,leafedge)
         removeEdge!(othernode,otheredge)
         setNode!(leafedge,othernode)
@@ -2990,6 +3024,8 @@ function deleteIntLeaf!(net::Network, leafedge::Edge, leaf::Node)
         warn("internal node $(middle.number) does not have two edges only, it has $(size(middle.edge,1))")
     end
 end
+
+deleteIntLeaf!(net::Network, leafedge::Edge, leaf::Node) = deleteIntLeaf!(net, leafedge, leaf, false)
 
 # function to delete a leaf from a network
 # input: network, leaf node
@@ -4221,7 +4257,7 @@ function optTopLevel!(currT::HybridNetwork, epsilon::Float64, N::Int64, d::DataC
             println("accepted proposed new topology in step $(count): net.ht=$(net.ht), net.index=$(net.index)")
             printEdges(newT)
             newloglik, newxmin = optBL!(newT,d)
-            if(newloglik < currloglik)
+            if(newloglik < currloglik && isValid(newxmin,newT)) # fixit: will remove isValid to allow the data to give hints on the search
                 println("proposed new topology with better loglik in step $(count): oldloglik=$(round(currloglik,3)), newloglik=$(round(newloglik,3))")
                 updateParameters!(newT)
                 updateLik!(newT,newloglik)
@@ -4239,6 +4275,20 @@ function optTopLevel!(currT::HybridNetwork, epsilon::Float64, N::Int64, d::DataC
     printEdges(newT)
     return newT
 end
+
+function isValid(ht::Vector{Float64}, net::HybridNetwork)
+    length(ht) == length(net.ht) || error("vector ht should have same length as net.ht for isValid function")
+    nh = ht[1 : net.numHybrids - net.numBad]
+    k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
+    nt = ht[net.numHybrids - net.numBad + 1 : net.numHybrids - net.numBad + k]
+    nhz = ht[net.numHybrids - net.numBad + k + 1 : length(ht)]
+    all([n>0 for n in ht]) || return false
+    all([n<1 for n in nh]) || return false
+    all([n<1 for n in nhz]) || return false
+    return true
+end
+
+
 
 
 # ----- read data --------

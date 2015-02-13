@@ -631,9 +631,10 @@ end
 # setLength
 # warning: allows to change edge length for istIdentifiable=false
 #          but issues a warning
-# negative=true meanes it allows negative branch lengths (useful in qnet typeHyb=4)
+# negative=true means it allows negative branch lengths (useful in qnet typeHyb=4)
 function setLength!(edge::Edge, new_length::Float64, negative::Bool)
     (negative || new_length >= 0) || error("length has to be nonnegative: $(new_length), cannot set to edge $(edge.number)")
+    new_length >= -log(1.5) || error("length can be negative, but not too negative (greater than $(-log(1.5))) or majorCF<0: new length is $(new_length)")
     edge.length = new_length;
     edge.y = exp(-new_length);
     edge.z = 1 - edge.y;
@@ -654,7 +655,7 @@ function setGamma!(edge::Edge, new_gamma::Float64)
     edge.isChild1 ? ind = 1 : ind = 2 ; # hybrid edge pointing at node 1 or 2
     node = edge.node[ind]
     node.hybrid || warn("hybrid edge $(edge.number) not pointing at hybrid node")
-    !node.isBadDiamondI || error("bad diamond situation: gamma not identifiable")
+    !node.isBadDiamondI || warn("bad diamond situation: gamma not identifiable")
     edge.gamma = new_gamma;
     edge.isMajor = (new_gamma>=0.5) ? true : false
 end
