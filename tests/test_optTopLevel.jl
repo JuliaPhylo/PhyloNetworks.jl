@@ -45,8 +45,30 @@ d = readDataCF(df)
 epsilon = eps()
 N = 100
 
+@time newT = optTopLevel!(currT,epsilon,N,d);
+printEdges(newT)
+# with original optBL
+# elapsed time: 347.527745834 seconds (372704328 bytes allocated, 0.06% gc time)
+# did not find right network (Case H), came back to starting point (Case G)
+
+# with new added inequality
+#elapsed time: 58.711593728 seconds (498732864 bytes allocated, 0.49% gc time)
+# did not find the right network (Case H), stopped in bad diamond II case
+
+# ------------------
+# starting topology: Case F
+include("../case_f_example.jl");
+currT = deepcopy(net);
+printEdges(currT)
+
+# real network: Case H
+df = readtable("CaseH_output.csv")
+d = readDataCF(df)
+
+
+epsilon = eps()
+N = 100
+
 @time newT = optTopLevel!(currT,epsilon,N,d)
 printEdges(newT)
-
-
 

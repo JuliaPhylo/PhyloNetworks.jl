@@ -32,9 +32,15 @@ net.ht
 realht = [0.1,0.2,0.1,1.0]
 
 @time fmin,xmin=optBL!(net,d2)
+# with usual logPseudoLik:
 #got 5.33118 at [0.247,0.18076,0.12026,0.2956] after 81 iterations (returned FTOL_REACHED)
 #elapsed time: 8.654081812 seconds (8624832 bytes allocated)
 #(5.331178696104555,[0.246999,0.180762,0.120265,0.295604])
+
+# with new logPseudoLik:
+#got 0.0 at [0.14088,0.19534,0.10493,0.59544] after 512 iterations (returned FTOL_REACHED)
+#elapsed time: 6.552122524 seconds (95796384 bytes allocated, 0.56% gc time)
+#(5.522931422394296e-8,[0.140883,0.195339,0.10493,0.595437])
 
 @allocated fmin,xmin=optBL!(net,d2)
 
@@ -145,9 +151,15 @@ net.ht
 realht = [0.1,0.1,1.,0.1]
 
 @time fmin,xmin=optBL!(net,d2)
+# with usual logPseudoLik:
 #got 4.34098 at [0.1,0.10001,0.99999,0.1] after 151 iterations (returned FTOL_REACHED)
 #elapsed time: 21.076511672 seconds (21355496 bytes allocated, 0.17% gc time)
 #(4.340977085797292,[0.0999962,0.100005,0.999989,0.0999984])
+
+# with new logPseudoLik:
+#got 0.0 at [0.1,0.1,1.0,0.1] after 192 iterations (returned FTOL_REACHED)
+#elapsed time: 0.973165584 seconds (16698980 bytes allocated, 3.44% gc time)
+#(4.3376522534621724e-13,[0.1,0.0999979,1.0,0.100001])
 
 # ==================================================================================================================================
 
@@ -188,9 +200,15 @@ net.ht
 realht = [0.1,0.2,0.1,1.0]
 
 @time fmin,xmin=optBL!(net,d2)
+# with usual logPseudoLik:
 #got 5.39161 at [0.09997,0.19999,0.1,1.00061] after 246 iterations (returned FTOL_REACHED)
 #elapsed time: 59.297791699 seconds (71939204 bytes allocated, 0.11% gc time)
 #(5.3916134028946034,[0.0999661,0.199991,0.0999991,1.00061])
+
+# with new logPseudoLik:
+#got 0.0 at [0.10002,0.20001,0.1,0.99958] after 260 iterations (returned FTOL_REACHED)
+#elapsed time: 1.211645168 seconds (21966196 bytes allocated)
+#(9.797186804450541e-12,[0.100022,0.200007,0.100001,0.999579])
 
 
 # ==================================================================================================================================
@@ -233,9 +251,20 @@ net.ht
 realht = [0.1,0.127,0.0285]
 
 @time fmin,xmin=optBL!(net,d2)
+# with usual logPseudoLik:
 #got 5.40235 at [0.1,0.12689,0.02855] after 116 iterations (returned FTOL_REACHED)
 #elapsed time: 15.648447251 seconds (17823396 bytes allocated, 0.18% gc time)
 #(5.402353356033268,[0.1,0.126887,0.0285486])
+
+# with new logPseudoLik:
+#got 0.0 at [0.1,0.12689,0.02855] after 116 iterations (returned FTOL_REACHED)
+#elapsed time: 0.494250509 seconds (9272420 bytes allocated)
+#(3.6216219428084243e-12,[0.1,0.126887,0.0285488])
+
+# with new logPseudoLik and new algorithm LN_COBYLA
+#got 0.0 at [0.1,0.12689,0.02855] after 3277 iterations (returned FTOL_REACHED)
+#elapsed time: 23.001580343 seconds (312597904 bytes allocated, 0.98% gc time)
+#(1.920897287842076e-13,[0.0999998,0.126889,0.0285491])
 
 # ==================================================================================================================================
 
@@ -277,6 +306,7 @@ net.ht
 realht = [0.1,2.0,1.0,1.0,1.0]
 
 @time fmin,xmin=optBL!(net,d2)
+## with usual logPseudoLik:
 # with ht = [0.2,0.0,0.5,0.5,0.5]
 #got 3.69564 at [0.09753,1.97129,0.99532,0.46822,1.04214] after 267 iterations (returned FTOL_REACHED)
 #elapsed time: 45.70869142 seconds (35023452 bytes allocated, 0.06% gc time)
@@ -286,6 +316,13 @@ realht = [0.1,2.0,1.0,1.0,1.0]
 #got 3.69564 at [0.1034,2.03878,1.00653,3.58586,0.94929] after 176 iterations (returned FTOL_REACHED)
 #elapsed time: 15.743171805 seconds (17639780 bytes allocated)
 #(3.6956415275081724,[0.103403,2.03878,1.00653,3.58586,0.949288])
+
+
+## with new logPseudoLik:
+#ht: [0.2,1.0,2.0,2.0,2.0]
+#got 0.0 at [0.10342,2.03906,1.00656,3.60666,0.94899] after 195 iterations (returned FTOL_REACHED)
+#elapsed time: 1.11298624 seconds (17529096 bytes allocated, 2.98% gc time)
+#(3.3635155002465492e-6,[0.103419,2.03906,1.00656,3.60666,0.948988])
 
 
 # -------------------5taxon tree------------------

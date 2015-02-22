@@ -638,17 +638,18 @@ function setLength!(edge::Edge, new_length::Float64, negative::Bool)
     edge.length = new_length;
     edge.y = exp(-new_length);
     edge.z = 1 - edge.y;
-    edge.istIdentifiable || warn("set edge length for edge $(edge.number) that is not identifiable")
+    #edge.istIdentifiable || warn("set edge length for edge $(edge.number) that is not identifiable")
 end
 
 setLength!(edge::Edge, new_length::Float64) = setLength!(edge, new_length, false)
 
 
 # setGamma
-# warning: does not allow to change gamma in the bad diamond/triangle cases
-# because gamma is not identifiable
+# warning in the bad diamond/triangle cases because gamma is not identifiable
 # updates isMajor according to gamma value
-function setGamma!(edge::Edge, new_gamma::Float64)
+# changeOther = true, looks for the other hybrid edge and changes gamma too
+# read = true, function called in readSubtree, needs to be the old one
+function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool, read::Bool)
     new_gamma >= 0 || error("gamma has to be positive: $(new_gamma)")
     new_gamma <= 1 || error("gamma has to be less than 1: $(new_gamma)")
     edge.hybrid || error("cannot change gamma in a tree edge");
@@ -656,6 +657,41 @@ function setGamma!(edge::Edge, new_gamma::Float64)
     node = edge.node[ind]
     node.hybrid || warn("hybrid edge $(edge.number) not pointing at hybrid node")
     !node.isBadDiamondI || warn("bad diamond situation: gamma not identifiable")
-    edge.gamma = new_gamma;
-    edge.isMajor = (new_gamma>=0.5) ? true : false
+    if(!read)
+        edges = hybridEdges(node,edge)
+        length(edges) == 2 || error("strange here: node $(node.number) should have 3 edges and it has $(length(edges)+1).")
+        if(edges[1].hybrid && !edges[2].hybrid)
+            ind = 1
+        elseif(edges[2].hybrid && !edges[1].hybrid)
+            ind = 2
+        else
+            error("strange hybrid node $(node.number) with only one hybrid edge or with three hybrid edges")
+        end
+        if(changeOther)
+            if(!approxEq(new_gamma,0.5))
+                edge.gamma = new_gamma;
+                edge.isMajor = (new_gamma>0.5) ? true : false
+                edges[ind].gamma = 1 - new_gamma;
+                edges[ind].isMajor = (new_gamma<0.5) ? true : false
+            else #new gamma is 0.5
+                edge.gamma = new_gamma
+                edge.isMajor = true
+                edges[ind].gamma = 1 - new_gamma
+                edges[ind].isMajor = false
+            end
+        else
+            if(!approxEq(new_gamma,0.5))
+                edge.gamma = new_gamma;
+                edge.isMajor = (new_gamma>0.5) ? true : false
+            else #new gamma is 0.5
+                edge.gamma = new_gamma
+                edge.isMajor = !edges[ind].isMajor
+            end
+        end
+    else # comes from readSubtree
+        edge.gamma = new_gamma;
+        edge.isMajor = (new_gamma>=0.5) ? true : false
+    end
 end
+
+setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool) = setGamma!(edge, new_gamma, changeOther, false)

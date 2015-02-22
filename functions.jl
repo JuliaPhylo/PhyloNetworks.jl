@@ -13,651 +13,6 @@ using DataFrames # for rep function and read/write csv tables
 using NLopt # for branch lengths optimization
 
 
-## # ----- aux general functions ---------------
-
-## function approxEq(a::Number,b::Number)
-##     abs(a-b) < 100*eps(abs(a)+abs(b))
-## end
-
-
-## #------------- EDGE functions --------------------#
-
-## # warning: node needs to be defined as hybrid before adding to a
-## #          hybrid edge. First, an edge is defined as hybrid, and then
-## #          the nodes are added to it. If the node added is leaf, the
-## #          edge length is set unidentifiable (as it is external edge)
-## function setNode!(edge::Edge, node::Node)
-##   if(size(edge.node,1)  ==  2)
-##     error("vector of nodes already has 2 values");
-##   else
-##     push!(edge.node,node);
-##     if(size(edge.node,1) == 1)
-##         if(edge.hybrid)
-##             if(node.hybrid)
-##                 edge.isChild1 = true;
-##             else
-##                 edge.isChild1 = false;
-## 	    end
-##         end
-##         if(node.leaf)
-##             edge.istIdentifiable=false;
-##         end
-##     else
-##         if(edge.hybrid)
-## 	    if(node.hybrid)
-##                 if(edge.node[1].hybrid)
-##                     error("hybrid edge has two hybrid nodes");
-##                 else
-##                     edge.isChild1 = false;
-## 	        end
-## 	    else
-## 	        if(!edge.node[1].hybrid)
-## 	            Error("hybrid edge has no hybrid nodes");
-## 	        else
-## 	            edge.isChild1 = true;
-## 	        end
-## 	    end
-##         end
-##         if(node.leaf)
-##             if(edge.node[1].leaf)
-##                 error("edge has two leaves")
-##             else
-##                 edge.istIdentifiable=false;
-##             end
-##         end
-##     end
-##   end
-## end
-
-## # warning: node needs to be defined as hybrid before adding to a hybrid edge.
-## #          First, an edge is defined as hybrid, and then the nodes are added to it.
-## #          If there is a leaf in node, the edge.istIdentifiable=false
-## function setNode!(edge::Edge,node::Array{Node,1})
-##     size(node,1) !=  2 ?
-##     error("vector of nodes must have exactly 2 values") :
-##     edge.node = node;
-##     if(edge.hybrid)
-##       if(node[1].hybrid)
-##           edge.isChild1 = true;
-##       else
-##           if(node[2].hybrid)
-##               edge.isChild1 = false;
-##           else
-##               error("hybrid edge without hybrid node");
-##           end
-##       end
-##     end
-##     if(edge.node[1].leaf || edge.node[2].leaf)
-##         edge.istIdentifiable=false;
-##     end
-## end
-
-
-## # -------------- NODE -------------------------#
-
-## function setEdge!(node::Node,edge::Edge)
-##    push!(node.edge,edge);
-##    all([!e.hybrid for e in node.edge]) ? node.hasHybEdge = false : node.hasHybEdge = true;
-## end
-
-## function getOtherNode(edge::Edge,node::Node)
-##   isequal(edge.node[1],node) ? edge.node[2] : edge.node[1]
-## end
-## # -------------- NETWORK ----------------------- #
-
-## function getIndex(node::Node, net::Network)
-##     i = 1;
-##     while(i<= size(net.node,1) && !isequal(node,net.node[i]))
-##         i = i+1;
-##     end
-##     i>size(net.node,1)?error("node not in network"):return i;
-## end
-
-## function getIndex(edge::Edge, net::Network)
-##     i = 1;
-##     while(i<= size(net.edge,1) && !isequal(edge,net.edge[i]))
-##         i = i+1;
-##     end
-##     i>size(net.edge,1)?error("edge not in network"):return i;
-## end
-
-## function getIndex(bool::Bool, array::Array{Bool,1})
-##     i = 1;
-##     while(i<= size(array,1) && !isequal(bool,array[i]))
-##         i = i+1;
-##     end
-##     i>size(array,1)?error("$(bool) not in array"):return i;
-## end
-
-## function getIndex(bool::Bool, array::Array{Bool,1})
-##     i = 1;
-##     while(i<= size(array,1) && !isequal(bool,array[i]))
-##         i = i+1;
-##     end
-##     i>size(array,1)?error("$(bool) not in array"):return i;
-## end
-
-## function getIndex(bool::Bool, array::Array{Any,1})
-##     i = 1;
-##     while(i<= size(array,1) && !isequal(bool,array[i]))
-##         i = i+1;
-##     end
-##     i>size(array,1)?error("$(bool) not in array"):return i;
-## end
-
-
-## # aux function to find the index of a string in a
-## # string array
-## function getIndex(name::ASCIIString, array::Array{ASCIIString,1})
-##     i = 1;
-##     while(i<= size(array,1) && !isequal(name,array[i]))
-##         i = i+1;
-##     end
-##     i>size(array,1)?error("$(name) not in array"):return i;
-## end
-
-## # aux function to find the index of a int64 in a
-## # int64 array
-## function getIndex(name::Int64, array::Array{Int64,1})
-##     i = 1;
-##     while(i<= size(array,1) && !isequal(name,array[i]))
-##         i = i+1;
-##     end
-##     i>size(array,1)?error("$(name) not in array"):return i;
-## end
-
-
-## # aux function to find the index of a node in a
-## # node array
-## function getIndex(name::Node, array::Array{Node,1})
-##     i = 1;
-##     while(i<= size(array,1) && !isequal(name,array[i]))
-##         i = i+1;
-##     end
-##     i>size(array,1)?error("$(name.number) not in array"):return i;
-## end
-
-
-## function getIndexNode(number::Int64,net::Network)
-##     try
-##         getIndex(true,[number==n.number for n in net.node])
-##     catch
-##         error("node number not in net.node")
-##     end
-##     return getIndex(true,[number==n.number for n in net.node])
-## end
-
-## function getIndexEdge(number::Int64,net::Network)
-##     try
-##         getIndex(true,[number==n.number for n in net.edge])
-##     catch
-##         error("edge number not in net.edge")
-##     end
-##     return getIndex(true,[number==n.number for n in net.edge])
-## end
-
-## # find the index of an edge in node.edge
-## function getIndexEdge(edge::Edge,node::Node)
-##     getIndex(true,[isequal(edge,e) for e in node.edge])
-## end
-
-## # find the index of an edge with given number in node.edge
-## function getIndexEdge(number::Int64,node::Node)
-##     getIndex(true,[isequal(edge,e) for e in node.edge])
-## end
-
-## # find the index of a node in edge.node
-## function getIndexNode(edge::Edge,node::Node)
-##     size(edge.node,1) == 2 || warn("this edge $(edge.number) has more or less than 2 nodes")
-##     if(isequal(node,edge.node[1]))
-##         return 1
-##     elseif(isequal(node,edge.node[2]))
-##         return 2
-##     else
-##         error("node not in edge.node")
-##     end
-## end
-
-## # function to find hybrid index in net.hybrid
-## function getIndexHybrid(node::Node, net::Network)
-##     if(node.hybrid)
-##         i = 1;
-##         while(i<= size(net.hybrid,1) && !isequal(node,net.hybrid[i]))
-##             i = i+1;
-##         end
-##         i>size(net.hybrid,1)?error("hybrid node not in network"):return i;
-##     else
-##         error("node $(node.number) is not hybrid so it cannot be in net.hybrid")
-##     end
-## end
-
-## # function to find leaf index in qnet.leaf
-## function getIndexLeaf(node::Node, net::Network)
-##     if(node.leaf)
-##         i = 1;
-##         while(i<= size(net.leaf,1) && !isequal(node,net.leaf[i]))
-##             i = i+1;
-##         end
-##         i>size(net.leaf,1)?error("leaf node not in network"):return i;
-##     else
-##         error("node $(node.number) is not leaf so it cannot be in net.leaf")
-##     end
-## end
-
-
-## # function that given a hybrid node, it gives you the minor hybrid edge
-## function getHybridEdge(node::Node)
-##     if(node.hybrid)
-##         a = nothing;
-##         for(e in node.edge)
-##             (e.hybrid && !e.isMajor) ? a = e : nothing;
-##         end
-##         isa(a,Nothing) ? error("hybrid node does not have minor hybrid edge") : return a
-##     else
-##         error("node is not hybrid node")
-##     end
-## end
-
-
-## # function that given two nodes, it gives you the edge that connects them
-## # returns error if they are not connected by an edge
-## function getConnectingEdge(node1::Node,node2::Node)
-##     found = false;
-##     i = 1;
-##     while(i<= size(node1.edge,1) && !found)
-##         if(isequal(getOtherNode(node1.edge[i],node1),node2))
-##             found = true;
-##         end
-##         i = i+1;
-##     end
-##     if(found)
-##         return node1.edge[i-1]
-##     else
-##         error("nodes not connected")
-##     end
-## end
-
-## # function to determine if two edges are equal
-## # used when comparing edges in QuartetNetwork
-## # and HybridNetwork (in particular in
-## # updateHasEdge)
-## # compares only the numbers of the edges
-## # warning: if number not uniquely determined,
-## #          it fails
-## function isequalEdge(ed1::Edge, ed2::Edge)
-##     if(ed1.number == ed2.number)
-##         return true
-##     else
-##         return false
-##     end
-## end
-
-## # function to determine if two nodes are equal
-## # compares only the numbers of the nodes
-## # warning: if number not uniquely determined,
-## #          it fails
-## function isequalNode(ed1::Node, ed2::Node)
-##     if(ed1.number == ed2.number)
-##         return true
-##     else
-##         return false
-##     end
-## end
-
-## # function to check in an edge is in an array by comparing
-## # the edges numbers (uses isequalEdge)
-## # needed for updateHasEdge
-## function isEdgeNumIn(edge::Edge,array::Array{Edge,1})
-##     return all([!isequalEdge(edge,e) for e in array]) ? false : true
-## end
-
-## # function to check in a leaf is in an array by comparing
-## # the numbers (uses isequalNode)
-## # needed for updateHasEdge
-## function isNodeNumIn(node::Node,array::Array{Node,1})
-##     return all([!isequalNode(node,e) for e in array]) ? false : true
-## end
-
-## # function to push a Node in net.node and
-## # update numNodes and numTaxa
-## function pushNode!(net::Network, n::Node)
-##     push!(net.node,n);
-##     net.numNodes += 1;
-##     if(n.leaf)
-##         net.numTaxa += 1
-##         push!(net.leaf,n);
-##     end
-##     if(n.hybrid)
-##         pushHybrid!(net,n)
-##     end
-## end
-
-## # function to push an Edge in net.edge and
-## # update numEdges
-## function pushEdge!(net::Network, e::Edge)
-##     push!(net.edge,e);
-##     net.numEdges += 1;
-## end
-
-
-## # function to push a hybrid Node in net.hybrid and
-## # update numHybrids
-## function pushHybrid!(net::Network, n::Node)
-##     if(n.hybrid)
-##         push!(net.hybrid,n);
-##         net.numHybrids += 1;
-##     else
-##         error("node $(n.number) is not hybrid, so cannot be pushed in net.hybrid")
-##     end
-## end
-
-
-## # function to delete a Node in net.node and
-## # update numNodes and numTaxa for HybridNetwork
-## # if hybrid node, it deletes also from net.hybrid
-## # and updates numHybrids
-## # note that net.names is never updated to keep it
-## # accurate
-## function deleteNode!(net::HybridNetwork, n::Node)
-##     try
-##         index = getIndex(n,net);
-##     catch
-##         error("Node $(n.number) not in network");
-##     end
-##     index = getIndex(n,net);
-##     deleteat!(net.node,index);
-##     net.numNodes -= 1;
-##     if(net.root == index)
-##         warn("Root node deleted")
-##     end
-##     if(n.hybrid)
-##        removeHybrid!(net,n)
-##     end
-##     if(n.leaf)
-##         removeLeaf!(net,n)
-##     end
-## end
-
-## # function to delete a Node in net.node and
-## # update numNodes and numTaxa for QuartetNetwork
-## # if hybrid node, it deletes also from net.hybrid
-## # and updates numHybrids
-## # note that net.names is never updated to keep it
-## # accurate
-## # if n is leaf, we delete from qnet.leaf
-## function deleteNode!(net::QuartetNetwork, n::Node)
-##     try
-##         index = getIndex(n,net);
-##     catch
-##         error("Node $(n.number) not in network");
-##     end
-##     index = getIndex(n,net);
-##     deleteat!(net.node,index);
-##     net.numNodes -= 1;
-##     net.numTaxa -= n.leaf ? 1 : 0;
-##     if(n.hybrid)
-##        removeHybrid!(net,n)
-##     end
-##     if(n.leaf)
-##         index = getIndexLeaf(n,net)
-##         deleteat!(net.leaf,index)
-##     end
-## end
-
-## # function to delete an Edge in net.edge and
-## # update numEdges from a Network
-## function deleteEdge!(net::Network, e::Edge)
-##     try
-##         index = getIndex(e,net);
-##     catch
-##         error("Edge not in network");
-##     end
-##     index = getIndex(e,net);
-##     deleteat!(net.edge,index);
-##     net.numEdges -= 1;
-## end
-
-
-## # function to delete a hybrid Node in net.hybrid and
-## # update numHybrid
-## # used when you do not want to delete the actual node
-## # only remove it from net.hybrid
-## function removeHybrid!(net::Network, n::Node)
-##     if(n.hybrid)
-##         try
-##             index = getIndexHybrid(n,net);
-##         catch
-##             error("Hybrid Node $(n.number) not in network");
-##         end
-##         index = getIndexHybrid(n,net);
-##         deleteat!(net.hybrid,index);
-##         net.numHybrids -= 1;
-##     else
-##         error("cannot delete node $(n.number) from net.hybrid because it is not hybrid")
-##     end
-## end
-
-## # function to delete a leaf node in net.leaf
-## # and update numTaxa
-## function removeLeaf!(net::Network,n::Node)
-##     if(n.leaf)
-##         try
-##             index = getIndexLeaf(n,net)
-##         catch
-##             error("Leaf node $(n.number) not in network")
-##         end
-##         index = getIndexLeaf(n,net)
-##         deleteat!(net.leaf,index)
-##         net.numTaxa -= 1
-##     else
-##         error("cannot delete node $(n.number) from net.leaf because it is not leaf")
-##     end
-## end
-
-## # function to delete an internal node with only 2 edges
-## function deleteIntNode!(net::Network, n::Node)
-##     if(size(n.edge,1) == 2)
-##         index = n.edge[1].number < n.edge[2].number ? 1 : 2;
-##         edge1 = n.edge[index];
-##         edge2 = n.edge[index==1?2:1];
-##         node1 = getOtherNode(edge1,n);
-##         node2 = getOtherNode(edge2,n);
-##         removeEdge!(node2,edge2);
-##         removeNode!(n,edge1);
-##         setEdge!(node2,edge1);
-##         setNode!(edge1,node2);
-##         deleteNode!(net,n);
-##         deleteEdge!(net,edge2);
-##         edge1.hybrid = false;
-##     else
-##         error("node does not have only two edges")
-##     end
-## end
-
-
-## # search the hybrid node(s) in network: returns the hybrid node(s)
-## # in an array
-## # throws error if no hybrid in network
-## function searchHybridNode(net::Network)
-##     suma = sum([net.node[i].hybrid?1:0 for i = 1:size(net.node,1)]);
-##     if(suma == 0)
-##         error("network has no hybrid node");
-##     end
-##     k = getIndex(true,[net.node[i].hybrid for i = 1:size(net.node,1)]);
-##     if(suma>1)
-##         a = [net.node[k]];
-##         count = suma-1;
-##         index = k;
-##         vect = [net.node[i].hybrid for i = 1:size(net.node,1)];
-##         while(count>0 && count<size(net.node,1))
-##             index == 1 ? vect = [false,vect[2:size(net.node,1)]] : vect = [vect[1:(index-1)],false,vect[(index+1):size(net.node,1)]]
-##             index = getIndex(true,vect);
-##             push!(a,net.node[index]);
-##             count = count-1;
-##         end
-##         return a
-##     else
-##         return [net.node[k]]
-##     end
-## end
-
-## # search the hybrid edges in network: returns the hybrid edges
-## # hybrid edges come in pairs, both edges are returned
-## # throws error if no hybrid in network
-## # check: change to return only the minor edge?
-## function searchHybridEdge(net::Network)
-##     suma = sum([net.edge[i].hybrid?1:0 for i = 1:size(net.edge,1)]);
-##     if(suma == 0)
-##         error("network has no hybrid edge");
-##     end
-##     k = getIndex(true,[net.edge[i].hybrid for i = 1:size(net.edge,1)]);
-##     if(suma>1)
-##         a = [net.edge[k]];
-##         count = suma-1;
-##         index = k;
-##         vect = [net.edge[i].hybrid for i = 1:size(net.edge,1)];
-##         while(count>0 && count<size(net.edge,1))
-##             index == 1 ? vect = [false,vect[2:size(net.node,1)]] : vect = [vect[1:(index-1)],false,vect[(index+1):size(net.node,1)]]
-##             index = getIndex(true,vect);
-##             push!(a,net.edge[index]);
-##             count = count-1;
-##         end
-##         return a
-##     else
-##         return net.edge[k]
-##     end
-## end
-
-## # print for every edge, nodes, inCycle, containRoot, istIdentifiable
-## function printEdges(net::Network)
-##     println("Edge\tNode1\tNode2\tInCycle\tcontainRoot\tistIdentitiable\tLength\tisHybrid\tGamma")
-##     for e in net.edge
-##         println("$(e.number)\t$(e.node[1].number)\t$(e.node[2].number)\t$(e.inCycle)\t$(e.containRoot)\t\t$(e.istIdentifiable)\t\t$(e.length)\t$(e.hybrid)\t$(e.gamma)")
-##     end
-## end
-
-## # print for every node, inCycle and edges
-## function printNodes(net::Network)
-##     println("Node\tIn Cycle\tisHybrid\thasHybEdge\tEdges numbers")
-##     for n in net.node
-##         print("$(n.number)\t$(n.inCycle)\t\t$(n.hybrid)\t$(n.hasHybEdge)\t")
-##         for e in n.edge
-##             print("\t$(e.number)")
-##         end
-##         print("\n")
-##     end
-## end
-
-## # find the edges for a given hybrid node
-## # in the order: hybrid major, hybrid minor, tree edge
-## # if node is tree node with hybrid edges, it returns
-## # hybrid edge, tree edge in cycle, tree edge not in cycle
-## # warning: assumes any tree node with hybrid edge has two tree edges
-## #          one in cycle, the other not in cycle
-## function hybridEdges(node::Node)
-##     size(node.edge,1) == 3 || error("node $(node.number) has $(size(node.edge,1)) edges instead of 3");
-##     if(node.hybrid)
-##         hybmajor = nothing;
-##         hybminor = nothing;
-##         tree = nothing;
-##         for(e in node.edge)
-##             (e.hybrid && e.isMajor) ? hybmajor = e : nothing
-##             (e.hybrid && !e.isMajor) ? hybminor = e : nothing
-##             !e.hybrid ? tree = e : nothing
-##         end
-##         return hybmajor, hybminor, tree
-##     elseif(node.hasHybEdge)
-##         hybrid = nothing;
-##         treecycle = nothing;
-##         tree = nothing;
-##         for(e in node.edge)
-##             (e.hybrid) ? hybrid = e : nothing
-##             (!e.hybrid && e.inCycle != -1) ? treecycle = e : nothing
-##             (!e.hybrid && e.inCycle == -1) ? tree = e : nothing
-##         end
-##         return hybrid, treecycle, tree
-##     else
-##         warn("node $(node.number) is not hybrid $(node.hybrid) nor tree with hybrid edges (hasHybEdge) $(node.hasHybEdge), return the node.edge in order, unless a leaf is attached, then the edge attached to leaf is last");
-##         edge1 = nothing
-##         edge2 = nothing
-##         edge3 = nothing
-##         leaffound = false
-##         ind = 1
-##         for(i in 1:3)
-##             if(getOtherNode(node.edge[i],node).leaf)
-##                 leaffound = true
-##                 edge3 = node.edge[i]
-##                 ind = i
-##                 break
-##             end
-##         end
-##         if(leaffound)
-##             if(ind == 1)
-##                 return node.edge[2], node.edge[3], edge3
-##             elseif(ind == 2)
-##                 return node.edge[1], node.edge[3], edge3
-##             elseif(ind == 3)
-##                 return node.edge[1], node.edge[2], edge3
-##             end
-##         else
-##             return node.edge[1], node.edge[2], node.edge[3]
-##         end
-##     end
-## end
-
-## # function to get the other two edges of a node
-## # besides the one specified
-## # it is called hybridEdges, but it not restricted to hybrid
-## function hybridEdges(node::Node, edge::Edge)
-##     size(node.edge,1) == 3 || error("node $(node.number) has $(size(node.edge,1)) edges instead of 3")
-##     edge1 = nothing
-##     edge2 = nothing
-##     for(e in node.edge)
-##         if(!isequal(e,edge))
-##             isa(edge1,Nothing) ? edge1 = e : edge2 = e
-##         end
-##     end
-##     return edge1,edge2
-## end
-
-
-## # function to remove an edge from a node
-## # warning: deletion is final, you can only
-## #          have edge back by pushing it again
-## # warning: if the edge removed is hybrid and node is tree,
-## #          node.hasHybEdge is set to false
-## #          assuming any tree node can only have one
-## #          one hybrid edge
-## function removeEdge!(node::Node,edge::Edge)
-##     try
-##         index = getIndexEdge(edge,node);
-##     catch e
-##         if isa(e, ErrorException)
-##             error("edge not in node")
-##         end
-##     end
-##     index = getIndexEdge(edge,node);
-##     deleteat!(node.edge,index);
-##     all([!e.hybrid for e in node.edge]) ? node.hasHybEdge = false : node.hasHybEdge = true;
-## end
-
-## # function to remove a node from a edge
-## # warning: deletion is final, you can only
-## #          have node back by pushing it again
-## # warning: only removes node from edge, edge might still
-## #          be in node.edge
-## function removeNode!(node::Node,edge::Edge)
-##     try
-##         index = getIndexNode(edge,node);
-##     catch e
-##         if isa(e, ErrorException)
-##             error("node $(node.number) not in edge or strange edge with more than 2 nodes")
-##         end
-##     end
-##     index = getIndexNode(edge,node);
-##     deleteat!(edge.node,index);
-## end
-
 include("auxiliary.jl")
 
 # --------------------------------------- update incycle, root, gammaz -------------------------------------------
@@ -944,10 +299,10 @@ updateGammaz!(net::HybridNetwork, node::Node) = updateGammaz!(net, node, false)
 function isEdgeIdentifiable(edge::Edge)
     if(edge.hybrid)
         node = edge.node[edge.isChild1 ? 1 : 2]
-        println("is edge $(edge.number) identifiable, node $(node.number)")
+        #println("is edge $(edge.number) identifiable, node $(node.number)")
         node.hybrid || error("hybrid edge $(edge.number) pointing at tree node $(node.number)")
         major,minor,tree = hybridEdges(node)
-        println("major $(major.number), minor $(minor.number), tree $(tree.number)")
+        #println("major $(major.number), minor $(minor.number), tree $(tree.number)")
         if(getOtherNode(tree,node).leaf)
             return false
         else
@@ -1022,8 +377,7 @@ function undoGammaz!(node::Node, net::HybridNetwork)
         setLength!(tree_edge_incycle1,-log(1-other_min.gammaz))
         other_maj.gammaz != -1 || error("bad diamond I in node $(node.number) but no gammaz updated correctly")
         setLength!(tree_edge_incycle2,-log(1-other_maj.gammaz))
-        setGamma!(edge_maj,other_maj.gammaz / (other_maj.gammaz+other_min.gammaz))
-        setGamma!(edge_min,other_min.gammaz / (other_maj.gammaz+other_min.gammaz))
+        setGamma!(edge_maj,other_maj.gammaz / (other_maj.gammaz+other_min.gammaz), true)
         other_min.gammaz = -1.0
         other_maj.gammaz = -1.0
         tree_edge_incycle1.istIdentifiable = true;
@@ -1175,7 +529,7 @@ end
 # calls chooseEdgesGamma, parameter4createHybrid and createHybrid
 function addHybridization!(net::HybridNetwork)
     edge1, edge2, gamma = chooseEdgesGamma(net);
-    println("edge1, $(edge1.number), edge2 $(edge2.number)")
+    #println("edge1, $(edge1.number), edge2 $(edge2.number)")
     edge3, edge4 = parameters4createHybrid!(edge1,edge2,net);
     hybrid = createHybrid!(edge1, edge2, edge3, edge4, net, gamma);
     return hybrid
@@ -1201,7 +555,7 @@ function updateMajorHybrid!(net::HybridNetwork, node::Node)
     end
     !isa(hybedge,Nothing) || error("hybrid node $(node.number) does not have hybrid edge")
     !isa(edgecycle,Nothing) || error("hybrid node $(node.number) does not have tree edge in cycle to update to hybrid edge after updateInCycle")
-    println("updating hybrid status to edgeincycle $(edgecycle.number) for hybedge $(hybedge.number)")
+    #println("updating hybrid status to edgeincycle $(edgecycle.number) for hybedge $(hybedge.number)")
     makeEdgeHybrid!(edgeincycle,node,1-hybedge.gamma)
 end
 
@@ -1525,9 +879,9 @@ end
 function makeEdgeHybrid!(edge::Edge,node::Node,gamma::Float64)
     !edge.hybrid || error("edge $(edge.number) already hybrid, cannot make it hybrid")
     node.hybrid || error("to make edge $(edge.number) hybrid, you need to give the hybrid node it is going to point to and node $(node.number) is not hybrid")
-    println("estamos en make edge hybrid en edge $(edge.number) y node $(node.number)")
-    println("vamos a hacer hashybedge true para $(getOtherNode(edge,node).number)")
-    println("$(getOtherNode(edge,node).hasHybEdge) debe ser true")
+    #println("estamos en make edge hybrid en edge $(edge.number) y node $(node.number)")
+    #println("vamos a hacer hashybedge true para $(getOtherNode(edge,node).number)")
+    #println("$(getOtherNode(edge,node).hasHybEdge) debe ser true")
     size(edge.node,1) == 2 || error("strange edge $(edge.number) has $(size(edge.node,1)) nodes instead of 2")
     if(isEqual(edge.node[1],node))
         edge.isChild1 = true
@@ -1538,7 +892,7 @@ function makeEdgeHybrid!(edge::Edge,node::Node,gamma::Float64)
     end
     edge.hybrid = true
     getOtherNode(edge,node).hasHybEdge = true
-    setGamma!(edge,gamma)
+    setGamma!(edge,gamma,false)
     edge.istIdentifiable = isEdgeIdentifiable(edge)
 end
 
@@ -1656,7 +1010,7 @@ function chooseEdgeOriginTarget!(net::HybridNetwork, neighbor::Vector{Edge}, nod
         while(ind == 0 || ind > length(neighbor))
             ind = iround(rand()*length(neighbor));
         end
-        println("ind es $(ind), neighbor edge $(neighbor[ind].number)")
+        #println("ind es $(ind), neighbor edge $(neighbor[ind].number)")
         if(!neighbor[ind].hybrid && (neighbor[ind].inCycle == -1 || neighbor[ind].inCycle == node.number))
             return true, neighbor[ind], ind
         else
@@ -1679,7 +1033,7 @@ end
 function moveOrigin(node::Node,othermin::Node,tree1::Edge, tree2::Edge,newedge::Edge, undo::Bool, newedgeincycle::Bool)
     node.hybrid || error("cannot move origin of hybridization because node $(node.number) is not hybrid")
     size(newedge.node,1) == 2 || error("strange edge $(newedge.number) that has $(size(newedge.node,1)) nodes instead of 2")
-    println("othermin $(othermin.number) with edges $([e.number for e in othermin.edge])")
+    #println("othermin $(othermin.number) with edges $([e.number for e in othermin.edge])")
     if(tree1.inCycle == node.number && tree2.inCycle == -1)
         treej = tree1
         treei = tree2
@@ -1717,7 +1071,7 @@ function moveOrigin(node::Node,othermin::Node,tree1::Edge, tree2::Edge,newedge::
         neighbor = true
         from_otherj = true
     end
-    println("neighbor $(neighbor), from otheri $(from_otheri), from otherj $(from_otherj), n1 $(n1.number), n2 $(n2.number)")
+    #println("neighbor $(neighbor), from otheri $(from_otheri), from otherj $(from_otherj), n1 $(n1.number), n2 $(n2.number)")
     if(neighbor && from_otheri)
         #println("leaving n1 $(n1.number) as it is")
         #println("removing n2 $(n2.number) from newedge $(newedge.number) and viceversa")
@@ -1881,7 +1235,7 @@ function moveOriginUpdate!(net::HybridNetwork, node::Node, othermin::Node, newed
     node.hybrid || error("node $(node.number) is not hybrid, so we cannot delete hybridization event around it")
     edgebla, tree1, tree2 = hybridEdges(othermin);
     undoGammaz!(node,net);
-    println("othermin is $(othermin.number)")
+    #println("othermin is $(othermin.number)")
     newedgeincycle = moveOrigin(node,othermin,tree1,tree2,newedge)
     flag2, edgesGammaz = updateGammaz!(net,node)
     if(flag2)
@@ -1904,21 +1258,21 @@ end
 function moveOriginUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
     node.hybrid || error("cannot move origin because node $(node.number) is not hybrid")
     othermin = chooseMinorMajor(node,random)
-    println("othermin is $(othermin.number) with edges $([e.number for e in othermin.edge])")
+    #println("othermin is $(othermin.number) with edges $([e.number for e in othermin.edge])")
     neighbor = getNeighborsOrigin(othermin)
-    println("neighbors list is $([n.number for n in neighbor])")
+    #println("neighbors list is $([n.number for n in neighbor])")
     success = false
     while(!isempty(neighbor) && !success)
         success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor,node)
-        println("newedge is $(newedge.number), success1 is $(success1)")
+        #println("newedge is $(newedge.number), success1 is $(success1)")
         success1 || return false
         success,flag2 = moveOriginUpdate!(net, node, othermin, newedge)
-        println("after update, success is $(success)")
+        #println("after update, success is $(success)")
         if(!success)
             #println("entra a borrar neighbor")
             deleteat!(neighbor,ind)
         end
-        println("neighbor list is $([n.number for n in neighbor])")
+        #println("neighbor list is $([n.number for n in neighbor])")
     end
     success || return false
     return true
@@ -1934,7 +1288,7 @@ function getNeighborsTarget(node::Node,majoredge::Edge)
     node.hybrid || error("node $(node.number) must be the hybrid node to move target")
     major,minor,tree = hybridEdges(node)
     othermajor = getOtherNode(majoredge,node)
-    println("othermajor is $(othermajor.number)")
+    #println("othermajor is $(othermajor.number)")
     neighbor = Edge[]
     n1 = getOtherNode(majoredge,node)
     n2 = getOtherNode(tree,node)
@@ -1957,7 +1311,7 @@ end
 function switchMajorTree!(major::Edge, tree::Edge, node::Node)
     !tree.hybrid || error("tree edge $(tree.number) cannot be hybrid to switch to major")
     major.hybrid || error("major edge $(major.number) has to be hybrid to switch to tree")
-    println("switch major $(major.number) tree $(tree.number), node $(node.number)")
+    #println("switch major $(major.number) tree $(tree.number), node $(node.number)")
     g = major.gamma
     makeEdgeTree!(major,node)
     makeEdgeHybrid!(tree,node,g)
@@ -1980,8 +1334,8 @@ function moveTarget(node::Node, major::Edge, tree::Edge, newedge::Edge, undo::Bo
     treenode = getOtherNode(tree,node);
     node1 = newedge.node[1]; # not waste of memory, needed step
     node2 = newedge.node[2];
-    println("hybrid node is $(node.number), major edge $(major.number), tree edge $(tree.number)")
-    println("newedge is $(newedge.number), othermajor $(othermajor.number), treenode $(treenode.number), node1 $(node1.number), node2 $(node2.number)")
+    #println("hybrid node is $(node.number), major edge $(major.number), tree edge $(tree.number)")
+    #println("newedge is $(newedge.number), othermajor $(othermajor.number), treenode $(treenode.number), node1 $(node1.number), node2 $(node2.number)")
     neighbor = false
     from_othermajor = false
     from_treenode = false
@@ -2006,7 +1360,7 @@ function moveTarget(node::Node, major::Edge, tree::Edge, newedge::Edge, undo::Bo
         neighbor = true
         from_treenode = true
     end
-    println("neighbor $(neighbor), from othermajor $(from_othermajor), from treenode $(from_treenode), n1 $(n1.number), n2 $(n2.number)")
+    #println("neighbor $(neighbor), from othermajor $(from_othermajor), from treenode $(from_treenode), n1 $(n1.number), n2 $(n2.number)")
     if(neighbor && from_othermajor)
         #println("leaving n1 $(n1.number) as it is")
         #println("removing n2 $(n2.number) from newedge $(newedge.number) and viceversa")
@@ -2070,14 +1424,14 @@ function moveTarget(node::Node, major::Edge, tree::Edge, newedge::Edge, undo::Bo
     setLength!(tree,t2/(t1+t2)*t)
     if(!undo)
         if(from_treenode)
-            println("from treenode treatment, switch major $(major.number) to tree $(tree.number)")
+            #println("from treenode treatment, switch major $(major.number) to tree $(tree.number)")
             switchMajorTree!(major,tree,node)
             node.k += 1
             newedge.inCycle = node.number
             treenode.inCycle = node.number
         elseif(from_othermajor)
             if(newedge.inCycle == node.number)
-                println("from othermajor and newedge incycle treatment, switch major $(major.number) to tree $(tree.number)")
+                #println("from othermajor and newedge incycle treatment, switch major $(major.number) to tree $(tree.number)")
                 switchMajorTree!(major,tree,node)
                 node.k -= 1
                 newedge.inCycle = -1
@@ -2148,20 +1502,20 @@ end
 function moveTargetUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
     node.hybrid || error("cannot move origin because node $(node.number) is not hybrid")
     othermin,majoredge = chooseMinorMajor(node,random, true)
-    println("othermin is $(othermin.number), will move edge: majoredge $(majoredge.number)")
+    #println("othermin is $(othermin.number), will move edge: majoredge $(majoredge.number)")
     neighbor = getNeighborsTarget(node,majoredge)
-    println("neighbors list is $([n.number for n in neighbor])")
+    #println("neighbors list is $([n.number for n in neighbor])")
     success = false
     while(!isempty(neighbor) && !success)
         success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor,node);
-        println("newedge is $(newedge.number), success1 is $(success1)")
+        #println("newedge is $(newedge.number), success1 is $(success1)")
         success1 || return false
         success,flag2 = moveTargetUpdate!(net, node, othermin, majoredge,newedge)
-        println("after update, success is $(success)")
+        #println("after update, success is $(success)")
         if(!success)
             deleteat!(neighbor,ind)
         end
-        println("neighbor list is $([n.number for n in neighbor])")
+        #println("neighbor list is $([n.number for n in neighbor])")
     end
     success || return false
     return true
@@ -2197,7 +1551,7 @@ function chooseEdgeNNI(net::Network,N::Int64)
     if(i < N)
         return true,net.edge[index1]
     else
-        println("cannot find suitable tree edge for NNI after $(N) attempts")
+        warn("cannot find suitable tree edge for NNI after $(N) attempts")
         return false,nothing
     end
 end
@@ -2511,7 +1865,7 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
                             if(!e.hybrid)
                                 warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
                             else
-                                setGamma!(e,length);
+                                setGamma!(e,length, false, true);
                             end
                         else
                             warn("third colon : without gamma value after in $(numLeft[1]) left parenthesis, ignored")
@@ -2527,7 +1881,7 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
                         if(!e.hybrid)
                             warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
                         else
-                            setGamma!(e,length);
+                            setGamma!(e,length, false, true);
                         end
                     else
                         warn("third colon : without gamma value after in $(numLeft[1]) left parenthesis, ignored.")
@@ -2550,7 +1904,7 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
                         if(!e.hybrid)
                             warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
                         else
-                            setGamma!(e,length);
+                            setGamma!(e,length, false, true);
                         end
                     else
                         warn("third colon : without gamma value after in $(numLeft[1]) left parenthesis, ignored")
@@ -2566,7 +1920,7 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
                     if(!e.hybrid)
                         warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
                     else
-                        setGamma!(e,length);
+                        setGamma!(e,length, false, true);
                     end
                 else
                     warn("third colon : without gamma value after in left parenthesis number $(numLeft[1]), ignored")
@@ -2775,7 +2129,7 @@ function cleanAfterRead!(net::HybridNetwork)
                     error("current hybrid node $(n.number) with name S(net.names[n.number]) has only one hybrid edge attached. there are other $(hybnodes-1) hybrids out there but this one remained unmatched")
                 end
             elseif(hyb == 0)
-                warn("hybrid node $(n.number) is not connected to any hybrid edges, it was transformed to tree edge")
+                warn("hybrid node $(n.number) is not connected to any hybrid edges, it was transformed to tree node")
                 n.hybrid = false;
             else # 2 hybrid edges
                 if(tre == 0) #hybrid leaf
@@ -2790,7 +2144,7 @@ function cleanAfterRead!(net::HybridNetwork)
                     warn("hybrid edges for hybrid node $(n.number) do not contain gamma value, set default: 0.9,0.1")
                     for(e in n.edge)
                         if(e.hybrid)
-                            (!e.isMajor) ? setGamma!(e,0.1) : setGamma!(e,0.9)
+                            (!e.isMajor) ? setGamma!(e,0.1, false, true) : setGamma!(e,0.9, false, true)
                         end
                     end
                 elseif(suma != 1)
@@ -2805,10 +2159,21 @@ function cleanAfterRead!(net::HybridNetwork)
                         error("hybrid edges for hybrid node $(n.number) have gammas that do not sum up to one: $(ed1.gamma),$(ed2.gamma)")
                     elseif(ed1.gamma < 1)
                         warn("only one hybrid edge of hybrid node $(n.number) has gamma value $(ed1.gamma) set, the other edge will be assigned $(1-ed1.gamma).")
-                        setGamma!(ed2,1-ed1.gamma);
+                        setGamma!(ed2,1-ed1.gamma, false);
                     else
                         warn("only one hybrid edge of hybrid node $(n.number) has gamma value $(ed2.gamma) set, the other edge will be assigned $(1-ed2.gamma).")
-                        setGamma!(ed1,1-ed2.gamma);
+                        setGamma!(ed1,1-ed2.gamma, false);
+                    end
+                elseif(suma == 1)
+                    for(e in n.edge)
+                        if(e.hybrid)
+                            if(approxEq(e.gamma,0.5))
+                                e.isMajor = false
+                                break
+                            else
+                                break
+                            end
+                        end
                     end
                 end
             end
@@ -2869,40 +2234,6 @@ function readTopologyUpdate(file::String)
     parameters!(net)
     return net
 end
-
-# in auxiliary.jl now
-## # ----------------------------------------------------------------------------------------
-
-## # setLength
-## # warning: allows to change edge length for istIdentifiable=false
-## #          but issues a warning
-## # negative=true meanes it allows negative branch lengths (useful in qnet typeHyb=4)
-## function setLength!(edge::Edge, new_length::Float64, negative::Bool)
-##     (negative || new_length >= 0) || error("length has to be nonnegative: $(new_length)")
-##     edge.length = new_length;
-##     edge.y = exp(-new_length);
-##     edge.z = 1 - edge.y;
-##     edge.istIdentifiable || warn("set edge length for edge $(edge.number) that is not identifiable")
-## end
-
-## setLength!(edge::Edge, new_length::Float64) = setLength!(edge, new_length, false)
-
-
-## # setGamma
-## # warning: does not allow to change gamma in the bad diamond/triangle cases
-## # because gamma is not identifiable
-## # updates isMajor according to gamma value
-## function setGamma!(edge::Edge, new_gamma::Float64)
-##     new_gamma >= 0 || error("gamma has to be positive: $(new_gamma)")
-##     new_gamma <= 1 || error("gamma has to be less than 1: $(new_gamma)")
-##     edge.hybrid || error("cannot change gamma in a tree edge");
-##     edge.isChild1 ? ind = 1 : ind = 2 ; # hybrid edge pointing at node 1 or 2
-##     node = edge.node[ind]
-##     node.hybrid || warn("hybrid edge $(edge.number) not pointing at hybrid node")
-##     !node.isBadDiamondI || error("bad diamond situation: gamma not identifiable")
-##     edge.gamma = new_gamma;
-##     edge.isMajor = (new_gamma>=0.5) ? true : false
-## end
 
 # -------------------- delete Leaf-------------------------------------
 
@@ -3082,7 +2413,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                     ind = isEqual(getOtherNode(edgemaj,other1),other3) ? 1 : 2
                     edgebla,edge3,edge5 = hybridEdges(other3)
                     leaf5 = getOtherNode(edge5,other3)
-                    println("edge2 is $(edge2.number) and is identifiable $(edge2.istIdentifiable)")
+                    #println("edge2 is $(edge2.number) and is identifiable $(edge2.istIdentifiable)")
                     edge2.fromBadDiamondI = true
                     removeNode!(other,edge2)
                     removeEdge!(other1,edge1)
@@ -3092,7 +2423,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                     #println("entro a cambiar length en edge $(edge2.number) con gammaz $(other3.gammaz)")
                     setLength!(edge2,-log(1-other3.gammaz))
                     edge2.number = int(string(string(other1.number),string(ind)))
-                    println("edge2 is $(edge2.number) should be not identifiable now $(edge2.istIdentifiable)")
+                    #println("edge2 is $(edge2.number) should be not identifiable now $(edge2.istIdentifiable)")
                     makeEdgeTree!(edge4,other1)
                     makeNodeTree!(net,other1)
                     removeEdge!(other2,edge3)
@@ -3130,7 +2461,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                     ind = isEqual(getOtherNode(edgemaj,other2),other3) ? 1 : 2
                     edgebla,edge3,edge5 = hybridEdges(other3)
                     leaf5 = getOtherNode(edge5,other3)
-                    println("edge1 is $(edge1.number) and is identifiable $(edge1.istIdentifiable)")
+                    #println("edge1 is $(edge1.number) and is identifiable $(edge1.istIdentifiable)")
                     edge1.fromBadDiamondI = true
                     removeNode!(other,edge1)
                     removeEdge!(other2,edge2)
@@ -3139,7 +2470,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                     other3.gammaz != -1 || error("hybrid node $(other2.number) is bad diamond, but for node $(other3.number), gammaz is not well updated, it is $(other3.gammaz)")
                     setLength!(edge1,-log(1-other3.gammaz))
                     edge1.number = int(string(string(other2.number),string(ind)))
-                    println("edge1 is $(edge1.number) should be not identifiable now $(edge1.istIdentifiable)")
+                    #println("edge1 is $(edge1.number) should be not identifiable now $(edge1.istIdentifiable)")
                     makeEdgeTree!(edge4,other2)
                     makeNodeTree!(net,other2)
                     removeEdge!(other1,edge3)
@@ -3290,7 +2621,7 @@ function extractQuartet(net::HybridNetwork,quartet::Array{Node,1})
     leaves = copy(qnet.leaf)
     for(n in leaves)
         if(!isNodeNumIn(n,quartet))
-            println("delete leaf $(n.number)")
+            #println("delete leaf $(n.number)")
             deleteLeaf!(qnet,n)
         end
     end
@@ -3483,9 +2814,9 @@ end
 #        case: 1 (global case 2),2 (global case 4), 1 (global case 5)
 # warning: special treatment for bad diamond II
 function eliminateTriangle!(qnet::QuartetNetwork, node::Node, other::Node, case::Int64)
-    println("start eliminateTriangle----")
+    #println("start eliminateTriangle----")
     node.hybrid || error("cannot eliminate triangle around node $(node.number) since it is not hybrid")
-    println("hybrid node is $(node.number), with edges $([e.number for e in node.edge]), with gammas $([e.gamma for e in node.edge])")
+    #println("hybrid node is $(node.number), with edges $([e.number for e in node.edge]), with gammas $([e.gamma for e in node.edge])")
     edgemaj, edgemin, treeedge = hybridEdges(node)
     isa(edgemaj,Nothing) ? error("edge maj is nothing for node $(node.number), other $(other.number) and taxon $(qnet.quartetTaxon), $(printEdges(qnet))") : nothing
     isa(edgemin,Nothing) ? error("edge min is nothing for node $(node.number), other $(other.number) and taxon $(qnet.quartetTaxon), $(printEdges(qnet))") : nothing
@@ -3500,18 +2831,18 @@ function eliminateTriangle!(qnet::QuartetNetwork, node::Node, other::Node, case:
     else
         error("node $(node.number) and other node $(other.number) are not connected by an edge")
     end
-    println("hybedge is $(hybedge.number), otheredge is $(otheredge.number)")
+    #println("hybedge is $(hybedge.number), otheredge is $(otheredge.number)")
     middle = qnet.node[getIndex(true, [(n.inCycle == node.number && size(n.edge,1) == 3 && !isEqual(n,other) && !isEqual(n,node)) for n in qnet.node])]
-    println("middle node is $(middle.number) in eliminateTriangle")
+    #println("middle node is $(middle.number) in eliminateTriangle")
     ind = getIndex(true,[(e.inCycle == node.number && !isEqual(getOtherNode(e,middle),node)) for e in middle.edge])
     edge = middle.edge[ind]
-    println("edge is $(edge.number) with length $(edge.length) in eliminateTriangle, will do deleteIntLeaf from middle through edge")
+    #println("edge is $(edge.number) with length $(edge.length) in eliminateTriangle, will do deleteIntLeaf from middle through edge")
     deleteIntLeafWhile!(qnet,edge,middle)
-    println("after deleteIntLeaf, edge $(edge.number) has length $(edge.length)")
+    #println("after deleteIntLeaf, edge $(edge.number) has length $(edge.length)")
     isEqual(getOtherNode(edge,middle),other) || error("middle node $(middle.number) and other node $(other.number) are not connected by an edge")
     if(case == 1)
         setLength!(edge,-log(1 - hybedge.gamma*edge.z))
-        println("edge $(edge.number) length is $(edge.length) after updating")
+        #println("edge $(edge.number) length is $(edge.length) after updating")
         removeEdge!(middle,otheredge)
         removeEdge!(other,hybedge)
         removeEdge!(node,treeedge)
@@ -3522,7 +2853,7 @@ function eliminateTriangle!(qnet::QuartetNetwork, node::Node, other::Node, case:
     elseif(case == 2)
         (hybedge.hybrid && otheredge.hybrid) || error("hybedge $(hybedge.number) and otheredge $(otheredge.number) should by hybrid edges in eliminateTriangle Case 2")
         setLength!(hybedge, -log(otheredge.gamma*otheredge.gamma*otheredge.y + hybedge.gamma*otheredge.gamma*(3-edge.y) + hybedge.gamma*hybedge.gamma*hybedge.y), true)
-        println("edge $(edge.number) length is $(edge.length) after updating")
+        #println("edge $(edge.number) length is $(edge.length) after updating")
         removeEdge!(middle,otheredge)
         removeEdge!(node,otheredge)
         deleteEdge!(qnet,otheredge)
@@ -3530,7 +2861,7 @@ function eliminateTriangle!(qnet::QuartetNetwork, node::Node, other::Node, case:
     else
         error("unknown case $(case), should be 1 or 2")
     end
-    println("end eliminateTriangle ---")
+    #println("end eliminateTriangle ---")
 end
 
 # function to polish quartet with hybridization type 5
@@ -3863,7 +3194,7 @@ end
 
 # function to calculate the log pseudolikelihood function for a single
 # quartet
-# sum_i=1,2,3 (obsCF_i)*log(expCF_i)
+# sum_i=1,2,3 (obsCF_i)*log(expCF_i/obsCF_i)
 # warning: assumes that quartet.qnet is already updated with extractQuartet and
 #          calculateExpCF
 function logPseudoLik(quartet::Quartet)
@@ -3871,8 +3202,9 @@ function logPseudoLik(quartet::Quartet)
         #println("obsCF = $(quartet.obsCF), expCF = $(quartet.qnet.expCF)")
         suma = 0
         for(i in 1:3)
-            suma += quartet.obsCF[i]*log(quartet.qnet.expCF[i])
+            suma += quartet.obsCF[i]*log(quartet.qnet.expCF[i]/quartet.obsCF[i])
         end
+        quartet.logPseudoLik = suma
         return suma
     else
         error("expCF not updated for quartet $(quartet.number)")
@@ -4048,18 +3380,7 @@ function update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork)
                 if(qnet.indexht[i] <= net.numHybrids - net.numBad)
                     0 <= x[qnet.indexht[i]] <= 1 || error("new gamma value should be between 0,1: $(x[qnet.indexht[i]]).")
                     qnet.edge[qnet.index[i]].hybrid || error("something odd here, optimizing gamma for tree edge $(qnet.edge[qnet.index[i]].number)")
-                    setGamma!(qnet.edge[qnet.index[i]],x[qnet.indexht[i]])
-                    node = qnet.edge[qnet.index[i]].node[qnet.edge[qnet.index[i]].isChild1 ? 1 : 2]
-                    node.hybrid || error("hybrid edge $(qnet.edge[qnet.index[i]].number) pointing at tree node $(node.number)")
-                    edges = hybridEdges(node,qnet.edge[qnet.index[i]])
-                    length(edges) == 2 || error("strange here: node $(node.number) should have 3 edges and it has $(length(edges)+1).")
-                    if(edges[1].hybrid && !edges[2].hybrid)
-                        setGamma!(edges[1],1-x[qnet.indexht[i]])
-                    elseif(edges[2].hybrid && !edges[1].hybrid)
-                        setGamma!(edges[2],1-x[qnet.indexht[i]])
-                    else
-                        error("strange hybrid node $(node.number) with only one hybrid edge or with three hybrid edges")
-                    end
+                    setGamma!(qnet.edge[qnet.index[i]],x[qnet.indexht[i]], true)
                 elseif(qnet.indexht[i] <= net.numHybrids - net.numBad + k)
                     setLength!(qnet.edge[qnet.index[i]],x[qnet.indexht[i]])
                 else
@@ -4092,18 +3413,7 @@ function updateParameters!(net::HybridNetwork)
         if(i <= net.numHybrids - net.numBad)
             0 <= net.ht[i] <= 1 || error("new gamma value should be between 0,1: $(net.ht[i]).")
             net.edge[net.index[i]].hybrid || error("something odd here, optimizing gamma for tree edge $(net.edge[net.index[i]].number)")
-            setGamma!(net.edge[net.index[i]],net.ht[i])
-            node = net.edge[net.index[i]].node[net.edge[net.index[i]].isChild1 ? 1 : 2]
-            node.hybrid || error("hybrid edge $(net.edge[net.index[i]].number) pointing at tree node $(node.number)")
-            edges = hybridEdges(node,net.edge[net.index[i]])
-            length(edges) == 2 || error("strange here: node $(node.number) should have 3 edges and it has $(length(edges)+1).")
-            if(edges[1].hybrid && !edges[2].hybrid)
-                setGamma!(edges[1],1-net.ht[i])
-            elseif(edges[2].hybrid && !edges[1].hybrid)
-                setGamma!(edges[2],1-net.ht[i])
-            else
-                error("strange hybrid node $(node.number) with only one hybrid edge or with three hybrid edges")
-            end
+            setGamma!(net.edge[net.index[i]],net.ht[i], true)
         elseif(i <= net.numHybrids - net.numBad + k)
             setLength!(net.edge[net.index[i]],net.ht[i])
         else
@@ -4124,6 +3434,44 @@ function upper(net::HybridNetwork)
     return vcat(ones(net.numHybrids-net.numBad),DataFrames.rep(Inf,k),ones(length(net.ht)-k-net.numHybrids+net.numBad))
 end
 
+# function to calculate the inequality gammaz1+gammaz2 <= 1
+function calculateIneqGammaz(x::Vector{Float64}, net::HybridNetwork, ind::Int64)
+    k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
+    hz = x[net.numHybrids - net.numBad + k + 1 : length(x)]
+    return hz[ind*2] + hz[ind*2-1] - 1
+end
+
+# old optBL: without inequality for gammaz
+# numerical optimization of branch lengths given a network (or tree)
+# and data (set of quartets with obsCF)
+# using BOBYQA from NLopt package
+## function optBL!(net::HybridNetwork, d::DataCF)
+##     ht = parameters!(net); # branches/gammas to optimize: net.ht, net.numht
+##     extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
+##     k = length(net.ht)
+##     opt = NLopt.Opt(:LN_BOBYQA,k) # :LD_MMA if use gradient, :LN_COBYLA for nonlinear/linear constrained optimization derivative-free, :LN_BOBYQA for bound constrained derivative-free
+##     # criterion based on prof Bates code
+##     NLopt.ftol_rel!(opt,1e-12) # relative criterion -12
+##     NLopt.ftol_abs!(opt,1e-12) # absolute critetion -8
+##     NLopt.xtol_abs!(opt,1e-10) # criterion on parameter value changes -10
+##     NLopt.lower_bounds!(opt, zeros(k))
+##     NLopt.upper_bounds!(opt,upper(net))
+##     count = 0
+##     function obj(x::Vector{Float64},g::Vector{Float64}) # added g::Vector{Float64} for gradient, ow error
+##         count += 1
+##         calculateExpCFAll!(d,x,net) # update qnet branches and calculate expCF
+##         update!(net,x) # update net.ht
+##         val = logPseudoLik(d)
+##         println("f_$count: $(round(val,5)), x: $(x)")
+##         return val
+##     end
+##     NLopt.min_objective!(opt,obj)
+##     fmin, xmin, ret = NLopt.optimize(opt,ht)
+##     println("got $(round(fmin,5)) at $(round(xmin,5)) after $(count) iterations (returned $(ret))")
+##     #println("net.ht is $(round(net.ht,5))")
+##     return fmin,xmin
+## end
+
 # numerical optimization of branch lengths given a network (or tree)
 # and data (set of quartets with obsCF)
 # using BOBYQA from NLopt package
@@ -4131,7 +3479,11 @@ function optBL!(net::HybridNetwork, d::DataCF)
     ht = parameters!(net); # branches/gammas to optimize: net.ht, net.numht
     extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
     k = length(net.ht)
-    opt = NLopt.Opt(:LN_BOBYQA,k) # :LD_MMA if use gradient
+    if(net.numBad == 0)
+        opt = NLopt.Opt(:LN_BOBYQA,k) # :LD_MMA if use gradient, :LN_COBYLA for nonlinear/linear constrained optimization derivative-free, :LN_BOBYQA for bound constrained derivative-free
+    elseif(net.numBad > 0)
+        opt = NLopt.Opt(:LN_COBYLA,k) # :LD_MMA if use gradient, :LN_COBYLA for nonlinear/linear constrained optimization derivative-free, :LN_BOBYQA for bound constrained derivative-free
+    end
     # criterion based on prof Bates code
     NLopt.ftol_rel!(opt,1e-12) # relative criterion -12
     NLopt.ftol_abs!(opt,1e-12) # absolute critetion -8
@@ -4148,6 +3500,20 @@ function optBL!(net::HybridNetwork, d::DataCF)
         return val
     end
     NLopt.min_objective!(opt,obj)
+    if(net.numBad == 1)
+        function inequalityGammaz(x::Vector{Float64},g::Vector{Float64})
+            val = calculateIneqGammaz(x,net,1)
+            return val
+        end
+        NLopt.inequality_constraint!(opt,inequalityGammaz,1e-8)
+    elseif(net.numBad > 1)
+        function inequalityGammaz(result::Vector{Float64},x::Vector{Float64},g::Matrix{Float64})
+            for(i in 1:net.numBad)
+                result[i] = calculateIneqGammaz(x,net,i)
+            end
+        end
+        NLopt.inequality_constraint!(opt,inequalityGammaz)
+    end
     fmin, xmin, ret = NLopt.optimize(opt,ht)
     println("got $(round(fmin,5)) at $(round(xmin,5)) after $(count) iterations (returned $(ret))")
     #println("net.ht is $(round(net.ht,5))")
@@ -4196,7 +3562,7 @@ function chooseHybrid(net::HybridNetwork)
     while(index1 == 0 || index1 > size(net.hybrid,1))
         index1 = iround(rand()*size(net.hybrid,1));
     end
-    println("chosen hybrid node for network move: $(net.hybrid[index1].number)")
+    #println("chosen hybrid node for network move: $(net.hybrid[index1].number)")
     return net.hybrid[index1]
 end
 
