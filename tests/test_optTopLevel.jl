@@ -55,6 +55,20 @@ printEdges(newT)
 #elapsed time: 58.711593728 seconds (498732864 bytes allocated, 0.49% gc time)
 # did not find the right network (Case H), stopped in bad diamond II case
 
+newT.ht
+
+q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
+q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
+q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);
+q4 = Quartet(4,["6","10","4","8"],[0.5,0.4,0.1]);
+q5 = Quartet(5,["6","7","4","10"],[0.5,0.4,0.1]);
+
+d = DataCF([q1,q2,q3,q4,q5]);
+extractQuartet!(newT,d)
+
+wrongdf = writeExpCF(d.quartet)
+writetable("CaseH_output_wrong_optTop_startCaseG.csv",wrongdf)
+
 # ------------------
 # starting topology: Case F
 include("../case_f_example.jl");

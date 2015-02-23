@@ -324,6 +324,10 @@ realht = [0.1,2.0,1.0,1.0,1.0]
 #elapsed time: 1.11298624 seconds (17529096 bytes allocated, 2.98% gc time)
 #(3.3635155002465492e-6,[0.103419,2.03906,1.00656,3.60666,0.948988])
 
+# with ht = [0.2,0.0,0.5,0.5,0.5]
+#got 0.0 at [0.09997,1.99969,0.99995,0.99284,1.00042] after 424 iterations (returned FTOL_REACHED)
+#elapsed time: 1.733474741 seconds (36994324 bytes allocated, 1.90% gc time)
+#(1.8811458391292683e-10,[0.0999737,1.99969,0.99995,0.992835,1.00042])
 
 # -------------------5taxon tree------------------
 ## include("../tree_example_read.jl");
@@ -363,3 +367,77 @@ realht = [0.2,0.1]
 #got 5.34957 at [0.2,0.1] after 28 iterations (returned FTOL_REACHED)
 #elapsed time: 5.533522804 seconds (54162200 bytes allocated, 0.41% gc time)
 #(5.349567420518451,[0.2,0.1])
+
+#==============================================================================================
+#================ Debugging optBL ============================================================
+
+
+# test optBL with Case I Bad Diamond II
+# does not yield correct ht for one starting point
+
+include("../types.jl")
+include("../functions.jl")
+
+df = readtable("CaseI_output.csv")
+d2 = readDataCF(df)
+
+# starting ht (gamma,t4,t6,t9,t10)
+wronght = [0.1,1.0,1.0,3.6,1.0]
+ht = wronght
+realht = [0.1,2.0,1.0,1.0,1.0]
+
+tree = string("((((8,10):",string(ht[2]),")#H1:::",string(1-ht[1]),",7):",string(ht[3]),",6,(4,#H1:",string(ht[4]),"::",string(ht[1]),"):",string(ht[5]),");") # Case I Bad diamond II
+f = open("prueba_tree.txt","w")
+write(f,tree)
+close(f)
+net = readTopologyUpdate("prueba_tree.txt");
+printEdges(net)
+
+net.ht
+
+q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
+q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
+q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);
+q4 = Quartet(4,["6","10","4","8"],[0.5,0.4,0.1]);
+q5 = Quartet(5,["6","7","4","10"],[0.5,0.4,0.1]);
+
+d = DataCF([q1,q2,q3,q4,q5]);
+extractQuartet!(net,d)
+
+wrongdf = writeExpCF(d.quartet)
+writetable("CaseI_output_wrong.csv",wrongdf)
+
+
+# test optBL with Case G
+# does not yield correct ht for one starting point
+include("../types.jl")
+include("../functions.jl")
+
+df = readtable("CaseG_output.csv")
+d2 = readDataCF(df)
+
+# starting ht (gamma,t3,t6,t9)
+wronght = [0.14,0.2,0.1,0.6]
+ht = wronght
+realht = [0.1,0.2,0.1,1.0]
+
+tree = string("((((6,4)1:",string(ht[2]),",(7)11#H1:::",string(1-ht[1]),")5:",string(ht[3]),",(11#H1:::",string(ht[1]),",8):",string(ht[4]),"),10);") # Case G different starting branch lengths
+f = open("prueba_tree.txt","w")
+write(f,tree)
+close(f)
+net = readTopologyUpdate("prueba_tree.txt");
+printEdges(net
+
+net.ht
+
+q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
+q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
+q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);
+q4 = Quartet(4,["6","10","4","8"],[0.5,0.4,0.1]);
+q5 = Quartet(5,["6","7","4","10"],[0.5,0.4,0.1]);
+
+d = DataCF([q1,q2,q3,q4,q5]);
+extractQuartet!(net,d)
+
+wrongdf = writeExpCF(d.quartet)
+writetable("CaseG _output_wrong.csv",wrongdf)
