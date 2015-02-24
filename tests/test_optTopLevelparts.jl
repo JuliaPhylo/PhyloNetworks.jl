@@ -35,6 +35,41 @@ currT = deepcopy(newT);
 currloglik = newloglik
 currxmin = newxmin
 
+# ------------------5taxon network 1 hybridization-----------------
+# starting topology: Case F
+include("../case_f_example.jl");
+currT = deepcopy(net);
+printEdges(currT)
+
+# real network: Case H
+df = readtable("CaseH_output.csv")
+d = readDataCF(df)
+
+currloglik,currxmin = optBL!(currT,d)
+updateParameters!(currT)
+updateLik!(currT,currloglik)
+newT = deepcopy(currT);
+count = 0
+N = 100
+move = whichMove(currT)
+move = :CHdir
+move = :MVorigin
+move = :MVtarget
+move = :nni
+
+flag = proposedTop!(move,newT,true,count,N)
+printEdges(newT)
+printNodes(newT)
+sum([e.hybrid?1:0 for e in newT.edge]) == 2 || error("there are not 2 hybrid edges")
+newT.hybrid[1].k
+
+newloglik, newxmin = optBL!(newT,d)
+newloglik - currloglik
+
+currT = deepcopy(newT);
+currloglik = newloglik
+currxmin = newxmin
+
 # -------------------5taxon tree------------------
 
 include("../types.jl")
