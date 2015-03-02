@@ -31,7 +31,7 @@ printEdges(newT)
 
 
 
-# ------------------5taxon network 1 hybridization-----------------
+# ------------------5taxon network 1 hybridization: Case H-----------------
 # starting topology: Case G
 include("../case_g_example.jl");
 currT = deepcopy(net);
@@ -83,6 +83,42 @@ d = readDataCF(df)
 epsilon = eps()
 N = 100
 
-@time newT = optTopLevel!(currT,epsilon,N,d)
+@time newT = optTopLevel!(currT,epsilon,N,d);
+printEdges(newT)
+#elapsed time: 10.644039127 seconds (127552964 bytes allocated, 0.89% gc time)
+
+# ------------------5taxon network 1 hybridization: Case F-----------------
+# starting topology: Case G
+include("../case_g_example.jl");
+currT = deepcopy(net);
+printEdges(currT)
+
+# real network: Case F
+df = readtable("CaseF_output.csv")
+d = readDataCF(df)
+
+
+epsilon = eps()
+N = 100
+
+@time newT = optTopLevel!(currT,epsilon,N,d);
+#elapsed time: 11.59461217 seconds (112302760 bytes allocated, 0.26% gc time)
 printEdges(newT)
 
+
+# starting topology: Case H
+include("../case_h_example.jl");
+currT = deepcopy(net);
+printEdges(currT)
+
+# real network: Case F
+df = readtable("CaseF_output.csv")
+d = readDataCF(df)
+
+
+epsilon = eps()
+N = 100
+
+@time newT = optTopLevel!(currT,epsilon,N,d);
+#elapsed time: 26.763174225 seconds (142165976 bytes allocated, 0.25% gc time)
+printEdges(newT)

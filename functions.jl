@@ -1587,27 +1587,35 @@ function NNI!(net::Network,edge::Edge)
     t1 = e1.length
     t = edge.length
     t4 = e4.length
+    n1 = edge.node[1]
+    n2 = edge.node[2]
     if(edge.inCycle != -1) # update inCycle
+        (n1.inCycle == edge.inCycle && n2.inCycle == edge.inCycle) || error("edge $(edge.number) is in cycle $(edge.inCycle) but its nodes are not: $(n1.number), $(n2.number)")
         if((e2.inCycle == e3.inCycle == edge.inCycle && e1.inCycle == e4.inCycle == -1) || (e1.inCycle == e4.inCycle == edge.inCycle && e2.inCycle == e3.inCycle == -1))
             nothing
         elseif((e2.inCycle == e4.inCycle == edge.inCycle && e1.inCycle == e3.inCycle == -1) || (e1.inCycle == e3.inCycle == edge.inCycle && e2.inCycle == e4.inCycle == -1))
             edge.inCycle = -1
+            if(e2.inCycle == e4.inCycle == edge.inCycle)
+                n1.inCycle = -1
+            elseif(e1.inCycle == e3.inCycle == edge.inCycle)
+                n2.inCycle = -1
+            end
         else
             error("internal edge $(edge.number) is in cycle $(edge.inCycle), but it is not consistent with other edges")
         end
     else
         (e1.inCycle == e2.inCycle && e3.inCycle == e4.inCycle) || error("both edges in edges1 $([e.number for e in edges1]) (or edges2 $([e.number for e in edges2])) must have the same inCycle attribute")
         if(e1.inCycle != -1 && e3.inCycle != -1)
-            warn("cannot do tree NNI because it will create intersecting cycles, nothing done")
+            warn("cannot do tree NNI because it will create intersecting cycles, nothing done. e1,e2,e3,e4: $([e1.number,e2.number,e3.number,e4.number])")
             return false
         elseif(e1.inCycle != -1)
             edge.inCycle = e1.inCycle
+            n2.inCycle = e1.inCycle
         elseif(e3.inCycle != -1)
             edge.inCycle = e3.inCycle
+            n1.inCycle = e1.inCycle
         end
     end
-    n1 = edge.node[1]
-    n2 = edge.node[2]
     removeNode!(n1,e2)
     removeEdge!(n1,e2)
     removeNode!(n2,e3)
@@ -3207,7 +3215,7 @@ function logPseudoLik(quartet::Quartet)
         #println("obsCF = $(quartet.obsCF), expCF = $(quartet.qnet.expCF)")
         suma = 0
         for(i in 1:3)
-            suma += quartet.obsCF[i]*log(quartet.qnet.expCF[i]/quartet.obsCF[i])
+            suma += 100*quartet.obsCF[i]*log(quartet.qnet.expCF[i]/quartet.obsCF[i])
         end
         quartet.logPseudoLik = suma
         return suma
@@ -3436,7 +3444,7 @@ end
 # function for the upper bound of ht
 function upper(net::HybridNetwork)
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
-    return vcat(ones(net.numHybrids-net.numBad),DataFrames.rep(Inf,k),ones(length(net.ht)-k-net.numHybrids+net.numBad))
+    return vcat(ones(net.numHybrids-net.numBad),DataFrames.rep(10,k),ones(length(net.ht)-k-net.numHybrids+net.numBad))
 end
 
 # function to calculate the inequality gammaz1+gammaz2 <= 1
