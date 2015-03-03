@@ -770,6 +770,8 @@ function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bo
     deleteHybrid!(hybrid,net,minor)
 end
 
+deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node) = deleteHybridizationUpdate!(net, hybrid, true)
+
 # function to delete a hybridization event
 # input: hybrid node and network
 #        minor: true (deletes minor edge), false (deletes major)
@@ -3418,7 +3420,6 @@ end
 
 # function to update the branch lengths and gammas in a network
 # after the optimization
-# input: ht, vector of size net.ht
 # warning: optBL need to be run before to have xmin in net.ht
 function updateParameters!(net::HybridNetwork)
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
@@ -3454,37 +3455,6 @@ function calculateIneqGammaz(x::Vector{Float64}, net::HybridNetwork, ind::Int64)
     return hz[ind*2] + hz[ind*2-1] - 1
 end
 
-# old optBL: without inequality for gammaz
-# numerical optimization of branch lengths given a network (or tree)
-# and data (set of quartets with obsCF)
-# using BOBYQA from NLopt package
-## function optBL!(net::HybridNetwork, d::DataCF)
-##     ht = parameters!(net); # branches/gammas to optimize: net.ht, net.numht
-##     extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
-##     k = length(net.ht)
-##     opt = NLopt.Opt(:LN_BOBYQA,k) # :LD_MMA if use gradient, :LN_COBYLA for nonlinear/linear constrained optimization derivative-free, :LN_BOBYQA for bound constrained derivative-free
-##     # criterion based on prof Bates code
-##     NLopt.ftol_rel!(opt,1e-12) # relative criterion -12
-##     NLopt.ftol_abs!(opt,1e-12) # absolute critetion -8
-##     NLopt.xtol_abs!(opt,1e-10) # criterion on parameter value changes -10
-##     NLopt.lower_bounds!(opt, zeros(k))
-##     NLopt.upper_bounds!(opt,upper(net))
-##     count = 0
-##     function obj(x::Vector{Float64},g::Vector{Float64}) # added g::Vector{Float64} for gradient, ow error
-##         count += 1
-##         calculateExpCFAll!(d,x,net) # update qnet branches and calculate expCF
-##         update!(net,x) # update net.ht
-##         val = logPseudoLik(d)
-##         println("f_$count: $(round(val,5)), x: $(x)")
-##         return val
-##     end
-##     NLopt.min_objective!(opt,obj)
-##     fmin, xmin, ret = NLopt.optimize(opt,ht)
-##     println("got $(round(fmin,5)) at $(round(xmin,5)) after $(count) iterations (returned $(ret))")
-##     #println("net.ht is $(round(net.ht,5))")
-##     return fmin,xmin
-## end
-
 # numerical optimization of branch lengths given a network (or tree)
 # and data (set of quartets with obsCF)
 # using BOBYQA from NLopt package
@@ -3492,11 +3462,8 @@ function optBL!(net::HybridNetwork, d::DataCF)
     ht = parameters!(net); # branches/gammas to optimize: net.ht, net.numht
     extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
     k = length(net.ht)
-    if(net.numBad == 0)
-        opt = NLopt.Opt(:LN_BOBYQA,k) # :LD_MMA if use gradient, :LN_COBYLA for nonlinear/linear constrained optimization derivative-free, :LN_BOBYQA for bound constrained derivative-free
-    elseif(net.numBad > 0)
-        opt = NLopt.Opt(:LN_COBYLA,k) # :LD_MMA if use gradient, :LN_COBYLA for nonlinear/linear constrained optimization derivative-free, :LN_BOBYQA for bound constrained derivative-free
-    end
+    net.numBad >= 0 || error("network has negative number of bad hybrids")
+    opt = NLopt.Opt(net.numBad == 0 ? :LN_BOBYQA : :LN_COBYLA,k) # :LD_MMA if use gradient, :LN_COBYLA for nonlinear/linear constrained optimization derivative-free, :LN_BOBYQA for bound constrained derivative-free
     # criterion based on prof Bates code
     NLopt.ftol_rel!(opt,1e-12) # relative criterion -12
     NLopt.ftol_abs!(opt,1e-12) # absolute critetion -8
@@ -3530,6 +3497,8 @@ function optBL!(net::HybridNetwork, d::DataCF)
     fmin, xmin, ret = NLopt.optimize(opt,ht)
     println("got $(round(fmin,5)) at $(round(xmin,5)) after $(count) iterations (returned $(ret))")
     #println("net.ht is $(round(net.ht,5))")
+    updateParameters!(net)
+    updateLik!(net,fmin)
     return fmin,xmin
 end
 
@@ -3598,12 +3567,8 @@ function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::In
         success = changeDirectionUpdate!(newT,node)
     elseif(move == 5)
         node = chooseHybrid(newT)
-        deleteHybridizationUpdate!(newT,node,random)
+        deleteHybridizationUpdate!(newT,node)
         success = true
-        flag = true
-        flag2 = true
-        flag3 = true
-        nocycle = false
     elseif(move == 6)
         success = NNIRepeat!(newT,N)
     end
@@ -3617,12 +3582,12 @@ proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Int64,N::In
 
 # function to optimize on the space of networks with the same number of hybridizations
 # currT, the starting network will be modified inside
+# epsilon: absolute tolerance in loglik
+# N: number of times it will try a NNI move before aborting it
 function optTopLevel!(currT::HybridNetwork, epsilon::Float64, N::Int64, d::DataCF)
     epsilon > 0 || error("epsilon must be greater than zero: $(epsilon)")
     delta = epsilon - 1
     currloglik,currxmin = optBL!(currT,d)
-    updateParameters!(currT)
-    updateLik!(currT,currloglik)
     count = 0
     newT = deepcopy(currT)
     println("--------- loglik_$(count) = $(round(currloglik,5)) -----------")
@@ -3635,10 +3600,8 @@ function optTopLevel!(currT::HybridNetwork, epsilon::Float64, N::Int64, d::DataC
             println("accepted proposed new topology in step $(count)")
             printEdges(newT)
             newloglik, newxmin = optBL!(newT,d)
-            if(newloglik < currloglik && isValid(newxmin,newT)) # fixit: will remove isValid to allow the data to give hints on the search
+            if(newloglik < currloglik && isValid(newT)) # fixit: will remove isValid to allow the data to give hints on the search
                 println("proposed new topology with better loglik in step $(count): oldloglik=$(round(currloglik,3)), newloglik=$(round(newloglik,3))")
-                updateParameters!(newT)
-                updateLik!(newT,newloglik)
                 delta = abs(newloglik - currloglik)
                 currT = deepcopy(newT)
                 currloglik = newloglik
@@ -3654,16 +3617,14 @@ function optTopLevel!(currT::HybridNetwork, epsilon::Float64, N::Int64, d::DataC
     return newT
 end
 
-function isValid(ht::Vector{Float64}, net::HybridNetwork)
-    length(ht) == length(net.ht) || error("vector ht should have same length as net.ht for isValid function")
-    nh = ht[1 : net.numHybrids - net.numBad]
+# checks if there are problems in estimated net.ht:
+# returns flag for h, flag for t, flag for hz
+function isValid(net::HybridNetwork)
+    nh = net.ht[1 : net.numHybrids - net.numBad]
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
-    nt = ht[net.numHybrids - net.numBad + 1 : net.numHybrids - net.numBad + k]
-    nhz = ht[net.numHybrids - net.numBad + k + 1 : length(ht)]
-    all([n>0 for n in ht]) || return false
-    all([n<1 for n in nh]) || return false
-    all([n<1 for n in nhz]) || return false
-    return true
+    nt = net.ht[net.numHybrids - net.numBad + 1 : net.numHybrids - net.numBad + k]
+    nhz = net.ht[net.numHybrids - net.numBad + k + 1 : length(ht)]
+    return all([(n>0 && n<1) for n in nh]), all([n>0 for n in nt]), all([(n>0 && n<1) for n in nhz])
 end
 
 

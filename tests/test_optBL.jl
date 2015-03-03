@@ -42,6 +42,11 @@ realht = [0.1,0.2,0.1,1.0]
 #elapsed time: 6.552122524 seconds (95796384 bytes allocated, 0.56% gc time)
 #(5.522931422394296e-8,[0.140883,0.195339,0.10493,0.595437])
 
+# with 100*logPseudoLik and t in (0,10): takes longer, but finds it!
+#got 0.0 at [0.10085,0.19991,0.1001,0.98557] after 1123 iterations (returned FTOL_REACHED)
+#elapsed time: 53.20413795 seconds (107820188 bytes allocated, 0.13% gc time)
+#(2.169777681982341e-9,[0.100853,0.199907,0.100098,0.985569])
+
 @allocated fmin,xmin=optBL!(net,d2)
 
 # -------- different starting point ------
@@ -161,6 +166,11 @@ realht = [0.1,0.1,1.,0.1]
 #elapsed time: 0.973165584 seconds (16698980 bytes allocated, 3.44% gc time)
 #(4.3376522534621724e-13,[0.1,0.0999979,1.0,0.100001])
 
+# with 100*logPseudoLik and t in (0,10):
+#got 0.0 at [0.1,0.1,1.0,0.1] after 208 iterations (returned FTOL_REACHED)
+#elapsed time: 6.892366587 seconds (20646048 bytes allocated)
+#(2.4010737722561867e-13,[0.0999999,0.0999992,1.0,0.1])
+
 # ==================================================================================================================================
 
 # test optBL with Case J
@@ -210,6 +220,10 @@ realht = [0.1,0.2,0.1,1.0]
 #elapsed time: 1.211645168 seconds (21966196 bytes allocated)
 #(9.797186804450541e-12,[0.100022,0.200007,0.100001,0.999579])
 
+# with 100*logPseudoLik and t in (0,10):
+#got 0.0 at [0.1,0.2,0.1,1.00003] after 249 iterations (returned FTOL_REACHED)
+#elapsed time: 6.656956697 seconds (23010204 bytes allocated, 0.56% gc time)
+#(5.280560068867562e-12,[0.0999983,0.199999,0.0999999,1.00003])
 
 # ==================================================================================================================================
 
@@ -265,6 +279,11 @@ realht = [0.1,0.127,0.0285]
 #got 0.0 at [0.1,0.12689,0.02855] after 3277 iterations (returned FTOL_REACHED)
 #elapsed time: 23.001580343 seconds (312597904 bytes allocated, 0.98% gc time)
 #(1.920897287842076e-13,[0.0999998,0.126889,0.0285491])
+
+# with 100*logPseudoLik and t in (0,10):
+# got 0.0 at [0.1,0.12689,0.02855] after 3356 iterations (returned FTOL_REACHED)
+# elapsed time: 90.405727385 seconds (281649264 bytes allocated, 0.24% gc time)
+# (8.157692309723136e-12,[0.0999999,0.126889,0.028549])
 
 # ==================================================================================================================================
 
@@ -328,6 +347,12 @@ realht = [0.1,2.0,1.0,1.0,1.0]
 #got 0.0 at [0.09997,1.99969,0.99995,0.99284,1.00042] after 424 iterations (returned FTOL_REACHED)
 #elapsed time: 1.733474741 seconds (36994324 bytes allocated, 1.90% gc time)
 #(1.8811458391292683e-10,[0.0999737,1.99969,0.99995,0.992835,1.00042])
+
+# with 100*logPseudoLik and t in (0,10):
+# ht = [0.2,0.0,2.0,2.0,2.0]
+#got 0.0 at [0.1,2.0,1.0,0.99994,1.0] after 753 iterations (returned FTOL_REACHED)
+#elapsed time: 47.213517434 seconds (80265788 bytes allocated, 0.16% gc time)
+#(1.2568189823957448e-12,[0.0999998,2.0,1.0,0.999941,1.0])
 
 # -------------------5taxon tree------------------
 ## include("../tree_example_read.jl");
