@@ -140,23 +140,20 @@ end
 # return flag, array of edges changed
 #        flag: false if the set of edges to place the root is empty
 function updateContainRoot!(net::HybridNetwork, node::Node)
-    if(node.hybrid)
-        net.edges_changed = Edge[];
-        for (e in node.edge)
-            if(!e.hybrid)
-                other = getOtherNode(e,node);
-                e.containRoot = false;
-                push!(net.edges_changed,e);
-                traverseContainRoot(other,e, net.edges_changed);
-            end
+    node.hybrid || error("node $(node.number )is not hybrid, cannot update containRoot")
+    net.edges_changed = Edge[];
+    for (e in node.edge)
+        if(!e.hybrid)
+            other = getOtherNode(e,node);
+            e.containRoot = false;
+            push!(net.edges_changed,e);
+            traverseContainRoot(other,e, net.edges_changed);
         end
-        if(all([!e.containRoot for e in net.edge]))
-            return false,net.edges_changed
-        else
-            return true,net.edges_changed
-        end
+    end
+    if(all([!e.containRoot for e in net.edge]))
+        return false,net.edges_changed
     else
-        error("node is not hybrid")
+        return true,net.edges_changed
     end
 end
 
@@ -248,10 +245,27 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
                 net.hasVeryBadTriangle = true
             end
         elseif(net.numTaxa >= 6)
-            node.isBadTriangle = true
-            setLength!(edge_maj,edge_maj.length+tree_edge2.length)
-            setLength!(tree_edge2,0.0)
-            tree_edge2.istIdentifiable = false
+            edgebla,tree_edge_incycle,tree_edge1 = hybridEdges(other_min);
+            edgebla,edgebla,tree_edge3 = hybridEdges(other_maj);
+            isLeaf1 = getOtherNode(tree_edge1,other_min);
+            isLeaf2 = getOtherNode(tree_edge2,node);
+            isLeaf3 = getOtherNode(tree_edge3,other_maj);
+            if(isLeaf1.leaf || isLeaf2.leaf || isLeaf3.leaf)
+                if(sum([l.leaf?1:0 for l in [isLeaf1,isLeaf2,isLeaf3]]) >= 2)
+                    warn("extremely bad triangle found")
+                    node.isExtBadTriangle = true;
+                    net.hasVeryBadTriangle = true
+                elseif(sum([l.leaf?1:0 for l in [isLeaf1,isLeaf2,isLeaf3]]) == 2)
+                    warn("bad triangle I or II found")
+                    node.isVeryBadTriangle = true;
+                    net.hasVeryBadTriangle = true
+                end
+            else
+                node.isBadTriangle = true
+                setLength!(edge_maj,edge_maj.length+tree_edge2.length)
+                setLength!(tree_edge2,0.0)
+                tree_edge2.istIdentifiable = false
+            end
         else # net.numTaxa < 5
             node.isExtBadTriangle = true;
             net.hasVeryBadTriangle = true
@@ -530,7 +544,7 @@ end
 # calls chooseEdgesGamma, parameter4createHybrid and createHybrid
 function addHybridization!(net::HybridNetwork)
     edge1, edge2, gamma = chooseEdgesGamma(net);
-    #println("edge1, $(edge1.number), edge2 $(edge2.number)")
+    warn("added hybridization between edge1, $(edge1.number) and edge2 $(edge2.number)")
     edge3, edge4 = parameters4createHybrid!(edge1,edge2,net);
     hybrid = createHybrid!(edge1, edge2, edge3, edge4, net, gamma);
     return hybrid
@@ -582,16 +596,16 @@ function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool,
                 if(flag3)
                     return true, hybrid, flag, nocycle, flag2, flag3
                 else
-                    undoContainRoot!(edgesRoot);
-                    undoistIdentifiable!(edgesGammaz);
-                    undoGammaz!(hybrid,net);
-                    undoInCycle!(edgesInCycle, nodesInCycle);
+                    #undoContainRoot!(edgesRoot);
+                    #undoistIdentifiable!(edgesGammaz);
+                    #undoGammaz!(hybrid,net);
+                    #undoInCycle!(edgesInCycle, nodesInCycle);
                     return false, hybrid, flag, nocycle, flag2, flag3
                 end
             else
-                undoistIdentifiable!(edgesGammaz);
-                undoGammaz!(hybrid,net);
-                undoInCycle!(edgesInCycle, nodesInCycle);
+                #undoistIdentifiable!(edgesGammaz);
+                #undoGammaz!(hybrid,net);
+                #undoInCycle!(edgesInCycle, nodesInCycle);
                 return false, hybrid, flag, nocycle, flag2, true
             end
         else
@@ -965,7 +979,8 @@ end
 # function to change the direction of the minor hybrid edge
 # and update necessary stepts before and after
 # input: hybrid node and network
-# returns success, flag2, flag3
+# returns success, and new hybrid if different from node (success=true)
+# if success=false, it undoes the change direction
 function changeDirectionUpdate!(net::HybridNetwork,node::Node)
     node.hybrid || error("cannot change the direction of minor hybrid edge since node $(node.number) is not hybrid")
     undoGammaz!(node,net)
@@ -982,17 +997,37 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node)
     if(flag2)
         flag3,edgesroot = updateContainRoot!(net,hybrid);
         if(flag3)
-            return true
+            return true, hybrid
         else
-            undoGammaz!(node,net)
+            undoGammaz!(hybrid,net)
             undoContainRoot!(edgesroot)
-            changeDirection!(node,net);
-            return false
+            update, hybrid2 = changeDirection!(hybrid,net);
+            isEqual(hybrid2,node) || error("when undoing change direction, we should have the same node as we started with: node $(node.number), hybrid2 $(hybrid.number)")
+            if(node.k == 3)
+                flag2, edgesgammaz = updateGammaz!(net,node)
+            elseif(node.k == 4 && update)
+                flag2, edgesgammaz = updateGammaz!(net,node)
+            else
+                flag2 = true
+            end
+            flag2 || error("when undoing change direction, we should be able to update gammaz again")
+            undoContainRoot!(edgesRoot);
+            return false, nothing
         end
     else
-        undoGammaz!(node,net)
-        changeDirection!(node,net);
-        return false
+        undoGammaz!(hybrid,net)
+        update, hybrid2 = changeDirection!(hybrid,net);
+        isEqual(hybrid2,node) || error("when undoing change direction, we should have the same node as we started with: node $(node.number), hybrid2 $(hybrid.number)")
+        if(node.k == 3)
+            flag2, edgesgammaz = updateGammaz!(net,node)
+        elseif(node.k == 4 && update)
+            flag2, edgesgammaz = updateGammaz!(net,node)
+        else
+            flag2 = true
+        end
+        flag2 || error("when undoing change direction, we should be able to update gammaz again")
+        undoContainRoot!(edgesRoot); #redo containRoot as before
+        return false, nothing
     end
 end
 
@@ -1249,7 +1284,7 @@ function moveOriginUpdate!(net::HybridNetwork, node::Node, othermin::Node, newed
         warn("undoing move origin for conflict: gammaz")
         moveOrigin(node,othermin,tree1,tree2,newedge,true,newedgeincycle);
         flag2, edgesGammaz = updateGammaz!(net,node)
-        flag2 || error("updating gammaz for undone moveOrigin, should not be any problem")
+        (flag2 || node.isVeryBadTriangle || node.isExtBadTriangle) || error("updating gammaz for undone moveOrigin, should not be any problem")
         return false, flag2
     end
 end
@@ -1480,19 +1515,16 @@ function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, major
     flag2, edgesGammaz = updateGammaz!(net,node)
     if(flag2)
         flag3,edgesroot = updateContainRoot!(net,node)
-        if(flag3)
-            return true,flag2
-        else
-            error("should not fail contain root when moving target")
-        end
+        flag3 || error("should not fail contain root when moving target")
+        return true,flag2
     else
         undoistIdentifiable!(edgesGammaz);
         undoGammaz!(node,net);
         warn("undoing move target for conflict: updategammaz")
         moveTarget(node,majoredge,tree,newedge,true,newedgeincycle);
         flag2, edgesGammaz = updateGammaz!(net,node)
-        flag3,edgesroot = updateContainRoot!(net,node)
-        (flag2 && flag3) || error("updating gammaz/root for undone moveTarget, should not be any problem, but flag2 $(flag2), flag3 $(flag3)")
+        undoContainRoot!(edgesRoot);
+        (flag2 || node.isVeryBadTriangle || node.isExtBadTriangle) || error("updating gammaz/root for undone moveTarget, should not be any problem, but flag2 $(flag2) and node not very/ext bad triangle")
         return false, flag2
     end
 end
@@ -1566,6 +1598,7 @@ end
 # input: edge from chooseEdgeNNI
 # returns success; failure if cannot do nni without creating intersecting cycles
 function NNI!(net::Network,edge::Edge)
+    !edge.hybrid || error("cannot do NNI on hybrid edge: $(edge.number)")
     println("NNI on tree edge $(edge.number)")
     edges1 = hybridEdges(edge.node[1],edge)
     edges2 = hybridEdges(edge.node[2],edge)
@@ -3555,7 +3588,7 @@ function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::In
     1 <= move <= 6 || error("invalid move $(move)")
     println("current move: $(int2move[move])")
     if(move == 1)
-        success,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(newT)
+        success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(newT)
     elseif(move == 2)
         node = chooseHybrid(newT)
         success = moveOriginUpdateRepeat!(newT,node,random)
@@ -3623,7 +3656,13 @@ function isValid(net::HybridNetwork)
     nh = net.ht[1 : net.numHybrids - net.numBad]
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
     nt = net.ht[net.numHybrids - net.numBad + 1 : net.numHybrids - net.numBad + k]
-    nhz = net.ht[net.numHybrids - net.numBad + k + 1 : length(ht)]
+    nhz = net.ht[net.numHybrids - net.numBad + k + 1 : length(net.ht)]
+    return all([(n>0 && n<1) for n in nh]), all([n>0 for n in nt]), all([(n>0 && n<1) for n in nhz])
+end
+
+# checks if there are problems in estimated net.ht:
+# returns flag for h, flag for t, flag for hz
+function isValid(nh::Vector{Float64},nt::Vector{Float64},nhz::Vector{Float64})
     return all([(n>0 && n<1) for n in nh]), all([n>0 for n in nt]), all([(n>0 && n<1) for n in nhz])
 end
 
