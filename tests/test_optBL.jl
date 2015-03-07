@@ -395,7 +395,8 @@ realht = [0.2,0.1]
 
 #==============================================================================================
 #================ Debugging optBL ============================================================
-
+# compare expCF from wrong estimates with real estimates
+# ===========================================================================================
 
 # test optBL with Case I Bad Diamond II
 # does not yield correct ht for one starting point

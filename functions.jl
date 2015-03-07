@@ -508,12 +508,19 @@ end
 # fixit: add different function to choose gamma
 # fixit: how to stop from infinite loop if there are no options
 function chooseEdgesGamma(net::HybridNetwork)
+    println("net.edge length: $(length(net.edge))")
     index1 = 1;
     index2 = 1;
-    while(index1 == index2 || index1 == 0 || index2 == 0 || index1 > size(net.edge,1) || index2 > size(net.edge,1) || net.edge[index1].inCycle != -1 || net.edge[index2].inCycle != -1 || cherry || nonidentifiable)
+    inlimits = false
+    while(!inlimits || net.edge[index1].inCycle != -1 || net.edge[index2].inCycle != -1 || cherry || nonidentifiable)
         index1 = iround(rand()*size(net.edge,1));
         index2 = iround(rand()*size(net.edge,1));
-        sisters, cherry, nonidentifiable = sisterOrCherry(net.edge[index1],net.edge[index2]);
+        if(index1 != index2 && index1 != 0 && index2 != 0 && index1 <= size(net.edge,1) && index2 <= size(net.edge,1))
+            inlimits = true
+            sisters, cherry, nonidentifiable = sisterOrCherry(net.edge[index1],net.edge[index2]);
+        else
+            inlimits = false
+        end
     end
     gamma = rand()*0.5;
     #println("from $(edge1.number) to $(edge2.number), $(gamma)");
@@ -571,7 +578,7 @@ function updateMajorHybrid!(net::HybridNetwork, node::Node)
     !isa(hybedge,Nothing) || error("hybrid node $(node.number) does not have hybrid edge")
     !isa(edgecycle,Nothing) || error("hybrid node $(node.number) does not have tree edge in cycle to update to hybrid edge after updateInCycle")
     #println("updating hybrid status to edgeincycle $(edgecycle.number) for hybedge $(hybedge.number)")
-    makeEdgeHybrid!(edgeincycle,node,1-hybedge.gamma)
+    makeEdgeHybrid!(edgecycle,node,1-hybedge.gamma)
 end
 
 # function to update everything of a new hybridization
@@ -773,8 +780,8 @@ function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bo
     undoGammaz!(hybrid,net);
     undoInCycle!(edgesInCycle, nodesInCycle);
     undoContainRoot!(edgesRoot);
-    edges[1].gamma > 0.5 || error("strange major hybrid edge $(edges[1].number) with gamma $(edge.gamma) either less than 0.5")
-    edges[1].gamma != 1.0 || warn("strange major hybrid edge $(edges[1].number) with gamma $(edge.gamma) equal to 1.0")
+    edges[1].gamma > 0.5 || error("strange major hybrid edge $(edges[1].number) with gamma $(edges[1].gamma) either less than 0.5")
+    edges[1].gamma != 1.0 || warn("strange major hybrid edge $(edges[1].number) with gamma $(edges[1].gamma) equal to 1.0")
     limit = edges[1].gamma
     if(random)
         minor = rand() < limit ? false : true
@@ -1071,7 +1078,7 @@ end
 function moveOrigin(node::Node,othermin::Node,tree1::Edge, tree2::Edge,newedge::Edge, undo::Bool, newedgeincycle::Bool)
     node.hybrid || error("cannot move origin of hybridization because node $(node.number) is not hybrid")
     size(newedge.node,1) == 2 || error("strange edge $(newedge.number) that has $(size(newedge.node,1)) nodes instead of 2")
-    println("othermin $(othermin.number) with edges $([e.number for e in othermin.edge])")
+    #println("othermin $(othermin.number) with edges $([e.number for e in othermin.edge])")
     if(tree1.inCycle == node.number && tree2.inCycle == -1)
         treej = tree1
         treei = tree2
@@ -1109,7 +1116,7 @@ function moveOrigin(node::Node,othermin::Node,tree1::Edge, tree2::Edge,newedge::
         neighbor = true
         from_otherj = true
     end
-    println("neighbor $(neighbor), from otheri $(from_otheri), from otherj $(from_otherj), n1 $(n1.number), n2 $(n2.number)")
+    #println("neighbor $(neighbor), from otheri $(from_otheri), from otherj $(from_otherj), n1 $(n1.number), n2 $(n2.number)")
     if(neighbor && from_otheri)
         #println("leaving n1 $(n1.number) as it is")
         #println("removing n2 $(n2.number) from newedge $(newedge.number) and viceversa")
@@ -1163,8 +1170,13 @@ function moveOrigin(node::Node,othermin::Node,tree1::Edge, tree2::Edge,newedge::
     tj = treej.length
     t = newedge.length
     setLength!(newedge,ti+tj)
-    setLength!(treei,(ti/(ti+tj))*t)
-    setLength!(treej,(tj/(ti+tj))*t)
+    if(approxEq(ti,0.0) && approxEq(tj,0.0))
+        setLength!(treei,ti)
+        setLength!(treej,tj)
+    else
+        setLength!(treei,(ti/(ti+tj))*t)
+        setLength!(treej,(tj/(ti+tj))*t)
+    end
     if(!undo)
         if(from_otheri)
             newedge.inCycle = node.number
@@ -1269,11 +1281,11 @@ end
 # input: network, hybrid node, othermin already chosen with chooseMinorMajor
 # returns: success (bool), flag, nocycle, flag2
 function moveOriginUpdate!(net::HybridNetwork, node::Node, othermin::Node, newedge::Edge)
-    println("entre a moveOriginUpdate")
+    #println("entre a moveOriginUpdate")
     node.hybrid || error("node $(node.number) is not hybrid, so we cannot delete hybridization event around it")
     edgebla, tree1, tree2 = hybridEdges(othermin);
     undoGammaz!(node,net);
-    println("othermin is $(othermin.number)")
+    #println("othermin is $(othermin.number)")
     newedgeincycle = moveOrigin(node,othermin,tree1,tree2,newedge)
     flag2, edgesGammaz = updateGammaz!(net,node)
     if(flag2)
@@ -1296,21 +1308,21 @@ end
 function moveOriginUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
     node.hybrid || error("cannot move origin because node $(node.number) is not hybrid")
     othermin = chooseMinorMajor(node,random)
-    println("othermin is $(othermin.number) with edges $([e.number for e in othermin.edge])")
+    #println("othermin is $(othermin.number) with edges $([e.number for e in othermin.edge])")
     neighbor = getNeighborsOrigin(othermin)
-    println("neighbors list is $([n.number for n in neighbor])")
+    #println("neighbors list is $([n.number for n in neighbor])")
     success = false
     while(!isempty(neighbor) && !success)
         success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor,node)
-        println("newedge is $(newedge.number), success1 is $(success1)")
+        #println("newedge is $(newedge.number), success1 is $(success1)")
         success1 || return false
         success,flag2 = moveOriginUpdate!(net, node, othermin, newedge)
-        println("after update, success is $(success)")
+        #println("after update, success is $(success)")
         if(!success)
-            println("entra a borrar neighbor")
+            #println("entra a borrar neighbor")
             deleteat!(neighbor,ind)
         end
-        println("neighbor list is $([n.number for n in neighbor])")
+        #println("neighbor list is $([n.number for n in neighbor])")
     end
     success || return false
     return true
@@ -1458,8 +1470,13 @@ function moveTarget(node::Node, major::Edge, tree::Edge, newedge::Edge, undo::Bo
     t2 = tree.length
     t = newedge.length
     setLength!(newedge,t1+t2)
-    setLength!(major,t1/(t1+t2)*t)
-    setLength!(tree,t2/(t1+t2)*t)
+    if(approxEq(t1,0.0) && approxEq(t2,0.0))
+        setLength!(major,t1)
+        setLength!(tree,t2)
+    else
+        setLength!(major,t1/(t1+t2)*t)
+        setLength!(tree,t2/(t1+t2)*t)
+    end
     if(!undo)
         if(from_treenode)
             #println("from treenode treatment, switch major $(major.number) to tree $(tree.number)")
@@ -1618,7 +1635,7 @@ function NNI!(net::Network,edge::Edge)
         e3 = edges2[2]
         e4 = edges2[1]
     end
-    println("e1 is $(e1.number), e2 is $(e2.number), e3 is $(e3.number), e4 is $(e4.number)")
+    #println("e1 is $(e1.number), e2 is $(e2.number), e3 is $(e3.number), e4 is $(e4.number)")
     t1 = e1.length
     t = edge.length
     t4 = e4.length
@@ -2459,17 +2476,17 @@ function deleteLeaf!(net::Network, leaf::Node)
                     ind = isEqual(getOtherNode(edgemaj,other1),other3) ? 1 : 2
                     edgebla,edge3,edge5 = hybridEdges(other3)
                     leaf5 = getOtherNode(edge5,other3)
-                    println("edge2 is $(edge2.number) and is identifiable $(edge2.istIdentifiable)")
+                    #println("edge2 is $(edge2.number) and is identifiable $(edge2.istIdentifiable)")
                     edge2.fromBadDiamondI = true
                     removeNode!(other,edge2)
                     removeEdge!(other1,edge1)
                     setNode!(edge2,other1)
                     setEdge!(other1,edge2)
                     other3.gammaz != -1 || error("hybrid node $(other1.number) is bad diamond, but for node $(other3.number), gammaz is not well updated, it is $(other3.gammaz)")
-                    println("entro a cambiar length en edge $(edge2.number) con gammaz $(other3.gammaz)")
+                    #println("entro a cambiar length en edge $(edge2.number) con gammaz $(other3.gammaz)")
                     setLength!(edge2,-log(1-other3.gammaz))
                     edge2.number = int(string(string(other1.number),string(ind)))
-                    println("edge2 is $(edge2.number) should be not identifiable now $(edge2.istIdentifiable)")
+                    #println("edge2 is $(edge2.number) should be not identifiable now $(edge2.istIdentifiable)")
                     makeEdgeTree!(edge4,other1)
                     makeNodeTree!(net,other1)
                     removeEdge!(other2,edge3)
@@ -2507,7 +2524,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                     ind = isEqual(getOtherNode(edgemaj,other2),other3) ? 1 : 2
                     edgebla,edge3,edge5 = hybridEdges(other3)
                     leaf5 = getOtherNode(edge5,other3)
-                    println("edge1 is $(edge1.number) and is identifiable $(edge1.istIdentifiable)")
+                    #println("edge1 is $(edge1.number) and is identifiable $(edge1.istIdentifiable)")
                     edge1.fromBadDiamondI = true
                     removeNode!(other,edge1)
                     removeEdge!(other2,edge2)
@@ -2516,7 +2533,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                     other3.gammaz != -1 || error("hybrid node $(other2.number) is bad diamond, but for node $(other3.number), gammaz is not well updated, it is $(other3.gammaz)")
                     setLength!(edge1,-log(1-other3.gammaz))
                     edge1.number = int(string(string(other2.number),string(ind)))
-                    println("edge1 is $(edge1.number) should be not identifiable now $(edge1.istIdentifiable)")
+                    #println("edge1 is $(edge1.number) should be not identifiable now $(edge1.istIdentifiable)")
                     makeEdgeTree!(edge4,other2)
                     makeNodeTree!(net,other2)
                     removeEdge!(other1,edge3)
@@ -2550,7 +2567,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                 error("node $(other.number) has hybrid edge, but neither of the other nodes $(other1.number), $(other2.number) are hybrid")
             end
         else # other is tree node without hybrid edges
-            println("entra al caso (1)")
+            #println("entra al caso (1)")
             edge1,edge2 = hybridEdges(other,leaf.edge[1]);
             other1 = getOtherNode(edge1,other);
             other2 = getOtherNode(edge2,other);
@@ -2561,9 +2578,9 @@ function deleteLeaf!(net::Network, leaf::Node)
                 (!other1.leaf || !other2.leaf) || error("just deleted a leaf $(leaf.number) and its two attached nodes are leaves also $(other1.number), $(other2.number)")
                 newleaf = other1.leaf ? other1 : other2
                 middle = other
-                println("middle is $(middle.number), middle.hybrid $(middle.hybrid), middle.hasHybEdge $(middle.hasHybEdge)")
+                #println("middle is $(middle.number), middle.hybrid $(middle.hybrid), middle.hasHybEdge $(middle.hasHybEdge)")
                 middle = deleteIntLeafWhile!(net,middle,newleaf)
-                println("middle is $(middle.number), middle.hybrid $(middle.hybrid), middle.hasHybEdge $(middle.hasHybEdge)")
+                #println("middle is $(middle.number), middle.hybrid $(middle.hybrid), middle.hasHybEdge $(middle.hasHybEdge)")
                 if(middle.hybrid)
                     edges = hybridEdges(middle)
                     edges[1].istIdentifiable = false
@@ -3540,6 +3557,7 @@ end
 
 const move2int = Dict{Symbol,Int64}([:add=>1,:MVorigin=>2,:MVtarget=>3,:CHdir=>4,:delete=>5, :nni=>6])
 const int2move = (Int64=>Symbol)[move2int[k]=>k for k in keys(move2int)]
+const N = 100
 
 function isTree(net::HybridNetwork)
     net.numHybrids == length(net.hybrid) || error("numHybrids does not match to length of net.hybrid")
@@ -3597,7 +3615,7 @@ function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::In
         success = moveTargetUpdateRepeat!(newT,node,random)
     elseif(move == 4)
         node = chooseHybrid(newT)
-        success = changeDirectionUpdate!(newT,node)
+        success,hybrid = changeDirectionUpdate!(newT,node)
     elseif(move == 5)
         node = chooseHybrid(newT)
         deleteHybridizationUpdate!(newT,node)
@@ -3617,38 +3635,38 @@ proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Int64,N::In
 # currT, the starting network will be modified inside
 # epsilon: absolute tolerance in loglik
 # N: number of times it will try a NNI move before aborting it
-function optTopLevel!(currT::HybridNetwork, epsilon::Float64, N::Int64, d::DataCF)
-    epsilon > 0 || error("epsilon must be greater than zero: $(epsilon)")
-    delta = epsilon - 1
-    currloglik,currxmin = optBL!(currT,d)
-    count = 0
-    newT = deepcopy(currT)
-    println("--------- loglik_$(count) = $(round(currloglik,5)) -----------")
-    printEdges(newT)
-    while(delta < epsilon)
-        count += 1
-        move = whichMove(newT)
-        flag = proposedTop!(move,newT,true, count,N)
-        if(flag)
-            println("accepted proposed new topology in step $(count)")
-            printEdges(newT)
-            newloglik, newxmin = optBL!(newT,d)
-            if(newloglik < currloglik && isValid(newT)) # fixit: will remove isValid to allow the data to give hints on the search
-                println("proposed new topology with better loglik in step $(count): oldloglik=$(round(currloglik,3)), newloglik=$(round(newloglik,3))")
-                delta = abs(newloglik - currloglik)
-                currT = deepcopy(newT)
-                currloglik = newloglik
-                currxmin = newxmin
-            else
-                newT = deepcopy(currT)
-            end
-        end
-        println("--------- loglik_$(count) = $(round(currloglik,5)) -----------")
-    end
-    println("END optTopLevel: found minimizer topology at step $(count) with -loglik=$(round(currloglik,5)) and ht_min=$(round(currxmin,5))")
-    printEdges(newT)
-    return newT
-end
+## function optTopLevel!(currT::HybridNetwork, epsilon::Float64, d::DataCF)
+##     epsilon > 0 || error("epsilon must be greater than zero: $(epsilon)")
+##     delta = epsilon - 1
+##     currloglik,currxmin = optBL!(currT,d)
+##     count = 0
+##     newT = deepcopy(currT)
+##     println("--------- loglik_$(count) = $(round(currloglik,5)) -----------")
+##     printEdges(newT)
+##     while(delta < epsilon)
+##         count += 1
+##         move = whichMove(newT)
+##         flag = proposedTop!(move,newT,true, count,N)
+##         if(flag)
+##             println("accepted proposed new topology in step $(count)")
+##             printEdges(newT)
+##             newloglik, newxmin = optBL!(newT,d)
+##             if(newloglik < currloglik && isValid(newT)) # fixit: will remove isValid to allow the data to give hints on the search
+##                 println("proposed new topology with better loglik in step $(count): oldloglik=$(round(currloglik,3)), newloglik=$(round(newloglik,3))")
+##                 delta = abs(newloglik - currloglik)
+##                 currT = deepcopy(newT)
+##                 currloglik = newloglik
+##                 currxmin = newxmin
+##             else
+##                 newT = deepcopy(currT)
+##             end
+##         end
+##         println("--------- loglik_$(count) = $(round(currloglik,5)) -----------")
+##     end
+##     println("END optTopLevel: found minimizer topology at step $(count) with -loglik=$(round(currloglik,5)) and ht_min=$(round(currxmin,5))")
+##     printEdges(newT)
+##     return newT
+## end
 
 # checks if there are problems in estimated net.ht:
 # returns flag for h, flag for t, flag for hz

@@ -5,9 +5,16 @@
 
 # ----- aux general functions ---------------
 
-function approxEq(a::Number,b::Number)
-    abs(a-b) < 100*eps(abs(a)+abs(b))
+function approxEq(a::Number,b::Number,absTol::Number,relTol::Number)
+    if(a<eps() || b<eps())
+        abs(a-b) < absTol
+    else
+        abs(a-b) < relTol*eps(abs(a)+abs(b))
+    end
 end
+
+approxEq(a::Number,b::Number) = approxEq(a,b,1e-5,100)
+
 
 function isEqual(n1::Node,n2::Node)
     return (n1.number == n2.number && approxEq(n1.gammaz,n2.gammaz) && n1.inCycle == n2.inCycle)
@@ -16,6 +23,28 @@ end
 function isEqual(n1::Edge,n2::Edge)
     return (n1.number == n2.number && approxEq(n1.length,n2.length))
 end
+
+function isEqual(net1::HybridNetwork, net2::HybridNetwork)
+    result = true
+    result &= (net1.numTaxa == net2.numTaxa)
+    result &= (net1.numNodes == net2.numNodes)
+    result &= (net1.numEdges == net2.numEdges)
+    ## result &= (net1.node == net2.node)
+    ## result &= (net1.edge == net2.edge)
+    result &= (net1.root == net2.root)
+    result &= (net1.names == net2.names)
+##    result &= (net1.hybrid == net2.hybrid)
+    result &= (net1.numHybrids == net2.numHybrids)
+##    result &= (net1.leaf == net2.leaf)
+    result &= (net1.ht == net2.ht)
+    result &= (net1.numht == net2.numht)
+    result &= (net1.numBad == net2.numBad)
+    result &= (net1.hasVeryBadTriangle == net2.hasVeryBadTriangle)
+    result &= (net1.index == net2.index)
+    result &= (net1.loglik == net2.loglik)
+    return result
+end
+
 
 #------------- EDGE functions --------------------#
 

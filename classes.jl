@@ -31,22 +31,28 @@ function addHybridizationUpdateSmart!(net::HybridNetwork)
     success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net)
     if(!success)
         while(nocycle || !flag) #incycle failed
+            warn("added hybrid causes conflict with previous cycle, need to delete and add another")
             deleteHybrid!(hybrid,net,true)
             success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net)
         end
         if(!flag2) #gammaz failed
+            warn("added hybrid has problem with gammaz (not identifiable bad triangle)")
             flag3, edgesRoot = updateContainRoot!(net,hybrid);
             if(flag3)
+                warn("we will move origin to fix the gammaz situation")
                 success = moveOriginUpdateRepeat!(net,hybrid,true)
             else
+                warn("we will move target to fix the gammaz situation")
                 success = moveTargetUpdateRepeat!(net,hybrid,true)
             end
         else
             if(!flag3) #containRoot failed
+                warn("added hybrid causes problems with containRoot, will change the direction to fix it")
                 success,hybrid = changeDirectionUpdate!(net,hybrid)
             end
         end
         if(!success)
+            warn("could not fix the added hybrid by any means, we will delete it now")
             deleteHybridizationUpdate!(net,hybrid)
         end
     end
@@ -55,16 +61,15 @@ end
 
 # function to delete a hybrid, and then add a new hybrid:
 # deleteHybridizationUpdate and addHybridizationUpdate,
-# will keep trying to add until success or after N times
+# will keep trying to add until success or after N times (global constant N)
 # returns success
 function moveHybrid!(net::HybridNetwork, edge::Edge)
     edge.hybrid || error("edge $(edge.number) cannot be deleted because it is not hybrid")
     warn("moving hybrid for edge $(edge.number)")
-    node = edge.node[edge.isChild1 ? 1 : 2]
+    node = edge.node[edge.isChild1 ? 1 : 2];
     node.hybrid || error("hybrid edge $(edge.number) pointing at tree node $(node.number)")
     deleteHybridizationUpdate!(net, node)
     success = addHybridizationUpdateSmart!(net)
-    N = 100
     i = 1
     while(!success && i<N)
         success = addHybridizationUpdateSmart!(net)
@@ -86,7 +91,7 @@ function gammaZero!(net::HybridNetwork, edge::Edge)
     currTloglik = net.loglik
     edge.hybrid || error("edge $(edge.number) should be hybrid edge because it corresponds to a gamma (or gammaz) in net.ht")
     warn("gamma zero situation found for hybrid edge $(edge.number) with gamma $(edge.gamma)")
-    node = edge.node[edge.isChild1 ? 1 : 2]
+    node = edge.node[edge.isChild1 ? 1 : 2];
     node.hybrid || error("hybrid edge $(edge.number) pointing at tree node $(node.number)")
     success, newnode = changeDirectionUpdate!(net,node)
     if(success)
@@ -108,8 +113,10 @@ function gammaZero!(net::HybridNetwork, edge::Edge)
 end
 
 # function to check if h or t (in currT.ht) are 0 (or 1 for h)
-# returns false if found hz=1.0, or if could not add new hybrid; true ow
+# returns successchange=false if found hz=1.0, or if could not add new hybrid; true ow
+# returns successchange,flagh,flagt,flaghz
 function afterOptBL!(currT::HybridNetwork, d::DataCF)
+    !isTree(currT) || return true,true,true,true
     nh = currT.ht[1 : currT.numHybrids - currT.numBad]
     k = sum([e.istIdentifiable ? 1 : 0 for e in currT.edge])
     nt = currT.ht[currT.numHybrids - currT.numBad + 1 : currT.numHybrids - currT.numBad + k]
@@ -118,7 +125,7 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF)
     indt = currT.index[currT.numHybrids - currT.numBad + 1 : currT.numHybrids - currT.numBad + k]
     indhz = currT.index[currT.numHybrids - currT.numBad + k + 1 : length(currT.ht)]
     flagh,flagt,flaghz = isValid(nh,nt,nhz)
-    samenet = true
+    !all([flagh,flagt,flaghz]) || return true,true,true,true
     successchange = true
     if(!flagh)
         for(i in 1:length(nh))
@@ -126,7 +133,6 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF)
                 edge = currT.edge[indh[i]]
                 approxEq(edge.gamma,nh[i]) || error("edge $(edge.number) gamma $(edge.gamma) should match the gamma in net.ht $(nh[i]) and it does not")
                 successchange = gammaZero!(currT, edge)
-                samenet = false
                 break
             end
         end
@@ -139,7 +145,6 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF)
                     successchange = NNI!(currT,edge)
                     if(successchange)
                         newf,newx = optBL!(currT,d)
-                        samenet = false
                         break
                     end
                 end
@@ -154,7 +159,6 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF)
                 edges = hybridEdges(nodehz)
                 edges[1].hybrid || error("bad diamond I situation, node $(nodehz.number) has gammaz $(nodehz.gammaz) so should be linked to hybrid edge, but it is not")
                 successchange = gammaZero!(currT,edges[1])
-                samenet = false
                 break
             elseif(approxEq(nhz[i],1.0))
                 approxEq(nhz[i+1],0.0) || error("gammaz for node $(currT.node[indhz[i]].number) is $(nhz[i]) but the other gammaz is $(nhz[i+1]), the sum should be less than 1.0")
@@ -163,16 +167,14 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF)
                 edges = hybridEdges(nodehz)
                 edges[1].hybrid || error("bad diamond I situation, node $(nodehz.number) has gammaz $(nodehz.gammaz) so should be linked to hybrid edge, but it is not")
                 successchange = gammaZero!(currT,edges[1])
-                samenet = false
                 break
             else
                 if(approxEq(nhz[i+1],0.0))
-                    nodehz = currT.node[indhz[i+1]]
+                    nodehz = currT.node[indhz[i+1]];
                     approxEq(nodehz.gammaz,nhz[i+1]) || error("nodehz $(nodehz.number) gammaz $(nodehz.gammaz) should match the gammaz in net.ht $(nhz[i+1]) and it does not")
-                    edges = hybridEdges(nodehz)
+                    edges = hybridEdges(nodehz);
                     edges[1].hybrid || error("bad diamond I situation, node $(nodehz.number) has gammaz $(nodehz.gammaz) so should be linked to hybrid edge, but it is not")
                     successchange = gammaZero!(currT,edges[1])
-                    samenet = false
                     break
                 elseif(approxEq(nhz[i+1],1.0))
                     error("gammaz for node $(currT.node[indhz[i]].number) is $(nhz[i]) but the other gammaz is $(nhz[i+1]), the sum should be less than 1.0")
@@ -181,9 +183,73 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF)
             i += 2
         end
     end
-    return successchange,samenet,flagh,flagt,flaghz
+    return successchange,flagh,flagt,flaghz
 end
 
+# function to repeat afterOptBL every time after changing something
+# returns reject=false if we have to reject currT
+function afterOptBLAll!(currT::HybridNetwork, d::DataCF)
+    success,flagh,flagt,flaghz = afterOptBL!(currT,d)
+    while(success && !all([flagh,flagt,flaghz])) #fixit will keep going as long as it finds something to change
+        success,flagh,flagt,flaghz = afterOptBL!(currT,d)
+    end
+    if(!success) #tried to change something but failed
+        if(!flagh || !flaghz)
+            reject = true
+        elseif(!flagt)
+            reject = false
+        end
+    else #didn't change anything, all(flags)=true
+        reject = false
+    end
+    return reject
+end
+
+
+
+# function to optimize on the space of networks with the same number of hybridizations
+# currT, the starting network will be modified inside
+# epsilon: absolute tolerance in loglik
+# N: number of times it will try a NNI move before aborting it
+function optTopLevel!(currT::HybridNetwork, epsilon::Float64, d::DataCF)
+    epsilon > 0 || error("epsilon must be greater than zero: $(epsilon)")
+    delta = epsilon - 1
+    currloglik,currxmin = optBL!(currT,d)
+    rejectCurr = afterOptBLAll!(currT,d)
+    !rejectCurr || error("initial topology has numerical parameters that are not valid: gamma=0(1), t=0, gammaz=0(1); need another starting point")
+    count = 0
+    newT = deepcopy(currT)
+    println("--------- loglik_$(count) = $(round(currloglik,5)) -----------")
+    printEdges(newT)
+    while(delta < epsilon)
+        count += 1
+        move = whichMove(newT)
+        flag = proposedTop!(move,newT,true, count,N)
+        if(flag)
+            println("accepted proposed new topology in step $(count)")
+            printEdges(newT)
+            newloglik, newxmin = optBL!(newT,d)
+            reject = afterOptBLAll!(newT,d)
+            if(newloglik < currloglik && !reject)
+                println("proposed new topology with better loglik in step $(count): oldloglik=$(round(currloglik,3)), newloglik=$(round(newloglik,3))")
+                delta = abs(newloglik - currloglik)
+                currT = deepcopy(newT)
+                currloglik = newloglik
+                currxmin = newxmin
+            else
+                newT = deepcopy(currT)
+            end
+        end
+        println("--------- loglik_$(count) = $(round(currloglik,5)) -----------")
+    end
+    # here: re-optBL with better tolerance
+    if(newT.loglik > epsilon*N) #not really close to 0.0
+        warn("newT.loglik $(newT.loglik) not really close to 0.0, you might need to redo with another starting point")
+    end
+    println("END optTopLevel: found minimizer topology at step $(count) with -loglik=$(round(currloglik,5)) and ht_min=$(round(currxmin,5))")
+    printEdges(newT)
+    return newT
+end
 
 # todo: recheck afterOptBL, debug in test_optBL, test_optTopLevelParts (do optBL and then afteroptBL)
 # add afterOptBL into optBL, also add other minor changes (lower tol, etc)
