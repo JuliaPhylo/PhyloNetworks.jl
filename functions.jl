@@ -1319,7 +1319,7 @@ function moveOriginUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
         success,flag2 = moveOriginUpdate!(net, node, othermin, newedge)
         #println("after update, success is $(success)")
         if(!success)
-            #println("entra a borrar neighbor")
+            println("move origin failed, will delete that neighbor and try new one")
             deleteat!(neighbor,ind)
         end
         #println("neighbor list is $([n.number for n in neighbor])")
@@ -1565,6 +1565,7 @@ function moveTargetUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
         success,flag2 = moveTargetUpdate!(net, node, othermin, majoredge,newedge)
         #println("after update, success is $(success)")
         if(!success)
+            println("move target failed, will delete neighbor and try new one")
             deleteat!(neighbor,ind)
         end
         #println("neighbor list is $([n.number for n in neighbor])")
@@ -1635,21 +1636,23 @@ function NNI!(net::Network,edge::Edge)
         e3 = edges2[2]
         e4 = edges2[1]
     end
-    #println("e1 is $(e1.number), e2 is $(e2.number), e3 is $(e3.number), e4 is $(e4.number)")
     t1 = e1.length
     t = edge.length
     t4 = e4.length
     n1 = edge.node[1]
     n2 = edge.node[2]
+    println("e1 is $(e1.number), e2 is $(e2.number), e3 is $(e3.number), e4 is $(e4.number), n1 is $(n1.number), n2 is $(n2.number)")
     if(edge.inCycle != -1) # update inCycle
         (n1.inCycle == edge.inCycle && n2.inCycle == edge.inCycle) || error("edge $(edge.number) is in cycle $(edge.inCycle) but its nodes are not: $(n1.number), $(n2.number)")
         if((e2.inCycle == e3.inCycle == edge.inCycle && e1.inCycle == e4.inCycle == -1) || (e1.inCycle == e4.inCycle == edge.inCycle && e2.inCycle == e3.inCycle == -1))
             nothing
         elseif((e2.inCycle == e4.inCycle == edge.inCycle && e1.inCycle == e3.inCycle == -1) || (e1.inCycle == e3.inCycle == edge.inCycle && e2.inCycle == e4.inCycle == -1))
-            edge.inCycle = -1
+            println("incycle e1 $(e1.inCycle), e2 $(e2.inCycle), e3 $(e3.inCycle), e4 $(e4.inCycle), edge $(edge.inCycle)")
             if(e2.inCycle == e4.inCycle == edge.inCycle)
+                edge.inCycle = -1
                 n1.inCycle = -1
             elseif(e1.inCycle == e3.inCycle == edge.inCycle)
+                edge.inCycle = -1
                 n2.inCycle = -1
             end
         else
@@ -2992,7 +2995,7 @@ function quartetType5!(qnet::QuartetNetwork, node::Node)
             else
                 error("strange quartet network, could not find which leaves correspond to taxon1, taxon3")
             end
-        elseif(tx == (1,4) || tx == (4,1) || tx == (2,4) || tx == (2,3))
+        elseif(tx == (1,4) || tx == (4,1) || tx == (3,2) || tx == (2,3))
             qnet.expCF[1] = cf3
             tx = whichLeaves(qnet,qnet.quartetTaxon[1],qnet.quartetTaxon[3], leaf1,leaf2,leaf3,leaf4)
             if(tx == (1,3) || tx == (3,1) || tx == (2,4) || tx == (4,2))
@@ -3381,7 +3384,7 @@ function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
                 push!(qnt, getIndex(e.number,nt) + net.numHybrids - net.numBad)
                 push!(qindxt, getIndex(e,qnet))
             end
-            if(!e.istIdentifiable && all([!n.leaf for n in e.node]) && !e.hybrid && !approxEq(e.length,0.0)) # tree edge not identifiable but internal with length!=0 (not bad diamII nor bad triangle)
+            if(!e.istIdentifiable && all([!n.leaf for n in e.node]) && !e.hybrid && e.fromBadDiamondI) # tree edge not identifiable but internal with length!=0 (not bad diamII nor bad triangle)
                 try
                     getIndex(e.number,nhz)
                 catch
@@ -3468,10 +3471,13 @@ function update!(net::HybridNetwork, x::Vector{Float64})
     end
 end
 
-# function to update the branch lengths and gammas in a network
-# after the optimization
-# warning: optBL need to be run before to have xmin in net.ht
-function updateParameters!(net::HybridNetwork)
+# function to update the branch lengths and gammas in a network after
+# the optimization
+# warning: optBL need to be run before, note that
+# xmin will not be in net.ht (net.ht is one step before)
+function updateParameters!(net::HybridNetwork, xmin::Vector{Float64})
+    length(xmin) == length(net.ht) || error("xmin vector should have same length as net.ht $(length(net.ht)), not $(length(xmin))")
+    net.ht = xmin
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
     for(i in 1:length(net.ht))
         if(i <= net.numHybrids - net.numBad)
@@ -3547,7 +3553,7 @@ function optBL!(net::HybridNetwork, d::DataCF)
     fmin, xmin, ret = NLopt.optimize(opt,ht)
     println("got $(round(fmin,5)) at $(round(xmin,5)) after $(count) iterations (returned $(ret))")
     #println("net.ht is $(round(net.ht,5))")
-    updateParameters!(net)
+    updateParameters!(net,xmin)
     updateLik!(net,fmin)
     return fmin,xmin
 end
@@ -3623,6 +3629,7 @@ function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::In
     elseif(move == 6)
         success = NNIRepeat!(newT,N)
     end
+    println("success $(success)")
     !success || return true
     println("new proposed topology failed in step $(count) for move $(int2move[move])")
     return false
