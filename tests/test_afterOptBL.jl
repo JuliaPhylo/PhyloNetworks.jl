@@ -153,19 +153,23 @@ realht = [0.1,2.0,1.0,1.0,1.0]
 f=afterOptBL!(net,d2)
 all(f) || error("afterOptBL not correctly for optBL in CASE I")
 
+
 # test_optTopLevelparts.jl------------------------------------------------------------------
 
 # starting topology: Case G
 include("../case_g_example.jl");
-net0=deepcopy(net);
 currT = deepcopy(net);
 printEdges(currT)
+printNodes(currT)
 
 # real network: Case H
 df = readtable("CaseH_output.csv")
 d = readDataCF(df)
 
-currloglik,currxmin = optBL!(currT,d)
+currloglik,currxmin = optBL!(currT,d, false)
+isValid(currT)
+success,flagh,flagt,flaghz = afterOptBL!(currT,d)
+
 newT = deepcopy(currT);
 count = 0
 N = 100
@@ -185,7 +189,6 @@ afterOptBL!(newT,d)
 currT=deepcopy(newT);
 
 
-# ------------------5taxon network 1 hybridization-----------------
 # starting topology: Case F
 include("../case_f_example.jl");
 currT = deepcopy(net);
