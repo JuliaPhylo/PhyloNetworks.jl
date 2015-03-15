@@ -74,54 +74,9 @@ function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool)
 end
 
 
-# function to optimize on the space of networks with the same number of hybridizations
-# currT, the starting network will be modified inside
-# epsilon: absolute tolerance in loglik
-# N: number of times it will try a NNI move before aborting it
-function optTopLevel!(currT::HybridNetwork, epsilon::Float64, d::DataCF)
-    epsilon > 0 || error("epsilon must be greater than zero: $(epsilon)")
-    delta = epsilon - 1
-    currloglik,currxmin = optBL!(currT,d)
-    rejectCurr = afterOptBLAll!(currT,d)
-    !rejectCurr || error("initial topology has numerical parameters that are not valid: gamma=0(1), t=0, gammaz=0(1); need another starting point")
-    count = 0
-    newT = deepcopy(currT)
-    println("--------- loglik_$(count) = $(round(currloglik,5)) -----------")
-    printEdges(newT)
-    while(delta < epsilon)
-        count += 1
-        move = whichMove(newT)
-        flag = proposedTop!(move,newT,true, count,N)
-        if(flag)
-            println("accepted proposed new topology in step $(count)")
-            printEdges(newT)
-            newloglik, newxmin = optBL!(newT,d)
-            reject = afterOptBLAll!(newT,d)
-            if(newloglik < currloglik && !reject)
-                println("proposed new topology with better loglik in step $(count): oldloglik=$(round(currloglik,3)), newloglik=$(round(newloglik,3))")
-                delta = abs(newloglik - currloglik)
-                currT = deepcopy(newT)
-                currloglik = newloglik
-                currxmin = newxmin
-            else
-                newT = deepcopy(currT)
-            end
-        end
-        println("--------- loglik_$(count) = $(round(currloglik,5)) -----------")
-    end
-    # here: re-optBL with better tolerance
-    if(newT.loglik > epsilon*N) #not really close to 0.0
-        warn("newT.loglik $(newT.loglik) not really close to 0.0, you might need to redo with another starting point")
-    end
-    println("END optTopLevel: found minimizer topology at step $(count) with -loglik=$(round(currloglik,5)) and ht_min=$(round(currxmin,5))")
-    printEdges(newT)
-    return newT
-end
-
 # todo: recheck afterOptBL, debug in test_optBL, test_optTopLevelParts (do optBL and then afteroptBL)
 # add afterOptBL into optBL, also add other minor changes (lower tol, etc)
 # redo tests in optBL and optTopLevel
-
 
 
 

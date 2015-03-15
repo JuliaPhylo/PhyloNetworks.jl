@@ -1067,7 +1067,7 @@ function chooseEdgeOriginTarget!(net::HybridNetwork, neighbor::Vector{Edge}, nod
             deleteat!(neighbor,ind)
         end
     end
-    return false, nothing, ind
+    return false, nothing, nothing
 end
 
 
@@ -2939,6 +2939,7 @@ function eliminateTriangle!(qnet::QuartetNetwork, node::Node, other::Node, case:
         removeEdge!(node,otheredge)
         deleteEdge!(qnet,otheredge)
         deleteIntLeafWhile!(qnet, node, getOtherNode(treeedge,node),true)
+        deleteIntLeafWhile!(qnet, edge, other)
     else
         error("unknown case $(case), should be 1 or 2")
     end
@@ -3528,6 +3529,7 @@ end
 # and data (set of quartets with obsCF)
 # using BOBYQA from NLopt package
 function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool)
+    println("OPTBL: begin branch lengths and gammas optimization")
     ht = parameters!(net); # branches/gammas to optimize: net.ht, net.numht
     extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
     k = length(net.ht)
@@ -3569,11 +3571,12 @@ function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool)
     println("got $(round(fmin,5)) at $(round(xmin,5)) after $(count) iterations (returned $(ret))")
     #println("net.ht is $(round(net.ht,5))")
     updateParameters!(net,xmin)
-    updateLik!(net,fmin)
-    return fmin,xmin
+    #updateLik!(net,fmin)
+    net.loglik = fmin
+    #return fmin,xmin
 end
 
-optBL!(net::HybridNetwork, d::DataCF) = optBL!(net::HybridNetwork, d::DataCF, true)
+optBL!(net::HybridNetwork, d::DataCF) = optBL!(net::HybridNetwork, d::DataCF, false)
 
 
 # -------------- NETWORK ----------------------- #
@@ -3637,7 +3640,7 @@ function moveHybrid!(net::HybridNetwork, edge::Edge)
         i += 1
     end
     if(success)
-        newf,newx = optBL!(net,d,false)
+        optBL!(net,d,false)
     end
     return success
 end
@@ -3656,7 +3659,7 @@ function gammaZero!(net::HybridNetwork, edge::Edge)
     node.hybrid || error("hybrid edge $(edge.number) pointing at tree node $(node.number)")
     success, newnode = changeDirectionUpdate!(net,node)
     if(success)
-        newf,newx = optBL!(net,d,false)
+        optBL!(net,d,false)
         flags = isValid(net)
         if(net.loglik <= currTloglik && flags[1] && flags[3])
             println("changing direction fixed the gamma zero situation")
@@ -3677,6 +3680,7 @@ end
 # function to check if h or t (in currT.ht) are 0 (or 1 for h)
 # returns successchange=false if found hz=1.0, or if could not add new hybrid; true ow
 # returns successchange,flagh,flagt,flaghz
+# flags from one step before, not updated in here
 function afterOptBL!(currT::HybridNetwork, d::DataCF)
     !isTree(currT) || return true,true,true,true
     nh = currT.ht[1 : currT.numHybrids - currT.numBad]
@@ -3707,10 +3711,13 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF)
                 if(all([!n.hasHybEdge for n in edge.node]))
                     successchange = NNI!(currT,edge)
                     if(successchange)
-                        newf,newx = optBL!(currT,d,false)
-                        break
+                        optBL!(currT,d,false)
                     end
+                else
+                    println("MOVE: need NNI on edge $(edge.number) because length is $(edge.length), but edge is attached to nodes that have hybrid edges")
+                    successchange = false
                 end
+            break
             end
         end
     elseif(!flaghz)
@@ -3761,14 +3768,14 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF)
     end
     i < N || warn("tried afterOptBLAll $(N) times")
     if(!success) #tried to change something but failed
-        warn("tried to change something in afterOptBLAll, but couldn't anymore. flagt, flagh, flaghz = $([flagt,flagh,flaghz])")
+        warn("tried to change something in afterOptBLAll, but couldn't anymore. flagh, flagt, flaghz = $([flagh,flagt,flaghz])")
         if(!flagh || !flaghz)
             reject = true
         elseif(!flagt)
             reject = false
         end
     else #changed something
-        if(!all([flagh,flagt,flaghz]))
+        if(all([flagh,flagt,flaghz]))
             reject = false
         elseif(!flagh || !flaghz)
             reject = true
@@ -3795,23 +3802,61 @@ end
 # for topology that maximizes the P-loglik within the space of
 # topologies with the same number of hybridizations
 # possible moves: move origin/target, change direction hybrid edge, tree nni
-# needs the network to know if it is a tree
-function whichMove(net::HybridNetwork)
-    if(isTree(net))
+# needs the network to know the current numHybrids
+# takes as input the vector of weights for each move (mvorigin, mvtarget, chdir, nni, add, delete),
+function whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64})
+    hmax >= 0 || error("hmax must be non negative: $(hmax)")
+    approxEq(sum(w),1.0) || error("vector of move weights should add up to 1: $(w),$(sum(w))")
+    all([0<=i<=1 for i in w]) || error("weights must be nonnegative and less than one $(w)")
+    if(hmax == 0)
         return :nni
     else
         r = rand()
-        if(r < 1/4)
-            return :MVorigin
-        elseif(r < 2/4)
-            return :MVtarget
-        elseif(r < 3/4)
-            return :CHdir
-        else
-            return :nni
+        if(0 < net.numHybrids < hmax)
+            if(r < w[1])
+                return :MVorigin
+            elseif(r < w[1]+w[2])
+                return :MVtarget
+            elseif(r < w[1]+w[2]+w[3])
+                return :CHdir
+            elseif(r < w[1]+w[2]+w[3]+w[4])
+                return :nni
+            elseif(r < w[1]+w[2]+w[3]+w[4]+w[5])
+                return :add
+            else
+                return :delete
+            end
+        elseif(net.numHybrids == 0)
+            suma = w[1]+w[2]+w[3]+w[4]+w[5]
+            if(r < w[1]/suma)
+                return :MVorigin
+            elseif(r < (w[1]+w[2])/suma)
+                return :MVtarget
+            elseif(r < (w[1]+w[2]+w[3])/suma)
+                return :CHdir
+            elseif(r < (w[1]+w[2]+w[3]+w[4])/suma)
+                return :nni
+            else
+                return :add
+            end
+        else # net.numHybrids == hmax
+            suma = w[1]+w[2]+w[3]+w[4]+w[6]
+            if(r < w[1]/suma)
+                return :MVorigin
+            elseif(r < (w[1]+w[2])/suma)
+                return :MVtarget
+            elseif(r < (w[1]+w[2]+w[3])/suma)
+                return :CHdir
+            elseif(r < (w[1]+w[2]+w[3]+w[4])/suma)
+                return :nni
+            else
+                return :delete
+            end
         end
     end
 end
+
+whichMove(net::HybridNetwork,hmax::Int64) = whichMove(net,hmax,[1/5,1/5,1/5,1/5,1/5,0.0])
 
 #function to choose a hybrid node for the given moves
 function chooseHybrid(net::HybridNetwork)
@@ -3832,7 +3877,7 @@ function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::In
     1 <= move <= 6 || error("invalid move $(move)")
     println("current move: $(int2move[move])")
     if(move == 1)
-        success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(newT)
+        success = addHybridizationUpdateSmart!(newT)
     elseif(move == 2)
         node = chooseHybrid(newT)
         success = moveOriginUpdateRepeat!(newT,node,random)
@@ -3862,7 +3907,8 @@ proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Int64,N::In
 # currT, the starting network will be modified inside
 # epsilon: absolute tolerance in loglik
 # N: number of times it will try a NNI move before aborting it
-## function optTopLevel!(currT::HybridNetwork, epsilon::Float64, d::DataCF)
+# hmax: max number of hybrids allowed
+## function optTopLevel!(currT::HybridNetwork, epsilon::Float64, d::DataCF, hmax::Int64)
 ##     epsilon > 0 || error("epsilon must be greater than zero: $(epsilon)")
 ##     delta = epsilon - 1
 ##     currloglik,currxmin = optBL!(currT,d)
@@ -3872,7 +3918,7 @@ proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Int64,N::In
 ##     printEdges(newT)
 ##     while(delta < epsilon)
 ##         count += 1
-##         move = whichMove(newT)
+##         move = whichMove(newT,hmax)
 ##         flag = proposedTop!(move,newT,true, count,N)
 ##         if(flag)
 ##             println("accepted proposed new topology in step $(count)")
@@ -3895,6 +3941,148 @@ proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Int64,N::In
 ##     return newT
 ## end
 
+
+# function to optimize on the space of networks with the same (or fewer) numHyb
+# currT, the starting network will be modified inside
+# epsilon: absolute tolerance in loglik
+# N: number of times it will try a NNI move before aborting it
+# hmax: max number of hybrids allowed
+function optTopLevel!(currT::HybridNetwork, epsilon::Float64, N::Int64, d::DataCF, hmax::Int64)
+    epsilon > 0 || error("epsilon must be greater than zero: $(epsilon)")
+    optBL!(currT,d)
+    rejectCurr = afterOptBLAll!(currT,d)
+    while(rejectCurr)
+        !isTree(currT) || error("afterOptBL should not give reject=true for a tree")
+        warn("initial topology has numerical parameters that are not valid: gamma=0(1), t=0, gammaz=0(1); need to move down a level h-1")
+        moveDownLevel!(currT)
+        optBL!(currT,d)
+        rejectCurr = afterOptBLAll!(currT,d)
+    end
+    delta = epsilon + 1
+    count = 0
+    newT = deepcopy(currT)
+    printEdges(newT)
+    while(delta > epsilon && count < N)
+        count += 1
+        println("--------- loglik_$(count) = $(round(currT.loglik,5)) -----------")
+        move = whichMove(newT,hmax)
+        flag = proposedTop!(move,newT,true, count,N)
+        if(flag)
+            println("accepted proposed new topology in step $(count)")
+            printEdges(newT)
+            optBL!(newT,d)
+            println("before comparing: newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
+            if(newT.loglik < currT.loglik) #newT better loglik
+                accepted = false
+                reject = afterOptBLAll!(newT,d)
+                if(!reject)
+                    println("before comparing: newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
+                    if(newT.loglik < currT.loglik) #newT better loglik
+                        accepted = true
+                    else
+                        newT = deepcopy(currT)
+                    end
+                else
+                    moveDownLevel!(newT)
+                    optBL!(newT,d)
+                    reject = afterOptBLAll!(newT,d)
+                    while(reject)
+                        !isTree(newT) || error("afterOptBL should not give reject=true for a tree")
+                        moveDownLevel!(newT)
+                        optBL!(newT,d)
+                        reject = afterOptBLAll!(newT,d)
+                    end
+                    println("before comparing: newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
+                    if(newT.loglik < currT.loglik) #newT better loglik
+                        accepted = true
+                    else
+                        newT = deepcopy(currT)
+                    end
+                end
+                if(accepted)
+                    println("proposed new topology with better loglik in step $(count): oldloglik=$(round(currT.loglik,3)), newloglik=$(round(newT.loglik,3))")
+                    delta = abs(newT.loglik - currT.loglik)
+                    currT = deepcopy(newT)
+                end
+            else
+                newT = deepcopy(currT)
+            end
+            println("ends while for $(count) with delta $(delta)")
+        end
+    end
+    # here: re-optBL with better tolerance
+    if(newT.loglik > epsilon*N) #not really close to 0.0, based on absTol also
+        warn("newT.loglik $(newT.loglik) not really close to 0.0, you might need to redo with another starting point")
+    end
+    println("END optTopLevel: found minimizer topology at step $(count) with -loglik=$(round(currT.loglik,5)) and ht_min=$(round(currT.ht,5))")
+    printEdges(newT)
+    return newT
+end
+
+
+# function to move down onw level to h-1
+# caused by gamma=0,1 or gammaz=0,1
+function moveDownLevel!(net::HybridNetwork)
+    !isTree(net) ||error("cannot delete hybridization in a tree")
+    println("MOVE: need to go down one level to h-1=$(net.numHybrids-1) hybrids because of conflicts with gamma=0,1")
+    nh = net.ht[1 : net.numHybrids - net.numBad]
+    k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
+    nt = net.ht[net.numHybrids - net.numBad + 1 : net.numHybrids - net.numBad + k]
+    nhz = net.ht[net.numHybrids - net.numBad + k + 1 : length(net.ht)]
+    indh = net.index[1 : net.numHybrids - net.numBad]
+    indhz = net.index[net.numHybrids - net.numBad + k + 1 : length(net.ht)]
+    flagh,flagt,flaghz = isValid(nh,nt,nhz)
+    if(!flagh)
+        for(i in 1:length(nh))
+            if(approxEq(nh[i],0.0) || approxEq(nh[i],1.0))
+                edge = currT.edge[indh[i]]
+                node = edge.node[edge.isChild1 ? 1 : 2];
+                node.hybrid || error("hybrid edge $(edge.number) pointing at tree node $(node.number)")
+                deleteHybridizationUpdate!(net,node)
+            end
+            break
+        end
+    elseif(!flaghz)
+        i = 1
+        while(i <= length(nhz))
+            if(approxEq(nhz[i],0.0))
+                nodehz = currT.node[indhz[i]]
+                approxEq(nodehz.gammaz,nhz[i]) || error("nodehz $(nodehz.number) gammaz $(nodehz.gammaz) should match the gammaz in net.ht $(nhz[i]) and it does not")
+                edges = hybridEdges(nodehz)
+                edges[1].hybrid || error("bad diamond I situation, node $(nodehz.number) has gammaz $(nodehz.gammaz) so should be linked to hybrid edge, but it is not")
+                node = edges[1].node[edges[1].isChild1 ? 1 : 2];
+                node.hybrid || error("hybrid edge $(edge.number) pointing at tree node $(node.number)")
+                deleteHybridizationUpdate!(net,node)
+                break
+            elseif(approxEq(nhz[i],1.0))
+                approxEq(nhz[i+1],0.0) || error("gammaz for node $(currT.node[indhz[i]].number) is $(nhz[i]) but the other gammaz is $(nhz[i+1]), the sum should be less than 1.0")
+                nodehz = currT.node[indhz[i+1]]
+                approxEq(nodehz.gammaz,nhz[i+1]) || error("nodehz $(nodehz.number) gammaz $(nodehz.gammaz) should match the gammaz in net.ht $(nhz[i+1]) and it does not")
+                edges = hybridEdges(nodehz)
+                edges[1].hybrid || error("bad diamond I situation, node $(nodehz.number) has gammaz $(nodehz.gammaz) so should be linked to hybrid edge, but it is not")
+                node = edges[1].node[edges[1].isChild1 ? 1 : 2];
+                node.hybrid || error("hybrid edge $(edge.number) pointing at tree node $(node.number)")
+                deleteHybridizationUpdate!(net,node)
+                break
+            else
+                if(approxEq(nhz[i+1],0.0))
+                    nodehz = currT.node[indhz[i+1]];
+                    approxEq(nodehz.gammaz,nhz[i+1]) || error("nodehz $(nodehz.number) gammaz $(nodehz.gammaz) should match the gammaz in net.ht $(nhz[i+1]) and it does not")
+                    edges = hybridEdges(nodehz);
+                    edges[1].hybrid || error("bad diamond I situation, node $(nodehz.number) has gammaz $(nodehz.gammaz) so should be linked to hybrid edge, but it is not")
+                    node = edges[1].node[edges[1].isChild1 ? 1 : 2];
+                    node.hybrid || error("hybrid edge $(edge.number) pointing at tree node $(node.number)")
+                    deleteHybridizationUpdate!(net,node)
+                    break
+                elseif(approxEq(nhz[i+1],1.0))
+                    error("gammaz for node $(currT.node[indhz[i]].number) is $(nhz[i]) but the other gammaz is $(nhz[i+1]), the sum should be less than 1.0")
+                end
+            end
+            i += 2
+        end
+    end
+end
+
 # checks if there are problems in estimated net.ht:
 # returns flag for h, flag for t, flag for hz
 function isValid(net::HybridNetwork)
@@ -3908,7 +4096,7 @@ end
 # checks if there are problems in estimated net.ht:
 # returns flag for h, flag for t, flag for hz
 function isValid(nh::Vector{Float64},nt::Vector{Float64},nhz::Vector{Float64})
-    return all([(n>0 && n<1) for n in nh]), all([n>0 for n in nt]), all([(n>0 && n<1) for n in nhz])
+    return all([(0<n<1 && !approxEq(n,0.0) && !approxEq(n,1.0)) for n in nh]), all([(n>0 && !approxEq(n,0.0)) for n in nt]), all([(0<n<1 && !approxEq(n,0.0) && !approxEq(n,1.0)) for n in nhz])
 end
 
 

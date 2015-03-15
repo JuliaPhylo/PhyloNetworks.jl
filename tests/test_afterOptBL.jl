@@ -166,9 +166,15 @@ printNodes(currT)
 df = readtable("CaseH_output.csv")
 d = readDataCF(df)
 
+# real network: Case H
+df = readtable("CaseH_output.csv")
+d = readDataCF(df)
+
 currloglik,currxmin = optBL!(currT,d, false)
 isValid(currT)
 success,flagh,flagt,flaghz = afterOptBL!(currT,d)
+reject = afterOptBLAll!(currT,d)
+
 
 newT = deepcopy(currT);
 count = 0
@@ -184,6 +190,7 @@ printEdges(newT)
 printNodes(newT)
 
 newloglik, newxmin = optBL!(newT,d)
+reject = afterOptBLAll!(newT,d)
 isValid(newT)
 afterOptBL!(newT,d)
 currT=deepcopy(newT);

@@ -1,6 +1,8 @@
 # test for whole optimization on the space of topologies
-# with the same number of hybridizations
-# Claudia February 2015
+# for h<= hmax
+# Claudia March 2015
+# based on test_optTopLevel.jl, but now we use a more identifiable Case G, H to begin with
+# and now we use afterOptBLALL
 
 # -------------------5taxon tree------------------
 
@@ -33,30 +35,36 @@ printEdges(newT)
 
 # ------------------5taxon network 1 hybridization: Case H-----------------
 # starting topology: Case G
+
+## include("../case_h_example2.jl");
+## q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
+## q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
+## q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);
+## q4 = Quartet(4,["6","10","4","8"],[0.5,0.4,0.1]);
+## q5 = Quartet(5,["6","7","4","10"],[0.5,0.4,0.1]);
+
+## d = DataCF([q1,q2,q3,q4,q5]);
+## extractQuartet!(net,d)
+
+## df = writeExpCF(d.quartet)
+## writetable("CaseH_output2.csv",df)
+
 include("../case_g_example.jl");
 currT = deepcopy(net);
 printEdges(currT)
 
 # real network: Case H
-df = readtable("CaseH_output.csv")
+df = readtable("CaseH_output2.csv")
 d = readDataCF(df)
-
 
 epsilon = eps()
 N = 100
 
-@time newT = optTopLevel!(currT,epsilon,d,1);
+@time newT = optTopLevel!(currT,epsilon,N,d,1)
 printEdges(newT)
-# with original optBL
-# elapsed time: 347.527745834 seconds (372704328 bytes allocated, 0.06% gc time)
-# did not find right network (Case H), came back to starting point (Case G)
-
-# with new added inequality
-#elapsed time: 58.711593728 seconds (498732864 bytes allocated, 0.49% gc time)
-# did not find the right network (Case H), stopped in bad diamond II case
-
 # with afterOptBLAll
-# elapsed time: 3.936120092 seconds (173514144 bytes allocated, 3.14% gc time)
+#elapsed time: 3.727836428 seconds (199955596 bytes allocated, 3.19% gc time)
+#WARNING: newT.loglik 1.533449204376918 not really close to 0.0, you might need to redo with another starting point
 
 newT.ht
 
@@ -79,16 +87,18 @@ currT = deepcopy(net);
 printEdges(currT)
 
 # real network: Case H
-df = readtable("CaseH_output.csv")
+df = readtable("CaseH_output2.csv")
 d = readDataCF(df)
 
 
 epsilon = eps()
 N = 100
 
-@time newT = optTopLevel!(currT,epsilon,N,d);
+@time newT = optTopLevel!(currT,epsilon,d,1);
 printEdges(newT)
-#elapsed time: 10.644039127 seconds (127552964 bytes allocated, 0.89% gc time)
+#elapsed time: 4.236802192 seconds (274215268 bytes allocated, 4.26% gc time)
+#WARNING: newT.loglik 1.4887847814495139 not really close to 0.0, you might need to redo with another starting point
+
 
 # ------------------5taxon network 1 hybridization: Case F-----------------
 # starting topology: Case G
@@ -96,8 +106,22 @@ include("../case_g_example.jl");
 currT = deepcopy(net);
 printEdges(currT)
 
+## include("../case_f_example2.jl");
+## parameters!(net)
+## q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
+## q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
+## q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);
+## q4 = Quartet(4,["6","10","4","8"],[0.5,0.4,0.1]);
+## q5 = Quartet(5,["6","7","4","10"],[0.5,0.4,0.1]);
+
+## d = DataCF([q1,q2,q3,q4,q5]);
+## extractQuartet!(net,d)
+
+## df = writeExpCF(d.quartet)
+## writetable("CaseF_output2.csv",df)
+
 # real network: Case F
-df = readtable("CaseF_output.csv")
+df = readtable("CaseF_output2.csv")
 d = readDataCF(df)
 
 
