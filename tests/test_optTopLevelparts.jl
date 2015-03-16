@@ -12,7 +12,7 @@ df = readtable("CaseH_output.csv")
 d = readDataCF(df)
 #df2 = readtable("CaseG_output.csv")
 
-currloglik,currxmin = optBL!(currT,d)
+optBL!(currT,d)
 newT = deepcopy(currT);
 count = 0
 N = 100
@@ -28,7 +28,7 @@ printNodes(newT)
 sum([e.hybrid?1:0 for e in newT.edge]) == 2 || error("there are not 2 hybrid edges")
 newT.hybrid[1].k
 
-newloglik, newxmin = optBL!(newT,d)
+optBL!(newT,d)
 newloglik - currloglik
 
 currT = deepcopy(newT);

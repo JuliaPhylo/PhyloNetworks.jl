@@ -60,7 +60,12 @@ d = readDataCF(df)
 epsilon = eps()
 N = 100
 
-@time newT = optTopLevel!(currT,epsilon,N,d,1)
+@time optTopLevel!(currT,epsilon,N,d,1)
+try
+    @time newT = optTopLevel!(currT,epsilon,N,d,1);
+catch(e)
+    println(e)
+end
 printEdges(newT)
 # with afterOptBLAll
 #elapsed time: 3.727836428 seconds (199955596 bytes allocated, 3.19% gc time)

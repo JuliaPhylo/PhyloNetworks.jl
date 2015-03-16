@@ -665,6 +665,9 @@ function setLength!(edge::Edge, new_length::Float64, negative::Bool)
     (negative || new_length >= 0) || error("length has to be nonnegative: $(new_length), cannot set to edge $(edge.number)")
     new_length >= -log(1.5) || error("length can be negative, but not too negative (greater than $(-log(1.5))) or majorCF<0: new length is $(new_length)")
     #println("setting length $(new_length) to edge $(edge.number)")
+    if(new_length > 10.0)
+        new_length = 10.0;
+    end
     edge.length = new_length;
     edge.y = exp(-new_length);
     edge.z = 1 - edge.y;

@@ -222,28 +222,31 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
         end
     elseif(node.k == 3) # could be extreme/very bad triangle or just bad triangle
         if(net.numTaxa == 5)
-            edgebla,tree_edge_incycle,tree_edge1 = hybridEdges(other_min);
-            edgebla,edgebla,tree_edge3 = hybridEdges(other_maj);
-            isLeaf1 = getOtherNode(tree_edge1,other_min);
-            isLeaf2 = getOtherNode(tree_edge2,node);
-            isLeaf3 = getOtherNode(tree_edge3,other_maj);
-            if(isLeaf1.leaf && !isLeaf2.leaf && !isLeaf3.leaf) # bad triangle I
-                warn("bad triangle I found")
-                node.isVeryBadTriangle = true
-                net.hasVeryBadTriangle = true
-            elseif(!isLeaf1.leaf && !isLeaf2.leaf && isLeaf3.leaf) # bad triangle I
-                warn("bad triangle I found")
-                node.isVeryBadTriangle = true;
-                net.hasVeryBadTriangle = true
-            elseif(!isLeaf1.leaf && isLeaf2.leaf && !isLeaf3.leaf) # bad triangle II
-                warn("bad triangle II found")
-                node.isVeryBadTriangle = true;
-                net.hasVeryBadTriangle = true
-            elseif(sum([isLeaf1.leaf?1:0, isLeaf2.leaf?1:0, isLeaf3.leaf?1:0]) == 2) # non identifiable network
-                warn("extremely bad triangle found")
-                node.isExtBadTriangle = true;
-                net.hasVeryBadTriangle = true
-            end
+            warn("very bad triangle found")
+            node.isVeryBadTriangle = true
+            net.hasVeryBadTriangle = true
+            ## edgebla,tree_edge_incycle,tree_edge1 = hybridEdges(other_min);
+            ## edgebla,edgebla,tree_edge3 = hybridEdges(other_maj);
+            ## isLeaf1 = getOtherNode(tree_edge1,other_min);
+            ## isLeaf2 = getOtherNode(tree_edge2,node);
+            ## isLeaf3 = getOtherNode(tree_edge3,other_maj);
+            ## if(isLeaf1.leaf && !isLeaf2.leaf && !isLeaf3.leaf) # bad triangle I
+            ##     warn("bad triangle I found")
+            ##     node.isVeryBadTriangle = true
+            ##     net.hasVeryBadTriangle = true
+            ## elseif(!isLeaf1.leaf && !isLeaf2.leaf && isLeaf3.leaf) # bad triangle I
+            ##     warn("bad triangle I found")
+            ##     node.isVeryBadTriangle = true;
+            ##     net.hasVeryBadTriangle = true
+            ## elseif(!isLeaf1.leaf && isLeaf2.leaf && !isLeaf3.leaf) # bad triangle II
+            ##     warn("bad triangle II found")
+            ##     node.isVeryBadTriangle = true;
+            ##     net.hasVeryBadTriangle = true
+            ## elseif(sum([isLeaf1.leaf?1:0, isLeaf2.leaf?1:0, isLeaf3.leaf?1:0]) == 2) # non identifiable network
+            ##     warn("extremely bad triangle found")
+            ##     node.isExtBadTriangle = true;
+            ##     net.hasVeryBadTriangle = true
+            ## end
         elseif(net.numTaxa >= 6)
             edgebla,tree_edge_incycle,tree_edge1 = hybridEdges(other_min);
             edgebla,edgebla,tree_edge3 = hybridEdges(other_maj);
@@ -392,7 +395,13 @@ function undoGammaz!(node::Node, net::HybridNetwork)
         setLength!(tree_edge_incycle1,-log(1-other_min.gammaz))
         other_maj.gammaz != -1 || error("bad diamond I in node $(node.number) but no gammaz updated correctly")
         setLength!(tree_edge_incycle2,-log(1-other_maj.gammaz))
-        setGamma!(edge_maj,other_maj.gammaz / (other_maj.gammaz+other_min.gammaz), true)
+        if(approxEq(other_maj.gammaz,0.0) && approxEq(other_min.gammaz,0.0))
+            setGamma!(edge_maj,rand()*0.5, true) # gamma could be anything if both gammaz are 0.0
+            setLength!(edge_maj,0.0)
+            setLength!(edge_min,0.0)
+        else
+            setGamma!(edge_maj,other_maj.gammaz / (other_maj.gammaz+other_min.gammaz), true)
+        end
         other_min.gammaz = -1.0
         other_maj.gammaz = -1.0
         tree_edge_incycle1.istIdentifiable = true;
@@ -1009,7 +1018,7 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node)
             println("change direction around hybrid node $(node.number) SUCCESSFUL")
             return true, hybrid
         else
-            undoGammaz!(hybrid,net)
+            hybrid.isBadDiamondI || undoGammaz!(hybrid,net)
             undoContainRoot!(edgesroot)
             update, hybrid2 = changeDirection!(hybrid,net);
             isEqual(hybrid2,node) || error("when undoing change direction, we should have the same node as we started with: node $(node.number), hybrid2 $(hybrid.number)")
@@ -1026,7 +1035,7 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node)
             return false, nothing
         end
     else
-        undoGammaz!(hybrid,net)
+        hybrid.isBadDiamondI || undoGammaz!(hybrid,net)
         update, hybrid2 = changeDirection!(hybrid,net);
         isEqual(hybrid2,node) || error("when undoing change direction, we should have the same node as we started with: node $(node.number), hybrid2 $(hybrid.number)")
         if(node.k == 3)
@@ -1668,7 +1677,7 @@ function NNI!(net::Network,edge::Edge)
         else
             error("internal edge $(edge.number) is in cycle $(edge.inCycle), but it is not consistent with other edges")
         end
-    else
+    else #edge not in cycle
         (e1.inCycle == e2.inCycle && e3.inCycle == e4.inCycle) || error("both edges in edges1 $([e.number for e in edges1]) (or edges2 $([e.number for e in edges2])) must have the same inCycle attribute")
         if(e1.inCycle != -1 && e3.inCycle != -1)
             warn("cannot do tree NNI because it will create intersecting cycles, nothing done. e1,e2,e3,e4: $([e1.number,e2.number,e3.number,e4.number])")
@@ -1678,7 +1687,7 @@ function NNI!(net::Network,edge::Edge)
             n2.inCycle = e1.inCycle
         elseif(e3.inCycle != -1)
             edge.inCycle = e3.inCycle
-            n1.inCycle = e1.inCycle
+            n1.inCycle = e3.inCycle
         end
     end
     removeNode!(n1,e2)
@@ -2951,15 +2960,15 @@ end
 # CF calculated in the order 12|34, 13|24, 14|23 of the qnet.quartet.taxon
 function quartetType5!(qnet::QuartetNetwork, node::Node)
     if(node.hybrid && node.typeHyb == 5)
-        edge1,edge2,edge3 = hybridEdges(node)
+        edge1,edge2,edge3 = hybridEdges(node);
         if(!node.isBadDiamondI)
             deleteIntLeafWhile!(qnet,edge1,node)
             deleteIntLeafWhile!(qnet,edge2,node)
         end
-        other1 = getOtherNode(edge1,node)
-        other2 = getOtherNode(edge2,node)
-        edgebla,edge5, edgetree1 = hybridEdges(other1)
-        edgebla,edge6, edgetree2 = hybridEdges(other2)
+        other1 = getOtherNode(edge1,node);
+        other2 = getOtherNode(edge2,node);
+        edgebla,edge5, edgetree1 = hybridEdges(other1);
+        edgebla,edge6, edgetree2 = hybridEdges(other2);
         if(!node.isBadDiamondI)
             deleteIntLeafWhile!(qnet,edge5,other1)
             deleteIntLeafWhile!(qnet,edge6,other2)
@@ -3056,20 +3065,25 @@ end
 
 # aux function to eliminate all internal nodes with only
 # two edges in a quartet network with qnet.which=1
-# fixit: no hay forma de saber quien es node sin tener que encontrarlo cada vez?
+# eliminate internal nodes in every direction
 function internalLength!(qnet::QuartetNetwork)
     if(qnet.which == 1)
         node = qnet.node[getIndex(true,[size(n.edge,1) == 3 for n in qnet.node])]
-        #println("node is $(node.number)")
+        node2 = qnet.node[getIndex(true,[size(n.edge,1) == 3 && !isEqual(n,node) for n in qnet.node])]
+        for(e in node.edge)
+            deleteIntLeafWhile!(qnet,e,node)
+        end
+        for(e in node2.edge)
+            deleteIntLeafWhile!(qnet,e,node2)
+        end
         edge = nothing
         for(e in node.edge)
             if(!getOtherNode(e,node).leaf)
                 edge = e
             end
         end
-        #println("edge $(edge.number) has length $(edge.length) before lumping all internal edges into it")
-        deleteIntLeafWhile!(qnet,edge,node)
-        #println("edge $(edge.number) has length $(edge.length) after lumping all internal edges into it, and set to qnet.t1")
+        !isa(edge,Nothing) || error("cannot find internal edge attached to node $(node.number) in qnet")
+        isEqual(getOtherNode(edge,node),node2) || error("strange internal edge $(edge.number) found in qnet, should have as nodes $(node.number), $(node2.number)")
         qnet.t1 = edge.length
     end
 end
@@ -3455,6 +3469,7 @@ function update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork)
             length(qnet.indexht) == 2 || error("strange qnet from bad diamond I with hybrid node, it should have only 2 elements: gammaz1,gammaz2, not $(length(qnet.indexht))")
             for(i in 1:2)
                 0 <= x[qnet.indexht[i]] <= 1 || error("new gammaz value should be between 0,1: $(x[qnet.indexht[i]]).")
+                x[qnet.indexht[1]] + x[qnet.indexht[2]] <= 1 || error("new gammaz should add to less than 1: $(x[qnet.indexht[1]] + x[qnet.indexht[2]])")
                 qnet.node[qnet.index[i]].gammaz = x[qnet.indexht[i]]
             end
         else
@@ -3522,7 +3537,8 @@ end
 function calculateIneqGammaz(x::Vector{Float64}, net::HybridNetwork, ind::Int64)
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
     hz = x[net.numHybrids - net.numBad + k + 1 : length(x)]
-    return hz[ind*2] + hz[ind*2-1] - 1
+    #println("enters calculateIneqGammaz with hz $(hz), and hz[ind*2] + hz[ind*2-1] - 1 = $(hz[ind*2] + hz[ind*2-1] - 1)")
+    hz[ind*2] + hz[ind*2-1] - 1
 end
 
 # numerical optimization of branch lengths given a network (or tree)
@@ -3535,6 +3551,7 @@ function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool)
     k = length(net.ht)
     net.numBad >= 0 || error("network has negative number of bad hybrids")
     opt = NLopt.Opt(net.numBad == 0 ? :LN_BOBYQA : :LN_COBYLA,k) # :LD_MMA if use gradient, :LN_COBYLA for nonlinear/linear constrained optimization derivative-free, :LN_BOBYQA for bound constrained derivative-free
+#    opt = NLopt.Opt(:LN_BOBYQA,k) # :LD_MMA if use gradient, :LN_COBYLA for nonlinear/linear constrained optimization derivative-free, :LN_BOBYQA for bound constrained derivative-free
     # criterion based on prof Bates code
     NLopt.ftol_rel!(opt,1e-12) # relative criterion -12
     NLopt.ftol_abs!(opt,1e-12) # absolute critetion -8
@@ -3558,11 +3575,13 @@ function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool)
             val = calculateIneqGammaz(x,net,1)
             return val
         end
-        NLopt.inequality_constraint!(opt,inequalityGammaz,1e-8)
+        NLopt.inequality_constraint!(opt,inequalityGammaz)
     elseif(net.numBad > 1)
         function inequalityGammaz(result::Vector{Float64},x::Vector{Float64},g::Matrix{Float64})
-            for(i in 1:net.numBad)
+            i = 1
+            while(i < net.numBad)
                 result[i] = calculateIneqGammaz(x,net,i)
+                i += 2
             end
         end
         NLopt.inequality_constraint!(opt,inequalityGammaz)
@@ -3903,44 +3922,6 @@ end
 
 proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Int64,N::Int64) = proposedTop!(try move2int[move] catch error("invalid move $(string(move))") end,newT, random,count,N)
 
-# function to optimize on the space of networks with the same number of hybridizations
-# currT, the starting network will be modified inside
-# epsilon: absolute tolerance in loglik
-# N: number of times it will try a NNI move before aborting it
-# hmax: max number of hybrids allowed
-## function optTopLevel!(currT::HybridNetwork, epsilon::Float64, d::DataCF, hmax::Int64)
-##     epsilon > 0 || error("epsilon must be greater than zero: $(epsilon)")
-##     delta = epsilon - 1
-##     currloglik,currxmin = optBL!(currT,d)
-##     count = 0
-##     newT = deepcopy(currT)
-##     println("--------- loglik_$(count) = $(round(currloglik,5)) -----------")
-##     printEdges(newT)
-##     while(delta < epsilon)
-##         count += 1
-##         move = whichMove(newT,hmax)
-##         flag = proposedTop!(move,newT,true, count,N)
-##         if(flag)
-##             println("accepted proposed new topology in step $(count)")
-##             printEdges(newT)
-##             newloglik, newxmin = optBL!(newT,d)
-##             if(newloglik < currloglik && isValid(newT)) # fixit: will remove isValid to allow the data to give hints on the search
-##                 println("proposed new topology with better loglik in step $(count): oldloglik=$(round(currloglik,3)), newloglik=$(round(newloglik,3))")
-##                 delta = abs(newloglik - currloglik)
-##                 currT = deepcopy(newT)
-##                 currloglik = newloglik
-##                 currxmin = newxmin
-##             else
-##                 newT = deepcopy(currT)
-##             end
-##         end
-##         println("--------- loglik_$(count) = $(round(currloglik,5)) -----------")
-##     end
-##     println("END optTopLevel: found minimizer topology at step $(count) with -loglik=$(round(currloglik,5)) and ht_min=$(round(currxmin,5))")
-##     printEdges(newT)
-##     return newT
-## end
-
 
 # function to optimize on the space of networks with the same (or fewer) numHyb
 # currT, the starting network will be modified inside
@@ -3962,14 +3943,16 @@ function optTopLevel!(currT::HybridNetwork, epsilon::Float64, N::Int64, d::DataC
     count = 0
     newT = deepcopy(currT)
     printEdges(newT)
-    while(delta > epsilon && count < N)
+    printNodes(newT)
+    while(delta > epsilon && count < N && currT.loglik > 1.e-6)
         count += 1
-        println("--------- loglik_$(count) = $(round(currT.loglik,5)) -----------")
+        println("--------- loglik_$(count) = $(round(currT.loglik,6)) -----------")
         move = whichMove(newT,hmax)
         flag = proposedTop!(move,newT,true, count,N)
         if(flag)
             println("accepted proposed new topology in step $(count)")
             printEdges(newT)
+            printNodes(newT)
             optBL!(newT,d)
             println("before comparing: newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
             if(newT.loglik < currT.loglik) #newT better loglik
@@ -4011,12 +3994,13 @@ function optTopLevel!(currT::HybridNetwork, epsilon::Float64, N::Int64, d::DataC
         end
     end
     # here: re-optBL with better tolerance
-    if(newT.loglik > epsilon*N) #not really close to 0.0, based on absTol also
+    if(newT.loglik > 1.e-6) #not really close to 0.0, based on absTol also
         warn("newT.loglik $(newT.loglik) not really close to 0.0, you might need to redo with another starting point")
     end
     println("END optTopLevel: found minimizer topology at step $(count) with -loglik=$(round(currT.loglik,5)) and ht_min=$(round(currT.ht,5))")
     printEdges(newT)
-    return newT
+    printNodes(newT)
+    #return newT
 end
 
 
