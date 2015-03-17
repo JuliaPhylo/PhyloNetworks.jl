@@ -21,7 +21,7 @@ printEdges(currT)
 epsilon = eps()
 N = 100
 
-@time newT = optTopLevel!(currT,epsilon,d,0);
+@time optTopLevel!(currT,epsilon,N,d,0)
 #got 5.34957 at [0.2,0.1] after 28 iterations (returned FTOL_reached)
 #loglik_1 = 5.34957
 #found minimizer topology at step 1 with -loglik=5.34957 and ht_min=[0.2,0.1]
@@ -56,7 +56,8 @@ printEdges(newT)
 # did not find the right network (Case H), stopped in bad diamond II case
 
 # with afterOptBLAll
-# elapsed time: 3.936120092 seconds (173514144 bytes allocated, 3.14% gc time)
+# elapsed time: 6.321085645 seconds (340867164 bytes allocated, 3.52% gc time)
+# found correct network!!
 
 newT.ht
 
@@ -86,9 +87,9 @@ d = readDataCF(df)
 epsilon = eps()
 N = 100
 
-@time newT = optTopLevel!(currT,epsilon,N,d);
+@time optTopLevel!(currT,epsilon,N,d,1)
 printEdges(newT)
-#elapsed time: 10.644039127 seconds (127552964 bytes allocated, 0.89% gc time)
+
 
 # ------------------5taxon network 1 hybridization: Case F-----------------
 # starting topology: Case G

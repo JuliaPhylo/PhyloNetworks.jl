@@ -222,31 +222,9 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
         end
     elseif(node.k == 3) # could be extreme/very bad triangle or just bad triangle
         if(net.numTaxa == 5)
-            warn("very bad triangle found")
+            warn("extremely or very bad triangle found")
             node.isVeryBadTriangle = true
             net.hasVeryBadTriangle = true
-            ## edgebla,tree_edge_incycle,tree_edge1 = hybridEdges(other_min);
-            ## edgebla,edgebla,tree_edge3 = hybridEdges(other_maj);
-            ## isLeaf1 = getOtherNode(tree_edge1,other_min);
-            ## isLeaf2 = getOtherNode(tree_edge2,node);
-            ## isLeaf3 = getOtherNode(tree_edge3,other_maj);
-            ## if(isLeaf1.leaf && !isLeaf2.leaf && !isLeaf3.leaf) # bad triangle I
-            ##     warn("bad triangle I found")
-            ##     node.isVeryBadTriangle = true
-            ##     net.hasVeryBadTriangle = true
-            ## elseif(!isLeaf1.leaf && !isLeaf2.leaf && isLeaf3.leaf) # bad triangle I
-            ##     warn("bad triangle I found")
-            ##     node.isVeryBadTriangle = true;
-            ##     net.hasVeryBadTriangle = true
-            ## elseif(!isLeaf1.leaf && isLeaf2.leaf && !isLeaf3.leaf) # bad triangle II
-            ##     warn("bad triangle II found")
-            ##     node.isVeryBadTriangle = true;
-            ##     net.hasVeryBadTriangle = true
-            ## elseif(sum([isLeaf1.leaf?1:0, isLeaf2.leaf?1:0, isLeaf3.leaf?1:0]) == 2) # non identifiable network
-            ##     warn("extremely bad triangle found")
-            ##     node.isExtBadTriangle = true;
-            ##     net.hasVeryBadTriangle = true
-            ## end
         elseif(net.numTaxa >= 6)
             edgebla,tree_edge_incycle,tree_edge1 = hybridEdges(other_min);
             edgebla,edgebla,tree_edge3 = hybridEdges(other_maj);
@@ -1662,6 +1640,8 @@ function NNI!(net::Network,edge::Edge)
     n2 = edge.node[2]
     println("e1 is $(e1.number), e2 is $(e2.number), e3 is $(e3.number), e4 is $(e4.number), n1 is $(n1.number), n2 is $(n2.number)")
     if(edge.inCycle != -1) # update inCycle
+        node = net.node[getIndexNode(edge.inCycle,net)]
+        node.hybrid || error("edge $(edge.number) has incycle $(edge.inCycle) but node $(node.number) is not hybrid")
         (n1.inCycle == edge.inCycle && n2.inCycle == edge.inCycle) || error("edge $(edge.number) is in cycle $(edge.inCycle) but its nodes are not: $(n1.number), $(n2.number)")
         if((e2.inCycle == e3.inCycle == edge.inCycle && e1.inCycle == e4.inCycle == -1) || (e1.inCycle == e4.inCycle == edge.inCycle && e2.inCycle == e3.inCycle == -1))
             nothing
@@ -1670,9 +1650,11 @@ function NNI!(net::Network,edge::Edge)
             if(e2.inCycle == e4.inCycle == edge.inCycle)
                 edge.inCycle = -1
                 n1.inCycle = -1
+                node.k -= 1;
             elseif(e1.inCycle == e3.inCycle == edge.inCycle)
                 edge.inCycle = -1
                 n2.inCycle = -1
+                node.k -= 1;
             end
         else
             error("internal edge $(edge.number) is in cycle $(edge.inCycle), but it is not consistent with other edges")
@@ -1683,11 +1665,17 @@ function NNI!(net::Network,edge::Edge)
             warn("cannot do tree NNI because it will create intersecting cycles, nothing done. e1,e2,e3,e4: $([e1.number,e2.number,e3.number,e4.number])")
             return false
         elseif(e1.inCycle != -1)
+            node = net.node[getIndexNode(e1.inCycle,net)]
+            node.hybrid || error("edge $(ed1.number) has incycle $(ed1.inCycle) but node $(node.number) is not hybrid")
             edge.inCycle = e1.inCycle
             n2.inCycle = e1.inCycle
+            node.k += 1
         elseif(e3.inCycle != -1)
+            node = net.node[getIndexNode(e3.inCycle,net)]
+            node.hybrid || error("edge $(ed3.number) has incycle $(ed3.inCycle) but node $(node.number) is not hybrid")
             edge.inCycle = e3.inCycle
             n1.inCycle = e3.inCycle
+            node.k += 1
         end
     end
     removeNode!(n1,e2)
@@ -1708,6 +1696,11 @@ function NNI!(net::Network,edge::Edge)
         setLength!(e1,t1+t)
         setLength!(edge,(1-r)*t4)
         setLength!(e4,r*t4)
+    end
+    if(!isTree(net))
+        undoGammaz!(node,net);
+        flag,edges = updateGammaz!(net,node);
+        flag || error("cannot encounter bad triangles with NNI move")
     end
     println("MOVE: NNI around edge $(edge.number) SUCCESSFUL")
     return true
@@ -2485,7 +2478,7 @@ function deleteLeaf!(net::Network, leaf::Node)
         end
     else
         if(other.hasHybEdge)
-            println("entro a caso has hyb edge")
+            #println("entro a caso has hyb edge")
             edge1,edge2 = hybridEdges(other,leaf.edge[1]);
             (edge1.hybrid || edge2.hybrid) || error("node $(other.number) has hybrid edge attribute true, but the edges $(edge1.number), $(edge2.number) are not hybrid (and the third edge has a leaf $(leaf.number)")
             other1 = getOtherNode(edge1,other);
@@ -3537,7 +3530,7 @@ end
 function calculateIneqGammaz(x::Vector{Float64}, net::HybridNetwork, ind::Int64)
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
     hz = x[net.numHybrids - net.numBad + k + 1 : length(x)]
-    #println("enters calculateIneqGammaz with hz $(hz), and hz[ind*2] + hz[ind*2-1] - 1 = $(hz[ind*2] + hz[ind*2-1] - 1)")
+    #Println("enters calculateIneqGammaz with hz $(hz), and hz[ind*2] + hz[ind*2-1] - 1 = $(hz[ind*2] + hz[ind*2-1] - 1)")
     hz[ind*2] + hz[ind*2-1] - 1
 end
 
@@ -3986,6 +3979,8 @@ function optTopLevel!(currT::HybridNetwork, epsilon::Float64, N::Int64, d::DataC
                     println("proposed new topology with better loglik in step $(count): oldloglik=$(round(currT.loglik,3)), newloglik=$(round(newT.loglik,3))")
                     delta = abs(newT.loglik - currT.loglik)
                     currT = deepcopy(newT)
+                else
+                    println("rejected new topology with worse loglik in step $(count): currloglik=$(round(currT.loglik,3)), newloglik=$(round(newT.loglik,3))")
                 end
             else
                 newT = deepcopy(currT)

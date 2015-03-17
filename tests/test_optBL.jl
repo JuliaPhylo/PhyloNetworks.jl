@@ -264,7 +264,7 @@ printEdges(net)
 net.ht
 realht = [0.1,0.127,0.0285]
 
-@time fmin,xmin=optBL!(net,d2)
+@time optBL!(net,d2, true)
 # with usual logPseudoLik:
 #got 5.40235 at [0.1,0.12689,0.02855] after 116 iterations (returned FTOL_REACHED)
 #elapsed time: 15.648447251 seconds (17823396 bytes allocated, 0.18% gc time)
