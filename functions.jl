@@ -3537,7 +3537,8 @@ end
 # numerical optimization of branch lengths given a network (or tree)
 # and data (set of quartets with obsCF)
 # using BOBYQA from NLopt package
-function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool)
+function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool, ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64)
+    (ftolRel > 0 && ftolAbs > 0 && xtolAbs > 0 && xtolRel > 0) || error("tolerances have to be positive, ftol (rel,abs), xtol (rel,abs): $([ftolRel, ftolAbs, xtolRel, xtolAbs])")
     println("OPTBL: begin branch lengths and gammas optimization")
     ht = parameters!(net); # branches/gammas to optimize: net.ht, net.numht
     extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
@@ -3546,9 +3547,10 @@ function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool)
     opt = NLopt.Opt(net.numBad == 0 ? :LN_BOBYQA : :LN_COBYLA,k) # :LD_MMA if use gradient, :LN_COBYLA for nonlinear/linear constrained optimization derivative-free, :LN_BOBYQA for bound constrained derivative-free
 #    opt = NLopt.Opt(:LN_BOBYQA,k) # :LD_MMA if use gradient, :LN_COBYLA for nonlinear/linear constrained optimization derivative-free, :LN_BOBYQA for bound constrained derivative-free
     # criterion based on prof Bates code
-    NLopt.ftol_rel!(opt,1e-12) # relative criterion -12
-    NLopt.ftol_abs!(opt,1e-12) # absolute critetion -8
-    NLopt.xtol_abs!(opt,1e-10) # criterion on parameter value changes -10
+    NLopt.ftol_rel!(opt,ftolRel) # relative criterion -12
+    NLopt.ftol_abs!(opt,ftolAbs) # absolute critetion -8, later changed to -10
+    NLopt.xtol_rel!(opt,xtolRel) # criterion on parameter value changes -10
+    NLopt.xtol_abs!(opt,xtolAbs) # criterion on parameter value changes -10
     NLopt.lower_bounds!(opt, zeros(k))
     NLopt.upper_bounds!(opt,upper(net))
     count = 0
@@ -3588,8 +3590,9 @@ function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool)
     #return fmin,xmin
 end
 
-optBL!(net::HybridNetwork, d::DataCF) = optBL!(net::HybridNetwork, d::DataCF, false)
-
+optBL!(net::HybridNetwork, d::DataCF) = optBL!(net, d, false, fRel, fAbs, xRel, xAbs)
+optBL!(net::HybridNetwork, d::DataCF, verbose::Bool) = optBL!(net, d,verbose, fRel, fAbs, xRel, xAbs)
+optBL!(net::HybridNetwork, d::DataCF, ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64) = optBL!(net, d, false, ftolRel, ftolAbs, xtolRel, xtolAbs)
 
 # -------------- NETWORK ----------------------- #
 
@@ -3771,14 +3774,15 @@ end
 
 # function to repeat afterOptBL every time after changing something
 # returns reject=false if gamma or gammaz still 0,1
-function afterOptBLAll!(currT::HybridNetwork, d::DataCF)
+function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64, failures::Int64)
     success,flagh,flagt,flaghz = afterOptBL!(currT,d)
     i = 0
     while(success && !all([flagh,flagt,flaghz]) && i<N)
+        failures += 1
         success,flagh,flagt,flaghz = afterOptBL!(currT,d)
         i += 1
     end
-    i < N || warn("tried afterOptBLAll $(N) times")
+    i < N || warn("tried afterOptBLAll $(i) times")
     if(!success) #tried to change something but failed
         warn("tried to change something in afterOptBLAll, but couldn't anymore. flagh, flagt, flaghz = $([flagh,flagt,flaghz])")
         if(!flagh || !flaghz)
@@ -3802,7 +3806,10 @@ end
 
 const move2int = Dict{Symbol,Int64}([:add=>1,:MVorigin=>2,:MVtarget=>3,:CHdir=>4,:delete=>5, :nni=>6])
 const int2move = (Int64=>Symbol)[move2int[k]=>k for k in keys(move2int)]
-const N = 100
+const fAbs = 1e-10 #1e-10 prof Bates
+const fRel = 1e-12 # 1e-12 prof Bates
+const xAbs = 1e-10 # 0.001 in phylonet, 1e-10 prof Bates
+const xRel = 1e-10 # 0.01 in phylonet, 1e-10 prof Bates
 
 function isTree(net::HybridNetwork)
     net.numHybrids == length(net.hybrid) || error("numHybrids does not match to length of net.hybrid")
@@ -3821,6 +3828,7 @@ function whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64})
     approxEq(sum(w),1.0) || error("vector of move weights should add up to 1: $(w),$(sum(w))")
     all([0<=i<=1 for i in w]) || error("weights must be nonnegative and less than one $(w)")
     if(hmax == 0)
+        isTree(net) || error("hmax is $(hmax) but net is not a tree")
         return :nni
     else
         r = rand()
@@ -3839,14 +3847,8 @@ function whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64})
                 return :delete
             end
         elseif(net.numHybrids == 0)
-            suma = w[1]+w[2]+w[3]+w[4]+w[5]
-            if(r < w[1]/suma)
-                return :MVorigin
-            elseif(r < (w[1]+w[2])/suma)
-                return :MVtarget
-            elseif(r < (w[1]+w[2]+w[3])/suma)
-                return :CHdir
-            elseif(r < (w[1]+w[2]+w[3]+w[4])/suma)
+            suma = w[4]+w[5]
+            if(r < (w[4])/suma)
                 return :nni
             else
                 return :add
@@ -3921,83 +3923,92 @@ proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Int64,N::In
 # epsilon: absolute tolerance in loglik
 # N: number of times it will try a NNI move before aborting it
 # hmax: max number of hybrids allowed
-function optTopLevel!(currT::HybridNetwork, epsilon::Float64, N::Int64, d::DataCF, hmax::Int64)
-    epsilon > 0 || error("epsilon must be greater than zero: $(epsilon)")
-    optBL!(currT,d)
-    rejectCurr = afterOptBLAll!(currT,d)
+function optTopLevel!(currT::HybridNetwork, M::Number, N::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64)
+    M > 0 || error("M must be greater than zero: $(M)")
+    N > 0 || error("N must be greater than zero: $(N)")
+    count = 0
+    failures = 0
+    optBL!(currT,d,ftolRel, ftolAbs, xtolRel, xtolAbs)
+    rejectCurr = afterOptBLAll!(currT,d,N, failures)
     while(rejectCurr)
         !isTree(currT) || error("afterOptBL should not give reject=true for a tree")
         warn("initial topology has numerical parameters that are not valid: gamma=0(1), t=0, gammaz=0(1); need to move down a level h-1")
         moveDownLevel!(currT)
-        optBL!(currT,d)
-        rejectCurr = afterOptBLAll!(currT,d)
+        optBL!(currT,d,ftolRel, ftolAbs, xtolRel, xtolAbs)
+        rejectCurr = afterOptBLAll!(currT,d,N, failures)
     end
-    delta = epsilon + 1
-    count = 0
+    absDiff = M*ftolAbs + 1
     newT = deepcopy(currT)
     printEdges(newT)
     printNodes(newT)
-    while(delta > epsilon && count < N && currT.loglik > 1.e-6)
+    while(absDiff > M*ftolAbs && failures < N && currT.loglik > M*ftolAbs)
         count += 1
         println("--------- loglik_$(count) = $(round(currT.loglik,6)) -----------")
         move = whichMove(newT,hmax)
         flag = proposedTop!(move,newT,true, count,N)
         if(flag)
+            accepted = false
             println("accepted proposed new topology in step $(count)")
             printEdges(newT)
             printNodes(newT)
-            optBL!(newT,d)
+            optBL!(newT,d,ftolRel, ftolAbs, xtolRel, xtolAbs)
             println("before comparing: newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
             if(newT.loglik < currT.loglik) #newT better loglik
-                accepted = false
-                reject = afterOptBLAll!(newT,d)
+                reject = afterOptBLAll!(newT,d,N, failures)
                 if(!reject)
                     println("before comparing: newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
                     if(newT.loglik < currT.loglik) #newT better loglik
                         accepted = true
                     else
-                        newT = deepcopy(currT)
+                        accepted = false
                     end
                 else
                     moveDownLevel!(newT)
-                    optBL!(newT,d)
-                    reject = afterOptBLAll!(newT,d)
+                    optBL!(newT,d,ftolRel, ftolAbs, xtolRel, xtolAbs)
+                    reject = afterOptBLAll!(newT,d,N, failures)
                     while(reject)
                         !isTree(newT) || error("afterOptBL should not give reject=true for a tree")
                         moveDownLevel!(newT)
-                        optBL!(newT,d)
-                        reject = afterOptBLAll!(newT,d)
+                        optBL!(newT,d,ftolRel, ftolAbs, xtolRel, xtolAbs)
+                        reject = afterOptBLAll!(newT,d,N, failures)
                     end
                     println("before comparing: newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
                     if(newT.loglik < currT.loglik) #newT better loglik
                         accepted = true
                     else
-                        newT = deepcopy(currT)
+                        accepted = false
                     end
                 end
-                if(accepted)
-                    println("proposed new topology with better loglik in step $(count): oldloglik=$(round(currT.loglik,3)), newloglik=$(round(newT.loglik,3))")
-                    delta = abs(newT.loglik - currT.loglik)
-                    currT = deepcopy(newT)
-                else
-                    println("rejected new topology with worse loglik in step $(count): currloglik=$(round(currT.loglik,3)), newloglik=$(round(newT.loglik,3))")
-                end
             else
+                accepted = false
+            end
+            if(accepted)
+                println("proposed new topology with better loglik in step $(count): oldloglik=$(round(currT.loglik,3)), newloglik=$(round(newT.loglik,3)), after $(failures) failures")
+                absDiff = abs(newT.loglik - currT.loglik)
+                currT = deepcopy(newT)
+                failures = 0
+            else
+                println("rejected new topology with worse loglik in step $(count): currloglik=$(round(currT.loglik,3)), newloglik=$(round(newT.loglik,3))")
+                failures += 1
                 newT = deepcopy(currT)
             end
-            println("ends while for $(count) with delta $(delta)")
+            println("ends step $(count) with absDiff $(absDiff) and failures $(failures)")
         end
     end
-    # here: re-optBL with better tolerance
-    if(newT.loglik > 1.e-6) #not really close to 0.0, based on absTol also
+    if(ftolAbs > 1e-7 || ftolRel > 1e-7 || xtolAbs > 1e-7 || xtolRel > 1e-7)
+        println("found best network, now we re-optimize branch lengths and gamma more precisely")
+        optBL!(newT,d,1e-12,1e-10,1e-10,1e-10)
+    end
+    if(newT.loglik > M*ftolAbs) #not really close to 0.0, based on absTol also
         warn("newT.loglik $(newT.loglik) not really close to 0.0, you might need to redo with another starting point")
     end
-    println("END optTopLevel: found minimizer topology at step $(count) with -loglik=$(round(currT.loglik,5)) and ht_min=$(round(currT.ht,5))")
+    println("END optTopLevel: found minimizer topology at step $(count) with -loglik=$(round(newT.loglik,5)) and ht_min=$(round(newT.ht,5))")
     printEdges(newT)
     printNodes(newT)
-    #return newT
+    return newT
 end
 
+optTopLevel!(currT::HybridNetwork, M::Number, N::Int64, d::DataCF, hmax::Int64) = optTopLevel!(currT, M, N, d, hmax,fRel, fAbs, xRel, xAbs)
 
 # function to move down onw level to h-1
 # caused by gamma=0,1 or gammaz=0,1

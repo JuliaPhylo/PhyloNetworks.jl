@@ -31,7 +31,7 @@ printEdges(net)
 net.ht
 realht = [0.1,0.2,0.1,1.0]
 
-@time fmin,xmin=optBL!(net,d2)
+@time optBL!(net,d2)
 # with usual logPseudoLik:
 #got 5.33118 at [0.247,0.18076,0.12026,0.2956] after 81 iterations (returned FTOL_REACHED)
 #elapsed time: 8.654081812 seconds (8624832 bytes allocated)
@@ -46,6 +46,20 @@ realht = [0.1,0.2,0.1,1.0]
 #got 0.0 at [0.10085,0.19991,0.1001,0.98557] after 1123 iterations (returned FTOL_REACHED)
 #elapsed time: 53.20413795 seconds (107820188 bytes allocated, 0.13% gc time)
 #(2.169777681982341e-9,[0.100853,0.199907,0.100098,0.985569])
+
+# with new ftol, xtol values
+#got 0.00073 at [0.2474,0.18189,0.11927,0.30014] after 48 iterations (returned XTOL_REACHED)
+#elapsed time: 0.023274544 seconds (4256960 bytes allocated)
+#
+
+# with old ftol,xtol values
+#got 0.0 at [0.13768,0.19568,0.10456,0.61459] after 561 iterations (returned FTOL_REACHED)
+#elapsed time: 2.122653096 seconds (118537484 bytes allocated, 4.50% gc time)
+
+@time optBL!(net,d2,false,1e-5,1e-6,1e-3,1e-4)
+#got 0.0001 at [0.24708,0.18075,0.12033,0.29593] after 64 iterations (returned SUCCESS)
+#elapsed time: 0.028643709 seconds (5502208 bytes allocated)
+
 
 @allocated fmin,xmin=optBL!(net,d2)
 
@@ -70,8 +84,9 @@ close(f)
 net = readTopologyUpdate("prueba_tree.txt");
 printEdges(net)
 
-@time fmin,xmin=optBL!(net,d2)
-
+@time optBL!(net,d2)
+#got 0.01558 at [0.09049,0.20435,0.09535,0.91173] after 31 iterations (returned XTOL_REACHED)
+#elapsed time: 0.014890177 seconds (2772976 bytes allocated)
 
 # (0.05,1.,1.,1.)
 tree = "((((6,4)1,(7)11#H1:::0.95)5,(11#H1:::0.05,8)),10);" # Case G different starting branch lengths
@@ -106,8 +121,8 @@ printEdges(net)
 @time fmin,xmin=optBL!(net,d2)
 
 
-# (0.24,1.,1.,1.)
-tree = "((((6,4)1,(7)11#H1:::0.75)5,(11#H1:::0.25,8)),10);" # Case G different starting branch lengths
+# (0.11,0.22,0.11,1.1)
+tree = "((((6,4)1,(7)11#H1:::0.89)5,(11#H1:::0.11,8)),10);" # Case G different starting branch lengths
 f = open("prueba_tree.txt","w")
 write(f,tree)
 close(f)
@@ -155,7 +170,7 @@ printEdges(net)
 net.ht
 realht = [0.1,0.1,1.,0.1]
 
-@time fmin,xmin=optBL!(net,d2)
+@time optBL!(net,d2)
 # with usual logPseudoLik:
 #got 4.34098 at [0.1,0.10001,0.99999,0.1] after 151 iterations (returned FTOL_REACHED)
 #elapsed time: 21.076511672 seconds (21355496 bytes allocated, 0.17% gc time)
@@ -170,6 +185,25 @@ realht = [0.1,0.1,1.,0.1]
 #got 0.0 at [0.1,0.1,1.0,0.1] after 208 iterations (returned FTOL_REACHED)
 #elapsed time: 6.892366587 seconds (20646048 bytes allocated)
 #(2.4010737722561867e-13,[0.0999999,0.0999992,1.0,0.1])
+
+# with new ftol, xtol (start 0.2,1,1,1)
+#got 0.04565 at [0.20363,0.64827,0.40823,0.11374] after 51 iterations (returned XTOL_REACHED)
+#elapsed time: 0.057075544 seconds (4462816 bytes allocated, 53.14% gc time)
+
+#got 0.04478 at [0.20178,0.64205,0.41684,0.11366] after 25 iterations (returned SUCCESS)
+#elapsed time: 0.016354695 seconds (2226424 bytes allocated)
+
+# with old ftol, xol
+#got 0.0 at [0.1,0.1,1.0,0.1] after 176 iterations (returned FTOL_REACHED)
+#elapsed time: 0.117537385 seconds (15143800 bytes allocated, 29.95% gc time)
+
+@time optBL!(net,d2,false,1e-5,1e-6,1e-5,1e-6)
+#got 1.0e-5 at [0.10043,0.1054,0.99408,0.10017] after 115 iterations (returned FTOL_REACHED)
+#elapsed time: 0.055701792 seconds (10398360 bytes allocated)
+
+@time optBL!(net,d2,false,1e-5,1e-6,1e-3,1e-4)
+#got 1.0e-5 at [0.10054,0.10558,0.99394,0.10022] after 25 iterations (returned FTOL_REACHED)
+#elapsed time: 0.013228257 seconds (2226504 bytes allocated)
 
 # ==================================================================================================================================
 
@@ -209,7 +243,7 @@ printEdges(net)
 net.ht
 realht = [0.1,0.2,0.1,1.0]
 
-@time fmin,xmin=optBL!(net,d2)
+@time optBL!(net,d2)
 # with usual logPseudoLik:
 #got 5.39161 at [0.09997,0.19999,0.1,1.00061] after 246 iterations (returned FTOL_REACHED)
 #elapsed time: 59.297791699 seconds (71939204 bytes allocated, 0.11% gc time)
@@ -224,6 +258,22 @@ realht = [0.1,0.2,0.1,1.0]
 #got 0.0 at [0.1,0.2,0.1,1.00003] after 249 iterations (returned FTOL_REACHED)
 #elapsed time: 6.656956697 seconds (23010204 bytes allocated, 0.56% gc time)
 #(5.280560068867562e-12,[0.0999983,0.199999,0.0999999,1.00003])
+
+# with ftol, xtol
+#got 0.05209 at [0.26015,0.26161,0.10523,0.24363] after 42 iterations (returned XTOL_REACHED)
+#elapsed time: 0.021402455 seconds (3634568 bytes allocated)
+
+# with old ftol, xtol
+#got 0.0 at [0.1,0.2,0.1,1.0] after 233 iterations (returned FTOL_REACHED)
+#elapsed time: 0.112556852 seconds (19426488 bytes allocated)
+
+@time optBL!(net,d2,false,1e-5,1e-6,1e-3,1e-4)
+#got 0.00219 at [0.1303,0.20847,0.10099,0.6283] after 106 iterations (returned FTOL_REACHED)
+#elapsed time: 0.060469424 seconds (8887448 bytes allocated)
+
+@time optBL!(net,d2,false,1e-5,1e-6,1e-5,1e-6)
+#got 0.00177 at [0.13073,0.20994,0.10121,0.64478] after 26 iterations (returned FTOL_REACHED)
+#elapsed time: 0.012715507 seconds (2277912 bytes allocated)
 
 # ==================================================================================================================================
 
@@ -264,7 +314,7 @@ printEdges(net)
 net.ht
 realht = [0.1,0.127,0.0285]
 
-@time optBL!(net,d2, true)
+@time optBL!(net,d2)
 # with usual logPseudoLik:
 #got 5.40235 at [0.1,0.12689,0.02855] after 116 iterations (returned FTOL_REACHED)
 #elapsed time: 15.648447251 seconds (17823396 bytes allocated, 0.18% gc time)
@@ -284,6 +334,18 @@ realht = [0.1,0.127,0.0285]
 # got 0.0 at [0.1,0.12689,0.02855] after 3356 iterations (returned FTOL_REACHED)
 # elapsed time: 90.405727385 seconds (281649264 bytes allocated, 0.24% gc time)
 # (8.157692309723136e-12,[0.0999999,0.126889,0.028549])
+
+# with ftol,xtol
+#got 0.25041 at [0.06362,0.15339,0.04918] after 24 iterations (returned XTOL_REACHED)
+#elapsed time: 0.045551191 seconds (2403576 bytes allocated)
+
+#with old ftol, xtol
+#got 0.0 at [0.1,0.12689,0.02855] after 2917 iterations (returned FTOL_REACHED)
+#elapsed time: 1.303746554 seconds (229545768 bytes allocated, 11.98% gc time)
+
+@time optBL!(net,d2,false,1e-5,1e-6,1e-3,1e-4)
+#got 5.0e-5 at [0.09974,0.12735,0.02892] after 92 iterations (returned XTOL_REACHED)
+#elapsed time: 0.079739994 seconds (7321368 bytes allocated, 45.28% gc time)
 
 # ==================================================================================================================================
 
@@ -324,7 +386,7 @@ printEdges(net)
 net.ht
 realht = [0.1,2.0,1.0,1.0,1.0]
 
-@time fmin,xmin=optBL!(net,d2)
+@time optBL!(net,d2)
 ## with usual logPseudoLik:
 # with ht = [0.2,0.0,0.5,0.5,0.5]
 #got 3.69564 at [0.09753,1.97129,0.99532,0.46822,1.04214] after 267 iterations (returned FTOL_REACHED)
@@ -353,6 +415,24 @@ realht = [0.1,2.0,1.0,1.0,1.0]
 #got 0.0 at [0.1,2.0,1.0,0.99994,1.0] after 753 iterations (returned FTOL_REACHED)
 #elapsed time: 47.213517434 seconds (80265788 bytes allocated, 0.16% gc time)
 #(1.2568189823957448e-12,[0.0999998,2.0,1.0,0.999941,1.0])
+
+# with ftol,xtol
+# ht = [0.2,0.0,2.0,2.0,2.0]
+#got 0.00256 at [0.10406,2.0465,1.00637,3.33775,0.98475] after 58 iterations (returned XTOL_REACHED)
+#elapsed time: 0.034984668 seconds (5205128 bytes allocated)
+
+# with old ftol, xtol
+#got 0.00034 at [0.1034,2.03863,1.00652,3.5823,0.94937] after 201 iterations (returned FTOL_REACHED)
+#elapsed time: 0.094041162 seconds (17632400 bytes allocated)
+
+@time optBL!(net,d2,false,1e-5,1e-6,1e-3,1e-4)
+# ht = [0.2,0.0,2.0,2.0,2.0]
+#got 0.00043 at [0.10287,2.02652,1.00596,5.93267,0.96293] after 51 iterations (returned SUCCESS)
+#elapsed time: 0.027747237 seconds (4558192 bytes allocated)
+
+@time optBL!(net,d2,false,1e-5,1e-6,1e-5,1e-6)
+#got 0.00036 at [0.10311,2.03708,1.00602,3.43898,0.95781] after 35 iterations (returned FTOL_REACHED)
+#elapsed time: 0.018274282 seconds (3167744 bytes allocated)
 
 # -------------------5taxon tree------------------
 ## include("../tree_example_read.jl");
@@ -388,10 +468,14 @@ net = readTopologyUpdate("prueba_tree.txt");
 net.ht
 realht = [0.2,0.1]
 
-@time fmin,xmin=optBL!(net,d2)
+@time optBL!(net,d2)
 #got 5.34957 at [0.2,0.1] after 28 iterations (returned FTOL_REACHED)
 #elapsed time: 5.533522804 seconds (54162200 bytes allocated, 0.41% gc time)
 #(5.349567420518451,[0.2,0.1])
+
+#with ftol, xtol
+#got 0.0 at [0.19999,0.09999] after 20 iterations (returned XTOL_REACHED)
+#elapsed time: 0.007440742 seconds (1234840 bytes allocated)
 
 #==============================================================================================
 #================ Debugging optBL ============================================================

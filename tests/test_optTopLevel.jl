@@ -18,10 +18,10 @@ close(f)
 currT = readTopologyUpdate("prueba_tree.txt");
 printEdges(currT)
 
-epsilon = eps()
 N = 100
+M = 10
 
-@time optTopLevel!(currT,epsilon,N,d,0)
+@time newT=optTopLevel!(currT,M,N,d,0);
 #got 5.34957 at [0.2,0.1] after 28 iterations (returned FTOL_reached)
 #loglik_1 = 5.34957
 #found minimizer topology at step 1 with -loglik=5.34957 and ht_min=[0.2,0.1]
@@ -42,10 +42,10 @@ df = readtable("CaseH_output.csv")
 d = readDataCF(df)
 
 
-epsilon = eps()
 N = 100
+M = 100
 
-@time optTopLevel!(currT,epsilon,N,d,1)
+@time newT=optTopLevel!(currT,M,N,d,1);
 printEdges(newT)
 # with original optBL
 # elapsed time: 347.527745834 seconds (372704328 bytes allocated, 0.06% gc time)
@@ -58,6 +58,18 @@ printEdges(newT)
 # with afterOptBLAll
 # elapsed time: 6.321085645 seconds (340867164 bytes allocated, 3.52% gc time)
 # found correct network!!
+
+# with ftol,xtol in optBL
+#got 0.11429 at [0.67712,0.92599,0.13123,0.23364] after 219 iterations (returned FTOL_REACHED)
+#WARNING: newT.loglik 0.11428632002947303 not really close to 0.0, you might need to redo with another starting point
+#END optTopLevel: found minimizer topology at step 100 with -loglik=0.18708 and ht_min=[0.1995,0.62389,0.44779,0.07295]
+
+# with old ftol, xtol
+#got 73.2177 at [0.42152,1.0016,0.64937,0.0] after 91 iterations (returned FTOL_REACHED)
+#before comparing: newT.loglik 73.21769826979121, currT.loglik 0.09699788946913745
+#ends while for 100 with delta 0.7803748966954892
+#WARNING: newT.loglik 0.09699788946913745 not really close to 0.0, you might need to redo with another starting point
+#END optTopLevel: found minimizer topology at step 100 with -loglik=0.097 and ht_min=[0.96515,0.06804,0.0846]
 
 newT.ht
 
@@ -86,8 +98,9 @@ d = readDataCF(df)
 
 epsilon = eps()
 N = 100
+M = 100
 
-@time optTopLevel!(currT,epsilon,N,d,1)
+@time newT = optTopLevel!(currT,M,N,d,1);
 printEdges(newT)
 
 
@@ -104,8 +117,9 @@ d = readDataCF(df)
 
 epsilon = eps()
 N = 100
+M = 100
 
-@time newT = optTopLevel!(currT,epsilon,N,d);
+@time newT = optTopLevel!(currT,M,N,d);
 #elapsed time: 11.59461217 seconds (112302760 bytes allocated, 0.26% gc time)
 printEdges(newT)
 
@@ -122,7 +136,8 @@ d = readDataCF(df)
 
 epsilon = eps()
 N = 100
+M = 100
 
-@time newT = optTopLevel!(currT,epsilon,N,d);
+@time newT = optTopLevel!(currT,M,N,d);
 #elapsed time: 26.763174225 seconds (142165976 bytes allocated, 0.25% gc time)
 printEdges(newT)
