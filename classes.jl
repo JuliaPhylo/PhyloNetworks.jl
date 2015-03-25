@@ -24,61 +24,87 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
-# numerical optimization of branch lengths given a network (or tree)
-# and data (set of quartets with obsCF)
-# using BOBYQA from NLopt package
-function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool)
-    ht = parameters!(net); # branches/gammas to optimize: net.ht, net.numht
-    extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
-    k = length(net.ht)
-    net.numBad >= 0 || error("network has negative number of bad hybrids")
-    opt = NLopt.Opt(net.numBad == 0 ? :LN_BOBYQA : :LN_COBYLA,k) # :LD_MMA if use gradient, :LN_COBYLA for nonlinear/linear constrained optimization derivative-free, :LN_BOBYQA for bound constrained derivative-free
-    # criterion based on prof Bates code
-    NLopt.ftol_rel!(opt,1e-12) # relative criterion -12
-    NLopt.ftol_abs!(opt,1e-12) # absolute critetion -8
-    NLopt.xtol_abs!(opt,1e-10) # criterion on parameter value changes -10
-    NLopt.lower_bounds!(opt, zeros(k))
-    NLopt.upper_bounds!(opt,upper(net))
-    count = 0
-    function obj(x::Vector{Float64},g::Vector{Float64}) # added g::Vector{Float64} for gradient, ow error
-        count += 1
-        calculateExpCFAll!(d,x,net) # update qnet branches and calculate expCF
-        update!(net,x) # update net.ht
-        val = logPseudoLik(d)
-        if(verbose)
-            println("f_$count: $(round(val,5)), x: $(x)")
+
+# --------------------------- write topology -------------------------------------
+# function to write a node and its descendants in
+#parenthetical format
+function writeSubTree!(s::IOBuffer, n::Node, parent::Edge)
+    if((parent.hybrid && !parent.isMajor) || n.leaf)
+        if(parent.hybrid)
+            print(s,"#")
         end
-        return val
-    end
-    NLopt.min_objective!(opt,obj)
-    if(net.numBad == 1)
-        function inequalityGammaz(x::Vector{Float64},g::Vector{Float64})
-            val = calculateIneqGammaz(x,net,1)
-            return val
-        end
-        NLopt.inequality_constraint!(opt,inequalityGammaz,1e-8)
-    elseif(net.numBad > 1)
-        function inequalityGammaz(result::Vector{Float64},x::Vector{Float64},g::Matrix{Float64})
-            for(i in 1:net.numBad)
-                result[i] = calculateIneqGammaz(x,net,i)
+        print(s,n.number)
+    else
+        print(s,"(")
+        numChildren = length(n.edge) - 1
+        for(e in n.edge)
+            if(!isEqual(e,parent) && !(e.hybrid && parent.hybrid))
+                child = getOtherNode(e,n)
+                writeSubTree!(s,child,e)
+                if(!parent.hybrid)
+                    numChildren -= 1
+                    if(numChildren > 0)
+                        print(s,",")
+                    end
+                end
             end
         end
-        NLopt.inequality_constraint!(opt,inequalityGammaz)
+        print(s,")")
+        if(parent.hybrid)
+            print(s,string("#",n.number))
+        end
+        print(s,string(":",parent.length))
     end
-    fmin, xmin, ret = NLopt.optimize(opt,ht)
-    println("got $(round(fmin,5)) at $(round(xmin,5)) after $(count) iterations (returned $(ret))")
-    #println("net.ht is $(round(net.ht,5))")
-    updateParameters!(net,xmin)
-    updateLik!(net,fmin)
-    return fmin,xmin
+    if(parent.hybrid)
+        print(s,string("::",parent.gamma))
+    end
 end
 
+# function to writeTopology
+# returns a string with network in parenthetical format
+# need as input HybridNetwork, since QuartetNetwork does not have root
+function writeTopology(net::HybridNetwork)
+    s = IOBuffer()
+    if(net.numNodes == 1)
+        print(s,string(net.node[net.root].number,";"))
+    else
+        print(s,"(")
+        updateRoot!(net)
+        degree = length(net.node[net.root].edge)
+        for(e in net.node[net.root].edge)
+            writeSubTree(s,getOtherNode(e,net.node[net.root]),e)
+            degree -= 1
+            if(degree > 0)
+                print(s,",")
+            end
+        end
+        print(s,");")
+    end
+    top = bytestring(s)
+    return top
+end
 
-# todo: recheck afterOptBL, debug in test_optBL, test_optTopLevelParts (do optBL and then afteroptBL)
-# add afterOptBL into optBL, also add other minor changes (lower tol, etc)
-# redo tests in optBL and optTopLevel
+# function to check if root is well-placed
+# and look for a better place if not
+function updateRoot!(net::HybridNetwork)
+    if(!canBeRoot(net.node[net.root]))
+        for(i in 1:length(net.node))
+            if(canBeRoot(net.node[i]))
+                net.root = i
+                break
+            end
+        end
+    end
+end
 
-
+# function to check if a node could be root
+# by the containRoot attribute of edges around it
+function canBeRoot(n::Node)
+    !n.hybrid || return false
+    !n.hasHybEdge || return false
+    all([e.containRoot for e in n.edge]) || return false
+    return true
+end
 
 # -------------------------------------------------------------------------------------------------
 # ORIGINAL

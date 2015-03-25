@@ -34,7 +34,7 @@ function whichtree(t::ASCIIString)
     elseif(t == "E")
         tree = "(((((8,10))#H1,7),#H1),6,4);" # Case E Bad triangle I
     elseif(t == "I")
-        tree = "((((8,10))#H1,7),6,(4,#H1));" # Case I Bad triangle II
+        tree = "((((8,10))#H1,7),6,(4,#H1));" # Case I Bad diamond II
     else
         error("not a known 5 taxon network case")
     end

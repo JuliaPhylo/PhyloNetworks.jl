@@ -3466,7 +3466,7 @@ function update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork)
                 qnet.node[qnet.index[i]].gammaz = x[qnet.indexht[i]]
             end
         else
-            for i in 1:length(qnet.indexht)
+            for(i in 1:length(qnet.indexht))
                 if(qnet.indexht[i] <= net.numHybrids - net.numBad)
                     0 <= x[qnet.indexht[i]] <= 1 || error("new gamma value should be between 0,1: $(x[qnet.indexht[i]]).")
                     qnet.edge[qnet.index[i]].hybrid || error("something odd here, optimizing gamma for tree edge $(qnet.edge[qnet.index[i]].number)")
@@ -3474,7 +3474,9 @@ function update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork)
                 elseif(qnet.indexht[i] <= net.numHybrids - net.numBad + k)
                     setLength!(qnet.edge[qnet.index[i]],x[qnet.indexht[i]])
                 else
+                    println("updating qnet parameters, found gammaz case when hybridization has been removed")
                     0 <= x[qnet.indexht[i]] <= 1 || error("new gammaz value should be between 0,1: $(x[qnet.indexht[i]]).")
+                    #x[qnet.indexht[i]] + x[qnet.indexht[i]+1] <= 1 || error("new gammaz value should add to less than 1: $(x[qnet.indexht[i]])  $(x[qnet.indexht[i]+1]).")
                     setLength!(qnet.edge[qnet.index[i]],-log(1-x[qnet.indexht[i]]))
                 end
             end
@@ -3530,7 +3532,7 @@ end
 function calculateIneqGammaz(x::Vector{Float64}, net::HybridNetwork, ind::Int64)
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
     hz = x[net.numHybrids - net.numBad + k + 1 : length(x)]
-    #Println("enters calculateIneqGammaz with hz $(hz), and hz[ind*2] + hz[ind*2-1] - 1 = $(hz[ind*2] + hz[ind*2-1] - 1)")
+    println("enters calculateIneqGammaz with hz $(hz), and hz[ind*2] + hz[ind*2-1] - 1 = $(hz[ind*2] + hz[ind*2-1] - 1)")
     hz[ind*2] + hz[ind*2-1] - 1
 end
 
@@ -3941,7 +3943,8 @@ function optTopLevel!(currT::HybridNetwork, M::Number, N::Int64, d::DataCF, hmax
     newT = deepcopy(currT)
     printEdges(newT)
     printNodes(newT)
-    while(absDiff > M*ftolAbs && failures < N && currT.loglik > M*ftolAbs)
+    println(writeTopology(newT))
+    while(absDiff > M*ftolAbs && failures < N && currT.loglik > M*ftolAbs) #stops if close to zero because of new deviance form of the pseudolik
         count += 1
         println("--------- loglik_$(count) = $(round(currT.loglik,6)) -----------")
         move = whichMove(newT,hmax)
@@ -3992,6 +3995,9 @@ function optTopLevel!(currT::HybridNetwork, M::Number, N::Int64, d::DataCF, hmax
                 failures += 1
                 newT = deepcopy(currT)
             end
+            printEdges(newT)
+            printNodes(newT)
+            println(writeTopology(newT))
             println("ends step $(count) with absDiff $(absDiff) and failures $(failures)")
         end
     end
@@ -4005,6 +4011,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, N::Int64, d::DataCF, hmax
     println("END optTopLevel: found minimizer topology at step $(count) with -loglik=$(round(newT.loglik,5)) and ht_min=$(round(newT.ht,5))")
     printEdges(newT)
     printNodes(newT)
+    println(writeTopology(newT))
     return newT
 end
 
@@ -4117,4 +4124,89 @@ function readDataCF(df::DataFrame)
         push!(quartets,Quartet(i,string(df[i,1]),string(df[i,2]),string(df[i,3]),string(df[i,4]),[df[i,5],df[i,6],df[i,7]]))
     end
     return DataCF(quartets)
+end
+
+    # --------------------------- write topology -------------------------------------
+# function to write a node and its descendants in
+#parenthetical format
+function writeSubTree!(s::IOBuffer, n::Node, parent::Edge,di::Bool)
+    if((parent.hybrid && !parent.isMajor) || n.leaf)
+        if(parent.hybrid)
+            print(s,"#H")
+        end
+        print(s,n.number)
+    else
+        print(s,"(")
+        numChildren = length(n.edge) - 1
+        for(e in n.edge)
+            if(!isEqual(e,parent) && !(e.hybrid && parent.hybrid))
+                child = getOtherNode(e,n)
+                writeSubTree!(s,child,e, di)
+                if(!parent.hybrid)
+                    numChildren -= 1
+                    if(numChildren > 0)
+                        print(s,",")
+                    end
+                end
+            end
+        end
+        print(s,")")
+        if(parent.hybrid)
+            print(s,string("#H",n.number))
+        end
+        print(s,string(":",parent.length))
+    end
+    if(parent.hybrid && !di)
+        print(s,string("::",parent.gamma))
+    end
+end
+
+# function to writeTopology
+# returns a string with network in parenthetical format
+# need as input HybridNetwork, since QuartetNetwork does not have root
+# input di=true if written for Dendroscope (without gammas)
+function writeTopology(net::HybridNetwork, di::Bool)
+    s = IOBuffer()
+    if(net.numNodes == 1)
+        print(s,string(net.node[net.root].number,";"))
+    else
+        print(s,"(")
+        updateRoot!(net)
+        degree = length(net.node[net.root].edge)
+        for(e in net.node[net.root].edge)
+            writeSubTree!(s,getOtherNode(e,net.node[net.root]),e,di)
+            degree -= 1
+            if(degree > 0)
+                print(s,",")
+            end
+        end
+        print(s,");")
+    end
+    top = bytestring(s)
+    return top
+end
+
+writeTopology(net::HybridNetwork) = writeTopology(net,false)
+
+# function to check if root is well-placed
+# and look for a better place if not
+function updateRoot!(net::HybridNetwork)
+    if(!canBeRoot(net.node[net.root]))
+        for(i in 1:length(net.node))
+            if(canBeRoot(net.node[i]))
+                net.root = i
+                break
+            end
+        end
+    end
+end
+
+# function to check if a node could be root
+# by the containRoot attribute of edges around it
+function canBeRoot(n::Node)
+    !n.hybrid || return false
+    !n.hasHybEdge || return false
+    !n.leaf || return false
+    all([e.containRoot for e in n.edge]) || return false
+    return true
 end
