@@ -45,7 +45,7 @@ d = readDataCF(df)
 N = 100
 M = 100
 
-@time newT=optTopLevel!(currT,M,N,d,1);
+@time newT=optTopLevel!(currT,M,N,d,1,true);
 printEdges(newT)
 # with original optBL
 # elapsed time: 347.527745834 seconds (372704328 bytes allocated, 0.06% gc time)

@@ -13,7 +13,7 @@ using Base.Collections # for updateInCycle with priority queue
 
 include("test_functions_5taxon_read.jl")
 
-tests = ["C","F","G","H","J","D","E","I"];
+tests = ["F","G","H","J","I"];
 wrong = String[];
 
 function whichtree(t::ASCIIString)

@@ -374,7 +374,7 @@ function undoGammaz!(node::Node, net::HybridNetwork)
         other_maj.gammaz != -1 || error("bad diamond I in node $(node.number) but no gammaz updated correctly")
         setLength!(tree_edge_incycle2,-log(1-other_maj.gammaz))
         if(approxEq(other_maj.gammaz,0.0) && approxEq(other_min.gammaz,0.0))
-            setGamma!(edge_maj,rand()*0.5, true) # gamma could be anything if both gammaz are 0.0
+            setGamma!(edge_maj,0.0, true) # gamma could be anything if both gammaz are 0.0, but will set to 0.0
             setLength!(edge_maj,0.0)
             setLength!(edge_min,0.0)
         else
@@ -494,12 +494,14 @@ end
 # check: gamma is uniform(0,1/2) to avoid big gammas
 # fixit: add different function to choose gamma
 # fixit: how to stop from infinite loop if there are no options
-function chooseEdgesGamma(net::HybridNetwork)
+# blacklist used for afterOptBLAll
+function chooseEdgesGamma(net::HybridNetwork, blacklist::Bool)
     #println("net.edge length: $(length(net.edge))")
     index1 = 1;
     index2 = 1;
     inlimits = false
-    while(!inlimits || net.edge[index1].inCycle != -1 || net.edge[index2].inCycle != -1 || cherry || nonidentifiable)
+    inblack = true
+    while(!inlimits || net.edge[index1].inCycle != -1 || net.edge[index2].inCycle != -1 || cherry || nonidentifiable || inblack)
         index1 = iround(rand()*size(net.edge,1));
         index2 = iround(rand()*size(net.edge,1));
         if(index1 != index2 && index1 != 0 && index2 != 0 && index1 <= size(net.edge,1) && index2 <= size(net.edge,1))
@@ -508,12 +510,35 @@ function chooseEdgesGamma(net::HybridNetwork)
         else
             inlimits = false
         end
+        if(blacklist && !isempty(net.blacklist))
+            length(net.blacklist) % 2 == 0 || error("net.blacklist should have even number of entries, not length: $(length(net.blacklist))")
+            i = 1
+            while(i < length(net.blacklist))
+                if(net.edge[index1].number == net.blacklist[i])
+                    if(net.edge[index2].number == net.blacklist[i+1])
+                        inblack = true
+                    else
+                        inblack = false
+                    end
+                elseif(net.edge[index2].number == net.blacklist[i])
+                    if(net.edge[index1].number == net.blacklist[i+1])
+                        inblack = true
+                    else
+                        inblack = false
+                    end
+                end
+                i += 2
+            end
+        else
+            inblack = false
+        end
     end
     gamma = rand()*0.5;
     #println("from $(edge1.number) to $(edge2.number), $(gamma)");
     return net.edge[index1],net.edge[index2],gamma
 end
 
+chooseEdgesGamma(net::HybridNetwork) = chooseEdgesGamma(net, false)
 
 # aux function for addHybridization
 # that takes the output edge1, edge2, gamma from
@@ -536,14 +561,16 @@ end
 # without checking all the updates
 # returns the hybrid node of the new hybridization
 # calls chooseEdgesGamma, parameter4createHybrid and createHybrid
-function addHybridization!(net::HybridNetwork)
-    edge1, edge2, gamma = chooseEdgesGamma(net);
+# blacklist used in afterOptBLAll
+function addHybridization!(net::HybridNetwork, blacklist::Bool)
+    edge1, edge2, gamma = chooseEdgesGamma(net, blacklist);
     println("add hybridization between edge1, $(edge1.number) and edge2 $(edge2.number) with gamma $(gamma)")
     edge3, edge4 = parameters4createHybrid!(edge1,edge2,net);
     hybrid = createHybrid!(edge1, edge2, edge3, edge4, net, gamma);
     return hybrid
 end
 
+addHybridization!(net::HybridNetwork) = addHybridization!(net, false)
 
 # function to update who is the major hybrid
 # after a new hybridization is added and
@@ -619,12 +646,13 @@ updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool) = update
 # warning: "while" removed, it does not attempt to add until
 #          success, it attempts to add once
 # returns: success (bool), hybrid, flag, nocycle, flag2, flag3
-function addHybridizationUpdate!(net::HybridNetwork)
-    hybrid = addHybridization!(net);
+# blacklist used in afterOptBLAll
+function addHybridizationUpdate!(net::HybridNetwork, blacklist::Bool)
+    hybrid = addHybridization!(net,blacklist);
     updateAllNewHybrid!(hybrid,net,true)
 end
 
-
+addHybridizationUpdate!(net::HybridNetwork) = addHybridizationUpdate!(net, false)
 
 # --------------------------------- delete hybridization -------------------------------
 
@@ -758,7 +786,7 @@ end
 #        random = false, deletes the minor edge always
 # warning: it uses the gamma of the hybrid edges even if
 #          it is not identifiable like in bad diamond I (assumes undone by now)
-function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bool)
+function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bool, blacklist::Bool)
     hybrid.hybrid || error("node $(hybrid.number) is not hybrid, so we cannot delete hybridization event around it")
     println("MOVE: delete hybridization on hybrid node $(hybrid.number)")
     nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,hybrid);
@@ -776,10 +804,10 @@ function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bo
     else
         minor = true;
     end
-    deleteHybrid!(hybrid,net,minor)
+    deleteHybrid!(hybrid,net,minor, blacklist)
 end
 
-deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node) = deleteHybridizationUpdate!(net, hybrid, true)
+deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node) = deleteHybridizationUpdate!(net, hybrid, true, false)
 
 # function to delete a hybridization event
 # input: hybrid node and network
@@ -787,7 +815,7 @@ deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node) = deleteHybridizati
 # warning: it is meant after undoing the effect of the
 #          hybridization in deleteHybridizationUpdate!
 #          by itself, it leaves things as is
-function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool)
+function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool, blacklist::Bool)
     node.hybrid || error("node $(node.number) has to be hybrid for deleteHybrid")
     if(minor)
         hybedge1,hybedge2,treeedge1 = hybridEdges(node);
@@ -802,6 +830,9 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool)
             removeEdge!(other1, hybedge1);
             deleteEdge!(net,hybedge1);
             treeedge1.containRoot = (!treeedge1.containRoot || !hybedge1.containRoot) ? false : true
+            if(blacklist)
+                push!(net.blacklist, treeedge1.number)
+            end
         else
             makeEdgeTree!(hybedge1,node)
             other1.hasHybEdge = false;
@@ -812,6 +843,9 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool)
             removeEdge!(other3,treeedge1);
             deleteEdge!(net,treeedge1);
             hybedge1.containRoot = (!treeedge1.containRoot || !hybedge1.containRoot) ? false : true
+            if(blacklist)
+                push!(net.blacklist, hybedge1.number)
+            end
         end
         hybindex = getIndex(true,[e.hybrid for e in other2.edge]);
         if(hybindex == 1)
@@ -836,6 +870,9 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool)
             removeEdge!(treenode1,treeedge1);
             deleteEdge!(net,treeedge1);
             treeedge2.containRoot = (!treeedge1.containRoot || !treeedge2.containRoot) ? false : true
+            if(blacklist)
+                push!(net.blacklist, treeedge2.number)
+            end
         else
             setLength!(treeedge1, treeedge2.length + treeedge1.length);
             removeNode!(other2,treeedge1);
@@ -844,6 +881,9 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool)
             removeEdge!(treenode2,treeedge2);
             deleteEdge!(net,treeedge2);
             treeedge1.containRoot = (!treeedge1.containRoot || !treeedge2.containRoot) ? false : true
+            if(blacklist)
+                push!(net.blacklist, treeedge1.number)
+            end
         end
         #removeHybrid!(net,node);
         deleteNode!(net,node);
@@ -882,6 +922,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool)
     end
 end
 
+deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool) = deleteHybrid!(node,net,minor, false)
 
 # -------------------------- change direction of minor hybrid edge ---------------------------------
 
@@ -1743,17 +1784,17 @@ end
 # warning: treats digit taxon numbers as strings to avoid repeated node numbers
 function readNum(s::IOStream, c::Char, net::HybridNetwork, numLeft::Array{Int64,1})
     pound = 0;
-    if(isdigit(c) || isalpha(c) || c == '#')
+    if(isalnum(c) || isValidSymbol(c) || c == '#')
         pound += (c == '#') ? 1 : 0
         num = read(s,Char)
         c = Base.peekchar(s)
-        while(isdigit(c) || isalpha(c) || c == '#')
+        while(isalnum(c) || isValidSymbol(c) || c == '#')
             d = read(s,Char)
             num = string(num,d)
             if(d == '#')
                 pound += 1;
                c = Base.peekchar(s);
-               if(isdigit(c) || isalpha(c))
+               if(isalnum(c))
                    if(c != 'L' && c != 'H' && c != 'R')
                        warn("Expected H, R or LGT after # but received $(c) in left parenthesis $(numLeft[1]).")
                    end
@@ -1796,7 +1837,12 @@ function readFloat(s::IOStream, c::Char)
     end
 end
 
-
+# aux function to identify if a symbol in taxon name is valid
+# symbol cannot be: () [] : ; ' , . space \t \r \n
+# according to richnewick.pdf
+function isValidSymbol(c::Char)
+    return !isspace(c) && c != '(' && c != ')' && c != '[' && c != ']' && c != ':' && c != ';' && c != ',' && c != '.'
+end
 
 # aux function to read subtree
 # warning: s IOStream needs to be a file, not a stream converted
@@ -1827,7 +1873,7 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
            error("Expected right parenthesis after left parenthesis $(numLeft[1]) but read $(c). The remainder of line is $(a).")
        end
         c = Base.peekchar(s);
-        if(isdigit(c) || isalpha(c) || c == '#') # internal node has name
+        if(isalnum(c) || isValidSymbol(c) || c == '#') # internal node has name
             hasname = true;
             num,name,pound = readNum(s,c,net,numLeft);
             n.number = num;
@@ -1836,7 +1882,7 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
                 warn("internal node with name without it being a hybrid node. node name might be meaningless after tree modifications.")
             end
         end
-    elseif(isdigit(c) || isalpha(c) || c == '#') # fixit: names can have _ or - and this will not allow it
+    elseif(isalnum(c) || isValidSymbol(c) || c == '#') # fixit: names can have _ or - and this will not allow it
         hasname = true;
         bl = true;
         num,name,pound = readNum(s,c,net,numLeft)
@@ -3485,7 +3531,6 @@ function update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork)
 end
 
 # function to update the branch lengths/gammas for a network
-# fixit: it is ignoring "bad" cases, assumes list of all the parameters
 # warning: order of parameters (h,t)
 function update!(net::HybridNetwork, x::Vector{Float64})
     if(length(x) == length(net.ht))
@@ -3601,15 +3646,16 @@ optBL!(net::HybridNetwork, d::DataCF, ftolRel::Float64, ftolAbs::Float64, xtolRe
 # function that will add a hybridization with addHybridizationUpdate,
 # if success=false, it will try to move the hybridization before
 # declaring failure
-function addHybridizationUpdateSmart!(net::HybridNetwork)
+# blacklist used in afterOptBLAll
+function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool)
     println("MOVE: addHybridizationUpdateSmart")
-    success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net)
+    success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
     i = 0
     if(!success)
         while((nocycle || !flag) && i < N) #incycle failed
             warn("MOVE: added hybrid causes conflict with previous cycle, need to delete and add another")
             deleteHybrid!(hybrid,net,true)
-            success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net)
+            success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
         end
         if(nocycle || !flag)
             warn("MOVE: added hybridization $(i) times trying to avoid incycle conflicts, but failed")
@@ -3640,16 +3686,18 @@ function addHybridizationUpdateSmart!(net::HybridNetwork)
     return success
 end
 
+addHybridizationUpdateSmart!(net::HybridNetwork) = addHybridizationUpdateSmart!(net, false)
+
 # function to delete a hybrid, and then add a new hybrid:
 # deleteHybridizationUpdate and addHybridizationUpdate,
 # will keep trying to add until success or after N times (global constant N)
 # returns success
-function moveHybrid!(net::HybridNetwork, edge::Edge)
+function moveHybrid!(net::HybridNetwork, edge::Edge, N::Int64)
     edge.hybrid || error("edge $(edge.number) cannot be deleted because it is not hybrid")
     node = edge.node[edge.isChild1 ? 1 : 2];
     node.hybrid || error("hybrid edge $(edge.number) pointing at tree node $(node.number)")
     println("moving hybrid for edge $(edge.number)")
-    deleteHybridizationUpdate!(net, node)
+    deleteHybridizationUpdate!(net, node, true, true)
     success = addHybridizationUpdateSmart!(net)
     i = 1
     while(!success && i<N)
@@ -3668,7 +3716,7 @@ end
 # - if failed, call moveHybrid
 # input: net (network to be altered)
 # returns success
-function gammaZero!(net::HybridNetwork, edge::Edge)
+function gammaZero!(net::HybridNetwork, edge::Edge, N::Int64)
     currTloglik = net.loglik
     edge.hybrid || error("edge $(edge.number) should be hybrid edge because it corresponds to a gamma (or gammaz) in net.ht")
     warn("gamma zero situation found for hybrid edge $(edge.number) with gamma $(edge.gamma)")
@@ -3685,11 +3733,11 @@ function gammaZero!(net::HybridNetwork, edge::Edge)
             warn("changing direction does not fix the gamma zero situation, need to undo change direction and move hybrid")
             success,node = changeDirectionUpdate!(net,newnode)
             success || error("strange thing, changed direction and success, but lower loglik; want to undo changeDirection, and success=false! Hybrid node is $(node.number)")
-            success2 = moveHybrid!(net,edge)
+            success2 = moveHybrid!(net,edge,N)
         end
     else
         warn("changing direction was not possible to fix the gamma zero situation (success=false), need to move hybrid")
-        success2 = moveHybrid!(net,edge)
+        success2 = moveHybrid!(net,edge,N)
     end
     return success2
 end
@@ -3698,7 +3746,7 @@ end
 # returns successchange=false if found hz=1.0, or if could not add new hybrid; true ow
 # returns successchange,flagh,flagt,flaghz
 # flags from one step before, not updated in here
-function afterOptBL!(currT::HybridNetwork, d::DataCF)
+function afterOptBL!(currT::HybridNetwork, d::DataCF, N::Int64)
     !isTree(currT) || return true,true,true,true
     nh = currT.ht[1 : currT.numHybrids - currT.numBad]
     k = sum([e.istIdentifiable ? 1 : 0 for e in currT.edge])
@@ -3716,7 +3764,7 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF)
             if(approxEq(nh[i],0.0) || approxEq(nh[i],1.0))
                 edge = currT.edge[indh[i]]
                 approxEq(edge.gamma,nh[i]) || error("edge $(edge.number) gamma $(edge.gamma) should match the gamma in net.ht $(nh[i]) and it does not")
-                successchange = gammaZero!(currT, edge)
+                successchange = gammaZero!(currT, edge,N)
                 break
             end
         end
@@ -3745,7 +3793,7 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF)
                 approxEq(nodehz.gammaz,nhz[i]) || error("nodehz $(nodehz.number) gammaz $(nodehz.gammaz) should match the gammaz in net.ht $(nhz[i]) and it does not")
                 edges = hybridEdges(nodehz)
                 edges[1].hybrid || error("bad diamond I situation, node $(nodehz.number) has gammaz $(nodehz.gammaz) so should be linked to hybrid edge, but it is not")
-                successchange = gammaZero!(currT,edges[1])
+                successchange = gammaZero!(currT,edges[1],N)
                 break
             elseif(approxEq(nhz[i],1.0))
                 approxEq(nhz[i+1],0.0) || error("gammaz for node $(currT.node[indhz[i]].number) is $(nhz[i]) but the other gammaz is $(nhz[i+1]), the sum should be less than 1.0")
@@ -3753,7 +3801,7 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF)
                 approxEq(nodehz.gammaz,nhz[i+1]) || error("nodehz $(nodehz.number) gammaz $(nodehz.gammaz) should match the gammaz in net.ht $(nhz[i+1]) and it does not")
                 edges = hybridEdges(nodehz)
                 edges[1].hybrid || error("bad diamond I situation, node $(nodehz.number) has gammaz $(nodehz.gammaz) so should be linked to hybrid edge, but it is not")
-                successchange = gammaZero!(currT,edges[1])
+                successchange = gammaZero!(currT,edges[1],N)
                 break
             else
                 if(approxEq(nhz[i+1],0.0))
@@ -3761,7 +3809,7 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF)
                     approxEq(nodehz.gammaz,nhz[i+1]) || error("nodehz $(nodehz.number) gammaz $(nodehz.gammaz) should match the gammaz in net.ht $(nhz[i+1]) and it does not")
                     edges = hybridEdges(nodehz);
                     edges[1].hybrid || error("bad diamond I situation, node $(nodehz.number) has gammaz $(nodehz.gammaz) so should be linked to hybrid edge, but it is not")
-                    successchange = gammaZero!(currT,edges[1])
+                    successchange = gammaZero!(currT,edges[1],N)
                     break
                 elseif(approxEq(nhz[i+1],1.0))
                     error("gammaz for node $(currT.node[indhz[i]].number) is $(nhz[i]) but the other gammaz is $(nhz[i+1]), the sum should be less than 1.0")
@@ -3777,11 +3825,12 @@ end
 # function to repeat afterOptBL every time after changing something
 # returns reject=false if gamma or gammaz still 0,1
 function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64, failures::Int64)
-    success,flagh,flagt,flaghz = afterOptBL!(currT,d)
+    currT.blacklist = Int64[];
+    success,flagh,flagt,flaghz = afterOptBL!(currT,d,N)
     i = 0
     while(success && !all([flagh,flagt,flaghz]) && i<N)
         failures += 1
-        success,flagh,flagt,flaghz = afterOptBL!(currT,d)
+        success,flagh,flagt,flaghz = afterOptBL!(currT,d,N)
         i += 1
     end
     i < N || warn("tried afterOptBLAll $(i) times")
@@ -3801,6 +3850,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64, failures::Int
             reject = false
         end
     end
+    currT.blacklist = Int64[];
     return reject
 end
 
@@ -3925,18 +3975,18 @@ proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Int64,N::In
 # epsilon: absolute tolerance in loglik
 # N: number of times it will try a NNI move before aborting it
 # hmax: max number of hybrids allowed
-function optTopLevel!(currT::HybridNetwork, M::Number, N::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64)
+function optTopLevel!(currT::HybridNetwork, M::Number, N::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool)
     M > 0 || error("M must be greater than zero: $(M)")
     N > 0 || error("N must be greater than zero: $(N)")
     count = 0
     failures = 0
-    optBL!(currT,d,ftolRel, ftolAbs, xtolRel, xtolAbs)
+    optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
     rejectCurr = afterOptBLAll!(currT,d,N, failures)
     while(rejectCurr)
         !isTree(currT) || error("afterOptBL should not give reject=true for a tree")
         warn("initial topology has numerical parameters that are not valid: gamma=0(1), t=0, gammaz=0(1); need to move down a level h-1")
         moveDownLevel!(currT)
-        optBL!(currT,d,ftolRel, ftolAbs, xtolRel, xtolAbs)
+        optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
         rejectCurr = afterOptBLAll!(currT,d,N, failures)
     end
     absDiff = M*ftolAbs + 1
@@ -3954,9 +4004,9 @@ function optTopLevel!(currT::HybridNetwork, M::Number, N::Int64, d::DataCF, hmax
             println("accepted proposed new topology in step $(count)")
             printEdges(newT)
             printNodes(newT)
-            optBL!(newT,d,ftolRel, ftolAbs, xtolRel, xtolAbs)
+            optBL!(newT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
             println("before comparing: newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
-            if(newT.loglik < currT.loglik) #newT better loglik
+            if(newT.loglik < currT.loglik) #newT better loglik #fixit here: if better lik, move always, even if you have to go down level
                 reject = afterOptBLAll!(newT,d,N, failures)
                 if(!reject)
                     println("before comparing: newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
@@ -3967,12 +4017,12 @@ function optTopLevel!(currT::HybridNetwork, M::Number, N::Int64, d::DataCF, hmax
                     end
                 else
                     moveDownLevel!(newT)
-                    optBL!(newT,d,ftolRel, ftolAbs, xtolRel, xtolAbs)
+                    optBL!(newT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
                     reject = afterOptBLAll!(newT,d,N, failures)
                     while(reject)
                         !isTree(newT) || error("afterOptBL should not give reject=true for a tree")
                         moveDownLevel!(newT)
-                        optBL!(newT,d,ftolRel, ftolAbs, xtolRel, xtolAbs)
+                        optBL!(newT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
                         reject = afterOptBLAll!(newT,d,N, failures)
                     end
                     println("before comparing: newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
@@ -4003,7 +4053,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, N::Int64, d::DataCF, hmax
     end
     if(ftolAbs > 1e-7 || ftolRel > 1e-7 || xtolAbs > 1e-7 || xtolRel > 1e-7)
         println("found best network, now we re-optimize branch lengths and gamma more precisely")
-        optBL!(newT,d,1e-12,1e-10,1e-10,1e-10)
+        optBL!(newT,d,verbose,1e-12,1e-10,1e-10,1e-10)
     end
     if(newT.loglik > M*ftolAbs) #not really close to 0.0, based on absTol also
         warn("newT.loglik $(newT.loglik) not really close to 0.0, you might need to redo with another starting point")
@@ -4015,7 +4065,8 @@ function optTopLevel!(currT::HybridNetwork, M::Number, N::Int64, d::DataCF, hmax
     return newT
 end
 
-optTopLevel!(currT::HybridNetwork, M::Number, N::Int64, d::DataCF, hmax::Int64) = optTopLevel!(currT, M, N, d, hmax,fRel, fAbs, xRel, xAbs)
+optTopLevel!(currT::HybridNetwork, M::Number, N::Int64, d::DataCF, hmax::Int64) = optTopLevel!(currT, M, N, d, hmax,fRel, fAbs, xRel, xAbs, false)
+optTopLevel!(currT::HybridNetwork, M::Number, N::Int64, d::DataCF, hmax::Int64, verbose::Bool) = optTopLevel!(currT, M, N, d, hmax,fRel, fAbs, xRel, xAbs, verbose)
 
 # function to move down onw level to h-1
 # caused by gamma=0,1 or gammaz=0,1
@@ -4142,7 +4193,7 @@ function writeSubTree!(s::IOBuffer, n::Node, parent::Edge,di::Bool)
             if(!isEqual(e,parent) && !(e.hybrid && parent.hybrid))
                 child = getOtherNode(e,n)
                 writeSubTree!(s,child,e, di)
-                if(!parent.hybrid)
+                if(!parent.hybrid) #cecile handles this step differently: if(parent.hybrid) numChildre-=1 end
                     numChildren -= 1
                     if(numChildren > 0)
                         print(s,",")
@@ -4162,10 +4213,11 @@ function writeSubTree!(s::IOBuffer, n::Node, parent::Edge,di::Bool)
 end
 
 # function to writeTopology
-# returns a string with network in parenthetical format
+# if string=true, returns a string with network in parenthetical format
+#                 ow returns the IOBuffer object
 # need as input HybridNetwork, since QuartetNetwork does not have root
 # input di=true if written for Dendroscope (without gammas)
-function writeTopology(net::HybridNetwork, di::Bool)
+function writeTopology(net::HybridNetwork, di::Bool, string::Bool)
     s = IOBuffer()
     if(net.numNodes == 1)
         print(s,string(net.node[net.root].number,";"))
@@ -4182,16 +4234,22 @@ function writeTopology(net::HybridNetwork, di::Bool)
         end
         print(s,");")
     end
-    top = bytestring(s)
-    return top
+    if(string)
+        return bytestring(s)
+    else
+        return s
+    end
 end
 
-writeTopology(net::HybridNetwork) = writeTopology(net,false)
+writeTopology(net::HybridNetwork) = writeTopology(net,false, true)
 
 # function to check if root is well-placed
 # and look for a better place if not
+# searches on net.node because net.root is the index in net.node
+# if we search in net.edge, we then need to search in net.node
 function updateRoot!(net::HybridNetwork)
     if(!canBeRoot(net.node[net.root]))
+        println("need to update root")
         for(i in 1:length(net.node))
             if(canBeRoot(net.node[i]))
                 net.root = i
@@ -4207,6 +4265,5 @@ function canBeRoot(n::Node)
     !n.hybrid || return false
     !n.hasHybEdge || return false
     !n.leaf || return false
-    all([e.containRoot for e in n.edge]) || return false
-    return true
+    return any([e.containRoot for e in n.edge])
 end
