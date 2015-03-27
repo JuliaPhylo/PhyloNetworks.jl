@@ -2,7 +2,7 @@
 # with Case g
 # Claudia January 2015
 
-## include("../case_g_example.jl");
+## include("../examples/case_g_example.jl");
 ## q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
 ## q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
 ## q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);
@@ -138,7 +138,7 @@ printNodes(net)
 # Claudia January 2015
 
 
-## include("../case_h_example.jl");
+## include("../examples/case_h_example.jl");
 ## q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
 ## q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
 ## q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);
@@ -211,7 +211,7 @@ realht = [0.1,0.1,1.,0.1]
 # Claudia January 2015
 
 
-## include("../case_j_example.jl");
+## include("../examples/case_j_example.jl");
 ## q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
 ## q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
 ## q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);
@@ -281,7 +281,7 @@ realht = [0.1,0.2,0.1,1.0]
 # Claudia January 2015
 
 
-## include("../case_f_example.jl");
+## include("../examples/case_f_example.jl");
 ## parameters!(net)
 ## q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
 ## q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
@@ -353,7 +353,7 @@ realht = [0.1,0.127,0.0285]
 # Claudia January 2015
 
 
-## include("../case_i_example.jl");
+## include("../examples/case_i_example.jl");
 ## q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
 ## q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
 ## q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);

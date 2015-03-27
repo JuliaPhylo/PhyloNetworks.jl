@@ -36,7 +36,7 @@ printEdges(newT)
 # ------------------5taxon network 1 hybridization: Case H-----------------
 # starting topology: Case G
 
-## include("../case_h_example2.jl");
+## include("../examples/case_h_example2.jl");
 ## q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
 ## q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
 ## q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);
@@ -49,7 +49,7 @@ printEdges(newT)
 ## df = writeExpCF(d.quartet)
 ## writetable("CaseH_output2.csv",df)
 
-include("../case_g_example.jl");
+include("../examples/case_g_example.jl");
 currT = deepcopy(net);
 printEdges(currT)
 
@@ -87,7 +87,7 @@ writetable("CaseH_output_wrong_optTop_startCaseG.csv",wrongdf)
 
 # ------------------
 # starting topology: Case F
-include("../case_f_example.jl");
+include("../examples/case_f_example.jl");
 currT = deepcopy(net);
 printEdges(currT)
 
@@ -107,11 +107,11 @@ printEdges(newT)
 
 # ------------------5taxon network 1 hybridization: Case F-----------------
 # starting topology: Case G
-include("../case_g_example.jl");
+include("../examples/case_g_example.jl");
 currT = deepcopy(net);
 printEdges(currT)
 
-## include("../case_f_example2.jl");
+## include("../examples/case_f_example2.jl");
 ## parameters!(net)
 ## q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
 ## q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
@@ -139,7 +139,7 @@ printEdges(newT)
 
 
 # starting topology: Case H
-include("../case_h_example.jl");
+include("../examples/case_h_example.jl");
 currT = deepcopy(net);
 printEdges(currT)
 

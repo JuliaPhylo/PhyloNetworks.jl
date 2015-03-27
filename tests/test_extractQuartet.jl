@@ -5,7 +5,7 @@
 
 # Case G ---------
 
-include("../case_g_example.jl");
+include("../examples/case_g_example.jl");
 net.names
 
 q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
@@ -75,7 +75,7 @@ qnet.numTaxa
 
 # Bad diamond ------------
 
-include("../case_f_example.jl")
+include("../examples/case_f_example.jl")
 printEdges(net)
 printNodes(net)
 net.names
@@ -116,7 +116,7 @@ qnet.numTaxa
 
 # ------------------------------------
 # extract all quartets
-include("../case_g_example.jl");
+include("../examples/case_g_example.jl");
 
 q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
 q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);

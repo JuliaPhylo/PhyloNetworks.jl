@@ -4,7 +4,7 @@
 
 
 # starting topology: Case G
-include("../case_g_example.jl");
+include("../examples/case_g_example.jl");
 currT = deepcopy(net);
 printEdges(currT)
 
@@ -42,7 +42,7 @@ printNodes(newT)
 
 
 # starting topology: Case G
-include("../case_g_example.jl");
+include("../examples/case_g_example.jl");
 currT = deepcopy(net);
 printEdges(currT)
 

@@ -3,7 +3,7 @@
 
 globalerror = false
 println("--------- Case G --------------")
-include("../case_g_example.jl");
+include("../examples/case_g_example.jl");
 
 q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
 q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
@@ -154,7 +154,7 @@ else
 end
 
 println("--------- Case F Bad Diamond I --------------")
-include("../case_f_example.jl");
+include("../examples/case_f_example.jl");
 parameters!(net)
 
 q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
@@ -265,7 +265,7 @@ end
 
 
 println("--------- Case I Bad Diamond II --------------")
-include("../case_i_example.jl");
+include("../examples/case_i_example.jl");
 
 q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
 q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);

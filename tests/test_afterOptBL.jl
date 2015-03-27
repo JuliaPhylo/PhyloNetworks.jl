@@ -157,7 +157,7 @@ all(f) || error("afterOptBL not correctly for optBL in CASE I")
 # test_optTopLevelparts.jl------------------------------------------------------------------
 
 # starting topology: Case G
-include("../case_g_example.jl");
+include("../examples/case_g_example.jl");
 currT = deepcopy(net);
 printEdges(currT)
 printNodes(currT)
@@ -197,7 +197,7 @@ currT=deepcopy(newT);
 
 
 # starting topology: Case F
-include("../case_f_example.jl");
+include("../examples/case_f_example.jl");
 currT = deepcopy(net);
 printEdges(currT)
 

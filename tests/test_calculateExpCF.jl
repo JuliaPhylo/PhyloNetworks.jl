@@ -4,7 +4,7 @@
 # Case G -----------------
 
 println("------ Case G ----------")
-include("../case_g_example.jl");
+include("../examples/case_g_example.jl");
 #net.names
 error = false
 ind = 0
@@ -154,7 +154,7 @@ end
 # Case F Bad Diamond I -----------------
 
 println("------ Case F Bad diamond I ----------")
-include("../case_f_example.jl");
+include("../examples/case_f_example.jl");
 #net.names
 error = false
 ind = 0
@@ -300,7 +300,7 @@ end
 # Case I Bad Diamond II -----------------
 
 println("------ Case I Bad diamond II ----------")
-include("../case_i_example.jl");
+include("../examples/case_i_example.jl");
 #net.names
 error = false
 ind = 0

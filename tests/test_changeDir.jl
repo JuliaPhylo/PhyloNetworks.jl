@@ -3,7 +3,7 @@
 # Claudia March 2015
 
 # Case G
-include("../case_g_example.jl");
+include("../examples/case_g_example.jl");
 net0 = deepcopy(net);
 printEdges(net)
 printNodes(net)
@@ -18,7 +18,7 @@ printEdges(net0)
 # not the same, bad diamond I found in between
 
 # Case H
-include("../case_h_example.jl");
+include("../examples/case_h_example.jl");
 net0 = deepcopy(net);
 printEdges(net)
 printNodes(net)
@@ -33,7 +33,7 @@ printEdges(net0)
 # not the same, bad diamond II found in between
 
 # Case J
-include("../case_j_example.jl");
+include("../examples/case_j_example.jl");
 net0 = deepcopy(net);
 printEdges(net)
 printNodes(net)

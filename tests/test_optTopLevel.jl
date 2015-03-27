@@ -33,7 +33,7 @@ printEdges(newT)
 
 # ------------------5taxon network 1 hybridization: Case H-----------------
 # starting topology: Case G
-include("../case_g_example.jl");
+include("../examples/case_g_example.jl");
 currT = deepcopy(net);
 printEdges(currT)
 
@@ -87,7 +87,7 @@ writetable("CaseH_output_wrong_optTop_startCaseG.csv",wrongdf)
 
 # ------------------
 # starting topology: Case F
-include("../case_f_example.jl");
+include("../examples/case_f_example.jl");
 currT = deepcopy(net);
 printEdges(currT)
 
@@ -106,7 +106,7 @@ printEdges(newT)
 
 # ------------------5taxon network 1 hybridization: Case F-----------------
 # starting topology: Case G
-include("../case_g_example.jl");
+include("../examples/case_g_example.jl");
 currT = deepcopy(net);
 printEdges(currT)
 
@@ -125,7 +125,7 @@ printEdges(newT)
 
 
 # starting topology: Case H
-include("../case_h_example.jl");
+include("../examples/case_h_example.jl");
 currT = deepcopy(net);
 printEdges(currT)
 
