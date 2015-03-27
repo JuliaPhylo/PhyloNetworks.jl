@@ -1630,7 +1630,6 @@ end
 
 # function to choose a tree edge for NNI
 # its two nodes must have hasHybEdge=false
-# fixit: how to stop from infinite loop if there are no options
 function chooseEdgeNNI(net::Network,N::Int64)
     N > 0 || error("N must be positive: $(N)")
     index1 = 0
@@ -1882,7 +1881,7 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
                 warn("internal node with name without it being a hybrid node. node name might be meaningless after tree modifications.")
             end
         end
-    elseif(isalnum(c) || isValidSymbol(c) || c == '#') # fixit: names can have _ or - and this will not allow it
+    elseif(isalnum(c) || isValidSymbol(c) || c == '#')
         hasname = true;
         bl = true;
         num,name,pound = readNum(s,c,net,numLeft)
@@ -2216,7 +2215,6 @@ end
 # - gammas: need to sum to one and be present.
 #   error if they do not sum up to one
 #   default values of 0.9,0.1 if not present
-# fixit: for only one hybrid, better error than warning
 function cleanAfterRead!(net::HybridNetwork)
     mod(sum([!e.hybrid?e.gamma:0 for e in net.edge]),1) == 0 ? nothing : error("tree (not network) read and some tree edge has gamma different than 1")
     for(n in net.node)
@@ -2658,7 +2656,6 @@ end
 # function to update hasEdge attribute in a
 # QuartetNetwork after leaves deleted
 # with deleteLeaf!
-# fixit: missing bad triangleI,II, bad diamondII cases
 function updateHasEdge!(qnet::QuartetNetwork, net::HybridNetwork)
     #warn("function to compare edges depends on edges number being unique")
     edges = Bool[]
