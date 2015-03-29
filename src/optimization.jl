@@ -211,7 +211,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, N::Int64, d::DataCF, hmax
     printEdges(newT)
     printNodes(newT)
     println(writeTopology(newT))
-    return newT
+    #return newT
 end
 
 optTopLevel!(currT::HybridNetwork, M::Number, N::Int64, d::DataCF, hmax::Int64) = optTopLevel!(currT, M, N, d, hmax,fRel, fAbs, xRel, xAbs, false)
@@ -520,7 +520,7 @@ end
 # using BOBYQA from NLopt package
 function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool, ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64)
     (ftolRel > 0 && ftolAbs > 0 && xtolAbs > 0 && xtolRel > 0) || error("tolerances have to be positive, ftol (rel,abs), xtol (rel,abs): $([ftolRel, ftolAbs, xtolRel, xtolAbs])")
-    println("OPTBL: begin branch lengths and gammas optimization")
+    println("OPTBL: begin branch lengths and gammas optimization, ftolAbs $(ftolAbs), ftolRel $(ftolRel), xtolAbs $(xtolAbs), xtolRel $(xtolRel)")
     ht = parameters!(net); # branches/gammas to optimize: net.ht, net.numht
     extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
     k = length(net.ht)

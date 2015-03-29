@@ -6,8 +6,8 @@
 # same but with longer branches for identifiability
 # claudia march 2015
 
-include("types.jl")
-include("functions.jl")
+include("../types.jl")
+include("../functions.jl")
 
 using Base.Collections # for updateInCycle with priority queue
 
@@ -59,5 +59,6 @@ net.names=["1","2","3","4","5","6","7","8","9","10"]
 flag, nocycle,edges, nodes = updateInCycle!(net,node[1]);
 flag2, edges2 = updateContainRoot!(net,node[1]);
 flag3, edges3 = updateGammaz!(net,node[1]);
+#parameters!(net)
 
 printEdges(net)
