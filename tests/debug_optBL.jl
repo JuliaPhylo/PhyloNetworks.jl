@@ -62,3 +62,45 @@ realht2 = [1.1,0.49,0.2]
 # to do here: put website example and change starting point to close to the boundary
 # also, do a small example of optimization with inequality x_n+x_n-1<=1 to send to the author of nlopt
 
+using NLopt
+
+count = 0 # keep track of # function evaluations
+
+function myfunc(x::Vector, grad::Vector)
+    println("myfunc with x $(x)")
+    if length(grad) > 0
+        grad[1] = 0
+        grad[2] = 0.5/sqrt(x[2])
+    end
+
+    global count
+    count::Int += 1
+    println("f_$count($x)")
+
+    sqrt(x[2])
+end
+
+function myconstraint(x::Vector, grad::Vector, a, b)
+    println("myconstraint with x $(x)")
+    if length(grad) > 0
+        grad[1] = 3a * (a*x[1] + b)^2
+        grad[2] = -1
+    end
+    val = (a*x[1] + b)^3 - x[2] #should be negative
+    println("value of inequality: $(val)")
+    val<0 || error("val in myconstraint not negative")
+    return val
+end
+
+opt = Opt(:LD_MMA, 2)
+lower_bounds!(opt, [-Inf, 0.])
+xtol_rel!(opt,1e-4)
+
+min_objective!(opt, myfunc)
+inequality_constraint!(opt, (x,g) -> myconstraint(x,g,2,0), 1e-8)
+inequality_constraint!(opt, (x,g) -> myconstraint(x,g,-1,1), 1e-8)
+
+x=[1.234,5.678]
+x=[1.,1.]
+(minf,minx,ret) = optimize(opt,x)
+println("got $minf at $minx after $count iterations (returned $ret)")

@@ -536,6 +536,7 @@ function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool, ftolRel::Float64, 
     NLopt.upper_bounds!(opt,upper(net))
     count = 0
     function obj(x::Vector{Float64},g::Vector{Float64}) # added g::Vector{Float64} for gradient, ow error
+        println("inside obj with x $(x)")
         count += 1
         calculateExpCFAll!(d,x,net) # update qnet branches and calculate expCF
         update!(net,x) # update net.ht
