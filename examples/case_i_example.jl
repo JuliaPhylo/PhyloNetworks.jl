@@ -3,8 +3,8 @@
 
 
 # types in "types.jl"
-include("types.jl")
-include("functions.jl")
+include("../types.jl")
+include("../functions.jl")
 
 tree = "((((8,10))#H1,7),6,(4,#H1));" # Case I Bad diamond II
 f = open("prueba_tree.txt","w")

@@ -72,11 +72,9 @@ function myfunc(x::Vector, grad::Vector)
         grad[1] = 0
         grad[2] = 0.5/sqrt(x[2])
     end
-
     global count
     count::Int += 1
     println("f_$count($x)")
-
     sqrt(x[2])
 end
 
@@ -88,11 +86,13 @@ function myconstraint(x::Vector, grad::Vector, a, b)
     end
     val = (a*x[1] + b)^3 - x[2] #should be negative
     println("value of inequality: $(val)")
-    val<0 || error("val in myconstraint not negative")
+    #val<0 || error("val in myconstraint not negative")
     return val
 end
 
-opt = Opt(:LD_MMA, 2)
+
+#opt = Opt(:LD_MMA, 2)
+opt = Opt(:LN_COBYLA, 2)
 lower_bounds!(opt, [-Inf, 0.])
 xtol_rel!(opt,1e-4)
 
@@ -101,6 +101,6 @@ inequality_constraint!(opt, (x,g) -> myconstraint(x,g,2,0), 1e-8)
 inequality_constraint!(opt, (x,g) -> myconstraint(x,g,-1,1), 1e-8)
 
 x=[1.234,5.678]
-x=[1.,1.]
+x=[1.,2.]
 (minf,minx,ret) = optimize(opt,x)
 println("got $minf at $minx after $count iterations (returned $ret)")

@@ -21,7 +21,7 @@ printEdges(currT)
 N = 100
 M = 10
 
-@time newT=optTopLevel!(currT,M,N,d,0);
+@time optTopLevel!(currT,M,N,d,0);
 #got 5.34957 at [0.2,0.1] after 28 iterations (returned FTOL_reached)
 #loglik_1 = 5.34957
 #found minimizer topology at step 1 with -loglik=5.34957 and ht_min=[0.2,0.1]
@@ -45,8 +45,8 @@ d = readDataCF(df)
 N = 100
 M = 100
 
-@time newT=optTopLevel!(currT,M,N,d,1,true);
-printEdges(newT)
+@time optTopLevel!(currT,M,N,d,1,true)
+
 # with original optBL
 # elapsed time: 347.527745834 seconds (372704328 bytes allocated, 0.06% gc time)
 # did not find right network (Case H), came back to starting point (Case G)

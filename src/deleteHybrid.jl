@@ -179,6 +179,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool, blacklist::Boo
             deleteEdge!(net,hybedge1);
             treeedge1.containRoot = (!treeedge1.containRoot || !hybedge1.containRoot) ? false : true
             if(blacklist)
+                println("put in blacklist edge $(treeedge1.number)")
                 push!(net.blacklist, treeedge1.number)
             end
         else
@@ -192,6 +193,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool, blacklist::Boo
             deleteEdge!(net,treeedge1);
             hybedge1.containRoot = (!treeedge1.containRoot || !hybedge1.containRoot) ? false : true
             if(blacklist)
+                println("put in blacklist edge $(hybedge1.number)")
                 push!(net.blacklist, hybedge1.number)
             end
         end
@@ -219,6 +221,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool, blacklist::Boo
             deleteEdge!(net,treeedge1);
             treeedge2.containRoot = (!treeedge1.containRoot || !treeedge2.containRoot) ? false : true
             if(blacklist)
+                println("put in blacklist edge $(treeedge2.number)")
                 push!(net.blacklist, treeedge2.number)
             end
         else
@@ -230,6 +233,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool, blacklist::Boo
             deleteEdge!(net,treeedge2);
             treeedge1.containRoot = (!treeedge1.containRoot || !treeedge2.containRoot) ? false : true
             if(blacklist)
+                println("put in blacklist edge $(treeedge1.number)")
                 push!(net.blacklist, treeedge1.number)
             end
         end

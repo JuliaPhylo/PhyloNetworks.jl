@@ -6,8 +6,8 @@
 #
 # in julia: include("case_f_example_extended.jl")
 
-include("types.jl")
-include("functions.jl")
+include("../types.jl")
+include("../functions.jl")
 using Base.Collections # for updateInCycle with priority queue
 
 ed1=Edge(1,0.6,true,0.7);
