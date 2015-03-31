@@ -498,7 +498,7 @@ function afterOptBLRepeat!(currT::HybridNetwork, d::DataCF, N::Int64, failures::
             success,flagh,flagt,flaghz = afterOptBL!(currT,d,close,origin)
             i += 1
         end
-        i < N || warn("tried afterOptBLAll $(i) times")
+        i < N || warn("tried afterOptBL $(i) times")
     end
     return success,flagh,flagt,flaghz
 end
@@ -513,46 +513,48 @@ end
 # close=true will try move origin/target, if false, will delete/add new hybrid
 # default is close=true
 # returns movedown=false if gamma or gammaz still 0,1; worselik bool
-function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64, failures::Int64,close::Bool, ftolAbs::Float64, M::Number)
+function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64, failures::Int64,close::Bool, origin::Bool)
     currloglik = currT.loglik
     currT.blacklist = Int64[];
-    origin = (rand() > 0.5)
     success,flagh,flagt,flaghz = afterOptBLRepeat!(currT,d,N,close,origin)
-    while(success && (currT.loglik < currloglik || isEqual(currT.loglik,currloglik)) && !stopLoglik(currloglik,currT.loglik,ftolAbs,M) && !all([flagh,flagt,flaghz])) #fixit: i<N here? it is always improving loglik
-        println("found better topology newloglik $(currT.loglik), oldloglik $(currloglik), but flagh,flagt,flaghz $([flagh,flagt,flaghz])")
-        currloglik = currT.loglik
-        origin = !origin #to propose move origin, and then move target
-        success,flagh,flagt,flaghz = afterOptBLRepeat!(currT,d,N,close,origin)
-    end
-    worselik = false
+    backCurrT0 = false
+    movedown = false
     if(!success) #tried to change something but failed
         warn("did not change anything inside afterOptBL: could be nothing needed change or tried but couldn't anymore. flagh, flagt, flaghz = $([flagh,flagt,flaghz])")
         if(all([flagh,flagt,flaghz]))
-            movedown = false
+            startover = false
         elseif(!flagh || !flaghz)
             movedown = true
+            startover = true
         elseif(!flagt)
-            movedown = false
+            startover = false
         end
     else #changed something
         warn("changed something inside afterOptBL: flagh, flagt, flaghz = $([flagh,flagt,flaghz]). oldloglik $(currloglik), newloglik $(currT.loglik)")
         if(currT.loglik > currloglik)
-            worselik = true
+            startover = true
+            backCurrT0 = true
         else
             if(all([flagh,flagt,flaghz]))
-                movedown = false
+                startover = false
             elseif(!flagh || !flaghz)
-                movedown = true
+                startover = true
             elseif(!flagt)
-                movedown = false
+                startover = false
             end
         end
     end
+    if(movedown)
+        !isTree(currT) || error("afterOptBL should not give reject=true for a tree")
+        warn("current topology has numerical parameters that are not valid: gamma=0(1), t=0, gammaz=0(1); need to move down a level h-1")
+        moveDownLevel!(currT)
+        optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
+        startover = true
+    end
     currT.blacklist = Int64[];
-    return worselik, movedown
+    return startover, backCurrT0
 end
 
-afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64, failures::Int64,ftolAbs::Float64,M::Number) = afterOptBLAll!(currT, d, N, failures,true,ftolAbs,M)
 
 # -------------- heuristic search for topology -----------------------
 
@@ -675,21 +677,23 @@ function optTopLevel!(currT::HybridNetwork, M::Number, N::Int64, d::DataCF, hmax
     count = 0
     failures = 0
     optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
-    currT0 = deepcopy(currT)
-    worselik,movedown = afterOptBLAll!(currT,d,N, failures,close,ftolAbs,M)
-    if(worselik)
-        currT = deepcopy(currT0)
-        flagh,flagt,flaghz = isValid(currT)
-        if(!flagh || !flaghz)
-            movedown = true
+    origin = (rand() > 0.5)
+    startover = true
+    while(startover)
+        currT0 = deepcopy(currT)
+        origin = !origin #to guarantee not going back to previous topology
+        startover,backCurrT0 = afterOptBLAll!(currT,d,N, failures,close,origin)
+        if(backCurrT0)
+            currT = currT0
+            flagh,flagt,flaghz = isValid(currT)
+            if(!flagh || !flaghz)
+                !isTree(currT) || error("afterOptBL should not give reject=true for a tree")
+                warn("current topology has numerical parameters that are not valid: gamma=0(1), t=0, gammaz=0(1); need to move down a level h-1")
+                moveDownLevel!(currT)
+                optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
+                startover = true
+            end
         end
-    end
-    while(movedown)
-        !isTree(currT) || error("afterOptBL should not give reject=true for a tree")
-        warn("initial topology has numerical parameters that are not valid: gamma=0(1), t=0, gammaz=0(1); need to move down a level h-1")
-        moveDownLevel!(currT)
-        optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
-        worselik,movedown = afterOptBLAll!(currT,d,N, failures,close,ftolAbs,M)
     end
     absDiff = M*ftolAbs + 1
     newT = deepcopy(currT)
@@ -709,45 +713,21 @@ function optTopLevel!(currT::HybridNetwork, M::Number, N::Int64, d::DataCF, hmax
             optBL!(newT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
             println("before comparing: newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
             if(newT.loglik < currT.loglik) #newT better loglik #fixit here: if better lik, move always, even if you have to go down level
-                reject = afterOptBLAll!(newT,d,1, failures,close,ftolAbs,M)
-                if(!reject)
-                    println("before comparing: newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
-                    if(newT.loglik < currT.loglik) #newT better loglik
-                        accepted = true
-                    else
-                        accepted = false
-                    end
-                else
-                    moveDownLevel!(newT)
-                    optBL!(newT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
-                    reject = afterOptBLAll!(newT,d,1, failures,close,ftolAbs,M)
-                    while(reject)
-                        !isTree(newT) || error("afterOptBL should not give reject=true for a tree")
-                        moveDownLevel!(newT)
-                        optBL!(newT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
-                        reject = afterOptBLAll!(newT,d,1, failures,close,ftolAbs,M)
-                    end
-                    println("before comparing: newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
-                    if(newT.loglik < currT.loglik) #newT better loglik
-                        accepted = true
-                    else
-                        accepted = false
-                    end
-                end
+                #fixit finish here
             else
                 accepted = false
             end
             if(accepted)
                 println("proposed new topology with better loglik in step $(count): oldloglik=$(round(currT.loglik,3)), newloglik=$(round(newT.loglik,3)), after $(failures) failures")
                 absDiff = abs(newT.loglik - currT.loglik)
-                currT = deepcopy(newT)
+                currT = deepcopy(newT) #fixit check all this deepcopies
                 failures = 0
             else
                 println("rejected new topology with worse loglik in step $(count): currloglik=$(round(currT.loglik,3)), newloglik=$(round(newT.loglik,3))")
                 failures += 1
-                newT = deepcopy(currT)
+                newT = deepcopy(currT)#fixit check all this deepcopies
             end
-            printEdges(newT)
+            printEdges(newT) #fixit: estamos en newT parados?
             printNodes(newT)
             println(writeTopology(newT))
             println("ends step $(count) with absDiff $(absDiff) and failures $(failures)")
