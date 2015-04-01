@@ -167,7 +167,7 @@ function update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork)
                 elseif(qnet.indexht[i] <= net.numHybrids - net.numBad + k)
                     setLength!(qnet.edge[qnet.index[i]],x[qnet.indexht[i]])
                 else
-                    println("updating qnet parameters, found gammaz case when hybridization has been removed")
+                    #println("updating qnet parameters, found gammaz case when hybridization has been removed")
                     0 <= x[qnet.indexht[i]] <= 1 || error("new gammaz value should be between 0,1: $(x[qnet.indexht[i]]).")
                     #x[qnet.indexht[i]] + x[qnet.indexht[i]+1] <= 1 || error("new gammaz value should add to less than 1: $(x[qnet.indexht[i]])  $(x[qnet.indexht[i]+1]).")
                     setLength!(qnet.edge[qnet.index[i]],-log(1-x[qnet.indexht[i]]))
@@ -358,9 +358,9 @@ function moveHybrid!(net::HybridNetwork, edge::Edge, close::Bool, origin::Bool)
     else
         deleteHybridizationUpdate!(net, node, true, true)
         success = addHybridizationUpdateSmart!(net)
-        if(success)
-            optBL!(net,d,false)
-        end
+    end
+    if(success)
+        optBL!(net,d,false)
     end
     return success
 end
@@ -491,7 +491,9 @@ end
 # to the same network over and over
 function afterOptBLRepeat!(currT::HybridNetwork, d::DataCF, N::Int64, failures::Int64,close::Bool, origin::Bool)
     success,flagh,flagt,flaghz = afterOptBL!(currT,d,close,origin)
+    println("inside afterOptBLRepeat, after afterOptBL once we get: success, flags: $([success,flagh,flagt,flaghz])")
     if(!close)
+        println("close is $(close), and gets inside the loop for repeating afterOptBL")
         i = 1
         while(success && !all([flagh,flagt,flaghz]) && i<N) #fixit: do we want to check loglik in this step also?
             failures += 1
@@ -512,47 +514,76 @@ end
 # function to repeat afterOptBL every time after changing something
 # close=true will try move origin/target, if false, will delete/add new hybrid
 # default is close=true
-# returns movedown=false if gamma or gammaz still 0,1; worselik bool
-function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64, failures::Int64,close::Bool, origin::Bool)
+# returns new approved currT (no gammas=0.0)
+function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64, failures::Int64,close::Bool, M::Number, ftolAbs::Float64)
+    println("afterOptBLAll: checking if currT has gamma(z) = 0.0(1.0)")
     currloglik = currT.loglik
     currT.blacklist = Int64[];
-    success,flagh,flagt,flaghz = afterOptBLRepeat!(currT,d,N,close,origin)
-    backCurrT0 = false
-    movedown = false
-    if(!success) #tried to change something but failed
-        warn("did not change anything inside afterOptBL: could be nothing needed change or tried but couldn't anymore. flagh, flagt, flaghz = $([flagh,flagt,flaghz])")
-        if(all([flagh,flagt,flaghz]))
+    origin = (rand() > 0.5) #true=moveOrigin, false=moveTarget
+    startover = true
+    N2 = N > 5 ? N/5 : 1 #num of failures of badlik around a gamma=0.0
+    while(startover)
+        println("gets inside while startover")
+        badliks = 0
+        if(currT.loglik < M*ftolAbs) #curr loglik already close to 0.0
             startover = false
-        elseif(!flagh || !flaghz)
-            movedown = true
-            startover = true
-        elseif(!flagt)
-            startover = false
-        end
-    else #changed something
-        warn("changed something inside afterOptBL: flagh, flagt, flaghz = $([flagh,flagt,flaghz]). oldloglik $(currloglik), newloglik $(currT.loglik)")
-        if(currT.loglik > currloglik)
-            startover = true
-            backCurrT0 = true
         else
-            if(all([flagh,flagt,flaghz]))
-                startover = false
-            elseif(!flagh || !flaghz)
-                startover = true
-            elseif(!flagt)
-                startover = false
+            backCurrT0 = false
+            while(badliks < N2) #will try a few options around currT
+                println("gets inside the while of badliks<N2")
+                currT0 = deepcopy(currT)
+                origin = !origin #to guarantee not going back to previous topology
+                success,flagh,flagt,flaghz = afterOptBLRepeat!(currT,d,N,failures,close,origin)
+                println("inside afterOptBLAll, after afterOptBLRepeat once we get: success, flags: $([success,flagh,flagt,flaghz])")
+                if(!success) #tried to change something but failed
+                    warn("did not change anything inside afterOptBL: could be nothing needed change or tried but couldn't anymore. flagh, flagt, flaghz = $([flagh,flagt,flaghz])")
+                    if(all([flagh,flagt,flaghz])) #currT was ok
+                        startover = false
+                    elseif(!flagh || !flaghz) #currT was bad but could not change it, need to go down a level
+                        !isTree(currT) || error("afterOptBL should not give reject=true for a tree")
+                        warn("current topology has numerical parameters that are not valid: gamma=0(1), gammaz=0(1); need to move down a level h-1")
+                        moveDownLevel!(currT)
+                        optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
+                        startover = true
+                    elseif(!flagt)
+                        startover = false
+                    end
+                else #changed something
+                    warn("changed something inside afterOptBL: flagh, flagt, flaghz = $([flagh,flagt,flaghz]). oldloglik $(currloglik), newloglik $(currT.loglik)")
+                    if(currT.loglik > currloglik) #|| abs(currT.loglik-currloglik) <= M*ftolAbs) #worse lik
+                        println("worse likelihood, back to currT")
+                        startover = true
+                        backCurrT0 = true
+                    else
+                        if(all([flagh,flagt,flaghz]))
+                            startover = false
+                        else
+                            startover = true
+                        end
+                    end
+                end
+                if(backCurrT0)
+                    currT = currT0
+                    startover = true
+                    badliks += 1
+                else
+                    badliks = N+1
+                end
+            end
+            if(backCurrT0) # leaves while for failed loglik
+                flagh,flagt,flaghz = isValid(currT)
+                if(!flagh || !flaghz)
+                    !isTree(currT) || error("afterOptBL should not give reject=true for a tree")
+                    warn("current topology has numerical parameters that are not valid: gamma=0(1), t=0, gammaz=0(1); need to move down a level h-1")
+                    moveDownLevel!(currT)
+                    optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
+                    startover = true
+                end
             end
         end
     end
-    if(movedown)
-        !isTree(currT) || error("afterOptBL should not give reject=true for a tree")
-        warn("current topology has numerical parameters that are not valid: gamma=0(1), t=0, gammaz=0(1); need to move down a level h-1")
-        moveDownLevel!(currT)
-        optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
-        startover = true
-    end
     currT.blacklist = Int64[];
-    return startover, backCurrT0
+    return currT
 end
 
 
@@ -677,24 +708,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, N::Int64, d::DataCF, hmax
     count = 0
     failures = 0
     optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
-    origin = (rand() > 0.5)
-    startover = true
-    while(startover)
-        currT0 = deepcopy(currT)
-        origin = !origin #to guarantee not going back to previous topology
-        startover,backCurrT0 = afterOptBLAll!(currT,d,N, failures,close,origin)
-        if(backCurrT0)
-            currT = currT0
-            flagh,flagt,flaghz = isValid(currT)
-            if(!flagh || !flaghz)
-                !isTree(currT) || error("afterOptBL should not give reject=true for a tree")
-                warn("current topology has numerical parameters that are not valid: gamma=0(1), t=0, gammaz=0(1); need to move down a level h-1")
-                moveDownLevel!(currT)
-                optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
-                startover = true
-            end
-        end
-    end
+    currT = afterOptBLAll!(currT, d, N, failures,close, M, ftolAbs)
     absDiff = M*ftolAbs + 1
     newT = deepcopy(currT)
     printEdges(newT)
@@ -710,24 +724,28 @@ function optTopLevel!(currT::HybridNetwork, M::Number, N::Int64, d::DataCF, hmax
             println("accepted proposed new topology in step $(count)")
             printEdges(newT)
             printNodes(newT)
+            println(writeTopology(newT))
             optBL!(newT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
-            println("before comparing: newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
-            if(newT.loglik < currT.loglik) #newT better loglik #fixit here: if better lik, move always, even if you have to go down level
-                #fixit finish here
+            println("OPT: comparing newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
+            if(newT.loglik < currT.loglik && abs(newT.loglik-currT.loglik) > M*ftolAbs) #newT better loglik
+                newloglik = newT.loglik
+                newT = afterOptBLAll!(newT, d, N, failures,close, M, ftolAbs)
+                println("loglik before afterOptBL $(newloglik), newT.loglik now $(newT.loglik), loss in loglik by fixing gamma(z)=0.0(1.0): $(abs(newloglik-newT.loglik))")
+                accepted = true
             else
                 accepted = false
             end
+            absDiff = abs(newT.loglik - currT.loglik)
             if(accepted)
                 println("proposed new topology with better loglik in step $(count): oldloglik=$(round(currT.loglik,3)), newloglik=$(round(newT.loglik,3)), after $(failures) failures")
-                absDiff = abs(newT.loglik - currT.loglik)
-                currT = deepcopy(newT) #fixit check all this deepcopies
+                currT = deepcopy(newT)
                 failures = 0
             else
-                println("rejected new topology with worse loglik in step $(count): currloglik=$(round(currT.loglik,3)), newloglik=$(round(newT.loglik,3))")
+                println("rejected new topology with worse loglik in step $(count): currloglik=$(round(currT.loglik,3)), newloglik=$(round(newT.loglik,3)), with $(failures) failures")
                 failures += 1
-                newT = deepcopy(currT)#fixit check all this deepcopies
+                newT = deepcopy(currT)
             end
-            printEdges(newT) #fixit: estamos en newT parados?
+            printEdges(newT)
             printNodes(newT)
             println(writeTopology(newT))
             println("ends step $(count) with absDiff $(absDiff) and failures $(failures)")
@@ -820,11 +838,13 @@ function isValid(net::HybridNetwork)
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
     nt = net.ht[net.numHybrids - net.numBad + 1 : net.numHybrids - net.numBad + k]
     nhz = net.ht[net.numHybrids - net.numBad + k + 1 : length(net.ht)]
-    return all([(n>0 && n<1) for n in nh]), all([n>0 for n in nt]), all([(n>0 && n<1) for n in nhz])
+    println("isValid on nh $(nh), nt $(nt), nhz $(nhz)")
+    return all([(0<n<1 && !approxEq(n,0.0) && !approxEq(n,1.0)) for n in nh]), all([(n>0 && !approxEq(n,0.0)) for n in nt]), all([(0<n<1 && !approxEq(n,0.0) && !approxEq(n,1.0)) for n in nhz])
 end
 
 # checks if there are problems in estimated net.ht:
 # returns flag for h, flag for t, flag for hz
 function isValid(nh::Vector{Float64},nt::Vector{Float64},nhz::Vector{Float64})
+    println("isValid on nh $(nh), nt $(nt), nhz $(nhz)")
     return all([(0<n<1 && !approxEq(n,0.0) && !approxEq(n,1.0)) for n in nh]), all([(n>0 && !approxEq(n,0.0)) for n in nt]), all([(0<n<1 && !approxEq(n,0.0) && !approxEq(n,1.0)) for n in nhz])
 end

@@ -45,8 +45,7 @@ d = readDataCF(df)
 N = 100
 M = 100
 
-@time optTopLevel!(currT,M,N,d,1,true)
-
+@time optTopLevel!(currT,M,N,d,1,false)
 # with original optBL
 # elapsed time: 347.527745834 seconds (372704328 bytes allocated, 0.06% gc time)
 # did not find right network (Case H), came back to starting point (Case G)
@@ -71,6 +70,14 @@ M = 100
 #WARNING: newT.loglik 0.09699788946913745 not really close to 0.0, you might need to redo with another starting point
 #END optTopLevel: found minimizer topology at step 100 with -loglik=0.097 and ht_min=[0.96515,0.06804,0.0846]
 
+tree = "(1,2,((4,#H-6::0.29974323628759736):0.0,((8)#H-6:0.2532215227803048::0.7002567637124026,7):0.1265313400455008):0.9651457506039909);"
+f = open("prueba_tree.txt","w")
+write(f,tree)
+close(f)
+newT = readTopologyUpdate("prueba_tree.txt");
+printEdges(newT)
+
+
 newT.ht
 
 q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
@@ -78,6 +85,12 @@ q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
 q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);
 q4 = Quartet(4,["6","10","4","8"],[0.5,0.4,0.1]);
 q5 = Quartet(5,["6","7","4","10"],[0.5,0.4,0.1]);
+
+q1 = Quartet(1,["1","4","2","7"],[0.5,0.4,0.1]);
+q2 = Quartet(2,["1","4","8","7"],[0.5,0.4,0.1]);
+q3 = Quartet(3,["8","4","2","7"],[0.5,0.4,0.1]);
+q4 = Quartet(4,["1","8","2","7"],[0.5,0.4,0.1]);
+q5 = Quartet(5,["1","4","2","8"],[0.5,0.4,0.1]);
 
 d = DataCF([q1,q2,q3,q4,q5]);
 extractQuartet!(newT,d)
