@@ -347,20 +347,28 @@ addHybridizationUpdateSmart!(net::HybridNetwork, N::Int64) = addHybridizationUpd
 # origin=true, moves origin, if false, moves target. option added to control not keep coming
 # to the same network over and over
 # returns success
-function moveHybrid!(net::HybridNetwork, edge::Edge, close::Bool, origin::Bool,N::Int64)
+# movesgama: vector of count of number of times each move is proposed to fix gamma zero situation:(add,mvorigin,mvtarget,chdir,delete,nni)
+# movesgamma[13]: total number of accepted moves by loglik
+function moveHybrid!(net::HybridNetwork, edge::Edge, close::Bool, origin::Bool,N::Int64, movesgamma::Vector{Int64})
     edge.hybrid || error("edge $(edge.number) cannot be deleted because it is not hybrid")
     node = edge.node[edge.isChild1 ? 1 : 2];
     node.hybrid || error("hybrid edge $(edge.number) pointing at tree node $(node.number)")
     println("MOVE: moving hybrid for edge $(edge.number)")
     if(close)
         if(origin)
+            movesgamma[2] += 1
             success = moveOriginUpdateRepeat!(net,node,true)
+            movesgamma[8] += success ? 1 : 0
         else
+            movesgamma[3] += 1
             success = moveTargetUpdateRepeat!(net,node,true)
+            movesgamma[9] += success ? 1 : 0
         end
     else
+        movesgamma[1] += 1
         deleteHybridizationUpdate!(net, node, true, true)
         success = addHybridizationUpdateSmart!(net,N)
+        movesgamma[7] += success ? 1 : 0
     end
     return success
 end
@@ -373,14 +381,18 @@ end
 # origin=true, moves origin, if false, moves target. option added to control not keep coming
 # to the same network over and over
 # returns success
-function gammaZero!(net::HybridNetwork, edge::Edge, close::Bool, origin::Bool, N::Int64)
+# movesgama: vector of count of number of times each move is proposed to fix gamma zero situation:(add,mvorigin,mvtarget,chdir,delete,nni)
+# movesgamma[13]: total number of accepted moves by loglik
+function gammaZero!(net::HybridNetwork, edge::Edge, close::Bool, origin::Bool, N::Int64, movesgamma::Vector{Int64})
     currTloglik = net.loglik
     edge.hybrid || error("edge $(edge.number) should be hybrid edge because it corresponds to a gamma (or gammaz) in net.ht")
     warn("gamma zero situation found for hybrid edge $(edge.number) with gamma $(edge.gamma)")
     node = edge.node[edge.isChild1 ? 1 : 2];
     node.hybrid || error("hybrid edge $(edge.number) pointing at tree node $(node.number)")
     success = changeDirectionUpdate!(net,node) #changes dir of minor
+    movesgamma[4] += 1
     if(success)
+        movesgamma[10] += 1
         optBL!(net,d,false)
         flags = isValid(net)
         if(net.loglik <= currTloglik && flags[1] && flags[3])
@@ -390,11 +402,11 @@ function gammaZero!(net::HybridNetwork, edge::Edge, close::Bool, origin::Bool, N
             warn("changing direction does not fix the gamma zero situation, need to undo change direction and move hybrid")
             success = changeDirectionUpdate!(net,node)
             success || error("strange thing, changed direction and success, but lower loglik; want to undo changeDirection, and success=false! Hybrid node is $(node.number)")
-            success2 = moveHybrid!(net,edge,close,origin,N)
+            success2 = moveHybrid!(net,edge,close,origin,N, movesgamma)
         end
     else
         warn("changing direction was not possible to fix the gamma zero situation (success=false), need to move hybrid")
-        success2 = moveHybrid!(net,edge,close,origin,N)
+        success2 = moveHybrid!(net,edge,close,origin,N,movesgamma)
     end
     return success2
 end
@@ -405,7 +417,9 @@ end
 # to the same network over and over
 # returns successchange=false if could not add new hybrid; true ow
 # returns successchange,flagh,flagt,flaghz
-function afterOptBL!(currT::HybridNetwork, d::DataCF,close::Bool, origin::Bool,verbose::Bool, N::Int64)
+# movesgama: vector of count of number of times each move is proposed to fix gamma zero situation:(add,mvorigin,mvtarget,chdir,delete,nni)
+# movesgamma[13]: total number of accepted moves by loglik
+function afterOptBL!(currT::HybridNetwork, d::DataCF,close::Bool, origin::Bool,verbose::Bool, N::Int64, movesgamma::Vector{Int64})
     !isTree(currT) || return false,true,true,true
     nh = currT.ht[1 : currT.numHybrids - currT.numBad]
     k = sum([e.istIdentifiable ? 1 : 0 for e in currT.edge])
@@ -423,7 +437,7 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF,close::Bool, origin::Bool,v
             if(approxEq(nh[i],0.0) || approxEq(nh[i],1.0))
                 edge = currT.edge[indh[i]]
                 approxEq(edge.gamma,nh[i]) || error("edge $(edge.number) gamma $(edge.gamma) should match the gamma in net.ht $(nh[i]) and it does not")
-                successchange = gammaZero!(currT, edge,close,origin,N)
+                successchange = gammaZero!(currT, edge,close,origin,N,movesgamma)
                 !successchange || break
             end
         end
@@ -433,7 +447,9 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF,close::Bool, origin::Bool,v
                 edge = currT.edge[indt[i]]
                 approxEq(edge.length,nt[i]) || error("edge $(edge.number) length $(edge.length) should match the length in net.ht $(nt[i]) and it does not")
                 if(all([!n.hasHybEdge for n in edge.node]))
+                    movesgamma[6] += 1
                     successchange = NNI!(currT,edge)
+                    movesgamma[12] += successchange ? 1 : 0
                     !successchange || break
                 else
                     println("MOVE: need NNI on edge $(edge.number) because length is $(edge.length), but edge is attached to nodes that have hybrid edges")
@@ -449,7 +465,7 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF,close::Bool, origin::Bool,v
                 approxEq(nodehz.gammaz,nhz[i]) || error("nodehz $(nodehz.number) gammaz $(nodehz.gammaz) should match the gammaz in net.ht $(nhz[i]) and it does not")
                 edges = hybridEdges(nodehz)
                 edges[1].hybrid || error("bad diamond I situation, node $(nodehz.number) has gammaz $(nodehz.gammaz) so should be linked to hybrid edge, but it is not")
-                successchange = gammaZero!(currT,edges[1],close,origin,N)
+                successchange = gammaZero!(currT,edges[1],close,origin,N,movesgamma)
                 break
             elseif(approxEq(nhz[i],1.0))
                 approxEq(nhz[i+1],0.0) || error("gammaz for node $(currT.node[indhz[i]].number) is $(nhz[i]) but the other gammaz is $(nhz[i+1]), the sum should be less than 1.0")
@@ -457,7 +473,7 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF,close::Bool, origin::Bool,v
                 approxEq(nodehz.gammaz,nhz[i+1]) || error("nodehz $(nodehz.number) gammaz $(nodehz.gammaz) should match the gammaz in net.ht $(nhz[i+1]) and it does not")
                 edges = hybridEdges(nodehz)
                 edges[1].hybrid || error("bad diamond I situation, node $(nodehz.number) has gammaz $(nodehz.gammaz) so should be linked to hybrid edge, but it is not")
-                successchange = gammaZero!(currT,edges[1],close,origin,N)
+                successchange = gammaZero!(currT,edges[1],close,origin,N,movesgamma)
                 break
             else
                 if(approxEq(nhz[i+1],0.0))
@@ -465,7 +481,7 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF,close::Bool, origin::Bool,v
                     approxEq(nodehz.gammaz,nhz[i+1]) || error("nodehz $(nodehz.number) gammaz $(nodehz.gammaz) should match the gammaz in net.ht $(nhz[i+1]) and it does not")
                     edges = hybridEdges(nodehz);
                     edges[1].hybrid || error("bad diamond I situation, node $(nodehz.number) has gammaz $(nodehz.gammaz) so should be linked to hybrid edge, but it is not")
-                    successchange = gammaZero!(currT,edges[1],close,origin,N)
+                    successchange = gammaZero!(currT,edges[1],close,origin,N,movesgamma)
                     break
                 elseif(approxEq(nhz[i+1],1.0))
                     error("gammaz for node $(currT.node[indhz[i]].number) is $(nhz[i]) but the other gammaz is $(nhz[i+1]), the sum should be less than 1.0")
@@ -489,15 +505,16 @@ end
 # N: number of times it will delete/add hybrid if close=false
 # origin=true, moves origin, if false, moves target. option added to control not keep coming
 # to the same network over and over
-function afterOptBLRepeat!(currT::HybridNetwork, d::DataCF, N::Int64, failures::Int64,close::Bool, origin::Bool, verbose::Bool)
-    success,flagh,flagt,flaghz = afterOptBL!(currT,d,close,origin,verbose,N)
-    println("inside afterOptBLRepeat, after afterOptBL once we get: success, flags: $([success,flagh,flagt,flaghz])")
+# movesgama: vector of count of number of times each move is proposed to fix gamma zero situation:(add,mvorigin,mvtarget,chdir,delete,nni)
+# movesgamma[13]: total number of accepted moves by loglik
+function afterOptBLRepeat!(currT::HybridNetwork, d::DataCF, N::Int64,close::Bool, origin::Bool, verbose::Bool, movesgamma::Vector{Int64})
+    success,flagh,flagt,flaghz = afterOptBL!(currT,d,close,origin,verbose,N, movesgamma)
+    println("inside afterOptBLRepeat, after afterOptBL once, we get: success, flags: $([success,flagh,flagt,flaghz])")
     if(!close)
         println("close is $(close), and gets inside the loop for repeating afterOptBL")
         i = 1
         while(success && !all([flagh,flagt,flaghz]) && i<N) #fixit: do we want to check loglik in this step also?
-            failures += 1
-            success,flagh,flagt,flaghz = afterOptBL!(currT,d,close,origin,verbose,N)
+            success,flagh,flagt,flaghz = afterOptBL!(currT,d,close,origin,verbose,N,movesgamma)
             i += 1
         end
         i < N || warn("tried afterOptBL $(i) times")
@@ -515,7 +532,10 @@ end
 # close=true will try move origin/target, if false, will delete/add new hybrid
 # default is close=true
 # returns new approved currT (no gammas=0.0)
-function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64, failures::Int64,close::Bool, M::Number, ftolAbs::Float64, verbose::Bool)
+# N: number of times failures of accepting loglik is allowed, M: multiplier for loglik tolerance (M*ftolAbs)
+# movesgama: vector of count of number of times each move is proposed to fix gamma zero situation:(add,mvorigin,mvtarget,chdir,delete,nni)
+# movesgamma[13]: total number of accepted moves by loglik
+function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,close::Bool, M::Number, ftolAbs::Float64, verbose::Bool, movesgamma::Vector{Int64})
     println("afterOptBLAll: checking if currT has gamma(z) = 0.0(1.0): currT.ht $(currT.ht)")
     currloglik = currT.loglik
     currT.blacklist = Int64[];
@@ -523,17 +543,15 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64, failures::Int
     startover = true
     N2 = N > 5 ? N/5 : 1 #num of failures of badlik around a gamma=0.0
     while(startover)
-        #println("gets inside while startover")
         badliks = 0
         if(currT.loglik < M*ftolAbs) #curr loglik already close to 0.0
             startover = false
         else
             backCurrT0 = false
             while(badliks < N2) #will try a few options around currT
-                #println("gets inside the while of badliks<N2")
                 currT0 = deepcopy(currT)
                 origin = !origin #to guarantee not going back to previous topology
-                success,flagh,flagt,flaghz = afterOptBLRepeat!(currT,d,N,failures,close,origin,verbose)
+                success,flagh,flagt,flaghz = afterOptBLRepeat!(currT,d,N,close,origin,verbose,movesgamma)
                 println("inside afterOptBLAll, after afterOptBLRepeat once we get: success, flags: $([success,flagh,flagt,flaghz])")
                 if(!success) #tried to change something but failed
                     warn("did not change anything inside afterOptBL: could be nothing needed change or tried but couldn't anymore. flagh, flagt, flaghz = $([flagh,flagt,flaghz])")
@@ -558,6 +576,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64, failures::Int
                         startover = true
                         backCurrT0 = true
                     else
+                        movesgamma[13] += 1
                         if(all([flagh,flagt,flaghz]))
                             startover = false
                         else
@@ -574,10 +593,13 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64, failures::Int
                 end
             end
             if(backCurrT0) # leaves while for failed loglik
+                warn("tried to fix gamma zero situation for $(badliks) times and could not")
                 flagh,flagt,flaghz = isValid(currT)
                 if(!flagh || !flaghz)
                     !isTree(currT) || error("afterOptBL should not give reject=true for a tree")
                     warn("current topology has numerical parameters that are not valid: gamma=0(1), t=0, gammaz=0(1); need to move down a level h-1")
+                    movesgamma[5] += 1
+                    movesgamma[11] += 1
                     moveDownLevel!(currT)
                     printEdges(currT)
                     printNodes(currT)
@@ -749,10 +771,11 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     Nfail > 0 || error("Nfail must be greater than zero: $(Nfail)")
     Nmov > 0 || error("Nmov must be greater than zero: $(Nmov)")
     count = 0
-    movescount = rep(0,18) #first 6: number of times moved proposed, second 6: number of times success move (no intersecting cycles, etc.), third 6: accepted by loglik
+    movescount = rep(0,18) #1:6 number of times moved proposed, 7:12 number of times success move (no intersecting cycles, etc.), 13:18 accepted by loglik
+    movesgamma = rep(0,13) #number of moves to fix gamma zero: proposed, successful, movesgamma[13]: total accepted by loglik
     failures = 0
     optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
-    currT = afterOptBLAll!(currT, d, Nmov, failures,close, M, ftolAbs, verbose)
+    currT = afterOptBLAll!(currT, d, Nmov,close, M, ftolAbs, verbose,movesgamma)
     absDiff = M*ftolAbs + 1
     newT = deepcopy(currT)
     printEdges(newT)
@@ -773,7 +796,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             println("OPT: comparing newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
             if(newT.loglik < currT.loglik && abs(newT.loglik-currT.loglik) > M*ftolAbs) #newT better loglik
                 newloglik = newT.loglik
-                newT = afterOptBLAll!(newT, d, Nmov, failures,close, M, ftolAbs,verbose)
+                newT = afterOptBLAll!(newT, d, Nmov,close, M, ftolAbs,verbose,movesgamma)
                 println("loglik before afterOptBL $(newloglik), newT.loglik now $(newT.loglik), loss in loglik by fixing gamma(z)=0.0(1.0): $(abs(newloglik-newT.loglik))")
                 accepted = true
             else
@@ -800,11 +823,18 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         println("found best network, now we re-optimize branch lengths and gamma more precisely")
         optBL!(newT,d,verbose,1e-12,1e-10,1e-10,1e-10)
     end
-    if(newT.loglik > M*ftolAbs) #not really close to 0.0, based on absTol also
-        warn("newT.loglik $(newT.loglik) not really close to 0.0, you might need to redo with another starting point")
+    if(absDiff <= M*ftolAbs)
+        println("STOPPED by absolute difference criteria")
+    elseif(currT.loglik <= M*ftolAbs)
+        println("STOPPED by loglik close to zero criteria")
+    else
+        println("STOPPED by number of failures criteria")
     end
-    println("END optTopLevel: found minimizer topology at step $(count) with -loglik=$(round(newT.loglik,5)) and ht_min=$(round(newT.ht,5))")
-    println("movescount (add,mvorigin,mvtarget,chdir,delete,nni) proposed: $(movescount[1:6]); successful: $(movescount[7:12]); accepted by loglik: $(movescount[13:18])")
+    if(newT.loglik > M*ftolAbs) #not really close to 0.0, based on absTol also
+        warn("newT.loglik $(newT.loglik) not really close to 0.0 based on loglik abs. tol. $(M*ftolAbs), you might need to redo with another starting point")
+    end
+    println("END optTopLevel: found minimizer topology at step $(count) (failures: $(failures)) with -loglik=$(round(newT.loglik,5)) and ht_min=$(round(newT.ht,5))")
+    printCounts(movescount,movesgamma)
     printEdges(newT)
     printNodes(newT)
     println(writeTopology(newT))
@@ -813,6 +843,27 @@ end
 
 optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false,true,numMoves)
 optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Int64, verbose::Bool) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, verbose,true,numMoves)
+
+# function to print count of number of moves after optTopLeve
+function printCounts(movescount::Vector{Int64}, movesgamma::Vector{Int64})
+    length(movescount) == 18 || error("movescount should have length 18, not $(length(movescount))")
+    length(movesgamma) == 13 || error("movesgamma should have length 13, not $(length(movescount))")
+    println("PERFORMANCE: total number of moves (proposed, successful, accepted) in general, and to fix gamma=0.0,t=0.0 cases")
+    println("\t--------moves general--------\t\t\t\t --------moves gamma--------\t")
+    println("move\t Num.Proposed\t Num.Successful\t Num.Accepted\t | Num.Proposed\t Num.Successful\t Num.Accepted")
+    names = ["add","mvorigin","mvtarget","chdir","delete","nni"]
+    for(i in 1:6)
+        if(i == 2 || i == 3)
+            println("$(names[i])\t $(movescount[i])\t\t $(movescount[i+6])\t\t $(movescount[i+12])\t |\t $(movesgamma[i])\t\t $(movesgamma[i+6])\t\t --")
+        else
+            println("$(names[i])\t\t $(movescount[i])\t\t $(movescount[i+6])\t\t $(movescount[i+12])\t |\t $(movesgamma[i])\t\t $(movesgamma[i+6])\t\t --")
+        end
+    end
+    suma = sum(movescount[1:6]);
+    suma2 = sum(movesgamma[1:6]) == 0 ? 1 : sum(movesgamma[1:6])
+    println("Total\t\t $(sum(movescount[1:6]))\t\t $(sum(movescount[7:12]))\t\t $(sum(movescount[13:18]))\t |\t $(sum(movesgamma[1:6]))\t\t $(sum(movesgamma[7:12]))\t\t $(movesgamma[13])")
+    println("Proportion\t $(round(sum(movescount[1:6])/suma,1))\t\t $(round(sum(movescount[7:12])/suma,1))\t\t $(round(sum(movescount[13:18])/suma,1))\t |\t $(round(sum(movesgamma[1:6])/suma2,1))\t\t $(round(sum(movesgamma[7:12])/suma2,1))\t\t $(round(movesgamma[13]/suma2,1))")
+end
 
 # function to move down onw level to h-1
 # caused by gamma=0,1 or gammaz=0,1
@@ -884,13 +935,13 @@ function isValid(net::HybridNetwork)
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
     nt = net.ht[net.numHybrids - net.numBad + 1 : net.numHybrids - net.numBad + k]
     nhz = net.ht[net.numHybrids - net.numBad + k + 1 : length(net.ht)]
-    println("isValid on nh $(nh), nt $(nt), nhz $(nhz)")
+    #println("isValid on nh $(nh), nt $(nt), nhz $(nhz)")
     return all([(0<n<1 && !approxEq(n,0.0) && !approxEq(n,1.0)) for n in nh]), all([(n>0 && !approxEq(n,0.0)) for n in nt]), all([(0<n<1 && !approxEq(n,0.0) && !approxEq(n,1.0)) for n in nhz])
 end
 
 # checks if there are problems in estimated net.ht:
 # returns flag for h, flag for t, flag for hz
 function isValid(nh::Vector{Float64},nt::Vector{Float64},nhz::Vector{Float64})
-    println("isValid on nh $(nh), nt $(nt), nhz $(nhz)")
+    #println("isValid on nh $(nh), nt $(nt), nhz $(nhz)")
     return all([(0<n<1 && !approxEq(n,0.0) && !approxEq(n,1.0)) for n in nh]), all([(n>0 && !approxEq(n,0.0)) for n in nt]), all([(0<n<1 && !approxEq(n,0.0) && !approxEq(n,1.0)) for n in nhz])
 end

@@ -105,12 +105,8 @@ printEdges(currT)
 df = readtable("CaseH_output.csv")
 d = readDataCF(df)
 
+@time optTopLevel!(currT,d,1,false)
 
-epsilon = eps()
-N = 100
-M = 100
-
-@time newT = optTopLevel!(currT,M,N,d,1);
 printEdges(newT)
 
 
@@ -125,12 +121,8 @@ df = readtable("CaseF_output.csv")
 d = readDataCF(df)
 
 
-epsilon = eps()
-N = 100
-M = 100
+@time optTopLevel!(currT,d,1,false)
 
-@time newT = optTopLevel!(currT,M,N,d);
-#elapsed time: 11.59461217 seconds (112302760 bytes allocated, 0.26% gc time)
 printEdges(newT)
 
 
@@ -144,10 +136,6 @@ df = readtable("CaseF_output.csv")
 d = readDataCF(df)
 
 
-epsilon = eps()
-N = 100
-M = 100
+@time optTopLevel!(currT,d,1,false)
 
-@time newT = optTopLevel!(currT,M,N,d);
-#elapsed time: 26.763174225 seconds (142165976 bytes allocated, 0.25% gc time)
 printEdges(newT)
