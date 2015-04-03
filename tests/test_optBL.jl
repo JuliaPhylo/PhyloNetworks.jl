@@ -155,12 +155,14 @@ include("../types.jl")
 include("../functions.jl")
 
 df = readtable("CaseH_output.csv")
+df = readtable("CaseH_output2.csv")
 d2 = readDataCF(df)
 
 # starting ht (gamma,t3,t5,t7)
 ht = [0.2,1.,1.,1.]
+ht = [0.05,0.0001,2.,1.] #strange case un debug18bad.txt
 
-tree = string("((((6:0.1,4:1.5):",string(ht[2]),",#H1:::",string(ht[1]),"),7:0.2):",string(ht[4]),",(8)#H1:::",string(1-ht[1]),",10:0.1);") # Case H
+tree = string("((((6:0.1,4:1.5):",string(ht[2]),",#H1:::",string(ht[1]),"):",string(ht[3]),",7:0.2):",string(ht[4]),",(8)#H1:::",string(1-ht[1]),",10:0.1);") # Case H
 f = open("prueba_tree.txt","w")
 write(f,tree)
 close(f)
@@ -204,6 +206,20 @@ realht = [0.1,0.1,1.,0.1]
 @time optBL!(net,d2,false,1e-5,1e-6,1e-3,1e-4)
 #got 1.0e-5 at [0.10054,0.10558,0.99394,0.10022] after 25 iterations (returned FTOL_REACHED)
 #elapsed time: 0.013228257 seconds (2226504 bytes allocated)
+
+# from debug18bad
+tree = string("(4,6,(#H2:0.7392085405544356::0.046179825120885414,(7,(10,(8)#H2:0.0::0.9538201748791146):0.9803511144374873):2.212878358589699):0.00000038687);")
+f = open("prueba_tree.txt","w")
+write(f,tree)
+close(f)
+net = readTopologyUpdate("prueba_tree.txt");
+printEdges(net)
+
+net.ht
+realht = [0.1,0.1,1.,0.1]
+
+@time optBL!(net,d2)
+
 
 # ==================================================================================================================================
 

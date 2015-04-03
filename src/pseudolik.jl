@@ -975,17 +975,19 @@ end
 # warning: assumes that quartet.qnet is already updated with extractQuartet and
 #          calculateExpCF
 function logPseudoLik(quartet::Quartet)
-    if(sum(quartet.qnet.expCF) != 0.0)
-        #println("obsCF = $(quartet.obsCF), expCF = $(quartet.qnet.expCF)")
-        suma = 0
-        for(i in 1:3)
+    sum(quartet.qnet.expCF) != 0.0 || error("expCF not updated for quartet $(quartet.number)")
+    #println("obsCF = $(quartet.obsCF), expCF = $(quartet.qnet.expCF)")
+    suma = 0
+    for(i in 1:3)
+        if(quartet.qnet.expCF[i] < 0)
+            warn("found expCF negative $(quartet.qnet.expCF[i]), will set loglik=-100")
+            suma += -100
+        else
             suma += 100*quartet.obsCF[i]*log(quartet.qnet.expCF[i]/quartet.obsCF[i])
         end
-        quartet.logPseudoLik = suma
-        return suma
-    else
-        error("expCF not updated for quartet $(quartet.number)")
     end
+    quartet.logPseudoLik = suma
+    return suma
 end
 
 # function to calculate the -log pseudolikelihood function for array of

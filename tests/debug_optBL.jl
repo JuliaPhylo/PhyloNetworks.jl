@@ -43,7 +43,7 @@ d2 = readDataCF(df2)
 
 # starting ht (gamma,t4,t5,t9)
 ht = [0.1,1.,1.,1.]
-ht = [0.3,10.,10.,1.] # crashes!
+ht = [0.3,10.,10.,1.] # crashed, with check inside logPseudoLik, does not crash!
 
 tree = string("(((6:0.1,(4)11#H1:::",string(1-ht[1]),")1:",string(ht[3]),",(11#H1:::",string(ht[1]),",7))5:",string(ht[4])",8:0.1,10:0.1);") # Case F: bad diamond I
 f = open("prueba_tree.txt","w")
@@ -56,7 +56,7 @@ net.ht
 realht1 = [0.1,0.127,0.0285]
 realht2 = [1.1,0.49,0.2]
 
-@time optBL!(net,d2,true)
+@time optBL!(net,d,true)
 
 # ----------------- NLopt example website -----------------------
 # to do here: put website example and change starting point to close to the boundary

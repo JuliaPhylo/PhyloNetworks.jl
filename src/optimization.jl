@@ -158,7 +158,7 @@ function update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork)
             length(qnet.indexht) == 2 || error("strange qnet from bad diamond I with hybrid node, it should have only 2 elements: gammaz1,gammaz2, not $(length(qnet.indexht))")
             for(i in 1:2)
                 0 <= x[qnet.indexht[i]] <= 1 || error("new gammaz value should be between 0,1: $(x[qnet.indexht[i]]).")
-                x[qnet.indexht[1]] + x[qnet.indexht[2]] <= 1 || error("new gammaz should add to less than 1: $(x[qnet.indexht[1]] + x[qnet.indexht[2]])")
+                x[qnet.indexht[1]] + x[qnet.indexht[2]] <= 1 || warn("new gammaz should add to less than 1: $(x[qnet.indexht[1]] + x[qnet.indexht[2]])")
                 qnet.node[qnet.index[i]].gammaz = x[qnet.indexht[i]]
             end
         else
@@ -283,6 +283,7 @@ function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool, ftolRel::Float64, 
         end
         NLopt.inequality_constraint!(opt,inequalityGammaz)
     end
+    println("OPTBL: starting point $(ht)")
     fmin, xmin, ret = NLopt.optimize(opt,ht)
     println("got $(round(fmin,5)) at $(round(xmin,5)) after $(count) iterations (returned $(ret))")
     updateParameters!(net,xmin)
@@ -571,7 +572,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,close::Bool, M
                     printEdges(currT)
                     printNodes(currT)
                     println(writeTopology(currT))
-                    if(currT.loglik > currloglik) #|| abs(currT.loglik-currloglik) <= M*ftolAbs) #worse lik
+                    if(currT.loglik > currloglik) #|| abs(currT.loglik-currloglik) <= M*ftolAbs) #fixit
                         println("worse likelihood, back to currT")
                         startover = true
                         backCurrT0 = true
@@ -727,7 +728,7 @@ end
 # count to know in which step we are, N for NNI trials
 # order in movescount as in IF here (add,mvorigin,mvtarget,chdir,delete,nni)
 function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::Int64, N::Int64, movescount::Vector{Int64})
-    1 <= move <= 6 || error("invalid move $(move)")
+    1 <= move <= 6 || error("invalid move $(move)") #fixit: if previous move rejected, do not redo it!
     println("current move: $(int2move[move])")
     if(move == 1)
         success = addHybridizationUpdateSmart!(newT,N)
@@ -802,8 +803,8 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             else
                 accepted = false
             end
-            absDiff = abs(newT.loglik - currT.loglik)
             if(accepted)
+                absDiff = abs(newT.loglik - currT.loglik)
                 println("proposed new topology with better loglik in step $(count): oldloglik=$(round(currT.loglik,3)), newloglik=$(round(newT.loglik,3)), after $(failures) failures")
                 currT = deepcopy(newT)
                 failures = 0
@@ -816,7 +817,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             printEdges(newT)
             printNodes(newT)
             println(writeTopology(newT))
-            println("ends step $(count) with absDiff $(absDiff) and failures $(failures)")
+            println("ends step $(count) with absDiff $(accepted? absDiff : 0.0) and failures $(failures)")
         end
     end
     if(ftolAbs > 1e-7 || ftolRel > 1e-7 || xtolAbs > 1e-7 || xtolRel > 1e-7)

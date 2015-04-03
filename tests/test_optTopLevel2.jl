@@ -57,27 +57,24 @@ printEdges(currT)
 df = readtable("CaseH_output2.csv")
 d = readDataCF(df)
 
-epsilon = eps()
-N = 100
+@time optTopLevel!(currT,d,1,false)
 
-@time optTopLevel!(currT,epsilon,N,d,1)
-try
-    @time newT = optTopLevel!(currT,epsilon,N,d,1);
-catch(e)
-    println(e)
-end
+
+tree = string("(1,2,((7,(8)#H5:5.814544267883624):0.9977876663423212,(#H5:1.0,4):0.0):1.9430580774498776);")
+f = open("prueba_tree.txt","w")
+write(f,tree)
+close(f)
+newT = readTopologyUpdate("prueba_tree.txt");
+
 printEdges(newT)
-# with afterOptBLAll
-#elapsed time: 3.727836428 seconds (199955596 bytes allocated, 3.19% gc time)
-#WARNING: newT.loglik 1.533449204376918 not really close to 0.0, you might need to redo with another starting point
 
 newT.ht
 
-q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
-q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
-q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);
-q4 = Quartet(4,["6","10","4","8"],[0.5,0.4,0.1]);
-q5 = Quartet(5,["6","7","4","10"],[0.5,0.4,0.1]);
+q1 = Quartet(1,["1","4","2","7"],[0.5,0.4,0.1]);
+q2 = Quartet(2,["1","4","8","7"],[0.5,0.4,0.1]);
+q3 = Quartet(3,["8","4","2","7"],[0.5,0.4,0.1]);
+q4 = Quartet(4,["1","8","2","7"],[0.5,0.4,0.1]);
+q5 = Quartet(5,["1","4","2","8"],[0.5,0.4,0.1]);
 
 d = DataCF([q1,q2,q3,q4,q5]);
 extractQuartet!(newT,d)
@@ -95,12 +92,31 @@ printEdges(currT)
 df = readtable("CaseH_output2.csv")
 d = readDataCF(df)
 
+@time optTopLevel!(currT,d,1,false)
 
-epsilon = eps()
-N = 100
+tree = string("(4,6,(#H2:0.7392085405544356::0.046179825120885414,(7,(10,(8)#H2:0.0::0.9538201748791146):0.9803511144374873):2.212878358589699):0.00000073506);")
+f = open("prueba_tree.txt","w")
+write(f,tree)
+close(f)
+newT = readTopologyUpdate("prueba_tree.txt");
 
-@time newT = optTopLevel!(currT,epsilon,d,1);
 printEdges(newT)
+
+#include("../examples/case_h_example2.jl");
+newT.ht
+
+q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
+q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
+q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);
+q4 = Quartet(4,["6","10","4","8"],[0.5,0.4,0.1]);
+q5 = Quartet(5,["6","7","4","10"],[0.5,0.4,0.1]);
+
+dd = DataCF([q1,q2,q3,q4,q5]);
+extractQuartet!(newT,dd)
+
+wrongdf = writeExpCF(d.quartet)
+writetable("CaseH2_output_wrong_optTop_startCaseF.csv",wrongdf)
+
 #elapsed time: 4.236802192 seconds (274215268 bytes allocated, 4.26% gc time)
 #WARNING: newT.loglik 1.4887847814495139 not really close to 0.0, you might need to redo with another starting point
 
@@ -126,15 +142,13 @@ printEdges(currT)
 ## writetable("CaseF_output2.csv",df)
 
 # real network: Case F
+df = readtable("CaseF_output.csv")
 df = readtable("CaseF_output2.csv")
 d = readDataCF(df)
 
 
-epsilon = eps()
-N = 100
+@time optTopLevel!(currT,d,1,false)
 
-@time newT = optTopLevel!(currT,epsilon,N,d);
-#elapsed time: 11.59461217 seconds (112302760 bytes allocated, 0.26% gc time)
 printEdges(newT)
 
 
@@ -145,12 +159,10 @@ printEdges(currT)
 
 # real network: Case F
 df = readtable("CaseF_output.csv")
+df = readtable("CaseF_output2.csv")
 d = readDataCF(df)
 
 
-epsilon = eps()
-N = 100
+@time optTopLevel!(currT,d,1,false)
 
-@time newT = optTopLevel!(currT,epsilon,N,d);
-#elapsed time: 26.763174225 seconds (142165976 bytes allocated, 0.25% gc time)
 printEdges(newT)
