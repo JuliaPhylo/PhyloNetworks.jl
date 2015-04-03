@@ -64,65 +64,122 @@ end
 
 
 # function to change the direction of a hybrid edge
-# input: hybrid node, network
+# input: hybrid node, network, isminor=true: changes dir of minor edge
 # warning: it assumes that undoGammaz has been run before
 #          and that the new hybridization has been
 #          approved by the containRoot criterion
-# warning: it can only move direction of minor edge
-#          because ow the minor hybrid edge becomes
-#          tree edge (gamma=1.0)
 # warning: it needs incycle attributes
 # returns flag of whether it needs update gammaz
-#         and new hybrid node
-function changeDirection!(node::Node, net::HybridNetwork)
+function changeDirection!(node::Node, net::HybridNetwork, isminor::Bool)
     node.hybrid || error("node $(node.number) is not hybrid, so we cannot change the direction of the hybrid edge")
     major,minor,tree = hybridEdges(node);
     othermin = getOtherNode(minor,node);
     othermaj = getOtherNode(major,node);
-    gamma = major.gamma
-    makeEdgeTree!(major,node)
-    edgebla,treecycle,edgebla = hybridEdges(othermin);
-    update = exchangeHybridNode!(net,node,othermin)
-    minor.isChild1 = minor.isChild1 ? false : true
-    makeEdgeHybrid!(treecycle,othermin,gamma)
-    if(othermin.k > 3)
-        othermaj.hasHybEdge = false
+    othertree = getOtherNode(tree,node);
+    if(isminor)
+        edgebla,edgemin1,edgemin2 = hybridEdges(othermin);
+        nodemin1 = getOtherNode(edgemin1,othermin)
+        nodemin2 = getOtherNode(edgemin2,othermin)
+        removeEdge!(nodemin1,edgemin1)
+        removeEdge!(nodemin2,edgemin2)
+        removeEdge!(othermaj,major)
+        removeEdge!(othertree,tree)
+        removeNode!(nodemin1,edgemin1)
+        removeNode!(nodemin2,edgemin2)
+        removeNode!(othermaj,major)
+        removeNode!(othertree,tree)
+        setNode!(edgemin1,othermaj)
+        setNode!(major,nodemin1)
+        setNode!(edgemin2,othertree)
+        setNode!(tree,nodemin2)
+        setEdge!(othermaj,edgemin1)
+        setEdge!(nodemin1,major)
+        setEdge!(othertree,edgemin2)
+        setEdge!(nodemin2,tree)
+        tmajor = major.length
+        ttree = tree.length
+        tedmin1 = edgemin1.length
+        tedmin2 = edgemin2.length
+        setLength!(major,tedmin1)
+        setLength!(tree,tedmin2)
+        setLength!(edgemin1,tmajor)
+        setLength!(edgemin2,ttree)
+    else
+        edgebla,edgemaj1,edgemaj2 = hybridEdges(othermaj);
+        nodemaj1 = getOtherNode(edgemaj1,othermaj)
+        nodemaj2 = getOtherNode(edgemaj2,othermaj)
+        removeEdge!(nodemaj1,edgemaj1)
+        removeEdge!(nodemaj2,edgemaj2)
+        removeEdge!(othermin,minor)
+        removeEdge!(othertree,tree)
+        removeNode!(nodemaj1,edgemaj1)
+        removeNode!(nodemaj2,edgemaj2)
+        removeNode!(othermin,minor)
+        removeNode!(othertree,tree)
+        setNode!(edgemaj1,othermin)
+        setNode!(minor,nodemaj1)
+        setNode!(edgemaj2,othertree)
+        setNode!(tree,nodemaj2)
+        setEdge!(othermin,edgemaj1)
+        setEdge!(nodemaj1,minor)
+        setEdge!(othertree,edgemaj2)
+        setEdge!(nodemaj2,tree)
+        tminor = minor.length
+        ttree = tree.length
+        tedmaj1 = edgemaj1.length
+        tedmaj2 = edgemaj2.length
+        setLength!(minor,tedmaj1)
+        setLength!(tree,tedmaj2)
+        setLength!(edgemaj1,tminor)
+        setLength!(edgemaj2,ttree)
     end
-    return update,othermin
+    if(node.isBadDiamondI || node.isBadDiamondII)
+        node.isBadDiamondI = false
+        node.isBadDiamondII = false
+        return false
+    elseif(node.isBadTriangle)
+        return false
+    end
+    return true
 end
+
+changeDirection!(node::Node, net::HybridNetwork) = changeDirection!(node, net, true)
 
 # function to change the direction of the minor hybrid edge
 # and update necessary stepts before and after
-# input: hybrid node and network
-# returns success, and new hybrid if different from node (success=true)
+# input: hybrid node and network, random=false, changes dir of minor edge always
+# returns success
 # if success=false, it undoes the change direction
-function changeDirectionUpdate!(net::HybridNetwork,node::Node)
+function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
     node.hybrid || error("cannot change the direction of minor hybrid edge since node $(node.number) is not hybrid")
-    println("change direction around hybrid node $(node.number) ------- ")
     undoGammaz!(node,net)
     edgesRoot = identifyContainRoot(net,node);
     undoContainRoot!(edgesRoot);
-    update,hybrid = changeDirection!(node,net)
-    if(hybrid.k == 3)
-        flag2, edgesgammaz = updateGammaz!(net,hybrid)
-    elseif(hybrid.k == 4 && update)
-        flag2, edgesgammaz = updateGammaz!(net,hybrid)
+    if(random)
+        edges = hybridEdges(node)
+        edges[1].hybrid || error("hybrid node $(node.number) has as major edge a tree edge $(edges[1].number)")
+        edges[1].gamma > 0.5 || error("major hybrid edge $(edges[1].number) has gamma less than 0.5: $(edges[1].gamma)")
+        minor = rand() < edges[1].gamma
+    else
+        minor = true
+    end
+    println("change direction around hybrid node $(node.number) for minor $(minor)------- ")
+    update = changeDirection!(node,net,minor)
+    if(node.k == 4 && update)
+        flag2, edgesgammaz = updateGammaz!(net,node)
     else
         flag2 = true
     end
     if(flag2)
-        flag3,edgesroot = updateContainRoot!(net,hybrid);
+        flag3,edgesroot = updateContainRoot!(net,node);
         if(flag3)
             println("change direction around hybrid node $(node.number) SUCCESSFUL")
-            return true, hybrid
+            return true
         else
-            hybrid.isBadDiamondI || undoGammaz!(hybrid,net)
+            node.isBadDiamondI || undoGammaz!(node,net)
             undoContainRoot!(edgesroot)
-            update, hybrid2 = changeDirection!(hybrid,net);
-            isEqual(hybrid2,node) || error("when undoing change direction, we should have the same node as we started with: node $(node.number), hybrid2 $(hybrid.number)")
-            if(node.k == 3)
-                flag2, edgesgammaz = updateGammaz!(net,node)
-            elseif(node.k == 4 && update)
+            update = changeDirection!(node,net,minor);
+            if(node.k == 4 && update)
                 flag2, edgesgammaz = updateGammaz!(net,node)
             else
                 flag2 = true
@@ -130,15 +187,12 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node)
             flag2 || error("when undoing change direction, we should be able to update gammaz again")
             undoContainRoot!(edgesRoot);
             println("change direction around hybrid node $(node.number) FAILED because of containRoot")
-            return false, nothing
+            return false
         end
     else
-        hybrid.isBadDiamondI || undoGammaz!(hybrid,net)
-        update, hybrid2 = changeDirection!(hybrid,net);
-        isEqual(hybrid2,node) || error("when undoing change direction, we should have the same node as we started with: node $(node.number), hybrid2 $(hybrid.number)")
-        if(node.k == 3)
-            flag2, edgesgammaz = updateGammaz!(net,node)
-        elseif(node.k == 4 && update)
+        node.isBadDiamondI || undoGammaz!(node,net)
+        update = changeDirection!(node,net,minor);
+        if(node.k == 4 && update)
             flag2, edgesgammaz = updateGammaz!(net,node)
         else
             flag2 = true
@@ -146,9 +200,11 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node)
         flag2 || error("when undoing change direction, we should be able to update gammaz again")
         undoContainRoot!(edgesRoot); #redo containRoot as before
         println("change direction around hybrid node $(node.number) FAILED because of gammaz")
-        return false, nothing
+        return false
     end
 end
+
+changeDirectionUpdate!(net::HybridNetwork,node::Node) = changeDirectionUpdate!(net,node, false)
 
 # ------------------------- move origin of hybrid edge ---------------------------------
 

@@ -42,10 +42,7 @@ df = readtable("CaseH_output.csv")
 d = readDataCF(df)
 
 
-N = 100
-M = 100
-
-@time optTopLevel!(currT,M,N,d,1,false)
+@time optTopLevel!(currT,d,1,false)
 # with original optBL
 # elapsed time: 347.527745834 seconds (372704328 bytes allocated, 0.06% gc time)
 # did not find right network (Case H), came back to starting point (Case G)

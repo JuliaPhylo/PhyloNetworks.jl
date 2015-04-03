@@ -3,7 +3,7 @@
 
 # ------------------5taxon network 1 hybridization-----------------
 # starting topology: Case G
-include("../case_g_example.jl");
+include("../examples/case_g_example.jl");
 currT = deepcopy(net);
 printEdges(currT)
 
@@ -30,6 +30,7 @@ newT.hybrid[1].k
 
 optBL!(newT,d)
 newloglik - currloglik
+changeDirectionUpdate!(newT.node[5],newT,false)
 
 currT = deepcopy(newT);
 currloglik = newloglik

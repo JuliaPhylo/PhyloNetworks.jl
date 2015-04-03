@@ -93,18 +93,20 @@ end
 # fixit: add different function to choose gamma
 # fixit: how to stop from infinite loop if there are no options
 # blacklist used for afterOptBLAll
-function chooseEdgesGamma(net::HybridNetwork, blacklist::Bool)
+# input: edges, list of edges from which to choose, default is net.edge
+# warning: if edges is not net.edge, it still need to contain Edge objects from net (not deepcopies)
+function chooseEdgesGamma(net::HybridNetwork, blacklist::Bool, edges::Vector{Edge})
     #println("net.edge length: $(length(net.edge))")
     index1 = 1;
     index2 = 1;
     inlimits = false
     inblack = true
-    while(!inlimits || net.edge[index1].inCycle != -1 || net.edge[index2].inCycle != -1 || cherry || nonidentifiable || inblack)
-        index1 = iround(rand()*size(net.edge,1));
-        index2 = iround(rand()*size(net.edge,1));
-        if(index1 != index2 && index1 != 0 && index2 != 0 && index1 <= size(net.edge,1) && index2 <= size(net.edge,1))
+    while(!inlimits || edges[index1].inCycle != -1 || edges[index2].inCycle != -1 || cherry || nonidentifiable || inblack)
+        index1 = iround(rand()*size(edges,1));
+        index2 = iround(rand()*size(edges,1));
+        if(index1 != index2 && index1 != 0 && index2 != 0 && index1 <= size(edges,1) && index2 <= size(edges,1))
             inlimits = true
-            sisters, cherry, nonidentifiable = sisterOrCherry(net.edge[index1],net.edge[index2]);
+            sisters, cherry, nonidentifiable = sisterOrCherry(edges[index1],edges[index2]);
         else
             inlimits = false
         end
@@ -112,14 +114,14 @@ function chooseEdgesGamma(net::HybridNetwork, blacklist::Bool)
             length(net.blacklist) % 2 == 0 || error("net.blacklist should have even number of entries, not length: $(length(net.blacklist))")
             i = 1
             while(i < length(net.blacklist))
-                if(net.edge[index1].number == net.blacklist[i])
-                    if(net.edge[index2].number == net.blacklist[i+1])
+                if(edges[index1].number == net.blacklist[i])
+                    if(edges[index2].number == net.blacklist[i+1])
                         inblack = true
                     else
                         inblack = false
                     end
-                elseif(net.edge[index2].number == net.blacklist[i])
-                    if(net.edge[index1].number == net.blacklist[i+1])
+                elseif(edges[index2].number == net.blacklist[i])
+                    if(edges[index1].number == net.blacklist[i+1])
                         inblack = true
                     else
                         inblack = false
@@ -133,10 +135,11 @@ function chooseEdgesGamma(net::HybridNetwork, blacklist::Bool)
     end
     gamma = rand()*0.5;
     #println("from $(edge1.number) to $(edge2.number), $(gamma)");
-    return net.edge[index1],net.edge[index2],gamma
+    return edges[index1],edges[index2],gamma
 end
 
-chooseEdgesGamma(net::HybridNetwork) = chooseEdgesGamma(net, false)
+chooseEdgesGamma(net::HybridNetwork) = chooseEdgesGamma(net, false, net.edge)
+chooseEdgesGamma(net::HybridNetwork, blacklist::Bool) = chooseEdgesGamma(net, blacklist, net.edge)
 
 # aux function for addHybridization
 # that takes the output edge1, edge2, gamma from

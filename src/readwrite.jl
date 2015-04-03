@@ -616,7 +616,7 @@ function writeSubTree!(s::IOBuffer, n::Node, parent::Edge,di::Bool)
             if(!isEqual(e,parent) && !(e.hybrid && parent.hybrid))
                 child = getOtherNode(e,n)
                 writeSubTree!(s,child,e, di)
-                if(!parent.hybrid) #cecile handles this step differently: if(parent.hybrid) numChildre-=1 end
+                if(!parent.hybrid) #cecile handles this step differently: if(parent.hybrid) numChildren-=1 end
                     numChildren -= 1
                     if(numChildren > 0)
                         print(s,",")
@@ -628,9 +628,11 @@ function writeSubTree!(s::IOBuffer, n::Node, parent::Edge,di::Bool)
         if(parent.hybrid)
             print(s,string("#H",n.number))
         end
+    end
+    if(!n.leaf)
         print(s,string(":",parent.length))
     end
-    if(parent.hybrid && !di)
+    if(parent.hybrid && !di && !n.isBadDiamondI)
         print(s,string("::",parent.gamma))
     end
 end
@@ -642,6 +644,9 @@ end
 # input di=true if written for Dendroscope (without gammas)
 function writeTopology(net::HybridNetwork, di::Bool, string::Bool)
     s = IOBuffer()
+    if(net.numBad > 0)
+        warn("net has $(net.numBad) bad diamond I, gammas and some branch lengths are not identifiable, and therefore, meaningless")
+    end
     if(net.numNodes == 1)
         print(s,string(net.node[net.root].number,";"))
     else
