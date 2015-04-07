@@ -404,7 +404,13 @@ function chooseMinorMajor(node::Node, random::Bool, target::Bool)
         major.gamma != 1.0 || warn("strange major hybrid edge $(major.number) with gamma $(major.gamma) equal to 1.0")
         othermin = r < major.gamma ? getOtherNode(minor,node) : getOtherNode(major,node)
         majoredge = r < major.gamma ? major : minor
+        if(r < major.gamma)
+            println("MOVE: will do move on minor hybrid edge")
+        else
+            println("MOVE: will do move on major hybrid edge")
+        end
     else
+        println("MOVE: will do move on minor hybrid edge")
         majoredge = major
         othermin = getOtherNode(minor,node);
     end
