@@ -10,7 +10,7 @@ const fRel = 1e-12 # 1e-12 prof Bates
 const xAbs = 1e-10 # 0.001 in phylonet, 1e-10 prof Bates
 const xRel = 1e-10 # 0.01 in phylonet, 1e-10 prof Bates
 const numFails = 100 # like phylonet
-const numMoves = 100
+const numMoves = Int64[] #empty to be calculated inside based on coupon's collector
 const multiplier = 100 # for loglik absolute tol (multiplier*fAbs)
 
 # ---------------------- branch length optimization ---------------------------------
@@ -648,6 +648,23 @@ function adjustWeight(net::HybridNetwork,hmax::Int64,w::Vector{Float64})
     return w
 end
 
+# function to adjust weights (v) based on movesfail and Nmov, to
+# avoid proposing over and over moves that cannot work
+#returns false if sum(v)=0, no more moves available
+function adjustWeightMovesfail!(v::Vector{Float64}, movesfail::Vector{Int64}, Nmov::Vector{Int64})
+    length(v) ==length(movesfail) || error("v and movesfail must have same length")
+    length(Nmov) ==length(movesfail) || error("Nmov and movesfail must have same length")
+    for(i in 1:length(v))
+        v[i] = v[i]*(movesfail[i]<Nmov[i] ? 1 : 0)
+    end
+    sum(v) != 0 || return false
+    suma = sum(v)
+    for(i in 1:length(v))
+        v[i] = v[i]/suma
+    end
+    return true
+end
+
 # function to decide what next move to do when searching
 # for topology that maximizes the P-loglik within the space of
 # topologies with the same number of hybridizations
@@ -655,7 +672,8 @@ end
 # needs the network to know the current numHybrids
 # takes as input the vector of weights for each move (mvorigin, mvtarget, chdir, nni, add, delete),
 # and dynamic=true, adjusts the weight for addHybrid if net is in a lower layer (net.numHybrids<<hmax)
-function whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64}, dynamic::Bool)
+# movesfail and Nmov are to count number of fails in each move
+function whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64}, dynamic::Bool, movesfail::Vector{Int64}, Nmov::Vector{Int64})
     hmax >= 0 || error("hmax must be non negative: $(hmax)")
     length(w) == 6 || error("length of w should be 6 as there are only 6 moves: $(w)")
     approxEq(sum(w),1.0) || error("vector of move weights should add up to 1: $(w),$(sum(w))")
@@ -670,6 +688,8 @@ function whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64}, dynamic::B
         else
             v = w
         end
+        flag = adjustWeightMovesfail!(v,movesfail,Nmov)
+        flag || return :none
         if(0 < net.numHybrids < hmax)
             if(r < v[1])
                 return :MVorigin
@@ -708,8 +728,8 @@ function whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64}, dynamic::B
     end
 end
 
-whichMove(net::HybridNetwork,hmax::Int64) = whichMove(net,hmax,[1/5,1/5,1/5,1/5,1/5,0.0], true)
-whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64}) = whichMove(net,hmax,w, true)
+whichMove(net::HybridNetwork,hmax::Int64,movesfail::Vector{Int64}, Nmov::Vector{Int64}) = whichMove(net,hmax,[1/5,1/5,1/5,1/5,1/5,0.0], true,movesfail, Nmov)
+whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64},movesfail::Vector{Int64}, Nmov::Vector{Int64}) = whichMove(net,hmax,w, true,movesfail, Nmov)
 
 #function to choose a hybrid node for the given moves
 function chooseHybrid(net::HybridNetwork)
@@ -727,7 +747,7 @@ end
 # random = false uses the minor hybrid edge always
 # count to know in which step we are, N for NNI trials
 # order in movescount as in IF here (add,mvorigin,mvtarget,chdir,delete,nni)
-function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::Int64, N::Int64, movescount::Vector{Int64})
+function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::Int64, N::Int64, movescount::Vector{Int64}, movesfail::Vector{Int64})
     1 <= move <= 6 || error("invalid move $(move)") #fixit: if previous move rejected, do not redo it!
     println("current move: $(int2move[move])")
     if(move == 1)
@@ -750,74 +770,108 @@ function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::In
     end
     movescount[move] += 1
     movescount[move+6] += success ? 1 : 0
-    println("success $(success), movescount (add,mvorigin,mvtarget,chdir,delete,nni) proposed: $(movescount[1:6]); successful: $(movescount[7:12])")
+    movesfail[move] += success ? 0 : 1
+    println("success $(success), movescount (add,mvorigin,mvtarget,chdir,delete,nni) proposed: $(movescount[1:6]); successful: $(movescount[7:12]); movesfail: $(movescount)")
     !success || return true
     println("new proposed topology failed in step $(count) for move $(int2move[move])")
     return false
 end
 
 
-proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Int64,N::Int64, movescount::Vector{Int64}) = proposedTop!(try move2int[move] catch error("invalid move $(string(move))") end,newT, random,count,N, movescount)
+proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Int64,N::Int64, movescount::Vector{Int64},movesfail::Vector{Int64}) = proposedTop!(try move2int[move] catch error("invalid move $(string(move))") end,newT, random,count,N, movescount,movesfail)
+
+# function to calculate Nmov, number max of tries per move
+# order: (add,mvorigin,mvtarget,chdir,delete,nni)
+function calculateNmov!(net::HybridNetwork, N::Vector{Int64})
+    if(isempty(N))
+        N = rep(0,6)
+    else
+        length(N) == 6 || error("vector Nmov should have length 6: $(N)")
+    end
+    N[1] = ceil(coupon(binom(numTreeEdges(net),2))) #add
+    N[2] = ceil(coupon(2*4*net.numHybrids)) #mvorigin
+    N[3] = ceil(coupon(2*4*net.numHybrids)) #mtarget
+    N[4] = ceil(coupon(2*net.numHybrids)) #chdir
+    N[5] = 10000 #delete
+    N[6] = ceil(coupon(numIntTreeEdges(net))) #nni
+end
 
 
 # function to optimize on the space of networks with the same (or fewer) numHyb
 # currT, the starting network will be modified inside
-# Nmov: number of times it will try a NNI move/addHybrid before aborting it
+# Nmov: vector with max number of tries per move (add,mvorigin,mvtarget,chdir,delete,nni)
 # Nfail: number of failure networks with lower loglik before aborting
 # M: multiplier to stop the search if loglik close to M*ftolAbs, or if absDiff less than M*ftolAbs
 # hmax: max number of hybrids allowed
 # close=true if gamma=0.0 fixed only around neighbors with move origin/target
-function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, close::Bool, Nmov::Int64)
+function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, close::Bool, Nmov0::Vector{Int64})
     M > 0 || error("M must be greater than zero: $(M)")
     Nfail > 0 || error("Nfail must be greater than zero: $(Nfail)")
-    Nmov > 0 || error("Nmov must be greater than zero: $(Nmov)")
+    isempty(Nmov0) || all([n > 0 for n in Nmov0]) || error("Nmov must be greater than zero: $(Nmov0)")
     count = 0
     movescount = rep(0,18) #1:6 number of times moved proposed, 7:12 number of times success move (no intersecting cycles, etc.), 13:18 accepted by loglik
     movesgamma = rep(0,13) #number of moves to fix gamma zero: proposed, successful, movesgamma[13]: total accepted by loglik
+    movesfail = rep(0,6) #count of failed moves for current topology
     failures = 0
+    stillmoves = true
+    if(isempty(Nmov0))
+        Nmov = rep(0,6)
+    else
+        Nmov = deepcopy(Nmov0)
+    end
     optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
-    currT = afterOptBLAll!(currT, d, Nmov,close, M, ftolAbs, verbose,movesgamma)
+    currT = afterOptBLAll!(currT, d, Nfail,close, M, ftolAbs, verbose,movesgamma)
     absDiff = M*ftolAbs + 1
     newT = deepcopy(currT)
     printEdges(newT)
     printNodes(newT)
     println(writeTopology(newT))
-    while(absDiff > M*ftolAbs && failures < Nfail && currT.loglik > M*ftolAbs) #stops if close to zero because of new deviance form of the pseudolik
+    while(absDiff > M*ftolAbs && failures < Nfail && currT.loglik > M*ftolAbs && stillmoves) #stops if close to zero because of new deviance form of the pseudolik
         count += 1
         println("--------- loglik_$(count) = $(round(currT.loglik,6)) -----------")
-        move = whichMove(newT,hmax)
-        flag = proposedTop!(move,newT,true, count,Nmov, movescount)
-        if(flag)
-            accepted = false
-            println("accepted proposed new topology in step $(count)")
-            printEdges(newT)
-            printNodes(newT)
-            println(writeTopology(newT))
-            optBL!(newT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
-            println("OPT: comparing newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
-            if(newT.loglik < currT.loglik && abs(newT.loglik-currT.loglik) > M*ftolAbs) #newT better loglik
-                newloglik = newT.loglik
-                newT = afterOptBLAll!(newT, d, Nmov,close, M, ftolAbs,verbose,movesgamma)
-                println("loglik before afterOptBL $(newloglik), newT.loglik now $(newT.loglik), loss in loglik by fixing gamma(z)=0.0(1.0): $(abs(newloglik-newT.loglik))")
-                accepted = true
-            else
+        if(isempty(Nmov0)) #if empty, not set by user
+            calculateNmov!(newT,Nmov)
+        end
+        println("will propose move with movesfail $(movesfail), Nmov $(Nmov)")
+        move = whichMove(newT,hmax,movesfail,Nmov)
+        if(move != :none)
+            flag = proposedTop!(move,newT,true, count,1, movescount,movesfail)
+            if(flag)
                 accepted = false
+                println("accepted proposed new topology in step $(count)")
+                printEdges(newT)
+                printNodes(newT)
+                println(writeTopology(newT))
+                optBL!(newT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
+                println("OPT: comparing newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
+                if(newT.loglik < currT.loglik && abs(newT.loglik-currT.loglik) > M*ftolAbs) #newT better loglik
+                    newloglik = newT.loglik
+                    newT = afterOptBLAll!(newT, d, Nfail,close, M, ftolAbs,verbose,movesgamma)
+                    println("loglik before afterOptBL $(newloglik), newT.loglik now $(newT.loglik), loss in loglik by fixing gamma(z)=0.0(1.0): $(abs(newloglik-newT.loglik))")
+                    accepted = true
+                else
+                    accepted = false
+                end
+                if(accepted)
+                    absDiff = abs(newT.loglik - currT.loglik)
+                    println("proposed new topology with better loglik in step $(count): oldloglik=$(round(currT.loglik,3)), newloglik=$(round(newT.loglik,3)), after $(failures) failures")
+                    currT = deepcopy(newT)
+                    failures = 0
+                    movescount[move2int[move]+12] += 1
+                    movesfail = rep(0,6) #count of failed moves for current topology
+                else
+                    println("rejected new topology with worse loglik in step $(count): currloglik=$(round(currT.loglik,3)), newloglik=$(round(newT.loglik,3)), with $(failures) failures")
+                    failures += 1
+                    movesfail[move2int[move]] += 1
+                    newT = deepcopy(currT)
+                end
+                printEdges(newT)
+                printNodes(newT)
+                println(writeTopology(newT))
+                println("ends step $(count) with absDiff $(accepted? absDiff : 0.0) and failures $(failures)")
             end
-            if(accepted)
-                absDiff = abs(newT.loglik - currT.loglik)
-                println("proposed new topology with better loglik in step $(count): oldloglik=$(round(currT.loglik,3)), newloglik=$(round(newT.loglik,3)), after $(failures) failures")
-                currT = deepcopy(newT)
-                failures = 0
-                movescount[move2int[move]+12] += 1
-            else
-                println("rejected new topology with worse loglik in step $(count): currloglik=$(round(currT.loglik,3)), newloglik=$(round(newT.loglik,3)), with $(failures) failures")
-                failures += 1
-                newT = deepcopy(currT)
-            end
-            printEdges(newT)
-            printNodes(newT)
-            println(writeTopology(newT))
-            println("ends step $(count) with absDiff $(accepted? absDiff : 0.0) and failures $(failures)")
+        else
+            stillmoves = false
         end
     end
     if(ftolAbs > 1e-7 || ftolRel > 1e-7 || xtolAbs > 1e-7 || xtolRel > 1e-7)
@@ -828,11 +882,20 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         println("STOPPED by absolute difference criteria")
     elseif(currT.loglik <= M*ftolAbs)
         println("STOPPED by loglik close to zero criteria")
+    elseif(!stillmoves)
+        println("STOPPED for not having more moves to propose: movesfail $(movesfail), Nmov $(Nmov)")
     else
         println("STOPPED by number of failures criteria")
     end
     if(newT.loglik > M*ftolAbs) #not really close to 0.0, based on absTol also
         warn("newT.loglik $(newT.loglik) not really close to 0.0 based on loglik abs. tol. $(M*ftolAbs), you might need to redo with another starting point")
+    end
+    if(newT.numBad > 0) #need to undogammaz if newT has bad diamond I to use gammaz as proxy of gamma for writeTopology
+        for(n in newT.hybrid)
+            if(n.isBadDiamondI)
+                undoGammaz!(n,newT)
+            end
+        end
     end
     println("END optTopLevel: found minimizer topology at step $(count) (failures: $(failures)) with -loglik=$(round(newT.loglik,5)) and ht_min=$(round(newT.ht,5))")
     printCounts(movescount,movesgamma)

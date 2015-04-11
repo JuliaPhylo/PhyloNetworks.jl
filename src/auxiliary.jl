@@ -5,6 +5,18 @@
 
 # ----- aux general functions ---------------
 
+#based in coupon's collector: E+sqrt(V)
+function coupon(n::Number)
+    return n*log(n) + n
+end
+
+function binom(n::Number,k::Number)
+    n >= k || return 0
+    n == 1 && return 1
+    k == 0 && return 1
+    binom(n-1,k-1) + binom(n-1,k) #recursive call
+end
+
 function approxEq(a::Number,b::Number,absTol::Number,relTol::Number)
     if(a<eps() || b<eps())
         abs(a-b) < absTol
@@ -732,3 +744,11 @@ function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool, read::Bool
 end
 
 setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool) = setGamma!(edge, new_gamma, changeOther, false)
+
+function numTreeEdges(net::HybridNetwork)
+    2*net.numTaxa - 3 + net.numHybrids
+end
+
+function numIntTreeEdges(net::HybridNetwork)
+    2*net.numTaxa - 3 + net.numHybrids - net.numTaxa
+end
