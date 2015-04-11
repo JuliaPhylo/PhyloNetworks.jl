@@ -4,12 +4,21 @@
 
 # ------------------------------- Read topology ------------------------------------------
 
+function peekchar(s::IOStream)
+    Base.peekchar(s)
+end
+
+function peekchar(s::IOBuffer)
+    mark(s)
+    c = read(s,Char)
+    reset(s)
+    return c
+end
 
 # aux function to advance stream in readSubtree
-# warning: s IOStream needs to be a file, not a stream converted
-#          from string
-function advance!(s::IOStream, c::Char, numLeft::Array{Int64,1})
-    c = Base.peekchar(s)
+# input: s IOStream/IOBuffer
+function advance!(s::IO, c::Char, numLeft::Array{Int64,1})
+    c = peekchar(s)
     if(Base.eof(s))
         error("Tree ends prematurely while reading subtree after left parenthesis $(numLeft[1]).")
     end
@@ -22,18 +31,18 @@ end
 # it also reads # as part of the name and returns pound=true
 # it returns the node name as string as well to check if it exists already (as hybrid)
 # warning: treats digit taxon numbers as strings to avoid repeated node numbers
-function readNum(s::IOStream, c::Char, net::HybridNetwork, numLeft::Array{Int64,1})
+function readNum(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int64,1})
     pound = 0;
     if(isalnum(c) || isValidSymbol(c) || c == '#')
         pound += (c == '#') ? 1 : 0
         num = read(s,Char)
-        c = Base.peekchar(s)
+        c = peekchar(s)
         while(isalnum(c) || isValidSymbol(c) || c == '#')
             d = read(s,Char)
             num = string(num,d)
             if(d == '#')
                 pound += 1;
-               c = Base.peekchar(s);
+               c = peekchar(s);
                if(isalnum(c))
                    if(c != 'L' && c != 'H' && c != 'R')
                        warn("Expected H, R or LGT after # but received $(c) in left parenthesis $(numLeft[1]).")
@@ -43,7 +52,7 @@ function readNum(s::IOStream, c::Char, net::HybridNetwork, numLeft::Array{Int64,
                    error("Expected name after # but received $(c) in left parenthesis $(numLeft[1]). Remaining is $(a).")
                end
             end
-            c = Base.peekchar(s);
+            c = peekchar(s);
         end
         if(pound == 0)
             return size(net.names,1)+1, num, false
@@ -61,14 +70,14 @@ end
 
 
 # aux function to read floats like length
-function readFloat(s::IOStream, c::Char)
+function readFloat(s::IO, c::Char)
     if(isdigit(c))
         num = read(s,Char);
-        c = Base.peekchar(s);
+        c = peekchar(s);
         while(isdigit(c) || c == '.')
             d = read(s,Char);
             num = string(num,d);
-            c = Base.peekchar(s);
+            c = peekchar(s);
         end
         return float(num)
     else
@@ -85,14 +94,12 @@ function isValidSymbol(c::Char)
 end
 
 # aux function to read subtree
-# warning: s IOStream needs to be a file, not a stream converted
-#          from string
+# input: s IOStream/IOBuffer
 # warning: reads additional info :length:bootstrap:gamma
 # warning: allows for name of internal nodes without # after: (1,2)A,...
 # warning: warning if hybrid edge without gamma value, warning if gamma value (ignored) without hybrid edge
-
-function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::HybridNetwork, hybrids::Array{ASCIIString,1}, index::Array{Int64,1})
-    c = Base.peekchar(s)
+function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridNetwork, hybrids::Array{ASCIIString,1}, index::Array{Int64,1})
+    c = peekchar(s)
     e = nothing;
     hasname = false; # to know if the current node has name
     pound = false;
@@ -112,12 +119,12 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
            a = readall(s);
            error("Expected right parenthesis after left parenthesis $(numLeft[1]) but read $(c). The remainder of line is $(a).")
        end
-        c = Base.peekchar(s);
+        c = peekchar(s);
         if(isalnum(c) || isValidSymbol(c) || c == '#') # internal node has name
             hasname = true;
             num,name,pound = readNum(s,c,net,numLeft);
             n.number = num;
-            c = Base.peekchar(s);
+            c = peekchar(s);
             if(!pound)
                 warn("internal node with name without it being a hybrid node. node name might be meaningless after tree modifications.")
             end
@@ -203,7 +210,7 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
             setEdge!(parent,e);
         end
     end
-    c = Base.peekchar(s);
+    c = peekchar(s);
     if(isa(e,Nothing))
         return false
     end
@@ -211,20 +218,20 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
     #println("parent is $(parent.number) and hasHybEdge is $(parent.hasHybEdge) before reading :")
     if(c == ':')
         c = read(s,Char);
-        c = Base.peekchar(s);
+        c = peekchar(s);
         if(isdigit(c))
             length = readFloat(s,c);
             setLength!(e,length);
-            c = Base.peekchar(s);
+            c = peekchar(s);
             if(c == ':')
                 c = read(s,Char);
-                c = Base.peekchar(s);
+                c = peekchar(s);
                 if(isdigit(c))
                     length = readFloat(s,c); #bootstrap value
-                    c = Base.peekchar(s);
+                    c = peekchar(s);
                     if(c == ':')
                         c = read(s, Char);
-                        c = Base.peekchar(s);
+                        c = peekchar(s);
                         if(isdigit(c))
                             length = readFloat(s,c); #gamma
                             if(!e.hybrid)
@@ -240,7 +247,7 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
                     end
                 elseif(c == ':')
                     c = read(s, Char);
-                    c = Base.peekchar(s);
+                    c = peekchar(s);
                     if(isdigit(c))
                         length = readFloat(s,c); #gamma
                         if(!e.hybrid)
@@ -257,13 +264,13 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
             end
         elseif(c == ':')
             c = read(s,Char);
-            c = Base.peekchar(s);
+            c = peekchar(s);
             if(isdigit(c))
                 length = readFloat(s,c); #bootstrap value
-                c = Base.peekchar(s);
+                c = peekchar(s);
                 if(c == ':')
                     c = read(s, Char);
-                    c = Base.peekchar(s);
+                    c = peekchar(s);
                     if(isdigit(c))
                         length = readFloat(s,c); #gamma
                         if(!e.hybrid)
@@ -279,7 +286,7 @@ function readSubtree!(s::IOStream, parent::Node, numLeft::Array{Int64,1}, net::H
                 end
             elseif(c == ':')
                 c = read(s, Char);
-                c = Base.peekchar(s);
+                c = peekchar(s);
                 if(isdigit(c))
                     length = readFloat(s,c); #gamma
                     if(!e.hybrid)
@@ -302,23 +309,33 @@ end
 
 
 # function to read topology from parenthetical format
-# input: file name
-# warning: allows numbers and/or letters (or #) in taxon names
-#          but not other characters
-function readTopology(file::String)
-    net = HybridNetwork()
-    try
-        s = open(file)
-    catch
-        error("Could not find or open $(file) file");
+# input: file name or tree in parenthetical format
+# calls readTopology(s::IO)
+# warning: crashes if file name starts with (
+function readTopology(input::String)
+    if(input[1] == '(') #it is a tree
+       s = IOBuffer(input)
+    else
+        try
+            s = open(input)
+        catch
+            error("Could not find or open $(input) file");
+        end
+       s = open(input)
     end
-    s = open(file)
+    net = readTopology(s)
+    return net
+end
+
+
+function readTopology(s::IO)
+    net = HybridNetwork()
     line = readuntil(s,";");
     if(line[end] != ';')
         error("file does not end in ;")
     end
     seekstart(s)
-    c = Base.peekchar(s)
+    c = peekchar(s)
     numLeft = [0]; # made Array to make it mutable
     hybrids = ASCIIString[];
     index = Int64[];
@@ -336,7 +353,7 @@ function readTopology(file::String)
            elseif(c == ',')
                continue;
            elseif(c == ')')
-               c = Base.peekchar(s);
+               c = peekchar(s);
            end
        end
        if(size(n.edge,1) == 1) # root has only one child
@@ -590,7 +607,7 @@ function updateAllReadTopology!(net::HybridNetwork)
     end
 end
 
-# function to read a topology from file name and update it
+# function to read a topology from file name/tree directly and update it
 # by calling updateAllReadTopology after
 function readTopologyUpdate(file::String)
     net = readTopology(file)

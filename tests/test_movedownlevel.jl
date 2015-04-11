@@ -8,7 +8,7 @@ printEdges(currT)
 
 # real network: Case H
 df = readtable("CaseH_output.csv")
-d = readDataCF(df)
+d = readTableCF(df)
 
 optBL!(currT,d)
 
@@ -19,6 +19,6 @@ printEdges(currT)
 
 # real network: Case H
 df = readtable("CaseH_output.csv")
-d = readDataCF(df)
+d = readTableCF(df)
 
 optBL!(currT,d)

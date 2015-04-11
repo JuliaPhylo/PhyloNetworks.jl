@@ -10,7 +10,7 @@ include("../types.jl")
 include("../functions.jl")
 
 df = readtable("Tree_output.csv")
-d = readDataCF(df)
+d = readTableCF(df)
 
 # starting tree:
 tree = "((6,4),(7,8),10);"
@@ -55,7 +55,7 @@ printEdges(currT)
 
 # real network: Case H
 df = readtable("CaseH_output2.csv")
-d = readDataCF(df)
+d = readTableCF(df)
 
 @time optTopLevel!(currT,d,1,false)
 
@@ -90,7 +90,7 @@ printEdges(currT)
 
 # real network: Case H
 df = readtable("CaseH_output2.csv")
-d = readDataCF(df)
+d = readTableCF(df)
 
 @time optTopLevel!(currT,d,1,false)
 
@@ -144,7 +144,7 @@ printEdges(currT)
 # real network: Case F
 df = readtable("CaseF_output.csv")
 df = readtable("CaseF_output2.csv")
-d = readDataCF(df)
+d = readTableCF(df)
 
 
 @time optTopLevel!(currT,d,1,false)
@@ -160,7 +160,7 @@ printEdges(currT)
 # real network: Case F
 df = readtable("CaseF_output.csv")
 df = readtable("CaseF_output2.csv")
-d = readDataCF(df)
+d = readTableCF(df)
 
 
 @time optTopLevel!(currT,d,1,false)

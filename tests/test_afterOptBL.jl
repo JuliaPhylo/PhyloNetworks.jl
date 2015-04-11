@@ -10,7 +10,7 @@ include("../types.jl")
 include("../functions.jl")
 
 df = readtable("CaseG_output.csv")
-d2 = readDataCF(df)
+d2 = readTableCF(df)
 
 tree = "((((6,4)1,(7)11#H1:::0.8)5,(11#H1:::0.2,8)),10);" # Case G different starting branch lengths
 f = open("prueba_tree.txt","w")
@@ -37,7 +37,7 @@ include("../types.jl")
 include("../functions.jl")
 
 df = readtable("CaseH_output.csv")
-d2 = readDataCF(df)
+d2 = readTableCF(df)
 
 # starting ht (gamma,t3,t5,t7)
 ht = [0.2,1.,1.,1.]
@@ -67,7 +67,7 @@ include("../types.jl")
 include("../functions.jl")
 
 df = readtable("CaseJ_output.csv")
-d2 = readDataCF(df)
+d2 = readTableCF(df)
 
 # starting ht (gamma,t3,t5,t7)
 ht = [0.2,1.,1.,1.]
@@ -97,7 +97,7 @@ include("../types.jl")
 include("../functions.jl")
 
 df = readtable("CaseF_output.csv")
-d2 = readDataCF(df)
+d2 = readTableCF(df)
 
 # starting ht (gamma,t4,t5,t9)
 ht = [0.1,1.,1.,1.]
@@ -127,7 +127,7 @@ include("../types.jl")
 include("../functions.jl")
 
 df = readtable("CaseI_output.csv")
-d2 = readDataCF(df)
+d2 = readTableCF(df)
 
 # starting ht (gamma,t4,t6,t9,t10)
 ht = [0.2,0.0,2.0,2.0,2.0]
@@ -164,11 +164,11 @@ printNodes(currT)
 
 # real network: Case H
 df = readtable("CaseH_output.csv")
-d = readDataCF(df)
+d = readTableCF(df)
 
 # real network: Case H
 df = readtable("CaseH_output.csv")
-d = readDataCF(df)
+d = readTableCF(df)
 
 currloglik,currxmin = optBL!(currT,d, false)
 isValid(currT)
@@ -203,7 +203,7 @@ printEdges(currT)
 
 # real network: Case H
 df = readtable("CaseH_output.csv")
-d = readDataCF(df)
+d = readTableCF(df)
 
 currloglik,currxmin = optBL!(currT,d)
 updateParameters!(currT)

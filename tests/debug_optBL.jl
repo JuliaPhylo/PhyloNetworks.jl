@@ -38,8 +38,8 @@ include("../functions.jl")
 
 df = readtable("CaseF_output.csv")
 df2 = readtable("CaseF_output2.csv") #longer branches
-d = readDataCF(df)
-d2 = readDataCF(df2)
+d = readTableCF(df)
+d2 = readTableCF(df2)
 
 # starting ht (gamma,t4,t5,t9)
 ht = [0.1,1.,1.,1.]

@@ -104,3 +104,35 @@ updateAllReadTopology!(net)
 
 readTopologyUpdate("prueba_tree.txt")
 
+#======================================================
+
+include("../types.jl")
+include("../functions.jl")
+
+using Base.Collections # for updateInCycle with priority queue
+
+# good trees ---------------------------
+f = open("prueba_tree.txt","w")
+tree = "((1,2),(3,4));"
+tree = "((11,22),(33,44));"
+tree = "((Ant,Bear),(Cat,Dog));"
+tree = "((Ant1,Bear2),(Cat3,Dog4));"
+tree = "((1Ant,2Bear),(3Cat,4Dog));"
+tree = "((1,2),3,4);"
+tree = "(1,2,(3,4));"
+tree = "(Ant,Bear,(Cat,Dog));"
+tree = "(A,B,(C,D));"
+tree = "(A:0.1,B:0.2,(C:0.3,D:0.4):0.5);"
+tree = "((((((1,2),3),4),5),6),7,8);" # yeast data tree0
+write(f,tree)
+close(f)
+
+net = readTopologyUpdate("prueba_tree.txt");
+printEdges(net)
+printNodes(net)
+net.names
+
+net2 = readTopologyUpdate(tree);
+printEdges(net2)
+printNodes(net2)
+net2.names

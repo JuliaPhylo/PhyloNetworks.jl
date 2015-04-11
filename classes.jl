@@ -24,87 +24,41 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
-
-# --------------------------- write topology -------------------------------------
-# function to write a node and its descendants in
-#parenthetical format
-function writeSubTree!(s::IOBuffer, n::Node, parent::Edge)
-    if((parent.hybrid && !parent.isMajor) || n.leaf)
-        if(parent.hybrid)
-            print(s,"#")
-        end
-        print(s,n.number)
-    else
-        print(s,"(")
-        numChildren = length(n.edge) - 1
-        for(e in n.edge)
-            if(!isEqual(e,parent) && !(e.hybrid && parent.hybrid))
-                child = getOtherNode(e,n)
-                writeSubTree!(s,child,e)
-                if(!parent.hybrid)
-                    numChildren -= 1
-                    if(numChildren > 0)
-                        print(s,",")
-                    end
-                end
+# fixit:
+# function to calculate the obsCF from a file with a set of gene trees
+# returns a DataCF object and write a csv table with the obsCF
+function calculateObsCF(quartets::Vector{Quartet}, trees::Vector{HybridNetwork})
+    # check if all taxa is well in both
+    for q in quartets
+        suma = 0
+        sum12 = 0
+        sum13 = 0
+        sum14 = 0
+        for t in trees
+            if #all taxa in q is in t
+            suma +=1
+            qnet = extractQuartet!(t,q)
+            # check with internalLength, updateSplit, whichLeaves to see if it is sum12, sum13, sum14 += 1
             end
         end
-        print(s,")")
-        if(parent.hybrid)
-            print(s,string("#",n.number))
-        end
-        print(s,string(":",parent.length))
+        q.obsCF = [sum12/suma, sum13/suma, sum14/suma]
+        # save suma for descriptive analysis later
     end
-    if(parent.hybrid)
-        print(s,string("::",parent.gamma))
-    end
+    d = DataCF(quartets)
+    writeObsCF(d)
+    return d
 end
 
-# function to writeTopology
-# returns a string with network in parenthetical format
-# need as input HybridNetwork, since QuartetNetwork does not have root
-function writeTopology(net::HybridNetwork)
-    s = IOBuffer()
-    if(net.numNodes == 1)
-        print(s,string(net.node[net.root].number,";"))
-    else
-        print(s,"(")
-        updateRoot!(net)
-        degree = length(net.node[net.root].edge)
-        for(e in net.node[net.root].edge)
-            writeSubTree(s,getOtherNode(e,net.node[net.root]),e)
-            degree -= 1
-            if(degree > 0)
-                print(s,",")
-            end
-        end
-        print(s,");")
-    end
-    top = bytestring(s)
-    return top
-end
+# fixit: eventually calculateObsCF(treesfile, quartetsfile,
+# :all/:random,numQ) which creates the DataCf object and write the
+# table with obsCF
 
-# function to check if root is well-placed
-# and look for a better place if not
-function updateRoot!(net::HybridNetwork)
-    if(!canBeRoot(net.node[net.root]))
-        for(i in 1:length(net.node))
-            if(canBeRoot(net.node[i]))
-                net.root = i
-                break
-            end
-        end
-    end
-end
-
-# function to check if a node could be root
-# by the containRoot attribute of edges around it
-function canBeRoot(n::Node)
-    !n.hybrid || return false
-    !n.hasHybEdge || return false
-    all([e.containRoot for e in n.edge]) || return false
-    return true
-end
+# fixit: think what descriptive stats we want from quartets/gene trees?
+# taxa read from quartets: union(...)
+# taxa read from gene trees: union(...)
+# taxa not in quartets, not in gene trees
+# num of gene trees each quartet has
+# num quartets per taxon, number of gene trees per taxon
 
 # -------------------------------------------------------------------------------------------------
 # ORIGINAL
