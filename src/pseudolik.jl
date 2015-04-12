@@ -872,20 +872,15 @@ end
 function updateFormula!(qnet::QuartetNetwork)
     if(qnet.which == 1)
         if(qnet.formula == [-1,-1,-1])
-            if(qnet.split != [-1,-1,-1,-1])
-                qnet.formula = [2,2,2]
-                for(i in 2:4)
-                    if(size(qnet.leaf,1) != 4)
-                        error("strange quartet with $(size(qnet.leaf,1)) leaves instead of 4")
-                    end
-                    tx1,tx2 = whichLeaves(qnet,qnet.quartetTaxon[1],qnet.quartetTaxon[i], qnet.leaf[1], qnet.leaf[2], qnet.leaf[3], qnet.leaf[4]) # index of leaf in qnet.leaf
-                    if(qnet.split[tx1] == qnet.split[tx2])
-                        qnet.formula[i-1] = 1
-                        break
-                    end
+            qnet.split != [-1,-1,-1,-1] || error("cannot update qnet.formula if qnet.split is not updated: $(qnet.split)")
+            qnet.formula = [2,2,2]
+            for(i in 2:4)
+                size(qnet.leaf,1) == 4 || error("strange quartet with $(size(qnet.leaf,1)) leaves instead of 4")
+                tx1,tx2 = whichLeaves(qnet,qnet.quartetTaxon[1],qnet.quartetTaxon[i], qnet.leaf[1], qnet.leaf[2], qnet.leaf[3], qnet.leaf[4]) # index of leaf in qnet.leaf
+                if(qnet.split[tx1] == qnet.split[tx2])
+                    qnet.formula[i-1] = 1
+                    break
                 end
-            else
-                error("cannot update qnet.formula if qnet.split is not updated: $(qnet.split)")
             end
         end
     elseif(qnet.which != 2)
@@ -923,7 +918,7 @@ end
 
 # function to compute all the process of calculating the expCF
 # for a given qnet
-function calculateExpCFAll!(qnet::QuartetNetwork)
+function calculateExpCFall!(qnet::QuartetNetwork)
     identifyQuartet!(qnet)
     eliminateHybridization!(qnet)
     updateSplit!(qnet)

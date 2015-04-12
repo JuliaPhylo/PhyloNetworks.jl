@@ -24,34 +24,62 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
-# fixit:
-# function to calculate the obsCF from a file with a set of gene trees
-# returns a DataCF object and write a csv table with the obsCF
-function calculateObsCF(quartets::Vector{Quartet}, trees::Vector{HybridNetwork})
-    # check if all taxa is well in both
-    for q in quartets
-        suma = 0
-        sum12 = 0
-        sum13 = 0
-        sum14 = 0
-        for t in trees
-            if #all taxa in q is in t
-            suma +=1
-            qnet = extractQuartet!(t,q)
-            # check with internalLength, updateSplit, whichLeaves to see if it is sum12, sum13, sum14 += 1
-            end
-        end
-        q.obsCF = [sum12/suma, sum13/suma, sum14/suma]
-        # save suma for descriptive analysis later
+function taxaTreesQuartets(trees::Vector{HybridNetwork}, quartets::Vector{Quartet},s::IO)
+    taxaT = unionTaxa(trees)
+    taxaQ = unionTaxa(quartets)
+    diff = symdiff(taxaT,taxaQ)
+    isempty(diff) ? write(s,"DATA: same taxa in gene trees and quartets: $(taxaT)") : write(s,"DATA: $(length(diff)) different taxa found in gene trees and quartets. \n Taxa $(intersect(taxaT,diff)) in trees, not in quartets; and taxa $(intersect(taxaQ,diff)) in quartets, not in trees")
+    u = union(taxaT,taxaQ)
+    for taxon in u
+        numT = taxonTrees(taxon,trees)
+        numQ = taxonQuartets(taxon,quartets)
+        write(s,"Taxon $(taxon) appears in $(numT) input trees ($(round(100*numT/length(trees),2)) %) and $(numQ) quartets ($(round(100*numQ/length(quartets),2)) %)\n")
     end
-    d = DataCF(quartets)
-    writeObsCF(d)
-    return d
 end
 
-# fixit: eventually calculateObsCF(treesfile, quartetsfile,
-# :all/:random,numQ) which creates the DataCf object and write the
-# table with obsCF
+taxaTreesQuartets(trees::Vector{HybridNetwork}, quartets::Vector{Quartet}) = taxaTreesQuartets(trees, quartets, STDOUT)
+
+# function that counts the number of trees in which taxon appears
+function taxonTrees(taxon::ASCIIString, trees::Vector{HybridNetwork})
+    suma = 0
+    for t in trees
+        suma += in(t.names,taxon) ? 1 : 0
+    end
+    return suma
+end
+
+# function that counts the number of quartets in which taxon appears
+function taxonQuartets(taxon::ASCIIString, quartets::Vector{Quartet})
+    suma = 0
+    for q in quartets
+        suma += in(q.taxon,taxon) ? 1 : 0
+    end
+    return suma
+end
+
+
+# function to create descriptive stat from input data, will save in stream s
+# which can be a file or STDOUT
+# default: file "descData.txt"
+function descData(d::DataCF, s::IO)
+    write(s,"DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
+    taxaTreesQuartets(d.tree,d.quartet,s)
+    write(s,"----------------------------\n\n")
+    for q in d.quartet
+        write(s,"Quartet $(q.number) obsCF constructed with $(q.numGT) gene trees ($(round(q.numGT/d.numTrees*100,2))%)\n")
+    end
+    write(s,"----------------------------\n\n")
+
+end
+
+function descData(d::DataCF, filename::ASCIIString)
+    s = open(filename, "w")
+    descData(d,s)
+    close(s)
+end
+
+descData(d::DataCF) = descData(d, "descData.txt")
+
 
 # fixit: think what descriptive stats we want from quartets/gene trees?
 # taxa read from quartets: union(...)
