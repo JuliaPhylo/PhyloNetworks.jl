@@ -1,3 +1,4 @@
+
 # Types for Julia implementation of pseudolikelihood estimation (Stage2)
 # Claudia August 2014
 # in julia: include("types.jl")

@@ -336,6 +336,7 @@ readInputData(treefile::ASCIIString,taxa::Union(Vector{ASCIIString}, Vector{Int6
 
 # ---------------------- descriptive stat for input data ----------------------------------
 
+# function to check how taxa is represented in the input trees
 function taxaTreesQuartets(trees::Vector{HybridNetwork}, quartets::Vector{Quartet},s::IO)
     taxaT = unionTaxa(trees)
     taxaQ = unionTaxa(quartets)
@@ -344,7 +345,7 @@ function taxaTreesQuartets(trees::Vector{HybridNetwork}, quartets::Vector{Quarte
     u = union(taxaT,taxaQ)
     for taxon in u
         numT = taxonTrees(taxon,trees)
-        numQ = taxonQuartets(taxon,quartets)
+        #numQ = taxonQuartets(taxon,quartets)
         write(s,"Taxon $(taxon) appears in $(numT) input trees ($(round(100*numT/length(trees),2)) %)\n")  #and $(numQ) quartets ($(round(100*numQ/length(quartets),2)) %)\n")
     end
 end
@@ -393,3 +394,28 @@ end
 
 descData(d::DataCF) = descData(d, "descData.txt")
 
+# ------------------ read starting tree from astral and put branch lengths ------------------------------
+
+# function to read the starting topology (can be tree/network)
+# if updateBL=true, updates the branch lengths with the obsCF in d
+# by default, updateBL=true
+function readStartTop(file::String,d::DataCF,updateBL::Bool)
+    net = readTopology(file)
+    if(updateBL)
+        updateBL!(net,d)
+    end
+    return net
+end
+
+readStartTop(file::String,d::DataCF) = readStartTop(file,d,true)
+readStartTop(file::String) = readStartTop(file,DataCF(),false)
+
+# function to update branch lengths with obsCF from d
+# if net is a tree, it is based on Cecile code: ch4-species-tree-units.r
+function updateBL!(net::HybridNetwork,d::DataCF)
+    if(isTree(net))
+        ff
+    else
+        #fixit: what to do here?
+    end
+end
