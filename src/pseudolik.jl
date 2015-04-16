@@ -918,7 +918,7 @@ end
 
 # function to compute all the process of calculating the expCF
 # for a given qnet
-function calculateExpCFall!(qnet::QuartetNetwork)
+function calculateExpCFAll!(qnet::QuartetNetwork)
     identifyQuartet!(qnet)
     eliminateHybridization!(qnet)
     updateSplit!(qnet)

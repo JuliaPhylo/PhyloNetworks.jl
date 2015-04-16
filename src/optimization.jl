@@ -384,7 +384,7 @@ end
 # returns success
 # movesgama: vector of count of number of times each move is proposed to fix gamma zero situation:(add,mvorigin,mvtarget,chdir,delete,nni)
 # movesgamma[13]: total number of accepted moves by loglik
-function gammaZero!(net::HybridNetwork, edge::Edge, close::Bool, origin::Bool, N::Int64, movesgamma::Vector{Int64})
+function gammaZero!(net::HybridNetwork, d::DataCF, edge::Edge, close::Bool, origin::Bool, N::Int64, movesgamma::Vector{Int64})
     currTloglik = net.loglik
     edge.hybrid || error("edge $(edge.number) should be hybrid edge because it corresponds to a gamma (or gammaz) in net.ht")
     warn("gamma zero situation found for hybrid edge $(edge.number) with gamma $(edge.gamma)")
@@ -438,7 +438,7 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF,close::Bool, origin::Bool,v
             if(approxEq(nh[i],0.0) || approxEq(nh[i],1.0))
                 edge = currT.edge[indh[i]]
                 approxEq(edge.gamma,nh[i]) || error("edge $(edge.number) gamma $(edge.gamma) should match the gamma in net.ht $(nh[i]) and it does not")
-                successchange = gammaZero!(currT, edge,close,origin,N,movesgamma)
+                successchange = gammaZero!(currT, d,edge,close,origin,N,movesgamma)
                 !successchange || break
             end
         end
@@ -466,7 +466,7 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF,close::Bool, origin::Bool,v
                 approxEq(nodehz.gammaz,nhz[i]) || error("nodehz $(nodehz.number) gammaz $(nodehz.gammaz) should match the gammaz in net.ht $(nhz[i]) and it does not")
                 edges = hybridEdges(nodehz)
                 edges[1].hybrid || error("bad diamond I situation, node $(nodehz.number) has gammaz $(nodehz.gammaz) so should be linked to hybrid edge, but it is not")
-                successchange = gammaZero!(currT,edges[1],close,origin,N,movesgamma)
+                successchange = gammaZero!(currT,d,edges[1],close,origin,N,movesgamma)
                 break
             elseif(approxEq(nhz[i],1.0))
                 approxEq(nhz[i+1],0.0) || error("gammaz for node $(currT.node[indhz[i]].number) is $(nhz[i]) but the other gammaz is $(nhz[i+1]), the sum should be less than 1.0")
@@ -474,7 +474,7 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF,close::Bool, origin::Bool,v
                 approxEq(nodehz.gammaz,nhz[i+1]) || error("nodehz $(nodehz.number) gammaz $(nodehz.gammaz) should match the gammaz in net.ht $(nhz[i+1]) and it does not")
                 edges = hybridEdges(nodehz)
                 edges[1].hybrid || error("bad diamond I situation, node $(nodehz.number) has gammaz $(nodehz.gammaz) so should be linked to hybrid edge, but it is not")
-                successchange = gammaZero!(currT,edges[1],close,origin,N,movesgamma)
+                successchange = gammaZero!(currT,d,edges[1],close,origin,N,movesgamma)
                 break
             else
                 if(approxEq(nhz[i+1],0.0))
@@ -482,7 +482,7 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF,close::Bool, origin::Bool,v
                     approxEq(nodehz.gammaz,nhz[i+1]) || error("nodehz $(nodehz.number) gammaz $(nodehz.gammaz) should match the gammaz in net.ht $(nhz[i+1]) and it does not")
                     edges = hybridEdges(nodehz);
                     edges[1].hybrid || error("bad diamond I situation, node $(nodehz.number) has gammaz $(nodehz.gammaz) so should be linked to hybrid edge, but it is not")
-                    successchange = gammaZero!(currT,edges[1],close,origin,N,movesgamma)
+                    successchange = gammaZero!(currT,d,edges[1],close,origin,N,movesgamma)
                     break
                 elseif(approxEq(nhz[i+1],1.0))
                     error("gammaz for node $(currT.node[indhz[i]].number) is $(nhz[i]) but the other gammaz is $(nhz[i+1]), the sum should be less than 1.0")

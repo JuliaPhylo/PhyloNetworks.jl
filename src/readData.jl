@@ -45,7 +45,7 @@ function readTableCF(df::DataFrame)
         push!(quartets,Quartet(i,string(df[i,1]),string(df[i,2]),string(df[i,3]),string(df[i,4]),[df[i,5],df[i,6],df[i,7]]))
     end
     d = DataCF(quartets)
-    write(s,"DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
+    println("DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
     return d
 end
 
@@ -333,6 +333,7 @@ readInputData(treefile::ASCIIString, whichQ::Symbol, numQ::Int64, writetab::Bool
 readInputData(treefile::ASCIIString, whichQ::Symbol, numQ::Int64) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), true, "tableCF.txt")
 readInputData(treefile::ASCIIString) = readInputData(treefile, :all, 1, unionTaxaTree(treefile), true, "tableCF.txt")
 readInputData(treefile::ASCIIString,taxa::Union(Vector{ASCIIString}, Vector{Int64})) = readInputData(treefile, :all, 1, taxa, true, "tableCF.txt")
+readInputData(treefile::ASCIIString, filename::ASCIIString) = readInputData(treefile, :all, 1, unionTaxaTree(treefile), true, filename)
 
 # ---------------------- descriptive stat for input data ----------------------------------
 
