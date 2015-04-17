@@ -11,7 +11,7 @@ const xAbs = 1e-10 # 0.001 in phylonet, 1e-10 prof Bates
 const xRel = 1e-10 # 0.01 in phylonet, 1e-10 prof Bates
 const numFails = 100 # like phylonet
 const numMoves = Int64[] #empty to be calculated inside based on coupon's collector
-const multiplier = 100 # for loglik absolute tol (multiplier*fAbs)
+const multiplier = 10000 # for loglik absolute tol (multiplier*fAbs)
 
 # ---------------------- branch length optimization ---------------------------------
 
@@ -771,7 +771,7 @@ function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::In
     movescount[move] += 1
     movescount[move+6] += success ? 1 : 0
     movesfail[move] += success ? 0 : 1
-    println("success $(success), movescount (add,mvorigin,mvtarget,chdir,delete,nni) proposed: $(movescount[1:6]); successful: $(movescount[7:12]); movesfail: $(movescount)")
+    println("success $(success), movescount (add,mvorigin,mvtarget,chdir,delete,nni) proposed: $(movescount[1:6]); successful: $(movescount[7:12]); movesfail: $(movesfail)")
     !success || return true
     println("new proposed topology failed in step $(count) for move $(int2move[move])")
     return false

@@ -17,37 +17,35 @@
 # and deletes edge1,2 from the nodes, and removes the nodes from edge1,2
 # returns the hybrid node to start future updates there
 function createHybrid!(edge1::Edge, edge2::Edge, edge3::Edge, edge4::Edge, net::HybridNetwork, gamma::Float64)
-    if(0 < gamma < 1)
-        (edge1.hybrid || edge2.hybrid) ? error("edges to delete must be tree edges") : nothing
-        (edge3.hybrid || edge4.hybrid) ? error("edges to add must be tree edges") : nothing
-        pushEdge!(net,edge3);
-        pushEdge!(net,edge4);
-        # create hybridization
-        max_node = maximum([e.number for e in net.node]);
-        max_edge = maximum([e.number for e in net.edge]);
-        hybrid_edge = Edge(max_edge+1,0.0,true,gamma,false);
-        pushEdge!(net,hybrid_edge);
-        hybrid_node = Node(max_node+1,false,true,[edge2,hybrid_edge,edge4]);
-        tree_node = Node(max_node+2,false,false,[edge1,edge3,hybrid_edge]);
-        setNode!(hybrid_edge,[tree_node,hybrid_node]);
-        setNode!(edge3,[tree_node,edge1.node[2]]);
-        setNode!(edge4,[hybrid_node,edge2.node[2]]);
-        setEdge!(edge1.node[2],edge3);
-        setEdge!(edge2.node[2],edge4);
-        removeEdge!(edge2.node[2],edge2);
-        removeEdge!(edge1.node[2],edge1);
-        removeNode!(edge1.node[2],edge1);
-        setNode!(edge1,tree_node);
-        removeNode!(edge2.node[2],edge2);
-        #[n.number for n in edge2.node]
-        setNode!(edge2,hybrid_node)
-        pushNode!(net,hybrid_node);
-        pushNode!(net,tree_node);
-        #pushHybrid!(net,hybrid_node);
-        return hybrid_node
-    else
-        error("gamma must be between 0 and 1")
-    end
+    0 < gamma < 1 || error("gamma must be between 0 and 1: $(gamma)")
+    (edge1.hybrid || edge2.hybrid) ? error("edges to delete must be tree edges") : nothing
+    (edge3.hybrid || edge4.hybrid) ? error("edges to add must be tree edges") : nothing
+    pushEdge!(net,edge3);
+    pushEdge!(net,edge4);
+    # create hybridization
+    max_node = maximum([e.number for e in net.node]);
+    max_edge = maximum([e.number for e in net.edge]);
+    gamma < 0.5 || warn("adding a major hybrid edge with gamma $(gamma), this can cause problems when updating incycle")
+    hybrid_edge = Edge(max_edge+1,0.0,true,gamma,gamma>=0.5);
+    pushEdge!(net,hybrid_edge);
+    hybrid_node = Node(max_node+1,false,true,[edge2,hybrid_edge,edge4]);
+    tree_node = Node(max_node+2,false,false,[edge1,edge3,hybrid_edge]);
+    setNode!(hybrid_edge,[tree_node,hybrid_node]);
+    setNode!(edge3,[tree_node,edge1.node[2]]);
+    setNode!(edge4,[hybrid_node,edge2.node[2]]);
+    setEdge!(edge1.node[2],edge3);
+    setEdge!(edge2.node[2],edge4);
+    removeEdge!(edge2.node[2],edge2);
+    removeEdge!(edge1.node[2],edge1);
+    removeNode!(edge1.node[2],edge1);
+    setNode!(edge1,tree_node);
+    removeNode!(edge2.node[2],edge2);
+    #[n.number for n in edge2.node]
+    setNode!(edge2,hybrid_node)
+    pushNode!(net,hybrid_node);
+    pushNode!(net,tree_node);
+    #pushHybrid!(net,hybrid_node);
+    return hybrid_node
 end
 
 # aux function for chooseEdgesGamma to identify
@@ -216,6 +214,7 @@ function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool,
             if(flag2)
                 flag3, edgesRoot = updateContainRoot!(net,hybrid);
                 if(flag3)
+                    parameters!(net)
                     return true, hybrid, flag, nocycle, flag2, flag3
                 else
                     #undoContainRoot!(edgesRoot);

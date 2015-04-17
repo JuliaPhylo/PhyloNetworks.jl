@@ -163,7 +163,7 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
     else
         minor = true
     end
-    println("change direction around hybrid node $(node.number) for minor $(minor)------- ")
+    println("MOVE: change direction around hybrid node $(node.number) for minor $(minor)------- ")
     update = changeDirection!(node,net,minor)
     if(node.k == 4 && update)
         flag2, edgesgammaz = updateGammaz!(net,node)
@@ -173,7 +173,8 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
     if(flag2)
         flag3,edgesroot = updateContainRoot!(net,node);
         if(flag3)
-            println("change direction around hybrid node $(node.number) SUCCESSFUL")
+            parameters!(net);
+            println("MOVE: change direction around hybrid node $(node.number) SUCCESSFUL")
             return true
         else
             node.isBadDiamondI || undoGammaz!(node,net)
@@ -186,7 +187,7 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
             end
             flag2 || error("when undoing change direction, we should be able to update gammaz again")
             undoContainRoot!(edgesRoot);
-            println("change direction around hybrid node $(node.number) FAILED because of containRoot")
+            println("MOVE: change direction around hybrid node $(node.number) FAILED because of containRoot")
             return false
         end
     else
@@ -199,7 +200,7 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
         end
         flag2 || error("when undoing change direction, we should be able to update gammaz again")
         undoContainRoot!(edgesRoot); #redo containRoot as before
-        println("change direction around hybrid node $(node.number) FAILED because of gammaz")
+        println("MOVE: change direction around hybrid node $(node.number) FAILED because of gammaz")
         return false
     end
 end
@@ -463,6 +464,7 @@ function moveOriginUpdate!(net::HybridNetwork, node::Node, othermin::Node, newed
     newedgeincycle = moveOrigin(node,othermin,tree1,tree2,newedge)
     flag2, edgesGammaz = updateGammaz!(net,node)
     if(flag2)
+        parameters!(net);
         println("MOVE: move Origin for hybrid node $(node.number) SUCCESSFUL")
         return true,flag2
     else
@@ -710,6 +712,7 @@ function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, major
     if(flag2)
         flag3,edgesroot = updateContainRoot!(net,node)
         flag3 || error("should not fail contain root when moving target")
+        parameters!(net);
         println("MOVE: move Target for hybrid node $(node.number) SUCCESSFUL")
         return true,flag2
     else
@@ -883,6 +886,7 @@ function NNI!(net::Network,edge::Edge)
         flag,edges = updateGammaz!(net,node);
         flag || error("cannot encounter bad triangles with NNI move")
     end
+    parameters!(net);
     println("MOVE: NNI around edge $(edge.number) SUCCESSFUL")
     return true
 end

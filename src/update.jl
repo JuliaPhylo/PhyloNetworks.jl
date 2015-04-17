@@ -154,7 +154,7 @@ end
 #        updates gammaz with whatever
 # edge lengths are originally in the network
 #        allow = true, returns true always, used when reading topology
-# returns net.hasVeryBadTriangle, array of edges changed (istIdentifiable)
+# returns net.hasVeryBadTriangle, array of edges changed (istIdentifiable, except hybrid edges)
 #         false if the network has extremely/very bad triangles
 # warning: needs to have updateInCycle already done as it needs inCycle, and k
 # check: assume any tree node that has hybrid Edge has only
@@ -173,7 +173,7 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
     other_maj = getOtherNode(edge_maj,node);
     other_min = getOtherNode(edge_min,node);
     if(node.k == 4) # could be bad diamond I,II
-        net.numTaxa < 6 || return true, []
+        net.numTaxa >= 5 || return false, []
         edgebla,edge_min2,tree_edge3 = hybridEdges(other_min);
         edgebla,edge_maj2,tree_edge1 = hybridEdges(other_maj);
         other_min2 = getOtherNode(edge_min2,other_min);
@@ -209,7 +209,7 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
             tree_edge2.istIdentifiable = false
         end
     elseif(node.k == 3) # could be extreme/very bad triangle or just bad triangle
-        if(net.numTaxa == 5)
+        if(net.numTaxa <= 5)
             warn("extremely or very bad triangle found")
             node.isVeryBadTriangle = true
             net.hasVeryBadTriangle = true
@@ -224,7 +224,7 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
                     warn("extremely bad triangle found")
                     node.isExtBadTriangle = true;
                     net.hasVeryBadTriangle = true
-                elseif(sum([l.leaf?1:0 for l in [isLeaf1,isLeaf2,isLeaf3]]) == 2)
+                elseif(sum([l.leaf?1:0 for l in [isLeaf1,isLeaf2,isLeaf3]]) == 1)
                     warn("bad triangle I or II found")
                     node.isVeryBadTriangle = true;
                     net.hasVeryBadTriangle = true
@@ -234,19 +234,10 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
                 setLength!(edge_maj,edge_maj.length+tree_edge2.length)
                 setLength!(tree_edge2,0.0)
                 tree_edge2.istIdentifiable = false
+                push!(net.edges_changed, tree_edge2);
             end
-        else # net.numTaxa < 5
-            node.isExtBadTriangle = true;
-            net.hasVeryBadTriangle = true
         end
-    else
-        if(getOtherNode(tree_edge2,node).leaf)
-            edge_min.istIdentifiable = false;
-            edge_maj.istIdentifiable = false;
-            push!(net.edges_changed, edge_min);
-            push!(net.edges_changed, edge_maj);
-        end
-    end
+    end #ends the search for bad things
     if(node.k > 3 && !node.isBadDiamondI && !node.isBadDiamondII)
         #println("si entra el ultimo if de k>3 y no bad diamondI,II")
         edgebla,tree_edge_incycle,tree_edge1 = hybridEdges(other_min);
@@ -254,21 +245,9 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
             tree_edge_incycle.istIdentifiable = true;
             push!(net.edges_changed,tree_edge_incycle);
         end
-        if(getOtherNode(tree_edge2,node).leaf)
-            #println("si se da cuenta de q hybrid node tiene child leaf. here edge min is $(edge_min.number) y su istId is $(edge_min.istIdentifiable)")
-            if(edge_maj.istIdentifiable)
-                edge_maj.istIdentifiable = false;
-                push!(net.edges_changed, edge_maj);
-            end
-            if(edge_min.istIdentifiable)
-                #println("si entra a cambiar edge min $(edge_min.number)")
-                edge_min.istIdentifiable = false;
-                push!(net.edges_changed, edge_min);
-            end
-        end
+        edge_maj.istIdentifiable = isEdgeIdentifiable(edge_maj)
+        edge_min.istIdentifiable = isEdgeIdentifiable(edge_min)
     end
-    edge_maj.istIdentifiable = isEdgeIdentifiable(edge_maj)
-    edge_min.istIdentifiable = isEdgeIdentifiable(edge_min)
     if(allow)
         return true, net.edges_changed
     else

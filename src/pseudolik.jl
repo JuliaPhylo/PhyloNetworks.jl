@@ -151,14 +151,14 @@ function deleteLeaf!(net::Network, leaf::Node)
         deleteEdge!(net,leaf.edge[1])
         deleteNode!(net,other)
         deleteNode!(net,leaf)
-        if(size(other1.edge,1) == 2)
+        if(size(other1.edge,1) == 2  && isNodeNumIn(other1,net.node))
             node = getOtherNode(other1.edge[1],other1)
             leaf1 = node.leaf ? node : getOtherNode(other1.edge[2],other1)
             if(leaf1.leaf)
                 deleteIntLeafWhile!(net,other1,leaf1);
             end
         end
-        if(size(other2.edge,1) == 2)
+        if(size(other2.edge,1) == 2 && isNodeNumIn(other2,net.node))
             node = getOtherNode(other2.edge[1],other1)
             leaf1 = node.leaf ? node : getOtherNode(other2.edge[2],other2)
             if(leaf1.leaf)
@@ -273,23 +273,34 @@ function deleteLeaf!(net::Network, leaf::Node)
             end
         else # other is tree node without hybrid edges
             #println("entra al caso (1)")
-            edge1,edge2 = hybridEdges(other,leaf.edge[1]);
-            other1 = getOtherNode(edge1,other);
-            other2 = getOtherNode(edge2,other);
-            removeEdge!(other,leaf.edge[1])
-            deleteNode!(net,leaf)
-            deleteEdge!(net,leaf.edge[1])
-            if(other1.leaf || other2.leaf)
-                (!other1.leaf || !other2.leaf) || error("just deleted a leaf $(leaf.number) and its two attached nodes are leaves also $(other1.number), $(other2.number)")
-                newleaf = other1.leaf ? other1 : other2
-                middle = other
-                #println("middle is $(middle.number), middle.hybrid $(middle.hybrid), middle.hasHybEdge $(middle.hasHybEdge)")
-                middle = deleteIntLeafWhile!(net,middle,newleaf)
-                #println("middle is $(middle.number), middle.hybrid $(middle.hybrid), middle.hasHybEdge $(middle.hasHybEdge)")
-                if(middle.hybrid)
-                    edges = hybridEdges(middle)
-                    edges[1].istIdentifiable = false
-                    edges[2].istIdentifiable = false
+            if(length(other.edge) == 2)
+                edge1 = isEqual(other.edge[1],leaf.edge[1]) ? other.edge[2] : other.edge[1]
+                other1 = getOtherNode(edge1,other)
+                removeEdge!(other1,edge1)
+                removeNode!(other1,edge1)
+                deleteNode!(net,other)
+                deleteNode!(net,leaf)
+                deleteEdge!(net,leaf.edge[1])
+                deleteEdge!(net,edge1)
+            else
+                edge1,edge2 = hybridEdges(other,leaf.edge[1]);
+                other1 = getOtherNode(edge1,other);
+                other2 = getOtherNode(edge2,other);
+                removeEdge!(other,leaf.edge[1])
+                deleteNode!(net,leaf)
+                deleteEdge!(net,leaf.edge[1])
+                if(other1.leaf || other2.leaf)
+                    (!other1.leaf || !other2.leaf) || error("just deleted a leaf $(leaf.number) and its two attached nodes are leaves also $(other1.number), $(other2.number)")
+                    newleaf = other1.leaf ? other1 : other2
+                    middle = other
+                    #println("middle is $(middle.number), middle.hybrid $(middle.hybrid), middle.hasHybEdge $(middle.hasHybEdge)")
+                    middle = deleteIntLeafWhile!(net,middle,newleaf)
+                    #println("middle is $(middle.number), middle.hybrid $(middle.hybrid), middle.hasHybEdge $(middle.hasHybEdge)")
+                    if(middle.hybrid)
+                        edges = hybridEdges(middle)
+                        edges[1].istIdentifiable = false
+                        edges[2].istIdentifiable = false
+                    end
                 end
             end
         end
@@ -392,6 +403,7 @@ function extractQuartet(net::HybridNetwork,quartet::Array{Node,1})
             deleteLeaf!(qnet,n)
         end
     end
+    println("deletion of leaves successful")
     updateHasEdge!(qnet,net)
     parameters!(qnet,net)
     return qnet
@@ -422,9 +434,9 @@ end
 # function to extract all quartets from net according
 # to the array of quartets of a Data object
 # it updates expCF, hasEdgem indexht
-function extractQuartet!(net::HybridNetwork, d::DataCF)
+function extractQuartet!(net::HybridNetwork, quartet::Vector{Quartet})
     println("EXTRACT: begins extract quartets for network")
-    for(q in d.quartet)
+    for(q in quartet)
         extractQuartet!(net,q)
         qnet = deepcopy(q.qnet);
         calculateExpCFAll!(qnet);
@@ -432,6 +444,7 @@ function extractQuartet!(net::HybridNetwork, d::DataCF)
     end
 end
 
+extractQuartet!(net::HybridNetwork, d::DataCF) = extractQuartet!(net, d.quartet)
 
 # ------------------------------- calculate expCF -------------------------------------
 
@@ -536,30 +549,26 @@ end
 #        node correspond to the hybrid node
 #        internal: true if loop is in internal edge
 function eliminateLoop!(qnet::QuartetNetwork, node::Node, internal::Bool)
-    if(node.hybrid)
-        edge1,edge2,edge3 = hybridEdges(node)
-        deleteIntLeafWhile!(qnet, edge1, node)
-        deleteIntLeafWhile!(qnet, edge2, node)
-        other = getOtherNode(edge1,node)
-        if(!isEqual(getOtherNode(edge2,node),other))
-            error("node $(node.number) and other $(other.number) are not the two nodes in a cycle with k=2")
-        end
-        removeEdge!(node,edge2)
-        removeEdge!(other,edge2)
-        deleteEdge!(qnet,edge2)
-        if(internal)
-            setLength!(edge1, -log(1-edge1.gamma*edge1.gamma*edge1.z-edge2.gamma*edge2.gamma*edge2.z))
-        else
-            leaf = getOtherNode(edge3,node)
-            if(leaf.leaf)
-                deleteIntLeafWhile!(qnet,node,leaf)
-            else
-                edge1,edge2,edge3 = hybridEdges(other)
-                deleteIntLeafWhile!(qnet,other,getOtherNode(edge3,other))
-            end
-        end
+    node.hybrid || error("cannot eliminate loop around node $(node.number) since it is not hybrid")
+    edge1,edge2,edge3 = hybridEdges(node)
+    deleteIntLeafWhile!(qnet, edge1, node)
+    deleteIntLeafWhile!(qnet, edge2, node)
+    other = getOtherNode(edge1,node)
+    isEqual(getOtherNode(edge2,node),other) || error("node $(node.number) and other $(other.number) are not the two nodes in a cycle with k=2")
+    other.number == node.prev.number || error("something strange, other node $(other.number) should be the same as the stored in node.prev $(node.prev.number)")
+    removeEdge!(node,edge2)
+    removeEdge!(other,edge2)
+    deleteEdge!(qnet,edge2)
+    if(internal)
+        setLength!(edge1, -log(1-edge1.gamma*edge1.gamma*edge1.z-edge2.gamma*edge2.gamma*edge2.z))
     else
-        error("cannot eliminate loop around node $(node.number) since it is not hybrid")
+        leaf = getOtherNode(edge3,node)
+        #if(leaf.leaf)
+            deleteIntLeafWhile!(qnet,node,leaf)
+        #else
+        #    edge1,edge2,edge3 = hybridEdges(other)
+        #    deleteIntLeafWhile!(qnet,other,getOtherNode(edge3,other))
+        #end
     end
 end
 
@@ -978,7 +987,7 @@ function logPseudoLik(quartet::Quartet)
             warn("found expCF negative $(quartet.qnet.expCF[i]), will set loglik=-1.e15")
             suma += -1.e15
         else
-            suma += 100*quartet.obsCF[i]*log(quartet.qnet.expCF[i]/quartet.obsCF[i])
+            suma += quartet.obsCF[i] == 0 ? 0.0 : 100*quartet.obsCF[i]*log(quartet.qnet.expCF[i]/quartet.obsCF[i])
         end
     end
     quartet.logPseudoLik = suma

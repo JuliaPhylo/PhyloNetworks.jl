@@ -81,5 +81,9 @@ function undoGammaz!(node::Node, net::HybridNetwork)
         node.isVeryBadTriangle = false
         node.isExtBadTriangle = false
         net.hasVeryBadTriangle = false
+    else
+        edge_maj, edge_min, tree_edge2 = hybridEdges(node);
+        edge_maj.istIdentifiable = isEdgeIdentifiable(edge_maj)
+        edge_min.istIdentifiable = isEdgeIdentifiable(edge_min)
     end
 end

@@ -596,7 +596,7 @@ function hybridEdges(node::Node)
         end
         return hybrid, treecycle, tree
     else
-        warn("node $(node.number) is not hybrid $(node.hybrid) nor tree with hybrid edges (hasHybEdge) $(node.hasHybEdge), return the node.edge in order, unless a leaf is attached, then the edge attached to leaf is last");
+        #warn("node $(node.number) is not hybrid $(node.hybrid) nor tree with hybrid edges (hasHybEdge) $(node.hasHybEdge), return the node.edge in order, unless a leaf is attached, then the edge attached to leaf is last");
         edge1 = nothing
         edge2 = nothing
         edge3 = nothing

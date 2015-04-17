@@ -687,6 +687,7 @@ function writeTopology(net::HybridNetwork, di::Bool, string::Bool)
 end
 
 writeTopology(net::HybridNetwork) = writeTopology(net,false, true)
+writeTopology(net::HybridNetwork,di::Bool) = writeTopology(net,di, true)
 
 # function to check if root is well-placed
 # and look for a better place if not
