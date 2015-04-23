@@ -11,7 +11,7 @@
 # input: hybrid node
 function makeNodeTree!(net::Network, hybrid::Node)
     hybrid.hybrid || error("cannot make node $(hybrid.number) tree node because it already is")
-    warn("we make node $(hybrid.number) a tree node, but it can still have hybrid edges pointing at it")
+    warn("we make node $(hybrid.number) a tree node, but it can still have hybrid edges pointing at it, hasHybEdge set to false")
     hybrid.gammaz = -1
     hybrid.isBadDiamondI = false
     hybrid.isBadDiamondII = false
@@ -19,6 +19,7 @@ function makeNodeTree!(net::Network, hybrid::Node)
     hybrid.k = -1
     removeHybrid!(net,hybrid)
     hybrid.hybrid = false
+    hybrid.hasHybEdge = false
 end
 
 # aux function to make a hybrid edge tree edge
@@ -206,6 +207,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                     setLength!(edge4,edge5.length)
                     deleteNode!(net,other3)
                     deleteEdge!(net,edge5)
+                    other1.hasHybEdge = false
                 else
                     removeEdge!(other,leaf.edge[1])
                     edgebla,edgebla,treeedge = hybridEdges(other1)
@@ -761,10 +763,10 @@ function internalLength!(qnet::QuartetNetwork)
         node = qnet.node[getIndex(true,[size(n.edge,1) == 3 for n in qnet.node])]
         node2 = qnet.node[getIndex(true,[size(n.edge,1) == 3 && !isEqual(n,node) for n in qnet.node])]
         for(e in node.edge)
-            deleteIntLeafWhile!(qnet,e,node)
+            deleteIntLeafWhile!(qnet,e,node,true)
         end
         for(e in node2.edge)
-            deleteIntLeafWhile!(qnet,e,node2)
+            deleteIntLeafWhile!(qnet,e,node2,true)
         end
         edge = nothing
         for(e in node.edge)

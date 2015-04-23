@@ -19,28 +19,66 @@ writetable("HGT_truenet_expCF.csv",df2)
 
 # compare table with expCF and obsCF: very different!
 
-# optTopLevel with expCF and starting tree 1_astral.out, no branches updated
+# ----------------- optTopLevel with expCF and starting tree 1_astral.out, no branches updated --------
+include("../types.jl")
+include("../functions.jl")
+
 df2 = readtable("HGT_truenet_expCF.csv")
 d2 = readTableCF(df2); #expCF
 
+truenetwork = "((((1,2),((3,4))#H1),(#H1,5)),6);"
+net = readTopologyUpdate(truenetwork);
+printEdges(net)
+@time optBL!(net,d2) #loglik~1e.-15 in 0.17secs
+
 currT0 = readTopologyUpdate("1_astral.out");
 printEdges(currT0)
-srand(1234)
+srand(1234) #found right network in 135secs, wrong BL, right gamma (debug3hgtGood.txt)
+srand(4568) # bug with movedownlevel, will leave for later (debug4hgt.txt)
+srand(11233) #found right network in 119.34secs (debug4hgtBad.txt, by mistake)
 currT = deepcopy(currT0);
 addHybridizationUpdate!(currT); #add hybrid at random (different test would be to start with the tree)
 printEdges(currT)
 
 @time optTopLevel!(currT,d2,1,false)
 
-# debug1hgtBad.txt : could not find bug!
+# ----------------- optTopLevel with obsCF and starting tree 1_astral.out, no branches updated --------
+include("../types.jl")
+include("../functions.jl")
 
-net2 = readTopologyUpdate("(5,((3,(2,1):0.9184973864504608):0.0,(4)#H7:0.7994139650661589::1.0):1.2422144462061508,(6,#H7:0.0002521174970950474::0.0):0.20997432883063805);");
-printEdges(net2)
-qnet = QuartetNetwork(net2);
-printNodes(qnet)
+df = readtable("HGTtableCF.txt") #from 1.ms
+d = readTableCF(df); #obsCF
+
+truenetwork = "((((1,2),((3,4))#H1),(#H1,5)),6);"
+net = readTopologyUpdate(truenetwork);
+printEdges(net)
+@time optBL!(net,d,true) #loglik ~144.74 for true net
+
+currT0 = readTopologyUpdate("1_astral.out");
+printEdges(currT0)
+srand(1234) #local max found debug5hgtBad
+srand(4568) #local max2 found debug6hgtBad
+srand(11233) #local max found debug7hgtBad
+currT = deepcopy(currT0);
+addHybridizationUpdate!(currT); #add hybrid at random (different test would be to start with the tree)
+printEdges(currT)
+
+@time optTopLevel!(currT,d,1,false)
+
+
+# -----------------------
+# bug in srand(4568)
+net = readTopologyUpdate("((4,#H7:9.99670403892172::0.43454301575229803):1.5467254857425556,((6,(5)#H7:2.512064322645178::0.565456984247702):9.221085796210835,(2,1):0.38003642076628485):0.0,3);");
+srand(4568)
+flag = proposedTop!(:nni,net,true,0,100,rep(0,18),rep(0,6))
+df = readtable("HGTtableCF.txt") #from 1.ms
+d = readTableCF(df); #obsCF
+
+qnet=QuartetNetwork(net);
+extractQuartet!(net,d)
 printEdges(qnet)
+printNodes(qnet)
+deleteLeaf!(qnet,qnet.node[1]) #leaf1
+qnet0=deepcopy(qnet);
+deleteLeaf!(qnet,qnet.node[2]) #leaf4
 
-deleteLeaf!(qnet,qnet.node[1])
-
-qnet0 = deepcopy(qnet);
-deleteLeaf!(qnet,qnet.node[9])
