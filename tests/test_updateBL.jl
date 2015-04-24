@@ -12,6 +12,15 @@ i = 1
 [n.number for n in parts[i].part3]
 [n.number for n in parts[i].part4]
 
+
+include("../types.jl")
+include("../functions.jl")
 net=readTopologyUpdate("1_astral.out");
 printEdges(net)
 net.names
+df0 = readtable("HGT_truenet_expCF.csv")
+d = readTableCF(df0); #expCF
+
+parts = edgesParts(net);
+df = makeTable(net,parts,d)
+x = updateBL!(net,d)

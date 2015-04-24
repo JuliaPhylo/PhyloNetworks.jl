@@ -23,7 +23,7 @@ writetable("HGT_truenet_expCF.csv",df2)
 include("../types.jl")
 include("../functions.jl")
 
-df2 = readtable("HGT_truenet_expCF.csv")
+df2 = readtable("HGT_truenet_expCF.csv"
 d2 = readTableCF(df2); #expCF
 
 truenetwork = "((((1,2),((3,4))#H1),(#H1,5)),6);"
@@ -36,6 +36,30 @@ printEdges(currT0)
 srand(1234) #found right network in 135secs, wrong BL, right gamma (debug3hgtGood.txt)
 srand(4568) # bug with movedownlevel, will leave for later (debug4hgt.txt)
 srand(11233) #found right network in 119.34secs (debug4hgtBad.txt, by mistake)
+currT = deepcopy(currT0);
+addHybridizationUpdate!(currT); #add hybrid at random (different test would be to start with the tree)
+printEdges(currT)
+
+@time optTopLevel!(currT,d2,1,false)
+
+# ----------------- optTopLevel with expCF and starting tree 1_astral.out, branches updated --------
+include("../types.jl")
+include("../functions.jl")
+
+df2 = readtable("HGT_truenet_expCF.csv");
+d2 = readTableCF(df2); #expCF
+
+truenetwork = "((((1,2),((3,4))#H1),(#H1,5)),6);"
+net = readTopologyUpdate(truenetwork);
+printEdges(net)
+@time optBL!(net,d2) #loglik~1e.-15 in 0.17secs
+
+currT0 = readTopologyUpdate("1_astral.out");
+x = updateBL!(currT0,d2)
+printEdges(currT0)
+srand(1234) #error
+srand(4568) #same error
+srand(11233) #very close to right network in 135secs (debug8hgtgood.txt)
 currT = deepcopy(currT0);
 addHybridizationUpdate!(currT); #add hybrid at random (different test would be to start with the tree)
 printEdges(currT)
@@ -59,6 +83,30 @@ printEdges(currT0)
 srand(1234) #local max found debug5hgtBad
 srand(4568) #local max2 found debug6hgtBad
 srand(11233) #local max found debug7hgtBad
+currT = deepcopy(currT0);
+addHybridizationUpdate!(currT); #add hybrid at random (different test would be to start with the tree)
+printEdges(currT)
+
+@time optTopLevel!(currT,d,1,false)
+
+# ----------------- optTopLevel with obsCF and starting tree 1_astral.out, branches updated --------
+include("../types.jl")
+include("../functions.jl")
+
+df = readtable("HGTtableCF.txt") #from 1.ms
+d = readTableCF(df); #obsCF
+
+truenetwork = "((((1,2),((3,4))#H1),(#H1,5)),6);"
+net = readTopologyUpdate(truenetwork);
+printEdges(net)
+@time optBL!(net,d,true) #loglik ~144.74 for true net
+
+currT0 = readTopologyUpdate("1_astral.out");
+x = updateBL!(currT0,d)
+printEdges(currT0)
+srand(1234) #local max found debug9hgt.txt
+srand(4568) #local max2 found debug9hgt.txt
+srand(11233) #local max3 found debug9hgt.txt
 currT = deepcopy(currT0);
 addHybridizationUpdate!(currT); #add hybrid at random (different test would be to start with the tree)
 printEdges(currT)

@@ -411,12 +411,115 @@ end
 readStartTop(file::String,d::DataCF) = readStartTop(file,d,true)
 readStartTop(file::String) = readStartTop(file,DataCF(),false)
 
-# function to update branch lengths with obsCF from d
-# if net is a tree, it is based on Cecile code: ch4-species-tree-units.r
+# function to update starting branch lengths for starting tree read from ASTRAL
+# BL are updated as -log(3/2(1-mean(obsCF)))
+# based on Cecile's chr4-species-tree-units.r
+# input: starting tree, data after read table of obsCF
 function updateBL!(net::HybridNetwork,d::DataCF)
-    if(isTree(net))
-        ff
+    isTree(net) || warn("updateStartBL was created for a tree, and net here is not a tree")
+    parts = edgesParts(net)
+    df = makeTable(net,parts,d)
+    x=by(df,[:edge],df->DataFrame(meanCF=mean(df[:CF]),sdCF=std(df[:CF]),Nquartets=length(df[:CF]),edgeL=-log(3/2*(1-mean(df[:CF])))))
+    edges = x[1]
+    lengths = x[5]
+    for(i in 1:length(edges))
+        try
+            ind = getIndexEdge(edges[i],net)
+        catch
+            error("edge $(edges[i]) not in net")
+        end
+        ind = getIndexEdge(edges[i],net)
+        if(lengths[i] > 0)
+            setLength!(net.edge[ind],lengths[i])
+        else
+            setLength!(net.edge[ind],0.0)
+        end
+    end
+    return x
+end
+
+
+# function to get part1,part2,part3,part4 for each edge in net.edge
+# returns a EdgeParts object
+function edgesParts(net::HybridNetwork)
+    parts = EdgeParts[] #vector to hold part1,...,part4 for each edge
+    for(e in net.edge)
+        if(isInternalEdge(e))
+            length(e.node) == 2 || error("strange edge with $(length(e.node)) nodes instead of 2")
+            n1 = e.node[1]
+            n2 = e.node[2]
+            e11,e12 = hybridEdges(n1,e)
+            e21,e22 = hybridEdges(n2,e)
+            part1 = Node[]
+            part2 = Node[]
+            part3 = Node[]
+            part4 = Node[]
+            getDescendants!(getOtherNode(e11,n1),e11,part1)
+            getDescendants!(getOtherNode(e12,n1),e12,part2)
+            getDescendants!(getOtherNode(e21,n2),e21,part3)
+            getDescendants!(getOtherNode(e22,n2),e22,part4)
+            push!(parts, EdgeParts(e.number,part1,part2,part3,part4))
+        end
+    end
+    return parts
+end
+
+# aux function to traverse the network from a node and an edge
+# based on traverseContainRoot
+# warning: it does not go accross hybrid node, minor hybrid edge
+function getDescendants!(node::Node, edge::Edge, descendants::Array{Node,1})
+    if(node.leaf)
+        push!(descendants, node)
     else
-        #fixit: what to do here?
+        for(e in node.edge)
+            if(!isEqual(edge,e) && e.isMajor)
+                other = getOtherNode(e,node);
+                getDescendants!(other,e, descendants);
+            end
+        end
+    end
+end
+
+# function to make table to later use in updateBL
+# uses vector parts obtained from edgeParts function
+function makeTable(net::HybridNetwork, parts::Vector{EdgeParts},d::DataCF)
+    df = DataFrames.DataFrame(edge=1,t1="",t2="",t3="",t4="",resolution="",CF=0.)
+    for(p in parts) #go over internal edges too
+        for(t1 in p.part1)
+            for(t2 in p.part2)
+                for(t3 in p.part3)
+                    for(t4 in p.part4)
+                        tx1 = net.names[t1.number]
+                        tx2 = net.names[t2.number]
+                        tx3 = net.names[t3.number]
+                        tx4 = net.names[t4.number]
+                        names = [tx1,tx2,tx3,tx4]
+                        row = getIndex(true,[sort(names) == sort(q.taxon) for q in d.quartet])
+                        col,res = resolution(names,d.quartet[row].taxon)
+                        append!(df,DataFrames.DataFrame(edge=p.edgenum,t1=tx1,t2=tx2,t3=tx3,t4=tx4,resolution=res,CF=d.quartet[row].obsCF[col]))
+                    end
+                end
+            end
+        end
+    end
+    df = df[2:size(df,1),1:size(df,2)]
+    return df
+end
+
+# function to determine the resolution of taxa picked from part1,2,3,4 and DataCF
+# names: taxa from part1,2,3,4
+# rownames: taxa from table of obsCF
+function resolution(names::Vector{ASCIIString},rownames::Vector{ASCIIString})
+    length(names) == length(rownames) || error("names and rownames should have the same length")
+    length(names) == 4 || error("names should have 4 entries, not $(length(names))")
+    bin = [n == names[1] || n == names[2] ? 1 : 0 for n in rownames]
+    if(bin == [1,1,0,0] || bin == [0,0,1,1])
+        return 1,"12|34"
+    elseif(bin == [1,0,1,0] || bin == [0,1,0,1])
+        return 2,"13|24"
+    elseif(bin == [1,0,0,1] || bin == [0,1,1,0])
+        return 3,"14|23"
+    else
+        error("strange resolution $(bin)")
     end
 end
