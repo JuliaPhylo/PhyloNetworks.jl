@@ -195,3 +195,12 @@ type DataCF
     DataCF(quartet::Array{Quartet,1},trees::Vector{HybridNetwork}) = new(quartet,length(quartet),trees,length(trees))
     DataCF() = new([],0,[],0)
 end
+
+# aux type for the updateBL function
+type EdgeParts
+    edgenum::Int64
+    part1::Vector{Node}
+    part2::Vector{Node}
+    part3::Vector{Node}
+    part4::Vector{Node}
+end

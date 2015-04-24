@@ -24,69 +24,95 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
-function taxaTreesQuartets(trees::Vector{HybridNetwork}, quartets::Vector{Quartet},s::IO)
-    taxaT = unionTaxa(trees)
-    taxaQ = unionTaxa(quartets)
-    diff = symdiff(taxaT,taxaQ)
-    isempty(diff) ? write(s,"DATA: same taxa in gene trees and quartets: $(taxaT)") : write(s,"DATA: $(length(diff)) different taxa found in gene trees and quartets. \n Taxa $(intersect(taxaT,diff)) in trees, not in quartets; and taxa $(intersect(taxaQ,diff)) in quartets, not in trees")
-    u = union(taxaT,taxaQ)
-    for taxon in u
-        numT = taxonTrees(taxon,trees)
-        numQ = taxonQuartets(taxon,quartets)
-        write(s,"Taxon $(taxon) appears in $(numT) input trees ($(round(100*numT/length(trees),2)) %) and $(numQ) quartets ($(round(100*numQ/length(quartets),2)) %)\n")
+# function to update starting branch lengths for starting tree read from ASTRAL
+# BL are updated as -log(1-3/2mean(obsCF))
+# input: starting tree, data after read table of obsCF
+
+# function to get part1,part2,part3,part4 for each edge in net.edge
+# returns a EdgeParts object
+function edgesParts(net::HybridNetwork)
+    isTree(net) || warn("updateStartBL was created for a tree, and net here is not a tree")
+    parts = EdgeParts[] #vector to hold part1,...,part4 for each edge
+    for(e in net.edge)
+        if(isInternalEdge(e))
+            length(e.node) == 2 || error("strange edge with $(length(e.node)) nodes instead of 2")
+            n1 = e.node[1]
+            n2 = e.node[2]
+            e11,e12 = hybridEdges(n1,e)
+            e21,e22 = hybridEdges(n2,e)
+            part1 = Node[]
+            part2 = Node[]
+            part3 = Node[]
+            part4 = Node[]
+            getDescendants!(getOtherNode(e11,n1),e11,part1)
+            getDescendants!(getOtherNode(e12,n1),e12,part2)
+            getDescendants!(getOtherNode(e21,n2),e21,part3)
+            getDescendants!(getOtherNode(e22,n2),e22,part4)
+            push!(parts, EdgeParts(e.number,part1,part2,part3,part4))
+        end
+    end
+    return parts
+end
+
+# aux function to traverse the network from a node and an edge
+# based on traverseContainRoot
+# warning: it does not go accross hybrid node, minor hybrid edge
+function getDescendants!(node::Node, edge::Edge, descendants::Array{Node,1})
+    if(node.leaf)
+        push!(descendants, node)
+    else
+        for(e in node.edge)
+            if(!isEqual(edge,e) && e.isMajor)
+                other = getOtherNode(e,node);
+                getDescendants!(other,e, descendants);
+            end
+        end
     end
 end
 
-taxaTreesQuartets(trees::Vector{HybridNetwork}, quartets::Vector{Quartet}) = taxaTreesQuartets(trees, quartets, STDOUT)
-
-# function that counts the number of trees in which taxon appears
-function taxonTrees(taxon::ASCIIString, trees::Vector{HybridNetwork})
-    suma = 0
-    for t in trees
-        suma += in(t.names,taxon) ? 1 : 0
+# function to make table to later use in updateBL
+# uses vector parts obtained from edgeParts function
+function makeTable(net::HybridNetwork, parts::Vector{EdgeParts},d::DataCF)
+    df = DataFrames.DataFrame(edge=1,t1="",t2="",t3="",t4="",resolution="",CF=0.)
+    for(p in parts) #go over internal edges too
+        for(t1 in p.part1)
+            for(t2 in p.part2)
+                for(t3 in p.part3)
+                    for(t4 in p.part4)
+                        tx1 = net.names[t1.number]
+                        tx2 = net.names[t2.number]
+                        tx3 = net.names[t3.number]
+                        tx4 = net.names[t4.number]
+                        names = [tx1,tx2,tx3,tx4]
+                        row = getIndex(true,[sort(names) == sort(q.taxon) for q in d.quartet])
+                        col,res = resolution(names,d.quartet[row])
+                        append!(df,DataFrames.DataFrame(edge=p.edgenum,t1=tx1,t2=tx2,t3=tx3,t4=tx4,resolution=res,CF=d.quartet[row].obsCF[col]))
+                    end
+                end
+            end
+        end
     end
-    return suma
+    df = df[2:size(df,1),1:size(df,2)]
+    return df
 end
 
-# function that counts the number of quartets in which taxon appears
-function taxonQuartets(taxon::ASCIIString, quartets::Vector{Quartet})
-    suma = 0
-    for q in quartets
-        suma += in(q.taxon,taxon) ? 1 : 0
+# function to determine the resolution of taxa picked from part1,2,3,4 and DataCF
+# names: taxa from part1,2,3,4
+# rownames: taxa from table of obsCF
+function resolution(names::Vector{ASCIIString},rownames::Vector{ASCIIString})
+    length(names) == length(rownames) || error("names and rownames should have the same length")
+    length(names) == 4 || error("names should have 4 entries, not $(length(names))")
+    bin = [n == names[1] || n == names[2] ? 1 : 0 for n in rownames]
+    if(bin == [1,1,0,0] || bin == [0,0,1,1])
+        return 1,"12|34"
+    elseif(bin == [1,0,1,0] || bin == [0,1,0,1])
+        return 2,"13|24"
+    elseif(bin == [1,0,0,1] || bin == [0,1,1,0])
+        return 3,"14|23"
+    else
+        error("strange resolution $(bin)")
     end
-    return suma
 end
-
-
-# function to create descriptive stat from input data, will save in stream s
-# which can be a file or STDOUT
-# default: file "descData.txt"
-function descData(d::DataCF, s::IO)
-    write(s,"DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
-    taxaTreesQuartets(d.tree,d.quartet,s)
-    write(s,"----------------------------\n\n")
-    for q in d.quartet
-        write(s,"Quartet $(q.number) obsCF constructed with $(q.numGT) gene trees ($(round(q.numGT/d.numTrees*100,2))%)\n")
-    end
-    write(s,"----------------------------\n\n")
-
-end
-
-function descData(d::DataCF, filename::ASCIIString)
-    s = open(filename, "w")
-    descData(d,s)
-    close(s)
-end
-
-descData(d::DataCF) = descData(d, "descData.txt")
-
-
-# fixit: think what descriptive stats we want from quartets/gene trees?
-# taxa read from quartets: union(...)
-# taxa read from gene trees: union(...)
-# taxa not in quartets, not in gene trees
-# num of gene trees each quartet has
-# num quartets per taxon, number of gene trees per taxon
 
 # -------------------------------------------------------------------------------------------------
 # ORIGINAL

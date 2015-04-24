@@ -106,6 +106,7 @@ end
 # of all the edges visited
 # changed to recursive after Cecile's idea
 # warning: it does not go accross hybrid node, minor hybrid edge
+# fixit: should have exclamation sign
 function traverseContainRoot(node::Node, edge::Edge, edges_changed::Array{Edge,1})
     if(!node.leaf && !node.hybrid)
         for(e in node.edge)
