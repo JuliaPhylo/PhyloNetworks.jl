@@ -823,6 +823,7 @@ function NNI!(net::Network,edge::Edge)
     t4 = e4.length
     n1 = edge.node[1]
     n2 = edge.node[2]
+    nohybrid = false
     println("e1 is $(e1.number), e2 is $(e2.number), e3 is $(e3.number), e4 is $(e4.number), n1 is $(n1.number), n2 is $(n2.number)")
     if(edge.inCycle != -1) # update inCycle
         node = net.node[getIndexNode(edge.inCycle,net)]
@@ -849,18 +850,20 @@ function NNI!(net::Network,edge::Edge)
         if(e1.inCycle != -1 && e3.inCycle != -1)
             warn("cannot do tree NNI because it will create intersecting cycles, nothing done. e1,e2,e3,e4: $([e1.number,e2.number,e3.number,e4.number])")
             return false
-        elseif(e1.inCycle != -1)
+        elseif(e1.inCycle != -1 && e3.inCycle == -1)
             node = net.node[getIndexNode(e1.inCycle,net)]
             node.hybrid || error("edge $(ed1.number) has incycle $(ed1.inCycle) but node $(node.number) is not hybrid")
             edge.inCycle = e1.inCycle
             n2.inCycle = e1.inCycle
             node.k += 1
-        elseif(e3.inCycle != -1)
+        elseif(e3.inCycle != -1 && e1.inCycle == -1)
             node = net.node[getIndexNode(e3.inCycle,net)]
             node.hybrid || error("edge $(ed3.number) has incycle $(ed3.inCycle) but node $(node.number) is not hybrid")
             edge.inCycle = e3.inCycle
             n1.inCycle = e3.inCycle
             node.k += 1
+        else
+            nohybrid = true
         end
     end
     removeNode!(n1,e2)
@@ -882,7 +885,7 @@ function NNI!(net::Network,edge::Edge)
         setLength!(edge,(1-r)*t4)
         setLength!(e4,r*t4)
     end
-    if(!isTree(net))
+    if(!isTree(net) && !nohybrid)
         undoGammaz!(node,net);
         flag,edges = updateGammaz!(net,node);
         flag || error("cannot encounter bad triangles with NNI move")

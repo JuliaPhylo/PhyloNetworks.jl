@@ -173,7 +173,11 @@ function update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork)
                     #println("updating qnet parameters, found gammaz case when hybridization has been removed")
                     0 <= x[qnet.indexht[i]] <= 1 || error("new gammaz value should be between 0,1: $(x[qnet.indexht[i]]).")
                     #x[qnet.indexht[i]] + x[qnet.indexht[i]+1] <= 1 || error("new gammaz value should add to less than 1: $(x[qnet.indexht[i]])  $(x[qnet.indexht[i]+1]).")
-                    setLength!(qnet.edge[qnet.index[i]],-log(1-x[qnet.indexht[i]]))
+                    if(approxEq(x[qnet.indexht[i]],1.0))
+                        setLength!(qnet.edge[qnet.index[i]],10)
+                    else
+                        setLength!(qnet.edge[qnet.index[i]],-log(1-x[qnet.indexht[i]]))
+                    end
                 end
             end
         end
