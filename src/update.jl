@@ -173,6 +173,7 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
     edge_maj, edge_min, tree_edge2 = hybridEdges(node);
     other_maj = getOtherNode(edge_maj,node);
     other_min = getOtherNode(edge_min,node);
+    node.k > 2 || return false, []
     if(node.k == 4) # could be bad diamond I,II
         net.numTaxa >= 5 || return false, []
         edgebla,edge_min2,tree_edge3 = hybridEdges(other_min);

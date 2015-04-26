@@ -46,7 +46,7 @@ printEdges(currT)
 include("../types.jl")
 include("../functions.jl")
 
-df2 = readtable("HGT_truenet_expCF.csv");
+df2 = readtable("HGT_truenet_expCF.csv")
 d2 = readTableCF(df2); #expCF
 
 truenetwork = "((((1,2),((3,4))#H1),(#H1,5)),6);"
@@ -57,8 +57,8 @@ printEdges(net)
 currT0 = readTopologyUpdate("1_astral.out");
 x = updateBL!(currT0,d2)
 printEdges(currT0)
-srand(1234) #error
-srand(4568) #same error
+srand(1234) #very close to right network in 20secs(debug12hgt)
+srand(4568) #movedownlevel: debug13hgtBad
 srand(11233) #very close to right network in 135secs (debug8hgtgood.txt)
 currT = deepcopy(currT0);
 addHybridizationUpdate!(currT); #add hybrid at random (different test would be to start with the tree)

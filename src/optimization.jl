@@ -542,8 +542,10 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,close::Bool, M
     currT.blacklist = Int64[];
     origin = (rand() > 0.5) #true=moveOrigin, false=moveTarget
     startover = true
+    tries = 0
     N2 = N > 5 ? N/5 : 1 #num of failures of badlik around a gamma=0.0
-    while(startover)
+    while(startover && tries < N)
+        tries += 1
         badliks = 0
         if(currT.loglik < M*ftolAbs) #curr loglik already close to 0.0
             startover = false
@@ -581,6 +583,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,close::Bool, M
                         if(all([flagh,flagt,flaghz]))
                             startover = false
                         else
+                            currloglik = currT.loglik
                             startover = true
                         end
                     end
@@ -611,6 +614,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,close::Bool, M
             end
         end
     end
+    tries < N || warn("afterOptBLAll ended because it tried $(tries) times with startover $(startover)")
     currT.blacklist = Int64[];
     return currT
 end

@@ -257,6 +257,7 @@ function moveOrigin(node::Node,othermin::Node,tree1::Edge, tree2::Edge,newedge::
     else
         error("tree1 edge $(tree1.number) and tree2 edge $(tree2.number) should be one in cycle and one not incycle")
     end
+    println("MOVE: newedge is $(newedge.number)")
     otheri = getOtherNode(treei,othermin);
     otherj = getOtherNode(treej,othermin);
     node1 = newedge.node[1]; # not waste of memory, needed step
@@ -469,7 +470,7 @@ function moveOriginUpdate!(net::HybridNetwork, node::Node, othermin::Node, newed
         return true,flag2
     else
         println("MOVE: move Origin for hybrid node $(node.number) FAILED")
-        undoistIdentifiable!(edgesGammaz);
+        isempty(edgesGammaz) || undoistIdentifiable!(edgesGammaz)
         undoGammaz!(node,net);
         warn("MOVE: undoing move origin for conflict: gammaz")
         moveOrigin(node,othermin,tree1,tree2,newedge,true,newedgeincycle);
@@ -562,8 +563,8 @@ function moveTarget(node::Node, major::Edge, tree::Edge, newedge::Edge, undo::Bo
     treenode = getOtherNode(tree,node);
     node1 = newedge.node[1]; # not waste of memory, needed step
     node2 = newedge.node[2];
-    #println("hybrid node is $(node.number), major edge $(major.number), tree edge $(tree.number)")
-    #println("newedge is $(newedge.number), othermajor $(othermajor.number), treenode $(treenode.number), node1 $(node1.number), node2 $(node2.number)")
+    println("MOVE: hybrid node is $(node.number), major edge $(major.number), tree edge $(tree.number)")
+    println("MOVE: newedge is $(newedge.number), othermajor $(othermajor.number), treenode $(treenode.number), node1 $(node1.number), node2 $(node2.number)")
     neighbor = false
     from_othermajor = false
     from_treenode = false
@@ -717,7 +718,7 @@ function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, major
         return true,flag2
     else
         println("MOVE: move Target for hybrid node $(node.number) FAILED")
-        undoistIdentifiable!(edgesGammaz);
+        isempty(edgesGammaz) || undoistIdentifiable!(edgesGammaz)
         undoGammaz!(node,net);
         warn("MOVE: undoing move target for conflict: updategammaz")
         moveTarget(node,majoredge,tree,newedge,true,newedgeincycle);
