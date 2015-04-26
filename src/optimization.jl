@@ -630,21 +630,21 @@ end
 
 # function to adjust the weight of addHybrid if net is in a much lower layer
 # net.numHybrids<<hmax
-# takes as input the vector of weights for each move (mvorigin, mvtarget, chdir, nni, add, delete)
+# takes as input the vector of weights for each move (add,mvorigin,mvtarget,chdir,delete,nni)
 function adjustWeight(net::HybridNetwork,hmax::Int64,w::Vector{Float64})
     if(hmax - net.numHybrids > 0)
         hmax >= 0 || error("hmax must be non negative: $(hmax)")
         length(w) == 6 || error("length of w should be 6 as there are only 6 moves: $(w)")
         approxEq(sum(w),1.0) || error("vector of move weights should add up to 1: $(w),$(sum(w))")
         all([0<=i<=1 for i in w]) || error("weights must be nonnegative and less than one $(w)")
-        suma = w[1]+w[2]+w[3]+w[4]+w[6]
+        suma = w[5]+w[2]+w[3]+w[4]+w[6]
         v = zeros(6)
         k = hmax - net.numHybrids
         for(i in 1:6)
-            if(i == 5)
-                v[i] = w[5]*k/(suma + w[5]*k)
+            if(i == 1)
+                v[i] = w[1]*k/(suma + w[1]*k)
             else
-                v[i] = w[i]/(suma + w[5]*k)
+                v[i] = w[i]/(suma + w[1]*k)
             end
         end
         return v
@@ -655,13 +655,15 @@ end
 # function to adjust weights (v) based on movesfail and Nmov, to
 # avoid proposing over and over moves that cannot work
 #returns false if sum(v)=0, no more moves available
-function adjustWeightMovesfail!(v::Vector{Float64}, movesfail::Vector{Int64}, Nmov::Vector{Int64})
+# tree=true if is it a tree (only nni move to consider)
+function adjustWeightMovesfail!(v::Vector{Float64}, movesfail::Vector{Int64}, Nmov::Vector{Int64}, tree::Bool)
     length(v) ==length(movesfail) || error("v and movesfail must have same length")
     length(Nmov) ==length(movesfail) || error("Nmov and movesfail must have same length")
     for(i in 1:length(v))
         v[i] = v[i]*(movesfail[i]<Nmov[i] ? 1 : 0)
     end
     sum(v) != 0 || return false
+    tree && v[6] == 0 && return false
     suma = sum(v)
     for(i in 1:length(v))
         v[i] = v[i]/suma
@@ -669,12 +671,14 @@ function adjustWeightMovesfail!(v::Vector{Float64}, movesfail::Vector{Int64}, Nm
     return true
 end
 
+adjustWeightMovesfail!(v::Vector{Float64}, movesfail::Vector{Int64}, Nmov::Vector{Int64}) = adjustWeightMovesfail!(v, movesfail, Nmov,false)
+
 # function to decide what next move to do when searching
 # for topology that maximizes the P-loglik within the space of
 # topologies with the same number of hybridizations
 # possible moves: move origin/target, change direction hybrid edge, tree nni
 # needs the network to know the current numHybrids
-# takes as input the vector of weights for each move (mvorigin, mvtarget, chdir, nni, add, delete),
+# takes as input the vector of weights for each move (add,mvorigin, mvtarget, chdir, delete,nni)
 # and dynamic=true, adjusts the weight for addHybrid if net is in a lower layer (net.numHybrids<<hmax)
 # movesfail and Nmov are to count number of fails in each move
 function whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64}, dynamic::Bool, movesfail::Vector{Int64}, Nmov::Vector{Int64})
@@ -684,6 +688,8 @@ function whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64}, dynamic::B
     all([0<=i<=1 for i in w]) || error("weights must be nonnegative and less than one $(w)")
     if(hmax == 0)
         isTree(net) || error("hmax is $(hmax) but net is not a tree")
+        flag = adjustWeightMovesfail!(w,movesfail,Nmov,true)
+        flag || return :none
         return :nni
     else
         r = rand()
@@ -696,43 +702,43 @@ function whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64}, dynamic::B
         flag || return :none
         if(0 < net.numHybrids < hmax)
             if(r < v[1])
-                return :MVorigin
-            elseif(r < v[1]+v[2])
-                return :MVtarget
-            elseif(r < v[1]+v[2]+v[3])
-                return :CHdir
-            elseif(r < v[1]+v[2]+v[3]+v[4])
-                return :nni
-            elseif(r < v[1]+v[2]+v[3]+v[4]+v[5])
                 return :add
-            else
+            elseif(r < v[1]+v[2])
+                return :MVorigin
+            elseif(r < v[1]+v[2]+v[3])
+                return :MVtarget
+            elseif(r < v[1]+v[2]+v[3]+v[4])
+                return :CHdir
+            elseif(r < v[1]+v[2]+v[3]+v[4]+v[5])
                 return :delete
+            else
+                return :nni
             end
         elseif(net.numHybrids == 0)
-            suma = v[4]+v[5]
-            if(r < (v[4])/suma)
-                return :nni
-            else
+            suma = v[1]+v[6]
+            if(r < (v[1])/suma)
                 return :add
+            else
+                return :nni
             end
         else # net.numHybrids == hmax
-            suma = v[1]+v[2]+v[3]+v[4]+v[6]
-            if(r < v[1]/suma)
+            suma = v[5]+v[2]+v[3]+v[4]+v[6]
+            if(r < v[2]/suma)
                 return :MVorigin
-            elseif(r < (v[1]+v[2])/suma)
+            elseif(r < (v[3]+v[2])/suma)
                 return :MVtarget
-            elseif(r < (v[1]+v[2]+v[3])/suma)
+            elseif(r < (v[4]+v[2]+v[3])/suma)
                 return :CHdir
-            elseif(r < (v[1]+v[2]+v[3]+v[4])/suma)
-                return :nni
-            else
+            elseif(r < (v[5]+v[2]+v[3]+v[4])/suma)
                 return :delete
+            else
+                return :nni
             end
         end
     end
 end
 
-whichMove(net::HybridNetwork,hmax::Int64,movesfail::Vector{Int64}, Nmov::Vector{Int64}) = whichMove(net,hmax,[1/5,1/5,1/5,1/5,1/5,0.0], true,movesfail, Nmov)
+whichMove(net::HybridNetwork,hmax::Int64,movesfail::Vector{Int64}, Nmov::Vector{Int64}) = whichMove(net,hmax,[1/5,1/5,1/5,1/5,0.0,1/5], true,movesfail, Nmov)
 whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64},movesfail::Vector{Int64}, Nmov::Vector{Int64}) = whichMove(net,hmax,w, true,movesfail, Nmov)
 
 #function to choose a hybrid node for the given moves
@@ -792,12 +798,21 @@ function calculateNmov!(net::HybridNetwork, N::Vector{Int64})
     else
         length(N) == 6 || error("vector Nmov should have length 6: $(N)")
     end
-    N[1] = ceil(coupon(binom(numTreeEdges(net),2))) #add
-    N[2] = ceil(coupon(2*4*net.numHybrids)) #mvorigin
-    N[3] = ceil(coupon(2*4*net.numHybrids)) #mtarget
-    N[4] = ceil(coupon(2*net.numHybrids)) #chdir
-    N[5] = 10000 #delete
-    N[6] = ceil(coupon(numIntTreeEdges(net))) #nni
+    if(isTree(net))
+        N[1] = 1
+        N[2] = 1
+        N[3] = 1
+        N[4] = 1
+        N[5] = 1 #delete
+        N[6] = ceil(coupon(numIntTreeEdges(net))) #nni
+    else
+        N[1] = ceil(coupon(binom(numTreeEdges(net),2))) #add
+        N[2] = ceil(coupon(2*4*net.numHybrids)) #mvorigin
+        N[3] = ceil(coupon(2*4*net.numHybrids)) #mtarget
+        N[4] = ceil(coupon(2*net.numHybrids)) #chdir
+        N[5] = 10000 #delete
+        N[6] = ceil(coupon(numIntTreeEdges(net))) #nni
+    end
 end
 
 
@@ -808,7 +823,8 @@ end
 # M: multiplier to stop the search if loglik close to M*ftolAbs, or if absDiff less than M*ftolAbs
 # hmax: max number of hybrids allowed
 # close=true if gamma=0.0 fixed only around neighbors with move origin/target
-function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, close::Bool, Nmov0::Vector{Int64})
+# ret=true: return the network, default is false
+function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, close::Bool, Nmov0::Vector{Int64},ret::Bool)
     M > 0 || error("M must be greater than zero: $(M)")
     Nfail > 0 || error("Nfail must be greater than zero: $(Nfail)")
     isempty(Nmov0) || all([n > 0 for n in Nmov0]) || error("Nmov must be greater than zero: $(Nmov0)")
@@ -839,7 +855,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         println("will propose move with movesfail $(movesfail), Nmov $(Nmov)")
         move = whichMove(newT,hmax,movesfail,Nmov)
         if(move != :none)
-            flag = proposedTop!(move,newT,true, count,1, movescount,movesfail)
+            flag = proposedTop!(move,newT,true, count,10, movescount,movesfail) #N=10 because with 1 it never finds an edge for nni
             if(flag)
                 accepted = false
                 println("accepted proposed new topology in step $(count)")
@@ -906,11 +922,16 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     printEdges(newT)
     printNodes(newT)
     println(writeTopology(newT))
-    #return newT
+    !ret || return newT
 end
 
-optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false,true,numMoves)
-optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Int64, verbose::Bool) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, verbose,true,numMoves)
+optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false,true,numMoves,false)
+optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Int64,ret::Bool) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false,true,numMoves,ret)
+optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Int64, verbose::Bool) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, verbose,true,numMoves,false)
+optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Int64, verbose::Bool,ret::Bool) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, verbose,true,numMoves,ret)
+optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, close::Bool, Nmov0::Vector{Int64}) = optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, close, Nmov0, false)
+
+
 
 # function to print count of number of moves after optTopLeve
 function printCounts(movescount::Vector{Int64}, movesgamma::Vector{Int64})
@@ -1013,3 +1034,32 @@ function isValid(nh::Vector{Float64},nt::Vector{Float64},nhz::Vector{Float64})
     #println("isValid on nh $(nh), nt $(nt), nhz $(nhz)")
     return all([(0<n<1 && !approxEq(n,0.0) && !approxEq(n,1.0)) for n in nh]), all([(n>0 && !approxEq(n,0.0)) for n in nt]), all([(0<n<1 && !approxEq(n,0.0) && !approxEq(n,1.0)) for n in nhz])
 end
+
+# function to do optTopLevel for each level below hmax
+# returns array of HybridNetworks with currT in first position, and best topology for each level later
+# uses the best topology in h-1 as starting point for the search in h
+# no test in between! fixit: add a test to decide to move from h-1 to h?
+function optTop!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, close::Bool, Nmov0::Vector{Int64},ret::Bool)
+    hmax >= 0 || error("hmax cannot be negative $(hmax)")
+    currT.numHybrids == 0 || warn("currT has already $(currT.numHybrids), so search will not start in tree, but in the space of networks with $(currT.numHybrids) hybrids")
+    currT.numHybrids <= hmax || error("currT has more hybrids: $(currT.numHybrids) than hmax $(hmax)")
+    bestT = HybridNetwork[]
+    push!(bestT,currT)
+    i = 1
+    for(h in currT.numHybrids:hmax)
+        startT = deepcopy(bestT[i])
+        newT = optTopLevel!(startT, M, Nfail, d, h,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, close, Nmov0,true)
+        println("BEST NETWORK at $(h) hybridizations: $(writeTopology(newT))")
+        push!(bestT,deepcopy(newT))
+        i += 1
+    end
+    !ret || return bestT
+end
+
+
+
+optTop!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTop!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false,true,numMoves,false)
+optTop!(currT::HybridNetwork, d::DataCF, hmax::Int64,ret::Bool) = optTop!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false,true,numMoves,ret)
+optTop!(currT::HybridNetwork, d::DataCF, hmax::Int64, verbose::Bool) = optTop!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, verbose,true,numMoves,false)
+optTop!(currT::HybridNetwork, d::DataCF, hmax::Int64, verbose::Bool,ret::Bool) = optTop!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, verbose,true,numMoves,ret)
+optTop!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, close::Bool, Nmov0::Vector{Int64}) = optTop!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, close, Nmov0, false)

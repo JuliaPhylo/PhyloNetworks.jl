@@ -88,13 +88,13 @@ currT = readTopologyUpdate("prueba_tree.txt");
 printEdges(currT)
 
 
-currloglik,currxmin = optBL!(currT,d)
+optBL!(currT,d)
 newT = deepcopy(currT);
 count = 0
-N = 100
+N = 10
 move = :nni
 
-flag = proposedTop!(move,newT,true,count,N)
+flag = proposedTop!(move,newT,true,count,N,rep(0,18),rep(0,6))
 flag
 printEdges(newT)
 printNodes(newT)

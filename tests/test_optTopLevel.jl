@@ -12,16 +12,18 @@ d = readTableCF(df)
 
 # starting tree:
 tree = "((6,4),(7,8),10);"
+tree = "((((6,4),7),8),10);" #true tree
 f = open("prueba_tree.txt","w")
 write(f,tree)
 close(f)
 currT = readTopologyUpdate("prueba_tree.txt");
 printEdges(currT)
 
-N = 100
-M = 10
 
-@time optTopLevel!(currT,M,N,d,0);
+@time optTopLevel!(currT,d,0,false)
+
+#old:
+#@time optTopLevel!(currT,M,N,d,0);
 #got 5.34957 at [0.2,0.1] after 28 iterations (returned FTOL_reached)
 #loglik_1 = 5.34957
 #found minimizer topology at step 1 with -loglik=5.34957 and ht_min=[0.2,0.1]

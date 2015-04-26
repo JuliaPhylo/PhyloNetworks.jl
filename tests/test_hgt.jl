@@ -23,7 +23,7 @@ writetable("HGT_truenet_expCF.csv",df2)
 include("../types.jl")
 include("../functions.jl")
 
-df2 = readtable("HGT_truenet_expCF.csv"
+df2 = readtable("HGT_truenet_expCF.csv")
 d2 = readTableCF(df2); #expCF
 
 truenetwork = "((((1,2),((3,4))#H1),(#H1,5)),6);"
@@ -41,6 +41,7 @@ addHybridizationUpdate!(currT); #add hybrid at random (different test would be t
 printEdges(currT)
 
 @time optTopLevel!(currT,d2,1,false)
+@time optTop!(currT,d2,1,false)
 
 # ----------------- optTopLevel with expCF and starting tree 1_astral.out, branches updated --------
 include("../types.jl")
@@ -64,7 +65,7 @@ currT = deepcopy(currT0);
 addHybridizationUpdate!(currT); #add hybrid at random (different test would be to start with the tree)
 printEdges(currT)
 
-@time optTopLevel!(currT,d2,1,false)
+@time optTopLevel!(currT,d2,1,false);
 
 # ----------------- optTopLevel with obsCF and starting tree 1_astral.out, no branches updated --------
 include("../types.jl")
@@ -87,7 +88,7 @@ currT = deepcopy(currT0);
 addHybridizationUpdate!(currT); #add hybrid at random (different test would be to start with the tree)
 printEdges(currT)
 
-@time optTopLevel!(currT,d,1,false)
+@time optTopLevel!(currT,d,1,false);
 
 # ----------------- optTopLevel with obsCF and starting tree 1_astral.out, branches updated --------
 include("../types.jl")
@@ -111,7 +112,7 @@ currT = deepcopy(currT0);
 addHybridizationUpdate!(currT); #add hybrid at random (different test would be to start with the tree)
 printEdges(currT)
 
-@time optTopLevel!(currT,d,1,false)
+@time optTopLevel!(currT,d,1,false);
 
 
 # -----------------------
