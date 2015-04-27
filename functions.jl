@@ -13,22 +13,22 @@ using DataFrames # for rep function and read/write csv tables
 using NLopt # for branch lengths optimization
 
 
-include("./src/auxiliary.jl")
+include("src/auxiliary.jl")
 
-include("./src/update.jl")
+include("src/update.jl")
 
-include("./src/undo.jl")
+include("src/undo.jl")
 
-include("./src/addHybrid.jl")
+include("src/addHybrid.jl")
 
-include("./src/deleteHybrid.jl")
+include("src/deleteHybrid.jl")
 
-include("./src/moves.jl")
+include("src/moves.jl")
 
-include("./src/readwrite.jl")
+include("src/readwrite.jl")
 
-include("./src/readData.jl")
+include("src/readData.jl")
 
-include("./src/optimization.jl")
+include("src/optimization.jl")
 
-include("./src/pseudoLik.jl")
+include("src/pseudoLik.jl")
