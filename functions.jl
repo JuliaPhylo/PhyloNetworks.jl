@@ -31,4 +31,4 @@ include("src/readData.jl")
 
 include("src/optimization.jl")
 
-include("src/pseudoLik.jl")
+include("src/pseudolik.jl")
