@@ -49,7 +49,7 @@ function readTableCF(df::DataFrame)
     return d
 end
 
-readTableCF(file::ASCIIString) = readTableCF(readtable(file))
+readTableCF(file::String) = readTableCF(readtable(file))
 
 # ---------------- read input gene trees and calculate obsCF ----------------------
 
@@ -79,7 +79,7 @@ end
 
 # function to list all quartets for a set of taxa names
 # return a text file with the list of quartets, one per line
-function allQuartets(taxon::Union(Vector{ASCIIString},Vector{Int64}))
+function allQuartets(taxon::Union(Vector{String},Vector{Int64}))
     quartets = combinations(taxon,4)
     f = open("allQuartets.txt","w")
     for q in quartets
@@ -103,7 +103,7 @@ end
 # function to list num randomly selected quartets for a set of taxa names
 # return a text file with the list of quartets, one per line
 # input: file with the list of all quartets
-function randQuartets(allQ::ASCIIString,num::Int64)
+function randQuartets(allQ::String,num::Int64)
     try
         f = open(allQ)
     catch
@@ -149,7 +149,7 @@ end
 # function to list num randomly selected quartets for a set of taxa names
 # return a text file with the list of quartets, one per line
 # no input file with all quartets because it will create it
-function randQuartets(taxon::Union(Vector{ASCIIString},Vector{Int64}),num::Int64)
+function randQuartets(taxon::Union(Vector{String},Vector{Int64}),num::Int64)
     allQuartets(taxon)
     f = open("allQuartets.txt")
     lines = readlines(f)
@@ -170,7 +170,7 @@ end
 
 # function to read list of quartets from a file
 # and create Quartet type objects
-function readListQuartets(file::ASCIIString)
+function readListQuartets(file::String)
     try
         f = open(file)
     catch
@@ -215,7 +215,7 @@ function unionTaxa(quartets::Vector{Quartet})
     return taxa
 end
 
-unionTaxaTree(file::ASCIIString) = unionTaxa(readInputTrees(file))
+unionTaxaTree(file::String) = unionTaxa(readInputTrees(file))
 
 
 # function to calculate the obsCF from a file with a set of gene trees
@@ -266,7 +266,7 @@ end
 # numQ: number of quartets in random sample
 # writetab = true to write the table of obsCF as file with name filename
 # does it by default
-function readInputData(treefile::ASCIIString, quartetfile::ASCIIString, whichQ::Symbol, numQ::Int64, writetab::Bool, filename::ASCIIString)
+function readInputData(treefile::String, quartetfile::String, whichQ::Symbol, numQ::Int64, writetab::Bool, filename::String)
     println("DATA: reading input data for treefile $(treefile) and quartetfile $(quartetfile)")
     trees = readInputTrees(treefile)
     if(whichQ == :all)
@@ -289,10 +289,10 @@ function readInputData(treefile::ASCIIString, quartetfile::ASCIIString, whichQ::
     return d
 end
 
-readInputData(treefile::ASCIIString, quartetfile::ASCIIString, whichQ::Symbol, numQ::Int64, writetab::Bool) = readInputData(treefile, quartetfile, whichQ, numQ, writetab, "tableCF.txt")
-readInputData(treefile::ASCIIString, quartetfile::ASCIIString, whichQ::Symbol, numQ::Int64) = readInputData(treefile, quartetfile, whichQ, numQ, true, "tableCF.txt")
-readInputData(treefile::ASCIIString, quartetfile::ASCIIString) = readInputData(treefile, quartetfile, :all, 1, true, "tableCF.txt")
-readInputData(treefile::ASCIIString, quartetfile::ASCIIString, writetab::Bool, filename::ASCIIString) = readInputData(treefile, quartetfile, :all, 1, writetab, filename)
+readInputData(treefile::String, quartetfile::String, whichQ::Symbol, numQ::Int64, writetab::Bool) = readInputData(treefile, quartetfile, whichQ, numQ, writetab, "tableCF.txt")
+readInputData(treefile::String, quartetfile::String, whichQ::Symbol, numQ::Int64) = readInputData(treefile, quartetfile, whichQ, numQ, true, "tableCF.txt")
+readInputData(treefile::String, quartetfile::String) = readInputData(treefile, quartetfile, :all, 1, true, "tableCF.txt")
+readInputData(treefile::String, quartetfile::String, writetab::Bool, filename::String) = readInputData(treefile, quartetfile, :all, 1, writetab, filename)
 
 # function to read input list of gene trees, and not the list of quartets
 # so it creates the list of quartets inside and calculates obsCF
@@ -302,7 +302,7 @@ readInputData(treefile::ASCIIString, quartetfile::ASCIIString, writetab::Bool, f
 # taxa: list of taxa, if not given, all taxa in gene trees used
 # writetab = true to write the table of obsCF as file with name filename
 # does it by default
-function readInputData(treefile::ASCIIString, whichQ::Symbol, numQ::Int64, taxa::Union(Vector{ASCIIString}, Vector{Int64}), writetab::Bool, filename::ASCIIString)
+function readInputData(treefile::String, whichQ::Symbol, numQ::Int64, taxa::Union(Vector{String}, Vector{Int64}), writetab::Bool, filename::String)
     println("DATA: reading input data for treefile $(treefile) and no quartetfile given: will get quartets here")
     trees = readInputTrees(treefile)
     if(whichQ == :all)
@@ -326,14 +326,14 @@ function readInputData(treefile::ASCIIString, whichQ::Symbol, numQ::Int64, taxa:
     return d
 end
 
-readInputData(treefile::ASCIIString, whichQ::Symbol, numQ::Int64, taxa::Union(Vector{ASCIIString}, Vector{Int64}), writetab::Bool) = readInputData(treefile, whichQ, numQ, taxa, writetab, "tableCF.txt")
-readInputData(treefile::ASCIIString, whichQ::Symbol, numQ::Int64, taxa::Union(Vector{ASCIIString}, Vector{Int64})) = readInputData(treefile, whichQ, numQ, taxa, true, "tableCF.txt")
-readInputData(treefile::ASCIIString, whichQ::Symbol, numQ::Int64, writetab::Bool, filename::ASCIIString) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), writetab, filename)
-readInputData(treefile::ASCIIString, whichQ::Symbol, numQ::Int64, writetab::Bool) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), writetab, "tableCF.txt")
-readInputData(treefile::ASCIIString, whichQ::Symbol, numQ::Int64) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), true, "tableCF.txt")
-readInputData(treefile::ASCIIString) = readInputData(treefile, :all, 1, unionTaxaTree(treefile), true, "tableCF.txt")
-readInputData(treefile::ASCIIString,taxa::Union(Vector{ASCIIString}, Vector{Int64})) = readInputData(treefile, :all, 1, taxa, true, "tableCF.txt")
-readInputData(treefile::ASCIIString, filename::ASCIIString) = readInputData(treefile, :all, 1, unionTaxaTree(treefile), true, filename)
+readInputData(treefile::String, whichQ::Symbol, numQ::Int64, taxa::Union(Vector{String}, Vector{Int64}), writetab::Bool) = readInputData(treefile, whichQ, numQ, taxa, writetab, "tableCF.txt")
+readInputData(treefile::String, whichQ::Symbol, numQ::Int64, taxa::Union(Vector{String}, Vector{Int64})) = readInputData(treefile, whichQ, numQ, taxa, true, "tableCF.txt")
+readInputData(treefile::String, whichQ::Symbol, numQ::Int64, writetab::Bool, filename::String) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), writetab, filename)
+readInputData(treefile::String, whichQ::Symbol, numQ::Int64, writetab::Bool) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), writetab, "tableCF.txt")
+readInputData(treefile::String, whichQ::Symbol, numQ::Int64) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), true, "tableCF.txt")
+readInputData(treefile::String) = readInputData(treefile, :all, 1, unionTaxaTree(treefile), true, "tableCF.txt")
+readInputData(treefile::String,taxa::Union(Vector{String}, Vector{Int64})) = readInputData(treefile, :all, 1, taxa, true, "tableCF.txt")
+readInputData(treefile::String, filename::String) = readInputData(treefile, :all, 1, unionTaxaTree(treefile), true, filename)
 
 # ---------------------- descriptive stat for input data ----------------------------------
 
@@ -354,7 +354,7 @@ end
 taxaTreesQuartets(trees::Vector{HybridNetwork}, quartets::Vector{Quartet}) = taxaTreesQuartets(trees, quartets, STDOUT)
 
 # function that counts the number of trees in which taxon appears
-function taxonTrees(taxon::ASCIIString, trees::Vector{HybridNetwork})
+function taxonTrees(taxon::String, trees::Vector{HybridNetwork})
     suma = 0
     for t in trees
         suma += in(taxon,t.names) ? 1 : 0
@@ -363,7 +363,7 @@ function taxonTrees(taxon::ASCIIString, trees::Vector{HybridNetwork})
 end
 
 # function that counts the number of quartets in which taxon appears
-function taxonQuartets(taxon::ASCIIString, quartets::Vector{Quartet})
+function taxonQuartets(taxon::String, quartets::Vector{Quartet})
     suma = 0
     for q in quartets
         suma += in(taxon,q.taxon) ? 1 : 0
@@ -386,7 +386,7 @@ function descData(d::DataCF, s::IO)
 
 end
 
-function descData(d::DataCF, filename::ASCIIString)
+function descData(d::DataCF, filename::String)
     println("DATA: printing descriptive stat of input data in file $(filename)")
     s = open(filename, "w")
     descData(d,s)
@@ -509,7 +509,7 @@ end
 # function to determine the resolution of taxa picked from part1,2,3,4 and DataCF
 # names: taxa from part1,2,3,4
 # rownames: taxa from table of obsCF
-function resolution(names::Vector{ASCIIString},rownames::Vector{ASCIIString})
+function resolution(names::Vector{String},rownames::Vector{String})
     length(names) == length(rownames) || error("names and rownames should have the same length")
     length(names) == 4 || error("names should have 4 entries, not $(length(names))")
     bin = [n == names[1] || n == names[2] ? 1 : 0 for n in rownames]
