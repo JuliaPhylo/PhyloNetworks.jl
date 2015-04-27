@@ -49,6 +49,7 @@ function readTableCF(df::DataFrame)
     return d
 end
 
+# warning: when file needs to be String bc it can be read as UTF8String
 readTableCF(file::String) = readTableCF(readtable(file))
 
 # ---------------- read input gene trees and calculate obsCF ----------------------
@@ -79,7 +80,8 @@ end
 
 # function to list all quartets for a set of taxa names
 # return a text file with the list of quartets, one per line
-function allQuartets(taxon::Union(Vector{String},Vector{Int64}))
+# warning: taxon has to be vector of ASCIIString, vector of String do not work
+function allQuartets(taxon::Union(Vector{ASCIIString},Vector{Int64}))
     quartets = combinations(taxon,4)
     f = open("allQuartets.txt","w")
     for q in quartets
@@ -149,7 +151,7 @@ end
 # function to list num randomly selected quartets for a set of taxa names
 # return a text file with the list of quartets, one per line
 # no input file with all quartets because it will create it
-function randQuartets(taxon::Union(Vector{String},Vector{Int64}),num::Int64)
+function randQuartets(taxon::Union(Vector{ASCIIString},Vector{Int64}),num::Int64)
     allQuartets(taxon)
     f = open("allQuartets.txt")
     lines = readlines(f)
@@ -302,7 +304,7 @@ readInputData(treefile::String, quartetfile::String, writetab::Bool, filename::S
 # taxa: list of taxa, if not given, all taxa in gene trees used
 # writetab = true to write the table of obsCF as file with name filename
 # does it by default
-function readInputData(treefile::String, whichQ::Symbol, numQ::Int64, taxa::Union(Vector{String}, Vector{Int64}), writetab::Bool, filename::String)
+function readInputData(treefile::String, whichQ::Symbol, numQ::Int64, taxa::Union(Vector{ASCIIString}, Vector{Int64}), writetab::Bool, filename::String)
     println("DATA: reading input data for treefile $(treefile) and no quartetfile given: will get quartets here")
     trees = readInputTrees(treefile)
     if(whichQ == :all)
@@ -326,13 +328,13 @@ function readInputData(treefile::String, whichQ::Symbol, numQ::Int64, taxa::Unio
     return d
 end
 
-readInputData(treefile::String, whichQ::Symbol, numQ::Int64, taxa::Union(Vector{String}, Vector{Int64}), writetab::Bool) = readInputData(treefile, whichQ, numQ, taxa, writetab, "tableCF.txt")
-readInputData(treefile::String, whichQ::Symbol, numQ::Int64, taxa::Union(Vector{String}, Vector{Int64})) = readInputData(treefile, whichQ, numQ, taxa, true, "tableCF.txt")
+readInputData(treefile::String, whichQ::Symbol, numQ::Int64, taxa::Union(Vector{ASCIIString}, Vector{Int64}), writetab::Bool) = readInputData(treefile, whichQ, numQ, taxa, writetab, "tableCF.txt")
+readInputData(treefile::String, whichQ::Symbol, numQ::Int64, taxa::Union(Vector{ASCIIString}, Vector{Int64})) = readInputData(treefile, whichQ, numQ, taxa, true, "tableCF.txt")
 readInputData(treefile::String, whichQ::Symbol, numQ::Int64, writetab::Bool, filename::String) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), writetab, filename)
 readInputData(treefile::String, whichQ::Symbol, numQ::Int64, writetab::Bool) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), writetab, "tableCF.txt")
 readInputData(treefile::String, whichQ::Symbol, numQ::Int64) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), true, "tableCF.txt")
 readInputData(treefile::String) = readInputData(treefile, :all, 1, unionTaxaTree(treefile), true, "tableCF.txt")
-readInputData(treefile::String,taxa::Union(Vector{String}, Vector{Int64})) = readInputData(treefile, :all, 1, taxa, true, "tableCF.txt")
+readInputData(treefile::String,taxa::Union(Vector{ASCIIString}, Vector{Int64})) = readInputData(treefile, :all, 1, taxa, true, "tableCF.txt")
 readInputData(treefile::String, filename::String) = readInputData(treefile, :all, 1, unionTaxaTree(treefile), true, filename)
 
 # ---------------------- descriptive stat for input data ----------------------------------
@@ -509,7 +511,7 @@ end
 # function to determine the resolution of taxa picked from part1,2,3,4 and DataCF
 # names: taxa from part1,2,3,4
 # rownames: taxa from table of obsCF
-function resolution(names::Vector{String},rownames::Vector{String})
+function resolution(names::Vector{ASCIIString},rownames::Vector{ASCIIString})
     length(names) == length(rownames) || error("names and rownames should have the same length")
     length(names) == 4 || error("names should have 4 entries, not $(length(names))")
     bin = [n == names[1] || n == names[2] ? 1 : 0 for n in rownames]
