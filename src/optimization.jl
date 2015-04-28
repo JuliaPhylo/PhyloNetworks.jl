@@ -869,7 +869,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
                 println(writeTopology(newT))
                 optBL!(newT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
                 println("OPT: comparing newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
-                if(newT.loglik < currT.loglik && abs(newT.loglik-currT.loglik) > M*ftolAbs) #newT better loglik
+                if(newT.loglik < currT.loglik && abs(newT.loglik-currT.loglik) > M*ftolAbs) #newT better loglik: need to check for error or keeps jumping back and forth
                     newloglik = newT.loglik
                     newT = afterOptBLAll!(newT, d, Nfail,close, M, ftolAbs,verbose,movesgamma)
                     println("loglik before afterOptBL $(newloglik), newT.loglik now $(newT.loglik), loss in loglik by fixing gamma(z)=0.0(1.0): $(abs(newloglik-newT.loglik))")
