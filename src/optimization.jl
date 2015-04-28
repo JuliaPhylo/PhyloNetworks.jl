@@ -703,7 +703,9 @@ function whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64}, dynamic::B
         else
             v = w
         end
+        println("weights before adjusting by movesfail $(v)")
         flag = adjustWeightMovesfail!(v,movesfail,Nmov)
+        println("weights after adjusting by movesfail $(v)")
         flag || return :none
         if(0 < net.numHybrids < hmax)
             if(r < v[1])
