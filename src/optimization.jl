@@ -583,6 +583,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,close::Bool, M
                         startover = true
                         backCurrT0 = true
                     else
+                        println("better likelihood, jump to new topology and startover")
                         movesgamma[13] += 1
                         if(all([flagh,flagt,flaghz]))
                             startover = false
