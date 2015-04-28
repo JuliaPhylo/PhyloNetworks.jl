@@ -58,7 +58,7 @@ printEdges(net)
 currT0 = readTopologyUpdate("1_astral.out");
 x = updateBL!(currT0,d2)
 printEdges(currT0)
-srand(1234) #very close to right network in 20secs(debug12hgt)
+srand(1234) #right network in 20secs(debug12hgt)
 srand(4568) #movedownlevel: debug13hgtBad
 srand(11233) #very close to right network in 135secs (debug8hgtgood.txt)
 currT = deepcopy(currT0);
