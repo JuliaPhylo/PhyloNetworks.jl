@@ -259,14 +259,14 @@ function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool, ftolRel::Float64, 
     NLopt.upper_bounds!(opt,upper(net))
     count = 0
     function obj(x::Vector{Float64},g::Vector{Float64}) # added g::Vector{Float64} for gradient, ow error
-        if(verbose || net.numBad > 0) #we want to see what happens with bad diamond I
+        if(verbose) #|| net.numBad > 0) #we want to see what happens with bad diamond I
             println("inside obj with x $(x)")
         end
         count += 1
         calculateExpCFAll!(d,x,net) # update qnet branches and calculate expCF
         update!(net,x) # update net.ht
         val = logPseudoLik(d)
-        if(verbose || net.numBad > 0)#we want to see what happens with bad diamond I
+        if(verbose) #|| net.numBad > 0)#we want to see what happens with bad diamond I
             println("f_$count: $(round(val,5)), x: $(x)")
         end
         return val
