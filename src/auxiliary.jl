@@ -382,7 +382,7 @@ function deleteNode!(net::HybridNetwork, n::Node)
     deleteat!(net.node,index);
     net.numNodes -= 1;
     if(net.root == index)
-        warn("Root node deleted, first node in net.node set arbitrarily as new root")
+        #warn("Root node deleted, first node in net.node set arbitrarily as new root")
         net.root = 1 #arbitrarily chosen, not used until writeTopology
     end
     if(n.hybrid)
