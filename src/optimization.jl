@@ -59,7 +59,7 @@ function parameters(net::Network)
 end
 
 function parameters!(net::Network)
-    warn("deleting net.ht,net.numht and updating with current edge lengths (numbers)")
+    #warn("deleting net.ht,net.numht and updating with current edge lengths (numbers)")
     net.ht,net.numht,net.index = parameters(net)
     return net.ht
 end
@@ -901,8 +901,8 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
                     movesfail[move2int[move]] += 1
                     newT = deepcopy(currT)
                 end
-                printEdges(newT)
-                printNodes(newT)
+                #printEdges(newT)
+                #printNodes(newT)
                 println(writeTopology(newT))
                 println("ends step $(count) with absDiff $(accepted? absDiff : 0.0) and failures $(failures)")
             end

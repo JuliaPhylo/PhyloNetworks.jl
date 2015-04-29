@@ -570,7 +570,7 @@ function storeHybrids!(net::HybridNetwork)
     try
         hybrid = searchHybridNode(net)
     catch
-        warn("topology read is a tree as it has no hybrid nodes")
+        #warn("topology read is a tree as it has no hybrid nodes")
         flag = false;
     end
     if(flag)
@@ -593,7 +593,7 @@ end
 # warning: it will stop when finding one conflicting hybrid
 function updateAllReadTopology!(net::HybridNetwork)
     if(isTree(net))
-        warn("not a network read, but a tree as it does not have hybrid nodes")
+        #warn("not a network read, but a tree as it does not have hybrid nodes")
         all([e.containRoot for e in net.edge]) ? nothing : error("some tree edge has contain root as false")
         all([!e.hybrid for e in net.edge]) ? nothing : error("some edge is hybrid and should be all tree edges in a tree")
         all([!n.hasHybEdge for n in net.node]) ? nothing : error("some tree node has hybrid edge true, but it is a tree, there are no hybrid edges")
