@@ -401,7 +401,7 @@ function extractQuartet(net::HybridNetwork,quartet::Array{Node,1})
     leaves = copy(qnet.leaf)
     for(n in leaves)
         if(!isNodeNumIn(n,quartet))
-            println("delete leaf $(n.number)")
+            #println("delete leaf $(n.number)")
             deleteLeaf!(qnet,n)
         end
     end
@@ -426,7 +426,7 @@ function extractQuartet!(net::HybridNetwork, quartet::Quartet)
         push!(list, net.node[getIndexNode(getIndex(q,net.names),net)])
     end
     qnet = extractQuartet(net,list)
-    println("EXTRACT: extracted quartet $(quartet.taxon)")
+    #println("EXTRACT: extracted quartet $(quartet.taxon)")
     qnet.quartetTaxon = quartet.taxon
     quartet.qnet = qnet
     #return qnet

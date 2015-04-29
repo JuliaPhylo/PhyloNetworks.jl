@@ -254,6 +254,7 @@ function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool, ftolRel::Float64, 
     NLopt.ftol_abs!(opt,ftolAbs) # absolute critetion -8, later changed to -10
     NLopt.xtol_rel!(opt,xtolRel) # criterion on parameter value changes -10
     NLopt.xtol_abs!(opt,xtolAbs) # criterion on parameter value changes -10
+    NLopt.maxtime!(opt,1000) # max number of iterations
     NLopt.lower_bounds!(opt, zeros(k))
     NLopt.upper_bounds!(opt,upper(net))
     count = 0
@@ -575,8 +576,8 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,close::Bool, M
                     end
                 else #changed something
                     warn("changed something inside afterOptBL: flagh, flagt, flaghz = $([flagh,flagt,flaghz]). oldloglik $(currloglik), newloglik $(currT.loglik)")
-                    printEdges(currT)
-                    printNodes(currT)
+                    #printEdges(currT)
+                    #printNodes(currT)
                     println(writeTopology(currT))
                     if(currT.loglik > currloglik) #|| abs(currT.loglik-currloglik) <= M*ftolAbs) #fixit
                         println("worse likelihood, back to currT")
@@ -858,8 +859,8 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     currT = afterOptBLAll!(currT, d, Nfail,close, M, ftolAbs, verbose,movesgamma)
     absDiff = M*ftolAbs + 1
     newT = deepcopy(currT)
-    printEdges(newT)
-    printNodes(newT)
+    #printEdges(newT)
+    #printNodes(newT)
     println(writeTopology(newT))
     while(absDiff > M*ftolAbs && failures < Nfail && currT.loglik > M*ftolAbs && stillmoves) #stops if close to zero because of new deviance form of the pseudolik
         count += 1
@@ -874,8 +875,8 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             if(flag)
                 accepted = false
                 println("accepted proposed new topology in step $(count)")
-                printEdges(newT)
-                printNodes(newT)
+                #printEdges(newT)
+                #printNodes(newT)
                 println(writeTopology(newT))
                 optBL!(newT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
                 println("OPT: comparing newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
