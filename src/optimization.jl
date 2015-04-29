@@ -935,8 +935,8 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     end
     println("END optTopLevel: found minimizer topology at step $(count) (failures: $(failures)) with -loglik=$(round(newT.loglik,5)) and ht_min=$(round(newT.ht,5))")
     printCounts(movescount,movesgamma)
-    printEdges(newT)
-    printNodes(newT)
+    #printEdges(newT)
+    #printNodes(newT)
     println(writeTopology(newT))
     !ret || return newT
 end
