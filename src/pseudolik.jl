@@ -405,7 +405,7 @@ function extractQuartet(net::HybridNetwork,quartet::Array{Node,1})
             deleteLeaf!(qnet,n)
         end
     end
-    println("deletion of leaves successful")
+    #println("deletion of leaves successful")
     updateHasEdge!(qnet,net)
     parameters!(qnet,net)
     return qnet
