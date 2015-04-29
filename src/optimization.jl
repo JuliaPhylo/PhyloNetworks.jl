@@ -254,7 +254,7 @@ function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool, ftolRel::Float64, 
     NLopt.ftol_abs!(opt,ftolAbs) # absolute critetion -8, later changed to -10
     NLopt.xtol_rel!(opt,xtolRel) # criterion on parameter value changes -10
     NLopt.xtol_abs!(opt,xtolAbs) # criterion on parameter value changes -10
-    NLopt.maxtime!(opt,1000) # max number of iterations
+    NLopt.maxeval!(opt,1000) # max number of iterations
     NLopt.lower_bounds!(opt, zeros(k))
     NLopt.upper_bounds!(opt,upper(net))
     count = 0
@@ -712,9 +712,9 @@ function whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64}, dynamic::B
         else
             v = w
         end
-        println("weights before adjusting by movesfail $(v)")
+        #println("weights before adjusting by movesfail $(v)")
         flag = adjustWeightMovesfail!(v,movesfail,Nmov,net,hmax)
-        println("weights after adjusting by movesfail $(v)")
+        #println("weights after adjusting by movesfail $(v)")
         flag || return :none
         if(0 < net.numHybrids < hmax)
             if(r < v[1])
