@@ -658,25 +658,33 @@ function adjustWeight(net::HybridNetwork,hmax::Int64,w::Vector{Float64})
 end
 
 # function to adjust weights (v) based on movesfail and Nmov, to
-# avoid proposing over and over moves that cannot work
+# avoid proposing over and over moves that cannot work: (add,mvorigin, mvtarget, chdir, delete,nni)
 #returns false if sum(v)=0, no more moves available
-# tree=true if is it a tree (only nni move to consider)
-function adjustWeightMovesfail!(v::Vector{Float64}, movesfail::Vector{Int64}, Nmov::Vector{Int64}, tree::Bool)
+# needs the net and hmax to decide if there are available moves
+function adjustWeightMovesfail!(v::Vector{Float64}, movesfail::Vector{Int64}, Nmov::Vector{Int64}, net::HybridNetwork, hmax::Int64)
     length(v) ==length(movesfail) || error("v and movesfail must have same length")
     length(Nmov) ==length(movesfail) || error("Nmov and movesfail must have same length")
     for(i in 1:length(v))
         v[i] = v[i]*(movesfail[i]<Nmov[i] ? 1 : 0)
     end
-    sum(v) != 0 || return false
-    tree && v[6] == 0 && return false
+    if(hmax == 0)
+        isTree(net) || error("hmax is $(hmax) but net is not a tree")
+        v[6] == 0 && return false #nni
+    else
+        if(0 < net.numHybrids < hmax)
+            sum(v) != 0 || return false #all moves
+        elseif(net.numHybrids == 0)
+            v[1] == 0 && v[6] == 0 && return false #nni or add
+        elseif(net.numHybrids == hmax)
+            sum(v[2:4]) + v[6] != 0 || return false #all moves except add/delete
+        end
+    end
     suma = sum(v)
     for(i in 1:length(v))
         v[i] = v[i]/suma
     end
     return true
 end
-
-adjustWeightMovesfail!(v::Vector{Float64}, movesfail::Vector{Int64}, Nmov::Vector{Int64}) = adjustWeightMovesfail!(v, movesfail, Nmov,false)
 
 # function to decide what next move to do when searching
 # for topology that maximizes the P-loglik within the space of
@@ -693,7 +701,7 @@ function whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64}, dynamic::B
     all([0<=i<=1 for i in w]) || error("weights must be nonnegative and less than one $(w)")
     if(hmax == 0)
         isTree(net) || error("hmax is $(hmax) but net is not a tree")
-        flag = adjustWeightMovesfail!(w,movesfail,Nmov,true)
+        flag = adjustWeightMovesfail!(w,movesfail,Nmov,net,hmax)
         flag || return :none
         return :nni
     else
@@ -704,7 +712,7 @@ function whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64}, dynamic::B
             v = w
         end
         println("weights before adjusting by movesfail $(v)")
-        flag = adjustWeightMovesfail!(v,movesfail,Nmov)
+        flag = adjustWeightMovesfail!(v,movesfail,Nmov,net,hmax)
         println("weights after adjusting by movesfail $(v)")
         flag || return :none
         if(0 < net.numHybrids < hmax)
