@@ -379,13 +379,14 @@ end
 # default: file "descData.txt"
 function descData(d::DataCF, s::IO)
     write(s,"DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
-    taxaTreesQuartets(d.tree,d.quartet,s)
-    write(s,"----------------------------\n\n")
-    for q in d.quartet
-        write(s,"Quartet $(q.number) obsCF constructed with $(q.numGT) gene trees ($(round(q.numGT/d.numTrees*100,2))%)\n")
+    if(!isempty(d.tree))
+        taxaTreesQuartets(d.tree,d.quartet,s)
+        write(s,"----------------------------\n\n")
+        for q in d.quartet
+            write(s,"Quartet $(q.number) obsCF constructed with $(q.numGT) gene trees ($(round(q.numGT/d.numTrees*100,2))%)\n")
+        end
+        write(s,"----------------------------\n\n")
     end
-    write(s,"----------------------------\n\n")
-
 end
 
 function descData(d::DataCF, filename::String)
