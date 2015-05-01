@@ -174,7 +174,7 @@ function update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork)
                     0 <= x[qnet.indexht[i]] <= 1 || error("new gammaz value should be between 0,1: $(x[qnet.indexht[i]]).")
                     #x[qnet.indexht[i]] + x[qnet.indexht[i]+1] <= 1 || warn("new gammaz value should add to less than 1: $(x[qnet.indexht[i]])  $(x[qnet.indexht[i]+1]).")
                     if(approxEq(x[qnet.indexht[i]],1.0))
-                        setLength!(qnet.edge[qnet.index[i]],10)
+                        setLength!(qnet.edge[qnet.index[i]],10.0)
                     else
                         setLength!(qnet.edge[qnet.index[i]],-log(1-x[qnet.indexht[i]]))
                     end

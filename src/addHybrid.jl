@@ -224,6 +224,7 @@ function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool,
                     return false, hybrid, flag, nocycle, flag2, flag3
                 end
             else
+                flag3, edgesRoot = updateContainRoot!(net,hybrid); #update contain root even if it is bad triangle to writeTopology correctly
                 #undoistIdentifiable!(edgesGammaz);
                 #undoGammaz!(hybrid,net);
                 #undoInCycle!(edgesInCycle, nodesInCycle);
