@@ -558,6 +558,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,close::Bool, M
         else
             backCurrT0 = false
             while(badliks < N2) #will try a few options around currT
+                println("tried $(badliks) bad likelihood options so far out of $(N2)")
                 currT0 = deepcopy(currT)
                 origin = !origin #to guarantee not going back to previous topology
                 success,flagh,flagt,flaghz = afterOptBLRepeat!(currT,d,N,close,origin,verbose,movesgamma)
@@ -617,6 +618,9 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,close::Bool, M
                     println(writeTopology(currT))
                     optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
                     startover = true
+                else
+                    println("the only problem were lengths equal to zero, so we will keep them")
+                    startover = false
                 end
             end
         end
