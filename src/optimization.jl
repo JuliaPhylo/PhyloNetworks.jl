@@ -69,7 +69,7 @@ end
 # warning: assumes net.numht is updated already with parameters!(net)
 function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
     size(net.numht,1) > 0 || error("net.numht not correctly updated, need to run parameters first")
-    size(qnet.indexht,1) == 0 ||  warn("deleting qnet.indexht to replace with info in net")
+    size(qnet.indexht,1) == 0 ||  println("deleting qnet.indexht to replace with info in net")
     nh = net.numht[1 : net.numHybrids - net.numBad]
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
     nt = net.numht[net.numHybrids - net.numBad + 1 : net.numHybrids - net.numBad + k]
@@ -392,7 +392,7 @@ end
 function gammaZero!(net::HybridNetwork, d::DataCF, edge::Edge, close::Bool, origin::Bool, N::Int64, movesgamma::Vector{Int64})
     currTloglik = net.loglik
     edge.hybrid || error("edge $(edge.number) should be hybrid edge because it corresponds to a gamma (or gammaz) in net.ht")
-    warn("gamma zero situation found for hybrid edge $(edge.number) with gamma $(edge.gamma)")
+    println("gamma zero situation found for hybrid edge $(edge.number) with gamma $(edge.gamma)")
     node = edge.node[edge.isChild1 ? 1 : 2];
     node.hybrid || error("hybrid edge $(edge.number) pointing at tree node $(node.number)")
     success = changeDirectionUpdate!(net,node) #changes dir of minor
@@ -405,13 +405,13 @@ function gammaZero!(net::HybridNetwork, d::DataCF, edge::Edge, close::Bool, orig
             println("changing direction fixed the gamma zero situation")
             success2 = true
         else
-            warn("changing direction does not fix the gamma zero situation, need to undo change direction and move hybrid")
+            println("changing direction does not fix the gamma zero situation, need to undo change direction and move hybrid")
             success = changeDirectionUpdate!(net,node)
             success || error("strange thing, changed direction and success, but lower loglik; want to undo changeDirection, and success=false! Hybrid node is $(node.number)")
             success2 = moveHybrid!(net,edge,close,origin,N, movesgamma)
         end
     else
-        warn("changing direction was not possible to fix the gamma zero situation (success=false), need to move hybrid")
+        println("changing direction was not possible to fix the gamma zero situation (success=false), need to move hybrid")
         success2 = moveHybrid!(net,edge,close,origin,N,movesgamma)
     end
     return success2
@@ -523,7 +523,7 @@ function afterOptBLRepeat!(currT::HybridNetwork, d::DataCF, N::Int64,close::Bool
             success,flagh,flagt,flaghz = afterOptBL!(currT,d,close,origin,verbose,N,movesgamma)
             i += 1
         end
-        i < N || warn("tried afterOptBL $(i) times")
+        i < N || println("tried afterOptBL $(i) times")
     end
     return success,flagh,flagt,flaghz
 end
@@ -564,12 +564,12 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,close::Bool, M
                 success,flagh,flagt,flaghz = afterOptBLRepeat!(currT,d,N,close,origin,verbose,movesgamma)
                 println("inside afterOptBLAll, after afterOptBLRepeat once we get: success, flags: $([success,flagh,flagt,flaghz])")
                 if(!success) #tried to change something but failed
-                    warn("did not change anything inside afterOptBL: could be nothing needed change or tried but couldn't anymore. flagh, flagt, flaghz = $([flagh,flagt,flaghz])")
+                    println("did not change anything inside afterOptBL: could be nothing needed change or tried but couldn't anymore. flagh, flagt, flaghz = $([flagh,flagt,flaghz])")
                     if(all([flagh,flagt,flaghz])) #currT was ok
                         startover = false
                     elseif(!flagh || !flaghz) #currT was bad but could not change it, need to go down a level
                         !isTree(currT) || error("afterOptBL should not give reject=true for a tree")
-                        warn("current topology has numerical parameters that are not valid: gamma=0(1), gammaz=0(1); need to move down a level h-1")
+                        println("current topology has numerical parameters that are not valid: gamma=0(1), gammaz=0(1); need to move down a level h-1")
                         moveDownLevel!(currT)
                         optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
                         startover = true
@@ -577,7 +577,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,close::Bool, M
                         startover = false
                     end
                 else #changed something
-                    warn("changed something inside afterOptBL: flagh, flagt, flaghz = $([flagh,flagt,flaghz]). oldloglik $(currloglik), newloglik $(currT.loglik)")
+                    println("changed something inside afterOptBL: flagh, flagt, flaghz = $([flagh,flagt,flaghz]). oldloglik $(currloglik), newloglik $(currT.loglik)")
                     #printEdges(currT)
                     #printNodes(currT)
                     println(writeTopology(currT))
@@ -605,11 +605,11 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,close::Bool, M
                 end
             end
             if(backCurrT0) # leaves while for failed loglik
-                warn("tried to fix gamma zero situation for $(badliks) times and could not")
+                println("tried to fix gamma zero situation for $(badliks) times and could not")
                 flagh,flagt,flaghz = isValid(currT)
                 if(!flagh || !flaghz)
                     !isTree(currT) || error("afterOptBL should not give reject=true for a tree")
-                    warn("current topology has numerical parameters that are not valid: gamma=0(1), t=0, gammaz=0(1); need to move down a level h-1")
+                    println("current topology has numerical parameters that are not valid: gamma=0(1), t=0, gammaz=0(1); need to move down a level h-1")
                     movesgamma[5] += 1
                     movesgamma[11] += 1
                     moveDownLevel!(currT)
@@ -837,14 +837,14 @@ function calculateNmov!(net::HybridNetwork, N::Vector{Int64})
         N[3] = 1
         N[4] = 1
         N[5] = 1 #delete
-        N[6] = ceil(coupon(numIntTreeEdges(net))) #nni
+        N[6] = ceil(coupon(4*numIntTreeEdges(net))) #nni
     else
         N[1] = ceil(coupon(binom(numTreeEdges(net),2))) #add
         N[2] = ceil(coupon(2*4*net.numHybrids)) #mvorigin
         N[3] = ceil(coupon(2*4*net.numHybrids)) #mtarget
         N[4] = ceil(coupon(2*net.numHybrids)) #chdir
         N[5] = 10000 #delete
-        N[6] = ceil(coupon(numIntTreeEdges(net))) #nni
+        N[6] = ceil(coupon(4*numIntTreeEdges(net))) #nni
     end
 end
 
@@ -941,7 +941,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         println("STOPPED by number of failures criteria")
     end
     if(newT.loglik > M*ftolAbs) #not really close to 0.0, based on absTol also
-        warn("newT.loglik $(newT.loglik) not really close to 0.0 based on loglik abs. tol. $(M*ftolAbs), you might need to redo with another starting point")
+        println("newT.loglik $(newT.loglik) not really close to 0.0 based on loglik abs. tol. $(M*ftolAbs), you might need to redo with another starting point")
     end
     if(newT.numBad > 0) #need to undogammaz if newT has bad diamond I to use gammaz as proxy of gamma for writeTopology
         for(n in newT.hybrid)

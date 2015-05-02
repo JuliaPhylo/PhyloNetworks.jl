@@ -403,7 +403,7 @@ function chooseMinorMajor(node::Node, random::Bool, target::Bool)
     if(random)
         r = rand()
         major.gamma > 0.5 || error("strange major hybrid edge $(major.number) with gamma $(major.gamma) less than 0.5")
-        major.gamma != 1.0 || warn("strange major hybrid edge $(major.number) with gamma $(major.gamma) equal to 1.0")
+        major.gamma != 1.0 || println("strange major hybrid edge $(major.number) with gamma $(major.gamma) equal to 1.0")
         othermin = r < major.gamma ? getOtherNode(minor,node) : getOtherNode(major,node)
         majoredge = r < major.gamma ? major : minor
         if(r < major.gamma)
@@ -472,7 +472,7 @@ function moveOriginUpdate!(net::HybridNetwork, node::Node, othermin::Node, newed
         println("MOVE: move Origin for hybrid node $(node.number) FAILED")
         isempty(edgesGammaz) || undoistIdentifiable!(edgesGammaz)
         undoGammaz!(node,net);
-        warn("MOVE: undoing move origin for conflict: gammaz")
+        println("MOVE: undoing move origin for conflict: gammaz")
         moveOrigin(node,othermin,tree1,tree2,newedge,true,newedgeincycle);
         flag2, edgesGammaz = updateGammaz!(net,node)
         (flag2 || node.isVeryBadTriangle || node.isExtBadTriangle) || error("updating gammaz for undone moveOrigin, should not be any problem")
@@ -720,7 +720,7 @@ function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, major
         println("MOVE: move Target for hybrid node $(node.number) FAILED")
         isempty(edgesGammaz) || undoistIdentifiable!(edgesGammaz)
         undoGammaz!(node,net);
-        warn("MOVE: undoing move target for conflict: updategammaz")
+        println("MOVE: undoing move target for conflict: updategammaz")
         moveTarget(node,majoredge,tree,newedge,true,newedgeincycle);
         flag2, edgesGammaz = updateGammaz!(net,node)
         undoContainRoot!(edgesRoot);
@@ -786,7 +786,7 @@ function chooseEdgeNNI(net::Network,N::Int64)
     if(i < N)
         return true,net.edge[index1]
     else
-        warn("cannot find suitable tree edge for NNI after $(N) attempts")
+        println("cannot find suitable tree edge for NNI after $(N) attempts")
         return false,nothing
     end
 end
@@ -848,7 +848,7 @@ function NNI!(net::Network,edge::Edge)
     else #edge not in cycle
         (e1.inCycle == e2.inCycle && e3.inCycle == e4.inCycle) || error("both edges in edges1 $([e.number for e in edges1]) (or edges2 $([e.number for e in edges2])) must have the same inCycle attribute")
         if(e1.inCycle != -1 && e3.inCycle != -1)
-            warn("cannot do tree NNI because it will create intersecting cycles, nothing done. e1,e2,e3,e4: $([e1.number,e2.number,e3.number,e4.number])")
+            println("cannot do tree NNI because it will create intersecting cycles, nothing done. e1,e2,e3,e4: $([e1.number,e2.number,e3.number,e4.number])")
             return false
         elseif(e1.inCycle != -1 && e3.inCycle == -1)
             node = net.node[getIndexNode(e1.inCycle,net)]

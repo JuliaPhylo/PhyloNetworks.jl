@@ -184,6 +184,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
             if(bl || br)
                 n.hybrid = true;
                 push!(net.names,string(name));
+                n.name = string(name);
                 #println("aqui vamos a meter a $(name) en hybrids")
                 push!(hybrids,string(name));
                 pushNode!(net,n);
@@ -201,6 +202,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
         if(bl || br)
             if(hasname)
                 push!(net.names,string(name));
+                n.name = string(name)
             end
             pushNode!(net,n);
             e = Edge(net.numEdges+1);
@@ -620,19 +622,24 @@ end
     # --------------------------- write topology -------------------------------------
 # function to write a node and its descendants in
 #parenthetical format
-function writeSubTree!(s::IOBuffer, n::Node, parent::Edge,di::Bool)
+# di=true in densdroscope format, names=true, prints names
+function writeSubTree!(s::IOBuffer, n::Node, parent::Edge,di::Bool,names::Bool)
     if((parent.hybrid && !parent.isMajor) || n.leaf)
-        if(parent.hybrid)
-            print(s,"#H")
+        if(names)
+            print(s,n.name) #instead of number
+        else
+            if(parent.hybrid)
+                print(s,"#H")
+            end
+            print(s,n.number)
         end
-        print(s,n.number)
     else
         print(s,"(")
         numChildren = length(n.edge) - 1
         for(e in n.edge)
             if(!isEqual(e,parent) && !(e.hybrid && parent.hybrid))
                 child = getOtherNode(e,n)
-                writeSubTree!(s,child,e, di)
+                writeSubTree!(s,child,e, di,names)
                 if(!parent.hybrid) #cecile handles this step differently: if(parent.hybrid) numChildren-=1 end
                     numChildren -= 1
                     if(numChildren > 0)
@@ -643,7 +650,11 @@ function writeSubTree!(s::IOBuffer, n::Node, parent::Edge,di::Bool)
         end
         print(s,")")
         if(parent.hybrid)
-            print(s,string("#H",n.number))
+            if(!names)
+                print(s,string("#H",n.number))
+            else
+                print(s,n.name)
+            end
         end
     end
     if(!n.leaf)
@@ -659,7 +670,10 @@ end
 #                 ow returns the IOBuffer object
 # need as input HybridNetwork, since QuartetNetwork does not have root
 # input di=true if written for Dendroscope (without gammas)
-function writeTopology(net::HybridNetwork, di::Bool, string::Bool)
+# names=true, writes the names instead of node numbers, default true
+# outgroup: place the root in the external edge of this taxon if possible,
+# if none given, placed the root wherever possible
+function writeTopology(net::HybridNetwork, di::Bool, string::Bool, names::Bool,outgroup::String)
     s = IOBuffer()
     if(net.numBad > 0)
         warn("net has $(net.numBad) bad diamond I, gammas and some branch lengths are not identifiable, and therefore, meaningless")
@@ -668,10 +682,10 @@ function writeTopology(net::HybridNetwork, di::Bool, string::Bool)
         print(s,string(net.node[net.root].number,";"))
     else
         print(s,"(")
-        updateRoot!(net)
+        updateRoot!(net,outgroup)
         degree = length(net.node[net.root].edge)
         for(e in net.node[net.root].edge)
-            writeSubTree!(s,getOtherNode(e,net.node[net.root]),e,di)
+            writeSubTree!(s,getOtherNode(e,net.node[net.root]),e,di,names)
             degree -= 1
             if(degree > 0)
                 print(s,",")
@@ -686,20 +700,64 @@ function writeTopology(net::HybridNetwork, di::Bool, string::Bool)
     end
 end
 
-writeTopology(net::HybridNetwork) = writeTopology(net,false, true)
-writeTopology(net::HybridNetwork,di::Bool) = writeTopology(net,di, true)
+writeTopology(net::HybridNetwork) = writeTopology(net,false, true,true,"none")
+writeTopology(net::HybridNetwork,di::Bool) = writeTopology(net,di, true,true,"none")
+writeTopology(net::HybridNetwork,outgroup::String) = writeTopology(net,false, true,true,outgroup)
+writeTopology(net::HybridNetwork,di::Bool,outgroup::String) = writeTopology(net,di, true,true,outgroup)
 
 # function to check if root is well-placed
 # and look for a better place if not
 # searches on net.node because net.root is the index in net.node
 # if we search in net.edge, we then need to search in net.node
-function updateRoot!(net::HybridNetwork)
-    if(!canBeRoot(net.node[net.root]))
-        println("need to update root")
-        for(i in 1:length(net.node))
-            if(canBeRoot(net.node[i]))
-                net.root = i
-                break
+function updateRoot!(net::HybridNetwork, outgroup::String)
+    checkroot = false
+    if(outgroup == "none")
+        println("no outgroup defined, will place root wherever")
+        checkroot = true
+    else
+        println("outgroup defined $(outgroup)")
+        try
+            index = getIndex(true,[isequal(outgroup,n.name) for n in net.node])
+        catch
+            error("outgroup $(outgroup) not in net.names $(net.names)")
+        end
+        index = getIndex(true,[isequal(outgroup,n.name) for n in net.node])
+        node = net.node[index]
+        node.leaf || error("outgroup $(outgroup) is not a leaf in net")
+        length(net.node[index].edge) == 1 || error("strange leaf $(outgroup), node number $(net.node[index].number) with $(length(net.node[index].edge)) edges instead of 1")
+        edge = net.node[index].edge[1]
+        if(edge.containRoot)
+            println("creating new node in the middle of the external edge leading to outgroup")
+            othernode = getOtherNode(edge,node)
+            removeEdge!(othernode,edge)
+            removeNode!(othernode,edge)
+            max_edge = maximum([e.number for e in net.edge]);
+            max_node = maximum([e.number for e in net.node]);
+            newedge = Edge(max_edge+1)
+            newnode = Node(max_node+1,false,false,[edge,newedge])
+            setNode!(edge,newnode)
+            setNode!(newedge,newnode)
+            setEdge!(othernode,newedge)
+            setNode!(newedge,othernode)
+            pushEdge!(net,newedge)
+            pushNode!(net,newnode)
+            t = edge.length
+            setLength!(edge,t/2)
+            setLength!(newedge,t/2)
+            net.root = length(net.node) #last node is root
+        else
+            warn("external edge $(net.node[index].edge[1].number) leading to outgroup $(outgroup) cannot contain root, root placed wherever")
+            checkroot = true
+        end
+    end
+    if(checkroot)
+        if(!canBeRoot(net.node[net.root]))
+            println("need to update root")
+            for(i in 1:length(net.node))
+                if(canBeRoot(net.node[i]))
+                    net.root = i
+                    break
+                end
             end
         end
     end

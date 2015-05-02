@@ -145,7 +145,7 @@ function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bo
     undoInCycle!(edgesInCycle, nodesInCycle);
     undoContainRoot!(edgesRoot);
     edges[1].gamma > 0.5 || error("strange major hybrid edge $(edges[1].number) with gamma $(edges[1].gamma) less than 0.5")
-    edges[1].gamma != 1.0 || warn("strange major hybrid edge $(edges[1].number) with gamma $(edges[1].gamma) equal to 1.0")
+    edges[1].gamma != 1.0 || println("strange major hybrid edge $(edges[1].number) with gamma $(edges[1].gamma) equal to 1.0")
     limit = edges[1].gamma
     if(random)
         minor = rand() < limit ? false : true

@@ -11,7 +11,7 @@
 # input: hybrid node
 function makeNodeTree!(net::Network, hybrid::Node)
     hybrid.hybrid || error("cannot make node $(hybrid.number) tree node because it already is")
-    warn("we make node $(hybrid.number) a tree node, but it can still have hybrid edges pointing at it, hasHybEdge set to false")
+    println("we make node $(hybrid.number) a tree node, but it can still have hybrid edges pointing at it, hasHybEdge set to false")
     hybrid.gammaz = -1
     hybrid.isBadDiamondI = false
     hybrid.isBadDiamondII = false
@@ -28,7 +28,7 @@ end
 function makeEdgeTree!(edge::Edge, node::Node)
     edge.hybrid || error("cannot make edge $(edge.number) tree because it is tree already")
     node.hybrid || error("need the hybrid node at which edge $(edge.number) is pointing to, node $(node.number) is tree node")
-    warn("we make edge $(edge.number) a tree edge, but it will still point to hybrid node $(node.number)")
+    println("we make edge $(edge.number) a tree edge, but it will still point to hybrid node $(node.number)")
     edge.hybrid = false
     edge.isMajor = true
     edge.gamma = 1.0
