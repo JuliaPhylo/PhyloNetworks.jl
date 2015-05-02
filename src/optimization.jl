@@ -547,10 +547,11 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,close::Bool, M
     currT.blacklist = Int64[];
     origin = (rand() > 0.5) #true=moveOrigin, false=moveTarget
     startover = true
-    #tries = 0
+    tries = 0
     N2 = N > 5 ? N/5 : 1 #num of failures of badlik around a gamma=0.0
-    while(startover) #&& tries < N)
-        #tries += 1
+    while(startover && tries < N)
+        tries += 1
+        println("inside afterOptBLALL: number of tries $(tries) out of $(N) possible")
         badliks = 0
         if(currT.loglik < M*ftolAbs) #curr loglik already close to 0.0
             startover = false
@@ -579,7 +580,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,close::Bool, M
                     #printEdges(currT)
                     #printNodes(currT)
                     println(writeTopology(currT))
-                    if(currT.loglik > currloglik) #|| abs(currT.loglik-currloglik) <= M*ftolAbs) #fixit
+                    if(currT.loglik > currloglik) #|| abs(currT.loglik-currloglik) <= M*ftolAbs) #fixit: allowed like this because of changeDir that does not change much the lik but can fix h=0
                         println("worse likelihood, back to currT")
                         startover = true
                         backCurrT0 = true
@@ -620,7 +621,19 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,close::Bool, M
             end
         end
     end
-    #tries < N || warn("afterOptBLAll ended because it tried $(tries) times with startover $(startover)")
+    if(tries >= N)
+        println("afterOptBLAll ended because it tried $(tries) times with startover $(startover)")
+        writeTopology(currT)
+        flagh,flagt,flaghz = isValid(currT)
+        if(!flagh || !flaghz)
+            println("gammaz zero situation still in currT, need to move down one level to h-1")
+            moveDownLevel!(currT)
+            printEdges(currT)
+            printNodes(currT)
+            println(writeTopology(currT))
+            optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
+        end
+    end
     currT.blacklist = Int64[];
     return currT
 end
