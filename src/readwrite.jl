@@ -626,7 +626,14 @@ end
 function writeSubTree!(s::IOBuffer, n::Node, parent::Edge,di::Bool,names::Bool)
     if((parent.hybrid && !parent.isMajor) || n.leaf)
         if(names)
-            print(s,n.name) #instead of number
+            if(n.name != "")
+                print(s,n.name) #instead of number
+            else
+                if(parent.hybrid)
+                    print(s,"#H")
+                    print(s,n.number)
+                end
+            end
         else
             if(parent.hybrid)
                 print(s,"#H")
@@ -653,7 +660,11 @@ function writeSubTree!(s::IOBuffer, n::Node, parent::Edge,di::Bool,names::Bool)
             if(!names)
                 print(s,string("#H",n.number))
             else
-                print(s,n.name)
+                if(n.name != "")
+                    print(s,n.name)
+                else
+                    print(s,string("#H",n.number))
+                end
             end
         end
     end
