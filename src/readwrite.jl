@@ -704,6 +704,7 @@ function writeTopology(net::HybridNetwork, di::Bool, string::Bool, names::Bool,o
         end
         print(s,");")
     end
+    undoRoot!(net) #to delete the node with only two edges
     if(string)
         return bytestring(s)
     else
@@ -781,4 +782,16 @@ function canBeRoot(n::Node)
     !n.hasHybEdge || return false
     !n.leaf || return false
     return any([e.containRoot for e in n.edge])
+end
+
+# function to delete the extra node created in updateRoot
+# this extra node is needed to be able to compare networks with the distance function
+# but if left in the network, everything crashes (as everything assumes three edges per node)
+function undoRoot!(net::HybridNetwork)
+    if(length(net.node[net.root].edge) == 2)
+        root = net.node[net.root]
+        leaf = getOtherNode(root.edge[1],root).leaf ? getOtherNode(root.edge[1],root) : getOtherNode(root.edge[2],root)
+        leaf.leaf || error("root should have one neighbor leaf which has to be the outgroup defined")
+        deleteIntLeafWhile!(net,root,leaf);
+    end
 end
