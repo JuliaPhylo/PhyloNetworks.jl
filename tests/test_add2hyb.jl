@@ -35,4 +35,8 @@ hybrid = addHybridization!(besttree,false);
 printEdges(besttree)
 flag=false
 nocycle=true
-flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(besttree,hybrid)
+flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(besttree,hybrid);
+printEdges(besttree)
+updateMajorHybrid!(besttree,hybrid);
+flag2, edgesGammaz = updateGammaz!(besttree,hybrid,false);
+flag3, edgesRoot = updateContainRoot!(besttree,hybrid);
