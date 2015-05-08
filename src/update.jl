@@ -40,21 +40,28 @@ function updateInCycle!(net::HybridNetwork,node::Node)
         found = false;
         net.visited = [false for i = 1:size(net.node,1)];
         enqueue!(queue,node,dist);
+        println("start is $(start.number), last is $(last.number)")
         while(!found)
             if(isempty(queue))
                 return false, true, net.edges_changed, net.nodes_changed
             else
+                #println("at this moment, queue is $([n.number for n in queue])")
                 curr = dequeue!(queue);
+                println("curr $(curr.number)")
                 if(isEqual(curr,last))
+                    println("encuentra a la last $(curr.number)")
                     found = true;
                     push!(path,curr);
                 else
                     if(!net.visited[getIndex(curr,net)])
+                        println("curr not visited $(curr.number)")
                         net.visited[getIndex(curr,net)] = true;
                         if(isEqual(curr,start))
+                            println("curr is start")
                             for(e in curr.edge)
                                 if(!e.hybrid || e.isMajor)
                                     other = getOtherNode(e,curr);
+                                    println("other is $(other.number), pushed to queue")
                                     other.prev = curr;
                                     dist = dist+1;
                                     enqueue!(queue,other,dist);
@@ -62,11 +69,15 @@ function updateInCycle!(net::HybridNetwork,node::Node)
                             end
                         else
                             for(e in curr.edge)
-                                other = getOtherNode(e,curr);
-                                if(!other.leaf && !net.visited[getIndex(other,net)])
-                                    other.prev = curr;
-                                    dist = dist+1;
-                                    enqueue!(queue,other,dist);
+                                if(!e.hybrid || e.isMajor)
+                                    other = getOtherNode(e,curr);
+                                    println("other is $(other.number)")
+                                    if(!other.leaf && !net.visited[getIndex(other,net)])
+                                        println("dice que other $(other.number) no es leaf ni visited, lo mete a queue")
+                                        other.prev = curr;
+                                        dist = dist+1;
+                                        enqueue!(queue,other,dist);
+                                    end
                                 end
                             end
                         end
@@ -74,10 +85,13 @@ function updateInCycle!(net::HybridNetwork,node::Node)
                 end
             end
         end # end while
+        println("after while, path has $([n.number for n in path])")
         curr = pop!(path);
+        println("path should be empty here: $(isempty(path))")
         while(!isEqual(curr, start))
+            println("curr es $(curr.number)")
             if(curr.inCycle!= -1)
-                Data.Structures.enqueue!(path,curr);
+                push!(path,curr);
                 curr = curr.prev;
             else
                 curr.inCycle = start.number;
@@ -90,7 +104,7 @@ function updateInCycle!(net::HybridNetwork,node::Node)
             end
         end
         if(!isempty(path) || node.k<3)
-            #error("new cycle intersects existing cycle")
+            warn("new cycle intersects existing cycle")
             return false, false, net.edges_changed, net.nodes_changed
         else
             return true, false, net.edges_changed, net.nodes_changed
