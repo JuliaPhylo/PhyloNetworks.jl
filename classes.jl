@@ -24,6 +24,40 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
+# TO DO: do example by hand to test all scenarios, and include it in extract quartet, re test everything (5/19)
+# 5/20: re run debug hgeq2 with given seed
+
+# function to delete redundant cycles (k=1,k=2), see ipad notes
+function redundantCycle!(net::HybridNetwork,n::Node)
+    n.hybrid || error("cannot clean a cycle on a tree node $(n.number)")
+    edges = hybridEdges(n)
+    edges[1].hybrid && edges[2].hybrid || error("hybrid node $(n.number) does not have two hybrid edges $(edges[1].number), $(edges[2].number)")
+    n1 = getOtherNode(edges[1],n)
+    n2 = getOtherNode(edges[2],n)
+    if(isEqual(n1,n2))
+        if(length(n1.edge) == 2) #only two edges in n1
+            n3 = getOtherNode(edges[3],n)
+            removeEdge!(n3,edges[3])
+            deleteNode!(net,n)
+            deleteNode!(net,n1)
+            deleteEdge!(net,edges[1])
+            deleteEdge!(net,edges[2])
+            deleteEdge!(net,edges[3])
+        end
+    else
+        deleteIntLeafWhile!(net,n1,n)
+        if(isEqual(edges[1].node[1],edges[1].node[2]))
+            n3 = getOtherNode(edges[3],n)
+            removeEdge!(n3,edges[3])
+            deleteNode!(net,n)
+            deleteEdge!(net,edges[1])
+            deleteEdge!(net,edges[3])
+        end
+    end
+end
+
+
+
 # -------------------------------------------------------------------------------------------------
 # ORIGINAL
 # function to identify the QuartetNetwork as
