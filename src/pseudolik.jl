@@ -617,6 +617,7 @@ function identifyQuartet!(qnet::QuartetNetwork)
             end
         else
             for(n in qnet.hybrid)
+                cleanUpNode!(qnet,n)
                 identifyQuartet!(qnet, n)
             end
             if(all([(n.typeHyb != 5) for n in qnet.hybrid]))
@@ -633,7 +634,14 @@ function identifyQuartet!(qnet::QuartetNetwork)
     end
 end
 
-
+# function that will get rid of internal nodes with only
+# two edges for all three directions of a node
+function cleanUpNode!(net::Network,node::Node)
+    edge1,edge2,edge3 = hybridEdges(node)
+    deleteIntLeafWhile!(net,getOtherNode(edge1,node),node)
+    deleteIntLeafWhile!(net,getOtherNode(edge2,node),node)
+    deleteIntLeafWhile!(net,getOtherNode(edge3,node),node)
+end
 
 # ----------------------- Eliminate Hybridizations
 
@@ -874,9 +882,24 @@ end
 # input: quartet network
 function eliminateHybridization!(qnet::QuartetNetwork)
     if(qnet.which != -1)
-        if(qnet.numHybrids > 0)
+        if(qnet.numHybrids == 1)
+            eliminateHybridization!(qnet,qnet.hybrid[1])
+        elseif(qnet.numHybrids > 1)
+            #eliminate in order: first type1 only
+            println("starting eliminateHyb for more than one hybrid with types $([n.typeHyb for n in qnet.hybrid])")
             for(n in qnet.hybrid)
-                eliminateHybridization!(qnet,n)
+                if(n.typeHyb == 1) #only delete type 1 hybridizations (non identifiable ones)
+                    !isa(n.prev,Nothing) || error("hybrid node $(n.number) is type 1 hybridization, prev should be automatically set")
+                    eliminateHybridization!(qnet,n)
+                end
+            end
+            if(qnet.numHybrids > 0)
+                println("need to identify hybridizations again after deleting type 1 hybridizations")
+                identifyHybridization!(qnet)
+                println("now types are $([n.typeHyb for n in qnet.hybrid])")
+                for(n in qnet.hybrid)
+                    eliminateHybridization!(qnet,n)
+                end
             end
         end
         if(qnet.which == 1)
