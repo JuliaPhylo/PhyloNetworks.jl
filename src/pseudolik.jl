@@ -496,6 +496,17 @@ function redundantCycle!(net::Network,n::Node)
             deleteEdge!(net,edges[3])
             if(!n3.leaf && length(n3.edge)==1)
                 removeNoLeafWhile!(net,n3)
+            elseif(length(n3.edge) == 2)
+                if(n3.hasHybEdge)
+                    edge = n3.edge[1].hybrid ? n3.edge[1] : n3.edge[2]
+                    deleteIntLeafWhile!(net,n3,getOtherNode(edge,n3))
+                else
+                    edge = n3.edge[1]
+                    deleteIntLeafWhile!(net,getOtherNode(edge,n3),n3)
+                    edge = n3.edge[2]
+                    deleteIntLeafWhile!(net,getOtherNode(edge,n3),n3)
+                    deleteIntLeafWhile!(net,n3,getOtherNode(n3.edge[1],n3))
+                end
             end
         end
     end
@@ -517,12 +528,14 @@ function removeNoLeafWhile!(net::Network,n::Node)
     while(!n.leaf && length(n.edge)==1)
         n = removeNoLeaf!(net,n)
     end
+    println("n is $(n.number) and length of edges $(length(n.edge))")
     if(length(n.edge) == 2)
         if(n.hasHybEdge)
             edge = n.edge[1].hybrid ? n.edge[1] : n.edge[2]
         else
             edge = n.edge[1]
         end
+        println("edge is $(edge.number) and n is $(n.number), other node is $(getOtherNode(edge,n).number)")
         deleteIntLeafWhile!(net,n,getOtherNode(edge,n))
     end
 end
