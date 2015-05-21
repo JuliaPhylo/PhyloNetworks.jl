@@ -401,13 +401,11 @@ function extractQuartet(net::HybridNetwork,quartet::Array{Node,1})
     leaves = copy(qnet.leaf)
     for(n in leaves)
         if(!isNodeNumIn(n,quartet))
-            println("delete leaf $(n.number)")
+            #println("delete leaf $(n.number)")
             deleteLeaf!(qnet,n)
         end
     end
-    println("deletion of leaves successful")
-    updateHasEdge!(qnet,net)
-    parameters!(qnet,net)
+    #println("deletion of leaves successful")
     return qnet
 end
 
@@ -426,8 +424,10 @@ function extractQuartet!(net::HybridNetwork, quartet::Quartet)
         push!(list, net.node[getIndexNode(getIndex(q,net.names),net)])
     end
     qnet = extractQuartet(net,list)
-    println("EXTRACT: extracted quartet $(quartet.taxon)")
-    redundantCycle!(qnet)
+    #println("EXTRACT: extracted quartet $(quartet.taxon)")
+    redundantCycle!(qnet) #removes no leaves, cleans external edges
+    updateHasEdge!(qnet,net)
+    parameters!(qnet,net)
     qnet.quartetTaxon = quartet.taxon
     quartet.qnet = qnet
     #return qnet
@@ -436,7 +436,7 @@ end
 
 # function to extract all quartets from net according
 # to the array of quartets of a Data object
-# it updates expCF, hasEdgem indexht
+# it updates expCF, hasEdge, indexht
 function extractQuartet!(net::HybridNetwork, quartet::Vector{Quartet})
     println("EXTRACT: begins extract quartets for network")
     for(q in quartet)
@@ -451,62 +451,46 @@ extractQuartet!(net::HybridNetwork, d::DataCF) = extractQuartet!(net, d.quartet)
 
 # function to delete redundante cycles on all hybrid nodes in net
 function redundantCycle!(net::Network)
-    if(length(net.hybrid) > 1)
+    if(length(net.hybrid) > 0)
         for(n in net.hybrid)
             redundantCycle!(net,n)
         end
+        cleanExtEdges!(net)
     end
 end
 
 
 # function to delete redundant cycles (k=1,k=2), see ipad notes
+# warning: should not modify the quartet too much because we need to extract ht afterwards
 function redundantCycle!(net::Network,n::Node)
     n.hybrid || error("cannot clean a cycle on a tree node $(n.number)")
     edges = hybridEdges(n)
     edges[1].hybrid && edges[2].hybrid || error("hybrid node $(n.number) does not have two hybrid edges $(edges[1].number), $(edges[2].number)")
-    println("edges are $([e.number for e in edges])")
-    n1 = getOtherNode(edges[1],n)
-    n2 = getOtherNode(edges[2],n)
-    if(isEqual(n1,n2))
-        println("found redundanteCycle: entra a q n1 y n2 son iguales")
-        if(length(n1.edge) == 2) #only two edges in n1
-            n3 = getOtherNode(edges[3],n)
-            removeEdge!(n3,edges[3])
-            deleteNode!(net,n)
-            deleteNode!(net,n1)
-            deleteEdge!(net,edges[1])
-            deleteEdge!(net,edges[2])
-            deleteEdge!(net,edges[3])
-            if(!n3.leaf && length(n3.edge)==1)
-                removeNoLeafWhile!(net,n3)
-            end
-        end
-    else
-        println("entra a q n1 $(n1.number) y n2 $(n2.number) no son iguales")
+    #println("edges are $([e.number for e in edges])")
+    other = getOtherNode(edges[1],n)
+    e = edges[1]
+    while(length(other.edge) == 2)
+        ind = isEqual(e,other.edge[1]) ? 2 : 1
+        e = other.edge[ind]
+        other = getOtherNode(e,other)
+    end
+    if(isEqual(n,other))
+        #println("redundant cycle found!")
+        n1 = getOtherNode(edges[1],n)
+        n2 = getOtherNode(edges[2],n)
         deleteIntLeafWhile!(net,n1,n)
         edge = n.edge[1].hybrid ? n.edge[1] : n.edge[2]
-        println("edge is $(edge.number), should be the first (or only) edge in hybrid node $(n.number)")
+        #println("edge is $(edge.number), should be the first (or only) edge in hybrid node $(n.number)")
         if(isEqual(edge.node[1],edge.node[2]))
-            println("entra a q son iguales los nodes de edge")
+            #println("entra a q son iguales los nodes de edge")
             n3 = getOtherNode(edges[3],n)
-            println("edges[3] is $(edges[3].number), n3 is $(n3.number)")
+            #println("edges[3] is $(edges[3].number), n3 is $(n3.number)")
             removeEdge!(n3,edges[3])
             deleteNode!(net,n)
             deleteEdge!(net,edge)
             deleteEdge!(net,edges[3])
             if(!n3.leaf && length(n3.edge)==1)
                 removeNoLeafWhile!(net,n3)
-            elseif(length(n3.edge) == 2)
-                if(n3.hasHybEdge)
-                    edge = n3.edge[1].hybrid ? n3.edge[1] : n3.edge[2]
-                    deleteIntLeafWhile!(net,n3,getOtherNode(edge,n3))
-                else
-                    edge = n3.edge[1]
-                    deleteIntLeafWhile!(net,getOtherNode(edge,n3),n3)
-                    edge = n3.edge[2]
-                    deleteIntLeafWhile!(net,getOtherNode(edge,n3),n3)
-                    deleteIntLeafWhile!(net,n3,getOtherNode(n3.edge[1],n3))
-                end
             end
         end
     end
@@ -524,21 +508,34 @@ function removeNoLeaf!(net::Network,n::Node)
 end
 
 # function to do a while for removeNoLeaf
+# warning: we do not want to remove edges because we need to know
+# exactly which edges in qnet are affected by changes in net.ht
 function removeNoLeafWhile!(net::Network,n::Node)
     while(!n.leaf && length(n.edge)==1)
         n = removeNoLeaf!(net,n)
     end
-    println("n is $(n.number) and length of edges $(length(n.edge))")
-    if(length(n.edge) == 2)
-        if(n.hasHybEdge)
-            edge = n.edge[1].hybrid ? n.edge[1] : n.edge[2]
-        else
-            edge = n.edge[1]
-        end
-        println("edge is $(edge.number) and n is $(n.number), other node is $(getOtherNode(edge,n).number)")
-        deleteIntLeafWhile!(net,n,getOtherNode(edge,n))
-    end
+    #println("n is $(n.number) and length of edges $(length(n.edge))")
+    ## if(length(n.edge) == 2)
+    ##     if(n.hasHybEdge)
+    ##         edge = n.edge[1].hybrid ? n.edge[1] : n.edge[2]
+    ##     else
+    ##         edge = n.edge[1]
+    ##     end
+    ##     println("edge is $(edge.number) and n is $(n.number), other node is $(getOtherNode(edge,n).number)")
+    ##     deleteIntLeafWhile!(net,n,getOtherNode(edge,n))
+    ## end
 end
+
+# Function to check that external edges do not have nodes with only two edges
+function cleanExtEdges!(net::Network)
+#    if(net.numHybrids > 0)
+        for(l in net.leaf)
+            length(l.edge) == 1 || error("leaf $(l.number) with $(length(l.edge)) edges, not 1")
+            deleteIntLeafWhile!(net,getOtherNode(l.edge[1],l),l)
+        end
+#    end
+end
+
 
 # ------------------------------- calculate expCF -------------------------------------
 
@@ -570,13 +567,17 @@ function identifyQuartet!(qnet::QuartetNetwork, node::Node)
             push!(qnet.typeHyb,3)
         end
     elseif(k == 3)
+        #println("identifyQuartet: entra a k=3")
         edge1,edge2,edge3 = hybridEdges(node)
+        #println("node is $(node.number), edge3 is $(edge3.number)")
         if(getOtherNode(edge3,node).leaf)
             node.typeHyb = 2
             push!(qnet.typeHyb,2)
             for(n in qnet.node)
                 if(n.inCycle == node.number && size(n.edge,1) == 3 && !isEqual(n,node))
+                    #println("found a node $(n.number)")
                     edge1,edge2,edge3 = hybridEdges(n)
+                    #println("edge1,egde2,edge3 are $(edge1.number), $(edge2.number), $(edge3.number)")
                     if(getOtherNode(edge3,n).leaf)
                         node.prev = n
                         break
@@ -605,7 +606,7 @@ end
 # function to identify the Quartet network as
 # 1 (equivalent to tree), 2 (minor CF different)
 function identifyQuartet!(qnet::QuartetNetwork)
-    if(qnet.which == -1)
+    #if(qnet.which == -1)
         if(qnet.numHybrids == 0)
             qnet.which = 1
         elseif(qnet.numHybrids == 1)
@@ -631,7 +632,7 @@ function identifyQuartet!(qnet::QuartetNetwork)
                 end
             end
         end
-    end
+    #end
 end
 
 # function that will get rid of internal nodes with only
@@ -886,18 +887,21 @@ function eliminateHybridization!(qnet::QuartetNetwork)
             eliminateHybridization!(qnet,qnet.hybrid[1])
         elseif(qnet.numHybrids > 1)
             #eliminate in order: first type1 only
-            println("starting eliminateHyb for more than one hybrid with types $([n.typeHyb for n in qnet.hybrid])")
-            for(n in qnet.hybrid)
+            #println("starting eliminateHyb for more than one hybrid with types $([n.typeHyb for n in qnet.hybrid])")
+            hybrids = copy(qnet.hybrid)
+            for(n in hybrids)
                 if(n.typeHyb == 1) #only delete type 1 hybridizations (non identifiable ones)
                     !isa(n.prev,Nothing) || error("hybrid node $(n.number) is type 1 hybridization, prev should be automatically set")
                     eliminateHybridization!(qnet,n)
                 end
             end
+            qnet.typeHyb = Int64[]
             if(qnet.numHybrids > 0)
-                println("need to identify hybridizations again after deleting type 1 hybridizations")
-                identifyHybridization!(qnet)
-                println("now types are $([n.typeHyb for n in qnet.hybrid])")
-                for(n in qnet.hybrid)
+                #println("need to identify hybridizations again after deleting type 1 hybridizations")
+                identifyQuartet!(qnet)
+                #println("now types are $([n.typeHyb for n in qnet.hybrid])")
+                hybrids = copy(qnet.hybrid)
+                for(n in hybrids)
                     eliminateHybridization!(qnet,n)
                 end
             end
