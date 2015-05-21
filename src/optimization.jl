@@ -5,10 +5,10 @@
 
 const move2int = Dict{Symbol,Int64}([:add=>1,:MVorigin=>2,:MVtarget=>3,:CHdir=>4,:delete=>5, :nni=>6])
 const int2move = (Int64=>Symbol)[move2int[k]=>k for k in keys(move2int)]
-const fAbs = 1e-10 #1e-10 prof Bates
-const fRel = 1e-12 # 1e-12 prof Bates
-const xAbs = 1e-10 # 0.001 in phylonet, 1e-10 prof Bates
-const xRel = 1e-10 # 0.01 in phylonet, 1e-10 prof Bates
+const fAbs = 1e-10 #1e-10 prof Bates, 1e-6
+const fRel = 1e-12 # 1e-12 prof Bates, 1e-5
+const xAbs = 1e-10 # 0.001 in phylonet, 1e-10 prof Bates, 1e-4
+const xRel = 1e-10 # 0.01 in phylonet, 1e-10 prof Bates, 1e-3
 const numFails = 100 # like phylonet
 const numMoves = Int64[] #empty to be calculated inside based on coupon's collector
 const multiplier = 10000 # for loglik absolute tol (multiplier*fAbs)
