@@ -141,6 +141,7 @@ function deleteLeaf!(net::Network, leaf::Node)
     size(leaf.edge,1) == 1 || error("strange leaf $(leaf.number) with $(size(leaf.edge,1)) edges instead of 1")
     other = getOtherNode(leaf.edge[1],leaf);
     if(other.hybrid)
+        println("entra al caso other is hybrid node")
         edge1,edge2 = hybridEdges(other,leaf.edge[1]);
         (edge1.hybrid && edge2.hybrid) || error("hybrid node $(other.node) does not have two hybrid edges, they are tree edges: $(edge1.number), $(edge2.number)")
         other1 = getOtherNode(edge1,other);
@@ -152,7 +153,7 @@ function deleteLeaf!(net::Network, leaf::Node)
         deleteEdge!(net,leaf.edge[1])
         deleteNode!(net,other)
         deleteNode!(net,leaf)
-        if(size(other1.edge,1) == 2  && isNodeNumIn(other1,net.node))
+        if(size(other1.edge,1) == 2  && isNodeNumIn(other1,net.node)) # need to delete internal nodes with only 2 edges (one of them external edge)
             node = getOtherNode(other1.edge[1],other1)
             leaf1 = node.leaf ? node : getOtherNode(other1.edge[2],other1)
             if(leaf1.leaf)
@@ -166,9 +167,18 @@ function deleteLeaf!(net::Network, leaf::Node)
                 deleteIntLeafWhile!(net,other2,leaf1);
             end
         end
+        println("in deleteLeaf, other hybrid node, other1 $(other1.number), other2 $(other2.number)")
+        if(length(other1.edge) == 1 && isNodeNumIn(other1,net.node)) #internal node with only one edge
+            !other1.leaf || error("node $(other1.number) was attached no hybrid edge, cannot be a leaf")
+            removeWeirdNodes!(net,other1)
+        end
+        if(length(other2.edge) == 1 && isNodeNumIn(other2,net.node))
+            !other2.leaf || error("node $(other2.number) was attached no hybrid edge, cannot be a leaf")
+            removeWeirdNodes!(net,other2)
+        end
     else
         if(other.hasHybEdge)
-            #println("entro a caso has hyb edge")
+            println("entro a caso tree node has hyb edge")
             edge1,edge2 = hybridEdges(other,leaf.edge[1]);
             (edge1.hybrid || edge2.hybrid) || error("node $(other.number) has hybrid edge attribute true, but the edges $(edge1.number), $(edge2.number) are not hybrid (and the third edge has a leaf $(leaf.number)")
             other1 = getOtherNode(edge1,other);
@@ -274,7 +284,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                 error("node $(other.number) has hybrid edge, but neither of the other nodes $(other1.number), $(other2.number) are hybrid")
             end
         else # other is tree node without hybrid edges
-            #println("entra al caso (1)")
+            println("entra al caso other is tree node no hyb edges")
             if(length(other.edge) == 2)
                 edge1 = isEqual(other.edge[1],leaf.edge[1]) ? other.edge[2] : other.edge[1]
                 other1 = getOtherNode(edge1,other)
@@ -284,6 +294,11 @@ function deleteLeaf!(net::Network, leaf::Node)
                 deleteNode!(net,leaf)
                 deleteEdge!(net,leaf.edge[1])
                 deleteEdge!(net,edge1)
+                println("other1 is $(other1.number)")
+                if(other1.hybrid && length(other1.edge) == 2)
+                    println("entra a tratar de arreglar a other1")
+                    removeWeirdNodes!(net,other1)
+                end
             else
                 edge1,edge2 = hybridEdges(other,leaf.edge[1]);
                 other1 = getOtherNode(edge1,other);
@@ -401,11 +416,11 @@ function extractQuartet(net::HybridNetwork,quartet::Array{Node,1})
     leaves = copy(qnet.leaf)
     for(n in leaves)
         if(!isNodeNumIn(n,quartet))
-            #println("delete leaf $(n.number)")
+            println("delete leaf $(n.number)")
             deleteLeaf!(qnet,n)
         end
     end
-    #println("deletion of leaves successful")
+    println("deletion of leaves successful")
     return qnet
 end
 
@@ -424,7 +439,7 @@ function extractQuartet!(net::HybridNetwork, quartet::Quartet)
         push!(list, net.node[getIndexNode(getIndex(q,net.names),net)])
     end
     qnet = extractQuartet(net,list)
-    #println("EXTRACT: extracted quartet $(quartet.taxon)")
+    println("EXTRACT: extracted quartet $(quartet.taxon)")
     redundantCycle!(qnet) #removes no leaves, cleans external edges
     updateHasEdge!(qnet,net)
     parameters!(qnet,net)
@@ -455,8 +470,8 @@ function redundantCycle!(net::Network)
         for(n in net.hybrid)
             redundantCycle!(net,n)
         end
-        cleanExtEdges!(net)
     end
+    cleanExtEdges!(net)
 end
 
 
@@ -490,7 +505,7 @@ function redundantCycle!(net::Network,n::Node)
             deleteEdge!(net,edge)
             deleteEdge!(net,edges[3])
             if(!n3.leaf && length(n3.edge)==1)
-                removeNoLeafWhile!(net,n3)
+                removeNoLeafWhile!(net,n3);
             end
         end
     end
@@ -514,16 +529,7 @@ function removeNoLeafWhile!(net::Network,n::Node)
     while(!n.leaf && length(n.edge)==1)
         n = removeNoLeaf!(net,n)
     end
-    #println("n is $(n.number) and length of edges $(length(n.edge))")
-    ## if(length(n.edge) == 2)
-    ##     if(n.hasHybEdge)
-    ##         edge = n.edge[1].hybrid ? n.edge[1] : n.edge[2]
-    ##     else
-    ##         edge = n.edge[1]
-    ##     end
-    ##     println("edge is $(edge.number) and n is $(n.number), other node is $(getOtherNode(edge,n).number)")
-    ##     deleteIntLeafWhile!(net,n,getOtherNode(edge,n))
-    ## end
+    return n
 end
 
 # Function to check that external edges do not have nodes with only two edges
@@ -536,7 +542,91 @@ function cleanExtEdges!(net::Network)
 #    end
 end
 
+# function to delete a hybrid node that has only two edges: the hybrid ones
+# it fixes other1,other2 for internal nodes with only 2 edges (one external),
+# returns other1, other2 if they are internal nodes with only one edge
+function removeLoneHybrid!(net::Network, n::Node)
+    n.hybrid || error("cannot remove a lone hybrid if it is not hybrid: $(n.number)")
+    length(n.edge) == 2 || error("hybrid node $(n.number) should have only 2 edges to be deleted, it has $(length(n.edge))")
+    (n.edge[1].hybrid && n.edge[2].hybrid) || error("both edges have to be hybrid and they are not both: $(n.edge[1].number), $(n.edge[2].number)")
+    other1 = getOtherNode(n.edge[1],n)
+    other2 = getOtherNode(n.edge[2],n)
+    removeEdge!(other1,n.edge[1])
+    removeEdge!(other2,n.edge[2])
+    deleteEdge!(net,n.edge[1])
+    deleteEdge!(net,n.edge[2])
+    deleteNode!(net,n)
+    if(length(other1.edge) == 2 && isNodeNumIn(other1,net.node))
+        leaf1 = getOtherNode(other1.edge[1],other1)
+        leaf = leaf1.leaf ? leaf1 : getOtherNode(other1.edge[2],other1)
+        if(leaf.leaf)
+            deleteIntLeafWhile!(net,other1,leaf)
+        end
+    end
+    if(length(other2.edge) == 2 && isNodeNumIn(other2,net.node))
+        leaf1 = getOtherNode(other2.edge[1],other2)
+        leaf = leaf1.leaf ? leaf1 : getOtherNode(other2.edge[2],other2)
+        if(leaf.leaf)
+            deleteIntLeafWhile!(net,other2,leaf)
+        end
+    end
+    o1 = false
+    o2 = false
+    if(length(other1.edge) == 1)
+        !other1.leaf || error("node $(other1.number) should not be a leaf because it was attached to hybrid edge")
+        o1 = true
+    end
+    if(length(other2.edge) == 1)
+        !other2.leaf || error("node $(other2.number) should not be a leaf because it was attached to hybrid edge")
+        o2 = true
+    end
+    if(o1 && !o2)
+        return other1
+    elseif(!o1 && o2)
+        return other2
+    elseif(o1 && o2)
+        return other1,other2
+    else
+        return nothing
+    end
+end
 
+function removeWeirdNode!(net::Network,n::Node)
+    other = nothing
+    if(length(n.edge) == 1 && !n.leaf)
+        n = removeNoLeafWhile!(net,n)
+    end
+    if(n.hybrid && length(n.edge) == 2)
+        (n.edge[1].hybrid && n.edge[2].hybrid) || error("two edges for this hybrid node $(n.number) must be hybrid, and they are not")
+        other = removeLoneHybrid!(net,n)
+    end
+    return [other]
+end
+
+# function to remove internal nodes with only one edge
+# keep deleting those nodes, and hybrid nodes without descendants
+function removeWeirdNodes!(net::Network, n::Node)
+    list = Node[]
+    push!(list,n)
+    while(!isempty(list))
+        n = pop!(list)
+        if(length(n.edge) == 1 && !n.leaf)
+            n = removeWeirdNode!(net,n)
+        elseif(n.hybrid && length(n.edge) == 2)
+            (n.edge[1].hybrid && n.edge[2].hybrid) || error("hybrid node $(n.number) only has two edges and they must be hybrids")
+            n = removeWeirdNode!(net,n)
+        else
+            warn("strange case: calling removeWeirdNode on normal node $(n.number)")
+            n = nothing
+        end
+        if(!isa(n,Nothing) && !isa(n,Vector{Nothing}))
+            #println("n here is $(n)")
+            for(l in n)
+                push!(list,l)
+            end
+        end
+    end
+end
 # ------------------------------- calculate expCF -------------------------------------
 
 # ------- Identify Quartet

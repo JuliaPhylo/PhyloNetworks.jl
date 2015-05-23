@@ -378,6 +378,7 @@ function deleteNode!(net::HybridNetwork, n::Node)
     catch
         error("Node $(n.number) not in network");
     end
+    println("deleting node $(n.number) from net")
     index = getIndex(n,net);
     deleteat!(net.node,index);
     net.numNodes -= 1;
@@ -406,6 +407,7 @@ function deleteNode!(net::QuartetNetwork, n::Node)
     catch
         error("Node $(n.number) not in network");
     end
+    println("deleting node $(n.number) from net")
     index = getIndex(n,net);
     deleteat!(net.node,index);
     net.numNodes -= 1;
@@ -427,6 +429,7 @@ function deleteEdge!(net::Network, e::Edge)
     catch
         error("Edge not in network");
     end
+    println("delete edge $(e.number) from net")
     index = getIndex(e,net);
     deleteat!(net.edge,index);
     net.numEdges -= 1;
