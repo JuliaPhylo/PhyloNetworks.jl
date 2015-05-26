@@ -24,68 +24,12 @@ include("tree_example.jl");
 
 # -------------- NETWORK ----------------------- #
 
-# TO DO: do example by hand to test all scenarios, and include it in extract quartet, re test everything (5/19)
-# 5/20: re run debug hgeq2 with given seed
+# in addHybrid.jl
 
-# function to delete redundant cycles (k=1,k=2), see ipad notes
-function redundantCycle!(net::Network,n::Node)
-    n.hybrid || error("cannot clean a cycle on a tree node $(n.number)")
-    edges = hybridEdges(n)
-    edges[1].hybrid && edges[2].hybrid || error("hybrid node $(n.number) does not have two hybrid edges $(edges[1].number), $(edges[2].number)")
-    println("edges are $([e.number for e in edges])")
-    n1 = getOtherNode(edges[1],n)
-    n2 = getOtherNode(edges[2],n)
-    if(isEqual(n1,n2))
-        println("entra a q n1 y n2 son iguales")
-        if(length(n1.edge) == 2) #only two edges in n1
-            n3 = getOtherNode(edges[3],n)
-            removeEdge!(n3,edges[3])
-            deleteNode!(net,n)
-            deleteNode!(net,n1)
-            deleteEdge!(net,edges[1])
-            deleteEdge!(net,edges[2])
-            deleteEdge!(net,edges[3])
-            if(!n3.leaf && length(n3.edge)==1)
-                removeNoLeafWhile!(net,n3)
-            end
-        end
-    else
-        println("entra a q n1 $(n1.number) y n2 $(n2.number) no son iguales")
-        deleteIntLeafWhile!(net,n1,n)
-        edge = n.edge[1].hybrid ? n.edge[1] : n.edge[2]
-        println("edge is $(edge.number), should be the first (or only) edge in hybrid node $(n.number)")
-        if(isEqual(edge.node[1],edge.node[2]))
-            println("entra a q son iguales los nodes de edge")
-            n3 = getOtherNode(edges[3],n)
-            println("edges[3] is $(edges[3].number), n3 is $(n3.number)")
-            removeEdge!(n3,edges[3])
-            deleteNode!(net,n)
-            deleteEdge!(net,edge)
-            deleteEdge!(net,edges[3])
-            if(!n3.leaf && length(n3.edge)==1)
-                removeNoLeafWhile!(net,n3)
-            end
-        end
-    end
-end
-
-# function to delete an internal node with only one edge
-function removeNoLeaf!(net::Network,n::Node)
-    !n.leaf || error("node $(n.number) is a leaf, so we cannot remove it")
-    length(n.edge) == 1 || error("node $(n.number) has $(length(n.edge)) edges (not 1), so we do not have to remove it")
-    node = getOtherNode(n.edge[1],n)
-    removeEdge!(node,n.edge[1])
-    deleteNode!(net,n)
-    deleteEdge!(net,n.edge[1])
-    return node
-end
-
-# function to do a while for removeNoLeaf
-function removeNoLeafWhile!(net::Network,n::Node)
-    while(!n.leaf && length(n.edge)==1)
-        n = removeNoLeaf!(net,n)
-    end
-end
+# based on getDescendants on readData.jl but with vector of edges, instead of nodes
+# finds the partition corresponding to the node and edge in the cycle
+# used in chooseEdgesGamma and to set net.partition
+function getDescendants!(node::Node, edge::Edge, descendants::Vector{Edge})
 
 
 # -------------------------------------------------------------------------------------------------

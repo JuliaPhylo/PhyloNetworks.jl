@@ -5,10 +5,10 @@
 
 const move2int = Dict{Symbol,Int64}([:add=>1,:MVorigin=>2,:MVtarget=>3,:CHdir=>4,:delete=>5, :nni=>6])
 const int2move = (Int64=>Symbol)[move2int[k]=>k for k in keys(move2int)]
-const fAbs = 1e-10 #1e-10 prof Bates, 1e-6
-const fRel = 1e-12 # 1e-12 prof Bates, 1e-5
-const xAbs = 1e-10 # 0.001 in phylonet, 1e-10 prof Bates, 1e-4
-const xRel = 1e-10 # 0.01 in phylonet, 1e-10 prof Bates, 1e-3
+const fAbs = 1e-6 #1e-10 prof Bates, 1e-6
+const fRel = 1e-5 # 1e-12 prof Bates, 1e-5
+const xAbs = 1e-4 # 0.001 in phylonet, 1e-10 prof Bates, 1e-4
+const xRel = 1e-3 # 0.01 in phylonet, 1e-10 prof Bates, 1e-3
 const numFails = 100 # like phylonet
 const numMoves = Int64[] #empty to be calculated inside based on coupon's collector
 const multiplier = 10000 # for loglik absolute tol (multiplier*fAbs)
@@ -497,6 +497,8 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF,close::Bool, origin::Bool,v
         end
     end
     if(successchange)
+        #println(writeTopology(currT))
+        #printEdges(currT)
         optBL!(currT,d,verbose)
     end
     !successchange || println("afterOptBL SUCCESSFUL change, need to run again to see if new topology is valid")
@@ -613,8 +615,8 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,close::Bool, M
                     movesgamma[5] += 1
                     movesgamma[11] += 1
                     moveDownLevel!(currT)
-                    printEdges(currT)
-                    printNodes(currT)
+                    #printEdges(currT)
+                    #printNodes(currT)
                     println(writeTopology(currT))
                     optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
                     startover = true
@@ -632,8 +634,8 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,close::Bool, M
         if(!flagh || !flaghz)
             println("gammaz zero situation still in currT, need to move down one level to h-1")
             moveDownLevel!(currT)
-            printEdges(currT)
-            printNodes(currT)
+            #printEdges(currT)
+            #printNodes(currT)
             println(writeTopology(currT))
             optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
         end
@@ -892,8 +894,8 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             if(flag)
                 accepted = false
                 println("accepted proposed new topology in step $(count)")
-                printEdges(newT)
-                printNodes(newT)
+                #printEdges(newT)
+                #printNodes(newT)
                 println(writeTopology(newT))
                 optBL!(newT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
                 println("OPT: comparing newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
