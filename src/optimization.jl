@@ -497,8 +497,8 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF,close::Bool, origin::Bool,v
         end
     end
     if(successchange)
-        #println(writeTopology(currT))
-        #printEdges(currT)
+        println(writeTopology(currT))
+        printEdges(currT)
         optBL!(currT,d,verbose)
     end
     !successchange || println("afterOptBL SUCCESSFUL change, need to run again to see if new topology is valid")
@@ -580,7 +580,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,close::Bool, M
                     end
                 else #changed something
                     println("changed something inside afterOptBL: flagh, flagt, flaghz = $([flagh,flagt,flaghz]). oldloglik $(currloglik), newloglik $(currT.loglik)")
-                    #printEdges(currT)
+                    printEdges(currT)
                     #printNodes(currT)
                     println(writeTopology(currT))
                     if(currT.loglik > currloglik) #|| abs(currT.loglik-currloglik) <= M*ftolAbs) #fixit: allowed like this because of changeDir that does not change much the lik but can fix h=0
@@ -878,7 +878,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     currT = afterOptBLAll!(currT, d, Nfail,close, M, ftolAbs, verbose,movesgamma,ftolRel,xtolRel,xtolAbs)
     absDiff = M*ftolAbs + 1
     newT = deepcopy(currT)
-    #printEdges(newT)
+    printEdges(newT)
     #printNodes(newT)
     println(writeTopology(newT))
     while(absDiff > M*ftolAbs && failures < Nfail && currT.loglik > M*ftolAbs && stillmoves) #stops if close to zero because of new deviance form of the pseudolik
