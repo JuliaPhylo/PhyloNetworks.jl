@@ -305,7 +305,7 @@ end
 # by nodesChanged vector (obtained from updateInCycle)
 function updatePartition!(net::HybridNetwork, nodesChanged::Vector{Node})
     length(nodesChanged) > 2 || error("incycle with only 2 nodes in it after updateGammaz")
-    println("nodesChanged are $([n.number for n in nodesChanged])")
+    #println("nodesChanged are $([n.number for n in nodesChanged])")
     if(net.numHybrids == 0)
         net.partition = Vector{Edge}[Edge[]]
     end
@@ -320,13 +320,13 @@ function updatePartition!(net::HybridNetwork, nodesChanged::Vector{Node})
         descendants = [edge]
         getDescendants!(getOtherNode(edge,n),edge,descendants)
         !isempty(descendants) || error("descendants is empty for node $(n.number)")
-        println("for node $(n.number), descendants are $([e.number for e in descendants])")
+        #println("for node $(n.number), descendants are $([e.number for e in descendants])")
         push!(net.partition, descendants)
     end
     if(isempty(net.partition[1]))
         net.partition = net.partition[2:end]
     end
-    println("length of net.partition at the end is $(length(net.partition))")
+    #println("length of net.partition at the end is $(length(net.partition))")
 end
 
 function choosePartition(net::HybridNetwork)
