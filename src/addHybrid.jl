@@ -156,20 +156,44 @@ function parameters4createHybrid!(edge1::Edge, edge2::Edge,net::HybridNetwork)
     return edge3, edge4
 end
 
+## # aux function to add the hybridization
+## # without checking all the updates
+## # returns the hybrid node of the new hybridization
+## # calls chooseEdgesGamma, parameter4createHybrid and createHybrid
+## # blacklist used in afterOptBLAll
+## function addHybridization!(net::HybridNetwork, blacklist::Bool)
+##     edge1, edge2, gamma = chooseEdgesGamma(net, blacklist);
+##     println("add hybridization between edge1, $(edge1.number) and edge2 $(edge2.number) with gamma $(gamma)")
+##     edge3, edge4 = parameters4createHybrid!(edge1,edge2,net);
+##     hybrid = createHybrid!(edge1, edge2, edge3, edge4, net, gamma);
+##     return hybrid
+## end
+
+## addHybridization!(net::HybridNetwork) = addHybridization!(net, false)
+
 # aux function to add the hybridization
 # without checking all the updates
 # returns the hybrid node of the new hybridization
 # calls chooseEdgesGamma, parameter4createHybrid and createHybrid
 # blacklist used in afterOptBLAll
-function addHybridization!(net::HybridNetwork, blacklist::Bool)
-    edge1, edge2, gamma = chooseEdgesGamma(net, blacklist);
+# usePartition=true if we use the information on net.partition, default true
+function addHybridization!(net::HybridNetwork, blacklist::Bool, usePartition::Bool)
+    if(net.numHybrids > 0 && usePartition)
+        !isempty(net.partition) || error("net has $(net.numHybrids) but net.partition is empty")
+        index = choosePartition(net)
+        index == 0 && return nothing #no place for new hybrid
+        partition = splice!(net.partition,index)
+        edge1, edge2, gamma = chooseEdgesGamma(net, blacklist,partition);
+    else
+        edge1, edge2, gamma = chooseEdgesGamma(net, blacklist);
+    end
     println("add hybridization between edge1, $(edge1.number) and edge2 $(edge2.number) with gamma $(gamma)")
     edge3, edge4 = parameters4createHybrid!(edge1,edge2,net);
     hybrid = createHybrid!(edge1, edge2, edge3, edge4, net, gamma);
     return hybrid
 end
 
-addHybridization!(net::HybridNetwork) = addHybridization!(net, false)
+addHybridization!(net::HybridNetwork) = addHybridization!(net, false, true)
 
 # function to update who is the major hybrid
 # after a new hybridization is added and
@@ -215,6 +239,7 @@ function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool,
                 flag3, edgesRoot = updateContainRoot!(net,hybrid);
                 if(flag3)
                     parameters!(net)
+                    updatePartition!(net,nodesInCycle)
                     return true, hybrid, flag, nocycle, flag2, flag3
                 else
                     #undoContainRoot!(edgesRoot);
@@ -248,9 +273,68 @@ updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool) = update
 #          success, it attempts to add once
 # returns: success (bool), hybrid, flag, nocycle, flag2, flag3
 # blacklist used in afterOptBLAll
-function addHybridizationUpdate!(net::HybridNetwork, blacklist::Bool)
-    hybrid = addHybridization!(net,blacklist);
+function addHybridizationUpdate!(net::HybridNetwork, blacklist::Bool, usePartition::Bool)
+    hybrid = addHybridization!(net,blacklist, usePartition);
+    isa(hybrid,Nothing) && return false,nothing,false,false,false,false
     updateAllNewHybrid!(hybrid,net,true)
 end
 
-addHybridizationUpdate!(net::HybridNetwork) = addHybridizationUpdate!(net, false)
+addHybridizationUpdate!(net::HybridNetwork) = addHybridizationUpdate!(net, false, true)
+
+
+# based on getDescendants on readData.jl but with vector of edges, instead of nodes
+# finds the partition corresponding to the node and edge in the cycle
+# used in chooseEdgesGamma and to set net.partition
+function getDescendants!(node::Node, edge::Edge, descendants::Vector{Edge})
+    ## if(node.leaf)
+    ##     push!(descendants,edge)
+    ## elseif(node.inCycle != -1)
+    ##     push!(descendants,edge)
+    ## else
+    if(!node.leaf && node.inCycle == -1)
+        for(e in node.edge)
+            if(!isEqual(edge,e) && e.isMajor)
+                push!(descendants,e)
+                getDescendants!(getOtherNode(e,node),e,descendants)
+            end
+        end
+    end
+end
+
+# function to update the net.partition attribute along a cycle formed
+# by nodesChanged vector (obtained from updateInCycle)
+function updatePartition!(net::HybridNetwork, nodesChanged::Vector{Node})
+    length(nodesChanged) > 2 || error("incycle with only 2 nodes in it after updateGammaz")
+    println("nodesChanged are $([n.number for n in nodesChanged])")
+    if(net.numHybrids == 0)
+        net.partition = Vector{Edge}[Edge[]]
+    end
+    for(n in nodesChanged)
+        edge = nothing
+        for(e in n.edge)
+            if(e.inCycle == -1)
+                edge = e
+            end
+        end
+        !isa(edge,Nothing) || error("one edge in n.edge for node $(n.number) should not be in cycle")
+        descendants = [edge]
+        getDescendants!(getOtherNode(edge,n),edge,descendants)
+        !isempty(descendants) || error("descendants is empty for node $(n.number)")
+        println("for node $(n.number), descendants are $([e.number for e in descendants])")
+        push!(net.partition, descendants)
+    end
+    if(isempty(net.partition[1]))
+        net.partition = net.partition[2:end]
+    end
+    println("length of net.partition at the end is $(length(net.partition))")
+end
+
+function choosePartition(net::HybridNetwork)
+    all([length(n) == 1 for n in net.partition]) && return 0
+    index1 = iround(rand()*size(net.partition,1));
+    while(index1 == 0 || index1 > length(net.partition) || length(net.partition[index1]) < 2)
+        index1 = iround(rand()*size(net.partition,1));
+    end
+    return index1
+end
+

@@ -26,12 +26,6 @@ include("tree_example.jl");
 
 # in addHybrid.jl
 
-# based on getDescendants on readData.jl but with vector of edges, instead of nodes
-# finds the partition corresponding to the node and edge in the cycle
-# used in chooseEdgesGamma and to set net.partition
-function getDescendants!(node::Node, edge::Edge, descendants::Vector{Edge})
-
-
 # -------------------------------------------------------------------------------------------------
 # ORIGINAL
 # function to identify the QuartetNetwork as

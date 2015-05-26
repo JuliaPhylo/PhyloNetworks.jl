@@ -115,16 +115,16 @@ type HybridNetwork <: Network
         leaf=Node[];
         [n.hybrid?push!(hybrid,n):nothing for n in node];
         [n.leaf?push!(leaf,n):nothing for n in node];
-        new(size(leaf,1),size(node,1),size(edge,1),node,edge,1,[],hybrid,size(hybrid,1),[],[],[],leaf,[],[],0,false,[],0,[],[])
+        new(size(leaf,1),size(node,1),size(edge,1),node,edge,1,[],hybrid,size(hybrid,1),[],[],[],leaf,[],[],0,false,[],0,[],Vector{Edge}[Edge[]])
     end
     function HybridNetwork(node::Array{Node,1},edge::Array{Edge,1},root::Int64)
         hybrid=Node[];
         leaf=Node[];
         [n.hybrid?push!(hybrid,n):nothing for n in node];
         [n.leaf?push!(leaf,n):nothing for n in node];
-        new(size(leaf,1),size(node,1),size(edge,1),node,edge,root,[],hybrid,size(hybrid,1),[],[],[],leaf,[],[],0,false,[],0,[],[])
+        new(size(leaf,1),size(node,1),size(edge,1),node,edge,root,[],hybrid,size(hybrid,1),[],[],[],leaf,[],[],0,false,[],0,[],Vector{Edge}[Edge[]])
     end
-    HybridNetwork() = new(0,0,0,[],[],0,[],[],0,[],[],[],[],[],[],0,false,[],0,[],[]);
+    HybridNetwork() = new(0,0,0,[],[],0,[],[],0,[],[],[],[],[],[],0,false,[],0,[],Vector{Edge}[Edge[]]);
 end
 
 # type created from a HybridNetwork only to extract a given quartet
