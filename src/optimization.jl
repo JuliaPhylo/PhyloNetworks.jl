@@ -90,39 +90,56 @@ function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
         push!(qindxhz,getIndex(getOtherNode(edges[1],qnet.hybrid[1]),qnet))
         push!(qindxhz,getIndex(getOtherNode(edges[2],qnet.hybrid[1]),qnet))
     else
-        all([!n.isBadDiamondI for n in qnet.hybrid]) || error("cannot have bad diamond I hybrid nodes in this qnet, case dealt separately before")
-        for(e in qnet.edge)
-            if(e.istIdentifiable)
-                try
-                    getIndex(e.number,nt)
-                catch
-                    error("identifiable edge $(e.number) in qnet not found in net")
-                end
-                push!(qnt, getIndex(e.number,nt) + net.numHybrids - net.numBad)
-                push!(qindxt, getIndex(e,qnet))
-            end
-            if(!e.istIdentifiable && all([!n.leaf for n in e.node]) && !e.hybrid && e.fromBadDiamondI) # tree edge not identifiable but internal with length!=0 (not bad diamII nor bad triangle)
-                try
-                    getIndex(e.number,nhz)
-                catch
-                    error("internal edge $(e.number) corresponding to gammaz in qnet not found in net.ht")
-                end
-                push!(qnhz, getIndex(e.number,nhz) + net.numHybrids - net.numBad + k)
-                push!(qindxhz, getIndex(e,qnet))
-            end
-            if(e.hybrid && !e.isMajor)
-                node = e.node[e.isChild1 ? 1 : 2]
-                node.hybrid || error("strange hybrid edge $(e.number) poiting to tree node $(node.number)")
+        found = false
+        for(n in qnet.hybrid)
+            if(n.isBadDiamondI)
+                ind1 = int(string(string(n.number),"1"))
+                ind2 = int(string(string(n.number),"2"))
+                i = getIndex(ind1,nhz)
+                edges = hybridEdges(n)
+                push!(qnhz,i+net.numHybrids-net.numBad+k)
+                push!(qnhz,i+1+net.numHybrids-net.numBad+k)
+                push!(qindxhz,getIndex(getOtherNode(edges[1],n),qnet))
+                push!(qindxhz,getIndex(getOtherNode(edges[2],n),qnet))
                 found = true
-                try
-                    getIndex(e.number,nh)
-                catch
-                    found = false
-                end
-                found  ? push!(qnh, getIndex(e.number,nh)) : nothing
-                found ? push!(qindxh, getIndex(e,qnet)) : nothing
+                break
             end
-        end # for qnet.edge
+        end
+        if(!found)
+            all([!n.isBadDiamondI for n in qnet.hybrid]) || error("cannot have bad diamond I hybrid nodes in this qnet, case dealt separately before")
+            for(e in qnet.edge)
+                if(e.istIdentifiable)
+                    try
+                        getIndex(e.number,nt)
+                    catch
+                        error("identifiable edge $(e.number) in qnet not found in net")
+                    end
+                    push!(qnt, getIndex(e.number,nt) + net.numHybrids - net.numBad)
+                    push!(qindxt, getIndex(e,qnet))
+                end
+                if(!e.istIdentifiable && all([!n.leaf for n in e.node]) && !e.hybrid && e.fromBadDiamondI) # tree edge not identifiable but internal with length!=0 (not bad diamII nor bad triangle)
+                    try
+                        getIndex(e.number,nhz)
+                    catch
+                        error("internal edge $(e.number) corresponding to gammaz in qnet not found in net.ht")
+                    end
+                    push!(qnhz, getIndex(e.number,nhz) + net.numHybrids - net.numBad + k)
+                    push!(qindxhz, getIndex(e,qnet))
+                end
+                if(e.hybrid && !e.isMajor)
+                    node = e.node[e.isChild1 ? 1 : 2]
+                    node.hybrid || error("strange hybrid edge $(e.number) poiting to tree node $(node.number)")
+                    found = true
+                    try
+                        getIndex(e.number,nh)
+                    catch
+                        found = false
+                    end
+                    found  ? push!(qnh, getIndex(e.number,nh)) : nothing
+                    found ? push!(qindxh, getIndex(e,qnet)) : nothing
+                end
+            end # for qnet.edge
+        end # not found
     end
     qnet.indexht = vcat(qnh,qnt,qnhz)
     qnet.index = vcat(qindxh,qindxt,qindxhz)
