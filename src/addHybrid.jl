@@ -280,6 +280,7 @@ function addHybridizationUpdate!(net::HybridNetwork, blacklist::Bool, usePartiti
 end
 
 addHybridizationUpdate!(net::HybridNetwork) = addHybridizationUpdate!(net, false, true)
+addHybridizationUpdate!(net::HybridNetwork, blacklist::Bool) = addHybridizationUpdate!(net, blacklist::Bool, true)
 
 
 # based on getDescendants on readData.jl but with vector of edges, instead of nodes
