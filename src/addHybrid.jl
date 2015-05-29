@@ -132,7 +132,7 @@ function chooseEdgesGamma(net::HybridNetwork, blacklist::Bool, edges::Vector{Edg
         end
     end
     gamma = rand()*0.5;
-    #println("from $(edge1.number) to $(edge2.number), $(gamma)");
+    !DEBUG || println("choose edges and gamma: from $(edge1.number) to $(edge2.number), $(gamma)");
     return edges[index1],edges[index2],gamma
 end
 
@@ -156,21 +156,6 @@ function parameters4createHybrid!(edge1::Edge, edge2::Edge,net::HybridNetwork)
     return edge3, edge4
 end
 
-## # aux function to add the hybridization
-## # without checking all the updates
-## # returns the hybrid node of the new hybridization
-## # calls chooseEdgesGamma, parameter4createHybrid and createHybrid
-## # blacklist used in afterOptBLAll
-## function addHybridization!(net::HybridNetwork, blacklist::Bool)
-##     edge1, edge2, gamma = chooseEdgesGamma(net, blacklist);
-##     println("add hybridization between edge1, $(edge1.number) and edge2 $(edge2.number) with gamma $(gamma)")
-##     edge3, edge4 = parameters4createHybrid!(edge1,edge2,net);
-##     hybrid = createHybrid!(edge1, edge2, edge3, edge4, net, gamma);
-##     return hybrid
-## end
-
-## addHybridization!(net::HybridNetwork) = addHybridization!(net, false)
-
 # aux function to add the hybridization
 # without checking all the updates
 # returns the hybrid node of the new hybridization
@@ -182,12 +167,13 @@ function addHybridization!(net::HybridNetwork, blacklist::Bool, usePartition::Bo
         !isempty(net.partition) || error("net has $(net.numHybrids) but net.partition is empty")
         index = choosePartition(net)
         index == 0 && return nothing #no place for new hybrid
-        partition = splice!(net.partition,index)
-        edge1, edge2, gamma = chooseEdgesGamma(net, blacklist,partition);
+        partition = splice!(net.partition,index) #type partition
+        DEBUG && println("add hybrid with partition $([n.number for n in partition.edges])")
+        edge1, edge2, gamma = chooseEdgesGamma(net, blacklist,partition.edges);
     else
         edge1, edge2, gamma = chooseEdgesGamma(net, blacklist);
     end
-    println("add hybridization between edge1, $(edge1.number) and edge2 $(edge2.number) with gamma $(gamma)")
+    DEBUG && println("add hybridization between edge1, $(edge1.number) and edge2 $(edge2.number) with gamma $(gamma)")
     edge3, edge4 = parameters4createHybrid!(edge1,edge2,net);
     hybrid = createHybrid!(edge1, edge2, edge3, edge4, net, gamma);
     return hybrid
@@ -308,7 +294,7 @@ function updatePartition!(net::HybridNetwork, nodesChanged::Vector{Node})
     length(nodesChanged) > 2 || error("incycle with only 2 nodes in it after updateGammaz")
     #println("nodesChanged are $([n.number for n in nodesChanged])")
     if(net.numHybrids == 0)
-        net.partition = Vector{Edge}[Edge[]]
+        net.partition = Partition[]
     end
     for(n in nodesChanged)
         edge = nothing
@@ -321,21 +307,32 @@ function updatePartition!(net::HybridNetwork, nodesChanged::Vector{Node})
         descendants = [edge]
         getDescendants!(getOtherNode(edge,n),edge,descendants)
         !isempty(descendants) || error("descendants is empty for node $(n.number)")
-        #println("for node $(n.number), descendants are $([e.number for e in descendants])")
-        push!(net.partition, descendants)
+        DEBUG && println("for node $(n.number), descendants are $([e.number for e in descendants])")
+        partition = Partition(nodesChanged[1].inCycle,descendants)
+        push!(net.partition, partition)
     end
-    if(isempty(net.partition[1]))
-        net.partition = net.partition[2:end]
-    end
+    ## if(isempty(net.partition[1]))
+    ##     net.partition = net.partition[2:end]
+    ## end
     #println("length of net.partition at the end is $(length(net.partition))")
 end
 
 function choosePartition(net::HybridNetwork)
-    all([length(n) == 1 for n in net.partition]) && return 0
-    index1 = iround(rand()*size(net.partition,1));
-    while(index1 == 0 || index1 > length(net.partition) || length(net.partition[index1]) < 2)
-        index1 = iround(rand()*size(net.partition,1));
+    all([length(n.edges) == 1 for n in net.partition]) && return 0 #cannot put any hyb
+    all([length(n.edges) == 3 for n in net.partition]) && return 0 #can only put very bad triangles
+    partition = Int64[] #good partitions
+    for(i in length(net.partition))
+        if(length(net.partition[i].edges) > 3)
+            push!(partition,i)
+        end
     end
-    return index1
+    isempty(partition) && return 0
+    length(partition) == 1 && return partition[1]
+    index1 = iround(rand()*size(partition,1));
+    while(index1 == 0 || index1 > length(partition))
+        index1 = iround(rand()*size(partition,1));
+    end
+    DEBUG && println("chosen partition $([n.number for n in net.partition[partition[index]]].edges)")
+    return partition[index1]
 end
 

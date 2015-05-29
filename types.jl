@@ -107,7 +107,7 @@ type HybridNetwork <: Network
     index::Vector{Int64} #index in net.edge, net.node of elements in net.ht to make updating easy
     loglik::Float64 # value of the min -loglik after optBL
     blacklist::Vector{Int64} # reusable array of integers, used in afterOptBL
-    partition::Vector{Vector{Edge}} # to choose edges from a partition only to avoid intersecting cycles
+    partition::Vector{Partition} # to choose edges from a partition only to avoid intersecting cycles
     # maxTaxNumber::Int32 --in case it's needed later when we prune taxa
     # inner constructor
     function HybridNetwork(node::Array{Node,1},edge::Array{Edge,1})
@@ -115,16 +115,16 @@ type HybridNetwork <: Network
         leaf=Node[];
         [n.hybrid?push!(hybrid,n):nothing for n in node];
         [n.leaf?push!(leaf,n):nothing for n in node];
-        new(size(leaf,1),size(node,1),size(edge,1),node,edge,1,[],hybrid,size(hybrid,1),[],[],[],leaf,[],[],0,false,[],0,[],Vector{Edge}[Edge[]])
+        new(size(leaf,1),size(node,1),size(edge,1),node,edge,1,[],hybrid,size(hybrid,1),[],[],[],leaf,[],[],0,false,[],0,[],[])
     end
     function HybridNetwork(node::Array{Node,1},edge::Array{Edge,1},root::Int64)
         hybrid=Node[];
         leaf=Node[];
         [n.hybrid?push!(hybrid,n):nothing for n in node];
         [n.leaf?push!(leaf,n):nothing for n in node];
-        new(size(leaf,1),size(node,1),size(edge,1),node,edge,root,[],hybrid,size(hybrid,1),[],[],[],leaf,[],[],0,false,[],0,[],Vector{Edge}[Edge[]])
+        new(size(leaf,1),size(node,1),size(edge,1),node,edge,root,[],hybrid,size(hybrid,1),[],[],[],leaf,[],[],0,false,[],0,[],[])
     end
-    HybridNetwork() = new(0,0,0,[],[],0,[],[],0,[],[],[],[],[],[],0,false,[],0,[],Vector{Edge}[Edge[]]);
+    HybridNetwork() = new(0,0,0,[],[],0,[],[],0,[],[],[],[],[],[],0,false,[],0,[],[]);
 end
 
 # type created from a HybridNetwork only to extract a given quartet
@@ -205,4 +205,11 @@ type EdgeParts
     part2::Vector{Node}
     part3::Vector{Node}
     part4::Vector{Node}
+end
+
+
+# partition type
+type Partition
+    index1::Int64 #hybrid node number for cycle
+    edges::Edge[] #edges in partition
 end

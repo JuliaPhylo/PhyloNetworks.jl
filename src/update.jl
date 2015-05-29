@@ -57,7 +57,7 @@ function updateInCycle!(net::HybridNetwork,node::Node)
  #                       println("curr not visited $(curr.number)")
                         net.visited[getIndex(curr,net)] = true;
                         if(isEqual(curr,start))
-                            println("curr is start")
+                            #println("curr is start")
                             for(e in curr.edge)
                                 if(!e.hybrid || e.isMajor)
                                     other = getOtherNode(e,curr);
