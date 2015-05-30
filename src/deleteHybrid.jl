@@ -153,6 +153,7 @@ function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bo
         minor = true;
     end
     deleteHybrid!(hybrid,net,minor, blacklist)
+    undoPartition!(net,hybrid, edgesInCycle)
 end
 
 deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node) = deleteHybridizationUpdate!(net, hybrid, true, false)
@@ -275,3 +276,45 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool, blacklist::Boo
 end
 
 deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool) = deleteHybrid!(node,net,minor, false)
+
+
+# function to update net.partition after deleting a hybrid node
+# needs a list of the edges in cycle
+function undoPartition!(net::HybridNetwork, hybrid::Node, edgesInCycle::Vector{Edge})
+    hybrid.hybrid || error("node $(hybrid.number) is not hybrid, and we need hybrid node inside deleteHybUpdate for undoPartition")
+    if(net.numHybrids == 0)
+        net.partition = Partition[]
+    else
+        cycles = Int64[]
+        edges = Edge[]
+        N = length(net.partition)
+        i = 1
+        while(i <= N)
+            DEBUG && println("hybrid number is $(hybrid.number) and partition is $([e.number for e in net.partition[i].edges]), with cycle $(net.partition[i].cycle)")
+            if(in(hybrid.number,net.partition[i].cycle))
+                DEBUG && println("hybrid number matches with partition.cycle")
+                p = splice!(net.partition,i)
+                DEBUG && println("after splice, p partition has edges $([e.number for e in p.edges]) and cycle $(p.cycle)")
+                ind = getIndex(hybrid.number,p.cycle)
+                deleteat!(p.cycle,ind) #get rid of that hybrid number
+                cycles = vcat(cycles,p.cycle)
+                edges = vcat(edges,p.edges)
+                DEBUG && println("edges is $([e.number for e in edges]) and cycles is $(cycles)")
+                N = length(net.partition)
+            else
+                i += 1
+            end
+        end
+        for(e in edgesInCycle)
+            DEBUG && println("edge in cycle is $(e.number)")
+            if(isEdgeNumIn(e,net.edge)) #only include edge if still in net
+                DEBUG && println("edge is in net still")
+                push!(edges,e)
+            end
+        end
+        newPartition = Partition(unique(cycles),edges)
+        DEBUG && println("new partition with cycle $(newPartition.cycle), edges $([e.number for e in newPartition.edges])")
+        push!(net.partition,newPartition)
+    end
+end
+

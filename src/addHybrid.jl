@@ -132,7 +132,7 @@ function chooseEdgesGamma(net::HybridNetwork, blacklist::Bool, edges::Vector{Edg
         end
     end
     gamma = rand()*0.5;
-    !DEBUG || println("choose edges and gamma: from $(edge1.number) to $(edge2.number), $(gamma)");
+    !DEBUG || println("choose edges and gamma: from $(edges[index1].number) to $(edges[index2].number), $(gamma)");
     return edges[index1],edges[index2],gamma
 end
 
@@ -272,17 +272,15 @@ addHybridizationUpdate!(net::HybridNetwork, blacklist::Bool) = addHybridizationU
 # based on getDescendants on readData.jl but with vector of edges, instead of nodes
 # finds the partition corresponding to the node and edge in the cycle
 # used in chooseEdgesGamma and to set net.partition
-function getDescendants!(node::Node, edge::Edge, descendants::Vector{Edge})
-    ## if(node.leaf)
-    ##     push!(descendants,edge)
-    ## elseif(node.inCycle != -1)
-    ##     push!(descendants,edge)
-    ## else
-    if(!node.leaf && node.inCycle == -1)
+# cycleNum is a variable that will save another hybrid node number if found
+function getDescendants!(node::Node, edge::Edge, descendants::Vector{Edge}, cycleNum::Vector{Int64})
+    if(node.inCycle != -1)
+        push!(cycleNum,node.inCycle)
+    elseif(!node.leaf && node.inCycle == -1)
         for(e in node.edge)
             if(!isEqual(edge,e) && e.isMajor)
                 push!(descendants,e)
-                getDescendants!(getOtherNode(e,node),e,descendants)
+                getDescendants!(getOtherNode(e,node),e,descendants,cycleNum)
             end
         end
     end
@@ -305,10 +303,11 @@ function updatePartition!(net::HybridNetwork, nodesChanged::Vector{Node})
         end
         !isa(edge,Nothing) || error("one edge in n.edge for node $(n.number) should not be in cycle")
         descendants = [edge]
-        getDescendants!(getOtherNode(edge,n),edge,descendants)
+        cycleNum = [nodesChanged[1].inCycle]
+        getDescendants!(getOtherNode(edge,n),edge,descendants,cycleNum)
         !isempty(descendants) || error("descendants is empty for node $(n.number)")
-        DEBUG && println("for node $(n.number), descendants are $([e.number for e in descendants])")
-        partition = Partition(nodesChanged[1].inCycle,descendants)
+        DEBUG && println("for node $(n.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
+        partition = Partition(cycleNum,descendants)
         push!(net.partition, partition)
     end
     ## if(isempty(net.partition[1]))
@@ -321,7 +320,7 @@ function choosePartition(net::HybridNetwork)
     all([length(n.edges) == 1 for n in net.partition]) && return 0 #cannot put any hyb
     all([length(n.edges) == 3 for n in net.partition]) && return 0 #can only put very bad triangles
     partition = Int64[] #good partitions
-    for(i in length(net.partition))
+    for(i in 1:length(net.partition))
         if(length(net.partition[i].edges) > 3)
             push!(partition,i)
         end

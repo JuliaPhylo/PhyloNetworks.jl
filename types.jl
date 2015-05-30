@@ -81,6 +81,12 @@ type Node <: ANode
     Node(number::Int64, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Array{Edge,1}) = new(number,leaf,hybrid,gammaz,edge,!all([!e.hybrid for e in edge]),false,false,false,false,false,-1.,nothing,-1,-1,"")
 end
 
+# partition type
+type Partition
+    cycle::Vector{Int64} #hybrid node number for cycle (or cycles)
+    edges::Vector{Edge} #edges in partition
+end
+
 abstract Network
 
 # warning: no attempt to make sure the direction of edges matches with the root
@@ -207,9 +213,3 @@ type EdgeParts
     part4::Vector{Node}
 end
 
-
-# partition type
-type Partition
-    index1::Int64 #hybrid node number for cycle
-    edges::Edge[] #edges in partition
-end
