@@ -141,7 +141,7 @@ function deleteLeaf!(net::Network, leaf::Node)
     size(leaf.edge,1) == 1 || error("strange leaf $(leaf.number) with $(size(leaf.edge,1)) edges instead of 1")
     other = getOtherNode(leaf.edge[1],leaf);
     if(other.hybrid)
-        #println("entra al caso other is hybrid node")
+        DEBUGC && println("entra al caso other is hybrid node")
         edge1,edge2 = hybridEdges(other,leaf.edge[1]);
         (edge1.hybrid && edge2.hybrid) || error("hybrid node $(other.node) does not have two hybrid edges, they are tree edges: $(edge1.number), $(edge2.number)")
         other1 = getOtherNode(edge1,other);
@@ -153,11 +153,11 @@ function deleteLeaf!(net::Network, leaf::Node)
         deleteEdge!(net,leaf.edge[1])
         deleteNode!(net,other)
         deleteNode!(net,leaf)
-        #println("in deleteLeaf, other hybrid node, other1 $(other1.number), other2 $(other2.number)")
+        DEBUGC && println("in deleteLeaf, other hybrid node, other1 $(other1.number), other2 $(other2.number)")
         if(size(other1.edge,1) == 2  && isNodeNumIn(other1,net.node)) # need to delete internal nodes with only 2 edges (one of them external edge)
             node = getOtherNode(other1.edge[1],other1)
             leaf1 = node.leaf ? node : getOtherNode(other1.edge[2],other1)
-            #println("other1 si tiene solo dos edges, y leaf1 es $(leaf1.number)")
+            DEBUGC && println("other1 si tiene solo dos edges, y leaf1 es $(leaf1.number)")
             if(leaf1.leaf)
                 deleteIntLeafWhile!(net,other1,leaf1);
             end
@@ -165,7 +165,7 @@ function deleteLeaf!(net::Network, leaf::Node)
         if(size(other2.edge,1) == 2 && isNodeNumIn(other2,net.node))
             node = getOtherNode(other2.edge[1],other2)
             leaf1 = node.leaf ? node : getOtherNode(other2.edge[2],other2)
-            #println("other2 si tiene solo dos edges, y leaf1 es $(leaf1.number)")
+            DEBUGC && println("other2 si tiene solo dos edges, y leaf1 es $(leaf1.number)")
             if(leaf1.leaf)
                 deleteIntLeafWhile!(net,other2,leaf1);
             end
@@ -180,7 +180,7 @@ function deleteLeaf!(net::Network, leaf::Node)
         end
     else
         if(other.hasHybEdge)
-            #println("entro a caso tree node has hyb edge")
+            println("entro a caso tree node has hyb edge")
             edge1,edge2 = hybridEdges(other,leaf.edge[1]);
             (edge1.hybrid || edge2.hybrid) || error("node $(other.number) has hybrid edge attribute true, but the edges $(edge1.number), $(edge2.number) are not hybrid (and the third edge has a leaf $(leaf.number)")
             other1 = getOtherNode(edge1,other);
@@ -194,17 +194,17 @@ function deleteLeaf!(net::Network, leaf::Node)
                     ind = isEqual(getOtherNode(edgemaj,other1),other3) ? 1 : 2
                     edgebla,edge3,edge5 = hybridEdges(other3)
                     leaf5 = getOtherNode(edge5,other3)
-                    #println("edge2 is $(edge2.number) and is identifiable $(edge2.istIdentifiable)")
+                    DEBUGC && println("edge2 is $(edge2.number) and is identifiable $(edge2.istIdentifiable)")
                     edge2.fromBadDiamondI = true
                     removeNode!(other,edge2)
                     removeEdge!(other1,edge1)
                     setNode!(edge2,other1)
                     setEdge!(other1,edge2)
                     other3.gammaz != -1 || error("hybrid node $(other1.number) is bad diamond, but for node $(other3.number), gammaz is not well updated, it is $(other3.gammaz)")
-                    #println("entro a cambiar length en edge $(edge2.number) con gammaz $(other3.gammaz)")
+                    DEBUGC && println("entro a cambiar length en edge $(edge2.number) con gammaz $(other3.gammaz)")
                     setLength!(edge2,-log(1-other3.gammaz))
                     edge2.number = int(string(string(other1.number),string(ind)))
-                    #println("edge2 is $(edge2.number) should be not identifiable now $(edge2.istIdentifiable)")
+                    DEBUGC && println("edge2 is $(edge2.number) should be not identifiable now $(edge2.istIdentifiable)")
                     makeEdgeTree!(edge4,other1)
                     makeNodeTree!(net,other1)
                     removeEdge!(other2,edge3)
@@ -243,7 +243,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                     ind = isEqual(getOtherNode(edgemaj,other2),other3) ? 1 : 2
                     edgebla,edge3,edge5 = hybridEdges(other3)
                     leaf5 = getOtherNode(edge5,other3)
-                    #println("edge1 is $(edge1.number) and is identifiable $(edge1.istIdentifiable)")
+                    DEBUGC && println("edge1 is $(edge1.number) and is identifiable $(edge1.istIdentifiable)")
                     edge1.fromBadDiamondI = true
                     removeNode!(other,edge1)
                     removeEdge!(other2,edge2)
@@ -252,7 +252,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                     other3.gammaz != -1 || error("hybrid node $(other2.number) is bad diamond, but for node $(other3.number), gammaz is not well updated, it is $(other3.gammaz)")
                     setLength!(edge1,-log(1-other3.gammaz))
                     edge1.number = int(string(string(other2.number),string(ind)))
-                    #println("edge1 is $(edge1.number) should be not identifiable now $(edge1.istIdentifiable)")
+                    DEBUGC && println("edge1 is $(edge1.number) should be not identifiable now $(edge1.istIdentifiable)")
                     makeEdgeTree!(edge4,other2)
                     makeNodeTree!(net,other2)
                     removeEdge!(other1,edge3)
@@ -286,7 +286,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                 error("node $(other.number) has hybrid edge, but neither of the other nodes $(other1.number), $(other2.number) are hybrid")
             end
         else # other is tree node without hybrid edges
-            #println("entra al caso other is tree node no hyb edges")
+            DEBUGC && println("entra al caso other is tree node no hyb edges")
             if(length(other.edge) == 2)
                 edge1 = isEqual(other.edge[1],leaf.edge[1]) ? other.edge[2] : other.edge[1]
                 other1 = getOtherNode(edge1,other)
@@ -296,19 +296,26 @@ function deleteLeaf!(net::Network, leaf::Node)
                 deleteNode!(net,leaf)
                 deleteEdge!(net,leaf.edge[1])
                 deleteEdge!(net,edge1)
-                #println("other1 is $(other1.number)")
+                DEBUGC && println("other1 is $(other1.number)")
                 if(size(other1.edge,1) == 2  && isNodeNumIn(other1,net.node)) # need to delete internal nodes with only 2 edges (one of them external edge)
                     node = getOtherNode(other1.edge[1],other1)
                     leaf1 = node.leaf ? node : getOtherNode(other1.edge[2],other1)
-                    #println("other1 si tiene solo dos edges, y leaf1 es $(leaf1.number)")
+                    DEBUGC && println("other1 si tiene solo dos edges, y leaf1 es $(leaf1.number)")
                     if(leaf1.leaf)
                         other1 = deleteIntLeafWhile!(net,other1,leaf1);
                     end
                 end
                 if(other1.hybrid && length(other1.edge) == 2)
-                    #println("entra a tratar de arreglar a other1 $(other1.number)")
+                    DEBUGC && println("entra a tratar de arreglar a other1 $(other1.number)")
                     removeWeirdNodes!(net,other1)
                 end
+                if(length(other1.edge) == 1 && isNodeNumIn(other1,net.node)) #internal node with only one edge
+                    DEBUGC && println("entra a tratar de arreglar a other1 $(other1.number)")
+                    !other1.leaf || error("node $(other1.number) was attached no leaf edge, cannot be a leaf")
+                    removeWeirdNodes!(net,other1)
+                end
+        end
+
             else
                 edge1,edge2 = hybridEdges(other,leaf.edge[1]);
                 other1 = getOtherNode(edge1,other);
@@ -320,9 +327,9 @@ function deleteLeaf!(net::Network, leaf::Node)
                     (!other1.leaf || !other2.leaf) || error("just deleted a leaf $(leaf.number) and its two attached nodes are leaves also $(other1.number), $(other2.number)")
                     newleaf = other1.leaf ? other1 : other2
                     middle = other
-                    #println("middle is $(middle.number), middle.hybrid $(middle.hybrid), middle.hasHybEdge $(middle.hasHybEdge)")
+                    DEBUGC && println("middle is $(middle.number), middle.hybrid $(middle.hybrid), middle.hasHybEdge $(middle.hasHybEdge)")
                     middle = deleteIntLeafWhile!(net,middle,newleaf)
-                    #println("middle is $(middle.number), middle.hybrid $(middle.hybrid), middle.hasHybEdge $(middle.hasHybEdge)")
+                    DEBUGC && println("middle is $(middle.number), middle.hybrid $(middle.hybrid), middle.hasHybEdge $(middle.hasHybEdge)")
                     if(middle.hybrid)
                         edges = hybridEdges(middle)
                         edges[1].istIdentifiable = false
@@ -428,11 +435,10 @@ function extractQuartet(net::HybridNetwork,quartet::Array{Node,1})
         if(!isNodeNumIn(n,quartet))
             DEBUG && println("delete leaf $(n.number)")
             deleteLeaf!(qnet,n)
-            #printEdges(qnet)
+            DEBUGC && printEdges(qnet)
         end
     end
     DEBUG && println("deletion of leaves successful")
-    #printEdges(qnet)
     return qnet
 end
 
