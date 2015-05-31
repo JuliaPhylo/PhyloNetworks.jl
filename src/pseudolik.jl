@@ -314,8 +314,6 @@ function deleteLeaf!(net::Network, leaf::Node)
                     !other1.leaf || error("node $(other1.number) was attached no leaf edge, cannot be a leaf")
                     removeWeirdNodes!(net,other1)
                 end
-        end
-
             else
                 edge1,edge2 = hybridEdges(other,leaf.edge[1]);
                 other1 = getOtherNode(edge1,other);
