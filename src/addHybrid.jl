@@ -331,7 +331,7 @@ function choosePartition(net::HybridNetwork)
     while(index1 == 0 || index1 > length(partition))
         index1 = iround(rand()*size(partition,1));
     end
-    DEBUG && println("chosen partition $([n.number for n in net.partition[partition[index]]].edges)")
+    DEBUG && println("chosen partition $([n.number for n in net.partition[partition[index1]]].edges)")
     return partition[index1]
 end
 
