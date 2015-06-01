@@ -11,7 +11,7 @@
 # input: hybrid node
 function makeNodeTree!(net::Network, hybrid::Node)
     hybrid.hybrid || error("cannot make node $(hybrid.number) tree node because it already is")
-    DEBUG && println("we make node $(hybrid.number) a tree node, but it can still have hybrid edges pointing at it, hasHybEdge set to false")
+    DEBUGC && println("we make node $(hybrid.number) a tree node, but it can still have hybrid edges pointing at it, hasHybEdge set to false")
     hybrid.gammaz = -1
     hybrid.isBadDiamondI = false
     hybrid.isBadDiamondII = false
@@ -180,7 +180,7 @@ function deleteLeaf!(net::Network, leaf::Node)
         end
     else
         if(other.hasHybEdge)
-            println("entro a caso tree node has hyb edge")
+            DEBUGC && println("entro a caso tree node has hyb edge")
             edge1,edge2 = hybridEdges(other,leaf.edge[1]);
             (edge1.hybrid || edge2.hybrid) || error("node $(other.number) has hybrid edge attribute true, but the edges $(edge1.number), $(edge2.number) are not hybrid (and the third edge has a leaf $(leaf.number)")
             other1 = getOtherNode(edge1,other);
@@ -860,6 +860,7 @@ end
 # (2 minor CF different) and calculate the expCF
 # CF calculated in the order 12|34, 13|24, 14|23 of the qnet.quartet.taxon
 function quartetType5!(qnet::QuartetNetwork, node::Node)
+    DEBUG && printEdges(qnet)
     if(node.hybrid && node.typeHyb == 5)
         edge1,edge2,edge3 = hybridEdges(node);
         if(!node.isBadDiamondI)
