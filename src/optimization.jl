@@ -1107,7 +1107,7 @@ end
 # no test in between! fixit: add a test to decide to move from h-1 to h?
 function optTop!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, close::Bool, Nmov0::Vector{Int64},ret::Bool,s::IO)
     hmax >= 0 || error("hmax cannot be negative $(hmax)")
-    currT.numHybrids == 0 || print(s,"\ncurrT has already $(currT.numHybrids), so search will not start in tree, but in the space of networks with $(currT.numHybrids) hybrids")
+    currT.numHybrids == 0 || write(s,"\ncurrT has already $(currT.numHybrids), so search will not start in tree, but in the space of networks with $(currT.numHybrids) hybrids")
     currT.numHybrids <= hmax || error("currT has more hybrids: $(currT.numHybrids) than hmax $(hmax)")
     bestT = HybridNetwork[]
 
@@ -1118,33 +1118,34 @@ function optTop!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax:
     i = 1
     for(h in currT.numHybrids:hmax)
         startT = deepcopy(bestT[i]);
-        print(s,"\n")
-        print(s,"\nStart search on space of $(h) hybridizations with previous opt topology $(writeTopology(startT))")
-        success = false
-        j = 1
-        while(!success && j < Nfail) #try to add new hybrid
-            success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(startT)
+        write(s,"\n")
+        write(s,"\nStart search on space of $(h) hybridizations with previous opt topology $(writeTopology(startT))")q
+        if(h > 0)
+            success = false
+            j = 1
+            while(!success && j < Nfail) #try to add new hybrid
+                success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(startT)
+                if(!success)
+                    write(s,"\n$(j)th failed new added hybridization, will delete and try again until $(Nfail) failures")
+                    j += 1
+                    deleteHybridizationUpdate!(startT,hybrid)
+                end
+            end
             if(!success)
-                print(s,"\n$(j)th failed new added hybridization, will delete and try again until $(Nfail) failures")
-                j += 1
-                deleteHybridizationUpdate!(startT,hybrid)
+                write(s,"\ncould not find a place for new hybridization after $(Nfail) attempts, will stop search here with $(h) hybridizations, instead of hmax= $(hmax)")
+                maxNet.loglik < 1e.15 || error("never updated maxNet")
+                !ret || return maxNet,bestT
+                return
             end
         end
-        if(j < Nfail)
-            newT = optTopLevel!(startT, M, Nfail, d, h,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, close, Nmov0,true)
-            print(s,"\nBEST NETWORK at $(h) hybridizations: $(writeTopology(newT)) with pseudologlik $(round(newT.loglik,5))")
-            print(s,"\nfailed attempts to place a new hybridization to begin with: $(j)")
-            push!(bestT,deepcopy(newT))
-            if(newT.loglik < maxNet.loglik)
-                maxNet = deepcopy(newT)
-            end
-            i += 1
-        else
-            print(s,"\ncould not find a place for new hybridization after $(Nfail) attempts, will stop search here with $(h) hybridizations, instead of hmax= $(hmax)")
-            maxNet.loglik < 1e.15 || error("never updated maxNet")
-            !ret || return maxNet,bestT
-            return
+        newT = optTopLevel!(startT, M, Nfail, d, h,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, close, Nmov0,true)
+        write(s,"\nBEST NETWORK at $(h) hybridizations: $(writeTopology(newT)) with pseudologlik $(round(newT.loglik,5))")
+        write(s,"\nfailed attempts to place a new hybridization to begin with: $(j)")
+        push!(bestT,deepcopy(newT))
+        if(newT.loglik < maxNet.loglik)
+            maxNet = deepcopy(newT)
         end
+        i += 1
     end
     maxNet.loglik < 1e.15 || error("never updated maxNet")
     !ret || return maxNet,bestT
