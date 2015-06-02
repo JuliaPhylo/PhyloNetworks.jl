@@ -684,6 +684,7 @@ end
 # names=true, writes the names instead of node numbers, default true
 # outgroup: place the root in the external edge of this taxon if possible,
 # if none given, placed the root wherever possible
+# lengths=true if printed with length
 function writeTopology(net::HybridNetwork, di::Bool, string::Bool, names::Bool,outgroup::String)
     s = IOBuffer()
     if(net.numBad > 0)

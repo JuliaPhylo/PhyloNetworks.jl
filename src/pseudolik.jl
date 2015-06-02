@@ -860,7 +860,6 @@ end
 # (2 minor CF different) and calculate the expCF
 # CF calculated in the order 12|34, 13|24, 14|23 of the qnet.quartet.taxon
 function quartetType5!(qnet::QuartetNetwork, node::Node)
-    DEBUG && printEdges(qnet)
     if(node.hybrid && node.typeHyb == 5)
         edge1,edge2,edge3 = hybridEdges(node);
         if(!node.isBadDiamondI)
