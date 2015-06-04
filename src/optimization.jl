@@ -899,7 +899,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     absDiff = M*ftolAbs + 1
     newT = deepcopy(currT)
     DEBUG && printEdges(newT)
-    #printNodes(newT)
+    #DEBUG && printNodes(newT)
     DEBUG && println(writeTopology(newT))
     while(absDiff > M*ftolAbs && failures < Nfail && currT.loglik > M*ftolAbs && stillmoves) #stops if close to zero because of new deviance form of the pseudolik
         count += 1
@@ -915,7 +915,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
                 accepted = false
                 DEBUG && println("accepted proposed new topology in step $(count)")
                 DEBUG && printEdges(newT)
-                #printNodes(newT)
+                DEBUGC && printNodes(newT)
                 DEBUG && println(writeTopology(newT))
                 optBL!(newT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
                 DEBUG && println("OPT: comparing newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
@@ -975,7 +975,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     println("END optTopLevel: found minimizer topology at step $(count) (failures: $(failures)) with -loglik=$(round(newT.loglik,5)) and ht_min=$(round(newT.ht,5))")
     printCounts(movescount,movesgamma,"movesTable.txt")
     DEBUG && printEdges(newT)
-    DEBUG && printNodes(newT)
+    DEBUGC && printNodes(newT)
     println(writeTopology(newT))
     if(ret)
         return newT

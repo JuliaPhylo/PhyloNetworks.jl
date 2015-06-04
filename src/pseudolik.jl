@@ -11,7 +11,7 @@
 # input: hybrid node
 function makeNodeTree!(net::Network, hybrid::Node)
     hybrid.hybrid || error("cannot make node $(hybrid.number) tree node because it already is")
-    DEBUGC && println("we make node $(hybrid.number) a tree node, but it can still have hybrid edges pointing at it, hasHybEdge set to false")
+    DEBUG && println("we make node $(hybrid.number) a tree node, but it can still have hybrid edges pointing at it, hasHybEdge set to false")
     hybrid.gammaz = -1
     hybrid.isBadDiamondI = false
     hybrid.isBadDiamondII = false
@@ -32,6 +32,7 @@ function makeEdgeTree!(edge::Edge, node::Node)
     edge.hybrid = false
     edge.isMajor = true
     edge.gamma = 1.0
+    edge.inCycle = -1 #warn:changed recently because I believe it does not affect the parameters function for bad diamond I
     getOtherNode(edge,node).hasHybEdge = false
     edge.istIdentifiable = isEdgeIdentifiable(edge)
 end
@@ -197,7 +198,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                     edgebla,edge3,edge5 = hybridEdges(other3)
                     leaf5 = getOtherNode(edge5,other3)
                     DEBUGC && println("edge2 is $(edge2.number) and is identifiable $(edge2.istIdentifiable)")
-                    edge2.fromBadDiamondI = true
+                    edge2.fromBadDiamondI = true # to keep track of edges from bad diamondI
                     removeNode!(other,edge2)
                     removeEdge!(other1,edge1)
                     setNode!(edge2,other1)
@@ -222,6 +223,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                     deleteNode!(net,other3)
                     deleteEdge!(net,edge5)
                     other1.hasHybEdge = false
+                    DEBUG && printEdges(net)
                 else
                     removeEdge!(other,leaf.edge[1])
                     edgebla,edgebla,treeedge = hybridEdges(other1)
@@ -246,7 +248,7 @@ function deleteLeaf!(net::Network, leaf::Node)
                     edgebla,edge3,edge5 = hybridEdges(other3)
                     leaf5 = getOtherNode(edge5,other3)
                     DEBUGC && println("edge1 is $(edge1.number) and is identifiable $(edge1.istIdentifiable)")
-                    edge1.fromBadDiamondI = true
+                    edge1.fromBadDiamondI = true # to keep track of edges from bad diamondI
                     removeNode!(other,edge1)
                     removeEdge!(other2,edge2)
                     setNode!(edge1,other2)
