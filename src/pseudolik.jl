@@ -141,11 +141,13 @@ function deleteLeaf!(net::Network, leaf::Node)
     size(leaf.edge,1) == 1 || error("strange leaf $(leaf.number) with $(size(leaf.edge,1)) edges instead of 1")
     other = getOtherNode(leaf.edge[1],leaf);
     if(other.hybrid)
-        DEBUGC && println("entra al caso other is hybrid node")
+        DEBUG && println("entra al caso other is hybrid node, other is $(other.number)")
         edge1,edge2 = hybridEdges(other,leaf.edge[1]);
+        DEBUG && println("edge1 $(edge1.number), edge2 $(edge2.number)")
         (edge1.hybrid && edge2.hybrid) || error("hybrid node $(other.node) does not have two hybrid edges, they are tree edges: $(edge1.number), $(edge2.number)")
         other1 = getOtherNode(edge1,other);
         other2 = getOtherNode(edge2,other);
+        DEBUG && println("in deleteLeaf, other hybrid node, other1 $(other1.number), other2 $(other2.number)")
         removeEdge!(other1,edge1)
         removeEdge!(other2,edge2)
         deleteEdge!(net,edge1)
@@ -153,7 +155,6 @@ function deleteLeaf!(net::Network, leaf::Node)
         deleteEdge!(net,leaf.edge[1])
         deleteNode!(net,other)
         deleteNode!(net,leaf)
-        DEBUGC && println("in deleteLeaf, other hybrid node, other1 $(other1.number), other2 $(other2.number)")
         if(size(other1.edge,1) == 2  && isNodeNumIn(other1,net.node)) # need to delete internal nodes with only 2 edges (one of them external edge)
             node = getOtherNode(other1.edge[1],other1)
             leaf1 = node.leaf ? node : getOtherNode(other1.edge[2],other1)
@@ -886,6 +887,12 @@ function quartetType5!(qnet::QuartetNetwork, node::Node)
         end
         #println("cf1,cf2,cf3: $(cf1),$(cf2),$(cf3)")
         leaf1 = getOtherNode(edge3,node)
+        if(isa(edgetree1,Nothing))
+            println("node $(node.number), edge3 $(edge3.number), other1 $(other1.number), leaf1 $(leaf1.number), other2 $(other2.number)")
+            println("edge1 $(edge1.number), edge2 $(edge2.number), edge5 $(edge5.number), edge6 $(edge6.number)")
+            printEdges(qnet)
+            printNodes(qnet)
+        end
         leaf2 = getOtherNode(edgetree1,other1)
         leaf3 = getOtherNode(edgetree2, other2)
         leaf4 = qnet.leaf[getIndex(true,[(!isEqual(n,leaf1) && !isEqual(n,leaf2) && !isEqual(n,leaf3)) for n in qnet.leaf])]

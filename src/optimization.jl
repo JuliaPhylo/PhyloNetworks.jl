@@ -1168,7 +1168,8 @@ optTop!(currT::HybridNetwork, d::DataCF, hmax::Int64, verbose::Bool) = optTop!(c
 optTop!(currT::HybridNetwork, d::DataCF, hmax::Int64, verbose::Bool,ret::Bool) = optTop!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, verbose,true,numMoves,ret,STDOUT)
 optTop!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}) = optTop!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0, false,STDOUT)
 
-# function to repeat optTop for a certain number of runs
+# function to repeat optTopLevel for a certain number of runs
+# used to run optTop but now we want to compare to phylonet
 # runs will add one extra to desired because the first run is not counted towards time (because of compilation time)
 # outgroup is needed to root appropriately to use java distance function
 # rootname is for output files: log, err, out, default "optTopRuns"
@@ -1212,9 +1213,10 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         end
         gc();
         try
-            write(logfile,"\n BEGIN optTop for run $(i), seed $(seed) and hmax $(hmax)")
-            best = optTop!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,true,logfile)
-            write(logfile,"\n FINISHED optTop!, typeof best $(typeof(best))")
+            write(logfile,"\n BEGIN optTopLevel for run $(i), seed $(seed) and hmax $(hmax)")
+            #best = optTop!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,true,logfile)
+            best = optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,true)
+            write(logfile,"\n FINISHED optTopLevel!, typeof best $(typeof(best))")
             flush(logfile)
             push!(bestnet, deepcopy(best))
             if(best.loglik < maxNet.loglik)
@@ -1222,9 +1224,9 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             end
             println("typeof maxNet $(typeof(maxNet))")
         catch(err)
-            write(logfile,"\n ERROR found on optTop for run $(i) seed $(seed): $(err)")
+            write(logfile,"\n ERROR found on optTopLevel for run $(i) seed $(seed): $(err)")
             flush(logfile)
-            write(errfile,"\n ERROR found on optTop for run $(i) seed $(seed): $(err)")
+            write(errfile,"\n ERROR found on optTopLevel for run $(i) seed $(seed): $(err)")
             flush(errfile)
             push!(failed,seed)
         end
