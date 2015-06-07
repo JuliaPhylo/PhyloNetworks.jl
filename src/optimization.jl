@@ -569,7 +569,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,closeN ::Bool,
     origin = (rand() > 0.5) #true=moveOrigin, false=moveTarget
     startover = true
     tries = 0
-    N2 = N > 5 ? N/5 : 1 #num of failures of badlik around a gamma=0.0
+    N2 = N > 10 ? N/10 : 1 #num of failures of badlik around a gamma=0.0, t=0.0
     while(startover && tries < N)
         tries += 1
         DEBUG && println("inside afterOptBLALL: number of tries $(tries) out of $(N) possible")
@@ -583,6 +583,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,closeN ::Bool,
                 currT0 = deepcopy(currT)
                 origin = !origin #to guarantee not going back to previous topology
                 success,flagh,flagt,flaghz = afterOptBLRepeat!(currT,d,N,closeN ,origin,verbose,movesgamma)
+                all([!(e.hybrid && e.inCycle == -1) for e in currT.edge]) || error("found hybrid edge with inCycle == -1")
                 DEBUG && println("inside afterOptBLAll, after afterOptBLRepeat once we get: success, flags: $([success,flagh,flagt,flaghz])")
                 if(!success) #tried to change something but failed
                     DEBUG && println("did not change anything inside afterOptBL: could be nothing needed change or tried but couldn't anymore. flagh, flagt, flaghz = $([flagh,flagt,flaghz])")
@@ -608,6 +609,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,closeN ::Bool,
                         backCurrT0 = true
                     else
                         DEBUG && println("better likelihood, jump to new topology and startover")
+                        #backCurrT0 = false
                         movesgamma[13] += 1
                         if(all([flagh,flagt,flaghz]))
                             startover = false
@@ -894,6 +896,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     else
         Nmov = deepcopy(Nmov0)
     end
+    all([!(e.hybrid && e.inCycle == -1) for e in currT.edge]) || error("found hybrid edge with inCycle == -1")
     optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
     currT = afterOptBLAll!(currT, d, Nfail,closeN , M, ftolAbs, verbose,movesgamma,ftolRel,xtolRel,xtolAbs)
     absDiff = M*ftolAbs + 1
@@ -913,7 +916,8 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             flag = proposedTop!(move,newT,true, count,10, movescount,movesfail) #N=10 because with 1 it never finds an edge for nni
             if(flag)
                 accepted = false
-                DEBUG && println("accepted proposed new topology in step $(count)")
+                all([!(e.hybrid && e.inCycle == -1) for e in newT.edge]) || error("found hybrid edge with inCycle == -1")
+                DEBUG && println("proposed new topology in step $(count) is ok to start optBL")
                 DEBUG && printEdges(newT)
                 DEBUGC && printNodes(newT)
                 DEBUG && println(writeTopology(newT))

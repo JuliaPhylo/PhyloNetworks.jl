@@ -542,11 +542,12 @@ end
 function switchMajorTree!(major::Edge, tree::Edge, node::Node)
     !tree.hybrid || error("tree edge $(tree.number) cannot be hybrid to switch to major")
     major.hybrid || error("major edge $(major.number) has to be hybrid to switch to tree")
-    #println("switch major $(major.number) tree $(tree.number), node $(node.number)")
-    g = major.gamma
+    DEBUG && println("switch major $(major.number) tree $(tree.number), node $(node.number)")
+    g = major.gamma #needed because changed inside makeEdgeTree
+    cycle = major.cycle #needed because changed inside makeEdgeTree
     makeEdgeTree!(major,node)
     makeEdgeHybrid!(tree,node,g)
-    tree.inCycle = major.inCycle
+    tree.inCycle = cycle
     major.inCycle = -1
 end
 
@@ -591,7 +592,7 @@ function moveTarget(node::Node, major::Edge, tree::Edge, newedge::Edge, undo::Bo
         neighbor = true
         from_treenode = true
     end
-    #println("neighbor $(neighbor), from othermajor $(from_othermajor), from treenode $(from_treenode), n1 $(n1.number), n2 $(n2.number)")
+    DEBUG && println("neighbor $(neighbor), from othermajor $(from_othermajor), from treenode $(from_treenode), n1 $(n1.number), n2 $(n2.number)")
     if(neighbor && from_othermajor)
         #println("leaving n1 $(n1.number) as it is")
         #println("removing n2 $(n2.number) from newedge $(newedge.number) and viceversa")
@@ -660,14 +661,14 @@ function moveTarget(node::Node, major::Edge, tree::Edge, newedge::Edge, undo::Bo
     end
     if(!undo)
         if(from_treenode)
-            #println("from treenode treatment, switch major $(major.number) to tree $(tree.number)")
+            DEBUG && println("from treenode treatment, switch major $(major.number) to tree $(tree.number)")
             switchMajorTree!(major,tree,node)
             node.k += 1
             newedge.inCycle = node.number
             treenode.inCycle = node.number
         elseif(from_othermajor)
             if(newedge.inCycle == node.number)
-                #println("from othermajor and newedge incycle treatment, switch major $(major.number) to tree $(tree.number)")
+                DEBUG && println("from othermajor and newedge incycle treatment, switch major $(major.number) to tree $(tree.number)")
                 switchMajorTree!(major,tree,node)
                 node.k -= 1
                 newedge.inCycle = -1
