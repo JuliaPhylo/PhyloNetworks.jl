@@ -120,9 +120,17 @@ end
 # of all the edges visited
 # changed to recursive after Cecile's idea
 # warning: it does not go accross hybrid node, minor hybrid edge
-# fixit: should have exclamation sign
-function traverseContainRoot(node::Node, edge::Edge, edges_changed::Array{Edge,1})
-    if(!node.leaf && !node.hybrid)
+# it checks if we approach a hybrid node via a hybrid edge (ok) or tree edge (not ok)
+# rightDir will be modified inside depending in this criteria (has to be an array to be modified)
+function traverseContainRoot!(node::Node, edge::Edge, edges_changed::Array{Edge,1}, rightDir::Vector{Bool})
+    if(node.hybrid)
+        if(edge.hybrid)
+            edge.isMajor || error("hybrid edge $(edge.number) is minor and we should not traverse the graph through minor edges")
+            rightDir[1] = true
+        else #approach hybrid node through tree edge => wrong direction
+            rightDir[1] = false
+        end
+    elseif(!node.leaf)
         for(e in node.edge)
             if(!isEqual(edge,e) && e.isMajor)
                 other = getOtherNode(e,node);
@@ -130,7 +138,7 @@ function traverseContainRoot(node::Node, edge::Edge, edges_changed::Array{Edge,1
                     e.containRoot = false;
                     push!(edges_changed, e);
                 end
-                traverseContainRoot(other,e, edges_changed);
+                traverseContainRoot!(other,e, edges_changed, rightDir);
             end
         end
     end
@@ -150,10 +158,11 @@ function updateContainRoot!(net::HybridNetwork, node::Node)
             other = getOtherNode(e,node);
             e.containRoot = false;
             push!(net.edges_changed,e);
-            traverseContainRoot(other,e, net.edges_changed);
+            rightDir = [true] #assume good direction, only changed if found hybrid node through tree edge
+            traverseContainRoot!(other,e, net.edges_changed,rightDir);
         end
     end
-    if(all([!e.containRoot for e in net.edge]))
+    if(!rightDir[1] || all([!e.containRoot for e in net.edge]))
         return false,net.edges_changed
     else
         return true,net.edges_changed
