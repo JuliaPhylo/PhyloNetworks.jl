@@ -544,7 +544,7 @@ function switchMajorTree!(major::Edge, tree::Edge, node::Node)
     major.hybrid || error("major edge $(major.number) has to be hybrid to switch to tree")
     DEBUG && println("switch major $(major.number) tree $(tree.number), node $(node.number)")
     g = major.gamma #needed because changed inside makeEdgeTree
-    cycle = major.cycle #needed because changed inside makeEdgeTree
+    cycle = major.inCycle #needed because changed inside makeEdgeTree
     makeEdgeTree!(major,node)
     makeEdgeHybrid!(tree,node,g)
     tree.inCycle = cycle
