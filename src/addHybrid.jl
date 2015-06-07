@@ -153,6 +153,8 @@ function parameters4createHybrid!(edge1::Edge, edge2::Edge,net::HybridNetwork)
     t3 = edge2.length - t1;
     edge4 = Edge(max_edge+2,t3);
     edge2.length = t1;
+    edge3.containRoot = edge1.containRoot
+    edge4.containRoot = edge2.containRoot
     return edge3, edge4
 end
 

@@ -26,6 +26,7 @@ function makeEdgeHybrid!(edge::Edge,node::Node,gamma::Float64)
     getOtherNode(edge,node).hasHybEdge = true
     setGamma!(edge,gamma,false)
     edge.istIdentifiable = isEdgeIdentifiable(edge)
+    edge.containRoot = false
 end
 
 # aux function to exchange who is the hybrid node
