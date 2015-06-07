@@ -716,7 +716,7 @@ function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, major
     flag2, edgesGammaz = updateGammaz!(net,node)
     if(flag2)
         flag3,edgesroot = updateContainRoot!(net,node)
-        flag3 || error("should not fail contain root when moving target")
+        #flag3 || error("should not fail contain root when moving target")
         parameters!(net);
         DEBUG && println("MOVE: move Target for hybrid node $(node.number) SUCCESSFUL")
         return true,flag2

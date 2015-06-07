@@ -153,12 +153,12 @@ end
 function updateContainRoot!(net::HybridNetwork, node::Node)
     node.hybrid || error("node $(node.number )is not hybrid, cannot update containRoot")
     net.edges_changed = Edge[];
+    rightDir = [true] #assume good direction, only changed if found hybrid node through tree edge
     for (e in node.edge)
         if(!e.hybrid)
             other = getOtherNode(e,node);
             e.containRoot = false;
             push!(net.edges_changed,e);
-            rightDir = [true] #assume good direction, only changed if found hybrid node through tree edge
             traverseContainRoot!(other,e, net.edges_changed,rightDir);
         end
     end
