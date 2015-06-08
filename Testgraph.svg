@@ -8,27 +8,27 @@
      stroke-width="0.3"
      font-size="3.88"
 >
-<g stroke-width="1.34" stroke="#BBBBBB" id="fig-389ebac91142441192adce27bd2d5b57-element-1">
-  <path fill="none" d="M10.33,48.2 L 12.29 42.87"/>
-  <path fill="none" d="M7.36,45.69 L 12.29 42.87"/>
-  <path fill="none" d="M8.47,47.4 L 12.29 42.87"/>
-  <path fill="none" d="M13.12,29.24 L 15.21 34.52"/>
-  <path fill="none" d="M17,29.13 L 15.21 34.52"/>
-  <path fill="none" d="M15.09,30.12 L 15.21 34.52"/>
-  <path fill="none" d="M13.48,38.45 L 11.52 43.78"/>
-  <path fill="none" d="M16.45,40.96 L 11.52 43.78"/>
-  <path fill="none" d="M15.35,39.25 L 11.52 43.78"/>
-  <path fill="none" d="M17.32,40.13 L 15.22 34.85"/>
-  <path fill="none" d="M13.43,40.24 L 15.22 34.85"/>
-  <path fill="none" d="M15.35,39.25 L 15.22 34.85"/>
+<g stroke-width="1.34" stroke="#BBBBBB" id="fig-1e866e29f13d41dfac3f6c3339e59070-element-1">
+  <path fill="none" d="M36.25,72.44 L 38.86 77.49"/>
+  <path fill="none" d="M40.1,71.94 L 38.86 77.49"/>
+  <path fill="none" d="M38.03,71.1 L 38.86 77.49"/>
+  <path fill="none" d="M42.9,91.84 L 40.18 86.86"/>
+  <path fill="none" d="M39.06,92.43 L 40.18 86.86"/>
+  <path fill="none" d="M41.13,93.13 L 40.18 86.86"/>
+  <path fill="none" d="M41.25,80.84 L 38.64 75.8"/>
+  <path fill="none" d="M37.4,81.34 L 38.64 75.8"/>
+  <path fill="none" d="M39.47,82.18 L 38.64 75.8"/>
+  <path fill="none" d="M37.7,83.47 L 40.42 88.45"/>
+  <path fill="none" d="M41.54,82.89 L 40.42 88.45"/>
+  <path fill="none" d="M39.47,82.18 L 40.42 88.45"/>
 </g>
-<g stroke="#BBBBBB" fill="#AAAAFF" id="fig-389ebac91142441192adce27bd2d5b57-element-2">
-  <circle cx="37.94" cy="93.13" r="4.73"/>
-  <circle cx="93.13" cy="8.47" r="4.73"/>
-  <circle cx="8.47" cy="47.4" r="4.73"/>
-  <circle cx="15.09" cy="30.12" r="4.73"/>
-  <circle cx="15.35" cy="39.25" r="4.73"/>
+<g stroke="#BBBBBB" fill="#AAAAFF" id="fig-1e866e29f13d41dfac3f6c3339e59070-element-2">
+  <circle cx="93.13" cy="33.6" r="4.73"/>
+  <circle cx="8.47" cy="8.47" r="4.73"/>
+  <circle cx="38.03" cy="71.1" r="4.73"/>
+  <circle cx="41.13" cy="93.13" r="4.73"/>
+  <circle cx="39.47" cy="82.18" r="4.73"/>
 </g>
-<g font-size="4" stroke="#000000" stroke-opacity="0.000" fill="#000000" id="fig-389ebac91142441192adce27bd2d5b57-element-3">
+<g font-size="4" stroke="#000000" stroke-opacity="0.000" fill="#000000" id="fig-1e866e29f13d41dfac3f6c3339e59070-element-3">
 </g>
 </svg>
