@@ -317,7 +317,7 @@ function moveOrigin(node::Node,othermin::Node,tree1::Edge, tree2::Edge,newedge::
         setNode!(treei,n2)
         setEdge!(n2,treei)
     else
-        warn("move origin to edge $(newedge.number) not neighbor to tree1 edge $(tree1.number) nor tree2 edge $(tree2.number), function not debugged!")
+        error("move origin to edge $(newedge.number) not neighbor to tree1 edge $(tree1.number) nor tree2 edge $(tree2.number), function not debugged!")
         other1 = getOtherNode(tree1,othermin);
         other2 = getOtherNode(tree2,othermin);
         removeEdge!(other1,tree1)
@@ -623,7 +623,7 @@ function moveTarget(node::Node, major::Edge, tree::Edge, newedge::Edge, undo::Bo
         setNode!(major,n2)
         setEdge!(n2,major)
     else
-        warn("move target to edge $(newedge.number) not neighbor to major edge $(major.number) nor tree edge $(tree.number), function not debugged!")
+        error("move target to edge $(newedge.number) not neighbor to major edge $(major.number) nor tree edge $(tree.number), function not debugged!")
         #println("removing major edge $(major.number) from othermajor node $(othermajor.number) and viceverse")
         removeEdge!(othermajor,major)
         removeNode!(othermajor,major)
