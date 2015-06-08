@@ -17,3 +17,17 @@ include("scratch_work/building_graphs.jl")
 include("scratch_work/building_graphs.jl")
 include ("examples/tree_example.jl")
 include("scratch_work/building_graphs.jl")
+net
+include("types.jl")
+include("functions.jl")
+include("scratch_work/graph_sandbox.jl")
+include("scratch_work/graph_sandbox.jl")
+include("scratch_work/graph_sandbox.jl")
+include("scratch_work/graph_sandbox.jl")
+net.numNodes
+ net.node
+> net.leaf
+net.leaf
+4+4
+include("scratch_work/graph_sandbox.jl")
+for i in net.lead println(2)
