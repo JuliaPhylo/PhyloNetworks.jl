@@ -23,5 +23,3 @@ printNodes(test_net)
 printEdges(test_net)
 
 
-
-
