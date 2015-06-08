@@ -37,7 +37,7 @@ ehthumbs.db
 Thumbs.db
 
 
-#Images
+#Images#
 ######################
-*.svg
+*.svg*
 
