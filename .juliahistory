@@ -31,3 +31,36 @@ net.leaf
 4+4
 include("scratch_work/graph_sandbox.jl")
 for i in net.lead println(2)
+include("types.jl")
+include("functions.jl")
+include("scratch_work/graph_sandbox.jl")
+net
+include("visualization/CF_to_LG.jl")
+include("visualization/CF_to_LG.jl")
+include("visualization/CF_to_LG.jl")
+ include("visualization/CF_to_LG.jl")
+ include("visualization/CF_to_LG.jl")
+include("visualization/CF_to_LG.jl")
+include("visualization/CF_to_LG.jl")
+sng="Walking the "*"dog."
+println(sng)
+include("visualization/CF_to_LG.jl")
+include("visualization/CF_to_LG.jl")
+include("visualization/CF_to_LG.jl")
+net
+include("visualization/CF_to_LG.jl")
+include("visualization/CF_to_LG.jl")
+println("CF network created")
+
+println("CF network created")
+
+include("visualization/CF_to_LG.jl")
+include("visualization/CF_to_LG.jl")
+include("visualization/CF_to_LG.jl")
+include("visualization/CF_to_LG.jl")
+include("visualization/CF_to_LG.jl")
+include("visualization/CF_to_LG.jl")
+include("visualization/CF_to_LG.jl")
+include("visualization/CF_to_LG.jl")
+include("visualization/CF_to_LG.jl")
+include("visualization/CF_to_LG.jl")
