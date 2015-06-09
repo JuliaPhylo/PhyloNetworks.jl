@@ -64,3 +64,32 @@ include("visualization/CF_to_LG.jl")
 include("visualization/CF_to_LG.jl")
 include("visualization/CF_to_LG.jl")
 include("visualization/CF_to_LG.jl")
+include("types.jl")
+include("functions.jl")
+inlcude("scratch_work/test_graphs.jl")
+include("scratch_work/test_graphs.jl")
+g1=create_g1()
+show(g1)
+g1.nodes
+g1.Nodes()
+g1.node()
+g1.node
+include("scratch_work/test_graphs.jl")
+g1=create_g1()
+include("scratch_work/test_graphs.jl")
+g1=create_g1()
+g1
+g1 = create_g1()
+g1 = create_g1()
+g1
+show(g1)
+include("scratch_work/test_graphs.jl")
+g1 = create_g1()
+g1
+include("visualization/CF_to_LG.jl")
+using LightGraphs
+include("visualization/CF_to_LG.jl")
+include("visualization/CF_to_LG.jl")
+include("visualization/CF_to_LG.jl")
+g1
+CF_to_Light_Graph(g1)

@@ -29,6 +29,8 @@ function create_g1()
 	g1=HybridNetwork([n1,n2,n3,n4],[e1,e2,e3])
 	println("CF network created")
 	
-	return g1
+	return g1;
 end
+		#This graph has been tested and works correctly
+
 #####################################################
