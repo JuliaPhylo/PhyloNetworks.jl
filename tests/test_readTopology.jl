@@ -124,6 +124,8 @@ tree = "(Ant,Bear,(Cat,Dog));"
 tree = "(A,B,(C,D));"
 tree = "(A:0.1,B:0.2,(C:0.3,D:0.4):0.5);"
 tree = "((((((1,2),3),4),5),6),7,8);" # yeast data tree0
+tree = "(Scer,((Smik,(Skud,Sbay)),Spar));" # yeast data astral output
+tree = "(1,2,3,4,5);"
 write(f,tree)
 close(f)
 

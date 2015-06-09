@@ -380,6 +380,7 @@ end
 # warning: chooses one resolution at random
 # warning: new nodes have the same number as the node with polytomy
 function solvePolytomyRecursive!(net::HybridNetwork, n::Node)
+    warn("solve polytomy recursive: new nodes have the same number as the node with the polytomy")
     if(size(n.edge,1) == 4)
         edge1 = n.edge[1];
         edge2 = n.edge[2];

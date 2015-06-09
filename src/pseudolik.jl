@@ -976,7 +976,22 @@ end
 # eliminate internal nodes in every direction
 function internalLength!(qnet::QuartetNetwork)
     if(qnet.which == 1)
+        try
+            getIndex(true,[size(n.edge,1) == 3 for n in qnet.node])
+        catch
+            printEdges(qnet)
+            printNodes(qnet)
+            error("not found internal node in qnet with 3 edges")
+        end
         node = qnet.node[getIndex(true,[size(n.edge,1) == 3 for n in qnet.node])]
+        try
+            getIndex(true,[size(n.edge,1) == 3 && !isEqual(n,node) for n in qnet.node])
+        catch
+            println("first node found with 3 edges $(node.number)")
+            printEdges(qnet)
+            printNodes(qnet)
+            error("not found another internal node in qnet with 3 edges")
+        end
         node2 = qnet.node[getIndex(true,[size(n.edge,1) == 3 && !isEqual(n,node) for n in qnet.node])]
         for(e in node.edge)
             deleteIntLeafWhile!(qnet,e,node,true)
