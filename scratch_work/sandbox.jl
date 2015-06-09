@@ -1,9 +1,8 @@
-#Scratch file (sandbox
+#Scratch file (sandbox)
 #Testing miscellaneous code snippets
 #John Spaw 6-8-15
 
-println( )
-println("*****************")
+
 println("Testing a basic for loop... list all items in [1,4,7,8]")
 println( )
 
@@ -12,7 +11,5 @@ for i in a
 	println(i)
 end
 
-println( )
-println("*****************"+"dog")
-println("Testing a basic for loop... list all items in [1,4,7,8]")
-println( )
+
+

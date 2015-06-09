@@ -18,7 +18,9 @@ setNode!(e1,[n1,n2])
 setNode!(e2,[n1,n3])
 setNode!(e3,[n3,n4])
 
-net=HybridNetwork([n1,n2,n3,n4],[e1,e2,e3])
+test_net=HybridNetwork([n1,n2,n3,n4],[e1,e2,e3])
 
-printNodes(net)
-printEdges(net)
+printNodes(test_net)
+printEdges(test_net)
+
+net
