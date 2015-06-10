@@ -513,9 +513,10 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF,closeN ::Bool, origin::Bool
             i += 2
         end
     end
-    if(successchange)
-        DEBUG && println(writeTopology(currT))
-        DEBUG && printEdges(currT)
+    if(successchange) #already printed in afterOptBLAll
+        #DEBUG && println(writeTopology(currT))
+        #DEBUG && printEdges(currT)
+        #DEBUG && printPartitions(currT)
         optBL!(currT,d,verbose)
     end
     !successchange || println("afterOptBL SUCCESSFUL change, need to run again to see if new topology is valid")
@@ -601,6 +602,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,closeN ::Bool,
                 else #changed something
                     DEBUG && println("changed something inside afterOptBL: flagh, flagt, flaghz = $([flagh,flagt,flaghz]). oldloglik $(currloglik), newloglik $(currT.loglik)")
                     DEBUG && printEdges(currT)
+                    DEBUG && printPartitions(currT)
                     #printNodes(currT)
                     DEBUG && println(writeTopology(currT))
                     if(currT.loglik > currloglik) #|| abs(currT.loglik-currloglik) <= M*ftolAbs) #fixit: allowed like this because of changeDir that does not change much the lik but can fix h=0
@@ -637,6 +639,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,closeN ::Bool,
                     movesgamma[11] += 1
                     moveDownLevel!(currT)
                     DEBUG && printEdges(currT)
+                    DEBUG && printPartitions(currT)
                     DEBUG && println(writeTopology(currT))
                     optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
                     startover = true
@@ -655,6 +658,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,closeN ::Bool,
             DEBUG && println("gammaz zero situation still in currT, need to move down one level to h-1")
             moveDownLevel!(currT)
             DEBUG && printEdges(currT)
+            DEBUG && printPartitions(currT)
             #printNodes(currT)
             DEBUG && println(writeTopology(currT))
             optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
@@ -902,6 +906,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     absDiff = M*ftolAbs + 1
     newT = deepcopy(currT)
     DEBUG && printEdges(newT)
+    DEBUG && printPartitions(newT)
     #DEBUG && printNodes(newT)
     DEBUG && println(writeTopology(newT))
     while(absDiff > M*ftolAbs && failures < Nfail && currT.loglik > M*ftolAbs && stillmoves) #stops if close to zero because of new deviance form of the pseudolik
@@ -920,6 +925,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
                 DEBUG && println("proposed new topology in step $(count) is ok to start optBL")
                 DEBUG && printEdges(newT)
                 DEBUGC && printNodes(newT)
+                DEBUG && printPartitions(newT)
                 DEBUG && println(writeTopology(newT))
                 optBL!(newT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
                 DEBUG && println("OPT: comparing newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
@@ -945,6 +951,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
                     newT = deepcopy(currT)
                 end
                 DEBUG && printEdges(newT)
+                DEBUG && printPartitions(newT)
                 #printNodes(newT)
                 DEBUG && println(writeTopology(newT))
                 DEBUG && println("ends step $(count) with absDiff $(accepted? absDiff : 0.0) and failures $(failures)")
@@ -979,6 +986,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     println("END optTopLevel: found minimizer topology at step $(count) (failures: $(failures)) with -loglik=$(round(newT.loglik,5)) and ht_min=$(round(newT.ht,5))")
     printCounts(movescount,movesgamma,"movesTable.txt")
     DEBUG && printEdges(newT)
+    DEBUG && printPartitions(newT)
     DEBUGC && printNodes(newT)
     println(writeTopology(newT))
     if(ret)

@@ -157,7 +157,7 @@ function getIndex(node::Node, net::Network)
     while(i<= size(net.node,1) && !isEqual(node,net.node[i]))
         i = i+1;
     end
-    i>size(net.node,1)?error("node not in network"):return i;
+    i>size(net.node,1)?error("node $(node.number) not in network"):return i;
 end
 
 function getIndex(edge::Edge, net::Network)
@@ -165,7 +165,15 @@ function getIndex(edge::Edge, net::Network)
     while(i<= size(net.edge,1) && !isEqual(edge,net.edge[i]))
         i = i+1;
     end
-    i>size(net.edge,1)?error("edge not in network"):return i;
+    i>size(net.edge,1)?error("edge $(edge.number) not in network"):return i;
+end
+
+function getIndex(edge::Edge, edges::Vector{Edge})
+    i = 1;
+    while(i<= size(edges,1) && !isEqual(edge,edges[i]))
+        i = i+1;
+    end
+    i>size(edges,1)?error("edge $(edge.number) not in array of edges"):return i;
 end
 
 function getIndex(bool::Bool, array::Array{Bool,1})
@@ -762,3 +770,32 @@ end
 function numIntTreeEdges(net::HybridNetwork)
     2*net.numTaxa - 3 + net.numHybrids - net.numTaxa
 end
+
+
+# function to get the partition where an edge is
+# returns the index of the partition, or error if not found
+# better to return the index than the partition itself, because we need the index
+# to use splice and delete it from net.partition later on
+# cycle: is the number to look for partition on that cycle only
+function whichPartition(net::HybridNetwork,edge::Edge,cycle::Int64)
+    !edge.hybrid || error("edge $(edge.number) is hybrid so it cannot be in any partition")
+    edge.inCycle == -1 || error("edge $(edge.number) is in cycle $(edge.inCycle) so it cannot be in any partition")
+    for(i in 1:length(net.partition))
+        if(in(cycle,net.partition[i].cycle))
+            if(in(edge,net.partition[i].edges))
+                DEBUG && println("partition for edge $(edge.number) is $([e.number for e in net.partition[i].edges])")
+                return i
+            end
+        end
+    end
+    error("edge $(edge.number) is not hybrid, nor part of any cycle, and it is not in any partition")
+end
+
+# function that will print the partition of net
+function printPartitions(net::HybridNetwork)
+    println("partition.cycle\t partition.edges")
+    for(p in net.partition)
+        println("$(p.cycle)\t\t $([e.number for e in p.edges])")
+    end
+end
+
