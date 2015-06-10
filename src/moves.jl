@@ -1073,7 +1073,7 @@ function NNI!(net::Network,edge::Edge)
                 part = splice!(net.partition,indexPe2) # delete partition e2
                 DEBUG && println("deleted partition $([e.number for e in part.edges]) from net.partition")
                 for(e in part.edges)
-                    DEBUG && println("partition for e4 is $([e.number for e in net.partition[IndexPe4].edges]), pushing edge $(e.number)")
+                    DEBUG && println("partition for e4 is $([e.number for e in net.partition[indexPe4].edges]), pushing edge $(e.number)")
                     push!(net.partition[indexPe4].edges,e) #put into partition e4
                 end
                 DEBUG && println("partition for e4 is $([e.number for e in net.partition[indexPe4].edges]), pushing edge $(edge.number)")
