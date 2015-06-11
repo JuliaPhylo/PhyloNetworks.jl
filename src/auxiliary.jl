@@ -780,14 +780,19 @@ end
 function whichPartition(net::HybridNetwork,edge::Edge,cycle::Int64)
     !edge.hybrid || error("edge $(edge.number) is hybrid so it cannot be in any partition")
     edge.inCycle == -1 || error("edge $(edge.number) is in cycle $(edge.inCycle) so it cannot be in any partition")
+    DEBUG && println("search partition for edge $(edge.number) in cycle $(cycle)")
+    in(edge,net.edge) || error("edge $(edge.number) is not in net.edge")
     for(i in 1:length(net.partition))
+        DEBUG && println("looking for edge $(edge.number) in partition $(i): $([e.number for e in net.partition[i].edges])")
         if(in(cycle,net.partition[i].cycle))
+            DEBUG && println("looking for edge $(edge.number) in partition $(i), with cycle $(cycle): $([e.number for e in net.partition[i].edges])")
             if(in(edge,net.partition[i].edges))
                 DEBUG && println("partition for edge $(edge.number) is $([e.number for e in net.partition[i].edges])")
                 return i
             end
         end
     end
+    DEBUG && printPartitions(net)
     error("edge $(edge.number) is not hybrid, nor part of any cycle, and it is not in any partition")
 end
 
