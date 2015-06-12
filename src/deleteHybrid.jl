@@ -51,11 +51,13 @@ function identifyInCycle(net::Network,node::Node)
                         end
                     else
                         for(e in curr.edge)
-                            other = getOtherNode(e,curr);
-                            if(!other.leaf && !net.visited[getIndex(other,net)])
-                                other.prev = curr;
-                                dist = dist+1;
-                                enqueue!(queue,other,dist);
+                            if(!e.hybrid || e.isMajor)
+                                other = getOtherNode(e,curr);
+                                if(!other.leaf && !net.visited[getIndex(other,net)])
+                                    other.prev = curr;
+                                    dist = dist+1;
+                                    enqueue!(queue,other,dist);
+                                end
                             end
                         end
                     end

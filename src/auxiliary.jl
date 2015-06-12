@@ -430,8 +430,27 @@ function deleteNode!(net::QuartetNetwork, n::Node)
 end
 
 # function to delete an Edge in net.edge and
-# update numEdges from a Network
-function deleteEdge!(net::Network, e::Edge)
+# update numEdges from a HybridNetwork
+function deleteEdge!(net::HybridNetwork, e::Edge)
+    if(e.inCycle == -1 && !e.hybrid && !isempty(net.partition))
+        ind = whichPartition(net,e)
+        indE = getIndex(e,net.partition[ind].edges)
+        deleteat!(net.partition[ind].edges,indE)
+    end
+    try
+        index = getIndex(e,net);
+    catch
+        error("Edge not in network");
+    end
+    #println("delete edge $(e.number) from net")
+    index = getIndex(e,net);
+    deleteat!(net.edge,index);
+    net.numEdges -= 1;
+end
+
+# function to delete an Edge in net.edge and
+# update numEdges from a QuartetNetwork
+function deleteEdge!(net::QuartetNetwork, e::Edge)
     try
         index = getIndex(e,net);
     catch
@@ -492,6 +511,7 @@ function deleteIntNode!(net::Network, n::Node)
     setNode!(edge1,node2);
     deleteNode!(net,n);
     deleteEdge!(net,edge2);
+    DEBUG && printEverything(net)
 end
 
 
@@ -796,6 +816,26 @@ function whichPartition(net::HybridNetwork,edge::Edge,cycle::Int64)
     error("edge $(edge.number) is not hybrid, nor part of any cycle, and it is not in any partition")
 end
 
+# function to get the partition where an edge is
+# returns the index of the partition, or error if not found
+# better to return the index than the partition itself, because we need the index
+# to use splice and delete it from net.partition later on
+function whichPartition(net::HybridNetwork,edge::Edge)
+    !edge.hybrid || error("edge $(edge.number) is hybrid so it cannot be in any partition")
+    edge.inCycle == -1 || error("edge $(edge.number) is in cycle $(edge.inCycle) so it cannot be in any partition")
+    DEBUG && println("search partition for edge $(edge.number) without knowing its cycle")
+    in(edge,net.edge) || error("edge $(edge.number) is not in net.edge")
+    for(i in 1:length(net.partition))
+        DEBUG && println("looking for edge $(edge.number) in partition $(i): $([e.number for e in net.partition[i].edges])")
+        if(in(edge,net.partition[i].edges))
+            DEBUG && println("partition for edge $(edge.number) is $([e.number for e in net.partition[i].edges])")
+            return i
+        end
+    end
+    DEBUG && printPartitions(net)
+    error("edge $(edge.number) is not hybrid, nor part of any cycle, and it is not in any partition")
+end
+
 # function that will print the partition of net
 function printPartitions(net::HybridNetwork)
     println("partition.cycle\t partition.edges")
@@ -804,3 +844,63 @@ function printPartitions(net::HybridNetwork)
     end
 end
 
+# function to find if a given partition is in net.partition
+function isPartitionInNet(net::HybridNetwork,desc::Vector{Edge},cycle::Vector{Int64})
+    for(p in net.partition)
+        if(sort(cycle) == sort(p.cycle))
+            if(sort([e.number for e in desc]) == sort([e.number for e in p.edges]))
+                return true
+            end
+        end
+    end
+    return false
+end
+
+# function to check that everything matches in a network
+# in particular, cycles, partitions and containRoot
+# fixit: need to add check on identification of bad diamonds, triangles
+# and correct computation of gammaz
+function checkNet(net::HybridNetwork)
+    DEBUG && println("checking net")
+    net.numHybrids == length(net.hybrid) || error("discrepant number on net.numHybrids (net.numHybrids) and net.hybrid length $(length(net.hybrid))")
+    net.numTaxa == length(net.leaf) || error("discrepant number on net.numTaxa (net.numTaxa) and net.leaf length $(length(net.leaf))")
+    net.numNodes == length(net.node) || error("discrepant number on net.numNodes (net.numNodes) and net.node length $(length(net.node))")
+    net.numEdges == length(net.edge) || error("discrepant number on net.numEdges (net.numEdges) and net.edge length $(length(net.edge))")
+    for(h in net.hybrid)
+        nocycle,edges,nodes = identifyInCycle(net,h)
+        for(e in edges)
+            e.inCycle == h.number || error("edge $(e.number) is in cycle of hybrid node $(h.number) but its inCycle attribute is $(e.inCycle)")
+        end
+        for(n in nodes)
+            n.inCycle == h.number || error("node $(n.number) is in cycle of hybrid node $(h.number) but its inCycle attribute is $(n.inCycle)")
+            e1,e2,e3 = hybridEdges(n)
+            for(e in [e1,e2,e3])
+                i = 0
+                if(e.inCycle == -1)
+                    i += 1
+                    desc = [e]
+                    cycleNum = [h.number]
+                    getDescendants!(getOtherNode(e,n),e,desc,cycleNum)
+                    if(!isPartitionInNet(net,desc,cycleNum))
+                        printPartitions(net)
+                        error("partition with cycle $(cycleNum) and edges $([e.number for e in desc]) not found in net.partition")
+                    end
+                end
+            end
+            i == 1 || error("strange node $(n.number) incycle $(h.number) but with $(i) edges not in cycle, should be only one")
+            nodesRoot = identifyContainRoot(net,h)
+            for(node in nodesRoot)
+                !node.containRoot || error("node $(node.number) should not contain root")
+            end
+        end
+    end
+    DEBUG && println("no errors in checking net")
+end
+
+# function to print everything for a given net
+function printEverything(net::HybridNetwork)
+    printEdges(net)
+    printNodes(net)
+    printPartitions(net)
+    println("$(writeTopology(net))")
+end

@@ -105,6 +105,15 @@ function changeDirection!(node::Node, net::HybridNetwork, isminor::Bool)
         setLength!(tree,tedmin2)
         setLength!(edgemin1,tmajor)
         setLength!(edgemin2,ttree)
+        # -- update partition
+        indexPedgemin = whichPartition(net,edgemin2,node.number)
+        indexPtree = whichPartition(net,tree,node.number)
+        ind = getIndex(edgemin2,net.partition[indexPedgemin].edges)
+        deleteat!(net.partition[indexPedgemin].edges,ind)
+        ind = getIndex(tree,net.partition[indexPtree].edges)
+        deleteat!(net.partition[indexPtree].edges,ind)
+        push!(net.partition[indexPtree].edges,edgemin2)
+        push!(net.partition[indexPedgemin].edges,tree)
     else
         edgebla,edgemaj1,edgemaj2 = hybridEdges(othermaj);
         nodemaj1 = getOtherNode(edgemaj1,othermaj)
@@ -133,6 +142,15 @@ function changeDirection!(node::Node, net::HybridNetwork, isminor::Bool)
         setLength!(tree,tedmaj2)
         setLength!(edgemaj1,tminor)
         setLength!(edgemaj2,ttree)
+        # -- update partition
+        indexPedgemaj = whichPartition(net,edgemaj2,node.number)
+        indexPtree = whichPartition(net,tree,node.number)
+        ind = getIndex(edgemaj2,net.partition[indexPedgemaj].edges)
+        deleteat!(net.partition[indexPedgemaj].edges,ind)
+        ind = getIndex(tree,net.partition[indexPtree].edges)
+        deleteat!(net.partition[indexPtree].edges,ind)
+        push!(net.partition[indexPtree].edges,edgemaj2)
+        push!(net.partition[indexPedgemaj].edges,tree)
     end
     if(node.isBadDiamondI || node.isBadDiamondII)
         node.isBadDiamondI = false
@@ -369,7 +387,7 @@ function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, t
                 if(!isEqual(edges[i],treei) && !isEqual(edges[i],newedge))
                     descendants = [edges[i]]
                     cycleNum = [node.inCycle]
-                    getDescendants!(getOtherNode(edges[i],otherj),edges[i],descendants,cycleNum)
+                    getDescendants!(getOtherNode(edges[i],otheri),edges[i],descendants,cycleNum)
                     !isempty(descendants) || error("descendants is empty for node $(otheri.number)")
                     DEBUG && println("for node $(otheri.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
                     partition = Partition(unique(cycleNum),descendants) # create new partition
@@ -428,20 +446,20 @@ function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, t
     else
         if(newedge.inCycle == node.number)
             # -- update partition
-            indexPtreej = whichPartition(net,treej,node.number)
-            push!(net.partition[indexPtreej].edges,treei)
-            push!(net.partition[indexPtreej].edges,newedge)
-            ind = getIndex(treej,net.partition[indexPtreej].edges)
-            deleteat!(net.partition[indexPtreej].edges,ind)
-            edges = hybridEdges(otheri)
+            indexPtreei = whichPartition(net,treei,node.number)
+            push!(net.partition[indexPtreei].edges,treej)
+            push!(net.partition[indexPtreei].edges,newedge)
+            ind = getIndex(treei,net.partition[indexPtreei].edges)
+            deleteat!(net.partition[indexPtreei].edges,ind)
+            edges = hybridEdges(otherj)
             for(i in 1:3) #check of 3 edges inside hybridEdges
-                if(!isEqual(edges[i],treei) && !isEqual(edges[i],newedge))
+                if(!isEqual(edges[i],treej) && !isEqual(edges[i],newedge))
                     indexP = whichPartition(net,edges[i],node.number)
                     part = splice!(net.partition,indexP)
                     for(e in part.edges)
-                        push!(net.partition[indexPtreej].edges,e)
+                        push!(net.partition[indexPtreei].edges,e)
                     end
-                    net.partition[indexPtreej].cycle = union(net.partition[indexPtreej].cycle,part.cycle)
+                    net.partition[indexPtreei].cycle = union(net.partition[indexPtreei].cycle,part.cycle)
                     break
                 end
             end
@@ -453,27 +471,27 @@ function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, t
         elseif(newedge.inCycle == -1)
             if(newedgeincycle)
                 # -- update partition
-                indexPtreej = whichPartition(net,treej,node.number)
-                ind = getIndex(newedge,net.partition[indexPtreej].edges)
-                deleteat!(net.partition[indexPtreej].edges,ind)
-                ind = getIndex(treej,net.partition[indexPtreej].edges)
-                deleteat!(net.partition[indexPtreej].edges,ind)
-                push!(net.partition[indexPtreej].edges,treei)
-                edges = hybridEdges(otherj)
+                indexPtreei = whichPartition(net,treei,node.number)
+                ind = getIndex(newedge,net.partition[indexPtreei].edges)
+                deleteat!(net.partition[indexPtreei].edges,ind)
+                ind = getIndex(treei,net.partition[indexPtreei].edges)
+                deleteat!(net.partition[indexPtreei].edges,ind)
+                push!(net.partition[indexPtreei].edges,treej)
+                edges = hybridEdges(otheri)
                 for(i in 1:3) #check of 3 edges inside hybridEdges
-                    if(!isEqual(edges[i],treej) && !isEqual(edges[i],newedge))
+                    if(!isEqual(edges[i],treei) && !isEqual(edges[i],newedge))
                         descendants = [edges[i]]
                         cycleNum = [node.inCycle]
-                        getDescendants!(getOtherNode(edges[i],otherj),edges[i],descendants,cycleNum)
-                        !isempty(descendants) || error("descendants is empty for node $(otherj.number)")
-                        DEBUG && println("for node $(otherj.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
+                        getDescendants!(getOtherNode(edges[i],otheri),edges[i],descendants,cycleNum)
+                        !isempty(descendants) || error("descendants is empty for node $(otheri.number)")
+                        DEBUG && println("for node $(otheri.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
                         partition = Partition(unique(cycleNum),descendants) # create new partition
                         push!(net.partition, partition)
                         for(e in descendants) #delete edges from partition with tree originally
-                            ind = getIndex(e,net.partition[indexPtreej].edges)
-                            deleteat!(net.partition[indexPtreej].edges,ind)
+                            ind = getIndex(e,net.partition[indexPtreei].edges)
+                            deleteat!(net.partition[indexPtreei].edges,ind)
                         end
-                        net.partition[indexPtreej].cycle = union([node.inCycle],symdiff(net.partition[indexPtreej].cycle,cycleNum))
+                        net.partition[indexPtreei].cycle = union([node.inCycle],symdiff(net.partition[indexPtreei].cycle,cycleNum))
                         break
                     end
                 end
