@@ -196,6 +196,8 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
             DEBUG && println("MOVE: change direction around hybrid node $(node.number) SUCCESSFUL")
             return true
         else
+            DEBUG && println("MOVE: change direction around hybrid node $(node.number) FAILED because of containRoot")
+            CHECKNET && checkNet(net)
             node.isBadDiamondI || undoGammaz!(node,net)
             undoContainRoot!(edgesroot)
             update = changeDirection!(node,net,minor);
@@ -206,10 +208,12 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
             end
             flag2 || error("when undoing change direction, we should be able to update gammaz again")
             undoContainRoot!(edgesRoot);
-            DEBUG && println("MOVE: change direction around hybrid node $(node.number) FAILED because of containRoot")
+            CHECKNET && checkNet(net)
             return false
         end
     else
+        DEBUG && println("MOVE: change direction around hybrid node $(node.number) FAILED because of gammaz")
+        CHECKNET && checkNet(net)
         node.isBadDiamondI || undoGammaz!(node,net)
         update = changeDirection!(node,net,minor);
         if(node.k == 4 && update)
@@ -219,7 +223,7 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
         end
         flag2 || error("when undoing change direction, we should be able to update gammaz again")
         undoContainRoot!(edgesRoot); #redo containRoot as before
-        DEBUG && println("MOVE: change direction around hybrid node $(node.number) FAILED because of gammaz")
+        CHECKNET && checkNet(net)
         return false
     end
 end
@@ -443,7 +447,7 @@ function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, t
                 push!(net.partition[indexPtreei].edges,newedge)
             end
         end
-    else
+    else #yes undo
         if(newedge.inCycle == node.number)
             # -- update partition
             indexPtreei = whichPartition(net,treei,node.number)
@@ -609,12 +613,14 @@ function moveOriginUpdate!(net::HybridNetwork, node::Node, othermin::Node, newed
         return true,flag2
     else
         DEBUG && println("MOVE: move Origin for hybrid node $(node.number) FAILED")
+        CHECKNET && checkNet(net)
         isempty(edgesGammaz) || undoistIdentifiable!(edgesGammaz)
         undoGammaz!(node,net);
         DEBUG && println("MOVE: undoing move origin for conflict: gammaz")
         moveOrigin!(net,node,othermin,tree1,tree2,newedge,true,newedgeincycle);
         flag2, edgesGammaz = updateGammaz!(net,node)
         (flag2 || node.isVeryBadTriangle || node.isExtBadTriangle) || error("updating gammaz for undone moveOrigin, should not be any problem")
+        CHECKNET && checkNet(net)
         return false, flag2
     end
 end
@@ -632,9 +638,10 @@ function moveOriginUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
     success = false
     while(!isempty(neighbor) && !success)
         success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor,node)
-        in(newedge,net.edge) || error("newedge $(newedge.number) is not in net.edge")
-        #println("newedge is $(newedge.number), success1 is $(success1)")
+        !isa(newedge,Nothing) || return false
         success1 || return false
+        #println("newedge is $(newedge.number), success1 is $(success1)")
+        in(newedge,net.edge) || error("newedge $(newedge.number) is not in net.edge")
         success,flag2 = moveOriginUpdate!(net, node, othermin, newedge)
         #println("after update, success is $(success)")
         if(!success)
@@ -972,6 +979,12 @@ function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, major
         return true,flag2
     else
         DEBUG && println("MOVE: move Target for hybrid node $(node.number) FAILED")
+        DEBUG && printEverything(net)
+        if(CHECKNET)
+            flag3,edgesroot = updateContainRoot!(net,node) #only to be sure there are no errors in the modified net
+            checkNet(net)
+            undoContainRoot!(edgesroot)
+        end
         isempty(edgesGammaz) || undoistIdentifiable!(edgesGammaz)
         undoGammaz!(node,net);
         DEBUG && println("MOVE: undoing move target for conflict: updategammaz")
@@ -979,6 +992,7 @@ function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, major
         flag2, edgesGammaz = updateGammaz!(net,node)
         undoContainRoot!(edgesRoot);
         (flag2 || node.isVeryBadTriangle || node.isExtBadTriangle) || error("updating gammaz/root for undone moveTarget, should not be any problem, but flag2 $(flag2) and node not very/ext bad triangle")
+        CHECKNET && checkNet(net)
         return false, flag2
     end
 end
@@ -997,9 +1011,9 @@ function moveTargetUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
     success = false
     while(!isempty(neighbor) && !success)
         success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor,node);
-        in(newedge,net.edge) || error("newedge $(newedge.number) not in net.edge")
-        #println("newedge is $(newedge.number), success1 is $(success1)")
         success1 || return false
+        #println("newedge is $(newedge.number), success1 is $(success1)")
+        in(newedge,net.edge) || error("newedge $(newedge.number) not in net.edge")
         success,flag2 = moveTargetUpdate!(net, node, othermin, majoredge,newedge)
         #println("after update, success is $(success)")
         if(!success)

@@ -259,7 +259,7 @@ end
 # using BOBYQA from NLopt package
 function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool, ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64)
     (ftolRel > 0 && ftolAbs > 0 && xtolAbs > 0 && xtolRel > 0) || error("tolerances have to be positive, ftol (rel,abs), xtol (rel,abs): $([ftolRel, ftolAbs, xtolRel, xtolAbs])")
-    verbose && println("OPTBL: begin branch lengths and gammas optimization, ftolAbs $(ftolAbs), ftolRel $(ftolRel), xtolAbs $(xtolAbs), xtolRel $(xtolRel)")
+    (DEBUG || verbose) && println("OPTBL: begin branch lengths and gammas optimization, ftolAbs $(ftolAbs), ftolRel $(ftolRel), xtolAbs $(xtolAbs), xtolRel $(xtolRel)")
     ht = parameters!(net); # branches/gammas to optimize: net.ht, net.numht
     extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
     k = length(net.ht)
@@ -305,9 +305,9 @@ function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool, ftolRel::Float64, 
     ##     end
     ##     NLopt.inequality_constraint!(opt,inequalityGammaz)
     ## end
-    verbose && println("OPTBL: starting point $(ht)")
+    (DEBUG || verbose) && println("OPTBL: starting point $(ht)")
     fmin, xmin, ret = NLopt.optimize(opt,ht)
-    verbose && println("got $(round(fmin,5)) at $(round(xmin,5)) after $(count) iterations (returned $(ret))")
+    (DEBUG || verbose) && println("got $(round(fmin,5)) at $(round(xmin,5)) after $(count) iterations (returned $(ret))")
     updateParameters!(net,xmin)
     net.loglik = fmin
     #return fmin,xmin
@@ -337,7 +337,7 @@ function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::In
         else
             if(!flag2) #gammaz failed
                 DEBUG && println("MOVE: added hybrid has problem with gammaz (not identifiable bad triangle)")
-                flag3, edgesRoot = updateContainRoot!(net,hybrid);
+                #flag3, edgesRoot = updateContainRoot!(net,hybrid); #done in addHybUpdate already
                 if(flag3)
                     DEBUG && println("MOVE: we will move origin to fix the gammaz situation")
                     success = moveOriginUpdateRepeat!(net,hybrid,true)
