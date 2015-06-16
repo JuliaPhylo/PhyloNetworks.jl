@@ -2,6 +2,9 @@
 # originally functions.jl
 # Claudia March 2015
 
+# fixit: in moveOrigin/moveTarget when updating partitions with
+# splice, looking for same partition twice (before and after splice),
+# maybe there is a more efficient way to handle this
 
 # -------------------------- change direction of minor hybrid edge ---------------------------------
 
@@ -422,6 +425,7 @@ function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, t
                     if(!isEqual(edges[i],treej) && !isEqual(edges[i],newedge))
                         indexP = whichPartition(net,edges[i],node.number)
                         part = splice!(net.partition,indexP)
+                        indexPtreei = whichPartition(net,treei,node.number)
                         for(e in part.edges)
                             push!(net.partition[indexPtreei].edges,e)
                         end
@@ -460,6 +464,7 @@ function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, t
                 if(!isEqual(edges[i],treej) && !isEqual(edges[i],newedge))
                     indexP = whichPartition(net,edges[i],node.number)
                     part = splice!(net.partition,indexP)
+                    indexPtreei = whichPartition(net,treei,node.number)
                     for(e in part.edges)
                         push!(net.partition[indexPtreei].edges,e)
                     end
@@ -853,6 +858,7 @@ function moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, new
                     if(!isEqual(edges[i],major) && !isEqual(edges[i],newedge))
                         indexP = whichPartition(net,edges[i],node.number)
                         part = splice!(net.partition,indexP)
+                        indexPtree = whichPartition(net,tree,node.number)
                         for(e in part.edges)
                             push!(net.partition[indexPtree].edges,e)
                         end
