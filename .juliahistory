@@ -93,3 +93,26 @@ include("visualization/CF_to_LG.jl")
 include("visualization/CF_to_LG.jl")
 g1
 CF_to_Light_Graph(g1)
+using Base.Graphics
+using Cairo
+Pkg.add("Cairo")
+Pkg.update("Cairo")
+Pkg.Update("Cairo")
+Pkg.update()
+Pkg.add("TikzPictures")
+using TikzPictures
+Pkg.add("Tk")
+using Tk
+Pkg.add("GR")
+using GR
+Pkg.add("GR")
+using GR
+Pkg.add("GR")
+using GR
+using Cairo
+using Tk
+win = Toplevel("Test", 400, 200)
+c = Canvas(win)
+pack(c, expand=true, fill="both")
+ctx = getgc(c)
+function set_coords(ctx::GraphicsContext, x, y, w, h, l, r, t, b)
