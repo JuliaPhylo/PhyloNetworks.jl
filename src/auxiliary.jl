@@ -888,11 +888,11 @@ function checkNet(net::HybridNetwork)
                 end
             end
             i == 1 || error("strange node $(n.number) incycle $(h.number) but with $(i) edges not in cycle, should be only one")
-            nodesRoot = identifyContainRoot(net,h)
-            for(node in nodesRoot)
-                if(node.containRoot)
+            edgesRoot = identifyContainRoot(net,h)
+            for(edge in edgesRoot)
+                if(edge.containRoot)
                     DEBUG && printEverything(net)
-                    error("node $(node.number) should not contain root")
+                    error("edge $(edge.number) should not contain root")
                 end
             end
         end

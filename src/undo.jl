@@ -17,13 +17,15 @@ function undoInCycle!(edges::Array{Edge,1},nodes::Array{Node,1})
     end
 end
 
-# function to undo updateContainRoot which returns an array
-# of edges changed
-function undoContainRoot!(edges::Array{Edge,1})
+# function to undo updateContainRoot (which returns an array
+# of edges changed) and gives value bool, by default true
+function undoContainRoot!(edges::Array{Edge,1}, bool::Bool)
     for(e in edges)
-        !e.containRoot ? e.containRoot = true : e.containRoot = false;
+        e.containRoot = bool
     end
 end
+
+undoContainRoot!(edges::Vector{Edge}) = undoContainRoot!(edges,true)
 
 # function to undo updateGammaz which returns an array
 # of edges changed

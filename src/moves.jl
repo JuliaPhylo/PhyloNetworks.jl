@@ -207,7 +207,7 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
                 flag2 = true
             end
             flag2 || error("when undoing change direction, we should be able to update gammaz again")
-            undoContainRoot!(edgesRoot);
+            undoContainRoot!(edgesRoot,false);
             CHECKNET && checkNet(net)
             return false
         end
@@ -222,7 +222,7 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
             flag2 = true
         end
         flag2 || error("when undoing change direction, we should be able to update gammaz again")
-        undoContainRoot!(edgesRoot); #redo containRoot as before
+        undoContainRoot!(edgesRoot,false); #redo containRoot as before
         CHECKNET && checkNet(net)
         return false
     end
@@ -969,6 +969,7 @@ function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, major
     undoGammaz!(node,net);
     edgesRoot = identifyContainRoot(net,node);
     undoContainRoot!(edgesRoot);
+    DEBUG && println("undoContainRoot for edges $([e.number for e in edgesRoot])")
     newedgeincycle = moveTarget!(net,node,majoredge,tree,newedge)
     flag2, edgesGammaz = updateGammaz!(net,node)
     if(flag2)
@@ -990,7 +991,8 @@ function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, major
         DEBUG && println("MOVE: undoing move target for conflict: updategammaz")
         moveTarget!(net,node,majoredge,tree,newedge,true,newedgeincycle);
         flag2, edgesGammaz = updateGammaz!(net,node)
-        undoContainRoot!(edgesRoot);
+        undoContainRoot!(edgesRoot,false);
+        DEBUG && println("undoContainRoot for edges $([e.number for e in edgesRoot])")
         (flag2 || node.isVeryBadTriangle || node.isExtBadTriangle) || error("updating gammaz/root for undone moveTarget, should not be any problem, but flag2 $(flag2) and node not very/ext bad triangle")
         CHECKNET && checkNet(net)
         return false, flag2
