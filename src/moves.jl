@@ -424,12 +424,11 @@ function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, t
                 for(i in 1:3) #check of 3 edges inside hybridEdges
                     if(!isEqual(edges[i],treej) && !isEqual(edges[i],newedge))
                         indexP = whichPartition(net,edges[i],node.number)
-                        part = splice!(net.partition,indexP)
-                        indexPtreei = whichPartition(net,treei,node.number)
-                        for(e in part.edges)
+                        for(e in net.partition[indexP].edges)
                             push!(net.partition[indexPtreei].edges,e)
                         end
-                        net.partition[indexPtreei].cycle = union(net.partition[indexPtreei].cycle,part.cycle)
+                        net.partition[indexPtreei].cycle = union(net.partition[indexPtreei].cycle,net.partition[indexP].cycle)
+                        part = splice!(net.partition,indexP) #splice at the end to not change indexPtreei
                         break
                     end
                 end
@@ -463,12 +462,11 @@ function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, t
             for(i in 1:3) #check of 3 edges inside hybridEdges
                 if(!isEqual(edges[i],treej) && !isEqual(edges[i],newedge))
                     indexP = whichPartition(net,edges[i],node.number)
-                    part = splice!(net.partition,indexP)
-                    indexPtreei = whichPartition(net,treei,node.number)
-                    for(e in part.edges)
+                    for(e in net.partition[indexP].edges)
                         push!(net.partition[indexPtreei].edges,e)
                     end
-                    net.partition[indexPtreei].cycle = union(net.partition[indexPtreei].cycle,part.cycle)
+                    net.partition[indexPtreei].cycle = union(net.partition[indexPtreei].cycle,net.partition[indexP].cycle)
+                    part = splice!(net.partition,indexP) #splice at the end
                     break
                 end
             end
@@ -857,12 +855,11 @@ function moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, new
                 for(i in 1:3) #check of 3 edges inside hybridEdges
                     if(!isEqual(edges[i],major) && !isEqual(edges[i],newedge))
                         indexP = whichPartition(net,edges[i],node.number)
-                        part = splice!(net.partition,indexP)
-                        indexPtree = whichPartition(net,tree,node.number)
-                        for(e in part.edges)
+                        for(e in net.partition[indexP].edges)
                             push!(net.partition[indexPtree].edges,e)
                         end
-                        net.partition[indexPtree].cycle = union(net.partition[indexPtree].cycle,part.cycle)
+                        net.partition[indexPtree].cycle = union(net.partition[indexPtree].cycle,net.partition[indexP].cycle)
+                        part = splice!(net.partition,indexP) #splice at the end
                         break
                     end
                 end
@@ -898,11 +895,11 @@ function moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, new
             for(i in 1:3) #check of 3 edges inside hybridEdges
                 if(!isEqual(edges[i],tree) && !isEqual(edges[i],newedge))
                     indexP = whichPartition(net,edges[i],node.number)
-                    part = splice!(net.partition,indexP)
-                    for(e in part.edges)
+                    for(e in net.partition[indexP].edges)
                         push!(net.partition[indexPmajor].edges,e)
                     end
-                    net.partition[indexPmajor].cycle = union(net.partition[indexPmajor].cycle,part.cycle)
+                    net.partition[indexPmajor].cycle = union(net.partition[indexPmajor].cycle,net.partition[indexP].cycle)
+                    part = splice!(net.partition,indexP) #splice at the end
                     break
                 end
             end
