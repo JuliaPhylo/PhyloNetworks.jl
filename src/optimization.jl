@@ -521,7 +521,7 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF,closeN ::Bool, origin::Bool
     end
     !successchange || println("afterOptBL SUCCESSFUL change, need to run again to see if new topology is valid")
     if(successchange)
-        DEBUG && printEverything(net)
+        DEBUG && printEverything(currT)
         CHECKNET && checkNet(currT)
         optBL!(currT,d,verbose)
         flagh,flagt,flaghz = isValid(currT)
