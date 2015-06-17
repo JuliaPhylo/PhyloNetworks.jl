@@ -225,9 +225,9 @@ function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool,
             flag2, edgesGammaz = updateGammaz!(net,hybrid,allow);
             if(flag2)
                 flag3, edgesRoot = updateContainRoot!(net,hybrid);
+                 updatePartition!(net,nodesInCycle)
                 if(flag3)
                     parameters!(net)
-                    updatePartition!(net,nodesInCycle)
                     return true, hybrid, flag, nocycle, flag2, flag3
                 else
                     #undoContainRoot!(edgesRoot);
@@ -245,6 +245,7 @@ function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool,
                 return false, hybrid, flag, nocycle, flag2, flag3
             end
         else
+            # no need to do updatePartition in this case, because we only call deleteHybrid after
             undoInCycle!(edgesInCycle, nodesInCycle);
             return false, hybrid, flag, nocycle, true, true
         end
