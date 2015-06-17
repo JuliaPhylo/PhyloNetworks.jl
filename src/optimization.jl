@@ -1228,13 +1228,13 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             write(logfile,"\n BEGIN optTopLevel for run $(i), seed $(seed) and hmax $(hmax)")
             #best = optTop!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,true,logfile)
             best = optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,true)
-            write(logfile,"\n FINISHED optTopLevel!, typeof best $(typeof(best))")
+            write(logfile,"\n FINISHED optTopLevel!, typeof best $(typeof(best)), loglik of best $(best.loglik)")
             flush(logfile)
             push!(bestnet, deepcopy(best))
             if(best.loglik < maxNet.loglik)
                 maxNet = deepcopy(best)
             end
-            println("typeof maxNet $(typeof(maxNet))")
+            println("typeof maxNet $(typeof(maxNet)), loglik of maxNet $(maxNet.loglik)")
         catch(err)
             write(logfile,"\n ERROR found on optTopLevel for run $(i) seed $(seed): $(err)")
             flush(logfile)
@@ -1247,6 +1247,8 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     end
 
     write(errfile, "\n Total errors: $(length(failed)) in seeds $(failed)")
+    write(logfile,"MaxNet is $(writeTopology(maxNet,true)) with loglik $(maxNet.loglik)")
+    write(logfile,"\n$(strftime(time()))")
     close(errfile)
     close(logfile)
 
