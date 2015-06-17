@@ -874,8 +874,8 @@ function checkNet(net::HybridNetwork)
         for(n in nodes)
             n.inCycle == h.number || error("node $(n.number) is in cycle of hybrid node $(h.number) but its inCycle attribute is $(n.inCycle)")
             e1,e2,e3 = hybridEdges(n)
+            i = 0
             for(e in [e1,e2,e3])
-                i = 0
                 if(e.inCycle == -1)
                     i += 1
                     desc = [e]
