@@ -116,3 +116,15 @@ c = Canvas(win)
 pack(c, expand=true, fill="both")
 ctx = getgc(c)
 function set_coords(ctx::GraphicsContext, x, y, w, h, l, r, t, b)
+include("types.jl")
+include("functions.jl")
+include("scratch_work/Misc/test_graphs.jl")
+g3 = create_g3()
+include("scratch_work/Misc/test_graphs.jl")
+g3 = create_g3()
+g3.Node
+g3.node
+g3.numNodes
+g3.edge
+for i in g3.edge println("1")
+for i in g3.edge println("1")

@@ -1,0 +1,17 @@
+graph {
+    node [shape = point];
+    rank=max a;
+
+    subgraph {
+              e, g, i, h, d;
+    }
+
+		a -- b;
+		a -- c;
+		b -- d [color=blue];
+		b -- e [color=green];
+		c -- f;
+		c -- g;
+    f -- h;
+    f -- i;
+	}

@@ -42,3 +42,7 @@ Thumbs.db
 *.svg*
 
 .juliahistory
+
+testfile.dot
+testdraw.dot
+
