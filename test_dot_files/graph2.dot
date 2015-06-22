@@ -1,5 +1,5 @@
 graph {
-    node [shape = point];
+    node [shape = circle];
     rank=max a;
 
     subgraph {

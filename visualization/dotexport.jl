@@ -7,7 +7,7 @@ function dotExport(file)
   println("Calling layout")
   GraphViz.layout!(dot,engine="dot")
   println("Starting file write.")
-  open("scratchimage.svg","w") do f
+  open("visualization/drawimage.svg","w") do f
     GraphViz.writemime(f, MIME"image/svg+xml"(),dot)
   end #do
   print("File saved")

@@ -128,3 +128,11 @@ g3.numNodes
 g3.edge
 for i in g3.edge println("1")
 for i in g3.edge println("1")
+include("startupscript.jl")
+include("visualization/draw.jl")
+include("scratch_work/Misc/test_graphs.jl")
+g3 = create_g3()
+g3.number
+g3.root
+drawCF(g3)
+drawCF(g3,drawgraph"

@@ -1,16 +1,10 @@
-#Function that will write to .dot file
-
-#Function that will create .dot file
+#drawCF takes a CF network object and converts it into .dot file, which is then converted into a .svg image file
 
 function drawCF(graph)
-  dotIo = open("testdraw.dot","w+")
-  nodes = Int64[]
-  edges = Int64[]
-  leafNodes = Int64[]
-  hybridNodes = Int64[]
-  hybrideEdges = Int64[]
+  dotIo = open("visualization/drawCF.dot","w+")
 
   #Creates a list of all node numbers that are leaves... will be used for ranking of nodes
+  leafNodes = Int64[]
   for i in graph.node;
     num = i.number
     if i.leaf
@@ -20,28 +14,29 @@ function drawCF(graph)
 
   netRoot = graph.root;
 
+  #********************************************************************************************************************
+
   #Writes initial preample lines for .dot file
   println("Creating preamble statement")
   write(dotIo,"Graph { \n")
-  write(dotIo,"    node [shape = point] \n")
+  write(dotIo,"    node [shape = circle] \n")
 
-  #Places all leaf nodes in a 'subgraph' which ensures they are plotted on the same level
-  write(dotIo,"    rank=max $netRoot")    #Places the tree root at the top of the plot
-  write(dotIo,"\n")
-  write(dotIo,"    subgraph { \n")
-  write(dotIo,"        ")
+  #Places root node at top of tree
+  write(dotIo, "    rank=max $netRoot \n
+                    subgraph  {  \n
+                                        ")
+  #Groups leaf nodes so they are all placed at bottom of tree
   leafArraySize = countnz(leafNodes)
   for i in leafNodes
     if i != leafNodes[leafArraySize]
-      write(dotIo,"$i")
-      write(dotIo,", ")
+      write(dotIo,"$i , ")
     else
       write(dotIo,"$i")
     end
   end
-  write(dotIo,"; \n")
-  write(dotIo,"} \n")
+  write(dotIo,"; \n } \n")
 
+  #********************************************************************************************************************
 
   println("Preamble written successfully")
 
@@ -53,19 +48,27 @@ function drawCF(graph)
     node1Num = node1.number
     node2 = i.node[2];
     node2Num = node2.number
-    write(dotIo,"    $node1Num")
-    write(dotIo," -- ")
-    write(dotIo,"$node2Num; \n")
+
+    if node2.hybrid
+      write(dotIo,"     $node1Num -- $node2Num [color=blue]; \n")
+    else
+      write(dotIo,"     $node1Num -- $node2Num ; \n")
+    end
   end
 
   println("All nodes and edges drawn")
+
+  #********************************************************************************************************************
 
   #Writes closing lines to .dot file and closes the IO stream
   write(dotIo,"}")
   close(dotIo)
   println("Final lines written and IO stream has been closed")
 
+  #********************************************************************************************************************
+
   #Converts .dot file into .svg image
   print("Exporting .dot file as .svg")
-  dotExport("testdraw.dot")
+  dotExport("visualization/drawCF.dot")
+
 end
