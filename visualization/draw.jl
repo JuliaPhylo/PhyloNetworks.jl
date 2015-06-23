@@ -19,11 +19,12 @@ function drawCF(graph)
   #Writes initial preample lines for .dot file
   println("Creating preamble statement")
   write(dotIo,"Graph { \n")
-  write(dotIo,"    node [shape = circle] \n")
+  write(dotIo,"    ratio=\"fill\"; \n")
+  write(dotIo,"    size=\"8,5\"; \n")
+  write(dotIo,"    node [shape = point] \n")
 
   #Places root node at top of tree
-  write(dotIo, "    rank=max $netRoot \n
-                    subgraph  {  \n
+  write(dotIo, "    rank=max $netRoot \n     subgraph    {
                                         ")
   #Groups leaf nodes so they are all placed at bottom of tree
   leafArraySize = countnz(leafNodes)
@@ -34,7 +35,13 @@ function drawCF(graph)
       write(dotIo,"$i")
     end
   end
-  write(dotIo,"; \n } \n")
+
+  write(dotIo," } \n")
+
+  for i in leafNodes
+    write(dotIo,"    $i [xlabel=$i] \n")
+  end
+  write(dotIo," \n")
 
   #********************************************************************************************************************
 
@@ -50,9 +57,9 @@ function drawCF(graph)
     node2Num = node2.number
 
     if node2.hybrid
-      write(dotIo,"     $node1Num -- $node2Num [color=blue]; \n")
+      write(dotIo,"     $node1Num -- $node2Num [color=blue] [penwidth=4]; \n")
     else
-      write(dotIo,"     $node1Num -- $node2Num ; \n")
+      write(dotIo,"     $node1Num -- $node2Num [penwidth=4]; \n")
     end
   end
 

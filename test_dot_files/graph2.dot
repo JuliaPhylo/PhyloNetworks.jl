@@ -1,9 +1,9 @@
 graph {
-    node [shape = circle];
+    node [shape = point];
     rank=max a;
 
     subgraph {
-              e, g, i, h, d;
+              e, g, i, h, d [xlabel=true];
     }
 
 		a -- b;
