@@ -218,3 +218,15 @@ drawCF(g3)
 include("visualization/draw.jl")
 drawCF(g3)
 quit()
+include("startupscript.jl")
+g = create_g3();
+(g.node)[1]
+n1 = (g.node)[1]
+n2 = (g.node)[2]
+n2.edge
+true = true
+true
+true;
+a = true
+if a = true pass
+if a == true pass

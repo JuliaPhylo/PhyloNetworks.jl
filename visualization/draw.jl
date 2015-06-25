@@ -1,3 +1,4 @@
+#John Spaw
 #drawCF takes a CF network object and converts it into .dot file, which is then converted into a .svg image file
 
 function drawCF(graph)

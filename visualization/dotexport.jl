@@ -1,3 +1,6 @@
+#John Spaw
+#Contains function that will convert a .dot file into a .svg image
+
 using  GraphViz
 #Converts a .dot file
 function dotExport(file)
