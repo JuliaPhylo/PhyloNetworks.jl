@@ -876,14 +876,18 @@ function checkNet(net::HybridNetwork)
             e1,e2,e3 = hybridEdges(n)
             i = 0
             for(e in [e1,e2,e3])
-                if(e.inCycle == -1)
-                    i += 1
-                    desc = [e]
-                    cycleNum = [h.number]
-                    getDescendants!(getOtherNode(e,n),e,desc,cycleNum)
-                    if(!isPartitionInNet(net,desc,cycleNum))
-                        printPartitions(net)
-                        error("partition with cycle $(cycleNum) and edges $([e.number for e in desc]) not found in net.partition")
+                if(isa(e,Nothing) && h.k != 2)
+                    error("edge found that is Nothing, and hybrid node $(h.number) k is $(h.k). edge as nothing can only happen when k=2")
+                elseif(!isa(e,Nothing))
+                    if(e.inCycle == -1)
+                        i += 1
+                        desc = [e]
+                        cycleNum = [h.number]
+                        getDescendants!(getOtherNode(e,n),e,desc,cycleNum)
+                        if(!isPartitionInNet(net,desc,cycleNum))
+                            printPartitions(net)
+                            error("partition with cycle $(cycleNum) and edges $([e.number for e in desc]) not found in net.partition")
+                        end
                     end
                 end
             end
