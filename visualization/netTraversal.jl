@@ -5,9 +5,11 @@
 #This function will start at the root of a network and traverse each edge a single time
 #Will eventually be used to append edges to a .dot file while being able to keep track of which node is a parent of a given edge
 
-function traverseEdges(net, node, parentEdge=false)
+function traverseEdges(net, node, parentEdge=false::any)
   nNum = node.number
   println("On node $nNum")
+
+  #Case 1: Node is the root
   if node.number == net.root
     println("Node is the root")
     for edge in node.edge
@@ -25,10 +27,14 @@ function traverseEdges(net, node, parentEdge=false)
       print()
       end #if else
     end #for
-  end #if
+  end #
+
+  #Case 2: Node is a leaf
   if node.leaf
     println("Node is a leaf")
   end
+
+  #Case 3: Node is internal
   if (node.number != net.root) && ~(node.leaf)
     for edge in node.edge
       eNum = edge.number

@@ -91,8 +91,10 @@ function create_g3()
   e2 = Edge(2,1.0)
   e3 = Edge(3,1.0)
   h4 = Edge(4,1.0)
+  h4.gamma = 0.75
   h5 = Edge(5,1.0)
   h5.isMajor = false
+  h5.gamma = 0.25
   e6 = Edge(6,1.0)
   e7 = Edge(7,1.0)
   e8 = Edge(8,1.0)
