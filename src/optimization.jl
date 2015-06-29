@@ -354,6 +354,8 @@ function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::In
         end
         if(!success)
             DEBUG && println("MOVE: could not fix the added hybrid by any means, we will delete it now")
+            CHECKNET && checkNet(net)
+            DEBUG && printEverything(net)
             deleteHybridizationUpdate!(net,hybrid)
             CHECKNET && checkNet(net)
             DEBUG && printEverything(net)
