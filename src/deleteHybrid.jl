@@ -90,17 +90,17 @@ end
 function traverseIdentifyRoot(node::Node, edge::Edge, edges_changed::Array{Edge,1})
     if(!node.leaf && !node.hybrid)
         for(e in node.edge)
-            if(!isEqual(edge,e) && e.isMajor)
+            if(!isEqual(edge,e) && e.isMajor && !e.hybrid)
                 other = getOtherNode(e,node);
                 push!(edges_changed, e);
                 if(!other.hybrid)
-                    if(!other.hasHybEdge)
+                    #if(!other.hasHybEdge)
                         traverseIdentifyRoot(other,e, edges_changed);
-                    else
-                        if(hybridEdges(other)[1].isMajor)
-                            traverseIdentifyRoot(other,e, edges_changed);
-                        end
-                    end
+                    #else
+                    #    if(hybridEdges(other)[1].isMajor)
+                    #        traverseIdentifyRoot(other,e, edges_changed);
+                    #    end
+                    #end
                 end
             end
         end
@@ -113,19 +113,16 @@ end
 # input: hybrid node (can come from searchHybridNode)
 # return array of edges affected by the hybrid node
 function identifyContainRoot(net::HybridNetwork, node::Node)
-    if(node.hybrid)
-        net.edges_changed = Edge[];
-        for (e in node.edge)
-            if(!e.hybrid)
-                other = getOtherNode(e,node);
-                push!(net.edges_changed,e);
-                traverseIdentifyRoot(other,e, net.edges_changed);
-            end
+    node.hybrid || error("node $(node.number) is not hybrid, cannot identify containRoot")
+    net.edges_changed = Edge[];
+    for (e in node.edge)
+        if(!e.hybrid)
+            other = getOtherNode(e,node);
+            push!(net.edges_changed,e);
+            traverseIdentifyRoot(other,e, net.edges_changed);
         end
-        return net.edges_changed
-    else
-        error("node is not hybrid")
     end
+    return net.edges_changed
 end
 
 # function to undo the effect of a hybridization
