@@ -318,55 +318,6 @@ optBL!(net::HybridNetwork, d::DataCF, verbose::Bool) = optBL!(net, d,verbose, fR
 optBL!(net::HybridNetwork, d::DataCF, ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64) = optBL!(net, d, false, ftolRel, ftolAbs, xtolRel, xtolAbs)
 
 
-# function that will add a hybridization with addHybridizationUpdate,
-# if success=false, it will try to move the hybridization before
-# declaring failure
-# blacklist used in afterOptBLAll
-function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::Int64)
-    DEBUG && println("MOVE: addHybridizationUpdateSmart")
-    success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
-    DEBUG && printEverything(net)
-    i = 0
-    if(!success)
-        while((nocycle || !flag) && i < N) #incycle failed
-            DEBUG && println("MOVE: added hybrid causes conflict with previous cycle, need to delete and add another")
-            deleteHybrid!(hybrid,net,true)
-            success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
-        end
-        if(nocycle || !flag)
-            DEBUG && println("MOVE: added hybridization $(i) times trying to avoid incycle conflicts, but failed")
-        else
-            if(!flag3) #containRoot failed
-                DEBUG && println("MOVE: added hybrid causes problems with containRoot, will change the direction to fix it")
-                success = changeDirectionUpdate!(net,hybrid) #change dir of minor
-            else
-                if(!flag2) #gammaz failed
-                    DEBUG && println("MOVE: added hybrid has problem with gammaz (not identifiable bad triangle)")
-                    if(flag3)
-                        DEBUG && println("MOVE: we will move origin to fix the gammaz situation")
-                        success = moveOriginUpdateRepeat!(net,hybrid,true)
-                    else
-                        DEBUG && println("MOVE: we will move target to fix the gammaz situation")
-                        success = moveTargetUpdateRepeat!(net,hybrid,true)
-                    end
-                end
-            end
-        end
-        if(!success)
-            DEBUG && println("MOVE: could not fix the added hybrid by any means, we will delete it now")
-            CHECKNET && checkNet(net)
-            DEBUG && printEverything(net)
-            deleteHybridizationUpdate!(net,hybrid)
-            CHECKNET && checkNet(net)
-            DEBUG && printEverything(net)
-        end
-    end
-    success && DEBUG && println("MOVE: added hybridization SUCCESSFUL: new hybrid $(hybrid.number)")
-    return success
-end
-
-addHybridizationUpdateSmart!(net::HybridNetwork, N::Int64) = addHybridizationUpdateSmart!(net, false,N)
-
 # function to delete a hybrid, and then add a new hybrid:
 # deleteHybridizationUpdate and addHybridizationUpdate,
 # closeN=true will try move origin/target, if false, will delete/add new hybrid

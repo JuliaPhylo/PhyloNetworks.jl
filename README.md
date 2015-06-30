@@ -28,6 +28,20 @@ it runs MrBayes (reference) and then BUCKy (reference), producing the
 table of estimated CF and its confidence intervals.
 
 
+### Installation of Julia
+
+here on how to install julia
+
+### Installation of the package
+
+#### PhyloNetworks
+
+here how to install PhyloNetworks along with a small example
+
+#### Visualization
+
+here John's readme file along with a small example
+
 
 Dissertation work on julia
 
