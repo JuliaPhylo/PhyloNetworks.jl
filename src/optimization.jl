@@ -325,6 +325,7 @@ optBL!(net::HybridNetwork, d::DataCF, ftolRel::Float64, ftolAbs::Float64, xtolRe
 function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::Int64)
     DEBUG && println("MOVE: addHybridizationUpdateSmart")
     success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
+    DEBUG && printEverything(net)
     i = 0
     if(!success)
         while((nocycle || !flag) && i < N) #incycle failed
