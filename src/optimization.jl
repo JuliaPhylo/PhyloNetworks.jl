@@ -336,6 +336,11 @@ function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::In
         if(nocycle || !flag)
             DEBUG && println("MOVE: added hybridization $(i) times trying to avoid incycle conflicts, but failed")
         else
+            if(!flag3) #containRoot failed
+                DEBUG && println("MOVE: added hybrid causes problems with containRoot, will change the direction to fix it")
+                success = changeDirectionUpdate!(net,hybrid) #change dir of minor
+            end
+        else
             if(!flag2) #gammaz failed
                 DEBUG && println("MOVE: added hybrid has problem with gammaz (not identifiable bad triangle)")
                 #flag3, edgesRoot = updateContainRoot!(net,hybrid); #done in addHybUpdate already
@@ -345,11 +350,6 @@ function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::In
                 else
                     DEBUG && println("MOVE: we will move target to fix the gammaz situation")
                     success = moveTargetUpdateRepeat!(net,hybrid,true)
-                end
-            else
-                if(!flag3) #containRoot failed
-                    DEBUG && println("MOVE: added hybrid causes problems with containRoot, will change the direction to fix it")
-                    success = changeDirectionUpdate!(net,hybrid) #change dir of minor
                 end
             end
         end
