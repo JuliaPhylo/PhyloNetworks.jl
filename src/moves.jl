@@ -176,7 +176,7 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
     node.hybrid || error("cannot change the direction of minor hybrid edge since node $(node.number) is not hybrid")
     undoGammaz!(node,net)
     edgesRoot = identifyContainRoot(net,node);
-    undoContainRoot!(edgesRoot);
+    #undoContainRoot!(edgesRoot); now inside updateContainRootChangeDir
     if(random)
         edges = hybridEdges(node)
         edges[1].hybrid || error("hybrid node $(node.number) has as major edge a tree edge $(edges[1].number)")
@@ -193,7 +193,8 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
         flag2 = true
     end
     if(flag2)
-        flag3,edgesroot = updateContainRoot!(net,node);
+#        flag3,edgesroot = updateContainRoot!(net,node); now in updateContainRootChangeDir
+        flag3,edgesroot,alreadyNoRoot = updateContainRootChangeDir!(net,node,edgesRoot)
         if(flag3)
             parameters!(net);
             DEBUG && println("MOVE: change direction around hybrid node $(node.number) SUCCESSFUL")
@@ -202,7 +203,7 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
             DEBUG && println("MOVE: change direction around hybrid node $(node.number) FAILED because of containRoot")
             CHECKNET && checkNet(net)
             node.isBadDiamondI || undoGammaz!(node,net)
-            undoContainRoot!(edgesroot)
+            alreadyNoRoot || undoContainRoot!(edgesroot) #only undo edgesroot if there were changed: alreadyNoRoot=true => no change
             update = changeDirection!(node,net,minor);
             if(node.k == 4 && update)
                 flag2, edgesgammaz = updateGammaz!(net,node)
@@ -210,7 +211,7 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
                 flag2 = true
             end
             flag2 || error("when undoing change direction, we should be able to update gammaz again")
-            undoContainRoot!(edgesRoot,false);
+            alreadyNoRoot || undoContainRoot!(edgesRoot,false);
             CHECKNET && checkNet(net)
             return false
         end
@@ -225,13 +226,42 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
             flag2 = true
         end
         flag2 || error("when undoing change direction, we should be able to update gammaz again")
-        undoContainRoot!(edgesRoot,false); #redo containRoot as before
+        #undoContainRoot!(edgesRoot,false); #redo containRoot as before NO NEED ANYMORE
         CHECKNET && checkNet(net)
         return false
     end
 end
 
 changeDirectionUpdate!(net::HybridNetwork,node::Node) = changeDirectionUpdate!(net,node, false)
+
+# function that will take care of the case when one cycle is above another cycle
+# edgesRoot come from identifyContainRoot before changeDirection
+# this function should be run after changeDirection
+# returns flag2, edgesroot, alreadyNoRoot
+function updateContainRootChangeDir!(net::HybridNetwork,node::Node,edgesRoot::Vector{Edges})
+    node.hybrid || error("cannot update contain root on node $(node.number) because it is not hybrid")
+    alreadyNoRoot = false #new descedants could not contain root from before
+    for(e in node.edge)
+        if(!e.hybrid)
+            other = getOtherNode(e,node)
+            for(e2 in other.edge)
+                if(!isEqual(e2,e))
+                    alreadyNoRoot = !e2.containRoot
+                    break
+                end
+            end
+            break
+        end
+    end
+    if(!alreadyNoRoot) #only update root if new descendats were not forbidden to carry root already
+        undoContainRoot!(edgesRoot);
+        flag3,edgesroot = updateContainRoot!(net,node);
+        return flag3,edgesroot,alreadyNoRoot
+    else
+        return true,[],alreadyNoRoot
+    end
+end
+
 
 # ------------------------- move origin of hybrid edge ---------------------------------
 
@@ -971,13 +1001,13 @@ function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, major
     major,minor,tree = hybridEdges(node)
     undoGammaz!(node,net);
     edgesRoot = identifyContainRoot(net,node);
-    undoContainRoot!(edgesRoot);
-    DEBUG && println("undoContainRoot for edges $([e.number for e in edgesRoot])")
+    #undoContainRoot!(edgesRoot); now in updateContainRootChangeDir
+    #DEBUG && println("undoContainRoot for edges $([e.number for e in edgesRoot])")
     newedgeincycle = moveTarget!(net,node,majoredge,tree,newedge)
     flag2, edgesGammaz = updateGammaz!(net,node)
     if(flag2)
-        flag3,edgesroot = updateContainRoot!(net,node)
-        #flag3 || error("should not fail contain root when moving target")
+#        flag3,edgesroot = updateContainRoot!(net,node) now in updateContainRootChangeDir
+        flag3,edgesroot,alreadyNoRoot = updateContainRootChangeDir!(net,node,edgesRoot) #warn:move target cannot have flag3=false (I think)
         parameters!(net);
         DEBUG && println("MOVE: move Target for hybrid node $(node.number) SUCCESSFUL")
         return true,flag2
@@ -985,17 +1015,17 @@ function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, major
         DEBUG && println("MOVE: move Target for hybrid node $(node.number) FAILED")
         DEBUG && printEverything(net)
         if(CHECKNET)
-            flag3,edgesroot = updateContainRoot!(net,node) #only to be sure there are no errors in the modified net
+            flag3,edgesroot,alreadyNoRoot = updateContainRootChangeDir!(net,node,edgesRoot) #only to be sure there are no errors in the modified net
             checkNet(net)
-            undoContainRoot!(edgesroot)
+            alreadyNoRoot || undoContainRoot!(edgesroot) #only undo edgesroot if there were changed: alreadyNoRoot=true => no change
+            alreadyNoRoot || undoContainRoot!(edgesRoot,false);
         end
         isempty(edgesGammaz) || undoistIdentifiable!(edgesGammaz)
         undoGammaz!(node,net);
         DEBUG && println("MOVE: undoing move target for conflict: updategammaz")
         moveTarget!(net,node,majoredge,tree,newedge,true,newedgeincycle);
         flag2, edgesGammaz = updateGammaz!(net,node)
-        undoContainRoot!(edgesRoot,false);
-        DEBUG && println("undoContainRoot for edges $([e.number for e in edgesRoot])")
+        #DEBUG && println("undoContainRoot for edges $([e.number for e in edgesRoot])")
         (flag2 || node.isVeryBadTriangle || node.isExtBadTriangle) || error("updating gammaz/root for undone moveTarget, should not be any problem, but flag2 $(flag2) and node not very/ext bad triangle")
         CHECKNET && checkNet(net)
         return false, flag2
