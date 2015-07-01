@@ -84,6 +84,10 @@ function create_g2()
 	return g2
 end
 
+#######################################################################
+#Medium Network with 8 nodes, 7 edges, 2 hybrid edges, 1 hybrid node
+#######################################################################
+
 function create_g3()
 
   #Edge creation

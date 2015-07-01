@@ -230,3 +230,11 @@ true;
 a = true
 if a = true pass
 if a == true pass
+include("startupscript.jl")
+g3 = create_g3()
+include("startupscript.jl")
+g3 = create_g3();
+drawCF(g3)
+drawCF(g3, mainTree = true, imageName = "treeImage")
+include(
+5

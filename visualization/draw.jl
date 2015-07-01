@@ -3,6 +3,7 @@
 
 function drawCF(graph::Network; gammaThreshold=0.5::FloatingPoint, mainTree=false::Bool,imageName="netImage")
 
+  #IO stream for writing to .dot file
   dotIo = open("visualization/drawCF.dot","w+")
 
   #Creates a list of all node numbers that are leaves... will be used for ranking of nodes later on
@@ -14,25 +15,25 @@ function drawCF(graph::Network; gammaThreshold=0.5::FloatingPoint, mainTree=fals
     end
   end
 
+  #Assigns the integer for the network root
   netRoot = graph.root;
 
   #********************************************************************************************************************
 
   #Writes initial preample lines for .dot file
-
   println("Creating preamble statement")
   write(dotIo,"Graph { \n")
-  write(dotIo,"labelloc=b \n")                  #Ensures that labels do not overlap each other
-  write(dotIo,"    ratio=\"fill\"; \n")         #Fits graph to the full image size
-  write(dotIo,"    size=\"8,5\"; \n")           #Changes the size of the entire graph
-  write(dotIo,"    node [shape = point] \n")    #Sets the shape of the nodes
-
+  write(dotIo,"labelloc=b \n")                                  #Ensures that labels do not overlap each other (DOUBLE CHECK THIS)
+  write(dotIo,"    ratio=\"fill\"; \n")                         #Fits graph to the full image size             (TEST OTHER RATIO OPTIONS)
+  write(dotIo,"    size=\"8,5\"; \n")                           #Changes the size of the entire graph
+  write(dotIo,"    node [shape = point] \n")                    #Sets the shape of the nodes
   write(dotIo, "    rank=max $netRoot \n     subgraph    { ")   #Places root node at top of tree
-  leafArraySize = countnz(leafNodes)
-  for i in leafNodes                            #Groups leaf nodes so they are all placed at bottom of tree
-    if i != leafNodes[leafArraySize]
+
+  leafArraySize = countnz(leafNodes)                 #Probably redundant... could delete later on
+  for i in leafNodes                                 #Groups leaf nodes so they are all placed at bottom of tree
+    if i != leafNodes[leafArraySize]                 #First appends each leaf node (except the last) to .dot file followed by a comma
       write(dotIo,"$i , ")
-    else
+    else                                             #Appends final leaf node to .dot file WITHOUT a comma
       write(dotIo,"$i")
     end
   end
@@ -45,19 +46,20 @@ function drawCF(graph::Network; gammaThreshold=0.5::FloatingPoint, mainTree=fals
 
   println("Preamble written!")
   #********************************************************************************************************************
+  #Drawing edges and nodes
 
-  #Draws all edges and nodes
-
+  #Establishing edge/node variables... necessary for calling values using $ notation when appending strings to a file
   println("Drawing nodes and edges")
   for i in graph.edge
-    gma = i.gamma
+    gma = i.gamma                 #Gamma value for an edge i (default to 1.0 for tree edges)
     edgeNum = i.number
-    node1 = i.node[1];
-    node1Num = node1.number
-    node2 = i.node[2];
-    node2Num = node2.number
+    node1 = i.node[1];            #Parent node
+    node1Num = node1.number       #Necessary for $ notation
+    node2 = i.node[2];            #Child node
+    node2Num = node2.number       #Necessary for $ notation
 
   #Creates image for underlying tree structure according the gamma threshold
+  #mainTree is a bool type (optional) function parameter that decides whether the image will be the network or underlying tree structure (defaults as net)
   if mainTree
     if node2.hybrid
       if i.gamma > gammaThreshold
@@ -69,12 +71,13 @@ function drawCF(graph::Network; gammaThreshold=0.5::FloatingPoint, mainTree=fals
   #Creates image for the entire network including all hybridization events
   else
       if node2.hybrid
+          #Applies a thicker edge AND a gamma label on the edge to the dominant edge
           if gma > gammaThreshold
-            write(dotIo,"     $node1Num -- $node2Num [color=blue] [penwidth=4] [taillabel=\" &gamma; = $gma\"] [labeldistance = 5.0]; \n")
+            write(dotIo,"     $node1Num -- $node2Num [color=blue] [penwidth=4] [taillabel=\" &gamma; = $gma\"] [labeldistance = 3.5] [labelangle=60.0]; \n")
           else
-            write(dotIo,"     $node1Num -- $node2Num [color=blue] [penwidth=2]; \n")
+            write(dotIo,"     $node1Num -- $node2Num [color=blue] [penwidth=1]; \n")
           end #if else
-        else
+      else
           write(dotIo,"     $node1Num -- $node2Num [penwidth=4]; \n")
         end #if else
       end #if else
