@@ -241,11 +241,15 @@ changeDirectionUpdate!(net::HybridNetwork,node::Node) = changeDirectionUpdate!(n
 function updateContainRootChangeDir!(net::HybridNetwork,node::Node,edgesRoot::Vector{Edge})
     node.hybrid || error("cannot update contain root on node $(node.number) because it is not hybrid")
     alreadyNoRoot = false #new descedants could not contain root from before
+    DEBUG && println("updating contain root for hybrid node $(node.number)")
     for(e in node.edge)
         if(!e.hybrid)
+            DEBUG && println("found tree edge $(e.number) for hybrid node $(node.number)")
             other = getOtherNode(e,node)
+            DEBUG && println("other node is $(other.number)")
             for(e2 in other.edge)
                 if(!isEqual(e2,e))
+                    DEBUG && println("found edge $(e2.number) not equal to $(e.number) with containRoot $(e2.containRoot)")
                     alreadyNoRoot = !e2.containRoot
                     break
                 end
