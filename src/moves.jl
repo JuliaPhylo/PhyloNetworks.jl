@@ -118,6 +118,7 @@ function changeDirection!(node::Node, net::HybridNetwork, isminor::Bool)
         push!(net.partition[indexPtree].edges,edgemin2)
         push!(net.partition[indexPedgemin].edges,tree)
         # --
+        DEBUG && println("edgemin2 is $(edgemin2.number) and its containRoot is $(edgemin2.containRoot)")
         alreadyNoRoot = !edgemin2.containRoot
     else
         edgebla,edgemaj1,edgemaj2 = hybridEdges(othermaj);
@@ -157,6 +158,7 @@ function changeDirection!(node::Node, net::HybridNetwork, isminor::Bool)
         push!(net.partition[indexPtree].edges,edgemaj2)
         push!(net.partition[indexPedgemaj].edges,tree)
         # --
+        DEBUG && println("edgemaj2 is $(edgemaj2.number) and its containRoot is $(edgemaj2.containRoot)")
         alreadyNoRoot = !edgemaj2.containRoot
     end
     if(node.isBadDiamondI || node.isBadDiamondII)
