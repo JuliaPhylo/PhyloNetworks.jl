@@ -1,7 +1,19 @@
 #John Spaw
 #drawCF takes a CF network object and converts it into .dot file, which is then converted into a .svg image file
 
-function drawCF(graph::Network; gammaThreshold=0.5::FloatingPoint, mainTree=false::Bool,imageName="netImage")
+function plotNet(graph::Network; gammaThreshold=0.5::FloatingPoint, mainTree=false::Bool,imageName="netImage",
+                 width=8::Number,height=5::Number)
+
+  #Argument Breakdown
+      #graph: Network object you are trying to visualize
+      #gammaThreshold: Lower bound for gamma value.
+                      #When ploting networks, gamma values above threshold will be bolded.
+                      #When plotting trees, edges below threshold are ignored.
+      #mainTree: If true, function will plot underlying tree structure. If false, function will plot entire network.
+      #imageName: Names the image being output as imageName.svg
+      #width: Maximum width of image (in inches)
+      #height: Maximum height of image (in inches)
+
 
   #IO stream for writing to .dot file
   dotIo = open("visualization/drawCF.dot","w+")
@@ -24,8 +36,8 @@ function drawCF(graph::Network; gammaThreshold=0.5::FloatingPoint, mainTree=fals
   println("Creating preamble statement")
   write(dotIo,"Graph { \n")
   write(dotIo,"labelloc=b \n")                                  #Ensures that labels do not overlap each other (DOUBLE CHECK THIS)
-  write(dotIo,"    ratio=\"fill\"; \n")                         #Fits graph to the full image size             (TEST OTHER RATIO OPTIONS)
-  write(dotIo,"    size=\"8,5\"; \n")                           #Changes the size of the entire graph
+  write(dotIo,"    ratio=\"expand\"; \n")                         #Fits graph to the full image size             (TEST OTHER RATIO OPTIONS)
+  write(dotIo,"    size=\"$width ,$height\"; \n")                           #Changes the size of the entire graph
   write(dotIo,"    node [shape = point] \n")                    #Sets the shape of the nodes
   write(dotIo, "    rank=max $netRoot \n     subgraph    { ")   #Places root node at top of tree
 
@@ -52,6 +64,7 @@ function drawCF(graph::Network; gammaThreshold=0.5::FloatingPoint, mainTree=fals
   println("Drawing nodes and edges")
   for i in graph.edge
     gma = i.gamma                 #Gamma value for an edge i (default to 1.0 for tree edges)
+    hThickness = gma*4
     edgeNum = i.number
     node1 = i.node[1];            #Parent node
     node1Num = node1.number       #Necessary for $ notation
@@ -63,19 +76,32 @@ function drawCF(graph::Network; gammaThreshold=0.5::FloatingPoint, mainTree=fals
   if mainTree
     if node2.hybrid
       if i.gamma > gammaThreshold
-        write(dotIo,"     $node1Num -- $node2Num [color=blue] [penwidth=4] [taillabel=\" &gamma; = $gma\"] [labeldistance = 5.0] [labelangle=45.0]; \n")
+        write(dotIo,"     $node1Num -- $node2Num
+                          [color=blue]
+                          [penwidth=4]
+                          [taillabel=\" &gamma; = $gma\"]
+                          [labeldistance = 5.0]
+                          [labelangle=45.0]; \n")
       end #if
     else
-      write(dotIo,"     $node1Num -- $node2Num [penwidth=4]; \n")
+      write(dotIo,"     $node1Num -- $node2Num
+                        [penwidth=4]; \n")
       end #if else
   #Creates image for the entire network including all hybridization events
   else
       if node2.hybrid
           #Applies a thicker edge AND a gamma label on the edge to the dominant edge
-          if gma > gammaThreshold
-            write(dotIo,"     $node1Num -- $node2Num [color=blue] [penwidth=4] [taillabel=\" &gamma; = $gma\"] [labeldistance = 3.5] [labelangle=60.0]; \n")
+          if gma > 0.5
+            write(dotIo,"     $node1Num -- $node2Num
+                              [color=blue]
+                              [penwidth=$hThickness]
+                              [taillabel=\" &gamma; = $gma\"]
+                              [labeldistance = 3.5]
+                              [labelangle=60.0]; \n")
           else
-            write(dotIo,"     $node1Num -- $node2Num [color=blue] [penwidth=1]; \n")
+            write(dotIo,"     $node1Num -- $node2Num
+                              [color=red]
+                              [penwidth=$hThickness]; \n")
           end #if else
       else
           write(dotIo,"     $node1Num -- $node2Num [penwidth=4]; \n")

@@ -238,3 +238,48 @@ drawCF(g3)
 drawCF(g3, mainTree = true, imageName = "treeImage")
 include(
 5
+include("startupscript.jl")
+g3 = create_g3();
+drawCF(g3)
+include("visualization/draw.jl")
+drawCF(g3)
+include("visualization/draw.jl")
+drawCF(g3)
+include("visualization/draw.jl")
+drawCF(g3)
+include("visualization/draw.jl")
+drawCF(g3)
+include("visualization/draw.jl")
+drawCF(g3)
+include("visualization/draw.jl")
+drawCF(g3)
+include("visualization/draw.jl")
+drawCF(g3)
+include("visualization/netTraversal.jl")
+root=g3.root
+traverseEdges(g3,root)
+traverseEdges(g3,root)
+quit()
+include("startupscript.jl")
+g3 = create_g3();
+include("visualization/draw.jl")
+plotNet(g3)
+include("visualization/draw.jl")
+include("visualization/draw.jl")
+plotNet(g3)
+plotNet(g3,width=10)
+plotNet(plotNet(g3,width=8.5)
+include("startupscript.jl")
+include("visualization/netTraversal.jl")
+include("visualization/netTraversal.jl")
+include("visualization/netTraversal.jl")
+help(traverseEdges)
+g = create_g3();
+root = (g.node)[1]
+>
+include("visualization/netTraversal.jl")
+include("visualization/netTraversal.jl")
+traverseEdges(g,root)
+include("visualization/netTraversal.jl")
+traverseEdges(g,root)
+include("visualization/netTraversal.jl"_
