@@ -129,6 +129,8 @@ end
 
 if(!error)
     println("------- NO ERRORS!! -----")
+else
+    throw("errors in has edge")
 end
 
 
