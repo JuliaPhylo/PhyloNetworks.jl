@@ -120,6 +120,7 @@ function changeDirection!(node::Node, net::HybridNetwork, isminor::Bool)
         # --
         DEBUG && println("edgemin2 is $(edgemin2.number) and its containRoot is $(edgemin2.containRoot)")
         alreadyNoRoot = !edgemin2.containRoot
+        DEBUG && println("edgemin2 is $(edgemin2.number) and its containRoot is $(edgemin2.containRoot), alreadyNoRoot $(alreadyNoRoot)")
     else
         edgebla,edgemaj1,edgemaj2 = hybridEdges(othermaj);
         nodemaj1 = getOtherNode(edgemaj1,othermaj)
@@ -160,6 +161,7 @@ function changeDirection!(node::Node, net::HybridNetwork, isminor::Bool)
         # --
         DEBUG && println("edgemaj2 is $(edgemaj2.number) and its containRoot is $(edgemaj2.containRoot)")
         alreadyNoRoot = !edgemaj2.containRoot
+        DEBUG && println("edgemin2 is $(edgemin2.number) and its containRoot is $(edgemin2.containRoot), alreadyNoRoot $(alreadyNoRoot)")
     end
     if(node.isBadDiamondI || node.isBadDiamondII)
         node.isBadDiamondI = false
