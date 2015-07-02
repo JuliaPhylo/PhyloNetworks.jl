@@ -250,7 +250,6 @@ changeDirectionUpdate!(net::HybridNetwork,node::Node) = changeDirectionUpdate!(n
 # returns flag2, edgesroot
 function updateContainRootChangeDir!(net::HybridNetwork,node::Node,edgesRoot::Vector{Edge}, alreadyNoRoot::Bool)
     node.hybrid || error("cannot update contain root on node $(node.number) because it is not hybrid")
-    alreadyNoRoot = false #new descedants could not contain root from before
     DEBUG && println("updating contain root for hybrid node $(node.number), with alreadyNoRoot $(alreadyNoRoot)")
     if(!alreadyNoRoot) #only update root if new descendats were not forbidden to carry root already
         undoContainRoot!(edgesRoot);
