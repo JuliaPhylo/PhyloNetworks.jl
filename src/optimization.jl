@@ -794,6 +794,8 @@ function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::In
     DEBUG && println("success $(success), movescount (add,mvorigin,mvtarget,chdir,delete,nni) proposed: $(movescount[1:6]); successful: $(movescount[7:12]); movesfail: $(movesfail)")
     !success || return true
     DEBUG && println("new proposed topology failed in step $(count) for move $(int2move[move])")
+    DEBUG && printEverything(newT)
+    CHECKNET && checkNet(newT)
     return false
 end
 
@@ -872,7 +874,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         move = whichMove(newT,hmax,movesfail,Nmov)
         if(move != :none)
             flag = proposedTop!(move,newT,true, count,10, movescount,movesfail) #N=10 because with 1 it never finds an edge for nni
-            if(flag)
+            if(flag) #no need else because newT always undone if failed
                 accepted = false
                 all([!(e.hybrid && e.inCycle == -1) for e in newT.edge]) || error("found hybrid edge with inCycle == -1")
                 DEBUG && println("proposed new topology in step $(count) is ok to start optBL")
@@ -906,8 +908,6 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
                 #printNodes(newT)
                 DEBUG && println(writeTopology(newT))
                 DEBUG && println("ends step $(count) with absDiff $(accepted? absDiff : 0.0) and failures $(failures)")
-            else
-                newT = deepcopy(currT)
             end
         else
             stillmoves = false
