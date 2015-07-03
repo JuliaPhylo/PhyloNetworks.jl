@@ -141,7 +141,12 @@ function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bo
     edgesRoot = identifyContainRoot(net,hybrid);
     edges = hybridEdges(hybrid);
     undoGammaz!(hybrid,net);
-    undoContainRoot!(edgesRoot);
+    othermaj = getOtherNode(edges[1],hybrid)
+    edgesmaj = hybridEdges(othermaj)
+    DEBUG && println("edges[3] $(edges[3].number) is the one to check if containRoot=false already: $(edges[3].containRoot)")
+    if(edges[3].containRoot) #if containRoot=true, then we need to undo
+        undoContainRoot!(edgesRoot);
+    end
     edges[1].gamma > 0.5 || println("strange major hybrid edge $(edges[1].number) with gamma $(edges[1].gamma) less than 0.5")
     edges[1].gamma != 1.0 || println("strange major hybrid edge $(edges[1].number) with gamma $(edges[1].gamma) equal to 1.0")
     limit = edges[1].gamma
