@@ -273,6 +273,7 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
         edge_maj.istIdentifiable = isEdgeIdentifiable(edge_maj)
         edge_min.istIdentifiable = isEdgeIdentifiable(edge_min)
     end
+    isBadTriangle(node) == net.hasVeryBadTriangle || error("node $(node.number) is very bad triangle but net.hasVeryBadTriangle is $(net.hasVeryBadTriangle)")
     if(allow)
         return true, net.edges_changed
     else

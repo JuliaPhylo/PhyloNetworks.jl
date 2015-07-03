@@ -867,7 +867,11 @@ function checkNet(net::HybridNetwork)
     net.numNodes == length(net.node) || error("discrepant number on net.numNodes (net.numNodes) and net.node length $(length(net.node))")
     net.numEdges == length(net.edge) || error("discrepant number on net.numEdges (net.numEdges) and net.edge length $(length(net.edge))")
     for(h in net.hybrid)
-        h.k > 3 || warn("hybrid $(h.number) has $(h.k) nodes in cycle, could be a non identifiable case")
+        if(isBadTriangle(h))
+            warn("hybrid $(h.number) is very bad triangle")
+            net.hasVeryBadTriangle || error("hybrid node $(h.number) is very bad triangle, but net.hasVeryBadTriangle is $(net.hasVeryBadTriangle)")
+            h.isVeryBadTriangle || h.isExtBadTrangle || error("hybrid node $(h.number) is very bad triangle but it does not know it")
+        end
         nocycle,edges,nodes = identifyInCycle(net,h)
         for(e in edges)
             e.inCycle == h.number || error("edge $(e.number) is in cycle of hybrid node $(h.number) but its inCycle attribute is $(e.inCycle)")
@@ -912,3 +916,24 @@ function printEverything(net::HybridNetwork)
     printPartitions(net)
     println("$(writeTopology(net))")
 end
+
+# function to check if a node is very or ext bad triangle
+function isBadTriangle(node::Node)
+    node.hybrid || error("cannot check if node $(node.number) is very bad triangle because it is not hybrid")
+    edgemaj, edgemin, treeedge = hybridEdges(node)
+    othermaj = getOtherNode(edgemaj,node)
+    othermin = getOtherNode(edgemin,node)
+    treenode = getOtherNode(treeedge,node)
+    edges1 = hybridEdges(othermaj)
+    o1 = getOtherNode(edges1[3],othermaj)
+    edges2 = hybridEdges(othermin)
+    o2 = getOtherNode(edges2[3],othermin)
+    leaves = sum([n.leaf ? 1 : 0 for n in [treenode,o1,o2]])
+    if(leaves == 1 || leaves == 2)
+        return true
+    else
+        return false
+    end
+end
+
+
