@@ -920,17 +920,21 @@ end
 # function to check if a node is very or ext bad triangle
 function isBadTriangle(node::Node)
     node.hybrid || error("cannot check if node $(node.number) is very bad triangle because it is not hybrid")
-    edgemaj, edgemin, treeedge = hybridEdges(node)
-    othermaj = getOtherNode(edgemaj,node)
-    othermin = getOtherNode(edgemin,node)
-    treenode = getOtherNode(treeedge,node)
-    edges1 = hybridEdges(othermaj)
-    o1 = getOtherNode(edges1[3],othermaj)
-    edges2 = hybridEdges(othermin)
-    o2 = getOtherNode(edges2[3],othermin)
-    leaves = sum([n.leaf ? 1 : 0 for n in [treenode,o1,o2]])
-    if(leaves == 1 || leaves == 2)
-        return true
+    if(node.k == 3)
+        edgemaj, edgemin, treeedge = hybridEdges(node)
+        othermaj = getOtherNode(edgemaj,node)
+        othermin = getOtherNode(edgemin,node)
+        treenode = getOtherNode(treeedge,node)
+        edges1 = hybridEdges(othermaj)
+        o1 = getOtherNode(edges1[3],othermaj)
+        edges2 = hybridEdges(othermin)
+        o2 = getOtherNode(edges2[3],othermin)
+        leaves = sum([n.leaf ? 1 : 0 for n in [treenode,o1,o2]])
+        if(leaves == 1 || leaves == 2)
+            return true
+        else
+            return false
+        end
     else
         return false
     end
