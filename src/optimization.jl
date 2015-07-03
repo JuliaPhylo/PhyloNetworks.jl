@@ -906,6 +906,8 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
                 #printNodes(newT)
                 DEBUG && println(writeTopology(newT))
                 DEBUG && println("ends step $(count) with absDiff $(accepted? absDiff : 0.0) and failures $(failures)")
+            else
+                newT = deepcopy(currT)
             end
         else
             stillmoves = false
