@@ -347,6 +347,7 @@ end
 function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::Int64)
     DEBUG && println("MOVE: addHybridizationUpdateSmart")
     success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
+    DEBUG && println("success $(success), flag $(flag), flag2 $(flag2), flag3 $(flag3)")
     DEBUG && printEverything(net)
     i = 0
     if(!success)
