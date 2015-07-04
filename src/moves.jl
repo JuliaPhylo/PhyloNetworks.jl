@@ -256,7 +256,8 @@ function updateContainRootChangeDir!(net::HybridNetwork,node::Node,edgesRoot::Ve
         flag3,edgesroot = updateContainRoot!(net,node);
         return flag3,edgesroot
     else
-        return true,[]
+        flag3,edgesroot = updateContainRoot!(net,node);
+        return flag3,edgesroot
     end
 end
 
