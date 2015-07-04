@@ -1022,6 +1022,7 @@ function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, major
     major,minor,tree = hybridEdges(node)
     undoGammaz!(node,net);
     edgesRoot = identifyContainRoot(net,node);
+    edgesRoot = setdiff(edgesRoot,[tree]) #need to remove tree from edgesRoot or it will be undone/updated with containRoot
     #undoContainRoot!(edgesRoot); now in updateContainRootChangeDir
     #DEBUG && println("undoContainRoot for edges $([e.number for e in edgesRoot])")
     newedgeincycle, alreadyNoRoot = moveTarget!(net,node,majoredge,tree,newedge)
