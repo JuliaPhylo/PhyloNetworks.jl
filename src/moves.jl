@@ -1016,7 +1016,7 @@ moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, newedge::Edg
 # function to move the target of a hybrid edge
 # and update everything that needs update: gammaz, root
 # input: network, hybrid node, othermin, majoredge (chosen with chooseMinorMajor), newedge
-# returns: success (bool), flag2
+# returns: success (bool), flag2, flag3
 function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, majoredge::Edge, newedge::Edge)
     node.hybrid || error("node $(node.number) is not hybrid, so we cannot delete hybridization event around it")
     DEBUG && println("MOVE: move Target for hybrid node $(node.number)")
@@ -1031,10 +1031,26 @@ function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, major
     flag2, edgesGammaz = updateGammaz!(net,node)
     if(flag2)
 #        flag3,edgesroot = updateContainRoot!(net,node) now in updateContainRootChangeDir
-        flag3,edgesroot = updateContainRootChangeDir!(net,node,edgesRoot, alreadyNoRoot) #warn:move target cannot have flag3=false (I think)
-        parameters!(net);
-        DEBUG && println("MOVE: move Target for hybrid node $(node.number) SUCCESSFUL")
-        return true,flag2
+        flag3,edgesroot = updateContainRootChangeDir!(net,node,edgesRoot, alreadyNoRoot)
+        if(flag3)
+            parameters!(net);
+            DEBUG && println("MOVE: move Target for hybrid node $(node.number) SUCCESSFUL")
+            return true,flag2, flag3
+        else
+            DEBUG && println("MOVE: move Target for hybrid node $(node.number) FAILED")
+            DEBUG && printEverything(net)
+            alreadyNoRoot || undoContainRoot!(edgesroot) #only undo edgesroot if there were changed: alreadyNoRoot=true => no change
+            alreadyNoRoot || undoContainRoot!(edgesRoot,false);
+            isempty(edgesGammaz) || undoistIdentifiable!(edgesGammaz)
+            undoGammaz!(node,net);
+            DEBUG && println("MOVE: undoing move target for conflict: updategammaz")
+            moveTarget!(net,node,majoredge,tree,newedge,true,newedgeincycle);
+            flag2, edgesGammaz = updateGammaz!(net,node)
+            #DEBUG && println("undoContainRoot for edges $([e.number for e in edgesRoot])")
+            (flag2 || node.isVeryBadTriangle || node.isExtBadTriangle) || error("updating gammaz/root for undone moveTarget, should not be any problem, but flag2 $(flag2) and node not very/ext bad triangle")
+            CHECKNET && checkNet(net)
+            return false, flag2,flag3
+        end
     else
         DEBUG && println("MOVE: move Target for hybrid node $(node.number) FAILED")
         DEBUG && printEverything(net)
@@ -1052,7 +1068,7 @@ function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, major
         #DEBUG && println("undoContainRoot for edges $([e.number for e in edgesRoot])")
         (flag2 || node.isVeryBadTriangle || node.isExtBadTriangle) || error("updating gammaz/root for undone moveTarget, should not be any problem, but flag2 $(flag2) and node not very/ext bad triangle")
         CHECKNET && checkNet(net)
-        return false, flag2
+        return false, flag2, flag3
     end
 end
 
