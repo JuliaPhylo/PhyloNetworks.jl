@@ -254,6 +254,7 @@ function updateContainRootChangeDir!(net::HybridNetwork,node::Node,edgesRoot::Ve
     if(!alreadyNoRoot) #only update root if new descendats were not forbidden to carry root already
         undoContainRoot!(edgesRoot);
         flag3,edgesroot = updateContainRoot!(net,node);
+        DEBUG && println("alreadyNoRoot is $(alreadyNoRoot), undoing containRoot for $([e.number for e in edgesRoot]), updating containRoot for $([e.number for e in edgesroot]), with flag3 $(flag3)")
         return flag3,edgesroot
     else
         flag3,edgesroot = updateContainRoot!(net,node);
