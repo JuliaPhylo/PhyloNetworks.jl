@@ -870,7 +870,7 @@ function checkNet(net::HybridNetwork)
         if(isBadTriangle(h))
             warn("hybrid $(h.number) is very bad triangle")
             net.hasVeryBadTriangle || error("hybrid node $(h.number) is very bad triangle, but net.hasVeryBadTriangle is $(net.hasVeryBadTriangle)")
-            h.isVeryBadTriangle || h.isExtBadTrangle || error("hybrid node $(h.number) is very bad triangle but it does not know it")
+            h.isVeryBadTriangle || h.isExtBadTriangle || error("hybrid node $(h.number) is very bad triangle but it does not know it")
         end
         nocycle,edges,nodes = identifyInCycle(net,h)
         for(e in edges)
