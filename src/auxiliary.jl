@@ -875,6 +875,7 @@ function checkNet(net::HybridNetwork)
         nocycle,edges,nodes = identifyInCycle(net,h)
         for(e in edges)
             e.inCycle == h.number || error("edge $(e.number) is in cycle of hybrid node $(h.number) but its inCycle attribute is $(e.inCycle)")
+            (e.hybrid && !e.containRoot) || error("hybrid edge $(e.number) should not contain root")
         end
         for(n in nodes)
             n.inCycle == h.number || error("node $(n.number) is in cycle of hybrid node $(h.number) but its inCycle attribute is $(n.inCycle)")
