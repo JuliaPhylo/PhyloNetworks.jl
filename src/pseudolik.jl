@@ -613,10 +613,13 @@ end
 
 function removeWeirdNode!(net::Network,n::Node)
     other = nothing
+    DEBUG && println("calling removeWeirdNode in node $(n.number)")
     if(length(n.edge) == 1 && !n.leaf)
+        DEBUG && println("node $(n.number) is not a leaf and has one edge")
         n = removeNoLeafWhile!(net,n)
     end
     if(n.hybrid && length(n.edge) == 2)
+        DEBUG && println("node $(n.number) is hybrid with only two edges")
         (n.edge[1].hybrid && n.edge[2].hybrid) || error("two edges for this hybrid node $(n.number) must be hybrid, and they are not")
         other = removeLoneHybrid!(net,n)
     end
@@ -626,6 +629,7 @@ end
 # function to remove internal nodes with only one edge
 # keep deleting those nodes, and hybrid nodes without descendants
 function removeWeirdNodes!(net::Network, n::Node)
+    DEBUG && println("calling removeWeirdNodes in node $(n.number)")
     list = Node[]
     push!(list,n)
     while(!isempty(list))
@@ -640,8 +644,9 @@ function removeWeirdNodes!(net::Network, n::Node)
             n = nothing
         end
         if(!isa(n,Nothing) && !isa(n,Vector{Nothing}))
-            #println("n here is $(n)")
+            DEBUG && println("typeof n $(typeof(n))")
             for(l in n)
+                DEBUG && println("typeof l $(typeof(l))")
                 push!(list,l)
             end
         end
