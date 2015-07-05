@@ -565,6 +565,7 @@ end
 # function to delete a hybrid node that has only two edges: the hybrid ones
 # it fixes other1,other2 for internal nodes with only 2 edges (one external),
 # returns other1, other2 if they are internal nodes with only one edge
+# returns array of nodes (to avoid treating o1,o2 as a tuple later)
 function removeLoneHybrid!(net::Network, n::Node)
     n.hybrid || error("cannot remove a lone hybrid if it is not hybrid: $(n.number)")
     length(n.edge) == 2 || error("hybrid node $(n.number) should have only 2 edges to be deleted, it has $(length(n.edge))")
@@ -601,11 +602,11 @@ function removeLoneHybrid!(net::Network, n::Node)
         o2 = true
     end
     if(o1 && !o2)
-        return other1
+        return [other1]
     elseif(!o1 && o2)
-        return other2
+        return [other2]
     elseif(o1 && o2)
-        return other1,other2
+        return [other1,other2]
     else
         return nothing
     end
@@ -621,9 +622,9 @@ function removeWeirdNode!(net::Network,n::Node)
     if(n.hybrid && length(n.edge) == 2)
         DEBUG && println("node $(n.number) is hybrid with only two edges")
         (n.edge[1].hybrid && n.edge[2].hybrid) || error("two edges for this hybrid node $(n.number) must be hybrid, and they are not")
-        other = removeLoneHybrid!(net,n)
+        other = removeLoneHybrid!(net,n) #returns array of nodes (length 1 or 2) or nothing
     end
-    return [other]
+    return other
 end
 
 # function to remove internal nodes with only one edge
