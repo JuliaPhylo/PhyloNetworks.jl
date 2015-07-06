@@ -19,27 +19,27 @@ function traverseEdges(net::HybridNetwork, node::Node, mainTree::Bool, dotIo, pa
       gma = i.gamma                 #Gamma value for an edge i (default to 1.0 for tree edges)
       hThickness = gma*4
       edgeNum = i.number
-      node1 = parent;            #Parent node
+      node1 = parent;               #Parent node
       node1Num = node1.number       #Necessary for $ notation
-      node2 = child;            #Child node
+      node2 = child;                #Child node
       node2Num = node2.number       #Necessary for $ notation
 
       #Creates image for underlying tree structure according the gamma threshold
-      #mainTree is a bool type (optional) function parameter that decides whether the image will be the network or underlying tree structure (defaults as net)
+      #mainTree is a bool type (optional) function argument that decides whether the image will be the network or underlying tree structure (defaults as net)
       if mainTree
-        if node2.hybrid
-          if i.gamma > gammaThreshold
+        if node2.hybrid                                          #Edge being traversed is a hybrid edge
+          if i.gamma > gammaThreshold                            #Indicates dominant edge in hybridization event
             write(dotIo,"     $node1Num -- $node2Num
                               [color=blue]
                               [penwidth=4]
                               [taillabel=\" &gamma; = $gma\"]
                               [labeldistance = 5.0]
                               [labelangle=45.0]; \n")
-          end #if
+          end #if i.gamma > gammaThreshold
         else
           write(dotIo,"     $node1Num -- $node2Num
                           [penwidth=4]; \n")
-        end #if else
+        end #if node2.hybrid else (tree)
       #Creates image for the entire network including all hybridization events
       else
           if node2.hybrid
@@ -55,11 +55,11 @@ function traverseEdges(net::HybridNetwork, node::Node, mainTree::Bool, dotIo, pa
                 write(dotIo,"     $node1Num -- $node2Num
                                   [color=red]
                                   [penwidth=$hThickness]; \n")
-              end #if else
+              end #if gma > 0.5 else
           else
               write(dotIo,"     $node1Num -- $node2Num [penwidth=4]; \n")
-            end #if else
-      end #if else
+          end #if node2.hybrid else (net)
+      end #if mainTree else
 
       #***********************************************************************************************************************************************
 
@@ -67,16 +67,16 @@ function traverseEdges(net::HybridNetwork, node::Node, mainTree::Bool, dotIo, pa
         newnode = edge.node[2]
       else
         newnode = edge.node[1]
-      end #if else
+      end #if edge.node[1] == node else
       nnN = newnode.number                        #Simply used for progress/debugging statements... will be removed in the end
       traverseEdges(net,newnode,mainTree,dotIo,edge)             #Recursively call the function on the child node (as new parent node) using the edge as the new parent edge
-    end #for
-  end #if
+    end #for edge in node.edge
+  end #if node.number == net.root
 
   #Case 2: Node is a leaf
-  if node.leaf                                 #Don't need to do anything if the node is a leaf
+  if node.leaf                                                #Don't need to do anything if the node is a leaf
     println("Node $(node.number) is a leaf")                  #There is probably a better statement to use here... pass/break?
-  end
+  end #if node.leaf
 
   #Case 3: Node is internal
   if (node.number != net.root) && ~(node.leaf)

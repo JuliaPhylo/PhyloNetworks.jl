@@ -291,3 +291,10 @@ include("startupscript.jl")
 g3 = create_g3();
 include("visualization/dotexport.jl")
 include(
+include("startupscript.jl")
+net = create_g3();
+include("visualization/dotexport.jl")
+include("visualization/drawTraversal.jl")
+include("visualization/finalDraw.jl")
+include("visualization/finalDraw.jl")
+quit()

@@ -2,14 +2,18 @@ Graph {
 labelloc=b 
     ratio="expand"; 
     size="8 ,5"; 
-    node [shape = circle] 
+    node [shape = point] 
     rank=max 1 
      subgraph    { 4 , 6 , 8 , 9 } 
-    4 [label=4] [shape = circle] [height = 0.1] 
-    6 [label=6] [shape = circle] [height = 0.1] 
-    8 [label=8] [shape = circle] [height = 0.1] 
-    9 [label=9] [shape = circle] [height = 0.1] 
- 
+    1 [xlabel=1] [shape = point] [height = 0.1] 
+    2 [xlabel=2] [shape = point] [height = 0.1] 
+    3 [xlabel=3] [shape = point] [height = 0.1] 
+    4 [xlabel=4] [shape = point] [height = 0.1] 
+    5 [xlabel=5] [shape = point] [height = 0.1] 
+    6 [xlabel=6] [shape = point] [height = 0.1] 
+    7 [xlabel=7] [shape = point] [height = 0.1] 
+    8 [xlabel=8] [shape = point] [height = 0.1] 
+    9 [xlabel=9] [shape = point] [height = 0.1] 
      1 -- 2 [penwidth=4]; 
      2 -- 4 [penwidth=4]; 
      2 -- 5
