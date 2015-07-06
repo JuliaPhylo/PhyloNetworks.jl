@@ -283,3 +283,11 @@ traverseEdges(g,root)
 include("visualization/netTraversal.jl")
 traverseEdges(g,root)
 include("visualization/netTraversal.jl"_
+include("startupscript.jl")
+g = create_g3();
+include("visualization/traverseEdges.jl")
+quit()
+include("startupscript.jl")
+g3 = create_g3();
+include("visualization/dotexport.jl")
+include(
