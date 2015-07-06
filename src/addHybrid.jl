@@ -168,7 +168,10 @@ function addHybridization!(net::HybridNetwork, blacklist::Bool, usePartition::Bo
     if(net.numHybrids > 0 && usePartition)
         !isempty(net.partition) || error("net has $(net.numHybrids) but net.partition is empty")
         index = choosePartition(net)
-        index == 0 && return nothing #no place for new hybrid
+        if(index == 0) #no place for new hybrid
+            DEBUG && println("no partition suitable to place new hybridization")
+            return nothing
+        end
         partition = splice!(net.partition,index) #type partition
         DEBUG && println("add hybrid with partition $([n.number for n in partition.edges])")
         edge1, edge2, gamma = chooseEdgesGamma(net, blacklist,partition.edges);
@@ -351,37 +354,41 @@ function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::In
     DEBUG && printEverything(net)
     i = 0
     if(!success)
-        while((nocycle || !flag) && i < N) #incycle failed
-            DEBUG && println("MOVE: added hybrid causes conflict with previous cycle, need to delete and add another")
-            deleteHybrid!(hybrid,net,true)
-            success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
-        end
-        if(nocycle || !flag)
-            DEBUG && println("MOVE: added hybridization $(i) times trying to avoid incycle conflicts, but failed")
+        if(isa(hybrid,Nothing))
+            DEBUG && println("MOVE: could not add hybrid by any means")
         else
-            if(!flag3 && flag2) #containRoot failed
-                DEBUG && println("MOVE: added hybrid causes problems with containRoot, will change the direction to fix it")
-                success = changeDirectionUpdate!(net,hybrid) #change dir of minor
-            elseif(!flag2 && flag3) #gammaz failed
-                DEBUG && println("MOVE: added hybrid has problem with gammaz (not identifiable bad triangle)")
-                if(flag3)
-                    DEBUG && println("MOVE: we will move origin to fix the gammaz situation")
-                    success = moveOriginUpdateRepeat!(net,hybrid,true)
-                else
-                    DEBUG && println("MOVE: we will move target to fix the gammaz situation")
-                    success = moveTargetUpdateRepeat!(net,hybrid,true)
-                end
-            elseif(!flag2 && !flag3) #containRoot AND gammaz failed
-                DEBUG && println("MOVE: containRoot and gammaz both fail")
+            while((nocycle || !flag) && i < N) #incycle failed
+                DEBUG && println("MOVE: added hybrid causes conflict with previous cycle, need to delete and add another")
+                deleteHybrid!(hybrid,net,true)
+                success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
             end
-        end
-        if(!success)
-            DEBUG && println("MOVE: could not fix the added hybrid by any means, we will delete it now")
-            CHECKNET && checkNet(net)
-            DEBUG && printEverything(net)
-            deleteHybridizationUpdate!(net,hybrid)
-            CHECKNET && checkNet(net)
-            DEBUG && printEverything(net)
+            if(nocycle || !flag)
+                DEBUG && println("MOVE: added hybridization $(i) times trying to avoid incycle conflicts, but failed")
+            else
+                if(!flag3 && flag2) #containRoot failed
+                    DEBUG && println("MOVE: added hybrid causes problems with containRoot, will change the direction to fix it")
+                    success = changeDirectionUpdate!(net,hybrid) #change dir of minor
+                elseif(!flag2 && flag3) #gammaz failed
+                    DEBUG && println("MOVE: added hybrid has problem with gammaz (not identifiable bad triangle)")
+                    if(flag3)
+                        DEBUG && println("MOVE: we will move origin to fix the gammaz situation")
+                        success = moveOriginUpdateRepeat!(net,hybrid,true)
+                    else
+                        DEBUG && println("MOVE: we will move target to fix the gammaz situation")
+                        success = moveTargetUpdateRepeat!(net,hybrid,true)
+                    end
+                elseif(!flag2 && !flag3) #containRoot AND gammaz failed
+                    DEBUG && println("MOVE: containRoot and gammaz both fail")
+                end
+            end
+            if(!success)
+                DEBUG && println("MOVE: could not fix the added hybrid by any means, we will delete it now")
+                CHECKNET && checkNet(net)
+                DEBUG && printEverything(net)
+                deleteHybridizationUpdate!(net,hybrid)
+                CHECKNET && checkNet(net)
+                DEBUG && printEverything(net)
+            end
         end
     end
     success && DEBUG && println("MOVE: added hybridization SUCCESSFUL: new hybrid $(hybrid.number)")
