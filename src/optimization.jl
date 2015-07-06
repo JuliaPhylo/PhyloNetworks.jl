@@ -1212,8 +1212,8 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     close(errfile)
     close(logfile)
 
-    s = open(juliaout,"w")
-#    if(maxNet.loglik < 1.e15)
+    if(maxNet.loglik < 1.e15)
+        s = open(juliaout,"w")
         if(outgroup == "none")
             write(s,writeTopology(maxNet)) #no outgroup
             write(s,"\n P-loglik = $(maxNet.loglik)")
@@ -1235,7 +1235,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         end
         write(s,"\n-------")
         close(s)
-#    end
+    end
 end
 
 optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64, outgroup::String, rootname::String) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, outgroup,rootname)
