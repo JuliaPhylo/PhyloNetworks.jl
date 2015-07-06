@@ -33,7 +33,14 @@ function makeEdgeTree!(edge::Edge, node::Node)
     edge.isMajor = true
     edge.gamma = 1.0
     edge.inCycle = -1 #warn:changed recently because I believe it does not affect the parameters function for bad diamond I
-    getOtherNode(edge,node).hasHybEdge = false
+    other = getOtherNode(edge,node)
+    hyb = false
+    for(e in other.edge) #is it attached to other hybrid?
+        if(e.hybrid)
+            hyb = true
+        end
+    end
+    other.hasHybEdge = hyb
     edge.istIdentifiable = isEdgeIdentifiable(edge)
 end
 
