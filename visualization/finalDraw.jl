@@ -5,10 +5,10 @@ function plotNet(graph::Network;                           #Network object you a
                  gammaThreshold=0.5::FloatingPoint,        #Gamma Threshold for extracting underlying tree structure
                  mainTree=false::Bool,                     #When true, the function will plot only the underlying tree structure
                  imageName="netImage",                     #Name for the file to be output
-                 width=8::Number,                          #Maximum width of image in inches
-                 height=5::Number,                         #Maximum height of image in inches
-                 verticalHeirarchy=true::Bool,              #When true, function will display heirarchy from top to bottom. Otherwise, it will be from left to right
-                 internalLabels=true::Bool                 #When true, all nodes will have labels (including internal nodes)
+                 width=6::Number,                          #Maximum width of image in inches
+                 height=8::Number,                         #Maximum height of image in inches
+                 vert=true::Bool,                          #When true, function will display heirarchy from top to bottom. Otherwise, it will be from left to right
+                 internalLabels=false::Bool                #When true, all nodes will have labels (including internal nodes)
                  )
 
   #IO stream for writing to .dot file
@@ -34,11 +34,11 @@ function plotNet(graph::Network;                           #Network object you a
   #Writes initial preample lines for .dot file
   println("Creating preamble statement")
   write(dotIo,"Graph { \n")
-  if verticalHeirarchy == false
+  if vert == false
     write(dotIo,"     rankdir=LR; \n")
   end
   write(dotIo,"labelloc=b \n")                                    #Ensures that labels do not overlap each other (DOUBLE CHECK THIS)
-  write(dotIo,"    ratio=\"expand\"; \n")                         #Fits graph to the full image size             (TEST OTHER RATIO OPTIONS)
+  write(dotIo,"    ratio=\"fill\"; \n")                           #Fits graph to the full image size             (TEST OTHER RATIO OPTIONS)
   write(dotIo,"    size=\"$width ,$height\"; \n")                 #Changes the size of the entire graph
   write(dotIo,"    node [shape = point] \n")                      #Sets the shape of the nodes
   write(dotIo, "    rank=max $netRoot \n     subgraph    { ")     #Places root node at top of tree
@@ -60,7 +60,7 @@ function plotNet(graph::Network;                           #Network object you a
     end #for i in allNodes
   else
     for i in leafNodes
-      write(dotIo,"    $i [label=$i] [shape = circle] [height = 0.1] \n")      #Applies labels to only leaf nodes... this will be removed once xlabels have been fixed
+      write(dotIo,"    $i [label=$i] [shape = point] [height = 0.1] \n")      #Applies labels to only leaf nodes... this will be removed once xlabels have been fixed
     end #for i in leafNodes
     write(dotIo," \n")
   end #if internalLabels else
@@ -75,7 +75,7 @@ function plotNet(graph::Network;                           #Network object you a
 
   #Traverse the network using a pseudo-depth-first method
   #traverseEdges is a recursive function that traverses each edge only once and appends it to the dot file
-  traverseEdges(graph, (graph.node)[1], mainTree, dotIo, dummy)
+  traverseEdges(graph, (graph.node)[1], mainTree, dotIo, gammaThreshold, dummy)
 
   #********************************************************************************************************************
 
