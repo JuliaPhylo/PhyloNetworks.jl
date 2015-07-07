@@ -722,8 +722,8 @@ function identifyQuartet!(qnet::QuartetNetwork, node::Node)
         push!(qnet.typeHyb,5)
         node.prev = nothing
     else
-        printEdges(qnet)
-        printNodes(qnet)
+        DEBUG && printEdges(qnet)
+        DEBUG && printNodes(qnet)
         error("strange quartet network with $(k) nodes in cycle, maximum should be 4")
     end
 end
@@ -753,6 +753,8 @@ function identifyQuartet!(qnet::QuartetNetwork)
                     #warn("hybridization of type 5 found in quartet network along with other hybridizations of type 1. there is the possibility of overlapping cycles.")
                     qnet.which = 2
                 else
+                    DEBUG && printEdges(qnet)
+                    DEBUG && printNodes(qnet)
                     error("found in the same quartet, two hybridizations with overlapping cycles: types of hybridizations are $([n.typeHyb for n in qnet.hybrid])")
                 end
             end
