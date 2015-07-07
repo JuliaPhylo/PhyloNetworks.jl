@@ -508,7 +508,7 @@ function redundantCycle!(net::Network,n::Node)
     n.hybrid || error("cannot clean a cycle on a tree node $(n.number)")
     edges = hybridEdges(n)
     edges[1].hybrid && edges[2].hybrid || error("hybrid node $(n.number) does not have two hybrid edges $(edges[1].number), $(edges[2].number)")
-    #println("edges are $([e.number for e in edges])")
+    DEBUG && println("redundantCycle for node $(n.number) with edges are $([e.number for e in edges])")
     other = getOtherNode(edges[1],n)
     if(length(other.edge) == 2)
         e = edges[1]
@@ -518,16 +518,16 @@ function redundantCycle!(net::Network,n::Node)
             other = getOtherNode(e,other)
         end
         if(isEqual(n,other))
-            DEBUG && println("redundant cycle found!")
             n1 = getOtherNode(edges[1],n)
             n2 = getOtherNode(edges[2],n)
+            DEBUG && println("redundant cycle found! n1 $(n1.number), n2 $(n2.number)")
             deleteIntLeafWhile!(net,n1,n)
             edge = n.edge[1].hybrid ? n.edge[1] : n.edge[2]
-            #println("edge is $(edge.number), should be the first (or only) edge in hybrid node $(n.number)")
+            DEBUG && println("edge is $(edge.number), should be the first (or only) edge in hybrid node $(n.number)")
             if(isEqual(edge.node[1],edge.node[2]))
-                #println("entra a q son iguales los nodes de edge")
+                DEBUG && println("entra a q son iguales los nodes de edge")
                 n3 = getOtherNode(edges[3],n)
-                #println("edges[3] is $(edges[3].number), n3 is $(n3.number)")
+                DEBUG && println("edges[3] is $(edges[3].number), n3 is $(n3.number)")
                 removeEdge!(n3,edges[3])
                 deleteNode!(net,n)
                 deleteEdge!(net,edge)
@@ -536,11 +536,6 @@ function redundantCycle!(net::Network,n::Node)
                     removeNoLeafWhile!(net,n3);
                 end
             end
-        end
-    else
-        length(other.edge) == 3 || error("strange node $(other.number) with $(length(other.edge)) edges")
-        if(isEqual(n,other)) #not exactly a redundant cycle, but not identifiable hyb
-
         end
     end
 end
