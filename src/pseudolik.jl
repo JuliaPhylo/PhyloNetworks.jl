@@ -510,30 +510,37 @@ function redundantCycle!(net::Network,n::Node)
     edges[1].hybrid && edges[2].hybrid || error("hybrid node $(n.number) does not have two hybrid edges $(edges[1].number), $(edges[2].number)")
     #println("edges are $([e.number for e in edges])")
     other = getOtherNode(edges[1],n)
-    e = edges[1]
-    while(length(other.edge) == 2)
-        ind = isEqual(e,other.edge[1]) ? 2 : 1
-        e = other.edge[ind]
-        other = getOtherNode(e,other)
-    end
-    if(isEqual(n,other))
-        #println("redundant cycle found!")
-        n1 = getOtherNode(edges[1],n)
-        n2 = getOtherNode(edges[2],n)
-        deleteIntLeafWhile!(net,n1,n)
-        edge = n.edge[1].hybrid ? n.edge[1] : n.edge[2]
-        #println("edge is $(edge.number), should be the first (or only) edge in hybrid node $(n.number)")
-        if(isEqual(edge.node[1],edge.node[2]))
-            #println("entra a q son iguales los nodes de edge")
-            n3 = getOtherNode(edges[3],n)
-            #println("edges[3] is $(edges[3].number), n3 is $(n3.number)")
-            removeEdge!(n3,edges[3])
-            deleteNode!(net,n)
-            deleteEdge!(net,edge)
-            deleteEdge!(net,edges[3])
-            if(!n3.leaf && length(n3.edge)==1)
-                removeNoLeafWhile!(net,n3);
+    if(length(other.edge) == 2)
+        e = edges[1]
+        while(length(other.edge) == 2)
+            ind = isEqual(e,other.edge[1]) ? 2 : 1
+            e = other.edge[ind]
+            other = getOtherNode(e,other)
+        end
+        if(isEqual(n,other))
+            DEBUG && println("redundant cycle found!")
+            n1 = getOtherNode(edges[1],n)
+            n2 = getOtherNode(edges[2],n)
+            deleteIntLeafWhile!(net,n1,n)
+            edge = n.edge[1].hybrid ? n.edge[1] : n.edge[2]
+            #println("edge is $(edge.number), should be the first (or only) edge in hybrid node $(n.number)")
+            if(isEqual(edge.node[1],edge.node[2]))
+                #println("entra a q son iguales los nodes de edge")
+                n3 = getOtherNode(edges[3],n)
+                #println("edges[3] is $(edges[3].number), n3 is $(n3.number)")
+                removeEdge!(n3,edges[3])
+                deleteNode!(net,n)
+                deleteEdge!(net,edge)
+                deleteEdge!(net,edges[3])
+                if(!n3.leaf && length(n3.edge)==1)
+                    removeNoLeafWhile!(net,n3);
+                end
             end
+        end
+    else
+        length(other.edge) == 3 || error("strange node $(other.number) with $(length(other.edge)) edges")
+        if(isEqual(n,other)) #not exactly a redundant cycle, but not identifiable hyb
+
         end
     end
 end
@@ -755,7 +762,7 @@ function identifyQuartet!(qnet::QuartetNetwork)
                 else
                     DEBUG && printEdges(qnet)
                     DEBUG && printNodes(qnet)
-                    error("found in the same quartet, two hybridizations with overlapping cycles: types of hybridizations are $([n.typeHyb for n in qnet.hybrid])")
+                    warn("found in the same quartet, two hybridizations with overlapping cycles: types of hybridizations are $([n.typeHyb for n in qnet.hybrid]), maybe this will cause problems if the hyb do not become all but one type 1")
                 end
             end
         end
