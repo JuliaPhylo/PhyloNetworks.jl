@@ -763,6 +763,7 @@ function identifyQuartet!(qnet::QuartetNetwork)
                     DEBUG && printEdges(qnet)
                     DEBUG && printNodes(qnet)
                     warn("found in the same quartet, two hybridizations with overlapping cycles: types of hybridizations are $([n.typeHyb for n in qnet.hybrid]), maybe this will cause problems if the hyb do not become all but one type 1")
+                    qnet.which = 2
                 end
             end
         end
@@ -1036,6 +1037,7 @@ end
 # function to eliminate hybridizations in a quartet network
 # first step to later calculate expCF
 # input: quartet network
+# fixit: need to add a loop, eliminate type1 until there are none, and then identify again
 function eliminateHybridization!(qnet::QuartetNetwork)
     if(qnet.which != -1)
         if(qnet.numHybrids == 1)
@@ -1052,9 +1054,9 @@ function eliminateHybridization!(qnet::QuartetNetwork)
             end
             qnet.typeHyb = Int64[]
             if(qnet.numHybrids > 0)
-                #println("need to identify hybridizations again after deleting type 1 hybridizations")
+                DEBUG && println("need to identify hybridizations again after deleting type 1 hybridizations")
                 identifyQuartet!(qnet)
-                #println("now types are $([n.typeHyb for n in qnet.hybrid])")
+                DEBUG && println("now types are $([n.typeHyb for n in qnet.hybrid])")
                 hybrids = copy(qnet.hybrid)
                 for(n in hybrids)
                     eliminateHybridization!(qnet,n)
