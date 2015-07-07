@@ -494,7 +494,7 @@ extractQuartet!(net::HybridNetwork, d::DataCF) = extractQuartet!(net, d.quartet)
 # function to delete redundante cycles on all hybrid nodes in net
 function redundantCycle!(net::Network)
     if(length(net.hybrid) > 0)
-        hybrids = copy(qnet.hybrid)
+        hybrids = copy(net.hybrid)
         for(n in hybrids)
             redundantCycle!(net,n)
         end
