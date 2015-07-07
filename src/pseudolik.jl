@@ -1039,12 +1039,13 @@ end
 # input: quartet network
 # fixit: need to add a loop, eliminate type1 until there are none, and then identify again
 function eliminateHybridization!(qnet::QuartetNetwork)
-    if(qnet.which != -1)
-        if(qnet.numHybrids == 1)
-            eliminateHybridization!(qnet,qnet.hybrid[1])
-        elseif(qnet.numHybrids > 1)
-            #eliminate in order: first type1 only
-            #println("starting eliminateHyb for more than one hybrid with types $([n.typeHyb for n in qnet.hybrid])")
+    qnet.which != -1 || error("qnet which has to be updated by now to 1 or 2, and it is $(qnet.which)")
+    if(qnet.numHybrids == 1)
+        eliminateHybridization!(qnet,qnet.hybrid[1])
+    elseif(qnet.numHybrids > 1)
+        #eliminate in order: first type1 only
+        DEBUG && println("starting eliminateHyb for more than one hybrid with types $([n.typeHyb for n in qnet.hybrid])")
+        while(qnet.numHybrids > 0 && any([n.typeHyb == 1 for n in qnet.hybrid]))
             hybrids = copy(qnet.hybrid)
             for(n in hybrids)
                 if(n.typeHyb == 1) #only delete type 1 hybridizations (non identifiable ones)
@@ -1056,18 +1057,16 @@ function eliminateHybridization!(qnet::QuartetNetwork)
             if(qnet.numHybrids > 0)
                 DEBUG && println("need to identify hybridizations again after deleting type 1 hybridizations")
                 identifyQuartet!(qnet)
-                DEBUG && println("now types are $([n.typeHyb for n in qnet.hybrid])")
-                hybrids = copy(qnet.hybrid)
-                for(n in hybrids)
-                    eliminateHybridization!(qnet,n)
-                end
             end
         end
-        if(qnet.which == 1)
-            internalLength!(qnet)
+        DEBUG && println("now types are $([n.typeHyb for n in qnet.hybrid])")
+        hybrids = copy(qnet.hybrid)
+        for(n in hybrids)
+            eliminateHybridization!(qnet,n)
         end
-    else
-        error("qnet which has to be updated by now to 1 or 2, and it is $(qnet.which)")
+    end
+    if(qnet.which == 1)
+        internalLength!(qnet)
     end
 end
 
