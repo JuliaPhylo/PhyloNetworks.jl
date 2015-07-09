@@ -496,10 +496,10 @@ function redundantCycle!(net::Network)
     if(length(net.hybrid) > 0)
         hybrids = copy(net.hybrid)
         for(n in hybrids)
-            DEBUGC && println("enters redundante cycle for hybrid node $(n.number)")
+            redundantCycle!(net,n)
+            DEBUGC && println("after redundante cycle for hybrid node $(n.number)")
             DEBUGC && printEdges(net)
             DEBUGC && printNodes(net)
-            redundantCycle!(net,n)
         end
     end
     cleanExtEdges!(net)
