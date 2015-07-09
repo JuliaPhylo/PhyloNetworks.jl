@@ -496,6 +496,9 @@ function redundantCycle!(net::Network)
     if(length(net.hybrid) > 0)
         hybrids = copy(net.hybrid)
         for(n in hybrids)
+            DEBUGC && println("enters redundante cycle for hybrid node $(n.number)")
+            DEBUGC && printEdges(net)
+            DEBUGC && printNodes(net)
             redundantCycle!(net,n)
         end
     end
@@ -509,7 +512,7 @@ function redundantCycle!(net::Network,n::Node)
     n.hybrid || error("cannot clean a cycle on a tree node $(n.number)")
     edges = hybridEdges(n)
     edges[1].hybrid && edges[2].hybrid || error("hybrid node $(n.number) does not have two hybrid edges $(edges[1].number), $(edges[2].number)")
-    DEBUG && println("redundantCycle for node $(n.number) with edges are $([e.number for e in edges])")
+    DEBUG && println("search for redundantCycle for node $(n.number) with edges are $([e.number for e in edges])")
     other = getOtherNode(edges[1],n)
     if(length(other.edge) == 2)
         e = edges[1]
