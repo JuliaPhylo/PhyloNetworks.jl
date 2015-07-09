@@ -1,5 +1,4 @@
 Graph { 
-     rankdir=LR; 
 labelloc=b 
     ratio="fill"; 
     size="6 ,8"; 
@@ -17,38 +16,38 @@ labelloc=b
  
      1 -- -5 [penwidth=4]; 
      -5 -- 2
-                                    [color=red]
+                                    [color=green4]
                                     [penwidth=0.4]; 
      -5 -- -4
                                   [penwidth=4]; 
      -4 -- -6
                                   [penwidth=4]; 
      -6 -- 2
-                                    [color=blue]
+                                    [color=green4]
                                     [penwidth=3.6]
-                                    [taillabel=" &gamma; = 0.9"]
+                                    [headlabel=" &gamma; = 0.9"]
                                     [labeldistance = 4.5]
                                     [labelangle=30.0]; 
      2 -- 3
-                                  [headlabel=2]
+                                  [headlabel=B]
                                   [labeldistance=2.0]
                                   [labelangle=180.0]
                                   [penwidth=4]; 
      -6 -- 4
-                                  [headlabel=3]
+                                  [headlabel=C]
                                   [labeldistance=2.0]
                                   [labelangle=180.0]
                                   [penwidth=4]; 
      -4 -- -3
                                   [penwidth=4]; 
      -3 -- 6
-                                    [color=blue]
+                                    [color=green4]
                                     [penwidth=3.6]
-                                    [taillabel=" &gamma; = 0.9"]
+                                    [headlabel=" &gamma; = 0.9"]
                                     [labeldistance = 4.5]
                                     [labelangle=30.0]; 
      6 -- 5
-                                  [headlabel=4]
+                                  [headlabel=D]
                                   [labeldistance=2.0]
                                   [labelangle=180.0]
                                   [penwidth=4]; 
@@ -57,15 +56,15 @@ labelloc=b
      -2 -- -9
                                   [penwidth=4]; 
      -9 -- 6
-                                    [color=red]
+                                    [color=green4]
                                     [penwidth=0.4]; 
      -9 -- 7
-                                  [headlabel=5]
+                                  [headlabel=E]
                                   [labeldistance=2.0]
                                   [labelangle=180.0]
                                   [penwidth=4]; 
      -2 -- 8
-                                  [headlabel=6]
+                                  [headlabel=F]
                                   [labeldistance=2.0]
                                   [labelangle=180.0]
                                   [penwidth=4]; 

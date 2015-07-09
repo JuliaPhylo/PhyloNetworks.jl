@@ -1,7 +1,8 @@
+
 #John Spaw
 #drawCF takes a CF network object and converts it into .dot file, which is then converted into a .svg image file
 
-function plotNet(graph::Network;                           #Network object you are trying to plot
+function plotPhylonet(graph::Network;                           #Network object you are trying to plot
                  gammaThreshold=0.5::FloatingPoint,        #Gamma Threshold for extracting underlying tree structure
                  mainTree=false::Bool,                     #When true, the function will plot only the underlying tree structure
                  imageName="netImage",                     #Name for the file to be output
@@ -9,7 +10,8 @@ function plotNet(graph::Network;                           #Network object you a
                  height=8::Number,                         #Maximum height of image in inches
                  vert=true::Bool,                          #When true, function will display heirarchy from top to bottom. Otherwise, it will be from left to right
                  internalLabels=false::Bool,               #When true, all nodes will have labels (including internal nodes)
-                 fontSize=16.0::FloatingPoint              #Font size for labels in points
+                 fontSize=16.0::FloatingPoint,             #Font size for labels in points
+                 layoutStyle="dot"::String
                  )
 
   #IO stream for writing to .dot file
@@ -29,7 +31,7 @@ function plotNet(graph::Network;                           #Network object you a
 
   netRoot = graph.root; #Assigns the integer for the network root... necessary for $ notation when appending strings
 
-  global rootNode = graph.node[graph.root]
+  global rootNode = graph.node[net.root]
   #for i in graph.node
   #  println("checking to see if $(i.number) is the root")
   #  if i.number == netRoot
@@ -101,11 +103,11 @@ function plotNet(graph::Network;                           #Network object you a
 
   #Converts .dot file into .svg image
   print("Exporting .dot file as .svg")
-  dotExport("visualization/drawCF.dot",filename="$imageName")
+  generalExport("visualization/drawCF.dot",filename="$imageName",layoutEngine=layoutStyle)
 
 end
 
-function plotNet(netString::String;
+function plotPhylonet(netString::String;
                  gammaThreshold=0.5::FloatingPoint,        #Gamma Threshold for extracting underlying tree structure
                  mainTree=false::Bool,                     #When true, the function will plot only the underlying tree structure
                  imageName="netImage",                     #Name for the file to be output
@@ -128,6 +130,7 @@ function plotNet(netString::String;
                  height=8::Number,                         #Maximum height of image in inches
                  vert=true::Bool,                          #When true, function will display heirarchy from top to bottom. Otherwise, it will be from left to right
                  internalLabels=false::Bool,               #When true, all nodes will have labels (including internal nodes)
-                 fontSize=16.0::FloatingPoint              #Font size for labels in points
+                 fontSize=16.0::FloatingPoint,              #Font size for labels in points
+                 layoutStyle="dot"::String
                  )
 end
