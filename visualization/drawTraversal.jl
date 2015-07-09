@@ -8,9 +8,9 @@ function traverseEdges(net::HybridNetwork, node::Node, mainTree::Bool, dotIo, ga
     for edge in node.edge                      #Iterates through all edges associated with the node
       eNum = edge.number                       #Stores the edge number for use with $ syntax
       println("Appending edge $eNum")
-      parent = node
+      parent = node                            #Sets current node as parent node
       if (edge.node)[1] == node
-        child = (edge.node)[2]
+        child = (edge.node)[2]                 #Finds other nodes attached to the edge and makes it the child
       else
         child = (edge.node)[1]
       end
@@ -93,7 +93,10 @@ function traverseEdges(net::HybridNetwork, node::Node, mainTree::Bool, dotIo, ga
           child = (edge.node)[1]
         end
 
-        if (edge.isMajor) || (~(edge.isMajor) && node.hybrid == false)
+        #if !edge.hybrid || edge.isMajor
+        #if (edge.isMajor) || (~(edge.isMajor) && node.hybrid == false)
+        ##############
+        if (edge.isMajor) || node.hybrid == false
         println("Appending edge $eNum")        #Action statement here... this is where we will append the edge to the .dot file
 
 
@@ -122,7 +125,7 @@ function traverseEdges(net::HybridNetwork, node::Node, mainTree::Bool, dotIo, ga
             end #if
           elseif child.leaf
             write(dotIo,"     $node1Num -- $node2Num
-                            [headlabel=$(child.number)]
+                            [headlabel=$(child.name)]
                             [labeldistance=2.0]
                             [labelangle=180.0]
                             [penwidth=4]; \n")
@@ -148,7 +151,7 @@ function traverseEdges(net::HybridNetwork, node::Node, mainTree::Bool, dotIo, ga
                 end #if else
             elseif child.leaf
                 write(dotIo,"     $node1Num -- $node2Num
-                                  [headlabel=$(child.number)]
+                                  [headlabel=$(child.name)]
                                   [labeldistance=2.0]
                                   [labelangle=180.0]
                                   [penwidth=4]; \n")
