@@ -678,6 +678,8 @@ function identifyQuartet!(qnet::QuartetNetwork, node::Node)
     k = sum([(n.inCycle == node.number && size(n.edge,1) == 3) ? 1 : 0 for n in qnet.node])
     node.k = k
     if(k < 2)
+        DEBUG && printEdges(qnet)
+        DEBUG && printNodes(qnet)
         error("strange quartet network with a hybrid node $(node.number) but no cycle")
     elseif(k == 2)
         other = qnet.node[getIndex(true, [(n.inCycle == node.number && size(n.edge,1) == 3 && !isEqual(n,node)) for n in qnet.node])]
