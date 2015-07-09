@@ -1,7 +1,7 @@
 #John Spaw
 #drawCF takes a CF network object and converts it into .dot file, which is then converted into a .svg image file
 
-function plotPhylonet(graph::Network;                           #Network object you are trying to plot
+function plotPhylonet(graph::Network;                      #Network object you are trying to plot
                  gammaThreshold=0.5::FloatingPoint,        #Gamma Threshold for extracting underlying tree structure
                  mainTree=false::Bool,                     #When true, the function will plot only the underlying tree structure
                  imageName="netImage",                     #Name for the file to be output
@@ -10,8 +10,12 @@ function plotPhylonet(graph::Network;                           #Network object 
                  vert=true::Bool,                          #When true, function will display heirarchy from top to bottom. Otherwise, it will be from left to right
                  internalLabels=false::Bool,               #When true, all nodes will have labels (including internal nodes)
                  fontSize=16.0::FloatingPoint,             #Font size for labels in points
-                 layoutStyle="dot"::String,
-                 hybridColor="green4"::String
+                 layoutStyle="dot"::String,                #Chooses the layout engine for placing nodes and edges (dot,neato,circo,twopi)
+                 hybridColor="green4"::String,             #Sets color for hybrid edges
+                 forcedLeaf=true::Bool,                    #When true, places all leaf nodes on the same line
+                 unrooted=false::Bool,                     #Defaults to neato engine
+                 nodeSeparation=0.5::FloatingPoint,        #Sets the minimum distance between nodes in inches
+                 edgeStyle="line"::String
                  )
 
   #IO stream for writing to .dot file
@@ -21,24 +25,30 @@ function plotPhylonet(graph::Network;                           #Network object 
   #Leaf numbers will be used for ranking process later on
   allNodes = Int64[]
   leafNodes = Int64[]
-  for i in graph.node;
-    num = i.number
-    push!(allNodes,i.number)
-    if i.leaf
-      push!(leafNodes,i.number)
+
+  #Change the default engine if unrooted is selected
+  if unrooted
+    layoutStyle = "neato"
+  end
+
+  #Create list of nodes in order to append labels later on
+  if internalLabels
+    for i in graph.node;
+      num = i.number
+      push!(allNodes,i.number)
+    end #for i in graph.node
+  end #if internalLabels
+
+  for i in graph.leaf
+    if i != graph.node[graph.root]
+     push!(leafNodes,i.number)
     end
   end
+
 
   netRoot = graph.root; #Assigns the integer for the network root... necessary for $ notation when appending strings
 
   global rootNode = graph.node[net.root]
-  #for i in graph.node
-  #  println("checking to see if $(i.number) is the root")
-  #  if i.number == netRoot
-  #    rootNode = i;
-  #    println("Root found!")
-  #  end
-  #end
 
   println("Root node found... it is $(rootNode.number)")
 
@@ -46,27 +56,33 @@ function plotPhylonet(graph::Network;                           #Network object 
 
   #Writes initial preample lines for .dot file
   println("Creating preamble statement")
-  write(dotIo,"Graph { \n")
+  write(dotIo,"Graph Phylogeny { \n")
   if vert == false
     write(dotIo,"     rankdir=LR; \n")
   end
-  write(dotIo,"labelloc=b \n")                                    #Ensures that labels do not overlap each other (DOUBLE CHECK THIS)
+  write(dotIo,"    labelloc=b \n")                                #Ensures that labels do not overlap each other (DOUBLE CHECK THIS)
   write(dotIo,"    ratio=\"fill\"; \n")                           #Fits graph to the full image size             (TEST OTHER RATIO OPTIONS)
   write(dotIo,"    size=\"$width ,$height\"; \n")                 #Changes the size of the entire graph
-  write(dotIo,"    nodesep=0.5; \n")
+  write(dotIo,"    nodesep=$(nodeSeparation); \n")
+  write(dotIo,"    splines=$(edgeStyle); \n")
   write(dotIo,"    edge [fontsize=$fontSize]; \n")
   write(dotIo,"    node [shape = point] \n")                      #Sets the shape of the nodes
-  write(dotIo,"    rank=max $(rootNode.number) \n     subgraph    { ")      #Places root node at top of tree
+  write(dotIo,"    rank=max $(rootNode.number) \n")
 
-  leafArraySize = countnz(leafNodes)                              #Probably redundant... could delete later on
-  for i in leafNodes                                              #Groups leaf nodes so they are all placed at bottom of tree
-    if i != leafNodes[leafArraySize]                              #First appends each leaf node (except the last) to .dot file followed by a comma
-      write(dotIo,"$i , ")
-    else                                                          #Appends final leaf node to .dot file WITHOUT a comma
-      write(dotIo,"$i")
+
+  #Ranking leaves together at the bottom of the tree
+  if forcedLeaf
+    write(dotIo,"  subgraph    { ")      #Places root node at top of tree
+    leafArraySize = countnz(leafNodes)                              #Probably redundant... could delete later on
+    for i in leafNodes                                              #Groups leaf nodes so they are all placed at bottom of tree
+      if i != leafNodes[leafArraySize]                              #First appends each leaf node (except the last) to .dot file followed by a comma
+        write(dotIo,"$i , ")
+      else                                                          #Appends final leaf node to .dot file WITHOUT a comma
+        write(dotIo,"$i")
+      end
     end
+    write(dotIo," } \n")
   end
-  write(dotIo," } \n")
 
   #Choosing which nodes have labels
   if internalLabels
@@ -90,7 +106,7 @@ function plotPhylonet(graph::Network;                           #Network object 
 
   #Traverse the network using a pseudo-depth-first method
   #traverseEdges is a recursive function that traverses each edge only once and appends it to the dot file
-  traverseEdges(graph, rootNode, mainTree, dotIo, gammaThreshold, dummy,hybridColor)
+  traverseEdges(graph, rootNode, mainTree, dotIo, gammaThreshold, dummy,hybridColor,layoutStyle)
 
   #********************************************************************************************************************
 
@@ -115,14 +131,20 @@ function plotPhylonet(netString::String;
                  height=8::Number,                         #Maximum height of image in inches
                  vert=true::Bool,                          #When true, function will display heirarchy from top to bottom. Otherwise, it will be from left to right
                  internalLabels=false::Bool,               #When true, all nodes will have labels (including internal nodes)
-                 fontSize=16.0::FloatingPoint              #Font size for labels in points
+                 fontSize=16.0::FloatingPoint,             #Font size for labels in points
+                 layoutStyle="dot"::String,                #Chooses the layout engine for placing nodes and edges (dot,neato,circo,twopi)
+                 hybridColor="green4"::String,             #Sets color for hybrid edges
+                 forcedLeaf=true::Bool,                    #When true, places all leaf nodes on the same line
+                 unrooted=false::Bool,                     #Defaults to neato engine
+                 nodeSeparation=0.5::FloatingPoint,        #Sets the minimum distance between nodes in inches
+                 edgeStyle="line"::String
                  )
 
   f = open("string_Net.txt","w")
   write(f,netString)
   close(f)
   net = readTopologyUpdate("string_Net.txt");
-  plotNet(net,
+  plotPhylonet(net,
                  gammaThreshold=0.5::FloatingPoint,        #Gamma Threshold for extracting underlying tree structure
                  mainTree=false::Bool,                     #When true, the function will plot only the underlying tree structure
                  imageName="netImage",                     #Name for the file to be output
@@ -130,7 +152,12 @@ function plotPhylonet(netString::String;
                  height=8::Number,                         #Maximum height of image in inches
                  vert=true::Bool,                          #When true, function will display heirarchy from top to bottom. Otherwise, it will be from left to right
                  internalLabels=false::Bool,               #When true, all nodes will have labels (including internal nodes)
-                 fontSize=16.0::FloatingPoint,              #Font size for labels in points
-                 layoutStyle="dot"::String
+                 fontSize=16.0::FloatingPoint,             #Font size for labels in points
+                 layoutStyle="dot"::String,                #Chooses the layout engine for placing nodes and edges (dot,neato,circo,twopi)
+                 hybridColor="green4"::String,             #Sets color for hybrid edges
+                 forcedLeaf=true::Bool,                    #When true, places all leaf nodes on the same line
+                 unrooted=false::Bool,                     #Defaults to neato engine
+                 nodeSeparation=0.5::FloatingPoint,        #Sets the minimum distance between nodes in inches
+                 edgeStyle="line"::String
                  )
 end

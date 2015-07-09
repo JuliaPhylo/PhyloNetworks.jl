@@ -219,6 +219,8 @@ function create_g4()
 
   g4 = HybridNetwork([n1,n2,n3,n4,n5,n6,n7,n8,n9,n10,n11,n12,n13,n14,n15,n16,n17,n18,n19],
                      [e1,e2,e3,e4,e5,e6,e7,h8,h9,e10,e11,e12,e13,e14,e15,e16,h17,h18,e19,e20])
+
+
   println("Network successfully created!")
 
   return g4
