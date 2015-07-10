@@ -37,8 +37,8 @@ function traverseEdges(net::HybridNetwork, node::Node, mainTree::Bool, dotIo, ga
                 end
                 write(dotIo,"
                                   [headlabel=\" &gamma; = $gma\"]
-                                  [labeldistance = 4.5]
-                                  [labelangle=30.0]; \n")
+                                  [labeldistance = 3.5]
+                                  [labelangle=45.0]; \n")
               elseif mainTree == false                                 #Skip this step if you only want mainTree
                 write(dotIo,"     $node1Num -- $node2Num
                                   [color=$(hybridColor)]")
@@ -117,8 +117,8 @@ function traverseEdges(net::HybridNetwork, node::Node, mainTree::Bool, dotIo, ga
                    end
                   write(dotIo,"
                                   [headlabel=\" &gamma; = $gma\"]
-                                  [labeldistance = 4.5]
-                                  [labelangle=30.0]; \n")
+                                  [labeldistance = 3.5]
+                                  [labelangle=45.0]; \n")
                 elseif mainTree == false
                   write(dotIo,"   $node1Num -- $node2Num
                                   [color=$(hybridColor)]")

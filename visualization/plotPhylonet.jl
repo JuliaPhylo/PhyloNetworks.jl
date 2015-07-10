@@ -40,15 +40,15 @@ function plotPhylonet(graph::Network;                      #Network object you a
   end #if internalLabels
 
   for i in graph.leaf
-    if i != graph.node[graph.root]
+    #if i != graph.node[graph.root]
      push!(leafNodes,i.number)
-    end
+    #end
   end
 
 
   netRoot = graph.root; #Assigns the integer for the network root... necessary for $ notation when appending strings
 
-  global rootNode = graph.node[net.root]
+  global rootNode = graph.node[graph.root]
 
   println("Root node found... it is $(rootNode.number)")
 

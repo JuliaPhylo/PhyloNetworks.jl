@@ -7,7 +7,7 @@
 
 dummy = Edge(-1,1.0)
 
-function traverseEdges(net::HybridNetwork, node::Node, parentEdge=dummy::Edge)
+function traverseEdgesDetail(net::HybridNetwork, node::Node, parentEdge=dummy::Edge)
   #nNum = node.number
   #println("On node $nNum")
 
@@ -30,7 +30,7 @@ function traverseEdges(net::HybridNetwork, node::Node, parentEdge=dummy::Edge)
       end #if else
       nnN = newnode.number                        #Simply used for progress/debugging statements... will be removed in the end
       println("About to call function with new node as $nnN")
-      traverseEdges(net,newnode,edge)             #Recursively call the function on the child node (as new parent node) using the edge as the new parent edge
+      traverseEdgesDetail(net,newnode,edge)             #Recursively call the function on the child node (as new parent node) using the edge as the new parent edge
     end #for
   end #if
 
@@ -73,7 +73,7 @@ function traverseEdges(net::HybridNetwork, node::Node, parentEdge=dummy::Edge)
             println("something is wrong")
           end #if else
           println("About to call function with new node $(newnode.number)")
-          traverseEdges(net,newnode,edge)                             #Recursively call function with new child node (as parent) and previous edge as parent edge
+          traverseEdgesDetail(net,newnode,edge)                             #Recursively call function with new child node (as parent) and previous edge as parent edge
 
           end #if gamma
       end #if
