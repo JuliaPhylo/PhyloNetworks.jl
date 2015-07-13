@@ -502,16 +502,34 @@ function deleteIntNode!(net::Network, n::Node)
     index = n.edge[1].number < n.edge[2].number ? 1 : 2;
     edge1 = n.edge[index];
     edge2 = n.edge[index==1?2:1];
-    (!edge1.hybrid && !edge2.hybrid) || error("the two edges $([edge1.number,edge2.number]) attached to node $(node.number) must be tree edges to delete node")
-    node1 = getOtherNode(edge1,n);
-    node2 = getOtherNode(edge2,n);
-    removeEdge!(node2,edge2);
-    removeNode!(n,edge1);
-    setEdge!(node2,edge1);
-    setNode!(edge1,node2);
-    deleteNode!(net,n);
-    deleteEdge!(net,edge2);
-    DEBUG && printEverything(net)
+    if(!edge1.hybrid && !edge2.hybrid)
+        node1 = getOtherNode(edge1,n);
+        node2 = getOtherNode(edge2,n);
+        removeEdge!(node2,edge2);
+        removeNode!(n,edge1);
+        setEdge!(node2,edge1);
+        setNode!(edge1,node2);
+        deleteNode!(net,n);
+        deleteEdge!(net,edge2);
+        DEBUG && printEverything(net)
+    else
+        warn("the two edges $([edge1.number,edge2.number]) attached to node $(n.number) must be tree edges to delete node")
+        if(edge1.hybrid)
+            hybedge = edge1
+            otheredge = edge2
+        elseif(edge2.hybrid)
+            hybedge = edge2
+            otheredge = edge1
+        end
+        othernode = getOtherNode(otheredge,n)
+        removeNode!(n,hybedge)
+        removeEdge!(othernode,otheredge)
+        setEdge!(othernode,hybedge)
+        setNode!(hybedge,othernode)
+        deleteNode!(net,n)
+        deleteEdge!(net,otheredge)
+        DEBUG && printEverything(net)
+    end
 end
 
 
