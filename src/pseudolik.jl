@@ -491,15 +491,34 @@ end
 
 extractQuartet!(net::HybridNetwork, d::DataCF) = extractQuartet!(net, d.quartet)
 
+# function to check if there are potential redundant cycles in net
+# return the flag (true=redundant cycle found) and the hybrid node for the redundant cycle
+function hasRedundantCycle(net::Network)
+    length(net.hybrid) == net.numHybrids || error("found net with length net.hybrid of $(length(net.hybrid)) and net.numHybrids of $(net.numHybrids)")
+    if(net.numHybrids > 0)
+        for(h in net.hybrid)
+            k = sum([(n.inCycle == h.number && length(n.edge) == 3) ? 1: 0 for n in net.node])
+            if(k < 2)
+                return true,h
+            end
+        end
+    end
+    return false,nothing
+end
+
+
 # function to delete redundante cycles on all hybrid nodes in net
 function redundantCycle!(net::Network)
+    length(net.hybrid) == net.numHybrids || error("found net with length net.hybrid of $(length(net.hybrid)) and net.numHybrids of $(net.numHybrids)")
     if(length(net.hybrid) > 0)
-        hybrids = copy(net.hybrid)
-        for(n in hybrids)
-            redundantCycle!(net,n)
+        redCycle, node = hasRedundantCycle(net)
+        while(redCycle)
+            !isa(node,Nothing) || error("redundant cycle found, but the hybrid node is set to nothing")
+            redundantCycle!(net,node)
             DEBUGC && println("after redundante cycle for hybrid node $(n.number)")
             DEBUGC && printEdges(net)
             DEBUGC && printNodes(net)
+            redCycle, node = hasRedundantCycle(net)
         end
     end
     cleanExtEdges!(net)
