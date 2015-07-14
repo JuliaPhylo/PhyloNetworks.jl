@@ -575,7 +575,7 @@ function chooseMinorMajor(node::Node, random::Bool, target::Bool)
     #println("hybrid node $(node.number) has major $(major.number), minor $(minor.number) and tree $(tree.number)")
     if(random)
         r = rand()
-        major.gamma > 0.5 || error("strange major hybrid edge $(major.number) with gamma $(major.gamma) less than 0.5")
+        major.gamma >= 0.5 || error("strange major hybrid edge $(major.number) with gamma $(major.gamma) less than 0.5")
         major.gamma != 1.0 || println("strange major hybrid edge $(major.number) with gamma $(major.gamma) equal to 1.0")
         othermin = r < major.gamma ? getOtherNode(minor,node) : getOtherNode(major,node)
         majoredge = r < major.gamma ? major : minor
