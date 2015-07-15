@@ -1,5 +1,47 @@
-CFnetworks
-==========
+#PhyloNetworks: phylogenetic analysis for networks in [Julia](http://julialang.org)
+
+## Maximum pseudolikelihood estimation of species network: SNaQ
+
+SNaQ estimates the species network that maximizes the
+pseudolikelihood. The procedure involves a numerical optimization of
+branch lengths and probabilities of inheritance and heuristic search
+in the space of phylogenetic networks.  The formula for the
+pseudolikelihood is based on the likelihood of each quartet in a
+similar manner to Liu et al. (2010). We extended the formulas to the
+case of hybridization and HGT, see ().
+
+### Input for SNaQ
+
+Two alternatives: 
+
+1. A table of concordance factors (CF) for each quartet which can be
+obtained from BUCKy (reference).
+
+2. The estimated gene trees for each locus which can be obtained by
+RAXML (reference).
+
+### Pipeline from sequence alignments
+
+We developed a pipeline that obtains the table of CF needed as input
+for SNaQ. The pipeline starts with input the sequence alignments, and
+it runs MrBayes (reference) and then BUCKy (reference), producing the
+table of estimated CF and its confidence intervals.
+
+
+### Installation of Julia
+
+here on how to install julia
+
+### Installation of the package
+
+#### PhyloNetworks
+
+here how to install PhyloNetworks along with a small example
+
+#### Visualization
+
+here John's readme file along with a small example
+
 
 Dissertation work on julia
 

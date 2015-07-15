@@ -15,7 +15,7 @@ include("test_functions_5taxon.jl")
 
 warn("BUG IN CASE C: sometimes it shows errors, but if Julia is closed and reopened, no more error shown")
 
-tests = ["C","F","G","H","J","D","E","I"];
+tests = ["F","G","H","J","I"];
 wrong = String[];
 
 for t in tests

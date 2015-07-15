@@ -118,37 +118,43 @@ for t in tests
     end
 end
 
+## if(!isempty(wrong))
+##     for t in wrong
+##         println("running $(t)")
+##         net = nothing;
+##         tree = whichtree(t)
+##         f = open("prueba_tree.txt","w")
+##         write(f,tree)
+##         close(f)
+##         net = readTopologyUpdate("prueba_tree.txt");
+##         if(t == "tree")
+##             testTree(net)
+##         elseif(t == "C")
+##             testCaseC(net)
+##         elseif(t == "F")
+##             testCaseF(net)
+##         elseif(t == "G")
+##             testCaseG(net)
+##         elseif(t == "H")
+##             testCaseH(net)
+##         elseif(t == "J")
+##             testCaseJ(net)
+##         elseif(t == "D")
+##             testCaseD(net)
+##         elseif(t == "E")
+##             testCaseE(net)
+##         elseif(t == "I")
+##             testCaseI(net)
+##         else
+##             error("not a known 5 taxon network case")
+##         end
+##     end
+## else
+##     println("----------NO ERRORS!----------");
+## end
+
 if(!isempty(wrong))
-    for t in wrong
-        println("running $(t)")
-        net = nothing;
-        tree = whichtree(t)
-        f = open("prueba_tree.txt","w")
-        write(f,tree)
-        close(f)
-        net = readTopologyUpdate("prueba_tree.txt");
-        if(t == "tree")
-            testTree(net)
-        elseif(t == "C")
-            testCaseC(net)
-        elseif(t == "F")
-            testCaseF(net)
-        elseif(t == "G")
-            testCaseG(net)
-        elseif(t == "H")
-            testCaseH(net)
-        elseif(t == "J")
-            testCaseJ(net)
-        elseif(t == "D")
-            testCaseD(net)
-        elseif(t == "E")
-            testCaseE(net)
-        elseif(t == "I")
-            testCaseI(net)
-        else
-            error("not a known 5 taxon network case")
-        end
-    end
+    throw("error in read topology")
 else
     println("----------NO ERRORS!----------");
 end

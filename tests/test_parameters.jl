@@ -100,16 +100,17 @@ end
 
 
 if(!isempty(wrong))
-    for t in wrong
-        println("running $(t)")
-        net = nothing;
-        tree = whichtree(t)
-        f = open("prueba_tree.txt","w")
-        write(f,tree)
-        close(f)
-        net = readTopologyUpdate("prueba_tree.txt");
-        whichtest(t,net)
-    end
+    ## for t in wrong
+    ##     println("running $(t)")
+    ##     net = nothing;
+    ##     tree = whichtree(t)
+    ##     f = open("prueba_tree.txt","w")
+    ##     write(f,tree)
+    ##     close(f)
+    ##     net = readTopologyUpdate("prueba_tree.txt");
+    ##     whichtest(t,net)
+    ## end
+    throw("errors in parameters")
 else
     println("----------NO ERRORS!----------");
 end

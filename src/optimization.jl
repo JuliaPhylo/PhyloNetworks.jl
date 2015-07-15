@@ -259,7 +259,7 @@ end
 # using BOBYQA from NLopt package
 function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool, ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64)
     (ftolRel > 0 && ftolAbs > 0 && xtolAbs > 0 && xtolRel > 0) || error("tolerances have to be positive, ftol (rel,abs), xtol (rel,abs): $([ftolRel, ftolAbs, xtolRel, xtolAbs])")
-    verbose && println("OPTBL: begin branch lengths and gammas optimization, ftolAbs $(ftolAbs), ftolRel $(ftolRel), xtolAbs $(xtolAbs), xtolRel $(xtolRel)")
+    (DEBUG || verbose) && println("OPTBL: begin branch lengths and gammas optimization, ftolAbs $(ftolAbs), ftolRel $(ftolRel), xtolAbs $(xtolAbs), xtolRel $(xtolRel)")
     ht = parameters!(net); # branches/gammas to optimize: net.ht, net.numht
     extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
     k = length(net.ht)
@@ -305,9 +305,9 @@ function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool, ftolRel::Float64, 
     ##     end
     ##     NLopt.inequality_constraint!(opt,inequalityGammaz)
     ## end
-    verbose && println("OPTBL: starting point $(ht)")
+    (DEBUG || verbose) && println("OPTBL: starting point $(ht)")
     fmin, xmin, ret = NLopt.optimize(opt,ht)
-    verbose && println("got $(round(fmin,5)) at $(round(xmin,5)) after $(count) iterations (returned $(ret))")
+    (DEBUG || verbose) && println("got $(round(fmin,5)) at $(round(xmin,5)) after $(count) iterations (returned $(ret))")
     updateParameters!(net,xmin)
     net.loglik = fmin
     #return fmin,xmin
@@ -317,51 +317,6 @@ optBL!(net::HybridNetwork, d::DataCF) = optBL!(net, d, false, fRel, fAbs, xRel, 
 optBL!(net::HybridNetwork, d::DataCF, verbose::Bool) = optBL!(net, d,verbose, fRel, fAbs, xRel, xAbs)
 optBL!(net::HybridNetwork, d::DataCF, ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64) = optBL!(net, d, false, ftolRel, ftolAbs, xtolRel, xtolAbs)
 
-
-# function that will add a hybridization with addHybridizationUpdate,
-# if success=false, it will try to move the hybridization before
-# declaring failure
-# blacklist used in afterOptBLAll
-function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::Int64)
-    DEBUG && println("MOVE: addHybridizationUpdateSmart")
-    success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
-    i = 0
-    if(!success)
-        while((nocycle || !flag) && i < N) #incycle failed
-            DEBUG && println("MOVE: added hybrid causes conflict with previous cycle, need to delete and add another")
-            deleteHybrid!(hybrid,net,true)
-            success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
-        end
-        if(nocycle || !flag)
-            DEBUG && println("MOVE: added hybridization $(i) times trying to avoid incycle conflicts, but failed")
-        else
-            if(!flag2) #gammaz failed
-                DEBUG && println("MOVE: added hybrid has problem with gammaz (not identifiable bad triangle)")
-                flag3, edgesRoot = updateContainRoot!(net,hybrid);
-                if(flag3)
-                    DEBUG && println("MOVE: we will move origin to fix the gammaz situation")
-                    success = moveOriginUpdateRepeat!(net,hybrid,true)
-                else
-                    DEBUG && println("MOVE: we will move target to fix the gammaz situation")
-                    success = moveTargetUpdateRepeat!(net,hybrid,true)
-                end
-            else
-                if(!flag3) #containRoot failed
-                    DEBUG && println("MOVE: added hybrid causes problems with containRoot, will change the direction to fix it")
-                    success = changeDirectionUpdate!(net,hybrid) #change dir of minor
-                end
-            end
-        end
-        if(!success)
-            DEBUG && println("MOVE: could not fix the added hybrid by any means, we will delete it now")
-            deleteHybridizationUpdate!(net,hybrid)
-        end
-    end
-    success && DEBUG && println("MOVE: added hybridization SUCCESSFUL: new hybrid $(hybrid.number)")
-    return success
-end
-
-addHybridizationUpdateSmart!(net::HybridNetwork, N::Int64) = addHybridizationUpdateSmart!(net, false,N)
 
 # function to delete a hybrid, and then add a new hybrid:
 # deleteHybridizationUpdate and addHybridizationUpdate,
@@ -415,6 +370,8 @@ function gammaZero!(net::HybridNetwork, d::DataCF, edge::Edge, closeN ::Bool, or
     success = changeDirectionUpdate!(net,node) #changes dir of minor
     movesgamma[4] += 1
     if(success)
+        DEBUG && printEverything(net)
+        CHECKNET && checkNet(net)
         movesgamma[10] += 1
         optBL!(net,d,false)
         flags = isValid(net)
@@ -425,10 +382,14 @@ function gammaZero!(net::HybridNetwork, d::DataCF, edge::Edge, closeN ::Bool, or
             DEBUG && println("changing direction does not fix the gamma zero situation, need to undo change direction and move hybrid")
             success = changeDirectionUpdate!(net,node)
             success || error("strange thing, changed direction and success, but lower loglik; want to undo changeDirection, and success=false! Hybrid node is $(node.number)")
+            DEBUG && printEverything(net)
+            CHECKNET && checkNet(net)
             success2 = moveHybrid!(net,edge,closeN ,origin,N, movesgamma)
         end
     else
         DEBUG && println("changing direction was not possible to fix the gamma zero situation (success=false), need to move hybrid")
+        DEBUG && printEverything(net)
+        CHECKNET && checkNet(net)
         success2 = moveHybrid!(net,edge,closeN ,origin,N,movesgamma)
     end
     return success2
@@ -513,13 +474,11 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF,closeN ::Bool, origin::Bool
             i += 2
         end
     end
-    if(successchange)
-        DEBUG && println(writeTopology(currT))
-        DEBUG && printEdges(currT)
-        optBL!(currT,d,verbose)
-    end
     !successchange || println("afterOptBL SUCCESSFUL change, need to run again to see if new topology is valid")
     if(successchange)
+        DEBUG && printEverything(currT)
+        CHECKNET && checkNet(currT)
+        optBL!(currT,d,verbose)
         flagh,flagt,flaghz = isValid(currT)
         DEBUG && println("new flags: flagh,flagt,flaghz $([flagh,flagt,flaghz])")
     end
@@ -569,7 +528,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,closeN ::Bool,
     origin = (rand() > 0.5) #true=moveOrigin, false=moveTarget
     startover = true
     tries = 0
-    N2 = N > 5 ? N/5 : 1 #num of failures of badlik around a gamma=0.0
+    N2 = N > 10 ? N/10 : 1 #num of failures of badlik around a gamma=0.0, t=0.0
     while(startover && tries < N)
         tries += 1
         DEBUG && println("inside afterOptBLALL: number of tries $(tries) out of $(N) possible")
@@ -583,6 +542,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,closeN ::Bool,
                 currT0 = deepcopy(currT)
                 origin = !origin #to guarantee not going back to previous topology
                 success,flagh,flagt,flaghz = afterOptBLRepeat!(currT,d,N,closeN ,origin,verbose,movesgamma)
+                all([!(e.hybrid && e.inCycle == -1) for e in currT.edge]) || error("found hybrid edge with inCycle == -1")
                 DEBUG && println("inside afterOptBLAll, after afterOptBLRepeat once we get: success, flags: $([success,flagh,flagt,flaghz])")
                 if(!success) #tried to change something but failed
                     DEBUG && println("did not change anything inside afterOptBL: could be nothing needed change or tried but couldn't anymore. flagh, flagt, flaghz = $([flagh,flagt,flaghz])")
@@ -599,15 +559,13 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,closeN ::Bool,
                     end
                 else #changed something
                     DEBUG && println("changed something inside afterOptBL: flagh, flagt, flaghz = $([flagh,flagt,flaghz]). oldloglik $(currloglik), newloglik $(currT.loglik)")
-                    DEBUG && printEdges(currT)
-                    #printNodes(currT)
-                    DEBUG && println(writeTopology(currT))
                     if(currT.loglik > currloglik) #|| abs(currT.loglik-currloglik) <= M*ftolAbs) #fixit: allowed like this because of changeDir that does not change much the lik but can fix h=0
                         DEBUG && println("worse likelihood, back to currT")
                         startover = true
                         backCurrT0 = true
                     else
                         DEBUG && println("better likelihood, jump to new topology and startover")
+                        backCurrT0 = false
                         movesgamma[13] += 1
                         if(all([flagh,flagt,flaghz]))
                             startover = false
@@ -634,8 +592,6 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,closeN ::Bool,
                     movesgamma[5] += 1
                     movesgamma[11] += 1
                     moveDownLevel!(currT)
-                    DEBUG && printEdges(currT)
-                    DEBUG && println(writeTopology(currT))
                     optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
                     startover = true
                 else
@@ -653,6 +609,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,closeN ::Bool,
             DEBUG && println("gammaz zero situation still in currT, need to move down one level to h-1")
             moveDownLevel!(currT)
             DEBUG && printEdges(currT)
+            DEBUG && printPartitions(currT)
             #printNodes(currT)
             DEBUG && println(writeTopology(currT))
             optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
@@ -818,12 +775,15 @@ function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::In
     elseif(move == 2)
         node = chooseHybrid(newT)
         success = moveOriginUpdateRepeat!(newT,node,random)
+        CHECKNET && isBadTriangle(node) && success && error("success is $(success) in proposedTop, but node $(node.number) is very bad triangle")
     elseif(move == 3)
         node = chooseHybrid(newT)
         success = moveTargetUpdateRepeat!(newT,node,random)
+        CHECKNET && isBadTriangle(node) && success && error("success is $(success) in proposedTop, but node $(node.number) is very bad triangle")
     elseif(move == 4)
         node = chooseHybrid(newT)
         success = changeDirectionUpdate!(newT,node, random)
+        CHECKNET && isBadTriangle(node) && success && error("success is $(success) in proposedTop, but node $(node.number) is very bad triangle")
     elseif(move == 5)
         node = chooseHybrid(newT)
         deleteHybridizationUpdate!(newT,node)
@@ -837,6 +797,8 @@ function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::In
     DEBUG && println("success $(success), movescount (add,mvorigin,mvtarget,chdir,delete,nni) proposed: $(movescount[1:6]); successful: $(movescount[7:12]); movesfail: $(movesfail)")
     !success || return true
     DEBUG && println("new proposed topology failed in step $(count) for move $(int2move[move])")
+    DEBUG && printEverything(newT)
+    CHECKNET && checkNet(newT)
     return false
 end
 
@@ -883,6 +845,8 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     M > 0 || error("M must be greater than zero: $(M)")
     Nfail > 0 || error("Nfail must be greater than zero: $(Nfail)")
     isempty(Nmov0) || all([n > 0 for n in Nmov0]) || error("Nmov must be greater than zero: $(Nmov0)")
+    DEBUG && printEverything(currT)
+    CHECKNET && checkNet(currT)
     count = 0
     movescount = rep(0,18) #1:6 number of times moved proposed, 7:12 number of times success move (no intersecting cycles, etc.), 13:18 accepted by loglik
     movesgamma = rep(0,13) #number of moves to fix gamma zero: proposed, successful, movesgamma[13]: total accepted by loglik
@@ -894,11 +858,13 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     else
         Nmov = deepcopy(Nmov0)
     end
+    all([!(e.hybrid && e.inCycle == -1) for e in currT.edge]) || error("found hybrid edge with inCycle == -1")
     optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
     currT = afterOptBLAll!(currT, d, Nfail,closeN , M, ftolAbs, verbose,movesgamma,ftolRel,xtolRel,xtolAbs)
     absDiff = M*ftolAbs + 1
     newT = deepcopy(currT)
     DEBUG && printEdges(newT)
+    DEBUG && printPartitions(newT)
     #DEBUG && printNodes(newT)
     DEBUG && println(writeTopology(newT))
     while(absDiff > M*ftolAbs && failures < Nfail && currT.loglik > M*ftolAbs && stillmoves) #stops if close to zero because of new deviance form of the pseudolik
@@ -911,17 +877,17 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         move = whichMove(newT,hmax,movesfail,Nmov)
         if(move != :none)
             flag = proposedTop!(move,newT,true, count,10, movescount,movesfail) #N=10 because with 1 it never finds an edge for nni
-            if(flag)
+            if(flag) #no need else because newT always undone if failed
                 accepted = false
-                DEBUG && println("accepted proposed new topology in step $(count)")
-                DEBUG && printEdges(newT)
-                DEBUGC && printNodes(newT)
-                DEBUG && println(writeTopology(newT))
+                all([!(e.hybrid && e.inCycle == -1) for e in newT.edge]) || error("found hybrid edge with inCycle == -1")
+                DEBUG && println("proposed new topology in step $(count) is ok to start optBL")
+                DEBUG && printEverything(newT)
+                CHECKNET && checkNet(newT)
                 optBL!(newT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
                 DEBUG && println("OPT: comparing newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
                 if(newT.loglik < currT.loglik && abs(newT.loglik-currT.loglik) > M*ftolAbs) #newT better loglik: need to check for error or keeps jumping back and forth
                     newloglik = newT.loglik
-                    newT = afterOptBLAll!(newT, d, Nfail,closeN , M, ftolAbs,verbose,movesgamma,ftolRel, xtolRel,xtolAbs)
+                    newT = afterOptBLAll!(newT, d, Nfail,closeN , M, ftolAbs,verbose,movesgamma,ftolRel, xtolRel,xtolAbs) #needed return because of deepcopy inside
                     DEBUG && println("loglik before afterOptBL $(newloglik), newT.loglik now $(newT.loglik), loss in loglik by fixing gamma(z)=0.0(1.0): $(newloglik>newT.loglik ? 0 : abs(newloglik-newT.loglik))")
                     accepted = true
                 else
@@ -941,6 +907,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
                     newT = deepcopy(currT)
                 end
                 DEBUG && printEdges(newT)
+                DEBUG && printPartitions(newT)
                 #printNodes(newT)
                 DEBUG && println(writeTopology(newT))
                 DEBUG && println("ends step $(count) with absDiff $(accepted? absDiff : 0.0) and failures $(failures)")
@@ -975,6 +942,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     println("END optTopLevel: found minimizer topology at step $(count) (failures: $(failures)) with -loglik=$(round(newT.loglik,5)) and ht_min=$(round(newT.ht,5))")
     printCounts(movescount,movesgamma,"movesTable.txt")
     DEBUG && printEdges(newT)
+    DEBUG && printPartitions(newT)
     DEBUGC && printNodes(newT)
     println(writeTopology(newT))
     if(ret)
@@ -1027,6 +995,8 @@ end
 function moveDownLevel!(net::HybridNetwork)
     !isTree(net) ||error("cannot delete hybridization in a tree")
     DEBUG && println("MOVE: need to go down one level to h-1=$(net.numHybrids-1) hybrids because of conflicts with gamma=0,1")
+    DEBUG && printEverything(net)
+    CHECKNET && checkNet(net)
     nh = net.ht[1 : net.numHybrids - net.numBad]
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
     nt = net.ht[net.numHybrids - net.numBad + 1 : net.numHybrids - net.numBad + k]
@@ -1083,6 +1053,8 @@ function moveDownLevel!(net::HybridNetwork)
             i += 2
         end
     end
+    DEBUG && printEverything(net)
+    CHECKNET && checkNet(net)
 end
 
 # checks if there are problems in estimated net.ht:
@@ -1216,13 +1188,13 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             write(logfile,"\n BEGIN optTopLevel for run $(i), seed $(seed) and hmax $(hmax)")
             #best = optTop!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,true,logfile)
             best = optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,true)
-            write(logfile,"\n FINISHED optTopLevel!, typeof best $(typeof(best))")
+            write(logfile,"\n FINISHED optTopLevel!, typeof best $(typeof(best)), loglik of best $(best.loglik)")
             flush(logfile)
             push!(bestnet, deepcopy(best))
             if(best.loglik < maxNet.loglik)
                 maxNet = deepcopy(best)
             end
-            println("typeof maxNet $(typeof(maxNet))")
+            println("typeof maxNet $(typeof(maxNet)), loglik of maxNet $(maxNet.loglik)")
         catch(err)
             write(logfile,"\n ERROR found on optTopLevel for run $(i) seed $(seed): $(err)")
             flush(logfile)
@@ -1233,13 +1205,14 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         write(logfile,"\n---------------------")
         flush(logfile)
     end
-
+    t=toc();
     write(errfile, "\n Total errors: $(length(failed)) in seeds $(failed)")
+    write(logfile,"\nMaxNet is $(writeTopology(maxNet,true)) with loglik $(maxNet.loglik)")
+    write(logfile,"\n$(strftime(time()))")
     close(errfile)
     close(logfile)
 
     if(maxNet.loglik < 1.e15)
-        t=toc();
         s = open(juliaout,"w")
         if(outgroup == "none")
             write(s,writeTopology(maxNet)) #no outgroup
@@ -1261,14 +1234,13 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             end
         end
         write(s,"\n-------")
-        flush(s)
         close(s)
     end
 end
 
 optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64, outgroup::String, rootname::String) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, outgroup,rootname)
 optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64, outgroup::String) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, outgroup,"optTopRuns")
-optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, "none")
+optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, "none", "optTopRuns")
 
 
 

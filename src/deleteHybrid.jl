@@ -51,11 +51,13 @@ function identifyInCycle(net::Network,node::Node)
                         end
                     else
                         for(e in curr.edge)
-                            other = getOtherNode(e,curr);
-                            if(!other.leaf && !net.visited[getIndex(other,net)])
-                                other.prev = curr;
-                                dist = dist+1;
-                                enqueue!(queue,other,dist);
+                            if(!e.hybrid || e.isMajor)
+                                other = getOtherNode(e,curr);
+                                if(!other.leaf && !net.visited[getIndex(other,net)])
+                                    other.prev = curr;
+                                    dist = dist+1;
+                                    enqueue!(queue,other,dist);
+                                end
                             end
                         end
                     end
@@ -88,17 +90,17 @@ end
 function traverseIdentifyRoot(node::Node, edge::Edge, edges_changed::Array{Edge,1})
     if(!node.leaf && !node.hybrid)
         for(e in node.edge)
-            if(!isEqual(edge,e) && e.isMajor)
+            if(!isEqual(edge,e) && e.isMajor && !e.hybrid)
                 other = getOtherNode(e,node);
                 push!(edges_changed, e);
                 if(!other.hybrid)
-                    if(!other.hasHybEdge)
+                    #if(!other.hasHybEdge)
                         traverseIdentifyRoot(other,e, edges_changed);
-                    else
-                        if(hybridEdges(other)[1].isMajor)
-                            traverseIdentifyRoot(other,e, edges_changed);
-                        end
-                    end
+                    #else
+                    #    if(hybridEdges(other)[1].isMajor)
+                    #        traverseIdentifyRoot(other,e, edges_changed);
+                    #    end
+                    #end
                 end
             end
         end
@@ -111,19 +113,16 @@ end
 # input: hybrid node (can come from searchHybridNode)
 # return array of edges affected by the hybrid node
 function identifyContainRoot(net::HybridNetwork, node::Node)
-    if(node.hybrid)
-        net.edges_changed = Edge[];
-        for (e in node.edge)
-            if(!e.hybrid)
-                other = getOtherNode(e,node);
-                push!(net.edges_changed,e);
-                traverseIdentifyRoot(other,e, net.edges_changed);
-            end
+    node.hybrid || error("node $(node.number) is not hybrid, cannot identify containRoot")
+    net.edges_changed = Edge[];
+    for (e in node.edge)
+        if(!e.hybrid)
+            other = getOtherNode(e,node);
+            push!(net.edges_changed,e);
+            traverseIdentifyRoot(other,e, net.edges_changed);
         end
-        return net.edges_changed
-    else
-        error("node is not hybrid")
     end
+    return net.edges_changed
 end
 
 # function to undo the effect of a hybridization
@@ -142,8 +141,12 @@ function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bo
     edgesRoot = identifyContainRoot(net,hybrid);
     edges = hybridEdges(hybrid);
     undoGammaz!(hybrid,net);
-    undoInCycle!(edgesInCycle, nodesInCycle);
-    undoContainRoot!(edgesRoot);
+    othermaj = getOtherNode(edges[1],hybrid)
+    edgesmaj = hybridEdges(othermaj)
+    DEBUG && println("edgesmaj[3] $(edgesmaj[3].number) is the one to check if containRoot=false already: $(edgesmaj[3].containRoot)")
+    if(edgesmaj[3].containRoot) #if containRoot=true, then we need to undo
+        undoContainRoot!(edgesRoot);
+    end
     edges[1].gamma > 0.5 || println("strange major hybrid edge $(edges[1].number) with gamma $(edges[1].gamma) less than 0.5")
     edges[1].gamma != 1.0 || println("strange major hybrid edge $(edges[1].number) with gamma $(edges[1].gamma) equal to 1.0")
     limit = edges[1].gamma
@@ -153,6 +156,7 @@ function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bo
         minor = true;
     end
     deleteHybrid!(hybrid,net,minor, blacklist)
+    undoInCycle!(edgesInCycle, nodesInCycle); #moved after deleteHybrid to mantain who is incycle when deleteEdge and look for partition
     undoPartition!(net,hybrid, edgesInCycle)
 end
 

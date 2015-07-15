@@ -153,6 +153,8 @@ function parameters4createHybrid!(edge1::Edge, edge2::Edge,net::HybridNetwork)
     t3 = edge2.length - t1;
     edge4 = Edge(max_edge+2,t3);
     edge2.length = t1;
+    edge3.containRoot = edge1.containRoot
+    edge4.containRoot = edge2.containRoot
     return edge3, edge4
 end
 
@@ -166,7 +168,10 @@ function addHybridization!(net::HybridNetwork, blacklist::Bool, usePartition::Bo
     if(net.numHybrids > 0 && usePartition)
         !isempty(net.partition) || error("net has $(net.numHybrids) but net.partition is empty")
         index = choosePartition(net)
-        index == 0 && return nothing #no place for new hybrid
+        if(index == 0) #no place for new hybrid
+            DEBUG && println("no partition suitable to place new hybridization")
+            return nothing
+        end
         partition = splice!(net.partition,index) #type partition
         DEBUG && println("add hybrid with partition $([n.number for n in partition.edges])")
         edge1, edge2, gamma = chooseEdgesGamma(net, blacklist,partition.edges);
@@ -214,7 +219,7 @@ end
 function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool, allow::Bool)
     flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,hybrid);
     if(nocycle)
-        return false, hybrid, flag, nocycle, true, true
+        return false, hybrid, flag, nocycle, false, false
     else
         if(flag)
             if(updatemajor)
@@ -223,9 +228,9 @@ function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool,
             flag2, edgesGammaz = updateGammaz!(net,hybrid,allow);
             if(flag2)
                 flag3, edgesRoot = updateContainRoot!(net,hybrid);
+                 updatePartition!(net,nodesInCycle)
                 if(flag3)
                     parameters!(net)
-                    updatePartition!(net,nodesInCycle)
                     return true, hybrid, flag, nocycle, flag2, flag3
                 else
                     #undoContainRoot!(edgesRoot);
@@ -235,13 +240,15 @@ function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool,
                     return false, hybrid, flag, nocycle, flag2, flag3
                 end
             else
+                updatePartition!(net,nodesInCycle)
                 flag3, edgesRoot = updateContainRoot!(net,hybrid); #update contain root even if it is bad triangle to writeTopology correctly
                 #undoistIdentifiable!(edgesGammaz);
                 #undoGammaz!(hybrid,net);
                 #undoInCycle!(edgesInCycle, nodesInCycle);
-                return false, hybrid, flag, nocycle, flag2, true
+                return false, hybrid, flag, nocycle, flag2, flag3
             end
         else
+            # no need to do updatePartition in this case, because we only call deleteHybrid after
             undoInCycle!(edgesInCycle, nodesInCycle);
             return false, hybrid, flag, nocycle, true, true
         end
@@ -335,3 +342,57 @@ function choosePartition(net::HybridNetwork)
     return partition[index1]
 end
 
+
+# function that will add a hybridization with addHybridizationUpdate,
+# if success=false, it will try to move the hybridization before
+# declaring failure
+# blacklist used in afterOptBLAll
+function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::Int64)
+    DEBUG && println("MOVE: addHybridizationUpdateSmart")
+    success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
+    DEBUG && println("success $(success), flag $(flag), flag2 $(flag2), flag3 $(flag3)")
+    DEBUG && printEverything(net)
+    i = 0
+    if(!success)
+        if(isa(hybrid,Nothing))
+            DEBUG && println("MOVE: could not add hybrid by any means")
+        else
+            while((nocycle || !flag) && i < N) #incycle failed
+                DEBUG && println("MOVE: added hybrid causes conflict with previous cycle, need to delete and add another")
+                deleteHybrid!(hybrid,net,true)
+                success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
+            end
+            if(nocycle || !flag)
+                DEBUG && println("MOVE: added hybridization $(i) times trying to avoid incycle conflicts, but failed")
+            else
+                if(!flag3 && flag2) #containRoot failed
+                    DEBUG && println("MOVE: added hybrid causes problems with containRoot, will change the direction to fix it")
+                    success = changeDirectionUpdate!(net,hybrid) #change dir of minor
+                elseif(!flag2 && flag3) #gammaz failed
+                    DEBUG && println("MOVE: added hybrid has problem with gammaz (not identifiable bad triangle)")
+                    if(flag3)
+                        DEBUG && println("MOVE: we will move origin to fix the gammaz situation")
+                        success = moveOriginUpdateRepeat!(net,hybrid,true)
+                    else
+                        DEBUG && println("MOVE: we will move target to fix the gammaz situation")
+                        success = moveTargetUpdateRepeat!(net,hybrid,true)
+                    end
+                elseif(!flag2 && !flag3) #containRoot AND gammaz failed
+                    DEBUG && println("MOVE: containRoot and gammaz both fail")
+                end
+            end
+            if(!success)
+                DEBUG && println("MOVE: could not fix the added hybrid by any means, we will delete it now")
+                CHECKNET && checkNet(net)
+                DEBUG && printEverything(net)
+                deleteHybridizationUpdate!(net,hybrid)
+                CHECKNET && checkNet(net)
+                DEBUG && printEverything(net)
+            end
+        end
+    end
+    success && DEBUG && println("MOVE: added hybridization SUCCESSFUL: new hybrid $(hybrid.number)")
+    return success
+end
+
+addHybridizationUpdateSmart!(net::HybridNetwork, N::Int64) = addHybridizationUpdateSmart!(net, false,N)

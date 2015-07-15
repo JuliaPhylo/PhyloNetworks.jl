@@ -386,4 +386,6 @@ end
 
 if(!globalerror)
     println("-------- NO ERRORS!-------------")
+else
+    throw("errors in optBLparts")
 end

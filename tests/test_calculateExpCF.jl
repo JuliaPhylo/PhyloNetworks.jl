@@ -146,7 +146,7 @@ end
 if(!error)
     println("----- NO ERRORS! -------")
 else
-    println("error Case G in quartet $(ind)")
+    throw("error Case G in quartet $(ind)")
 end
 
 
@@ -293,7 +293,7 @@ end
 if(!error)
     println("----- NO ERRORS! -------")
 else
-    println("error Case F in quartet $(ind)")
+    throw("error Case F in quartet $(ind)")
 end
 
 
@@ -447,6 +447,6 @@ end
 if(!error)
     println("----- NO ERRORS! -------")
 else
-    println("error Case I in quartet $(ind)")
+    throw("error Case I in quartet $(ind)")
 end
 

@@ -1,7 +1,8 @@
 ### Tests functions
+All in runtests.jl
 
 #### add hybridization
-
+(deprecated)
 tests_5taxon.jl runs all the tests for the eight 5taxon networks of
 starting with tree_example.jl and adding one hybridization
 
@@ -10,7 +11,7 @@ It calls add_hybrid_caseC,D,E,F,G,H,I,J.jl
 aux functions: print_add.jl and test_functions_5taxon.jl
 
 #### delete hybridization
-
+(deprecated)
 tests_5taxon_delete.jl runs all the tests for the eight 5taxon
 networks of starting with tree_example.jl and adding one
 hybridization, and then deleting it and comparing to the original tree
@@ -54,3 +55,8 @@ test_extractQuartet.jl
 initial_tests_deleteLeaf_quartetNet.jl
 
 test_optBL.jl
+
+#### TO DO:
+
+we need a test in which we know the value of the plik of the network, and test that we get it
+maybe we also need to clean tests folder, many redundant tests there

@@ -120,17 +120,28 @@ end
 # of all the edges visited
 # changed to recursive after Cecile's idea
 # warning: it does not go accross hybrid node, minor hybrid edge
-# fixit: should have exclamation sign
-function traverseContainRoot(node::Node, edge::Edge, edges_changed::Array{Edge,1})
-    if(!node.leaf && !node.hybrid)
+# it checks if we approach a hybrid node via a hybrid edge (ok) or tree edge (not ok)
+# rightDir will be modified inside depending in this criteria (has to be an array to be modified)
+function traverseContainRoot!(node::Node, edge::Edge, edges_changed::Array{Edge,1}, rightDir::Vector{Bool})
+    if(node.hybrid)
+        if(edge.hybrid)
+            edge.isMajor || error("hybrid edge $(edge.number) is minor and we should not traverse the graph through minor edges")
+            DEBUG && println("traverseContainRoot reaches hybrid node $(node.number) through major hybrid edge $(edge.number)")
+            rightDir[1] = true
+        else #approach hybrid node through tree edge => wrong direction
+            rightDir[1] = false
+            DEBUG && println("traverseContainRoot reaches hybrid node $(node.number) through tree edge $(edge.number), so rightDir $(rightDir[1])")
+        end
+    elseif(!node.leaf)
         for(e in node.edge)
             if(!isEqual(edge,e) && e.isMajor)
                 other = getOtherNode(e,node);
                 if(e.containRoot) # only considered changed those that were true and not hybrid
+                    DEBUG && println("traverseContainRoot changing edge $(e.number) to false, at this moment, rightDir is $(rightDir[1])")
                     e.containRoot = false;
                     push!(edges_changed, e);
                 end
-                traverseContainRoot(other,e, edges_changed);
+                traverseContainRoot!(other,e, edges_changed, rightDir);
             end
         end
     end
@@ -145,15 +156,16 @@ end
 function updateContainRoot!(net::HybridNetwork, node::Node)
     node.hybrid || error("node $(node.number )is not hybrid, cannot update containRoot")
     net.edges_changed = Edge[];
+    rightDir = [true] #assume good direction, only changed if found hybrid node through tree edge
     for (e in node.edge)
         if(!e.hybrid)
             other = getOtherNode(e,node);
             e.containRoot = false;
             push!(net.edges_changed,e);
-            traverseContainRoot(other,e, net.edges_changed);
+            traverseContainRoot!(other,e, net.edges_changed,rightDir);
         end
     end
-    if(all([!e.containRoot for e in net.edge]))
+    if(!rightDir[1] || all([!e.containRoot for e in net.edge]))
         return false,net.edges_changed
     else
         return true,net.edges_changed
@@ -264,6 +276,7 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
         edge_maj.istIdentifiable = isEdgeIdentifiable(edge_maj)
         edge_min.istIdentifiable = isEdgeIdentifiable(edge_min)
     end
+    isBadTriangle(node) == net.hasVeryBadTriangle || error("node $(node.number) is very bad triangle but net.hasVeryBadTriangle is $(net.hasVeryBadTriangle)")
     if(allow)
         return true, net.edges_changed
     else

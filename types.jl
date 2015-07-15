@@ -39,12 +39,12 @@ type Edge
     # inner constructors: ensure congruence among (length, y, z) and (gamma, hybrid, isMajor), and size(node)=2
     Edge(number::Int64) = new(number,1.0,false,exp(-1.0),1-exp(-1.0),1.,[],true,true,-1,true,true,false)
     Edge(number::Int64, length::Float64) = new(number,length,false,exp(-length),1-exp(-length),1.,[],true,true,-1,true,true,false)
-    Edge(number::Int64, length::Float64,hybrid::Bool,gamma::Float64)= new(number,length,hybrid,exp(-length),1-exp(-length),hybrid?gamma:1.,[],true,(!hybrid || gamma>0.5)?true:false,-1,true,true,false)
-    Edge(number::Int64, length::Float64,hybrid::Bool,gamma::Float64,isMajor::Bool)= new(number,length,hybrid,exp(-length),1-exp(-length),hybrid?gamma:1.,[],true,isMajor,-1,true,true,false)
+    Edge(number::Int64, length::Float64,hybrid::Bool,gamma::Float64)= new(number,length,hybrid,exp(-length),1-exp(-length),hybrid?gamma:1.,[],true,(!hybrid || gamma>0.5)?true:false,-1,!hybrid,true,false)
+    Edge(number::Int64, length::Float64,hybrid::Bool,gamma::Float64,isMajor::Bool)= new(number,length,hybrid,exp(-length),1-exp(-length),hybrid?gamma:1.,[],true,isMajor,-1,!hybrid,true,false)
     function Edge(number::Int64, length::Float64,hybrid::Bool,gamma::Float64,node::Array{ANode,1})
         size(node,1) != 2 ?
         error("vector of nodes must have exactly 2 values") :
-        new(number,length,hybrid,exp(-length),1-exp(-length),hybrid?gamma:1.,node,true,(!hybrid || gamma>0.5)?true:false,-1,true,true,false)
+        new(number,length,hybrid,exp(-length),1-exp(-length),hybrid?gamma:1.,node,true,(!hybrid || gamma>0.5)?true:false,-1,!hybrid,true,false)
     end
     function Edge(number::Int64, length::Float64,hybrid::Bool,gamma::Float64,node::Array{ANode,1},isChild1::Bool, inCycle::Int32, containRoot::Bool, istIdentifiable::Bool)
         size(node,1) != 2 ?

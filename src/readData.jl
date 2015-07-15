@@ -67,6 +67,7 @@ function readInputTrees(file::String)
     vnet = HybridNetwork[];
     s = open(file)
     for line in eachline(s)
+        DEBUG && println("$(line)")
         c = line[1]
         if(c == '(')
            net = readTopologyUpdate(line)

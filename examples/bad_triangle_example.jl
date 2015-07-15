@@ -3,8 +3,8 @@
 #
 # in julia: include("bad_triangle_example.jl")
 
-include("types.jl")
-include("functions.jl")
+include("../types.jl")
+include("../functions.jl")
 #using DataStructures # for updateInCycle with queue
 using Base.Collections # for updateInCycle with priority queue
 
