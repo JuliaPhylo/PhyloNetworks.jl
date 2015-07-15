@@ -14,7 +14,7 @@ function plotPhylonet(graph::Network;                      #Network object you a
                  hybridColor="green4"::String,             #Sets color for hybrid edges
                  forcedLeaf=true::Bool,                    #When true, places all leaf nodes on the same line
                  unrooted=false::Bool,                     #Defaults to neato engine
-                 nodeSeparation=0.5::FloatingPoint,        #Sets the minimum distance between nodes in inches
+                 nodeSeparation=0.8::FloatingPoint,        #Sets the minimum distance between nodes in inches
                  edgeStyle="line"::String
                  )
 
@@ -62,7 +62,7 @@ function plotPhylonet(graph::Network;                      #Network object you a
   end
   write(dotIo,"    labelloc=b \n")                                #Ensures that labels do not overlap each other (DOUBLE CHECK THIS)
   write(dotIo,"    ratio=\"fill\"; \n")                           #Fits graph to the full image size             (TEST OTHER RATIO OPTIONS)
-  write(dotIo,"    size=\"$width ,$height\"; \n")                 #Changes the size of the entire graph
+  write(dotIo,"    size=\"$width ,$height !\"; \n")                 #Changes the size of the entire graph
   write(dotIo,"    nodesep=$(nodeSeparation); \n")
   write(dotIo,"    splines=$(edgeStyle); \n")
   write(dotIo,"    edge [fontsize=$fontSize]; \n")

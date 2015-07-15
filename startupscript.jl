@@ -3,7 +3,6 @@
 
 include("types.jl")
 include("functions.jl")
-include("scratch_work/Misc/test_graphs.jl")
 include("visualization/genExport.jl")
 include("visualization/drawTraversal.jl")
 include("visualization/plotPhylonet.jl")

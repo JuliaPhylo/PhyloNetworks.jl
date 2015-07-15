@@ -16,7 +16,7 @@ function traverseEdges(net::HybridNetwork, node::Node, mainTree::Bool, dotIo, ga
       end
       #***********************************************************************************************************************************************
       i = edge
-      gma = i.gamma                 #Gamma value for an edge i (default to 1.0 for tree edges)
+      gma = round(i.gamma,3)                 #Gamma value for an edge i (default to 1.0 for tree edges)
       hThickness = gma*4
       edgeNum = i.number
       node1 = parent;               #Parent node
@@ -95,7 +95,7 @@ function traverseEdges(net::HybridNetwork, node::Node, mainTree::Bool, dotIo, ga
 
       #***********************************************************************************************************************************************
         i = edge
-        gma = i.gamma                 #Gamma value for an edge i (default to 1.0 for tree edges)
+        gma = round(i.gamma,3)                 #Gamma value for an edge i (default to 1.0 for tree edges)
         hThickness = gma*4
         edgeNum = i.number
         node1 = parent;            #Parent node
@@ -116,7 +116,7 @@ function traverseEdges(net::HybridNetwork, node::Node, mainTree::Bool, dotIo, ga
                       write(dotIo,"   [len=$(i.length)]")
                    end
                   write(dotIo,"
-                                  [headlabel=\" &gamma; = $gma\"]
+                                  [label=\" &gamma; = $gma\"]
                                   [labeldistance = 3.5]
                                   [labelangle=45.0]; \n")
                 elseif mainTree == false
@@ -135,7 +135,7 @@ function traverseEdges(net::HybridNetwork, node::Node, mainTree::Bool, dotIo, ga
                   write(dotIo,"   [weight=$(i.length)]")
                 end
                 write(dotIo,"
-                                  [labeldistance=2.0]
+                                  [labeldistance=6.0]
                                   [labelangle=180.0]
                                   [penwidth=4]; \n")
             else
