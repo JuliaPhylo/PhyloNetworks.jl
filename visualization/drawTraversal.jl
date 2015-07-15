@@ -136,7 +136,7 @@ function traverseEdges(net::HybridNetwork, node::Node, mainTree::Bool, dotIo, ga
                 end
                 write(dotIo,"
                                   [labeldistance=6.0]
-                                  [labelangle=180.0]
+                                  [labelangle=190.0]
                                   [penwidth=4]; \n")
             else
                 write(dotIo,"     $node1Num -- $node2Num")
