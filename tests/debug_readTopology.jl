@@ -56,3 +56,12 @@ for(s in string)
 end
 
 println("NO ERRORS!")
+
+## # --------------
+## n31 = "(6,((5,(((1,(2,(3)#H7:9.380388137723473):1.215558354715711):1.533022718529031,#H7:0.8208307297991476):0.0,(4)#H9:-0.0):10.0):10.0,#H9:0.0):0.02572743545235116);"
+## net = readTopologyUpdate(n31)
+## printEdges(net)
+## printNodes(net)
+## net.node[net.root].number
+## net.node[net.root].leaf
+## canBeRoot(net.node[net.root]) || error("root wrongly placed in $(s)")
