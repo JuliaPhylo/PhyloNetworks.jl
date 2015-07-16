@@ -511,7 +511,6 @@ function deleteIntNode!(net::Network, n::Node)
         setNode!(edge1,node2);
         deleteNode!(net,n);
         deleteEdge!(net,edge2);
-        DEBUG && printEverything(net)
     else
         warn("the two edges $([edge1.number,edge2.number]) attached to node $(n.number) must be tree edges to delete node")
         if(edge1.hybrid)
@@ -528,7 +527,6 @@ function deleteIntNode!(net::Network, n::Node)
         setNode!(hybedge,othernode)
         deleteNode!(net,n)
         deleteEdge!(net,otheredge)
-        DEBUG && printEverything(net)
     end
 end
 

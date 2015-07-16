@@ -619,12 +619,17 @@ end
 # used for plotting (default=false)
 # warning: if leaveRoot=true, net should not be used outside plotting, things will crash
 function readTopologyUpdate(file::String, leaveRoot::Bool)
+    DEBUG && println("readTopology -----")
     net = readTopology(file)
+    DEBUG && println("cleanAfterRead -----")
     cleanAfterRead!(net,leaveRoot)
+    DEBUG && println("updateAllReadTopology -----")
     updateAllReadTopology!(net) #fixit: it could break if leaveRoot = true (have not checked it), but we need to updateContainRoot
     if(!leaveRoot)
+        DEBUG && println("parameters -----")
         parameters!(net)
     else
+        DEBUG && println("leaveRoot=true -----")
         if(!canBeRoot(net.node[net.root]))
            warn("root node $(net.node[net.root].number) placement is not ok, we will change it to the first found node that agrees with the direction of the hybrid edges")
             for(i in 1:length(net.node))
