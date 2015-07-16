@@ -1,4 +1,14 @@
-function traverseEdges(net::HybridNetwork, node::Node, mainTree::Bool, dotIo, gammaThreshold, parentEdge=dummy::Edge,hybridColor="green4"::String,layoutStyle="dot"::String)
+function traverseEdges(net::HybridNetwork,
+                       node::Node,
+                       mainTree::Bool,
+                       dotIo,
+                       gammaThreshold,
+                       parentEdge=dummy::Edge,
+                       hybridColor="green4"::String,
+                       layoutStyle="dot"::String,
+                       labelAngle= 180.0::FloatingPoint,
+                       labelDistance= 3.0::FloatingPoint
+                       )
   #nNum = node.number
   #println("On node $nNum")
 
@@ -61,7 +71,7 @@ function traverseEdges(net::HybridNetwork, node::Node, mainTree::Bool, dotIo, ga
         newnode = edge.node[1]
       end #if edge.node[1] == node else
       nnN = newnode.number                        #Simply used for progress/debugging statements... will be removed in the end
-      traverseEdges(net,newnode,mainTree,dotIo,gammaThreshold,edge,hybridColor,layoutStyle)             #Recursively call the function on the child node (as new parent node) using the edge as the new parent edge
+      traverseEdges(net,newnode,mainTree,dotIo,gammaThreshold,edge,hybridColor,layoutStyle,labelAngle,labelDistance)    #Recursively call the function on the child node (as new parent node) using the edge as the new parent edge
     end #for edge in node.edge
   end #if node.number == net.root
 
@@ -135,8 +145,8 @@ function traverseEdges(net::HybridNetwork, node::Node, mainTree::Bool, dotIo, ga
                   write(dotIo,"   [weight=$(i.length)]")
                 end
                 write(dotIo,"
-                                  [labeldistance=6.0]
-                                  [labelangle=190.0]
+                                  [labeldistance=$(labelDistance)]
+                                  [labelangle=$(labelAngle)]
                                   [penwidth=4]; \n")
             else
                 write(dotIo,"     $node1Num -- $node2Num")
@@ -160,10 +170,11 @@ function traverseEdges(net::HybridNetwork, node::Node, mainTree::Bool, dotIo, ga
             else
               println("something is wrong")
             end #if else
-            traverseEdges(net,newnode,mainTree,dotIo,gammaThreshold,edge,hybridColor,layoutStyle)                             #Recursively call function with new child node (as parent) and previous edge as parent edge
+            traverseEdges(net,newnode,mainTree,dotIo,gammaThreshold,edge,hybridColor,layoutStyle, labelAngle, labelDistance)                             #Recursively call function with new child node (as parent) and previous edge as parent edge
           end #if gamma
         end #if
       end #if
     end #for
   end #if
 end #function
+

@@ -4,8 +4,8 @@
 include("types.jl")
 include("functions.jl")
 include("visualization/genExport.jl")
-include("visualization/drawTraversal.jl")
-include("visualization/plotPhylonet.jl")
+include("visualization/drawTraversalScratch.jl")
+include("visualization/plotScratch.jl")
 
 
 

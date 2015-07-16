@@ -14,8 +14,10 @@ function plotPhylonet(graph::Network;                      #Network object you a
                  hybridColor="green4"::String,             #Sets color for hybrid edges
                  forcedLeaf=true::Bool,                    #When true, places all leaf nodes on the same line
                  unrooted=false::Bool,                     #Defaults to neato engine
-                 nodeSeparation=0.5::FloatingPoint,        #Sets the minimum distance between nodes in inches
-                 edgeStyle="line"::String
+                 nodeSeparation=0.8::FloatingPoint,        #Sets the minimum distance between nodes in inches
+                 edgeStyle="line"::String,
+                 labelAngle= 180.0::FloatingPoint,
+                 labelDistance= 3.0::FloatingPoint
                  )
 
   #IO stream for writing to .dot file
@@ -40,15 +42,15 @@ function plotPhylonet(graph::Network;                      #Network object you a
   end #if internalLabels
 
   for i in graph.leaf
-    if i != graph.node[graph.root]
+    #if i != graph.node[graph.root]
      push!(leafNodes,i.number)
-    end
+    #end
   end
 
 
   netRoot = graph.root; #Assigns the integer for the network root... necessary for $ notation when appending strings
 
-  global rootNode = graph.node[net.root]
+  global rootNode = graph.node[graph.root]
 
   println("Root node found... it is $(rootNode.number)")
 
@@ -62,7 +64,7 @@ function plotPhylonet(graph::Network;                      #Network object you a
   end
   write(dotIo,"    labelloc=b \n")                                #Ensures that labels do not overlap each other (DOUBLE CHECK THIS)
   write(dotIo,"    ratio=\"fill\"; \n")                           #Fits graph to the full image size             (TEST OTHER RATIO OPTIONS)
-  write(dotIo,"    size=\"$width ,$height\"; \n")                 #Changes the size of the entire graph
+  write(dotIo,"    size=\"$width ,$height !\"; \n")                 #Changes the size of the entire graph
   write(dotIo,"    nodesep=$(nodeSeparation); \n")
   write(dotIo,"    splines=$(edgeStyle); \n")
   write(dotIo,"    edge [fontsize=$fontSize]; \n")
@@ -106,7 +108,7 @@ function plotPhylonet(graph::Network;                      #Network object you a
 
   #Traverse the network using a pseudo-depth-first method
   #traverseEdges is a recursive function that traverses each edge only once and appends it to the dot file
-  traverseEdges(graph, rootNode, mainTree, dotIo, gammaThreshold, dummy,hybridColor,layoutStyle)
+  traverseEdges(graph, rootNode, mainTree, dotIo, gammaThreshold, dummy,hybridColor,layoutStyle,labelAngle,labelDistance)
 
   #********************************************************************************************************************
 
@@ -137,27 +139,29 @@ function plotPhylonet(netString::String;
                  forcedLeaf=true::Bool,                    #When true, places all leaf nodes on the same line
                  unrooted=false::Bool,                     #Defaults to neato engine
                  nodeSeparation=0.5::FloatingPoint,        #Sets the minimum distance between nodes in inches
-                 edgeStyle="line"::String
+                 edgeStyle="line"::String,
+                labelAngle= 180.0::FloatingPoint,
+                 labelDistance= 3.0::FloatingPoint
                  )
 
-  f = open("string_Net.txt","w")
-  write(f,netString)
-  close(f)
-  net = readTopologyUpdate("string_Net.txt");
+
+  net = readTopologyUpdate(netString,true);
   plotPhylonet(net,
-                 gammaThreshold=0.5::FloatingPoint,        #Gamma Threshold for extracting underlying tree structure
-                 mainTree=false::Bool,                     #When true, the function will plot only the underlying tree structure
-                 imageName="netImage",                     #Name for the file to be output
-                 width=6::Number,                          #Maximum width of image in inches
-                 height=8::Number,                         #Maximum height of image in inches
-                 vert=true::Bool,                          #When true, function will display heirarchy from top to bottom. Otherwise, it will be from left to right
-                 internalLabels=false::Bool,               #When true, all nodes will have labels (including internal nodes)
-                 fontSize=16.0::FloatingPoint,             #Font size for labels in points
-                 layoutStyle="dot"::String,                #Chooses the layout engine for placing nodes and edges (dot,neato,circo,twopi)
-                 hybridColor="green4"::String,             #Sets color for hybrid edges
-                 forcedLeaf=true::Bool,                    #When true, places all leaf nodes on the same line
-                 unrooted=false::Bool,                     #Defaults to neato engine
-                 nodeSeparation=0.5::FloatingPoint,        #Sets the minimum distance between nodes in inches
-                 edgeStyle="line"::String
+                 gammaThreshold=gammaThreshold,        #Gamma Threshold for extracting underlying tree structure
+                 mainTree=mainTree,                     #When true, the function will plot only the underlying tree structure
+                 imageName=imageName,                     #Name for the file to be output
+                 width=width,                          #Maximum width of image in inches
+                 height=height,                         #Maximum height of image in inches
+                 vert=vert,                          #When true, function will display heirarchy from top to bottom. Otherwise, it will be from left to right
+                 internalLabels=internalLabels,               #When true, all nodes will have labels (including internal nodes)
+                 fontSize=fontSize,             #Font size for labels in points
+                 layoutStyle=layoutStyle,                #Chooses the layout engine for placing nodes and edges (dot,neato,circo,twopi)
+                 hybridColor=hybridColor,             #Sets color for hybrid edges
+                 forcedLeaf=forcedLeaf,                    #When true, places all leaf nodes on the same line
+                 unrooted=unrooted,                     #Defaults to neato engine
+                 nodeSeparation=nodeSeparation,        #Sets the minimum distance between nodes in inches
+                 edgeStyle=edgeStyle,
+                 labelAngle=labelAngle,
+                 labelDistance=labelDistance
                  )
 end
