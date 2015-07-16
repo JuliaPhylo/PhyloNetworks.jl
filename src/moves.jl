@@ -188,7 +188,7 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
     if(random)
         edges = hybridEdges(node)
         edges[1].hybrid || error("hybrid node $(node.number) has as major edge a tree edge $(edges[1].number)")
-        edges[1].gamma > 0.5 || error("major hybrid edge $(edges[1].number) has gamma less than 0.5: $(edges[1].gamma)")
+        edges[1].gamma => 0.5 || error("major hybrid edge $(edges[1].number) has gamma less than 0.5: $(edges[1].gamma)")
         minor = rand() < edges[1].gamma
     else
         minor = true

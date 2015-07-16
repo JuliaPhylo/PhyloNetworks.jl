@@ -127,9 +127,9 @@ function traverseContainRoot!(node::Node, edge::Edge, edges_changed::Array{Edge,
         if(edge.hybrid)
             edge.isMajor || error("hybrid edge $(edge.number) is minor and we should not traverse the graph through minor edges")
             DEBUG && println("traverseContainRoot reaches hybrid node $(node.number) through major hybrid edge $(edge.number)")
-            rightDir[1] = true
+            rightDir[1] &= true
         else #approach hybrid node through tree edge => wrong direction
-            rightDir[1] = false
+            rightDir[1] &= false
             DEBUG && println("traverseContainRoot reaches hybrid node $(node.number) through tree edge $(edge.number), so rightDir $(rightDir[1])")
         end
     elseif(!node.leaf)

@@ -721,6 +721,7 @@ function writeTopology(net::HybridNetwork, di::Bool, string::Bool, names::Bool,o
     else
         print(s,"(")
         updateRoot!(net,outgroup)
+        CHECKNET && canBeRoot(net.node[net.root])
         degree = length(net.node[net.root].edge)
         for(e in net.node[net.root].edge)
             writeSubTree!(s,getOtherNode(e,net.node[net.root]),e,di,names)
