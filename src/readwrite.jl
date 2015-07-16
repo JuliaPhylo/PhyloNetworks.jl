@@ -628,20 +628,18 @@ function readTopologyUpdate(file::String, leaveRoot::Bool)
     if(!leaveRoot)
         DEBUG && println("parameters -----")
         parameters!(net)
-    else
-        DEBUG && println("leaveRoot=true -----")
-        if(!canBeRoot(net.node[net.root]))
-           warn("root node $(net.node[net.root].number) placement is not ok, we will change it to the first found node that agrees with the direction of the hybrid edges")
-            for(i in 1:length(net.node))
-                if(canBeRoot(net.node[i]) && !net.node[i].leaf)
-                    net.root = i
-                    break
-                end
+    end
+    if(!canBeRoot(net.node[net.root]))
+        warn("root node $(net.node[net.root].number) placement is not ok, we will change it to the first found node that agrees with the direction of the hybrid edges")
+        for(i in 1:length(net.node))
+            if(canBeRoot(net.node[i]))
+                net.root = i
+                break
             end
         end
-        canBeRoot(net.node[net.root]) || error("tried to place root, but couldn't. root is node $(net.node[net.root])")
-        net.node[net.root].leaf && warn("root node $(net.node[net.root].number) is a leaf, so when plotting net, it can look weird")
     end
+    canBeRoot(net.node[net.root]) || error("tried to place root, but couldn't. root is node $(net.node[net.root])")
+    net.node[net.root].leaf && warn("root node $(net.node[net.root].number) is a leaf, so when plotting net, it can look weird")
     return net
 end
 
@@ -802,6 +800,7 @@ function updateRoot!(net::HybridNetwork, outgroup::String)
                     break
                 end
             end
+            canBeRoot(net.node[net.root]) || error("tried to place root, but couldn't. root is node $(net.node[net.root])")
         end
     end
 end
@@ -810,7 +809,7 @@ end
 # by the containRoot attribute of edges around it
 function canBeRoot(n::Node)
     !n.hybrid || return false
-    !n.hasHybEdge || return false
+    #!n.hasHybEdge || return false
     !n.leaf || return false
     return any([e.containRoot for e in n.edge])
 end
