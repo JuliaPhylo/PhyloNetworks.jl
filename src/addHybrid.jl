@@ -302,25 +302,23 @@ function updatePartition!(net::HybridNetwork, nodesChanged::Vector{Node})
         net.partition = Partition[]
     end
     for(n in nodesChanged)
-        edge = nothing
-        for(e in n.edge)
-            if(e.inCycle == -1)
-                edge = e
+        if(length(n.edge) == 3) #because we are allowing the root to have only two edges when read from parenthetical format
+            edge = nothing
+            for(e in n.edge)
+                if(e.inCycle == -1)
+                    edge = e
+                end
             end
+            !isa(edge,Nothing) || error("one edge in n.edge for node $(n.number) should not be in cycle")
+            descendants = [edge]
+            cycleNum = [nodesChanged[1].inCycle]
+            getDescendants!(getOtherNode(edge,n),edge,descendants,cycleNum)
+            !isempty(descendants) || error("descendants is empty for node $(n.number)")
+            DEBUG && println("for node $(n.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
+            partition = Partition(cycleNum,descendants)
+            push!(net.partition, partition)
         end
-        !isa(edge,Nothing) || error("one edge in n.edge for node $(n.number) should not be in cycle")
-        descendants = [edge]
-        cycleNum = [nodesChanged[1].inCycle]
-        getDescendants!(getOtherNode(edge,n),edge,descendants,cycleNum)
-        !isempty(descendants) || error("descendants is empty for node $(n.number)")
-        DEBUG && println("for node $(n.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
-        partition = Partition(cycleNum,descendants)
-        push!(net.partition, partition)
     end
-    ## if(isempty(net.partition[1]))
-    ##     net.partition = net.partition[2:end]
-    ## end
-    #println("length of net.partition at the end is $(length(net.partition))")
 end
 
 function choosePartition(net::HybridNetwork)

@@ -499,6 +499,7 @@ end
 # function to delete an internal node with only 2 edges
 function deleteIntNode!(net::Network, n::Node)
     size(n.edge,1) == 2 || error("node $(n.number) does not have only two edges")
+    isEqual(n,net.node[net.root]) && warn("deleting the root $(n.number) because it has only two edges attached")
     index = n.edge[1].number < n.edge[2].number ? 1 : 2;
     edge1 = n.edge[index];
     edge2 = n.edge[index==1?2:1];
@@ -511,7 +512,6 @@ function deleteIntNode!(net::Network, n::Node)
         setNode!(edge1,node2);
         deleteNode!(net,n);
         deleteEdge!(net,edge2);
-        DEBUG && printEverything(net)
     else
         warn("the two edges $([edge1.number,edge2.number]) attached to node $(n.number) must be tree edges to delete node")
         if(edge1.hybrid)
@@ -528,7 +528,6 @@ function deleteIntNode!(net::Network, n::Node)
         setNode!(hybedge,othernode)
         deleteNode!(net,n)
         deleteEdge!(net,otheredge)
-        DEBUG && printEverything(net)
     end
 end
 
