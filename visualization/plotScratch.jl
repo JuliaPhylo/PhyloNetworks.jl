@@ -18,7 +18,7 @@ function plotPhylonet(graph::Network;                      #Network object you a
                  edgeStyle="line"::String,                 #Sets the style of edges used. Options include "line", "ortho", "composite" (which uses both lines and curved splines), "curved"
                  labelAngle= 180.0::FloatingPoint,         #Sets the angle for leaf label placement
                  labelDistance= 3.0::FloatingPoint,        #Sets the distance for leaf label placement
-                 distLabel=true::Bool                     #If true, plots distance labels on edges
+                 includeGamma=true::Bool                   #When true, gamma labels are included on hybrid edges
                  )
 
   #IO stream for writing to .dot file
@@ -105,7 +105,7 @@ function plotPhylonet(graph::Network;                      #Network object you a
 
   #Traverse the network using a pseudo-depth-first method
   #traverseEdges is a recursive function that traverses each edge only once and appends it to the dot file
-  traverseEdges(graph, rootNode, mainTree, dotIo, gammaThreshold, dummy,hybridColor,layoutStyle,labelAngle,labelDistance,distLabel)
+  traverseEdges(graph, rootNode, mainTree, dotIo, gammaThreshold, dummy,hybridColor,layoutStyle,labelAngle,labelDistance,includeGamma)
 
   #********************************************************************************************************************
 
@@ -139,7 +139,7 @@ function plotPhylonet(netString::String;
                  edgeStyle="line"::String,                 #Sets the style of edges used. Options include "line", "ortho", "composite" (which uses both lines and curved splines), "curved"
                  labelAngle= 180.0::FloatingPoint,         #Sets the angle for leaf label placement
                  labelDistance= 3.0::FloatingPoint,         #Sets the distance for leaf label placement
-                 distLabel=true::Bool                     #If true, plots distance labels on edges
+                 includeGamma=true::Bool                   #When true, gamma labels are included on hybrid edges
                  )
 
 
@@ -161,6 +161,6 @@ function plotPhylonet(netString::String;
                  edgeStyle=edgeStyle,
                  labelAngle=labelAngle,
                  labelDistance=labelDistance,
-                 distLabel=distLabel::Bool                     #If true, plots distance labels on edges
+                 includeGamma=includeGamma
                  )
 end

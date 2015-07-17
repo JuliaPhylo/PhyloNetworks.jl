@@ -7,109 +7,56 @@ Graph Phylogeny {
     edge [fontsize=16.0]; 
     node [shape = point] 
     rank=max -1 
-  subgraph    { 1 , 2 , 3 , 4 , 6 , 7 , 9 , 10 , 12 , 13 } 
+  subgraph    { 1 , 2 , 3 , 5 , 6 , 7 } 
     1 [label=1] [shape = point] 
     2 [label=2] [shape = point] 
     3 [label=3] [shape = point] 
-    4 [label=4] [shape = point] 
+    5 [label=5] [shape = point] 
     6 [label=6] [shape = point] 
     7 [label=7] [shape = point] 
-    9 [label=9] [shape = point] 
-    10 [label=10] [shape = point] 
-    12 [label=12] [shape = point] 
-    13 [label=13] [shape = point] 
  
-     -1 -- -2
-                                  [penwidth=4]; 
-     -2 -- 1
-                                  [headlabel=4]
-                                  [labeldistance=3.0]
-                                  [labelangle=180.0]
-                                  [penwidth=4]; 
-   -2 -- 11
-                                  [color=green4]
-                                  [penwidth=2.976]     11 -- -4
-                                  [penwidth=4]; 
-     -4 -- -5
-                                  [penwidth=4]; 
-     -5 -- 2
-                                  [headlabel=5]
-                                  [labeldistance=3.0]
-                                  [labelangle=180.0]
-                                  [penwidth=4]; 
-     -5 -- -6
-                                  [penwidth=4]; 
-     -6 -- -7
-                                  [penwidth=4]; 
-     -7 -- 3
-                                  [headlabel=7]
-                                  [labeldistance=3.0]
-                                  [labelangle=180.0]
-                                  [penwidth=4]; 
-     -7 -- 4
+     -1 -- 1
                                   [headlabel=6]
                                   [labeldistance=3.0]
                                   [labelangle=180.0]
                                   [penwidth=4]; 
-   -6 -- 5
-                                  [color=green4]
-                                  [label=" &gamma; = 0.001"]
-                                  [labeldistance = 3.5]
-                                  [labelangle=45.0]
-                                  [penwidth=0.004]; 
-   -4 -- 5
-                                  [color=green4]
-                                  [penwidth=3.996]     5 -- -9
+     -1 -- -2
                                   [penwidth=4]; 
-     -9 -- -10
+     -2 -- -3
                                   [penwidth=4]; 
-     -10 -- -11
+     -3 -- -4
                                   [penwidth=4]; 
-     -11 -- 6
-                                  [headlabel=10]
-                                  [labeldistance=3.0]
-                                  [labelangle=180.0]
-                                  [penwidth=4]; 
-   -11 -- 8
-                                  [color=green4]
-                                  [penwidth=3.6]     8 -- 7
-                                  [headlabel=1]
-                                  [labeldistance=3.0]
-                                  [labelangle=180.0]
-                                  [penwidth=4]; 
-     -10 -- -13
-                                  [penwidth=4]; 
-     -13 -- 9
-                                  [headlabel=9]
-                                  [labeldistance=3.0]
-                                  [labelangle=180.0]
-                                  [penwidth=4]; 
-   -13 -- 8
-                                  [color=green4]
-                                  [label=" &gamma; = 0.1"]
-                                  [labeldistance = 3.5]
-                                  [labelangle=45.0]
-                                  [penwidth=0.4]; 
-     -9 -- 10
-                                  [headlabel=8]
-                                  [labeldistance=3.0]
-                                  [labelangle=180.0]
-                                  [penwidth=4]; 
-     -1 -- 12
+     -4 -- 2
                                   [headlabel=2]
                                   [labeldistance=3.0]
                                   [labelangle=180.0]
                                   [penwidth=4]; 
-     -1 -- -14
+     -4 -- 3
+                                  [headlabel=1]
+                                  [labeldistance=3.0]
+                                  [labelangle=180.0]
                                   [penwidth=4]; 
-   -14 -- 11
+   -3 -- 4
                                   [color=green4]
-                                  [label=" &gamma; = 0.256"]
-                                  [labeldistance = 3.5]
-                                  [labelangle=45.0]
-                                  [penwidth=1.024]; 
-     -14 -- 13
+                                  [penwidth=0.4]; 
+     -2 -- -5
+                                  [penwidth=4]; 
+     -5 -- 5
+                                  [headlabel=5]
+                                  [labeldistance=3.0]
+                                  [labelangle=180.0]
+                                  [penwidth=4]; 
+   -5 -- 4
+                                  [color=green4]
+                                  [penwidth=3.6]     4 -- -7
+                                  [penwidth=4]; 
+     -7 -- 6
                                   [headlabel=3]
+                                  [labeldistance=3.0]
+                                  [labelangle=180.0]
+                                  [penwidth=4]; 
+     -7 -- 7
+                                  [headlabel=4]
                                   [labeldistance=3.0]
                                   [labelangle=180.0]
                                   [penwidth=4]; 
