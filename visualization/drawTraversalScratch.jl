@@ -7,8 +7,7 @@ function traverseEdges(net::HybridNetwork,
                        hybridColor="green4"::String,
                        layoutStyle="dot"::String,
                        labelAngle= 180.0::FloatingPoint,
-                       labelDistance= 3.0::FloatingPoint,
-                       distLabel = false::Bool
+                       labelDistance= 3.0::FloatingPoint
                        )
   #*************************************************************************************************************************
   #Case 1: Node is the root
@@ -32,28 +31,29 @@ function traverseEdges(net::HybridNetwork,
       node1Num = node1.number       #Necessary for $ notation
       node2 = child;                #Child node
       node2Num = node2.number       #Necessary for $ notation
-      if distLabel
-        println("Woo!")
-      end
+
+
       #Creates image for the entire network including all hybridization events
           if node2.hybrid
               #Applies a thicker edge AND a gamma label on the edge to the dominant edge
-              if gma < gammaThreshold
+              if gma > gammaThreshold
+                write(dotIo,"     $node1Num -- $node2Num
+                                  [color=$(hybridColor)]
+                                  [penwidth=$hThickness]")
+                if mainTree == true
+                  write(dotIo,"
+                                  [headlabel=\" &gamma; = $gma\"]
+                                  [labeldistance = 3.5]
+                                  [labelangle=45.0]; \n")
+                end  #mainTree == false
+              elseif mainTree == false                                 #Skip this step if you only want mainTree
                 write(dotIo,"     $node1Num -- $node2Num
                                   [color=$(hybridColor)]
                                   [penwidth=$hThickness]
-                                  [headlabel=\" &gamma; = $gma \"]
+                                  [headlabel=\" &gamma; = $gma\"]
                                   [labeldistance = 3.5]
-                                  [labelangle=45.0]; \n")
-              elseif mainTree == false                                 #Skip this step if you only want mainTree
-                write(dotIo,"     $node1Num -- $node2Num
-                                  [color=$(hybridColor)]")
-                if layoutStyle == "neato"
-                  write(dotIo,"   [weight=$(i.length)]")
-                end
-                write(dotIo,"
-                                  [penwidth=$hThickness]; \n")
-        end #if gma > 0.5 elseif mainTree == false
+                                  [labelangle=45.0];\n")
+              end #if gma > 0.5 elseif mainTree == false
           else
               write(dotIo,"     $node1Num -- $node2Num [penwidth=4]; \n")
         end #if node2.hybrid else (net)
@@ -64,7 +64,7 @@ function traverseEdges(net::HybridNetwork,
         newnode = edge.node[1]
       end #if edge.node[1] == node else
       nnN = newnode.number                        #Simply used for progress/debugging statements... will be removed in the end
-      traverseEdges(net,newnode,mainTree,dotIo,gammaThreshold,edge,hybridColor,layoutStyle,labelAngle,labelDistance,distLabel)
+      traverseEdges(net,newnode,mainTree,dotIo,gammaThreshold,edge,hybridColor,layoutStyle,labelAngle,labelDistance)
     end #for edge in node.edge
   end #if node.number == net.root
 
@@ -105,47 +105,38 @@ function traverseEdges(net::HybridNetwork,
         node2Num = node2.number       #Necessary for $ notation
 
 
+
         #Creates image for the entire network including all hybridization events
             if node2.hybrid
                 #Applies a thicker edge AND a gamma label on the edge to the dominant edge
-                if gma < gammaThreshold
+                if gma > gammaThreshold
                   write(dotIo,"   $node1Num -- $node2Num
                                   [color=$(hybridColor)]
                                   [penwidth=$hThickness]")
-                   if layoutStyle == "neato"
-                      write(dotIo,"   [len=$(i.length)]")
-                   end
-                  write(dotIo,"
-                                  [label=\" &gamma; = $gma \"]
+                   if mainTree == true
+                      write(dotIo,"
+                                  [label=\" &gamma; = $gma\"]
                                   [labeldistance = 3.5]
                                   [labelangle=45.0]; \n")
+                   end #if mainTree == true
                 elseif mainTree == false
                   write(dotIo,"   $node1Num -- $node2Num
-                                  [color=$(hybridColor)]")
-                    if layoutStyle == "neato"
-                      write(dotIo,"   [weight=$(i.length)]")
-                    end
-                  write(dotIo,"
+                                  [color=$(hybridColor)]
+                                  [label=\" &gamma; = $gma\"]
+                                  [labeldistance = 3.5]
+                                  [labelangle=45.0]
                                   [penwidth=$hThickness]; \n")
-                end #if elseif mainTree == false
+                end #if node2.hybrid elseif mainTree == false
             elseif child.leaf
                 write(dotIo,"     $node1Num -- $node2Num
-                                  [headlabel=$(child.name)]")
-                if layoutStyle == "neato"
-                  write(dotIo,"   [weight=$(i.length)]")
-                end
-                write(dotIo,"
+                                  [headlabel=$(child.name)]
                                   [labeldistance=$(labelDistance)]
                                   [labelangle=$(labelAngle)]
                                   [penwidth=4]; \n")
             else
-                write(dotIo,"     $node1Num -- $node2Num")
-                if layoutStyle == "neato"
-                  write(dotIo,"   [weight=$(i.length)]")
-                end
-                write(dotIo,"
+                write(dotIo,"     $node1Num -- $node2Num
                                   [penwidth=4]; \n")
-              end #if else
+            end #if else
 
       end
       if (((~(edge.hybrid)) || ((edge.hybrid) && edge.isMajor)) && edge != parentEdge)  #Continue with the function if the edge is either a tree edge or a major hybrid
@@ -157,11 +148,10 @@ function traverseEdges(net::HybridNetwork,
             else
               println("something is wrong")
             end #if else
-            traverseEdges(net,newnode,mainTree,dotIo,gammaThreshold,edge,hybridColor,layoutStyle, labelAngle, labelDistance,distLabel)                             #Recursively call function with new child node (as parent) and previous edge as parent edge
+            traverseEdges(net,newnode,mainTree,dotIo,gammaThreshold,edge,hybridColor,layoutStyle, labelAngle, labelDistance)                             #Recursively call function with new child node (as parent) and previous edge as parent edge
           end #if gamma
         end #if
       end #if
     end #for
   end #if
 end #function
-

@@ -4,206 +4,113 @@ Graph Phylogeny {
     size="6 ,8 !"; 
     nodesep=0.5; 
     splines=line; 
-    edge [fontsize=30.0]; 
+    edge [fontsize=16.0]; 
     node [shape = point] 
     rank=max -1 
-  subgraph    { 1 , 2 , 3 , 4 , 5 , 6 , 7 , 8 , 9 , 10 , 11 , 12 , 13 , 14 , 15 , 16 , 17 , 18 , 19 , 20 , 21 , 22 , 24 , 25 } 
+  subgraph    { 1 , 2 , 3 , 4 , 6 , 7 , 9 , 10 , 12 , 13 } 
     1 [label=1] [shape = point] 
     2 [label=2] [shape = point] 
     3 [label=3] [shape = point] 
     4 [label=4] [shape = point] 
-    5 [label=5] [shape = point] 
     6 [label=6] [shape = point] 
     7 [label=7] [shape = point] 
-    8 [label=8] [shape = point] 
     9 [label=9] [shape = point] 
     10 [label=10] [shape = point] 
-    11 [label=11] [shape = point] 
     12 [label=12] [shape = point] 
     13 [label=13] [shape = point] 
-    14 [label=14] [shape = point] 
-    15 [label=15] [shape = point] 
-    16 [label=16] [shape = point] 
-    17 [label=17] [shape = point] 
-    18 [label=18] [shape = point] 
-    19 [label=19] [shape = point] 
-    20 [label=20] [shape = point] 
-    21 [label=21] [shape = point] 
-    22 [label=22] [shape = point] 
-    24 [label=24] [shape = point] 
-    25 [label=25] [shape = point] 
  
-     -1 -- 1
-                                  [headlabel=Xgordoni]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
-                                  [penwidth=4]; 
-     -1 -- 2
-                                  [headlabel=Xmeyeri]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
-                                  [penwidth=4]; 
      -1 -- -2
                                   [penwidth=4]; 
-     -2 -- 3
-                                  [headlabel=Xcouchianus]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
+     -2 -- 1
+                                  [headlabel=4]
+                                  [labeldistance=3.0]
+                                  [labelangle=180.0]
                                   [penwidth=4]; 
-     -2 -- -3
-                                  [penwidth=4]; 
-     -3 -- 4
-                                  [headlabel=Xvariatus]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
-                                  [penwidth=4]; 
-     -3 -- -4
-                                  [penwidth=4]; 
-     -4 -- 5
-                                  [headlabel=Xevelynae]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
+   -2 -- 11
+                                  [color=green4]
+                                  [penwidth=2.976]     11 -- -4
                                   [penwidth=4]; 
      -4 -- -5
+                                  [penwidth=4]; 
+     -5 -- 2
+                                  [headlabel=5]
+                                  [labeldistance=3.0]
+                                  [labelangle=180.0]
                                   [penwidth=4]; 
      -5 -- -6
                                   [penwidth=4]; 
      -6 -- -7
                                   [penwidth=4]; 
-     -7 -- 6
-                                  [headlabel=Xandersi]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
+     -7 -- 3
+                                  [headlabel=7]
+                                  [labeldistance=3.0]
+                                  [labelangle=180.0]
                                   [penwidth=4]; 
-     -7 -- -8
+     -7 -- 4
+                                  [headlabel=6]
+                                  [labeldistance=3.0]
+                                  [labelangle=180.0]
                                   [penwidth=4]; 
-     -8 -- 7
-                                  [headlabel=Xmaculatus]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
-                                  [penwidth=4]; 
-     -8 -- -9
+   -6 -- 5
+                                  [color=green4]
+                                  [label=" &gamma; = 0.001"]
+                                  [labeldistance = 3.5]
+                                  [labelangle=45.0]
+                                  [penwidth=0.004]; 
+   -4 -- 5
+                                  [color=green4]
+                                  [penwidth=3.996]     5 -- -9
                                   [penwidth=4]; 
      -9 -- -10
                                   [penwidth=4]; 
      -10 -- -11
                                   [penwidth=4]; 
-     -11 -- 8
-                                  [headlabel=Xclemenciae_F2]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
+     -11 -- 6
+                                  [headlabel=10]
+                                  [labeldistance=3.0]
+                                  [labelangle=180.0]
                                   [penwidth=4]; 
-     -11 -- 9
-                                  [headlabel=Xmonticolus]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
-                                  [penwidth=4]; 
-     -10 -- -12
-                                  [penwidth=4]; 
-     -12 -- -13
-                                  [penwidth=4]; 
-     -13 -- 10
-                                  [headlabel=Xhellerii]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
-                                  [penwidth=4]; 
-     -13 -- -14
-                                  [penwidth=4]; 
-     -14 -- 11
-                                  [headlabel=Xalvarezi]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
-                                  [penwidth=4]; 
-     -14 -- 12
-                                  [headlabel=Xmayae]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
-                                  [penwidth=4]; 
-     -12 -- 13
-                                  [headlabel=Xsignum]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
-                                  [penwidth=4]; 
-   -9 -- 23
+   -11 -- 8
                                   [color=green4]
-                                  [penwidth=3.336]; 
-     23 -- -16
+                                  [penwidth=3.6]     8 -- 7
+                                  [headlabel=1]
+                                  [labeldistance=3.0]
+                                  [labelangle=180.0]
                                   [penwidth=4]; 
-     -16 -- -17
+     -10 -- -13
                                   [penwidth=4]; 
-     -17 -- -18
+     -13 -- 9
+                                  [headlabel=9]
+                                  [labeldistance=3.0]
+                                  [labelangle=180.0]
                                   [penwidth=4]; 
-     -18 -- -19
-                                  [penwidth=4]; 
-     -19 -- 14
-                                  [headlabel=Xbirchmanni_GARC]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
-                                  [penwidth=4]; 
-     -19 -- 15
-                                  [headlabel=Xmalinche_CHIC2]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
-                                  [penwidth=4]; 
-     -18 -- 16
-                                  [headlabel=Xcortezi]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
-                                  [penwidth=4]; 
-     -17 -- -20
-                                  [penwidth=4]; 
-     -20 -- 17
-                                  [headlabel=Xmontezumae]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
-                                  [penwidth=4]; 
-     -20 -- 18
-                                  [headlabel=Xnezahuacoyotl]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
-                                  [penwidth=4]; 
-     -16 -- -21
-                                  [penwidth=4]; 
-     -21 -- -22
-                                  [penwidth=4]; 
-     -22 -- 19
-                                  [headlabel=Xcontinens]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
-                                  [penwidth=4]; 
-     -22 -- 20
-                                  [headlabel=Xpygmaeus]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
-                                  [penwidth=4]; 
-     -21 -- -23
-                                  [penwidth=4]; 
-     -23 -- 21
-                                  [headlabel=Xnigrensis]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
-                                  [penwidth=4]; 
-     -23 -- 22
-                                  [headlabel=Xmultilineatus]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
-                                  [penwidth=4]; 
-     -6 -- 24
-                                  [headlabel=Xmilleri]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
-                                  [penwidth=4]; 
-     -5 -- -24
-                                  [penwidth=4]; 
-     -24 -- 25
-                                  [headlabel=Xxiphidium]
-                                  [labeldistance=7.0]
-                                  [labelangle=190.0]
-                                  [penwidth=4]; 
-   -24 -- 23
+   -13 -- 8
                                   [color=green4]
-                                  [penwidth=0.664]
-                                  [label=" &gamma; = 0.166"]
+                                  [label=" &gamma; = 0.1"]
                                   [labeldistance = 3.5]
-                                  [labelangle=45.0]; 
+                                  [labelangle=45.0]
+                                  [penwidth=0.4]; 
+     -9 -- 10
+                                  [headlabel=8]
+                                  [labeldistance=3.0]
+                                  [labelangle=180.0]
+                                  [penwidth=4]; 
+     -1 -- 12
+                                  [headlabel=2]
+                                  [labeldistance=3.0]
+                                  [labelangle=180.0]
+                                  [penwidth=4]; 
+     -1 -- -14
+                                  [penwidth=4]; 
+   -14 -- 11
+                                  [color=green4]
+                                  [label=" &gamma; = 0.256"]
+                                  [labeldistance = 3.5]
+                                  [labelangle=45.0]
+                                  [penwidth=1.024]; 
+     -14 -- 13
+                                  [headlabel=3]
+                                  [labeldistance=3.0]
+                                  [labelangle=180.0]
+                                  [penwidth=4]; 
 }
