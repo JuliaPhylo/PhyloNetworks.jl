@@ -69,6 +69,11 @@ function plotPhylonet(graph::Network;                      #Network object you a
   write(dotIo,"    node [shape = point] \n")                      #Sets the shape of the nodes
   write(dotIo,"    rank=max $(rootNode.number) \n")               #Guarantees placement of root node at top of hierarchy (dot engine only)
 
+  if unrooted
+    write(dotIo,"  mode = KK; \n")
+    write(dotIo,"  model = circuit; \n")
+  end
+
   #Ranking leaves together at the bottom of the tree
   if forcedLeaf
     write(dotIo,"  subgraph    { ")                                 #Places root node at top of tree
