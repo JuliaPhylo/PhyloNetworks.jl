@@ -71,7 +71,7 @@ function plotPhylonet(graph::Network;                      #Network object you a
 
   if unrooted
     write(dotIo,"  mode = KK; \n")
-    write(dotIo,"  model = circuit; \n")
+    write(dotIo,"  epsilon = 0.01; \n")
   end
 
   #Ranking leaves together at the bottom of the tree
