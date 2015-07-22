@@ -8,7 +8,7 @@ function traverseEdges(net::HybridNetwork,
                        layoutStyle="dot"::String,
                        labelAngle= 180.0::FloatingPoint,
                        labelDistance= 3.0::FloatingPoint,
-                       includeGamma=true::Bool
+                       includeGamma=false::Bool
                        )
   #*************************************************************************************************************************
   #Case 1: Node is the root

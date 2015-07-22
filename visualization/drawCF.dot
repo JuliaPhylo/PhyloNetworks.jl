@@ -3,108 +3,58 @@ Graph Phylogeny {
     ratio="fill"; 
     size="6 ,8 !"; 
     nodesep=0.5; 
-    splines=line; 
+    splines=false; 
     edge [fontsize=16.0]; 
     node [shape = point] 
     rank=max -1 
-  mode = KK; 
-  epsilon = 0.01; 
-  subgraph    { 1 , 3 , 4 , 5 , 7 , 8 , 9 , 10 , 11 , 12 } 
+  subgraph    { 1 , 2 , 3 , 4 , 5 , 7 } 
     1 [label=1] [shape = point] 
+    2 [label=2] [shape = point] 
     3 [label=3] [shape = point] 
     4 [label=4] [shape = point] 
     5 [label=5] [shape = point] 
     7 [label=7] [shape = point] 
-    8 [label=8] [shape = point] 
-    9 [label=9] [shape = point] 
-    10 [label=10] [shape = point] 
-    11 [label=11] [shape = point] 
-    12 [label=12] [shape = point] 
  
      -1 -- 1
-                                  [headlabel=10]
+                                  [headlabel=6]
                                   [labeldistance=3.0]
                                   [labelangle=180.0]
                                   [penwidth=4]; 
      -1 -- -2
                                   [penwidth=4]; 
-   -2 -- 2
-                                  [color=green4]
-                                  [label=" &gamma; = 0.1"]
-                                  [labeldistance = 3.5]
-                                  [labelangle=45.0]
-                                  [penwidth=0.4]; 
      -2 -- -3
                                   [penwidth=4]; 
-     -3 -- 3
+     -3 -- -4
+                                  [penwidth=4]; 
+     -4 -- 2
                                   [headlabel=1]
                                   [labeldistance=3.0]
                                   [labelangle=180.0]
                                   [penwidth=4]; 
-     -3 -- -4
-                                  [penwidth=4]; 
-     -4 -- 4
+     -4 -- 3
                                   [headlabel=2]
                                   [labeldistance=3.0]
                                   [labelangle=180.0]
                                   [penwidth=4]; 
-   -4 -- 2
+   -3 -- 6
                                   [color=green4]
-                                  [penwidth=3.6]     2 -- -6
+                                  [penwidth=3.6]     6 -- -6
                                   [penwidth=4]; 
-   -6 -- 6
-                                  [color=green4]
-                                  [penwidth=3.6]     6 -- 5
-                                  [headlabel=9]
-                                  [labeldistance=3.0]
-                                  [labelangle=180.0]
-                                  [penwidth=4]; 
-     -6 -- -8
-                                  [penwidth=4]; 
-     -8 -- 7
+     -6 -- 4
                                   [headlabel=3]
                                   [labeldistance=3.0]
                                   [labelangle=180.0]
                                   [penwidth=4]; 
-     -8 -- -9
-                                  [penwidth=4]; 
-     -9 -- 8
+     -6 -- 5
                                   [headlabel=4]
                                   [labeldistance=3.0]
                                   [labelangle=180.0]
                                   [penwidth=4]; 
-     -9 -- -10
+     -2 -- -7
                                   [penwidth=4]; 
-     -10 -- -11
-                                  [penwidth=4]; 
-     -11 -- 9
+     -7 -- 7
                                   [headlabel=5]
                                   [labeldistance=3.0]
                                   [labelangle=180.0]
                                   [penwidth=4]; 
-     -11 -- 10
-                                  [headlabel=6]
-                                  [labeldistance=3.0]
-                                  [labelangle=180.0]
-                                  [penwidth=4]; 
-     -10 -- -12
-                                  [penwidth=4]; 
-     -12 -- 11
-                                  [headlabel=7]
-                                  [labeldistance=3.0]
-                                  [labelangle=180.0]
-                                  [penwidth=4]; 
-     -12 -- -13
-                                  [penwidth=4]; 
-     -13 -- 12
-                                  [headlabel=8]
-                                  [labeldistance=3.0]
-                                  [labelangle=180.0]
-                                  [penwidth=4]; 
-   -13 -- 6
-                                  [color=green4]
-                                  [label=" &gamma; = 0.1"]
-                                  [labeldistance = 3.5]
-                                  [labelangle=45.0]
-                                  [penwidth=0.4]; 
 }

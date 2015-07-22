@@ -15,10 +15,10 @@ function plotPhylonet(graph::Network;                      #Network object you a
                  forcedLeaf=true::Bool,                    #When true, places all leaf nodes on the same line
                  unrooted=false::Bool,                     #Defaults to neato engine
                  nodeSeparation=0.8::FloatingPoint,        #Sets the minimum distance between nodes in inches
-                 edgeStyle="line"::String,                 #Sets the style of edges used. Options include "line", "ortho", "composite" (which uses both lines and curved splines), "curved"
+                 edgeStyle="false"::String,                 #Sets the style of edges used. Options include "line", "ortho", "composite" (which uses both lines and curved splines), "curved"
                  labelAngle= 180.0::FloatingPoint,         #Sets the angle for leaf label placement
                  labelDistance= 3.0::FloatingPoint,        #Sets the distance for leaf label placement
-                 includeGamma=true::Bool                   #When true, gamma labels are included on hybrid edges
+                 includeGamma=false::Bool                   #When true, gamma labels are included on hybrid edges
                  )
 
   #IO stream for writing to .dot file
@@ -141,10 +141,10 @@ function plotPhylonet(netString::String;
                  forcedLeaf=true::Bool,                    #When true, places all leaf nodes on the same line
                  unrooted=false::Bool,                     #Defaults to neato engine
                  nodeSeparation=0.5::FloatingPoint,        #Sets the minimum distance between nodes in inches
-                 edgeStyle="line"::String,                 #Sets the style of edges used. Options include "line", "ortho", "composite" (which uses both lines and curved splines), "curved"
+                 edgeStyle="false"::String,                 #Sets the style of edges used. Options include "line", "ortho", "composite" (which uses both lines and curved splines), "curved"
                  labelAngle= 180.0::FloatingPoint,         #Sets the angle for leaf label placement
                  labelDistance= 3.0::FloatingPoint,         #Sets the distance for leaf label placement
-                 includeGamma=true::Bool                   #When true, gamma labels are included on hybrid edges
+                 includeGamma=false::Bool                   #When true, gamma labels are included on hybrid edges
                  )
 
 
