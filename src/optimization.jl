@@ -1216,11 +1216,11 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         s = open(juliaout,"w")
         if(outgroup == "none")
             write(s,writeTopology(maxNet)) #no outgroup
-            write(s,"\n P-loglik = $(maxNet.loglik)")
+            write(s,"\n -Ploglik = $(maxNet.loglik)")
             write(s,"\n Dendroscope: $(writeTopology(maxNet,true))")
         else
             write(s,writeTopology(maxNet,outgroup)) #outgroup
-            write(s,"\n P-loglik = $(maxNet.loglik)")
+            write(s,"\n -Ploglik = $(maxNet.loglik)")
             write(s,"\n Dendroscope: $(writeTopology(maxNet,true,outgroup))")
         end
         write(s,"\n Elapsed time: $(t) seconds in $(runs-1-length(failed)) successful runs")
