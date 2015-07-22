@@ -11,6 +11,7 @@
 using Base.Collections # for updateInCycle with priority queue
 using DataFrames # for rep function and read/write csv tables
 using NLopt # for branch lengths optimization
+using GraphViz #for visualization
 
 const DEBUG = true
 const DEBUGC = false #more detailed prints
@@ -35,3 +36,5 @@ include("src/readData.jl")
 include("src/optimization.jl")
 
 include("src/pseudolik.jl")
+
+#include("src/visualization.jl")
