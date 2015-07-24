@@ -34,22 +34,23 @@ Graph Phylogeny {
      -3 -- -5
                                   [penwidth=4]; 
      -5 -- 3
-                                  [headlabel=3]
+                                  [headlabel=4]
                                   [labeldistance=3.0]
                                   [labelangle=180.0]
                                   [penwidth=4]; 
    -5 -- 5
                                   [color=green4]
-                                  [penwidth=3.6]     5 -- 4
-                                  [headlabel=4]
+                                  [penwidth=3.6]
+                                  [label=" &gamma; = 0.9"]
+                                  [labeldistance = 3.5]
+                                  [labelangle=45.0]; 
+     5 -- 4
+                                  [headlabel=3]
                                   [labeldistance=3.0]
                                   [labelangle=180.0]
                                   [penwidth=4]; 
      -2 -- -7
                                   [penwidth=4]; 
-   -7 -- 5
-                                  [color=green4]
-                                  [penwidth=0.4]; 
      -7 -- 6
                                   [headlabel=5]
                                   [labeldistance=3.0]
