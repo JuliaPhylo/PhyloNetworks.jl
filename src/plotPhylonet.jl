@@ -22,7 +22,7 @@ function plotPhylonet(graph::Network;                      #Network object you a
                  )
 
   #IO stream for writing to .dot file
-  dotIo = open("visualization/drawCF.dot","w+")
+  dotIo = open("drawCF.dot","w+")
 
   #Creates a list of all node numbers and all leaf numbers
   #Leaf numbers will be used for ranking process later on
@@ -123,7 +123,7 @@ function plotPhylonet(graph::Network;                      #Network object you a
 
   #Converts .dot file into .svg image
   print("Exporting .dot file as .svg")
-  generalExport("visualization/drawCF.dot",filename="$imageName",layoutEngine=layoutStyle)
+  generalExport("drawCF.dot",filename="$imageName",layoutEngine=layoutStyle)
 
 end
 
