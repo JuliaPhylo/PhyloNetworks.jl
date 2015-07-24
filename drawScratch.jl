@@ -8,8 +8,7 @@ function traverseEdges(net::HybridNetwork,
                        layoutStyle="dot"::String,
                        labelAngle= 180.0::FloatingPoint,
                        labelDistance= 3.0::FloatingPoint,
-                       includeGamma=false::Bool,
-                       includeLength=false::Bool
+                       includeGamma=false::Bool
                        )
   #*************************************************************************************************************************
   #Case 1: Node is the root
@@ -33,7 +32,7 @@ function traverseEdges(net::HybridNetwork,
       node1Num = node1.number       #Necessary for $ notation
       node2 = child;                #Child node
       node2Num = node2.number       #Necessary for $ notation
-      lng = round(i.length,3)
+
 
       #Creates image for the entire network including all hybridization events
           if node2.hybrid
@@ -42,21 +41,21 @@ function traverseEdges(net::HybridNetwork,
                 write(dotIo,"     $node1Num -- $node2Num
                                   [color=$(hybridColor)]
                                   [penwidth=$hThickness]")
-                if mainTree == true && includeGamma == true && includeLength == false
+                if mainTree == true && includeGamma == true
                   write(dotIo,"
-                                  [label=\" &gamma; = $gma\"]; \n")
-                end  #mainTree == true && includeGamma == true && includeLength == false
-                if mainTree == true && includeGamma == true && includeLength == true
-                    write(dotIo,"
-                                  [label=\" &gamma; = $gma \n l = $lng \"]; \n")
-                end #if mainTree == true && includeGamma == true && includeLength == true
+                                  [headlabel=\" &gamma; = $gma\"]
+                                  [labeldistance = 3.5]
+                                  [labelangle=45.0]; \n")
+                end  #mainTree == true && includeGamma == true
               elseif mainTree == false                                 #Skip this step if you only want mainTree
                 write(dotIo,"     $node1Num -- $node2Num
                                   [color=$(hybridColor)]
                                   [penwidth=$hThickness]")
                 if includeGamma == true
                   write(dotIo,"
-                                  [label=\" &gamma; = $gma\"]; \n")
+                                  [headlabel=\" &gamma; = $gma\"]
+                                  [labeldistance = 3.5]
+                                  [labelangle=45.0];\n")
                 end  #if includeGamma == true
               end #if gma > 0.5 elseif mainTree == false
           else
@@ -69,7 +68,7 @@ function traverseEdges(net::HybridNetwork,
         newnode = edge.node[1]
       end #if edge.node[1] == node else
       nnN = newnode.number                        #Simply used for progress/debugging statements... will be removed in the end
-      traverseEdges(net,newnode,mainTree,dotIo,gammaThreshold,edge,hybridColor,layoutStyle,labelAngle,labelDistance,includeGamma,includeLength)
+      traverseEdges(net,newnode,mainTree,dotIo,gammaThreshold,edge,hybridColor,layoutStyle,labelAngle,labelDistance,includeGamma)
     end #for edge in node.edge
   end #if node.number == net.root
 
@@ -108,7 +107,8 @@ function traverseEdges(net::HybridNetwork,
         node1Num = node1.number       #Necessary for $ notation
         node2 = child;            #Child node
         node2Num = node2.number       #Necessary for $ notation
-        lng = round(i.length,3)
+
+
 
         #Creates image for the entire network including all hybridization events
             if node2.hybrid
@@ -156,7 +156,7 @@ function traverseEdges(net::HybridNetwork,
             else
               println("something is wrong")
             end #if else
-            traverseEdges(net,newnode,mainTree,dotIo,gammaThreshold,edge,hybridColor,layoutStyle, labelAngle, labelDistance,includeGamma,includeLength)                             #Recursively call function with new child node (as parent) and previous edge as parent edge
+            traverseEdges(net,newnode,mainTree,dotIo,gammaThreshold,edge,hybridColor,layoutStyle, labelAngle, labelDistance,includeGamma)                             #Recursively call function with new child node (as parent) and previous edge as parent edge
           end #if gamma
         end #if
       end #if
