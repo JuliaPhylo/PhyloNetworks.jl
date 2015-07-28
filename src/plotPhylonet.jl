@@ -18,7 +18,9 @@ function plotPhylonet(graph::Network;                      #Network object you a
                  edgeStyle="false"::String,                 #Sets the style of edges used. Options include "line", "ortho", "composite" (which uses both lines and curved splines), "curved"
                  labelAngle= 180.0::FloatingPoint,         #Sets the angle for leaf label placement
                  labelDistance= 3.0::FloatingPoint,        #Sets the distance for leaf label placement
-                 includeGamma=false::Bool                   #When true, gamma labels are included on hybrid edges
+                 includeGamma=false::Bool,                   #When true, gamma labels are included on hybrid edges
+                 includeLength=false::Bool
+
                  )
 
   #IO stream for writing to .dot file
@@ -110,7 +112,7 @@ function plotPhylonet(graph::Network;                      #Network object you a
 
   #Traverse the network using a pseudo-depth-first method
   #traverseEdges is a recursive function that traverses each edge only once and appends it to the dot file
-  traverseEdges(graph, rootNode, mainTree, dotIo, gammaThreshold, dummy,hybridColor,layoutStyle,labelAngle,labelDistance,includeGamma)
+  traverseEdges(graph, rootNode, mainTree, dotIo, gammaThreshold, dummy,hybridColor,layoutStyle,labelAngle,labelDistance,includeGamma,includeLength)
 
   #********************************************************************************************************************
 
@@ -141,10 +143,11 @@ function plotPhylonet(netString::String;
                  forcedLeaf=true::Bool,                    #When true, places all leaf nodes on the same line
                  unrooted=false::Bool,                     #Defaults to neato engine
                  nodeSeparation=0.5::FloatingPoint,        #Sets the minimum distance between nodes in inches
-                 edgeStyle="false"::String,                 #Sets the style of edges used. Options include "line", "ortho", "composite" (which uses both lines and curved splines), "curved"
+                 edgeStyle="false"::String,                #Sets the style of edges used. Options include "line", "ortho", "composite" (which uses both lines and curved splines), "curved"
                  labelAngle= 180.0::FloatingPoint,         #Sets the angle for leaf label placement
-                 labelDistance= 3.0::FloatingPoint,         #Sets the distance for leaf label placement
-                 includeGamma=false::Bool                   #When true, gamma labels are included on hybrid edges
+                 labelDistance= 3.0::FloatingPoint,        #Sets the distance for leaf label placement
+                 includeGamma=false::Bool,                 #When true, gamma labels are included on hybrid edges
+                 includeLength=false::Bool                 #When true, edge length labels are included
                  )
 
 
@@ -166,6 +169,7 @@ function plotPhylonet(netString::String;
                  edgeStyle=edgeStyle,
                  labelAngle=labelAngle,
                  labelDistance=labelDistance,
-                 includeGamma=includeGamma
+                 includeGamma=includeGamma,
+                 includeLength=includeLength
                  )
 end
