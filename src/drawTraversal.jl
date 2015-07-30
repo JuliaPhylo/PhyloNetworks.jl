@@ -33,7 +33,6 @@ function traverseEdges(net::HybridNetwork,
       node1Num = node1.number       #Necessary for $ notation
       node2 = child;                #Child node
       node2Num = node2.number       #Necessary for $ notation
-      println("$(i.length)")
 
 
       #Creates image for the entire network including all hybridization events
@@ -64,7 +63,6 @@ function traverseEdges(net::HybridNetwork,
           else
               write(dotIo,"     $node1Num -- $node2Num [penwidth=4]")
               if includeLength == true
-                println("Made it")
                 write(dotIo," [label=\" l = $(i.length)\"]; \n")
               else
                 write(dotIo,"; \n")
@@ -162,7 +160,6 @@ function traverseEdges(net::HybridNetwork,
                                   [labelangle=$(labelAngle)]
                                   [penwidth=4]")
                 if includeLength == true
-                  println("Made it")
                   write(dotIo," [label=\" l = $(i.length)\"]; \n")
                 else
                   write(dotIo,"; \n")
@@ -171,7 +168,6 @@ function traverseEdges(net::HybridNetwork,
                 write(dotIo,"     $node1Num -- $node2Num
                                   [penwidth=4]")
                 if includeLength == true
-                  println("Made it")
                   write(dotIo," [label=\" l = $(i.length)\"]; \n")
                 else
                   write(dotIo,"; \n")
