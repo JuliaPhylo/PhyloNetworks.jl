@@ -15,7 +15,7 @@ function plotPhylonet(graph::Network;                      #Network object you a
                  forcedLeaf=true::Bool,                    #When true, places all leaf nodes on the same line
                  unrooted=false::Bool,                     #Defaults to neato engine
                  nodeSeparation=0.8::FloatingPoint,        #Sets the minimum distance between nodes in inches
-                 edgeStyle="false"::String,                 #Sets the style of edges used. Options include "line", "ortho", "composite" (which uses both lines and curved splines), "curved"
+                 edgeStyle="true"::String,                 #Sets the style of edges used. Options include "line", "ortho", "composite" (which uses both lines and curved splines), "curved"
                  labelAngle= 180.0::FloatingPoint,         #Sets the angle for leaf label placement
                  labelDistance= 3.0::FloatingPoint,        #Sets the distance for leaf label placement
                  includeGamma=false::Bool,                   #When true, gamma labels are included on hybrid edges
@@ -24,7 +24,7 @@ function plotPhylonet(graph::Network;                      #Network object you a
                  )
 
   #IO stream for writing to .dot file
-  dotIo = open("drawCF.dot","w+")
+  dotIo = open("$imageName.dot","w+")
 
   #Creates a list of all node numbers and all leaf numbers
   #Leaf numbers will be used for ranking process later on
@@ -125,7 +125,7 @@ function plotPhylonet(graph::Network;                      #Network object you a
 
   #Converts .dot file into .svg image
   print("Exporting .dot file as .svg")
-  generalExport("drawCF.dot",filename="$imageName",layoutEngine=layoutStyle)
+  generalExport("$imageName.dot",filename="$imageName",layoutEngine=layoutStyle)
 
 end
 

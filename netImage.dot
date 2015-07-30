@@ -1,0 +1,67 @@
+Graph Phylogeny { 
+    labelloc=b 
+    ratio="fill"; 
+    size="6 ,8 !"; 
+    nodesep=0.5; 
+    splines=true; 
+    edge [fontsize=16.0]; 
+    node [shape = point] 
+    rank=max -1 
+  subgraph    { 1 , 2 , 3 , 4 , 6 , 7 } 
+    1 [label=1] [shape = point] 
+    2 [label=2] [shape = point] 
+    3 [label=3] [shape = point] 
+    4 [label=4] [shape = point] 
+    6 [label=6] [shape = point] 
+    7 [label=7] [shape = point] 
+ 
+     -1 -- -2
+                                  [penwidth=4] [label=" l = 1.0"]; 
+     -2 -- -3
+                                  [penwidth=4] [label=" l = 1.0"]; 
+     -3 -- -4
+                                  [penwidth=4] [label=" l = 1.0"]; 
+     -4 -- 1
+                                  [headlabel=1]
+                                  [labeldistance=3.0]
+                                  [labelangle=180.0]
+                                  [penwidth=4] [label=" l = 1.0"]; 
+     -4 -- 2
+                                  [headlabel=2]
+                                  [labeldistance=3.0]
+                                  [labelangle=180.0]
+                                  [penwidth=4] [label=" l = 1.0"]; 
+     -3 -- -5
+                                  [penwidth=4] [label=" l = 1.0"]; 
+     -5 -- 3
+                                  [headlabel=3]
+                                  [labeldistance=3.0]
+                                  [labelangle=180.0]
+                                  [penwidth=4] [label=" l = 1.0"]; 
+   -5 -- 5
+                                  [color=green4]
+                                  [penwidth=3.6]
+                                  [label=" l = 1.0"]; 
+     5 -- 4
+                                  [headlabel=4]
+                                  [labeldistance=3.0]
+                                  [labelangle=180.0]
+                                  [penwidth=4] [label=" l = 1.0"]; 
+     -2 -- -7
+                                  [penwidth=4] [label=" l = 1.0"]; 
+   -7 -- 5
+                                  [color=green4][label=" &gamma; = 0.1 
+ l = 1.0"] 
+
+                                  [penwidth=0.4]; 
+     -7 -- 6
+                                  [headlabel=5]
+                                  [labeldistance=3.0]
+                                  [labelangle=180.0]
+                                  [penwidth=4] [label=" l = 1.0"]; 
+     -1 -- 7
+                                  [headlabel=6]
+                                  [labeldistance=3.0]
+                                  [labelangle=180.0]
+                                  [penwidth=4] [label=" l = 1.0"]; 
+}
