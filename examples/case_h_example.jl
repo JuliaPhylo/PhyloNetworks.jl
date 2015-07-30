@@ -12,5 +12,6 @@ write(f,tree)
 close(f)
 net = readTopologyUpdate("prueba_tree.txt");
 
+
 #printEdges(net)
 #printNodes(net)
