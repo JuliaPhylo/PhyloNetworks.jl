@@ -1068,7 +1068,7 @@ function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, major
         #DEBUG && println("undoContainRoot for edges $([e.number for e in edgesRoot])")
         (flag2 || node.isVeryBadTriangle || node.isExtBadTriangle) || error("updating gammaz/root for undone moveTarget, should not be any problem, but flag2 $(flag2) and node not very/ext bad triangle")
         CHECKNET && checkNet(net)
-        return false, flag2, flag3
+        return false, flag2, false
     end
 end
 
