@@ -392,7 +392,7 @@ function deleteNode!(net::HybridNetwork, n::Node)
     net.numNodes -= 1;
     if(net.root == index)
         #warn("Root node deleted, first node in net.node set arbitrarily as new root")
-        net.root = 1 #arbitrarily chosen, not used until writeTopology
+        net.root = 1 #arbitrarily chosen, not used until writeTopology/plotPhylonet
     end
     if(n.hybrid)
        removeHybrid!(net,n)

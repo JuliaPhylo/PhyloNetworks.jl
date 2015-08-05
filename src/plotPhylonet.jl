@@ -23,6 +23,18 @@ function plotPhylonet(graph::Network;                      #Network object you a
 
                  )
 
+    #check that the root is correcly placed (Claudia, Aug2015)
+    if(!isTree(graph))
+        if(!graph.cleaned)
+            DEBUG && println("net not cleaned inside plotPhylonet, need to run updateCR")
+            for(n in graph.hybrid)
+                flag,edges = updateContainRoot!(graph,n)
+                flag || error("hybrid node $(n.hybrid) has conflicting containRoot")
+            end
+        end
+        checkRootPlace!(graph)
+    end
+
   #IO stream for writing to .dot file
   dotIo = open("$imageName.dot","w+")
 

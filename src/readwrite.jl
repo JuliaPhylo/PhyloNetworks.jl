@@ -372,8 +372,41 @@ function readTopology(s::IO)
        error("Expected beginning of tree with ( but received $(c) instead")
     end
     storeHybrids!(net)
+    checkNumHybEdges!(net)
     return net
 end
+
+# aux function to send an error if the number of hybrid attached to every
+# hybrid node are 0,1 or >2
+# to be used in readTopology
+# need to be run after storeHybrids
+function checkNumHybEdges!(net::HybridNetwork)
+    if(!isTree(net))
+        isempty(net.hybrid) && error("net.hybrid should not be empty for this network")
+        for(n in net.hybrid)
+            hyb = sum([e.hybrid?1:0 for e in n.edge]);
+            if(hyb > 2)
+                error("hybrid node $(n.number) has more than two hybrid edges attached to it: polytomy that cannot be resolved without intersecting cycles.")
+            elseif(hyb == 1)
+                if(net.numHybrids == 1)
+                    error("only one hybrid node number $(n.number) with name $(net.names[n.number]) found with one hybrid edge attached")
+                else
+                    error("current hybrid node $(n.number) with name S(net.names[n.number]) has only one hybrid edge attached. there are other $(net.numHybrids-1) hybrids out there but this one remained unmatched")
+                end
+            elseif(hyb == 0)
+                if(length(n.edge) == 0)
+                    error("strange hybrid node $(n.number) attached to 0 edges")
+                elseif(length(n.edge) == 1)
+                    n.leaf || error("hybrid node $(n.number) has only one tree edge attached and it is not a leaf")
+                elseif(length(n.edge) >= 2)
+                    warn("hybrid node $(n.number) is not connected to any hybrid edges, it was transformed to tree node")
+                    n.hybrid = false;
+                end
+            end
+        end
+    end
+end
+
 
 # aux function to solve a polytomy
 # warning: chooses one resolution at random
@@ -613,14 +646,8 @@ function updateAllReadTopology!(net::HybridNetwork)
     end
 end
 
-# function to read a topology from file name/tree directly and update it
-# by calling updateAllReadTopology after
-# leaveRoot=true if the root will not be deleted even if it has only 2 edges
-# used for plotting (default=false)
-# warning: if leaveRoot=true, net should not be used outside plotting, things will crash
-function readTopologyUpdate(file::String, leaveRoot::Bool)
-    DEBUG && println("readTopology -----")
-    net = readTopology(file)
+# cleanAfterReadAll includes all the step to clean a network after read
+function cleanAfterReadAll!(net::HybridNetwork, leaveRoot::Bool)
     DEBUG && println("cleanAfterRead -----")
     cleanAfterRead!(net,leaveRoot)
     DEBUG && println("updateAllReadTopology -----")
@@ -629,6 +656,31 @@ function readTopologyUpdate(file::String, leaveRoot::Bool)
         DEBUG && println("parameters -----")
         parameters!(net)
     end
+    checkRootPlace!(net)
+    net.node[net.root].leaf && warn("root node $(net.node[net.root].number) is a leaf, so when plotting net, it can look weird")
+    net.cleaned = true
+end
+
+cleanAfterReadAll!(net::HybridNetwork) = cleanAfterReadAll!(net,false)
+
+# function to read a topology from file name/tree directly and update it
+# by calling updateAllReadTopology after
+# leaveRoot=true if the root will not be deleted even if it has only 2 edges
+# used for plotting (default=false)
+# warning: if leaveRoot=true, net should not be used outside plotting, things will crash
+function readTopologyUpdate(file::String, leaveRoot::Bool)
+    DEBUG && println("readTopology -----")
+    net = readTopology(file)
+    cleanAfterReadAll!(net,leaveRoot)
+    return net
+end
+
+readTopologyUpdate(file::String) = readTopologyUpdate(file, false)
+
+
+# aux function to check if the root is placed correctly, and re root if not
+# warning: it needs updateCR set
+function checkRootPlace!(net::HybridNetwork)
     if(!canBeRoot(net.node[net.root]))
         warn("root node $(net.node[net.root].number) placement is not ok, we will change it to the first found node that agrees with the direction of the hybrid edges")
         for(i in 1:length(net.node))
@@ -639,11 +691,7 @@ function readTopologyUpdate(file::String, leaveRoot::Bool)
         end
     end
     canBeRoot(net.node[net.root]) || error("tried to place root, but couldn't. root is node $(net.node[net.root])")
-    net.node[net.root].leaf && warn("root node $(net.node[net.root].number) is a leaf, so when plotting net, it can look weird")
-    return net
 end
-
-readTopologyUpdate(file::String) = readTopologyUpdate(file, false)
 
     # --------------------------- write topology -------------------------------------
 # function to write a node and its descendants in
@@ -719,6 +767,13 @@ function writeTopology(net::HybridNetwork, di::Bool, string::Bool, names::Bool,o
     if(net.numNodes == 1)
         print(s,string(net.node[net.root].number,";"))
     else
+        if(!isTree(net) && !net.cleaned)
+            DEBUG && println("net not cleaned inside writeTopology, need to run updateCR")
+            for(n in graph.hybrid)
+                flag,edges = updateContainRoot!(graph,n)
+                flag || error("hybrid node $(n.hybrid) has conflicting containRoot")
+            end
+        end
         print(s,"(")
         updateRoot!(net,outgroup)
         CHECKNET && canBeRoot(net.node[net.root])
@@ -732,7 +787,7 @@ function writeTopology(net::HybridNetwork, di::Bool, string::Bool, names::Bool,o
         end
         print(s,");")
     end
-    undoRoot!(net) #to delete the node with only two edges
+    outgroup != "none" && undoRoot!(net) #to delete the node with only two edges
     if(string)
         return bytestring(s)
     else
@@ -752,7 +807,7 @@ writeTopology(net::HybridNetwork,di::Bool,outgroup::String) = writeTopology(net,
 function updateRoot!(net::HybridNetwork, outgroup::String)
     checkroot = false
     if(outgroup == "none")
-        println("no outgroup defined, will place root wherever")
+        println("no outgroup defined")
         checkroot = true
     else
         println("outgroup defined $(outgroup)")
@@ -775,8 +830,10 @@ function updateRoot!(net::HybridNetwork, outgroup::String)
             max_node = maximum([e.number for e in net.node]);
             newedge = Edge(max_edge+1)
             newnode = Node(max_node+1,false,false,[edge,newedge])
-            part = whichPartition(net,edge)
-            push!(net.partition[part].edges,newedge)
+            if(net.cleaned)
+                part = whichPartition(net,edge)
+                push!(net.partition[part].edges,newedge)
+            end
             setNode!(edge,newnode)
             setNode!(newedge,newnode)
             setEdge!(othernode,newedge)
@@ -792,17 +849,8 @@ function updateRoot!(net::HybridNetwork, outgroup::String)
             checkroot = true
         end
     end
-    if(checkroot)
-        if(!canBeRoot(net.node[net.root]))
-            println("need to update root")
-            for(i in 1:length(net.node))
-                if(canBeRoot(net.node[i]))
-                    net.root = i
-                    break
-                end
-            end
-            canBeRoot(net.node[net.root]) || error("tried to place root, but couldn't. root is node $(net.node[net.root])")
-        end
+    if(checkroot && !isTree(net))
+        checkRootPlace!(net)
     end
 end
 

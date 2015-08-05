@@ -1142,10 +1142,16 @@ optTop!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ft
 
 # function to repeat optTopLevel for a certain number of runs
 # used to run optTop but now we want to compare to phylonet
-# runs will add one extra to desired because the first run is not counted towards time (because of compilation time)
+# runs will add one extra to desired because the first run is not counted towards time (because of compilation time), default runs=10
 # outgroup is needed to root appropriately to use java distance function
 # rootname is for output files: log, err, out, default "optTopRuns"
 function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::String, rootname::String)
+    # need a clean starting net. fixit: maybe we need to be more thorough here
+    if(!currT0.cleaned)
+        cleanAfterReadAll!(currT0)
+    end
+    checkNet(currT0)
+
     juliaerr = string(rootname,".err")
     errfile = open(juliaerr,"w")
     julialog = string(rootname,".log")
@@ -1241,6 +1247,7 @@ end
 optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64, outgroup::String, rootname::String) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, outgroup,rootname)
 optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64, outgroup::String) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, outgroup,"optTopRuns")
 optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, "none", "optTopRuns")
+optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, 10, "none", "optTopRuns")
 
 
 
