@@ -1,6 +1,6 @@
 # tests with the 5 taxon networks write to parenthetical format
 # Claudia March 2015
-# need to draw in dendroscope to compare
+# need to draw in dendroscope to compare, still not automatic
 
 
 # types in "types.jl"

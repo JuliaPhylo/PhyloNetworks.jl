@@ -795,10 +795,12 @@ function writeTopology(net::HybridNetwork, di::Bool, string::Bool, names::Bool,o
     end
 end
 
-writeTopology(net::HybridNetwork) = writeTopology(net,false, true,true,"none")
+#writeTopology(net::HybridNetwork) = writeTopology(net,false, true,true,"none") #not needed because of last function definition
 writeTopology(net::HybridNetwork,di::Bool) = writeTopology(net,di, true,true,"none")
 writeTopology(net::HybridNetwork,outgroup::String) = writeTopology(net,false, true,true,outgroup)
 writeTopology(net::HybridNetwork,di::Bool,outgroup::String) = writeTopology(net,di, true,true,outgroup)
+
+writeTopology(net::HybridNetwork; di=false::Bool, string=true::Bool, names=true::Bool,outgroup="none"::String) = writeTopology(net, di, string, names,outgroup)
 
 # function to check if root is well-placed
 # and look for a better place if not
@@ -822,7 +824,7 @@ function updateRoot!(net::HybridNetwork, outgroup::String)
         length(net.node[index].edge) == 1 || error("strange leaf $(outgroup), node number $(net.node[index].number) with $(length(net.node[index].edge)) edges instead of 1")
         edge = net.node[index].edge[1]
         if(edge.containRoot)
-            DEBUG && println("creating new node in the middle of the external edge leading to outgroup")
+            DEBUG && println("creating new node in the middle of the external edge $(edge.number) leading to outgroup $(node.number)")
             othernode = getOtherNode(edge,node)
             removeEdge!(othernode,edge)
             removeNode!(othernode,edge)
@@ -830,7 +832,7 @@ function updateRoot!(net::HybridNetwork, outgroup::String)
             max_node = maximum([e.number for e in net.node]);
             newedge = Edge(max_edge+1)
             newnode = Node(max_node+1,false,false,[edge,newedge])
-            if(net.cleaned)
+            if(net.cleaned && !isTree(net))
                 part = whichPartition(net,edge)
                 push!(net.partition[part].edges,newedge)
             end
@@ -858,7 +860,7 @@ end
 # by the containRoot attribute of edges around it
 function canBeRoot(n::Node)
     !n.hybrid || return false
-    #!n.hasHybEdge || return false
+    #!n.hasHybEdge || return false #need to allow for some reason, check ipad notes
     !n.leaf || return false
     return any([e.containRoot for e in n.edge])
 end

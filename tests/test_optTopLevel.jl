@@ -21,6 +21,7 @@ printEdges(currT)
 
 
 @time optTopLevel!(currT,d,0,false)
+net = snaq(currT,d,hmax=0);
 
 #old:
 #@time optTopLevel!(currT,M,N,d,0);
@@ -28,7 +29,7 @@ printEdges(currT)
 #loglik_1 = 5.34957
 #found minimizer topology at step 1 with -loglik=5.34957 and ht_min=[0.2,0.1]
 #elapsed time: 8.910952599 seconds (91065584 bytes allocated, 0.59% gc time)
-printEdges(newT)
+printEdges(net)
 # forgot to copy, but true tree!
 
 

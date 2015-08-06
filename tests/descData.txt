@@ -1,4 +1,4 @@
-DATA: data consists of 10 gene trees and 15 quartets
+DATA: data consists of 10 gene trees and 10 quartets
 DATA: same taxa in gene trees and quartets: ASCIIString["6","1","5","4","2","3"]
 Taxon 6 appears in 10 input trees (100.0 %)
 Taxon 1 appears in 10 input trees (100.0 %)
@@ -18,10 +18,5 @@ Quartet 7 obsCF constructed with 10 gene trees (100.0%)
 Quartet 8 obsCF constructed with 10 gene trees (100.0%)
 Quartet 9 obsCF constructed with 10 gene trees (100.0%)
 Quartet 10 obsCF constructed with 10 gene trees (100.0%)
-Quartet 11 obsCF constructed with 10 gene trees (100.0%)
-Quartet 12 obsCF constructed with 10 gene trees (100.0%)
-Quartet 13 obsCF constructed with 10 gene trees (100.0%)
-Quartet 14 obsCF constructed with 10 gene trees (100.0%)
-Quartet 15 obsCF constructed with 10 gene trees (100.0%)
 ----------------------------
 

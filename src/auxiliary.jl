@@ -928,6 +928,13 @@ function checkNet(net::HybridNetwork)
             end
         end
     end
+    for(n in net.node)
+        if(n.leaf)
+            length(n.edge) == 1 || error("leaf $(n.number) with $(length(n.edge)) edges instead of 1")
+        else
+            length(n.edge) == 3 || error("node $(n.number) with $(length(n.edge)) edges instead of 3")
+        end
+    end
     DEBUG && println("no errors in checking net")
 end
 

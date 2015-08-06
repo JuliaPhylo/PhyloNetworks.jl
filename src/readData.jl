@@ -338,6 +338,10 @@ readInputData(treefile::String) = readInputData(treefile, :all, 1, unionTaxaTree
 readInputData(treefile::String,taxa::Union(Vector{ASCIIString}, Vector{Int64})) = readInputData(treefile, :all, 1, taxa, true, "tableCF.txt")
 readInputData(treefile::String, filename::String) = readInputData(treefile, :all, 1, unionTaxaTree(treefile), true, filename)
 
+# rename the function readInputData to make it more user-friendly
+readTrees2CF(treefile::String, quartetfile::String; whichQ=:all::Symbol, numQ=1::Int64, writetab=true::Bool, filename="tableCF.txt"::String) = readInputData(treefile, quartetfile, whichQ, numQ, writetab, filename)
+readTrees2CF(treefile::String; whichQ=:all::Symbol, numQ=1::Int64, taxa=unionTaxaTree(treefile)::Union(Vector{ASCIIString}, Vector{Int64}), writetab=true::Bool, filename="tableCF.txt"::String) = readInputData(treefile::String, whichQ::Symbol, numQ::Int64, taxa::Union(Vector{ASCIIString}, Vector{Int64}), writetab::Bool, filename::String)
+
 # ---------------------- descriptive stat for input data ----------------------------------
 
 # function to check how taxa is represented in the input trees
@@ -377,7 +381,7 @@ end
 
 # function to create descriptive stat from input data, will save in stream s
 # which can be a file or STDOUT
-# default: file "descData.txt"
+# default: send to STDOUT
 function descData(d::DataCF, s::IO)
     write(s,"DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
     if(!isempty(d.tree))
@@ -397,7 +401,7 @@ function descData(d::DataCF, filename::String)
     close(s)
 end
 
-descData(d::DataCF) = descData(d, "descData.txt")
+descData(d::DataCF) = descData(d, STDOUT)
 
 # ------------------ read starting tree from astral and put branch lengths ------------------------------
 
@@ -405,7 +409,7 @@ descData(d::DataCF) = descData(d, "descData.txt")
 # if updateBL=true, updates the branch lengths with the obsCF in d
 # by default, updateBL=true
 function readStartTop(file::String,d::DataCF,updateBL::Bool)
-    net = readTopology(file)
+    net = readTopologyUpdate(file)
     if(updateBL)
         updateBL!(net,d)
     end
@@ -413,7 +417,7 @@ function readStartTop(file::String,d::DataCF,updateBL::Bool)
 end
 
 readStartTop(file::String,d::DataCF) = readStartTop(file,d,true)
-readStartTop(file::String) = readStartTop(file,DataCF(),false)
+#readStartTop(file::String) = readStartTop(file,DataCF(),false) #not sure why we need this one
 
 # function to update starting branch lengths for starting tree read from ASTRAL
 # BL are updated as -log(3/2(1-mean(obsCF)))

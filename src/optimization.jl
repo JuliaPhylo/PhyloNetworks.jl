@@ -1145,7 +1145,8 @@ optTop!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ft
 # runs will add one extra to desired because the first run is not counted towards time (because of compilation time), default runs=10
 # outgroup is needed to root appropriately to use java distance function
 # rootname is for output files: log, err, out, default "optTopRuns"
-function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::String, rootname::String)
+# returnNet=true, it returns the best network for plotting, by default false
+function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::String, rootname::String, returnNet::Bool)
     # need a clean starting net. fixit: maybe we need to be more thorough here
     if(!currT0.cleaned)
         cleanAfterReadAll!(currT0)
@@ -1194,13 +1195,13 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             write(logfile,"\n BEGIN optTopLevel for run $(i), seed $(seed) and hmax $(hmax)")
             #best = optTop!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,true,logfile)
             best = optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,true)
-            write(logfile,"\n FINISHED optTopLevel!, typeof best $(typeof(best)), loglik of best $(best.loglik)")
+            write(logfile,"\n FINISHED optTopLevel!, typeof best $(typeof(best)), -loglik of best $(best.loglik)")
             flush(logfile)
             push!(bestnet, deepcopy(best))
             if(best.loglik < maxNet.loglik)
                 maxNet = deepcopy(best)
             end
-            println("typeof maxNet $(typeof(maxNet)), loglik of maxNet $(maxNet.loglik)")
+            println("typeof maxNet $(typeof(maxNet)), -loglik of maxNet $(maxNet.loglik)")
         catch(err)
             write(logfile,"\n ERROR found on optTopLevel for run $(i) seed $(seed): $(err)")
             flush(logfile)
@@ -1213,7 +1214,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     end
     t=toc();
     write(errfile, "\n Total errors: $(length(failed)) in seeds $(failed)")
-    write(logfile,"\nMaxNet is $(writeTopology(maxNet,true)) with loglik $(maxNet.loglik)")
+    write(logfile,"\nMaxNet is $(writeTopology(maxNet,true)) with -loglik $(maxNet.loglik)")
     write(logfile,"\n$(strftime(time()))")
     close(errfile)
     close(logfile)
@@ -1234,22 +1235,31 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         write(s,"\nList of estimated networks for all runs:")
         for(n in bestnet)
             if(outgroup == "none")
-                write(s,"\n $(writeTopology(n)), with loglik $(n.loglik)")
+                write(s,"\n $(writeTopology(n)), with -loglik $(n.loglik)")
             else
-                write(s,"\n $(writeTopology(n,outgroup)), with loglik $(n.loglik)")
+                write(s,"\n $(writeTopology(n,outgroup)), with -loglik $(n.loglik)")
             end
         end
         write(s,"\n-------")
         close(s)
     end
+    if(returnNet)
+        return maxNet
+    end
 end
 
-optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64, outgroup::String, rootname::String) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, outgroup,rootname)
-optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64, outgroup::String) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, outgroup,"optTopRuns")
-optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, "none", "optTopRuns")
-optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, 10, "none", "optTopRuns")
+optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64, outgroup::String, rootname::String,returnNet::Bool) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, outgroup,rootname,returnNet)
+optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64, outgroup::String) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, outgroup,"optTopRuns",false)
+optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, "none", "optTopRuns",false)
+optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, 10, "none", "optTopRuns",false)
 
 
-
+# function SNaQ: it calls directly optTopRuns but has a prettier name
+# it differs from optTopRuns in that it creates a deepcopy of the starting topology
+# only currT and d are necessary, all others are optional and have default values
+function snaq(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::String, rootname="snaq"::String, returnNet=true::Bool)
+    currT=deepcopy(currT0)
+    optTopRuns!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, rootname, returnNet)
+end
 
 
