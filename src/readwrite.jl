@@ -879,3 +879,24 @@ function undoRoot!(net::HybridNetwork, fromUpdateRoot::Bool)
 end
 
 undoRoot!(net::HybridNetwork) = undoRoot!(net, true)
+
+
+# function to read the .out file from snaq (optTopRuns) function
+function readOutfile(file::String)
+    try
+        s = open(file)
+    catch
+        error("Could not find or open $(file) file");
+    end
+    s = open(file)
+    line = readline(s)
+    DEBUG && println("line read $(line)")
+    c = line[1]
+    if(c == '(')
+       println("Estimated network from file $(file): $(line)")
+       net = readTopologyUpdate(line)
+    else
+        error("output file $(filename).out does not contain a tree in the first line, instead it has $(line)")
+    end
+    return net
+end
