@@ -14,7 +14,10 @@ for t in tests
         println("\t\033[1m\033[31mFAILED\033[0m: $t")
     end
 end
+println("-------------------------------------")
 
 if anyerrors
     throw("Tests failed")
+else
+    println("\t\033[1m\033[32mTests passed")
 end
