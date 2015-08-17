@@ -98,6 +98,7 @@ end
 # warning: reads additional info :length:bootstrap:gamma
 # warning: allows for name of internal nodes without # after: (1,2)A,...
 # warning: warning if hybrid edge without gamma value, warning if gamma value (ignored) without hybrid edge
+# modified from original Cecile c++ code to allow polytomies
 function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridNetwork, hybrids::Array{ASCIIString,1}, index::Array{Int64,1})
     c = peekchar(s)
     e = nothing;
@@ -105,19 +106,20 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
     pound = false;
     if(c =='(')
        numLeft[1] += 1
-       #println(numLeft)
+       DEBUGC && println(numLeft)
        n = Node(-1*numLeft[1],false);
+       cind = 1;
+       keepon = true;
        c = read(s,Char)
-       bl = readSubtree!(s,n,numLeft,net,hybrids,index)
-       c = advance!(s,c,numLeft)
-       br = false;
-       if(c == ',')
-           br = readSubtree!(s,n,numLeft,net,hybrids,index);
+       while (keepon)
+           bl = readSubtree!(s,n,numLeft,net,hybrids,index)
            c = advance!(s,c,numLeft)
-       end
-       if(c != ')')
-           a = readall(s);
-           error("Expected right parenthesis after left parenthesis $(numLeft[1]) but read $(c). The remainder of line is $(a).")
+           if (c == ')')
+               keepon = false
+           elseif (c != ',')
+               a = readall(s);
+               error("Expected right parenthesis after left parenthesis $(numLeft[1]) but read $(c). The remainder of line is $(a).")
+           end
        end
         c = peekchar(s);
         if(isalnum(c) || isValidSymbol(c) || c == '#') # internal node has name
@@ -140,13 +142,13 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
     end
     if(pound) # found pound sign in name
         n.hybrid = true;
-        #println("encontro un hybrid $(name).")
-        #println("hybrids list tiene size $(size(hybrids,1))")
+        DEBUGC && println("encontro un hybrid $(name).")
+        DEBUGC && println("hybrids list tiene size $(size(hybrids,1))")
         if(in(name,hybrids))
-            #println("dice que $(name) esta en hybrids")
+            DEBUGC && println("dice que $(name) esta en hybrids")
             ind = getIndex(name,hybrids);
             other = net.node[index[ind]];
-            #println("other is leaf? $(other.leaf), n is leaf? $(n.leaf)")
+            DEBUGC && println("other is leaf? $(other.leaf), n is leaf? $(n.leaf)")
             if(!n.leaf && !other.leaf)
                 error("both hybrid nodes are internal nodes: successors of the hybrid node must only be included in the node list of a single occurrence of the hybrid node.")
             elseif(n.leaf)
@@ -159,10 +161,10 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
                 setEdge!(parent,e);
             else # !n.leaf
                 if(size(other.edge,1) == 1) #other should be a leaf
-                    #println("other is $(other.number), n is $(n.number), edge of other is $(other.edge[1].number)")
+                    DEBUGC && println("other is $(other.number), n is $(n.number), edge of other is $(other.edge[1].number)")
                     otheredge = other.edge[1];
                     otherparent = getOtherNode(otheredge,other);
-                    #println("parent of other is $(otherparent.number)")
+                    DEBUGC && println("parent of other is $(otherparent.number)")
                     removeNode!(other,otheredge);
                     deleteNode!(net,other);
                     setNode!(otheredge,n);
@@ -180,44 +182,35 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
                 end
             end
         else
-            #println("dice que $(name) no esta en hybrids")
-            if(bl || br)
-                n.hybrid = true;
-                push!(net.names,string(name));
-                n.name = string(name);
-                #println("aqui vamos a meter a $(name) en hybrids")
-                push!(hybrids,string(name));
-                pushNode!(net,n);
-                push!(index,size(net.node,1));
-                e = Edge(net.numEdges+1);
-                e.hybrid = true
-                n.leaf ? e.isMajor = false : e.isMajor = true
-                pushEdge!(net,e);
-                setNode!(e,[n,parent]);
-                setEdge!(n,e);
-                setEdge!(parent,e);
-            end
-        end
-    else
-        if(bl || br)
-            if(hasname)
-                push!(net.names,string(name));
-                n.name = string(name)
-            end
+            DEBUGC && println("dice que $(name) no esta en hybrids")
+            n.hybrid = true;
+            push!(net.names,string(name));
+            n.name = string(name);
+            DEBUGC && println("aqui vamos a meter a $(name) en hybrids")
+            push!(hybrids,string(name));
             pushNode!(net,n);
+            push!(index,size(net.node,1));
             e = Edge(net.numEdges+1);
+            e.hybrid = true
+            n.leaf ? e.isMajor = false : e.isMajor = true
             pushEdge!(net,e);
             setNode!(e,[n,parent]);
             setEdge!(n,e);
             setEdge!(parent,e);
         end
+    else
+        if(hasname)
+            push!(net.names,string(name));
+            n.name = string(name)
+        end
+        pushNode!(net,n);
+        e = Edge(net.numEdges+1);
+        pushEdge!(net,e);
+        setNode!(e,[n,parent]);
+        setEdge!(n,e);
+        setEdge!(parent,e);
     end
     c = peekchar(s);
-    if(isa(e,Nothing))
-        return false
-    end
-    #n.hybrid ? e.hybrid = true : e.hybrid =false
-    #println("parent is $(parent.number) and hasHybEdge is $(parent.hasHybEdge) before reading :")
     if(c == ':')
         c = read(s,Char);
         c = peekchar(s);
@@ -410,9 +403,7 @@ end
 
 # aux function to solve a polytomy
 # warning: chooses one resolution at random
-# warning: new nodes have the same number as the node with polytomy
 function solvePolytomyRecursive!(net::HybridNetwork, n::Node)
-    warn("solve polytomy recursive: new nodes have the same number as the node with the polytomy")
     if(size(n.edge,1) == 4)
         edge1 = n.edge[1];
         edge2 = n.edge[2];
@@ -423,7 +414,8 @@ function solvePolytomyRecursive!(net::HybridNetwork, n::Node)
         removeNode!(n,edge3);
         removeNode!(n,edge4);
         ednew = Edge(net.numEdges+1,0.0);
-        n1 = Node(n.number,false,false,[edge3,edge4,ednew]);
+        max_node = maximum([e.number for e in net.node]);
+        n1 = Node(max_node+1,false,false,[edge3,edge4,ednew]);
         setEdge!(n,ednew);
         setNode!(edge3,n1);
         setNode!(edge4,n1);
@@ -656,6 +648,7 @@ function cleanAfterReadAll!(net::HybridNetwork, leaveRoot::Bool)
         DEBUG && println("parameters -----")
         parameters!(net)
     end
+    DEBUG && println("check root placement -----")
     checkRootPlace!(net)
     net.node[net.root].leaf && warn("root node $(net.node[net.root].number) is a leaf, so when plotting net, it can look weird")
     net.cleaned = true

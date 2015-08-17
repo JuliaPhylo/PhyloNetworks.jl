@@ -41,7 +41,7 @@ function whichtree(t::ASCIIString)
     return tree
 end
 
-t="F"
+
 for t in tests
     println("running $(t)")
     net = nothing;
