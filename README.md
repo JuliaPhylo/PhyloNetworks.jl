@@ -57,14 +57,12 @@ implementing PhyloNetworks.
 
 #### Input data
 
-Suppose you have a file with a list of gene trees called
-*treefile.txt* and you want to use all the possible quartets for the
-taxa in those trees to calculate the CF:
-```julia
-d=readTrees2CF("treefile.txt")
-```
+Suppose you have a file with a list of gene trees in parenthetical
+format called *treefile.txt* and you want to use all the possible
+quartets for the taxa in those trees to calculate the CF: ```julia
+d=readTrees2CF("treefile.txt") ```
 
-If you want to use a random sample of 100 quartets:
+If instead you want to use a random sample of 100 quartets:
 ```julia
 d=readTrees2CF("treefile.txt",whichQ=:rand,numQ=100)
 ```
