@@ -28,7 +28,7 @@ table of estimated CF and its confidence intervals.
 
 ### Installation of Julia
 
-To install version 0.3.X, go to http://julialang.org/downloads/
+To install Julia, go to http://julialang.org/downloads/
 
 PhyloNetworks was developed under Julia
 version 0.3.5, and has been tested on different versions of 0.3.X.
@@ -54,3 +54,45 @@ The version in parenthesis correspond to the ones used when
 implementing PhyloNetworks.
 
 ### Small examples
+
+#### Input data
+
+Suppose you have a file with a list of gene trees called
+*treefile.txt* and you want to use all the possible quartets for the
+taxa in those trees to calculate the CF:
+```julia
+d=readTrees2CF("treefile.txt")
+```
+
+If you want to use a random sample of 100 quartets:
+```julia
+d=readTrees2CF("treefile.txt",whichQ=:rand,numQ=100)
+```
+
+On the contrary, if you have already the CF in a file *tableCF.txt*
+in the format:
+
+|Taxon1 | Taxon2 | Taxon3 | Taxon4 | CF12vs34 | CF13vs24 | CF14vs23 |
+|-------|:-------|:-------|:-------|:---------|:---------|:---------|
+
+You would read it like:
+```julia
+d=readTableCF("tableCF.txt")
+```
+
+If you have a tree *startTree.tre* in parenthetical format to
+use as starting point for the optimization and want to
+update the branch lengths according to the CF already read in the data
+structure *d*:
+```julia
+T=readStartTop("startTree.tre",d);
+```
+
+#### Network Estimation
+To estimate the network using the input data *d,T*:
+```julia
+net=snaq(T,d)
+net=snaq(T,d,hmax=2)
+```
+
+For a list of all the functions in the PhyloNetworks package, and all the options on the SNaQ function, refer to the PDF documentation.
