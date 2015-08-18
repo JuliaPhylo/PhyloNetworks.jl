@@ -17,26 +17,26 @@ const DEBUG = true
 const DEBUGC = false #more detailed prints
 const CHECKNET = true #for debugging only
 
-include("src/auxiliary.jl")
+include("auxiliary.jl")
 
-include("src/update.jl")
+include("update.jl")
 
-include("src/undo.jl")
+include("undo.jl")
 
-include("src/addHybrid.jl")
+include("addHybrid.jl")
 
-include("src/deleteHybrid.jl")
+include("deleteHybrid.jl")
 
-include("src/moves.jl")
+include("moves.jl")
 
-include("src/readwrite.jl")
+include("readwrite.jl")
 
-include("src/readData.jl")
+include("readData.jl")
 
-include("src/optimization.jl")
+include("optimization.jl")
 
-include("src/pseudolik.jl")
+include("pseudolik.jl")
 
-include("src/visualization.jl")
+include("visualization.jl")
 
-include("src/descriptive.jl")
+include("descriptive.jl")

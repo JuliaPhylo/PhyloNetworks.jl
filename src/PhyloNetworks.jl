@@ -12,6 +12,18 @@ const CHECKNET = true #for debugging only
 # export part
 
 include("types.jl")
-include("functions.jl")
+include("auxiliary.jl")
+include("update.jl")
+include("undo.jl")
+include("addHybrid.jl")
+include("deleteHybrid.jl")
+include("moves.jl")
+include("readwrite.jl")
+include("readData.jl")
+include("optimization.jl")
+include("pseudolik.jl")
+include("visualization.jl")
+include("descriptive.jl")
+
 
 end #module
