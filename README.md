@@ -92,7 +92,8 @@ To estimate the network using the input data
 *d,T*: 
 
 ```julia 
-net=snaq(T,d); net=snaq(T,d,hmax=2); 
+net=snaq(T,d); 
+net=snaq(T,d,hmax=2); 
 ``` 
 
 The estimation function also creates a .out file with the estimated
