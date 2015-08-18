@@ -198,6 +198,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
             setEdge!(n,e);
             setEdge!(parent,e);
         end
+        e.containRoot = !e.hybrid
     else
         if(hasname)
             push!(net.names,string(name));
