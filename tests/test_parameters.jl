@@ -3,8 +3,8 @@
 
 
 # types in "types.jl"
-include("../types.jl")
-include("../functions.jl")
+include("src/types.jl")
+include("src/functions.jl")
 
 # needed modules:
 

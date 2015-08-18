@@ -3,8 +3,8 @@
 # Claudia October 2014
 #########################################################
 
-include("../types.jl")
-include("../functions.jl")
+include("src/types.jl")
+include("src/functions.jl")
 
 using Base.Collections # for updateInCycle with priority queue
 
@@ -73,8 +73,8 @@ printNodes(net)
 net.names
 
 # beginning of networks ---------------------------
-include("../types.jl")
-include("../functions.jl")
+include("src/types.jl")
+include("src/functions.jl")
 
 using Base.Collections # for updateInCycle with priority queue
 
@@ -106,8 +106,8 @@ readTopologyUpdate("prueba_tree.txt")
 
 #======================================================
 
-include("../types.jl")
-include("../functions.jl")
+include("src/types.jl")
+include("src/functions.jl")
 
 using Base.Collections # for updateInCycle with priority queue
 

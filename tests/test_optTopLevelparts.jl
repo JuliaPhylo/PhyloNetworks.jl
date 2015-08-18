@@ -73,8 +73,8 @@ currxmin = newxmin
 
 # -------------------5taxon tree------------------
 
-include("../types.jl")
-include("../functions.jl")
+include("src/types.jl")
+include("src/functions.jl")
 
 df = readtable("Tree_output.csv")
 d = readDataCF(df)

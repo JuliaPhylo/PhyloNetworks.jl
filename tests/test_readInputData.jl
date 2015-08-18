@@ -3,8 +3,8 @@
 # added new name for readInputData function
 # Claudia August 2015
 
-include("../types.jl")
-include("../functions.jl")
+include("src/types.jl")
+include("src/functions.jl")
 
 d=readInputData("1.ms"); #tableCF0.txt
 d=readInputData("1.ms",:rand,10); #tableCF3.txt

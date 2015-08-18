@@ -13,8 +13,8 @@ i = 1
 [n.number for n in parts[i].part4]
 
 
-include("../types.jl")
-include("../functions.jl")
+include("src/types.jl")
+include("src/functions.jl")
 net=readTopologyUpdate("1_astral.out");
 printEdges(net)
 net.names
