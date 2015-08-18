@@ -2,13 +2,14 @@
 
 ## Maximum pseudolikelihood estimation of species network: SNaQ
 
-SNaQ estimates the species network that maximizes the
-pseudolikelihood. The procedure involves a numerical optimization of
-branch lengths and probabilities of inheritance and heuristic search
-in the space of phylogenetic networks.  The formula for the
-pseudolikelihood is based on the likelihood of each quartet in a
-similar manner to Liu et al. (2010). We extended the formulas to the
-case of hybridization and HGT, see ().
+SNaQ implements the statistical inference method in [(Solis-Lemus and
+Ane, 2015)](www.stat.wisc.edu/~claudia). The procedure involves a
+numerical optimization of branch lengths and probabilities of
+inheritance and heuristic search in the space of phylogenetic
+networks.  The formula for the pseudolikelihood is based on the
+likelihood of each quartet in a similar manner to Liu et
+al. (2010). We extended the formulas to the case of hybridization and
+HGT, see ().
 
 ### Input for SNaQ
 

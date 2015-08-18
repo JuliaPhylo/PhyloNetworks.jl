@@ -38,3 +38,5 @@ include("src/optimization.jl")
 include("src/pseudolik.jl")
 
 include("src/visualization.jl")
+
+include("src/descriptive.jl")

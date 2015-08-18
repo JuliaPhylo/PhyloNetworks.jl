@@ -350,6 +350,19 @@ function deleteLeaf!(net::Network, leaf::Node)
     end
 end
 
+# function to delete a leaf from leaf name
+function deleteLeaf!(net::Network, leaf::String)
+    found = false
+    for(l in net.leaf)
+        if(l.name == leaf)
+            found = true
+            deleteLeaf!(net,l)
+            break
+        end
+    end
+    found || error("cannot delete leaf $(l) because it was not found in the network")
+end
+
 # -------------------- extract quartet ---------------------------------------
 
 # function to update hasEdge attribute in a
