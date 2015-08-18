@@ -86,11 +86,18 @@ structure *d*:
 T=readStartTop("startTree.tre",d);
 ```
 
-#### Network Estimation
-To estimate the network using the input data *d,T*:
+#### Network Estimation To estimate the network using the input data
+*d,T*: 
+```julia net=snaq(T,d); net=snaq(T,d,hmax=2); ``` 
+The
+estimation function also creates a .out file with the estimated
+network in parenthetical format.
+
+#### Network Visualization
+To visualize the network:
 ```julia
-net=snaq(T,d)
-net=snaq(T,d,hmax=2)
+plotPhylonet(net)
+plotPhylonet(net,unrooted=true)
 ```
 
 For a list of all the functions in the PhyloNetworks package, and all the options on the SNaQ function, refer to the PDF documentation.
