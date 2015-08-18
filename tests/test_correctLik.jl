@@ -15,6 +15,12 @@ tree = "((6,4),(7,8),10);"
 currT = readTopologyUpdate(tree);
 printEdges(currT)
 
+extractQuartet!(currT,d)
+calculateExpCFAll!(d)
+lik = logPseudoLik(d)
+
+approxEq(lik,193.7812623319291) || error("not correct likelihood calculated with tree")
+
 estTree = snaq(currT,d,hmax=0,returnNet=true);
 
 approxEq(estTree.loglik,0.0) || error("not correct tree estimated")
@@ -29,8 +35,14 @@ printEdges(currT)
 df = readtable("CaseH_output.csv")
 d = readTableCF(df)
 
-estNet = snaq(currT,d,hmax=1,returnNet=true)
+extractQuartet!(currT,d)
+calculateExpCFAll!(d)
+lik = logPseudoLik(d)
 
+approxEq(lik,50.17161079450669) || error("not correct likelihood calculated with tree")
 
+estNet = snaq(currT,d,hmax=1,runs=1,returnNet=true);
+
+approxEq(estNet.loglik,0.0,0.01,1.e18) || error("not correct net estimated")
 
 
