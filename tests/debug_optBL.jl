@@ -33,8 +33,8 @@
 ## df = writeExpCF(d.quartet)
 ## writetable("CaseF_output2.csv",df)
 
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 df = readtable("CaseF_output.csv")
 df2 = readtable("CaseF_output2.csv") #longer branches

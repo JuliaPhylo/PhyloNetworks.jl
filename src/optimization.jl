@@ -9,7 +9,7 @@ const fAbs = 1e-6 #1e-10 prof Bates, 1e-6
 const fRel = 1e-5 # 1e-12 prof Bates, 1e-5
 const xAbs = 1e-4 # 0.001 in phylonet, 1e-10 prof Bates, 1e-4
 const xRel = 1e-3 # 0.01 in phylonet, 1e-10 prof Bates, 1e-3
-const numFails = 100 # like phylonet
+const numFails = 100 # number of failed proposals allowed before stopping the procedure (like phylonet)
 const numMoves = Int64[] #empty to be calculated inside based on coupon's collector
 const multiplier = 10000 # for loglik absolute tol (multiplier*fAbs)
 
@@ -868,6 +868,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     #DEBUG && printNodes(newT)
     DEBUG && println(writeTopology(newT))
     while(absDiff > M*ftolAbs && failures < Nfail && currT.loglik > M*ftolAbs && stillmoves) #stops if close to zero because of new deviance form of the pseudolik
+        # here the debug file should start recording seekstart(sout)
         count += 1
         DEBUG && println("--------- loglik_$(count) = $(round(currT.loglik,6)) -----------")
         if(isempty(Nmov0)) #if empty, not set by user
@@ -915,6 +916,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         else
             stillmoves = false
         end
+        # here would set the debug file up to beginning
     end
     if(ftolAbs > 1e-7 || ftolRel > 1e-7 || xtolAbs > 1e-7 || xtolRel > 1e-7)
         DEBUG && println("found best network, now we re-optimize branch lengths and gamma more precisely")
@@ -1146,10 +1148,13 @@ optTop!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ft
 # outgroup is needed to root appropriately to use java distance function
 # rootname is for output files: log, err, out, default "optTopRuns"
 # returnNet=true, it returns the best network for plotting, by default false
-function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::String, rootname::String, returnNet::Bool)
+# seed= integer to set the seed, default 0, so clocktime used
+# probST is the probability of starting in the starting topology currT per run (1-probST is the probability of doing a NNI move) default 0.3
+function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::String, rootname::String, returnNet::Bool,seed::Int64, probST::Float64)
+    0.0<=probST<=1.0 || error("probability to keep the same starting topology should be between 0 and 1: $(probST)")
     # need a clean starting net. fixit: maybe we need to be more thorough here
     if(!currT0.cleaned)
-        cleanAfterReadAll!(currT0)
+        cleanAfterReadAll!(currT0);
     end
     checkNet(currT0)
 
@@ -1168,34 +1173,30 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     maxNet.loglik = 1.e15;
 
     failed = Int64[] #seeds with bugs
-    bestnet = HybridNetwork[]
+    bestnet = HybridNetwork[];
     runs += 1 #extra run for compilation
+
+    if(seed == 0)
+        t = time()/1e9
+        a = split(string(t),".")
+        seed = int(a[2][end-4:end]) #better seed based on clock
+    end
+    write(logfile,"\nmain seed $(seed)")
+    flush(logfile)
+    srand(seed)
+    seeds = [seed,int(floor(rand(runs-1)*100000))]
 
     for(i in 1:runs)
         if(i == 2) #the first run is the slowest
             tic();
         end
-        t = time()/1e9
-        a = split(string(t),".")
-        seed = int(a[2][end-4:end]) #better seed based on clock
-        #seed = int(floor(rand()*100000))
-        #seed = 28811
-        write(logfile,"\nseed: $(seed) for run $(i)")
+        write(logfile,"\nseed: $(seeds[i]) for run $(i)")
         flush(logfile)
-        srand(seed)
-        if(i > 2) # modify astral tree by a nni move
-            currT = deepcopy(currT0);
-            suc = NNIRepeat!(currT,10); #will try 10 attempts to do an nni move, if set to 1, hard to find it depending on currT
-            suc && write(logfile,"\n changed starting topology by NNI move")
-        else #first two runs with same starting tree
-            currT = deepcopy(currT0);
-        end
         gc();
         try
-            write(logfile,"\n BEGIN optTopLevel for run $(i), seed $(seed) and hmax $(hmax)")
-            #best = optTop!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,true,logfile)
-            best = optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,true)
-            write(logfile,"\n FINISHED optTopLevel!, typeof best $(typeof(best)), -loglik of best $(best.loglik)")
+            write(logfile,"\n BEGIN optTopRun1 for run $(i), seed $(seeds[i]) and hmax $(hmax)")
+            best = optTopRun1!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,true,seeds[i],logfile,probST);
+            write(logfile,"\n FINISHED optTopRun1, typeof best $(typeof(best)), -loglik of best $(best.loglik)")
             flush(logfile)
             push!(bestnet, deepcopy(best))
             if(best.loglik < maxNet.loglik)
@@ -1203,11 +1204,11 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             end
             println("typeof maxNet $(typeof(maxNet)), -loglik of maxNet $(maxNet.loglik)")
         catch(err)
-            write(logfile,"\n ERROR found on optTopLevel for run $(i) seed $(seed): $(err)")
+            write(logfile,"\n ERROR found on optTopRun1 for run $(i) seed $(seeds[i]): $(err)")
             flush(logfile)
-            write(errfile,"\n ERROR found on optTopLevel for run $(i) seed $(seed): $(err)")
+            write(errfile,"\n ERROR found on optTopRun1 for run $(i) seed $(seeds[i]): $(err)")
             flush(errfile)
-            push!(failed,seed)
+            push!(failed,seeds[i])
         end
         write(logfile,"\n---------------------")
         flush(logfile)
@@ -1248,18 +1249,38 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     end
 end
 
-optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64, outgroup::String, rootname::String,returnNet::Bool) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, outgroup,rootname,returnNet)
-optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64, outgroup::String) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, outgroup,"optTopRuns",false)
-optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, "none", "optTopRuns",false)
-optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, 10, "none", "optTopRuns",false)
+optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64, outgroup::String, rootname::String,returnNet::Bool) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, outgroup,rootname,returnNet,0,0.3)
+optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64, outgroup::String, rootname::String) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, outgroup,rootname,false,0,0.3)
+optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64, outgroup::String) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, outgroup,"optTopRuns",false,0,0.3)
+optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, "none", "optTopRuns",false,0,0.3)
+optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, 10, "none", "optTopRuns",false,0,0.3)
 
+
+# function that runs one run inside optTopRuns: it changes the starting topology currT0 and calls optTopLevel
+# it has an extra parameter to optTopRuns: seed to set the seed inside and change the starting topology
+# currT0
+function optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}, returnNet::Bool,seed::Int64,logfile::IO,probST::Float64)
+    0.0<=probST<=1.0 || error("probability to keep the same starting topology should be between 0 and 1: $(probST)")
+    currT0.cleaned || error("starting topology currT0 must be cleaned inside optTopRun1")
+    srand(seed)
+    if(rand() < 1-probST) # modify starting tree by a nni move
+        currT = deepcopy(currT0);
+        suc = NNIRepeat!(currT,10); #will try 10 attempts to do an nni move, if set to 1, hard to find it depending on currT
+        suc && write(logfile,"\n changed starting topology by NNI move")
+    else
+        currT = deepcopy(currT0);
+    end
+    gc();
+    best = optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,true)
+    return best
+end
 
 # function SNaQ: it calls directly optTopRuns but has a prettier name
 # it differs from optTopRuns in that it creates a deepcopy of the starting topology
 # only currT and d are necessary, all others are optional and have default values
-function snaq(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::String, rootname="snaq"::String, returnNet=true::Bool)
+function snaq(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::String, rootname="snaq"::String, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64)
     currT=deepcopy(currT0)
-    optTopRuns!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, rootname, returnNet)
+    optTopRuns!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, rootname, returnNet,seed,probST)
 end
 
 

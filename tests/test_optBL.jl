@@ -15,8 +15,8 @@
 ## df = writeExpCF(d.quartet)
 ## writetable("CaseG_output.csv",df)
 
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 df = readtable("CaseG_output.csv")
 d2 = readTableCF(df)
@@ -151,8 +151,8 @@ printNodes(net)
 ## df = writeExpCF(d.quartet)
 ## writetable("CaseH_output.csv",df)
 
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 df = readtable("CaseH_output.csv")
 df = readtable("CaseH_output2.csv")
@@ -240,8 +240,8 @@ realht = [0.1,0.1,1.,0.1]
 ## df = writeExpCF(d.quartet)
 ## writetable("CaseJ_output.csv",df)
 
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 df = readtable("CaseJ_output.csv")
 d2 = readTableCF(df)
@@ -311,8 +311,8 @@ realht = [0.1,0.2,0.1,1.0]
 ## df = writeExpCF(d.quartet)
 ## writetable("CaseF_output.csv",df)
 
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 df = readtable("CaseF_output.csv")
 d2 = readTableCF(df)
@@ -382,8 +382,8 @@ realht = [0.1,0.127,0.0285]
 ## df = writeExpCF(d.quartet)
 ## writetable("CaseI_output.csv",df)
 
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 df = readtable("CaseI_output.csv")
 d2 = readTableCF(df)
@@ -466,8 +466,8 @@ realht = [0.1,2.0,1.0,1.0,1.0]
 ## writetable("Tree_output.csv",df)
 
 
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 df = readtable("Tree_output.csv")
 d2 = readTableCF(df)
@@ -501,8 +501,8 @@ realht = [0.2,0.1]
 # test optBL with Case I Bad Diamond II
 # does not yield correct ht for one starting point
 
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 df = readtable("CaseI_output.csv")
 d2 = readTableCF(df)
@@ -536,8 +536,8 @@ writetable("CaseI_output_wrong.csv",wrongdf)
 
 # test optBL with Case G
 # does not yield correct ht for one starting point
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 df = readtable("CaseG_output.csv")
 d2 = readTableCF(df)

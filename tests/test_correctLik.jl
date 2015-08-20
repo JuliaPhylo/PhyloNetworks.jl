@@ -4,8 +4,8 @@
 
 # -------------------5taxon tree------------------
 
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 df = readtable("Tree_output.csv")
 d = readTableCF(df)
@@ -21,7 +21,7 @@ lik = logPseudoLik(d)
 
 approxEq(lik,193.7812623319291) || error("not correct likelihood calculated with tree")
 
-estTree = snaq(currT,d,hmax=0,returnNet=true);
+estTree = snaq(currT,d,hmax=0,returnNet=true,seed=5454);
 
 approxEq(estTree.loglik,0.0) || error("not correct tree estimated")
 
@@ -41,8 +41,8 @@ lik = logPseudoLik(d)
 
 approxEq(lik,50.17161079450669) || error("not correct likelihood calculated with tree")
 
-estNet = snaq(currT,d,hmax=1,runs=1,returnNet=true);
+estNet = snaq(currT,d,hmax=1,runs=1,returnNet=true,seed=5454);
 
-approxEq(estNet.loglik,0.0,0.01,1.e18) || estNet.loglik < 0.2 || error("not correct net estimated")
+approxEq(estNet.loglik,0.0021628920163591636)  || error("not correct net estimated")
 
 

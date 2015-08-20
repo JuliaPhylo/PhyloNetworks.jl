@@ -4,8 +4,8 @@
 #
 # in julia: include("case_f_example.jl")
 
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 using Base.Collections # for updateInCycle with priority queue
 

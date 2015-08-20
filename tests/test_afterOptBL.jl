@@ -6,8 +6,8 @@
 # should not do anything, should leave net unchanged
 
 # CASE G
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 df = readtable("CaseG_output.csv")
 d2 = readTableCF(df)
@@ -33,8 +33,8 @@ all(f) || error("afterOptBL not correctly for optBL in CASE G")
 
 #--------
 # Case H
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 df = readtable("CaseH_output.csv")
 d2 = readTableCF(df)
@@ -63,8 +63,8 @@ all(f) || error("afterOptBL not correctly for optBL in CASE H")
 
 # -----------
 # CASE J
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 df = readtable("CaseJ_output.csv")
 d2 = readTableCF(df)
@@ -93,8 +93,8 @@ all(f) || error("afterOptBL not correctly for optBL in CASE J")
 
 # -----------
 # CASE F
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 df = readtable("CaseF_output.csv")
 d2 = readTableCF(df)
@@ -123,8 +123,8 @@ all(f) || error("afterOptBL not correctly for optBL in CASE F")
 
 # ---------------
 # CASE I
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 df = readtable("CaseI_output.csv")
 d2 = readTableCF(df)

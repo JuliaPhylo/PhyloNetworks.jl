@@ -2,8 +2,8 @@
 # will test here the problems
 # Claudia July 2015
 
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 # estNetworks form baseline and phylonet
 n1 = "(((1,2))#H1,(6,(5,((4,3),#H1))));"

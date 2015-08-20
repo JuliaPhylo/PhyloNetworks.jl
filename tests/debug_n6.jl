@@ -3,8 +3,8 @@
 # messy code intended to find specific bugs, does not follow an order
 # Claudia April 2015
 
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 quartets = readListQuartets("allQuartets.txt");
 
@@ -60,8 +60,8 @@ success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(net);
 
 
 # ----------------
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 quartets = readListQuartets("allQuartets.txt");
 df = readtable("HGT_truenet_expCF.csv")

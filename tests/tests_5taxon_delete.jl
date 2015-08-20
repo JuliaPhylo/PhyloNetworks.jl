@@ -5,7 +5,7 @@
 
 warn("to run tests_5taxon_delete.jl, you need to set updateGammaz to return true always. this is because we have bad triangles in here")
 # types in "types.jl"
-include("src/types.jl")
+include("../src/types.jl")
 
 # needed modules:
 using Base.Collections # for updateInCycle with priority queue
@@ -17,7 +17,7 @@ tests = ["C","F","G","H","J","D","E","I"];
 wrong = String[];
 t="C"
 for t in tests
-    include("src/functions.jl")
+    include("../src/functions.jl")
     include("tree_example.jl");
     tp = string("delete_case","$(t).jl");
     println("running $(tp)");
@@ -31,7 +31,7 @@ end
 
 if(!isempty(wrong))
     for t in wrong
-        include("src/functions.jl")
+        include("../src/functions.jl")
         include("tree_example.jl");
         tp = string("delete_case","$(t).jl");
         println("running $(tp)");

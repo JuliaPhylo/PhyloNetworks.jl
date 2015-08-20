@@ -2,8 +2,8 @@
 # claudia may 2015
 
 
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 seed=1234
 tree = "(((((((1,2),3),4),5),(6,7)),(8,9)),10);"
@@ -21,8 +21,8 @@ printNodes(besttree)
 writeTopology(besttree,true)
 
 #----add hyb by parts
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 seed=1234
 tree = "(((((((1,2),3),4),5),(6,7)),(8,9)),10);"
 currT0 = readTopologyUpdate(tree);

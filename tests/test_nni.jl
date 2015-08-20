@@ -2,8 +2,8 @@
 # Claudia February 2015
 
 
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 using Base.Collections # for updateInCycle with priority queue
 

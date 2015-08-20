@@ -1,8 +1,8 @@
 # test with the network in HGTinconsistency
 # Claudia April 2015
 
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 truenetwork = "((((1,2),((3,4))#H1),(#H1,5)),6);"
 treefile = "1.ms"
@@ -20,8 +20,8 @@ writetable("HGT_truenet_expCF.csv",df2)
 # compare table with expCF and obsCF: very different!
 
 # ----------------- optTopLevel with expCF and starting tree 1_astral.out, no branches updated --------
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 df2 = readtable("HGT_truenet_expCF.csv")
 d2 = readTableCF(df2); #expCF
@@ -44,8 +44,8 @@ printEdges(currT)
 @time optTop!(currT,d2,1,false)
 
 # ----------------- optTopLevel with expCF and starting tree 1_astral.out, branches updated --------
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 df2 = readtable("HGT_truenet_expCF.csv")
 d2 = readTableCF(df2); #expCF
@@ -68,8 +68,8 @@ printEdges(currT)
 @time optTopLevel!(currT,d2,1,false);
 
 # ----------------- optTopLevel with obsCF and starting tree 1_astral.out, no branches updated --------
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 df = readtable("HGTtableCF.txt") #from 1.ms
 d = readTableCF(df); #obsCF
@@ -91,8 +91,8 @@ printEdges(currT)
 @time optTopLevel!(currT,d,1,false);
 
 # ----------------- optTopLevel with obsCF and starting tree 1_astral.out, branches updated --------
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 df = readtable("HGTtableCF.txt") #from 1.ms
 d = readTableCF(df); #obsCF

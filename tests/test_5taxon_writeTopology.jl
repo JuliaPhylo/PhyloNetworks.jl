@@ -4,8 +4,8 @@
 
 
 # types in "types.jl"
-include("src/types.jl")
-include("src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 # needed modules:
 using Base.Collections # for updateInCycle with priority queue

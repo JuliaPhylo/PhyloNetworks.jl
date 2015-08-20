@@ -671,6 +671,8 @@ end
 
 readTopologyUpdate(file::String) = readTopologyUpdate(file, false)
 
+readTopologyLevel1(file::String) = readTopologyUpdate(file, false)
+
 
 # aux function to check if the root is placed correctly, and re root if not
 # warning: it needs updateCR set
@@ -737,10 +739,10 @@ function writeSubTree!(s::IOBuffer, n::Node, parent::Edge,di::Bool,names::Bool)
         end
     end
     if(!n.leaf)
-        print(s,string(":",parent.length))
+        print(s,string(":",round(parent.length,5)))
     end
     if(parent.hybrid && !di && !n.isBadDiamondI)
-        print(s,string("::",parent.gamma))
+        print(s,string("::",round(parent.gamma,5)))
     end
 end
 
@@ -894,3 +896,5 @@ function readOutfile(file::String)
     end
     return net
 end
+
+readSnaqNetwork(file::String) = readOutfile(file)
