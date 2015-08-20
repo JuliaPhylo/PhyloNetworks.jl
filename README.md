@@ -1,4 +1,4 @@
-#PhyloNetworks: phylogenetic analysis for networks in [Julia](http://julialang.org)
+#PhyloNetworks: analysis for phylogenetic networks in [Julia](http://julialang.org)
 
 ## Maximum pseudolikelihood estimation of species network: SNaQ
 
@@ -12,7 +12,7 @@ networks.
 
 Two alternatives: 
 
-1. A table of concordance factors (CF) for each quartet which can be
+1. A table of concordance factors (CF) for each 4-taxon subset which can be
 obtained from [BUCKy](http://www.stat.wisc.edu/~ane/bucky/).
 
 2. The estimated gene trees for each locus which can be obtained by
@@ -59,10 +59,10 @@ implementing PhyloNetworks.
 
 Suppose you have a file with a list of gene trees in parenthetical
 format called *treefile.txt* and you want to use all the possible
-quartets for the taxa in those trees to calculate the CF: ```julia
+4-taxon subsets for the taxa in those trees to calculate the CF: ```julia
 d=readTrees2CF("treefile.txt") ```
 
-If instead you want to use a random sample of 100 quartets:
+If instead you want to use a random sample of 100 4-taxon subsets:
 ```julia
 d=readTrees2CF("treefile.txt",whichQ=:rand,numQ=100)
 ```
