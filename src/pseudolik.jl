@@ -1077,7 +1077,7 @@ function eliminateHybridization!(qnet::QuartetNetwork)
         eliminateHybridization!(qnet,qnet.hybrid[1])
     elseif(qnet.numHybrids > 1)
         #eliminate in order: first type1 only
-        DEBUG && println("starting eliminateHyb for more than one hybrid with types $([n.typeHyb for n in qnet.hybrid])")
+        DEBUGC && println("starting eliminateHyb for more than one hybrid with types $([n.typeHyb for n in qnet.hybrid])")
         while(qnet.numHybrids > 0 && any([n.typeHyb == 1 for n in qnet.hybrid]))
             hybrids = copy(qnet.hybrid)
             for(n in hybrids)
@@ -1088,11 +1088,11 @@ function eliminateHybridization!(qnet::QuartetNetwork)
             end
             qnet.typeHyb = Int64[]
             if(qnet.numHybrids > 0)
-                DEBUG && println("need to identify hybridizations again after deleting type 1 hybridizations")
+                DEBUGC && println("need to identify hybridizations again after deleting type 1 hybridizations")
                 identifyQuartet!(qnet)
             end
         end
-        DEBUG && println("now types are $([n.typeHyb for n in qnet.hybrid])")
+        DEBUGC && println("now types are $([n.typeHyb for n in qnet.hybrid])")
         hybrids = copy(qnet.hybrid)
         for(n in hybrids)
             eliminateHybridization!(qnet,n)

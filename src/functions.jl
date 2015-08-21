@@ -16,6 +16,8 @@ using GraphViz #for visualization
 const DEBUG = true
 const DEBUGC = false #more detailed prints
 const CHECKNET = true #for debugging only
+const REDIRECT = false # for debugging to a file later
+
 
 include("auxiliary.jl")
 

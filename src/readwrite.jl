@@ -772,6 +772,7 @@ function writeTopology(net::HybridNetwork, di::Bool, string::Bool, names::Bool,o
         end
         print(s,"(")
         updateRoot!(net,outgroup)
+        #DEBUG && printEverything(net)
         CHECKNET && canBeRoot(net.node[net.root])
         degree = length(net.node[net.root].edge)
         for(e in net.node[net.root].edge)

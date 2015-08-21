@@ -5,9 +5,10 @@ using DataFrames # for rep function and read/write csv tables
 using NLopt # for branch lengths optimization
 using GraphViz #for visualization
 
-const DEBUG = true
+const DEBUG = true #for debugging only
 const DEBUGC = false #more detailed prints
 const CHECKNET = true #for debugging only
+const REDIRECT = false # changed for debugging to a file
 
 # export part
 
