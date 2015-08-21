@@ -1,5 +1,4 @@
 #PhyloNetworks: analysis for phylogenetic networks in [Julia](http://julialang.org)
-
 ## Maximum pseudolikelihood estimation of species network: SNaQ
 
 SNaQ implements the statistical inference method in [Solis-Lemus and
@@ -109,15 +108,15 @@ plotPhylonet(net,unrooted=true)
 For a list of all the functions in the PhyloNetworks package, and all the options on the SNaQ function, refer to the PDF documentation.
 
 #### Debugging: the .err file
-Please report any bugs and errors to *claudia@stat.wisc.edu*. The easiest way to do it is by checking the .err file which will show the number of runs that failed by bug and the corresponding seed to replicate the run:
+Please report any bugs and errors to *claudia@stat.wisc.edu*. The easiest way to do it is by checking the .err file which will show the number of runs that failed by a bug and the corresponding seed to replicate the run. This is an example of what the .err file looks like:
 
 Total errors: 1 in seeds [4545]
 
-You need to run the following function (and two global variable sets) with the same settings that caused the errors:
+You need to run the following function (and two global variable sets right before) with the same settings that caused the error:
 
 ```julia
 const DEBUG = true
 const REDIRECT = true
-snaqDebug(T,d,seed=4545)
+snaqDebug(T,d,hmax=2,seed=4545)
 ```
-This will create two files: *snaqDebug.log* and *debug.log* which you can then send to *claudia@stat.wisc.edu* with subject "SNaQ bug found" or something similar. I will not have access to any of your data, the files simply print out steps I need to do to retrace the bug, and hopefully fix it.
+This will create two files: *snaqDebug.log* and *debug.log* which you can then send to *claudia@stat.wisc.edu* with subject "SNaQ bug found" or something similar. I will not have access to any part of your data, the files simply print out the steps to retrace the bug, and hopefully fix it.
