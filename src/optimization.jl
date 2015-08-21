@@ -151,6 +151,7 @@ end
 # to know which parameters were changed
 function changed(net::HybridNetwork, x::Vector{Float64})
     if(length(net.ht) == length(x))
+        #DEBUG && println("inside changed with net.ht $(net.ht) and x $(x)")
         return [!approxEq(net.ht[i],x[i]) for i in 1:length(x)]
     else
         error("net.ht (length $(length(net.ht))) and vector x (length $(length(x))) need to have same length")
@@ -170,8 +171,10 @@ function update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork)
     for(i in 1:length(ch))
         qnet.changed |= (ch[i] & qnet.hasEdge[i])
     end
+    #DEBUGC && println("inside update!, qnet.changed is $(qnet.changed), ch $(ch) and qnet.hasEdge $(qnet.hasEdge), $(qnet.quartetTaxon), numHyb $(qnet.numHybrids)")
     if(qnet.changed)
-        if(qnet.numHybrids == 1 && qnet.hybrid[1].isBadDiamondI) # qnet.indexht is only two values: gammaz1,gammaz2
+        if(any([n.isBadDiamondI for n in qnet.hybrid])) # qnet.indexht is only two values: gammaz1,gammaz2 #FIXIT: this could crash if hybrid for bad diamond should disappear after cleaning qnet
+            DEBUG && println("it is inside update! and identifies that ht changed and it is inside the bad diamond I case")
             length(qnet.indexht) == 2 || error("strange qnet from bad diamond I with hybrid node, it should have only 2 elements: gammaz1,gammaz2, not $(length(qnet.indexht))")
             for(i in 1:2)
                 0 <= x[qnet.indexht[i]] <= 1 || error("new gammaz value should be between 0,1: $(x[qnet.indexht[i]]).")
@@ -248,7 +251,7 @@ end
 function calculateIneqGammaz(x::Vector{Float64}, net::HybridNetwork, ind::Int64, verbose::Bool)
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
     hz = x[net.numHybrids - net.numBad + k + 1 : length(x)]
-    if(verbose)
+    if(verbose || DEBUG)
         println("enters calculateIneqGammaz with hz $(hz), and hz[ind*2] + hz[ind*2-1] - 1 = $(hz[ind*2] + hz[ind*2-1] - 1)")
     end
     hz[ind*2] + hz[ind*2-1] - 1
@@ -276,14 +279,14 @@ function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool, ftolRel::Float64, 
     NLopt.upper_bounds!(opt,upper(net))
     count = 0
     function obj(x::Vector{Float64},g::Vector{Float64}) # added g::Vector{Float64} for gradient, ow error
-        if(verbose) #|| net.numBad > 0) #we want to see what happens with bad diamond I
+        if(DEBUG || verbose) #|| net.numBad > 0) #we want to see what happens with bad diamond I
             println("inside obj with x $(x)")
         end
         count += 1
         calculateExpCFAll!(d,x,net) # update qnet branches and calculate expCF
         update!(net,x) # update net.ht
         val = logPseudoLik(d)
-        if(verbose) #|| net.numBad > 0)#we want to see what happens with bad diamond I
+        if(DEBUG || verbose) #|| net.numBad > 0)#we want to see what happens with bad diamond I
             println("f_$count: $(round(val,5)), x: $(x)")
         end
         return val
@@ -442,6 +445,7 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF,closeN ::Bool, origin::Bool
             end
         end
     elseif(!flaghz)
+        currT.numBad > 0 || error("not a bad diamond I and flaghz is $(flaghz), should be true")
         i = 1
         while(i <= length(nhz))
             if(approxEq(nhz[i],0.0))
@@ -452,7 +456,7 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF,closeN ::Bool, origin::Bool
                 successchange = gammaZero!(currT,d,edges[1],closeN ,origin,N,movesgamma)
                 break
             elseif(approxEq(nhz[i],1.0))
-                approxEq(nhz[i+1],0.0) || error("gammaz for node $(currT.node[indhz[i]].number) is $(nhz[i]) but the other gammaz is $(nhz[i+1]), the sum should be less than 1.0")
+                approxEq(nhz[i+1],0.0) || error("gammaz for node $(currT.node[indhz[i]].number) is $(nhz[i]) but the other gammaz is $(nhz[i+1]), the sum should be less than 1.0 (afteroptbl)")
                 nodehz = currT.node[indhz[i+1]]
                 approxEq(nodehz.gammaz,nhz[i+1]) || error("nodehz $(nodehz.number) gammaz $(nodehz.gammaz) should match the gammaz in net.ht $(nhz[i+1]) and it does not")
                 edges = hybridEdges(nodehz)
@@ -468,7 +472,7 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF,closeN ::Bool, origin::Bool
                     successchange = gammaZero!(currT,d,edges[1],closeN ,origin,N,movesgamma)
                     break
                 elseif(approxEq(nhz[i+1],1.0))
-                    error("gammaz for node $(currT.node[indhz[i]].number) is $(nhz[i]) but the other gammaz is $(nhz[i+1]), the sum should be less than 1.0")
+                    error("gammaz for node $(currT.node[indhz[i]].number) is $(nhz[i]) but the other gammaz is $(nhz[i+1]), the sum should be less than 1.0 (afteroptbl)")
                 end
             end
             i += 2
@@ -1023,6 +1027,7 @@ function moveDownLevel!(net::HybridNetwork)
             break
         end
     elseif(!flaghz)
+        net.numBad > 0 || error("not a bad diamond I and flaghz is $(flaghz), should be true")
         i = 1
         while(i <= length(nhz))
             if(approxEq(nhz[i],0.0))
@@ -1035,7 +1040,7 @@ function moveDownLevel!(net::HybridNetwork)
                 deleteHybridizationUpdate!(net,node)
                 break
             elseif(approxEq(nhz[i],1.0))
-                approxEq(nhz[i+1],0.0) || error("gammaz for node $(net.node[indhz[i]].number) is $(nhz[i]) but the other gammaz is $(nhz[i+1]), the sum should be less than 1.0")
+                approxEq(nhz[i+1],0.0) || error("gammaz for node $(net.node[indhz[i]].number) is $(nhz[i]) but the other gammaz is $(nhz[i+1]), the sum should be less than 1.0 (movedownlevel)")
                 nodehz = net.node[indhz[i+1]]
                 approxEq(nodehz.gammaz,nhz[i+1]) || error("nodehz $(nodehz.number) gammaz $(nodehz.gammaz) should match the gammaz in net.ht $(nhz[i+1]) and it does not")
                 edges = hybridEdges(nodehz)
@@ -1055,7 +1060,7 @@ function moveDownLevel!(net::HybridNetwork)
                     deleteHybridizationUpdate!(net,node)
                     break
                 elseif(approxEq(nhz[i+1],1.0))
-                    error("gammaz for node $(net.node[indhz[i]].number) is $(nhz[i]) but the other gammaz is $(nhz[i+1]), the sum should be less than 1.0")
+                    error("gammaz for node $(net.node[indhz[i]].number) is $(nhz[i]) but the other gammaz is $(nhz[i+1]), the sum should be less than 1.0 (movedownlevel)")
                 end
             end
             i += 2
@@ -1316,6 +1321,7 @@ function snaqDebug(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier
     catch(err)
         flush(sout)
         write(sout,"\n ERROR found on optTopRun1 for run with seed $(seed): $(err)")
+        write(sout,"\n------------------------------------------------------------\n")
         write(logfile,"\n ERROR found on optTopRun1 for run with seed $(seed): $(err)")
         flush(logfile)
         flush(sout)

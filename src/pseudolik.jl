@@ -496,7 +496,7 @@ function extractQuartet!(net::HybridNetwork, quartet::Vector{Quartet})
     DEBUG && println("EXTRACT: begins extract quartets for network")
     for(q in quartet)
         extractQuartet!(net,q)
-        qnet = deepcopy(q.qnet);
+        qnet = deepcopy(q.qnet); #there is a reason not to mess up with the original q.qnet, i believe to keep ht consistent
         calculateExpCFAll!(qnet);
         q.qnet.expCF = qnet.expCF
     end
@@ -920,91 +920,89 @@ end
 # (2 minor CF different) and calculate the expCF
 # CF calculated in the order 12|34, 13|24, 14|23 of the qnet.quartet.taxon
 function quartetType5!(qnet::QuartetNetwork, node::Node)
-    if(node.hybrid && node.typeHyb == 5)
-        edge1,edge2,edge3 = hybridEdges(node);
-        if(!node.isBadDiamondI)
-            deleteIntLeafWhile!(qnet,edge1,node)
-            deleteIntLeafWhile!(qnet,edge2,node)
-        end
-        other1 = getOtherNode(edge1,node);
-        other2 = getOtherNode(edge2,node);
-        edgebla,edge5, edgetree1 = hybridEdges(other1);
-        edgebla,edge6, edgetree2 = hybridEdges(other2);
-        if(!node.isBadDiamondI)
-            deleteIntLeafWhile!(qnet,edge5,other1)
-            deleteIntLeafWhile!(qnet,edge6,other2)
-        end
-        if(node.isBadDiamondI)
-            (other1.gammaz != -1 && other2.gammaz != -1) || error("node $(node.number) is bad diamond I but gammaz are -1")
-            cf1 = (1 + 2*other1.gammaz - other2.gammaz)/3
-            cf2 = (1 + 2*other2.gammaz - other1.gammaz)/3
-            cf3 = (1 - other1.gammaz - other2.gammaz)/3
-        else
-            cf1 = edge1.gamma*(1-2/3*edge5.y) + edge2.gamma*1/3*edge6.y
-            cf2 = edge1.gamma*1/3*edge5.y + edge2.gamma*(1-2/3*edge6.y)
-            cf3 = edge1.gamma*1/3*edge5.y + edge2.gamma*1/3*edge6.y
-        end
-        #println("cf1,cf2,cf3: $(cf1),$(cf2),$(cf3)")
-        leaf1 = getOtherNode(edge3,node)
-        if(isa(edgetree1,Nothing))
-            println("node $(node.number), edge3 $(edge3.number), other1 $(other1.number), leaf1 $(leaf1.number), other2 $(other2.number)")
-            println("edge1 $(edge1.number), edge2 $(edge2.number), edge5 $(edge5.number), edge6 $(edge6.number)")
-            printEdges(qnet)
-            printNodes(qnet)
-        end
-        leaf2 = getOtherNode(edgetree1,other1)
-        leaf3 = getOtherNode(edgetree2, other2)
-        leaf4 = qnet.leaf[getIndex(true,[(!isEqual(n,leaf1) && !isEqual(n,leaf2) && !isEqual(n,leaf3)) for n in qnet.leaf])]
-        #println("leaf1 is $(leaf1.number)")
-        #println("leaf2 is $(leaf2.number)")
-        #println("leaf3 is $(leaf3.number)")
-        #println("leaf4 is $(leaf4.number)")
-        tx = whichLeaves(qnet,qnet.quartetTaxon[1],qnet.quartetTaxon[2], leaf1,leaf2,leaf3,leaf4)
-        #println("tx is $(tx)")
-        if(tx == (1,2) || tx == (2,1) || tx == (3,4) || tx == (4,3))
-            qnet.expCF[1] = cf1
-            tx = whichLeaves(qnet,qnet.quartetTaxon[1],qnet.quartetTaxon[3], leaf1,leaf2,leaf3,leaf4)
-            if(tx == (1,3) || tx == (3,1) || tx == (2,4) || tx == (4,2))
-                qnet.expCF[2] = cf2
-                qnet.expCF[3] = cf3
-            elseif(tx == (1,4) || tx == (4,1) || tx == (3,2) || tx == (2,3))
-                qnet.expCF[2] = cf3
-                qnet.expCF[3] = cf2
-            else
-                error("strange quartet network, could not find which leaves correspond to taxon1, taxon3")
-            end
-        elseif(tx == (1,3) || tx == (3,1) || tx == (2,4) || tx == (4,2))
-            qnet.expCF[1] = cf2
-            tx = whichLeaves(qnet,qnet.quartetTaxon[1],qnet.quartetTaxon[3], leaf1,leaf2,leaf3,leaf4)
-            if(tx == (1,2) || tx == (2,1) || tx == (3,4) || tx == (4,3))
-                qnet.expCF[2] = cf1
-                qnet.expCF[3] = cf3
-            elseif(tx == (1,4) || tx == (4,1) || tx == (3,2) || tx == (2,3))
-                qnet.expCF[2] = cf3
-                qnet.expCF[3] = cf1
-            else
-                error("strange quartet network, could not find which leaves correspond to taxon1, taxon3")
-            end
+    (node.hybrid && node.typeHyb == 5) || error("cannot polish the quartet type 5 hybridization since either the node is not hybrid: $(!node.hybrid) or it has type $(node.typeHyb), different than 5")
+    edge1,edge2,edge3 = hybridEdges(node);
+    if(!node.isBadDiamondI)
+        deleteIntLeafWhile!(qnet,edge1,node)
+        deleteIntLeafWhile!(qnet,edge2,node)
+    end
+    other1 = getOtherNode(edge1,node);
+    other2 = getOtherNode(edge2,node);
+    edgebla,edge5, edgetree1 = hybridEdges(other1);
+    edgebla,edge6, edgetree2 = hybridEdges(other2);
+    if(!node.isBadDiamondI)
+        deleteIntLeafWhile!(qnet,edge5,other1)
+        deleteIntLeafWhile!(qnet,edge6,other2)
+    end
+    if(node.isBadDiamondI)
+        (other1.gammaz != -1 && other2.gammaz != -1) || error("node $(node.number) is bad diamond I but gammaz are -1")
+        DEBUG && println("it will calculate the expCF in a bad diamond I case with gammaz: $(other1.gammaz) and $(other2.gammaz)")
+        cf1 = (1 + 2*other1.gammaz - other2.gammaz)/3
+        cf2 = (1 + 2*other2.gammaz - other1.gammaz)/3
+        cf3 = (1 - other1.gammaz - other2.gammaz)/3
+    else
+        cf1 = edge1.gamma*(1-2/3*edge5.y) + edge2.gamma*1/3*edge6.y
+        cf2 = edge1.gamma*1/3*edge5.y + edge2.gamma*(1-2/3*edge6.y)
+        cf3 = edge1.gamma*1/3*edge5.y + edge2.gamma*1/3*edge6.y
+    end
+    #println("cf1,cf2,cf3: $(cf1),$(cf2),$(cf3)")
+    leaf1 = getOtherNode(edge3,node)
+    if(isa(edgetree1,Nothing))
+        println("node $(node.number), edge3 $(edge3.number), other1 $(other1.number), leaf1 $(leaf1.number), other2 $(other2.number)")
+        println("edge1 $(edge1.number), edge2 $(edge2.number), edge5 $(edge5.number), edge6 $(edge6.number)")
+        printEdges(qnet)
+        printNodes(qnet)
+    end
+    leaf2 = getOtherNode(edgetree1,other1)
+    leaf3 = getOtherNode(edgetree2, other2)
+    leaf4 = qnet.leaf[getIndex(true,[(!isEqual(n,leaf1) && !isEqual(n,leaf2) && !isEqual(n,leaf3)) for n in qnet.leaf])]
+    #println("leaf1 is $(leaf1.number)")
+    #println("leaf2 is $(leaf2.number)")
+    #println("leaf3 is $(leaf3.number)")
+    #println("leaf4 is $(leaf4.number)")
+    tx = whichLeaves(qnet,qnet.quartetTaxon[1],qnet.quartetTaxon[2], leaf1,leaf2,leaf3,leaf4)
+    #println("tx is $(tx)")
+    if(tx == (1,2) || tx == (2,1) || tx == (3,4) || tx == (4,3))
+        qnet.expCF[1] = cf1
+        tx = whichLeaves(qnet,qnet.quartetTaxon[1],qnet.quartetTaxon[3], leaf1,leaf2,leaf3,leaf4)
+        if(tx == (1,3) || tx == (3,1) || tx == (2,4) || tx == (4,2))
+            qnet.expCF[2] = cf2
+            qnet.expCF[3] = cf3
         elseif(tx == (1,4) || tx == (4,1) || tx == (3,2) || tx == (2,3))
-            qnet.expCF[1] = cf3
-            tx = whichLeaves(qnet,qnet.quartetTaxon[1],qnet.quartetTaxon[3], leaf1,leaf2,leaf3,leaf4)
-            if(tx == (1,3) || tx == (3,1) || tx == (2,4) || tx == (4,2))
-                qnet.expCF[2] = cf2
-                qnet.expCF[3] = cf1
-            elseif(tx == (1,2) || tx == (2,1) || tx == (3,4) || tx == (4,3))
-                qnet.expCF[2] = cf1
-                qnet.expCF[3] = cf2
-            else
-                error("strange quartet network, could not find which leaves correspond to taxon1, taxon3")
-            end
+            qnet.expCF[2] = cf3
+            qnet.expCF[3] = cf2
         else
-            error("strange quartet network, could not find which leaves correspond to taxon1, taxon2")
+            error("strange quartet network, could not find which leaves correspond to taxon1, taxon3")
         end
-        if(!approxEq(sum(qnet.expCF),1.))
-            error("strange quartet network with hybridization in node $(node.number) of type 5: expCF do not add up to 1")
+    elseif(tx == (1,3) || tx == (3,1) || tx == (2,4) || tx == (4,2))
+        qnet.expCF[1] = cf2
+        tx = whichLeaves(qnet,qnet.quartetTaxon[1],qnet.quartetTaxon[3], leaf1,leaf2,leaf3,leaf4)
+        if(tx == (1,2) || tx == (2,1) || tx == (3,4) || tx == (4,3))
+            qnet.expCF[2] = cf1
+            qnet.expCF[3] = cf3
+        elseif(tx == (1,4) || tx == (4,1) || tx == (3,2) || tx == (2,3))
+            qnet.expCF[2] = cf3
+            qnet.expCF[3] = cf1
+        else
+            error("strange quartet network, could not find which leaves correspond to taxon1, taxon3")
+        end
+    elseif(tx == (1,4) || tx == (4,1) || tx == (3,2) || tx == (2,3))
+        qnet.expCF[1] = cf3
+        tx = whichLeaves(qnet,qnet.quartetTaxon[1],qnet.quartetTaxon[3], leaf1,leaf2,leaf3,leaf4)
+        if(tx == (1,3) || tx == (3,1) || tx == (2,4) || tx == (4,2))
+            qnet.expCF[2] = cf2
+            qnet.expCF[3] = cf1
+        elseif(tx == (1,2) || tx == (2,1) || tx == (3,4) || tx == (4,3))
+            qnet.expCF[2] = cf1
+            qnet.expCF[3] = cf2
+        else
+            error("strange quartet network, could not find which leaves correspond to taxon1, taxon3")
         end
     else
-        error("cannot polish the quartet type 5 hybridization since either the node is not hybrid: $(!node.hybrid) or it has type $(node.typeHyb), different than 5")
+        error("strange quartet network, could not find which leaves correspond to taxon1, taxon2")
+    end
+    if(!approxEq(sum(qnet.expCF),1.))
+        error("strange quartet network with hybridization in node $(node.number) of type 5: expCF do not add up to 1")
     end
 end
 
@@ -1287,11 +1285,11 @@ end
 #          calculateExpCF
 function logPseudoLik(quartet::Quartet)
     sum(quartet.qnet.expCF) != 0.0 || error("expCF not updated for quartet $(quartet.number)")
-    #println("obsCF = $(quartet.obsCF), expCF = $(quartet.qnet.expCF)")
+    #DEBUG && println("quartet= $(quartet.taxon), obsCF = $(quartet.obsCF), expCF = $(quartet.qnet.expCF)")
     suma = 0
     for(i in 1:3)
         if(quartet.qnet.expCF[i] < 0)
-            warn("found expCF negative $(quartet.qnet.expCF[i]), will set loglik=-1.e15")
+            println("found expCF negative $(quartet.qnet.expCF[i]), will set loglik=-1.e15")
             suma += -1.e15
         else
             suma += quartet.obsCF[i] == 0 ? 0.0 : 100*quartet.obsCF[i]*log(quartet.qnet.expCF[i]/quartet.obsCF[i])

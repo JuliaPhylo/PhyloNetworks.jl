@@ -758,7 +758,7 @@ end
 function writeTopology(net::HybridNetwork, di::Bool, string::Bool, names::Bool,outgroup::String)
     s = IOBuffer()
     if(net.numBad > 0)
-        warn("net has $(net.numBad) bad diamond I, gammas and some branch lengths are not identifiable, and therefore, meaningless")
+        println("net has $(net.numBad) bad diamond I, gammas and some branch lengths are not identifiable, and therefore, meaningless")
     end
     if(net.numNodes == 1)
         print(s,string(net.node[net.root].number,";"))

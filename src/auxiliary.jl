@@ -944,6 +944,13 @@ function printEverything(net::HybridNetwork)
     printNodes(net)
     printPartitions(net)
     println("$(writeTopology(net))")
+    ## if(DEBUG && REDIRECT)
+    ##     try
+    ##         plotPhylonet(net,internalLabels=true,imageName="plotDebug")
+    ##     catch(err)
+    ##         println("could not plot")
+    ##     end
+    ## end
 end
 
 # function to check if a node is very or ext bad triangle

@@ -215,7 +215,7 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
             end
         end
         if(isEqual(other_min2,getOtherNode(edge_maj2,other_maj)) && isLeaf1.leaf && isLeaf2.leaf && isLeaf3.leaf) # bad diamond I
-            warn("bad diamond I found")
+            println("bad diamond I found")
             net.numBad += 1
             node.isBadDiamondI = true;
             other_min.gammaz = edge_min.gamma*edge_min2.z;
@@ -229,7 +229,7 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
             push!(net.edges_changed,edge_maj2);
             push!(net.edges_changed,edge_maj);
         elseif(isEqual(other_min2,getOtherNode(edge_maj2,other_maj)) && isLeaf1.leaf && !isLeaf2.leaf && isLeaf3.leaf && getOtherNode(tree_edge4,other_min2).leaf) # bad diamond II
-            warn("bad diamond II found")
+            println("bad diamond II found")
             node.isBadDiamondII = true;
             setLength!(edge_maj,edge_maj.length+tree_edge2.length)
             setLength!(tree_edge2,0.0)
@@ -238,7 +238,7 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
         end
     elseif(node.k == 3) # could be extreme/very bad triangle or just bad triangle
         if(net.numTaxa <= 5)
-            warn("extremely or very bad triangle found")
+            println("extremely or very bad triangle found")
             node.isVeryBadTriangle = true
             net.hasVeryBadTriangle = true
         elseif(net.numTaxa >= 6)
