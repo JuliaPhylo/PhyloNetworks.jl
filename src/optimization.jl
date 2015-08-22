@@ -844,13 +844,14 @@ end
 # closeN =true if gamma=0.0 fixed only around neighbors with move origin/target
 # ret=true: return the network, default is false
 # sout=IOStream to capture the output from the functions called, only used when DEBUG=true and REDIRECT=true, default STDOUT
-function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64},ret::Bool,sout::IO)
+# logfile=IOStream to capture the information on the heurisitc optimization, default STDOUT
+function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64},ret::Bool,sout::IO, logfile::IO)
     currT.numTaxa >= 5 || error("cannot estimate hybridizations in topologies with fewer than 5 taxa, this topology has $(currT.numTaxa) taxa")
     println("OPT: begins optTopLevel with hmax $(hmax)")
     M > 0 || error("M must be greater than zero: $(M)")
     Nfail > 0 || error("Nfail must be greater than zero: $(Nfail)")
     isempty(Nmov0) || all([n > 0 for n in Nmov0]) || error("Nmov must be greater than zero: $(Nmov0)")
-    if(DEBUG && REDIRECT)
+    if(DEBUG && REDIRECT) #for debugging
         redirect_stdout(sout)
     end
     DEBUG && printEverything(currT)
@@ -875,6 +876,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     DEBUG && printPartitions(newT)
     #DEBUG && printNodes(newT)
     DEBUG && println(writeTopology(newT))
+    write(logfile, "\nBegins heuristic optimization of network------\n")
     while(absDiff > M*ftolAbs && failures < Nfail && currT.loglik > M*ftolAbs && stillmoves) #stops if close to zero because of new deviance form of the pseudolik
         count += 1
         DEBUG && println("--------- loglik_$(count) = $(round(currT.loglik,6)) -----------")
@@ -933,16 +935,16 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         optBL!(newT,d,verbose,1e-12,1e-10,1e-10,1e-10)
     end
     if(absDiff <= M*ftolAbs)
-        println("STOPPED by absolute difference criteria")
+        write(logfile,"STOPPED by absolute difference criteria")
     elseif(currT.loglik <= M*ftolAbs)
-        println("STOPPED by loglik close to zero criteria")
+        write(logfile,"STOPPED by loglik close to zero criteria")
     elseif(!stillmoves)
-        println("STOPPED for not having more moves to propose: movesfail $(movesfail), Nmov $(Nmov)")
+        write(logfile,"STOPPED for not having more moves to propose: movesfail $(movesfail), Nmov $(Nmov)")
     else
-        println("STOPPED by number of failures criteria")
+        write(logfile,"STOPPED by number of failures criteria")
     end
     if(newT.loglik > M*ftolAbs) #not really close to 0.0, based on absTol also
-        println("newT.loglik $(newT.loglik) not really close to 0.0 based on loglik abs. tol. $(M*ftolAbs), you might need to redo with another starting point")
+        write(logfile,"newT.loglik $(newT.loglik) not really close to 0.0 based on loglik abs. tol. $(M*ftolAbs), you might need to redo with another starting point")
     end
     if(newT.numBad > 0) #need to undogammaz if newT has bad diamond I to use gammaz as proxy of gamma for writeTopology
         for(n in newT.hybrid)
@@ -951,8 +953,8 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             end
         end
     end
-    println("END optTopLevel: found minimizer topology at step $(count) (failures: $(failures)) with -loglik=$(round(newT.loglik,5)) and ht_min=$(round(newT.ht,5))")
-    printCounts(movescount,movesgamma,"movesTable.txt")
+    write(logfile,"END optTopLevel: found minimizer topology at step $(count) (failures: $(failures)) with -loglik=$(round(newT.loglik,5)) and ht_min=$(round(newT.ht,5))")
+    printCounts(movescount,movesgamma,logfile)
     DEBUG && printEdges(newT)
     DEBUG && printPartitions(newT)
     DEBUGC && printNodes(newT)
@@ -962,10 +964,10 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     end
 end
 
-optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false,true,numMoves,false,STDOUT)
-optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Int64, verbose::Bool) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, verbose,true,numMoves,false,STDOUT)
-optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Int64, verbose::Bool,ret::Bool) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, verbose,true,numMoves,ret,STDOUT)
-optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}) = optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0, false,STDOUT)
+optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false,true,numMoves,false,STDOUT, STDOUT)
+optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Int64, verbose::Bool) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, verbose,true,numMoves,false,STDOUT,STDOUT)
+optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Int64, verbose::Bool,ret::Bool) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, verbose,true,numMoves,ret,STDOUT,STDOUT)
+optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}) = optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0, false,STDOUT,STDOUT)
 
 
 
@@ -974,21 +976,21 @@ optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int
 function printCounts(movescount::Vector{Int64}, movesgamma::Vector{Int64},s::IOStream)
     length(movescount) == 18 || error("movescount should have length 18, not $(length(movescount))")
     length(movesgamma) == 13 || error("movesgamma should have length 13, not $(length(movescount))")
-    print(s,"PERFORMANCE: total number of moves (proposed, successful, accepted) in general, and to fix gamma=0.0,t=0.0 cases")
-    print(s,"\t--------moves general--------\t\t\t\t --------moves gamma--------\t")
-    print(s,"move\t Num.Proposed\t Num.Successful\t Num.Accepted\t | Num.Proposed\t Num.Successful\t Num.Accepted")
+    print(s,"PERFORMANCE: total number of moves (proposed, successful, accepted) in general, and to fix gamma=0.0,t=0.0 cases\n")
+    print(s,"\t--------moves general--------\t\t\t\t --------moves gamma--------\t\n")
+    print(s,"move\t Num.Proposed\t Num.Successful\t Num.Accepted\t | Num.Proposed\t Num.Successful\t Num.Accepted\n")
     names = ["add","mvorigin","mvtarget","chdir","delete","nni"]
     for(i in 1:6)
         if(i == 2 || i == 3)
-            print(s,"$(names[i])\t $(movescount[i])\t\t $(movescount[i+6])\t\t $(movescount[i+12])\t |\t $(movesgamma[i])\t\t $(movesgamma[i+6])\t\t --")
+            print(s,"$(names[i])\t $(movescount[i])\t\t $(movescount[i+6])\t\t $(movescount[i+12])\t |\t $(movesgamma[i])\t\t $(movesgamma[i+6])\t\t --\n")
         else
-            print(s,"$(names[i])\t\t $(movescount[i])\t\t $(movescount[i+6])\t\t $(movescount[i+12])\t |\t $(movesgamma[i])\t\t $(movesgamma[i+6])\t\t --")
+            print(s,"$(names[i])\t\t $(movescount[i])\t\t $(movescount[i+6])\t\t $(movescount[i+12])\t |\t $(movesgamma[i])\t\t $(movesgamma[i+6])\t\t --\n")
         end
     end
     suma = sum(movescount[1:6]);
     suma2 = sum(movesgamma[1:6]) == 0 ? 1 : sum(movesgamma[1:6])
-    print(s,"Total\t\t $(sum(movescount[1:6]))\t\t $(sum(movescount[7:12]))\t\t $(sum(movescount[13:18]))\t |\t $(sum(movesgamma[1:6]))\t\t $(sum(movesgamma[7:12]))\t\t $(movesgamma[13])")
-    print(s,"Proportion\t $(round(sum(movescount[1:6])/suma,1))\t\t $(round(sum(movescount[7:12])/suma,1))\t\t $(round(sum(movescount[13:18])/suma,1))\t |\t $(round(sum(movesgamma[1:6])/suma2,1))\t\t $(round(sum(movesgamma[7:12])/suma2,1))\t\t $(round(movesgamma[13]/suma2,1))")
+    print(s,"Total\t\t $(sum(movescount[1:6]))\t\t $(sum(movescount[7:12]))\t\t $(sum(movescount[13:18]))\t |\t $(sum(movesgamma[1:6]))\t\t $(sum(movesgamma[7:12]))\t\t $(movesgamma[13])\n")
+    print(s,"Proportion\t $(round(sum(movescount[1:6])/suma,1))\t\t $(round(sum(movescount[7:12])/suma,1))\t\t $(round(sum(movescount[13:18])/suma,1))\t |\t $(round(sum(movesgamma[1:6])/suma2,1))\t\t $(round(sum(movesgamma[7:12])/suma2,1))\t\t $(round(movesgamma[13]/suma2,1))\n")
 end
 
 printCounts(movescount::Vector{Int64}, movesgamma::Vector{Int64}) = printCounts(movescount, movesgamma,STDOUT)
@@ -1283,7 +1285,7 @@ function optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         currT = deepcopy(currT0);
     end
     gc();
-    best = optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,true,sout)
+    best = optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,true,sout,logfile)
     return best
 end
 
