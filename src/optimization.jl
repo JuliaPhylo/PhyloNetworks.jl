@@ -931,20 +931,20 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         end
     end
     if(ftolAbs > 1e-7 || ftolRel > 1e-7 || xtolAbs > 1e-7 || xtolRel > 1e-7)
-        DEBUG && println("found best network, now we re-optimize branch lengths and gamma more precisely")
+        write(logfile,"\nfound best network, now we re-optimize branch lengths and gamma more precisely")
         optBL!(newT,d,verbose,1e-12,1e-10,1e-10,1e-10)
     end
     if(absDiff <= M*ftolAbs)
-        write(logfile,"STOPPED by absolute difference criteria")
+        write(logfile,"\nSTOPPED by absolute difference criteria")
     elseif(currT.loglik <= M*ftolAbs)
-        write(logfile,"STOPPED by loglik close to zero criteria")
+        write(logfile,"\nSTOPPED by loglik close to zero criteria")
     elseif(!stillmoves)
-        write(logfile,"STOPPED for not having more moves to propose: movesfail $(movesfail), Nmov $(Nmov)")
+        write(logfile,"\nSTOPPED for not having more moves to propose: movesfail $(movesfail), Nmov $(Nmov)")
     else
-        write(logfile,"STOPPED by number of failures criteria")
+        write(logfile,"\nSTOPPED by number of failures criteria")
     end
     if(newT.loglik > M*ftolAbs) #not really close to 0.0, based on absTol also
-        write(logfile,"newT.loglik $(newT.loglik) not really close to 0.0 based on loglik abs. tol. $(M*ftolAbs), you might need to redo with another starting point")
+        write(logfile,"\nnewT.loglik $(newT.loglik) not really close to 0.0 based on loglik abs. tol. $(M*ftolAbs), you might need to redo with another starting point")
     end
     if(newT.numBad > 0) #need to undogammaz if newT has bad diamond I to use gammaz as proxy of gamma for writeTopology
         for(n in newT.hybrid)
@@ -953,7 +953,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             end
         end
     end
-    write(logfile,"END optTopLevel: found minimizer topology at step $(count) (failures: $(failures)) with -loglik=$(round(newT.loglik,5)) and ht_min=$(round(newT.ht,5))")
+    write(logfile,"\nEND optTopLevel: found minimizer topology at step $(count) (failures: $(failures)) with -loglik=$(round(newT.loglik,5)) and ht_min=$(round(newT.ht,5))")
     printCounts(movescount,movesgamma,logfile)
     DEBUG && printEdges(newT)
     DEBUG && printPartitions(newT)
@@ -976,7 +976,7 @@ optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int
 function printCounts(movescount::Vector{Int64}, movesgamma::Vector{Int64},s::IOStream)
     length(movescount) == 18 || error("movescount should have length 18, not $(length(movescount))")
     length(movesgamma) == 13 || error("movesgamma should have length 13, not $(length(movescount))")
-    print(s,"PERFORMANCE: total number of moves (proposed, successful, accepted) in general, and to fix gamma=0.0,t=0.0 cases\n")
+    print(s,"\nPERFORMANCE: total number of moves (proposed, successful, accepted) in general, and to fix gamma=0.0,t=0.0 cases\n")
     print(s,"\t--------moves general--------\t\t\t\t --------moves gamma--------\t\n")
     print(s,"move\t Num.Proposed\t Num.Successful\t Num.Accepted\t | Num.Proposed\t Num.Successful\t Num.Accepted\n")
     names = ["add","mvorigin","mvtarget","chdir","delete","nni"]
