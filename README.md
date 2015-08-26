@@ -104,10 +104,10 @@ To visualize the network:
 plotPhylonet(net)
 plotPhylonet(net,unrooted=true)
 ```
-WARNING: There is a known bug in the \texttt{plotPhylonet} function,
-see the issue in the \texttt{PhyloNetworks} Github repository for details.
+WARNING: There is a known bug in the plotPhylonet function,
+see the issue in the PhyloNetworks Github repository for details.
 The error can be sometimes fixed by changing the position of the root
-with the \texttt{root} function.
+with the root function.
 
 For a list of all the functions in the PhyloNetworks package, and all the options on the SNaQ function, refer to the PDF documentation.
 
