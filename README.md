@@ -45,9 +45,9 @@ Pkg.build("PhyloNetworks")
 
 The PhyloNetworks package has the following dependencies, but everything is installed automatically.
 
-*GraphViz (version...)
+*GraphViz (version 0.0.3)
 
-*NLopt (version...)
+*NLopt (version 0.2.0)
 
 The version in parenthesis correspond to the ones used when
 implementing PhyloNetworks.
@@ -104,6 +104,10 @@ To visualize the network:
 plotPhylonet(net)
 plotPhylonet(net,unrooted=true)
 ```
+WARNING: There is a known bug in the \texttt{plotPhylonet} function,
+see the issue in the \texttt{PhyloNetworks} Github repository for details.
+The error can be sometimes fixed by changing the position of the root
+with the \texttt{root} function.
 
 For a list of all the functions in the PhyloNetworks package, and all the options on the SNaQ function, refer to the PDF documentation.
 
