@@ -5,10 +5,28 @@ using DataFrames # for rep function and read/write csv tables
 using NLopt # for branch lengths optimization
 using GraphViz #for visualization
 
-const DEBUG = true #for debugging only
+const DEBUG = false #for debugging only
 const DEBUGC = false #more detailed prints
-const CHECKNET = true #for debugging only
+const CHECKNET = false #for debugging only
 const REDIRECT = false # changed for debugging to a file
+
+export
+HybridNetwork,
+readTopology,
+readTopologyLevel1,
+tipLabels,
+writeTopology,
+deleteLeaf,
+printEdges,
+printNodes,
+readTrees2CF,
+readTableCF,
+readInputTrees,
+descData,
+readStartTop,
+snaq,
+readSnaqNetwork,
+snaqDebug
 
 # export part
 
