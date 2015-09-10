@@ -21,3 +21,6 @@ d = readTrees2CF("1.ms");
 d = readTrees2CF("1.ms",filename="try.txt");
 d = readTrees2CF("1.ms","allQuartets.txt",filename="hola.txt");
 d = readTrees2CF("1.ms","allQuartets.txt",whichQ=:rand,numQ=10,filename="hola.txt");
+
+d= readTableCF("tableCF.txt");
+d2= readTableCF("tableCFbad.txt")

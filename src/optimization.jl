@@ -1165,6 +1165,7 @@ optTop!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ft
 # probST is the probability of starting in the starting topology currT per run (1-probST is the probability of doing a NNI move) default 0.3
 function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::String, rootname::String, returnNet::Bool,seed::Int64, probST::Float64)
     0.0<=probST<=1.0 || error("probability to keep the same starting topology should be between 0 and 1: $(probST)")
+    isdefined(:d) || error("Data d not defined, probably an error when reading the input gene trees or the table of CF. Common issue: wrong number of columns in CF table")
     # need a clean starting net. fixit: maybe we need to be more thorough here
     if(!currT0.cleaned)
         cleanAfterReadAll!(currT0);
