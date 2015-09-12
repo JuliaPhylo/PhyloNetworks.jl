@@ -739,10 +739,10 @@ function writeSubTree!(s::IOBuffer, n::Node, parent::Edge,di::Bool,names::Bool)
         end
     end
     if(!n.leaf)
-        print(s,string(":",round(parent.length,5)))
+        print(s,string(":",round(parent.length,3)))
     end
     if(parent.hybrid && !di && !n.isBadDiamondI)
-        print(s,string("::",round(parent.gamma,5)))
+        print(s,string("::",round(parent.gamma,3)))
     end
 end
 
