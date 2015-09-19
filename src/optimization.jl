@@ -1211,6 +1211,11 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             write(logfile,"\n BEGIN optTopRun1 for run $(i), seed $(seeds[i]) and hmax $(hmax)")
             best = optTopRun1!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,true,seeds[i],logfile,probST);
             write(logfile,"\n FINISHED optTopRun1, typeof best $(typeof(best)), -loglik of best $(best.loglik)")
+            if(outgroup == "none")
+                write(logfile,writeTopology(best)) #no outgroup
+            else
+                write(logfile,writeTopology(best,outgroup)) #outgroup
+            end
             flush(logfile)
             push!(bestnet, deepcopy(best))
             if(best.loglik < maxNet.loglik)
