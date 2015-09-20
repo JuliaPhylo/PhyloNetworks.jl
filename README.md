@@ -39,8 +39,7 @@ We have not tested its robustness on Julia version 0.4 or above yet.
 To install the package:
 
 ```julia
-Pkg.add("PhyloNetworks")
-Pkg.build("PhyloNetworks")
+Pkg.clone("https://github.com/crsl4/PhyloNetworks.git")
 ```
 
 The PhyloNetworks package has the following dependencies, but everything is installed automatically.
