@@ -37,7 +37,6 @@ We have not tested its robustness on Julia version 0.4 or above yet.
 ### Installation of the package PhyloNetworks
 
 To install the package:
-
 ```julia
 Pkg.clone("https://github.com/crsl4/PhyloNetworks.git")
 ```
@@ -52,6 +51,10 @@ The version in parenthesis correspond to the ones used when
 implementing PhyloNetworks.
 
 ### Small examples
+Everytime you start a session in Julia, you should type:
+```julia
+using PhyloNetworks
+```
 
 #### Input data
 
