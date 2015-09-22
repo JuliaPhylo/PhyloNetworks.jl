@@ -29,7 +29,7 @@ approxEq(estTree.loglik,0.0) || error("not correct tree estimated")
 # ------------------5taxon network 1 hybridization: Case H-----------------
 # starting topology: Case G
 tree = "((((6:0.1,4:1.5)1:0.2,(7)11#H1)5:0.1,(11#H1,8)),10:0.1);" # Case G
-currT = readTopologyLevel1u(tree);
+currT = readTopologyLevel1(tree);
 #printEdges(currT)
 
 # real network: Case H
