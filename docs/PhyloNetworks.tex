@@ -133,6 +133,7 @@ connected directed acyclic graph with vertices $V=V_L \cup V_H \cup
 V_T$, edges $E=E_H \cup E_T$ and a bijective leaf-labeling function
 $f:V_L \rightarrow X$ with the following characteristics:
 \begin{itemize}
+\item The root $r$ has $\mathrm{indegree}(r)=0$ and $\mathrm{outdegree}(r)=2$.
 \item{For any $v \in V_L$ (leaf), $indegree(v)=1$ and
     $outdegree(v)=0$.}
 \item{For any $v \in V_T$ (tree node), $indegree(v)=1$ and $outdegree(v)=2$.}
@@ -140,10 +141,6 @@ $f:V_L \rightarrow X$ with the following characteristics:
 \item{A tree edge $e \in E_T$ is an edge whose child is a tree node.}
 \item{A hybrid edge $e \in E_H$ is an edge whose child is a hybrid node.}
 \end{itemize}
-These networks are
-called \textit{level-1 networks} \citep{Huson2010}, and have been
-shown to be identifiable \citep{Pardi2015,Solis-Lemus2015}.
-
 Thus, we are not allowing internal nodes with only two edges, nor
 polytomies. We also do not allow a leaf to be hybrid node, and only 2
 hybrid edges per hybrid node.  These restrictions are enforced in the
@@ -151,6 +148,12 @@ optimization, but not in the read/write/plot/root functions. However,
 the only rule strictly enforced for all functions is that a hybrid
 node cannot have more than two hybrid edges pointing at it. This is a
 restriction that we hope to eliminate in the future.
+
+If we also assume that the hybridization cycles do not intersect, then
+these networks are called \textit{level-1 networks} \citep{Huson2010},
+and have been shown to be identifiable
+\citep{Pardi2015,Solis-Lemus2015}.
+
 
 \section{Setup}
 \subsection{Installation of \texttt{Julia}}
