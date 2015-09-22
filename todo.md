@@ -37,3 +37,9 @@ you. I have not read carefully, but they claim that the moves the
 propose would help search the space of networks more efficiently.
 
 2.3) the paralellization
+
+
+###VERSIONS
+
+Pkg.tag(...)
+v0.0.1: September 22,2015
