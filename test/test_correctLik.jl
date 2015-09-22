@@ -4,8 +4,8 @@
 
 # -------------------5taxon tree------------------
 
-#include("../src/types.jl")
-#include("../src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
 #df = readtable("Tree_output.txt")
 df=DataFrame(t1=["6","6","10","6","6"],t2=["7","7","7","10","7"],t3=["4","10","4","4","4"],t4=["8","8","8","8","10"],CF1234=[0.2729102510259939, 0.3967750546426937, 0.30161247267865315, 0.24693940689390592, 0.2729102510259939], CF1324=[0.45417949794801216, 0.30161247267865315, 0.30161247267865315, 0.5061211862121882, 0.45417949794801216],CF1423=[0.2729102510259939, 0.30161247267865315, 0.3967750546426937, 0.24693940689390592, 0.2729102510259939])
@@ -13,8 +13,8 @@ d = readTableCF(df)
 
 # starting tree:
 tree = "((6,4),(7,8),10);"
-currT = readTopologyUpdate(tree);
-printEdges(currT)
+currT = readTopologyLevel1(tree);
+#printEdges(currT)
 
 extractQuartet!(currT,d)
 calculateExpCFAll!(d)
@@ -29,8 +29,8 @@ approxEq(estTree.loglik,0.0) || error("not correct tree estimated")
 # ------------------5taxon network 1 hybridization: Case H-----------------
 # starting topology: Case G
 tree = "((((6:0.1,4:1.5)1:0.2,(7)11#H1)5:0.1,(11#H1,8)),10:0.1);" # Case G
-currT = readTopologyUpdate(tree);
-printEdges(currT)
+currT = readTopologyLevel1u(tree);
+#printEdges(currT)
 
 # real network: Case H
 #df = readtable("CaseH_output.txt")

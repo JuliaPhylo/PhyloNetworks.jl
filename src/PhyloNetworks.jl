@@ -26,7 +26,7 @@ descData,
 readStartTop,
 snaq,
 readSnaqNetwork,
-snaqDebug
+snaqDebug,
 
 # export part
 
