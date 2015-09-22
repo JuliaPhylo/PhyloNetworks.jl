@@ -4,8 +4,8 @@
 
 # -------------------5taxon tree------------------
 
-include("../src/types.jl")
-include("../src/functions.jl")
+#include("../src/types.jl")
+#include("../src/functions.jl")
 
 df = readtable("Tree_output.csv")
 d = readTableCF(df)

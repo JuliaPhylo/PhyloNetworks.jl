@@ -184,7 +184,7 @@ To test that you installed correctly the \texttt{PhyloNetworks} package, try the
 \subsubsection{Example to test correct \texttt{PhyloNetworks} installation}
 Open \texttt{Julia} and type
 \begin{lstlisting}
-include("tests/runtests.jl")
+Pkg.test("PhyloNetworks")
 \end{lstlisting}
 This will take a couple of
 minutes as the package needs to compile all the functions. If the
