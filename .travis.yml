@@ -1,6 +1,6 @@
 language: julia
 os:
-  - linux
+#  - linux
   - osx
 julia:
   - release
