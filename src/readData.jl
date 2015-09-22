@@ -382,22 +382,22 @@ end
 # function to create descriptive stat from input data, will save in stream s
 # which can be a file or STDOUT
 # default: send to STDOUT
-function descData(d::DataCF, s::IO)
-    write(s,"DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
+function descData(d::DataCF, sout::IO)
+    write(sout,"DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
     if(!isempty(d.tree))
         taxaTreesQuartets(d.tree,d.quartet,s)
-        write(s,"----------------------------\n\n")
+        write(sout,"----------------------------\n\n")
         for q in d.quartet
-            write(s,"Quartet $(q.number) obsCF constructed with $(q.numGT) gene trees ($(round(q.numGT/d.numTrees*100,2))%)\n")
+            write(sout,"Quartet $(q.number) obsCF constructed with $(q.numGT) gene trees ($(round(q.numGT/d.numTrees*100,2))%)\n")
         end
-        write(s,"----------------------------\n\n")
+        write(sout,"----------------------------\n\n")
     else
         if(!isempty(d.quartet))
             taxa=unionTaxa(d.quartet)
-            write(s,"\nTaxa: $(taxa)\n")
-            write(s,"Number of Taxa: $(length(taxa))\n")
+            write(sout,"\nTaxa: $(taxa)\n")
+            write(sout,"Number of Taxa: $(length(taxa))\n")
             numQ = binom(length(taxa),4);
-            write(s,"Maximum number of quartets: $(numQ). Thus, $(100*d.numQuartets/numQ) percent of quartets sampled\n")
+            write(sout,"Maximum number of quartets: $(numQ). Thus, $(100*d.numQuartets/numQ) percent of quartets sampled\n")
         end
     end
 end

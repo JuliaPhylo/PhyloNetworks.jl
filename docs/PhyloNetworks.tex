@@ -191,40 +191,7 @@ minutes as the package needs to compile all the functions. If the
 installation was successful, you will see a message at the end:
 \textcolor{green}{\textbf{Tests passed}}. Otherwise, an error will be thrown.
 
-\subsubsection{Example to test correct \texttt{GraphViz} installation}
-
-The \texttt{GraphViz} package installs the program
-\texttt{GraphViz}. To verify that the link between \texttt{Julia} and
-\texttt{GraphViz} is working properly. Everything should be done
-automatically, but it is worth testing.  Open \texttt{Julia} and type
-\begin{lstlisting}
-s=open("graph.dot","w")
-write(s,"graph {
-		a -- b;
-		a -- c;
-		b -- d;
-		b -- e;
-		c -- f;
-		c -- g;
-        f -- h;
-        f -- i;
-	}")
-close(s)
-PhyloNetworks.generalExport("graph.dot")
-\end{lstlisting}
-This will turn
-\texttt{graph.dot} into a file called \texttt{genImage.svg} in the
-working directory.
-
-\noindent If this worked correctly, the console should display a series of prompts indicating its completion.
-A file called \texttt{scratchimage.svg} should be located in your working directory.
-
-\begin{center}
-  \includegraphics[width=3.0in]{figures/genImage.eps}
-\end{center}
-Plot of the underlying tree structure, oriented horizontally, with a changed font size.
-
-\section{Usage of PhyoNetworks}
+\section{Usage of PhyloNetworks}
 Before each session, need to type in \texttt{Julia}:
 
 \begin{lstlisting}
@@ -234,6 +201,18 @@ using PhyloNetworks
 This will take a couple of minutes as it needs to precompile the
 functions.  The first run of a function in \texttt{Julia} will also
 compile, so it will be slower than any subsequent runs.
+
+\section{Update of PhyloNetworks}
+It is important to regularly update the version of the Julia packages:
+
+\begin{lstlisting}
+Pkg.update()
+\end{lstlisting}
+
+This will take a couple of minutes as it needs to precompile the
+functions in every package. This is particulary important for the
+package \texttt{PhyloNetworks} since it is a new package under constant
+development.
 
 \section{Description of main functions}
 Functions in \texttt{PhyloNetworks}:
@@ -477,14 +456,14 @@ On the contrary, if you have already the CF in a file \textit{tableCF.txt}
 in the format on Table \ref{tableCF}, you
 would read it like:
 \begin{lstlisting}
-d3=readTableCF("tableCF.txt")
+d=readTableCF("tableCF.txt")
 \end{lstlisting}
 If you have a tree \textit{startTree.tre} in parenthetical format to
 use as starting point for the optimization and want to
 update the branch lengths according to the CF already read in the data
 structure \textit{d}:
 \begin{lstlisting}
-T=readStartTop("startTree.tre",d3);
+T=readStartTop("startTree.tre",d);
 \end{lstlisting}
 
 
@@ -553,6 +532,14 @@ estimate the phylogenetic network by:
 net=snaq(T,d);
 net=snaq(T,d,hmax=2);
 \end{lstlisting}
+These runs might take a few minutes. The estimated network will be
+stored in \texttt{net}, so that the user that write in parenthetical
+format, re root or plot:
+\begin{lstlisting}
+PhyloNetworks.plotPhylonet(net)
+\end{lstlisting}
+More on the plot function below. There will also be output files
+created with information on the estimation procedure.
 
 \subsection{Read .out file}
 \begin{itemize}
@@ -694,7 +681,7 @@ Plotting examples will use $(((((1,2))\#H1,(\#H1,(3,4))),5),6);$ as an example n
 Using our example network, this would be done by typing in
 \texttt{Julia}
 \begin{lstlisting}
-plotPhylonet("(((((1,2))#H1,(#H1,(3,4))),5),6);")
+PhyloNetworks.plotPhylonet("(((((1,2))#H1,(#H1,(3,4))),5),6);")
 \end{lstlisting}
 
 This will result in the image below being saved in your working directory as \texttt{netImage.svg}.
@@ -719,7 +706,8 @@ In addition, we include the arguments \texttt{vert = false}, which plots the hie
 
 \begin{lstlisting}
 net = "(((((1,2))#H1,(#H1,(3,4))),5),6);"
-plotPhylonet(net, vert = false, mainTree = true, fontSize = 20.0)
+PhyloNetworks.plotPhylonet(net, vert = false,
+                           mainTree = true, fontSize = 20.0)
 \end{lstlisting}
 
 \begin{figure}[htbp]
@@ -747,6 +735,43 @@ We have included some tips for fixing common issues below.
 \item Although the arguments \texttt{layoutStyle} and \texttt{edgeStyle} have been included,
   some of options available are not guaranteed to be ideal for certain network plots.
 \end{itemize}
+
+When plotting, a known issue can occur if Julia and GraphViz are not
+linked. To test the GraphViz installation, see the following section:
+
+\subsubsection{Example to test correct \texttt{GraphViz} installation}
+
+The \texttt{GraphViz} package installs the program
+\texttt{GraphViz}. To verify that the link between \texttt{Julia} and
+\texttt{GraphViz} is working properly. Everything should be done
+automatically, but it is worth testing.  Open \texttt{Julia} and type
+\begin{lstlisting}
+s=open("graph.dot","w")
+write(s,"graph {
+		a -- b;
+		a -- c;
+		b -- d;
+		b -- e;
+		c -- f;
+		c -- g;
+        f -- h;
+        f -- i;
+	}")
+close(s)
+PhyloNetworks.generalExport("graph.dot")
+\end{lstlisting}
+This will turn
+\texttt{graph.dot} into a file called \texttt{genImage.svg} in the
+working directory.
+
+\noindent If this worked correctly, the console should display a series of prompts indicating its completion.
+A file called \texttt{scratchimage.svg} should be located in your working directory.
+
+\begin{center}
+  \includegraphics[width=3.0in]{figures/genImage.eps}
+\end{center}
+Plot of the underlying tree structure, oriented horizontally, with a changed font size.
+
 
 WARNING: There is a known bug in the \texttt{plotPhylonet} function,
 see the issue in the \texttt{PhyloNetworks} Github repository for details.
