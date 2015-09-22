@@ -164,7 +164,7 @@ version 0.3.5, and has been tested on different versions of 0.3.X.
 We have not tested its robustness on \texttt{Julia} version 0.4 or above.
 
 \subsection{Installation of \texttt{PhyloNetworks}}
-To install the package, %\falta{(double check these steps)} 
+To install the package, %\falta{(double check these steps)}
 open
 \texttt{Julia} and type:
 \begin{lstlisting}
@@ -198,10 +198,23 @@ The \texttt{GraphViz} package installs the program
 \texttt{GraphViz} is working properly. Everything should be done
 automatically, but it is worth testing.  Open \texttt{Julia} and type
 \begin{lstlisting}
-generalExport("examples/graph.dot")
+s=open("graph.dot","w")
+write(s,"graph {
+		a -- b;
+		a -- c;
+		b -- d;
+		b -- e;
+		c -- f;
+		c -- g;
+        f -- h;
+        f -- i;
+	}")
+close(s)
+generalExport("graph.dot")
 \end{lstlisting}
 This will turn
-\texttt{graph.dot} into a file called \texttt{genImage.svg}
+\texttt{graph.dot} into a file called \texttt{genImage.svg} in the
+working directory.
 
 \noindent If this worked correctly, the console should display a series of prompts indicating its completion.
 A file called \texttt{scratchimage.svg} should be located in your working directory.
@@ -234,7 +247,7 @@ Functions in \texttt{PhyloNetworks}:
   restriction described above. That is, this function allows for
   polytomies in tree nodes (tree node with more than two children) and
   internal nodes with only two edges. \
-%falta{(and other things not tested yet)}. 
+%falta{(and other things not tested yet)}.
 \\Usage:
 \begin{lstlisting}
 net=readTopology(filename);
@@ -580,7 +593,7 @@ const REDIRECT = true
 snaqDebug(T,d,hmax=2,seed=4545);
 \end{lstlisting}
 This will create two text files: \textit{snaqDebug.log} and
-\textit{debug.log}. 
+\textit{debug.log}.
 
 You can send them to
 \textit{claudia@stat.wisc.edu} with subject \textit{Snaq bug found} or
