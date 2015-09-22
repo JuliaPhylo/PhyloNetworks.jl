@@ -1,6 +1,7 @@
 # see readme file in tests/ for description of tests
 # Claudia July 2015
 
+const CHECKNET = true #for debugging only
 tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculateExpCF2.jl", "test_hasEdge.jl", "test_parameters.jl","test_correctLik.jl"]
 
 anyerrors = false
