@@ -4,10 +4,10 @@
 
 # -------------------5taxon tree------------------
 
-#include("../src/types.jl")
-#include("../src/functions.jl")
+include("../src/types.jl")
+include("../src/functions.jl")
 
-df = readtable("Tree_output.csv")
+df = readtable("Tree_output.txt")
 d = readTableCF(df)
 
 # starting tree:
@@ -32,7 +32,7 @@ currT = readTopologyUpdate(tree);
 printEdges(currT)
 
 # real network: Case H
-df = readtable("CaseH_output.csv")
+df = readtable("CaseH_output.txt")
 d = readTableCF(df)
 
 extractQuartet!(currT,d)
