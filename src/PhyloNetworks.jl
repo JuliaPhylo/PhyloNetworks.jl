@@ -43,8 +43,11 @@ include("readwrite.jl")
 include("readData.jl")
 include("optimization.jl")
 include("pseudolik.jl")
-include("visualization.jl")
+#include("visualization.jl")
 include("descriptive.jl")
+include("genExport.jl")
+include("drawTraversal.jl")
+include("plotPhylonet.jl")
 
 
 end #module
