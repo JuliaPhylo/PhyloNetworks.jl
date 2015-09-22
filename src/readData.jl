@@ -391,6 +391,14 @@ function descData(d::DataCF, s::IO)
             write(s,"Quartet $(q.number) obsCF constructed with $(q.numGT) gene trees ($(round(q.numGT/d.numTrees*100,2))%)\n")
         end
         write(s,"----------------------------\n\n")
+    else
+        if(!isempty(d.quartet))
+            taxa=unionTaxa(d.quartet)
+            write(s,"\nTaxa: $(taxa)\n")
+            write(s,"Number of Taxa: $(length(taxa))\n")
+            numQ = binom(length(taxa),4);
+            write(s,"Maximum number of quartets: $(numQ). Thus, $(100*d.numQuartets/numQ) percent of quartets sampled\n")
+        end
     end
 end
 

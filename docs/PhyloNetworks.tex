@@ -210,7 +210,7 @@ write(s,"graph {
         f -- i;
 	}")
 close(s)
-generalExport("graph.dot")
+PhyloNetworks.generalExport("graph.dot")
 \end{lstlisting}
 This will turn
 \texttt{graph.dot} into a file called \texttt{genImage.svg} in the
@@ -460,28 +460,31 @@ readStartTop(treefile, d)
 
 \subsubsection{Small example on reading data}
 \label{readDataEx}
+All the files for this section can be downloaded from the
+\textit{examples} folder in github repository. You need to have them
+in your working directory.
 Suppose you have a file with a list of gene trees called
 \textit{treefile.txt} and you want to use all the possible 4-taxon subsets for the
 taxa in those trees to calculate the CF:
 \begin{lstlisting}
-d=readTrees2CF("treefile.txt")
+d1=readTrees2CF("treefile.txt")
 \end{lstlisting}
 If you want to use a random sample of 100 4-taxon subsets:
 \begin{lstlisting}
-d=readTrees2CF("treefile.txt",whichQ=:rand,numQ=100)
+d2=readTrees2CF("treefile.txt",whichQ=:rand,numQ=100)
 \end{lstlisting}
 On the contrary, if you have already the CF in a file \textit{tableCF.txt}
 in the format on Table \ref{tableCF}, you
 would read it like:
 \begin{lstlisting}
-d=readTableCF("tableCF.txt")
+d3=readTableCF("tableCF.txt")
 \end{lstlisting}
 If you have a tree \textit{startTree.tre} in parenthetical format to
 use as starting point for the optimization and want to
 update the branch lengths according to the CF already read in the data
 structure \textit{d}:
 \begin{lstlisting}
-T=readStartTop("startTree.tre",d);
+T=readStartTop("startTree.tre",d3);
 \end{lstlisting}
 
 
