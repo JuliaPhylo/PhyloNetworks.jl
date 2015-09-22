@@ -2,7 +2,7 @@
 ## Maximum pseudolikelihood estimation of species network: SNaQ
 
 SNaQ implements the statistical inference method in [Solis-Lemus and
-Ane, submitted](www.stat.wisc.edu/~claudia). The procedure involves a
+Ane](http://arxiv.org/pdf/1509.06075.pdf). The procedure involves a
 numerical optimization of branch lengths and probabilities of
 inheritance and heuristic search in the space of phylogenetic
 networks.  
