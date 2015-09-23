@@ -5,14 +5,14 @@ SNaQ implements the statistical inference method in [Sol&iacute;s-Lemus and
 An&eacute;](http://arxiv.org/pdf/1509.06075.pdf). The procedure involves a
 numerical optimization of branch lengths and inheritance probabilities
 and a heuristic search in the space of phylogenetic
-networks.  
+networks.
 
 Below there is a quick tutorial on SNaQ and PhyloNetworks, but refer
 to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf) for more details.
 
 ### Input for SNaQ
 
-Two alternatives: 
+Two alternatives:
 
 1. A table of concordance factors (CF) for each 4-taxon subset which can be
 obtained from [BUCKy](http://www.stat.wisc.edu/~ane/bucky/).
@@ -22,7 +22,7 @@ obtained from [BUCKy](http://www.stat.wisc.edu/~ane/bucky/).
 
 ### Pipeline from sequence alignments
 
-This [pipeline](https://github.com/nstenz/TICR) 
+This [pipeline](https://github.com/nstenz/TICR)
 can be used to obtain the table of CF needed as input
 for SNaQ. The pipeline starts with input the sequence alignments, and
 it runs MrBayes and then BUCKy, producing the
@@ -31,7 +31,7 @@ table of estimated CFs and their confidence intervals.
 
 ### Installation of Julia
 
-Julia is a high-level and interactive programming language (like R or Matlab), 
+Julia is a high-level and interactive programming language (like R or Matlab),
 but it is also high-performance (like C).
 To install Julia, go to http://julialang.org/downloads/
 
@@ -42,7 +42,7 @@ We have not tested its robustness on Julia version 0.4 or above yet.
 
 ### Installation of the package PhyloNetworks
 
-To install the package:
+To install the package, type inside Julia:
 ```julia
 Pkg.clone("https://github.com/crsl4/PhyloNetworks.git")
 Pkg.build("PhyloNetworks")
@@ -62,13 +62,13 @@ Everytime you start a session in Julia, you should type:
 ```julia
 using PhyloNetworks
 ```
-This step can also take a while, because Julia compiles code here. 
+This step can also take a while, because Julia compiles all the code at this moment.
 This might change in future versions of Julia.
-Here is a very small test for the installation of PhyloNetworks:
+Here is a very small test for the installation of PhyloNetworks.
 
 ```julia
 net = readTopology("(A,(B,(C,D)));");
-printEdges(net)
+tipLabels(net)
 ```
 
 #### Input data
@@ -79,32 +79,31 @@ PhyloNetworks folder, typically in your
 files are also included below.
 
 Suppose you have a file with a list of gene trees in parenthetical
-format called *treefile.txt*. 
-If 'treefile.txt' is in your directory, do this to read in all gene trees 
+format called *treefile.txt*.
+If 'treefile.txt' is in your directory, do this to read in all gene trees
 and to summarize them with a list
-of quartet CFs: 
-```julia 
-d=readTrees2CF("treefile.txt") 
+of quartet CFs:
+```julia
+d=readTrees2CF("treefile.txt")
 ```
 You can access this example file
 [here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/treefile.txt).
-  This file was
-created by ms and contains 10 trees, each one in parenthetical format
+  This file contains 10 trees, each one in parenthetical format
 like this:
 
 (6:2.728,((3:0.655,5:0.655):1.202,(1:0.881,(2:0.783,4:0.783):0.098):0.976):0.871);
 
 
 If instead of all the 4-taxon subsets, you just want to use a random
-sample of 10 4-taxon subsets: 
+sample of 10 4-taxon subsets:
 ```julia
-d=readTrees2CF("treefile.txt",whichQ=:rand,numQ=10) 
-``` 
+d=readTrees2CF("treefile.txt",whichQ=:rand,numQ=10)
+```
 Be careful that numQ be smaller than the total number of possible
 4-taxon subsets. For *n* taxa, there are *n choose 4* total 4-taxon
 subsets.
 
-On the contrary, if you have already in your working directory the CF in a file *tableCF.txt*
+On the contrary, if you have already the CF table in a file *tableCF.txt*
 in the format:
 
 |Taxon1 | Taxon2 | Taxon3 | Taxon4 | CF12vs34 | CF13vs24 | CF14vs23 |
@@ -125,17 +124,18 @@ structure *d*:
 T=readStartTop("startTree.tre",d);
 ```
 You can access this example file
-[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/startTre.tre).
+[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/startTree.tre).
 
-#### Network Estimation 
+#### Network Estimation
 
 To estimate the network using the input data
-*d,T*: 
+*d,T*:
 
-```julia 
-net=snaq(T,d); 
-net=snaq(T,d,hmax=2); 
-``` 
+```julia
+net=snaq(T,d);
+net=snaq(T,d,hmax=2);
+```
+The option *hmax* corresponds to the maximum number of hybridizations allowed.
 
 The estimation function also creates a .out file with the estimated
 network in parenthetical format.  For all the available options for
@@ -166,11 +166,11 @@ Total errors: 1 in seeds [4545]
 
 You need to run the following function (with the two global variable sets) with the same settings that caused the error:
 
-```julia 
-const DEBUG = true 
+```julia
+const DEBUG = true
 const REDIRECT = true
-snaqDebug(T,d,hmax=2,seed=4545) 
-``` 
+snaqDebug(T,d,hmax=2,seed=4545)
+```
 
 
 This will create two files:
