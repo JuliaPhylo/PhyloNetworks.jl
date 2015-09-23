@@ -385,7 +385,7 @@ end
 function descData(d::DataCF, sout::IO)
     write(sout,"DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
     if(!isempty(d.tree))
-        taxaTreesQuartets(d.tree,d.quartet,s)
+        taxaTreesQuartets(d.tree,d.quartet,sout)
         write(sout,"----------------------------\n\n")
         for q in d.quartet
             write(sout,"Quartet $(q.number) obsCF constructed with $(q.numGT) gene trees ($(round(q.numGT/d.numTrees*100,2))%)\n")
