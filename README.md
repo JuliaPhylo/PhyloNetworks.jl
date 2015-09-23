@@ -8,7 +8,7 @@ and a heuristic search in the space of phylogenetic
 networks.  
 
 Below there is a quick tutorial on SNaQ and PhyloNetworks, but refer
-to the PDF documentation for more details.
+to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf) for more details.
 
 ### Input for SNaQ
 
@@ -139,7 +139,7 @@ net=snaq(T,d,hmax=2);
 
 The estimation function also creates a .out file with the estimated
 network in parenthetical format.  For all the available options for
-this function, refer to the PDF documentation.
+this function, refer to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf).
 
 #### Network Visualization
 To visualize the network:
@@ -157,7 +157,7 @@ WARNING: for Mac computers, sometimes you cannot call the function directly, but
 PhyloNetworks.plotPhylonet(net)
 ```
 
-For a list of all the functions in the PhyloNetworks package, and all the options on the SNaQ function, refer to the PDF documentation.
+For a list of all the functions in the PhyloNetworks package, and all the options on the SNaQ function, refer to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf).
 
 #### Debugging: the .err file
 Please report any bugs and errors to *claudia@stat.wisc.edu*. The easiest way to do it is by checking the .err file which will show the number of runs that failed by a bug and the corresponding seed to replicate the run. This is an example of what the .err file looks like:
