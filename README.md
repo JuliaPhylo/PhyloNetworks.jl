@@ -1,10 +1,10 @@
 #PhyloNetworks: analysis for phylogenetic networks in [Julia](http://julialang.org)
 ## Maximum pseudolikelihood estimation of species network: SNaQ
 
-SNaQ implements the statistical inference method in [Solis-Lemus and
-Ane](http://arxiv.org/pdf/1509.06075.pdf). The procedure involves a
-numerical optimization of branch lengths and probabilities of
-inheritance and heuristic search in the space of phylogenetic
+SNaQ implements the statistical inference method in [Sol&iacute;s-Lemus and
+An&eacute;](http://arxiv.org/pdf/1509.06075.pdf). The procedure involves a
+numerical optimization of branch lengths and inheritance probabilities
+and a heuristic search in the space of phylogenetic
 networks.  
 
 ### Input for SNaQ
@@ -19,14 +19,17 @@ obtained from [BUCKy](http://www.stat.wisc.edu/~ane/bucky/).
 
 ### Pipeline from sequence alignments
 
-We developed a pipeline that obtains the table of CF needed as input
+This [pipeline](https://github.com/nstenz/TICR) 
+can be used to obtain the table of CF needed as input
 for SNaQ. The pipeline starts with input the sequence alignments, and
 it runs MrBayes and then BUCKy, producing the
-table of estimated CF and its confidence intervals.
+table of estimated CFs and their confidence intervals.
 
 
 ### Installation of Julia
 
+Julia is a high-level and interactive programming language (like R or Matlab), 
+but it is also high-performance (like C).
 To install Julia, go to http://julialang.org/downloads/
 
 PhyloNetworks was developed under Julia
@@ -39,8 +42,9 @@ We have not tested its robustness on Julia version 0.4 or above yet.
 To install the package:
 ```julia
 Pkg.clone("https://github.com/crsl4/PhyloNetworks.git")
+Pkg.build("PhyloNetworks")
 ```
-
+The first step can take a few minutes, be patient.
 The PhyloNetworks package has the following dependencies, but everything is installed automatically.
 
 *GraphViz (version 0.0.3)
@@ -55,13 +59,30 @@ Everytime you start a session in Julia, you should type:
 ```julia
 using PhyloNetworks
 ```
+This step can also take a while, because Julia compiles code here. 
+This might change in future versions of Julia.
+Here is a very small test for the installation of PhyloNetworks:
+
+```julia
+net = readTopology("(A,(B,(C,D)));");
+printEdges(net)
+```
 
 #### Input data
 
 Suppose you have a file with a list of gene trees in parenthetical
 format called *treefile.txt* and you want to use all the possible
-4-taxon subsets for the taxa in those trees to calculate the CF: ```julia
-d=readTrees2CF("treefile.txt") ```
+4-taxon subsets for the taxa in those trees to calculate the CF.
+You can access this example file [here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/treefile.txt)
+or within the PhyloNetworks folder, typically in your HOME/.julia/v0.3/PhyloNetworks/examples/treefile.txt.
+This file was created by ms and contains 10 trees, each one in parenthetical format like this: 
+
+(6:2.728,((3:0.655,5:0.655):1.202,(1:0.881,(2:0.783,4:0.783):0.098):0.976):0.871);
+
+If 'treefile.txt' is in your directory, do this to read in all these 10 gene trees (supposedly unrooted) and to summarize them with a list of quartet CFs:
+```julia
+d=readTrees2CF("treefile.txt") 
+```
 
 If instead you want to use a random sample of 100 4-taxon subsets:
 ```julia
