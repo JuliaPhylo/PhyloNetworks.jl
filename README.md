@@ -84,7 +84,7 @@ If 'treefile.txt' is in your directory, do this to read in all gene trees
 and to summarize them with a list
 of quartet CFs:
 ```julia
-d=readTrees2CF("treefile.txt")
+d=readTrees2CF("treefile.txt");
 ```
 You can access this example file
 [here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/treefile.txt).
@@ -111,7 +111,7 @@ in the format:
 
 You would read it like:
 ```julia
-d=readTableCF("tableCF.txt")
+d=readTableCF("tableCF.txt");
 ```
 You can access this example file
 [here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/tableCF.txt).

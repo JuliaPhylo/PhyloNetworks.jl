@@ -379,7 +379,7 @@ function taxonQuartets(taxon::String, quartets::Vector{Quartet})
 end
 
 
-# function to create descriptive stat from input data, will save in stream s
+# function to create descriptive stat from input data, will save in stream sout
 # which can be a file or STDOUT
 # default: send to STDOUT
 function descData(d::DataCF, sout::IO)
