@@ -188,6 +188,9 @@ type Quartet
         size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing
         sum(obsCF) != 1 ? warn("observed CF should add up to 1, not $(sum(obsCF))") : nothing
         size(t1,1) != 4 ? error("array of taxa should have size 4, not $(size(t1,1))") : nothing
+        0.0 <= obsCF[1] <= 1.0 || error("obsCF must be between (0,1), but it is $(obsCF[1]) for $(t1)")
+        0.0 <= obsCF[2] <= 1.0 || error("obsCF must be between (0,1), but it is $(obsCF[2]) for $(t1)")
+        0.0 <= obsCF[3] <= 1.0 || error("obsCF must be between (0,1), but it is $(obsCF[3]) for $(t1)")
         new(number,t1,obsCF,QuartetNetwork(),0,0);
     end
     Quartet() = new(0,[],[],QuartetNetwork(),0,0)
