@@ -28,7 +28,8 @@ snaq,
 readSnaqNetwork,
 snaqDebug,
 plotPhylonet,
-generalExport #for graphviz test
+generalExport, #for graphviz test
+root
 
 # export part
 
