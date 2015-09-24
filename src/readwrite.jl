@@ -508,6 +508,7 @@ function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
         if(size(n.edge,1) == 2)
             if(!n.hybrid)
                 if(!leaveRoot || !isEqual(net.node[net.root],n)) #if n is the root
+                    #println("found rooted tree (root with two edges attached): unrooting this tree and deleting this node")
                     deleteIntNode!(net,n);
                 end
             else
@@ -678,7 +679,7 @@ readTopologyLevel1(file::String) = readTopologyUpdate(file, false)
 # warning: it needs updateCR set
 function checkRootPlace!(net::HybridNetwork)
     if(!canBeRoot(net.node[net.root]))
-        warn("root node $(net.node[net.root].number) placement is not ok, we will change it to the first found node that agrees with the direction of the hybrid edges")
+        #warn("root node $(net.node[net.root].number) placement is not ok, we will change it to the first found node that agrees with the direction of the hybrid edges")
         for(i in 1:length(net.node))
             if(canBeRoot(net.node[i]))
                 net.root = i
