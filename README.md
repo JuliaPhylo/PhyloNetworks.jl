@@ -137,7 +137,7 @@ To estimate the network using the input data
 
 ```julia
 net1=snaq(T,d);
-net2=snaq(net1,d,hmax=2);
+net2=snaq(T,d,hmax=2);
 ```
 Make sure to have the semicolon (;) at the end, to avoid much useless output 
 to the screen!
