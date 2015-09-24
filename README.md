@@ -136,8 +136,8 @@ To estimate the network using the input data
 *d* and starting from network (or tree) *T*, do this:
 
 ```julia
-net=snaq(T,d);
-net=snaq(T,d,hmax=2);
+net1=snaq(T,d);
+net2=snaq(net1,d,hmax=2);
 ```
 Make sure to have the semicolon (;) at the end, to avoid much useless output 
 to the screen!
@@ -147,8 +147,8 @@ The option *hmax* corresponds to the maximum number of hybridizations allowed,
 The estimation function creates a .out file (snaq.out by default) with the estimated
 network in parenthetical format, which you can also print directly to the screen like this:  
 ```julia
-writeTopology(net)
-writeTopology(net,di=true)
+writeTopology(net1)
+writeTopology(net1,di=true)
 ```
 The option *di=true* is for the parenthetical format used by 
 [Dendroscope](dendroscope.org) (without reticulation heritabilities).
