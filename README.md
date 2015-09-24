@@ -89,6 +89,7 @@ of quartet CFs:
 ```julia
 d=readTrees2CF("treefile.txt");
 ```
+Make sure to have the semicolon (;) at the end to avoid useless output to the screen!
 You can access this example file
 [here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/treefile.txt).
 This file contains 10 trees, each in parenthetical format on 6 taxa
@@ -100,18 +101,18 @@ like this:
 If instead of all the 4-taxon subsets, you just want to use a random
 sample of 10 4-taxon subsets:
 ```julia
-d=readTrees2CF("treefile.txt",whichQ=:rand,numQ=10)
+d=readTrees2CF("treefile.txt",whichQ=:rand,numQ=10);
 ```
-Be careful that numQ is smaller than the total number of possible
+Be careful to use a numQ value smaller than the total number of possible
 4-taxon subsets, which is *n choose 4* on *n* taxa (e.g. 15 on 6 taxa).
 
-On the contrary, if you have already the CF table in a file *tableCF.txt*
-in this format:
+If you have already a table of CF values in a file *tableCF.txt*
+in this format
 
 |Taxon1 | Taxon2 | Taxon3 | Taxon4 | CF12vs34 | CF13vs24 | CF14vs23 |
 |-------|:-------|:-------|:-------|:---------|:---------|:---------|
 
-You would read it like this:
+you would read it like this:
 ```julia
 d=readTableCF("tableCF.txt");
 ```
@@ -124,6 +125,7 @@ update the branch lengths according to the CF already read in the data
 structure *d*, do this:
 ```julia
 T=readStartTop("startTree.tre",d);
+writeTopology(T);
 ```
 You can access this example file
 [here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/startTree.tre).
@@ -137,11 +139,17 @@ To estimate the network using the input data
 net=snaq(T,d);
 net=snaq(T,d,hmax=2);
 ```
-The option *hmax* corresponds to the maximum number of hybridizations allowed.
-By default, this is 1.
+Make sure to have the semicolon (;) at the end, to avoid much useless output 
+to the screen!
+The option *hmax* corresponds to the maximum number of hybridizations allowed,
+1 by default.
 
-The estimation function creates a .out file with the estimated
-network in parenthetical format.  For all the available options for
+The estimation function creates a .out file (snaq.out by default) with the estimated
+network in parenthetical format, which you can also print to the screen like this:  
+```julia
+writeTopology(net)
+```
+For all the available options for
 this function, refer to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf).
 
 #### Network Visualization
@@ -150,6 +158,7 @@ To visualize the network:
 plotPhylonet(net)
 plotPhylonet(net,unrooted=true)
 ```
+For now, this function will create an .svg figure file (netImage.svg by default).
 
 WARNING: There is a known bug in the plotPhylonet function,
 see the issue in the PhyloNetworks Github repository for details.
