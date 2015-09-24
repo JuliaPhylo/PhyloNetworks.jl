@@ -47,12 +47,15 @@ To install the package, type inside Julia:
 Pkg.clone("https://github.com/crsl4/PhyloNetworks.git")
 Pkg.build("PhyloNetworks")
 ```
-The first step can take a few minutes, be patient.
+The first step can take a few minutes, be patient. If you already installed the package and want 
+the latest version, just do this (which will update all of your packages):
+```julia
+Pkg.update()
+```
 The PhyloNetworks package has the following dependencies, but everything is installed automatically.
 
-*GraphViz (version 0.0.3)
-
-*NLopt (version 0.2.0)
+- GraphViz (version 0.0.3)
+- NLopt (version 0.2.0)
 
 The version in parenthesis correspond to the ones used when
 implementing PhyloNetworks.
@@ -88,7 +91,7 @@ d=readTrees2CF("treefile.txt");
 ```
 You can access this example file
 [here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/treefile.txt).
-  This file contains 10 trees, each one in parenthetical format
+This file contains 10 trees, each in parenthetical format on 6 taxa
 like this:
 
 (6:2.728,((3:0.655,5:0.655):1.202,(1:0.881,(2:0.783,4:0.783):0.098):0.976):0.871);
@@ -99,17 +102,16 @@ sample of 10 4-taxon subsets:
 ```julia
 d=readTrees2CF("treefile.txt",whichQ=:rand,numQ=10)
 ```
-Be careful that numQ be smaller than the total number of possible
-4-taxon subsets. For *n* taxa, there are *n choose 4* total 4-taxon
-subsets.
+Be careful that numQ is smaller than the total number of possible
+4-taxon subsets, which is *n choose 4* on *n* taxa (e.g. 15 on 6 taxa).
 
 On the contrary, if you have already the CF table in a file *tableCF.txt*
-in the format:
+in this format:
 
 |Taxon1 | Taxon2 | Taxon3 | Taxon4 | CF12vs34 | CF13vs24 | CF14vs23 |
 |-------|:-------|:-------|:-------|:---------|:---------|:---------|
 
-You would read it like:
+You would read it like this:
 ```julia
 d=readTableCF("tableCF.txt");
 ```
@@ -119,7 +121,7 @@ You can access this example file
 If you have a tree *startTree.tre* in parenthetical format to
 use as starting point for the optimization and want to
 update the branch lengths according to the CF already read in the data
-structure *d*:
+structure *d*, do this:
 ```julia
 T=readStartTop("startTree.tre",d);
 ```
@@ -129,15 +131,16 @@ You can access this example file
 #### Network Estimation
 
 To estimate the network using the input data
-*d,T*:
+*d* and starting from network (or tree) *T*, do this:
 
 ```julia
 net=snaq(T,d);
 net=snaq(T,d,hmax=2);
 ```
 The option *hmax* corresponds to the maximum number of hybridizations allowed.
+By default, this is 1.
 
-The estimation function also creates a .out file with the estimated
+The estimation function creates a .out file with the estimated
 network in parenthetical format.  For all the available options for
 this function, refer to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf).
 
@@ -147,12 +150,13 @@ To visualize the network:
 plotPhylonet(net)
 plotPhylonet(net,unrooted=true)
 ```
+
 WARNING: There is a known bug in the plotPhylonet function,
 see the issue in the PhyloNetworks Github repository for details.
 The error can be sometimes fixed by changing the position of the root
 with the root function.
 
-WARNING: for Mac computers, sometimes you cannot call the function directly, but instead need to do:
+WARNING: on Mac computers, sometimes the function cannot be called directly sometimes, but this will work:
 ```julia
 PhyloNetworks.plotPhylonet(net)
 ```
