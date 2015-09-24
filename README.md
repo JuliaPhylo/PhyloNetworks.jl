@@ -145,14 +145,18 @@ The option *hmax* corresponds to the maximum number of hybridizations allowed,
 1 by default.
 
 The estimation function creates a .out file (snaq.out by default) with the estimated
-network in parenthetical format, which you can also print to the screen like this:  
+network in parenthetical format, which you can also print directly to the screen like this:  
 ```julia
 writeTopology(net)
+writeTopology(net,di=true)
 ```
+The option *di=true* is for the parenthetical format used by 
+[Dendroscope](dendroscope.org) (without reticulation heritabilities).
+Copy this parenthetical description and paste it into Dendroscope. 
 For all the available options for
 this function, refer to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf).
 
-#### Network Visualization
+<!--#### Network Visualization
 To visualize the network:
 ```julia
 plotPhylonet(net)
@@ -171,6 +175,7 @@ PhyloNetworks.plotPhylonet(net)
 ```
 
 For a list of all the functions in the PhyloNetworks package, and all the options on the SNaQ function, refer to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf).
+-->
 
 #### Debugging: the .err file
 Please report any bugs and errors to *claudia@stat.wisc.edu*. The easiest way to do it is by checking the .err file which will show the number of runs that failed by a bug and the corresponding seed to replicate the run. This is an example of what the .err file looks like:
