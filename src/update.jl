@@ -104,7 +104,7 @@ function updateInCycle!(net::HybridNetwork,node::Node)
             end
         end
         if(!isempty(path) || node.k<3)
-            warn("new cycle intersects existing cycle")
+            DEBUG && warn("new cycle intersects existing cycle")
             return false, false, net.edges_changed, net.nodes_changed
         else
             return true, false, net.edges_changed, net.nodes_changed
@@ -215,7 +215,7 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
             end
         end
         if(isEqual(other_min2,getOtherNode(edge_maj2,other_maj)) && isLeaf1.leaf && isLeaf2.leaf && isLeaf3.leaf) # bad diamond I
-            println("bad diamond I found")
+            DEBUG && println("bad diamond I found")
             net.numBad += 1
             node.isBadDiamondI = true;
             other_min.gammaz = edge_min.gamma*edge_min2.z;
@@ -229,7 +229,7 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
             push!(net.edges_changed,edge_maj2);
             push!(net.edges_changed,edge_maj);
         elseif(isEqual(other_min2,getOtherNode(edge_maj2,other_maj)) && isLeaf1.leaf && !isLeaf2.leaf && isLeaf3.leaf && getOtherNode(tree_edge4,other_min2).leaf) # bad diamond II
-            println("bad diamond II found")
+            DEBUG && println("bad diamond II found")
             node.isBadDiamondII = true;
             setLength!(edge_maj,edge_maj.length+tree_edge2.length)
             setLength!(tree_edge2,0.0)
@@ -238,7 +238,7 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
         end
     elseif(node.k == 3) # could be extreme/very bad triangle or just bad triangle
         if(net.numTaxa <= 5)
-            println("extremely or very bad triangle found")
+            DEBUG && println("extremely or very bad triangle found")
             node.isVeryBadTriangle = true
             net.hasVeryBadTriangle = true
         elseif(net.numTaxa >= 6)
@@ -249,11 +249,11 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
             isLeaf3 = getOtherNode(tree_edge3,other_maj);
             if(isLeaf1.leaf || isLeaf2.leaf || isLeaf3.leaf)
                 if(sum([l.leaf?1:0 for l in [isLeaf1,isLeaf2,isLeaf3]]) >= 2)
-                    warn("extremely bad triangle found")
+                    DEBUG && warn("extremely bad triangle found")
                     node.isExtBadTriangle = true;
                     net.hasVeryBadTriangle = true
                 elseif(sum([l.leaf?1:0 for l in [isLeaf1,isLeaf2,isLeaf3]]) == 1)
-                    warn("bad triangle I or II found")
+                    DEBUG && warn("bad triangle I or II found")
                     node.isVeryBadTriangle = true;
                     net.hasVeryBadTriangle = true
                 end

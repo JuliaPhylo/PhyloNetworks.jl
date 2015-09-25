@@ -87,7 +87,7 @@ function setNode!(edge::Edge, node::Node)
         else
             if(edge.hybrid)
 	        if(node.hybrid)
-                    !edge.node[1].hybrid || warn("hybrid edge $(edge.number) has two hybrid nodes");
+                    !edge.node[1].hybrid || println("hybrid edge $(edge.number) has two hybrid nodes");
                     edge.isChild1 = false;
 	        else
 	            edge.node[1].hybrid || error("hybrid edge $(edge.number) has no hybrid nodes");
@@ -877,7 +877,8 @@ end
 # in particular, cycles, partitions and containRoot
 # fixit: need to add check on identification of bad diamonds, triangles
 # and correct computation of gammaz
-function checkNet(net::HybridNetwork)
+# light=true: it will not collapse with nodes with 2 edges, will return a flag of true
+function checkNet(net::HybridNetwork, light::Bool)
     DEBUG && println("checking net")
     net.numHybrids == length(net.hybrid) || error("discrepant number on net.numHybrids (net.numHybrids) and net.hybrid length $(length(net.hybrid))")
     net.numTaxa == length(net.leaf) || error("discrepant number on net.numTaxa (net.numTaxa) and net.leaf length $(length(net.leaf))")
@@ -885,7 +886,7 @@ function checkNet(net::HybridNetwork)
     net.numEdges == length(net.edge) || error("discrepant number on net.numEdges (net.numEdges) and net.edge length $(length(net.edge))")
     for(h in net.hybrid)
         if(isBadTriangle(h))
-            warn("hybrid $(h.number) is very bad triangle")
+            DEBUG && println("hybrid $(h.number) is very bad triangle")
             net.hasVeryBadTriangle || error("hybrid node $(h.number) is very bad triangle, but net.hasVeryBadTriangle is $(net.hasVeryBadTriangle)")
             h.isVeryBadTriangle || h.isExtBadTriangle || error("hybrid node $(h.number) is very bad triangle but it does not know it")
         end
@@ -932,11 +933,23 @@ function checkNet(net::HybridNetwork)
         if(n.leaf)
             length(n.edge) == 1 || error("leaf $(n.number) with $(length(n.edge)) edges instead of 1")
         else
-            length(n.edge) == 3 || error("node $(n.number) with $(length(n.edge)) edges instead of 3")
+            if(light)
+                if(length(n.edge) != 3)
+                    DEBUG && warn("node $(n.number) with $(length(n.edge)) edges instead of 3")
+                    return true
+                end
+            else
+                length(n.edge) == 3 || error("node $(n.number) with $(length(n.edge)) edges instead of 3")
+            end
         end
     end
     DEBUG && println("no errors in checking net")
+    if(light)
+        return false
+    end
 end
+
+checkNet(net::HybridNetwork) = checkNet(net, false)
 
 # function to print everything for a given net
 function printEverything(net::HybridNetwork)

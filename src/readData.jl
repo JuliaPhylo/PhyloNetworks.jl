@@ -382,34 +382,53 @@ end
 # function to create descriptive stat from input data, will save in stream sout
 # which can be a file or STDOUT
 # default: send to STDOUT
-function descData(d::DataCF, sout::IO)
-    write(sout,"DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
+# pc: only 4-taxon subsets with percentage of gene trees less than pc will be printed (default 70%)
+function descData(d::DataCF, sout::IO, pc::Float64)
+    0<=pc<=1 || error("percentage of missing genes should be between 0,1, not: $(pc)")
     if(!isempty(d.tree))
+        print(sout,"DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) 4-taxon subsets\n")
         taxaTreesQuartets(d.tree,d.quartet,sout)
-        write(sout,"----------------------------\n\n")
+        print(sout,"----------------------------\n\n")
         for q in d.quartet
-            write(sout,"Quartet $(q.number) obsCF constructed with $(q.numGT) gene trees ($(round(q.numGT/d.numTrees*100,2))%)\n")
+            percent  = round(q.numGT/d.numTrees*100,2)
+            print(sout,"will below print only the 4-taxon subsets with $(round((pc)*100,2))% or less genes\n")
+            if(percent < pc)
+                print(sout,"4-taxon subset $(q.number) obsCF constructed with $(q.numGT) gene trees ($(percent)%)\n")
+            end
         end
-        write(sout,"----------------------------\n\n")
+        print(sout,"----------------------------\n\n")
     else
         if(!isempty(d.quartet))
+            print(sout,"DATA: data consists of $(d.numQuartets) 4-taxon subsets")
             taxa=unionTaxa(d.quartet)
-            write(sout,"\nTaxa: $(taxa)\n")
-            write(sout,"Number of Taxa: $(length(taxa))\n")
+            print(sout,"\nTaxa: $(taxa)\n")
+            print(sout,"Number of Taxa: $(length(taxa))\n")
             numQ = binom(length(taxa),4);
-            write(sout,"Maximum number of quartets: $(numQ). Thus, $(100*d.numQuartets/numQ) percent of quartets sampled\n")
+            print(sout,"Maximum number of 4-taxon subsets: $(numQ). Thus, $(100*d.numQuartets/numQ) percent of 4-taxon subsets sampled\n")
         end
     end
 end
 
-function descData(d::DataCF, filename::String)
+function descData(d::DataCF, filename::String,pc::Float64)
     println("DATA: printing descriptive stat of input data in file $(filename)")
     s = open(filename, "w")
-    descData(d,s)
+    descData(d,s,pc)
     close(s)
 end
 
-descData(d::DataCF) = descData(d, STDOUT)
+descData(d::DataCF, sout::IO) = descData(d, sout,0.7)
+descData(d::DataCF) = descData(d, STDOUT,0.7)
+descData(d::DataCF,pc::Float64) = descData(d, STDOUT,pc)
+descData(d::DataCF, filename::String) = descData(d, filename,0.7)
+
+function summarizeDataCF(d::DataCF; filename="none"::String, pc=0.7::Float64)
+    0<=pc<=1 || error("percentage of missing genes should be between 0,1, not: $(pc)")
+    if(filename == "none")
+        descData(d,STDOUT,pc)
+    else
+        descData(d,filename,pc)
+    end
+end
 
 # ------------------ read starting tree from astral and put branch lengths ------------------------------
 

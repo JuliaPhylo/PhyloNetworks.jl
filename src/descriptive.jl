@@ -9,11 +9,11 @@ end
 # resolve=true, a branch of length=0 is
 # added if node is internal if node is leaf, root(net,outgroup) is
 # called, so a new node is created on external edge
-function root(net::HybridNetwork, node::Node, resolve::Bool)
+function root!(net::HybridNetwork, node::Node, resolve::Bool)
     node.hybrid && error("node $(node.number) is hybrid, cannot root network on a hybrid node")
     if(node.leaf)
         warn("node $(node.number) is a leaf, so we will root as an outgroup if possible")
-        root(net,node.name)
+        root!(net,node.name)
     else
         if(!isTree(net))
             if(!net.cleaned)
@@ -41,17 +41,17 @@ function root(net::HybridNetwork, node::Node, resolve::Bool)
     end
 end
 
-function root(net::HybridNetwork, nodeNum::Int64, resolve::Bool)
+function root!(net::HybridNetwork, nodeNum::Int64, resolve::Bool)
     try
         ind = getIndexNode(nodeNum,net)
     catch
         error("cannot set node $(nodeNum) as root because it is not part of net")
     end
     ind = getIndexNode(nodeNum,net)
-    root(net,net.node[ind],resolve)
+    root!(net,net.node[ind],resolve)
 end
 
-root(net::HybridNetwork, nodeNum::Int64) = root(net, nodeNum, false)
+root!(net::HybridNetwork, nodeNum::Int64) = root!(net, nodeNum, false)
 
 # function to resolve an internal node for root function
 function resolve!(net::HybridNetwork, node::Node)
@@ -134,7 +134,7 @@ end
 
 # function to root a network on an outgroup
 # (single taxon)
-function root(net::HybridNetwork, outgroup::String)
+function root!(net::HybridNetwork, outgroup::String)
     if(!isTree(net))
         if(!net.cleaned)
             DEBUG && println("net not cleaned inside root, need to run updateCR")

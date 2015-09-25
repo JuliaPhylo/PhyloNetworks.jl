@@ -8,5 +8,5 @@ function generalExport(file;filename="genImage"::String,layoutEngine="dot")
   open("$filename.svg","w") do f
     GraphViz.writemime(f, MIME"image/svg+xml"(),dot)
   end #do
-  print("File saved")
+  DEBUG && print("File saved")
 end

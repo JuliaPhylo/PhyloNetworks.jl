@@ -114,11 +114,11 @@ function plotPhylonet(graph::Network;                      #Network object you a
     write(dotIo," \n")
   end #if internalLabels else
 
-  println("Preamble written!")
+  DEBUG && println("Preamble written!")
   #********************************************************************************************************************
   #Drawing edges and nodes
 
-  println("Drawing nodes and edges")
+  DEBUG && println("Drawing nodes and edges")
 
   dummy = Edge(-1,1.0)      #dummy edge used to begin recursion because net.root does not have a parent edge
 
@@ -131,12 +131,12 @@ function plotPhylonet(graph::Network;                      #Network object you a
   #Writes closing lines to .dot file and closes the IO stream
   write(dotIo,"}")
   close(dotIo)
-  println("Final lines written and IO stream has been closed")
+  DEBUG && println("Final lines written and IO stream has been closed")
 
   #********************************************************************************************************************
 
   #Converts .dot file into .svg image
-  print("Exporting .dot file as .svg")
+  print("Exporting .dot file as .svg with image name $(imageName)")
   generalExport("$imageName.dot",filename="$imageName",layoutEngine=layoutStyle)
 
 end
