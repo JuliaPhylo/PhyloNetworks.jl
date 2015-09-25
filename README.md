@@ -47,7 +47,7 @@ To install the package, type inside Julia:
 Pkg.clone("https://github.com/crsl4/PhyloNetworks.git")
 Pkg.build("PhyloNetworks")
 ```
-The first step can take a few minutes, be patient. If you already installed the package and want 
+The first step can take a few minutes, be patient. If you already installed the package and want
 the latest version, just do this (which will update all of your packages):
 ```julia
 Pkg.update()
@@ -139,22 +139,20 @@ To estimate the network using the input data
 net1=snaq(T,d);
 net2=snaq(T,d,hmax=2);
 ```
-Make sure to have the semicolon (;) at the end, to avoid much useless output 
+Make sure to have the semicolon (;) at the end, to avoid much useless output
 to the screen!
 The option *hmax* corresponds to the maximum number of hybridizations allowed,
 1 by default.
 
 The estimation function creates a .out file (snaq.out by default) with the estimated
-network in parenthetical format, which you can also print directly to the screen like this:  
+network in parenthetical format, which you can also print directly to the screen like this:
 ```julia
 writeTopology(net1)
 writeTopology(net1,di=true)
 ```
-The option *di=true* is for the parenthetical format used by 
+The option *di=true* is for the parenthetical format used by
 [Dendroscope](dendroscope.org) (without reticulation heritabilities).
-Copy this parenthetical description and paste it into Dendroscope. 
-For all the available options for
-this function, refer to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf).
+Copy this parenthetical description and paste it into Dendroscope.
 
 <!--#### Network Visualization
 To visualize the network:
@@ -173,9 +171,10 @@ WARNING: on Mac computers, sometimes the function cannot be called directly some
 ```julia
 PhyloNetworks.plotPhylonet(net)
 ```
+-->
 
 For a list of all the functions in the PhyloNetworks package, and all the options on the SNaQ function, refer to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf).
--->
+
 
 #### Debugging: the .err file
 Please report any bugs and errors to *claudia@stat.wisc.edu*. The easiest way to do it is by checking the .err file which will show the number of runs that failed by a bug and the corresponding seed to replicate the run. This is an example of what the .err file looks like:

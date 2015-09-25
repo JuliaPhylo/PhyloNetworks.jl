@@ -13,9 +13,9 @@ and checkQnet
 
 4. include documentation: by Docile package, pdf and iJulia notebook maybe
 
-###IMPROVEMENTS 
+###IMPROVEMENTS
 
-I had two ideas in mind: 
+I had two ideas in mind:
 
 1) help develop more functions for the julia package: extract the
 trees compatible with a network, extract the main tree, distance
@@ -37,6 +37,10 @@ you. I have not read carefully, but they claim that the moves the
 propose would help search the space of networks more efficiently.
 
 2.3) the paralellization
+
+Something that can also improve the search is accepting networks with
+lower p-lik with a certain probability, this probability can decrease
+as the search evolves.
 
 
 ###VERSIONS

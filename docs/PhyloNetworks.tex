@@ -416,14 +416,19 @@ attributes:
 readInputTrees(filename)
 \end{lstlisting}
 
-\item \textbf{descData:} takes as input a data structure \texttt{DataCF} (from
+\item \textbf{summarizeCFdata:} takes as input a data structure \texttt{DataCF} (from
   previous functions) and provides a few descriptive information. By
   default, it prints the information on the screen, but it can be
-  saved to a file.\\
+  saved to a file. The option \textit{pc} is used only when CF were
+  computed from a collection of gene trees: CF for 4-taxon subsets
+  that were computed with less than \textit{pc} percentage of the gene
+  trees will be listed. The option \textit{pc} should be a number
+  between 0 and 1.\\
 Usage:
 \begin{lstlisting}
-descData(d)
-descData(d,filename)
+summarizeCFdata(d)
+summarizeCFdata(d,filename)
+summarizeCFdata(d,filename,pc)
 \end{lstlisting}
 
 \item \textbf{readStartTop:} read a tree in parenthetical format from
@@ -512,7 +517,10 @@ network at the end
   place. At the beginning of every run, a biased coin is thrown so
   that with probability \textit{probST}, the starting topology is not
   changed and with probability \textit{1-probST}, an NNI move is
-  performed on the starting topology.
+  performed on the starting topology. If on top the starting topology
+  is a network, a second biased coin is flipped with the same
+  probability so that with probabiliy \textit{1-probST} we propose
+  half the times move origin or and half the times move target.
 \end{itemize}
 
 WARNING: the method does not currently have a way to control for the
