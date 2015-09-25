@@ -1309,6 +1309,7 @@ function optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         currT = deepcopy(currT0);
         suc = NNIRepeat!(currT,10); #will try 10 attempts to do an nni move, if set to 1, hard to find it depending on currT
         suc && write(logfile,"\n changed starting topology by NNI move")
+        suc && print(STDOUT,"\n changed starting topology by NNI move")
         if(!isTree(currT0))
             if(rand() < 1-probST) # modify starting network by mvorigin, mvtarget with equal prob
                 currT = deepcopy(currT0);
@@ -1322,9 +1323,11 @@ function optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
                 if(rand()<0.5)
                     suc = moveOriginUpdateRepeat!(currT0,net.hybrid[ind],true)
                     suc && write(logfile,"\n changed starting network by move origin")
+                    suc && print(STDOUT,"\n changed starting network by move origin")
                 else
                     suc = moveTargetUpdateRepeat!(currT0,net.hybrid[ind],true)
                     suc && write(logfile,"\n changed starting network by move target")
+                    suc && print(STDOUT,"\n changed starting network by move target")
                 end
 
             end
