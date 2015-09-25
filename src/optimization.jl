@@ -69,7 +69,9 @@ end
 # warning: assumes net.numht is updated already with parameters!(net)
 function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
     size(net.numht,1) > 0 || error("net.numht not correctly updated, need to run parameters first")
-    DEBUG && size(qnet.indexht,1) == 0 ||  println("deleting qnet.indexht to replace with info in net")
+    if(DEBUG)
+        size(qnet.indexht,1) == 0 ||  println("deleting qnet.indexht to replace with info in net")
+    end
     nh = net.numht[1 : net.numHybrids - net.numBad]
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
     nt = net.numht[net.numHybrids - net.numBad + 1 : net.numHybrids - net.numBad + k]
