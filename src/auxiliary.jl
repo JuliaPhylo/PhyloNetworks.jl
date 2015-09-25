@@ -760,7 +760,9 @@ function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool, read::Bool
     edge.isChild1 ? ind = 1 : ind = 2 ; # hybrid edge pointing at node 1 or 2
     node = edge.node[ind]
     node.hybrid || warn("hybrid edge $(edge.number) not pointing at hybrid node")
-    !node.isBadDiamondI || warn("bad diamond situation: gamma not identifiable")
+    if(DEBUG)
+        !node.isBadDiamondI || warn("bad diamond situation: gamma not identifiable")
+    end
     if(!read)
         edges = hybridEdges(node,edge)
         length(edges) == 2 || error("strange here: node $(node.number) should have 3 edges and it has $(length(edges)+1).")

@@ -1289,7 +1289,7 @@ function logPseudoLik(quartet::Quartet)
     suma = 0
     for(i in 1:3)
         if(quartet.qnet.expCF[i] < 0)
-            println("found expCF negative $(quartet.qnet.expCF[i]), will set loglik=-1.e15")
+            DEBUG && println("found expCF negative $(quartet.qnet.expCF[i]), will set loglik=-1.e15")
             suma += -1.e15
         else
             suma += quartet.obsCF[i] == 0 ? 0.0 : 100*quartet.obsCF[i]*log(quartet.qnet.expCF[i]/quartet.obsCF[i])

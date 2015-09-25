@@ -1221,7 +1221,9 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             tic();
         end
         write(logfile,"\nseed: $(seeds[i]) for run $(i)")
-        print(STDOUT,"\nseed: $(seeds[i]) for run $(i)")
+        if(i<runs)
+            print(STDOUT,"\nseed: $(seeds[i]) for run $(i)")
+        end
         flush(logfile)
         gc();
         try

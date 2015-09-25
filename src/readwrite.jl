@@ -807,7 +807,7 @@ writeTopology(net::HybridNetwork; di=false::Bool, string=true::Bool, names=true:
 function updateRoot!(net::HybridNetwork, outgroup::String)
     checkroot = false
     if(outgroup == "none")
-        println("no outgroup defined")
+        DEBUG && println("no outgroup defined")
         checkroot = true
     else
         println("outgroup defined $(outgroup)")
