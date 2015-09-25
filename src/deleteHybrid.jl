@@ -135,7 +135,7 @@ end
 #          it is not identifiable like in bad diamond I (assumes undone by now)
 function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bool, blacklist::Bool)
     hybrid.hybrid || error("node $(hybrid.number) is not hybrid, so we cannot delete hybridization event around it")
-    println("MOVE: delete hybridization on hybrid node $(hybrid.number)")
+    DEBUG && println("MOVE: delete hybridization on hybrid node $(hybrid.number)")
     nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,hybrid);
     !nocycle || error("the hybrid node $(hybrid.number) does not create a cycle")
     edgesRoot = identifyContainRoot(net,hybrid);
