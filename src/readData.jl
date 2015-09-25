@@ -391,10 +391,9 @@ function descData(d::DataCF, sout::IO, pc::Float64)
         print(sout,"----------------------------\n\n")
         print(sout,"will below print only the 4-taxon subsets with $(round((pc)*100,2))% or less genes\n")
         for q in d.quartet
-            print(sout,"4-taxon subset: $(q.taxon)")
             percent  = round(q.numGT/d.numTrees*100,2)
             if(percent < pc)
-                print(sout,"4-taxon subset $(q.number) obsCF constructed with $(q.numGT) gene trees ($(percent)%)\n")
+                print(sout,"4-taxon subset $(q.taxon) obsCF constructed with $(q.numGT) gene trees ($(percent)%)\n")
             end
         end
         print(sout,"----------------------------\n\n")
