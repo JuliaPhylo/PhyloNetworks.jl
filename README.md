@@ -1,3 +1,4 @@
+![alt text](http://pages.stat.wisc.edu/~claudia/Images/snaq.png)
 #PhyloNetworks: analysis for phylogenetic networks in [Julia](http://julialang.org)
 ## Maximum pseudolikelihood estimation of species network: SNaQ
 
