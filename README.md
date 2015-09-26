@@ -186,12 +186,12 @@ For a list of all the functions in the PhyloNetworks package, and all the option
 ##### Optimizing branch lengths and inheritance probabilities for a given network
 For a given network, you can optimize the branch lengths and
 inheritance probabilities with the pseudolikelihood. Minus the logarithm of the
-pseudolikelihood value for the network will be stored in the
-attribute: *net.loglik* or it will be printed to screen if the function is added the third parameter as true:
+pseudolikelihood value for the network will be printed to the screen.
 ```julia
 optBL!(net,d)
-optBL!(net,d,true)
 ```
+This is in particular useful if the user has a some network alternatives to test out individually and choose the 
+
 
 #### Debugging: the .err file
 Please report any bugs and errors to *claudia@stat.wisc.edu*. The easiest way to do it is by checking the .err file which will show the number of runs that failed by a bug and the corresponding seed to replicate the run. This is an example of what the .err file looks like:
