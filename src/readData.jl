@@ -389,7 +389,7 @@ function descData(d::DataCF, sout::IO, pc::Float64)
         print(sout,"DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) 4-taxon subsets\n")
         taxaTreesQuartets(d.tree,d.quartet,sout)
         print(sout,"----------------------------\n\n")
-        print(sout,"will below print only the 4-taxon subsets with $(round((pc)*100,2))% or less genes\n")
+        print(sout,"will print below only the 4-taxon subsets with data from <= $(round((pc)*100,2))% genes\n")
         for q in d.quartet
             percent  = round(q.numGT/d.numTrees*100,2)
             if(percent < pc)

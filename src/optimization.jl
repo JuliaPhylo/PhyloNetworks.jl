@@ -987,6 +987,8 @@ function printCounts(movescount::Vector{Int64}, movesgamma::Vector{Int64},s::IOS
     for(i in 1:6)
         if(i == 2 || i == 3)
             print(s,"$(names[i])\t $(movescount[i])\t\t $(movescount[i+6])\t\t $(movescount[i+12])\t |\t $(movesgamma[i])\t\t $(movesgamma[i+6])\t\t --\n")
+        elseif(i == 1)
+            print(s,"$(names[i])\t\t $(movescount[i])\t\t $(movescount[i+6])\t\t $(movescount[i+12])\t |\t NA \t\t NA \t\t NA \n")
         else
             print(s,"$(names[i])\t\t $(movescount[i])\t\t $(movescount[i+6])\t\t $(movescount[i+12])\t |\t $(movesgamma[i])\t\t $(movesgamma[i+6])\t\t --\n")
         end
@@ -994,7 +996,7 @@ function printCounts(movescount::Vector{Int64}, movesgamma::Vector{Int64},s::IOS
     suma = sum(movescount[7:12]);
     suma2 = sum(movesgamma[7:12]) == 0 ? 1 : sum(movesgamma[7:12])
     print(s,"Total\t\t $(sum(movescount[1:6]))\t\t $(sum(movescount[7:12]))\t\t $(sum(movescount[13:18]))\t |\t $(sum(movesgamma[1:6]))\t\t $(sum(movesgamma[7:12]))\t\t $(movesgamma[13])\n")
-    print(s,"Proportion\t $(round(sum(movescount[1:6])/suma,1))\t\t $(round(sum(movescount[7:12])/suma,1))\t\t $(round(sum(movescount[13:18])/suma,1))\t |\t $(round(sum(movesgamma[1:6])/suma2,1))\t\t $(round(sum(movesgamma[7:12])/suma2,1))\t\t $(round(movesgamma[13]/suma2,1))\n")
+    print(s,"Proportion\t -- \t\t $(round(sum(movescount[7:12])/suma,1))\t\t $(round(sum(movescount[13:18])/suma,1))\t |\t -- \t\t $(round(sum(movesgamma[7:12])/suma2,1))\t\t $(round(movesgamma[13]/suma2,1))\n")
 end
 
 printCounts(movescount::Vector{Int64}, movesgamma::Vector{Int64}) = printCounts(movescount, movesgamma,STDOUT)
@@ -1187,15 +1189,15 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     juliaout = string(rootname,".out")
 
     # print to logfile
-    write(logfile,"optimization of topology and BL for hmax = $(hmax), and tolerance parameters: ftolRel=$(ftolRel), ftolAbs= $(ftolAbs), xtolAbs= $(xtolAbs), xtolRel= $(xtolRel). Max number of failed proposals is $(Nfail), and multiplier M is $(M).")
-    write(logfile,"\n Outgroup defined as $(outgroup) and rootname for files $(rootname)")
+    write(logfile,"optimization of topology, BL and inheritance probabilities\n using hmax = $(hmax), \ntolerance parameters: ftolRel=$(ftolRel), ftolAbs= $(ftolAbs), \nxtolAbs= $(xtolAbs), xtolRel= $(xtolRel). \nMax number of failed proposals is $(Nfail), multiplier M is $(M).")
+    write(logfile,"\n Outgroup: $(outgroup) (for rooting at the final step) \nrootname for files: $(rootname)")
     write(logfile,"\nBEGIN: $(runs) runs on starting tree $(writeTopology(currT0))")
     write(logfile,"\n$(strftime(time()))")
     flush(logfile)
 
     # and print to screen
-    print(STDOUT,"optimization of topology and BL for hmax = $(hmax), and tolerance parameters: ftolRel=$(ftolRel), ftolAbs= $(ftolAbs), xtolAbs= $(xtolAbs), xtolRel= $(xtolRel). Max number of failed proposals is $(Nfail), and multiplier M is $(M).")
-    print(STDOUT,"\n Outgroup defined as $(outgroup) and rootname for files $(rootname)")
+    print(STDOUT,"optimization of topology, BL and inheritance probabilities\n using hmax = $(hmax), \ntolerance parameters: ftolRel=$(ftolRel), ftolAbs= $(ftolAbs), \nxtolAbs= $(xtolAbs), xtolRel= $(xtolRel). \nMax number of failed proposals is $(Nfail), multiplier M is $(M).")
+    print(STDOUT,"\n Outgroup:$(outgroup) (for rooting at the final step) \nrootname for files: $(rootname)")
     print(STDOUT,"\nBEGIN: $(runs) runs on starting tree $(writeTopology(currT0))")
     print(STDOUT,"\n$(strftime(time()))")
 
@@ -1260,8 +1262,8 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
 
 
     if(maxNet.loglik < 1.e15)
-        write(logfile,"\nMaxNet is $(writeTopology(maxNet,true)) with -loglik $(maxNet.loglik)")
-        print(STDOUT,"\nMaxNet is $(writeTopology(maxNet,true)) with -loglik $(maxNet.loglik)")
+        write(logfile,"\nMaxNet is $(writeTopology(maxNet,true)) \nwith -loglik $(maxNet.loglik)")
+        print(STDOUT,"\nMaxNet is $(writeTopology(maxNet,true)) \nwith -loglik $(maxNet.loglik)")
         s = open(juliaout,"w")
         if(outgroup == "none")
             write(s,writeTopology(maxNet)) #no outgroup

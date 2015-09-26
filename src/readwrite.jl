@@ -520,7 +520,7 @@ function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
         end
         if(!n.hybrid)
             if(size(n.edge,1) > 3)
-                warn("polytomy found in node $(n.number), random resolution chosen")
+                DEBUG && warn("polytomy found in node $(n.number), random resolution chosen")
                 solvePolytomy!(net,n);
             end
             hyb = sum([e.hybrid?1:0 for e in n.edge]);

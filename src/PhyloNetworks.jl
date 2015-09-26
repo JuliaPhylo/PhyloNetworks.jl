@@ -16,20 +16,21 @@ readTopology,
 readTopologyLevel1,
 tipLabels,
 writeTopology,
-deleteLeaf,
+deleteLeaf!,
 printEdges,
 printNodes,
 readTrees2CF,
 readTableCF,
 readInputTrees,
-descData,
+summarizeDataCF,
 readStartTop,
 snaq,
 readSnaqNetwork,
 snaqDebug,
+root!,
 plotPhylonet,
-generalExport, #for graphviz test
-root
+generalExport #for graphviz test
+
 
 # export part
 
