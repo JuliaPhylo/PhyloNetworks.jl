@@ -1,6 +1,6 @@
-![alt text](http://pages.stat.wisc.edu/~claudia/Images/snaq.png)
 #PhyloNetworks: analysis for phylogenetic networks in [Julia](http://julialang.org)
 ## Maximum pseudolikelihood estimation of species network: SNaQ
+![alt text](http://pages.stat.wisc.edu/~claudia/Images/snaq.png)
 
 SNaQ implements the statistical inference method in [Sol&iacute;s-Lemus and
 An&eacute;](http://arxiv.org/pdf/1509.06075.pdf). The procedure involves a
