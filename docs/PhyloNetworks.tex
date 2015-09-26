@@ -569,6 +569,17 @@ number of iterations needed for the algorithm to converge, the value
 of the likelihood for the estimated network, and the
 number of moves proposed and accepted.
 
+\subsection{Optimizing branch lengths and inheritance probabilities
+  for a given network}
+For a given network, you can optimize the branch lengths and
+inheritance probabilities with the pseudolikelihood. Minus the logarithm of the
+pseudolikelihood value for the network will be stored in the
+attribute: \texttt{net.loglik} or it will be printed to screen if the function is added the third parameter as true:
+\begin{lstlisting}
+optBL!(net,d)
+optBL!(net,d,true)
+\end{lstlisting}
+
 
 \subsection{Debugging: the .err file}
 \texttt{SNaQ} is a complex computational algorithm, so despite our

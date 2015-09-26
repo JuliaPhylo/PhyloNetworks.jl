@@ -27,6 +27,7 @@ readStartTop,
 snaq,
 readSnaqNetwork,
 snaqDebug,
+optBL!,
 root!,
 plotPhylonet,
 generalExport #for graphviz test

@@ -53,6 +53,13 @@ the latest version, just do this (which will update all of your packages):
 ```julia
 Pkg.update()
 ```
+WARNING: It is important to udpate the package regularly as it is undergoing constant development. There is a known bug for Mac users where the *Pkg.update* function does not update to the latest version. We recommend Mac users to do the following through the terminal:
+```shell
+cd HOME/.julia/v0.3/PhyloNetworks/
+git pull
+```
+where HOME is replaced by your home directory and v0.3 could be replaced by v0.4 if you have version 0.4 of Julia.
+
 The PhyloNetworks package has the following dependencies, but everything is installed automatically.
 
 - GraphViz (version 0.0.3)
@@ -176,6 +183,15 @@ PhyloNetworks.plotPhylonet(net)
 
 For a list of all the functions in the PhyloNetworks package, and all the options on the SNaQ function, refer to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf).
 
+##### Optimizing branch lengths and inheritance probabilities for a given network
+For a given network, you can optimize the branch lengths and
+inheritance probabilities with the pseudolikelihood. Minus the logarithm of the
+pseudolikelihood value for the network will be stored in the
+attribute: *net.loglik* or it will be printed to screen if the function is added the third parameter as true:
+```julia
+optBL!(net,d)
+optBL!(net,d,true)
+```
 
 #### Debugging: the .err file
 Please report any bugs and errors to *claudia@stat.wisc.edu*. The easiest way to do it is by checking the .err file which will show the number of runs that failed by a bug and the corresponding seed to replicate the run. This is an example of what the .err file looks like:
@@ -189,6 +205,8 @@ const DEBUG = true
 const REDIRECT = true
 snaqDebug(T,d,hmax=2,seed=4545)
 ```
+
+
 
 
 This will create two files:
