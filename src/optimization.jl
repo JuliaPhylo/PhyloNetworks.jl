@@ -1190,14 +1190,14 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
 
     # print to logfile
     write(logfile,"optimization of topology, BL and inheritance probabilities\n using hmax = $(hmax), \ntolerance parameters: ftolRel=$(ftolRel), ftolAbs= $(ftolAbs), \nxtolAbs= $(xtolAbs), xtolRel= $(xtolRel). \nMax number of failed proposals is $(Nfail), multiplier M is $(M).")
-    write(logfile,"\n Outgroup: $(outgroup) (for rooting at the final step) \nrootname for files: $(rootname)")
+    write(logfile,"\nOutgroup: $(outgroup) (for rooting at the final step) \nrootname for files: $(rootname)")
     write(logfile,"\nBEGIN: $(runs) runs on starting tree $(writeTopology(currT0))")
     write(logfile,"\n$(strftime(time()))")
     flush(logfile)
 
     # and print to screen
     print(STDOUT,"optimization of topology, BL and inheritance probabilities\n using hmax = $(hmax), \ntolerance parameters: ftolRel=$(ftolRel), ftolAbs= $(ftolAbs), \nxtolAbs= $(xtolAbs), xtolRel= $(xtolRel). \nMax number of failed proposals is $(Nfail), multiplier M is $(M).")
-    print(STDOUT,"\n Outgroup:$(outgroup) (for rooting at the final step) \nrootname for files: $(rootname)")
+    print(STDOUT,"\nOutgroup: $(outgroup) (for rooting at the final step) \nrootname for files: $(rootname)")
     print(STDOUT,"\nBEGIN: $(runs) runs on starting tree $(writeTopology(currT0))")
     print(STDOUT,"\n$(strftime(time()))")
 
@@ -1311,7 +1311,6 @@ function optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         currT = deepcopy(currT0);
         suc = NNIRepeat!(currT,10); #will try 10 attempts to do an nni move, if set to 1, hard to find it depending on currT
         suc && write(logfile,"\n changed starting topology by NNI move")
-        suc && print(STDOUT,"\n changed starting topology by NNI move")
         if(!isTree(currT0))
             if(rand() < 1-probST) # modify starting network by mvorigin, mvtarget with equal prob
                 currT = deepcopy(currT0);
