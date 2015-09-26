@@ -1222,9 +1222,9 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         if(i == 2) #the first run is the slowest
             tic();
         end
-        write(logfile,"\nseed: $(seeds[i]) for run $(i)")
+        write(logfile,"\nseed: $(seeds[i]) for run $(i)\n")
         if(i<runs)
-            print(STDOUT,"\nseed: $(seeds[i]) for run $(i)")
+            print(STDOUT,"\nseed: $(seeds[i]) for run $(i)\n")
         end
         flush(logfile)
         gc();
