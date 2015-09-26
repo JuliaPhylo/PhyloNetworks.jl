@@ -53,7 +53,7 @@ the latest version, just do this (which will update all of your packages):
 ```julia
 Pkg.update()
 ```
-WARNING: It is important to udpate the package regularly as it is undergoing constant development. There is a known bug for Mac users where the *Pkg.update* function does not update to the latest version. We recommend Mac users to do the following through the terminal:
+WARNING: It is important to update the package regularly as it is undergoing constant development. There is a known bug for Mac users where the *Pkg.update* function does not update to the latest version. We recommend Mac users to do the following through the terminal:
 ```shell
 cd HOME/.julia/v0.3/PhyloNetworks/
 git pull
