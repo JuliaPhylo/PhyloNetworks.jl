@@ -135,7 +135,7 @@ update the branch lengths according to the CF already read in the data
 structure *d*, do this:
 ```julia
 T=readStartTop("startTree.tre",d);
-writeTopology(T);
+writeTopology(T)
 ```
 You can access this example file
 [here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/startTree.tre).
@@ -143,7 +143,7 @@ You can access this example file
 #### Network Estimation
 
 To estimate the network using the input data
-*d* and starting from network (or tree) *T*, do this:
+*d* and starting from tree (or network) *T*, do this:
 
 ```julia
 net1=snaq(T,d);
@@ -161,7 +161,7 @@ writeTopology(net1)
 writeTopology(net1,di=true)
 ```
 The option *di=true* is for the parenthetical format used by
-[Dendroscope](dendroscope.org) (without reticulation heritabilities).
+[Dendroscope](http://dendroscope.org/) (without reticulation heritabilities).
 Copy this parenthetical description and paste it into Dendroscope.
 
 <!--#### Network Visualization
