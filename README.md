@@ -1,6 +1,6 @@
 #PhyloNetworks: analysis for phylogenetic networks in [Julia](http://julialang.org)
 ## Maximum pseudolikelihood estimation of species network: SNaQ <img src="http://pages.stat.wisc.edu/~claudia/Images/snaq.png" align=right title="SNaQ logo" width=262.5 height=111>
-<!-- ![SNaQ logo](http://pages.stat.wisc.edu/~claudia/Images/snaq.png) 
+<!-- ![SNaQ logo](http://pages.stat.wisc.edu/~claudia/Images/snaq.png)
 original size: 525px × 222px-->
 
 
@@ -186,13 +186,14 @@ PhyloNetworks.plotPhylonet(net)
 For a list of all the functions in the PhyloNetworks package, and all the options on the SNaQ function, refer to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf).
 
 ##### Optimizing branch lengths and inheritance probabilities for a given network
-For a given network, you can optimize the branch lengths and
+For a given network topology, you can optimize the branch lengths and
 inheritance probabilities with the pseudolikelihood. Minus the logarithm of the
 pseudolikelihood value for the network will be printed to the screen.
 ```julia
-optBL!(net,d)
+topologyMaxQPseudolik!(net,d)
+topologyMaxQPseudolik!(net,d,verbose=true)
 ```
-This is in particular useful if the user has a some network alternatives to test out individually and choose the 
+This is in particular useful if the user has a some network alternatives to test out individually and choose the best in terms of the pseudolikelihood among them.
 
 
 #### Debugging: the .err file

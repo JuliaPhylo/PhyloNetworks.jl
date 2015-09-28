@@ -1275,6 +1275,21 @@ function calculateExpCFAll!(data::DataCF, x::Vector{Float64},net::HybridNetwork)
     end
 end
 
+# function to simply calculate the pseudolik of a given network
+function topologyQPseudolik!(net::HybridNetwork,d::DataCF; verbose=false::Bool)
+    extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
+    all([q.qnet.numTaxa != 0 for q in d.quartet]) || error("qnet in quartets on data are not correctly updated with extractQuartet")
+    for(q in d.quartet)
+        (DEBUG || verbose) && println("computing expCF for quartet $(q.taxon)")
+        qnet = deepcopy(q.qnet);
+        calculateExpCFAll!(qnet);
+        q.qnet.expCF = qnet.expCF
+        (DEBUG || verbose) && println("$(qnet.expCF)")
+    end
+    val = logPseudoLik(d)
+    return val
+end
+
 
 # ---------------------------- Pseudolik for a quartet -------------------------
 

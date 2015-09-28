@@ -324,6 +324,10 @@ optBL!(net::HybridNetwork, d::DataCF) = optBL!(net, d, false, fRel, fAbs, xRel, 
 optBL!(net::HybridNetwork, d::DataCF, verbose::Bool) = optBL!(net, d,verbose, fRel, fAbs, xRel, xAbs)
 optBL!(net::HybridNetwork, d::DataCF, ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64) = optBL!(net, d, false, ftolRel, ftolAbs, xtolRel, xtolAbs)
 
+# rename optBL for a more user-friendly name
+function topologyMaxQPseudolik!(net::HybridNetwork, d::DataCF; verbose=false::Bool, ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
+    optBL!(net, d, verbose, ftolRel, ftolAbs, xtolRel,xtolAbs)
+end
 
 # function to delete a hybrid, and then add a new hybrid:
 # deleteHybridizationUpdate and addHybridizationUpdate,

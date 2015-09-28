@@ -571,14 +571,26 @@ number of moves proposed and accepted.
 
 \subsection{Optimizing branch lengths and inheritance probabilities
   for a given network}
-For a given network, you can optimize the branch lengths and
-inheritance probabilities with the pseudolikelihood. Minus the logarithm of the
-pseudolikelihood value for the network will be stored in the
-attribute: \texttt{net.loglik} or it will be printed to screen if the function is added the third parameter as true:
-\begin{lstlisting}
-optBL!(net,d)
-optBL!(net,d,true)
-\end{lstlisting}
+\begin{itemize}
+\item \textbf{topologyMaxQPseudolik:} For a given network, you can
+  optimize the branch lengths and inheritance probabilities with the
+  pseudolikelihood. Minus the logarithm of the pseudolikelihood value
+  for the network will be stored in the attribute: \texttt{net.loglik}
+  and it will be printed to screen. The option \texttt{verbose} will
+  print the iterations to the screen. The user can also define the
+  absolute and relative tolerance with the same options as described
+  before for the \texttt{snaq} function.
+  \\
+  Usage:
+  \begin{lstlisting}
+    topologyMaxQPseudolik!(net,d)
+    topologyMaxQPseudolik!(net,d,verbose=true)
+  \end{lstlisting}
+\end{itemize}
+This function is useful to compare the pseudolikelihood of different
+network alternatives, and choose the best one among them.
+
+There is
 
 
 \subsection{Debugging: the .err file}
