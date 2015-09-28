@@ -38,7 +38,7 @@ writeObsCF(d::DataCF) = writeObsCF(d.quartet)
 
 # function that takes a dataframe and creates a DataCF object
 function readTableCF(df::DataFrame)
-    println("assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network")
+    DEBUG && println("assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network")
     size(df,2) == 7 || warn("Dataframe should have 7 columns: 4taxa, 3CF, will ignore columns from 8th on")
     quartets = Quartet[]
     for(i in 1:size(df,1))
@@ -199,6 +199,20 @@ function sameTaxa(q::Quartet, t::HybridNetwork)
     end
     return true
 end
+
+# function to check if taxa in all quartets is in tree t
+function sameTaxa(quartets::Vector{Quartet}, t::HybridNetwork)
+    suc = true
+    for(q in quartets)
+        for name in q.taxon
+            suc = in(name,t.names) ? true : false
+        end
+    end
+    return suc
+end
+
+sameTaxa(d::DataCF, t::HybridNetwork) = sameTaxa(d.quartet, t)
+
 
 # function to extract the union of taxa of list of gene trees
 function unionTaxa(trees::Vector{HybridNetwork})
