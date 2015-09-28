@@ -215,6 +215,13 @@ functions in every package. This is particulary important for the
 package \texttt{PhyloNetworks} since it is a new package under constant
 development.
 
+WARNING: There is a known bug for Mac users where the \texttt{Pkg.update} function does not update to the latest version. We recommend Mac users to do the following through the terminal:\\
+\texttt{
+cd HOME/.julia/v0.3/PhyloNetworks/ \\
+git pull
+}
+\\where HOME is replaced by your home directory and v0.3 could be replaced by v0.4 if you have version 0.4 of Julia.
+
 \section{Description of main functions}
 Functions in \texttt{PhyloNetworks}:
 \begin{itemize}
@@ -586,11 +593,27 @@ number of moves proposed and accepted.
     topologyMaxQPseudolik!(net,d)
     topologyMaxQPseudolik!(net,d,verbose=true)
   \end{lstlisting}
-\end{itemize}
-This function is useful to compare the pseudolikelihood of different
-network alternatives, and choose the best one among them.
+  This function is useful to compare the pseudolikelihood of different
+  network alternatives, and choose the best one among them.
 
-There is
+\item \textbf{topologyQPseudolik:} For a given network with branch
+  lengths and inheritance probabilities, you can compute the
+  pseudolikelihood value without optimizing. This function is not
+  maximizing, it is simply computing the pseudolikelihood for the
+  given branch lenghts and probabilities of inheritance. It is
+  advisable though to maximize the pseudolikelihood even when branch
+  lengths and probabilities of inheritance are given. This is simply
+  because the optimization procedure is quite fast (so it does not
+  represent any computational burden) and it will provide a more
+  accurate pseudolikelihood value.
+  \\
+  Usage:
+  \begin{lstlisting}
+    topologyQPseudolik!(net,d)
+    topologyQPseudolik!(net,d,verbose=true)
+  \end{lstlisting}
+\end{itemize}
+
 
 
 \subsection{Debugging: the .err file}

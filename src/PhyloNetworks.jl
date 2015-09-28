@@ -28,6 +28,7 @@ snaq,
 readSnaqNetwork,
 snaqDebug,
 topologyMaxQPseudolik!,
+topologyQPseudolik!,
 root!,
 plotPhylonet,
 generalExport #for graphviz test

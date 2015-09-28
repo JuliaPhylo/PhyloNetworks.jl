@@ -1287,6 +1287,7 @@ function topologyQPseudolik!(net::HybridNetwork,d::DataCF; verbose=false::Bool)
         (DEBUG || verbose) && println("$(qnet.expCF)")
     end
     val = logPseudoLik(d)
+    (DEBUG || verbose) && println("the value of pseudolikelihood is $(val)")
     return val
 end
 

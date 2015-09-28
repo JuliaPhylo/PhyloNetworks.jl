@@ -190,11 +190,23 @@ For a given network topology, you can optimize the branch lengths and
 inheritance probabilities with the pseudolikelihood. Minus the logarithm of the
 pseudolikelihood value for the network will be printed to the screen.
 ```julia
-topologyMaxQPseudolik!(net,d)
-topologyMaxQPseudolik!(net,d,verbose=true)
+topologyMaxQPseudolik!(net1,d)
+topologyMaxQPseudolik!(net1,d,verbose=true)
 ```
-This is in particular useful if the user has a some network alternatives to test out individually and choose the best in terms of the pseudolikelihood among them.
+This is in particular useful if the user has some network alternatives to test out individually and choose the best in terms of the pseudolikelihood among them.
 
+For a given network with branch lengths, we can compute the pseudolikelihood with:
+```julia
+topologyQPseudolik!(net1,d)
+topologyQPseudolik!(net1,d,verbose=true)
+```
+This function is not maximizing, it is simply computing the
+pseudolikelihood for the given branch lenghts and probabilities of
+inheritance. It is advisable though to maximize the pseudolikelihood even
+when branch lengths and probabilities of inheritance are given. This
+is simply because the optimization procedure is quite fast (so it does
+not represent any computational burden) and it will provide a more
+accurate pseudolikelihood value.
 
 #### Debugging: the .err file
 Please report any bugs and errors to *claudia@stat.wisc.edu*. The easiest way to do it is by checking the .err file which will show the number of runs that failed by a bug and the corresponding seed to replicate the run. This is an example of what the .err file looks like:
