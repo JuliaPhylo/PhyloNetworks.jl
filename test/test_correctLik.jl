@@ -21,6 +21,7 @@ calculateExpCFAll!(d)
 lik = logPseudoLik(d)
 
 approxEq(lik,193.7812623319291) || error("not correct likelihood calculated with tree")
+println("passed tree example")
 
 estTree = snaq(currT,d,hmax=0,returnNet=true,seed=5454);
 
@@ -42,9 +43,10 @@ calculateExpCFAll!(d)
 lik = logPseudoLik(d)
 
 approxEq(lik,50.17161079450669) || error("not correct likelihood calculated with tree")
+println("passed computation of likelihood")
 
 estNet = snaq(currT,d,hmax=1,runs=1,returnNet=true,seed=5454);
 
-approxEq(estNet.loglik,0.0021628920163591636)  || error("not correct net estimated")
-
+0.00216 < estNet.loglik < 0.00217 || Base.error("not correct estimated network")
+println("passed estimation of net")
 
