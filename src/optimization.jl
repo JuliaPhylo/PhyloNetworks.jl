@@ -1194,17 +1194,25 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     juliaout = string(rootname,".out")
 
     # print to logfile
-    write(logfile,"optimization of topology, BL and inheritance probabilities\n using hmax = $(hmax), \ntolerance parameters: ftolRel=$(ftolRel), ftolAbs= $(ftolAbs), \nxtolAbs= $(xtolAbs), xtolRel= $(xtolRel). \nMax number of failed proposals is $(Nfail), multiplier M is $(M).")
+    write(logfile,"optimization of topology, BL and inheritance probabilities using:
+ hmax = $(hmax),
+ tolerance parameters: ftolRel=$(ftolRel), ftolAbs=$(ftolAbs),
+                       xtolAbs=$(xtolAbs), xtolRel=$(xtolRel).
+ max number of failed proposals = $(Nfail), multiplier M = $(M).")
     write(logfile,"\nOutgroup: $(outgroup) (for rooting at the final step) \nrootname for files: $(rootname)")
     write(logfile,"\nBEGIN: $(runs) runs on starting tree $(writeTopology(currT0))")
     write(logfile,"\n$(strftime(time()))")
     flush(logfile)
 
     # and print to screen
-    print(STDOUT,"optimization of topology, BL and inheritance probabilities\n using hmax = $(hmax), \ntolerance parameters: ftolRel=$(ftolRel), ftolAbs= $(ftolAbs), \nxtolAbs= $(xtolAbs), xtolRel= $(xtolRel). \nMax number of failed proposals is $(Nfail), multiplier M is $(M).")
+    print(STDOUT,"optimization of topology, BL and inheritance probabilities using:
+ hmax = $(hmax),
+ tolerance parameters: ftolRel=$(ftolRel), ftolAbs=$(ftolAbs),
+                       xtolAbs=$(xtolAbs), xtolRel=$(xtolRel).
+ max number of failed proposals = $(Nfail), multiplier M = $(M).")
     print(STDOUT,"\nOutgroup: $(outgroup) (for rooting at the final step) \nrootname for files: $(rootname)")
     print(STDOUT,"\nBEGIN: $(runs) runs on starting tree $(writeTopology(currT0))")
-    print(STDOUT,"\n$(strftime(time()))")
+    print(STDOUT,"\n$(strftime(time()))\n")
 
     maxNet = HybridNetwork();
     maxNet.loglik = 1.e15;
@@ -1218,7 +1226,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         a = split(string(t),".")
         seed = int(a[2][end-4:end]) #better seed based on clock
     end
-    write(logfile,"\nmain seed $(seed)")
+    write(logfile,"\nmain seed $(seed)\n")
     flush(logfile)
     srand(seed)
     seeds = [seed,int(floor(rand(runs-1)*100000))]
@@ -1227,9 +1235,9 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         if(i == 2) #the first run is the slowest
             tic();
         end
-        write(logfile,"\nseed: $(seeds[i]) for run $(i)\n")
+        write(logfile,"seed: $(seeds[i]) for run $(i)\n")
         if(i<runs)
-            print(STDOUT,"\nseed: $(seeds[i]) for run $(i)\n")
+            print(STDOUT,"seed: $(seeds[i]) for run $(i)\n")
         end
         flush(logfile)
         gc();
@@ -1257,7 +1265,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             flush(errfile)
             push!(failed,seeds[i])
         end
-        write(logfile,"\n---------------------")
+        write(logfile,"\n---------------------\n")
         flush(logfile)
     end
     t=toc();
