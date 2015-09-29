@@ -1340,9 +1340,6 @@ function optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
                 else
                     suc = moveTargetUpdateRepeat!(currT,currT.hybrid[ind],true)
                     suc && write(logfile,"\n changed starting network by move target")
-                else
-                    suc = moveTargetUpdateRepeat!(currT,currT.hybrid[ind],true)
-                    suc && write(logfile," changed starting network by move target\n")
                 end
 
             end
