@@ -18,7 +18,7 @@ to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/do
 
 Two alternatives:
 
-1. The estimated gene trees for each locus which can be obtained by
+1. A list of estimated gene trees for each locus, which can be obtained using
   [MrBayes](http://mrbayes.sourceforge.net) or [RAxML](http://sco.h-its.org/exelixis/software.html).
 2. A table of concordance factors (CF) for each 4-taxon subset which can be
   obtained from [BUCKy](http://www.stat.wisc.edu/~ane/bucky/), 
@@ -191,16 +191,17 @@ For a given network topology, you can optimize the branch lengths and
 inheritance probabilities with the pseudolikelihood. Minus the logarithm of the
 pseudolikelihood value for the network will be printed to the screen (the lower the better).
 ```julia
-topologyMaxQPseudolik!(net1,d)
-topologyMaxQPseudolik!(net1,d,verbose=true)
+net1topo = readTopologyLevel1("(2,(4,(3,(5,(6,#H1)))),(1)#H1);");
+topologyMaxQPseudolik!(net1topo,d)
+writeTopology(net1topo)
 ```
 This is useful if the user has a few network alternatives to compare. 
 Each network can be optimized individually, and the network with the best 
 pseudolikelihood can be chosen.
 For a network with given branch lengths and heritabilies, we can compute the pseudolikelihood with:
 ```julia
-topologyQPseudolik!(net1,d)
-topologyQPseudolik!(net1,d,verbose=true)
+net1withBL = readTopologyLevel1("(2,(4,(3,(5,(6,#H6:1.0::0.288):5.006):0.518):0.491):1.533,(1)#H6:1.0::0.712);");
+topologyQPseudolik!(net1withBL,d)
 ```
 This function is not maximizing the pseudolikelihood, it is simply computing the
 pseudolikelihood for the given branch lenghts and probabilities of
