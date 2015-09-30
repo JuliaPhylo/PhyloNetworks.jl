@@ -13,9 +13,9 @@ using DataFrames # for rep function and read/write csv tables
 using NLopt # for branch lengths optimization
 using GraphViz #for visualization
 
-const DEBUG = true
+const DEBUG = false
 const DEBUGC = false #more detailed prints
-const CHECKNET = true #for debugging only
+const CHECKNET = false #for debugging only
 const REDIRECT = false # for debugging to a file later
 
 
