@@ -18,11 +18,11 @@ to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/do
 
 Two alternatives:
 
-1. A table of concordance factors (CF) for each 4-taxon subset which can be
-obtained from [BUCKy](http://www.stat.wisc.edu/~ane/bucky/).
-
-2. The estimated gene trees for each locus which can be obtained by
-[MrBayes](http://mrbayes.sourceforge.net) or [RAxML](http://sco.h-its.org/exelixis/software.html).
+1. The estimated gene trees for each locus which can be obtained by
+  [MrBayes](http://mrbayes.sourceforge.net) or [RAxML](http://sco.h-its.org/exelixis/software.html).
+2. A table of concordance factors (CF) for each 4-taxon subset which can be
+  obtained from [BUCKy](http://www.stat.wisc.edu/~ane/bucky/), 
+  to account for gene tree uncertainty
 
 ### Pipeline from sequence alignments
 
@@ -189,25 +189,23 @@ For a list of all the functions in the PhyloNetworks package, and all the option
 ##### Optimizing branch lengths and inheritance probabilities for a given network
 For a given network topology, you can optimize the branch lengths and
 inheritance probabilities with the pseudolikelihood. Minus the logarithm of the
-pseudolikelihood value for the network will be printed to the screen.
+pseudolikelihood value for the network will be printed to the screen (the lower the better).
 ```julia
 topologyMaxQPseudolik!(net1,d)
 topologyMaxQPseudolik!(net1,d,verbose=true)
 ```
-This is in particular useful if the user has some network alternatives to test out individually and choose the best in terms of the pseudolikelihood among them.
-
-For a given network with branch lengths, we can compute the pseudolikelihood with:
+This is useful if the user has a few network alternatives to compare. 
+Each network can be optimized individually, and the network with the best 
+pseudolikelihood can be chosen.
+For a network with given branch lengths and heritabilies, we can compute the pseudolikelihood with:
 ```julia
 topologyQPseudolik!(net1,d)
 topologyQPseudolik!(net1,d,verbose=true)
 ```
-This function is not maximizing, it is simply computing the
+This function is not maximizing the pseudolikelihood, it is simply computing the
 pseudolikelihood for the given branch lenghts and probabilities of
-inheritance. It is advisable though to maximize the pseudolikelihood even
-when branch lengths and probabilities of inheritance are given. This
-is simply because the optimization procedure is quite fast (so it does
-not represent any computational burden) and it will provide a more
-accurate pseudolikelihood value.
+inheritance. At the moment, both of these functions require that the 
+given network is of level 1 (cycles don't overlap).
 
 #### Debugging: the .err file
 Please report any bugs and errors to *claudia@stat.wisc.edu*. The easiest way to do it is by checking the .err file which will show the number of runs that failed by a bug and the corresponding seed to replicate the run. This is an example of what the .err file looks like:
