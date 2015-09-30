@@ -631,10 +631,12 @@ function updateAllReadTopology!(net::HybridNetwork)
         all([!e.hybrid for e in net.edge]) ? nothing : error("some edge is hybrid and should be all tree edges in a tree")
         all([!n.hasHybEdge for n in net.node]) ? nothing : error("some tree node has hybrid edge true, but it is a tree, there are no hybrid edges")
     else
-        for(n in net.hybrid)
-            success,hyb,flag,nocycle,flag2,flag3 = updateAllNewHybrid!(n,net,false,true)
-            if(!success)
-                error("current hybrid $(n.number) conflicts with previous hybrid by intersecting cycles: $(!flag), nonidentifiable topology: $(!flag2), empty space for contain root: $(!flag3), or does not create a cycle (probably problem with the root placement): $(nocycle).")
+        if(!net.cleaned)
+            for(n in net.hybrid)
+                success,hyb,flag,nocycle,flag2,flag3 = updateAllNewHybrid!(n,net,false,true)
+                if(!success)
+                    error("current hybrid $(n.number) conflicts with previous hybrid by intersecting cycles: $(!flag), nonidentifiable topology: $(!flag2), empty space for contain root: $(!flag3), or does not create a cycle (probably problem with the root placement): $(nocycle).")
+                end
             end
         end
     end
@@ -828,7 +830,7 @@ function updateRoot!(net::HybridNetwork, outgroup::String)
             removeNode!(othernode,edge)
             max_edge = maximum([e.number for e in net.edge]);
             max_node = maximum([e.number for e in net.node]);
-            newedge = Edge(max_edge+1)
+            newedge = Edge(max_edge+1) #fixit: maybe this edge not identifiable, need to add that check
             newnode = Node(max_node+1,false,false,[edge,newedge])
             if(net.cleaned && !isTree(net))
                 part = whichPartition(net,edge)

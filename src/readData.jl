@@ -37,7 +37,7 @@ end
 writeObsCF(d::DataCF) = writeObsCF(d.quartet)
 
 # function that takes a dataframe and creates a DataCF object
-function readTableCF(df::DataFrame)
+function readTableCF(df::DataFrames.DataFrame)
     DEBUG && println("assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network")
     size(df,2) == 7 || warn("Dataframe should have 7 columns: 4taxa, 3CF, will ignore columns from 8th on")
     quartets = Quartet[]
