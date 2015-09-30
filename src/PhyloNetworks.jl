@@ -5,10 +5,10 @@ using DataFrames # for rep function and read/write csv tables
 using NLopt # for branch lengths optimization
 using GraphViz #for visualization
 
-const DEBUG = false #for debugging only
-const DEBUGC = false #more detailed prints
-const CHECKNET = false #for debugging only
-const REDIRECT = false # changed for debugging to a file
+global const DEBUG = false #for debugging only
+global const DEBUGC = false #more detailed prints
+global const CHECKNET = false #for debugging only
+global const REDIRECT = false # changed for debugging to a file
 
 export
 HybridNetwork,
@@ -31,8 +31,10 @@ topologyMaxQPseudolik!,
 topologyQPseudolik!,
 root!,
 plotPhylonet,
-generalExport #for graphviz test
-
+generalExport, #for graphviz test
+DEBUG,
+CHECKNET,
+REDIRECT
 
 # export part
 

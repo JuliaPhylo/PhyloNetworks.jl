@@ -1179,8 +1179,8 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     sameTaxa(d,currT0) || error("some taxon names in quartets do not appear on the starting topology")
     # need a clean starting net. fixit: maybe we need to be more thorough here
     # yes, need to check that everything is ok because it could have been cleaned and then modified
-    DEBUG && println("currT0 is cleaned: $(currT0.cleaned)")
     if(!currT0.cleaned)
+        DEBUG && println("si, se metio a q no esta cleaned")
         cleanAfterReadAll!(currT0);
     else
         flag = checkNet(currT0,true)
