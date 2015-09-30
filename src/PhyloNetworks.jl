@@ -31,10 +31,7 @@ topologyMaxQPseudolik!,
 topologyQPseudolik!,
 root!,
 plotPhylonet,
-generalExport, #for graphviz test
-DEBUG,
-CHECKNET,
-REDIRECT
+generalExport #for graphviz test
 
 # export part
 

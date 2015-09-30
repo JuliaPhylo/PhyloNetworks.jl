@@ -3,7 +3,7 @@
 <!-- ![SNaQ logo](http://pages.stat.wisc.edu/~claudia/Images/snaq.png)
 original size: 525px × 222px-->
 
-[![Build Status](https://travis-ci.org/crsl4/PhyloNetworks.svg)](https://travis-ci.org/crsl4/PhyloNetworks.jl)
+[![Build Status](https://travis-ci.org/crsl4/PhyloNetworks.svg)](https://travis-ci.org/crsl4/PhyloNetworks)
 
 SNaQ implements the statistical inference method in [Sol&iacute;s-Lemus and
 An&eacute;](http://arxiv.org/pdf/1509.06075.pdf). The procedure involves a
