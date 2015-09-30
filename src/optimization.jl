@@ -1368,9 +1368,9 @@ end
 
 # function to run SNaQ for a given seed (a given run) to debug
 # the parameter runs is ignored (put here to make it equivalent to snaq)
-function snaqDebug(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::String, rootname="snaqDebug"::String, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64)
-    const DEBUG = true
-    const REDIRECT = true
+function snaqDebug(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::String, rootname="snaqDebug"::String, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64;DEBUG=true::Bool, REDIRECT=true::Bool)
+    #const DEBUG = true
+    #const REDIRECT = true
     sout = open("debug.log","w")
     write(sout,"DEBUG for seed $(seed)")
     write(sout,"\n$(strftime(time()))")

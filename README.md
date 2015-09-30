@@ -214,16 +214,11 @@ Please report any bugs and errors to *claudia@stat.wisc.edu*. The easiest way to
 
 Total errors: 1 in seeds [4545]
 
-You need to run the following function (with the two global variable sets) with the same settings that caused the error:
+You need to run the following function with the same settings that caused the error:
 
 ```julia
-const DEBUG = true
-const REDIRECT = true
 snaqDebug(T,d,hmax=2,seed=4545)
 ```
-
-
-
 
 This will create two files:
 *snaqDebug.log* and *debug.log* which you can then send to
