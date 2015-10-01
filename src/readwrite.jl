@@ -367,6 +367,7 @@ function readTopology(s::IO)
     end
     storeHybrids!(net)
     checkNumHybEdges!(net)
+    any(e.length == 1.0 for e in net.edges) && warn("edges found with default branch lengths of 1.0") #fixit: not best approach, better to add a flag inside readSubTree, careful bool not modified inside function
     return net
 end
 
@@ -500,7 +501,7 @@ end
 #   if 1: check values of gamma:
 # - gammas: need to sum to one and be present.
 #   error if they do not sum up to one
-#   default values of 0.9,0.1 if not present
+#   default values of 0.51,0.49 if not present
 # leaveRoot=true: leaves the root even if it has only 2 edges (for plotting), default=false
 function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
     mod(sum([!e.hybrid?e.gamma:0 for e in net.edge]),1) == 0 ? nothing : error("tree (not network) read and some tree edge has gamma different than 1")
@@ -554,10 +555,11 @@ function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
                 end
                 suma = sum([e.hybrid?e.gamma:0 for e in n.edge]);
                 if(suma == 2)
-                    warn("hybrid edges for hybrid node $(n.number) do not contain gamma value, set default: 0.9,0.1")
+                    warn("hybrid edges in read network without gammas")
+                    println("hybrid edges for hybrid node $(n.number) do not contain gamma value, set default: 0.5,0.5")
                     for(e in n.edge)
                         if(e.hybrid)
-                            (!e.isMajor) ? setGamma!(e,0.1, false, true) : setGamma!(e,0.9, false, true)
+                            (!e.isMajor) ? setGamma!(e,0.49, false, true) : setGamma!(e,0.51, false, true)
                         end
                     end
                 elseif(suma != 1)

@@ -152,10 +152,8 @@ end
 # and a table of CF in the allele names, and replace all the allele names
 # to the species names
 # this will create a new CF table, will not rewrite on the original one
-# filename is the name to give to the new table, by default "newCFtable"
-function renameTaxaCFtable(alleleDF::DataFrame, cfDF::DataFrame,filename::String)
-    size(alleleDF,2) == 2 || error("Allele-Species matching Dataframe should have 2 columns only: allele names, species names")
-    size(cfDF,2) == 7 || warn("CF Dataframe should have 7 columns: 4taxa, 3CF, will ignore columns from 8th on")
+# filename is the name to give to the new table, if write=true
+function mapAllelesCFtable(alleleDF::DataFrame, cfDF::DataFrame,write::Bool,filename::String)
     compareTaxaNames(alleleDF,cfDF)
     newt1 = map(x->replace(string(x),string(alleleDF[1,1]),alleleDF[1,2]),cfDF[1])
     newt2 = map(x->replace(string(x),string(alleleDF[1,1]),alleleDF[1,2]),cfDF[2])
@@ -170,20 +168,27 @@ function renameTaxaCFtable(alleleDF::DataFrame, cfDF::DataFrame,filename::String
         end
     end
     newdf = DataFrames.DataFrame(t1=newt1,t2=newt2,t3=newt3,t4=newt4,CF1234=cfDF[5],CF1324=cfDF[6],CF1423=cfDF[7])
-    writetable(filename,newdf)
+    if(write)
+        filename != "" || error("want to write new table of CF with alleles mapped but filename is empty")
+        writetable(filename,newdf)
+    end
     return newdf
 end
 
-function renameTaxaCFtable(alleleDF::String, cfDF::String; filename="newCFtable.txt"::String)
+function mapAllelesCFtable(alleleDF::String, cfDF::String; filename=""::String)
     d = readtable(alleleDF)
     d2 = readtable(cfDF)
-    renameTaxaCFtable(d,d2,filename)
+    if(filename=="")
+        mapAllelesCFtable(d,d2,false,filename)
+    else
+        mapAllelesCFtable(d,d2,true,filename)
+    end
 end
 
 # function to compare the taxon names in the allele-species matching table
 # and the CF table
 function compareTaxaNames(alleleDF::DataFrame, cfDF::DataFrame)
-    size(alleleDF,2) == 2 || error("Allele-Species matching Dataframe should have 2 columns only: allele names, species names")
+    checkMapDF(alleleDF)
     size(cfDF,2) == 7 || warn("CF Dataframe should have 7 columns: 4taxa, 3CF, will ignore columns from 8th on")
     d = readTableCF(cfDF)
     println("there are $(length(alleleCF[1])) allele-species matches")
@@ -193,19 +198,35 @@ function compareTaxaNames(alleleDF::DataFrame, cfDF::DataFrame)
     sizeCF = length(CFtaxa)
     sizeAllele = length(alleleTaxa)
     if(sizeAllele > sizeCF)
-        println("there are more taxa in the allele-species map: $(sizeAllele) than in the CF table: $(sizeCF), so extra allele names will be ignored")
+        println("there are more taxa in the allele-species mapping file: $(sizeAllele) than in the CF table: $(sizeCF), so extra allele names will be ignored")
         alleleTaxa = intersect(alleleTaxa,CFtaxa)
     elseif(sizeAllele < sizeCF)
-        println("there are fewer taxa in the allele-species map: $(sizeAllele) than in the CF table: $(sizeCF), so names in the CF table will remained unchanged")
-    else
-        println("there are the same number of taxa in the allele-species map: $(sizeAllele) as in the CF table: $(sizeCF), but we still need to verify that the names match")
+        println("there are fewer taxa in the allele-species map: $(sizeAllele) than in the CF table: $(sizeCF), so some names in the CF table will remained unchanged")
     end
     unchanged = setdiff(CFtaxa,alleleTaxa)
+    if(length(unchanged) == length(CFtaxa))
+        warn("no allele names in CF table match with the mapping file")
+    end
     if(isempty(unchanged))
-        println("TAXON NAMES MATCH: all taxa in the CF table was changed according to the allele-species map")
+        println("TAXON NAMES MATCH: all taxa in the CF table was changed according to the allele-species mapping file")
     else
-        println("the following taxa in the CF table were not modified to the allele-species map (since they are not present in the allele-species table):\n $(unchanged)")
+        warn("not all alleles mapped")
+        println("the following taxa in the CF table were not modified to the allele-species map (since they are not present in the mapping file):\n $(unchanged)")
     end
 end
 
-
+# function to check that the allele df has one column labelled alleles and one column labelled species
+function checkMapDF(alleleDF::DataFrame)
+    size(alleleDF,2) < 2 || error("Allele-Species matching Dataframe should have at least 2 columns")
+    size(alleleDF,2) > 2 || warn("allele mapping file contains more than two columns: will ignore all columns not labelled alleles or species")
+    try
+        alleleDF[:alleles]
+    catch
+        error("In allele mapping file there is no column named alleles")
+    end
+    try
+        alleleDF[:species]
+    catch
+        error("In allele mapping file there is no column named species")
+    end
+end

@@ -21,7 +21,7 @@ Two alternatives:
 1. A list of estimated gene trees for each locus, which can be obtained using
   [MrBayes](http://mrbayes.sourceforge.net) or [RAxML](http://sco.h-its.org/exelixis/software.html).
 2. A table of concordance factors (CF) for each 4-taxon subset which can be
-  obtained from [BUCKy](http://www.stat.wisc.edu/~ane/bucky/), 
+  obtained from [BUCKy](http://www.stat.wisc.edu/~ane/bucky/),
   to account for gene tree uncertainty
 
 ### Pipeline from sequence alignments
@@ -38,6 +38,11 @@ table of estimated CFs and their confidence intervals.
 Julia is a high-level and interactive programming language (like R or Matlab),
 but it is also high-performance (like C).
 To install Julia, go to http://julialang.org/downloads/
+
+IMPORTANT: Julia code is just-in-time compiled. This means that the
+first time you run a function, it will be compiled at that moment. So,
+please be patient! Future calls to the function will be much much
+faster. Trying out toy examples for the first calls is a good idea.
 
 PhyloNetworks was developed under Julia
 version 0.3.5, and has been tested on different versions of 0.3.X.
@@ -195,8 +200,8 @@ net1topo = readTopologyLevel1("(2,(4,(3,(5,(6,#H1)))),(1)#H1);");
 topologyMaxQPseudolik!(net1topo,d)
 writeTopology(net1topo)
 ```
-This is useful if the user has a few network alternatives to compare. 
-Each network can be optimized individually, and the network with the best 
+This is useful if the user has a few network alternatives to compare.
+Each network can be optimized individually, and the network with the best
 pseudolikelihood can be chosen.
 For a network with given branch lengths and heritabilies, we can compute the pseudolikelihood with:
 ```julia
@@ -205,7 +210,7 @@ topologyQPseudolik!(net1withBL,d)
 ```
 This function is not maximizing the pseudolikelihood, it is simply computing the
 pseudolikelihood for the given branch lenghts and probabilities of
-inheritance. At the moment, both of these functions require that the 
+inheritance. At the moment, both of these functions require that the
 given network is of level 1 (cycles don't overlap).
 
 #### Debugging: the .err file

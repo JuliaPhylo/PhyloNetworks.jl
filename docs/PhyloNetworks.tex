@@ -123,48 +123,39 @@ However, the main function in \texttt{PhyloNetworks} is the implementation of
 the method \texttt{SNaQ} \citep{Solis-Lemus2015}: a statistical method to
 infer a phylogenetic network from input gene trees.
 
-It is important to notice that a phylogenetic network has several
-conditions on the nodes and edges.
+\paragraph{Assumption on the phylogenetic network.} For now, we assume
+that the hybridization cycles do not intersect, and these networks are
+called \textit{level-1 networks} \citep{Huson2010}. See the appendix
+for more details on the definition of phylogenetic networks used here.
+This restriction (and others mentioned in the appendix) is enforced
+in the optimization, but not in the read/write/plot/root
+functions. However, the only rule strictly enforced for all functions
+is that a hybrid node cannot have more than two hybrid edges pointing
+at it. This is a restriction that we hope to eliminate in the future.
 
-For the present work, we will use the following definition (but refer
-to \citet{Huson2010} for other types of evolutionary networks).
-A \textit{rooted phylogenetic network} for a set of taxa $X$ is a
-connected directed acyclic graph with vertices $V=V_L \cup V_H \cup
-V_T$, edges $E=E_H \cup E_T$ and a bijective leaf-labeling function
-$f:V_L \rightarrow X$ with the following characteristics:
-\begin{itemize}
-\item The root $r$ has $\mathrm{indegree}(r)=0$ and $\mathrm{outdegree}(r)=2$.
-\item{For any $v \in V_L$ (leaf), $indegree(v)=1$ and
-    $outdegree(v)=0$.}
-\item{For any $v \in V_T$ (tree node), $indegree(v)=1$ and $outdegree(v)=2$.}
-\item{For any $v \in V_H$ (hybrid node), $indegree(v)=2$ and $outdegree(v)=1$.}
-\item{A tree edge $e \in E_T$ is an edge whose child is a tree node.}
-\item{A hybrid edge $e \in E_H$ is an edge whose child is a hybrid node.}
-\end{itemize}
-Thus, we are not allowing internal nodes with only two edges, nor
-polytomies. We also do not allow a leaf to be hybrid node, and only 2
-hybrid edges per hybrid node.  These restrictions are enforced in the
-optimization, but not in the read/write/plot/root functions. However,
-the only rule strictly enforced for all functions is that a hybrid
-node cannot have more than two hybrid edges pointing at it. This is a
-restriction that we hope to eliminate in the future.
-
-If we also assume that the hybridization cycles do not intersect, then
-these networks are called \textit{level-1 networks} \citep{Huson2010},
-and have been shown to be identifiable
-\citep{Pardi2015,Solis-Lemus2015}.
+\paragraph{Why Julia?} Julia is a high-level and interactive
+programming language (like R or Matlab), but it is also
+high-performance (like C). So, it is fast. However, there is a minor
+drawback in Julia versions 0.3 (or lower): Julia code is just-in-time
+compiled which means that the first time you run a function, it will
+take a lot of time because it will compile it. It is important to keep
+this in mind as we use Julia, because the next calls for a function
+will be much much faster. So, please be patient! Trying out small toy
+examples for the first calls of functions is always a good idea.
 
 
 \section{Setup}
 \subsection{Installation of \texttt{Julia}}
 To install \texttt{Julia} version 0.3.* (if Julia is already installed, skip
-this step): go to \url{http://julialang.org/downloads/}.
+this step): go to\\ \url{http://julialang.org/downloads/}.\\
 \texttt{PhyloNetworks} was developed under \texttt{Julia}
 version 0.3.5, and has been tested on different versions of 0.3.X.
-We have not tested its robustness on \texttt{Julia} version 0.4 or above.
+We have not tested its robustness on \texttt{Julia} version 0.4 or
+above, but we will soon. Version 0.4 allows for precompilation, so the
+drawback described in the introduction will no longer apply.
 
 \subsection{Installation of \texttt{PhyloNetworks}}
-To install the package, %\falta{(double check these steps)}
+To install the package,
 open
 \texttt{Julia} and type:
 \begin{lstlisting}
@@ -215,15 +206,16 @@ functions in every package. This is particulary important for the
 package \texttt{PhyloNetworks} since it is a new package under constant
 development.
 
-WARNING: There is a known bug for Mac users where the \texttt{Pkg.update} function does not update to the latest version. We recommend Mac users to do the following through the terminal:\\
+\paragraph{WARNING:} There is a known bug for Mac users where the \texttt{Pkg.update} function does not update to the latest version. We recommend Mac users to do the following through the terminal:\\
 \texttt{
-cd HOME/.julia/v0.3/PhyloNetworks/ \\
-git pull
-}
-\\where HOME is replaced by your home directory and v0.3 could be replaced by v0.4 if you have version 0.4 of Julia.
+  cd HOME/.julia/v0.3/PhyloNetworks/ \\
+  git pull } \\where HOME is replaced by your home directory and v0.3
+could be replaced by v0.4 if you have version 0.4 of Julia.
 
 \section{Description of main functions}
-Functions in \texttt{PhyloNetworks}:
+Functions in \texttt{Julia} that end with exclamation sign \textbf{!}
+are modifying one (or all) of the arguments. The description of the
+functions in \texttt{PhyloNetworks} is next:
 \begin{itemize}
 \item \textbf{readTopology:} Function to read a tree or network from
   parenthetical format. Input can be a string or a name of a text file
@@ -285,7 +277,7 @@ writeTopology(net)
 writeTopology(net,di=true)
 \end{lstlisting}
 
-\item \textbf{root:} Function to root a network at a node or outgroup
+\item \textbf{root!:} Function to root a network at a node or outgroup
   (single taxon). When a node number is used as parameter, you have
   the \textit{resolve} option. If true, a branch with zero length is
   added. The node numbers can be known with the plot function
@@ -296,7 +288,7 @@ root!(net,nodeNumber,resolve)
 root!(net,outgroup)
 \end{lstlisting}
 
-\item \textbf{deleteLeaf:} Function to delete a leaf from a
+\item \textbf{deleteLeaf!:} Function to delete a leaf from a
   \texttt{HybridNetwork} object.\\
 Usage:
 \begin{lstlisting}
@@ -507,7 +499,7 @@ optimization
   \textit{hmax} are done at random and the seeds are saved)
 \item \textbf{outgroup} \textit{(none)}: name of outgroup taxon to root the estimated
 network at the end
-\item \textbf{rootname} \textit{(snaq)}: root name for the output files: .log, .out, .err
+\item \textbf{filename} \textit{(snaq)}: rootname for the output files: .log, .out, .err
 \item \textbf{returnNet} \textit{(true)}: if true, the \texttt{snaq} function
   returns the resulting \texttt{HybridNetwork} object. If false, the
   resulting network is only written in the .out file.
@@ -579,14 +571,15 @@ number of moves proposed and accepted.
 \subsection{Optimizing branch lengths and inheritance probabilities
   for a given network}
 \begin{itemize}
-\item \textbf{topologyMaxQPseudolik:} For a given network, you can
+\item \textbf{topologyMaxQPseudolik!:} For a given network, you can
   optimize the branch lengths and inheritance probabilities with the
   pseudolikelihood. Minus the logarithm of the pseudolikelihood value
   for the network will be stored in the attribute: \texttt{net.loglik}
   and it will be printed to screen. The option \texttt{verbose} will
   print the iterations to the screen. The user can also define the
   absolute and relative tolerance with the same options as described
-  before for the \texttt{snaq} function.
+  before for the \texttt{snaq} function. The maximum value allowed for
+  branch lengths is 10 (coalescent units).
   \\
   Usage:
   \begin{lstlisting}
@@ -596,7 +589,7 @@ number of moves proposed and accepted.
   This function is useful to compare the pseudolikelihood of different
   network alternatives, and choose the best one among them.
 
-\item \textbf{topologyQPseudolik:} For a given network with branch
+\item \textbf{topologyQPseudolik!:} For a given network with branch
   lengths and inheritance probabilities, you can compute the
   pseudolikelihood value without optimizing. This function is not
   maximizing, it is simply computing the pseudolikelihood for the
@@ -834,5 +827,39 @@ The error can be sometimes fixed by changing the position of the root
 with the \texttt{root} function.
 
 \bibliography{/Users/Clauberry/Documents/phylo/bibtex/Networks-prelim.bib}
+
+\appendix
+\section{Definition of Phylogenetic Network}
+
+For the present work, we will use the following definition (but refer
+to \citet{Huson2010} for other types of evolutionary networks).
+A \textit{rooted phylogenetic network} for a set of taxa $X$ is a
+connected directed acyclic graph with vertices $V=V_L \cup V_H \cup
+V_T$, edges $E=E_H \cup E_T$ and a bijective leaf-labeling function
+$f:V_L \rightarrow X$ with the following characteristics:
+\begin{itemize}
+\item The root $r$ has $\mathrm{indegree}(r)=0$ and $\mathrm{outdegree}(r)=2$.
+\item{For any $v \in V_L$ (leaf), $indegree(v)=1$ and
+    $outdegree(v)=0$.}
+\item{For any $v \in V_T$ (tree node), $indegree(v)=1$ and $outdegree(v)=2$.}
+\item{For any $v \in V_H$ (hybrid node), $indegree(v)=2$ and $outdegree(v)=1$.}
+\item{A tree edge $e \in E_T$ is an edge whose child is a tree node.}
+\item{A hybrid edge $e \in E_H$ is an edge whose child is a hybrid node.}
+\end{itemize}
+Thus, we are not allowing internal nodes with only two edges, nor
+polytomies. We also do not allow a leaf to be hybrid node, and only 2
+hybrid edges per hybrid node.
+
+We also assume that the hybridization cycles do not intersect, and
+these networks are called \textit{level-1 networks} \citep{Huson2010},
+which have been shown to be identifiable
+\citep{Pardi2015,Solis-Lemus2015}.  These restrictions are enforced in
+the optimization, but not in the read/write/plot/root
+functions. However, the only rule strictly enforced for all functions
+is that a hybrid node cannot have more than two hybrid edges pointing
+at it. This is a restriction that we hope to eliminate in the future.
+
+
+
 
 \end{document}
