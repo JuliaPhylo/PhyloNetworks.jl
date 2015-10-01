@@ -568,6 +568,42 @@ number of iterations needed for the algorithm to converge, the value
 of the likelihood for the estimated network, and the
 number of moves proposed and accepted.
 
+\subsection{Multiple alleles}
+
+The usual settings for SNaQ consider each allele in the gene trees to
+be its own tip in the network, however, if there is a known mapping
+file of allele names to species, and only the species-level network
+wants to be estimated, this can be done with the following functions:
+\begin{itemize}
+\item{\textbf{mapAllelesCFtable:} This function will read the original
+  CF table with allele names, and a mapping file matching allele names
+to species names, and return a CF data frame with the allele names
+changed to species names. If the option \textit{filename} is defined,
+then the new table is also saved as a csv file.
+\\Usage:
+\begin{lstlisting}
+  new_df = mapAllelesCFtable(mappingFile, CFtable);
+  new_df = mapAllelesCFtable(mappingFile, CFtable,
+           filename="newTable.txt");
+\end{lstlisting}
+This dataframe should be read also to create a DataCF object:
+\begin{lstlisting}
+  new_d = readTableCF(new_df);
+\end{lstlisting}
+The mapping file should have two columns names \textit{alleles} and
+\textit{species}. The function will prompt an error if the column
+names do not match. It allows for extra columns, and the function will
+ignore them.
+The estimation will work in the same way:
+\begin{lstlisting}
+  new_net = snaq(newT,new_d);
+\end{lstlisting}
+where \textit{newT} should be a starting topology on the species names.
+}
+\end{itemize}
+
+
+
 \subsection{Optimizing branch lengths and inheritance probabilities
   for a given network}
 \begin{itemize}

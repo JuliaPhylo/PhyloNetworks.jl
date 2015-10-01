@@ -191,6 +191,28 @@ PhyloNetworks.plotPhylonet(net)
 
 For a list of all the functions in the PhyloNetworks package, and all the options on the SNaQ function, refer to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf).
 
+#### Multiple alleles
+
+The usual settings for SNaQ consider each allele in the gene trees to
+be its own tip in the network, however, if there is a known mapping
+file of allele names to species, and only the species-level network
+wants to be estimated, this can be done with the following functions:
+```julia
+new_df = mapAllelesCFtable(mappingFile, CFtable);
+new_d = readTableCF(new_df);
+```
+where the mapping file can be a text file (or csv) with two columns
+named *alleles* and *species*, mapping each allele name to a species
+name. The CF table is the original table with allele names for each
+4-taxon subset. This function will create a new CF data frame with the
+species names instead of allele names.
+
+Estimation will work the same way:
+```julia
+new_net = snaq(new_T,new_d);
+```
+where *new_T* should be a starting topology on the species names.
+
 ##### Optimizing branch lengths and inheritance probabilities for a given network
 For a given network topology, you can optimize the branch lengths and
 inheritance probabilities with the pseudolikelihood. Minus the logarithm of the
