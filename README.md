@@ -152,8 +152,8 @@ To estimate the network using the input data
 *d* and starting from tree (or network) *T*, do this:
 
 ```julia
-net1=snaq(T,d);
-net2=snaq(T,d,hmax=2);
+net1=snaq(T,d,filename="net1_snaq");
+net2=snaq(T,d,hmax=2, filename="net2_snaq");
 ```
 Make sure to have the semicolon (;) at the end, to avoid much useless output
 to the screen!
@@ -194,15 +194,15 @@ For a list of all the functions in the PhyloNetworks package, and all the option
 #### Multiple alleles
 
 The usual settings for SNaQ consider each allele in the gene trees to
-be its own tip in the network, however, if there is a known mapping
-file of allele names to species, and only the species-level network
-wants to be estimated, this can be done with the following functions:
+be its own tip in the network. If instead each allele can be mapped confidently
+to a species, and if only the species-level network needs
+to be estimated, this can be done with the following functions:
 ```julia
 new_df = mapAllelesCFtable(mappingFile, CFtable);
 new_d = readTableCF(new_df);
 ```
 where the mapping file can be a text file (or csv) with two columns
-named *alleles* and *species*, mapping each allele name to a species
+named *allele* and *species*, mapping each allele name to a species
 name. The CF table is the original table with allele names for each
 4-taxon subset. This function will create a new CF data frame with the
 species names instead of allele names.
@@ -211,7 +211,7 @@ Estimation will work the same way:
 ```julia
 new_net = snaq(new_T,new_d);
 ```
-where *new_T* should be a starting topology on the species names.
+where *new_T* should be a starting topology with one tip per species, labelled with the species names.
 
 ##### Optimizing branch lengths and inheritance probabilities for a given network
 For a given network topology, you can optimize the branch lengths and
@@ -222,7 +222,7 @@ net1topo = readTopologyLevel1("(2,(4,(3,(5,(6,#H1)))),(1)#H1);");
 topologyMaxQPseudolik!(net1topo,d)
 writeTopology(net1topo)
 ```
-This is useful if the user has a few network alternatives to compare.
+This is useful if the user has a few candidate networks to compare.
 Each network can be optimized individually, and the network with the best
 pseudolikelihood can be chosen.
 For a network with given branch lengths and heritabilies, we can compute the pseudolikelihood with:
