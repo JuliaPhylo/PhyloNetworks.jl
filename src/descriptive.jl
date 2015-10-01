@@ -208,21 +208,21 @@ function compareTaxaNames(alleleDF::DataFrame, cfDF::DataFrame)
         warn("no allele names in CF table match with the mapping file")
     end
     if(isempty(unchanged))
-        println("TAXON NAMES MATCH: all taxa in the CF table was changed according to the allele-species mapping file")
+        println("TAXON NAMES MATCH: taxon names in the CF table were changed according to the allele-species mapping file")
     else
         warn("not all alleles mapped")
-        println("the following taxa in the CF table were not modified to the allele-species map (since they are not present in the mapping file):\n $(unchanged)")
+        println("the following taxa in the CF table were not modified by the allele-species map (since they are absent in the mapping file):\n $(unchanged)")
     end
 end
 
 # function to check that the allele df has one column labelled alleles and one column labelled species
 function checkMapDF(alleleDF::DataFrame)
     size(alleleDF,2) < 2 || error("Allele-Species matching Dataframe should have at least 2 columns")
-    size(alleleDF,2) > 2 || warn("allele mapping file contains more than two columns: will ignore all columns not labelled alleles or species")
+    size(alleleDF,2) > 2 || warn("allele mapping file contains more than two columns: will ignore all columns not labelled allele or species")
     try
-        alleleDF[:alleles]
+        alleleDF[:allele]
     catch
-        error("In allele mapping file there is no column named alleles")
+        error("In allele mapping file there is no column named allele")
     end
     try
         alleleDF[:species]
