@@ -367,7 +367,7 @@ function readTopology(s::IO)
     end
     storeHybrids!(net)
     checkNumHybEdges!(net)
-    any([e.length == 1.0 for e in net.edges]) && warn("edges found with default branch lengths of 1.0") #fixit: not best approach, better to add a flag inside readSubTree, careful bool not modified inside function
+    any([e.length == 1.0 for e in net.edge]) && warn("edges found with default branch lengths of 1.0") #fixit: not best approach, better to add a flag inside readSubTree, careful bool not modified inside function
     return net
 end
 

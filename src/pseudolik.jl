@@ -1277,7 +1277,7 @@ end
 
 # function to simply calculate the pseudolik of a given network
 function topologyQPseudolik!(net::HybridNetwork,d::DataCF; verbose=false::Bool)
-    any([e.length == 1.0 for e in net.edges]) && warn("edges found with default branch lengths of 1.0")
+    any([e.length == 1.0 for e in net.edge]) && warn("edges found with default branch lengths of 1.0")
     # need a clean starting net. fixit: maybe we need to be more thorough here
     # yes, need to check that everything is ok because it could have been cleaned and then modified
     if(!net.cleaned)
