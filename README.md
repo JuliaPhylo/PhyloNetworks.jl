@@ -213,6 +213,10 @@ new_net = snaq(new_T,new_d);
 ```
 where *new_T* should be a starting topology with one tip per species, labelled with the species names.
 
+WARNING: the current function works best if all alleles from the same
+individual are given the same name (the individual's 'name') across
+all genes for which that individual was sequenced.
+
 ##### Optimizing branch lengths and inheritance probabilities for a given network
 For a given network topology, you can optimize the branch lengths and
 inheritance probabilities with the pseudolikelihood. Minus the logarithm of the

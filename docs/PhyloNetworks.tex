@@ -590,7 +590,7 @@ This dataframe should be read also to create a DataCF object:
 \begin{lstlisting}
   new_d = readTableCF(new_df);
 \end{lstlisting}
-The mapping file should have two columns names \textit{alleles} and
+The mapping file should have two columns names \textit{allele} and
 \textit{species}. The function will prompt an error if the column
 names do not match. It allows for extra columns, and the function will
 ignore them.
@@ -598,7 +598,11 @@ The estimation will work in the same way:
 \begin{lstlisting}
   new_net = snaq(newT,new_d);
 \end{lstlisting}
-where \textit{newT} should be a starting topology on the species names.
+where \textit{newT} should be a starting topology on the species
+names.  \\WARNING: the current function works best if all alleles from
+the same individual are given the same name (the individual's 'name')
+across all genes for which that individual was sequenced.
+
 }
 \end{itemize}
 
