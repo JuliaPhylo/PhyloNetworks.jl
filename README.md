@@ -135,16 +135,16 @@ d=readTableCF("tableCF.txt");
 You can access this example file
 [here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/tableCF.txt).
 
-If you have a tree *startTree.tre* in parenthetical format to
+If you have a tree *startTree.txt* in parenthetical format to
 use as starting point for the optimization and want to
 update the branch lengths according to the CF already read in the data
 structure *d*, do this:
 ```julia
-T=readStartTop("startTree.tre",d);
+T=readStartTop("startTree.txt",d);
 writeTopology(T)
 ```
 You can access this example file
-[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/startTree.tre).
+[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/startTree.txt).
 
 #### Network Estimation
 
