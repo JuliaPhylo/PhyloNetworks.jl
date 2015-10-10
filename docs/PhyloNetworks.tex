@@ -390,7 +390,10 @@ Taxon1 & Taxon2 &Taxon3 & Taxon4 & $CF12|34$ & $CF13|24$ &  $CF14|23$\\
 Usage:
 \begin{lstlisting}
 readTableCF(filename);
+readTableCF(filename, sep=';');
 \end{lstlisting}
+WARNING: It is important to use single quotes: ' not double quotes "
+when specifying the separator in the table.
 
 Both functions \texttt{readTrees2CF} and \texttt{readTableCF} return a
 data structure called \texttt{DataCF} that contains the following

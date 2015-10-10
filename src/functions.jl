@@ -42,3 +42,5 @@ include("pseudolik.jl")
 include("visualization.jl")
 
 include("descriptive.jl")
+
+include("bootstrap.jl")

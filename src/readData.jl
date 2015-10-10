@@ -50,7 +50,7 @@ function readTableCF(df::DataFrames.DataFrame)
 end
 
 # warning: when file needs to be String bc it can be read as UTF8String
-readTableCF(file::String) = readTableCF(readtable(file))
+readTableCF(file::String;sep=','::Char) = readTableCF(readtable(file,separator=sep))
 
 # ---------------- read input gene trees and calculate obsCF ----------------------
 
