@@ -1145,7 +1145,7 @@ function optTop!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax:
             end
             if(!success)
                 write(s,"\ncould not find a place for new hybridization after $(Nfail) attempts, will stop search here with $(h) hybridizations, instead of hmax= $(hmax)")
-                maxNet.loglik < 1e.15 || error("never updated maxNet")
+                maxNet.loglik < 1.e15 || error("never updated maxNet")
                 if(ret)
                     return maxNet
                 end
