@@ -1348,6 +1348,7 @@ function optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
                 if(currT.numHybrids == 1)
                     ind = 1
                 else
+                    ind = 0
                     while(ind == 0 || ind > length(currT.hybrid))
                         ind = iround(rand()*length(currT.hybrid));
                     end
