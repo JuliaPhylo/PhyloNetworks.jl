@@ -12,7 +12,13 @@ function bootstrapCFtable(df::DataFrame)
         c1 = (df[i,9]-df[i,8])*0.5*randn()+df[i,5]
         c2 = (df[i,11]-df[i,10])*0.5*randn()+df[i,6]
         c3 = (df[i,13]-df[i,12])*0.5*randn()+df[i,7]
-        append!(newdf,DataFrame(t1=df[i,1], t2=df[i,2], t3=df[i,3], t4=df[i,4], CF1234=c1,CF1324=c2, CF1423=c3))
+        c1 = max(0.0,c1)
+        c2 = max(0.0,c2)
+        c3 = max(0.0,c3)
+        c1 = min(1.0,c1)
+        c2 = min(1.0,c2)
+        c3 = min(1.0,c3)
+        append!(newdf,DataFrame(t1=convert(UTF8String,string(df[i,1])), t2=convert(UTF8String,string(df[i,2])), t3=convert(UTF8String,string(df[i,3])), t4=convert(UTF8String,string(df[i,4])), CF1234=c1,CF1324=c2, CF1423=c3))
     end
     return newdf
 end
@@ -24,9 +30,9 @@ bootstrapCFtable(file::String;sep=','::Char) = bootstrapCFtable(readtable(file,s
 # it has the same arguments as snaq except for:
 # - need df table of CF with conf intervals (instead of d DataCF)
 # - new argument nrep: number of bootstrap replicates (default 10)
-# - new argument prcnet: percentage of bootstrap replicates to start in the best network, by default 0.3
+# - new argument prcnet: percentage of bootstrap replicates to start in the best network, by default 0.25
 # - new argument bestNet: to start the optimization. if prcnet>0.0 and bestNet is not input as argument from a previous run, it will estimate it inside
-function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::String, filename="bootsnaq_main"::String, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.3::Float64, bestNet=HybridNetwork()::HybridNetwork)
+function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::String, filename="bootsnaq_main"::String, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.25::Float64, bestNet=HybridNetwork()::HybridNetwork)
     prcnet > 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
     prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
     println("BOOTSTRAP OF SNAQ ESTIMATION")
@@ -45,13 +51,16 @@ function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multipl
     seeds = [seed,int(floor(rand(nrep)*100000))]
 
     if(prcnet > 0.0)
-        write(logfile, "Starting topology: will use the best network $(prcnet*100) of times \n")
+        write(logfile, "Starting topology: will use the best network $(prcnet*100) percent of times \n")
         if(bestNet.numTaxa == 0)
             write(logfile, "bestNet not input, so we need to estimate it before doing bootstrap\n")
-            println("bestNet not input, so we need to estimate it before doing bootstrap in order to use it as starting topology in $(prcnet*100) of times")
+            println("bestNet not input, so we need to estimate it before doing bootstrap in order to use it as starting topology in $(prcnet*100) percent of times")
             d = readTableCF(df)
             startnet=deepcopy(currT0)
             bestNet = optTopRuns!(startnet, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, "bestNet", true,seeds[1],probST)
+        else
+            write(logfile,"bestNet input: $(writeTopology(bestNet))\n to use in $(prcnet *100) percent of times as starting topology")
+            println("bestNet input: $(writeTopology(bestNet))\n to use in $(prcnet *100) percent of times as starting topology")
         end
     end
 
@@ -63,15 +72,15 @@ function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multipl
 
     for(i in 1:nrep)
         write(logfile,"\n begin replicate $(i) with seed $(seeds[i+1])---------\n")
-        println("begin replicate $(i) with seed $(seeds[i+1])")
+        println("\nbegin replicate $(i) with seed $(seeds[i+1])\n")
         newdf = bootstrapCFtable(df)
         writetable(string("CFtable",i,".csv"),newdf)
-        newd = readCFtable(newdf)
+        newd = readTableCF(newdf)
         if(i/nrep <= prcnet)
             write(logfile,"\nStarting topology: best network")
             startnet = deepcopy(bestNet)
         else
-            write(logfile,"\nStarting topology: same starting tree")
+            write(logfile,"\nStarting topology: same starting tree as original optimization")
             startnet=deepcopy(currT0)
         end
         flush(logfile)
@@ -82,8 +91,10 @@ function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multipl
         else
             write(logfile,writeTopology(net,outgroup)) #outgroup
         end
-    end
+        flush(logfile)
+    end #end nrep
     close(logfile)
+
     s = open(string(filename,".out"),"w")
     for(n in bootNet)
         if(outgroup == "none")

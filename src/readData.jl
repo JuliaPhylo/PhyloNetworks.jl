@@ -46,6 +46,7 @@ function readTableCF(df::DataFrames.DataFrame)
     end
     d = DataCF(quartets)
     println("DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
+    descData(d)
     return d
 end
 
