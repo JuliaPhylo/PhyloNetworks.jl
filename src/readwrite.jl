@@ -138,7 +138,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
         n = Node(num,true);
     else
         a = readall(s);
-        error("Expected beginning of subtree but read $(c), remaining is $(a).");
+        error("Expected beginning of subtree but read $(c) after left parenthesis $(numLeft[1]), remaining is $(a).");
     end
     if(pound) # found pound sign in name
         n.hybrid = true;

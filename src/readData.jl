@@ -116,6 +116,9 @@ function randQuartets(allQ::String,num::Int64)
     f = open(allQ)
     lines = readlines(f)
     n = length(lines)
+    if(num == 0)
+        num = integer(floor(0.1*n))
+    end
     num <= n || error("you cannot choose a sample of $(num) quartets when there are $(n) in total")
     indx = [rep(1,num),rep(0,n-num)]
     indx = indx[sortperm(randn(n))]
@@ -288,10 +291,15 @@ function readInputData(treefile::String, quartetfile::String, whichQ::Symbol, nu
     println("DATA: reading input data for treefile $(treefile) and quartetfile $(quartetfile)")
     trees = readInputTrees(treefile)
     if(whichQ == :all)
+        numQ != 0 || warn("set numQ=$(numQ) but whichQ is not rand, so all quartets will be used and numQ will be ignored. If you want a specific number of 4-taxon subsets not random, you can input with the quartetfile option")
         println("DATA: will use all quartets")
         quartets = readListQuartets(quartetfile)
     elseif(whichQ == :rand)
-        println("DATA: will use a random sample of $(numQ) quartets written in file rand$(numQ)Quartets.txt")
+        if(numQ == 0)
+            warn("not specified numQ but whichQ=rand, so 10% of quartets will be sampled")
+        else
+            println("DATA: will use a random sample of $(numQ) quartets written in file rand$(numQ)Quartets.txt")
+        end
         randQuartets(quartetfile,numQ)
         quartets = readListQuartets("rand$(numQ)Quartets.txt")
     else
@@ -309,8 +317,20 @@ end
 
 readInputData(treefile::String, quartetfile::String, whichQ::Symbol, numQ::Int64, writetab::Bool) = readInputData(treefile, quartetfile, whichQ, numQ, writetab, "tableCF.txt")
 readInputData(treefile::String, quartetfile::String, whichQ::Symbol, numQ::Int64) = readInputData(treefile, quartetfile, whichQ, numQ, true, "tableCF.txt")
-readInputData(treefile::String, quartetfile::String) = readInputData(treefile, quartetfile, :all, 1, true, "tableCF.txt")
-readInputData(treefile::String, quartetfile::String, writetab::Bool, filename::String) = readInputData(treefile, quartetfile, :all, 1, writetab, filename)
+readInputData(treefile::String, quartetfile::String) = readInputData(treefile, quartetfile, :all, 0, true, "tableCF.txt")
+readInputData(treefile::String, quartetfile::String, writetab::Bool, filename::String) = readInputData(treefile, quartetfile, :all, 0, writetab, filename)
+
+# it might be confusing for users to have type Symbol as argument, so here I do
+# the same function but for string
+function readInputData(treefile::String, quartetfile::String, whichQ::String, numQ::Int64, writetab::Bool, filename::String)
+    if(whichQ == "all")
+        readInputData(treefile, quartetfile, :all, numQ, writetab, filename)
+    elseif(whichQ == "rand")
+        readInputData(treefile, quartetfile, :rand, numQ, writetab, filename)
+    else
+        error("whichQ should be all or rand, not $(whichQ)")
+    end
+end
 
 # function to read input list of gene trees, and not the list of quartets
 # so it creates the list of quartets inside and calculates obsCF
@@ -324,10 +344,17 @@ function readInputData(treefile::String, whichQ::Symbol, numQ::Int64, taxa::Unio
     println("DATA: reading input data for treefile $(treefile) and no quartetfile given: will get quartets here")
     trees = readInputTrees(treefile)
     if(whichQ == :all)
+        numQ != 0 || warn("set numQ=$(numQ) but whichQ=all, so all quartets will be used and numQ will be ignored. If you want a specific number of 4-taxon subsets not random, you can input with the quartetfile option")
         println("DATA: will use all quartets based on taxa $(taxa)")
         allQuartets(taxa)
         quartets = readListQuartets("allQuartets.txt")
     elseif(whichQ == :rand)
+        if(numQ == 0)
+            warn("not specified numQ with whichQ=rand, so 10% of quartets will be sampled")
+        else
+            println("DATA: will use a random sample of $(numQ) quartets written in file rand$(numQ)Quartets.txt")
+        end
+
         println("DATA: will use random sample of $(numQ) quartets based on taxa $(taxa) written in file rand$(numQ)Quartets.txt")
         randQuartets(taxa,numQ)
         quartets = readListQuartets("rand$(numQ)Quartets.txt")
@@ -349,13 +376,24 @@ readInputData(treefile::String, whichQ::Symbol, numQ::Int64, taxa::Union(Vector{
 readInputData(treefile::String, whichQ::Symbol, numQ::Int64, writetab::Bool, filename::String) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), writetab, filename)
 readInputData(treefile::String, whichQ::Symbol, numQ::Int64, writetab::Bool) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), writetab, "tableCF.txt")
 readInputData(treefile::String, whichQ::Symbol, numQ::Int64) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), true, "tableCF.txt")
-readInputData(treefile::String) = readInputData(treefile, :all, 1, unionTaxaTree(treefile), true, "tableCF.txt")
-readInputData(treefile::String,taxa::Union(Vector{ASCIIString}, Vector{Int64})) = readInputData(treefile, :all, 1, taxa, true, "tableCF.txt")
-readInputData(treefile::String, filename::String) = readInputData(treefile, :all, 1, unionTaxaTree(treefile), true, filename)
+readInputData(treefile::String) = readInputData(treefile, :all, 0, unionTaxaTree(treefile), true, "tableCF.txt")
+readInputData(treefile::String,taxa::Union(Vector{ASCIIString}, Vector{Int64})) = readInputData(treefile, :all, 0, taxa, true, "tableCF.txt")
+readInputData(treefile::String, filename::String) = readInputData(treefile, :all, 0, unionTaxaTree(treefile), true, filename)
+
+# it might be confusing for users to have type Symbol as argument
+function readInputData(treefile::String, whichQ::String, numQ::Int64, taxa::Union(Vector{ASCIIString}, Vector{Int64}), writetab::Bool, filename::String)
+    if(whichQ == "all")
+        readInputData(treefile, :all, numQ, taxa, writetab, filename)
+    elseif(whichQ == "rand")
+        readInputData(treefile, :rand, numQ, taxa, writetab, filename)
+    else
+        error("whichQ should be all or rand, not $(whichQ)")
+    end
+end
 
 # rename the function readInputData to make it more user-friendly
-readTrees2CF(treefile::String, quartetfile::String; whichQ=:all::Symbol, numQ=1::Int64, writetab=true::Bool, filename="tableCF.txt"::String) = readInputData(treefile, quartetfile, whichQ, numQ, writetab, filename)
-readTrees2CF(treefile::String; whichQ=:all::Symbol, numQ=1::Int64, taxa=unionTaxaTree(treefile)::Union(Vector{ASCIIString}, Vector{Int64}), writetab=true::Bool, filename="tableCF.txt"::String) = readInputData(treefile::String, whichQ::Symbol, numQ::Int64, taxa::Union(Vector{ASCIIString}, Vector{Int64}), writetab::Bool, filename::String)
+readTrees2CF(treefile::String, quartetfile::String; whichQ="all"::String, numQ=0::Int64, writetab=true::Bool, filename="tableCF.txt"::String) = readInputData(treefile, quartetfile, whichQ, numQ, writetab, filename)
+readTrees2CF(treefile::String; whichQ="all"::String, numQ=0::Int64, taxa=unionTaxaTree(treefile)::Union(Vector{ASCIIString}, Vector{Int64}), writetab=true::Bool, filename="tableCF.txt"::String) = readInputData(treefile, whichQ, numQ, taxa, writetab, filename)
 
 # ---------------------- descriptive stat for input data ----------------------------------
 
