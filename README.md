@@ -117,7 +117,7 @@ like this:
 If instead of all the 4-taxon subsets, you just want to use a random
 sample of 10 4-taxon subsets:
 ```julia
-d=readTrees2CF("treefile.txt",whichQ=:rand,numQ=10);
+d=readTrees2CF("treefile.txt",whichQ="rand",numQ=10);
 ```
 Be careful to use a numQ value smaller than the total number of possible
 4-taxon subsets, which is *n choose 4* on *n* taxa (e.g. 15 on 6 taxa).

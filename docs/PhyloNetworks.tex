@@ -348,10 +348,14 @@ can be read from parenthetical format.
   list of desired 4-taxon subsets to analyze can be given in a text file
   (\textit{quartetfile name}), and two, if no such file is specified,
   then the user can set a number of 4-taxon subsets (\textit{numQ}) to
-  be chosen randomly (\textit{whichQ=:rand})
+  be chosen randomly (\textit{whichQ="rand"})
   from the set of all possible 4-taxon subsets: $n \choose x$ or else all the
   quartets will be considered. \textit{numQ} needs to be
-  smaller than the total number of quartets.
+  smaller than the total number of quartets. If \textit{numQ} is
+  specified but \textit{whichQ} is not set to \textit{rand}, then
+  \textit{numQ} will be ignored. If, on the contrary,
+  \textit{whichQ="rand"} but no \textit{numQ} is specified, the 10\%
+  of 4-taxon subsets will be sampled by default.
   This function will also write by default a text file
   with a table of CF called ``tableCF.txt'', but the name can be
   specified by \textit{filename} and if you do not want to write such table,
@@ -458,7 +462,7 @@ d1=readTrees2CF("treefile.txt")
 \end{lstlisting}
 If you want to use a random sample of 100 4-taxon subsets:
 \begin{lstlisting}
-d2=readTrees2CF("treefile.txt",whichQ=:rand,numQ=100)
+d2=readTrees2CF("treefile.txt",whichQ="rand",numQ=100)
 \end{lstlisting}
 On the contrary, if you have already the CF in a file \textit{tableCF.txt}
 in the format on Table \ref{tableCF}, you
