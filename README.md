@@ -19,7 +19,7 @@ to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/do
 Two alternatives:
 
 1. A list of estimated gene trees for each locus, which can be obtained using
-  [MrBayes](http://mrbayes.sourceforge.net) or [RAxML](http://sco.h-its.org/exelixis/software.html).
+  [MrBayes](http://mrbayes.sourceforge.net) or [RAxML](http://sco.h-its.org/exelixis/software.html). Or:
 2. A table of concordance factors (CF) for each 4-taxon subset which can be
   obtained from [BUCKy](http://www.stat.wisc.edu/~ane/bucky/),
   to account for gene tree uncertainty
@@ -30,7 +30,7 @@ This [pipeline](https://github.com/nstenz/TICR)
 can be used to obtain the table of CF needed as input
 for SNaQ. The pipeline starts with input the sequence alignments, and
 it runs MrBayes and then BUCKy, producing the
-table of estimated CFs and their confidence intervals.
+table of estimated CFs and their credibility intervals.
 
 
 ### Installation of Julia

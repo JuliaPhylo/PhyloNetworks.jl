@@ -18,9 +18,8 @@ function traverseEdges(net::HybridNetwork,
     for edge in node.edge                      #Iterates through all edges associated with the node
       eNum = edge.number                       #Stores the edge number for use with $ syntax
       #println("Appending edge $eNum")
-      parent = node                            #Sets current node as parent node
       if (edge.node)[1] == node
-        child = (edge.node)[2]                 #Finds other nodes attached to the edge and makes it the child
+        child = (edge.node)[2]                 #Finds other node attached to the edge and makes it the child
       else
         child = (edge.node)[1]
       end
@@ -29,14 +28,12 @@ function traverseEdges(net::HybridNetwork,
       gma = round(i.gamma,3)        #Gamma value for an edge i (default to 1.0 for tree edges)
       hThickness = gma*4
       edgeNum = i.number
-      node1 = parent;               #Parent node
-      node1Num = node1.number       #Necessary for $ notation
-      node2 = child;                #Child node
-      node2Num = node2.number       #Necessary for $ notation
+      node1Num = node.number        # parent node number. Necessary for $ notation
+      node2Num = child.number       # child  node number. Necessary for $ notation
 
 
       #Creates image for the entire network including all hybridization events
-          if node2.hybrid
+          if child.hybrid
               #Applies a thicker edge AND a gamma label on the edge to the dominant edge
               if gma > gammaThreshold
                 write(dotIo,"     $node1Num -- $node2Num
@@ -67,15 +64,10 @@ function traverseEdges(net::HybridNetwork,
               else
                 write(dotIo,"; \n")
               end
-        end #if node2.hybrid else (net)
+        end #if child.hybrid else (net)
 
-      if edge.node[1] == node                  #Decides which node is the parent and which is the child
-        newnode = edge.node[2]
-      else
-        newnode = edge.node[1]
-      end #if edge.node[1] == node else
-      nnN = newnode.number                        #Simply used for progress/debugging statements... will be removed in the end
-      traverseEdges(net,newnode,mainTree,dotIo,gammaThreshold,edge,hybridColor,layoutStyle,labelAngle,labelDistance,includeGamma,includeLength)
+      nnN = child.number                        #Simply used for progress/debugging statements... will be removed in the end
+      traverseEdges(net,child,mainTree,dotIo,gammaThreshold,edge,hybridColor,layoutStyle,labelAngle,labelDistance,includeGamma,includeLength)
     end #for edge in node.edge
   end #if node.number == net.root
 
@@ -96,11 +88,12 @@ function traverseEdges(net::HybridNetwork,
       #println("Checking edge number $eNum")
       if edge != parentEdge
 
-        parent = node
         if (edge.node)[1] == node
           child = (edge.node)[2]
-        else
+        elseif (edge.node)[2] == node
           child = (edge.node)[1]
+        else
+          warn("something is wrong")
         end
 
         if (edge.isMajor) || node.hybrid == false
@@ -110,16 +103,14 @@ function traverseEdges(net::HybridNetwork,
         gma = round(i.gamma,3)                 #Gamma value for an edge i (default to 1.0 for tree edges)
         hThickness = gma*4
         edgeNum = i.number
-        node1 = parent;            #Parent node
-        node1Num = node1.number       #Necessary for $ notation
-        node2 = child;            #Child node
-        node2Num = node2.number       #Necessary for $ notation
+        node1Num = node.number       # parent node number. Necessary for $ notation
+        node2Num = child.number      # child  node number. Necessary for $ notation
         DEBUG && println("$(i.number)     $(i.length)")
 
 
 
         #Creates image for the entire network including all hybridization events
-            if node2.hybrid
+            if child.hybrid
                 #Applies a thicker edge AND a gamma label on the edge to the dominant edge
                 if gma > gammaThreshold
                   write(dotIo,"   $node1Num -- $node2Num
@@ -152,7 +143,7 @@ function traverseEdges(net::HybridNetwork,
                 end #if includeGamma == true
                   write(dotIo,"
                                   [penwidth=$hThickness]; \n")
-                end #if node2.hybrid elseif mainTree == false
+                end #if child.hybrid elseif mainTree == false
             elseif child.leaf
                 write(dotIo,"     $node1Num -- $node2Num
                                   [headlabel=$(child.name)]
@@ -175,16 +166,9 @@ function traverseEdges(net::HybridNetwork,
             end #if else
 
       end
-      if (((~(edge.hybrid)) || ((edge.hybrid) && edge.isMajor)) && edge != parentEdge)  #Continue with the function if the edge is either a tree edge or a major hybrid
-          if edge.gamma > 0.5
-            if edge.node[1] == node                                                       #Determining which node is the parent/child
-              newnode = edge.node[2]
-            elseif edge.node[2] == node
-              newnode = edge.node[1]
-            else
-              warn("something is wrong")
-            end #if else
-            traverseEdges(net,newnode,mainTree,dotIo,gammaThreshold,edge,hybridColor,layoutStyle, labelAngle, labelDistance,includeGamma,includeLength)                             #Recursively call function with new child node (as parent) and previous edge as parent edge
+      if (((~(edge.hybrid)) || ((edge.hybrid) && edge.isMajor)) && edge != parentEdge)  # recursive call if the edge is either a tree edge or a major hybrid
+          if edge.gamma > 0.5 # fixit: would be best to remove this, instead check that 
+            traverseEdges(net,child,mainTree,dotIo,gammaThreshold,edge,hybridColor,layoutStyle, labelAngle, labelDistance,includeGamma,includeLength)
           end #if gamma
         end #if
       end #if
