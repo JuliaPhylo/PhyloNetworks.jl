@@ -370,7 +370,10 @@ can be read from parenthetical format.
   This function will also write by default a text file
   with a table of CF called ``tableCF.txt'' with some number identifier, but the name can be
   specified by \textit{CFfile} and if you do not want to write such table,
-  set \textit{writetab=false}. If the quartet file is not specified, then by
+  set \textit{writetab=false}. If you want text files with the list of
+  all possible 4-taxon subsets and sampled 4-taxon subsets, set
+  \textit{writeFile=true}. Keep in mind that these files can be very
+  big depending on the number of taxa. If the quartet file is not specified, then by
   default it will find quartets from the union of all taxa in the tree
   file, but you can choose the set of taxa for the quartets with the
   argument \textit{taxa} (vector of string names for chosen taxa).  The function does not need all the
@@ -383,10 +386,8 @@ can be read from parenthetical format.
   examples where all the trees have the same taxa.\\
   Usage:
 \begin{lstlisting}
-readTrees2CF(treefile, quartetfile, whichQ=..., numQ=...,
-             writetab=..., CFfile=...)
-readTrees2CF(treefile, whichQ=..., numQ=..., taxa=...,
-             writetab=..., CFfile=...)
+readTrees2CF(treefile, quartetfile=..., whichQ=..., numQ=...,
+             writetab=..., CFfile=..., writeFile=...)
 \end{lstlisting}
 
 \item \textbf{readTableCF:} Function to read a table of observed
