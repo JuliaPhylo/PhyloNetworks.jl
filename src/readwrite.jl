@@ -308,7 +308,7 @@ end
 # input: file name or tree in parenthetical format
 # calls readTopology(s::IO)
 # warning: crashes if file name starts with (
-function readTopology(input::String)
+function readTopology(input::String,verbose::Bool)
     if(input[1] == '(') #it is a tree
        s = IOBuffer(input)
     else
@@ -319,12 +319,13 @@ function readTopology(input::String)
         end
        s = open(input)
     end
-    net = readTopology(s)
+    net = readTopology(s,verbose)
     return net
 end
 
+readTopology(input::String) = readTopology(input,true)
 
-function readTopology(s::IO)
+function readTopology(s::IO,verbose::Bool)
     net = HybridNetwork()
     line = readuntil(s,";");
     if(line[end] != ';')
@@ -367,9 +368,13 @@ function readTopology(s::IO)
     end
     storeHybrids!(net)
     checkNumHybEdges!(net)
-    any([(e.length == 1.0 && e.istIdentifiable) for e in net.edge]) && println("edges lengths missing, so assigned default value of 1.0") #fixit: not best approach, better to add a flag inside readSubTree, careful bool not modified inside function, need bool array
+    if(verbose)
+        any([(e.length == 1.0 && e.istIdentifiable) for e in net.edge]) && println("edges lengths missing, so assigned default value of 1.0") #fixit: not best approach, better to add a flag inside readSubTree, careful bool not modified inside function, need bool array
+    end
     return net
 end
+
+readTopology(s::IO) = readTopology(s,true)
 
 # aux function to send an error if the number of hybrid attached to every
 # hybrid node are 0,1 or >2
@@ -667,16 +672,17 @@ cleanAfterReadAll!(net::HybridNetwork) = cleanAfterReadAll!(net,false)
 # leaveRoot=true if the root will not be deleted even if it has only 2 edges
 # used for plotting (default=false)
 # warning: if leaveRoot=true, net should not be used outside plotting, things will crash
-function readTopologyUpdate(file::String, leaveRoot::Bool)
+function readTopologyUpdate(file::String, leaveRoot::Bool,verbose::Bool)
     DEBUG && println("readTopology -----")
-    net = readTopology(file)
+    net = readTopology(file,verbose)
     cleanAfterReadAll!(net,leaveRoot)
     return net
 end
 
-readTopologyUpdate(file::String) = readTopologyUpdate(file, false)
+readTopologyUpdate(file::String) = readTopologyUpdate(file, false, true)
+readTopologyUpdate(file::String,verbose::Bool) = readTopologyUpdate(file, false, verbose)
 
-readTopologyLevel1(file::String) = readTopologyUpdate(file, false)
+readTopologyLevel1(file::String) = readTopologyUpdate(file, false, true)
 
 
 # aux function to check if the root is placed correctly, and re root if not
@@ -744,7 +750,9 @@ function writeSubTree!(s::IOBuffer, n::Node, parent::Edge,di::Bool,names::Bool)
         end
     end
     if(!n.leaf)
-        print(s,string(":",round(parent.length,3)))
+        if(parent.istIdentifiable) #we do not want to print BL of non-id edges
+            print(s,string(":",round(parent.length,3)))
+        end
     end
     if(parent.hybrid && !di && !n.isBadDiamondI)
         print(s,string("::",round(parent.gamma,3)))

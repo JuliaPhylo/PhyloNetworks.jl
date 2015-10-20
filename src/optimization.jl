@@ -1378,7 +1378,10 @@ optTopRun1!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTopRun1!(currT, m
 # function SNaQ: it calls directly optTopRuns but has a prettier name
 # it differs from optTopRuns in that it creates a deepcopy of the starting topology
 # only currT and d are necessary, all others are optional and have default values
-function snaq(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::String, filename="snaq"::String, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64)
+function snaq(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::String, filename="none"::String, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64)
+    if(filename == "none")
+        filename = "snaq$(string(integer(time()/1000)))"
+    end
     startnet=deepcopy(currT0)
     optTopRuns!(startnet, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, returnNet,seed,probST)
 end

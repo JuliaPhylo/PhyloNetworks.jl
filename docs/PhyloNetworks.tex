@@ -214,7 +214,17 @@ could be replaced by v0.4 if you have version 0.4 of Julia.
 
 \section{Description of main functions}
 Functions in \texttt{Julia} that end with exclamation sign \textbf{!}
-are modifying one (or all) of the arguments. The description of the
+are modifying one (or all) of the arguments.
+\paragraph{Important:} Functions in Julia have required arguments and
+optional arguments. Required arguments \textbf{should not be
+  named}. For example, you would call\\
+\texttt{readTopology("(A,(B,(C,D)));")} not
+\texttt{readTopology(net="(A,(B,(C,D)));")}.
+In the following descriptions, it is specified which arguments are
+optional and which arguments are required. If there is only one
+argument, it is required.
+
+The description of the
 functions in \texttt{PhyloNetworks} is next:
 \begin{itemize}
 \item \textbf{readTopology:} Function to read a tree or network from
@@ -225,7 +235,7 @@ functions in \texttt{PhyloNetworks} is next:
   function allows for many topologies that can be forbidden with the
   restriction described above. That is, this function allows for
   polytomies in tree nodes (tree node with more than two children) and
-  internal nodes with only two edges. \
+  internal nodes with only two edges.
 %falta{(and other things not tested yet)}.
 \\Usage:
 \begin{lstlisting}
@@ -260,7 +270,8 @@ tipLabels(net)
 \end{lstlisting}
 
 \item \textbf{writeTopology:} Function to write the parenthetical
-  format of a \texttt{HybridNetwork} object. It has four options:
+  format of a \texttt{HybridNetwork} object. The first argument is
+  required and it is a \texttt{HybridNetwork} object. It has four optional arguments:
 \begin{itemize}
 \item{\textit{di=true}: to print in a format that Dendroscope can
     read, that is, without the $\gamma$ values (default
@@ -281,7 +292,7 @@ writeTopology(net,di=true)
   (single taxon). When a node number is used as parameter, you have
   the \textit{resolve} option. If true, a branch with zero length is
   added. The node numbers can be known with the plot function
-  described in section \ref{sectPlot}.\\
+  described in section \ref{sectPlot}. All arguments are required.\\
 Usage:
 \begin{lstlisting}
 root!(net,nodeNumber,resolve)
@@ -289,7 +300,7 @@ root!(net,outgroup)
 \end{lstlisting}
 
 \item \textbf{deleteLeaf!:} Function to delete a leaf from a
-  \texttt{HybridNetwork} object.\\
+  \texttt{HybridNetwork} object. Both arguments are required.\\
 Usage:
 \begin{lstlisting}
 deleteLeaf!(net,taxonName)
@@ -357,13 +368,14 @@ can be read from parenthetical format.
   \textit{whichQ="rand"} but no \textit{numQ} is specified, the 10\%
   of 4-taxon subsets will be sampled by default.
   This function will also write by default a text file
-  with a table of CF called ``tableCF.txt'', but the name can be
-  specified by \textit{filename} and if you do not want to write such table,
+  with a table of CF called ``tableCF.txt'' with some number identifier, but the name can be
+  specified by \textit{CFfile} and if you do not want to write such table,
   set \textit{writetab=false}. If the quartet file is not specified, then by
   default it will find quartets from the union of all taxa in the tree
   file, but you can choose the set of taxa for the quartets with the
-  argument \textit{taxa}.  The function does not need all the arguments,
-  see below examples for details.
+  argument \textit{taxa} (vector of string names for chosen taxa).  The function does not need all the
+  arguments, the optional arguments are followed by an equal sign \texttt{=}.
+  See below examples for details.
   \\
 
   WARNING: This function has not yet been tested with missing
@@ -371,14 +383,18 @@ can be read from parenthetical format.
   examples where all the trees have the same taxa.\\
   Usage:
 \begin{lstlisting}
-readTrees2CF(treefile, quartetfile, whichQ, numQ,
-             writetab, filename)
-readTrees2CF(treefile, whichQ, numQ, taxa, writetab,
-             filename)
+readTrees2CF(treefile, quartetfile, whichQ=..., numQ=...,
+             writetab=..., CFfile=...)
+readTrees2CF(treefile, whichQ=..., numQ=..., taxa=...,
+             writetab=..., CFfile=...)
 \end{lstlisting}
 
 \item \textbf{readTableCF:} Function to read a table of observed
-  CF. The table should contain 7 columns as in Table \ref{tableCF}.\\
+  CF. The table should contain 7 columns as in Table \ref{tableCF}. If
+  the table has more than 7 columns, all columns from 8th on will be
+  ignored. The required argument is the name of the table file, but it
+  also has an optional argument \textit{sep} for the character that
+  separates columns in the table file.\\
 \begin{table}[h]
 \centering
 \begin{tabular}{c|c|c|c|c|c|c}
@@ -429,12 +445,13 @@ readInputTrees(filename)
   computed from a collection of gene trees: CF for 4-taxon subsets
   that were computed with less than \textit{pc} percentage of the gene
   trees will be listed. The option \textit{pc} should be a number
-  between 0 and 1.\\
+  between 0 and 1. The required argument is \textit{d}, the optional
+  arguments are \textit{filename,pc} (followed by = below).\\
 Usage:
 \begin{lstlisting}
 summarizeCFdata(d)
-summarizeCFdata(d,filename)
-summarizeCFdata(d,filename,pc)
+summarizeCFdata(d,filename=...)
+summarizeCFdata(d,filename=...,pc=...)
 \end{lstlisting}
 
 \item \textbf{readStartTop:} read a tree in parenthetical format from
@@ -442,7 +459,7 @@ summarizeCFdata(d,filename,pc)
   the data structure \texttt{DataCF}. It is equivalent to run
   readTopologyUpdate first and then updateBL!(net,d)\\
   WARNING: updateBL only works for a tree topology, not proven for a
-  network yet.\\  Usage:
+  network yet. Both arguments are required.\\  Usage:
 \begin{lstlisting}
 readStartTop(treefile, d)
 \end{lstlisting}
@@ -487,7 +504,7 @@ topology and a data object \texttt{DataCF}:
 \begin{lstlisting}
 snaq(startingTopology,data)
 \end{lstlisting}
-The function has the following options (with default values in parenthesis):
+The function has the following optional arguments (with default values in parenthesis):
 \begin{itemize}
 \item \textbf{Nfail} \textit{(100)}: number of proposal failed allowed before
   stopping the optimization
@@ -585,7 +602,7 @@ wants to be estimated, this can be done with the following functions:
 \item{\textbf{mapAllelesCFtable:} This function will read the original
   CF table with allele names, and a mapping file matching allele names
 to species names, and return a CF data frame with the allele names
-changed to species names. If the option \textit{filename} is defined,
+changed to species names. If the optional argument \textit{filename} is defined,
 then the new table is also saved as a csv file.
 \\Usage:
 \begin{lstlisting}
@@ -622,7 +639,7 @@ across all genes for which that individual was sequenced.
   optimize the branch lengths and inheritance probabilities with the
   pseudolikelihood. Minus the logarithm of the pseudolikelihood value
   for the network will be stored in the attribute: \texttt{net.loglik}
-  and it will be printed to screen. The option \texttt{verbose} will
+  and it will be printed to screen. The optional argument \texttt{verbose} will
   print the iterations to the screen. The user can also define the
   absolute and relative tolerance with the same options as described
   before for the \texttt{snaq} function. The maximum value allowed for
@@ -640,12 +657,7 @@ across all genes for which that individual was sequenced.
   lengths and inheritance probabilities, you can compute the
   pseudolikelihood value without optimizing. This function is not
   maximizing, it is simply computing the pseudolikelihood for the
-  given branch lenghts and probabilities of inheritance. It is
-  advisable though to maximize the pseudolikelihood even when branch
-  lengths and probabilities of inheritance are given. This is simply
-  because the optimization procedure is quite fast (so it does not
-  represent any computational burden) and it will provide a more
-  accurate pseudolikelihood value.
+  given branch lenghts and probabilities of inheritance.
   \\
   Usage:
   \begin{lstlisting}
@@ -673,8 +685,6 @@ To help us out to debug \texttt{SNaQ}, please use the same settings
 under which you found the error to run the function and the seed in
 the .err file associated to the bug:
 \begin{lstlisting}
-const DEBUG = true
-const REDIRECT = true
 snaqDebug(T,d,hmax=2,seed=4545);
 \end{lstlisting}
 This will create two text files: \textit{snaqDebug.log} and
@@ -686,27 +696,27 @@ something similar. I
 will not have access to any of your data, the files simply print the
 steps I need to retrace the bug and hopefully, fix it.
 
-Errors with the other functions are not straight-forward to detect,
-but if you encounter a problem with them, simply type:
-\begin{lstlisting}
-const DEBUG = true
-\end{lstlisting}
-and re run the function saving the output to a file and send me that
-file.
 
 \section{Phylogenetic Network Visualization}
 \label{sectPlot}
 This package contains functionality for creating visual plots of
-phylogenies generated using the \texttt{SNaQ} estimation method \citep{Solis-Lemus2015}.
-The included visualization tools allow the user to plot entire networks with many hybridization events or the underlying tree structure.
-Plots created by this package include a dynamic representation of probability of inheritance for hybridization events, which are represented by variation in hybrid edge thickness.
-Numerous customization options are available and are described in detail below.
+phylogenies generated using the \texttt{SNaQ} estimation method
+\citep{Solis-Lemus2015}.  The included visualization tools allow the
+user to plot entire networks with many hybridization events or the
+underlying tree structure.  Plots created by this package include a
+dynamic representation of probability of inheritance for hybridization
+events, which are represented by variation in hybrid edge thickness.
+Numerous customization options are available and are described in
+detail below.
 
 \subsection{Basic Network Plotting}
 
-Plotting with the \texttt{PhyloNetworks} package is simple, being entirely contained in the function \texttt{plotPhylonet}.
-Although there are  many optional arguments available for this function, the only \textit{required} input is the network itself.
-Networks may be input into \texttt{plotPhylonet} as one of two possible formats, depending on the user's particular preference:
+Plotting with the \texttt{PhyloNetworks} package is simple, being
+entirely contained in the function \texttt{plotPhylonet}.  Although
+there are many optional arguments available for this function, the
+only \textit{required} input is the network itself.  Networks may be
+input into \texttt{plotPhylonet} as one of two possible formats,
+depending on the user's particular preference:
 \begin{enumerate}
 \item Newick parenthetical format
 \item HybridNetwork data type
