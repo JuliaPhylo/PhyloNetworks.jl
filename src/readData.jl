@@ -360,17 +360,17 @@ readInputData(treefile::String, filename::String) = readInputData(treefile, :all
 function readTrees2CF(treefile::String; quartetfile="none"::String, whichQ="all"::String, numQ=0::Int64, writetab=true::Bool, CFfile="none"::String, taxa=unionTaxaTree(treefile)::Union(Vector{ASCIIString},Vector{Int64}), writeFile=false::Bool)
     if(quartetfile == "none")
         if(whichQ == "all")
-            readInputData(treefile, :all, numQ, taxa, writetab, filename, writeFile)
+            readInputData(treefile, :all, numQ, taxa, writetab, CFfile, writeFile)
         elseif(whichQ == "rand")
-            readInputData(treefile, :rand, numQ, taxa, writetab, filename, writeFile)
+            readInputData(treefile, :rand, numQ, taxa, writetab, CFfile, writeFile)
         else
             error("whichQ should be all or rand, not $(whichQ)")
         end
     else
         if(whichQ == "all")
-            readInputData(treefile, quartetfile, :all, numQ, writetab, filename, writeFile)
+            readInputData(treefile, quartetfile, :all, numQ, writetab, CFfile, writeFile)
         elseif(whichQ == "rand")
-            readInputData(treefile, quartetfile, :rand, numQ, writetab, filename, writeFile)
+            readInputData(treefile, quartetfile, :rand, numQ, writetab, CFfile, writeFile)
         else
             error("whichQ should be all or rand, not $(whichQ)")
         end
