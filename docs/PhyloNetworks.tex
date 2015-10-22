@@ -355,11 +355,18 @@ can be read from parenthetical format.
   have extra lines like headline that the function will ignore. It
   will assume that any line starting with ``(`` is a tree). The
   function will calculate the observed CF for the corresponding
-  4-taxon subsets. There are two possibilities for the 4-taxon subsets: one, the
-  list of desired 4-taxon subsets to analyze can be given in a text file
-  (\textit{quartetfile name}), and two, if no such file is specified,
+  4-taxon subsets.
+  This function has the following optional arguments:
+\begin{itemize}
+\item{\textit{quartetfile} (default empty): the list of desired
+    4-taxon subsets to analyze can be given in a text file. If not
+    such file is specified, the function will take either all the
+    possible 4-taxon subsets or a random sample based on the following
+    options.}
+\item{\textit{whichQ} (default "all"): if set to \textit{"rand"}, the }
+
   then the user can set a number of 4-taxon subsets (\textit{numQ}) to
-  be chosen randomly (\textit{whichQ="rand"})
+  be chosen randomly ()
   from the set of all possible 4-taxon subsets: $n \choose x$ or else all the
   quartets will be considered. \textit{numQ} needs to be
   smaller than the total number of quartets. If \textit{numQ} is
@@ -377,7 +384,9 @@ can be read from parenthetical format.
   default it will find quartets from the union of all taxa in the tree
   file, but you can choose the set of taxa for the quartets with the
   argument \textit{taxa} (vector of string names for chosen taxa).  The function does not need all the
-  arguments, the optional arguments are followed by an equal sign \texttt{=}.
+  arguments, the optional arguments are followed by an equal sign
+  \texttt{=}.
+\end{itemize}
   See below examples for details.
   \\
 

@@ -19,7 +19,7 @@ const CHECKNET = false #for debugging only
 const REDIRECT = false # for debugging to a file later
 
 
-include("auxiliary.jl")
+include("auxiliary2.jl") #auxiliary2 for julia 0.4
 
 include("update.jl")
 
@@ -33,7 +33,7 @@ include("moves.jl")
 
 include("readwrite.jl")
 
-include("readData.jl")
+include("readData2.jl") #readData2.jl to try it in julia 0.4
 
 include("optimization.jl")
 
