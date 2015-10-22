@@ -1,39 +1,38 @@
-#John Spaw
-#drawCF takes a CF network object and converts it into .dot file, which is then converted into a .svg image file
+# initial function: John Spaw, 7/2015
+# takes a network object and converts it into .dot file, which is then converted into a .svg image file
 
-function plotPhylonet(graph::Network;                      #Network object you are trying to plot
-                 gammaThreshold=0.5::FloatingPoint,        #Gamma Threshold for extracting underlying tree structure
-                 mainTree=false::Bool,                     #When true, the function will plot only the underlying tree structure
-                 imageName="netImage",                     #Name for the file to be output
-                 width=6::Number,                          #Width of image in inches
-                 height=8::Number,                         #Height of image in inches
-                 vert=true::Bool,                          #When true, function will display heirarchy from top to bottom. Otherwise, it will be from left to right
-                 internalLabels=false::Bool,               #When true, all nodes will have labels (including internal nodes)
-                 fontSize=16.0::FloatingPoint,             #Font size for labels in points
-                 layoutStyle="dot"::String,                #Chooses the layout engine for placing nodes and edges (dot,neato,circo,twopi)
-                 hybridColor="green4"::String,             #Sets color for hybrid edges
-                 forcedLeaf=true::Bool,                    #When true, places all leaf nodes on the same line
-                 unrooted=false::Bool,                     #Defaults to neato engine
-                 nodeSeparation=0.8::FloatingPoint,        #Sets the minimum distance between nodes in inches
-                 edgeStyle="true"::String,                 #Sets the style of edges used. Options include "line", "ortho", "composite" (which uses both lines and curved splines), "curved"
-                 labelAngle= 180.0::FloatingPoint,         #Sets the angle for leaf label placement
-                 labelDistance= 3.0::FloatingPoint,        #Sets the distance for leaf label placement
-                 includeGamma=false::Bool,                   #When true, gamma labels are included on hybrid edges
-                 includeLength=false::Bool
+function plotPhylonet(graph::Network;    # Network object to plot
+  imageName="netImage",                  # Name for output files
+  gammaThreshold=0.5::FloatingPoint,     # threshold for ...
+  mainTree=false::Bool,                  # When true, only the underlying tree will be plotted
+  width=6::Number,                       # Width of image in inches
+  height=8::Number,                      # Height of image in inches
+  vert=true::Bool,                       # When true, hierarchy displayed from top to bottom. Otherwise, left to right
+  internalLabels=false::Bool,            # When true, all nodes will have labels (including internal nodes)
+  fontSize=16.0::FloatingPoint,          # Font size for labels in points
+  layoutStyle="dot"::String,             # layout engine for placing nodes and edges (dot,neato,circo,twopi)
+  hybridColor="green4"::String,          # color for hybrid edges
+  forcedLeaf=true::Bool,                 # When true, places all leaf nodes on the same line
+  unrooted=false::Bool,                  # if true, enforces layoutStyle to 'neato'
+  nodeSeparation=0.8::FloatingPoint,     # minimum distance between nodes in inches
+  edgeStyle="true"::String,              # style of edges. Options: "line", "ortho", "composite" (which uses both lines and curved splines), "curved"
+  labelAngle= 180.0::FloatingPoint,      # angle for leaf label placement
+  labelDistance= 3.0::FloatingPoint,     # distance for leaf label placement
+  includeGamma=false::Bool,              # When true, gamma labels are displayed on hybrid edges
+  includeLength=false::Bool
+  )
 
-                 )
-
-    #check that the root is correcly placed (Claudia, Aug2015)
-    if(!isTree(graph))
-        if(!graph.cleaned)
-            DEBUG && println("net not cleaned inside plotPhylonet, need to run updateCR")
-            for(n in graph.hybrid)
-                flag,edges = updateContainRoot!(graph,n)
-                flag || error("hybrid node $(n.hybrid) has conflicting containRoot")
-            end
-        end
-        checkRootPlace!(graph)
-    end
+  # check that the root is correcly placed (Claudia, Aug2015)
+  if(!isTree(graph))
+      if(!graph.cleaned)
+          DEBUG && println("net not cleaned inside plotPhylonet, need to run updateCR")
+          for(n in graph.hybrid)
+              flag,edges = updateContainRoot!(graph,n)
+              flag || error("hybrid node $(n.hybrid) has conflicting containRoot")
+          end
+      end
+      checkRootPlace!(graph)
+  end
 
   #IO stream for writing to .dot file
   dotIo = open("$imageName.dot","w+")
@@ -63,9 +62,7 @@ function plotPhylonet(graph::Network;                      #Network object you a
     #end
   end
 
-
-  netRoot = graph.root;
-  global rootNode = graph.node[graph.root]
+  rootNode = graph.node[graph.root]
 
   #********************************************************************************************************************
 
@@ -74,14 +71,14 @@ function plotPhylonet(graph::Network;                      #Network object you a
   if vert == false
     write(dotIo,"     rankdir=LR; \n")
   end
-  write(dotIo,"    labelloc=b \n")                                #Ensures that labels do not overlap each other (DOUBLE CHECK THIS)
-  write(dotIo,"    ratio=\"fill\"; \n")                           #Fits graph to the full image size             (TEST OTHER RATIO OPTIONS)
-  write(dotIo,"    size=\"$width ,$height !\"; \n")               #Changes the size of the entire graph
-  write(dotIo,"    nodesep=$(nodeSeparation); \n")                #Minimum distance between any two nodes
-  write(dotIo,"    splines=$(edgeStyle); \n")                     #Edge style argument (see function argument declaration)
-  write(dotIo,"    edge [fontsize=$fontSize]; \n")                #Fontsize argument
-  write(dotIo,"    node [shape = point] \n")                      #Sets the shape of the nodes
-  write(dotIo,"    rank=max $(rootNode.number) \n")               #Guarantees placement of root node at top of hierarchy (dot engine only)
+  write(dotIo,"    labelloc=b \n")                     # Ensures that labels do not overlap each other (DOUBLE CHECK THIS)
+  write(dotIo,"    ratio=\"fill\"; \n")                # Fits graph to the full image size             (TEST OTHER RATIO OPTIONS)
+  write(dotIo,"    size=\"$width ,$height !\"; \n")    # size of the entire graph
+  write(dotIo,"    nodesep=$(nodeSeparation); \n")     # Minimum distance between any two nodes
+  write(dotIo,"    splines=$(edgeStyle); \n")          # Edge style argument
+  write(dotIo,"    edge [fontsize=$fontSize]; \n")
+  write(dotIo,"    node [shape = point] \n")
+  write(dotIo,"    rank=max $(rootNode.number) \n")    # Guarantees placement of root node at top of hierarchy (dot engine only)
 
   if unrooted
     write(dotIo,"  mode = KK; \n")
@@ -142,46 +139,45 @@ function plotPhylonet(graph::Network;                      #Network object you a
 end
 
 function plotPhylonet(netString::String;
-                 gammaThreshold=0.5::FloatingPoint,        #Gamma Threshold for extracting underlying tree structure
-                 mainTree=false::Bool,                     #When true, the function will plot only the underlying tree structure
-                 imageName="netImage",                     #Name for the file to be output
-                 width=6::Number,                          #Maximum width of image in inches
-                 height=8::Number,                         #Maximum height of image in inches
-                 vert=true::Bool,                          #When true, function will display heirarchy from top to bottom. Otherwise, it will be from left to right
-                 internalLabels=false::Bool,               #When true, all nodes will have labels (including internal nodes)
-                 fontSize=16.0::FloatingPoint,             #Font size for labels in points
-                 layoutStyle="dot"::String,                #Chooses the layout engine for placing nodes and edges (dot,neato,circo,twopi)
-                 hybridColor="green4"::String,             #Sets color for hybrid edges
-                 forcedLeaf=true::Bool,                    #When true, places all leaf nodes on the same line
-                 unrooted=false::Bool,                     #Defaults to neato engine
-                 nodeSeparation=0.5::FloatingPoint,        #Sets the minimum distance between nodes in inches
-                 edgeStyle="false"::String,                #Sets the style of edges used. Options include "line", "ortho", "composite" (which uses both lines and curved splines), "curved"
-                 labelAngle= 180.0::FloatingPoint,         #Sets the angle for leaf label placement
-                 labelDistance= 3.0::FloatingPoint,        #Sets the distance for leaf label placement
-                 includeGamma=false::Bool,                 #When true, gamma labels are included on hybrid edges
-                 includeLength=false::Bool                 #When true, edge length labels are included
-                 )
-
+  imageName="netImage",                  # Name for output files
+  gammaThreshold=0.5::FloatingPoint,     # threshold for ...
+  mainTree=false::Bool,                  # When true, only the underlying tree will be plotted
+  width=6::Number,                       # Width of image in inches
+  height=8::Number,                      # Height of image in inches
+  vert=true::Bool,                       # When true, hierarchy displayed from top to bottom. Otherwise, left to right
+  internalLabels=false::Bool,            # When true, all nodes will have labels (including internal nodes)
+  fontSize=16.0::FloatingPoint,          # Font size for labels in points
+  layoutStyle="dot"::String,             # layout engine for placing nodes and edges (dot,neato,circo,twopi)
+  hybridColor="green4"::String,          # color for hybrid edges
+  forcedLeaf=true::Bool,                 # When true, places all leaf nodes on the same line
+  unrooted=false::Bool,                  # if true, enforces layoutStyle to 'neato'
+  nodeSeparation=0.8::FloatingPoint,     # minimum distance between nodes in inches. Default was 0.5 before, here only.
+  edgeStyle="true"::String,              # style of edges. Options: "line", "ortho", "composite" (which uses both lines and curved splines), "curved". Default was "false", here only.
+  labelAngle= 180.0::FloatingPoint,      # angle for leaf label placement
+  labelDistance= 3.0::FloatingPoint,     # distance for leaf label placement
+  includeGamma=false::Bool,              # When true, gamma labels are displayed on hybrid edges
+  includeLength=false::Bool
+  )
 
   net = readTopologyUpdate(netString,true);
   plotPhylonet(net,
-                 gammaThreshold=gammaThreshold,
-                 mainTree=mainTree,
-                 imageName=imageName,
-                 width=width,
-                 height=height,
-                 vert=vert,
-                 internalLabels=internalLabels,
-                 fontSize=fontSize,
-                 layoutStyle=layoutStyle,
-                 hybridColor=hybridColor,
-                 forcedLeaf=forcedLeaf,
-                 unrooted=unrooted,
-                 nodeSeparation=nodeSeparation,
-                 edgeStyle=edgeStyle,
-                 labelAngle=labelAngle,
-                 labelDistance=labelDistance,
-                 includeGamma=includeGamma,
-                 includeLength=includeLength
-                 )
+     gammaThreshold=gammaThreshold,
+     mainTree=mainTree,
+     imageName=imageName,
+     width=width,
+     height=height,
+     vert=vert,
+     internalLabels=internalLabels,
+     fontSize=fontSize,
+     layoutStyle=layoutStyle,
+     hybridColor=hybridColor,
+     forcedLeaf=forcedLeaf,
+     unrooted=unrooted,
+     nodeSeparation=nodeSeparation,
+     edgeStyle=edgeStyle,
+     labelAngle=labelAngle,
+     labelDistance=labelDistance,
+     includeGamma=includeGamma,
+     includeLength=includeLength
+     )
 end
