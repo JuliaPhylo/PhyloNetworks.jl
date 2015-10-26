@@ -175,6 +175,7 @@ The option *di=true* is for the parenthetical format used by
 [Dendroscope](http://dendroscope.org/) (without reticulation heritabilities).
 Copy this parenthetical description and paste it into Dendroscope, or use the plotting function described below.
 
+<!--
 #### Network Visualization
 To visualize the network:
 ```julia
@@ -183,7 +184,6 @@ plotPhylonet(net1,unrooted=true)
 ```
 For now, this function will create an .svg figure file (netImage.svg by default).
 
-<!--
 WARNING: There is a known bug in the plotPhylonet function,
 see the issue in the PhyloNetworks Github repository for details.
 The error can be sometimes fixed by changing the position of the root
