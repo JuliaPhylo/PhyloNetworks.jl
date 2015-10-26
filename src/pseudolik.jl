@@ -351,6 +351,11 @@ function deleteLeaf!(net::Network, leaf::Node)
 end
 
 # function to delete a leaf from leaf name
+"""
+`deleteLeaf!(net::HybridNetwork, leaf::String)`
+
+deletes the leaf taxon from the HybridNetwork object. The leaf argument is the taxon name.
+"""
 function deleteLeaf!(net::Network, leaf::AbstractString)
     found = false
     for(l in net.leaf)

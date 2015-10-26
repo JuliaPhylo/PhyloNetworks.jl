@@ -323,6 +323,12 @@ function readTopology(input::AbstractString,verbose::Bool)
     return net
 end
 
+"""
+`readTopology(file name); readTopology(tree in parenthetical format)`
+
+function to read tree or network topology from parenthetical format.
+Input: text file or parenthetical format directly
+"""
 readTopology(input::AbstractString) = readTopology(input,true)
 
 function readTopology(s::IO,verbose::Bool)
@@ -687,6 +693,14 @@ end
 readTopologyUpdate(file::AbstractString) = readTopologyUpdate(file, false, true)
 readTopologyUpdate(file::AbstractString,verbose::Bool) = readTopologyUpdate(file, false, verbose)
 
+"""
+`readTopologyLevel1(filename); readTopologyLevel1(parenthetical format)`
+
+same as readTopology, reads a tree or network from parenthetical
+format, but this function enforces the necessary conditions for any
+starting topology in SNaQ: non-intersecting cycles, no polytomies,
+unrooted.
+"""
 readTopologyLevel1(file::AbstractString) = readTopologyUpdate(file, false, true)
 
 
@@ -815,6 +829,15 @@ writeTopology(net::HybridNetwork,di::Bool) = writeTopology(net,di, true,true,"no
 writeTopology(net::HybridNetwork,outgroup::AbstractString) = writeTopology(net,false, true,true,outgroup)
 writeTopology(net::HybridNetwork,di::Bool,outgroup::AbstractString) = writeTopology(net,di, true,true,outgroup)
 
+"""
+`writeTopology(net::HybridNetwork)`
+
+writes the parenthetical format of a HybridNetwork object with many optional arguments:
+
+- di=true: write in format for Dendroscope
+- names=false: write the leaf nodes numbers instead of taxon names
+- outgroup (string): name of outgroup to root the tree/network
+"""
 writeTopology(net::HybridNetwork; di=false::Bool, string=true::Bool, names=true::Bool,outgroup="none"::AbstractString) = writeTopology(net, di, string, names,outgroup)
 
 # function to check if root is well-placed
