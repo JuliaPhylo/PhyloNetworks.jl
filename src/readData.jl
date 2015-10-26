@@ -116,11 +116,13 @@ function allQuartets(taxon::Union{Vector{ASCIIString},Vector{Int64}}, writeFile:
         allName = "allQuartets.txt"
         f = open(allName,"w")
     end
+    i = 1
     for q in quartets
         if(writeFile)
             write(f,"$(q[1]),$(q[2]),$(q[3]),$(q[4])\n")
         end
         push!(vquartet,Quartet(i,string(q[1]),string(q[2]),string(q[3]),chomp(string(q[4])),[1.0,0.0,0.0]))
+        i += 1
     end
     if(writeFile)
         close(f)
