@@ -44,9 +44,7 @@ first time you run a function, it will be compiled at that moment. So,
 please be patient! Future calls to the function will be much much
 faster. Trying out toy examples for the first calls is a good idea.
 
-PhyloNetworks was developed under Julia
-version 0.3.5, and has been tested on different versions of 0.3.X.
-We have not tested its robustness on Julia version 0.4 or above yet.
+Users should have Julia 0.4 or above.
 
 
 ### Installation of the package PhyloNetworks
@@ -63,10 +61,10 @@ Pkg.update()
 ```
 WARNING: It is important to update the package regularly as it is undergoing constant development. There is a known bug for Mac users where the *Pkg.update* function does not update to the latest version. We recommend Mac users to do the following through the terminal:
 ```shell
-cd HOME/.julia/v0.3/PhyloNetworks/
+cd HOME/.julia/v0.4/PhyloNetworks/
 git pull
 ```
-where HOME is replaced by your home directory and v0.3 could be replaced by v0.4 if you have version 0.4 of Julia.
+where HOME is replaced by your home directory.
 
 The PhyloNetworks package has the following dependencies, but everything is installed automatically.
 

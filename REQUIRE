@@ -1,5 +1,5 @@
-julia 0.3
+julia 0.4
 Compat
 DataFrames
-NLopt 0.2.0
-GraphViz 0.0.3
+NLopt
+GraphViz

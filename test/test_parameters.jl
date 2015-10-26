@@ -14,7 +14,7 @@ using Base.Collections # for updateInCycle with priority queue
 
 #tests = ["C","F","G","H","J","D","E","I"];
 tests = ["F","G","H","J","I"];
-wrong = String[];
+wrong = AbstractString[];
 
 function whichtree(t::ASCIIString)
     if(t == "tree")

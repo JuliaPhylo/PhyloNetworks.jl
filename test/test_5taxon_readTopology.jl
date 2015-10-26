@@ -14,7 +14,7 @@ using Base.Collections # for updateInCycle with priority queue
 include("test_functions_5taxon_read.jl")
 
 tests = ["F","G","H","J","I"];
-wrong = String[];
+wrong = AbstractString[];
 
 function whichtree(t::ASCIIString)
     if(t == "tree")
