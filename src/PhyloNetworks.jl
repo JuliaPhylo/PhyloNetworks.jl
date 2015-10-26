@@ -1,6 +1,7 @@
-module PhyloNetworks
+VERSION < "v0.4" && error("you should update Julia to current version: 0.4 or higher")
+__precompile__()
 
-VERSION < "v0.4" && warn("you should update Julia to current version: 0.4 or higher")
+module PhyloNetworks
 
 using Base.Collections # for updateInCycle with priority queue
 using DataFrames # for rep function and read/write csv tables
