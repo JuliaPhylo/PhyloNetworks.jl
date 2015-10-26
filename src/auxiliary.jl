@@ -593,6 +593,12 @@ function printEdges(net::QuartetNetwork)
     end
 end
 
+"""
+`printEdges(net::HybridNetwork)`
+
+prints the information on the edges of net: edge number, node numbers of nodes attached to it, in which cycle it is contained (-1 if no cycle), can it contain root, is it an identifiable edge, length, is it hybrid, gamma value
+"""
+
 function printEdges(net::HybridNetwork)
     if(net.numBad > 0)
         warn("net has $(net.numBad) bad diamond I, gammas and some branch lengths are not identifiable, and therefore, meaningless")
@@ -604,6 +610,11 @@ function printEdges(net::HybridNetwork)
 end
 
 # print for every node, inCycle and edges
+"""
+`printNodes(net::HybridNetwork)`
+
+prints information on the nodes of net: node number, in which cycle it is contained (-1 if no cycle), is it hybrid, does it has hybrid edges, edges number attached to it
+"""
 function printNodes(net::Network)
     println("Node\tIn Cycle\tisHybrid\thasHybEdge\tEdges numbers")
     for n in net.node

@@ -176,7 +176,11 @@ type QuartetNetwork <: Network
     QuartetNetwork() = new(0,0,0,[],[],[],[],0,[],[],0,[],0.0,[],[],[],[],[],true,[])
 end
 
+"""
+`Quartet type`
 
+type that saves the information on a given 4-taxon subset. It contains the following attributes: number, taxon (vector of taxon names), obsCF (vector of observed CF), logPseudoLik, numGT (number of gene trees used to compute the observed CF)
+"""
 type Quartet
     number::Int64
     taxon::Array{ASCIIString,1}
@@ -204,6 +208,11 @@ end
 
 # Data -------
 
+"""
+`DataCF type`
+
+type that contains the following attributes: quartet (vector of Quartets), numQuartets, tree (vector of trees), numTrees
+"""
 type DataCF
     quartet::Array{Quartet,1} # array of quartets read from CF output table or list of quartets in file
     numQuartets::Int64 # number of quartets

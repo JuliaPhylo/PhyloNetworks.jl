@@ -15,6 +15,8 @@ const REDIRECT = false # changed for debugging to a file
 
 export
 HybridNetwork,
+DataCF,
+Quartet,
 readTopology,
 readTopologyLevel1,
 tipLabels,

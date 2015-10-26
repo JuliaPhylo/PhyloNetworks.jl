@@ -1,6 +1,25 @@
 # initial function: John Spaw, 7/2015
 # takes a network object and converts it into .dot file, which is then converted into a .svg image file
+"""
+`plotPhylonet(net::HybridNetwork)`
 
+function to plot a HybridNetwork object. The plot will be saved in the working directory as a svg file. We are working on allowing other file formats, and to have the plot pop out in a window.
+This function has the following optional arguments:
+- imageName: name for plot file (default netImage)
+- mainTree: if true, only the underlying tree (with major hybrid edges) is plotted (default false)
+- width: width of image in inches (default 6)
+- height: height of image in inches (default 8)
+- vert: if true, plot displayed from top to bottom (default tre)
+- internalLabels: if true, prints number for internal nodes (default false)
+- fontSize: font size for taxon names (default 16.0)
+- hybridColor: color for hybrid edges (default green4)
+- unrooted: if true, prints the topology unrooted
+- nodeSeparation: minimum distance between nodes in inches (default 0.8)
+- labelAngle: angle for leaf label placement (default 180.0)
+- labelDistance: distance for leaf label placement (default 3.0)
+- includeGamma: if true, includes the gamma values in the plot (default false)
+- includeLength: if true, includes the branch lengths in the plot (default false
+"""
 function plotPhylonet(graph::Network;    # Network object to plot
   imageName="netImage",                  # Name for output files
   gammaThreshold=0.5::FloatingPoint,     # threshold for ...

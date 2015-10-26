@@ -46,6 +46,11 @@ function root!(net::HybridNetwork, node::Node, resolve::Bool)
     end
 end
 
+"""
+`root!(net::HybridNetwork, nodeNumber)`
+
+root the network/tree object at the node with nodeNumber
+"""
 function root!(net::HybridNetwork, nodeNum::Int64, resolve::Bool)
     try
         ind = getIndexNode(nodeNum,net)
@@ -139,6 +144,11 @@ end
 
 # function to root a network on an outgroup
 # (single taxon)
+"""
+`root!(net::HybridNetwork, outgroup)`
+
+root the network/tree object with the outgroup taxon name given as argument.
+"""
 function root!(net::HybridNetwork, outgroup::AbstractString)
     if(!isTree(net))
         if(!net.cleaned)

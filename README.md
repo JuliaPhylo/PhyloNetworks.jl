@@ -38,6 +38,7 @@ table of estimated CFs and their credibility intervals.
 Julia is a high-level and interactive programming language (like R or Matlab),
 but it is also high-performance (like C).
 To install Julia, go to http://julialang.org/downloads/
+For a basic tutorial on Julia, see http://learnxinyminutes.com/docs/julia/
 
 IMPORTANT: Julia code is just-in-time compiled. This means that the
 first time you run a function, it will be compiled at that moment. So,
@@ -87,6 +88,12 @@ Here is a very small test for the installation of PhyloNetworks.
 net = readTopology("(A,(B,(C,D)));");
 tipLabels(net)
 ```
+
+You can see a list of all the functions with
+```julia
+whos(PhyloNetworks)
+```
+and press ? inside Julia, followed by the name of a functions to get more details about it.
 
 #### Input data
 
@@ -166,9 +173,9 @@ writeTopology(net1,di=true)
 ```
 The option *di=true* is for the parenthetical format used by
 [Dendroscope](http://dendroscope.org/) (without reticulation heritabilities).
-Copy this parenthetical description and paste it into Dendroscope.
+Copy this parenthetical description and paste it into Dendroscope, or use the plotting function described below.
 
-<!--#### Network Visualization
+#### Network Visualization
 To visualize the network:
 ```julia
 plotPhylonet(net)
@@ -176,6 +183,7 @@ plotPhylonet(net,unrooted=true)
 ```
 For now, this function will create an .svg figure file (netImage.svg by default).
 
+<!--
 WARNING: There is a known bug in the plotPhylonet function,
 see the issue in the PhyloNetworks Github repository for details.
 The error can be sometimes fixed by changing the position of the root

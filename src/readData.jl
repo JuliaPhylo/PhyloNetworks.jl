@@ -59,6 +59,11 @@ end
 readTableCF(df::DataFrames.DataFrame) = readTableCF(df,true)
 
 # warning: when file needs to be AbstractString bc it can be read as UTF8String
+"""
+`readTableCF(file)`
+
+read a file with a table of CF. It has one optional argument: sep to specify the type of separator in the table with single quotes: sep=';'
+"""
 readTableCF(file::AbstractString;sep=','::Char) = readTableCF(readtable(file,separator=sep))
 
 # ---------------- read input gene trees and calculate obsCF ----------------------
@@ -67,6 +72,12 @@ readTableCF(file::AbstractString;sep=','::Char) = readTableCF(readtable(file,sep
 # (each line starting with "(" will be considered a topology)
 # the file can have extra lines that are ignored
 # returns an array of HybridNetwork objects (that can be trees)
+"""
+`readInputTrees(file)`
+
+function to read a text file with a list of trees in parenthetical format (one tree per line), it returns an array of HybridNetwork object.
+Careful to put ; after to avoid output written to screen
+"""
 function readInputTrees(file::AbstractString)
     try
         s = open(file)
@@ -364,6 +375,18 @@ readInputData(treefile::AbstractString, filename::AbstractString) = readInputDat
 
 
 # rename the function readInputData to make it more user-friendly
+"""
+`readTrees2CF(treefile)`
+
+function to read the trees in parenthetical format from treefile (text file) and calculate the observed CF. It has many optional arguments:
+
+- quartetfile: name of text file with list of 4-taxon subsets to be analyzed. If none is specified, the function will list all possible 4-taxon subsets.
+- whichQ="rand": to choose a random sample of 4-taxon subsets
+- numQ: size of random sample (ignored if whichQ is not set to "rand")
+- writeTab=false: does not write the observedCF to a table (default true)
+- CFfile: name of file to save the observedCF (default tableCF.txt)
+- writeFile=true: save intermediate files with the list of all 4-taxon subsets and chosen random sample (default false).
+"""
 function readTrees2CF(treefile::AbstractString; quartetfile="none"::AbstractString, whichQ="all"::AbstractString, numQ=0::Int64, writetab=true::Bool, CFfile="none"::AbstractString, taxa=unionTaxaTree(treefile)::Union{Vector{ASCIIString},Vector{Int64}}, writeFile=false::Bool)
     if(quartetfile == "none")
         if(whichQ == "all")
@@ -463,6 +486,13 @@ descData(d::DataCF) = descData(d, STDOUT,0.7)
 descData(d::DataCF,pc::Float64) = descData(d, STDOUT,pc)
 descData(d::DataCF, filename::AbstractString) = descData(d, filename,0.7)
 
+"""
+`summarizeDataCF(d::DataCF)`
+
+function to summarize the information contained in a DataCF object. It has the following optional arguments:
+- filename: if provided, the summary will be saved in the filename, not to screen
+- pc (number between (0,1)): threshold of percentage of missing genes to identify 4-taxon subsets with fewer genes than the threshold
+"""
 function summarizeDataCF(d::DataCF; filename="none"::AbstractString, pc=0.7::Float64)
     0<=pc<=1 || error("percentage of missing genes should be between 0,1, not: $(pc)")
     if(filename == "none")
@@ -485,6 +515,11 @@ function readStartTop(file::AbstractString,d::DataCF,updateBL::Bool)
     return net
 end
 
+"""
+`readStartTop(treefile,d::DataCF)`
+
+function to read a tree in parenthetical format from text file treefile and a DataCF object to update the branch lengths according to the average observed CF for any given edge.
+"""
 readStartTop(file::AbstractString,d::DataCF) = readStartTop(file,d,true)
 #readStartTop(file::AbstractString) = readStartTop(file,DataCF(),false) #not sure why we need this one
 

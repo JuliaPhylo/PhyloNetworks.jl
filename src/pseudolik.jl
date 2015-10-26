@@ -354,7 +354,7 @@ end
 """
 `deleteLeaf!(net::HybridNetwork, leaf::String)`
 
-deletes the leaf taxon from the HybridNetwork object. The leaf argument is the taxon name.
+deletes the leaf taxon from the HybridNetwork object. The leaf argument is the taxon name to delete.
 """
 function deleteLeaf!(net::Network, leaf::AbstractString)
     found = false
@@ -1281,6 +1281,14 @@ function calculateExpCFAll!(data::DataCF, x::Vector{Float64},net::HybridNetwork)
 end
 
 # function to simply calculate the pseudolik of a given network
+"""
+`topologyQPseudolik!(net::HybridNetwork, d::DataCF)`
+
+function to calculate minus the log pseudolikelihood function of a given
+network/tree for certain DataCF.  Be careful if the net object does
+not have all internal branch lengths specified because then the
+pseudolikelihood will be meaningless.
+"""
 function topologyQPseudolik!(net::HybridNetwork,d::DataCF; verbose=false::Bool)
     # need a clean starting net. fixit: maybe we need to be more thorough here
     # yes, need to check that everything is ok because it could have been cleaned and then modified
