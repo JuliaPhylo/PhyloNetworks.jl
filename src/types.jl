@@ -92,6 +92,12 @@ abstract Network
 # warning: no attempt to make sure the direction of edges matches with the root
 # warning: no check if it is network or tree, node array can have no hybrids
 # warning: nodes and edges need to be defined and linked before adding to a network
+"""
+`HybridNetwork type`
+Type with the following attributes: numTaxa, numNodes, numEdges, numHybrids
+node (array of Nodes), edge (array of Edges), root (index in node of root),
+loglik (-log pseudolik after estimation)
+"""
 type HybridNetwork <: Network
     numTaxa::Int64 # cannot set in constructor for congruence
     numNodes::Int64 # cannot set in constructor for congruence
