@@ -1,5 +1,7 @@
 module PhyloNetworks
 
+VERSION < "v0.4" && warn("you should update Julia to current version: 0.4 or higher")
+
 using Base.Collections # for updateInCycle with priority queue
 using DataFrames # for rep function and read/write csv tables
 using NLopt # for branch lengths optimization

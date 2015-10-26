@@ -308,7 +308,7 @@ end
 # input: file name or tree in parenthetical format
 # calls readTopology(s::IO)
 # warning: crashes if file name starts with (
-function readTopology(input::String,verbose::Bool)
+function readTopology(input::AbstractString,verbose::Bool)
     if(input[1] == '(') #it is a tree
        s = IOBuffer(input)
     else
@@ -323,7 +323,7 @@ function readTopology(input::String,verbose::Bool)
     return net
 end
 
-readTopology(input::String) = readTopology(input,true)
+readTopology(input::AbstractString) = readTopology(input,true)
 
 function readTopology(s::IO,verbose::Bool)
     net = HybridNetwork()
@@ -577,7 +577,7 @@ function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
                     ed2 = nothing
                     for(e in n.edge)
                         if(e.hybrid)
-                            isa(ed1,Nothing) ? ed1=e : ed2=e
+                            isa(ed1,Void) ? ed1=e : ed2=e
                         end
                     end
                     if(ed1.gamma < 1 && ed2.gamma < 1) #both gammas were set, but contradictory
@@ -639,9 +639,9 @@ end
 function updateAllReadTopology!(net::HybridNetwork)
     if(isTree(net))
         #warn("not a network read, but a tree as it does not have hybrid nodes")
-        all([e.containRoot for e in net.edge]) ? nothing : error("some tree edge has contain root as false")
-        all([!e.hybrid for e in net.edge]) ? nothing : error("some edge is hybrid and should be all tree edges in a tree")
-        all([!n.hasHybEdge for n in net.node]) ? nothing : error("some tree node has hybrid edge true, but it is a tree, there are no hybrid edges")
+        all((e->e.containRoot), net.edge) ? nothing : error("some tree edge has contain root as false")
+        all((e->!e.hybrid), net.edge) ? nothing : error("some edge is hybrid and should be all tree edges in a tree")
+        all((n->!n.hasHybEdge), net.node) ? nothing : error("some tree node has hybrid edge true, but it is a tree, there are no hybrid edges")
     else
         if(!net.cleaned)
             for(n in net.hybrid)
@@ -677,17 +677,17 @@ cleanAfterReadAll!(net::HybridNetwork) = cleanAfterReadAll!(net,false)
 # leaveRoot=true if the root will not be deleted even if it has only 2 edges
 # used for plotting (default=false)
 # warning: if leaveRoot=true, net should not be used outside plotting, things will crash
-function readTopologyUpdate(file::String, leaveRoot::Bool,verbose::Bool)
+function readTopologyUpdate(file::AbstractString, leaveRoot::Bool,verbose::Bool)
     DEBUG && println("readTopology -----")
     net = readTopology(file,verbose)
     cleanAfterReadAll!(net,leaveRoot)
     return net
 end
 
-readTopologyUpdate(file::String) = readTopologyUpdate(file, false, true)
-readTopologyUpdate(file::String,verbose::Bool) = readTopologyUpdate(file, false, verbose)
+readTopologyUpdate(file::AbstractString) = readTopologyUpdate(file, false, true)
+readTopologyUpdate(file::AbstractString,verbose::Bool) = readTopologyUpdate(file, false, verbose)
 
-readTopologyLevel1(file::String) = readTopologyUpdate(file, false, true)
+readTopologyLevel1(file::AbstractString) = readTopologyUpdate(file, false, true)
 
 
 # aux function to check if the root is placed correctly, and re root if not
@@ -773,7 +773,7 @@ end
 # outgroup: place the root in the external edge of this taxon if possible,
 # if none given, placed the root wherever possible
 # lengths=true if printed with length
-function writeTopology(net::HybridNetwork, di::Bool, string::Bool, names::Bool,outgroup::String)
+function writeTopology(net::HybridNetwork, di::Bool, string::Bool, names::Bool,outgroup::AbstractString)
     s = IOBuffer()
     if(net.numBad > 0)
         println("net has $(net.numBad) bad diamond I, gammas and some branch lengths are not identifiable, and therefore, meaningless")
@@ -812,16 +812,16 @@ end
 
 #writeTopology(net::HybridNetwork) = writeTopology(net,false, true,true,"none") #not needed because of last function definition
 writeTopology(net::HybridNetwork,di::Bool) = writeTopology(net,di, true,true,"none")
-writeTopology(net::HybridNetwork,outgroup::String) = writeTopology(net,false, true,true,outgroup)
-writeTopology(net::HybridNetwork,di::Bool,outgroup::String) = writeTopology(net,di, true,true,outgroup)
+writeTopology(net::HybridNetwork,outgroup::AbstractString) = writeTopology(net,false, true,true,outgroup)
+writeTopology(net::HybridNetwork,di::Bool,outgroup::AbstractString) = writeTopology(net,di, true,true,outgroup)
 
-writeTopology(net::HybridNetwork; di=false::Bool, string=true::Bool, names=true::Bool,outgroup="none"::String) = writeTopology(net, di, string, names,outgroup)
+writeTopology(net::HybridNetwork; di=false::Bool, string=true::Bool, names=true::Bool,outgroup="none"::AbstractString) = writeTopology(net, di, string, names,outgroup)
 
 # function to check if root is well-placed
 # and look for a better place if not
 # searches on net.node because net.root is the index in net.node
 # if we search in net.edge, we then need to search in net.node
-function updateRoot!(net::HybridNetwork, outgroup::String)
+function updateRoot!(net::HybridNetwork, outgroup::AbstractString)
     checkroot = false
     if(outgroup == "none")
         DEBUG && println("no outgroup defined")
@@ -897,7 +897,7 @@ undoRoot!(net::HybridNetwork) = undoRoot!(net, true)
 
 
 # function to read the .out file from snaq (optTopRuns) function
-function readOutfile(file::String)
+function readOutfile(file::AbstractString)
     try
         s = open(file)
     catch
@@ -916,4 +916,4 @@ function readOutfile(file::String)
     return net
 end
 
-readSnaqNetwork(file::String) = readOutfile(file)
+readSnaqNetwork(file::AbstractString) = readOutfile(file)

@@ -10,12 +10,12 @@ function plotPhylonet(graph::Network;    # Network object to plot
   vert=true::Bool,                       # When true, hierarchy displayed from top to bottom. Otherwise, left to right
   internalLabels=false::Bool,            # When true, all nodes will have labels (including internal nodes)
   fontSize=16.0::FloatingPoint,          # Font size for labels in points
-  layoutStyle="dot"::String,             # layout engine for placing nodes and edges (dot,neato,circo,twopi)
-  hybridColor="green4"::String,          # color for hybrid edges
+  layoutStyle="dot"::AbstractString,             # layout engine for placing nodes and edges (dot,neato,circo,twopi)
+  hybridColor="green4"::AbstractString,          # color for hybrid edges
   forcedLeaf=true::Bool,                 # When true, places all leaf nodes on the same line
   unrooted=false::Bool,                  # if true, enforces layoutStyle to 'neato'
   nodeSeparation=0.8::FloatingPoint,     # minimum distance between nodes in inches
-  edgeStyle="true"::String,              # style of edges. Options: "line", "ortho", "composite" (which uses both lines and curved splines), "curved"
+  edgeStyle="true"::AbstractString,              # style of edges. Options: "line", "ortho", "composite" (which uses both lines and curved splines), "curved"
   labelAngle= 180.0::FloatingPoint,      # angle for leaf label placement
   labelDistance= 3.0::FloatingPoint,     # distance for leaf label placement
   includeGamma=false::Bool,              # When true, gamma labels are displayed on hybrid edges
@@ -138,7 +138,7 @@ function plotPhylonet(graph::Network;    # Network object to plot
 
 end
 
-function plotPhylonet(netString::String;
+function plotPhylonet(netString::AbstractString;
   imageName="netImage",                  # Name for output files
   gammaThreshold=0.5::FloatingPoint,     # threshold for ...
   mainTree=false::Bool,                  # When true, only the underlying tree will be plotted
@@ -147,12 +147,12 @@ function plotPhylonet(netString::String;
   vert=true::Bool,                       # When true, hierarchy displayed from top to bottom. Otherwise, left to right
   internalLabels=false::Bool,            # When true, all nodes will have labels (including internal nodes)
   fontSize=16.0::FloatingPoint,          # Font size for labels in points
-  layoutStyle="dot"::String,             # layout engine for placing nodes and edges (dot,neato,circo,twopi)
-  hybridColor="green4"::String,          # color for hybrid edges
+  layoutStyle="dot"::AbstractString,             # layout engine for placing nodes and edges (dot,neato,circo,twopi)
+  hybridColor="green4"::AbstractString,          # color for hybrid edges
   forcedLeaf=true::Bool,                 # When true, places all leaf nodes on the same line
   unrooted=false::Bool,                  # if true, enforces layoutStyle to 'neato'
   nodeSeparation=0.8::FloatingPoint,     # minimum distance between nodes in inches. Default was 0.5 before, here only.
-  edgeStyle="true"::String,              # style of edges. Options: "line", "ortho", "composite" (which uses both lines and curved splines), "curved". Default was "false", here only.
+  edgeStyle="true"::AbstractString,              # style of edges. Options: "line", "ortho", "composite" (which uses both lines and curved splines), "curved". Default was "false", here only.
   labelAngle= 180.0::FloatingPoint,      # angle for leaf label placement
   labelDistance= 3.0::FloatingPoint,     # distance for leaf label placement
   includeGamma=false::Bool,              # When true, gamma labels are displayed on hybrid edges

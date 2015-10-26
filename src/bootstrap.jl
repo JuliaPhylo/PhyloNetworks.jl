@@ -4,6 +4,7 @@
 # function to read a CF table with CI
 # and sample new obsCF
 # the function returns the new dataframe
+# for some reason UTF8String is needed instead of AbstractString
 function bootstrapCFtable(df::DataFrame)
     DEBUG && warn("order of columns should be: t1,t2,t3,t4,cf1234,cf1324,cf1423,cf1234LO,cf1234HI,...")
     size(df,2) == 13 || warn("Dataframe should have 7 columns: 4taxa, 3CF*3")
@@ -23,7 +24,7 @@ function bootstrapCFtable(df::DataFrame)
     return newdf
 end
 
-bootstrapCFtable(file::String;sep=','::Char) = bootstrapCFtable(readtable(file,separator=sep))
+bootstrapCFtable(file::AbstractString;sep=','::Char) = bootstrapCFtable(readtable(file,separator=sep))
 
 
 # function that will do bootstrap of snaq estimation
@@ -32,7 +33,7 @@ bootstrapCFtable(file::String;sep=','::Char) = bootstrapCFtable(readtable(file,s
 # - new argument nrep: number of bootstrap replicates (default 10)
 # - new argument prcnet: percentage of bootstrap replicates to start in the best network, by default 0.25
 # - new argument bestNet: to start the optimization. if prcnet>0.0 and bestNet is not input as argument from a previous run, it will estimate it inside
-function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::String, filename="bootsnaq_main"::String, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.25::Float64, bestNet=HybridNetwork()::HybridNetwork)
+function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="bootsnaq_main"::AbstractString, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.25::Float64, bestNet=HybridNetwork()::HybridNetwork)
     prcnet > 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
     prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
     println("BOOTSTRAP OF SNAQ ESTIMATION")
@@ -67,7 +68,7 @@ function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multipl
     bootNet = HybridNetwork[];
 
     write(logfile,"\nBEGIN: $(nrep) replicates")
-    write(logfile,"\n$(strftime(time()))")
+    write(logfile,"\n$(Libc.strftime(time()))")
     flush(logfile)
 
     for(i in 1:nrep)

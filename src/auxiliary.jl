@@ -144,7 +144,7 @@ end
 
 function setEdge!(node::Node,edge::Edge)
    push!(node.edge,edge);
-   all([!e.hybrid for e in node.edge]) ? node.hasHybEdge = false : node.hasHybEdge = true;
+   all((e->!e.hybrid), node.edge) ? node.hasHybEdge = false : node.hasHybEdge = true;
 end
 
 function getOtherNode(edge::Edge,node::Node)
@@ -203,7 +203,7 @@ end
 
 # aux function to find the index of a string in a
 # string array
-function getIndex(name::ASCIIString, array::Array{ASCIIString,1})
+function getIndex(name::AbstractString, array::Array{ASCIIString,1})
     i = 1;
     while(i<= size(array,1) && !isequal(name,array[i]))
         i = i+1;
@@ -304,7 +304,7 @@ function getHybridEdge(node::Node)
     for(e in node.edge)
         (e.hybrid && !e.isMajor) ? a = e : nothing;
     end
-    isa(a,Nothing) ? error("hybrid node $(node.number) does not have minor hybrid edge, edges: $([e.number for e in node.edge])") : return a
+    isa(a,Void) ? error("hybrid node $(node.number) does not have minor hybrid edge, edges: $([e.number for e in node.edge])") : return a
 end
 
 
@@ -330,14 +330,14 @@ end
 # the edges numbers (uses isEqual)
 # needed for updateHasEdge
 function isEdgeNumIn(edge::Edge,array::Array{Edge,1})
-    return all([!isEqual(edge,e) for e in array]) ? false : true
+    return all((e->!isEqual(edge,e)), array) ? false : true
 end
 
 # function to check in a leaf is in an array by comparing
 # the numbers (uses isEqual)
 # needed for updateHasEdge
 function isNodeNumIn(node::Node,array::Array{Node,1})
-    return all([!isEqual(node,e) for e in array]) ? false : true
+    return all((e->!isEqual(node,e)), array) ? false : true
 end
 
 # function to push a Node in net.node and
@@ -547,7 +547,7 @@ function searchHybridNode(net::Network)
         index = k;
         vect = [net.node[i].hybrid for i = 1:size(net.node,1)];
         while(count>0 && count<size(net.node,1))
-            index == 1 ? vect = [false,vect[2:size(net.node,1)]] : vect = [vect[1:(index-1)],false,vect[(index+1):size(net.node,1)]]
+            index == 1 ? vect = [false;vect[2:size(net.node,1)]] : vect = [vect[1:(index-1)];false;vect[(index+1):size(net.node,1)]]
             index = getIndex(true,vect);
             push!(a,net.node[index]);
             count = count-1;
@@ -681,7 +681,7 @@ function hybridEdges(node::Node, edge::Edge)
     edge2 = nothing
     for(e in node.edge)
         if(!isequal(e,edge))
-            isa(edge1,Nothing) ? edge1 = e : edge2 = e
+            isa(edge1,Void) ? edge1 = e : edge2 = e
         end
     end
     return edge1,edge2
@@ -705,7 +705,7 @@ function removeEdge!(node::Node,edge::Edge)
     end
     index = getIndexEdge(edge,node);
     deleteat!(node.edge,index);
-    all([!e.hybrid for e in node.edge]) ? node.hasHybEdge = false : node.hasHybEdge = true;
+    all((e->!e.hybrid), node.edge) ? node.hasHybEdge = false : node.hasHybEdge = true;
 end
 
 # function to remove a node from a edge
@@ -906,9 +906,9 @@ function checkNet(net::HybridNetwork, light::Bool)
             e1,e2,e3 = hybridEdges(n)
             i = 0
             for(e in [e1,e2,e3])
-                if(isa(e,Nothing) && h.k != 2)
-                    error("edge found that is Nothing, and hybrid node $(h.number) k is $(h.k). edge as nothing can only happen when k=2")
-                elseif(!isa(e,Nothing))
+                if(isa(e,Void) && h.k != 2)
+                    error("edge found that is Void, and hybrid node $(h.number) k is $(h.k). edge as nothing can only happen when k=2")
+                elseif(!isa(e,Void))
                     if(e.inCycle == -1)
                         i += 1
                         desc = [e]

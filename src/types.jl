@@ -72,13 +72,13 @@ type Node <: ANode
     k::Int64 # number of nodes in cycle, only stored in hybrid node and updated after node becomes part of network
              # default -1
     typeHyb::Int64 # type of hybridization, needed for quartet network only, default -1
-    name::String
+    name::AbstractString
     # inner constructor: set hasHybEdge depending on edge
     Node() = new(-1.,false,false,-1.,[],false,false,false,false,false,false,-1.,nothing,-1,-1,"")
     Node(number::Int64, leaf::Bool) = new(number,leaf,false,-1.,[],false,false,false,false,false,false,-1.,nothing,-1,-1,"")
     Node(number::Int64, leaf::Bool, hybrid::Bool) = new(number,leaf,hybrid,-1.,[],hybrid,false,false,false,false,false,-1.,nothing,-1,-1,"")
-    Node(number::Int64, leaf::Bool, hybrid::Bool, edge::Array{Edge,1})=new(number,leaf,hybrid,-1.,edge,!all([!edge[i].hybrid for i=1:size(edge,1)]),false,false,false,false,false,-1.,nothing,-1,-1,"")
-    Node(number::Int64, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Array{Edge,1}) = new(number,leaf,hybrid,gammaz,edge,!all([!e.hybrid for e in edge]),false,false,false,false,false,-1.,nothing,-1,-1,"")
+    Node(number::Int64, leaf::Bool, hybrid::Bool, edge::Array{Edge,1})=new(number,leaf,hybrid,-1.,edge,!all((e->!e.hybrid),edge),false,false,false,false,false,-1.,nothing,-1,-1,"")
+    Node(number::Int64, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Array{Edge,1}) = new(number,leaf,hybrid,gammaz,edge,!all((e->!e.hybrid), edge),false,false,false,false,false,-1.,nothing,-1,-1,"")
 end
 
 # partition type
@@ -179,7 +179,7 @@ type Quartet
     logPseudoLik::Float64 # log pseudolik value for the quartet
     numGT::Int64 # number of gene trees used to compute the obsCV
     # inner constructor: to guarantee obsCF are only three and add up to 1
-    function Quartet(number::Int64,t1::String,t2::String,t3::String,t4::String,obsCF::Array{Float64,1})
+    function Quartet(number::Int64,t1::AbstractString,t2::AbstractString,t3::AbstractString,t4::AbstractString,obsCF::Array{Float64,1})
         size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing
         !approxEq(sum(obsCF),1.) ? warn("observed CF should add up to 1, not $(sum(obsCF))") : nothing
         new(number,[t1,t2,t3,t4],obsCF,QuartetNetwork(),0,0);

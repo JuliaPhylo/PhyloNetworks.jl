@@ -2,6 +2,9 @@
 # originally in functions.jl
 # Claudia March 2015
 
+# same as readData.jl, but modified the Union(...) to Union{...}
+# based on Julia 0.4
+# Claudia October 2015
 
 # ----- read data --------
 
@@ -37,7 +40,7 @@ end
 writeObsCF(d::DataCF) = writeObsCF(d.quartet)
 
 # function that takes a dataframe and creates a DataCF object
-function readTableCF(df::DataFrames.DataFrame)
+function readTableCF(df::DataFrames.DataFrame,writeTab::Bool)
     DEBUG && println("assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network")
     size(df,2) == 7 || warn("Dataframe should have 7 columns: 4taxa, 3CF, will ignore columns from 8th on")
     quartets = Quartet[]
@@ -47,12 +50,16 @@ function readTableCF(df::DataFrames.DataFrame)
     d = DataCF(quartets)
     println("DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
     #descData(d,"summaryCFtable$(string(integer(time()/1000))).txt")
-    descData(d,"summaryCFtable.txt")
+    if(writeTab)
+        descData(d,"summaryCFtable.txt")
+    end
     return d
 end
 
-# warning: when file needs to be String bc it can be read as UTF8String
-readTableCF(file::String;sep=','::Char) = readTableCF(readtable(file,separator=sep))
+readTableCF(df::DataFrames.DataFrame) = readTableCF(df,true)
+
+# warning: when file needs to be AbstractString bc it can be read as UTF8String
+readTableCF(file::AbstractString;sep=','::Char) = readTableCF(readtable(file,separator=sep))
 
 # ---------------- read input gene trees and calculate obsCF ----------------------
 
@@ -60,7 +67,7 @@ readTableCF(file::String;sep=','::Char) = readTableCF(readtable(file,separator=s
 # (each line starting with "(" will be considered a topology)
 # the file can have extra lines that are ignored
 # returns an array of HybridNetwork objects (that can be trees)
-function readInputTrees(file::String)
+function readInputTrees(file::AbstractString)
     try
         s = open(file)
     catch
@@ -89,8 +96,8 @@ end
 
 # function to list all quartets for a set of taxa names
 # return a vector of quartet objects, and if writeFile=true, writes a file
-# warning: taxon has to be vector of ASCIIString, vector of String do not work
-function allQuartets(taxon::Union(Vector{ASCIIString},Vector{Int64}), writeFile::Bool)
+# warning: taxon has to be vector of ASCIIString, vector of AbstractString do not work
+function allQuartets(taxon::Union{Vector{ASCIIString},Vector{Int64}}, writeFile::Bool)
     quartets = combinations(taxon,4)
     vquartet = Quartet[];
     if(writeFile)
@@ -144,7 +151,7 @@ function randQuartets(allquartets::Vector{Quartet},num::Int64, writeFile::Bool)
 end
 
 # same as randQuartets but with list of taxa as input
-function randQuartets(taxon::Union(Vector{ASCIIString},Vector{Int64}),num::Int64, writeFile::Bool)
+function randQuartets(taxon::Union{Vector{ASCIIString},Vector{Int64}},num::Int64, writeFile::Bool)
     allquartets = allQuartets(taxon,writeFile)
     randquartets = randQuartets(allquartets,num,writeFile)
     return randquartets
@@ -154,7 +161,7 @@ randQuartets(numTaxa::Int64,num::Int64, writeFile::Bool) = randQuartets(1:numTax
 
 # function to read list of quartets from a file
 # and create Quartet type objects
-function readListQuartets(file::String)
+function readListQuartets(file::AbstractString)
     try
         f = open(file)
     catch
@@ -213,7 +220,7 @@ function unionTaxa(quartets::Vector{Quartet})
     return taxa
 end
 
-unionTaxaTree(file::String) = unionTaxa(readInputTrees(file))
+unionTaxaTree(file::AbstractString) = unionTaxa(readInputTrees(file))
 
 
 # function to calculate the obsCF from a file with a set of gene trees
@@ -268,7 +275,7 @@ end
 # writetab = true to write the table of obsCF as file with name filename
 # does it by default
 # writeFile=true writes file with sampled quartets, default false
-function readInputData(treefile::String, quartetfile::String, whichQ::Symbol, numQ::Int64, writetab::Bool, filename::String, writeFile::Bool)
+function readInputData(treefile::AbstractString, quartetfile::AbstractString, whichQ::Symbol, numQ::Int64, writetab::Bool, filename::AbstractString, writeFile::Bool)
     println("DATA: reading input data for treefile $(treefile) \nand quartetfile $(quartetfile)")
     trees = readInputTrees(treefile)
     if(whichQ == :all)
@@ -300,10 +307,10 @@ function readInputData(treefile::String, quartetfile::String, whichQ::Symbol, nu
     return d
 end
 
-readInputData(treefile::String, quartetfile::String, whichQ::Symbol, numQ::Int64, writetab::Bool) = readInputData(treefile, quartetfile, whichQ, numQ, writetab, "none", false)
-readInputData(treefile::String, quartetfile::String, whichQ::Symbol, numQ::Int64) = readInputData(treefile, quartetfile, whichQ, numQ, true, "none", false)
-readInputData(treefile::String, quartetfile::String) = readInputData(treefile, quartetfile, :all, 0, true, "none", false)
-readInputData(treefile::String, quartetfile::String, writetab::Bool, filename::String) = readInputData(treefile, quartetfile, :all, 0, writetab, filename, false)
+readInputData(treefile::AbstractString, quartetfile::AbstractString, whichQ::Symbol, numQ::Int64, writetab::Bool) = readInputData(treefile, quartetfile, whichQ, numQ, writetab, "none", false)
+readInputData(treefile::AbstractString, quartetfile::AbstractString, whichQ::Symbol, numQ::Int64) = readInputData(treefile, quartetfile, whichQ, numQ, true, "none", false)
+readInputData(treefile::AbstractString, quartetfile::AbstractString) = readInputData(treefile, quartetfile, :all, 0, true, "none", false)
+readInputData(treefile::AbstractString, quartetfile::AbstractString, writetab::Bool, filename::AbstractString) = readInputData(treefile, quartetfile, :all, 0, writetab, filename, false)
 
 # function to read input list of gene trees, and not the list of quartets
 # so it creates the list of quartets inside and calculates obsCF
@@ -314,7 +321,7 @@ readInputData(treefile::String, quartetfile::String, writetab::Bool, filename::S
 # writetab = true to write the table of obsCF as file with name filename
 # does it by default
 # writeFile= true, writes intermediate files with the quartets info (default false)
-function readInputData(treefile::String, whichQ::Symbol, numQ::Int64, taxa::Union(Vector{ASCIIString}, Vector{Int64}), writetab::Bool, filename::String, writeFile::Bool)
+function readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64, taxa::Union{Vector{ASCIIString}, Vector{Int64}}, writetab::Bool, filename::AbstractString, writeFile::Bool)
     println("DATA: reading input data for treefile $(treefile) and no quartetfile given: will get quartets here")
     trees = readInputTrees(treefile)
     if(whichQ == :all)
@@ -346,18 +353,18 @@ function readInputData(treefile::String, whichQ::Symbol, numQ::Int64, taxa::Unio
     return d
 end
 
-readInputData(treefile::String, whichQ::Symbol, numQ::Int64, taxa::Union(Vector{ASCIIString}, Vector{Int64}), writetab::Bool) = readInputData(treefile, whichQ, numQ, taxa, writetab, "none", false)
-readInputData(treefile::String, whichQ::Symbol, numQ::Int64, taxa::Union(Vector{ASCIIString}, Vector{Int64})) = readInputData(treefile, whichQ, numQ, taxa, true, "none",false)
-readInputData(treefile::String, whichQ::Symbol, numQ::Int64, writetab::Bool, filename::String) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), writetab, filename,false)
-readInputData(treefile::String, whichQ::Symbol, numQ::Int64, writetab::Bool) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), writetab, "none",false)
-readInputData(treefile::String, whichQ::Symbol, numQ::Int64) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), true, "none",false)
-readInputData(treefile::String) = readInputData(treefile, :all, 0, unionTaxaTree(treefile), true, "none",false)
-readInputData(treefile::String,taxa::Union(Vector{ASCIIString}, Vector{Int64})) = readInputData(treefile, :all, 0, taxa, true, "none",false)
-readInputData(treefile::String, filename::String) = readInputData(treefile, :all, 0, unionTaxaTree(treefile), true, filename,false)
+readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64, taxa::Union{Vector{ASCIIString}, Vector{Int64}}, writetab::Bool) = readInputData(treefile, whichQ, numQ, taxa, writetab, "none", false)
+readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64, taxa::Union{Vector{ASCIIString}, Vector{Int64}}) = readInputData(treefile, whichQ, numQ, taxa, true, "none",false)
+readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64, writetab::Bool, filename::AbstractString) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), writetab, filename,false)
+readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64, writetab::Bool) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), writetab, "none",false)
+readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), true, "none",false)
+readInputData(treefile::AbstractString) = readInputData(treefile, :all, 0, unionTaxaTree(treefile), true, "none",false)
+readInputData(treefile::AbstractString,taxa::Union{Vector{ASCIIString}, Vector{Int64}}) = readInputData(treefile, :all, 0, taxa, true, "none",false)
+readInputData(treefile::AbstractString, filename::AbstractString) = readInputData(treefile, :all, 0, unionTaxaTree(treefile), true, filename,false)
 
 
 # rename the function readInputData to make it more user-friendly
-function readTrees2CF(treefile::String; quartetfile="none"::String, whichQ="all"::String, numQ=0::Int64, writetab=true::Bool, CFfile="none"::String, taxa=unionTaxaTree(treefile)::Union(Vector{ASCIIString},Vector{Int64}), writeFile=false::Bool)
+function readTrees2CF(treefile::AbstractString; quartetfile="none"::AbstractString, whichQ="all"::AbstractString, numQ=0::Int64, writetab=true::Bool, CFfile="none"::AbstractString, taxa=unionTaxaTree(treefile)::Union{Vector{ASCIIString},Vector{Int64}}, writeFile=false::Bool)
     if(quartetfile == "none")
         if(whichQ == "all")
             readInputData(treefile, :all, numQ, taxa, writetab, CFfile, writeFile)
@@ -396,7 +403,7 @@ end
 taxaTreesQuartets(trees::Vector{HybridNetwork}, quartets::Vector{Quartet}) = taxaTreesQuartets(trees, quartets, STDOUT)
 
 # function that counts the number of trees in which taxon appears
-function taxonTrees(taxon::String, trees::Vector{HybridNetwork})
+function taxonTrees(taxon::AbstractString, trees::Vector{HybridNetwork})
     suma = 0
     for t in trees
         suma += in(taxon,t.names) ? 1 : 0
@@ -405,7 +412,7 @@ function taxonTrees(taxon::String, trees::Vector{HybridNetwork})
 end
 
 # function that counts the number of quartets in which taxon appears
-function taxonQuartets(taxon::String, quartets::Vector{Quartet})
+function taxonQuartets(taxon::AbstractString, quartets::Vector{Quartet})
     suma = 0
     for q in quartets
         suma += in(taxon,q.taxon) ? 1 : 0
@@ -444,7 +451,7 @@ function descData(d::DataCF, sout::IO, pc::Float64)
     end
 end
 
-function descData(d::DataCF, filename::String,pc::Float64)
+function descData(d::DataCF, filename::AbstractString,pc::Float64)
     println("DATA: printing descriptive stat of input data in file $(filename)")
     s = open(filename, "w")
     descData(d,s,pc)
@@ -454,9 +461,9 @@ end
 descData(d::DataCF, sout::IO) = descData(d, sout,0.7)
 descData(d::DataCF) = descData(d, STDOUT,0.7)
 descData(d::DataCF,pc::Float64) = descData(d, STDOUT,pc)
-descData(d::DataCF, filename::String) = descData(d, filename,0.7)
+descData(d::DataCF, filename::AbstractString) = descData(d, filename,0.7)
 
-function summarizeDataCF(d::DataCF; filename="none"::String, pc=0.7::Float64)
+function summarizeDataCF(d::DataCF; filename="none"::AbstractString, pc=0.7::Float64)
     0<=pc<=1 || error("percentage of missing genes should be between 0,1, not: $(pc)")
     if(filename == "none")
         descData(d,STDOUT,pc)
@@ -470,7 +477,7 @@ end
 # function to read the starting topology (can be tree/network)
 # if updateBL=true, updates the branch lengths with the obsCF in d
 # by default, updateBL=true
-function readStartTop(file::String,d::DataCF,updateBL::Bool)
+function readStartTop(file::AbstractString,d::DataCF,updateBL::Bool)
     net = readTopologyUpdate(file)
     if(updateBL)
         updateBL!(net,d)
@@ -478,8 +485,8 @@ function readStartTop(file::String,d::DataCF,updateBL::Bool)
     return net
 end
 
-readStartTop(file::String,d::DataCF) = readStartTop(file,d,true)
-#readStartTop(file::String) = readStartTop(file,DataCF(),false) #not sure why we need this one
+readStartTop(file::AbstractString,d::DataCF) = readStartTop(file,d,true)
+#readStartTop(file::AbstractString) = readStartTop(file,DataCF(),false) #not sure why we need this one
 
 # function to update starting branch lengths for starting tree read from ASTRAL
 # BL are updated as -log(3/2(1-mean(obsCF)))

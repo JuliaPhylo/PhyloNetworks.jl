@@ -165,7 +165,7 @@ function updateContainRoot!(net::HybridNetwork, node::Node)
             traverseContainRoot!(other,e, net.edges_changed,rightDir);
         end
     end
-    if(!rightDir[1] || all([!e.containRoot for e in net.edge]))
+    if(!rightDir[1] || all((e->!e.containRoot), net.edge))
         return false,net.edges_changed
     else
         return true,net.edges_changed
@@ -210,7 +210,7 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
         isLeaf3 = getOtherNode(tree_edge3,other_min);
         tree_edge4 = nothing;
         for(e in other_min2.edge)
-            if(isa(tree_edge4,Nothing) && e.inCycle == -1 && !e.hybrid)
+            if(isa(tree_edge4,Void) && e.inCycle == -1 && !e.hybrid)
                 tree_edge4 = e;
             end
         end
@@ -301,7 +301,7 @@ function isEdgeIdentifiable(edge::Edge)
             return true
         end
     else
-        if(all([!edge.node[1].leaf,!edge.node[2].leaf]))
+        if(reduce(&,[!edge.node[1].leaf,!edge.node[2].leaf]))
             if(!edge.node[1].hybrid && !edge.node[2].hybrid && !edge.fromBadDiamondI)
                 return true
             elseif(edge.node[1].hybrid || edge.node[2].hybrid)

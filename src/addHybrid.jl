@@ -63,7 +63,7 @@ function sisterOrCherry(edge1::Edge,edge2::Edge)
     elseif(isEqual(edge1.node[2],edge2.node[1]) || isEqual(edge1.node[2],edge2.node[2]))
         node = edge1.node[2];
     end
-    if(!isa(node,Nothing))
+    if(!isa(node,Void))
         size(node.edge,1) == 3 || error("node found $(node.number) that does not have exactly 3 edges, it has $(size(node.edge,1)) edges instead.")
         sisters = true
         if(getOtherNode(edge1,node).leaf && getOtherNode(edge2,node).leaf)
@@ -100,8 +100,8 @@ function chooseEdgesGamma(net::HybridNetwork, blacklist::Bool, edges::Vector{Edg
     inlimits = false
     inblack = true
     while(!inlimits || edges[index1].inCycle != -1 || edges[index2].inCycle != -1 || cherry || nonidentifiable || inblack)
-        index1 = iround(rand()*size(edges,1));
-        index2 = iround(rand()*size(edges,1));
+        index1 = round(Integer,rand()*size(edges,1));
+        index2 = round(Integer,rand()*size(edges,1));
         if(index1 != index2 && index1 != 0 && index2 != 0 && index1 <= size(edges,1) && index2 <= size(edges,1))
             inlimits = true
             sisters, cherry, nonidentifiable = sisterOrCherry(edges[index1],edges[index2]);
@@ -203,8 +203,8 @@ function updateMajorHybrid!(net::HybridNetwork, node::Node)
             edgecycle = e
         end
     end
-    !isa(hybedge,Nothing) || error("hybrid node $(node.number) does not have hybrid edge")
-    !isa(edgecycle,Nothing) || error("hybrid node $(node.number) does not have tree edge in cycle to update to hybrid edge after updateInCycle")
+    !isa(hybedge,Void) || error("hybrid node $(node.number) does not have hybrid edge")
+    !isa(edgecycle,Void) || error("hybrid node $(node.number) does not have tree edge in cycle to update to hybrid edge after updateInCycle")
     #println("updating hybrid status to edgeincycle $(edgecycle.number) for hybedge $(hybedge.number)")
     makeEdgeHybrid!(edgecycle,node,1-hybedge.gamma)
 end
@@ -268,7 +268,7 @@ updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool) = update
 # blacklist used in afterOptBLAll
 function addHybridizationUpdate!(net::HybridNetwork, blacklist::Bool, usePartition::Bool)
     hybrid = addHybridization!(net,blacklist, usePartition);
-    isa(hybrid,Nothing) && return false,nothing,false,false,false,false
+    isa(hybrid,Void) && return false,nothing,false,false,false,false
     updateAllNewHybrid!(hybrid,net,true)
 end
 
@@ -309,7 +309,7 @@ function updatePartition!(net::HybridNetwork, nodesChanged::Vector{Node})
                     edge = e
                 end
             end
-            !isa(edge,Nothing) || error("one edge in n.edge for node $(n.number) should not be in cycle")
+            !isa(edge,Void) || error("one edge in n.edge for node $(n.number) should not be in cycle")
             descendants = [edge]
             cycleNum = [nodesChanged[1].inCycle]
             getDescendants!(getOtherNode(edge,n),edge,descendants,cycleNum)
@@ -322,8 +322,8 @@ function updatePartition!(net::HybridNetwork, nodesChanged::Vector{Node})
 end
 
 function choosePartition(net::HybridNetwork)
-    all([length(n.edges) == 1 for n in net.partition]) && return 0 #cannot put any hyb
-    all([length(n.edges) == 3 for n in net.partition]) && return 0 #can only put very bad triangles
+    all((n->(length(n.edges) == 1)), net.partition) && return 0 #cannot put any hyb
+    all((n->(length(n.edges) == 3)), net.partition) && return 0 #can only put very bad triangles
     partition = Int64[] #good partitions
     for(i in 1:length(net.partition))
         if(length(net.partition[i].edges) > 3)
@@ -332,9 +332,9 @@ function choosePartition(net::HybridNetwork)
     end
     isempty(partition) && return 0
     length(partition) == 1 && return partition[1]
-    index1 = iround(rand()*size(partition,1));
+    index1 = round(Integer,rand()*size(partition,1));
     while(index1 == 0 || index1 > length(partition))
-        index1 = iround(rand()*size(partition,1));
+        index1 = round(Integer,rand()*size(partition,1));
     end
     DEBUG && println("chosen partition $([n.number for n in net.partition[partition[index1]].edges])")
     return partition[index1]
@@ -352,7 +352,7 @@ function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::In
     DEBUG && printEverything(net)
     i = 0
     if(!success)
-        if(isa(hybrid,Nothing))
+        if(isa(hybrid,Void))
             DEBUG && println("MOVE: could not add hybrid by any means")
         else
             while((nocycle || !flag) && i < N) #incycle failed

@@ -134,7 +134,7 @@ end
 
 # function to root a network on an outgroup
 # (single taxon)
-function root!(net::HybridNetwork, outgroup::String)
+function root!(net::HybridNetwork, outgroup::AbstractString)
     if(!isTree(net))
         if(!net.cleaned)
             DEBUG && println("net not cleaned inside root, need to run updateCR")
@@ -153,7 +153,7 @@ end
 # to the species names
 # this will create a new CF table, will not rewrite on the original one
 # filename is the name to give to the new table, if write=true
-function mapAllelesCFtable(alleleDF::DataFrame, cfDF::DataFrame,write::Bool,filename::String)
+function mapAllelesCFtable(alleleDF::DataFrame, cfDF::DataFrame,write::Bool,filename::AbstractString)
     compareTaxaNames(alleleDF,cfDF)
     newt1 = map(x->replace(string(x),string(alleleDF[1,1]),alleleDF[1,2]),cfDF[1])
     newt2 = map(x->replace(string(x),string(alleleDF[1,1]),alleleDF[1,2]),cfDF[2])
@@ -175,7 +175,7 @@ function mapAllelesCFtable(alleleDF::DataFrame, cfDF::DataFrame,write::Bool,file
     return newdf
 end
 
-function mapAllelesCFtable(alleleDF::String, cfDF::String; filename=""::String)
+function mapAllelesCFtable(alleleDF::AbstractString, cfDF::AbstractString; filename=""::AbstractString)
     d = readtable(alleleDF)
     d2 = readtable(cfDF)
     if(filename=="")

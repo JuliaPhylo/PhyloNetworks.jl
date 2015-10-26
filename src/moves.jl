@@ -278,7 +278,7 @@ function chooseEdgeOriginTarget!(net::HybridNetwork, neighbor::Vector{Edge}, nod
     while(!isempty(neighbor))
         ind = 0
         while(ind == 0 || ind > length(neighbor))
-            ind = iround(rand()*length(neighbor));
+            ind = round(Integer,rand()*length(neighbor));
         end
         #println("ind es $(ind), neighbor edge $(neighbor[ind].number)")
         if(!neighbor[ind].hybrid && (neighbor[ind].inCycle == -1 || neighbor[ind].inCycle == node.number))
@@ -673,7 +673,7 @@ function moveOriginUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
     success = false
     while(!isempty(neighbor) && !success)
         success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor,node)
-        !isa(newedge,Nothing) || return false
+        !isa(newedge,Void) || return false
         success1 || return false
         #println("newedge is $(newedge.number), success1 is $(success1)")
         in(newedge,net.edge) || error("newedge $(newedge.number) is not in net.edge")
@@ -1126,7 +1126,7 @@ function chooseEdgeNNI(net::Network,N::Int64)
     index1 = 0
     i = 0
     while((index1 == 0 || index1 > size(net.edge,1) || net.edge[index1].hybrid || hasNeighborHybrid(net.edge[index1]) || !isInternalEdge(net.edge[index1])) && i < N)
-        index1 = iround(rand()*size(net.edge,1));
+        index1 = round(Integer,rand()*size(net.edge,1));
         i += 1
     end
     if(i < N)
