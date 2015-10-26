@@ -36,14 +36,14 @@ generalExport #for graphviz test
 # export part
 
 include("types.jl")
-VERSION >= v"0.4" ? include("auxiliary2.jl") : include("auxiliary.jl")
+include("auxiliary.jl")
 include("update.jl")
 include("undo.jl")
 include("addHybrid.jl")
 include("deleteHybrid.jl")
 include("moves.jl")
 include("readwrite.jl")
-VERSION >= v"0.4" ? include("readData2.jl") : include("readData.jl")
+include("readData.jl")
 include("optimization.jl")
 include("pseudolik.jl")
 #include("visualization.jl")

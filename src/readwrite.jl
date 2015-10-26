@@ -351,6 +351,11 @@ function readTopology(s::IO,verbose::Bool)
                continue;
            elseif(c == ')')
                c = peekchar(s);
+               if(c == ':')
+                   while(c != ';')
+                       c = read(s,Char)
+                   end
+               end
            end
        end
        if(size(n.edge,1) == 1) # root has only one child
