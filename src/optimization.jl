@@ -46,8 +46,8 @@ function parameters(net::Network)
                     edges = hybridEdges(node)
                     push!(hz,getOtherNode(edges[1],node).gammaz)
                     push!(hz,getOtherNode(edges[2],node).gammaz)
-                    push!(hzn,parse(Int,string(string(node.number),"1")))
-                    push!(hzn,parse(Int,string(string(node.number),"2")))
+                    push!(hzn,parse(Integer,string(string(node.number),"1")))
+                    push!(hzn,parse(Integer,string(string(node.number),"2")))
                     push!(indxhz,getIndex(getOtherNode(edges[1],node),net))
                     push!(indxhz,getIndex(getOtherNode(edges[2],node),net))
                 end
@@ -83,8 +83,8 @@ function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
     qindxt = Int64[]
     qindxhz = Int64[]
     if(qnet.numHybrids == 1 && qnet.hybrid[1].isBadDiamondI)
-        ind1 = parse(Int,string(string(qnet.hybrid[1].number),"1"))
-        ind2 = parse(Int,string(string(qnet.hybrid[1].number),"2"))
+        ind1 = parse(Integer,string(string(qnet.hybrid[1].number),"1"))
+        ind2 = parse(Integer,string(string(qnet.hybrid[1].number),"2"))
         i = getIndex(ind1,nhz)
         edges = hybridEdges(qnet.hybrid[1])
         push!(qnhz,i+net.numHybrids-net.numBad+k)
@@ -1255,7 +1255,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     write(logfile,"\nmain seed $(seed)\n")
     flush(logfile)
     srand(seed)
-    seeds = [seed;parse(Int,floor(rand(runs-1)*100000))]
+    seeds = [seed;round(Integer,floor(rand(runs-1)*100000))]
 
     for(i in 1:runs)
         if(i == 2) #the first run is the slowest
