@@ -178,8 +178,8 @@ Copy this parenthetical description and paste it into Dendroscope, or use the pl
 #### Network Visualization
 To visualize the network:
 ```julia
-plotPhylonet(net)
-plotPhylonet(net,unrooted=true)
+plotPhylonet(net1)
+plotPhylonet(net1,unrooted=true)
 ```
 For now, this function will create an .svg figure file (netImage.svg by default).
 
