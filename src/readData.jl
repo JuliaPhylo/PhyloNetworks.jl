@@ -243,8 +243,23 @@ function calculateObsCFAll!(quartets::Vector{Quartet}, trees::Vector{HybridNetwo
     index = 1
     totalq = length(quartets)
     println("Reading in quartets...")
-    println("0    10   20   30   40   50   60   70   80   90   100")
-    println("+----+----+----+----+----+----+----+----+----+----+")
+    r = round(1/totalq,2)
+    if(r > 0.02)
+        print("0+")
+        for(i in 1:totalq)
+            print("-")
+        end
+        print("+100")
+    else
+        print("0+")
+        for(i in 1:50)
+            print("-")
+        end
+        print("+100")
+    end
+    println(" ")
+#    println("0    10   20   30   40   50   60   70   80   90   100")
+#    println("+----+----+----+----+----+----+----+----+----+----+")
     for q in quartets
         if(round(index/totalq,2)>0.02)
             print("*")
@@ -318,7 +333,7 @@ function readInputData(treefile::AbstractString, quartetfile::AbstractString, wh
         if(filename == "none")
             filename = "tableCF$(string(integer(time()/1000))).txt"
         end
-        println("DATA: printing table of obsCF in file $(filename)")
+        println("\nDATA: printing table of obsCF in file $(filename)")
         df = writeObsCF(d)
         writetable(filename,df)
     end
