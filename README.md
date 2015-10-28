@@ -252,7 +252,7 @@ The following function will create a dataframe with the observed and expected CF
 ```julia
 df = dfObsExpCF(d)
 ```
-It is important to have run snaq before making this plot or the expected CF would be meaningless.
+It is important to have run snaq, topologyQPseudoLik or topologyMaxQPseudolik before making this plot or the expected CF would be meaningless.
 
 Now, we can plot them with any of the Julia packages for plotting. In particular:
 ```julia
