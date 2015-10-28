@@ -248,7 +248,7 @@ given network is of level 1 (cycles don't overlap).
 
 #### Plot observed CF vs expected CF
 A good way to visualize the "goodness-of-fit" of a given estimated network to the data is to plot the observed CF to the expected CF. If the network is a good fit, then the dots in the plot will be close to the y=x line.
-The folowing function will create a dataframe with the observed and expected CF which are all saved in the DataCF object after running snaq:
+The following function will create a dataframe with the observed and expected CF which are all saved in the DataCF object after running snaq:
 ```julia
 df = dfObsExpCF(d)
 ```

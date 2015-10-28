@@ -35,6 +35,7 @@ snaqDebug,
 topologyMaxQPseudolik!,
 topologyQPseudolik!,
 root!,
+dfObsExpCF,
 plotPhylonet,
 generalExport #for graphviz test
 
