@@ -157,13 +157,14 @@ To estimate the network using the input data
 *d* and starting from tree (or network) *T*, do this:
 
 ```julia
-net1=snaq(T,d,filename="net1_snaq");
-net2=snaq(T,d,hmax=2, filename="net2_snaq");
+net1=snaq!(T,d,filename="net1_snaq");
+net2=snaq!(T,d,hmax=2, filename="net2_snaq");
 ```
 Make sure to have the semicolon (;) at the end, to avoid much useless output
 to the screen!
 The option *hmax* corresponds to the maximum number of hybridizations allowed,
 1 by default.
+The function ends with ! because it modifies the argument d by including the expected CF.
 
 The estimation function creates a .out file (snaq.out by default) with the estimated
 network in parenthetical format, which you can also print directly to the screen like this:
@@ -215,7 +216,7 @@ species names instead of allele names.
 
 Estimation will work the same way:
 ```julia
-new_net = snaq(new_T,new_d);
+new_net = snaq!(new_T,new_d);
 ```
 where *new_T* should be a starting topology with one tip per species, labelled with the species names.
 
@@ -244,6 +245,24 @@ This function is not maximizing the pseudolikelihood, it is simply computing the
 pseudolikelihood for the given branch lenghts and probabilities of
 inheritance. At the moment, both of these functions require that the
 given network is of level 1 (cycles don't overlap).
+
+#### Plot observed CF vs expected CF
+A good way to visualize the "goodness-of-fit" of a given estimated network to the data is to plot the observed CF to the expected CF. If the network is a good fit, then the dots in the plot will be close to the y=x line.
+The folowing function will create a dataframe with the observed and expected CF which are all saved in the DataCF object after running snaq:
+```julia
+df = dfObsExpCF(d)
+```
+It is important to have run snaq before making this plot or the expected CF would be meaningless.
+
+Now, we can plot them with any of the Julia packages for plotting. In particular:
+```julia
+using Gadfly
+p = plot(df,layer(x="obsCF1",y="expCF1",Geom.point,Theme(default_color=colorant"orange")),layer(x="obsCF2",y="expCF2",Geom.point,Theme(default_color=colorant"purple")),layer(x="obsCF3",y="expCF3",Geom.point,Theme(default_color=color("blue"))),layer(x=0:1,y=0:1),Geom.line,Theme(default_color=color("black")))
+```
+This will pop out a browser window with the plot. The plot can be saved as PDF (or many other formats, see [Gadfly tutorial](http://dcjones.github.io/Gadfly.jl/)) with
+```julia
+draw(PDF("plot.pdf", 4inch, 3inch), p)
+```
 
 #### Debugging: the .err file
 Please report any bugs and errors to *claudia@stat.wisc.edu*. The easiest way to do it is by checking the .err file which will show the number of runs that failed by a bug and the corresponding seed to replicate the run. This is an example of what the .err file looks like:

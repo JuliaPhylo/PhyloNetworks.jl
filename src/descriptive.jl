@@ -245,3 +245,15 @@ function checkMapDF(alleleDF::DataFrame)
         error("In allele mapping file there is no column named species")
     end
 end
+
+
+"""
+`dfObsExpCF(d::DataCF)`
+
+function that will create a table with the observed and expected CF after estimation of a network with snaq(T,d).
+"""
+function dfObsExpCF(d::DataCF)
+    df=DataFrame(obsCF1=[q.obsCF[1] for q in d.quartet],obsCF2=[q.obsCF[2] for q in d.quartet],obsCF3=[q.obsCF[3] for q in d.quartet], expCF1=[q.qnet.expCF[1] for q in d.quartet],expCF2=[q.qnet.expCF[2] for q in d.quartet],expCF3=[q.qnet.expCF[3] for q in d.quartet])
+    return df
+end
+

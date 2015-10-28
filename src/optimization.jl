@@ -1388,7 +1388,7 @@ optTopRun1!(currT::HybridNetwork, d::DataCF, hmax::Int64, returnNet::Bool, seed:
 # it differs from optTopRuns in that it creates a deepcopy of the starting topology
 # only currT and d are necessary, all others are optional and have default values
 """
-`snaq(currT::HybridNetwork, d::DataCF)`
+`snaq!(currT::HybridNetwork, d::DataCF)`
 
 function that estimates the best network (or tree) for a DataCF object (with the observed CF) and a starting topology currT (which has to be a HybridNetwork type, read with readTopologyLevel1). It has many optional arguments, among which we have:
 - hmax: maximum number of hybridizations allowed (default 1)
@@ -1397,8 +1397,9 @@ function that estimates the best network (or tree) for a DataCF object (with the
 - outgroup: outgroup taxon to root the estimated topology
 - filename: root name for the output files (default snaq)
 - seed: seed to replicate a given search
+The function ends with ! because it modifies the DataCF d by including the expCF
 """
-function snaq(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="none"::AbstractString, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64)
+function snaq!(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="none"::AbstractString, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64)
     if(filename == "none")
         filename = "snaq"
     end
