@@ -245,21 +245,19 @@ function calculateObsCFAll!(quartets::Vector{Quartet}, trees::Vector{HybridNetwo
     println("Reading in quartets...")
     r = round(1/totalq,2)
     if(r > 0.02)
-        print("0+")
-        for(i in 1:totalq)
-            print("-")
-        end
-        print("+100")
+        numq = totalq
     else
-        print("0+")
-        for(i in 1:50)
-            print("-")
-        end
-        print("+100")
+        numq = 50
     end
-    println(" ")
+    print("0+")
+    for(i in 1:numq)
+        print("-")
+    end
+    print("+100%")
+    println("  ")
 #    println("0    10   20   30   40   50   60   70   80   90   100")
 #    println("+----+----+----+----+----+----+----+----+----+----+")
+    print("  ")
     for q in quartets
         if(round(index/totalq,2)>0.02)
             print("*")
@@ -298,6 +296,7 @@ function calculateObsCFAll!(quartets::Vector{Quartet}, trees::Vector{HybridNetwo
         q.numGT = suma
         index += 1
     end
+    println("  ")
     d = DataCF(quartets,trees)
     return d
 end
