@@ -1292,6 +1292,7 @@ pseudolikelihood will be meaningless.
 function topologyQPseudolik!(net::HybridNetwork,d::DataCF; verbose=false::Bool)
     # need a clean starting net. fixit: maybe we need to be more thorough here
     # yes, need to check that everything is ok because it could have been cleaned and then modified
+    any([(e.length == -1.0 && e.istIdentifiable) for e in net.edge]) && warn("edges lengths missing, so assigned default value of 1.0, but pseudolikelihood is meaningless")
     if(!net.cleaned)
         cleanAfterReadAll!(net);
     else
@@ -1303,7 +1304,6 @@ function topologyQPseudolik!(net::HybridNetwork,d::DataCF; verbose=false::Bool)
     catch
         error("starting topology not a level 1 network")
     end
-    any([(e.length == 1.0 && e.istIdentifiable) for e in net.edge]) && println("edges lengths missing, so assigned default value of 1.0")
     extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
     all((q->(q.qnet.numTaxa != 0), d.quartet)) || error("qnet in quartets on data are not correctly updated with extractQuartet")
     for(q in d.quartet)

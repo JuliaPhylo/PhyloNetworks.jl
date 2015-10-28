@@ -20,7 +20,7 @@ abstract ANode
 # warning: inCycle and containRoot are updated after edge is part of a network
 type Edge
     number::Int64
-    length::Float64
+    length::Float64 #default 1.0
     hybrid::Bool
     y::Float64 # exp(-t), cannot set in constructor for congruence
     z::Float64 # 1-y , cannot set in constructor for congruence
