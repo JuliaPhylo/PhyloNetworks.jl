@@ -603,9 +603,9 @@ function printEdges(net::HybridNetwork)
     if(net.numBad > 0)
         warn("net has $(net.numBad) bad diamond I, gammas and some branch lengths are not identifiable, and therefore, meaningless")
     end
-    println("Edge\tNode1\tNode2\tInCycle\tcontainRoot\tistIdentitiable\tLength\tisHybrid\tGamma")
+    println("Edge\tNode1\tNode2\tInCycle\tcontainRoot\tistIdentitiable\tLength\tisHybrid\tGamma\tisMajor")
     for e in net.edge
-        println("$(e.number)\t$(e.node[1].number)\t$(e.node[2].number)\t$(e.inCycle)\t$(e.containRoot)\t\t$(e.istIdentifiable)\t\t$(round(e.length,2))\t$(e.hybrid)\t$(round(e.gamma,4))")
+        println("$(e.number)\t$(e.node[1].number)\t$(e.node[2].number)\t$(e.inCycle)\t$(e.containRoot)\t\t$(e.istIdentifiable)\t\t$(round(e.length,2))\t$(e.hybrid)\t\t$(round(e.gamma,4))\t$(e.isMajor)")
     end
 end
 
@@ -616,9 +616,9 @@ end
 prints information on the nodes of net: node number, in which cycle it is contained (-1 if no cycle), is it hybrid, does it has hybrid edges, edges number attached to it
 """
 function printNodes(net::Network)
-    println("Node\tIn Cycle\tisHybrid\thasHybEdge\tEdges numbers")
+    println("Node\tIn Cycle\tisHybrid\thasHybEdge\tNode label\tisLeaf\tEdges numbers")
     for n in net.node
-        print("$(n.number)\t$(n.inCycle)\t\t$(n.hybrid)\t$(n.hasHybEdge)\t")
+        print("$(n.number)\t$(n.inCycle)\t\t$(n.hybrid)\t\t$(n.hasHybEdge)\t\t$(n.name)\t\t$(n.leaf)")
         for e in n.edge
             print("\t$(e.number)")
         end
