@@ -3,8 +3,8 @@
 # Claudia March 2015
 
 
-const move2int = Dict{Symbol,Int64}([:add=>1,:MVorigin=>2,:MVtarget=>3,:CHdir=>4,:delete=>5, :nni=>6])
-const int2move = (Int64=>Symbol)[move2int[k]=>k for k in keys(move2int)]
+const move2int = Dict{Symbol,Int64}(:add=>1,:MVorigin=>2,:MVtarget=>3,:CHdir=>4,:delete=>5, :nni=>6)
+const int2move = Dict{Int64,Symbol}([move2int[k]=>k for k in keys(move2int)])
 const fAbs = 1e-6 #1e-10 prof Bates, 1e-6
 const fRel = 1e-5 # 1e-12 prof Bates, 1e-5
 const xAbs = 1e-4 # 0.001 in phylonet, 1e-10 prof Bates, 1e-4

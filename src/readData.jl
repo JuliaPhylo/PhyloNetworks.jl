@@ -241,8 +241,15 @@ unionTaxaTree(file::AbstractString) = unionTaxa(readInputTrees(file))
 function calculateObsCFAll!(quartets::Vector{Quartet}, trees::Vector{HybridNetwork})
     println("DATA: calculating obsCF from set of $(length(trees)) gene trees and list of $(length(quartets)) quartets")
     index = 1
+    totalq = length(quartets)
+    println("Reading in quartets...")
+    println("0    10   20   30   40   50   60   70   80   90   100")
+    println("+----+----+----+----+----+----+----+----+----+----+")
     for q in quartets
-        println("extracting $(index)/$(length(quartets)) 4-taxon subset")
+        if(round(index/totalq,2)>0.02)
+            print("*")
+            index = 1
+        end
         suma = 0
         sum12 = 0
         sum13 = 0
