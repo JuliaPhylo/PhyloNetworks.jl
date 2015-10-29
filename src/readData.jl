@@ -27,11 +27,11 @@ writeExpCF(d::DataCF) = writeExpCF(d.quartet)
 # function to write a csv table from the obsCF of an
 # array of quartets
 function writeObsCF(quartets::Array{Quartet,1})
-    df = DataFrames.DataFrame(t1="",t2="",t3="",t4="",CF1234=0.,CF1324=0.,CF1423=0.)
+    df = DataFrames.DataFrame(t1="",t2="",t3="",t4="",CF1234=0.,CF1324=0.,CF1423=0.,numGT=0)
     for(q in quartets)
         length(q.taxon) == 4 || error("quartet $(q.number) does not have 4 taxa")
         length(q.obsCF) == 3 || error("quartet $(q.number) does have qnet with 3 expCF")
-        append!(df,DataFrames.DataFrame(t1=q.taxon[1],t2=q.taxon[2],t3=q.taxon[3],t4=q.taxon[4],CF1234=q.obsCF[1],CF1324=q.obsCF[2],CF1423=q.obsCF[3]))
+        append!(df,DataFrames.DataFrame(t1=q.taxon[1],t2=q.taxon[2],t3=q.taxon[3],t4=q.taxon[4],CF1234=q.obsCF[1],CF1324=q.obsCF[2],CF1423=q.obsCF[3],numGT=q.numGT))
     end
     df = df[2:size(df,1),1:size(df,2)]
     return df
@@ -238,7 +238,7 @@ unionTaxaTree(file::AbstractString) = unionTaxa(readInputTrees(file))
 
 # function to calculate the obsCF from a file with a set of gene trees
 # returns a DataCF object and write a csv table with the obsCF
-function calculateObsCFAll!(quartets::Vector{Quartet}, trees::Vector{HybridNetwork})
+function calculateObsCFAll!(quartets::Vector{Quartet}, trees::Vector{HybridNetwork}, taxa::Union{Vector{ASCIIString}, Vector{Int64}})
     println("DATA: calculating obsCF from set of $(length(trees)) gene trees and list of $(length(quartets)) quartets")
     index = 1
     totalq = length(quartets)
@@ -270,26 +270,17 @@ function calculateObsCFAll!(quartets::Vector{Quartet}, trees::Vector{HybridNetwo
         for t in trees
             isTree(t) || error("gene tree found in file that is a network $(writeTopology(t))")
             if(sameTaxa(q,t))
-                suma +=1
-                qnet = extractQuartet!(t,q)
-                identifyQuartet!(qnet)
-                internalLength!(qnet)
-                updateSplit!(qnet)
-                for(i in 2:4)
-                    size(qnet.leaf,1) == 4 || error("strange quartet with $(size(qnet.leaf,1)) leaves instead of 4")
-                    tx1,tx2 = whichLeaves(qnet,q.taxon[1],q.taxon[i], qnet.leaf[1], qnet.leaf[2], qnet.leaf[3], qnet.leaf[4]) # index of leaf in qnet.leaf
-                    if(qnet.split[tx1] == qnet.split[tx2])
-                        #eval(parse(string("sum1",i,"+=1"))) # sum1i += 1
-                        if(i == 2)
-                            sum12 += 1
-                        elseif(i == 3)
-                            sum13 += 1
-                        else
-                            sum14 += 1
-                        end
-                        break
-                    end
+                M = tree2Matrix(t,taxa) #fixit: way to reuse M? length(t.edge) will be different across trees
+                res = extractQuartetTree(q,M,taxa)
+                DEBUG && println("res is $(res)")
+                if(res == 1)
+                    sum12 += 1
+                elseif(res == 2)
+                    sum13 += 1
+                elseif(res == 3)
+                    sum14 += 1
                 end
+                suma += (res == 0) ? 0 : 1
             end
         end
         q.obsCF = [sum12/suma, sum13/suma, sum14/suma]
@@ -327,7 +318,7 @@ function readInputData(treefile::AbstractString, quartetfile::AbstractString, wh
     else
         error("unknown symbol for whichQ $(whichQ), should be either all or rand")
     end
-    d = calculateObsCFAll!(quartets,trees)
+    d = calculateObsCFAll!(quartets,trees, unionTaxa(trees))
     if(writetab)
         if(filename == "none")
             filename = "tableCF$(string(integer(time()/1000))).txt"
@@ -372,7 +363,7 @@ function readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64, ta
     else
         error("unknown symbol for whichQ $(whichQ), should be either all or rand")
     end
-    d = calculateObsCFAll!(quartets,trees)
+    d = calculateObsCFAll!(quartets,trees,taxa)
     if(writetab)
         if(filename == "none")
             #filename = "tableCF$(string(integer(time()/1000))).txt"
@@ -657,4 +648,88 @@ function resolution(names::Vector{ASCIIString},rownames::Vector{ASCIIString})
     else
         error("strange resolution $(bin)")
     end
+end
+
+# function to traverse a tree postorder and modify the matrix M
+# with edges as rows and species as columns (see tree2Matrix)
+# S should be sorted
+function traverseTree2Matrix!(node::Node, edge::Edge, M::Matrix{Int}, S::Union{Vector{ASCIIString},Vector{Int64}})
+    if(!node.leaf)
+        for(e in node.edge) #postorder traversal
+            if(!isEqual(e,edge))
+                traverseTree2Matrix!(getOtherNode(e,node),e,M,S)
+            end
+        end
+    end
+    try
+        indedge = getIndex(edge.number,M[:,1])
+    catch
+        error("either edge $(edge.number) not in tree")
+    end
+    indedge = getIndex(edge.number,M[:,1])
+    if(node.leaf)
+        try
+            indsp = getIndex(node.name,S)
+        catch
+            error("leaf $(node.name) not in species list $(S)")
+        end
+        indsp = getIndex(node.name,S)
+        M[indedge,indsp+1] = 1 #indsp+1 bc first column is edge numbers
+    else
+        for(e in node.edge)
+            if(!isEqual(e,edge))
+                inde = getIndex(e.number,M[:,1])
+                M[indedge,2:size(M,2)] |= M[inde,2:size(M,2)]
+            end
+        end
+    end
+end
+
+# function to take a tree and a list of species as input,
+# and produce a matrix with edges as rows and species as columns, and in cells:
+# Mij=1 if species j is descendant of edge i, 0 ow.
+# Mij=-1 if species not present in tree
+# if tree has missing taxa, they will keep 0, but this is handled in calculateObsCFAll with sameTaxa function
+function tree2Matrix(T::HybridNetwork, S::Union{Vector{ASCIIString},Vector{Int64}})
+    sort!(S)
+    M = zeros(Int,length(T.edge),length(S)+1)
+    M[:,1] = sort!([e.number for e in T.edge])
+    for(e in T.node[T.root].edge)
+        traverseTree2Matrix!(getOtherNode(e,T.node[T.root]),e,M,S)
+    end
+    return M
+end
+
+
+# function to extract a quartet from a matrix M
+# obtained from tree2Matrix
+# this function is meant to replace extractQuartet! in calculateObsCFAll
+# input: Quartet, Matrix, vector of taxa names
+# returns 1 if quartet found is 12|34, 2 if 13|24, 3 if 14|23, and 0 if not found
+function extractQuartetTree(q::Quartet, M::Matrix{Int},S::Union{Vector{ASCIIString},Vector{Int64}})
+    DEBUG && println("extractQuartet: $(q.taxon)")
+    try
+        ind1 = getIndex(q.taxon[1],S)
+        ind2 = getIndex(q.taxon[2],S)
+        ind3 = getIndex(q.taxon[3],S)
+        ind4 = getIndex(q.taxon[4],S)
+    catch
+        error("some taxon in quartet $(q.taxon) not found in list of all species $(S)")
+    end
+    ind1 = getIndex(q.taxon[1],S)
+    ind2 = getIndex(q.taxon[2],S)
+    ind3 = getIndex(q.taxon[3],S)
+    ind4 = getIndex(q.taxon[4],S)
+    subM = M[:,[ind1+1,ind2+1,ind3+1,ind4+1]]
+    DEBUG && println("subM: $(subM)")
+    for(r in 1:size(subM,1)) #rows in subM
+        if(subM[r,:] == [0 0 1 1] || subM[r,:] == [1 1 0 0])
+            return 1
+        elseif(subM[r,:] == [0 1 0 1] || subM[r,:] == [1 0 1 0])
+            return 2
+        elseif(subM[r,:] == [0 1 1 0] || subM[r,:] == [1 0 0 1])
+            return 3
+        end
+    end
+    return 0
 end
