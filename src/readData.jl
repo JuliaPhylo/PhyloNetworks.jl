@@ -359,7 +359,8 @@ function readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64, ta
         else
             println("DATA: will use a random sample of $(numQ) quartets ($(round((100*numQ)/binomial(length(taxa),4),2)) percent) based on $(length(taxa)) taxa")
         end
-        quartets = randQuartets(taxa,numQ)
+        # fixit here: modify to whichQuartet
+        quartets = randQuartets(taxa,numQ, writeFile)
     else
         error("unknown symbol for whichQ $(whichQ), should be either all or rand")
     end
@@ -732,4 +733,31 @@ function extractQuartetTree(q::Quartet, M::Matrix{Int},S::Union{Vector{ASCIIStri
         end
     end
     return 0
+end
+
+
+# function that will give the qth quartet without making a list of all quartets
+# input: n number of taxa, q desired index of quartet
+# returns vector of int, e.g. 1234
+function whichQuartet(n::Int, q::Int)
+    p = 4
+    q <= binom(n,p) || error("the index for the quartet $(q) needs to be less than choose(n,4)=$(binom(n,p))")
+    n > 4 || error("there must be at least 5 taxa, not $(n)")
+    quartet = Int[]
+    while(n > 1)
+        abs = binom(n-1,p) #fixit: we don't want to compute this, we want to look for it in a table
+        if(q > abs)
+            push!(quartet,n)
+            n -= 1
+            p -= 1
+            q = q-abs
+        else
+            n -= 1
+        end
+    end
+    if(length(quartet) == 3)
+        push!(quartet,1)
+    end
+    quartet = quartet[[4,3,2,1]] #sort
+    return quartet
 end
