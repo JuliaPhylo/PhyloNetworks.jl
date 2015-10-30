@@ -141,7 +141,7 @@ function randQuartets(allquartets::Vector{Quartet},num::Int64, writeFile::Bool)
         num = integer(floor(0.1*n))
     end
     num <= n || error("you cannot choose a sample of $(num) quartets when there are $(n) in total")
-    indx = [rep(1,num),rep(0,n-num)]
+    indx = [rep(1,num);rep(0,n-num)]
     indx = indx[sortperm(randn(n))]
     if(writeFile)
         #randName = "rand$(numQ)Quartets$(string(integer(time()/1000))).txt"
@@ -168,19 +168,19 @@ end
 # fixit: i think we should write always the file, but not sure
 function randQuartets(taxon::Union{Vector{ASCIIString},Vector{Int64}},num::Int64, writeFile::Bool)
     randquartets = Quartet[]
-    n = length(taxa)
+    n = length(taxon)
     ntotal = binom(n,4)
     num <= ntotal || error("you cannot choose a sample of $(num) quartets when there are $(ntotal) in total")
-    indx = [rep(1,num),rep(0,ntotal-num)]
+    indx = [rep(1,num);rep(0,ntotal-num)]
     indx = indx[sortperm(randn(ntotal))]
     rq = find(indx .== 1)
-    randName = "rand$(numQ)Quartets.txt"
+    randName = "rand$(num)Quartets.txt"
     println("DATA: chosen list of random quartets in file $(randName)")
     out = open(randName,"w")
     i = 1
     for(q in rq)
         qind = whichQuartet(n,q) # vector of int
-        quartet = createQuartet(taxa,qind,i)
+        quartet = createQuartet(taxon,qind,i)
         write(out,"$(quartet.taxon)\n")
         push!(randquartets,quartet)
         i += 1
