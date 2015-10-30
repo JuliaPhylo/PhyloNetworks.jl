@@ -181,7 +181,7 @@ function randQuartets(taxon::Union{Vector{ASCIIString},Vector{Int64}},num::Int64
     for(q in rq)
         qind = whichQuartet(n,q) # vector of int
         quartet = createQuartet(taxon,qind,i)
-        write(out,"$(quartet.taxon[1]) $(quartet.taxon[2]) $(quartet.taxon[3]) $(quartet.taxon[4])\n")
+        write(out,"$(quartet.taxon[1]), $(quartet.taxon[2]), $(quartet.taxon[3]), $(quartet.taxon[4])\n")
         push!(randquartets,quartet)
         i += 1
     end
