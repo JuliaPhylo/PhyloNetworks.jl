@@ -163,10 +163,28 @@ function randQuartets(allquartets::Vector{Quartet},num::Int64, writeFile::Bool)
     return randquartets
 end
 
-# same as randQuartets but with list of taxa as input
+# function that will not use randQuartets(list of quartets,...)
+# this function uses whichQuartet to avoid making the list of all quartets
+# fixit: i think we should write always the file, but not sure
 function randQuartets(taxon::Union{Vector{ASCIIString},Vector{Int64}},num::Int64, writeFile::Bool)
-    allquartets = allQuartets(taxon,writeFile)
-    randquartets = randQuartets(allquartets,num,writeFile)
+    randquartets = Quartet[]
+    n = length(taxa)
+    ntotal = binom(n,4)
+    num <= ntotal || error("you cannot choose a sample of $(num) quartets when there are $(ntotal) in total")
+    indx = [rep(1,num),rep(0,ntotal-num)]
+    indx = indx[sortperm(randn(ntotal))]
+    rq = find(indx .== 1)
+    randName = "rand$(numQ)Quartets.txt"
+    println("DATA: chosen list of random quartets in file $(randName)")
+    out = open(randName,"w")
+    i = 1
+    for(q in rq)
+        qind = whichQuartet(n,q) # vector of int
+        quartet = createQuartet(taxa,qind,i)
+        write(out,"$(quartet.taxon)\n")
+        push!(randquartets,quartet)
+        i += 1
+    end
     return randquartets
 end
 
@@ -359,7 +377,6 @@ function readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64, ta
         else
             println("DATA: will use a random sample of $(numQ) quartets ($(round((100*numQ)/binomial(length(taxa),4),2)) percent) based on $(length(taxa)) taxa")
         end
-        # fixit here: modify to whichQuartet
         quartets = randQuartets(taxa,numQ, writeFile)
     else
         error("unknown symbol for whichQ $(whichQ), should be either all or rand")
@@ -761,3 +778,21 @@ function whichQuartet(n::Int, q::Int)
     quartet = quartet[[4,3,2,1]] #sort
     return quartet
 end
+
+# function to write a quartet on integer to taxon names
+# it creates a Quartet type
+# input: list of taxa names, vector of integers (each integer corresponds to a taxon name),
+# num is the number of the Quartet
+# assumes taxa is sorted already
+function createQuartet(taxa::Union{Vector{ASCIIString},Vector{Int64}},qvec::Vector{Int}, num::Int)
+    length(qvec) == 4 || error("a quartet should have only 4 taxa, not $(length(qvec))")
+    names = ASCIIString[]
+    for(i in qvec)
+        i <= length(taxa) || error("want taxon number $(i) in list of taxon names $(taxa) which has only $(length(taxa)) names")
+        push!(names,string(taxa[i]))
+    end
+    return Quartet(num,names,[1.0,0.0,0.0])
+end
+
+
+
