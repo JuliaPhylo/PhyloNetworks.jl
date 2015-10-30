@@ -12,7 +12,7 @@ T=readStartTop("../examples/startTree.txt",d);
 T2=readStartTop("../examples/startTree.txt",d2);
 writeTopology(T)
 # snaq
-net1=snaq!(T2,d2,filename="net1_snaq")
+net1=snaq!(T2,d2,filename="net1_snaq");
 net2=snaq!(T,d,hmax=2, filename="net2_snaq");
 writeTopology(net1)
 writeTopology(net1,di=true)
