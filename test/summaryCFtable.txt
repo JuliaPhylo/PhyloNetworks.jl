@@ -1,4 +1,4 @@
-DATA: data consists of 5 4-taxon subsets
-Taxa: ASCIIString["6","7","4","8","10"]
-Number of Taxa: 5
-Maximum number of 4-taxon subsets: 5. Thus, 100.0 percent of 4-taxon subsets sampled
+DATA: data consists of 15 4-taxon subsets
+Taxa: ASCIIString["6","1","5","4","2","3"]
+Number of Taxa: 6
+Maximum number of 4-taxon subsets: 15. Thus, 100.0 percent of 4-taxon subsets sampled

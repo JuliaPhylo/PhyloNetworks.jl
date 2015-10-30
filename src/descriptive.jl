@@ -170,19 +170,32 @@ end
 # filename is the name to give to the new table, if write=true
 function mapAllelesCFtable(alleleDF::DataFrame, cfDF::DataFrame,write::Bool,filename::AbstractString)
     compareTaxaNames(alleleDF,cfDF)
-    newt1 = map(x->replace(string(x),string(alleleDF[1,1]),alleleDF[1,2]),cfDF[1])
-    newt2 = map(x->replace(string(x),string(alleleDF[1,1]),alleleDF[1,2]),cfDF[2])
-    newt3 = map(x->replace(string(x),string(alleleDF[1,1]),alleleDF[1,2]),cfDF[3])
-    newt4 = map(x->replace(string(x),string(alleleDF[1,1]),alleleDF[1,2]),cfDF[4])
+    newt1 = map(x->replace(string(x),string(alleleDF[1,:allele]),alleleDF[1,:species]),cfDF[1])
+    newt2 = map(x->replace(string(x),string(alleleDF[1,:allele]),alleleDF[1,:species]),cfDF[2])
+    newt3 = map(x->replace(string(x),string(alleleDF[1,:allele]),alleleDF[1,:species]),cfDF[3])
+    newt4 = map(x->replace(string(x),string(alleleDF[1,:allele]),alleleDF[1,:species]),cfDF[4])
     if(size(alleleDF,1) > 1)
         for(j in 2:size(alleleDF,1)) #for all the allele matchings
-            newt1 = map(x->replace(string(x),string(alleleDF[j,1]),alleleDF[j,2]),newt1)
-            newt2 = map(x->replace(string(x),string(alleleDF[j,1]),alleleDF[j,2]),newt2)
-            newt3 = map(x->replace(string(x),string(alleleDF[j,1]),alleleDF[j,2]),newt3)
-            newt4 = map(x->replace(string(x),string(alleleDF[j,1]),alleleDF[j,2]),newt4)
+            newt1 = map(x->replace(string(x),string(alleleDF[j,:allele]),alleleDF[j,:species]),newt1)
+            newt2 = map(x->replace(string(x),string(alleleDF[j,:allele]),alleleDF[j,:species]),newt2)
+            newt3 = map(x->replace(string(x),string(alleleDF[j,:allele]),alleleDF[j,:species]),newt3)
+            newt4 = map(x->replace(string(x),string(alleleDF[j,:allele]),alleleDF[j,:species]),newt4)
         end
     end
     newdf = DataFrames.DataFrame(t1=newt1,t2=newt2,t3=newt3,t4=newt4,CF1234=cfDF[5],CF1324=cfDF[6],CF1423=cfDF[7])
+    keeprows =  Bool[]
+    for(i in 1:size(newdf,1)) #check all rows
+        if(newdf[i,:t1] == newdf[i,:t2] || newdf[i,:t1] == newdf[i,:t3] || newdf[i,:t1] == newdf[i,:t4] || newdf[i,:t2] == newdf[i,:t3] || newdf[i,:t2] == newdf[i,:t4] || newdf[i,:t3] == newdf[i,:t4])
+            push!(keeprows,false)
+        else
+            push!(keeprows,true)
+        end
+    end
+    if(!all(keeprows))
+        warn("found repeated taxon names in $(length(keeprows)-sum(keeprows)) out of $(size(newdf,1)) 4-taxon subsets. for the moment, we will ignore these 4-taxon subsets: will use $(sum(keeprows)) 4-taxon subsets. Future work will allow the inclusion of these 4-taxon subsets")
+        size(newdf,1) > (length(keeprows)-sum(keeprows)) || warn("4-taxon subsets with repeated taxon names are all the 4-taxon subsets, so resulting new dataframe is empty")
+        newdf = newdf[keeprows,:]
+    end
     if(write)
         filename != "" || error("want to write new table of CF with alleles mapped but filename is empty")
         writetable(filename,newdf)
@@ -190,6 +203,13 @@ function mapAllelesCFtable(alleleDF::DataFrame, cfDF::DataFrame,write::Bool,file
     return newdf
 end
 
+"""
+`mapAllelesCFtable(mapping file, cf file)`
+
+function that change the allele names in the CF table to species names.
+The new DataFrame object is returned.
+Optional argument: filename for the resulting CF table. If not specified, then no CF is saved as file.
+"""
 function mapAllelesCFtable(alleleDF::AbstractString, cfDF::AbstractString; filename=""::AbstractString)
     d = readtable(alleleDF)
     d2 = readtable(cfDF)
@@ -206,17 +226,17 @@ function compareTaxaNames(alleleDF::DataFrame, cfDF::DataFrame)
     checkMapDF(alleleDF)
     size(cfDF,2) == 7 || warn("CF Dataframe should have 7 columns: 4taxa, 3CF, will ignore columns from 8th on")
     d = readTableCF(cfDF)
-    println("there are $(length(alleleCF[1])) allele-species matches")
+    println("ALLELE MAP: there are $(length(alleleDF[1])) allele-species matches")
     CFtaxa = unionTaxa(d.quartet)
     CFtaxa = map(x->string(x),CFtaxa) #treat as string
-    alleleTaxa = map(x->string(x),alleleDF[1]) #treat as string
+    alleleTaxa = map(x->string(x),alleleDF[:allele]) #treat as string
     sizeCF = length(CFtaxa)
     sizeAllele = length(alleleTaxa)
     if(sizeAllele > sizeCF)
-        println("there are more taxa in the allele-species mapping file: $(sizeAllele) than in the CF table: $(sizeCF), so extra allele names will be ignored")
+        println("ALLELE MAP: there are more taxa in the allele-species mapping file: $(sizeAllele) than in the CF table: $(sizeCF), so extra allele names will be ignored")
         alleleTaxa = intersect(alleleTaxa,CFtaxa)
     elseif(sizeAllele < sizeCF)
-        println("there are fewer taxa in the allele-species map: $(sizeAllele) than in the CF table: $(sizeCF), so some names in the CF table will remained unchanged")
+        println("ALLELE MAP: there are fewer taxa in the allele-species map: $(sizeAllele) than in the CF table: $(sizeCF), so some names in the CF table will remained unchanged")
     end
     unchanged = setdiff(CFtaxa,alleleTaxa)
     if(length(unchanged) == length(CFtaxa))
@@ -232,8 +252,8 @@ end
 
 # function to check that the allele df has one column labelled alleles and one column labelled species
 function checkMapDF(alleleDF::DataFrame)
-    size(alleleDF,2) < 2 || error("Allele-Species matching Dataframe should have at least 2 columns")
-    size(alleleDF,2) > 2 || warn("allele mapping file contains more than two columns: will ignore all columns not labelled allele or species")
+    size(alleleDF,2) <= 2 || error("Allele-Species matching Dataframe should have at least 2 columns")
+    size(alleleDF,2) >= 2 || warn("allele mapping file contains more than two columns: will ignore all columns not labelled allele or species")
     try
         alleleDF[:allele]
     catch
