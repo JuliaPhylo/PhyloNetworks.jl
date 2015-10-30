@@ -4,7 +4,7 @@
 # function to read a CF table with CI
 # and sample new obsCF
 # the function returns the new dataframe
-# for some reason UTF8String is needed instead of AbstractString
+# warning: for some reason UTF8String is needed instead of AbstractString
 function bootstrapCFtable(df::DataFrame)
     DEBUG && warn("order of columns should be: t1,t2,t3,t4,cf1234,cf1324,cf1423,cf1234LO,cf1234HI,...")
     size(df,2) == 13 || warn("Dataframe should have 7 columns: 4taxa, 3CF*3")
@@ -28,12 +28,14 @@ bootstrapCFtable(file::AbstractString;sep=','::Char) = bootstrapCFtable(readtabl
 
 
 # function that will do bootstrap of snaq estimation
-# it has the same arguments as snaq except for:
+# it repeats optTopRuns nrep times
+# it has the same arguments as optTopRuns except for:
 # - need df table of CF with conf intervals (instead of d DataCF)
 # - new argument nrep: number of bootstrap replicates (default 10)
 # - new argument prcnet: percentage of bootstrap replicates to start in the best network, by default 0.25
 # - new argument bestNet: to start the optimization. if prcnet>0.0 and bestNet is not input as argument from a previous run, it will estimate it inside
-function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="bootsnaq_main"::AbstractString, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.25::Float64, bestNet=HybridNetwork()::HybridNetwork)
+# returns vector of HybridNetworks, bestNet is the first one, and the other nrep networks after
+function optTopRunsBoot!(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Number, Nfail::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, filename::AbstractString, returnNet::Bool, seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64, bestNet::HybridNetwork)
     prcnet > 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
     prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
     println("BOOTSTRAP OF SNAQ ESTIMATION")
@@ -54,14 +56,16 @@ function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multipl
     if(prcnet > 0.0)
         write(logfile, "Starting topology: will use the best network $(prcnet*100) percent of times \n")
         if(bestNet.numTaxa == 0)
-            write(logfile, "bestNet not input, so we need to estimate it before doing bootstrap\n")
+            write(logfile, "bestNet not given as input, so we need to estimate it before doing bootstrap\n")
             println("bestNet not input, so we need to estimate it before doing bootstrap in order to use it as starting topology in $(prcnet*100) percent of times")
             d = readTableCF(df)
             startnet=deepcopy(currT0)
             bestNet = optTopRuns!(startnet, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, "bestNet", true,seeds[1],probST)
+            push!(bootNet, deepcopy(bestNet))
         else
             write(logfile,"bestNet input: $(writeTopology(bestNet))\n to use in $(prcnet *100) percent of times as starting topology")
             println("bestNet input: $(writeTopology(bestNet))\n to use in $(prcnet *100) percent of times as starting topology")
+            push!(bootNet, deepcopy(bestNet))
         end
     end
 
@@ -110,10 +114,14 @@ function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multipl
     end
 end
 
+# like snaq, only calls optTopRunsBoot
+# will later decide which to call depending on nproc()
+function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="bootsnaq_main"::AbstractString, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.25::Float64, bestNet=HybridNetwork()::HybridNetwork)
+    startnet=deepcopy(currT0)
+    optTopRunsBoot!(startnet, df, hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, returnNet, seed, probST, nrep, prcnet, bestNet)
+end
 
-
-
-
-
+# todo: create optTopRunsBootParallel: this will call pmap on optTopRuns, but still need to decide if we will pass all arguments to optTopRuns
+# or create localOptTopRuns with only the arguments that differ from one replicate to another: what's more efficient?
 
 
