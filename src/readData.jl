@@ -185,6 +185,7 @@ function randQuartets(taxon::Union{Vector{ASCIIString},Vector{Int64}},num::Int64
         push!(randquartets,quartet)
         i += 1
     end
+    close(out)
     return randquartets
 end
 
