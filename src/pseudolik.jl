@@ -1305,7 +1305,7 @@ function topologyQPseudolik!(net::HybridNetwork,d::DataCF; verbose=false::Bool)
         error("starting topology not a level 1 network")
     end
     extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
-    all((q->(q.qnet.numTaxa != 0), d.quartet)) || error("qnet in quartets on data are not correctly updated with extractQuartet")
+    all((q->(q.qnet.numTaxa != 0)), d.quartet) || error("qnet in quartets on data are not correctly updated with extractQuartet")
     for(q in d.quartet)
         (DEBUG || verbose) && println("computing expCF for quartet $(q.taxon)")
         qnet = deepcopy(q.qnet);
