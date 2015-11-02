@@ -257,6 +257,7 @@ unionTaxaTree(file::AbstractString) = unionTaxa(readInputTrees(file))
 
 # function to calculate the obsCF from a file with a set of gene trees
 # returns a DataCF object and write a csv table with the obsCF
+# warning: it needs trees (not networks) as input
 function calculateObsCFAll!(quartets::Vector{Quartet}, trees::Vector{HybridNetwork}, taxa::Union{Vector{ASCIIString}, Vector{Int64}})
     println("DATA: calculating obsCF from set of $(length(trees)) gene trees and list of $(length(quartets)) quartets")
     index = 1

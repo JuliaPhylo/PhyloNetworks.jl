@@ -277,3 +277,13 @@ function dfObsExpCF(d::DataCF)
     return df
 end
 
+
+# function to set nonidentifiable edges BL to -1.0
+# used at the end of optTopRuns
+function setNonIdBL!(net::HybridNetwork)
+    for(e in net.edge)
+        if(!e.istIdentifiable)
+            e.length = -1.0 #do not use setLength because it does not allow BL too negative
+        end
+    end
+end

@@ -1328,6 +1328,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         close(logfile)
     end
     if(returnNet)
+        setNonIdBL!(maxNet)
         return maxNet
     end
 end
@@ -1443,3 +1444,5 @@ function snaqDebug(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier
     close(sout)
     close(logfile)
 end
+
+

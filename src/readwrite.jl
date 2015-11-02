@@ -265,7 +265,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
                 end
             end
         elseif(c == ':')
-            setLength!(e,-1.0,true);
+            e.length = -1.0 # do not use setLength because it does not allow BL too negative
             c = read(s,Char);
             c = peekchar(s);
             if(isdigit(c))
@@ -778,7 +778,7 @@ function writeSubTree!(s::IOBuffer, n::Node, parent::Edge,di::Bool,names::Bool)
         end
     end
     if(!n.leaf)
-        if(parent.istIdentifiable && parent.length != -1.0) #we do not want to print BL of non-id edges
+        if(parent.istIdentifiable && parent.length >= 0.0) #we do not want to print BL of non-id edges
             print(s,string(":",round(parent.length,3)))
         end
     end
