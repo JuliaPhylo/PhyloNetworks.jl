@@ -168,9 +168,7 @@ end
 # to the species names
 # this will create a new CF table, will not rewrite on the original one
 # filename is the name to give to the new table, if write=true
-# tree= tree with one tip per species to be modified inside depending on the
-# quartets read (e.g. sp1,sp1,sp2,sp2)
-function mapAllelesCFtable!(alleleDF::DataFrame, cfDF::DataFrame,write::Bool,filename::AbstractString, tree::HybridNetwork)
+function mapAllelesCFtable!(alleleDF::DataFrame, cfDF::DataFrame,write::Bool,filename::AbstractString)
     compareTaxaNames(alleleDF,cfDF)
     newt1 = map(x->replace(string(x),string(alleleDF[1,:allele]),alleleDF[1,:species]),cfDF[1])
     newt2 = map(x->replace(string(x),string(alleleDF[1,:allele]),alleleDF[1,:species]),cfDF[2])
@@ -185,15 +183,6 @@ function mapAllelesCFtable!(alleleDF::DataFrame, cfDF::DataFrame,write::Bool,fil
         end
     end
     newdf = DataFrames.DataFrame(t1=newt1,t2=newt2,t3=newt3,t4=newt4,CF1234=cfDF[5],CF1324=cfDF[6],CF1423=cfDF[7])
-    ## if(write) #saved the non-cleaned version
-    ##     filename != "" || error("want to write new table of CF with alleles mapped but filename is empty")
-    ##     println("saved CF table before cleaning the allele-species map to file: $(string("0",filename))")
-    ##     writetable(string("0",filename),newdf)
-    ## end
-    repSpecies = cleanNewDF!(newdf)
-    if(!isempty(repSpecies))
-        expandLeaves!(repSpecies,tree)
-    end
     if(write)
         filename != "" || error("want to write new table of CF with alleles mapped but filename is empty")
         writetable(filename,newdf)
@@ -317,14 +306,13 @@ function that change the allele names in the CF table to species names.
 The new DataFrame object is returned.
 Optional argument: filename for the resulting CF table. If not specified, then no CF is saved as file.
 """
-function mapAllelesCFtable(alleleDF::AbstractString, cfDF::AbstractString, treefile = AbstractString; filename=""::AbstractString)
+function mapAllelesCFtable(alleleDF::AbstractString, cfDF::AbstractString; filename=""::AbstractString)
     d = readtable(alleleDF)
     d2 = readtable(cfDF)
-    tree = readTopologyUpdate(treefile)
     if(filename=="")
-        mapAllelesCFtable!(d,d2,false,filename,tree)
+        mapAllelesCFtable!(d,d2,false,filename)
     else
-        mapAllelesCFtable!(d,d2,true,filename,tree)
+        mapAllelesCFtable!(d,d2,true,filename)
     end
 end
 

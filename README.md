@@ -141,11 +141,9 @@ You can access this example file
 [here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/tableCF.txt).
 
 If you have a tree *startTree.txt* in parenthetical format to
-use as starting point for the optimization and want to
-update the branch lengths according to the CF already read in the data
-structure *d*, do this:
+use as starting point for the optimization, you can read it with
 ```julia
-T=readStartTop("startTree.txt",d);
+T=readTopology("startTree.txt");
 writeTopology(T)
 ```
 You can access this example file
@@ -206,13 +204,14 @@ to a species, and if only the species-level network needs
 to be estimated, this can be done with the following functions:
 ```julia
 new_df = mapAllelesCFtable(mappingFile, CFtable);
-new_d = readTableCF(new_df);
+new_d = readTableCF!(new_df);
 ```
 where the mapping file can be a text file (or csv) with two columns
 named *allele* and *species*, mapping each allele name to a species
 name. The CF table is the original table with allele names for each
 4-taxon subset. This function will create a new CF data frame with the
-species names instead of allele names.
+species names instead of allele names, and will modify *new_df* by
+removing useless rows like *sp1,sp1,sp1,sp1*.
 
 Estimation will work the same way:
 ```julia

@@ -146,13 +146,10 @@ examples for the first calls of functions is always a good idea.
 
 \section{Setup}
 \subsection{Installation of \texttt{Julia}}
-To install \texttt{Julia} version 0.3.* (if Julia is already installed, skip
-this step): go to\\ \url{http://julialang.org/downloads/}.\\
+To install \texttt{Julia} go to \url{http://julialang.org/downloads/}.\\
 \texttt{PhyloNetworks} was developed under \texttt{Julia}
-version 0.3.5, and has been tested on different versions of 0.3.X.
-We have not tested its robustness on \texttt{Julia} version 0.4 or
-above, but we will soon. Version 0.4 allows for precompilation, so the
-drawback described in the introduction will no longer apply.
+version 0.3.5, but the package is fully migrated to version 0.4.
+Issues may arise by using a version of Julia lower than 0.4.
 
 \subsection{Installation of \texttt{PhyloNetworks}}
 To install the package,
@@ -624,14 +621,19 @@ then the new table is also saved as a csv file.
   new_df = mapAllelesCFtable(mappingFile, CFtable,
            filename="newTable.txt");
 \end{lstlisting}
-This dataframe should be read also to create a DataCF object:
-\begin{lstlisting}
-  new_d = readTableCF(new_df);
-\end{lstlisting}
+
 The mapping file should have two columns names \textit{allele} and
 \textit{species}. The function will prompt an error if the column
 names do not match. It allows for extra columns, and the function will
 ignore them.
+
+The output dataframe should be read also to create a DataCF object:
+\begin{lstlisting}
+  new_d = readTableCF!(new_df);
+\end{lstlisting}
+This function will modify the new dataframe by removing useless rows
+such as \textit{sp1,sp1,sp1,sp1}.
+
 The estimation will work in the same way:
 \begin{lstlisting}
   new_net = snaq!(newT,new_d);

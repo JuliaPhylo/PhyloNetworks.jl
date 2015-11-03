@@ -1200,7 +1200,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     sameTaxa(d,currT0) || error("some taxon names in quartets do not appear on the starting topology")
     # need a clean starting net. fixit: maybe we need to be more thorough here
     # yes, need to check that everything is ok because it could have been cleaned and then modified
-    if(!currT0.cleaned)
+    if(!currT0.cleaned) #need a clean topology
         DEBUG && println("si, se metio a q no esta cleaned")
         cleanAfterReadAll!(currT0);
     else
@@ -1212,6 +1212,13 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     catch
         error("starting topology not a level 1 network")
      end
+
+    # for the case of multiple alleles: expand into two leaves quartets like sp1 sp1 sp2 sp3.
+    if(!isempty(d.repSpecies))
+        expandLeaves!(d.repSpecies,currT0)
+    end
+
+    updateBL!(currT0,d) # we are doing it always inside
 
     juliaerr = string(rootname,".err")
     errfile = open(juliaerr,"w")
@@ -1245,7 +1252,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
 
     failed = Int64[] #seeds with bugs
     bestnet = HybridNetwork[];
-    runs += 1 #extra run for compilation
+    #runs += 1 #extra run for compilation in v0.3
 
     if(seed == 0)
         t = time()/1e9
@@ -1258,13 +1265,13 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     seeds = [seed;round(Integer,floor(rand(runs-1)*100000))]
 
     for(i in 1:runs)
-        if(i == 2) #the first run is the slowest
-            tic();
-        end
+        #if(i == 2) #the first run is the slowest
+        tic();
+        #end
         write(logfile,"seed: $(seeds[i]) for run $(i)\n")
-        if(i<runs)
-            print(STDOUT,"seed: $(seeds[i]) for run $(i)\n")
-        end
+        #if(i<runs)
+        print(STDOUT,"seed: $(seeds[i]) for run $(i)\n")
+        #end
         flush(logfile)
         gc();
         try
@@ -1313,7 +1320,8 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             write(s,"\n -Ploglik = $(maxNet.loglik)")
             write(s,"\n Dendroscope: $(writeTopology(maxNet,true,outgroup))")
         end
-        write(s,"\n Elapsed time: $(t) seconds in $(runs-1-length(failed)) successful runs")
+        #write(s,"\n Elapsed time: $(t) seconds in $(runs-1-length(failed)) successful runs")
+        write(s,"\n Elapsed time: $(t) seconds in $(runs-length(failed)) successful runs")
         write(s,"\n-------")
         write(s,"\nList of estimated networks for all runs:")
         for(n in bestnet)

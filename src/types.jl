@@ -218,9 +218,10 @@ type DataCF
     numQuartets::Int64 # number of quartets
     tree::Vector{HybridNetwork} #array of input gene trees
     numTrees::Int64 # number of gene trees
-    DataCF(quartet::Array{Quartet,1}) = new(quartet,length(quartet),[],0)
-    DataCF(quartet::Array{Quartet,1},trees::Vector{HybridNetwork}) = new(quartet,length(quartet),trees,length(trees))
-    DataCF() = new([],0,[],0)
+    repSpecies::Vector{ASCIIString} #repeated species in the case of multiple alleles
+    DataCF(quartet::Array{Quartet,1}) = new(quartet,length(quartet),[],0,[])
+    DataCF(quartet::Array{Quartet,1},trees::Vector{HybridNetwork}) = new(quartet,length(quartet),trees,length(trees),[])
+    DataCF() = new([],0,[],0,[])
 end
 
 # aux type for the updateBL function

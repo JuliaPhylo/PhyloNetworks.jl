@@ -38,31 +38,46 @@ end
 writeObsCF(d::DataCF) = writeObsCF(d.quartet)
 
 # function that takes a dataframe and creates a DataCF object
-function readTableCF(df::DataFrames.DataFrame,writeTab::Bool)
+# has ! because it can modify the dataframe inside
+"""
+`readTableCF!(df::DataFrame)`
+
+read a DataFrame object with a table of CF. It has one optional argument:
+
+- if summaryfile is specified, it will write a summary file with that name.
+
+This function modifies the DataFrame if there are useless rows (e.g. sp1,sp1,sp1,sp1)
+"""
+function readTableCF!(df::DataFrames.DataFrame;summaryfile=""::AbstractString)
     DEBUG && println("assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network")
     size(df,2) == 7 || warn("Dataframe should have 7 columns: 4taxa, 3CF, will ignore columns from 8th on")
+    repSpecies = cleanNewDF!(df)
     quartets = Quartet[]
     for(i in 1:size(df,1))
         push!(quartets,Quartet(i,string(df[i,1]),string(df[i,2]),string(df[i,3]),string(df[i,4]),[df[i,5],df[i,6],df[i,7]]))
     end
     d = DataCF(quartets)
+    if(!isempty(repSpecies))
+        d.repSpecies = repSpecies
+    end
     println("DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
     #descData(d,"summaryCFtable$(string(integer(time()/1000))).txt")
-    if(writeTab)
-        descData(d,"summaryCFtable.txt")
+    if(summaryfile != "")
+        descData(d,summaryfile)
     end
     return d
 end
-
-readTableCF(df::DataFrames.DataFrame) = readTableCF(df,true)
 
 # warning: when file needs to be AbstractString bc it can be read as UTF8String
 """
 `readTableCF(file)`
 
-read a file with a table of CF. It has one optional argument: sep to specify the type of separator in the table with single quotes: sep=';'
+read a file with a table of CF. It has two optional arguments:
+
+- sep to specify the type of separator in the table with single quotes: sep=';'
+- if summaryfile is specified, it will write a summary file with that name.
 """
-readTableCF(file::AbstractString;sep=','::Char) = readTableCF(readtable(file,separator=sep))
+readTableCF(file::AbstractString;sep=','::Char,summaryfile=""::AbstractString) = readTableCF!(readtable(file,separator=sep),summaryfile=summaryfile)
 
 # ---------------- read input gene trees and calculate obsCF ----------------------
 
@@ -74,7 +89,7 @@ readTableCF(file::AbstractString;sep=','::Char) = readTableCF(readtable(file,sep
 `readInputTrees(file)`
 
 function to read a text file with a list of trees in parenthetical format (one tree per line), it returns an array of HybridNetwork object.
-Careful to put ; after to avoid output written to screen
+Don'r forget to put ; after the command to avoid output written to screen
 """
 function readInputTrees(file::AbstractString)
     try
