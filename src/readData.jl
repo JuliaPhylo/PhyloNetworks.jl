@@ -1,8 +1,6 @@
 # functions to read data
 # originally in functions.jl
 # Claudia March 2015
-
-# same as readData.jl, but modified the Union(...) to Union{...}
 # based on Julia 0.4
 # Claudia October 2015
 
