@@ -2,7 +2,7 @@
 #Contains function that will convert a .dot file into a .svg image
 
 #Converts a .dot file
-function generalExport(file;filename="genImage"::String,layoutEngine="dot")
+function generalExport(file;filename="genImage"::AbstractString,layoutEngine="dot")
   dot = open(file,"r") do io Graph(io) end
   GraphViz.layout!(dot,engine=layoutEngine)
   open("$filename.svg","w") do f
