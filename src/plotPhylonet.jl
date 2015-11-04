@@ -152,7 +152,7 @@ function plotPhylonet(graph::Network;    # Network object to plot
   #********************************************************************************************************************
 
   #Converts .dot file into .svg image
-  print("Exporting .dot file as .svg with image name $(imageName)")
+  print("Exporting $(imageName).dot to image in $(imageName).svg\n")
   generalExport("$imageName.dot",filename="$imageName",layoutEngine=layoutStyle)
 
 end
