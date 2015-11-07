@@ -281,3 +281,11 @@ This will create two files:
 *claudia@stat.wisc.edu* with subject "SNaQ bug found" or something
 similar. I will not have access to any part of your data, the files
 simply print out the steps to retrace the bug, and hopefully fix it.
+
+#### Getting help
+
+The easiest way to get help is to post (or email) a question to the
+PhyloNetworks-users google group [here]
+(https://groups.google.com/forum/#!forum/phylonetworks-users/new).  It
+is a good idea to join the group to receive information on new
+versions, bugs fixed, etc.
