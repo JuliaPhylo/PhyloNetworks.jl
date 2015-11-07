@@ -392,10 +392,10 @@ end
 
 # and QuartetNetworks (which cannot be just written because they do not have root)
 function show(io::IO, net::QuartetNetwork)
-    print(io,"$(net.quartetTaxon)")
-    print(io,"number of hybrid nodes: $(net.numHybrids)")
+    print(io,"taxa: $(net.quartetTaxon)\n")
+    print(io,"number of hybrid nodes: $(net.numHybrids)\n")
     if(net.split != [-1,-1,-1,-1])
-        print(io,"$(net.split)")
+        print(io,"split: $(net.split)\n")
     end
 end
 

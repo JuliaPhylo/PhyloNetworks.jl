@@ -29,4 +29,14 @@ d.quartet[1].taxon
 ```
 will provide the list of taxon names for the first 4-taxon subset in the data. We can corroborate this is the firs 4-taxon subset by checking the file *tableCF.txt*.
 
+To see the observed CF, we can type
+```julia
+d.quartet[1].obsCF
+```
+
+We can verify the type with
+```julia
+typeof(d.quartet[1])
+```
+
 
