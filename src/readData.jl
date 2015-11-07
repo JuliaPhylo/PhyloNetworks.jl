@@ -40,17 +40,17 @@ writeObsCF(d::DataCF) = writeObsCF(d.quartet)
 # function that takes a dataframe and creates a DataCF object
 # has ! because it can modify the dataframe inside
 """
-`readTableCF!(df::DataFrame)`
+`readTableCF(df::DataFrame)`
 
 read a DataFrame object with a table of CF. It has one optional argument:
 
 - if summaryfile is specified, it will write a summary file with that name.
 
-This function modifies the DataFrame if there are non-informative rows (e.g. sp1,sp1,sp1,sp1)
 """
-function readTableCF!(df::DataFrames.DataFrame;summaryfile=""::AbstractString)
+function readTableCF(df0::DataFrames.DataFrame;summaryfile=""::AbstractString)
     DEBUG && println("assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network")
-    size(df,2) == 7 || warn("Dataframe should have 7 columns: 4taxa, 3CF, will ignore columns from 8th on")
+    size(df0,2) == 7 || warn("Dataframe should have 7 columns: 4taxa, 3CF, will ignore columns from 8th on")
+    df = deepcopy(df0)
     repSpecies = cleanNewDF!(df)
     quartets = Quartet[]
     for(i in 1:size(df,1))
