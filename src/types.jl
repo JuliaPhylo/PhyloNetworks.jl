@@ -179,20 +179,27 @@ end
 """
 `Quartet type`
 
-type that saves the information on a given 4-taxon subset. It contains the following attributes: number, taxon (vector of taxon names), obsCF (vector of observed CF), logPseudoLik, numGT (number of gene trees used to compute the observed CF)
+type that saves the information on a given 4-taxon subset. It contains the following attributes:
+
+- number
+- taxon (vector of taxon names)
+- obsCF (vector of observed CF)
+- logPseudoLik
+- numGT (number of gene trees used to compute the observed CF: -1 if unknown)
+- qnet (internal topological structure that saves the expCF after snaq estimation to emphasize that the expCF depend on a specific network, not the data)
 """
 type Quartet
     number::Int64
     taxon::Array{ASCIIString,1}
     obsCF::Array{Float64,1} # three observed CF in order 12|34, 13|24, 14|23
-    qnet::QuartetNetwork # quartet network for the current network
+    qnet::QuartetNetwork # quartet network for the current network (want to keep as if private attribute)
     logPseudoLik::Float64 # log pseudolik value for the quartet
-    numGT::Int64 # number of gene trees used to compute the obsCV
+    numGT::Int64 # number of gene trees used to compute the obsCV, default -1
     # inner constructor: to guarantee obsCF are only three and add up to 1
     function Quartet(number::Int64,t1::AbstractString,t2::AbstractString,t3::AbstractString,t4::AbstractString,obsCF::Array{Float64,1})
         size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing
         0.99 < sum(obsCF) < 1.02 || warn("observed CF should add up to 1, not $(sum(obsCF))")
-        new(number,[t1,t2,t3,t4],obsCF,QuartetNetwork(),0,0);
+        new(number,[t1,t2,t3,t4],obsCF,QuartetNetwork(),0,-1);
     end
     function Quartet(number::Int64,t1::Array{ASCIIString,1},obsCF::Array{Float64,1})
         size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing
@@ -201,9 +208,9 @@ type Quartet
         0.0 <= obsCF[1] <= 1.0 || error("obsCF must be between (0,1), but it is $(obsCF[1]) for $(t1)")
         0.0 <= obsCF[2] <= 1.0 || error("obsCF must be between (0,1), but it is $(obsCF[2]) for $(t1)")
         0.0 <= obsCF[3] <= 1.0 || error("obsCF must be between (0,1), but it is $(obsCF[3]) for $(t1)")
-        new(number,t1,obsCF,QuartetNetwork(),0,0);
+        new(number,t1,obsCF,QuartetNetwork(),0,-1);
     end
-    Quartet() = new(0,[],[],QuartetNetwork(),0,0)
+    Quartet() = new(0,[],[],QuartetNetwork(),0,-1)
 end
 
 # Data -------
@@ -211,7 +218,13 @@ end
 """
 `DataCF type`
 
-type that contains the following attributes: quartet (vector of Quartets), numQuartets, tree (vector of trees), numTrees
+type that contains the following attributes:
+
+- quartet (vector of Quartets)
+- numQuartets
+- tree (vector of trees: empty if a table of CF was input instead of list of trees)
+- numTrees (-1 if a table CF was input instead of list of trees)
+- repSpecies (taxon names that were repeated in table of CF or input gene trees: used inside snaq for multiple alleles case)
 """
 type DataCF
     quartet::Array{Quartet,1} # array of quartets read from CF output table or list of quartets in file
@@ -219,9 +232,9 @@ type DataCF
     tree::Vector{HybridNetwork} #array of input gene trees
     numTrees::Int64 # number of gene trees
     repSpecies::Vector{ASCIIString} #repeated species in the case of multiple alleles
-    DataCF(quartet::Array{Quartet,1}) = new(quartet,length(quartet),[],0,[])
+    DataCF(quartet::Array{Quartet,1}) = new(quartet,length(quartet),[],-1,[])
     DataCF(quartet::Array{Quartet,1},trees::Vector{HybridNetwork}) = new(quartet,length(quartet),trees,length(trees),[])
-    DataCF() = new([],0,[],0,[])
+    DataCF() = new([],0,[],-1,[])
 end
 
 # aux type for the updateBL function

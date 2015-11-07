@@ -1,4 +1,4 @@
-VERSION >= v"0.4" || error("you should update Julia to current version: 0.4 or higher")
+VERSION >= v"0.4" || warn("you need to update Julia to current version: 0.4 or higher")
 __precompile__()
 
 module PhyloNetworks

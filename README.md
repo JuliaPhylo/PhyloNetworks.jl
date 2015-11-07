@@ -26,8 +26,8 @@ Two alternatives:
 
 ### Pipeline from sequence alignments
 
-This [pipeline](https://github.com/nstenz/TICR) (with additional details 
-[here](https://github.com/crsl4/PhyloNetworks/blob/master/howto.md))
+This [pipeline](https://github.com/nstenz/TICR) (with additional details
+[here](https://github.com/crsl4/PhyloNetworks/blob/master/docs/howto.md))
 can be used to obtain the table of CF needed as input
 for SNaQ. The pipeline starts with input the sequence alignments, and
 it runs MrBayes and then BUCKy, producing the
@@ -203,6 +203,9 @@ PhyloNetworks.plotPhylonet(net)
 -->
 
 For a list of all the functions in the PhyloNetworks package, and all the options on the SNaQ function, refer to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf).
+
+#### Simple use of Julia objects
+For a small example on how Julia objects can be accessed, see [here](https://github.com/crsl4/PhyloNetworks/blob/master/docs/howto.md)
 
 #### Multiple alleles
 

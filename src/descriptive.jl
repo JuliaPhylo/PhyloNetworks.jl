@@ -383,3 +383,20 @@ function setNonIdBL!(net::HybridNetwork)
         end
     end
 end
+
+# function that we need to overwrite to avoid printing useless scary
+# output for HybridNetworks
+function show(io::IO, net::HybridNetwork)
+    print(io,"$(writeTopology(net))")
+end
+
+# and QuartetNetworks (which cannot be just written because they do not have root)
+function show(io::IO, net::QuartetNetwork)
+    print(io,"$(net.quartetTaxon)")
+    print(io,"number of hybrid nodes: $(net.numHybrids)")
+    if(net.split != [-1,-1,-1,-1])
+        print(io,"$(net.split)")
+    end
+end
+
+

@@ -46,7 +46,7 @@ read a DataFrame object with a table of CF. It has one optional argument:
 
 - if summaryfile is specified, it will write a summary file with that name.
 
-This function modifies the DataFrame if there are useless rows (e.g. sp1,sp1,sp1,sp1)
+This function modifies the DataFrame if there are non-informative rows (e.g. sp1,sp1,sp1,sp1)
 """
 function readTableCF!(df::DataFrames.DataFrame;summaryfile=""::AbstractString)
     DEBUG && println("assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network")
@@ -503,7 +503,7 @@ function descData(d::DataCF, sout::IO, pc::Float64)
         print(sout,"----------------------------\n\n")
         print(sout,"will print below only the 4-taxon subsets with data from <= $(round((pc)*100,2))% genes\n")
         for q in d.quartet
-            percent  = round(q.numGT/d.numTrees*100,2)
+            percent  = q.numGT == -1 ? 0.0 : round(q.numGT/d.numTrees*100,2)
             if(percent < pc)
                 print(sout,"4-taxon subset $(q.taxon) obsCF constructed with $(q.numGT) gene trees ($(percent)%)\n")
             end

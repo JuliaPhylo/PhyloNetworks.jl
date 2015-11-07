@@ -849,11 +849,6 @@ writes the parenthetical format of a HybridNetwork object with many optional arg
 """
 writeTopology(net::HybridNetwork; di=false::Bool, string=true::Bool, names=true::Bool,outgroup="none"::AbstractString) = writeTopology(net, di, string, names,outgroup)
 
-function show(io::IO, net::HybridNetwork)
-    print(io,"$(writeTopology(net))")
-end
-
-
 # function to check if root is well-placed
 # and look for a better place if not
 # searches on net.node because net.root is the index in net.node
