@@ -207,7 +207,7 @@ For a list of all the functions in the PhyloNetworks package, and all the option
 ### Simple use of Julia objects
 For a small example on how Julia objects can be accessed, see [here](https://github.com/crsl4/PhyloNetworks/blob/master/docs/simpleJulia.md)
 
-#### Multiple alleles
+### Multiple alleles
 
 The usual settings for SNaQ consider each allele in the gene trees to
 be its own tip in the network. If instead each allele can be mapped confidently
@@ -235,7 +235,7 @@ WARNING: the current function works best if all alleles from the same
 individual are given the same name (the individual's 'name') across
 all genes for which that individual was sequenced.
 -->
-##### Optimizing branch lengths and inheritance probabilities for a given network
+### Optimizing branch lengths and inheritance probabilities for a given network
 For a given network topology, you can optimize the branch lengths and
 inheritance probabilities with the pseudolikelihood. Minus the logarithm of the
 pseudolikelihood value for the network will be printed to the screen (the lower the better).
@@ -257,7 +257,7 @@ pseudolikelihood for the given branch lenghts and probabilities of
 inheritance. At the moment, both of these functions require that the
 given network is of level 1 (cycles don't overlap).
 
-#### Plot observed CF vs expected CF
+### Plot observed CF vs expected CF
 A good way to visualize the "goodness-of-fit" of a given estimated network to the data is to plot the observed CF to the expected CF. If the network is a good fit, then the dots in the plot will be close to the y=x line.
 The following function will create a dataframe with the observed and expected CF which are all saved in the DataCF object after running snaq:
 ```julia
@@ -275,7 +275,7 @@ This will pop out a browser window with the plot. The plot can be saved as PDF (
 draw(PDF("plot.pdf", 4inch, 3inch), p)
 ```
 
-#### Debugging: the .err file
+### Debugging: the .err file
 Please report any bugs and errors to *claudia@stat.wisc.edu*. The easiest way to do it is by checking the .err file which will show the number of runs that failed by a bug and the corresponding seed to replicate the run. This is an example of what the .err file looks like:
 
 Total errors: 1 in seeds [4545]
@@ -292,7 +292,7 @@ This will create two files:
 similar. I will not have access to any part of your data, the files
 simply print out the steps to retrace the bug, and hopefully fix it.
 
-#### Getting help
+### Getting help
 
 The easiest way to get help is to post (or email) a question to the
 PhyloNetworks-users google group [here]
