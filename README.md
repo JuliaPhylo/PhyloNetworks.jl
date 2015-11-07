@@ -205,7 +205,7 @@ PhyloNetworks.plotPhylonet(net)
 For a list of all the functions in the PhyloNetworks package, and all the options on the SNaQ function, refer to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf).
 
 #### Simple use of Julia objects
-For a small example on how Julia objects can be accessed, see [here](https://github.com/crsl4/PhyloNetworks/blob/master/docs/howto.md)
+For a small example on how Julia objects can be accessed, see [here](https://github.com/crsl4/PhyloNetworks/blob/master/docs/simpleJulia.md)
 
 #### Multiple alleles
 
