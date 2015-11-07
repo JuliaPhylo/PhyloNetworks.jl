@@ -26,7 +26,8 @@ Two alternatives:
 
 ### Pipeline from sequence alignments
 
-This [pipeline](https://github.com/nstenz/TICR)
+This [pipeline](https://github.com/nstenz/TICR) (with additional details 
+[here](https://github.com/crsl4/PhyloNetworks/blob/master/howto.md))
 can be used to obtain the table of CF needed as input
 for SNaQ. The pipeline starts with input the sequence alignments, and
 it runs MrBayes and then BUCKy, producing the
