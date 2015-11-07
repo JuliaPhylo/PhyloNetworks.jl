@@ -203,11 +203,11 @@ functions in every package. This is particulary important for the
 package \texttt{PhyloNetworks} since it is a new package under constant
 development.
 
-\paragraph{WARNING:} There is a known bug for Mac users where the \texttt{Pkg.update} function does not update to the latest version. We recommend Mac users to do the following through the terminal:\\
-\texttt{
-  cd HOME/.julia/v0.3/PhyloNetworks/ \\
-  git pull } \\where HOME is replaced by your home directory and v0.3
-could be replaced by v0.4 if you have version 0.4 of Julia.
+% \paragraph{WARNING:} There is a known bug for Mac users where the \texttt{Pkg.update} function does not update to the latest version. We recommend Mac users to do the following through the terminal:\\
+% \texttt{
+%   cd HOME/.julia/v0.3/PhyloNetworks/ \\
+%   git pull } \\where HOME is replaced by your home directory and v0.3
+% could be replaced by v0.4 if you have version 0.4 of Julia.
 
 \section{Description of main functions}
 Functions in \texttt{Julia} that end with exclamation sign \textbf{!}
@@ -639,9 +639,10 @@ The estimation will work in the same way:
   new_net = snaq!(newT,new_d);
 \end{lstlisting}
 where \textit{newT} should be a starting topology on the species
-names.  \\WARNING: the current function works best if all alleles from
-the same individual are given the same name (the individual's 'name')
-across all genes for which that individual was sequenced.
+names.  
+% WARNING: the current function works best if all alleles from
+% the same individual are given the same name (the individual's 'name')
+% across all genes for which that individual was sequenced.
 
 }
 \end{itemize}
