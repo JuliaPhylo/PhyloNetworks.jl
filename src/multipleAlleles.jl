@@ -31,6 +31,7 @@ end
 
 # function to clean a df after changing allele names to species names
 # inside mapAllelesCFtable
+# by deleting rows that are not informative like sp1 sp1 sp1 sp2
 function cleanNewDF!(newdf::DataFrame)
     keeprows =  Bool[]
     repSpecies = ASCIIString[]
@@ -96,6 +97,13 @@ function cleanNewDF!(newdf::DataFrame)
     end
     return unique(repSpecies)
 end
+
+
+# function to merge rows that have repeated taxon names by using the weigthed average of CF
+# (if info on number of genes is provided) or simple average
+function mergeRows!(df::DataFrame)
+    for(i in 1:size(df,1)) #rows
+        for(j in (i+1):size(df,1)) #other rows
 
 
 # function to expand leaves in tree to two individuals
@@ -200,3 +208,4 @@ function checkMapDF(alleleDF::DataFrame)
         error("In allele mapping file there is no column named species")
     end
 end
+

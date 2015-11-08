@@ -44,3 +44,5 @@ include("visualization.jl")
 include("descriptive.jl")
 
 include("bootstrap.jl")
+
+include("multipleAlleles.jl")
