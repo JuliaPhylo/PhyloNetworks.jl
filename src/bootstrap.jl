@@ -19,6 +19,7 @@ function bootstrapCFtable(df::DataFrame)
         c1 = min(1.0,c1)
         c2 = min(1.0,c2)
         c3 = min(1.0,c3)
+        # fixit: how to make sure they add up to one
         append!(newdf,DataFrame(t1=convert(UTF8String,string(df[i,1])), t2=convert(UTF8String,string(df[i,2])), t3=convert(UTF8String,string(df[i,3])), t4=convert(UTF8String,string(df[i,4])), CF1234=c1,CF1324=c2, CF1423=c3))
     end
     return newdf

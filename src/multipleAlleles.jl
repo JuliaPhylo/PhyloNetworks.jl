@@ -102,8 +102,60 @@ end
 # function to merge rows that have repeated taxon names by using the weigthed average of CF
 # (if info on number of genes is provided) or simple average
 function mergeRows!(df::DataFrame)
+    keeprow = rep(true,size(df,1))
+    addeddf = df[1,1:size(df,2)] #df that will have the averaged rows, need to delete the first row at the end
     for(i in 1:size(df,1)) #rows
-        for(j in (i+1):size(df,1)) #other rows
+        if(keeprow[i])
+            partialdf = df[i,1:size(df,2)]
+            for(j in (i+1):size(df,1)) #other rows
+                if(df[i,1:4] == df[j,1:4])
+                    keeprow[i] = false
+                    append!(partialdf,df[j,1:size(df,2)])
+                    keeprow[j] = false
+                end
+            end
+            averagePartialDF!(partialdf) # transform all rows in partialdf to only one row with average
+            append!(addeddf,partialdf)
+        end
+    end
+    if(!all(keeprow))
+        warn("found repeated 4-taxon subsets in CF table, the CF values were averaged between rows")
+        df = df[keeprow,:]
+        addeddf = addeddf[2:size(addeddf,1),1:size(addeddf,2)]
+        append!(df,addeddf) #append averaged rows
+    end
+end
+
+# function to average all rows in a dataframe
+# assumes all rows have repeated taxon names, and does not
+# verify this
+function averagePartialDF!(df::DataFrame)
+    df2 = deepcopy(df)
+    deleterows!(df,2:size(df,1)) #only keep one row to hold the average
+    numfound = true
+    try
+        df[:numGT]
+    catch
+        numfound = false
+    end
+    if(numfound)
+        num = df2[:numGT]
+        suma = sum(num)
+        delete!(df2,1:4)
+        delete!(df2,:numGT) #delete all columns except CF
+        for(j in 1:size(df2,2)) #columns in df2
+            df[1,j+4] = sum(df2[:,j].*num)/suma
+        end
+        df[1,:numGT] = suma
+    else
+        delete!(df2,1:4)
+        for(j in 1:size(df2,2)) #columns in df2
+            df[1,j+4] = mean(df2[:,j])
+        end
+        df[1,:numGT] = size(df2,1)
+    end
+end
+
 
 
 # function to expand leaves in tree to two individuals

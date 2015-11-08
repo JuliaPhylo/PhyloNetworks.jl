@@ -52,6 +52,9 @@ function readTableCF(df0::DataFrames.DataFrame;summaryfile=""::AbstractString)
     size(df0,2) == 7 || warn("Dataframe should have 7 columns: 4taxa, 3CF, will ignore columns from 8th on")
     df = deepcopy(df0)
     repSpecies = cleanNewDF!(df)
+    if(!isempty(repSpecies))
+        mergeRows!(df)
+    end
     quartets = Quartet[]
     for(i in 1:size(df,1))
         push!(quartets,Quartet(i,string(df[i,1]),string(df[i,2]),string(df[i,3]),string(df[i,4]),[df[i,5],df[i,6],df[i,7]]))
