@@ -5,7 +5,9 @@ original size: 525px × 222px-->
 
 [![Build Status](https://travis-ci.org/crsl4/PhyloNetworks.svg)](https://travis-ci.org/crsl4/PhyloNetworks)
 
+<!--
 [![Coverage Status](https://coveralls.io/repos/crsl4/PhyloNetworks/badge.svg?branch=master&service=github)](https://coveralls.io/github/crsl4/PhyloNetworks?branch=master)
+-->
 
 SNaQ implements the statistical inference method in [Sol&iacute;s-Lemus and
 An&eacute;](http://arxiv.org/pdf/1509.06075.pdf). The procedure involves a
