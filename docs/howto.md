@@ -18,31 +18,31 @@ The resulting output tarball would now be located in my-genes-mb/my-genes.mb.tar
 bucky.pl my-genes-mb.tar -o mygenes-bucky
 `
 
-The output, with the table of concordance factors for all sets of 4 taxa, will be in a .CFs.csv file inside mygenes-bucky. That's the CF table file to give to SNaQ as input.
+The output, with the table of concordance factors for all sets of 4 taxa, will be in a file named my-genes.CFs.csv inside directory mygenes-bucky. That's the file containing the quartet concordance factors to give to SNaQ as input.
 
-## To run BUCKy on all 4-taxon sets: You already have MrBayes output
+## To run BUCKy: You already have MrBayes output
 
 ### To run mbsum on the output of MrBayes for each gene
 
-You must now run mbsum separately on each gene's MrBayes output. For a gene with output tree files named gene1.run1.t gene1.run2.t gene1.run3.t, and a desired burnin of 1000 trees per tree file:
+You must now run `mbsum` separately on each gene's MrBayes output. For a gene with output tree files named gene1.run1.t gene1.run2.t gene1.run3.t, and a desired burnin of 1000 trees per tree file:
 
 `
-mbsum gene1.run1.t gene1.run2.t gene1.run3.t -n 1000 -o gene1.in
+mbsum -n 1000 -o gene1.in gene1.run1.t gene1.run2.t gene1.run3.t
 `
 
-Now continue to the next section.
+This `mbsum` command will need to be executed for each gene. Now continue to the next section.
 
-### To run bucky: you already have the mbsum output
-If you have already run mbsum on each individual gene's MrBayes output, you can simply create a tarball containing all the mbsum output files. So if you had mbsum output in three files named gene1.in, gene2.in, and gene3.in, you would want to run somethingn similar to the following command:
+### To run bucky on all 4-taxon sets: you already have the mbsum output
+If you have already run mbsum on each individual gene's MrBayes output, you can simply create a tarball containing all the mbsum output files. So if you had mbsum output in files named gene1.in, gene2.in, ... , gene100.in, you would want to run something similar to the following command:
 
 `
-tar czf my-genes-mbsum.tar.gz gene1.in gene2.in gene3.in
+tar czf my-genes-mbsum.tar.gz gene*.in
 `
 
-You can now use this tarball along with the -s option in [bucky.pl](https://github.com/nstenz/TICR/blob/master/scripts/bucky.pl) like so:
+You can now use this tarball along with the -s option in [bucky.pl](https://github.com/nstenz/TICR/blob/master/scripts/bucky.pl) like this:
 
 `
 bucky.pl my-genes-mbsum.tar.gz -s -o mygenes-bucky
 `
 
-The output, with the table of concordance factors for all sets of 4 taxa, will be in a .CFs.csv file inside mygenes-bucky. That's the CF table file to give to SNaQ as input.
+The output, with the table of concordance factors for all sets of 4 taxa, will be in a file named my-genes.CFs.csv inside directory mygenes-bucky. That's the file containing the quartet concordance factors to give to SNaQ as input.
