@@ -104,8 +104,9 @@ function readInputTrees(file::AbstractString)
     s = open(file)
     numl = 1
     for line in eachline(s)
+        line = strip(line) # remove spaces
         DEBUG && println("$(line)")
-        c = line[1]
+        c = isempty(line) ? "" : line[1]
         if(c == '(')
            try
                net = readTopologyUpdate(line,false)

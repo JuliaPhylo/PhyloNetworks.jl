@@ -13,6 +13,8 @@ using DataFrames # for rep function and read/write csv tables
 using NLopt # for branch lengths optimization
 using GraphViz #for visualization
 
+import Base.show
+
 const DEBUG = false
 const DEBUGC = false #more detailed prints
 const CHECKNET = false #for debugging only
