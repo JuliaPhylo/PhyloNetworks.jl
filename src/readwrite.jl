@@ -306,6 +306,8 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
         else
             warn("one colon read without double in left parenthesis $(numLeft[1]), ignored.")
         end
+    else
+        e.length = -1.0 # do not use setLength because it does not allow BL too negative
     end
     return true
 end
