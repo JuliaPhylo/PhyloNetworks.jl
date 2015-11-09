@@ -105,7 +105,7 @@
 \posttitle{\end{center}}
 
 \title{\texttt{PhyloNetworks} Documentation\\
- \large Version 0.0.1}
+ \large Version 0.0.2}
 \author{Claudia Sol\'{i}s-Lemus, C\'{e}cile An\'{e} and John Spaw}
 %\date{}
 
@@ -467,7 +467,8 @@ summarizeCFdata(d,filename=...,pc=...)
   the data structure \texttt{DataCF}. It is equivalent to run
   readTopologyUpdate first and then updateBL!(net,d)\\
   WARNING: updateBL only works for a tree topology, not proven for a
-  network yet. Both arguments are required.\\  Usage:
+  network yet. Both arguments are required. \textbf{Only branch lengths that
+  are missing in the topology are updated.} \\  Usage:
 \begin{lstlisting}
 readStartTop(treefile, d)
 \end{lstlisting}
@@ -512,6 +513,7 @@ topology and a data object \texttt{DataCF}:
 \begin{lstlisting}
 snaq!(startingTopology,data)
 \end{lstlisting}
+The function updates the missing branch lengths with the average CF.
 The function has the following optional arguments (with default values in parenthesis):
 \begin{itemize}
 \item \textbf{Nfail} \textit{(100)}: number of proposal failed allowed before
@@ -632,14 +634,14 @@ The output dataframe should be read also to create a DataCF object:
   new_d = readTableCF!(new_df);
 \end{lstlisting}
 This function will modify the new dataframe by removing useless rows
-such as \textit{sp1,sp1,sp1,sp1}.
+such as \textit{sp1,sp1,sp1,sp1}, and averaging over repeated rows.
 
 The estimation will work in the same way:
 \begin{lstlisting}
   new_net = snaq!(newT,new_d);
 \end{lstlisting}
 where \textit{newT} should be a starting topology on the species
-names.  
+names.
 % WARNING: the current function works best if all alleles from
 % the same individual are given the same name (the individual's 'name')
 % across all genes for which that individual was sequenced.
@@ -939,6 +941,20 @@ see the issue in the \texttt{PhyloNetworks} Github repository for details.
 The error can be sometimes fixed by changing the position of the root
 with the \texttt{root} function.
 
+
+\section{Version history}
+
+\begin{itemize}
+\item[\textbf{v0.0.2}]{Package fully implemented for Julia version v0.4 (does
+    not support lower versions anymore). Faster way to extract quartets from
+    input trees, and to extract a random sample of quartets without
+    listing all quartets first; better functions to handle the case of
+    multiple alleles (not 100\% robust, still testing in many
+    scenarios)}
+\end{itemize}
+
+
+
 \bibliography{/Users/Clauberry/Documents/phylo/bibtex/Networks-prelim.bib}
 
 \appendix
@@ -971,8 +987,5 @@ the optimization, but not in the read/write/plot/root
 functions. However, the only rule strictly enforced for all functions
 is that a hybrid node cannot have more than two hybrid edges pointing
 at it. This is a restriction that we hope to eliminate in the future.
-
-
-
 
 \end{document}

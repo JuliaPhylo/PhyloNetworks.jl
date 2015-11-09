@@ -591,10 +591,12 @@ function updateBL!(net::HybridNetwork,d::DataCF)
             error("edge $(edges[i]) not in net")
         end
         ind = getIndexEdge(edges[i],net)
-        if(lengths[i] > 0)
-            setLength!(net.edge[ind],lengths[i])
-        else
-            setLength!(net.edge[ind],0.0)
+        if(net.edge[ind] == -1) #only update BL if not set
+            if(lengths[i] > 0)
+                setLength!(net.edge[ind],lengths[i])
+            else
+                setLength!(net.edge[ind],0.0)
+            end
         end
     end
     return x
