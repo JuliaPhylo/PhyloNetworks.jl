@@ -27,7 +27,7 @@ The output, with the table of concordance factors for all sets of 4 taxa, will b
 You must now run mbsum separately on each gene's MrBayes output. For a gene with output tree files named gene1.run1.t gene1.run2.t gene1.run3.t, and a desired burnin of 1000 trees per tree file:
 
 `
-mbsum gene1.run1.t gene1.run2.t gene1.run3.t -n 1000 - o gene1.in
+mbsum gene1.run1.t gene1.run2.t gene1.run3.t -n 1000 -o gene1.in
 `
 
 Now continue to the next section.
