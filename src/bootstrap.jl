@@ -28,7 +28,7 @@ end
 bootstrapCFtable(file::AbstractString;sep=','::Char) = bootstrapCFtable(readtable(file,separator=sep))
 
 
-# function that will do bootstrap of snaq estimation
+# function that will do bootstrap of snaq estimation in series
 # it repeats optTopRuns nrep times
 # it has the same arguments as optTopRuns except for:
 # - need df table of CF with conf intervals (instead of d DataCF)
@@ -52,7 +52,7 @@ function optTopRunsBoot!(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::N
     write(logfile,"\nmain seed $(seed)\n")
     flush(logfile)
     srand(seed)
-    seeds = [seed,int(floor(rand(nrep)*100000))]
+    seeds = [seed,int(floor(rand(nrep)*100000))] #seeds for all runs
 
     if(prcnet > 0.0)
         write(logfile, "Starting topology: will use the best network $(prcnet*100) percent of times \n")
@@ -90,7 +90,7 @@ function optTopRunsBoot!(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::N
             startnet=deepcopy(currT0)
         end
         flush(logfile)
-        net = optTopRuns!(startnet, M, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, string("bootsnaq",i), true,seeds[i+1],probST)
+        net = optTopRuns!(startnet, M, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, string(filename,"_",i), true,seeds[i+1],probST)
         push!(bootNet, deepcopy(net))
         if(outgroup == "none")
             write(logfile,writeTopology(net)) #no outgroup
@@ -117,7 +117,7 @@ end
 
 # like snaq, only calls optTopRunsBoot
 # will later decide which to call depending on nproc()
-function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="bootsnaq_main"::AbstractString, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.25::Float64, bestNet=HybridNetwork()::HybridNetwork)
+function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="bootsnaq"::AbstractString, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.25::Float64, bestNet=HybridNetwork()::HybridNetwork)
     startnet=deepcopy(currT0)
     optTopRunsBoot!(startnet, df, hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, returnNet, seed, probST, nrep, prcnet, bestNet)
 end

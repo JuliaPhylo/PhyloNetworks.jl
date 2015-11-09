@@ -185,7 +185,7 @@ type that saves the information on a given 4-taxon subset. It contains the follo
 - taxon (vector of taxon names)
 - obsCF (vector of observed CF)
 - logPseudoLik
-- numGT (number of gene trees used to compute the observed CF: -1 if unknown)
+- ngenes (number of gene trees used to compute the observed CF: -1 if unknown)
 - qnet (internal topological structure that saves the expCF after snaq estimation to emphasize that the expCF depend on a specific network, not the data)
 """
 type Quartet
@@ -194,7 +194,7 @@ type Quartet
     obsCF::Array{Float64,1} # three observed CF in order 12|34, 13|24, 14|23
     qnet::QuartetNetwork # quartet network for the current network (want to keep as if private attribute)
     logPseudoLik::Float64 # log pseudolik value for the quartet
-    numGT::Int64 # number of gene trees used to compute the obsCV, default -1
+    ngenes::Int64 # number of gene trees used to compute the obsCV, default -1
     # inner constructor: to guarantee obsCF are only three and add up to 1
     function Quartet(number::Int64,t1::AbstractString,t2::AbstractString,t3::AbstractString,t4::AbstractString,obsCF::Array{Float64,1})
         size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing

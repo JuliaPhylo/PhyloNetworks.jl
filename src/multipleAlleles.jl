@@ -134,25 +134,25 @@ function averagePartialDF!(df::DataFrame)
     deleterows!(df,2:size(df,1)) #only keep one row to hold the average
     numfound = true
     try
-        df[:numGT]
+        df[:ngenes] #column with number of genes
     catch
         numfound = false
     end
     if(numfound)
-        num = df2[:numGT]
+        num = df2[:ngenes]
         suma = sum(num)
         delete!(df2,1:4)
-        delete!(df2,:numGT) #delete all columns except CF
+        delete!(df2,:ngenes) #delete all columns except CF
         for(j in 1:size(df2,2)) #columns in df2
             df[1,j+4] = sum(df2[:,j].*num)/suma
         end
-        df[1,:numGT] = suma
+        df[1,:ngenes] = suma
     else
         delete!(df2,1:4)
         for(j in 1:size(df2,2)) #columns in df2
             df[1,j+4] = mean(df2[:,j])
         end
-        df[1,:numGT] = size(df2,1)
+        df[1,:ngenes] = size(df2,1)
     end
 end
 
