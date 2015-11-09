@@ -16,7 +16,7 @@ and a heuristic search in the space of phylogenetic
 networks.
 
 Below there is a quick tutorial on SNaQ and PhyloNetworks, but refer
-to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf) for more details.
+to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf) for more details, and check out the [google group](https://groups.google.com/forum/#!forum/phylonetworks-users) for common questions.
 
 ### Input for SNaQ
 
