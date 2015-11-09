@@ -1,41 +1,48 @@
-# Inserting data into the pipeline at various stages
-## Before running MrBayes / You already have alignments
-If you don't need to run mb.pl, and you already have aligned gene sequences which you would like to run through MrBayes, you can simply create a tarball of the Nexus files (fasta won't work at this stage) you wish to use:
+# Inserting data into the TICR pipeline at various stages
+## To run MrBayes: You already have alignments
+If you don't need to run mdl.pl because you already have aligned gene sequences which you would like to run through MrBayes, you can simply create a tarball of the Nexus files (fasta won't work at this stage) you wish to use. This command assumes that you want to use all the files ending with ".nex" in the current directory, one file per locus:
 
 `
 tar czf my-genes.tar.gz *.nex
 `
 
-Once the tarball has been successfully generated, you can then specify this file as input for mb.pl assuming you have a a valid MrBayes block located in the file "bayes.txt":
+Once the tarball has been successfully generated, you can then specify this file as input for [mb.pl](https://github.com/nstenz/TICR/blob/master/scripts/mb.pl) assuming you have a a valid MrBayes block located in the file "bayes.txt":
 
 `
 mb.pl my-genes.tar.gz -m bayes.txt -o my-genes-mb
 `
 
-The resulting output tarball would now be located in my-genes-mb/my-genes.mb.tar, and can be used normally with bucky.pl.
-
-## Before running BUCKy / You already have MrBayes output
-
-### Before running mbsum
-
-You must now run mbsum separately on each gene's MrBayes output, i.e. for a gene with output tree files named gene1.run1.t gene1.run2.t gene1.run3.t, and a desired burnin of 1000 trees per tree file:
+The resulting output tarball would now be located in my-genes-mb/my-genes.mb.tar, and can be used normally with [bucky.pl](https://github.com/nstenz/TICR/blob/master/scripts/bucky.pl), that is, like this:
 
 `
-mbsum gene1.run1.t gene1.run2.t gene1.run3.t -n 1000
+bucky.pl my-genes-mb.tar -o mygenes-bucky
+`
+
+The output, with the table of concordance factors for all sets of 4 taxa, will be in a .CFs.csv file inside mygenes-bucky. That's the CF table file to give to SNaQ as input.
+
+## To run BUCKy on all 4-taxon sets: You already have MrBayes output
+
+### To run mbsum on the output of MrBayes for each gene
+
+You must now run mbsum separately on each gene's MrBayes output. For a gene with output tree files named gene1.run1.t gene1.run2.t gene1.run3.t, and a desired burnin of 1000 trees per tree file:
+
+`
+mbsum gene1.run1.t gene1.run2.t gene1.run3.t -n 1000 - o gene1.in
 `
 
 Now continue to the next section.
 
-### After running mbsum
-If you have already run mbsum on each individual gene's MrBayes output, you can simply create a tarball containing each mbsum output file. So if you had mbsum output in three files named gene1.in, gene2.in, and gene3.in, you would want to run somethingn similar to the following command:
+### To run bucky: you already have the mbsum output
+If you have already run mbsum on each individual gene's MrBayes output, you can simply create a tarball containing all the mbsum output files. So if you had mbsum output in three files named gene1.in, gene2.in, and gene3.in, you would want to run somethingn similar to the following command:
 
 `
 tar czf my-genes-mbsum.tar.gz gene1.in gene2.in gene3.in
 `
 
-You can now use this tarball along with the -s option in bucky.pl like so:
+You can now use this tarball along with the -s option in [bucky.pl](https://github.com/nstenz/TICR/blob/master/scripts/bucky.pl) like so:
 
 `
 bucky.pl my-genes-mbsum.tar.gz -s -o mygenes-bucky
 `
 
+The output, with the table of concordance factors for all sets of 4 taxa, will be in a .CFs.csv file inside mygenes-bucky. That's the CF table file to give to SNaQ as input.
