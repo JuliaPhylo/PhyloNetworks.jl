@@ -732,7 +732,7 @@ end
 # function to write a node and its descendants in
 #parenthetical format
 # di=true in densdroscope format, names=true, prints names
-function writeSubTree!(s::IOBuffer, n::Node, parent::Edge,di::Bool,names::Bool)
+function writeSubTree!(s::IOBuffer, n::Node, parent::Edge,di::Bool,names::Bool, printID::Bool)
     if((parent.hybrid && !parent.isMajor) || n.leaf)
         if(names)
             if(n.name != "")
@@ -755,7 +755,7 @@ function writeSubTree!(s::IOBuffer, n::Node, parent::Edge,di::Bool,names::Bool)
         for(e in n.edge)
             if(!isEqual(e,parent) && !(e.hybrid && parent.hybrid))
                 child = getOtherNode(e,n)
-                writeSubTree!(s,child,e, di,names)
+                writeSubTree!(s,child,e, di,names, printID)
                 if(!parent.hybrid) #cecile handles this step differently: if(parent.hybrid) numChildren-=1 end
                     numChildren -= 1
                     if(numChildren > 0)
@@ -777,8 +777,14 @@ function writeSubTree!(s::IOBuffer, n::Node, parent::Edge,di::Bool,names::Bool)
             end
         end
     end
-    if(!n.leaf)
-        if(parent.istIdentifiable && parent.length >= 0.0) #we do not want to print BL of non-id edges
+    if(printID) #which BL to print
+        if(!n.leaf)
+            if(parent.istIdentifiable && parent.length >= 0.0) #we do not want to print BL of non-id edges
+                print(s,string(":",round(parent.length,3)))
+            end
+        end
+    else
+        if(parent.length >= 0.0) #print all BL != -1
             print(s,string(":",round(parent.length,3)))
         end
     end
@@ -795,8 +801,8 @@ end
 # names=true, writes the names instead of node numbers, default true
 # outgroup: place the root in the external edge of this taxon if possible,
 # if none given, placed the root wherever possible
-# lengths=true if printed with length
-function writeTopology(net::HybridNetwork, di::Bool, string::Bool, names::Bool,outgroup::AbstractString)
+# printID=true, only print identifiable BL, default false (only true inside snaq)
+function writeTopology(net::HybridNetwork, di::Bool, string::Bool, names::Bool,outgroup::AbstractString, printID::Bool)
     s = IOBuffer()
     if(net.numBad > 0)
         println("net has $(net.numBad) bad diamond I, gammas and some branch lengths are not identifiable, and therefore, meaningless")
@@ -817,7 +823,7 @@ function writeTopology(net::HybridNetwork, di::Bool, string::Bool, names::Bool,o
         CHECKNET && canBeRoot(net.node[net.root])
         degree = length(net.node[net.root].edge)
         for(e in net.node[net.root].edge)
-            writeSubTree!(s,getOtherNode(e,net.node[net.root]),e,di,names)
+            writeSubTree!(s,getOtherNode(e,net.node[net.root]),e,di,names, printID)
             degree -= 1
             if(degree > 0)
                 print(s,",")
@@ -834,20 +840,21 @@ function writeTopology(net::HybridNetwork, di::Bool, string::Bool, names::Bool,o
 end
 
 #writeTopology(net::HybridNetwork) = writeTopology(net,false, true,true,"none") #not needed because of last function definition
-writeTopology(net::HybridNetwork,di::Bool) = writeTopology(net,di, true,true,"none")
-writeTopology(net::HybridNetwork,outgroup::AbstractString) = writeTopology(net,false, true,true,outgroup)
-writeTopology(net::HybridNetwork,di::Bool,outgroup::AbstractString) = writeTopology(net,di, true,true,outgroup)
+writeTopology(net::HybridNetwork,printID::Bool) = writeTopology(net,false, true,true,"none",printID)
+writeTopology(net::HybridNetwork,outgroup::AbstractString) = writeTopology(net,false, true,true,outgroup,true)
+writeTopology(net::HybridNetwork,di::Bool,outgroup::AbstractString) = writeTopology(net,di, true,true,outgroup,true)
 
 """
 `writeTopology(net::HybridNetwork)`
 
 writes the parenthetical format of a HybridNetwork object with many optional arguments:
 
-- di=true: write in format for Dendroscope
-- names=false: write the leaf nodes numbers instead of taxon names
+- di=true: write in format for Dendroscope (default false)
+- names=false: write the leaf nodes numbers instead of taxon names (default true)
 - outgroup (string): name of outgroup to root the tree/network
+- printID=true, only print branch lengths for identifiable egdes according to the snaq estimation procedure (default false)
 """
-writeTopology(net::HybridNetwork; di=false::Bool, string=true::Bool, names=true::Bool,outgroup="none"::AbstractString) = writeTopology(net, di, string, names,outgroup)
+writeTopology(net::HybridNetwork; di=false::Bool, string=true::Bool, names=true::Bool,outgroup="none"::AbstractString, printID=false::Bool) = writeTopology(net, di, string, names,outgroup,printID)
 
 # function to check if root is well-placed
 # and look for a better place if not
