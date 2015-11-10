@@ -80,7 +80,7 @@ read a file with a table of CF. It has two optional arguments:
 - sep to specify the type of separator in the table with single quotes: sep=';'
 - if summaryfile is specified, it will write a summary file with that name.
 """
-readTableCF(file::AbstractString;sep=','::Char,summaryfile=""::AbstractString) = readTableCF!(readtable(file,separator=sep),summaryfile=summaryfile)
+readTableCF(file::AbstractString;sep=','::Char,summaryfile=""::AbstractString) = readTableCF(readtable(file,separator=sep),summaryfile=summaryfile)
 
 # ---------------- read input gene trees and calculate obsCF ----------------------
 
@@ -579,28 +579,31 @@ readStartTop(file::AbstractString,d::DataCF) = readStartTop(file,d,true)
 # based on Cecile's chr4-species-tree-units.r
 # input: starting tree, data after read table of obsCF
 function updateBL!(net::HybridNetwork,d::DataCF)
-    isTree(net) || warn("updateStartBL was created for a tree, and net here is not a tree")
-    parts = edgesParts(net)
-    df = makeTable(net,parts,d)
-    x=by(df,[:edge],df->DataFrame(meanCF=mean(df[:CF]),sdCF=std(df[:CF]),Nquartets=length(df[:CF]),edgeL=-log(3/2*(1-mean(df[:CF])))))
-    edges = x[1]
-    lengths = x[5]
-    for(i in 1:length(edges))
-        try
+    if(isTree(net))
+        parts = edgesParts(net)
+        df = makeTable(net,parts,d)
+        x=by(df,[:edge],df->DataFrame(meanCF=mean(df[:CF]),sdCF=std(df[:CF]),Nquartets=length(df[:CF]),edgeL=-log(3/2*(1-mean(df[:CF])))))
+        edges = x[1]
+        lengths = x[5]
+        for(i in 1:length(edges))
+            try
+                ind = getIndexEdge(edges[i],net)
+            catch
+                error("edge $(edges[i]) not in net")
+            end
             ind = getIndexEdge(edges[i],net)
-        catch
-            error("edge $(edges[i]) not in net")
-        end
-        ind = getIndexEdge(edges[i],net)
-        if(net.edge[ind] == -1) #only update BL if not set
-            if(lengths[i] > 0)
-                setLength!(net.edge[ind],lengths[i])
-            else
-                setLength!(net.edge[ind],0.0)
+            if(net.edge[ind] == -1) #only update BL if not set
+                if(lengths[i] > 0)
+                    setLength!(net.edge[ind],lengths[i])
+                else
+                    setLength!(net.edge[ind],0.0)
+                end
             end
         end
+        return x
+    else
+        warn("updateStartBL was created for a tree, and net here is not a tree, so no branch lengths updated")
     end
-    return x
 end
 
 

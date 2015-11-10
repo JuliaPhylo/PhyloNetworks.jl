@@ -6,6 +6,7 @@
 # the function returns the new dataframe
 # warning: for some reason UTF8String is needed instead of AbstractString
 function bootstrapCFtable(df::DataFrame)
+    warn("bootstrapCFtable function not debugged yet")
     DEBUG && warn("order of columns should be: t1,t2,t3,t4,cf1234,cf1324,cf1423,cf1234LO,cf1234HI,...")
     size(df,2) == 13 || warn("Dataframe should have 7 columns: 4taxa, 3CF*3")
     newdf = DataFrames.DataFrame(t1=UTF8String[],t2=UTF8String[],t3=UTF8String[],t4=UTF8String[],CF1234=0.,CF1324=0.,CF1423=0.)
@@ -36,7 +37,9 @@ bootstrapCFtable(file::AbstractString;sep=','::Char) = bootstrapCFtable(readtabl
 # - new argument prcnet: percentage of bootstrap replicates to start in the best network, by default 0.25
 # - new argument bestNet: to start the optimization. if prcnet>0.0 and bestNet is not input as argument from a previous run, it will estimate it inside
 # returns vector of HybridNetworks, bestNet is the first one, and the other nrep networks after
-function optTopRunsBoot!(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Number, Nfail::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, filename::AbstractString, returnNet::Bool, seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64, bestNet::HybridNetwork)
+# I believe no ! needed because we need a clean copy of currT in each replicate, so deepcopied
+function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Number, Nfail::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, filename::AbstractString, returnNet::Bool, seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64, bestNet::HybridNetwork)
+    warn("bootsnaq function not debugged yet")
     prcnet > 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
     prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
     println("BOOTSTRAP OF SNAQ ESTIMATION")
@@ -52,7 +55,8 @@ function optTopRunsBoot!(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::N
     write(logfile,"\nmain seed $(seed)\n")
     flush(logfile)
     srand(seed)
-    seeds = [seed,int(floor(rand(nrep)*100000))] #seeds for all runs
+    seeds = [seed;int(floor(rand(nrep)*100000))] #seeds for all runs
+    bootNet = HybridNetwork[]
 
     if(prcnet > 0.0)
         write(logfile, "Starting topology: will use the best network $(prcnet*100) percent of times \n")
@@ -118,11 +122,67 @@ end
 # like snaq, only calls optTopRunsBoot
 # will later decide which to call depending on nproc()
 function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="bootsnaq"::AbstractString, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.25::Float64, bestNet=HybridNetwork()::HybridNetwork)
+    warn("bootsnaq function not debugged yet")
     startnet=deepcopy(currT0)
-    optTopRunsBoot!(startnet, df, hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, returnNet, seed, probST, nrep, prcnet, bestNet)
+    if(nprocs() > 1) #more than 1 processor
+        optTopRunsBootParallel(startnet, df, hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, returnNet, seed, probST, nrep, prcnet, bestNet)
+    else
+        optTopRunsBoot(startnet, df, hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, returnNet, seed, probST, nrep, prcnet, bestNet)
+    end
 end
 
-# todo: create optTopRunsBootParallel: this will call pmap on optTopRuns, but still need to decide if we will pass all arguments to optTopRuns
-# or create localOptTopRuns with only the arguments that differ from one replicate to another: what's more efficient?
 
+# same as optTopRunsBoot but for many processors in parallel
+# warning: still not debugged
+function optTopRunsBootParallel(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Number, Nfail::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, filename::AbstractString, returnNet::Bool, seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64, bestNet::HybridNetwork)
+    warn("bootsnaq function not debugged yet")
+    prcnet > 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
+    prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
+    println("BOOTSTRAP OF SNAQ ESTIMATION")
+    # shared arrays, variables
+    dfS = convert2SharedArray(df) #fixit: need to code
+    intS = convert2SharedArray(hmax,M,Nfail,runs,Nmov0) #fixit: need to code
+    floatS = convert2SharedArray(ftolRel,ftolAbs,xtolRel,xtolAbs,probST,prcnet) #fixit: need to code
+    @everywhere verbose,closeN,outgroup,filename
+
+    # split of replicates
+    nrep_proc = floor(nrep/nworkers())
+    nrep_missing = nrep - nrep_proc * nworkers()
+    bootNet = HybridNetwork[]
+
+    # seeds
+    if(seed == 0)
+        t = time()/1e9
+        a = split(string(t),".")
+        seed = int(a[2][end-4:end]) #better seed based on clock
+    end
+    srand(seed)
+    seeds = [int(floor(rand(nworkers())*100000))] #seeds for all workers
+
+
+    @sync begin
+        i = 1
+        for p in workers()
+            addrep = nrep_missing > 0 ? 1 : 0
+            net = @async remotecall_fetch(p,loc_bootsnaq,dfS, intS, floatS, currT, bestNet, seeds[i], nrep_proc+addrep)
+            push!(bootNet,net)
+            nrep_missing -= addrep
+            i += 1
+        end
+    end
+end
+
+# function to the each local run of bootsnaq
+# in optTopRunsBootParallel
+# dfS = shared array with CF table
+# intS = shared array with integer arguments: hmax, M, Nfail, runs, Nmov0
+# floatS= shared array with float arguments: ftolRel, ftolAbs, xtolRel, xtolAbs, probST, prcnet
+# currT, bestNet are starting topology and best network
+# seed= to start the procedure, if seed=0, then clock used
+# nrep= number of replicates in this particular processor
+# other parameters of optTopRunsBoot are global by @everywhere in optTopRunsBootParallel
+function loc_bootsnaq(dfS::SharedArray, intS::SharedArray, floatS::SharedArray, currT::HybridNetwork, bestNet::HybridNetwork, seed::Int, nrep::Int)
+    df = bootstrapCFtable(dfS) #fixit: need to code this
+    optTopRunsBoot(currT,df,intS[1],intS[2],floatS[1],floatS[2],floatS[3],floatS[4],verbose,closeN,intS[5:end],intS[4],outgroup,string(filename,seed),true,seed,floatS[5],nrep,floatS[6],bestNet)
+end
 
