@@ -94,7 +94,7 @@ abstract Network
 # warning: nodes and edges need to be defined and linked before adding to a network
 """
 `HybridNetwork type`
-Type with the following attributes: numTaxa, numNodes, numEdges, numHybrids
+Explicit network or tree with the following attributes: numTaxa, numNodes, numEdges, numHybrids
 node (array of Nodes), edge (array of Edges), root (index in node of root),
 loglik (-log pseudolik after estimation)
 """
