@@ -3,6 +3,7 @@ os:
 #  - linux
   - osx
 julia:
-  - release
+#  - release
+ - 0.4.0
 notifications:
   email: false
