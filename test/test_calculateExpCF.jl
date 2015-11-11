@@ -6,7 +6,7 @@
 println("------ Case G ----------")
 include("../examples/case_g_example.jl");
 #net.names
-error = false
+error1 = false
 ind = 0
 
 q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
@@ -32,7 +32,7 @@ try
     qnet.expCF != [1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1),1/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 1")
-    error |= true
+    error1 |= true
     ind = 1
 end
 
@@ -60,7 +60,7 @@ try
     qnet.expCF != [0.9*(1-2/3*exp(-0.1))+0.1*1/3*exp(-1.0), 0.9*(1/3*exp(-0.1))+0.1*(1-2/3*exp(-1.0)), 0.9*(1/3*exp(-0.1))+0.1*(1/3*exp(-1.0))] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 2")
-    error |= true
+    error1 |= true
     ind = 2
 end
 
@@ -87,7 +87,7 @@ try
     qnet.expCF != [0.9*(1/3*exp(-0.1))+0.1*1/3*exp(-1.0), 0.9*(1/3*exp(-0.1))+0.1*(1-2/3*exp(-1.0)), 0.9*(1-2/3*exp(-0.1))+0.1*(1/3*exp(-1.0))] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 3")
-    error |= true
+    error1 |= true
     ind = 3
 end
 
@@ -111,7 +111,7 @@ try
     qnet.expCF != [1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1),1/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 4")
-    error |= true
+    error1 |= true
     ind = 4
 end
 
@@ -139,11 +139,11 @@ try
     qnet.expCF != [1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1),1/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 5")
-    error |= true
+    error1 |= true
     ind = 5
 end
 
-if(!error)
+if(!error1)
     println("----- NO ERRORS! -------")
 else
     throw("error Case G in quartet $(ind)")
@@ -156,7 +156,7 @@ end
 println("------ Case F Bad diamond I ----------")
 include("../examples/case_f_example.jl");
 #net.names
-error = false
+error1 = false
 ind = 0
 parameters!(net)
 
@@ -183,7 +183,7 @@ try
     qnet.expCF != [(1-(0.7*(1-exp(-0.2)))-(0.3*(1-exp(-0.1))))/3, (1+2*(0.7*(1-exp(-0.2)))-(0.3*(1-exp(-0.1))))/3,(1-(0.7*(1-exp(-0.2)))+2*(0.3*(1-exp(-0.1))))/3] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 1")
-    error |= true
+    error1 |= true
     ind = 1
 end
 
@@ -208,7 +208,7 @@ try
     qnet.expCF != [1-2/3*(exp(-0.1)),1/3*(exp(-0.1)),1/3*(exp(-0.1))] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 2")
-    error |= true
+    error1 |= true
     ind = 2
 end
 
@@ -232,7 +232,7 @@ try
     qnet.expCF != [1/3*exp(-qnet.t1),1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 3")
-    error |= true
+    error1 |= true
     ind = 3
 end
 
@@ -258,7 +258,7 @@ try
     qnet.expCF != [1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1),1/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 4")
-    error |= true
+    error1 |= true
     ind = 4
 end
 
@@ -286,11 +286,11 @@ try
     qnet.expCF != [(1-0.7*(1-exp(-0.2))-0.3*(1-exp(-0.1)))/3,(1+2*0.7*(1-exp(-0.2))-0.3*(1-exp(-0.1)))/3,(1-0.7*(1-exp(-0.2))+2*0.3*(1-exp(-0.1)))/3] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 5")
-    error |= true
+    error1 |= true
     ind = 5
 end
 
-if(!error)
+if(!error1)
     println("----- NO ERRORS! -------")
 else
     throw("error Case F in quartet $(ind)")
@@ -302,7 +302,7 @@ end
 println("------ Case I Bad diamond II ----------")
 include("../examples/case_i_example.jl");
 #net.names
-error = false
+error1 = false
 ind = 0
 
 q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
@@ -328,7 +328,7 @@ try
     qnet.expCF != [0.9*(1/3*exp(-1))+0.1*(1-2/3*exp(-1)),0.9*(1-2/3*exp(-1))+0.1*1/3*exp(-1),0.9*(1/3*exp(-1))+0.1*(1/3*exp(-1))] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 1")
-    error |= true
+    error1 |= true
     ind = 1
 end
 
@@ -356,7 +356,7 @@ try
     qnet.expCF != [1-2/3*(exp(-qnet.t1)),1/3*(exp(-qnet.t1)),1/3*(exp(-qnet.t1))] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 2")
-    error |= true
+    error1 |= true
     ind = 2
 end
 
@@ -383,7 +383,7 @@ try
     qnet.expCF != [1/3*exp(-qnet.t1),1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 3")
-    error |= true
+    error1 |= true
     ind = 3
 end
 
@@ -412,7 +412,7 @@ try
     qnet.expCF != [1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1),1/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 4")
-    error |= true
+    error1 |= true
     ind = 4
 end
 
@@ -440,11 +440,11 @@ try
     qnet.expCF != [0.9*(1/3*exp(-1))+0.1*(1-2/3*exp(-1)),0.9*(1-2/3*exp(-1))+0.1*1/3*exp(-1),0.9*(1/3*exp(-1))+0.1*(1/3*exp(-1))] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 5")
-    error |= true
+    error1 |= true
     ind = 5
 end
 
-if(!error)
+if(!error1)
     println("----- NO ERRORS! -------")
 else
     throw("error Case I in quartet $(ind)")

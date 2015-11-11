@@ -15,7 +15,7 @@ d = DataCF([q1,q2,q3,q4,q5]);
 #parameters!(net)
 
 extractQuartet!(net,d)
-error = false
+error1 = false
 try
     q1.qnet.hasEdge == [true,true,true,true] ? nothing : error("q1 wrong hasEdge")
     q2.qnet.hasEdge == [true,false,true,true] ? nothing : error("q2 wrong hasEdge")
@@ -40,7 +40,7 @@ try
     q5.qnet.index == [7,3,6] ? nothing : error("q5.qnet.index not correct")
 catch
     println("---- error in case G -----")
-    error = true
+    error1 = true
 end
 
 
@@ -57,7 +57,7 @@ d = DataCF([q1,q2,q3,q4,q5]);
 parameters!(net)
 
 extractQuartet!(net,d)
-error = false
+error1 = false
 try
     q1.qnet.hasEdge == [false,true,true] ? nothing : error("q1 wrong hasEdge")
     q2.qnet.hasEdge == [true,false,false] ? nothing : error("q2 wrong hasEdge")
@@ -82,7 +82,7 @@ try
     q5.qnet.index == [1,3] ? nothing : error("q5.qnet.index not correct")
 catch
     println("---- error in case F -----")
-    error = true
+    error1 = true
 end
 
 println("----- Case I: bad diamondII ------")
@@ -97,7 +97,7 @@ q5 = Quartet(5,["6","7","4","10"],[0.5,0.4,0.1]);
 d = DataCF([q1,q2,q3,q4,q5]);
 
 extractQuartet!(net,d)
-error = false
+error1 = false
 try
     q1.qnet.hasEdge == [true,false,true,false,true] ? nothing : error("q1 wrong hasEdge")
     q2.qnet.hasEdge == [true,true,true,true,true] ? nothing : error("q2 wrong hasEdge")
@@ -123,11 +123,11 @@ try
 
 catch
     println("---- error in case I -----")
-    error = true
+    error1 = true
 end
 
 
-if(!error)
+if(!error1)
     println("------- NO ERRORS!! -----")
 else
     throw("errors in has edge")
