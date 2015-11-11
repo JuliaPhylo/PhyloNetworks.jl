@@ -530,88 +530,90 @@ end
 # leaveRoot=true: leaves the root even if it has only 2 edges (for plotting), default=false
 function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
     mod(sum([!e.hybrid?e.gamma:0 for e in net.edge]),1) == 0 ? nothing : error("tree (not network) read and some tree edge has gamma different than 1")
-    for(n in net.node)
-        if(size(n.edge,1) == 2)
+    nodes = copy(net.node)
+    for(n in nodes)
+        if(isNodeNumIn(n,net.node))
+            if(size(n.edge,1) == 2)
+                if(!n.hybrid)
+                    if(!leaveRoot || !isEqual(net.node[net.root],n)) #if n is the root
+                        deleteIntNode!(net,n);
+                    end
+                else
+                    hyb = sum([e.hybrid?1:0 for e in n.edge]);
+                    if(hyb == 1)
+                        deleteIntNode!(net,n);
+                    end
+                end
+            end
             if(!n.hybrid)
-                if(!leaveRoot || !isEqual(net.node[net.root],n)) #if n is the root
-                    #println("found rooted tree (root with two edges attached): unrooting this tree and deleting this node")
-                    deleteIntNode!(net,n);
+                if(size(n.edge,1) > 3)
+                    DEBUG && warn("polytomy found in node $(n.number), random resolution chosen")
+                    solvePolytomy!(net,n);
+                end
+                hyb = sum([e.hybrid?1:0 for e in n.edge]);
+                if(hyb == 1)
+                    n.hasHybEdge == true;
+                elseif(hyb > 1)
+                    warn("strange tree node $(n.number) with more than one hybrid edge, intersecting cycles maybe")
                 end
             else
                 hyb = sum([e.hybrid?1:0 for e in n.edge]);
-                if(hyb == 1)
-                    deleteIntNode!(net,n);
-                end
-            end
-        end
-        if(!n.hybrid)
-            if(size(n.edge,1) > 3)
-                DEBUG && warn("polytomy found in node $(n.number), random resolution chosen")
-                solvePolytomy!(net,n);
-            end
-            hyb = sum([e.hybrid?1:0 for e in n.edge]);
-            if(hyb == 1)
-                n.hasHybEdge == true;
-            elseif(hyb > 1)
-                warn("strange tree node $(n.number) with more than one hybrid edge, intersecting cycles maybe")
-            end
-        else
-            hyb = sum([e.hybrid?1:0 for e in n.edge]);
-            tre = sum([!e.hybrid?1:0 for e in n.edge]);
-            if(hyb > 2)
-                error("hybrid node $(n.number) has more than two hybrid edges attached to it: polytomy that cannot be resolved without intersecting cycles.")
-            elseif(hyb == 1)
-                hybnodes = sum([n.hybrid?1:0 for n in net.node]);
-                if(hybnodes == 1)
-                    error("only one hybrid node number $(n.number) with name $(net.names[n.number]) found with one hybrid edge attached")
-                else
-                    error("current hybrid node $(n.number) with name S(net.names[n.number]) has only one hybrid edge attached. there are other $(hybnodes-1) hybrids out there but this one remained unmatched")
-                end
-            elseif(hyb == 0)
-                warn("hybrid node $(n.number) is not connected to any hybrid edges, it was transformed to tree node")
-                n.hybrid = false;
-            else # 2 hybrid edges
-                if(tre == 0) #hybrid leaf
-                    warn("hybrid node $(n.number) is a leaf, so we add an extra child")
-                    addChild!(net,n);
-                elseif(tre > 1)
-                    warn("hybrid node $(n.number) has more than one child so we need to expand with another node")
-                    expandChild!(net,n);
-                end
-                suma = sum([e.hybrid?e.gamma:0 for e in n.edge]);
-                if(suma == 2)
-                    warn("hybrid edges in read network without gammas")
-                    println("hybrid edges for hybrid node $(n.number) do not contain gamma value, set default: 0.9,0.1")
-                    for(e in n.edge)
-                        if(e.hybrid)
-                            (!e.isMajor) ? setGamma!(e,0.1, false, true) : setGamma!(e,0.9, false, true)
-                        end
-                    end
-                elseif(suma != 1)
-                    ed1 = nothing
-                    ed2 = nothing
-                    for(e in n.edge)
-                        if(e.hybrid)
-                            isa(ed1,Void) ? ed1=e : ed2=e
-                        end
-                    end
-                    if(ed1.gamma < 1 && ed2.gamma < 1) #both gammas were set, but contradictory
-                        error("hybrid edges for hybrid node $(n.number) have gammas that do not sum up to one: $(ed1.gamma),$(ed2.gamma)")
-                    elseif(ed1.gamma < 1)
-                        warn("only one hybrid edge of hybrid node $(n.number) has gamma value $(ed1.gamma) set, the other edge will be assigned $(1-ed1.gamma).")
-                        setGamma!(ed2,1-ed1.gamma, false);
+                tre = sum([!e.hybrid?1:0 for e in n.edge]);
+                if(hyb > 2)
+                    error("hybrid node $(n.number) has more than two hybrid edges attached to it: polytomy that cannot be resolved without intersecting cycles.")
+                elseif(hyb == 1)
+                    hybnodes = sum([n.hybrid?1:0 for n in net.node]);
+                    if(hybnodes == 1)
+                        error("only one hybrid node number $(n.number) with name $(net.names[n.number]) found with one hybrid edge attached")
                     else
-                        warn("only one hybrid edge of hybrid node $(n.number) has gamma value $(ed2.gamma) set, the other edge will be assigned $(1-ed2.gamma).")
-                        setGamma!(ed1,1-ed2.gamma, false);
+                        error("current hybrid node $(n.number) with name S(net.names[n.number]) has only one hybrid edge attached. there are other $(hybnodes-1) hybrids out there but this one remained unmatched")
                     end
-                elseif(suma == 1)
-                    for(e in n.edge)
-                        if(e.hybrid)
-                            if(approxEq(e.gamma,0.5))
-                                e.isMajor = false
-                                break
-                            else
-                                break
+                elseif(hyb == 0)
+                    warn("hybrid node $(n.number) is not connected to any hybrid edges, it was transformed to tree node")
+                    n.hybrid = false;
+                else # 2 hybrid edges
+                    if(tre == 0) #hybrid leaf
+                        warn("hybrid node $(n.number) is a leaf, so we add an extra child")
+                        addChild!(net,n);
+                    elseif(tre > 1)
+                        warn("hybrid node $(n.number) has more than one child so we need to expand with another node")
+                        expandChild!(net,n);
+                    end
+                    suma = sum([e.hybrid?e.gamma:0 for e in n.edge]);
+                    if(suma == 2)
+                        warn("hybrid edges in read network without gammas")
+                        println("hybrid edges for hybrid node $(n.number) do not contain gamma value, set default: 0.9,0.1")
+                        for(e in n.edge)
+                            if(e.hybrid)
+                                (!e.isMajor) ? setGamma!(e,0.1, false, true) : setGamma!(e,0.9, false, true)
+                            end
+                        end
+                    elseif(suma != 1)
+                        ed1 = nothing
+                        ed2 = nothing
+                        for(e in n.edge)
+                            if(e.hybrid)
+                                isa(ed1,Void) ? ed1=e : ed2=e
+                            end
+                        end
+                        if(ed1.gamma < 1 && ed2.gamma < 1) #both gammas were set, but contradictory
+                            error("hybrid edges for hybrid node $(n.number) have gammas that do not sum up to one: $(ed1.gamma),$(ed2.gamma)")
+                        elseif(ed1.gamma < 1)
+                            warn("only one hybrid edge of hybrid node $(n.number) has gamma value $(ed1.gamma) set, the other edge will be assigned $(1-ed1.gamma).")
+                            setGamma!(ed2,1-ed1.gamma, false);
+                        else
+                            warn("only one hybrid edge of hybrid node $(n.number) has gamma value $(ed2.gamma) set, the other edge will be assigned $(1-ed2.gamma).")
+                            setGamma!(ed1,1-ed2.gamma, false);
+                        end
+                    elseif(suma == 1)
+                        for(e in n.edge)
+                            if(e.hybrid)
+                                if(approxEq(e.gamma,0.5))
+                                    e.isMajor = false
+                                    break
+                                else
+                                    break
+                                end
                             end
                         end
                     end
