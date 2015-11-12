@@ -186,3 +186,15 @@ function loc_bootsnaq(dfS::SharedArray, intS::SharedArray, floatS::SharedArray, 
     optTopRunsBoot(currT,df,intS[1],intS[2],floatS[1],floatS[2],floatS[3],floatS[4],verbose,closeN,intS[5:end],intS[4],outgroup,string(filename,seed),true,seed,floatS[5],nrep,floatS[6],bestNet)
 end
 
+
+# function to take a DataFrame and convert to SharedArray
+# fixit: does not work, S is filled with zeros, but also how to pass the strings of taxon names??
+function convert2SharedArray(df::DataFrame)
+    S = SharedArray(Float64,size(df))
+    for(i in size(df,1))
+        for(j in size(df,2))
+            S[i,j] = df[i,j]
+        end
+    end
+    return S
+end
