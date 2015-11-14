@@ -45,29 +45,56 @@ writeObsCF(d::DataCF) = writeObsCF(d.quartet)
 read a DataFrame object with a table of CF. It has one optional argument:
 
 - if summaryfile is specified, it will write a summary file with that name.
-
 """
 function readTableCF(df0::DataFrames.DataFrame;summaryfile=""::AbstractString)
     DEBUG && println("assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network")
-    size(df0,2) == 7 || warn("Dataframe should have 7 columns: 4taxa, 3CF, will ignore columns from 8th on")
-    df = deepcopy(df0)
-    repSpecies = cleanNewDF!(df)
-    if(!isempty(repSpecies))
-        mergeRows!(df)
+    fromTICR = true
+    try
+        df[:CF12_34]
+        df[:CF13_24]
+        df[:CF14_23]
+    catch
+        fromTICR = false
     end
-    quartets = Quartet[]
-    for(i in 1:size(df,1))
-        push!(quartets,Quartet(i,string(df[i,1]),string(df[i,2]),string(df[i,3]),string(df[i,4]),[df[i,5],df[i,6],df[i,7]]))
-    end
-    d = DataCF(quartets)
-    if(!isempty(repSpecies))
-        d.repSpecies = repSpecies
-    end
-    println("DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
-    #descData(d,"summaryCFtable$(string(integer(time()/1000))).txt")
-    if(summaryfile != "")
-        descData(d,summaryfile)
-    end
+    if(!fromTICR)
+        size(df0,2) == 7 || warn("Dataframe should have 7 columns: 4taxa, 3CF, will ignore columns from 8th on")
+        df = deepcopy(df0)
+        repSpecies = cleanNewDF!(df)
+        if(!isempty(repSpecies))
+            mergeRows!(df)
+        end
+        quartets = Quartet[]
+        for(i in 1:size(df,1))
+            push!(quartets,Quartet(i,string(df[i,1]),string(df[i,2]),string(df[i,3]),string(df[i,4]),[df[i,5],df[i,6],df[i,7]]))
+        end
+        d = DataCF(quartets)
+        if(!isempty(repSpecies))
+            d.repSpecies = repSpecies
+        end
+        println("DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
+        #descData(d,"summaryCFtable$(string(integer(time()/1000))).txt")
+        if(summaryfile != "")
+            descData(d,summaryfile)
+        end
+    else #comes from bucky.pl
+        df = deepcopy(df0)
+        repSpecies = cleanNewDF!(df)
+        if(!isempty(repSpecies))
+            mergeRows!(df)
+        end
+        quartets = Quartet[]
+        for(i in 1:size(df,1))
+            push!(quartets,Quartet(i,string(df[i,1]),string(df[i,2]),string(df[i,3]),string(df[i,4]),[df[i,:CF12_34],df[i,:CF13_24],df[i,:CF14_23]]))
+        end
+        d = DataCF(quartets)
+        if(!isempty(repSpecies))
+            d.repSpecies = repSpecies
+        end
+        println("DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
+        #descData(d,"summaryCFtable$(string(integer(time()/1000))).txt")
+        if(summaryfile != "")
+            descData(d,summaryfile)
+        end
     return d
 end
 
@@ -79,6 +106,9 @@ read a file with a table of CF. It has two optional arguments:
 
 - sep to specify the type of separator in the table with single quotes: sep=';'
 - if summaryfile is specified, it will write a summary file with that name.
+
+Table should have 7 columns: 4 taxa, 3 CF: tx1 tx2 tx3 tx4 cf12.34 cf13.24 cf14.23,
+but if it comes directly from TICR/bucky.pl, the table does not need any adjustment
 """
 readTableCF(file::AbstractString;sep=','::Char,summaryfile=""::AbstractString) = readTableCF(readtable(file,separator=sep),summaryfile=summaryfile)
 
