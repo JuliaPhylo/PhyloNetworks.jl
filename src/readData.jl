@@ -95,6 +95,7 @@ function readTableCF(df0::DataFrames.DataFrame;summaryfile=""::AbstractString)
         if(summaryfile != "")
             descData(d,summaryfile)
         end
+    end
     return d
 end
 
