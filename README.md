@@ -152,6 +152,8 @@ d=readTableCF("tableCF.txt");
 You can access this example file
 [here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/tableCF.txt).
 
+Columns need to be in the right order. If you have the information on the number of genes used for each 4-taxon subset, you can add this information in a column named "ngenes".
+
 If you have a tree *startTree.txt* in parenthetical format to
 use as starting point for the optimization, you can read it with
 ```julia
