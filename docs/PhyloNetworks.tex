@@ -512,22 +512,22 @@ summarizeCFdata(d,filename=...)
 summarizeCFdata(d,filename=...,pc=...)
 \end{lstlisting}
 
-\item \textbf{readStartTop:} Read a tree in parenthetical format from
-  a text file and updates its branch lengths in coalescent units to
-  fit the CF data on the data structure \texttt{DataCF}.  For each
-  branch in the tree, the average CF is computed for all the 4-taxon
-  subtrees that contain that branch. The branch length is then set as
-  $-log(3/2(1-\overline{CF}))$. It is equivalent to run
-  \texttt{net=readTopologyLevel1(treefile)} first and then \texttt{updateBL!(net,d)}.\\
-  WARNING: updateBL only works for a tree topology, not proven for a
-  network yet. Both arguments are required. \textbf{Only branch
-    lengths that are missing in the topology are updated.}  Updating
-  the mising branch lengths is done automatically inside
-  \texttt{SNaQ}, so there is no need to do this step before running
-  the estimation procedure.  Usage:
-\begin{lstlisting}
-readStartTop(treefile, d)
-\end{lstlisting}
+% \item \textbf{readStartTop:} Read a tree in parenthetical format from
+%   a text file and updates its branch lengths in coalescent units to
+%   fit the CF data on the data structure \texttt{DataCF}.  For each
+%   branch in the tree, the average CF is computed for all the 4-taxon
+%   subtrees that contain that branch. The branch length is then set as
+%   $-log(3/2(1-\overline{CF}))$. It is equivalent to run
+%   \texttt{net=readTopologyLevel1(treefile)} first and then \texttt{updateBL!(net,d)}.\\
+%   WARNING: updateBL only works for a tree topology, not proven for a
+%   network yet. Both arguments are required. \textbf{Only branch
+%     lengths that are missing in the topology are updated.}  Updating
+%   the mising branch lengths is done automatically inside
+%   \texttt{SNaQ}, so there is no need to do this step before running
+%   the estimation procedure.  Usage:
+% \begin{lstlisting}
+% readStartTop(treefile, d)
+% \end{lstlisting}
 
 \end{itemize}
 
