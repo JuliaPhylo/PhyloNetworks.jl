@@ -71,7 +71,11 @@ function readTableCF(df0::DataFrames.DataFrame;summaryfile=""::AbstractString)
         if(!isempty(repSpecies))
             d.repSpecies = repSpecies
         end
-        println("DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
+        if(d.numTrees == -1)
+            println("DATA: data consists of $(d.numQuartets) quartets")
+        else
+            println("DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
+        end
         #descData(d,"summaryCFtable$(string(integer(time()/1000))).txt")
         if(summaryfile != "")
             descData(d,summaryfile)
@@ -90,7 +94,11 @@ function readTableCF(df0::DataFrames.DataFrame;summaryfile=""::AbstractString)
         if(!isempty(repSpecies))
             d.repSpecies = repSpecies
         end
-        println("DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
+        if(d.numTrees == -1)
+            println("DATA: data consists of $(d.numQuartets) quartets")
+        else
+            println("DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
+        end
         #descData(d,"summaryCFtable$(string(integer(time()/1000))).txt")
         if(summaryfile != "")
             descData(d,summaryfile)
