@@ -56,6 +56,12 @@ function readTableCF(df0::DataFrames.DataFrame;summaryfile=""::AbstractString)
     catch
         fromTICR = false
     end
+    withngenes = true
+    try
+        df[:ngenes]
+    catch
+        withngenes = false
+    end
     if(!fromTICR)
         size(df0,2) == 7 || warn("Dataframe should have 7 columns: 4taxa, 3CF, will ignore columns from 8th on")
         df = deepcopy(df0)
@@ -66,6 +72,9 @@ function readTableCF(df0::DataFrames.DataFrame;summaryfile=""::AbstractString)
         quartets = Quartet[]
         for(i in 1:size(df,1))
             push!(quartets,Quartet(i,string(df[i,1]),string(df[i,2]),string(df[i,3]),string(df[i,4]),[df[i,5],df[i,6],df[i,7]]))
+            if(withngenes)
+                quartets[end].ngenes = df[i,:ngenes]
+            end
         end
         d = DataCF(quartets)
         if(!isempty(repSpecies))
@@ -89,6 +98,9 @@ function readTableCF(df0::DataFrames.DataFrame;summaryfile=""::AbstractString)
         quartets = Quartet[]
         for(i in 1:size(df,1))
             push!(quartets,Quartet(i,string(df[i,1]),string(df[i,2]),string(df[i,3]),string(df[i,4]),[df[i,:CF12_34],df[i,:CF13_24],df[i,:CF14_23]]))
+            if(withngenes)
+                quartets[end].ngenes = df[i,:ngenes]
+            end
         end
         d = DataCF(quartets)
         if(!isempty(repSpecies))
@@ -96,6 +108,9 @@ function readTableCF(df0::DataFrames.DataFrame;summaryfile=""::AbstractString)
         end
         if(d.numTrees == -1)
             println("DATA: data consists of $(d.numQuartets) quartets")
+            if(withngenes)
+                println("between $(min([q.ngenes for q in quartets])) and $(max([q.ngenes for q in quartets])) gene trees per quartet")
+            end
         else
             println("DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
         end
@@ -116,8 +131,9 @@ read a file with a table of CF. It has two optional arguments:
 - sep to specify the type of separator in the table with single quotes: sep=';'
 - if summaryfile is specified, it will write a summary file with that name.
 
-Table should have 7 columns: 4 taxa, 3 CF: tx1 tx2 tx3 tx4 cf12.34 cf13.24 cf14.23,
-but if it comes directly from TICR/bucky.pl, the table does not need any adjustment
+Table should have 7 columns in order: 4 taxa, 3 CF: tx1 tx2 tx3 tx4 cf12.34 cf13.24 cf14.23,
+but if the first 4 columns are taxon names, and the columns are named CF12_34, CF13_24, CF14_23, ngenes,
+then columns from 5th on can be in any order
 """
 readTableCF(file::AbstractString;sep=','::Char,summaryfile=""::AbstractString) = readTableCF(readtable(file,separator=sep),summaryfile=summaryfile)
 
