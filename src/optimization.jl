@@ -1197,7 +1197,7 @@ optTop!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ft
 # updateBL=true if we want to update the missing BL to average CF
 function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, rootname::AbstractString, returnNet::Bool,seed::Int64, probST::Float64, updateBL::Bool)
     0.0<=probST<=1.0 || error("probability to keep the same starting topology should be between 0 and 1: $(probST)")
-    isdefined(:d) || error("Data d not defined, probably an error when reading the input gene trees or the table of CF. Common issue: wrong number of columns in CF table")
+#    isdefined(:d) || error("Data d not defined, probably an error when reading the input gene trees or the table of CF. Common issue: wrong number of columns in CF table")
     sameTaxa(d,currT0) || error("some taxon names in quartets do not appear on the starting topology")
     # need a clean starting net. fixit: maybe we need to be more thorough here
     # yes, need to check that everything is ok because it could have been cleaned and then modified
@@ -1402,12 +1402,14 @@ optTopRun1!(currT::HybridNetwork, d::DataCF, hmax::Int64, returnNet::Bool, seed:
 `snaq!(currT::HybridNetwork, d::DataCF)`
 
 function that estimates the best network (or tree) for a DataCF object (with the observed CF) and a starting topology currT (which has to be a HybridNetwork type, read with readTopologyLevel1). It has many optional arguments, among which we have:
+
 - hmax: maximum number of hybridizations allowed (default 1)
 - verbose: if true, it prints information about the numerical optimization
 - runs: number of independent starting points for the search (default 10)
 - outgroup: outgroup taxon to root the estimated topology
 - filename: root name for the output files (default snaq)
 - seed: seed to replicate a given search
+
 The function ends with ! because it modifies the DataCF d by including the expCF
 """
 function snaq!(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="none"::AbstractString, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64, updateBL=true::Bool)
