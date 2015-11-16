@@ -8,11 +8,12 @@ include("../src/functions.jl")
 d=readTrees2CF("../examples/treefile.txt");
 d2=readTrees2CF("../examples/treefile.txt",whichQ="rand",numQ=10);
 d=readTableCF("../examples/tableCF.txt");
-T=readStartTop("../examples/startTree.txt",d);
-T2=readStartTop("../examples/startTree.txt",d2);
+T=readTopology("../examples/startTree.txt");
+T2=readTopology("../examples/startTree.txt");
+T3=readTopology("(2,3,(4,(5,(1,6))));")
 writeTopology(T)
 # snaq
-net1=snaq!(T,d,filename="net1_snaq");
+net1=snaq!(T,d,filename="net1_snaq")
 net2=snaq!(T,d,hmax=2, filename="net2_snaq");
 writeTopology(net1)
 writeTopology(net1,di=true)

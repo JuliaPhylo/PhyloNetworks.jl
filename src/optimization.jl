@@ -1201,6 +1201,10 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     sameTaxa(d,currT0) || error("some taxon names in quartets do not appear on the starting topology")
     # need a clean starting net. fixit: maybe we need to be more thorough here
     # yes, need to check that everything is ok because it could have been cleaned and then modified
+    if(updateBL && isTree(currT0))
+        updateBL!(currT0,d) # we are doing it always inside snaq now
+    end
+
     if(!currT0.cleaned) #need a clean topology
         DEBUG && println("si, se metio a q no esta cleaned")
         cleanAfterReadAll!(currT0);
@@ -1217,9 +1221,6 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     # for the case of multiple alleles: expand into two leaves quartets like sp1 sp1 sp2 sp3.
     if(!isempty(d.repSpecies))
         expandLeaves!(d.repSpecies,currT0)
-    end
-    if(updateBL)
-        updateBL!(currT0,d) # we are doing it always inside
     end
 
     juliaerr = string(rootname,".err")

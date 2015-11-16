@@ -603,9 +603,10 @@ function printEdges(net::HybridNetwork)
     if(net.numBad > 0)
         warn("net has $(net.numBad) bad diamond I, gammas and some branch lengths are not identifiable, and therefore, meaningless")
     end
+    miss = "NA"
     println("Edge\tNode1\tNode2\tInCycle\tcontainRoot\tistIdentitiable\tLength\tisHybrid\tGamma\tisMajor")
     for e in net.edge
-        println("$(e.number)\t$(e.node[1].number)\t$(e.node[2].number)\t$(e.inCycle)\t$(e.containRoot)\t\t$(e.istIdentifiable)\t\t$(round(e.length,2))\t$(e.hybrid)\t\t$(round(e.gamma,4))\t$(e.isMajor)")
+        println("$(e.number)\t$(e.node[1].number)\t$(e.node[2].number)\t$(e.inCycle)\t$(e.containRoot)\t\t$(e.istIdentifiable)\t\t$(e.length==-1? miss :round(e.length,2))\t$(e.hybrid)\t\t$(round(e.gamma,4))\t$(e.isMajor)")
     end
 end
 

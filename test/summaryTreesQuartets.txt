@@ -1,0 +1,14 @@
+DATA: data consists of 10 gene trees and 15 4-taxon subsets
+
+DATA: same taxa in gene trees and quartets: ASCIIString["6","1","5","4","2","3"]
+Taxon 6 appears in 10 input trees (100.0 %)
+Taxon 1 appears in 10 input trees (100.0 %)
+Taxon 5 appears in 10 input trees (100.0 %)
+Taxon 4 appears in 10 input trees (100.0 %)
+Taxon 2 appears in 10 input trees (100.0 %)
+Taxon 3 appears in 10 input trees (100.0 %)
+----------------------------
+
+will print below only the 4-taxon subsets with data from <= 70.0% genes
+----------------------------
+

@@ -200,4 +200,25 @@ function show(io::IO, net::QuartetNetwork)
     end
 end
 
+function show(io::IO,d::DataCF)
+    print(io,"number of quartets: $(d.numQuartets)")
+    if(d.numTrees != -1)
+        print(io,"number of trees: $(d.numTrees)")
+    else
+        print(io, "CF not computed from input gene trees, information on gene trees could be present in the quartets")
+    end
+    print(io,"you can access the list of Quartet types with the attribute .quartet, and the list of HybridNetwork types (if the input was a list of trees) with the attribute .tree. For example, if your DataCF object is named d, d.quartet[1] will print the first quartet, and d.tree[1] will print the first tree.")
+end
+
+function show(io::IO,q::Quartet)
+    print(io,"number: $(q.number)")
+    print(io,"taxon names: $(q.taxon)")
+    print(io,"observed CF: $(q.obsCF)")
+    print(io,"-logPseudo-dev under best estimated network $(q.logPseudolik) (meaningless before estimation)")
+    print(io,"expected CF under best estimated network: $(q.qnet.expCF) (meaningless before estimation)")
+    if(ngenes != -1)
+        print(io,"number of genes used to compute observed CF: $(ngenes)")
+    end
+end
+
 

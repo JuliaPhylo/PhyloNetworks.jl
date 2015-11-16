@@ -388,9 +388,9 @@ function readTopology(s::IO,verbose::Bool)
     end
     storeHybrids!(net)
     checkNumHybEdges!(net)
-    if(verbose)
-        any([(e.length == -1.0 && e.istIdentifiable) for e in net.edge]) && println("edges lengths missing, so assigned default value of -1.0") #fixit: not best approach, better to add a flag inside readSubTree, careful bool not modified inside function, need bool array
-    end
+    ## if(verbose)
+    ##     any([(e.length == -1.0 && e.istIdentifiable) for e in net.edge]) && println("edges lengths missing, so assigned default value of -1.0") #fixit: not best approach, better to add a flag inside readSubTree, careful bool not modified inside function, need bool array
+    ## end
     return net
 end
 
