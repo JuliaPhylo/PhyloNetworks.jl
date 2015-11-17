@@ -87,7 +87,9 @@ function setNode!(edge::Edge, node::Node)
         else
             if(edge.hybrid)
 	        if(node.hybrid)
-                    !edge.node[1].hybrid || println("hybrid edge $(edge.number) has two hybrid nodes");
+                    if(DEBUG)
+                        !edge.node[1].hybrid || println("hybrid edge $(edge.number) has two hybrid nodes");
+                    end
                     edge.isChild1 = false;
 	        else
 	            edge.node[1].hybrid || error("hybrid edge $(edge.number) has no hybrid nodes");
