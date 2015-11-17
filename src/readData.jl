@@ -63,7 +63,7 @@ function readTableCF(df0::DataFrames.DataFrame;summaryfile=""::AbstractString)
         withngenes = false
     end
     if(!fromTICR)
-        size(df0,2) == 7 || warn("Dataframe should have 7 columns: 4taxa, 3CF, will ignore columns from 8th on")
+        size(df0,2) == 7 || warn("Column names for quartet concordance factors (CFs) were not recognized. Will assume that the first 4 columns give the taxon names, and that columns 5-7 give the CFs.")
         df = deepcopy(df0)
         repSpecies = cleanNewDF!(df)
         if(!isempty(repSpecies))
