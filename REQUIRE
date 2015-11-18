@@ -2,4 +2,3 @@ julia 0.4
 Compat
 DataFrames
 NLopt
-GraphViz
