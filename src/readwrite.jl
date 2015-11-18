@@ -816,8 +816,8 @@ function writeTopology(net::HybridNetwork, di::Bool, string::Bool, names::Bool,o
     else
         if(!isTree(net) && !net.cleaned)
             DEBUG && println("net not cleaned inside writeTopology, need to run updateCR")
-            for(n in graph.hybrid)
-                flag,edges = updateContainRoot!(graph,n)
+            for(n in net.hybrid)
+                flag,edges = updateContainRoot!(net,n)
                 flag || error("hybrid node $(n.hybrid) has conflicting containRoot")
             end
         end
