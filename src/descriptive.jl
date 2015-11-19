@@ -23,8 +23,8 @@ function root!(net::HybridNetwork, node::Node, resolve::Bool)
         if(!isTree(net))
             if(!net.cleaned)
                 DEBUG && println("net not cleaned inside root, need to run updateCR")
-                for(n in graph.hybrid)
-                    flag,edges = updateContainRoot!(graph,n)
+                for(n in net.hybrid)
+                    flag,edges = updateContainRoot!(net,n)
                     flag || error("hybrid node $(n.hybrid) has conflicting containRoot")
                 end
             end
@@ -153,8 +153,8 @@ function root!(net::HybridNetwork, outgroup::AbstractString)
     if(!isTree(net))
         if(!net.cleaned)
             DEBUG && println("net not cleaned inside root, need to run updateCR")
-            for(n in graph.hybrid)
-                flag,edges = updateContainRoot!(graph,n)
+            for(n in net.hybrid)
+                flag,edges = updateContainRoot!(net,n)
                 flag || error("hybrid node $(n.hybrid) has conflicting containRoot")
             end
         end

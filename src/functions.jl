@@ -11,7 +11,7 @@
 using Base.Collections # for updateInCycle with priority queue
 using DataFrames # for rep function and read/write csv tables
 using NLopt # for branch lengths optimization
-using GraphViz #for visualization
+#using GraphViz #for visualization
 
 import Base.show
 

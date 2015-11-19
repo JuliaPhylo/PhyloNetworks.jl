@@ -589,7 +589,7 @@ end
 
 # print for every edge, nodes, inCycle, containRoot, istIdentifiable
 function printEdges(net::QuartetNetwork)
-    println("Edge\tNode1\tNode2\tInCycle\tcontainRoot\tistIdentitiable\tLength\tisHybrid\tGamma")
+    println("Edge\tNode1\tNode2\tInCycle\tcontainRoot\tistIdentifiable\tLength\tisHybrid\tGamma")
     for e in net.edge
         println("$(e.number)\t$(e.node[1].number)\t$(e.node[2].number)\t$(e.inCycle)\t$(e.containRoot)\t\t$(e.istIdentifiable)\t\t$(round(e.length,2))\t$(e.hybrid)\t$(round(e.gamma,4))")
     end
