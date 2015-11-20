@@ -120,7 +120,8 @@ type HybridNetwork <: Network
     loglik::Float64 # value of the min -loglik after optBL
     blacklist::Vector{Int64} # reusable array of integers, used in afterOptBL
     partition::Vector{Partition} # to choose edges from a partition only to avoid intersecting cycles
-    cleaned::Bool # function to know if the network has been cleaned after readm default false
+    cleaned::Bool # attribute to know if the network has been cleaned after readm default false
+    isRooted::Bool #attribute to know if network is rooted (after root! or directEdges)
     # maxTaxNumber::Int32 --in case it's needed later when we prune taxa
     # inner constructor
     function HybridNetwork(node::Array{Node,1},edge::Array{Edge,1})
@@ -128,16 +129,16 @@ type HybridNetwork <: Network
         leaf=Node[];
         [n.hybrid?push!(hybrid,n):nothing for n in node];
         [n.leaf?push!(leaf,n):nothing for n in node];
-        new(size(leaf,1),size(node,1),size(edge,1),node,edge,1,[],hybrid,size(hybrid,1),[],[],[],leaf,[],[],0,false,[],0,[],[],false)
+        new(size(leaf,1),size(node,1),size(edge,1),node,edge,1,[],hybrid,size(hybrid,1),[],[],[],leaf,[],[],0,false,[],0,[],[],false,false)
     end
     function HybridNetwork(node::Array{Node,1},edge::Array{Edge,1},root::Int64)
         hybrid=Node[];
         leaf=Node[];
         [n.hybrid?push!(hybrid,n):nothing for n in node];
         [n.leaf?push!(leaf,n):nothing for n in node];
-        new(size(leaf,1),size(node,1),size(edge,1),node,edge,root,[],hybrid,size(hybrid,1),[],[],[],leaf,[],[],0,false,[],0,[],[],false)
+        new(size(leaf,1),size(node,1),size(edge,1),node,edge,root,[],hybrid,size(hybrid,1),[],[],[],leaf,[],[],0,false,[],0,[],[],false,false)
     end
-    HybridNetwork() = new(0,0,0,[],[],0,[],[],0,[],[],[],[],[],[],0,false,[],0,[],[],false);
+    HybridNetwork() = new(0,0,0,[],[],0,[],[],0,[],[],[],[],[],[],0,false,[],0,[],[],false,false);
 end
 
 # type created from a HybridNetwork only to extract a given quartet

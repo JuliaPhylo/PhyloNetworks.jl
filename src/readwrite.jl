@@ -392,6 +392,7 @@ function readTopology(s::IO,verbose::Bool)
     ## if(verbose)
     ##     any([(e.length == -1.0 && e.istIdentifiable) for e in net.edge]) && println("edges lengths missing, so assigned default value of -1.0") #fixit: not best approach, better to add a flag inside readSubTree, careful bool not modified inside function, need bool array
     ## end
+    net.isRooted = true
     return net
 end
 
@@ -689,6 +690,7 @@ function cleanAfterReadAll!(net::HybridNetwork, leaveRoot::Bool)
     checkRootPlace!(net)
     net.node[net.root].leaf && warn("root node $(net.node[net.root].number) is a leaf, so when plotting net, it can look weird")
     net.cleaned = true
+    net.isRooted = false
 end
 
 cleanAfterReadAll!(net::HybridNetwork) = cleanAfterReadAll!(net,false)
