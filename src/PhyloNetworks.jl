@@ -38,7 +38,7 @@ topologyQPseudolik!,
 root!,
 dfObsExpCF,
 plotPhylonet,
-generalExport #for graphviz test
+generalExport, #for graphviz test
 setLength!,
 setGamma!,
 mapAllelesCFtable
