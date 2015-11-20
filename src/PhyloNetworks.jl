@@ -40,7 +40,8 @@ dfObsExpCF,
 plotPhylonet,
 generalExport #for graphviz test
 setLength!,
-setGamma!
+setGamma!,
+mapAllelesCFtable
 
 # export part
 
