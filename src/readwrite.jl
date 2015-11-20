@@ -183,6 +183,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
                     pushNode!(net,n);
                     pushEdge!(net,e);
                     n.number = other.number;
+                    n.name = other.name;
                 else
                     error("strange: node $(other.number) is a leaf hybrid node so it should have only one edge and it has $(size(other.edge,1))")
                 end
@@ -664,7 +665,8 @@ function updateAllReadTopology!(net::HybridNetwork)
             for(n in net.hybrid)
                 success,hyb,flag,nocycle,flag2,flag3 = updateAllNewHybrid!(n,net,false,true)
                 if(!success)
-                    error("current hybrid $(n.number) conflicts with previous hybrid by intersecting cycles: $(!flag), nonidentifiable topology: $(!flag2), empty space for contain root: $(!flag3), or does not create a cycle (probably problem with the root placement): $(nocycle).")
+                    warn("current hybrid $(n.number) conflicts with previous hybrid by intersecting cycles: $(!flag), nonidentifiable topology: $(!flag2), empty space for contain root: $(!flag3), or does not create a cycle (probably problem with the root placement): $(nocycle).")
+                    net.cleaned = false
                 end
             end
         end
@@ -712,7 +714,7 @@ readTopologyUpdate(file::AbstractString,verbose::Bool) = readTopologyUpdate(file
 same as readTopology, reads a tree or network from parenthetical
 format, but this function enforces the necessary conditions for any
 starting topology in SNaQ: non-intersecting cycles, no polytomies,
-unrooted.
+unrooted. It sets any missing branch length to 1.0.
 """
 readTopologyLevel1(file::AbstractString) = readTopologyUpdate(file, false, true)
 
@@ -781,19 +783,30 @@ function writeSubTree!(s::IOBuffer, n::Node, parent::Edge,di::Bool,names::Bool, 
             end
         end
     end
+    printBL = false
     if(printID) #which BL to print
         if(!n.leaf)
             if(parent.istIdentifiable && parent.length >= 0.0) #we do not want to print BL of non-id edges
                 print(s,string(":",round(parent.length,3)))
+                printBL = true
             end
         end
     else
         if(parent.length >= 0.0) #print all BL != -1
             print(s,string(":",round(parent.length,3)))
+            printBL = true
         end
     end
     if(parent.hybrid && !di && !n.isBadDiamondI)
-        print(s,string("::",round(parent.gamma,3)))
+        if(!printBL)
+            if(parent.gamma != 1.0)
+                print(s,string(":::",round(parent.gamma,3)))
+            end
+        else
+            if(parent.gamma != 1.0)
+                print(s,string("::",round(parent.gamma,3)))
+            end
+        end
     end
 end
 
@@ -815,7 +828,7 @@ function writeTopology(net::HybridNetwork, di::Bool, string::Bool, names::Bool,o
         print(s,string(net.node[net.root].number,";"))
     else
         if(!isTree(net) && !net.cleaned)
-            DEBUG && println("net not cleaned inside writeTopology, need to run updateCR")
+            DEBUG && println("net not cleaned inside writeTopology, need to run updateContainRoot")
             for(n in net.hybrid)
                 flag,edges = updateContainRoot!(net,n)
                 flag || error("hybrid node $(n.hybrid) has conflicting containRoot")
@@ -969,6 +982,7 @@ readSnaqNetwork(file::AbstractString) = readOutfile(file)
 
 # function to change branch lengths of -1.0 to 1.0 for starting topology
 function cleanBL!(net::HybridNetwork)
+    println("missing branch lengths will be set to 1.0")
     for(e in net.edge)
         if(e.length == -1.0)
             setLength!(e,1.0)

@@ -39,4 +39,17 @@ We can verify the type with
 typeof(d.quartet[1])
 ```
 
-
+You can also read a simple network in Julia and print the list of edges
+```julia
+tree= "(A,((B,#H1),(C,(D)#H1)));"
+net = readTopology(tree)
+printEdges(net)
+```
+You see that the edges do not have branch lengths, and the hybrid edges do not have gamma values, you can set them with
+```julia
+setLength!(net.edge[1],1.9)
+setGamma!(net.edge[3],0.8)
+printEdges(net)
+```
+where 1 and 3 correspond to the position of the given edge to modify in the list of edges.
+You can only change the gamma value of hybrid edges.

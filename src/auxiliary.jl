@@ -608,7 +608,7 @@ function printEdges(net::HybridNetwork)
     miss = "NA"
     println("Edge\tNode1\tNode2\tInCycle\tcontainRoot\tistIdentitiable\tLength\tisHybrid\tGamma\tisMajor")
     for e in net.edge
-        println("$(e.number)\t$(e.node[1].number)\t$(e.node[2].number)\t$(e.inCycle)\t$(e.containRoot)\t\t$(e.istIdentifiable)\t\t$(e.length==-1? miss :round(e.length,2))\t$(e.hybrid)\t\t$(round(e.gamma,4))\t$(e.isMajor)")
+        println("$(e.number)\t$(e.node[1].number)\t$(e.node[2].number)\t$(e.inCycle)\t$(e.containRoot)\t\t$(e.istIdentifiable)\t\t$(e.length==-1? miss :round(e.length,2))\t$(e.hybrid)\t\t$(e.gamma == 1.0 && e.hybrid ? miss : round(e.gamma,4))\t$(e.isMajor)")
     end
 end
 
@@ -759,6 +759,12 @@ function setLength!(edge::Edge, new_length::Number, negative::Bool)
     #edge.istIdentifiable || warn("set edge length for edge $(edge.number) that is not identifiable")
 end
 
+"""
+`setLength!(Edge,new length)`
+
+set a new length for an object Edge. The new length needs to be positive.
+For example, if you have a HybridNetwork object net, and do printEdges(net), you can see the list of Edges and their lengths. You can then change the length of the 3rd edge with setLength!(net.edge[3],1.2).
+"""
 setLength!(edge::Edge, new_length::Number) = setLength!(edge, new_length, false)
 
 
@@ -815,6 +821,15 @@ function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool, read::Bool
 end
 
 setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool) = setGamma!(edge, new_gamma, changeOther, false)
+
+"""
+`setGamma!(Edge,new gamma)`
+
+sets a gamma value for a hybrid edge (it has to be a hybrid edge) and new gamma needs to be (0,1). The function will automatically change the gamma value for the other hybrid edge to 1-gamma.
+For example, if you have a HybridNetwork object net, and do printEdges(net), you can see the list of Edges and their gammas. You can then change the length of the hybrid edge (assume it is in position 3) with setGamma!(net.edge[3],0.2).
+This will automatically set the gamma for the other hybrid edge to 0.8.
+"""
+setGamma!(edge::Edge, new_gamma::Float64) = setGamma!(edge, new_gamma, true, false)
 
 function numTreeEdges(net::HybridNetwork)
     2*net.numTaxa - 3 + net.numHybrids

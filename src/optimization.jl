@@ -875,7 +875,6 @@ end
 # sout=IOStream to capture the output from the functions called, only used when DEBUG=true and REDIRECT=true, default STDOUT
 # logfile=IOStream to capture the information on the heurisitc optimization, default STDOUT
 function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64},ret::Bool,sout::IO, logfile::IO)
-    currT.numTaxa >= 5 || error("cannot estimate hybridizations in topologies with fewer than 5 taxa, this topology has $(currT.numTaxa) taxa")
     DEBUG && println("OPT: begins optTopLevel with hmax $(hmax)")
     M > 0 || error("M must be greater than zero: $(M)")
     Nfail > 0 || error("Nfail must be greater than zero: $(Nfail)")
@@ -1197,8 +1196,8 @@ optTop!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ft
 # updateBL=true if we want to update the missing BL to average CF
 function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, rootname::AbstractString, returnNet::Bool,seed::Int64, probST::Float64, updateBL::Bool)
     0.0<=probST<=1.0 || error("probability to keep the same starting topology should be between 0 and 1: $(probST)")
-#    isdefined(:d) || error("Data d not defined, probably an error when reading the input gene trees or the table of CF. Common issue: wrong number of columns in CF table")
     sameTaxa(d,currT0) || error("some taxon names in quartets do not appear on the starting topology")
+    currT0.numTaxa >= 5 || error("cannot estimate hybridizations in topologies with fewer than 5 taxa, this topology has $(currT0.numTaxa) taxa")
     # need a clean starting net. fixit: maybe we need to be more thorough here
     # yes, need to check that everything is ok because it could have been cleaned and then modified
     if(updateBL && isTree(currT0))
@@ -1207,10 +1206,20 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
 
     if(!currT0.cleaned) #need a clean topology
         DEBUG && println("si, se metio a q no esta cleaned")
-        cleanAfterReadAll!(currT0);
+        try
+            cleanAfterReadAll!(currT0)
+        catch(err)
+            error("starting topology suspected not level-1: $(err)")
+        end
     else
         flag = checkNet(currT0,true)
-        flag && cleanAfterReadAll!(currT0);
+        if(flag)
+            try
+                cleanAfterReadAll!(currT0)
+            catch(err)
+                error("starting topology suspected not level-1: $(err)")
+            end
+        end
     end
     try
         checkNet(currT0)

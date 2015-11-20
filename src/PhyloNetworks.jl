@@ -39,6 +39,8 @@ root!,
 dfObsExpCF,
 plotPhylonet,
 generalExport #for graphviz test
+setLength!,
+setGamma!
 
 # export part
 
