@@ -133,6 +133,7 @@ end
 #        random = false, deletes the minor edge always
 # warning: it uses the gamma of the hybrid edges even if
 #          it is not identifiable like in bad diamond I (assumes undone by now)
+# blacklist = true: add the edge as a bad choice to put a hybridization (not fully tested)
 function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bool, blacklist::Bool)
     hybrid.hybrid || error("node $(hybrid.number) is not hybrid, so we cannot delete hybridization event around it")
     DEBUG && println("MOVE: delete hybridization on hybrid node $(hybrid.number)")
