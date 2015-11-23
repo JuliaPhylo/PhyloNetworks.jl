@@ -94,7 +94,7 @@ abstract Network
 # warning: nodes and edges need to be defined and linked before adding to a network
 """
 `HybridNetwork type`
-Explicit network or tree with the following attributes: 
+Explicit network or tree with the following attributes:
 
 - numTaxa
 - numNodes (total number of nodes)
@@ -106,7 +106,7 @@ Explicit network or tree with the following attributes:
 - hybrids (array of Nodes: those are are hybrid nodes)
 - leaf (array of Nodes: those that are leaves)
 - loglik (negative log pseudolik after estimation)
-- isRooted (true of false)
+- isRooted (true or false)
 """
 type HybridNetwork <: Network
     numTaxa::Int64 # cannot set in constructor for congruence
