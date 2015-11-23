@@ -687,7 +687,7 @@ ignore them.
 
 The output dataframe should be read also to create a DataCF object:
 \begin{lstlisting}
-  new_d = readTableCF!(new_df);
+  new_d = readTableCF(new_df);
 \end{lstlisting}
 This function will modify the new dataframe by removing rows such as
 \textit{sp1,sp1,sp1,sp1} which contain no information about
