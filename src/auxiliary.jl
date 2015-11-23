@@ -58,6 +58,14 @@ function isEqual(net1::HybridNetwork, net2::HybridNetwork)
 end
 
 
+#------------- functions to allow for ------------#
+#              missing values (lengths or gammas) #
+
+# adds x+y but interprets -1.0 as missing: so -1.0 + x = -1.0 here.
+function addBL(x::Number,y::Number)
+    (x==-1.0 || y==-1.0) ? -1.0 : x+y
+end
+
 #------------- EDGE functions --------------------#
 
 # warning: node needs to be defined as hybrid before adding to a
@@ -388,13 +396,15 @@ function deleteNode!(net::HybridNetwork, n::Node)
     catch
         error("Node $(n.number) not in network");
     end
-    #println("deleting node $(n.number) from net")
     index = getIndex(n,net);
+    # println("deleting node $(n.number) from net, index $(index).")
     deleteat!(net.node,index);
     net.numNodes -= 1;
     if(net.root == index)
-        #warn("Root node deleted, first node in net.node set arbitrarily as new root")
+        # fixit: would be best to check containRoot to choose another root.
         net.root = 1 #arbitrarily chosen, not used until writeTopology/plotPhylonet
+    elseif(net.root > index)
+        net.root -= 1
     end
     if(n.hybrid)
        removeHybrid!(net,n)
@@ -766,6 +776,20 @@ set a new length for an object Edge. The new length needs to be positive.
 For example, if you have a HybridNetwork object net, and do printEdges(net), you can see the list of Edges and their lengths. You can then change the length of the 3rd edge with setLength!(net.edge[3],1.2).
 """
 setLength!(edge::Edge, new_length::Number) = setLength!(edge, new_length, false)
+
+
+"""
+`setBranchLength!(Edge,new length)`
+
+sets the length of an Edge object. The new length needs to be non-negative, or -1.0 to be interpreted as missing.
+Example: if net is a HybridNetwork object, do printEdges(net) to see the list of all edges with their lengths. The length of the 3rd edge can be changed to 1.2 with setBranchLength!(net.edge[3],1.2). It can also be set to missing with setBranchLength!(net.edge[3],-1.0)
+"""
+function setBranchLength!(edge::Edge, new_length::Number)
+    (new_length >= 0 || new_length == -1.0) || error("length $(new_length) has to be nonnegative or -1.0 (for missing).")
+    edge.length = new_length;
+    edge.y = exp(-new_length);
+    edge.z = 1 - edge.y;
+end
 
 
 # setGamma

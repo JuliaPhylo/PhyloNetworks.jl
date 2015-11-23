@@ -171,6 +171,7 @@ deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node) = deleteHybridizati
 # warning: it is meant after undoing the effect of the
 #          hybridization in deleteHybridizationUpdate!
 #          by itself, it leaves things as is
+# branch lengths of -1.0 are interpreted as NA.
 function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool, blacklist::Bool)
     node.hybrid || error("node $(node.number) has to be hybrid for deleteHybrid")
     if(minor)
@@ -179,7 +180,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool, blacklist::Boo
         other2 = getOtherNode(hybedge2,node);
         other3 =  getOtherNode(treeedge1,node);
         if(hybedge1.number > treeedge1.number)
-            setLength!(treeedge1, treeedge1.length + hybedge1.length);
+            setLength!(treeedge1, addBL(treeedge1.length, hybedge1.length));
             removeNode!(node,treeedge1);
             setNode!(treeedge1,other1);
             setEdge!(other1,treeedge1);
@@ -193,7 +194,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool, blacklist::Boo
         else
             makeEdgeTree!(hybedge1,node)
             other1.hasHybEdge = false;
-            setLength!(hybedge1, hybedge1.length + treeedge1.length);
+            setLength!(hybedge1, addBL(hybedge1.length, treeedge1.length));
             removeNode!(node,hybedge1);
             setNode!(hybedge1,other3);
             setEdge!(other3,hybedge1);
@@ -221,7 +222,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool, blacklist::Boo
         treenode1 = getOtherNode(treeedge1,other2);
         treenode2 = getOtherNode(treeedge2,other2);
         if(abs(treeedge1.number) > abs(treeedge2.number))
-            setLength!(treeedge2, treeedge2.length + treeedge1.length);
+            setLength!(treeedge2, addBL(treeedge2.length, treeedge1.length));
             removeNode!(other2,treeedge2);
             setNode!(treeedge2,treenode1);
             setEdge!(treenode1,treeedge2);
@@ -233,7 +234,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool, blacklist::Boo
                 push!(net.blacklist, treeedge2.number)
             end
         else
-            setLength!(treeedge1, treeedge2.length + treeedge1.length);
+            setLength!(treeedge1, addBL(treeedge2.length, treeedge1.length));
             removeNode!(other2,treeedge1);
             setNode!(treeedge1,treenode2);
             setEdge!(treenode2,treeedge1);
@@ -253,7 +254,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool, blacklist::Boo
         hybedge1,hybedge2,treeedge1 = hybridEdges(node);
         other1 = getOtherNode(hybedge1,node);
         other2 = getOtherNode(hybedge2,node);
-        setLength!(treeedge1, treeedge1.length + hybedge2.length)
+        setLength!(treeedge1, addBL(treeedge1.length, hybedge2.length))
         removeEdge!(other2,hybedge2)
         removeNode!(node,treeedge1)
         setEdge!(other2,treeedge1)
@@ -271,7 +272,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool, blacklist::Boo
             edge = other1.edge[2]
             otheredge = other1.edge[1]
         end
-        setLength!(other1.edge[1], other1.edge[1].length + other1.edge[2].length)
+        setLength!(other1.edge[1], addBL(other1.edge[1].length, other1.edge[2].length))
         other3 =  getOtherNode(otheredge,other1);
         removeNode!(other1,edge)
         removeEdge!(other3,otheredge)
@@ -284,6 +285,28 @@ end
 
 deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool) = deleteHybrid!(node,net,minor, false)
 
+# fixit --or remove altogether?
+# function to delete a hybrid edge.
+# input: network and edge belonging in this network.
+# warning: does NOT update any attributes needed for snaq! (like containRoot etc.)
+#          allows for networks of any level. 
+# updates: branch lengths (allowing for missing values)
+function deleteHybridEdge!(net::HybridNetwork,edge::Edge)
+    edge.hybrid || error("edge $(edge.number) has to be hybrid for deleteHybridEdge!")
+    n1 = (edge.isChild1 ? edge.node[1] : edge.node[2])  # child  of edge, to be deleted.
+    n3 = (edge.isChild1 ? edge.node[2] : edge.node[1])  # parent of edge, to be deleted too.
+    size(n1.edge,1) == 3 || error("node $(n1.number) has $(size(n1.edge,1)) edges instead of 3");
+    size(n3.edge,1) == 3 || error("node $(n3.number) has $(size(n3.edge,1)) edges instead of 3");
+    e1 = nothing # will be other parent (hybrid) edge of node1
+    e2 = nothing # will be child edge of node1, to be merged with edge1
+    for ie=1:3
+        (n1.edge[ie].hybrid && n1.edge[ie] != edge) ? e1 = n1.edge[ie] : nothing
+        !(n1.edge[ie].hybrid) ? e2 = n1.edge[ie] : nothing
+    end
+    n2 = getOtherNode(e2,n1);
+    # fixit: remove n1, merge e1 with e2.
+    # UNFINISHED!!
+end
 
 # function to update net.partition after deleting a hybrid node
 # needs a list of the edges in cycle

@@ -48,3 +48,4 @@ include("descriptive.jl")
 include("bootstrap.jl")
 
 include("multipleAlleles.jl")
+include("compareNetworks.jl")
