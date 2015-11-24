@@ -750,32 +750,26 @@ end
 # function to traverse a tree postorder and modify the matrix M
 # with edges as rows and species as columns (see tree2Matrix)
 # S should be sorted
-function traverseTree2Matrix!(node::Node, edge::Edge, M::Matrix{Int}, S::Union{Vector{ASCIIString},Vector{Int64}})
-    if(!node.leaf)
-        for(e in node.edge) #postorder traversal
-            if(!isEqual(e,edge))
-                traverseTree2Matrix!(getOtherNode(e,node),e,M,S)
-            end
-        end
-    end
-    try
-        indedge = getIndex(edge.number,M[:,1])
-    catch
-        error("either edge $(edge.number) not in tree")
-    end
-    indedge = getIndex(edge.number,M[:,1])
-    if(node.leaf)
-        try
-            indsp = getIndex(node.name,S)
-        catch
-            error("leaf $(node.name) not in species list $(S)")
-        end
-        indsp = getIndex(node.name,S)
-        M[indedge,indsp+1] = 1 #indsp+1 bc first column is edge numbers
-    else
-        for(e in node.edge)
-            if(!isEqual(e,edge))
-                inde = getIndex(e.number,M[:,1])
+function traverseTree2Matrix!(node::Node, edge::Edge, ie::Vector{Int64}, M::Matrix{Int}, S::Union{Vector{ASCIIString},Vector{Int64}})
+    child = getOtherNode(edge,node) # must not be a leaf
+    indedge = ie[1]
+    M[indedge,1] = edge.number
+    ie[1] += 1 # mutable array: to modify edge index 'ie' outside function scope
+    for(e in child.edge) #postorder traversal
+        if(!isEqual(e,edge)) # assumes a tree here
+            grandchild = getOtherNode(e,child)
+            if (grandchild.leaf)
+                try
+                    indsp = getIndex(grandchild.name,S)
+                catch
+                    error("leaf $(grandchild.name) not in species list $(S)")
+                end
+                indsp = getIndex(grandchild.name,S) # fixit: why again??
+                M[indedge,indsp+1] = 1 #indsp+1 bc first column is edge numbers
+            else
+                inde = ie[1];
+                # inde = getIndex(e.number,M[:,1])
+                traverseTree2Matrix!(child,e,ie,M,S)
                 M[indedge,2:size(M,2)] |= M[inde,2:size(M,2)]
             end
         end
@@ -787,12 +781,21 @@ end
 # Mij=1 if species j is descendant of edge i, 0 ow.
 # Mij=-1 if species not present in tree
 # if tree has missing taxa, they will keep 0, but this is handled in calculateObsCFAll with sameTaxa function
-function tree2Matrix(T::HybridNetwork, S::Union{Vector{ASCIIString},Vector{Int64}})
-    sort!(S)
-    M = zeros(Int,length(T.edge),length(S)+1)
-    M[:,1] = sort!([e.number for e in T.edge])
+function tree2Matrix(T::HybridNetwork, S::Union{Vector{ASCIIString},Vector{Int64}}; rooted=true::Bool)
+    # sort!(S) # why sort 'taxa', again and again for each tree? Benefits?
+    M = zeros(Int,length(T.edge)-T.numTaxa,length(S)+1)
+    # M[:,1] = sort!([e.number for e in T.edge])
+    ie = [1] # index of next edge to be documented: row index in M
     for(e in T.node[T.root].edge)
-        traverseTree2Matrix!(getOtherNode(e,T.node[T.root]),e,M,S)
+        child = getOtherNode(e,T.node[T.root])
+        if (!child.leaf)
+            traverseTree2Matrix!(T.node[T.root],e,ie,M,S)
+        end
+    end
+    if (!rooted && length(T.node[T.root].edge)<3)
+        # remove first row of M: 1st edge at the root, duplicated edge
+        # if the tree is to be considered as unrooted, or just leaf.
+        M = M[2:size(M,1),:] # makes a copy, too bad.
     end
     return M
 end

@@ -115,7 +115,7 @@ type HybridNetwork <: Network
     node::Array{Node,1}
     edge::Array{Edge,1}
     root::Int64 # node[root] is the root node, default 1
-    names::Array{ASCIIString,1} # translate table for taxon names
+    names::Array{ASCIIString,1} # translate table for taxon names --but also includes hybrid names...
     hybrid::Array{Node,1} # array of hybrid nodes in network
     numHybrids::Int64 # number of hybrid nodes
     visited::Array{Bool,1} # reusable array of booleans

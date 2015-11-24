@@ -41,7 +41,11 @@ plotPhylonet,
 generalExport, #for graphviz test
 setLength!,
 setGamma!,
-mapAllelesCFtable
+mapAllelesCFtable,
+getTaxa,
+deleteHybridThreshold!,
+displayedTrees,
+hardwiredClusterDistance
 
 # export part
 
@@ -62,6 +66,7 @@ include("multipleAlleles.jl")
 include("genExport.jl")
 include("drawTraversal.jl")
 include("plotPhylonet.jl")
+include("compareNetworks.jl")
 
 
 end #module
