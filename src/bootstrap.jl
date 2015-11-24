@@ -9,7 +9,7 @@ function bootstrapCFtable(df::DataFrame)
     warn("bootstrapCFtable function not debugged yet")
     DEBUG && warn("order of columns should be: t1,t2,t3,t4,cf1234,cf1324,cf1423,cf1234LO,cf1234HI,...")
     size(df,2) == 13 || warn("Dataframe should have 7 columns: 4taxa, 3CF*3")
-    newdf = DataFrames.DataFrame(t1=UTF8String[],t2=UTF8String[],t3=UTF8String[],t4=UTF8String[],CF1234=0.,CF1324=0.,CF1423=0.)
+    newdf = DataFrames.DataFrame(t1=UTF8String[],t2=UTF8String[],t3=UTF8String[],t4=UTF8String[],CF12_34=0.,CF13_24=0.,CF14_23=0.)
     for(i in 1:size(df,1))
         c1 = (df[i,9]-df[i,8])*0.5*randn()+df[i,5]
         c2 = (df[i,11]-df[i,10])*0.5*randn()+df[i,6]
@@ -21,7 +21,7 @@ function bootstrapCFtable(df::DataFrame)
         c2 = min(1.0,c2)
         c3 = min(1.0,c3)
         # fixit: how to make sure they add up to one
-        append!(newdf,DataFrame(t1=convert(UTF8String,string(df[i,1])), t2=convert(UTF8String,string(df[i,2])), t3=convert(UTF8String,string(df[i,3])), t4=convert(UTF8String,string(df[i,4])), CF1234=c1,CF1324=c2, CF1423=c3))
+        append!(newdf,DataFrame(t1=convert(UTF8String,string(df[i,1])), t2=convert(UTF8String,string(df[i,2])), t3=convert(UTF8String,string(df[i,3])), t4=convert(UTF8String,string(df[i,4])), CF12_34=c1,CF13_24=c2, CF14_23=c3))
     end
     return newdf
 end

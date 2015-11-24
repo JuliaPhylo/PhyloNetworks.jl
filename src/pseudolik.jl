@@ -800,7 +800,7 @@ function identifyQuartet!(qnet::QuartetNetwork)
                 else
                     DEBUG && printEdges(qnet)
                     DEBUG && printNodes(qnet)
-                    warn("found in the same quartet, two hybridizations with overlapping cycles: types of hybridizations are $([n.typeHyb for n in qnet.hybrid]), maybe this will cause problems if the hyb do not become all but one type 1")
+                    DEBUG && warn("found in the same quartet, two hybridizations with overlapping cycles: types of hybridizations are $([n.typeHyb for n in qnet.hybrid]), maybe this will cause problems if the hyb do not become all but one type 1")
                     qnet.which = 2
                 end
             end

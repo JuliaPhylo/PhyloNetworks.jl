@@ -402,6 +402,8 @@ function deleteNode!(net::HybridNetwork, n::Node)
     net.numNodes -= 1;
     if(net.root == index)
         # fixit: would be best to check containRoot to choose another root.
+        # CSL: not sure I agree because this is done over and over in snaq, and snaq does not need a sensible root,
+        # so, having a good root seems like a waste of time
         net.root = 1 #arbitrarily chosen, not used until writeTopology/plotPhylonet
     elseif(net.root > index)
         net.root -= 1

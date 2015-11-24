@@ -21,7 +21,7 @@ function mapAllelesCFtable!(alleleDF::DataFrame, cfDF::DataFrame,write::Bool,fil
             newt4 = map(x->replace(string(x),string(alleleDF[j,:allele]),alleleDF[j,:species]),newt4)
         end
     end
-    newdf = DataFrames.DataFrame(t1=newt1,t2=newt2,t3=newt3,t4=newt4,CF1234=cfDF[5],CF1324=cfDF[6],CF1423=cfDF[7])
+    newdf = DataFrames.DataFrame(t1=newt1,t2=newt2,t3=newt3,t4=newt4,CF12_34=cfDF[5],CF13_24=cfDF[6],CF14_23=cfDF[7])
     if(write)
         filename != "" || error("want to write new table of CF with alleles mapped but filename is empty")
         writetable(filename,newdf)
@@ -35,9 +35,17 @@ end
 function cleanNewDF!(newdf::DataFrame)
     keeprows =  Bool[]
     repSpecies = ASCIIString[]
+    if(isa(newdf[1,1],Int)) #taxon names as integers: we need this to be able to add _2
+        newdf[:1] = map(x->string(x),newdf[:1])
+        newdf[:2] = map(x->string(x),newdf[:2])
+        newdf[:3] = map(x->string(x),newdf[:3])
+        newdf[:4] = map(x->string(x),newdf[:4])
+    end
     for(i in 1:size(newdf,1)) #check all rows
         row = convert(Array,DataArray(newdf[i,1:4]))
+        DEBUG && println("row $(row)")
         uniq = unique(row)
+        DEBUG && println("unique $(uniq)")
         if(length(uniq) == 1)
             push!(keeprows,false)
         elseif(length(uniq) == 4)
@@ -45,13 +53,16 @@ function cleanNewDF!(newdf::DataFrame)
         elseif(length(uniq) == 3) #sp1 sp1 sp2 sp3
             push!(keeprows,true)
             for(u in uniq)
+                DEBUG && println("u $(u), typeof $(typeof(u))")
                 ind = row .== u #taxon names matching u
+                DEBUG && println("taxon names matching u $(ind)")
                 if(sum(ind) == 2)
-                    push!(repSpecies,u)
+                    push!(repSpecies,string(u))
                     found = false
                     for(k in 1:4)
                         if(ind[k])
                             if(found)
+                                DEBUG && println("found the second one in k $(k), will change newdf[i,k] $(newdf[i,k]), typeof $(typeof(newdf[i,k]))")
                                 newdf[i,k] = string(u,"_2")
                                 break
                             else
@@ -71,7 +82,7 @@ function cleanNewDF!(newdf::DataFrame)
                 elseif(sum(ind) == 2)
                     keep = true
                     found = false
-                    push!(repSpecies,u)
+                    push!(repSpecies,string(u))
                     for(k in 1:4)
                         if(ind[k])
                             if(found)
@@ -139,6 +150,7 @@ function averagePartialDF!(df::DataFrame)
         numfound = false
     end
     if(numfound)
+        DEBUG && println("knows it has ngenes column")
         num = df2[:ngenes]
         suma = sum(num)
         delete!(df2,1:4)
@@ -148,11 +160,11 @@ function averagePartialDF!(df::DataFrame)
         end
         df[1,:ngenes] = suma
     else
+        DEBUG && println("knows it does not have ngenes column")
         delete!(df2,1:4)
         for(j in 1:size(df2,2)) #columns in df2
             df[1,j+4] = mean(df2[:,j])
         end
-        df[1,:ngenes] = size(df2,1)
     end
 end
 

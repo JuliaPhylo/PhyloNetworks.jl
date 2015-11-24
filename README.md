@@ -221,7 +221,7 @@ to a species, and if only the species-level network needs
 to be estimated, this can be done with the following functions:
 ```julia
 new_df = mapAllelesCFtable(mappingFile, CFtable);
-new_d = readTableCF!(new_df);
+new_d = readTableCF(new_df);
 ```
 where the mapping file can be a text file (or csv) with two columns
 named *allele* and *species*, mapping each allele name to a species
