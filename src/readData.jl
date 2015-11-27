@@ -783,7 +783,11 @@ end
 # if tree has missing taxa, they will keep 0, but this is handled in calculateObsCFAll with sameTaxa function
 function tree2Matrix(T::HybridNetwork, S::Union{Vector{ASCIIString},Vector{Int64}}; rooted=true::Bool)
     # sort!(S) # why sort 'taxa', again and again for each tree? Benefits?
-    M = zeros(Int,length(T.edge)-T.numTaxa,length(S)+1)
+    ne = length(T.edge)-T.numTaxa # number of internal branch lengths
+    if (T.node[T.root].leaf)      # the root is a leaf: the 1 edge stemming from the root is an external edge
+        ne += 1                   # and will need to get a row in the matrix, to be deleted later.
+    end
+    M = zeros(Int,ne,length(S)+1)
     # M[:,1] = sort!([e.number for e in T.edge])
     ie = [1] # index of next edge to be documented: row index in M
     for(e in T.node[T.root].edge)

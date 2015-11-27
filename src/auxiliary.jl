@@ -1069,5 +1069,5 @@ end
 Returns a vector of taxon names (at the leaves) from a phylogenetic network.
 """
 function getTaxa(net::HybridNetwork)
-    ASCIIString[net5.leaf[i].name for i in 1:net5.numTaxa] # AbstractString does not work for later use by tree2Matrix
+    ASCIIString[net.leaf[i].name for i in 1:net.numTaxa] # AbstractString does not work for later use by tree2Matrix
 end

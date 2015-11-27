@@ -46,21 +46,33 @@ function displayedNetworks!(net::HybridNetwork, node::Node)
 end
 
 """
-`displayedTrees(net::HybridNetwork; gamma=0.0::Float64)`
+`displayedTrees(net::HybridNetwork, gamma::Float64)`
+
+Warning: for now, requires the network to have non-missing positive branch lengths and no missing heritabilities.
 
 Extracts all trees displayed in a network, following hybrid edges
 with heritability >= gamma threshold (or >0.5 if threshold=0.5)
 and ignoring any hybrid edge with heritability lower than gamma.
 Returns an array of trees, as HybridNetwork objects.
-gamma threshold = 0.0 by default.
 """
-function displayedTrees(net0::HybridNetwork; gamma=0.0::Float64)
+function displayedTrees(net0::HybridNetwork, gamma::Float64)
     trees = HybridNetwork[]
     net = deepcopy(net0)
     deleteHybridThreshold!(net,gamma)
     displayedTrees!(trees,net)
     return trees # should have length 2^net.numHybrids
 end
+
+"""
+`majorTree(net::HybridNetwork)`
+
+Warning: for now, requires the network to have non-missing positive branch lengths and no missing heritabilities.
+
+Extracts the major tree displayed in a network, keeping the major edge and dropping the minor edge at each hybrid node.
+Returns a HybridNetwork object.
+"""
+majorTree(net::HybridNetwork) = displayedTrees(net,0.5)[1]
+
 
 # expands current list of trees, with trees displayed in a given network
 function displayedTrees!(trees::Array{HybridNetwork,1},net::HybridNetwork)
@@ -76,12 +88,12 @@ end
 """
 `hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, rooted::Bool)`
 
+Warning: the current function is only implemented for trees, i.e. networks with 0 hybridizations.
+
 Takes 2 networks and returns their hardwired cluster distance, that is, the number of hardwired clusters found in one network and not in the other. Note that this is not a distance per se on the full space of hybrid networks: there are pairs of different networks for which this measure is 0. But it is a distance on some network subspaces.
 
 If the 2 networks are trees, this is the Robinson-Foulds distance.
 If rooted=false, the trees are considered unrooted.
-
-Warning: the current function is only implemented for trees, i.e. networks with 0 hybridizations.
 """
 function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, rooted::Bool)
     (net1.numHybrids == 0 && net2.numHybrids == 0) || error("hardwiredClusterDistance not implemented yet for non-tree networks.")

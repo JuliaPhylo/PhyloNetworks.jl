@@ -45,6 +45,7 @@ mapAllelesCFtable,
 getTaxa,
 deleteHybridThreshold!,
 displayedTrees,
+majorTree,
 hardwiredClusterDistance
 
 # export part
