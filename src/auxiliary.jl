@@ -1063,11 +1063,3 @@ function isBadTriangle(node::Node)
     end
 end
 
-"""
-`getTaxa(net::HybridNetwork)`
-
-Returns a vector of taxon names (at the leaves) from a phylogenetic network.
-"""
-function getTaxa(net::HybridNetwork)
-    ASCIIString[net.leaf[i].name for i in 1:net.numTaxa] # AbstractString does not work for later use by tree2Matrix
-end

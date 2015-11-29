@@ -4,10 +4,10 @@
 """
 `tipLabels(net::HybridNetwork)`
 
-returns a list of tip names for a HybridNetwork object
+returns a vector of taxon names (at the leaves) from a HybridNetwork object
 """
 function tipLabels(net::HybridNetwork)
-    return [l.name for l in net.leaf]
+    return ASCIIString[l.name for l in net.leaf] # AbstractString does not work for use by tree2Matrix
 end
 
 # function to re root on a node

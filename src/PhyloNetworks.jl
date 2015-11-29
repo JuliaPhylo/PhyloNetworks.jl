@@ -42,10 +42,10 @@ generalExport, #for graphviz test
 setLength!,
 setGamma!,
 mapAllelesCFtable,
-getTaxa,
 deleteHybridThreshold!,
 displayedTrees,
 majorTree,
+minorTreeAt,
 hardwiredClusterDistance
 
 # export part

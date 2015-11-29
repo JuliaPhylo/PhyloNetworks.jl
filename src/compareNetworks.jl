@@ -86,6 +86,24 @@ function displayedTrees!(trees::Array{HybridNetwork,1},net::HybridNetwork)
 end
 
 """
+`minorTreeAt(net::HybridNetwork, hybindex::Int64)`
+
+Warning: for now, requires the network to have non-missing positive branch lengths and no missing heritabilities.
+
+Extracts the tree displayed in the network, following the major hybrid edge at each hybrid node, except at the ith hybrid node (i=hybindex), where the minor hybrid edge is kept instead of the major hybrid edge.
+"""
+function minorTreeAt(net::HybridNetwork, hybindex::Int64)
+    hybindex <= length(net.hybrid) || error("network has fewer hybrid nodes than index $(index).")
+    tree = deepcopy(net)
+    hybedges = hybridEdges(tree.hybrid[hybindex])
+    majorgamma = hybedges[1].gamma
+    setGamma!(hybedges[2],majorgamma) # set major gamma to minor edge (to delete old major = new minor)
+    deleteHybrid!(tree.hybrid[hybindex],tree,true,false) # major edge at hybrid removed.
+    return majorTree(tree) # all remaining minor edges removed: now it's a tree.
+end
+
+
+"""
 `hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, rooted::Bool)`
 
 Warning: the current function is only implemented for trees, i.e. networks with 0 hybridizations.
