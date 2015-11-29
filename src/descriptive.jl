@@ -219,8 +219,8 @@ function show(io::IO,q::Quartet)
     print(io,"observed CF: $(q.obsCF)\n")
     print(io,"-logPseudo-dev under best estimated network $(q.logPseudoLik) (meaningless before estimation)\n")
     print(io,"expected CF under best estimated network: $(q.qnet.expCF) (meaningless before estimation)\n")
-    if(ngenes != -1)
-        print(io,"number of genes used to compute observed CF: $(ngenes)\n")
+    if(q.ngenes != -1)
+        print(io,"number of genes used to compute observed CF: $(q.ngenes)\n")
     end
 end
 
