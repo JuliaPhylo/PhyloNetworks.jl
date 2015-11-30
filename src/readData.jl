@@ -312,6 +312,18 @@ function unionTaxa(trees::Vector{HybridNetwork})
     for t in trees
         taxa = union(taxa,t.names)
     end
+    integers = true
+    try
+        parse(Int,taxa[1])
+    catch
+        integers = false
+    end
+    # to sort taxa
+    if(integers)
+        taxa = map(x->string(x),sort(map(x->parse(Int,x),taxa)))
+    else
+        taxa = sort(taxa)
+    end
     return taxa
 end
 
@@ -320,6 +332,18 @@ function unionTaxa(quartets::Vector{Quartet})
     taxa = quartets[1].taxon
     for q in quartets
         taxa = union(taxa,q.taxon)
+    end
+    integers = true
+    try
+        parse(Int,taxa[1])
+    catch
+        integers = false
+    end
+    # to sort taxa
+    if(integers)
+        taxa = map(x->string(x),sort(map(x->parse(Int,x),taxa)))
+    else
+        taxa = sort(taxa)
     end
     return taxa
 end
@@ -814,7 +838,7 @@ Warning: clusters are rooted, so the root must be correct.
 
 Each row corresponds to one internal edge, that is, external edges are excluded.
 If the root is a leaf node, the external edge to that leaf is included (first row).
-Both parent hybrid edges to a given hybrid node only contribute a single row (they share the same hardwired cluster). 
+Both parent hybrid edges to a given hybrid node only contribute a single row (they share the same hardwired cluster).
 
 - first column: edge number
 - next columns: 0/1 values. 1=descendant of edge, 0=not a descendant.
