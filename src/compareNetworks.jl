@@ -93,7 +93,7 @@ Warning: for now, requires the network to have non-missing positive branch lengt
 Extracts the tree displayed in the network, following the major hybrid edge at each hybrid node, except at the ith hybrid node (i=hybindex), where the minor hybrid edge is kept instead of the major hybrid edge.
 """
 function minorTreeAt(net::HybridNetwork, hybindex::Int64)
-    hybindex <= length(net.hybrid) || error("network has fewer hybrid nodes than index $(index).")
+    hybindex <= length(net.hybrid) || error("network has fewer hybrid nodes than index $(hybindex).")
     tree = deepcopy(net)
     hybedges = hybridEdges(tree.hybrid[hybindex])
     majorgamma = hybedges[1].gamma

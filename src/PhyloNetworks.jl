@@ -46,6 +46,7 @@ deleteHybridThreshold!,
 displayedTrees,
 majorTree,
 minorTreeAt,
+hardwiredClusters,
 hardwiredClusterDistance
 
 # export part
