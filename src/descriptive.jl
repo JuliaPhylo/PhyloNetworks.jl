@@ -47,9 +47,13 @@ function root!(net::HybridNetwork, node::Node, resolve::Bool)
 end
 
 """
-`root!(net::HybridNetwork, nodeNumber)`
+`root!(net::HybridNetwork, nodeNumber::Int64, resolve::Bool)`
 
-root the network/tree object at the node with nodeNumber
+`root!(net::HybridNetwork, nodeNumber::Int64)`
+
+Roots the network/tree object at the node with number 'nodeNumber'.
+With resolve=true, the polytomy at the root is resolved arbitrarily (??) with a branch of length 0.
+The second version uses resolve=false, that is, a polytomy is left at the root.
 """
 function root!(net::HybridNetwork, nodeNum::Int64, resolve::Bool)
     try
@@ -145,9 +149,9 @@ end
 # function to root a network on an outgroup
 # (single taxon)
 """
-`root!(net::HybridNetwork, outgroup)`
+`root!(net::HybridNetwork, outgroup::AbstractString)`
 
-root the network/tree object with the outgroup taxon name given as argument.
+Roots the network/tree object along the external edge leading to the taxon named 'outgroup'.
 """
 function root!(net::HybridNetwork, outgroup::AbstractString)
     if(!isTree(net))
