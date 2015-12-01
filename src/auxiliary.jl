@@ -27,7 +27,9 @@ end
 
 approxEq(a::Number,b::Number) = approxEq(a,b,1e-5,100)
 
-
+# isEqual functions: to test if 2 edges (or 2 nodes etc.) "look" alike.
+#                    Useful after a deepcopy of a network.
+# For nodes (or edges etc.) in the same network, use instead n1 == n2 or n1 != n2.
 function isEqual(n1::Node,n2::Node)
     return (n1.number == n2.number && approxEq(n1.gammaz,n2.gammaz) && n1.inCycle == n2.inCycle)
 end

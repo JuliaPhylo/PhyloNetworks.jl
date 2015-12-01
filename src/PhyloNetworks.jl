@@ -46,6 +46,7 @@ deleteHybridThreshold!,
 displayedTrees,
 majorTree,
 minorTreeAt,
+displayedNetworkAt!,
 hardwiredClusters,
 hardwiredClusterDistance
 
