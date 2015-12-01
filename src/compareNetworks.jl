@@ -247,7 +247,8 @@ end
 """
 `displayedNetworkAt!(net::HybridNetwork, node::Node)`
 
-Warning: for now, requires the network to have non-missing positive branch lengths and no missing heritabilities.
+Warning: for now, requires the network to have non-missing positive branch lengths and no missing heritabilities,
+and full attributes, as set when the network is read by readTopologyLevel1.
 
 Deletes all the minor hybrid edges, except at input node. The network is left with a single hybridization, and otherwise displays the same major tree as before.
 """
@@ -256,7 +257,7 @@ function displayedNetworkAt!(net::HybridNetwork, node::Node)
     for(i = net.numHybrids:-1:1)
     # starting from last because net.hybrid changes as hybrids are removed. Empty range if 0 hybrids.
         net.hybrid[i] != node || continue
-        deleteHybrid!(net.hybrid[i],net,true,false)
+        deleteHybridizationUpdate!(net,net.hybrid[i],false,false)
     end
 end
 
