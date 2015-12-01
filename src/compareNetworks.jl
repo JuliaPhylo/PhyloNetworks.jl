@@ -64,12 +64,12 @@ end
 
 
 Returns a matrix describing all the hardwired clusters in a network.
-Warning: clusters are rooted, so the root must be correct.
-Warning: allows for missing taxa, with entries all 0.
+Warnings: Clusters are rooted, so the root must be correct.
+          Allows for missing taxa, with entries all 0.
 
 Each row corresponds to one internal edge, that is, external edges are excluded.
 If the root is a leaf node, the external edge to that leaf is included (first row).
-Both parent hybrid edges to a given hybrid node only contribute a single row (they share the same hardwired cluster). 
+Both parent hybrid edges to a given hybrid node only contribute a single row (they share the same hardwired cluster).
 
 - first column: edge number
 - next columns: 0/1 values. 1=descendant of edge, 0=not a descendant, or missing taxon.

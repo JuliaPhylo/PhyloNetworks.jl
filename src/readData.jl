@@ -312,6 +312,18 @@ function unionTaxa(trees::Vector{HybridNetwork})
     for t in trees
         taxa = union(taxa,t.names)
     end
+    integers = true
+    try
+        parse(Int,taxa[1])
+    catch
+        integers = false
+    end
+    # to sort taxa
+    if(integers)
+        taxa = map(x->string(x),sort(map(x->parse(Int,x),taxa)))
+    else
+        taxa = sort(taxa)
+    end
     return taxa
 end
 
@@ -320,6 +332,18 @@ function unionTaxa(quartets::Vector{Quartet})
     taxa = quartets[1].taxon
     for q in quartets
         taxa = union(taxa,q.taxon)
+    end
+    integers = true
+    try
+        parse(Int,taxa[1])
+    catch
+        integers = false
+    end
+    # to sort taxa
+    if(integers)
+        taxa = map(x->string(x),sort(map(x->parse(Int,x),taxa)))
+    else
+        taxa = sort(taxa)
     end
     return taxa
 end
@@ -746,7 +770,6 @@ function resolution(names::Vector{ASCIIString},rownames::Vector{ASCIIString})
         error("strange resolution $(bin)")
     end
 end
-
 
 
 # function to extract a quartet from a matrix M
