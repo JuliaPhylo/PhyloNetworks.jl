@@ -28,10 +28,30 @@ end
 
 # fixit: add this to root! function
 
+# function to get the parent node of a given node
+# it assumes the isChild1 attributes are correct
+function getParent(node::Node)
+    parents = Node[]
+    if(node.hybrid)
+        for(e in node.edge)
+            if(e.hybrid)
+                push!(parents,getOtherNode(e,node))
+            end
+        end
+    else
+        for(e in node.edge)
+            if(isEqual(node,e.isChild1 ? e.node[1] : e.node[2])) #node is child of e
+                push!(parents,getOtherNode(e,node))
+            end
+        end
+    end
+    return parents
+end
+
 # function to order nodes in topological sorting
 # saves vector of nodes in the right order in net.nodes_changed
-function postorder!(net::HybridNetwork)
-    net.isRooted || error("net needs to be rooted for topological sorting, run root! or directEdges")
+function preorder!(net::HybridNetwork)
+    net.isRooted || error("net needs to be rooted for preorder, run root! or directEdges")
     println("starting traversal of network from root: $(net.node[net.root].number)")
     net.nodes_changed = Node[] #path of nodes
     queue = PriorityQueue();
@@ -100,9 +120,10 @@ function updateSharedPathMatrix!(i::Int,nodes::Vector{Node},V::Matrix)
 end
 
 
-function sharedPathMatrix(net::HybridNetwork; checkPostorder=true::Bool) #maybe we only need to input
-    if(checkPostorder)
-        postorder!(net)
+function sharedPathMatrix(net::HybridNetwork; checkPreorder=true::Bool) #maybe we only need to input
+    net.isRooted || error("net needs to be rooted to get matrix of shared path lengths")
+    if(checkPreorder)
+        preorder!(net)
     end
     sharedPathMatrix(net.nodes_changed)
 end
