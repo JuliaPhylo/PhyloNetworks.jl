@@ -30,7 +30,7 @@ end
 
 # function to order nodes in topological sorting
 # saves vector of nodes in the right order in net.nodes_changed
-function topSorting!(net::HybridNetwork)
+function postorder!(net::HybridNetwork)
     net.isRooted || error("net needs to be rooted for topological sorting, run root! or directEdges")
     println("starting traversal of network from root: $(net.node[net.root].number)")
     net.nodes_changed = Node[] #path of nodes
@@ -50,7 +50,7 @@ function topSorting!(net::HybridNetwork)
         push!(net.nodes_changed,curr) #push curr into path
         for(e in curr.edge)
             if(e.isMajor) #only traverse major edges
-                if(isEqual(curr,e.node[e.isChild1 ? 2 : 1])) # e is child edge of curr
+                if(isEqual(curr,e.node[e.isChild1 ? 2 : 1])) # curr is the parent node if e
                     other = getOtherNode(e,curr)
                     if(!e.hybrid)
                         enqueue!(queue,other,1)
@@ -71,6 +71,53 @@ function topSorting!(net::HybridNetwork)
     end
     println("path of nodes is $([n.number for n in net.nodes_changed])")
 end
+
+# function to compute the variance-covariance between Node and its parents
+function updateSharedPathMatrix!(i::Int,nodes::Vector{Node},V::Matrix)
+    parent = getParent(nodes[i]) #array of nodes (empty, size 1 or 2)
+    if(isempty(parent)) #nodes[i] is root
+        return
+    elseif(length(parent) == 1) #nodes[i] is tree
+        parentIndex = getIndex(parent[1],nodes)
+        for(j in 1:(i-1))
+            V[i,j] = V[j,parentIndex]
+            V[j,i] = V[j,parentIndex]
+        end
+        V[i,i] = V[parentIndex,parentIndex] + getConnectingEdge(nodes[i],parent[1]).length
+    elseif(length(parent) == 2) #nodes[i] is hybrid
+        parentIndex1 = getIndex(parent[1],nodes)
+        parentIndex2 = getIndex(parent[2],nodes)
+        edge1 = getConnectingEdge(nodes[i],parent[1])
+        edge2 = getConnectingEdge(nodes[i],parent[2])
+        edge1.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[1].number) should be a hybrid egde")
+        edge2.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[2].number) should be a hybrid egde")
+        for(j in 1:(i-1))
+            V[i,j] = V[j,parentIndex1]*edge1.gamma + V[j,parentIndex2]*edge2.gamma
+            V[j,i] = V[i,j]
+        end
+        V[i,i] = edge1.gamma*edge1.gamma*(V[parentIndex1,parentIndex1] + edge1.length) + edge2.gamma*edge2.gamma*(V[parentIndex2,parentIndex2] + edge2.length) + 2*edge1.gamma*edge2.gamma*V[parentIndex1,parentIndex2]
+    end
+end
+
+
+function sharedPathMatrix(net::HybridNetwork; checkPostorder=true::Bool) #maybe we only need to input
+    if(checkPostorder)
+        postorder!(net)
+    end
+    sharedPathMatrix(net.nodes_changed)
+end
+
+function sharedPathMatrix(nodes::Vector{Node})
+    n = length(net.nodes_changed)
+    V = zeros(Float64,n,n)
+    for(i in 1:n) #sorted list of nodes
+        updateSharedPathMatrix!(i,net.nodes_changed,V)
+    end
+    return V
+end
+
+
+
 
 
 
