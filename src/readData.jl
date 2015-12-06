@@ -714,6 +714,7 @@ end
 # aux function to traverse the network from a node and an edge
 # based on traverseContainRoot
 # warning: it does not go accross hybrid node, minor hybrid edge
+# there is another getDescendants in update.jl for updatePartition
 function getDescendants!(node::Node, edge::Edge, descendants::Array{Node,1})
     if(node.leaf)
         push!(descendants, node)

@@ -1065,3 +1065,20 @@ function isBadTriangle(node::Node)
     end
 end
 
+
+# function to check if a partition is already in net.partition
+# used in updatePartition
+function isPartitionInNet(net::HybridNetwork,partition::Partition)
+    if(isempty(net.partition))
+        return false
+    end
+    for(p in net.partition)
+        cycle = isempty(setdiff(p.cycle,partition.cycle)) && isempty(setdiff(partition.cycle,p.cycle))
+        edges = isempty(setdiff([n.number for n in p.edges],[n.number for n in partition.edges])) && isempty(setdiff([n.number for n in partition.edges],[n.number for n in p.edges]))
+        if(cycle && edges)
+            return true
+        end
+    end
+    return false
+end
+

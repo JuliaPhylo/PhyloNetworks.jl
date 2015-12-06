@@ -215,8 +215,10 @@ end
 #        updatemajor (bool) to decide if we need to update major edge
 #        only need to update if new hybrid added, if read from file not needed
 #        allow=true allows extreme/very bad triangles, needed when reading
+#        updatePart = true will update PArtition at this moment, it makes sense with a newly added hybrid
+#        but not if net just read (because in this case it needs all inCycle updated before)
 # returns: success bool, hybrid, flag, nocycle, flag2, flag3
-function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool, allow::Bool)
+function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool, allow::Bool, updatePart::Bool)
     flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,hybrid);
     if(nocycle)
         return false, hybrid, flag, nocycle, false, false
@@ -228,7 +230,9 @@ function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool,
             flag2, edgesGammaz = updateGammaz!(net,hybrid,allow);
             if(flag2)
                 flag3, edgesRoot = updateContainRoot!(net,hybrid);
-                 updatePartition!(net,nodesInCycle)
+                if(updatePart)
+                    updatePartition!(net,nodesInCycle)
+                end
                 if(flag3)
                     parameters!(net)
                     return true, hybrid, flag, nocycle, flag2, flag3
@@ -240,7 +244,9 @@ function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool,
                     return false, hybrid, flag, nocycle, flag2, flag3
                 end
             else
-                updatePartition!(net,nodesInCycle)
+                if(updatePart)
+                    updatePartition!(net,nodesInCycle)
+                end
                 flag3, edgesRoot = updateContainRoot!(net,hybrid); #update contain root even if it is bad triangle to writeTopology correctly
                 #undoistIdentifiable!(edgesGammaz);
                 #undoGammaz!(hybrid,net);
@@ -255,7 +261,7 @@ function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool,
     end
 end
 
-updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool) = updateAllNewHybrid!(hybrid,net, updatemajor, false)
+updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool) = updateAllNewHybrid!(hybrid,net, updatemajor, false, true)
 
 # function to add a new hybridization event
 # it calls chooseEdgesGamma and createHybrid!
@@ -276,69 +282,6 @@ addHybridizationUpdate!(net::HybridNetwork) = addHybridizationUpdate!(net, false
 addHybridizationUpdate!(net::HybridNetwork, blacklist::Bool) = addHybridizationUpdate!(net, blacklist::Bool, true)
 
 
-# based on getDescendants on readData.jl but with vector of edges, instead of nodes
-# finds the partition corresponding to the node and edge in the cycle
-# used in chooseEdgesGamma and to set net.partition
-# cycleNum is a variable that will save another hybrid node number if found
-function getDescendants!(node::Node, edge::Edge, descendants::Vector{Edge}, cycleNum::Vector{Int64})
-    if(node.inCycle != -1)
-        push!(cycleNum,node.inCycle)
-    elseif(!node.leaf && node.inCycle == -1)
-        for(e in node.edge)
-            if(!isEqual(edge,e) && e.isMajor)
-                push!(descendants,e)
-                getDescendants!(getOtherNode(e,node),e,descendants,cycleNum)
-            end
-        end
-    end
-end
-
-# function to update the net.partition attribute along a cycle formed
-# by nodesChanged vector (obtained from updateInCycle)
-function updatePartition!(net::HybridNetwork, nodesChanged::Vector{Node})
-    length(nodesChanged) > 2 || error("incycle with only 2 nodes in it after updateGammaz")
-    #println("nodesChanged are $([n.number for n in nodesChanged])")
-    if(net.numHybrids == 0)
-        net.partition = Partition[]
-    end
-    for(n in nodesChanged)
-        if(length(n.edge) == 3) #because we are allowing the root to have only two edges when read from parenthetical format
-            edge = nothing
-            for(e in n.edge)
-                if(e.inCycle == -1)
-                    edge = e
-                end
-            end
-            !isa(edge,Void) || error("one edge in n.edge for node $(n.number) should not be in cycle")
-            descendants = [edge]
-            cycleNum = [nodesChanged[1].inCycle]
-            getDescendants!(getOtherNode(edge,n),edge,descendants,cycleNum)
-            !isempty(descendants) || error("descendants is empty for node $(n.number)")
-            DEBUG && println("for node $(n.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
-            partition = Partition(cycleNum,descendants)
-            push!(net.partition, partition)
-        end
-    end
-end
-
-function choosePartition(net::HybridNetwork)
-    all((n->(length(n.edges) == 1)), net.partition) && return 0 #cannot put any hyb
-    all((n->(length(n.edges) == 3)), net.partition) && return 0 #can only put very bad triangles
-    partition = Int64[] #good partitions
-    for(i in 1:length(net.partition))
-        if(length(net.partition[i].edges) > 3)
-            push!(partition,i)
-        end
-    end
-    isempty(partition) && return 0
-    length(partition) == 1 && return partition[1]
-    index1 = round(Integer,rand()*size(partition,1));
-    while(index1 == 0 || index1 > length(partition))
-        index1 = round(Integer,rand()*size(partition,1));
-    end
-    DEBUG && println("chosen partition $([n.number for n in net.partition[partition[index1]].edges])")
-    return partition[index1]
-end
 
 
 # function that will add a hybridization with addHybridizationUpdate,

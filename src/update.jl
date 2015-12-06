@@ -317,3 +317,74 @@ function isEdgeIdentifiable(edge::Edge)
         end
     end
 end
+
+
+
+# function to update the net.partition attribute along a cycle formed
+# by nodesChanged vector (obtained from updateInCycle)
+# warning: needs updateInCycle for all hybrids before running this
+function updatePartition!(net::HybridNetwork, nodesChanged::Vector{Node})
+    length(nodesChanged) > 2 || error("incycle with only 2 nodes in it after updateGammaz")
+    #println("nodesChanged are $([n.number for n in nodesChanged])")
+    if(net.numHybrids == 0)
+        net.partition = Partition[]
+    end
+    for(n in nodesChanged)
+        if(length(n.edge) == 3) #because we are allowing the root to have only two edges when read from parenthetical format
+            edge = nothing
+            for(e in n.edge)
+                if(e.inCycle == -1)
+                    edge = e
+                end
+            end
+            !isa(edge,Void) || error("one edge in n.edge for node $(n.number) should not be in cycle")
+            descendants = [edge]
+            cycleNum = [nodesChanged[1].inCycle]
+            getDescendants!(getOtherNode(edge,n),edge,descendants,cycleNum)
+            !isempty(descendants) || error("descendants is empty for node $(n.number)")
+            DEBUG && println("for node $(n.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
+            partition = Partition(cycleNum,descendants)
+            if(!isPartitionInNet(net,partition)) #need to check not already added by other hybrid nodes
+                push!(net.partition, partition)
+            end
+        end
+    end
+end
+
+function choosePartition(net::HybridNetwork)
+    all((n->(length(n.edges) == 1)), net.partition) && return 0 #cannot put any hyb
+    all((n->(length(n.edges) == 3)), net.partition) && return 0 #can only put very bad triangles
+    partition = Int64[] #good partitions
+    for(i in 1:length(net.partition))
+        if(length(net.partition[i].edges) > 3)
+            push!(partition,i)
+        end
+    end
+    isempty(partition) && return 0
+    length(partition) == 1 && return partition[1]
+    index1 = round(Integer,rand()*size(partition,1));
+    while(index1 == 0 || index1 > length(partition))
+        index1 = round(Integer,rand()*size(partition,1));
+    end
+    DEBUG && println("chosen partition $([n.number for n in net.partition[partition[index1]].edges])")
+    return partition[index1]
+end
+
+
+# based on getDescendants on readData.jl but with vector of edges, instead of nodes
+# finds the partition corresponding to the node and edge in the cycle
+# used in chooseEdgesGamma and to set net.partition
+# cycleNum is a variable that will save another hybrid node number if found
+function getDescendants!(node::Node, edge::Edge, descendants::Vector{Edge}, cycleNum::Vector{Int64})
+    DEBUG && println("getDescendants of node $(node.number) and edge $(edge.number)")
+    if(node.inCycle != -1)
+        push!(cycleNum,node.inCycle)
+    elseif(!node.leaf && node.inCycle == -1)
+        for(e in node.edge)
+            if(!isEqual(edge,e) && e.isMajor)
+                push!(descendants,e)
+                getDescendants!(getOtherNode(e,node),e,descendants,cycleNum)
+            end
+        end
+    end
+end

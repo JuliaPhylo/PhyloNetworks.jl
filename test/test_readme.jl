@@ -9,7 +9,7 @@ try
     d=readTrees2CF("../examples/treefile.txt");
     d2=readTrees2CF("../examples/treefile.txt",whichQ="rand",numQ=10);
     d=readTableCF("../examples/tableCF.txt");
-    #T=readTopology("../examples/startTree.txt");
+    T=readTopology("../examples/startTree.txt");
     T=readTopologyLevel1("../examples/startTree.txt");
     T2=readTopology("../examples/startTree.txt");
     T3=readTopology("(2,3,(4,(5,(1,6))));")

@@ -528,7 +528,7 @@ end
 #   if 1: check values of gamma:
 # - gammas: need to sum to one and be present.
 #   error if they do not sum up to one
-#   default values of 0.51,0.49 if not present
+#   default values of 0.1,0.9 if not present
 # leaveRoot=true: leaves the root even if it has only 2 edges (for plotting), default=false
 function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
     mod(sum([!e.hybrid?e.gamma:0 for e in net.edge]),1) == 0 ? nothing : error("tree (not network) read and some tree edge has gamma different than 1")
@@ -664,11 +664,19 @@ function updateAllReadTopology!(net::HybridNetwork)
     else
         if(!net.cleaned)
             for(n in net.hybrid)
-                success,hyb,flag,nocycle,flag2,flag3 = updateAllNewHybrid!(n,net,false,true)
+                success,hyb,flag,nocycle,flag2,flag3 = updateAllNewHybrid!(n,net,false,true,false)
                 if(!success)
                     warn("current hybrid $(n.number) conflicts with previous hybrid by intersecting cycles: $(!flag), nonidentifiable topology: $(!flag2), empty space for contain root: $(!flag3), or does not create a cycle (probably problem with the root placement): $(nocycle).")
-                    net.cleaned = false
+                    #net.cleaned = false
                 end
+            end
+            DEBUG && println("before update partition")
+            DEBUG && printPartitions(net)
+            for(n in net.hybrid) #need to updatePartition after all inCycle
+                nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,n);
+                updatePartition!(net,nodesInCycle)
+                DEBUG && println("after updating partition for hybrid node $(n.number)")
+                DEBUG && printPartitions(net)
             end
         end
     end
@@ -689,7 +697,7 @@ function cleanAfterReadAll!(net::HybridNetwork, leaveRoot::Bool)
     DEBUG && println("check root placement -----")
     checkRootPlace!(net)
     net.node[net.root].leaf && warn("root node $(net.node[net.root].number) is a leaf, so when plotting net, it can look weird")
-    net.cleaned = true
+    net.cleaned = true #fixit: set to false inside updateAllReadTopology if problem encountered
     net.isRooted = false
 end
 
@@ -821,8 +829,9 @@ end
 # outgroup: place the root in the external edge of this taxon if possible,
 # if none given, placed the root wherever possible
 # printID=true, only print identifiable BL, default false (only true inside snaq)
-function writeTopology(net::HybridNetwork, di::Bool, string::Bool, names::Bool,outgroup::AbstractString, printID::Bool)
+function writeTopology(net0::HybridNetwork, di::Bool, string::Bool, names::Bool,outgroup::AbstractString, printID::Bool)
     s = IOBuffer()
+    net = deepcopy(net0) #writeTopology needs containRoot, but should not alter net0
     if(net.numBad > 0)
         println("net has $(net.numBad) bad diamond I, gammas and some branch lengths are not identifiable, and therefore, meaningless")
     end

@@ -2,8 +2,8 @@
 # Claudia May 2015
 
 
-include("/Users/Clauberry/Documents/phylo/software/CFimplementation/julia/git_laptop/CFnetworks/types.jl")
-include("/Users/Clauberry/Documents/phylo/software/CFimplementation/julia/git_laptop/CFnetworks/functions.jl")
+include("/Users/Clauberry/Documents/phylo/software/CFimplementation/julia/git_laptop/PhyloNetworks/src/types.jl")
+include("/Users/Clauberry/Documents/phylo/software/CFimplementation/julia/git_laptop/PhyloNetworks/src/functions.jl")
 
 tree = "(((((((1,2),3),4),5),(6,7)),(8,9)),10);"
 
@@ -11,7 +11,7 @@ tree = "(((((((1,2),3),4),5),(6,7)),(8,9)),10);"
 seed = 56326
 
 currT0 = readTopologyUpdate(tree);
-srand(seed)
+srand(seed);
 besttree = deepcopy(currT0);
 success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
 success
@@ -20,12 +20,12 @@ printNodes(besttree)
 writeTopology(besttree,true)
 net = deepcopy(besttree);
 length(net.partition)
-[n.number for n in net.partition[1].edges]
-[n.number for n in net.partition[2].edges]
-[n.number for n in net.partition[3].edges]
-[n.number for n in net.partition[4].edges]
-[n.number for n in net.partition[5].edges]
-[n.number for n in net.partition[6].edges]
+[n.number for n in net.partition[1].edges] == [15] || error("wrong partition")
+[n.number for n in net.partition[2].edges] == [11] || error("wrong partition")
+[n.number for n in net.partition[3].edges] == [10] || error("wrong partition")
+[n.number for n in net.partition[4].edges] == [9,7,5,3,1,2,4,6,8] || error("wrong partition")
+[n.number for n in net.partition[5].edges] == [17] || error("wrong partition")
+[n.number for n in net.partition[6].edges] == [14] || error("wrong partition")
 
 
 success = false
@@ -36,28 +36,28 @@ printNodes(besttree)
 writeTopology(besttree,true)
 net = deepcopy(besttree);
 length(net.partition)
-[n.number for n in net.partition[1].edges]
-[n.number for n in net.partition[2].edges]
-[n.number for n in net.partition[3].edges]
-[n.number for n in net.partition[4].edges]
-[n.number for n in net.partition[5].edges]
-[n.number for n in net.partition[6].edges]
-[n.number for n in net.partition[7].edges]
-[n.number for n in net.partition[8].edges]
-[n.number for n in net.partition[9].edges]
-[n.number for n in net.partition[10].edges]
+[n.number for n in net.partition[1].edges] == [15] || error("wrong partition")
+[n.number for n in net.partition[2].edges] == [11] || error("wrong partition")
+[n.number for n in net.partition[3].edges] == [10] || error("wrong partition")
+[n.number for n in net.partition[4].edges] == [17] || error("wrong partition")
+[n.number for n in net.partition[5].edges] == [14] || error("wrong partition")
+[n.number for n in net.partition[6].edges] == [3,1,2] || error("wrong partition")
+[n.number for n in net.partition[7].edges] == [21] || error("wrong partition")
+[n.number for n in net.partition[8].edges] == [8] || error("wrong partition")
+[n.number for n in net.partition[9].edges] == [6] || error("wrong partition")
+[n.number for n in net.partition[10].edges] == [4] || error("wrong partition")
 
 deleteHybridizationUpdate!(net,net.node[21]);
 length(net.partition)
-length(net.partition) == 6
+length(net.partition) == 6 || error("wrong partition")
 # 15,11,10,[9,7,5,3,1,2,4,6,8],17,14
-[n.number for n in net.partition[1].edges] == [15]
-[n.number for n in net.partition[2].edges] == [11]
-[n.number for n in net.partition[3].edges] == [10]
-[n.number for n in net.partition[4].edges] == [17]
-[n.number for n in net.partition[5].edges] == [14]
-[n.number for n in net.partition[6].edges] == [3,1,2,21,8,6,4,9,7]
+[n.number for n in net.partition[1].edges] == [15] || error("wrong partition")
+[n.number for n in net.partition[2].edges] == [11] || error("wrong partition")
+[n.number for n in net.partition[3].edges] == [10] || error("wrong partition")
+[n.number for n in net.partition[4].edges] == [17] || error("wrong partition")
+[n.number for n in net.partition[5].edges] == [14] || error("wrong partition")
+[n.number for n in net.partition[6].edges] == [3,1,2,21,8,6,4,9,7] || error("wrong partition")
 printNodes(net)
 
 deleteHybridizationUpdate!(net,net.node[18]);
-length(net.partition) == 0
+length(net.partition) == 0 || error("wrong partition")

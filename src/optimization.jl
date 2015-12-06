@@ -1200,25 +1200,22 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     currT0.numTaxa >= 5 || error("cannot estimate hybridizations in topologies with fewer than 5 taxa, this topology has $(currT0.numTaxa) taxa")
     # need a clean starting net. fixit: maybe we need to be more thorough here
     # yes, need to check that everything is ok because it could have been cleaned and then modified
-    if(updateBL && isTree(currT0))
-        updateBL!(currT0,d) # we are doing it always inside snaq now
-    end
 
     if(!currT0.cleaned) #need a clean topology
         DEBUG && println("si, se metio a q no esta cleaned")
-        try
-            cleanAfterReadAll!(currT0)
-        catch(err)
-            error("starting topology suspected not level-1: $(err)")
-        end
+        DEBUG && println("currT0.cleaned=false, will re-read with readTopologyLevel1")
+        currT1 = readTopologyUpdate(writeTopology(currT0)) #re read to update everything as it should
+        flag = checkNet(currT1,true)
+        flag && error("starting topology suspected not level-1: $(err)")
+        currT0 = deepcopy(currT1)
     else
         flag = checkNet(currT0,true)
         if(flag)
-            try
-                cleanAfterReadAll!(currT0)
-            catch(err)
-                error("starting topology suspected not level-1: $(err)")
-            end
+            DEBUG && println("currT0 failes checkNet, will re-read with readTopologyLevel1")
+            currT1 = readTopologyUpdate(writeTopology(currT0)) #re read to update everything as it should
+            flag = checkNet(currT1,true)
+            flag && error("starting topology suspected not level-1: $(err)")
+            currT0 = deepcopy(currT1)
         end
     end
     try
@@ -1226,6 +1223,10 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     catch
         error("starting topology not a level 1 network")
      end
+
+    if(updateBL && isTree(currT0))
+        updateBL!(currT0,d) # we are doing it always inside snaq now
+    end
 
     # for the case of multiple alleles: expand into two leaves quartets like sp1 sp1 sp2 sp3.
     if(!isempty(d.repSpecies))
