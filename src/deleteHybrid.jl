@@ -186,7 +186,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool, blacklist::Boo
             setEdge!(other1,treeedge1);
             removeEdge!(other1, hybedge1);
             deleteEdge!(net,hybedge1);
-            treeedge1.containRoot = (!treeedge1.containRoot || !hybedge1.containRoot) ? false : true
+            #treeedge1.containRoot = (!treeedge1.containRoot || !hybedge1.containRoot) ? false : true #causes problems if hybrid.CR=false
             if(blacklist)
                 println("put in blacklist edge $(treeedge1.number)")
                 push!(net.blacklist, treeedge1.number)
@@ -289,7 +289,7 @@ deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool) = deleteHybrid!(node,ne
 # function to delete a hybrid edge.
 # input: network and edge belonging in this network.
 # warning: does NOT update any attributes needed for snaq! (like containRoot etc.)
-#          allows for networks of any level. 
+#          allows for networks of any level.
 # updates: branch lengths (allowing for missing values)
 function deleteHybridEdge!(net::HybridNetwork,edge::Edge)
     edge.hybrid || error("edge $(edge.number) has to be hybrid for deleteHybridEdge!")
