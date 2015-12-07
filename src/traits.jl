@@ -198,10 +198,119 @@ end
 #end
 
 
+#################################################
+## Functions for Phylgenetic Network regression
+#################################################
+
+# New type for phyloNetwork regression
+type phyloNetworkRegression
+    coefficients::Vector
+    sigma2::Real
+    loglik::Real
+    V::Matrix
+    Vy::Matrix
+    fittedValues::Vector
+    residuals::Vector
 end
 
+# Function for lm with net residuals
+function phyloNetorklm(Y::Vector, X::Matrix, net::HybridNetwork, model="BM"::AbstractString)
+	# Geting variance covariance
+	V = sharedPathMatrix(net)
+	Vy = extractVarianceTips(V, net)
+	# Needed quantities (naive)
+	ntaxa = length(Y)
+	Vyinv = inv(Vy)
+	XtVyinv = X' * Vyinv
+	logdetVy = logdet(Vy)
+	# beta hat
+	betahat = inv(XtVyinv * X) * XtVyinv * Y
+	# sigma2 hat
+	fittedValues =  X * betahat
+	residuals = Y - fittedValues
+	sigma2hat = 1/ntaxa * (residuals' * Vyinv * residuals)
+	# log likelihood
+	loglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(sigma2hat) + logdetVy)
+	# Result
+	res = phyloNetworkRegression(betahat, sigma2hat[1], loglik[1], V, Vy, fittedValues, residuals)
+	return(res)
+end
+
+# Add methods on type phyloNetworkRegression
 
 
 
+#################################################
+## Types for params process
+#################################################
+
+# Abstract type of all the (future) types (BM, OU, ...)
+abstract paramsProcess
+
+# BM type
+type paramsBM <: paramsProcess
+    mu::Real # Ancestral value or mean
+    sigma2::Real # variance
+    randomRoot::Bool # Root is random ? default false
+    varRoot::Real # root variance. Default NaN
+end
+# Constructor
+paramsBM(mu, sigma2) = paramsBM(mu, sigma2, false, NaN) # default values
+
+
+
+#################################################
+## Simulation Function
+#################################################
+
+# Uses recursion on the network.
+# Takes params of type paramsProcess as an entry
+# Returns a matrix with two lines:
+# - line one = expectations at all the nodes
+# - line two = simulated values at all the nodes
+# The nodes are ordered as given by topological sorting
+function simulate(net::HybridNetwork, params::paramsProcess, model="BM"::AbstractString, checkPreorder=true::Bool)
+	recursionPreOrder(net, checkPreorder, initSimulateBM, updateSimulateBM!, params)
+end
+
+function initSimulateBM(nodes::Vector{Node}, params::Tuple{paramsBM})
+	return(zeros(2, length(nodes)))
+end
+
+function updateSimulateBM!(i::Int, nodes::Vector{Node}, M::Matrix, params::Tuple{paramsBM})
+    params = params[1]
+    parent = getParent(nodes[i]) #array of nodes (empty, size 1 or 2)
+    if(isempty(parent)) #nodes[i] is root
+        if (params.randomRoot)
+		M[1, i] = params.mu # expectation
+		M[2, i] = exp + sqrt(params.varRoot) * randn() # random value
+	else
+		M[1, i] = params.mu # expectation
+		M[2, i] = params.mu # random value (root fixed)
+	end
+
+    elseif(length(parent) == 1) #nodes[i] is tree
+        parentIndex = getIndex(parent[1],nodes)
+	l = getConnectingEdge(nodes[i],parent[1]).length
+	M[1, i] = params.mu  # expectation
+	M[2, i] = M[2, parentIndex] + sqrt(params.sigma2 * l) * randn() # random value
+
+    elseif(length(parent) == 2) #nodes[i] is hybrid
+        parentIndex1 = getIndex(parent[1],nodes)
+        parentIndex2 = getIndex(parent[2],nodes)
+        edge1 = getConnectingEdge(nodes[i],parent[1])
+        edge2 = getConnectingEdge(nodes[i],parent[2])
+        edge1.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[1].number) should be a hybrid egde")
+        edge2.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[2].number) should be a hybrid egde")
+	M[1, i] = params.mu  # expectation
+	M[2, i] =  edge1.gamma * (M[2, parentIndex1] + sqrt(params.sigma2 * edge1.length) * randn()) + edge2.gamma * (M[2, parentIndex2] + sqrt(params.sigma2 * edge2.length) * randn()) # random value
+    end
+end
+
+# Extract the vector of simulated values at the tips
+function extractSimulateTips(sim::Matrix, net::HybridNetwork)
+	mask = getTipsIndexes(net)
+	return(squeeze(sim[2, mask], 1))
+end
 
 
