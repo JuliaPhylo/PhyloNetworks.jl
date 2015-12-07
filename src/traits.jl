@@ -1,6 +1,10 @@
 # functions for trait evolution on network
 # Claudia November 2015
 
+#################################################
+# Direct Edges
+#################################################
+
 function traverseDirectEdges!(node::Node, edge::Edge)
     if(isEqual(node,edge.node[1]))
         DEBUG && println("changing edge $(edge.number)")
@@ -28,6 +32,10 @@ end
 
 # fixit: add this to root! function
 
+#################################################
+## Topological sorting
+#################################################
+
 # function to get the parent node of a given node
 # it assumes the isChild1 attributes are correct
 function getParent(node::Node)
@@ -47,6 +55,7 @@ function getParent(node::Node)
     end
     return parents
 end
+
 
 # function to order nodes in topological sorting
 # saves vector of nodes in the right order in net.nodes_changed
@@ -92,8 +101,49 @@ function preorder!(net::HybridNetwork)
     println("path of nodes is $([n.number for n in net.nodes_changed])")
 end
 
-# function to compute the variance-covariance between Node and its parents
-function updateSharedPathMatrix!(i::Int,nodes::Vector{Node},V::Matrix)
+#################################################
+## Function to traverse the network in the pre-order, updating a matrix
+#################################################
+
+# This function takes an init and update funtions as arguments
+function recursionPreOrder(net::HybridNetwork, checkPreorder=true::Bool, init=identity::Function, update=identity::Function, params...)
+	net.isRooted || error("net needs to be rooted to get matrix of shared path lengths")
+	if(checkPreorder)
+		preorder!(net)
+	end
+	recursionPreOrder(net.nodes_changed, init, update, params)
+end
+
+function recursionPreOrder(nodes::Vector{Node}, init::Function, update::Function, params)
+    n = length(nodes)
+    M = init(nodes, params)
+    for(i in 1:n) #sorted list of nodes
+        update(i, nodes, M, params)
+    end
+    return M
+end
+
+# Function to get the indexes of the tips. Returns a mask.
+function getTipsIndexes(net::HybridNetwork)
+	tipsNumbers = [n.number for n in net.leaf]
+	nodesOrder = [n.number for n in net.nodes_changed]
+	mask = BitArray(length(nodesOrder)) ## Function Match ??
+	for tip in tipsNumbers
+		mask = mask | (tip .== nodesOrder)
+	end
+	return(mask)
+end
+
+
+#################################################
+## Functions to compute the variance-covariance between Node and its parents
+#################################################
+
+function sharedPathMatrix(net::HybridNetwork; checkPreorder=true::Bool)
+	recursionPreOrder(net, checkPreorder, initsharedPathMatrix, updateSharedPathMatrix!)
+end
+
+function updateSharedPathMatrix!(i::Int,nodes::Vector{Node},V::Matrix, params)
     parent = getParent(nodes[i]) #array of nodes (empty, size 1 or 2)
     if(isempty(parent)) #nodes[i] is root
         return
@@ -119,22 +169,35 @@ function updateSharedPathMatrix!(i::Int,nodes::Vector{Node},V::Matrix)
     end
 end
 
-
-function sharedPathMatrix(net::HybridNetwork; checkPreorder=true::Bool) #maybe we only need to input
-    net.isRooted || error("net needs to be rooted to get matrix of shared path lengths")
-    if(checkPreorder)
-        preorder!(net)
-    end
-    sharedPathMatrix(net.nodes_changed)
+function initsharedPathMatrix(nodes::Vector{Node}, params)
+	n = length(nodes)
+	return(zeros(Float64,n,n))
 end
 
-function sharedPathMatrix(nodes::Vector{Node})
-    n = length(net.nodes_changed)
-    V = zeros(Float64,n,n)
-    for(i in 1:n) #sorted list of nodes
-        updateSharedPathMatrix!(i,net.nodes_changed,V)
-    end
-    return V
+# Extract the variance at the tips
+function extractVarianceTips(V::Matrix, net::HybridNetwork)
+	mask = getTipsIndexes(net)
+	return(V[mask, mask])
+end
+
+#function sharedPathMatrix(net::HybridNetwork; checkPreorder=true::Bool) #maybe we only need to input
+#    net.isRooted || error("net needs to be rooted to get matrix of shared path lengths")
+#    if(checkPreorder)
+#        preorder!(net)
+#    end
+#    sharedPathMatrix(net.nodes_changed)
+#end
+
+#function sharedPathMatrix(nodes::Vector{Node})
+#    n = length(net.nodes_changed)
+#    V = zeros(Float64,n,n)
+#    for(i in 1:n) #sorted list of nodes
+#        updateSharedPathMatrix!(i,net.nodes_changed,V)
+#    end
+#    return V
+#end
+
+
 end
 
 
