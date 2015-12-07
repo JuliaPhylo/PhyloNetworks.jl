@@ -1,7 +1,7 @@
  # test for trait evolution
  # Claudia November 2015
 
-#using PhyloNetworks
+using PhyloNetworks
 
 include("../src/types.jl")
 include("../src/functions.jl")
@@ -57,6 +57,7 @@ V1 .== V2
 
 ## But accounting for floating errors, the to matrices are equal
 isapprox(V1, V2) # Frobenius norm of the difference is < tol
+
 eq = zeros(9, 9)
 for i in 1:9
     for j in 1:9
