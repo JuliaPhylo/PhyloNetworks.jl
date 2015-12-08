@@ -106,21 +106,42 @@ end
 #################################################
 
 # This function takes an init and update funtions as arguments
-function recursionPreOrder(net::HybridNetwork, checkPreorder=true::Bool, init=identity::Function, update=identity::Function, params...)
+function recursionPreOrder(net::HybridNetwork, checkPreorder=true::Bool, init=identity::Function, updateRoot=identity::Function, updateTree=identity::Function, updateHybrid=identity::Function, params...)
 	net.isRooted || error("net needs to be rooted to get matrix of shared path lengths")
 	if(checkPreorder)
 		preorder!(net)
 	end
-	recursionPreOrder(net.nodes_changed, init, update, params)
+	recursionPreOrder(net.nodes_changed, init, updateRoot, updateTree, updateHybrid, params)
 end
 
-function recursionPreOrder(nodes::Vector{Node}, init::Function, update::Function, params)
+function recursionPreOrder(nodes::Vector{Node}, init::Function, updateRoot::Function, updateTree::Function, updateHybrid::Function, params)
     n = length(nodes)
     M = init(nodes, params)
     for(i in 1:n) #sorted list of nodes
-        update(i, nodes, M, params)
+        updatePreOrder!(i, nodes, M, updateRoot, updateTree, updateHybrid, params)
     end
     return M
+end
+
+# Update on the network
+# Takes three function as arguments : updateRoot, updateTree, updateHybrid
+function updatePreOrder!(i::Int,nodes::Vector{Node},V::Matrix, updateRoot::Function, updateTree::Function, updateHybrid::Function, params)
+    parent = getParent(nodes[i]) #array of nodes (empty, size 1 or 2)
+    if(isempty(parent)) #nodes[i] is root
+        updateRoot(V, i, params)
+    elseif(length(parent) == 1) #nodes[i] is tree
+        parentIndex = getIndex(parent[1],nodes)
+	edge = getConnectingEdge(nodes[i],parent[1])
+	updateTree(V, i, parentIndex, edge, params)
+    elseif(length(parent) == 2) #nodes[i] is hybrid
+        parentIndex1 = getIndex(parent[1],nodes)
+        parentIndex2 = getIndex(parent[2],nodes)
+        edge1 = getConnectingEdge(nodes[i],parent[1])
+        edge2 = getConnectingEdge(nodes[i],parent[2])
+        edge1.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[1].number) should be a hybrid egde")
+        edge2.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[2].number) should be a hybrid egde")
+	updateHybrid(V, i, parentIndex1, parentIndex2, edge1, edge2, params)
+    end
 end
 
 # Function to get the indexes of the tips. Returns a mask.
@@ -140,34 +161,56 @@ end
 #################################################
 
 function sharedPathMatrix(net::HybridNetwork; checkPreorder=true::Bool)
-	recursionPreOrder(net, checkPreorder, initsharedPathMatrix, updateSharedPathMatrix!)
+	recursionPreOrder(net, checkPreorder, initsharedPathMatrix, updateRootSharedPathMatrix!, updateTreeSharedPathMatrix!, updateHybridSharedPathMatrix!)
 end
 
-function updateSharedPathMatrix!(i::Int,nodes::Vector{Node},V::Matrix, params)
-    parent = getParent(nodes[i]) #array of nodes (empty, size 1 or 2)
-    if(isempty(parent)) #nodes[i] is root
-        return
-    elseif(length(parent) == 1) #nodes[i] is tree
-        parentIndex = getIndex(parent[1],nodes)
-        for(j in 1:(i-1))
+function updateRootSharedPathMatrix!(V::Matrix, i::Int, params)
+	return	
+end
+
+
+function updateTreeSharedPathMatrix!(V::Matrix, i::Int, parentIndex::Int, edge::Edge, params)
+	for(j in 1:(i-1))
             V[i,j] = V[j,parentIndex]
             V[j,i] = V[j,parentIndex]
         end
-        V[i,i] = V[parentIndex,parentIndex] + getConnectingEdge(nodes[i],parent[1]).length
-    elseif(length(parent) == 2) #nodes[i] is hybrid
-        parentIndex1 = getIndex(parent[1],nodes)
-        parentIndex2 = getIndex(parent[2],nodes)
-        edge1 = getConnectingEdge(nodes[i],parent[1])
-        edge2 = getConnectingEdge(nodes[i],parent[2])
-        edge1.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[1].number) should be a hybrid egde")
-        edge2.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[2].number) should be a hybrid egde")
+        V[i,i] = V[parentIndex,parentIndex] + edge.length
+end
+
+function updateHybridSharedPathMatrix!(V::Matrix, i::Int, parentIndex1::Int, parentIndex2::Int, edge1::Edge, edge2::Edge, params)
         for(j in 1:(i-1))
             V[i,j] = V[j,parentIndex1]*edge1.gamma + V[j,parentIndex2]*edge2.gamma
             V[j,i] = V[i,j]
         end
         V[i,i] = edge1.gamma*edge1.gamma*(V[parentIndex1,parentIndex1] + edge1.length) + edge2.gamma*edge2.gamma*(V[parentIndex2,parentIndex2] + edge2.length) + 2*edge1.gamma*edge2.gamma*V[parentIndex1,parentIndex2]
-    end
 end
+
+
+#function updateSharedPathMatrix!(i::Int,nodes::Vector{Node},V::Matrix, params)
+#    parent = getParent(nodes[i]) #array of nodes (empty, size 1 or 2)
+#    if(isempty(parent)) #nodes[i] is root
+#        return
+#    elseif(length(parent) == 1) #nodes[i] is tree
+#        parentIndex = getIndex(parent[1],nodes)
+#        for(j in 1:(i-1))
+#            V[i,j] = V[j,parentIndex]
+#            V[j,i] = V[j,parentIndex]
+#        end
+#        V[i,i] = V[parentIndex,parentIndex] + getConnectingEdge(nodes[i],parent[1]).length
+#    elseif(length(parent) == 2) #nodes[i] is hybrid
+#        parentIndex1 = getIndex(parent[1],nodes)
+#        parentIndex2 = getIndex(parent[2],nodes)
+#        edge1 = getConnectingEdge(nodes[i],parent[1])
+#        edge2 = getConnectingEdge(nodes[i],parent[2])
+#        edge1.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[1].number) should be a hybrid egde")
+#        edge2.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[2].number) should be a hybrid egde")
+#        for(j in 1:(i-1))
+#            V[i,j] = V[j,parentIndex1]*edge1.gamma + V[j,parentIndex2]*edge2.gamma
+#            V[j,i] = V[i,j]
+#        end
+#        V[i,i] = edge1.gamma*edge1.gamma*(V[parentIndex1,parentIndex1] + edge1.length) + edge2.gamma*edge2.gamma*(V[parentIndex2,parentIndex2] + edge2.length) + 2*edge1.gamma*edge2.gamma*V[parentIndex1,parentIndex2]
+#    end
+#end
 
 function initsharedPathMatrix(nodes::Vector{Node}, params)
 	n = length(nodes)
@@ -270,42 +313,67 @@ paramsBM(mu, sigma2) = paramsBM(mu, sigma2, false, NaN) # default values
 # - line two = simulated values at all the nodes
 # The nodes are ordered as given by topological sorting
 function simulate(net::HybridNetwork, params::paramsProcess, model="BM"::AbstractString, checkPreorder=true::Bool)
-	recursionPreOrder(net, checkPreorder, initSimulateBM, updateSimulateBM!, params)
+	recursionPreOrder(net, checkPreorder, initSimulateBM, updateRootSimulateBM!, updateTreeSimulateBM!, updateHybridSimulateBM!, params)
 end
 
 function initSimulateBM(nodes::Vector{Node}, params::Tuple{paramsBM})
 	return(zeros(2, length(nodes)))
 end
 
-function updateSimulateBM!(i::Int, nodes::Vector{Node}, M::Matrix, params::Tuple{paramsBM})
-    params = params[1]
-    parent = getParent(nodes[i]) #array of nodes (empty, size 1 or 2)
-    if(isempty(parent)) #nodes[i] is root
-        if (params.randomRoot)
+function updateRootSimulateBM!(M::Matrix, i::Int, params::Tuple{paramsBM})
+	params = params[1]
+	if (params.randomRoot)
 		M[1, i] = params.mu # expectation
-		M[2, i] = exp + sqrt(params.varRoot) * randn() # random value
+		M[2, i] = params.mu + sqrt(params.varRoot) * randn() # random value
 	else
 		M[1, i] = params.mu # expectation
 		M[2, i] = params.mu # random value (root fixed)
 	end
-
-    elseif(length(parent) == 1) #nodes[i] is tree
-        parentIndex = getIndex(parent[1],nodes)
-	l = getConnectingEdge(nodes[i],parent[1]).length
-	M[1, i] = params.mu  # expectation
-	M[2, i] = M[2, parentIndex] + sqrt(params.sigma2 * l) * randn() # random value
-
-    elseif(length(parent) == 2) #nodes[i] is hybrid
-        parentIndex1 = getIndex(parent[1],nodes)
-        parentIndex2 = getIndex(parent[2],nodes)
-        edge1 = getConnectingEdge(nodes[i],parent[1])
-        edge2 = getConnectingEdge(nodes[i],parent[2])
-        edge1.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[1].number) should be a hybrid egde")
-        edge2.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[2].number) should be a hybrid egde")
-	M[1, i] = params.mu  # expectation
-	M[2, i] =  edge1.gamma * (M[2, parentIndex1] + sqrt(params.sigma2 * edge1.length) * randn()) + edge2.gamma * (M[2, parentIndex2] + sqrt(params.sigma2 * edge2.length) * randn()) # random value
-    end
 end
+
+
+function updateTreeSimulateBM!(M::Matrix, i::Int, parentIndex::Int, edge::Edge, params::Tuple{paramsBM})
+	params = params[1]
+	M[1, i] = params.mu  # expectation
+	M[2, i] = M[2, parentIndex] + sqrt(params.sigma2 * edge.length) * randn() # random value
+end
+
+function updateHybridSimulateBM!(M::Matrix, i::Int, parentIndex1::Int, parentIndex2::Int, edge1::Edge, edge2::Edge, params::Tuple{paramsBM})
+	params = params[1]
+       	M[1, i] = params.mu  # expectation
+	M[2, i] =  edge1.gamma * (M[2, parentIndex1] + sqrt(params.sigma2 * edge1.length) * randn()) + edge2.gamma * (M[2, parentIndex2] + sqrt(params.sigma2 * edge2.length) * randn()) # random value
+end
+
+
+# function updateSimulateBM!(i::Int, nodes::Vector{Node}, M::Matrix, params::Tuple{paramsBM})
+#     params = params[1]
+#     parent = getParent(nodes[i]) #array of nodes (empty, size 1 or 2)
+#     if(isempty(parent)) #nodes[i] is root
+#         if (params.randomRoot)
+# 		M[1, i] = params.mu # expectation
+# 		M[2, i] = params.mu + sqrt(params.varRoot) * randn() # random value
+# 	else
+# 		M[1, i] = params.mu # expectation
+# 		M[2, i] = params.mu # random value (root fixed)
+# 	end
+# 
+#     elseif(length(parent) == 1) #nodes[i] is tree
+#         parentIndex = getIndex(parent[1],nodes)
+# 	l = getConnectingEdge(nodes[i],parent[1]).length
+# 	M[1, i] = params.mu  # expectation
+# 	M[2, i] = M[2, parentIndex] + sqrt(params.sigma2 * l) * randn() # random value
+# 
+#     elseif(length(parent) == 2) #nodes[i] is hybrid
+#         parentIndex1 = getIndex(parent[1],nodes)
+#         parentIndex2 = getIndex(parent[2],nodes)
+#         edge1 = getConnectingEdge(nodes[i],parent[1])
+#         edge2 = getConnectingEdge(nodes[i],parent[2])
+#         edge1.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[1].number) should be a hybrid egde")
+#         edge2.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[2].number) should be a hybrid egde")
+# 	M[1, i] = params.mu  # expectation
+# 	M[2, i] =  edge1.gamma * (M[2, parentIndex1] + sqrt(params.sigma2 * edge1.length) * randn()) + edge2.gamma * (M[2, parentIndex2] + sqrt(params.sigma2 * edge2.length) * randn()) # random value
+#     end
+# end
 
 # Extract the vector of simulated values at the tips
 function extractSimulateTips(sim::Matrix, net::HybridNetwork)
