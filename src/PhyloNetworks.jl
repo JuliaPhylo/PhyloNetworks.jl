@@ -70,6 +70,8 @@ include("genExport.jl")
 include("drawTraversal.jl")
 include("plotPhylonet.jl")
 include("compareNetworks.jl")
+include("functions.jl")
+include("traits.jl")
 
 
 end #module

@@ -165,7 +165,7 @@ function sharedPathMatrix(net::HybridNetwork; checkPreorder=true::Bool)
 end
 
 function updateRootSharedPathMatrix!(V::Matrix, i::Int, params)
-	return	
+	return
 end
 
 
@@ -247,13 +247,9 @@ end
 
 # New type for phyloNetwork regression
 type phyloNetworkRegression
-    coefficients::Vector
-    sigma2::Real
-    loglik::Real
+    lm::GLM.LinearModel
     V::Matrix
     Vy::Matrix
-    fittedValues::Vector
-    residuals::Vector
 end
 
 # Function for lm with net residuals
@@ -261,23 +257,27 @@ function phyloNetorklm(Y::Vector, X::Matrix, net::HybridNetwork, model="BM"::Abs
 	# Geting variance covariance
 	V = sharedPathMatrix(net)
 	Vy = extractVarianceTips(V, net)
-	# Needed quantities (naive)
-	ntaxa = length(Y)
-	Vyinv = inv(Vy)
-	XtVyinv = X' * Vyinv
-	logdetVy = logdet(Vy)
-	# beta hat
-	betahat = inv(XtVyinv * X) * XtVyinv * Y
-	# sigma2 hat
-	fittedValues =  X * betahat
-	residuals = Y - fittedValues
-	sigma2hat = 1/ntaxa * (residuals' * Vyinv * residuals)
-	# log likelihood
-	loglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(sigma2hat) + logdetVy)
-	# Result
-	res = phyloNetworkRegression(betahat, sigma2hat[1], loglik[1], V, Vy, fittedValues, residuals)
-	return(res)
+    R = cholfact!(Vy)
+    RU = R[:U]
+    phyloNetworkRegression(lm(RU\X, RU\Y),V,Vy)
 end
+	# Needed quantities (naive)
+#	ntaxa = length(Y)
+#	Vyinv = inv(Vy)
+#	XtVyinv = X' * Vyinv
+#	logdetVy = logdet(Vy)
+	# beta hat
+#	betahat = inv(XtVyinv * X) * XtVyinv * Y
+	# sigma2 hat
+#	fittedValues =  X * betahat
+#	residuals = Y - fittedValues
+#	sigma2hat = 1/ntaxa * (residuals' * Vyinv * residuals)
+	# log likelihood
+#	loglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(sigma2hat) + logdetVy)
+	# Result
+#	res = phyloNetworkRegression(betahat, sigma2hat[1], loglik[1], V, Vy, fittedValues, residuals)
+#	return(res)
+#end
 
 # Add methods on type phyloNetworkRegression
 
@@ -331,7 +331,7 @@ function updateRootSimulateBM!(M::Matrix, i::Int, params::Tuple{paramsBM})
 	end
 end
 
-
+phyloNetwork
 function updateTreeSimulateBM!(M::Matrix, i::Int, parentIndex::Int, edge::Edge, params::Tuple{paramsBM})
 	params = params[1]
 	M[1, i] = params.mu  # expectation
@@ -356,13 +356,13 @@ end
 # 		M[1, i] = params.mu # expectation
 # 		M[2, i] = params.mu # random value (root fixed)
 # 	end
-# 
+#
 #     elseif(length(parent) == 1) #nodes[i] is tree
 #         parentIndex = getIndex(parent[1],nodes)
 # 	l = getConnectingEdge(nodes[i],parent[1]).length
 # 	M[1, i] = params.mu  # expectation
 # 	M[2, i] = M[2, parentIndex] + sqrt(params.sigma2 * l) * randn() # random value
-# 
+#
 #     elseif(length(parent) == 2) #nodes[i] is hybrid
 #         parentIndex1 = getIndex(parent[1],nodes)
 #         parentIndex2 = getIndex(parent[2],nodes)
@@ -380,5 +380,3 @@ function extractSimulateTips(sim::Matrix, net::HybridNetwork)
 	mask = getTipsIndexes(net)
 	return(squeeze(sim[2, mask], 1))
 end
-
-
