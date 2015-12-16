@@ -5,6 +5,7 @@ module PhyloNetworks
 
 using Base.Collections # for updateInCycle with priority queue
 using DataFrames # for rep function and read/write csv tables
+using GLM # for the lm function
 using NLopt # for branch lengths optimization
 # using GraphViz #for visualization
 
@@ -70,6 +71,8 @@ include("genExport.jl")
 include("drawTraversal.jl")
 include("plotPhylonet.jl")
 include("compareNetworks.jl")
+include("functions.jl")
+include("traits.jl")
 
 
 end #module
