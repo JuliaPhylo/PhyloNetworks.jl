@@ -331,7 +331,7 @@ function updateRootSimulateBM!(M::Matrix, i::Int, params::Tuple{paramsBM})
 	end
 end
 
-phyloNetwork
+
 function updateTreeSimulateBM!(M::Matrix, i::Int, parentIndex::Int, edge::Edge, params::Tuple{paramsBM})
 	params = params[1]
 	M[1, i] = params.mu  # expectation
