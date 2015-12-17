@@ -5,22 +5,31 @@
 # and sample new obsCF
 # the function returns the new dataframe
 # warning: for some reason UTF8String is needed instead of AbstractString
-function bootstrapCFtable(df::DataFrame)
+# seed: to choose the rand() for the table
+function bootstrapCFtable(df::DataFrame;seed=0::Int)
     warn("bootstrapCFtable function not debugged yet")
     DEBUG && warn("order of columns should be: t1,t2,t3,t4,cf1234,cf1324,cf1423,cf1234LO,cf1234HI,...")
     size(df,2) == 13 || warn("Dataframe should have 7 columns: 4taxa, 3CF*3")
     newdf = DataFrames.DataFrame(t1=UTF8String[],t2=UTF8String[],t3=UTF8String[],t4=UTF8String[],CF12_34=0.,CF13_24=0.,CF14_23=0.)
+    if(seed == 0)
+        t = time()/1e9
+        a = split(string(t),".")
+        seed = parse(Int,a[2][end-4:end]) #better seed based on clock
+    end
+    srand(seed)
     for(i in 1:size(df,1))
-        c1 = (df[i,9]-df[i,8])*0.5*randn()+df[i,5]
-        c2 = (df[i,11]-df[i,10])*0.5*randn()+df[i,6]
-        c3 = (df[i,13]-df[i,12])*0.5*randn()+df[i,7]
+        c1 = (df[i,9]-df[i,8])*rand()+df[i,8] #fixit: check this is uniform
+        c2 = (df[i,11]-df[i,10])*rand()+df[i,10]
+        c3 = (df[i,13]-df[i,12])*rand()+df[i,12]
         c1 = max(0.0,c1)
         c2 = max(0.0,c2)
         c3 = max(0.0,c3)
         c1 = min(1.0,c1)
         c2 = min(1.0,c2)
         c3 = min(1.0,c3)
-        # fixit: how to make sure they add up to one
+        c1 = c1 / (c1+c2+c3)
+        c2 = c2 / (c1+c2+c3)
+        c3 = c3 / (c1+c2+c3)
         append!(newdf,DataFrame(t1=convert(UTF8String,string(df[i,1])), t2=convert(UTF8String,string(df[i,2])), t3=convert(UTF8String,string(df[i,3])), t4=convert(UTF8String,string(df[i,4])), CF12_34=c1,CF13_24=c2, CF14_23=c3))
     end
     return newdf
