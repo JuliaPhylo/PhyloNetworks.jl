@@ -7,7 +7,7 @@
 # warning: for some reason UTF8String is needed instead of AbstractString
 # seed: to choose the rand() for the table
 function bootstrapCFtable(df::DataFrame;seed=0::Int)
-    warn("bootstrapCFtable function not debugged yet")
+    warn("bootstrapCFtable function assumes table from TICR: CF, CFlo, CFhi")
     DEBUG && warn("order of columns should be: t1,t2,t3,t4,cf1234,cf1324,cf1423,cf1234LO,cf1234HI,...")
     size(df,2) == 13 || warn("Dataframe should have 7 columns: 4taxa, 3CF*3")
     newdf = DataFrames.DataFrame(t1=UTF8String[],t2=UTF8String[],t3=UTF8String[],t4=UTF8String[],CF12_34=0.,CF13_24=0.,CF14_23=0.)
@@ -18,8 +18,8 @@ function bootstrapCFtable(df::DataFrame;seed=0::Int)
     end
     srand(seed)
     for(i in 1:size(df,1))
-        c1 = (df[i,9]-df[i,8])*rand()+df[i,8] #fixit: check this is uniform
-        c2 = (df[i,11]-df[i,10])*rand()+df[i,10]
+        c1 = (df[i,7]-df[i,6])*rand()+df[i,6] #fixit: check this is uniform
+        c2 = (df[i,10]-df[i,9])*rand()+df[i,9]
         c3 = (df[i,13]-df[i,12])*rand()+df[i,12]
         c1 = max(0.0,c1)
         c2 = max(0.0,c2)
