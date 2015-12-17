@@ -17,15 +17,25 @@ directEdges!(net) ## I am forced to do thi step here, because root sends a net w
 preorder!(net)
 
 # Data : simulate function
-params = paramsBM(10, 0.9)
+params = paramsBM(10, 1)
 sim = simulate(net, params)
 Y = extractSimulateTips(sim, net)
 X = ones(4, 1)
 
 # "Ancestral state reconstruction"
 fit = phyloNetworklm(Y, X, net)
-coef(fit.lm)
-sum(residuals(fit.lm).^2)
 
 fitNaive = phyloNetworklmNaive(Y, X, net)
 
+# Simulate correlated data
+params = paramsBM(2, 1)
+sim = simulate(net, params)
+b0 = 1
+b1 = 2
+A = extractSimulateTips(sim, net)
+B = b0 + b1 * A + extractSimulateTips(simulate(net,  paramsBM(0, 0.1)), net)
+data = DataFrame(B = B, A = A)
+fit = phyloNetworklm(B ~ A, data, net)
+
+fit
+loglikelihood(fit)

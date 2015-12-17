@@ -106,7 +106,15 @@ end
 #################################################
 
 # This function takes an init and update funtions as arguments
-function recursionPreOrder(net::HybridNetwork, checkPreorder=true::Bool, init=identity::Function, updateRoot=identity::Function, updateTree=identity::Function, updateHybrid=identity::Function, params...)
+function recursionPreOrder(
+	net::HybridNetwork,
+	checkPreorder=true::Bool,
+	init=identity::Function,
+	updateRoot=identity::Function,
+	updateTree=identity::Function,
+	updateHybrid=identity::Function,
+	params...
+	)
 	net.isRooted || error("net needs to be rooted to get matrix of shared path lengths")
 	if(checkPreorder)
 		preorder!(net)
@@ -114,7 +122,14 @@ function recursionPreOrder(net::HybridNetwork, checkPreorder=true::Bool, init=id
 	recursionPreOrder(net.nodes_changed, init, updateRoot, updateTree, updateHybrid, params)
 end
 
-function recursionPreOrder(nodes::Vector{Node}, init::Function, updateRoot::Function, updateTree::Function, updateHybrid::Function, params)
+function recursionPreOrder(
+	nodes::Vector{Node},
+	init::Function,
+	updateRoot::Function,
+	updateTree::Function,
+	updateHybrid::Function,
+	params
+	)
     n = length(nodes)
     M = init(nodes, params)
     for(i in 1:n) #sorted list of nodes
@@ -125,7 +140,14 @@ end
 
 # Update on the network
 # Takes three function as arguments : updateRoot, updateTree, updateHybrid
-function updatePreOrder!(i::Int,nodes::Vector{Node},V::Matrix, updateRoot::Function, updateTree::Function, updateHybrid::Function, params)
+function updatePreOrder!(
+	i::Int,
+	nodes::Vector{Node},
+	V::Matrix, updateRoot::Function,
+	updateTree::Function,
+	updateHybrid::Function,
+	params
+	)
     parent = getParent(nodes[i]) #array of nodes (empty, size 1 or 2)
     if(isempty(parent)) #nodes[i] is root
         updateRoot(V, i, params)
@@ -160,7 +182,10 @@ end
 ## Functions to compute the variance-covariance between Node and its parents
 #################################################
 
-function sharedPathMatrix(net::HybridNetwork; checkPreorder=true::Bool)
+function sharedPathMatrix(
+	net::HybridNetwork;
+	checkPreorder=true::Bool
+	)
 	recursionPreOrder(net, checkPreorder, initsharedPathMatrix, updateRootSharedPathMatrix!, updateTreeSharedPathMatrix!, updateHybridSharedPathMatrix!)
 end
 
@@ -169,7 +194,13 @@ function updateRootSharedPathMatrix!(V::Matrix, i::Int, params)
 end
 
 
-function updateTreeSharedPathMatrix!(V::Matrix, i::Int, parentIndex::Int, edge::Edge, params)
+function updateTreeSharedPathMatrix!(
+	V::Matrix,
+	i::Int,
+	parentIndex::Int,
+	edge::Edge,
+	params
+	)
 	for(j in 1:(i-1))
             V[i,j] = V[j,parentIndex]
             V[j,i] = V[j,parentIndex]
@@ -177,7 +208,15 @@ function updateTreeSharedPathMatrix!(V::Matrix, i::Int, parentIndex::Int, edge::
         V[i,i] = V[parentIndex,parentIndex] + edge.length
 end
 
-function updateHybridSharedPathMatrix!(V::Matrix, i::Int, parentIndex1::Int, parentIndex2::Int, edge1::Edge, edge2::Edge, params)
+function updateHybridSharedPathMatrix!(
+	V::Matrix,
+	i::Int,
+	parentIndex1::Int,
+	parentIndex2::Int,
+	edge1::Edge,
+	edge2::Edge,
+	params
+	)
         for(j in 1:(i-1))
             V[i,j] = V[j,parentIndex1]*edge1.gamma + V[j,parentIndex2]*edge2.gamma
             V[j,i] = V[i,j]
@@ -246,48 +285,92 @@ end
 #################################################
 
 # New type for phyloNetwork regression
-type phyloNetworkRegression
+type phyloNetworkLinPredModel
+    lm::DataFrames.DataFrameRegressionModel
+    V::Matrix
+    Vy::Matrix
+    logdetVy::Real
+end
+
+type phyloNetworkLinearModel 
     lm::GLM.LinearModel
     V::Matrix
     Vy::Matrix
     logdetVy::Real
 end
 
+
+
 # Function for lm with net residuals
-function phyloNetworklm(Y::Vector, X::Matrix, net::HybridNetwork, model="BM"::AbstractString)
+function phyloNetworklm(
+	Y::Vector,
+	X::Matrix,
+	net::HybridNetwork,
+	model="BM"::AbstractString
+	)
 	# Geting variance covariance
 	V = sharedPathMatrix(net)
 	Vy = extractVarianceTips(V, net)
+	# Cholesky decomposition
    	R = cholfact(Vy)
     	RU = R[:U]
-    	phyloNetworkRegression(lm(RU\X, RU\Y), V, Vy, logdet(Vy))
+	# Fit
+    	phyloNetworkLinearModel(lm(RU\X, RU\Y), V, Vy, logdet(Vy))
+end
+
+# Deal with formulas
+function phyloNetworklm(
+	f::Formula,
+	fr::AbstractDataFrame,
+	net::HybridNetwork,
+	model="BM"::AbstractString
+	)
+    mf = ModelFrame(f,fr)
+    mm = ModelMatrix(mf)
+    Y = convert(Vector{Float64},DataFrames.model_response(mf))
+    fit = phyloNetworklm(Y, mm.m, net, model)
+    phyloNetworkLinPredModel(DataFrames.DataFrameRegressionModel(fit, mf, mm), fit.V, fit.Vy, fit.logdetVy)
 end
 
 # Methods on type phyloNetworkRegression
 
-StatsBase.coef(m::phyloNetworkRegression) = coef(m.lm)
+StatsBase.coef(m::phyloNetworkLinearModel) = coef(m.lm)
+StatsBase.coef(m::phyloNetworkLinPredModel) = coef(m.lm)
 
-StatsBase.nobs(m::phyloNetworkRegression) = nobs(m.lm)
+StatsBase.nobs(m::phyloNetworkLinearModel) = nobs(m.lm)
+StatsBase.nobs(m::phyloNetworkLinPredModel) = nobs(m.lm)
 
-StatsBase.residuals(m::phyloNetworkRegression) = residuals(m.lm)
+StatsBase.residuals(m::phyloNetworkLinearModel) = residuals(m.lm)
+StatsBase.residuals(m::phyloNetworkLinPredModel) = residuals(m.lm)
 
-StatsBase.coeftable(m::phyloNetworkRegression) = coeftable(m.lm)
+StatsBase.coeftable(m::phyloNetworkLinearModel) = coeftable(m.lm)
+StatsBase.coeftable(m::phyloNetworkLinPredModel) = coeftable(m.lm)
 
-function sigma2(m::phyloNetworkRegression)
+function sigma2(m::phyloNetworkLinearModel)
+	sum(residuals(fit).^2) / nobs(fit)
+end
+function sigma2(m::phyloNetworkLinPredModel)
 	sum(residuals(fit).^2) / nobs(fit)
 end
 
-function paramstable(m::phyloNetworkRegression)
+function paramstable(m::phyloNetworkLinearModel)
+    Sig = sigma2(m)
+    "Sigma2: $(Sig)"
+end
+function paramstable(m::phyloNetworkLinPredModel)
     Sig = sigma2(m)
     "Sigma2: $(Sig)"
 end
 
-function show(io::IO, obj::phyloNetworkRegression)
+function show(io::IO, obj::phyloNetworkLinearModel)
+    println(io, "$(typeof(obj)):\n\nParameter(s) Estimates:\n", paramstable(obj), "\n\nCoefficients:\n", coeftable(obj))
+end
+function show(io::IO, obj::phyloNetworkLinPredModel)
     println(io, "$(typeof(obj)):\n\nParameter(s) Estimates:\n", paramstable(obj), "\n\nCoefficients:\n", coeftable(obj))
 end
 
-StatsBase.loglikelihood(m::phyloNetworkRegression) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2(m)) + m.logdetVy)
-
+StatsBase.loglikelihood(m::phyloNetworkLinearModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2(m)) + m.logdetVy)
+StatsBase.loglikelihood(m::phyloNetworkLinPredModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2(m)) + m.logdetVy)
 
 #################################################
 ## Old version of phyloNetworklm (naive) 
