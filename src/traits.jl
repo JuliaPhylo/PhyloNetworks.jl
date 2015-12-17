@@ -250,38 +250,70 @@ type phyloNetworkRegression
     lm::GLM.LinearModel
     V::Matrix
     Vy::Matrix
+    logdetVy::Real
 end
 
 # Function for lm with net residuals
-function phyloNetorklm(Y::Vector, X::Matrix, net::HybridNetwork, model="BM"::AbstractString)
+function phyloNetworklm(Y::Vector, X::Matrix, net::HybridNetwork, model="BM"::AbstractString)
 	# Geting variance covariance
 	V = sharedPathMatrix(net)
 	Vy = extractVarianceTips(V, net)
-    R = cholfact!(Vy)
-    RU = R[:U]
-    phyloNetworkRegression(lm(RU\X, RU\Y),V,Vy)
+   	R = cholfact(Vy)
+    	RU = R[:U]
+    	phyloNetworkRegression(lm(RU\X, RU\Y), V, Vy, logdet(Vy))
 end
+
+# Methods on type phyloNetworkRegression
+
+StatsBase.coef(m::phyloNetworkRegression) = coef(m.lm)
+
+StatsBase.nobs(m::phyloNetworkRegression) = nobs(m.lm)
+
+StatsBase.residuals(m::phyloNetworkRegression) = residuals(m.lm)
+
+StatsBase.coeftable(m::phyloNetworkRegression) = coeftable(m.lm)
+
+function sigma2(m::phyloNetworkRegression)
+	sum(residuals(fit).^2) / nobs(fit)
+end
+
+function paramstable(m::phyloNetworkRegression)
+    Sig = sigma2(m)
+    "Sigma2: $(Sig)"
+end
+
+function show(io::IO, obj::phyloNetworkRegression)
+    println(io, "$(typeof(obj)):\n\nParameter(s) Estimates:\n", paramstable(obj), "\n\nCoefficients:\n", coeftable(obj))
+end
+
+StatsBase.loglikelihood(m::phyloNetworkRegression) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2(m)) + m.logdetVy)
+
+
+#################################################
+## Old version of phyloNetworklm (naive) 
+#################################################
+
+function phyloNetworklmNaive(Y::Vector, X::Matrix, net::HybridNetwork, model="BM"::AbstractString)
+	# Geting variance covariance
+	V = sharedPathMatrix(net)
+	Vy = extractVarianceTips(V, net)
 	# Needed quantities (naive)
-#	ntaxa = length(Y)
-#	Vyinv = inv(Vy)
-#	XtVyinv = X' * Vyinv
-#	logdetVy = logdet(Vy)
-	# beta hat
-#	betahat = inv(XtVyinv * X) * XtVyinv * Y
-	# sigma2 hat
-#	fittedValues =  X * betahat
-#	residuals = Y - fittedValues
-#	sigma2hat = 1/ntaxa * (residuals' * Vyinv * residuals)
-	# log likelihood
-#	loglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(sigma2hat) + logdetVy)
+	ntaxa = length(Y)
+	Vyinv = inv(Vy)
+	XtVyinv = X' * Vyinv
+	logdetVy = logdet(Vy)
+       # beta hat
+	betahat = inv(XtVyinv * X) * XtVyinv * Y
+       # sigma2 hat
+	fittedValues =  X * betahat
+	residuals = Y - fittedValues
+	sigma2hat = 1/ntaxa * (residuals' * Vyinv * residuals)
+       # log likelihood
+	loglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(sigma2hat) + logdetVy)
 	# Result
 #	res = phyloNetworkRegression(betahat, sigma2hat[1], loglik[1], V, Vy, fittedValues, residuals)
-#	return(res)
-#end
-
-# Add methods on type phyloNetworkRegression
-
-
+	return((betahat, sigma2hat[1], loglik[1], V, Vy, logdetVy, fittedValues, residuals))
+end
 
 #################################################
 ## Types for params process

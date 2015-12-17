@@ -1,7 +1,7 @@
 ## Test of PhyloNetworklm
 
 using PhyloNetworks
-
+using GLM
 include("../src/types.jl")
 include("../src/functions.jl")
 include("../src/traits.jl")
@@ -17,11 +17,15 @@ directEdges!(net) ## I am forced to do thi step here, because root sends a net w
 preorder!(net)
 
 # Data : simulate function
-params = paramsBM(10, 0.1)
+params = paramsBM(10, 0.9)
 sim = simulate(net, params)
-
 Y = extractSimulateTips(sim, net)
 X = ones(4, 1)
 
 # "Ancestral state reconstruction"
-fit = phyloNetorklm(Y, X, net)
+fit = phyloNetworklm(Y, X, net)
+coef(fit.lm)
+sum(residuals(fit.lm).^2)
+
+fitNaive = phyloNetworklmNaive(Y, X, net)
+
