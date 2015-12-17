@@ -21,15 +21,9 @@ function bootstrapCFtable(df::DataFrame;seed=0::Int)
         c1 = (df[i,7]-df[i,6])*rand()+df[i,6] #fixit: check this is uniform
         c2 = (df[i,10]-df[i,9])*rand()+df[i,9]
         c3 = (df[i,13]-df[i,12])*rand()+df[i,12]
-        c1 = max(0.0,c1)
-        c2 = max(0.0,c2)
-        c3 = max(0.0,c3)
-        c1 = min(1.0,c1)
-        c2 = min(1.0,c2)
-        c3 = min(1.0,c3)
-        c1 = c1 / (c1+c2+c3)
-        c2 = c2 / (c1+c2+c3)
-        c3 = c3 / (c1+c2+c3)
+        c1 = c1/(c1+c2+c3)
+        c2 = c2/(c1+c2+c3)
+        c3 = c3/(c1+c2+c3)
         append!(newdf,DataFrame(t1=convert(UTF8String,string(df[i,1])), t2=convert(UTF8String,string(df[i,2])), t3=convert(UTF8String,string(df[i,3])), t4=convert(UTF8String,string(df[i,4])), CF12_34=c1,CF13_24=c2, CF14_23=c3))
     end
     return newdf
