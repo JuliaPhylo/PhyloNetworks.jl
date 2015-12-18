@@ -105,6 +105,18 @@ end
 ## Function to traverse the network in the pre-order, updating a matrix
 #################################################
 
+type matrixTopologicalOrder
+    V::Matrix # Matrix in itself
+    nodesNumbers::Vector{Int64} # Vector of nodes numbers for ordering of the matrix
+    tipsNumbers::Vector{Int64} # Tips numbers
+    tipsNames::Vector # Tips Names
+    indexation::AbstractString # Are rows ("r"), columns ("c") or both ("b") indexed by nodes numbers in the matrix ?
+end
+
+function Base.show(io::IO, obj::matrixTopologicalOrder)
+    println(io, "$(typeof(obj)):\n$(obj.V)")
+end
+
 # This function takes an init and update funtions as arguments
 function recursionPreOrder(
 	net::HybridNetwork,
@@ -113,13 +125,14 @@ function recursionPreOrder(
 	updateRoot=identity::Function,
 	updateTree=identity::Function,
 	updateHybrid=identity::Function,
+    indexation="b"::AbstractString,
 	params...
 	)
 	net.isRooted || error("net needs to be rooted to get matrix of shared path lengths")
 	if(checkPreorder)
 		preorder!(net)
 	end
-	recursionPreOrder(net.nodes_changed, init, updateRoot, updateTree, updateHybrid, params)
+	recursionPreOrder(net.nodes_changed, init, updateRoot, updateTree, updateHybrid, indexation, net.leaf, params)
 end
 
 function recursionPreOrder(
@@ -128,6 +141,8 @@ function recursionPreOrder(
 	updateRoot::Function,
 	updateTree::Function,
 	updateHybrid::Function,
+    indexation::AbstractString,
+    leaves::Vector{Node},
 	params
 	)
     n = length(nodes)
@@ -135,7 +150,7 @@ function recursionPreOrder(
     for(i in 1:n) #sorted list of nodes
         updatePreOrder!(i, nodes, M, updateRoot, updateTree, updateHybrid, params)
     end
-    return M
+    return matrixTopologicalOrder(M, [n.number for n in nodes], [n.number for n in leaves], [n.name for n in leaves], indexation)
 end
 
 # Update on the network
@@ -170,6 +185,10 @@ end
 function getTipsIndexes(net::HybridNetwork)
 	tipsNumbers = [n.number for n in net.leaf]
 	nodesOrder = [n.number for n in net.nodes_changed]
+    getTipsIndexes(nodesOrder, tipsNumbers)
+end
+
+function getTipsIndexes(nodesOrder::Vector{Int64}, tipsNumbers::Vector{Int64})
 	mask = BitArray(length(nodesOrder)) ## Function Match ??
 	for tip in tipsNumbers
 		mask = mask | (tip .== nodesOrder)
@@ -177,6 +196,16 @@ function getTipsIndexes(net::HybridNetwork)
 	return(mask)
 end
 
+
+function Base.getindex(obj::matrixTopologicalOrder, d::Symbol)
+    if d == :Tips
+        mask = getTipsIndexes(obj.nodesNumbers, obj.tipsNumbers)
+        obj.indexation == "b" && return obj.V[mask, mask]
+        obj.indexation == "c" && return obj.V[:, mask]
+        obj.indexation == "r" && return obj.V[mask, :]
+    end
+    d == :All && return obj.V
+end
 
 #################################################
 ## Functions to compute the variance-covariance between Node and its parents
@@ -186,7 +215,7 @@ function sharedPathMatrix(
 	net::HybridNetwork;
 	checkPreorder=true::Bool
 	)
-	recursionPreOrder(net, checkPreorder, initsharedPathMatrix, updateRootSharedPathMatrix!, updateTreeSharedPathMatrix!, updateHybridSharedPathMatrix!)
+	recursionPreOrder(net, checkPreorder, initsharedPathMatrix, updateRootSharedPathMatrix!, updateTreeSharedPathMatrix!, updateHybridSharedPathMatrix!, "b")
 end
 
 function updateRootSharedPathMatrix!(V::Matrix, i::Int, params)
@@ -257,10 +286,10 @@ function initsharedPathMatrix(nodes::Vector{Node}, params)
 end
 
 # Extract the variance at the tips
-function extractVarianceTips(V::Matrix, net::HybridNetwork)
-	mask = getTipsIndexes(net)
-	return(V[mask, mask])
-end
+# function extractVarianceTips(V::Matrix, net::HybridNetwork)
+# 	mask = getTipsIndexes(net)
+# 	return(V[mask, mask])
+# end
 
 #function sharedPathMatrix(net::HybridNetwork; checkPreorder=true::Bool) #maybe we only need to input
 #    net.isRooted || error("net needs to be rooted to get matrix of shared path lengths")
@@ -287,14 +316,14 @@ end
 # New type for phyloNetwork regression
 type phyloNetworkLinPredModel
     lm::DataFrames.DataFrameRegressionModel
-    V::Matrix
+    V::matrixTopologicalOrder
     Vy::Matrix
     logdetVy::Real
 end
 
 type phyloNetworkLinearModel 
     lm::GLM.LinearModel
-    V::Matrix
+    V::matrixTopologicalOrder
     Vy::Matrix
     logdetVy::Real
 end
@@ -310,12 +339,12 @@ function phyloNetworklm(
 	)
 	# Geting variance covariance
 	V = sharedPathMatrix(net)
-	Vy = extractVarianceTips(V, net)
+	Vy = V[:Tips]
 	# Cholesky decomposition
    	R = cholfact(Vy)
     	RU = R[:U]
 	# Fit
-    	phyloNetworkLinearModel(lm(RU\X, RU\Y), V, Vy, logdet(Vy))
+   	phyloNetworkLinearModel(lm(RU\X, RU\Y), V, Vy, logdet(Vy))
 end
 
 # Deal with formulas
@@ -362,10 +391,10 @@ function paramstable(m::phyloNetworkLinPredModel)
     "Sigma2: $(Sig)"
 end
 
-function show(io::IO, obj::phyloNetworkLinearModel)
+function Base.show(io::IO, obj::phyloNetworkLinearModel)
     println(io, "$(typeof(obj)):\n\nParameter(s) Estimates:\n", paramstable(obj), "\n\nCoefficients:\n", coeftable(obj))
 end
-function show(io::IO, obj::phyloNetworkLinPredModel)
+function Base.show(io::IO, obj::phyloNetworkLinPredModel)
     println(io, "$(typeof(obj)):\n\nParameter(s) Estimates:\n", paramstable(obj), "\n\nCoefficients:\n", coeftable(obj))
 end
 
@@ -421,6 +450,13 @@ paramsBM(mu, sigma2) = paramsBM(mu, sigma2, false, NaN) # default values
 ## Simulation Function
 #################################################
 
+type traitSimulation
+    M::matrixTopologicalOrder
+    params::paramsProcess
+    model::AbstractString
+end
+
+
 # Uses recursion on the network.
 # Takes params of type paramsProcess as an entry
 # Returns a matrix with two lines:
@@ -428,7 +464,8 @@ paramsBM(mu, sigma2) = paramsBM(mu, sigma2, false, NaN) # default values
 # - line two = simulated values at all the nodes
 # The nodes are ordered as given by topological sorting
 function simulate(net::HybridNetwork, params::paramsProcess, model="BM"::AbstractString, checkPreorder=true::Bool)
-	recursionPreOrder(net, checkPreorder, initSimulateBM, updateRootSimulateBM!, updateTreeSimulateBM!, updateHybridSimulateBM!, params)
+	M = recursionPreOrder(net, checkPreorder, initSimulateBM, updateRootSimulateBM!, updateTreeSimulateBM!, updateHybridSimulateBM!, "c", params)
+    traitSimulation(M, params, model)
 end
 
 function initSimulateBM(nodes::Vector{Node}, params::Tuple{paramsBM})
@@ -491,7 +528,16 @@ end
 # end
 
 # Extract the vector of simulated values at the tips
-function extractSimulateTips(sim::Matrix, net::HybridNetwork)
-	mask = getTipsIndexes(net)
-	return(squeeze(sim[2, mask], 1))
+
+# function extractSimulateTips(sim::Matrix, net::HybridNetwork)
+# 	mask = getTipsIndexes(net)
+# 	return(squeeze(sim[2, mask], 1))
+# end
+
+function Base.getindex(obj::traitSimulation, d::Symbol)
+    if d == :Tips
+       res = obj.M[:Tips]
+       squeeze(res[2, :], 1)
+    end
 end
+

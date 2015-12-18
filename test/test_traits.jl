@@ -46,22 +46,22 @@ for i in 1:9
 end
 
 ## Seem identical
-V1
+V1[:All]
 V2
 
 ## Return false (floating errors ?)
-V1 == V2
+V1[:All] == V2
 
 ## A hanful of values are not strictly equal
-V1 .== V2
+V1[:All] .== V2
 
 ## But accounting for floating errors, the to matrices are equal
-isapprox(V1, V2) # Frobenius norm of the difference is < tol
+isapprox(V1[:All], V2) # Frobenius norm of the difference is < tol
 
 eq = zeros(9, 9)
 for i in 1:9
     for j in 1:9
-        eq[i,j] = isapprox(V1[i,j], V2[i,j]) # every couple of terms are approx equal
+        eq[i,j] = isapprox(V1.V[i,j], V2[i,j]) # every couple of terms are approx equal
     end
 end
 eq

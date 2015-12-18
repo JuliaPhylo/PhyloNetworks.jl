@@ -19,7 +19,8 @@ preorder!(net)
 # Data : simulate function
 params = paramsBM(10, 1)
 sim = simulate(net, params)
-Y = extractSimulateTips(sim, net)
+Y = sim[:Tips]
+#Y = extractSimulateTips(sim, net)
 X = ones(4, 1)
 
 # "Ancestral state reconstruction"
@@ -32,10 +33,14 @@ params = paramsBM(2, 1)
 sim = simulate(net, params)
 b0 = 1
 b1 = 2
-A = extractSimulateTips(sim, net)
-B = b0 + b1 * A + extractSimulateTips(simulate(net,  paramsBM(0, 0.1)), net)
+A = sim[:Tips]
+B = b0 + b1 * A + simulate(net,  paramsBM(0, 0.1))[:Tips]
 data = DataFrame(B = B, A = A)
 fit = phyloNetworklm(B ~ A, data, net)
 
 fit
 loglikelihood(fit)
+
+# Add NAs
+#data[1, :B] = NA
+#fit = phyloNetworklm(B ~ A, data, net)
