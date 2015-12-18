@@ -188,18 +188,18 @@ function getTipsIndexes(net::HybridNetwork)
     getTipsIndexes(nodesOrder, tipsNumbers)
 end
 
-function getTipsIndexes(nodesOrder::Vector{Int64}, tipsNumbers::Vector{Int64})
-	mask = BitArray(length(nodesOrder)) ## Function Match ??
-	for tip in tipsNumbers
-		mask = mask | (tip .== nodesOrder)
-	end
-	return(mask)
-end
+# function getTipsIndexes(nodesOrder::Vector{Int64}, tipsNumbers::Vector{Int64})
+# 	mask = BitArray(length(nodesOrder)) ## Function Match ??
+# 	for tip in tipsNumbers
+# 		mask = mask | (tip .== nodesOrder)
+# 	end
+# 	return(mask)
+# end
 
 
 function Base.getindex(obj::matrixTopologicalOrder, d::Symbol)
     if d == :Tips
-        mask = getTipsIndexes(obj.nodesNumbers, obj.tipsNumbers)
+        mask = indexin(obj.tipsNumbers, obj.nodesNumbers,)
         obj.indexation == "b" && return obj.V[mask, mask]
         obj.indexation == "c" && return obj.V[:, mask]
         obj.indexation == "r" && return obj.V[mask, :]
@@ -319,6 +319,7 @@ type phyloNetworkLinPredModel
     V::matrixTopologicalOrder
     Vy::Matrix
     logdetVy::Real
+    ind::Vector{Int} # vector matching the tips of the network against the names of the data frame provided. 0 if the match could not be preformed.
 end
 
 type phyloNetworkLinearModel 
@@ -339,6 +340,18 @@ function phyloNetworklm(
 	)
 	# Geting variance covariance
 	V = sharedPathMatrix(net)
+    # Fit
+    phyloNetworklm(Y, X, V, model)
+end
+
+# Same function, but when the matrix V is already known.
+function phyloNetworklm(
+	Y::Vector,
+	X::Matrix,
+	V::matrixTopologicalOrder,
+	model="BM"::AbstractString
+	)
+    # Extract tips matrix
 	Vy = V[:Tips]
 	# Cholesky decomposition
    	R = cholfact(Vy)
@@ -347,6 +360,15 @@ function phyloNetworklm(
    	phyloNetworkLinearModel(lm(RU\X, RU\Y), V, Vy, logdet(Vy))
 end
 
+
+"""
+`phyloNetworklm(f::Formula, fr::AbstractDataFrame, net::HybridNetwork)`
+
+Performs a regression according to the formula provided by the user, using
+the correlation structure induced by the network.
+The data frame fr should have an extra column labelled "tipsNames" that gives
+the names of the taxa for each observation.
+"""
 # Deal with formulas
 function phyloNetworklm(
 	f::Formula,
@@ -354,11 +376,29 @@ function phyloNetworklm(
 	net::HybridNetwork,
 	model="BM"::AbstractString
 	)
+    # Match the tips names: make sure that the data provided by the user will
+    # be in the same order as the ordered tips in matrix V.
+    V = sharedPathMatrix(net)
+    if any(V.tipsNames == "")
+        warn("The network provided has no tip names. The tips are assumed te be is the same order than the data. You'd better know what you're doing.")
+        ind = [0]
+    elseif !any(names(fr) .== :tipsNames)
+        warn("The entry data frame has no column labelled tipsNames. Please add such a column to match the tips against the network. Otherwise the tips are assumed te be is the same order than the data and you'd better know what you're doing.")
+        ind = [0]
+    else
+        ind = indexin(V.tipsNames, fr[:tipsNames])
+        if any(ind == 0) || length(unique(ind)) != length(ind)
+            error("Tips names of the network and names provided in column tipsNames of the dataframe do not match.")
+        end
+        fr = fr[ind, :]
+    end
+    # Find the regression matrix and answer vector
     mf = ModelFrame(f,fr)
     mm = ModelMatrix(mf)
     Y = convert(Vector{Float64},DataFrames.model_response(mf))
-    fit = phyloNetworklm(Y, mm.m, net, model)
-    phyloNetworkLinPredModel(DataFrames.DataFrameRegressionModel(fit, mf, mm), fit.V, fit.Vy, fit.logdetVy)
+    # Fit the model
+    fit = phyloNetworklm(Y, mm.m, V, model)
+    phyloNetworkLinPredModel(DataFrames.DataFrameRegressionModel(fit, mf, mm), fit.V, fit.Vy, fit.logdetVy, ind)
 end
 
 # Methods on type phyloNetworkRegression
@@ -444,6 +484,25 @@ end
 # Constructor
 paramsBM(mu, sigma2) = paramsBM(mu, sigma2, false, NaN) # default values
 
+function Base.show(io::IO, obj::paramsBM)
+    disp =  "$(typeof(obj)):\n"
+    pt = paramstable(obj)
+    if obj.randomRoot
+        disp = disp * "Parameters of a BM with random root:\n" * pt
+    else
+        disp = disp * "Parameters of a BM with fixed root:\n" * pt
+    end
+    println(io, disp)
+end
+
+function paramstable(obj::paramsBM)
+    disp = "mu: $(obj.mu)\nSigma2: $(obj.sigma2)"
+    if obj.randomRoot
+        disp = disp * "\nvarRoot: $(obj.varRoot)"
+    end
+    return(disp)
+end
+
 
 
 #################################################
@@ -454,6 +513,13 @@ type traitSimulation
     M::matrixTopologicalOrder
     params::paramsProcess
     model::AbstractString
+end
+
+function Base.show(io::IO, obj::traitSimulation)
+    disp = "$(typeof(obj)):\n"
+    disp = disp * "Trait simulation results on a network with $(length(obj.M.tipsNames)) tips, using a using a $(obj.model) model, with parameters:\n"
+    disp = disp * paramstable(obj.params)
+    println(io, disp)
 end
 
 
