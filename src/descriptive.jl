@@ -191,9 +191,32 @@ end
 
 # function that we need to overwrite to avoid printing useless scary
 # output for HybridNetworks
-function show(io::IO, net::HybridNetwork)
-    print(io,"$(writeTopology(net))")
+
+function Base.show(io::IO, obj::HybridNetwork)
+    disp = "$(typeof(obj)) with $(obj.numTaxa) tips"
+    disp = disp * ", $(obj.numNodes - obj.numTaxa) internal nodes"
+    disp = disp * ", and $(obj.numHybrids) hybrid nodes."
+    tipslabels = [n.name for n in obj.leaf]
+    if length(tipslabels) > 1 || !all(tipslabels .== "")
+        disptipslabels = "$(tipslabels[1])"
+        for i in 2:min(obj.numTaxa, 4)
+            disptipslabels = disptipslabels * ", $(tipslabels[i])"
+        end
+        if obj.numTaxa > 4 disptipslabels = disptipslabels * ", ..." end
+        disp = disp * "\nTips labels: \n " * disptipslabels
+    end
+    if obj.isRooted
+        disp = disp * "\nRooted Network"
+    else
+        disp = disp * "\nUn-rooted Network"
+    end
+    disp = disp * "\n\n $(writeTopology(net))"
+    println(io, disp)
 end
+
+# function show(io::IO, net::HybridNetwork)
+#     print(io,"$(writeTopology(net))")
+# end
 
 # and QuartetNetworks (which cannot be just written because they do not have root)
 function show(io::IO, net::QuartetNetwork)
@@ -228,4 +251,20 @@ function show(io::IO,q::Quartet)
     end
 end
 
+function Base.show(io::IO, obj::Node)
+    disp = "$(typeof(obj)):"
+    disp = disp * "\n Node Number:$(obj.number)"
+    if (obj.name != "") disp = disp * "\n Node Name:$(obj.name)" end
+    if (obj.hybrid) disp = disp * "\n This node is an hybrid" end
+    if (obj.leaf) disp = disp * "\n This node is a leaf" end
+    println(io, disp)
+end
+
+function Base.show(io::IO, obj::Edge)
+    disp = "$(typeof(obj)):"
+    disp = disp * "\n Edge Number:$(obj.number)"
+    disp = disp * "\n Edge length:$(obj.length)"
+    if (obj.hybrid) disp = disp * "\n This node is an hybrid with gamma=$(obj.gamma)" end
+    println(io, disp)
+end
 
