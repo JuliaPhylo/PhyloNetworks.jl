@@ -210,7 +210,7 @@ function Base.show(io::IO, obj::HybridNetwork)
     else
         disp = disp * "\nUn-rooted Network"
     end
-    disp = disp * "\n\n $(writeTopology(net))"
+    disp = disp * "\n\n $(writeTopology(obj))"
     println(io, disp)
 end
 
