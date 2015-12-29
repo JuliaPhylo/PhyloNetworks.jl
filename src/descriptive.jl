@@ -166,6 +166,28 @@ function root!(net::HybridNetwork, outgroup::AbstractString)
     updateRoot!(net,outgroup)
 end
 
+# function to root in an edge
+function root!(net::HybridNetwork, edge::Edge)
+    isEdgeNumIn(edge,net.edge) || error("edge $(edge.number) not in net")
+    !edge.hybrid || error("cannot put root on hybrid edge at the moment")
+    node1 = edge.node[1]
+    node2 = edge.node[2]
+    removeEdge!(node2,edge)
+    removeNode!(node2,edge)
+    max_edge = maximum([e.number for e in net.edge]);
+    max_node = maximum([e.number for e in net.node]);
+    newedge = Edge(max_edge+1)
+    newnode = Node(max_node+1,false,false,[edge,newedge])
+    setNode!(newedge,node2)
+    setEdge!(node2,newedge)
+    pushEdge!(net,newedge)
+    pushNode!(net,newnode)
+    if(edge.inCycle != -1)
+        newedge.inCycle = edge.inCycle
+        newnode.inCycle = edge.inCycle
+    end
+    root!(net,newnode,false)
+end
 
 
 """
