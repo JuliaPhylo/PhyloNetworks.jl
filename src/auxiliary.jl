@@ -448,7 +448,7 @@ end
 # function to delete an Edge in net.edge and
 # update numEdges from a HybridNetwork
 function deleteEdge!(net::HybridNetwork, e::Edge)
-    if(e.inCycle == -1 && !e.hybrid && !isempty(net.partition) && isTree(net))
+    if(e.inCycle == -1 && !e.hybrid && !isempty(net.partition) && !isTree(net))
         ind = whichPartition(net,e)
         indE = getIndex(e,net.partition[ind].edges)
         deleteat!(net.partition[ind].edges,indE)
