@@ -128,7 +128,8 @@ end
 function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="bootsnaq"::AbstractString, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.25::Float64, bestNet=HybridNetwork()::HybridNetwork)
     warn("bootsnaq function not debugged yet")
     startnet=deepcopy(currT0)
-    if(nprocs() > 1) #more than 1 processor
+    if(nprocs() > 1) #more than 1 processor, still not working
+        error("bootsnaq not implemented for parallelization yet")
         optTopRunsBootParallel(startnet, df, hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, returnNet, seed, probST, nrep, prcnet, bestNet)
     else
         optTopRunsBoot(startnet, df, hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, returnNet, seed, probST, nrep, prcnet, bestNet)
