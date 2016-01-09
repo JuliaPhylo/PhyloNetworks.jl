@@ -16,6 +16,7 @@ function bootstrapCFtable(df::DataFrame;seed=0::Int)
         a = split(string(t),".")
         seed = parse(Int,a[2][end-4:end]) #better seed based on clock
     end
+    println("using seed $(seed) for bootstrap table")
     srand(seed)
     for(i in 1:size(df,1))
         c1 = (df[i,7]-df[i,6])*rand()+df[i,6] #fixit: check this is uniform
