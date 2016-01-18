@@ -94,7 +94,7 @@ function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Nu
             write(logfile,"\nStarting topology: best network")
             startnet = deepcopy(bestNet)
         else
-            write(logfile,"\nStarting topology: same starting tree as original optimization")
+            write(logfile,"\nStarting topology: same starting tree as original optimization\n")
             startnet=deepcopy(currT0)
         end
         flush(logfile)
