@@ -44,7 +44,7 @@ bootstrapCFtable(file::AbstractString;sep=','::Char) = bootstrapCFtable(readtabl
 # I believe no ! needed because we need a clean copy of currT in each replicate, so deepcopied
 function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Number, Nfail::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, filename::AbstractString, returnNet::Bool, seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64, bestNet::HybridNetwork)
     warn("bootsnaq function not debugged yet")
-    prcnet > 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
+    prcnet >= 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
     prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
     println("BOOTSTRAP OF SNAQ ESTIMATION")
     julialog = string(filename,".log")
