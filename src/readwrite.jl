@@ -96,7 +96,7 @@ end
 # symbol cannot be: () [] : ; ' , . space \t \r \n
 # according to richnewick.pdf
 function isValidSymbol(c::Char)
-    return !isspace(c) && c != '(' && c != ')' && c != '[' && c != ']' && c != ':' && c != ';' && c != ',' && c != '.'
+    return !isspace(c) && c != '(' && c != ')' && c != '[' && c != ']' && c != ':' && c != ';' && c != ',' #&& c != '.'
 end
 
 # aux function to read subtree
