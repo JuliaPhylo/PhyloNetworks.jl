@@ -109,7 +109,7 @@ function readTableCF(df0::DataFrames.DataFrame;summaryfile=""::AbstractString)
         if(d.numTrees == -1)
             println("DATA: data consists of $(d.numQuartets) quartets")
             if(withngenes)
-                println("between $(min([q.ngenes for q in quartets])) and $(max([q.ngenes for q in quartets])) gene trees per quartet")
+                println("between $(minimum([q.ngenes for q in quartets])) and $(maximum([q.ngenes for q in quartets])) gene trees per quartet")
             end
         else
             println("DATA: data consists of $(d.numTrees) gene trees and $(d.numQuartets) quartets")
