@@ -50,15 +50,15 @@ function readTableCF(df0::DataFrames.DataFrame;summaryfile=""::AbstractString)
     DEBUG && println("assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network")
     fromTICR = true
     try
-        df[:CF12_34]
-        df[:CF13_24]
-        df[:CF14_23]
+        df0[:CF12_34]
+        df0[:CF13_24]
+        df0[:CF14_23]
     catch
         fromTICR = false
     end
     withngenes = true
     try
-        df[:ngenes]
+        df0[:ngenes]
     catch
         withngenes = false
     end
