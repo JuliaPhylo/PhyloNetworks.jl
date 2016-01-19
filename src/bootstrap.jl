@@ -59,7 +59,7 @@ function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Nu
     write(logfile,"\nmain seed $(seed)\n")
     flush(logfile)
     srand(seed)
-    seeds = [seed;int(floor(rand(nrep)*100000))] #seeds for all runs
+    seeds = [seed;round(Int64,floor(rand(nrep)*100000))] #seeds for all runs
     bootNet = HybridNetwork[]
 
     if(prcnet > 0.0)
