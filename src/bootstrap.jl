@@ -30,7 +30,7 @@ function bootstrapCFtable(df::DataFrame;seed=0::Int)
     return newdf
 end
 
-bootstrapCFtable(file::AbstractString;sep=','::Char) = bootstrapCFtable(readtable(file,separator=sep))
+bootstrapCFtable(file::AbstractString;sep=','::Char,seed=0::Int) = bootstrapCFtable(readtable(file,separator=sep),seed=seed)
 
 
 # function that will do bootstrap of snaq estimation in series
@@ -87,8 +87,8 @@ function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Nu
     for(i in 1:nrep)
         write(logfile,"\n begin replicate $(i) with seed $(seeds[i+1])---------\n")
         println("\nbegin replicate $(i) with seed $(seeds[i+1])\n")
-        newdf = bootstrapCFtable(df)
-        writetable(string("CFtable",i,".csv"),newdf)
+        newdf = bootstrapCFtable(df, seed=seeds[i+1])
+#        writetable(string("CFtable",i,".csv"),newdf)
         newd = readTableCF(newdf)
         if(i/nrep <= prcnet)
             write(logfile,"\nStarting topology: best network")
