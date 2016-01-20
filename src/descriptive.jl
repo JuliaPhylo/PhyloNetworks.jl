@@ -286,7 +286,7 @@ function Base.show(io::IO, obj::Edge)
     disp = "$(typeof(obj)):"
     disp = disp * "\n Edge Number:$(obj.number)"
     disp = disp * "\n Edge length:$(obj.length)"
-    if (obj.hybrid) disp = disp * "\n This node is an hybrid with gamma=$(obj.gamma)" end
+    if (obj.hybrid) disp = disp * "\n This edge is an hybrid edge with gamma=$(obj.gamma)" end
     println(io, disp)
 end
 
