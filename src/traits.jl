@@ -318,6 +318,9 @@ type phyloNetworkLinPredModel
     lm::DataFrames.DataFrameRegressionModel
     V::matrixTopologicalOrder
     Vy::Matrix
+    RU::UpperTriangular
+    Y::Vector
+    X::Matrix
     logdetVy::Real
     ind::Vector{Int} # vector matching the tips of the network against the names of the data frame provided. 0 if the match could not be preformed.
 end
@@ -326,6 +329,9 @@ type phyloNetworkLinearModel
     lm::GLM.LinearModel
     V::matrixTopologicalOrder
     Vy::Matrix
+    RU::UpperTriangular
+    Y::Vector
+    X::Matrix
     logdetVy::Real
 end
 
@@ -355,9 +361,9 @@ function phyloNetworklm(
 	Vy = V[:Tips]
 	# Cholesky decomposition
    	R = cholfact(Vy)
-    	RU = R[:U]
+   	RU = R[:U]
 	# Fit
-   	phyloNetworkLinearModel(lm(RU\X, RU\Y), V, Vy, logdet(Vy))
+   	phyloNetworkLinearModel(lm(RU\X, RU\Y), V, Vy, RU, Y, X, logdet(Vy))
 end
 
 
@@ -398,7 +404,7 @@ function phyloNetworklm(
     Y = convert(Vector{Float64},DataFrames.model_response(mf))
     # Fit the model
     fit = phyloNetworklm(Y, mm.m, V, model)
-    phyloNetworkLinPredModel(DataFrames.DataFrameRegressionModel(fit, mf, mm), fit.V, fit.Vy, fit.logdetVy, ind)
+    phyloNetworkLinPredModel(DataFrames.DataFrameRegressionModel(fit, mf, mm), fit.V, fit.Vy, fit.RU, fit.Y, fit.X, fit.logdetVy, ind)
 end
 
 # Methods on type phyloNetworkRegression
@@ -409,18 +415,39 @@ StatsBase.coef(m::phyloNetworkLinPredModel) = coef(m.lm)
 StatsBase.nobs(m::phyloNetworkLinearModel) = nobs(m.lm)
 StatsBase.nobs(m::phyloNetworkLinPredModel) = nobs(m.lm)
 
-StatsBase.residuals(m::phyloNetworkLinearModel) = residuals(m.lm)
+StatsBase.residuals(m::phyloNetworkLinearModel) = m.RU * residuals(m.lm)
 StatsBase.residuals(m::phyloNetworkLinPredModel) = residuals(m.lm)
 
-StatsBase.coeftable(m::phyloNetworkLinearModel) = coeftable(m.lm)
-StatsBase.coeftable(m::phyloNetworkLinPredModel) = coeftable(m.lm)
+# StatsBase.coeftable(m::phyloNetworkLinearModel) = coeftable(m.lm)
+# StatsBase.coeftable(m::phyloNetworkLinPredModel) = coeftable(m.lm)
+
+StatsBase.model_response(m::phyloNetworkLinearModel) = m.Y
+StatsBase.model_response(m::phyloNetworkLinPredModel) = m.Y
+
+StatsBase.predict(m::phyloNetworkLinearModel) = m.RU * predict(m.lm)
+StatsBase.predict(m::phyloNetworkLinPredModel) = predict(m.lm)
+
+df_residual(m::phyloNetworkLinearModel) =  nobs(m) - length(coef(m))
+df_residual(m::phyloNetworkLinPredModel) =  nobs(m) - length(coef(m))
 
 function sigma2(m::phyloNetworkLinearModel)
-	sum(residuals(fit).^2) / nobs(fit)
+#	sum(residuals(fit).^2) / nobs(fit)
+    sum(residuals(m).^2) / df_residual(m)
 end
 function sigma2(m::phyloNetworkLinPredModel)
-	sum(residuals(fit).^2) / nobs(fit)
+#	sum(residuals(fit).^2) / nobs(fit)
+    sum(residuals(m).^2) / df_residual(m)
 end
+
+function StatsBase.vcov(obj::phyloNetworkLinearModel)
+   sigma2(obj) * inv(obj.X' * obj.X) 
+end
+function StatsBase.vcov(obj::phyloNetworkLinPredModel)
+   sigma2(obj) * inv(obj.X' * obj.X) 
+end
+
+StatsBase.stderr(m::phyloNetworkLinearModel) = sqrt(diag(vcov(m)))
+StatsBase.stderr(m::phyloNetworkLinPredModel) = sqrt(diag(vcov(m)))
 
 function paramstable(m::phyloNetworkLinearModel)
     Sig = sigma2(m)
@@ -429,6 +456,32 @@ end
 function paramstable(m::phyloNetworkLinPredModel)
     Sig = sigma2(m)
     "Sigma2: $(Sig)"
+end
+
+function StatsBase.confint(obj::phyloNetworkLinearModel, level=0.95::Real)
+    hcat(coef(obj),coef(obj)) + stderr(obj) *
+    quantile(TDist(df_residual(obj)), (1. - level)/2.) * [1. -1.]
+end
+function StatsBase.confint(obj::phyloNetworkLinPredModel, level=0.95::Real)
+    hcat(coef(obj),coef(obj)) + stderr(obj) *
+    quantile(TDist(df_residual(obj)), (1. - level)/2.) * [1. -1.]
+end
+
+function StatsBase.coeftable(mm::phyloNetworkLinearModel)
+    cc = coef(mm)
+    se = stderr(mm)
+    tt = cc ./ se
+    CoefTable(hcat(cc,se,tt,ccdf(FDist(1, df_residual(mm)), abs2(tt))),
+              ["Estimate","Std.Error","t value", "Pr(>|t|)"],
+              ["x$i" for i = 1:size(mm.lm.pp.X, 2)], 4)
+end
+function StatsBase.coeftable(mm::phyloNetworkLinPredModel)
+    cc = coef(mm)
+    se = stderr(mm)
+    tt = cc ./ se
+    CoefTable(hcat(cc,se,tt,ccdf(FDist(1, df_residual(mm)), abs2(tt))),
+              ["Estimate","Std.Error","t value", "Pr(>|t|)"],
+              collect(coefnames(mm.lm.mf)), 4)
 end
 
 function Base.show(io::IO, obj::phyloNetworkLinearModel)

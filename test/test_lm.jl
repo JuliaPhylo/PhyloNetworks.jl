@@ -27,29 +27,37 @@ fit = phyloNetworklm(Y, X, net)
 fitNaive = phyloNetworklmNaive(Y, X, net) # old naive version
 
 # Simulate correlated data in data frames
-params = paramsBM(2, 1)
-sim = simulate(net, params)
 b0 = 1
-b1 = 2
+b1 = 10
+sim = simulate(net, paramsBM(1, 1))
 A = sim[:Tips]
 B = b0 + b1 * A + simulate(net,  paramsBM(0, 0.1))[:Tips]
 # perfect user using right format and formula
-df = DataFrame(B = B, A = A, tipsNames = sim.M.tipsNames)
-fit = phyloNetworklm(B ~ A, df, net)
+df = DataFrame(trait = B, pred = A, tipsNames = sim.M.tipsNames)
+fit = phyloNetworklm(trait ~ pred, df, net)
+
+# With Matrices
+X = hcat(ones(4), A)
+fit_mat = phyloNetworklm(B, X, net)
 
 # unordered data
 df = df[[2, 1, 4, 3], :]
 df
-fitbis = phyloNetworklm(B ~ A, df, net)
+fitbis = phyloNetworklm(trait ~ pred, df, net)
 
-# unnamed data
-df = DataFrame(B = B, A = A)
-fitter = phyloNetworklm(B ~ A, df, net)
+# unnamed ordered data
+df = DataFrame(trait = B, pred = A)
+fitter = phyloNetworklm(trait ~ pred, df, net)
+
+# unnamed un-ordered data
+df = df[[2, 1, 4, 3], :]
+fitter = phyloNetworklm(trait ~ pred, df, net) # Wrong pred
 
 
 fit
 loglikelihood(fit)
 
-# Add NAs
-#data[1, :B] = NA
-#fit = phyloNetworklm(B ~ A, data, net)
+### Add NAs
+df = DataFrame(trait = B, pred = A, tipsNames = sim.M.tipsNames)
+df[1, :trait] = NA
+fit = phyloNetworklm(trait ~ pred, df, net)
