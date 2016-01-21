@@ -215,9 +215,9 @@ end
 # output for HybridNetworks
 
 function Base.show(io::IO, obj::HybridNetwork)
-    disp = "$(typeof(obj)) with $(obj.numTaxa) tips"
-    disp = disp * ", $(obj.numNodes - obj.numTaxa) internal nodes"
-    disp = disp * ", and $(obj.numHybrids) hybrid nodes."
+    disp = "$(typeof(obj)) with $(obj.numNodes) nodes total:\n"
+    disp = disp * "  $(obj.numTaxa) tips,\n  $(obj.numNodes - obj.numTaxa - obj.numHybrids) internal tree nodes"
+    disp = disp * ",\n  $(obj.numHybrids) hybrid nodes."
     tipslabels = [n.name for n in obj.leaf]
     if length(tipslabels) > 1 || !all(tipslabels .== "")
         disptipslabels = "$(tipslabels[1])"
@@ -277,7 +277,7 @@ function Base.show(io::IO, obj::Node)
     disp = "$(typeof(obj)):"
     disp = disp * "\n Node Number:$(obj.number)"
     if (obj.name != "") disp = disp * "\n Node Name:$(obj.name)" end
-    if (obj.hybrid) disp = disp * "\n This node is an hybrid" end
+    if (obj.hybrid) disp = disp * "\n This node is a hybrid" end
     if (obj.leaf) disp = disp * "\n This node is a leaf" end
     println(io, disp)
 end
@@ -286,7 +286,7 @@ function Base.show(io::IO, obj::Edge)
     disp = "$(typeof(obj)):"
     disp = disp * "\n Edge Number:$(obj.number)"
     disp = disp * "\n Edge length:$(obj.length)"
-    if (obj.hybrid) disp = disp * "\n This edge is an hybrid edge with gamma=$(obj.gamma)" end
+    if (obj.hybrid) disp = disp * "\n This edge is a hybrid edge with gamma=$(obj.gamma)" end
     println(io, disp)
 end
 
