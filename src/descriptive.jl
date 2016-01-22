@@ -221,10 +221,10 @@ function Base.show(io::IO, obj::HybridNetwork)
     else
         disp = disp * "Un-rooted Network"
     end
-    disp = disp * "$(obj.numEdges) edges\n"
-    disp = disp * "$(obj.numNodes) nodes: $(obj.numTaxa) tips\n"
-    disp = disp * "                       $(obj.numNodes - obj.numTaxa - obj.numHybrids) internal tree nodes\n"
-    disp = disp * "                       $(obj.numHybrids) hybrid nodes"
+    disp = disp * "\n$(obj.numEdges) edges\n"
+    disp = disp * "$(obj.numNodes) nodes: $(obj.numTaxa) tips, "
+    disp = disp * "$(obj.numHybrids) hybrid nodes, "
+    disp = disp * "$(obj.numNodes - obj.numTaxa - obj.numHybrids) internal tree nodes.\n"
     tipslabels = [n.name for n in obj.leaf]
     if length(tipslabels) > 1 || !all(tipslabels .== "")
         disptipslabels = "$(tipslabels[1])"
