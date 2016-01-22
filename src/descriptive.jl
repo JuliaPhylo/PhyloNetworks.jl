@@ -215,9 +215,16 @@ end
 # output for HybridNetworks
 
 function Base.show(io::IO, obj::HybridNetwork)
-    disp = "$(typeof(obj)) with $(obj.numNodes) nodes total:\n"
-    disp = disp * "  $(obj.numTaxa) tips,\n  $(obj.numNodes - obj.numTaxa - obj.numHybrids) internal tree nodes"
-    disp = disp * ",\n  $(obj.numHybrids) hybrid nodes."
+    disp = "$(typeof(obj)), "
+    if obj.isRooted
+        disp = disp * "Rooted Network"
+    else
+        disp = disp * "Un-rooted Network"
+    end
+    disp = disp * "$(obj.numEdges) edges\n"
+    disp = disp * "$(obj.numNodes) nodes: $(obj.numTaxa) tips\n"
+    disp = disp * "                       $(obj.numNodes - obj.numTaxa - obj.numHybrids) internal tree nodes\n"
+    disp = disp * "                       $(obj.numHybrids) hybrid nodes"
     tipslabels = [n.name for n in obj.leaf]
     if length(tipslabels) > 1 || !all(tipslabels .== "")
         disptipslabels = "$(tipslabels[1])"
@@ -226,11 +233,6 @@ function Base.show(io::IO, obj::HybridNetwork)
         end
         if obj.numTaxa > 4 disptipslabels = disptipslabels * ", ..." end
         disp = disp * "\nTips labels: \n " * disptipslabels
-    end
-    if obj.isRooted
-        disp = disp * "\nRooted Network"
-    else
-        disp = disp * "\nUn-rooted Network"
     end
     disp = disp * "\n\n $(writeTopology(obj))"
     println(io, disp)
