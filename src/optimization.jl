@@ -989,6 +989,8 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     DEBUG && println(writeTopology(newT,true))
     if(ret)
         return newT
+    else
+        return nothing
     end
 end
 
@@ -1397,7 +1399,7 @@ function optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         currT = deepcopy(currT0);
     end
     gc();
-    best = optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,true,sout,logfile)
+    best = optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,returnNet,sout,logfile)
     return best
 end
 
