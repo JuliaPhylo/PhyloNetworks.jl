@@ -163,8 +163,8 @@ function deleteHybridThreshold!(net::HybridNetwork,gamma::Float64)
         if(hybedges[2].gamma < gamma || gamma == 0.5)
             deleteHybrid!(net.hybrid[i],net,true,false)
             # warning: deleteHybrid assumes non-missing branch lengths.
-            # note: deleteHybridizationUpdate! requires a level-1 network with 
-            # all attributes updated: inCycle, containRoot, etc., as after being 
+            # note: deleteHybridizationUpdate! requires a level-1 network with
+            # all attributes updated: inCycle, containRoot, etc., as after being
             # read by readTopologyLevel1.
         end
     end
@@ -202,6 +202,7 @@ function displayedTrees(net0::HybridNetwork, gamma::Float64)
     net = deepcopy(net0)
     deleteHybridThreshold!(net,gamma)
     displayedTrees!(trees,net)
+    updateTrees!(trees) #fix to errors in writeTopology when setting outgroup
     return trees # should have length 2^net.numHybrids
 end
 

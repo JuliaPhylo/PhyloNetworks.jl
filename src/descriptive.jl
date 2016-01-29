@@ -292,3 +292,19 @@ function Base.show(io::IO, obj::Edge)
     println(io, disp)
 end
 
+# function to check (and change) all attributes in a set of trees
+    function updateTrees!(trees::Vector{HybridNetwork})
+        for(t in trees)
+            if(isTree(t))
+                for(e in t.edge)
+                    e.containRoot = true
+                    e.inCycle = -1
+                end
+                for(n in t.node)
+                    n.inCycle = -1
+                end
+            end
+        end
+    end
+
+
