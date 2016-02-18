@@ -323,6 +323,7 @@ type phyloNetworkLinPredModel
     X::Matrix
     logdetVy::Real
     ind::Vector{Int} # vector matching the tips of the network against the names of the data frame provided. 0 if the match could not be preformed.
+    msng::BitArray{1} # Which tips are not missing
 end
 
 type phyloNetworkLinearModel 
@@ -333,6 +334,7 @@ type phyloNetworkLinearModel
     Y::Vector
     X::Matrix
     logdetVy::Real
+    msng::BitArray{1} # Which tips are not missing
 end
 
 
@@ -342,12 +344,13 @@ function phyloNetworklm(
 	Y::Vector,
 	X::Matrix,
 	net::HybridNetwork,
+    msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
 	model="BM"::AbstractString
 	)
 	# Geting variance covariance
 	V = sharedPathMatrix(net)
     # Fit
-    phyloNetworklm(Y, X, V, model)
+    phyloNetworklm(Y, X, V, msng, model)
 end
 
 # Same function, but when the matrix V is already known.
@@ -355,15 +358,18 @@ function phyloNetworklm(
 	Y::Vector,
 	X::Matrix,
 	V::matrixTopologicalOrder,
+    msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
 	model="BM"::AbstractString
 	)
     # Extract tips matrix
 	Vy = V[:Tips]
+    # Keep only not missing values
+    Vy = Vy[msng, msng]
 	# Cholesky decomposition
    	R = cholfact(Vy)
    	RU = R[:U]
 	# Fit
-   	phyloNetworkLinearModel(lm(RU\X, RU\Y), V, Vy, RU, Y, X, logdet(Vy))
+   	phyloNetworkLinearModel(lm(RU\X, RU\Y), V, Vy, RU, Y, X, logdet(Vy), msng)
 end
 
 
@@ -403,8 +409,9 @@ function phyloNetworklm(
     mm = ModelMatrix(mf)
     Y = convert(Vector{Float64},DataFrames.model_response(mf))
     # Fit the model
-    fit = phyloNetworklm(Y, mm.m, V, model)
-    phyloNetworkLinPredModel(DataFrames.DataFrameRegressionModel(fit, mf, mm), fit.V, fit.Vy, fit.RU, fit.Y, fit.X, fit.logdetVy, ind)
+    fit = phyloNetworklm(Y, mm.m, V, mf.msng, model)
+    phyloNetworkLinPredModel(DataFrames.DataFrameRegressionModel(fit, mf, mm),
+    fit.V, fit.Vy, fit.RU, fit.Y, fit.X, fit.logdetVy, ind, mf.msng)
 end
 
 # Methods on type phyloNetworkRegression

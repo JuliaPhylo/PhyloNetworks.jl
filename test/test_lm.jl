@@ -58,6 +58,12 @@ fit
 loglikelihood(fit)
 
 ### Add NAs
+b0 = 1
+b1 = 10
+sim = simulate(net, paramsBM(1, 1))
+A = sim[:Tips]
+B = b0 + b1 * A + simulate(net,  paramsBM(0, 0.1))[:Tips]
 df = DataFrame(trait = B, pred = A, tipsNames = sim.M.tipsNames)
-df[1, :trait] = NA
+df[2, :pred] = NA
+
 fit = phyloNetworklm(trait ~ pred, df, net)
