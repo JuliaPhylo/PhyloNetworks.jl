@@ -1,0 +1,29 @@
+\BOOKMARK [1][-]{section.1}{Introduction}{}% 1
+\BOOKMARK [1][-]{section.2}{Setup}{}% 2
+\BOOKMARK [2][-]{subsection.2.1}{Installation of Julia}{section.2}% 3
+\BOOKMARK [2][-]{subsection.2.2}{Installation of PhyloNetworks}{section.2}% 4
+\BOOKMARK [3][-]{subsubsection.2.2.1}{Example to test correct PhyloNetworks installation}{subsection.2.2}% 5
+\BOOKMARK [1][-]{section.3}{Usage of PhyloNetworks}{}% 6
+\BOOKMARK [2][-]{subsection.3.1}{Basic Julia commands}{section.3}% 7
+\BOOKMARK [1][-]{section.4}{Update of PhyloNetworks}{}% 8
+\BOOKMARK [1][-]{section.5}{Description of the main types}{}% 9
+\BOOKMARK [1][-]{section.6}{Description of the main functions}{}% 10
+\BOOKMARK [1][-]{section.7}{SNaQ: estimation of phylogenetic networks}{}% 11
+\BOOKMARK [2][-]{subsection.7.1}{Reading in data}{section.7}% 12
+\BOOKMARK [3][-]{subsubsection.7.1.1}{Small example on reading data}{subsection.7.1}% 13
+\BOOKMARK [2][-]{subsection.7.2}{Estimation method}{section.7}% 14
+\BOOKMARK [3][-]{subsubsection.7.2.1}{Small example on estimating phylogenetic network}{subsection.7.2}% 15
+\BOOKMARK [2][-]{subsection.7.3}{Reading the .out file}{section.7}% 16
+\BOOKMARK [2][-]{subsection.7.4}{Multiple alleles}{section.7}% 17
+\BOOKMARK [2][-]{subsection.7.5}{Optimizing branch lengths and inheritance probabilities for a given network}{section.7}% 18
+\BOOKMARK [2][-]{subsection.7.6}{Debugging: the .err file}{section.7}% 19
+\BOOKMARK [1][-]{section.8}{Visualization}{}% 20
+\BOOKMARK [2][-]{subsection.8.1}{Goodness-of-fit plot}{section.8}% 21
+\BOOKMARK [2][-]{subsection.8.2}{Phylogenetic Network Visualization}{section.8}% 22
+\BOOKMARK [3][-]{subsubsection.8.2.1}{Basic Network Plotting}{subsection.8.2}% 23
+\BOOKMARK [3][-]{subsubsection.8.2.2}{Customization options}{subsection.8.2}% 24
+\BOOKMARK [3][-]{subsubsection.8.2.3}{Visualization Examples}{subsection.8.2}% 25
+\BOOKMARK [3][-]{subsubsection.8.2.4}{Style Notes}{subsection.8.2}% 26
+\BOOKMARK [3][-]{subsubsection.8.2.5}{Example to test correct GraphViz installation}{subsection.8.2}% 27
+\BOOKMARK [1][-]{section.9}{Version history}{}% 28
+\BOOKMARK [1][-]{appendix.A}{Definition of Phylogenetic Network}{}% 29
