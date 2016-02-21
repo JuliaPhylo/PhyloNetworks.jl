@@ -993,7 +993,7 @@ readSnaqNetwork(file::AbstractString) = readOutfile(file)
 
 # function to change branch lengths of -1.0 to 1.0 for starting topology
 function cleanBL!(net::HybridNetwork)
-    println("missing branch lengths will be set to 1.0")
+    ##println("missing branch lengths will be set to 1.0")
     for(e in net.edge)
         if(e.length == -1.0)
             setLength!(e,1.0)
