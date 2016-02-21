@@ -196,6 +196,7 @@ end
 # function to take a DataFrame and convert to SharedArray
 # fixit: does not work, S is filled with zeros, but also how to pass the strings of taxon names??
 function convert2SharedArray(df::DataFrame)
+    error("convert2SharedArray not working, should not be called")
     S = SharedArray(Float64,size(df))
     for(i in size(df,1))
         for(j in size(df,2))
@@ -203,4 +204,208 @@ function convert2SharedArray(df::DataFrame)
         end
     end
     return S
+end
+
+# function that reads the list of bootstrap networks (net), and the estimated network (net0)
+# and calculates the bootstrap support of the tree edges in the estimated network
+# it returns a data frame with one row per tree edge, and two columns: edge number, bootstrap support
+"""
+`treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)`
+
+function that reads the list of bootstrap networks (net), and the estimated network (net0)
+and calculates the bootstrap support of the tree edges in the estimated network
+
+it returns a data frame with one row per tree edge, and two columns: edge number, bootstrap support
+"""
+function treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)
+    # estimated network, major tree and matrix
+    S = tipLabels(net0)
+    tree0 =majorTree(net0)
+    M0 = PhyloNetworks.tree2Matrix(tree0,S)
+
+    M = Matrix[]
+    tree = HybridNetwork[]
+    for(n in net)
+        t = majorTree(n)
+        push!(tree,t)
+        mm = PhyloNetworks.tree2Matrix(t,S)
+        push!(M,mm)
+    end
+
+    df = DataFrame(edge=Int64[], bs=Float64[])
+
+    for(i in 1:size(M0,1)) #rows in M0: internal edges
+        cnt = 0 #count
+        for(j in 1:length(M)) #for every M
+            for(k in 1:size(M[j],1)) #check every row in M
+                if(M0[i,2:end] == M[j][k,2:end] || M0[i,2:end] == map(x->(x+1)%2,M[j][k,2:end])) #same row
+                    #println("found same row: $(M0[i,2:end]) and $(M[j][k,2:end])")
+                    cnt += 1
+                    break
+                end
+            end
+        end
+        push!(df,[M0[i,1] cnt/length(M)])
+    end
+    return df, tree0
+end
+
+
+# function can only compare hybrid nodes in networks that have the same underlying major tree
+# also, need to root all networks in the same place, and the root has to be compatible with the
+# direction of the hybrid edges
+# it computes the rooted hardwired distance between networks, the root matters.
+# input: vector of bootstrap networks (net), estimated network (net1), outgroup
+# returns 1)a matrix with one row per bootstrap network, and 2*number of hybrids in net1,
+# 2) list of discrepant trees (trees not matching the main tree in net1)
+# column i corresponds to whether hybrid i (net1.hybrid[i]) is found in the bootstrap network,
+# column 2i+1 corresponds to the estimated gamma on the bootstrap network (0.0 if hybrid not found)
+# to know the order of hybrids, print net1.hybrid[i] i=1,...,num of hybrids
+"""
+`hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgroup::AbstractString)`
+
+function can only compare hybrid nodes in networks that have the same underlying major tree
+also, need to root all networks in the same place, and the root has to be compatible with the
+direction of the hybrid edges
+
+it computes the rooted hardwired distance between networks, the root matters.
+input: vector of bootstrap networks (net), estimated network (net1), outgroup
+
+returns
+
+- a matrix with one row per bootstrap network, and 2*number of hybrids in net1,
+column i corresponds to whether hybrid i (net1.hybrid[i]) is found in the bootstrap network,
+column 2i+1 corresponds to the estimated gamma on the bootstrap network (0.0 if hybrid not found)
+
+- list of discrepant trees (trees not matching the main tree in net1)
+"""
+function hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgroup::AbstractString)
+    tree1 = majorTree(net1)
+    rootnet1 = deepcopy(net1)
+    root!(rootnet1,outgroup)
+
+    # HF for "hybrid found?"
+    HFmat = zeros(length(net),net1.numHybrids*2)
+
+    # discrepant trees
+    discTrees = HybridNetwork[]
+    # major trees
+    majorTrees = HybridNetwork[]
+
+    i = 1
+    for(n in net)
+        tree = majorTree(n) # requires non-missing branch lengths
+        push!(majorTrees,tree)
+        RFmajor = hardwiredClusterDistance(tree, tree1, false)
+        if(RFmajor != 0)
+            push!(discTrees,tree)
+            i+=1
+            continue # skip replicate if major tree is *not* correct
+        end
+
+        found = rep(false,net1.numHybrids)
+        gamma = rep(0.0,net1.numHybrids)
+        # re-root estimated network if not rooted correctly
+        reroot = true
+        if (length(n.node[n.root].edge) == 2) # check if root connects to correct outgroup
+            for (e in n.node[n.root].edge)
+                for (node in e.node)
+                    if (node.name == outgroup)
+                        reroot = false
+                        break
+                    end
+                end
+                if (!reroot) break end
+            end
+        end
+        !reroot || println("Will need to reroot the estimated network...")
+        for (trueh = 1:net1.numHybrids)
+            netT = deepcopy(rootnet1)
+            displayedNetworkAt!(netT, netT.hybrid[trueh]) # bug: need correct attributes to re-root later...
+            for (esth = 1:n.numHybrids)
+                netE = deepcopy(n)
+                displayedNetworkAt!(netE, netE.hybrid[esth])
+                if (reroot)
+                    root!(netE, outgroup) # if re-rooting is not possible,
+                end                         # then the hybridization doesn't match.
+                if (hardwiredClusterDistance(netT, netE, true) == 0) # true: rooted
+                    found[trueh] = true
+                    node = netE.hybrid[1]
+                    edges = PhyloNetworks.hybridEdges(node)
+                    edges[2]. hybrid || error("edge should be hybrid")
+                    !edges[2]. isMajor || error("edge should be minor hybrid")
+                    edges[2].gamma <= 0.5 || error("gamma should be less than 0.5")
+                    gamma[trueh] = edges[2].gamma
+                    break # to exit loop over esth
+                end
+            end
+        end
+        HFmat[i,1:net1.numHybrids] = found
+        HFmat[i,(net1.numHybrids+1):end] = gamma
+        i+=1
+    end
+    treeMatch=size(HFmat[sum(HFmat,2).>0,:],1) #number of bootstrap trees that match tree1
+    println("$(treeMatch) out of $(length(net)) bootstrap major trees match with the major tree in the estimated network")
+    println("order of hybrids:")
+    for(h in net1.hybrid)
+        println("$(h.name)")
+    end
+    return HFmat,discTrees
+end
+
+
+# function to summarize df output from hybridDetection input: HFdf
+# (see hybridDetection) returns dataframe with one row per hybrid, and
+# 5 columns: - hybrid index (order from estimated network, see
+# hybridDetection), - number of bootstrap trees that match the
+# underlying tree of estimated network, - number of bootstrap networks
+# that have the hybrid - mean estimated gamma in the bootstrap
+# networks that have the hybrid - sd estimated gamma in the bootstrap
+# networks that have the hybrid also, last row has index -1, and the
+# third column has the number of networks that have all hybrids
+# (hybrid index, mean gamma, sd gamma are meaningless in this last
+# row)
+"""
+`summarizeHFdf(HFmat::Matrix)`
+
+function to summarize df output from hybridDetection input: HFdf
+(see hybridDetection) returns dataframe with one row per hybrid, and
+5 columns:
+
+- hybrid index (order from estimated network, see
+hybridDetection),
+
+- number of bootstrap trees that match the
+underlying tree of estimated network, - number of bootstrap networks
+that have the hybrid
+
+- mean estimated gamma in the bootstrap
+networks that have the hybrid
+
+- sd estimated gamma in the bootstrap
+networks that have the hybrid also
+
+last row has index -1, and the third column has the number of networks
+that have all hybrids (hybrid index, mean gamma, sd gamma are
+meaningless in this last row)
+"""
+function summarizeHFdf(HFmat::Matrix)
+    HFmat2 = HFmat[sum(HFmat,2) .>0,:]
+    gt = size(HFmat2,1)
+    total = size(HFmat,1)
+    numH = round(Int,size(HFmat,2)/2)
+    df = DataFrame(hybrid=Int64[],goodTrees=Float64[],netWithHybrid=Float64[],meanGamma=Float64[], sdGamma=Float64[])
+    for(i in 1:numH)
+        mat = HFmat2[HFmat2[:,i] .> 0, :]
+        n = size(mat,1)
+        g = mean(mat[:,round(Int,numH+i)])
+        s = std(mat[:,round(Int,numH+i)])
+        push!(df,[i gt n g s])
+    end
+    which = Bool[]
+    for(i in 1:size(HFmat2,1))
+        push!(which,sum(HFmat2[i,1:numH]) == numH)
+    end
+    push!(df, [-1 gt sum(which) -1.0 -1.0])
+    return df
 end
