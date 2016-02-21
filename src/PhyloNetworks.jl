@@ -49,7 +49,10 @@ majorTree,
 minorTreeAt,
 displayedNetworkAt!,
 hardwiredClusters,
-hardwiredClusterDistance
+hardwiredClusterDistance,
+treeEdgesBootstrap,
+hybridDetection,
+summarizeHFdf
 
 # export part
 
