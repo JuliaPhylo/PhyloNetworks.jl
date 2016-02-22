@@ -49,7 +49,10 @@ majorTree,
 minorTreeAt,
 displayedNetworkAt!,
 hardwiredClusters,
-hardwiredClusterDistance
+hardwiredClusterDistance,
+treeEdgesBootstrap,
+hybridDetection,
+summarizeHFdf
 
 # export part
 
@@ -65,7 +68,7 @@ include("readData.jl")
 include("optimization.jl")
 include("pseudolik.jl")
 include("descriptive.jl")
-#include("bootstrap.jl")
+include("bootstrap.jl")
 include("multipleAlleles.jl")
 include("genExport.jl")
 include("drawTraversal.jl")
