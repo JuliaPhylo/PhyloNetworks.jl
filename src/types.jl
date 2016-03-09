@@ -118,6 +118,8 @@ type HybridNetwork <: Network
     names::Array{ASCIIString,1} # translate table for taxon names --but also includes hybrid names...
     hybrid::Array{Node,1} # array of hybrid nodes in network
     numHybrids::Int64 # number of hybrid nodes
+    preorder_nodeIndex::Vector{Int64} # index in 'node' to use for preorder traversal
+    preorder_edgeIndex::Vector{Int64}
     visited::Array{Bool,1} # reusable array of booleans
     edges_changed::Array{Edge,1} # reusable array of edges
     nodes_changed::Array{Node,1} # reusable array of nodes
@@ -148,7 +150,9 @@ type HybridNetwork <: Network
         [n.leaf?push!(leaf,n):nothing for n in node];
         new(size(leaf,1),size(node,1),size(edge,1),node,edge,root,[],hybrid,size(hybrid,1),[],[],[],leaf,[],[],0,false,[],0,[],[],false,false)
     end
-    HybridNetwork() = new(0,0,0,[],[],0,[],[],0,[],[],[],[],[],[],0,false,[],0,[],[],false,false);
+    HybridNetwork() = new(0,0,0,[],[],0,[],[],0, # numTaxa ... numHybrid
+                          [],[],[],[],[],[],[],[], # preorder...
+                          0,false,[],0,[],[],false,false); # numBad ...
 end
 
 # type created from a HybridNetwork only to extract a given quartet
