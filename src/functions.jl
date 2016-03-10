@@ -12,6 +12,7 @@ using Base.Collections # for updateInCycle with priority queue
 using DataFrames # for rep function and read/write csv tables
 using NLopt # for branch lengths optimization
 #using GraphViz #for visualization
+using Gadfly # for plotsGadfly, for visualization
 
 import Base.show
 
@@ -44,8 +45,9 @@ include("pseudolik.jl")
 include("visualization.jl")
 
 include("descriptive.jl")
-
+include("manipulateNet.jl")
 include("bootstrap.jl")
 
 include("multipleAlleles.jl")
 include("compareNetworks.jl")
+include("plotsGadfly.jl")
