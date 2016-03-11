@@ -73,7 +73,7 @@ function Base.show(io::IO, net::QuartetNetwork)
     end
 end
 
-function Based.show(io::IO,d::DataCF)
+function Base.show(io::IO,d::DataCF)
     print(io,"-----------------------\n")
     print(io,"Object DataCF\n")
     print(io,"number of quartets: $(d.numQuartets)\n")

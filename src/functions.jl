@@ -42,7 +42,7 @@ include("optimization.jl")
 
 include("pseudolik.jl")
 
-include("visualization.jl")
+include("plotsGraphViz.jl")
 
 include("descriptive.jl")
 include("manipulateNet.jl")

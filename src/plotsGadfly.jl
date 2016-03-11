@@ -39,7 +39,7 @@ function Gadfly.plot(net::HybridNetwork)
             break
         end
     end
-    elen = Vector{Float64} # edge lengths to be used for plotting. same order as net.edge.
+    elen = Float64[] # edge lengths to be used for plotting. same order as net.edge.
     if (allBLmissing)
         # setting elen such that the age of each node = 1 + age of oldest child
         # calculating node ages first, elen will be calculated later.

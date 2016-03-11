@@ -8,8 +8,10 @@ using DataFrames # for rep function and read/write csv tables
 using GLM # for the lm function
 using NLopt # for branch lengths optimization
 # using GraphViz #for visualization
+using Gadfly # for plots
 
 import Base.show
+import Gadfly.plot
 
 const DEBUG = false #for debugging only
 const DEBUGC = false #more detailed prints
@@ -38,8 +40,8 @@ topologyMaxQPseudolik!,
 topologyQPseudolik!,
 root!,
 dfObsExpCF,
-plotPhylonet,
-generalExport, #for graphviz test
+plotNetGraphViz, # generalExport, #for graphviz test
+plot,
 setLength!,
 setGamma!,
 mapAllelesCFtable,
@@ -70,9 +72,8 @@ include("pseudolik.jl")
 include("descriptive.jl")
 include("bootstrap.jl")
 include("multipleAlleles.jl")
-include("genExport.jl")
-include("drawTraversal.jl")
-include("plotPhylonet.jl")
+include("plotsGraphViz.jl")
+include("plotsGadfly.jl")
 include("compareNetworks.jl")
 include("functions.jl")
 include("traits.jl")

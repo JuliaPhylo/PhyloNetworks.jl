@@ -1,7 +1,7 @@
 # initial function: John Spaw, 7/2015
 # takes a network object and converts it into .dot file, which is then converted into a .svg image file
 """
-`plotPhylonet(net::HybridNetwork)`
+`plotNetGraphViz(net::HybridNetwork)`
 
 function to plot a HybridNetwork object. The plot will be saved in the working directory as a svg file. We are working on allowing other file formats, and to have the plot pop out in a window.
 This function has the following optional arguments:
@@ -20,7 +20,7 @@ This function has the following optional arguments:
 - includeGamma: if true, includes the gamma values in the plot (default false)
 - includeLength: if true, includes the branch lengths in the plot (default false
 """
-function plotPhylonet(graph::Network;    # Network object to plot
+function plotNetGraphViz(graph::Network; # Network object to plot
   imageName="netImage",                  # Name for output files
   gammaThreshold=0.5::AbstractFloat,     # threshold for ...
   mainTree=false::Bool,                  # When true, plots underlying tree only
@@ -44,7 +44,7 @@ function plotPhylonet(graph::Network;    # Network object to plot
   # check that the root is correcly placed (Claudia, Aug2015)
   if(!isTree(graph))
       if(!graph.cleaned)
-          DEBUG && println("net not cleaned inside plotPhylonet, need to run updateCR")
+          DEBUG && println("net not cleaned inside plotNetGraphViz, need to run updateCR")
           for(n in graph.hybrid)
               flag,edges = updateContainRoot!(graph,n)
               flag || error("hybrid node $(n.hybrid) has conflicting containRoot")
@@ -154,7 +154,7 @@ function plotPhylonet(graph::Network;    # Network object to plot
 
 end
 
-function plotPhylonet(netString::AbstractString;
+function plotNetGraphViz(netString::AbstractString;
   imageName="netImage",                 # Name for output files
   gammaThreshold=0.5::AbstractFloat,    # threshold for ...
   mainTree=false::Bool,                 # When true, plots underlying tree only
@@ -176,7 +176,7 @@ function plotPhylonet(netString::AbstractString;
   )
 
   net = readTopologyUpdate(netString,true);
-  plotPhylonet(net,
+  plotNetGraphViz(net,
      gammaThreshold=gammaThreshold,
      mainTree=mainTree,
      imageName=imageName,
@@ -356,3 +356,13 @@ function writeEdgesToDotFile(net::HybridNetwork,
     end #for
   end #if
 end #function
+
+# Converts a .dot file into a .svg image
+function generalExport(file;filename="genImage"::AbstractString,layoutEngine="dot")
+  dot = open(file,"r") do io Graph(io) end
+  GraphViz.layout!(dot,engine=layoutEngine)
+  open("$filename.svg","w") do f
+    GraphViz.writemime(f, MIME"image/svg+xml"(),dot)
+  end #do
+  DEBUG && print("File saved")
+end
