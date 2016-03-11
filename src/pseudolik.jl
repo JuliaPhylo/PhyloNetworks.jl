@@ -771,6 +771,7 @@ function identifyQuartet!(qnet::QuartetNetwork, node::Node)
         DEBUG && printNodes(qnet)
         error("strange quartet network with $(k) nodes in cycle, maximum should be 4")
     end
+    DEBUG && print("qnet identified as type $(node.typeHyb)")
 end
 
 # function to identify the Quartet network as
