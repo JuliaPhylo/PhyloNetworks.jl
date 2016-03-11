@@ -15,7 +15,7 @@ using NLopt # for branch lengths optimization
 
 import Base.show
 
-const DEBUG = true
+const DEBUG = false
 const DEBUGC = false #more detailed prints
 const CHECKNET = false #for debugging only
 const REDIRECT = false # for debugging to a file later
