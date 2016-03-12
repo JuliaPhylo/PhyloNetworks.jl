@@ -257,9 +257,11 @@ function preorder!(net::HybridNetwork)
     push!(net.nodes_changed,net.node[net.root]) #push root into path
     push!(net.preorder_nodeIndex,    net.root )
     push!(net.preorder_edgeIndex,    0) # root has no parent edge: giving bad index 0
-    net.visited[getIndex(net.node[net.root],net)] = true # visit root
+    net.visited[net.root] = true   # visit root
     for(e in net.node[net.root].edge)
-        enqueue!(queue,getOtherNode(e,net.node[net.root]),1) #enqueue child of root
+        if (!e.hybrid) # enqueue child of root, if child is not a hybrid.
+            enqueue!(queue,getOtherNode(e,net.node[net.root]),1)
+        end # if child is hybrid, its second parent has not been visited yet.
     end
     while(!isempty(queue))
         #println("at this moment, queue is $([n.number for n in queue])")
@@ -275,20 +277,18 @@ function preorder!(net::HybridNetwork)
             end
         end
         for(e in curr.edge)
-            if(e.isMajor) #only traverse major edges
-                if(isEqual(curr,e.node[e.isChild1 ? 2 : 1])) # curr is the parent node if e
-                    other = getOtherNode(e,curr)
-                    if(!e.hybrid)
-                        enqueue!(queue,other,1)
-                    else
-                        for(e2 in other.edge)
-                            if(e2.hybrid && !isEqual(e,e2)) #find the other hybrid parent edge for other
-                                parent = getOtherNode(e2,other)
-                                if(net.visited[getIndex(parent,net)])
-                                    enqueue!(queue,other,1)
-                                end
-                                break
+            if(isEqual(curr,e.node[e.isChild1 ? 2 : 1])) # curr is the parent node if e
+                other = getOtherNode(e,curr)
+                if(!e.hybrid)
+                    enqueue!(queue,other,1)
+                else
+                    for(e2 in other.edge) # find other hybrid parent edge for 'other'
+                        if(e2.hybrid && !isEqual(e,e2))
+                            parent = getOtherNode(e2,other)
+                            if(net.visited[getIndex(parent,net)])
+                                enqueue!(queue,other,1)
                             end
+                            break
                         end
                     end
                 end
