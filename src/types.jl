@@ -141,14 +141,18 @@ type HybridNetwork <: Network
         leaf=Node[];
         [n.hybrid?push!(hybrid,n):nothing for n in node];
         [n.leaf?push!(leaf,n):nothing for n in node];
-        new(size(leaf,1),size(node,1),size(edge,1),node,edge,1,[],hybrid,size(hybrid,1),[],[],[],leaf,[],[],0,false,[],0,[],[],false,false)
+        new(size(leaf,1),size(node,1),size(edge,1),node,edge,1,[],hybrid,size(hybrid,1), #numTaxa,...,numHybrids
+            [],[],[],[],[],leaf,[],[], #preorded,...,numht
+            0,false,[],0,[],[],false,false) #numBad...
     end
     function HybridNetwork(node::Array{Node,1},edge::Array{Edge,1},root::Int64)
         hybrid=Node[];
         leaf=Node[];
         [n.hybrid?push!(hybrid,n):nothing for n in node];
         [n.leaf?push!(leaf,n):nothing for n in node];
-        new(size(leaf,1),size(node,1),size(edge,1),node,edge,root,[],hybrid,size(hybrid,1),[],[],[],leaf,[],[],0,false,[],0,[],[],false,false)
+        new(size(leaf,1),size(node,1),size(edge,1),node,edge,root,[],hybrid,size(hybrid,1), #numTaxa,...,numHybrids
+            [],[],[],[],[],leaf,[],[], #preorded,...,numht
+            0,false,[],0,[],[],false,false) #numBad...
     end
     HybridNetwork() = new(0,0,0,[],[],0,[],[],0, # numTaxa ... numHybrid
                           [],[],[],[],[],[],[],[], # preorder...
