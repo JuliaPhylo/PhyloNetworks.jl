@@ -4,17 +4,19 @@
 #
 # in julia: include("functions.jl")
 
-# tests of functions in examples_classes.jl outside git_laptop
+# for development and tests only. 
 
 # needed modules:
-#using DataStructures # for updateInCycle with queue
+
 using Base.Collections # for updateInCycle with priority queue
 using DataFrames # for rep function and read/write csv tables
+using GLM # for the lm function
 using NLopt # for branch lengths optimization
 #using GraphViz #for visualization
 using Gadfly # for plotsGadfly, for visualization
 
 import Base.show
+import Gadfly.plot
 
 const DEBUG = false
 const DEBUGC = false #more detailed prints
@@ -23,31 +25,20 @@ const REDIRECT = false # for debugging to a file later
 
 
 include("auxiliary.jl")
-
 include("update.jl")
-
 include("undo.jl")
-
 include("addHybrid.jl")
-
 include("deleteHybrid.jl")
-
 include("moves.jl")
-
 include("readwrite.jl")
-
 include("readData.jl")
-
 include("optimization.jl")
-
 include("pseudolik.jl")
-
-include("plotsGraphViz.jl")
-
 include("descriptive.jl")
 include("manipulateNet.jl")
 include("bootstrap.jl")
-
 include("multipleAlleles.jl")
-include("compareNetworks.jl")
+include("plotsGraphViz.jl")
 include("plotsGadfly.jl")
+include("compareNetworks.jl")
+include("traits.jl")

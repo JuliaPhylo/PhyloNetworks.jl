@@ -9,6 +9,7 @@ using GLM # for the lm function
 using NLopt # for branch lengths optimization
 # using GraphViz #for visualization
 using Gadfly # for plots
+using ColorTypes # used by Gadfly already. To resolve data type names (Colorant)
 
 import Base.show
 import Gadfly.plot
@@ -39,8 +40,9 @@ snaqDebug,
 topologyMaxQPseudolik!,
 topologyQPseudolik!,
 root!,
+preorder!,
 dfObsExpCF,
-plotNetGraphViz, # generalExport, #for graphviz test
+plotNetGraphViz,
 plot,
 setLength!,
 setGamma!,
@@ -70,12 +72,12 @@ include("readData.jl")
 include("optimization.jl")
 include("pseudolik.jl")
 include("descriptive.jl")
+include("manipulateNet.jl")
 include("bootstrap.jl")
 include("multipleAlleles.jl")
 include("plotsGraphViz.jl")
 include("plotsGadfly.jl")
 include("compareNetworks.jl")
-include("functions.jl")
 include("traits.jl")
 
 
