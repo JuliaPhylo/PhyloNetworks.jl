@@ -140,6 +140,9 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
     end
     # data frame to place tip labels
     if (showTipLabel || showNodeNumber)
+      # white dot beyond tip labels to force enough zoom out
+      push!(mylayers, layer(x=[xmax*1.1], y=[ymax*1.1],
+               Geom.point, Theme(default_color=colorant"white"))[1])
       nrows = (showNodeNumber ? net.numNodes : net.numTaxa)
       ndf = DataFrame([ASCIIString,ASCIIString,Bool,Float64,Float64], # column types, column names, nrows
                [symbol("lab"),symbol("num"),symbol("lea"),symbol("x"),symbol("y")], nrows)
