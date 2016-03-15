@@ -1,3 +1,28 @@
+"""
+`plot!(net::HybridNetwork; useEdgeLength=false::Bool,
+        mainTree=false::Bool, showTipLabel=true::Bool, showNodeNumber=false::Bool,
+        showEdgeLength=true::Bool, showGamma=true::Bool,
+        edgeColor=colorant"black"::ColorTypes.Colorant,
+        majorHybridEdgeColor=colorant"blue1"::ColorTypes.Colorant,
+        minorHybridEdgeColor=colorant"blue1"::ColorTypes.Colorant,
+        preorder=true::Bool)`
+
+Plots a network, from left to right.
+
+- useEdgeLength: if true, the tree edges and major hybrid edges are
+  drawn proportionally to their length. Minor hybrid edges are not, however.
+  Note that edge lengths in coalescent units may scale very poorly with time.
+- mainTree: if true, the minor hybrid edges are ommitted.
+- showTipLabel: if true, taxon labels are shown. You may need to zoom out to see them.
+- showNodeNumbers: if true, nodes are labelled with the number used internally.
+- showEdgeLength: if true, edges are labelled with their length (above)
+- showGamma: if true, hybrid edges are labelled with their heritability (below)
+- edgeColor: color for tree edges. black by default.
+- majorHybridEdgeColor: color for major hybrid edges. blue by default.
+- minorHybridEdgeColor: color for minor hybrid edges
+- preorder: if true, network attributes are first updated to get
+  a pre-ordering of nodes (using directEdges! and preorder!)
+"""
 function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
         mainTree=false::Bool, showTipLabel=true::Bool, showNodeNumber=false::Bool,
         showEdgeLength=true::Bool, showGamma=true::Bool,
@@ -168,19 +193,25 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
     end
     # data frame for edge annotations
     if (showEdgeLength || showGamma)
+        nrows = net.numEdges - (mainTree ? net.numHybrids : 0)
         edf = DataFrame([ASCIIString,ASCIIString,ASCIIString,Bool,Bool,Float64,Float64],
                   [symbol("len"),symbol("gam"),symbol("num"),
-                   symbol("hyb"),symbol("min"),symbol("x"),symbol("y")], net.numEdges)
+                   symbol("hyb"),symbol("min"),symbol("x"),symbol("y")], nrows)
 
+        j=1
         for (i = 1:length(net.edge))
-            edf[i,:len] = string(net.edge[i].length)
-            edf[i,:gam] = string(net.edge[i].gamma)
-            edf[i,:num] = string(net.edge[i].number)
-            edf[i,:hyb] = net.edge[i].hybrid
-            edf[i,:min] = !net.edge[i].isMajor
-            edf[i,:y] = (edge_yB[i] + edge_yE[i])/2
-            edf[i,:x] = (edge_xB[i] + edge_xE[i])/2
+          if (!mainTree || !net.edge[i].hybrid || net.edge[i].isMajor)
+            edf[j,:len] = string(net.edge[i].length)
+            edf[j,:gam] = string(net.edge[i].gamma)
+            edf[j,:num] = string(net.edge[i].number)
+            edf[j,:hyb] = net.edge[i].hybrid
+            edf[j,:min] = !net.edge[i].isMajor
+            edf[j,:y] = (edge_yB[i] + edge_yE[i])/2
+            edf[j,:x] = (edge_xB[i] + edge_xE[i])/2
+            j += 1
+          end
         end
+        # @show edf
         if (showEdgeLength)
             push!(mylayers, layer(edf, y="y", x="x", label="len",
                   Geom.label(position=:above ;hide_overlaps=true))[1])
@@ -190,7 +221,6 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
                   Geom.label(position=:below ;hide_overlaps=true),
                   Theme(point_label_color=minorHybridEdgeColor))[1])
         end
-        #@show edf
     end
 
     plot(mylayers, Guide.xlabel("time"), Guide.ylabel(nothing),

@@ -247,8 +247,15 @@ end
 
 # function to order nodes in topological sorting
 # saves vector of nodes in the right order in net.nodes_changed
+"""
+`preorder!(net::HybridNetwork)`
+
+Updates attributes of the network to calculate a pre-ordering of the nodes
+(also called topological sorting), such that each node is visited after its parent(s).
+The edges' direction needs to be correct before calling preorder!, using directEdges!
+"""
 function preorder!(net::HybridNetwork)
-    net.isRooted || error("net needs to be rooted for preorder, run root! or directEdges")
+    net.isRooted || error("net needs to be rooted for preorder, run root! or directEdges!")
     net.nodes_changed = Node[] # path of nodes in preorder.
     net.preorder_nodeIndex = Int64[] # corresponding order, but with node indices
     net.preorder_edgeIndex = Int64[] # Major edges only: major parent of corresponding node
