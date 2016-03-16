@@ -201,7 +201,7 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
         j=1
         for (i = 1:length(net.edge))
           if (!mainTree || !net.edge[i].hybrid || net.edge[i].isMajor)
-            edf[j,:len] = string(net.edge[i].length)
+            edf[j,:len] = (net.edge[i].length==-1.0 ? "" : string(net.edge[i].length))
             edf[j,:gam] = string(net.edge[i].gamma)
             edf[j,:num] = string(net.edge[i].number)
             edf[j,:hyb] = net.edge[i].hybrid
@@ -216,7 +216,7 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
             push!(mylayers, layer(edf, y="y", x="x", label="len",
                   Geom.label(position=:above ;hide_overlaps=true))[1])
         end
-        if (showGamma)
+        if (showGamma && net.numHybrids>0)
             push!(mylayers, layer(edf[edf[:hyb],:], y="y", x="x", label="gam",
                   Geom.label(position=:below ;hide_overlaps=true),
                   Theme(point_label_color=minorHybridEdgeColor))[1])
