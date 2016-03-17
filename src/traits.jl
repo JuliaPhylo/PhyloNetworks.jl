@@ -5,6 +5,7 @@
 ## Function to traverse the network in the pre-order, updating a matrix
 #################################################
 
+# Matrix with rows and/or columns in topological order of the net.
 type matrixTopologicalOrder
     V::Matrix # Matrix in itself
     nodesNumbers::Vector{Int64} # Vector of nodes numbers for ordering of the matrix
@@ -18,6 +19,7 @@ function Base.show(io::IO, obj::matrixTopologicalOrder)
 end
 
 # This function takes an init and update funtions as arguments
+# It does the recursion using these functions on a preordered network.
 function recursionPreOrder(
 	net::HybridNetwork,
 	checkPreorder=true::Bool,
@@ -100,9 +102,9 @@ end
 function Base.getindex(obj::matrixTopologicalOrder, d::Symbol)
     if d == :Tips
         mask = indexin(obj.tipsNumbers, obj.nodesNumbers,)
-        obj.indexation == "b" && return obj.V[mask, mask]
-        obj.indexation == "c" && return obj.V[:, mask]
-        obj.indexation == "r" && return obj.V[mask, :]
+        obj.indexation == "b" && return obj.V[mask, mask] # both columns and rows are indexed by nodes
+        obj.indexation == "c" && return obj.V[:, mask] # Only the columns
+        obj.indexation == "r" && return obj.V[mask, :] # Only the rows
     end
     d == :All && return obj.V
 end
@@ -110,7 +112,14 @@ end
 #################################################
 ## Functions to compute the variance-covariance between Node and its parents
 #################################################
+"""
+`sharedPathMatrix(net::HybridNetwork; checkPreorder=true::Bool)`
 
+This function computes the shared path matrix between all the nodes of a
+network. It assumes that the network is in the pre-order. If checkPreorder is
+true, then it runs function 'preoder' on the network beforehand. Returns an
+object of type 'matrixTopologicalOrder'.
+"""
 function sharedPathMatrix(
 	net::HybridNetwork;
 	checkPreorder=true::Bool
@@ -214,20 +223,22 @@ end
 #################################################
 
 # New type for phyloNetwork regression
+# For Data frames (fomula)
 type phyloNetworkLinPredModel
-    lm::DataFrames.DataFrameRegressionModel
-    V::matrixTopologicalOrder
-    Vy::Matrix
-    RU::UpperTriangular
-    Y::Vector
-    X::Matrix
-    logdetVy::Real
+    lm::DataFrames.DataFrameRegressionModel # Result of the lm on a data frame
+    V::matrixTopologicalOrder # Network Matrix
+    Vy::Matrix # Variance covariance at the tips
+    RU::UpperTriangular # Cholesky transform of Vy
+    Y::Vector # Data at the tips
+    X::Matrix # Regression matrix
+    logdetVy::Real # log det of Vy
     ind::Vector{Int} # vector matching the tips of the network against the names of the data frame provided. 0 if the match could not be preformed.
     msng::BitArray{1} # Which tips are not missing
 end
 
+# For matrices
 type phyloNetworkLinearModel 
-    lm::GLM.LinearModel
+    lm::GLM.LinearModel # result of a lm on a matrix
     V::matrixTopologicalOrder
     Vy::Matrix
     RU::UpperTriangular
@@ -310,33 +321,43 @@ function phyloNetworklm(
     Y = convert(Vector{Float64},DataFrames.model_response(mf))
     # Fit the model
     fit = phyloNetworklm(Y, mm.m, V, mf.msng, model)
+    # Create the object
     phyloNetworkLinPredModel(DataFrames.DataFrameRegressionModel(fit, mf, mm),
     fit.V, fit.Vy, fit.RU, fit.Y, fit.X, fit.logdetVy, ind, mf.msng)
 end
 
-# Methods on type phyloNetworkRegression
+### Methods on type phyloNetworkRegression
 
+# Coefficients of the regression
 StatsBase.coef(m::phyloNetworkLinearModel) = coef(m.lm)
 StatsBase.coef(m::phyloNetworkLinPredModel) = coef(m.lm)
 
+# Number of observations
 StatsBase.nobs(m::phyloNetworkLinearModel) = nobs(m.lm)
 StatsBase.nobs(m::phyloNetworkLinPredModel) = nobs(m.lm)
 
+# Compute the residuals
+# (Rescaled by cholesky of variance between tips)
 StatsBase.residuals(m::phyloNetworkLinearModel) = m.RU * residuals(m.lm)
 StatsBase.residuals(m::phyloNetworkLinPredModel) = residuals(m.lm)
 
 # StatsBase.coeftable(m::phyloNetworkLinearModel) = coeftable(m.lm)
 # StatsBase.coeftable(m::phyloNetworkLinPredModel) = coeftable(m.lm)
 
+# Tip data
 StatsBase.model_response(m::phyloNetworkLinearModel) = m.Y
 StatsBase.model_response(m::phyloNetworkLinPredModel) = m.Y
 
+# Predicted values at the tips
+# (rescaled by cholesky of tips variances)
 StatsBase.predict(m::phyloNetworkLinearModel) = m.RU * predict(m.lm)
 StatsBase.predict(m::phyloNetworkLinPredModel) = predict(m.lm)
 
+# Degrees of freedom for residuals
 df_residual(m::phyloNetworkLinearModel) =  nobs(m) - length(coef(m))
 df_residual(m::phyloNetworkLinPredModel) =  nobs(m) - length(coef(m))
 
+# Compute variance of the BM
 function sigma2(m::phyloNetworkLinearModel)
 #	sum(residuals(fit).^2) / nobs(fit)
     sum(residuals(m).^2) / df_residual(m)
@@ -346,6 +367,7 @@ function sigma2(m::phyloNetworkLinPredModel)
     sum(residuals(m).^2) / df_residual(m)
 end
 
+# vcov matrix
 function StatsBase.vcov(obj::phyloNetworkLinearModel)
    sigma2(obj) * inv(obj.X' * obj.X) 
 end
@@ -353,18 +375,11 @@ function StatsBase.vcov(obj::phyloNetworkLinPredModel)
    sigma2(obj) * inv(obj.X' * obj.X) 
 end
 
+# Standart error
 StatsBase.stderr(m::phyloNetworkLinearModel) = sqrt(diag(vcov(m)))
 StatsBase.stderr(m::phyloNetworkLinPredModel) = sqrt(diag(vcov(m)))
 
-function paramstable(m::phyloNetworkLinearModel)
-    Sig = sigma2(m)
-    "Sigma2: $(Sig)"
-end
-function paramstable(m::phyloNetworkLinPredModel)
-    Sig = sigma2(m)
-    "Sigma2: $(Sig)"
-end
-
+# Confidence intervals on coeficients
 function StatsBase.confint(obj::phyloNetworkLinearModel, level=0.95::Real)
     hcat(coef(obj),coef(obj)) + stderr(obj) *
     quantile(TDist(df_residual(obj)), (1. - level)/2.) * [1. -1.]
@@ -374,6 +389,22 @@ function StatsBase.confint(obj::phyloNetworkLinPredModel, level=0.95::Real)
     quantile(TDist(df_residual(obj)), (1. - level)/2.) * [1. -1.]
 end
 
+# Log likelihood of the fitted BM
+StatsBase.loglikelihood(m::phyloNetworkLinearModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2(m)) + m.logdetVy)
+StatsBase.loglikelihood(m::phyloNetworkLinPredModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2(m)) + m.logdetVy)
+
+
+### Print the results
+# Variance
+function paramstable(m::phyloNetworkLinearModel)
+    Sig = sigma2(m)
+    "Sigma2: $(Sig)"
+end
+function paramstable(m::phyloNetworkLinPredModel)
+    Sig = sigma2(m)
+    "Sigma2: $(Sig)"
+end
+# Coefficients
 function StatsBase.coeftable(mm::phyloNetworkLinearModel)
     cc = coef(mm)
     se = stderr(mm)
@@ -398,8 +429,6 @@ function Base.show(io::IO, obj::phyloNetworkLinPredModel)
     println(io, "$(typeof(obj)):\n\nParameter(s) Estimates:\n", paramstable(obj), "\n\nCoefficients:\n", coeftable(obj))
 end
 
-StatsBase.loglikelihood(m::phyloNetworkLinearModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2(m)) + m.logdetVy)
-StatsBase.loglikelihood(m::phyloNetworkLinPredModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2(m)) + m.logdetVy)
 
 #################################################
 ## Old version of phyloNetworklm (naive) 
@@ -494,10 +523,12 @@ function simulate(net::HybridNetwork, params::paramsProcess, model="BM"::Abstrac
     traitSimulation(M, params, model)
 end
 
+# Initialization of the structure
 function initSimulateBM(nodes::Vector{Node}, params::Tuple{paramsBM})
 	return(zeros(2, length(nodes)))
 end
 
+# Initialization of the root
 function updateRootSimulateBM!(M::Matrix, i::Int, params::Tuple{paramsBM})
 	params = params[1]
 	if (params.randomRoot)
@@ -509,13 +540,14 @@ function updateRootSimulateBM!(M::Matrix, i::Int, params::Tuple{paramsBM})
 	end
 end
 
-
+# Going down to a tree node
 function updateTreeSimulateBM!(M::Matrix, i::Int, parentIndex::Int, edge::Edge, params::Tuple{paramsBM})
 	params = params[1]
 	M[1, i] = params.mu  # expectation
 	M[2, i] = M[2, parentIndex] + sqrt(params.sigma2 * edge.length) * randn() # random value
 end
 
+# Going down to an hybrid node
 function updateHybridSimulateBM!(M::Matrix, i::Int, parentIndex1::Int, parentIndex2::Int, edge1::Edge, edge2::Edge, params::Tuple{paramsBM})
 	params = params[1]
        	M[1, i] = params.mu  # expectation
@@ -554,16 +586,15 @@ end
 # end
 
 # Extract the vector of simulated values at the tips
-
-# function extractSimulateTips(sim::Matrix, net::HybridNetwork)
-# 	mask = getTipsIndexes(net)
-# 	return(squeeze(sim[2, mask], 1))
-# end
-
 function Base.getindex(obj::traitSimulation, d::Symbol)
     if d == :Tips
        res = obj.M[:Tips]
        squeeze(res[2, :], 1)
     end
 end
+
+# function extractSimulateTips(sim::Matrix, net::HybridNetwork)
+# 	mask = getTipsIndexes(net)
+# 	return(squeeze(sim[2, mask], 1))
+# end
 
