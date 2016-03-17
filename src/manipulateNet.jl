@@ -259,7 +259,8 @@ function preorder!(net::HybridNetwork)
     net.nodes_changed = Node[] # path of nodes in preorder.
     net.preorder_nodeIndex = Int64[] # corresponding order, but with node indices
     net.preorder_edgeIndex = Int64[] # Major edges only: major parent of corresponding node
-    queue = PriorityQueue();
+    queue = Node[] # problem with PriorityQueue(): dequeue() takes a
+                   # random member if all have the same priority 1.
     net.visited = [false for i = 1:size(net.node,1)];
     push!(net.nodes_changed,net.node[net.root]) #push root into path
     push!(net.preorder_nodeIndex,    net.root )
@@ -267,12 +268,13 @@ function preorder!(net::HybridNetwork)
     net.visited[net.root] = true   # visit root
     for(e in net.node[net.root].edge)
         if (!e.hybrid) # enqueue child of root, if child is not a hybrid.
-            enqueue!(queue,getOtherNode(e,net.node[net.root]),1)
+            push!(queue,getOtherNode(e,net.node[net.root]))
         end # if child is hybrid, its second parent has not been visited yet.
     end
+    # print("queued the root's children: "); @show queue
     while(!isempty(queue))
         #println("at this moment, queue is $([n.number for n in queue])")
-        curr = dequeue!(queue);
+        curr = pop!(queue); # deliberate choice over shift! for cladewise order
         # @show curr.number
         net.visited[getIndex(curr,net)] = true # visit curr node
         push!(net.nodes_changed,curr) #push curr into path
@@ -287,13 +289,15 @@ function preorder!(net::HybridNetwork)
             if(isEqual(curr,e.node[e.isChild1 ? 2 : 1])) # curr is the parent node if e
                 other = getOtherNode(e,curr)
                 if(!e.hybrid)
-                    enqueue!(queue,other,1)
+                    push!(queue,other)
+                    # print("queuing: "); @show other.number
                 else
                     for(e2 in other.edge) # find other hybrid parent edge for 'other'
                         if(e2.hybrid && !isEqual(e,e2))
                             parent = getOtherNode(e2,other)
                             if(net.visited[getIndex(parent,net)])
-                                enqueue!(queue,other,1)
+                                push!(queue,other)
+                                # print("queuing: "); @show other.number
                             end
                             break
                         end

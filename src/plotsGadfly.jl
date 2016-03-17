@@ -46,12 +46,12 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
     node_y  = zeros(Float64, net.numNodes) # order: in net.nodes, *!not in nodes_changed!*
     node_yB = zeros(Float64,net.numNodes) # min (B=begin) and max (E=end)
     node_yE = zeros(Float64,net.numNodes) #   of at children's nodes
-    nexty = ymin
+    nexty = ymax # first tips at the top, last at bottom
     for i=length(net.nodes_changed):-1:1 # post-order traversal
         ni = net.preorder_nodeIndex[i]
         if net.nodes_changed[i].leaf
             node_y[ni] = nexty
-            nexty += 1.0
+            nexty -= 1.0
         else
             node_yB[ni]=ymax; node_yE[ni]=ymin;
             for (e in net.nodes_changed[i].edge)
@@ -201,8 +201,9 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
         j=1
         for (i = 1:length(net.edge))
           if (!mainTree || !net.edge[i].hybrid || net.edge[i].isMajor)
-            edf[j,:len] = (net.edge[i].length==-1.0 ? "" : string(net.edge[i].length))
-            edf[j,:gam] = string(net.edge[i].gamma)
+            edf[j,:len] = (net.edge[i].length==-1.0 ? "" : @sprintf("%0.3g",net.edge[i].length))
+            # @sprintf("%c=%0.3g",'γ',net.edge[i].length)
+            edf[j,:gam] = @sprintf("%0.3g",net.edge[i].gamma)
             edf[j,:num] = string(net.edge[i].number)
             edf[j,:hyb] = net.edge[i].hybrid
             edf[j,:min] = !net.edge[i].isMajor
