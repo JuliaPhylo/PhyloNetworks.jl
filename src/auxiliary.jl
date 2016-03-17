@@ -406,7 +406,7 @@ function deleteNode!(net::HybridNetwork, n::Node)
         # fixit: would be best to check containRoot to choose another root.
         # CSL: not sure I agree because this is done over and over in snaq, and snaq does not need a sensible root,
         # so, having a good root seems like a waste of time
-        net.root = 1 #arbitrarily chosen, not used until writeTopology/plotPhylonet
+        net.root = 1 #arbitrarily chosen, not used except for plotting or trait analysis
     elseif(net.root > index)
         net.root -= 1
     end
@@ -1043,7 +1043,7 @@ function printEverything(net::HybridNetwork)
     println("$(writeTopology(net))")
     ## if(DEBUG && REDIRECT)
     ##     try
-    ##         plotPhylonet(net,internalLabels=true,imageName="plotDebug")
+    ##         plotNetGraphViz(net,internalLabels=true,imageName="plotDebug")
     ##     catch(err)
     ##         println("could not plot")
     ##     end

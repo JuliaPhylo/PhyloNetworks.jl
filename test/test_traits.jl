@@ -2,6 +2,7 @@
  # Claudia November 2015
 
 using PhyloNetworks
+using GLM
 
 include("../src/types.jl")
 include("../src/functions.jl")
