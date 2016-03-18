@@ -1321,8 +1321,8 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     write(logfile,"\n$(Libc.strftime(time()))")
     close(errfile)
 
-
     if(maxNet.loglik < 1.e15)
+        setNonIdBL!(maxNet)
         write(logfile,"\nMaxNet is $(writeTopology(maxNet,true)) \nwith -loglik $(maxNet.loglik)")
         print(STDOUT,"\nMaxNet is $(writeTopology(maxNet,true)) \nwith -loglik $(maxNet.loglik)")
         s = open(juliaout,"w")
@@ -1351,7 +1351,6 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         close(logfile)
     end
     if(returnNet)
-        setNonIdBL!(maxNet)
         return maxNet
     end
 end
