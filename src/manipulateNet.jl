@@ -245,26 +245,20 @@ function getMajorParent(n::Node)
 end
 
 
-# function to order nodes in topological sorting
-# saves vector of nodes in the right order in net.nodes_changed
 """
 `preorder!(net::HybridNetwork)`
 
-Updates attributes of the network to calculate a pre-ordering of the nodes
+Updates attribute net.nodes_changed in which the nodes are pre-ordered
 (also called topological sorting), such that each node is visited after its parent(s).
 The edges' direction needs to be correct before calling preorder!, using directEdges!
 """
 function preorder!(net::HybridNetwork)
-    net.isRooted || error("net needs to be rooted for preorder, run root! or directEdges!")
+    net.isRooted || error("net needs to be rooted for preorder!, run root! or directEdges!")
     net.nodes_changed = Node[] # path of nodes in preorder.
-    net.preorder_nodeIndex = Int64[] # corresponding order, but with node indices
-    net.preorder_edgeIndex = Int64[] # Major edges only: major parent of corresponding node
     queue = Node[] # problem with PriorityQueue(): dequeue() takes a
                    # random member if all have the same priority 1.
     net.visited = [false for i = 1:size(net.node,1)];
     push!(net.nodes_changed,net.node[net.root]) #push root into path
-    push!(net.preorder_nodeIndex,    net.root )
-    push!(net.preorder_edgeIndex,    0) # root has no parent edge: giving bad index 0
     net.visited[net.root] = true   # visit root
     for(e in net.node[net.root].edge)
         if (!e.hybrid) # enqueue child of root, if child is not a hybrid.
@@ -278,13 +272,6 @@ function preorder!(net::HybridNetwork)
         # @show curr.number
         net.visited[getIndex(curr,net)] = true # visit curr node
         push!(net.nodes_changed,curr) #push curr into path
-        push!(net.preorder_nodeIndex, getIndex(curr,net))
-        for (e in curr.edge)
-            if (e.isMajor && curr == e.node[e.isChild1 ? 1 : 2]) # e is major parent edge of curr node
-                push!(net.preorder_edgeIndex, getIndex(e,net))
-                break
-            end
-        end
         for(e in curr.edge)
             if(isEqual(curr,e.node[e.isChild1 ? 2 : 1])) # curr is the parent node if e
                 other = getOtherNode(e,curr)
@@ -307,4 +294,40 @@ function preorder!(net::HybridNetwork)
         end
     end
     # println("path of nodes is $([n.number for n in net.nodes_changed])")
+end
+
+
+"""
+`cladewiseorder!(net::HybridNetwork)`
+
+Updates attribute net.cladewiseorder_nodeIndex. Used for plotting the network.
+In the major tree, all nodes in a given clade are consecutive. On a tree, this function
+also provides a pre-ordering of the nodes.
+The edges' direction needs to be correct before calling cladewiseorder!, using directEdges!
+"""
+function cladewiseorder!(net::HybridNetwork)
+    net.isRooted || error("net needs to be rooted for cladewiseorder!\n run root! or directEdges!")
+    net.cladewiseorder_nodeIndex = Int64[]
+    queue = Int64[] # index (in net) of nodes in the queue
+    push!(net.cladewiseorder_nodeIndex, net.root)
+    for (e in net.node[net.root].edge)
+        if (e.isMajor) # follow the major tree only
+            push!(queue, getIndex(getOtherNode(e,net.node[net.root]),net))
+        end
+    end
+    # print("queued the root's children's indices: "); @show queue
+    while (!isempty(queue))
+        ni = pop!(queue); # deliberate choice over shift! for cladewise order
+        # @show net.node[ni].number
+        push!(net.cladewiseorder_nodeIndex, ni)
+        for (e in net.node[ni].edge)
+            if (isEqual(net.node[ni],e.node[e.isChild1 ? 2 : 1])) # net.node[ni] is parent node of e
+                other = getOtherNode(e, net.node[ni])
+                if (e.isMajor)
+                    push!(queue, getIndex(other,net))
+                    # print("queuing: "); @show other.number
+                end
+            end
+        end
+    end
 end

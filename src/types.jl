@@ -118,11 +118,10 @@ type HybridNetwork <: Network
     names::Array{ASCIIString,1} # translate table for taxon names --but also includes hybrid names...
     hybrid::Array{Node,1} # array of hybrid nodes in network
     numHybrids::Int64 # number of hybrid nodes
-    preorder_nodeIndex::Vector{Int64} # index in 'node' to use for preorder traversal
-    preorder_edgeIndex::Vector{Int64}
+    cladewiseorder_nodeIndex::Vector{Int64} # index in 'node' for "cladewise" preorder in main tree
     visited::Array{Bool,1} # reusable array of booleans
     edges_changed::Array{Edge,1} # reusable array of edges
-    nodes_changed::Array{Node,1} # reusable array of nodes
+    nodes_changed::Array{Node,1} # reusable array of nodes. used for preorder traversal
     leaf::Array{Node,1} # array of leaves
     ht::Vector{Float64} # vector of parameters to optimize
     numht::Vector{Int64} # vector of number of the hybrid nodes and edges in ht e.g. [3,6,8,...], 2 hybrid nodes 3,6, and edge 8 is the 1st identifiable
@@ -142,7 +141,7 @@ type HybridNetwork <: Network
         [n.hybrid?push!(hybrid,n):nothing for n in node];
         [n.leaf?push!(leaf,n):nothing for n in node];
         new(size(leaf,1),size(node,1),size(edge,1),node,edge,1,[],hybrid,size(hybrid,1), #numTaxa,...,numHybrids
-            [],[],[],[],[],leaf,[],[], #preorded,...,numht
+            [],[],[],[],leaf,[],[], #cladewiseorder,...,numht
             0,false,[],0,[],[],false,false) #numBad...
     end
     function HybridNetwork(node::Array{Node,1},edge::Array{Edge,1},root::Int64)
@@ -151,11 +150,11 @@ type HybridNetwork <: Network
         [n.hybrid?push!(hybrid,n):nothing for n in node];
         [n.leaf?push!(leaf,n):nothing for n in node];
         new(size(leaf,1),size(node,1),size(edge,1),node,edge,root,[],hybrid,size(hybrid,1), #numTaxa,...,numHybrids
-            [],[],[],[],[],leaf,[],[], #preorded,...,numht
+            [],[],[],[],leaf,[],[], #cladewiseorder,...,numht
             0,false,[],0,[],[],false,false) #numBad...
     end
     HybridNetwork() = new(0,0,0,[],[],0,[],[],0, # numTaxa ... numHybrid
-                          [],[],[],[],[],[],[],[], # preorder...
+                          [],[],[],[],[],[],[], # cladewiseorder...
                           0,false,[],0,[],[],false,false); # numBad ...
 end
 
