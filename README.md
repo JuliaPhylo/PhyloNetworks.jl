@@ -9,8 +9,9 @@ original size: 525px × 222px-->
 [![Coverage Status](https://coveralls.io/repos/crsl4/PhyloNetworks/badge.svg?branch=master&service=github)](https://coveralls.io/github/crsl4/PhyloNetworks?branch=master)
 -->
 
-SNaQ implements the statistical inference method in [Sol&iacute;s-Lemus and
-An&eacute;](http://arxiv.org/pdf/1509.06075.pdf). The procedure involves a
+SNaQ implements the statistical inference method in Sol&iacute;s-Lemus and An&eacute;
+[(2016, PLoS Genetics)](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896). <!--http://arxiv.org/pdf/1509.06075.pdf--> 
+The procedure involves a
 numerical optimization of branch lengths and inheritance probabilities
 and a heuristic search in the space of phylogenetic
 networks.
