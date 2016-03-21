@@ -6,7 +6,6 @@ using GLM
 
 include("../src/types.jl")
 include("../src/functions.jl")
-include("../src/traits.jl")
 
 tree= "(A,((B,#H1),(C,(D)#H1)));"
 

@@ -21,6 +21,9 @@ Plots a network, from left to right.
 - majorHybridEdgeColor: color for major hybrid edges. blue by default.
 - minorHybridEdgeColor: color for minor hybrid edges
 - showEdgeNumber: if true, edges are labelled with the number used internally.
+
+Note that plot() actually modifies some (minor) attributes of the network,
+as it calls directEdges!, preorder! and cladewiseorder!.
 """
 function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
         mainTree=false::Bool, showTipLabel=true::Bool, showNodeNumber=false::Bool,
@@ -72,7 +75,7 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
             println("All edge lengths are missing, won't be used for plotting.")
             elenCalculate = true
         end
-        if (!nonBLmissing)
+        if (!nonBLmissing && !allBLmissing) # not all, but some are missing
             println("At least one non-missing edge length: plotting any NA length as 1.0")
         end
     end
