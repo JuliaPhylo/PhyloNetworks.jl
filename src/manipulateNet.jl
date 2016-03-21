@@ -29,6 +29,7 @@ function root!(net::HybridNetwork, node::Node, resolve::Bool)
             if(resolve)
                 resolve!(net,node)
             end
+            directEdges!(net)
         else
             warn("node $(node.number) cannot be root, will leave root as is")
         end
@@ -153,9 +154,29 @@ function root!(net::HybridNetwork, outgroup::AbstractString)
         end
     end
     updateRoot!(net,outgroup)
+    directEdges!(net)
 end
 
-# function to root in an edge
+"""
+`root!(net::HybridNetwork, edge::Edge)`
+
+`root!(net::HybridNetwork, edgeNumber::Int64)`
+
+Roots the network/tree object along an edge with number 'edgeNumber'.
+This adds a new node (and a new edge) to the network.
+Use plot(net, showEdgeNumber=true, showEdgeLength=false) to
+visualize and identify an edge of interest.
+"""
+function root!(net::HybridNetwork, edgeNum::Int64)
+    ind=0 # to declare outside of try/catch
+    try
+        ind = getIndexEdge(edgeNum,net)
+    catch
+        error("cannot set node $(nodeNum) as root because it is not part of net")
+    end
+    root!(net,net.edge[ind])
+end
+
 function root!(net::HybridNetwork, edge::Edge)
     isEdgeNumIn(edge,net.edge) || error("edge $(edge.number) not in net")
     !edge.hybrid || error("cannot put root on hybrid edge at the moment")
@@ -165,10 +186,12 @@ function root!(net::HybridNetwork, edge::Edge)
     removeNode!(node2,edge)
     max_edge = maximum([e.number for e in net.edge]);
     max_node = maximum([e.number for e in net.node]);
-    newedge = Edge(max_edge+1)
+    newedge = Edge(max_edge+1,0.0) # length 0 for new edge. half that of edge instead?
     newnode = Node(max_node+1,false,false,[edge,newedge])
+    setNode!(newedge,newnode)
     setNode!(newedge,node2)
     setEdge!(node2,newedge)
+    setNode!(edge, newnode)
     pushEdge!(net,newedge)
     pushNode!(net,newnode)
     if(edge.inCycle != -1)
@@ -210,8 +233,6 @@ function directEdges!(net::HybridNetwork)
     end
     net.isRooted = true
 end
-
-# fixit: add this to root! function
 
 #################################################
 ## Topological sorting
