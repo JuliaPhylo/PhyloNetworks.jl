@@ -189,30 +189,26 @@ The option *di=true* is for the parenthetical format used by
 [Dendroscope](http://dendroscope.org/) (without reticulation heritabilities).
 Copy this parenthetical description and paste it into Dendroscope, or use the plotting function described below.
 
-<!--
 #### Network Visualization
 To visualize the network:
 ```julia
-plotPhylonet(net1)
-plotPhylonet(net1,unrooted=true)
+p = plot(net1)
 ```
-For now, this function will create an .svg figure file (netImage.svg by default).
 
-WARNING: There is a known bug in the plotPhylonet function,
-see the issue in the PhyloNetworks Github repository for details.
-The error can be sometimes fixed by changing the position of the root
-with the root function.
-
-WARNING: on Mac computers, sometimes the function cannot be called directly sometimes, but this will work:
+For now, this function will open a browser where the plot will appear. To get a pdf version of the plot:
 ```julia
-PhyloNetworks.plotPhylonet(net)
+using Gadfly
+draw(PDF("mynetwork.pdf", 4inch, 4inch),p)
 ```
--->
+The plot function has many options, type `?plot` to get a list inside Julia.
 
-For a list of all the functions in the PhyloNetworks package, and all the options on the SNaQ function, refer to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf).
+For a list of all the functions in the PhyloNetworks package, and all
+the options on the SNaQ function, refer to the [PDF
+documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf).
 
-### Simple use of Julia objects
-For a small example on how Julia objects can be accessed, see [here](https://github.com/crsl4/PhyloNetworks/blob/master/docs/simpleJulia.md)
+### Simple use of Julia objects For a small example on how Julia
+objects can be accessed, see
+[here](https://github.com/crsl4/PhyloNetworks/blob/master/docs/simpleJulia.md)
 
 ### Multiple alleles
 
