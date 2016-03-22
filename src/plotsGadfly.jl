@@ -3,8 +3,8 @@
         mainTree=false::Bool, showTipLabel=true::Bool, showNodeNumber=false::Bool,
         showEdgeLength=true::Bool, showGamma=true::Bool,
         edgeColor=colorant"black"::ColorTypes.Colorant,
-        majorHybridEdgeColor=colorant"blue1"::ColorTypes.Colorant,
-        minorHybridEdgeColor=colorant"blue1"::ColorTypes.Colorant,
+        majorHybridEdgeColor=colorant"deepskyblue4"::ColorTypes.Colorant,
+        minorHybridEdgeColor=colorant"deepskyblue"::ColorTypes.Colorant,
         showEdgeNumber=false::Bool)`
 
 Plots a network, from left to right.
@@ -29,9 +29,9 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
         mainTree=false::Bool, showTipLabel=true::Bool, showNodeNumber=false::Bool,
         showEdgeLength=true::Bool, showGamma=true::Bool,
         edgeColor=colorant"black"::ColorTypes.Colorant,
-        majorHybridEdgeColor=colorant"blue1"::ColorTypes.Colorant,
-        minorHybridEdgeColor=colorant"blue1"::ColorTypes.Colorant,
-        showEdgeNumber=false::Bool) # fixit: add option
+        majorHybridEdgeColor=colorant"deepskyblue4"::ColorTypes.Colorant,
+        minorHybridEdgeColor=colorant"deepskyblue"::ColorTypes.Colorant,
+        showEdgeNumber=false::Bool)
 
     directEdges!(net)    # to update isChild1
     preorder!(net)       # to update net.nodes_changed: true pre-ordering
@@ -104,7 +104,7 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
 
     # determine xB,xE for each edge: pre-order traversal, uses branch lengths
     # then x and yB,yE for each node: x=xE of parent edge
-    xmin = 0.0; xmax=xmin
+    xmin = 1.0; xmax=xmin
     node_x  = zeros(Float64,net.numNodes) # order: in net.nodes, *!not in nodes_changed!*
     edge_xB = zeros(Float64,net.numEdges) # min (B=begin) and max (E=end)
     edge_xE = zeros(Float64,net.numEdges) # xE-xB = edge length
@@ -171,8 +171,10 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
     end
     # data frame to place tip labels
     if (showTipLabel || showNodeNumber)
-      # white dot beyond tip labels to force enough zoom out
-      push!(mylayers, layer(x=[xmax*1.1], y=[ymax*1.1],
+      # white dot beyond tip labels and root node label to force enough zoom out
+      expfac = 0.1
+      push!(mylayers, layer(x=[xmin-(xmax-xmin)*expfac,xmax+(xmax-xmin)*expfac],
+                            y=[ymin,ymax+(ymax-ymin)*expfac],
                Geom.point, Theme(default_color=colorant"white"))[1])
       nrows = (showNodeNumber ? net.numNodes : net.numTaxa)
       ndf = DataFrame([ASCIIString,ASCIIString,Bool,Float64,Float64], # column types, column names, nrows
@@ -220,16 +222,19 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
         end
         # @show edf
         if (showEdgeLength)
-            push!(mylayers, layer(edf, y="y", x="x", label="len",
+            push!(mylayers, layer(edf[:,[:x,:y,:len]], y="y", x="x", label="len",
                   Geom.label(position=:above ;hide_overlaps=true))[1])
         end
         if (showGamma && net.numHybrids>0)
-            push!(mylayers, layer(edf[edf[:hyb],:], y="y", x="x", label="gam",
+            push!(mylayers, layer(edf[(edf[:hyb]) & (edf[:min]), [:x,:y,:gam]], y="y", x="x",label="gam",
                   Geom.label(position=:below ;hide_overlaps=true),
                   Theme(point_label_color=minorHybridEdgeColor))[1])
+            push!(mylayers, layer(edf[(edf[:hyb]) & (!edf[:min]),[:x,:y,:gam]], y="y", x="x",label="gam",
+                  Geom.label(position=:below ;hide_overlaps=true),
+                  Theme(point_label_color=majorHybridEdgeColor))[1])
         end
         if (showEdgeNumber)
-            push!(mylayers, layer(edf, y="y", x="x", label="num",
+            push!(mylayers, layer(edf[:,[:x,:y,:num]], y="y", x="x", label="num",
                   Geom.label(position=:dynamic ;hide_overlaps=true))[1])
         end
     end
