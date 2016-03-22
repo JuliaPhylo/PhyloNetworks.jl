@@ -80,13 +80,16 @@ git pull
 where HOME is replaced by your home directory.
 -->
 
-The PhyloNetworks package has the following dependencies, but everything is installed automatically.
+The PhyloNetworks package has dependencies like NLopt and Gadfly
+(see the REQUIRE file for the full list), but everything is installed automatically.
 
+<!--
 - GraphViz (version 0.0.3)
 - NLopt (version 0.2.0)
 
 The version in parenthesis correspond to the ones used when
 implementing PhyloNetworks.
+-->
 
 ### Small examples
 Everytime you start a session in Julia, you should type:
@@ -112,7 +115,7 @@ and press ? inside Julia, followed by the name of a functions to get more detail
 
 The examples files for this section can be found within the
 PhyloNetworks folder, typically in your
-*HOME/.julia/v0.3/PhyloNetworks/examples/*. However, links to the
+*HOME/.julia/v0.4/PhyloNetworks/examples/*. However, links to the
 files are also included below.
 
 Suppose you have a file with a list of gene trees in parenthetical
@@ -121,11 +124,13 @@ If 'treefile.txt' is in your directory, do this to read in all gene trees
 and to summarize them with a list
 of quartet CFs:
 ```julia
-d=readTrees2CF("treefile.txt");
+d=readTrees2CF("treefile.txt")
 ```
-Make sure to have the semicolon (;) at the end to avoid useless output to the screen!
 You can access this example file
-[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/treefile.txt).
+[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/treefile.txt)
+or
+[here](https://raw.githubusercontent.com/crsl4/PhyloNetworks/master/examples/treefile.txt)
+for easier download.
 This file contains 10 trees, each in parenthetical format on 6 taxa
 like this:
 
@@ -135,7 +140,7 @@ like this:
 If instead of all the 4-taxon subsets, you just want to use a random
 sample of 10 4-taxon subsets:
 ```julia
-d=readTrees2CF("treefile.txt",whichQ="rand",numQ=10);
+d=readTrees2CF("treefile.txt",whichQ="rand",numQ=10)
 ```
 Be careful to use a numQ value smaller than the total number of possible
 4-taxon subsets, which is *n choose 4* on *n* taxa (e.g. 15 on 6 taxa).
@@ -143,26 +148,30 @@ Be careful to use a numQ value smaller than the total number of possible
 If you have already a table of CF values in a file *tableCF.txt*
 in this format
 
-|Taxon1 | Taxon2 | Taxon3 | Taxon4 | CF12vs34 | CF13vs24 | CF14vs23 |
-|-------|:-------|:-------|:-------|:---------|:---------|:---------|
+|Taxon1 | Taxon2 | Taxon3 | Taxon4 | CF12_34 | CF13_24 | CF14_23 |
+|-------|:-------|:-------|:-------|:--------|:--------|:--------|
 
 you would read it like this:
 ```julia
 d=readTableCF("tableCF.txt");
 ```
 You can access this example file
-[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/tableCF.txt).
+[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/tableCF.txt)
+or
+[here](https://raw.githubusercontent.com/crsl4/PhyloNetworks/master/examples/tableCF.txt).
 
 Columns need to be in the right order. If you have the information on the number of genes used for each 4-taxon subset, you can add this information in a column named "ngenes".
 
 If you have a tree *startTree.txt* in parenthetical format to
 use as starting point for the optimization, you can read it with
 ```julia
-T=readTopologyLevel1("startTree.txt");
+T=readTopologyLevel1("startTree.txt")
 writeTopology(T)
 ```
 You can access this example file
-[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/startTree.txt).
+[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/startTree.txt)
+(raw file
+[here](https://raw.githubusercontent.com/crsl4/PhyloNetworks/master/examples/startTree.txt)).
 
 #### Network Estimation
 
@@ -173,8 +182,6 @@ To estimate the network using the input data
 net1=snaq!(T,d,filename="net1_snaq");
 net2=snaq!(T,d,hmax=2, filename="net2_snaq");
 ```
-Make sure to have the semicolon (;) at the end, to avoid much useless output
-to the screen!
 The option *hmax* corresponds to the maximum number of hybridizations allowed,
 1 by default.
 The function ends with ! because it modifies the argument d by including the expected CF.
@@ -182,6 +189,7 @@ The function ends with ! because it modifies the argument d by including the exp
 The estimation function creates a .out file (snaq.out by default) with the estimated
 network in parenthetical format, which you can also print directly to the screen like this:
 ```julia
+net1
 writeTopology(net1)
 writeTopology(net1,di=true)
 ```
@@ -208,8 +216,9 @@ documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetw
 
 ### Bootstrap
 
-You can run bootstrap analysis if you estimated CF with the TICR
-pipeline (see above). The TICR pipeline will provide a CF table with
+You can run a bootstrap analysis if you estimated CFs with credibility intervals,
+such as if you used the TICR
+pipeline (see above). The TICR pipeline provides a CF table with extra columns for
 confidence intervals.
 ```julia
 using DataFrames
@@ -217,7 +226,8 @@ df = readtable("tableCFCI.txt", sep=';')
 net_bs = bootsnaq(T,df,hmax=1,nrep=10, bestNet=net1, runs=3)
 ```
 You can access this example file
-[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/tableCFCI.txt).
+[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/tableCFCI.txt)
+or [here](https://raw.githubusercontent.com/crsl4/PhyloNetworks/master/examples/tableCFCI.txt).
 
 <!---
 #### Summarizing bootstrap results
@@ -233,7 +243,7 @@ bootstrap support lower than 100% with
 ```julia
 df_bs[df_bs[:bs] .< 1.0, :]
 ```
-and to match to which tree edges it corresponds, you need to plot the tree with edge numbers:
+To match bootstrap values with their corresponding tree edges, you can plot the tree with edge numbers:
 ```julia
 plot(tree1,showEdgeNumber=true)
 ```
@@ -358,7 +368,10 @@ It is important to have run snaq, topologyQPseudoLik or topologyMaxQPseudolik be
 Now, we can plot them with any of the Julia packages for plotting. In particular:
 ```julia
 using Gadfly
-p = plot(df,layer(x="obsCF1",y="expCF1",Geom.point,Theme(default_color=colorant"orange")),layer(x="obsCF2",y="expCF2",Geom.point,Theme(default_color=colorant"purple")),layer(x="obsCF3",y="expCF3",Geom.point,Theme(default_color=color("blue"))),layer(x=0:1,y=0:1),Geom.line,Theme(default_color=color("black")))
+p = plot(df,layer(x="obsCF1",y="expCF1",Geom.point,Theme(default_color=colorant"orange")),
+            layer(x="obsCF2",y="expCF2",Geom.point,Theme(default_color=colorant"purple")),
+            layer(x="obsCF3",y="expCF3",Geom.point,Theme(default_color=color("blue"))),
+            layer(x=0:1,y=0:1),Geom.line,Theme(default_color=color("black")))
 ```
 This will pop out a browser window with the plot. The plot can be saved as PDF (or many other formats, see [Gadfly tutorial](http://dcjones.github.io/Gadfly.jl/)) with
 ```julia
