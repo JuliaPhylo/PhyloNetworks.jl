@@ -195,7 +195,7 @@ To visualize the network:
 p = plot(net1)
 ```
 
-For now, this function will open a browser where the plot will appear. To get a pdf version of the plot:
+This function will open a browser where the plot will appear. To get a pdf version of the plot:
 ```julia
 using Gadfly
 draw(PDF("mynetwork.pdf", 4inch, 4inch),p)
@@ -206,8 +206,95 @@ For a list of all the functions in the PhyloNetworks package, and all
 the options on the SNaQ function, refer to the [PDF
 documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf).
 
-### Simple use of Julia objects For a small example on how Julia
-objects can be accessed, see
+### Bootstrap
+
+You can run bootstrap analysis if you estimated CF with the TICR
+pipeline (see above). The TICR pipeline will provide a CF table with
+confidence intervals.
+```julia
+using DataFrames
+df = readtable("tableCFCI.txt", sep=';')
+net_bs = bootsnaq(T,df,hmax=1,nrep=10, bestNet=net1, runs=3)
+```
+You can access this example file
+[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/tableCFCI.txt).
+
+<!---
+#### Summarizing bootstrap results
+
+The `bootsnaq` function will return a list of 10 networks (`nrep=10`) which you can then summarize with
+```julia
+df_bs,tree1 = treeEdgesBootstrap(net_bs,net1)
+```
+which will provide a table with one column for edge number and another
+column with bootstrap support for all the tree edges in `net1`. The
+underlying tree of `net1` is `tree1`. You can see which tree edges have
+bootstrap support lower than 100% with
+```julia
+df_bs[df_bs[:bs] .< 1.0, :]
+```
+and to match to which tree edges it corresponds, you need to plot the tree with edge numbers:
+```julia
+plot(tree1,showEdgeNumber=true)
+```
+
+To summarize the hybridizations, you need an outgroup to root all the networks.
+```julia
+outgroup = "4"
+HFmat,discTrees = hybridDetection(net_bs,net1,outgroup)
+```
+
+The function `hybridDetection` will provide a matrix `HFmat` that will
+have one row per bootstrap network, and number of columns depending on
+the number of hybrids in `net1`. If `net1` had 2 hybrids, `HFmat` will
+have 4 columns:
+
+- the first 2 columns indicate the presence (1) or absence (0) of each
+  hybrid (column) for each bootstrap network (row)
+
+- the last 2 columns indicate the estimated gamma in the bootstrap
+  network if the hybrid was found (and 0.0 if it was not found)
+
+Hybrid comparison between explicit networks only makes sense if the
+underlying trees are the same, so `discTrees` has the list of trees
+that do not match the underlying tree in `net1` (`tree1`).
+
+Finally, you can summarize the information in `HFmat`
+```julia
+df_hyb = summarizeHFdf(HFmat)
+```
+`df_hyb` has one row per hybrid, and 5 columns:
+
+- hybrid index
+
+- number of trees that match the underlying tree in `net1` (same for all hybrids)
+
+- number of networks with that hybrid
+
+- mean estimated gamma among networks with the hybrid
+
+- sd estimated gamma among networks with the hybrid
+
+The last row contains in 3er column the number of networks that have
+all same hybrids as `net1` (hybrid index, mean gamma and sd gamma are
+meaningless in this row).
+
+You can save all the information with
+```julia
+HFdf=convert(DataFrame,HFmat) #convert to dataframe to save
+writetable("HFdf.csv",HFdf)
+writetable("summaryHybridDetection.csv",df_hyb)
+s=open("discrepantTrees.out","w")
+for(t in discTrees)
+    write(s,"$(writeTopology(t))\n")
+end
+close(s)
+```
+--->
+
+### Simple use of Julia objects
+
+For a small example on how Julia objects can be accessed, see
 [here](https://github.com/crsl4/PhyloNetworks/blob/master/docs/simpleJulia.md)
 
 ### Multiple alleles

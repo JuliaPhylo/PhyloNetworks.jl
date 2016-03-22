@@ -57,7 +57,8 @@ hardwiredClusters,
 hardwiredClusterDistance,
 treeEdgesBootstrap,
 hybridDetection,
-summarizeHFdf
+summarizeHFdf,
+bootsnaq
 
 # export part
 
