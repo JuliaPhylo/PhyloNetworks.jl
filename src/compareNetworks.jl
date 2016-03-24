@@ -151,7 +151,7 @@ Deletes from a network all hybrid edges with heritability below a threshold gamm
 - if gamma<0.5: deletes     minor hybrid edges with gamma value <  threshold
 - if gamma=0.5: deletes all minor hybrid edges (i.e gamma value <= threshold)
 
-Warning: assumes that the network has branch lengths (for now) and correct 'isMajor' attributes.
+Warning: assumes correct isMajor attributes.
 """
 function deleteHybridThreshold!(net::HybridNetwork,gamma::Float64)
     gamma <= 0.5 || error("deleteHybridThreshold! called with gamma = $(gamma)>0.5")
@@ -161,11 +161,9 @@ function deleteHybridThreshold!(net::HybridNetwork,gamma::Float64)
         # remove minor hybrid edge if: gamma < threshold OR threshold=0.5=gamma
         # warning: no check that the minor edge actually has gamma <= 0.5.
         if(hybedges[2].gamma < gamma || gamma == 0.5)
-            deleteHybrid!(net.hybrid[i],net,true,false)
-            # warning: deleteHybrid assumes non-missing branch lengths.
-            # note: deleteHybridizationUpdate! requires a level-1 network with
-            # all attributes updated: inCycle, containRoot, etc., as after being
-            # read by readTopologyLevel1.
+            # deleteHybrid!(net.hybrid[i],net,true,false) # requires non-missing edge lengths
+            # deleteHybridizationUpdate! requires level-1 network with corresponding attributes
+            deleteHybridEdge!(net, hybedges[2]) # does not update inCycle, containRoot, etc.
         end
     end
 end
@@ -180,17 +178,19 @@ function displayedNetworks!(net::HybridNetwork, node::Node)
     netmin = deepcopy(net)
     hybedges = hybridEdges(node)
     majorgamma = hybedges[1].gamma
-    deleteHybrid!(   net.node[ind],net   ,true,false)
+    # deleteHybrid!(  net.node[ind],net  ,true,false)
+    deleteHybridEdge!(net   , hybedges[2]) # does not update inCycle, containRoot, etc.
     hybedges = hybridEdges(netmin.node[ind]) # hybrid edges in netmin
-    setGamma!(hybedges[2],majorgamma) # set major gamma to minor edge (to delete old major = new minor)
-    deleteHybrid!(netmin.node[ind],netmin,true,false)
+    deleteHybridEdge!(netmin, hybedges[1])
+    #setGamma!(hybedges[2],majorgamma) # set major gamma to minor edge (to delete old major = new minor)
+    #deleteHybrid!(netmin.node[ind],netmin,true,false)
     return netmin
 end
 
 """
 `displayedTrees(net::HybridNetwork, gamma::Float64)`
 
-Warning: for now, requires the network to have non-missing positive branch lengths and no missing heritabilities.
+Warning: assumes correct isMajor attributes.
 
 Extracts all trees displayed in a network, following hybrid edges
 with heritability >= gamma threshold (or >0.5 if threshold=0.5)
@@ -209,7 +209,7 @@ end
 """
 `majorTree(net::HybridNetwork)`
 
-Warning: for now, requires the network to have non-missing positive branch lengths and no missing heritabilities.
+Warning: assumes correct isMajor attributes.
 
 Extracts the major tree displayed in a network, keeping the major edge and dropping the minor edge at each hybrid node.
 Returns a HybridNetwork object.
@@ -231,7 +231,7 @@ end
 """
 `minorTreeAt(net::HybridNetwork, hybindex::Int64)`
 
-Warning: for now, requires the network to have non-missing positive branch lengths and no missing heritabilities.
+Warning: assumes correct isMajor attributes.
 
 Extracts the tree displayed in the network, following the major hybrid edge at each hybrid node, except at the ith hybrid node (i=hybindex), where the minor hybrid edge is kept instead of the major hybrid edge.
 """
@@ -239,17 +239,17 @@ function minorTreeAt(net::HybridNetwork, hybindex::Int64)
     hybindex <= length(net.hybrid) || error("network has fewer hybrid nodes than index $(hybindex).")
     tree = deepcopy(net)
     hybedges = hybridEdges(tree.hybrid[hybindex])
-    majorgamma = hybedges[1].gamma
-    setGamma!(hybedges[2],majorgamma) # set major gamma to minor edge (to delete old major = new minor)
-    deleteHybrid!(tree.hybrid[hybindex],tree,true,false) # major edge at hybrid removed.
+    deleteHybridEdge!(tree, hybedges[2])
+    # majorgamma = hybedges[1].gamma
+    # setGamma!(hybedges[2],majorgamma) # set major gamma to minor edge (to delete old major = new minor)
+    # deleteHybrid!(tree.hybrid[hybindex],tree,true,false) # major edge at hybrid removed.
     return majorTree(tree) # all remaining minor edges removed: now it's a tree.
 end
 
 """
 `displayedNetworkAt!(net::HybridNetwork, node::Node)`
 
-Warning: for now, requires the network to have non-missing positive branch lengths and no missing heritabilities,
-and full attributes, as set when the network is read by readTopologyLevel1.
+Warning: assumes correct isMajor attributes.
 
 Deletes all the minor hybrid edges, except at input node. The network is left with a single hybridization, and otherwise displays the same major tree as before.
 """
@@ -258,7 +258,9 @@ function displayedNetworkAt!(net::HybridNetwork, node::Node)
     for(i = net.numHybrids:-1:1)
     # starting from last because net.hybrid changes as hybrids are removed. Empty range if 0 hybrids.
         net.hybrid[i] != node || continue
-        deleteHybridizationUpdate!(net,net.hybrid[i],false,false)
+        # deleteHybridizationUpdate!(net,net.hybrid[i],false,false)
+        hybedges = hybridEdges(net.hybrid[i])
+        deleteHybridEdge!(net, hybedges[2])
     end
 end
 
@@ -266,9 +268,11 @@ end
 """
 `hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, rooted::Bool)`
 
-Warning: the current function is only implemented for trees, i.e. networks with 0 hybridizations.
-
-Takes 2 networks and returns their hardwired cluster distance, that is, the number of hardwired clusters found in one network and not in the other. Note that this is not a distance per se on the full space of hybrid networks: there are pairs of different networks for which this measure is 0. But it is a distance on some network subspaces.
+Takes 2 networks and returns their hardwired cluster distance, that is,
+the number of hardwired clusters found in one network and not in the other.
+Note that this is not a distance per se on the full space of hybrid networks:
+there are pairs of different networks for which this measure is 0.
+But it is a distance on some network subspaces.
 
 If the 2 networks are trees, this is the Robinson-Foulds distance.
 If rooted=false, the trees are considered unrooted.

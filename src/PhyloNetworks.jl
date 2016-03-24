@@ -41,6 +41,7 @@ topologyMaxQPseudolik!,
 topologyQPseudolik!,
 root!,
 preorder!,
+cladewiseorder!,
 dfObsExpCF,
 plotNetGraphViz,
 plot,
@@ -56,7 +57,8 @@ hardwiredClusters,
 hardwiredClusterDistance,
 treeEdgesBootstrap,
 hybridDetection,
-summarizeHFdf
+summarizeHFdf,
+bootsnaq
 
 # export part
 

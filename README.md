@@ -9,8 +9,9 @@ original size: 525px × 222px-->
 [![Coverage Status](https://coveralls.io/repos/crsl4/PhyloNetworks/badge.svg?branch=master&service=github)](https://coveralls.io/github/crsl4/PhyloNetworks?branch=master)
 -->
 
-SNaQ implements the statistical inference method in [Sol&iacute;s-Lemus and
-An&eacute;](http://arxiv.org/pdf/1509.06075.pdf). The procedure involves a
+SNaQ implements the statistical inference method in Sol&iacute;s-Lemus and An&eacute;
+[(2016, PLoS Genetics)](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896).
+The procedure involves a
 numerical optimization of branch lengths and inheritance probabilities
 and a heuristic search in the space of phylogenetic
 networks.
@@ -79,13 +80,16 @@ git pull
 where HOME is replaced by your home directory.
 -->
 
-The PhyloNetworks package has the following dependencies, but everything is installed automatically.
+The PhyloNetworks package has dependencies like NLopt and Gadfly
+(see the REQUIRE file for the full list), but everything is installed automatically.
 
+<!--
 - GraphViz (version 0.0.3)
 - NLopt (version 0.2.0)
 
 The version in parenthesis correspond to the ones used when
 implementing PhyloNetworks.
+-->
 
 ### Small examples
 Everytime you start a session in Julia, you should type:
@@ -111,7 +115,7 @@ and press ? inside Julia, followed by the name of a functions to get more detail
 
 The examples files for this section can be found within the
 PhyloNetworks folder, typically in your
-*HOME/.julia/v0.3/PhyloNetworks/examples/*. However, links to the
+*HOME/.julia/v0.4/PhyloNetworks/examples/*. However, links to the
 files are also included below.
 
 Suppose you have a file with a list of gene trees in parenthetical
@@ -120,11 +124,13 @@ If 'treefile.txt' is in your directory, do this to read in all gene trees
 and to summarize them with a list
 of quartet CFs:
 ```julia
-d=readTrees2CF("treefile.txt");
+d=readTrees2CF("treefile.txt")
 ```
-Make sure to have the semicolon (;) at the end to avoid useless output to the screen!
 You can access this example file
-[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/treefile.txt).
+[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/treefile.txt)
+or
+[here](https://raw.githubusercontent.com/crsl4/PhyloNetworks/master/examples/treefile.txt)
+for easier download.
 This file contains 10 trees, each in parenthetical format on 6 taxa
 like this:
 
@@ -134,7 +140,7 @@ like this:
 If instead of all the 4-taxon subsets, you just want to use a random
 sample of 10 4-taxon subsets:
 ```julia
-d=readTrees2CF("treefile.txt",whichQ="rand",numQ=10);
+d=readTrees2CF("treefile.txt",whichQ="rand",numQ=10)
 ```
 Be careful to use a numQ value smaller than the total number of possible
 4-taxon subsets, which is *n choose 4* on *n* taxa (e.g. 15 on 6 taxa).
@@ -142,26 +148,30 @@ Be careful to use a numQ value smaller than the total number of possible
 If you have already a table of CF values in a file *tableCF.txt*
 in this format
 
-|Taxon1 | Taxon2 | Taxon3 | Taxon4 | CF12vs34 | CF13vs24 | CF14vs23 |
-|-------|:-------|:-------|:-------|:---------|:---------|:---------|
+|Taxon1 | Taxon2 | Taxon3 | Taxon4 | CF12_34 | CF13_24 | CF14_23 |
+|-------|:-------|:-------|:-------|:--------|:--------|:--------|
 
 you would read it like this:
 ```julia
 d=readTableCF("tableCF.txt");
 ```
 You can access this example file
-[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/tableCF.txt).
+[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/tableCF.txt)
+or
+[here](https://raw.githubusercontent.com/crsl4/PhyloNetworks/master/examples/tableCF.txt).
 
 Columns need to be in the right order. If you have the information on the number of genes used for each 4-taxon subset, you can add this information in a column named "ngenes".
 
 If you have a tree *startTree.txt* in parenthetical format to
 use as starting point for the optimization, you can read it with
 ```julia
-T=readTopologyLevel1("startTree.txt");
+T=readTopologyLevel1("startTree.txt")
 writeTopology(T)
 ```
 You can access this example file
-[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/startTree.txt).
+[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/startTree.txt)
+(raw file
+[here](https://raw.githubusercontent.com/crsl4/PhyloNetworks/master/examples/startTree.txt)).
 
 #### Network Estimation
 
@@ -172,8 +182,6 @@ To estimate the network using the input data
 net1=snaq!(T,d,filename="net1_snaq");
 net2=snaq!(T,d,hmax=2, filename="net2_snaq");
 ```
-Make sure to have the semicolon (;) at the end, to avoid much useless output
-to the screen!
 The option *hmax* corresponds to the maximum number of hybridizations allowed,
 1 by default.
 The function ends with ! because it modifies the argument d by including the expected CF.
@@ -181,6 +189,7 @@ The function ends with ! because it modifies the argument d by including the exp
 The estimation function creates a .out file (snaq.out by default) with the estimated
 network in parenthetical format, which you can also print directly to the screen like this:
 ```julia
+net1
 writeTopology(net1)
 writeTopology(net1,di=true)
 ```
@@ -188,30 +197,120 @@ The option *di=true* is for the parenthetical format used by
 [Dendroscope](http://dendroscope.org/) (without reticulation heritabilities).
 Copy this parenthetical description and paste it into Dendroscope, or use the plotting function described below.
 
-<!--
 #### Network Visualization
 To visualize the network:
 ```julia
-plotPhylonet(net1)
-plotPhylonet(net1,unrooted=true)
+p = plot(net1)
 ```
-For now, this function will create an .svg figure file (netImage.svg by default).
 
-WARNING: There is a known bug in the plotPhylonet function,
-see the issue in the PhyloNetworks Github repository for details.
-The error can be sometimes fixed by changing the position of the root
-with the root function.
-
-WARNING: on Mac computers, sometimes the function cannot be called directly sometimes, but this will work:
+This function will open a browser where the plot will appear. To get a pdf version of the plot:
 ```julia
-PhyloNetworks.plotPhylonet(net)
+using Gadfly
+draw(PDF("mynetwork.pdf", 4inch, 4inch),p)
 ```
--->
+The plot function has many options, type `?plot` to get a list inside Julia.
 
-For a list of all the functions in the PhyloNetworks package, and all the options on the SNaQ function, refer to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf).
+For a list of all the functions in the PhyloNetworks package, and all
+the options on the SNaQ function, refer to the [PDF
+documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf).
+
+### Bootstrap
+
+You can run a bootstrap analysis if you estimated CFs with credibility intervals,
+such as if you used the TICR
+pipeline (see above). The TICR pipeline provides a CF table with extra columns for
+credibility intervals.
+```julia
+using DataFrames
+df = readtable("tableCFCI.txt", separator=';')
+net_bs = bootsnaq(T,df,hmax=1,nrep=10, bestNet=net1, runs=3)
+```
+You can access this example file
+[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/tableCFCI.txt)
+or [here](https://raw.githubusercontent.com/crsl4/PhyloNetworks/master/examples/tableCFCI.txt).
+
+#### Summarizing bootstrap results
+
+The `bootsnaq` function will return a list of 10 networks (`nrep=10`) which you can then summarize with
+```julia
+df_bs,tree1 = treeEdgesBootstrap(net_bs,net1)
+```
+This will calculate the major tree `tree1` displayed in `net1`, that is,
+the tree obtained by following the major parent (gamma>0.5) of each hybrid node.
+This tree can be visualized like this, with edge numbers shown for later use.
+```julia
+using Gadfly
+plot(tree1, showEdgeNumber=true)
+```
+Next, we can look at table `df_bs`, which has row for
+each tree edge in `net1`. One column contains the edge number
+(same as shown in the plot) and another column contains the edge's
+bootstrap support: the proportion of bootstrap replicates in which this edge was
+found in the major tree of the inferred network.
+We can see which tree edges have bootstrap support lower than 100% with
+```julia
+df_bs[df_bs[:bs] .< 1.0, :]
+```
+
+<!---
+To summarize the hybridizations, we need an outgroup to root all the networks.
+```julia
+outgroup = "4"
+HFmat,discTrees = hybridDetection(net_bs,net1,outgroup)
+```
+
+The function `hybridDetection` will provide a matrix `HFmat` that will
+have one row per bootstrap network, and number of columns depending on
+the number of hybrids in `net1`. If `net1` had 2 hybrids, `HFmat` will
+have 4 columns:
+
+- the first 2 columns indicate the presence (1) or absence (0) of each
+  hybrid (column) for each bootstrap network (row)
+
+- the last 2 columns indicate the estimated gamma in the bootstrap
+  network if the hybrid was found (and 0.0 if it was not found)
+
+Hybrid comparison between explicit networks only makes sense if the
+underlying trees are the same, so `discTrees` has the list of trees
+that do not match the underlying tree in `net1` (`tree1`).
+
+Finally, you can summarize the information in `HFmat`
+```julia
+df_hyb = summarizeHFdf(HFmat)
+```
+`df_hyb` has one row per hybrid, and 5 columns:
+
+- hybrid index
+
+- number of trees that match the underlying tree in `net1` (same for all hybrids)
+
+- number of networks with that hybrid
+
+- mean estimated gamma among networks with the hybrid
+
+- sd estimated gamma among networks with the hybrid
+
+The last row contains in 3er column the number of networks that have
+all same hybrids as `net1` (hybrid index, mean gamma and sd gamma are
+meaningless in this row).
+
+You can save all the information with
+```julia
+HFdf=convert(DataFrame,HFmat) #convert to dataframe to save
+writetable("HFdf.csv",HFdf)
+writetable("summaryHybridDetection.csv",df_hyb)
+s=open("discrepantTrees.out","w")
+for(t in discTrees)
+    write(s,"$(writeTopology(t))\n")
+end
+close(s)
+```
+--->
 
 ### Simple use of Julia objects
-For a small example on how Julia objects can be accessed, see [here](https://github.com/crsl4/PhyloNetworks/blob/master/docs/simpleJulia.md)
+
+For a small example on how Julia objects can be accessed, see
+[here](https://github.com/crsl4/PhyloNetworks/blob/master/docs/simpleJulia.md)
 
 ### Multiple alleles
 
@@ -274,7 +373,10 @@ It is important to have run snaq, topologyQPseudoLik or topologyMaxQPseudolik be
 Now, we can plot them with any of the Julia packages for plotting. In particular:
 ```julia
 using Gadfly
-p = plot(df,layer(x="obsCF1",y="expCF1",Geom.point,Theme(default_color=colorant"orange")),layer(x="obsCF2",y="expCF2",Geom.point,Theme(default_color=colorant"purple")),layer(x="obsCF3",y="expCF3",Geom.point,Theme(default_color=color("blue"))),layer(x=0:1,y=0:1),Geom.line,Theme(default_color=color("black")))
+p = plot(df,layer(x="obsCF1",y="expCF1",Geom.point,Theme(default_color=colorant"orange")),
+            layer(x="obsCF2",y="expCF2",Geom.point,Theme(default_color=colorant"purple")),
+            layer(x="obsCF3",y="expCF3",Geom.point,Theme(default_color=colorant"blue")),
+            layer(x=0:1,y=0:1),Geom.line,Theme(default_color=colorant"black"))
 ```
 This will pop out a browser window with the plot. The plot can be saved as PDF (or many other formats, see [Gadfly tutorial](http://dcjones.github.io/Gadfly.jl/)) with
 ```julia

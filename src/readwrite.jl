@@ -631,6 +631,7 @@ cleanAfterRead!(net::HybridNetwork) = cleanAfterRead!(net,false)
 # and store this information as a network's attribute
 function storeHybrids!(net::HybridNetwork)
     flag = true;
+    hybrid = nothing
     try
         hybrid = searchHybridNode(net)
     catch
@@ -638,10 +639,10 @@ function storeHybrids!(net::HybridNetwork)
         flag = false;
     end
     if(flag)
-        hybrid = searchHybridNode(net);
         net.hybrid = hybrid;
         net.numHybrids = size(hybrid,1);
     end
+    return nothing
 end
 
 # function to update the read topology after reading

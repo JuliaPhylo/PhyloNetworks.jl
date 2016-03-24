@@ -44,7 +44,6 @@ bootstrapCFtable(file::AbstractString;sep=','::Char,seed=0::Int) = bootstrapCFta
 # returns vector of HybridNetworks, bestNet is the first one, and the other nrep networks after
 # I believe no ! needed because we need a clean copy of currT in each replicate, so deepcopied
 function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Number, Nfail::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, filename::AbstractString, returnNet::Bool, seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64, bestNet::HybridNetwork)
-    warn("bootsnaq function not debugged yet")
     prcnet >= 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
     prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
     println("BOOTSTRAP OF SNAQ ESTIMATION")
@@ -55,7 +54,7 @@ function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Nu
     if(seed == 0)
         t = time()/1e9
         a = split(string(t),".")
-        seed = int(a[2][end-4:end]) #better seed based on clock
+        seed = parse(Int,a[2][end-4:end]) #better seed based on clock
     end
     write(logfile,"\nmain seed $(seed)\n")
     flush(logfile)
@@ -127,7 +126,6 @@ end
 # like snaq, only calls optTopRunsBoot
 # will later decide which to call depending on nproc()
 function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="bootsnaq"::AbstractString, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.25::Float64, bestNet=HybridNetwork()::HybridNetwork)
-    warn("bootsnaq function not debugged yet")
     startnet=deepcopy(currT0)
     if(nprocs() > 1) #more than 1 processor, still not working
         error("bootsnaq not implemented for parallelization yet")
@@ -160,10 +158,10 @@ function optTopRunsBootParallel(currT0::HybridNetwork, df::DataFrame, hmax::Int6
     if(seed == 0)
         t = time()/1e9
         a = split(string(t),".")
-        seed = int(a[2][end-4:end]) #better seed based on clock
+        seed = parse(Int,a[2][end-4:end]) #better seed based on clock
     end
     srand(seed)
-    seeds = [int(floor(rand(nworkers())*100000))] #seeds for all workers
+    seeds = [parse(Int,floor(rand(nworkers())*100000))] #seeds for all workers
 
 
     @sync begin
