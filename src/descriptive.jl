@@ -54,9 +54,9 @@ function Base.show(io::IO, obj::HybridNetwork)
             disptipslabels = disptipslabels * ", $(tipslabels[i])"
         end
         if obj.numTaxa > 4 disptipslabels = disptipslabels * ", ..." end
-        disp = disp * "\nTips labels: \n " * disptipslabels
+        disp *= "tip labels: " * disptipslabels
     end
-    disp = disp * "\n\n $(writeTopology(obj))"
+    disp *= "\n$(writeTopology(obj))"
     println(io, disp)
 end
 
@@ -99,18 +99,31 @@ end
 
 function Base.show(io::IO, obj::Node)
     disp = "$(typeof(obj)):"
-    disp = disp * "\n Node Number:$(obj.number)"
-    if (obj.name != "") disp = disp * "\n Node Name:$(obj.name)" end
-    if (obj.hybrid) disp = disp * "\n This node is a hybrid" end
-    if (obj.leaf) disp = disp * "\n This node is a leaf" end
+    disp = disp * "\n number:$(obj.number)"
+    if (obj.name != "") disp *= "\n name:$(obj.name)" end
+    if (obj.hybrid)     disp *= "\n hybrid node" end
+    if (obj.leaf)       disp *= "\n leaf node" end
+    disp *= "\n attached to $(length(obj.edge)) edges, numbered:"
+    for (e in obj.edge) disp *= " $(e.number)"; end
     println(io, disp)
 end
 
 function Base.show(io::IO, obj::Edge)
     disp = "$(typeof(obj)):"
-    disp = disp * "\n Edge Number:$(obj.number)"
-    disp = disp * "\n Edge length:$(obj.length)"
-    if (obj.hybrid) disp = disp * "\n This edge is a hybrid edge with gamma=$(obj.gamma)" end
+    disp *= "\n number:$(obj.number)"
+    disp *= "\n length:$(obj.length)"
+    if (obj.hybrid)
+        disp *= "\n " * (obj.isMajor ? "major" : "minor")
+        disp *= " hybrid edge with gamma=$(obj.gamma)"
+    elseif (!obj.isMajor)
+        disp *= "\n minor tree edge"
+    end
+    disp *= "\n attached to $(length(obj.node)) node(s) (parent first):"
+    if (length(obj.node)==1) disp *= " $(obj.node[1].number)";
+    elseif (length(obj.node)==2)
+        disp *= " $(obj.node[obj.isChild1 ? 2 : 1].number)"
+        disp *= " $(obj.node[obj.isChild1 ? 1 : 2].number)"
+    end
     println(io, disp)
 end
 

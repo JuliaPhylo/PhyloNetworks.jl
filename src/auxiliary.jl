@@ -393,12 +393,12 @@ end
 # note that net.names is never updated to keep it
 # accurate
 function deleteNode!(net::HybridNetwork, n::Node)
+    index = 0
     try
         index = getIndex(n,net);
     catch
         error("Node $(n.number) not in network");
     end
-    index = getIndex(n,net);
     # println("deleting node $(n.number) from net, index $(index).")
     deleteat!(net.node,index);
     net.numNodes -= 1;
@@ -453,13 +453,13 @@ function deleteEdge!(net::HybridNetwork, e::Edge)
         indE = getIndex(e,net.partition[ind].edges)
         deleteat!(net.partition[ind].edges,indE)
     end
+    index = 0
     try
         index = getIndex(e,net);
     catch
         error("Edge not in network");
     end
     #println("delete edge $(e.number) from net")
-    index = getIndex(e,net);
     deleteat!(net.edge,index);
     net.numEdges -= 1;
 end
@@ -485,12 +485,12 @@ end
 # only remove it from net.hybrid
 function removeHybrid!(net::Network, n::Node)
     n.hybrid || error("cannot delete node $(n.number) from net.hybrid because it is not hybrid")
+    index = 0
     try
         index = getIndexHybrid(n,net);
     catch
         error("Hybrid Node $(n.number) not in network");
     end
-    index = getIndexHybrid(n,net);
     deleteat!(net.hybrid,index);
     net.numHybrids -= 1;
 end
@@ -724,6 +724,7 @@ end
 #          assuming any tree node can only have one
 #          one hybrid edge
 function removeEdge!(node::Node,edge::Edge)
+    index = 0
     try
         index = getIndexEdge(edge,node);
     catch e
@@ -731,7 +732,6 @@ function removeEdge!(node::Node,edge::Edge)
             error("edge $(edge.number) not in node $(node.number)")
         end
     end
-    index = getIndexEdge(edge,node);
     deleteat!(node.edge,index);
     all((e->!e.hybrid), node.edge) ? node.hasHybEdge = false : node.hasHybEdge = true;
 end

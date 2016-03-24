@@ -219,36 +219,41 @@ documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetw
 You can run a bootstrap analysis if you estimated CFs with credibility intervals,
 such as if you used the TICR
 pipeline (see above). The TICR pipeline provides a CF table with extra columns for
-confidence intervals.
+credibility intervals.
 ```julia
 using DataFrames
-df = readtable("tableCFCI.txt", sep=';')
+df = readtable("tableCFCI.txt", separator=';')
 net_bs = bootsnaq(T,df,hmax=1,nrep=10, bestNet=net1, runs=3)
 ```
 You can access this example file
 [here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/tableCFCI.txt)
 or [here](https://raw.githubusercontent.com/crsl4/PhyloNetworks/master/examples/tableCFCI.txt).
 
-<!---
 #### Summarizing bootstrap results
 
 The `bootsnaq` function will return a list of 10 networks (`nrep=10`) which you can then summarize with
 ```julia
 df_bs,tree1 = treeEdgesBootstrap(net_bs,net1)
 ```
-which will provide a table with one column for edge number and another
-column with bootstrap support for all the tree edges in `net1`. The
-underlying tree of `net1` is `tree1`. You can see which tree edges have
-bootstrap support lower than 100% with
+This will calculate the major tree `tree1` displayed in `net1`, that is,
+the tree obtained by following the major parent (gamma>0.5) of each hybrid node.
+This tree can be visualized like this, with edge numbers shown for later use.
+```julia
+using Gadfly
+plot(tree1, showEdgeNumber=true)
+```
+Next, we can look at table `df_bs`, which has row for
+each tree edge in `net1`. One column contains the edge number
+(same as shown in the plot) and another column contains the edge's
+bootstrap support: the proportion of bootstrap replicates in which this edge was
+found in the major tree of the inferred network.
+We can see which tree edges have bootstrap support lower than 100% with
 ```julia
 df_bs[df_bs[:bs] .< 1.0, :]
 ```
-To match bootstrap values with their corresponding tree edges, you can plot the tree with edge numbers:
-```julia
-plot(tree1,showEdgeNumber=true)
-```
 
-To summarize the hybridizations, you need an outgroup to root all the networks.
+<!---
+To summarize the hybridizations, we need an outgroup to root all the networks.
 ```julia
 outgroup = "4"
 HFmat,discTrees = hybridDetection(net_bs,net1,outgroup)
@@ -370,8 +375,8 @@ Now, we can plot them with any of the Julia packages for plotting. In particular
 using Gadfly
 p = plot(df,layer(x="obsCF1",y="expCF1",Geom.point,Theme(default_color=colorant"orange")),
             layer(x="obsCF2",y="expCF2",Geom.point,Theme(default_color=colorant"purple")),
-            layer(x="obsCF3",y="expCF3",Geom.point,Theme(default_color=color("blue"))),
-            layer(x=0:1,y=0:1),Geom.line,Theme(default_color=color("black")))
+            layer(x="obsCF3",y="expCF3",Geom.point,Theme(default_color=colorant"blue")),
+            layer(x=0:1,y=0:1),Geom.line,Theme(default_color=colorant"black"))
 ```
 This will pop out a browser window with the plot. The plot can be saved as PDF (or many other formats, see [Gadfly tutorial](http://dcjones.github.io/Gadfly.jl/)) with
 ```julia
