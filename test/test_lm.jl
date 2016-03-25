@@ -13,14 +13,23 @@ printEdges(net)
 # Re-root the tree so that it matches my example
 root!(net, "A")
 printEdges(net)
-directEdges!(net) ## I am forced to do thi step here, because root sends a net with net.isRooted = false. Expected behavior ? 
+# directEdges!(net) ## I am forced to do thi step here, because root sends a net with net.isRooted = false. Expected behavior ? 
 preorder!(net)
+plot(net, useEdgeLength = true,  showEdgeNumber=true)
+
+# Make the network ultrametric
+net.edge[1].length = 2.5
+net.edge[6].length = 0.5
+net.edge[7].length = 0.5
+net.edge[3].length = 0.5
+plot(net, useEdgeLength = true)
+# Rk: Is there a way to check that the branch length are coherents with 
+# one another (Especialy for hybrids) ?
 
 # Ancestral state reconstruction with ready-made matrices
 params = paramsBM(10, 1)
 sim = simulate(net, params)
 Y = sim[:Tips]
-#Y = extractSimulateTips(sim, net)
 X = ones(4, 1)
 fit = phyloNetworklm(Y, X, net)
 

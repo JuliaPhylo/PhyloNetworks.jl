@@ -8,8 +8,9 @@
 # Matrix with rows and/or columns in topological order of the net.
 type matrixTopologicalOrder
     V::Matrix # Matrix in itself
-    nodesNumbers::Vector{Int64} # Vector of nodes numbers for ordering of the matrix
-    tipsNumbers::Vector{Int64} # Tips numbers
+    nodesNumbersTopOrder::Vector{Int64} # Vector of nodes numbers for ordering of the matrix
+    internalNodesNumbers::Vector{Int64} # Internal nodes numbers (original)
+    tipsNumbers::Vector{Int64} # Tips numbers (original)
     tipsNames::Vector # Tips Names
     indexation::AbstractString # Are rows ("r"), columns ("c") or both ("b") indexed by nodes numbers in the matrix ?
 end
@@ -34,7 +35,13 @@ function recursionPreOrder(
 	if(checkPreorder)
 		preorder!(net)
 	end
-	recursionPreOrder(net.nodes_changed, init, updateRoot, updateTree, updateHybrid, indexation, net.leaf, params)
+	M = recursionPreOrder(net.nodes_changed, init, updateRoot, updateTree, updateHybrid, params)
+    # Find numbers of internal nodes
+    nNodes = [n.number for n in net.node]
+    nleaf = [n.number for n in net.leaf]
+    deleteat!(nNodes, indexin(nleaf, nNodes))
+    matrixTopologicalOrder(M, [n.number for n in net.nodes_changed], nNodes, nleaf, [n.name for n in net.leaf], indexation)
+
 end
 
 function recursionPreOrder(
@@ -43,8 +50,6 @@ function recursionPreOrder(
 	updateRoot::Function,
 	updateTree::Function,
 	updateHybrid::Function,
-	indexation::AbstractString,
-	leaves::Vector{Node},
 	params
 	)
     n = length(nodes)
@@ -52,7 +57,7 @@ function recursionPreOrder(
     for(i in 1:n) #sorted list of nodes
         updatePreOrder!(i, nodes, M, updateRoot, updateTree, updateHybrid, params)
     end
-    return matrixTopologicalOrder(M, [n.number for n in nodes], [n.number for n in leaves], [n.name for n in leaves], indexation)
+    return M
 end
 
 # Update on the network
@@ -101,7 +106,7 @@ end
 
 function Base.getindex(obj::matrixTopologicalOrder, d::Symbol)
     if d == :Tips
-        mask = indexin(obj.tipsNumbers, obj.nodesNumbers,)
+        mask = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder,)
         obj.indexation == "b" && return obj.V[mask, mask] # both columns and rows are indexed by nodes
         obj.indexation == "c" && return obj.V[:, mask] # Only the columns
         obj.indexation == "r" && return obj.V[mask, :] # Only the rows
