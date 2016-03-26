@@ -134,3 +134,168 @@ net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02:
 displayedNetworkAt!(net5, net5.hybrid[1]);
 writeTopology(net5) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.7);" ||
  error("displayedNetworkAt! didn't work on net5, 1st hybrid")
+
+#----------------------------------------------------------#
+#   testing functions to compare trees                     #
+#----------------------------------------------------------#
+
+println("\n\nTesting tree2Matrix")
+
+net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
+tree = displayedTrees(net5, 0.0);
+taxa = tipLabels(net5);
+M1 = PhyloNetworks.tree2Matrix(tree[1], taxa, rooted=false);
+M2 = PhyloNetworks.tree2Matrix(tree[2], taxa, rooted=false);
+M1 ==
+[15 0 0 1 1 1 1;
+ 12 0 0 1 1 1 0;
+  8 0 0 1 1 0 0] || error("bad M1, from net5")
+M2 ==
+[ 4 0 1 0 0 0 1;
+ 12 0 0 1 1 1 0;
+  8 0 0 1 1 0 0] || error("bad M2, from net5")
+hardwiredClusterDistance(tree[1], tree[2], true) == 2 || error("wrong dist between rooted trees 1 and 2");
+hardwiredClusterDistance(tree[1], tree[2], false)== 2 || error("wrong dist between unrooted trees 1 and 2");
+hardwiredClusters(net5, taxa) ==
+[16 0 1 1 1 1 1 10;
+  4 0 1 0 0 0 1 10;
+  3 0 0 0 0 0 1 11;
+ 15 0 0 1 1 1 1 10;
+ 12 0 0 1 1 1 0 10;
+  8 0 0 1 1 0 0 10;
+  7 0 0 0 1 0 0 11;
+ 11 0 0 0 1 1 0 10] || error("wrong matrix of hardwired clusters for net5");
+hardwiredClusterDistance(net5, tree[2], true) == 4 || error("wrong dist between net5 and tree 2");
+
+## check things with R
+# library(ape); set.seed(15); phy <- rmtree(10,8); write.tree(phy,"tenRtrees.tre")
+# library(phangorn); RF.dist(phy,rooted=F)
+#     1  2  3  4  5  6  7  8  9
+# 2   8
+# 3  10 10
+# 4  10 10 10
+# 5  10  8  8 10
+# 6  10 10  8 10  8
+# 7  10 10 10 10 10 10
+# 8  10  8  8 10 10  8 10
+# 9  10 10  8  8 10 10 10 10
+# 10  8  6 10  8  8 10 10 10  8
+# i=10; j=1; RF.dist(phy[[i]],phy[[j]],rooted=T) # 10
+# i=10; j=2; RF.dist(phy[[i]],phy[[j]],rooted=T) #  8
+## now checking if we get the same results in julia
+# phy = readInputTrees("tenRtrees.tre")
+# or
+phy1 = readTopology("((t8:0.8623136566,(((t6:0.141187073,t2:0.7767125128):0.9646669542,t4:0.8037273993):0.447443719,t5:0.7933459524):0.8417851452):0.7066285675,(t1:0.0580010619,(t7:0.6590069213,t3:0.1069735419):0.5657461432):0.3575631182);");
+phy2 = readTopology("((t3:0.9152618761,t4:0.4574306419):0.7603277895,(((t1:0.4291725352,t8:0.3302786439):0.3437780738,(t5:0.8438980761,(t6:0.6667000714,t2:0.7141199473):0.01087239943):0.752832541):0.2591188031,t7:0.7685037958):0.9210739341);");
+phy3 = readTopology("(((t7:0.3309174306,t6:0.8330178803):0.7741786113,(((t2:0.4048132468,t8:0.6809111023):0.6810255498,(t4:0.6540613638,t5:0.2610215396):0.8490990005):0.6802781771,t3:0.2325445588):0.911911567):0.94644987,t1:0.09404937108);");
+phy10= readTopology("((t4:0.1083955287,((t1:0.8376079942,t8:0.1745392387):0.6178579947,((t6:0.3196466176,t2:0.9228881211):0.3112748025,t7:0.05162345758):0.7137957355):0.5162231021):0.06693460606,(t5:0.005652675638,t3:0.2584615161):0.7333540542);");
+
+(hardwiredClusterDistance(phy1, phy10, false)== 8 &&
+ hardwiredClusterDistance(phy2, phy10, false)== 6 &&
+ hardwiredClusterDistance(phy3, phy10, false)==10 &&
+ hardwiredClusterDistance(phy1, phy2,  false)== 8 &&
+ hardwiredClusterDistance(phy1, phy3,  false)==10 &&
+ hardwiredClusterDistance(phy2, phy3,  false)==10 &&
+ hardwiredClusterDistance(phy1, phy10, true) ==10 &&
+ hardwiredClusterDistance(phy2, phy10, true) == 8 ) ||
+  error("wrong RF distance between some of the trees");
+
+#----------------------------------------------------------#
+#   testing function to compare networks                   #
+#   with hardwired clusters                                #
+#   used for detection of given hybridization event        #
+#----------------------------------------------------------#
+
+println("\n\nTesting displayedTrees, hardwiredClusters, hardwiredClusterDistance, displayedNetworkAt!")
+
+estnet = readTopology("(6,((5,#H7:0.0::0.402):8.735,((1,2):6.107,((3,4):1.069)#H7:9.509::0.598):6.029):0.752);")
+# originally from "../msSNaQ/simulations/estimatedNetworks/baseline/nloci10/1_julia.out"
+trunet = readTopology("((((1,2),((3,4))#H1),(#H1,5)),6);");
+hardwiredClusterDistance(majorTree(trunet), majorTree(estnet),false) == 0 ||
+ error("estnet and trunet should be found to have the same unrooted major tree");
+truminor = minorTreeAt(trunet, 1); # (1:1.0,2:1.0,((5:1.0,(3:1.0,4:1.0):2.0):1.0,6:1.0):2.0);
+estminor = minorTreeAt(estnet, 1); # (5:1.0,(3:1.0,4:1.0):1.069,(6:1.0,(1:1.0,2:1.0):10.0):8.735);
+writeTopology(truminor) == "((((1,2),(3,4)),5),6);" || error("wrong truminor");
+writeTopology(estminor) == "(6,(((1,2):6.107,(3,4):10.578):6.029,5):0.752);" || error("wrong estminor");
+hardwiredClusterDistance(truminor, estminor, false) == 0 ||
+ error("truminor and estminor should be found to be at distance 0 when unrooted.");
+# so the hybrid edge was estimated correctly!!
+
+
+net5 = readTopology("(A,((B,#H1:::0.2),(((C,(E)#H2:::0.7),(#H2:::0.3,F)),(D)#H1:::0.8)));");
+tree = displayedTrees(net5, 0.0);
+taxa = tipLabels(net5);
+hardwiredClusters(tree[1], taxa) ==
+[16 0 1 1 1 1 1 10;
+ 15 0 0 1 1 1 1 10;
+ 12 0 0 1 1 1 0 10;
+  8 0 0 1 1 0 0 10] || error("wrong hardwired cluster matrix for tree 1");
+hardwiredClusters(tree[2], taxa) ==
+[16 0 1 1 1 1 1 10;
+  4 0 1 0 0 0 1 10;
+ 12 0 0 1 1 1 0 10;
+  8 0 0 1 1 0 0 10] || error("wrong hardwired cluster matrix for tree 2");
+hardwiredClusters(net5, taxa) ==
+[16 0 1 1 1 1 1 10;
+  4 0 1 0 0 0 1 10;
+  3 0 0 0 0 0 1 11;
+ 15 0 0 1 1 1 1 10;
+ 12 0 0 1 1 1 0 10;
+  8 0 0 1 1 0 0 10;
+  7 0 0 0 1 0 0 11;
+ 11 0 0 0 1 1 0 10] || error("wrong hardwired cluster matrix for net5");
+
+trunet = readTopology("(((1,2),((3,4))#H1),(#H1,5),6);"); # unrooted
+taxa = tipLabels(trunet);
+hardwiredClusters(trunet, taxa) ==
+[8 1 1 1 1 0 0 10
+ 3 1 1 0 0 0 0 10
+ 7 0 0 1 1 0 0 11
+ 6 0 0 1 1 0 0 10
+11 0 0 1 1 1 0 10] || error("wrong hardwired cluster matrix for unrooted trunet");
+trunet = readTopology("((((1,2),((3,4))#H1),(#H1,5)),6);"); # rooted: good!
+hardwiredClusters(trunet, taxa) ==
+[12 1 1 1 1 1 0 10;
+  8 1 1 1 1 0 0 10;
+  3 1 1 0 0 0 0 10;
+  7 0 0 1 1 0 0 11;
+  6 0 0 1 1 0 0 10;
+ 11 0 0 1 1 1 0 10] || error("wrong hardwired cluster matrix for trunet");
+hardwiredClusters(estnet, taxa) ==
+[13 1 1 1 1 1 0 10
+  4 0 0 1 1 1 0 10
+  3 0 0 1 1 0 0 11
+ 10 0 0 1 1 0 0 10
+ 12 1 1 1 1 0 0 10
+  7 1 1 0 0 0 0 10] || error("wrong hardwired cluster matrix for estnet")
+hardwiredClusterDistance(trunet,estnet,true) == 0 ||
+ error("trunet and estnet should be found to be at HWDist 0");
+
+net51 = readTopologyLevel1("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;")
+PhyloNetworks.directEdges!(net51); # doing this avoids a warning on the next line:
+displayedNetworkAt!(net51, net51.hybrid[1]) # H2
+# "WARNING: node -3 being the root is contradicted by isChild1 of its edges."
+root!(net51, "A");
+writeTopology(net51) == "(A:0.5,((((C:0.52,(E:0.5)#H2:0.02):0.6,(#H2:0.01,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.5);" ||
+  error("wrong net51 after displayedNetworkAt!");
+net52 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
+displayedNetworkAt!(net52, net52.hybrid[2])
+writeTopology(net52) == "(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,E:0.52):0.6,F:1.5):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7);" ||
+  error("wrong net52 after displayedNetworkAt!");
+taxa = tipLabels(net52); # order: A B C E F D
+hardwiredClusters(net51, taxa) ==
+[16 0 1 1 1 1 1 10;
+ 15 0 0 1 1 1 1 10;
+ 12 0 0 1 1 1 0 10;
+  8 0 0 1 1 0 0 10;
+  7 0 0 0 1 0 0 11;
+ 11 0 0 0 1 1 0 10] || error("wrong hardwired clusters for net51");
+hardwiredClusters(net52, taxa) ==
+[16 0 1 1 1 1 1 10;
+  4 0 1 0 0 0 1 10;
+  3 0 0 0 0 0 1 11;
+ 15 0 0 1 1 1 1 10;
+ 12 0 0 1 1 1 0 10;
+  8 0 0 1 1 0 0 10] || error("wrong hardwired clusters for net52");
+hardwiredClusterDistance(net51,net52,true) == 4 ||
+ error("wrong HWDist between net51 and net52");
