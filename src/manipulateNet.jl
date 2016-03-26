@@ -209,29 +209,61 @@ end
 # Direct Edges
 #################################################
 
-function traverseDirectEdges!(node::Node, edge::Edge)
-    if(isEqual(node,edge.node[1]))
-        DEBUG && println("changing edge $(edge.number)")
-        edge.isChild1 = false
-    else
-        DEBUG && println("changing edge $(edge.number)")
-        edge.isChild1 = true
-    end
-    node2 = getOtherNode(edge,node)
-    if(!node2.leaf)
-        for(e in node2.edge)
-            if(!isEqual(e,edge) && !e.hybrid)
-                traverseDirectEdges!(node2,e)
+"""
+`directEdges!(net::HybridNetwork; checkMajor=true::Bool)`
+
+Updates the edges' attribute isChild1, according to the root placement.
+Relies on hybrid nodes having exactly 1 major hybrid parent edge,
+but checks for that if checkMajor=true.
+
+Warning: updates tree edges only. Assumes that isChild1 is correct on hybrid edges
+(to avoid changing the identity of which nodes are hybrids and which are not).
+"""
+function directEdges!(net::HybridNetwork; checkMajor=true::Bool)
+    if checkMajor # check each node has 2+ hybrid parent edges (if any), and exactly one major.
+        for (n in net.node)
+            nparents = 0 # 0 or 2 normally, but could be >2 if polytomy.
+            nmajor = 0   # there should be exactly 1 major parent if nparents>0
+            for (e in n.edge)
+                if (e.hybrid && n == e.node[e.isChild1 ? 1 : 2])
+                    nparents += 1
+                    if (e.isMajor) nmajor +=1; end
+                end
             end
+            (nparents!=1) || error("node $(n.number) has exactly 1 hybrid parent edge")
+            (nparents==0 || nmajor == 1) ||
+              error("hybrid node $(n.number) has only 0 or 2+ major hybrid parents")
         end
     end
-end
-
-function directEdges!(net::HybridNetwork)
     for(e in net.node[net.root].edge)
         traverseDirectEdges!(net.node[net.root],e)
     end
     net.isRooted = true
+end
+
+function traverseDirectEdges!(node::Node, edge::Edge)
+    if (edge.hybrid && node==edge.node[edge.isChild1 ? 1 : 2])
+        error("the direction of hybrid edge $(edge.number) (isChild1) is incompatible with the root.")
+    end
+    if (node == edge.node[1])
+        edge.isChild1 = false
+        cn = edge.node[2] # cn = child node
+    else
+        edge.isChild1 = true
+        cn = edge.node[1]
+    end
+    if (!cn.leaf && (!edge.hybrid || edge.isMajor))
+        nchildren=0
+        for (e in cn.edge)
+            if e==edge continue; end
+            if (e.hybrid && cn == e.node[e.isChild1 ? 1 : 2]) continue; end
+            traverseDirectEdges!(cn,e)
+            nchildren += 1
+        end
+        nchildren>0 || error("non-leaf node $(cn.number) had 0 children. It could be a hybrid
+       whose parents' direction is in contradiction with the root.")
+    end
+    return nothing
 end
 
 #################################################
