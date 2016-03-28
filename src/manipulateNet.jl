@@ -384,3 +384,65 @@ function cladewiseorder!(net::HybridNetwork)
         end
     end
 end
+
+"""
+`rotate!(net::HybridNetwork, nodeNumber::Int64; edgeNumberOrder::Array{Int64,1})`
+
+Rotates the order of the node's children edges. Useful for plotting,
+to remove crossing edges.
+If `node` is a tree node with no polytomy, the 2 children edges are switched
+and the optional argument edgeNumberOrder is ignored.
+
+Use plot(net, showNodeNumber=true, showEdgeNumber=false) to map node and edge numbers
+on the network, as shown in the examples below.
+
+Warning: assumes that edges are correctly directed (isChild1 updated). This is done
+by plot(net). Otherwise run directEdges!(net).
+
+# Example
+```julia
+net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
+plot(net, showNodeNumber=true)
+rotate!(net, -4)
+plot(net)
+
+net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.136):10.0);");
+plot(net, showNodeNumber=true, showEdgeNumber=true)
+rotate!(net, -1, enumOrder=[1,12,9])
+plot(net, showNodeNumber=true, showEdgeNumber=true)
+rotate!(net, -3)
+plot(net)
+```
+"""
+function rotate!(net::HybridNetwork, nnum::Int64; enumOrder=Int64[]::Array{Int64,1})
+    nind = 0
+    try
+        nind = getIndexNode(nnum,net)
+    catch
+        error("cannot find any node with number $nnum in network.")
+    end
+    n = net.node[nind]
+    ci = Int[] # children edge indices
+    for (i = 1:length(n.edge))
+        if (n == n.edge[i].node[n.edge[i].isChild1? 2 : 1])
+            push!(ci,i)
+        end
+    end
+    if length(ci) < 2
+        warn("no edge to rotate: node $nnum has $(length(ci)) children edge.")
+    elseif length(ci)==2 || length(enumOrder)==0
+        etmp          = n.edge[ci[1]]
+        n.edge[ci[1]] = n.edge[ci[2]]
+        n.edge[ci[2]] = etmp
+    else # 3+ children edges and enumOrder provided
+        length(enumOrder)==length(ci) || error("enumOrder $enumOrder should be of length $(length(ci))")
+        length(unique(enumOrder))==length(ci) || error("enumOrder $enumOrder should not have duplicates")
+        childrenedge = n.edge[ci]
+        for i=1:length(ci)
+            tmp = findin([e.number for e in childrenedge], enumOrder[i])
+            length(tmp)==1 || error("edge number $(enumOrder[i]) not found as child of node $(n.number)")
+            n.edge[ci[i]] = childrenedge[tmp[1]]
+        end
+    end
+    return nothing
+end

@@ -24,6 +24,9 @@ Plots a network, from left to right.
 
 Note that plot() actually modifies some (minor) attributes of the network,
 as it calls directEdges!, preorder! and cladewiseorder!.
+
+If hybrid edges cross tree and major edges, you may choose to rotate some tree
+edges to eliminate crossing edges, using rotate!.
 """
 function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
         mainTree=false::Bool, showTipLabel=true::Bool, showNodeNumber=false::Bool,
@@ -36,6 +39,9 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
     directEdges!(net)    # to update isChild1
     preorder!(net)       # to update net.nodes_changed: true pre-ordering
     cladewiseorder!(net) # to update cladewiseorder_nodeIndex: cladewise on major tree
+
+    !net.node[net.root].leaf ||
+        warn("the root is leaf $(net.node[net.root].name): the plot will look weird...")
 
     # determine y for each node = y of its parent edge: post-order traversal
     # also [yB,yE] for each internal node: range of y's of all children nodes

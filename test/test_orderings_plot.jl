@@ -81,3 +81,18 @@ using Colors
 plot(net, edgeColor=colorant"olive",
           minorHybridEdgeColor=colorant"tan",
           majorHybridEdgeColor=colorant"skyblue");
+
+#----- test of rotate! ----------------#
+println("\n\nTesting rotate! to change the order of children edges at a given node")
+
+net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
+rotate!(net, -4)
+[e.number for e in net.node[13].edge] == [14,12,15] || error("rotate didn't work at node -4");
+plot(net); # just to check no error.
+
+net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.136):10.0);");
+rotate!(net, -1, enumOrder=[1,12,9])
+[e.number for e in net.node[12].edge] == [1,12,9] || error("rotate didn't work at node -1");
+rotate!(net, -3)
+[e.number for e in net.node[5].edge] == [4,2,5] || error("rotate didn't work at node -3");
+plot(net);
