@@ -1290,15 +1290,19 @@ network/tree for certain DataCF.  Be careful if the net object does
 not have all internal branch lengths specified because then the
 pseudolikelihood will be meaningless.
 """
-function topologyQPseudolik!(net::HybridNetwork,d::DataCF; verbose=false::Bool)
+function topologyQPseudolik!(net0::HybridNetwork,d::DataCF; verbose=false::Bool)
     # need a clean starting net. fixit: maybe we need to be more thorough here
     # yes, need to check that everything is ok because it could have been cleaned and then modified
-    any([(e.length == -1.0 && e.istIdentifiable) for e in net.edge]) && warn("edges lengths missing, so assigned default value of 1.0, but pseudolikelihood is meaningless")
-    if(!net.cleaned)
-        cleanAfterReadAll!(net);
+    any([(e.length == -1.0 && e.istIdentifiable) for e in net.edge]) && warn("identifiable edges lengths missing, so assigned default value of 1.0, but pseudolikelihood is meaningless")
+    if(!net0.cleaned)
+        net = readTopologyUpdate(writeTopology(net0)) #re read to update everything as it should
     else
-        flag = checkNet(net,true)
-        flag && cleanAfterReadAll!(net);
+        flag = checkNet(net0,true)
+        if(flag)
+            net = readTopologyUpdate(writeTopology(net0)) #re read to update everything as it should
+        else
+            net = deepcopy(net0)
+        end
     end
     try
         checkNet(net)

@@ -333,14 +333,18 @@ It has the following optional arguments:
 - verbose: if true, information on the numerical optimization is printed to screen
 - ftolRel, ftolAbs, xtolRel, xtolAbs: absolute and relative tolerance values for the function and parameters
 """
-function topologyMaxQPseudolik!(net::HybridNetwork, d::DataCF; verbose=false::Bool, ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
+function topologyMaxQPseudolik!(net0::HybridNetwork, d::DataCF; verbose=false::Bool, ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
     # need a clean starting net. fixit: maybe we need to be more thorough here
     # yes, need to check that everything is ok because it could have been cleaned and then modified
-    if(!net.cleaned)
-        cleanAfterReadAll!(net);
+    if(!net0.cleaned)
+        net = readTopologyUpdate(writeTopology(net0)) #re read to update everything as it should
     else
-        flag = checkNet(net,true)
-        flag && cleanAfterReadAll!(net);
+        flag = checkNet(net0,true)
+        if(flag)
+            net = readTopologyUpdate(writeTopology(net0)) #re read to update everything as it should
+        else
+            net = deepcopy(net0)
+        end
     end
     try
         checkNet(net)
