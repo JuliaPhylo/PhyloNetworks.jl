@@ -385,13 +385,19 @@ function pushHybrid!(net::Network, n::Node)
     end
 end
 
+"""
+`deleteNode!(net::HybridNetwork, n::Node)`
 
-# function to delete a Node in net.node and
-# update numNodes and numTaxa for HybridNetwork
-# if hybrid node, it deletes also from net.hybrid
-# and updates numHybrids
-# note that net.names is never updated to keep it
-# accurate
+
+deletes a Node from a network, i.e. removes it from
+net.node, and from net.hybrid or net.leaf as appropriate.
+Updates attributes numNodes, numTaxa, numHybrids
+(it does not update net.names though).
+
+Warning: if the root is deleted, the new root is arbitrarily set to the
+first node in the list. This is intentional to save time because this function
+is used frequently in snaq!, which handles semi-directed (unrooted) networks.
+"""
 function deleteNode!(net::HybridNetwork, n::Node)
     index = 0
     try
@@ -402,11 +408,8 @@ function deleteNode!(net::HybridNetwork, n::Node)
     # println("deleting node $(n.number) from net, index $(index).")
     deleteat!(net.node,index);
     net.numNodes -= 1;
-    if(net.root == index)
-        # fixit: would be best to check containRoot to choose another root.
-        # CSL: not sure I agree because this is done over and over in snaq, and snaq does not need a sensible root,
-        # so, having a good root seems like a waste of time
-        net.root = 1 #arbitrarily chosen, not used except for plotting or trait analysis
+    if(net.root == index) # do not check containRoot to save time in snaq!
+        net.root = 1      # arbitrary
     elseif(net.root > index)
         net.root -= 1
     end
@@ -499,12 +502,12 @@ end
 # and update numTaxa
 function removeLeaf!(net::Network,n::Node)
     if(n.leaf)
+        index = 0
         try
             index = getIndexLeaf(n,net)
         catch
             error("Leaf node $(n.number) not in network")
         end
-        index = getIndexLeaf(n,net)
         deleteat!(net.leaf,index)
         net.numTaxa -= 1
     else
@@ -762,7 +765,7 @@ end
 # negative=true means it allows negative branch lengths (useful in qnet typeHyb=4)
 function setLength!(edge::Edge, new_length::Number, negative::Bool)
     (negative || new_length >= 0) || error("length has to be nonnegative: $(new_length), cannot set to edge $(edge.number)")
-    new_length >= -log(1.5) || error("length can be negative, but not too negative (greater than $(-log(1.5))) or majorCF<0: new length is $(new_length)")
+    new_length >= -0.4054651081081644 || error("length can be negative, but not too negative (greater than -log(1.5)) or majorCF<0: new length is $(new_length)")
     #println("setting length $(new_length) to edge $(edge.number)")
     if(new_length > 10.0)
         new_length = 10.0;

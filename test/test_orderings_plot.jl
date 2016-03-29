@@ -91,7 +91,7 @@ rotate!(net, -4)
 plot(net); # just to check no error.
 
 net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.136):10.0);");
-rotate!(net, -1, enumOrder=[1,12,9])
+rotate!(net, -1, orderedEdgeNum=[1,12,9])
 [e.number for e in net.node[12].edge] == [1,12,9] || error("rotate didn't work at node -1");
 rotate!(net, -3)
 [e.number for e in net.node[5].edge] == [4,2,5] || error("rotate didn't work at node -3");
