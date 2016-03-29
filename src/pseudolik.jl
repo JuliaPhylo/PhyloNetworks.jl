@@ -135,11 +135,6 @@ end
 
 deleteIntLeaf!(net::Network, leafedge::Edge, leaf::Node) = deleteIntLeaf!(net, leafedge, leaf, false)
 
-# function to delete a leaf from a network
-# input: network, leaf node
-# warning: it will delete from the actual network
-#          need to create a copy before calling this
-#          function
 # fixit: still missing to test hybrid-> bad triangle II and
 #        normal case (not bad triangle/diamond) of hasHybEdge
 #        and normal case, delete not hybrid leaf bad triangle II
@@ -350,11 +345,20 @@ function deleteLeaf!(net::Network, leaf::Node)
     end
 end
 
-# function to delete a leaf from leaf name
 """
-`deleteLeaf!(net::HybridNetwork, leaf::String)`
+`deleteLeaf!(net::HybridNetwork, leaf::AbstractString)`
+`deleteLeaf!(net::Network, leaf::Node)`
 
-deletes the leaf taxon from the HybridNetwork object. The leaf argument is the taxon name to delete.
+Deletes the leaf taxon from the network. The leaf argument is the name of the taxon to delete.
+
+Warnings:
+
+- requires a level-1 network with up-to-date attributes for snaq! (e.g. non-missing branch lengths, gammaz, etc.)
+- does not care where the root is and does not update it to a sensible location if the root
+  is affected by the leaf removal.
+- does not merge edges, i.e. does not remove all nodes of degree 2. Within snaq!, this
+  is used to extract quartets and to keep track of which
+  edge lengths in the original network map to the quartet network.
 """
 function deleteLeaf!(net::Network, leaf::AbstractString)
     found = false
@@ -367,6 +371,7 @@ function deleteLeaf!(net::Network, leaf::AbstractString)
     end
     found || error("cannot delete leaf $(l) because it was not found in the network")
 end
+
 
 # -------------------- extract quartet ---------------------------------------
 

@@ -62,8 +62,12 @@ function readTableCF(df0::DataFrames.DataFrame;summaryfile=""::AbstractString)
     catch
         withngenes = false
     end
+    # fixit: what about columns giving the taxon names: always assumed to be columns 1-4? No warning if not?
     if(!fromTICR)
-        size(df0,2) == 7 || warn("Column names for quartet concordance factors (CFs) were not recognized. Will assume that the first 4 columns give the taxon names, and that columns 5-7 give the CFs.")
+        size(df0,2) == (withngenes ? 8 : 7) ||
+         warn("Column names for quartet concordance factors (CFs) were not recognized.
+          Was expecting CF12_34, CF13_24 and CF14_23 for the columns with CF values.
+          Will assume that the first 4 columns give the taxon names, and that columns 5-7 give the CFs.")
         df = deepcopy(df0)
         repSpecies = cleanNewDF!(df)
         if(!isempty(repSpecies))

@@ -202,7 +202,6 @@ function displayedTrees(net0::HybridNetwork, gamma::Float64)
     net = deepcopy(net0)
     deleteHybridThreshold!(net,gamma)
     displayedTrees!(trees,net)
-    updateTrees!(trees) #fix to errors in writeTopology when setting outgroup
     return trees # should have length 2^net.numHybrids
 end
 
@@ -220,6 +219,13 @@ majorTree(net::HybridNetwork) = displayedTrees(net,0.5)[1]
 # expands current list of trees, with trees displayed in a given network
 function displayedTrees!(trees::Array{HybridNetwork,1},net::HybridNetwork)
     if (isTree(net))
+        for(e in net.edge) # updating containRoot and inCycle helps with writeTopology.
+            e.containRoot = true # ideally, this should be transferred to deleteHybridEdge!.
+            e.inCycle = -1
+        end
+        for(n in net.node)
+            n.inCycle = -1
+        end
         push!(trees, net)
     else
         netmin = displayedNetworks!(net,net.hybrid[1])
