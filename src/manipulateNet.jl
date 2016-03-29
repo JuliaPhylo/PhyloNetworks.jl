@@ -212,12 +212,18 @@ end
 """
 `directEdges!(net::HybridNetwork; checkMajor=true::Bool)`
 
-Updates the edges' attribute isChild1, according to the root placement.
+Updates the edges' attribute `isChild1`, according to the root placement.
+Also updates edges' attribute `containRoot`, for other possible root placements
+compatible with the direction of existing hybrid edges.
 Relies on hybrid nodes having exactly 1 major hybrid parent edge,
 but checks for that if checkMajor=true.
 
-Warning: updates tree edges only. Assumes that isChild1 is correct on hybrid edges
+Warning: Assumes that isChild1 is correct on hybrid edges
 (to avoid changing the identity of which nodes are hybrids and which are not).
+
+Return value: `true` if the process was successful,
+`false` if the starting root placement (using net.root) was in
+conflict with the direction of any hybrid edge.
 """
 function directEdges!(net::HybridNetwork; checkMajor=true::Bool)
     if checkMajor # check each node has 2+ hybrid parent edges (if any), and exactly one major.
@@ -232,18 +238,29 @@ function directEdges!(net::HybridNetwork; checkMajor=true::Bool)
             end
             (nparents!=1) || error("node $(n.number) has exactly 1 hybrid parent edge")
             (nparents==0 || nmajor == 1) ||
-              error("hybrid node $(n.number) has only 0 or 2+ major hybrid parents")
+              error("hybrid node $(n.number) has 0 or 2+ major hybrid parents")
+            (nparents!=2 || n.hybrid) ||
+              warn("node $(n.number) has 2 parents but its hybrid attribute is false.
+It is not used in directEdges!, but might cause an error elsewhere.")
+            # to fix this: change n.hybrid, net.hybrid, net.numHybrids etc.
+            # none of those attributes are used here.
         end
     end
     for(e in net.node[net.root].edge)
-        traverseDirectEdges!(net.node[net.root],e)
+        traverseDirectEdges!(net.node[net.root],e,true) ||
+         return false # exits early with 'false' if rooting incompatibility
     end
     net.isRooted = true
+    return true
 end
 
-function traverseDirectEdges!(node::Node, edge::Edge)
+# containroot = true until the path goes through a hybrid node, below which
+# containroot is turned to false.
+function traverseDirectEdges!(node::Node, edge::Edge, containroot::Bool)
     if (edge.hybrid && node==edge.node[edge.isChild1 ? 1 : 2])
-        error("the direction of hybrid edge $(edge.number) (isChild1) is incompatible with the root.")
+        warn("the direction of hybrid edge $(edge.number) (isChild1) is incompatible with the root.
+       iChild1 and containRoot were updated for a subset of edges in the network only.")
+        return false
     end
     if (node == edge.node[1])
         edge.isChild1 = false
@@ -252,18 +269,25 @@ function traverseDirectEdges!(node::Node, edge::Edge)
         edge.isChild1 = true
         cn = edge.node[1]
     end
-    if (!cn.leaf && (!edge.hybrid || edge.isMajor))
+    edge.containRoot = containroot
+    if (!cn.leaf && (!edge.hybrid || edge.isMajor)) # continue down recursion
+        if edge.hybrid containroot=false; end # changes containroot locally, intentional.
         nchildren=0
         for (e in cn.edge)
             if e==edge continue; end
             if (e.hybrid && cn == e.node[e.isChild1 ? 1 : 2]) continue; end
-            traverseDirectEdges!(cn,e)
+            traverseDirectEdges!(cn,e,containroot) ||
+              return false # exits early with 'false' if rooting incompatibility
             nchildren += 1
         end
-        nchildren>0 || error("non-leaf node $(cn.number) had 0 children. It could be a hybrid
-       whose parents' direction is in contradiction with the root.")
+        if nchildren==0
+            warn("non-leaf node $(cn.number) had 0 children. It could be a hybrid
+       whose parents' direction is in contradiction with the root.
+       iChild1 and containRoot were updated for a subset of edges in the network only.")
+            return false
+        end
     end
-    return nothing
+    return true
 end
 
 #################################################

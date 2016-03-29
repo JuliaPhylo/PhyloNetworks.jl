@@ -7,23 +7,48 @@ using PhyloNetworks
 println("\n\nTesting directEdges! on a tree, then on a network with h=2")
 
 tre = readTopology("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
-net = readTopology("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);");
-
 tre.edge[1].isChild1=false; tre.edge[17].isChild1=false
 PhyloNetworks.directEdges!(tre)
 tre.edge[1].isChild1  || error("directEdges! didn't correct the direction of 1st edge")
 tre.edge[17].isChild1 || error("directEdges! didn't correct the direction of 17th edge")
-
 # 9th node = node number -4. Edge 9: connects nodes -4 and -3.
+for i=1:18 tre.edge[i].containRoot=false; end;
 tre.root = 9;
 PhyloNetworks.directEdges!(tre)
 !tre.edge[9].isChild1 || error("directEdges! didn't correct the direction of 9th edge")
+for i=1:18
+ tre.edge[i].containRoot || error("directEdges! didn't correct containRoot of $(i)th edge.")
+end
 
+net = readTopology("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);");
 # 5th node = node number -6.
 net.root = 5
 PhyloNetworks.directEdges!(net)
 !net.edge[12].isChild1 || error("directEdges! didn't correct the direction of 12th edge")
 !net.edge[23].isChild1 || error("directEdges! didn't correct the direction of 23th edge")
+for i in [8;collect(13:17)]
+ !net.edge[i].containRoot ||
+  error("directEdges! didn't correct containRoot below a hyb node, $(i)th edge.")
+end
+for i in [9,5,18,2]
+ net.edge[i].containRoot || error("directEdges! didn't correct containRoot of hyb edges.")
+end
+
+# example with one hybridization below another
+net = readTopology("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
+# sum([!e.containRoot for e in net.edge]) # only 4.
+directEdges!(net) || error("directEdges! says that the root position is incompatible with hybrids")
+sum([!e.containRoot for e in net.edge]) == 16 ||
+ error("directEdges! wrong on net with 2 stacked hybrids");
+plot(net, showEdgeNumber=true, showEdgeLength=false, showNodeNumber=true);
+net = readTopology("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
+net.root=19; # node number -12
+directEdges!(net) || error("directEdges! says that the root position is incompatible with hybrids");
+net = readTopology("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
+net.root=15; # node number -4
+!directEdges!(net) || error("directEdges! says that the root position is compatible with hybrids");
+println("the warning above is good and expected.")
+
 
 #----- test of preorder! -------------#
 println("\n\nTesting preorder! on a tree, then on a network with h=2")

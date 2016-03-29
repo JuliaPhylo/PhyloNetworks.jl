@@ -114,7 +114,34 @@ function updateInCycle!(net::HybridNetwork,node::Node)
     end
 end
 
+"""
+`updateContainRoot!(HybridNetwork, Node)`
 
+`traverseContainRoot!(Node, Edge, edges_changed::Array{Edge,1}, rightDir::Vector{Bool})`
+
+The input `node` to `updateContainRoot!` must be a hybrid node
+(can come from searchHybridNode).
+`updateContainRoot!` starts at the input node and calls `traverseContainRoot!`,
+which traverses the network recursively.
+By default, containRoot attributes of edges are true.
+Changes containRoot to false for all the visited edges: those
+below the input node, but not beyond any other hybrid node.
+
+`updateContainRoot!` Returns a `flag` and an array of edges whose
+containRoot has been changed from true to false.
+`flag` is false if the set of edges to place the root is empty
+
+In `traverseContainRoot!`, `rightDir` turns false if hybridizations
+have incompatible directions (vector of length 1, to be modified).
+
+Warning:
+- does *not* update containRoot of minor hybrid edges.
+- assumes correct isMajor attributes: to stop the recursion at minor hybrid edges.
+- assumes correct hybrid attributes of both nodes & edges: to check if various
+  hybridizations have compatible directions.
+  For each hybrid node that is encountered, checks if it was reached
+  via a hybrid edge (ok) or tree edge (not ok).
+"""
 # aux function to traverse the network for updateContainRoot
 # it changes the containRoot argument to false
 # of all the edges visited
@@ -127,14 +154,14 @@ function traverseContainRoot!(node::Node, edge::Edge, edges_changed::Array{Edge,
         if(edge.hybrid)
             edge.isMajor || error("hybrid edge $(edge.number) is minor and we should not traverse the graph through minor edges")
             DEBUG && println("traverseContainRoot reaches hybrid node $(node.number) through major hybrid edge $(edge.number)")
-            rightDir[1] &= true
+            rightDir[1] &= true  # This line has no effect: x && true = x
         else #approach hybrid node through tree edge => wrong direction
-            rightDir[1] &= false
+            rightDir[1] &= false # same as rightDir[1] = false: x && false = false
             DEBUG && println("traverseContainRoot reaches hybrid node $(node.number) through tree edge $(edge.number), so rightDir $(rightDir[1])")
         end
     elseif(!node.leaf)
         for(e in node.edge)
-            if(!isEqual(edge,e) && e.isMajor)
+            if(!isEqual(edge,e) && e.isMajor) # minor edges avoided-> their containRoot not updated
                 other = getOtherNode(e,node);
                 if(e.containRoot) # only considered changed those that were true and not hybrid
                     DEBUG && println("traverseContainRoot changing edge $(e.number) to false, at this moment, rightDir is $(rightDir[1])")

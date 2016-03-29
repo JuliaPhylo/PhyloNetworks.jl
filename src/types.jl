@@ -103,7 +103,7 @@ Explicit network or tree with the following attributes:
 - edge (array of Edges)
 - node (array of Nodes)
 - root (index of root in vector 'node'. May be artificial, for printing and traversal purposes only.)
-- hybrids (array of Nodes: those are are hybrid nodes)
+- hybrid (array of Nodes: those are are hybrid nodes)
 - leaf (array of Nodes: those that are leaves)
 - loglik (negative log pseudolik after estimation)
 - isRooted (true or false)
