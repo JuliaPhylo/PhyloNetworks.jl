@@ -940,7 +940,7 @@ end
 # fixit: need to add check on identification of bad diamonds, triangles
 # and correct computation of gammaz
 # light=true: it will not collapse with nodes with 2 edges, will return a flag of true
-# returns true if found egde with BL -1.0
+# returns true if found egde with BL -1.0 (only when light=true, ow error)
 function checkNet(net::HybridNetwork, light::Bool)
     DEBUG && println("checking net")
     net.numHybrids == length(net.hybrid) || error("discrepant number on net.numHybrids (net.numHybrids) and net.hybrid length $(length(net.hybrid))")
@@ -1029,6 +1029,9 @@ function checkNet(net::HybridNetwork, light::Bool)
                 error("edge found with BL -1.0")
             end
         end
+    end
+    for(he in net.hybrid)
+        !he.containRoot || error("hybrid edges have contain root true")
     end
     DEBUG && println("no errors in checking net")
     if(light)
