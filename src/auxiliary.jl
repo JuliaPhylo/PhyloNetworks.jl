@@ -1027,9 +1027,6 @@ function checkNet(net::HybridNetwork, light::Bool)
             end
         end
     end
-    for(he in net.hybrid)
-        !he.containRoot || error("hybrid edges have contain root true")
-    end
     DEBUG && println("no errors in checking net")
     if(light)
         return false
