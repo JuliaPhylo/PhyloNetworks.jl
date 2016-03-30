@@ -1,4 +1,200 @@
-# Rooting functions previously in descriptive.jl
+"""
+`rootatnode!(HybridNetwork, nodeNumber::Int64; index=false::Bool)`
+
+`rootatnode!(HybridNetwork, Node)`
+
+`rootatnode!(HybridNetwork, nodeName::AbstractString)`
+
+Roots the network/tree object at the node with name 'nodeName' or
+number 'nodeNumber' (by default) or with index 'nodeNumber' if index=true.
+Attributes isChild1 and containRoot are updated along the way.
+Use `plot(net, showNodeNumber=true, showEdgeLength=false)` to
+visualize and identify a node of interest.
+
+Warnings:
+- If the node is a leaf, the root will be placed along
+  the edge adjacent to the leaf, with a message. This might add a new node.
+- If the desired root placement is incompatible with one or more hybrids,
+  then the network will still have some attributes modified.
+
+Return value: like directEdges, returns `true` if successful,
+`false` if the desired root placement was in
+conflict with the direction of any hybrid edge.
+
+See also: `rootonedge!`.
+"""
+function rootatnode!(net::HybridNetwork, node::Node)
+    rootatnode!(net, node.number, index=false)
+end
+
+function rootatnode!(net::HybridNetwork, nodeName::AbstractString)
+    tmp = findin([n.name for n in net.node], [nodeName])
+    if length(tmp)==0
+        error("node named $nodeName was not found in the network.")
+    elseif length(tmp)>1
+        error("several nodes were found with name $nodeName.")
+    end
+    rootatnode!(net, tmp[1], index=true)
+end
+
+function rootatnode!(net::HybridNetwork, nodeNumber::Int64; index=false::Bool)
+    ind = nodeNumber # good if index=true
+    if !index
+      try
+        ind = getIndexNode(nodeNumber,net)
+      catch
+        error("cannot set node $(nodeNumber) as root because it is not part of net")
+      end
+    elseif ind > length(net.node)
+        error("node index $ind too large: the network only has $(length(net.node)) nodes.")
+    end
+    if net.node[ind].leaf
+        println("node $(net.node[ind].number) is a leaf. Will create a new node if needed, to set taxon \"$(net.node[ind].name)\" as outgroup.")
+        length(net.node[ind].edge)==1 || error("leaf has $(length(net.node[ind].edge)) edges!")
+        pn = getOtherNode(net.node[ind].edge[1], net.node[ind])
+        if length(pn.edge) <= 2 # if parent of leaf has degree 2, use it as new root
+            rootatnode!(net, pn.number)
+        else # otherwise, create a new node between leaf and its parent
+            rootonedge!(net,net.node[ind].edge[1])
+        end
+    else
+        rootsaved = net.root
+        net.root = ind
+        res = directEdges!(net)
+        if !res # new root incompatible with hybrid directions: revert back.
+            net.root = rootsaved
+        elseif (net.root != rootsaved && length(net.node[rootsaved].edge)==2)
+            fuseedgesat!(rootsaved,net) # remove old root node if degree 2
+        end
+        return(res)
+    end
+end
+
+
+"""
+`rootonedge!(HybridNetwork, edgeNumber::Int64; index=false::Bool)`
+
+`rootonedge!(HybridNetwork, Edge)`
+
+Roots the network/tree object along an edge with number 'edgeNumber' (by default)
+or with index 'edgeNumber if index=true. Attributes isChild1 and containRoot are
+updated along the way.
+
+This adds a new node and a new edge to the network.
+Use `plot(net, showEdgeNumber=true, showEdgeLength=false)` to
+visualize and identify an edge of interest.
+
+See also: `rootatnode!`.
+"""
+function rootonedge!(net::HybridNetwork, edge::Edge)
+    rootonedge!(net, edge.number, index=false)
+end
+
+function rootonedge!(net::HybridNetwork, edgeNumber::Int64; index=false::Bool)
+    ind = edgeNumber # good if index=true
+    if !index
+      try
+        ind = getIndexEdge(edgeNumber,net)
+      catch
+        error("cannot set root along edge $(edgeNumber): no such edge in network")
+      end
+    elseif ind > length(net.edge)
+        error("edge index $ind too large: the network only has $(length(net.edge)) edges.")
+    end
+    rootsaved = net.root
+    net.root = breakedge!(net.edge[ind],net)
+    res = directEdges!(net)
+    if !res
+        fuseedgesat!(net.root,net) # reverts breakedge!
+        net.root = rootsaved
+    elseif (net.root != rootsaved && length(net.node[rootsaved].edge)==2)
+        fuseedgesat!(rootsaved,net) # remove old root node if degree 2
+    end
+    return(res)
+end
+
+"""
+`breakedge!(Edge, HybridNetwork)`
+
+breaks an edge into 2 edges (each of length half that of original edge).
+creates new node of degree 2. Useful to root network along an edge.
+
+warning: updates `isChild1` and `containRoot`, but
+does NOT update attributes like: inCycle, partition, gammaz, etc.
+"""
+function breakedge!(edge::Edge, net::HybridNetwork)
+    pn = edge.node[edge.isChild1 ? 2 : 1] # parent node
+    # new child edge = old edge, same hybrid attribute
+    removeEdge!(pn,edge)
+    removeNode!(pn,edge)
+    max_edge = maximum([e.number for e in net.edge]);
+    max_node = maximum([e.number for e in net.node]);
+    newedge = Edge(max_edge+1) # create new parent (tree) edge
+    newnode = Node(max_node+1,false,false,[edge,newedge]) # tree node
+    setNode!(edge,newnode) # newnode comes 2nd, and parent node along 'edge'
+    edge.isChild1 = true
+    setNode!(newedge,newnode) # newnode comes 1st in newedge, but child node
+    newedge.isChild1 = true
+    setEdge!(pn,newedge)
+    setNode!(newedge,pn) # pn comes 2nd in newedge
+    if edge.length == -1.0
+        newedge.length = -1.0
+    else
+        edge.length /= 2
+        newedge.length = edge.length
+    end
+    newedge.containRoot = edge.containRoot
+    pushEdge!(net,newedge)
+    pushNode!(net,newnode)
+    return length(net.node) # index of newnode: last one pushed to net.node
+end
+
+"""
+`fuseedgesat!(i::Int64,net::HybridNetwork)`
+
+Removes `i`th node in net.node, if it is of degree 2.
+The parent and child edges of this node are fused.
+Reverts the action of breakedge!.
+"""
+function fuseedgesat!(i::Int64, net::HybridNetwork)
+    i <= length(net.node) ||
+      error("node index $i too large: only $(length(net.node)) nodes in the network.")
+    length(net.node[i].edge) == 2 ||
+      error("can't fuse edges at node number $(net.node[i].number): connected to $(length(net.node[i].edge)) edges.")
+    !(net.node[i].edge[1].hybrid && net.node[i].edge[2].hybrid) ||
+      error("can't fuse edges at node number $(net.node[i].number): connected to exactly 2 hybrid edges")
+    j = indmax([e.number for e in net.node[i].edge])
+    pe = net.node[i].edge[j] # edge to remove: pe.number > ce.number
+    if pe.hybrid             #                 unless it's a hybrid
+        ce = pe # keep ce, the hybrid edge -> keep its isMajor & gamma.
+        pe = net.node[i].edge[j==1 ? 2 : 1] # remove non-hybrid edge
+    else
+        ce = net.node[i].edge[j==1 ? 2 : 1] # edge to keep
+    end
+    isnodeiparent = (net.node[i] == ce.node[ce.isChild1 ? 2 : 1])
+    (!ce.hybrid || isnodeiparent) ||
+      error("node $(net.node[i].number) has 1 tree edge ($(pe.number)) and 1 hybrid edge ($(ce.number)), but is child of the hybrid edge.")
+    pn = getOtherNode(pe,net.node[i])
+    removeEdge!(net.node[i],ce) # perhaps useless. in case gc() on ith node affects its edges.
+    removeNode!(net.node[i],ce)
+    removeEdge!(pn,pe)          # perhaps useless. in case gc() on pe affects its nodes.
+    removeNode!(pn,pe)
+    setEdge!(pn,ce)
+    setNode!(ce,pn)             # pn comes 2nd in ce now.
+    ce.isChild1 = isnodeiparent # to retain same direction as before.
+    ce.length = addBL(ce.length, pe.length)
+    deleteNode!(net,net.node[i])
+    deleteEdge!(net,pe)
+    return nothing
+end
+
+#-----------------------------------------------------------------#
+#      older functions, mostly unused now.                        #
+#                                                                 #
+#      they heavily require branch lengths, a level-1 network,    #
+#      and do a lot of work to update all associated attributes.  #
+#      previously in descriptive.jl                               #
+#-----------------------------------------------------------------#
 # function to re root on a node
 # resolve=true, a branch of length=0 is
 # added if node is internal if node is leaf, root(net,outgroup) is
@@ -201,6 +397,9 @@ function root!(net::HybridNetwork, edge::Edge)
     root!(net,newnode,false)
 end
 
+#-----------------------------------------------------------------#
+#        end of older (unused) functions                          #
+#-----------------------------------------------------------------#
 
 
 # Claudia SL & Paul Bastide: November 2015, Cecile: Feb 2016
@@ -425,12 +624,12 @@ by plot(net). Otherwise run directEdges!(net).
 
 # Example
 ```julia
-net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
+net = readTopology('(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;');
 plot(net, showNodeNumber=true)
 rotate!(net, -4)
 plot(net)
 
-net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.136):10.0);");
+net=readTopology('(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.136):10.0);');
 plot(net, showNodeNumber=true, showEdgeNumber=true)
 rotate!(net, -1, orderedEdgeNum=[1,12,9])
 plot(net, showNodeNumber=true, showEdgeNumber=true)

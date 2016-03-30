@@ -280,7 +280,7 @@ column 2i+1 corresponds to the estimated gamma on the bootstrap network (0.0 if 
 function hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgroup::AbstractString)
     tree1 = majorTree(net1)
     rootnet1 = deepcopy(net1)
-    root!(rootnet1,outgroup)
+    rootatnode!(rootnet1,outgroup)
 
     # HF for "hybrid found?"
     HFmat = zeros(length(net),net1.numHybrids*2)
@@ -324,7 +324,7 @@ function hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgro
                 netE = deepcopy(n)
                 displayedNetworkAt!(netE, netE.hybrid[esth])
                 if (reroot)
-                    root!(netE, outgroup) # if re-rooting is not possible,
+                    rootatnode!(netE, outgroup) # if re-rooting is not possible,
                 end                         # then the hybridization doesn't match.
                 if (hardwiredClusterDistance(netT, netE, true) == 0) # true: rooted
                     found[trueh] = true

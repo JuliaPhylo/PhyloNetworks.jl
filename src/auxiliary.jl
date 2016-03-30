@@ -429,13 +429,13 @@ end
 # accurate
 # if n is leaf, we delete from qnet.leaf
 function deleteNode!(net::QuartetNetwork, n::Node)
+    index=0
     try
         index = getIndex(n,net);
     catch
         error("Node $(n.number) not in network");
     end
     #println("deleting node $(n.number) from net")
-    index = getIndex(n,net);
     deleteat!(net.node,index);
     net.numNodes -= 1;
     net.numTaxa -= n.leaf ? 1 : 0;
@@ -470,13 +470,13 @@ end
 # function to delete an Edge in net.edge and
 # update numEdges from a QuartetNetwork
 function deleteEdge!(net::QuartetNetwork, e::Edge)
+    index=0
     try
         index = getIndex(e,net);
     catch
         error("Edge not in network");
     end
     #println("delete edge $(e.number) from net")
-    index = getIndex(e,net);
     deleteat!(net.edge,index);
     net.numEdges -= 1;
 end

@@ -3,8 +3,8 @@
 
 using PhyloNetworks
 
-#----- test of directEdges! ----------#
-println("\n\nTesting directEdges! on a tree, then on a network with h=2")
+#----- test of directEdges! and re-rooting functions ----------#
+println("\n\nTesting directEdges! and re-rootings on a tree, then on a network with h=2")
 
 tre = readTopology("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
 tre.edge[1].isChild1=false; tre.edge[17].isChild1=false
@@ -19,6 +19,8 @@ PhyloNetworks.directEdges!(tre)
 for i=1:18
  tre.edge[i].containRoot || error("directEdges! didn't correct containRoot of $(i)th edge.")
 end
+tre = readTopology("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
+rootatnode!(tre, -8) || error("rootatnode! complained, node -8");
 
 net = readTopology("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);");
 # 5th node = node number -6.
@@ -33,6 +35,18 @@ end
 for i in [9,5,18,2]
  net.edge[i].containRoot || error("directEdges! didn't correct containRoot of hyb edges.")
 end
+# plot(net, showNodeNumber=true, showEdgeLength=false, showEdgeNumber=true)
+rootatnode!(net, -9) || error("rootatnode! complained, node -9");
+!rootatnode!(net, "M") || error("rootatnode! should have complained, leaf M");
+println("the warning about node 5 is good and expected.")
+rootonedge!(net, 9) || error("rootonedge! complained, edge 9");
+PhyloNetworks.fuseedgesat!(27, net)
+rootatnode!(net, "Ag") || error("rootatnode! complained, leaf Ag");
+rootatnode!(net, "Ag") || error("rootatnode! complained, leaf Ag twice");
+length(net.node) == 27 || error("wrong # of nodes after rootatnode! twice on same outgroup")
+rootatnode!(net, "Ap") || error("rootatnode! complained, leaf Ap");
+length(net.node) == 27 || error("wrong # of nodes, after 3rd rooting with outgroup");
+rootonedge!(net, 5)
 
 # example with one hybridization below another
 net = readTopology("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
@@ -48,6 +62,12 @@ net = readTopology("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10))
 net.root=15; # node number -4
 !directEdges!(net) || error("directEdges! says that the root position is compatible with hybrids");
 println("the warning above is good and expected.")
+PhyloNetworks.rootatnode!(net, -12) || error("rootatnode complained...");
+!PhyloNetworks.rootatnode!(net, -4)  || error("rootatnode! should have complained, node -4");
+println("A warning was good and expected above.")
+!PhyloNetworks.rootatnode!(net,"#H2")|| error("rootatnode! should have complained, #H2");
+println("A warning was good and expected above.")
+PhyloNetworks.rootatnode!(net,"10")|| error("rootatnode! complained, leaf 10");
 
 
 #----- test of preorder! -------------#
