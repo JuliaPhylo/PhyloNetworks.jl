@@ -2,8 +2,9 @@
 # Claudia July 2015
 
 const CHECKNET = true #for debugging only
-tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculateExpCF2.jl", "test_hasEdge.jl", "test_parameters.jl","test_correctLik.jl", "test_partition.jl", "test_partition2.jl","test_deleteHybridizationUpdate.jl"]
-#tests = ["test_calculateExpCF.jl", "test_calculateExpCF2.jl", "test_hasEdge.jl", "test_parameters.jl","test_correctLik.jl"]
+tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculateExpCF2.jl", "test_hasEdge.jl", "test_parameters.jl","test_correctLik.jl",
+         "test_partition.jl", "test_partition2.jl","test_deleteHybridizationUpdate.jl", "test_add2hyb.jl", "test_optBLparts.jl"]
+
 
 anyerrors = false
 

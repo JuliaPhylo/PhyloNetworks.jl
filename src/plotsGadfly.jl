@@ -1,5 +1,5 @@
 """
-`plot!(net::HybridNetwork; useEdgeLength=false::Bool,
+`plot(net::HybridNetwork; useEdgeLength=false::Bool,
         mainTree=false::Bool, showTipLabel=true::Bool, showNodeNumber=false::Bool,
         showEdgeLength=true::Bool, showGamma=true::Bool,
         edgeColor=colorant"black"::ColorTypes.Colorant,
@@ -159,7 +159,7 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
     for i=1:net.numEdges
         if (!mainTree || net.edge[i].isMajor)
             col = edgeColor
-            if net.edge[i].hybrid 
+            if net.edge[i].hybrid
               if (net.edge[i].isMajor) col = majorHybridEdgeColor;
               else col = minorHybridEdgeColor; end
             end
