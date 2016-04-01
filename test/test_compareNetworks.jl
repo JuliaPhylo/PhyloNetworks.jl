@@ -4,7 +4,9 @@
 
 using PhyloNetworks
 
-#---- testing deleteHybridEdge! ---------------#
+#----------------------------------------------------------#
+#   testing functions to delete edges and nodes            #
+#----------------------------------------------------------#
 println("\n\nTesting deleteHybridEdge!")
 
 # example of network with one hybrid edge connected to the root:
@@ -44,6 +46,50 @@ writeTopology(net) == "(Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0,Aten
  error("deleteHybridEdge! didn't work on 10th edge after isChild1 was changed")
 
 # plot(net, showEdgeNumber=true, showNodeNumber=true)
+
+println("\n\nTesting deleteleaf! (also uses hardwiredClusterDistance and plot)")
+
+cui2str = "(Xgordoni,Xmeyeri,(Xcouchianus,(Xvariatus,(Xevelynae,((Xxiphidium,#H25:9.992::0.167):1.383,(Xmilleri,(Xandersi,(Xmaculatus,((((Xhellerii,(Xalvarezi,Xmayae):0.327):0.259,Xsignum):1.866,(Xclemenciae_F2,Xmonticolus):1.461):0.786,((((Xmontezumae,(Xnezahuacoyotl)#H26:0.247::0.807):0.372,((Xbirchmanni_GARC,Xmalinche_CHIC2):1.003,Xcortezi):0.454):0.63,((Xcontinens,Xpygmaeus):1.927,((Xnigrensis,Xmultilineatus):1.304,#H26:0.0::0.193):0.059):2.492):2.034)#H25:0.707::0.833):1.029):0.654):0.469):0.295):0.41):0.646):3.509):0.263);"
+cui3str = "(Xmayae,((Xhellerii,(((Xclemenciae_F2,Xmonticolus):1.458,(((((Xmontezumae,(Xnezahuacoyotl)#H26:0.247::0.804):0.375,((Xbirchmanni_GARC,Xmalinche_CHIC2):0.997,Xcortezi):0.455):0.63,(#H26:0.0::0.196,((Xcontinens,Xpygmaeus):1.932,(Xnigrensis,Xmultilineatus):1.401):0.042):2.439):2.0)#H7:0.787::0.835,(Xmaculatus,(Xandersi,(Xmilleri,((Xxiphidium,#H7:9.563::0.165):1.409,(Xevelynae,(Xvariatus,(Xcouchianus,(Xgordoni,Xmeyeri):0.263):3.532):0.642):0.411):0.295):0.468):0.654):1.022):0.788):1.917)#H27:0.149::0.572):0.668,Xalvarezi):0.257,(Xsignum,#H27:1.381::0.428):4.669);"
+
+net3  = readTopology(cui3str);
+net2  = readTopology(cui2str);
+# major tree, root with outgroup then delete 2 leaves:
+tree2 = majorTree(net2);        tree3 = majorTree(net3);
+rootatnode!(tree2,"Xmayae");    rootatnode!(tree3,"Xmayae");
+deleteleaf!(tree2,"Xhellerii"); deleteleaf!(tree3,"Xhellerii");
+deleteleaf!(tree2,"Xsignum");   deleteleaf!(tree3,"Xsignum");
+hardwiredClusterDistance(tree2, tree3, false) == 0 ||
+  error("HWDist not 0, major tree, root then prune");
+# major tree, delete 2 leaves then root with outgroup:
+tree2 = majorTree(net2);        tree3 = majorTree(net3);
+deleteleaf!(tree2,"Xhellerii"); deleteleaf!(tree3,"Xhellerii");
+deleteleaf!(tree2,"Xsignum");   deleteleaf!(tree3,"Xsignum");
+hardwiredClusterDistance(tree2, tree3, false) == 0 || error("HWD not 0, major tree - 2 taxa");
+hardwiredClusterDistance(tree2, tree3, true) == 20 || error("rooted RF dist not 20");
+rootatnode!(tree3,"Xmaculatus");
+hardwiredClusterDistance(tree2, tree3, true) == 15 || error("rooted RF dist not 15");
+rootatnode!(tree2,"Xgordoni");
+hardwiredClusterDistance(tree2, tree3, true) == 16 || error("rooted RF dist not 16");
+hardwiredClusterDistance(tree2, tree3, false) == 0 || error("HWD not 0, major tree - 2 taxa");
+# network: delete 2 leaves
+net2  = readTopology(cui2str);
+deleteleaf!(net2,"Xhellerii"); deleteleaf!(net2,"Xsignum");
+rootatnode!(net2,"Xmayae");    plot(net2);
+net3  = readTopology(cui3str);
+deleteleaf!(net3,"Xhellerii"); deleteleaf!(net3,"Xsignum");
+rootatnode!(net2,"Xmayae");    plot(net3);
+hardwiredClusterDistance(net2, net3, true) == 3 ||
+  error("HW dist wrong after deleteleaf! on networks");
+deleteleaf!(net3,"Xmayae");    plot(net3);
+net3.numHybrids==2 || error("deleteleaf wrong on mayae")
+# using simplify=false in deleteleaf!
+net3  = readTopology(cui3str);
+deleteleaf!(net3,"Xhellerii"); deleteleaf!(net3,"Xsignum");
+deleteleaf!(net3,"Xmayae", simplify=false);
+net3.numHybrids==3 || error("deleteleaf wrong on mayae with simplify=false")
+plot(net3); # looks weird though: k=2 cycle at the root. 3 root edges:
+# one to a leaf, 1 major & 1 minor hybrid edge to the same child.
 
 #----------------------------------------------------------#
 #   testing functions to display trees / subnetworks       #

@@ -319,9 +319,9 @@ end
 # calls readTopology(s::IO)
 # warning: crashes if file name starts with (
 function readTopology(input::AbstractString,verbose::Bool)
-    if(input[1] == '(') #it is a tree
+    if(input[1] == '(') # input = parenthetical description
        s = IOBuffer(input)
-    else
+    else # input = file name
         try
             s = open(input)
         catch
@@ -334,10 +334,12 @@ function readTopology(input::AbstractString,verbose::Bool)
 end
 
 """
-`readTopology(file name); readTopology(tree in parenthetical format)`
+`readTopology(file name); readTopology(parenthetical description)`
 
 function to read tree or network topology from parenthetical format.
-Input: text file or parenthetical format directly
+Input: text file or parenthetical format directly.
+The file name may not start with a left parenthesis, otherwise the file
+name itself would be interpreted as the parenthetical description.
 """
 readTopology(input::AbstractString) = readTopology(input,true)
 

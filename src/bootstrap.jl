@@ -292,7 +292,7 @@ function hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgro
 
     i = 1
     for(n in net)
-        tree = majorTree(n) # requires non-missing branch lengths
+        tree = majorTree(n)
         push!(majorTrees,tree)
         RFmajor = hardwiredClusterDistance(tree, tree1, false)
         if(RFmajor != 0)
