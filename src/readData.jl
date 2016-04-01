@@ -151,7 +151,6 @@ readTableCF(file::AbstractString;sep=','::Char,summaryfile=""::AbstractString) =
 `readInputTrees(file)`
 
 function to read a text file with a list of trees in parenthetical format (one tree per line), it returns an array of HybridNetwork object.
-Don'r forget to put ; after the command to avoid output written to screen
 """
 function readInputTrees(file::AbstractString)
     try

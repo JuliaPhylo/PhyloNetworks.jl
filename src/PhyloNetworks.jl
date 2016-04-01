@@ -61,7 +61,8 @@ hardwiredClusterDistance,
 treeEdgesBootstrap,
 hybridDetection,
 summarizeHFdf,
-bootsnaq
+bootsnaq,
+readMultiTopology
 
 # export part
 

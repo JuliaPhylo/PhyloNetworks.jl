@@ -1003,3 +1003,25 @@ function cleanBL!(net::HybridNetwork)
         end
     end
 end
+
+
+# function to read multiple topologies
+# it calls readInputTrees:
+# function to read a file and create one object per line read
+# (each line starting with "(" will be considered a topology)
+# the file can have extra lines that are ignored
+# returns an array of HybridNetwork objects (that can be trees)
+"""
+`readMultiTopology(file)`
+
+function to read a text file with a list of trees in parenthetical format (one tree per line), it returns an array of HybridNetwork object.
+"""
+function readMultiTopology(file::AbstractString)
+    vnet = readInputTrees(file)
+    return vnet
+end
+
+
+
+
+
