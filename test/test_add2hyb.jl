@@ -41,6 +41,12 @@ ed = hybridEdges(hybrid)
 ed[1].isMajor || error("in bad triangle, update major hybrid not working, and it should")
 ed[1].gamma > 0.5 || error("in bad triangle, update major hybrid not working, and it should")
 ed[1].hybrid || error("in bad triangle, update major hybrid not working, and it should")
+
+# did not recognize as bad diamond II
+tree = "(6,(5,#H7:0.0):9.970714072991349,(3,(((2,1):0.2950382234364404,4):0.036924483697671304)#H7:0.00926495670648208):1.1071489442240392);"
+net = readTopologyUpdate(tree);
+net.node[10].isBadDiamondII || error("does not recognize as bad diamond II")
+
 print("NO ERRORS!!")
 
 # printEdges(besttree)
@@ -72,3 +78,4 @@ print("NO ERRORS!!")
 # flag2, edgesGammaz = updateGammaz!(besttree,hybrid,false)
 # flag3, edgesRoot = updateContainRoot!(besttree,hybrid)
 # plot(besttree)
+
