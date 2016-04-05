@@ -3,12 +3,14 @@
 # Cecile March 2016
 
 using PhyloNetworks
+if !isdefined(:doalltests) doalltests = false; end
 
 #----------------------------------------------------------#
 #   testing functions to delete edges and nodes            #
 #----------------------------------------------------------#
 println("\n\nTesting deleteHybridEdge!")
 
+if (doalltests)
 # example of network with one hybrid edge connected to the root:
 net = readTopology("((Adif:1.0,(Aech:0.122,#H6:10.0::0.047):10.0):1.614,Aten:1.0,((Asub:1.0,Agem:1.0):0.0)#H6:5.062::0.953);");
 # plot(net, showEdgeNumber=true, showNodeNumber=true)
@@ -30,6 +32,7 @@ net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.136
 PhyloNetworks.deleteHybridEdge!(net, net.edge[4]);
 writeTopology(net) == "(4,((6,5):3.423,1):0.265,(3,2):10.0);" ||
  error("deleteHybridEdge! didn't work on 4th edge")
+end
 
 # example with wrong attributed inChild1
 net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.1361111):10.0);");
@@ -38,14 +41,15 @@ PhyloNetworks.deleteHybridEdge!(net, net.edge[4]);
 writeTopology(net) == "(4,((6,5):3.423,1):0.265,(3,2):10.0);" ||
  error("deleteHybridEdge! didn't work on 4th edge when isChild1 was outdated")
 
+if (doalltests)
 net = readTopology("((Adif:1.0,(Aech:0.122,#H6:10.0::0.047):10.0):1.614,Aten:1.0,((Asub:1.0,Agem:1.0):0.0)#H6:5.062::0.953);");
 net.edge[5].isChild1 = false # edge 5 from -1 to -2
 PhyloNetworks.deleteHybridEdge!(net, net.edge[10]);
 # WARNING: node -1 being the root is contradicted by isChild1 of its edges.
 writeTopology(net) == "(Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0,Aten:2.614);" ||
  error("deleteHybridEdge! didn't work on 10th edge after isChild1 was changed")
-
 # plot(net, showEdgeNumber=true, showNodeNumber=true)
+end
 
 println("\n\nTesting deleteleaf! (also uses hardwiredClusterDistance and plot)")
 
@@ -54,6 +58,8 @@ cui3str = "(Xmayae,((Xhellerii,(((Xclemenciae_F2,Xmonticolus):1.458,(((((Xmontez
 
 net3  = readTopology(cui3str);
 net2  = readTopology(cui2str);
+
+if(doalltests)
 # major tree, root with outgroup then delete 2 leaves:
 tree2 = majorTree(net2);        tree3 = majorTree(net3);
 rootatnode!(tree2,"Xmayae");    rootatnode!(tree3,"Xmayae");
@@ -72,16 +78,18 @@ hardwiredClusterDistance(tree2, tree3, true) == 15 || error("rooted RF dist not 
 rootatnode!(tree2,"Xgordoni");
 hardwiredClusterDistance(tree2, tree3, true) == 16 || error("rooted RF dist not 16");
 hardwiredClusterDistance(tree2, tree3, false) == 0 || error("HWD not 0, major tree - 2 taxa");
+end
+
 # network: delete 2 leaves
 net2  = readTopology(cui2str);
 deleteleaf!(net2,"Xhellerii"); deleteleaf!(net2,"Xsignum");
-rootatnode!(net2,"Xmayae");    plot(net2);
+rootatnode!(net2,"Xmayae");    #plot(net2);
 net3  = readTopology(cui3str);
 deleteleaf!(net3,"Xhellerii"); deleteleaf!(net3,"Xsignum");
-rootatnode!(net2,"Xmayae");    plot(net3);
+rootatnode!(net2,"Xmayae");    #plot(net3);
 hardwiredClusterDistance(net2, net3, true) == 3 ||
   error("HW dist wrong after deleteleaf! on networks");
-deleteleaf!(net3,"Xmayae");    plot(net3);
+deleteleaf!(net3,"Xmayae");    #plot(net3);
 net3.numHybrids==2 || error("deleteleaf wrong on mayae")
 # using simplify=false in deleteleaf!
 net3  = readTopology(cui3str);
@@ -97,6 +105,7 @@ plot(net3); # looks weird though: k=2 cycle at the root. 3 root edges:
 
 println("\n\nTesting deleteHybridThreshold!")
 
+if (doalltests)
 net21 = readTopology("(A,((B,#H1),(C,(D)#H1)));");
 # manual bug fix to get good gamma's (0.5 not 1.0) and major/minor
 net21.edge[3].gamma = 0.5;
@@ -127,6 +136,7 @@ net42 = readTopology("(A:1.0,((B:1.1,#H1:0.2):1.2,(C:0.9,(D:0.8)#H1:0.3):1.3):0.
 deleteHybridThreshold!(net42,0.5);
 writeTopology(net42) == "(A:1.0,((C:0.9,D:1.1):1.3,B:2.3):0.7);" ||
  error("deleteHybridThreshold! didn't work on net42, gamma=0.5")
+end
 
 net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 # plot(net5)
@@ -147,6 +157,7 @@ writeTopology(net31) == "(A:1.0,((B:1.1,D:1.0):1.2,C:2.2):0.7);" ||
 writeTopology(net3)  == "(A:1.0,((C:0.9,D:1.1):1.3,B:2.3):0.7);" ||
  error("displayedNetworks! didn't work on net3, major at 6th node")
 
+if (doalltests)
 net3 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(C:0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 a = displayedTrees(net3, 0.2);
 length(a) == 2 ||
@@ -155,6 +166,7 @@ writeTopology(a[1]) == "(A:1.0,((C:0.9,D:1.1):1.3,B:2.3):0.7);" ||
  error("displayedTrees didn't work on net3, gamma=0.2: 1st tree wrong")
 writeTopology(a[2]) == "(A:1.0,((B:1.1,D:1.0):1.2,C:2.2):0.7);" ||
  error("displayedTrees didn't work on net3, gamma=0.2: 2nd tree wrong")
+end
 
 net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 a = displayedTrees(net5, 0.5);
@@ -187,6 +199,7 @@ writeTopology(net5) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0
 
 println("\n\nTesting tree2Matrix")
 
+if (doalltests)
 net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 tree = displayedTrees(net5, 0.0);
 taxa = tipLabels(net5);
@@ -212,6 +225,7 @@ hardwiredClusters(net5, taxa) ==
   7 0 0 0 1 0 0 11;
  11 0 0 0 1 1 0 10] || error("wrong matrix of hardwired clusters for net5");
 hardwiredClusterDistance(net5, tree[2], true) == 4 || error("wrong dist between net5 and tree 2");
+end
 
 ## check things with R
 # library(ape); set.seed(15); phy <- rmtree(10,8); write.tree(phy,"tenRtrees.tre")
@@ -291,6 +305,7 @@ hardwiredClusters(net5, taxa) ==
   7 0 0 0 1 0 0 11;
  11 0 0 0 1 1 0 10] || error("wrong hardwired cluster matrix for net5");
 
+if (doalltests)
 trunet = readTopology("(((1,2),((3,4))#H1),(#H1,5),6);"); # unrooted
 taxa = tipLabels(trunet);
 hardwiredClusters(trunet, taxa) ==
@@ -321,7 +336,7 @@ net51 = readTopologyLevel1("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H
 PhyloNetworks.directEdges!(net51); # doing this avoids a warning on the next line:
 displayedNetworkAt!(net51, net51.hybrid[1]) # H2
 # "WARNING: node -3 being the root is contradicted by isChild1 of its edges."
-root!(net51, "A");
+rootatnode!(net51, "A");
 writeTopology(net51) == "(A:0.5,((((C:0.52,(E:0.5)#H2:0.02):0.6,(#H2:0.01,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.5);" ||
   error("wrong net51 after displayedNetworkAt!");
 net52 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
@@ -345,3 +360,4 @@ hardwiredClusters(net52, taxa) ==
   8 0 0 1 1 0 0 10] || error("wrong hardwired clusters for net52");
 hardwiredClusterDistance(net51,net52,true) == 4 ||
  error("wrong HWDist between net51 and net52");
+end

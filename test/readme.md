@@ -58,3 +58,18 @@ test_correctLik.jl computes the pseudolik for a tree and a network with 1 hybrid
 #### partition
 
 test_partition.jl (1 hybrid) and test_partition2.jl (2 hybrids) check if the attribute of partition is correctly set
+
+#### network manipulations, comparisons, and plots
+
+test_orderings_plot.jl tests functions in manipulateNet.jl and plotsGadfly.jl
+- directEdges! rootatnode! rootonedge!
+- preorder! cladewiseorder!
+- plot rotate!
+
+test_compareNetworks.jl tests:
+ - deleteHybridEdge!
+ - functions to extract displayed trees/subnetworks,
+ - hardwiredClusterDistance (which uses functions above)
+
+both run a few examplar tests by default (used by runtests.jl)
+but can run more tests if one first defines doalltests = true

@@ -2,10 +2,12 @@
 # Cecile March 2016
 
 using PhyloNetworks
+if !isdefined(:doalltests) doalltests = false; end
 
 #----- test of directEdges! and re-rooting functions ----------#
 println("\n\nTesting directEdges! and re-rootings on a tree, then on a network with h=2")
 
+if doalltests
 tre = readTopology("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
 tre.edge[1].isChild1=false; tre.edge[17].isChild1=false
 PhyloNetworks.directEdges!(tre)
@@ -21,6 +23,7 @@ for i=1:18
 end
 tre = readTopology("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
 rootatnode!(tre, -8) || error("rootatnode! complained, node -8");
+end
 
 net = readTopology("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);");
 # 5th node = node number -6.
@@ -40,7 +43,7 @@ rootatnode!(net, -9) || error("rootatnode! complained, node -9");
 !rootatnode!(net, "M") || error("rootatnode! should have complained, leaf M");
 println("the warning about node 5 is good and expected.")
 rootonedge!(net, 9) || error("rootonedge! complained, edge 9");
-PhyloNetworks.fuseedgesat!(27, net)
+PhyloNetworks.fuseedgesat!(27, net);
 rootatnode!(net, "Ag") || error("rootatnode! complained, leaf Ag");
 rootatnode!(net, "Ag") || error("rootatnode! complained, leaf Ag twice");
 length(net.node) == 27 || error("wrong # of nodes after rootatnode! twice on same outgroup")
@@ -49,6 +52,8 @@ length(net.node) == 27 || error("wrong # of nodes, after 3rd rooting with outgro
 rootonedge!(net, 5)
 
 # example with one hybridization below another
+
+if doalltests
 net = readTopology("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
 # sum([!e.containRoot for e in net.edge]) # only 4.
 directEdges!(net) || error("directEdges! says that the root position is incompatible with hybrids")
@@ -58,6 +63,8 @@ plot(net, showEdgeNumber=true, showEdgeLength=false, showNodeNumber=true);
 net = readTopology("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
 net.root=19; # node number -12
 directEdges!(net) || error("directEdges! says that the root position is incompatible with hybrids");
+end
+
 net = readTopology("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
 net.root=15; # node number -4
 !directEdges!(net) || error("directEdges! says that the root position is compatible with hybrids");
@@ -76,11 +83,13 @@ println("\n\nTesting preorder! on a tree, then on a network with h=2")
 tre = readTopology("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
 net = readTopology("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);");
 
+if doalltests
 preorder!(tre)
 num = [-1,10,-2,-9,9,8,-3,-8,7,6,-4,5,-5,4,-6,3,-7,2,1];
 for i=1:length(tre.node)
   tre.nodes_changed[i].number==num[i] ||
     error("node pre-ordered $i is node number $(tre.nodes_changed[i].number) instead of $(num[i])")
+end
 end
 
 preorder!(net)
@@ -93,11 +102,13 @@ end
 #----- test of cladewiseorder! --------#
 println("\n\nTesting cladewiseorder! on a tree, then on a network with h=2")
 
+if doalltests
 PhyloNetworks.cladewiseorder!(tre)
 num = collect(19:-1:1);
 for i=1:length(tre.node)
   tre.cladewiseorder_nodeIndex[i]==num[i] ||
     error("node clade-wise ordered $i is $(tre.cladewiseorder_nodeIndex[i])th node instead of $(num[i])th")
+end
 end
 
 PhyloNetworks.cladewiseorder!(net)
@@ -130,14 +141,16 @@ plot(net, edgeColor=colorant"olive",
 #----- test of rotate! ----------------#
 println("\n\nTesting rotate! to change the order of children edges at a given node")
 
+if doalltests
 net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 rotate!(net, -4)
 [e.number for e in net.node[13].edge] == [14,12,15] || error("rotate didn't work at node -4");
 plot(net); # just to check no error.
+end
 
 net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.136):10.0);");
 rotate!(net, -1, orderedEdgeNum=[1,12,9])
 [e.number for e in net.node[12].edge] == [1,12,9] || error("rotate didn't work at node -1");
 rotate!(net, -3)
 [e.number for e in net.node[5].edge] == [4,2,5] || error("rotate didn't work at node -3");
-plot(net);
+# plot(net);

@@ -626,17 +626,17 @@ by plot(net). Otherwise run directEdges!(net).
 
 # Example
 ```julia
-net = readTopology('(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;');
-plot(net, showNodeNumber=true)
-rotate!(net, -4)
-plot(net)
+julia> net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
+julia> plot(net, showNodeNumber=true)
+julia> rotate!(net, -4)
+julia> plot(net)
 
-net=readTopology('(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.136):10.0);');
-plot(net, showNodeNumber=true, showEdgeNumber=true)
-rotate!(net, -1, orderedEdgeNum=[1,12,9])
-plot(net, showNodeNumber=true, showEdgeNumber=true)
-rotate!(net, -3)
-plot(net)
+julia> net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.136):10.0);");
+julia> plot(net, showNodeNumber=true, showEdgeNumber=true)
+julia> rotate!(net, -1, orderedEdgeNum=[1,12,9])
+julia> plot(net, showNodeNumber=true, showEdgeNumber=true)
+julia> rotate!(net, -3)
+julia> plot(net)
 ```
 """
 function rotate!(net::HybridNetwork, nnum::Int64; orderedEdgeNum=Int64[]::Array{Int64,1})
