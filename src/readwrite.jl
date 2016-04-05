@@ -751,7 +751,7 @@ end
 # function to write a node and its descendants in
 #parenthetical format
 # di=true in densdroscope format, names=true, prints names
-function writeSubTree!(s::IOBuffer, n::Node, parent::Edge,di::Bool,names::Bool, printID::Bool)
+function writeSubTree!(s::IO, n::Node, parent::Edge,di::Bool,names::Bool, printID::Bool)
     if((parent.hybrid && !parent.isMajor) || n.leaf)
         if(names)
             if(n.name != "")
@@ -832,14 +832,23 @@ end
 # outgroup: place the root in the external edge of this taxon if possible,
 # if none given, placed the root wherever possible
 # printID=true, only print identifiable BL, default false (only true inside snaq)
-function writeTopology(net0::HybridNetwork, di::Bool, string::Bool, names::Bool,outgroup::AbstractString, printID::Bool)
+function writeTopology(net0::HybridNetwork, di::Bool, str::Bool, names::Bool,outgroup::AbstractString, printID::Bool)
     s = IOBuffer()
+    writeTopology(net0,s,di,names,outgroup,printID)
+    if(str)
+        return bytestring(s)
+    else
+        return s
+    end
+end
+
+function writeTopology(net0::HybridNetwork, s::IO, di::Bool, names::Bool,outgroup::AbstractString, printID::Bool)
     net = deepcopy(net0) #writeTopology needs containRoot, but should not alter net0
     if(net.numBad > 0)
         println("net has $(net.numBad) bad diamond I, gammas and some branch lengths are not identifiable, and therefore, meaningless")
     end
     if(net.numNodes == 1)
-        print(s,string(net.node[net.root].number,";"))
+        print(s,string(net.node[net.root].number,";")) # error if 'string' is an argument name.
     else
         if(!isTree(net) && !net.cleaned)
             DEBUG && println("net not cleaned inside writeTopology, need to run updateContainRoot")
@@ -863,11 +872,6 @@ function writeTopology(net0::HybridNetwork, di::Bool, string::Bool, names::Bool,
         print(s,");")
     end
     outgroup != "none" && undoRoot!(net) #to delete the node with only two edges
-    if(string)
-        return bytestring(s)
-    else
-        return s
-    end
 end
 
 #writeTopology(net::HybridNetwork) = writeTopology(net,false, true,true,"none") #not needed because of last function definition
@@ -1006,22 +1010,58 @@ end
 
 
 # function to read multiple topologies
-# it calls readInputTrees:
-# function to read a file and create one object per line read
+# - calls readInputTrees in readData.jl, which
+#   calls readTopologyUpdate here, for level 1 networks.
+# - read a file and create one object per line read
 # (each line starting with "(" will be considered a topology)
 # the file can have extra lines that are ignored
 # returns an array of HybridNetwork objects (that can be trees)
+function readMultiTopologyLevel1(file::AbstractString)
+    readInputTrees(file)
+end
+
 """
 `readMultiTopology(file)`
 
-function to read a text file with a list of trees in parenthetical format (one tree per line), it returns an array of HybridNetwork object.
+Read a text file with a list of networks in parenthetical format (one per line).
+Crash if a network is broken over several lines.
+Return an array of HybridNetwork object.
 """
 function readMultiTopology(file::AbstractString)
-    vnet = readInputTrees(file)
+    s = open(file)
+    numl = 1
+    vnet = HybridNetwork[];
+    for line in eachline(s)
+        line = strip(line) # remove spaces
+        c = isempty(line) ? "" : line[1]
+        if(c == '(')
+           try
+               push!(vnet, readTopology(line,false)) # false for non-verbose
+           catch(err)
+               error("could not read tree on line $(numl).\nerror: $(err)")
+           end
+        end
+        numl += 1
+    end
+    close(s)
     return vnet
 end
 
+"""
+    writeMultiTopology(nets, file_name, mode)
+    writeMultiTopology(nets, IO)
 
+Write an array of networks in parenthetical format to a file (one network per line).
+"""
+function writeMultiTopology(n::Vector{HybridNetwork},file::AbstractString; mode::AbstractString="w")
+    s = open(file, mode)
+    writeMultiTopology(n,s)
+    close(s)
+end
 
-
-
+function writeMultiTopology(net::Vector{HybridNetwork},s::IO)
+    for(n in net)
+        writeTopology(n,s,false,true,"none",false)
+        write(s,"\n")
+    end
+end

@@ -167,8 +167,7 @@ function readInputTrees(file::AbstractString)
         c = isempty(line) ? "" : line[1]
         if(c == '(')
            try
-               net = readTopologyUpdate(line,false)
-               push!(vnet,deepcopy(net))
+               push!(vnet, readTopologyUpdate(line,false))
            catch(err)
                error("could not read tree in line $(numl). The error is $(err)")
            end
@@ -176,8 +175,7 @@ function readInputTrees(file::AbstractString)
         numl += 1
     end
     close(s)
-    !isempty(vnet) || return nothing
-    return vnet
+    return vnet # consistent output type: HybridNetwork vector. might be of length 0.
 end
 
 # function to list all quartets for a set of taxa names
