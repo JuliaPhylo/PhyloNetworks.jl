@@ -2,7 +2,10 @@
 #      used to compare networks with the hardwired cluster distance.
 # Cecile March 2016
 
-using PhyloNetworks
+# using PhyloNetworks
+include("../src/types.jl")
+include("../src/functions.jl")
+
 if !isdefined(:doalltests) doalltests = false; end
 
 #----------------------------------------------------------#
@@ -14,22 +17,22 @@ if (doalltests)
 # example of network with one hybrid edge connected to the root:
 net = readTopology("((Adif:1.0,(Aech:0.122,#H6:10.0::0.047):10.0):1.614,Aten:1.0,((Asub:1.0,Agem:1.0):0.0)#H6:5.062::0.953);");
 # plot(net, showEdgeNumber=true, showNodeNumber=true)
-PhyloNetworks.deleteHybridEdge!(net, net.edge[10]);
+deleteHybridEdge!(net, net.edge[10]);
 writeTopology(net) == "(Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0,Aten:2.614);" ||
  error("deleteHybridEdge! didn't work on 10th edge")
 net = readTopology("((Adif:1.0,(Aech:0.122,#H6:10.0::0.047):10.0):1.614,Aten:1.0,((Asub:1.0,Agem:1.0):0.0)#H6:5.062::0.953);");
-PhyloNetworks.deleteHybridEdge!(net, net.edge[3]);
+deleteHybridEdge!(net, net.edge[3]);
 writeTopology(net) == "((Adif:1.0,Aech:10.122):1.614,Aten:1.0,(Asub:1.0,Agem:1.0):5.062);" ||
  error("deleteHybridEdge! didn't work on 3rd edge")
 # plot(net, showEdgeNumber=true, showNodeNumber=true)
 
 net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.1361111):10.0);");
 # plot(net, showEdgeNumber=true, showNodeNumber=true)
-PhyloNetworks.deleteHybridEdge!(net, net.edge[11]);
+deleteHybridEdge!(net, net.edge[11]);
 writeTopology(net) == "(4,((1,2):2.069,(6,5):3.423):0.265,3);" ||
  error("deleteHybridEdge! didn't work on 11th edge")
 net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.1361111):10.0);");
-PhyloNetworks.deleteHybridEdge!(net, net.edge[4]);
+deleteHybridEdge!(net, net.edge[4]);
 writeTopology(net) == "(4,((6,5):3.423,1):0.265,(3,2):10.0);" ||
  error("deleteHybridEdge! didn't work on 4th edge")
 end
@@ -37,14 +40,14 @@ end
 # example with wrong attributed inChild1
 net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.1361111):10.0);");
 net.edge[5].isChild1 = false;
-PhyloNetworks.deleteHybridEdge!(net, net.edge[4]);
+deleteHybridEdge!(net, net.edge[4]);
 writeTopology(net) == "(4,((6,5):3.423,1):0.265,(3,2):10.0);" ||
  error("deleteHybridEdge! didn't work on 4th edge when isChild1 was outdated")
 
 if (doalltests)
 net = readTopology("((Adif:1.0,(Aech:0.122,#H6:10.0::0.047):10.0):1.614,Aten:1.0,((Asub:1.0,Agem:1.0):0.0)#H6:5.062::0.953);");
 net.edge[5].isChild1 = false # edge 5 from -1 to -2
-PhyloNetworks.deleteHybridEdge!(net, net.edge[10]);
+deleteHybridEdge!(net, net.edge[10]);
 # WARNING: node -1 being the root is contradicted by isChild1 of its edges.
 writeTopology(net) == "(Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0,Aten:2.614);" ||
  error("deleteHybridEdge! didn't work on 10th edge after isChild1 was changed")
@@ -151,7 +154,7 @@ writeTopology(net5) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0
 println("\n\nTesting displayedNetworks! and displayedTrees")
 
 net3 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(C:0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
-net31 = PhyloNetworks.displayedNetworks!(net3, net3.node[6]); #H1 = 6th node
+net31 = displayedNetworks!(net3, net3.node[6]); #H1 = 6th node
 writeTopology(net31) == "(A:1.0,((B:1.1,D:1.0):1.2,C:2.2):0.7);" ||
  error("displayedNetworks! didn't work on net3, minor at 6th node")
 writeTopology(net3)  == "(A:1.0,((C:0.9,D:1.1):1.3,B:2.3):0.7);" ||
@@ -203,8 +206,8 @@ if (doalltests)
 net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 tree = displayedTrees(net5, 0.0);
 taxa = tipLabels(net5);
-M1 = PhyloNetworks.tree2Matrix(tree[1], taxa, rooted=false);
-M2 = PhyloNetworks.tree2Matrix(tree[2], taxa, rooted=false);
+M1 = tree2Matrix(tree[1], taxa, rooted=false);
+M2 = tree2Matrix(tree[2], taxa, rooted=false);
 M1 ==
 [15 0 0 1 1 1 1;
  12 0 0 1 1 1 0;
@@ -333,7 +336,7 @@ hardwiredClusterDistance(trunet,estnet,true) == 0 ||
  error("trunet and estnet should be found to be at HWDist 0");
 
 net51 = readTopologyLevel1("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;")
-PhyloNetworks.directEdges!(net51); # doing this avoids a warning on the next line:
+directEdges!(net51); # doing this avoids a warning on the next line:
 displayedNetworkAt!(net51, net51.hybrid[1]) # H2
 # "WARNING: node -3 being the root is contradicted by isChild1 of its edges."
 rootatnode!(net51, "A");

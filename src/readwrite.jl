@@ -1048,12 +1048,38 @@ function readMultiTopology(file::AbstractString)
 end
 
 """
-    writeMultiTopology(nets, file_name, mode)
+    writeMultiTopology(nets, file_name; append=false)
     writeMultiTopology(nets, IO)
 
 Write an array of networks in parenthetical format to a file (one network per line).
+Use the option append=true to append to the file. Otherwise, the default is to create a new
+file or overwrite it, if it already existed.
+
+# Examples
+```julia
+julia> net = [readTopology("(D,((A,(B)#H7:::0.864):2.069,(F,E):3.423):0.265,(C,#H7:::0.1361111):10);"),
+              readTopology("(A,(B,C));"),readTopology("(E,F);"),readTopology("(G,H,F);")];
+
+julia> writeMultiTopology(net, "fournets.net")
+
+julia> run(`cat fournets.net`)
+(D,((A,(B)#H7:::0.864):2.069,(F,E):3.423):0.265,(C,#H7:::0.136):10.0);
+(A,(B,C));
+(E,F);
+(G,H,F);
+
+julia> writeMultiTopology(net, "fournets.net", append=true)
+
+julia> writeMultiTopology(net, STDOUT)
+(D,((A,(B)#H7:::0.864):2.069,(F,E):3.423):0.265,(C,#H7:::0.136):10.0);
+(A,(B,C));
+(E,F);
+(G,H,F);
+
+```
 """
-function writeMultiTopology(n::Vector{HybridNetwork},file::AbstractString; mode::AbstractString="w")
+function writeMultiTopology(n::Vector{HybridNetwork},file::AbstractString; append::Bool=false)
+    mode = (append ? "a" : "w")
     s = open(file, mode)
     writeMultiTopology(n,s)
     close(s)

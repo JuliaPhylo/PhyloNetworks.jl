@@ -62,6 +62,8 @@ treeEdgesBootstrap,
 hybridDetection,
 summarizeHFdf,
 bootsnaq,
+writeMultiTopology,
+readMultiTopologyLevel1,
 readMultiTopology
 
 # export part

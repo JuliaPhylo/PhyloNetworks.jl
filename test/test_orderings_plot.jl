@@ -1,7 +1,10 @@
 # test of preordering and cladewise ordering, used for plotting
 # Cecile March 2016
 
-using PhyloNetworks
+# using PhyloNetworks
+include("../src/types.jl")
+include("../src/functions.jl")
+
 if !isdefined(:doalltests) doalltests = false; end
 
 #----- test of directEdges! and re-rooting functions ----------#
@@ -10,13 +13,13 @@ println("\n\nTesting directEdges! and re-rootings on a tree, then on a network w
 if doalltests
 tre = readTopology("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
 tre.edge[1].isChild1=false; tre.edge[17].isChild1=false
-PhyloNetworks.directEdges!(tre)
+directEdges!(tre)
 tre.edge[1].isChild1  || error("directEdges! didn't correct the direction of 1st edge")
 tre.edge[17].isChild1 || error("directEdges! didn't correct the direction of 17th edge")
 # 9th node = node number -4. Edge 9: connects nodes -4 and -3.
 for i=1:18 tre.edge[i].containRoot=false; end;
 tre.root = 9;
-PhyloNetworks.directEdges!(tre)
+directEdges!(tre)
 !tre.edge[9].isChild1 || error("directEdges! didn't correct the direction of 9th edge")
 for i=1:18
  tre.edge[i].containRoot || error("directEdges! didn't correct containRoot of $(i)th edge.")
@@ -28,7 +31,7 @@ end
 net = readTopology("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);");
 # 5th node = node number -6.
 net.root = 5
-PhyloNetworks.directEdges!(net)
+directEdges!(net)
 !net.edge[12].isChild1 || error("directEdges! didn't correct the direction of 12th edge")
 !net.edge[23].isChild1 || error("directEdges! didn't correct the direction of 23th edge")
 for i in [8;collect(13:17)]
@@ -43,7 +46,7 @@ rootatnode!(net, -9) || error("rootatnode! complained, node -9");
 !rootatnode!(net, "M") || error("rootatnode! should have complained, leaf M");
 println("the warning about node 5 is good and expected.")
 rootonedge!(net, 9) || error("rootonedge! complained, edge 9");
-PhyloNetworks.fuseedgesat!(27, net);
+fuseedgesat!(27, net);
 rootatnode!(net, "Ag") || error("rootatnode! complained, leaf Ag");
 rootatnode!(net, "Ag") || error("rootatnode! complained, leaf Ag twice");
 length(net.node) == 27 || error("wrong # of nodes after rootatnode! twice on same outgroup")
@@ -69,12 +72,12 @@ net = readTopology("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10))
 net.root=15; # node number -4
 !directEdges!(net) || error("directEdges! says that the root position is compatible with hybrids");
 println("the warning above is good and expected.")
-PhyloNetworks.rootatnode!(net, -12) || error("rootatnode complained...");
-!PhyloNetworks.rootatnode!(net, -4)  || error("rootatnode! should have complained, node -4");
+rootatnode!(net, -12) || error("rootatnode complained...");
+!rootatnode!(net, -4)  || error("rootatnode! should have complained, node -4");
 println("A warning was good and expected above.")
-!PhyloNetworks.rootatnode!(net,"#H2")|| error("rootatnode! should have complained, #H2");
+!rootatnode!(net,"#H2")|| error("rootatnode! should have complained, #H2");
 println("A warning was good and expected above.")
-PhyloNetworks.rootatnode!(net,"10")|| error("rootatnode! complained, leaf 10");
+rootatnode!(net,"10")|| error("rootatnode! complained, leaf 10");
 
 
 #----- test of preorder! -------------#
@@ -103,7 +106,7 @@ end
 println("\n\nTesting cladewiseorder! on a tree, then on a network with h=2")
 
 if doalltests
-PhyloNetworks.cladewiseorder!(tre)
+cladewiseorder!(tre)
 num = collect(19:-1:1);
 for i=1:length(tre.node)
   tre.cladewiseorder_nodeIndex[i]==num[i] ||
@@ -111,7 +114,7 @@ for i=1:length(tre.node)
 end
 end
 
-PhyloNetworks.cladewiseorder!(net)
+cladewiseorder!(net)
 num = collect(26:-1:1);
 for i=1:length(net.node)
   net.cladewiseorder_nodeIndex[i]==num[i] ||

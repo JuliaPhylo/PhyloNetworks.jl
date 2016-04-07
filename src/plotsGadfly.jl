@@ -218,7 +218,7 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
           if (!mainTree || !net.edge[i].hybrid || net.edge[i].isMajor)
             edf[j,:len] = (net.edge[i].length==-1.0 ? "" : @sprintf("%0.3g",net.edge[i].length))
             # @sprintf("%c=%0.3g",'γ',net.edge[i].length)
-            edf[j,:gam] = @sprintf("%0.3g",net.edge[i].gamma)
+            edf[j,:gam] = (net.edge[i].gamma==-1.0  ? "" : @sprintf("%0.3g",net.edge[i].gamma))
             edf[j,:num] = string(net.edge[i].number)
             edf[j,:hyb] = net.edge[i].hybrid
             edf[j,:min] = !net.edge[i].isMajor
@@ -233,9 +233,11 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
                   Geom.label(position=:above ;hide_overlaps=true))[1])
         end
         if (showGamma && net.numHybrids>0)
+            if !mainTree
             push!(mylayers, layer(edf[(edf[:hyb]) & (edf[:min]), [:x,:y,:gam]], y="y", x="x",label="gam",
                   Geom.label(position=:below ;hide_overlaps=true),
                   Theme(point_label_color=minorHybridEdgeColor))[1])
+            end
             push!(mylayers, layer(edf[(edf[:hyb]) & (!edf[:min]),[:x,:y,:gam]], y="y", x="x",label="gam",
                   Geom.label(position=:below ;hide_overlaps=true),
                   Theme(point_label_color=majorHybridEdgeColor))[1])
