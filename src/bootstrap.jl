@@ -9,7 +9,7 @@
 function bootstrapCFtable(df::DataFrame;seed=0::Int)
     warn("bootstrapCFtable function assumes table from TICR: CF, CFlo, CFhi")
     DEBUG && warn("order of columns should be: t1,t2,t3,t4,cf1234,cf1324,cf1423,cf1234LO,cf1234HI,...")
-    size(df,2) == 13 || warn("Dataframe should have 7 columns: 4taxa, 3CF*3")
+    size(df,2) == 13 || size(df,2) == 14 || warn("bootstrapCFtable function assumes table from TICR: CF, CFlo, CFhi")
     newdf = DataFrames.DataFrame(t1=UTF8String[],t2=UTF8String[],t3=UTF8String[],t4=UTF8String[],CF12_34=0.,CF13_24=0.,CF14_23=0.)
     if(seed == 0)
         t = time()/1e9
