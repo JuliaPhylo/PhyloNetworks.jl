@@ -450,17 +450,20 @@ end
 
 # function to delete an Edge in net.edge and
 # update numEdges from a HybridNetwork
-function deleteEdge!(net::HybridNetwork, e::Edge)
-    if(e.inCycle == -1 && !e.hybrid && !isempty(net.partition) && !isTree(net))
-        ind = whichPartition(net,e)
-        indE = getIndex(e,net.partition[ind].edges)
-        deleteat!(net.partition[ind].edges,indE)
+# added part boolean, default true to check the partition only when part=true
+function deleteEdge!(net::HybridNetwork, e::Edge; part=true::Bool)
+    if(part)
+        if(e.inCycle == -1 && !e.hybrid && !isempty(net.partition) && !isTree(net))
+            ind = whichPartition(net,e)
+            indE = getIndex(e,net.partition[ind].edges)
+            deleteat!(net.partition[ind].edges,indE)
+        end
     end
     index = 0
     try
         index = getIndex(e,net);
     catch
-        error("Edge not in network");
+        error("Edge $(e.number) not in network");
     end
     #println("delete edge $(e.number) from net")
     deleteat!(net.edge,index);
