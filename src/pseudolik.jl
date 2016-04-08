@@ -1298,7 +1298,7 @@ pseudolikelihood will be meaningless.
 function topologyQPseudolik!(net0::HybridNetwork,d::DataCF; verbose=false::Bool)
     # need a clean starting net. fixit: maybe we need to be more thorough here
     # yes, need to check that everything is ok because it could have been cleaned and then modified
-    any([(e.length == -1.0 && e.istIdentifiable) for e in net.edge]) && warn("identifiable edges lengths missing, so assigned default value of 1.0, but pseudolikelihood is meaningless")
+    any([(e.length == -1.0 && e.istIdentifiable) for e in net0.edge]) && warn("identifiable edges lengths missing, so assigned default value of 1.0, but pseudolikelihood is meaningless")
     if(!net0.cleaned)
         net = readTopologyUpdate(writeTopology(net0)) #re read to update everything as it should
     else
