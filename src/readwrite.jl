@@ -264,6 +264,8 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
                 else
                     warn("second colon : read without any double in left parenthesis $(numLeft[1]), ignored.")
                 end
+            else
+                e.gamma = e.hybrid ? -1.0 : 1.0 # set missing gamma to -1.0
             end
         elseif(c == ':')
             e.length = -1.0 # do not use setLength because it does not allow BL too negative
@@ -309,6 +311,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
         end
     else
         e.length = -1.0 # do not use setLength because it does not allow BL too negative
+        e.gamma = e.hybrid ? -1.0 : 1.0 # set missing gamma as -1.0 for hybrid edge
     end
     return true
 end
@@ -536,7 +539,7 @@ function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
     mod(sum([!e.hybrid?e.gamma:0 for e in net.edge]),1) == 0 ? nothing : error("tree (not network) read and some tree edge has gamma different than 1")
     nodes = copy(net.node)
     for(n in nodes)
-        if(isNodeNumIn(n,net.node))
+        if(isNodeNumIn(n,net.node)) # very important to check
             if(size(n.edge,1) == 2)
                 if(!n.hybrid)
                     if(!leaveRoot || !isEqual(net.node[net.root],n)) #if n is the root
@@ -570,7 +573,7 @@ function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
                     if(hybnodes == 1)
                         error("only one hybrid node number $(n.number) with name $(net.names[n.number]) found with one hybrid edge attached")
                     else
-                        error("current hybrid node $(n.number) with name S(net.names[n.number]) has only one hybrid edge attached. there are other $(hybnodes-1) hybrids out there but this one remained unmatched")
+                        error("current hybrid node $(n.number) with name $(net.names[n.number]) has only one hybrid edge attached. there are other $(hybnodes-1) hybrids out there but this one remained unmatched")
                     end
                 elseif(hyb == 0)
                     warn("hybrid node $(n.number) is not connected to any hybrid edges, it was transformed to tree node")
@@ -584,7 +587,7 @@ function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
                         expandChild!(net,n);
                     end
                     suma = sum([e.hybrid?e.gamma:0 for e in n.edge]);
-                    if(suma == 2)
+                    if(suma == -2)
                         warn("hybrid edges in read network without gammas")
                         println("hybrid edges for hybrid node $(n.number) do not contain gamma value, set default: 0.9,0.1")
                         for(e in n.edge)
@@ -600,9 +603,9 @@ function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
                                 isa(ed1,Void) ? ed1=e : ed2=e
                             end
                         end
-                        if(ed1.gamma < 1 && ed2.gamma < 1) #both gammas were set, but contradictory
+                        if(ed1.gamma > 0 && ed2.gamma > 0 && ed1.gamma < 1 && ed2.gamma < 1) #both gammas were set, but contradictory
                             error("hybrid edges for hybrid node $(n.number) have gammas that do not sum up to one: $(ed1.gamma),$(ed2.gamma)")
-                        elseif(ed1.gamma < 1)
+                        elseif(ed1.gamma != -1.0)
                             warn("only one hybrid edge of hybrid node $(n.number) has gamma value $(ed1.gamma) set, the other edge will be assigned $(1-ed1.gamma).")
                             setGamma!(ed2,1-ed1.gamma, false);
                         else
