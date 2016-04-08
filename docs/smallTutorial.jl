@@ -49,7 +49,7 @@ plot(estNet1)
 writeTopology(estNet1) #will only print branch lengths for internal edges
 
 # read best network, and one per run
-nets = readInputTrees("snaq.out") #will change the name of the function later to readMultiTopologyLevel1
+nets = readMultiTopology("snaq.out") #will change the name of the function later to readMultiTopologyLevel1
 length(nets)
 plot(nets[2]) #different to the best network, worse pseudolik
 
