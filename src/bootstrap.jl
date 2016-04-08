@@ -78,8 +78,6 @@ function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Nu
         end
     end
 
-    bootNet = HybridNetwork[];
-
     write(logfile,"\nBEGIN: $(nrep) replicates")
     write(logfile,"\n$(Libc.strftime(time()))")
     flush(logfile)
