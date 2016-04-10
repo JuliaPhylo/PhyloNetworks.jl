@@ -191,7 +191,7 @@ function fuseedgesat!(i::Int64, net::HybridNetwork)
         net.root = getIndex(pn,net)
     end
     deleteNode!(net,net.node[i])
-    deleteEdge!(net,pe)
+    deleteEdge!(net,pe,part=false) # do not update partitions. irrelevant for networks of level>1.
     return ce
 end
 
@@ -746,7 +746,7 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Int64;
         # remove leaf and pe.
         removeNode!(pn,pe)  # perhaps useless. in case gc() on pe affects pn
         removeEdge!(pn,pe)
-        deleteEdge!(net,pe)
+        deleteEdge!(net,pe,part=false)
         if net.root==i # if `node` was the root, new root = pn
             net.root = getIndex(pn,net)
         end
@@ -768,7 +768,7 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Int64;
             # remove the hybrid `node` and both e1, e2
             removeNode!(p1,e1);  removeNode!(p2,e2) # perhaps useless
             removeEdge!(p1,e1);  removeEdge!(p2,e2)
-            deleteEdge!(net,e1); deleteEdge!(net,e2)
+            deleteEdge!(net,e1,part=false); deleteEdge!(net,e2,part=false)
             if net.root==i net.root=getIndex(p1,net); end # should never occur though.
             deleteNode!(net,net.node[i])
             # recursive call on both p1 and p2.
@@ -791,7 +791,7 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Int64;
                     e2.hybrid=false;
                     e2.isMajor=true; e2.gamma += e1.gamma
                     removeEdge!(pn,e1); removeEdge!(cn,e1)
-                    deleteEdge!(net,e1)
+                    deleteEdge!(net,e1,part=false)
                     # call recursion again because pn and/or cn might be of degree 2.
                     deleteleaf!(net, cn.number, simplify=simplify)
                 end
