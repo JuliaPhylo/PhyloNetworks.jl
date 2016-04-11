@@ -48,7 +48,7 @@ if (doalltests)
 net = readTopology("((Adif:1.0,(Aech:0.122,#H6:10.0::0.047):10.0):1.614,Aten:1.0,((Asub:1.0,Agem:1.0):0.0)#H6:5.062::0.953);");
 net.edge[5].isChild1 = false # edge 5 from -1 to -2
 deleteHybridEdge!(net, net.edge[10]);
-# WARNING: node -1 being the root is contradicted by isChild1 of its edges.
+println("a warning is expected: \"node -1 being the root is contradicted by isChild1 of its edges.\"")
 writeTopology(net) == "(Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0,Aten:2.614);" ||
  error("deleteHybridEdge! didn't work on 10th edge after isChild1 was changed")
 # plot(net, showEdgeNumber=true, showNodeNumber=true)

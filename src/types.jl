@@ -264,3 +264,8 @@ type EdgeParts
     part4::Vector{Node}
 end
 
+type RootMismatch <: Exception
+    msg::ASCIIString
+end
+RootMismatch() = RootMismatch("")
+Base.showerror(io::IO, e::RootMismatch) = print(io, "RootMismatch: ", e.msg);

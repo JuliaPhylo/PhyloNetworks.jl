@@ -36,8 +36,14 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
         minorHybridEdgeColor=colorant"deepskyblue"::ColorTypes.Colorant,
         showEdgeNumber=false::Bool)
 
-    directEdges!(net) || # to update isChild1
-     error("Please change the root, perhaps using rootatnode! or rootatedge!")
+    try
+        directEdges!(net)   # to update isChild1
+    catch e
+        if isa(e, RootMismatch)
+            e.msg *= "\nPlease change the root, perhaps using rootatnode! or rootatedge!"
+        end
+        rethrow(e)
+    end
     preorder!(net)       # to update net.nodes_changed: true pre-ordering
     cladewiseorder!(net) # to update cladewiseorder_nodeIndex: cladewise on major tree
 

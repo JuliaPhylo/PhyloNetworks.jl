@@ -17,8 +17,7 @@ Warnings:
 - If the desired root placement is incompatible with one or more hybrids,
   then the network will still have some attributes modified.
 
-Return value: like directEdges!, returns `true` if successful,
-`false` if the desired root placement was in
+Returns the network. Gives a message if the desired root placement was in
 conflict with the direction of any hybrid edge.
 
 See also: `rootonedge!`.
@@ -49,7 +48,7 @@ function rootatnode!(net::HybridNetwork, nodeNumber::Int64; index=false::Bool)
         error("node index $ind too large: the network only has $(length(net.node)) nodes.")
     end
     if net.node[ind].leaf
-        println("node $(net.node[ind].number) is a leaf. Will create a new node if needed, to set taxon \"$(net.node[ind].name)\" as outgroup.")
+        info("node $(net.node[ind].number) is a leaf. Will create a new node if needed, to set taxon \"$(net.node[ind].name)\" as outgroup.")
         length(net.node[ind].edge)==1 || error("leaf has $(length(net.node[ind].edge)) edges!")
         pn = getOtherNode(net.node[ind].edge[1], net.node[ind])
         if length(pn.edge) <= 2 # if parent of leaf has degree 2, use it as new root
@@ -60,13 +59,18 @@ function rootatnode!(net::HybridNetwork, nodeNumber::Int64; index=false::Bool)
     else
         rootsaved = net.root
         net.root = ind
-        res = directEdges!(net)
-        if !res # new root incompatible with hybrid directions: revert back.
+        try
+          directEdges!(net)
+        catch e
+          if isa(e, RootMismatch) # new root incompatible with hybrid directions: revert back
+            println("RootMismatch: ", e.msg, "\nReverting to old root position.")
             net.root = rootsaved
-        elseif (net.root != rootsaved && length(net.node[rootsaved].edge)==2)
+          else rethrow(e); end
+        end
+        if (net.root != rootsaved && length(net.node[rootsaved].edge)==2)
             fuseedgesat!(rootsaved,net) # remove old root node if degree 2
         end
-        return(res)
+        return net
     end
 end
 
@@ -103,14 +107,19 @@ function rootonedge!(net::HybridNetwork, edgeNumber::Int64; index=false::Bool)
     end
     rootsaved = net.root
     net.root = breakedge!(net.edge[ind],net)
-    res = directEdges!(net)
-    if !res
+    try
+      directEdges!(net)
+    catch e
+      if isa(e, RootMismatch) # new root incompatible with hybrid directions: revert back
+        println("RootMismatch: ", e.msg, "\nReverting to old root position.")
         fuseedgesat!(net.root,net) # reverts breakedge!
         net.root = rootsaved
-    elseif (net.root != rootsaved && length(net.node[rootsaved].edge)==2)
+      else rethrow(e); end
+    end
+    if (net.root != rootsaved && length(net.node[rootsaved].edge)==2)
         fuseedgesat!(rootsaved,net) # remove old root node if degree 2
     end
-    return(res)
+    return net
 end
 
 """
@@ -209,7 +218,7 @@ end
 function root!(net::HybridNetwork, node::Node, resolve::Bool)
     node.hybrid && error("node $(node.number) is hybrid, cannot root network on a hybrid node")
     if(node.leaf)
-        warn("node $(node.number) is a leaf, so we will root as an outgroup if possible")
+        info("node $(node.number) is a leaf, so we will root as an outgroup if possible")
         root!(net,node.name)
     else
         if(!isTree(net))
@@ -429,8 +438,7 @@ but checks for that if checkMajor=true.
 Warning: Assumes that isChild1 is correct on hybrid edges
 (to avoid changing the identity of which nodes are hybrids and which are not).
 
-Return value: `true` if the process was successful,
-`false` if the starting root placement (using net.root) was in
+Returns the network. Throws a 'RootMismatch' Exception if the root was found to
 conflict with the direction of any hybrid edge.
 """
 function directEdges!(net::HybridNetwork; checkMajor=true::Bool)
@@ -455,20 +463,19 @@ It is not used in directEdges!, but might cause an error elsewhere.")
         end
     end
     for(e in net.node[net.root].edge)
-        traverseDirectEdges!(net.node[net.root],e,true) ||
-         return false # exits early with 'false' if rooting incompatibility
+        traverseDirectEdges!(net.node[net.root],e,true)
     end
     net.isRooted = true
-    return true
+    return net
 end
 
 # containroot = true until the path goes through a hybrid node, below which
 # containroot is turned to false.
 function traverseDirectEdges!(node::Node, edge::Edge, containroot::Bool)
     if (edge.hybrid && node==edge.node[edge.isChild1 ? 1 : 2])
-        warn("the direction of hybrid edge $(edge.number) (isChild1) is incompatible with the root.
-       iChild1 and containRoot were updated for a subset of edges in the network only.")
-        return false
+        throw(RootMismatch(
+"direction (isChild1) of hybrid edge $(edge.number) conflicts with the root.
+isChild1 and containRoot were updated for a subset of edges in the network only."))
     end
     if (node == edge.node[1])
         edge.isChild1 = false
@@ -484,18 +491,16 @@ function traverseDirectEdges!(node::Node, edge::Edge, containroot::Bool)
         for (e in cn.edge)
             if e==edge continue; end
             if (e.hybrid && cn == e.node[e.isChild1 ? 1 : 2]) continue; end
-            traverseDirectEdges!(cn,e,containroot) ||
-              return false # exits early with 'false' if rooting incompatibility
+            traverseDirectEdges!(cn,e,containroot)
             nchildren += 1
         end
         if nchildren==0
-            warn("non-leaf node $(cn.number) had 0 children. It could be a hybrid
-       whose parents' direction is in contradiction with the root.
-       iChild1 and containRoot were updated for a subset of edges in the network only.")
-            return false
+            throw(RootMismatch("non-leaf node $(cn.number) had 0 children.
+Could be a hybrid whose parents' direction conflicts with the root.
+isChild1 and containRoot were updated for a subset of edges in the network only."))
         end
     end
-    return true
+    return nothing
 end
 
 #################################################
