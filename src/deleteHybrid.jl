@@ -290,6 +290,7 @@ deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool) = deleteHybrid!(node,ne
 
 Deletes a hybrid edge from a network. The network does not have to be of level 1,
 and may contain some polytomies. Updates branch lengths, allowing for missing values.
+Returns the network.
 
 Warnings:
 
@@ -328,7 +329,7 @@ function deleteHybridEdge!(net::HybridNetwork,edge::Edge)
         setEdge!(pn,ce)
         removeEdge!(pn,pe)
         if (pe.number<ce.number) ce.number = pe.number; end
-        deleteEdge!(net,pe) # decreases net.numEdges   by 1
+        deleteEdge!(net,pe,part=false) # decreases net.numEdges   by 1
         deleteNode!(net,n1) # decreases net.numHybrids by 1, numNodes too.
         # warning: containRoot could be updated in ce and down the tree.
         if (atRoot)
@@ -383,7 +384,7 @@ function deleteHybridEdge!(net::HybridNetwork,edge::Edge)
         setEdge!(pn,ce)
         removeEdge!(pn,pe)
         if (pe.number<ce.number) ce.number = pe.number; end
-        deleteEdge!(net,pe)
+        deleteEdge!(net,pe,part=false)
         deleteNode!(net,n2)
         if (atRoot)
             try
@@ -396,7 +397,8 @@ function deleteHybridEdge!(net::HybridNetwork,edge::Edge)
         removeEdge!(n2,edge)
     end
     # finally: remove hybrid 'edge' from network
-    deleteEdge!(net,edge)
+    deleteEdge!(net,edge,part=false)
+    return net
 end
 
 # function to update net.partition after deleting a hybrid node

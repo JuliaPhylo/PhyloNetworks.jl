@@ -147,6 +147,7 @@ end
 `deleteHybridThreshold!(net::HybridNetwork,gamma::Float64)`
 
 Deletes from a network all hybrid edges with heritability below a threshold gamma.
+Returns the network.
 
 - if gamma<0.5: deletes     minor hybrid edges with gamma value <  threshold
 - if gamma=0.5: deletes all minor hybrid edges (i.e gamma value <= threshold)
@@ -166,12 +167,18 @@ function deleteHybridThreshold!(net::HybridNetwork,gamma::Float64)
             deleteHybridEdge!(net, hybedges[2]) # does not update inCycle, containRoot, etc.
         end
     end
+    return net
 end
 
-# extracts the two networks that simplify a given network at a given hybrid node:
-#          deleting either one or the other parent hybrid edge.
-# the original network is modified: minor edge removed.
-# returns one HybridNetwork object (the network with major edge removed)
+"""
+    displayedNetworks!(net::HybridNetwork, node::Node)
+
+Extracts the two networks that simplify a given network at a given hybrid node:
+deleting either one or the other parent hybrid edge.
+
+- the original network is modified: the minor edge removed.
+- returns one HybridNetwork object: the network with the major edge removed
+"""
 function displayedNetworks!(net::HybridNetwork, node::Node)
     node.hybrid || error("will not extract networks from tree node $(node.number)")
     ind = getIndex(node,net)
