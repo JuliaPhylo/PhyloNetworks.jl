@@ -225,6 +225,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
         if(isdigit(c) || in(c, ['.','e','-']))
             length = readFloat(s,c);
             setLength!(e,length); # e.length = length # do not use setLength because it does not allow BL too negative
+            #e.length = length
             c = peekchar(s);
             if(c == ':')
                 c = read(s,Char);
