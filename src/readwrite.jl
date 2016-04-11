@@ -71,21 +71,21 @@ end
 
 # aux function to read floats like length
 function readFloat(s::IO, c::Char)
-    founde = false
-    if(isdigit(c))
-        num = read(s,Char);
+    if(isdigit(c) || in(c, ['.','e','-']))
+        num = string(read(s,Char));
         c = peekchar(s);
-        while(isdigit(c) || c == '.' || c == 'e' || c == '-')
+        while(isdigit(c) || in(c, ['.','e','-']))
             d = read(s,Char);
             num = string(num,d);
             c = peekchar(s);
         end
+        f = 0.0
         try
-            float(num)
+            f = float(num)
         catch
             error("problem with number read $(num), not a float number")
         end
-        return float(num)
+        return f
     else
         a = readall(s);
         error("Expected float digit after : but received $(c). remaining is $(a).");
@@ -222,20 +222,20 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
     if(c == ':')
         c = read(s,Char);
         c = peekchar(s);
-        if(isdigit(c))
+        if(isdigit(c) || in(c, ['.','e','-']))
             length = readFloat(s,c);
-            setLength!(e,length);
+            setLength!(e,length); # e.length = length # do not use setLength because it does not allow BL too negative
             c = peekchar(s);
             if(c == ':')
                 c = read(s,Char);
                 c = peekchar(s);
-                if(isdigit(c))
+                if(isdigit(c) || in(c, ['.','e','-']))
                     length = readFloat(s,c); #bootstrap value
                     c = peekchar(s);
                     if(c == ':')
                         c = read(s, Char);
                         c = peekchar(s);
-                        if(isdigit(c))
+                        if(isdigit(c) || in(c, ['.','e','-']))
                             length = readFloat(s,c); #gamma
                             if(!e.hybrid)
                                 warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
@@ -251,7 +251,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
                 elseif(c == ':')
                     c = read(s, Char);
                     c = peekchar(s);
-                    if(isdigit(c))
+                    if(isdigit(c) || in(c, ['.','e','-']))
                         length = readFloat(s,c); #gamma
                         if(!e.hybrid)
                             warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
@@ -271,13 +271,13 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
             e.length = -1.0 # do not use setLength because it does not allow BL too negative
             c = read(s,Char);
             c = peekchar(s);
-            if(isdigit(c))
+            if(isdigit(c) || in(c, ['.','e','-']))
                 length = readFloat(s,c); #bootstrap value
                 c = peekchar(s);
                 if(c == ':')
                     c = read(s, Char);
                     c = peekchar(s);
-                    if(isdigit(c))
+                    if(isdigit(c) || in(c, ['.','e','-']))
                         length = readFloat(s,c); #gamma
                         if(!e.hybrid)
                             warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
@@ -293,7 +293,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
             elseif(c == ':')
                 c = read(s, Char);
                 c = peekchar(s);
-                if(isdigit(c))
+                if(isdigit(c) || in(c, ['.','e','-']))
                     length = readFloat(s,c); #gamma
                     if(!e.hybrid)
                         warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
@@ -813,15 +813,10 @@ function writeSubTree!(s::IO, n::Node, parent::Edge,di::Bool,names::Bool, printI
             printBL = true
         end
     end
-    if(parent.hybrid && !di && !n.isBadDiamondI)
-        if(!printBL)
-            if(parent.gamma != 1.0)
-                print(s,string(":::",round(parent.gamma,3)))
-            end
-        else
-            if(parent.gamma != 1.0)
-                print(s,string("::",round(parent.gamma,3)))
-            end
+    if(parent.hybrid && !di && (!printID || !n.isBadDiamondI))
+        if(parent.gamma != -1.0)
+            if(!printBL) print(s,":"); end
+            print(s,string("::",round(parent.gamma,3)))
         end
     end
 end
