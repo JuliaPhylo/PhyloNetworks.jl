@@ -224,8 +224,8 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
         c = peekchar(s);
         if(isdigit(c) || in(c, ['.','e','-']))
             length = readFloat(s,c);
-            setLength!(e,length); # e.length = length # do not use setLength because it does not allow BL too negative
-            #e.length = length
+            #setLength!(e,length); # e.length = length # do not use setLength because it does not allow BL too negative
+            e.length = length
             c = peekchar(s);
             if(c == ':')
                 c = read(s,Char);
@@ -999,6 +999,7 @@ readSnaqNetwork(file::AbstractString) = readOutfile(file)
 
 # function to change negative branch lengths to 1.0 for starting topology
 # and to change big branch lengths to 10.0
+# also uses setLength for all edges
 function cleanBL!(net::HybridNetwork)
     ##println("missing branch lengths will be set to 1.0")
     for(e in net.edge)
@@ -1006,6 +1007,8 @@ function cleanBL!(net::HybridNetwork)
             setLength!(e,1.0)
         elseif(e.length > 10.0)
             setLength!(e,10.0)
+        else
+            setLength!(e,e.length)
         end
     end
 end
