@@ -1,11 +1,14 @@
  # test for trait evolution
  # Claudia November 2015
+## modified by Paul Bastide
+## still not an automatic test function, needs work
+
 
 using PhyloNetworks
 using GLM
 
-include("../src/types.jl")
-include("../src/functions.jl")
+#include("../src/types.jl")
+#include("../src/functions.jl")
 
 tree= "(A,((B,#H1),(C,(D)#H1)));"
 

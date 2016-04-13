@@ -1335,9 +1335,11 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             write(s,"\n -Ploglik = $(maxNet.loglik)")
             write(s,"\n Dendroscope: $(writeTopology(maxNet,di=true))")
         else
-            write(s,writeTopology(maxNet,outgroup)) #outgroup
+            rootMaxNet = deepcopy(maxNet)
+            rootatnode!(rootMaxNet,outgroup)
+            write(s,writeTopology(rootMaxNet)) #outgroup
             write(s,"\n -Ploglik = $(maxNet.loglik)")
-            write(s,"\n Dendroscope: $(writeTopology(maxNet,true,outgroup))")
+            write(s,"\n Dendroscope: $(writeTopology(rootMaxNet,true))")
         end
         #write(s,"\n Elapsed time: $(t) seconds in $(runs-1-length(failed)) successful runs")
         write(s,"\n Elapsed time: $(t) seconds in $(runs-length(failed)) successful runs")

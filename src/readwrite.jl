@@ -841,6 +841,7 @@ function writeTopology(net0::HybridNetwork, di::Bool, str::Bool, names::Bool,out
     end
 end
 
+# warning: I do not want writeTopology to modify the network if outgroup is given! thus, we have updateRoot, and undoRoot
 function writeTopology(net0::HybridNetwork, s::IO, di::Bool, names::Bool,outgroup::AbstractString, printID::Bool)
     net = deepcopy(net0) #writeTopology needs containRoot, but should not alter net0
     if(net.numBad > 0)
@@ -870,7 +871,7 @@ function writeTopology(net0::HybridNetwork, s::IO, di::Bool, names::Bool,outgrou
         end
         print(s,");")
     end
-    outgroup != "none" && undoRoot!(net) #to delete the node with only two edges
+    outgroup != "none" && undoRoot!(net) #to delete the node with only two edges: all snaq functions assume internal nodes have 3 edges: you write it rooted but don't change it
 end
 
 #writeTopology(net::HybridNetwork) = writeTopology(net,false, true,true,"none") #not needed because of last function definition
@@ -920,7 +921,7 @@ function updateRoot!(net::HybridNetwork, outgroup::AbstractString)
             max_node = maximum([e.number for e in net.node]);
             newedge = Edge(max_edge+1) #fixit: maybe this edge not identifiable, need to add that check
             newnode = Node(max_node+1,false,false,[edge,newedge])
-            if(net.cleaned && !isTree(net))
+            if(net.cleaned && !isTree(net) && !isempty(net.partition)) # fixit: this will crash if network estimated with snaq, and then manipulated
                 part = whichPartition(net,edge)
                 push!(net.partition[part].edges,newedge)
             end
@@ -931,18 +932,18 @@ function updateRoot!(net::HybridNetwork, outgroup::AbstractString)
             pushEdge!(net,newedge)
             pushNode!(net,newnode)
             t = edge.length
-            setLength!(edge,t/2)
-            setLength!(newedge,t/2)
+                setLength!(edge,t/2)
+                setLength!(newedge,t/2)
             net.root = length(net.node) #last node is root
-        else
+       else
             warn("external edge $(net.node[index].edge[1].number) leading to outgroup $(outgroup) cannot contain root, root placed wherever")
             checkroot = true
-        end
+       end
     end
     if(checkroot && !isTree(net))
         checkRootPlace!(net)
     end
-end
+ end
 
 # function to check if a node could be root
 # by the containRoot attribute of edges around it

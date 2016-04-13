@@ -1,10 +1,11 @@
 ## Test of PhyloNetworklm
+## still not an automatic test function, needs work
 
 using PhyloNetworks
 using GLM
-include("../src/types.jl")
-include("../src/functions.jl")
-include("../src/traits.jl")
+#include("../src/types.jl")
+#include("../src/functions.jl")
+#include("../src/traits.jl")
 
 tree= "(A,((B,#H1),(C,(D)#H1)));"
 net=readTopologyLevel1(tree)
@@ -13,7 +14,7 @@ printEdges(net)
 # Re-root the tree so that it matches my example
 root!(net, "A")
 printEdges(net)
-directEdges!(net) ## I am forced to do thi step here, because root sends a net with net.isRooted = false. Expected behavior ? 
+directEdges!(net) ## I am forced to do thi step here, because root sends a net with net.isRooted = false. Expected behavior ?
 preorder!(net)
 
 # Ancestral state reconstruction with ready-made matrices
