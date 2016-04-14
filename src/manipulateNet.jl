@@ -25,18 +25,19 @@ function hybridatnode(net0::HybridNetwork, nodeNumber::Int64)
     makeEdgeTree!(hybedges[2],hybrid)
     hybedges[1].inCycle = hybrid.number #just to keep attributes ok
     hybedges[2].inCycle = hybrid.number
-    makeNodeTree!(net,hybrid)
-    net.node[ind].hybrid = true
+    switchHybridNode!(net,hybrid,net.node[ind])
     found = false
     for(e in net.node[ind].edge)
         if(e.inCycle == hybrid.number)
             if(!found)
                 found = true
-                makeEdgeHybrid!(e,net.node[ind], 0.51) #first found, major edge, need to optimize gamma anyway
+                makeEdgeHybrid!(e,net.node[ind], 0.51, switchHyb=true) #first found, major edge, need to optimize gamma anyway
                 e.gamma = -1
+                e.containRoot = true
             else
-                makeEdgeHybrid!(e,net.node[ind], 0.49) #second found, minor edge
+                makeEdgeHybrid!(e,net.node[ind], 0.49, switchHyb=true) #second found, minor edge
                 e.gamma = -1
+                e.containRoot = true
             end
         end
     end

@@ -1096,3 +1096,16 @@ function isPartitionInNet(net::HybridNetwork,partition::Partition)
     return false
 end
 
+
+# function to switch a hybrid node in a network to another node in the cycle
+function switchHybridNode!(net::HybridNetwork, hybrid::Node, newHybrid::Node)
+    hybrid.hybrid || error("node $(hybrid.number) has to be hybrid to switch to a different hybrid")
+    newHybrid.inCycle == hybrid.number || error("new hybrid needs to be in the cycle of old hybrid: $(hybrid.number)")
+    !newHybrid.hybrid || error("strange hybrid node $(newHybrid.number) in cycle of another hybrid $(hybrid.number)")
+    newHybrid.hybrid = true
+    newHybrid.hasHybEdge = true
+    newHybrid.name = hybrid.name
+    pushHybrid!(net,newHybrid)
+    makeNodeTree!(net,hybrid)
+end
+

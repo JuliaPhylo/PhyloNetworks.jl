@@ -11,7 +11,8 @@
 # aux function to transform tree edge into hybrid edge
 # input: new edge, hybrid node (needs to be attached to new edge)
 #        new gamma
-function makeEdgeHybrid!(edge::Edge,node::Node,gamma::Float64)
+# swtichHyb=true if called in hybridatnode
+function makeEdgeHybrid!(edge::Edge,node::Node,gamma::Float64; switchHyb=false::Bool)
     !edge.hybrid || error("edge $(edge.number) already hybrid, cannot make it hybrid")
     node.hybrid || error("to make edge $(edge.number) hybrid, you need to give the hybrid node it is going to point to and node $(node.number) is not hybrid")
     #println("estamos en make edge hybrid en edge $(edge.number) y node $(node.number)")
@@ -27,7 +28,7 @@ function makeEdgeHybrid!(edge::Edge,node::Node,gamma::Float64)
     end
     edge.hybrid = true
     getOtherNode(edge,node).hasHybEdge = true
-    setGamma!(edge,gamma,false)
+    setGamma!(edge,gamma,false,switchHyb)
     edge.istIdentifiable = isEdgeIdentifiable(edge)
     edge.containRoot = false
 end

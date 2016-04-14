@@ -64,7 +64,8 @@ summarizeHFdf,
 bootsnaq,
 writeMultiTopology,
 readMultiTopologyLevel1,
-readMultiTopology
+readMultiTopology,
+hybridatnode
 
 # export part
 
