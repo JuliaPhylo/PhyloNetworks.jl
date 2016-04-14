@@ -3,7 +3,7 @@
 <!-- ![SNaQ logo](http://pages.stat.wisc.edu/~claudia/Images/snaq.png)
 original size: 525px × 222px-->
 
-[![Build Status](https://travis-ci.org/crsl4/PhyloNetworks.svg)](https://travis-ci.org/crsl4/PhyloNetworks)
+[![Build Status](https://travis-ci.org/crsl4/PhyloNetworks.jl.svg?branch=master)](https://travis-ci.org/crsl4/PhyloNetworks)
 
 <!--
 [![Coverage Status](https://coveralls.io/repos/crsl4/PhyloNetworks/badge.svg?branch=master&service=github)](https://coveralls.io/github/crsl4/PhyloNetworks?branch=master)
