@@ -1,3 +1,53 @@
+
+# function to change the hybrid node in a cycle
+# does not assume that the network was read with readTopologyUpdate
+# does not modify net0 because it needs to update all attributes
+# so, it returns the new network
+function hybridatnode(net0::HybridNetwork, nodeNumber::Int64)
+    net = readTopologyUpdate(writeTopology(net0)) # we need inCycle attributes
+    ind = 0
+    try
+        ind = getIndexNode(nodeNumber,net)
+    catch
+        error("cannot set node $(nodeNumber) as hybrid because it is not part of net")
+    end
+    net.node[ind].inCycle != -1 || error("node $(nodeNumber) is not part of any cycle, so we cannot make it hybrid")
+    indhyb = 0
+    try
+        indhyb = getIndexNode(net.node[ind].inCycle,net)
+    catch
+        error("cannot find the hybrid node with number $(net.node[ind].inCycle)")
+    end
+    hybrid = net.node[indhyb]
+    hybrid.hybrid || error("node $(hybrid.number) should be hybrid, but it is not")
+    hybedges = hybridEdges(hybrid)
+    makeEdgeTree!(hybedges[1],hybrid)
+    makeEdgeTree!(hybedges[2],hybrid)
+    hybedges[1].inCycle = hybrid.number #just to keep attributes ok
+    hybedges[2].inCycle = hybrid.number
+    makeNodeTree!(net,hybrid)
+    net.node[ind].hybrid = true
+    found = false
+    for(e in net.node[ind].edge)
+        if(e.inCycle == hybrid.number)
+            if(!found)
+                found = true
+                makeEdgeHybrid!(e,net.node[ind], 0.51) #first found, major edge, need to optimize gamma anyway
+                e.gamma = -1
+            else
+                makeEdgeHybrid!(e,net.node[ind], 0.49) #second found, minor edge
+                e.gamma = -1
+            end
+        end
+    end
+    return net
+end
+
+
+
+
+
+
 """
 `rootatnode!(HybridNetwork, nodeNumber::Int64; index=false::Bool)`
 
@@ -727,8 +777,8 @@ end
 # edges previously removed all go "down" in time towards current node:
 # - tree edge down to an original leaf,
 # - 2 hybrid edges down to a hybrid node.
-# hybrid edges from `node` to another node are not removed. fused instead.
-# consequence: `node` having 2 hybrid edges away from `node` should not occur.
+# hybrid edges from node to another node are not removed. fused instead.
+# consequence: node having 2 hybrid edges away from node should not occur.
 function deleteleaf!(net::HybridNetwork, nodeNumber::Int64;
                      index=false::Bool, simplify=true::Bool)
     i = nodeNumber # good if index=true
@@ -752,7 +802,7 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Int64;
         removeNode!(pn,pe)  # perhaps useless. in case gc() on pe affects pn
         removeEdge!(pn,pe)
         deleteEdge!(net,pe,part=false)
-        if net.root==i # if `node` was the root, new root = pn
+        if net.root==i # if node was the root, new root = pn
             net.root = getIndex(pn,net)
         end
         deleteNode!(net,net.node[i])
@@ -807,3 +857,5 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Int64;
     end
     return nothing
 end
+
+
