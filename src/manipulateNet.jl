@@ -1,5 +1,21 @@
 # function to change the hybrid node in a cycle
 # will try to update incycle inside
+"""
+`hybridatnode!(net::HybridNetwork, nodeNumber::Int64)`
+
+Changes the hybrid in a cycle to the node defined in nodeNumber. The
+node with nodeNumber must be in a cycle. If the node is not in a
+cycle, this function will prompt an error.
+
+# Example
+```julia
+julia> net =
+readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
+julia> plot(net, showNodeNumber=true)
+julia> hybridatnode!(net, -4)
+julia> plot(net)
+```
+"""
 function hybridatnode!(net::HybridNetwork, nodeNumber::Int64)
     undoInCycle!(net.edge, net.node)
     for(n in net.hybrid)

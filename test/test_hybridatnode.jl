@@ -20,3 +20,9 @@ plot(net2)
 
 hybridatnode!(net,-3)
 plot(net)
+
+
+net = readTopology("(A:1.0,(B,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:0.8):1.3):0.7):0.1;");
+plot(net, showNodeNumber=true)
+hybridatnode!(net, -7)
+plot(net)
