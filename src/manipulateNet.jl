@@ -1,3 +1,50 @@
+# function to change the hybrid node in a cycle
+# will try to update incycle inside
+function hybridatnode!(net::HybridNetwork, nodeNumber::Int64)
+    undoInCycle!(net.edge, net.node)
+    for(n in net.hybrid)
+        flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,n);
+        flag || error("not level1 network, hybrid $(n.number) cycle intersects another cycle")
+        !nocycle || error("strange network without cycle for hybrid $(n.number)")
+    end
+    ind = 0
+    try
+        ind = getIndexNode(nodeNumber,net)
+    catch
+        error("cannot set node $(nodeNumber) as hybrid because it is not part of net")
+    end
+    net.node[ind].inCycle != -1 || error("node $(nodeNumber) is not part of any cycle, so we cannot make it hybrid")
+    indhyb = 0
+    try
+        indhyb = getIndexNode(net.node[ind].inCycle,net)
+    catch
+        error("cannot find the hybrid node with number $(net.node[ind].inCycle)")
+    end
+    hybrid = net.node[indhyb]
+    hybrid.hybrid || error("node $(hybrid.number) should be hybrid, but it is not")
+    hybedges = hybridEdges(hybrid)
+    makeEdgeTree!(hybedges[1],hybrid)
+    makeEdgeTree!(hybedges[2],hybrid)
+    hybedges[1].inCycle = hybrid.number #just to keep attributes ok
+    hybedges[2].inCycle = hybrid.number
+    switchHybridNode!(net,hybrid,net.node[ind])
+    found = false
+    for(e in net.node[ind].edge)
+        if(e.inCycle == hybrid.number)
+            if(!found)
+                found = true
+                makeEdgeHybrid!(e,net.node[ind], 0.51, switchHyb=true) #first found, major edge, need to optimize gamma anyway
+                e.gamma = -1
+                e.containRoot = true
+            else
+                makeEdgeHybrid!(e,net.node[ind], 0.49, switchHyb=true) #second found, minor edge
+                e.gamma = -1
+                e.containRoot = true
+            end
+        end
+    end
+    return net
+end
 
 # function to change the hybrid node in a cycle
 # does not assume that the network was read with readTopologyUpdate
