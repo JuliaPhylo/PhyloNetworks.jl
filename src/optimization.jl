@@ -336,16 +336,16 @@ It has the following optional arguments:
 function topologyMaxQPseudolik!(net0::HybridNetwork, d::DataCF; verbose=false::Bool, ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
     # need a clean starting net. fixit: maybe we need to be more thorough here
     # yes, need to check that everything is ok because it could have been cleaned and then modified
-    if(!net0.cleaned)
+    #if(!net0.cleaned)
         net = readTopologyUpdate(writeTopology(net0)) #re read to update everything as it should
-    else
-        flag = checkNet(net0,true)
-        if(flag)
-            net = readTopologyUpdate(writeTopology(net0)) #re read to update everything as it should
-        else
-            net = deepcopy(net0)
-        end
-    end
+    # else
+    #     flag = checkNet(net0,true)
+    #     if(flag)
+    #         net = readTopologyUpdate(writeTopology(net0)) #re read to update everything as it should
+    #     else
+    #         net = deepcopy(net0)
+    #     end
+    # end
     try
         checkNet(net)
     catch
