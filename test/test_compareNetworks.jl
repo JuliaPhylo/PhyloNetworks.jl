@@ -2,6 +2,8 @@
 #      used to compare networks with the hardwired cluster distance.
 # Cecile March 2016
 
+using Base.Test
+
 # using PhyloNetworks
 include("../src/types.jl")
 include("../src/functions.jl")
@@ -363,4 +365,28 @@ hardwiredClusters(net52, taxa) ==
   8 0 0 1 1 0 0 10] || error("wrong hardwired clusters for net52");
 hardwiredClusterDistance(net51,net52,true) == 4 ||
  error("wrong HWDist between net51 and net52");
+end
+
+println("\nTesting hardwiredCluster! on single nodes")
+
+net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readTopology |> directEdges! ;
+taxa = net5 |> tipLabels # ABC EF D
+m = hcat([true,false,false,false,false,false],
+[false,true,false,false,false,false],
+[false,false,false,false,false,true],
+[false,true,false,false,false,true],
+[false,false,true,false,false,false],
+[false,false,false,true,false,false],
+[false,false,false,true,false,false],
+[false,false,true,true,false,false],
+[false,false,false,true,false,false],
+[false,false,false,false,true,false],
+[false,false,false,true,true,false],
+[false,false,true,true,true,false],
+[false,false,false,false,false,true],
+[false,false,false,false,false,true],
+[false,false,true,true,true,true],
+[false,true,true,true,true,true])
+for i = 1:16
+  @test hardwiredCluster(net5.edge[i], taxa) == m[:,i]
 end

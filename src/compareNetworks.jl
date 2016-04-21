@@ -142,6 +142,75 @@ function hardwiredClusters!(node::Node, edge::Edge, ie::Vector{Int64}, M::Matrix
 end
 
 
+"""
+    hardwiredCluster(edge::Edge,taxa::Union{Vector{ASCIIString},Vector{Int64}})
+    hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{ASCIIString},Vector{Int64}})
+    hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{ASCIIString},Vector{Int64}},
+                      visited::Vector{Int64})
+
+Calculate the hardwired cluster of `node`, coded a vector of booleans:
+true for taxa that are descendent of nodes, false for other taxa (including missing taxa).
+
+The node should belong in a rooted network for which isChild1 is up-to-date.
+Run directEdges! beforehand. This is very important, otherwise one might enter an infinite loop,
+and the function does not test for this.
+
+visited: vector of node numbers, of all visited nodes.
+
+# Examples:
+```
+julia> net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readTopology |> directEdges! ;
+
+julia> taxa = net5 |> tipLabels # ABC EF D
+6-element Array{ASCIIString,1}:
+ "A"
+ "B"
+ "C"
+ "E"
+ "F"
+ "D"
+
+julia> hardwiredCluster(net5.edge[12], taxa) # descendants of 12th edge = CEF
+6-element Array{Bool,1}:
+ false
+ false
+  true
+  true
+  true
+ false
+```
+"""
+function hardwiredCluster(edge::Edge,taxa::Union{Vector{ASCIIString},Vector{Int64}})
+    v = zeros(Bool,length(taxa))
+    hardwiredCluster!(v,edge,taxa)
+    return v
+end
+
+hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{ASCIIString},Vector{Int64}}) =
+    hardwiredCluster!(v,edge,taxa,Int64[])
+
+function hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{ASCIIString},Vector{Int64}},
+                           visited::Vector{Int64})
+    n = edge.node[edge.isChild1?1:2]
+    if n.leaf
+        j = findin(taxa,[n.name])
+        length(j)==1 || error("taxon $(n.name) was not found in taxon list")
+        v[j[1]]=true
+        return nothing
+    end
+    if findfirst(visited,n.number)>0
+        return nothing  # n was already visited: exit. avoid infinite loop is isChild1 was bad.
+    end
+    push!(visited, n.number)
+    for (ce in n.edge)
+        if n == ce.node[ce.isChild1?2:1]
+            hardwiredCluster!(v,ce,taxa,visited)
+        end
+    end
+    return nothing
+end
+
+
 
 """
 `deleteHybridThreshold!(net::HybridNetwork,gamma::Float64)`

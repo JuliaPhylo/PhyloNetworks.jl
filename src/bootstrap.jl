@@ -1,5 +1,6 @@
 # julia functions for bootstrap
 # Claudia October 2015
+# Cecile April 2016
 
 # function to read a CF table with CI
 # and sample new obsCF
@@ -208,23 +209,23 @@ end
 """
 `treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)`
 
-function that reads the list of bootstrap networks (net), and the estimated network (net0)
-and calculates the bootstrap support of the tree edges in the estimated network
+read an array of bootstrap networks (net) and a reference network (net0),
+and calculates the bootstrap support of the tree edges in the reference network.
 
-it returns a data frame with one row per tree edge, and two columns: edge number, bootstrap support
+return a data frame with one row per tree edge and two columns: edge number, bootstrap support
 """
 function treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)
     # estimated network, major tree and matrix
     S = tipLabels(net0)
     tree0 =majorTree(net0)
-    M0 = PhyloNetworks.tree2Matrix(tree0,S)
+    M0 = tree2Matrix(tree0,S)
 
     M = Matrix[]
     tree = HybridNetwork[]
     for(n in net)
         t = majorTree(n)
         push!(tree,t)
-        mm = PhyloNetworks.tree2Matrix(t,S)
+        mm = tree2Matrix(t,S)
         push!(M,mm)
     end
 
@@ -327,7 +328,7 @@ function hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgro
                 if (hardwiredClusterDistance(netT, netE, true) == 0) # true: rooted
                     found[trueh] = true
                     node = netE.hybrid[1]
-                    edges = PhyloNetworks.hybridEdges(node)
+                    edges = hybridEdges(node)
                     edges[2]. hybrid || error("edge should be hybrid")
                     !edges[2]. isMajor || error("edge should be minor hybrid")
                     edges[2].gamma <= 0.5 || error("gamma should be less than 0.5")
@@ -348,6 +349,180 @@ function hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgro
     end
     return HFmat,discTrees
 end
+
+
+"""
+`hybridBootstrapFrequency(boot_net::Vector{HybridNetwork}, ref_net::HybridNetwork;rooted=false::Bool)`
+
+Match hybrid nodes in a reference network with those in an array of networks, 
+like bootstrap networks.
+All networks must be fully resolved, and on the same taxon set.
+If `rooted=true`, all networks are assumed to have been properly rooted beforehand.
+Otherwise (default), the origin of each hybrid is considered as an unrooted bipartition.
+
+Output:
+
+- A data frame with one row per hybrid node in the reference network: one column with the hybrid
+  tag and one column with the proportion of bootstrap networks in which the minor hybrid edge match. 
+  Two minor hybrid edges in two networks are said to match if they share the same
+  "recipient clade" and the same "donor clade". More specifically, after all other hybrid edges
+  are first removed from both networks, the recipient clade is the hardwired cluster (descendants)
+  of the hybrid edge and the donor clade (origin) is the hardwired cluster of its sibling edge.
+  If `rooted=false`, this cluster is considered a bipartition. 
+- A data frame with one row for each "recipient" clade. The first rows correspond to the
+  hybrids in the reference network. Other rows are from other hybrids found in the bootstrap networks.
+  The second columns gives the proportion of bootstrap networks in which a minor hybrid edge had
+  a matching recipient cluster.
+- A similar data frame with one row for each "donor" clade (or origin). 
+- two data frames to describe these clusters: one for the recipient clades,
+  one for the donor clades. Each data frame has a first column that lists all taxa.
+  Each clade is described by a column of true/false values, to say whether a taxon is a
+  descendant of the recipient/donor lineage.
+- an array of gamma values, with one row for each bootstrap network and one column for each hybrid
+  in the reference network. The entry is the gamma value of the minor hybrid edge if it was
+  found in the network, or 0.0 if it was not found.
+- an array of true/false value with one row for each bootstrap network and one column for each hybrid
+  in the reference network, with `true` if the minor hybrid edge was found in the bootstrap network.
+
+The last 2 arrays do not have column names, but the columns correspond to hybrids in the 
+same order in which they are listed in the first data frames (which do have column names)
+"""
+function hybridBootstrapFrequency(nets::Vector{HybridNetwork}, refnet::HybridNetwork;
+         rooted=false::Bool)
+    numNets = length(nets)
+    numNets>0 || error("there aren't any test (bootstrap) networks")
+    numHybs = refnet.numHybrids
+    numHybs>0 || error("there aren't any hybrid in reference network")
+    try directEdges!(refnet)
+    catch err
+        if isa(err, RootMismatch)
+            err.msg *= "\nPlease change the root in reference network (see rootatnode! or rootatedge!)"
+        end
+        rethrow(err)
+    end
+    taxa = tipLabels(refnet)
+    ntax = length(taxa)
+
+    # extract hardwired clusters (origin and recipient) of each hybrid in reference net
+    edgeRef = Int64[]
+    hwcRefChild = Vector{Bool}[] # array alternative: zeros(Bool,ntax,numHybs)
+    hwcRefParen = Vector{Bool}[]
+    hwc = zeros(Bool,ntax) # temporary but constant memory storage
+    
+    for (trueh = 1:numHybs)
+        net0 = deepcopy(refnet)
+        displayedNetworkAt!(net0, net0.hybrid[trueh]) # removes all minor hybrid edges but one
+        hn = net0.hybrid[1]
+        he = hybridEdges(hn)[2] # assumes no polytomy at hybrid nodes, and correct node.hybrid
+        (he.hybrid && !he.isMajor && he.gamma <= 0.5) ||
+            error("edge should be hybrid, minor, with gamma <= 0.5")
+        push!(edgeRef, he.number)
+        push!(hwcRefChild, hardwiredCluster(he,taxa))
+        pn = he.node[he.isChild1?2:1] # parent node: origin of hybrid
+        hwc = zeros(Bool,ntax) # re-initialize
+        for (ce in pn.edge)    # important if polytomy
+            if (ce!=he && pn == ce.node[ce.isChild1?2:1])
+                hardwiredCluster!(hwc,ce,taxa)
+            end
+        end
+        push!(hwcRefParen, hwc)
+    end
+    # @show taxa[hwcRefChild[:,1]]; @show taxa[hwcRefParen[:,1]]; @show edgeRef
+        
+    HF = zeros(Bool,numNets,numHybs) # hybrid found?
+    # one row per minor hybrid edge in reference net
+    gamma = zeros(Float64,numNets,numHybs)
+    HPfreq = zeros(Float64,numHybs) # all hybrid parents (origins), frequencies only
+    HCfreq = zeros(Float64,numHybs) # all hybrid children (recipients)
+    # 2 columns: parent found, child found
+
+    hwcParen = zeros(Bool,ntax)
+    hwcChild = zeros(Bool,ntax)
+    for (i = 1:numNets)
+        net = nets[i]
+        length(tipLabels(net))==ntax || error("networks have non-matching taxon sets")
+        try directEdges!(net) # make sure the root is admissible
+        catch err
+          if isa(err, RootMismatch)
+            err.msg *= "\nPlease change the root in test network (see rootatnode! or rootatedge!)"
+          end
+          rethrow(err)
+        end
+        for (esth = 1:net.numHybrids)   # try to match estimated hybrid edge
+            hwcParen = zeros(Bool,ntax) # re-initialize
+            hwcChild = zeros(Bool,ntax)
+            net1 = deepcopy(net)
+            displayedNetworkAt!(net1, net1.hybrid[esth])
+            hn = net1.hybrid[1]
+            he = hybridEdges(hn)[2] # assumes no polytomy at hybrid node
+            (he.hybrid && !he.isMajor && he.gamma <= 0.5) ||
+                error("edge should be hybrid, minor, with gamma <= 0.5")
+            hardwiredCluster!(hwcChild,he,taxa)
+            pn = he.node[he.isChild1?2:1] # parent node: origin of hybrid
+            for (ce in pn.edge)
+                if (ce!=he && pn == ce.node[ce.isChild1?2:1])
+                    hardwiredCluster!(hwcParen,ce,taxa)
+                end
+            end # will use complement too: test network may be rooted differently
+            # @show taxa[hwcChild]; @show taxa[hwcParen]
+            
+            hc = findfirst(hwcRefChild, hwcChild)
+            hp = findfirst(hwcRefParen, hwcParen) # 0 if not found
+            if (!rooted && hp==0)
+                hp = findfirst(hwcRefParen, !hwcParen)
+            end
+            if hc==0
+                push!(hwcRefChild, hwcChild)
+                push!(HCfreq, 1.0)
+            else HCfreq[hc] += 1.0;
+            end
+            if hp==0
+                push!(hwcRefParen, hwcParen)
+                push!(HPfreq, 1.0)
+            else HPfreq[hp] += 1.0
+            end
+            if (hc==hp && hc>0 && hc<=numHybs)
+                HF[i,hc] = true
+                gamma[i,hc] = he.gamma
+            end
+        end
+    end
+    Hfreq = Array(Float64,refnet.numHybrids) # overal % detection
+    for trueh=1:refnet.numHybrids
+        Hfreq[trueh] = sum(HF[:,trueh])/numNets
+    end
+    HPfreq /= numNets
+    HCfreq /= numNets
+
+    # change matrices to dataframes, initialize with NA, add column names
+    # push! to add rows, insert! to add column
+
+    resC = DataFrame(taxa=taxa)
+    resP = DataFrame(taxa=taxa)
+    resfreq  = DataFrame(hybrid=AbstractString[],proportion=Float64[])
+    resCfreq = DataFrame(recipient=AbstractString[],proportion=Float64[])
+    resPfreq = DataFrame(donor=AbstractString[],proportion=Float64[])
+    for h=1:length(hwcRefChild)
+        str = (h <= refnet.numHybrids ?
+               string("recipient", refnet.hybrid[h].name) :
+               string("recipient", h-refnet.numHybrids))
+        insert!(resC, h+1, hwcRefChild[h], symbol(str))
+        push!(resCfreq,[str, HCfreq[h]])
+        if (h <= refnet.numHybrids)
+            push!(resfreq,[refnet.hybrid[h].name, Hfreq[h]])
+        end
+    end
+    hd = length(hwcRefChild) - 2*refnet.numHybrids
+    for h=1:length(hwcRefParen)
+        str = (h <= refnet.numHybrids ?
+               string("donor", refnet.hybrid[h].name) :
+               string("donor", h+hd))
+        insert!(resP, h+1, hwcRefParen[h], symbol(str))
+        push!(resPfreq,[str, HPfreq[h]])
+    end
+    return resfreq, resCfreq, resC, resPfreq, resP, gamma, HF
+end
+
 
 
 # function to summarize df output from hybridDetection input: HFdf
