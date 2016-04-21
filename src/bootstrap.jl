@@ -358,34 +358,52 @@ Match hybrid nodes in a reference network with those in an array of networks,
 like bootstrap networks.
 All networks must be fully resolved, and on the same taxon set.
 If `rooted=true`, all networks are assumed to have been properly rooted beforehand.
-Otherwise (default), the origin of each hybrid is considered as an unrooted bipartition.
+Otherwise, the origin of each hybrid edge is considered as an unrooted bipartition (default).
+
+Two hybrid edges in two networks are said to match if they share the same "recipient clade" and
+the same "donor clade". To calculate these clades, all other hybrid edges are first removed from
+both networks. Then, the recipient clade is the hardwired cluster (descendants) of the hybrid
+edge and the donor clade (origin) is the hardwired cluster of its sibling edge.
+If `rooted=false`, this cluster is considered a bipartition.
+
+- For a **introgression** or **gene flow** event, it makes most sense
+  to compare the *minor* hybrid parental edges only, across the two networks.
+- For a full **hybridization** event that resulted in a new hybrid
+  species, then it makes most sense to compare both hybrid parental edges across the two
+  networks, and to allows matching of the minor edge in one network to the major edge in the
+  other network (and vice versa).
 
 Output:
 
-- A data frame with one row per hybrid node in the reference network: one column with the hybrid
-  tag and one column with the proportion of bootstrap networks in which the minor hybrid edge match. 
-  Two minor hybrid edges in two networks are said to match if they share the same
-  "recipient clade" and the same "donor clade". More specifically, after all other hybrid edges
-  are first removed from both networks, the recipient clade is the hardwired cluster (descendants)
-  of the hybrid edge and the donor clade (origin) is the hardwired cluster of its sibling edge.
-  If `rooted=false`, this cluster is considered a bipartition. 
-- A data frame with one row for each "recipient" clade. The first rows correspond to the
+- a data frame with one row per hybrid node in the reference network and 3 columns giving:
+
+  1. the hybrid tag
+  2. the proportion of bootstrap networks in which the minor hybrid edge matches that in the
+  reference network (for matching introgression events)
+  3. the proportion of bootstrap networks in which the set of hybrid edges {minor,major}
+  matches that in the reference network (for matching hybridization events)
+
+- a data frame with one row for each "recipient" clade. The first rows correspond to the
   hybrids in the reference network. Other rows are from other hybrids found in the bootstrap networks.
   The second columns gives the proportion of bootstrap networks in which a minor hybrid edge had
   a matching recipient cluster.
-- A similar data frame with one row for each "donor" clade (or origin). 
-- two data frames to describe these clusters: one for the recipient clades,
-  one for the donor clades. Each data frame has a first column that lists all taxa.
-  Each clade is described by a column of true/false values, to say whether a taxon is a
-  descendant of the recipient/donor lineage.
+- a similar data frame with one row for each "donor" clade (or minor origin for hybridization
+  events), and the proportion of bootstrap networks in which a minor hybrid edge had a matching
+  donor clade.
+- a similar data frame with one row for each "sibling" clade (or major origin for hybridization
+  events), to summarize the donor clades of the major hybrid edges in the bootstrap networks.
+- a data frame to describe all these clusters: for the "recipient", "donor" and "sibling" clades.
+  The first column that lists all taxa. Each clade is described by a column of true/false values.
+  `true` indicates that a taxon is a descendant of the recipient/donor/sibling lineage.
 - an array of gamma values, with one row for each bootstrap network and one column for each hybrid
   in the reference network. The entry is the gamma value of the minor hybrid edge if it was
-  found in the network, or 0.0 if it was not found.
-- an array of true/false value with one row for each bootstrap network and one column for each hybrid
-  in the reference network, with `true` if the minor hybrid edge was found in the bootstrap network.
+  found in the network (matching with either criterion: introgression or hybridization),
+  or 0.0 if it was not found.
+- an array with the edge number of each minor hybrid edge in the reference network.
 
-The last 2 arrays do not have column names, but the columns correspond to hybrids in the 
-same order in which they are listed in the first data frames (which do have column names)
+The arrays with gammas and edge numbers do not have column names, but their columns correspond
+to hybrids in the same order in which they are listed in the first data frames,
+which do have column names.
 """
 function hybridBootstrapFrequency(nets::Vector{HybridNetwork}, refnet::HybridNetwork;
          rooted=false::Bool)
@@ -405,39 +423,48 @@ function hybridBootstrapFrequency(nets::Vector{HybridNetwork}, refnet::HybridNet
 
     # extract hardwired clusters (origin and recipient) of each hybrid in reference net
     edgeRef = Int64[]
-    hwcRefChild = Vector{Bool}[] # array alternative: zeros(Bool,ntax,numHybs)
-    hwcRefParen = Vector{Bool}[]
+    hwcRefChi = Vector{Bool}[] # recipient (gene flow), hybrid clade (hybridization)
+    hwcRefPar = Vector{Bool}[] # donor (gene flow), or minor parent (hybridization)
+    hwcRefSib = Vector{Bool}[] # sibling of recipient (gene flow), or major parent (hybridization)
     hwc = zeros(Bool,ntax) # temporary but constant memory storage
-    
+
     for (trueh = 1:numHybs)
         net0 = deepcopy(refnet)
         displayedNetworkAt!(net0, net0.hybrid[trueh]) # removes all minor hybrid edges but one
         hn = net0.hybrid[1]
         he = hybridEdges(hn)[2] # assumes no polytomy at hybrid nodes, and correct node.hybrid
-        (he.hybrid && !he.isMajor && he.gamma <= 0.5) ||
-            error("edge should be hybrid, minor, with gamma <= 0.5")
+        (he.hybrid && !he.isMajor) || error("edge should be hybrid and minor")
         push!(edgeRef, he.number)
-        push!(hwcRefChild, hardwiredCluster(he,taxa))
+        push!(hwcRefChi, hardwiredCluster(he,taxa))
         pn = he.node[he.isChild1?2:1] # parent node: origin of hybrid
-        hwc = zeros(Bool,ntax) # re-initialize
-        for (ce in pn.edge)    # important if polytomy
+        push!(hwcRefPar, zeros(Bool,ntax))
+        for (ce in pn.edge)   # important if polytomy
             if (ce!=he && pn == ce.node[ce.isChild1?2:1])
-                hardwiredCluster!(hwc,ce,taxa)
+                hardwiredCluster!(hwcRefPar[trueh],ce,taxa)
             end
         end
-        push!(hwcRefParen, hwc)
+        he = hybridEdges(hn)[1]
+        (he.hybrid && he.isMajor) || error("edge should be hybrid and major")
+        pn = he.node[he.isChild1?2:1] # major parent node
+        push!(hwcRefSib, zeros(Bool,ntax))
+        for (ce in pn.edge)
+            if (ce!=he && pn == ce.node[ce.isChild1?2:1])
+                hardwiredCluster!(hwcRefSib[trueh],ce,taxa)
+            end
+        end
     end
-    # @show taxa[hwcRefChild[:,1]]; @show taxa[hwcRefParen[:,1]]; @show edgeRef
-        
-    HF = zeros(Bool,numNets,numHybs) # hybrid found?
+    # for (h=1:numHybs) @show taxa[hwcRefChi[h]]; @show taxa[hwcRefPar[h]];  @show taxa[hwcRefSib[h]]; end
+    # @show edgeRef
+
+    HFintrog = zeros(Bool,numNets,numHybs) # hybrid found? introgression: match donor & recipient, minor edge
+    HFhybrid = zeros(Bool,numNets,numHybs) # for full hybridization: match hybrid & both parents
     # one row per minor hybrid edge in reference net
     gamma = zeros(Float64,numNets,numHybs)
     HPfreq = zeros(Float64,numHybs) # all hybrid parents (origins), frequencies only
     HCfreq = zeros(Float64,numHybs) # all hybrid children (recipients)
+    HSfreq = zeros(Float64,numHybs) # all        siblings (or major donor)
     # 2 columns: parent found, child found
 
-    hwcParen = zeros(Bool,ntax)
-    hwcChild = zeros(Bool,ntax)
     for (i = 1:numNets)
         net = nets[i]
         length(tipLabels(net))==ntax || error("networks have non-matching taxon sets")
@@ -449,78 +476,107 @@ function hybridBootstrapFrequency(nets::Vector{HybridNetwork}, refnet::HybridNet
           rethrow(err)
         end
         for (esth = 1:net.numHybrids)   # try to match estimated hybrid edge
-            hwcParen = zeros(Bool,ntax) # re-initialize
-            hwcChild = zeros(Bool,ntax)
+            hwcPar = zeros(Bool,ntax)
+            hwcChi = zeros(Bool,ntax)
+            hwcSib = zeros(Bool,ntax)
             net1 = deepcopy(net)
             displayedNetworkAt!(net1, net1.hybrid[esth])
             hn = net1.hybrid[1]
             he = hybridEdges(hn)[2] # assumes no polytomy at hybrid node
-            (he.hybrid && !he.isMajor && he.gamma <= 0.5) ||
-                error("edge should be hybrid, minor, with gamma <= 0.5")
-            hardwiredCluster!(hwcChild,he,taxa)
-            pn = he.node[he.isChild1?2:1] # parent node: origin of hybrid
+            (he.hybrid && !he.isMajor) || error("edge should be hybrid and minor")
+            hardwiredCluster!(hwcChi,he,taxa)
+            pn = he.node[he.isChild1?2:1] # minor parent node: origin of gene flow
             for (ce in pn.edge)
                 if (ce!=he && pn == ce.node[ce.isChild1?2:1])
-                    hardwiredCluster!(hwcParen,ce,taxa)
+                    hardwiredCluster!(hwcPar,ce,taxa)
                 end
             end # will use complement too: test network may be rooted differently
-            # @show taxa[hwcChild]; @show taxa[hwcParen]
-            
-            hc = findfirst(hwcRefChild, hwcChild)
-            hp = findfirst(hwcRefParen, hwcParen) # 0 if not found
-            if (!rooted && hp==0)
-                hp = findfirst(hwcRefParen, !hwcParen)
+            hem= hybridEdges(hn)[1] # major parent edge
+            (hem.hybrid && hem.isMajor) || error("edge should be hybrid and major")
+            pn = hem.node[hem.isChild1?2:1] # major parent
+            for (ce in pn.edge)
+                if (ce!=hem && pn == ce.node[ce.isChild1?2:1])
+                    hardwiredCluster!(hwcSib,ce,taxa)
+                end
             end
+            # @show taxa[hwcChi]; @show taxa[hwcPar]
+
+            hc = findfirst(hwcRefChi, hwcChi)
+            hp = findfirst(hwcRefPar, hwcPar) # 0 if not found
+            hs = findfirst(hwcRefSib, hwcSib)
+            if (!rooted && hp==0) hp = findfirst(hwcRefPar, !hwcPar) end
+            if (!rooted && hs==0) hs = findfirst(hwcRefSib, !hwcSib) end
             if hc==0
-                push!(hwcRefChild, hwcChild)
+                push!(hwcRefChi, hwcChi)
                 push!(HCfreq, 1.0)
-            else HCfreq[hc] += 1.0;
-            end
+            else HCfreq[hc] += 1.0; end
             if hp==0
-                push!(hwcRefParen, hwcParen)
+                push!(hwcRefPar, hwcPar)
                 push!(HPfreq, 1.0)
-            else HPfreq[hp] += 1.0
-            end
-            if (hc==hp && hc>0 && hc<=numHybs)
-                HF[i,hc] = true
-                gamma[i,hc] = he.gamma
+            else HPfreq[hp] += 1.0 end
+            if hs==0
+                push!(hwcRefSib, hwcSib)
+                push!(HSfreq, 1.0)
+            else HSfreq[hs] += 1.0 end
+            if (hc>0 && hc<=numHybs) # same hybrid clade
+                if hp==hc # same minor parent
+                    HFintrog[i,hc] = true
+                    gamma[i,hc] = he.gamma # he is minor edge at this point
+                    if hs==hc # same major parent
+                        HFhybrid[i,hc] = true
+                    end
+                else # check if match if minor & major are flipped
+                    hp = findfirst(hwcRefSib, hwcPar)
+                    hs = findfirst(hwcRefPar, hwcSib)
+                    if (!rooted && hp==0) hp = findfirst(hwcRefSib, !hwcPar) end
+                    if (!rooted && hs==0) hp = findfirst(hwcRefPar, !hwcSib) end
+                    if hp==hc && hs==hc
+                        HFhybrid[i,hc] = true
+                        gamma[i,hc] = hem.gamma # major hem matches minor edge in ref net
+                    end
+                end
             end
         end
     end
-    Hfreq = Array(Float64,refnet.numHybrids) # overal % detection
+    Hintrogfreq = Array(Float64,numHybs) # overal % detection
+    Hhybridfreq = Array(Float64,numHybs)
     for trueh=1:refnet.numHybrids
-        Hfreq[trueh] = sum(HF[:,trueh])/numNets
+        Hintrogfreq[trueh] = sum(HFintrog[:,trueh])/numNets
+        Hhybridfreq[trueh] = sum(HFhybrid[:,trueh])/numNets
     end
     HPfreq /= numNets
     HCfreq /= numNets
+    HSfreq /= numNets
 
     # change matrices to dataframes, initialize with NA, add column names
     # push! to add rows, insert! to add column
 
-    resC = DataFrame(taxa=taxa)
-    resP = DataFrame(taxa=taxa)
-    resfreq  = DataFrame(hybrid=AbstractString[],proportion=Float64[])
+    resCluster = DataFrame(taxa=taxa)
+    resfreq  = DataFrame(hybrid=AbstractString[],prop_introgression=Float64[],prop_hybridization=Float64[])
     resCfreq = DataFrame(recipient=AbstractString[],proportion=Float64[])
     resPfreq = DataFrame(donor=AbstractString[],proportion=Float64[])
-    for h=1:length(hwcRefChild)
-        str = (h <= refnet.numHybrids ?
-               string("recipient", refnet.hybrid[h].name) :
-               string("recipient", h-refnet.numHybrids))
-        insert!(resC, h+1, hwcRefChild[h], symbol(str))
+    resSfreq = DataFrame(sibling=AbstractString[],proportion=Float64[])
+    for h=1:length(hwcRefChi)
+        str = (h<=numHybs ? string("recipient",refnet.hybrid[h].name) : string("recipient",h-numHybs))
+        insert!(resCluster, h+1, hwcRefChi[h], symbol(str))
         push!(resCfreq,[str, HCfreq[h]])
         if (h <= refnet.numHybrids)
-            push!(resfreq,[refnet.hybrid[h].name, Hfreq[h]])
+            push!(resfreq,[refnet.hybrid[h].name, Hintrogfreq[h], Hhybridfreq[h]])
         end
     end
-    hd = length(hwcRefChild) - 2*refnet.numHybrids
-    for h=1:length(hwcRefParen)
-        str = (h <= refnet.numHybrids ?
-               string("donor", refnet.hybrid[h].name) :
-               string("donor", h+hd))
-        insert!(resP, h+1, hwcRefParen[h], symbol(str))
+    h1 = length(hwcRefChi)+1; h2 = length(hwcRefChi) - 2*numHybs
+    for h=1:length(hwcRefPar)
+        str = (h<=numHybs ? string("donor",refnet.hybrid[h].name) : string("donor",h+h2))
+        insert!(resCluster, h+h1, hwcRefPar[h], symbol(str))
         push!(resPfreq,[str, HPfreq[h]])
     end
-    return resfreq, resCfreq, resC, resPfreq, resP, gamma, HF
+    h1 += length(hwcRefPar); h2 += length(hwcRefPar) - numHybs
+    for h=1:length(hwcRefSib)
+        str = (h<=numHybs ? string("sibling",refnet.hybrid[h].name) : string("sibling",h+h2))
+        insert!(resCluster, h+h1, hwcRefSib[h], symbol(str))
+        push!(resSfreq,[str, HSfreq[h]])
+    end
+    return resfreq, resCfreq, resPfreq, resSfreq, resCluster, gamma, edgeRef
 end
 
 
