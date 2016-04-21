@@ -486,20 +486,41 @@ function hybridBootstrapFrequency(nets::Vector{HybridNetwork}, refnet::HybridNet
             (he.hybrid && !he.isMajor) || error("edge should be hybrid and minor")
             hardwiredCluster!(hwcChi,he,taxa)
             pn = he.node[he.isChild1?2:1] # minor parent node: origin of gene flow
+            atroot = (pn == net1.node[net1.root])
+            # if at root: exclude the child edge in the same cycle as he.
+            # its cluster includes hwcChi. all other child edges do not interesting hwcChi.
+            # if (atroot) @show i; warn("minor edge is at the root!"); end
             for (ce in pn.edge)
                 if (ce!=he && pn == ce.node[ce.isChild1?2:1])
-                    hardwiredCluster!(hwcPar,ce,taxa)
+                    # hardwiredCluster!(hwcPar,ce,taxa)
+                    hwc = hardwiredCluster(ce,taxa)
+                    if (!atroot || sum(hwc & hwcChi) == 0) # empty intersection
+                        hwcPar |= hwc
+                    elseif (hwc & hwcChi) != hwcChi
+                        warn("weird clusters at the root. bootstrap net i=$i, hybrid $(net.hybrid[esth].name)")
+                    end
                 end
             end # will use complement too: test network may be rooted differently
             hem= hybridEdges(hn)[1] # major parent edge
             (hem.hybrid && hem.isMajor) || error("edge should be hybrid and major")
             pn = hem.node[hem.isChild1?2:1] # major parent
+            atroot = (pn == net1.node[net1.root])
+            # if (atroot) @show i; warn("major edge is at the root!"); end
             for (ce in pn.edge)
                 if (ce!=hem && pn == ce.node[ce.isChild1?2:1])
-                    hardwiredCluster!(hwcSib,ce,taxa)
+                    # hardwiredCluster!(hwcSib,ce,taxa)
+                    hwc = hardwiredCluster(ce,taxa)
+                    if (!atroot || sum(hwc & hwcChi) == 0)
+                        hwcSib |= hwc
+                    elseif (hwc & hwcChi) != hwcChi
+                        warn("weird clusters at the root. bootstrap net i=$i, hybrid $(net.hybrid[esth].name)")
+                    end
                 end
             end
             # @show taxa[hwcChi]; @show taxa[hwcPar]
+            if (all(hwcPar) || all(hwcSib) || all(!hwcPar) || all(!hwcSib))
+                warn("parent or sibling cluster is full or empty. bootstrap net i=$i, hybrid $(net.hybrid[esth].name)")
+            end
 
             hc = findfirst(hwcRefChi, hwcChi)
             hp = findfirst(hwcRefPar, hwcPar) # 0 if not found
