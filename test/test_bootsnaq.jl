@@ -4,11 +4,18 @@
 include("../src/types.jl")
 include("../src/functions.jl")
 
-d=readTableCF("../examples/tableCF.txt");
-T=readStartTop("../examples/startTree.txt",d);
-writeTopology(T)
-net1=snaq!(T,d,filename="net1_snaq");
+if !isdefined(:doalltests) doalltests = false; end
+# below: to run the tests from anywhere using "include(path/test_bootsnaq.jl")
+scriptfile = @__FILE__
+exdir = (scriptfile==nothing ? joinpath("..","examples") :
+        joinpath(dirname(dirname(@__FILE__)), "examples"))
 
-df=readtable("../examples/tableCFCI.txt",separator=';')
-bootnet = bootsnaq(T,df,nrep=4,bestNet=net1);
-bootnet = bootsnaq(T,df,nrep=4);
+info("Testing that bootsnaq runs with no error")
+T=readStartTop(joinpath(exdir,"startTree.txt"),d);
+df=readtable(joinpath(exdir,"tableCFCI.txt"),separator=';')
+if (doalltests)
+  d=readTableCF(joinpath(exdir,"tableCF.txt"));
+  net1=snaq!(T,d,filename="net1_snaq");
+  bootnet = bootsnaq(T,df,nrep=2,bestNet=net1);
+end
+bootnet = bootsnaq(T,df,nrep=2);

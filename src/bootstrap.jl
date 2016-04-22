@@ -11,7 +11,8 @@ function bootstrapCFtable(df::DataFrame;seed=0::Int)
     warn("bootstrapCFtable function assumes table from TICR: CF, CFlo, CFhi")
     DEBUG && warn("order of columns should be: t1,t2,t3,t4,cf1234,cf1324,cf1423,cf1234LO,cf1234HI,...")
     size(df,2) == 13 || size(df,2) == 14 || warn("bootstrapCFtable function assumes table from TICR: CF, CFlo, CFhi")
-    newdf = DataFrames.DataFrame(t1=UTF8String[],t2=UTF8String[],t3=UTF8String[],t4=UTF8String[],CF12_34=0.,CF13_24=0.,CF14_23=0.)
+    newdf = DataFrame(t1=UTF8String[],t2=UTF8String[],t3=UTF8String[],t4=UTF8String[],
+                      CF12_34=Float64[],CF13_24=Float64[],CF14_23=Float64[])
     if(seed == 0)
         t = time()/1e9
         a = split(string(t),".")
@@ -27,7 +28,9 @@ function bootstrapCFtable(df::DataFrame;seed=0::Int)
         c1 = c1/suma
         c2 = c2/suma
         c3 = c3/suma
-        append!(newdf,DataFrame(t1=convert(UTF8String,string(df[i,1])), t2=convert(UTF8String,string(df[i,2])), t3=convert(UTF8String,string(df[i,3])), t4=convert(UTF8String,string(df[i,4])), CF12_34=c1,CF13_24=c2, CF14_23=c3))
+        push!(newdf,[convert(UTF8String,string(df[i,1])), convert(UTF8String,string(df[i,2])),
+                     convert(UTF8String,string(df[i,3])), convert(UTF8String,string(df[i,4])),
+                     CF12_34=c1,CF13_24=c2, CF14_23=c3])
     end
     return newdf
 end
@@ -44,7 +47,7 @@ bootstrapCFtable(file::AbstractString;sep=','::Char,seed=0::Int) = bootstrapCFta
 # - new argument bestNet: to start the optimization. if prcnet>0.0 and bestNet is not input as argument from a previous run, it will estimate it inside
 # returns vector of HybridNetworks, bestNet is the first one, and the other nrep networks after
 # I believe no ! needed because we need a clean copy of currT in each replicate, so deepcopied
-function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Number, Nfail::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, filename::AbstractString, returnNet::Bool, seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64, bestNet::HybridNetwork)
+function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Number, Nfail::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, filename::AbstractString, seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64, bestNet::HybridNetwork)
     prcnet >= 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
     prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
     println("BOOTSTRAP OF SNAQ ESTIMATION")
@@ -87,7 +90,8 @@ function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Nu
         write(logfile,"\n begin replicate $(i) with seed $(seeds[i+1])---------\n")
         println("\nbegin replicate $(i) with seed $(seeds[i+1])\n")
         newdf = bootstrapCFtable(df, seed=seeds[i+1])
-#        writetable(string("CFtable",i,".csv"),newdf)
+        # @show newdf
+        # writetable(string("CFtable",i,".csv"),newdf)
         newd = readTableCF(newdf)
         if(i/nrep <= prcnet)
             write(logfile,"\nStarting topology: best network")
@@ -111,33 +115,31 @@ function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Nu
     s = open(string(filename,".out"),"w")
     for(n in bootNet)
         if(outgroup == "none")
-            write(s,"\n $(writeTopology(n)), with -loglik $(n.loglik)")
+            write(s,"$(writeTopology(n)), with -loglik $(n.loglik)\n")
         else
-            write(s,"\n $(writeTopology(n,outgroup)), with -loglik $(n.loglik)")
+            write(s,"$(writeTopology(n,outgroup)), with -loglik $(n.loglik)\n")
         end
     end
     close(s)
-    if(returnNet)
-        return bootNet
-    end
+    return bootNet
 end
 
 # like snaq, only calls optTopRunsBoot
 # will later decide which to call depending on nproc()
-function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="bootsnaq"::AbstractString, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.25::Float64, bestNet=HybridNetwork()::HybridNetwork)
+function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="bootsnaq"::AbstractString, seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.25::Float64, bestNet=HybridNetwork()::HybridNetwork)
     startnet=deepcopy(currT0)
     if(nprocs() > 1) #more than 1 processor, still not working
         error("bootsnaq not implemented for parallelization yet")
-        optTopRunsBootParallel(startnet, df, hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, returnNet, seed, probST, nrep, prcnet, bestNet)
+        optTopRunsBootParallel(startnet, df, hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, seed, probST, nrep, prcnet, bestNet)
     else
-        optTopRunsBoot(startnet, df, hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, returnNet, seed, probST, nrep, prcnet, bestNet)
+        optTopRunsBoot(startnet, df, hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, seed, probST, nrep, prcnet, bestNet)
     end
 end
 
 
 # same as optTopRunsBoot but for many processors in parallel
 # warning: still not debugged
-function optTopRunsBootParallel(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Number, Nfail::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, filename::AbstractString, returnNet::Bool, seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64, bestNet::HybridNetwork)
+function optTopRunsBootParallel(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Number, Nfail::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, filename::AbstractString, seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64, bestNet::HybridNetwork)
     warn("bootsnaq function not debugged yet")
     prcnet > 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
     prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
@@ -578,22 +580,22 @@ function hybridBootstrapFrequency(nets::Vector{HybridNetwork}, refnet::HybridNet
     resPfreq = DataFrame(donor=AbstractString[],proportion=Float64[])
     resSfreq = DataFrame(sibling=AbstractString[],proportion=Float64[])
     for h=1:length(hwcRefChi)
-        str = (h<=numHybs ? string("recipient",refnet.hybrid[h].name) : string("recipient",h-numHybs))
+        str = (h<=numHybs ? string("recipient",replace(refnet.hybrid[h].name, r"^#","")) : string("recipient",h-numHybs))
         insert!(resCluster, h+1, hwcRefChi[h], symbol(str))
         push!(resCfreq,[str, HCfreq[h]])
         if (h <= refnet.numHybrids)
-            push!(resfreq,[refnet.hybrid[h].name, Hintrogfreq[h], Hhybridfreq[h]])
+            push!(resfreq,[replace(refnet.hybrid[h].name, r"^#",""), Hintrogfreq[h], Hhybridfreq[h]])
         end
     end
     h1 = length(hwcRefChi)+1; h2 = length(hwcRefChi) - 2*numHybs
     for h=1:length(hwcRefPar)
-        str = (h<=numHybs ? string("donor",refnet.hybrid[h].name) : string("donor",h+h2))
+        str = (h<=numHybs ? string("donor",replace(refnet.hybrid[h].name, r"^#","")) : string("donor",h+h2))
         insert!(resCluster, h+h1, hwcRefPar[h], symbol(str))
         push!(resPfreq,[str, HPfreq[h]])
     end
     h1 += length(hwcRefPar); h2 += length(hwcRefPar) - numHybs
     for h=1:length(hwcRefSib)
-        str = (h<=numHybs ? string("sibling",refnet.hybrid[h].name) : string("sibling",h+h2))
+        str = (h<=numHybs ? string("sibling",replace(refnet.hybrid[h].name, r"^#","")) : string("sibling",h+h2))
         insert!(resCluster, h+h1, hwcRefSib[h], symbol(str))
         push!(resSfreq,[str, HSfreq[h]])
     end

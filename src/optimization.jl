@@ -1327,8 +1327,8 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
 
     if(maxNet.loglik < 1.e15)
         setNonIdBL!(maxNet)
-        write(logfile,"\nMaxNet is $(writeTopology(maxNet,true)) \nwith -loglik $(maxNet.loglik)")
-        print(STDOUT,"\nMaxNet is $(writeTopology(maxNet,true)) \nwith -loglik $(maxNet.loglik)")
+        write(logfile,"\nMaxNet is $(writeTopology(maxNet,true)) \nwith -loglik $(maxNet.loglik)\n")
+        print(STDOUT,"\nMaxNet is $(writeTopology(maxNet,true)) \nwith -loglik $(maxNet.loglik)\n")
         s = open(juliaout,"w")
         if(outgroup == "none")
             write(s,writeTopology(maxNet)) #no outgroup

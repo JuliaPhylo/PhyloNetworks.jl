@@ -1,6 +1,8 @@
 # see readme file in tests/ for description of tests
 # Claudia July 2015
 
+using Base.Test
+
 const CHECKNET = true #for debugging only
 tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculateExpCF2.jl", "test_hasEdge.jl", "test_parameters.jl","test_correctLik.jl",
          "test_partition.jl", "test_partition2.jl","test_deleteHybridizationUpdate.jl", "test_add2hyb.jl", "test_optBLparts.jl",

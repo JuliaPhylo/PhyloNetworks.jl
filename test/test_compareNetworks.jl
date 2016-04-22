@@ -2,8 +2,6 @@
 #      used to compare networks with the hardwired cluster distance.
 # Cecile March 2016
 
-using Base.Test
-
 # using PhyloNetworks
 include("../src/types.jl")
 include("../src/functions.jl")
