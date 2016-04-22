@@ -231,7 +231,7 @@ function treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)
         push!(M,mm)
     end
 
-    df = DataFrame(edge=Int64[], bs=Float64[])
+    df = DataFrame(edgeNumber=Int64[], proportion=Float64[])
 
     for(i in 1:size(M0,1)) #rows in M0: internal edges
         cnt = 0 #count
@@ -245,6 +245,8 @@ function treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)
             end
         end
         push!(df,[M0[i,1] cnt/length(M)])
+        # fixit later, when edges have an attribute for bootstrap support:
+        # set BS to cnt/length(M) for the edge numbered M0[i,1].
     end
     return df, tree0
 end
