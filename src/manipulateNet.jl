@@ -18,18 +18,21 @@ function undirectedOtherNetworks(net0::HybridNetwork)
         if(edgesmaj[3].containRoot) #if containRoot=true, then we need to undo
             undoContainRoot!(edgesRoot);
         end
-        undoInCycle!(edgesInCycle, nodesInCycle);
-        undoPartition!(net,hybrid, edgesInCycle)
         ## changes to new hybrid node:
         for(newn in nodesInCycle)
-            newnet = deepcopy(net)
-            ind = getIndexNode(newn.number,newnet) # find the newn node in the new network
-            hybridatnode!(newnet, newnet.hybrid[i], newnet.node[ind])
-            success, hybrid0, flag, nocycle, flag2, flag3 = updateAllNewHybrid!(newnet.node[ind], newnet, false)
-            if(success)
-                push!(otherNet,newnet)
-            else
-                println("the network obtained by putting the new hybrid in node $(newnet.node[ind].number) is not good, inCycle,gammaz,containRoot: $([flag,flag2,flag3]), we will skip it")
+            if(newn.number != hybrid.number) # nodesInCycle contains the hybrid too
+                newnet = deepcopy(net)
+                newnocycle, newedgesInCycle, newnodesInCycle = identifyInCycle(newnet,newnet.hybrid[i]);
+                ind = getIndexNode(newn.number,newnet) # find the newn node in the new network
+                hybridatnode!(newnet, newnet.hybrid[i], newnet.node[ind])
+                undoInCycle!(newedgesInCycle, newnodesInCycle);
+                ##undoPartition!(net,hybrid, edgesInCycle)
+                success, hybrid0, flag, nocycle, flag2, flag3 = updateAllNewHybrid!(newnet.node[ind], newnet, false,false,false)
+                if(success)
+                    push!(otherNet,newnet)
+                else
+                    println("the network obtained by putting the new hybrid in node $(newnet.node[ind].number) is not good, inCycle,gammaz,containRoot: $([flag,flag2,flag3]), we will skip it")
+                end
             end
         end
     end
@@ -47,22 +50,22 @@ end
 
 # function to change the hybrid node in a cycle
 # will try to update incycle inside
-"""
-`hybridatnode!(net::HybridNetwork, nodeNumber::Int64)`
+## """
+## `hybridatnode!(net::HybridNetwork, nodeNumber::Int64)`
 
-Changes the hybrid in a cycle to the node defined in nodeNumber. The
-node with nodeNumber must be in a cycle. If the node is not in a
-cycle, this function will prompt an error.
+## Changes the hybrid in a cycle to the node defined in nodeNumber. The
+## node with nodeNumber must be in a cycle. If the node is not in a
+## cycle, this function will prompt an error.
 
-# Example
-```julia
-julia> net =
-readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
-julia> plot(net, showNodeNumber=true)
-julia> hybridatnode!(net, -4)
-julia> plot(net)
-```
-"""
+## # Example
+## ```julia
+## julia> net =
+## readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
+## julia> plot(net, showNodeNumber=true)
+## julia> hybridatnode!(net, -4)
+## julia> plot(net)
+## ```
+## """
 function hybridatnode!(net::HybridNetwork, nodeNumber::Int64)
     undoInCycle!(net.edge, net.node)
     for(n in net.hybrid)
@@ -94,7 +97,6 @@ end
 # by undirectedOtherNetworks
 function hybridatnode!(net::HybridNetwork, hybrid::Node, newNode::Node)
     hybrid.hybrid || error("node $(hybrid.number) should be hybrid, but it is not")
-    newNode.inCycle == hybrid.number || error("node (newNode.number) is not in the cycle of hybrid node $(hybrid.number)")
     hybedges = hybridEdges(hybrid)
     makeEdgeTree!(hybedges[1],hybrid)
     makeEdgeTree!(hybedges[2],hybrid)
@@ -107,11 +109,11 @@ function hybridatnode!(net::HybridNetwork, hybrid::Node, newNode::Node)
             if(!found)
                 found = true
                 makeEdgeHybrid!(e,newNode, 0.51, switchHyb=true) #first found, major edge, need to optimize gamma anyway
-                e.gamma = -1
+                ##e.gamma = -1
                 e.containRoot = true
             else
                 makeEdgeHybrid!(e,newNode, 0.49, switchHyb=true) #second found, minor edge
-                e.gamma = -1
+                ##e.gamma = -1
                 e.containRoot = true
             end
         end
