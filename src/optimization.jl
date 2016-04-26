@@ -264,6 +264,9 @@ end
 # numerical optimization of branch lengths given a network (or tree)
 # and data (set of quartets with obsCF)
 # using BOBYQA from NLopt package
+# warning: this function assumes that the network has all the good attributes set. It will not be efficient to re-read the network inside
+# to guarantee all the correct attributes, because this is done over and over inside snaq
+# also, net is modified inside to set its attribute net.loglik equal to the min
 function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool, ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64)
     (ftolRel > 0 && ftolAbs > 0 && xtolAbs > 0 && xtolRel > 0) || error("tolerances have to be positive, ftol (rel,abs), xtol (rel,abs): $([ftolRel, ftolAbs, xtolRel, xtolAbs])")
     (DEBUG || verbose) && println("OPTBL: begin branch lengths and gammas optimization, ftolAbs $(ftolAbs), ftolRel $(ftolRel), xtolAbs $(xtolAbs), xtolRel $(xtolRel)")
@@ -1207,23 +1210,23 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     # need a clean starting net. fixit: maybe we need to be more thorough here
     # yes, need to check that everything is ok because it could have been cleaned and then modified
 
-    if(!currT0.cleaned) #need a clean topology
-        DEBUG && println("si, se metio a q no esta cleaned")
-        DEBUG && println("currT0.cleaned=false, will re-read with readTopologyLevel1")
+    ## if(!currT0.cleaned) #need a clean topology
+    ##     DEBUG && println("si, se metio a q no esta cleaned")
+    ##     DEBUG && println("currT0.cleaned=false, will re-read with readTopologyLevel1")
         currT1 = readTopologyUpdate(writeTopology(currT0)) #re read to update everything as it should
         flag = checkNet(currT1,true)
         flag && error("starting topology suspected not level-1: $(err)")
         currT0 = deepcopy(currT1)
-    else
-        flag = checkNet(currT0,true)
-        if(flag)
-            DEBUG && println("currT0 failes checkNet, will re-read with readTopologyLevel1")
-            currT1 = readTopologyUpdate(writeTopology(currT0)) #re read to update everything as it should
-            flag = checkNet(currT1,true)
-            flag && error("starting topology suspected not level-1: $(err)")
-            currT0 = deepcopy(currT1)
-        end
-    end
+    ## else
+    ##     flag = checkNet(currT0,true)
+    ##     if(flag)
+    ##         DEBUG && println("currT0 failes checkNet, will re-read with readTopologyLevel1")
+    ##         currT1 = readTopologyUpdate(writeTopology(currT0)) #re read to update everything as it should
+    ##         flag = checkNet(currT1,true)
+    ##         flag && error("starting topology suspected not level-1: $(err)")
+    ##         currT0 = deepcopy(currT1)
+    ##     end
+    ## end
     try
         checkNet(currT0)
     catch
@@ -1244,6 +1247,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     julialog = string(rootname,".log")
     logfile = open(julialog,"w")
     juliaout = string(rootname,".out")
+    ##julianet = string(rootname,".networks")
 
     # print to logfile
     write(logfile,"optimization of topology, BL and inheritance probabilities using:
@@ -1355,6 +1359,14 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         write(s,"\n-------")
         close(s)
         close(logfile)
+        # added new output file with non-identifiable networks:
+        ## s = open(julianet,"w")
+        ## otherNet = undirectedOtherNetworks(maxNet)
+        ## for(n in otherNet)
+        ##     optBL!(n,d) ##optBL MUST have network with all the attributes, and undirectedOtherNetworks will return "good" networks that way
+        ##     write(s,"$(writeTopology(n,true)), with -loglik $(n.loglik)\n")
+        ## end
+        ## close(s)
     end
     if(returnNet)
         return maxNet
