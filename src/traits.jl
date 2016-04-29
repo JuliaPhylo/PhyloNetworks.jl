@@ -19,6 +19,10 @@ function Base.show(io::IO, obj::matrixTopologicalOrder)
     println(io, "$(typeof(obj)):\n$(obj.V)")
 end
 
+function tipLabels(obj::matrixTopologicalOrder)
+    return obj.tipsNames
+end
+
 # This function takes an init and update funtions as arguments
 # It does the recursion using these functions on a preordered network.
 function recursionPreOrder(
@@ -89,11 +93,11 @@ function updatePreOrder!(
 end
 
 # Function to get the indexes of the tips. Returns a mask.
-function getTipsIndexes(net::HybridNetwork)
-	tipsNumbers = [n.number for n in net.leaf]
-	nodesOrder = [n.number for n in net.nodes_changed]
-    getTipsIndexes(nodesOrder, tipsNumbers)
-end
+# function getTipsIndexes(net::HybridNetwork)
+# 	tipsNumbers = [n.number for n in net.leaf]
+# 	nodesOrder = [n.number for n in net.nodes_changed]
+#     getTipsIndexes(nodesOrder, tipsNumbers)
+# end
 
 # function getTipsIndexes(nodesOrder::Vector{Int64}, tipsNumbers::Vector{Int64})
 # 	mask = BitArray(length(nodesOrder)) ## Function Match ??
@@ -103,13 +107,31 @@ end
 # 	return(mask)
 # end
 
-
+# Extract the right part of a matrix in topological order
+# Tips : submatrix corresponding to tips
+# InternalNodes : submatrix corresponding to internal nodes
+# TipsNodes : submatrix nTips x nNodes of interactions
 function Base.getindex(obj::matrixTopologicalOrder, d::Symbol)
-    if d == :Tips
-        mask = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder,)
+    if d == :Tips # Extract rows and/or columns corresponding to the tips
+        mask = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder)
         obj.indexation == "b" && return obj.V[mask, mask] # both columns and rows are indexed by nodes
         obj.indexation == "c" && return obj.V[:, mask] # Only the columns
         obj.indexation == "r" && return obj.V[mask, :] # Only the rows
+    end
+    if d == :InternalNodes # Idem, for internal nodes
+        mask = indexin(obj.internalNodesNumbers, obj.nodesNumbersTopOrder)
+        obj.indexation == "b" && return obj.V[mask, mask]
+        obj.indexation == "c" && return obj.V[:, mask] 
+        obj.indexation == "r" && return obj.V[mask, :] 
+    end
+    if d == :TipsNodes
+        maskNodes = indexin(obj.internalNodesNumbers, obj.nodesNumbersTopOrder)
+        maskTips = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder,)
+        obj.indexation == "b" && return obj.V[maskTips, maskNodes]
+        obj.indexation == "c" && error("Both rows and columns must be net
+        ordered to take the submatrix tips vs internal nodes.")
+        obj.indexation == "r" && error("Both rows and columns must be net
+        ordered to take the submatrix tips vs internal nodes.")
     end
     d == :All && return obj.V
 end
@@ -363,21 +385,21 @@ df_residual(m::phyloNetworkLinearModel) =  nobs(m) - length(coef(m))
 df_residual(m::phyloNetworkLinPredModel) =  nobs(m) - length(coef(m))
 
 # Compute variance of the BM
-function sigma2(m::phyloNetworkLinearModel)
+function sigma2_estim(m::phyloNetworkLinearModel)
 #	sum(residuals(fit).^2) / nobs(fit)
     sum(residuals(m).^2) / df_residual(m)
 end
-function sigma2(m::phyloNetworkLinPredModel)
+function sigma2_estim(m::phyloNetworkLinPredModel)
 #	sum(residuals(fit).^2) / nobs(fit)
     sum(residuals(m).^2) / df_residual(m)
 end
 
 # vcov matrix
 function StatsBase.vcov(obj::phyloNetworkLinearModel)
-   sigma2(obj) * inv(obj.X' * obj.X) 
+   sigma2_estim(obj) * inv(obj.X' * obj.X) 
 end
 function StatsBase.vcov(obj::phyloNetworkLinPredModel)
-   sigma2(obj) * inv(obj.X' * obj.X) 
+   sigma2_estim(obj) * inv(obj.X' * obj.X) 
 end
 
 # Standart error
@@ -395,18 +417,18 @@ function StatsBase.confint(obj::phyloNetworkLinPredModel, level=0.95::Real)
 end
 
 # Log likelihood of the fitted BM
-StatsBase.loglikelihood(m::phyloNetworkLinearModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2(m)) + m.logdetVy)
-StatsBase.loglikelihood(m::phyloNetworkLinPredModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2(m)) + m.logdetVy)
+StatsBase.loglikelihood(m::phyloNetworkLinearModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2_estim(m)) + m.logdetVy)
+StatsBase.loglikelihood(m::phyloNetworkLinPredModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2_estim(m)) + m.logdetVy)
 
 
 ### Print the results
 # Variance
 function paramstable(m::phyloNetworkLinearModel)
-    Sig = sigma2(m)
+    Sig = sigma2_estim(m)
     "Sigma2: $(Sig)"
 end
 function paramstable(m::phyloNetworkLinPredModel)
-    Sig = sigma2(m)
+    Sig = sigma2_estim(m)
     "Sigma2: $(Sig)"
 end
 # Coefficients
@@ -434,6 +456,50 @@ function Base.show(io::IO, obj::phyloNetworkLinPredModel)
     println(io, "$(typeof(obj)):\n\nParameter(s) Estimates:\n", paramstable(obj), "\n\nCoefficients:\n", coeftable(obj))
 end
 
+#################################################
+## Ancestral State Reconstruction
+#################################################
+# Class for reconstructed states on a network
+type reconstructedStates
+    traits_nodes::Vector
+    variances_nodes::Matrix
+    internalNodesNumbers::Vector{Int64}
+end
+
+function Base.show(io::IO, obj::reconstructedStates)
+    println(io, "$(typeof(obj)):\n\nConditional Expectation of Ancestral traits:\n",
+    hcat(obj.internalNodesNumbers, obj.traits_nodes))
+end
+
+
+# Reconstruction from known BM parameters
+function ancestralStateReconstruction(net::HybridNetwork,
+                                      Y::Vector,
+                                      params::paramsBM)
+	V = sharedPathMatrix(net)
+    Vy = V[:Tips]
+    Vz = V[:InternalNodes]
+    Vyz = V[:TipsNodes]
+    R = cholfact(Vy)
+    RU = R[:U]
+    ancestralStateReconstruction(V, Vy, Vz, Vyz, RU, Y, params.mu,
+    params.sigma2)
+end
+
+# Reconstruction from all the needed quantities
+function ancestralStateReconstruction(V::matrixTopologicalOrder,
+                                      Vy::Matrix, Vz::Matrix,
+                                      Vyz::Matrix,
+                                      RU::UpperTriangular{Float64,Array{Float64,2}},
+                                      Y::Vector, mu::Real, sigma2::Real)
+    # Vectors of means
+    m_y = ones(size(Vy)[1]) .* mu # !! works because BM no shift.
+    m_z = ones(size(Vz)[1]) .* mu
+    temp = RU' \ Vyz
+    m_z_cond_y = m_z + temp' * (RU' \ (Y - m_y))
+    V_z_cond_y = sigma2 .* (Vz - temp' * temp)
+    reconstructedStates(m_z_cond_y, V_z_cond_y, V.internalNodesNumbers)
+end
 
 #################################################
 ## Old version of phyloNetworklm (naive) 
@@ -514,6 +580,10 @@ function Base.show(io::IO, obj::traitSimulation)
     disp = disp * "Trait simulation results on a network with $(length(obj.M.tipsNames)) tips, using a using a $(obj.model) model, with parameters:\n"
     disp = disp * paramstable(obj.params)
     println(io, disp)
+end
+
+function tipLabels(obj::traitSimulation)
+    return tipLabels(obj.M)
 end
 
 

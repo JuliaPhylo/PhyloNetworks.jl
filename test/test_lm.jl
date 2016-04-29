@@ -5,7 +5,7 @@ using PhyloNetworks
 using GLM
 #include("../src/types.jl")
 #include("../src/functions.jl")
-#include("../src/traits.jl")
+include("../src/traits.jl")
 
 tree= "(A,((B,#H1),(C,(D)#H1)));"
 net=readTopologyLevel1(tree)
@@ -72,7 +72,16 @@ b1 = 10
 sim = simulate(net, paramsBM(1, 1))
 A = sim[:Tips]
 B = b0 + b1 * A + simulate(net,  paramsBM(0, 0.1))[:Tips]
-df = DataFrame(trait = B, pred = A, tipsNames = sim.M.tipsNames)
+df = DataFrame(trait = B, pred = A, tipsNames = tipLabels(sim))
 df[2, :pred] = NA
-
 fit = phyloNetworklm(trait ~ pred, df, net)
+predict(fit)
+
+
+### BLUP
+params = paramsBM(3, 1)
+sim = simulate(net, params)
+Y = sim[:Tips]
+ancestral_traits = ancestralStateReconstruction(net, Y, params)
+
+
