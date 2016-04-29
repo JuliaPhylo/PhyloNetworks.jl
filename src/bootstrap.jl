@@ -1,5 +1,6 @@
 # julia functions for bootstrap
 # Claudia October 2015
+# Cecile April 2016
 
 # function to read a CF table with CI
 # and sample new obsCF
@@ -9,8 +10,9 @@
 function bootstrapCFtable(df::DataFrame;seed=0::Int)
     warn("bootstrapCFtable function assumes table from TICR: CF, CFlo, CFhi")
     DEBUG && warn("order of columns should be: t1,t2,t3,t4,cf1234,cf1324,cf1423,cf1234LO,cf1234HI,...")
-    size(df,2) == 13 || warn("Dataframe should have 7 columns: 4taxa, 3CF*3")
-    newdf = DataFrames.DataFrame(t1=UTF8String[],t2=UTF8String[],t3=UTF8String[],t4=UTF8String[],CF12_34=0.,CF13_24=0.,CF14_23=0.)
+    size(df,2) == 13 || size(df,2) == 14 || warn("bootstrapCFtable function assumes table from TICR: CF, CFlo, CFhi")
+    newdf = DataFrame(t1=UTF8String[],t2=UTF8String[],t3=UTF8String[],t4=UTF8String[],
+                      CF12_34=Float64[],CF13_24=Float64[],CF14_23=Float64[])
     if(seed == 0)
         t = time()/1e9
         a = split(string(t),".")
@@ -26,7 +28,9 @@ function bootstrapCFtable(df::DataFrame;seed=0::Int)
         c1 = c1/suma
         c2 = c2/suma
         c3 = c3/suma
-        append!(newdf,DataFrame(t1=convert(UTF8String,string(df[i,1])), t2=convert(UTF8String,string(df[i,2])), t3=convert(UTF8String,string(df[i,3])), t4=convert(UTF8String,string(df[i,4])), CF12_34=c1,CF13_24=c2, CF14_23=c3))
+        push!(newdf,[convert(UTF8String,string(df[i,1])), convert(UTF8String,string(df[i,2])),
+                     convert(UTF8String,string(df[i,3])), convert(UTF8String,string(df[i,4])),
+                     CF12_34=c1,CF13_24=c2, CF14_23=c3])
     end
     return newdf
 end
@@ -43,7 +47,7 @@ bootstrapCFtable(file::AbstractString;sep=','::Char,seed=0::Int) = bootstrapCFta
 # - new argument bestNet: to start the optimization. if prcnet>0.0 and bestNet is not input as argument from a previous run, it will estimate it inside
 # returns vector of HybridNetworks, bestNet is the first one, and the other nrep networks after
 # I believe no ! needed because we need a clean copy of currT in each replicate, so deepcopied
-function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Number, Nfail::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, filename::AbstractString, returnNet::Bool, seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64, bestNet::HybridNetwork)
+function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Number, Nfail::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, filename::AbstractString, seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64, bestNet::HybridNetwork)
     prcnet >= 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
     prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
     println("BOOTSTRAP OF SNAQ ESTIMATION")
@@ -78,8 +82,6 @@ function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Nu
         end
     end
 
-    bootNet = HybridNetwork[];
-
     write(logfile,"\nBEGIN: $(nrep) replicates")
     write(logfile,"\n$(Libc.strftime(time()))")
     flush(logfile)
@@ -88,7 +90,8 @@ function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Nu
         write(logfile,"\n begin replicate $(i) with seed $(seeds[i+1])---------\n")
         println("\nbegin replicate $(i) with seed $(seeds[i+1])\n")
         newdf = bootstrapCFtable(df, seed=seeds[i+1])
-#        writetable(string("CFtable",i,".csv"),newdf)
+        # @show newdf
+        # writetable(string("CFtable",i,".csv"),newdf)
         newd = readTableCF(newdf)
         if(i/nrep <= prcnet)
             write(logfile,"\nStarting topology: best network")
@@ -112,33 +115,31 @@ function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Nu
     s = open(string(filename,".out"),"w")
     for(n in bootNet)
         if(outgroup == "none")
-            write(s,"\n $(writeTopology(n)), with -loglik $(n.loglik)")
+            write(s,"$(writeTopology(n)), with -loglik $(n.loglik)\n")
         else
-            write(s,"\n $(writeTopology(n,outgroup)), with -loglik $(n.loglik)")
+            write(s,"$(writeTopology(n,outgroup)), with -loglik $(n.loglik)\n")
         end
     end
     close(s)
-    if(returnNet)
-        return bootNet
-    end
+    return bootNet
 end
 
 # like snaq, only calls optTopRunsBoot
 # will later decide which to call depending on nproc()
-function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="bootsnaq"::AbstractString, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.25::Float64, bestNet=HybridNetwork()::HybridNetwork)
+function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="bootsnaq"::AbstractString, seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.25::Float64, bestNet=HybridNetwork()::HybridNetwork)
     startnet=deepcopy(currT0)
     if(nprocs() > 1) #more than 1 processor, still not working
         error("bootsnaq not implemented for parallelization yet")
-        optTopRunsBootParallel(startnet, df, hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, returnNet, seed, probST, nrep, prcnet, bestNet)
+        optTopRunsBootParallel(startnet, df, hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, seed, probST, nrep, prcnet, bestNet)
     else
-        optTopRunsBoot(startnet, df, hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, returnNet, seed, probST, nrep, prcnet, bestNet)
+        optTopRunsBoot(startnet, df, hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, seed, probST, nrep, prcnet, bestNet)
     end
 end
 
 
 # same as optTopRunsBoot but for many processors in parallel
 # warning: still not debugged
-function optTopRunsBootParallel(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Number, Nfail::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, filename::AbstractString, returnNet::Bool, seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64, bestNet::HybridNetwork)
+function optTopRunsBootParallel(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Number, Nfail::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, filename::AbstractString, seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64, bestNet::HybridNetwork)
     warn("bootsnaq function not debugged yet")
     prcnet > 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
     prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
@@ -210,27 +211,27 @@ end
 """
 `treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)`
 
-function that reads the list of bootstrap networks (net), and the estimated network (net0)
-and calculates the bootstrap support of the tree edges in the estimated network
+read an array of bootstrap networks (net) and a reference network (net0),
+and calculates the bootstrap support of the tree edges in the reference network.
 
-it returns a data frame with one row per tree edge, and two columns: edge number, bootstrap support
+return a data frame with one row per tree edge and two columns: edge number, bootstrap support
 """
 function treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)
     # estimated network, major tree and matrix
     S = tipLabels(net0)
     tree0 =majorTree(net0)
-    M0 = PhyloNetworks.tree2Matrix(tree0,S)
+    M0 = tree2Matrix(tree0,S)
 
     M = Matrix[]
     tree = HybridNetwork[]
     for(n in net)
         t = majorTree(n)
         push!(tree,t)
-        mm = PhyloNetworks.tree2Matrix(t,S)
+        mm = tree2Matrix(t,S)
         push!(M,mm)
     end
 
-    df = DataFrame(edge=Int64[], bs=Float64[])
+    df = DataFrame(edgeNumber=Int64[], proportion=Float64[])
 
     for(i in 1:size(M0,1)) #rows in M0: internal edges
         cnt = 0 #count
@@ -244,6 +245,8 @@ function treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)
             end
         end
         push!(df,[M0[i,1] cnt/length(M)])
+        # fixit later, when edges have an attribute for bootstrap support:
+        # set BS to cnt/length(M) for the edge numbered M0[i,1].
     end
     return df, tree0
 end
@@ -280,7 +283,7 @@ column 2i+1 corresponds to the estimated gamma on the bootstrap network (0.0 if 
 function hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgroup::AbstractString)
     tree1 = majorTree(net1)
     rootnet1 = deepcopy(net1)
-    root!(rootnet1,outgroup)
+    rootatnode!(rootnet1,outgroup)
 
     # HF for "hybrid found?"
     HFmat = zeros(length(net),net1.numHybrids*2)
@@ -292,7 +295,7 @@ function hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgro
 
     i = 1
     for(n in net)
-        tree = majorTree(n) # requires non-missing branch lengths
+        tree = majorTree(n)
         push!(majorTrees,tree)
         RFmajor = hardwiredClusterDistance(tree, tree1, false)
         if(RFmajor != 0)
@@ -324,12 +327,12 @@ function hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgro
                 netE = deepcopy(n)
                 displayedNetworkAt!(netE, netE.hybrid[esth])
                 if (reroot)
-                    root!(netE, outgroup) # if re-rooting is not possible,
+                    rootatnode!(netE, outgroup) # if re-rooting is not possible,
                 end                         # then the hybridization doesn't match.
                 if (hardwiredClusterDistance(netT, netE, true) == 0) # true: rooted
                     found[trueh] = true
                     node = netE.hybrid[1]
-                    edges = PhyloNetworks.hybridEdges(node)
+                    edges = hybridEdges(node)
                     edges[2]. hybrid || error("edge should be hybrid")
                     !edges[2]. isMajor || error("edge should be minor hybrid")
                     edges[2].gamma <= 0.5 || error("gamma should be less than 0.5")
@@ -350,6 +353,257 @@ function hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgro
     end
     return HFmat,discTrees
 end
+
+
+"""
+`hybridBootstrapFrequency(boot_net::Vector{HybridNetwork}, ref_net::HybridNetwork;rooted=false::Bool)`
+
+Match hybrid nodes in a reference network with those in an array of networks, 
+like bootstrap networks.
+All networks must be fully resolved, and on the same taxon set.
+If `rooted=true`, all networks are assumed to have been properly rooted beforehand.
+Otherwise, the origin of each hybrid edge is considered as an unrooted bipartition (default).
+
+Two hybrid edges in two networks are said to match if they share the same "recipient clade" and
+the same "donor clade". To calculate these clades, all other hybrid edges are first removed from
+both networks. Then, the recipient clade is the hardwired cluster (descendants) of the hybrid
+edge and the donor clade (origin) is the hardwired cluster of its sibling edge.
+If `rooted=false`, this cluster is considered a bipartition.
+
+- For a **introgression** or **gene flow** event, it makes most sense
+  to compare the *minor* hybrid parental edges only, across the two networks.
+- For a full **hybridization** event that resulted in a new hybrid
+  species, then it makes most sense to compare both hybrid parental edges across the two
+  networks, and to allows matching of the minor edge in one network to the major edge in the
+  other network (and vice versa).
+
+Output:
+
+- a data frame with one row per hybrid node in the reference network and 3 columns giving:
+
+  1. the hybrid tag
+  2. the proportion of bootstrap networks in which the minor hybrid edge matches that in the
+  reference network (for matching introgression events)
+  3. the proportion of bootstrap networks in which the set of hybrid edges {minor,major}
+  matches that in the reference network (for matching hybridization events)
+
+- a data frame with one row for each "recipient" clade. The first rows correspond to the
+  hybrids in the reference network. Other rows are from other hybrids found in the bootstrap networks.
+  The second columns gives the proportion of bootstrap networks in which a minor hybrid edge had
+  a matching recipient cluster.
+- a similar data frame with one row for each "donor" clade (or minor origin for hybridization
+  events), and the proportion of bootstrap networks in which a minor hybrid edge had a matching
+  donor clade.
+- a similar data frame with one row for each "sibling" clade (or major origin for hybridization
+  events), to summarize the donor clades of the major hybrid edges in the bootstrap networks.
+- a data frame to describe all these clusters: for the "recipient", "donor" and "sibling" clades.
+  The first column that lists all taxa. Each clade is described by a column of true/false values.
+  `true` indicates that a taxon is a descendant of the recipient/donor/sibling lineage.
+- an array of gamma values, with one row for each bootstrap network and one column for each hybrid
+  in the reference network. The entry is the gamma value of the minor hybrid edge if it was
+  found in the network (matching with either criterion: introgression or hybridization),
+  or 0.0 if it was not found.
+- an array with the edge number of each minor hybrid edge in the reference network.
+
+The arrays with gammas and edge numbers do not have column names, but their columns correspond
+to hybrids in the same order in which they are listed in the first data frames,
+which do have column names.
+"""
+function hybridBootstrapFrequency(nets::Vector{HybridNetwork}, refnet::HybridNetwork;
+         rooted=false::Bool)
+    numNets = length(nets)
+    numNets>0 || error("there aren't any test (bootstrap) networks")
+    numHybs = refnet.numHybrids
+    numHybs>0 || error("there aren't any hybrid in reference network")
+    try directEdges!(refnet)
+    catch err
+        if isa(err, RootMismatch)
+            err.msg *= "\nPlease change the root in reference network (see rootatnode! or rootatedge!)"
+        end
+        rethrow(err)
+    end
+    taxa = tipLabels(refnet)
+    ntax = length(taxa)
+
+    # extract hardwired clusters (origin and recipient) of each hybrid in reference net
+    edgeRef = Int64[]
+    hwcRefChi = Vector{Bool}[] # recipient (gene flow), hybrid clade (hybridization)
+    hwcRefPar = Vector{Bool}[] # donor (gene flow), or minor parent (hybridization)
+    hwcRefSib = Vector{Bool}[] # sibling of recipient (gene flow), or major parent (hybridization)
+    hwc = zeros(Bool,ntax) # temporary but constant memory storage
+
+    for (trueh = 1:numHybs)
+        net0 = deepcopy(refnet)
+        displayedNetworkAt!(net0, net0.hybrid[trueh]) # removes all minor hybrid edges but one
+        hn = net0.hybrid[1]
+        he = hybridEdges(hn)[2] # assumes no polytomy at hybrid nodes, and correct node.hybrid
+        (he.hybrid && !he.isMajor) || error("edge should be hybrid and minor")
+        push!(edgeRef, he.number)
+        push!(hwcRefChi, hardwiredCluster(he,taxa))
+        pn = he.node[he.isChild1?2:1] # parent node: origin of hybrid
+        push!(hwcRefPar, zeros(Bool,ntax))
+        for (ce in pn.edge)   # important if polytomy
+            if (ce!=he && pn == ce.node[ce.isChild1?2:1])
+                hardwiredCluster!(hwcRefPar[trueh],ce,taxa)
+            end
+        end
+        he = hybridEdges(hn)[1]
+        (he.hybrid && he.isMajor) || error("edge should be hybrid and major")
+        pn = he.node[he.isChild1?2:1] # major parent node
+        push!(hwcRefSib, zeros(Bool,ntax))
+        for (ce in pn.edge)
+            if (ce!=he && pn == ce.node[ce.isChild1?2:1])
+                hardwiredCluster!(hwcRefSib[trueh],ce,taxa)
+            end
+        end
+    end
+    # for (h=1:numHybs) @show taxa[hwcRefChi[h]]; @show taxa[hwcRefPar[h]];  @show taxa[hwcRefSib[h]]; end
+    # @show edgeRef
+
+    HFintrog = zeros(Bool,numNets,numHybs) # hybrid found? introgression: match donor & recipient, minor edge
+    HFhybrid = zeros(Bool,numNets,numHybs) # for full hybridization: match hybrid & both parents
+    # one row per minor hybrid edge in reference net
+    gamma = zeros(Float64,numNets,numHybs)
+    HPfreq = zeros(Float64,numHybs) # all hybrid parents (origins), frequencies only
+    HCfreq = zeros(Float64,numHybs) # all hybrid children (recipients)
+    HSfreq = zeros(Float64,numHybs) # all        siblings (or major donor)
+    # 2 columns: parent found, child found
+
+    for (i = 1:numNets)
+        net = nets[i]
+        length(tipLabels(net))==ntax || error("networks have non-matching taxon sets")
+        try directEdges!(net) # make sure the root is admissible
+        catch err
+          if isa(err, RootMismatch)
+            err.msg *= "\nPlease change the root in test network (see rootatnode! or rootatedge!)"
+          end
+          rethrow(err)
+        end
+        for (esth = 1:net.numHybrids)   # try to match estimated hybrid edge
+            hwcPar = zeros(Bool,ntax)
+            hwcChi = zeros(Bool,ntax)
+            hwcSib = zeros(Bool,ntax)
+            net1 = deepcopy(net)
+            displayedNetworkAt!(net1, net1.hybrid[esth])
+            hn = net1.hybrid[1]
+            he = hybridEdges(hn)[2] # assumes no polytomy at hybrid node
+            (he.hybrid && !he.isMajor) || error("edge should be hybrid and minor")
+            hardwiredCluster!(hwcChi,he,taxa)
+            pn = he.node[he.isChild1?2:1] # minor parent node: origin of gene flow
+            atroot = (pn == net1.node[net1.root])
+            # if at root: exclude the child edge in the same cycle as he.
+            # its cluster includes hwcChi. all other child edges do not interesting hwcChi.
+            # if (atroot) @show i; warn("minor edge is at the root!"); end
+            for (ce in pn.edge)
+                if (ce!=he && pn == ce.node[ce.isChild1?2:1])
+                    # hardwiredCluster!(hwcPar,ce,taxa)
+                    hwc = hardwiredCluster(ce,taxa)
+                    if (!atroot || sum(hwc & hwcChi) == 0) # empty intersection
+                        hwcPar |= hwc
+                    elseif (hwc & hwcChi) != hwcChi
+                        warn("weird clusters at the root. bootstrap net i=$i, hybrid $(net.hybrid[esth].name)")
+                    end
+                end
+            end # will use complement too: test network may be rooted differently
+            hem= hybridEdges(hn)[1] # major parent edge
+            (hem.hybrid && hem.isMajor) || error("edge should be hybrid and major")
+            pn = hem.node[hem.isChild1?2:1] # major parent
+            atroot = (pn == net1.node[net1.root])
+            # if (atroot) @show i; warn("major edge is at the root!"); end
+            for (ce in pn.edge)
+                if (ce!=hem && pn == ce.node[ce.isChild1?2:1])
+                    # hardwiredCluster!(hwcSib,ce,taxa)
+                    hwc = hardwiredCluster(ce,taxa)
+                    if (!atroot || sum(hwc & hwcChi) == 0)
+                        hwcSib |= hwc
+                    elseif (hwc & hwcChi) != hwcChi
+                        warn("weird clusters at the root. bootstrap net i=$i, hybrid $(net.hybrid[esth].name)")
+                    end
+                end
+            end
+            # @show taxa[hwcChi]; @show taxa[hwcPar]
+            if (all(hwcPar) || all(hwcSib) || all(!hwcPar) || all(!hwcSib))
+                warn("parent or sibling cluster is full or empty. bootstrap net i=$i, hybrid $(net.hybrid[esth].name)")
+            end
+
+            hc = findfirst(hwcRefChi, hwcChi)
+            hp = findfirst(hwcRefPar, hwcPar) # 0 if not found
+            hs = findfirst(hwcRefSib, hwcSib)
+            if (!rooted && hp==0) hp = findfirst(hwcRefPar, !hwcPar) end
+            if (!rooted && hs==0) hs = findfirst(hwcRefSib, !hwcSib) end
+            if hc==0
+                push!(hwcRefChi, hwcChi)
+                push!(HCfreq, 1.0)
+            else HCfreq[hc] += 1.0; end
+            if hp==0
+                push!(hwcRefPar, hwcPar)
+                push!(HPfreq, 1.0)
+            else HPfreq[hp] += 1.0 end
+            if hs==0
+                push!(hwcRefSib, hwcSib)
+                push!(HSfreq, 1.0)
+            else HSfreq[hs] += 1.0 end
+            if (hc>0 && hc<=numHybs) # same hybrid clade
+                if hp==hc # same minor parent
+                    HFintrog[i,hc] = true
+                    gamma[i,hc] = he.gamma # he is minor edge at this point
+                    if hs==hc # same major parent
+                        HFhybrid[i,hc] = true
+                    end
+                else # check if match if minor & major are flipped
+                    hp = findfirst(hwcRefSib, hwcPar)
+                    hs = findfirst(hwcRefPar, hwcSib)
+                    if (!rooted && hp==0) hp = findfirst(hwcRefSib, !hwcPar) end
+                    if (!rooted && hs==0) hp = findfirst(hwcRefPar, !hwcSib) end
+                    if hp==hc && hs==hc
+                        HFhybrid[i,hc] = true
+                        gamma[i,hc] = hem.gamma # major hem matches minor edge in ref net
+                    end
+                end
+            end
+        end
+    end
+    Hintrogfreq = Array(Float64,numHybs) # overal % detection
+    Hhybridfreq = Array(Float64,numHybs)
+    for trueh=1:refnet.numHybrids
+        Hintrogfreq[trueh] = sum(HFintrog[:,trueh])/numNets
+        Hhybridfreq[trueh] = sum(HFhybrid[:,trueh])/numNets
+    end
+    HPfreq /= numNets
+    HCfreq /= numNets
+    HSfreq /= numNets
+
+    # change matrices to dataframes, initialize with NA, add column names
+    # push! to add rows, insert! to add column
+
+    resCluster = DataFrame(taxa=taxa)
+    resfreq  = DataFrame(hybrid=AbstractString[],prop_introgression=Float64[],prop_hybridization=Float64[])
+    resCfreq = DataFrame(recipient=AbstractString[],proportion=Float64[])
+    resPfreq = DataFrame(donor=AbstractString[],proportion=Float64[])
+    resSfreq = DataFrame(sibling=AbstractString[],proportion=Float64[])
+    for h=1:length(hwcRefChi)
+        str = (h<=numHybs ? string("recipient",replace(refnet.hybrid[h].name, r"^#","")) : string("recipient",h-numHybs))
+        insert!(resCluster, h+1, hwcRefChi[h], symbol(str))
+        push!(resCfreq,[str, HCfreq[h]])
+        if (h <= refnet.numHybrids)
+            push!(resfreq,[replace(refnet.hybrid[h].name, r"^#",""), Hintrogfreq[h], Hhybridfreq[h]])
+        end
+    end
+    h1 = length(hwcRefChi)+1; h2 = length(hwcRefChi) - 2*numHybs
+    for h=1:length(hwcRefPar)
+        str = (h<=numHybs ? string("donor",replace(refnet.hybrid[h].name, r"^#","")) : string("donor",h+h2))
+        insert!(resCluster, h+h1, hwcRefPar[h], symbol(str))
+        push!(resPfreq,[str, HPfreq[h]])
+    end
+    h1 += length(hwcRefPar); h2 += length(hwcRefPar) - numHybs
+    for h=1:length(hwcRefSib)
+        str = (h<=numHybs ? string("sibling",replace(refnet.hybrid[h].name, r"^#","")) : string("sibling",h+h2))
+        insert!(resCluster, h+h1, hwcRefSib[h], symbol(str))
+        push!(resSfreq,[str, HSfreq[h]])
+    end
+    return resfreq, resCfreq, resPfreq, resSfreq, resCluster, gamma, edgeRef
+end
+
 
 
 # function to summarize df output from hybridDetection input: HFdf

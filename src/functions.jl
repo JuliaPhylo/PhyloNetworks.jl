@@ -4,7 +4,7 @@
 #
 # in julia: include("functions.jl")
 
-# for development and tests only. 
+# for development and tests only.
 
 # needed modules:
 
@@ -20,7 +20,7 @@ import Gadfly.plot
 
 const DEBUG = false
 const DEBUGC = false #more detailed prints
-const CHECKNET = false #for debugging only
+const CHECKNET = true #please keep true here, not in PhyloNetworks.jl
 const REDIRECT = false # for debugging to a file later
 
 

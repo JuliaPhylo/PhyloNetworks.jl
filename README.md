@@ -3,7 +3,7 @@
 <!-- ![SNaQ logo](http://pages.stat.wisc.edu/~claudia/Images/snaq.png)
 original size: 525px × 222px-->
 
-[![Build Status](https://travis-ci.org/crsl4/PhyloNetworks.svg)](https://travis-ci.org/crsl4/PhyloNetworks)
+[![Build Status](https://travis-ci.org/crsl4/PhyloNetworks.jl.svg)](https://travis-ci.org/crsl4/PhyloNetworks.jl)
 
 <!--
 [![Coverage Status](https://coveralls.io/repos/crsl4/PhyloNetworks/badge.svg?branch=master&service=github)](https://coveralls.io/github/crsl4/PhyloNetworks?branch=master)
@@ -58,11 +58,10 @@ Users should have Julia 0.4 or above.
 
 To install the package, type inside Julia:
 ```julia
-Pkg.clone("https://github.com/crsl4/PhyloNetworks.git")
-Pkg.build("PhyloNetworks")
+Pkg.add("PhyloNetworks")
 ```
 The first step can take a few minutes, be patient. If you already installed the package and want
-the latest version, just do this (which will update all of your packages):
+the latest registered version, just do this (which will update all of your packages):
 ```julia
 Pkg.update()
 ```
@@ -70,6 +69,20 @@ WARNING: It is important to update the package regularly as it is
 undergoing constant development. Join the google group for updates
 [here]
 (https://groups.google.com/forum/#!forum/phylonetworks-users/new).
+
+`Pkg.update()` will install the latest registered version, but there
+could be other improvements in the `master` branch of the
+repository. If you want to update to the latest unregistered version
+of the package, you can do `Pkg.checkout("PhyloNetworks")` just beware
+that the latest changes could be not as robust. If you want to go back to the registered package, you can do `Pkg.free("PhyloNetworks")`.
+
+Similarly, you can pin a version of the package
+`Pkg.pin("PhyloNetworks")` so that `Pkg.update()` will not modify
+it. You can always free a pinned package with
+`Pkg.free("PhyloNetworks")`. More on checked and pinned packages [here]
+(http://docs.julialang.org/en/release-0.4/manual/packages/).
+
+
 
 <!--
 There is a known bug for Mac users where the *Pkg.update* function does not update to the latest version. We recommend Mac users to do the following through the terminal:

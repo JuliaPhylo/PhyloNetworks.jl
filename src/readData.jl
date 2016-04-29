@@ -62,8 +62,12 @@ function readTableCF(df0::DataFrames.DataFrame;summaryfile=""::AbstractString)
     catch
         withngenes = false
     end
+    # fixit: what about columns giving the taxon names: always assumed to be columns 1-4? No warning if not?
     if(!fromTICR)
-        size(df0,2) == 7 || warn("Column names for quartet concordance factors (CFs) were not recognized. Will assume that the first 4 columns give the taxon names, and that columns 5-7 give the CFs.")
+        size(df0,2) == (withngenes ? 8 : 7) ||
+         warn("Column names for quartet concordance factors (CFs) were not recognized.
+          Was expecting CF12_34, CF13_24 and CF14_23 for the columns with CF values.
+          Will assume that the first 4 columns give the taxon names, and that columns 5-7 give the CFs.")
         df = deepcopy(df0)
         repSpecies = cleanNewDF!(df)
         if(!isempty(repSpecies))
@@ -147,7 +151,6 @@ readTableCF(file::AbstractString;sep=','::Char,summaryfile=""::AbstractString) =
 `readInputTrees(file)`
 
 function to read a text file with a list of trees in parenthetical format (one tree per line), it returns an array of HybridNetwork object.
-Don'r forget to put ; after the command to avoid output written to screen
 """
 function readInputTrees(file::AbstractString)
     try
@@ -164,8 +167,7 @@ function readInputTrees(file::AbstractString)
         c = isempty(line) ? "" : line[1]
         if(c == '(')
            try
-               net = readTopologyUpdate(line,false)
-               push!(vnet,deepcopy(net))
+               push!(vnet, readTopologyUpdate(line,false))
            catch(err)
                error("could not read tree in line $(numl). The error is $(err)")
            end
@@ -173,8 +175,7 @@ function readInputTrees(file::AbstractString)
         numl += 1
     end
     close(s)
-    !isempty(vnet) || return nothing
-    return vnet
+    return vnet # consistent output type: HybridNetwork vector. might be of length 0.
 end
 
 # function to list all quartets for a set of taxa names

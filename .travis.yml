@@ -4,6 +4,6 @@ os:
   - osx
 julia:
 #  - release
- - 0.4.1
+ - 0.4
 notifications:
   email: false
