@@ -1,3 +1,44 @@
+# function to give all the networks obtained from moving the hybrid node
+# inside its cycle
+# WARNING: assumes net has all the attributes. It is called inside optTopRuns only
+function undirectedOtherNetworks(net0::HybridNetwork)
+    otherNet = HybridNetwork[]
+    for(i in 1:net0.numHybrids) #need to do for by number, not node
+        net = deepcopy(net0) # to avoid redoing attributes after each cycle is finished
+        ## undo attributes at current hybrid node:
+        hybrid = net.hybrid[i]
+        nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,hybrid);
+        !nocycle || error("the hybrid node $(hybrid.number) does not create a cycle")
+        edgesRoot = identifyContainRoot(net,hybrid);
+        edges = hybridEdges(hybrid);
+        undoGammaz!(hybrid,net);
+        othermaj = getOtherNode(edges[1],hybrid)
+        edgesmaj = hybridEdges(othermaj)
+        DEBUG && println("edgesmaj[3] $(edgesmaj[3].number) is the one to check if containRoot=false already: $(edgesmaj[3].containRoot)")
+        if(edgesmaj[3].containRoot) #if containRoot=true, then we need to undo
+            undoContainRoot!(edgesRoot);
+        end
+        ## changes to new hybrid node:
+        for(newn in nodesInCycle)
+            if(newn.number != hybrid.number) # nodesInCycle contains the hybrid too
+                newnet = deepcopy(net)
+                newnocycle, newedgesInCycle, newnodesInCycle = identifyInCycle(newnet,newnet.hybrid[i]);
+                ind = getIndexNode(newn.number,newnet) # find the newn node in the new network
+                hybridatnode!(newnet, newnet.hybrid[i], newnet.node[ind])
+                undoInCycle!(newedgesInCycle, newnodesInCycle);
+                ##undoPartition!(net,hybrid, edgesInCycle)
+                success, hybrid0, flag, nocycle, flag2, flag3 = updateAllNewHybrid!(newnet.node[ind], newnet, false,false,false)
+                if(success)
+                    push!(otherNet,newnet)
+                else
+                    println("the network obtained by putting the new hybrid in node $(newnet.node[ind].number) is not good, inCycle,gammaz,containRoot: $([flag,flag2,flag3]), we will skip it")
+                end
+            end
+        end
+    end
+    return otherNet
+end
+
 # function to change the hybrid node in a cycle
 # will try to update incycle inside
 """
@@ -6,6 +47,7 @@
 Changes the hybrid in a cycle to the node defined in nodeNumber. The
 node with nodeNumber must be in a cycle. If the node is not in a
 cycle, this function will prompt an error.
+
 # Example #"
 ```julia
 julia> net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
@@ -35,29 +77,37 @@ function hybridatnode!(net::HybridNetwork, nodeNumber::Int64)
         error("cannot find the hybrid node with number $(net.node[ind].inCycle)")
     end
     hybrid = net.node[indhyb]
+    hybridatnode!(net,hybrid,net.node[ind])
+    return net
+end
+
+# auxiliary function to change the hybrid node inside a cycle to another node
+# WARNING: it assumes all the attributes are correct
+# it is called by hybridatnode! with node number as input, and it is called
+# by undirectedOtherNetworks
+function hybridatnode!(net::HybridNetwork, hybrid::Node, newNode::Node)
     hybrid.hybrid || error("node $(hybrid.number) should be hybrid, but it is not")
     hybedges = hybridEdges(hybrid)
     makeEdgeTree!(hybedges[1],hybrid)
     makeEdgeTree!(hybedges[2],hybrid)
     hybedges[1].inCycle = hybrid.number #just to keep attributes ok
     hybedges[2].inCycle = hybrid.number
-    switchHybridNode!(net,hybrid,net.node[ind])
+    switchHybridNode!(net,hybrid,newNode)
     found = false
-    for(e in net.node[ind].edge)
+    for(e in newNode.edge)
         if(e.inCycle == hybrid.number)
             if(!found)
                 found = true
-                makeEdgeHybrid!(e,net.node[ind], 0.51, switchHyb=true) #first found, major edge, need to optimize gamma anyway
-                e.gamma = -1
+                makeEdgeHybrid!(e,newNode, 0.51, switchHyb=true) #first found, major edge, need to optimize gamma anyway
+                ##e.gamma = -1
                 e.containRoot = true
             else
-                makeEdgeHybrid!(e,net.node[ind], 0.49, switchHyb=true) #second found, minor edge
-                e.gamma = -1
+                makeEdgeHybrid!(e,newNode, 0.49, switchHyb=true) #second found, minor edge
+                ##e.gamma = -1
                 e.containRoot = true
             end
         end
     end
-    return net
 end
 
 # function to change the hybrid node in a cycle

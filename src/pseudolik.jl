@@ -20,6 +20,7 @@ function makeNodeTree!(net::Network, hybrid::Node)
     removeHybrid!(net,hybrid)
     hybrid.hybrid = false
     hybrid.hasHybEdge = false
+    hybrid.name = ""
 end
 
 # aux function to make a hybrid edge tree edge
