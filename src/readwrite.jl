@@ -871,7 +871,8 @@ function writeTopology(net0::HybridNetwork, s::IO, di::Bool, names::Bool,outgrou
         end
         print(s,");")
     end
-    outgroup != "none" && undoRoot!(net) #to delete the node with only two edges: all snaq functions assume internal nodes have 3 edges: you write it rooted but don't change it
+    # outgroup != "none" && undoRoot!(net) # not needed because net is deepcopy of net0
+    # to delete 2-degree node, for snaq.
 end
 
 #writeTopology(net::HybridNetwork) = writeTopology(net,false, true,true,"none") #not needed because of last function definition

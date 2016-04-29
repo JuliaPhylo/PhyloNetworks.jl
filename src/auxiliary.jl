@@ -777,6 +777,7 @@ function setLength!(edge::Edge, new_length::Number, negative::Bool)
     edge.y = exp(-new_length);
     edge.z = 1 - edge.y;
     #edge.istIdentifiable || warn("set edge length for edge $(edge.number) that is not identifiable")
+    return nothing
 end
 
 """
@@ -852,6 +853,7 @@ function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool, read::Bool
         edge.gamma = new_gamma;
         edge.isMajor = (new_gamma>=0.5) ? true : false
     end
+    return nothing
 end
 
 setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool) = setGamma!(edge, new_gamma, changeOther, false)
@@ -975,7 +977,7 @@ function checkNet(net::HybridNetwork, light::Bool)
                 end
             end
             if(e.hybrid)
-                !e.containRoot || error("hybrid edge $(e.number) should not contain root")
+                !e.containRoot || error("hybrid edge $(e.number) should not contain root") # fixit: disagree
                 o = getOtherNode(e,h)
                 o.hasHybEdge || error("found node $(o.number) attached to hybrid edge but hasHybEdge=$(o.hasHybEdge)")
             end
@@ -1034,9 +1036,7 @@ function checkNet(net::HybridNetwork, light::Bool)
         end
     end
     DEBUG && println("no errors in checking net")
-    if(light)
-        return false
-    end
+    return false
 end
 
 checkNet(net::HybridNetwork) = checkNet(net, false)

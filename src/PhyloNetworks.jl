@@ -10,6 +10,7 @@ using NLopt # for branch lengths optimization
 # using GraphViz #for visualization
 using Gadfly # for plots
 using ColorTypes # used by Gadfly already. To resolve data type names (Colorant)
+using StatsBase: sample
 
 import Base.show
 import Gadfly.plot

@@ -40,11 +40,22 @@ writeObsCF(d::DataCF) = writeObsCF(d.quartet)
 # function that takes a dataframe and creates a DataCF object
 # has ! because it can modify the dataframe inside
 """
-`readTableCF(df::DataFrame)`
+    readTableCF(file)
+    readTableCF(df::DataFrame)
 
-read a DataFrame object with a table of CF. It has one optional argument:
+Read a file or DataFrame object containing a table of concordance factors (CF),
+with one row per 4-taxon set. The first 4 columns are assumed to give the labels
+of the 4 taxa in each set (tx1, tx2, tx3, tx4).
+Columns containing the CFs are assumed to be named
+'CF12_34', 'CF13_24' and 'CF14_23', or else are assumed to be columns 5,6,7.
+If present, a column named 'ngenes' will be used to get the number of loci
+used to estimate the CFs for each 4-taxon set.
 
-- if summaryfile is specified, it will write a summary file with that name.
+Optional arguments:
+
+- summaryfile: if specified, a summary file will be created with that name.
+- sep (for the second form only): to specify the type of separator in the file,
+with single quotes: sep=';'.
 """
 function readTableCF(df0::DataFrames.DataFrame;summaryfile=""::AbstractString)
     DEBUG && println("assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network")
@@ -127,18 +138,6 @@ function readTableCF(df0::DataFrames.DataFrame;summaryfile=""::AbstractString)
 end
 
 # warning: when file needs to be AbstractString bc it can be read as UTF8String
-"""
-`readTableCF(file)`
-
-read a file with a table of CF. It has two optional arguments:
-
-- sep to specify the type of separator in the table with single quotes: sep=';'
-- if summaryfile is specified, it will write a summary file with that name.
-
-Table should have 7 columns in order: 4 taxa, 3 CF: tx1 tx2 tx3 tx4 cf12.34 cf13.24 cf14.23,
-but if the first 4 columns are taxon names, and the columns are named CF12_34, CF13_24, CF14_23, ngenes,
-then columns from 5th on can be in any order
-"""
 readTableCF(file::AbstractString;sep=','::Char,summaryfile=""::AbstractString) = readTableCF(readtable(file,separator=sep),summaryfile=summaryfile)
 
 # ---------------- read input gene trees and calculate obsCF ----------------------
@@ -244,9 +243,10 @@ function randQuartets(taxon::Union{Vector{ASCIIString},Vector{Int64}},num::Int64
     n = length(taxon)
     ntotal = binom(n,4)
     num <= ntotal || error("you cannot choose a sample of $(num) quartets when there are $(ntotal) in total")
-    indx = [rep(1,num);rep(0,ntotal-num)]
-    indx = indx[sortperm(randn(ntotal))]
-    rq = find(indx .== 1)
+    # indx = [rep(1,num);rep(0,ntotal-num)] # requires much more memory than necessary:
+    # indx = indx[sortperm(randn(ntotal))]  # several arrays of size ntotal !!
+    # rq = find(indx .== 1)
+    rq = sample(1:ntotal, num, replace=false, ordered=true)
     randName = "rand$(num)Quartets.txt"
     println("DATA: chosen list of random quartets in file $(randName)")
     out = open(randName,"w")
@@ -464,6 +464,19 @@ readInputData(treefile::AbstractString, quartetfile::AbstractString, writetab::B
 # does it by default
 # writeFile= true, writes intermediate files with the quartets info (default false)
 function readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64, taxa::Union{Vector{ASCIIString}, Vector{Int64}}, writetab::Bool, filename::AbstractString, writeFile::Bool)
+    if writetab
+        if(filename == "none")
+            filename = "tableCF.txt" # "tableCF$(string(integer(time()/1000))).txt"
+        end
+        if (isfile(filename) && filesize(filename) > 0)
+           error("file $(filename) already exists and is non-empty.
+Cannot risk to erase data. Choose a different CFfile name, use writeTab=false,
+or read the existing file with readTableCF(\"$(filename)\")")
+           # setting writefile=false. You may save the CF table afterwards with
+           # 'using DataFrames' and
+           # writetable(new filename, PhyloNetworks.writeObsCF(DataCF object))")
+        end
+    end
     println("DATA: reading input data for treefile $(treefile) and no quartetfile given: will get quartets here")
     trees = readInputTrees(treefile)
     if(whichQ == :all)
@@ -481,11 +494,7 @@ function readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64, ta
         error("unknown symbol for whichQ $(whichQ), should be either all or rand")
     end
     d = calculateObsCFAll!(quartets,trees,taxa)
-    if(writetab)
-        if(filename == "none")
-            #filename = "tableCF$(string(integer(time()/1000))).txt"
-            filename = "tableCF.txt"
-        end
+    if writetab
         println("DATA: printing table of obsCF in file $(filename)")
         df = writeObsCF(d)
         writetable(filename,df)
@@ -509,29 +518,31 @@ readInputData(treefile::AbstractString, filename::AbstractString) = readInputDat
 """
 `readTrees2CF(treefile)`
 
-function to read the trees in parenthetical format from treefile (text file) and calculate the observed CF. It has many optional arguments:
+Read trees in parenthetical format from a file and
+calculate the observed quartet concordance factors (CF).
+Optional arguments include:
 
 - quartetfile: name of text file with list of 4-taxon subsets to be analyzed. If none is specified, the function will list all possible 4-taxon subsets.
 - whichQ="rand": to choose a random sample of 4-taxon subsets
 - numQ: size of random sample (ignored if whichQ is not set to "rand")
 - writeTab=false: does not write the observedCF to a table (default true)
 - CFfile: name of file to save the observedCF (default tableCF.txt)
-- writeFile=true: save intermediate files with the list of all 4-taxon subsets and chosen random sample (default false).
+- writeQ=true: save intermediate files with the list of all 4-taxon subsets and chosen random sample (default false).
 """
-function readTrees2CF(treefile::AbstractString; quartetfile="none"::AbstractString, whichQ="all"::AbstractString, numQ=0::Int64, writetab=true::Bool, CFfile="none"::AbstractString, taxa=unionTaxaTree(treefile)::Union{Vector{ASCIIString},Vector{Int64}}, writeFile=false::Bool)
+function readTrees2CF(treefile::AbstractString; quartetfile="none"::AbstractString, whichQ="all"::AbstractString, numQ=0::Int64, writeTab=true::Bool, CFfile="none"::AbstractString, taxa=unionTaxaTree(treefile)::Union{Vector{ASCIIString},Vector{Int64}}, writeQ=false::Bool)
     if(quartetfile == "none")
         if(whichQ == "all")
-            readInputData(treefile, :all, numQ, taxa, writetab, CFfile, writeFile)
+            readInputData(treefile, :all, numQ, taxa, writeTab, CFfile, writeQ)
         elseif(whichQ == "rand")
-            readInputData(treefile, :rand, numQ, taxa, writetab, CFfile, writeFile)
+            readInputData(treefile, :rand, numQ, taxa, writeTab, CFfile, writeQ)
         else
             error("whichQ should be all or rand, not $(whichQ)")
         end
     else
         if(whichQ == "all")
-            readInputData(treefile, quartetfile, :all, numQ, writetab, CFfile, writeFile)
+            readInputData(treefile, quartetfile, :all, numQ, writeTab, CFfile, writeQ)
         elseif(whichQ == "rand")
-            readInputData(treefile, quartetfile, :rand, numQ, writetab, CFfile, writeFile)
+            readInputData(treefile, quartetfile, :rand, numQ, writeTab, CFfile, writeQ)
         else
             error("whichQ should be all or rand, not $(whichQ)")
         end
@@ -662,9 +673,10 @@ function updateBL!(net::HybridNetwork,d::DataCF)
     if(isTree(net))
         parts = edgesParts(net)
         df = makeTable(net,parts,d)
-        x=by(df,[:edge],df->DataFrame(meanCF=mean(df[:CF]),sdCF=std(df[:CF]),Nquartets=length(df[:CF]),edgeL=-log(3/2*(1-mean(df[:CF])))))
-        edges = x[1]
-        lengths = x[5]
+        x=by(df,[:edge],df->DataFrame(Nquartets=length(df[:CF]),edgeL=-log(3/2*(1-mean(df[:CF])))))
+        # ommitting columns: meanCF=mean(df[:CF]), sdCF=std(df[:CF])
+        edges = x[:edge]
+        lengths = x[:edgeL]
         for(i in 1:length(edges))
             try
                 ind = getIndexEdge(edges[i],net)
@@ -672,12 +684,14 @@ function updateBL!(net::HybridNetwork,d::DataCF)
                 error("edge $(edges[i]) not in net")
             end
             ind = getIndexEdge(edges[i],net)
-            if(net.edge[ind] == -1) #only update BL if not set
-                if(lengths[i] > 0)
-                    setLength!(net.edge[ind],lengths[i])
-                else
-                    setLength!(net.edge[ind],0.0)
-                end
+            if (net.edge[ind].length < 0.0 || net.edge[ind].length==1.0)
+                # readTopologyLevel1 changes missing branch length to 1.0
+                setLength!(net.edge[ind], (lengths[i] > 0 ? lengths[i] : 0.0))
+            end
+        end
+        for (e in net.edge)
+            if e.length < 0.0 # some edges might have *no* quartet in the data
+                setLength!(e, 1.0)
             end
         end
         return x
@@ -732,7 +746,8 @@ end
 # function to make table to later use in updateBL
 # uses vector parts obtained from edgeParts function
 function makeTable(net::HybridNetwork, parts::Vector{EdgeParts},d::DataCF)
-    df = DataFrames.DataFrame(edge=1,t1="",t2="",t3="",t4="",resolution="",CF=0.)
+    df = DataFrame(edge=Int64[],t1=AbstractString[],t2=AbstractString[],t3=AbstractString[],t4=AbstractString[],resolution=AbstractString[],CF=Float64[])
+    sortedDataQ = [sort(q.taxon) for q in d.quartet]
     for(p in parts) #go over internal edges too
         for(t1 in p.part1)
             for(t2 in p.part2)
@@ -742,16 +757,20 @@ function makeTable(net::HybridNetwork, parts::Vector{EdgeParts},d::DataCF)
                         tx2 = net.names[t2.number]
                         tx3 = net.names[t3.number]
                         tx4 = net.names[t4.number]
-                        names = [tx1,tx2,tx3,tx4]
-                        row = getIndex(true,[sort(names) == sort(q.taxon) for q in d.quartet])
-                        col,res = resolution(names,d.quartet[row].taxon)
-                        append!(df,DataFrames.DataFrame(edge=p.edgenum,t1=tx1,t2=tx2,t3=tx3,t4=tx4,resolution=res,CF=d.quartet[row].obsCF[col]))
+                        nam = [tx1,tx2,tx3,tx4]
+                        snam = sort(nam)
+                        # row = getIndex(true,[sort(nam) == sort(q.taxon) for q in d.quartet])
+                        # getIndex was getting the first index only: like findfirst
+                        row = findin([dnam==snam for dnam in sortedDataQ], true)
+                        for (r in row) # nothing if tax set not found: length(row)=0
+                          col,res = resolution(nam,d.quartet[r].taxon)
+                          push!(df, [p.edgenum,tx1,tx2,tx3,tx4,res,d.quartet[r].obsCF[col]])
+                        end
                     end
                 end
             end
         end
     end
-    df = df[2:size(df,1),1:size(df,2)]
     return df
 end
 

@@ -328,30 +328,31 @@ optBL!(net::HybridNetwork, d::DataCF, ftolRel::Float64, ftolAbs::Float64, xtolRe
 """
 `topologyMaxQPseudolik!(net::HybridNetwork, d::DataCF)`
 
-function to estimate the branch lengths (and inheritance probabilities) for a given topology net.
-It has the following optional arguments:
-- verbose: if true, information on the numerical optimization is printed to screen
-- ftolRel, ftolAbs, xtolRel, xtolAbs: absolute and relative tolerance values for the function and parameters
+Estimate the branch lengths and inheritance probabilities (γ's) for a given network topology.
+The network is *not* modified, only the object `d` is, with updated expected concordance factors.
+
+Ouput: new network, with optimized parameters (branch lengths and gammas).
+The maximized quartet pseudo-deviance is the negative log pseudo-likelihood,
+up to an additive constant, such that a perfect fit corresponds to a deviance of 0.0.
+This is also an attribute of the network, which can be accessed with `net.loglik`.
+
+Optional arguments (default value):
+
+- verbose (false): if true, information on the numerical optimization is printed to screen
+- ftolRel (1e-5), ftolAbs (1e-6), xtolRel (1e-3), xtolAbs (1e-4):
+  absolute and relative tolerance values for the pseudo-deviance function
+  and the parameters
 """
-function topologyMaxQPseudolik!(net0::HybridNetwork, d::DataCF; verbose=false::Bool, ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
-    # need a clean starting net. fixit: maybe we need to be more thorough here
-    # yes, need to check that everything is ok because it could have been cleaned and then modified
-    #if(!net0.cleaned)
-        net = readTopologyUpdate(writeTopology(net0)) #re read to update everything as it should
-    # else
-    #     flag = checkNet(net0,true)
-    #     if(flag)
-    #         net = readTopologyUpdate(writeTopology(net0)) #re read to update everything as it should
-    #     else
-    #         net = deepcopy(net0)
-    #     end
-    # end
+function topologyMaxQPseudolik!(net::HybridNetwork, d::DataCF; verbose=false::Bool, ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
+    net = readTopologyUpdate(writeTopology(net)) # update everything for level 1
     try
         checkNet(net)
-    catch
-        error("starting topology not a level 1 network")
+    catch err
+        err.msg = "starting topology not a level 1 network:\n" * err.msg
+        rethrow(err)
     end
     optBL!(net, d, verbose, ftolRel, ftolAbs, xtolRel,xtolAbs)
+    return net
 end
 
 # function to delete a hybrid, and then add a new hybrid:
@@ -1200,6 +1201,7 @@ optTop!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ft
 # seed= integer to set the seed, default 0, so clocktime used
 # probST is the probability of starting in the starting topology currT per run (1-probST is the probability of doing a NNI move) default 0.3
 # updateBL=true if we want to update the missing BL to average CF
+# does *not* modify currT0: because optTopRun1! does not.
 function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, rootname::AbstractString, returnNet::Bool,seed::Int64, probST::Float64, updateBL::Bool)
     0.0<=probST<=1.0 || error("probability to keep the same starting topology should be between 0 and 1: $(probST)")
     sameTaxa(d,currT0) || error("some taxon names in quartets do not appear on the starting topology")
@@ -1212,23 +1214,24 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         DEBUG && println("currT0.cleaned=false, will re-read with readTopologyLevel1")
         currT1 = readTopologyUpdate(writeTopology(currT0)) #re read to update everything as it should
         flag = checkNet(currT1,true)
-        flag && error("starting topology suspected not level-1: $(err)")
-        currT0 = deepcopy(currT1)
+        flag && error("starting topology suspected not level-1")
+        currT0 = currT1 # currT1 not used later. does not change input currT0 outside
     else
-        flag = checkNet(currT0,true)
+        flag = checkNet(currT0,true) # only case when currT0 might be modified
         if(flag)
             DEBUG && println("currT0 failes checkNet, will re-read with readTopologyLevel1")
             currT1 = readTopologyUpdate(writeTopology(currT0)) #re read to update everything as it should
             flag = checkNet(currT1,true)
-            flag && error("starting topology suspected not level-1: $(err)")
-            currT0 = deepcopy(currT1)
+            flag && error("starting topology suspected not level-1")
+            currT0 = currT1
         end
     end
     try
         checkNet(currT0)
-    catch
-        error("starting topology not a level 1 network")
-     end
+    catch err
+        err.msg = "starting topology not a level 1 network:\n" * err.msg
+        rethrow(err)
+    end
 
     if(updateBL && isTree(currT0))
         updateBL!(currT0,d) # we are doing it always inside snaq now
@@ -1371,17 +1374,17 @@ optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int
 # function that runs one run inside optTopRuns: it changes the starting topology currT0 and calls optTopLevel
 # it has an extra parameter to optTopRuns: seed to set the seed inside and change the starting topology
 # currT0
+# does *not* modify currT0. Modifies data d only.
 function optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}, returnNet::Bool,seed::Int64,logfile::IO,probST::Float64, sout::IO)
     0.0<=probST<=1.0 || error("probability to keep the same starting topology should be between 0 and 1: $(probST)")
     currT0.cleaned || error("starting topology currT0 must be cleaned inside optTopRun1")
     srand(seed)
+    currT = deepcopy(currT0);
     if(rand() < 1-probST) # modify starting tree by a nni move
-        currT = deepcopy(currT0);
         suc = NNIRepeat!(currT,10); #will try 10 attempts to do an nni move, if set to 1, hard to find it depending on currT
         suc && write(logfile," changed starting topology by NNI move\n")
         if(!isTree(currT0))
             if(rand() < 1-probST) # modify starting network by mvorigin, mvtarget with equal prob
-                currT = deepcopy(currT0);
                 if(currT.numHybrids == 1)
                     ind = 1
                 else
@@ -1400,8 +1403,6 @@ function optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
 
             end
         end
-    else
-        currT = deepcopy(currT0);
     end
     gc();
     best = optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,returnNet,sout,logfile)
@@ -1417,24 +1418,49 @@ optTopRun1!(currT::HybridNetwork, d::DataCF, hmax::Int64, returnNet::Bool, seed:
 # it differs from optTopRuns in that it creates a deepcopy of the starting topology
 # only currT and d are necessary, all others are optional and have default values
 """
-`snaq!(currT::HybridNetwork, d::DataCF)`
+`snaq!(T::HybridNetwork, d::DataCF)`
 
-function that estimates the best network (or tree) for a DataCF object (with the observed CF) and a starting topology currT (which has to be a HybridNetwork type, read with readTopologyLevel1). It has many optional arguments, among which we have:
+Estimate the network (or tree) to fit observed concordance factors (CFs)
+stored in a DataCF object, using maximum pseudo-likelihood.
+The search starts from topology `T`,
+which can be a tree or a network with no more than `hmax` hybrid nodes.
+The function name ends with ! because it modifies the CF data `d` by updating its
+attributes `expCF`: CFs expected under the network model.
+It does *not* modify `T`.
+The quartet pseudo-deviance is the negative log pseudo-likelihood,
+up to an additive constant, such that a perfect fit corresponds to a deviance of 0.0.
+
+There are many optional arguments, including
 
 - hmax: maximum number of hybridizations allowed (default 1)
 - verbose: if true, it prints information about the numerical optimization
 - runs: number of independent starting points for the search (default 10)
-- outgroup: outgroup taxon to root the estimated topology
+- outgroup: outgroup taxon to root the estimated topology at the very end
 - filename: root name for the output files (default snaq)
 - seed: seed to replicate a given search
 
-The function ends with ! because it modifies the DataCF d by including the expCF
+See also: `topologyMaxQPseudolik!` to optimize parameters on a fixed topology,
+and `topologyQPseudolik!` to get the deviance (pseudo log-likelihood up to a constant)
+of a fixed topology with fixed parameters.
+
+Reference:
+Claudia Solís-Lemus and Cécile Ané (2016).
+Inferring phylogenetic networks with maximum pseudolikelihood under incomplete lineage sorting.
+[PLoS Genetics](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896)
+12(3):e1005896
 """
 function snaq!(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="none"::AbstractString, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64, updateBL=true::Bool)
     if(filename == "none")
         filename = "snaq"
     end
-    startnet=deepcopy(currT0)
+    0.0<=probST<=1.0 || error("probability to keep the same starting topology should be between 0 and 1: $(probST)")
+    sameTaxa(d,currT0) || error("some taxon names in quartets do not appear on the starting topology")
+    currT0.numTaxa >= 5 || error("cannot estimate hybridizations in topologies with fewer than 5 taxa, this topology has $(currT0.numTaxa) taxa")
+    # need a clean starting net. fixit: maybe we need to be more thorough here
+    # yes, need to check that everything is ok because it could have been cleaned and then modified
+    startnet = readTopologyUpdate(writeTopology(currT0)) # update all level-1 things
+    flag = checkNet(startnet,true)
+    flag && error("starting topology suspected not level-1")
     optTopRuns!(startnet, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, returnNet,seed,probST,updateBL)
 end
 
@@ -1448,6 +1474,10 @@ function to replicate a given run that produces error according to the .err file
 The same settings used in that run should be used in this function, specially the seed. See the readme file online for more details.
 """
 function snaqDebug(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, rootname="snaqDebug"::AbstractString, returnNet=true::Bool, seed=0::Int64, probST=0.3::Float64, DEBUG=true::Bool, REDIRECT=true::Bool)
+    currT0 = readTopologyUpdate(writeTopology(currT0)) # update all level-1 things
+    flag = checkNet(currT0,true)
+    flag && error("starting topology suspected not level-1")
+
     #const DEBUG = true
     #const REDIRECT = true
     sout = open("debug.log","w")

@@ -8,7 +8,6 @@
 # warning: for some reason UTF8String is needed instead of AbstractString
 # seed: to choose the rand() for the table
 function bootstrapCFtable(df::DataFrame;seed=0::Int)
-    warn("bootstrapCFtable function assumes table from TICR: CF, CFlo, CFhi")
     DEBUG && warn("order of columns should be: t1,t2,t3,t4,cf1234,cf1324,cf1423,cf1234LO,cf1234HI,...")
     size(df,2) == 13 || size(df,2) == 14 || warn("bootstrapCFtable function assumes table from TICR: CF, CFlo, CFhi")
     newdf = DataFrame(t1=UTF8String[],t2=UTF8String[],t3=UTF8String[],t4=UTF8String[],
@@ -21,7 +20,7 @@ function bootstrapCFtable(df::DataFrame;seed=0::Int)
     println("using seed $(seed) for bootstrap table")
     srand(seed)
     for(i in 1:size(df,1))
-        c1 = (df[i,7]-df[i,6])*rand()+df[i,6] #fixit: check this is uniform
+        c1 = (df[i,7]-df[i,6])*rand()+df[i,6]
         c2 = (df[i,10]-df[i,9])*rand()+df[i,9]
         c3 = (df[i,13]-df[i,12])*rand()+df[i,12]
         suma = c1+c2+c3
@@ -67,19 +66,24 @@ function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Nu
     bootNet = HybridNetwork[]
 
     if(prcnet > 0.0)
-        write(logfile, "Starting topology: will use the best network $(prcnet*100) percent of times \n")
+        str = "Will use the best network as starting topology $(prcnet*100) percent of times:\n"
+        write(logfile, str)
+        print(str)
         if(bestNet.numTaxa == 0)
-            write(logfile, "bestNet not given as input, so we need to estimate it before doing bootstrap\n")
-            println("bestNet not input, so we need to estimate it before doing bootstrap in order to use it as starting topology in $(prcnet*100) percent of times")
+            str = "bestNet not given as input, estimated before bootstrap\n"
+            write(logfile, str)
+            print(str)
             d = readTableCF(df)
             startnet=deepcopy(currT0)
             bestNet = optTopRuns!(startnet, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, "bestNet", true,seeds[1],probST)
-            push!(bootNet, deepcopy(bestNet))
         else
-            write(logfile,"bestNet input: $(writeTopology(bestNet))\n to use in $(prcnet *100) percent of times as starting topology")
-            println("bestNet input: $(writeTopology(bestNet))\n to use in $(prcnet *100) percent of times as starting topology")
-            push!(bootNet, deepcopy(bestNet))
+            str = "bestNet input:\n"
+            write(logfile, str)
+            print(str)
         end
+        # push!(bootNet, deepcopy(bestNet))
+        write(logfile, "$(writeTopology(bestNet))\n")
+        println(writeTopology(bestNet))
     end
 
     write(logfile,"\nBEGIN: $(nrep) replicates")
@@ -126,7 +130,30 @@ end
 
 # like snaq, only calls optTopRunsBoot
 # will later decide which to call depending on nproc()
-function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="bootsnaq"::AbstractString, seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.25::Float64, bestNet=HybridNetwork()::HybridNetwork)
+"""
+`bootsnaq(T::HybridNetwork, df::DataFrame)`
+
+Bootstrap analysis for SNaQ. Bootstrap data are quartet concordance factors (CF),
+drawn from sampling uniformly in their credibility intervals,
+as given in the data frame `df`. From each bootstrap replicate, a network
+is estimated with snaq!, with a search starting from topology `T`.
+
+Optional arguments include the following, with default values in parentheses:
+
+- hmax (1): max number of reticulations in the estimated networks
+- nrep (10): number of bootstrap replicates.
+- runs (10): number of independent optimization runs for each replicate
+- filename (bootsnaq): root name for output files
+- seed (0 to get a random seed from the clock): seed for random number generator
+"""
+# non documented arguments: M=multiplier, Nfail=numFails, probST=0.3::Float64
+#  ftolRel,ftolAbs,xtolRel,xtolAbs, verbose, closeN, Nmov0, outgroup="none",
+#  bestNet (none): best estimated network from the original data.
+#  prcnet (0): probability to start a run from bestNet instead of T.
+function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="bootsnaq"::AbstractString, seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.0::Float64, bestNet=HybridNetwork()::HybridNetwork)
+    (names(df)[[6,7,9,10,12,13]] == [:CF12_34_lo,:CF12_34_hi,:CF13_24_lo,:CF13_24_hi,:CF14_23_lo,:CF14_23_hi]) ||
+      warn("assume table with CI from TICR: CFlo, CFhi in columns 6,7; 9,10; and 12,13.
+Found different column names: $(names(df)[[6,7,9,10,12,13]])")
     startnet=deepcopy(currT0)
     if(nprocs() > 1) #more than 1 processor, still not working
         error("bootsnaq not implemented for parallelization yet")

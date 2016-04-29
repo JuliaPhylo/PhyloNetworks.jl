@@ -16,8 +16,8 @@ numerical optimization of branch lengths and inheritance probabilities
 and a heuristic search in the space of phylogenetic
 networks.
 
-Below there is a quick tutorial on SNaQ and PhyloNetworks, but refer
-to the [PDF documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf) for more details, and check out the [google group](https://groups.google.com/forum/#!forum/phylonetworks-users) for common questions.
+Below is a quick tutorial on SNaQ and PhyloNetworks, but check out the
+[google group](https://groups.google.com/forum/#!forum/phylonetworks-users) for common questions.
 
 ### Input for SNaQ
 
@@ -122,43 +122,68 @@ You can see a list of all the functions with
 ```julia
 whos(PhyloNetworks)
 ```
-and press ? inside Julia, followed by the name of a functions to get more details about it.
+and press `?` inside Julia to switch to help mode,
+followed by the name of a function (or type) to get more details about it.
 
 #### Input data
 
-The examples files for this section can be found within the
+<!--The examples files for this section can be found within the
 PhyloNetworks folder, typically in your
 *HOME/.julia/v0.4/PhyloNetworks/examples/*. However, links to the
 files are also included below.
+-->
+We suggest that you create a special directory for running these examples,
+where input files can be downloaded and where output files will be
+created (with estimated networks for instance). Enter this directory
+and run Julia from there.
 
 Suppose you have a file with a list of gene trees in parenthetical
 format called *treefile.txt*.
-If 'treefile.txt' is in your directory, do this to read in all gene trees
-and to summarize them with a list
-of quartet CFs:
-```julia
-d=readTrees2CF("treefile.txt")
-```
-You can access this example file
+You can access the example file of input trees
 [here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/treefile.txt)
 or
 [here](https://raw.githubusercontent.com/crsl4/PhyloNetworks/master/examples/treefile.txt)
 for easier download.
+
+Do not copy-paste into a "smart" text-editor. Instead, save the file
+directly into your working directory using "save link as".
 This file contains 10 trees, each in parenthetical format on 6 taxa
 like this:
 
 (6:2.728,((3:0.655,5:0.655):1.202,(1:0.881,(2:0.783,4:0.783):0.098):0.976):0.871);
 
+If 'treefile.txt' is in your working directory, you can view its content
+within Julia:
+```julia
+less("treefile.txt")
+```
+Just type `q` to quit viewing this file.
+You could read in these 10 trees and visualize the third one (say) like this:
+```julia
+tentrees = readMultiTopology("treefile.txt")
+tentrees[3]
+plot(tentrees[3])
+```
+To read in all gene trees and directly summarize them by a list
+of quartet CFs (proportion of input trees with a given quartet):
+```julia
+d=readTrees2CF("treefile.txt", CFfile="tableCFall.txt")
+less("tableCFall.txt")
+```
+`less("tableCFall.txt")` lets you see the content of the newly created
+file "tableCFall.txt", within Julia. Again, type `q` to quit viewing this file.
 
 If instead of all the 4-taxon subsets, you just want to use a random
 sample of 10 4-taxon subsets:
 ```julia
-d=readTrees2CF("treefile.txt",whichQ="rand",numQ=10)
+d=readTrees2CF("treefile.txt", whichQ="rand", numQ=10, CFfile="tableCF10.txt")
 ```
 Be careful to use a numQ value smaller than the total number of possible
 4-taxon subsets, which is *n choose 4* on *n* taxa (e.g. 15 on 6 taxa).
+To get a predictable random sample, you may set the seed with `srand(12321)`
+(for instance) prior to sampling the quartets as above.
 
-If you have already a table of CF values in a file *tableCF.txt*
+If you already have a table of CF values in a file *tableCF.txt*
 in this format
 
 |Taxon1 | Taxon2 | Taxon3 | Taxon4 | CF12_34 | CF13_24 | CF14_23 |
@@ -178,13 +203,22 @@ Columns need to be in the right order. If you have the information on the number
 If you have a tree *startTree.txt* in parenthetical format to
 use as starting point for the optimization, you can read it with
 ```julia
-T=readTopologyLevel1("startTree.txt")
+T=readTopology("startTree.txt")
 writeTopology(T)
 ```
 You can access this example file
 [here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/startTree.txt)
 (raw file
 [here](https://raw.githubusercontent.com/crsl4/PhyloNetworks/master/examples/startTree.txt)).
+
+If the topology `T` is to be used as a starting tree for SNaQ, it needs
+to be of level 1. To make sure that it is, you may read it in with
+`readTopologyLevel1` (which may also unroot the tree, resolve polytomies,
+replace missing branch lengths by 1 for starting values etc.):
+```julia
+T=readTopologyLevel1("startTree.txt")
+```
+Note that all trees and all networks with 1 hybridization are of level 1.
 
 #### Network Estimation
 
@@ -193,11 +227,17 @@ To estimate the network using the input data
 
 ```julia
 net1=snaq!(T,d,filename="net1_snaq");
+less("net1_snaq.err")
+less("net1_snaq.out")
 net2=snaq!(T,d,hmax=2, filename="net2_snaq");
 ```
+when viewing the result files "net1_snaq.err" and "net1_snaq.out" with `less`
+within Julia, use arrows to scroll down and type `q` to quit viewing the files.
+
 The option *hmax* corresponds to the maximum number of hybridizations allowed,
 1 by default.
-The function ends with ! because it modifies the argument d by including the expected CF.
+The function name `snaq!` ends with ! because it modifies the argument d
+by including the expected CF. Type `?` then `snaq!` to get help on that function.
 
 The estimation function creates a .out file (snaq.out by default) with the estimated
 network in parenthetical format, which you can also print directly to the screen like this:
@@ -215,17 +255,38 @@ To visualize the network:
 ```julia
 p = plot(net1)
 ```
-
 This function will open a browser where the plot will appear. To get a pdf version of the plot:
 ```julia
 using Gadfly
-draw(PDF("mynetwork.pdf", 4inch, 4inch),p)
+draw(PDF("bestnet_h1.pdf.pdf", 4inch, 4inch),p)
 ```
-The plot function has many options, type `?plot` to get a list inside Julia.
+The plot function has many options. Type `?` to switch to the help mode
+of Julia, then type the name of the function, here `plot`.
+Edge colors can be modified, for instance.
+```julia
+# using Gadfly # if not done earlier
+plot(net1, minorHybridEdgeColor=colorant"tan")
+```
 
-For a list of all the functions in the PhyloNetworks package, and all
-the options on the SNaQ function, refer to the [PDF
-documentation](https://github.com/crsl4/PhyloNetworks/blob/master/docs/PhyloNetworks.pdf).
+SNaQ infers an unrooted semi-directed network, in the sense
+that the direction of tree edges cannot be inferred, but the direction
+of hybrid edges can be inferred. To obtain a representative visualization,
+it is best to root the network first, using one or more outgroup.
+If there is a single outgroup, the network can be rooted with this outgroup,
+if compatible, like this:
+```julia
+rootatnode!(net1, "4")
+plot(net1)
+```
+Here we used taxon "4" as outgroup. More options are available, to root the
+network either at a give node or along a given edge. Use the help mode (type `?`)
+to get help on the functions `rootatnode!` and `rootonedge!` to get more info.
+
+If the network is plotted with crossing edges, you may identify
+ways to rotate the children edges at some nodes to untangle some crossing edges.
+This can be done using the function `rotate!`. Type `?` then `rotate!` to get
+help and examples.
+
 
 ### Bootstrap
 
@@ -235,35 +296,137 @@ pipeline (see above). The TICR pipeline provides a CF table with extra columns f
 credibility intervals.
 ```julia
 using DataFrames
-df = readtable("tableCFCI.txt", separator=';')
-net_bs = bootsnaq(T,df,hmax=1,nrep=10, bestNet=net1, runs=3)
+df = readtable("tableCFCI.csv")
+bootnet = bootsnaq(T, df, hmax=1, nrep=10, runs=3)
 ```
 You can access this example file
-[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/tableCFCI.txt)
-or [here](https://raw.githubusercontent.com/crsl4/PhyloNetworks/master/examples/tableCFCI.txt).
+[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/tableCFCI.csv)
+or [here](https://raw.githubusercontent.com/crsl4/PhyloNetworks/master/examples/tableCFCI.csv).
+This example uses a number of replicates (10) that is definitely too small, to
+make the example run faster. You might also increase the number of optimization
+runs (`runs`) done for each bootstrap replicate.
+To save the bootstrap networks to a file (especially if it took a while to get them!)
+and to check the content of the created file, do this:
 
-#### Summarizing bootstrap results
-
-The `bootsnaq` function will return a list of 10 networks (`nrep=10`) which you can then summarize with
 ```julia
-df_bs,tree1 = treeEdgesBootstrap(net_bs,net1)
+writeMultiTopology(bootnet, "bootstrapNets_h1.tre")
+length(bootnet) # 10 networks in the array 'bootnet'
+less("bootstrapNets_h1.tre")
+```
+
+#### Summarizing bootstrap on the main tree
+
+The `bootsnaq` function, as used before, returned a list of 10 networks (`nrep=10`).
+Before summarizing them on the best network, it is best to re-read this network
+to get a reproducible internal numbering of its nodes and edges, used later for mapping
+bootstrap support to edges. We can then summarize bootstrap networks:
+```julia
+net1 = readTopology("net1_snaq.out") # reading from output file of snaq
+BStable, tree1 = treeEdgesBootstrap(bootnet,net1)
 ```
 This will calculate the major tree `tree1` displayed in `net1`, that is,
-the tree obtained by following the major parent (gamma>0.5) of each hybrid node.
+the tree obtained by following the major parent (γ>0.5) of each hybrid node.
 This tree can be visualized like this, with edge numbers shown for later use.
 ```julia
-using Gadfly
-plot(tree1, showEdgeNumber=true)
+rootatnode!(net1, "4")
+rootatnode!(tree1, "4")
+plot(tree1, showEdgeNumber=true, showEdgeLength=false)
 ```
-Next, we can look at table `df_bs`, which has row for
+Next, we can look at bootstrap table `BStable`, which has one row for
 each tree edge in `net1`. One column contains the edge number
-(same as shown in the plot) and another column contains the edge's
+(same as shown in the plot) and another column contains the edge
 bootstrap support: the proportion of bootstrap replicates in which this edge was
 found in the major tree of the inferred network.
-We can see which tree edges have bootstrap support lower than 100% with
+We can see the full bootstrap table and see
+which tree edges have bootstrap support lower than 100% with
 ```julia
-df_bs[df_bs[:bs] .< 1.0, :]
+showall(BStable)
+BStable[BStable[:proportion] .< 1.0, :]
 ```
+Finally, we can map the bootstrap proportions onto the network or its main tree
+by passing the bootstrap table to the `edgeLabel` option of `plot`:
+```julia
+plot(tree1, showEdgeLength=false, edgeLabel=BStable)
+plot(net1, showEdgeLength=false, edgeLabel=BStable)
+```
+(Here, it is important that the numbers assigned to edges when building the boostrap
+table --those in `net1` at the time-- correspond to the current edge numbers
+in `tree1` and `net1`. That was the purpose of reading the network from the
+output file of snaq! earlier, for consistency across different Julia sessions.)
+
+If we wanted to plot only certain bootstrap values, like those below 100% (1.0),
+we could do this (where gamma values are supressed as well):
+```julia
+plot(net1, showEdgeLength=false, showGamma=false,
+     edgeLabel=BStable[BStable[:proportion] .< 1.0, :])
+```
+
+#### Summarizing bootstrap on reticulations
+
+Summarizing the placement of hybridization edges is not standard.
+The function `hybridBootstrapFrequency` attempts to do it, with a focus
+on the minor hybrid edge at each reticulation event. If reticulation is due
+to gene flow or introgression, this minor hybrid edge (with γ<0.5) represents
+this event. The descendants of that hybrid edge form the "recipient" clade
+(obtained after removing all other reticulations). The descendants of the
+origin lineage form the "donor" clade. If reticulation is due to a
+hybridization event that formed a new species, the other "donor" is the major
+parent of the hybrid node, and the descendants of this donor lineage form
+the "sibling" clade (sibling to the major hybrid edge).
+We can calculate the frequency of these recipient, donor and sibling clades
+in the bootstrap networks:
+```julia
+f, fr, fd, fs, clade, gam, edgenum = hybridBootstrapFrequency(bootnet, net1);
+```
+Let's look at the results.
+```julia
+edgenum
+```
+lists all the reticulation events, showing the number of the minor hybrid edge for each.
+In our case, there is only one.
+Next, we can list all the recipient clades seen in the bootstrap networks,
+with their frequencies. The recipient clade found in the best network
+is listed with its tag, starting with H (e.g. "recipientH7"). Its proportion
+is the bootstrap support for this clade being the target / recipient / endpoint
+of a hybrid edge. Other clades (not recipient of a hybrid edge
+in the best network) are simply listed with a number (e.g. "recipient1").
+```julia
+show(fr) # may not show everything if the list is long
+showall(fr)
+```
+To see what the alternative recipient clades are:
+```julia
+clade # this might be too big
+clade[:, [:taxa,:recipient1]]
+```
+Similarly, we can get the bootstrap support (proportions) of donor clades,
+and the alternatives found in the bootstrap network like this:
+```julia
+show(fd) # assuming that one row has "donor3"
+clade[:, [:taxa,:donor3]]
+```
+and again for the "sibling" clades (or major origin for a hybridization event):
+```julia
+show(fs) # assuming that one row has "sibling5"
+clade[:, [:taxa,:sibling5]]
+```
+We can also ask for the proportion of bootstrap networks in
+which a minor hybrid matches that in the best network, in terms of
+*both* the recipient and donor clades (for introgression), or
+in terms of *both* the recipient clade and the set of parental
+clades {donor, sibling} (for hybridization). This was calculated
+in a table with one row per reticulation in the best network:
+```julia
+show(f)
+```
+Finally, for each minor hybrid edge in a bootstrap network matching
+a hybrid edge in the best network, its inheritance (γ) value was
+extracted:
+```julia
+gam
+```
+γ=0 values are for bootstrap replicates that did not have a match with
+the hybridization in the best network.
 
 <!---
 To summarize the hybridizations, we need an outgroup to root all the networks.
@@ -279,7 +442,6 @@ have 4 columns:
 
 - the first 2 columns indicate the presence (1) or absence (0) of each
   hybrid (column) for each bootstrap network (row)
-
 - the last 2 columns indicate the estimated gamma in the bootstrap
   network if the hybrid was found (and 0.0 if it was not found)
 
@@ -294,13 +456,9 @@ df_hyb = summarizeHFdf(HFmat)
 `df_hyb` has one row per hybrid, and 5 columns:
 
 - hybrid index
-
 - number of trees that match the underlying tree in `net1` (same for all hybrids)
-
 - number of networks with that hybrid
-
 - mean estimated gamma among networks with the hybrid
-
 - sd estimated gamma among networks with the hybrid
 
 The last row contains in 3er column the number of networks that have
@@ -353,25 +511,39 @@ WARNING: the current function works best if all alleles from the same
 individual are given the same name (the individual's 'name') across
 all genes for which that individual was sequenced.
 -->
+
 ### Optimizing branch lengths and inheritance probabilities for a given network
-For a given network topology, you can optimize the branch lengths and
-inheritance probabilities with the pseudolikelihood. Minus the logarithm of the
-pseudolikelihood value for the network will be printed to the screen (the lower the better).
-```julia
-net1topo = readTopologyLevel1("(2,(4,(3,(5,(6,#H1)))),(1)#H1);");
-topologyMaxQPseudolik!(net1topo,d)
-writeTopology(net1topo)
-```
-This is useful if the user has a few candidate networks to compare.
+
+For a given network topology, we can optimize the branch lengths and
+inheritance probabilities (γ) with the pseudolikelihood.
+This is useful if we have a few candidate networks to compare.
 Each network can be optimized individually, and the network with the best
 pseudolikelihood can be chosen.
-For a network with given branch lengths and heritabilies, we can compute the pseudolikelihood with:
+
+The score being optimized is the pseudo-deviance, i.e.
+the negative log pseudo-likelihood up to an additive constant,
+such that a perfect fit corresponds to a deviance of 0.0 (the lower the better).
 ```julia
-net1withBL = readTopologyLevel1("(2,(4,(3,(5,(6,#H6:1.0::0.288):5.006):0.518):0.491):1.533,(1)#H6:1.0::0.712);");
+net1topo = readTopology("(2,(4,(3,(5,(6,#H1)))),(1)#H1);");
+net1par = topologyMaxQPseudolik!(net1topo,d)
+net1par.loglik # pseudo deviance, actually
+```
+For a more thorough optimization, we may increase the requirements before
+the search stops:
+```julia
+net1par = topologyMaxQPseudolik!(net1topo,d, xtolRel=1e-10, xtolAbs=1e-10)
+net1par.loglik
+```
+
+For a network with given branch lengths and γ heritabilies,
+we can compute the pseudolikelihood with:
+```julia
+net1withBL = readTopology("(2,(4,(3,(5,(6,#H6:1.0::0.3):5.006):0.518):0.491):1.533,(1)#H6:1.0::0.7);");
 topologyQPseudolik!(net1withBL,d)
+net1withBL.loglik
 ```
 This function is not maximizing the pseudolikelihood, it is simply computing the
-pseudolikelihood for the given branch lenghts and probabilities of
+pseudolikelihood (or deviance) for the given branch lengths and probabilities of
 inheritance. At the moment, both of these functions require that the
 given network is of level 1 (cycles don't overlap).
 

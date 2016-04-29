@@ -19,7 +19,7 @@ Plots a network, from left to right.
 - minorHybridEdgeColor: color for minor hybrid edges
 - showEdgeNumber: if true, edges are labelled with the number used internally.
 - showIntNodeLabel: if true, internal nodes are labelled with their names.
-  Useful for hybrid nodes, which do have tags like "#H1".
+  Useful for hybrid nodes, which do have tags like '#H1'.
 - edgeLabel: dataframe with two columns: the first with edge numbers, the second with labels
   (like bootstrap values) to annotate edges. empty by default.
 

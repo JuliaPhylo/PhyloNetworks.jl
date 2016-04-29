@@ -74,15 +74,10 @@ function Base.show(io::IO, net::QuartetNetwork)
 end
 
 function Base.show(io::IO,d::DataCF)
-    print(io,"-----------------------\n")
     print(io,"Object DataCF\n")
     print(io,"number of quartets: $(d.numQuartets)\n")
     if(d.numTrees != -1)
         print(io,"number of trees: $(d.numTrees)\n")
-        print(io,"For your object DataCF, you can access the list of Quartet types with the attribute .quartet. \nFor example, if your DataCF object is named d, d.quartet[1] will print the first quartet.")
-    else
-        print(io, "CF not computed from input gene trees, information on gene trees could be present in the quartets if the column ngenes was in the CF table.\n")
-        print(io,"For your object DataCF, you can access the list of Quartet types with the attribute .quartet, and the list of HybridNetwork types (if the input was a list of trees) with the attribute .tree. \nFor example, if your DataCF object is named d, d.quartet[1] will print the first quartet, and d.tree[1] will print the first tree.")
     end
 end
 
@@ -90,8 +85,8 @@ function Base.show(io::IO,q::Quartet)
     print(io,"number: $(q.number)\n")
     print(io,"taxon names: $(q.taxon)\n")
     print(io,"observed CF: $(q.obsCF)\n")
-    print(io,"-logPseudo-dev under best estimated network $(q.logPseudoLik) (meaningless before estimation)\n")
-    print(io,"expected CF under best estimated network: $(q.qnet.expCF) (meaningless before estimation)\n")
+    print(io,"pseudo-deviance under last used network: $(q.logPseudoLik) (meaningless before estimation)\n")
+    print(io,"expected CF under last used network: $(q.qnet.expCF) (meaningless before estimation)\n")
     if(q.ngenes != -1)
         print(io,"number of genes used to compute observed CF: $(q.ngenes)\n")
     end

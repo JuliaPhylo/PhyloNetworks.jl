@@ -41,8 +41,8 @@ typeof(d.quartet[1])
 
 You can also read a simple network in Julia and print the list of edges
 ```julia
-tree= "(A,((B,#H1),(C,(D)#H1)));"
-net = readTopology(tree)
+str = "(A,((B,#H1),(C,(D)#H1)));"
+net = readTopology(str)
 printEdges(net)
 ```
 You see that the edges do not have branch lengths, and the hybrid edges do not have gamma values, you can set them with
@@ -53,3 +53,8 @@ printEdges(net)
 ```
 where 1 and 3 correspond to the position of the given edge to modify in the list of edges.
 You can only change the gamma value of hybrid edges.
+Such an attempt below will cause an error with a message to explain that
+the edge was a tree edge:
+```julia
+setGamma!(net.edge[4],0.7) # should return error message
+```
