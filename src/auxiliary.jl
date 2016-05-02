@@ -1046,7 +1046,7 @@ function printEverything(net::HybridNetwork)
     printEdges(net)
     printNodes(net)
     printPartitions(net)
-    println("$(writeTopology(net))")
+    println("$(writeTopologyLevel1(net))")
     ## if(DEBUG && REDIRECT)
     ##     try
     ##         plotNetGraphViz(net,internalLabels=true,imageName="plotDebug")

@@ -82,8 +82,8 @@ function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Nu
             print(str)
         end
         # push!(bootNet, deepcopy(bestNet))
-        write(logfile, "$(writeTopology(bestNet))\n")
-        println(writeTopology(bestNet))
+        write(logfile, "$(writeTopologyLevel1(bestNet))\n")
+        println(writeTopologyLevel1(bestNet))
     end
 
     write(logfile,"\nBEGIN: $(nrep) replicates")
@@ -108,9 +108,9 @@ function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Nu
         net = optTopRuns!(startnet, M, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, string(filename,"_",i), true,seeds[i+1],probST)
         push!(bootNet, deepcopy(net))
         if(outgroup == "none")
-            write(logfile,writeTopology(net)) #no outgroup
+            write(logfile,writeTopologyLevel1(net)) #no outgroup
         else
-            write(logfile,writeTopology(net,outgroup)) #outgroup
+            write(logfile,writeTopologyLevel1(net,outgroup)) #outgroup
         end
         flush(logfile)
     end #end nrep
@@ -119,9 +119,9 @@ function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Nu
     s = open(string(filename,".out"),"w")
     for(n in bootNet)
         if(outgroup == "none")
-            write(s,"$(writeTopology(n)), with -loglik $(n.loglik)\n")
+            write(s,"$(writeTopologyLevel1(n)), with -loglik $(n.loglik)\n")
         else
-            write(s,"$(writeTopology(n,outgroup)), with -loglik $(n.loglik)\n")
+            write(s,"$(writeTopologyLevel1(n,outgroup)), with -loglik $(n.loglik)\n")
         end
     end
     close(s)

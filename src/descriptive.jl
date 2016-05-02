@@ -56,13 +56,16 @@ function Base.show(io::IO, obj::HybridNetwork)
         if obj.numTaxa > 4 disptipslabels = disptipslabels * ", ..." end
         disp *= "tip labels: " * disptipslabels
     end
-    disp *= "\n$(writeTopology(obj))"
+    par = ""
+    try
+        par = writeTopology(obj,round=true)
+    catch err
+        println("ERROR with writeTopology: $(err)\nTrying writeTopologyLevel1")
+        par = writeTopologyLevel1(obj)
+    end
+    disp *= "\n$par"
     println(io, disp)
 end
-
-# function show(io::IO, net::HybridNetwork)
-#     print(io,"$(writeTopology(net))")
-# end
 
 # and QuartetNetworks (which cannot be just written because they do not have root)
 function Base.show(io::IO, net::QuartetNetwork)

@@ -1304,7 +1304,7 @@ concordance factors under the input network.
 """
 function topologyQPseudolik!(net0::HybridNetwork,d::DataCF; verbose=false::Bool)
     any([(e.length == -1.0 && e.istIdentifiable) for e in net0.edge]) && warn("identifiable edges lengths missing, so assigned default value of 1.0, but pseudolikelihood is meaningless")
-    net = readTopologyUpdate(writeTopology(net0)) #re read to update everything as it should
+    net = readTopologyUpdate(writeTopologyLevel1(net0)) # update level-1 attributes
     try
         checkNet(net)
     catch

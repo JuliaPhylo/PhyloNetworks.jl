@@ -13,16 +13,16 @@ try
     T=readTopologyLevel1("../examples/startTree.txt");
     T2=readTopology("../examples/startTree.txt");
     T3=readTopology("(2,3,(4,(5,(1,6))));")
-    writeTopology(T)
+    writeTopologyLevel1(T)
     # snaq
     net1=snaq!(T,d,filename="net1_snaq")
     net2=snaq!(T,d,hmax=2, filename="net2_snaq");
-    writeTopology(net1)
-    writeTopology(net1,di=true)
+    writeTopologyLevel1(net1)
+    writeTopologyLevel1(net1,di=true)
     # topologyMaxQ
     net1topo = readTopologyLevel1("(2,(4,(3,(5,(6,#H1)))),(1)#H1);");
     topologyMaxQPseudolik!(net1topo,d)
-    writeTopology(net1topo)
+    writeTopologyLevel1(net1topo)
     # topologyQ
     net1withBL = readTopologyLevel1("(2,(4,(3,(5,(6,#H6:1.0::0.288):5.006):0.518):0.491):1.533,(1)#H6:1.0::0.712);");
     topologyQPseudolik!(net1withBL,d)

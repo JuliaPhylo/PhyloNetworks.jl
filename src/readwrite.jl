@@ -755,7 +755,11 @@ end
 # function to write a node and its descendants in
 #parenthetical format
 # di=true in densdroscope format, names=true, prints names
-function writeSubTree!(s::IO, n::Node, parent::Edge,di::Bool,names::Bool, printID::Bool)
+writeSubTree!(s::IO, n::Node, parent::Edge, di::Bool, names::Bool, printID::Bool) =
+    writeSubTree!(s,n,parent,di,names,printID, true,3)
+
+function writeSubTree!(s::IO, n::Node, parent::Edge,di::Bool,names::Bool, printID::Bool,
+                       roundBL::Bool, digits::Integer)
     if((parent.hybrid && !parent.isMajor) || n.leaf)
         if(names)
             if(n.name != "")
@@ -778,7 +782,7 @@ function writeSubTree!(s::IO, n::Node, parent::Edge,di::Bool,names::Bool, printI
         for(e in n.edge)
             if(!isEqual(e,parent) && !(e.hybrid && parent.hybrid))
                 child = getOtherNode(e,n)
-                writeSubTree!(s,child,e, di,names, printID)
+                writeSubTree!(s,child,e, di,names, printID, roundBL, digits)
                 if(!parent.hybrid) #cecile handles this step differently: if(parent.hybrid) numChildren-=1 end
                     numChildren -= 1
                     if(numChildren > 0)
@@ -804,25 +808,26 @@ function writeSubTree!(s::IO, n::Node, parent::Edge,di::Bool,names::Bool, printI
     if(printID) #which BL to print
         if(!n.leaf)
             if(parent.istIdentifiable && parent.length >= 0.0) #we do not want to print BL of non-id edges
-                print(s,string(":",round(parent.length,3)))
+                print(s,string(":",(roundBL ? round(parent.length,digits) : parent.length)))
                 printBL = true
             end
         end
     else
         if(parent.length >= 0.0) #print all BL != -1
-            print(s,string(":",round(parent.length,3)))
+            print(s,string(":",(roundBL ? round(parent.length,digits) : parent.length)))
             printBL = true
         end
     end
     if(parent.hybrid && !di && (!printID || !n.isBadDiamondI))
         if(parent.gamma != -1.0)
             if(!printBL) print(s,":"); end
-            print(s,string("::",round(parent.gamma,3)))
+            print(s,string("::",(roundBL ? round(parent.gamma,digits) : parent.gamma)))
         end
     end
 end
 
-# function to writeTopology
+# function to writeTopology for level 1 networks. bad net.root okay
+#                           deepcopies net -> does *not* modify it
 # if string=true, returns a string with network in parenthetical format
 #                 ow returns the IOBuffer object
 # need as input HybridNetwork, since QuartetNetwork does not have root
@@ -831,9 +836,10 @@ end
 # outgroup: place the root in the external edge of this taxon if possible,
 # if none given, placed the root wherever possible
 # printID=true, only print identifiable BL, default false (only true inside snaq)
-function writeTopology(net0::HybridNetwork, di::Bool, str::Bool, names::Bool,outgroup::AbstractString, printID::Bool)
+
+function writeTopologyLevel1(net0::HybridNetwork, di::Bool, str::Bool, names::Bool,outgroup::AbstractString, printID::Bool, roundBL::Bool, digits::Integer)
     s = IOBuffer()
-    writeTopology(net0,s,di,names,outgroup,printID)
+    writeTopologyLevel1(net0,s,di,names,outgroup,printID,roundBL,digits)
     if(str)
         return bytestring(s)
     else
@@ -841,9 +847,10 @@ function writeTopology(net0::HybridNetwork, di::Bool, str::Bool, names::Bool,out
     end
 end
 
-# warning: I do not want writeTopology to modify the network if outgroup is given! thus, we have updateRoot, and undoRoot
-function writeTopology(net0::HybridNetwork, s::IO, di::Bool, names::Bool,outgroup::AbstractString, printID::Bool)
-    net = deepcopy(net0) #writeTopology needs containRoot, but should not alter net0
+# warning: I do not want writeTopologyLevel1 to modify the network if outgroup is given! thus, we have updateRoot, and undoRoot
+function writeTopologyLevel1(net0::HybridNetwork, s::IO, di::Bool, names::Bool,
+           outgroup::AbstractString, printID::Bool, roundBL::Bool, digits::Integer)
+    net = deepcopy(net0) #writeTopologyLevel1 needs containRoot, but should not alter net0
     if(net.numBad > 0)
         println("net has $(net.numBad) bad diamond I, gammas and some branch lengths are not identifiable, and therefore, meaningless")
     end
@@ -851,7 +858,7 @@ function writeTopology(net0::HybridNetwork, s::IO, di::Bool, names::Bool,outgrou
         print(s,string(net.node[net.root].number,";")) # error if 'string' is an argument name.
     else
         if(!isTree(net) && !net.cleaned)
-            DEBUG && println("net not cleaned inside writeTopology, need to run updateContainRoot")
+            DEBUG && println("net not cleaned inside writeTopologyLevel1, need to run updateContainRoot")
             for(n in net.hybrid)
                 flag,edges = updateContainRoot!(net,n)
                 flag || error("hybrid node $(n.hybrid) has conflicting containRoot")
@@ -863,7 +870,7 @@ function writeTopology(net0::HybridNetwork, s::IO, di::Bool, names::Bool,outgrou
         CHECKNET && canBeRoot(net.node[net.root])
         degree = length(net.node[net.root].edge)
         for(e in net.node[net.root].edge)
-            writeSubTree!(s,getOtherNode(e,net.node[net.root]),e,di,names, printID)
+            writeSubTree!(s,getOtherNode(e,net.node[net.root]),e,di,names, printID, roundBL,digits)
             degree -= 1
             if(degree > 0)
                 print(s,",")
@@ -875,13 +882,14 @@ function writeTopology(net0::HybridNetwork, s::IO, di::Bool, names::Bool,outgrou
     # to delete 2-degree node, for snaq.
 end
 
-#writeTopology(net::HybridNetwork) = writeTopology(net,false, true,true,"none") #not needed because of last function definition
-writeTopology(net::HybridNetwork,printID::Bool) = writeTopology(net,false, true,true,"none",printID)
-writeTopology(net::HybridNetwork,outgroup::AbstractString) = writeTopology(net,false, true,true,outgroup,true)
-writeTopology(net::HybridNetwork,di::Bool,outgroup::AbstractString) = writeTopology(net,di, true,true,outgroup,true)
+writeTopologyLevel1(net::HybridNetwork,di::Bool,str::Bool,names::Bool,outgroup::AbstractString,printID::Bool) = writeTopologyLevel1(net,di,str,names,outgroup,printID, true,3)
+# above: default roundBL=true at digits=3 decimal places
+writeTopologyLevel1(net::HybridNetwork,printID::Bool) = writeTopologyLevel1(net,false, true,true,"none",printID)
+writeTopologyLevel1(net::HybridNetwork,outgroup::AbstractString) = writeTopologyLevel1(net,false, true,true,outgroup,true)
+writeTopologyLevel1(net::HybridNetwork,di::Bool,outgroup::AbstractString) = writeTopologyLevel1(net,di, true,true,outgroup,true)
 
 """
-`writeTopology(net::HybridNetwork)`
+`writeTopologyLevel1(net::HybridNetwork)`
 
 writes the parenthetical format of a HybridNetwork object with many optional arguments:
 
@@ -889,8 +897,14 @@ writes the parenthetical format of a HybridNetwork object with many optional arg
 - names=false: write the leaf nodes numbers instead of taxon names (default true)
 - outgroup (string): name of outgroup to root the tree/network
 - printID=true, only print branch lengths for identifiable egdes according to the snaq estimation procedure (default false)
+- round: rounds branch lengths and heritabilities γ (default: true)
+- digits: digits after the decimal place for rounding (defult: 3)
+
+Note that the topology may be written using a root different than net.root,
+if net.root is incompatible with one of more hybrid node.
+The network object is *not* modified.
 """
-writeTopology(net::HybridNetwork; di=false::Bool, string=true::Bool, names=true::Bool,outgroup="none"::AbstractString, printID=false::Bool) = writeTopology(net, di, string, names,outgroup,printID)
+writeTopologyLevel1(net::HybridNetwork; di=false::Bool, string=true::Bool, names=true::Bool,outgroup="none"::AbstractString, printID=false::Bool, round=true::Bool, digits=3::Integer) = writeTopologyLevel1(net, di, string, names,outgroup,printID, round,digits)
 
 # function to check if root is well-placed
 # and look for a better place if not
@@ -969,7 +983,6 @@ function undoRoot!(net::HybridNetwork, fromUpdateRoot::Bool)
 end
 
 undoRoot!(net::HybridNetwork) = undoRoot!(net, true)
-
 
 # function to read the .out file from snaq (optTopRuns) function
 function readOutfile(file::AbstractString)
@@ -1062,7 +1075,7 @@ Write an array of networks in parenthetical format to a file (one network per li
 Use the option append=true to append to the file. Otherwise, the default is to create a new
 file or overwrite it, if it already existed.
 
-# Examples
+# Examples #"
 ```julia
 julia> net = [readTopology("(D,((A,(B)#H7:::0.864):2.069,(F,E):3.423):0.265,(C,#H7:::0.1361111):10);"),
               readTopology("(A,(B,C));"),readTopology("(E,F);"),readTopology("(G,H,F);")];
@@ -1084,7 +1097,7 @@ julia> writeMultiTopology(net, STDOUT)
 (G,H,F);
 
 ```
-"""
+""" #"
 function writeMultiTopology(n::Vector{HybridNetwork},file::AbstractString; append::Bool=false)
     mode = (append ? "a" : "w")
     s = open(file, mode)
@@ -1093,8 +1106,102 @@ function writeMultiTopology(n::Vector{HybridNetwork},file::AbstractString; appen
 end
 
 function writeMultiTopology(net::Vector{HybridNetwork},s::IO)
-    for(n in net)
-        writeTopology(n,s,false,true,"none",false)
+    for (i in 1:length(net))
+      try
+        # writeTopologyLevel1(net[i],s,false,true,"none",false,false,3)
+        writeTopology(net[i],s) # no rounding, not for dendroscope
         write(s,"\n")
+      catch err
+        if isa(err, RootMismatch) # continue writing other networks in list
+            warn("\nError with topology $i:\n" * err.msg)
+        else rethrow(err); end
+      end
     end
+end
+
+
+"""
+    writeTopology(net)
+    writeTopology(net, filename)
+
+write the parenthetical format of a HybridNetwork object, as a string or to a file.
+Optional arguments (default values):
+
+- di (false): write in format for Dendroscope
+- round (false): rounds branch lengths and heritabilities γ
+- digits (3): digits after the decimal place for rounding
+
+If the current root placement is not admissible, other placements are tried.
+The network is updated with this new root placement, if successful.
+"""
+function writeTopology(n::HybridNetwork, file::AbstractString; append::Bool=false,
+        round=false::Bool, digits=3::Integer, di=false::Bool) # keyword arguments
+    mode = (append ? "a" : "w")
+    s = open(file, mode)
+    writeTopology(n,s,round,digits,di)
+    write(s,"\n")
+    close(s)
+end
+
+function writeTopology(n::HybridNetwork;
+        round=false::Bool, digits=3::Integer, di=false::Bool) # keyword arguments
+    s = IOBuffer()
+    writeTopology(n,s,round,digits,di)
+    return bytestring(s)
+end
+
+function writeTopology(net::HybridNetwork, s::IO,
+        round=false::Bool, digits=3::Integer, di=false::Bool) # optional arguments
+    # check/find admissible root: otherwise could be trapped in infinite loop
+    rootsaved = net.root
+    changeroot = false
+    msg = ""
+    try
+        directEdges!(net)
+    catch err
+        if isa(err, RootMismatch)
+            println(err.msg * "\nCannot write topology with current root.")
+            changeroot = true
+        else rethrow(err); end
+    end
+    while changeroot
+        for (e in net.edge)
+          # parents of hybrid edges should be sufficient, but gives weird look
+          #if e.hybrid
+            i = getIndex(e.node[e.isChild1? 2 : 1], net)
+            net.root = i
+            try
+                directEdges!(net)
+                print("Setting root at node $(net.node[i].number) (net.root = $i)\n\n")
+                print(msg)
+                changeroot = false
+                break # stop loop over edges
+            end
+          #end
+        end
+        if changeroot # none of hybrid edges worked
+            net.root = rootsaved
+            throw(RootMismatch("Could not find admissible root. Cannot write topology."))
+            changeroot=false # safety exit of while (but useless)
+        end
+    end
+    # finally, write parenthetical format
+    if net.numNodes == 1
+        print(s,string(net.node[net.root].number))
+    elseif net.numNodes > 1
+        print(s,"(")
+        degree = length(net.node[net.root].edge)
+        for(e in net.node[net.root].edge)
+            writeSubTree!(s,getOtherNode(e,net.node[net.root]),e,di,true,false,round,digits)
+            # names = true:    leaf names (labels), not numbers
+            # printID = false: print all branch lengths, not just identifiable ones
+            degree -= 1
+            if(degree > 0)
+                print(s,",")
+            end
+        end
+        print(s,")")
+    end
+    print(s,";")
+    return nothing
 end

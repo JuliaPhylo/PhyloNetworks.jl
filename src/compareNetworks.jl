@@ -157,7 +157,7 @@ and the function does not test for this.
 
 visited: vector of node numbers, of all visited nodes.
 
-# Examples:
+# Examples: #"
 ```
 julia> net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readTopology |> directEdges! ;
 
@@ -179,7 +179,7 @@ julia> hardwiredCluster(net5.edge[12], taxa) # descendants of 12th edge = CEF
   true
  false
 ```
-"""
+""" #"
 function hardwiredCluster(edge::Edge,taxa::Union{Vector{ASCIIString},Vector{Int64}})
     v = zeros(Bool,length(taxa))
     hardwiredCluster!(v,edge,taxa)
@@ -295,7 +295,7 @@ majorTree(net::HybridNetwork) = displayedTrees(net,0.5)[1]
 # expands current list of trees, with trees displayed in a given network
 function displayedTrees!(trees::Array{HybridNetwork,1},net::HybridNetwork)
     if (isTree(net))
-        for(e in net.edge) # updating containRoot and inCycle helps with writeTopology.
+        for(e in net.edge)
             e.containRoot = true # ideally, this should be transferred to deleteHybridEdge!.
             e.inCycle = -1
         end

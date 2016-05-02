@@ -17,7 +17,7 @@ success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
 success
 printEdges(besttree)
 printNodes(besttree)
-writeTopology(besttree,true)
+writeTopologyLevel1(besttree,true)
 net = deepcopy(besttree);
 length(net.partition)
 [n.number for n in net.partition[1].edges] == [15] || error("wrong partition")
@@ -33,7 +33,7 @@ success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
 success
 printEdges(besttree)
 printNodes(besttree)
-writeTopology(besttree,true)
+writeTopologyLevel1(besttree,true)
 net = deepcopy(besttree);
 length(net.partition)
 [n.number for n in net.partition[1].edges] == [15] || error("wrong partition")

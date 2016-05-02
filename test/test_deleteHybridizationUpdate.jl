@@ -15,7 +15,7 @@ seed = 56326
 currT0 = readTopologyUpdate(tree);
 ## printEdges(currT0)
 ## printNodes(currT0)
-## writeTopology(currT0)
+## writeTopologyLevel1(currT0)
 checkNet(currT0)
 srand(seed);
 besttree = deepcopy(currT0);
@@ -25,7 +25,7 @@ success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
 success || error("not able to place first hybridization")
 printEdges(besttree)
 printNodes(besttree)
-writeTopology(besttree)
+writeTopologyLevel1(besttree)
 net = deepcopy(besttree);
 # test contain root
 !net.edge[15].containRoot || error("edge 15 wrong contain Root")
@@ -62,7 +62,7 @@ success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
 success || error("could not add second hybridization")
 printEdges(besttree)
 printNodes(besttree)
-writeTopology(besttree,true)
+writeTopologyLevel1(besttree,true)
 net = deepcopy(besttree);
 
 # test contain root
@@ -153,7 +153,7 @@ length(net.partition) == 6 || error("wrong partition")
 printNodes(net)
 printEdges(net)
 printPartitions(net)
-writeTopology(net)
+writeTopologyLevel1(net)
 
 # test contain root
 !net.edge[15].containRoot || error("edge 15 wrong contain Root")

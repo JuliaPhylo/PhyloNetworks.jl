@@ -115,7 +115,7 @@ end
 # does not modify net0 because it needs to update all attributes
 # so, it returns the new network
 function hybridatnode(net0::HybridNetwork, nodeNumber::Int64)
-    net = readTopologyUpdate(writeTopology(net0)) # we need inCycle attributes
+    net = readTopologyUpdate(writeTopologyLevel1(net0)) # we need inCycle attributes
     ind = 0
     try
         ind = getIndexNode(nodeNumber,net)
@@ -624,6 +624,7 @@ It is not used in directEdges!, but might cause an error elsewhere.")
             # none of those attributes are used here.
         end
     end
+    net.cleaned = false # attributed used by snaq! Will change isChild1 and containRoot
     for(e in net.node[net.root].edge)
         traverseDirectEdges!(net.node[net.root],e,true)
     end

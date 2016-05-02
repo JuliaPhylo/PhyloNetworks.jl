@@ -14,12 +14,12 @@ printNodes(truenet)
 
 tree = readTopologyUpdate("1_astral.out");
 printEdges(tree)
-writeTopology(tree)
+writeTopologyLevel1(tree)
 net = deepcopy(tree);
 srand(1234)
 addHybridizationUpdate!(net);
 printEdges(net)
-writeTopology(net)
+writeTopologyLevel1(net)
 
 
 extractQuartet!(truenet, quartets) # no errors
@@ -45,7 +45,7 @@ parameters!(qnet,net) # error here: fixed
 # now, error in minor edge 12 set as identifiable AND node.k=-1 even after updateInCycle
 tree = readTopologyUpdate("1_astral.out");
 printEdges(tree)
-writeTopology(tree)
+writeTopologyLevel1(tree)
 net = deepcopy(tree);
 srand(1234)
 hybrid = addHybridization!(net);
