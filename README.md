@@ -191,7 +191,7 @@ in this format
 
 you would read it like this:
 ```julia
-d=readTableCF("tableCF.txt");
+d=readTableCF("tableCF.txt")
 ```
 You can access this example file
 [here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/tableCF.txt)
