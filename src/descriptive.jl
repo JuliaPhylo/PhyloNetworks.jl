@@ -18,8 +18,17 @@ end
 function that will create a table with the observed and expected CF after estimation of a network with snaq(T,d).
 """
 function dfObsExpCF(d::DataCF)
-    df=DataFrame(obsCF1=[q.obsCF[1] for q in d.quartet],obsCF2=[q.obsCF[2] for q in d.quartet],obsCF3=[q.obsCF[3] for q in d.quartet], expCF1=[q.qnet.expCF[1] for q in d.quartet],expCF2=[q.qnet.expCF[2] for q in d.quartet],expCF3=[q.qnet.expCF[3] for q in d.quartet])
-    return df
+    df=DataFrame(tx1 = [q.taxon[1] for q in d.quartet],
+        tx2 = [q.taxon[2] for q in d.quartet],
+            tx3 = [q.taxon[3] for q in d.quartet],
+                tx4 = [q.taxon[4] for q in d.quartet],
+                    obsCF1=[q.obsCF[1] for q in d.quartet],
+                        obsCF2=[q.obsCF[2] for q in d.quartet],
+                            obsCF3=[q.obsCF[3] for q in d.quartet],
+                                expCF1=[q.qnet.expCF[1] for q in d.quartet],
+                                    expCF2=[q.qnet.expCF[2] for q in d.quartet],
+                                        expCF3=[q.qnet.expCF[3] for q in d.quartet])
+   return df
 end
 
 
