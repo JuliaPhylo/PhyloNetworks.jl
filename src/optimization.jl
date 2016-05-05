@@ -1235,7 +1235,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     julialog = string(rootname,".log")
     logfile = open(julialog,"w")
     juliaout = string(rootname,".out")
-    ##julianet = string(rootname,".networks")
+    julianet = string(rootname,".networks")
 
     # print to logfile
     write(logfile,"optimization of topology, BL and inheritance probabilities using:
@@ -1348,13 +1348,13 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         close(s)
         close(logfile)
         # added new output file with non-identifiable networks:
-        s = open(julianet,"w")
-        otherNet = undirectedOtherNetworks(maxNet, outgroup=outgroup) # do not use rootMaxNet
-        for(n in otherNet)
-            optBL!(n,d) ##optBL MUST have network with all the attributes, and undirectedOtherNetworks will return "good" networks that way
-            write(s,"$(writeTopologyLevel1(n,true)), with -loglik $(n.loglik)\n")
-        end
-        close(s)
+        ## s = open(julianet,"w")
+        ## otherNet = undirectedOtherNetworks(maxNet, outgroup=outgroup) # do not use rootMaxNet
+        ## for(n in otherNet)
+        ##     optBL!(n,d) ##optBL MUST have network with all the attributes, and undirectedOtherNetworks will return "good" networks that way
+        ##     write(s,"$(writeTopologyLevel1(n,true)), with -loglik $(n.loglik)\n")
+        ## end
+        ## close(s)
     end
     if(returnNet)
         if(outgroup == "none")
