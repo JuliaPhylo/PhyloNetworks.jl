@@ -2,6 +2,109 @@
 # Claudia October 2015
 # Cecile April 2016
 
+# function to sample bootstrap gene trees
+# returns an array of trees
+function bootstrapTrees(treefile::AbstractString; seed=0::Int)
+    if(seed == 0)
+        t = time()/1e9
+        a = split(string(t),".")
+        seed = parse(Int,a[2][end-4:end]) #better seed based on clock
+    end
+    println("using seed $(seed) for bootstrap trees")
+    srand(seed)
+    trees = readInputTrees(treefile)
+    n = length(trees)
+    indx = sample(1:n,n)
+    return trees[indx]
+end
+
+
+# same as optTopRunsBoot, but for gene trees as input
+# input treefile instead of df
+# needs quartetfile if it was used in original data ("none" if all quartets used)
+function optTopRunsBoot_trees(currT0::HybridNetwork, treefile::AbstractString, quartetfile::AbstractString, hmax::Int64, M::Number, Nfail::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, filename::AbstractString, seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64, bestNet::HybridNetwork)
+    prcnet >= 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
+    prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
+    println("BOOTSTRAP OF SNAQ ESTIMATION")
+    julialog = string(filename,".log")
+    logfile = open(julialog,"w")
+    write(logfile, "BOOTSTRAP OF SNAQ ESTIMATION \n")
+
+    if(seed == 0)
+        t = time()/1e9
+        a = split(string(t),".")
+        seed = parse(Int,a[2][end-4:end]) #better seed based on clock
+    end
+    write(logfile,"\nmain seed $(seed)\n")
+    flush(logfile)
+    srand(seed)
+    seeds = [seed;round(Int64,floor(rand(nrep)*100000))] #seeds for all runs
+    bootNet = HybridNetwork[]
+
+    if(prcnet > 0.0)
+        str = "Will use the best network as starting topology $(prcnet*100) percent of times:\n"
+        write(logfile, str)
+        print(str)
+        if(bestNet.numTaxa == 0)
+            str = "bestNet not given as input, estimated before bootstrap\n"
+            write(logfile, str)
+            print(str)
+            d = readTrees2CF(treefile, quartetfile=quartetfile)
+            startnet=deepcopy(currT0)
+            bestNet = optTopRuns!(startnet, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, "bestNet", true,seeds[1],probST)
+        else
+            str = "bestNet input:\n"
+            write(logfile, str)
+            print(str)
+        end
+        # push!(bootNet, deepcopy(bestNet))
+        write(logfile, "$(writeTopologyLevel1(bestNet))\n")
+        println(writeTopologyLevel1(bestNet))
+    end
+
+    write(logfile,"\nBEGIN: $(nrep) replicates")
+    write(logfile,"\n$(Libc.strftime(time()))")
+    flush(logfile)
+
+    for(i in 1:nrep)
+        write(logfile,"\n begin replicate $(i) with seed $(seeds[i+1])---------\n")
+        println("\nbegin replicate $(i) with seed $(seeds[i+1])\n")
+        newtrees = bootstrapTrees(treefile, seed=seeds[i+1])
+        newd = readTrees2CF(newtrees, quartetfile=quartetfile)
+        if(i/nrep <= prcnet)
+            write(logfile,"\nStarting topology: best network")
+            startnet = deepcopy(bestNet)
+        else
+            write(logfile,"\nStarting topology: same starting tree as original optimization\n")
+            startnet=deepcopy(currT0)
+        end
+        flush(logfile)
+        net = optTopRuns!(startnet, M, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, string(filename,"_",i), true,seeds[i+1],probST)
+        push!(bootNet, deepcopy(net))
+        if(outgroup == "none")
+            write(logfile,writeTopologyLevel1(net)) #no outgroup
+        else
+            write(logfile,writeTopologyLevel1(net,outgroup)) #outgroup
+        end
+        flush(logfile)
+    end #end nrep
+    close(logfile)
+
+    s = open(string(filename,".out"),"w")
+    for(n in bootNet)
+        if(outgroup == "none")
+            write(s,"$(writeTopologyLevel1(n)), with -loglik $(n.loglik)\n")
+        else
+            write(s,"$(writeTopologyLevel1(n,outgroup)), with -loglik $(n.loglik)\n")
+        end
+    end
+    close(s)
+    return bootNet
+end
+
+
+
+
 # function to read a CF table with CI
 # and sample new obsCF
 # the function returns the new dataframe
@@ -44,7 +147,6 @@ bootstrapCFtable(file::AbstractString;sep=','::Char,seed=0::Int) = bootstrapCFta
 # - new argument nrep: number of bootstrap replicates (default 10)
 # - new argument prcnet: percentage of bootstrap replicates to start in the best network, by default 0.25
 # - new argument bestNet: to start the optimization. if prcnet>0.0 and bestNet is not input as argument from a previous run, it will estimate it inside
-# returns vector of HybridNetworks, bestNet is the first one, and the other nrep networks after
 # I believe no ! needed because we need a clean copy of currT in each replicate, so deepcopied
 function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Number, Nfail::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, filename::AbstractString, seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64, bestNet::HybridNetwork)
     prcnet >= 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
@@ -132,12 +234,16 @@ end
 # will later decide which to call depending on nproc()
 """
 `bootsnaq(T::HybridNetwork, df::DataFrame)`
+`bootsnaq(T::HybridNetwork, treefile::AbstractString)`
 
-Bootstrap analysis for SNaQ. Bootstrap data are quartet concordance factors (CF),
+Bootstrap analysis for SNaQ.
+Bootstrap data can be quartet concordance factors (CF),
 drawn from sampling uniformly in their credibility intervals,
-as given in the data frame `df`. From each bootstrap replicate, a network
-is estimated with snaq!, with a search starting from topology `T`.
+as given in the data frame `df`, or it can be a file with a list
+of gene trees (as for readTrees2CF).
 
+From each bootstrap replicate, a network
+is estimated with snaq!, with a search starting from topology `T`.
 Optional arguments include the following, with default values in parentheses:
 
 - hmax (1): max number of reticulations in the estimated networks
@@ -161,6 +267,14 @@ Found different column names: $(names(df)[[6,7,9,10,12,13]])")
     else
         optTopRunsBoot(startnet, df, hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, seed, probST, nrep, prcnet, bestNet)
     end
+end
+
+# function from input trees, if random sample of quartets was used in original analysis,
+# need to include it in quartetfile
+# fixit: need to add to documentation the quartetfile
+function bootsnaq(currT0::HybridNetwork, treefile::AbstractString; quartetfile="none"::AbstractString,hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="bootsnaq"::AbstractString, seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.0::Float64, bestNet=HybridNetwork()::HybridNetwork)
+    startnet=deepcopy(currT0)
+    optTopRunsBoot_trees(startnet, treefile, quartetfile,hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, seed, probST, nrep, prcnet, bestNet)
 end
 
 
@@ -385,7 +499,7 @@ end
 """
 `hybridBootstrapFrequency(boot_net::Vector{HybridNetwork}, ref_net::HybridNetwork;rooted=false::Bool)`
 
-Match hybrid nodes in a reference network with those in an array of networks, 
+Match hybrid nodes in a reference network with those in an array of networks,
 like bootstrap networks.
 All networks must be fully resolved, and on the same taxon set.
 If `rooted=true`, all networks are assumed to have been properly rooted beforehand.

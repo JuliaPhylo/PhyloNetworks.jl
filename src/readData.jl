@@ -418,8 +418,38 @@ end
 # does it by default
 # writeFile=true writes file with sampled quartets, default false
 function readInputData(treefile::AbstractString, quartetfile::AbstractString, whichQ::Symbol, numQ::Int64, writetab::Bool, filename::AbstractString, writeFile::Bool)
+    if writetab
+        if(filename == "none")
+            filename = "tableCF.txt" # "tableCF$(string(integer(time()/1000))).txt"
+        end
+        if (isfile(filename) && filesize(filename) > 0)
+           error("file $(filename) already exists and is non-empty.
+Cannot risk to erase data. Choose a different CFfile name, use writeTab=false,
+or read the existing file with readTableCF(\"$(filename)\")")
+           # setting writefile=false. You may save the CF table afterwards with
+           # 'using DataFrames' and
+           # writetable(new filename, PhyloNetworks.writeObsCF(DataCF object))")
+        end
+    end
     println("DATA: reading input data for treefile $(treefile) \nand quartetfile $(quartetfile)")
     trees = readInputTrees(treefile)
+    readInputData(trees, quartetfile, whichQ, numQ, writetab, filename, writeFile)
+end
+
+readInputData(treefile::AbstractString, quartetfile::AbstractString, whichQ::Symbol, numQ::Int64, writetab::Bool) = readInputData(treefile, quartetfile, whichQ, numQ, writetab, "none", false)
+readInputData(treefile::AbstractString, quartetfile::AbstractString, whichQ::Symbol, numQ::Int64) = readInputData(treefile, quartetfile, whichQ, numQ, true, "none", false)
+readInputData(treefile::AbstractString, quartetfile::AbstractString) = readInputData(treefile, quartetfile, :all, 0, true, "none", false)
+readInputData(treefile::AbstractString, quartetfile::AbstractString, writetab::Bool, filename::AbstractString) = readInputData(treefile, quartetfile, :all, 0, writetab, filename, false)
+
+# function to read input list of gene trees/quartets and calculates obsCF
+# as opposed to readTableCF that read the table of obsCF directly
+# input: trees Vector of HybridNetwork, quartetfile (with list of quartets),
+# whichQ (:add/:rand to decide if all or random sample of quartets, default all)
+# numQ: number of quartets in random sample
+# writetab = true to write the table of obsCF as file with name filename
+# does it by default
+# writeFile=true writes file with sampled quartets, default false
+function readInputData(trees::Vector{HybridNetwork}, quartetfile::AbstractString, whichQ::Symbol, numQ::Int64, writetab::Bool, filename::AbstractString, writeFile::Bool)
     if(whichQ == :all)
         numQ == 0 || warn("set numQ=$(numQ) but whichQ is not rand, so all quartets will be used and numQ will be ignored. If you want a specific number of 4-taxon subsets not random, you can input with the quartetfile option")
         println("DATA: will use all quartets in quartetfile $(quartetfile)")
@@ -449,10 +479,7 @@ function readInputData(treefile::AbstractString, quartetfile::AbstractString, wh
     return d
 end
 
-readInputData(treefile::AbstractString, quartetfile::AbstractString, whichQ::Symbol, numQ::Int64, writetab::Bool) = readInputData(treefile, quartetfile, whichQ, numQ, writetab, "none", false)
-readInputData(treefile::AbstractString, quartetfile::AbstractString, whichQ::Symbol, numQ::Int64) = readInputData(treefile, quartetfile, whichQ, numQ, true, "none", false)
-readInputData(treefile::AbstractString, quartetfile::AbstractString) = readInputData(treefile, quartetfile, :all, 0, true, "none", false)
-readInputData(treefile::AbstractString, quartetfile::AbstractString, writetab::Bool, filename::AbstractString) = readInputData(treefile, quartetfile, :all, 0, writetab, filename, false)
+
 
 # function to read input list of gene trees, and not the list of quartets
 # so it creates the list of quartets inside and calculates obsCF
@@ -479,6 +506,28 @@ or read the existing file with readTableCF(\"$(filename)\")")
     end
     println("DATA: reading input data for treefile $(treefile) and no quartetfile given: will get quartets here")
     trees = readInputTrees(treefile)
+    readInputData(trees, whichQ, numQ, taxa, writetab, filename, writeFile)
+end
+
+readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64, taxa::Union{Vector{ASCIIString}, Vector{Int64}}, writetab::Bool) = readInputData(treefile, whichQ, numQ, taxa, writetab, "none", false)
+readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64, taxa::Union{Vector{ASCIIString}, Vector{Int64}}) = readInputData(treefile, whichQ, numQ, taxa, true, "none",false)
+readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64, writetab::Bool, filename::AbstractString) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), writetab, filename,false)
+readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64, writetab::Bool) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), writetab, "none",false)
+readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), true, "none",false)
+readInputData(treefile::AbstractString) = readInputData(treefile, :all, 0, unionTaxaTree(treefile), true, "none",false)
+readInputData(treefile::AbstractString,taxa::Union{Vector{ASCIIString}, Vector{Int64}}) = readInputData(treefile, :all, 0, taxa, true, "none",false)
+readInputData(treefile::AbstractString, filename::AbstractString) = readInputData(treefile, :all, 0, unionTaxaTree(treefile), true, filename,false)
+
+# function to read input vector of HybridNetworks, and not the list of quartets
+# so it creates the list of quartets inside and calculates obsCF
+# as opposed to readTableCF that read the table of obsCF directly
+# input: trees (Vector of HybridNetwork), whichQ (:add/:rand to decide if all or random sample of quartets, default all)
+# numQ: number of quartets in random sample
+# taxa: list of taxa, if not given, all taxa in gene trees used
+# writetab = true to write the table of obsCF as file with name filename
+# does it by default
+# writeFile= true, writes intermediate files with the quartets info (default false)
+function readInputData(trees::Vector{HybridNetwork}, whichQ::Symbol, numQ::Int64, taxa::Union{Vector{ASCIIString}, Vector{Int64}}, writetab::Bool, filename::AbstractString, writeFile::Bool)
     if(whichQ == :all)
         numQ == 0 || warn("set numQ=$(numQ) but whichQ=all, so all quartets will be used and numQ will be ignored. If you want a specific number of 4-taxon subsets not random, you can input with the quartetfile option")
         quartets = allQuartets(taxa,writeFile)
@@ -504,14 +553,6 @@ or read the existing file with readTableCF(\"$(filename)\")")
     return d
 end
 
-readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64, taxa::Union{Vector{ASCIIString}, Vector{Int64}}, writetab::Bool) = readInputData(treefile, whichQ, numQ, taxa, writetab, "none", false)
-readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64, taxa::Union{Vector{ASCIIString}, Vector{Int64}}) = readInputData(treefile, whichQ, numQ, taxa, true, "none",false)
-readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64, writetab::Bool, filename::AbstractString) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), writetab, filename,false)
-readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64, writetab::Bool) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), writetab, "none",false)
-readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Int64) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), true, "none",false)
-readInputData(treefile::AbstractString) = readInputData(treefile, :all, 0, unionTaxaTree(treefile), true, "none",false)
-readInputData(treefile::AbstractString,taxa::Union{Vector{ASCIIString}, Vector{Int64}}) = readInputData(treefile, :all, 0, taxa, true, "none",false)
-readInputData(treefile::AbstractString, filename::AbstractString) = readInputData(treefile, :all, 0, unionTaxaTree(treefile), true, filename,false)
 
 
 # rename the function readInputData to make it more user-friendly
@@ -543,6 +584,27 @@ function readTrees2CF(treefile::AbstractString; quartetfile="none"::AbstractStri
             readInputData(treefile, quartetfile, :all, numQ, writeTab, CFfile, writeQ)
         elseif(whichQ == "rand")
             readInputData(treefile, quartetfile, :rand, numQ, writeTab, CFfile, writeQ)
+        else
+            error("whichQ should be all or rand, not $(whichQ)")
+        end
+    end
+end
+
+# same as before, but with input vector of HybridNetworks
+function readTrees2CF(trees::Vector{HybridNetwork}; quartetfile="none"::AbstractString, whichQ="all"::AbstractString, numQ=0::Int64, writeTab=true::Bool, CFfile="none"::AbstractString, taxa=unionTaxaTree(treefile)::Union{Vector{ASCIIString},Vector{Int64}}, writeQ=false::Bool)
+    if(quartetfile == "none")
+        if(whichQ == "all")
+            readInputData(trees, :all, numQ, taxa, writeTab, CFfile, writeQ)
+        elseif(whichQ == "rand")
+            readInputData(trees, :rand, numQ, taxa, writeTab, CFfile, writeQ)
+        else
+            error("whichQ should be all or rand, not $(whichQ)")
+        end
+    else
+        if(whichQ == "all")
+            readInputData(trees, quartetfile, :all, numQ, writeTab, CFfile, writeQ)
+        elseif(whichQ == "rand")
+            readInputData(trees, quartetfile, :rand, numQ, writeTab, CFfile, writeQ)
         else
             error("whichQ should be all or rand, not $(whichQ)")
         end
