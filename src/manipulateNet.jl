@@ -41,12 +41,22 @@ function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractS
         for(n in otherNet)
             !isTree(n) && checkRootPlace!(n, verbose=true)
         end
+        return otherNet
     else ## root already in good place
+        whichKeep = rep(true,length(otherNet))
+        i = 1
         for(n in otherNet)
-            !isTree(n) && checkRootPlace!(n, verbose=true, outgroup=outgroup)
+            if(!isTree(n))
+                try
+                    checkRootPlace!(n, verbose=true, outgroup=outgroup)
+                catch
+                    whichKeep[i] = false
+                end
+            end
+            i = i+1;
         end
+        return otherNet[whichKeep]
     end
-    return otherNet
 end
 
 # function to change the hybrid node in a cycle

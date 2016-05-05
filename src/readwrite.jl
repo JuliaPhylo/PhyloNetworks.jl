@@ -738,8 +738,8 @@ readTopologyLevel1(file::AbstractString) = readTopologyUpdate(file, false, true)
 
 # aux function to check if the root is placed correctly, and re root if not
 # warning: it needs updateContainRoot set
-function checkRootPlace!(net::HybridNetwork; verbose=false::Bool, outgroup=""::AbstractString)
-    if(outgroup == "")
+function checkRootPlace!(net::HybridNetwork; verbose=false::Bool, outgroup="none"::AbstractString)
+    if(outgroup == "none")
         if(!canBeRoot(net.node[net.root]))
             verbose && println("root node $(net.node[net.root].number) placement is not ok, we will change it to the first found node that agrees with the direction of the hybrid edges")
             for(i in 1:length(net.node))
@@ -756,9 +756,10 @@ function checkRootPlace!(net::HybridNetwork; verbose=false::Bool, outgroup=""::A
         elseif length(tmp)>1
             error("several leaves were found with name $(outgroup).")
         end
-        tmp.leaf || error("found outgroup not a leaf: $(tmp.number), $(outgroup)")
-        length(tmp.edge) == 1 || error("found leaf with more than 1 edge: $(tmp.number)")
-        other = getOtherNode(tmp.edge[1],tmp);
+        leaf = net.leaf[tmp[1]]
+        leaf.leaf || error("found outgroup not a leaf: $(leaf.number), $(outgroup)")
+        length(leaf.edge) == 1 || error("found leaf with more than 1 edge: $(leaf.number)")
+        other = getOtherNode(leaf.edge[1],leaf);
         if(canBeRoot(other))
             net.root = getIndexNode(other.number,net)
         else
