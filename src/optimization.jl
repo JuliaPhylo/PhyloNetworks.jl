@@ -1209,26 +1209,11 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     0.0<=probST<=1.0 || error("probability to keep the same starting topology should be between 0 and 1: $(probST)")
     sameTaxa(d,currT0) || error("some taxon names in quartets do not appear on the starting topology")
     currT0.numTaxa >= 5 || error("cannot estimate hybridizations in topologies with fewer than 5 taxa, this topology has $(currT0.numTaxa) taxa")
-    # need a clean starting net. fixit: maybe we need to be more thorough here
-    # yes, need to check that everything is ok because it could have been cleaned and then modified
 
-    ## if(!currT0.cleaned) #need a clean topology
-    ##     DEBUG && println("si, se metio a q no esta cleaned")
-    ##     DEBUG && println("currT0.cleaned=false, will re-read with readTopologyLevel1")
-        currT1 = readTopologyUpdate(writeTopologyLevel1(currT0)) # update level-1 attributes
-        flag = checkNet(currT1,true)
-        flag && error("starting topology suspected not level-1")
-        currT0 = currT1 # currT1 not used later. does not change input currT0 outside
-    ## else
-    ##     flag = checkNet(currT0,true) # only case when currT0 might be modified
-    ##     if(flag)
-    ##         DEBUG && println("currT0 failes checkNet, will re-read with readTopologyLevel1")
-    ##         currT1 = readTopologyUpdate(writeTopologyLevel1(currT0)) #re read to update everything as it should
-    ##         flag = checkNet(currT1,true)
-    ##         flag && error("starting topology suspected not level-1")
-    ##         currT0 = currT1
-    ##     end
-    ## end
+    currT1 = readTopologyUpdate(writeTopologyLevel1(currT0)) # update level-1 attributes
+    flag = checkNet(currT1,true)
+    flag && error("starting topology suspected not level-1")
+    currT0 = currT1 # currT1 not used later. does not change input currT0 outside
     try
         checkNet(currT0)
     catch err
@@ -1338,6 +1323,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         print(STDOUT,"\nMaxNet is $(writeTopologyLevel1(maxNet,true)) \nwith -loglik $(maxNet.loglik)\n")
         s = open(juliaout,"w")
         if(outgroup == "none")
+            checkRootPlace!(maxNet,verbose=true) #leave root in good place after snaq
             write(s,writeTopologyLevel1(maxNet)) #no outgroup
             write(s,"\n -Ploglik = $(maxNet.loglik)")
             write(s,"\n Dendroscope: $(writeTopologyLevel1(maxNet,di=true))")
@@ -1348,7 +1334,6 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             write(s,"\n -Ploglik = $(maxNet.loglik)")
             write(s,"\n Dendroscope: $(writeTopologyLevel1(rootMaxNet,true))")
         end
-        #write(s,"\n Elapsed time: $(t) seconds in $(runs-1-length(failed)) successful runs")
         write(s,"\n Elapsed time: $(t) seconds in $(runs-length(failed)) successful runs")
         write(s,"\n-------")
         write(s,"\nList of estimated networks for all runs:")
@@ -1363,16 +1348,20 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         close(s)
         close(logfile)
         # added new output file with non-identifiable networks:
-        ## s = open(julianet,"w")
-        ## otherNet = undirectedOtherNetworks(maxNet)
-        ## for(n in otherNet)
-        ##     optBL!(n,d) ##optBL MUST have network with all the attributes, and undirectedOtherNetworks will return "good" networks that way
-        ##     write(s,"$(writeTopologyLevel1(n,true)), with -loglik $(n.loglik)\n")
-        ## end
-        ## close(s)
+        s = open(julianet,"w")
+        otherNet = undirectedOtherNetworks(maxNet, outgroup=outgroup) # do not use rootMaxNet
+        for(n in otherNet)
+            optBL!(n,d) ##optBL MUST have network with all the attributes, and undirectedOtherNetworks will return "good" networks that way
+            write(s,"$(writeTopologyLevel1(n,true)), with -loglik $(n.loglik)\n")
+        end
+        close(s)
     end
     if(returnNet)
-        return maxNet
+        if(outgroup == "none")
+            return maxNet
+        else
+            return rootMaxNet
+        end
     end
 end
 

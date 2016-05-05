@@ -1,7 +1,7 @@
 # function to give all the networks obtained from moving the hybrid node
 # inside its cycle
 # WARNING: assumes net has all the attributes. It is called inside optTopRuns only
-function undirectedOtherNetworks(net0::HybridNetwork)
+function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractString)
     otherNet = HybridNetwork[]
     for(i in 1:net0.numHybrids) #need to do for by number, not node
         net = deepcopy(net0) # to avoid redoing attributes after each cycle is finished
@@ -34,6 +34,16 @@ function undirectedOtherNetworks(net0::HybridNetwork)
                     println("the network obtained by putting the new hybrid in node $(newnet.node[ind].number) is not good, inCycle,gammaz,containRoot: $([flag,flag2,flag3]), we will skip it")
                 end
             end
+        end
+    end
+    # check root in good position
+    if(outgroup == "none")
+        for(n in otherNet)
+            !isTree(n) && checkRootPlace!(n, verbose=true)
+        end
+    else ## root already in good place
+        for(n in otherNet)
+            !isTree(n) && checkRootPlace!(n, verbose=true, outgroup=outgroup)
         end
     end
     return otherNet

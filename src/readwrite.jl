@@ -737,19 +737,39 @@ readTopologyLevel1(file::AbstractString) = readTopologyUpdate(file, false, true)
 
 
 # aux function to check if the root is placed correctly, and re root if not
-# warning: it needs updateCR set
-function checkRootPlace!(net::HybridNetwork)
-    if(!canBeRoot(net.node[net.root]))
-        #warn("root node $(net.node[net.root].number) placement is not ok, we will change it to the first found node that agrees with the direction of the hybrid edges")
-        for(i in 1:length(net.node))
-            if(canBeRoot(net.node[i]))
-                net.root = i
-                break
+# warning: it needs updateContainRoot set
+function checkRootPlace!(net::HybridNetwork; verbose=false::Bool, outgroup=""::AbstractString)
+    if(outgroup == "")
+        if(!canBeRoot(net.node[net.root]))
+            verbose && println("root node $(net.node[net.root].number) placement is not ok, we will change it to the first found node that agrees with the direction of the hybrid edges")
+            for(i in 1:length(net.node))
+                if(canBeRoot(net.node[i]))
+                    net.root = i
+                    break
+                end
             end
+        end
+    else # outgroup
+        tmp = findin([n.name for n in net.leaf], [outgroup])
+        if length(tmp)==0
+            error("leaf named $(outgroup) was not found in the network.")
+        elseif length(tmp)>1
+            error("several leaves were found with name $(outgroup).")
+        end
+        tmp.leaf || error("found outgroup not a leaf: $(tmp.number), $(outgroup)")
+        length(tmp.edge) == 1 || error("found leaf with more than 1 edge: $(tmp.number)")
+        other = getOtherNode(tmp.edge[1],tmp);
+        if(canBeRoot(other))
+            net.root = getIndexNode(other.number,net)
+        else
+            error("outgroup $(outgroup) contradicts direction of hybrid edges")
         end
     end
     canBeRoot(net.node[net.root]) || error("tried to place root, but couldn't. root is node $(net.node[net.root])")
 end
+
+
+
 
     # --------------------------- write topology -------------------------------------
 # function to write a node and its descendants in

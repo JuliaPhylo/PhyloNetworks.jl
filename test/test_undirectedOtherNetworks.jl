@@ -8,7 +8,7 @@ include("../src/functions.jl")
 
 net1 = readTopologyLevel1("(6,(((1,2):1.8702617089780738,(3,(4)#H7:0.042493238243074646::0.9015570666393798):10.0):10.0,(5,#H7:1.1830905092006163::0.09844293336062017):10.0):0.5);")
 plot(net1)
-otherNet1 = undirectedOtherNetworks(net1)
+otherNet1 = undirectedOtherNetworks(net1);
 i=3
 plot(otherNet1[i])
 otherNet1[3]
