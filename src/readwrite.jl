@@ -589,8 +589,8 @@ function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
                     end
                     suma = sum([e.hybrid?e.gamma:0 for e in n.edge]);
                     if(suma == -2)
-                        warn("hybrid edges in read network without gammas")
-                        println("hybrid edges for hybrid node $(n.number) do not contain gamma value, set default: 0.9,0.1")
+                        #warn("hybrid edges in read network without gammas")
+                        println("hybrid edges for hybrid node $(n.number) have missing gamma's, set default: 0.9,0.1")
                         for(e in n.edge)
                             if(e.hybrid)
                                 (!e.isMajor) ? setGamma!(e,0.1, false, true) : setGamma!(e,0.9, false, true)
@@ -903,8 +903,8 @@ function writeTopologyLevel1(net0::HybridNetwork, s::IO, di::Bool, names::Bool,
     # to delete 2-degree node, for snaq.
 end
 
-writeTopologyLevel1(net::HybridNetwork,di::Bool,str::Bool,names::Bool,outgroup::AbstractString,printID::Bool) = writeTopologyLevel1(net,di,str,names,outgroup,printID, true,3)
-# above: default roundBL=true at digits=3 decimal places
+writeTopologyLevel1(net::HybridNetwork,di::Bool,str::Bool,names::Bool,outgroup::AbstractString,printID::Bool) = writeTopologyLevel1(net,di,str,names,outgroup,printID, false,3)
+# above: default roundBL=false (at unused digits=3 decimal places)
 writeTopologyLevel1(net::HybridNetwork,printID::Bool) = writeTopologyLevel1(net,false, true,true,"none",printID)
 writeTopologyLevel1(net::HybridNetwork,outgroup::AbstractString) = writeTopologyLevel1(net,false, true,true,outgroup,true)
 writeTopologyLevel1(net::HybridNetwork,di::Bool,outgroup::AbstractString) = writeTopologyLevel1(net,di, true,true,outgroup,true)
@@ -925,7 +925,7 @@ Note that the topology may be written using a root different than net.root,
 if net.root is incompatible with one of more hybrid node.
 The network object is *not* modified.
 """
-writeTopologyLevel1(net::HybridNetwork; di=false::Bool, string=true::Bool, names=true::Bool,outgroup="none"::AbstractString, printID=false::Bool, round=true::Bool, digits=3::Integer) = writeTopologyLevel1(net, di, string, names,outgroup,printID, round,digits)
+writeTopologyLevel1(net::HybridNetwork; di=false::Bool, string=true::Bool, names=true::Bool,outgroup="none"::AbstractString, printID=false::Bool, round=false::Bool, digits=3::Integer) = writeTopologyLevel1(net, di, string, names,outgroup,printID, round,digits)
 
 # function to check if root is well-placed
 # and look for a better place if not

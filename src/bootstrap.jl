@@ -22,6 +22,7 @@ end
 # same as optTopRunsBoot, but for gene trees as input
 # input treefile instead of df
 # needs quartetfile if it was used in original data ("none" if all quartets used)
+# not updated: see original optTopRunsBoot
 function optTopRunsBoot_trees(currT0::HybridNetwork, treefile::AbstractString, quartetfile::AbstractString, hmax::Int64, M::Number, Nfail::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, filename::AbstractString, seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64, bestNet::HybridNetwork)
     prcnet >= 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
     prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
@@ -147,10 +148,12 @@ bootstrapCFtable(file::AbstractString;sep=','::Char,seed=0::Int) = bootstrapCFta
 # - new argument nrep: number of bootstrap replicates (default 10)
 # - new argument prcnet: percentage of bootstrap replicates to start in the best network, by default 0.25
 # - new argument bestNet: to start the optimization. if prcnet>0.0 and bestNet is not input as argument from a previous run, it will estimate it inside
-# I believe no ! needed because we need a clean copy of currT in each replicate, so deepcopied
-function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Number, Nfail::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, filename::AbstractString, seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64, bestNet::HybridNetwork)
-    prcnet >= 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
-    prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
+function optTopRunsBoot(currT0::HybridNetwork, df::Union{DataFrame,Vector{Vector{HybridNetwork}}},
+                        hmax::Int64, M::Number, Nfail::Int64, ftolRel::Float64,ftolAbs::Float64,xtolRel::Float64,xtolAbs::Float64,
+                        verbose::Bool, closeN::Bool, Nmov0::Vector{Int64},
+                        runs::Int64, outgroup::AbstractString, filename::AbstractString,
+                        seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64,
+                        bestNet::HybridNetwork)
     println("BOOTSTRAP OF SNAQ ESTIMATION")
     julialog = string(filename,".log")
     logfile = open(julialog,"w")
@@ -176,14 +179,12 @@ function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Nu
             write(logfile, str)
             print(str)
             d = readTableCF(df)
-            startnet=deepcopy(currT0)
-            bestNet = optTopRuns!(startnet, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, "bestNet", true,seeds[1],probST)
+            bestNet = optTopRuns!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, "bestNet",seeds[1],probST)
         else
             str = "bestNet input:\n"
             write(logfile, str)
             print(str)
         end
-        # push!(bootNet, deepcopy(bestNet))
         write(logfile, "$(writeTopologyLevel1(bestNet))\n")
         println(writeTopologyLevel1(bestNet))
     end
@@ -199,16 +200,16 @@ function optTopRunsBoot(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Nu
         # @show newdf
         # writetable(string("CFtable",i,".csv"),newdf)
         newd = readTableCF(newdf)
-        if(i/nrep <= prcnet)
+        if(i/nrep <= prcnet) # fixit: each replicate should be analyzed in the same way (pctnet)
             write(logfile,"\nStarting topology: best network")
-            startnet = deepcopy(bestNet)
+            startnet = bestNet
         else
-            write(logfile,"\nStarting topology: same starting tree as original optimization\n")
-            startnet=deepcopy(currT0)
+            write(logfile,"\nStarting topology: from input (h=$(currT0.numHybrids))\n")
+            startnet = currT0
         end
         flush(logfile)
-        net = optTopRuns!(startnet, M, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, string(filename,"_",i), true,seeds[i+1],probST)
-        push!(bootNet, deepcopy(net))
+        net = optTopRuns!(startnet, M, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, string(filename,"_",i),seeds[i+1],probST)
+        push!(bootNet, net)
         if(outgroup == "none")
             write(logfile,writeTopologyLevel1(net)) #no outgroup
         else
@@ -234,13 +235,15 @@ end
 # will later decide which to call depending on nproc()
 """
 `bootsnaq(T::HybridNetwork, df::DataFrame)`
-`bootsnaq(T::HybridNetwork, treefile::AbstractString)`
+`bootsnaq(T::HybridNetwork, vector of tree lists)`
 
 Bootstrap analysis for SNaQ.
 Bootstrap data can be quartet concordance factors (CF),
 drawn from sampling uniformly in their credibility intervals,
-as given in the data frame `df`, or it can be a file with a list
-of gene trees (as for readTrees2CF).
+as given in the data frame `df`, or it can be a vector of tree lists:
+one list of bootstrap trees per locus
+(see function xxx to generate this,
+from a file containing a list of bootstrap files: one per locus).
 
 From each bootstrap replicate, a network
 is estimated with snaq!, with a search starting from topology `T`.
@@ -256,16 +259,48 @@ Optional arguments include the following, with default values in parentheses:
 #  ftolRel,ftolAbs,xtolRel,xtolAbs, verbose, closeN, Nmov0, outgroup="none",
 #  bestNet (none): best estimated network from the original data.
 #  prcnet (0): probability to start a run from bestNet instead of T.
-function bootsnaq(currT0::HybridNetwork, df::DataFrame; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="bootsnaq"::AbstractString, seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.0::Float64, bestNet=HybridNetwork()::HybridNetwork)
-    (names(df)[[6,7,9,10,12,13]] == [:CF12_34_lo,:CF12_34_hi,:CF13_24_lo,:CF13_24_hi,:CF14_23_lo,:CF14_23_hi]) ||
-      warn("assume table with CI from TICR: CFlo, CFhi in columns 6,7; 9,10; and 12,13.
-Found different column names: $(names(df)[[6,7,9,10,12,13]])")
-    startnet=deepcopy(currT0)
+function bootsnaq(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vector{HybridNetwork}}};
+                  hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,
+                  ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64,
+                  verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64},
+                  runs=10::Int64, outgroup="none"::AbstractString, filename="bootsnaq"::AbstractString,
+                  seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.0::Float64,
+                  bestNet=HybridNetwork()::HybridNetwork)
+    if isa(data, DataFrame)
+    (DataFrames.names(data)[[6,7,9,10,12,13]] == [:CF12_34_lo,:CF12_34_hi,:CF13_24_lo,:CF13_24_hi,:CF14_23_lo,:CF14_23_hi]) ||
+      warn("""assume table with CI from TICR: CFlo, CFhi in columns 6,7; 9,10; and 12,13.
+              Found different column names: $(DataFrames.names(data)[[6,7,9,10,12,13]])
+              """)
+    else
+        error("not implemented yet for list of lists of networks")
+    end
+    prcnet >= 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
+    prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
+    startnet=readTopologyUpdate(writeTopologyLevel1(currT0))
+    flag = checkNet(startnet,true) # light checking only
+    flag && error("starting topology suspected not level-1")
+    try
+        checkNet(startnet)
+    catch err
+        err.msg = "starting topology not a level 1 network:\n" * err.msg
+        rethrow(err)
+    end
+    if isa(data, DataFrame)
+        originald = readTableCF(data)
+    end
+    if isTree(startnet)
+        updateBL!(startnet, originald)
+    end
+    # for multiple alleles: expand into two leaves quartets like sp1 sp1 sp2 sp3.
+    if(!isempty(originald.repSpecies))
+        expandLeaves!(originald.repSpecies,startnet)
+    end
+
     if(nprocs() > 1) #more than 1 processor, still not working
         error("bootsnaq not implemented for parallelization yet")
-        optTopRunsBootParallel(startnet, df, hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, seed, probST, nrep, prcnet, bestNet)
+        optTopRunsBootParallel(startnet,data,hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, seed, probST, nrep, prcnet, bestNet)
     else
-        optTopRunsBoot(startnet, df, hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, seed, probST, nrep, prcnet, bestNet)
+        optTopRunsBoot(startnet,data,hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, seed, probST, nrep, prcnet, bestNet)
     end
 end
 

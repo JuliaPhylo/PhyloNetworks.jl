@@ -40,8 +40,8 @@ currT = deepcopy(currT0);
 addHybridizationUpdate!(currT); #add hybrid at random (different test would be to start with the tree)
 printEdges(currT)
 
-@time optTopLevel!(currT,d2,1,false)
-@time optTop!(currT,d2,1,false)
+@time optTopLevel!(currT,d2,1)
+@time optTop!(currT,d2,1)
 
 # ----------------- optTopLevel with expCF and starting tree 1_astral.out, branches updated --------
 include("../src/types.jl")
@@ -65,7 +65,7 @@ currT = deepcopy(currT0);
 addHybridizationUpdate!(currT); #add hybrid at random (different test would be to start with the tree)
 printEdges(currT)
 
-@time optTopLevel!(currT,d2,1,false);
+@time optTopLevel!(currT,d2,1);
 
 # ----------------- optTopLevel with obsCF and starting tree 1_astral.out, no branches updated --------
 include("../src/types.jl")
@@ -88,7 +88,7 @@ currT = deepcopy(currT0);
 addHybridizationUpdate!(currT); #add hybrid at random (different test would be to start with the tree)
 printEdges(currT)
 
-@time optTopLevel!(currT,d,1,false);
+@time optTopLevel!(currT,d,1);
 
 # ----------------- optTopLevel with obsCF and starting tree 1_astral.out, branches updated --------
 include("../src/types.jl")
@@ -112,7 +112,7 @@ currT = deepcopy(currT0);
 addHybridizationUpdate!(currT); #add hybrid at random (different test would be to start with the tree)
 printEdges(currT)
 
-@time optTopLevel!(currT,d,1,false);
+@time optTopLevel!(currT,d,1);
 
 
 # -----------------------

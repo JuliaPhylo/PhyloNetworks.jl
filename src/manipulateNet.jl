@@ -194,14 +194,14 @@ Attributes isChild1 and containRoot are updated along the way.
 Use `plot(net, showNodeNumber=true, showEdgeLength=false)` to
 visualize and identify a node of interest.
 
+Returns the network.
+
 Warnings:
 - If the node is a leaf, the root will be placed along
   the edge adjacent to the leaf, with a message. This might add a new node.
-- If the desired root placement is incompatible with one or more hybrids,
-  then the network will still have some attributes modified.
-
-Returns the network. Gives a message if the desired root placement was in
-conflict with the direction of any hybrid edge.
+- If the desired root placement is incompatible with one or more hybrids, then
+  * a RootMismatch error is thrown
+  * the input network will still have some attributes modified.
 
 See also: `rootonedge!`.
 """
@@ -248,7 +248,8 @@ function rootatnode!(net::HybridNetwork, nodeNumber::Int64; index=false::Bool)
           if isa(e, RootMismatch) # new root incompatible with hybrid directions: revert back
             println("RootMismatch: ", e.msg, "\nReverting to old root position.")
             net.root = rootsaved
-          else rethrow(e); end
+          end
+          rethrow(e)
         end
         if (net.root != rootsaved && length(net.node[rootsaved].edge)==2)
             fuseedgesat!(rootsaved,net) # remove old root node if degree 2
@@ -297,7 +298,8 @@ function rootonedge!(net::HybridNetwork, edgeNumber::Int64; index=false::Bool)
         println("RootMismatch: ", e.msg, "\nReverting to old root position.")
         fuseedgesat!(net.root,net) # reverts breakedge!
         net.root = rootsaved
-      else rethrow(e); end
+      end
+      rethrow(e)
     end
     if (net.root != rootsaved && length(net.node[rootsaved].edge)==2)
         fuseedgesat!(rootsaved,net) # remove old root node if degree 2

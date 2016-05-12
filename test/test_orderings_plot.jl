@@ -43,9 +43,9 @@ for i in [9,5,18,2]
 end
 # plot(net, showNodeNumber=true, showEdgeLength=false, showEdgeNumber=true)
 rootatnode!(net, -9); # or error("rootatnode! complained, node -9");
-rootatnode!(net, "M");
-try rethrow(); catch e
-(isa(e, RootMismatch) && ismatch(r"node 5 had 0 children", e.msg)) ||
+try rootatnode!(net, "M");
+catch e
+ (isa(e, RootMismatch) && ismatch(r"node 5 had 0 children", e.msg)) ||
  error("rootatnode! should have complained, leaf M");
 end;
 println("the rootmismatch about node 5 is good and expected.")
@@ -79,15 +79,15 @@ catch e; (isa(e, RootMismatch) && ismatch(r"non-leaf node 9 had 0 children",e.ms
     error("directEdges! says that the root position is compatible with hybrids");
 end;
 rootatnode!(net, -12); # or error("rootatnode complained...");
-rootatnode!(net, -4);
-println("A warning was good and expected above.")
-try rethrow(); catch e
+try rootatnode!(net, -4);
+ # "A warning was good and expected above.")
+ # try rethrow();
+catch e
 (isa(e, RootMismatch) && ismatch(r"non-leaf node 9 had 0 children", e.msg)) ||
  error("rootatnode! should have complained, node -4");
 end;
-rootatnode!(net,"#H2");
-println("A warning was good and expected above.")
-try rethrow(); catch e
+try rootatnode!(net,"#H2"); #try rethrow();
+catch e
 (isa(e, RootMismatch)  && ismatch(r"hybrid edge 17 conflicts", e.msg)) ||
  error("rootatnode! should have complained, #H2");
 end;

@@ -23,7 +23,7 @@ lik = logPseudoLik(d)
 approxEq(lik,193.7812623319291) || error("not correct likelihood calculated with tree")
 println("passed tree example")
 
-estTree = optTopRun1!(currT,d,0,true,5454);
+estTree = optTopRun1!(currT,d,0,5454);
 
 approxEq(estTree.loglik,0.0) || error("not correct tree estimated")
 
@@ -45,7 +45,7 @@ lik = logPseudoLik(d)
 approxEq(lik,50.17161079450669) || error("not correct likelihood calculated with tree")
 println("passed computation of likelihood")
 
-estNet = optTopRun1!(currT,d,1,true,5454);
+estNet = optTopRun1!(currT,d,1,5454);
 
 0.00216 < estNet.loglik < 0.00217 || Base.error("not correct estimated network")
 println("passed estimation of net")

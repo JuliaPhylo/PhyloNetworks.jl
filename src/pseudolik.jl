@@ -1303,8 +1303,14 @@ The loglik attribute of the network is undated, and `d` is updated with the expe
 concordance factors under the input network.
 """
 function topologyQPseudolik!(net0::HybridNetwork,d::DataCF; verbose=false::Bool)
-    any([(e.length == -1.0 && e.istIdentifiable) for e in net0.edge]) && warn("identifiable edges lengths missing, so assigned default value of 1.0, but pseudolikelihood is meaningless")
-    net = readTopologyUpdate(writeTopologyLevel1(net0)) # update level-1 attributes
+    for (ed in net0.edge)
+      !ed.hybrid || (ed.gamma > 0.0) ||
+        error("hybrid edge has missing gamma value. Cannot compute quartet pseudo-likelihood")
+    end
+    missingBL = any([e.length < 0.0 for e in net0.edge]) # at least one BL was missing
+    net = readTopologyUpdate(writeTopologyLevel1(net0))  # update level-1 attributes. Changes <0 BL into 1.0
+    missingBL && any([(e.length == 1.0 && e.istIdentifiable) for e in net.edge]) &&
+      warn("identifiable edges lengths were originally missing, so assigned default value of 1.0")
     try
         checkNet(net)
     catch

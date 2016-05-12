@@ -16,7 +16,10 @@ numerical optimization of branch lengths and inheritance probabilities
 and a heuristic search in the space of phylogenetic
 networks.
 
-Below is a quick tutorial on SNaQ and PhyloNetworks, but check out the
+Below is a quick tutorial on SNaQ and PhyloNetworks,
+and [here](http://pages.stat.wisc.edu/~claudia/smallTutorial.pdf)
+are slides with background on networks and explanations.
+But check out the
 [google group](https://groups.google.com/forum/#!forum/phylonetworks-users) for common questions.
 
 ### Input for SNaQ
@@ -146,7 +149,7 @@ or
 for easier download.
 
 Do not copy-paste into a "smart" text-editor. Instead, save the file
-directly into your working directory using "save link as".
+directly into your working directory using "save link as" or "download linked file as".
 This file contains 10 trees, each in parenthetical format on 6 taxa
 like this:
 
@@ -306,6 +309,9 @@ bootnet = bootsnaq(T, df, hmax=1, nrep=10, runs=3)
 You can access this example file
 [here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/tableCFCI.csv)
 or [here](https://raw.githubusercontent.com/crsl4/PhyloNetworks/master/examples/tableCFCI.csv).
+Make sure that your downloaded file has the name `tableCFCI.csv` (to match the name in the
+Julia command), with no an extra extension `.txt`. Rename the file after download if necessary.
+
 This example uses a number of replicates (10) that is definitely too small, to
 make the example run faster. You might also increase the number of optimization
 runs (`runs`) done for each bootstrap replicate.
@@ -316,6 +322,11 @@ and to check the content of the created file, do this:
 writeMultiTopology(bootnet, "bootstrapNets_h1.tre")
 length(bootnet) # 10 networks in the array 'bootnet'
 less("bootstrapNets_h1.tre")
+```
+If you close your session and re-open it later, you can re-read the bootstrap networks
+back in memory like this:
+```julia
+bootnet = readMultiTopology("bootstrapNets_h1.tre");
 ```
 
 #### Summarizing bootstrap on the main tree
@@ -562,9 +573,9 @@ It is important to have run snaq, topologyQPseudoLik or topologyMaxQPseudolik be
 Now, we can plot them with any of the Julia packages for plotting. In particular:
 ```julia
 using Gadfly
-p = plot(df,layer(x="obsCF1",y="expCF1",Geom.point,Theme(default_color=colorant"orange")),
-            layer(x="obsCF2",y="expCF2",Geom.point,Theme(default_color=colorant"purple")),
-            layer(x="obsCF3",y="expCF3",Geom.point,Theme(default_color=colorant"blue")),
+p = plot(df,layer(x="obsCF12",y="expCF12",Geom.point,Theme(default_color=colorant"orange")),
+            layer(x="obsCF13",y="expCF13",Geom.point,Theme(default_color=colorant"purple")),
+            layer(x="obsCF14",y="expCF14",Geom.point,Theme(default_color=colorant"blue")),
             layer(x=0:1,y=0:1),Geom.line,Theme(default_color=colorant"black"))
 ```
 This will pop out a browser window with the plot. The plot can be saved as PDF (or many other formats, see [Gadfly tutorial](http://dcjones.github.io/Gadfly.jl/)) with
