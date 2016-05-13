@@ -10,13 +10,13 @@
 # array of quartets
 # warning: does not check if the expCF have been calculated
 function writeExpCF(quartets::Array{Quartet,1})
-    df = DataFrames.DataFrame(t1="",t2="",t3="",t4="",CF12_34=0.,CF13_24=0.,CF14_23=0.)
+    df = DataFrames.DataFrame(t1=ASCIIString[],t2=ASCIIString[],t3=ASCIIString[],t4=ASCIIString[],
+                              CF12_34=Float64[],CF13_24=Float64[],CF14_23=Float64[])
     for(q in quartets)
         length(q.taxon) == 4 || error("quartet $(q.number) does not have 4 taxa")
         length(q.qnet.expCF) == 3 || error("quartet $(q.number) does have qnet with 3 expCF")
-        append!(df,DataFrames.DataFrame(t1=q.taxon[1],t2=q.taxon[2],t3=q.taxon[3],t4=q.taxon[4],CF12_34=q.qnet.expCF[1],CF13_24=q.qnet.expCF[2],CF14_23=q.qnet.expCF[3]))
+        push!(df, [q.taxon[1],q.taxon[2],q.taxon[3],q.taxon[4],q.qnet.expCF[1],q.qnet.expCF[2],q.qnet.expCF[3]])
     end
-    df = df[2:size(df,1),1:size(df,2)]
     return df
 end
 
@@ -25,13 +25,13 @@ writeExpCF(d::DataCF) = writeExpCF(d.quartet)
 # function to write a csv table from the obsCF of an
 # array of quartets
 function writeObsCF(quartets::Array{Quartet,1})
-    df = DataFrames.DataFrame(t1="",t2="",t3="",t4="",CF12_34=0.,CF13_24=0.,CF14_23=0.,ngenes=0)
+    df = DataFrames.DataFrame(t1=ASCIIString[],t2=ASCIIString[],t3=ASCIIString[],t4=ASCIIString[],
+                              CF12_34=Float64[],CF13_24=Float64[],CF14_23=Float64[],ngenes=Int64[])
     for(q in quartets)
         length(q.taxon) == 4 || error("quartet $(q.number) does not have 4 taxa")
         length(q.obsCF) == 3 || error("quartet $(q.number) does have qnet with 3 expCF")
-        append!(df,DataFrames.DataFrame(t1=q.taxon[1],t2=q.taxon[2],t3=q.taxon[3],t4=q.taxon[4],CF12_34=q.obsCF[1],CF13_24=q.obsCF[2],CF14_23=q.obsCF[3],ngenes=q.ngenes))
+        push!(df, [q.taxon[1],q.taxon[2],q.taxon[3],q.taxon[4],q.obsCF[1],q.obsCF[2],q.obsCF[3],q.ngenes])
     end
-    df = df[2:size(df,1),1:size(df,2)]
     return df
 end
 

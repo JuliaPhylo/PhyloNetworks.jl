@@ -1,8 +1,8 @@
 """
     plot(net::HybridNetwork; useEdgeLength=false, mainTree=false, showTipLabel=true,
-         showNodeNumber=false, showEdgeLength=true, showGamma=true, edgeColor=colorant"black",
+         showNodeNumber=false, showEdgeLength=false, showGamma=false, edgeColor=colorant"black",
          majorHybridEdgeColor=colorant"deepskyblue4", minorHybridEdgeColor=colorant"deepskyblue",
-         showEdgeNumber=false, showIntNodeLabel=false, edgeLabel=[])
+         showEdgeNumber=false, showIntNodeLabel=false, edgeLabel=[], nodeLabel=[])
 
 Plots a network, from left to right.
 
@@ -15,13 +15,15 @@ Plots a network, from left to right.
 - showEdgeLength: if true, edges are labelled with their length (above)
 - showGamma: if true, hybrid edges are labelled with their heritability (below)
 - edgeColor: color for tree edges. black by default.
-- majorHybridEdgeColor: color for major hybrid edges. blue by default.
+- majorHybridEdgeColor: color for major hybrid edges
 - minorHybridEdgeColor: color for minor hybrid edges
 - showEdgeNumber: if true, edges are labelled with the number used internally.
 - showIntNodeLabel: if true, internal nodes are labelled with their names.
   Useful for hybrid nodes, which do have tags like '#H1'.
 - edgeLabel: dataframe with two columns: the first with edge numbers, the second with labels
   (like bootstrap values) to annotate edges. empty by default.
+- nodeLabel: dataframe with two columns: the first with node numbers, the second with labels
+  (like bootstrap values for hybrid relationships) to annotate nodes. empty by default.
 
 Note that plot() actually modifies some (minor) attributes of the network,
 as it calls directEdges!, preorder! and cladewiseorder!.
@@ -31,12 +33,12 @@ edges to eliminate crossing edges, using rotate!.
 """
 function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
         mainTree=false::Bool, showTipLabel=true::Bool, showNodeNumber=false::Bool,
-        showEdgeLength=true::Bool, showGamma=true::Bool,
+        showEdgeLength=false::Bool, showGamma=false::Bool,
         edgeColor=colorant"black"::ColorTypes.Colorant,
         majorHybridEdgeColor=colorant"deepskyblue4"::ColorTypes.Colorant,
         minorHybridEdgeColor=colorant"deepskyblue"::ColorTypes.Colorant,
         showEdgeNumber=false::Bool, showIntNodeLabel=false::Bool,
-        edgeLabel=DataFrame()::DataFrame)
+        edgeLabel=DataFrame()::DataFrame, nodeLabel=DataFrame()::DataFrame)
 
     try
         directEdges!(net)   # to update isChild1
@@ -78,6 +80,7 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
             end
         end
     end
+
     # setting branch lengths for plotting
     elenCalculate = !useEdgeLength
     if (useEdgeLength)
@@ -227,6 +230,14 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
     if (labeledges && (size(edgeLabel,2)<2 || !(eltype(edgeLabel[:,1]) <: Int64)))
         warn("edgeLabel should have 2+ columns, the first one giving the edge numbers (Int64)")
         labeledges = false
+    end
+    if labeledges
+      tmp = setdiff(edgeLabel[1], [e.number for e in net.edge])
+      if length(tmp)>0
+        msg = "Some edge numbers in the edgeLabel data frame are not found in the network:\n"
+        for (a in tmp) msg *= string(" ",a); end
+        warn(msg)
+      end
     end
     j=1
     for (i = 1:length(net.edge))

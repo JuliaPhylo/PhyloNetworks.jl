@@ -65,9 +65,8 @@ end
 """
 `hybridatnode!(net::HybridNetwork, nodeNumber::Int64)`
 
-Changes the hybrid in a cycle to the node defined in nodeNumber. The
-node with nodeNumber must be in a cycle. If the node is not in a
-cycle, this function will prompt an error.
+Changes the hybrid in a cycle to the node with number `nodeNumber`.
+This node must be in one (and only one) cycle, otherwise an error will be thrown.
 
 # Example #"
 ```julia

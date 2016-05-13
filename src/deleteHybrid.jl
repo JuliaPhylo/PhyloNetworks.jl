@@ -292,6 +292,9 @@ Deletes a hybrid edge from a network. The network does not have to be of level 1
 and may contain some polytomies. Updates branch lengths, allowing for missing values.
 Returns the network.
 
+At each of the 2 junctions, the child edge is retained (i.e. the tree edge is retained,
+below the hybrid node).
+
 Warnings:
 
 - does **not** update containRoot (could be implemented later)
@@ -328,7 +331,7 @@ function deleteHybridEdge!(net::HybridNetwork,edge::Edge)
         ce.isChild1 = true
         setEdge!(pn,ce)
         removeEdge!(pn,pe)
-        if (pe.number<ce.number) ce.number = pe.number; end
+        # if (pe.number<ce.number) ce.number = pe.number; end # bad to match edges between networks
         deleteEdge!(net,pe,part=false) # decreases net.numEdges   by 1
         deleteNode!(net,n1) # decreases net.numHybrids by 1, numNodes too.
         # warning: containRoot could be updated in ce and down the tree.
@@ -383,7 +386,7 @@ function deleteHybridEdge!(net::HybridNetwork,edge::Edge)
         ce.isChild1 = true
         setEdge!(pn,ce)
         removeEdge!(pn,pe)
-        if (pe.number<ce.number) ce.number = pe.number; end
+        # if (pe.number<ce.number) ce.number = pe.number; end # bad to match edges between networks
         deleteEdge!(net,pe,part=false)
         deleteNode!(net,n2)
         if (atRoot)

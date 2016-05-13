@@ -1332,13 +1332,16 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             # fixit: update all the attributes that are used by snaq!, expected to be updated in its output
         catch err
             if isa(err, RootMismatch)
-                 println("RootMismatch: ", err.msg, "\nReverting to old root position.")
+                 println("RootMismatch: ", err.msg,
+                 """\nThe estimated network has hybrid edges that are incompatible with the desired outgroup.
+                    Reverting to an admissible root position.
+                    """)
             else println("error trying to reroot: ", err.msg);
             end
-            checkRootPlace!(maxNet,verbose=true)
+            checkRootPlace!(maxNet,verbose=false) # message about problem already printed above
         end
     else
-        checkRootPlace!(maxNet,verbose=true) #leave root in good place after snaq
+        checkRootPlace!(maxNet,verbose=false) #leave root in good place after snaq
     end
     s = open(juliaout,"w")
     write(s,writeTopologyLevel1(maxNet))

@@ -250,8 +250,10 @@ The estimation function creates a .out file (snaq.out by default) with the estim
 network in parenthetical format, which you can also print directly to the screen like this:
 ```julia
 net1
-writeTopology(net1)
-writeTopology(net1,di=true)
+writeTopology(net1)                   # topology to screen, full precision for branch lengths and γ
+writeTopology(net1,di=true)           # γ omitted: for dendroscope
+writeTopology(net1, "bestnet_h1.tre") # topology to file 'bestnet_h1.tre': creates or overwrites file
+less("bestnet_h1.tre")                # just view the file
 ```
 The option *di=true* is for the parenthetical format used by
 [Dendroscope](http://dendroscope.org/) (without reticulation heritabilities).
@@ -265,7 +267,7 @@ p = plot(net1)
 This function will open a browser where the plot will appear. To get a pdf version of the plot:
 ```julia
 using Gadfly
-draw(PDF("bestnet_h1.pdf.pdf", 4inch, 4inch),p)
+draw(PDF("bestnet_h1.pdf", 4inch, 4inch),p)
 ```
 The plot function has many options. Type `?` to switch to the help mode
 of Julia, then type the name of the function, here `plot`.
@@ -379,69 +381,79 @@ plot(net1, showEdgeLength=false, showGamma=false,
 #### Summarizing bootstrap on reticulations
 
 Summarizing the placement of hybridization edges is not standard.
-The function `hybridBootstrapFrequency` attempts to do it, with a focus
-on the minor hybrid edge at each reticulation event. If reticulation is due
-to gene flow or introgression, this minor hybrid edge (with γ<0.5) represents
-this event. The descendants of that hybrid edge form the "recipient" clade
-(obtained after removing all other reticulations). The descendants of the
-origin lineage form the "donor" clade. If reticulation is due to a
-hybridization event that formed a new species, the other "donor" is the major
-parent of the hybrid node, and the descendants of this donor lineage form
-the "sibling" clade (sibling to the major hybrid edge).
-We can calculate the frequency of these recipient, donor and sibling clades
-in the bootstrap networks:
+The function `hybridBootstrapSupport` attempts to do so.
+The descendants of a given hybrid node form the "recipient" or "hybrid" clade,
+and is obtained after removing all other reticulations.
+If reticulation is due to gene flow or introgression, the minor hybrid edge (with γ<0.5)
+represents this event. The descendants of the lineage from which gene flow originated
+is then a second "sister" of the hybrid clade. Because of the reticulation event,
+the hybrid clade has 2 sister clades, not 1: the major sister (through the major hybrid edge
+with γ>0.5) and the minor sister (through the minor hybrid edge with γ<0.5).
+Note that the network says *nothing* about the process: its shows the *relationships* only.
+We can calculate the frequency that each clade is a hybrid clade, or a major or minor sister
+for some other hybrid, in the bootstrap networks:
 ```julia
-f, fr, fd, fs, clade, gam, edgenum = hybridBootstrapFrequency(bootnet, net1);
+BSn, BSe, BSc, BSgam, BSedgenum = hybridBootstrapSupport(bootnet, net1);
 ```
 Let's look at the results.
+We can list all the clades and the percentage of bootstrap networks (bootstrap support)
+in which each clade is a hybrid or sister to a hybrid:
 ```julia
-edgenum
+BSn
 ```
-lists all the reticulation events, showing the number of the minor hybrid edge for each.
-In our case, there is only one.
-Next, we can list all the recipient clades seen in the bootstrap networks,
-with their frequencies. The recipient clade found in the best network
-is listed with its tag, starting with H (e.g. "recipientH7"). Its proportion
-is the bootstrap support for this clade being the target / recipient / endpoint
-of a hybrid edge. Other clades (not recipient of a hybrid edge
-in the best network) are simply listed with a number (e.g. "recipient1").
+If a clade contains a single taxon, it is listed with its taxon name.
+The clade found in the best network is listed with its tag, starting with H (e.g. "H7").
+The name of other clades start with "c_" followed by their number in the best network, if they
+do appear in the best network.
+The node numbers, as used internally in the best network, are listed in a separate column.
+They can be used later to display the bootstrap support values onto the network.
+Various columns give the bootstrap support that each clade is a hybrid, or a (major/minor) sister
+to a hybrid. The last column gives the bootstrap support for the full relationship in the
+best network: same hybrid with same two sisters.
+These bootstrap values are associated with nodes (or possibly, their parent edges).
+
+To see what is the clade named "H7", for instance:
 ```julia
-show(fr) # may not show everything if the list is long
-showall(fr)
+BSc # this might be too big
+showall(BSc)
+BSc[:taxa][BSc[:H7]]
 ```
-To see what the alternative recipient clades are:
+We can also get bootstrap values associated with edges, to describe the support that a given
+hybrid clade has a given sister clade.
 ```julia
-clade # this might be too big
-clade[:, [:taxa,:recipient1]]
+BSe
 ```
-Similarly, we can get the bootstrap support (proportions) of donor clades,
-and the alternatives found in the bootstrap network like this:
+Here, each row describes a pair of 2 clades: one being the hybrid, the other being its sister,
+connected by a hybrid edge. The first rows corresponds to hybrid edges in the best network. Other
+rows correspond to edges seen in bootstrap networks but not in the best network.
 ```julia
-show(fd) # assuming that one row has "donor3"
-clade[:, [:taxa,:donor3]]
+BSedgenum
 ```
-and again for the "sibling" clades (or major origin for a hybridization event):
+lists all the hybrid edges in the best network, two for each hybrid node:
+the major parent edge and then the minor parent edge.
+In our case, there is only one reticulation, so only 2 hybrid edges.
+
+We can plot the bootstrap values of the 2 hybrid edges in the best network:
 ```julia
-show(fs) # assuming that one row has "sibling5"
-clade[:, [:taxa,:sibling5]]
+plot(net1, edgeLabel=BSe[1:2,[:edge,:BS_hybrid_edge]])
 ```
-We can also ask for the proportion of bootstrap networks in
-which a minor hybrid matches that in the best network, in terms of
-*both* the recipient and donor clades (for introgression), or
-in terms of *both* the recipient clade and the set of parental
-clades {donor, sibling} (for hybridization). This was calculated
-in a table with one row per reticulation in the best network:
+This is showing the support that a given edge is found in the bootstrap trees: connecting the
+same sister clade to the same hybrid clade.
+
+The estimated heritability γ on these hybrid edges, when present in a bootstrap tree, was
+also extracted:
 ```julia
-show(f)
+BSgam
 ```
-Finally, for each minor hybrid edge in a bootstrap network matching
-a hybrid edge in the best network, its inheritance (γ) value was
-extracted:
+γ=0 values are for bootstrap replicates that did not have the edge in their network.
+Basic summaries on γ values for a given edge, say the minor parent,
+could be obtained like this:
 ```julia
-gam
+minimum(BSgam[:,2])
+maximum(BSgam[:,2])
+mean(BSgam[:,2])
+std(BSgam[:,2])
 ```
-γ=0 values are for bootstrap replicates that did not have a match with
-the hybridization in the best network.
 
 <!---
 To summarize the hybridizations, we need an outgroup to root all the networks.

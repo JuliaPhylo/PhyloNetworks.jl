@@ -74,7 +74,7 @@ plot(estNet1, showEdgeLength=false, edgeLabel=df0)
 plot(estNet1, showEdgeLength=false, showGamma=false, edgeLabel=df0[df0[:proportion] .< 1.0, :])
 
 
-f, fr, fd, fs, clade, gam, edgenum = hybridBootstrapFrequency(bootNet, estNet1);
+f, fr, fd, fs, clade, gam, edgenum = hybridBootstrapSupport(bootNet, estNet1);
 ## - edgenum lists all the reticulation events, showing the number of the minor hybrid edge for each.
 ## - fs lists the bootstrap support (proportions) of recipient clades
 ## - clade lists recipient and donor clades

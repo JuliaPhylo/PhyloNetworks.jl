@@ -1042,6 +1042,8 @@ end
 checkNet(net::HybridNetwork) = checkNet(net, false)
 
 # function to print everything for a given net
+# this is used a lot inside snaq when DEBUG is true, so need to use level1 attributes
+# and not change the network: with writeTopologyLevel1
 function printEverything(net::HybridNetwork)
     printEdges(net)
     printNodes(net)
