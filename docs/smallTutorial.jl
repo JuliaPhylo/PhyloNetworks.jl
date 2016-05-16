@@ -74,18 +74,12 @@ plot(estNet1, showEdgeLength=false, edgeLabel=df0)
 plot(estNet1, showEdgeLength=false, showGamma=false, edgeLabel=df0[df0[:proportion] .< 1.0, :])
 
 
-f, fr, fd, fs, clade, gam, edgenum = hybridBootstrapSupport(bootNet, estNet1);
+BSn, BSe, BSc, BSgam, BSedgenum = hybridBootstrapSupport(bootNet, estNet1);
 ## - edgenum lists all the reticulation events, showing the number of the minor hybrid edge for each.
-## - fs lists the bootstrap support (proportions) of recipient clades
-## - clade lists recipient and donor clades
-## - fd lists the bootstrap support (proportions) of donor clade
-## - fs lists the bootstrap support (proportions) of sister clades
-## - f lists the proportion of bootstrap networks in which a minor
-##  hybrid matches that in the best network, in terms of both the
-##  recipient and donor clades (for introgression), or in terms of
-##  both the recipient clade and the set of parental clades {donor,
-##  sibling} (for hybridization).
-## - gam lists for each minor hybrid edge in a bootstrap network
+## - BSn lists the bootstrap support (precentages) of clades, as hybrids or sisters
+## - BSe lists the bootstrap support of edges: i.e. pairs of clades as one hybrid and its sister
+## - BSc lists the taxa and composition of each clade
+## - BSgam lists for each hybrid edge in a bootstrap network
 ##  matching a hybrid edge in the best network, its inheritance (γ)
 ##  value was extracted, γ=0 values are for bootstrap replicates that
 ##  did not have a match with the hybridization in the best network.
