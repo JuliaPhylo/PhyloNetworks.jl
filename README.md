@@ -262,7 +262,7 @@ Copy this parenthetical description and paste it into Dendroscope, or use the pl
 #### Network Visualization
 To visualize the network:
 ```julia
-p = plot(net1)
+p = plot(net1, showGamma=true)
 ```
 This function will open a browser where the plot will appear. To get a pdf version of the plot:
 ```julia
@@ -274,7 +274,7 @@ of Julia, then type the name of the function, here `plot`.
 Edge colors can be modified, for instance.
 ```julia
 # using Gadfly # if not done earlier
-plot(net1, minorHybridEdgeColor=colorant"tan")
+plot(net1, showEdgeLength=true, minorHybridEdgeColor=colorant"tan")
 ```
 
 SNaQ infers an unrooted semi-directed network, in the sense
@@ -285,7 +285,7 @@ If there is a single outgroup, the network can be rooted with this outgroup,
 if compatible, like this:
 ```julia
 rootatnode!(net1, "4")
-plot(net1)
+plot(net1, showGamma=true)
 ```
 Here we used taxon "4" as outgroup. More options are available, to root the
 network either at a give node or along a given edge. Use the help mode (type `?`)
@@ -347,7 +347,7 @@ This tree can be visualized like this, with edge numbers shown for later use.
 ```julia
 rootatnode!(net1, "4")
 rootatnode!(tree1, "4")
-plot(tree1, showEdgeNumber=true, showEdgeLength=false)
+plot(tree1, showEdgeNumber=true)
 ```
 Next, we can look at bootstrap table `BStable`, which has one row for
 each tree edge in `net1`. One column contains the edge number
@@ -363,8 +363,8 @@ BStable[BStable[:proportion] .< 1.0, :]
 Finally, we can map the bootstrap proportions onto the network or its main tree
 by passing the bootstrap table to the `edgeLabel` option of `plot`:
 ```julia
-plot(tree1, showEdgeLength=false, edgeLabel=BStable)
-plot(net1, showEdgeLength=false, edgeLabel=BStable)
+plot(tree1, edgeLabel=BStable)
+plot(net1,  edgeLabel=BStable)
 ```
 (Here, it is important that the numbers assigned to edges when building the boostrap
 table --those in `net1` at the time-- correspond to the current edge numbers
@@ -372,10 +372,9 @@ in `tree1` and `net1`. That was the purpose of reading the network from the
 output file of snaq! earlier, for consistency across different Julia sessions.)
 
 If we wanted to plot only certain bootstrap values, like those below 100% (1.0),
-we could do this (where gamma values are supressed as well):
+we could do this:
 ```julia
-plot(net1, showEdgeLength=false, showGamma=false,
-     edgeLabel=BStable[BStable[:proportion] .< 1.0, :])
+plot(net1, edgeLabel=BStable[BStable[:proportion] .< 1.0, :])
 ```
 
 #### Summarizing bootstrap on reticulations
@@ -435,13 +434,35 @@ In our case, there is only one reticulation, so only 2 hybrid edges.
 
 We can plot the bootstrap values of the 2 hybrid edges in the best network:
 ```julia
-plot(net1, edgeLabel=BSe[1:2,[:edge,:BS_hybrid_edge]])
+plot(net1, edgeLabel=BSe[[:edge,:BS_hybrid_edge]])
 ```
-This is showing the support that a given edge is found in the bootstrap trees: connecting the
-same sister clade to the same hybrid clade.
+This is showing the bootstrap support each hybrid edge: percentage of bootstrap trees with an
+edge from the same sister clade to the same hybrid clade.
+Alternatively, we could show the bootstrap support for the full reticulation relationships in
+the network, one at each hybrid node (support for same hybrid with same sister clades):
+```julia
+plot(net1, nodeLabel=BSn[[:hybridnode,:BS_hybrid_samesisters]])
+```
+On a different plot, we can show the bootstrap support for hybrid clades, shown on the parent
+edge of each node with positive hybrid support:
+```julia
+plot(net1, edgeLabel=BSn[BSn[:BS_hybrid].>0, [:edge,:BS_hybrid]])
+```
+or plot the support for minor sister clades (shown along parent edge, and filtered to those with
+sister support > 5%):
+```julia
+plot(net1, edgeLabel=BSn[BSn[:BS_minor_sister].>5, [:edge,:BS_minor_sister]])
+```
+To plot the same values next to the associated nodes, rather than edges, we use the option
+`nodeLabel` and we select the column `node` or `hybridnode`:
+```julia
+plot(net1, nodeLabel=BSn[BSn[:BS_hybrid].>0, [:hybridnode,:BS_hybrid]])
+plot(net1, nodeLabel=BSn[BSn[:BS_minor_sister].>5, [:node,:BS_minor_sister]])
+plot(net1, nodeLabel=BSn[BSn[:BS_major_sister].>5, [:node,:BS_major_sister]])
+```
 
-The estimated heritability γ on these hybrid edges, when present in a bootstrap tree, was
-also extracted:
+The estimated heritability γ on hybrid edges in the reference network, when present in a
+bootstrap network, was also extracted:
 ```julia
 BSgam
 ```

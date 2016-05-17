@@ -563,10 +563,11 @@ Output:
 
   - **clade**: the clade's name, like the taxon name (if a hybrid is a single taxon) or
      the hybrid tag (like 'H1') in the reference network
-  - **node**: the node number as used internally in the reference network
+  - **node**: the node number in the reference network. NA if the clade is not in this network.
   - **hybridnode**: typically the same node number as above, except for hybrid clades in the
      reference network. For those, the hybrid node number is listed here.
-  - **edge**: number of the parent edge, parent to the node in column 2.
+  - **edge**: number of the parent edge, parent to the node in column 2,
+     if found in the ref network. NA otherwise.
   - **BS_hybrid**: percentage of bootstrap networks in which the clade is found to be a hybrid clade.
   - **BS_sister**: percentage of bootstrap networks in which the clade is found to be sister to
      some hybrid clade (sum of the next 2 columns)
@@ -581,9 +582,9 @@ Output:
 
   - **edge**: hybrid edge number, if the edge appears in the reference network. NA otherwise.
   - **hybrid_clade**: name of the clade found to be a hybrid, descendent of 'edge'
-  - **hybrid**: node number of that clade
+  - **hybrid**: node number of that clade, if it appears in the reference network. NA otherwise.
   - **sister_clade**: name of the clade that is sister to 'edge', i.e. be sister to a hybrid
-  - **sister**: node number of that clade
+  - **sister**: node number of that clade, if in the ref network.
   - **BS_hybrid_edge**: percentage of bootstrap networks in which 'edge' is found to be a hybrid
      edge, i.e. when the clade in the 'hybrid' column is found to be a hybrid and the clade in
      the 'sister' column is one of its sisters.
@@ -917,7 +918,12 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
         elseif keepc[h]
             resNode[:BS_hybrid_samesisters][rowh] = NA
         end
-        if keepc[h] rowh += 1; end
+        if h>nclades # clade *not* in the reference network
+            resNode[:node][rowh] = NA
+            resNode[:hybridnode][rowh] = NA
+            resNode[:edge][rowh] = NA
+        end
+        if keepc[h]  rowh += 1; end
     end
     insert!(resNode, 10, resNode[:BS_hybrid]+resNode[:BS_sister], :BS_all)
     sort!(resNode, cols=[:BS_all,:BS_hybrid], rev=true)
@@ -933,6 +939,8 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
         if h <= nclades && hybparent[h]>0
             resEdge[:hybrid][i] = hybnode[hybparent[h]]
         end
+        if h>nclades            resEdge[:hybrid][i]=NA; end
+        if siscladei[i]>nclades resEdge[:sister][i]=NA; end
         if i <= nedges
              resEdge[:edge][i] = edgenum[i]
         else resEdge[:edge][i] = NA
