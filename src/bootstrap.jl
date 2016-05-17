@@ -396,14 +396,14 @@ function treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)
     # estimated network, major tree and matrix
     S = tipLabels(net0)
     tree0 =majorTree(net0)
-    M0 = tree2Matrix(tree0,S)
+    M0 = tree2Matrix(tree0,S, rooted=false)
 
     M = Matrix[]
     tree = HybridNetwork[]
     for(n in net)
         t = majorTree(n)
         push!(tree,t)
-        mm = tree2Matrix(t,S)
+        mm = tree2Matrix(t,S, rooted=false)
         push!(M,mm)
     end
 
@@ -654,7 +654,6 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
         end
     end
     hybparent = zeros(Int64,length(clade)) # 0 if has no hybrid parent node. Index in hybnode otherwise.
-
     for (trueh = 1:numHybs)
         net0 = deepcopy(refnet)
         displayedNetworkAt!(net0, net0.hybrid[trueh]) # removes all minor hybrid edges but one
@@ -662,23 +661,23 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
         hemaj, hemin, ce = hybridEdges(hn) # assumes no polytomy at hybrid nodes and correct node.hybrid
         (hemin.hybrid && !hemin.isMajor) || error("edge should be hybrid and minor")
         (hemaj.hybrid &&  hemaj.isMajor) || error("edge should be hybrid and major")
-        i = findfirst(treeedge, ce.number)
-        i>0 || error("hybrid node $(hn.number): child edge not found in major tree")
-        hybparent[i] = trueh
-        push!(hybind,i)
+        ic = findfirst(treeedge, ce.number)
+        ic>0 || error("hybrid node $(hn.number): child edge not found in major tree")
+        hybparent[ic] = trueh
+        push!(hybind,ic)
         push!(hybnode, hn.number)
         push!(majsisedge, hemaj.number)
         push!(minsisedge, hemin.number)
         for (sis in ["min","maj"])
           he = (sis=="min"? hemin : hemaj)
           pn = he.node[he.isChild1?2:1] # parent node of sister (origin of gene flow if minor)
-          atroot = (pn == refnet.node[refnet.root])
+          atroot = (pn == net0.node[net0.root])
           hwc = zeros(Bool,ntax) # new binding each time. pushed to clade below.
           for (ce in pn.edge)    # important if polytomy
             if (ce!=he && pn == ce.node[ce.isChild1?2:1])
                 hw = hardwiredCluster(ce,taxa)
-                if (atroot && any(hw & clade[i])) # sister clade intersects child clade
-                    (hw & clade[i]) == clade[i] ||
+                if (atroot && any(hw & clade[ic])) # sister clade intersects child clade
+                    (hw & clade[ic]) == clade[ic] ||
                         warn("weird clusters at the root in reference, hybrid node $(hn.number)")
                 else
                     hwc |= hw
