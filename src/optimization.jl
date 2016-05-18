@@ -882,7 +882,9 @@ end
 # closeN =true if gamma=0.0 fixed only around neighbors with move origin/target
 # sout=IOStream to capture the output from the functions called, only used when DEBUG=true and REDIRECT=true, default STDOUT
 # logfile=IOStream to capture the information on the heurisitc optimization, default STDOUT
-function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64},sout::IO, logfile::IO)
+function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,
+                      ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
+                      verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}, sout::IO, logfile::IO, writelog::Bool)
     DEBUG && println("OPT: begins optTopLevel with hmax $(hmax)")
     M > 0 || error("M must be greater than zero: $(M)")
     Nfail > 0 || error("Nfail must be greater than zero: $(Nfail)")
@@ -912,7 +914,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     DEBUG && printPartitions(newT)
     #DEBUG && printNodes(newT)
     DEBUG && println(writeTopologyLevel1(newT,true))
-    write(logfile, "\nBegins heuristic optimization of network------\n")
+    writelog && write(logfile, "\nBegins heuristic optimization of network------\n")
     while(absDiff > M*ftolAbs && failures < Nfail && currT.loglik > M*ftolAbs && stillmoves) #stops if close to zero because of new deviance form of the pseudolik
         count += 1
         DEBUG && println("--------- loglik_$(count) = $(round(currT.loglik,6)) -----------")
@@ -967,17 +969,17 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         end
     end
     if(ftolAbs > 1e-7 || ftolRel > 1e-7 || xtolAbs > 1e-7 || xtolRel > 1e-7)
-        write(logfile,"\nfound best network, now we re-optimize branch lengths and gamma more precisely")
+        writelog && write(logfile,"\nfound best network, now we re-optimize branch lengths and gamma more precisely")
         optBL!(newT,d,verbose,1e-12,1e-10,1e-10,1e-10)
     end
     if(absDiff <= M*ftolAbs)
-        write(logfile,"\nSTOPPED by absolute difference criteria")
+        writelog && write(logfile,"\nSTOPPED by absolute difference criteria")
     elseif(currT.loglik <= M*ftolAbs)
-        write(logfile,"\nSTOPPED by loglik close to zero criteria")
+        writelog && write(logfile,"\nSTOPPED by loglik close to zero criteria")
     elseif(!stillmoves)
-        write(logfile,"\nSTOPPED for not having more moves to propose: movesfail $(movesfail), Nmov $(Nmov)")
+        writelog && write(logfile,"\nSTOPPED for not having more moves to propose: movesfail $(movesfail), Nmov $(Nmov)")
     else
-        write(logfile,"\nSTOPPED by number of failures criteria")
+        writelog && write(logfile,"\nSTOPPED by number of failures criteria")
     end
     ## if(newT.loglik > M*ftolAbs) #not really close to 0.0, based on absTol also
     ##     write(logfile,"\nnewT.loglik $(newT.loglik) not really close to 0.0 based on loglik abs. tol. $(M*ftolAbs), you might need to redo with another starting point")
@@ -989,8 +991,8 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             end
         end
     end
-    write(logfile,"\nEND optTopLevel: found minimizer topology at step $(count) (failures: $(failures)) with -loglik=$(round(newT.loglik,5)) and ht_min=$(round(newT.ht,5))")
-    printCounts(movescount,movesgamma,logfile)
+    writelog && write(logfile,"\nEND optTopLevel: found minimizer topology at step $(count) (failures: $(failures)) with -loglik=$(round(newT.loglik,5)) and ht_min=$(round(newT.ht,5))")
+    writelog && printCounts(movescount,movesgamma,logfile)
     DEBUG && printEdges(newT)
     DEBUG && printPartitions(newT)
     DEBUGC && printNodes(newT)
@@ -998,9 +1000,9 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     return newT
 end
 
-optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false,true,numMoves,STDOUT, STDOUT)
-optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Int64, verbose::Bool) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, verbose,true,numMoves,STDOUT,STDOUT)
-optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}) = optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,STDOUT,STDOUT)
+optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false,true,numMoves,STDOUT, STDOUT,true)
+optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Int64, verbose::Bool) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, verbose,true,numMoves,STDOUT,STDOUT,true)
+optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}) = optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,STDOUT,STDOUT,true)
 
 
 
@@ -1161,7 +1163,7 @@ function optTop!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax:
                 return maxNet
             end
         end
-        newT = optTopLevel!(startT, M, Nfail, d, h,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,true)
+        newT = optTopLevel!(startT, M, Nfail, d, h,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0)
         write(s,"\nBEST NETWORK at $(h) hybridizations: $(writeTopologyLevel1(newT,true)) with pseudologlik $(round(newT.loglik,5))")
         write(s,"\nfailed attempts to place a new hybridization to begin with: $(j)")
         push!(bestT,deepcopy(newT))
@@ -1221,35 +1223,36 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
                      ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
                      verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}, runs::Int64,
                      outgroup::AbstractString, rootname::AbstractString, seed::Int64, probST::Float64)
+    writelog = true
+    if (rootname != "")
     juliaerr = string(rootname,".err")
     errfile = open(juliaerr,"w")
     julialog = string(rootname,".log")
     logfile = open(julialog,"w")
     juliaout = string(rootname,".out")
     julianet = string(rootname,".networks")
+    else
+      writelog = false
+      logfile = STDOUT # used in call to optTopRun1!
+    end
 
+    str = """optimization of topology, BL and inheritance probabilities using:
+              hmax = $(hmax),
+              tolerance parameters: ftolRel=$(ftolRel), ftolAbs=$(ftolAbs),
+                                    xtolAbs=$(xtolAbs), xtolRel=$(xtolRel).
+              max number of failed proposals = $(Nfail), multiplier M = $(M).
+             Outgroup: $(outgroup) (for rooting at the final step)
+             """
+    str *= (writelog ? "rootname for files: $(rootname)\n" : "no output files\n")
+    str *= """BEGIN: $(runs) runs on starting tree $(writeTopologyLevel1(currT0,true))
+              $(Libc.strftime(time()))\n"""
     # print to logfile
-    write(logfile,"""optimization of topology, BL and inheritance probabilities using:
-                      hmax = $(hmax),
-                      tolerance parameters: ftolRel=$(ftolRel), ftolAbs=$(ftolAbs),
-                                            xtolAbs=$(xtolAbs), xtolRel=$(xtolRel).
-                      max number of failed proposals = $(Nfail), multiplier M = $(M).
-                     """)
-    write(logfile,"Outgroup: $(outgroup) (for rooting at the final step) \nrootname for files: $(rootname)")
-    write(logfile,"\nBEGIN: $(runs) runs on starting tree $(writeTopologyLevel1(currT0,true))")
-    write(logfile,"\n$(Libc.strftime(time()))")
-    flush(logfile)
-
+    if (writelog)
+      write(logfile,str)
+      flush(logfile)
+    end
     # and print to screen
-    print(STDOUT,"""optimization of topology, BL and inheritance probabilities using:
-                      hmax = $(hmax),
-                      tolerance parameters: ftolRel=$(ftolRel), ftolAbs=$(ftolAbs),
-                                            xtolAbs=$(xtolAbs), xtolRel=$(xtolRel).
-                      max number of failed proposals = $(Nfail), multiplier M = $(M).
-                     """)
-    print(STDOUT,"Outgroup: $(outgroup) (for rooting at the final step) \nrootname for files: $(rootname)")
-    print(STDOUT,"\nBEGIN: $(runs) runs on starting tree $(writeTopologyLevel1(currT0,true))")
-    print(STDOUT,"\n$(Libc.strftime(time()))\n")
+    print(STDOUT,str)
 
     maxNet = HybridNetwork();
     maxNet.loglik = 1.e15;
@@ -1263,55 +1266,65 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         a = split(string(t),".")
         seed = parse(Int,a[2][end-4:end]) #better seed based on clock
     end
-    write(logfile,"\nmain seed $(seed)\n")
-    flush(logfile)
+    if (writelog)
+      write(logfile,"\nmain seed $(seed)\n")
+      flush(logfile)
+    else print(STDOUT,"\nmain seed $(seed)\n"); end
     srand(seed)
     seeds = [seed;round(Integer,floor(rand(runs-1)*100000))]
 
     for(i in 1:runs)
-        #if(i == 2) #the first run is the slowest
         tic();
-        #end
-        write(logfile,"seed: $(seeds[i]) for run $(i)\n")
-        #if(i<runs)
+        writelog && write(logfile,"seed: $(seeds[i]) for run $(i)\n")
+        writelog && flush(logfile)
         print(STDOUT,"seed: $(seeds[i]) for run $(i)\n")
-        #end
-        flush(logfile)
         gc();
         try
-            write(logfile,"\n BEGIN SNaQ for run $(i), seed $(seeds[i]) and hmax $(hmax)")
+            writelog && write(logfile,"\n BEGIN SNaQ for run $(i), seed $(seeds[i]) and hmax $(hmax)")
             verbose && print(STDOUT,"\n BEGIN SNaQ for run $(i), seed $(seeds[i]) and hmax $(hmax)")
-            best = optTopRun1!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,seeds[i],logfile,probST);
-            write(logfile,"\n FINISHED SNaQ, typeof best $(typeof(best)), -loglik of best $(best.loglik)\n")
+            best = optTopRun1!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,seeds[i],logfile,writelog,probST);
+            writelog && write(logfile,"\n FINISHED SNaQ, typeof best $(typeof(best)), -loglik of best $(best.loglik)\n")
             verbose && print(STDOUT,"\n FINISHED SNaQ, typeof best $(typeof(best)), -loglik of best $(best.loglik)\n")
-            if(outgroup == "none")
+            if (writelog)
+              if(outgroup == "none")
                 write(logfile,writeTopologyLevel1(best,true)) #no outgroup
-            else
+              else
                 write(logfile,writeTopologyLevel1(best,outgroup)) #outgroup
-            end
+              end
             flush(logfile)
+            end
             push!(bestnet, best)
             if(best.loglik < maxNet.loglik)
                 maxNet = best
             end
             DEBUG && println("typeof maxNet $(typeof(maxNet)), -loglik of maxNet $(maxNet.loglik)")
         catch(err)
+            if (writelog)
             write(logfile,"\n ERROR found on SNaQ for run $(i) seed $(seeds[i]): $(err)")
             flush(logfile)
             write(errfile,"\n ERROR found on SNaQ for run $(i) seed $(seeds[i]): $(err)")
             flush(errfile)
             push!(failed,seeds[i])
+            else
+                warn("\n ERROR found on SNaQ for run $(i) seed $(seeds[i]): $(err)")
+            end
         end
-        write(logfile,"\n---------------------\n")
-        flush(logfile)
+        writelog && write(logfile,"\n---------------------\n")
+        writelog && flush(logfile)
     end
     t=toc();
+    if (writelog)
     write(errfile, "\n Total errors: $(length(failed)) in seeds $(failed)")
     write(logfile,"\n$(Libc.strftime(time()))")
     close(errfile)
+    else
+        verbose && print(STDOUT,"""\n Total errors: $(length(failed)) in seeds $(failed)
+                                     $(Libc.strftime(time()))""")
+    end
 
     maxNet.numTaxa > 0 || error("the best network is empty!")
     setNonIdBL!(maxNet)
+    writelog &&
     write(logfile,"\nMaxNet is $(writeTopologyLevel1(maxNet,true)) \nwith -loglik $(maxNet.loglik)\n")
     print(STDOUT,"\nMaxNet is $(writeTopologyLevel1(maxNet,true)) \nwith -loglik $(maxNet.loglik)\n")
 
@@ -1343,23 +1356,24 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     else
         checkRootPlace!(maxNet,verbose=false) #leave root in good place after snaq
     end
-    s = open(juliaout,"w")
-    write(s,writeTopologyLevel1(maxNet))
-    write(s,"\n -Ploglik = $(maxNet.loglik)")
-    write(s,"\n Dendroscope: $(writeTopologyLevel1(maxNet,di=true))")
-    write(s,"\n Elapsed time: $(t) seconds in $(runs-length(failed)) successful runs")
-    write(s,"\n-------")
-    write(s,"\nList of estimated networks for all runs:")
+    s = writelog ? open(juliaout,"w") : STDOUT
+    str = writeTopologyLevel1(maxNet) * """
+     -Ploglik = $(maxNet.loglik)
+     Dendroscope: $(writeTopologyLevel1(maxNet,di=true))
+     Elapsed time: $(t) seconds in $(runs-length(failed)) successful runs
+    -------
+    List of estimated networks for all runs:
+    """
     for(n in bestnet)
-        if(outgroup == "none")
-            write(s,"\n $(writeTopologyLevel1(n,true)), with -loglik $(n.loglik)")
-        else
-            write(s,"\n $(writeTopologyLevel1(n,outgroup)), with -loglik $(n.loglik)")
-        end
+      str *= " "
+      str *= (outgroup == "none" ? writeTopologyLevel1(n,true) :
+                                   writeTopologyLevel1(n,outgroup))
+      str *= ", with -loglik $(n.loglik)\n"
     end
-    write(s,"\n-------")
-    close(s)
-    close(logfile)
+    str *= "-------\n"
+    write(s,str);
+    writelog && close(s) # to close juliaout file (but not STDOUT!)
+    writelog && close(logfile)
 
     return maxNet
 end
@@ -1373,12 +1387,15 @@ optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTopRuns!(currT, m
 # it has an extra parameter to optTopRuns: seed to set the seed inside and change the starting topology
 # currT0
 # does *not* modify currT0. Modifies data d only.
-function optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64},seed::Int64,logfile::IO,probST::Float64, sout::IO)
+function optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,
+                     ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
+                     verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64},seed::Int64,
+                     logfile::IO, writelog::Bool, probST::Float64, sout::IO)
     srand(seed)
     currT = deepcopy(currT0);
     if(probST<1.0 && rand() < 1-probST) # modify starting tree by a nni move
         suc = NNIRepeat!(currT,10); #will try 10 attempts to do an nni move, if set to 1, hard to find it depending on currT
-        suc && write(logfile," changed starting topology by NNI move\n")
+        writelog && suc && write(logfile," changed starting topology by NNI move\n")
         if(!isTree(currT))
             if(rand() < 1-probST) # modify starting network by mvorigin, mvtarget with equal prob
                 if(currT.numHybrids == 1)
@@ -1391,23 +1408,22 @@ function optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
                 end
                 if(rand()<0.5)
                     suc = moveOriginUpdateRepeat!(currT,currT.hybrid[ind],true)
-                    suc && write(logfile,"\n changed starting network by move origin")
+                    writelog && suc && write(logfile,"\n changed starting network by move origin")
                 else
                     suc = moveTargetUpdateRepeat!(currT,currT.hybrid[ind],true)
-                    suc && write(logfile,"\n changed starting network by move target")
+                    writelog && suc && write(logfile,"\n changed starting network by move target")
                 end
 
             end
         end
     end
     gc();
-    best = optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,sout,logfile)
-    return best
+    optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,sout,logfile,writelog)
 end
 
-optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64},seed::Int64,logfile::IO,probST::Float64) = optTopRun1!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0,seed,logfile,probST, STDOUT)
-optTopRun1!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTopRun1!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, 0,STDOUT,0.3, STDOUT)
-optTopRun1!(currT::HybridNetwork, d::DataCF, hmax::Int64, seed::Int64) = optTopRun1!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves,seed,STDOUT,0.3, STDOUT)
+optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64},seed::Int64,logfile::IO,writelog::Bool,probST::Float64) = optTopRun1!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0,seed,logfile,writelog,probST, STDOUT)
+optTopRun1!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTopRun1!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, 0,STDOUT,true,0.3, STDOUT)
+optTopRun1!(currT::HybridNetwork, d::DataCF, hmax::Int64, seed::Int64) = optTopRun1!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves,seed,STDOUT,true,0.3, STDOUT)
 
 
 # function SNaQ: it calls directly optTopRuns but has a prettier name
@@ -1433,7 +1449,9 @@ There are many optional arguments, including
 - verbose: if true, it prints information about the numerical optimization
 - runs: number of independent starting points for the search (default 10)
 - outgroup: outgroup taxon to root the estimated topology at the very end
-- filename: root name for the output files (default snaq)
+- filename: root name for the output files. Default is "snaq". If empty (""),
+  files are *not* created, progress log goes to the screen only (standard out)
+  and the best network is returned.
 - seed: seed to replicate a given search
 
 See also: `topologyMaxQPseudolik!` to optimize parameters on a fixed topology,
@@ -1446,10 +1464,7 @@ Inferring phylogenetic networks with maximum pseudolikelihood under incomplete l
 [PLoS Genetics](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896)
 12(3):e1005896
 """
-function snaq!(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="none"::AbstractString, seed=0::Int64, probST=0.3::Float64, updateBL=true::Bool)
-    if(filename == "none")
-        filename = "snaq"
-    end
+function snaq!(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="snaq"::AbstractString, seed=0::Int64, probST=0.3::Float64, updateBL=true::Bool)
     0.0<=probST<=1.0 || error("probability to keep the same starting topology should be between 0 and 1: $(probST)")
     sameTaxa(d,currT0) || error("some taxon names in quartets do not appear on the starting topology")
     currT0.numTaxa >= 5 || error("cannot estimate hybridizations in topologies with fewer than 5 taxa, this topology has $(currT0.numTaxa) taxa")
@@ -1502,7 +1517,7 @@ function snaqDebug(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier
     write(logfile,"\n$(Libc.strftime(time()))")
     flush(logfile)
     try
-        optTopRun1!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0,seed,logfile,probST,sout)
+        optTopRun1!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0,seed,logfile,true,probST,sout)
     catch(err)
         flush(sout)
         write(sout,"\n ERROR found on optTopRun1 for run with seed $(seed): $(err)")

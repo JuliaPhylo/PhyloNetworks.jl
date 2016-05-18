@@ -207,7 +207,6 @@ If you have a tree *startTree.txt* in parenthetical format to
 use as starting point for the optimization, you can read it with
 ```julia
 T=readTopology("startTree.txt")
-writeTopology(T)
 ```
 You can access this example file
 [here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/startTree.txt)
