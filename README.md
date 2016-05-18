@@ -194,7 +194,11 @@ in this format
 
 you would read it like this:
 ```julia
-d=readTableCF("tableCF.txt")
+d=readTableCF("tableCF.txt") # one step only: read file and convert to 'DataCF' object
+# or in 2 steps:
+using DataFrames
+dat = readtable("tableCF.txt") # read file into a 'DataFrame' object
+d = readTableCF(dat)           # convert DataFrame into DataCF
 ```
 You can access this example file
 [here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/tableCF.txt)
