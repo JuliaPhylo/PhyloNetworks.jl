@@ -16,7 +16,9 @@ If you get an error message like `mb.pl: Command not found`, it might be because
 `mb.pl` has no execute permission or your current directory is not in your path.
 An easy fix is to run this command instead:
 
-    perl mb.pl my-genes.tar.gz -m bayes.txt -o my-genes-mb
+`
+perl mb.pl my-genes.tar.gz -m bayes.txt -o my-genes-mb
+`
 
 The resulting output tarball would now be located in my-genes-mb/my-genes.mb.tar, and can be used normally with [bucky.pl](https://github.com/nstenz/TICR/blob/master/scripts/bucky.pl), that is, like this:
 
@@ -53,6 +55,8 @@ bucky.pl my-genes-mbsum.tar.gz -s -o mygenes-bucky
 
 Again, if you get an error like `bucky.pl: Command not found`, run instead
 
-    bucky.pl my-genes-mbsum.tar.gz -s -o mygenes-bucky
+`
+bucky.pl my-genes-mbsum.tar.gz -s -o mygenes-bucky
+`
 
 The output, with the table of concordance factors for all sets of 4 taxa, will be in a file named `my-genes.CFs.csv` inside directory `mygenes-bucky`. That's the file containing the quartet concordance factors to give to SNaQ as input.
