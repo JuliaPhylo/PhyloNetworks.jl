@@ -763,7 +763,7 @@ function checkRootPlace!(net::HybridNetwork; verbose=false::Bool, outgroup="none
         if(canBeRoot(other))
             net.root = getIndexNode(other.number,net)
         else
-            error("outgroup $(outgroup) contradicts direction of hybrid edges")
+            throw(RootMismatch("outgroup $(outgroup) contradicts direction of hybrid edges"))
         end
     end
     canBeRoot(net.node[net.root]) || error("tried to place root, but couldn't. root is node $(net.node[net.root])")

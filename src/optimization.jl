@@ -1225,12 +1225,11 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
                      outgroup::AbstractString, rootname::AbstractString, seed::Int64, probST::Float64)
     writelog = true
     if (rootname != "")
-    juliaerr = string(rootname,".err")
-    errfile = open(juliaerr,"w")
-    julialog = string(rootname,".log")
-    logfile = open(julialog,"w")
-    juliaout = string(rootname,".out")
-    julianet = string(rootname,".networks")
+        juliaerr = string(rootname,".err")
+        errfile = open(juliaerr,"w")
+        julialog = string(rootname,".log")
+        logfile = open(julialog,"w")
+        juliaout = string(rootname,".out")
     else
       writelog = false
       logfile = STDOUT # used in call to optTopRun1!
@@ -1329,6 +1328,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     print(STDOUT,"\nMaxNet is $(writeTopologyLevel1(maxNet,true)) \nwith -loglik $(maxNet.loglik)\n")
 
     # new output file with (nearly) non-identifiable networks: (run before maxNet gets rooted)
+    ## julianet = string(rootname,".networks")
     ## s = open(julianet,"w")
     ## otherNet = undirectedOtherNetworks(maxNet, outgroup=outgroup) # do not use rootMaxNet
     ## for(n in otherNet)
@@ -1338,18 +1338,16 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     ## close(s)
 
     if outgroup != "none"
-        rootMaxNet = deepcopy(maxNet)
         try
-            rootatnode!(rootMaxNet,outgroup)
-            maxNet=rootMaxNet
-            # fixit: update all the attributes that are used by snaq!, expected to be updated in its output
+            checkRootPlace!(maxNet,outgroup=outgroup) ## keeps all attributes
         catch err
             if isa(err, RootMismatch)
                  println("RootMismatch: ", err.msg,
                  """\nThe estimated network has hybrid edges that are incompatible with the desired outgroup.
                     Reverting to an admissible root position.
                     """)
-            else println("error trying to reroot: ", err.msg);
+            else
+                println("error trying to reroot: ", err.msg);
             end
             checkRootPlace!(maxNet,verbose=false) # message about problem already printed above
         end
