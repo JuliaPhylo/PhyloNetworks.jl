@@ -403,6 +403,7 @@ end
 # movesgama: vector of count of number of times each move is proposed to fix gamma zero situation:(add,mvorigin,mvtarget,chdir,delete,nni)
 # movesgamma[13]: total number of accepted moves by loglik
 function gammaZero!(net::HybridNetwork, d::DataCF, edge::Edge, closeN ::Bool, origin::Bool, N::Int64, movesgamma::Vector{Int64})
+    global CHECKNET
     currTloglik = net.loglik
     edge.hybrid || error("edge $(edge.number) should be hybrid edge because it corresponds to a gamma (or gammaz) in net.ht")
     DEBUG && println("gamma zero situation found for hybrid edge $(edge.number) with gamma $(edge.gamma)")
@@ -445,6 +446,7 @@ end
 # movesgama: vector of count of number of times each move is proposed to fix gamma zero situation:(add,mvorigin,mvtarget,chdir,delete,nni)
 # movesgamma[13]: total number of accepted moves by loglik
 function afterOptBL!(currT::HybridNetwork, d::DataCF,closeN ::Bool, origin::Bool,verbose::Bool, N::Int64, movesgamma::Vector{Int64})
+    global CHECKNET
     !isTree(currT) || return false,true,true,true
     nh = currT.ht[1 : currT.numHybrids - currT.numBad]
     k = sum([e.istIdentifiable ? 1 : 0 for e in currT.edge])
@@ -810,6 +812,7 @@ end
 # count to know in which step we are, N for NNI trials
 # order in movescount as in IF here (add,mvorigin,mvtarget,chdir,delete,nni)
 function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::Int64, N::Int64, movescount::Vector{Int64}, movesfail::Vector{Int64})
+    global CHECKNET
     1 <= move <= 6 || error("invalid move $(move)") #fixit: if previous move rejected, do not redo it!
     DEBUG && println("current move: $(int2move[move])")
     if(move == 1)
@@ -885,6 +888,7 @@ end
 function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,
                       ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
                       verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}, sout::IO, logfile::IO, writelog::Bool)
+    global CHECKNET
     DEBUG && println("OPT: begins optTopLevel with hmax $(hmax)")
     M > 0 || error("M must be greater than zero: $(M)")
     Nfail > 0 || error("Nfail must be greater than zero: $(Nfail)")
@@ -1044,6 +1048,7 @@ end
 # function to move down onw level to h-1
 # caused by gamma=0,1 or gammaz=0,1
 function moveDownLevel!(net::HybridNetwork)
+    global CHECKNET
     !isTree(net) ||error("cannot delete hybridization in a tree")
     DEBUG && println("MOVE: need to go down one level to h-1=$(net.numHybrids-1) hybrids because of conflicts with gamma=0,1")
     DEBUG && printEverything(net)

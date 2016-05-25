@@ -11,7 +11,11 @@ if(individualtest)
     include("../src/functions.jl")
 end
 
-CHECKNET || error("need CHECKNET==true to test snaq in test_correctLik.jl")
+if isdefined(:PhyloNetworks)
+    PhyloNetworks.CHECKNET || error("need CHECKNET==true in PhyloNetworks to test snaq in test_correctLik.jl")
+else
+    CHECKNET || error("need CHECKNET==true to test snaq in test_correctLik.jl")
+end
 
 #df = readtable("Tree_output.txt")
 df=DataFrame(t1=["6","6","10","6","6"],t2=["7","7","7","10","7"],t3=["4","10","4","4","4"],t4=["8","8","8","8","10"],CF1234=[0.2729102510259939, 0.3967750546426937, 0.30161247267865315, 0.24693940689390592, 0.2729102510259939], CF1324=[0.45417949794801216, 0.30161247267865315, 0.30161247267865315, 0.5061211862121882, 0.45417949794801216],CF1423=[0.2729102510259939, 0.30161247267865315, 0.3967750546426937, 0.24693940689390592, 0.2729102510259939])

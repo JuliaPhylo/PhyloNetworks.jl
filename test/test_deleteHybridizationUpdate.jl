@@ -10,7 +10,11 @@ if(individualtest)
     const DEBUG = true
 end
 
-CHECKNET || error("need CHECKNET==true to test snaq in test_deleteHybridizationUpdate.jl")
+if isdefined(:PhyloNetworks)
+    PhyloNetworks.CHECKNET || error("need CHECKNET==true in PhyloNetworks to test snaq in test_correctLik.jl")
+else
+    CHECKNET || error("need CHECKNET==true to test snaq in test_correctLik.jl")
+end
 
 tree = "(((((((1,2),3),4),5),(6,7)),(8,9)),10);"
 

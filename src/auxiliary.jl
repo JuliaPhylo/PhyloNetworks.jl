@@ -3,6 +3,13 @@
 # Claudia February 2015
 #####################
 
+function setCHECKNET(b::Bool)
+    global CHECKNET
+    CHECKNET = b
+    @show CHECKNET
+    CHECKNET && warn("CHECKNET was changed to true: that will slow snaq! down.")
+end
+
 # ----- aux general functions ---------------
 
 #based in coupon's collector: E+sqrt(V)

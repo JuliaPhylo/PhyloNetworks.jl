@@ -871,6 +871,7 @@ end
 # warning: I do not want writeTopologyLevel1 to modify the network if outgroup is given! thus, we have updateRoot, and undoRoot
 function writeTopologyLevel1(net0::HybridNetwork, s::IO, di::Bool, names::Bool,
            outgroup::AbstractString, printID::Bool, roundBL::Bool, digits::Integer)
+    global CHECKNET
     net = deepcopy(net0) #writeTopologyLevel1 needs containRoot, but should not alter net0
     if(net.numBad > 0)
         println("net has $(net.numBad) bad diamond I, gammas and some branch lengths are not identifiable, and therefore, meaningless")

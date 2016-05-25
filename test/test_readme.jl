@@ -11,8 +11,11 @@ if(individualtest)
     include("../src/functions.jl")
 end
 
-CHECKNET || error("need CHECKNET=true to test snaq in test_readme.jl")
-
+if isdefined(:PhyloNetworks)
+    PhyloNetworks.CHECKNET || error("need CHECKNET==true in PhyloNetworks to test snaq in test_correctLik.jl")
+else
+    CHECKNET || error("need CHECKNET==true to test snaq in test_correctLik.jl")
+end
 
 try
     d=readTrees2CF("../examples/treefile.txt", CFfile = "none", writeTab=false, writeSummary=false)

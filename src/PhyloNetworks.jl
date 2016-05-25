@@ -93,11 +93,4 @@ include("plotsGadfly.jl")
 include("compareNetworks.jl")
 include("traits.jl")
 
-
-function setCHECKNET(b::Bool)
-    global CHECKNET
-    CHECKNET = b
-    CHECKNET && warn("CHECKNET was changed to true: that will slow snaq! down.")
-end
-
 end #module
