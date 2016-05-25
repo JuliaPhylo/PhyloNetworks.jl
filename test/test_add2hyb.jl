@@ -1,9 +1,12 @@
 # test to start debugging adding more than one hybrid
 # claudia may 2015
 
+if !isdefined(:individualtest) individualtest = false; end
 
-include("../src/types.jl")
-include("../src/functions.jl")
+if(individualtest)
+    include("../src/types.jl")
+    include("../src/functions.jl")
+end
 
 seed=1234
 tree = "(((((((1,2),3),4),5),(6,7)),(8,9)),10);"

@@ -1,9 +1,22 @@
 # see readme file in tests/ for description of tests
 # Claudia July 2015
+# modified to using PhyloNetworks always, all test files have commented out
+# the include(...) or the using PhyloNetworks part
+# Claudia May 2016
 
 using Base.Test
 
-const CHECKNET = true #for debugging only
+if !isdefined(:localtests) localtests = false; end
+
+if(!localtests)
+    using PhyloNetworks
+    PhyloNetworks.setCHECKNET(true)
+else
+    const CHECKNET = true #for debugging only
+    include("../src/types.jl")
+    include("../src/functions.jl")
+end
+
 tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculateExpCF2.jl", "test_hasEdge.jl", "test_parameters.jl","test_correctLik.jl",
          "test_partition.jl", "test_partition2.jl","test_deleteHybridizationUpdate.jl", "test_add2hyb.jl", "test_optBLparts.jl",
          "test_orderings_plot.jl", "test_compareNetworks.jl"]#, "test_readme.jl"]

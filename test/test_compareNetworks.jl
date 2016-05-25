@@ -3,8 +3,13 @@
 # Cecile March 2016
 
 # using PhyloNetworks
-include("../src/types.jl")
-include("../src/functions.jl")
+
+if !isdefined(:individualtest) individualtest = false; end
+
+if(individualtest)
+    include("../src/types.jl")
+    include("../src/functions.jl")
+end
 
 if !isdefined(:doalltests) doalltests = false; end
 

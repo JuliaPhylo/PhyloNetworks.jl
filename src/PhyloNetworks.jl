@@ -17,7 +17,7 @@ import Gadfly.plot
 
 const DEBUG = false #for debugging only
 const DEBUGC = false #more detailed prints
-const CHECKNET = false #for debugging only
+global CHECKNET = false #for debugging only
 const REDIRECT = false # changed for debugging to a file
 
 export
@@ -93,5 +93,11 @@ include("plotsGadfly.jl")
 include("compareNetworks.jl")
 include("traits.jl")
 
+
+function setCHECKNET(b::Bool)
+    global CHECKNET
+    CHECKNET = b
+    CHECKNET && warn("CHECKNET was changed to true: that will slow snaq! down.")
+end
 
 end #module

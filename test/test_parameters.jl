@@ -3,8 +3,12 @@
 
 
 # types in "types.jl"
-include("../src/types.jl")
-include("../src/functions.jl")
+if !isdefined(:individualtest) individualtest = false; end
+
+if(individualtest)
+    include("../src/types.jl")
+    include("../src/functions.jl")
+end
 
 # needed modules:
 

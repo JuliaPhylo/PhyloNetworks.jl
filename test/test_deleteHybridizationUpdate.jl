@@ -2,10 +2,15 @@
 # prompted by Cecile finding cases when containRoot was not updated
 # Claudia December 2015
 
-include("../src/types.jl")
-include("../src/functions.jl")
-const DEBUG = true
-const CHECKNET = true
+if !isdefined(:individualtest) individualtest = false; end
+
+if(individualtest)
+    include("../src/types.jl")
+    include("../src/functions.jl")
+    const DEBUG = true
+end
+
+CHECKNET || error("need CHECKNET==true to test snaq in test_deleteHybridizationUpdate.jl")
 
 tree = "(((((((1,2),3),4),5),(6,7)),(8,9)),10);"
 

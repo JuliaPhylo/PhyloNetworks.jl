@@ -2,10 +2,17 @@
 # Claudia October 2015
 
 ##using PhyloNetworks
-##using DataFrames
+using DataFrames
 
-include("../src/types.jl")
-include("../src/functions.jl")
+if !isdefined(:individualtest) individualtest = false; end
+
+if(individualtest)
+    include("../src/types.jl")
+    include("../src/functions.jl")
+end
+
+CHECKNET || error("need CHECKNET=true to test snaq in test_readme.jl")
+
 
 try
     d=readTrees2CF("../examples/treefile.txt", CFfile = "none", writeTab=false, writeSummary=false)
