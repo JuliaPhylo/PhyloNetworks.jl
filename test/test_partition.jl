@@ -13,7 +13,7 @@ tree = "(((((((1,2),3),4),5),(6,7)),(8,9)),10);"
 #seed = 2738
 seed = 56326
 
-currT0 = readTopologyUpdate(tree);
+currT0 = readTopologyLevel1(tree);
 srand(seed);
 besttree = deepcopy(currT0);
 success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);

@@ -85,10 +85,7 @@ for t in tests
     println("running $(t)")
     net = nothing;
     tree = whichtree(t)
-    f = open("prueba_tree.txt","w")
-    write(f,tree)
-    close(f)
-    net = readTopologyUpdate("prueba_tree.txt");
+    net = readTopologyLevel1(tree);
     println("---- Case $(t)")
     println("$(net.ht)")
     println("$(net.numht)")

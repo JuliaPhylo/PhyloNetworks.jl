@@ -12,7 +12,7 @@ end
 
 # to debug problem
 tree="(3,(2,(((6,(5)#H9:0.91507):0.93066,(4,#H9:0.0):0.73688):0.0)#H7:1.79104::0.99498):0.11675,(1,#H7:0.04487::0.00502):0.4897);"
-net0=readTopologyUpdate(tree);
+net0=readTopologyLevel1(tree);
 #printEdges(net0)
 net0.node[6].gammaz =1.0  #-5
 net0.node[8].gammaz =0.067 #-7
