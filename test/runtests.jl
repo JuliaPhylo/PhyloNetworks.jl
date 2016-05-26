@@ -15,11 +15,13 @@ if(!localtests)
     using DataFrames
     PhyloNetworks.setCHECKNET(true)
 
+    ## readTopology
     getIndexEdge = PhyloNetworks.getIndexEdge
     getIndexNode = PhyloNetworks.getIndexNode
     Edge = PhyloNetworks.Edge
     Node = PhyloNetworks.Node
     setNode! = PhyloNetworks.setNode!
+    ## calculateExpCF
     Quartet = PhyloNetworks.Quartet
     extractQuartet! = PhyloNetworks.extractQuartet!
     identifyQuartet! = PhyloNetworks.identifyQuartet!
