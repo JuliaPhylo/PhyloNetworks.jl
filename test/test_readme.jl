@@ -23,6 +23,7 @@ try
     writeTopologyLevel1(T)
     # snaq
     net1=snaq!(T,d,filename="", runs=5)
+    otherNet = undirectedOtherNetworks(net1)
     net2=snaq!(T,d,hmax=2, filename="", runs=5)
     d=readTableCF("../examples/tableCF.txt", summaryfile="");
     # snaq

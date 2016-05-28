@@ -1327,20 +1327,42 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     end
 
     maxNet.numTaxa > 0 || error("the best network is empty!")
+
+    ## need to do this before setting BL to -1
+    if (rootname != "")
+        info("Printing networks with close pseudolik value to .networks file")
+        julianet = string(rootname,".networks")
+        s = open(julianet,"w")
+        otherNet = []
+        try
+            otherNet = undirectedOtherNetworks(maxNet, outgroup=outgroup, insideSnaq=true) # do not use rootMaxNet
+        catch
+            write(s,"""Bug found when trying to obtain unidentifiable networks with similar pseudolik.
+                       To help debug these cases and get other similar estimated networks for your analysis,
+                       please send the estimated network in parenthetical format to claudia@stat.wisc.edu
+                       with the subject BUG IN NETWORKS FILE. You can get this network from the .out file.
+                       You can also post this problem to the google group, or github issues. Thank you!\n""")
+        end
+        foundBad = false
+        for(n in otherNet)
+            try
+                optBL!(n,d) ##optBL MUST have network with all the attributes, and undirectedOtherNetworks will return "good" networks that way
+            catch
+                n.loglik = -1
+                foundBad = true
+            end
+            write(s,"$(writeTopologyLevel1(n,true)), with -loglik $(n.loglik)\n")
+        end
+        foundBad && write(s,"Problem found when optimizing branch lengths for some networks, left loglik as -1. Please report this issue to claudia@stat.wisc.edu, google group or github issues. Thank you!")
+        close(s)
+    end
+
     setNonIdBL!(maxNet)
     writelog &&
     write(logfile,"\nMaxNet is $(writeTopologyLevel1(maxNet,true)) \nwith -loglik $(maxNet.loglik)\n")
     print(STDOUT,"\nMaxNet is $(writeTopologyLevel1(maxNet,true)) \nwith -loglik $(maxNet.loglik)\n")
 
     # new output file with (nearly) non-identifiable networks: (run before maxNet gets rooted)
-    ## julianet = string(rootname,".networks")
-    ## s = open(julianet,"w")
-    ## otherNet = undirectedOtherNetworks(maxNet, outgroup=outgroup) # do not use rootMaxNet
-    ## for(n in otherNet)
-    ##     optBL!(n,d) ##optBL MUST have network with all the attributes, and undirectedOtherNetworks will return "good" networks that way
-    ##     write(s,"$(writeTopologyLevel1(n,true)), with -loglik $(n.loglik)\n")
-    ## end
-    ## close(s)
 
     if outgroup != "none"
         try

@@ -2,7 +2,12 @@
 # inside its cycle
 # WARNING: assumes net has all the attributes. It is called inside optTopRuns only
 # Potential bug: if new node is -1, then inCycle will become meaningless: changed in readSubTree here
-function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractString)
+# WARNING: does not update partition, because only thing to change is hybrid node number
+## insideSnaq=true means that all attributes are perfect
+function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractString, insideSnaq=false::Bool)
+    if(!insideSnaq)
+        net0 = readTopologyLevel1(writeTopologyLevel1(net0))
+    end
     otherNet = HybridNetwork[]
     for(i in 1:net0.numHybrids) #need to do for by number, not node
         net = deepcopy(net0) # to avoid redoing attributes after each cycle is finished
@@ -130,11 +135,11 @@ function hybridatnode!(net::HybridNetwork, hybrid::Node, newNode::Node)
                 found = true
                 makeEdgeHybrid!(e,newNode, 0.51, switchHyb=true) #first found, major edge, need to optimize gamma anyway
                 ##e.gamma = -1
-                e.containRoot = true
+                ##e.containRoot = true ## need attributes like in snaq
             else
                 makeEdgeHybrid!(e,newNode, 0.49, switchHyb=true) #second found, minor edge
                 ##e.gamma = -1
-                e.containRoot = true
+                ##e.containRoot = true
             end
         end
     end

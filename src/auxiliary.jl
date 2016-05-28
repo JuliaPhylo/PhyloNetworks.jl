@@ -953,7 +953,8 @@ end
 # and correct computation of gammaz
 # light=true: it will not collapse with nodes with 2 edges, will return a flag of true
 # returns true if found egde with BL -1.0 (only when light=true, ow error)
-function checkNet(net::HybridNetwork, light::Bool)
+# added checkPartition for undirectedOtherNetworks that do not need correct hybrid node number
+function checkNet(net::HybridNetwork, light::Bool; checkPartition=true::Bool)
     DEBUG && println("checking net")
     net.numHybrids == length(net.hybrid) || error("discrepant number on net.numHybrids (net.numHybrids) and net.hybrid length $(length(net.hybrid))")
     net.numTaxa == length(net.leaf) || error("discrepant number on net.numTaxa (net.numTaxa) and net.leaf length $(length(net.leaf))")
@@ -1002,7 +1003,7 @@ function checkNet(net::HybridNetwork, light::Bool)
                         desc = [e]
                         cycleNum = [h.number]
                         getDescendants!(getOtherNode(e,n),e,desc,cycleNum)
-                        if(!isPartitionInNet(net,desc,cycleNum))
+                        if(checkPartition && !isPartitionInNet(net,desc,cycleNum))
                             printPartitions(net)
                             error("partition with cycle $(cycleNum) and edges $([e.number for e in desc]) not found in net.partition")
                         end

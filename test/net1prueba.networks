@@ -1,0 +1,6 @@
+((2,(#H-5:::0.49,1)):1.5121335305466412,4,((5,(6)#H-5:::0.51):0.5191605811059357,3):0.489418799149601);, with -loglik -1.0
+((2,((#H-3:::0.49,6),1)):1.5121335305466412,4,((5)#H-3:::0.51,3):0.489418799149601);, with -loglik -1.0
+((2,(((5,#H-4:::0.49):10.0,6),1)):1.5121335305466412,4,(3)#H-4:::0.51);, with -loglik -1.0
+((5,(#H-2:::0.49,3):0.5191605811059357):10.0,6,((2,(4)#H-2:::0.51),1));, with -loglik -1.0
+((2)#H8:::0.51,4,((5,(6,(#H8:::0.49,1)):10.0):0.5191605811059357,3):0.489418799149601);, with -loglik -1.0
+Problem found when optimizing branch lengths for some networks, left loglik as -1. Please report this issue to claudia@stat.wisc.edu, google group or github issues. Thank you!

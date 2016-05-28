@@ -44,7 +44,7 @@ end
 
 # function that we need to overwrite to avoid printing useless scary
 # output for HybridNetworks
-
+# PROBLEM: writeTopology changes the network and thus show changes the network
 function Base.show(io::IO, obj::HybridNetwork)
     disp = "$(typeof(obj)), "
     if obj.isRooted
@@ -67,7 +67,7 @@ function Base.show(io::IO, obj::HybridNetwork)
     end
     par = ""
     try
-        par = writeTopology(obj,round=true)
+        par = writeTopology(obj,round=true) ## fixit: writeTopology changes the network, and thus show changes the network
     catch err
         println("ERROR with writeTopology: $(err)\nTrying writeTopologyLevel1")
         par = writeTopologyLevel1(obj)

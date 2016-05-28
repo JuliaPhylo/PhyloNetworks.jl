@@ -69,7 +69,8 @@ bootsnaq,
 writeMultiTopology,
 readMultiTopologyLevel1,
 readMultiTopology,
-hybridatnode!
+hybridatnode!,
+undirectedOtherNetworks
 
 # export part
 

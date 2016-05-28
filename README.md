@@ -235,15 +235,15 @@ To estimate the network using the input data
 net1=snaq!(T,d,filename="net1_snaq");
 less("net1_snaq.err")
 less("net1_snaq.out")
+less("net1_snaq.networks")
 net2=snaq!(T,d,hmax=2, filename="net2_snaq");
 ```
 when viewing the result files "net1_snaq.err" and "net1_snaq.out" with `less`
 within Julia, use arrows to scroll down and type `q` to quit viewing the files.
-<!---
 The "net1_snaq.networks" file contains a list of networks obtained from moving
 the placement of the hybrid node to another node inside the cycle,
 along with its pseudolikelihood score.
--->
+
 The option *hmax* corresponds to the maximum number of hybridizations allowed,
 1 by default.
 The function name `snaq!` ends with ! because it modifies the argument d
