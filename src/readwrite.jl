@@ -20,7 +20,7 @@ end
 function advance!(s::IO, c::Char, numLeft::Array{Int64,1})
     c = peekchar(s)
     if(Base.eof(s))
-        error("Tree ends prematurely while reading subtree after left parenthesis $(numLeft[1]).")
+        error("Tree ends prematurely while reading subtree after left parenthesis $(numLeft[1]-1).")
     end
     return read(s,Char)
 end
@@ -45,11 +45,11 @@ function readNum(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int64,1})
                c = peekchar(s);
                if(isalnum(c))
                    if(c != 'L' && c != 'H' && c != 'R')
-                       warn("Expected H, R or LGT after # but received $(c) in left parenthesis $(numLeft[1]).")
+                       warn("Expected H, R or LGT after # but received $(c) in left parenthesis $(numLeft[1]-1).")
                    end
                else
                    a = readall(s);
-                   error("Expected name after # but received $(c) in left parenthesis $(numLeft[1]). Remaining is $(a).")
+                   error("Expected name after # but received $(c) in left parenthesis $(numLeft[1]-1). Remaining is $(a).")
                end
             end
             c = peekchar(s);
@@ -124,7 +124,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
                keepon = false
            elseif (c != ',')
                a = readall(s);
-               error("Expected right parenthesis after left parenthesis $(numLeft[1]) but read $(c). The remainder of line is $(a).")
+               error("Expected right parenthesis after left parenthesis $(numLeft[1]-1) but read $(c). The remainder of line is $(a).")
            end
        end
         c = peekchar(s);
@@ -144,7 +144,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
         n = Node(num,true);
     else
         a = readall(s);
-        error("Expected beginning of subtree but read $(c) after left parenthesis $(numLeft[1]), remaining is $(a).");
+        error("Expected beginning of subtree but read $(c) after left parenthesis $(numLeft[1]-1), remaining is $(a).");
     end
     if(pound) # found pound sign in name
         n.hybrid = true;
@@ -244,10 +244,10 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
                                 setGamma!(e,length, false, true);
                             end
                         else
-                            warn("third colon : without gamma value after in $(numLeft[1]) left parenthesis, ignored")
+                            warn("third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored")
                         end
                     else
-                        e.hybrid ? error("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1])") : nothing
+                        e.hybrid ? error("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1]-1)") : nothing
                     end
                 elseif(c == ':')
                     c = read(s, Char);
@@ -260,10 +260,10 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
                             setGamma!(e,length, false, true);
                         end
                     else
-                        warn("third colon : without gamma value after in $(numLeft[1]) left parenthesis, ignored.")
+                        warn("third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored.")
                     end
                 else
-                    warn("second colon : read without any double in left parenthesis $(numLeft[1]), ignored.")
+                    warn("second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.")
                 end
             else
                 e.gamma = e.hybrid ? -1.0 : 1.0 # set missing gamma to -1.0
@@ -286,10 +286,10 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
                             setGamma!(e,length, false, true);
                         end
                     else
-                        warn("third colon : without gamma value after in $(numLeft[1]) left parenthesis, ignored")
+                        warn("third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored")
                     end
                 else
-                    e.hybrid ? warn("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1])") : nothing
+                    e.hybrid ? warn("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1]-1)") : nothing
                 end
             elseif(c == ':')
                 c = read(s, Char);
@@ -302,13 +302,13 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
                         setGamma!(e,length, false, true);
                     end
                 else
-                    warn("third colon : without gamma value after in left parenthesis number $(numLeft[1]), ignored")
+                    warn("third colon : without gamma value after in left parenthesis number $(numLeft[1]-1), ignored")
                 end
             else
-                warn("second colon : read without any double in left parenthesis $(numLeft[1]), ignored.")
+                warn("second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.")
             end
         else
-            warn("one colon read without double in left parenthesis $(numLeft[1]), ignored.")
+            warn("one colon read without double in left parenthesis $(numLeft[1]-1), ignored.")
         end
     else
         e.length = -1.0 # do not use setLength because it does not allow BL too negative
@@ -355,7 +355,7 @@ function readTopology(s::IO,verbose::Bool)
     end
     seekstart(s)
     c = peekchar(s)
-    numLeft = [0]; # made Array to make it mutable
+    numLeft = [1]; # made Array to make it mutable; start at 1 to avoid node -1 which breaks undirectedOtherNetworks
     hybrids = ASCIIString[];
     index = Int64[];
     if(c == '(')
@@ -368,7 +368,7 @@ function readTopology(s::IO,verbose::Bool)
            b |= readSubtree!(s,n,numLeft,net,hybrids,index)
            c = read(s,Char);
            if(eof(s))
-               error("Tree ended while reading in subtree beginning with left parenthesis number $(numLeft[1]).")
+               error("Tree ended while reading in subtree beginning with left parenthesis number $(numLeft[1]-1).")
            elseif(c == ',')
                continue;
            elseif(c == ')')

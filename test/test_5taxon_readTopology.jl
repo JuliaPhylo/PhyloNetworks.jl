@@ -1,4 +1,4 @@
-# tests with the 5 taxon networks read from parenthetical format
+# Tests with the 5 taxon networks read from parenthetical format
 # Claudia November 2014
 
 

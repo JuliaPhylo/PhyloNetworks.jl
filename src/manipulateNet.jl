@@ -1,6 +1,7 @@
 # function to give all the networks obtained from moving the hybrid node
 # inside its cycle
 # WARNING: assumes net has all the attributes. It is called inside optTopRuns only
+# Potential bug: if new node is -1, then inCycle will become meaningless: changed in readSubTree here
 function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractString)
     otherNet = HybridNetwork[]
     for(i in 1:net0.numHybrids) #need to do for by number, not node
@@ -8,13 +9,13 @@ function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractS
         ## undo attributes at current hybrid node:
         hybrid = net.hybrid[i]
         nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,hybrid);
+        DEBUG && println("nodesInCycle are: $([n.number for n in nodesInCycle])")
         !nocycle || error("the hybrid node $(hybrid.number) does not create a cycle")
         edgesRoot = identifyContainRoot(net,hybrid);
         edges = hybridEdges(hybrid);
         undoGammaz!(hybrid,net);
         othermaj = getOtherNode(edges[1],hybrid)
         edgesmaj = hybridEdges(othermaj)
-        DEBUG && println("edgesmaj[3] $(edgesmaj[3].number) is the one to check if containRoot=false already: $(edgesmaj[3].containRoot)")
         if(edgesmaj[3].containRoot) #if containRoot=true, then we need to undo
             undoContainRoot!(edgesRoot);
         end
@@ -23,13 +24,19 @@ function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractS
             if(newn.number != hybrid.number) # nodesInCycle contains the hybrid too
                 newnet = deepcopy(net)
                 newnocycle, newedgesInCycle, newnodesInCycle = identifyInCycle(newnet,newnet.hybrid[i]);
+                !newnocycle || error("the hybrid node $(newnet.hybrid[i].number) does not create a cycle")
                 ind = getIndexNode(newn.number,newnet) # find the newn node in the new network
+                DEBUG && println("moving hybrid to node $(newnet.node[ind].number)")
                 hybridatnode!(newnet, newnet.hybrid[i], newnet.node[ind])
+                DEBUG && printEdges(newnet)
+                DEBUG && printNodes(newnet)
                 undoInCycle!(newedgesInCycle, newnodesInCycle);
-                DEBUG && println("")
+                DEBUG && printEdges(newnet)
+                DEBUG && printNodes(newnet)
                 ##undoPartition!(net,hybrid, edgesInCycle)
                 success, hybrid0, flag, nocycle, flag2, flag3 = updateAllNewHybrid!(newnet.node[ind], newnet, false,false,false)
                 if(success)
+                    DEBUG && println("successfully added new network: $(writeTopologyLevel1(newnet))")
                     push!(otherNet,newnet)
                 else
                     println("the network obtained by putting the new hybrid in node $(newnet.node[ind].number) is not good, inCycle,gammaz,containRoot: $([flag,flag2,flag3]), we will skip it")
@@ -44,6 +51,7 @@ function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractS
         end
         return otherNet
     else ## root already in good place
+        DEBUG && println("we will remove networks contradicting the outgroup in undirectedOtherNetworks")
         whichKeep = rep(true,length(otherNet))
         i = 1
         for(n in otherNet)
@@ -51,6 +59,8 @@ function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractS
                 try
                     checkRootPlace!(n, verbose=true, outgroup=outgroup)
                 catch
+                    DEBUG && println("found one network incompatible with outgroup")
+                    DEBUG && println("$(writeTopologyLevel1(n))")
                     whichKeep[i] = false
                 end
             end
@@ -135,7 +145,7 @@ end
 # does not modify net0 because it needs to update all attributes
 # so, it returns the new network
 function hybridatnode(net0::HybridNetwork, nodeNumber::Int64)
-    net = readTopologyUpdate(writeTopologyLevel1(net0)) # we need inCycle attributes
+    net = readTopologyLevel1(writeTopologyLevel1(net0)) # we need inCycle attributes
     ind = 0
     try
         ind = getIndexNode(nodeNumber,net)

@@ -143,9 +143,9 @@ function testCaseI(net::HybridNetwork)
     edge9 = getIndexEdge(9,net);
     edge10 = getIndexEdge(10,net);
     edge6 = getIndexEdge(6,net);
-    node1 = getIndexNode(-1,net);
-    node2 = getIndexNode(-2,net);
-    node5 = getIndexNode(-5,net);
+    node1 = getIndexNode(-2,net);
+    node2 = getIndexNode(-3,net);
+    node5 = getIndexNode(-6,net);
     node3 = getIndexNode(3,net);
     (net.edge[edge4].inCycle != node.number || net.edge[edge9].inCycle != node.number || net.edge[edge6].inCycle != node.number || net.edge[edge9].inCycle != node.number ) ? error("edges not correctly in cycle") : nothing
     (net.node[node1].inCycle  != node.number || net.node[node2].inCycle  != node.number || net.node[node5].inCycle  != node.number || net.node[node3].inCycle  != node.number) ? error("nodes 1,5,11,12 not correctly in cycle") : nothing

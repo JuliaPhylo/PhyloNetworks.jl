@@ -31,7 +31,7 @@ length(net.hybrid)
 n=net.hybrid[1];
 flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,n);
 flag || error("wrong update in hybrid 1")
-[n.number for n in nodesInCycle] == [7,-15,-9,-10,-11] || error("wrong update in hybrid 1")
+[n.number for n in nodesInCycle] == [7,-16,-10,-11,-12] || error("wrong update in hybrid 1")
 [n.number for n in edgesInCycle] == [16,24,15,9,8] || error("wrong update in hybrid 1")
 flag2, edgesGammaz = updateGammaz!(net,n,false);
 flag2 || error("wrong update in hybrid 1")
@@ -45,7 +45,7 @@ flag3 || error("wrong update in hybrid 1")
 n=net.hybrid[2];
 flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,n);
 flag || error("wrong update in hybrid 2")
-[n.number for n in nodesInCycle] == [15,-23,-22,-21,-20,-19,-7] || error("wrong update in hybrid 2")
+[n.number for n in nodesInCycle] == [15,-24,-23,-22,-21,-20,-8] || error("wrong update in hybrid 2")
 [n.number for n in edgesInCycle] == [31,32,42,43,44,45,26] || error("wrong update in hybrid 2")
 flag2, edgesGammaz = updateGammaz!(net,n,false);
 flag2 || error("wrong update in hybrid 2")
@@ -60,7 +60,7 @@ flag3 || error("wrong update in hybrid 2")
 n=net.hybrid[3];
 flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,n);
 flag || error("wrong update in hybrid 3")
-[n.number for n in nodesInCycle] == [25,-28,-1,-2,-3] || error("wrong update in hybrid 3")
+[n.number for n in nodesInCycle] == [25,-29,-2,-3,-4] || error("wrong update in hybrid 3")
 [n.number for n in edgesInCycle] == [53,54,51,49,48] || error("wrong update in hybrid 3")
 flag2, edgesGammaz = updateGammaz!(net,n,false);
 flag2 || error("wrong update in hybrid 3")
@@ -77,7 +77,7 @@ isempty(net.partition) || error("wrong partition after initial update")
 n=net.hybrid[1];
 nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,n);
 [n.number for n in edgesInCycle] == [16,24,15,9,8] || error("wrong partition hybrid 1")
-[n.number for n in nodesInCycle] == [7,-15,-9,-10,-11] || error("wrong partition hybrid 1")
+[n.number for n in nodesInCycle] == [7,-16,-10,-11,-12] || error("wrong partition hybrid 1")
 updatePartition!(net,nodesInCycle)
 length(net.partition) == 5 || error("wrong partition hybrid 1")
 [n.number for n in net.partition[1].edges] == [7] || error("wrong partition hybrid 1")
@@ -88,7 +88,7 @@ length(net.partition) == 5 || error("wrong partition hybrid 1")
 
 n=net.hybrid[2];
 nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,n);
-[n.number for n in nodesInCycle] == [15,-23,-22,-21,-20,-19,-7] || error("wrong partition in hybrid 2")
+[n.number for n in nodesInCycle] == [15,-24,-23,-22,-21,-20,-8] || error("wrong partition in hybrid 2")
 [n.number for n in edgesInCycle] == [31,32,42,43,44,45,26] || error("wrong partition in hybrid 2")
 updatePartition!(net,nodesInCycle)
 length(net.partition) == 11 || error("wrong partition hybrid 2")
@@ -101,7 +101,7 @@ length(net.partition) == 11 || error("wrong partition hybrid 2")
 
 n=net.hybrid[3];
 nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,n);
-[n.number for n in nodesInCycle] == [25,-28,-1,-2,-3] || error("wrong partition in hybrid 3")
+[n.number for n in nodesInCycle] == [25,-29,-2,-3,-4] || error("wrong partition in hybrid 3")
 [n.number for n in edgesInCycle] == [53,54,51,49,48] || error("wrong partition in hybrid 3")
 updatePartition!(net,nodesInCycle)
 length(net.partition) == 15 || error("wrong partition hybrid 2")
