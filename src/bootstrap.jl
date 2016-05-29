@@ -178,7 +178,9 @@ function optTopRunsBoot(currT0::HybridNetwork, df::Union{DataFrame,Vector{Vector
             str = "bestNet not given as input, estimated before bootstrap\n"
             write(logfile, str)
             print(str)
-            d = readTableCF(df)
+            if(isa(DataFrame,df))
+                d = readTableCF(df)
+            elseif(isa())
             bestNet = optTopRuns!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, "bestNet",seeds[1],probST)
         else
             str = "bestNet input:\n"
@@ -197,8 +199,6 @@ function optTopRunsBoot(currT0::HybridNetwork, df::Union{DataFrame,Vector{Vector
         write(logfile,"\n begin replicate $(i) with seed $(seeds[i+1])---------\n")
         println("\nbegin replicate $(i) with seed $(seeds[i+1])\n")
         newdf = bootstrapCFtable(df, seed=seeds[i+1])
-        # @show newdf
-        # writetable(string("CFtable",i,".csv"),newdf)
         newd = readTableCF(newdf)
         if(i/nrep <= prcnet) # fixit: each replicate should be analyzed in the same way (pctnet)
             write(logfile,"\nStarting topology: best network")

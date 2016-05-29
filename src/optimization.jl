@@ -1329,7 +1329,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     maxNet.numTaxa > 0 || error("the best network is empty!")
 
     ## need to do this before setting BL to -1
-    if (rootname != "")
+    if (rootname != "" && !isTree(maxNet)) ## only do networks file if maxNet is not tree
         info("Printing networks with close pseudolik value to .networks file")
         julianet = string(rootname,".networks")
         s = open(julianet,"w")
