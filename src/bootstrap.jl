@@ -144,11 +144,12 @@ bootstrapCFtable(file::AbstractString;sep=','::Char,seed=0::Int) = bootstrapCFta
 # function that will do bootstrap of snaq estimation in series
 # it repeats optTopRuns nrep times
 # it has the same arguments as optTopRuns except for:
-# - need df table of CF with conf intervals (instead of d DataCF)
+# - need data table of CF with conf intervals (instead of d DataCF),
+#   or vector of vector of HybridNetworks
 # - new argument nrep: number of bootstrap replicates (default 10)
 # - new argument prcnet: percentage of bootstrap replicates to start in the best network, by default 0.25
 # - new argument bestNet: to start the optimization. if prcnet>0.0 and bestNet is not input as argument from a previous run, it will estimate it inside
-function optTopRunsBoot(currT0::HybridNetwork, df::Union{DataFrame,Vector{Vector{HybridNetwork}}},
+function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vector{HybridNetwork}}},
                         hmax::Int64, M::Number, Nfail::Int64, ftolRel::Float64,ftolAbs::Float64,xtolRel::Float64,xtolAbs::Float64,
                         verbose::Bool, closeN::Bool, Nmov0::Vector{Int64},
                         runs::Int64, outgroup::AbstractString, filename::AbstractString,
@@ -178,9 +179,9 @@ function optTopRunsBoot(currT0::HybridNetwork, df::Union{DataFrame,Vector{Vector
             str = "bestNet not given as input, estimated before bootstrap\n"
             write(logfile, str)
             print(str)
-            if(isa(DataFrame,df))
-                d = readTableCF(df)
-            elseif(isa())
+            ## if(isa(DataFrame,data))
+            ##     d = readTableCF(data)
+            ## elseif(isa())
             bestNet = optTopRuns!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, "bestNet",seeds[1],probST)
         else
             str = "bestNet input:\n"
