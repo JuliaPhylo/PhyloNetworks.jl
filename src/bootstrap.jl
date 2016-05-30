@@ -2,9 +2,47 @@
 # Claudia October 2015
 # Cecile April 2016
 
-# function to sample bootstrap gene trees
-# returns an array of trees
-function bootstrapTrees(trees::Vector{Vector{HybridNetwork}}; seed=0::Int)
+"""
+    readBootstrapTrees(filename)
+
+input: name of file containing the path/name to multiple bootstrap files, one per line.
+Each bootstrap file corresponds to bootstrap trees from a single gene.
+
+output: vector of vectors of trees.
+*No* error if a network topology (h>0) is encountered. This is tested in bootsnaq.
+"""
+function readBootstrapTrees(filelist::AbstractString)
+    s = open(filelist) # IOStream
+    bootfile = readdlm(s,AbstractString)
+    close(s)
+    size(bootfile)[2] == 1 ||
+        error("there should be a single bootstrap file name on each row of file $filelist")
+    ngenes = size(bootfile)[1]
+    treelists = Array(Vector{HybridNetwork},ngenes)
+    for igene in 1:ngenes
+        treelists[igene] = readMultiTopology(bootfile[igene])
+        print("read $igene/$ngenes bootstrap tree files\r") # using \r for better progress display
+    end
+    return treelists
+end
+
+"""
+    sampleBootstrapTrees(vector of tree lists; seed=0::Int, generesampling=false)
+
+Sample bootstrap gene trees, 1 tree per gene.
+Set the seed with keyword argument `seed`, which is 0 by default.
+When `seed=0`, the actual seed is set using the clock.
+Assumes a vector of vectors of networks (see `readBootstrapTrees`),
+each one of length 1 or more (error if one vector is empty, tested in `bootsnaq`).
+
+- site resampling: always, from sampling one bootstrap tree at random from each given list.
+- gene resampling: if `generesampling=true` (default is false),
+  genes (i.e. lists) are sampled with replacement.
+
+output: one vector of trees.
+"""
+function sampleBootstrapTrees(trees::Vector{Vector{HybridNetwork}};
+                              seed=0::Int, generesampling=false::Bool)
     if(seed == 0)
         t = time()/1e9
         a = split(string(t),".")
@@ -13,15 +51,18 @@ function bootstrapTrees(trees::Vector{Vector{HybridNetwork}}; seed=0::Int)
     println("using seed $(seed) for bootstrap trees")
     srand(seed)
     numgen = length(trees) ## number of genes
-    bootTrees = HybridNetwork[]
+    numgen>0 || error("needs at least 1 array of trees")
+    bootTrees = Array(HybridNetwork, numgen)
+    if generesampling
+        indxg = sample(1:numgen, numgen) # default is with replacement. good!
+    end
     for(g in 1:numgen)
-        indx = sample(1:length(trees[g]),1)
-        push!(bootTrees,trees[g][indx])
+        ig = (generesampling ? indxg[g] : g )
+        indxt = sample(1:length(trees[ig]),1)[1]
+        bootTrees[g] = trees[ig][indxt]
     end
     return bootTrees
 end
-
-
 
 
 # function to read a CF table with CI
@@ -80,6 +121,10 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
     logfile = open(julialog,"w")
     write(logfile, "BOOTSTRAP OF SNAQ ESTIMATION \n")
 
+    inputastrees = isa(Vector{Vector{HybridNetwork}}, data)
+    inputastrees || isa(DataFrame,data) ||
+        error("Input data not recognized: $(typeof(data))")
+
     if(seed == 0)
         t = time()/1e9
         a = split(string(t),".")
@@ -96,18 +141,15 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
         write(logfile, str)
         print(str)
         if(bestNet.numTaxa == 0)
-            if(isa(DataFrame,data))
+            if !inputastrees
                 str = "bestNet not given as input, estimated before bootstrap\n"
                 write(logfile, str)
                 print(str)
                 d = readTableCF(data)
                 bestNet = optTopRuns!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, "bestNet",seeds[1],probST)
-            elseif(isa(Vector{Vector{HybridNetwork}}, data))
+            else
                 if(treefile == "none")
-                    error("""bestNet not given as input. We cannot estimate the best network inside
-                         unless you provide the name of the file with one gene tree per gene to
-                         read with the option treefile. You could also include the best network
-                         already with the option bestNet""") ## question: do we send error or warning and make prcnet==0?
+                    error("need treefile or bestNet if prcnet>0. snaq should have thrown an error")
                 else
                     str = "bestNet not given as input, estimated before bootstrap\n"
                     write(logfile, str)
@@ -115,8 +157,6 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
                     d = readTrees2CF(treefile,quartetfile=quartetfile)
                     bestNet = optTopRuns!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, "bestNet",seeds[1],probST)
                 end
-            else
-                error("Input data not recognized: $(typeof(data))")
             end
         else
             str = "bestNet input:\n"
@@ -134,14 +174,12 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
     for(i in 1:nrep)
         write(logfile,"\n begin replicate $(i) with seed $(seeds[i+1])---------\n")
         println("\nbegin replicate $(i) with seed $(seeds[i+1])\n")
-        if(isa(DataFrame,data))
+        if !inputastrees
             newdf = bootstrapCFtable(data, seed=seeds[i+1])
             newd = readTableCF(newdf)
-        elseif(isa(Vector{Vector{HybridNetwork}}, Data))
-            newtrees = bootstrapTrees(data, seed=seeds[i+1])
-            newd = readTrees2CF(newtrees, quartetfile=quartetfile)
         else
-            error("Input data not recognized: $(typeof(data))")
+            newtrees = sampleBootstrapTrees(data, seed=seeds[i+1])
+            newd = readTrees2CF(newtrees, quartetfile=quartetfile)
         end
         runs1 = parse(Int,runs*prcnet)
         runs2 = runs - runs1
@@ -179,15 +217,16 @@ end
 # like snaq, only calls optTopRunsBoot
 # will later decide which to call depending on nproc()
 """
-`bootsnaq(T::HybridNetwork, df::DataFrame)`
-`bootsnaq(T::HybridNetwork, vector of tree lists)`
+    bootsnaq(T::HybridNetwork, df::DataFrame)
+    bootsnaq(T::HybridNetwork, vector of tree lists)
 
 Bootstrap analysis for SNaQ.
 Bootstrap data can be quartet concordance factors (CF),
 drawn from sampling uniformly in their credibility intervals,
-as given in the data frame `df`, or it can be a vector of tree lists:
-one list of bootstrap trees per locus
-(see function xxx to generate this,
+as given in the data frame `df`.
+Alternatively, bootstrap data can be gene trees sampled from
+a vector of tree lists: one list of bootstrap trees per locus
+(see `readBootstrapTrees` to generate this,
 from a file containing a list of bootstrap files: one per locus).
 
 From each bootstrap replicate, a network
@@ -211,13 +250,26 @@ function bootsnaq(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vector{Hyb
                   runs=10::Int64, outgroup="none"::AbstractString, filename="bootsnaq"::AbstractString,
                   seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.0::Float64,
                   bestNet=HybridNetwork()::HybridNetwork, treefile="none"::AbstractString, quartetfile="none"::AbstractString)
-    if isa(data, DataFrame)
+
+    inputastrees = isa(Vector{Vector{HybridNetwork}}, data)
+    inputastrees || isa(DataFrame,data) ||
+        error("Input data not recognized: $(typeof(data))")
+
+    if !inputastrees
     (DataFrames.names(data)[[6,7,9,10,12,13]] == [:CF12_34_lo,:CF12_34_hi,:CF13_24_lo,:CF13_24_hi,:CF14_23_lo,:CF14_23_hi]) ||
       warn("""assume table with CI from TICR: CFlo, CFhi in columns 6,7; 9,10; and 12,13.
               Found different column names: $(DataFrames.names(data)[[6,7,9,10,12,13]])
               """)
-    else
-        error("not implemented yet for list of lists of networks")
+    else # check 1+ genes, each with 1+ trees, all with h=0.
+        ngenes = length(data)
+        ngenes > 0 || error("empty list of bootstrap trees (0 genes)")
+        for igene in 1:ngenes
+            btr = data[igene]
+            length(btr) > 0 || error("no bootstrap trees for $(igene)th gene")
+            for itree in 1:length(btr)
+                btr[itree].numHybrids == 0 || error("network $itree is not a tree for $(igene)th gene")
+            end
+        end
     end
     prcnet >= 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
     prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
@@ -230,27 +282,23 @@ function bootsnaq(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vector{Hyb
         err.msg = "starting topology not a level 1 network:\n" * err.msg
         rethrow(err)
     end
-    if isa(data, DataFrame)
+    if !inputastrees
         originald = readTableCF(data)
-        if isTree(startnet)
-            updateBL!(startnet, originald)
-        end
-    elseif(isa(Vector{Vector{HybridNetwork}}, data))
+    else
         if(treefile != "none")
             originald = readTrees2CF(treefile,quartetfile=quartetfile)
-            if isTree(startnet)
-                updateBL!(startnet, originald)
-            end
         else
             if(prcnet > 0 && bestNet.numTaxa == 0)
-                error("""bestNet not given as input, nor treefile specified, and prcnet>0. We cannot estimate the best network inside
-                         unless you provide the name of the file with one gene tree per gene to
-                         read with the option treefile. You could also include the best network
-                         already with the option bestNet""")
+                error("""bestNet not given as input, nor treefile specified, and prcnet>0: the best network
+                cannot be estimated and used here. Please estimate it beforehand (bestNet option), 
+                or provide the name of a file containing the best tree for each gene (treefile option).""")
             end
+            originald = readTrees2CF(sampleBootstrapTrees(data), quartetfile=quartetfile)
+            # not the original CF data but random bootstrap data, to get approximate starting branch lengths
         end
-    else
-        error("Input data not recognized: $(typeof(data))")
+    end
+    if isTree(startnet)
+        updateBL!(startnet, originald)
     end
 
     # for multiple alleles: expand into two leaves quartets like sp1 sp1 sp2 sp3.

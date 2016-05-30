@@ -773,12 +773,33 @@ end
 
 
     # --------------------------- write topology -------------------------------------
-# function to write a node and its descendants in
-#parenthetical format
+# function to write a node and its descendants in parenthetical format
 # di=true in densdroscope format, names=true, prints names
 writeSubTree!(s::IO, n::Node, parent::Edge, di::Bool, names::Bool, printID::Bool) =
     writeSubTree!(s,n,parent,di,names,printID, true,3)
 
+# method to start at the root and write the whole tree/network
+function writeSubTree!(s::IO, net::HybridNetwork, di::Bool, names::Bool, printID::Bool,
+                       roundBL::Bool, digits::Integer)
+    if net.numNodes == 1
+        print(s,string(net.node[net.root].number))
+    elseif net.numNodes > 1
+        print(s,"(")
+        degree = length(net.node[net.root].edge)
+        for(e in net.node[net.root].edge)
+            writeSubTree!(s,getOtherNode(e,net.node[net.root]),e,di,names,printID,roundBL,digits)
+            degree -= 1
+            if(degree > 0)
+                print(s,",")
+            end
+        end
+        print(s,")")
+    end
+    print(s,";")
+    return nothing
+end
+
+# method to start at a node coming from an adjacent (parent) edge
 function writeSubTree!(s::IO, n::Node, parent::Edge,di::Bool,names::Bool, printID::Bool,
                        roundBL::Bool, digits::Integer)
     if((parent.hybrid && !parent.isMajor) || n.leaf)
@@ -1080,7 +1101,8 @@ function readMultiTopology(file::AbstractString)
            try
                push!(vnet, readTopology(line,false)) # false for non-verbose
            catch(err)
-               error("could not read tree on line $(numl).\nerror: $(err)")
+               println("could not read tree on line $(numl) of file $file. error was this:")
+               rethrow(err)
            end
         end
         numl += 1
@@ -1208,22 +1230,7 @@ function writeTopology(net::HybridNetwork, s::IO,
         end
     end
     # finally, write parenthetical format
-    if net.numNodes == 1
-        print(s,string(net.node[net.root].number))
-    elseif net.numNodes > 1
-        print(s,"(")
-        degree = length(net.node[net.root].edge)
-        for(e in net.node[net.root].edge)
-            writeSubTree!(s,getOtherNode(e,net.node[net.root]),e,di,true,false,round,digits)
-            # names = true:    leaf names (labels), not numbers
-            # printID = false: print all branch lengths, not just identifiable ones
-            degree -= 1
-            if(degree > 0)
-                print(s,",")
-            end
-        end
-        print(s,")")
-    end
-    print(s,";")
-    return nothing
+    writeSubTree!(s,net,di,true,false,round,digits)
+    # names = true: to print leaf names (labels), not numbers
+    # printID = false: print all branch lengths, not just identifiable ones
 end

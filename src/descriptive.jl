@@ -67,9 +67,12 @@ function Base.show(io::IO, obj::HybridNetwork)
     end
     par = ""
     try
-        par = writeTopology(obj,round=true) ## fixit: writeTopology changes the network, and thus show changes the network
+        # par = writeTopology(obj,round=true) # but writeTopology changes the network, not good
+        s = IOBuffer()
+        writeSubTree!(s, obj, false,true,false, true,3)
+        par = bytestring(s)
     catch err
-        println("ERROR with writeTopology: $(err)\nTrying writeTopologyLevel1")
+        println("ERROR with writeSubTree!: $(err)\nTrying writeTopologyLevel1")
         par = writeTopologyLevel1(obj)
     end
     disp *= "\n$par"
