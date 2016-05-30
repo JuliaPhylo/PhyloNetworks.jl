@@ -141,28 +141,22 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
         write(logfile, str)
         print(str)
         if(bestNet.numTaxa == 0)
-            if !inputastrees
-                str = "bestNet not given as input, estimated before bootstrap\n"
-                write(logfile, str)
-                print(str)
-                d = readTableCF(data)
-                bestNet = optTopRuns!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, "bestNet",seeds[1],probST)
-            else
-                if(treefile == "none")
+            if inputastrees && treefile == "none"
                     error("need treefile or bestNet if prcnet>0. snaq should have thrown an error")
-                else
-                    str = "bestNet not given as input, estimated before bootstrap\n"
-                    write(logfile, str)
-                    print(str)
-                    d = readTrees2CF(treefile,quartetfile=quartetfile)
-                    bestNet = optTopRuns!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, "bestNet",seeds[1],probST)
-                end
             end
+            str = "bestNet not given, estimated before bootstrap (see files $(filename)_0_bestNet.*):\n"
+            if !inputastrees
+                d = readTableCF(data)
+            else
+                d = readTrees2CF(treefile,quartetfile=quartetfile)
+            end
+            bestNet = optTopRuns!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup,
+                                  string(filename,"_0_bestNet"),seeds[1],probST)
         else
             str = "bestNet input:\n"
-            write(logfile, str)
-            print(str)
         end
+        write(logfile, str)
+        print(str)
         write(logfile, "$(writeTopologyLevel1(bestNet))\n")
         println(writeTopologyLevel1(bestNet))
     end

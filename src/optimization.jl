@@ -1330,19 +1330,21 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
 
     ## need to do this before setting BL to -1
     if (rootname != "" && !isTree(maxNet)) ## only do networks file if maxNet is not tree
-        info("Printing networks with close pseudolik value to .networks file")
+        info("Printing best network and networks with different hybrid/gene flow directions, to .networks file")
         julianet = string(rootname,".networks")
         s = open(julianet,"w")
         otherNet = []
         try
             otherNet = undirectedOtherNetworks(maxNet, outgroup=outgroup, insideSnaq=true) # do not use rootMaxNet
         catch
-            write(s,"""Bug found when trying to obtain unidentifiable networks with similar pseudolik.
+            write(s,"""Bug found when trying to obtain networks with modified hybrid/gene flow direction.
                        To help debug these cases and get other similar estimated networks for your analysis,
                        please send the estimated network in parenthetical format to claudia@stat.wisc.edu
                        with the subject BUG IN NETWORKS FILE. You can get this network from the .out file.
                        You can also post this problem to the google group, or github issues. Thank you!\n""")
         end
+        write(s,"$(writeTopologyLevel1(maxNet,true)), with -loglik $(maxNet.loglik) (best network found)\n")
+        # best network is included first: for score comparison with other networks
         foundBad = false
         for(n in otherNet)
             try
