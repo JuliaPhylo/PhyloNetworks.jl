@@ -121,8 +121,8 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
     logfile = open(julialog,"w")
     write(logfile, "BOOTSTRAP OF SNAQ ESTIMATION \n")
 
-    inputastrees = isa(Vector{Vector{HybridNetwork}}, data)
-    inputastrees || isa(DataFrame,data) ||
+    inputastrees = isa(data, Vector{Vector{HybridNetwork}})
+    inputastrees || isa(data, DataFrame) ||
         error("Input data not recognized: $(typeof(data))")
 
     if(seed == 0)
@@ -181,14 +181,24 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
             newtrees = sampleBootstrapTrees(data, seed=seeds[i+1])
             newd = readTrees2CF(newtrees, quartetfile=quartetfile)
         end
-        runs1 = parse(Int,runs*prcnet)
+        runs1 = convert(Int64, round(runs*prcnet))
         runs2 = runs - runs1
-        net1 = optTopRuns!(bestNet, M, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs1, outgroup, string(filename,"_",i,"_bestNet"),seeds[i+1],probST) ## fixit: dont save all files separately
-        net2 = optTopRuns!(currT0, M, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs2, outgroup, string(filename,"_",i),seeds[i+1],probST)
-        if(net1.loglik < net2.loglik)
-            net = net1
-        else
-            net = net2
+        if runs1>0
+            net1 = optTopRuns!(bestNet, M, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs1, outgroup,
+                               string(filename,"_",i,"_bestNet"),seeds[i+1],probST) ## fixit: dont save all files separately
+            if runs2==0
+                net = net1
+            end
+        end
+        if runs2>0
+            net2 = optTopRuns!(currT0, M, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs2, outgroup,
+                               string(filename,"_",i),seeds[i+1],probST)
+            if runs1==0
+                net = net2
+            end
+        end
+        if (runs1>0 && runs2>0)
+            net = (net1.loglik < net2.loglik ? net1 : net2)
         end
         flush(logfile)
 
@@ -251,8 +261,8 @@ function bootsnaq(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vector{Hyb
                   seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.0::Float64,
                   bestNet=HybridNetwork()::HybridNetwork, treefile="none"::AbstractString, quartetfile="none"::AbstractString)
 
-    inputastrees = isa(Vector{Vector{HybridNetwork}}, data)
-    inputastrees || isa(DataFrame,data) ||
+    inputastrees = isa(data, Vector{Vector{HybridNetwork}})
+    inputastrees || isa(data, DataFrame) ||
         error("Input data not recognized: $(typeof(data))")
 
     if !inputastrees
@@ -290,7 +300,7 @@ function bootsnaq(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vector{Hyb
         else
             if(prcnet > 0 && bestNet.numTaxa == 0)
                 error("""bestNet not given as input, nor treefile specified, and prcnet>0: the best network
-                cannot be estimated and used here. Please estimate it beforehand (bestNet option), 
+                cannot be estimated and used here. Please estimate it beforehand (bestNet option),
                 or provide the name of a file containing the best tree for each gene (treefile option).""")
             end
             originald = readTrees2CF(sampleBootstrapTrees(data), quartetfile=quartetfile)

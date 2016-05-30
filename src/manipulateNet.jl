@@ -52,7 +52,7 @@ function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractS
     # check root in good position
     if(outgroup == "none")
         for(n in otherNet)
-            !isTree(n) && checkRootPlace!(n, verbose=true)
+            !isTree(n) && checkRootPlace!(n, verbose=false)
         end
         return otherNet
     else ## root already in good place

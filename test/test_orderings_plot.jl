@@ -24,7 +24,6 @@ tre.edge[1].isChild1=false; tre.edge[17].isChild1=false
 directEdges!(tre)
 tre.edge[1].isChild1  || error("directEdges! didn't correct the direction of 1st edge")
 tre.edge[17].isChild1 || error("directEdges! didn't correct the direction of 17th edge")
-# 9th node = node number -4. Edge 9: connects nodes -4 and -3.
 for i=1:18 tre.edge[i].containRoot=false; end;
 tre.root = 9;
 directEdges!(tre);
