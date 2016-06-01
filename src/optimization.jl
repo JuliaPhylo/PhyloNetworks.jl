@@ -895,6 +895,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     Nfail > 0 || error("Nfail must be greater than zero: $(Nfail)")
     isempty(Nmov0) || all((n-> (n > 0)), Nmov0) || error("Nmov must be greater than zero: $(Nmov0)")
     if(DEBUG && REDIRECT) #for debugging
+        originalSTDOUT = STDOUT
         redirect_stdout(sout)
     end
     DEBUG && printEverything(currT)
@@ -1002,6 +1003,9 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     DEBUG && printPartitions(newT)
     DEBUGC && printNodes(newT)
     DEBUG && println(writeTopologyLevel1(newT,true))
+    if(DEBUG && REDIRECT)
+        redirect_stdout(originalSTDOUT)
+    end
     return newT
 end
 
