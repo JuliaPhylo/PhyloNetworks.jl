@@ -1245,8 +1245,10 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
               tolerance parameters: ftolRel=$(ftolRel), ftolAbs=$(ftolAbs),
                                     xtolAbs=$(xtolAbs), xtolRel=$(xtolRel).
               max number of failed proposals = $(Nfail), multiplier M = $(M).
-             Outgroup: $(outgroup) (for rooting at the final step)
              """
+    if outgroup != "none"
+        str *= "Outgroup: $(outgroup) (for rooting at the final step)\n"
+    end
     str *= (writelog ? "rootname for files: $(rootname)\n" : "no output files\n")
     str *= """BEGIN: $(runs) runs on starting tree $(writeTopologyLevel1(currT0,true))
               $(Libc.strftime(time()))\n"""
@@ -1329,7 +1331,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     maxNet.numTaxa > 0 || error("the best network is empty!")
 
     ## need to do this before setting BL to -1
-    if (rootname != "" && !isTree(maxNet)) ## only do networks file if maxNet is not tree
+    if (writelog && !isTree(maxNet)) ## only do networks file if maxNet is not tree
         info("Printing best network and networks with different hybrid/gene flow directions, to .networks file")
         julianet = string(rootname,".networks")
         s = open(julianet,"w")

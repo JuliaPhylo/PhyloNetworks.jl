@@ -9,8 +9,8 @@ input: name of file containing the path/name to multiple bootstrap files, one pe
 Each bootstrap file corresponds to bootstrap trees from a single gene.
 
 output: vector of vectors of trees.
-*No* error if a network topology (h>0) is encountered. This is tested in bootsnaq.
 """
+# *No* error if a network topology (h>0) is encountered. This is tested in bootsnaq.
 function readBootstrapTrees(filelist::AbstractString)
     s = open(filelist) # IOStream
     bootfile = readdlm(s,AbstractString)
@@ -27,7 +27,8 @@ function readBootstrapTrees(filelist::AbstractString)
 end
 
 """
-    sampleBootstrapTrees(vector of tree lists; seed=0::Int, generesampling=false)
+    sampleBootstrapTrees(vector of tree lists; seed=0::Int, generesampling=false, row=0)
+    sampleBootstrapTrees!(tree list, vector of tree lists; seed=0::Int, generesampling=false, row=0)
 
 Sample bootstrap gene trees, 1 tree per gene.
 Set the seed with keyword argument `seed`, which is 0 by default.
@@ -35,30 +36,47 @@ When `seed=0`, the actual seed is set using the clock.
 Assumes a vector of vectors of networks (see `readBootstrapTrees`),
 each one of length 1 or more (error if one vector is empty, tested in `bootsnaq`).
 
-- site resampling: always, from sampling one bootstrap tree at random from each given list.
+- site resampling: always, from sampling one bootstrap tree from each given list.
+  This tree is sampled at **random** unless `row>0` (see below).
 - gene resampling: if `generesampling=true` (default is false),
   genes (i.e. lists) are sampled with replacement.
+- `row=i`: samples the ith bootstrap tree for each gene.
+  `row` is turned back to 0 if gene resampling is true.
 
-output: one vector of trees.
+output: one vector of trees. the modifying function (!) modifies the input tree list and returns it.
 """
 function sampleBootstrapTrees(trees::Vector{Vector{HybridNetwork}};
-                              seed=0::Int, generesampling=false::Bool)
-    if(seed == 0)
+                              seed=0::Int, generesampling=false::Bool, row=0::Int)
+    bootTrees = Array(HybridNetwork, length(trees))
+    sampleBootstrapTrees!(bootTrees, trees, seed=seed, generesampling=generesampling, row=row)
+end
+
+function sampleBootstrapTrees!(bootTrees::Vector{HybridNetwork}, trees::Vector{Vector{HybridNetwork}};
+                              seed=0::Int, generesampling=false::Bool, row=0::Int)
+    numgen = length(trees) ## number of genes
+    numgen>0 || error("needs at least 1 array of trees")
+    numgen <= length(bootTrees) || error("the input tree list needs to be of length $numgen at least")
+    if (generesampling) row=0; end
+    if row==0
+      if(seed == 0)
         t = time()/1e9
         a = split(string(t),".")
         seed = parse(Int,a[2][end-4:end]) #better seed based on clock
-    end
-    println("using seed $(seed) for bootstrap trees")
-    srand(seed)
-    numgen = length(trees) ## number of genes
-    numgen>0 || error("needs at least 1 array of trees")
-    bootTrees = Array(HybridNetwork, numgen)
-    if generesampling
+        println("using seed $(seed) for bootstrap trees")
+      end
+      srand(seed)
+      if generesampling
         indxg = sample(1:numgen, numgen) # default is with replacement. good!
+      end
     end
     for(g in 1:numgen)
         ig = (generesampling ? indxg[g] : g )
-        indxt = sample(1:length(trees[ig]),1)[1]
+        if row==0
+          indxt = sample(1:length(trees[ig]),1)[1]
+        else
+          indxt = row
+          length(trees[ig]) >= row || error("gene $g has fewer than $row bootstrap trees.")
+        end
         bootTrees[g] = trees[ig][indxt]
     end
     return bootTrees
@@ -79,8 +97,8 @@ function bootstrapCFtable(df::DataFrame;seed=0::Int)
         t = time()/1e9
         a = split(string(t),".")
         seed = parse(Int,a[2][end-4:end]) #better seed based on clock
+        println("using seed $(seed) for bootstrap table")
     end
-    println("using seed $(seed) for bootstrap table")
     srand(seed)
     for(i in 1:size(df,1))
         c1 = (df[i,7]-df[i,6])*rand()+df[i,6]
@@ -106,16 +124,15 @@ bootstrapCFtable(file::AbstractString;sep=','::Char,seed=0::Int) = bootstrapCFta
 # - need data table of CF with conf intervals (instead of d DataCF),
 #   or vector of vector of HybridNetworks
 # - new argument nrep: number of bootstrap replicates (default 10)
-# - new argument prcnet: percentage of bootstrap replicates to start in the best network, by default 0.25
+# - new argument runs2: percentage of bootstrap replicates to start in the best network, by default 0.25
 # - new argument bestNet: to start the optimization. if prcnet>0.0 and bestNet is not input as argument from a previous run, it will estimate it inside
-# - treefile: to estimate the best network inside for input gene trees
-# needs quartetfile if it was used in original data ("none" if all quartets used)
+# - quartetfile if it was used in original data ("none" if all quartets used)
+# recall: optTopRuns! does *not* modify its input starting network
 function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vector{HybridNetwork}}},
                         hmax::Int64, M::Number, Nfail::Int64, ftolRel::Float64,ftolAbs::Float64,xtolRel::Float64,xtolAbs::Float64,
                         verbose::Bool, closeN::Bool, Nmov0::Vector{Int64},
-                        runs::Int64, outgroup::AbstractString, filename::AbstractString,
-                        seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64,
-                        bestNet::HybridNetwork, treefile::AbstractString, quartetfile::AbstractString)
+                        runs1::Int64, outgroup::AbstractString, filename::AbstractString, seed::Int64, probST::Float64,
+                        nrep::Int64, runs2::Int64, bestNet::HybridNetwork, quartetfile::AbstractString)
     println("BOOTSTRAP OF SNAQ ESTIMATION")
     julialog = string(filename,".log")
     logfile = open(julialog,"w")
@@ -125,68 +142,78 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
     inputastrees || isa(data, DataFrame) ||
         error("Input data not recognized: $(typeof(data))")
 
+    if(runs1>0 && runs2>0)
+        str = """Will use this network as starting topology for $runs1 run(s) for each bootstrap replicate:
+                 $(writeTopologyLevel1(currT0))
+                 and this other network for $runs2 run(s):
+                 $(writeTopologyLevel1(bestNet))
+                 """
+        write(logfile, str)
+        print(str)
+    end
+
+    if inputastrees # allocate memory, to be re-used later
+        newtrees = sampleBootstrapTrees(data, row=1)
+        newd = readTrees2CF(newtrees, quartetfile=quartetfile, writeTab=false, writeSummary=false)
+        taxa = unionTaxa(newtrees)
+    end
+    if (runs1>0 && isTree(currT0)) # get rough first estimate of branch lengths in startnet
+        if !inputastrees
+            originald = readTableCF(data)
+        else
+            originald = newd # from above. approximate starting branch lengths
+        end
+        updateBL!(currT0, originald)
+    end
+
     if(seed == 0)
         t = time()/1e9
         a = split(string(t),".")
         seed = parse(Int,a[2][end-4:end]) #better seed based on clock
     end
+    println("main seed $(seed)")
     write(logfile,"\nmain seed $(seed)\n")
     flush(logfile)
     srand(seed)
-    seeds = [seed;round(Int64,floor(rand(nrep)*100000))] #seeds for all runs
-    bootNet = HybridNetwork[]
-
-    if(prcnet > 0.0)
-        str = "Will use the best network as starting topology $(prcnet*100) percent of times:\n"
-        write(logfile, str)
-        print(str)
-        if(bestNet.numTaxa == 0)
-            if inputastrees && treefile == "none"
-                    error("need treefile or bestNet if prcnet>0. snaq should have thrown an error")
-            end
-            str = "bestNet not given, estimated before bootstrap (see files $(filename)_0_bestNet.*):\n"
-            if !inputastrees
-                d = readTableCF(data)
-            else
-                d = readTrees2CF(treefile,quartetfile=quartetfile)
-            end
-            bestNet = optTopRuns!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup,
-                                  string(filename,"_0_bestNet"),seeds[1],probST)
-        else
-            str = "bestNet input:\n"
-        end
-        write(logfile, str)
-        print(str)
-        write(logfile, "$(writeTopologyLevel1(bestNet))\n")
-        println(writeTopologyLevel1(bestNet))
+    seedsData = round(Int64,floor(rand(nrep)*100000)) # seeds to sample bootstrap data
+    if runs1>0
+        seeds = round(Int64,floor(rand(nrep)*100000)) # seeds for all optimizations from currT0
+    end
+    if runs2>0
+      seedsOtherNet = round(Int64,floor(rand(nrep)*100000)) # for runs starting from other net
     end
 
-    write(logfile,"\nBEGIN: $(nrep) replicates")
-    write(logfile,"\n$(Libc.strftime(time()))")
-    flush(logfile)
+    bootNet = HybridNetwork[]
 
+    write(logfile,"\nBEGIN: $(nrep) replicates\n$(Libc.strftime(time()))\n")
+    flush(logfile)
     for(i in 1:nrep)
-        write(logfile,"\n begin replicate $(i) with seed $(seeds[i+1])---------\n")
-        println("\nbegin replicate $(i) with seed $(seeds[i+1])\n")
+        str = "\nbegin replicate $(i)\nbootstrap data simulation: seed $(seedsData[i])\n"
+        write(logfile, str)
+        print(str)
         if !inputastrees
-            newdf = bootstrapCFtable(data, seed=seeds[i+1])
+            newdf = bootstrapCFtable(data, seed=seedsData[i])
             newd = readTableCF(newdf)
         else
-            newtrees = sampleBootstrapTrees(data, seed=seeds[i+1])
-            newd = readTrees2CF(newtrees, quartetfile=quartetfile)
+            sampleBootstrapTrees!(newtrees, data, seed=seedsData[i])
+            calculateObsCFAll!(newd,taxa) # do not use readTrees2CF: to save memory and gc time
         end
-        runs1 = convert(Int64, round(runs*prcnet))
-        runs2 = runs - runs1
         if runs1>0
-            net1 = optTopRuns!(bestNet, M, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs1, outgroup,
-                               string(filename,"_",i,"_bestNet"),seeds[i+1],probST) ## fixit: dont save all files separately
+            str = "estimation, $runs1 run" * (runs1>1?"s":"") * ": seed $(seeds[i])\n"
+            write(logfile, str); print(str)
+            rootname = (DEBUG ? string(filename,"_",i) : "")
+            net1 = optTopRuns!(currT0, M, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs1, outgroup,
+                               rootname,seeds[i],probST)
             if runs2==0
                 net = net1
             end
         end
         if runs2>0
-            net2 = optTopRuns!(currT0, M, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs2, outgroup,
-                               string(filename,"_",i),seeds[i+1],probST)
+            str = "estimation, $runs2 run" * (runs2>1?"s":"") * " starting from other net: seed $(seedsOtherNet[i])\n"
+            write(logfile, str); println(str)
+            rootname = (DEBUG ? string(filename,"_",i,"_startNet2") : "")
+            net2 = optTopRuns!(bestNet, M, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs2, outgroup,
+                               rootname,seedsOtherNet[i],probST)
             if runs1==0
                 net = net2
             end
@@ -202,6 +229,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
         else
             write(logfile,writeTopologyLevel1(net,outgroup)) #outgroup
         end
+        write(logfile,"\n")
         flush(logfile)
     end #end nrep
     close(logfile)
@@ -247,13 +275,18 @@ Optional arguments include the following, with default values in parentheses:
 #  ftolRel,ftolAbs,xtolRel,xtolAbs, verbose, closeN, Nmov0, outgroup="none",
 #  bestNet (none): best estimated network from the original data.
 #  prcnet (0): probability to start a run from bestNet instead of T.
-function bootsnaq(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vector{HybridNetwork}}};
+#
+# important: branch lengths in startnet are updated with updateBL (it it's a tree)
+#            branch lengths in otherNet are *not* updated. For example,
+#            runs=10 and prcnet=.99 or 99 would cause all 10 runs to start at otherNet, just
+#            like prcnet=0 and startnet=otherNet, but branch lengths would not be updated.
+function bootsnaq(startnet::HybridNetwork, data::Union{DataFrame,Vector{Vector{HybridNetwork}}};
                   hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,
                   ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64,
                   verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64},
                   runs=10::Int64, outgroup="none"::AbstractString, filename="bootsnaq"::AbstractString,
                   seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.0::Float64,
-                  bestNet=HybridNetwork()::HybridNetwork, treefile="none"::AbstractString, quartetfile="none"::AbstractString)
+                  otherNet=HybridNetwork()::HybridNetwork, quartetfile="none"::AbstractString)
 
     inputastrees = isa(data, Vector{Vector{HybridNetwork}})
     inputastrees || isa(data, DataFrame) ||
@@ -262,8 +295,7 @@ function bootsnaq(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vector{Hyb
     if !inputastrees
     (DataFrames.names(data)[[6,7,9,10,12,13]] == [:CF12_34_lo,:CF12_34_hi,:CF13_24_lo,:CF13_24_hi,:CF14_23_lo,:CF14_23_hi]) ||
       warn("""assume table with CI from TICR: CFlo, CFhi in columns 6,7; 9,10; and 12,13.
-              Found different column names: $(DataFrames.names(data)[[6,7,9,10,12,13]])
-              """)
+              Found different column names: $(DataFrames.names(data)[[6,7,9,10,12,13]])""")
     else # check 1+ genes, each with 1+ trees, all with h=0.
         ngenes = length(data)
         ngenes > 0 || error("empty list of bootstrap trees (0 genes)")
@@ -277,32 +309,34 @@ function bootsnaq(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vector{Hyb
     end
     prcnet >= 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
     prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
-    startnet=readTopologyLevel1(writeTopologyLevel1(currT0))
-    flag = checkNet(startnet,true) # light checking only
-    flag && error("starting topology suspected not level-1")
-    try
-        checkNet(startnet)
-    catch err
-        err.msg = "starting topology not a level 1 network:\n" * err.msg
-        rethrow(err)
-    end
-    if !inputastrees
-        originald = readTableCF(data)
-    else
-        if(treefile != "none")
-            originald = readTrees2CF(treefile,quartetfile=quartetfile)
-        else
-            if(prcnet > 0 && bestNet.numTaxa == 0)
-                error("""bestNet not given as input, nor treefile specified, and prcnet>0: the best network
-                cannot be estimated and used here. Please estimate it beforehand (bestNet option),
-                or provide the name of a file containing the best tree for each gene (treefile option).""")
-            end
-            originald = readTrees2CF(sampleBootstrapTrees(data), quartetfile=quartetfile)
-            # not the original CF data but random bootstrap data, to get approximate starting branch lengths
+    runs2 = convert(Int64, round(runs*prcnet)) # runs starting from otherNet
+    runs1 = runs - runs2                       # runs starting from startnet
+
+    if runs1>0
+        startnet=readTopologyLevel1(writeTopologyLevel1(startnet)) # does not modify startnet outside
+        flag = checkNet(startnet,true) # light checking only
+        flag && error("starting topology suspected not level-1")
+        try
+            checkNet(startnet)
+        catch err
+            println("starting topology is not of level 1:")
+            rethrow(err)
         end
     end
-    if isTree(startnet)
-        updateBL!(startnet, originald)
+    runs2 == 0 || otherNet.numTaxa > 0 ||
+        error("""otherNet not given and prcnet>0. Please set prcnet to 0 to start optimizations
+                from the same network always, or else provide an other network "otherNet"
+                to start the optimization from this other network in pcrnet % of runs.""")
+    if runs2 > 0
+        otherNet=readTopologyLevel1(writeTopologyLevel1(otherNet))
+        flag = checkNet(otherNet,true) # light checking only
+        flag && error("starting topology 'otherNet' suspected not level-1")
+        try
+            checkNet(otherNet)
+        catch err
+            println("starting topology 'otherNet' not a level 1 network:")
+            rethrow(err)
+        end
     end
 
     # for multiple alleles: expand into two leaves quartets like sp1 sp1 sp2 sp3.
@@ -314,7 +348,7 @@ function bootsnaq(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vector{Hyb
         error("bootsnaq not implemented for parallelization yet")
         optTopRunsBootParallel(startnet,data,hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, seed, probST, nrep, prcnet, bestNet)
     else
-        optTopRunsBoot(startnet,data,hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, seed, probST, nrep, prcnet, bestNet, treefile, quartetfile)
+        optTopRunsBoot(startnet,data,hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs1, outgroup, filename, seed, probST, nrep, runs2, otherNet, quartetfile)
     end
 end
 
