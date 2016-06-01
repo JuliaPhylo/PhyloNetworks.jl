@@ -119,7 +119,7 @@ printEdges(currT)
 # bug in srand(4568)
 net = readTopologyUpdate("((4,#H7:9.99670403892172::0.43454301575229803):1.5467254857425556,((6,(5)#H7:2.512064322645178::0.565456984247702):9.221085796210835,(2,1):0.38003642076628485):0.0,3);");
 srand(4568)
-flag = proposedTop!(:nni,net,true,0,100,rep(0,18),rep(0,6))
+flag = proposedTop!(:nni,net,true,0,100, zeros(Int64,18), zeros(Int64,6))
 df = readtable("HGTtableCF.txt") #from 1.ms
 d = readTableCF(df); #obsCF
 

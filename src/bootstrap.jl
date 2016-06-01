@@ -491,8 +491,8 @@ function hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgro
             continue # skip replicate if major tree is *not* correct
         end
 
-        found = rep(false,net1.numHybrids)
-        gamma = rep(0.0,net1.numHybrids)
+        found = zeros(Bool,   net1.numHybrids) # repeats false
+        gamma = zeros(Float64,net1.numHybrids) # repeats 0.0
         # re-root estimated network if not rooted correctly
         reroot = true
         if (length(n.node[n.root].edge) == 2) # check if root connects to correct outgroup
