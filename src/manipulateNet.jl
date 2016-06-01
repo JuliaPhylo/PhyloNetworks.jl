@@ -57,7 +57,7 @@ function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractS
         return otherNet
     else ## root already in good place
         DEBUG && println("we will remove networks contradicting the outgroup in undirectedOtherNetworks")
-        whichKeep = rep(true,length(otherNet))
+        whichKeep = ones(Bool,length(otherNet)) # repeats 'true'
         i = 1
         for(n in otherNet)
             if(!isTree(n))

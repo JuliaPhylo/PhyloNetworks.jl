@@ -205,7 +205,7 @@ function randQuartets(allquartets::Vector{Quartet},num::Int64, writeFile::Bool)
         num = integer(floor(0.1*n))
     end
     num <= n || error("you cannot choose a sample of $(num) quartets when there are $(n) in total")
-    indx = [rep(1,num);rep(0,n-num)]
+    indx = [ones(Int64,num); zeros(Int64,n-num)]
     indx = indx[sortperm(randn(n))]
     if(writeFile)
         #randName = "rand$(numQ)Quartets$(string(integer(time()/1000))).txt"

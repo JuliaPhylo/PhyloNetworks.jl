@@ -248,7 +248,8 @@ end
 # function for the upper bound of ht
 function upper(net::HybridNetwork)
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
-    return vcat(ones(net.numHybrids-net.numBad),DataFrames.rep(10,k),ones(length(net.ht)-k-net.numHybrids+net.numBad))
+    return vcat(ones(net.numHybrids-net.numBad), repeat([10],inner=[k]),
+                ones(length(net.ht)-k-net.numHybrids+net.numBad))
 end
 
 # function to calculate the inequality gammaz1+gammaz2 <= 1
@@ -854,7 +855,7 @@ proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Int64,N::In
 # order: (add,mvorigin,mvtarget,chdir,delete,nni)
 function calculateNmov!(net::HybridNetwork, N::Vector{Int64})
     if(isempty(N))
-        N = rep(0,6)
+        N = zeros(Int64, 6)
     else
         length(N) == 6 || error("vector Nmov should have length 6: $(N)")
     end
@@ -899,13 +900,13 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     DEBUG && printEverything(currT)
     CHECKNET && checkNet(currT)
     count = 0
-    movescount = rep(0,18) #1:6 number of times moved proposed, 7:12 number of times success move (no intersecting cycles, etc.), 13:18 accepted by loglik
-    movesgamma = rep(0,13) #number of moves to fix gamma zero: proposed, successful, movesgamma[13]: total accepted by loglik
-    movesfail = rep(0,6) #count of failed moves for current topology
+    movescount = zeros(Int64,18) #1:6 number of times moved proposed, 7:12 number of times success move (no intersecting cycles, etc.), 13:18 accepted by loglik
+    movesgamma = zeros(Int64,13) #number of moves to fix gamma zero: proposed, successful, movesgamma[13]: total accepted by loglik
+    movesfail = zeros(Int64,6) #count of failed moves for current topology
     failures = 0
     stillmoves = true
     if(isempty(Nmov0))
-        Nmov = rep(0,6)
+        Nmov = zeros(Int64,6)
     else
         Nmov = deepcopy(Nmov0)
     end
@@ -951,7 +952,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
                     currT = deepcopy(newT)
                     failures = 0
                     movescount[move2int[move]+12] += 1
-                    movesfail = rep(0,6) #count of failed moves for current topology
+                    movesfail = zeros(Int64,6) #count of failed moves for current topology
                 else
                     DEBUG && println("rejected new topology with worse loglik in step $(count): currloglik=$(round(currT.loglik,3)), newloglik=$(round(newT.loglik,3)), with $(failures) failures")
                     failures += 1
