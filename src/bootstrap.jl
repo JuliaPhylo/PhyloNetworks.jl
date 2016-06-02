@@ -266,10 +266,11 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
     s = open(string(filename,".out"),"w")
     for(n in bootNet)
         if(outgroup == "none")
-            write(s,"$(writeTopologyLevel1(n)), with -loglik $(n.loglik)\n")
+            write(s,"$(writeTopologyLevel1(n))\n"
         else
-            write(s,"$(writeTopologyLevel1(n,outgroup)), with -loglik $(n.loglik)\n")
+            write(s,"$(writeTopologyLevel1(n,outgroup))\n")
         end
+        # "with -loglik $(n.loglik)" not printed: not comparable across bootstrap networks
     end
     close(s)
     return bootNet
