@@ -41,7 +41,7 @@ writeObsCF(d::DataCF) = writeObsCF(d.quartet)
 # has ! because it can modify the dataframe inside
 """
     readTableCF(file)
-    readTableCF(df::DataFrame)
+    readTableCF(data frame)
 
 Read a file or DataFrame object containing a table of concordance factors (CF),
 with one row per 4-taxon set. The first 4 columns are assumed to give the labels
@@ -57,80 +57,97 @@ Optional arguments:
 - sep (for the second form only): to specify the type of separator in the file,
 with single quotes: sep=';'.
 """
-function readTableCF(df0::DataFrames.DataFrame;summaryfile=""::AbstractString)
+# warning: file AbstractString bc it can be read as UTF8String
+readTableCF(file::AbstractString; sep=','::Char, summaryfile=""::AbstractString) =
+      readTableCF(readtable(file,separator=sep), summaryfile=summaryfile)
+
+function readTableCF(df0::DataFrames.DataFrame; summaryfile=""::AbstractString)
     DEBUG && println("assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network")
-    fromTICR = true
-    try
-        df0[:CF12_34]
-        df0[:CF13_24]
-        df0[:CF14_23]
-    catch
-        fromTICR = false
+    obsCFcol = [findfirst(DataFrames.names(df0), :CF12_34),
+                findfirst(DataFrames.names(df0), :CF13_24),
+                findfirst(DataFrames.names(df0), :CF14_23)] # use DataFrames.index( ).names ow
+    ngenecol =  findfirst(DataFrames.names(df0), :ngenes)
+    withngenes = ngenecol>0
+    if findfirst(obsCFcol, 0) > 0 # one or more col names for CFs were not found
+        size(df0,2) == (withngenes ? 8 : 7) ||
+          warn("""Column names for quartet concordance factors (CFs) were not recognized.
+          Was expecting CF12_34, CF13_24 and CF14_23 for the columns with CF values.
+          Will assume that the first 4 columns give the taxon names, and that columns 5-7 give the CFs.""")
+        obsCFcol = [5,6,7] # assuming CFs are in columns 5,6,7, with colname mismatch
     end
-    withngenes = true
-    try
-        df0[:ngenes]
-    catch
-        withngenes = false
+    if minimum(obsCFcol) <= 4
+        error("CFs found in columns $obsCFcol, but taxon labels expected in columns 1-4")
     end
     # fixit: what about columns giving the taxon names: always assumed to be columns 1-4? No warning if not?
-    if(!fromTICR)
-        size(df0,2) == (withngenes ? 8 : 7) ||
-         warn("Column names for quartet concordance factors (CFs) were not recognized.
-          Was expecting CF12_34, CF13_24 and CF14_23 for the columns with CF values.
-          Will assume that the first 4 columns give the taxon names, and that columns 5-7 give the CFs.")
-        df = deepcopy(df0)
-        repSpecies = cleanNewDF!(df)
-        if(!isempty(repSpecies))
-            mergeRows!(df)
-        end
-        quartets = Quartet[]
-        for(i in 1:size(df,1))
-            push!(quartets,Quartet(i,string(df[i,1]),string(df[i,2]),string(df[i,3]),string(df[i,4]),[df[i,5],df[i,6],df[i,7]]))
-            if(withngenes)
-                quartets[end].ngenes = df[i,:ngenes]
-            end
-        end
-        d = DataCF(quartets)
-        if(!isempty(repSpecies))
-            d.repSpecies = repSpecies
-        end
-        if(summaryfile != "")
-            descData(d,summaryfile)
-        end
-    else #comes from bucky.pl
-        df = deepcopy(df0)
-        repSpecies = cleanNewDF!(df)
-        if(!isempty(repSpecies))
-            mergeRows!(df)
-        end
-        quartets = Quartet[]
-        for(i in 1:size(df,1))
-            push!(quartets,Quartet(i,string(df[i,1]),string(df[i,2]),string(df[i,3]),string(df[i,4]),[df[i,:CF12_34],df[i,:CF13_24],df[i,:CF14_23]]))
-            if(withngenes)
-                quartets[end].ngenes = df[i,:ngenes]
-            end
-        end
-        d = DataCF(quartets)
-        if(!isempty(repSpecies))
-            d.repSpecies = repSpecies
-        end
-        if(d.numTrees == -1)
-            if(withngenes)
-                println("between $(minimum([q.ngenes for q in quartets])) and $(maximum([q.ngenes for q in quartets])) gene trees per quartet")
-                # other info printed by show() on a DataCF object: num quartets and num gene trees
-            end
-        end
-        #descData(d,"summaryCFtable$(string(integer(time()/1000))).txt")
-        if(summaryfile != "")
-            descData(d,summaryfile)
-        end
+    columns = [[1,2,3,4]; obsCFcol]
+    if withngenes  push!(columns, ngenecol)  end
+
+    d = readTableCF(df0, columns) # main stuff
+
+    if withngenes && d.numTrees == -1
+        m1 = minimum([q.ngenes for q in d.quartet])
+        m2 = maximum([q.ngenes for q in d.quartet])
+        if m1<m2 print("between $m1 and ") end
+        println("$m2 gene trees per quartet")
+        # other info printed by show() on a DataCF object: num quartets and num gene trees
+    end
+    if(summaryfile != "")
+        descData(d,summaryfile)
     end
     return d
 end
 
-# warning: when file needs to be AbstractString bc it can be read as UTF8String
-readTableCF(file::AbstractString;sep=','::Char,summaryfile=""::AbstractString) = readTableCF(readtable(file,separator=sep),summaryfile=summaryfile)
+# see docstring below, for readTableCF!
+# takes in df0 and 7 or 8 column numbers (4 labels + 3 CFs + ngenes possibly)
+function readTableCF(df0::DataFrames.DataFrame, columns::Vector{Int})
+    withngenes = (length(columns)==8) # true if column :ngenes exists, false ow
+    df = deepcopy(df0[:, columns])    # columns 1-7 or 1-8 in the new df
+    repSpecies = cleanNewDF!(df)
+    if(!isempty(repSpecies))
+        mergeRows!(df)
+    end
+    quartets = Quartet[]
+    for(i in 1:size(df,1))
+        push!(quartets,Quartet(i,string(df[i,1]),string(df[i,2]),string(df[i,3]),string(df[i,4]),[df[i,5],df[i,6],df[i,7]]))
+        if(withngenes)
+            quartets[end].ngenes = df[i,8]
+        end
+    end
+    d = DataCF(quartets)
+    if(!isempty(repSpecies))
+        d.repSpecies = repSpecies
+    end
+    return d  # return d, df ## to save memory & gc with readTableCF! for bootstrapping?
+end
+
+"""
+    readTableCF(data frame, columns)
+
+Read in quartet CFs from data frame, assuming information is in columns numbered `columns`,
+of length **7 or 8**: 4 taxon labels then 3 CFs then ngenes possibly.
+`readTableCF(df)` first checks columns names then calls `readTableCF(df, columns)`.
+
+**Note**: the data frame is deep-copied, to merge rows corresponding to the same 4-taxon set.
+
+    readTableCF!(DataCF, data frame, columns)
+
+Same as readTableCF, but assumes the same 4-taxon sets in DataCF as in the data frame and
+modifies the .quartet.obsCF values in the DataCF object, as read from the data frame.
+`columns` should have **3** columns numbers for the 3 CFs in this order: 12_34, 13_24 and 14_23.
+
+**Warning**: no checks. Assumes 1 individual per species, and
+4-taxon sets in the same order in the DataCF as in the data frame.
+"""
+# WARNING: assumes df has a single row per 4-taxon sets (multiple ind already merged)
+#                  dcf created earlier from df.
+function readTableCF!(datcf::DataCF, df::DataFrame, cols::Vector{Int})
+    for(i in 1:size(df,1))
+        for (j in 1:3)
+            datcf.quartet[i].obsCF[j] = df[i,cols[j]]
+        end
+    end
+end
+
 
 # ---------------- read input gene trees and calculate obsCF ----------------------
 
@@ -436,12 +453,9 @@ function readInputData(treefile::AbstractString, quartetfile::AbstractString, wh
             filename = "tableCF.txt" # "tableCF$(string(integer(time()/1000))).txt"
         end
         if (isfile(filename) && filesize(filename) > 0)
-           error("file $(filename) already exists and is non-empty.
-Cannot risk to erase data. Choose a different CFfile name, use writeTab=false,
-or read the existing file with readTableCF(\"$(filename)\")")
-           # setting writefile=false. You may save the CF table afterwards with
-           # 'using DataFrames' and
-           # writetable(new filename, PhyloNetworks.writeObsCF(DataCF object))")
+           error("""file $(filename) already exists and is non-empty. Cannot risk to erase data.
+                    Choose a different CFfile name, use writeTab=false, or read the existing file
+                    with readTableCF(\"$(filename)\")""")
         end
     end
     println("read input trees from file $(treefile)\nand quartetfile $(quartetfile)")

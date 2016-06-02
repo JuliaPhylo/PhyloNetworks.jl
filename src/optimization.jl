@@ -1255,15 +1255,14 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         str *= "Outgroup: $(outgroup) (for rooting at the final step)\n"
     end
     str *= (writelog ? "rootname for files: $(rootname)\n" : "no output files\n")
-    str *= """BEGIN: $(runs) runs on starting tree $(writeTopologyLevel1(currT0,true))
-              $(Libc.strftime(time()))\n"""
-    # print to logfile
+    str *= "BEGIN: $(runs) runs on starting tree $(writeTopologyLevel1(currT0,true))\n"
     if (writelog)
       write(logfile,str)
       flush(logfile)
     end
-    # and print to screen
     print(STDOUT,str)
+    print(SDTOUT, "$(Libc.strftime(time()))\n")
+    # time printed to logfile at start of every run, not here.
 
     maxNet = HybridNetwork();
     maxNet.loglik = 1.e15;
@@ -1286,7 +1285,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
 
     for(i in 1:runs)
         tic();
-        writelog && write(logfile,"seed: $(seeds[i]) for run $(i)\n")
+        writelog && write(logfile,"seed: $(seeds[i]) for run $(i)\n$(Libc.strftime(time()))\n")
         writelog && flush(logfile)
         print(STDOUT,"seed: $(seeds[i]) for run $(i)\n")
         gc();
@@ -1337,7 +1336,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
 
     ## need to do this before setting BL to -1
     if (writelog && !isTree(maxNet)) ## only do networks file if maxNet is not tree
-        info("Printing best network and networks with different hybrid/gene flow directions, to .networks file")
+        println("best network and networks with different hybrid/gene flow directions printed to .networks file")
         julianet = string(rootname,".networks")
         s = open(julianet,"w")
         otherNet = []

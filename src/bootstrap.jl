@@ -83,16 +83,50 @@ function sampleBootstrapTrees!(bootTrees::Vector{HybridNetwork}, trees::Vector{V
 end
 
 
-# function to read a CF table with CI
-# and sample new obsCF
-# the function returns the new dataframe
-# warning: for some reason UTF8String is needed instead of AbstractString
-# seed: to choose the rand() for the table
-function bootstrapCFtable(df::DataFrame;seed=0::Int)
+"""
+    sampleCFfromCI(data frame, seed=0)
+    sampleCFfromCI!(data frame, seed=0)
+
+Read a data frame containing CFs and their credibility intervals, and
+sample new obsCF uniformly within the CIs.
+These CFs are then rescaled to sum up to 1 for each 4-taxon sets.
+Return a data frame with taxon labels in first 4 columns, sampled obs CFs in columns 5-7
+and credibility intervals in columns 8-13.
+
+- The non-modifying function creates a new data frame (with re-ordered columns) and returns it.
+  If `seed=-1`, the new df is a deep copy of the input df, with no call to the random
+  number generator. Otherwise, `seed` is passed to the modifying function.
+- The modifying function overwrites the input data frame with the sampled CFs and returns it.
+  If `seed=0`, the random generator is seeded from the clock. Otherwise the random generator
+  is seeded using `seed`.
+
+Warning: the modifying version does *not* check the df: assumes correct columns.
+"""
+function sampleCFfromCI(df::DataFrame, seed=0::Int)
     DEBUG && warn("order of columns should be: t1,t2,t3,t4,cf1234,cf1324,cf1423,cf1234LO,cf1234HI,...")
-    size(df,2) == 13 || size(df,2) == 14 || warn("bootstrapCFtable function assumes table from TICR: CF, CFlo, CFhi")
-    newdf = DataFrame(t1=UTF8String[],t2=UTF8String[],t3=UTF8String[],t4=UTF8String[],
-                      CF12_34=Float64[],CF13_24=Float64[],CF14_23=Float64[])
+    size(df,2) == 13 || size(df,2) == 14 || warn("sampleCFfromCI function assumes table from TICR: CF, CFlo, CFhi")
+    obsCFcol = [findfirst(DataFrames.names(df), :CF12_34),
+                findfirst(DataFrames.names(df), :CF13_24),
+                findfirst(DataFrames.names(df), :CF14_23)]
+    findfirst(obsCFcol, 0) == 0 || error("""CF columns were not found: should be named like 'CF12_34'""")
+    obsCFcol == [5,8,11] ||
+        warn("""CF columns were found, but not in the expected columns.
+                Lower/upper bounds of credibility intervals assumed in columns 6,7, 9,10 and 12,13.""")
+    colsTa = [1,2,3,4]        # column numbers for taxon names
+    colsCI = [6,7,9,10,12,13] # for lower/upper CI bounds
+    length(findin(colsTa, obsCFcol)) ==0 ||
+        error("CFs found in columns 1-4 where taxon labels are expected")
+    length(findin(colsCI, obsCFcol)) ==0 ||
+        error("CFs found in columns where credibility intervals are expected")
+    newdf = deepcopy(df[:, [colsTa; obsCFcol; colsCI] ])
+    if seed==-1
+      return newdf
+    else
+      return sampleCFfromCI!(newdf::DataFrame, seed)
+    end
+end
+
+function sampleCFfromCI!(df::DataFrame, seed=0::Int)
     if(seed == 0)
         t = time()/1e9
         a = split(string(t),".")
@@ -101,22 +135,18 @@ function bootstrapCFtable(df::DataFrame;seed=0::Int)
     end
     srand(seed)
     for(i in 1:size(df,1))
-        c1 = (df[i,7]-df[i,6])*rand()+df[i,6]
-        c2 = (df[i,10]-df[i,9])*rand()+df[i,9]
+        c1 = (df[i, 9]-df[i, 8])*rand()+df[i, 8]
+        c2 = (df[i,11]-df[i,10])*rand()+df[i,10]
         c3 = (df[i,13]-df[i,12])*rand()+df[i,12]
         suma = c1+c2+c3
-        c1 = c1/suma
-        c2 = c2/suma
-        c3 = c3/suma
-        push!(newdf,[convert(UTF8String,string(df[i,1])), convert(UTF8String,string(df[i,2])),
-                     convert(UTF8String,string(df[i,3])), convert(UTF8String,string(df[i,4])),
-                     CF12_34=c1,CF13_24=c2, CF14_23=c3])
+        df[5][i] = c1/suma
+        df[6][i] = c2/suma
+        df[7][i] = c3/suma
     end
-    return newdf
+    return df
 end
 
-bootstrapCFtable(file::AbstractString;sep=','::Char,seed=0::Int) = bootstrapCFtable(readtable(file,separator=sep),seed=seed)
-
+sampleCFfromCI(file::AbstractString;sep=','::Char,seed=0::Int) = sampleCFfromCI(readtable(file,separator=sep),seed)
 
 # function that will do bootstrap of snaq estimation in series
 # it repeats optTopRuns nrep times
@@ -156,14 +186,13 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
         newtrees = sampleBootstrapTrees(data, row=1)
         newd = readTrees2CF(newtrees, quartetfile=quartetfile, writeTab=false, writeSummary=false)
         taxa = unionTaxa(newtrees)
+    else
+        newdf = sampleCFfromCI(data, -1) # column names check, newdf has obsCF in columns 5-7
+        # seed=-1: deep copy only, no rand()
+        newd = readTableCF(newdf, collect(1:7)) # allocate memory for DataCF object
     end
     if (runs1>0 && isTree(currT0)) # get rough first estimate of branch lengths in startnet
-        if !inputastrees
-            originald = readTableCF(data)
-        else
-            originald = newd # from above. approximate starting branch lengths
-        end
-        updateBL!(currT0, originald)
+        updateBL!(currT0, newd)
     end
 
     if(seed == 0)
@@ -192,8 +221,8 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
         write(logfile, str)
         print(str)
         if !inputastrees
-            newdf = bootstrapCFtable(data, seed=seedsData[i])
-            newd = readTableCF(newdf)
+            sampleCFfromCI!(newdf, seedsData[i])
+            readTableCF!(newd, newdf, [5,6,7])
         else
             sampleBootstrapTrees!(newtrees, data, seed=seedsData[i])
             calculateObsCFAll!(newd,taxa) # do not use readTrees2CF: to save memory and gc time
@@ -403,7 +432,7 @@ end
 # nrep= number of replicates in this particular processor
 # other parameters of optTopRunsBoot are global by @everywhere in optTopRunsBootParallel
 function loc_bootsnaq(dfS::SharedArray, intS::SharedArray, floatS::SharedArray, currT::HybridNetwork, bestNet::HybridNetwork, seed::Int, nrep::Int)
-    df = bootstrapCFtable(dfS) #fixit: need to code this
+    df = sampleCFfromCI(dfS) #fixit: need to code this
     optTopRunsBoot(currT,df,intS[1],intS[2],floatS[1],floatS[2],floatS[3],floatS[4],verbose,closeN,intS[5:end],intS[4],outgroup,string(filename,seed),true,seed,floatS[5],nrep,floatS[6],bestNet)
 end
 
