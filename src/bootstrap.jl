@@ -266,7 +266,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
     s = open(string(filename,".out"),"w")
     for(n in bootNet)
         if(outgroup == "none")
-            write(s,"$(writeTopologyLevel1(n))\n"
+            write(s,"$(writeTopologyLevel1(n))\n")
         else
             write(s,"$(writeTopologyLevel1(n,outgroup))\n")
         end
