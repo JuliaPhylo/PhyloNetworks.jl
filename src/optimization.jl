@@ -1261,7 +1261,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
       flush(logfile)
     end
     print(STDOUT,str)
-    print(SDTOUT, "$(Libc.strftime(time()))\n")
+    print(STDOUT, "$(Libc.strftime(time()))\n")
     # time printed to logfile at start of every run, not here.
 
     maxNet = HybridNetwork();
