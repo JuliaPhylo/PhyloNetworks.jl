@@ -1283,8 +1283,8 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     srand(seed)
     seeds = [seed;round(Integer,floor(rand(runs-1)*100000))]
 
+    tic();
     for(i in 1:runs)
-        tic();
         writelog && write(logfile,"seed: $(seeds[i]) for run $(i)\n$(Libc.strftime(time()))\n")
         writelog && flush(logfile)
         print(STDOUT,"seed: $(seeds[i]) for run $(i)\n")
@@ -1293,8 +1293,8 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             writelog && write(logfile,"\n BEGIN SNaQ for run $(i), seed $(seeds[i]) and hmax $(hmax)")
             verbose && print(STDOUT,"\n BEGIN SNaQ for run $(i), seed $(seeds[i]) and hmax $(hmax)")
             best = optTopRun1!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,seeds[i],logfile,writelog,probST);
-            writelog && write(logfile,"\n FINISHED SNaQ, typeof best $(typeof(best)), -loglik of best $(best.loglik)\n")
-            verbose && print(STDOUT,"\n FINISHED SNaQ, typeof best $(typeof(best)), -loglik of best $(best.loglik)\n")
+            writelog && write(logfile,"\n FINISHED SNaQ for run $(i), -loglik of best $(best.loglik)\n")
+            verbose && print(STDOUT,"\n FINISHED SNaQ for run $(i), -loglik of best $(best.loglik)\n")
             if (writelog)
               if(outgroup == "none")
                 write(logfile,writeTopologyLevel1(best,true)) #no outgroup
