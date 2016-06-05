@@ -338,6 +338,15 @@ back in memory like this:
 bootnet = readMultiTopology("bootstrapNets_h1.tre");
 ```
 
+We can run bootstrap analysis from gene trees also. We need a text
+file with a list of files containg the bootstrap trees (one file per
+gene). This is the same format used by ASTRAL.
+```julia
+bootTrees = readBootstrapTrees("BSlistfiles")
+bootnet = bootsnaq(T, bootTrees, hmax=1, nrep=100, filename="bootsnaq1_raxmlboot")
+```
+See the wiki page for more details.
+
 #### Summarizing bootstrap on the main tree
 
 The `bootsnaq` function, as used before, returned a list of 10 networks (`nrep=10`).
