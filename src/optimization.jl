@@ -895,6 +895,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     Nfail > 0 || error("Nfail must be greater than zero: $(Nfail)")
     isempty(Nmov0) || all((n-> (n > 0)), Nmov0) || error("Nmov must be greater than zero: $(Nmov0)")
     if(DEBUG && REDIRECT) #for debugging
+        originalSTDOUT = STDOUT
         redirect_stdout(sout)
     end
     DEBUG && printEverything(currT)
@@ -1002,6 +1003,9 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     DEBUG && printPartitions(newT)
     DEBUGC && printNodes(newT)
     DEBUG && println(writeTopologyLevel1(newT,true))
+    if(DEBUG && REDIRECT)
+        redirect_stdout(originalSTDOUT)
+    end
     return newT
 end
 
@@ -1246,18 +1250,19 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
               tolerance parameters: ftolRel=$(ftolRel), ftolAbs=$(ftolAbs),
                                     xtolAbs=$(xtolAbs), xtolRel=$(xtolRel).
               max number of failed proposals = $(Nfail), multiplier M = $(M).
-             Outgroup: $(outgroup) (for rooting at the final step)
              """
+    if outgroup != "none"
+        str *= "Outgroup: $(outgroup) (for rooting at the final step)\n"
+    end
     str *= (writelog ? "rootname for files: $(rootname)\n" : "no output files\n")
-    str *= """BEGIN: $(runs) runs on starting tree $(writeTopologyLevel1(currT0,true))
-              $(Libc.strftime(time()))\n"""
-    # print to logfile
+    str *= "BEGIN: $(runs) runs on starting tree $(writeTopologyLevel1(currT0,true))\n"
     if (writelog)
       write(logfile,str)
       flush(logfile)
     end
-    # and print to screen
     print(STDOUT,str)
+    print(STDOUT, "$(Libc.strftime(time()))\n")
+    # time printed to logfile at start of every run, not here.
 
     maxNet = HybridNetwork();
     maxNet.loglik = 1.e15;
@@ -1278,9 +1283,9 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     srand(seed)
     seeds = [seed;round(Integer,floor(rand(runs-1)*100000))]
 
+    tic();
     for(i in 1:runs)
-        tic();
-        writelog && write(logfile,"seed: $(seeds[i]) for run $(i)\n")
+        writelog && write(logfile,"seed: $(seeds[i]) for run $(i)\n$(Libc.strftime(time()))\n")
         writelog && flush(logfile)
         print(STDOUT,"seed: $(seeds[i]) for run $(i)\n")
         gc();
@@ -1288,8 +1293,8 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             writelog && write(logfile,"\n BEGIN SNaQ for run $(i), seed $(seeds[i]) and hmax $(hmax)")
             verbose && print(STDOUT,"\n BEGIN SNaQ for run $(i), seed $(seeds[i]) and hmax $(hmax)")
             best = optTopRun1!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,seeds[i],logfile,writelog,probST);
-            writelog && write(logfile,"\n FINISHED SNaQ, typeof best $(typeof(best)), -loglik of best $(best.loglik)\n")
-            verbose && print(STDOUT,"\n FINISHED SNaQ, typeof best $(typeof(best)), -loglik of best $(best.loglik)\n")
+            writelog && write(logfile,"\n FINISHED SNaQ for run $(i), -loglik of best $(best.loglik)\n")
+            verbose && print(STDOUT,"\n FINISHED SNaQ for run $(i), -loglik of best $(best.loglik)\n")
             if (writelog)
               if(outgroup == "none")
                 write(logfile,writeTopologyLevel1(best,true)) #no outgroup
@@ -1330,8 +1335,8 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     maxNet.numTaxa > 0 || error("the best network is empty!")
 
     ## need to do this before setting BL to -1
-    if (rootname != "" && !isTree(maxNet)) ## only do networks file if maxNet is not tree
-        info("Printing best network and networks with different hybrid/gene flow directions, to .networks file")
+    if (writelog && !isTree(maxNet)) ## only do networks file if maxNet is not tree
+        println("best network and networks with different hybrid/gene flow directions printed to .networks file")
         julianet = string(rootname,".networks")
         s = open(julianet,"w")
         otherNet = []

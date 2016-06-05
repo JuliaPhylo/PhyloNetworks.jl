@@ -4,7 +4,7 @@ __precompile__()
 module PhyloNetworks
 
 using Base.Collections # for updateInCycle with priority queue
-using DataFrames # for rep function and read/write csv tables
+using DataFrames # for functions to read/write tables, and names()
 using GLM # for the lm function
 using NLopt # for branch lengths optimization
 # using GraphViz #for visualization
@@ -66,6 +66,7 @@ hybridDetection,
 summarizeHFdf,
 hybridBootstrapSupport,
 bootsnaq,
+readBootstrapTrees,
 writeMultiTopology,
 readMultiTopologyLevel1,
 readMultiTopology,

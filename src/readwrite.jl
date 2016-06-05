@@ -133,9 +133,9 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
             num,name,pound = readNum(s,c,net,numLeft);
             n.number = num;
             c = peekchar(s);
-            if(!pound)
-                warn("internal node with name without it being a hybrid node. node name might be meaningless after tree modifications.")
-            end
+            #if(!pound)
+            #    warn("internal node with name without it being a hybrid node. node name might be meaningless after tree modifications.")
+            #end
         end
     elseif(isalnum(c) || isValidSymbol(c) || c == '#')
         hasname = true;
