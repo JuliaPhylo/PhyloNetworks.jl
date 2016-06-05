@@ -340,12 +340,14 @@ bootnet = readMultiTopology("bootstrapNets_h1.tre");
 
 We can run bootstrap analysis from gene trees also. We need a text
 file with a list of files containg the bootstrap trees (one file per
-gene). This is the same format used by ASTRAL.
+gene). This is the same format used by ASTRAL (see the wiki page for more details.).
 ```julia
 bootTrees = readBootstrapTrees("BSlistfiles")
 bootnet = bootsnaq(T, bootTrees, hmax=1, nrep=100, filename="bootsnaq1_raxmlboot")
 ```
-See the wiki page for more details.
+If you used a specified list of quartets on the original data, you
+should use that same list for the bootstrap analysis through the
+option `quartetfile`.
 
 #### Summarizing bootstrap on the main tree
 
