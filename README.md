@@ -309,7 +309,7 @@ credibility intervals.
 ```julia
 using DataFrames
 df = readtable("tableCFCI.csv")
-bootnet = bootsnaq(T, df, hmax=1, nrep=10, runs=3)
+bootnet = bootsnaq(T, df, hmax=1, nrep=10, runs=3, filename="bootstrap")
 ```
 You can access this example file
 [here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/tableCFCI.csv)
@@ -320,8 +320,12 @@ Julia command), with no an extra extension `.txt`. Rename the file after downloa
 This example uses a number of replicates (10) that is definitely too small, to
 make the example run faster. You might also increase the number of optimization
 runs (`runs`) done for each bootstrap replicate.
-To save the bootstrap networks to a file (especially if it took a while to get them!)
-and to check the content of the created file, do this:
+
+The bootstrap networks are saved in the `boostrap.out` file, so they
+can be read in a new session with `bootnet =
+readMultiTopology("boostrap.out")`. To save the bootstrap networks to
+a different file (perhaps after having re-rooted them with an
+outgroup), you can do this:
 
 ```julia
 writeMultiTopology(bootnet, "bootstrapNets_h1.tre")
