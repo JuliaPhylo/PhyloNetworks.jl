@@ -669,7 +669,7 @@ Output:
   For a clade named `H1`, for instance, and if the data frame was named 'cla', the
   list of taxa in this clade can be obtained with `cla[:taxa][cla[:H1]]`.
 
-4. an array of gamma values, with one row for each bootstrap network and one column for each hybrid
+4. an array of gamma values, with one row for each bootstrap network and two columns (major/minor) for each hybrid
   edge in the reference network. If this hybrid edge was found in the bootstrap network
   (i.e. same hybrid and sister clades, after removal of all other hybrid nodes),
   its bootstrap gamma value is recorded here. Otherwise, the gamma entry is 0.0.
