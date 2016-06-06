@@ -1,1 +1,0 @@
-Small tutorial [here] (http://pages.stat.wisc.edu/~claudia/smallTutorial.pdf)

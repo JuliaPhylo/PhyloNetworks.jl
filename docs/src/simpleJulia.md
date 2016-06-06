@@ -1,4 +1,4 @@
-### Simple use of Julia types
+# Simple use of Julia types
 
 Objects in Julia are called *types*. You can manipulate objects in Julia quite easily.
 For example, let's take an object *d* from DataCF type.
