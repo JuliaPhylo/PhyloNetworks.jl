@@ -343,14 +343,22 @@ Updates attribute net.nodes_changed in which the nodes are pre-ordered (also cal
 
 Updates attribute net.cladewiseorder_nodeIndex. Used for plotting the network. In the major tree, all nodes in a given clade are consecutive. On a tree, this function also provides a pre-ordering of the nodes. The edges' direction needs to be correct before calling cladewiseorder!, using directEdges!
 
-<a id='PhyloNetworks.dfObsExpCF' href='#PhyloNetworks.dfObsExpCF'>#</a>
-**`PhyloNetworks.dfObsExpCF`** &mdash; *Function*.
+<a id='PhyloNetworks.fittedQuartetCF' href='#PhyloNetworks.fittedQuartetCF'>#</a>
+**`PhyloNetworks.fittedQuartetCF`** &mdash; *Function*.
 
 
 
-`dfObsExpCF(d::DataCF)`
+`fittedQuartetCF(d::DataCF)`
 
-return a data frame with the observed and expected CF after estimation of a network with snaq(T,d).
+return a data frame with the observed and expected quartet concordance factors
+after estimation of a network with snaq(T,d).
+The format can be :wide (default) or :long.
+
+* if wide, the output has one row per 4-taxon set, and each row has 10 columns: 4 columns
+  for the taxon names, 3 columns for the observed CFs and 3 columns for the expected CF.
+* if long, the output has one row per quartet, i.e. 3 rows per 4-taxon sets, and 7 columns:
+  4 columns for the taxon names, one column to give the quartet resolution, one column for
+  the observed CF and the last column for the expected CF.
 
 <a id='PhyloNetworks.plotNetGraphViz' href='#PhyloNetworks.plotNetGraphViz'>#</a>
 **`PhyloNetworks.plotNetGraphViz`** &mdash; *Function*.
@@ -710,7 +718,7 @@ julia> plot(net)
 - [`PhyloNetworks.cladewiseorder!`](index.md#PhyloNetworks.cladewiseorder!)
 - [`PhyloNetworks.deleteHybridThreshold!`](index.md#PhyloNetworks.deleteHybridThreshold!)
 - [`PhyloNetworks.deleteleaf!`](index.md#PhyloNetworks.deleteleaf!)
-- [`PhyloNetworks.dfObsExpCF`](index.md#PhyloNetworks.dfObsExpCF)
+- [`PhyloNetworks.fittedQuartetCF`](index.md#PhyloNetworks.fittedQuartetCF)
 - [`PhyloNetworks.directEdges!`](index.md#PhyloNetworks.directEdges!)
 - [`PhyloNetworks.displayedNetworkAt!`](index.md#PhyloNetworks.displayedNetworkAt!)
 - [`PhyloNetworks.displayedTrees`](index.md#PhyloNetworks.displayedTrees)

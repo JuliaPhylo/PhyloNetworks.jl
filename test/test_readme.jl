@@ -75,6 +75,6 @@ end
 end
 
 #plot obsCF vs expCF
-## df = dfObsExpCF(d)
+## df = fittedQuartetCF(d)
 ## using Gadfly
 ## p = plot(df,layer(x="obsCF1",y="expCF1",Geom.point,Theme(default_color=colorant"orange")),layer(x="obsCF2",y="expCF2",Geom.point,Theme(default_color=colorant"purple")),layer(x="obsCF3",y="expCF3",Geom.point,Theme(default_color=color("blue"))),layer(x=0:1,y=0:1),Geom.line,Theme(default_color=color("black")))

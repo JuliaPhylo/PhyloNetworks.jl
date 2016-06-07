@@ -40,7 +40,7 @@ rootonedge!
 directEdges!
 preorder!
 cladewiseorder!
-dfObsExpCF
+fittedQuartetCF
 plotNetGraphViz
 plot
 setLength!
