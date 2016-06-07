@@ -620,7 +620,10 @@ The following function will create a dataframe with the observed and expected CF
 df_wide = fittedQuartetCF(d) # same as fittedQuartetCF(d, :wide)
 df_long = fittedQuartetCF(d, :long)
 ```
-It is important to have run snaq, topologyQPseudoLik or topologyMaxQPseudolik before making this plot or the expected CF would be meaningless.
+It is important to have run `snaq!`, `topologyQPseudolik!` or `topologyMaxQPseudolik!`
+before making this plot, or the result would be meaningless.
+These functions update the fitted concordance factors (those expected under the network)
+inside the dataCF object `d`.
 
 Now, we can plot them with any of the Julia packages for plotting. For example:
 ```julia
@@ -643,6 +646,11 @@ mycolor = @with(df_long, (:tx1 .== "6") | (:tx2 .== "6") | (:tx3 .== "6") | (:tx
 p = plot(layer(df_long, x="obsCF", y="expCF", color=mycolor, Geom.point),
          layer(x=0:1,y=0:1, Geom.line),
          Guide.colorkey("has taxon 6?"))
+```
+
+To export this table and explore the fit of the network with other tools:
+```julia
+writetable("fittedCF_net1_long.csv", df_long)
 ```
 
 ### Debugging: the .err file
