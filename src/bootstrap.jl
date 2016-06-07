@@ -455,12 +455,18 @@ end
 # and calculates the bootstrap support of the tree edges in the estimated network
 # it returns a data frame with one row per tree edge, and two columns: edge number, bootstrap support
 """
-`treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)`
+`treeEdgesBootstrap(boot_net::Vector{HybridNetwork}, ref_net::HybridNetwork)`
 
-read an array of bootstrap networks (net) and a reference network (net0),
-and calculates the bootstrap support of the tree edges in the reference network.
+read a list of bootstrap networks (`boot_net`) and a reference network (`ref_net`),
+and calculate the bootstrap support of the tree edges in the reference network.
+All minor hybrid edges (γ<0.5) are removed to extract the major tree from
+each network. All remaining edges are tree edges, each associated with a bipartition.
 
-return a data frame with one row per tree edge and two columns: edge number, bootstrap support
+output:
+- a data frame with one row per tree edge and two columns: edge number, bootstrap support
+  (as a percentage)
+- the major tree from the reference network, where minor hybrid edges (with γ<0.5)
+  have been removed.
 """
 function treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)
     # estimated network, major tree and matrix
@@ -490,7 +496,7 @@ function treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)
                 end
             end
         end
-        push!(df,[M0[i,1] cnt/length(M)])
+        push!(df,[M0[i,1] cnt*100/length(M)])
         # fixit later, when edges have an attribute for bootstrap support:
         # set BS to cnt/length(M) for the edge numbered M0[i,1].
     end
