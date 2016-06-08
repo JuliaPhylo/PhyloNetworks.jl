@@ -7,3 +7,6 @@ julia:
  - 0.4
 notifications:
   email: false
+after_success:
+  - julia -e 'Pkg.clone("https://github.com/JuliaDocs/Documenter.jl")'
+  - julia -e 'cd(Pkg.dir("PhyloNetworks")); include(joinpath("docs", "make.jl"))'
