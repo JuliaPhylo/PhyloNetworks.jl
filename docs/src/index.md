@@ -10,6 +10,8 @@ probabilities and a heuristic search in the space of phylogenetic networks.
 # PhyloNetworks.jl Documentation
 
 ```@contents
+Pages = ["simpleJulia.md", "ticr_howtogetQuartetCFs.md"]
+Depth = 2
 ```
 
 ## Functions
