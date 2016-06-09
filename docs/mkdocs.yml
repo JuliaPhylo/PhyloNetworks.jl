@@ -3,7 +3,12 @@ repo_url:         https://github.com/crsl4/PhyloNetworks.jl
 site_description: PhyloNetworks is a Julia package for the manipulation, visualization and inference of phylogenetic networks.
 site_author:      Claudia Sol&iacute;s-Lemus
 
-theme: readthedocs
+theme: material
+
+extra:
+  palette:
+    primary: 'indigo'
+    accent:  'blue'
 
 extra_css:
   - assets/Documenter.css
@@ -22,3 +27,14 @@ docs_dir: 'build'
 
 pages:
   - Home: index.md
+  - Manual:
+    - Installation: man/installation.md
+    - Julia Types: man/simpleJulia.md
+    - Input Data for SNaQ: man/ticr_howtogetQuartetCFs.md
+    - Network estimation and display: man/snaq_plot.md
+    - Fixed Network: man/fixednetworkoptim.md
+    - Extract Expected CFs: man/expectedCFs.md
+    - Bootstrap: man/bootstrap.md
+  - Library:
+    - Public: lib/public.md
+    - Internals: lib/internals.md
