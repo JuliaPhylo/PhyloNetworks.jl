@@ -202,16 +202,10 @@ function hybridatnode(net0::HybridNetwork, nodeNumber::Int64)
 end
 
 
-
-
-
-
 """
-`rootatnode!(HybridNetwork, nodeNumber::Int64; index=false::Bool)`
-
-`rootatnode!(HybridNetwork, Node)`
-
-`rootatnode!(HybridNetwork, nodeName::AbstractString)`
+    rootatnode!(HybridNetwork, nodeNumber::Int64; index=false::Bool)
+    rootatnode!(HybridNetwork, Node)
+    rootatnode!(HybridNetwork, nodeName::AbstractString)
 
 Roots the network/tree object at the node with name 'nodeName' or
 number 'nodeNumber' (by default) or with index 'nodeNumber' if index=true.
@@ -222,9 +216,11 @@ visualize and identify a node of interest.
 Returns the network.
 
 Warnings:
+
 - If the node is a leaf, the root will be placed along
   the edge adjacent to the leaf, with a message. This might add a new node.
 - If the desired root placement is incompatible with one or more hybrids, then
+
   * a RootMismatch error is thrown
   * the input network will still have some attributes modified.
 
@@ -285,9 +281,8 @@ end
 
 
 """
-`rootonedge!(HybridNetwork, edgeNumber::Int64; index=false::Bool)`
-
-`rootonedge!(HybridNetwork, Edge)`
+    rootonedge!(HybridNetwork, edgeNumber::Int64; index=false::Bool)
+    rootonedge!(HybridNetwork, Edge)
 
 Roots the network/tree object along an edge with number 'edgeNumber' (by default)
 or with index 'edgeNumber if index=true. Attributes isChild1 and containRoot are
@@ -459,9 +454,8 @@ function root!(net::HybridNetwork, node::Node, resolve::Bool)
 end
 
 """
-`root!(net::HybridNetwork, nodeNumber::Int64, resolve::Bool)`
-
-`root!(net::HybridNetwork, nodeNumber::Int64)`
+    root!(net::HybridNetwork, nodeNumber::Int64, resolve::Bool)
+    root!(net::HybridNetwork, nodeNumber::Int64)`
 
 Roots the network/tree object at the node with number 'nodeNumber'.
 With resolve=true, the polytomy at the root is resolved arbitrarily (??) with a branch of length 0.
@@ -582,9 +576,8 @@ function root!(net::HybridNetwork, outgroup::AbstractString)
 end
 
 """
-`root!(net::HybridNetwork, edge::Edge)`
-
-`root!(net::HybridNetwork, edgeNumber::Int64)`
+    root!(net::HybridNetwork, edge::Edge)
+    root!(net::HybridNetwork, edgeNumber::Int64)
 
 Roots the network/tree object along an edge with number 'edgeNumber'.
 This adds a new node (and a new edge) to the network.
@@ -890,9 +883,9 @@ end
 
 
 """
-`deleteleaf!(HybridNetwork,Int64; index=false, simplify=true)`
-`deleteleaf!(HybridNetwork,leafName::AbstractString; simplify=true)`
-`deleteleaf!(HybridNetwork,Node; simplify=true)`
+    deleteleaf!(HybridNetwork,Int64; index=false, simplify=true)
+    deleteleaf!(HybridNetwork,leafName::AbstractString; simplify=true)
+    deleteleaf!(HybridNetwork,Node; simplify=true)
 
 Deletes a leaf node from the network, possibly from its name, number, or index
 in the network's array of nodes.

@@ -7,65 +7,47 @@ statistical inference method in
 The procedure involves a numerical optimization of branch lengths and inheritance
 probabilities and a heuristic search in the space of phylogenetic networks.
 
-# PhyloNetworks.jl Documentation
+## Manual Outline
+
+This manual is a quick tutorial on SNaQ and PhyloNetworks,
+and [here](http://pages.stat.wisc.edu/~claudia/smallTutorial.pdf)
+are slides with background on networks and explanations.
+But check out the
+[google group](https://groups.google.com/forum/#!forum/phylonetworks-users) for common questions.
 
 ```@contents
-Pages = ["simpleJulia.md", "ticr_howtogetQuartetCFs.md"]
+Pages = [
+    "man/installation.md",
+    "man/simpleJulia.md",
+    "man/inputdata.md",
+    "man/ticr_howtogetQuartetCFs.md",
+    "man/snaq_plot.md",
+    "man/fixednetworkoptim.md",
+    "man/expectedCFs.md",
+    "man/bootstrap.md",
+]
 Depth = 2
 ```
 
-## Functions
+## Library Outline
 
-```@docs
-HybridNetwork
-DataCF
-Quartet
-readTopology
-readTopologyLevel1
-tipLabels
-writeTopology
-deleteleaf!
-printEdges
-printNodes
-readTrees2CF
-readTableCF
-readInputTrees
-summarizeDataCF
-snaq!
-readSnaqNetwork
-snaqDebug
-topologyMaxQPseudolik!
-topologyQPseudolik!
-rootatnode!
-rootonedge!
-directEdges!
-preorder!
-cladewiseorder!
-fittedQuartetCF
-plotNetGraphViz
-plot
-setLength!
-setGamma!
-mapAllelesCFtable
-deleteHybridThreshold!
-displayedTrees
-majorTree
-minorTreeAt
-displayedNetworkAt!
-hardwiredClusters
-hardwiredCluster
-hardwiredClusterDistance
-treeEdgesBootstrap
-hybridDetection
-summarizeHFdf
-hybridBootstrapSupport
-bootsnaq
-readBootstrapTrees
-readMultiTopology
-hybridatnode!
+```@contents
+Pages = ["lib/public.md", "lib/internals.md"]
+Depth = 2
 ```
 
-## Index
+## [Index](@id main-index)
+
+### Functions
 
 ```@index
+Pages = ["lib/public.md", "lib/internals.md"]
+Order = [:function]
+```
+
+### Types
+
+```@index
+Pages = ["lib/public.md", "lib/internals.md"]
+Order = [:type]
 ```

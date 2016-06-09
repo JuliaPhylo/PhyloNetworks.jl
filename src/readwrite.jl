@@ -338,7 +338,8 @@ function readTopology(input::AbstractString,verbose::Bool)
 end
 
 """
-`readTopology(file name); readTopology(parenthetical description)`
+    readTopology(file name)
+    readTopology(parenthetical description)
 
 function to read tree or network topology from parenthetical format.
 Input: text file or parenthetical format directly.
@@ -726,7 +727,8 @@ readTopologyUpdate(file::AbstractString) = readTopologyUpdate(file, false, true)
 readTopologyUpdate(file::AbstractString,verbose::Bool) = readTopologyUpdate(file, false, verbose)
 
 """
-`readTopologyLevel1(filename); readTopologyLevel1(parenthetical format)`
+    readTopologyLevel1(filename)
+    readTopologyLevel1(parenthetical format)
 
 same as readTopology, reads a tree or network from parenthetical
 format, but this function enforces the necessary conditions for any

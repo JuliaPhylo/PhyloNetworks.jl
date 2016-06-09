@@ -463,6 +463,7 @@ All minor hybrid edges (γ<0.5) are removed to extract the major tree from
 each network. All remaining edges are tree edges, each associated with a bipartition.
 
 output:
+
 - a data frame with one row per tree edge and two columns: edge number, bootstrap support
   (as a percentage)
 - the major tree from the reference network, where minor hybrid edges (with γ<0.5)
@@ -637,20 +638,20 @@ Output:
 
 1. a "node" data frame with one row per clade and 9 columns giving:
 
-  - **clade**: the clade's name, like the taxon name (if a hybrid is a single taxon) or
+   - **clade**: the clade's name, like the taxon name (if a hybrid is a single taxon) or
      the hybrid tag (like 'H1') in the reference network
-  - **node**: the node number in the reference network. NA if the clade is not in this network.
-  - **hybridnode**: typically the same node number as above, except for hybrid clades in the
+   - **node**: the node number in the reference network. NA if the clade is not in this network.
+   - **hybridnode**: typically the same node number as above, except for hybrid clades in the
      reference network. For those, the hybrid node number is listed here.
-  - **edge**: number of the parent edge, parent to the node in column 2,
+   - **edge**: number of the parent edge, parent to the node in column 2,
      if found in the ref network. NA otherwise.
-  - **BS_hybrid**: percentage of bootstrap networks in which the clade is found to be a hybrid clade.
-  - **BS_sister**: percentage of bootstrap networks in which the clade is found to be sister to
+   - **BS_hybrid**: percentage of bootstrap networks in which the clade is found to be a hybrid clade.
+   - **BS_sister**: percentage of bootstrap networks in which the clade is found to be sister to
      some hybrid clade (sum of the next 2 columns)
-  - **BS_major_sister**: percentage of bootstrap networks in which the clade is found to be the
+   - **BS_major_sister**: percentage of bootstrap networks in which the clade is found to be the
      major sister to some hybrid clade
-  - **BS_minor_sister**: same as 7, but minor
-  - **BS_hybrid_samesisters**: percentage of bootstrap networks in which the clade is found to be
+   - **BS_minor_sister**: same as 7, but minor
+   - **BS_hybrid_samesisters**: percentage of bootstrap networks in which the clade is found to be
      a hybrid and with the same set of sister clades as in the reference network.
      Applies to hybrid clades found in the reference network only, NA for all other clades.
 
