@@ -1,4 +1,4 @@
-# `PhyloNetworks`
+# PhyloNetworks.jl
 
 PhyloNetworks is a Julia package for the manipulation, visualization
 and inference of phylogenetic networks.  SNaQ implements the
