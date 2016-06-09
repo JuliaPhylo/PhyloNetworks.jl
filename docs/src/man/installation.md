@@ -78,4 +78,73 @@ whos(PhyloNetworks)
 and press `?` inside Julia to switch to help mode,
 followed by the name of a function (or type) to get more details about it.
  
-Here are small examples on how [Julia types](@ref) can be accessed.
+
+## Julia types
+
+Objects in Julia are called *types*. We show here small example on how to get more
+info on an object, what's its type, and how to manipulate objects.
+For example, let's take an object `d` created from reading in some data
+(see [Input for SNaQ](@ref)):
+```julia
+d=readTrees2CF("tableCF.txt");
+```
+
+Typing the following command will provide a list of objects saved in memory, including
+`d` that we just created:
+```julia
+whos()
+```
+
+If we want to know the type of a particular object, we do:
+```julia
+typeof(d)
+```
+which shows us that `d` if of type `DataCF`.
+If we want to know about the attributes the object has, we can type `?` in Julia,
+followed by *DataCF* for a description. We can also ask for a list of all its attributes
+with
+
+```julia
+fieldnames(d)
+```
+For example, we see that one attribute is `numQuartets`: its the number of 4-taxon subsets
+in the data. To see what this number is:
+```julia
+d.numQuartets
+```
+We also noticed an attribute *quartet*. It is a vector of Quartet objects inside `d`, so
+```julia
+d.quartet[1].taxon
+```
+will provide the list of taxon names for the first 4-taxon subset in the data.
+We can corroborate this is the firs 4-taxon subset by checking the file *tableCF.txt*.
+
+To see the observed CF, we can type
+```julia
+d.quartet[1].obsCF
+```
+We can verify the type with
+```julia
+typeof(d.quartet[1])
+```
+You can also read a simple network in Julia and print the list of edges
+```julia
+str = "(A,((B,#H1),(C,(D)#H1)));";
+net = readTopology(str)
+printEdges(net)
+```
+You see that the edges do not have branch lengths, and the hybrid edges do not have gamma values, you can set them with
+```julia
+setLength!(net.edge[1],1.9)
+setGamma!(net.edge[3],0.8)
+printEdges(net)
+```
+where 1 and 3 correspond to the position of the given edge to modify in the list of edges.
+You can only change the gamma value of hybrid edges.
+Such an attempt below will cause an error with a message to explain that
+the edge was a tree edge:
+```julia
+setGamma!(net.edge[4],0.7)
+# should return this:
+# ERROR: cannot change gamma in a tree edge
+```

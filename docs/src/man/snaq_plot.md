@@ -1,7 +1,9 @@
-# Network Estimation
+# Getting a Network
+
+## Network Estimation
 
 After [Input for SNaQ](@ref), we can estimate the network using the
-input data *d* and starting from tree (or network) *T*:
+input data `d` and starting from tree (or network) `T`:
 
 ```julia
 net1=snaq!(T,d,filename="net1_snaq");
@@ -16,12 +18,12 @@ The "net1_snaq.networks" file contains a list of networks obtained from moving
 the placement of the hybrid node to another node inside the cycle,
 along with its pseudolikelihood score.
 
-The option *hmax* corresponds to the maximum number of hybridizations allowed,
+The option `hmax` corresponds to the maximum number of hybridizations allowed,
 1 by default.
-The function name `snaq!` ends with ! because it modifies the argument d
+The function name `snaq!` ends with ! because it modifies the argument `d`
 by including the expected CF. Type `?` then `snaq!` to get help on that function.
 
-The estimation function creates a .out file (snaq.out by default) with the estimated
+The estimation function creates a `.out` file (`snaq.out` by default) with the estimated
 network in parenthetical format, which you can also print directly to the screen like this:
 ```julia
 net1
@@ -30,22 +32,31 @@ writeTopology(net1,di=true)           # γ omitted: for dendroscope
 writeTopology(net1, "bestnet_h1.tre") # topology to file 'bestnet_h1.tre': creates or overwrites file
 less("bestnet_h1.tre")                # just view the file
 ```
-The option *di=true* is for the parenthetical format used by
+The option `di=true` is for the parenthetical format used by
 [Dendroscope](http://dendroscope.org/) (without reticulation heritabilities).
 Copy this parenthetical description and paste it into Dendroscope,
 or use the plotting function described below.
 
-If you hit a [SNaQ error](@ref), please report it (see below).
+### SNaQ error
 
-### Candidate Networks
+Please report any bugs and errors to *claudia@stat.wisc.edu*, so we can debug it.
+The easiest way to do it is by checking the `.err` file which will show the number of runs that
+failed by a bug and the corresponding seed to replicate the run.
+This is an example of what the `.err` file looks like:
+`Total errors: 1 in seeds [4545]`.
+You need to run the following function with the same settings that caused the error:
 
-From a set of candidate networks, one might simply need to score of each network
-to pick the best. Here, the score is the negative log pseudo-likelihood, and the
-lower the better. See the section to get the score of a [Fixed Network](@ref).
+```julia
+snaqDebug(T,d,hmax=2,seed=4545)
+```
 
+This will create two files:
+*snaqDebug.log* and *debug.log* which you can then send to
+*claudia@stat.wisc.edu* with subject "SNaQ bug found" or something
+similar. I will not have access to any part of your data, the files
+simply print out the steps to retrace the bug, and hopefully fix it.
 
-
-# Network Visualization
+## Network Visualization
 
 To visualize the network:
 ```julia
@@ -64,7 +75,7 @@ Edge colors can be modified, for instance.
 plot(net1, showEdgeLength=true, minorHybridEdgeColor=colorant"tan")
 ```
 
-# Re-rooting networks
+## Re-rooting networks
 
 SNaQ infers an unrooted semi-directed network, in the sense
 that the direction of tree edges cannot be inferred, but the direction
@@ -85,27 +96,11 @@ ways to rotate the children edges at some nodes to untangle some crossing edges.
 This can be done using the function `rotate!`. Type `?` then `rotate!` to get
 help and examples.
 
-### SNaQ error
+## Candidate Network Evaluation
 
-Please report any bugs and errors to *claudia@stat.wisc.edu*, so we can debug it.
-The easiest way to do it is by checking the `.err` file which will show the number of runs that
-failed by a bug and the corresponding seed to replicate the run.
-This is an example of what the `.err` file looks like:
+From a set of candidate networks, one might simply need to score of each network
+to pick the best. Here, the score is the negative log pseudo-likelihood, and the
+lower the better. See the section to get the score of a [Fixed Network](@ref).
 
-`
-Total errors: 1 in seeds [4545]
-`
-
-You need to run the following function with the same settings that caused the error:
-
-```julia
-snaqDebug(T,d,hmax=2,seed=4545)
-```
-
-This will create two files:
-*snaqDebug.log* and *debug.log* which you can then send to
-*claudia@stat.wisc.edu* with subject "SNaQ bug found" or something
-similar. I will not have access to any part of your data, the files
-simply print out the steps to retrace the bug, and hopefully fix it.
-
-
+Else: go next to [Extract Expected CFs](@ref) to see how your network fits your data,
+or go for a [Bootstrap](@ref) analysis to quantify support for tree edges and hybrid edges.

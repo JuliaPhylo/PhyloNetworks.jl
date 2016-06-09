@@ -636,7 +636,21 @@ If `rooted=false`, sister clades are considered as bipartitions.
 
 Output:
 
-1. a "node" data frame with one row per clade and 9 columns giving:
+1. a "node" data frame (see below)
+2. an "edge" data frame (see below)
+3. a "clade" data frame to describe the make up of all clades found as hybrids or sisters,
+  starting with a column `taxa` that lists all taxa. All other columns correspond to a given
+  clade and contain true/false values. `true` means that a given taxon belongs in a given clade.
+  For a clade named `H1`, for instance, and if the data frame was named `cla`, the
+  list of taxa in this clade can be obtained with `cla[:taxa][cla[:H1]]`.
+4. an array of gamma values, with one row for each bootstrap network and two columns (major/minor)
+  for each hybrid edge in the reference network. If this hybrid edge was found in the bootstrap network
+  (i.e. same hybrid and sister clades, after removal of all other hybrid nodes),
+  its bootstrap gamma value is recorded here. Otherwise, the gamma entry is 0.0.
+5. a vector with the number of each hybrid edge in the reference network, in the same order
+as for the columns in the array of gamma values above.
+
+The "node data frame has one row per clade and 9 columns giving:
 
    - **clade**: the clade's name, like the taxon name (if a hybrid is a single taxon) or
      the hybrid tag (like 'H1') in the reference network
@@ -650,12 +664,12 @@ Output:
      some hybrid clade (sum of the next 2 columns)
    - **BS_major_sister**: percentage of bootstrap networks in which the clade is found to be the
      major sister to some hybrid clade
-   - **BS_minor_sister**: same as 7, but minor
+   - **BS_minor_sister**: same as previous, but minor
    - **BS_hybrid_samesisters**: percentage of bootstrap networks in which the clade is found to be
      a hybrid and with the same set of sister clades as in the reference network.
      Applies to hybrid clades found in the reference network only, NA for all other clades.
 
-2. an "edge" data frame with one row for each pair of clades, and 8 columns:
+The "edge" data frame has one row for each pair of clades, and 8 columns:
 
   - **edge**: hybrid edge number, if the edge appears in the reference network. NA otherwise.
   - **hybrid_clade**: name of the clade found to be a hybrid, descendent of 'edge'
@@ -668,21 +682,7 @@ Output:
   - **BS_major**: percentage of bootstrap networks in which 'edge' is found to be a major hybrid
      edge, i.e. when 'hybrid' is found to be a hybrid clade and 'sister' is found to be its
      major sister.
-  - **BS_minor**: same as 7, but minor
-
-3. a "clade" data frame to describe the make up of all clades found as hybrids or sisters,
-  starting with a column `taxa` that lists all taxa. All other columns correspond to a given
-  clade and contain true/false values. `true` means that a given taxon belongs in a given clade.
-  For a clade named `H1`, for instance, and if the data frame was named 'cla', the
-  list of taxa in this clade can be obtained with `cla[:taxa][cla[:H1]]`.
-
-4. an array of gamma values, with one row for each bootstrap network and two columns (major/minor) for each hybrid
-  edge in the reference network. If this hybrid edge was found in the bootstrap network
-  (i.e. same hybrid and sister clades, after removal of all other hybrid nodes),
-  its bootstrap gamma value is recorded here. Otherwise, the gamma entry is 0.0.
-
-5. an vector with the number of each hybrid edge in the reference network, in the same order
-  as for the columns in the array of gamma values above.
+  - **BS_minor**: same as previous, but minor
 """
 function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwork;
          rooted=false::Bool)

@@ -16,7 +16,7 @@ table of estimated CFs and their credibility intervals.
 Additional details on this [TICR pipeline](@ref)
 describe how to insert data at various stages (e.g. after running MrBayes on each locus).
  
-## Tutorial data
+## Tutorial data: gene trees
 
 <!--The examples files for this section can be found within the
 PhyloNetworks folder, typically in your
@@ -27,8 +27,6 @@ We suggest that you create a special directory for running these examples,
 where input files can be downloaded and where output files will be
 created (with estimated networks for instance). Enter this directory
 and run Julia from there.
-
-### gene trees
 
 Suppose you have a file with a list of gene trees in parenthetical
 format called *treefile.txt*.
@@ -76,13 +74,14 @@ Be careful to use a numQ value smaller than the total number of possible
 To get a predictable random sample, you may set the seed with `srand(12321)`
 (for instance) prior to sampling the quartets as above.
 
-### Table of quartet concordance factors (CFs)
+## Tutorial data: quartet CFs
 
-If you already have a table of CF values in a file *tableCF.txt*
+If you already have a table of quartet concordance factor (CF) values in a file *tableCF.txt*
 in this format
 
 |Taxon1 | Taxon2 | Taxon3 | Taxon4 | CF12_34 | CF13_24 | CF14_23 |
-|-------|:-------|:-------|:-------|:--------|:--------|:--------|
+|:------|:-------|:-------|:-------|:--------|:--------|:--------|
+|A| B| E | D|   0.4 |       0.6 |       0.0|
 
 you would read it like this:
 ```julia
@@ -118,3 +117,4 @@ T=readTopologyLevel1("startTree.txt")
 ```
 Note that all trees and all networks with 1 hybridization are of level 1.
 
+Next: [Getting a Network](@ref)

@@ -25,11 +25,11 @@ Plots a network, from left to right.
 - nodeLabel: dataframe with two columns: the first with node numbers, the second with labels
   (like bootstrap values for hybrid relationships) to annotate nodes. empty by default.
 
-Note that plot() actually modifies some (minor) attributes of the network,
-as it calls directEdges!, preorder! and cladewiseorder!.
+Note that `plot` actually modifies some (minor) attributes of the network,
+as it calls `directEdges!`, `preorder!` and `cladewiseorder!`.
 
 If hybrid edges cross tree and major edges, you may choose to rotate some tree
-edges to eliminate crossing edges, using rotate!.
+edges to eliminate crossing edges, using `rotate!`.
 """
 function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
         mainTree=false::Bool, showTipLabel=true::Bool, showNodeNumber=false::Bool,

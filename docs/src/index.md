@@ -7,18 +7,21 @@ statistical inference method in
 The procedure involves a numerical optimization of branch lengths and inheritance
 probabilities and a heuristic search in the space of phylogenetic networks.
 
-## Manual Outline
+## How to get help
 
-This manual is a quick tutorial on SNaQ and PhyloNetworks,
-and [here](http://pages.stat.wisc.edu/~claudia/smallTutorial.pdf)
-are slides with background on networks and explanations.
-But check out the
-[google group](https://groups.google.com/forum/#!forum/phylonetworks-users) for common questions.
+- the package [wiki](https://github.com/crsl4/PhyloNetworks.jl/wiki) has a step-by-step
+  tutorial, done for the Evolution 2016 conference, with background on networks and
+  explanations.
+- the [google group](https://groups.google.com/forum/#!forum/phylonetworks-users)
+  has answers to common questions.
+- the Manual below has a quick tutorial on SNaQ and PhyloNetworks.
+- the [Index](@ref main-index) further below has the full list of documented functions.
+
+## Manual Outline
 
 ```@contents
 Pages = [
     "man/installation.md",
-    "man/simpleJulia.md",
     "man/inputdata.md",
     "man/ticr_howtogetQuartetCFs.md",
     "man/snaq_plot.md",

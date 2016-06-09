@@ -43,6 +43,7 @@ deleteleaf!
 deleteHybridThreshold!
 # plotNetGraphViz
 plot
+rotate!
 ```
 
 ## Data and Topology read/write
@@ -57,6 +58,7 @@ readTrees2CF
 readTableCF
 readBootstrapTrees
 writeTopology
+writeMultiTopology
 mapAllelesCFtable
 ```
 
