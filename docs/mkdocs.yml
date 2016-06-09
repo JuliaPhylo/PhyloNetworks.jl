@@ -30,7 +30,8 @@ pages:
   - Manual:
     - Installation: man/installation.md
     - Julia Types: man/simpleJulia.md
-    - Input Data for SNaQ: man/ticr_howtogetQuartetCFs.md
+    - Input Data for SNaQ: man/inputdata.md
+    - TICR pipeline: man/ticr_howtogetQuartetCFs.md
     - Network estimation and display: man/snaq_plot.md
     - Fixed Network: man/fixednetworkoptim.md
     - Extract Expected CFs: man/expectedCFs.md

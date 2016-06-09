@@ -14,8 +14,7 @@ quartet CF needed as input for SNaQ. The pipeline starts from the sequence align
 runs MrBayes and then BUCKy (both parallelized), producing the
 table of estimated CFs and their credibility intervals.
 Additional details on this [TICR pipeline](@ref)
-# https://github.com/crsl4/PhyloNetworks/blob/master/docs/src/man/ticr_howtogetQuartetCFs.md
- describe how to insert data at various stages (e.g. after running MrBayes on each locus).
+describe how to insert data at various stages (e.g. after running MrBayes on each locus).
  
 ## Tutorial data
 

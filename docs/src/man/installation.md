@@ -46,10 +46,8 @@ it. You can always free a pinned package with
 <!--
 If, for some reason, the *Pkg.update* function does not update to the latest version,
 users can do the following through the terminal:
-```shell
-cd HOME/.julia/v0.4/PhyloNetworks/
-git pull
-```
+    cd HOME/.julia/v0.4/PhyloNetworks/
+    git pull
 where HOME is replaced by your home directory.
 -->
 
@@ -61,14 +59,14 @@ The PhyloNetworks package has dependencies like NLopt and Gadfly
 
 To check that your installation worked, type this in Julia to load the package.
 This is something to type every time you start a Julia session:
-```julia
-using PhyloNetworks
+```@example 1
+using PhyloNetworks;
 ```
 This step can also take a while, if Julia needs to pre-compile the code (after a package
 update for instance).
 Here is a very small test for the installation of PhyloNetworks.
 
-```julia
+```@example 1
 net = readTopology("(A,(B,(C,D)));");
 tipLabels(net)
 ```
@@ -81,4 +79,3 @@ and press `?` inside Julia to switch to help mode,
 followed by the name of a function (or type) to get more details about it.
  
 Here are small examples on how [Julia types](@ref) can be accessed.
-# https://github.com/crsl4/PhyloNetworks/blob/master/docs/src/man/simpleJulia.md
