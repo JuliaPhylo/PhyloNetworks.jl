@@ -247,7 +247,7 @@ function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool,
                 if(updatePart)
                     updatePartition!(net,nodesInCycle)
                 end
-                flag3, edgesRoot = updateContainRoot!(net,hybrid); #update contain root even if it is bad triangle to writeTopology correctly
+                flag3, edgesRoot = updateContainRoot!(net,hybrid); #update contain root even if it is bad triangle to writeTopologyLevel1 correctly
                 #undoistIdentifiable!(edgesGammaz);
                 #undoGammaz!(hybrid,net);
                 #undoInCycle!(edgesInCycle, nodesInCycle);
@@ -289,6 +289,7 @@ addHybridizationUpdate!(net::HybridNetwork, blacklist::Bool) = addHybridizationU
 # declaring failure
 # blacklist used in afterOptBLAll
 function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::Int64)
+    global CHECKNET
     DEBUG && println("MOVE: addHybridizationUpdateSmart")
     success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
     DEBUG && println("success $(success), flag $(flag), flag2 $(flag2), flag3 $(flag3)")

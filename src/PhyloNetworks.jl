@@ -4,19 +4,20 @@ __precompile__()
 module PhyloNetworks
 
 using Base.Collections # for updateInCycle with priority queue
-using DataFrames # for rep function and read/write csv tables
+using DataFrames # for functions to read/write tables, and names()
 using GLM # for the lm function
 using NLopt # for branch lengths optimization
 # using GraphViz #for visualization
 using Gadfly # for plots
 using ColorTypes # used by Gadfly already. To resolve data type names (Colorant)
+using StatsBase: sample
 
 import Base.show
 import Gadfly.plot
 
 const DEBUG = false #for debugging only
 const DEBUGC = false #more detailed prints
-const CHECKNET = false #for debugging only
+global CHECKNET = false #for debugging only
 const REDIRECT = false # changed for debugging to a file
 
 export
@@ -44,7 +45,7 @@ rootonedge!,
 directEdges!,
 preorder!,
 cladewiseorder!,
-dfObsExpCF,
+fittedQuartetCF,
 plotNetGraphViz,
 plot,
 rotate!,
@@ -63,12 +64,14 @@ hardwiredClusterDistance,
 treeEdgesBootstrap,
 hybridDetection,
 summarizeHFdf,
-hybridBootstrapFrequency,
+hybridBootstrapSupport,
 bootsnaq,
+readBootstrapTrees,
 writeMultiTopology,
 readMultiTopologyLevel1,
 readMultiTopology,
-hybridatnode!
+hybridatnode!,
+undirectedOtherNetworks
 
 # export part
 
@@ -91,6 +94,5 @@ include("plotsGraphViz.jl")
 include("plotsGadfly.jl")
 include("compareNetworks.jl")
 include("traits.jl")
-
 
 end #module

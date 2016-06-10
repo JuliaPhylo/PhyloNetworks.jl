@@ -4,11 +4,27 @@
 
 # -------------------5taxon tree------------------
 
-include("../src/types.jl")
-include("../src/functions.jl")
+if !isdefined(:individualtest) individualtest = false; end
+
+if(individualtest)
+    include("../src/types.jl")
+    include("../src/functions.jl")
+end
+
+if isdefined(:PhyloNetworks)
+    PhyloNetworks.CHECKNET || error("need CHECKNET==true in PhyloNetworks to test snaq in test_correctLik.jl")
+else
+    CHECKNET || error("need CHECKNET==true to test snaq in test_correctLik.jl")
+end
 
 #df = readtable("Tree_output.txt")
-df=DataFrame(t1=["6","6","10","6","6"],t2=["7","7","7","10","7"],t3=["4","10","4","4","4"],t4=["8","8","8","8","10"],CF1234=[0.2729102510259939, 0.3967750546426937, 0.30161247267865315, 0.24693940689390592, 0.2729102510259939], CF1324=[0.45417949794801216, 0.30161247267865315, 0.30161247267865315, 0.5061211862121882, 0.45417949794801216],CF1423=[0.2729102510259939, 0.30161247267865315, 0.3967750546426937, 0.24693940689390592, 0.2729102510259939])
+df=DataFrame(t1=["6","6","10","6","6"],
+             t2=["7","7","7","10","7"],
+             t3=["4","10","4","4","4"],
+             t4=["8","8","8","8","10"],
+             CF1234=[0.2729102510259939, 0.3967750546426937, 0.30161247267865315, 0.24693940689390592, 0.2729102510259939],
+             CF1324=[0.45417949794801216, 0.30161247267865315, 0.30161247267865315, 0.5061211862121882, 0.45417949794801216],
+             CF1423=[0.2729102510259939, 0.30161247267865315, 0.3967750546426937, 0.24693940689390592, 0.2729102510259939])
 d = readTableCF(df)
 
 # starting tree:
@@ -23,7 +39,7 @@ lik = logPseudoLik(d)
 approxEq(lik,193.7812623319291) || error("not correct likelihood calculated with tree")
 println("passed tree example")
 
-estTree = optTopRun1!(currT,d,0,true,5454);
+estTree = optTopRun1!(currT,d,0,5454);
 
 approxEq(estTree.loglik,0.0) || error("not correct tree estimated")
 
@@ -45,7 +61,7 @@ lik = logPseudoLik(d)
 approxEq(lik,50.17161079450669) || error("not correct likelihood calculated with tree")
 println("passed computation of likelihood")
 
-estNet = optTopRun1!(currT,d,1,true,5454);
+estNet = optTopRun1!(currT,d,1,5454);
 
 0.00216 < estNet.loglik < 0.00217 || Base.error("not correct estimated network")
 println("passed estimation of net")

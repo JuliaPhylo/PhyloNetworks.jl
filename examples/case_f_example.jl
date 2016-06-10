@@ -4,8 +4,12 @@
 #
 # in julia: include("case_f_example.jl")
 
-include("../src/types.jl")
-include("../src/functions.jl")
+if !isdefined(:individualtest) individualtest = false; end
+
+if(individualtest)
+    include("../src/types.jl")
+    include("../src/functions.jl")
+end
 
 using Base.Collections # for updateInCycle with priority queue
 

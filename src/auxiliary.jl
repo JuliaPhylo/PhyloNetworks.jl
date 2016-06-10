@@ -3,6 +3,13 @@
 # Claudia February 2015
 #####################
 
+function setCHECKNET(b::Bool)
+    global CHECKNET
+    CHECKNET = b
+    @show CHECKNET
+    CHECKNET && warn("CHECKNET was changed to true: that will slow snaq! down.")
+end
+
 # ----- aux general functions ---------------
 
 #based in coupon's collector: E+sqrt(V)
@@ -777,6 +784,7 @@ function setLength!(edge::Edge, new_length::Number, negative::Bool)
     edge.y = exp(-new_length);
     edge.z = 1 - edge.y;
     #edge.istIdentifiable || warn("set edge length for edge $(edge.number) that is not identifiable")
+    return nothing
 end
 
 """
@@ -852,6 +860,7 @@ function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool, read::Bool
         edge.gamma = new_gamma;
         edge.isMajor = (new_gamma>=0.5) ? true : false
     end
+    return nothing
 end
 
 setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool) = setGamma!(edge, new_gamma, changeOther, false)
@@ -944,7 +953,8 @@ end
 # and correct computation of gammaz
 # light=true: it will not collapse with nodes with 2 edges, will return a flag of true
 # returns true if found egde with BL -1.0 (only when light=true, ow error)
-function checkNet(net::HybridNetwork, light::Bool)
+# added checkPartition for undirectedOtherNetworks that do not need correct hybrid node number
+function checkNet(net::HybridNetwork, light::Bool; checkPartition=true::Bool)
     DEBUG && println("checking net")
     net.numHybrids == length(net.hybrid) || error("discrepant number on net.numHybrids (net.numHybrids) and net.hybrid length $(length(net.hybrid))")
     net.numTaxa == length(net.leaf) || error("discrepant number on net.numTaxa (net.numTaxa) and net.leaf length $(length(net.leaf))")
@@ -975,7 +985,7 @@ function checkNet(net::HybridNetwork, light::Bool)
                 end
             end
             if(e.hybrid)
-                !e.containRoot || error("hybrid edge $(e.number) should not contain root")
+                !e.containRoot || error("hybrid edge $(e.number) should not contain root") # fixit: disagree
                 o = getOtherNode(e,h)
                 o.hasHybEdge || error("found node $(o.number) attached to hybrid edge but hasHybEdge=$(o.hasHybEdge)")
             end
@@ -993,7 +1003,7 @@ function checkNet(net::HybridNetwork, light::Bool)
                         desc = [e]
                         cycleNum = [h.number]
                         getDescendants!(getOtherNode(e,n),e,desc,cycleNum)
-                        if(!isPartitionInNet(net,desc,cycleNum))
+                        if(checkPartition && !isPartitionInNet(net,desc,cycleNum))
                             printPartitions(net)
                             error("partition with cycle $(cycleNum) and edges $([e.number for e in desc]) not found in net.partition")
                         end
@@ -1034,19 +1044,19 @@ function checkNet(net::HybridNetwork, light::Bool)
         end
     end
     DEBUG && println("no errors in checking net")
-    if(light)
-        return false
-    end
+    return false
 end
 
 checkNet(net::HybridNetwork) = checkNet(net, false)
 
 # function to print everything for a given net
+# this is used a lot inside snaq when DEBUG is true, so need to use level1 attributes
+# and not change the network: with writeTopologyLevel1
 function printEverything(net::HybridNetwork)
     printEdges(net)
     printNodes(net)
     printPartitions(net)
-    println("$(writeTopology(net))")
+    println("$(writeTopologyLevel1(net))")
     ## if(DEBUG && REDIRECT)
     ##     try
     ##         plotNetGraphViz(net,internalLabels=true,imageName="plotDebug")

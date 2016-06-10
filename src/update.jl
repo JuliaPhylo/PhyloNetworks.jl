@@ -115,9 +115,8 @@ function updateInCycle!(net::HybridNetwork,node::Node)
 end
 
 """
-`updateContainRoot!(HybridNetwork, Node)`
-
-`traverseContainRoot!(Node, Edge, edges_changed::Array{Edge,1}, rightDir::Vector{Bool})`
+    updateContainRoot!(HybridNetwork, Node)
+    traverseContainRoot!(Node, Edge, edges_changed::Array{Edge,1}, rightDir::Vector{Bool})
 
 The input `node` to `updateContainRoot!` must be a hybrid node
 (can come from searchHybridNode).
@@ -135,6 +134,7 @@ In `traverseContainRoot!`, `rightDir` turns false if hybridizations
 have incompatible directions (vector of length 1, to be modified).
 
 Warning:
+
 - does *not* update containRoot of minor hybrid edges.
 - assumes correct isMajor attributes: to stop the recursion at minor hybrid edges.
 - assumes correct hybrid attributes of both nodes & edges: to check if various

@@ -2,20 +2,29 @@
 # prompted by Cecile finding cases when containRoot was not updated
 # Claudia December 2015
 
-include("../src/types.jl")
-include("../src/functions.jl")
-const DEBUG = true
-const CHECKNET = true
+if !isdefined(:individualtest) individualtest = false; end
+
+if(individualtest)
+    include("../src/types.jl")
+    include("../src/functions.jl")
+    const DEBUG = true
+end
+
+if isdefined(:PhyloNetworks)
+    PhyloNetworks.CHECKNET || error("need CHECKNET==true in PhyloNetworks to test snaq in test_correctLik.jl")
+else
+    CHECKNET || error("need CHECKNET==true to test snaq in test_correctLik.jl")
+end
 
 tree = "(((((((1,2),3),4),5),(6,7)),(8,9)),10);"
 
 #seed = 2738
 seed = 56326
 
-currT0 = readTopologyUpdate(tree);
+currT0 = readTopologyLevel1(tree);
 ## printEdges(currT0)
 ## printNodes(currT0)
-## writeTopology(currT0)
+## writeTopologyLevel1(currT0)
 checkNet(currT0)
 srand(seed);
 besttree = deepcopy(currT0);
@@ -25,7 +34,7 @@ success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
 success || error("not able to place first hybridization")
 printEdges(besttree)
 printNodes(besttree)
-writeTopology(besttree)
+writeTopologyLevel1(besttree)
 net = deepcopy(besttree);
 # test contain root
 !net.edge[15].containRoot || error("edge 15 wrong contain Root")
@@ -62,7 +71,7 @@ success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
 success || error("could not add second hybridization")
 printEdges(besttree)
 printNodes(besttree)
-writeTopology(besttree,true)
+writeTopologyLevel1(besttree,true)
 net = deepcopy(besttree);
 
 # test contain root
@@ -153,7 +162,7 @@ length(net.partition) == 6 || error("wrong partition")
 printNodes(net)
 printEdges(net)
 printPartitions(net)
-writeTopology(net)
+writeTopologyLevel1(net)
 
 # test contain root
 !net.edge[15].containRoot || error("edge 15 wrong contain Root")

@@ -20,7 +20,7 @@ currT = readTopologyUpdate("prueba_tree.txt");
 printEdges(currT)
 
 
-@time optTopLevel!(currT,d,0,false)
+@time optTopLevel!(currT,d,0)
 net = snaq(currT,d,hmax=0);
 
 #old:
@@ -45,7 +45,7 @@ df = readtable("CaseH_output.csv")
 d = readTableCF(df)
 
 
-@time newT = optTopLevel!(currT,d,1,false);
+@time newT = optTopLevel!(currT,d,1)
 # with original optBL
 # elapsed time: 347.527745834 seconds (372704328 bytes allocated, 0.06% gc time)
 # did not find right network (Case H), came back to starting point (Case G)
@@ -108,7 +108,7 @@ printEdges(currT)
 df = readtable("CaseH_output.csv")
 d = readTableCF(df)
 
-@time optTopLevel!(currT,d,1,false)
+@time optTopLevel!(currT,d,1)
 
 printEdges(newT)
 
@@ -124,7 +124,7 @@ df = readtable("CaseF_output.csv")
 d = readTableCF(df)
 
 
-@time optTopLevel!(currT,d,1,false)
+@time optTopLevel!(currT,d,1)
 
 printEdges(newT)
 
@@ -139,6 +139,6 @@ df = readtable("CaseF_output.csv")
 d = readTableCF(df)
 
 
-@time optTopLevel!(currT,d,1,false)
+@time optTopLevel!(currT,d,1)
 
 printEdges(newT)

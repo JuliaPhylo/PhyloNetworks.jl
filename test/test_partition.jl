@@ -1,23 +1,26 @@
 # test to see if update partition works
 # Claudia May 2015
 
+if !isdefined(:individualtest) individualtest = false; end
 
-include("../src/types.jl")
-include("../src/functions.jl")
+if(individualtest)
+    include("../src/types.jl")
+    include("../src/functions.jl")
+end
 
 tree = "(((((((1,2),3),4),5),(6,7)),(8,9)),10);"
 
 #seed = 2738
 seed = 56326
 
-currT0 = readTopologyUpdate(tree);
+currT0 = readTopologyLevel1(tree);
 srand(seed);
 besttree = deepcopy(currT0);
 success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
 success
 printEdges(besttree)
 printNodes(besttree)
-writeTopology(besttree,true)
+writeTopologyLevel1(besttree,true)
 net = deepcopy(besttree);
 length(net.partition)
 [n.number for n in net.partition[1].edges] == [15] || error("wrong partition")
@@ -33,7 +36,7 @@ success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
 success
 printEdges(besttree)
 printNodes(besttree)
-writeTopology(besttree,true)
+writeTopologyLevel1(besttree,true)
 net = deepcopy(besttree);
 length(net.partition)
 [n.number for n in net.partition[1].edges] == [15] || error("wrong partition")

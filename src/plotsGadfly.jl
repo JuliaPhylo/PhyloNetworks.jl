@@ -1,8 +1,8 @@
 """
     plot(net::HybridNetwork; useEdgeLength=false, mainTree=false, showTipLabel=true,
-         showNodeNumber=false, showEdgeLength=true, showGamma=true, edgeColor=colorant"black",
+         showNodeNumber=false, showEdgeLength=false, showGamma=false, edgeColor=colorant"black",
          majorHybridEdgeColor=colorant"deepskyblue4", minorHybridEdgeColor=colorant"deepskyblue",
-         showEdgeNumber=false, showIntNodeLabel=false, edgeLabel=[])
+         showEdgeNumber=false, showIntNodeLabel=false, edgeLabel=[], nodeLabel=[])
 
 Plots a network, from left to right.
 
@@ -15,28 +15,30 @@ Plots a network, from left to right.
 - showEdgeLength: if true, edges are labelled with their length (above)
 - showGamma: if true, hybrid edges are labelled with their heritability (below)
 - edgeColor: color for tree edges. black by default.
-- majorHybridEdgeColor: color for major hybrid edges. blue by default.
+- majorHybridEdgeColor: color for major hybrid edges
 - minorHybridEdgeColor: color for minor hybrid edges
 - showEdgeNumber: if true, edges are labelled with the number used internally.
 - showIntNodeLabel: if true, internal nodes are labelled with their names.
-  Useful for hybrid nodes, which do have tags like "#H1".
+  Useful for hybrid nodes, which do have tags like '#H1'.
 - edgeLabel: dataframe with two columns: the first with edge numbers, the second with labels
   (like bootstrap values) to annotate edges. empty by default.
+- nodeLabel: dataframe with two columns: the first with node numbers, the second with labels
+  (like bootstrap values for hybrid relationships) to annotate nodes. empty by default.
 
-Note that plot() actually modifies some (minor) attributes of the network,
-as it calls directEdges!, preorder! and cladewiseorder!.
+Note that `plot` actually modifies some (minor) attributes of the network,
+as it calls `directEdges!`, `preorder!` and `cladewiseorder!`.
 
 If hybrid edges cross tree and major edges, you may choose to rotate some tree
-edges to eliminate crossing edges, using rotate!.
+edges to eliminate crossing edges, using `rotate!`.
 """
 function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
         mainTree=false::Bool, showTipLabel=true::Bool, showNodeNumber=false::Bool,
-        showEdgeLength=true::Bool, showGamma=true::Bool,
+        showEdgeLength=false::Bool, showGamma=false::Bool,
         edgeColor=colorant"black"::ColorTypes.Colorant,
         majorHybridEdgeColor=colorant"deepskyblue4"::ColorTypes.Colorant,
         minorHybridEdgeColor=colorant"deepskyblue"::ColorTypes.Colorant,
         showEdgeNumber=false::Bool, showIntNodeLabel=false::Bool,
-        edgeLabel=DataFrame()::DataFrame)
+        edgeLabel=DataFrame()::DataFrame, nodeLabel=DataFrame()::DataFrame)
 
     try
         directEdges!(net)   # to update isChild1
@@ -78,6 +80,7 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
             end
         end
     end
+
     # setting branch lengths for plotting
     elenCalculate = !useEdgeLength
     if (useEdgeLength)
@@ -184,38 +187,67 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
               layer(y = [node_yB[i],node_yE[i]],
                     x = [node_x[i], node_x[i]], Geom.line)[1])
     end
-    # data frame to place tip labels
-    if (showTipLabel || showNodeNumber || showIntNodeLabel)
-      # white dot beyond tip labels and root node label to force enough zoom out
+    # check data frame for node annotations
+    labelnodes = size(nodeLabel,1)>0
+    if (labelnodes && (size(nodeLabel,2)<2 || !(eltype(nodeLabel[:,1]) <: Int64)))
+        warn("nodeLabel should have 2+ columns, the first one giving the node numbers (Int64)")
+        labelnodes = false
+    end
+    if labelnodes # remove rows with no node number, check if at least one row remains
+        nodeLabel = nodeLabel[~isna(nodeLabel[1]),:]
+        labelnodes = size(nodeLabel,1)>0
+    end
+    if labelnodes
+      tmp = setdiff(nodeLabel[1], [e.number for e in net.node])
+      if length(tmp)>0
+        msg = "Some node numbers in the nodeLabel data frame are not found in the network:\n"
+        for (a in tmp) msg *= string(" ",a); end
+        warn(msg)
+      end
+    end
+    # data frame to place tip names and node annotations (labels)
+    if (showTipLabel || showNodeNumber || showIntNodeLabel || labelnodes)
+      # white dot beyond tip labels/name and root node label to force enough zoom out
       expfac = 0.1
       push!(mylayers, layer(x=[xmin-(xmax-xmin)*expfac,xmax+(xmax-xmin)*expfac],
                             y=[ymin,ymax+(ymax-ymin)*expfac],
                Geom.point, Theme(default_color=colorant"white"))[1])
-      nrows = (showNodeNumber || showIntNodeLabel ? net.numNodes : net.numTaxa)
-      ndf = DataFrame([ASCIIString,ASCIIString,Bool,Float64,Float64], # column types, column names, nrows
-               [symbol("lab"),symbol("num"),symbol("lea"),symbol("x"),symbol("y")], nrows)
+      nrows = (showNodeNumber || showIntNodeLabel || labelnodes ? net.numNodes : net.numTaxa)
+      ndf = DataFrame([ASCIIString,ASCIIString,ASCIIString,Bool,Float64,Float64], # column types, column names, nrows
+               [symbol("name"),symbol("num"),symbol("lab"),symbol("lea"),symbol("x"),symbol("y")], nrows)
       j=1
       for i=1:net.numNodes
-        if (net.node[i].leaf  || showNodeNumber || showIntNodeLabel)
-            ndf[j,:lab] = net.node[i].name
+        if (net.node[i].leaf  || showNodeNumber || showIntNodeLabel || labelnodes)
+            ndf[j,:name] = net.node[i].name
             ndf[j,:num] = string(net.node[i].number)
+            if (labelnodes)
+              jn = findfirst(nodeLabel[:,1],net.node[i].number)
+              ndf[j,:lab] = (jn==0 || isna(nodeLabel[jn,2]) ? "" :  # node label not in table or NA
+                (eltype(nodeLabel[:,2])<:AbstractFloat ?
+                  @sprintf("%0.3g",nodeLabel[jn,2]) : string(nodeLabel[jn,2])))
+            end
             ndf[j,:lea] = net.node[i].leaf # use this later to remove #H? labels
             ndf[j,:y] = node_y[i]
             ndf[j,:x] = node_x[i]
             j += 1
         end
       end
+      # @show ndf
       if (showTipLabel)
-        push!(mylayers, layer(ndf[ndf[:lea], [:x,:y,:lab]], y="y", x="x", label="lab",
+        push!(mylayers, layer(ndf[ndf[:lea], [:x,:y,:name]], y="y", x="x", label="name",
             Geom.label(position=:right ;hide_overlaps=true))[1])
       end
       if (showIntNodeLabel)
-        push!(mylayers, layer(ndf[(!ndf[:lea]), [:x,:y,:lab]], y="y", x="x", label="lab",
+        push!(mylayers, layer(ndf[(!ndf[:lea]), [:x,:y,:name]], y="y", x="x", label="name",
             Geom.label(position=:above ;hide_overlaps=true))[1])
       end
       if (showNodeNumber)
         push!(mylayers, layer(ndf, y="y", x="x", label="num",
             Geom.label(position=:dynamic ;hide_overlaps=true))[1])
+      end
+      if labelnodes
+        push!(mylayers, layer(ndf[:,[:x,:y,:lab]], y="y", x="x", label="lab",
+            Geom.label(position=:left ;hide_overlaps=false))[1])
       end
     end
     # data frame for edge annotations.
@@ -228,6 +260,18 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
         warn("edgeLabel should have 2+ columns, the first one giving the edge numbers (Int64)")
         labeledges = false
     end
+    if labeledges # remove rows with no edge number and check if at least one remains
+        edgeLabel = edgeLabel[~isna(edgeLabel[1]),:]
+        labeledges = size(edgeLabel,1)>0
+    end
+    if labeledges
+      tmp = setdiff(edgeLabel[1], [e.number for e in net.edge])
+      if length(tmp)>0
+        msg = "Some edge numbers in the edgeLabel data frame are not found in the network:\n"
+        for (a in tmp) msg *= string(" ",a); end
+        warn(msg)
+      end
+    end
     j=1
     for (i = 1:length(net.edge))
         if (!mainTree || !net.edge[i].hybrid || net.edge[i].isMajor)
@@ -237,7 +281,7 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
             edf[j,:num] = string(net.edge[i].number)
             if (labeledges)
               je = findfirst(edgeLabel[:,1],net.edge[i].number)
-              edf[j,:lab] = (je==0 ? edf[j,:lab] = "" :  # edge label not found in table
+              edf[j,:lab] = (je==0 || isna(edgeLabel[je,2]) ? "" :  # edge label not found in table
                 (eltype(edgeLabel[:,2])<:AbstractFloat ?
                   @sprintf("%0.3g",edgeLabel[je,2]) : string(edgeLabel[je,2])))
             end

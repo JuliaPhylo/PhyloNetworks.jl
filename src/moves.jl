@@ -182,6 +182,7 @@ changeDirection!(node::Node, net::HybridNetwork) = changeDirection!(node, net, t
 # returns success
 # if success=false, it undoes the change direction
 function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
+    global CHECKNET
     node.hybrid || error("cannot change the direction of minor hybrid edge since node $(node.number) is not hybrid")
     undoGammaz!(node,net)
     edgesRoot = identifyContainRoot(net,node);
@@ -410,7 +411,7 @@ function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, t
         setLength!(treej,(tj/(ti+tj))*t)
     end
     DEBUG && printEdges(net)
-    DEBUG && println(writeTopology(net))
+    DEBUG && println(writeTopologyLevel1(net))
     if(!undo)
         if(from_otheri)
             # -- update partition
@@ -635,6 +636,7 @@ end
 # input: network, hybrid node, othermin already chosen with chooseMinorMajor
 # returns: success (bool), flag, nocycle, flag2
 function moveOriginUpdate!(net::HybridNetwork, node::Node, othermin::Node, newedge::Edge)
+    global CHECKNET
     node.hybrid || error("node $(node.number) is not hybrid, so we cannot delete hybridization event around it")
     DEBUG && println("MOVE: move Origin for hybrid node $(node.number)")
     in(newedge,net.edge) || error("newedge $(newedge.number) not in net.edge")
@@ -1021,6 +1023,7 @@ moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, newedge::Edg
 # input: network, hybrid node, othermin, majoredge (chosen with chooseMinorMajor), newedge
 # returns: success (bool), flag2, flag3
 function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, majoredge::Edge, newedge::Edge)
+    global CHECKNET
     node.hybrid || error("node $(node.number) is not hybrid, so we cannot delete hybridization event around it")
     DEBUG && println("MOVE: move Target for hybrid node $(node.number)")
     in(newedge,net.edge) || error("newedge $(newedge.number) not in net.edge")

@@ -57,7 +57,7 @@ printEdges(currT)
 df = readtable("CaseH_output2.csv")
 d = readTableCF(df)
 
-@time optTopLevel!(currT,d,1,false)
+@time optTopLevel!(currT,d,1)
 
 
 tree = string("(1,2,((7,(8)#H5:5.814544267883624):0.9977876663423212,(#H5:1.0,4):0.0):1.9430580774498776);")
@@ -92,7 +92,7 @@ printEdges(currT)
 df = readtable("CaseH_output2.csv")
 d = readTableCF(df)
 
-@time optTopLevel!(currT,d,1,false)
+@time optTopLevel!(currT,d,1)
 
 tree = string("(4,6,(#H2:0.7392085405544356::0.046179825120885414,(7,(10,(8)#H2:0.0::0.9538201748791146):0.9803511144374873):2.212878358589699):0.00000073506);")
 f = open("prueba_tree.txt","w")
@@ -147,7 +147,7 @@ df = readtable("CaseF_output2.csv")
 d = readTableCF(df)
 
 
-@time optTopLevel!(currT,d,1,false)
+@time optTopLevel!(currT,d,1)
 
 printEdges(newT)
 
@@ -163,6 +163,6 @@ df = readtable("CaseF_output2.csv")
 d = readTableCF(df)
 
 
-@time optTopLevel!(currT,d,1,false)
+@time optTopLevel!(currT,d,1)
 
 printEdges(newT)

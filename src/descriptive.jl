@@ -13,12 +13,55 @@ end
 
 
 """
-`dfObsExpCF(d::DataCF)`
+`fittedQuartetCF(d::DataCF, format::Symbol)`
 
-function that will create a table with the observed and expected CF after estimation of a network with snaq(T,d).
+return a data frame with the observed and expected quartet concordance factors
+after estimation of a network with snaq(T,d).
+The format can be :wide (default) or :long.
+
+- if wide, the output has one row per 4-taxon set, and each row has 10 columns: 4 columns
+  for the taxon names, 3 columns for the observed CFs and 3 columns for the expected CF.
+- if long, the output has one row per quartet, i.e. 3 rows per 4-taxon sets, and 7 columns:
+  4 columns for the taxon names, one column to give the quartet resolution, one column for
+  the observed CF and the last column for the expected CF.
+
+see also: `topologyQPseudolik!` and `topologyMaxQPseudolik!` to update the fitted CF expected
+under a specific network, inside the DataCF object `d`.
 """
-function dfObsExpCF(d::DataCF)
-    df=DataFrame(obsCF1=[q.obsCF[1] for q in d.quartet],obsCF2=[q.obsCF[2] for q in d.quartet],obsCF3=[q.obsCF[3] for q in d.quartet], expCF1=[q.qnet.expCF[1] for q in d.quartet],expCF2=[q.qnet.expCF[2] for q in d.quartet],expCF3=[q.qnet.expCF[3] for q in d.quartet])
+function fittedQuartetCF(d::DataCF, format=:wide::Symbol)
+    if format == :wide
+        df=DataFrame(
+                 tx1 = [q.taxon[1] for q in d.quartet],
+                 tx2 = [q.taxon[2] for q in d.quartet],
+                 tx3 = [q.taxon[3] for q in d.quartet],
+                 tx4 = [q.taxon[4] for q in d.quartet],
+                obsCF12=[q.obsCF[1] for q in d.quartet],
+                obsCF13=[q.obsCF[2] for q in d.quartet],
+                obsCF14=[q.obsCF[3] for q in d.quartet],
+                expCF12=[q.qnet.expCF[1] for q in d.quartet],
+                expCF13=[q.qnet.expCF[2] for q in d.quartet],
+                expCF14=[q.qnet.expCF[3] for q in d.quartet])
+    elseif format == :long
+        nQ = length(d.quartet)
+        df = DataFrame(
+            tx1 = repeat([q.taxon[1] for q in d.quartet], inner=[3]),
+            tx2 = repeat([q.taxon[2] for q in d.quartet], inner=[3]),
+            tx3 = repeat([q.taxon[3] for q in d.quartet], inner=[3]),
+            tx4 = repeat([q.taxon[4] for q in d.quartet], inner=[3]),
+            quartet = repeat(["12_34","13_24","14_23"], outer=[nQ]),
+            obsCF = Array(Float64, 3*nQ),
+            expCF = Array(Float64, 3*nQ)  )
+        row = 1
+        for i in 1:nQ
+            for j in 1:3
+                df[row, 6] = d.quartet[i].obsCF[j]
+                df[row, 7] = d.quartet[i].qnet.expCF[j]
+                row += 1
+            end
+        end
+    else
+        error("format $(format) was not recognized. Should be :wide or :long.")
+    end
     return df
 end
 
@@ -35,7 +78,7 @@ end
 
 # function that we need to overwrite to avoid printing useless scary
 # output for HybridNetworks
-
+# PROBLEM: writeTopology changes the network and thus show changes the network
 function Base.show(io::IO, obj::HybridNetwork)
     disp = "$(typeof(obj)), "
     if obj.isRooted
@@ -56,13 +99,19 @@ function Base.show(io::IO, obj::HybridNetwork)
         if obj.numTaxa > 4 disptipslabels = disptipslabels * ", ..." end
         disp *= "tip labels: " * disptipslabels
     end
-    disp *= "\n$(writeTopology(obj))"
+    par = ""
+    try
+        # par = writeTopology(obj,round=true) # but writeTopology changes the network, not good
+        s = IOBuffer()
+        writeSubTree!(s, obj, false,true,false, true,3)
+        par = bytestring(s)
+    catch err
+        println("ERROR with writeSubTree!: $(err)\nTrying writeTopologyLevel1")
+        par = writeTopologyLevel1(obj)
+    end
+    disp *= "\n$par"
     println(io, disp)
 end
-
-# function show(io::IO, net::HybridNetwork)
-#     print(io,"$(writeTopology(net))")
-# end
 
 # and QuartetNetworks (which cannot be just written because they do not have root)
 function Base.show(io::IO, net::QuartetNetwork)
@@ -74,15 +123,10 @@ function Base.show(io::IO, net::QuartetNetwork)
 end
 
 function Base.show(io::IO,d::DataCF)
-    print(io,"-----------------------\n")
     print(io,"Object DataCF\n")
     print(io,"number of quartets: $(d.numQuartets)\n")
     if(d.numTrees != -1)
         print(io,"number of trees: $(d.numTrees)\n")
-        print(io,"For your object DataCF, you can access the list of Quartet types with the attribute .quartet. \nFor example, if your DataCF object is named d, d.quartet[1] will print the first quartet.")
-    else
-        print(io, "CF not computed from input gene trees, information on gene trees could be present in the quartets if the column ngenes was in the CF table.\n")
-        print(io,"For your object DataCF, you can access the list of Quartet types with the attribute .quartet, and the list of HybridNetwork types (if the input was a list of trees) with the attribute .tree. \nFor example, if your DataCF object is named d, d.quartet[1] will print the first quartet, and d.tree[1] will print the first tree.")
     end
 end
 
@@ -90,8 +134,8 @@ function Base.show(io::IO,q::Quartet)
     print(io,"number: $(q.number)\n")
     print(io,"taxon names: $(q.taxon)\n")
     print(io,"observed CF: $(q.obsCF)\n")
-    print(io,"-logPseudo-dev under best estimated network $(q.logPseudoLik) (meaningless before estimation)\n")
-    print(io,"expected CF under best estimated network: $(q.qnet.expCF) (meaningless before estimation)\n")
+    print(io,"pseudo-deviance under last used network: $(q.logPseudoLik) (meaningless before estimation)\n")
+    print(io,"expected CF under last used network: $(q.qnet.expCF) (meaningless before estimation)\n")
     if(q.ngenes != -1)
         print(io,"number of genes used to compute observed CF: $(q.ngenes)\n")
     end

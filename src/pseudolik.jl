@@ -1291,25 +1291,26 @@ end
 """
 `topologyQPseudolik!(net::HybridNetwork, d::DataCF)`
 
-function to calculate minus the log pseudolikelihood function of a given
-network/tree for certain DataCF.  Be careful if the net object does
+Calculate the quartet pseudo-deviance of a given network/tree for
+DataCF `d`. This is the negative log pseudo-likelihood,
+up to an additive constant, such that a perfect fit corresponds to a deviance of 0.0.
+
+Be careful if the net object does
 not have all internal branch lengths specified because then the
 pseudolikelihood will be meaningless.
+
+The loglik attribute of the network is undated, and `d` is updated with the expected
+concordance factors under the input network.
 """
 function topologyQPseudolik!(net0::HybridNetwork,d::DataCF; verbose=false::Bool)
-    # need a clean starting net. fixit: maybe we need to be more thorough here
-    # yes, need to check that everything is ok because it could have been cleaned and then modified
-    any([(e.length == -1.0 && e.istIdentifiable) for e in net0.edge]) && warn("identifiable edges lengths missing, so assigned default value of 1.0, but pseudolikelihood is meaningless")
-    #if(!net0.cleaned)
-        net = readTopologyUpdate(writeTopology(net0)) #re read to update everything as it should
-    # else
-    #     flag = checkNet(net0,true)
-    #     if(flag)
-    #         net = readTopologyUpdate(writeTopology(net0)) #re read to update everything as it should
-    #     else
-    #         net = deepcopy(net0)
-    #     end
-    # end
+    for (ed in net0.edge)
+      !ed.hybrid || (ed.gamma > 0.0) ||
+        error("hybrid edge has missing gamma value. Cannot compute quartet pseudo-likelihood")
+    end
+    missingBL = any([e.length < 0.0 for e in net0.edge]) # at least one BL was missing
+    net = readTopologyUpdate(writeTopologyLevel1(net0))  # update level-1 attributes. Changes <0 BL into 1.0
+    missingBL && any([(e.length == 1.0 && e.istIdentifiable) for e in net.edge]) &&
+      warn("identifiable edges lengths were originally missing, so assigned default value of 1.0")
     try
         checkNet(net)
     catch
@@ -1326,7 +1327,7 @@ function topologyQPseudolik!(net0::HybridNetwork,d::DataCF; verbose=false::Bool)
     end
     val = logPseudoLik(d)
     (DEBUG || verbose) && println("the value of pseudolikelihood is $(val)")
-    net.loglik = val
+    net0.loglik = val
     return val
 end
 

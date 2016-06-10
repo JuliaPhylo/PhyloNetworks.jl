@@ -16,7 +16,7 @@ try
     qnet.which != 1 ? error("qnet which not correctly assigned") : nothing
     qnet.hybrid[1].k != 3 ? error("qnet.hybrid[1].k not correctly assigned") : nothing
     qnet.hybrid[1].typeHyb != 2 ? error("qnet.hybrid[1].typeHyb not correctly assigned") : nothing
-    qnet.hybrid[1].prev.number != -6 ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
+    qnet.hybrid[1].prev.number != -7 ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
 
     eliminateHybridization!(qnet)
     size(qnet.hybrid,1) != 0 || qnet.numHybrids != 0 ? error("qnet should not have hybrid nodes anymore") : nothing
@@ -123,7 +123,7 @@ try
     qnet.which != 1 ? error("qnet which not correctly assigned") : nothing
     qnet.hybrid[1].k != 3 ? error("qnet.hybrid[1].k not correctly assigned") : nothing
     qnet.hybrid[1].typeHyb != 2 ? error("qnet.hybrid[1].typeHyb not correctly assigned") : nothing
-    qnet.hybrid[1].prev.number != -2 ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
+    qnet.hybrid[1].prev.number != -3 ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
 
     eliminateHybridization!(qnet)
     size(qnet.hybrid,1) != 0 || qnet.numHybrids != 0 ? error("qnet should not have hybrid nodes anymore") : nothing
@@ -340,7 +340,7 @@ try
     qnet.which != 1 ? error("qnet which not correctly assigned") : nothing
     qnet.hybrid[1].k != 3 ? error("qnet.hybrid[1].k not correctly assigned") : nothing
     qnet.hybrid[1].typeHyb != 4 ? error("qnet.hybrid[1].typeHyb not correctly assigned") : nothing
-    (qnet.hybrid[1].prev.number != -1 && qnet.hybrid[1].prev.number != -2) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
+    (qnet.hybrid[1].prev.number != -2 && qnet.hybrid[1].prev.number != -3) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
 
     eliminateHybridization!(qnet)
     size(qnet.hybrid,1) != 0 || qnet.numHybrids != 0 ? error("qnet should have 0 hybrid nodes") : nothing
@@ -367,7 +367,7 @@ try
     qnet.which != 1 ? error("qnet which not correctly assigned") : nothing
     qnet.hybrid[1].k != 3 ? error("qnet.hybrid[1].k not correctly assigned") : nothing
     qnet.hybrid[1].typeHyb != 4 ? error("qnet.hybrid[1].typeHyb not correctly assigned") : nothing
-    (qnet.hybrid[1].prev.number != -5 && qnet.hybrid[1].prev.number != -2) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
+    (qnet.hybrid[1].prev.number != -6 && qnet.hybrid[1].prev.number != -3) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
 
     eliminateHybridization!(qnet)
     size(qnet.hybrid,1) != 0 || qnet.numHybrids != 0 ? error("qnet should have 0 hybrid nodes") : nothing
@@ -396,7 +396,7 @@ try
     qnet.which != 1 ? error("qnet which not correctly assigned") : nothing
     qnet.hybrid[1].k != 3 ? error("qnet.hybrid[1].k not correctly assigned") : nothing
     qnet.hybrid[1].typeHyb != 4 ? error("qnet.hybrid[1].typeHyb not correctly assigned") : nothing
-    (qnet.hybrid[1].prev.number != -5 && qnet.hybrid[1].prev.number != -2) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
+    (qnet.hybrid[1].prev.number != -6 && qnet.hybrid[1].prev.number != -3) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
 
     eliminateHybridization!(qnet)
     size(qnet.hybrid,1) != 0 || qnet.numHybrids != 0 ? error("qnet should have 0 hybrid nodes") : nothing

@@ -17,7 +17,7 @@ success
 success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
 success
 printEdges(besttree)
-writeTopology(besttree,true)
+writeTopologyLevel1(besttree,true)
 net = deepcopy(besttree);
 
 q1 = Quartet(1,["1","2","3","4"],[0.5,0.4,0.1]);

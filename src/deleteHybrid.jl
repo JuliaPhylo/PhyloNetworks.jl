@@ -292,6 +292,9 @@ Deletes a hybrid edge from a network. The network does not have to be of level 1
 and may contain some polytomies. Updates branch lengths, allowing for missing values.
 Returns the network.
 
+At each of the 2 junctions, the child edge is retained (i.e. the tree edge is retained,
+below the hybrid node).
+
 Warnings:
 
 - does **not** update containRoot (could be implemented later)
@@ -319,7 +322,7 @@ function deleteHybridEdge!(net::HybridNetwork,edge::Edge)
         atRoot = false
         if (net.node[net.root] == n1) # n1=root, which should not happen
             atRoot = true # later: pn will be new root
-            warn("hybrid node $(n1.number) was the root, should not have happened. Node $(pn.number) will be new root.")
+            #warn("hybrid node $(n1.number) was the root, should not have happened. Node $(pn.number) will be new root.")
         end
         # next: replace ce by pe+ce, remove n1 and pe from network.
         ce.length = addBL(ce.length, pe.length)
@@ -328,7 +331,7 @@ function deleteHybridEdge!(net::HybridNetwork,edge::Edge)
         ce.isChild1 = true
         setEdge!(pn,ce)
         removeEdge!(pn,pe)
-        if (pe.number<ce.number) ce.number = pe.number; end
+        # if (pe.number<ce.number) ce.number = pe.number; end # bad to match edges between networks
         deleteEdge!(net,pe,part=false) # decreases net.numEdges   by 1
         deleteNode!(net,n1) # decreases net.numHybrids by 1, numNodes too.
         # warning: containRoot could be updated in ce and down the tree.
@@ -372,8 +375,8 @@ function deleteHybridEdge!(net::HybridNetwork,edge::Edge)
         atRoot = false
         if (net.node[net.root] == n2) # n2=root
             atRoot = true # later: other node of pe will be new root
-            (n2==ce.node[(ce.isChild1 ? 2 : 1)] && n2==pe.node[(pe.isChild1 ? 2 : 1)]) ||
-              warn("node $(n2.number) being the root is contradicted by isChild1 of its edges.")
+            #(n2==ce.node[(ce.isChild1 ? 2 : 1)] && n2==pe.node[(pe.isChild1 ? 2 : 1)]) ||
+            #  warn("node $(n2.number) being the root is contradicted by isChild1 of its edges.")
         end
         # next: replace ce by pe+ce, remove n2 and pe from network.
         pn = getOtherNode(pe,n2) # parent node of n2 if n2 not root. Otherwise, pn will be new root.
@@ -383,7 +386,7 @@ function deleteHybridEdge!(net::HybridNetwork,edge::Edge)
         ce.isChild1 = true
         setEdge!(pn,ce)
         removeEdge!(pn,pe)
-        if (pe.number<ce.number) ce.number = pe.number; end
+        # if (pe.number<ce.number) ce.number = pe.number; end # bad to match edges between networks
         deleteEdge!(net,pe,part=false)
         deleteNode!(net,n2)
         if (atRoot)

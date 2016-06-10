@@ -50,7 +50,7 @@ for t in tests
     net = readTopologyUpdate("prueba_tree.txt");
     printEdges(net)
     printNodes(net)
-    written = writeTopology(net)
-    written2 = writeTopology(net,true)
+    written = writeTopologyLevel1(net)
+    written2 = writeTopologyLevel1(net,true)
     tree
 end

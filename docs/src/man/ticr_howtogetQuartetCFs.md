@@ -1,4 +1,8 @@
-# Inserting data into the TICR pipeline at various stages
+# TICR pipeline
+
+This page provides details to insert data into the TICR pipeline at various stages.
+Full information and code for this pipeline is [here](https://github.com/nstenz/TICR).
+
 ## To run MrBayes: You already have alignments
 If you don't need to run mdl.pl because you already have aligned gene sequences which you would like to run through MrBayes, you can simply create a tarball of the Nexus files (fasta won't work at this stage) you wish to use. This command assumes that you want to use all the files ending with ".nex" in the current directory, one file per locus:
 
@@ -10,6 +14,14 @@ Once the tarball has been successfully generated, you can then specify this file
 
 `
 mb.pl my-genes.tar.gz -m bayes.txt -o my-genes-mb
+`
+
+If you get an error message like `mb.pl: Command not found`, it might be because
+`mb.pl` has no execute permission or your current directory is not in your path.
+An easy fix is to run this command instead:
+
+`
+perl mb.pl my-genes.tar.gz -m bayes.txt -o my-genes-mb
 `
 
 The resulting output tarball would now be located in my-genes-mb/my-genes.mb.tar, and can be used normally with [bucky.pl](https://github.com/nstenz/TICR/blob/master/scripts/bucky.pl), that is, like this:
@@ -40,6 +52,12 @@ tar czf my-genes-mbsum.tar.gz gene*.in
 `
 
 You can now use this tarball along with the -s option in [bucky.pl](https://github.com/nstenz/TICR/blob/master/scripts/bucky.pl) like this:
+
+`
+bucky.pl my-genes-mbsum.tar.gz -s -o mygenes-bucky
+`
+
+Again, if you get an error like `bucky.pl: Command not found`, run instead
 
 `
 bucky.pl my-genes-mbsum.tar.gz -s -o mygenes-bucky

@@ -14,7 +14,14 @@
 # 5) updateGammaz!
 
 # -------------- EDGE -------------------------#
+"""
+ `ANode`
 
+Abstract node. An object of type `Edge` has a `node` attribute,
+which is an vector of (2) ANode objects.
+The oject of type `Node` is an `ANode`, and has an `edge` attribute,
+which is vector of `Edge` objects.
+"""
 abstract ANode
 
 # warning: inCycle and containRoot are updated after edge is part of a network
@@ -243,6 +250,11 @@ type that contains the following attributes:
 - tree (vector of trees: empty if a table of CF was input instead of list of trees)
 - numTrees (-1 if a table CF was input instead of list of trees)
 - repSpecies (taxon names that were repeated in table of CF or input gene trees: used inside snaq for multiple alleles case)
+
+The list of Quartet may be accessed with the attribute .quartet.
+If the input was a list of trees, the HybridNetwork's can be accessed with the attribute .tree.
+For example, if the DataCF object is named d, d.quartet[1] will show the first quartet
+and d.tree[1] will print the first input tree.
 """
 type DataCF
     quartet::Array{Quartet,1} # array of quartets read from CF output table or list of quartets in file

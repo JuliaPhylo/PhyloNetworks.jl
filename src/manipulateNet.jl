@@ -1,20 +1,37 @@
+"""
+`undirectedOtherNetworks(net::HybridNetwork)`
+
+Returns a vector of HybridNetwork object, obtained by switching the hybrid node to other nodes inside its cycle. Optional argument is outgroup. If outgroup is specified, then networks conflicting with the placement of the root are avoided.
+
+# Example #"
+```julia
+julia> net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
+julia> vnet = undirectedOtherNetworks(net)
+```
+""" #"
 # function to give all the networks obtained from moving the hybrid node
 # inside its cycle
 # WARNING: assumes net has all the attributes. It is called inside optTopRuns only
-function undirectedOtherNetworks(net0::HybridNetwork)
+# Potential bug: if new node is -1, then inCycle will become meaningless: changed in readSubTree here
+# WARNING: does not update partition, because only thing to change is hybrid node number
+## insideSnaq=true means that all attributes are perfect
+function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractString, insideSnaq=false::Bool)
+    if(!insideSnaq)
+        net0 = readTopologyLevel1(writeTopologyLevel1(net0))
+    end
     otherNet = HybridNetwork[]
     for(i in 1:net0.numHybrids) #need to do for by number, not node
         net = deepcopy(net0) # to avoid redoing attributes after each cycle is finished
         ## undo attributes at current hybrid node:
         hybrid = net.hybrid[i]
         nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,hybrid);
+        DEBUG && println("nodesInCycle are: $([n.number for n in nodesInCycle])")
         !nocycle || error("the hybrid node $(hybrid.number) does not create a cycle")
         edgesRoot = identifyContainRoot(net,hybrid);
         edges = hybridEdges(hybrid);
         undoGammaz!(hybrid,net);
         othermaj = getOtherNode(edges[1],hybrid)
         edgesmaj = hybridEdges(othermaj)
-        DEBUG && println("edgesmaj[3] $(edgesmaj[3].number) is the one to check if containRoot=false already: $(edgesmaj[3].containRoot)")
         if(edgesmaj[3].containRoot) #if containRoot=true, then we need to undo
             undoContainRoot!(edgesRoot);
         end
@@ -23,12 +40,19 @@ function undirectedOtherNetworks(net0::HybridNetwork)
             if(newn.number != hybrid.number) # nodesInCycle contains the hybrid too
                 newnet = deepcopy(net)
                 newnocycle, newedgesInCycle, newnodesInCycle = identifyInCycle(newnet,newnet.hybrid[i]);
+                !newnocycle || error("the hybrid node $(newnet.hybrid[i].number) does not create a cycle")
                 ind = getIndexNode(newn.number,newnet) # find the newn node in the new network
+                DEBUG && println("moving hybrid to node $(newnet.node[ind].number)")
                 hybridatnode!(newnet, newnet.hybrid[i], newnet.node[ind])
+                DEBUG && printEdges(newnet)
+                DEBUG && printNodes(newnet)
                 undoInCycle!(newedgesInCycle, newnodesInCycle);
+                DEBUG && printEdges(newnet)
+                DEBUG && printNodes(newnet)
                 ##undoPartition!(net,hybrid, edgesInCycle)
                 success, hybrid0, flag, nocycle, flag2, flag3 = updateAllNewHybrid!(newnet.node[ind], newnet, false,false,false)
                 if(success)
+                    DEBUG && println("successfully added new network: $(writeTopologyLevel1(newnet))")
                     push!(otherNet,newnet)
                 else
                     println("the network obtained by putting the new hybrid in node $(newnet.node[ind].number) is not good, inCycle,gammaz,containRoot: $([flag,flag2,flag3]), we will skip it")
@@ -36,36 +60,48 @@ function undirectedOtherNetworks(net0::HybridNetwork)
             end
         end
     end
-    return otherNet
+    # check root in good position
+    if(outgroup == "none")
+        for(n in otherNet)
+            !isTree(n) && checkRootPlace!(n, verbose=false)
+        end
+        return otherNet
+    else ## root already in good place
+        DEBUG && println("we will remove networks contradicting the outgroup in undirectedOtherNetworks")
+        whichKeep = ones(Bool,length(otherNet)) # repeats 'true'
+        i = 1
+        for(n in otherNet)
+            if(!isTree(n))
+                try
+                    checkRootPlace!(n, verbose=true, outgroup=outgroup)
+                catch
+                    DEBUG && println("found one network incompatible with outgroup")
+                    DEBUG && println("$(writeTopologyLevel1(n))")
+                    whichKeep[i] = false
+                end
+            end
+            i = i+1;
+        end
+        return otherNet[whichKeep]
+    end
 end
-
-
-
-
-
-
-
-
-
 
 # function to change the hybrid node in a cycle
 # will try to update incycle inside
-## """
-## `hybridatnode!(net::HybridNetwork, nodeNumber::Int64)`
+"""
+`hybridatnode!(net::HybridNetwork, nodeNumber::Int64)`
 
-## Changes the hybrid in a cycle to the node defined in nodeNumber. The
-## node with nodeNumber must be in a cycle. If the node is not in a
-## cycle, this function will prompt an error.
+Changes the hybrid in a cycle to the node with number `nodeNumber`.
+This node must be in one (and only one) cycle, otherwise an error will be thrown.
 
-## # Example
-## ```julia
-## julia> net =
-## readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
-## julia> plot(net, showNodeNumber=true)
-## julia> hybridatnode!(net, -4)
-## julia> plot(net)
-## ```
-## """
+# Example #"
+```julia
+julia> net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
+julia> plot(net, showNodeNumber=true)
+julia> hybridatnode!(net, -4)
+julia> plot(net)
+```
+""" #"
 function hybridatnode!(net::HybridNetwork, nodeNumber::Int64)
     undoInCycle!(net.edge, net.node)
     for(n in net.hybrid)
@@ -110,11 +146,11 @@ function hybridatnode!(net::HybridNetwork, hybrid::Node, newNode::Node)
                 found = true
                 makeEdgeHybrid!(e,newNode, 0.51, switchHyb=true) #first found, major edge, need to optimize gamma anyway
                 ##e.gamma = -1
-                e.containRoot = true
+                ##e.containRoot = true ## need attributes like in snaq
             else
                 makeEdgeHybrid!(e,newNode, 0.49, switchHyb=true) #second found, minor edge
                 ##e.gamma = -1
-                e.containRoot = true
+                ##e.containRoot = true
             end
         end
     end
@@ -125,7 +161,7 @@ end
 # does not modify net0 because it needs to update all attributes
 # so, it returns the new network
 function hybridatnode(net0::HybridNetwork, nodeNumber::Int64)
-    net = readTopologyUpdate(writeTopology(net0)) # we need inCycle attributes
+    net = readTopologyLevel1(writeTopologyLevel1(net0)) # we need inCycle attributes
     ind = 0
     try
         ind = getIndexNode(nodeNumber,net)
@@ -166,16 +202,10 @@ function hybridatnode(net0::HybridNetwork, nodeNumber::Int64)
 end
 
 
-
-
-
-
 """
-`rootatnode!(HybridNetwork, nodeNumber::Int64; index=false::Bool)`
-
-`rootatnode!(HybridNetwork, Node)`
-
-`rootatnode!(HybridNetwork, nodeName::AbstractString)`
+    rootatnode!(HybridNetwork, nodeNumber::Int64; index=false::Bool)
+    rootatnode!(HybridNetwork, Node)
+    rootatnode!(HybridNetwork, nodeName::AbstractString)
 
 Roots the network/tree object at the node with name 'nodeName' or
 number 'nodeNumber' (by default) or with index 'nodeNumber' if index=true.
@@ -183,14 +213,16 @@ Attributes isChild1 and containRoot are updated along the way.
 Use `plot(net, showNodeNumber=true, showEdgeLength=false)` to
 visualize and identify a node of interest.
 
+Returns the network.
+
 Warnings:
+
 - If the node is a leaf, the root will be placed along
   the edge adjacent to the leaf, with a message. This might add a new node.
-- If the desired root placement is incompatible with one or more hybrids,
-  then the network will still have some attributes modified.
+- If the desired root placement is incompatible with one or more hybrids, then
 
-Returns the network. Gives a message if the desired root placement was in
-conflict with the direction of any hybrid edge.
+  * a RootMismatch error is thrown
+  * the input network will still have some attributes modified.
 
 See also: `rootonedge!`.
 """
@@ -237,7 +269,8 @@ function rootatnode!(net::HybridNetwork, nodeNumber::Int64; index=false::Bool)
           if isa(e, RootMismatch) # new root incompatible with hybrid directions: revert back
             println("RootMismatch: ", e.msg, "\nReverting to old root position.")
             net.root = rootsaved
-          else rethrow(e); end
+          end
+          rethrow(e)
         end
         if (net.root != rootsaved && length(net.node[rootsaved].edge)==2)
             fuseedgesat!(rootsaved,net) # remove old root node if degree 2
@@ -248,9 +281,8 @@ end
 
 
 """
-`rootonedge!(HybridNetwork, edgeNumber::Int64; index=false::Bool)`
-
-`rootonedge!(HybridNetwork, Edge)`
+    rootonedge!(HybridNetwork, edgeNumber::Int64; index=false::Bool)
+    rootonedge!(HybridNetwork, Edge)
 
 Roots the network/tree object along an edge with number 'edgeNumber' (by default)
 or with index 'edgeNumber if index=true. Attributes isChild1 and containRoot are
@@ -286,7 +318,8 @@ function rootonedge!(net::HybridNetwork, edgeNumber::Int64; index=false::Bool)
         println("RootMismatch: ", e.msg, "\nReverting to old root position.")
         fuseedgesat!(net.root,net) # reverts breakedge!
         net.root = rootsaved
-      else rethrow(e); end
+      end
+      rethrow(e)
     end
     if (net.root != rootsaved && length(net.node[rootsaved].edge)==2)
         fuseedgesat!(rootsaved,net) # remove old root node if degree 2
@@ -421,9 +454,8 @@ function root!(net::HybridNetwork, node::Node, resolve::Bool)
 end
 
 """
-`root!(net::HybridNetwork, nodeNumber::Int64, resolve::Bool)`
-
-`root!(net::HybridNetwork, nodeNumber::Int64)`
+    root!(net::HybridNetwork, nodeNumber::Int64, resolve::Bool)
+    root!(net::HybridNetwork, nodeNumber::Int64)`
 
 Roots the network/tree object at the node with number 'nodeNumber'.
 With resolve=true, the polytomy at the root is resolved arbitrarily (??) with a branch of length 0.
@@ -544,9 +576,8 @@ function root!(net::HybridNetwork, outgroup::AbstractString)
 end
 
 """
-`root!(net::HybridNetwork, edge::Edge)`
-
-`root!(net::HybridNetwork, edgeNumber::Int64)`
+    root!(net::HybridNetwork, edge::Edge)
+    root!(net::HybridNetwork, edgeNumber::Int64)
 
 Roots the network/tree object along an edge with number 'edgeNumber'.
 This adds a new node (and a new edge) to the network.
@@ -634,6 +665,7 @@ It is not used in directEdges!, but might cause an error elsewhere.")
             # none of those attributes are used here.
         end
     end
+    net.cleaned = false # attributed used by snaq! Will change isChild1 and containRoot
     for(e in net.node[net.root].edge)
         traverseDirectEdges!(net.node[net.root],e,true)
     end
@@ -801,13 +833,12 @@ on the network, as shown in the examples below.
 Warning: assumes that edges are correctly directed (isChild1 updated). This is done
 by plot(net). Otherwise run directEdges!(net).
 
-# Example
+# Example #"
 ```julia
 julia> net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 julia> plot(net, showNodeNumber=true)
 julia> rotate!(net, -4)
 julia> plot(net)
-
 julia> net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.136):10.0);");
 julia> plot(net, showNodeNumber=true, showEdgeNumber=true)
 julia> rotate!(net, -1, orderedEdgeNum=[1,12,9])
@@ -815,7 +846,7 @@ julia> plot(net, showNodeNumber=true, showEdgeNumber=true)
 julia> rotate!(net, -3)
 julia> plot(net)
 ```
-"""
+""" #"
 function rotate!(net::HybridNetwork, nnum::Int64; orderedEdgeNum=Int64[]::Array{Int64,1})
     nind = 0
     try
@@ -851,9 +882,9 @@ end
 
 
 """
-`deleteleaf!(HybridNetwork,Int64; index=false, simplify=true)`
-`deleteleaf!(HybridNetwork,leafName::AbstractString; simplify=true)`
-`deleteleaf!(HybridNetwork,Node; simplify=true)`
+    deleteleaf!(HybridNetwork,Int64; index=false, simplify=true)
+    deleteleaf!(HybridNetwork,leafName::AbstractString; simplify=true)
+    deleteleaf!(HybridNetwork,Node; simplify=true)
 
 Deletes a leaf node from the network, possibly from its name, number, or index
 in the network's array of nodes.

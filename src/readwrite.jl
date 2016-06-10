@@ -20,7 +20,7 @@ end
 function advance!(s::IO, c::Char, numLeft::Array{Int64,1})
     c = peekchar(s)
     if(Base.eof(s))
-        error("Tree ends prematurely while reading subtree after left parenthesis $(numLeft[1]).")
+        error("Tree ends prematurely while reading subtree after left parenthesis $(numLeft[1]-1).")
     end
     return read(s,Char)
 end
@@ -45,11 +45,11 @@ function readNum(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int64,1})
                c = peekchar(s);
                if(isalnum(c))
                    if(c != 'L' && c != 'H' && c != 'R')
-                       warn("Expected H, R or LGT after # but received $(c) in left parenthesis $(numLeft[1]).")
+                       warn("Expected H, R or LGT after # but received $(c) in left parenthesis $(numLeft[1]-1).")
                    end
                else
                    a = readall(s);
-                   error("Expected name after # but received $(c) in left parenthesis $(numLeft[1]). Remaining is $(a).")
+                   error("Expected name after # but received $(c) in left parenthesis $(numLeft[1]-1). Remaining is $(a).")
                end
             end
             c = peekchar(s);
@@ -124,7 +124,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
                keepon = false
            elseif (c != ',')
                a = readall(s);
-               error("Expected right parenthesis after left parenthesis $(numLeft[1]) but read $(c). The remainder of line is $(a).")
+               error("Expected right parenthesis after left parenthesis $(numLeft[1]-1) but read $(c). The remainder of line is $(a).")
            end
        end
         c = peekchar(s);
@@ -133,9 +133,9 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
             num,name,pound = readNum(s,c,net,numLeft);
             n.number = num;
             c = peekchar(s);
-            if(!pound)
-                warn("internal node with name without it being a hybrid node. node name might be meaningless after tree modifications.")
-            end
+            #if(!pound)
+            #    warn("internal node with name without it being a hybrid node. node name might be meaningless after tree modifications.")
+            #end
         end
     elseif(isalnum(c) || isValidSymbol(c) || c == '#')
         hasname = true;
@@ -144,7 +144,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
         n = Node(num,true);
     else
         a = readall(s);
-        error("Expected beginning of subtree but read $(c) after left parenthesis $(numLeft[1]), remaining is $(a).");
+        error("Expected beginning of subtree but read $(c) after left parenthesis $(numLeft[1]-1), remaining is $(a).");
     end
     if(pound) # found pound sign in name
         n.hybrid = true;
@@ -244,10 +244,10 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
                                 setGamma!(e,length, false, true);
                             end
                         else
-                            warn("third colon : without gamma value after in $(numLeft[1]) left parenthesis, ignored")
+                            warn("third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored")
                         end
                     else
-                        e.hybrid ? error("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1])") : nothing
+                        e.hybrid ? error("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1]-1)") : nothing
                     end
                 elseif(c == ':')
                     c = read(s, Char);
@@ -260,10 +260,10 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
                             setGamma!(e,length, false, true);
                         end
                     else
-                        warn("third colon : without gamma value after in $(numLeft[1]) left parenthesis, ignored.")
+                        warn("third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored.")
                     end
                 else
-                    warn("second colon : read without any double in left parenthesis $(numLeft[1]), ignored.")
+                    warn("second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.")
                 end
             else
                 e.gamma = e.hybrid ? -1.0 : 1.0 # set missing gamma to -1.0
@@ -286,10 +286,10 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
                             setGamma!(e,length, false, true);
                         end
                     else
-                        warn("third colon : without gamma value after in $(numLeft[1]) left parenthesis, ignored")
+                        warn("third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored")
                     end
                 else
-                    e.hybrid ? warn("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1])") : nothing
+                    e.hybrid ? warn("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1]-1)") : nothing
                 end
             elseif(c == ':')
                 c = read(s, Char);
@@ -302,13 +302,13 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
                         setGamma!(e,length, false, true);
                     end
                 else
-                    warn("third colon : without gamma value after in left parenthesis number $(numLeft[1]), ignored")
+                    warn("third colon : without gamma value after in left parenthesis number $(numLeft[1]-1), ignored")
                 end
             else
-                warn("second colon : read without any double in left parenthesis $(numLeft[1]), ignored.")
+                warn("second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.")
             end
         else
-            warn("one colon read without double in left parenthesis $(numLeft[1]), ignored.")
+            warn("one colon read without double in left parenthesis $(numLeft[1]-1), ignored.")
         end
     else
         e.length = -1.0 # do not use setLength because it does not allow BL too negative
@@ -338,7 +338,8 @@ function readTopology(input::AbstractString,verbose::Bool)
 end
 
 """
-`readTopology(file name); readTopology(parenthetical description)`
+    readTopology(file name)
+    readTopology(parenthetical description)
 
 function to read tree or network topology from parenthetical format.
 Input: text file or parenthetical format directly.
@@ -355,7 +356,7 @@ function readTopology(s::IO,verbose::Bool)
     end
     seekstart(s)
     c = peekchar(s)
-    numLeft = [0]; # made Array to make it mutable
+    numLeft = [1]; # made Array to make it mutable; start at 1 to avoid node -1 which breaks undirectedOtherNetworks
     hybrids = ASCIIString[];
     index = Int64[];
     if(c == '(')
@@ -368,7 +369,7 @@ function readTopology(s::IO,verbose::Bool)
            b |= readSubtree!(s,n,numLeft,net,hybrids,index)
            c = read(s,Char);
            if(eof(s))
-               error("Tree ended while reading in subtree beginning with left parenthesis number $(numLeft[1]).")
+               error("Tree ended while reading in subtree beginning with left parenthesis number $(numLeft[1]-1).")
            elseif(c == ',')
                continue;
            elseif(c == ')')
@@ -589,8 +590,8 @@ function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
                     end
                     suma = sum([e.hybrid?e.gamma:0 for e in n.edge]);
                     if(suma == -2)
-                        warn("hybrid edges in read network without gammas")
-                        println("hybrid edges for hybrid node $(n.number) do not contain gamma value, set default: 0.9,0.1")
+                        #warn("hybrid edges in read network without gammas")
+                        println("hybrid edges for hybrid node $(n.number) have missing gamma's, set default: 0.9,0.1")
                         for(e in n.edge)
                             if(e.hybrid)
                                 (!e.isMajor) ? setGamma!(e,0.1, false, true) : setGamma!(e,0.9, false, true)
@@ -726,7 +727,8 @@ readTopologyUpdate(file::AbstractString) = readTopologyUpdate(file, false, true)
 readTopologyUpdate(file::AbstractString,verbose::Bool) = readTopologyUpdate(file, false, verbose)
 
 """
-`readTopologyLevel1(filename); readTopologyLevel1(parenthetical format)`
+    readTopologyLevel1(filename)
+    readTopologyLevel1(parenthetical format)
 
 same as readTopology, reads a tree or network from parenthetical
 format, but this function enforces the necessary conditions for any
@@ -737,25 +739,71 @@ readTopologyLevel1(file::AbstractString) = readTopologyUpdate(file, false, true)
 
 
 # aux function to check if the root is placed correctly, and re root if not
-# warning: it needs updateCR set
-function checkRootPlace!(net::HybridNetwork)
-    if(!canBeRoot(net.node[net.root]))
-        #warn("root node $(net.node[net.root].number) placement is not ok, we will change it to the first found node that agrees with the direction of the hybrid edges")
-        for(i in 1:length(net.node))
-            if(canBeRoot(net.node[i]))
-                net.root = i
-                break
+# warning: it needs updateContainRoot set
+function checkRootPlace!(net::HybridNetwork; verbose=false::Bool, outgroup="none"::AbstractString)
+    if(outgroup == "none")
+        if(!canBeRoot(net.node[net.root]))
+            verbose && println("root node $(net.node[net.root].number) placement is not ok, we will change it to the first found node that agrees with the direction of the hybrid edges")
+            for(i in 1:length(net.node))
+                if(canBeRoot(net.node[i]))
+                    net.root = i
+                    break
+                end
             end
+        end
+    else # outgroup
+        tmp = findin([n.name for n in net.leaf], [outgroup])
+        if length(tmp)==0
+            error("leaf named $(outgroup) was not found in the network.")
+        elseif length(tmp)>1
+            error("several leaves were found with name $(outgroup).")
+        end
+        leaf = net.leaf[tmp[1]]
+        leaf.leaf || error("found outgroup not a leaf: $(leaf.number), $(outgroup)")
+        length(leaf.edge) == 1 || error("found leaf with more than 1 edge: $(leaf.number)")
+        other = getOtherNode(leaf.edge[1],leaf);
+        if(canBeRoot(other))
+            net.root = getIndexNode(other.number,net)
+        else
+            throw(RootMismatch("outgroup $(outgroup) contradicts direction of hybrid edges"))
         end
     end
     canBeRoot(net.node[net.root]) || error("tried to place root, but couldn't. root is node $(net.node[net.root])")
 end
 
+
+
+
     # --------------------------- write topology -------------------------------------
-# function to write a node and its descendants in
-#parenthetical format
+# function to write a node and its descendants in parenthetical format
 # di=true in densdroscope format, names=true, prints names
-function writeSubTree!(s::IO, n::Node, parent::Edge,di::Bool,names::Bool, printID::Bool)
+writeSubTree!(s::IO, n::Node, parent::Edge, di::Bool, names::Bool, printID::Bool) =
+    writeSubTree!(s,n,parent,di,names,printID, true,3)
+
+# method to start at the root and write the whole tree/network
+function writeSubTree!(s::IO, net::HybridNetwork, di::Bool, names::Bool, printID::Bool,
+                       roundBL::Bool, digits::Integer)
+    if net.numNodes == 1
+        print(s,string(net.node[net.root].number))
+    elseif net.numNodes > 1
+        print(s,"(")
+        degree = length(net.node[net.root].edge)
+        for(e in net.node[net.root].edge)
+            writeSubTree!(s,getOtherNode(e,net.node[net.root]),e,di,names,printID,roundBL,digits)
+            degree -= 1
+            if(degree > 0)
+                print(s,",")
+            end
+        end
+        print(s,")")
+    end
+    print(s,";")
+    return nothing
+end
+
+# method to start at a node coming from an adjacent (parent) edge
+function writeSubTree!(s::IO, n::Node, parent::Edge,di::Bool,names::Bool, printID::Bool,
+                       roundBL::Bool, digits::Integer)
     if((parent.hybrid && !parent.isMajor) || n.leaf)
         if(names)
             if(n.name != "")
@@ -778,7 +826,7 @@ function writeSubTree!(s::IO, n::Node, parent::Edge,di::Bool,names::Bool, printI
         for(e in n.edge)
             if(!isEqual(e,parent) && !(e.hybrid && parent.hybrid))
                 child = getOtherNode(e,n)
-                writeSubTree!(s,child,e, di,names, printID)
+                writeSubTree!(s,child,e, di,names, printID, roundBL, digits)
                 if(!parent.hybrid) #cecile handles this step differently: if(parent.hybrid) numChildren-=1 end
                     numChildren -= 1
                     if(numChildren > 0)
@@ -804,25 +852,26 @@ function writeSubTree!(s::IO, n::Node, parent::Edge,di::Bool,names::Bool, printI
     if(printID) #which BL to print
         if(!n.leaf)
             if(parent.istIdentifiable && parent.length >= 0.0) #we do not want to print BL of non-id edges
-                print(s,string(":",round(parent.length,3)))
+                print(s,string(":",(roundBL ? round(parent.length,digits) : parent.length)))
                 printBL = true
             end
         end
     else
         if(parent.length >= 0.0) #print all BL != -1
-            print(s,string(":",round(parent.length,3)))
+            print(s,string(":",(roundBL ? round(parent.length,digits) : parent.length)))
             printBL = true
         end
     end
     if(parent.hybrid && !di && (!printID || !n.isBadDiamondI))
         if(parent.gamma != -1.0)
             if(!printBL) print(s,":"); end
-            print(s,string("::",round(parent.gamma,3)))
+            print(s,string("::",(roundBL ? round(parent.gamma,digits) : parent.gamma)))
         end
     end
 end
 
-# function to writeTopology
+# function to writeTopology for level 1 networks. bad net.root okay
+#                           deepcopies net -> does *not* modify it
 # if string=true, returns a string with network in parenthetical format
 #                 ow returns the IOBuffer object
 # need as input HybridNetwork, since QuartetNetwork does not have root
@@ -831,9 +880,10 @@ end
 # outgroup: place the root in the external edge of this taxon if possible,
 # if none given, placed the root wherever possible
 # printID=true, only print identifiable BL, default false (only true inside snaq)
-function writeTopology(net0::HybridNetwork, di::Bool, str::Bool, names::Bool,outgroup::AbstractString, printID::Bool)
+
+function writeTopologyLevel1(net0::HybridNetwork, di::Bool, str::Bool, names::Bool,outgroup::AbstractString, printID::Bool, roundBL::Bool, digits::Integer)
     s = IOBuffer()
-    writeTopology(net0,s,di,names,outgroup,printID)
+    writeTopologyLevel1(net0,s,di,names,outgroup,printID,roundBL,digits)
     if(str)
         return bytestring(s)
     else
@@ -841,9 +891,11 @@ function writeTopology(net0::HybridNetwork, di::Bool, str::Bool, names::Bool,out
     end
 end
 
-# warning: I do not want writeTopology to modify the network if outgroup is given! thus, we have updateRoot, and undoRoot
-function writeTopology(net0::HybridNetwork, s::IO, di::Bool, names::Bool,outgroup::AbstractString, printID::Bool)
-    net = deepcopy(net0) #writeTopology needs containRoot, but should not alter net0
+# warning: I do not want writeTopologyLevel1 to modify the network if outgroup is given! thus, we have updateRoot, and undoRoot
+function writeTopologyLevel1(net0::HybridNetwork, s::IO, di::Bool, names::Bool,
+           outgroup::AbstractString, printID::Bool, roundBL::Bool, digits::Integer)
+    global CHECKNET
+    net = deepcopy(net0) #writeTopologyLevel1 needs containRoot, but should not alter net0
     if(net.numBad > 0)
         println("net has $(net.numBad) bad diamond I, gammas and some branch lengths are not identifiable, and therefore, meaningless")
     end
@@ -851,7 +903,7 @@ function writeTopology(net0::HybridNetwork, s::IO, di::Bool, names::Bool,outgrou
         print(s,string(net.node[net.root].number,";")) # error if 'string' is an argument name.
     else
         if(!isTree(net) && !net.cleaned)
-            DEBUG && println("net not cleaned inside writeTopology, need to run updateContainRoot")
+            DEBUG && println("net not cleaned inside writeTopologyLevel1, need to run updateContainRoot")
             for(n in net.hybrid)
                 flag,edges = updateContainRoot!(net,n)
                 flag || error("hybrid node $(n.hybrid) has conflicting containRoot")
@@ -863,7 +915,7 @@ function writeTopology(net0::HybridNetwork, s::IO, di::Bool, names::Bool,outgrou
         CHECKNET && canBeRoot(net.node[net.root])
         degree = length(net.node[net.root].edge)
         for(e in net.node[net.root].edge)
-            writeSubTree!(s,getOtherNode(e,net.node[net.root]),e,di,names, printID)
+            writeSubTree!(s,getOtherNode(e,net.node[net.root]),e,di,names, printID, roundBL,digits)
             degree -= 1
             if(degree > 0)
                 print(s,",")
@@ -871,16 +923,18 @@ function writeTopology(net0::HybridNetwork, s::IO, di::Bool, names::Bool,outgrou
         end
         print(s,");")
     end
-    outgroup != "none" && undoRoot!(net) #to delete the node with only two edges: all snaq functions assume internal nodes have 3 edges: you write it rooted but don't change it
+    # outgroup != "none" && undoRoot!(net) # not needed because net is deepcopy of net0
+    # to delete 2-degree node, for snaq.
 end
 
-#writeTopology(net::HybridNetwork) = writeTopology(net,false, true,true,"none") #not needed because of last function definition
-writeTopology(net::HybridNetwork,printID::Bool) = writeTopology(net,false, true,true,"none",printID)
-writeTopology(net::HybridNetwork,outgroup::AbstractString) = writeTopology(net,false, true,true,outgroup,true)
-writeTopology(net::HybridNetwork,di::Bool,outgroup::AbstractString) = writeTopology(net,di, true,true,outgroup,true)
+writeTopologyLevel1(net::HybridNetwork,di::Bool,str::Bool,names::Bool,outgroup::AbstractString,printID::Bool) = writeTopologyLevel1(net,di,str,names,outgroup,printID, false,3)
+# above: default roundBL=false (at unused digits=3 decimal places)
+writeTopologyLevel1(net::HybridNetwork,printID::Bool) = writeTopologyLevel1(net,false, true,true,"none",printID)
+writeTopologyLevel1(net::HybridNetwork,outgroup::AbstractString) = writeTopologyLevel1(net,false, true,true,outgroup,true)
+writeTopologyLevel1(net::HybridNetwork,di::Bool,outgroup::AbstractString) = writeTopologyLevel1(net,di, true,true,outgroup,true)
 
 """
-`writeTopology(net::HybridNetwork)`
+`writeTopologyLevel1(net::HybridNetwork)`
 
 writes the parenthetical format of a HybridNetwork object with many optional arguments:
 
@@ -888,8 +942,14 @@ writes the parenthetical format of a HybridNetwork object with many optional arg
 - names=false: write the leaf nodes numbers instead of taxon names (default true)
 - outgroup (string): name of outgroup to root the tree/network
 - printID=true, only print branch lengths for identifiable egdes according to the snaq estimation procedure (default false)
+- round: rounds branch lengths and heritabilities γ (default: true)
+- digits: digits after the decimal place for rounding (defult: 3)
+
+Note that the topology may be written using a root different than net.root,
+if net.root is incompatible with one of more hybrid node.
+The network object is *not* modified.
 """
-writeTopology(net::HybridNetwork; di=false::Bool, string=true::Bool, names=true::Bool,outgroup="none"::AbstractString, printID=false::Bool) = writeTopology(net, di, string, names,outgroup,printID)
+writeTopologyLevel1(net::HybridNetwork; di=false::Bool, string=true::Bool, names=true::Bool,outgroup="none"::AbstractString, printID=false::Bool, round=false::Bool, digits=3::Integer) = writeTopologyLevel1(net, di, string, names,outgroup,printID, round,digits)
 
 # function to check if root is well-placed
 # and look for a better place if not
@@ -969,7 +1029,6 @@ end
 
 undoRoot!(net::HybridNetwork) = undoRoot!(net, true)
 
-
 # function to read the .out file from snaq (optTopRuns) function
 function readOutfile(file::AbstractString)
     try
@@ -1044,7 +1103,8 @@ function readMultiTopology(file::AbstractString)
            try
                push!(vnet, readTopology(line,false)) # false for non-verbose
            catch(err)
-               error("could not read tree on line $(numl).\nerror: $(err)")
+               println("could not read tree on line $(numl) of file $file. error was this:")
+               rethrow(err)
            end
         end
         numl += 1
@@ -1061,29 +1121,20 @@ Write an array of networks in parenthetical format to a file (one network per li
 Use the option append=true to append to the file. Otherwise, the default is to create a new
 file or overwrite it, if it already existed.
 
-# Examples
-```julia
+# Examples #"
+```
 julia> net = [readTopology("(D,((A,(B)#H7:::0.864):2.069,(F,E):3.423):0.265,(C,#H7:::0.1361111):10);"),
               readTopology("(A,(B,C));"),readTopology("(E,F);"),readTopology("(G,H,F);")];
 
-julia> writeMultiTopology(net, "fournets.net")
-
-julia> run(`cat fournets.net`)
-(D,((A,(B)#H7:::0.864):2.069,(F,E):3.423):0.265,(C,#H7:::0.136):10.0);
+julia> writeMultiTopology(net, "fournets.net") # to (over)write to file "fournets.net"
+julia> writeMultiTopology(net, "fournets.net", append=true) # to append to this file
+julia> writeMultiTopology(net, STDOUT)         # to write to the screen (standard out)
+(D,((A,(B)#H7:::0.864):2.069,(F,E):3.423):0.265,(C,#H7:::0.1361111):10.0);
 (A,(B,C));
 (E,F);
 (G,H,F);
-
-julia> writeMultiTopology(net, "fournets.net", append=true)
-
-julia> writeMultiTopology(net, STDOUT)
-(D,((A,(B)#H7:::0.864):2.069,(F,E):3.423):0.265,(C,#H7:::0.136):10.0);
-(A,(B,C));
-(E,F);
-(G,H,F);
-
 ```
-"""
+""" #"
 function writeMultiTopology(n::Vector{HybridNetwork},file::AbstractString; append::Bool=false)
     mode = (append ? "a" : "w")
     s = open(file, mode)
@@ -1092,8 +1143,87 @@ function writeMultiTopology(n::Vector{HybridNetwork},file::AbstractString; appen
 end
 
 function writeMultiTopology(net::Vector{HybridNetwork},s::IO)
-    for(n in net)
-        writeTopology(n,s,false,true,"none",false)
+    for (i in 1:length(net))
+      try
+        # writeTopologyLevel1(net[i],s,false,true,"none",false,false,3)
+        writeTopology(net[i],s) # no rounding, not for dendroscope
         write(s,"\n")
+      catch err
+        if isa(err, RootMismatch) # continue writing other networks in list
+            warn("\nError with topology $i:\n" * err.msg)
+        else rethrow(err); end
+      end
     end
+end
+
+
+"""
+    writeTopology(net)
+    writeTopology(net, filename)
+
+write the parenthetical format of a HybridNetwork object, as a string or to a file.
+Optional arguments (default values):
+
+- di (false): write in format for Dendroscope
+- round (false): rounds branch lengths and heritabilities γ
+- digits (3): digits after the decimal place for rounding
+
+If the current root placement is not admissible, other placements are tried.
+The network is updated with this new root placement, if successful.
+"""
+function writeTopology(n::HybridNetwork, file::AbstractString; append::Bool=false,
+        round=false::Bool, digits=3::Integer, di=false::Bool) # keyword arguments
+    mode = (append ? "a" : "w")
+    s = open(file, mode)
+    writeTopology(n,s,round,digits,di)
+    write(s,"\n")
+    close(s)
+end
+
+function writeTopology(n::HybridNetwork;
+        round=false::Bool, digits=3::Integer, di=false::Bool) # keyword arguments
+    s = IOBuffer()
+    writeTopology(n,s,round,digits,di)
+    return bytestring(s)
+end
+
+function writeTopology(net::HybridNetwork, s::IO,
+        round=false::Bool, digits=3::Integer, di=false::Bool) # optional arguments
+    # check/find admissible root: otherwise could be trapped in infinite loop
+    rootsaved = net.root
+    changeroot = false
+    msg = ""
+    try
+        directEdges!(net)
+    catch err
+        if isa(err, RootMismatch)
+            println(err.msg * "\nCannot write topology with current root.")
+            changeroot = true
+        else rethrow(err); end
+    end
+    while changeroot
+        for (e in net.edge)
+          # parents of hybrid edges should be sufficient, but gives weird look
+          #if e.hybrid
+            i = getIndex(e.node[e.isChild1? 2 : 1], net)
+            net.root = i
+            try
+                directEdges!(net)
+                print("Setting root at node $(net.node[i].number) (net.root = $i)\n\n")
+                print(msg)
+                changeroot = false
+                break # stop loop over edges
+            end
+          #end
+        end
+        if changeroot # none of hybrid edges worked
+            net.root = rootsaved
+            throw(RootMismatch("Could not find admissible root. Cannot write topology."))
+            changeroot=false # safety exit of while (but useless)
+        end
+    end
+    # finally, write parenthetical format
+    writeSubTree!(s,net,di,true,false,round,digits)
+    # names = true: to print leaf names (labels), not numbers
+    # printID = false: print all branch lengths, not just identifiable ones
 end

@@ -113,7 +113,7 @@ end
 # function to merge rows that have repeated taxon names by using the weigthed average of CF
 # (if info on number of genes is provided) or simple average
 function mergeRows!(df::DataFrame)
-    keeprow = rep(true,size(df,1))
+    keeprow = ones(Bool,size(df,1)) # repeats 'true'
     addeddf = df[1,1:size(df,2)] #df that will have the averaged rows, need to delete the first row at the end
     for(i in 1:size(df,1)) #rows
         if(keeprow[i])
