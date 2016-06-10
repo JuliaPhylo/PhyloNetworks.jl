@@ -5,6 +5,7 @@
 
 const move2int = Dict{Symbol,Int64}(:add=>1,:MVorigin=>2,:MVtarget=>3,:CHdir=>4,:delete=>5, :nni=>6)
 const int2move = Dict{Int64,Symbol}([move2int[k]=>k for k in keys(move2int)])
+# if changes are made here, make the same in the docstring for snaq! below.
 const fAbs = 1e-6 #1e-10 prof Bates, 1e-6
 const fRel = 1e-5 # 1e-12 prof Bates, 1e-5
 const xAbs = 1e-4 # 0.001 in phylonet, 1e-10 prof Bates, 1e-4
@@ -1466,8 +1467,8 @@ optTopRun1!(currT::HybridNetwork, d::DataCF, hmax::Int64, seed::Int64) = optTopR
 """
 `snaq!(T::HybridNetwork, d::DataCF)`
 
-Estimate the network (or tree) to fit observed concordance factors (CFs)
-stored in a DataCF object, using maximum pseudo-likelihood.
+Estimate the network (or tree) to fit observed quartet concordance factors (CFs)
+stored in a DataCF object, using maximum pseudo-likelihood. A level-1 network is assumed.
 The search starts from topology `T`,
 which can be a tree or a network with no more than `hmax` hybrid nodes.
 The function name ends with ! because it modifies the CF data `d` by updating its
@@ -1476,16 +1477,38 @@ It does *not* modify `T`.
 The quartet pseudo-deviance is the negative log pseudo-likelihood,
 up to an additive constant, such that a perfect fit corresponds to a deviance of 0.0.
 
+Output: estimated network.
+
 There are many optional arguments, including
 
 - hmax: maximum number of hybridizations allowed (default 1)
-- verbose: if true, it prints information about the numerical optimization
+- verbose: if true, print information about the numerical optimization
 - runs: number of independent starting points for the search (default 10)
 - outgroup: outgroup taxon to root the estimated topology at the very end
 - filename: root name for the output files. Default is "snaq". If empty (""),
-  files are *not* created, progress log goes to the screen only (standard out)
-  and the best network is returned.
+  files are *not* created, progress log goes to the screen only (standard out).
 - seed: seed to replicate a given search
+
+The following optional arguments control when to stop the optimization of branch lengths
+and γ's on each individual candidate network. Defaults are in parentheses:
+
+- ftolRel (1e-5) and ftolAbs (1e-6): relative and absolute differences of the network score
+  between the current and proposed parameters,
+- xtolRel (1e-3) and xtolAbs (1e-4): relative and absolute differences between the current
+  and proposed parameters.
+
+Greater values will result in a less thorough but faster search. These parameters are used
+when evaluating candidate networks only. Branch lengths and γ's are optimized on the last
+"best" network with different and very thorough tolerance parameters (1e-12 for ftolRel
+and 1e-10 for the others).
+
+The following optional arguments control when to stop proposing new network topologies:
+
+- Nfail (100): maximum number of times that new topologies are proposed and rejected (in a row).
+- M (10000): the proposed network is accepted if its score is better than the current score by
+  at least M*ftolAbs.
+
+Lower values of Nfail and greater values of M would result in a less thorough but faster search.
 
 See also: `topologyMaxQPseudolik!` to optimize parameters on a fixed topology,
 and `topologyQPseudolik!` to get the deviance (pseudo log-likelihood up to a constant)
