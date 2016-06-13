@@ -246,6 +246,43 @@ end
 
 
 #################################################
+## Types for params process
+#################################################
+
+# Abstract type of all the (future) types (BM, OU, ...)
+abstract paramsProcess
+
+# BM type
+type paramsBM <: paramsProcess
+    mu::Real # Ancestral value or mean
+    sigma2::Real # variance
+    randomRoot::Bool # Root is random ? default false
+    varRoot::Real # root variance. Default NaN
+end
+# Constructor
+paramsBM(mu, sigma2) = paramsBM(mu, sigma2, false, NaN) # default values
+
+function Base.show(io::IO, obj::paramsBM)
+    disp =  "$(typeof(obj)):\n"
+    pt = paramstable(obj)
+    if obj.randomRoot
+        disp = disp * "Parameters of a BM with random root:\n" * pt
+    else
+        disp = disp * "Parameters of a BM with fixed root:\n" * pt
+    end
+    println(io, disp)
+end
+
+function paramstable(obj::paramsBM)
+    disp = "mu: $(obj.mu)\nSigma2: $(obj.sigma2)"
+    if obj.randomRoot
+        disp = disp * "\nvarRoot: $(obj.varRoot)"
+    end
+    return(disp)
+end
+
+
+#################################################
 ## Functions for Phylgenetic Network regression
 #################################################
 
@@ -316,7 +353,7 @@ end
 
 Performs a regression according to the formula provided by the user, using
 the correlation structure induced by the network.
-The data frame fr should have an extra column labelled "tipNames" that gives
+The data frame fr should have an extra column labelled "tipsNames" that gives
 the names of the taxa for each observation.
 """
 # Deal with formulas
@@ -329,16 +366,16 @@ function phyloNetworklm(
     # Match the tips names: make sure that the data provided by the user will
     # be in the same order as the ordered tips in matrix V.
     V = sharedPathMatrix(net)
-    if any(V.tipNames == "")
+    if any(V.tipsNames == "")
         warn("The network provided has no tip names. The tips are assumed te be is the same order than the data. You'd better know what you're doing.")
         ind = [0]
-    elseif !any(DataFrames.names(fr) .== :tipNames)
-        warn("The entry data frame has no column labelled tipNames. Please add such a column to match the tips against the network. Otherwise the tips are assumed te be is the same order than the data and you'd better know what you're doing.")
+    elseif !any(DataFrames.names(fr) .== :tipsNames)
+        warn("The entry data frame has no column labelled tipsNames. Please add such a column to match the tips against the network. Otherwise the tips are assumed te be is the same order than the data and you'd better know what you're doing.")
         ind = [0]
     else
-        ind = indexin(V.tipNames, fr[:tipNames])
+        ind = indexin(V.tipsNames, fr[:tipsNames])
         if any(ind == 0) || length(unique(ind)) != length(ind)
-            error("Tips names of the network and names provided in column tipNames of the dataframe do not match.")
+            error("Tips names of the network and names provided in column tipsNames of the dataframe do not match.")
         end
         fr = fr[ind, :]
     end
@@ -527,41 +564,6 @@ function phyloNetworklmNaive(Y::Vector, X::Matrix, net::HybridNetwork, model="BM
 	return((betahat, sigma2hat[1], loglik[1], V, Vy, logdetVy, fittedValues, residuals))
 end
 
-#################################################
-## Types for params process
-#################################################
-
-# Abstract type of all the (future) types (BM, OU, ...)
-abstract paramsProcess
-
-# BM type
-type paramsBM <: paramsProcess
-    mu::Real # Ancestral value or mean
-    sigma2::Real # variance
-    randomRoot::Bool # Root is random ? default false
-    varRoot::Real # root variance. Default NaN
-end
-# Constructor
-paramsBM(mu, sigma2) = paramsBM(mu, sigma2, false, NaN) # default values
-
-function Base.show(io::IO, obj::paramsBM)
-    disp =  "$(typeof(obj)):\n"
-    pt = paramstable(obj)
-    if obj.randomRoot
-        disp = disp * "Parameters of a BM with random root:\n" * pt
-    else
-        disp = disp * "Parameters of a BM with fixed root:\n" * pt
-    end
-    println(io, disp)
-end
-
-function paramstable(obj::paramsBM)
-    disp = "mu: $(obj.mu)\nSigma2: $(obj.sigma2)"
-    if obj.randomRoot
-        disp = disp * "\nvarRoot: $(obj.varRoot)"
-    end
-    return(disp)
-end
 
 
 
@@ -577,7 +579,7 @@ end
 
 function Base.show(io::IO, obj::traitSimulation)
     disp = "$(typeof(obj)):\n"
-    disp = disp * "Trait simulation results on a network with $(length(obj.M.tipNames)) tips, using a using a $(obj.model) model, with parameters:\n"
+    disp = disp * "Trait simulation results on a network with $(length(obj.M.tipsNames)) tips, using a using a $(obj.model) model, with parameters:\n"
     disp = disp * paramstable(obj.params)
     println(io, disp)
 end

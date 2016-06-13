@@ -3,6 +3,7 @@
 
 using PhyloNetworks
 using GLM
+using DataFrames
 #include("../src/types.jl")
 #include("../src/functions.jl")
 include("../src/traits.jl")
@@ -12,7 +13,7 @@ net=readTopologyLevel1(tree)
 printEdges(net)
 
 # Re-root the tree so that it matches my example
-root!(net, "A")
+rootatnode!(net, "A")
 printEdges(net)
 preorder!(net)
 plot(net, useEdgeLength = true,  showEdgeNumber=true)
