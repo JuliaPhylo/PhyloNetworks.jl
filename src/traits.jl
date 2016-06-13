@@ -316,8 +316,8 @@ end
 
 # Function for lm with net residuals
 function phyloNetworklm(
-	Y::Vector,
 	X::Matrix,
+	Y::Vector,
 	net::HybridNetwork,
     msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
 	model="BM"::AbstractString
@@ -325,13 +325,13 @@ function phyloNetworklm(
 	# Geting variance covariance
 	V = sharedPathMatrix(net)
     # Fit
-    phyloNetworklm(Y, X, V, msng, model)
+    phyloNetworklm(X, Y, V, msng, model)
 end
 
 # Same function, but when the matrix V is already known.
 function phyloNetworklm(
-	Y::Vector,
 	X::Matrix,
+	Y::Vector,
 	V::matrixTopologicalOrder,
     msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
 	model="BM"::AbstractString
@@ -384,7 +384,7 @@ function phyloNetworklm(
     mm = ModelMatrix(mf)
     Y = convert(Vector{Float64},DataFrames.model_response(mf))
     # Fit the model
-    fit = phyloNetworklm(Y, mm.m, V, mf.msng, model)
+    fit = phyloNetworklm(mm.m, Y, V, mf.msng, model)
     # Create the object
     phyloNetworkLinPredModel(DataFrames.DataFrameRegressionModel(fit, mf, mm),
     fit.V, fit.Vy, fit.RU, fit.Y, fit.X, fit.logdetVy, ind, mf.msng)
@@ -424,11 +424,11 @@ df_residual(m::phyloNetworkLinPredModel) =  nobs(m) - length(coef(m))
 # Compute variance of the BM
 function sigma2_estim(m::phyloNetworkLinearModel)
 #	sum(residuals(fit).^2) / nobs(fit)
-    sum(residuals(m).^2) / df_residual(m)
+    sum(residuals(m.lm).^2) / df_residual(m)
 end
 function sigma2_estim(m::phyloNetworkLinPredModel)
 #	sum(residuals(fit).^2) / nobs(fit)
-    sum(residuals(m).^2) / df_residual(m)
+    sum(residuals(m.lm).^2) / df_residual(m)
 end
 
 # vcov matrix
@@ -542,7 +542,7 @@ end
 ## Old version of phyloNetworklm (naive) 
 #################################################
 
-function phyloNetworklmNaive(Y::Vector, X::Matrix, net::HybridNetwork, model="BM"::AbstractString)
+function phyloNetworklmNaive(X::Matrix, Y::Vector, net::HybridNetwork, model="BM"::AbstractString)
 	# Geting variance covariance
 	V = sharedPathMatrix(net)
 	Vy = extractVarianceTips(V, net)

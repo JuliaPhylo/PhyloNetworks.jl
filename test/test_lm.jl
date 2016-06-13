@@ -32,9 +32,9 @@ params = paramsBM(10, 1)
 sim = simulate(net, params)
 Y = sim[:Tips]
 X = ones(4, 1)
-fit = phyloNetworklm(Y, X, net)
+fit = phyloNetworklm(X, Y, net)
 
-fitNaive = phyloNetworklmNaive(Y, X, net) # old naive version
+fitNaive = phyloNetworklmNaive(X, Y, net) # old naive version
 
 # Simulate correlated data in data frames
 b0 = 1
@@ -48,7 +48,7 @@ fit = phyloNetworklm(trait ~ pred, df, net)
 
 # With Matrices
 X = hcat(ones(4), A)
-fit_mat = phyloNetworklm(B, X, net)
+fit_mat = phyloNetworklm(X, B, net)
 
 # unordered data
 df = df[[2, 1, 4, 3], :]
