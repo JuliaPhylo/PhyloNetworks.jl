@@ -33,6 +33,7 @@ end
 # inside mapAllelesCFtable
 # by deleting rows that are not informative like sp1 sp1 sp1 sp2
 function cleanNewDF!(newdf::DataFrame)
+    global DEBUG
     keeprows =  Bool[]
     repSpecies = ASCIIString[]
     if(isa(newdf[1,1],Int)) #taxon names as integers: we need this to be able to add _2
@@ -141,6 +142,7 @@ end
 # assumes all rows have repeated taxon names, and does not
 # verify this
 function averagePartialDF!(df::DataFrame)
+    global DEBUG
     df2 = deepcopy(df)
     deleterows!(df,2:size(df,1)) #only keep one row to hold the average
     numfound = true

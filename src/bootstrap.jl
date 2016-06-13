@@ -103,6 +103,7 @@ and credibility intervals in columns 8-13.
 Warning: the modifying version does *not* check the df: assumes correct columns.
 """
 function sampleCFfromCI(df::DataFrame, seed=0::Int)
+    global DEBUG
     DEBUG && warn("order of columns should be: t1,t2,t3,t4,cf1234,cf1324,cf1423,cf1234LO,cf1234HI,...")
     size(df,2) == 13 || size(df,2) == 14 || warn("sampleCFfromCI function assumes table from TICR: CF, CFlo, CFhi")
     obsCFcol = [findfirst(DataFrames.names(df), :CF12_34),
@@ -163,6 +164,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
                         verbose::Bool, closeN::Bool, Nmov0::Vector{Int64},
                         runs1::Int64, outgroup::AbstractString, filename::AbstractString, seed::Int64, probST::Float64,
                         nrep::Int64, runs2::Int64, bestNet::HybridNetwork, quartetfile::AbstractString)
+    global DEBUG
     println("BOOTSTRAP OF SNAQ ESTIMATION")
     julialog = string(filename,".log")
     logfile = open(julialog,"w")

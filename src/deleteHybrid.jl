@@ -135,6 +135,7 @@ end
 #          it is not identifiable like in bad diamond I (assumes undone by now)
 # blacklist = true: add the edge as a bad choice to put a hybridization (not fully tested)
 function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bool, blacklist::Bool)
+    global DEBUG
     hybrid.hybrid || error("node $(hybrid.number) is not hybrid, so we cannot delete hybridization event around it")
     DEBUG && println("MOVE: delete hybridization on hybrid node $(hybrid.number)")
     nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,hybrid);
@@ -407,6 +408,7 @@ end
 # function to update net.partition after deleting a hybrid node
 # needs a list of the edges in cycle
 function undoPartition!(net::HybridNetwork, hybrid::Node, edgesInCycle::Vector{Edge})
+    global DEBUG
     hybrid.hybrid || error("node $(hybrid.number) is not hybrid, and we need hybrid node inside deleteHybUpdate for undoPartition")
     if(net.numHybrids == 0)
         net.partition = Partition[]

@@ -11,7 +11,7 @@ Plots a network, from left to right.
   Note that edge lengths in coalescent units may scale very poorly with time.
 - mainTree: if true, the minor hybrid edges are ommitted.
 - showTipLabel: if true, taxon labels are shown. You may need to zoom out to see them.
-- showNodeNumbers: if true, nodes are labelled with the number used internally.
+- showNodeNumber: if true, nodes are labelled with the number used internally.
 - showEdgeLength: if true, edges are labelled with their length (above)
 - showGamma: if true, hybrid edges are labelled with their heritability (below)
 - edgeColor: color for tree edges. black by default.

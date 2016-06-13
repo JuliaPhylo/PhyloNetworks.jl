@@ -69,6 +69,7 @@ end
 # function to update qnet.indexht,qnet.index based on net.numht
 # warning: assumes net.numht is updated already with parameters!(net)
 function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
+    global DEBUG
     size(net.numht,1) > 0 || error("net.numht not correctly updated, need to run parameters first")
     if(DEBUG)
         size(qnet.indexht,1) == 0 ||  println("deleting qnet.indexht to replace with info in net")
@@ -166,6 +167,7 @@ end
 # vector of parameters based on a boolean vector "changed"
 # which shows which parameters have changed
 function update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork)
+    global DEBUG
     ch = changed(net,x)
     length(x) == length(ch) || error("x (length $(length(x))) and changed $(length(changed)) should have the same length")
     length(ch) == length(qnet.hasEdge) || error("changed (length $(length(changed))) and qnet.hasEdge (length $(length(qnet.hasEdge))) should have same length")
@@ -255,6 +257,7 @@ end
 
 # function to calculate the inequality gammaz1+gammaz2 <= 1
 function calculateIneqGammaz(x::Vector{Float64}, net::HybridNetwork, ind::Int64, verbose::Bool)
+    global DEBUG
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
     hz = x[net.numHybrids - net.numBad + k + 1 : length(x)]
     if(verbose || DEBUG)
@@ -270,6 +273,7 @@ end
 # to guarantee all the correct attributes, because this is done over and over inside snaq
 # also, net is modified inside to set its attribute net.loglik equal to the min
 function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool, ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64)
+    global DEBUG
     (ftolRel > 0 && ftolAbs > 0 && xtolAbs > 0 && xtolRel > 0) || error("tolerances have to be positive, ftol (rel,abs), xtol (rel,abs): $([ftolRel, ftolAbs, xtolRel, xtolAbs])")
     (DEBUG || verbose) && println("OPTBL: begin branch lengths and gammas optimization, ftolAbs $(ftolAbs), ftolRel $(ftolRel), xtolAbs $(xtolAbs), xtolRel $(xtolRel)")
     ht = parameters!(net); # branches/gammas to optimize: net.ht, net.numht
@@ -371,6 +375,7 @@ end
 # movesgama: vector of count of number of times each move is proposed to fix gamma zero situation:(add,mvorigin,mvtarget,chdir,delete,nni)
 # movesgamma[13]: total number of accepted moves by loglik
 function moveHybrid!(net::HybridNetwork, edge::Edge, closeN ::Bool, origin::Bool,N::Int64, movesgamma::Vector{Int64})
+    global DEBUG
     edge.hybrid || error("edge $(edge.number) cannot be deleted because it is not hybrid")
     node = edge.node[edge.isChild1 ? 1 : 2];
     node.hybrid || error("hybrid edge $(edge.number) pointing at tree node $(node.number)")
@@ -405,7 +410,7 @@ end
 # movesgama: vector of count of number of times each move is proposed to fix gamma zero situation:(add,mvorigin,mvtarget,chdir,delete,nni)
 # movesgamma[13]: total number of accepted moves by loglik
 function gammaZero!(net::HybridNetwork, d::DataCF, edge::Edge, closeN ::Bool, origin::Bool, N::Int64, movesgamma::Vector{Int64})
-    global CHECKNET
+    global CHECKNET, DEBUG
     currTloglik = net.loglik
     edge.hybrid || error("edge $(edge.number) should be hybrid edge because it corresponds to a gamma (or gammaz) in net.ht")
     DEBUG && println("gamma zero situation found for hybrid edge $(edge.number) with gamma $(edge.gamma)")
@@ -448,7 +453,7 @@ end
 # movesgama: vector of count of number of times each move is proposed to fix gamma zero situation:(add,mvorigin,mvtarget,chdir,delete,nni)
 # movesgamma[13]: total number of accepted moves by loglik
 function afterOptBL!(currT::HybridNetwork, d::DataCF,closeN ::Bool, origin::Bool,verbose::Bool, N::Int64, movesgamma::Vector{Int64})
-    global CHECKNET
+    global CHECKNET, DEBUG
     !isTree(currT) || return false,true,true,true
     nh = currT.ht[1 : currT.numHybrids - currT.numBad]
     k = sum([e.istIdentifiable ? 1 : 0 for e in currT.edge])
@@ -538,6 +543,7 @@ end
 # movesgama: vector of count of number of times each move is proposed to fix gamma zero situation:(add,mvorigin,mvtarget,chdir,delete,nni)
 # movesgamma[13]: total number of accepted moves by loglik
 function afterOptBLRepeat!(currT::HybridNetwork, d::DataCF, N::Int64,closeN ::Bool, origin::Bool, verbose::Bool, movesgamma::Vector{Int64})
+    global DEBUG
     success,flagh,flagt,flaghz = afterOptBL!(currT,d,closeN ,origin,verbose,N, movesgamma)
     DEBUG && println("inside afterOptBLRepeat, after afterOptBL once, we get: success, flags: $([success,flagh,flagt,flaghz])")
     if(!closeN )
@@ -568,6 +574,7 @@ end
 # movesgama: vector of count of number of times each move is proposed to fix gamma zero situation:(add,mvorigin,mvtarget,chdir,delete,nni)
 # movesgamma[13]: total number of accepted moves by loglik
 function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,closeN ::Bool, M::Number, ftolAbs::Float64, verbose::Bool, movesgamma::Vector{Int64},ftolRel::Float64, xtolRel::Float64, xtolAbs::Float64)
+    global DEBUG
     DEBUG && println("afterOptBLAll: checking if currT has gamma(z) = 0.0(1.0): currT.ht $(currT.ht)")
     currloglik = currT.loglik
     currT.blacklist = Int64[];
@@ -736,6 +743,7 @@ end
 # and dynamic=true, adjusts the weight for addHybrid if net is in a lower layer (net.numHybrids<<hmax)
 # movesfail and Nmov are to count number of fails in each move
 function whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64}, dynamic::Bool, movesfail::Vector{Int64}, Nmov::Vector{Int64})
+    global DEBUG
     hmax >= 0 || error("hmax must be non negative: $(hmax)")
     length(w) == 6 || error("length of w should be 6 as there are only 6 moves: $(w)")
     approxEq(sum(w),1.0) || error("vector of move weights should add up to 1: $(w),$(sum(w))")
@@ -799,6 +807,7 @@ whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64},movesfail::Vector{In
 
 #function to choose a hybrid node for the given moves
 function chooseHybrid(net::HybridNetwork)
+    global DEBUG
     !isTree(net) || error("net is a tree, cannot choose hybrid node")
     net.numHybrids > 1 || return net.hybrid[1]
     index1 = 0
@@ -814,7 +823,7 @@ end
 # count to know in which step we are, N for NNI trials
 # order in movescount as in IF here (add,mvorigin,mvtarget,chdir,delete,nni)
 function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::Int64, N::Int64, movescount::Vector{Int64}, movesfail::Vector{Int64})
-    global CHECKNET
+    global CHECKNET, DEBUG
     1 <= move <= 6 || error("invalid move $(move)") #fixit: if previous move rejected, do not redo it!
     DEBUG && println("current move: $(int2move[move])")
     if(move == 1)
@@ -890,14 +899,17 @@ end
 function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,
                       ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
                       verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}, sout::IO, logfile::IO, writelog::Bool)
-    global CHECKNET
+    global CHECKNET, DEBUG, REDIRECT
     DEBUG && println("OPT: begins optTopLevel with hmax $(hmax)")
     M > 0 || error("M must be greater than zero: $(M)")
     Nfail > 0 || error("Nfail must be greater than zero: $(Nfail)")
     isempty(Nmov0) || all((n-> (n > 0)), Nmov0) || error("Nmov must be greater than zero: $(Nmov0)")
     if(DEBUG && REDIRECT) #for debugging
         originalSTDOUT = STDOUT
+        originalSTDERR = STDERR
+        info("redirecting STDOUT and STDERR") # fixit: move this to snaqDebug?
         redirect_stdout(sout)
+        redirect_stderr(sout)
     end
     DEBUG && printEverything(currT)
     CHECKNET && checkNet(currT)
@@ -1006,6 +1018,8 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     DEBUG && println(writeTopologyLevel1(newT,true))
     if(DEBUG && REDIRECT)
         redirect_stdout(originalSTDOUT)
+        redirect_stderr(originalSTDERR)
+        info("end of redirection")
     end
     return newT
 end
@@ -1054,7 +1068,7 @@ end
 # function to move down onw level to h-1
 # caused by gamma=0,1 or gammaz=0,1
 function moveDownLevel!(net::HybridNetwork)
-    global CHECKNET
+    global CHECKNET, DEBUG
     !isTree(net) ||error("cannot delete hybridization in a tree")
     DEBUG && println("MOVE: need to go down one level to h-1=$(net.numHybrids-1) hybrids because of conflicts with gamma=0,1")
     DEBUG && printEverything(net)
@@ -1143,6 +1157,7 @@ end
 # uses the best topology in h-1 as starting point for the search in h
 # no test in between! fixit: add a test to decide to move from h-1 to h?
 function optTop!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64},s::IO)
+    global DEBUG
     hmax >= 0 || error("hmax cannot be negative $(hmax)")
     currT.numHybrids == 0 || write(s,"\ncurrT has already $(currT.numHybrids), so search will not start in tree, but in the space of networks with $(currT.numHybrids) hybrids")
     currT.numHybrids <= hmax || error("currT has more hybrids: $(currT.numHybrids) than hmax $(hmax)")
@@ -1554,14 +1569,23 @@ end
 function to replicate a given run that produces error according to the .err file generated by snaq.
 The same settings used in that run should be used in this function, specially the seed. See the readme file online for more details.
 """
-function snaqDebug(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, rootname="snaqDebug"::AbstractString, seed=0::Int64, probST=0.3::Float64, DEBUG=true::Bool, REDIRECT=true::Bool)
+function snaqDebug(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,
+                   ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64,
+                   verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64,
+                   outgroup="none"::AbstractString, rootname="snaqDebug"::AbstractString, seed=0::Int64, probST=0.3::Float64,
+                   debug=true::Bool, redirect=true::Bool)
     currT0 = readTopologyUpdate(writeTopologyLevel1(currT0)) # update all level-1 things
     flag = checkNet(currT0,true)
     flag && error("starting topology suspected not level-1")
 
-    #const DEBUG = true
-    #const REDIRECT = true
-    sout = open("debug.log","w")
+    global DEBUG, REDIRECT
+    debuglog = string(rootname,".debug.log")
+    if (debug) DEBUG = true; end
+    if (redirect)
+        REDIRECT = true
+        println("file for redirection: $debuglog")
+    end
+    sout = open(debuglog,"w")
     write(sout,"DEBUG for seed $(seed)")
     write(sout,"\n$(Libc.strftime(time()))")
     flush(sout)
@@ -1572,8 +1596,9 @@ function snaqDebug(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier
     write(logfile,"\nBEGIN: 1 run on starting tree $(writeTopologyLevel1(currT0,true))")
     write(logfile,"\n$(Libc.strftime(time()))")
     flush(logfile)
+    res = nothing
     try
-        optTopRun1!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0,seed,logfile,true,probST,sout)
+        res = optTopRun1!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0,seed,logfile,true,probST,sout)
     catch(err)
         flush(sout)
         write(sout,"\n ERROR found on optTopRun1 for run with seed $(seed): $(err)")
@@ -1584,6 +1609,9 @@ function snaqDebug(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier
     end
     close(sout)
     close(logfile)
+    if (debug) DEBUG = false; end  # change back to default
+    if (redirect) REDIRECT = false; end
+    return res
 end
 
 

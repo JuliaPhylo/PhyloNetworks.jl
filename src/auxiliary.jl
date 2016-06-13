@@ -82,6 +82,7 @@ end
 #          the nodes are added to it. If the node added is leaf, the
 #          edge length is set unidentifiable (as it is external edge)
 function setNode!(edge::Edge, node::Node)
+    global DEBUG
     size(edge.node,1)  !=  2 || error("vector of nodes already has 2 values");
     push!(edge.node,node);
     if(size(edge.node,1) == 1)
@@ -816,6 +817,7 @@ end
 # changeOther = true, looks for the other hybrid edge and changes gamma too
 # read = true, function called in readSubtree, needs to be the old one
 function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool, read::Bool)
+    global DEBUG
     new_gamma >= 0 || error("gamma has to be positive: $(new_gamma)")
     new_gamma <= 1 || error("gamma has to be less than 1: $(new_gamma)")
     edge.hybrid || error("cannot change gamma in a tree edge");
@@ -889,6 +891,7 @@ end
 # to use splice and delete it from net.partition later on
 # cycle: is the number to look for partition on that cycle only
 function whichPartition(net::HybridNetwork,edge::Edge,cycle::Int64)
+    global DEBUG
     !edge.hybrid || error("edge $(edge.number) is hybrid so it cannot be in any partition")
     edge.inCycle == -1 || error("edge $(edge.number) is in cycle $(edge.inCycle) so it cannot be in any partition")
     DEBUG && println("search partition for edge $(edge.number) in cycle $(cycle)")
@@ -912,6 +915,7 @@ end
 # better to return the index than the partition itself, because we need the index
 # to use splice and delete it from net.partition later on
 function whichPartition(net::HybridNetwork,edge::Edge)
+    global DEBUG
     !edge.hybrid || error("edge $(edge.number) is hybrid so it cannot be in any partition")
     edge.inCycle == -1 || error("edge $(edge.number) is in cycle $(edge.inCycle) so it cannot be in any partition")
     DEBUG && println("search partition for edge $(edge.number) without knowing its cycle")
@@ -955,6 +959,7 @@ end
 # returns true if found egde with BL -1.0 (only when light=true, ow error)
 # added checkPartition for undirectedOtherNetworks that do not need correct hybrid node number
 function checkNet(net::HybridNetwork, light::Bool; checkPartition=true::Bool)
+    global DEBUG
     DEBUG && println("checking net")
     net.numHybrids == length(net.hybrid) || error("discrepant number on net.numHybrids (net.numHybrids) and net.hybrid length $(length(net.hybrid))")
     net.numTaxa == length(net.leaf) || error("discrepant number on net.numTaxa (net.numTaxa) and net.leaf length $(length(net.leaf))")
@@ -1057,6 +1062,7 @@ function printEverything(net::HybridNetwork)
     printNodes(net)
     printPartitions(net)
     println("$(writeTopologyLevel1(net))")
+    ## global DEBUG, REDIRECT
     ## if(DEBUG && REDIRECT)
     ##     try
     ##         plotNetGraphViz(net,internalLabels=true,imageName="plotDebug")

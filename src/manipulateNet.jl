@@ -16,6 +16,7 @@ julia> vnet = undirectedOtherNetworks(net)
 # WARNING: does not update partition, because only thing to change is hybrid node number
 ## insideSnaq=true means that all attributes are perfect
 function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractString, insideSnaq=false::Bool)
+    global DEBUG
     if(!insideSnaq)
         net0 = readTopologyLevel1(writeTopologyLevel1(net0))
     end
@@ -421,6 +422,7 @@ end
 # added if node is internal if node is leaf, root(net,outgroup) is
 # called, so a new node is created on external edge
 function root!(net::HybridNetwork, node::Node, resolve::Bool)
+    global DEBUG
     node.hybrid && error("node $(node.number) is hybrid, cannot root network on a hybrid node")
     if(node.leaf)
         info("node $(node.number) is a leaf, so we will root as an outgroup if possible")
@@ -562,6 +564,7 @@ end
 Roots the network/tree object along the external edge leading to the taxon named 'outgroup'.
 """
 function root!(net::HybridNetwork, outgroup::AbstractString)
+    global DEBUG
     if(!isTree(net))
         if(!net.cleaned)
             DEBUG && println("net not cleaned inside root, need to run updateCR")
