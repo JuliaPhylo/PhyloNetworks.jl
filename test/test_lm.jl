@@ -6,7 +6,7 @@ using GLM
 using DataFrames
 #include("../src/types.jl")
 #include("../src/functions.jl")
-include("../src/traits.jl")
+#include("../src/traits.jl")
 
 tree= "(A,((B,#H1),(C,(D)#H1)));"
 net=readTopologyLevel1(tree)
@@ -16,14 +16,14 @@ printEdges(net)
 rootatnode!(net, "A")
 printEdges(net)
 preorder!(net)
-plot(net, useEdgeLength = true,  showEdgeNumber=true)
+# plot(net, useEdgeLength = true,  showEdgeNumber=true)
 
 # Make the network ultrametric
 net.edge[1].length = 2.5
 net.edge[6].length = 0.5
 net.edge[7].length = 0.5
 net.edge[3].length = 0.5
-plot(net, useEdgeLength = true)
+# plot(net, useEdgeLength = true)
 # Rk: Is there a way to check that the branch length are coherents with 
 # one another (Especialy for hybrids) ?
 
