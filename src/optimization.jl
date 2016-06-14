@@ -361,6 +361,11 @@ function topologyMaxQPseudolik!(net::HybridNetwork, d::DataCF; verbose=false::Bo
         rethrow(err)
     end
     optBL!(net, d, verbose, ftolRel, ftolAbs, xtolRel,xtolAbs)
+    if(net.numBad > 0) # to keep gammaz info in parenthetical description of bad diamond I
+        for(n in net.hybrid)
+            setGammaBLfromGammaz!(n,net) # get t and γ that are compatible with estimated gammaz values
+        end
+    end
     setNonIdBL!(net)
     return net
 end
@@ -1003,11 +1008,9 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     ## if(newT.loglik > M*ftolAbs) #not really close to 0.0, based on absTol also
     ##     write(logfile,"\nnewT.loglik $(newT.loglik) not really close to 0.0 based on loglik abs. tol. $(M*ftolAbs), you might need to redo with another starting point")
     ## end
-    if(newT.numBad > 0) #need to undogammaz if newT has bad diamond I to use gammaz as proxy of gamma for writeTopology
+    if(newT.numBad > 0) # if bad diamond I, need to keep gammaz info in parenthetical description
         for(n in newT.hybrid)
-            if(n.isBadDiamondI)
-                undoGammaz!(n,newT)
-            end
+            setGammaBLfromGammaz!(n,newT) # get t and γ that are compatible with estimated gammaz values
         end
     end
     writelog && write(logfile,"\nEND optTopLevel: found minimizer topology at step $(count) (failures: $(failures)) with -loglik=$(round(newT.loglik,5)) and ht_min=$(round(newT.ht,5))")
@@ -1371,6 +1374,12 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         for(n in otherNet)
             try
                 optBL!(n,d) ##optBL MUST have network with all the attributes, and undirectedOtherNetworks will return "good" networks that way
+                if(n.numBad > 0) # to keep gammaz info in parenthetical description of bad diamond I
+                    for(nod in n.hybrid)
+                        setGammaBLfromGammaz!(nod,n) # get t and γ that are compatible with estimated gammaz values
+                    end
+                end
+                setNonIdBL!(n)
             catch
                 n.loglik = -1
                 foundBad = true
@@ -1492,7 +1501,18 @@ It does *not* modify `T`.
 The quartet pseudo-deviance is the negative log pseudo-likelihood,
 up to an additive constant, such that a perfect fit corresponds to a deviance of 0.0.
 
-Output: estimated network.
+Output:
+
+- estimated network in file `.out` (also in `.log`): best network overall and list of
+  networks from each individual run.
+- the best network and modifications of it, in file `.networks`.
+  All networks in this file have the same undirected topology as the best network,
+  but have different hybrid/gene flow directions. These other networks are reported with
+  their pseudo-likelihood scores, because
+  - non-identifiability issues can cause them to have very similar scores, and
+  - SNaQ was shown to estimate the undirected topology accurately, but not the direction of
+    hybridization in cases of near non-identifiability.
+- if any error occurred, file `.err` provides information (seed) to reproduce the error.
 
 There are many optional arguments, including
 

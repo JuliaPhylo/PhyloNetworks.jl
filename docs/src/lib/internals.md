@@ -26,4 +26,5 @@ ANode
 
 ```@docs
 sampleBootstrapTrees
+setNonIdBL!
 ```

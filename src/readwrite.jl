@@ -777,11 +777,11 @@ end
     # --------------------------- write topology -------------------------------------
 # function to write a node and its descendants in parenthetical format
 # di=true in densdroscope format, names=true, prints names
-writeSubTree!(s::IO, n::Node, parent::Edge, di::Bool, names::Bool, printID::Bool) =
-    writeSubTree!(s,n,parent,di,names,printID, true,3)
+writeSubTree!(s::IO, n::Node, parent::Edge, di::Bool, names::Bool) =
+    writeSubTree!(s,n,parent,di,names, true,3)
 
 # method to start at the root and write the whole tree/network
-function writeSubTree!(s::IO, net::HybridNetwork, di::Bool, names::Bool, printID::Bool,
+function writeSubTree!(s::IO, net::HybridNetwork, di::Bool, names::Bool,
                        roundBL::Bool, digits::Integer)
     if net.numNodes == 1
         print(s,string(net.node[net.root].number))
@@ -789,7 +789,7 @@ function writeSubTree!(s::IO, net::HybridNetwork, di::Bool, names::Bool, printID
         print(s,"(")
         degree = length(net.node[net.root].edge)
         for(e in net.node[net.root].edge)
-            writeSubTree!(s,getOtherNode(e,net.node[net.root]),e,di,names,printID,roundBL,digits)
+            writeSubTree!(s,getOtherNode(e,net.node[net.root]),e,di,names,roundBL,digits)
             degree -= 1
             if(degree > 0)
                 print(s,",")
@@ -802,7 +802,7 @@ function writeSubTree!(s::IO, net::HybridNetwork, di::Bool, names::Bool, printID
 end
 
 # method to start at a node coming from an adjacent (parent) edge
-function writeSubTree!(s::IO, n::Node, parent::Edge,di::Bool,names::Bool, printID::Bool,
+function writeSubTree!(s::IO, n::Node, parent::Edge,di::Bool,names::Bool,
                        roundBL::Bool, digits::Integer)
     if((parent.hybrid && !parent.isMajor) || n.leaf)
         if(names)
@@ -826,7 +826,7 @@ function writeSubTree!(s::IO, n::Node, parent::Edge,di::Bool,names::Bool, printI
         for(e in n.edge)
             if(!isEqual(e,parent) && !(e.hybrid && parent.hybrid))
                 child = getOtherNode(e,n)
-                writeSubTree!(s,child,e, di,names, printID, roundBL, digits)
+                writeSubTree!(s,child,e, di,names, roundBL, digits)
                 if(!parent.hybrid) #cecile handles this step differently: if(parent.hybrid) numChildren-=1 end
                     numChildren -= 1
                     if(numChildren > 0)
@@ -849,20 +849,11 @@ function writeSubTree!(s::IO, n::Node, parent::Edge,di::Bool,names::Bool, printI
         end
     end
     printBL = false
-    if(printID) #which BL to print
-        if(!n.leaf)
-            if(parent.istIdentifiable && parent.length >= 0.0) #we do not want to print BL of non-id edges
-                print(s,string(":",(roundBL ? round(parent.length,digits) : parent.length)))
-                printBL = true
-            end
-        end
-    else
-        if(parent.length >= 0.0) #print all BL != -1
-            print(s,string(":",(roundBL ? round(parent.length,digits) : parent.length)))
-            printBL = true
-        end
+    if(parent.length != -1.0) # -1.0 means missing
+        print(s,string(":",(roundBL ? round(parent.length,digits) : parent.length)))
+        printBL = true
     end
-    if(parent.hybrid && !di && (!printID || !n.isBadDiamondI))
+    if(parent.hybrid && !di) # && (!printID || !n.isBadDiamondI))
         if(parent.gamma != -1.0)
             if(!printBL) print(s,":"); end
             print(s,string("::",(roundBL ? round(parent.gamma,digits) : parent.gamma)))
@@ -879,7 +870,8 @@ end
 # names=true, writes the names instead of node numbers, default true
 # outgroup: place the root in the external edge of this taxon if possible,
 # if none given, placed the root wherever possible
-# printID=true, only print identifiable BL, default false (only true inside snaq)
+# printID=true, only print identifiable BL as determined by setNonIdBL!.
+#         false by default. true inside snaq.
 
 function writeTopologyLevel1(net0::HybridNetwork, di::Bool, str::Bool, names::Bool,outgroup::AbstractString, printID::Bool, roundBL::Bool, digits::Integer)
     s = IOBuffer()
@@ -897,7 +889,10 @@ function writeTopologyLevel1(net0::HybridNetwork, s::IO, di::Bool, names::Bool,
     global CHECKNET
     net = deepcopy(net0) #writeTopologyLevel1 needs containRoot, but should not alter net0
     if(net.numBad > 0)
-        println("net has $(net.numBad) bad diamond I, gammas and some branch lengths are not identifiable, and therefore, meaningless")
+        println("net has $(net.numBad) bad diamond I. Some γ and edge lengths t are not identifiable, although their γ * (1-exp(-t)) are.")
+    end
+    if printID
+        setNonIdBL!(net) # changes non identifiable BL to -1.0, except those in/below bad diamonds/triangles.
     end
     if(net.numNodes == 1)
         print(s,string(net.node[net.root].number,";")) # error if 'string' is an argument name.
@@ -915,7 +910,7 @@ function writeTopologyLevel1(net0::HybridNetwork, s::IO, di::Bool, names::Bool,
         CHECKNET && canBeRoot(net.node[net.root])
         degree = length(net.node[net.root].edge)
         for(e in net.node[net.root].edge)
-            writeSubTree!(s,getOtherNode(e,net.node[net.root]),e,di,names, printID, roundBL,digits)
+            writeSubTree!(s,getOtherNode(e,net.node[net.root]),e,di,names, roundBL,digits)
             degree -= 1
             if(degree > 0)
                 print(s,",")
@@ -1223,7 +1218,7 @@ function writeTopology(net::HybridNetwork, s::IO,
         end
     end
     # finally, write parenthetical format
-    writeSubTree!(s,net,di,true,false,round,digits)
+    writeSubTree!(s,net,di,true,round,digits)
     # names = true: to print leaf names (labels), not numbers
-    # printID = false: print all branch lengths, not just identifiable ones
+    ## printID = false: print all branch lengths, not just identifiable ones
 end
