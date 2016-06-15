@@ -18,9 +18,9 @@ numerical optimization of branch lengths and inheritance probabilities
 and a heuristic search in the space of phylogenetic
 networks.
 
-If you use the package, and for details on the SNaQ method, please cite
+If you use the package, and for details on SNaQ, please cite
 
-- Claudia Sol&iacute;s-Lemus and C&eacute;cile An&eacute (2016).
+- Claudia Sol&iacute;s-Lemus and C&eacute;cile An&eacute; (2016).
   Inferring Phylogenetic Networks with Maximum Pseudolikelihood under Incomplete Lineage Sorting.
   [PLoS Genet](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896)
   12(3):e1005896. doi: 10.1371/journal.pgen.1005896
