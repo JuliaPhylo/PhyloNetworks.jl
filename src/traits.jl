@@ -341,7 +341,9 @@ function phyloNetworklm(
 	)
    	# Extract tips matrix
 	Vy = V[:Tips]
-    # Keep only not missing values
+	# Re-order if necessary
+	if (ind != [0]) Vy = Vy[ind, ind] end
+	# Keep only not missing values
     	Vy = Vy[msng, msng]
 	# Cholesky decomposition
    	R = cholfact(Vy)
@@ -373,14 +375,15 @@ function phyloNetworklm(
         warn("The network provided has no tip names. The tips are assumed te be is the same order than the data. You'd better know what you're doing.")
         ind = [0]
     elseif !any(DataFrames.names(fr) .== :tipsNames)
-        warn("The entry data frame has no column labelled tipsNames. Please add such a column to match the tips against the network. Otherwise the tips are assumed te be is the same order than the data and you'd better know what you're doing.")
+        warn("The entry data frame has no column labelled tipsNames. Please add such a column to match the tips against the network. Otherwise the tips are assumed to be is the same order than the data and you'd better know what you're doing.")
         ind = [0]
     else
-        ind = indexin(V.tipsNames, fr[:tipsNames])
+#        ind = indexin(V.tipsNames, fr[:tipsNames])
+        ind = indexin(fr[:tipsNames], V.tipsNames)
         if any(ind == 0) || length(unique(ind)) != length(ind)
             error("Tips names of the network and names provided in column tipsNames of the dataframe do not match.")
         end
-        fr = fr[ind, :]
+#	fr = fr[ind, :]
     end
     # Find the regression matrix and answer vector
     mf = ModelFrame(f,fr)
@@ -417,13 +420,7 @@ StatsBase.model_response(m::phyloNetworkLinearModel) = m.Y
 
 # Predicted values at the tips
 # (rescaled by cholesky of tips variances)
-# Give back the data in the user-provided order if exists.
 StatsBase.predict(m::phyloNetworkLinearModel) = m.RL * predict(m.lm)
-# function StatsBase.predict(m::phyloNetworkLinearModel)
-# 	tmp = m.RL * predict(m.lm)
-# 	if (m.ind == [0]) return(tmp) end
-# 	return(tmp[m.ind])
-# end
 #StatsBase.predict(m::phyloNetworkLinPredModel) = predict(m.lm)
 
 # Degrees of freedom for residuals
