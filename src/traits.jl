@@ -536,8 +536,8 @@ function ancestralStateReconstruction(net::HybridNetwork,
     Vz = V[:InternalNodes]
     Vyz = V[:TipsNodes]
     R = cholfact(Vy)
-    RU = R[:U]
-    ancestralStateReconstruction(V, Vy, Vz, Vyz, RU, Y, params.mu,
+    RL = R[:L]
+    ancestralStateReconstruction(V, Vy, Vz, Vyz, RL, Y, params.mu,
     params.sigma2)
 end
 
@@ -545,13 +545,13 @@ end
 function ancestralStateReconstruction(V::matrixTopologicalOrder,
                                       Vy::Matrix, Vz::Matrix,
                                       Vyz::Matrix,
-                                      RU::UpperTriangular{Float64,Array{Float64,2}},
+                                      RL::LowerTriangular{Float64,Array{Float64,2}},
                                       Y::Vector, mu::Real, sigma2::Real)
     # Vectors of means
     m_y = ones(size(Vy)[1]) .* mu # !! works because BM no shift.
     m_z = ones(size(Vz)[1]) .* mu
-    temp = RU' \ Vyz
-    m_z_cond_y = m_z + temp' * (RU' \ (Y - m_y))
+    temp = RL \ Vyz
+    m_z_cond_y = m_z + temp' * (RL \ (Y - m_y))
     V_z_cond_y = sigma2 .* (Vz - temp' * temp)
     reconstructedStates(m_z_cond_y, V_z_cond_y, V.internalNodesNumbers)
 end
