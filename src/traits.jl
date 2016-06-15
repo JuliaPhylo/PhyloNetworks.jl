@@ -506,15 +506,27 @@ end
 type reconstructedStates
     traits_nodes::Vector
     variances_nodes::Matrix
-    internalNodesNumbers::Vector{Int64}
+    internalNodesNumbers::Vector{Int}
 end
 
 function Base.show(io::IO, obj::reconstructedStates)
-    println(io, "$(typeof(obj)):\n\nConditional Expectation of Ancestral traits:\n",
-    hcat(obj.internalNodesNumbers, obj.traits_nodes))
+    println(io, "$(typeof(obj)):\n",
+#    		"Conditional Law of Ancestral traits:\n",
+	   	 CoefTable(hcat(obj.internalNodesNumbers, obj.traits_nodes, diag(obj.variances_nodes)),
+	    			["Node index", "Cond. Exp.", "Cond. Var."],
+				fill("", size(obj.internalNodesNumbers))))
 end
 
 
+"""
+`ancestralStateReconstruction(net::HybridNetwork, Y::Vector, params::paramsBM)`
+
+Computes the conditional expectations and variances of the ancestral (un-observed)
+traits values at the internal nodes of the phylogenetic network (net), 
+given the values of the traits at the tips of the network (Y) and some
+known parameters of the process used for trait evolution (params, only BM with fixed root
+works for now).
+"""
 # Reconstruction from known BM parameters
 function ancestralStateReconstruction(net::HybridNetwork,
                                       Y::Vector,
