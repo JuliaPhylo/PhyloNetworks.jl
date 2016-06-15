@@ -1509,9 +1509,9 @@ Output:
   All networks in this file have the same undirected topology as the best network,
   but have different hybrid/gene flow directions. These other networks are reported with
   their pseudo-likelihood scores, because
-  - non-identifiability issues can cause them to have very similar scores, and
-  - SNaQ was shown to estimate the undirected topology accurately, but not the direction of
-    hybridization in cases of near non-identifiability.
+   non-identifiability issues can cause them to have very similar scores, and because
+   SNaQ was shown to estimate the undirected topology accurately but not the direction of
+   hybridization in cases of near non-identifiability.
 - if any error occurred, file `.err` provides information (seed) to reproduce the error.
 
 There are many optional arguments, including

@@ -26,5 +26,6 @@ ANode
 
 ```@docs
 sampleBootstrapTrees
+sampleCFfromCI
 setNonIdBL!
 ```

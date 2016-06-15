@@ -12,11 +12,18 @@ original size: 525px × 222px-->
 -->
 
 SNaQ implements the statistical inference method in Sol&iacute;s-Lemus and An&eacute;
-[(2016, PLoS Genetics)](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896).
+[(2016)](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896).
 The procedure involves a
 numerical optimization of branch lengths and inheritance probabilities
 and a heuristic search in the space of phylogenetic
 networks.
+
+If you use the package, and for details on the SNaQ method, please cite
+
+- Claudia Sol&iacute;s-Lemus and C&eacute;cile An&eacute (2016).
+  Inferring Phylogenetic Networks with Maximum Pseudolikelihood under Incomplete Lineage Sorting.
+  [PLoS Genet](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896)
+  12(3):e1005896. doi: 10.1371/journal.pgen.1005896
 
 To get help, check
 
