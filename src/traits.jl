@@ -292,7 +292,7 @@ end
 #    lm::DataFrames.DataFrameRegressionModel # Result of the lm on a data frame
 #    V::matrixTopologicalOrder # Network Matrix
 #    Vy::Matrix # Variance covariance at the tips
-#    RU::UpperTriangular # Cholesky transform of Vy
+#    RL::LowerTriangular # Cholesky transform of Vy
 #    Y::Vector # Data at the tips
 #    X::Matrix # Regression matrix
 #    logdetVy::Real # log det of Vy
@@ -305,7 +305,7 @@ type phyloNetworkLinearModel
     lm::GLM.LinearModel # result of a lm on a matrix
     V::matrixTopologicalOrder
     Vy::Matrix
-    RU::UpperTriangular
+    RL::LowerTriangular
     Y::Vector
     X::Matrix
     logdetVy::Real
@@ -339,15 +339,15 @@ function phyloNetworklm(
 	model="BM"::AbstractString,
 	ind=[0]::Vector{Int}
 	)
-    # Extract tips matrix
+   	# Extract tips matrix
 	Vy = V[:Tips]
     # Keep only not missing values
     	Vy = Vy[msng, msng]
 	# Cholesky decomposition
    	R = cholfact(Vy)
-   	RU = R[:U]
+   	RL = R[:L]
 	# Fit
-   	phyloNetworkLinearModel(lm(RU\X, RU\Y), V, Vy, RU, Y, X, logdet(Vy), ind, msng)
+   	phyloNetworkLinearModel(lm(RL\X, RL\Y), V, Vy, RL, Y, X, logdet(Vy), ind, msng)
 end
 
 
@@ -390,7 +390,7 @@ function phyloNetworklm(
     phyloNetworklm(mm.m, Y, V, mf.msng, model, ind)
     # Create the object
 #    phyloNetworkLinPredModel(DataFrames.DataFrameRegressionModel(fit, mf, mm),
-#    fit.V, fit.Vy, fit.RU, fit.Y, fit.X, fit.logdetVy, ind, mf.msng)
+#    fit.V, fit.Vy, fit.RL, fit.Y, fit.X, fit.logdetVy, ind, mf.msng)
 end
 
 ### Methods on type phyloNetworkRegression
@@ -405,7 +405,7 @@ StatsBase.nobs(m::phyloNetworkLinearModel) = nobs(m.lm)
 
 # Compute the residuals
 # (Rescaled by cholesky of variance between tips)
-StatsBase.residuals(m::phyloNetworkLinearModel) = m.RU * residuals(m.lm)
+StatsBase.residuals(m::phyloNetworkLinearModel) = m.RL * residuals(m.lm)
 #StatsBase.residuals(m::phyloNetworkLinPredModel) = residuals(m.lm)
 
 # StatsBase.coeftable(m::phyloNetworkLinearModel) = coeftable(m.lm)
@@ -417,11 +417,17 @@ StatsBase.model_response(m::phyloNetworkLinearModel) = m.Y
 
 # Predicted values at the tips
 # (rescaled by cholesky of tips variances)
-StatsBase.predict(m::phyloNetworkLinearModel) = m.RU * predict(m.lm)
+# Give back the data in the user-provided order if exists.
+StatsBase.predict(m::phyloNetworkLinearModel) = m.RL * predict(m.lm)
+# function StatsBase.predict(m::phyloNetworkLinearModel)
+# 	tmp = m.RL * predict(m.lm)
+# 	if (m.ind == [0]) return(tmp) end
+# 	return(tmp[m.ind])
+# end
 #StatsBase.predict(m::phyloNetworkLinPredModel) = predict(m.lm)
 
 # Degrees of freedom for residuals
-df_residual(m::phyloNetworkLinearModel) =  nobs(m) - length(coef(m))
+StatsBase.df_residual(m::phyloNetworkLinearModel) =  nobs(m) - length(coef(m))
 #df_residual(m::phyloNetworkLinPredModel) =  nobs(m) - length(coef(m))
 
 # Compute variance of the BM
@@ -545,27 +551,27 @@ end
 ## Old version of phyloNetworklm (naive) 
 #################################################
 
-function phyloNetworklmNaive(X::Matrix, Y::Vector, net::HybridNetwork, model="BM"::AbstractString)
-	# Geting variance covariance
-	V = sharedPathMatrix(net)
-	Vy = extractVarianceTips(V, net)
-	# Needed quantities (naive)
-	ntaxa = length(Y)
-	Vyinv = inv(Vy)
-	XtVyinv = X' * Vyinv
-	logdetVy = logdet(Vy)
-       # beta hat
-	betahat = inv(XtVyinv * X) * XtVyinv * Y
-       # sigma2 hat
-	fittedValues =  X * betahat
-	residuals = Y - fittedValues
-	sigma2hat = 1/ntaxa * (residuals' * Vyinv * residuals)
-       # log likelihood
-	loglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(sigma2hat) + logdetVy)
-	# Result
-#	res = phyloNetworkRegression(betahat, sigma2hat[1], loglik[1], V, Vy, fittedValues, residuals)
-	return((betahat, sigma2hat[1], loglik[1], V, Vy, logdetVy, fittedValues, residuals))
-end
+# function phyloNetworklmNaive(X::Matrix, Y::Vector, net::HybridNetwork, model="BM"::AbstractString)
+# 	# Geting variance covariance
+# 	V = sharedPathMatrix(net)
+# 	Vy = extractVarianceTips(V, net)
+# 	# Needed quantities (naive)
+# 	ntaxa = length(Y)
+# 	Vyinv = inv(Vy)
+# 	XtVyinv = X' * Vyinv
+# 	logdetVy = logdet(Vy)
+#        # beta hat
+# 	betahat = inv(XtVyinv * X) * XtVyinv * Y
+#        # sigma2 hat
+# 	fittedValues =  X * betahat
+# 	residuals = Y - fittedValues
+# 	sigma2hat = 1/ntaxa * (residuals' * Vyinv * residuals)
+#        # log likelihood
+# 	loglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(sigma2hat) + logdetVy)
+# 	# Result
+# #	res = phyloNetworkRegression(betahat, sigma2hat[1], loglik[1], V, Vy, fittedValues, residuals)
+# 	return((betahat, sigma2hat[1], loglik[1], V, Vy, logdetVy, fittedValues, residuals))
+# end
 
 
 
