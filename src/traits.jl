@@ -287,21 +287,7 @@ end
 #################################################
 
 # New type for phyloNetwork regression
-# For Data frames (fomula)
-#type phyloNetworkLinPredModel
-#    lm::DataFrames.DataFrameRegressionModel # Result of the lm on a data frame
-#    V::matrixTopologicalOrder # Network Matrix
-#    Vy::Matrix # Variance covariance at the tips
-#    RL::LowerTriangular # Cholesky transform of Vy
-#    Y::Vector # Data at the tips
-#    X::Matrix # Regression matrix
-#    logdetVy::Real # log det of Vy
-#    ind::Vector{Int} # vector matching the tips of the network against the names of the data frame provided. 0 if the match could #not be preformed.
-#    msng::BitArray{1} # Which tips are not missing
-#end
-
-# For matrices
-type phyloNetworkLinearModel 
+type phyloNetworkLinearModel <: LinPredModel 
     lm::GLM.LinearModel # result of a lm on a matrix
     V::matrixTopologicalOrder
     Vy::Matrix
@@ -312,8 +298,6 @@ type phyloNetworkLinearModel
     ind::Vector{Int} # vector matching the tips of the network against the names of the data frame provided. 0 if the match could not be preformed.
     msng::BitArray{1} # Which tips are not missing
 end
-
-
 
 # Function for lm with net residuals
 function phyloNetworklm(
@@ -398,71 +382,72 @@ end
 
 ### Methods on type phyloNetworkRegression
 
+## Un-changed Quantities
 # Coefficients of the regression
-StatsBase.coef(m::phyloNetworkLinearModel) = coef(m.lm)
-#StatsBase.coef(m::phyloNetworkLinPredModel) = coef(m.lm)
-
+StatsBase.coef(m::phyloNetworkLinearModel) = coef(m.lm) 
 # Number of observations
-StatsBase.nobs(m::phyloNetworkLinearModel) = nobs(m.lm)
-#StatsBase.nobs(m::phyloNetworkLinPredModel) = nobs(m.lm)
+StatsBase.nobs(m::phyloNetworkLinearModel) = nobs(m.lm) 
+# vcov matrix
+StatsBase.vcov(m::phyloNetworkLinearModel) = vcov(m.lm)
+# Standart error
+StatsBase.stderr(m::phyloNetworkLinearModel) = stderr(m.lm)
+# Confidence Intervals
+StatsBase.confint(m::phyloNetworkLinearModel) = confint(m.lm)
+# coef table (coef, stderr, confint)
+StatsBase.coeftable(m::phyloNetworkLinearModel) = coeftable(m.lm)
+# Degrees of freedom for residuals
+StatsBase.df_residual(m::phyloNetworkLinearModel) =  nobs(m) - length(coef(m))
+# Degrees of freedom consumed in the model (+1: dispersion parameter)
+StatsBase.df(m::phyloNetworkLinearModel) = length(coef(m)) + 1 
+# Deviance (sum of squared residuals with metric V)
+StatsBase.deviance(m::phyloNetworkLinearModel) = deviance(m.lm)
 
+## Changed Quantities
 # Compute the residuals
 # (Rescaled by cholesky of variance between tips)
 StatsBase.residuals(m::phyloNetworkLinearModel) = m.RL * residuals(m.lm)
-#StatsBase.residuals(m::phyloNetworkLinPredModel) = residuals(m.lm)
-
-# StatsBase.coeftable(m::phyloNetworkLinearModel) = coeftable(m.lm)
-# StatsBase.coeftable(m::phyloNetworkLinPredModel) = coeftable(m.lm)
-
 # Tip data
 StatsBase.model_response(m::phyloNetworkLinearModel) = m.Y
-#StatsBase.model_response(m::phyloNetworkLinPredModel) = m.Y
-
 # Predicted values at the tips
 # (rescaled by cholesky of tips variances)
 StatsBase.predict(m::phyloNetworkLinearModel) = m.RL * predict(m.lm)
-#StatsBase.predict(m::phyloNetworkLinPredModel) = predict(m.lm)
-
-# Degrees of freedom for residuals
-StatsBase.df_residual(m::phyloNetworkLinearModel) =  nobs(m) - length(coef(m))
-#df_residual(m::phyloNetworkLinPredModel) =  nobs(m) - length(coef(m))
-
-# Compute variance of the BM
-function sigma2_estim(m::phyloNetworkLinearModel)
-#	sum(residuals(fit).^2) / nobs(fit)
-    sum(residuals(m.lm).^2) / df_residual(m)
+#Log likelihood of the fitted linear model
+StatsBase.loglikelihood(m::phyloNetworkLinearModel) =  loglikelihood(m.lm) - 1/2 * m.logdetVy
+# Null  Deviance (sum of squared residuals with metric V)
+# REMARK Not just the null deviance of the cholesky regression
+# Might be something better to do than this, though.
+function StatsBase.nulldeviance(m::phyloNetworkLinearModel)
+    vo = ones(length(m.Y), 1)
+    vo = m.RL \ vo
+    bo = inv(vo'*vo)*vo'*model_response(m.lm)
+    ro = model_response(m.lm) - vo*bo
+    return sum(ro.^2)
 end
-#function sigma2_estim(m::phyloNetworkLinPredModel)
-#	sum(residuals(fit).^2) / nobs(fit)
-#    sum(residuals(m.lm).^2) / df_residual(m)
-#end
-
-# vcov matrix
-function StatsBase.vcov(obj::phyloNetworkLinearModel)
-   sigma2_estim(obj) * inv(obj.X' * obj.X) 
+# Null Log likelihood (null model with only the intercept)
+# Same remark
+function StatsBase.nullloglikelihood(m::phyloNetworkLinearModel)
+    n = length(m.Y)
+    return -n/2 * (log(2*pi * nulldeviance(m)/n) + 1) - 1/2 * m.logdetVy
 end
-#function StatsBase.vcov(obj::phyloNetworkLinPredModel)
-#   sigma2_estim(obj) * inv(obj.X' * obj.X) 
-#end
-
-# Standart error
-StatsBase.stderr(m::phyloNetworkLinearModel) = sqrt(diag(vcov(m)))
-#StatsBase.stderr(m::phyloNetworkLinPredModel) = sqrt(diag(vcov(m)))
-
-# Confidence intervals on coeficients
-function StatsBase.confint(obj::phyloNetworkLinearModel, level=0.95::Real)
-    hcat(coef(obj),coef(obj)) + stderr(obj) *
-    quantile(TDist(df_residual(obj)), (1. - level)/2.) * [1. -1.]
+# coefficient of determination (1 - SS_res/SS_null)
+# Copied from GLM.jl/src/lm.jl, line 139
+StatsBase.R2(m::phyloNetworkLinearModel) = 1 - deviance(m)/nulldeviance(m)
+# adjusted coefficient of determination 
+# Copied from GLM.jl/src/lm.jl, lines 141-146
+function StatsBase.adjR2(obj::phyloNetworkLinearModel)
+    n = nobs(obj)
+    # df() includes the dispersion parameter
+    p = df(obj) - 1
+    1 - (1 - R2(obj))*(n-1)/(n-p)
 end
-#function StatsBase.confint(obj::phyloNetworkLinPredModel, level=0.95::Real)
-#    hcat(coef(obj),coef(obj)) + stderr(obj) *
-#    quantile(TDist(df_residual(obj)), (1. - level)/2.) * [1. -1.]
-#end
 
-# Log likelihood of the fitted BM
-StatsBase.loglikelihood(m::phyloNetworkLinearModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2_estim(m)) + m.logdetVy)
-#StatsBase.loglikelihood(m::phyloNetworkLinPredModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2_estim(m)) + m.logdetVy)
+## REMARK
+# As phyloNetworkLinearModel <: LinPredModel, the following functions are automatically defined:
+# AIC, AICc, BIC
 
+## New quantities
+# ML estimate for variance of the BM
+sigma2_estim(m::phyloNetworkLinearModel) = deviance(m.lm) / nobs(m)
 
 ### Print the results
 # Variance
@@ -470,34 +455,35 @@ function paramstable(m::phyloNetworkLinearModel)
     Sig = sigma2_estim(m)
     "Sigma2: $(Sig)"
 end
-#function paramstable(m::phyloNetworkLinPredModel)
-#    Sig = sigma2_estim(m)
-#    "Sigma2: $(Sig)"
-#end
-# Coefficients
-function StatsBase.coeftable(mm::phyloNetworkLinearModel)
-    cc = coef(mm)
-    se = stderr(mm)
-    tt = cc ./ se
-    CoefTable(hcat(cc,se,tt,ccdf(FDist(1, df_residual(mm)), abs2(tt))),
-              ["Estimate","Std.Error","t value", "Pr(>|t|)"],
-              ["x$i" for i = 1:size(mm.lm.pp.X, 2)], 4)
-end
-#function StatsBase.coeftable(mm::phyloNetworkLinPredModel)
-#    cc = coef(mm)
-#    se = stderr(mm)
-#    tt = cc ./ se
-#    CoefTable(hcat(cc,se,tt,ccdf(FDist(1, df_residual(mm)), abs2(tt))),
-#              ["Estimate","Std.Error","t value", "Pr(>|t|)"],
-#              collect(coefnames(mm.lm.mf)), 4)
-#end
-
 function Base.show(io::IO, obj::phyloNetworkLinearModel)
     println(io, "$(typeof(obj)):\n\nParameter(s) Estimates:\n", paramstable(obj), "\n\nCoefficients:\n", coeftable(obj))
 end
-#function Base.show(io::IO, obj::phyloNetworkLinPredModel)
-#    println(io, "$(typeof(obj)):\n\nParameter(s) Estimates:\n", paramstable(obj), "\n\nCoefficients:\n", coeftable(obj))
+
+## Deprecated
+# function StatsBase.vcov(obj::phyloNetworkLinearModel)
+#    sigma2_estim(obj) * inv(obj.X' * obj.X) 
+# end
+#function StatsBase.vcov(obj::phyloNetworkLinPredModel)
+#   sigma2_estim(obj) * inv(obj.X' * obj.X) 
 #end
+#StatsBase.stderr(m::phyloNetworkLinPredModel) = sqrt(diag(vcov(m)))
+# Confidence intervals on coeficients
+# function StatsBase.confint(obj::phyloNetworkLinearModel, level=0.95::Real)
+#     hcat(coef(obj),coef(obj)) + stderr(obj) *
+#     quantile(TDist(df_residual(obj)), (1. - level)/2.) * [1. -1.]
+# end
+# Log likelihood of the fitted BM
+# StatsBase.loglikelihood(m::phyloNetworkLinearModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2_estim(m)) + m.logdetVy)
+#StatsBase.loglikelihood(m::phyloNetworkLinPredModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2_estim(m)) + m.logdetVy)
+# Coefficients
+# function StatsBase.coeftable(mm::phyloNetworkLinearModel)
+#     cc = coef(mm)
+#     se = stderr(mm)
+#     tt = cc ./ se
+#     CoefTable(hcat(cc,se,tt,ccdf(FDist(1, df_residual(mm)), abs2(tt))),
+#               ["Estimate","Std.Error","t value", "Pr(>|t|)"],
+#               ["x$i" for i = 1:size(mm.lm.pp.X, 2)], 4)
+# end
 
 #################################################
 ## Ancestral State Reconstruction
@@ -531,7 +517,13 @@ works for now).
 function ancestralStateReconstruction(net::HybridNetwork,
                                       Y::Vector,
                                       params::paramsBM)
-	V = sharedPathMatrix(net)
+    V = sharedPathMatrix(net)
+    ancestralStateReconstruction(V, Y, params)
+end
+
+function ancestralStateReconstruction(V::matrixTopologicalOrder,
+				      Y::Vector,
+				      params::paramsBM)
     Vy = V[:Tips]
     Vz = V[:InternalNodes]
     Vyz = V[:TipsNodes]
