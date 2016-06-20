@@ -449,6 +449,23 @@ end
 ## New quantities
 # ML estimate for variance of the BM
 sigma2_estim(m::phyloNetworkLinearModel) = deviance(m.lm) / nobs(m)
+# Need to be adapted manually to DataFrameRegressionModel beacouse it's a new function
+sigma2_estim(m::DataFrames.DataFrameRegressionModel) = sigma2_estim(m.model)
+# ML estimate for ancestral state of the BM
+function mu_estim(m::phyloNetworkLinearModel)
+	warn("You fitted the data against a custom matrix, so I have no way of knowing which column is your intercept (column of ones). I am using the first coefficient for ancestral mean mu by convention, but that might not be what you are looking for.")
+	return coef(m)[1]
+end
+# Need to be adapted manually to DataFrameRegressionModel beacouse it's a new function
+function mu_estim(m::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel,Float64})
+	if (!m.mf.terms.intercept) error("The fit was not without intercept, so I cannot estimate mu") end
+	return coef(m)[1]
+end
+
+### Functions specific to DataFrameRegressionModel
+DataFrames.ModelFrame(m::DataFrames.DataFrameRegressionModel) = m.mf
+DataFrames.ModelMatrix(m::DataFrames.DataFrameRegressionModel) = m.mm
+DataFrames.Formula(m::DataFrames.DataFrameRegressionModel) = Formula(m.mf.terms)
 
 ### Print the results
 # Variance
@@ -541,12 +558,41 @@ function ancestralStateReconstruction(V::matrixTopologicalOrder,
                                       RL::LowerTriangular{Float64,Array{Float64,2}},
                                       Y::Vector, mu::Real, sigma2::Real)
     # Vectors of means
-    m_y = ones(size(Vy)[1]) .* mu # !! works because BM no shift.
-    m_z = ones(size(Vz)[1]) .* mu
+    m_y = ones(size(Vy)[1]) .* mu # !! correct only of no predictor. 
+    m_z = ones(size(Vz)[1]) .* mu # !! works because BM no shift.
     temp = RL \ Vyz
     m_z_cond_y = m_z + temp' * (RL \ (Y - m_y))
     V_z_cond_y = sigma2 .* (Vz - temp' * temp)
     reconstructedStates(m_z_cond_y, V_z_cond_y, V.internalNodesNumbers)
+end
+
+# Empirical reconstruciton from a fitted object
+function ancestralStateReconstruction(obj::phyloNetworkLinearModel, mu::Real)
+  Vyz = obj.V[:TipsNodes]
+	# If the tips were re-organized, do the same for Vyz
+	if (obj.ind != [0])
+		Vyz = Vyz[obj.ind, :]
+	else
+		warn("There were no indication for the position of the tips on the network. Assuming that they are given in the same order. Please check that this is what you intended.")
+	end
+	ancestralStateReconstruction(obj.V,
+															 obj.Vy,
+															 obj.V[:InternalNodes],
+                               Vyz,
+                               obj.RL,
+                               obj.Y,
+															 mu,
+															 sigma2_estim(obj))
+end
+# Handling the ancestral mean
+function ancestralStateReconstruction(obj::phyloNetworkLinearModel)
+	mu = mu_estim(obj) # Produce a warning if intercept is unknown.
+	ancestralStateReconstruction(obj, mu)
+end
+# For a DataFrameRegressionModel
+function ancestralStateReconstruction(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel,Float64})
+	mu = mu_estim(obj)
+	ancestralStateReconstruction(obj.model, mu)
 end
 
 #################################################
