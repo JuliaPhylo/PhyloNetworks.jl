@@ -374,7 +374,8 @@ function phyloNetworklm(
     mm = ModelMatrix(mf)
     Y = convert(Vector{Float64},DataFrames.model_response(mf))
     # Fit the model
-    phyloNetworklm(mm.m, Y, V, mf.msng, model, ind)
+    DataFrames.DataFrameRegressionModel(phyloNetworklm(mm.m, Y, V, mf.msng, model, ind), mf, mm)
+		# (Method copied from DataFrame/src/statsmodels/statsmodels.jl, lines 47-58)
     # Create the object
 #    phyloNetworkLinPredModel(DataFrames.DataFrameRegressionModel(fit, mf, mm),
 #    fit.V, fit.Vy, fit.RL, fit.Y, fit.X, fit.logdetVy, ind, mf.msng)
