@@ -9,9 +9,9 @@
 type matrixTopologicalOrder
     V::Matrix # Matrix in itself
     nodesNumbersTopOrder::Vector{Int64} # Vector of nodes numbers for ordering of the matrix
-    internalNodesNumbers::Vector{Int64} # Internal nodes numbers (original)
-    tipsNumbers::Vector{Int64} # Tips numbers (original)
-    tipsNames::Vector # Tips Names
+    internalNodesNumbers::Vector{Int64} # Internal nodes numbers (original net order)
+    tipsNumbers::Vector{Int64} # Tips numbers (original net order)
+    tipsNames::Vector # Tips Names (original net order)
     indexation::AbstractString # Are rows ("r"), columns ("c") or both ("b") indexed by nodes numbers in the matrix ?
 end
 
@@ -111,6 +111,7 @@ end
 # Tips : submatrix corresponding to tips
 # InternalNodes : submatrix corresponding to internal nodes
 # TipsNodes : submatrix nTips x nNodes of interactions
+# !! Extract sub-matrices in the original net nodes numbers !!
 function Base.getindex(obj::matrixTopologicalOrder, d::Symbol)
     if d == :Tips # Extract rows and/or columns corresponding to the tips
         mask = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder)
@@ -721,10 +722,11 @@ end
 
 # Extract the vector of simulated values at the tips
 function Base.getindex(obj::traitSimulation, d::Symbol)
-    if d == :Tips
-       res = obj.M[:Tips]
-       squeeze(res[2, :], 1)
-    end
+#    if d == :Tips
+#       res = obj.M[:Tips]
+#       squeeze(res[2, :], 1)
+#    end
+    squeeze(obj.M[:d][2, :], 1)
 end
 
 # function extractSimulateTips(sim::Matrix, net::HybridNetwork)
