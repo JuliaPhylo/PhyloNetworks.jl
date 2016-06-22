@@ -477,6 +477,20 @@ end
 function Base.show(io::IO, obj::phyloNetworkLinearModel)
     println(io, "$(typeof(obj)):\n\nParameter(s) Estimates:\n", paramstable(obj), "\n\nCoefficients:\n", coeftable(obj))
 end
+# For DataFrameModel. Copied from DataFrames/jl/src/statsmodels/statsmodels.jl, lines 101-118
+function Base.show(io::IO, model::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel,Float64})
+			ct = coeftable(model)
+			println(io, "$(typeof(model))")
+			println(io)
+			println(io, Formula(model.mf.terms))
+			println(io)
+			println(io,"Parameter(s) Estimates:")
+			println(io, paramstable(model.model))
+			println(io)
+			println(io,"Coefficients:")
+			show(io, ct)
+end
+
 
 ## Deprecated
 # function StatsBase.vcov(obj::phyloNetworkLinearModel)
@@ -543,13 +557,19 @@ end
 function ancestralStateReconstruction(V::matrixTopologicalOrder,
 				      Y::Vector,
 				      params::paramsBM)
+		# Variances matrices
     Vy = V[:Tips]
     Vz = V[:InternalNodes]
     Vyz = V[:TipsNodes]
     R = cholfact(Vy)
     RL = R[:L]
-    ancestralStateReconstruction(V, Vy, Vz, Vyz, RL, Y, params.mu,
-    params.sigma2)
+    # Vectors of means
+    m_y = ones(size(Vy)[1]) .* params.mu # !! correct only if no predictor. 
+    m_z = ones(size(Vz)[1]) .* params.mu # !! works if BM no shift.
+		# Actual computation
+    ancestralStateReconstruction(V, Vy, Vz, Vyz, RL,
+																 Y, m_y, m_z, 
+																 params.sigma2)
 end
 
 # Reconstruction from all the needed quantities
@@ -557,10 +577,8 @@ function ancestralStateReconstruction(V::matrixTopologicalOrder,
                                       Vy::Matrix, Vz::Matrix,
                                       Vyz::Matrix,
                                       RL::LowerTriangular{Float64,Array{Float64,2}},
-                                      Y::Vector, mu::Real, sigma2::Real)
-    # Vectors of means
-    m_y = ones(size(Vy)[1]) .* mu # !! correct only of no predictor. 
-    m_z = ones(size(Vz)[1]) .* mu # !! works because BM no shift.
+                                      Y::Vector, m_y::Vector, m_z::Vector,
+																			sigma2::Real)
     temp = RL \ Vyz
     m_z_cond_y = m_z + temp' * (RL \ (Y - m_y))
     V_z_cond_y = sigma2 .* (Vz - temp' * temp)
@@ -568,7 +586,7 @@ function ancestralStateReconstruction(V::matrixTopologicalOrder,
 end
 
 # Empirical reconstruciton from a fitted object
-function ancestralStateReconstruction(obj::phyloNetworkLinearModel, mu::Real)
+function ancestralStateReconstruction(obj::phyloNetworkLinearModel, m_y::Vector, m_z::Vector)
   Vyz = obj.V[:TipsNodes]
 	# If the tips were re-organized, do the same for Vyz
 	if (obj.ind != [0])
@@ -582,8 +600,15 @@ function ancestralStateReconstruction(obj::phyloNetworkLinearModel, mu::Real)
                                Vyz,
                                obj.RL,
                                obj.Y,
-															 mu,
+															 m_y,
+															 m_z,
 															 sigma2_estim(obj))
+end
+# Default reconstruction for a simple BM
+function ancestralStateReconstruction(obj::phyloNetworkLinearModel, mu::Real)
+	m_y = predict(obj)
+  m_z = ones(size(obj.V.internalNodesNumbers)[1]) .* mu # !! works if BM no shift.
+	ancestralStateReconstruction(obj, m_y, m_z)
 end
 # Handling the ancestral mean
 function ancestralStateReconstruction(obj::phyloNetworkLinearModel)
@@ -592,7 +617,7 @@ function ancestralStateReconstruction(obj::phyloNetworkLinearModel)
 end
 # For a DataFrameRegressionModel
 function ancestralStateReconstruction(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel,Float64})
-	mu = mu_estim(obj)
+	mu = mu_estim(obj) # Produces an error if intercept is not here.
 	ancestralStateReconstruction(obj.model, mu)
 end
 

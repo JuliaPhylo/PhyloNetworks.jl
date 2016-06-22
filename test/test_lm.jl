@@ -242,9 +242,16 @@ fitnabis = phyloNetworklm(trait ~ pred, dfr, net)
 
 
 
-### BLUP
+### Ancestral State Reconstruction
 params = paramsBM(3, 1)
 sim = simulate(net, params)
 Y = sim[:Tips]
+#BLUP
 ancestral_traits = ancestralStateReconstruction(net, Y, params)
+#EBLUP
+dfr = DataFrame(trait = Y, tipsNames = tipLabels(sim))
+fit = phyloNetworklm(trait~1, dfr, net)
+eblup = ancestralStateReconstruction(fit)
+
+
 
