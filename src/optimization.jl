@@ -996,6 +996,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
         writelog && write(logfile,"\nfound best network, now we re-optimize branch lengths and gamma more precisely")
         optBL!(newT,d,verbose,1e-12,1e-10,1e-10,1e-10)
     end
+    assignhybridnames!(newT)
     if(absDiff <= M*ftolAbs)
         writelog && write(logfile,"\nSTOPPED by absolute difference criteria")
     elseif(currT.loglik <= M*ftolAbs)

@@ -6,8 +6,8 @@
 function setCHECKNET(b::Bool)
     global CHECKNET
     CHECKNET = b
-    @show CHECKNET
-    CHECKNET && warn("CHECKNET was changed to true: that will slow snaq! down.")
+    CHECKNET && warn("PhyloNetworks.CHECKNET is true: will slow snaq! down.")
+    b || println("PhyloNetworks.CHECKNET set to false")
 end
 
 # ----- aux general functions ---------------
@@ -629,7 +629,7 @@ prints the information on the edges of net: edge number, node numbers of nodes a
 
 function printEdges(net::HybridNetwork)
     if(net.numBad > 0)
-        warn("net has $(net.numBad) bad diamond I. Some γ and edge lengths t are not identifiable, although their γ * (1-exp(-t)) are.")
+        println("net has $(net.numBad) bad diamond I. Some γ and edge lengths t are not identifiable, although their γ * (1-exp(-t)) are.")
     end
     miss = "NA"
     println("Edge\tNode1\tNode2\tInCycle\tcontainRoot\tistIdentitiable\tLength\tisHybrid\tGamma\tisMajor")
@@ -1165,3 +1165,44 @@ function switchHybridNode!(net::HybridNetwork, hybrid::Node, newHybrid::Node)
     makeNodeTree!(net,hybrid)
 end
 
+"""
+`assignhybridnames!(net)`
+
+Assign names to hybrid nodes in the network `net`. Hybrid nodes with an empty `name` field ("")
+are modified with a name that does not conflict with other hybrid names in the network.
+The preferred name is "#H3" if the node number is 3 or -3, but an index other than 3 would be
+used if "#H3" were the name of another hybrid node already.
+
+If two hybrid nodes have non-empty and equal names, the name of one of them is changed and
+re-assigned as described above (with a warning).
+"""
+function assignhybridnames!(net::HybridNetwork)
+    hybnum = Int64[]  # indices 'i' in hybrid names: #Hi
+    # first: go through *all* existing non-empty names
+    for ih in 1:length(net.hybrid)
+        lab = net.hybrid[ih].name
+        lab != "" || continue # do nothing if label is missing
+        jh = findfirst([net.hybrid[j].name for j in 1:ih-1], lab)
+        if jh > 0 # set repeated names to ""
+            warn("hybrid nodes $(net.hybrid[ih].number) and $(net.hybrid[jh].number) have the same label: $lab. Will change the name of the former.")
+            net.hybrid[ih].name = ""
+        else
+            m = match(r"^#H(\d+)$", lab)
+            if m != nothing # make full list of existing indices "i" in #Hi
+                push!(hybnum, parse(Int, m[1]))
+            end
+        end
+    end
+    # second: assign empty names to #Hi
+    hnext = 1
+    for ih in 1:length(net.hybrid)
+        net.hybrid[ih].name == "" || continue # do nothing if non-empty label
+        hnum = abs(net.hybrid[ih].number)
+        while in(hnum, hybnum)
+            hnum = hnext  # not efficient, but rare
+            hnext += 1    # and okay on small networks
+        end
+        push!(hybnum, hnum)
+        net.hybrid[ih].name = "#H$hnum"
+    end
+end
