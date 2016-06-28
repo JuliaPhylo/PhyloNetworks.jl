@@ -1385,6 +1385,11 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
                 n.loglik = -1
                 foundBad = true
             end
+        end
+        ## to sort otherNet by loglik value:
+        ## ind = sortperm([n.loglik for n in otherNet])
+        ## otherNet = otherNet[ind]
+        for(n in otherNet)
             write(s,"$(writeTopologyLevel1(n,true)), with -loglik $(n.loglik)\n")
         end
         foundBad && write(s,"Problem found when optimizing branch lengths for some networks, left loglik as -1. Please report this issue to claudia@stat.wisc.edu, google group or github issues. Thank you!")
@@ -1423,6 +1428,9 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     -------
     List of estimated networks for all runs:
     """
+    ## to sort bestnet by loglik value:
+    ## ind = sortperm([n.loglik for n in bestnet])
+    ## bestnet = bestnet[ind]
     for(n in bestnet)
       str *= " "
       str *= (outgroup == "none" ? writeTopologyLevel1(n,true) :
