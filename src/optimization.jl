@@ -1369,7 +1369,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
                        with the subject BUG IN NETWORKS FILE. You can get this network from the .out file.
                        You can also post this problem to the google group, or github issues. Thank you!\n""")
         end
-        write(s,"$(writeTopologyLevel1(maxNet,true)), with -loglik $(maxNet.loglik) (best network found)\n")
+        write(s,"$(writeTopologyLevel1(maxNet,true)), with -loglik $(maxNet.loglik) (best network found, remaining sorted by log-pseudolik; the smaller, the better)\n")
         # best network is included first: for score comparison with other networks
         foundBad = false
         for(n in otherNet)
@@ -1387,8 +1387,8 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
             end
         end
         ## to sort otherNet by loglik value:
-        ## ind = sortperm([n.loglik for n in otherNet])
-        ## otherNet = otherNet[ind]
+        ind = sortperm([n.loglik for n in otherNet])
+        otherNet = otherNet[ind]
         for(n in otherNet)
             write(s,"$(writeTopologyLevel1(n,true)), with -loglik $(n.loglik)\n")
         end
@@ -1426,11 +1426,11 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
      Dendroscope: $(writeTopologyLevel1(maxNet,di=true))
      Elapsed time: $(t) seconds in $(runs-length(failed)) successful runs
     -------
-    List of estimated networks for all runs:
+    List of estimated networks for all runs (sorted by log-pseudolik; the smaller, the better):
     """
     ## to sort bestnet by loglik value:
-    ## ind = sortperm([n.loglik for n in bestnet])
-    ## bestnet = bestnet[ind]
+    ind = sortperm([n.loglik for n in bestnet])
+    bestnet = bestnet[ind]
     for(n in bestnet)
       str *= " "
       str *= (outgroup == "none" ? writeTopologyLevel1(n,true) :
