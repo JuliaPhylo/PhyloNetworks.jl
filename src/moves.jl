@@ -76,6 +76,7 @@ end
 # warning: it needs incycle attributes
 # returns flag of whether it needs update gammaz, and alreadyNoRoot = !edgemin2.containRoot
 function changeDirection!(node::Node, net::HybridNetwork, isminor::Bool)
+    global DEBUG
     node.hybrid || error("node $(node.number) is not hybrid, so we cannot change the direction of the hybrid edge")
     major,minor,tree = hybridEdges(node);
     othermin = getOtherNode(minor,node);
@@ -182,7 +183,7 @@ changeDirection!(node::Node, net::HybridNetwork) = changeDirection!(node, net, t
 # returns success
 # if success=false, it undoes the change direction
 function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
-    global CHECKNET
+    global CHECKNET, DEBUG
     node.hybrid || error("cannot change the direction of minor hybrid edge since node $(node.number) is not hybrid")
     undoGammaz!(node,net)
     edgesRoot = identifyContainRoot(net,node);
@@ -251,6 +252,7 @@ changeDirectionUpdate!(net::HybridNetwork,node::Node) = changeDirectionUpdate!(n
 # this function should be run after changeDirection which gives alreadyNoRoot
 # returns flag2, edgesroot
 function updateContainRootChangeDir!(net::HybridNetwork,node::Node,edgesRoot::Vector{Edge}, alreadyNoRoot::Bool)
+    global DEBUG
     node.hybrid || error("cannot update contain root on node $(node.number) because it is not hybrid")
     DEBUG && println("updating contain root for hybrid node $(node.number), with alreadyNoRoot $(alreadyNoRoot)")
     if(!alreadyNoRoot) #only update root if new descendats were not forbidden to carry root already
@@ -303,6 +305,7 @@ end
 # needed tree1 and tree2 as parameters because we need to do undogammaz before moveOrigin
 # returns flag=true if newedge was incycle before, to be able to undo if needed (newedgeincycle)
 function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, tree2::Edge,newedge::Edge, undo::Bool, newedgeincycle::Bool)
+    global DEBUG
     node.hybrid || error("cannot move origin of hybridization because node $(node.number) is not hybrid")
     size(newedge.node,1) == 2 || error("strange edge $(newedge.number) that has $(size(newedge.node,1)) nodes instead of 2")
     in(newedge,net.edge) || error("newedge $(newedge.number) not in net.edge")
@@ -572,6 +575,7 @@ end
 # random=false always chooses the minor edge
 # returns the othermin node and majoredge for target
 function chooseMinorMajor(node::Node, random::Bool, target::Bool)
+    global DEBUG
     node.hybrid || error("node $(node.number) is not hybrid, so we cannot delete hybridization event around it")
     major,minor,tree = hybridEdges(node);
     #println("hybrid node $(node.number) has major $(major.number), minor $(minor.number) and tree $(tree.number)")
@@ -636,7 +640,7 @@ end
 # input: network, hybrid node, othermin already chosen with chooseMinorMajor
 # returns: success (bool), flag, nocycle, flag2
 function moveOriginUpdate!(net::HybridNetwork, node::Node, othermin::Node, newedge::Edge)
-    global CHECKNET
+    global CHECKNET, DEBUG
     node.hybrid || error("node $(node.number) is not hybrid, so we cannot delete hybridization event around it")
     DEBUG && println("MOVE: move Origin for hybrid node $(node.number)")
     in(newedge,net.edge) || error("newedge $(newedge.number) not in net.edge")
@@ -668,6 +672,7 @@ end
 # returns success (bool): failure from: neighbors not suitable to begin
 # with, or conflicts incycle
 function moveOriginUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
+    global DEBUG
     node.hybrid || error("cannot move origin because node $(node.number) is not hybrid")
     othermin = chooseMinorMajor(node,random)
     #println("othermin is $(othermin.number) with edges $([e.number for e in othermin.edge])")
@@ -723,6 +728,7 @@ end
 
 # function to switch major and tree node in moveTarget
 function switchMajorTree!(major::Edge, tree::Edge, node::Node)
+    global DEBUG
     !tree.hybrid || error("tree edge $(tree.number) cannot be hybrid to switch to major")
     major.hybrid || error("major edge $(major.number) has to be hybrid to switch to tree")
     DEBUG && println("switch major $(major.number) tree $(tree.number), node $(node.number)")
@@ -743,6 +749,7 @@ end
 # returns flag=true if newedge was incycle before, to be able to undo if needed (newedgeincycle)
 # also returns alreadyNoRoot
 function moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, newedge::Edge, undo::Bool, newedgeincycle::Bool)
+    global DEBUG
     node.hybrid || error("cannot move origin of hybridization because node $(node.number) is not hybrid")
     length(newedge.node) == 2 || error("strange edge $(newedge.number) that has $(size(newedge.node,1)) nodes instead of 2")
     newedge.inCycle == node.number || newedge.inCycle == -1 || error("newedge in cycle must be -1 or $(node.number), not $(newedge.inCycle)")
@@ -1023,7 +1030,7 @@ moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, newedge::Edg
 # input: network, hybrid node, othermin, majoredge (chosen with chooseMinorMajor), newedge
 # returns: success (bool), flag2, flag3
 function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, majoredge::Edge, newedge::Edge)
-    global CHECKNET
+    global CHECKNET, DEBUG
     node.hybrid || error("node $(node.number) is not hybrid, so we cannot delete hybridization event around it")
     DEBUG && println("MOVE: move Target for hybrid node $(node.number)")
     in(newedge,net.edge) || error("newedge $(newedge.number) not in net.edge")
@@ -1084,6 +1091,7 @@ end
 # returns success (bool): failure from: neighbors not suitable to begin
 # with, or conflicts incycle
 function moveTargetUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
+    global DEBUG
     node.hybrid || error("cannot move origin because node $(node.number) is not hybrid")
     othermin,majoredge = chooseMinorMajor(node,random, true)
     #println("othermin is $(othermin.number), will move edge: majoredge $(majoredge.number)")
@@ -1126,6 +1134,7 @@ end
 # function to choose a tree edge for NNI
 # its two nodes must have hasHybEdge=false
 function chooseEdgeNNI(net::Network,N::Int64)
+    global DEBUG
     N > 0 || error("N must be positive: $(N)")
     index1 = 0
     i = 0
@@ -1148,6 +1157,7 @@ end
 # input: edge from chooseEdgeNNI
 # returns success; failure if cannot do nni without creating intersecting cycles
 function NNI!(net::Network,edge::Edge)
+    global DEBUG
     !edge.hybrid || error("cannot do NNI on hybrid edge: $(edge.number)")
     DEBUG && println("MOVE: NNI on tree edge $(edge.number)")
     edges1 = hybridEdges(edge.node[1],edge)

@@ -18,10 +18,10 @@ using Gadfly # for plotsGadfly, for visualization
 import Base.show
 import Gadfly.plot
 
-const DEBUG = false
+global DEBUG = false
 const DEBUGC = false #more detailed prints
-const CHECKNET = true #please keep true here, not in PhyloNetworks.jl
-const REDIRECT = false # for debugging to a file later
+global CHECKNET = true #please keep true here, not in PhyloNetworks.jl
+global REDIRECT = false # for debugging to a file later
 
 
 include("auxiliary.jl")

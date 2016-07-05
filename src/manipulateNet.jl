@@ -16,6 +16,7 @@ julia> vnet = undirectedOtherNetworks(net)
 # WARNING: does not update partition, because only thing to change is hybrid node number
 ## insideSnaq=true means that all attributes are perfect
 function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractString, insideSnaq=false::Bool)
+    global DEBUG
     if(!insideSnaq)
         net0 = readTopologyLevel1(writeTopologyLevel1(net0))
     end
@@ -389,7 +390,7 @@ function fuseedgesat!(i::Int64, net::HybridNetwork)
     else
         ce = net.node[i].edge[j==1 ? 2 : 1] # edge to keep
     end
-    isnodeiparent = (net.node[i] == ce.node[ce.isChild1 ? 2 : 1])
+    isnodeiparent = (net.node[i] ≡ ce.node[ce.isChild1 ? 2 : 1])
     (!ce.hybrid || isnodeiparent) ||
       error("node $(net.node[i].number) has 1 tree edge ($(pe.number)) and 1 hybrid edge ($(ce.number)), but is child of the hybrid edge.")
     pn = getOtherNode(pe,net.node[i])
@@ -421,6 +422,7 @@ end
 # added if node is internal if node is leaf, root(net,outgroup) is
 # called, so a new node is created on external edge
 function root!(net::HybridNetwork, node::Node, resolve::Bool)
+    global DEBUG
     node.hybrid && error("node $(node.number) is hybrid, cannot root network on a hybrid node")
     if(node.leaf)
         info("node $(node.number) is a leaf, so we will root as an outgroup if possible")
@@ -562,6 +564,7 @@ end
 Roots the network/tree object along the external edge leading to the taxon named 'outgroup'.
 """
 function root!(net::HybridNetwork, outgroup::AbstractString)
+    global DEBUG
     if(!isTree(net))
         if(!net.cleaned)
             DEBUG && println("net not cleaned inside root, need to run updateCR")
@@ -882,9 +885,9 @@ end
 
 
 """
-    deleteleaf!(HybridNetwork,Int64; index=false, simplify=true)
-    deleteleaf!(HybridNetwork,leafName::AbstractString; simplify=true)
-    deleteleaf!(HybridNetwork,Node; simplify=true)
+    deleteleaf!(HybridNetwork, leafName::AbstractString; simplify=true)
+    deleteleaf!(HybridNetwork, Node; simplify=true)
+    deleteleaf!(HybridNetwork, Int64; index=false, simplify=true)
 
 Deletes a leaf node from the network, possibly from its name, number, or index
 in the network's array of nodes.
@@ -893,9 +896,9 @@ simplify: if true and if deleting the node results in 2 hybrid edges
 forming a cycle of k=2 nodes, then these hybrid edges are merged and
 simplified as a single tree edge.
 
-The first version does **not** require that `node` is a leaf,
-so might be used to remove nodes of degree 2.
-The other versions do, and use the default simplify=true.
+The first 2 versions require that `node` is a leaf.
+The 3rd version does **not** require that `node` is a leaf.
+If `node` has degree 3 or more, nothing happens. If it has degree 1 or 2, it is deleted.
 
 Warning: does **not** update attributes related to level-1 networks,
 such as inCycle, partition, gammaz, etc.
@@ -969,11 +972,12 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Int64;
         e1 = net.node[i].edge[1]
         e2 = net.node[i].edge[2]
         if (e1.hybrid && e2.hybrid)
-            (net.node[i]==e1.node[e1.isChild1?1:2] && net.node[i]==e2.node[e2.isChild1?1:2]) ||
+            (net.node[i] ≡ e1.node[e1.isChild1?1:2] && net.node[i] ≡ e2.node[e2.isChild1?1:2]) ||
               error("after removing leaf and descendants, node $(net.node[i].number) has 2 hybrid edges but is not the child of both.")
-            p1 = getOtherNode(e1, net.node[i]) # find both parents of hybrid leaf
-            p2 = getOtherNode(e2, net.node[i])
+            p1 = e1.node[e1.isChild1?2:1] # find both parents of hybrid leaf
+            p2 = e2.node[e2.isChild1?2:1]
             # remove the hybrid `node` and both e1, e2
+            sameparent = (p1≡p2) # should not happen unless original network has k=2 cycles
             removeNode!(p1,e1);  removeNode!(p2,e2) # perhaps useless
             removeEdge!(p1,e1);  removeEdge!(p2,e2)
             deleteEdge!(net,e1,part=false); deleteEdge!(net,e2,part=false)
@@ -981,20 +985,20 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Int64;
             deleteNode!(net,net.node[i])
             # recursive call on both p1 and p2.
             deleteleaf!(net, p1.number, simplify=simplify)
-            deleteleaf!(net, p2.number, simplify=simplify)
+            sameparent || deleteleaf!(net, p2.number, simplify=simplify)
         else
             e1 = fuseedgesat!(i,net) # fused edge
             if simplify && e1.hybrid # check for cycle of k=2 nodes
                 cn = e1.node[e1.isChild1?1:2]
                 e2 = nothing
                 for (e in cn.edge) # find companion hybrid edge
-                    if (e.hybrid && e!=e1 && cn==e.node[e.isChild1?1:2])
+                    if (e.hybrid && e ≢ e1 && cn ≡ e.node[e.isChild1?1:2])
                         e2=e; break;
                     end
                 end
                 e2!=nothing || error("node $(cn.number) with a single parent hybrid edge")
                 pn  = e1.node[e1.isChild1?2:1]
-                if pn == e2.node[e2.isChild1?2:1]
+                if pn ≡ e2.node[e2.isChild1?2:1]
                     # e1 and e2 have same child and same parent. Remove e1.
                     e2.hybrid=false;
                     e2.isMajor=true; e2.gamma += e1.gamma
@@ -1005,8 +1009,7 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Int64;
                 end
             end
         end
-    #else: do nothing. leaf has degree 3. could occur
-    #      through recursive calling reaching a polytomy.
+    #else: do nothing. leaf has degree 3+. could occur through recursive calling reaching a polytomy.
     end
     return nothing
 end

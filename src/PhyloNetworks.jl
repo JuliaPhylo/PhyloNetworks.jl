@@ -15,10 +15,10 @@ using StatsBase: sample
 import Base.show
 import Gadfly.plot
 
-const DEBUG = false #for debugging only
+global DEBUG = false #for debugging only
 const DEBUGC = false #more detailed prints
 global CHECKNET = false #for debugging only
-const REDIRECT = false # changed for debugging to a file
+global REDIRECT = false # changed for debugging to a file
 
 export
 HybridNetwork,

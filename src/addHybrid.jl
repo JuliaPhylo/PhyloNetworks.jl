@@ -94,6 +94,7 @@ end
 # input: edges, list of edges from which to choose, default is net.edge
 # warning: if edges is not net.edge, it still need to contain Edge objects from net (not deepcopies)
 function chooseEdgesGamma(net::HybridNetwork, blacklist::Bool, edges::Vector{Edge})
+    global DEBUG
     #println("net.edge length: $(length(net.edge))")
     index1 = 1;
     index2 = 1;
@@ -165,6 +166,7 @@ end
 # blacklist used in afterOptBLAll
 # usePartition=true if we use the information on net.partition, default true
 function addHybridization!(net::HybridNetwork, blacklist::Bool, usePartition::Bool)
+    global DEBUG
     if(net.numHybrids > 0 && usePartition)
         !isempty(net.partition) || error("net has $(net.numHybrids) but net.partition is empty")
         index = choosePartition(net)
@@ -289,7 +291,7 @@ addHybridizationUpdate!(net::HybridNetwork, blacklist::Bool) = addHybridizationU
 # declaring failure
 # blacklist used in afterOptBLAll
 function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::Int64)
-    global CHECKNET
+    global CHECKNET, DEBUG
     DEBUG && println("MOVE: addHybridizationUpdateSmart")
     success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
     DEBUG && println("success $(success), flag $(flag), flag2 $(flag2), flag3 $(flag3)")

@@ -6,8 +6,8 @@
 function setCHECKNET(b::Bool)
     global CHECKNET
     CHECKNET = b
-    @show CHECKNET
-    CHECKNET && warn("CHECKNET was changed to true: that will slow snaq! down.")
+    CHECKNET && warn("PhyloNetworks.CHECKNET is true: will slow snaq! down.")
+    b || println("PhyloNetworks.CHECKNET set to false")
 end
 
 # ----- aux general functions ---------------
@@ -82,6 +82,7 @@ end
 #          the nodes are added to it. If the node added is leaf, the
 #          edge length is set unidentifiable (as it is external edge)
 function setNode!(edge::Edge, node::Node)
+    global DEBUG
     size(edge.node,1)  !=  2 || error("vector of nodes already has 2 values");
     push!(edge.node,node);
     if(size(edge.node,1) == 1)
@@ -253,21 +254,19 @@ end
 
 
 function getIndexNode(number::Int64,net::Network)
-    try
-        getIndex(true,[number==n.number for n in net.node])
-    catch
+    ind = findfirst([number==n.number for n in net.node])
+    if ind==0
         error("node number not in net.node")
     end
-    return getIndex(true,[number==n.number for n in net.node])
+    return ind
 end
 
 function getIndexEdge(number::Int64,net::Network)
-    try
-        getIndex(true,[number==n.number for n in net.edge])
-    catch
+    ind = findfirst([number==n.number for n in net.edge])
+    if ind==0
         error("edge number not in net.edge")
     end
-    return getIndex(true,[number==n.number for n in net.edge])
+    return ind
 end
 
 # find the index of an edge in node.edge
@@ -630,7 +629,7 @@ prints the information on the edges of net: edge number, node numbers of nodes a
 
 function printEdges(net::HybridNetwork)
     if(net.numBad > 0)
-        warn("net has $(net.numBad) bad diamond I, gammas and some branch lengths are not identifiable, and therefore, meaningless")
+        println("net has $(net.numBad) bad diamond I. Some γ and edge lengths t are not identifiable, although their γ * (1-exp(-t)) are.")
     end
     miss = "NA"
     println("Edge\tNode1\tNode2\tInCycle\tcontainRoot\tistIdentitiable\tLength\tisHybrid\tGamma\tisMajor")
@@ -792,6 +791,8 @@ end
 
 set a new length for an object Edge. The new length needs to be positive.
 For example, if you have a HybridNetwork object net, and do printEdges(net), you can see the list of Edges and their lengths. You can then change the length of the 3rd edge with setLength!(net.edge[3],1.2).
+If `new length` is above 10, the value 10 will be used, as an upper limit
+to coalescent units that can be reliably estimated.
 """
 setLength!(edge::Edge, new_length::Number) = setLength!(edge, new_length, false)
 
@@ -810,12 +811,27 @@ function setBranchLength!(edge::Edge, new_length::Number)
 end
 
 
+"""
+`setGamma!(Edge,new gamma)`
+
+set γ for an edge, which must be a hybrid edge. The new γ needs to be in (0,1).
+The γ of the sister hybrid edge is changed accordingly, to 1-γ.
+If `net` is a HybridNetwork object, `printEdges(net)` will show the list of edges and their γ's.
+The γ of the third hybrid edge (say) can be changed to 0.2 with `setGamma!(net.edge[3],0.2)`.
+This will automatically set γ of the sister hybrid edge to 0.8.
+"""
 # setGamma
 # warning in the bad diamond/triangle cases because gamma is not identifiable
 # updates isMajor according to gamma value
 # changeOther = true, looks for the other hybrid edge and changes gamma too
 # read = true, function called in readSubtree, needs to be the old one
+
+setGamma!(edge::Edge, new_gamma::Float64) = setGamma!(edge, new_gamma, true, false)
+
+setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool) = setGamma!(edge, new_gamma, changeOther, false)
+
 function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool, read::Bool)
+    global DEBUG
     new_gamma >= 0 || error("gamma has to be positive: $(new_gamma)")
     new_gamma <= 1 || error("gamma has to be less than 1: $(new_gamma)")
     edge.hybrid || error("cannot change gamma in a tree edge");
@@ -863,16 +879,42 @@ function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool, read::Bool
     return nothing
 end
 
-setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool) = setGamma!(edge, new_gamma, changeOther, false)
-
 """
-`setGamma!(Edge,new gamma)`
+`setGammaBLfromGammaz!(node, network)`
 
-sets a gamma value for a hybrid edge (it has to be a hybrid edge) and new gamma needs to be (0,1). The function will automatically change the gamma value for the other hybrid edge to 1-gamma.
-For example, if you have a HybridNetwork object net, and do printEdges(net), you can see the list of Edges and their gammas. You can then change the length of the hybrid edge (assume it is in position 3) with setGamma!(net.edge[3],0.2).
-This will automatically set the gamma for the other hybrid edge to 0.8.
+Update the γ values of the two sister hybrid edges in a bad diamond I, given the `gammaz` values
+of their parent nodes, and updates the branch lengths t1 and t2 of their parent edges
+(those across from the hybrid nodes), in such a way that t1=t2 and that these branch lengths
+and γ values are consistent with the `gammaz` values in the network.
 """
-setGamma!(edge::Edge, new_gamma::Float64) = setGamma!(edge, new_gamma, true, false)
+# similar to the beginning of undoGammaz!, but does not update anything else than γ and t's.
+# unlike undoGammaz!, does nothing (no error) if non-hybrid or not at bad diamond I.
+function setGammaBLfromGammaz!(node::Node, net::HybridNetwork)
+    if !node.isBadDiamondI || !node.hybrid
+        return nothing
+    end
+    edge_maj, edge_min, tree_edge2 = hybridEdges(node);
+    other_maj = getOtherNode(edge_maj,node);
+    other_min = getOtherNode(edge_min,node);
+    edgebla,tree_edge_incycle1,tree_edge = hybridEdges(other_min);
+    edgebla,tree_edge_incycle2,tree_edge = hybridEdges(other_maj);
+    if(approxEq(other_maj.gammaz,0.0) && approxEq(other_min.gammaz,0.0))
+        edge_maj.gamma = 1.0 # γ and t could be anything if both gammaz are 0
+        edge_min.gamma = 0.0 # will set t's to 0 and minor γ to 0.
+        newt = 0.0
+    else
+        ((approxEq(other_min.gammaz,0.0) || other_min.gammaz >= 0.0) &&
+         (approxEq(other_maj.gammaz,0.0) || other_maj.gammaz >= 0.0)    ) ||
+            error("bad diamond I in node $(node.number) but missing (or <0) gammaz")
+        ztotal = other_maj.gammaz + other_min.gammaz
+        edge_maj.gamma = other_maj.gammaz / ztotal
+        edge_min.gamma = other_min.gammaz / ztotal
+        newt = -log(1-ztotal)
+    end
+    setLength!(tree_edge_incycle1,newt)
+    setLength!(tree_edge_incycle2,newt)
+end
+
 
 function numTreeEdges(net::HybridNetwork)
     2*net.numTaxa - 3 + net.numHybrids
@@ -889,6 +931,7 @@ end
 # to use splice and delete it from net.partition later on
 # cycle: is the number to look for partition on that cycle only
 function whichPartition(net::HybridNetwork,edge::Edge,cycle::Int64)
+    global DEBUG
     !edge.hybrid || error("edge $(edge.number) is hybrid so it cannot be in any partition")
     edge.inCycle == -1 || error("edge $(edge.number) is in cycle $(edge.inCycle) so it cannot be in any partition")
     DEBUG && println("search partition for edge $(edge.number) in cycle $(cycle)")
@@ -912,6 +955,7 @@ end
 # better to return the index than the partition itself, because we need the index
 # to use splice and delete it from net.partition later on
 function whichPartition(net::HybridNetwork,edge::Edge)
+    global DEBUG
     !edge.hybrid || error("edge $(edge.number) is hybrid so it cannot be in any partition")
     edge.inCycle == -1 || error("edge $(edge.number) is in cycle $(edge.inCycle) so it cannot be in any partition")
     DEBUG && println("search partition for edge $(edge.number) without knowing its cycle")
@@ -955,6 +999,7 @@ end
 # returns true if found egde with BL -1.0 (only when light=true, ow error)
 # added checkPartition for undirectedOtherNetworks that do not need correct hybrid node number
 function checkNet(net::HybridNetwork, light::Bool; checkPartition=true::Bool)
+    global DEBUG
     DEBUG && println("checking net")
     net.numHybrids == length(net.hybrid) || error("discrepant number on net.numHybrids (net.numHybrids) and net.hybrid length $(length(net.hybrid))")
     net.numTaxa == length(net.leaf) || error("discrepant number on net.numTaxa (net.numTaxa) and net.leaf length $(length(net.leaf))")
@@ -1057,6 +1102,7 @@ function printEverything(net::HybridNetwork)
     printNodes(net)
     printPartitions(net)
     println("$(writeTopologyLevel1(net))")
+    ## global DEBUG, REDIRECT
     ## if(DEBUG && REDIRECT)
     ##     try
     ##         plotNetGraphViz(net,internalLabels=true,imageName="plotDebug")
@@ -1119,3 +1165,44 @@ function switchHybridNode!(net::HybridNetwork, hybrid::Node, newHybrid::Node)
     makeNodeTree!(net,hybrid)
 end
 
+"""
+`assignhybridnames!(net)`
+
+Assign names to hybrid nodes in the network `net`. Hybrid nodes with an empty `name` field ("")
+are modified with a name that does not conflict with other hybrid names in the network.
+The preferred name is "#H3" if the node number is 3 or -3, but an index other than 3 would be
+used if "#H3" were the name of another hybrid node already.
+
+If two hybrid nodes have non-empty and equal names, the name of one of them is changed and
+re-assigned as described above (with a warning).
+"""
+function assignhybridnames!(net::HybridNetwork)
+    hybnum = Int64[]  # indices 'i' in hybrid names: #Hi
+    # first: go through *all* existing non-empty names
+    for ih in 1:length(net.hybrid)
+        lab = net.hybrid[ih].name
+        lab != "" || continue # do nothing if label is missing
+        jh = findfirst([net.hybrid[j].name for j in 1:ih-1], lab)
+        if jh > 0 # set repeated names to ""
+            warn("hybrid nodes $(net.hybrid[ih].number) and $(net.hybrid[jh].number) have the same label: $lab. Will change the name of the former.")
+            net.hybrid[ih].name = ""
+        else
+            m = match(r"^#H(\d+)$", lab)
+            if m != nothing # make full list of existing indices "i" in #Hi
+                push!(hybnum, parse(Int, m[1]))
+            end
+        end
+    end
+    # second: assign empty names to #Hi
+    hnext = 1
+    for ih in 1:length(net.hybrid)
+        net.hybrid[ih].name == "" || continue # do nothing if non-empty label
+        hnum = abs(net.hybrid[ih].number)
+        while in(hnum, hybnum)
+            hnum = hnext  # not efficient, but rare
+            hnext += 1    # and okay on small networks
+        end
+        push!(hybnum, hnum)
+        net.hybrid[ih].name = "#H$hnum"
+    end
+end

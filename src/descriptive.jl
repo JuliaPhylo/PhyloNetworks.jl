@@ -65,13 +65,35 @@ function fittedQuartetCF(d::DataCF, format=:wide::Symbol)
     return df
 end
 
+"""
+`setNonIdBL!(net)`
 
-# function to set nonidentifiable edges BL to -1.0
-# used at the end of optTopRuns
+Set non-identifiable edge branch lengths to -1.0 (i.e. missing) for a level-1 network `net`,
+except for edges in
+
+- a good triangle: the edge below the hybrid is constrained to 0.
+- a bad diamond II: the edge below the hybrid is constrained to 0
+- a bad diamond I: the edges across from the hybrid node have non identifiable lengths
+  but are kept, because the two γ*(1-exp(-t)) values are identifiable.
+
+will break if `inCycle` attributes are not initialized (at -1) or giving a correct node number.
+"""
+# 'good' triangle in the paper = bad triangle in hyb node attribute: Not extremely or very bad
 function setNonIdBL!(net::HybridNetwork)
     for(e in net.edge)
         if(!e.istIdentifiable)
-            e.length = -1.0 #do not use setLength because it does not allow BL too negative
+            keeplength = any(n -> (n.isBadDiamondII || n.isBadTriangle), e.node)
+            # if below 'bad' hybrid node, length=0 by constraint. If above, length estimated.
+            # next: keep length if edge across from hybrid node in bad diamond I.
+            if (!keeplength && e.inCycle != -1)
+                hyb = net.node[getIndexNode(e.inCycle, net)]
+                if (hyb.isBadDiamondI)
+                    keeplength |= !any(n -> (n==hyb), e.node) # only if e across hyb: no touching it
+                end
+            end
+            if !keeplength
+                e.length = -1.0 # not setLength, which does not allow too negative BLs
+            end
         end
     end
 end
@@ -103,10 +125,12 @@ function Base.show(io::IO, obj::HybridNetwork)
     try
         # par = writeTopology(obj,round=true) # but writeTopology changes the network, not good
         s = IOBuffer()
-        writeSubTree!(s, obj, false,true,false, true,3)
+        writeSubTree!(s, obj, false,true, true,3)
         par = bytestring(s)
     catch err
-        println("ERROR with writeSubTree!: $(err)\nTrying writeTopologyLevel1")
+        println("ERROR with writeSubTree!:")
+        showerror(STDOUT, err)
+        println("Trying writeTopologyLevel1")
         par = writeTopologyLevel1(obj)
     end
     disp *= "\n$par"

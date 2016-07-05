@@ -103,6 +103,7 @@ and credibility intervals in columns 8-13.
 Warning: the modifying version does *not* check the df: assumes correct columns.
 """
 function sampleCFfromCI(df::DataFrame, seed=0::Int)
+    global DEBUG
     DEBUG && warn("order of columns should be: t1,t2,t3,t4,cf1234,cf1324,cf1423,cf1234LO,cf1234HI,...")
     size(df,2) == 13 || size(df,2) == 14 || warn("sampleCFfromCI function assumes table from TICR: CF, CFlo, CFhi")
     obsCFcol = [findfirst(DataFrames.names(df), :CF12_34),
@@ -163,6 +164,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
                         verbose::Bool, closeN::Bool, Nmov0::Vector{Int64},
                         runs1::Int64, outgroup::AbstractString, filename::AbstractString, seed::Int64, probST::Float64,
                         nrep::Int64, runs2::Int64, bestNet::HybridNetwork, quartetfile::AbstractString)
+    global DEBUG
     println("BOOTSTRAP OF SNAQ ESTIMATION")
     julialog = string(filename,".log")
     logfile = open(julialog,"w")
@@ -300,6 +302,8 @@ Optional arguments include the following, with default values in parentheses:
 - runs (10): number of independent optimization runs for each replicate
 - filename (bootsnaq): root name for output files
 - seed (0 to get a random seed from the clock): seed for random number generator
+- otherNet (empty): another starting topology so that each replicate will start prcnet% runs on otherNet and (1-prcnet)% runs on T
+- prcnet (0): percentage of runs starting on otherNet; error if different than 0.0, and otherNet not specified.
 """
 # non documented arguments: M=multiplier, Nfail=numFails, probST=0.3::Float64
 #  ftolRel,ftolAbs,xtolRel,xtolAbs, verbose, closeN, Nmov0, outgroup="none",
@@ -693,7 +697,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
     try directEdges!(refnet)
     catch err
         if isa(err, RootMismatch)
-            err.msg *= "\nPlease change the root in reference network (see rootatnode! or rootatedge!)"
+            err.msg *= "\nPlease change the root in reference network (see rootatnode! or rootonedge!)"
         end
         rethrow(err)
     end
@@ -715,11 +719,16 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
     minsisind = Int64[]    #                                   minor
     # hybind, hybnode, majsis*, minsis*: same size = number of hybrid nodes in reference network
 
+    if !rooted && length(refnet.node[refnet.root].edge)==2 && any(e -> e.hybrid, refnet.node[refnet.root].edge)
+        refnet = deepcopy(refnet) # new binding inside function
+        fuseedgesat!(refnet.root, refnet)
+    end # issues otherwise: correct tree edge for root bipartitions, find sister clades, ...
+
     reftre = majorTree(refnet)
     skipone = (!rooted && length(reftre.node[reftre.root].edge)<3) # not count same bipartition twice
     for pe in reftre.edge
         hwc = hardwiredCluster(pe,taxa) # not very efficient, but human readable
-        if (skipone && refnet.node[refnet.root]==pe.node[pe.isChild1?2:1] && sum(hwc)>1)
+        if (skipone && refnet.node[refnet.root] ≡ pe.node[pe.isChild1?2:1] && sum(hwc)>1)
             skipone = false             # wrong algo for trivial 2-taxon rooted tree (A,B);
             println("skip edge $(pe.number)")
         else
@@ -748,10 +757,10 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
         for (sis in ["min","maj"])
           he = (sis=="min"? hemin : hemaj)
           pn = he.node[he.isChild1?2:1] # parent node of sister (origin of gene flow if minor)
-          atroot = (pn == net0.node[net0.root])
+          atroot = (!rooted && pn ≡ net0.node[net0.root]) # polytomy at root pn of degree 3: will exclude one child edge
           hwc = zeros(Bool,ntax) # new binding each time. pushed to clade below.
           for (ce in pn.edge)    # important if polytomy
-            if (ce!=he && pn == ce.node[ce.isChild1?2:1])
+            if (ce ≢ he && pn ≡ ce.node[ce.isChild1?2:1])
                 hw = hardwiredCluster(ce,taxa)
                 if (atroot && any(hw & clade[ic])) # sister clade intersects child clade
                     (hw & clade[ic]) == clade[ic] ||
@@ -770,21 +779,24 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
           if sis=="min"  # need to get clade not in main tree: hybrid + minor sister
             pe = nothing # looking for the (or one) parent edge of pn
             for (ce in pn.edge)
-              if pn == ce.node[ce.isChild1?1:2]
+              if pn ≡ ce.node[ce.isChild1?1:2]
                   pe=ce
                   break
               end
             end
-            pe != nothing || error("hyb node $(hn.number): could not find parent edge of minor sib")
-            hwc = hardwiredCluster(pe,taxa)
-            i = findfirst(clade, hwc)
-            if i>0 warn("hyb node $(hn.number): weird, found hybrid+minor sister in main tree")
-            else
-              push!(clade, hwc)
-              push!(treenode, pn.number)
-              push!(treeedge, pe.number)
-              push!(hybparent, 0)
-              push!(leafname, (pn.leaf ? pn.name : ""))
+            # pe == nothing if minor hybrid is at root and rooted=true. Will just miss edge and node number
+            # for that clade, but in that case, the minor sister might have been assigned that edge anyway...
+            if pe != nothing
+              hwc = hardwiredCluster(pe,taxa)
+              i = findfirst(clade, hwc) # i>0: (hybrid + minor sister) can be in main tree if
+              # hybrid origin is ancestral, i.e. hybrid clade is nested within minor sister.
+              if i==0
+                push!(clade, hwc)
+                push!(treenode, pn.number)
+                push!(treeedge, pe.number)
+                push!(hybparent, 0)
+                push!(leafname, (pn.leaf ? pn.name : ""))
+              end
             end
           end
         end
@@ -836,6 +848,9 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
             net1 = deepcopy(net)
             displayedNetworkAt!(net1, net1.hybrid[esth])
             hn = net1.hybrid[1]
+            if !rooted && length(net1.node[net1.root].edge)==2 && any(e -> e.hybrid, net1.node[net1.root].edge)
+                fuseedgesat!(net1.root, net1)
+            end
             hemaj, hemin, ce = hybridEdges(hn) # assumes no polytomy at hybrid node
             (hemin.hybrid && !hemin.isMajor) || error("edge should be hybrid and minor")
             (hemaj.hybrid &&  hemaj.isMajor) || error("edge should be hybrid and major")
@@ -843,12 +858,12 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
             for (sis in ["min","maj"])
                 he = (sis=="min"? hemin : hemaj)
                 pn = he.node[he.isChild1?2:1] # parent of hybrid edge
-                atroot = (pn == net1.node[net1.root])
+                atroot = (!rooted && pn ≡ net1.node[net1.root])
                 # if at root: exclude the child edge in the same cycle as he.
                 # its cluster includes hwcChi. all other child edges do not interest hwcChi.
-                # if (atroot) @show i; warn("minor edge is at the root!"); end
+                # if (atroot) @show i; warn("$(sis)or edge is at the root!"); end
                 for (ce in pn.edge)
-                  if (ce!=he && pn == ce.node[ce.isChild1?2:1])
+                  if (ce ≢ he && pn ≡ ce.node[ce.isChild1?2:1])
                     hwc = hardwiredCluster(ce,taxa)
                     if (!atroot || sum(hwc & hwcChi) == 0) # empty intersection
                       if (sis=="maj") hwcSib |= hwc;

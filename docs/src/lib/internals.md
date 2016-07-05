@@ -25,5 +25,8 @@ ANode
 ## Functions and methods
 
 ```@docs
+assignhybridnames!
 sampleBootstrapTrees
+sampleCFfromCI
+setNonIdBL!
 ```

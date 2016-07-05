@@ -135,6 +135,7 @@ end
 #          it is not identifiable like in bad diamond I (assumes undone by now)
 # blacklist = true: add the edge as a bad choice to put a hybridization (not fully tested)
 function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bool, blacklist::Bool)
+    global DEBUG
     hybrid.hybrid || error("node $(hybrid.number) is not hybrid, so we cannot delete hybridization event around it")
     DEBUG && println("MOVE: delete hybridization on hybrid node $(hybrid.number)")
     nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,hybrid);
@@ -318,12 +319,9 @@ function deleteHybridEdge!(net::HybridNetwork,edge::Edge)
             if (e.hybrid && e!=edge) pe = e; end
             if !(e.hybrid)           ce = e; end
         end
-        pn = getOtherNode(pe,n1); # parent node of n1
-        atRoot = false
-        if (net.node[net.root] == n1) # n1=root, which should not happen
-            atRoot = true # later: pn will be new root
-            #warn("hybrid node $(n1.number) was the root, should not have happened. Node $(pn.number) will be new root.")
-        end
+        pn = getOtherNode(pe,n1); # parent node of n1, other than n2
+        pn ≢ n2 || error("k=2 cycle: 2 hybrid edges from node $(n2.number) to node $(n1.number)")
+        atRoot = (net.node[net.root] ≡ n1) # n1 should not be root, but if so, pn will be new root
         # next: replace ce by pe+ce, remove n1 and pe from network.
         ce.length = addBL(ce.length, pe.length)
         removeNode!(n1,ce) # ce now has 1 single node cn
@@ -350,9 +348,20 @@ function deleteHybridEdge!(net::HybridNetwork,edge::Edge)
 
     # next: keep n2 if it has 4+ edges. 2 or 1 edges should never occur.
     #       If root, would have no parent: treat network as unrooted and change the root.
-    if size(n2.edge,1) < 3
-        warn("node $(n2.number) (parent of hybrid edge $(edge.number) to be deleted) has $length(n2.edge) edges instead of 3");
-    elseif size(n2.edge,1) == 3
+    if length(n2.edge) < 2
+        error("node $(n2.number) (parent of hybrid edge $(edge.number) to be deleted) has 1 edge only!")
+    elseif length(n2.edge) == 2 # if n2=root or degree-2 node
+        # remove n2 and both of its edges (including 'edge')
+        pe = (edge ≡ n2.edge[1] ? n2.edge[2] : n2.edge[1]) #  <--edge-- n2 ---pe--- pn
+        pn = (  n2 ≡ pe.node[1] ? pe.node[2] : pe.node[1])
+        if net.node[net.root] ≡ n2 # if n2 was root, new root = pn
+            net.root = getIndex(pn, net)
+        end
+        # remove n2 and pe
+        removeEdge!(pn,pe)
+        deleteEdge!(net,pe,part=false)
+        deleteNode!(net,n2)
+    elseif length(n2.edge) == 3
         oei = Int[] # n2's edges' indices, other than 'edge'.
         for (i=1:length(n2.edge))
             if (n2.edge[i] != edge) push!(oei, i); end
@@ -365,19 +374,14 @@ function deleteHybridEdge!(net::HybridNetwork,edge::Edge)
             !getOtherNode(ce, n2).leaf ||
                 error("root $(n2.number) connected to 1 hybrid and 2 leaves: edges $(pe.number) and $(ce.number).")
             switch = true
-        elseif (n2==ce.node[(ce.isChild1 ? 1 : 2)]) && (n2==pe.node[(pe.isChild1 ? 2 : 1)])
+        elseif (n2 ≡ ce.node[(ce.isChild1 ? 1 : 2)]) && (n2 ≡ pe.node[(pe.isChild1 ? 2 : 1)])
             switch = true
         end
         if switch # to ensure correct direction isChild1 for new edges if the original was up-to-date
             ce = n2.edge[oei[2]] # but no error if original isChild1 was outdated
             pe = n2.edge[oei[1]] # and to ensure that pn can be the new root if needed.
         end
-        atRoot = false
-        if (net.node[net.root] == n2) # n2=root
-            atRoot = true # later: other node of pe will be new root
-            #(n2==ce.node[(ce.isChild1 ? 2 : 1)] && n2==pe.node[(pe.isChild1 ? 2 : 1)]) ||
-            #  warn("node $(n2.number) being the root is contradicted by isChild1 of its edges.")
-        end
+        atRoot = (net.node[net.root] ≡ n2) # if n2=root, new root will be 'pn' = other node of pe
         # next: replace ce by pe+ce, remove n2 and pe from network.
         pn = getOtherNode(pe,n2) # parent node of n2 if n2 not root. Otherwise, pn will be new root.
         ce.length = addBL(ce.length, pe.length)
@@ -407,6 +411,7 @@ end
 # function to update net.partition after deleting a hybrid node
 # needs a list of the edges in cycle
 function undoPartition!(net::HybridNetwork, hybrid::Node, edgesInCycle::Vector{Edge})
+    global DEBUG
     hybrid.hybrid || error("node $(hybrid.number) is not hybrid, and we need hybrid node inside deleteHybUpdate for undoPartition")
     if(net.numHybrids == 0)
         net.partition = Partition[]
