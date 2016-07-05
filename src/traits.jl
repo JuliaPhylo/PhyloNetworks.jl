@@ -107,29 +107,60 @@ end
 # InternalNodes : submatrix corresponding to internal nodes
 # TipsNodes : submatrix nTips x nNodes of interactions
 # !! Extract sub-matrices in the original net nodes numbers !!
-function Base.getindex(obj::matrixTopologicalOrder, d::Symbol)
-    if d == :Tips # Extract rows and/or columns corresponding to the tips
-        mask = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder)
-        obj.indexation == "b" && return obj.V[mask, mask] # both columns and rows are indexed by nodes
-        obj.indexation == "c" && return obj.V[:, mask] # Only the columns
-        obj.indexation == "r" && return obj.V[mask, :] # Only the rows
-    end
-    if d == :InternalNodes # Idem, for internal nodes
-        mask = indexin(obj.internalNodesNumbers, obj.nodesNumbersTopOrder)
-        obj.indexation == "b" && return obj.V[mask, mask]
-        obj.indexation == "c" && return obj.V[:, mask] 
-        obj.indexation == "r" && return obj.V[mask, :] 
-    end
-    if d == :TipsNodes
-        maskNodes = indexin(obj.internalNodesNumbers, obj.nodesNumbersTopOrder)
-        maskTips = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder,)
-        obj.indexation == "b" && return obj.V[maskTips, maskNodes]
-        obj.indexation == "c" && error("Both rows and columns must be net
-        ordered to take the submatrix tips vs internal nodes.")
-        obj.indexation == "r" && error("Both rows and columns must be net
-        ordered to take the submatrix tips vs internal nodes.")
-    end
-    d == :All && return obj.V
+# function Base.getindex(obj::matrixTopologicalOrder, d::Symbol)
+# 	if d == :Tips # Extract rows and/or columns corresponding to the tips
+# 		mask = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder)
+# 		obj.indexation == "b" && return obj.V[mask, mask] # both columns and rows are indexed by nodes
+# 		obj.indexation == "c" && return obj.V[:, mask] # Only the columns
+# 		obj.indexation == "r" && return obj.V[mask, :] # Only the rows
+# 	end
+# 	if d == :InternalNodes # Idem, for internal nodes
+# 		mask = indexin(obj.internalNodesNumbers, obj.nodesNumbersTopOrder)
+# 		obj.indexation == "b" && return obj.V[mask, mask]
+# 		obj.indexation == "c" && return obj.V[:, mask] 
+# 		obj.indexation == "r" && return obj.V[mask, :] 
+# 	end
+# 	if d == :TipsNodes
+# 		maskNodes = indexin(obj.internalNodesNumbers, obj.nodesNumbersTopOrder)
+# 		maskTips = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder,)
+# 		obj.indexation == "b" && return obj.V[maskTips, maskNodes]
+# 		obj.indexation == "c" && error("Both rows and columns must be net
+# 		ordered to take the submatrix tips vs internal nodes.")
+# 		obj.indexation == "r" && error("Both rows and columns must be net
+# 		ordered to take the submatrix tips vs internal nodes.")
+# 	end
+# 	d == :All && return obj.V
+# end
+
+# If some tips are missing, treat them as "internal nodes"
+function Base.getindex(obj::matrixTopologicalOrder, d::Symbol, msng=trues(length(obj.tipsNumbers))::BitArray{1})
+	if d == :Tips # Extract rows and/or columns corresponding to the tips with data
+		maskTips = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder)
+		maskTips = maskTips[msng]
+		obj.indexation == "b" && return obj.V[maskTips, maskTips] # both columns and rows are indexed by nodes
+		obj.indexation == "c" && return obj.V[:, maskTips] # Only the columns
+		obj.indexation == "r" && return obj.V[maskTips, :] # Only the rows
+	end
+	if d == :InternalNodes # Idem, for internal nodes
+		maskNodes = indexin(obj.internalNodesNumbers, obj.nodesNumbersTopOrder)
+		maskTips = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder)
+		maskNodes = [maskNodes; maskTips[!msng]]
+		obj.indexation == "b" && return obj.V[maskNodes, maskNodes]
+		obj.indexation == "c" && return obj.V[:, maskNodes] 
+		obj.indexation == "r" && return obj.V[maskNodes, :] 
+	end
+	if d == :TipsNodes
+		maskNodes = indexin(obj.internalNodesNumbers, obj.nodesNumbersTopOrder)
+		maskTips = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder)
+		maskNodes = [maskNodes; maskTips[!msng]]
+		mskTips = maskTips[msng]
+		obj.indexation == "b" && return obj.V[maskTips, maskNodes]
+		obj.indexation == "c" && error("Both rows and columns must be net
+		ordered to take the submatrix tips vs internal nodes.")
+		obj.indexation == "r" && error("Both rows and columns must be net
+		ordered to take the submatrix tips vs internal nodes.")
+	end
+	d == :All && return obj.V
 end
 
 #################################################
@@ -546,76 +577,94 @@ works for now).
 function ancestralStateReconstruction(net::HybridNetwork,
                                       Y::Vector,
                                       params::paramsBM)
-    V = sharedPathMatrix(net)
-    ancestralStateReconstruction(V, Y, params)
+	V = sharedPathMatrix(net)
+	ancestralStateReconstruction(V, Y, params)
 end
 
 function ancestralStateReconstruction(V::matrixTopologicalOrder,
-				      Y::Vector,
-				      params::paramsBM)
+																			Y::Vector,
+																			params::paramsBM)
 		# Variances matrices
-    Vy = V[:Tips]
-    Vz = V[:InternalNodes]
-    Vyz = V[:TipsNodes]
-    R = cholfact(Vy)
-    RL = R[:L]
-    # Vectors of means
-    m_y = ones(size(Vy)[1]) .* params.mu # !! correct only if no predictor. 
-    m_z = ones(size(Vz)[1]) .* params.mu # !! works if BM no shift.
-		# Actual computation
-    ancestralStateReconstruction(V, Vy, Vz, Vyz, RL,
-																 Y, m_y, m_z, 
-																 params.sigma2)
+	Vy = V[:Tips]
+	Vz = V[:InternalNodes]
+	Vyz = V[:TipsNodes]
+	R = cholfact(Vy)
+	RL = R[:L]
+	temp = RL \ Vyz
+	# Vectors of means
+	m_y = ones(size(Vy)[1]) .* params.mu # !! correct only if no predictor. 
+	m_z = ones(size(Vz)[1]) .* params.mu # !! works if BM no shift.
+	# Actual computation
+	ancestralStateReconstruction(Vz, temp, RL,
+															 Y, m_y, m_z,
+															 V.internalNodesNumbers,
+															 params.sigma2)
 end
 
 # Reconstruction from all the needed quantities
-function ancestralStateReconstruction(V::matrixTopologicalOrder,
-                                      Vy::Matrix, Vz::Matrix,
-                                      Vyz::Matrix,
+function ancestralStateReconstruction(Vz::Matrix,
+                                      VyzVyinvchol::Matrix,
                                       RL::LowerTriangular{Float64,Array{Float64,2}},
                                       Y::Vector, m_y::Vector, m_z::Vector,
-																			sigma2::Real)
-    temp = RL \ Vyz
-    m_z_cond_y = m_z + temp' * (RL \ (Y - m_y))
-    V_z_cond_y = sigma2 .* (Vz - temp' * temp)
-    reconstructedStates(m_z_cond_y, V_z_cond_y, V.internalNodesNumbers)
+																			NodesNumbers::Vector,
+																			sigma2::Real,
+																			add_var=zeros(size(Vz))::Matrix) # Additional variance for BLUP
+	m_z_cond_y = m_z + VyzVyinvchol' * (RL \ (Y - m_y))
+	V_z_cond_y = sigma2 .* (Vz - VyzVyinvchol' * VyzVyinvchol)
+	reconstructedStates(m_z_cond_y, V_z_cond_y + add_var, NodesNumbers)
 end
 
 # Empirical reconstruciton from a fitted object
-function ancestralStateReconstruction(obj::phyloNetworkLinearModel, m_y::Vector, m_z::Vector)
-  Vyz = obj.V[:TipsNodes]
+function ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)
+	m_y = predict(obj)
+	m_z = X_n * coef(obj) 
+  Vyz = obj.V[:TipsNodes, obj.msng]
 	# If the tips were re-organized, do the same for Vyz
 	if (obj.ind != [0])
 		Vyz = Vyz[obj.ind, :]
+		missingTipsNumbers = obj.V.tipsNumbers[obj.ind][!obj.msng]
 	else
 		warn("There were no indication for the position of the tips on the network. Assuming that they are given in the same order. Please check that this is what you intended.")
+		missingTipsNumbers = obj.V.tipsNumbers[!obj.msng]
 	end
-	ancestralStateReconstruction(obj.V,
-															 obj.Vy,
-															 obj.V[:InternalNodes],
-                               Vyz,
+	temp = obj.RL \ Vyz
+	U = X_n - temp' * (obj.RL \ obj.X)
+	add_var = U * vcov(obj) * U'
+	ancestralStateReconstruction(obj.V[:InternalNodes, obj.msng],
+                               temp,
                                obj.RL,
                                obj.Y,
 															 m_y,
 															 m_z,
-															 sigma2_estim(obj))
+															 [obj.V.internalNodesNumbers; missingTipsNumbers],
+															 sigma2_estim(obj),
+															 add_var)
 end
-# Default reconstruction for a simple BM
-function ancestralStateReconstruction(obj::phyloNetworkLinearModel, mu::Real)
-	m_y = predict(obj)
-  m_z = ones(size(obj.V.internalNodesNumbers)[1]) .* mu # !! works if BM no shift.
-	ancestralStateReconstruction(obj, m_y, m_z)
-end
-# Handling the ancestral mean
+# Default reconstruction for a simple BM (known predictors)
 function ancestralStateReconstruction(obj::phyloNetworkLinearModel)
-	mu = mu_estim(obj) # Produce a warning if intercept is unknown.
-	ancestralStateReconstruction(obj, mu)
+  X_n = ones((length(obj.V.internalNodesNumbers) + sum(!obj.msng), 1))
+	ancestralStateReconstruction(obj, X_n)
 end
 # For a DataFrameRegressionModel
 function ancestralStateReconstruction(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel,Float64})
-	mu = mu_estim(obj) # Produces an error if intercept is not here.
-	ancestralStateReconstruction(obj.model, mu)
+	ancestralStateReconstruction(obj.model)
 end
+# # Default reconstruction for a simple BM
+# function ancestralStateReconstruction(obj::phyloNetworkLinearModel, mu::Real)
+# 	m_y = predict(obj)
+#   m_z = ones(size(obj.V.internalNodesNumbers)[1]) .* mu # !! works if BM no shift.
+# 	ancestralStateReconstruction(obj, m_y, m_z)
+# end
+# # Handling the ancestral mean
+# function ancestralStateReconstruction(obj::phyloNetworkLinearModel)
+# 	mu = mu_estim(obj) # Produce a warning if intercept is unknown.
+# 	ancestralStateReconstruction(obj, mu)
+# end
+# # For a DataFrameRegressionModel
+# function ancestralStateReconstruction(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel,Float64})
+# 	mu = mu_estim(obj) # Produces an error if intercept is not here.
+# 	ancestralStateReconstruction(obj.model, mu)
+# end
 
 #################################################
 ## Old version of phyloNetworklm (naive) 
