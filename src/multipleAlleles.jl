@@ -32,9 +32,10 @@ end
 # function to clean a df after changing allele names to species names
 # inside mapAllelesCFtable
 # by deleting rows that are not informative like sp1 sp1 sp1 sp2
-function cleanNewDF!(newdf::DataFrame)
+function cleanAlleleDF!(newdf::DataFrame)
     global DEBUG
-    keeprows =  Bool[]
+    keeprows = ones(Bool,size(newdf,1)) # repeats 'true'
+    ##keeprows =  Bool[]
     repSpecies = ASCIIString[]
     if(isa(newdf[1,1],Int)) #taxon names as integers: we need this to be able to add _2
         newdf[:1] = map(x->string(x),newdf[:1])
@@ -43,16 +44,18 @@ function cleanNewDF!(newdf::DataFrame)
         newdf[:4] = map(x->string(x),newdf[:4])
     end
     for(i in 1:size(newdf,1)) #check all rows
+        DEBUG && println("row number: $i")
         row = convert(Array,DataArray(newdf[i,1:4]))
         DEBUG && println("row $(row)")
         uniq = unique(row)
         DEBUG && println("unique $(uniq)")
         if(length(uniq) == 1)
-            push!(keeprows,false)
+            ##push!(keeprows,false)
+            keeprows[i]= false
         elseif(length(uniq) == 4)
-            push!(keeprows,true)
+            ##push!(keeprows,true)
+            continue
         elseif(length(uniq) == 3) #sp1 sp1 sp2 sp3
-            push!(keeprows,true)
             for(u in uniq)
                 DEBUG && println("u $(u), typeof $(typeof(u))")
                 ind = row .== u #taxon names matching u
@@ -75,12 +78,16 @@ function cleanNewDF!(newdf::DataFrame)
                 end
             end
         elseif(length(uniq) == 2)
+            keep = true
             for(u in uniq)
+                DEBUG && println("length uniq is 2, u $(u)")
                 ind = row .== u
                 if(sum(ind) == 1 || sum(ind) == 3)
+                    DEBUG && println("ind $(ind) is 1 or 3, should not keep")
                     keep = false
                     break
                 elseif(sum(ind) == 2)
+                    DEBUG && println("ind $(ind) is 2, should keep")
                     keep = true
                     found = false
                     push!(repSpecies,string(u))
@@ -95,19 +102,21 @@ function cleanNewDF!(newdf::DataFrame)
                             end
                         end
                     end
-                    push!(keeprows,keep)
                 end
             end
+            DEBUG && println("after if, keep is $(keep)")
+            ##push!(keeprows,keep)
+            keeprows[i] = keep
         end
+        DEBUG && println("$(keeprows[i])")
     end
     DEBUG && println("keeprows is $(keeprows)")
     DEBUG && println("repSpecies is $(repSpecies)")
     if(!all(keeprows))
         warn("found $(length(keeprows)-sum(keeprows)) troublesome 4-taxon subsets out of $(size(newdf,1)) 4-taxon subsets. for the moment, we will ignore these 4-taxon subsets: will use $(sum(keeprows)) 4-taxon subsets.")
         size(newdf,1) > (length(keeprows)-sum(keeprows)) || warn("4-taxon subsets with repeated taxon names are all the 4-taxon subsets, so resulting new dataframe is empty")
-        newdf = newdf[keeprows,:]
     end
-    return unique(repSpecies)
+    return unique(repSpecies),keeprows
 end
 
 
