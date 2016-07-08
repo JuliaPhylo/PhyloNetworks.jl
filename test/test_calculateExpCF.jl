@@ -4,7 +4,7 @@
 # Case G -----------------
 
 println("------ Case G ----------")
-include("../examples/case_g_example.jl");
+include("../examples/case_g_example.jl")
 #net.names
 error1 = false
 ind = 0

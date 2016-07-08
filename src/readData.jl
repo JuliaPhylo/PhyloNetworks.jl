@@ -102,7 +102,8 @@ end
 function readTableCF(df0::DataFrames.DataFrame, columns::Vector{Int})
     withngenes = (length(columns)==8) # true if column :ngenes exists, false ow
     df = deepcopy(df0[:, columns])    # columns 1-7 or 1-8 in the new df
-    repSpecies = cleanNewDF!(df)
+    repSpecies,keeprows = cleanAlleleDF!(df)
+    df = df[keeprows,:]
     if(!isempty(repSpecies))
         mergeRows!(df)
     end
