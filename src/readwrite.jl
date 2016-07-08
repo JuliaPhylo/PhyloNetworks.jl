@@ -184,7 +184,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridN
                     deleteNode!(net,other);
                     setNode!(otheredge,n);
                     setEdge!(n,otheredge);
-                    otheredge.istIdentifiable = true ## setNode should catch this, but when fixed, causes a lot of problems
+##                    otheredge.istIdentifiable = true ## setNode should catch this, but when fixed, causes a lot of problems
                     DEBUG && println("setting otheredge to n $(n.number)")
                     e = Edge(net.numEdges+1);
                     DEBUG && println("creating hybrid edge $(e.number) between n $(n.number) and parent $(parent.number)")

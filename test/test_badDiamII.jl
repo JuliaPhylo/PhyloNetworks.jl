@@ -43,33 +43,36 @@ net2.edge[3].istIdentifiable || error("wrong hybrid is t identifiable")
 9.95 < net2.edge[3].length < 9.99 || error("wrong bl estimated")
 net2.edge[11].istIdentifiable || error("wrong hybrid is t identifiable")
 net2.edge[11].length < 0.01 || error("wrong bl estimated")
+net2.edge[10].length == 0 || error("tree edge in bad diamond II not 0")
 printEdges(net2)
 
 
 ## testing readTopology----------------------------------------------------------------
-tree = "(6,(5,#H7:0.0):9.970714072991349,(3,(((2,1):0.2950382234364404,4):0.036924483697671304)#H7:0.00926495670648208):1.1071489442240392);"
-net2 = readTopology(tree)
-printEdges(net2)
+## will remove this from the test because readTopology should not have to worry about istIdentifiable
+## we move into updateGammaz
+## tree = "(6,(5,#H7:0.0):9.970714072991349,(3,(((2,1):0.2950382234364404,4):0.036924483697671304)#H7:0.00926495670648208):1.1071489442240392);"
+## net2 = readTopology(tree)
+## printEdges(net2)
 
-for(e in net2.edge)
-    if(e.node[1].leaf || e.node[2].leaf)
-        !e.istIdentifiable || error("ext edge should not identifiable")
-    else
-        e.istIdentifiable || error("int edge should not identifiable")
-    end
-end
+## for(e in net2.edge)
+##     if(e.node[1].leaf || e.node[2].leaf)
+##         !e.istIdentifiable || error("ext edge should not identifiable")
+##     else
+##         e.istIdentifiable || error("int edge should not identifiable")
+##     end
+## end
 
-## this case works fine
-tree = "((((8,10))#H1,7),6,(4,#H1));" # Case I Bad diamond I
-net = readTopologyLevel1(tree)
-checkNet(net)
-net2 = readTopology(tree)
-printEdges(net2)
+## ## this case works fine
+## tree = "((((8,10))#H1,7),6,(4,#H1));" # Case I Bad diamond I
+## net = readTopologyLevel1(tree)
+## checkNet(net)
+## net2 = readTopology(tree)
+## printEdges(net2)
 
-for(e in net2.edge)
-    if(e.node[1].leaf || e.node[2].leaf)
-        !e.istIdentifiable || error("ext edge should not identifiable")
-    else
-        e.istIdentifiable || error("int edge should not identifiable")
-    end
-end
+## for(e in net2.edge)
+##     if(e.node[1].leaf || e.node[2].leaf)
+##         !e.istIdentifiable || error("ext edge should not identifiable")
+##     else
+##         e.istIdentifiable || error("int edge should not identifiable")
+##     end
+## end

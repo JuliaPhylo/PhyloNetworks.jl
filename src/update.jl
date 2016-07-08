@@ -262,6 +262,8 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
             setLength!(tree_edge2,0.0)
             push!(net.edges_changed,tree_edge2)
             tree_edge2.istIdentifiable = false
+            edge_maj.istIdentifiable = true
+            edge_min.istIdentifiable = true
         end
     elseif(node.k == 3) # could be extreme/very bad triangle or just bad triangle
         if(net.numTaxa <= 5)
