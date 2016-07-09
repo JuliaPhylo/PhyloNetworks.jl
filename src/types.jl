@@ -19,7 +19,7 @@
 
 Abstract node. An object of type `Edge` has a `node` attribute,
 which is an vector of (2) ANode objects.
-The oject of type `Node` is an `ANode`, and has an `edge` attribute,
+The object of type `Node` is an `ANode`, and has an `edge` attribute,
 which is vector of `Edge` objects.
 """
 abstract ANode

@@ -147,12 +147,13 @@ function testCaseI(net::HybridNetwork)
     node2 = getIndexNode(-3,net);
     node5 = getIndexNode(-6,net);
     node3 = getIndexNode(3,net);
-    (net.edge[edge4].inCycle != node.number || net.edge[edge9].inCycle != node.number || net.edge[edge6].inCycle != node.number || net.edge[edge9].inCycle != node.number ) ? error("edges not correctly in cycle") : nothing
+    (net.edge[edge4].inCycle != node.number || net.edge[edge9].inCycle != node.number || net.edge[edge6].inCycle != node.number || net.edge[edge10].inCycle != node.number ) ? error("edges not correctly in cycle") : nothing
     (net.node[node1].inCycle  != node.number || net.node[node2].inCycle  != node.number || net.node[node5].inCycle  != node.number || net.node[node3].inCycle  != node.number) ? error("nodes 1,5,11,12 not correctly in cycle") : nothing
     (net.edge[edge1].containRoot || net.edge[edge2].containRoot || net.edge[edge3].containRoot) ? error("edges can contain root and shouldn't") : nothing
     (!net.edge[edge4].hybrid || !net.edge[edge4].isMajor) ? error("edge 4 is not hybrid or major") : nothing
     net.edge[edge3].length != 0 ? error("edges should have length 0") : nothing
     net.edge[edge3].istIdentifiable ? error("edge9,4 identifiable and should not") : nothing
+    (net.edge[edge4].istIdentifiable && net.edge[edge9].istIdentifiable && net.edge[edge6].istIdentifiable && net.edge[edge10].istIdentifiable) || error("edges that should be identifiable, are not")
     net.visited[edge4] = false;
     net.visited[edge9] = false;
     net.visited[edge6] = false;

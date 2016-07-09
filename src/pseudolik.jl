@@ -1351,6 +1351,10 @@ function logPseudoLik(quartet::Quartet)
             suma += quartet.obsCF[i] == 0 ? 0.0 : 100*quartet.obsCF[i]*log(quartet.qnet.expCF[i]/quartet.obsCF[i])
         end
     end
+    ## to account for missing data:
+    ## if(quartet.ngenes > 0)
+    ##     suma = quartet.ngenes*suma
+    ## end
     quartet.logPseudoLik = suma
     return suma
 end
