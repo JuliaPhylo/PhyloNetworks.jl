@@ -26,6 +26,7 @@ ANode
 
 ```@docs
 assignhybridnames!
+deleteNode!
 sampleBootstrapTrees
 sampleCFfromCI
 setNonIdBL!

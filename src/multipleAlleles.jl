@@ -1,61 +1,82 @@
 # functions to extend snaq to multiple alleles case
 # Claudia November 2015
 
+global repeatAlleleSuffix = "__2"
+
+
+"""
+`mapAllelesCFtable(mapping file, CF file; filename, columns)`
+
+Create a new DataFrame containing the same concordance factors as in the input CF file,
+but with modified taxon names. Each allele name in the input CF table is replaced by the
+species name that the allele maps onto, based on the mapping file.
+
+Optional arguments:
+
+- file name to write/save resulting CF table. If not specified, then the output
+  data frame is not saved to a file.
+- column numbers for the taxon names. 1-4 by default.
+"""
+function mapAllelesCFtable(alleleDF::AbstractString, cfDF::AbstractString; filename=""::AbstractString, columns=Int[]::Vector{Int})
+    d = readtable(alleleDF)
+    d2 = readtable(cfDF)
+    if(filename=="")
+        mapAllelesCFtable!(d,d2,columns,false,filename)
+    else
+        mapAllelesCFtable!(d,d2,columns,true,filename)
+    end
+end
 
 # function to read a table of allele-species matchs (dataframe with 2 columns)
 # and a table of CF in the allele names, and replace all the allele names
 # to the species names
 # this will create a new CF table, will not rewrite on the original one
 # filename is the name to give to the new table, if write=true
-function mapAllelesCFtable!(alleleDF::DataFrame, cfDF::DataFrame,write::Bool,filename::AbstractString)
-    compareTaxaNames(alleleDF,cfDF)
-    newt1 = map(x->replace(string(x),string(alleleDF[1,:allele]),alleleDF[1,:species]),cfDF[1])
-    newt2 = map(x->replace(string(x),string(alleleDF[1,:allele]),alleleDF[1,:species]),cfDF[2])
-    newt3 = map(x->replace(string(x),string(alleleDF[1,:allele]),alleleDF[1,:species]),cfDF[3])
-    newt4 = map(x->replace(string(x),string(alleleDF[1,:allele]),alleleDF[1,:species]),cfDF[4])
-    if(size(alleleDF,1) > 1)
-        for(j in 2:size(alleleDF,1)) #for all the allele matchings
-            newt1 = map(x->replace(string(x),string(alleleDF[j,:allele]),alleleDF[j,:species]),newt1)
-            newt2 = map(x->replace(string(x),string(alleleDF[j,:allele]),alleleDF[j,:species]),newt2)
-            newt3 = map(x->replace(string(x),string(alleleDF[j,:allele]),alleleDF[j,:species]),newt3)
-            newt4 = map(x->replace(string(x),string(alleleDF[j,:allele]),alleleDF[j,:species]),newt4)
-        end
+function mapAllelesCFtable!(alleleDF::DataFrame, cfDF::DataFrame, co::Vector{Int},write::Bool,filename::AbstractString)
+    size(cfDF,2) >= 7 || error("CF DataFrame should have 7+ columns: 4taxa, 3CF, and possibly ngenes")
+    if length(co)==0 co=[1,2,3,4]; end
+    compareTaxaNames(alleleDF,cfDF,co)
+    for j in 1:4
+      for ia in 1:size(alleleDF,1) # for all alleles
+        cfDF[co[j]] = map(x->replace(string(x),
+                                     Regex("^$(string(alleleDF[ia,:allele]))\$"),
+                                     alleleDF[ia,:species]),
+                          cfDF[co[j]])
+      end
     end
-    newdf = DataFrames.DataFrame(t1=newt1,t2=newt2,t3=newt3,t4=newt4,CF12_34=cfDF[5],CF13_24=cfDF[6],CF14_23=cfDF[7])
     if(write)
-        filename != "" || error("want to write new table of CF with alleles mapped but filename is empty")
-        writetable(filename,newdf)
+        filename != "" || error("want to write table of CF with alleles mapped but filename is empty")
+        writetable(filename, cfDF)
     end
-    return newdf
+    return cfDF
 end
 
 # function to clean a df after changing allele names to species names
 # inside mapAllelesCFtable
 # by deleting rows that are not informative like sp1 sp1 sp1 sp2
-function cleanAlleleDF!(newdf::DataFrame)
+function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int})
     global DEBUG
-    keeprows = ones(Bool,size(newdf,1)) # repeats 'true'
-    ##keeprows =  Bool[]
+    withngenes = (length(cols)==8)
+    delrows = Int[] # indices of rows to delete
     repSpecies = ASCIIString[]
-    if(isa(newdf[1,1],Int)) #taxon names as integers: we need this to be able to add _2
-        newdf[:1] = map(x->string(x),newdf[:1])
-        newdf[:2] = map(x->string(x),newdf[:2])
-        newdf[:3] = map(x->string(x),newdf[:3])
-        newdf[:4] = map(x->string(x),newdf[:4])
+    if(isa(newdf[1,cols[1]],Integer)) #taxon names as integers: we need this to be able to add __2
+        newdf[cols[1]] = map(x->string(x),newdf[cols[1]])
+        newdf[cols[2]] = map(x->string(x),newdf[cols[2]])
+        newdf[cols[3]] = map(x->string(x),newdf[cols[3]])
+        newdf[cols[4]] = map(x->string(x),newdf[cols[4]])
     end
     for(i in 1:size(newdf,1)) #check all rows
         DEBUG && println("row number: $i")
-        row = convert(Array,DataArray(newdf[i,1:4]))
+        row = convert(Array,DataArray(newdf[i,cols[1:4]]))
         DEBUG && println("row $(row)")
         uniq = unique(row)
         DEBUG && println("unique $(uniq)")
-        if(length(uniq) == 1)
-            ##push!(keeprows,false)
-            keeprows[i]= false
-        elseif(length(uniq) == 4)
-            ##push!(keeprows,true)
-            continue
+
+        keep = false # default: used if 1 unique name, or 2 in some cases
+        if(length(uniq) == 4)
+            keep = true
         elseif(length(uniq) == 3) #sp1 sp1 sp2 sp3
+            keep = true
             for(u in uniq)
                 DEBUG && println("u $(u), typeof $(typeof(u))")
                 ind = row .== u #taxon names matching u
@@ -66,8 +87,8 @@ function cleanAlleleDF!(newdf::DataFrame)
                     for(k in 1:4)
                         if(ind[k])
                             if(found)
-                                DEBUG && println("found the second one in k $(k), will change newdf[i,k] $(newdf[i,k]), typeof $(typeof(newdf[i,k]))")
-                                newdf[i,k] = string(u,"_2")
+                                DEBUG && println("found the second one in k $(k), will change newdf[i,cols[k]] $(newdf[i,cols[k]]), typeof $(typeof(newdf[i,cols[k]]))")
+                                newdf[i,cols[k]] = string(u, repeatAlleleSuffix)
                                 break
                             else
                                 found = true
@@ -78,13 +99,12 @@ function cleanAlleleDF!(newdf::DataFrame)
                 end
             end
         elseif(length(uniq) == 2)
-            keep = true
+            # keep was initialized to false
             for(u in uniq)
                 DEBUG && println("length uniq is 2, u $(u)")
                 ind = row .== u
                 if(sum(ind) == 1 || sum(ind) == 3)
                     DEBUG && println("ind $(ind) is 1 or 3, should not keep")
-                    keep = false
                     break
                 elseif(sum(ind) == 2)
                     DEBUG && println("ind $(ind) is 2, should keep")
@@ -94,91 +114,88 @@ function cleanAlleleDF!(newdf::DataFrame)
                     for(k in 1:4)
                         if(ind[k])
                             if(found)
-                                newdf[i,k] = string(u,"_2")
+                                newdf[i,cols[k]] = string(u, repeatAlleleSuffix)
                                 break
                             else
                                 found = true
-#                                newdf[i,k] = u
                             end
                         end
                     end
                 end
             end
             DEBUG && println("after if, keep is $(keep)")
-            ##push!(keeprows,keep)
-            keeprows[i] = keep
         end
-        DEBUG && println("$(keeprows[i])")
+        keep || push!(delrows, i)
+        DEBUG && (@show keep)
     end
-    DEBUG && println("keeprows is $(keeprows)")
-    DEBUG && println("repSpecies is $(repSpecies)")
-    if(!all(keeprows))
-        warn("found $(length(keeprows)-sum(keeprows)) troublesome 4-taxon subsets out of $(size(newdf,1)) 4-taxon subsets. for the moment, we will ignore these 4-taxon subsets: will use $(sum(keeprows)) 4-taxon subsets.")
-        size(newdf,1) > (length(keeprows)-sum(keeprows)) || warn("4-taxon subsets with repeated taxon names are all the 4-taxon subsets, so resulting new dataframe is empty")
+    DEBUG && (@show delrows)
+    DEBUG && (@show repSpecies)
+    nrows = size(newdf,1)
+    nkeep = nrows - length(delrows)
+    if(nkeep < nrows)
+        print("""found $(length(delrows)) 4-taxon sets uninformative about between-species relationships, out of $(nrows).
+              These 4-taxon sets will be deleted from the data frame. $nkeep informative 4-taxon sets will be used.
+              """)
+        nkeep > 0 || warn("All 4-taxon subsets are uninformative, so the dataframe will be left empty")
+        deleterows!(newdf, delrows)
     end
-    return unique(repSpecies),keeprows
+    # @show size(newdf)
+    return unique(repSpecies)
 end
 
 
 # function to merge rows that have repeated taxon names by using the weigthed average of CF
 # (if info on number of genes is provided) or simple average
-function mergeRows!(df::DataFrame)
-    keeprow = ones(Bool,size(df,1)) # repeats 'true'
-    addeddf = df[1,1:size(df,2)] #df that will have the averaged rows, need to delete the first row at the end
-    for(i in 1:size(df,1)) #rows
-        if(keeprow[i])
-            partialdf = df[i,1:size(df,2)]
-            for(j in (i+1):size(df,1)) #other rows
-                if(df[i,1:4] == df[j,1:4])
-                    keeprow[i] = false
-                    append!(partialdf,df[j,1:size(df,2)])
-                    keeprow[j] = false
+function mergeRows!(df::DataFrame, cols::Vector{Int})
+    sorttaxa!(df, cols)
+    n4tax  = size(df,1) # total number of 4-taxon sets
+    delrows = Int[] # indices of rows to delete
+    nrows  =  ones(Int ,n4tax) # total # of rows that row i combines. 0 if row i is to be deleted.
+    for i in 1:n4tax # for each row / 4-taxon set
+        if nrows[i]>0
+            for j in (i+1):n4tax # rows with larger index
+                nrows[j]>0 || continue # skip j if it matched a 4-taxon set earlier
+                rowmatch = true
+                for k in 1:4
+                    rowmatch *= (df[j,cols[k]] == df[i,cols[k]])
                 end
+                rowmatch || continue   # skip j if doesn't match i^th taxon set
+                nrows[j]=0
+                push!(delrows, j)
+                for k in 5:length(cols)
+                    df[i,cols[k]] += df[j,cols[k]]
+                end
+                nrows[i] += 1
             end
-            averagePartialDF!(partialdf) # transform all rows in partialdf to only one row with average
-            append!(addeddf,partialdf)
         end
     end
-    if(!all(keeprow))
-        warn("found repeated 4-taxon subsets in CF table, the CF values were averaged between rows")
-        df = df[keeprow,:]
-        addeddf = addeddf[2:size(addeddf,1),1:size(addeddf,2)]
-        append!(df,addeddf) #append averaged rows
+    # @show head(df); @show delrows[1:10]; @show length(delrows); @show sum(nrows); println("number with nrows>0: $(sum(map(x -> x>0, nrows)))")
+    for ir in delrows
+        if nrows[ir]>0
+            println("problem: ir=$ir, nrows=$(nrows[ir])")
+            @show df[ir,:]
+        end
     end
+    length(delrows)>0 || return df
+    sort!(delrows)
+    for i in 1:size(df,2)
+        deleteat!(df[i], delrows) # more efficient than deleterows!(df, delrows)
+    end
+    deleteat!(nrows, delrows)
+    n4tax = size(df,1) # re-defined
+    print("$n4tax unique 4-taxon sets were found. CF values of repeated 4-taxon sets will be averaged")
+    println((length(cols)>7 ? " (ngenes too)." : "."))
+    if length(cols)>7 && eltype(df[cols[8]])<: Integer # ngenes is present: integer. Need to convert to float
+        df[cols[8]] = convert(Array{Float64},df[cols[8]])
+    end
+    for i in 1:n4tax
+        nrows[i]>0 || error("Original $(delrows[i])) was retained (now row $i) but has nrows=0")
+        for k in 5:length(cols)
+            df[i,cols[k]] /= nrows[i]
+        end
+    end
+    return df
 end
-
-# function to average all rows in a dataframe
-# assumes all rows have repeated taxon names, and does not
-# verify this
-function averagePartialDF!(df::DataFrame)
-    global DEBUG
-    df2 = deepcopy(df)
-    deleterows!(df,2:size(df,1)) #only keep one row to hold the average
-    numfound = true
-    try
-        df[:ngenes] #column with number of genes
-    catch
-        numfound = false
-    end
-    if(numfound)
-        DEBUG && println("knows it has ngenes column")
-        num = df2[:ngenes]
-        suma = sum(num)
-        delete!(df2,1:4)
-        delete!(df2,:ngenes) #delete all columns except CF
-        for(j in 1:size(df2,2)) #columns in df2
-            df[1,j+4] = sum(df2[:,j].*num)/suma
-        end
-        df[1,:ngenes] = suma
-    else
-        DEBUG && println("knows it does not have ngenes column")
-        delete!(df2,1:4)
-        for(j in 1:size(df2,2)) #columns in df2
-            df[1,j+4] = mean(df2[:,j])
-        end
-    end
-end
-
 
 
 # function to expand leaves in tree to two individuals
@@ -213,7 +230,7 @@ function expandLeaves!(repSpecies::Union{Vector{ASCIIString},Vector{Int64}},tree
                 pushEdge!(tree,e1)
                 pushEdge!(tree,e2)
                 n1.name = string(sp)
-                n2.name = string(sp,"_2")
+                n2.name = string(sp,repeatAlleleSuffix)
                 break
             end
         end
@@ -221,51 +238,33 @@ function expandLeaves!(repSpecies::Union{Vector{ASCIIString},Vector{Int64}},tree
 end
 
 
-"""
-`mapAllelesCFtable(mapping file, cf file)`
-
-function that change the allele names in the CF table to species names.
-The new DataFrame object is returned.
-Optional argument: filename for the resulting CF table. If not specified, then no CF is saved as file.
-"""
-function mapAllelesCFtable(alleleDF::AbstractString, cfDF::AbstractString; filename=""::AbstractString)
-    d = readtable(alleleDF)
-    d2 = readtable(cfDF)
-    if(filename=="")
-        mapAllelesCFtable!(d,d2,false,filename)
-    else
-        mapAllelesCFtable!(d,d2,true,filename)
-    end
-end
-
 # function to compare the taxon names in the allele-species matching table
 # and the CF table
-function compareTaxaNames(alleleDF::DataFrame, cfDF::DataFrame)
+function compareTaxaNames(alleleDF::DataFrame, cfDF::DataFrame, co::Vector{Int})
     checkMapDF(alleleDF)
-    size(cfDF,2) == 7 || warn("CF Dataframe should have 7 columns: 4taxa, 3CF, will ignore columns from 8th on")
-    d = readTableCF(cfDF)
-    println("ALLELE MAP: there are $(length(alleleDF[1])) allele-species matches")
-    CFtaxa = unionTaxa(d.quartet)
+    println("Allele map: found $(length(alleleDF[1])) allele-species matches")
+    CFtaxa = convert(Array, unique(stack(cfDF[co[1:4]], 1:4)[:value]))
     CFtaxa = map(x->string(x),CFtaxa) #treat as string
     alleleTaxa = map(x->string(x),alleleDF[:allele]) #treat as string
     sizeCF = length(CFtaxa)
     sizeAllele = length(alleleTaxa)
     if(sizeAllele > sizeCF)
-        println("ALLELE MAP: there are more taxa in the allele-species mapping file: $(sizeAllele) than in the CF table: $(sizeCF), so extra allele names will be ignored")
+        println("Allele map: more alleles in the mapping file: $(sizeAllele) than in the CF table: $(sizeCF). Extra allele names will be ignored")
         alleleTaxa = intersect(alleleTaxa,CFtaxa)
     elseif(sizeAllele < sizeCF)
-        println("ALLELE MAP: there are fewer taxa in the allele-species map: $(sizeAllele) than in the CF table: $(sizeCF), so some names in the CF table will remained unchanged")
+        println("Allele map: fewer alleles in the mapping file: $(sizeAllele) than in the CF table: $(sizeCF). Some names in the CF table will remain unchanged")
     end
     unchanged = setdiff(CFtaxa,alleleTaxa)
     if(length(unchanged) == length(CFtaxa))
-        warn("no allele names in CF table match with the mapping file")
+        warn("None of the taxon names in CF table match with allele names in the mapping file")
     end
     if(isempty(unchanged))
-        println("TAXON NAMES MATCH: taxon names in the CF table were changed according to the allele-species mapping file")
+        println("All allele names in the CF table were found in the allele-species mapping file.")
     else
-        warn("not all alleles mapped")
-        println("the following taxa in the CF table were not modified by the allele-species map (since they are absent in the mapping file):\n $(unchanged)")
+        warn("not all alleles were mapped")
+        println("The following taxa in the CF table were not found in the allele-species mapping file:\n$(unchanged)")
     end
+    return nothing
 end
 
 # function to check that the allele df has one column labelled alleles and one column labelled species

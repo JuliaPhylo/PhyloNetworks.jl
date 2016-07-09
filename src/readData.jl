@@ -42,6 +42,7 @@ writeObsCF(d::DataCF) = writeObsCF(d.quartet)
 """
     readTableCF(file)
     readTableCF(data frame)
+    readTableCF!(data frame)
 
 Read a file or DataFrame object containing a table of concordance factors (CF),
 with one row per 4-taxon set. The first 4 columns are assumed to give the labels
@@ -54,22 +55,32 @@ used to estimate the CFs for each 4-taxon set.
 Optional arguments:
 
 - summaryfile: if specified, a summary file will be created with that name.
-- sep (for the second form only): to specify the type of separator in the file,
-with single quotes: sep=';'.
+- sep (for the first form only): to specify the type of separator in the file,
+  with single quotes: sep=';'. Default is a `csv` file, i.e. `sep=','`.
+
+The last version modifies the input data frame, if species are represented by multiple alleles
+for instance (see `readTableCF!`).
 """
 # warning: file AbstractString bc it can be read as UTF8String
-readTableCF(file::AbstractString; sep=','::Char, summaryfile=""::AbstractString) =
-      readTableCF(readtable(file,separator=sep), summaryfile=summaryfile)
+function readTableCF(file::AbstractString; sep=','::Char, summaryfile=""::AbstractString)
+    df = readtable(file,separator=sep)
+    readTableCF!(df, summaryfile=summaryfile)
+end
 
 function readTableCF(df0::DataFrames.DataFrame; summaryfile=""::AbstractString)
+    df = deepcopy(df0)
+    readTableCF!(df, summaryfile=summaryfile)
+end
+
+function readTableCF!(df::DataFrames.DataFrame; summaryfile=""::AbstractString)
     DEBUG && println("assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network")
-    obsCFcol = [findfirst(DataFrames.names(df0), :CF12_34),
-                findfirst(DataFrames.names(df0), :CF13_24),
-                findfirst(DataFrames.names(df0), :CF14_23)] # use DataFrames.index( ).names ow
-    ngenecol =  findfirst(DataFrames.names(df0), :ngenes)
+    obsCFcol = [findfirst(DataFrames.names(df), :CF12_34),
+                findfirst(DataFrames.names(df), :CF13_24),
+                findfirst(DataFrames.names(df), :CF14_23)] # use DataFrames.index( ).names ow
+    ngenecol =  findfirst(DataFrames.names(df), :ngenes)
     withngenes = ngenecol>0
     if findfirst(obsCFcol, 0) > 0 # one or more col names for CFs were not found
-        size(df0,2) == (withngenes ? 8 : 7) ||
+        size(df,2) == (withngenes ? 8 : 7) ||
           warn("""Column names for quartet concordance factors (CFs) were not recognized.
           Was expecting CF12_34, CF13_24 and CF14_23 for the columns with CF values.
           Will assume that the first 4 columns give the taxon names, and that columns 5-7 give the CFs.""")
@@ -82,13 +93,13 @@ function readTableCF(df0::DataFrames.DataFrame; summaryfile=""::AbstractString)
     columns = [[1,2,3,4]; obsCFcol]
     if withngenes  push!(columns, ngenecol)  end
 
-    d = readTableCF(df0, columns) # main stuff
+    d = readTableCF!(df, columns)
 
     if withngenes && d.numTrees == -1
         m1 = minimum([q.ngenes for q in d.quartet])
         m2 = maximum([q.ngenes for q in d.quartet])
         if m1<m2 print("between $m1 and ") end
-        println("$m2 gene trees per quartet")
+        println("$m2 gene trees per 4-taxon set")
         # other info printed by show() on a DataCF object: num quartets and num gene trees
     end
     if(summaryfile != "")
@@ -98,19 +109,19 @@ function readTableCF(df0::DataFrames.DataFrame; summaryfile=""::AbstractString)
 end
 
 # see docstring below, for readTableCF!
-# takes in df0 and 7 or 8 column numbers (4 labels + 3 CFs + ngenes possibly)
-function readTableCF(df0::DataFrames.DataFrame, columns::Vector{Int})
-    withngenes = (length(columns)==8) # true if column :ngenes exists, false ow
-    df = deepcopy(df0[:, columns])    # columns 1-7 or 1-8 in the new df
-    repSpecies = cleanNewDF!(df)
-    if(!isempty(repSpecies))
-        mergeRows!(df)
+# takes in df and 7 or 8 column numbers (4 labels + 3 CFs + ngenes possibly)
+function readTableCF!(df::DataFrames.DataFrame, co::Vector{Int})
+    withngenes = (length(co)==8) # true if column :ngenes exists, false ow
+    repSpecies = cleanAlleleDF!(df,co) # removes uninformative rows from df (not df0)
+    if(!isempty(repSpecies))    # fixit: cleanAlleleDF! and mergeRows! are time consuming but many times not needed.
+        mergeRows!(df,co)       # add option to skip them, for the user to say that each tip appears once only?
     end
     quartets = Quartet[]
     for(i in 1:size(df,1))
-        push!(quartets,Quartet(i,string(df[i,1]),string(df[i,2]),string(df[i,3]),string(df[i,4]),[df[i,5],df[i,6],df[i,7]]))
+        push!(quartets,Quartet(i,string(df[i,co[1]]),string(df[i,co[2]]),string(df[i,co[3]]),string(df[i,co[4]]),
+                               [df[i,co[5]],df[i,co[6]],df[i,co[7]]]))
         if(withngenes)
-            quartets[end].ngenes = df[i,8]
+            quartets[end].ngenes = df[i,co[8]]
         end
     end
     d = DataCF(quartets)
@@ -121,22 +132,28 @@ function readTableCF(df0::DataFrames.DataFrame, columns::Vector{Int})
 end
 
 """
-    readTableCF(data frame, columns)
+    readTableCF!(data frame, columns)
 
 Read in quartet CFs from data frame, assuming information is in columns numbered `columns`,
 of length **7 or 8**: 4 taxon labels then 3 CFs then ngenes possibly.
-`readTableCF(df)` first checks columns names then calls `readTableCF(df, columns)`.
 
-**Note**: the data frame is deep-copied, to merge rows corresponding to the same 4-taxon set.
+If some species appears more than once in the same 4-taxon set (e.g. t1,t1,t2,t3),
+then the data frame is modified to remove rows (4-taxon sets) that are uninformative about
+between-species relationships. This situation may occur if multiple individuals are sampled from
+the same species. A 4-taxon set is uninformative (and its row is removed)
+if one taxon is repeated 3 or 4 times (like t1,t1,t1,t1 or t1,t2,t2,t2).
+The list of species appearing twice in some 4-taxon sets is stored in the output DataCF object.
+For these species, the length of their external edge is identifiable (in coalescent units).
+If multiple rows correspond to the same 4-taxon set, these rows are merged and their CF values
+(and number of genes) are averaged.
 
     readTableCF!(DataCF, data frame, columns)
 
-Same as readTableCF, but assumes the same 4-taxon sets in DataCF as in the data frame and
-modifies the .quartet.obsCF values in the DataCF object, as read from the data frame.
+Modify the `.quartet.obsCF` values in the `DataCF` object with those read from the data frame
+in columns numbered `columns`.
 `columns` should have **3** columns numbers for the 3 CFs in this order: 12_34, 13_24 and 14_23.
-
-**Warning**: no checks. Assumes 1 individual per species, and
-4-taxon sets in the same order in the DataCF as in the data frame.
+Assume the same 4-taxon sets in `DataCF` and in the data frame, and in the same order,
+but this assumption is *not checked* (for speed, e.g. during bootstrapping).
 """
 # WARNING: assumes df has a single row per 4-taxon sets (multiple ind already merged)
 #                  dcf created earlier from df.
@@ -600,6 +617,7 @@ Optional arguments include:
 - writeTab=false: does not write the observedCF to a table (default true)
 - CFfile: name of file to save the observedCF (default tableCF.txt)
 - writeQ=true: save intermediate files with the list of all 4-taxon subsets and chosen random sample (default false).
+- writeSummary: write descriptive stats of input data (default: true)
 """
 function readTrees2CF(treefile::AbstractString; quartetfile="none"::AbstractString, whichQ="all"::AbstractString, numQ=0::Int64, writeTab=true::Bool, CFfile="none"::AbstractString, taxa=unionTaxaTree(treefile)::Union{Vector{ASCIIString},Vector{Int64}}, writeQ=false::Bool, writeSummary=true::Bool)
     whichQ == "all" || whichQ == "rand" ||
