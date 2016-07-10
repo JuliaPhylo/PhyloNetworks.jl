@@ -3,15 +3,15 @@
 # Claudia March 2015
 
 
-const move2int = Dict{Symbol,Int64}(:add=>1,:MVorigin=>2,:MVtarget=>3,:CHdir=>4,:delete=>5, :nni=>6)
-const int2move = Dict{Int64,Symbol}([move2int[k]=>k for k in keys(move2int)])
+const move2int = Dict{Symbol,Int}(:add=>1,:MVorigin=>2,:MVtarget=>3,:CHdir=>4,:delete=>5, :nni=>6)
+const int2move = Dict{Int,Symbol}([move2int[k]=>k for k in keys(move2int)])
 # if changes are made here, make the same in the docstring for snaq! below.
 const fAbs = 1e-6 #1e-10 prof Bates, 1e-6
 const fRel = 1e-5 # 1e-12 prof Bates, 1e-5
 const xAbs = 1e-4 # 0.001 in phylonet, 1e-10 prof Bates, 1e-4
 const xRel = 1e-3 # 0.01 in phylonet, 1e-10 prof Bates, 1e-3
 const numFails = 100 # number of failed proposals allowed before stopping the procedure (like phylonet)
-const numMoves = Int64[] #empty to be calculated inside based on coupon's collector
+const numMoves = Int[] #empty to be calculated inside based on coupon's collector
 const multiplier = 10000 # for loglik absolute tol (multiplier*fAbs)
 
 # ---------------------- branch length optimization ---------------------------------
@@ -22,13 +22,13 @@ const multiplier = 10000 # for loglik absolute tol (multiplier*fAbs)
 function parameters(net::Network)
     t = Float64[]
     h = Float64[]
-    n = Int64[]
-    n2 = Int64[]
+    n = Int[]
+    n2 = Int[]
     hz = Float64[]
-    hzn = Int64[]
-    indxt = Int64[]
-    indxh = Int64[]
-    indxhz = Int64[]
+    hzn = Int[]
+    indxt = Int[]
+    indxh = Int[]
+    indxhz = Int[]
     for(e in net.edge)
         if(e.istIdentifiable)
             push!(t,e.length)
@@ -78,12 +78,12 @@ function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
     nt = net.numht[net.numHybrids - net.numBad + 1 : net.numHybrids - net.numBad + k]
     nhz = net.numht[net.numHybrids - net.numBad + k + 1 : length(net.numht)]
-    qnh = Int64[]
-    qnt = Int64[]
-    qnhz = Int64[]
-    qindxh = Int64[]
-    qindxt = Int64[]
-    qindxhz = Int64[]
+    qnh = Int[]
+    qnt = Int[]
+    qnhz = Int[]
+    qindxh = Int[]
+    qindxt = Int[]
+    qindxhz = Int[]
     if(qnet.numHybrids == 1 && qnet.hybrid[1].isBadDiamondI)
         ind1 = parse(Int,string(string(qnet.hybrid[1].number),"1"))
         ind2 = parse(Int,string(string(qnet.hybrid[1].number),"2"))
@@ -256,7 +256,7 @@ function upper(net::HybridNetwork)
 end
 
 # function to calculate the inequality gammaz1+gammaz2 <= 1
-function calculateIneqGammaz(x::Vector{Float64}, net::HybridNetwork, ind::Int64, verbose::Bool)
+function calculateIneqGammaz(x::Vector{Float64}, net::HybridNetwork, ind::Integer, verbose::Bool)
     global DEBUG
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
     hz = x[net.numHybrids - net.numBad + k + 1 : length(x)]
@@ -379,7 +379,7 @@ end
 # returns success
 # movesgama: vector of count of number of times each move is proposed to fix gamma zero situation:(add,mvorigin,mvtarget,chdir,delete,nni)
 # movesgamma[13]: total number of accepted moves by loglik
-function moveHybrid!(net::HybridNetwork, edge::Edge, closeN ::Bool, origin::Bool,N::Int64, movesgamma::Vector{Int64})
+function moveHybrid!(net::HybridNetwork, edge::Edge, closeN ::Bool, origin::Bool,N::Integer, movesgamma::Vector{Int})
     global DEBUG
     edge.hybrid || error("edge $(edge.number) cannot be deleted because it is not hybrid")
     node = edge.node[edge.isChild1 ? 1 : 2];
@@ -414,7 +414,7 @@ end
 # returns success
 # movesgama: vector of count of number of times each move is proposed to fix gamma zero situation:(add,mvorigin,mvtarget,chdir,delete,nni)
 # movesgamma[13]: total number of accepted moves by loglik
-function gammaZero!(net::HybridNetwork, d::DataCF, edge::Edge, closeN ::Bool, origin::Bool, N::Int64, movesgamma::Vector{Int64})
+function gammaZero!(net::HybridNetwork, d::DataCF, edge::Edge, closeN ::Bool, origin::Bool, N::Integer, movesgamma::Vector{Int})
     global CHECKNET, DEBUG
     currTloglik = net.loglik
     edge.hybrid || error("edge $(edge.number) should be hybrid edge because it corresponds to a gamma (or gammaz) in net.ht")
@@ -457,7 +457,7 @@ end
 # returns successchange,flagh,flagt,flaghz
 # movesgama: vector of count of number of times each move is proposed to fix gamma zero situation:(add,mvorigin,mvtarget,chdir,delete,nni)
 # movesgamma[13]: total number of accepted moves by loglik
-function afterOptBL!(currT::HybridNetwork, d::DataCF,closeN ::Bool, origin::Bool,verbose::Bool, N::Int64, movesgamma::Vector{Int64})
+function afterOptBL!(currT::HybridNetwork, d::DataCF,closeN ::Bool, origin::Bool,verbose::Bool, N::Integer, movesgamma::Vector{Int})
     global CHECKNET, DEBUG
     !isTree(currT) || return false,true,true,true
     nh = currT.ht[1 : currT.numHybrids - currT.numBad]
@@ -547,7 +547,8 @@ end
 # to the same network over and over
 # movesgama: vector of count of number of times each move is proposed to fix gamma zero situation:(add,mvorigin,mvtarget,chdir,delete,nni)
 # movesgamma[13]: total number of accepted moves by loglik
-function afterOptBLRepeat!(currT::HybridNetwork, d::DataCF, N::Int64,closeN ::Bool, origin::Bool, verbose::Bool, movesgamma::Vector{Int64})
+function afterOptBLRepeat!(currT::HybridNetwork, d::DataCF, N::Integer,closeN ::Bool, origin::Bool,
+                           verbose::Bool, movesgamma::Vector{Int})
     global DEBUG
     success,flagh,flagt,flaghz = afterOptBL!(currT,d,closeN ,origin,verbose,N, movesgamma)
     DEBUG && println("inside afterOptBLRepeat, after afterOptBL once, we get: success, flags: $([success,flagh,flagt,flaghz])")
@@ -578,11 +579,11 @@ end
 # N: number of times failures of accepting loglik is allowed, M: multiplier for loglik tolerance (M*ftolAbs)
 # movesgama: vector of count of number of times each move is proposed to fix gamma zero situation:(add,mvorigin,mvtarget,chdir,delete,nni)
 # movesgamma[13]: total number of accepted moves by loglik
-function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,closeN ::Bool, M::Number, ftolAbs::Float64, verbose::Bool, movesgamma::Vector{Int64},ftolRel::Float64, xtolRel::Float64, xtolAbs::Float64)
+function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Integer,closeN ::Bool, M::Number, ftolAbs::Float64, verbose::Bool, movesgamma::Vector{Int},ftolRel::Float64, xtolRel::Float64, xtolAbs::Float64)
     global DEBUG
     DEBUG && println("afterOptBLAll: checking if currT has gamma(z) = 0.0(1.0): currT.ht $(currT.ht)")
     currloglik = currT.loglik
-    currT.blacklist = Int64[];
+    currT.blacklist = Int[];
     origin = (rand() > 0.5) #true=moveOrigin, false=moveTarget
     startover = true
     tries = 0
@@ -673,7 +674,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Int64,closeN ::Bool,
             optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
         end
     end
-    currT.blacklist = Int64[];
+    currT.blacklist = Int[];
     return currT
 end
 
@@ -689,7 +690,7 @@ end
 # function to adjust the weight of addHybrid if net is in a much lower layer
 # net.numHybrids<<hmax
 # takes as input the vector of weights for each move (add,mvorigin,mvtarget,chdir,delete,nni)
-function adjustWeight(net::HybridNetwork,hmax::Int64,w::Vector{Float64})
+function adjustWeight(net::HybridNetwork,hmax::Integer,w::Vector{Float64})
     if(hmax - net.numHybrids > 0)
         hmax >= 0 || error("hmax must be non negative: $(hmax)")
         length(w) == 6 || error("length of w should be 6 as there are only 6 moves: $(w)")
@@ -714,7 +715,7 @@ end
 # avoid proposing over and over moves that cannot work: (add,mvorigin, mvtarget, chdir, delete,nni)
 #returns false if sum(v)=0, no more moves available
 # needs the net and hmax to decide if there are available moves
-function adjustWeightMovesfail!(v::Vector{Float64}, movesfail::Vector{Int64}, Nmov::Vector{Int64}, net::HybridNetwork, hmax::Int64)
+function adjustWeightMovesfail!(v::Vector{Float64}, movesfail::Vector{Int}, Nmov::Vector{Int}, net::HybridNetwork, hmax::Integer)
     length(v) ==length(movesfail) || error("v and movesfail must have same length")
     length(Nmov) ==length(movesfail) || error("Nmov and movesfail must have same length")
     for(i in 1:length(v))
@@ -747,7 +748,7 @@ end
 # takes as input the vector of weights for each move (add,mvorigin, mvtarget, chdir, delete,nni)
 # and dynamic=true, adjusts the weight for addHybrid if net is in a lower layer (net.numHybrids<<hmax)
 # movesfail and Nmov are to count number of fails in each move
-function whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64}, dynamic::Bool, movesfail::Vector{Int64}, Nmov::Vector{Int64})
+function whichMove(net::HybridNetwork,hmax::Integer,w::Vector{Float64}, dynamic::Bool, movesfail::Vector{Int}, Nmov::Vector{Int})
     global DEBUG
     hmax >= 0 || error("hmax must be non negative: $(hmax)")
     length(w) == 6 || error("length of w should be 6 as there are only 6 moves: $(w)")
@@ -807,8 +808,8 @@ function whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64}, dynamic::B
     end
 end
 
-whichMove(net::HybridNetwork,hmax::Int64,movesfail::Vector{Int64}, Nmov::Vector{Int64}) = whichMove(net,hmax,[1/5,1/5,1/5,1/5,0.0,1/5], true,movesfail, Nmov)
-whichMove(net::HybridNetwork,hmax::Int64,w::Vector{Float64},movesfail::Vector{Int64}, Nmov::Vector{Int64}) = whichMove(net,hmax,w, true,movesfail, Nmov)
+whichMove(net::HybridNetwork,hmax::Integer,movesfail::Vector{Int}, Nmov::Vector{Int}) = whichMove(net,hmax,[1/5,1/5,1/5,1/5,0.0,1/5], true,movesfail, Nmov)
+whichMove(net::HybridNetwork,hmax::Integer,w::Vector{Float64},movesfail::Vector{Int}, Nmov::Vector{Int}) = whichMove(net,hmax,w, true,movesfail, Nmov)
 
 #function to choose a hybrid node for the given moves
 function chooseHybrid(net::HybridNetwork)
@@ -827,7 +828,7 @@ end
 # random = false uses the minor hybrid edge always
 # count to know in which step we are, N for NNI trials
 # order in movescount as in IF here (add,mvorigin,mvtarget,chdir,delete,nni)
-function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::Int64, N::Int64, movescount::Vector{Int64}, movesfail::Vector{Int64})
+function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::Integer, N::Integer, movescount::Vector{Int}, movesfail::Vector{Int})
     global CHECKNET, DEBUG
     1 <= move <= 6 || error("invalid move $(move)") #fixit: if previous move rejected, do not redo it!
     DEBUG && println("current move: $(int2move[move])")
@@ -864,13 +865,13 @@ function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::In
 end
 
 
-proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Int64,N::Int64, movescount::Vector{Int64},movesfail::Vector{Int64}) = proposedTop!(try move2int[move] catch error("invalid move $(string(move))") end,newT, random,count,N, movescount,movesfail)
+proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Integer,N::Integer, movescount::Vector{Int},movesfail::Vector{Int}) = proposedTop!(try move2int[move] catch error("invalid move $(string(move))") end,newT, random,count,N, movescount,movesfail)
 
 # function to calculate Nmov, number max of tries per move
 # order: (add,mvorigin,mvtarget,chdir,delete,nni)
-function calculateNmov!(net::HybridNetwork, N::Vector{Int64})
+function calculateNmov!(net::HybridNetwork, N::Vector{Int})
     if(isempty(N))
-        N = zeros(Int64, 6)
+        N = zeros(Int, 6)
     else
         length(N) == 6 || error("vector Nmov should have length 6: $(N)")
     end
@@ -901,9 +902,9 @@ end
 # closeN =true if gamma=0.0 fixed only around neighbors with move origin/target
 # sout=IOStream to capture the output from the functions called, only used when DEBUG=true and REDIRECT=true, default STDOUT
 # logfile=IOStream to capture the information on the heurisitc optimization, default STDOUT
-function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,
+function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF, hmax::Integer,
                       ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
-                      verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}, sout::IO, logfile::IO, writelog::Bool)
+                      verbose::Bool, closeN ::Bool, Nmov0::Vector{Int}, sout::IO, logfile::IO, writelog::Bool)
     global CHECKNET, DEBUG, REDIRECT
     DEBUG && println("OPT: begins optTopLevel with hmax $(hmax)")
     M > 0 || error("M must be greater than zero: $(M)")
@@ -919,13 +920,13 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     DEBUG && printEverything(currT)
     CHECKNET && checkNet(currT)
     count = 0
-    movescount = zeros(Int64,18) #1:6 number of times moved proposed, 7:12 number of times success move (no intersecting cycles, etc.), 13:18 accepted by loglik
-    movesgamma = zeros(Int64,13) #number of moves to fix gamma zero: proposed, successful, movesgamma[13]: total accepted by loglik
-    movesfail = zeros(Int64,6) #count of failed moves for current topology
+    movescount = zeros(Int,18) #1:6 number of times moved proposed, 7:12 number of times success move (no intersecting cycles, etc.), 13:18 accepted by loglik
+    movesgamma = zeros(Int,13) #number of moves to fix gamma zero: proposed, successful, movesgamma[13]: total accepted by loglik
+    movesfail = zeros(Int,6) #count of failed moves for current topology
     failures = 0
     stillmoves = true
     if(isempty(Nmov0))
-        Nmov = zeros(Int64,6)
+        Nmov = zeros(Int,6)
     else
         Nmov = deepcopy(Nmov0)
     end
@@ -971,7 +972,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
                     currT = deepcopy(newT)
                     failures = 0
                     movescount[move2int[move]+12] += 1
-                    movesfail = zeros(Int64,6) #count of failed moves for current topology
+                    movesfail = zeros(Int,6) #count of failed moves for current topology
                 else
                     DEBUG && println("rejected new topology with worse loglik in step $(count): currloglik=$(round(currT.loglik,3)), newloglik=$(round(newT.loglik,3)), with $(failures) failures")
                     failures += 1
@@ -1028,15 +1029,15 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     return newT
 end
 
-optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false,true,numMoves,STDOUT, STDOUT,true)
-optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Int64, verbose::Bool) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, verbose,true,numMoves,STDOUT,STDOUT,true)
-optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}) = optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,STDOUT,STDOUT,true)
+optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Integer) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false,true,numMoves,STDOUT, STDOUT,true)
+optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Integer, verbose::Bool) = optTopLevel!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, verbose,true,numMoves,STDOUT,STDOUT,true)
+optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF, hmax::Integer,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int}) = optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,STDOUT,STDOUT,true)
 
 
 
 # function to print count of number of moves after optTopLevel
 # s: IOStream to decide if you want to print to a file or to screen, by default to screen
-function printCounts(movescount::Vector{Int64}, movesgamma::Vector{Int64},s::Union{IOStream,Base.TTY})
+function printCounts(movescount::Vector{Int}, movesgamma::Vector{Int},s::Union{IOStream,Base.TTY})
     length(movescount) == 18 || error("movescount should have length 18, not $(length(movescount))")
     length(movesgamma) == 13 || error("movesgamma should have length 13, not $(length(movescount))")
     print(s,"\nPERFORMANCE: total number of moves (proposed, successful, accepted) in general, and to fix gamma=0.0,t=0.0 cases\n")
@@ -1058,11 +1059,11 @@ function printCounts(movescount::Vector{Int64}, movesgamma::Vector{Int64},s::Uni
     print(s,"Proportion\t -- \t\t $(round(sum(movescount[7:12])/suma,1))\t\t $(round(sum(movescount[13:18])/suma,1))\t |\t -- \t\t $(round(sum(movesgamma[7:12])/suma2,1))\t\t $(round(movesgamma[13]/suma2,1))\n")
 end
 
-printCounts(movescount::Vector{Int64}, movesgamma::Vector{Int64}) = printCounts(movescount, movesgamma,STDOUT)
+printCounts(movescount::Vector{Int}, movesgamma::Vector{Int}) = printCounts(movescount, movesgamma,STDOUT)
 
 # function to print count of number of moves to a file
 # file=name of file where to save
-function printCounts(movescount::Vector{Int64}, movesgamma::Vector{Int64},file::AbstractString)
+function printCounts(movescount::Vector{Int}, movesgamma::Vector{Int},file::AbstractString)
     s = open(file,"w")
     printCounts(movescount,movesgamma,s)
     close(s)
@@ -1160,7 +1161,7 @@ end
 # returns the best topology overall
 # uses the best topology in h-1 as starting point for the search in h
 # no test in between! fixit: add a test to decide to move from h-1 to h?
-function optTop!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64},s::IO)
+function optTop!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF, hmax::Integer,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int},s::IO)
     global DEBUG
     hmax >= 0 || error("hmax cannot be negative $(hmax)")
     currT.numHybrids == 0 || write(s,"\ncurrT has already $(currT.numHybrids), so search will not start in tree, but in the space of networks with $(currT.numHybrids) hybrids")
@@ -1212,9 +1213,9 @@ end
 
 
 
-optTop!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTop!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false,true,numMoves,STDOUT)
-optTop!(currT::HybridNetwork, d::DataCF, hmax::Int64, verbose::Bool) = optTop!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, verbose,true,numMoves,STDOUT)
-optTop!(currT::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}) = optTop!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0, STDOUT)
+optTop!(currT::HybridNetwork, d::DataCF, hmax::Integer) = optTop!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false,true,numMoves,STDOUT)
+optTop!(currT::HybridNetwork, d::DataCF, hmax::Integer, verbose::Bool) = optTop!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, verbose,true,numMoves,STDOUT)
+optTop!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF, hmax::Integer,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int}) = optTop!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0, STDOUT)
 
 """
 Road map for various functions behind snaq!
@@ -1249,10 +1250,10 @@ Functions that are no longer used, and not tested as much:
 # probST is the probability of starting in the starting topology currT per run (1-probST is the probability of doing a NNI move) default 0.3
 # updateBL=true if we want to update the missing BL to average CF
 # does *not* modify currT0
-function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,
+function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Integer, d::DataCF, hmax::Integer,
                      ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
-                     verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64}, runs::Int64,
-                     outgroup::AbstractString, rootname::AbstractString, seed::Int64, probST::Float64)
+                     verbose::Bool, closeN ::Bool, Nmov0::Vector{Int}, runs::Integer,
+                     outgroup::AbstractString, rootname::AbstractString, seed::Integer, probST::Float64)
     writelog = true
     if (rootname != "")
         juliaerr = string(rootname,".err")
@@ -1287,7 +1288,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     maxNet = HybridNetwork();
     maxNet.loglik = 1.e15;
 
-    failed = Int64[] #seeds with bugs
+    failed = Int[] #seeds with bugs
     bestnet = HybridNetwork[];
     #runs += 1 #extra run for compilation in v0.3
 
@@ -1445,18 +1446,18 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     return maxNet
 end
 
-optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64, outgroup::AbstractString, rootname::AbstractString) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, outgroup,rootname,0,0.3)
-optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64, outgroup::AbstractString) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, outgroup,"optTopRuns",0,0.3)
-optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64, runs::Int64) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, "none", "optTopRuns",0,0.3)
-optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, 10, "none", "optTopRuns",0,0.3)
+optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Integer, runs::Integer, outgroup::AbstractString, rootname::AbstractString) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, outgroup,rootname,0,0.3)
+optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Integer, runs::Integer, outgroup::AbstractString) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, outgroup,"optTopRuns",0,0.3)
+optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Integer, runs::Integer) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, runs, "none", "optTopRuns",0,0.3)
+optTopRuns!(currT::HybridNetwork, d::DataCF, hmax::Integer) = optTopRuns!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, 10, "none", "optTopRuns",0,0.3)
 
 # function that runs one run inside optTopRuns: it changes the starting topology currT0 and calls optTopLevel
 # it has an extra parameter to optTopRuns: seed to set the seed inside and change the starting topology
 # currT0
 # does *not* modify currT0. Modifies data d only.
-function optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,
+function optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Integer, d::DataCF, hmax::Integer,
                      ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
-                     verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64},seed::Int64,
+                     verbose::Bool, closeN ::Bool, Nmov0::Vector{Int},seed::Integer,
                      logfile::IO, writelog::Bool, probST::Float64, sout::IO)
     srand(seed)
     currT = deepcopy(currT0);
@@ -1488,9 +1489,9 @@ function optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, 
     optTopLevel!(currT, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,sout,logfile,writelog)
 end
 
-optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Int64, d::DataCF, hmax::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int64},seed::Int64,logfile::IO,writelog::Bool,probST::Float64) = optTopRun1!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0,seed,logfile,writelog,probST, STDOUT)
-optTopRun1!(currT::HybridNetwork, d::DataCF, hmax::Int64) = optTopRun1!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, 0,STDOUT,true,0.3, STDOUT)
-optTopRun1!(currT::HybridNetwork, d::DataCF, hmax::Int64, seed::Int64) = optTopRun1!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves,seed,STDOUT,true,0.3, STDOUT)
+optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Integer, d::DataCF, hmax::Integer,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int},seed::Integer,logfile::IO,writelog::Bool,probST::Float64) = optTopRun1!(currT0, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0,seed,logfile,writelog,probST, STDOUT)
+optTopRun1!(currT::HybridNetwork, d::DataCF, hmax::Integer) = optTopRun1!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, 0,STDOUT,true,0.3, STDOUT)
+optTopRun1!(currT::HybridNetwork, d::DataCF, hmax::Integer, seed::Integer) = optTopRun1!(currT, multiplier, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves,seed,STDOUT,true,0.3, STDOUT)
 
 
 # function SNaQ: it calls directly optTopRuns but has a prettier name
@@ -1564,7 +1565,7 @@ Inferring phylogenetic networks with maximum pseudolikelihood under incomplete l
 [PLoS Genetics](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896)
 12(3):e1005896
 """
-function snaq!(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64, outgroup="none"::AbstractString, filename="snaq"::AbstractString, seed=0::Int64, probST=0.3::Float64, updateBL=true::Bool)
+function snaq!(currT0::HybridNetwork, d::DataCF; hmax=1::Integer, M=multiplier::Number, Nfail=numFails::Integer,ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64, verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int}, runs=10::Integer, outgroup="none"::AbstractString, filename="snaq"::AbstractString, seed=0::Integer, probST=0.3::Float64, updateBL=true::Bool)
     0.0<=probST<=1.0 || error("probability to keep the same starting topology should be between 0 and 1: $(probST)")
     sameTaxa(d,currT0) || error("some taxon names in quartets do not appear on the starting topology")
     currT0.numTaxa >= 5 || error("cannot estimate hybridizations in topologies with fewer than 5 taxa, this topology has $(currT0.numTaxa) taxa")
@@ -1598,10 +1599,10 @@ end
 function to replicate a given run that produces error according to the .err file generated by snaq.
 The same settings used in that run should be used in this function, specially the seed. See the readme file online for more details.
 """
-function snaqDebug(currT0::HybridNetwork, d::DataCF; hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,
+function snaqDebug(currT0::HybridNetwork, d::DataCF; hmax=1::Integer, M=multiplier::Number, Nfail=numFails::Integer,
                    ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64,
-                   verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64}, runs=10::Int64,
-                   outgroup="none"::AbstractString, rootname="snaqDebug"::AbstractString, seed=0::Int64, probST=0.3::Float64,
+                   verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int}, runs=10::Integer,
+                   outgroup="none"::AbstractString, rootname="snaqDebug"::AbstractString, seed=0::Integer, probST=0.3::Float64,
                    debug=true::Bool, redirect=true::Bool)
     currT0 = readTopologyUpdate(writeTopologyLevel1(currT0)) # update all level-1 things
     flag = checkNet(currT0,true)

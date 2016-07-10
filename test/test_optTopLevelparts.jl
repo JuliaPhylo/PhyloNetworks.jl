@@ -22,7 +22,7 @@ move = :MVorigin
 move = :MVtarget
 move = :nni
 
-flag = proposedTop!(move,newT,true,count,N, zeros(Int64,18), zeros(Int64,6))
+flag = proposedTop!(move,newT,true,count,N, zeros(Int,18), zeros(Int,6))
 printEdges(newT)
 printNodes(newT)
 sum([e.hybrid?1:0 for e in newT.edge]) == 2 || error("there are not 2 hybrid edges")
@@ -94,7 +94,7 @@ count = 0
 N = 10
 move = :nni
 
-flag = proposedTop!(move,newT,true,count,N, zeros(Int64,18), zeros(Int64,6))
+flag = proposedTop!(move,newT,true,count,N, zeros(Int,18), zeros(Int,6))
 flag
 printEdges(newT)
 printNodes(newT)

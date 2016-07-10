@@ -231,9 +231,9 @@ function getIndex(name::AbstractString, array::Array{ASCIIString,1})
     i>size(array,1)?error("$(name) not in array"):return i;
 end
 
-# aux function to find the index of a int64 in a
-# int64 array
-function getIndex(name::Int64, array::Array{Int64,1})
+# aux function to find the index of a int in an int array.
+# But findfirst can do that as well, and probably more efficiently (returning 0 if not found)
+function getIndex(name::Integer, array::Array{Int,1})
     i = 1;
     while(i<= size(array,1) && !isequal(name,array[i]))
         i = i+1;
@@ -253,7 +253,7 @@ function getIndex(name::Node, array::Array{Node,1})
 end
 
 
-function getIndexNode(number::Int64,net::Network)
+function getIndexNode(number::Integer,net::Network)
     ind = findfirst([number==n.number for n in net.node])
     if ind==0
         error("node number not in net.node")
@@ -261,7 +261,7 @@ function getIndexNode(number::Int64,net::Network)
     return ind
 end
 
-function getIndexEdge(number::Int64,net::Network)
+function getIndexEdge(number::Integer,net::Network)
     ind = findfirst([number==n.number for n in net.edge])
     if ind==0
         error("edge number not in net.edge")
@@ -275,7 +275,7 @@ function getIndexEdge(edge::Edge,node::Node)
 end
 
 # find the index of an edge with given number in node.edge
-function getIndexEdge(number::Int64,node::Node)
+function getIndexEdge(number::Integer,node::Node)
     getIndex(true,[isequal(edge,e) for e in node.edge])
 end
 
@@ -930,7 +930,7 @@ end
 # better to return the index than the partition itself, because we need the index
 # to use splice and delete it from net.partition later on
 # cycle: is the number to look for partition on that cycle only
-function whichPartition(net::HybridNetwork,edge::Edge,cycle::Int64)
+function whichPartition(net::HybridNetwork,edge::Edge,cycle::Integer)
     global DEBUG
     !edge.hybrid || error("edge $(edge.number) is hybrid so it cannot be in any partition")
     edge.inCycle == -1 || error("edge $(edge.number) is in cycle $(edge.inCycle) so it cannot be in any partition")
@@ -980,7 +980,7 @@ function printPartitions(net::HybridNetwork)
 end
 
 # function to find if a given partition is in net.partition
-function isPartitionInNet(net::HybridNetwork,desc::Vector{Edge},cycle::Vector{Int64})
+function isPartitionInNet(net::HybridNetwork,desc::Vector{Edge},cycle::Vector{Int})
     for(p in net.partition)
         if(sort(cycle) == sort(p.cycle))
             if(sort([e.number for e in desc]) == sort([e.number for e in p.edges]))
@@ -1177,7 +1177,7 @@ If two hybrid nodes have non-empty and equal names, the name of one of them is c
 re-assigned as described above (with a warning).
 """
 function assignhybridnames!(net::HybridNetwork)
-    hybnum = Int64[]  # indices 'i' in hybrid names: #Hi
+    hybnum = Int[]  # indices 'i' in hybrid names: #Hi
     # first: go through *all* existing non-empty names
     for ih in 1:length(net.hybrid)
         lab = net.hybrid[ih].name

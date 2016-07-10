@@ -416,7 +416,7 @@ function undoPartition!(net::HybridNetwork, hybrid::Node, edgesInCycle::Vector{E
     if(net.numHybrids == 0)
         net.partition = Partition[]
     else
-        cycles = Int64[]
+        cycles = Int[]
         edges = Edge[]
         N = length(net.partition)
         i = 1

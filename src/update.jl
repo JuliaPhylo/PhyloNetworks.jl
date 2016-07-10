@@ -383,7 +383,7 @@ end
 function choosePartition(net::HybridNetwork)
     all((n->(length(n.edges) == 1)), net.partition) && return 0 #cannot put any hyb
     all((n->(length(n.edges) == 3)), net.partition) && return 0 #can only put very bad triangles
-    partition = Int64[] #good partitions
+    partition = Int[] #good partitions
     for(i in 1:length(net.partition))
         if(length(net.partition[i].edges) > 3)
             push!(partition,i)
@@ -404,7 +404,7 @@ end
 # finds the partition corresponding to the node and edge in the cycle
 # used in chooseEdgesGamma and to set net.partition
 # cycleNum is a variable that will save another hybrid node number if found
-function getDescendants!(node::Node, edge::Edge, descendants::Vector{Edge}, cycleNum::Vector{Int64})
+function getDescendants!(node::Node, edge::Edge, descendants::Vector{Edge}, cycleNum::Vector{Int})
     DEBUG && println("getDescendants of node $(node.number) and edge $(edge.number)")
     if(node.inCycle != -1)
         push!(cycleNum,node.inCycle)

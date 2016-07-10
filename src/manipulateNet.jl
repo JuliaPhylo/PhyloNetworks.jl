@@ -90,7 +90,7 @@ end
 # function to change the hybrid node in a cycle
 # will try to update incycle inside
 """
-`hybridatnode!(net::HybridNetwork, nodeNumber::Int64)`
+`hybridatnode!(net::HybridNetwork, nodeNumber::Integer)`
 
 Changes the hybrid in a cycle to the node with number `nodeNumber`.
 This node must be in one (and only one) cycle, otherwise an error will be thrown.
@@ -103,7 +103,7 @@ julia> hybridatnode!(net, -4)
 julia> plot(net)
 ```
 """ #"
-function hybridatnode!(net::HybridNetwork, nodeNumber::Int64)
+function hybridatnode!(net::HybridNetwork, nodeNumber::Integer)
     undoInCycle!(net.edge, net.node)
     for(n in net.hybrid)
         flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,n);
@@ -161,7 +161,7 @@ end
 # does not assume that the network was read with readTopologyUpdate
 # does not modify net0 because it needs to update all attributes
 # so, it returns the new network
-function hybridatnode(net0::HybridNetwork, nodeNumber::Int64)
+function hybridatnode(net0::HybridNetwork, nodeNumber::Integer)
     net = readTopologyLevel1(writeTopologyLevel1(net0)) # we need inCycle attributes
     ind = 0
     try
@@ -204,7 +204,7 @@ end
 
 
 """
-    rootatnode!(HybridNetwork, nodeNumber::Int64; index=false::Bool)
+    rootatnode!(HybridNetwork, nodeNumber::Integer; index=false::Bool)
     rootatnode!(HybridNetwork, Node)
     rootatnode!(HybridNetwork, nodeName::AbstractString)
 
@@ -241,7 +241,7 @@ function rootatnode!(net::HybridNetwork, nodeName::AbstractString)
     rootatnode!(net, tmp[1], index=true)
 end
 
-function rootatnode!(net::HybridNetwork, nodeNumber::Int64; index=false::Bool)
+function rootatnode!(net::HybridNetwork, nodeNumber::Integer; index=false::Bool)
     ind = nodeNumber # good if index=true
     if !index
       try
@@ -282,7 +282,7 @@ end
 
 
 """
-    rootonedge!(HybridNetwork, edgeNumber::Int64; index=false::Bool)
+    rootonedge!(HybridNetwork, edgeNumber::Integer; index=false::Bool)
     rootonedge!(HybridNetwork, Edge)
 
 Roots the network/tree object along an edge with number 'edgeNumber' (by default)
@@ -299,7 +299,7 @@ function rootonedge!(net::HybridNetwork, edge::Edge)
     rootonedge!(net, edge.number, index=false)
 end
 
-function rootonedge!(net::HybridNetwork, edgeNumber::Int64; index=false::Bool)
+function rootonedge!(net::HybridNetwork, edgeNumber::Integer; index=false::Bool)
     ind = edgeNumber # good if index=true
     if !index
       try
@@ -367,7 +367,7 @@ function breakedge!(edge::Edge, net::HybridNetwork)
 end
 
 """
-`fuseedgesat!(i::Int64,net::HybridNetwork)`
+`fuseedgesat!(i::Integer,net::HybridNetwork)`
 
 Removes `i`th node in net.node, if it is of degree 2.
 The parent and child edges of this node are fused.
@@ -375,7 +375,7 @@ Reverts the action of breakedge!.
 
 returns the fused edge.
 """
-function fuseedgesat!(i::Int64, net::HybridNetwork)
+function fuseedgesat!(i::Integer, net::HybridNetwork)
     i <= length(net.node) ||
       error("node index $i too large: only $(length(net.node)) nodes in the network.")
     length(net.node[i].edge) == 2 ||
@@ -456,14 +456,14 @@ function root!(net::HybridNetwork, node::Node, resolve::Bool)
 end
 
 """
-    root!(net::HybridNetwork, nodeNumber::Int64, resolve::Bool)
-    root!(net::HybridNetwork, nodeNumber::Int64)`
+    root!(net::HybridNetwork, nodeNumber::Integer, resolve::Bool)
+    root!(net::HybridNetwork, nodeNumber::Integer)`
 
 Roots the network/tree object at the node with number 'nodeNumber'.
 With resolve=true, the polytomy at the root is resolved arbitrarily (??) with a branch of length 0.
 The second version uses resolve=false, that is, a polytomy is left at the root.
 """
-function root!(net::HybridNetwork, nodeNum::Int64, resolve::Bool)
+function root!(net::HybridNetwork, nodeNum::Integer, resolve::Bool)
     try
         ind = getIndexNode(nodeNum,net)
     catch
@@ -473,7 +473,7 @@ function root!(net::HybridNetwork, nodeNum::Int64, resolve::Bool)
     root!(net,net.node[ind],resolve)
 end
 
-root!(net::HybridNetwork, nodeNum::Int64) = root!(net, nodeNum, false)
+root!(net::HybridNetwork, nodeNum::Integer) = root!(net, nodeNum, false)
 
 # function to resolve an internal node for root function
 function resolve!(net::HybridNetwork, node::Node)
@@ -580,14 +580,14 @@ end
 
 """
     root!(net::HybridNetwork, edge::Edge)
-    root!(net::HybridNetwork, edgeNumber::Int64)
+    root!(net::HybridNetwork, edgeNumber::Integer)
 
 Roots the network/tree object along an edge with number 'edgeNumber'.
 This adds a new node (and a new edge) to the network.
 Use plot(net, showEdgeNumber=true, showEdgeLength=false) to
 visualize and identify an edge of interest.
 """
-function root!(net::HybridNetwork, edgeNum::Int64)
+function root!(net::HybridNetwork, edgeNum::Integer)
     ind=0 # to declare outside of try/catch
     try
         ind = getIndexEdge(edgeNum,net)
@@ -797,8 +797,8 @@ The edges' direction needs to be correct before calling cladewiseorder!, using d
 """
 function cladewiseorder!(net::HybridNetwork)
     net.isRooted || error("net needs to be rooted for cladewiseorder!\n run root! or directEdges!")
-    net.cladewiseorder_nodeIndex = Int64[]
-    queue = Int64[] # index (in net) of nodes in the queue
+    net.cladewiseorder_nodeIndex = Int[]
+    queue = Int[] # index (in net) of nodes in the queue
     push!(net.cladewiseorder_nodeIndex, net.root)
     for (e in net.node[net.root].edge)
         if (e.isMajor) # follow the major tree only
@@ -823,7 +823,7 @@ function cladewiseorder!(net::HybridNetwork)
 end
 
 """
-`rotate!(net::HybridNetwork, nodeNumber::Int64; orderedEdgeNum::Array{Int64,1})`
+`rotate!(net::HybridNetwork, nodeNumber::Integer; orderedEdgeNum::Array{Int,1})`
 
 Rotates the order of the node's children edges. Useful for plotting,
 to remove crossing edges.
@@ -850,7 +850,7 @@ julia> rotate!(net, -3)
 julia> plot(net)
 ```
 """ #"
-function rotate!(net::HybridNetwork, nnum::Int64; orderedEdgeNum=Int64[]::Array{Int64,1})
+function rotate!(net::HybridNetwork, nnum::Integer; orderedEdgeNum=Int[]::Array{Int,1})
     nind = 0
     try
         nind = getIndexNode(nnum,net)
@@ -887,7 +887,7 @@ end
 """
     deleteleaf!(HybridNetwork, leafName::AbstractString; simplify=true)
     deleteleaf!(HybridNetwork, Node; simplify=true)
-    deleteleaf!(HybridNetwork, Int64; index=false, simplify=true)
+    deleteleaf!(HybridNetwork, Integer; index=false, simplify=true)
 
 Deletes a leaf node from the network, possibly from its name, number, or index
 in the network's array of nodes.
@@ -935,7 +935,7 @@ end
 # - 2 hybrid edges down to a hybrid node.
 # hybrid edges from node to another node are not removed. fused instead.
 # consequence: node having 2 hybrid edges away from node should not occur.
-function deleteleaf!(net::HybridNetwork, nodeNumber::Int64;
+function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
                      index=false::Bool, simplify=true::Bool)
     i = nodeNumber # good if index=true
     if !index

@@ -290,7 +290,7 @@ addHybridizationUpdate!(net::HybridNetwork, blacklist::Bool) = addHybridizationU
 # if success=false, it will try to move the hybridization before
 # declaring failure
 # blacklist used in afterOptBLAll
-function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::Int64)
+function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::Integer)
     global CHECKNET, DEBUG
     DEBUG && println("MOVE: addHybridizationUpdateSmart")
     success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
@@ -339,4 +339,4 @@ function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::In
     return success
 end
 
-addHybridizationUpdateSmart!(net::HybridNetwork, N::Int64) = addHybridizationUpdateSmart!(net, false,N)
+addHybridizationUpdateSmart!(net::HybridNetwork, N::Integer) = addHybridizationUpdateSmart!(net, false,N)

@@ -17,7 +17,7 @@ end
 
 # aux function to advance stream in readSubtree
 # input: s IOStream/IOBuffer
-function advance!(s::IO, c::Char, numLeft::Array{Int64,1})
+function advance!(s::IO, c::Char, numLeft::Array{Int,1})
     c = peekchar(s)
     if(Base.eof(s))
         error("Tree ends prematurely while reading subtree after left parenthesis $(numLeft[1]-1).")
@@ -31,7 +31,7 @@ end
 # it also reads # as part of the name and returns pound=true
 # it returns the node name as string as well to check if it exists already (as hybrid)
 # warning: treats digit taxon numbers as strings to avoid repeated node numbers
-function readNum(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int64,1})
+function readNum(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int,1})
     pound = 0;
     if(isalnum(c) || isValidSymbol(c) || c == '#')
         pound += (c == '#') ? 1 : 0
@@ -105,7 +105,7 @@ end
 # warning: allows for name of internal nodes without # after: (1,2)A,...
 # warning: warning if hybrid edge without gamma value, warning if gamma value (ignored) without hybrid edge
 # modified from original Cecile c++ code to allow polytomies
-function readSubtree!(s::IO, parent::Node, numLeft::Array{Int64,1}, net::HybridNetwork, hybrids::Array{ASCIIString,1}, index::Array{Int64,1})
+function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNetwork, hybrids::Array{ASCIIString,1}, index::Array{Int,1})
     c = peekchar(s)
     e = nothing;
     hasname = false; # to know if the current node has name
@@ -376,7 +376,7 @@ function readTopology(s::IO,verbose::Bool)
     c = peekchar(s)
     numLeft = [1]; # made Array to make it mutable; start at 1 to avoid node -1 which breaks undirectedOtherNetworks
     hybrids = ASCIIString[];
-    index = Int64[];
+    index = Int[];
     if(c == '(')
        numLeft[1] += 1;
        #println(numLeft)

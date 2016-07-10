@@ -462,7 +462,7 @@ end
 function extractQuartet(net::HybridNetwork,quartet::Array{Node,1})
     size(quartet,1) == 4 || error("quartet array should have 4 nodes, it has $(size(quartet,1))")
     (quartet[1].leaf && quartet[2].leaf && quartet[3].leaf && quartet[4].leaf) || error("all four nodes to keep when extracting the quartet should be leaves: $([q.number for q in quartet])")
-    qnet = QuartetNetwork(net)
+    qnet = QuartetNetwork(net) # fixit: try to re-use memory? quartetTaxon has not changed for instance.
     leaves = copy(qnet.leaf)
     for(n in leaves)
         if(!isNodeNumIn(n,quartet))
@@ -874,7 +874,7 @@ end
 #        node, other nodes in the hybridization
 #        case: 1 (global case 2),2 (global case 4), 1 (global case 5)
 # warning: special treatment for bad diamond II
-function eliminateTriangle!(qnet::QuartetNetwork, node::Node, other::Node, case::Int64)
+function eliminateTriangle!(qnet::QuartetNetwork, node::Node, other::Node, case::Integer)
     #println("start eliminateTriangle----")
     node.hybrid || error("cannot eliminate triangle around node $(node.number) since it is not hybrid")
     #println("hybrid node is $(node.number), with edges $([e.number for e in node.edge]), with gammas $([e.gamma for e in node.edge])")
@@ -1096,7 +1096,7 @@ function eliminateHybridization!(qnet::QuartetNetwork)
                     eliminateHybridization!(qnet,n)
                 end
             end
-            qnet.typeHyb = Int64[]
+            qnet.typeHyb = Int[]
             if(qnet.numHybrids > 0)
                 DEBUGC && println("need to identify hybridizations again after deleting type 1 hybridizations")
                 identifyQuartet!(qnet)

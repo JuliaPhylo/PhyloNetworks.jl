@@ -200,7 +200,7 @@ end
 
 # function to expand leaves in tree to two individuals
 # based on cf table with alleles mapped to species names
-function expandLeaves!(repSpecies::Union{Vector{ASCIIString},Vector{Int64}},tree::HybridNetwork)
+function expandLeaves!(repSpecies::Union{Vector{ASCIIString},Vector{Int}},tree::HybridNetwork)
     for(sp in repSpecies)
         for(n in tree.node)
             if(n.name == sp) #found leaf with sp name

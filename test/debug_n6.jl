@@ -84,8 +84,8 @@ move = :MVorigin
 move = :MVtarget
 move = :nni
 
-movescount = zeros(Int64,18)
-movesfail = zeros(Int64,6)
+movescount = zeros(Int,18)
+movesfail = zeros(Int,6)
 flag = proposedTop!(move,newT,true,count,1, movescount, movesfail)
 printEdges(newT)
 printNodes(newT)
