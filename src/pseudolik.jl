@@ -1222,7 +1222,7 @@ end
 # warning: needs qnet.formula and qnet.t1 already updated
 function calculateExpCF!(qnet::QuartetNetwork)
     if(qnet.which == 1)
-        if(qnet.formula != [-1,-1,-1,-1] && qnet.t1 != -1)
+        if(qnet.formula != [-1,-1,-1] && qnet.t1 != -1)
             for(i in 1:3)
                 qnet.expCF[i] = qnet.formula[i] == 1 ? 1-2/3*exp(-qnet.t1) : 1/3*exp(-qnet.t1)
             end

@@ -1569,6 +1569,8 @@ function snaq!(currT0::HybridNetwork, d::DataCF; hmax=1::Integer, M=multiplier::
     0.0<=probST<=1.0 || error("probability to keep the same starting topology should be between 0 and 1: $(probST)")
     sameTaxa(d,currT0) || error("some taxon names in quartets do not appear on the starting topology")
     currT0.numTaxa >= 5 || error("cannot estimate hybridizations in topologies with fewer than 5 taxa, this topology has $(currT0.numTaxa) taxa")
+    typemax(Int) > length(d.quartet) ||
+      warn("the number of rows / 4-taxon sets exceeds the max integer of type $Int ($(typemax(Int))). High risk of overflow errors...")
     # need a clean starting net. fixit: maybe we need to be more thorough here
     # yes, need to check that everything is ok because it could have been cleaned and then modified
     startnet = readTopologyUpdate(writeTopologyLevel1(currT0)) # update all level-1 things

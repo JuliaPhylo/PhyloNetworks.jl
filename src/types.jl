@@ -196,7 +196,7 @@ type QuartetNetwork <: Network
         net2 = deepcopy(net);
         new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],quartet,-1,[],-1.,net2.names,Int8[-1,-1,-1,-1],Int8[-1,-1,-1],[0,0,0],[],true,[])
     end
-    QuartetNetwork() = new(0,0,0,[],[],[],[],0,[],[],0,[],-1.0,[],[],[],[],[],true,[])
+    QuartetNetwork() = new(0,0,0,[],[],[],[],0,[],[],-1,[],-1.0,[],[],[],[],[],true,[])
 end
 
 """

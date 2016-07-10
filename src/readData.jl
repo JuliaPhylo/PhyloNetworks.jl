@@ -220,7 +220,7 @@ function allQuartets(taxon::Union{Vector{ASCIIString},Vector{Int}}, writeFile::B
             write(f,"$(q[1]),$(q[2]),$(q[3]),$(q[4])\n")
         end
         push!(vquartet,Quartet(i,string(q[1]),string(q[2]),string(q[3]),chomp(string(q[4])),[1.0,0.0,0.0]))
-        i += 1
+        i += 1 # overflow error if # quartets > typemax(Int), i.e. if 121,978+ taxa with Int64, 478+ taxa with Int32
     end
     if(writeFile)
         close(f)
