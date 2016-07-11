@@ -378,18 +378,26 @@ the names of the taxa for each observation.
 function phyloNetworklm(
 	f::Formula,
 	fr::AbstractDataFrame,
-	net::HybridNetwork,
-	model="BM"::AbstractString
+	net::HybridNetwork;
+	model="BM"::AbstractString,
+	no_names=false::Bool
 	)
 	# Match the tips names: make sure that the data provided by the user will
 	# be in the same order as the ordered tips in matrix V.
 	V = sharedPathMatrix(net)
-	if any(V.tipsNames == "")
-		warn("The network provided has no tip names. The tips are assumed te be is the same order than the data. You'd better know what you're doing.")
+	if no_names # The names should not be taken into account.
 		ind = [0]
-	elseif !any(DataFrames.names(fr) .== :tipsNames)
-		warn("The entry data frame has no column labelled tipsNames. Please add such a column to match the tips against the network. Otherwise the tips are assumed to be is the same order than the data and you'd better know what you're doing.")
-		ind = [0]
+		info("As requested (no_names=true), I am ignoring the tips names on the network and in the dataframe.")
+	else if (any(V.tipsNames == "") || !any(DataFrames.names(fr) .== :tipsNames))
+		if (any(V.tipsNames == "") && !any(DataFrames.names(fr) .== :tipsNames))
+			error("The network provided has no tip names, and the input dataframe has no column labelled tipsNames, so I can't match the data on the network unambiguously. If you are sure that the tips of the network are in the same order as the values of the dataframe provided, then please re-run this function with argument no_name=true.")
+		end
+		if any(V.tipsNames == "")
+			error("The network provided has no tip names, so I can't match the data on the network unambiguously. If you are sure that the tips of the network are in the same order as the values of the dataframe provided, then please re-run this function with argument no_name=true.")
+		end
+		if !any(DataFrames.names(fr) .== :tipsNames)
+			error("The input dataframe has no column labelled tipsNames, so I can't match the data on the network unambiguously. If you are sure that the tips of the network are in the same order as the values of the dataframe provided, then please re-run this function with argument no_name=true.")
+		end
 	else
 #        ind = indexin(V.tipsNames, fr[:tipsNames])
 		ind = indexin(fr[:tipsNames], V.tipsNames)
