@@ -27,8 +27,8 @@ function readBootstrapTrees(filelist::AbstractString)
 end
 
 """
-    sampleBootstrapTrees(vector of tree lists; seed=0::Int, generesampling=false, row=0)
-    sampleBootstrapTrees!(tree list, vector of tree lists; seed=0::Int, generesampling=false, row=0)
+    sampleBootstrapTrees(vector of tree lists; seed=0::Integer, generesampling=false, row=0)
+    sampleBootstrapTrees!(tree list, vector of tree lists; seed=0::Integer, generesampling=false, row=0)
 
 Sample bootstrap gene trees, 1 tree per gene.
 Set the seed with keyword argument `seed`, which is 0 by default.
@@ -46,13 +46,13 @@ each one of length 1 or more (error if one vector is empty, tested in `bootsnaq`
 output: one vector of trees. the modifying function (!) modifies the input tree list and returns it.
 """
 function sampleBootstrapTrees(trees::Vector{Vector{HybridNetwork}};
-                              seed=0::Int, generesampling=false::Bool, row=0::Int)
+                              seed=0::Integer, generesampling=false::Bool, row=0::Integer)
     bootTrees = Array(HybridNetwork, length(trees))
     sampleBootstrapTrees!(bootTrees, trees, seed=seed, generesampling=generesampling, row=row)
 end
 
 function sampleBootstrapTrees!(bootTrees::Vector{HybridNetwork}, trees::Vector{Vector{HybridNetwork}};
-                              seed=0::Int, generesampling=false::Bool, row=0::Int)
+                              seed=0::Integer, generesampling=false::Bool, row=0::Integer)
     numgen = length(trees) ## number of genes
     numgen>0 || error("needs at least 1 array of trees")
     numgen <= length(bootTrees) || error("the input tree list needs to be of length $numgen at least")
@@ -102,7 +102,7 @@ and credibility intervals in columns 8-13.
 
 Warning: the modifying version does *not* check the df: assumes correct columns.
 """
-function sampleCFfromCI(df::DataFrame, seed=0::Int)
+function sampleCFfromCI(df::DataFrame, seed=0::Integer)
     global DEBUG
     DEBUG && warn("order of columns should be: t1,t2,t3,t4,cf1234,cf1324,cf1423,cf1234LO,cf1234HI,...")
     size(df,2) == 13 || size(df,2) == 14 || warn("sampleCFfromCI function assumes table from TICR: CF, CFlo, CFhi")
@@ -127,7 +127,7 @@ function sampleCFfromCI(df::DataFrame, seed=0::Int)
     end
 end
 
-function sampleCFfromCI!(df::DataFrame, seed=0::Int)
+function sampleCFfromCI!(df::DataFrame, seed=0::Integer)
     if(seed == 0)
         t = time()/1e9
         a = split(string(t),".")
@@ -147,7 +147,7 @@ function sampleCFfromCI!(df::DataFrame, seed=0::Int)
     return df
 end
 
-sampleCFfromCI(file::AbstractString;sep=','::Char,seed=0::Int) = sampleCFfromCI(readtable(file,separator=sep),seed)
+sampleCFfromCI(file::AbstractString;sep=','::Char,seed=0::Integer) = sampleCFfromCI(readtable(file,separator=sep),seed)
 
 # function that will do bootstrap of snaq estimation in series
 # it repeats optTopRuns nrep times
@@ -160,10 +160,10 @@ sampleCFfromCI(file::AbstractString;sep=','::Char,seed=0::Int) = sampleCFfromCI(
 # - quartetfile if it was used in original data ("none" if all quartets used)
 # recall: optTopRuns! does *not* modify its input starting network
 function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vector{HybridNetwork}}},
-                        hmax::Int64, M::Number, Nfail::Int64, ftolRel::Float64,ftolAbs::Float64,xtolRel::Float64,xtolAbs::Float64,
-                        verbose::Bool, closeN::Bool, Nmov0::Vector{Int64},
-                        runs1::Int64, outgroup::AbstractString, filename::AbstractString, seed::Int64, probST::Float64,
-                        nrep::Int64, runs2::Int64, bestNet::HybridNetwork, quartetfile::AbstractString)
+                        hmax::Integer, M::Number, Nfail::Integer, ftolRel::Float64,ftolAbs::Float64,xtolRel::Float64,xtolAbs::Float64,
+                        verbose::Bool, closeN::Bool, Nmov0::Vector{Int},
+                        runs1::Integer, outgroup::AbstractString, filename::AbstractString, seed::Integer, probST::Float64,
+                        nrep::Integer, runs2::Integer, bestNet::HybridNetwork, quartetfile::AbstractString)
     global DEBUG
     println("BOOTSTRAP OF SNAQ ESTIMATION")
     julialog = string(filename,".log")
@@ -206,12 +206,12 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
     write(logfile,"\nmain seed $(seed)\n")
     flush(logfile)
     srand(seed)
-    seedsData = round(Int64,floor(rand(nrep)*100000)) # seeds to sample bootstrap data
+    seedsData = round(Int,floor(rand(nrep)*100000)) # seeds to sample bootstrap data
     if runs1>0
-        seeds = round(Int64,floor(rand(nrep)*100000)) # seeds for all optimizations from currT0
+        seeds = round(Int,floor(rand(nrep)*100000)) # seeds for all optimizations from currT0
     end
     if runs2>0
-      seedsOtherNet = round(Int64,floor(rand(nrep)*100000)) # for runs starting from other net
+      seedsOtherNet = round(Int,floor(rand(nrep)*100000)) # for runs starting from other net
     end
 
     bootNet = HybridNetwork[]
@@ -315,11 +315,11 @@ Optional arguments include the following, with default values in parentheses:
 #            runs=10 and prcnet=.99 or 99 would cause all 10 runs to start at otherNet, just
 #            like prcnet=0 and startnet=otherNet, but branch lengths would not be updated.
 function bootsnaq(startnet::HybridNetwork, data::Union{DataFrame,Vector{Vector{HybridNetwork}}};
-                  hmax=1::Int64, M=multiplier::Number, Nfail=numFails::Int64,
+                  hmax=1::Integer, M=multiplier::Number, Nfail=numFails::Integer,
                   ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64,
-                  verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int64},
-                  runs=10::Int64, outgroup="none"::AbstractString, filename="bootsnaq"::AbstractString,
-                  seed=0::Int64, probST=0.3::Float64, nrep=10::Int64, prcnet=0.0::Float64,
+                  verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int},
+                  runs=10::Integer, outgroup="none"::AbstractString, filename="bootsnaq"::AbstractString,
+                  seed=0::Integer, probST=0.3::Float64, nrep=10::Integer, prcnet=0.0::Float64,
                   otherNet=HybridNetwork()::HybridNetwork, quartetfile="none"::AbstractString)
 
     inputastrees = isa(data, Vector{Vector{HybridNetwork}})
@@ -343,7 +343,7 @@ function bootsnaq(startnet::HybridNetwork, data::Union{DataFrame,Vector{Vector{H
     end
     prcnet >= 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
     prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
-    runs2 = convert(Int64, round(runs*prcnet)) # runs starting from otherNet
+    runs2 = convert(Int, round(runs*prcnet)) # runs starting from otherNet
     runs1 = runs - runs2                       # runs starting from startnet
 
     if runs1>0
@@ -389,7 +389,12 @@ end
 
 # same as optTopRunsBoot but for many processors in parallel
 # warning: still not debugged
-function optTopRunsBootParallel(currT0::HybridNetwork, df::DataFrame, hmax::Int64, M::Number, Nfail::Int64,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN::Bool, Nmov0::Vector{Int64}, runs::Int64, outgroup::AbstractString, filename::AbstractString, seed::Int64, probST::Float64, nrep::Int64, prcnet::Float64, bestNet::HybridNetwork)
+function optTopRunsBootParallel(currT0::HybridNetwork, df::DataFrame, hmax::Integer, M::Number, Nfail::Integer,
+                                ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
+                                verbose::Bool, closeN::Bool, Nmov0::Vector{Int},
+                                runs::Integer, outgroup::AbstractString, filename::AbstractString,
+                                seed::Integer, probST::Float64, nrep::Integer, prcnet::Float64,
+                                bestNet::HybridNetwork)
     warn("bootsnaq function not debugged yet")
     prcnet > 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
     prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
@@ -436,7 +441,7 @@ end
 # seed= to start the procedure, if seed=0, then clock used
 # nrep= number of replicates in this particular processor
 # other parameters of optTopRunsBoot are global by @everywhere in optTopRunsBootParallel
-function loc_bootsnaq(dfS::SharedArray, intS::SharedArray, floatS::SharedArray, currT::HybridNetwork, bestNet::HybridNetwork, seed::Int, nrep::Int)
+function loc_bootsnaq(dfS::SharedArray, intS::SharedArray, floatS::SharedArray, currT::HybridNetwork, bestNet::HybridNetwork, seed::Integer, nrep::Integer)
     df = sampleCFfromCI(dfS) #fixit: need to code this
     optTopRunsBoot(currT,df,intS[1],intS[2],floatS[1],floatS[2],floatS[3],floatS[4],verbose,closeN,intS[5:end],intS[4],outgroup,string(filename,seed),true,seed,floatS[5],nrep,floatS[6],bestNet)
 end
@@ -488,7 +493,7 @@ function treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)
         push!(M,mm)
     end
 
-    df = DataFrame(edgeNumber=Int64[], proportion=Float64[])
+    df = DataFrame(edgeNumber=Int[], proportion=Float64[])
 
     for(i in 1:size(M0,1)) #rows in M0: internal edges
         cnt = 0 #count
@@ -707,16 +712,16 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
     # extract hardwired clusters of each tree edge in major tree of reference net,
     # and of each hybrid edge after all other hybrids are removed following the major edge.
     clade = Vector{Bool}[] # list all clades in reference and in bootstrap networks
-    treenode = Int64[]     # node number for each clade: of tree node if found in reference net
-    treeedge = Int64[]     # number of tree edge corresponding to the clade (parent of treenode)
+    treenode = Int[]     # node number for each clade: of tree node if found in reference net
+    treeedge = Int[]     # number of tree edge corresponding to the clade (parent of treenode)
     leafname = AbstractString[] # "" if internal node, leaf name if leaf
     # clade, treenode, treeedge: same size. leafname and hybparent: same size initially only
-    hybind = Int64[]       # indices in 'clade', that appear as hybrid clades in reference
-    hybnode = Int64[]      # for those hybrid clades: number of hybrid node
-    majsisedge = Int64[]   # for those hybrid clades: number of major sister edge (in ref net)
-    minsisedge = Int64[]   #                                    minor
-    majsisind = Int64[]    # for those hybrid clades: index of major sister clade in 'clade'
-    minsisind = Int64[]    #                                   minor
+    hybind = Int[]       # indices in 'clade', that appear as hybrid clades in reference
+    hybnode = Int[]      # for those hybrid clades: number of hybrid node
+    majsisedge = Int[]   # for those hybrid clades: number of major sister edge (in ref net)
+    minsisedge = Int[]   #                                    minor
+    majsisind = Int[]    # for those hybrid clades: index of major sister clade in 'clade'
+    minsisind = Int[]    #                                   minor
     # hybind, hybnode, majsis*, minsis*: same size = number of hybrid nodes in reference network
 
     if !rooted && length(refnet.node[refnet.root].edge)==2 && any(e -> e.hybrid, refnet.node[refnet.root].edge)
@@ -739,7 +744,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
             push!(leafname, (cn.leaf ? cn.name : ""))
         end
     end
-    hybparent = zeros(Int64,length(clade)) # 0 if has no hybrid parent node. Index in hybnode otherwise.
+    hybparent = zeros(Int,length(clade)) # 0 if has no hybrid parent node. Index in hybnode otherwise.
     for (trueh = 1:numHybs)
         net0 = deepcopy(refnet)
         displayedNetworkAt!(net0, net0.hybrid[trueh]) # removes all minor hybrid edges but one
@@ -813,8 +818,8 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
     BSminsis     = zeros(Float64, nclades) # clade = minor sister of some hybrid
     # edge-associated summaries, i.e. associated to a pair of clades (hyb,sis):
     hybcladei   = repeat(hybind, inner=[2]) # indices in 'clade'
-    siscladei   = Array(Int64,nedges)       # edge order: (major then minor) for all hybrids
-    edgenum     = Array(Int64,nedges)
+    siscladei   = Array(Int,nedges)       # edge order: (major then minor) for all hybrids
+    edgenum     = Array(Int,nedges)
     for i=1:nh
         siscladei[2*i-1] = majsisind[i]
         siscladei[2*i]   = minsisind[i]
@@ -924,7 +929,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
             else
               BSminsis[iSmin] += 1.0
             end
-            samehyb = (newhyb? Int64[]: findin(hybcladei, [ihyb]))
+            samehyb = (newhyb? Int[]: findin(hybcladei, [ihyb]))
             for (sis in ["maj","min"])
                 newpair = newhyb || (sis=="min"? newmin : newmaj)
                 if !newpair # hyb and sis clades were already found, but not sure if together
@@ -1020,7 +1025,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
     sort!(resNode, cols=[:BS_all,:BS_hybrid], rev=true)
     delete!(resNode, :BS_all)
     # edge summaries
-    resEdge = DataFrame(edge = Array(Int64,length(hybcladei)),
+    resEdge = DataFrame(edge = Array(Int,length(hybcladei)),
                         hybrid_clade=cladestr[hybcladei], hybrid=treenode[hybcladei],
                         sister_clade=cladestr[siscladei], sister=treenode[siscladei],
                         BS_hybrid_edge = BShybmajsis+BShybminsis,
@@ -1084,7 +1089,7 @@ function summarizeHFdf(HFmat::Matrix)
     gt = size(HFmat2,1)
     total = size(HFmat,1)
     numH = round(Int,size(HFmat,2)/2)
-    df = DataFrame(hybrid=Int64[],goodTrees=Float64[],netWithHybrid=Float64[],meanGamma=Float64[], sdGamma=Float64[])
+    df = DataFrame(hybrid=Int[],goodTrees=Float64[],netWithHybrid=Float64[],meanGamma=Float64[], sdGamma=Float64[])
     for(i in 1:numH)
         mat = HFmat2[HFmat2[:,i] .> 0, :]
         n = size(mat,1)

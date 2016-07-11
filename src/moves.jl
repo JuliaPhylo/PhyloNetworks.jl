@@ -1133,7 +1133,7 @@ end
 
 # function to choose a tree edge for NNI
 # its two nodes must have hasHybEdge=false
-function chooseEdgeNNI(net::Network,N::Int64)
+function chooseEdgeNNI(net::Network,N::Integer)
     global DEBUG
     N > 0 || error("N must be positive: $(N)")
     index1 = 0
@@ -1328,7 +1328,7 @@ function NNI!(net::Network,edge::Edge)
 end
 
 # function to repeat NNI until success
-function NNIRepeat!(net::HybridNetwork,N::Int64)
+function NNIRepeat!(net::HybridNetwork,N::Integer)
     N > 0 || error("N must be positive: $(N)")
     flag,edge = chooseEdgeNNI(net,N)
     flag || return false

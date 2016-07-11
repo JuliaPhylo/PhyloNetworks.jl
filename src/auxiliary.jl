@@ -231,9 +231,9 @@ function getIndex(name::AbstractString, array::Array{ASCIIString,1})
     i>size(array,1)?error("$(name) not in array"):return i;
 end
 
-# aux function to find the index of a int64 in a
-# int64 array
-function getIndex(name::Int64, array::Array{Int64,1})
+# aux function to find the index of a int in an int array.
+# But findfirst can do that as well, and probably more efficiently (returning 0 if not found)
+function getIndex(name::Integer, array::Array{Int,1})
     i = 1;
     while(i<= size(array,1) && !isequal(name,array[i]))
         i = i+1;
@@ -253,7 +253,7 @@ function getIndex(name::Node, array::Array{Node,1})
 end
 
 
-function getIndexNode(number::Int64,net::Network)
+function getIndexNode(number::Integer,net::Network)
     ind = findfirst([number==n.number for n in net.node])
     if ind==0
         error("node number not in net.node")
@@ -261,7 +261,7 @@ function getIndexNode(number::Int64,net::Network)
     return ind
 end
 
-function getIndexEdge(number::Int64,net::Network)
+function getIndexEdge(number::Integer,net::Network)
     ind = findfirst([number==n.number for n in net.edge])
     if ind==0
         error("edge number not in net.edge")
@@ -275,7 +275,7 @@ function getIndexEdge(edge::Edge,node::Node)
 end
 
 # find the index of an edge with given number in node.edge
-function getIndexEdge(number::Int64,node::Node)
+function getIndexEdge(number::Integer,node::Node)
     getIndex(true,[isequal(edge,e) for e in node.edge])
 end
 
@@ -930,7 +930,7 @@ end
 # better to return the index than the partition itself, because we need the index
 # to use splice and delete it from net.partition later on
 # cycle: is the number to look for partition on that cycle only
-function whichPartition(net::HybridNetwork,edge::Edge,cycle::Int64)
+function whichPartition(net::HybridNetwork,edge::Edge,cycle::Integer)
     global DEBUG
     !edge.hybrid || error("edge $(edge.number) is hybrid so it cannot be in any partition")
     edge.inCycle == -1 || error("edge $(edge.number) is in cycle $(edge.inCycle) so it cannot be in any partition")
@@ -980,7 +980,7 @@ function printPartitions(net::HybridNetwork)
 end
 
 # function to find if a given partition is in net.partition
-function isPartitionInNet(net::HybridNetwork,desc::Vector{Edge},cycle::Vector{Int64})
+function isPartitionInNet(net::HybridNetwork,desc::Vector{Edge},cycle::Vector{Int})
     for(p in net.partition)
         if(sort(cycle) == sort(p.cycle))
             if(sort([e.number for e in desc]) == sort([e.number for e in p.edges]))
@@ -1177,7 +1177,7 @@ If two hybrid nodes have non-empty and equal names, the name of one of them is c
 re-assigned as described above (with a warning).
 """
 function assignhybridnames!(net::HybridNetwork)
-    hybnum = Int64[]  # indices 'i' in hybrid names: #Hi
+    hybnum = Int[]  # indices 'i' in hybrid names: #Hi
     # first: go through *all* existing non-empty names
     for ih in 1:length(net.hybrid)
         lab = net.hybrid[ih].name
@@ -1204,5 +1204,169 @@ function assignhybridnames!(net::HybridNetwork)
         end
         push!(hybnum, hnum)
         net.hybrid[ih].name = "#H$hnum"
+    end
+end
+
+"""
+    sorttaxa!(DataFrame, columns)
+
+Reorder the 4 taxa and reorders the observed concordance factors accordingly, on each row of
+the data frame. If `columns` is committed, taxon names are assumed to be in columns 1-4 and
+CFs are assumed to be in columns 5-6 with quartets in this order: 12_34, 13_24, 14_23.
+Does **not** reorder credibility interval values, if present.
+
+    sorttaxa!(DataCF)
+    sorttaxa!(Quartet, permutation_tax, permutation_cf)
+
+Reorder the 4 taxa in each element of the DataCF `quartet`. For a given Quartet,
+reorder the 4 taxa in its fields `taxon` and `qnet.quartetTaxon` (if non-empty)
+and reorder the 3 concordance values accordingly, in `obsCF` and `qnet.expCF`.
+
+`permutation_tax` and `permutation_cf` should be vectors of short integers (Int8) of length 4 and 3
+respectively, whose memory allocation gets reused. Their length is *not checked*.
+"""
+# qnet.names unchanged: order of taxon names here relates to the order of nodes in the network
+
+function sorttaxa!(dat::DataCF)
+    ptax = Array{Int8}(4) # to hold the sort permutations
+    pCF  = Array{Int8}(3)
+    for q in dat.quartet
+        sorttaxa!(q, ptax, pCF)
+    end
+end
+
+function sorttaxa!(df::DataFrame, co=Int[]::Vector{Int})
+    if length(co)==0
+        co = collect(1:7)
+    end
+    length(co) > 6 || error("column vector must be of length 7 or more")
+    ptax = Array{Int8}(4)
+    pCF  = Array{Int8}(3)
+    taxnam = Array{eltype(df[co[1]])}(4)
+    for i in 1:size(df,1)
+        for j=1:4 taxnam[j] = df[i,co[j]]; end
+        sortperm!(ptax, taxnam)
+        sorttaxaCFperm!(pCF, ptax) # update permutation pCF according to taxon permutation
+        df[i,co[1]], df[i,co[2]], df[i,co[3]], df[i,co[4]] = taxnam[ptax[1]], taxnam[ptax[2]], taxnam[ptax[3]], taxnam[ptax[4]]
+        df[i,co[5]], df[i,co[6]], df[i,co[7]] = df[i,co[pCF[1]+4]], df[i,co[pCF[2]+4]], df[i,co[pCF[3]+4]]
+    end
+    return df
+end
+
+function sorttaxa!(qua::Quartet, ptax::Vector{Int8}, pCF::Vector{Int8})
+    qt = qua.taxon
+    if length(qt)==4
+        sortperm!(ptax, qt)
+        sorttaxaCFperm!(pCF, ptax) # update permutation pCF accordingly
+        qt[1], qt[2], qt[3], qt[4] = qt[ptax[1]], qt[ptax[2]], qt[ptax[3]], qt[ptax[4]]
+        qua.obsCF[1], qua.obsCF[2], qua.obsCF[3] = qua.obsCF[pCF[1]], qua.obsCF[pCF[2]], qua.obsCF[pCF[3]]
+        # do *NOT* modify qua.qnet.quartetTaxon: it points to the same array as qua.taxon
+        eCF = qua.qnet.expCF
+        if length(eCF)==3
+            eCF[1], eCF[2], eCF[3] = eCF[pCF[1]], eCF[pCF[2]], eCF[pCF[3]]
+        end
+    elseif length(qt)!=0
+        error("Quartet with $(length(qt)) taxa")
+    end
+    return qua
+end
+
+# find permutation pCF of the 3 CF values: 12_34, 13_24, 14_23. 3!=6 possible permutations
+# ptax = one of 4!=24 possible permutations on the 4 taxon names
+# kernel: pCF = identity if ptax = 1234, 2143, 3412 or 4321
+# very long code, but to minimize equality checks at run time
+function sorttaxaCFperm!(pcf::Vector{Int8}, ptax::Vector{Int8})
+    if ptax[1]==1
+        if     ptax[2]==2
+            pcf[1]=1
+            if  ptax[3]==3 # ptax = 1,2,3,4
+                pcf[2]=2; pcf[3]=3
+            else           # ptax = 1,2,4,3
+                pcf[2]=3; pcf[3]=2
+            end
+        elseif ptax[2]==3
+            pcf[1]=2
+            if  ptax[3]==2 # ptax = 1,3,2,4
+                pcf[2]=1; pcf[3]=3
+            else           # ptax = 1,3,4,2
+                pcf[2]=3; pcf[3]=1
+            end
+        else # ptax[2]==4
+            pcf[1]=3
+            if  ptax[3]==2 # ptax = 1,4,2,3
+                pcf[2]=1; pcf[3]=2
+            else           # ptax = 1,4,3,2
+                pcf[2]=2; pcf[3]=1
+            end
+        end
+    elseif ptax[1]==2
+        if     ptax[2]==1
+            pcf[1]=1
+            if  ptax[3]==4 # ptax = 2,1,4,3
+                pcf[2]=2; pcf[3]=3
+            else           # ptax = 2,1,3,4
+                pcf[2]=3; pcf[3]=2
+            end
+        elseif ptax[2]==4
+            pcf[1]=2
+            if  ptax[3]==1 # ptax = 2,4,1,3
+                pcf[2]=1; pcf[3]=3
+            else           # ptax = 2,4,3,1
+                pcf[2]=3; pcf[3]=1
+            end
+        else # ptax[2]==3
+            pcf[1]=3
+            if  ptax[3]==1 # ptax = 2,3,1,4
+                pcf[2]=1; pcf[3]=2
+            else           # ptax = 2,3,4,1
+                pcf[2]=2; pcf[3]=1
+            end
+        end
+    elseif ptax[1]==3
+        if     ptax[2]==4
+            pcf[1]=1
+            if  ptax[3]==1 # ptax = 3,4,1,2
+                pcf[2]=2; pcf[3]=3
+            else           # ptax = 3,4,2,1
+                pcf[2]=3; pcf[3]=2
+            end
+        elseif ptax[2]==1
+            pcf[1]=2
+            if  ptax[3]==4 # ptax = 3,1,4,2
+                pcf[2]=1; pcf[3]=3
+            else           # ptax = 3,1,2,4
+                pcf[2]=3; pcf[3]=1
+            end
+        else # ptax[2]==2
+            pcf[1]=3
+            if  ptax[3]==4 # ptax = 3,2,4,1
+                pcf[2]=1; pcf[3]=2
+            else           # ptax = 3,2,1,4
+                pcf[2]=2; pcf[3]=1
+            end
+        end
+    else # ptax[1]==4
+        if     ptax[2]==3
+            pcf[1]=1
+            if  ptax[3]==2 # ptax = 4,3,2,1
+                pcf[2]=2; pcf[3]=3
+            else           # ptax = 4,3,1,2
+                pcf[2]=3; pcf[3]=2
+            end
+        elseif ptax[2]==2
+            pcf[1]=2
+            if  ptax[3]==3 # ptax = 4,2,3,1
+                pcf[2]=1; pcf[3]=3
+            else           # ptax = 4,2,1,3
+                pcf[2]=3; pcf[3]=1
+            end
+        else # ptax[2]==1
+            pcf[1]=3
+            if  ptax[3]==3 # ptax = 4,1,3,2
+                pcf[2]=1; pcf[3]=2
+            else           # ptax = 4,1,2,3
+                pcf[2]=2; pcf[3]=1
+            end
+        end
     end
 end

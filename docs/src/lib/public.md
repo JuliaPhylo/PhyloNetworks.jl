@@ -28,6 +28,7 @@ Quartet
 
 ```@docs
 tipLabels
+sorttaxa!
 printEdges
 printNodes
 summarizeDataCF
@@ -56,6 +57,7 @@ readMultiTopology
 readSnaqNetwork
 readTrees2CF
 readTableCF
+readTableCF!
 readBootstrapTrees
 writeTopology
 writeMultiTopology

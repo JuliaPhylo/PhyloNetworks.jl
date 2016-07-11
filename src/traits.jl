@@ -8,9 +8,9 @@
 # Matrix with rows and/or columns in topological order of the net.
 type matrixTopologicalOrder
 	V::Matrix # Matrix in itself
-	nodesNumbersTopOrder::Vector{Int64} # Vector of nodes numbers for ordering of the matrix
-	internalNodesNumbers::Vector{Int64} # Internal nodes numbers (original net order)
-	tipsNumbers::Vector{Int64} # Tips numbers (original net order)
+	nodesNumbersTopOrder::Vector{Int} # Vector of nodes numbers for ordering of the matrix
+	internalNodesNumbers::Vector{Int} # Internal nodes numbers (original net order)
+	tipsNumbers::Vector{Int} # Tips numbers (original net order)
 	tipsNames::Vector # Tips Names (original net order)
 	indexation::AbstractString # Are rows ("r"), columns ("c") or both ("b") indexed by nodes numbers in the matrix ?
 end

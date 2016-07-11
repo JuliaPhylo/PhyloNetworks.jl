@@ -189,8 +189,8 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
     end
     # check data frame for node annotations
     labelnodes = size(nodeLabel,1)>0
-    if (labelnodes && (size(nodeLabel,2)<2 || !(eltype(nodeLabel[:,1]) <: Int64)))
-        warn("nodeLabel should have 2+ columns, the first one giving the node numbers (Int64)")
+    if (labelnodes && (size(nodeLabel,2)<2 || !(eltype(nodeLabel[:,1]) <: Integer)))
+        warn("nodeLabel should have 2+ columns, the first one giving the node numbers (Integer)")
         labelnodes = false
     end
     if labelnodes # remove rows with no node number, check if at least one row remains
@@ -256,8 +256,8 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
                   [symbol("len"),symbol("gam"),symbol("num"),symbol("lab"),
                    symbol("hyb"),symbol("min"),symbol("x"),symbol("y")], nrows)
     labeledges = size(edgeLabel,1)>0
-    if (labeledges && (size(edgeLabel,2)<2 || !(eltype(edgeLabel[:,1]) <: Int64)))
-        warn("edgeLabel should have 2+ columns, the first one giving the edge numbers (Int64)")
+    if (labeledges && (size(edgeLabel,2)<2 || !(eltype(edgeLabel[:,1]) <: Integer)))
+        warn("edgeLabel should have 2+ columns, the first one giving the edge numbers (Integer)")
         labeledges = false
     end
     if labeledges # remove rows with no edge number and check if at least one remains
