@@ -36,6 +36,7 @@ pages:
     - Fixed Network: man/fixednetworkoptim.md
     - Extract Expected CFs: man/expectedCFs.md
     - Bootstrap: man/bootstrap.md
+    - Multiple Alleles: man/multiplealleles.md
   - Library:
     - Public: lib/public.md
     - Internals: lib/internals.md
