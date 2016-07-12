@@ -388,7 +388,7 @@ function phyloNetworklm(
 	if no_names # The names should not be taken into account.
 		ind = [0]
 		info("As requested (no_names=true), I am ignoring the tips names on the network and in the dataframe.")
-	else if (any(V.tipsNames == "") || !any(DataFrames.names(fr) .== :tipsNames))
+	elseif (any(V.tipsNames == "") || !any(DataFrames.names(fr) .== :tipsNames))
 		if (any(V.tipsNames == "") && !any(DataFrames.names(fr) .== :tipsNames))
 			error("The network provided has no tip names, and the input dataframe has no column labelled tipsNames, so I can't match the data on the network unambiguously. If you are sure that the tips of the network are in the same order as the values of the dataframe provided, then please re-run this function with argument no_name=true.")
 		end

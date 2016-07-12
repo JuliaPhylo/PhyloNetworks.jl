@@ -77,8 +77,35 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test_approx_eq AICc(phynetlm) -2*loglik+2*(length(betahat)+1)+2(length(betahat)+1)*((length(betahat)+1)+1)/(ntaxa-(length(betahat)+1)-1)
 @test_approx_eq BIC(phynetlm) -2*loglik+(length(betahat)+1)*log(ntaxa)
 
+# with data frames
+dfr = DataFrame(trait = Y, tipsNames = sim.M.tipsNames)
+fitbis = phyloNetworklm(trait ~ 1, dfr, net)
+@show fitbis
 
-# Simulate correlated data in data frames
+@test_approx_eq coef(phynetlm) coef(fitbis)
+@test_approx_eq vcov(phynetlm) vcov(fitbis)
+@test_approx_eq nobs(phynetlm) nobs(fitbis)
+@test_approx_eq residuals(phynetlm)[fitbis.model.ind] residuals(fitbis)
+@test_approx_eq model_response(phynetlm)[fitbis.model.ind] model_response(fitbis)
+@test_approx_eq predict(phynetlm)[fitbis.model.ind] predict(fitbis)
+@test_approx_eq df_residual(phynetlm) df_residual(fitbis)
+@test_approx_eq sigma2_estim(phynetlm) sigma2_estim(fitbis)
+@test_approx_eq stderr(phynetlm) stderr(fitbis)
+@test_approx_eq confint(phynetlm) confint(fitbis)
+@test_approx_eq loglikelihood(phynetlm) loglikelihood(fitbis)
+@test_approx_eq df(phynetlm)  df(fitbis)
+@test_approx_eq deviance(phynetlm)  deviance(fitbis)
+@test_approx_eq nulldeviance(phynetlm)  nulldeviance(fitbis)
+@test_approx_eq nullloglikelihood(phynetlm)  nullloglikelihood(fitbis)
+@test_approx_eq R2(phynetlm)  R2(fitbis)
+@test_approx_eq adjR2(phynetlm)  adjR2(fitbis)
+@test_approx_eq AIC(phynetlm)  AIC(fitbis)
+@test_approx_eq AICc(phynetlm)  AICc(fitbis)
+@test_approx_eq BIC(phynetlm)  BIC(fitbis)
+@test_approx_eq mu_estim(phynetlm)  mu_estim(fitbis)
+
+
+#### Simulate correlated data in data frames ####
 b0 = 1
 b1 = 10
 sim = simulate(net, paramsBM(1, 1))
@@ -152,14 +179,13 @@ phynetlm = phyloNetworklm(trait ~ pred, dfr, net)
 @test_approx_eq adjR2(phynetlm)  adjR2(fit_mat)
 @test_approx_eq AIC(phynetlm)  AIC(fit_mat)
 @test_approx_eq AICc(phynetlm)  AICc(fit_mat)
-@test_approx_eq BIC(fit_mat)  BIC(fit_mat)
+@test_approx_eq BIC(phynetlm)  BIC(fit_mat)
 
 
 
 # unordered data
 dfr = dfr[[2, 1, 4, 3], :]
 fitbis = phyloNetworklm(trait ~ pred, dfr, net)
-@show fitbis
 
 @test_approx_eq coef(phynetlm) coef(fitbis)
 @test_approx_eq vcov(phynetlm) vcov(fitbis)
@@ -180,14 +206,13 @@ fitbis = phyloNetworklm(trait ~ pred, dfr, net)
 @test_approx_eq adjR2(phynetlm)  adjR2(fitbis)
 @test_approx_eq AIC(phynetlm)  AIC(fitbis)
 @test_approx_eq AICc(phynetlm)  AICc(fitbis)
-@test_approx_eq BIC(fitbis)  BIC(fitbis)
-@test_approx_eq mu_estim(fitbis)  mu_estim(fitbis)
+@test_approx_eq BIC(phynetlm)  BIC(fitbis)
+@test_approx_eq mu_estim(phynetlm)  mu_estim(fitbis)
 
 
 # unnamed ordered data
 dfr = DataFrame(trait = B, pred = A)
 fitter = phyloNetworklm(trait ~ pred, dfr, net, no_names=true)
-@show fitter
 
 @test_approx_eq coef(phynetlm) coef(fitter)
 @test_approx_eq vcov(phynetlm) vcov(fitter)
@@ -208,7 +233,7 @@ fitter = phyloNetworklm(trait ~ pred, dfr, net, no_names=true)
 @test_approx_eq adjR2(phynetlm)  adjR2(fitter)
 @test_approx_eq AIC(phynetlm)  AIC(fitter)
 @test_approx_eq AICc(phynetlm)  AICc(fitter)
-@test_approx_eq BIC(fitter)  BIC(fitter)
+@test_approx_eq BIC(phynetlm)  BIC(fitter)
 
 
 # unnamed un-ordered data
@@ -224,7 +249,6 @@ fitna = phyloNetworklm(trait ~ pred, dfr, net)
 
 dfr = dfr[[2, 1, 4, 3], :]
 fitnabis = phyloNetworklm(trait ~ pred, dfr, net)
-@show fitnabis
 
 @test_approx_eq coef(fitna) coef(fitnabis)
 @test_approx_eq vcov(fitna) vcov(fitnabis)
@@ -245,7 +269,7 @@ fitnabis = phyloNetworklm(trait ~ pred, dfr, net)
 @test_approx_eq adjR2(fitna)  adjR2(fitnabis)
 @test_approx_eq AIC(fitna)  AIC(fitnabis)
 @test_approx_eq AICc(fitna)  AICc(fitnabis)
-@test_approx_eq BIC(fitnabis)  BIC(fitnabis)
+@test_approx_eq BIC(fitna)  BIC(fitnabis)
 
 
 
