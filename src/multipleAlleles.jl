@@ -231,6 +231,7 @@ function expandLeaves!(repSpecies::Union{Vector{ASCIIString},Vector{Int}},tree::
                 pushEdge!(tree,e2)
                 n1.name = string(sp)
                 n2.name = string(sp,repeatAlleleSuffix)
+                push!(tree.names,n2.name)
                 break
             end
         end
