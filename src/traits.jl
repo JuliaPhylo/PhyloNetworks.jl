@@ -561,16 +561,29 @@ type reconstructedStates
 	traits_nodes::Vector # Nodes are actually "missing" data (including tips)
 	variances_nodes::Matrix
 	NodesNumbers::Vector{Int}
+#	TipsNumbers::Vector
+	model::Nullable{phyloNetworkLinearModel} # If empirical, the corresponding fitted object.
+end
+
+
+StatsBase.stderr(obj::reconstructedStates) = sqrt(diag(obj.variances_nodes))
+
+function predint(obj::reconstructedStates, level=0.95::Real)
+	if isnull(obj.model)
+		qq = quantile(Normal(), (1. - level)/2.)
+	else
+		qq = quantile(TDist(df_residual(get(obj.model))), (1. - level)/2.)
+		warn("As the variance is estimated, the predictions intervals are not exact, and should probably be larger.")
+	end
+	hcat(obj.traits_nodes, obj.traits_nodes) + stderr(obj) * qq * [1. -1.]
 end
 
 function Base.show(io::IO, obj::reconstructedStates)
 	println(io, "$(typeof(obj)):\n",
-#    		"Conditional Law of Ancestral traits:\n",
-	CoefTable(hcat(obj.NodesNumbers, obj.traits_nodes, diag(obj.variances_nodes)),
-  					["Node index", "Cond. Exp.", "Cond. Var."],
+	CoefTable(hcat(obj.NodesNumbers, obj.traits_nodes, predint(obj)),
+  					["Node index", "Pred.", "Min.", "Max. (95%)"],
 						fill("", size(obj.NodesNumbers))))
 end
-
 
 """
 `ancestralStateReconstruction(net::HybridNetwork, Y::Vector, params::paramsBM)`
@@ -592,7 +605,7 @@ end
 function ancestralStateReconstruction(V::matrixTopologicalOrder,
 																			Y::Vector,
 																			params::paramsBM)
-		# Variances matrices
+	# Variances matrices
 	Vy = V[:Tips]
 	Vz = V[:InternalNodes]
 	Vyz = V[:TipsNodes]
@@ -616,14 +629,21 @@ function ancestralStateReconstruction(Vz::Matrix,
                                       Y::Vector, m_y::Vector, m_z::Vector,
 																			NodesNumbers::Vector,
 																			sigma2::Real,
-																			add_var=zeros(size(Vz))::Matrix) # Additional variance for BLUP
+																			add_var=zeros(size(Vz))::Matrix, # Additional variance for BLUP
+																			model=Nullable{phyloNetworkLinearModel}()::Nullable{phyloNetworkLinearModel}) 
 	m_z_cond_y = m_z + VyzVyinvchol' * (RL \ (Y - m_y))
 	V_z_cond_y = sigma2 .* (Vz - VyzVyinvchol' * VyzVyinvchol)
-	reconstructedStates(m_z_cond_y, V_z_cond_y + add_var, NodesNumbers)
+	reconstructedStates(m_z_cond_y, V_z_cond_y + add_var, NodesNumbers, model)
 end
 
 # Empirical reconstruciton from a fitted object
 function ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)
+	if (size(X_n)[2] != length(coef(obj)))
+		error("The number of predictors for the ancestral states (number of columns of X_n) do not match the number of predictors at the tips.")
+	end
+	if (size(X_n)[1] != length(obj.V.internalNodesNumbers) + sum(!obj.msng))
+		error("The number of lines of the predictors do not match the number of nodes plus the number of missing tips.")
+	end
 	m_y = predict(obj)
 	m_z = X_n * coef(obj) 
   Vyz = obj.V[:TipsNodes, obj.msng]
@@ -646,10 +666,14 @@ function ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)
 															 m_z,
 															 [obj.V.internalNodesNumbers; missingTipsNumbers],
 															 sigma2_estim(obj),
-															 add_var)
+															 add_var,
+															 obj)
 end
 # Default reconstruction for a simple BM (known predictors)
 function ancestralStateReconstruction(obj::phyloNetworkLinearModel)
+	if ((size(obj.X)[2] != 1) || !any(obj.X .== 1)) # Test if the regressor is just an intercept.
+		error("As the predictor is not reduced to the intercept, I can't guess the ancestral predictors values. If you know all the ancestral predictors, please provide them as a matrix argument to the function. Otherwise, you might consider doing a multivariate linear regression (not implemented yet).")
+	end
   X_n = ones((length(obj.V.internalNodesNumbers) + sum(!obj.msng), 1))
 	ancestralStateReconstruction(obj, X_n)
 end

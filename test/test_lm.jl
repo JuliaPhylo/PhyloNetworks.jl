@@ -282,7 +282,7 @@ ancestral_traits = ancestralStateReconstruction(net, Y, params)
 # BLUP
 dfr = DataFrame(trait = Y, tipsNames = tipLabels(sim))
 phynetlm = phyloNetworklm(trait~1, dfr, net)
-eblup = ancestralStateReconstruction(phynetlm)
+blup = ancestralStateReconstruction(phynetlm)
 
 
 
