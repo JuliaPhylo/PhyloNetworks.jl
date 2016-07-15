@@ -429,7 +429,7 @@ StatsBase.vcov(m::phyloNetworkLinearModel) = vcov(m.lm)
 # Standart error
 StatsBase.stderr(m::phyloNetworkLinearModel) = stderr(m.lm)
 # Confidence Intervals
-StatsBase.confint(m::phyloNetworkLinearModel) = confint(m.lm)
+StatsBase.confint(m::phyloNetworkLinearModel, level=0.95::Real) = confint(m.lm, level)
 # coef table (coef, stderr, confint)
 StatsBase.coeftable(m::phyloNetworkLinearModel) = coeftable(m.lm)
 # Degrees of freedom for residuals
@@ -612,7 +612,7 @@ end
 # Reconstruction from all the needed quantities
 function ancestralStateReconstruction(Vz::Matrix,
                                       VyzVyinvchol::Matrix,
-                                      RL::LowerTriangular{Float64,Array{Float64,2}},
+                                      RL::LowerTriangular,
                                       Y::Vector, m_y::Vector, m_z::Vector,
 																			NodesNumbers::Vector,
 																			sigma2::Real,
@@ -654,8 +654,11 @@ function ancestralStateReconstruction(obj::phyloNetworkLinearModel)
 	ancestralStateReconstruction(obj, X_n)
 end
 # For a DataFrameRegressionModel
-function ancestralStateReconstruction(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel,Float64})
+function ancestralStateReconstruction{T<:Union{Float32,Float64}}(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel,T})
 	ancestralStateReconstruction(obj.model)
+end
+function ancestralStateReconstruction{T<:Union{Float32,Float64}}(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel,T}, X_n::Matrix)
+	ancestralStateReconstruction(obj.model, X_n::Matrix)
 end
 # # Default reconstruction for a simple BM
 # function ancestralStateReconstruction(obj::phyloNetworkLinearModel, mu::Real)
