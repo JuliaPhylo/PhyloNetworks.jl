@@ -32,7 +32,8 @@ end
 #----------------------------------------------------------#
 println("\n\nTesting sorttaxa!")
 
-using PhyloNetworks; using DataFrames; using Base.Test
+#using PhyloNetworks; using DataFrames; ## this is already included in runtests.jl
+using Base.Test
 letters = ["a","b","c","d"]; cfvalues = [0.6, 0.39, 0.01] # for ab_cd, ac_bd, ad_bc
 d = DataFrame(t1=Array{ASCIIString}(24),t2=Array{ASCIIString}(24),t3=Array{ASCIIString}(24),t4=Array{ASCIIString}(24),
               CF12_34=Array{Float64}(24), CF13_24=Array{Float64}(24), CF14_23=Array{Float64}(24));
@@ -64,7 +65,7 @@ for i1 in 1:4
 end
 # d
 d2 = deepcopy(d);
-PhyloNetworks.sorttaxa!(d2);
+sorttaxa!(d2);
 d3 = DataFrame(t1=repeat([letters[1]],outer=[24]),t2=repeat([letters[2]],outer=[24]),
                t3=repeat([letters[3]],outer=[24]),t4=repeat([letters[4]],outer=[24]),
                CF12_34=repeat([cfvalues[1]],outer=[24]),CF13_24=repeat([cfvalues[2]],outer=[24]),CF14_23=repeat([cfvalues[3]],outer=[24]));
@@ -74,7 +75,7 @@ dat = readTableCF(d);
 net = readTopologyLevel1("(a,((b)#H1,((#H1,c),d)));");
 topologyQPseudolik!(net, dat);
 println("these 4 warnings are normal: only 4 taxa in network")
-PhyloNetworks.sorttaxa!(dat)
+sorttaxa!(dat)
 
 @test [q.obsCF for q in dat.quartet] == [[0.6,0.39,0.01] for i in 1:24]
 @test [q.qnet.expCF for q in dat.quartet] == [[0.6915349833361827,0.12262648039048075,0.1858385362733365] for i in 1:24]

@@ -191,7 +191,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
     else
         newdf = sampleCFfromCI(data, -1) # column names check, newdf has obsCF in columns 5-7
         # seed=-1: deep copy only, no rand()
-        newd = readTableCF(newdf, collect(1:7)) # allocate memory for DataCF object
+        newd = readTableCF!(newdf, collect(1:7)) # allocate memory for DataCF object
     end
     if (runs1>0 && isTree(currT0)) # get rough first estimate of branch lengths in startnet
         updateBL!(currT0, newd)
