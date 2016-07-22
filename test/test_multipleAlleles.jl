@@ -30,10 +30,8 @@ end
 #----------------------------------------------------------#
 #   testing sorting of taxa and CFs                        #
 #----------------------------------------------------------#
-println("\n\nTesting sorttaxa!")
+info("testing sorttaxa!")
 
-#using PhyloNetworks; using DataFrames; ## this is already included in runtests.jl
-using Base.Test
 letters = ["a","b","c","d"]; cfvalues = [0.6, 0.39, 0.01] # for ab_cd, ac_bd, ad_bc
 d = DataFrame(t1=Array{ASCIIString}(24),t2=Array{ASCIIString}(24),t3=Array{ASCIIString}(24),t4=Array{ASCIIString}(24),
               CF12_34=Array{Float64}(24), CF13_24=Array{Float64}(24), CF14_23=Array{Float64}(24));

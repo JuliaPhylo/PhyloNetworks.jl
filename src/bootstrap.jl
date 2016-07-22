@@ -166,9 +166,14 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
                         nrep::Integer, runs2::Integer, bestNet::HybridNetwork, quartetfile::AbstractString)
     global DEBUG
     println("BOOTSTRAP OF SNAQ ESTIMATION")
-    julialog = string(filename,".log")
-    logfile = open(julialog,"w")
-    write(logfile, "BOOTSTRAP OF SNAQ ESTIMATION \n")
+    writelog = true
+    if (filename != "")
+        logfile = open(string(filename,".log"),"w")
+        write(logfile, "BOOTSTRAP OF SNAQ ESTIMATION \n")
+    else
+        writelog = false
+        logfile = STDOUT
+    end
 
     inputastrees = isa(data, Vector{Vector{HybridNetwork}})
     inputastrees || isa(data, DataFrame) ||
@@ -180,7 +185,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
                  and this other network for $runs2 run(s):
                  $(writeTopologyLevel1(bestNet))
                  """
-        write(logfile, str)
+        writelog && write(logfile, str)
         print(str)
     end
 
@@ -203,8 +208,8 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
         seed = parse(Int,a[2][end-4:end]) #better seed based on clock
     end
     println("main seed $(seed)")
-    write(logfile,"\nmain seed $(seed)\n")
-    flush(logfile)
+    writelog && write(logfile,"\nmain seed $(seed)\n")
+    writelog && flush(logfile)
     srand(seed)
     seedsData = round(Int,floor(rand(nrep)*100000)) # seeds to sample bootstrap data
     if runs1>0
@@ -216,11 +221,11 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
 
     bootNet = HybridNetwork[]
 
-    write(logfile,"\nBEGIN: $(nrep) replicates\n$(Libc.strftime(time()))\n")
-    flush(logfile)
+    writelog && write(logfile,"\nBEGIN: $(nrep) replicates\n$(Libc.strftime(time()))\n")
+    writelog && flush(logfile)
     for(i in 1:nrep)
         str = "\nbegin replicate $(i)\nbootstrap data simulation: seed $(seedsData[i])\n"
-        write(logfile, str)
+        writelog && write(logfile, str)
         print(str)
         if !inputastrees
             sampleCFfromCI!(newdf, seedsData[i])
@@ -231,7 +236,8 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
         end
         if runs1>0
             str = "estimation, $runs1 run" * (runs1>1?"s":"") * ": seed $(seeds[i])\n"
-            write(logfile, str); print(str)
+            writelog && write(logfile, str)
+            print(str)
             rootname = (DEBUG ? string(filename,"_",i) : "")
             net1 = optTopRuns!(currT0, M, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs1, outgroup,
                                rootname,seeds[i],probST)
@@ -241,7 +247,8 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
         end
         if runs2>0
             str = "estimation, $runs2 run" * (runs2>1?"s":"") * " starting from other net: seed $(seedsOtherNet[i])\n"
-            write(logfile, str); println(str)
+            writelog && write(logfile, str)
+            print(str)
             rootname = (DEBUG ? string(filename,"_",i,"_startNet2") : "")
             net2 = optTopRuns!(bestNet, M, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs2, outgroup,
                                rootname,seedsOtherNet[i],probST)
@@ -252,29 +259,31 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
         if (runs1>0 && runs2>0)
             net = (net1.loglik < net2.loglik ? net1 : net2)
         end
-        flush(logfile)
+        writelog && flush(logfile)
 
         push!(bootNet, net)
-        if(outgroup == "none")
-            write(logfile,writeTopologyLevel1(net)) #no outgroup
-        else
-            write(logfile,writeTopologyLevel1(net,outgroup)) #outgroup
+        str = (outgroup=="none" ? writeTopologyLevel1(net) : writeTopologyLevel1(net,outgroup))
+        if writelog
+            write(logfile, str)
+            write(logfile,"\n")
+            flush(logfile)
         end
-        write(logfile,"\n")
-        flush(logfile)
-    end #end nrep
-    close(logfile)
+        println(str) # net also printed by each optTopRuns! but separately from the 2 starting points
+    end # of the nrep bootstrap replicates
+    writelog && close(logfile)
 
-    s = open(string(filename,".out"),"w")
-    for(n in bootNet)
+    if writelog
+      s = open(string(filename,".out"),"w")
+      for (n in bootNet)
         if(outgroup == "none")
             write(s,"$(writeTopologyLevel1(n))\n")
         else
             write(s,"$(writeTopologyLevel1(n,outgroup))\n")
         end
         # "with -loglik $(n.loglik)" not printed: not comparable across bootstrap networks
+      end
+      close(s)
     end
-    close(s)
     return bootNet
 end
 
@@ -300,7 +309,7 @@ Optional arguments include the following, with default values in parentheses:
 - hmax (1): max number of reticulations in the estimated networks
 - nrep (10): number of bootstrap replicates.
 - runs (10): number of independent optimization runs for each replicate
-- filename (bootsnaq): root name for output files
+- filename ("bootsnaq"): root name for output files. No output files if "".
 - seed (0 to get a random seed from the clock): seed for random number generator
 - otherNet (empty): another starting topology so that each replicate will start prcnet% runs on otherNet and (1-prcnet)% runs on T
 - prcnet (0): percentage of runs starting on otherNet; error if different than 0.0, and otherNet not specified.
