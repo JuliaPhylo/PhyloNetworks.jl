@@ -1587,6 +1587,7 @@ function snaq!(currT0::HybridNetwork, d::DataCF; hmax=1::Integer, M=multiplier::
     # for the case of multiple alleles: expand into two leaves quartets like sp1 sp1 sp2 sp3.
     if(!isempty(d.repSpecies))
         expandLeaves!(d.repSpecies,startnet)
+        startnet = readTopologyLevel1(writeTopologyLevel1(startnet)) # dirty fix to multiple alleles problem with expandLeaves
     end
     sameTaxa(d,startnet) || error("some taxon names in quartets do not appear on the starting topology")
     optTopRuns!(startnet, M, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename,seed,probST)
