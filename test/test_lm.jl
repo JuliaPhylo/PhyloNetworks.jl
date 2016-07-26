@@ -104,6 +104,25 @@ fitbis = phyloNetworklm(trait ~ 1, dfr, net)
 @test_approx_eq BIC(phynetlm)  BIC(fitbis)
 @test_approx_eq mu_estim(phynetlm)  mu_estim(fitbis)
 
+#### Other Network ###
+net = readTopology("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);");
+
+# Make it ultrametric
+for i = 1:27
+	net.edge[i].length = 1
+end
+net.edge[27].length = 7
+net.edge[26].length = 3
+net.edge[25].length = 4
+net.edge[24].length = 4
+net.edge[21].length = 5
+net.edge[19].length = 4
+net.edge[16].length = 2
+net.edge[8].length = 2
+net.edge[3].length = 2
+net.edge[1].length = 5
+
+plot(net, useEdgeLength = true,  showEdgeNumber=true)
 
 #### Simulate correlated data in data frames ####
 b0 = 1
@@ -113,7 +132,7 @@ A = sim[:Tips]
 B = b0 + b1 * A + simulate(net,  paramsBM(0, 0.1))[:Tips]
 
 # With Matrices
-X = hcat(ones(4), A)
+X = hcat(ones(12), A)
 fit_mat = phyloNetworklm(X, B, net)
 @show fit_mat
 
@@ -184,7 +203,7 @@ phynetlm = phyloNetworklm(trait ~ pred, dfr, net)
 
 
 # unordered data
-dfr = dfr[[2, 1, 4, 3], :]
+dfr = dfr[sample(1:12, 12, replace=false), :]
 fitbis = phyloNetworklm(trait ~ pred, dfr, net)
 
 @test_approx_eq coef(phynetlm) coef(fitbis)
@@ -237,17 +256,17 @@ fitter = phyloNetworklm(trait ~ pred, dfr, net, no_names=true)
 
 
 # unnamed un-ordered data
-dfr = dfr[[2, 1, 4, 3], :]
+dfr = dfr[sample(1:12, 12, replace=false), :]
 @test_throws ErrorException fitter = phyloNetworklm(trait ~ pred, dfr, net) # Wrong pred
 
 
 ### Add NAs
 dfr = DataFrame(trait = B, pred = A, tipsNames = tipLabels(sim))
-dfr[2, :pred] = NA
+dfr[[2, 8, 11], :pred] = NA
 fitna = phyloNetworklm(trait ~ pred, dfr, net)
 @show fitna
 
-dfr = dfr[[2, 1, 4, 3], :]
+dfr = dfr[sample(1:12, 12, replace=false), :]
 fitnabis = phyloNetworklm(trait ~ pred, dfr, net)
 
 @test_approx_eq coef(fitna) coef(fitnabis)
@@ -283,6 +302,4 @@ ancestral_traits = ancestralStateReconstruction(net, Y, params)
 dfr = DataFrame(trait = Y, tipsNames = tipLabels(sim))
 phynetlm = phyloNetworklm(trait~1, dfr, net)
 blup = ancestralStateReconstruction(phynetlm)
-
-
 
