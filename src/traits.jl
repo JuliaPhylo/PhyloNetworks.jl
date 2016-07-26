@@ -133,9 +133,14 @@ end
 # end
 
 # If some tips are missing, treat them as "internal nodes"
-function Base.getindex(obj::matrixTopologicalOrder, d::Symbol, msng=trues(length(obj.tipsNumbers))::BitArray{1})
+function Base.getindex(
+	obj::matrixTopologicalOrder,
+	d::Symbol;
+	indTips=collect(1:length(obj.tipsNumbers))::Vector{Int},
+	msng=trues(length(obj.tipsNumbers))::BitArray{1})
 	if d == :Tips # Extract rows and/or columns corresponding to the tips with data
 		maskTips = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder)
+		maskTips = maskTips[indTips]
 		maskTips = maskTips[msng]
 		obj.indexation == "b" && return obj.V[maskTips, maskTips] # both columns and rows are indexed by nodes
 		obj.indexation == "c" && return obj.V[:, maskTips] # Only the columns
@@ -144,6 +149,7 @@ function Base.getindex(obj::matrixTopologicalOrder, d::Symbol, msng=trues(length
 	if d == :InternalNodes # Idem, for internal nodes
 		maskNodes = indexin(obj.internalNodesNumbers, obj.nodesNumbersTopOrder)
 		maskTips = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder)
+		maskTips = maskTips[indTips]
 		maskNodes = [maskNodes; maskTips[!msng]]
 		obj.indexation == "b" && return obj.V[maskNodes, maskNodes]
 		obj.indexation == "c" && return obj.V[:, maskNodes] 
@@ -152,8 +158,9 @@ function Base.getindex(obj::matrixTopologicalOrder, d::Symbol, msng=trues(length
 	if d == :TipsNodes
 		maskNodes = indexin(obj.internalNodesNumbers, obj.nodesNumbersTopOrder)
 		maskTips = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder)
+		maskTips = maskTips[indTips]
 		maskNodes = [maskNodes; maskTips[!msng]]
-		mskTips = maskTips[msng]
+		maskTips = maskTips[msng]
 		obj.indexation == "b" && return obj.V[maskTips, maskNodes]
 		obj.indexation == "c" && error("Both rows and columns must be net
 		ordered to take the submatrix tips vs internal nodes.")
@@ -565,6 +572,9 @@ type reconstructedStates
 	model::Nullable{phyloNetworkLinearModel} # If empirical, the corresponding fitted object.
 end
 
+function expectations(obj::reconstructedStates)
+	return DataFrame(nodeNumber = obj.NodesNumbers, condExpectation = obj.traits_nodes)
+end
 
 StatsBase.stderr(obj::reconstructedStates) = sqrt(diag(obj.variances_nodes))
 
@@ -646,19 +656,24 @@ function ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)
 	end
 	m_y = predict(obj)
 	m_z = X_n * coef(obj) 
-  Vyz = obj.V[:TipsNodes, obj.msng]
 	# If the tips were re-organized, do the same for Vyz
 	if (obj.ind != [0])
-		Vyz = Vyz[obj.ind, :]
+# 		iii = indexin(1:length(obj.msng), obj.ind[obj.msng])
+# 		iii = iii[iii .> 0]
+# 		jjj = [1:length(obj.V.internalNodesNumbers); indexin(1:length(obj.msng), obj.ind[!obj.msng])]
+# 		jjj = jjj[jjj .> 0]
+# 		Vyz = Vyz[iii, jjj]
+		Vyz = obj.V[:TipsNodes, obj.ind, obj.msng]
 		missingTipsNumbers = obj.V.tipsNumbers[obj.ind][!obj.msng]
 	else
 		warn("There were no indication for the position of the tips on the network. Assuming that they are given in the same order. Please check that this is what you intended.")
+		Vyz = obj.V[:TipsNodes, collect(1:length(obj.V.tipsNumbers)), obj.msng]
 		missingTipsNumbers = obj.V.tipsNumbers[!obj.msng]
 	end
 	temp = obj.RL \ Vyz
 	U = X_n - temp' * (obj.RL \ obj.X)
 	add_var = U * vcov(obj) * U'
-	ancestralStateReconstruction(obj.V[:InternalNodes, obj.msng],
+	ancestralStateReconstruction(obj.V[:InternalNodes, obj.ind, obj.msng],
                                temp,
                                obj.RL,
                                obj.Y,
