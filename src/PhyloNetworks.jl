@@ -80,7 +80,8 @@ paramsBM,
 sharedPathMatrix,
 ancestralStateReconstruction,
 sigma2_estim,
-mu_estim
+mu_estim,
+expectations
 
 # export part
 

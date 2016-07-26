@@ -303,3 +303,26 @@ dfr = DataFrame(trait = Y, tipsNames = tipLabels(sim))
 phynetlm = phyloNetworklm(trait~1, dfr, net)
 blup = ancestralStateReconstruction(phynetlm)
 
+plot(net, nodeLabel = expectations(blup))
+
+# Unordered
+dfr = dfr[sample(1:12, 12, replace=false), :]
+phynetlm = phyloNetworklm(trait~1, dfr, net)
+blup2 = ancestralStateReconstruction(phynetlm)
+
+plot(net, nodeLabel = expectations(blup2))
+
+# With unknown tips
+dfr[[2, 4], :trait] = NA
+phynetlm = phyloNetworklm(trait~1, dfr, net)
+blup = ancestralStateReconstruction(phynetlm)
+
+plot(net, nodeLabel = expectations(blup))
+
+# Unordered
+dfr = dfr[[1, 2, 5, 3, 4, 6, 7, 8, 9, 10, 11, 12], :]
+phynetlm = phyloNetworklm(trait~1, dfr, net)
+blup = ancestralStateReconstruction(phynetlm)
+
+plot(net, nodeLabel = expectations(blup))
+
