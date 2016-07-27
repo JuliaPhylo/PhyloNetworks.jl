@@ -302,27 +302,30 @@ ancestral_traits = ancestralStateReconstruction(net, Y, params)
 dfr = DataFrame(trait = Y, tipsNames = tipLabels(sim))
 phynetlm = phyloNetworklm(trait~1, dfr, net)
 blup = ancestralStateReconstruction(phynetlm)
-
-plot(net, nodeLabel = expectations(blup))
+plot(net, blup)
 
 # Unordered
-dfr = dfr[sample(1:12, 12, replace=false), :]
-phynetlm = phyloNetworklm(trait~1, dfr, net)
+dfr2 = dfr[sample(1:12, 12, replace=false), :]
+phynetlm = phyloNetworklm(trait~1, dfr2, net)
 blup2 = ancestralStateReconstruction(phynetlm)
 
-plot(net, nodeLabel = expectations(blup2))
+@test_approx_eq expectations(blup)[:condExpectation][1:length(blup.NodesNumbers)] expectations(blup2)[:condExpectation][1:length(blup.NodesNumbers)]
+@test_approx_eq blup.traits_tips[phynetlm.model.ind] blup2.traits_tips
+@test_approx_eq blup.TipsNumbers[phynetlm.model.ind] blup2.TipsNumbers
+@test_approx_eq predint(blup)[1:length(blup.NodesNumbers), :] predint(blup2)[1:length(blup.NodesNumbers), :]
+
 
 # With unknown tips
 dfr[[2, 4], :trait] = NA
 phynetlm = phyloNetworklm(trait~1, dfr, net)
 blup = ancestralStateReconstruction(phynetlm)
-
-plot(net, nodeLabel = expectations(blup))
+plot(net, blup)
 
 # Unordered
-dfr = dfr[[1, 2, 5, 3, 4, 6, 7, 8, 9, 10, 11, 12], :]
+dfr2 = dfr[[1, 2, 5, 3, 4, 6, 7, 8, 9, 10, 11, 12], :]
 phynetlm = phyloNetworklm(trait~1, dfr, net)
-blup = ancestralStateReconstruction(phynetlm)
+blup2 = ancestralStateReconstruction(phynetlm)
 
-plot(net, nodeLabel = expectations(blup))
+@test_approx_eq expectations(blup)[:condExpectation][1:length(blup.NodesNumbers)] expectations(blup2)[:condExpectation][1:length(blup.NodesNumbers)]
+@test_approx_eq predint(blup)[1:length(blup.NodesNumbers), :] predint(blup2)[1:length(blup.NodesNumbers), :]
 

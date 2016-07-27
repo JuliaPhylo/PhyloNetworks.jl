@@ -568,12 +568,13 @@ type reconstructedStates
 	traits_nodes::Vector # Nodes are actually "missing" data (including tips)
 	variances_nodes::Matrix
 	NodesNumbers::Vector{Int}
-#	TipsNumbers::Vector
+	traits_tips::Vector # Observed values at tips
+	TipsNumbers::Vector # Observed tips only
 	model::Nullable{phyloNetworkLinearModel} # If empirical, the corresponding fitted object.
 end
 
 function expectations(obj::reconstructedStates)
-	return DataFrame(nodeNumber = obj.NodesNumbers, condExpectation = obj.traits_nodes)
+	return DataFrame(nodeNumber = [obj.NodesNumbers; obj.TipsNumbers], condExpectation = [obj.traits_nodes; obj.traits_tips])
 end
 
 StatsBase.stderr(obj::reconstructedStates) = sqrt(diag(obj.variances_nodes))
@@ -585,14 +586,41 @@ function predint(obj::reconstructedStates, level=0.95::Real)
 		qq = quantile(TDist(df_residual(get(obj.model))), (1. - level)/2.)
 		warn("As the variance is estimated, the predictions intervals are not exact, and should probably be larger.")
 	end
-	hcat(obj.traits_nodes, obj.traits_nodes) + stderr(obj) * qq * [1. -1.]
+	tmpnode = hcat(obj.traits_nodes, obj.traits_nodes) + stderr(obj) * qq * [1. -1.]
+	return vcat(tmpnode, hcat(obj.traits_tips, obj.traits_tips))
 end
 
 function Base.show(io::IO, obj::reconstructedStates)
 	println(io, "$(typeof(obj)):\n",
-	CoefTable(hcat(obj.NodesNumbers, obj.traits_nodes, predint(obj)),
+	CoefTable(hcat(vcat(obj.NodesNumbers, obj.TipsNumbers), vcat(obj.traits_nodes, obj.traits_tips), predint(obj)),
   					["Node index", "Pred.", "Min.", "Max. (95%)"],
-						fill("", size(obj.NodesNumbers))))
+						fill("", length(obj.NodesNumbers)+length(obj.TipsNumbers))))
+end
+
+function predintPlot(obj::reconstructedStates, level=0.95::Real)
+	pri = predint(obj, level)
+	pritxt = Array{AbstractString}(size(pri, 1))
+	for i=1:length(obj.NodesNumbers)
+		pritxt[i] = "[" * string(round(pri[i, 1], 2)) * ", " * string(round(pri[i, 2], 2)) * "]"
+	end
+	for i=(length(obj.NodesNumbers)+1):size(pri, 1)
+		pritxt[i] = string(round(pri[i, 1], 2))
+	end
+	return DataFrame(nodeNumber = [obj.NodesNumbers; obj.TipsNumbers], PredInt = pritxt)
+end
+
+"""
+'plot(net::HybridNetwork, obj::reconstructedStates; kwargs...)
+
+Plot the reconstructed states computed by function ancestralStateReconstruction
+on a network.
+
+- net : a phylogenetic network
+- obj : the reconstructed states on the network (see ancestralStateReconstruction)
+- ... : further arguments to be passed to the netwotk plotting function
+"""
+function Gadfly.plot(net::HybridNetwork, obj::reconstructedStates; kwargs...)
+	plot(net, nodeLabel = predintPlot(obj); kwargs...)
 end
 
 """
@@ -629,6 +657,7 @@ function ancestralStateReconstruction(V::matrixTopologicalOrder,
 	ancestralStateReconstruction(Vz, temp, RL,
 															 Y, m_y, m_z,
 															 V.internalNodesNumbers,
+															 V.tipsNumbers,
 															 params.sigma2)
 end
 
@@ -638,12 +667,13 @@ function ancestralStateReconstruction(Vz::Matrix,
                                       RL::LowerTriangular,
                                       Y::Vector, m_y::Vector, m_z::Vector,
 																			NodesNumbers::Vector,
+																			TipsNumbers::Vector,
 																			sigma2::Real,
 																			add_var=zeros(size(Vz))::Matrix, # Additional variance for BLUP
 																			model=Nullable{phyloNetworkLinearModel}()::Nullable{phyloNetworkLinearModel}) 
 	m_z_cond_y = m_z + VyzVyinvchol' * (RL \ (Y - m_y))
 	V_z_cond_y = sigma2 .* (Vz - VyzVyinvchol' * VyzVyinvchol)
-	reconstructedStates(m_z_cond_y, V_z_cond_y + add_var, NodesNumbers, model)
+	reconstructedStates(m_z_cond_y, V_z_cond_y + add_var, NodesNumbers, Y, TipsNumbers, model)
 end
 
 # Empirical reconstruciton from a fitted object
@@ -665,10 +695,12 @@ function ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)
 # 		Vyz = Vyz[iii, jjj]
 		Vyz = obj.V[:TipsNodes, obj.ind, obj.msng]
 		missingTipsNumbers = obj.V.tipsNumbers[obj.ind][!obj.msng]
+		nmTipsNumbers = obj.V.tipsNumbers[obj.ind][obj.msng]
 	else
 		warn("There were no indication for the position of the tips on the network. Assuming that they are given in the same order. Please check that this is what you intended.")
 		Vyz = obj.V[:TipsNodes, collect(1:length(obj.V.tipsNumbers)), obj.msng]
 		missingTipsNumbers = obj.V.tipsNumbers[!obj.msng]
+		nmTipsNumbers = obj.V.tipsNumbers[obj.msng]
 	end
 	temp = obj.RL \ Vyz
 	U = X_n - temp' * (obj.RL \ obj.X)
@@ -680,6 +712,7 @@ function ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)
 															 m_y,
 															 m_z,
 															 [obj.V.internalNodesNumbers; missingTipsNumbers],
+															 nmTipsNumbers, 
 															 sigma2_estim(obj),
 															 add_var,
 															 obj)

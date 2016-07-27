@@ -81,7 +81,8 @@ sharedPathMatrix,
 ancestralStateReconstruction,
 sigma2_estim,
 mu_estim,
-expectations
+expectations,
+predint
 
 # export part
 
