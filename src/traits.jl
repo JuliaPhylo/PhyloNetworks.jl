@@ -135,7 +135,7 @@ end
 # If some tips are missing, treat them as "internal nodes"
 function Base.getindex(
 	obj::matrixTopologicalOrder,
-	d::Symbol;
+	d::Symbol,
 	indTips=collect(1:length(obj.tipsNumbers))::Vector{Int},
 	msng=trues(length(obj.tipsNumbers))::BitArray{1})
 	if d == :Tips # Extract rows and/or columns corresponding to the tips with data
