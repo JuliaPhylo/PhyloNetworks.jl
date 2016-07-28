@@ -304,6 +304,18 @@ phynetlm = phyloNetworklm(trait~1, dfr, net)
 blup = ancestralStateReconstruction(phynetlm)
 plot(net, blup)
 
+# BLUP same, using the function dirrectly
+blup_bis = ancestralStateReconstruction(dfr, net)
+
+@test_approx_eq expectations(blup)[:condExpectation] expectations(blup_bis)[:condExpectation]
+@test_approx_eq expectations(blup)[:nodeNumber] expectations(blup_bis)[:nodeNumber]
+@test_approx_eq blup.traits_tips blup_bis.traits_tips
+@test_approx_eq blup.TipsNumbers blup_bis.TipsNumbers
+@test_approx_eq predint(blup) predint(blup_bis)
+
+dfr = DataFrame(trait = Y, tipsNames = tipLabels(sim), reg = Y)
+@test_throws ErrorException fitter = ancestralStateReconstruction(dfr, net) # cannot handle a predictor
+
 # Unordered
 dfr2 = dfr[sample(1:12, 12, replace=false), :]
 phynetlm = phyloNetworklm(trait~1, dfr2, net)
@@ -313,7 +325,6 @@ blup2 = ancestralStateReconstruction(phynetlm)
 @test_approx_eq blup.traits_tips[phynetlm.model.ind] blup2.traits_tips
 @test_approx_eq blup.TipsNumbers[phynetlm.model.ind] blup2.TipsNumbers
 @test_approx_eq predint(blup)[1:length(blup.NodesNumbers), :] predint(blup2)[1:length(blup.NodesNumbers), :]
-
 
 # With unknown tips
 dfr[[2, 4], :trait] = NA

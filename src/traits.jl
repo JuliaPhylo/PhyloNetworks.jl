@@ -6,6 +6,20 @@
 #################################################
 
 # Matrix with rows and/or columns in topological order of the net.
+"""
+`matrixTopologicalOrder type`
+Matrix associated to a net sorted in topological order, with the following attributes:
+
+- V: the matrix per se
+- nodesNumbersTopOrder: vector of nodes numbers in the topological order, used for the matrix
+- internalNodesNumbers: vector of internal nodes number, in the original net order
+- tipsNumbers: vector of tips numbers, in the origial net order
+- tipsNames: vector of tips names, in the original net order
+- indexation: a string giving the type of matrix V:
+		-"r": rows only are indexed by the nodes of the network
+		-"c": columns only are indexed by the nodes of the network
+		-"b": both rows and columns are indexed by the nodes of the network
+"""
 type matrixTopologicalOrder
 	V::Matrix # Matrix in itself
 	nodesNumbersTopOrder::Vector{Int} # Vector of nodes numbers for ordering of the matrix
@@ -25,14 +39,16 @@ end
 
 # This function takes an init and update funtions as arguments
 # It does the recursion using these functions on a preordered network.
-function recursionPreOrder(net::HybridNetwork,
-													 checkPreorder=true::Bool,
-													 init=identity::Function,
-													 updateRoot=identity::Function,
-													 updateTree=identity::Function,
-													 updateHybrid=identity::Function,
-													 indexation="b"::AbstractString,
-													 params...)
+function recursionPreOrder(
+	net::HybridNetwork,
+	checkPreorder=true::Bool,
+	init=identity::Function,
+	updateRoot=identity::Function,
+	updateTree=identity::Function,
+	updateHybrid=identity::Function,
+	indexation="b"::AbstractString,
+	params...
+	)
 	net.isRooted || error("net needs to be rooted to get matrix of shared path lengths")
 	if(checkPreorder)
 		preorder!(net)
@@ -45,12 +61,13 @@ function recursionPreOrder(net::HybridNetwork,
 	matrixTopologicalOrder(M, [n.number for n in net.nodes_changed], nNodes, nleaf, [n.name for n in net.leaf], indexation)
 end
 
-function recursionPreOrder(nodes::Vector{Node},
-												   init::Function,
-												   updateRoot::Function,
-												   updateTree::Function,
-												   updateHybrid::Function,
-												   params
+function recursionPreOrder(
+	nodes::Vector{Node},
+	init::Function,
+	updateRoot::Function,
+	updateTree::Function,
+	updateHybrid::Function,
+	params
 	)
 	n = length(nodes)
 	M = init(nodes, params)
@@ -62,12 +79,13 @@ end
 
 # Update on the network
 # Takes three function as arguments : updateRoot, updateTree, updateHybrid
-function updatePreOrder!(i::Int,
-											   nodes::Vector{Node},
-											   V::Matrix, updateRoot::Function,
-											   updateTree::Function,
-											   updateHybrid::Function,
-											   params
+function updatePreOrder!(
+	i::Int,
+	nodes::Vector{Node},
+	V::Matrix, updateRoot::Function,
+	updateTree::Function,
+	updateHybrid::Function,
+	params
 	)
 	parent = getParents(nodes[i]) #array of nodes (empty, size 1 or 2)
 	if(isempty(parent)) #nodes[i] is root
@@ -133,11 +151,25 @@ end
 # end
 
 # If some tips are missing, treat them as "internal nodes"
+"""
+`getindex(obj, d, indTips, msng)`
+
+Getting submatrices of an object of class matrixTopologicalOrder.
+
+- obj: a matrixTopologicalOrder object
+- d: a symbol precising which sub-matrix to extract
+	- :Tips columns and/or rows corresponding to the tips
+	- :InternalNodes columns and/or rows corresponding to the internal nodes
+	- :TipsNodes columns corresponding to internal nodes, and row to tips (works only is indexation="b")
+- indTips: optional argument precising a specific order for the tips
+- msng: optional argument precising the missing tips
+"""
 function Base.getindex(
 	obj::matrixTopologicalOrder,
 	d::Symbol,
 	indTips=collect(1:length(obj.tipsNumbers))::Vector{Int},
-	msng=trues(length(obj.tipsNumbers))::BitArray{1})
+	msng=trues(length(obj.tipsNumbers))::BitArray{1}
+	)
 	if d == :Tips # Extract rows and/or columns corresponding to the tips with data
 		maskTips = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder)
 		maskTips = maskTips[indTips]
@@ -178,16 +210,21 @@ end
 
 This function computes the shared path matrix between all the nodes of a
 network. It assumes that the network is in the pre-order. If checkPreorder is
-true, then it runs function 'preoder' on the network beforehand. Returns an
-object of type 'matrixTopologicalOrder'.
+true (default), then it runs function 'preoder' on the network beforehand.
+Returns an object of type 'matrixTopologicalOrder'.
 """
 function sharedPathMatrix(
 	net::HybridNetwork;
 	checkPreorder=true::Bool
 	)
-	recursionPreOrder(net, checkPreorder, initsharedPathMatrix,
-										updateRootSharedPathMatrix!, updateTreeSharedPathMatrix!,
-										updateHybridSharedPathMatrix!, "b")
+	recursionPreOrder(
+		net,
+		checkPreorder,
+		initsharedPathMatrix,
+		updateRootSharedPathMatrix!,
+		updateTreeSharedPathMatrix!,
+		updateHybridSharedPathMatrix!,
+		"b")
 end
 
 function updateRootSharedPathMatrix!(V::Matrix, i::Int, params)
@@ -323,6 +360,32 @@ end
 #################################################
 
 # New type for phyloNetwork regression
+"""
+`phyloNetworkLinearModel type`
+Regression object for a phylogenetic regression. Dominated by the LinPredModel class.
+It has the following attributes:
+
+- lm: a GLM.LinearModel object, fitted on the cholesky-tranformend problem
+- V: a matrixTopologicalOrder object of the network-induced correlations
+- Vy: the sub matrix corresponding to the tips and actually used for the correction
+- RL: a LowerTriangular matrix, cholesky transform of Vy=RL*RL'
+- Y: the vector of data
+- X: the matrix of regressors
+- logdetVy: the log-determinent of Vy
+- ind: vector matching the tips of the network against the names of the dataframe provided. 0 if the match could not be performed.
+- msng: vector indicating which of the tips are missing
+
+The following StatsBase functions can be applied to it:
+coef, nobs, vcov, stderr, confint, coeftable, df_residual, df, deviance,
+residuals, model_response, predict, loglikelihood, nulldeviance, nullloglikelihood,
+R2, adjR2, AIC, AICc, BIC
+
+The following DataFrame functions can also be applied to it:
+ModelFrame, ModelMatrix, Formula.
+
+Estimated variance and mean of the BM process used can be retrieved with 
+functions sigma2_estim and mu_estim.
+"""
 type phyloNetworkLinearModel <: LinPredModel 
 	lm::GLM.LinearModel # result of a lm on a matrix
 	V::matrixTopologicalOrder
@@ -376,10 +439,19 @@ end
 """
 `phyloNetworklm(f::Formula, fr::AbstractDataFrame, net::HybridNetwork)`
 
-Performs a regression according to the formula provided by the user, using
-the correlation structure induced by the network.
-The data frame fr should have an extra column labelled "tipsNames" that gives
-the names of the taxa for each observation.
+Phylogenetic regression, using the correlation structure induced by the network.
+
+- f: formula to use for the regression (see the DataFrame package)
+- fr: DataFrame containing the data and regressors at the tips. It should have
+an extra column labelled "tipsNames", that gives the names of the taxa for each observation.
+- net: phylogenetic network of class HibridNetwork.
+- model: the model for the covariance computations. Only BM (Brownian Motion) is
+implemented for now.
+- no_names: force the function to ignore the tips names. The data is then assumed to
+be in the same order as the tips of the network. Default to false, setting it to true is
+dangerous, and strongly discouraged.
+
+Returns an object of class phyloNetworkLinearModel.
 """
 # Deal with formulas
 function phyloNetworklm(
@@ -394,22 +466,34 @@ function phyloNetworklm(
 	V = sharedPathMatrix(net)
 	if no_names # The names should not be taken into account.
 		ind = [0]
-		info("As requested (no_names=true), I am ignoring the tips names on the network and in the dataframe.")
+		info("As requested (no_names=true), I am ignoring the tips names on the
+		network and in the dataframe.")
 	elseif (any(V.tipsNames == "") || !any(DataFrames.names(fr) .== :tipsNames))
 		if (any(V.tipsNames == "") && !any(DataFrames.names(fr) .== :tipsNames))
-			error("The network provided has no tip names, and the input dataframe has no column labelled tipsNames, so I can't match the data on the network unambiguously. If you are sure that the tips of the network are in the same order as the values of the dataframe provided, then please re-run this function with argument no_name=true.")
+			error("The network provided has no tip names, and the input dataframe has
+			no column labelled tipsNames, so I can't match the data on the network
+			unambiguously. If you are sure that the tips of the network are in the
+			same order as the values of the dataframe provided, then please re-run
+			this function with argument no_name=true.")
 		end
 		if any(V.tipsNames == "")
-			error("The network provided has no tip names, so I can't match the data on the network unambiguously. If you are sure that the tips of the network are in the same order as the values of the dataframe provided, then please re-run this function with argument no_name=true.")
+			error("The network provided has no tip names, so I can't match the data
+			on the network unambiguously. If you are sure that the tips of the
+			network are in the same order as the values of the dataframe provided,
+			then please re-run this function with argument no_name=true.")
 		end
 		if !any(DataFrames.names(fr) .== :tipsNames)
-			error("The input dataframe has no column labelled tipsNames, so I can't match the data on the network unambiguously. If you are sure that the tips of the network are in the same order as the values of the dataframe provided, then please re-run this function with argument no_name=true.")
+			error("The input dataframe has no column labelled tipsNames, so I can't
+			match the data on the network unambiguously. If you are sure that the
+			tips of the network are in the same order as the values of the dataframe
+			provided, then please re-run this function with argument no_name=true.")
 		end
 	else
 #        ind = indexin(V.tipsNames, fr[:tipsNames])
 		ind = indexin(fr[:tipsNames], V.tipsNames)
 		if any(ind == 0) || length(unique(ind)) != length(ind)
-				error("Tips names of the network and names provided in column tipsNames of the dataframe do not match.")
+				error("Tips names of the network and names provided in column tipsNames
+				of the dataframe do not match.")
 		end
 #	fr = fr[ind, :]
 	end
@@ -496,12 +580,17 @@ sigma2_estim(m::phyloNetworkLinearModel) = deviance(m.lm) / nobs(m)
 sigma2_estim(m::DataFrames.DataFrameRegressionModel) = sigma2_estim(m.model)
 # ML estimate for ancestral state of the BM
 function mu_estim(m::phyloNetworkLinearModel)
-	warn("You fitted the data against a custom matrix, so I have no way of knowing which column is your intercept (column of ones). I am using the first coefficient for ancestral mean mu by convention, but that might not be what you are looking for.")
+	warn("You fitted the data against a custom matrix, so I have no way of
+	knowing which column is your intercept (column of ones). I am using the first
+	coefficient for ancestral mean mu by convention, but that might not be what
+		you are looking for.")
 	return coef(m)[1]
 end
 # Need to be adapted manually to DataFrameRegressionModel beacouse it's a new function
 function mu_estim(m::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel,Float64})
-	if (!m.mf.terms.intercept) error("The fit was not without intercept, so I cannot estimate mu") end
+	if (!m.mf.terms.intercept)
+		error("The fit was not without intercept, so I cannot estimate mu")
+	end
 	return coef(m)[1]
 end
 
@@ -564,6 +653,23 @@ end
 ## Ancestral State Reconstruction
 #################################################
 # Class for reconstructed states on a network
+"""
+`reconstructedStates type`
+Type containing the inferred information about the law of the ancestral states
+given the observed tips values. The missing tips are considered as ancestral states.
+Attributes:
+
+- traits_nodes: the infered expectation of "missing" values (ancestral nodes and missing tips)
+- variances_nodes: the variance covariance matrix between all the "missing" nodes
+- NodesNumbers: vector of the nodes numbers, in the same order as traits_nodes
+- traits_tips: the observed traits values at the tips
+- TipsNumbers: vector of tips numbers, in the same order as traits_tips
+- model (Nullable): if not null, the phyloNetworkLinearModel used for the computations.
+
+The following functions can be applied to it:
+expectations (vector of expectations at all nodes), stderr (the standard error),
+predint (the prediction interval), plot.
+"""
 type reconstructedStates
 	traits_nodes::Vector # Nodes are actually "missing" data (including tips)
 	variances_nodes::Matrix
@@ -633,16 +739,20 @@ known parameters of the process used for trait evolution (params, only BM with f
 works for now).
 """
 # Reconstruction from known BM parameters
-function ancestralStateReconstruction(net::HybridNetwork,
-                                      Y::Vector,
-                                      params::paramsBM)
+function ancestralStateReconstruction(
+	net::HybridNetwork,
+  Y::Vector,
+  params::paramsBM
+	)
 	V = sharedPathMatrix(net)
 	ancestralStateReconstruction(V, Y, params)
 end
 
-function ancestralStateReconstruction(V::matrixTopologicalOrder,
-																			Y::Vector,
-																			params::paramsBM)
+function ancestralStateReconstruction(
+	V::matrixTopologicalOrder,
+	Y::Vector,
+	params::paramsBM
+	)
 	# Variances matrices
 	Vy = V[:Tips]
 	Vz = V[:InternalNodes]
@@ -654,23 +764,27 @@ function ancestralStateReconstruction(V::matrixTopologicalOrder,
 	m_y = ones(size(Vy)[1]) .* params.mu # !! correct only if no predictor. 
 	m_z = ones(size(Vz)[1]) .* params.mu # !! works if BM no shift.
 	# Actual computation
-	ancestralStateReconstruction(Vz, temp, RL,
-															 Y, m_y, m_z,
-															 V.internalNodesNumbers,
-															 V.tipsNumbers,
-															 params.sigma2)
+	ancestralStateReconstruction(
+	Vz, temp, RL,
+	Y, m_y, m_z,
+	V.internalNodesNumbers,
+	V.tipsNumbers,
+	params.sigma2
+	)
 end
 
 # Reconstruction from all the needed quantities
-function ancestralStateReconstruction(Vz::Matrix,
-                                      VyzVyinvchol::Matrix,
-                                      RL::LowerTriangular,
-                                      Y::Vector, m_y::Vector, m_z::Vector,
-																			NodesNumbers::Vector,
-																			TipsNumbers::Vector,
-																			sigma2::Real,
-																			add_var=zeros(size(Vz))::Matrix, # Additional variance for BLUP
-																			model=Nullable{phyloNetworkLinearModel}()::Nullable{phyloNetworkLinearModel}) 
+function ancestralStateReconstruction(
+	Vz::Matrix,
+  VyzVyinvchol::Matrix,
+  RL::LowerTriangular,
+  Y::Vector, m_y::Vector, m_z::Vector,
+	NodesNumbers::Vector,
+	TipsNumbers::Vector,
+	sigma2::Real,
+	add_var=zeros(size(Vz))::Matrix, # Additional variance for BLUP
+	model=Nullable{phyloNetworkLinearModel}()::Nullable{phyloNetworkLinearModel}
+	) 
 	m_z_cond_y = m_z + VyzVyinvchol' * (RL \ (Y - m_y))
 	V_z_cond_y = sigma2 .* (Vz - VyzVyinvchol' * VyzVyinvchol)
 	reconstructedStates(m_z_cond_y, V_z_cond_y + add_var, NodesNumbers, Y, TipsNumbers, model)
@@ -705,17 +819,19 @@ function ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)
 	temp = obj.RL \ Vyz
 	U = X_n - temp' * (obj.RL \ obj.X)
 	add_var = U * vcov(obj) * U'
-	ancestralStateReconstruction(obj.V[:InternalNodes, obj.ind, obj.msng],
-                               temp,
-                               obj.RL,
-                               obj.Y,
-															 m_y,
-															 m_z,
-															 [obj.V.internalNodesNumbers; missingTipsNumbers],
-															 nmTipsNumbers, 
-															 sigma2_estim(obj),
-															 add_var,
-															 obj)
+	ancestralStateReconstruction(
+		obj.V[:InternalNodes, obj.ind, obj.msng],
+    temp,
+    obj.RL,
+    obj.Y,
+		m_y,
+		m_z,
+		[obj.V.internalNodesNumbers; missingTipsNumbers],
+		nmTipsNumbers, 
+		sigma2_estim(obj),
+		add_var,
+		obj
+		)
 end
 # Default reconstruction for a simple BM (known predictors)
 function ancestralStateReconstruction(obj::phyloNetworkLinearModel)
@@ -731,6 +847,37 @@ function ancestralStateReconstruction{T<:Union{Float32,Float64}}(obj::DataFrames
 end
 function ancestralStateReconstruction{T<:Union{Float32,Float64}}(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel,T}, X_n::Matrix)
 	ancestralStateReconstruction(obj.model, X_n::Matrix)
+end
+"""
+`ancestralStateReconstruction(fr::AbstractDataFrame, net::HybridNetwork; kwargs...)`
+Function to find the ancestral traits reconstruction on a network, given some data at the tips.
+Uses function phyloNetworklm to perform a phylogenetic regression of the data against an
+intercept (amounts to fitting an evolutionary model on the network, BM being the only option 
+available for now).
+
+- fr: DataFrame containing the data at the tips. It should have an extra column labelled
+"tipsNames", that gives the names of the taxa for each observation.
+- net: phylogenetic network of class HibridNetwork.
+- kwargs...: further arguments to be passed to phyloNetworklm
+
+Returns an object of type ancestralStateReconstruction.
+"""
+# Deal with formulas
+function ancestralStateReconstruction(
+	fr::AbstractDataFrame,
+	net::HybridNetwork;
+	kwargs...
+	)
+	nn = names(fr)
+	datpos = nn .!= :tipsNames
+  if sum(datpos) > 1
+		error("Beside one column labelled 'tipsNames', the dataframe dfr should
+		have only one column, corresponding to the data at the tips of the
+		network.")
+	end
+	f = Formula(nn[datpos][1], 1)
+	reg = phyloNetworklm(f, fr, net; kwargs...)
+	return ancestralStateReconstruction(reg)
 end
 # # Default reconstruction for a simple BM
 # function ancestralStateReconstruction(obj::phyloNetworkLinearModel, mu::Real)
@@ -806,8 +953,21 @@ end
 # - line one = expectations at all the nodes
 # - line two = simulated values at all the nodes
 # The nodes are ordered as given by topological sorting
-function simulate(net::HybridNetwork, params::paramsProcess, model="BM"::AbstractString, checkPreorder=true::Bool)
-	M = recursionPreOrder(net, checkPreorder, initSimulateBM, updateRootSimulateBM!, updateTreeSimulateBM!, updateHybridSimulateBM!, "c", params)
+function simulate(
+	net::HybridNetwork,
+	params::paramsProcess,
+	model="BM"::AbstractString,
+	checkPreorder=true::Bool)
+	M = recursionPreOrder(
+				net,
+				checkPreorder,
+				initSimulateBM,
+				updateRootSimulateBM!,
+				updateTreeSimulateBM!,
+				updateHybridSimulateBM!,
+				"c",
+				params
+				)
 	traitSimulation(M, params, model)
 end
 
@@ -829,14 +989,28 @@ function updateRootSimulateBM!(M::Matrix, i::Int, params::Tuple{paramsBM})
 end
 
 # Going down to a tree node
-function updateTreeSimulateBM!(M::Matrix, i::Int, parentIndex::Int, edge::Edge, params::Tuple{paramsBM})
+function updateTreeSimulateBM!(
+	M::Matrix,
+	i::Int,
+	parentIndex::Int,
+	edge::Edge,
+	params::Tuple{paramsBM}
+	)
 	params = params[1]
 	M[1, i] = params.mu  # expectation
 	M[2, i] = M[2, parentIndex] + sqrt(params.sigma2 * edge.length) * randn() # random value
 end
 
 # Going down to an hybrid node
-function updateHybridSimulateBM!(M::Matrix, i::Int, parentIndex1::Int, parentIndex2::Int, edge1::Edge, edge2::Edge, params::Tuple{paramsBM})
+function updateHybridSimulateBM!(
+	M::Matrix,
+	i::Int,
+	parentIndex1::Int, 
+	parentIndex2::Int,
+	edge1::Edge,
+	edge2::Edge,
+	params::Tuple{paramsBM}
+	)
 	params = params[1]
        	M[1, i] = params.mu  # expectation
 	M[2, i] =  edge1.gamma * (M[2, parentIndex1] + sqrt(params.sigma2 * edge1.length) * randn()) + edge2.gamma * (M[2, parentIndex2] + sqrt(params.sigma2 * edge2.length) * randn()) # random value
