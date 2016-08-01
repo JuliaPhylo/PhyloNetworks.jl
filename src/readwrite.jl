@@ -872,10 +872,10 @@ end
 # if none given, placed the root wherever possible
 # printID=true, only print identifiable BL as determined by setNonIdBL!.
 #         false by default. true inside snaq.
-
-function writeTopologyLevel1(net0::HybridNetwork, di::Bool, str::Bool, names::Bool,outgroup::AbstractString, printID::Bool, roundBL::Bool, digits::Integer)
+# multall = true, multiple alleles case
+function writeTopologyLevel1(net0::HybridNetwork, di::Bool, str::Bool, names::Bool,outgroup::AbstractString, printID::Bool, roundBL::Bool, digits::Integer, multall::Bool)
     s = IOBuffer()
-    writeTopologyLevel1(net0,s,di,names,outgroup,printID,roundBL,digits)
+    writeTopologyLevel1(net0,s,di,names,outgroup,printID,roundBL,digits, multall)
     if(str)
         return bytestring(s)
     else
@@ -885,7 +885,7 @@ end
 
 # warning: I do not want writeTopologyLevel1 to modify the network if outgroup is given! thus, we have updateRoot, and undoRoot
 function writeTopologyLevel1(net0::HybridNetwork, s::IO, di::Bool, names::Bool,
-           outgroup::AbstractString, printID::Bool, roundBL::Bool, digits::Integer)
+           outgroup::AbstractString, printID::Bool, roundBL::Bool, digits::Integer, multall::Bool)
     global CHECKNET
     net = deepcopy(net0) #writeTopologyLevel1 needs containRoot, but should not alter net0
     # net.numBad == 0 || println("network with $(net.numBad) bad diamond I. Some γ and edge lengths t are not identifiable, although their γ * (1-exp(-t)) are.")
@@ -906,17 +906,20 @@ function writeTopologyLevel1(net0::HybridNetwork, s::IO, di::Bool, names::Bool,
         updateRoot!(net,outgroup)
         #DEBUG && printEverything(net)
         CHECKNET && canBeRoot(net.node[net.root])
+        if(multall)
+            mergeLeaves!(net)
+        end
         writeSubTree!(s, net ,di,names, roundBL,digits)
     end
     # outgroup != "none" && undoRoot!(net) # not needed because net is deepcopy of net0
     # to delete 2-degree node, for snaq.
 end
 
-writeTopologyLevel1(net::HybridNetwork,di::Bool,str::Bool,names::Bool,outgroup::AbstractString,printID::Bool) = writeTopologyLevel1(net,di,str,names,outgroup,printID, false,3)
+writeTopologyLevel1(net::HybridNetwork,di::Bool,str::Bool,names::Bool,outgroup::AbstractString,printID::Bool) = writeTopologyLevel1(net,di,str,names,outgroup,printID, false,3, false)
 # above: default roundBL=false (at unused digits=3 decimal places)
-writeTopologyLevel1(net::HybridNetwork,printID::Bool) = writeTopologyLevel1(net,false, true,true,"none",printID)
-writeTopologyLevel1(net::HybridNetwork,outgroup::AbstractString) = writeTopologyLevel1(net,false, true,true,outgroup,true)
-writeTopologyLevel1(net::HybridNetwork,di::Bool,outgroup::AbstractString) = writeTopologyLevel1(net,di, true,true,outgroup,true)
+writeTopologyLevel1(net::HybridNetwork,printID::Bool) = writeTopologyLevel1(net,false, true,true,"none",printID, false, 3, false)
+writeTopologyLevel1(net::HybridNetwork,outgroup::AbstractString) = writeTopologyLevel1(net,false, true,true,outgroup,true, false, 3, false)
+writeTopologyLevel1(net::HybridNetwork,di::Bool,outgroup::AbstractString) = writeTopologyLevel1(net,di, true,true,outgroup,true, false, 3, false)
 
 """
 `writeTopologyLevel1(net::HybridNetwork)`
@@ -935,7 +938,7 @@ if net.root is incompatible with one of more hybrid node.
 Missing hybrid names are written as "#Hi" where "i" is the hybrid node number if possible.
 The network object is *not* modified.
 """ #"
-writeTopologyLevel1(net::HybridNetwork; di=false::Bool, string=true::Bool, names=true::Bool,outgroup="none"::AbstractString, printID=false::Bool, round=false::Bool, digits=3::Integer) = writeTopologyLevel1(net, di, string, names,outgroup,printID, round,digits)
+writeTopologyLevel1(net::HybridNetwork; di=false::Bool, string=true::Bool, names=true::Bool,outgroup="none"::AbstractString, printID=false::Bool, round=false::Bool, digits=3::Integer, multall=false::Bool) = writeTopologyLevel1(net, di, string, names,outgroup,printID, round,digits, multall)
 
 # function to check if root is well-placed
 # and look for a better place if not

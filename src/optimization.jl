@@ -292,14 +292,14 @@ function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool, ftolRel::Float64, 
     NLopt.upper_bounds!(opt,upper(net))
     count = 0
     function obj(x::Vector{Float64},g::Vector{Float64}) # added g::Vector{Float64} for gradient, ow error
-        if(DEBUG || verbose) #|| net.numBad > 0) #we want to see what happens with bad diamond I
+        if(verbose) #|| net.numBad > 0) #we want to see what happens with bad diamond I
             println("inside obj with x $(x)")
         end
         count += 1
         calculateExpCFAll!(d,x,net) # update qnet branches and calculate expCF
         update!(net,x) # update net.ht
         val = logPseudoLik(d)
-        if(DEBUG || verbose) #|| net.numBad > 0)#we want to see what happens with bad diamond I
+        if(verbose) #|| net.numBad > 0)#we want to see what happens with bad diamond I
             println("f_$count: $(round(val,5)), x: $(x)")
         end
         return val
@@ -639,7 +639,7 @@ function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Integer,closeN ::Boo
                     startover = true
                     badliks += 1
                 else
-                    badliks = N+1
+                    badliks = N+1 ## exit second while
                 end
             end
             if(backCurrT0) # leaves while for failed loglik
@@ -828,7 +828,8 @@ end
 # random = false uses the minor hybrid edge always
 # count to know in which step we are, N for NNI trials
 # order in movescount as in IF here (add,mvorigin,mvtarget,chdir,delete,nni)
-function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::Integer, N::Integer, movescount::Vector{Int}, movesfail::Vector{Int})
+# multAll = true if d.repSpecies is not empty, checked outside
+function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::Integer, N::Integer, movescount::Vector{Int}, movesfail::Vector{Int}, multall::Bool)
     global CHECKNET, DEBUG
     1 <= move <= 6 || error("invalid move $(move)") #fixit: if previous move rejected, do not redo it!
     DEBUG && println("current move: $(int2move[move])")
@@ -853,6 +854,11 @@ function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::In
     elseif(move == 6)
         success = NNIRepeat!(newT,N)
     end
+    if(multall)
+        success2 = checkTop4multAllele(newT)
+        DEBUG && println("entered to check topology for mult allele: $(success2)")
+        success &= success2
+    end
     movescount[move] += 1
     movescount[move+6] += success ? 1 : 0
     movesfail[move] += success ? 0 : 1
@@ -865,7 +871,7 @@ function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::In
 end
 
 
-proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Integer,N::Integer, movescount::Vector{Int},movesfail::Vector{Int}) = proposedTop!(try move2int[move] catch error("invalid move $(string(move))") end,newT, random,count,N, movescount,movesfail)
+proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Integer,N::Integer, movescount::Vector{Int},movesfail::Vector{Int}, multall::Bool) = proposedTop!(try move2int[move] catch error("invalid move $(string(move))") end,newT, random,count,N, movescount,movesfail, multall)
 
 # function to calculate Nmov, number max of tries per move
 # order: (add,mvorigin,mvtarget,chdir,delete,nni)
@@ -932,7 +938,17 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
     end
     all((e->!(e.hybrid && e.inCycle == -1)), currT.edge) || error("found hybrid edge with inCycle == -1")
     optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
+    if(!isempty(d.repSpecies))
+        checkTop4multAllele(currT) || error("starting topology does not fit multiple alleles condition")
+        currT0 = deepcopy(currT)
+    end
     currT = afterOptBLAll!(currT, d, Nfail,closeN , M, ftolAbs, verbose,movesgamma,ftolRel,xtolRel,xtolAbs)
+    if(!isempty(d.repSpecies))
+        suc = checkTop4multAllele(currT)
+        if(!suc)
+            currT = currT0
+        end
+    end
     absDiff = M*ftolAbs + 1
     newT = deepcopy(currT)
     DEBUG && printEdges(newT)
@@ -941,6 +957,9 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
     DEBUG && println(writeTopologyLevel1(newT,true))
     writelog && write(logfile, "\nBegins heuristic optimization of network------\n")
     while(absDiff > M*ftolAbs && failures < Nfail && currT.loglik > M*ftolAbs && stillmoves) #stops if close to zero because of new deviance form of the pseudolik
+        if(!isempty(d.repSpecies) && CHECKNET)
+            checkTop4multAllele(currT) || error("currT is not good for multiple alleles")
+        end
         count += 1
         DEBUG && println("--------- loglik_$(count) = $(round(currT.loglik,6)) -----------")
         if(isempty(Nmov0)) #if empty, not set by user
@@ -949,8 +968,11 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
         DEBUG && println("will propose move with movesfail $(movesfail), Nmov $(Nmov)")
         move = whichMove(newT,hmax,movesfail,Nmov)
         if(move != :none)
-            flag = proposedTop!(move,newT,true, count,10, movescount,movesfail) #N=10 because with 1 it never finds an edge for nni
-            if(flag) #no need else because newT always undone if failed
+            if(!isempty(d.repSpecies)) # need the original newT in case the proposed top fails by multiple alleles condition
+                newT0 = deepcopy(newT)
+            end
+            flag = proposedTop!(move,newT,true, count,10, movescount,movesfail,!isempty(d.repSpecies)) #N=10 because with 1 it never finds an edge for nni
+            if(flag) #no need else in general because newT always undone if failed, but needed for multiple alleles
                 accepted = false
                 all((e->!(e.hybrid && e.inCycle == -1)), newT.edge) || error("found hybrid edge with inCycle == -1")
                 DEBUG && println("proposed new topology in step $(count) is ok to start optBL")
@@ -962,7 +984,11 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
                     newloglik = newT.loglik
                     newT = afterOptBLAll!(newT, d, Nfail,closeN , M, ftolAbs,verbose,movesgamma,ftolRel, xtolRel,xtolAbs) #needed return because of deepcopy inside
                     DEBUG && println("loglik before afterOptBL $(newloglik), newT.loglik now $(newT.loglik), loss in loglik by fixing gamma(z)=0.0(1.0): $(newloglik>newT.loglik ? 0 : abs(newloglik-newT.loglik))")
-                    accepted = true
+                    if(!isempty(d.repSpecies))
+                        accepted = checkTop4multAllele(newT)
+                    else
+                        accepted = true
+                    end
                 else
                     accepted = false
                 end
@@ -984,6 +1010,10 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
                 #printNodes(newT)
                 DEBUG && println(writeTopologyLevel1(newT,true))
                 DEBUG && println("ends step $(count) with absDiff $(accepted? absDiff : 0.0) and failures $(failures)")
+            else
+                if(!isempty(d.repSpecies))
+                    newT = newT0 ## only need to go back with multiple alleles, bc other functions in proposedTop undo what they did
+                end
             end
         else
             stillmoves = false
@@ -991,6 +1021,9 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
         # here would set the debug file up to beginning
         if(DEBUG && REDIRECT)
             seekstart(sout)
+        end
+        if(!isempty(d.repSpecies) && CHECKNET)
+            checkTop4multAllele(newT) || error("newT not suitable for multiple alleles inside while")
         end
     end
     if(ftolAbs > 1e-7 || ftolRel > 1e-7 || xtolAbs > 1e-7 || xtolRel > 1e-7)
@@ -1025,6 +1058,9 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
         redirect_stdout(originalSTDOUT)
         redirect_stderr(originalSTDERR)
         info("end of redirection")
+    end
+    if(!isempty(d.repSpecies) && CHECKNET)
+        checkTop4multAllele(newT) || error("newT not suitable for multiple alleles at the very end")
     end
     return newT
 end
@@ -1318,9 +1354,9 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
             verbose && print(STDOUT,"\n FINISHED SNaQ for run $(i), -loglik of best $(best.loglik)\n")
             if (writelog)
               if(outgroup == "none")
-                write(logfile,writeTopologyLevel1(best,true)) #no outgroup
+                write(logfile,writeTopologyLevel1(best,printID=true, multall=!isempty(d.repSpecies))) #no outgroup
               else
-                write(logfile,writeTopologyLevel1(best,outgroup)) #outgroup
+                write(logfile,writeTopologyLevel1(best,outgroup=outgroup, printID=true, multall=!isempty(d.repSpecies))) #outgroup
               end
             flush(logfile)
             end
@@ -1370,7 +1406,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
                        with the subject BUG IN NETWORKS FILE. You can get this network from the .out file.
                        You can also post this problem to the google group, or github issues. Thank you!\n""")
         end
-        write(s,"$(writeTopologyLevel1(maxNet,true)), with -loglik $(maxNet.loglik) (best network found, remaining sorted by log-pseudolik; the smaller, the better)\n")
+        write(s,"$(writeTopologyLevel1(maxNet,printID=true, multall=!isempty(d.repSpecies))), with -loglik $(maxNet.loglik) (best network found, remaining sorted by log-pseudolik; the smaller, the better)\n")
         # best network is included first: for score comparison with other networks
         foundBad = false
         for(n in otherNet)
@@ -1391,7 +1427,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
         ind = sortperm([n.loglik for n in otherNet])
         otherNet = otherNet[ind]
         for(n in otherNet)
-            write(s,"$(writeTopologyLevel1(n,true)), with -loglik $(n.loglik)\n")
+            write(s,"$(writeTopologyLevel1(n,printID=true, multall=!isempty(d.repSpecies))), with -loglik $(n.loglik)\n")
         end
         foundBad && write(s,"Problem found when optimizing branch lengths for some networks, left loglik as -1. Please report this issue to claudia@stat.wisc.edu, google group or github issues. Thank you!")
         close(s)
@@ -1399,8 +1435,8 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
 
     setNonIdBL!(maxNet)
     writelog &&
-    write(logfile,"\nMaxNet is $(writeTopologyLevel1(maxNet,true)) \nwith -loglik $(maxNet.loglik)\n")
-    print(STDOUT,"\nMaxNet is $(writeTopologyLevel1(maxNet,true)) \nwith -loglik $(maxNet.loglik)\n")
+    write(logfile,"\nMaxNet is $(writeTopologyLevel1(maxNet,printID=true, multall=!isempty(d.repSpecies))) \nwith -loglik $(maxNet.loglik)\n")
+    print(STDOUT,"\nMaxNet is $(writeTopologyLevel1(maxNet,printID=true, multall=!isempty(d.repSpecies))) \nwith -loglik $(maxNet.loglik)\n")
 
     # new output file with (nearly) non-identifiable networks: (run before maxNet gets rooted)
 
@@ -1424,7 +1460,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
     s = writelog ? open(juliaout,"w") : STDOUT
     str = writeTopologyLevel1(maxNet) * """
      -Ploglik = $(maxNet.loglik)
-     Dendroscope: $(writeTopologyLevel1(maxNet,di=true))
+     Dendroscope: $(writeTopologyLevel1(maxNet,di=true, multall=!isempty(d.repSpecies)))
      Elapsed time: $(t) seconds in $(runs-length(failed)) successful runs
     -------
     List of estimated networks for all runs (sorted by log-pseudolik; the smaller, the better):
@@ -1434,14 +1470,18 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
     bestnet = bestnet[ind]
     for(n in bestnet)
       str *= " "
-      str *= (outgroup == "none" ? writeTopologyLevel1(n,true) :
-                                   writeTopologyLevel1(n,outgroup))
+      str *= (outgroup == "none" ? writeTopologyLevel1(n,printID=true, multall=!isempty(d.repSpecies)) :
+                                   writeTopologyLevel1(n,outgroup=outgroup, printID=true, multall=!isempty(d.repSpecies)))
       str *= ", with -loglik $(n.loglik)\n"
     end
     str *= "-------\n"
     write(s,str);
     writelog && close(s) # to close juliaout file (but not STDOUT!)
     writelog && close(logfile)
+
+    if(!isempty(d.repSpecies))
+        mergeLeaves!(maxNet)
+    end
 
     return maxNet
 end
@@ -1463,9 +1503,17 @@ function optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
     currT = deepcopy(currT0);
     if(probST<1.0 && rand() < 1-probST) # modify starting tree by a nni move
         suc = NNIRepeat!(currT,10); #will try 10 attempts to do an nni move, if set to 1, hard to find it depending on currT
+        if(!isempty(d.repSpecies))
+            suc2 = checkTop4multAllele(currT)
+            suc &= suc2
+            if(!suc2)
+                currT = deepcopy(currT0)
+            end
+        end
         writelog && suc && write(logfile," changed starting topology by NNI move\n")
         if(!isTree(currT))
             if(rand() < 1-probST) # modify starting network by mvorigin, mvtarget with equal prob
+                currT0 = deepcopy(currT) # to go back if new topology does not work for mult alleles
                 if(currT.numHybrids == 1)
                     ind = 1
                 else
@@ -1476,12 +1524,25 @@ function optTopRun1!(currT0::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
                 end
                 if(rand()<0.5)
                     suc = moveOriginUpdateRepeat!(currT,currT.hybrid[ind],true)
+                    if(!isempty(d.repSpecies))
+                        suc2 = checkTop4multAllele(currT)
+                        suc &= suc2
+                        if(!suc2)
+                            currT = deepcopy(currT0)
+                        end
+                    end
                     writelog && suc && write(logfile,"\n changed starting network by move origin")
                 else
                     suc = moveTargetUpdateRepeat!(currT,currT.hybrid[ind],true)
+                    if(!isempty(d.repSpecies))
+                        suc2 = checkTop4multAllele(currT)
+                        suc &= suc2
+                        if(!suc2)
+                            currT = deepcopy(currT0)
+                        end
+                    end
                     writelog && suc && write(logfile,"\n changed starting network by move target")
                 end
-
             end
         end
     end

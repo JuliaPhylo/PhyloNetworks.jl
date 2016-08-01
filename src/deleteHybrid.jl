@@ -147,6 +147,8 @@ function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bo
     edgesmaj = hybridEdges(othermaj)
     DEBUG && println("edgesmaj[3] $(edgesmaj[3].number) is the one to check if containRoot=false already: $(edgesmaj[3].containRoot)")
     if(edgesmaj[3].containRoot) #if containRoot=true, then we need to undo
+        push!(edgesRoot, edges[1]) ## add hybrid edges to edgesRoot to undo containRoot
+        push!(edgesRoot, edges[2])
         undoContainRoot!(edgesRoot);
     end
     if(DEBUG)

@@ -284,3 +284,68 @@ function checkMapDF(alleleDF::DataFrame)
     end
 end
 
+
+
+## function to check if a new proposed topology satisfies the condition for
+## multiple alleles: no gene flow to either allele, and both alleles as sister
+## returns false if the network is not ok
+function checkTop4multAllele(net::HybridNetwork)
+    for(n in net.leaf)
+        if(endswith(n.name, repeatAlleleSuffix))
+            n.leaf || error("weird node $(n.number) not leaf in net.leaf list")
+            length(n.edge) == 1 || error("weird leaf with $(length(n.edge)) edges")
+            par = getOtherNode(n.edge[1],n)
+            if(par.hybrid) ## there is gene flow into n
+                return false
+            end
+            nameOther = replace(n.name,repeatAlleleSuffix,"")
+            foundOther = false
+            for(i in 1:3)
+                other = getOtherNode(par.edge[i],par)
+                if(other.leaf && other.name == nameOther)
+                    foundOther = true
+                end
+            end
+            foundOther || return false
+        end
+    end
+    return true
+end
+
+
+
+## function to merge the two alleles into one
+function mergeLeaves!(net::HybridNetwork)
+    leaves = copy(net.leaf) # bc we change this list
+    for(n in leaves)
+        if(endswith(n.name, repeatAlleleSuffix))
+            n.leaf || error("weird node $(n.number) not leaf in net.leaf list")
+            length(n.edge) == 1 || error("weird leaf with $(length(n.edge)) edges")
+            par = getOtherNode(n.edge[1],n)
+            foundOther = false
+            other = Node()
+            nameOther = replace(n.name,repeatAlleleSuffix,"")
+            for(i in 1:3)
+                other = getOtherNode(par.edge[i],par)
+                if(other.leaf && other.name == nameOther)
+                    foundOther = true
+                    break
+                end
+            end
+            if(!foundOther)
+                checkTop4multAllele(net) || error("current network does not comply with multiple allele condition")
+                error("strange network that passes checkTop4multAllele, but cannot find the other allele for $(n.name)")
+            end
+            removeEdge!(par,n.edge[1])
+            removeEdge!(par,other.edge[1])
+            deleteNode!(net,n)
+            deleteNode!(net,other)
+            deleteEdge!(net,n.edge[1])
+            deleteEdge!(net,other.edge[1])
+            par.name = other.name
+            par.leaf = true
+            push!(net.leaf,par)
+            net.numTaxa += 1
+        end
+    end
+end

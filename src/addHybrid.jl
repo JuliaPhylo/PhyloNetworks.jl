@@ -330,8 +330,8 @@ function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::In
                 CHECKNET && checkNet(net)
                 DEBUG && printEverything(net)
                 deleteHybridizationUpdate!(net,hybrid)
-                CHECKNET && checkNet(net)
                 DEBUG && printEverything(net)
+                CHECKNET && checkNet(net)
             end
         end
     end

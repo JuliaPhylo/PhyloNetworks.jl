@@ -1102,14 +1102,6 @@ function printEverything(net::HybridNetwork)
     printNodes(net)
     printPartitions(net)
     println("$(writeTopologyLevel1(net))")
-    ## global DEBUG, REDIRECT
-    ## if(DEBUG && REDIRECT)
-    ##     try
-    ##         plotNetGraphViz(net,internalLabels=true,imageName="plotDebug")
-    ##     catch(err)
-    ##         println("could not plot")
-    ##     end
-    ## end
 end
 
 # function to check if a node is very or ext bad triangle
