@@ -1488,7 +1488,7 @@ function optTopRuns!(currT0::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
         checkRootPlace!(maxNet,verbose=false) #leave root in good place after snaq
     end
     s = writelog ? open(juliaout,"w") : STDOUT
-    str = writeTopologyLevel1(maxNet) * """
+    str = writeTopologyLevel1(maxNet, printID=true,multall=!isempty(d.repSpecies)) * """
      -Ploglik = $(maxNet.loglik)
      Dendroscope: $(writeTopologyLevel1(maxNet,di=true, multall=!isempty(d.repSpecies)))
      Elapsed time: $(t) seconds in $(runs-length(failed)) successful runs
