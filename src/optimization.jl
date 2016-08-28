@@ -449,12 +449,13 @@ function gammaZero!(net::HybridNetwork, d::DataCF, edge::Edge, closeN ::Bool, or
     return success2
 end
 
+
 # function to check if h or t (in currT.ht) are 0 (or 1 for h)
 # closeN =true will try move origin/target, if false, will delete/add new hybrid
 # origin=true, moves origin, if false, moves target. option added to control not keep coming
 # to the same network over and over
 # returns successchange=false if could not add new hybrid; true ow
-# returns successchange,flagh,flagt,flaghz
+# returns successchange,flagh,flagt,flaghz (flag_=false if problem with gamma, t=0 or gammaz)
 # movesgama: vector of count of number of times each move is proposed to fix gamma zero situation:(add,mvorigin,mvtarget,chdir,delete,nni)
 # movesgamma[13]: total number of accepted moves by loglik
 function afterOptBL!(currT::HybridNetwork, d::DataCF,closeN ::Bool, origin::Bool,verbose::Bool, N::Integer, movesgamma::Vector{Int})
@@ -571,6 +572,41 @@ end
 function stopLoglik(currloglik::Float64, newloglik::Float64, ftolAbs::Float64, M::Number)
     return (abs(currloglik-newloglik) <= M*ftolAbs) || (newloglik <= M*ftolAbs)
 end
+
+# function similar to afterOptBLALl but for multiple alleles
+# it will not try as hard to fix gamma,t=0 problem
+# it will only call moveDownLevel if problem with gamma or gammaz
+# fixit: later we can modify this function so that it
+# will call the original afterOptBLAll if it is safe
+# (i.e. there is no chance the alleles will be involved in any change)
+function afterOptBLAllMultipleAlleles!(currT::HybridNetwork, d::DataCF, N::Integer,closeN ::Bool, M::Number, ftolAbs::Float64, verbose::Bool, movesgamma::Vector{Int},ftolRel::Float64, xtolRel::Float64, xtolAbs::Float64)
+    global CHECKNET, DEBUG
+    !isempty(d.repSpecies) || error("calling afterOptBLAllMultipleAlleles but this is not a case with multple alleles")
+    !isTree(currT) || return false,true,true,true
+    nh = currT.ht[1 : currT.numHybrids - currT.numBad]
+    k = sum([e.istIdentifiable ? 1 : 0 for e in currT.edge])
+    nt = currT.ht[currT.numHybrids - currT.numBad + 1 : currT.numHybrids - currT.numBad + k]
+    nhz = currT.ht[currT.numHybrids - currT.numBad + k + 1 : length(currT.ht)]
+    indh = currT.index[1 : currT.numHybrids - currT.numBad]
+    indt = currT.index[currT.numHybrids - currT.numBad + 1 : currT.numHybrids - currT.numBad + k]
+    indhz = currT.index[currT.numHybrids - currT.numBad + k + 1 : length(currT.ht)]
+    flagh,flagt,flaghz = isValid(nh,nt,nhz)
+    !reduce(&,[flagh,flagt,flaghz]) || return false,true,true,true
+    DEBUG && println("begins afterOptBL because of conflicts: flagh,flagt,flaghz=$([flagh,flagt,flaghz])")
+    ## fixit: we could check here currT and see if we can call the original afterOptBLAll
+    if(!flagh || !flaghz)
+        moveDownLevel!(currT)
+        optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
+    end
+    if(CHECKNET)
+        checkNet(currT)
+        checkTop4multAllele(currT) || error("network after moveDownLevel does not satisfy multiple alleles condition")
+    end
+end
+
+
+
+
 
 # function to repeat afterOptBL every time after changing something
 # closeN =true will try move origin/target, if false, will delete/add new hybrid
@@ -916,6 +952,9 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
     M > 0 || error("M must be greater than zero: $(M)")
     Nfail > 0 || error("Nfail must be greater than zero: $(Nfail)")
     isempty(Nmov0) || all((n-> (n > 0)), Nmov0) || error("Nmov must be greater than zero: $(Nmov0)")
+    if(!isempty(d.repSpecies))
+        checkTop4multAllele(currT) || error("starting topology does not fit multiple alleles condition")
+    end
     if(DEBUG && REDIRECT) #for debugging
         originalSTDOUT = STDOUT
         originalSTDERR = STDERR
@@ -938,16 +977,10 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
     end
     all((e->!(e.hybrid && e.inCycle == -1)), currT.edge) || error("found hybrid edge with inCycle == -1")
     optBL!(currT,d,verbose,ftolRel, ftolAbs, xtolRel, xtolAbs)
-    if(!isempty(d.repSpecies))
-        checkTop4multAllele(currT) || error("starting topology does not fit multiple alleles condition")
-        currT0 = deepcopy(currT)
-    end
-    currT = afterOptBLAll!(currT, d, Nfail,closeN , M, ftolAbs, verbose,movesgamma,ftolRel,xtolRel,xtolAbs)
-    if(!isempty(d.repSpecies))
-        suc = checkTop4multAllele(currT)
-        if(!suc)
-            currT = currT0
-        end
+    if(!isempty(d.repSpecies)) ## muliple alleles case
+        afterOptBLAllMultipleAlleles!(currT, d, Nfail,closeN , M, ftolAbs, verbose,movesgamma,ftolRel,xtolRel,xtolAbs)
+    else
+        currT = afterOptBLAll!(currT, d, Nfail,closeN , M, ftolAbs, verbose,movesgamma,ftolRel,xtolRel,xtolAbs) #needed return because of deepcopy inside
     end
     absDiff = M*ftolAbs + 1
     newT = deepcopy(currT)
@@ -957,7 +990,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
     DEBUG && println(writeTopologyLevel1(newT,true))
     writelog && write(logfile, "\nBegins heuristic optimization of network------\n")
     while(absDiff > M*ftolAbs && failures < Nfail && currT.loglik > M*ftolAbs && stillmoves) #stops if close to zero because of new deviance form of the pseudolik
-        if(!isempty(d.repSpecies) && CHECKNET)
+        if(CHECKNET && !isempty(d.repSpecies))
             checkTop4multAllele(currT) || error("currT is not good for multiple alleles")
         end
         count += 1
@@ -982,13 +1015,13 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
                 DEBUG && println("OPT: comparing newT.loglik $(newT.loglik), currT.loglik $(currT.loglik)")
                 if(newT.loglik < currT.loglik && abs(newT.loglik-currT.loglik) > M*ftolAbs) #newT better loglik: need to check for error or keeps jumping back and forth
                     newloglik = newT.loglik
-                    newT = afterOptBLAll!(newT, d, Nfail,closeN , M, ftolAbs,verbose,movesgamma,ftolRel, xtolRel,xtolAbs) #needed return because of deepcopy inside
-                    DEBUG && println("loglik before afterOptBL $(newloglik), newT.loglik now $(newT.loglik), loss in loglik by fixing gamma(z)=0.0(1.0): $(newloglik>newT.loglik ? 0 : abs(newloglik-newT.loglik))")
-                    if(!isempty(d.repSpecies))
-                        accepted = checkTop4multAllele(newT)
+                    if(!isempty(d.repSpecies)) ## multiple alleles
+                        afterOptBLAllMultipleAlleles!(newT, d, Nfail,closeN , M, ftolAbs,verbose,movesgamma,ftolRel, xtolRel,xtolAbs)
                     else
-                        accepted = true
+                        newT = afterOptBLAll!(newT, d, Nfail,closeN , M, ftolAbs,verbose,movesgamma,ftolRel, xtolRel,xtolAbs) #needed return because of deepcopy inside
                     end
+                    DEBUG && println("loglik before afterOptBL $(newloglik), newT.loglik now $(newT.loglik), loss in loglik by fixing gamma(z)=0.0(1.0): $(newloglik>newT.loglik ? 0 : abs(newloglik-newT.loglik))")
+                    accepted = true
                 else
                     accepted = false
                 end
@@ -1021,9 +1054,6 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
         # here would set the debug file up to beginning
         if(DEBUG && REDIRECT)
             seekstart(sout)
-        end
-        if(!isempty(d.repSpecies) && CHECKNET)
-            checkTop4multAllele(newT) || error("newT not suitable for multiple alleles inside while")
         end
     end
     if(ftolAbs > 1e-7 || ftolRel > 1e-7 || xtolAbs > 1e-7 || xtolRel > 1e-7)
@@ -1059,7 +1089,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
         redirect_stderr(originalSTDERR)
         info("end of redirection")
     end
-    if(!isempty(d.repSpecies) && CHECKNET)
+    if(CHECKNET && !isempty(d.repSpecies))
         checkTop4multAllele(newT) || error("newT not suitable for multiple alleles at the very end")
     end
     return newT
