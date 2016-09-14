@@ -998,6 +998,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
         if(isempty(Nmov0)) #if empty, not set by user
             calculateNmov!(newT,Nmov)
         end
+        DEBUG && println("++++")
         DEBUG && println("will propose move with movesfail $(movesfail), Nmov $(Nmov)")
         move = whichMove(newT,hmax,movesfail,Nmov)
         if(move != :none)
@@ -1040,7 +1041,8 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
                 end
                 DEBUG && printEdges(newT)
                 DEBUG && printPartitions(newT)
-                #printNodes(newT)
+                    #printNodes(newT)
+                DEBUG && println("++++")
                 DEBUG && println(writeTopologyLevel1(newT,true))
                 DEBUG && println("ends step $(count) with absDiff $(accepted? absDiff : 0.0) and failures $(failures)")
             else

@@ -962,7 +962,7 @@ function updateRoot!(net::HybridNetwork, outgroup::AbstractString)
         length(net.node[index].edge) == 1 || error("strange leaf $(outgroup), node number $(net.node[index].number) with $(length(net.node[index].edge)) edges instead of 1")
         edge = net.node[index].edge[1]
         if(edge.containRoot)
-            DEBUG && println("creating new node in the middle of the external edge $(edge.number) leading to outgroup $(node.number)")
+            DEBUGC && println("creating new node in the middle of the external edge $(edge.number) leading to outgroup $(node.number)")
             othernode = getOtherNode(edge,node)
             removeEdge!(othernode,edge)
             removeNode!(othernode,edge)
