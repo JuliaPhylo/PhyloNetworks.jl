@@ -987,6 +987,7 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
     DEBUG && printEdges(newT)
     DEBUG && printPartitions(newT)
     #DEBUG && printNodes(newT)
+    DEBUG && println("++++")
     DEBUG && println(writeTopologyLevel1(newT,true))
     writelog && write(logfile, "\nBegins heuristic optimization of network------\n")
     while(absDiff > M*ftolAbs && failures < Nfail && currT.loglik > M*ftolAbs && stillmoves) #stops if close to zero because of new deviance form of the pseudolik
@@ -998,9 +999,9 @@ function optTopLevel!(currT::HybridNetwork, M::Number, Nfail::Integer, d::DataCF
         if(isempty(Nmov0)) #if empty, not set by user
             calculateNmov!(newT,Nmov)
         end
-        DEBUG && println("++++")
         DEBUG && println("will propose move with movesfail $(movesfail), Nmov $(Nmov)")
         move = whichMove(newT,hmax,movesfail,Nmov)
+        DEBUG && println("++++")
         if(move != :none)
             if(!isempty(d.repSpecies)) # need the original newT in case the proposed top fails by multiple alleles condition
                 newT0 = deepcopy(newT)
