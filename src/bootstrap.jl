@@ -160,7 +160,7 @@ sampleCFfromCI(file::AbstractString;sep=','::Char,seed=0::Integer) = sampleCFfro
 # - quartetfile if it was used in original data ("none" if all quartets used)
 # recall: optTopRuns! does *not* modify its input starting network
 function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vector{HybridNetwork}}},
-                        hmax::Integer, M::Number, Nfail::Integer, ftolRel::Float64,ftolAbs::Float64,xtolRel::Float64,xtolAbs::Float64,
+                        hmax::Integer, liktolAbs::Float64, Nfail::Integer, ftolRel::Float64,ftolAbs::Float64,xtolRel::Float64,xtolAbs::Float64,
                         verbose::Bool, closeN::Bool, Nmov0::Vector{Int},
                         runs1::Integer, outgroup::AbstractString, filename::AbstractString, seed::Integer, probST::Float64,
                         nrep::Integer, runs2::Integer, bestNet::HybridNetwork, quartetfile::AbstractString)
@@ -239,7 +239,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
             writelog && write(logfile, str)
             print(str)
             rootname = (DEBUG ? string(filename,"_",i) : "")
-            net1 = optTopRuns!(currT0, M, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs1, outgroup,
+            net1 = optTopRuns!(currT0, liktolAbs, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs1, outgroup,
                                rootname,seeds[i],probST)
             if runs2==0
                 net = net1
@@ -250,7 +250,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
             writelog && write(logfile, str)
             print(str)
             rootname = (DEBUG ? string(filename,"_",i,"_startNet2") : "")
-            net2 = optTopRuns!(bestNet, M, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs2, outgroup,
+            net2 = optTopRuns!(bestNet, liktolAbs, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs2, outgroup,
                                rootname,seedsOtherNet[i],probST)
             if runs1==0
                 net = net2
@@ -314,7 +314,7 @@ Optional arguments include the following, with default values in parentheses:
 - otherNet (empty): another starting topology so that each replicate will start prcnet% runs on otherNet and (1-prcnet)% runs on T
 - prcnet (0): percentage of runs starting on otherNet; error if different than 0.0, and otherNet not specified.
 """
-# non documented arguments: M=multiplier, Nfail=numFails, probST=0.3::Float64
+# non documented arguments: liktolAbs, Nfail=numFails, probST=0.3::Float64
 #  ftolRel,ftolAbs,xtolRel,xtolAbs, verbose, closeN, Nmov0, outgroup="none",
 #  bestNet (none): best estimated network from the original data.
 #  prcnet (0): probability to start a run from bestNet instead of T.
@@ -324,7 +324,7 @@ Optional arguments include the following, with default values in parentheses:
 #            runs=10 and prcnet=.99 or 99 would cause all 10 runs to start at otherNet, just
 #            like prcnet=0 and startnet=otherNet, but branch lengths would not be updated.
 function bootsnaq(startnet::HybridNetwork, data::Union{DataFrame,Vector{Vector{HybridNetwork}}};
-                  hmax=1::Integer, M=multiplier::Number, Nfail=numFails::Integer,
+                  hmax=1::Integer, liktolAbs=likAbs::Float64, Nfail=numFails::Integer,
                   ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64,
                   verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int},
                   runs=10::Integer, outgroup="none"::AbstractString, filename="bootsnaq"::AbstractString,
@@ -389,16 +389,16 @@ function bootsnaq(startnet::HybridNetwork, data::Union{DataFrame,Vector{Vector{H
 
     if(nprocs() > 1) #more than 1 processor, still not working
         error("bootsnaq not implemented for parallelization yet")
-        optTopRunsBootParallel(startnet,data,hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, seed, probST, nrep, prcnet, bestNet)
+        optTopRunsBootParallel(startnet,data,hmax, liktolAbs, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, seed, probST, nrep, prcnet, bestNet)
     else
-        optTopRunsBoot(startnet,data,hmax, M, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs1, outgroup, filename, seed, probST, nrep, runs2, otherNet, quartetfile)
+        optTopRunsBoot(startnet,data,hmax, liktolAbs, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs1, outgroup, filename, seed, probST, nrep, runs2, otherNet, quartetfile)
     end
 end
 
 
 # same as optTopRunsBoot but for many processors in parallel
 # warning: still not debugged
-function optTopRunsBootParallel(currT0::HybridNetwork, df::DataFrame, hmax::Integer, M::Number, Nfail::Integer,
+function optTopRunsBootParallel(currT0::HybridNetwork, df::DataFrame, hmax::Integer, liktolAbs::Float64, Nfail::Integer,
                                 ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
                                 verbose::Bool, closeN::Bool, Nmov0::Vector{Int},
                                 runs::Integer, outgroup::AbstractString, filename::AbstractString,
@@ -410,7 +410,7 @@ function optTopRunsBootParallel(currT0::HybridNetwork, df::DataFrame, hmax::Inte
     println("BOOTSTRAP OF SNAQ ESTIMATION")
     # shared arrays, variables
     dfS = convert2SharedArray(df) #fixit: need to code
-    intS = convert2SharedArray(hmax,M,Nfail,runs,Nmov0) #fixit: need to code
+    intS = convert2SharedArray(hmax,liktolAbs,Nfail,runs,Nmov0) #fixit: need to code
     floatS = convert2SharedArray(ftolRel,ftolAbs,xtolRel,xtolAbs,probST,prcnet) #fixit: need to code
     @everywhere verbose,closeN,outgroup,filename
 
@@ -444,7 +444,7 @@ end
 # function to the each local run of bootsnaq
 # in optTopRunsBootParallel
 # dfS = shared array with CF table
-# intS = shared array with integer arguments: hmax, M, Nfail, runs, Nmov0
+# intS = shared array with integer arguments: hmax, liktolAbs, Nfail, runs, Nmov0
 # floatS= shared array with float arguments: ftolRel, ftolAbs, xtolRel, xtolAbs, probST, prcnet
 # currT, bestNet are starting topology and best network
 # seed= to start the procedure, if seed=0, then clock used
