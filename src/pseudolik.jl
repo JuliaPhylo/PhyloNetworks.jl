@@ -466,12 +466,12 @@ function extractQuartet(net::HybridNetwork,quartet::Array{Node,1})
     leaves = copy(qnet.leaf)
     for(n in leaves)
         if(!isNodeNumIn(n,quartet))
-            DEBUG && println("delete leaf $(n.number)")
+            DEBUGC && println("delete leaf $(n.number)")
             deleteLeaf!(qnet,n)
             DEBUGC && printEdges(qnet)
         end
     end
-    DEBUG && println("deletion of leaves successful")
+    DEBUGC && println("deletion of leaves successful")
     return qnet
 end
 
@@ -777,7 +777,7 @@ function identifyQuartet!(qnet::QuartetNetwork, node::Node)
         DEBUG && printNodes(qnet)
         error("strange quartet network with $(k) nodes in cycle, maximum should be 4")
     end
-    DEBUG && println("qnet identified as type $(node.typeHyb)")
+    DEBUGC && println("qnet identified as type $(node.typeHyb)")
 end
 
 # function to identify the Quartet network as
