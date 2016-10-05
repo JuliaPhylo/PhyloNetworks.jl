@@ -70,7 +70,7 @@ function sisterOrCherry(edge1::Edge,edge2::Edge)
             cherry = true
         elseif(getOtherNode(edge1,node).leaf || getOtherNode(edge2,node).leaf)
             edge = nothing
-            for(e in node.edge)
+            for e in node.edge
                 if(!isEqual(e,edge1) && !isEqual(e,edge2))
                     edge = e
                 end
@@ -198,7 +198,7 @@ function updateMajorHybrid!(net::HybridNetwork, node::Node)
     length(node.edge) == 3 || error("hybrid node $(node.number) has $(length(node.edge)) edges, should have 3")
     hybedge = nothing
     edgecycle = nothing
-    for(e in node.edge)
+    for e in node.edge
         if(e.hybrid)
             hybedge = e
         elseif(e.inCycle != -1 && !e.hybrid)

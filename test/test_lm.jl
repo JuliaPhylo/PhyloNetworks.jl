@@ -12,7 +12,7 @@ net=readTopologyLevel1(tree)
 printEdges(net)
 
 # Re-root the tree so that it matches my example
-root!(net, "A")
+rootatnode!(net, "A")
 printEdges(net)
 directEdges!(net) ## I am forced to do thi step here, because root sends a net with net.isRooted = false. Expected behavior ?
 preorder!(net)

@@ -39,7 +39,7 @@ end
 info("testing sorttaxa!")
 
 letters = ["a","b","c","d"]; cfvalues = [0.6, 0.39, 0.01] # for ab_cd, ac_bd, ad_bc
-d = DataFrame(t1=Array{ASCIIString}(24),t2=Array{ASCIIString}(24),t3=Array{ASCIIString}(24),t4=Array{ASCIIString}(24),
+d = DataFrame(t1=Array{String}(24),t2=Array{String}(24),t3=Array{String}(24),t4=Array{String}(24),
               CF12_34=Array{Float64}(24), CF13_24=Array{Float64}(24), CF14_23=Array{Float64}(24));
 irow=1        # d will contain 6!=24 rows: for all permutations on 4 letters
 for i1 in 1:4

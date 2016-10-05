@@ -69,7 +69,7 @@ function sampleBootstrapTrees!(bootTrees::Vector{HybridNetwork}, trees::Vector{V
         indxg = sample(1:numgen, numgen) # default is with replacement. good!
       end
     end
-    for(g in 1:numgen)
+    for g in 1:numgen
         ig = (generesampling ? indxg[g] : g )
         if row==0
           indxt = sample(1:length(trees[ig]),1)[1]
@@ -135,7 +135,7 @@ function sampleCFfromCI!(df::DataFrame, seed=0::Integer)
         println("using seed $(seed) for bootstrap table")
     end
     srand(seed)
-    for(i in 1:size(df,1))
+    for i in 1:size(df,1)
         c1 = (df[i, 9]-df[i, 8])*rand()+df[i, 8]
         c2 = (df[i,11]-df[i,10])*rand()+df[i,10]
         c3 = (df[i,13]-df[i,12])*rand()+df[i,12]
@@ -223,7 +223,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
 
     writelog && write(logfile,"\nBEGIN: $(nrep) replicates\n$(Libc.strftime(time()))\n")
     writelog && flush(logfile)
-    for(i in 1:nrep)
+    for i in 1:nrep
         str = "\nbegin replicate $(i)\nbootstrap data simulation: seed $(seedsData[i])\n"
         writelog && write(logfile, str)
         print(str)
@@ -274,7 +274,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
 
     if writelog
       s = open(string(filename,".out"),"w")
-      for (n in bootNet)
+      for n in bootNet
         if(outgroup == "none")
             write(s,"$(writeTopologyLevel1(n))\n")
         else
@@ -461,8 +461,8 @@ end
 function convert2SharedArray(df::DataFrame)
     error("convert2SharedArray not working, should not be called")
     S = SharedArray(Float64,size(df))
-    for(i in size(df,1))
-        for(j in size(df,2))
+    for i in size(df,1)
+        for j in size(df,2)
             S[i,j] = df[i,j]
         end
     end
@@ -495,7 +495,7 @@ function treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)
 
     M = Matrix[]
     tree = HybridNetwork[]
-    for(n in net)
+    for n in net
         t = majorTree(n)
         push!(tree,t)
         mm = tree2Matrix(t,S, rooted=false)
@@ -504,10 +504,10 @@ function treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)
 
     df = DataFrame(edgeNumber=Int[], proportion=Float64[])
 
-    for(i in 1:size(M0,1)) #rows in M0: internal edges
+    for i in 1:size(M0,1) #rows in M0: internal edges
         cnt = 0 #count
-        for(j in 1:length(M)) #for every M
-            for(k in 1:size(M[j],1)) #check every row in M
+        for j in 1:length(M) #for every M
+            for k in 1:size(M[j],1) #check every row in M
                 if(M0[i,2:end] == M[j][k,2:end] || M0[i,2:end] == map(x->(x+1)%2,M[j][k,2:end])) #same row
                     #println("found same row: $(M0[i,2:end]) and $(M[j][k,2:end])")
                     cnt += 1
@@ -570,7 +570,7 @@ function hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgro
     majorTrees = HybridNetwork[]
 
     i = 1
-    for(n in net)
+    for n in net
         tree = majorTree(n)
         push!(majorTrees,tree)
         RFmajor = hardwiredClusterDistance(tree, tree1, false)
@@ -585,8 +585,8 @@ function hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgro
         # re-root estimated network if not rooted correctly
         reroot = true
         if (length(n.node[n.root].edge) == 2) # check if root connects to correct outgroup
-            for (e in n.node[n.root].edge)
-                for (node in e.node)
+            for e in n.node[n.root].edge
+                for node in e.node
                     if (node.name == outgroup)
                         reroot = false
                         break
@@ -596,10 +596,10 @@ function hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgro
             end
         end
         !reroot || println("Will need to reroot the estimated network...")
-        for (trueh = 1:net1.numHybrids)
+        for trueh = 1:net1.numHybrids
             netT = deepcopy(rootnet1)
             displayedNetworkAt!(netT, netT.hybrid[trueh]) # bug: need correct attributes to re-root later...
-            for (esth = 1:n.numHybrids)
+            for esth = 1:n.numHybrids
                 netE = deepcopy(n)
                 displayedNetworkAt!(netE, netE.hybrid[esth])
                 if (reroot)
@@ -624,7 +624,7 @@ function hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgro
     treeMatch=size(HFmat[sum(HFmat,2).>0,:],1) #number of bootstrap trees that match tree1
     println("$(treeMatch) out of $(length(net)) bootstrap major trees match with the major tree in the estimated network")
     println("order of hybrids:")
-    for(h in net1.hybrid)
+    for h in net1.hybrid
         println("$(h.name)")
     end
     return HFmat,discTrees
@@ -754,7 +754,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
         end
     end
     hybparent = zeros(Int,length(clade)) # 0 if has no hybrid parent node. Index in hybnode otherwise.
-    for (trueh = 1:numHybs)
+    for trueh = 1:numHybs
         net0 = deepcopy(refnet)
         displayedNetworkAt!(net0, net0.hybrid[trueh]) # removes all minor hybrid edges but one
         hn = net0.hybrid[1]
@@ -768,12 +768,12 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
         push!(hybnode, hn.number)
         push!(majsisedge, hemaj.number)
         push!(minsisedge, hemin.number)
-        for (sis in ["min","maj"])
+        for sis in ["min","maj"]
           he = (sis=="min"? hemin : hemaj)
           pn = he.node[he.isChild1?2:1] # parent node of sister (origin of gene flow if minor)
           atroot = (!rooted && pn ≡ net0.node[net0.root]) # polytomy at root pn of degree 3: will exclude one child edge
           hwc = zeros(Bool,ntax) # new binding each time. pushed to clade below.
-          for (ce in pn.edge)    # important if polytomy
+          for ce in pn.edge    # important if polytomy
             if (ce ≢ he && pn ≡ ce.node[ce.isChild1?2:1])
                 hw = hardwiredCluster(ce,taxa)
                 if (atroot && any(hw & clade[ic])) # sister clade intersects child clade
@@ -792,7 +792,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
           end
           if sis=="min"  # need to get clade not in main tree: hybrid + minor sister
             pe = nothing # looking for the (or one) parent edge of pn
-            for (ce in pn.edge)
+            for ce in pn.edge
               if pn ≡ ce.node[ce.isChild1?1:2]
                   pe=ce
                   break
@@ -815,7 +815,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
           end
         end
     end
-    # for (cl in clade) @show taxa[cl]; end; @show treenode; @show treeedge; @show hybparent; @show leafname
+    # for cl in clade @show taxa[cl]; end; @show treenode; @show treeedge; @show hybparent; @show leafname
     # @show hybind; @show hybnode; @show majsisedge; @show minsisedge; @show majsisind; @show minsisind
 
     # node-associated summaries:
@@ -845,7 +845,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
     nextnum = max(maximum([n.number for n in refnet.edge]),
                   maximum([n.number for n in refnet.node]) ) + 1
 
-    for (i = 1:numNets)
+    for i = 1:numNets
         net = nets[i]
         length(tipLabels(net))==ntax || error("networks have non-matching taxon sets")
         try directEdges!(net) # make sure the root is admissible
@@ -855,7 +855,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
           end
           rethrow(err)
         end
-        for (esth = 1:net.numHybrids)   # try to match estimated hybrid edge
+        for esth = 1:net.numHybrids   # try to match estimated hybrid edge
             hwcPar = zeros(Bool,ntax)   # minor sister clade
             hwcChi = zeros(Bool,ntax)   #       child  clade
             hwcSib = zeros(Bool,ntax)   # major sister clade
@@ -869,14 +869,14 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
             (hemin.hybrid && !hemin.isMajor) || error("edge should be hybrid and minor")
             (hemaj.hybrid &&  hemaj.isMajor) || error("edge should be hybrid and major")
             hardwiredCluster!(hwcChi,hemin,taxa)
-            for (sis in ["min","maj"])
+            for sis in ["min","maj"]
                 he = (sis=="min"? hemin : hemaj)
                 pn = he.node[he.isChild1?2:1] # parent of hybrid edge
                 atroot = (!rooted && pn ≡ net1.node[net1.root])
                 # if at root: exclude the child edge in the same cycle as he.
                 # its cluster includes hwcChi. all other child edges do not interest hwcChi.
                 # if (atroot) @show i; warn("$(sis)or edge is at the root!"); end
-                for (ce in pn.edge)
+                for ce in pn.edge
                   if (ce ≢ he && pn ≡ ce.node[ce.isChild1?2:1])
                     hwc = hardwiredCluster(ce,taxa)
                     if (!atroot || sum(hwc & hwcChi) == 0) # empty intersection
@@ -939,7 +939,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
               BSminsis[iSmin] += 1.0
             end
             samehyb = (newhyb? Int[]: findin(hybcladei, [ihyb]))
-            for (sis in ["maj","min"])
+            for sis in ["maj","min"]
                 newpair = newhyb || (sis=="min"? newmin : newmaj)
                 if !newpair # hyb and sis clades were already found, but not sure if together
                     iish = findfirst(siscladei[samehyb], (sis=="min"? iSmin : iSmaj))
@@ -990,7 +990,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
     nkeepc = sum(keepc)
     # clade descriptions
     resCluster = DataFrame(taxa=taxa)
-    cladestr = Array(ASCIIString,length(clade))
+    cladestr = Array(String,length(clade))
     rowh = 1
     for h=1:length(clade)
         nn = treenode[h] # node number in ref net
@@ -1006,7 +1006,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
         end
         if keepc[h]
             rowh += 1
-            insert!(resCluster, rowh, clade[h], symbol(cladestr[h]))
+            insert!(resCluster, rowh, clade[h], Symbol(cladestr[h]))
         end
     end
     # node summaries
@@ -1099,7 +1099,7 @@ function summarizeHFdf(HFmat::Matrix)
     total = size(HFmat,1)
     numH = round(Int,size(HFmat,2)/2)
     df = DataFrame(hybrid=Int[],goodTrees=Float64[],netWithHybrid=Float64[],meanGamma=Float64[], sdGamma=Float64[])
-    for(i in 1:numH)
+    for i in 1:numH
         mat = HFmat2[HFmat2[:,i] .> 0, :]
         n = size(mat,1)
         g = mean(mat[:,round(Int,numH+i)])
@@ -1107,7 +1107,7 @@ function summarizeHFdf(HFmat::Matrix)
         push!(df,[i gt n g s])
     end
     which = Bool[]
-    for(i in 1:size(HFmat2,1))
+    for i in 1:size(HFmat2,1)
         push!(which,sum(HFmat2[i,1:numH]) == numH)
     end
     push!(df, [-1 gt sum(which) -1.0 -1.0])

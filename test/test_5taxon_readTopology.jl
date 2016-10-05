@@ -21,7 +21,7 @@ include("test_functions_5taxon_read.jl")
 tests = ["F","G","H","J","I"];
 wrong = AbstractString[];
 
-function whichtree(t::ASCIIString)
+function whichtree(t::String)
     if(t == "tree")
         tree = "(((6:0.1,4:1.5)1:0.2,7:0.2)5:0.1,8:0.1,10:0.1);" # normal tree
     elseif(t == "C")

@@ -11,6 +11,7 @@ using NLopt # for branch lengths optimization
 using Gadfly # for plots
 using ColorTypes # used by Gadfly already. To resolve data type names (Colorant)
 using StatsBase: sample
+using Combinatorics.combinations
 
 import Base.show
 import Gadfly.plot

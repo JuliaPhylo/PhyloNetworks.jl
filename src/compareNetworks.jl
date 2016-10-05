@@ -4,12 +4,12 @@
 # Traverses a tree postorder and modifies matrix M
 # with edges as rows and species as columns (see tree2Matrix)
 # S should be sorted --fixit: are you sure?
-function traverseTree2Matrix!(node::Node, edge::Edge, ie::Vector{Int}, M::Matrix{Int}, S::Union{Vector{ASCIIString},Vector{Int}})
+function traverseTree2Matrix!(node::Node, edge::Edge, ie::Vector{Int}, M::Matrix{Int}, S::Union{Vector{String},Vector{Int}})
     child = getOtherNode(edge,node) # must not be a leaf
     indedge = ie[1]
     M[indedge,1] = edge.number
     ie[1] += 1 # mutable array: to modify edge index 'ie' outside function scope
-    for(e in child.edge) #postorder traversal
+    for e in child.edge #postorder traversal
         if(!isEqual(e,edge)) # assumes a tree here
             grandchild = getOtherNode(e,child)
             if (grandchild.leaf)
@@ -35,7 +35,7 @@ end
 # Mij=1 if species j is descendant of edge i, 0 ow.
 # allows for missing taxa:
 # Mij=0 if species not present in tree. This is handled in calculateObsCFAll with sameTaxa function
-function tree2Matrix(T::HybridNetwork, S::Union{Vector{ASCIIString},Vector{Int}}; rooted=true::Bool)
+function tree2Matrix(T::HybridNetwork, S::Union{Vector{String},Vector{Int}}; rooted=true::Bool)
     length(T.hybrid)==0 || error("tree2Matrix only works on trees. Network has $(T.numHybrids) hybrid nodes.")
     # sort!(S) # why sort 'taxa', again and again for each tree? Benefits?
     ne = length(T.edge)-T.numTaxa # number of internal branch lengths
@@ -45,7 +45,7 @@ function tree2Matrix(T::HybridNetwork, S::Union{Vector{ASCIIString},Vector{Int}}
     M = zeros(Int,ne,length(S)+1)
     # M[:,1] = sort!([e.number for e in T.edge])
     ie = [1] # index of next edge to be documented: row index in M
-    for(e in T.node[T.root].edge)
+    for e in T.node[T.root].edge
         child = getOtherNode(e,T.node[T.root])
         if (!child.leaf)
             traverseTree2Matrix!(T.node[T.root],e,ie,M,S)
@@ -60,7 +60,7 @@ function tree2Matrix(T::HybridNetwork, S::Union{Vector{ASCIIString},Vector{Int}}
 end
 
 """
-`hardwiredClusters(net::HybridNetwork, S::Union{Vector{ASCIIString},Vector{Int}})`
+`hardwiredClusters(net::HybridNetwork, S::Union{Vector{String},Vector{Int}})`
 
 
 Returns a matrix describing all the hardwired clusters in a network.
@@ -75,7 +75,7 @@ Both parent hybrid edges to a given hybrid node only contribute a single row (th
 - next columns: 0/1 values. 1=descendant of edge, 0=not a descendant, or missing taxon.
 - last column:  10/11 values. 10=tree edge, 11=hybrid edge
 """
-function hardwiredClusters(net::HybridNetwork, S::Union{Vector{ASCIIString},Vector{Int}})
+function hardwiredClusters(net::HybridNetwork, S::Union{Vector{String},Vector{Int}})
     ne = length(net.edge)-net.numTaxa # number of internal branch lengths
     ne -= length(net.hybrid)          # to remove duplicate rows for the 2 parent edges of each hybrid
     if (net.node[net.root].leaf)      # root is leaf: the 1 edge stemming from the root is an external edge
@@ -83,14 +83,14 @@ function hardwiredClusters(net::HybridNetwork, S::Union{Vector{ASCIIString},Vect
     end
     M = zeros(Int,ne,length(S)+2)
     ie = [1] # index of next edge to be documented: row index in M
-    for(e in net.node[net.root].edge)
+    for e in net.node[net.root].edge
         hardwiredClusters!(net.node[net.root],e,ie,M,S)
     end
     return M
 end
 
 function hardwiredClusters!(node::Node, edge::Edge, ie::Vector{Int}, M::Matrix{Int},
-                            S::Union{Vector{ASCIIString},Vector{Int}})
+                            S::Union{Vector{String},Vector{Int}})
     child = getOtherNode(edge,node)
 
     !child.leaf || return 0 # do nothing if child is a leaf.
@@ -101,7 +101,7 @@ function hardwiredClusters!(node::Node, edge::Edge, ie::Vector{Int}, M::Matrix{I
         partner = nothing
         partnerVisited = true
         indpartner = 0
-        for (e in child.edge)
+        for e in child.edge
             if (e.hybrid && e != edge && (e.isChild1 ? e.node[1] == child : e.node[2] == child))
                 partner = e
                 try
@@ -121,7 +121,7 @@ function hardwiredClusters!(node::Node, edge::Edge, ie::Vector{Int}, M::Matrix{I
     M[indedge,end] = edge.hybrid ? 11 : 10
     ie[1] += 1 # mutable array
 
-    for (e in child.edge) # postorder traversal
+    for e in child.edge # postorder traversal
         if (e != edge && (!edge.hybrid || e!=partner)) # do not go back to (either) parent edge.
             grandchild = getOtherNode(e,child)
             if (grandchild.leaf)
@@ -143,9 +143,9 @@ end
 
 
 """
-    hardwiredCluster(edge::Edge,taxa::Union{Vector{ASCIIString},Vector{Int}})
-    hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{ASCIIString},Vector{Int}})
-    hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{ASCIIString},Vector{Int}},
+    hardwiredCluster(edge::Edge,taxa::Union{Vector{String},Vector{Int}})
+    hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{String},Vector{Int}})
+    hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{String},Vector{Int}},
                       visited::Vector{Int})
 
 Calculate the hardwired cluster of `node`, coded a vector of booleans:
@@ -162,7 +162,7 @@ visited: vector of node numbers, of all visited nodes.
 julia> net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readTopology |> directEdges! ;
 
 julia> taxa = net5 |> tipLabels # ABC EF D
-6-element Array{ASCIIString,1}:
+6-element Array{String,1}:
  "A"
  "B"
  "C"
@@ -180,16 +180,16 @@ julia> hardwiredCluster(net5.edge[12], taxa) # descendants of 12th edge = CEF
  false
 ```
 """ #"
-function hardwiredCluster(edge::Edge,taxa::Union{Vector{ASCIIString},Vector{Int}})
+function hardwiredCluster(edge::Edge,taxa::Union{Vector{String},Vector{Int}})
     v = zeros(Bool,length(taxa))
     hardwiredCluster!(v,edge,taxa)
     return v
 end
 
-hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{ASCIIString},Vector{Int}}) =
+hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{String},Vector{Int}}) =
     hardwiredCluster!(v,edge,taxa,Int[])
 
-function hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{ASCIIString},Vector{Int}},
+function hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{String},Vector{Int}},
                            visited::Vector{Int})
     n = edge.node[edge.isChild1?1:2]
     if n.leaf
@@ -202,7 +202,7 @@ function hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{ASCIISt
         return nothing  # n was already visited: exit. avoid infinite loop is isChild1 was bad.
     end
     push!(visited, n.number)
-    for (ce in n.edge)
+    for ce in n.edge
         if n == ce.node[ce.isChild1?2:1]
             hardwiredCluster!(v,ce,taxa,visited)
         end
@@ -225,7 +225,7 @@ Warning: assumes correct isMajor attributes.
 """
 function deleteHybridThreshold!(net::HybridNetwork,gamma::Float64)
     gamma <= 0.5 || error("deleteHybridThreshold! called with gamma = $(gamma)>0.5")
-    for(i = net.numHybrids:-1:1)
+    for i = net.numHybrids:-1:1
     # starting from last because net.hybrid changes as hybrids are removed. Empty range if 0 hybrids.
         hybedges = hybridEdges(net.hybrid[i]) # vector of 3 edges: major, minor, tree edge
         # remove minor hybrid edge if: gamma < threshold OR threshold=0.5=gamma
@@ -295,11 +295,11 @@ majorTree(net::HybridNetwork) = displayedTrees(net,0.5)[1]
 # expands current list of trees, with trees displayed in a given network
 function displayedTrees!(trees::Array{HybridNetwork,1},net::HybridNetwork)
     if (isTree(net))
-        for(e in net.edge)
+        for e in net.edge
             e.containRoot = true # ideally, this should be transferred to deleteHybridEdge!.
             e.inCycle = -1
         end
-        for(n in net.node)
+        for n in net.node
             n.inCycle = -1
         end
         push!(trees, net)
@@ -337,7 +337,7 @@ Deletes all the minor hybrid edges, except at input node. The network is left wi
 """
 function displayedNetworkAt!(net::HybridNetwork, node::Node)
     node.hybrid || error("will not extract network from tree node $(node.number)")
-    for(i = net.numHybrids:-1:1)
+    for i = net.numHybrids:-1:1
     # starting from last because net.hybrid changes as hybrids are removed. Empty range if 0 hybrids.
         net.hybrid[i] != node || continue
         # deleteHybridizationUpdate!(net,net.hybrid[i],false,false)
@@ -362,8 +362,8 @@ If rooted=false, the trees are considered unrooted.
 function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, rooted::Bool)
     bothtrees = (net1.numHybrids == 0 && net2.numHybrids == 0)
     rooted || bothtrees || error("unrooted hardwired cluster distance not defined for non-tree networks.")
-    taxa = sort!(ASCIIString[net1.leaf[i].name for i in 1:net1.numTaxa])
-    length(setdiff(taxa, ASCIIString[net2.leaf[i].name for i in 1:net2.numTaxa])) == 0 ||
+    taxa = sort!(String[net1.leaf[i].name for i in 1:net1.numTaxa])
+    length(setdiff(taxa, String[net2.leaf[i].name for i in 1:net2.numTaxa])) == 0 ||
         error("net1 and net2 do not share the same taxon set. Please prune networks first.")
     nTax = length(taxa)
     if (bothtrees) # even if rooted, different treatment at the root if root=leaf
@@ -376,10 +376,10 @@ function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, root
     end
     dis = 0
 
-    for (i1=1:size(M1)[1])
+    for i1=1:size(M1)[1]
         found = false
         m1 = 1-M1[i1,2:end] # going to the end: i.e. we want to match a tree edge with a tree edge
-        for (i2=1:size(M2)[1])                                  # and hybrid edge with hybrid edge
+        for i2=1:size(M2)[1]                                  # and hybrid edge with hybrid edge
             if (M1[i1,2:end] == M2[i2,2:end] ||
                   ( !rooted && m1 == M2[i2,2:end])     )
                 found = true

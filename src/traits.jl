@@ -47,7 +47,7 @@ function recursionPreOrder(
 	)
     n = length(nodes)
     M = init(nodes, params)
-    for(i in 1:n) #sorted list of nodes
+    for i in 1:n #sorted list of nodes
         updatePreOrder!(i, nodes, M, updateRoot, updateTree, updateHybrid, params)
     end
     return matrixTopologicalOrder(M, [n.number for n in nodes], [n.number for n in leaves], [n.name for n in leaves], indexation)
@@ -130,7 +130,7 @@ function updateTreeSharedPathMatrix!(
 	edge::Edge,
 	params
 	)
-	for(j in 1:(i-1))
+	for j in 1:(i-1)
             V[i,j] = V[j,parentIndex]
             V[j,i] = V[j,parentIndex]
         end
@@ -146,7 +146,7 @@ function updateHybridSharedPathMatrix!(
 	edge2::Edge,
 	params
 	)
-        for(j in 1:(i-1))
+        for j in 1:(i-1)
             V[i,j] = V[j,parentIndex1]*edge1.gamma + V[j,parentIndex2]*edge2.gamma
             V[j,i] = V[i,j]
         end
@@ -160,7 +160,7 @@ end
 #        return
 #    elseif(length(parent) == 1) #nodes[i] is tree
 #        parentIndex = getIndex(parent[1],nodes)
-#        for(j in 1:(i-1))
+#        for j in 1:(i-1)
 #            V[i,j] = V[j,parentIndex]
 #            V[j,i] = V[j,parentIndex]
 #        end
@@ -172,7 +172,7 @@ end
 #        edge2 = getConnectingEdge(nodes[i],parent[2])
 #        edge1.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[1].number) should be a hybrid egde")
 #        edge2.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[2].number) should be a hybrid egde")
-#        for(j in 1:(i-1))
+#        for j in 1:(i-1)
 #            V[i,j] = V[j,parentIndex1]*edge1.gamma + V[j,parentIndex2]*edge2.gamma
 #            V[j,i] = V[i,j]
 #        end
@@ -202,7 +202,7 @@ end
 #function sharedPathMatrix(nodes::Vector{Node})
 #    n = length(net.nodes_changed)
 #    V = zeros(Float64,n,n)
-#    for(i in 1:n) #sorted list of nodes
+#    for i in 1:n #sorted list of nodes
 #        updateSharedPathMatrix!(i,net.nodes_changed,V)
 #    end
 #    return V
@@ -225,7 +225,7 @@ type phyloNetworkLinPredModel
     ind::Vector{Int} # vector matching the tips of the network against the names of the data frame provided. 0 if the match could not be preformed.
 end
 
-type phyloNetworkLinearModel 
+type phyloNetworkLinearModel
     lm::GLM.LinearModel
     V::matrixTopologicalOrder
     Vy::Matrix
@@ -340,10 +340,10 @@ function sigma2(m::phyloNetworkLinPredModel)
 end
 
 function StatsBase.vcov(obj::phyloNetworkLinearModel)
-   sigma2(obj) * inv(obj.X' * obj.X) 
+   sigma2(obj) * inv(obj.X' * obj.X)
 end
 function StatsBase.vcov(obj::phyloNetworkLinPredModel)
-   sigma2(obj) * inv(obj.X' * obj.X) 
+   sigma2(obj) * inv(obj.X' * obj.X)
 end
 
 StatsBase.stderr(m::phyloNetworkLinearModel) = sqrt(diag(vcov(m)))
@@ -395,7 +395,7 @@ StatsBase.loglikelihood(m::phyloNetworkLinearModel) = - 1 / 2 * (nobs(m) + nobs(
 StatsBase.loglikelihood(m::phyloNetworkLinPredModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2(m)) + m.logdetVy)
 
 #################################################
-## Old version of phyloNetworklm (naive) 
+## Old version of phyloNetworklm (naive)
 #################################################
 
 function phyloNetworklmNaive(Y::Vector, X::Matrix, net::HybridNetwork, model="BM"::AbstractString)

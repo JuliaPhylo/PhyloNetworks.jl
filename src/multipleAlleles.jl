@@ -58,14 +58,14 @@ function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int})
     global DEBUG
     withngenes = (length(cols)==8)
     delrows = Int[] # indices of rows to delete
-    repSpecies = ASCIIString[]
+    repSpecies = String[]
     if(isa(newdf[1,cols[1]],Integer)) #taxon names as integers: we need this to be able to add __2
         newdf[cols[1]] = map(x->string(x),newdf[cols[1]])
         newdf[cols[2]] = map(x->string(x),newdf[cols[2]])
         newdf[cols[3]] = map(x->string(x),newdf[cols[3]])
         newdf[cols[4]] = map(x->string(x),newdf[cols[4]])
     end
-    for(i in 1:size(newdf,1)) #check all rows
+    for i in 1:size(newdf,1) #check all rows
         DEBUG && println("row number: $i")
         row = convert(Array,DataArray(newdf[i,cols[1:4]]))
         DEBUG && println("row $(row)")
@@ -77,14 +77,14 @@ function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int})
             keep = true
         elseif(length(uniq) == 3) #sp1 sp1 sp2 sp3
             keep = true
-            for(u in uniq)
+            for u in uniq
                 DEBUG && println("u $(u), typeof $(typeof(u))")
                 ind = row .== u #taxon names matching u
                 DEBUG && println("taxon names matching u $(ind)")
                 if(sum(ind) == 2)
                     push!(repSpecies,string(u))
                     found = false
-                    for(k in 1:4)
+                    for k in 1:4
                         if(ind[k])
                             if(found)
                                 DEBUG && println("found the second one in k $(k), will change newdf[i,cols[k]] $(newdf[i,cols[k]]), typeof $(typeof(newdf[i,cols[k]]))")
@@ -100,7 +100,7 @@ function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int})
             end
         elseif(length(uniq) == 2)
             # keep was initialized to false
-            for(u in uniq)
+            for u in uniq
                 DEBUG && println("length uniq is 2, u $(u)")
                 ind = row .== u
                 if(sum(ind) == 1 || sum(ind) == 3)
@@ -111,7 +111,7 @@ function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int})
                     keep = true
                     found = false
                     push!(repSpecies,string(u))
-                    for(k in 1:4)
+                    for k in 1:4
                         if(ind[k])
                             if(found)
                                 newdf[i,cols[k]] = string(u, repeatAlleleSuffix)
@@ -200,9 +200,9 @@ end
 
 # function to expand leaves in tree to two individuals
 # based on cf table with alleles mapped to species names
-function expandLeaves!(repSpecies::Union{Vector{ASCIIString},Vector{Int}},tree::HybridNetwork)
-    for(sp in repSpecies)
-        for(n in tree.node)
+function expandLeaves!(repSpecies::Union{Vector{String},Vector{Int}},tree::HybridNetwork)
+    for sp in repSpecies
+        for n in tree.node
             if(n.name == sp) #found leaf with sp name
                 n.leaf || error("name $(sp) should correspond to a leaf, but it corresponds to an internal node")
                 length(n.edge) == 1 || error("leaf $(sp) should have only one edge attached and it has $(length(n.edge))")
@@ -290,7 +290,7 @@ end
 ## multiple alleles: no gene flow to either allele, and both alleles as sister
 ## returns false if the network is not ok
 function checkTop4multAllele(net::HybridNetwork)
-    for(n in net.leaf)
+    for n in net.leaf
         if(endswith(n.name, repeatAlleleSuffix))
             n.leaf || error("weird node $(n.number) not leaf in net.leaf list")
             length(n.edge) == 1 || error("weird leaf with $(length(n.edge)) edges")
@@ -300,7 +300,7 @@ function checkTop4multAllele(net::HybridNetwork)
             end
             nameOther = replace(n.name,repeatAlleleSuffix,"")
             foundOther = false
-            for(i in 1:3)
+            for i in 1:3
                 other = getOtherNode(par.edge[i],par)
                 if(other.leaf && other.name == nameOther)
                     foundOther = true
@@ -317,7 +317,7 @@ end
 ## function to merge the two alleles into one
 function mergeLeaves!(net::HybridNetwork)
     leaves = copy(net.leaf) # bc we change this list
-    for(n in leaves)
+    for n in leaves
         if(endswith(n.name, repeatAlleleSuffix))
             n.leaf || error("weird node $(n.number) not leaf in net.leaf list")
             length(n.edge) == 1 || error("weird leaf with $(length(n.edge)) edges")
@@ -325,7 +325,7 @@ function mergeLeaves!(net::HybridNetwork)
             foundOther = false
             other = Node()
             nameOther = replace(n.name,repeatAlleleSuffix,"")
-            for(i in 1:3)
+            for i in 1:3
                 other = getOtherNode(par.edge[i],par)
                 if(other.leaf && other.name == nameOther)
                     foundOther = true

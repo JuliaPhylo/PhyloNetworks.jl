@@ -41,7 +41,7 @@ function identifyInCycle(net::Network,node::Node)
                 if(!net.visited[getIndex(curr,net)])
                     net.visited[getIndex(curr,net)] = true;
                     if(isEqual(curr,start))
-                        for(e in curr.edge)
+                        for e in curr.edge
                             if(!e.hybrid || e.isMajor)
                                 other = getOtherNode(e,curr);
                                 other.prev = curr;
@@ -50,7 +50,7 @@ function identifyInCycle(net::Network,node::Node)
                             end
                         end
                     else
-                        for(e in curr.edge)
+                        for e in curr.edge
                             if(!e.hybrid || e.isMajor)
                                 other = getOtherNode(e,curr);
                                 if(!other.leaf && !net.visited[getIndex(other,net)])
@@ -89,7 +89,7 @@ end
 #          nor tree node with minor hybrid edge
 function traverseIdentifyRoot(node::Node, edge::Edge, edges_changed::Array{Edge,1})
     if(!node.leaf && !node.hybrid)
-        for(e in node.edge)
+        for e in node.edge
             if(!isEqual(edge,e) && e.isMajor && !e.hybrid)
                 other = getOtherNode(e,node);
                 push!(edges_changed, e);
@@ -115,7 +115,7 @@ end
 function identifyContainRoot(net::HybridNetwork, node::Node)
     node.hybrid || error("node $(node.number) is not hybrid, cannot identify containRoot")
     net.edges_changed = Edge[];
-    for (e in node.edge)
+    for e in node.edge
         if(!e.hybrid)
             other = getOtherNode(e,node);
             push!(net.edges_changed,e);
@@ -317,7 +317,7 @@ function deleteHybridEdge!(net::HybridNetwork,edge::Edge)
     elseif length(n1.edge) == 3
         pe = nothing # will be other parent (hybrid) edge of n1
         ce = nothing # will be child edge of n1, to be merged with pe
-        for (e in n1.edge)
+        for e in n1.edge
             if (e.hybrid && e!=edge) pe = e; end
             if !(e.hybrid)           ce = e; end
         end
@@ -365,7 +365,7 @@ function deleteHybridEdge!(net::HybridNetwork,edge::Edge)
         deleteNode!(net,n2)
     elseif length(n2.edge) == 3
         oei = Int[] # n2's edges' indices, other than 'edge'.
-        for (i=1:length(n2.edge))
+        for i=1:length(n2.edge)
             if (n2.edge[i] != edge) push!(oei, i); end
         end
         length(oei)==2 || error("node $(n2.number) has 3 edges, but $(length(oei)) different from edge $(edge.number)")
@@ -438,7 +438,7 @@ function undoPartition!(net::HybridNetwork, hybrid::Node, edgesInCycle::Vector{E
                 i += 1
             end
         end
-        for(e in edgesInCycle)
+        for e in edgesInCycle
             DEBUG && println("edge in cycle is $(e.number)")
             if(isEdgeNumIn(e,net.edge)) #only include edge if still in net
                 DEBUG && println("edge is in net still")

@@ -54,7 +54,7 @@ printEdges(net2)
 ## net2 = readTopology(tree)
 ## printEdges(net2)
 
-## for(e in net2.edge)
+## for e in net2.edge
 ##     if(e.node[1].leaf || e.node[2].leaf)
 ##         !e.istIdentifiable || error("ext edge should not identifiable")
 ##     else
@@ -69,7 +69,7 @@ printEdges(net2)
 ## net2 = readTopology(tree)
 ## printEdges(net2)
 
-## for(e in net2.edge)
+## for e in net2.edge
 ##     if(e.node[1].leaf || e.node[2].leaf)
 ##         !e.istIdentifiable || error("ext edge should not identifiable")
 ##     else

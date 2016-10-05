@@ -204,13 +204,13 @@ function getIndex(bool::Bool, array::Array{Bool,1})
     i>size(array,1)?error("$(bool) not in array"):return i;
 end
 
-function getIndex(bool::Bool, array::Array{Bool,1})
-    i = 1;
-    while(i<= size(array,1) && !isequal(bool,array[i]))
-        i = i+1;
-    end
-    i>size(array,1)?error("$(bool) not in array"):return i;
-end
+## function getIndex(bool::Bool, array::Array{Bool,1})
+##     i = 1;
+##     while(i<= size(array,1) && !isequal(bool,array[i]))
+##         i = i+1;
+##     end
+##     i>size(array,1)?error("$(bool) not in array"):return i;
+## end
 
 function getIndex(bool::Bool, array::Array{Any,1})
     i = 1;
@@ -223,7 +223,7 @@ end
 
 # aux function to find the index of a string in a
 # string array
-function getIndex(name::AbstractString, array::Array{ASCIIString,1})
+function getIndex(name::AbstractString, array::Array{String,1})
     i = 1;
     while(i<= size(array,1) && !isequal(name,array[i]))
         i = i+1;
@@ -319,7 +319,7 @@ end
 function getHybridEdge(node::Node)
     node.hybrid || error("node $(node.number) is not hybrid node, cannot get hybrid edges")
     a = nothing;
-    for(e in node.edge)
+    for e in node.edge
         (e.hybrid && !e.isMajor) ? a = e : nothing;
     end
     isa(a,Void) ? error("hybrid node $(node.number) does not have minor hybrid edge, edges: $([e.number for e in node.edge])") : return a
@@ -667,7 +667,7 @@ function hybridEdges(node::Node)
         hybmajor = nothing;
         hybminor = nothing;
         tree = nothing;
-        for(e in node.edge)
+        for e in node.edge
             (e.hybrid && e.isMajor) ? hybmajor = e : nothing
             (e.hybrid && !e.isMajor) ? hybminor = e : nothing
             !e.hybrid ? tree = e : nothing
@@ -677,7 +677,7 @@ function hybridEdges(node::Node)
         hybrid = nothing;
         treecycle = nothing;
         tree = nothing;
-        for(e in node.edge)
+        for e in node.edge
             (e.hybrid) ? hybrid = e : nothing
             (!e.hybrid && e.inCycle != -1) ? treecycle = e : nothing
             (!e.hybrid && e.inCycle == -1) ? tree = e : nothing
@@ -690,7 +690,7 @@ function hybridEdges(node::Node)
         edge3 = nothing
         leaffound = false
         ind = 1
-        for(i in 1:3)
+        for i in 1:3
             if(getOtherNode(node.edge[i],node).leaf)
                 leaffound = true
                 edge3 = node.edge[i]
@@ -719,7 +719,7 @@ function hybridEdges(node::Node, edge::Edge)
     size(node.edge,1) == 3 || error("node $(node.number) has $(size(node.edge,1)) edges instead of 3")
     edge1 = nothing
     edge2 = nothing
-    for(e in node.edge)
+    for e in node.edge
         if(!isequal(e,edge))
             isa(edge1,Void) ? edge1 = e : edge2 = e
         end
@@ -936,7 +936,7 @@ function whichPartition(net::HybridNetwork,edge::Edge,cycle::Integer)
     edge.inCycle == -1 || error("edge $(edge.number) is in cycle $(edge.inCycle) so it cannot be in any partition")
     DEBUG && println("search partition for edge $(edge.number) in cycle $(cycle)")
     in(edge,net.edge) || error("edge $(edge.number) is not in net.edge")
-    for(i in 1:length(net.partition))
+    for i in 1:length(net.partition)
         DEBUG && println("looking for edge $(edge.number) in partition $(i): $([e.number for e in net.partition[i].edges])")
         if(in(cycle,net.partition[i].cycle))
             DEBUG && println("looking for edge $(edge.number) in partition $(i), with cycle $(cycle): $([e.number for e in net.partition[i].edges])")
@@ -960,7 +960,7 @@ function whichPartition(net::HybridNetwork,edge::Edge)
     edge.inCycle == -1 || error("edge $(edge.number) is in cycle $(edge.inCycle) so it cannot be in any partition")
     DEBUG && println("search partition for edge $(edge.number) without knowing its cycle")
     in(edge,net.edge) || error("edge $(edge.number) is not in net.edge")
-    for(i in 1:length(net.partition))
+    for i in 1:length(net.partition)
         DEBUG && println("looking for edge $(edge.number) in partition $(i): $([e.number for e in net.partition[i].edges])")
         if(in(edge,net.partition[i].edges))
             DEBUG && println("partition for edge $(edge.number) is $([e.number for e in net.partition[i].edges])")
@@ -974,14 +974,14 @@ end
 # function that will print the partition of net
 function printPartitions(net::HybridNetwork)
     println("partition.cycle\t partition.edges")
-    for(p in net.partition)
+    for p in net.partition
         println("$(p.cycle)\t\t $([e.number for e in p.edges])")
     end
 end
 
 # function to find if a given partition is in net.partition
 function isPartitionInNet(net::HybridNetwork,desc::Vector{Edge},cycle::Vector{Int})
-    for(p in net.partition)
+    for p in net.partition
         if(sort(cycle) == sort(p.cycle))
             if(sort([e.number for e in desc]) == sort([e.number for e in p.edges]))
                 return true
@@ -1013,14 +1013,14 @@ function checkNet(net::HybridNetwork, light::Bool; checkPartition=true::Bool)
         all(x->!(x.hasHybEdge),net.node) || error("net is a tree, but not all nodes hasHybEdge=false")
         all(x->(x.gamma == 1.0 ? true : false),net.edge) || error("net is a tree, but not all edges have gamma 1.0")
     end
-    for(h in net.hybrid)
+    for h in net.hybrid
         if(isBadTriangle(h))
             DEBUG && println("hybrid $(h.number) is very bad triangle")
             net.hasVeryBadTriangle || error("hybrid node $(h.number) is very bad triangle, but net.hasVeryBadTriangle is $(net.hasVeryBadTriangle)")
             h.isVeryBadTriangle || h.isExtBadTriangle || error("hybrid node $(h.number) is very bad triangle but it does not know it")
         end
         nocycle,edges,nodes = identifyInCycle(net,h)
-        for(e in edges)
+        for e in edges
             e.inCycle == h.number || error("edge $(e.number) is in cycle of hybrid node $(h.number) but its inCycle attribute is $(e.inCycle)")
             if(e.length == -1.0)
                 if(light)
@@ -1035,11 +1035,11 @@ function checkNet(net::HybridNetwork, light::Bool; checkPartition=true::Bool)
                 o.hasHybEdge || error("found node $(o.number) attached to hybrid edge but hasHybEdge=$(o.hasHybEdge)")
             end
         end
-        for(n in nodes)
+        for n in nodes
             n.inCycle == h.number || error("node $(n.number) is in cycle of hybrid node $(h.number) but its inCycle attribute is $(n.inCycle)")
             e1,e2,e3 = hybridEdges(n)
             i = 0
-            for(e in [e1,e2,e3])
+            for e in [e1,e2,e3]
                 if(isa(e,Void) && h.k != 2)
                     error("edge found that is Void, and hybrid node $(h.number) k is $(h.k). edge as nothing can only happen when k=2")
                 elseif(!isa(e,Void))
@@ -1057,7 +1057,7 @@ function checkNet(net::HybridNetwork, light::Bool; checkPartition=true::Bool)
             end
             i == 1 || error("strange node $(n.number) incycle $(h.number) but with $(i) edges not in cycle, should be only one")
             edgesRoot = identifyContainRoot(net,h)
-            for(edge in edgesRoot)
+            for edge in edgesRoot
                 if(edge.containRoot)
                     DEBUG && printEverything(net)
                     error("edge $(edge.number) should not contain root")
@@ -1065,7 +1065,7 @@ function checkNet(net::HybridNetwork, light::Bool; checkPartition=true::Bool)
             end
         end
     end
-    for(n in net.node)
+    for n in net.node
         if(n.leaf)
             length(n.edge) == 1 || error("leaf $(n.number) with $(length(n.edge)) edges instead of 1")
         else
@@ -1079,7 +1079,7 @@ function checkNet(net::HybridNetwork, light::Bool; checkPartition=true::Bool)
             end
         end
     end
-    for(e in net.edge)
+    for e in net.edge
         if(e.length == -1.0)
             if(light)
                 return true
@@ -1134,7 +1134,7 @@ function isPartitionInNet(net::HybridNetwork,partition::Partition)
     if(isempty(net.partition))
         return false
     end
-    for(p in net.partition)
+    for p in net.partition
         cycle = isempty(setdiff(p.cycle,partition.cycle)) && isempty(setdiff(partition.cycle,p.cycle))
         edges = isempty(setdiff([n.number for n in p.edges],[n.number for n in partition.edges])) && isempty(setdiff([n.number for n in partition.edges],[n.number for n in p.edges]))
         if(cycle && edges)

@@ -7,7 +7,7 @@
 returns a vector of taxon names (at the leaves) from a HybridNetwork object
 """
 function tipLabels(net::HybridNetwork)
-    return ASCIIString[l.name for l in net.leaf] # AbstractString does not work for use by tree2Matrix
+    return String[l.name for l in net.leaf] # AbstractString does not work for use by tree2Matrix
 end
 
 
@@ -80,7 +80,7 @@ will break if `inCycle` attributes are not initialized (at -1) or giving a corre
 """
 # 'good' triangle in the paper = bad triangle in hyb node attribute: Not extremely or very bad
 function setNonIdBL!(net::HybridNetwork)
-    for(e in net.edge)
+    for e in net.edge
         if(!e.istIdentifiable)
             keeplength = any(n -> (n.isBadDiamondII || n.isBadTriangle), e.node)
             # if below 'bad' hybrid node, length=0 by constraint. If above, length estimated.
@@ -126,7 +126,7 @@ function Base.show(io::IO, obj::HybridNetwork)
         # par = writeTopology(obj,round=true) # but writeTopology changes the network, not good
         s = IOBuffer()
         writeSubTree!(s, obj, false,true, true,3)
-        par = bytestring(s)
+        par = String(s)
     catch err
         println("ERROR with writeSubTree!:")
         showerror(STDOUT, err)
@@ -172,7 +172,7 @@ function Base.show(io::IO, obj::Node)
     if (obj.hybrid)     disp *= "\n hybrid node" end
     if (obj.leaf)       disp *= "\n leaf node" end
     disp *= "\n attached to $(length(obj.edge)) edges, numbered:"
-    for (e in obj.edge) disp *= " $(e.number)"; end
+    for e in obj.edge disp *= " $(e.number)"; end
     println(io, disp)
 end
 

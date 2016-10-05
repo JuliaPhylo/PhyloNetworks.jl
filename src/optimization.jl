@@ -4,7 +4,7 @@
 
 
 const move2int = Dict{Symbol,Int}(:add=>1,:MVorigin=>2,:MVtarget=>3,:CHdir=>4,:delete=>5, :nni=>6)
-const int2move = Dict{Int,Symbol}([move2int[k]=>k for k in keys(move2int)])
+const int2move = Dict{Int,Symbol}(move2int[k]=>k for k in keys(move2int))
 # if changes are made here, make the same in the docstring for snaq! below.
 const fAbs = 1e-6 #1e-10 prof Bates, 1e-6
 const fRel = 1e-5 # 1e-12 prof Bates, 1e-5
@@ -30,7 +30,7 @@ function parameters(net::Network)
     indxt = Int[]
     indxh = Int[]
     indxhz = Int[]
-    for(e in net.edge)
+    for e in net.edge
         if(e.istIdentifiable)
             push!(t,e.length)
             push!(n,e.number)
@@ -96,7 +96,7 @@ function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
         push!(qindxhz,getIndex(getOtherNode(edges[2],qnet.hybrid[1]),qnet))
     else
         found = false
-        for(n in qnet.hybrid)
+        for n in qnet.hybrid
             if(n.isBadDiamondI)
                 ind1 = parse(Int,string(string(n.number),"1"))
                 ind2 = parse(Int,string(string(n.number),"2"))
@@ -112,7 +112,7 @@ function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
         end
         if(!found)
             all((n -> !n.isBadDiamondI),qnet.hybrid) || error("cannot have bad diamond I hybrid nodes in this qnet, case dealt separately before")
-            for(e in qnet.edge)
+            for e in qnet.edge
                 if(e.istIdentifiable)
                     try
                         getIndex(e.number,nt)
@@ -174,7 +174,7 @@ function update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork)
     length(ch) == length(qnet.hasEdge) || error("changed (length $(length(changed))) and qnet.hasEdge (length $(length(qnet.hasEdge))) should have same length")
     qnet.changed = false
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
-    for(i in 1:length(ch))
+    for i in 1:length(ch)
         qnet.changed |= (ch[i] & qnet.hasEdge[i])
     end
     #DEBUGC && println("inside update!, qnet.changed is $(qnet.changed), ch $(ch) and qnet.hasEdge $(qnet.hasEdge), $(qnet.quartetTaxon), numHyb $(qnet.numHybrids)")
@@ -182,7 +182,7 @@ function update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork)
         if(any([n.isBadDiamondI for n in qnet.hybrid])) # qnet.indexht is only two values: gammaz1,gammaz2 #FIXIT: this could crash if hybrid for bad diamond should disappear after cleaning qnet
             DEBUG && println("it is inside update! and identifies that ht changed and it is inside the bad diamond I case")
             length(qnet.indexht) == 2 || error("strange qnet from bad diamond I with hybrid node, it should have only 2 elements: gammaz1,gammaz2, not $(length(qnet.indexht))")
-            for(i in 1:2)
+            for i in 1:2
                 0 <= x[qnet.indexht[i]] <= 1 || error("new gammaz value should be between 0,1: $(x[qnet.indexht[i]]).")
                 if(DEBUG)
                     x[qnet.indexht[1]] + x[qnet.indexht[2]] <= 1 || warn("new gammaz should add to less than 1: $(x[qnet.indexht[1]] + x[qnet.indexht[2]])")
@@ -190,7 +190,7 @@ function update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork)
                 qnet.node[qnet.index[i]].gammaz = x[qnet.indexht[i]]
             end
         else
-            for(i in 1:length(qnet.indexht))
+            for i in 1:length(qnet.indexht)
                 if(qnet.indexht[i] <= net.numHybrids - net.numBad)
                     0 <= x[qnet.indexht[i]] <= 1 || error("new gamma value should be between 0,1: $(x[qnet.indexht[i]]).")
                     qnet.edge[qnet.index[i]].hybrid || error("something odd here, optimizing gamma for tree edge $(qnet.edge[qnet.index[i]].number)")
@@ -230,7 +230,7 @@ function updateParameters!(net::HybridNetwork, xmin::Vector{Float64})
     length(xmin) == length(net.ht) || error("xmin vector should have same length as net.ht $(length(net.ht)), not $(length(xmin))")
     net.ht = xmin
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
-    for(i in 1:length(net.ht))
+    for i in 1:length(net.ht)
         if(i <= net.numHybrids - net.numBad)
             0 <= net.ht[i] <= 1 || error("new gamma value should be between 0,1: $(net.ht[i]).")
             net.edge[net.index[i]].hybrid || error("something odd here, optimizing gamma for tree edge $(net.edge[net.index[i]].number)")
@@ -363,7 +363,7 @@ function topologyMaxQPseudolik!(net::HybridNetwork, d::DataCF; verbose=false::Bo
     end
     optBL!(net, d, verbose, ftolRel, ftolAbs, xtolRel,xtolAbs)
     if(net.numBad > 0) # to keep gammaz info in parenthetical description of bad diamond I
-        for(n in net.hybrid)
+        for n in net.hybrid
             setGammaBLfromGammaz!(n,net) # get t and γ that are compatible with estimated gammaz values
         end
     end
@@ -474,7 +474,7 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF,closeN ::Bool, origin::Bool
     DEBUG && println("begins afterOptBL because of conflicts: flagh,flagt,flaghz=$([flagh,flagt,flaghz])")
     successchange = true
     if(!flagh)
-        for(i in 1:length(nh))
+        for i in 1:length(nh)
             if(approxEq(nh[i],0.0) || approxEq(nh[i],1.0))
                 edge = currT.edge[indh[i]]
                 approxEq(edge.gamma,nh[i]) || error("edge $(edge.number) gamma $(edge.gamma) should match the gamma in net.ht $(nh[i]) and it does not")
@@ -483,7 +483,7 @@ function afterOptBL!(currT::HybridNetwork, d::DataCF,closeN ::Bool, origin::Bool
             end
         end
     elseif(!flagt)
-        for(i in 1:length(nt))
+        for i in 1:length(nt)
             if(approxEq(nt[i],0.0))
                 edge = currT.edge[indt[i]]
                 approxEq(edge.length,nt[i]) || error("edge $(edge.number) length $(edge.length) should match the length in net.ht $(nt[i]) and it does not")
@@ -736,7 +736,7 @@ function adjustWeight(net::HybridNetwork,hmax::Integer,w::Vector{Float64})
         suma = w[5]+w[2]+w[3]+w[4]+w[6]
         v = zeros(6)
         k = hmax - net.numHybrids
-        for(i in 1:6)
+        for i in 1:6
             if(i == 1)
                 v[i] = w[1]*k/(suma + w[1]*k)
             else
@@ -755,7 +755,7 @@ end
 function adjustWeightMovesfail!(v::Vector{Float64}, movesfail::Vector{Int}, Nmov::Vector{Int}, net::HybridNetwork, hmax::Integer)
     length(v) ==length(movesfail) || error("v and movesfail must have same length")
     length(Nmov) ==length(movesfail) || error("Nmov and movesfail must have same length")
-    for(i in 1:length(v))
+    for i in 1:length(v)
         v[i] = v[i]*(movesfail[i]<Nmov[i] ? 1 : 0)
     end
     if(hmax == 0)
@@ -771,7 +771,7 @@ function adjustWeightMovesfail!(v::Vector{Float64}, movesfail::Vector{Int}, Nmov
         end
     end
     suma = sum(v)
-    for(i in 1:length(v))
+    for i in 1:length(v)
         v[i] = v[i]/suma
     end
     return true
@@ -1078,7 +1078,7 @@ function optTopLevel!(currT::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     ##     write(logfile,"\nnewT.loglik $(newT.loglik) not really close to 0.0 based on loglik abs. tol. $(liktolAbs), you might need to redo with another starting point")
     ## end
     if(newT.numBad > 0) # if bad diamond I, need to keep gammaz info in parenthetical description
-        for(n in newT.hybrid)
+        for n in newT.hybrid
             setGammaBLfromGammaz!(n,newT) # get t and γ that are compatible with estimated gammaz values
         end
     end
@@ -1114,7 +1114,7 @@ function printCounts(movescount::Vector{Int}, movesgamma::Vector{Int},s::Union{I
     print(s,"\t--------moves general--------\t\t\t\t --------moves gamma,t------\t\n")
     print(s,"move\t Num.Proposed\t Num.Successful\t Num.Accepted\t | Num.Proposed\t Num.Successful\t Num.Accepted\n")
     names = ["add","mvorigin","mvtarget","chdir","delete","nni"]
-    for(i in 1:6)
+    for i in 1:6
         if(i == 2 || i == 3)
             print(s,"$(names[i])\t $(movescount[i])\t\t $(movescount[i+6])\t\t $(movescount[i+12])\t |\t $(movesgamma[i])\t\t $(movesgamma[i+6])\t\t --\n")
         elseif(i == 1)
@@ -1156,7 +1156,7 @@ function moveDownLevel!(net::HybridNetwork)
     indhz = net.index[net.numHybrids - net.numBad + k + 1 : length(net.ht)]
     flagh,flagt,flaghz = isValid(nh,nt,nhz)
     if(!flagh)
-        for(i in 1:length(nh))
+        for i in 1:length(nh)
             if(approxEq(nh[i],0.0) || approxEq(nh[i],1.0))
                 edge = net.edge[indh[i]]
                 node = edge.node[edge.isChild1 ? 1 : 2];
@@ -1243,7 +1243,7 @@ function optTop!(currT::HybridNetwork, liktolAbs::Float64, Nfail::Integer, d::Da
 
     push!(bestT,currT)
     i = 1
-    for(h in currT.numHybrids:hmax)
+    for h in currT.numHybrids:hmax
         startT = deepcopy(bestT[i]);
         write(s,"\n")
         write(s,"\nStart search on space of $(h) hybridizations with previous opt topology $(writeTopologyLevel1(startT,true))")
@@ -1375,7 +1375,7 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     seeds = [seed;round(Integer,floor(rand(runs-1)*100000))]
 
     tic();
-    for(i in 1:runs)
+    for i in 1:runs
         writelog && write(logfile,"seed: $(seeds[i]) for run $(i)\n$(Libc.strftime(time()))\n")
         writelog && flush(logfile)
         print(STDOUT,"seed: $(seeds[i]) for run $(i)\n")
@@ -1443,11 +1443,11 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
         write(s,"$(writeTopologyLevel1(maxNet,printID=true, multall=!isempty(d.repSpecies))), with -loglik $(maxNet.loglik) (best network found, remaining sorted by log-pseudolik; the smaller, the better)\n")
         # best network is included first: for score comparison with other networks
         foundBad = false
-        for(n in otherNet)
+        for n in otherNet
             try
                 optBL!(n,d) ##optBL MUST have network with all the attributes, and undirectedOtherNetworks will return "good" networks that way
                 if(n.numBad > 0) # to keep gammaz info in parenthetical description of bad diamond I
-                    for(nod in n.hybrid)
+                    for nod in n.hybrid
                         setGammaBLfromGammaz!(nod,n) # get t and γ that are compatible with estimated gammaz values
                     end
                 end
@@ -1460,7 +1460,7 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
         ## to sort otherNet by loglik value:
         ind = sortperm([n.loglik for n in otherNet])
         otherNet = otherNet[ind]
-        for(n in otherNet)
+        for n in otherNet
             write(s,"$(writeTopologyLevel1(n,printID=true, multall=!isempty(d.repSpecies))), with -loglik $(n.loglik)\n")
         end
         foundBad && write(s,"Problem found when optimizing branch lengths for some networks, left loglik as -1. Please report this issue to claudia@stat.wisc.edu, google group or github issues. Thank you!")
@@ -1502,7 +1502,7 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     ## to sort bestnet by loglik value:
     ind = sortperm([n.loglik for n in bestnet])
     bestnet = bestnet[ind]
-    for(n in bestnet)
+    for n in bestnet
       str *= " "
       str *= (outgroup == "none" ? writeTopologyLevel1(n,printID=true, multall=!isempty(d.repSpecies)) :
                                    writeTopologyLevel1(n,outgroup=outgroup, printID=true, multall=!isempty(d.repSpecies)))

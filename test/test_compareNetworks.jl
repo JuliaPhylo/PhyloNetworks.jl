@@ -131,7 +131,7 @@ writeTopologyLevel1(net22) == "(A,((C,D),B));" ||
  error("deleteHybridThreshold! didn't work on net22, gamma=0.3")
 
 net31 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(C:0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
-net32 = deepcopy(net31); for (e in net32.edge) e.length=-1.0; end
+net32 = deepcopy(net31); for e in net32.edge e.length=-1.0; end
 # plot(net31)
 deleteHybridThreshold!(net31,0.3);
 writeTopologyLevel1(net31) == "(A:1.0,((C:0.9,D:1.1):1.3,B:2.3):0.7);" ||

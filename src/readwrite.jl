@@ -105,7 +105,7 @@ end
 # warning: allows for name of internal nodes without # after: (1,2)A,...
 # warning: warning if hybrid edge without gamma value, warning if gamma value (ignored) without hybrid edge
 # modified from original Cecile c++ code to allow polytomies
-function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNetwork, hybrids::Array{ASCIIString,1}, index::Array{Int,1})
+function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNetwork, hybrids::Array{String,1}, index::Array{Int,1})
     c = peekchar(s)
     e = nothing;
     hasname = false; # to know if the current node has name
@@ -375,7 +375,7 @@ function readTopology(s::IO,verbose::Bool)
     seekstart(s)
     c = peekchar(s)
     numLeft = [1]; # made Array to make it mutable; start at 1 to avoid node -1 which breaks undirectedOtherNetworks
-    hybrids = ASCIIString[];
+    hybrids = String[];
     index = Int[];
     if(c == '(')
        numLeft[1] += 1;
@@ -432,7 +432,7 @@ readTopology(s::IO) = readTopology(s,true)
 function checkNumHybEdges!(net::HybridNetwork)
     if(!isTree(net))
         isempty(net.hybrid) && error("net.hybrid should not be empty for this network")
-        for(n in net.hybrid)
+        for n in net.hybrid
             hyb = sum([e.hybrid?1:0 for e in n.edge]);
             if(hyb > 2)
                 error("hybrid node $(n.number) has more than two hybrid edges attached to it: polytomy that cannot be resolved without intersecting cycles.")
@@ -513,11 +513,11 @@ function expandChild!(net::HybridNetwork, n::Node)
         n1 = Node(size(net.names,1)+1,false,false,[ed1]);
         #println("create node $(n1.number)")
         hyb = Edge[];
-        for(i in 1:size(n.edge,1))
+        for i in 1:size(n.edge,1)
             !n.edge[i].hybrid ? push!(hyb,n.edge[i]) : nothing
         end
         #println("hyb tiene $([e.number for e in hyb])")
-        for(e in hyb)
+        for e in hyb
             #println("se va a borrar a $(e.number)")
             removeEdge!(n,e);
             removeNode!(n,e);
@@ -560,7 +560,7 @@ end
 function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
     mod(sum([!e.hybrid?e.gamma:0 for e in net.edge]),1) == 0 ? nothing : error("tree (not network) read and some tree edge has gamma different than 1")
     nodes = copy(net.node)
-    for(n in nodes)
+    for n in nodes
         if(isNodeNumIn(n,net.node)) # very important to check
             if(size(n.edge,1) == 2)
                 if(!n.hybrid)
@@ -612,7 +612,7 @@ function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
                     if(suma == -2)
                         #warn("hybrid edges in read network without gammas")
                         println("hybrid edges for hybrid node $(n.number) have missing gamma's, set default: 0.9,0.1")
-                        for(e in n.edge)
+                        for e in n.edge
                             if(e.hybrid)
                                 (!e.isMajor) ? setGamma!(e,0.1, false, true) : setGamma!(e,0.9, false, true)
                             end
@@ -620,7 +620,7 @@ function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
                     elseif(suma != 1)
                         ed1 = nothing
                         ed2 = nothing
-                        for(e in n.edge)
+                        for e in n.edge
                             if(e.hybrid)
                                 isa(ed1,Void) ? ed1=e : ed2=e
                             end
@@ -635,7 +635,7 @@ function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
                             setGamma!(ed1,1-ed2.gamma, false);
                         end
                     elseif(suma == 1)
-                        for(e in n.edge)
+                        for e in n.edge
                             if(e.hybrid)
                                 if(approxEq(e.gamma,0.5))
                                     e.isMajor = false
@@ -691,7 +691,7 @@ function updateAllReadTopology!(net::HybridNetwork)
         all((n->!n.hasHybEdge), net.node) ? nothing : error("some tree node has hybrid edge true, but it is a tree, there are no hybrid edges")
     else
         if(!net.cleaned)
-            for(n in net.hybrid)
+            for n in net.hybrid
                 success,hyb,flag,nocycle,flag2,flag3 = updateAllNewHybrid!(n,net,false,true,false)
                 if(!success)
                     warn("current hybrid $(n.number) conflicts with previous hybrid by intersecting cycles: $(!flag), nonidentifiable topology: $(!flag2), empty space for contain root: $(!flag3), or does not create a cycle (probably problem with the root placement): $(nocycle).")
@@ -700,7 +700,7 @@ function updateAllReadTopology!(net::HybridNetwork)
             end
             DEBUG && println("before update partition")
             DEBUG && printPartitions(net)
-            for(n in net.hybrid) #need to updatePartition after all inCycle
+            for n in net.hybrid #need to updatePartition after all inCycle
                 nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,n);
                 updatePartition!(net,nodesInCycle)
                 DEBUG && println("after updating partition for hybrid node $(n.number)")
@@ -768,7 +768,7 @@ function checkRootPlace!(net::HybridNetwork; verbose=false::Bool, outgroup="none
     if(outgroup == "none")
         if(!canBeRoot(net.node[net.root]))
             verbose && println("root node $(net.node[net.root].number) placement is not ok, we will change it to the first found node that agrees with the direction of the hybrid edges")
-            for(i in 1:length(net.node))
+            for i in 1:length(net.node)
                 if(canBeRoot(net.node[i]))
                     net.root = i
                     break
@@ -812,7 +812,7 @@ function writeSubTree!(s::IO, net::HybridNetwork, di::Bool, names::Bool,
     elseif net.numNodes > 1
         print(s,"(")
         degree = length(net.node[net.root].edge)
-        for(e in net.node[net.root].edge)
+        for e in net.node[net.root].edge
             writeSubTree!(s,getOtherNode(e,net.node[net.root]),e,di,names,roundBL,digits)
             degree -= 1
             degree == 0 || print(s,",")
@@ -830,7 +830,7 @@ function writeSubTree!(s::IO, n::Node, parent::Edge,di::Bool,names::Bool,
     if (parent.isMajor && !n.leaf) # do not descent below a minor hybrid edge
         print(s,"(")
         firstchild = true
-        for(e in n.edge)
+        for e in n.edge
             e == parent && continue # skip parent edge where we come from
             (e.hybrid && e.node[(e.isChild1 ? 1 : 2)]==n) && continue # no going up minor hybrid
             firstchild || print(s, ",")
@@ -877,7 +877,7 @@ function writeTopologyLevel1(net0::HybridNetwork, di::Bool, str::Bool, names::Bo
     s = IOBuffer()
     writeTopologyLevel1(net0,s,di,names,outgroup,printID,roundBL,digits, multall)
     if(str)
-        return bytestring(s)
+        return String(s)
     else
         return s
     end
@@ -898,7 +898,7 @@ function writeTopologyLevel1(net0::HybridNetwork, s::IO, di::Bool, names::Bool,
     else
         if(!isTree(net) && !net.cleaned)
             DEBUG && println("net not cleaned inside writeTopologyLevel1, need to run updateContainRoot")
-            for(n in net.hybrid)
+            for n in net.hybrid
                 flag,edges = updateContainRoot!(net,n)
                 flag || error("hybrid node $(n.hybrid) has conflicting containRoot")
             end
@@ -1051,7 +1051,7 @@ readSnaqNetwork(file::AbstractString) = readOutfile(file)
 # also uses setLength for all edges
 function cleanBL!(net::HybridNetwork)
     ##println("missing branch lengths will be set to 1.0")
-    for(e in net.edge)
+    for e in net.edge
         if(e.length < 0)
             setLength!(e,1.0)
         elseif(e.length > 10.0)
@@ -1134,7 +1134,7 @@ function writeMultiTopology(n::Vector{HybridNetwork},file::AbstractString; appen
 end
 
 function writeMultiTopology(net::Vector{HybridNetwork},s::IO)
-    for (i in 1:length(net))
+    for i in 1:length(net)
       try
         # writeTopologyLevel1(net[i],s,false,true,"none",false,false,3)
         writeTopology(net[i],s) # no rounding, not for dendroscope
@@ -1175,7 +1175,7 @@ function writeTopology(n::HybridNetwork;
         round=false::Bool, digits=3::Integer, di=false::Bool) # keyword arguments
     s = IOBuffer()
     writeTopology(n,s,round,digits,di)
-    return bytestring(s)
+    return String(s)
 end
 
 function writeTopology(net::HybridNetwork, s::IO,
@@ -1193,7 +1193,7 @@ function writeTopology(net::HybridNetwork, s::IO,
         else rethrow(err); end
     end
     while changeroot
-        for (e in net.edge)
+        for e in net.edge
           # parents of hybrid edges should be sufficient, but gives weird look
           #if e.hybrid
             i = getIndex(e.node[e.isChild1? 2 : 1], net)

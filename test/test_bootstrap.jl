@@ -3,6 +3,7 @@
 if !isdefined(:individualtest) individualtest = false; end
 
 if(individualtest)
+    using Base.Test
     include("../src/types.jl")
     include("../src/functions.jl")
 end

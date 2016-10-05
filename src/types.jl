@@ -122,7 +122,7 @@ type HybridNetwork <: Network
     node::Array{Node,1}
     edge::Array{Edge,1}
     root::Int # node[root] is the root node, default 1
-    names::Array{ASCIIString,1} # translate table for taxon names --but also includes hybrid names...
+    names::Array{String,1} # translate table for taxon names --but also includes hybrid names...
     hybrid::Array{Node,1} # array of hybrid nodes in network
     numHybrids::Int # number of hybrid nodes
     cladewiseorder_nodeIndex::Vector{Int} # index in 'node' for "cladewise" preorder in main tree
@@ -175,11 +175,11 @@ type QuartetNetwork <: Network
     leaf::Array{Node,1} # array of leaves
     numHybrids::Int # number of hybrid nodes
     hasEdge::Array{Bool,1} # array of boolean with all the original identifiable edges of HybridNetwork and gammas (net.ht)
-    quartetTaxon::Array{ASCIIString,1} # the quartet taxa in the order it represents. Points to same array as its Quartet.taxon
+    quartetTaxon::Array{String,1} # the quartet taxa in the order it represents. Points to same array as its Quartet.taxon
     which::Int8 # 0 it tree quartet, 1 is equivalent to tree quartet and 2 if two minor CF different, default -1
     typeHyb::Array{Int8,1} #array with the type of hybridization of each hybrid node in the quartet
     t1::Float64 # length of internal edge, used when qnet.which=1, default = -1
-    names::Array{ASCIIString,1} # taxon and node names, same order as in network.node
+    names::Array{String,1} # taxon and node names, same order as in network.node
     split::Array{Int8,1} # split that denotes to which side each leaf is from the split, i.e. [1,2,2,1] means that leaf1 and 4 are on the same side of the split, default -1,-1,-1,-1
     formula::Array{Int8,1} # array for qnet.which=1 that indicates if the expCf is major (2) or minor (1) at qnet.expCF[i] depending on qnet.formula[i], default -1,-1,-1
     expCF::Array{Float64,1} # three expected CF in order 12|34, 13|24, 14|23 (matching obsCF from qnet.quartet), default [0,0,0]
@@ -192,7 +192,7 @@ type QuartetNetwork <: Network
         new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],[],-1,[], -1.,net2.names,Int8[-1,-1,-1,-1],Int8[-1,-1,-1],[0,0,0],[],true,[])
         #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],[],-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1],[],true,[])
     end
-    function QuartetNetwork(net::HybridNetwork,quartet::Array{ASCIIString,1})
+    function QuartetNetwork(net::HybridNetwork,quartet::Array{String,1})
         net2 = deepcopy(net);
         new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],quartet,-1,[],-1.,net2.names,Int8[-1,-1,-1,-1],Int8[-1,-1,-1],[0,0,0],[],true,[])
     end
@@ -213,7 +213,7 @@ type that saves the information on a given 4-taxon subset. It contains the follo
 """
 type Quartet
     number::Int
-    taxon::Array{ASCIIString,1} # taxa 1234. qnet.quartetTaxon points to the same array.
+    taxon::Array{String,1} # taxa 1234. qnet.quartetTaxon points to the same array.
     obsCF::Array{Float64,1} # three observed CF in order 12|34, 13|24, 14|23
     qnet::QuartetNetwork # quartet network for the current network (want to keep as if private attribute)
     logPseudoLik::Float64 # log pseudolik value for the quartet
@@ -224,7 +224,7 @@ type Quartet
         0.99 < sum(obsCF) < 1.02 || warn("observed CF should add up to 1, not $(sum(obsCF))")
         new(number,[t1,t2,t3,t4],obsCF,QuartetNetwork(),0,-1);
     end
-    function Quartet(number::Integer,t1::Array{ASCIIString,1},obsCF::Array{Float64,1})
+    function Quartet(number::Integer,t1::Array{String,1},obsCF::Array{Float64,1})
         size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing
         0.99< sum(obsCF) < 1.02 || warn("observed CF should add up to 1, not $(sum(obsCF))")
         size(t1,1) != 4 ? error("array of taxa should have size 4, not $(size(t1,1))") : nothing
@@ -259,7 +259,7 @@ type DataCF
     numQuartets::Integer # number of quartets
     tree::Vector{HybridNetwork} #array of input gene trees
     numTrees::Integer # number of gene trees
-    repSpecies::Vector{ASCIIString} #repeated species in the case of multiple alleles
+    repSpecies::Vector{String} #repeated species in the case of multiple alleles
     DataCF(quartet::Array{Quartet,1}) = new(quartet,length(quartet),[],-1,[])
     DataCF(quartet::Array{Quartet,1},trees::Vector{HybridNetwork}) = new(quartet,length(quartet),trees,length(trees),[])
     DataCF() = new([],0,[],-1,[])
@@ -275,7 +275,7 @@ type EdgeParts
 end
 
 type RootMismatch <: Exception
-    msg::ASCIIString
+    msg::String
 end
 RootMismatch() = RootMismatch("")
 Base.showerror(io::IO, e::RootMismatch) = print(io, "RootMismatch: ", e.msg);

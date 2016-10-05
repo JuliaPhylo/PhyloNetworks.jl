@@ -20,7 +20,7 @@ using Base.Collections # for updateInCycle with priority queue
 tests = ["F","G","H","J","I"];
 wrong = AbstractString[];
 
-function whichtree(t::ASCIIString)
+function whichtree(t::String)
     if(t == "tree")
         tree = "(((6:0.1,4:1.5)1:0.2,7:0.2)5:0.1,8:0.1,10:0.1);" # normal tree
     elseif(t == "C")
@@ -46,7 +46,7 @@ function whichtree(t::ASCIIString)
 end
 
 
-function whichtest(t::ASCIIString,net::HybridNetwork)
+function whichtest(t::String,net::HybridNetwork)
     if(t == "C")
         all(map(approxEq,net.ht,[exp(-1.)*(1-0.1*(1-exp(-1.))),exp(-1.)*(1-0.9*(1-exp(-1.))),-exp(-2.)*(0.1*(1-exp(-1.))*(1-exp(-1.))*0.9)])) || error("net.ht wrong in case $(t)")
         net.numht == [41,42,43] || error("net.numht wrong in case $(t)")

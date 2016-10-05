@@ -9,10 +9,10 @@
 # function to undo updateInCycle which returns an array
 # of edges/nodes changed
 function undoInCycle!(edges::Array{Edge,1},nodes::Array{Node,1})
-    for(e in edges)
+    for e in edges
         e.inCycle = -1;
     end
-    for(n in nodes)
+    for n in nodes
         n.inCycle = -1;
     end
 end
@@ -20,7 +20,7 @@ end
 # function to undo updateContainRoot (which returns an array
 # of edges changed) and gives value bool, by default true
 function undoContainRoot!(edges::Array{Edge,1}, bool::Bool)
-    for(e in edges)
+    for e in edges
         e.containRoot = bool
     end
 end
@@ -31,7 +31,7 @@ undoContainRoot!(edges::Vector{Edge}) = undoContainRoot!(edges,true)
 # of edges changed
 # it only changes the status of istIdentifiable to true
 function undoistIdentifiable!(edges::Array{Edge,1})
-    for(e in edges)
+    for e in edges
         !e.istIdentifiable ? e.istIdentifiable = true : e.istIdentifiable = false;
     end
 end
