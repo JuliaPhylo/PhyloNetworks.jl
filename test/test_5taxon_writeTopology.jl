@@ -13,7 +13,7 @@ using Base.Collections # for updateInCycle with priority queue
 tests = ["C","F","G","H","J","D","E","I"];
 wrong = String[];
 
-function whichtree(t::ASCIIString)
+function whichtree(t::String)
     if(t == "tree")
         tree = "(((6:0.1,4:1.5)1:0.2,7:0.2)5:0.1,8:0.1,10:0.1);" # normal tree
     elseif(t == "C")

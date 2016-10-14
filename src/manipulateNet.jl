@@ -21,7 +21,7 @@ function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractS
         net0 = readTopologyLevel1(writeTopologyLevel1(net0))
     end
     otherNet = HybridNetwork[]
-    for(i in 1:net0.numHybrids) #need to do for by number, not node
+    for i in 1:net0.numHybrids #need to do for by number, not node
         net = deepcopy(net0) # to avoid redoing attributes after each cycle is finished
         ## undo attributes at current hybrid node:
         hybrid = net.hybrid[i]
@@ -37,7 +37,7 @@ function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractS
             undoContainRoot!(edgesRoot);
         end
         ## changes to new hybrid node:
-        for(newn in nodesInCycle)
+        for newn in nodesInCycle
             if(newn.number != hybrid.number) # nodesInCycle contains the hybrid too
                 newnet = deepcopy(net)
                 newnocycle, newedgesInCycle, newnodesInCycle = identifyInCycle(newnet,newnet.hybrid[i]);
@@ -63,7 +63,7 @@ function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractS
     end
     # check root in good position
     if(outgroup == "none")
-        for(n in otherNet)
+        for n in otherNet
             !isTree(n) && checkRootPlace!(n, verbose=false)
         end
         return otherNet
@@ -71,7 +71,7 @@ function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractS
         DEBUG && println("we will remove networks contradicting the outgroup in undirectedOtherNetworks")
         whichKeep = ones(Bool,length(otherNet)) # repeats 'true'
         i = 1
-        for(n in otherNet)
+        for n in otherNet
             if(!isTree(n))
                 try
                     checkRootPlace!(n, verbose=true, outgroup=outgroup)
@@ -105,7 +105,7 @@ julia> plot(net)
 """ #"
 function hybridatnode!(net::HybridNetwork, nodeNumber::Integer)
     undoInCycle!(net.edge, net.node)
-    for(n in net.hybrid)
+    for n in net.hybrid
         flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,n);
         flag || error("not level1 network, hybrid $(n.number) cycle intersects another cycle")
         !nocycle || error("strange network without cycle for hybrid $(n.number)")
@@ -141,7 +141,7 @@ function hybridatnode!(net::HybridNetwork, hybrid::Node, newNode::Node)
     hybedges[2].inCycle = hybrid.number
     switchHybridNode!(net,hybrid,newNode)
     found = false
-    for(e in newNode.edge)
+    for e in newNode.edge
         if(e.inCycle == hybrid.number)
             if(!found)
                 found = true
@@ -185,7 +185,7 @@ function hybridatnode(net0::HybridNetwork, nodeNumber::Integer)
     hybedges[2].inCycle = hybrid.number
     switchHybridNode!(net,hybrid,net.node[ind])
     found = false
-    for(e in net.node[ind].edge)
+    for e in net.node[ind].edge
         if(e.inCycle == hybrid.number)
             if(!found)
                 found = true
@@ -431,7 +431,7 @@ function root!(net::HybridNetwork, node::Node, resolve::Bool)
         if(!isTree(net))
             if(!net.cleaned)
                 DEBUG && println("net not cleaned inside root, need to run updateCR")
-                for(n in net.hybrid)
+                for n in net.hybrid
                     flag,edges = updateContainRoot!(net,n)
                     flag || error("hybrid node $(n.hybrid) has conflicting containRoot")
                 end
@@ -473,7 +473,7 @@ function root!(net::HybridNetwork, nodeNum::Integer, resolve::Bool)
     root!(net,net.node[ind],resolve)
 end
 
-root!(net::HybridNetwork, nodeNum::Integer) = root!(net, nodeNum, false)
+##root!(net::HybridNetwork, nodeNum::Integer) = root!(net, nodeNum, false)
 
 # function to resolve an internal node for root function
 function resolve!(net::HybridNetwork, node::Node)
@@ -483,7 +483,7 @@ function resolve!(net::HybridNetwork, node::Node)
     if(net.cleaned)
         if(node.inCycle == -1) #node not in cycle
             done=false
-            for(e in node.edge)
+            for e in node.edge
                 if(e.containRoot)
                     done = true
                     newNodeResolve!(net,e,node)
@@ -494,7 +494,7 @@ function resolve!(net::HybridNetwork, node::Node)
             done || error("not found edge to contain root for node $(node.number)")
         else
             done = false
-            for(e in node.edge)
+            for e in node.edge
                 if(e.inCycle == -1 && e.containRoot)
                     done = true
                     newNodeResolve!(net,e,node)
@@ -507,7 +507,7 @@ function resolve!(net::HybridNetwork, node::Node)
     else # net not cleaned
         if(!node.hasHybEdge)
             done=false
-            for(e in node.edge)
+            for e in node.edge
                 if(!e.hybrid)
                     done = true
                     newNodeResolve!(net,e,node)
@@ -518,7 +518,7 @@ function resolve!(net::HybridNetwork, node::Node)
             done || error("not found edge to contain root for node $(node.number)")
         else
             done = false
-            for(e in node.edge)
+            for e in node.edge
                 if(e.inCycle == -1 && e.containRoot)
                     done = true
                     newNodeResolve!(net,e,node)
@@ -568,7 +568,7 @@ function root!(net::HybridNetwork, outgroup::AbstractString)
     if(!isTree(net))
         if(!net.cleaned)
             DEBUG && println("net not cleaned inside root, need to run updateCR")
-            for(n in net.hybrid)
+            for n in net.hybrid
                 flag,edges = updateContainRoot!(net,n)
                 flag || error("hybrid node $(n.hybrid) has conflicting containRoot")
             end
@@ -649,10 +649,10 @@ conflict with the direction of any hybrid edge.
 """
 function directEdges!(net::HybridNetwork; checkMajor=true::Bool)
     if checkMajor # check each node has 2+ hybrid parent edges (if any), and exactly one major.
-        for (n in net.node)
+        for n in net.node
             nparents = 0 # 0 or 2 normally, but could be >2 if polytomy.
             nmajor = 0   # there should be exactly 1 major parent if nparents>0
-            for (e in n.edge)
+            for e in n.edge
                 if (e.hybrid && n == e.node[e.isChild1 ? 1 : 2])
                     nparents += 1
                     if (e.isMajor) nmajor +=1; end
@@ -669,7 +669,7 @@ It is not used in directEdges!, but might cause an error elsewhere.")
         end
     end
     net.cleaned = false # attributed used by snaq! Will change isChild1 and containRoot
-    for(e in net.node[net.root].edge)
+    for e in net.node[net.root].edge
         traverseDirectEdges!(net.node[net.root],e,true)
     end
     net.isRooted = true
@@ -695,7 +695,7 @@ isChild1 and containRoot were updated for a subset of edges in the network only.
     if (!cn.leaf && (!edge.hybrid || edge.isMajor)) # continue down recursion
         if edge.hybrid containroot=false; end # changes containroot locally, intentional.
         nchildren=0
-        for (e in cn.edge)
+        for e in cn.edge
             if e==edge continue; end
             if (e.hybrid && cn == e.node[e.isChild1 ? 1 : 2]) continue; end
             traverseDirectEdges!(cn,e,containroot)
@@ -718,7 +718,7 @@ end
 # it assumes the isChild1 attributes are correct
 function getParents(node::Node)
     parents = Node[]
-    for(e in node.edge)
+    for e in node.edge
             if(isEqual(node,e.isChild1 ? e.node[1] : e.node[2])) #node is child of e
                 push!(parents,getOtherNode(e,node))
             end
@@ -730,7 +730,7 @@ end
 # assumes isChild1 and isMajor attributes are correct
 function getMajorParent(n::Node)
     found = false
-    for (e in node.edge)
+    for e in node.edge
         if (isEqual(n, e.isChild1 ? e.node[1] : e.node[2]) # n is child of e
             && e.isMajor) # in case n is a hybrid, e is major parent edge
             found = true
@@ -750,7 +750,7 @@ Updates attribute net.nodes_changed in which the nodes are pre-ordered
 The edges' direction needs to be correct before calling preorder!, using directEdges!
 """
 function preorder!(net::HybridNetwork)
-    net.isRooted || error("net needs to be rooted for preorder!, run root! or directEdges!")
+    net.isRooted || error("net needs to be rooted for preorder!, run root functions or directEdges!")
     net.nodes_changed = Node[] # path of nodes in preorder.
     queue = Node[] # problem with PriorityQueue(): dequeue() takes a
                    # random member if all have the same priority 1.
@@ -762,14 +762,14 @@ function preorder!(net::HybridNetwork)
         # @show curr.number
         net.visited[getIndex(curr,net)] = true # visit curr node
         push!(net.nodes_changed,curr) #push curr into path
-        for(e in curr.edge)
+        for e in curr.edge
             if(isEqual(curr,e.node[e.isChild1 ? 2 : 1])) # curr is the parent node if e
                 other = getOtherNode(e,curr)
                 if(!e.hybrid)
                     push!(queue,other)
                     # print("queuing: "); @show other.number
                 else
-                    for(e2 in other.edge) # find other hybrid parent edge for 'other'
+                    for e2 in other.edge # find other hybrid parent edge for 'other'
                         if(e2.hybrid && !isEqual(e,e2))
                             parent = getOtherNode(e2,other)
                             if(net.visited[getIndex(parent,net)])
@@ -796,11 +796,11 @@ also provides a pre-ordering of the nodes.
 The edges' direction needs to be correct before calling cladewiseorder!, using directEdges!
 """
 function cladewiseorder!(net::HybridNetwork)
-    net.isRooted || error("net needs to be rooted for cladewiseorder!\n run root! or directEdges!")
+    net.isRooted || error("net needs to be rooted for cladewiseorder!\n run root functions or directEdges!")
     net.cladewiseorder_nodeIndex = Int[]
     queue = Int[] # index (in net) of nodes in the queue
     push!(net.cladewiseorder_nodeIndex, net.root)
-    for (e in net.node[net.root].edge)
+    for e in net.node[net.root].edge
         if (e.isMajor) # follow the major tree only
             push!(queue, getIndex(getOtherNode(e,net.node[net.root]),net))
         end
@@ -810,7 +810,7 @@ function cladewiseorder!(net::HybridNetwork)
         ni = pop!(queue); # deliberate choice over shift! for cladewise order
         # @show net.node[ni].number
         push!(net.cladewiseorder_nodeIndex, ni)
-        for (e in net.node[ni].edge)
+        for e in net.node[ni].edge
             if (isEqual(net.node[ni],e.node[e.isChild1 ? 2 : 1])) # net.node[ni] is parent node of e
                 other = getOtherNode(e, net.node[ni])
                 if (e.isMajor)
@@ -859,7 +859,7 @@ function rotate!(net::HybridNetwork, nnum::Integer; orderedEdgeNum=Int[]::Array{
     end
     n = net.node[nind]
     ci = Int[] # children edge indices
-    for (i = 1:length(n.edge))
+    for i = 1:length(n.edge)
         if (n == n.edge[i].node[n.edge[i].isChild1? 2 : 1])
             push!(ci,i)
         end
@@ -991,7 +991,7 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
             if simplify && e1.hybrid # check for cycle of k=2 nodes
                 cn = e1.node[e1.isChild1?1:2]
                 e2 = nothing
-                for (e in cn.edge) # find companion hybrid edge
+                for e in cn.edge # find companion hybrid edge
                     if (e.hybrid && e ≢ e1 && cn ≡ e.node[e.isChild1?1:2])
                         e2=e; break;
                     end

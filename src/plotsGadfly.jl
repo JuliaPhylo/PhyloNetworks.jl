@@ -68,7 +68,7 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
             nexty -= 1.0
         else
             node_yB[ni]=ymax; node_yE[ni]=ymin;
-            for (e in net.node[ni].edge)
+            for e in net.node[ni].edge
                 if net.node[ni] == (e.isChild1 ? e.node[2] : e.node[1]) # if e = child of node
                     if (!e.isMajor) continue; end
                     yy = node_y[getIndex(getOtherNode(e, net.node[ni]), net)]
@@ -85,7 +85,7 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
     elenCalculate = !useEdgeLength
     if (useEdgeLength)
         allBLmissing = true; nonBLmissing = true;
-        for (e in net.edge)
+        for e in net.edge
             if (nonBLmissing && e.length==-1.0) nonBLmissing=false; end
             if (allBLmissing && e.length!=-1.0) allBLmissing=false; end
         end
@@ -107,7 +107,7 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
         for i=length(net.node):-1:1 # post-order traversal
             if (net.nodes_changed[i].leaf) continue; end
             ni = getIndex(net.nodes_changed[i], net)
-            for (e in net.nodes_changed[i].edge) # loop over children only
+            for e in net.nodes_changed[i].edge # loop over children only
                 if net.nodes_changed[i] == (e.isChild1 ? e.node[2] : e.node[1])
                     node_age[ni] = max(node_age[ni], 1 +
                      node_age[getIndex(getOtherNode(e, net.nodes_changed[i]), net)])
@@ -115,7 +115,7 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
             end
         end
     else
-        for (e in net.edge)
+        for e in net.edge
             push!(elen, (e.length==-1.0 ? 1.0 : e.length))
         end
     end
@@ -131,7 +131,7 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
     for i=2:length(net.node)              # true pre-order, skipping the root (i=1)
         ni = getIndex(net.nodes_changed[i], net)
         ei = 0 # index of major parent edge of current node
-        for (e in net.nodes_changed[i].edge)
+        for e in net.nodes_changed[i].edge
             if (e.isMajor && net.nodes_changed[i] == e.node[e.isChild1 ? 1 : 2]) # major parent edge
                 ei = getIndex(e,net)
                 break
@@ -201,7 +201,7 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
       tmp = setdiff(nodeLabel[1], [e.number for e in net.node])
       if length(tmp)>0
         msg = "Some node numbers in the nodeLabel data frame are not found in the network:\n"
-        for (a in tmp) msg *= string(" ",a); end
+        for a in tmp msg *= string(" ",a); end
         warn(msg)
       end
     end
@@ -213,8 +213,8 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
                             y=[ymin,ymax+(ymax-ymin)*expfac],
                Geom.point, Theme(default_color=colorant"white"))[1])
       nrows = (showNodeNumber || showIntNodeLabel || labelnodes ? net.numNodes : net.numTaxa)
-      ndf = DataFrame([ASCIIString,ASCIIString,ASCIIString,Bool,Float64,Float64], # column types, column names, nrows
-               [symbol("name"),symbol("num"),symbol("lab"),symbol("lea"),symbol("x"),symbol("y")], nrows)
+      ndf = DataFrame([String,String,String,Bool,Float64,Float64], # column types, column names, nrows
+               [Symbol("name"),Symbol("num"),Symbol("lab"),Symbol("lea"),Symbol("x"),Symbol("y")], nrows)
       j=1
       for i=1:net.numNodes
         if (net.node[i].leaf  || showNodeNumber || showIntNodeLabel || labelnodes)
@@ -252,9 +252,9 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
     end
     # data frame for edge annotations.
     nrows = net.numEdges - (mainTree ? net.numHybrids : 0)
-    edf = DataFrame([ASCIIString,ASCIIString,ASCIIString,ASCIIString,Bool,Bool,Float64,Float64],
-                  [symbol("len"),symbol("gam"),symbol("num"),symbol("lab"),
-                   symbol("hyb"),symbol("min"),symbol("x"),symbol("y")], nrows)
+    edf = DataFrame([String,String,String,String,Bool,Bool,Float64,Float64],
+                  [Symbol("len"),Symbol("gam"),Symbol("num"),Symbol("lab"),
+                   Symbol("hyb"),Symbol("min"),Symbol("x"),Symbol("y")], nrows)
     labeledges = size(edgeLabel,1)>0
     if (labeledges && (size(edgeLabel,2)<2 || !(eltype(edgeLabel[:,1]) <: Integer)))
         warn("edgeLabel should have 2+ columns, the first one giving the edge numbers (Integer)")
@@ -268,12 +268,12 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
       tmp = setdiff(edgeLabel[1], [e.number for e in net.edge])
       if length(tmp)>0
         msg = "Some edge numbers in the edgeLabel data frame are not found in the network:\n"
-        for (a in tmp) msg *= string(" ",a); end
+        for a in tmp msg *= string(" ",a); end
         warn(msg)
       end
     end
     j=1
-    for (i = 1:length(net.edge))
+    for i = 1:length(net.edge)
         if (!mainTree || !net.edge[i].hybrid || net.edge[i].isMajor)
             edf[j,:len] = (net.edge[i].length==-1.0 ? "" : @sprintf("%0.3g",net.edge[i].length))
             # @sprintf("%c=%0.3g",'γ',net.edge[i].length)

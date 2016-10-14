@@ -45,7 +45,7 @@ function plotNetGraphViz(graph::Network; # Network object to plot
   if(!isTree(graph))
       if(!graph.cleaned)
           DEBUG && println("net not cleaned inside plotNetGraphViz, need to run updateCR")
-          for(n in graph.hybrid)
+          for n in graph.hybrid
               flag,edges = updateContainRoot!(graph,n)
               flag || error("hybrid node $(n.hybrid) has conflicting containRoot")
           end

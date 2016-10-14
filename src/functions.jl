@@ -14,6 +14,9 @@ using GLM # for the lm function
 using NLopt # for branch lengths optimization
 #using GraphViz #for visualization
 using Gadfly # for plotsGadfly, for visualization
+using ColorTypes # used by Gadfly already. To resolve data type names (Colorant)
+using StatsBase: sample
+using Combinatorics.combinations ## do not include all because it conflicts with Partition
 
 import Base.show
 import Gadfly.plot

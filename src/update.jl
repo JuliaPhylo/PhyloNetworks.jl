@@ -58,7 +58,7 @@ function updateInCycle!(net::HybridNetwork,node::Node)
                         net.visited[getIndex(curr,net)] = true;
                         if(isEqual(curr,start))
                             #println("curr is start")
-                            for(e in curr.edge)
+                            for e in curr.edge
                                 if(!e.hybrid || e.isMajor)
                                     other = getOtherNode(e,curr);
  #                                   println("other is $(other.number), pushed to queue")
@@ -68,7 +68,7 @@ function updateInCycle!(net::HybridNetwork,node::Node)
                                 end
                             end
                         else
-                            for(e in curr.edge)
+                            for e in curr.edge
                                 if(!e.hybrid || e.isMajor)
                                     other = getOtherNode(e,curr);
  #                                   println("other is $(other.number)")
@@ -153,18 +153,18 @@ function traverseContainRoot!(node::Node, edge::Edge, edges_changed::Array{Edge,
     if(node.hybrid)
         if(edge.hybrid)
             edge.isMajor || error("hybrid edge $(edge.number) is minor and we should not traverse the graph through minor edges")
-            DEBUG && println("traverseContainRoot reaches hybrid node $(node.number) through major hybrid edge $(edge.number)")
+            DEBUGC && println("traverseContainRoot reaches hybrid node $(node.number) through major hybrid edge $(edge.number)")
             rightDir[1] &= true  # This line has no effect: x && true = x
         else #approach hybrid node through tree edge => wrong direction
             rightDir[1] &= false # same as rightDir[1] = false: x && false = false
-            DEBUG && println("traverseContainRoot reaches hybrid node $(node.number) through tree edge $(edge.number), so rightDir $(rightDir[1])")
+            DEBUGC && println("traverseContainRoot reaches hybrid node $(node.number) through tree edge $(edge.number), so rightDir $(rightDir[1])")
         end
     elseif(!node.leaf)
-        for(e in node.edge)
+        for e in node.edge
             if(!isEqual(edge,e) && e.isMajor) # minor edges avoided-> their containRoot not updated
                 other = getOtherNode(e,node);
                 if(e.containRoot) # only considered changed those that were true and not hybrid
-                    DEBUG && println("traverseContainRoot changing edge $(e.number) to false, at this moment, rightDir is $(rightDir[1])")
+                    DEBUGC && println("traverseContainRoot changing edge $(e.number) to false, at this moment, rightDir is $(rightDir[1])")
                     e.containRoot = false;
                     push!(edges_changed, e);
                 end
@@ -184,7 +184,7 @@ function updateContainRoot!(net::HybridNetwork, node::Node)
     node.hybrid || error("node $(node.number )is not hybrid, cannot update containRoot")
     net.edges_changed = Edge[];
     rightDir = [true] #assume good direction, only changed if found hybrid node through tree edge
-    for (e in node.edge)
+    for e in node.edge
         if(!e.hybrid)
             other = getOtherNode(e,node);
             e.containRoot = false;
@@ -236,7 +236,7 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
         isLeaf2 = getOtherNode(tree_edge2,node);
         isLeaf3 = getOtherNode(tree_edge3,other_min);
         tree_edge4 = nothing;
-        for(e in other_min2.edge)
+        for e in other_min2.edge
             if(isa(tree_edge4,Void) && e.inCycle == -1 && !e.hybrid)
                 tree_edge4 = e;
             end
@@ -358,10 +358,10 @@ function updatePartition!(net::HybridNetwork, nodesChanged::Vector{Node})
     if(net.numHybrids == 0)
         net.partition = Partition[]
     end
-    for(n in nodesChanged)
+    for n in nodesChanged
         if(length(n.edge) == 3) #because we are allowing the root to have only two edges when read from parenthetical format
             edge = nothing
-            for(e in n.edge)
+            for e in n.edge
                 if(e.inCycle == -1)
                     edge = e
                 end
@@ -384,7 +384,7 @@ function choosePartition(net::HybridNetwork)
     all((n->(length(n.edges) == 1)), net.partition) && return 0 #cannot put any hyb
     all((n->(length(n.edges) == 3)), net.partition) && return 0 #can only put very bad triangles
     partition = Int[] #good partitions
-    for(i in 1:length(net.partition))
+    for i in 1:length(net.partition)
         if(length(net.partition[i].edges) > 3)
             push!(partition,i)
         end
@@ -409,7 +409,7 @@ function getDescendants!(node::Node, edge::Edge, descendants::Vector{Edge}, cycl
     if(node.inCycle != -1)
         push!(cycleNum,node.inCycle)
     elseif(!node.leaf && node.inCycle == -1)
-        for(e in node.edge)
+        for e in node.edge
             if(!isEqual(edge,e) && e.isMajor)
                 push!(descendants,e)
                 getDescendants!(getOtherNode(e,node),e,descendants,cycleNum)

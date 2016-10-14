@@ -1,4 +1,4 @@
-VERSION >= v"0.4" || warn("you need to update Julia to current version: 0.4 or higher")
+VERSION >= v"0.5" || warn("you need to update Julia to current version: 0.5 or higher")
 __precompile__()
 
 module PhyloNetworks
@@ -11,6 +11,7 @@ using NLopt # for branch lengths optimization
 using Gadfly # for plots
 using ColorTypes # used by Gadfly already. To resolve data type names (Colorant)
 using StatsBase: sample
+using Combinatorics.combinations
 
 import Base.show
 import Gadfly.plot

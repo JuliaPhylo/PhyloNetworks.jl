@@ -43,10 +43,10 @@ function exchangeHybridNode!(net::HybridNetwork, current::Node,new::Node)
     nocycle,edgesInCycle,nodesInCycle = identifyInCycle(net,current)
     !nocycle || error("strange here: change direction on hybrid node $(current.number) that does not have a cycle to begin with")
     #println("edges in cycle for node $(current.number) are $([e.number for e in edgesInCycle]) and nodes in cycle $([n.number for n in nodesInCycle])")
-    for(e in edgesInCycle)
+    for e in edgesInCycle
         e.inCycle = new.number
     end
-    for(n in nodesInCycle)
+    for n in nodesInCycle
         n.inCycle = new.number
     end
     update = true
@@ -425,7 +425,7 @@ function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, t
             deleteat!(net.partition[indexPtreei].edges,ind)
             push!(net.partition[indexPtreei].edges,treej)
             edges = hybridEdges(otheri)
-            for(i in 1:3) #check of 3 edges inside hybridEdges
+            for i in 1:3 #check of 3 edges inside hybridEdges
                 if(!isEqual(edges[i],treei) && !isEqual(edges[i],newedge))
                     descendants = [edges[i]]
                     cycleNum = [node.inCycle]
@@ -434,7 +434,7 @@ function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, t
                     DEBUG && println("for node $(otheri.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
                     partition = Partition(unique(cycleNum),descendants) # create new partition
                     push!(net.partition, partition)
-                    for(e in descendants) #delete edges from partition with tree originally
+                    for e in descendants #delete edges from partition with tree originally
                         ind = getIndex(e,net.partition[indexPtreei].edges)
                         deleteat!(net.partition[indexPtreei].edges,ind)
                     end
@@ -456,10 +456,10 @@ function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, t
                 ind = getIndex(treei,net.partition[indexPtreei].edges)
                 deleteat!(net.partition[indexPtreei].edges,ind)
                 edges = hybridEdges(otherj)
-                for(i in 1:3) #check of 3 edges inside hybridEdges
+                for i in 1:3 #check of 3 edges inside hybridEdges
                     if(!isEqual(edges[i],treej) && !isEqual(edges[i],newedge))
                         indexP = whichPartition(net,edges[i],node.number)
-                        for(e in net.partition[indexP].edges)
+                        for e in net.partition[indexP].edges
                             push!(net.partition[indexPtreei].edges,e)
                         end
                         net.partition[indexPtreei].cycle = union(net.partition[indexPtreei].cycle,net.partition[indexP].cycle)
@@ -494,10 +494,10 @@ function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, t
             ind = getIndex(treei,net.partition[indexPtreei].edges)
             deleteat!(net.partition[indexPtreei].edges,ind)
             edges = hybridEdges(otherj)
-            for(i in 1:3) #check of 3 edges inside hybridEdges
+            for i in 1:3 #check of 3 edges inside hybridEdges
                 if(!isEqual(edges[i],treej) && !isEqual(edges[i],newedge))
                     indexP = whichPartition(net,edges[i],node.number)
-                    for(e in net.partition[indexP].edges)
+                    for e in net.partition[indexP].edges
                         push!(net.partition[indexPtreei].edges,e)
                     end
                     net.partition[indexPtreei].cycle = union(net.partition[indexPtreei].cycle,net.partition[indexP].cycle)
@@ -520,7 +520,7 @@ function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, t
                 deleteat!(net.partition[indexPtreei].edges,ind)
                 push!(net.partition[indexPtreei].edges,treej)
                 edges = hybridEdges(otheri)
-                for(i in 1:3) #check of 3 edges inside hybridEdges
+                for i in 1:3 #check of 3 edges inside hybridEdges
                     if(!isEqual(edges[i],treei) && !isEqual(edges[i],newedge))
                         descendants = [edges[i]]
                         cycleNum = [node.inCycle]
@@ -529,7 +529,7 @@ function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, t
                         DEBUG && println("for node $(otheri.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
                         partition = Partition(unique(cycleNum),descendants) # create new partition
                         push!(net.partition, partition)
-                        for(e in descendants) #delete edges from partition with tree originally
+                        for e in descendants #delete edges from partition with tree originally
                             ind = getIndex(e,net.partition[indexPtreei].edges)
                             deleteat!(net.partition[indexPtreei].edges,ind)
                         end
@@ -791,10 +791,10 @@ function moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, new
         if(neighbor && from_othermajor)
             alreadyNoRoot = !newedge.containRoot
         elseif(neighbor && from_treenode)
-            for(e in node.edge)
+            for e in node.edge
                 if(!isEqual(e,major) && !isEqual(e,tree)) #looking for minor edge
                     o = getOtherNode(e,node)
-                    for(e2 in o.edge)
+                    for e2 in o.edge
                         if(!e2.hybrid && e2.inCycle != -1)
                             alreadyNoRoot = !e2.containRoot
                             break
@@ -884,7 +884,7 @@ function moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, new
             deleteat!(net.partition[indexPtree].edges,ind)
             push!(net.partition[indexPtree].edges,major)
             edges = hybridEdges(treenode)
-            for(i in 1:3) #check of 3 edges inside hybridEdges
+            for i in 1:3 #check of 3 edges inside hybridEdges
                 if(!isEqual(edges[i],tree) && !isEqual(edges[i],newedge))
                     descendants = [edges[i]]
                     cycleNum = [node.inCycle]
@@ -893,7 +893,7 @@ function moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, new
                     DEBUG && println("for node $(treenode.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
                     partition = Partition(unique(cycleNum),descendants) # create new partition
                     push!(net.partition, partition)
-                    for(e in descendants) #delete edges from partition with tree originally
+                    for e in descendants #delete edges from partition with tree originally
                         ind = getIndex(e,net.partition[indexPtree].edges)
                         deleteat!(net.partition[indexPtree].edges,ind)
                     end
@@ -917,10 +917,10 @@ function moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, new
                 ind = getIndex(tree,net.partition[indexPtree].edges)
                 deleteat!(net.partition[indexPtree].edges,ind)
                 edges = hybridEdges(othermajor)
-                for(i in 1:3) #check of 3 edges inside hybridEdges
+                for i in 1:3 #check of 3 edges inside hybridEdges
                     if(!isEqual(edges[i],major) && !isEqual(edges[i],newedge))
                         indexP = whichPartition(net,edges[i],node.number)
-                        for(e in net.partition[indexP].edges)
+                        for e in net.partition[indexP].edges
                             push!(net.partition[indexPtree].edges,e)
                         end
                         net.partition[indexPtree].cycle = union(net.partition[indexPtree].cycle,net.partition[indexP].cycle)
@@ -957,10 +957,10 @@ function moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, new
             ind = getIndex(major,net.partition[indexPmajor].edges)
             deleteat!(net.partition[indexPmajor].edges,ind)
             edges = hybridEdges(treenode)
-            for(i in 1:3) #check of 3 edges inside hybridEdges
+            for i in 1:3 #check of 3 edges inside hybridEdges
                 if(!isEqual(edges[i],tree) && !isEqual(edges[i],newedge))
                     indexP = whichPartition(net,edges[i],node.number)
-                    for(e in net.partition[indexP].edges)
+                    for e in net.partition[indexP].edges
                         push!(net.partition[indexPmajor].edges,e)
                     end
                     net.partition[indexPmajor].cycle = union(net.partition[indexPmajor].cycle,net.partition[indexP].cycle)
@@ -983,7 +983,7 @@ function moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, new
                 deleteat!(net.partition[indexPmajor].edges,ind) # delete newedge
                 push!(net.partition[indexPmajor].edges,tree) # add tree
                 edges = hybridEdges(othermajor)
-                for(i in 1:3) #check of 3 edges inside hybridEdges
+                for i in 1:3 #check of 3 edges inside hybridEdges
                     if(!isEqual(edges[i],major) && !isEqual(edges[i],newedge))
                         descendants = [edges[i]]
                         cycleNum = [node.inCycle]
@@ -992,7 +992,7 @@ function moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, new
                         DEBUG && println("for node $(othermajor.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
                         partition = Partition(unique(cycleNum),descendants) # create new partition
                         push!(net.partition, partition)
-                        for(e in descendants) #delete edges from partition with major originally
+                        for e in descendants #delete edges from partition with major originally
                             ind = getIndex(e,net.partition[indexPmajor].edges)
                             deleteat!(net.partition[indexPmajor].edges,ind)
                         end
@@ -1197,7 +1197,7 @@ function NNI!(net::Network,edge::Edge)
                 indexPe3 = whichPartition(net,e3,node.number)
                 part = splice!(net.partition,indexPe3) # delete partition e3
                 indexPe1 = whichPartition(net,e1,node.number)
-                for(e in part.edges)
+                for e in part.edges
                     push!(net.partition[indexPe1].edges,e) #put into partition e1
                 end
                 push!(net.partition[indexPe1].edges,edge) #put edge into partition e1
@@ -1207,7 +1207,7 @@ function NNI!(net::Network,edge::Edge)
                 part = splice!(net.partition,indexPe2) # delete partition e2
                 indexPe4 = whichPartition(net,e4,node.number)
                 DEBUG && println("deleted partition $([e.number for e in part.edges]) from net.partition")
-                for(e in part.edges)
+                for e in part.edges
                     DEBUG && println("partition for e4 is $([e.number for e in net.partition[indexPe4].edges]), pushing edge $(e.number)")
                     push!(net.partition[indexPe4].edges,e) #put into partition e4
                 end
@@ -1244,7 +1244,7 @@ function NNI!(net::Network,edge::Edge)
             ind = getIndex(edge,net.partition[indexP].edges)
             deleteat!(net.partition[indexP].edges,ind)
             edges = hybridEdges(n2)
-            for(i in 1:3) #check of 3 edges inside hybridEdges
+            for i in 1:3 #check of 3 edges inside hybridEdges
                 if(!isEqual(edges[i],e4) && !isEqual(edges[i],edge))
                     descendants = [edges[i]]
                     cycleNum = [node.inCycle]
@@ -1253,7 +1253,7 @@ function NNI!(net::Network,edge::Edge)
                     DEBUG && println("for node $(n2.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
                     partition = Partition(unique(cycleNum),descendants) # create new partition
                     push!(net.partition, partition)
-                    for(e in descendants) #delete edges from partition with tree originally
+                    for e in descendants #delete edges from partition with tree originally
                         ind = getIndex(e,net.partition[indexP].edges)
                         deleteat!(net.partition[indexP].edges,ind)
                     end
@@ -1273,7 +1273,7 @@ function NNI!(net::Network,edge::Edge)
             ind = getIndex(edge,net.partition[indexP].edges)
             deleteat!(net.partition[indexP].edges,ind)
             edges = hybridEdges(n1)
-            for(i in 1:3) #check of 3 edges inside hybridEdges
+            for i in 1:3 #check of 3 edges inside hybridEdges
                 if(!isEqual(edges[i],e1) && !isEqual(edges[i],edge))
                     descendants = [edges[i]]
                     cycleNum = [node.inCycle]
@@ -1282,7 +1282,7 @@ function NNI!(net::Network,edge::Edge)
                     DEBUG && println("for node $(n1.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
                     partition = Partition(unique(cycleNum),descendants) # create new partition
                     push!(net.partition, partition)
-                    for(e in descendants) #delete edges from partition with tree originally
+                    for e in descendants #delete edges from partition with tree originally
                         ind = getIndex(e,net.partition[indexP].edges)
                         deleteat!(net.partition[indexP].edges,ind)
                     end

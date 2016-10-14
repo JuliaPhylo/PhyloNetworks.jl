@@ -4,6 +4,7 @@
 if !isdefined(:individualtest) individualtest = false; end
 
 if(individualtest)
+    using Base.Test
     include("../src/types.jl")
     include("../src/functions.jl")
 end
@@ -13,28 +14,32 @@ end
 #--------------------------------------------------------------#
 
 if (false)
-treefile = "(6,(5,(7,(3,4))));"
-tree = readTopologyUpdate(treefile);
-printEdges(tree)
-printNodes(tree)
-#repSpecies=["7"]
-#expandLeaves!(repSpecies,tree)
-#writeTopology(tree)
+    treefile = "(6,(5,(7,(3,4))));"
+    tree = readTopologyUpdate(treefile);
+    printEdges(tree)
+    printNodes(tree)
+    repSpecies=["7"]
+    expandLeaves!(repSpecies,tree)
+    tree
+    plot(tree)
+    #writeTopologyLevel1(tree)
+    mergeLeaves!(tree)
+    tree
+    plot(tree)
 
-df = readtable("CFtable1.csv")
-alleleDF=DataFrame(allele=["1","2"],species=["7","7"])
-newdf = mapAllelesCFtable!(alleleDF,df,true,"CFmapped.csv")
-mapD= readTableCF("CFmapped.csv")
+    df = readtable("CFtable1.csv")
+    alleleDF=DataFrame(allele=["1","2"],species=["7","7"])
+    newdf = mapAllelesCFtable!(alleleDF,df,true,"CFmapped.csv")
+    mapD= readTableCF("CFmapped.csv")
 end
 
 #----------------------------------------------------------#
 #   testing sorting of taxa and CFs                        #
 #----------------------------------------------------------#
-println("\n\nTesting sorttaxa!")
+info("testing sorttaxa!")
 
-using PhyloNetworks; using DataFrames; using Base.Test
 letters = ["a","b","c","d"]; cfvalues = [0.6, 0.39, 0.01] # for ab_cd, ac_bd, ad_bc
-d = DataFrame(t1=Array{ASCIIString}(24),t2=Array{ASCIIString}(24),t3=Array{ASCIIString}(24),t4=Array{ASCIIString}(24),
+d = DataFrame(t1=Array{String}(24),t2=Array{String}(24),t3=Array{String}(24),t4=Array{String}(24),
               CF12_34=Array{Float64}(24), CF13_24=Array{Float64}(24), CF14_23=Array{Float64}(24));
 irow=1        # d will contain 6!=24 rows: for all permutations on 4 letters
 for i1 in 1:4
@@ -64,7 +69,7 @@ for i1 in 1:4
 end
 # d
 d2 = deepcopy(d);
-PhyloNetworks.sorttaxa!(d2);
+sorttaxa!(d2);
 d3 = DataFrame(t1=repeat([letters[1]],outer=[24]),t2=repeat([letters[2]],outer=[24]),
                t3=repeat([letters[3]],outer=[24]),t4=repeat([letters[4]],outer=[24]),
                CF12_34=repeat([cfvalues[1]],outer=[24]),CF13_24=repeat([cfvalues[2]],outer=[24]),CF14_23=repeat([cfvalues[3]],outer=[24]));
@@ -74,9 +79,37 @@ dat = readTableCF(d);
 net = readTopologyLevel1("(a,((b)#H1,((#H1,c),d)));");
 topologyQPseudolik!(net, dat);
 println("these 4 warnings are normal: only 4 taxa in network")
-PhyloNetworks.sorttaxa!(dat)
+sorttaxa!(dat)
 
 @test [q.obsCF for q in dat.quartet] == [[0.6,0.39,0.01] for i in 1:24]
 @test [q.qnet.expCF for q in dat.quartet] == [[0.6915349833361827,0.12262648039048075,0.1858385362733365] for i in 1:24]
 @test [q.taxon for q in dat.quartet] == [letters for i in 1:24]
 @test [q.qnet.quartetTaxon for q in dat.quartet] == [letters for i in 1:24]
+
+
+info("testing snaq on multiple alleles")
+df=DataFrame(t1=["6","6","10","6","6","7","7","7","7","7","7"],
+             t2=["7","7","7","10","7","7","7","7","7","7","7"],
+             t3=["4","10","4","4","4","8","8","8","10","10","6"],
+             t4=["8","8","8","8","10","10","4","6","4","6","4"],
+             CF1234=[0.2729102510259939, 0.3967750546426937, 0.30161247267865315, 0.24693940689390592, 0.2729102510259939, 0.155181,  0.792153,  0.486702,  0.962734,  0.202531,  0.486886],
+             CF1324=[0.45417949794801216, 0.30161247267865315, 0.30161247267865315, 0.5061211862121882, 0.45417949794801216, 0.673426 ,0.145408,  0.391103,  0.023078,  0.714826,  0.419015],
+             CF1423=[0.2729102510259939, 0.30161247267865315, 0.3967750546426937, 0.24693940689390592, 0.2729102510259939, 0.171393,  0.062439,  0.122195,  0.014188,  0.082643,  0.094099])
+d = readTableCF(df)
+!isempty(d.repSpecies) || error("d.repSpecies should not be empty")
+d.repSpecies == ["7"] || error("d.repSpecies wrong")
+
+tree = "((6,4),(7,8),10);"
+currT = readTopologyLevel1(tree);
+
+estNet = snaq!(currT,d,hmax=1,seed=1010, runs=1, filename="")
+185.27 < estNet.loglik < 185.29 || error("wrong loglik in multiple alleles example")
+estNet.hybrid[1].k == 4 || error("wrong k in hybrid for multiple alleles case")
+estNet.numTaxa == 5 || error("wrong number of taxa in estNet")
+
+estNet = snaq!(currT,d,hmax=1,seed=8378, runs=1, filename="")
+174.58 < estNet.loglik < 174.59 || error("estNet loglik wrong for multiple alleles")
+estNet.hybrid[1].k == 5 || error("wrong k in hybrid for multiple alleles case")
+estNet.numTaxa == 5 || error("wrong number of taxa in estNet")
+
+

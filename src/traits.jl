@@ -269,7 +269,7 @@ end
 #        return
 #    elseif(length(parent) == 1) #nodes[i] is tree
 #        parentIndex = getIndex(parent[1],nodes)
-#        for(j in 1:(i-1))
+#        for j in 1:(i-1)
 #            V[i,j] = V[j,parentIndex]
 #            V[j,i] = V[j,parentIndex]
 #        end
@@ -281,7 +281,7 @@ end
 #        edge2 = getConnectingEdge(nodes[i],parent[2])
 #        edge1.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[1].number) should be a hybrid egde")
 #        edge2.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[2].number) should be a hybrid egde")
-#        for(j in 1:(i-1))
+#        for j in 1:(i-1)
 #            V[i,j] = V[j,parentIndex1]*edge1.gamma + V[j,parentIndex2]*edge2.gamma
 #            V[j,i] = V[i,j]
 #        end
@@ -311,7 +311,7 @@ end
 #function sharedPathMatrix(nodes::Vector{Node})
 #    n = length(net.nodes_changed)
 #    V = zeros(Float64,n,n)
-#    for(i in 1:n) #sorted list of nodes
+#    for i in 1:n #sorted list of nodes
 #        updateSharedPathMatrix!(i,net.nodes_changed,V)
 #    end
 #    return V
@@ -720,7 +720,6 @@ end
 
 Plot the reconstructed states computed by function ancestralStateReconstruction
 on a network.
-
 - net : a phylogenetic network
 - obj : the reconstructed states on the network (see ancestralStateReconstruction)
 - ... : further arguments to be passed to the netwotk plotting function

@@ -22,13 +22,13 @@ try
     T=readTopologyLevel1("../examples/startTree.txt");
     writeTopologyLevel1(T)
     # snaq
-    net1=snaq!(T,d,filename="", runs=5)
+    net1=snaq!(T,d,filename="", runs=2)
     otherNet = undirectedOtherNetworks(net1)
-    net2=snaq!(T,d,hmax=2, filename="", runs=5)
+    net2=snaq!(T,d,hmax=2, filename="", runs=2)
     d=readTableCF("../examples/tableCF.txt", summaryfile="");
     # snaq
-    net1=snaq!(T,d,filename="", runs=5)
-    net2=snaq!(T,d,hmax=2, filename="", runs=5)
+    net1=snaq!(T,d,filename="", runs=2)
+    net2=snaq!(T,d,hmax=2, filename="", runs=2)
     rootatnode!(net1, "4")
     writeTopologyLevel1(net1)
     writeTopologyLevel1(net1,di=true)
@@ -46,8 +46,8 @@ try
     T=readTopologyLevel1("../examples/startTree.txt");
     d=readTableCF("../examples/tableCF.txt", summaryfile="")
     # snaq
-    net1=snaq!(T,d,filename="", runs=5)
-    net2=snaq!(T,d,hmax=2, filename="", runs=5)
+    net1=snaq!(T,d,filename="", runs=2)
+    net2=snaq!(T,d,hmax=2, filename="", runs=2)
     rootatnode!(net1, "4")
     writeTopologyLevel1(net1)
     writeTopologyLevel1(net1,di=true)
@@ -66,7 +66,7 @@ println("NO ERRORS!")
 if(false)
 try
     df = readtable("../examples/tableCFCI.csv")
-    bootnet = bootsnaq(T, df, hmax=1, nrep=3, runs=3) # need to make sure does not produce files
+    bootnet = bootsnaq(T, df, hmax=1, nrep=3, runs=2) # need to make sure does not produce files
     BStable, tree1 = treeEdgesBootstrap(bootnet,net1)
     BSn, BSe, BSc, BSgam, BSedgenum = hybridBootstrapSupport(bootnet, net1)
 catch
