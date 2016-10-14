@@ -71,7 +71,7 @@ function recursionPreOrder(
 	)
 	n = length(nodes)
 	M = init(nodes, params)
-	for(i in 1:n) #sorted list of nodes
+	for i in 1:n #sorted list of nodes
 		updatePreOrder!(i, nodes, M, updateRoot, updateTree, updateHybrid, params)
 	end
 	return M
@@ -239,7 +239,7 @@ function updateTreeSharedPathMatrix!(
 	edge::Edge,
 	params
 	)
-	for(j in 1:(i-1))
+	for j in 1:(i-1)
 		V[i,j] = V[j,parentIndex]
 		V[j,i] = V[j,parentIndex]
 	end
@@ -255,7 +255,7 @@ function updateHybridSharedPathMatrix!(
 	edge2::Edge,
 	params
 	)
-	for(j in 1:(i-1))
+	for j in 1:(i-1)
 		V[i,j] = V[j,parentIndex1]*edge1.gamma + V[j,parentIndex2]*edge2.gamma
 		V[j,i] = V[i,j]
 	end
@@ -376,9 +376,9 @@ It has the following attributes:
 - msng: vector indicating which of the tips are missing
 
 The following StatsBase functions can be applied to it:
-coef, nobs, vcov, stderr, confint, coeftable, df_residual, df, deviance,
+coef, nobs, vcov, stderr, confint, coeftable, dof_residual, dof, deviance,
 residuals, model_response, predict, loglikelihood, nulldeviance, nullloglikelihood,
-R2, adjR2, AIC, AICc, BIC
+r2, adjr2, aic, aicc, bic
 
 The following DataFrame functions can also be applied to it:
 ModelFrame, ModelMatrix, Formula.
@@ -524,9 +524,9 @@ StatsBase.confint(m::phyloNetworkLinearModel, level=0.95::Real) = confint(m.lm, 
 # coef table (coef, stderr, confint)
 StatsBase.coeftable(m::phyloNetworkLinearModel) = coeftable(m.lm)
 # Degrees of freedom for residuals
-StatsBase.df_residual(m::phyloNetworkLinearModel) =  nobs(m) - length(coef(m))
+StatsBase.dof_residual(m::phyloNetworkLinearModel) =  nobs(m) - length(coef(m))
 # Degrees of freedom consumed in the model (+1: dispersion parameter)
-StatsBase.df(m::phyloNetworkLinearModel) = length(coef(m)) + 1 
+StatsBase.dof(m::phyloNetworkLinearModel) = length(coef(m)) + 1 
 # Deviance (sum of squared residuals with metric V)
 StatsBase.deviance(m::phyloNetworkLinearModel) = deviance(m.lm)
 
@@ -559,19 +559,19 @@ function StatsBase.nullloglikelihood(m::phyloNetworkLinearModel)
 end
 # coefficient of determination (1 - SS_res/SS_null)
 # Copied from GLM.jl/src/lm.jl, line 139
-StatsBase.R2(m::phyloNetworkLinearModel) = 1 - deviance(m)/nulldeviance(m)
+StatsBase.r2(m::phyloNetworkLinearModel) = 1 - deviance(m)/nulldeviance(m)
 # adjusted coefficient of determination 
 # Copied from GLM.jl/src/lm.jl, lines 141-146
-function StatsBase.adjR2(obj::phyloNetworkLinearModel)
+function StatsBase.adjr2(obj::phyloNetworkLinearModel)
 	n = nobs(obj)
-	# df() includes the dispersion parameter
-	p = df(obj) - 1
-	1 - (1 - R2(obj))*(n-1)/(n-p)
+	# dof() includes the dispersion parameter
+	p = dof(obj) - 1
+	1 - (1 - r2(obj))*(n-1)/(n-p)
 end
 
 ## REMARK
 # As phyloNetworkLinearModel <: LinPredModel, the following functions are automatically defined:
-# AIC, AICc, BIC
+# aic, aicc, bic
 
 ## New quantities
 # ML estimate for variance of the BM
@@ -580,16 +580,13 @@ sigma2_estim(m::phyloNetworkLinearModel) = deviance(m.lm) / nobs(m)
 sigma2_estim(m::DataFrames.DataFrameRegressionModel) = sigma2_estim(m.model)
 # ML estimate for ancestral state of the BM
 function mu_estim(m::phyloNetworkLinearModel)
-	warn("You fitted the data against a custom matrix, so I have no way of
-	knowing which column is your intercept (column of ones). I am using the first
-	coefficient for ancestral mean mu by convention, but that might not be what
-		you are looking for.")
+	warn("You fitted the data against a custom matrix, so I have no way of knowing which column is your intercept (column of ones). I am using the first coefficient for ancestral mean mu by convention, but that might not be what you are looking for.")
 	return coef(m)[1]
 end
 # Need to be adapted manually to DataFrameRegressionModel beacouse it's a new function
-function mu_estim(m::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel,Float64})
+function mu_estim(m::DataFrames.DataFrameRegressionModel)#{PhyloNetworks.phyloNetworkLinearModel,Float64})
 	if (!m.mf.terms.intercept)
-		error("The fit was not without intercept, so I cannot estimate mu")
+		error("The fit was done without intercept, so I cannot estimate mu")
 	end
 	return coef(m)[1]
 end
@@ -609,7 +606,7 @@ function Base.show(io::IO, obj::phyloNetworkLinearModel)
 	println(io, "$(typeof(obj)):\n\nParameter(s) Estimates:\n", paramstable(obj), "\n\nCoefficients:\n", coeftable(obj))
 end
 # For DataFrameModel. Copied from DataFrames/jl/src/statsmodels/statsmodels.jl, lines 101-118
-function Base.show(io::IO, model::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel,Float64})
+function Base.show(io::IO, model::DataFrames.DataFrameRegressionModel)#{PhyloNetworks.phyloNetworkLinearModel,Float64})
 	ct = coeftable(model)
 	println(io, "$(typeof(model))")
 	println(io)
@@ -634,7 +631,7 @@ end
 # Confidence intervals on coeficients
 # function StatsBase.confint(obj::phyloNetworkLinearModel, level=0.95::Real)
 #     hcat(coef(obj),coef(obj)) + stderr(obj) *
-#     quantile(TDist(df_residual(obj)), (1. - level)/2.) * [1. -1.]
+#     quantile(TDist(dof_residual(obj)), (1. - level)/2.) * [1. -1.]
 # end
 # Log likelihood of the fitted BM
 # StatsBase.loglikelihood(m::phyloNetworkLinearModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2_estim(m)) + m.logdetVy)
@@ -644,7 +641,7 @@ end
 #     cc = coef(mm)
 #     se = stderr(mm)
 #     tt = cc ./ se
-#     CoefTable(hcat(cc,se,tt,ccdf(FDist(1, df_residual(mm)), abs2(tt))),
+#     CoefTable(hcat(cc,se,tt,ccdf(FDist(1, dof_residual(mm)), abs2(tt))),
 #               ["Estimate","Std.Error","t value", "Pr(>|t|)"],
 #               ["x$i" for i = 1:size(mm.lm.pp.X, 2)], 4)
 # end
@@ -689,7 +686,7 @@ function predint(obj::reconstructedStates, level=0.95::Real)
 	if isnull(obj.model)
 		qq = quantile(Normal(), (1. - level)/2.)
 	else
-		qq = quantile(TDist(df_residual(get(obj.model))), (1. - level)/2.)
+		qq = quantile(TDist(dof_residual(get(obj.model))), (1. - level)/2.)
 		warn("As the variance is estimated, the predictions intervals are not exact, and should probably be larger.")
 	end
 	tmpnode = hcat(obj.traits_nodes, obj.traits_nodes) + stderr(obj) * qq * [1. -1.]
@@ -789,7 +786,20 @@ function ancestralStateReconstruction(
 	reconstructedStates(m_z_cond_y, V_z_cond_y + add_var, NodesNumbers, Y, TipsNumbers, model)
 end
 
+"""
+`ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)`
+Function to find the ancestral traits reconstruction on a network, given an
+object fitted by function phyloNetworklm, and some predictors expressed at all the nodes of the network.
+
+- obj: a phyloNetworkLinearModel object, or a
+DataFrameRegressionModel{phyloNetworkLinearModel}, if data frames were used.
+- X_n a matrix with as many columns as the number of predictors used, and as
+many lines as the number of unknown nodes or tips.
+
+Returns an object of type ancestralStateReconstruction.
+"""
 # Empirical reconstruciton from a fitted object
+# TO DO: Handle the order of internal nodes for matrix X_n
 function ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)
 	if (size(X_n)[2] != length(coef(obj)))
 		error("The number of predictors for the ancestral states (number of columns of X_n) do not match the number of predictors at the tips.")
@@ -832,6 +842,18 @@ function ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)
 		obj
 		)
 end
+
+"""
+`ancestralStateReconstruction(obj::phyloNetworkLinearModel)`
+Function to find the ancestral traits reconstruction on a network, given an
+object fitted by function phyloNetworklm. It assumes that the regressor is just
+an intercept.
+
+- obj: a phyloNetworkLinearModel object, or a
+DataFrameRegressionModel{phyloNetworkLinearModel}, if data frames were used.
+
+Returns an object of type ancestralStateReconstruction.
+"""
 # Default reconstruction for a simple BM (known predictors)
 function ancestralStateReconstruction(obj::phyloNetworkLinearModel)
 	if ((size(obj.X)[2] != 1) || !any(obj.X .== 1)) # Test if the regressor is just an intercept.
@@ -841,10 +863,10 @@ function ancestralStateReconstruction(obj::phyloNetworkLinearModel)
 	ancestralStateReconstruction(obj, X_n)
 end
 # For a DataFrameRegressionModel
-function ancestralStateReconstruction{T<:Union{Float32,Float64}}(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel,T})
+function ancestralStateReconstruction{T<:Union{Float32,Float64}}(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel, Array{T,2}})
 	ancestralStateReconstruction(obj.model)
 end
-function ancestralStateReconstruction{T<:Union{Float32,Float64}}(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel,T}, X_n::Matrix)
+function ancestralStateReconstruction{T<:Union{Float32,Float64}}(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel, Array{T,2}}, X_n::Matrix)
 	ancestralStateReconstruction(obj.model, X_n::Matrix)
 end
 """
@@ -870,9 +892,7 @@ function ancestralStateReconstruction(
 	nn = names(fr)
 	datpos = nn .!= :tipsNames
   if sum(datpos) > 1
-		error("Beside one column labelled 'tipsNames', the dataframe dfr should
-		have only one column, corresponding to the data at the tips of the
-		network.")
+		error("Beside one column labelled 'tipsNames', the dataframe fr should have only one column, corresponding to the data at the tips of the network.")
 	end
 	f = Formula(nn[datpos][1], 1)
 	reg = phyloNetworklm(f, fr, net; kwargs...)
@@ -1052,7 +1072,8 @@ function Base.getindex(obj::traitSimulation, d::Symbol)
 #       res = obj.M[:Tips]
 #       squeeze(res[2, :], 1)
 #    end
-	squeeze(getindex(obj.M, d)[2, :], 1)
+#	squeeze(getindex(obj.M, d)[2, :], 1)
+ getindex(obj.M, d)[2, :]
 end
 
 # function extractSimulateTips(sim::Matrix, net::HybridNetwork)

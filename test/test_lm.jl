@@ -60,12 +60,12 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test_approx_eq residuals(phynetlm) resids
 @test_approx_eq model_response(phynetlm) Y
 @test_approx_eq predict(phynetlm) fittedValues
-@test_approx_eq df_residual(phynetlm) ntaxa-length(betahat)
+@test_approx_eq dof_residual(phynetlm) ntaxa-length(betahat)
 @test_approx_eq sigma2_estim(phynetlm) sigma2hat 
 @test_approx_eq loglikelihood(phynetlm) loglik
 @test_approx_eq vcov(phynetlm) sigma2hat*ntaxa/(ntaxa-length(betahat))*inv(XtVyinv * X)
 @test_approx_eq stderr(phynetlm) sqrt(diag(sigma2hat*ntaxa/(ntaxa-length(betahat))*inv(XtVyinv * X)))
-@test_approx_eq df(phynetlm)  length(betahat)+1
+@test_approx_eq dof(phynetlm)  length(betahat)+1
 @test_approx_eq deviance(phynetlm) sigma2hat * ntaxa
 @test_approx_eq nulldeviance(phynetlm) nullsigma2hat * ntaxa 
 @test_approx_eq nullloglikelihood(phynetlm) nullloglik
@@ -73,9 +73,9 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test_approx_eq deviance(phynetlm) nulldeviance(phynetlm)
 #@test_approx_eq R2(phynetlm) 1-sigma2hat / nullsigma2hat 
 #@test_approx_eq adjR2(phynetlm) 1 - (1 - (1-sigma2hat/nullsigma2hat))*(ntaxa-1)/(ntaxa-length(betahat)) 
-@test_approx_eq AIC(phynetlm) -2*loglik+2*(length(betahat)+1)
-@test_approx_eq AICc(phynetlm) -2*loglik+2*(length(betahat)+1)+2(length(betahat)+1)*((length(betahat)+1)+1)/(ntaxa-(length(betahat)+1)-1)
-@test_approx_eq BIC(phynetlm) -2*loglik+(length(betahat)+1)*log(ntaxa)
+@test_approx_eq aic(phynetlm) -2*loglik+2*(length(betahat)+1)
+@test_approx_eq aicc(phynetlm) -2*loglik+2*(length(betahat)+1)+2(length(betahat)+1)*((length(betahat)+1)+1)/(ntaxa-(length(betahat)+1)-1)
+@test_approx_eq bic(phynetlm) -2*loglik+(length(betahat)+1)*log(ntaxa)
 
 # with data frames
 dfr = DataFrame(trait = Y, tipsNames = sim.M.tipsNames)
@@ -88,20 +88,20 @@ fitbis = phyloNetworklm(trait ~ 1, dfr, net)
 @test_approx_eq residuals(phynetlm)[fitbis.model.ind] residuals(fitbis)
 @test_approx_eq model_response(phynetlm)[fitbis.model.ind] model_response(fitbis)
 @test_approx_eq predict(phynetlm)[fitbis.model.ind] predict(fitbis)
-@test_approx_eq df_residual(phynetlm) df_residual(fitbis)
+@test_approx_eq dof_residual(phynetlm) dof_residual(fitbis)
 @test_approx_eq sigma2_estim(phynetlm) sigma2_estim(fitbis)
 @test_approx_eq stderr(phynetlm) stderr(fitbis)
 @test_approx_eq confint(phynetlm) confint(fitbis)
 @test_approx_eq loglikelihood(phynetlm) loglikelihood(fitbis)
-@test_approx_eq df(phynetlm)  df(fitbis)
+@test_approx_eq dof(phynetlm)  dof(fitbis)
 @test_approx_eq deviance(phynetlm)  deviance(fitbis)
 @test_approx_eq nulldeviance(phynetlm)  nulldeviance(fitbis)
 @test_approx_eq nullloglikelihood(phynetlm)  nullloglikelihood(fitbis)
 @test_approx_eq R2(phynetlm)  R2(fitbis)
 @test_approx_eq adjR2(phynetlm)  adjR2(fitbis)
-@test_approx_eq AIC(phynetlm)  AIC(fitbis)
-@test_approx_eq AICc(phynetlm)  AICc(fitbis)
-@test_approx_eq BIC(phynetlm)  BIC(fitbis)
+@test_approx_eq aic(phynetlm)  aic(fitbis)
+@test_approx_eq aicc(phynetlm)  aicc(fitbis)
+@test_approx_eq bic(phynetlm)  bic(fitbis)
 @test_approx_eq mu_estim(phynetlm)  mu_estim(fitbis)
 
 #### Other Network ###
@@ -159,20 +159,20 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test_approx_eq residuals(fit_mat) resids
 @test_approx_eq model_response(fit_mat) B
 @test_approx_eq predict(fit_mat) fittedValues
-@test_approx_eq df_residual(fit_mat) ntaxa-length(betahat)
+@test_approx_eq dof_residual(fit_mat) ntaxa-length(betahat)
 @test_approx_eq sigma2_estim(fit_mat) sigma2hat
 @test_approx_eq loglikelihood(fit_mat) loglik
 @test_approx_eq vcov(fit_mat) sigma2hat*ntaxa/(ntaxa-length(betahat)).*inv(XtVyinv * X)
 @test_approx_eq stderr(fit_mat) sqrt(diag(sigma2hat*ntaxa/(ntaxa-length(betahat)).*inv(XtVyinv * X)))
-@test_approx_eq df(fit_mat)  length(betahat)+1
+@test_approx_eq dof(fit_mat)  length(betahat)+1
 @test_approx_eq deviance(fit_mat) sigma2hat * ntaxa
 @test_approx_eq nulldeviance(fit_mat) nullsigma2hat * ntaxa
 @test_approx_eq nullloglikelihood(fit_mat) nullloglik
 @test_approx_eq R2(fit_mat) 1-sigma2hat / nullsigma2hat
 @test_approx_eq adjR2(fit_mat) 1 - (1 - (1-sigma2hat/nullsigma2hat))*(ntaxa-1)/(ntaxa-length(betahat))
-@test_approx_eq AIC(fit_mat) -2*loglik+2*(length(betahat)+1)
-@test_approx_eq AICc(fit_mat) -2*loglik+2*(length(betahat)+1)+2(length(betahat)+1)*((length(betahat)+1)+1)/(ntaxa-(length(betahat)+1)-1)
-@test_approx_eq BIC(fit_mat) -2*loglik+(length(betahat)+1)*log(ntaxa)
+@test_approx_eq aic(fit_mat) -2*loglik+2*(length(betahat)+1)
+@test_approx_eq aicc(fit_mat) -2*loglik+2*(length(betahat)+1)+2(length(betahat)+1)*((length(betahat)+1)+1)/(ntaxa-(length(betahat)+1)-1)
+@test_approx_eq bic(fit_mat) -2*loglik+(length(betahat)+1)*log(ntaxa)
 
 ## perfect user using right format and formula
 dfr = DataFrame(trait = B, pred = A, tipsNames = sim.M.tipsNames)
@@ -185,20 +185,20 @@ phynetlm = phyloNetworklm(trait ~ pred, dfr, net)
 @test_approx_eq residuals(phynetlm) residuals(fit_mat)
 @test_approx_eq model_response(phynetlm) model_response(fit_mat)
 @test_approx_eq predict(phynetlm) predict(fit_mat)
-@test_approx_eq df_residual(phynetlm) df_residual(fit_mat)
+@test_approx_eq dof_residual(phynetlm) dof_residual(fit_mat)
 @test_approx_eq sigma2_estim(phynetlm) sigma2_estim(fit_mat)
 @test_approx_eq stderr(phynetlm) stderr(fit_mat)
 @test_approx_eq confint(phynetlm) confint(fit_mat)
 @test_approx_eq loglikelihood(phynetlm) loglikelihood(fit_mat)
-@test_approx_eq df(phynetlm)  df(fit_mat)
+@test_approx_eq dof(phynetlm)  dof(fit_mat)
 @test_approx_eq deviance(phynetlm)  deviance(fit_mat)
 @test_approx_eq nulldeviance(phynetlm)  nulldeviance(fit_mat)
 @test_approx_eq nullloglikelihood(phynetlm)  nullloglikelihood(fit_mat)
 @test_approx_eq R2(phynetlm)  R2(fit_mat)
 @test_approx_eq adjR2(phynetlm)  adjR2(fit_mat)
-@test_approx_eq AIC(phynetlm)  AIC(fit_mat)
-@test_approx_eq AICc(phynetlm)  AICc(fit_mat)
-@test_approx_eq BIC(phynetlm)  BIC(fit_mat)
+@test_approx_eq aic(phynetlm)  aic(fit_mat)
+@test_approx_eq aicc(phynetlm)  aicc(fit_mat)
+@test_approx_eq bic(phynetlm)  bic(fit_mat)
 
 
 
@@ -212,20 +212,20 @@ fitbis = phyloNetworklm(trait ~ pred, dfr, net)
 @test_approx_eq residuals(phynetlm)[fitbis.model.ind] residuals(fitbis)
 @test_approx_eq model_response(phynetlm)[fitbis.model.ind] model_response(fitbis)
 @test_approx_eq predict(phynetlm)[fitbis.model.ind] predict(fitbis)
-@test_approx_eq df_residual(phynetlm) df_residual(fitbis)
+@test_approx_eq dof_residual(phynetlm) dof_residual(fitbis)
 @test_approx_eq sigma2_estim(phynetlm) sigma2_estim(fitbis)
 @test_approx_eq stderr(phynetlm) stderr(fitbis)
 @test_approx_eq confint(phynetlm) confint(fitbis)
 @test_approx_eq loglikelihood(phynetlm) loglikelihood(fitbis)
-@test_approx_eq df(phynetlm)  df(fitbis)
+@test_approx_eq dof(phynetlm)  dof(fitbis)
 @test_approx_eq deviance(phynetlm)  deviance(fitbis)
 @test_approx_eq nulldeviance(phynetlm)  nulldeviance(fitbis)
 @test_approx_eq nullloglikelihood(phynetlm)  nullloglikelihood(fitbis)
 @test_approx_eq R2(phynetlm)  R2(fitbis)
 @test_approx_eq adjR2(phynetlm)  adjR2(fitbis)
-@test_approx_eq AIC(phynetlm)  AIC(fitbis)
-@test_approx_eq AICc(phynetlm)  AICc(fitbis)
-@test_approx_eq BIC(phynetlm)  BIC(fitbis)
+@test_approx_eq aic(phynetlm)  aic(fitbis)
+@test_approx_eq aicc(phynetlm)  aicc(fitbis)
+@test_approx_eq bic(phynetlm)  bic(fitbis)
 @test_approx_eq mu_estim(phynetlm)  mu_estim(fitbis)
 
 
@@ -239,20 +239,20 @@ fitter = phyloNetworklm(trait ~ pred, dfr, net, no_names=true)
 @test_approx_eq residuals(phynetlm) residuals(fitter)
 @test_approx_eq model_response(phynetlm) model_response(fitter)
 @test_approx_eq predict(phynetlm) predict(fitter)
-@test_approx_eq df_residual(phynetlm) df_residual(fitter)
+@test_approx_eq dof_residual(phynetlm) dof_residual(fitter)
 @test_approx_eq sigma2_estim(phynetlm) sigma2_estim(fitter)
 @test_approx_eq stderr(phynetlm) stderr(fitter)
 @test_approx_eq confint(phynetlm) confint(fitter)
 @test_approx_eq loglikelihood(phynetlm) loglikelihood(fitter)
-@test_approx_eq df(phynetlm)  df(fitter)
+@test_approx_eq dof(phynetlm)  dof(fitter)
 @test_approx_eq deviance(phynetlm)  deviance(fitter)
 @test_approx_eq nulldeviance(phynetlm)  nulldeviance(fitter)
 @test_approx_eq nullloglikelihood(phynetlm)  nullloglikelihood(fitter)
 @test_approx_eq R2(phynetlm)  R2(fitter)
 @test_approx_eq adjR2(phynetlm)  adjR2(fitter)
-@test_approx_eq AIC(phynetlm)  AIC(fitter)
-@test_approx_eq AICc(phynetlm)  AICc(fitter)
-@test_approx_eq BIC(phynetlm)  BIC(fitter)
+@test_approx_eq aic(phynetlm)  aic(fitter)
+@test_approx_eq aicc(phynetlm)  aicc(fitter)
+@test_approx_eq bic(phynetlm)  bic(fitter)
 
 
 # unnamed un-ordered data
@@ -275,20 +275,20 @@ fitnabis = phyloNetworklm(trait ~ pred, dfr, net)
 @test_approx_eq sort(residuals(fitna)) sort(residuals(fitnabis))
 @test_approx_eq sort(model_response(fitna)) sort(model_response(fitnabis))
 @test_approx_eq sort(predict(fitna)) sort(predict(fitnabis))
-@test_approx_eq df_residual(fitna) df_residual(fitnabis)
+@test_approx_eq dof_residual(fitna) dof_residual(fitnabis)
 @test_approx_eq sigma2_estim(fitna) sigma2_estim(fitnabis)
 @test_approx_eq stderr(fitna) stderr(fitnabis)
 @test_approx_eq confint(fitna) confint(fitnabis)
 @test_approx_eq loglikelihood(fitna) loglikelihood(fitnabis)
-@test_approx_eq df(fitna)  df(fitnabis)
+@test_approx_eq dof(fitna)  dof(fitnabis)
 @test_approx_eq deviance(fitna)  deviance(fitnabis)
 @test_approx_eq nulldeviance(fitna)  nulldeviance(fitnabis)
 @test_approx_eq nullloglikelihood(fitna)  nullloglikelihood(fitnabis)
 @test_approx_eq R2(fitna)  R2(fitnabis)
 @test_approx_eq adjR2(fitna)  adjR2(fitnabis)
-@test_approx_eq AIC(fitna)  AIC(fitnabis)
-@test_approx_eq AICc(fitna)  AICc(fitnabis)
-@test_approx_eq BIC(fitna)  BIC(fitnabis)
+@test_approx_eq aic(fitna)  aic(fitnabis)
+@test_approx_eq aicc(fitna)  aicc(fitnabis)
+@test_approx_eq bic(fitna)  bic(fitnabis)
 
 
 
