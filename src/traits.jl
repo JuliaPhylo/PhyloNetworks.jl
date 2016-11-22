@@ -356,8 +356,9 @@ end
 
 
 #################################################
+###############################################################################
 ## Functions for Phylgenetic Network regression
-#################################################
+###############################################################################
 
 # New type for phyloNetwork regression
 """
@@ -396,7 +397,11 @@ type phyloNetworkLinearModel <: LinPredModel
 	logdetVy::Real
 	ind::Vector{Int} # vector matching the tips of the network against the names of the data frame provided. 0 if the match could not be preformed.
 	msng::BitArray{1} # Which tips are not missing
+	model::AbstractString
+	lambda::Real
 end
+
+phyloNetworkLinearModel(lm_fit, V, Vy, RL, Y, X, logdetVy, ind, msng, model) = phyloNetworkLinearModel(lm_fit, V, Vy, RL, Y, X, logdetVy, ind, msng, model, 1.0) 
 
 # Function for lm with net residuals
 function phyloNetworklm(
@@ -422,6 +427,25 @@ function phyloNetworklm(
 	model="BM"::AbstractString,
 	ind=[0]::Vector{Int}
 	)
+	## Choose Model
+	if (model == "BM")
+		return phyloNetworklm_BM(X, Y, V, msng, ind) 
+	end
+	if (model == "lambda")
+		return phyloNetworklm_lambda(X, Y, V, msng, ind) 
+	end
+end
+
+###############################################################################
+## Fit BM
+
+function phyloNetworklm_BM(
+	X::Matrix,
+	Y::Vector,
+	V::matrixTopologicalOrder,
+	msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
+	ind=[0]::Vector{Int}
+	)
    	# Extract tips matrix
 	Vy = V[:Tips]
 	# Re-order if necessary
@@ -432,9 +456,80 @@ function phyloNetworklm(
 	R = cholfact(Vy)
 	RL = R[:L]
 	# Fit
-	phyloNetworkLinearModel(lm(RL\X, RL\Y), V, Vy, RL, Y, X, logdet(Vy), ind, msng)
+	phyloNetworkLinearModel(lm(RL\X, RL\Y), V, Vy, RL, Y, X, logdet(Vy), ind, msng, "BM")
 end
 
+###############################################################################
+## Fit Pagel's Lambda
+
+function transform_matrix_lambda!{T <: AbstractFloat}(V::matrixTopologicalOrder, lam::T)
+	# WARNING : This transformation is not the expected one if branch length are modified.
+	# Need a function for node heigh computation.
+	V_diag = diagm(diag(V.V))
+	V.V = lam * V.V + (1 - lam) * V_diag
+end
+
+function logLik_lam{T <: AbstractFloat}(
+	lam::T,
+	X::Matrix,
+	Y::Vector,
+	V::matrixTopologicalOrder,
+	msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
+	ind=[0]::Vector{Int}
+	)
+	# Transform V according to lambda
+	transform_matrix_lambda!(V, lam)
+	# Fit and take likelihood
+	fit_lam = phyloNetworklm_BM(X, Y, V, msng, ind)
+	res = - loglikelihood(fit_lam)
+	# Go back to original V
+	transform_matrix_lambda!(V, 1/lam)
+	return res
+end
+
+# Code for optim taken from PhyloNetworks.jl/src/optimization.jl, lines 276 - 331
+const fAbsTr = 1e-10 
+const fRelTr = 1e-10
+const xAbsTr = 1e-10 
+const xRelTr = 1e-10
+
+function phyloNetworklm_lambda(
+	X::Matrix,
+	Y::Vector,
+	V::matrixTopologicalOrder,
+	msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
+	ind=[0]::Vector{Int},
+	ftolRel=fRelTr::AbstractFloat,
+	xtolRel=xRelTr::AbstractFloat,
+	ftolAbs=fAbsTr::AbstractFloat,
+	xtolAbs=xAbsTr::AbstractFloat,
+	startingValue=0.5::Real
+	)
+	# Find Best lambda using optimize from package NLopt
+	opt = NLopt.Opt(:LN_BOBYQA, 1)
+	NLopt.ftol_rel!(opt, ftolRel) # relative criterion
+  NLopt.ftol_abs!(opt, ftolAbs) # absolute critetion 
+	NLopt.xtol_rel!(opt, xtolRel) # criterion on parameter value changes
+	NLopt.xtol_abs!(opt, xtolAbs) # criterion on parameter value changes
+	NLopt.maxeval!(opt, 1000) # max number of iterations
+	NLopt.lower_bounds!(opt, 1e-100) # Lower bound  
+	NLopt.upper_bounds!(opt, 1.0)
+	count = 0
+  function fun(x::Vector{Float64}, g::Vector{Float64})
+		x = convert(AbstractFloat, x[1])
+		res = logLik_lam(x, X, Y, V, msng, ind)
+		count =+ 1
+		return res
+	end
+	NLopt.min_objective!(opt, fun)
+	fmin, xmin, ret = NLopt.optimize(opt, [startingValue])
+	# Best value dans result
+	transform_matrix_lambda!(V, xmin[1])
+	res = phyloNetworklm_BM(X, Y, V, msng, ind)
+	res.lambda = xmin[1]
+	res.model = "lambda"
+	return res
+end
 
 """
 `phyloNetworklm(f::Formula, fr::AbstractDataFrame, net::HybridNetwork)`
@@ -450,6 +545,11 @@ implemented for now.
 - no_names: force the function to ignore the tips names. The data is then assumed to
 be in the same order as the tips of the network. Default to false, setting it to true is
 dangerous, and strongly discouraged.
+- When model="lambda", some parameters controlling the optimization in lambda
+can be specified: ftolRel and ftolAbs (defaults to 10^-6 and 10^-5) for relative
+and absolute tolerance on the likelihood objective function, and xtolRel and xtolAbs
+(defaults to 10^-4 and 10^-3) for relative and absolute tolerance on the lambda
+parameter.
 
 Returns an object of class phyloNetworkLinearModel.
 """
@@ -459,7 +559,12 @@ function phyloNetworklm(
 	fr::AbstractDataFrame,
 	net::HybridNetwork;
 	model="BM"::AbstractString,
-	no_names=false::Bool
+	no_names=false::Bool,
+	ftolRel=fRelTr::AbstractFloat,
+	xtolRel=xRelTr::AbstractFloat,
+	ftolAbs=fAbsTr::AbstractFloat,
+	xtolAbs=xAbsTr::AbstractFloat,
+	startingValue=0.5::Real
 	)
 	# Match the tips names: make sure that the data provided by the user will
 	# be in the same order as the ordered tips in matrix V.
@@ -520,13 +625,19 @@ StatsBase.vcov(m::phyloNetworkLinearModel) = vcov(m.lm)
 # Standart error
 StatsBase.stderr(m::phyloNetworkLinearModel) = stderr(m.lm)
 # Confidence Intervals
-StatsBase.confint(m::phyloNetworkLinearModel, level=0.95::Real) = confint(m.lm, level)
+StatsBase.confint(m::phyloNetworkLinearModel; level=0.95::Real) = confint(m.lm, level)
 # coef table (coef, stderr, confint)
 StatsBase.coeftable(m::phyloNetworkLinearModel) = coeftable(m.lm)
 # Degrees of freedom for residuals
 StatsBase.dof_residual(m::phyloNetworkLinearModel) =  nobs(m) - length(coef(m))
-# Degrees of freedom consumed in the model (+1: dispersion parameter)
-StatsBase.dof(m::phyloNetworkLinearModel) = length(coef(m)) + 1 
+# Degrees of freedom consumed in the model
+function StatsBase.dof(m::phyloNetworkLinearModel)
+	res = length(coef(m)) + 1 # (+1: dispersion parameter)
+	if (m.model == "lambda")
+		res += 1 # lambda is one parameter
+	end
+	return res
+end
 # Deviance (sum of squared residuals with metric V)
 StatsBase.deviance(m::phyloNetworkLinearModel) = deviance(m.lm)
 
@@ -590,6 +701,9 @@ function mu_estim(m::DataFrames.DataFrameRegressionModel)#{PhyloNetworks.phyloNe
 	end
 	return coef(m)[1]
 end
+# Lambda estim
+lambda_estim(m::phyloNetworkLinearModel) = m.lambda
+lambda_estim(m::DataFrames.DataFrameRegressionModel) = lambda_estim(m.model)
 
 ### Functions specific to DataFrameRegressionModel
 DataFrames.ModelFrame(m::DataFrames.DataFrameRegressionModel) = m.mf
