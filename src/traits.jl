@@ -362,42 +362,53 @@ end
 
 # New type for phyloNetwork regression
 """
-`phyloNetworkLinearModel type`
-Regression object for a phylogenetic regression. Dominated by the LinPredModel class.
-It has the following attributes:
+`phyloNetworkLinearModel<:LinPredModel`
 
-- lm: a GLM.LinearModel object, fitted on the cholesky-tranformend problem
-- V: a matrixTopologicalOrder object of the network-induced correlations
-- Vy: the sub matrix corresponding to the tips and actually used for the correction
-- RL: a LowerTriangular matrix, cholesky transform of Vy=RL*RL'
-- Y: the vector of data
-- X: the matrix of regressors
-- logdetVy: the log-determinent of Vy
-- ind: vector matching the tips of the network against the names of the dataframe provided. 0 if the match could not be performed.
-- msng: vector indicating which of the tips are missing
+Regression object for a phylogenetic regression. Result of fitting function `phyloNetworklm`.
+Dominated by the `LinPredModel` class, from package `GLM`.
 
 The following StatsBase functions can be applied to it:
-coef, nobs, vcov, stderr, confint, coeftable, dof_residual, dof, deviance,
-residuals, model_response, predict, loglikelihood, nulldeviance, nullloglikelihood,
-r2, adjr2, aic, aicc, bic
+`coef`, `nobs`, `vcov`, `stderr`, `confint`, `coeftable`, `dof_residual`, `dof`, `deviance`,
+`residuals`, `model_response`, `predict`, `loglikelihood`, `nulldeviance`, `nullloglikelihood`,
+`r2`, `adjr2`, `aic`, `aicc`, `bic`.
 
 The following DataFrame functions can also be applied to it:
-ModelFrame, ModelMatrix, Formula.
+`ModelFrame`, `ModelMatrix`, `Formula`.
 
 Estimated variance and mean of the BM process used can be retrieved with 
-functions sigma2_estim and mu_estim.
+functions `sigma2_estim` and `mu_estim`.
+
+If a Pagel's lambda model is fitted, the parameter can be retrieved with function 
+	`lambda_estim`.
+
+An ancestral state reconstruction can be performed from this fitted object using function:
+	`ancestralStateReconstruction`.
+
+Has fields: `lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `ind`, `msng`, `model`, `lambda`.
+Type in "?phyloNetworkLinearModel.field" to get help on a specific field.
 """
 type phyloNetworkLinearModel <: LinPredModel 
+  "lm: a GLM.LinearModel object, fitted on the cholesky-tranformend problem"
 	lm::GLM.LinearModel # result of a lm on a matrix
+  "V: a matrixTopologicalOrder object of the network-induced correlations"
 	V::matrixTopologicalOrder
+  "Vy: the sub matrix corresponding to the tips and actually used for the correction"
 	Vy::Matrix
+  "RL: a LowerTriangular matrix, Cholesky transform of Vy=RL*RL'"
 	RL::LowerTriangular
+  "Y: the vector of data"
 	Y::Vector
+  "X: the matrix of regressors"
 	X::Matrix
+  "logdetVy: the log-determinent of Vy"
 	logdetVy::Real
-	ind::Vector{Int} # vector matching the tips of the network against the names of the data frame provided. 0 if the match could not be preformed.
+  "ind: vector matching the tips of the network against the names of the dataframe provided. 0 if the match could not be performed."
+	ind::Vector{Int} 
+  "msng: vector indicating which of the tips are missing"
 	msng::BitArray{1} # Which tips are not missing
+	"model: the model used for the fit"
 	model::AbstractString
+	"If applicable, value of lambda (default to 1)."
 	lambda::Real
 end
 
@@ -539,27 +550,52 @@ function phyloNetworklm_lambda(
 end
 
 """
-`phyloNetworklm(f::Formula, fr::AbstractDataFrame, net::HybridNetwork)`
+    phyloNetworklm(f, fr, net, model="BM",
+		fTolRel=1e^-10, fTolAbs=1e^-10, xTolRel=1e^-10, xTolAbs=1e^-10,
+		startingValue=0.5)`
 
 Phylogenetic regression, using the correlation structure induced by the network.
+Returns an object of class phyloNetworkLinearModel. See documentation for this type and
+example to see all the functions that can be applied to it.
 
-- f: formula to use for the regression (see the DataFrame package)
-- fr: DataFrame containing the data and regressors at the tips. It should have
-an extra column labelled "tipsNames", that gives the names of the taxa for each observation.
-- net: phylogenetic network of class HibridNetwork.
-- model: the model for the covariance computations. Only BM (Brownian Motion) is
-implemented for now.
-- no_names: force the function to ignore the tips names. The data is then assumed to
-be in the same order as the tips of the network. Default to false, setting it to true is
-dangerous, and strongly discouraged.
-- When model="lambda", some parameters controlling the optimization in lambda
-can be specified: ftolRel and ftolAbs (defaults to 10^-6 and 10^-5) for relative
-and absolute tolerance on the likelihood objective function, and xtolRel and xtolAbs
-(defaults to 10^-4 and 10^-3) for relative and absolute tolerance on the lambda
-parameter.
+# Arguments
+* `f::Formula`: formula to use for the regression (see the `DataFrame` package)
+* `fr::AbstractDataFrame`: DataFrame containing the data and regressors at the tips. It should have an extra column labelled "tipsNames", that gives the names of the taxa for each observation.
+* `net::HybridNetwork`: phylogenetic network to use. Should have labelled tips.
+* `model::AbstractString="BM"`: the model to use, "BM" being the default and only available model for now. If the entry is a TREE, then "lambda" can fit a Pagel's lambda model.
+* `no_names::Bool=false`: if `true`, force the function to ignore the tips names. The data is then assumed to be in the same order as the tips of the network. Default to false, setting it to true is dangerous, and strongly discouraged.
+If `model="lambda"`, there are a few more parameters to control the optimization in the parameter:
+* `fTolRel::AbstractFloat=1e-10`: relative tolerance on the likelihood value for the optimization in lambda.
+* `fTolAbs::AbstractFloat=1e-10`: absolute tolerance on the likelihood value for the optimization in lambda.
+* `xTolRel::AbstractFloat=1e-10`: relative tolerance on the parameter value for the optimization in lambda.
+* `xTolAbs::AbstractFloat=1e-10`: absolute tolerance on the parameter value for the optimization in lambda.
+* `startingValue::Real=0.5`: the starting value for the parameter in the optimization in lambda.
 
-Returns an object of class phyloNetworkLinearModel.
-"""
+# Example 
+```julia
+julia> phy = readTopology("examples/caudata_tree.txt");
+julia> dat = readtable("examples/caudata_trait.txt");
+julia> fitBM = phyloNetworklm(trait ~ 1, dat, phy);
+julia> fitBM # Shows a summary
+julia> sigma2_estim(fitBM)
+julia> mu_estim(fitBM)
+julia> loglikelihood(fitBM) 
+julia> aic(fitBM)
+julia> aicc(fitBM)
+julia> bic(fitBM)
+julia> coef(fitBM)
+julia> confint(fitBM)
+julia> r2(fitBM)
+julia> adjr2(fitBM)
+julia> vcov(fitBM)
+julia> residuals(fitBM)
+julia> model_response(fitBM)
+julia> predict(fitBM)
+```
+
+# See also 
+Type `phyloNetworkLinearModel`, Function `ancestralStatesReconstruction`
+""" #"
 # Deal with formulas
 function phyloNetworklm(
 	f::Formula,
@@ -721,7 +757,12 @@ DataFrames.Formula(m::DataFrames.DataFrameRegressionModel) = Formula(m.mf.terms)
 # Variance
 function paramstable(m::phyloNetworkLinearModel)
 	Sig = sigma2_estim(m)
-	"Sigma2: $(Sig)"
+	res = "Sigma2: $(Sig)"
+	if (m.model == "lambda")
+	  Lamb = lambda_estim(m)
+		res = res*"\nLambda: $(Lamb)"
+	end
+	return(res)
 end
 function Base.show(io::IO, obj::phyloNetworkLinearModel)
 	println(io, "$(typeof(obj)):\n\nParameter(s) Estimates:\n", paramstable(obj), "\n\nCoefficients:\n", coeftable(obj))
@@ -969,14 +1010,25 @@ end
 
 """
 `ancestralStateReconstruction(obj::phyloNetworkLinearModel)`
+
 Function to find the ancestral traits reconstruction on a network, given an
-object fitted by function phyloNetworklm. It assumes that the regressor is just
+object fitted by function `phyloNetworklm`. It assumes that the regressor is just
 an intercept.
 
-- obj: a phyloNetworkLinearModel object, or a
-DataFrameRegressionModel{phyloNetworkLinearModel}, if data frames were used.
+Returns an object of type `ancestralStateReconstruction`.
+See documentation for this type and exeamples for functions that can be applied to it.
 
-Returns an object of type ancestralStateReconstruction.
+# Example 
+```julia
+julia> phy = readTopology("examples/carnivores_tree.txt");
+julia> dat = readtable("examples/carnivores_trait.txt");
+julia> fitBM = phyloNetworklm(trait ~ 1, dat, phy);
+julia> ancStates = ancestralStateReconstruction(fitBM); 
+julia> ancStates # Should produce a warning, as variance is unknown.
+julia> plot(phy, ancStates)
+julia> expectations(ancStates)
+julia> predint(ancStates)
+```
 """
 # Default reconstruction for a simple BM (known predictors)
 function ancestralStateReconstruction(obj::phyloNetworkLinearModel)
