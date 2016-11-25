@@ -465,8 +465,15 @@ end
 function transform_matrix_lambda!{T <: AbstractFloat}(V::matrixTopologicalOrder, lam::T)
 	# WARNING : This transformation is not the expected one if branch length are modified.
 	# Need a function for node heigh computation.
-	V_diag = diagm(diag(V.V))
-	V.V = lam * V.V + (1 - lam) * V_diag
+	for i in 1:size(V.V, 1)
+		for j in 1:size(V.V, 2)
+			if i != j
+				V.V[i,j] *= lam
+			end
+		end
+	end
+#	V_diag = diagm(diag(V.V))
+#	V.V = lam * V.V + (1 - lam) * V_diag
 end
 
 function logLik_lam{T <: AbstractFloat}(
@@ -731,6 +738,9 @@ function Base.show(io::IO, model::DataFrames.DataFrameRegressionModel)#{PhyloNet
 	println(io)
 	println(io,"Coefficients:")
 	show(io, ct)
+	println(io)
+	println(io, "Log Likelihood: "*"$(loglikelihood(model))")
+	println(io, "AIC: "*"$(aic(model))")
 end
 
 
