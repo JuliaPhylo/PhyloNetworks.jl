@@ -555,7 +555,8 @@ end
 		startingValue=0.5)`
 
 Phylogenetic regression, using the correlation structure induced by the network.
-Returns an object of class phyloNetworkLinearModel. See documentation for this type and
+
+Returns an object of class `phyloNetworkLinearModel`. See documentation for this type and
 example to see all the functions that can be applied to it.
 
 # Arguments
@@ -816,28 +817,30 @@ end
 #################################################
 # Class for reconstructed states on a network
 """
-`reconstructedStates type`
+`reconstructedStates`
+
 Type containing the inferred information about the law of the ancestral states
 given the observed tips values. The missing tips are considered as ancestral states.
-Attributes:
-
-- traits_nodes: the infered expectation of "missing" values (ancestral nodes and missing tips)
-- variances_nodes: the variance covariance matrix between all the "missing" nodes
-- NodesNumbers: vector of the nodes numbers, in the same order as traits_nodes
-- traits_tips: the observed traits values at the tips
-- TipsNumbers: vector of tips numbers, in the same order as traits_tips
-- model (Nullable): if not null, the phyloNetworkLinearModel used for the computations.
 
 The following functions can be applied to it:
-expectations (vector of expectations at all nodes), stderr (the standard error),
-predint (the prediction interval), plot.
+`expectations` (vector of expectations at all nodes), `stderr` (the standard error),
+`predint` (the prediction interval), `plot`.
+
+Has fields: `traits_nodes`, `variances_nodes`, `NodesNumbers`, `traits_tips`, `TipsNumbers`, `model`.
+Type in "?reconstructedStates.field" to get help on a specific field.
 """
 type reconstructedStates
+  "traits_nodes: the infered expectation of 'missing' values (ancestral nodes and missing tips)"
 	traits_nodes::Vector # Nodes are actually "missing" data (including tips)
+  "variances_nodes: the variance covariance matrix between all the 'missing' nodes"
 	variances_nodes::Matrix
+  "NodesNumbers: vector of the nodes numbers, in the same order as `traits_nodes`"
 	NodesNumbers::Vector{Int}
+  "traits_tips: the observed traits values at the tips"
 	traits_tips::Vector # Observed values at tips
+  "TipsNumbers: vector of tips numbers, in the same order as `traits_tips`"
 	TipsNumbers::Vector # Observed tips only
+  "model (Nullable): if not null, the `phyloNetworkLinearModel` used for the computations."
 	model::Nullable{phyloNetworkLinearModel} # If empirical, the corresponding fitted object.
 end
 
@@ -880,11 +883,16 @@ end
 """
 'plot(net::HybridNetwork, obj::reconstructedStates; kwargs...)
 
-Plot the reconstructed states computed by function ancestralStateReconstruction
+Plot the reconstructed states computed by function `ancestralStateReconstruction`
 on a network.
-- net : a phylogenetic network
-- obj : the reconstructed states on the network (see ancestralStateReconstruction)
-- ... : further arguments to be passed to the netwotk plotting function
+
+# Arguments
+* `net::HybridNetwork`: a phylogenetic network.
+* `obj::reconstructedStates`: the reconstructed states on the network. 
+* `kwargs...`: further arguments to be passed to the netwotk `plot` function.
+
+See documentation for function `ancestralStateReconstruction(obj::phyloNetworkLinearModel[, X_n::Matrix])` for examples.
+
 """
 function Gadfly.plot(net::HybridNetwork, obj::reconstructedStates; kwargs...)
 	plot(net, nodeLabel = predintPlot(obj); kwargs...)
@@ -893,11 +901,15 @@ end
 """
 `ancestralStateReconstruction(net::HybridNetwork, Y::Vector, params::paramsBM)`
 
-Computes the conditional expectations and variances of the ancestral (un-observed)
-traits values at the internal nodes of the phylogenetic network (net), 
-given the values of the traits at the tips of the network (Y) and some
-known parameters of the process used for trait evolution (params, only BM with fixed root
+Compute the conditional expectations and variances of the ancestral (un-observed)
+traits values at the internal nodes of the phylogenetic network (`net`), 
+given the values of the traits at the tips of the network (`Y`) and some
+known parameters of the process used for trait evolution (`params`, only BM with fixed root
 works for now).
+
+This function assumes that the parameters of the process are known. For a more general
+function, see `ancestralStateReconstruction(obj::phyloNetworkLinearModel[, X_n::Matrix])`.
+
 """
 # Reconstruction from known BM parameters
 function ancestralStateReconstruction(
@@ -951,18 +963,19 @@ function ancestralStateReconstruction(
 	reconstructedStates(m_z_cond_y, V_z_cond_y + add_var, NodesNumbers, Y, TipsNumbers, model)
 end
 
-"""
-`ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)`
-Function to find the ancestral traits reconstruction on a network, given an
-object fitted by function phyloNetworklm, and some predictors expressed at all the nodes of the network.
+# """
+# `ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)`
+# Function to find the ancestral traits reconstruction on a network, given an
+# object fitted by function phyloNetworklm, and some predictors expressed at all the nodes of the network.
+# 
+# - obj: a phyloNetworkLinearModel object, or a
+# DataFrameRegressionModel{phyloNetworkLinearModel}, if data frames were used.
+# - X_n a matrix with as many columns as the number of predictors used, and as
+# many lines as the number of unknown nodes or tips.
+# 
+# Returns an object of type ancestralStateReconstruction.
+# """
 
-- obj: a phyloNetworkLinearModel object, or a
-DataFrameRegressionModel{phyloNetworkLinearModel}, if data frames were used.
-- X_n a matrix with as many columns as the number of predictors used, and as
-many lines as the number of unknown nodes or tips.
-
-Returns an object of type ancestralStateReconstruction.
-"""
 # Empirical reconstruciton from a fitted object
 # TO DO: Handle the order of internal nodes for matrix X_n
 function ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)
@@ -1009,14 +1022,17 @@ function ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)
 end
 
 """
-`ancestralStateReconstruction(obj::phyloNetworkLinearModel)`
+`ancestralStateReconstruction(obj::phyloNetworkLinearModel[, X_n::Matrix])`
 
 Function to find the ancestral traits reconstruction on a network, given an
-object fitted by function `phyloNetworklm`. It assumes that the regressor is just
-an intercept.
+object fitted by function `phyloNetworklm`. By default, the function assumes
+that the regressor is just an intercept. If the value of the regressor for 
+all the ancestral states is known, it can be entered in X_n, a matrix with as
+many columns as the number of predictors used, and as many lines as the number
+of unknown nodes or tips.
 
-Returns an object of type `ancestralStateReconstruction`.
-See documentation for this type and exeamples for functions that can be applied to it.
+Returns an object of type `reconstructedStates`.
+See documentation for this type and examples for functions that can be applied to it.
 
 # Example 
 ```julia
@@ -1025,6 +1041,13 @@ julia> dat = readtable("examples/carnivores_trait.txt");
 julia> fitBM = phyloNetworklm(trait ~ 1, dat, phy);
 julia> ancStates = ancestralStateReconstruction(fitBM); 
 julia> ancStates # Should produce a warning, as variance is unknown.
+julia> plot(phy, ancStates)
+julia> expectations(ancStates)
+julia> predint(ancStates)
+julia> ## Some tips may also be missing
+julia> dat[[2, 5], :trait] = NA
+julia> fitBM = phyloNetworklm(trait ~ 1, dat, phy);
+julia> ancStates = ancestralStateReconstruction(fitBM); 
 julia> plot(phy, ancStates)
 julia> expectations(ancStates)
 julia> predint(ancStates)
@@ -1045,19 +1068,19 @@ end
 function ancestralStateReconstruction{T<:Union{Float32,Float64}}(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel, Array{T,2}}, X_n::Matrix)
 	ancestralStateReconstruction(obj.model, X_n::Matrix)
 end
+
 """
 `ancestralStateReconstruction(fr::AbstractDataFrame, net::HybridNetwork; kwargs...)`
+
 Function to find the ancestral traits reconstruction on a network, given some data at the tips.
-Uses function phyloNetworklm to perform a phylogenetic regression of the data against an
+Uses function `phyloNetworklm` to perform a phylogenetic regression of the data against an
 intercept (amounts to fitting an evolutionary model on the network, BM being the only option 
 available for now).
 
-- fr: DataFrame containing the data at the tips. It should have an extra column labelled
-"tipsNames", that gives the names of the taxa for each observation.
-- net: phylogenetic network of class HibridNetwork.
-- kwargs...: further arguments to be passed to phyloNetworklm
+See documentation on `phyloNetworklm` and `ancestralStateReconstruction(obj::phyloNetworkLinearModel[, X_n::Matrix])`
+for further details.
 
-Returns an object of type ancestralStateReconstruction.
+Returns an object of type `reconstructedStates`.
 """
 # Deal with formulas
 function ancestralStateReconstruction(
@@ -1074,6 +1097,7 @@ function ancestralStateReconstruction(
 	reg = phyloNetworklm(f, fr, net; kwargs...)
 	return ancestralStateReconstruction(reg)
 end
+
 # # Default reconstruction for a simple BM
 # function ancestralStateReconstruction(obj::phyloNetworkLinearModel, mu::Real)
 # 	m_y = predict(obj)
@@ -1207,7 +1231,7 @@ function updateHybridSimulateBM!(
 	params::Tuple{paramsBM}
 	)
 	params = params[1]
-       	M[1, i] = params.mu  # expectation
+  M[1, i] = params.mu  # expectation
 	M[2, i] =  edge1.gamma * (M[2, parentIndex1] + sqrt(params.sigma2 * edge1.length) * randn()) + edge2.gamma * (M[2, parentIndex2] + sqrt(params.sigma2 * edge2.length) * randn()) # random value
 end
 
