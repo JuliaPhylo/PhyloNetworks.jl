@@ -1,31 +1,43 @@
 # functions for trait evolution on network
 # Claudia & Paul Bastide: November 2015
 
-#################################################
+###############################################################################
+###############################################################################
 ## Function to traverse the network in the pre-order, updating a matrix
-#################################################
+###############################################################################
+###############################################################################
 
 # Matrix with rows and/or columns in topological order of the net.
 """
-`matrixTopologicalOrder type`
-Matrix associated to a net sorted in topological order, with the following attributes:
+`matrixTopologicalOrder`
 
-- V: the matrix per se
-- nodesNumbersTopOrder: vector of nodes numbers in the topological order, used for the matrix
-- internalNodesNumbers: vector of internal nodes number, in the original net order
-- tipsNumbers: vector of tips numbers, in the origial net order
-- tipsNames: vector of tips names, in the original net order
-- indexation: a string giving the type of matrix V:
-		-"r": rows only are indexed by the nodes of the network
-		-"c": columns only are indexed by the nodes of the network
-		-"b": both rows and columns are indexed by the nodes of the network
+Matrix associated to an `HybridNetwork` sorted in topological order.
+
+The following functions and extractors can be applied to it: `tipLabels`, `obj[:Tips]`, `obj[:InternalNodes]`, `obj[:TipsNodes]` (see documentation for function `getindex(obj, d,[ indTips, msng])`).
+
+Functions `sharedPathMatrix` and `simulate` return objects of this type.
+
+Has fields: `V`, `nodesNumbersTopOrder`, `internalNodesNumbers`, `tipsNumbers`, `tipsNames`, `indexation`.
+Type in "?matrixTopologicalOrder.field" to get documentation on a specific field.
+
 """
 type matrixTopologicalOrder
+  "V: the matrix per se"
 	V::Matrix # Matrix in itself
+  "nodesNumbersTopOrder: vector of nodes numbers in the topological order, used for the matrix"
 	nodesNumbersTopOrder::Vector{Int} # Vector of nodes numbers for ordering of the matrix
+  "internalNodesNumbers: vector of internal nodes number, in the original net order"
 	internalNodesNumbers::Vector{Int} # Internal nodes numbers (original net order)
+  "tipsNumbers: vector of tips numbers, in the origial net order"
 	tipsNumbers::Vector{Int} # Tips numbers (original net order)
+  "tipsNames: vector of tips names, in the original net order"
 	tipsNames::Vector # Tips Names (original net order)
+  """
+	indexation: a string giving the type of matrix `V`:
+		-"r": rows only are indexed by the nodes of the network
+		-"c": columns only are indexed by the nodes of the network
+	  -"b": both rows and columns are indexed by the nodes of the network
+	"""
 	indexation::AbstractString # Are rows ("r"), columns ("c") or both ("b") indexed by nodes numbers in the matrix ?
 end
 
@@ -152,17 +164,19 @@ end
 
 # If some tips are missing, treat them as "internal nodes"
 """
-`getindex(obj, d, indTips, msng)`
+`getindex(obj, d,[ indTips, msng])`
 
-Getting submatrices of an object of class matrixTopologicalOrder.
+Getting submatrices of an object of type `matrixTopologicalOrder`.
 
-- obj: a matrixTopologicalOrder object
-- d: a symbol precising which sub-matrix to extract
-	- :Tips columns and/or rows corresponding to the tips
-	- :InternalNodes columns and/or rows corresponding to the internal nodes
-	- :TipsNodes columns corresponding to internal nodes, and row to tips (works only is indexation="b")
-- indTips: optional argument precising a specific order for the tips
-- msng: optional argument precising the missing tips
+# Arguments
+* `obj::matrixTopologicalOrder`: the matrix from which to extract.
+* `d::Symbol`: a symbol precising which sub-matrix to extract. Can be:
+  * `:Tips` columns and/or rows corresponding to the tips
+  * `:InternalNodes` columns and/or rows corresponding to the internal nodes
+  * `:TipsNodes` columns corresponding to internal nodes, and row to tips (works only is indexation="b")
+* `indTips::Vector{Int}`: optional argument precising a specific order for the tips (internal use).
+* `msng::BitArray{1}`: optional argument precising the missing tips (internal use).
+
 """
 function Base.getindex(
 	obj::matrixTopologicalOrder,
@@ -202,16 +216,20 @@ function Base.getindex(
 	d == :All && return obj.V
 end
 
-#################################################
+###############################################################################
+###############################################################################
 ## Functions to compute the variance-covariance between Node and its parents
-#################################################
+###############################################################################
+###############################################################################
 """
 `sharedPathMatrix(net::HybridNetwork; checkPreorder=true::Bool)`
 
 This function computes the shared path matrix between all the nodes of a
 network. It assumes that the network is in the pre-order. If checkPreorder is
 true (default), then it runs function 'preoder' on the network beforehand.
+
 Returns an object of type 'matrixTopologicalOrder'.
+
 """
 function sharedPathMatrix(
 	net::HybridNetwork;
@@ -318,13 +336,23 @@ end
 #end
 
 
-#################################################
+###############################################################################
+###############################################################################
 ## Types for params process
-#################################################
+###############################################################################
+###############################################################################
 
 # Abstract type of all the (future) types (BM, OU, ...)
 abstract paramsProcess
 
+"""
+`paramsBM <: paramsProcess`
+
+Type for a BM process on a network. Fields are `mu` (expectation),
+`sigma2` (variance), `randomRoot` (whether the root is random, default to `false`),
+and `varRoot` (if the root is random, the variance of the root, defalut to `NaN`).
+
+"""
 # BM type
 type paramsBM <: paramsProcess
 	mu::Real # Ancestral value or mean
@@ -355,9 +383,183 @@ function paramstable(obj::paramsBM)
 end
 
 
-#################################################
+###############################################################################
+###############################################################################
+## Simulation Function
+###############################################################################
+###############################################################################
+
+"""
+`traitSimulation`
+
+Result of a trait simulation on an `HybridNetwork` with function `simulate`.
+
+The following functions and extractors can be applied to it: `tipLabels`, `obj[:Tips]`, `obj[:InternalNodes]` (see documentation for function `getindex(obj, d,[ indTips, msng])`).
+
+Has fields: `M`, `params`, `model`.
+"""
+type traitSimulation
+	M::matrixTopologicalOrder
+	params::paramsProcess
+	model::AbstractString
+end
+
+function Base.show(io::IO, obj::traitSimulation)
+	disp = "$(typeof(obj)):\n"
+	disp = disp * "Trait simulation results on a network with $(length(obj.M.tipsNames)) tips, using a using a $(obj.model) model, with parameters:\n"
+	disp = disp * paramstable(obj.params)
+	println(io, disp)
+end
+
+function tipLabels(obj::traitSimulation)
+	return tipLabels(obj.M)
+end
+
+
+"""
+`simulate(net::HybridNetwork, params::paramsProcess, checkPreorder=true::Bool)`
+
+Simualte some traits on `net` using the parameters `params`. For now, only
+parameters of type `paramsBM` (Brownian Motion) are accepted.
+
+Assumes that the network is in the pre-order. If `checkPreorder=true` (default),
+then it runs function `preoder` on the network beforehand.
+
+Returns an object of type `traitSimulation`.
+
+# Examples
+```julia
+julia> phy = readTopology("examples/carnivores_tree.txt");
+julia> par = paramsBM(1, 0.1); # BM with expectation 1 and variance 0.1.
+julia> par
+julia> sim = simulate(phy, par); # Simulate on the tree.
+julia> sim
+julia> traits = sim[:Tips] # Extract simulated values at the tips.
+```
+"""
+# Uses recursion on the network.
+# Takes params of type paramsProcess as an entry
+# Returns a matrix with two lines:
+# - line one = expectations at all the nodes
+# - line two = simulated values at all the nodes
+# The nodes are ordered as given by topological sorting
+function simulate(
+	net::HybridNetwork,
+	params::paramsProcess,
+	checkPreorder=true::Bool)
+	if typeof(paramsProcess) == paramsBM
+		model = "BM"
+	else
+		error("The 'simulate' function only works for a BM process (for now).")
+	end
+	M = recursionPreOrder(
+				net,
+				checkPreorder,
+				initSimulateBM,
+				updateRootSimulateBM!,
+				updateTreeSimulateBM!,
+				updateHybridSimulateBM!,
+				"c",
+				params
+				)
+	traitSimulation(M, params, model)
+end
+
+# Initialization of the structure
+function initSimulateBM(nodes::Vector{Node}, params::Tuple{paramsBM})
+	return(zeros(2, length(nodes)))
+end
+
+# Initialization of the root
+function updateRootSimulateBM!(M::Matrix, i::Int, params::Tuple{paramsBM})
+	params = params[1]
+	if (params.randomRoot)
+		M[1, i] = params.mu # expectation
+		M[2, i] = params.mu + sqrt(params.varRoot) * randn() # random value
+	else
+		M[1, i] = params.mu # expectation
+		M[2, i] = params.mu # random value (root fixed)
+	end
+end
+
+# Going down to a tree node
+function updateTreeSimulateBM!(
+	M::Matrix,
+	i::Int,
+	parentIndex::Int,
+	edge::Edge,
+	params::Tuple{paramsBM}
+	)
+	params = params[1]
+	M[1, i] = params.mu  # expectation
+	M[2, i] = M[2, parentIndex] + sqrt(params.sigma2 * edge.length) * randn() # random value
+end
+
+# Going down to an hybrid node
+function updateHybridSimulateBM!(
+	M::Matrix,
+	i::Int,
+	parentIndex1::Int, 
+	parentIndex2::Int,
+	edge1::Edge,
+	edge2::Edge,
+	params::Tuple{paramsBM}
+	)
+	params = params[1]
+  M[1, i] = params.mu  # expectation
+	M[2, i] =  edge1.gamma * (M[2, parentIndex1] + sqrt(params.sigma2 * edge1.length) * randn()) + edge2.gamma * (M[2, parentIndex2] + sqrt(params.sigma2 * edge2.length) * randn()) # random value
+end
+
+
+# function updateSimulateBM!(i::Int, nodes::Vector{Node}, M::Matrix, params::Tuple{paramsBM})
+#     params = params[1]
+#     parent = getParents(nodes[i]) #array of nodes (empty, size 1 or 2)
+#     if(isempty(parent)) #nodes[i] is root
+#         if (params.randomRoot)
+# 		M[1, i] = params.mu # expectation
+# 		M[2, i] = params.mu + sqrt(params.varRoot) * randn() # random value
+# 	else
+# 		M[1, i] = params.mu # expectation
+# 		M[2, i] = params.mu # random value (root fixed)
+# 	end
+#
+#     elseif(length(parent) == 1) #nodes[i] is tree
+#         parentIndex = getIndex(parent[1],nodes)
+# 	l = getConnectingEdge(nodes[i],parent[1]).length
+# 	M[1, i] = params.mu  # expectation
+# 	M[2, i] = M[2, parentIndex] + sqrt(params.sigma2 * l) * randn() # random value
+#
+#     elseif(length(parent) == 2) #nodes[i] is hybrid
+#         parentIndex1 = getIndex(parent[1],nodes)
+#         parentIndex2 = getIndex(parent[2],nodes)
+#         edge1 = getConnectingEdge(nodes[i],parent[1])
+#         edge2 = getConnectingEdge(nodes[i],parent[2])
+#         edge1.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[1].number) should be a hybrid egde")
+#         edge2.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[2].number) should be a hybrid egde")
+# 	M[1, i] = params.mu  # expectation
+# 	M[2, i] =  edge1.gamma * (M[2, parentIndex1] + sqrt(params.sigma2 * edge1.length) * randn()) + edge2.gamma * (M[2, parentIndex2] + sqrt(params.sigma2 * edge2.length) * randn()) # random value
+#     end
+# end
+
+# Extract the vector of simulated values at the tips
+function Base.getindex(obj::traitSimulation, d::Symbol)
+#    if d == :Tips
+#       res = obj.M[:Tips]
+#       squeeze(res[2, :], 1)
+#    end
+#	squeeze(getindex(obj.M, d)[2, :], 1)
+ getindex(obj.M, d)[2, :]
+end
+
+# function extractSimulateTips(sim::Matrix, net::HybridNetwork)
+# 	mask = getTipsIndexes(net)
+# 	return(squeeze(sim[2, mask], 1))
+# end
+
+###############################################################################
 ###############################################################################
 ## Functions for Phylgenetic Network regression
+###############################################################################
 ###############################################################################
 
 # New type for phyloNetwork regression
@@ -812,9 +1014,11 @@ end
 #               ["x$i" for i = 1:size(mm.lm.pp.X, 2)], 4)
 # end
 
-#################################################
+###############################################################################
+###############################################################################
 ## Ancestral State Reconstruction
-#################################################
+###############################################################################
+###############################################################################
 # Class for reconstructed states on a network
 """
 `reconstructedStates`
@@ -1140,144 +1344,3 @@ end
 # #	res = phyloNetworkRegression(betahat, sigma2hat[1], loglik[1], V, Vy, fittedValues, residuals)
 # 	return((betahat, sigma2hat[1], loglik[1], V, Vy, logdetVy, fittedValues, residuals))
 # end
-
-
-
-
-#################################################
-## Simulation Function
-#################################################
-
-type traitSimulation
-	M::matrixTopologicalOrder
-	params::paramsProcess
-	model::AbstractString
-end
-
-function Base.show(io::IO, obj::traitSimulation)
-	disp = "$(typeof(obj)):\n"
-	disp = disp * "Trait simulation results on a network with $(length(obj.M.tipsNames)) tips, using a using a $(obj.model) model, with parameters:\n"
-	disp = disp * paramstable(obj.params)
-	println(io, disp)
-end
-
-function tipLabels(obj::traitSimulation)
-	return tipLabels(obj.M)
-end
-
-
-# Uses recursion on the network.
-# Takes params of type paramsProcess as an entry
-# Returns a matrix with two lines:
-# - line one = expectations at all the nodes
-# - line two = simulated values at all the nodes
-# The nodes are ordered as given by topological sorting
-function simulate(
-	net::HybridNetwork,
-	params::paramsProcess,
-	model="BM"::AbstractString,
-	checkPreorder=true::Bool)
-	M = recursionPreOrder(
-				net,
-				checkPreorder,
-				initSimulateBM,
-				updateRootSimulateBM!,
-				updateTreeSimulateBM!,
-				updateHybridSimulateBM!,
-				"c",
-				params
-				)
-	traitSimulation(M, params, model)
-end
-
-# Initialization of the structure
-function initSimulateBM(nodes::Vector{Node}, params::Tuple{paramsBM})
-	return(zeros(2, length(nodes)))
-end
-
-# Initialization of the root
-function updateRootSimulateBM!(M::Matrix, i::Int, params::Tuple{paramsBM})
-	params = params[1]
-	if (params.randomRoot)
-		M[1, i] = params.mu # expectation
-		M[2, i] = params.mu + sqrt(params.varRoot) * randn() # random value
-	else
-		M[1, i] = params.mu # expectation
-		M[2, i] = params.mu # random value (root fixed)
-	end
-end
-
-# Going down to a tree node
-function updateTreeSimulateBM!(
-	M::Matrix,
-	i::Int,
-	parentIndex::Int,
-	edge::Edge,
-	params::Tuple{paramsBM}
-	)
-	params = params[1]
-	M[1, i] = params.mu  # expectation
-	M[2, i] = M[2, parentIndex] + sqrt(params.sigma2 * edge.length) * randn() # random value
-end
-
-# Going down to an hybrid node
-function updateHybridSimulateBM!(
-	M::Matrix,
-	i::Int,
-	parentIndex1::Int, 
-	parentIndex2::Int,
-	edge1::Edge,
-	edge2::Edge,
-	params::Tuple{paramsBM}
-	)
-	params = params[1]
-  M[1, i] = params.mu  # expectation
-	M[2, i] =  edge1.gamma * (M[2, parentIndex1] + sqrt(params.sigma2 * edge1.length) * randn()) + edge2.gamma * (M[2, parentIndex2] + sqrt(params.sigma2 * edge2.length) * randn()) # random value
-end
-
-
-# function updateSimulateBM!(i::Int, nodes::Vector{Node}, M::Matrix, params::Tuple{paramsBM})
-#     params = params[1]
-#     parent = getParents(nodes[i]) #array of nodes (empty, size 1 or 2)
-#     if(isempty(parent)) #nodes[i] is root
-#         if (params.randomRoot)
-# 		M[1, i] = params.mu # expectation
-# 		M[2, i] = params.mu + sqrt(params.varRoot) * randn() # random value
-# 	else
-# 		M[1, i] = params.mu # expectation
-# 		M[2, i] = params.mu # random value (root fixed)
-# 	end
-#
-#     elseif(length(parent) == 1) #nodes[i] is tree
-#         parentIndex = getIndex(parent[1],nodes)
-# 	l = getConnectingEdge(nodes[i],parent[1]).length
-# 	M[1, i] = params.mu  # expectation
-# 	M[2, i] = M[2, parentIndex] + sqrt(params.sigma2 * l) * randn() # random value
-#
-#     elseif(length(parent) == 2) #nodes[i] is hybrid
-#         parentIndex1 = getIndex(parent[1],nodes)
-#         parentIndex2 = getIndex(parent[2],nodes)
-#         edge1 = getConnectingEdge(nodes[i],parent[1])
-#         edge2 = getConnectingEdge(nodes[i],parent[2])
-#         edge1.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[1].number) should be a hybrid egde")
-#         edge2.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[2].number) should be a hybrid egde")
-# 	M[1, i] = params.mu  # expectation
-# 	M[2, i] =  edge1.gamma * (M[2, parentIndex1] + sqrt(params.sigma2 * edge1.length) * randn()) + edge2.gamma * (M[2, parentIndex2] + sqrt(params.sigma2 * edge2.length) * randn()) # random value
-#     end
-# end
-
-# Extract the vector of simulated values at the tips
-function Base.getindex(obj::traitSimulation, d::Symbol)
-#    if d == :Tips
-#       res = obj.M[:Tips]
-#       squeeze(res[2, :], 1)
-#    end
-#	squeeze(getindex(obj.M, d)[2, :], 1)
- getindex(obj.M, d)[2, :]
-end
-
-# function extractSimulateTips(sim::Matrix, net::HybridNetwork)
-# 	mask = getTipsIndexes(net)
-# 	return(squeeze(sim[2, mask], 1))
-# end
-
