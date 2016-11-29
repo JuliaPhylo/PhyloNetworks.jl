@@ -24,7 +24,7 @@ srand(17920921); # fix the seed
 pars = paramsBM(1, 0.1); # params of a BM
 @show pars
 
-sim = simulate(net, paramsBM(1, 0.1)); # simulate according to a BM
+sim = simulate(net, pars); # simulate according to a BM
 @show sim
 
 # Extract simulated values
@@ -38,4 +38,34 @@ traitsNodesExp = [-0.3481603206484607 -0.6698437934551933 -0.018135478212541654 
 
 @test_approx_eq traitsTips traitsTipsExp
 @test_approx_eq traitsNodes traitsNodesExp
+
+
+###############################################################################
+## Test of distibution
+###############################################################################
+
+## Generate some values
+srand(18480224); # fix the seed
+pars = paramsBM(1, 0.1); # params of a BM
+N = 50000
+S = length(tipLabels(net));
+values = zeros(Float64, (S, N));
+for i = 1:N
+	values[:,i] = simulate(net, pars)[:Tips]
+end
+
+## Check that each tip has same mean (1)
+for s in 1:S
+	@test_approx_eq_eps mean(values[s, :]) pars.mu 1e-2
+end
+
+## Check for variances
+V = sharedPathMatrix(net);
+Sig = V[:Tips] * pars.sigma2;
+for s in 1:S
+	for t in s:S
+		@test_approx_eq_eps cov(values[s, :], values[t,:]) Sig[s, t] 1e-2 
+	end
+end
+
 

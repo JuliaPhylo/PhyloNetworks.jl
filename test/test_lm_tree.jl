@@ -30,8 +30,8 @@ fitBM = phyloNetworklm(trait ~ 1, dat, phy)
 @test_approx_eq_eps stderr(fitBM) 0.3306272978 1e-10
 @test_approx_eq_eps confint(fitBM)[1] 4.0269551772 1e-10
 @test_approx_eq_eps confint(fitBM)[2] 5.3310426231 1e-10
+@test_approx_eq_eps predict(fitBM) [4.6789989001].*ones(197) 1e-10
 # @test_approx_eq_eps model_response(fitBM)[fitbis.model.ind] model_response(fitbis)
-# @test_approx_eq_eps predict(fitBM)[fitbis.model.ind] predict(fitbis)
 # @test_approx_eq_eps deviance(fitBM)  deviance(fitbis)
 # @test_approx_eq_eps nulldeviance(fitBM)  nulldeviance(fitbis)
 # @test_approx_eq_eps nullloglikelihood(fitBM)  nullloglikelihood(fitbis)
@@ -57,6 +57,7 @@ fitLambda = phyloNetworklm(trait ~ 1, dat, phy, model = "lambda")
 @test_approx_eq_eps stderr(fitLambda) 0.22608 1e-5
 @test_approx_eq_eps confint(fitLambda)[1] 4.2230 1e-4
 @test_approx_eq_eps confint(fitLambda)[2] 5.114 1e-3
+@test_approx_eq_eps predict(fitLambda) [4.66893].*ones(197) 1e-5
 
 ###############################################################################
 ## Lizard dataset

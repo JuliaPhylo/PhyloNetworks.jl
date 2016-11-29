@@ -447,7 +447,7 @@ function simulate(
 	net::HybridNetwork,
 	params::paramsProcess,
 	checkPreorder=true::Bool)
-	if typeof(paramsProcess) == paramsBM
+	if isa(params, paramsBM)
 		model = "BM"
 	else
 		error("The 'simulate' function only works for a BM process (for now).")
