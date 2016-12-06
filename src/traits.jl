@@ -411,6 +411,10 @@ function Base.show(io::IO, obj::traitSimulation)
 	println(io, disp)
 end
 
+"""
+`tipLabels(obj::traitSimulation)`
+returns a vector of taxon names (at the leaves) for a simulated object.
+"""
 function tipLabels(obj::traitSimulation)
 	return tipLabels(obj.M)
 end

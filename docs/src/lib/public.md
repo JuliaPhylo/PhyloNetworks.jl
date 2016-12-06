@@ -89,3 +89,13 @@ treeEdgesBootstrap
 # summarizeHFdf
 hybridBootstrapSupport
 ```
+
+## Trait Evolution
+
+```@docs
+paramsBM
+simulate
+phyloNetworklm
+sigma2_estim
+mu_estim
+```
