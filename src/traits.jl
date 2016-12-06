@@ -936,10 +936,18 @@ end
 
 ## New quantities
 # ML estimate for variance of the BM
+"""
+`sigma2_estim(m::phyloNetworkLinearModel)`
+Estimated variance for a fitted object.
+"""
 sigma2_estim(m::phyloNetworkLinearModel) = deviance(m.lm) / nobs(m)
 # Need to be adapted manually to DataFrameRegressionModel beacouse it's a new function
 sigma2_estim(m::DataFrames.DataFrameRegressionModel) = sigma2_estim(m.model)
 # ML estimate for ancestral state of the BM
+"""
+`mu_estim(m::phyloNetworkLinearModel)`
+Estimated root value for a fitted object.
+"""
 function mu_estim(m::phyloNetworkLinearModel)
 	warn("You fitted the data against a custom matrix, so I have no way of knowing which column is your intercept (column of ones). I am using the first coefficient for ancestral mean mu by convention, but that might not be what you are looking for.")
 	return coef(m)[1]
@@ -952,6 +960,10 @@ function mu_estim(m::DataFrames.DataFrameRegressionModel)#{PhyloNetworks.phyloNe
 	return coef(m)[1]
 end
 # Lambda estim
+"""
+`lambda_estim(m::phyloNetworkLinearModel)`
+Estimated lambda parameter for a fitted object.
+"""
 lambda_estim(m::phyloNetworkLinearModel) = m.lambda
 lambda_estim(m::DataFrames.DataFrameRegressionModel) = lambda_estim(m.model)
 
