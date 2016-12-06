@@ -10,8 +10,8 @@ using Base.Test
 ###############################################################################
 
 ## Export "caudata" dataset (from geiger)
-phy = readTopology("examples/caudata_tree.txt");
-dat = readtable("examples/caudata_trait.txt");
+phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_tree.txt"));
+dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_trait.txt"));
 
 ## Fit a BM
 fitBM = phyloNetworklm(trait ~ 1, dat, phy)
@@ -64,8 +64,8 @@ fitLambda = phyloNetworklm(trait ~ 1, dat, phy, model = "lambda")
 ###############################################################################
 
 ## Export "lizard" dataset (Mahler et al 2013)
-phy = readTopology("examples/lizard_tree.txt");
-dat = readtable("examples/lizard_trait.txt");
+phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "lizard_tree.txt"));
+dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "lizard_trait.txt"));
 dat[:region] = PooledDataArray(dat[:region]); # Pool by region
 
 ## Fit a BM
