@@ -1064,12 +1064,20 @@ type reconstructedStates
 	model::Nullable{phyloNetworkLinearModel} # If empirical, the corresponding fitted object.
 end
 
+"""
+`expectations(obj::reconstructedStates)`
+Estimated reconstructed states at the nodes and tips.
+"""
 function expectations(obj::reconstructedStates)
 	return DataFrame(nodeNumber = [obj.NodesNumbers; obj.TipsNumbers], condExpectation = [obj.traits_nodes; obj.traits_tips])
 end
 
 StatsBase.stderr(obj::reconstructedStates) = sqrt(diag(obj.variances_nodes))
 
+"""
+`predint(obj::reconstructedStates)`
+Estimated reconstructed states at the nodes and tips.
+"""
 function predint(obj::reconstructedStates, level=0.95::Real)
 	if isnull(obj.model)
 		qq = quantile(Normal(), (1. - level)/2.)
