@@ -429,7 +429,7 @@ Returns an object of type `traitSimulation`.
 
 # Examples
 ```julia
-julia> phy = readTopology("examples/carnivores_tree.txt");
+julia> phy = readTopology("joinpath(Pkg.dir("PhyloNetworks"), "examples", "carnivores_tree.txt"));
 julia> par = paramsBM(1, 0.1); # BM with expectation 1 and variance 0.1.
 julia> par
 julia> sim = simulate(phy, par); # Simulate on the tree.
@@ -776,8 +776,8 @@ If `model="lambda"`, there are a few more parameters to control the optimization
 
 # Example 
 ```julia
-julia> phy = readTopology("examples/caudata_tree.txt");
-julia> dat = readtable("examples/caudata_trait.txt");
+julia> phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_tree.txt"));
+julia> dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_trait.txt"));
 julia> fitBM = phyloNetworklm(trait ~ 1, dat, phy);
 julia> fitBM # Shows a summary
 julia> sigma2_estim(fitBM)
@@ -1240,8 +1240,8 @@ See documentation for this type and examples for functions that can be applied t
 
 # Example 
 ```julia
-julia> phy = readTopology("examples/carnivores_tree.txt");
-julia> dat = readtable("examples/carnivores_trait.txt");
+julia> phy = readTopology("joinpath(Pkg.dir("PhyloNetworks"), "examples", "carnivores_tree.txt"));
+julia> dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "carnivores_trait.txt"));
 julia> fitBM = phyloNetworklm(trait ~ 1, dat, phy);
 julia> ancStates = ancestralStateReconstruction(fitBM); 
 julia> ancStates # Should produce a warning, as variance is unknown.
