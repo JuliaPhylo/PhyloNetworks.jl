@@ -253,7 +253,11 @@ same function as before, only indicating the model we want to use:
 fitPagel = phyloNetworklm(pred ~ 1, datPred, phy, model = "lambda")
 ```
 As it is indeed generated according to a plain BM on the phylogeny, the
-estimated $\lambda$ should be close to $1$.
+estimated $\lambda$ should be close to $1$. It can be extracted with function
+`lambda_estim`:
+```julia
+lambda_estim(fitPagel)
+```
 
 Note that we took a version of the dataset with missing values, that can
 be readily handed by function `phyloNetworklm`.
