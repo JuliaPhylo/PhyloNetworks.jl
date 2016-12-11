@@ -28,7 +28,8 @@ Pages = [
     "man/fixednetworkoptim.md",
     "man/expectedCFs.md",
     "man/bootstrap.md",
-    "man/multiplealleles.md"
+    "man/multiplealleles.md",
+    "man/trait_tree.md"
 ]
 Depth = 2
 ```

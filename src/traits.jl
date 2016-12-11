@@ -411,6 +411,10 @@ function Base.show(io::IO, obj::traitSimulation)
 	println(io, disp)
 end
 
+"""
+`tipLabels(obj::traitSimulation)`
+returns a vector of taxon names (at the leaves) for a simulated object.
+"""
 function tipLabels(obj::traitSimulation)
 	return tipLabels(obj.M)
 end
@@ -932,10 +936,18 @@ end
 
 ## New quantities
 # ML estimate for variance of the BM
+"""
+`sigma2_estim(m::phyloNetworkLinearModel)`
+Estimated variance for a fitted object.
+"""
 sigma2_estim(m::phyloNetworkLinearModel) = deviance(m.lm) / nobs(m)
 # Need to be adapted manually to DataFrameRegressionModel beacouse it's a new function
 sigma2_estim(m::DataFrames.DataFrameRegressionModel) = sigma2_estim(m.model)
 # ML estimate for ancestral state of the BM
+"""
+`mu_estim(m::phyloNetworkLinearModel)`
+Estimated root value for a fitted object.
+"""
 function mu_estim(m::phyloNetworkLinearModel)
 	warn("You fitted the data against a custom matrix, so I have no way of knowing which column is your intercept (column of ones). I am using the first coefficient for ancestral mean mu by convention, but that might not be what you are looking for.")
 	return coef(m)[1]
@@ -948,6 +960,10 @@ function mu_estim(m::DataFrames.DataFrameRegressionModel)#{PhyloNetworks.phyloNe
 	return coef(m)[1]
 end
 # Lambda estim
+"""
+`lambda_estim(m::phyloNetworkLinearModel)`
+Estimated lambda parameter for a fitted object.
+"""
 lambda_estim(m::phyloNetworkLinearModel) = m.lambda
 lambda_estim(m::DataFrames.DataFrameRegressionModel) = lambda_estim(m.model)
 
@@ -1048,12 +1064,20 @@ type reconstructedStates
 	model::Nullable{phyloNetworkLinearModel} # If empirical, the corresponding fitted object.
 end
 
+"""
+`expectations(obj::reconstructedStates)`
+Estimated reconstructed states at the nodes and tips.
+"""
 function expectations(obj::reconstructedStates)
 	return DataFrame(nodeNumber = [obj.NodesNumbers; obj.TipsNumbers], condExpectation = [obj.traits_nodes; obj.traits_tips])
 end
 
 StatsBase.stderr(obj::reconstructedStates) = sqrt(diag(obj.variances_nodes))
 
+"""
+`predint(obj::reconstructedStates)`
+Estimated reconstructed states at the nodes and tips.
+"""
 function predint(obj::reconstructedStates, level=0.95::Real)
 	if isnull(obj.model)
 		qq = quantile(Normal(), (1. - level)/2.)
