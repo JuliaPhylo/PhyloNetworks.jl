@@ -432,13 +432,44 @@ then it runs function `preoder` on the network beforehand.
 Returns an object of type `traitSimulation`.
 
 # Examples
-```julia
-julia> phy = readTopology("joinpath(Pkg.dir("PhyloNetworks"), "examples", "carnivores_tree.txt"));
-julia> par = paramsBM(1, 0.1); # BM with expectation 1 and variance 0.1.
-julia> par
-julia> sim = simulate(phy, par); # Simulate on the tree.
-julia> sim
+```jldoctest
+julia> using PhyloNetworks
+
+julia> phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "carnivores_tree.txt"));
+
+julia> par = paramsBM(1, 0.1) # BM with expectation 1 and variance 0.1.
+PhyloNetworks.paramsBM:
+Parameters of a BM with fixed root:
+mu: 1
+Sigma2: 0.1
+
+julia> srand(17920921); # Seed for reproducibility
+
+julia> sim = simulate(phy, par) # Simulate on the tree.
+PhyloNetworks.traitSimulation:
+Trait simulation results on a network with 16 tips, using a BM model, with parameters:
+mu: 1
+Sigma2: 0.1
+
 julia> traits = sim[:Tips] # Extract simulated values at the tips.
+16-element Array{Float64,1}:
+  2.17618 
+  1.03308 
+  3.04898 
+  3.03796 
+  2.1897  
+  4.03159 
+  4.64773 
+ -0.877285
+  4.62512 
+ -0.511167
+  1.35604 
+ -0.103112
+ -2.08847 
+  2.63991 
+  2.80512 
+  3.19109
+
 ```
 """
 # Uses recursion on the network.
@@ -778,26 +809,136 @@ If `model="lambda"`, there are a few more parameters to control the optimization
 * `xTolAbs::AbstractFloat=1e-10`: absolute tolerance on the parameter value for the optimization in lambda.
 * `startingValue::Real=0.5`: the starting value for the parameter in the optimization in lambda.
 
-# Example 
-```julia
+# Examples
+```jldoctest
+julia> using PhyloNetworks, DataFrames
+
 julia> phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_tree.txt"));
+
 julia> dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_trait.txt"));
+
 julia> fitBM = phyloNetworklm(trait ~ 1, dat, phy);
+
 julia> fitBM # Shows a summary
+DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel,Array{Float64,2}}
+
+Formula: trait ~ +1
+
+Parameter(s) Estimates:
+Sigma2: 0.0029452097331095334
+
+Coefficients:
+             Estimate Std.Error t value Pr(>|t|)
+(Intercept)     4.679  0.330627 14.1519   <1e-31
+
+Log Likelihood: -78.96115078330865
+AIC: 161.9223015666173
+
 julia> sigma2_estim(fitBM)
+0.0029452097331095334
+
 julia> mu_estim(fitBM)
-julia> loglikelihood(fitBM) 
+4.678998900132586
+
+julia> loglikelihood(fitBM)
+-78.96115078330865
+
 julia> aic(fitBM)
+161.9223015666173
+
 julia> aicc(fitBM)
+161.9841572367204
+
 julia> bic(fitBM)
+168.48870902409328
+
 julia> coef(fitBM)
+1-element Array{Float64,1}:
+ 4.679
+
 julia> confint(fitBM)
+1×2 Array{Float64,2}:
+ 4.02696  5.33104
+
 julia> r2(fitBM)
+-2.220446049250313e-16
+
 julia> adjr2(fitBM)
+-2.220446049250313e-16
+
 julia> vcov(fitBM)
+1×1 Array{Float64,2}:
+ 0.109314
+
 julia> residuals(fitBM)
+197-element Array{Float64,1}:
+ -0.237648
+ -0.357937
+ -0.159387
+ -0.691868
+ -0.323977
+ -0.270452
+ -0.673486
+ -0.584654
+ -0.279882
+ -0.302175
+  ⋮       
+ -0.777026
+ -0.385121
+ -0.443444
+ -0.327303
+ -0.525953
+ -0.673486
+ -0.603158
+ -0.211712
+ -0.439833
+
 julia> model_response(fitBM)
+197-element Array{Float64,1}:
+ 4.44135
+ 4.32106
+ 4.51961
+ 3.98713
+ 4.35502
+ 4.40855
+ 4.00551
+ 4.09434
+ 4.39912
+ 4.37682
+ ⋮      
+ 3.90197
+ 4.29388
+ 4.23555
+ 4.3517 
+ 4.15305
+ 4.00551
+ 4.07584
+ 4.46729
+ 4.23917
+
 julia> predict(fitBM)
+197-element Array{Float64,1}:
+ 4.679
+ 4.679
+ 4.679
+ 4.679
+ 4.679
+ 4.679
+ 4.679
+ 4.679
+ 4.679
+ 4.679
+ ⋮    
+ 4.679
+ 4.679
+ 4.679
+ 4.679
+ 4.679
+ 4.679
+ 4.679
+ 4.679
+ 4.679
+
 ```
 
 # See also 
@@ -1275,23 +1416,164 @@ of unknown nodes or tips.
 Returns an object of type `reconstructedStates`.
 See documentation for this type and examples for functions that can be applied to it.
 
-# Example 
-```julia
-julia> phy = readTopology("joinpath(Pkg.dir("PhyloNetworks"), "examples", "carnivores_tree.txt"));
+# Examples
+```jldoctest
+julia> using PhyloNetworks, DataFrames
+
+julia> phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "carnivores_tree.txt"));
+
 julia> dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "carnivores_trait.txt"));
+
 julia> fitBM = phyloNetworklm(trait ~ 1, dat, phy);
-julia> ancStates = ancestralStateReconstruction(fitBM); 
-julia> ancStates # Should produce a warning, as variance is unknown.
+
+julia> ancStates = ancestralStateReconstruction(fitBM) # Should produce a warning, as variance is unknown.
+WARNING: These prediction intervals show uncertainty in ancestral values,
+assuming that the estimated variance rate of evolution is correct.
+Additional uncertainty in the estimation of this variance rate is
+ignored, so prediction intervals should be larger.
+PhyloNetworks.reconstructedStates:
+     Node index     Pred.       Min. Max. (95%)
+           -5.0   1.32139  -0.288423     2.9312
+           -8.0   1.03258  -0.539072    2.60423
+           -7.0   1.41575 -0.0934395    2.92495
+           -6.0   1.39417 -0.0643135    2.85265
+           -4.0   1.39961 -0.0603343    2.85955
+           -3.0   1.51341  -0.179626    3.20644
+          -13.0    5.3192    3.96695    6.67145
+          -12.0   4.51176    2.94268    6.08085
+          -16.0   1.50947  0.0290151    2.98992
+          -15.0   1.67425   0.241696    3.10679
+          -14.0   1.80309   0.355568     3.2506
+          -11.0    2.7351    1.21896    4.25123
+          -10.0   2.73217    1.16545    4.29889
+           -9.0   2.41132   0.639075    4.18357
+           -2.0   2.04138 -0.0340955    4.11686
+           14.0   1.64289    1.64289    1.64289
+            8.0   1.67724    1.67724    1.67724
+            5.0  0.331568   0.331568   0.331568
+            2.0   2.27395    2.27395    2.27395
+            4.0  0.275237   0.275237   0.275237
+            6.0   3.39094    3.39094    3.39094
+           13.0  0.355799   0.355799   0.355799
+           15.0  0.542565   0.542565   0.542565
+            7.0  0.773436   0.773436   0.773436
+           10.0   6.94985    6.94985    6.94985
+           11.0   4.78323    4.78323    4.78323
+           12.0   5.33016    5.33016    5.33016
+            1.0 -0.122604  -0.122604  -0.122604
+           16.0   0.73989    0.73989    0.73989
+            9.0   4.84236    4.84236    4.84236
+            3.0    1.0695     1.0695     1.0695
+
 julia> plot(phy, ancStates)
+Plot(...)
+
 julia> expectations(ancStates)
+31×2 DataFrames.DataFrame
+│ Row │ nodeNumber │ condExpectation │
+├─────┼────────────┼─────────────────┤
+│ 1   │ -5         │ 1.32139         │
+│ 2   │ -8         │ 1.03258         │
+│ 3   │ -7         │ 1.41575         │
+│ 4   │ -6         │ 1.39417         │
+│ 5   │ -4         │ 1.39961         │
+│ 6   │ -3         │ 1.51341         │
+│ 7   │ -13        │ 5.3192          │
+│ 8   │ -12        │ 4.51176         │
+⋮
+│ 23  │ 15         │ 0.542565        │
+│ 24  │ 7          │ 0.773436        │
+│ 25  │ 10         │ 6.94985         │
+│ 26  │ 11         │ 4.78323         │
+│ 27  │ 12         │ 5.33016         │
+│ 28  │ 1          │ -0.122604       │
+│ 29  │ 16         │ 0.73989         │
+│ 30  │ 9          │ 4.84236         │
+│ 31  │ 3          │ 1.0695          │
+
 julia> predint(ancStates)
+31×2 Array{Float64,2}:
+ -0.288423    2.9312  
+ -0.539072    2.60423 
+ -0.0934395   2.92495 
+ -0.0643135   2.85265 
+ -0.0603343   2.85955 
+ -0.179626    3.20644 
+  3.96695     6.67145 
+  2.94268     6.08085 
+  0.0290151   2.98992 
+  0.241696    3.10679 
+  ⋮
+  0.542565    0.542565
+  0.773436    0.773436
+  6.94985     6.94985 
+  4.78323     4.78323 
+  5.33016     5.33016 
+ -0.122604   -0.122604
+  0.73989     0.73989 
+  4.84236     4.84236 
+  1.0695      1.0695 
+
 julia> ## Some tips may also be missing
-julia> dat[[2, 5], :trait] = NA
+
+julia> dat[[2, 5], :trait] = NA;
+
 julia> fitBM = phyloNetworklm(trait ~ 1, dat, phy);
+
 julia> ancStates = ancestralStateReconstruction(fitBM); 
+WARNING: These prediction intervals show uncertainty in ancestral values,
+assuming that the estimated variance rate of evolution is correct.
+Additional uncertainty in the estimation of this variance rate is
+ignored, so prediction intervals should be larger.
+
 julia> plot(phy, ancStates)
+Plot(...)
+
 julia> expectations(ancStates)
+31×2 DataFrames.DataFrame
+│ Row │ nodeNumber │ condExpectation │
+├─────┼────────────┼─────────────────┤
+│ 1   │ -5         │ 1.42724         │
+│ 2   │ -8         │ 1.35185         │
+│ 3   │ -7         │ 1.61993         │
+│ 4   │ -6         │ 1.54198         │
+│ 5   │ -4         │ 1.53916         │
+│ 6   │ -3         │ 1.64984         │
+│ 7   │ -13        │ 5.33508         │
+│ 8   │ -12        │ 4.55109         │
+⋮
+│ 23  │ 15         │ 0.542565        │
+│ 24  │ 7          │ 0.773436        │
+│ 25  │ 10         │ 6.94985         │
+│ 26  │ 11         │ 4.78323         │
+│ 27  │ 12         │ 5.33016         │
+│ 28  │ 1          │ -0.122604       │
+│ 29  │ 16         │ 0.73989         │
+│ 30  │ 9          │ 4.84236         │
+│ 31  │ 3          │ 1.0695          │
+
 julia> predint(ancStates)
+31×2 Array{Float64,2}:
+ -0.31245     3.16694 
+ -0.625798    3.3295  
+ -0.110165    3.35002 
+ -0.0710391   3.15501 
+ -0.0675924   3.14591 
+ -0.197236    3.49692 
+  3.89644     6.77373 
+  2.8741      6.22808 
+ -0.0358627   3.12834 
+  0.182594    3.2534  
+  ⋮
+  0.542565    0.542565
+  0.773436    0.773436
+  6.94985     6.94985 
+  4.78323     4.78323 
+  5.33016     5.33016 
+ -0.122604   -0.122604
+  0.73989     0.73989 
+  4.84236     4.84236 
+  1.0695      1.0695 
 ```
 """
 # Default reconstruction for a simple BM (known predictors)
