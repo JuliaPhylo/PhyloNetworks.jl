@@ -56,8 +56,8 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test_approx_eq nullloglikelihood(phynetlm) nullloglik
 @test_approx_eq loglikelihood(phynetlm) nullloglikelihood(phynetlm)
 @test_approx_eq deviance(phynetlm) nulldeviance(phynetlm)
-#@test_approx_eq r2(phynetlm) 1-sigma2hat / nullsigma2hat 
-#@test_approx_eq adjr2(phynetlm) 1 - (1 - (1-sigma2hat/nullsigma2hat))*(ntaxa-1)/(ntaxa-length(betahat)) 
+@test_approx_eq_eps r2(phynetlm) 1-sigma2hat / nullsigma2hat 1e-15
+@test_approx_eq_eps adjr2(phynetlm) 1 - (1 - (1-sigma2hat/nullsigma2hat))*(ntaxa-1)/(ntaxa-length(betahat)) 1e-15
 @test_approx_eq aic(phynetlm) -2*loglik+2*(length(betahat)+1)
 @test_approx_eq aicc(phynetlm) -2*loglik+2*(length(betahat)+1)+2(length(betahat)+1)*((length(betahat)+1)+1)/(ntaxa-(length(betahat)+1)-1)
 @test_approx_eq bic(phynetlm) -2*loglik+(length(betahat)+1)*log(ntaxa)
@@ -276,6 +276,7 @@ dfr = DataFrame(trait = Y, tipsNames = tipLabels(sim))
 phynetlm = phyloNetworklm(trait~1, dfr, net)
 blup = ancestralStateReconstruction(phynetlm)
 plot(net, blup)
+@show blup
 
 # BLUP same, using the function dirrectly
 blup_bis = ancestralStateReconstruction(dfr, net)

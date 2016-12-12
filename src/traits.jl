@@ -17,7 +17,7 @@ The following functions and extractors can be applied to it: `tipLabels`, `obj[:
 
 Functions `sharedPathMatrix` and `simulate` return objects of this type.
 
-Has fields: `V`, `nodesNumbersTopOrder`, `internalNodesNumbers`, `tipsNumbers`, `tipsNames`, `indexation`.
+The `matrixTopologicalOrder` object has fields: `V`, `nodesNumbersTopOrder`, `internalNodesNumbers`, `tipsNumbers`, `tipsNames`, `indexation`.
 Type in "?matrixTopologicalOrder.field" to get documentation on a specific field.
 
 """
@@ -208,10 +208,10 @@ function Base.getindex(
 		maskNodes = [maskNodes; maskTips[!msng]]
 		maskTips = maskTips[msng]
 		obj.indexation == "b" && return obj.V[maskTips, maskNodes]
-		obj.indexation == "c" && error("Both rows and columns must be net
-		ordered to take the submatrix tips vs internal nodes.")
-		obj.indexation == "r" && error("Both rows and columns must be net
-		ordered to take the submatrix tips vs internal nodes.")
+		obj.indexation == "c" && error("""Both rows and columns must be net
+		ordered to take the submatrix tips vs internal nodes.""")
+		obj.indexation == "r" && error("""Both rows and columns must be net
+		ordered to take the submatrix tips vs internal nodes.""")
 	end
 	d == :All && return obj.V
 end
@@ -396,7 +396,7 @@ Result of a trait simulation on an `HybridNetwork` with function `simulate`.
 
 The following functions and extractors can be applied to it: `tipLabels`, `obj[:Tips]`, `obj[:InternalNodes]` (see documentation for function `getindex(obj, d,[ indTips, msng])`).
 
-Has fields: `M`, `params`, `model`.
+The `traitSimulation` object has fields: `M`, `params`, `model`.
 """
 type traitSimulation
 	M::matrixTopologicalOrder
@@ -406,7 +406,7 @@ end
 
 function Base.show(io::IO, obj::traitSimulation)
 	disp = "$(typeof(obj)):\n"
-	disp = disp * "Trait simulation results on a network with $(length(obj.M.tipsNames)) tips, using a using a $(obj.model) model, with parameters:\n"
+	disp = disp * "Trait simulation results on a network with $(length(obj.M.tipsNames)) tips, using a $(obj.model) model, with parameters:\n"
 	disp = disp * paramstable(obj.params)
 	println(io, disp)
 end
@@ -590,7 +590,7 @@ If a Pagel's lambda model is fitted, the parameter can be retrieved with functio
 An ancestral state reconstruction can be performed from this fitted object using function:
 	`ancestralStateReconstruction`.
 
-Has fields: `lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `ind`, `msng`, `model`, `lambda`.
+The `phyloNetworkLinearModel` object has fields: `lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `ind`, `msng`, `model`, `lambda`.
 Type in "?phyloNetworkLinearModel.field" to get help on a specific field.
 """
 type phyloNetworkLinearModel <: LinPredModel 
@@ -1049,7 +1049,7 @@ The following functions can be applied to it:
 `expectations` (vector of expectations at all nodes), `stderr` (the standard error),
 `predint` (the prediction interval), `plot`.
 
-Has fields: `traits_nodes`, `variances_nodes`, `NodesNumbers`, `traits_tips`, `TipsNumbers`, `model`.
+The `reconstructedStates` object has fields: `traits_nodes`, `variances_nodes`, `NodesNumbers`, `traits_tips`, `TipsNumbers`, `model`.
 Type in "?reconstructedStates.field" to get help on a specific field.
 """
 type reconstructedStates
@@ -1086,7 +1086,7 @@ function predint(obj::reconstructedStates, level=0.95::Real)
 		qq = quantile(Normal(), (1. - level)/2.)
 	else
 		qq = quantile(TDist(dof_residual(get(obj.model))), (1. - level)/2.)
-		warn("As the variance is estimated, the predictions intervals are not exact, and should probably be larger.")
+# 		warn("As the variance is estimated, the predictions intervals are not exact, and should probably be larger.")
 	end
 	tmpnode = hcat(obj.traits_nodes, obj.traits_nodes) + stderr(obj) * qq * [1. -1.]
 	return vcat(tmpnode, hcat(obj.traits_tips, obj.traits_tips))
@@ -1241,6 +1241,12 @@ function ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)
 	temp = obj.RL \ Vyz
 	U = X_n - temp' * (obj.RL \ obj.X)
 	add_var = U * vcov(obj) * U'
+	# Warn about the prediction intervals 
+	warn("""These prediction intervals show uncertainty in ancestral values,
+			assuming that the estimated variance rate of evolution is correct.
+			Additional uncertainty in the estimation of this variance rate is
+			ignored, so prediction intervals should be larger.""")
+	# Actual reconstruction
 	ancestralStateReconstruction(
 		obj.V[:InternalNodes, obj.ind, obj.msng],
     temp,
