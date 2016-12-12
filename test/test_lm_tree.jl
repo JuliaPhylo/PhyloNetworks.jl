@@ -1,10 +1,5 @@
 # Test of PhyloNetworklm on trees
 
-using PhyloNetworks
-using GLM
-using DataFrames
-using Base.Test
-
 ###############################################################################
 ## Caudata dataset
 ###############################################################################

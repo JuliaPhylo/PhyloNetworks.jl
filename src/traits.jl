@@ -821,34 +821,34 @@ function phyloNetworklm(
 	V = sharedPathMatrix(net)
 	if no_names # The names should not be taken into account.
 		ind = [0]
-		info("As requested (no_names=true), I am ignoring the tips names on the
-		network and in the dataframe.")
+		info("""As requested (no_names=true), I am ignoring the tips names
+    in the network and in the dataframe.""")
 	elseif (any(V.tipsNames == "") || !any(DataFrames.names(fr) .== :tipsNames))
 		if (any(V.tipsNames == "") && !any(DataFrames.names(fr) .== :tipsNames))
-			error("The network provided has no tip names, and the input dataframe has
+			error("""The network provided has no tip names, and the input dataframe has
 			no column labelled tipsNames, so I can't match the data on the network
 			unambiguously. If you are sure that the tips of the network are in the
 			same order as the values of the dataframe provided, then please re-run
-			this function with argument no_name=true.")
+			this function with argument no_name=true.""")
 		end
 		if any(V.tipsNames == "")
-			error("The network provided has no tip names, so I can't match the data
+			error("""The network provided has no tip names, so I can't match the data
 			on the network unambiguously. If you are sure that the tips of the
 			network are in the same order as the values of the dataframe provided,
-			then please re-run this function with argument no_name=true.")
+			then please re-run this function with argument no_name=true.""")
 		end
 		if !any(DataFrames.names(fr) .== :tipsNames)
-			error("The input dataframe has no column labelled tipsNames, so I can't
+			error("""The input dataframe has no column labelled tipsNames, so I can't
 			match the data on the network unambiguously. If you are sure that the
 			tips of the network are in the same order as the values of the dataframe
-			provided, then please re-run this function with argument no_name=true.")
+			provided, then please re-run this function with argument no_name=true.""")
 		end
 	else
 #        ind = indexin(V.tipsNames, fr[:tipsNames])
 		ind = indexin(fr[:tipsNames], V.tipsNames)
 		if any(ind == 0) || length(unique(ind)) != length(ind)
-				error("Tips names of the network and names provided in column tipsNames
-				of the dataframe do not match.")
+				error("""Tips names of the network and names provided in column tipsNames
+				of the dataframe do not match.""")
 		end
 #	fr = fr[ind, :]
 	end
@@ -949,7 +949,10 @@ sigma2_estim(m::DataFrames.DataFrameRegressionModel) = sigma2_estim(m.model)
 Estimated root value for a fitted object.
 """
 function mu_estim(m::phyloNetworkLinearModel)
-	warn("You fitted the data against a custom matrix, so I have no way of knowing which column is your intercept (column of ones). I am using the first coefficient for ancestral mean mu by convention, but that might not be what you are looking for.")
+	warn("""You fitted the data against a custom matrix, so I have no way of
+  knowing which column is your intercept (column of ones).
+  I am using the first coefficient for ancestral mean mu by convention,
+  but that might not be what you are looking for.""")
 	return coef(m)[1]
 end
 # Need to be adapted manually to DataFrameRegressionModel beacouse it's a new function
@@ -1208,10 +1211,12 @@ end
 # TO DO: Handle the order of internal nodes for matrix X_n
 function ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)
 	if (size(X_n)[2] != length(coef(obj)))
-		error("The number of predictors for the ancestral states (number of columns of X_n) do not match the number of predictors at the tips.")
+		error("""The number of predictors for the ancestral states (number of columns of X_n)
+    does not match the number of predictors at the tips.""")
 	end
 	if (size(X_n)[1] != length(obj.V.internalNodesNumbers) + sum(!obj.msng))
-		error("The number of lines of the predictors do not match the number of nodes plus the number of missing tips.")
+		error("""The number of lines of the predictors does not match
+    the number of nodes plus the number of missing tips.""")
 	end
 	m_y = predict(obj)
 	m_z = X_n * coef(obj) 
@@ -1226,7 +1231,9 @@ function ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)
 		missingTipsNumbers = obj.V.tipsNumbers[obj.ind][!obj.msng]
 		nmTipsNumbers = obj.V.tipsNumbers[obj.ind][obj.msng]
 	else
-		warn("There were no indication for the position of the tips on the network. Assuming that they are given in the same order. Please check that this is what you intended.")
+		warn("""There were no indication for the position of the tips on the network.
+    I am assuming that they are given in the same order.
+    Please check that this is what you intended.""")
 		Vyz = obj.V[:TipsNodes, collect(1:length(obj.V.tipsNumbers)), obj.msng]
 		missingTipsNumbers = obj.V.tipsNumbers[!obj.msng]
 		nmTipsNumbers = obj.V.tipsNumbers[obj.msng]
@@ -1284,7 +1291,10 @@ julia> predint(ancStates)
 # Default reconstruction for a simple BM (known predictors)
 function ancestralStateReconstruction(obj::phyloNetworkLinearModel)
 	if ((size(obj.X)[2] != 1) || !any(obj.X .== 1)) # Test if the regressor is just an intercept.
-		error("As the predictor is not reduced to the intercept, I can't guess the ancestral predictors values. If you know all the ancestral predictors, please provide them as a matrix argument to the function. Otherwise, you might consider doing a multivariate linear regression (not implemented yet).")
+		error("""As the predictor is not reduced to the intercept, I can't
+    guess the ancestral predictors values. If you know all the ancestral
+    predictors, please provide them as a matrix argument to the function.
+    Otherwise, you might consider doing a multivariate linear regression (not implemented yet).""")
 	end
   X_n = ones((length(obj.V.internalNodesNumbers) + sum(!obj.msng), 1))
 	ancestralStateReconstruction(obj, X_n)
@@ -1319,7 +1329,8 @@ function ancestralStateReconstruction(
 	nn = names(fr)
 	datpos = nn .!= :tipsNames
   if sum(datpos) > 1
-		error("Beside one column labelled 'tipsNames', the dataframe fr should have only one column, corresponding to the data at the tips of the network.")
+		error("""Besides one column labelled 'tipsNames', the dataframe fr should have
+    only one column, corresponding to the data at the tips of the network.""")
 	end
 	f = Formula(nn[datpos][1], 1)
 	reg = phyloNetworklm(f, fr, net; kwargs...)
