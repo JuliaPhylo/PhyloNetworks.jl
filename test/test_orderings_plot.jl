@@ -109,20 +109,20 @@ net = readTopology("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):
 
 if doalltests
 preorder!(tre)
-## clau: previously num = [-1,10,-2,-9,9,8,-3,-8,7,6,-4,5,-5,4,-6,3,-7,2,1];
-num = [-2,10,-3,-10,9,8,-4,-9,7,6,-5,5,-6,4,-7,3,-8,2,1];
+## clau: previously [-1,10,-2,-9,9,8,-3,-8,7,6,-4,5,-5,4,-6,3,-7,2,1];
+nodeN = [-2,10,-3,-10,9,8,-4,-9,7,6,-5,5,-6,4,-7,3,-8,2,1];
 for i=1:length(tre.node)
-  tre.nodes_changed[i].number==num[i] ||
-    error("node pre-ordered $i is node number $(tre.nodes_changed[i].number) instead of $(num[i])")
+  tre.nodes_changed[i].number==nodeN[i] ||
+    error("node pre-ordered $i is node number $(tre.nodes_changed[i].number) instead of $(nodeN[i])")
 end
 end
 
 preorder!(net)
-## clau previously: num = [-1,14,-14,13,12,-2,-9,11,-10,10,-3,-4,-5,-6,-7,5,6,4,3,2,-12,9,-13,8,7,1];
-num = [-2,14,-15,13,12,-3,-10,11,-11,10,-4,-5,-6,-7,-8,5,6,4,3,2,-13,9,-14,8,7,1];
+## clau previously: [-1,14,-14,13,12,-2,-9,11,-10,10,-3,-4,-5,-6,-7,5,6,4,3,2,-12,9,-13,8,7,1];
+nodeN = [-2,14,-15,13,12,-3,-10,11,-11,10,-4,-5,-6,-7,-8,5,6,4,3,2,-13,9,-14,8,7,1];
 for i=1:length(net.node)
-  net.nodes_changed[i].number==num[i] ||
-    error("node pre-ordered $i is node number $(net.nodes_changed[i].number) instead of $(num[i])")
+  net.nodes_changed[i].number==nodeN[i] ||
+    error("node pre-ordered $i is node number $(net.nodes_changed[i].number) instead of $(nodeN[i])")
 end
 
 #----- test of cladewiseorder! --------#
@@ -130,18 +130,18 @@ println("\n\nTesting cladewiseorder! on a tree, then on a network with h=2")
 
 if doalltests
 cladewiseorder!(tre)
-num = collect(19:-1:1);
+nodeN = collect(19:-1:1);
 for i=1:length(tre.node)
-  tre.cladewiseorder_nodeIndex[i]==num[i] ||
-    error("node clade-wise ordered $i is $(tre.cladewiseorder_nodeIndex[i])th node instead of $(num[i])th")
+  tre.cladewiseorder_nodeIndex[i]==nodeN[i] ||
+    error("node clade-wise ordered $i is $(tre.cladewiseorder_nodeIndex[i])th node instead of $(nodeN[i])th")
 end
 end
 
 cladewiseorder!(net)
-num = collect(26:-1:1);
+nodeN = collect(26:-1:1);
 for i=1:length(net.node)
-  net.cladewiseorder_nodeIndex[i]==num[i] ||
-    error("node clade-wise ordered $i is $(net.cladewiseorder_nodeIndex[i])th node instead of $(num[i])th")
+  net.cladewiseorder_nodeIndex[i]==nodeN[i] ||
+    error("node clade-wise ordered $i is $(net.cladewiseorder_nodeIndex[i])th node instead of $(nodeN[i])th")
 end
 
 

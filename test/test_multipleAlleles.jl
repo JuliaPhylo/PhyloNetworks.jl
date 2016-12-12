@@ -102,12 +102,12 @@ d.repSpecies == ["7"] || error("d.repSpecies wrong")
 tree = "((6,4),(7,8),10);"
 currT = readTopologyLevel1(tree);
 
-estNet = snaq!(currT,d,hmax=1,seed=1010, runs=1, filename="")
+estNet = snaq!(currT,d,hmax=1,seed=1010, runs=1, filename="", Nfail=10)
 185.27 < estNet.loglik < 185.29 || error("wrong loglik in multiple alleles example")
 estNet.hybrid[1].k == 4 || error("wrong k in hybrid for multiple alleles case")
 estNet.numTaxa == 5 || error("wrong number of taxa in estNet")
 
-estNet = snaq!(currT,d,hmax=1,seed=8378, runs=1, filename="")
+estNet = snaq!(currT,d,hmax=1,seed=8378, runs=1, filename="", Nfail=10)
 174.58 < estNet.loglik < 174.59 || error("estNet loglik wrong for multiple alleles")
 estNet.hybrid[1].k == 5 || error("wrong k in hybrid for multiple alleles case")
 estNet.numTaxa == 5 || error("wrong number of taxa in estNet")
