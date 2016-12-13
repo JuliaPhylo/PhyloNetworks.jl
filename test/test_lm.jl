@@ -63,7 +63,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test_approx_eq bic(phynetlm) -2*loglik+(length(betahat)+1)*log(ntaxa)
 
 # with data frames
-dfr = DataFrame(trait = Y, tipsNames = sim.M.tipsNames)
+dfr = DataFrame(trait = Y, tipNames = sim.M.tipNames)
 fitbis = phyloNetworklm(trait ~ 1, dfr, net)
 @show fitbis
 
@@ -147,7 +147,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test_approx_eq bic(fit_mat) -2*loglik+(length(betahat)+1)*log(ntaxa)
 
 ## perfect user using right format and formula
-dfr = DataFrame(trait = B, pred = A, tipsNames = sim.M.tipsNames)
+dfr = DataFrame(trait = B, pred = A, tipNames = sim.M.tipNames)
 phynetlm = phyloNetworklm(trait ~ pred, dfr, net)
 @show phynetlm
 
@@ -234,7 +234,7 @@ dfr = dfr[sample(1:12, 12, replace=false), :]
 
 
 ### Add NAs
-dfr = DataFrame(trait = B, pred = A, tipsNames = tipLabels(sim))
+dfr = DataFrame(trait = B, pred = A, tipNames = tipLabels(sim))
 dfr[[2, 8, 11], :pred] = NA
 fitna = phyloNetworklm(trait ~ pred, dfr, net)
 @show fitna
@@ -272,7 +272,7 @@ Y = sim[:Tips]
 # From known parameters
 ancestral_traits = ancestralStateReconstruction(net, Y, params)
 # BLUP
-dfr = DataFrame(trait = Y, tipsNames = tipLabels(sim))
+dfr = DataFrame(trait = Y, tipNames = tipLabels(sim))
 phynetlm = phyloNetworklm(trait~1, dfr, net)
 blup = ancestralStateReconstruction(phynetlm)
 plot(net, blup)
@@ -284,10 +284,10 @@ blup_bis = ancestralStateReconstruction(dfr, net)
 @test_approx_eq expectations(blup)[:condExpectation] expectations(blup_bis)[:condExpectation]
 @test_approx_eq expectations(blup)[:nodeNumber] expectations(blup_bis)[:nodeNumber]
 @test_approx_eq blup.traits_tips blup_bis.traits_tips
-@test_approx_eq blup.TipsNumbers blup_bis.TipsNumbers
+@test_approx_eq blup.TipNumbers blup_bis.TipNumbers
 @test_approx_eq predint(blup) predint(blup_bis)
 
-dfr = DataFrame(trait = Y, tipsNames = tipLabels(sim), reg = Y)
+dfr = DataFrame(trait = Y, tipNames = tipLabels(sim), reg = Y)
 @test_throws ErrorException fitter = ancestralStateReconstruction(dfr, net) # cannot handle a predictor
 
 # Unordered
@@ -295,10 +295,10 @@ dfr2 = dfr[sample(1:12, 12, replace=false), :]
 phynetlm = phyloNetworklm(trait~1, dfr2, net)
 blup2 = ancestralStateReconstruction(phynetlm)
 
-@test_approx_eq expectations(blup)[:condExpectation][1:length(blup.NodesNumbers)] expectations(blup2)[:condExpectation][1:length(blup.NodesNumbers)]
+@test_approx_eq expectations(blup)[:condExpectation][1:length(blup.NodeNumbers)] expectations(blup2)[:condExpectation][1:length(blup.NodeNumbers)]
 @test_approx_eq blup.traits_tips[phynetlm.model.ind] blup2.traits_tips
-@test_approx_eq blup.TipsNumbers[phynetlm.model.ind] blup2.TipsNumbers
-@test_approx_eq predint(blup)[1:length(blup.NodesNumbers), :] predint(blup2)[1:length(blup.NodesNumbers), :]
+@test_approx_eq blup.TipNumbers[phynetlm.model.ind] blup2.TipNumbers
+@test_approx_eq predint(blup)[1:length(blup.NodeNumbers), :] predint(blup2)[1:length(blup.NodeNumbers), :]
 
 # With unknown tips
 dfr[[2, 4], :trait] = NA
@@ -311,6 +311,5 @@ dfr2 = dfr[[1, 2, 5, 3, 4, 6, 7, 8, 9, 10, 11, 12], :]
 phynetlm = phyloNetworklm(trait~1, dfr, net)
 blup2 = ancestralStateReconstruction(phynetlm)
 
-@test_approx_eq expectations(blup)[:condExpectation][1:length(blup.NodesNumbers)] expectations(blup2)[:condExpectation][1:length(blup.NodesNumbers)]
-@test_approx_eq predint(blup)[1:length(blup.NodesNumbers), :] predint(blup2)[1:length(blup.NodesNumbers), :]
-
+@test_approx_eq expectations(blup)[:condExpectation][1:length(blup.NodeNumbers)] expectations(blup2)[:condExpectation][1:length(blup.NodeNumbers)]
+@test_approx_eq predint(blup)[1:length(blup.NodeNumbers), :] predint(blup2)[1:length(blup.NodeNumbers), :]

@@ -668,7 +668,7 @@ Output:
 5. a vector with the number of each hybrid edge in the reference network, in the same order
 as for the columns in the array of gamma values above.
 
-The "node data frame has one row per clade and 9 columns giving:
+The "node" data frame has one row per clade and 9 columns giving:
 
    - **clade**: the clade's name, like the taxon name (if a hybrid is a single taxon) or
      the hybrid tag (like 'H1') in the reference network

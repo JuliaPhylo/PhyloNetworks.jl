@@ -1,6 +1,4 @@
-# Tests for function simulate
-using PhyloNetworks
-using Base.Test
+# Tests to simulate traits
 
 ## Get a network and make it ultrametric
 net = readTopology("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);");

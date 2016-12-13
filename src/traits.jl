@@ -17,21 +17,21 @@ The following functions and extractors can be applied to it: `tipLabels`, `obj[:
 
 Functions `sharedPathMatrix` and `simulate` return objects of this type.
 
-The `matrixTopologicalOrder` object has fields: `V`, `nodesNumbersTopOrder`, `internalNodesNumbers`, `tipsNumbers`, `tipsNames`, `indexation`.
+The `matrixTopologicalOrder` object has fields: `V`, `nodeNumbersTopOrder`, `internalNodeNumbers`, `tipNumbers`, `tipNames`, `indexation`.
 Type in "?matrixTopologicalOrder.field" to get documentation on a specific field.
 
 """
 type matrixTopologicalOrder
   "V: the matrix per se"
 	V::Matrix # Matrix in itself
-  "nodesNumbersTopOrder: vector of nodes numbers in the topological order, used for the matrix"
-	nodesNumbersTopOrder::Vector{Int} # Vector of nodes numbers for ordering of the matrix
-  "internalNodesNumbers: vector of internal nodes number, in the original net order"
-	internalNodesNumbers::Vector{Int} # Internal nodes numbers (original net order)
-  "tipsNumbers: vector of tips numbers, in the origial net order"
-	tipsNumbers::Vector{Int} # Tips numbers (original net order)
-  "tipsNames: vector of tips names, in the original net order"
-	tipsNames::Vector # Tips Names (original net order)
+  "nodeNumbersTopOrder: vector of nodes numbers in the topological order, used for the matrix"
+	nodeNumbersTopOrder::Vector{Int} # Vector of nodes numbers for ordering of the matrix
+  "internalNodeNumbers: vector of internal nodes number, in the original net order"
+	internalNodeNumbers::Vector{Int} # Internal nodes numbers (original net order)
+  "tipNumbers: vector of tips numbers, in the origial net order"
+	tipNumbers::Vector{Int} # Tips numbers (original net order)
+  "tipNames: vector of tips names, in the original net order"
+	tipNames::Vector # Tips Names (original net order)
   """
 	indexation: a string giving the type of matrix `V`:
 		-"r": rows only are indexed by the nodes of the network
@@ -46,7 +46,7 @@ function Base.show(io::IO, obj::matrixTopologicalOrder)
 end
 
 function tipLabels(obj::matrixTopologicalOrder)
-	return obj.tipsNames
+	return obj.tipNames
 end
 
 # This function takes an init and update funtions as arguments
@@ -119,14 +119,14 @@ end
 
 # Function to get the indexes of the tips. Returns a mask.
 # function getTipsIndexes(net::HybridNetwork)
-# 	tipsNumbers = [n.number for n in net.leaf]
+# 	tipNumbers = [n.number for n in net.leaf]
 # 	nodesOrder = [n.number for n in net.nodes_changed]
-#     getTipsIndexes(nodesOrder, tipsNumbers)
+#     getTipsIndexes(nodesOrder, tipNumbers)
 # end
 
-# function getTipsIndexes(nodesOrder::Vector{Int64}, tipsNumbers::Vector{Int64})
+# function getTipsIndexes(nodesOrder::Vector{Int64}, tipNumbers::Vector{Int64})
 # 	mask = BitArray(length(nodesOrder)) ## Function Match ??
-# 	for tip in tipsNumbers
+# 	for tip in tipNumbers
 # 		mask = mask | (tip .== nodesOrder)
 # 	end
 # 	return(mask)
@@ -139,20 +139,20 @@ end
 # !! Extract sub-matrices in the original net nodes numbers !!
 # function Base.getindex(obj::matrixTopologicalOrder, d::Symbol)
 # 	if d == :Tips # Extract rows and/or columns corresponding to the tips
-# 		mask = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder)
+# 		mask = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
 # 		obj.indexation == "b" && return obj.V[mask, mask] # both columns and rows are indexed by nodes
 # 		obj.indexation == "c" && return obj.V[:, mask] # Only the columns
 # 		obj.indexation == "r" && return obj.V[mask, :] # Only the rows
 # 	end
 # 	if d == :InternalNodes # Idem, for internal nodes
-# 		mask = indexin(obj.internalNodesNumbers, obj.nodesNumbersTopOrder)
+# 		mask = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
 # 		obj.indexation == "b" && return obj.V[mask, mask]
 # 		obj.indexation == "c" && return obj.V[:, mask] 
 # 		obj.indexation == "r" && return obj.V[mask, :] 
 # 	end
 # 	if d == :TipsNodes
-# 		maskNodes = indexin(obj.internalNodesNumbers, obj.nodesNumbersTopOrder)
-# 		maskTips = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder,)
+# 		maskNodes = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
+# 		maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder,)
 # 		obj.indexation == "b" && return obj.V[maskTips, maskNodes]
 # 		obj.indexation == "c" && error("Both rows and columns must be net
 # 		ordered to take the submatrix tips vs internal nodes.")
@@ -181,11 +181,11 @@ Getting submatrices of an object of type `matrixTopologicalOrder`.
 function Base.getindex(
 	obj::matrixTopologicalOrder,
 	d::Symbol,
-	indTips=collect(1:length(obj.tipsNumbers))::Vector{Int},
-	msng=trues(length(obj.tipsNumbers))::BitArray{1}
+	indTips=collect(1:length(obj.tipNumbers))::Vector{Int},
+	msng=trues(length(obj.tipNumbers))::BitArray{1}
 	)
 	if d == :Tips # Extract rows and/or columns corresponding to the tips with data
-		maskTips = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder)
+		maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
 		maskTips = maskTips[indTips]
 		maskTips = maskTips[msng]
 		obj.indexation == "b" && return obj.V[maskTips, maskTips] # both columns and rows are indexed by nodes
@@ -193,8 +193,8 @@ function Base.getindex(
 		obj.indexation == "r" && return obj.V[maskTips, :] # Only the rows
 	end
 	if d == :InternalNodes # Idem, for internal nodes
-		maskNodes = indexin(obj.internalNodesNumbers, obj.nodesNumbersTopOrder)
-		maskTips = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder)
+		maskNodes = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
+		maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
 		maskTips = maskTips[indTips]
 		maskNodes = [maskNodes; maskTips[!msng]]
 		obj.indexation == "b" && return obj.V[maskNodes, maskNodes]
@@ -202,8 +202,8 @@ function Base.getindex(
 		obj.indexation == "r" && return obj.V[maskNodes, :] 
 	end
 	if d == :TipsNodes
-		maskNodes = indexin(obj.internalNodesNumbers, obj.nodesNumbersTopOrder)
-		maskTips = indexin(obj.tipsNumbers, obj.nodesNumbersTopOrder)
+		maskNodes = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
+		maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
 		maskTips = maskTips[indTips]
 		maskNodes = [maskNodes; maskTips[!msng]]
 		maskTips = maskTips[msng]
@@ -406,7 +406,7 @@ end
 
 function Base.show(io::IO, obj::traitSimulation)
 	disp = "$(typeof(obj)):\n"
-	disp = disp * "Trait simulation results on a network with $(length(obj.M.tipsNames)) tips, using a $(obj.model) model, with parameters:\n"
+	disp = disp * "Trait simulation results on a network with $(length(obj.M.tipNames)) tips, using a $(obj.model) model, with parameters:\n"
 	disp = disp * paramstable(obj.params)
 	println(io, disp)
 end
@@ -798,7 +798,7 @@ example to see all the functions that can be applied to it.
 
 # Arguments
 * `f::Formula`: formula to use for the regression (see the `DataFrame` package)
-* `fr::AbstractDataFrame`: DataFrame containing the data and regressors at the tips. It should have an extra column labelled "tipsNames", that gives the names of the taxa for each observation.
+* `fr::AbstractDataFrame`: DataFrame containing the data and regressors at the tips. It should have an extra column labelled "tipNames", that gives the names of the taxa for each observation.
 * `net::HybridNetwork`: phylogenetic network to use. Should have labelled tips.
 * `model::AbstractString="BM"`: the model to use, "BM" being the default and only available model for now. If the entry is a TREE, then "lambda" can fit a Pagel's lambda model.
 * `no_names::Bool=false`: if `true`, force the function to ignore the tips names. The data is then assumed to be in the same order as the tips of the network. Default to false, setting it to true is dangerous, and strongly discouraged.
@@ -834,11 +834,11 @@ Coefficients:
 Log Likelihood: -78.96115078330865
 AIC: 161.9223015666173
 
-julia> sigma2_estim(fitBM)
-0.0029452097331095334
+julia> round(sigma2_estim(fitBM), 6)
+0.002945
 
-julia> mu_estim(fitBM)
-4.678998900132586
+julia> round(mu_estim(fitBM), 4)
+4.679
 
 julia> loglikelihood(fitBM)
 -78.96115078330865
@@ -860,11 +860,11 @@ julia> confint(fitBM)
 1×2 Array{Float64,2}:
  4.02696  5.33104
 
-julia> r2(fitBM)
--2.220446049250313e-16
+julia> round(r2(fitBM), 10)
+0.0
 
-julia> adjr2(fitBM)
--2.220446049250313e-16
+julia> round(adjr2(fitBM), 10)
+0.0
 
 julia> vcov(fitBM)
 1×1 Array{Float64,2}:
@@ -964,31 +964,31 @@ function phyloNetworklm(
 		ind = [0]
 		info("""As requested (no_names=true), I am ignoring the tips names
     in the network and in the dataframe.""")
-	elseif (any(V.tipsNames == "") || !any(DataFrames.names(fr) .== :tipsNames))
-		if (any(V.tipsNames == "") && !any(DataFrames.names(fr) .== :tipsNames))
+	elseif (any(V.tipNames == "") || !any(DataFrames.names(fr) .== :tipNames))
+		if (any(V.tipNames == "") && !any(DataFrames.names(fr) .== :tipNames))
 			error("""The network provided has no tip names, and the input dataframe has
-			no column labelled tipsNames, so I can't match the data on the network
+			no column labelled tipNames, so I can't match the data on the network
 			unambiguously. If you are sure that the tips of the network are in the
 			same order as the values of the dataframe provided, then please re-run
 			this function with argument no_name=true.""")
 		end
-		if any(V.tipsNames == "")
+		if any(V.tipNames == "")
 			error("""The network provided has no tip names, so I can't match the data
 			on the network unambiguously. If you are sure that the tips of the
 			network are in the same order as the values of the dataframe provided,
 			then please re-run this function with argument no_name=true.""")
 		end
-		if !any(DataFrames.names(fr) .== :tipsNames)
-			error("""The input dataframe has no column labelled tipsNames, so I can't
+		if !any(DataFrames.names(fr) .== :tipNames)
+			error("""The input dataframe has no column labelled tipNames, so I can't
 			match the data on the network unambiguously. If you are sure that the
 			tips of the network are in the same order as the values of the dataframe
 			provided, then please re-run this function with argument no_name=true.""")
 		end
 	else
-#        ind = indexin(V.tipsNames, fr[:tipsNames])
-		ind = indexin(fr[:tipsNames], V.tipsNames)
+#        ind = indexin(V.tipNames, fr[:tipNames])
+		ind = indexin(fr[:tipNames], V.tipNames)
 		if any(ind == 0) || length(unique(ind)) != length(ind)
-				error("""Tips names of the network and names provided in column tipsNames
+				error("""Tips names of the network and names provided in column tipNames
 				of the dataframe do not match.""")
 		end
 #	fr = fr[ind, :]
@@ -1190,7 +1190,7 @@ The following functions can be applied to it:
 `expectations` (vector of expectations at all nodes), `stderr` (the standard error),
 `predint` (the prediction interval), `plot`.
 
-The `reconstructedStates` object has fields: `traits_nodes`, `variances_nodes`, `NodesNumbers`, `traits_tips`, `TipsNumbers`, `model`.
+The `reconstructedStates` object has fields: `traits_nodes`, `variances_nodes`, `NodeNumbers`, `traits_tips`, `tipNumbers`, `model`.
 Type in "?reconstructedStates.field" to get help on a specific field.
 """
 type reconstructedStates
@@ -1198,12 +1198,12 @@ type reconstructedStates
 	traits_nodes::Vector # Nodes are actually "missing" data (including tips)
   "variances_nodes: the variance covariance matrix between all the 'missing' nodes"
 	variances_nodes::Matrix
-  "NodesNumbers: vector of the nodes numbers, in the same order as `traits_nodes`"
-	NodesNumbers::Vector{Int}
+  "NodeNumbers: vector of the nodes numbers, in the same order as `traits_nodes`"
+	NodeNumbers::Vector{Int}
   "traits_tips: the observed traits values at the tips"
 	traits_tips::Vector # Observed values at tips
-  "TipsNumbers: vector of tips numbers, in the same order as `traits_tips`"
-	TipsNumbers::Vector # Observed tips only
+  "TipNumbers: vector of tips numbers, in the same order as `traits_tips`"
+	TipNumbers::Vector # Observed tips only
   "model (Nullable): if not null, the `phyloNetworkLinearModel` used for the computations."
 	model::Nullable{phyloNetworkLinearModel} # If empirical, the corresponding fitted object.
 end
@@ -1213,7 +1213,7 @@ end
 Estimated reconstructed states at the nodes and tips.
 """
 function expectations(obj::reconstructedStates)
-	return DataFrame(nodeNumber = [obj.NodesNumbers; obj.TipsNumbers], condExpectation = [obj.traits_nodes; obj.traits_tips])
+	return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], condExpectation = [obj.traits_nodes; obj.traits_tips])
 end
 
 StatsBase.stderr(obj::reconstructedStates) = sqrt(diag(obj.variances_nodes))
@@ -1235,21 +1235,21 @@ end
 
 function Base.show(io::IO, obj::reconstructedStates)
 	println(io, "$(typeof(obj)):\n",
-	CoefTable(hcat(vcat(obj.NodesNumbers, obj.TipsNumbers), vcat(obj.traits_nodes, obj.traits_tips), predint(obj)),
+	CoefTable(hcat(vcat(obj.NodeNumbers, obj.TipNumbers), vcat(obj.traits_nodes, obj.traits_tips), predint(obj)),
   					["Node index", "Pred.", "Min.", "Max. (95%)"],
-						fill("", length(obj.NodesNumbers)+length(obj.TipsNumbers))))
+						fill("", length(obj.NodeNumbers)+length(obj.TipNumbers))))
 end
 
 function predintPlot(obj::reconstructedStates, level=0.95::Real)
 	pri = predint(obj, level)
 	pritxt = Array{AbstractString}(size(pri, 1))
-	for i=1:length(obj.NodesNumbers)
+	for i=1:length(obj.NodeNumbers)
 		pritxt[i] = "[" * string(round(pri[i, 1], 2)) * ", " * string(round(pri[i, 2], 2)) * "]"
 	end
-	for i=(length(obj.NodesNumbers)+1):size(pri, 1)
+	for i=(length(obj.NodeNumbers)+1):size(pri, 1)
 		pritxt[i] = string(round(pri[i, 1], 2))
 	end
-	return DataFrame(nodeNumber = [obj.NodesNumbers; obj.TipsNumbers], PredInt = pritxt)
+	return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], PredInt = pritxt)
 end
 
 """
@@ -1312,8 +1312,8 @@ function ancestralStateReconstruction(
 	ancestralStateReconstruction(
 	Vz, temp, RL,
 	Y, m_y, m_z,
-	V.internalNodesNumbers,
-	V.tipsNumbers,
+	V.internalNodeNumbers,
+	V.tipNumbers,
 	params.sigma2
 	)
 end
@@ -1324,15 +1324,15 @@ function ancestralStateReconstruction(
   VyzVyinvchol::Matrix,
   RL::LowerTriangular,
   Y::Vector, m_y::Vector, m_z::Vector,
-	NodesNumbers::Vector,
-	TipsNumbers::Vector,
+	NodeNumbers::Vector,
+	TipNumbers::Vector,
 	sigma2::Real,
 	add_var=zeros(size(Vz))::Matrix, # Additional variance for BLUP
 	model=Nullable{phyloNetworkLinearModel}()::Nullable{phyloNetworkLinearModel}
 	) 
 	m_z_cond_y = m_z + VyzVyinvchol' * (RL \ (Y - m_y))
 	V_z_cond_y = sigma2 .* (Vz - VyzVyinvchol' * VyzVyinvchol)
-	reconstructedStates(m_z_cond_y, V_z_cond_y + add_var, NodesNumbers, Y, TipsNumbers, model)
+	reconstructedStates(m_z_cond_y, V_z_cond_y + add_var, NodeNumbers, Y, TipNumbers, model)
 end
 
 # """
@@ -1355,7 +1355,7 @@ function ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)
 		error("""The number of predictors for the ancestral states (number of columns of X_n)
     does not match the number of predictors at the tips.""")
 	end
-	if (size(X_n)[1] != length(obj.V.internalNodesNumbers) + sum(!obj.msng))
+	if (size(X_n)[1] != length(obj.V.internalNodeNumbers) + sum(!obj.msng))
 		error("""The number of lines of the predictors does not match
     the number of nodes plus the number of missing tips.""")
 	end
@@ -1365,19 +1365,19 @@ function ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)
 	if (obj.ind != [0])
 # 		iii = indexin(1:length(obj.msng), obj.ind[obj.msng])
 # 		iii = iii[iii .> 0]
-# 		jjj = [1:length(obj.V.internalNodesNumbers); indexin(1:length(obj.msng), obj.ind[!obj.msng])]
+# 		jjj = [1:length(obj.V.internalNodeNumbers); indexin(1:length(obj.msng), obj.ind[!obj.msng])]
 # 		jjj = jjj[jjj .> 0]
 # 		Vyz = Vyz[iii, jjj]
 		Vyz = obj.V[:TipsNodes, obj.ind, obj.msng]
-		missingTipsNumbers = obj.V.tipsNumbers[obj.ind][!obj.msng]
-		nmTipsNumbers = obj.V.tipsNumbers[obj.ind][obj.msng]
+		missingTipNumbers = obj.V.tipNumbers[obj.ind][!obj.msng]
+		nmTipNumbers = obj.V.tipNumbers[obj.ind][obj.msng]
 	else
 		warn("""There were no indication for the position of the tips on the network.
     I am assuming that they are given in the same order.
     Please check that this is what you intended.""")
-		Vyz = obj.V[:TipsNodes, collect(1:length(obj.V.tipsNumbers)), obj.msng]
-		missingTipsNumbers = obj.V.tipsNumbers[!obj.msng]
-		nmTipsNumbers = obj.V.tipsNumbers[obj.msng]
+		Vyz = obj.V[:TipsNodes, collect(1:length(obj.V.tipNumbers)), obj.msng]
+		missingTipNumbers = obj.V.tipNumbers[!obj.msng]
+		nmTipNumbers = obj.V.tipNumbers[obj.msng]
 	end
 	temp = obj.RL \ Vyz
 	U = X_n - temp' * (obj.RL \ obj.X)
@@ -1395,8 +1395,8 @@ function ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)
     obj.Y,
 		m_y,
 		m_z,
-		[obj.V.internalNodesNumbers; missingTipsNumbers],
-		nmTipsNumbers, 
+		[obj.V.internalNodeNumbers; missingTipNumbers],
+		nmTipNumbers,
 		sigma2_estim(obj),
 		add_var,
 		obj
@@ -1579,12 +1579,13 @@ julia> predint(ancStates)
 # Default reconstruction for a simple BM (known predictors)
 function ancestralStateReconstruction(obj::phyloNetworkLinearModel)
 	if ((size(obj.X)[2] != 1) || !any(obj.X .== 1)) # Test if the regressor is just an intercept.
-		error("""As the predictor is not reduced to the intercept, I can't
-    guess the ancestral predictors values. If you know all the ancestral
-    predictors, please provide them as a matrix argument to the function.
+		error("""Predictor(s) other than a plain intercept are used in this `phyloNetworkLinearModel` object.
+    These predictors are unobserved at ancestral nodes, so they cannot be used
+    for the ancestral state reconstruction. If these ancestral predictor values
+    are known, please provide them as a matrix argument to the function.
     Otherwise, you might consider doing a multivariate linear regression (not implemented yet).""")
 	end
-  X_n = ones((length(obj.V.internalNodesNumbers) + sum(!obj.msng), 1))
+  X_n = ones((length(obj.V.internalNodeNumbers) + sum(!obj.msng), 1))
 	ancestralStateReconstruction(obj, X_n)
 end
 # For a DataFrameRegressionModel
@@ -1615,9 +1616,9 @@ function ancestralStateReconstruction(
 	kwargs...
 	)
 	nn = names(fr)
-	datpos = nn .!= :tipsNames
+	datpos = nn .!= :tipNames
   if sum(datpos) > 1
-		error("""Besides one column labelled 'tipsNames', the dataframe fr should have
+		error("""Besides one column labelled 'tipNames', the dataframe fr should have
     only one column, corresponding to the data at the tips of the network.""")
 	end
 	f = Formula(nn[datpos][1], 1)
@@ -1628,7 +1629,7 @@ end
 # # Default reconstruction for a simple BM
 # function ancestralStateReconstruction(obj::phyloNetworkLinearModel, mu::Real)
 # 	m_y = predict(obj)
-#   m_z = ones(size(obj.V.internalNodesNumbers)[1]) .* mu # !! works if BM no shift.
+#   m_z = ones(size(obj.V.internalNodeNumbers)[1]) .* mu # !! works if BM no shift.
 # 	ancestralStateReconstruction(obj, m_y, m_z)
 # end
 # # Handling the ancestral mean

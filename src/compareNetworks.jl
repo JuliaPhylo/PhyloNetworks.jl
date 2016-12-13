@@ -158,7 +158,9 @@ and the function does not test for this.
 visited: vector of node numbers, of all visited nodes.
 
 # Examples: #"
-```
+```jldoctest
+julia> using PhyloNetworks
+
 julia> net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readTopology |> directEdges! ;
 
 julia> taxa = net5 |> tipLabels # ABC EF D

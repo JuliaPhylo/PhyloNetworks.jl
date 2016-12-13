@@ -7,11 +7,6 @@ function test_show(x)
 	show(io, x)
 end	
 
-#tree= "(A,((B,#H1),(C,(D)#H1)));"
-#net=readTopologyLevel1(tree)
-#rootatnode!(net, "A")
-#directEdges!(net)
-
 tree_str= "(A:0.5,((B:1,#H1:1::0.1):1,(C:1,(D:1)#H1:1::0.9):1):0.5);"
 net = readTopology(tree_str)
 preorder!(net)
@@ -44,7 +39,7 @@ for i in 1:9
 end
 
 nodesV2 = [-2, 1, -3, -4, -5, 2, 3, 4, 5] # root was number 6 before: with readTopologyLevel1 + rootatnode
-ind = indexin(V1.nodesNumbersTopOrder, nodesV2)
+ind = indexin(V1.nodeNumbersTopOrder, nodesV2)
 V2 = V2[ind, ind]
 test_show(V2)
 

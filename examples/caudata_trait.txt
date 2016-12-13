@@ -1,4 +1,4 @@
-"tipsNames","trait"
+"tipNames","trait"
 "Ambystoma_annulatum",4.44135041075727
 "Ambystoma_barbouri",4.3210617205896
 "Ambystoma_californiense",4.51961229762644
