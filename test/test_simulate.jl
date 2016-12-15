@@ -19,7 +19,7 @@ net.edge[1].length = 5;
 
 ## Simulate a BM
 srand(17920921); # fix the seed
-pars = paramsBM(1, 0.1); # params of a BM
+pars = ParamsBM(1, 0.1); # params of a BM
 @show pars
 
 sim = simulate(net, pars); # simulate according to a BM
@@ -44,7 +44,7 @@ traitsNodesExp = [-0.3481603206484607 -0.6698437934551933 -0.018135478212541654 
 
 ## Generate some values
 srand(18480224); # fix the seed
-pars = paramsBM(1, 0.1); # params of a BM
+pars = ParamsBM(1, 0.1); # params of a BM
 N = 50000
 S = length(tipLabels(net));
 values = zeros(Float64, (S, N));

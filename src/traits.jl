@@ -9,7 +9,7 @@
 
 # Matrix with rows and/or columns in topological order of the net.
 """
-`matrixTopologicalOrder`
+`MatrixTopologicalOrder`
 
 Matrix associated to an `HybridNetwork` sorted in topological order.
 
@@ -17,11 +17,10 @@ The following functions and extractors can be applied to it: `tipLabels`, `obj[:
 
 Functions `sharedPathMatrix` and `simulate` return objects of this type.
 
-The `matrixTopologicalOrder` object has fields: `V`, `nodeNumbersTopOrder`, `internalNodeNumbers`, `tipNumbers`, `tipNames`, `indexation`.
-Type in "?matrixTopologicalOrder.field" to get documentation on a specific field.
-
+The `MatrixTopologicalOrder` object has fields: `V`, `nodeNumbersTopOrder`, `internalNodeNumbers`, `tipNumbers`, `tipNames`, `indexation`.
+Type in "?MatrixTopologicalOrder.field" to get documentation on a specific field.
 """
-type matrixTopologicalOrder
+type MatrixTopologicalOrder
   "V: the matrix per se"
 	V::Matrix # Matrix in itself
   "nodeNumbersTopOrder: vector of nodes numbers in the topological order, used for the matrix"
@@ -41,11 +40,11 @@ type matrixTopologicalOrder
 	indexation::AbstractString # Are rows ("r"), columns ("c") or both ("b") indexed by nodes numbers in the matrix ?
 end
 
-function Base.show(io::IO, obj::matrixTopologicalOrder)
+function Base.show(io::IO, obj::MatrixTopologicalOrder)
 	println(io, "$(typeof(obj)):\n$(obj.V)")
 end
 
-function tipLabels(obj::matrixTopologicalOrder)
+function tipLabels(obj::MatrixTopologicalOrder)
 	return obj.tipNames
 end
 
@@ -70,7 +69,7 @@ function recursionPreOrder(
 	nNodes = [n.number for n in net.node]
 	nleaf = [n.number for n in net.leaf]
 	deleteat!(nNodes, indexin(nleaf, nNodes))
-	matrixTopologicalOrder(M, [n.number for n in net.nodes_changed], nNodes, nleaf, [n.name for n in net.leaf], indexation)
+	MatrixTopologicalOrder(M, [n.number for n in net.nodes_changed], nNodes, nleaf, [n.name for n in net.leaf], indexation)
 end
 
 function recursionPreOrder(
@@ -137,7 +136,7 @@ end
 # InternalNodes : submatrix corresponding to internal nodes
 # TipsNodes : submatrix nTips x nNodes of interactions
 # !! Extract sub-matrices in the original net nodes numbers !!
-# function Base.getindex(obj::matrixTopologicalOrder, d::Symbol)
+# function Base.getindex(obj::MatrixTopologicalOrder, d::Symbol)
 # 	if d == :Tips # Extract rows and/or columns corresponding to the tips
 # 		mask = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
 # 		obj.indexation == "b" && return obj.V[mask, mask] # both columns and rows are indexed by nodes
@@ -166,10 +165,10 @@ end
 """
 `getindex(obj, d,[ indTips, msng])`
 
-Getting submatrices of an object of type `matrixTopologicalOrder`.
+Getting submatrices of an object of type `MatrixTopologicalOrder`.
 
 # Arguments
-* `obj::matrixTopologicalOrder`: the matrix from which to extract.
+* `obj::MatrixTopologicalOrder`: the matrix from which to extract.
 * `d::Symbol`: a symbol precising which sub-matrix to extract. Can be:
   * `:Tips` columns and/or rows corresponding to the tips
   * `:InternalNodes` columns and/or rows corresponding to the internal nodes
@@ -179,7 +178,7 @@ Getting submatrices of an object of type `matrixTopologicalOrder`.
 
 """
 function Base.getindex(
-	obj::matrixTopologicalOrder,
+	obj::MatrixTopologicalOrder,
 	d::Symbol,
 	indTips=collect(1:length(obj.tipNumbers))::Vector{Int},
 	msng=trues(length(obj.tipNumbers))::BitArray{1}
@@ -228,7 +227,7 @@ This function computes the shared path matrix between all the nodes of a
 network. It assumes that the network is in the pre-order. If checkPreorder is
 true (default), then it runs function 'preoder' on the network beforehand.
 
-Returns an object of type 'matrixTopologicalOrder'.
+Returns an object of type 'MatrixTopologicalOrder'.
 
 """
 function sharedPathMatrix(
@@ -343,10 +342,10 @@ end
 ###############################################################################
 
 # Abstract type of all the (future) types (BM, OU, ...)
-abstract paramsProcess
+abstract ParamsProcess
 
 """
-`paramsBM <: paramsProcess`
+`ParamsBM <: ParamsProcess`
 
 Type for a BM process on a network. Fields are `mu` (expectation),
 `sigma2` (variance), `randomRoot` (whether the root is random, default to `false`),
@@ -354,16 +353,16 @@ and `varRoot` (if the root is random, the variance of the root, defalut to `NaN`
 
 """
 # BM type
-type paramsBM <: paramsProcess
+type ParamsBM <: ParamsProcess
 	mu::Real # Ancestral value or mean
 	sigma2::Real # variance
 	randomRoot::Bool # Root is random ? default false
 	varRoot::Real # root variance. Default NaN
 end
 # Constructor
-paramsBM(mu, sigma2) = paramsBM(mu, sigma2, false, NaN) # default values
+ParamsBM(mu, sigma2) = ParamsBM(mu, sigma2, false, NaN) # default values
 
-function Base.show(io::IO, obj::paramsBM)
+function Base.show(io::IO, obj::ParamsBM)
 	disp =  "$(typeof(obj)):\n"
 	pt = paramstable(obj)
 	if obj.randomRoot
@@ -374,7 +373,7 @@ function Base.show(io::IO, obj::paramsBM)
 	println(io, disp)
 end
 
-function paramstable(obj::paramsBM)
+function paramstable(obj::ParamsBM)
 	disp = "mu: $(obj.mu)\nSigma2: $(obj.sigma2)"
 	if obj.randomRoot
 		disp = disp * "\nvarRoot: $(obj.varRoot)"
@@ -390,21 +389,21 @@ end
 ###############################################################################
 
 """
-`traitSimulation`
+`TraitSimulation`
 
 Result of a trait simulation on an `HybridNetwork` with function `simulate`.
 
 The following functions and extractors can be applied to it: `tipLabels`, `obj[:Tips]`, `obj[:InternalNodes]` (see documentation for function `getindex(obj, d,[ indTips, msng])`).
 
-The `traitSimulation` object has fields: `M`, `params`, `model`.
+The `TraitSimulation` object has fields: `M`, `params`, `model`.
 """
-type traitSimulation
-	M::matrixTopologicalOrder
-	params::paramsProcess
+type TraitSimulation
+	M::MatrixTopologicalOrder
+	params::ParamsProcess
 	model::AbstractString
 end
 
-function Base.show(io::IO, obj::traitSimulation)
+function Base.show(io::IO, obj::TraitSimulation)
 	disp = "$(typeof(obj)):\n"
 	disp = disp * "Trait simulation results on a network with $(length(obj.M.tipNames)) tips, using a $(obj.model) model, with parameters:\n"
 	disp = disp * paramstable(obj.params)
@@ -412,33 +411,31 @@ function Base.show(io::IO, obj::traitSimulation)
 end
 
 """
-`tipLabels(obj::traitSimulation)`
+`tipLabels(obj::TraitSimulation)`
 returns a vector of taxon names (at the leaves) for a simulated object.
 """
-function tipLabels(obj::traitSimulation)
+function tipLabels(obj::TraitSimulation)
 	return tipLabels(obj.M)
 end
 
 
 """
-`simulate(net::HybridNetwork, params::paramsProcess, checkPreorder=true::Bool)`
+`simulate(net::HybridNetwork, params::ParamsProcess, checkPreorder=true::Bool)`
 
 Simualte some traits on `net` using the parameters `params`. For now, only
-parameters of type `paramsBM` (Brownian Motion) are accepted.
+parameters of type `ParamsBM` (Brownian Motion) are accepted.
 
 Assumes that the network is in the pre-order. If `checkPreorder=true` (default),
 then it runs function `preoder` on the network beforehand.
 
-Returns an object of type `traitSimulation`.
+Returns an object of type `TraitSimulation`.
 
 # Examples
 ```jldoctest
-julia> using PhyloNetworks
-
 julia> phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "carnivores_tree.txt"));
 
-julia> par = paramsBM(1, 0.1) # BM with expectation 1 and variance 0.1.
-PhyloNetworks.paramsBM:
+julia> par = ParamsBM(1, 0.1) # BM with expectation 1 and variance 0.1.
+PhyloNetworks.ParamsBM:
 Parameters of a BM with fixed root:
 mu: 1
 Sigma2: 0.1
@@ -446,7 +443,7 @@ Sigma2: 0.1
 julia> srand(17920921); # Seed for reproducibility
 
 julia> sim = simulate(phy, par) # Simulate on the tree.
-PhyloNetworks.traitSimulation:
+PhyloNetworks.TraitSimulation:
 Trait simulation results on a network with 16 tips, using a BM model, with parameters:
 mu: 1
 Sigma2: 0.1
@@ -473,16 +470,16 @@ julia> traits = sim[:Tips] # Extract simulated values at the tips.
 ```
 """
 # Uses recursion on the network.
-# Takes params of type paramsProcess as an entry
+# Takes params of type ParamsProcess as an entry
 # Returns a matrix with two lines:
 # - line one = expectations at all the nodes
 # - line two = simulated values at all the nodes
 # The nodes are ordered as given by topological sorting
 function simulate(
 	net::HybridNetwork,
-	params::paramsProcess,
+	params::ParamsProcess,
 	checkPreorder=true::Bool)
-	if isa(params, paramsBM)
+	if isa(params, ParamsBM)
 		model = "BM"
 	else
 		error("The 'simulate' function only works for a BM process (for now).")
@@ -497,16 +494,16 @@ function simulate(
 				"c",
 				params
 				)
-	traitSimulation(M, params, model)
+	TraitSimulation(M, params, model)
 end
 
 # Initialization of the structure
-function initSimulateBM(nodes::Vector{Node}, params::Tuple{paramsBM})
+function initSimulateBM(nodes::Vector{Node}, params::Tuple{ParamsBM})
 	return(zeros(2, length(nodes)))
 end
 
 # Initialization of the root
-function updateRootSimulateBM!(M::Matrix, i::Int, params::Tuple{paramsBM})
+function updateRootSimulateBM!(M::Matrix, i::Int, params::Tuple{ParamsBM})
 	params = params[1]
 	if (params.randomRoot)
 		M[1, i] = params.mu # expectation
@@ -523,7 +520,7 @@ function updateTreeSimulateBM!(
 	i::Int,
 	parentIndex::Int,
 	edge::Edge,
-	params::Tuple{paramsBM}
+	params::Tuple{ParamsBM}
 	)
 	params = params[1]
 	M[1, i] = params.mu  # expectation
@@ -538,7 +535,7 @@ function updateHybridSimulateBM!(
 	parentIndex2::Int,
 	edge1::Edge,
 	edge2::Edge,
-	params::Tuple{paramsBM}
+	params::Tuple{ParamsBM}
 	)
 	params = params[1]
   M[1, i] = params.mu  # expectation
@@ -546,7 +543,7 @@ function updateHybridSimulateBM!(
 end
 
 
-# function updateSimulateBM!(i::Int, nodes::Vector{Node}, M::Matrix, params::Tuple{paramsBM})
+# function updateSimulateBM!(i::Int, nodes::Vector{Node}, M::Matrix, params::Tuple{ParamsBM})
 #     params = params[1]
 #     parent = getParents(nodes[i]) #array of nodes (empty, size 1 or 2)
 #     if(isempty(parent)) #nodes[i] is root
@@ -577,7 +574,7 @@ end
 # end
 
 # Extract the vector of simulated values at the tips
-function Base.getindex(obj::traitSimulation, d::Symbol)
+function Base.getindex(obj::TraitSimulation, d::Symbol)
 #    if d == :Tips
 #       res = obj.M[:Tips]
 #       squeeze(res[2, :], 1)
@@ -599,7 +596,7 @@ end
 
 # New type for phyloNetwork regression
 """
-`phyloNetworkLinearModel<:LinPredModel`
+`PhyloNetworkLinearModel<:LinPredModel`
 
 Regression object for a phylogenetic regression. Result of fitting function `phyloNetworklm`.
 Dominated by the `LinPredModel` class, from package `GLM`.
@@ -621,14 +618,14 @@ If a Pagel's lambda model is fitted, the parameter can be retrieved with functio
 An ancestral state reconstruction can be performed from this fitted object using function:
 	`ancestralStateReconstruction`.
 
-The `phyloNetworkLinearModel` object has fields: `lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `ind`, `msng`, `model`, `lambda`.
-Type in "?phyloNetworkLinearModel.field" to get help on a specific field.
+The `PhyloNetworkLinearModel` object has fields: `lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `ind`, `msng`, `model`, `lambda`.
+Type in "?PhyloNetworkLinearModel.field" to get help on a specific field.
 """
-type phyloNetworkLinearModel <: LinPredModel 
+type PhyloNetworkLinearModel <: LinPredModel 
   "lm: a GLM.LinearModel object, fitted on the cholesky-tranformend problem"
 	lm::GLM.LinearModel # result of a lm on a matrix
-  "V: a matrixTopologicalOrder object of the network-induced correlations"
-	V::matrixTopologicalOrder
+  "V: a MatrixTopologicalOrder object of the network-induced correlations"
+	V::MatrixTopologicalOrder
   "Vy: the sub matrix corresponding to the tips and actually used for the correction"
 	Vy::Matrix
   "RL: a LowerTriangular matrix, Cholesky transform of Vy=RL*RL'"
@@ -649,7 +646,7 @@ type phyloNetworkLinearModel <: LinPredModel
 	lambda::Real
 end
 
-phyloNetworkLinearModel(lm_fit, V, Vy, RL, Y, X, logdetVy, ind, msng, model) = phyloNetworkLinearModel(lm_fit, V, Vy, RL, Y, X, logdetVy, ind, msng, model, 1.0) 
+PhyloNetworkLinearModel(lm_fit, V, Vy, RL, Y, X, logdetVy, ind, msng, model) = PhyloNetworkLinearModel(lm_fit, V, Vy, RL, Y, X, logdetVy, ind, msng, model, 1.0) 
 
 # Function for lm with net residuals
 function phyloNetworklm(
@@ -670,7 +667,7 @@ end
 function phyloNetworklm(
 	X::Matrix,
 	Y::Vector,
-	V::matrixTopologicalOrder,
+	V::MatrixTopologicalOrder,
 	msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
 	model="BM"::AbstractString,
 	ind=[0]::Vector{Int}
@@ -690,7 +687,7 @@ end
 function phyloNetworklm_BM(
 	X::Matrix,
 	Y::Vector,
-	V::matrixTopologicalOrder,
+	V::MatrixTopologicalOrder,
 	msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
 	ind=[0]::Vector{Int}
 	)
@@ -704,13 +701,13 @@ function phyloNetworklm_BM(
 	R = cholfact(Vy)
 	RL = R[:L]
 	# Fit
-	phyloNetworkLinearModel(lm(RL\X, RL\Y), V, Vy, RL, Y, X, logdet(Vy), ind, msng, "BM")
+	PhyloNetworkLinearModel(lm(RL\X, RL\Y), V, Vy, RL, Y, X, logdet(Vy), ind, msng, "BM")
 end
 
 ###############################################################################
 ## Fit Pagel's Lambda
 
-function transform_matrix_lambda!{T <: AbstractFloat}(V::matrixTopologicalOrder, lam::T)
+function transform_matrix_lambda!{T <: AbstractFloat}(V::MatrixTopologicalOrder, lam::T)
 	# WARNING : This transformation is not the expected one if branch length are modified.
 	# Need a function for node heigh computation.
 	for i in 1:size(V.V, 1)
@@ -728,7 +725,7 @@ function logLik_lam{T <: AbstractFloat}(
 	lam::T,
 	X::Matrix,
 	Y::Vector,
-	V::matrixTopologicalOrder,
+	V::MatrixTopologicalOrder,
 	msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
 	ind=[0]::Vector{Int}
 	)
@@ -751,7 +748,7 @@ const xRelTr = 1e-10
 function phyloNetworklm_lambda(
 	X::Matrix,
 	Y::Vector,
-	V::matrixTopologicalOrder,
+	V::MatrixTopologicalOrder,
 	msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
 	ind=[0]::Vector{Int},
 	ftolRel=fRelTr::AbstractFloat,
@@ -793,7 +790,7 @@ end
 
 Phylogenetic regression, using the correlation structure induced by the network.
 
-Returns an object of class `phyloNetworkLinearModel`. See documentation for this type and
+Returns an object of class `PhyloNetworkLinearModel`. See documentation for this type and
 example to see all the functions that can be applied to it.
 
 # Arguments
@@ -820,7 +817,7 @@ julia> dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_t
 julia> fitBM = phyloNetworklm(trait ~ 1, dat, phy);
 
 julia> fitBM # Shows a summary
-DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel,Array{Float64,2}}
+DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,Array{Float64,2}}
 
 Formula: trait ~ +1
 
@@ -942,7 +939,7 @@ julia> predict(fitBM)
 ```
 
 # See also 
-Type `phyloNetworkLinearModel`, Function `ancestralStatesReconstruction`
+Type `PhyloNetworkLinearModel`, Function `ancestralStatesReconstruction`
 """ #"
 # Deal with formulas
 function phyloNetworklm(
@@ -1008,21 +1005,21 @@ end
 
 ## Un-changed Quantities
 # Coefficients of the regression
-StatsBase.coef(m::phyloNetworkLinearModel) = coef(m.lm) 
+StatsBase.coef(m::PhyloNetworkLinearModel) = coef(m.lm) 
 # Number of observations
-StatsBase.nobs(m::phyloNetworkLinearModel) = nobs(m.lm) 
+StatsBase.nobs(m::PhyloNetworkLinearModel) = nobs(m.lm) 
 # vcov matrix
-StatsBase.vcov(m::phyloNetworkLinearModel) = vcov(m.lm)
+StatsBase.vcov(m::PhyloNetworkLinearModel) = vcov(m.lm)
 # Standart error
-StatsBase.stderr(m::phyloNetworkLinearModel) = stderr(m.lm)
+StatsBase.stderr(m::PhyloNetworkLinearModel) = stderr(m.lm)
 # Confidence Intervals
-StatsBase.confint(m::phyloNetworkLinearModel; level=0.95::Real) = confint(m.lm, level)
+StatsBase.confint(m::PhyloNetworkLinearModel; level=0.95::Real) = confint(m.lm, level)
 # coef table (coef, stderr, confint)
-StatsBase.coeftable(m::phyloNetworkLinearModel) = coeftable(m.lm)
+StatsBase.coeftable(m::PhyloNetworkLinearModel) = coeftable(m.lm)
 # Degrees of freedom for residuals
-StatsBase.dof_residual(m::phyloNetworkLinearModel) =  nobs(m) - length(coef(m))
+StatsBase.dof_residual(m::PhyloNetworkLinearModel) =  nobs(m) - length(coef(m))
 # Degrees of freedom consumed in the model
-function StatsBase.dof(m::phyloNetworkLinearModel)
+function StatsBase.dof(m::PhyloNetworkLinearModel)
 	res = length(coef(m)) + 1 # (+1: dispersion parameter)
 	if (m.model == "lambda")
 		res += 1 # lambda is one parameter
@@ -1030,23 +1027,23 @@ function StatsBase.dof(m::phyloNetworkLinearModel)
 	return res
 end
 # Deviance (sum of squared residuals with metric V)
-StatsBase.deviance(m::phyloNetworkLinearModel) = deviance(m.lm)
+StatsBase.deviance(m::PhyloNetworkLinearModel) = deviance(m.lm)
 
 ## Changed Quantities
 # Compute the residuals
 # (Rescaled by cholesky of variance between tips)
-StatsBase.residuals(m::phyloNetworkLinearModel) = m.RL * residuals(m.lm)
+StatsBase.residuals(m::PhyloNetworkLinearModel) = m.RL * residuals(m.lm)
 # Tip data
-StatsBase.model_response(m::phyloNetworkLinearModel) = m.Y
+StatsBase.model_response(m::PhyloNetworkLinearModel) = m.Y
 # Predicted values at the tips
 # (rescaled by cholesky of tips variances)
-StatsBase.predict(m::phyloNetworkLinearModel) = m.RL * predict(m.lm)
+StatsBase.predict(m::PhyloNetworkLinearModel) = m.RL * predict(m.lm)
 #Log likelihood of the fitted linear model
-StatsBase.loglikelihood(m::phyloNetworkLinearModel) =  loglikelihood(m.lm) - 1/2 * m.logdetVy
+StatsBase.loglikelihood(m::PhyloNetworkLinearModel) =  loglikelihood(m.lm) - 1/2 * m.logdetVy
 # Null  Deviance (sum of squared residuals with metric V)
 # REMARK Not just the null deviance of the cholesky regression
 # Might be something better to do than this, though.
-function StatsBase.nulldeviance(m::phyloNetworkLinearModel)
+function StatsBase.nulldeviance(m::PhyloNetworkLinearModel)
 	vo = ones(length(m.Y), 1)
 	vo = m.RL \ vo
 	bo = inv(vo'*vo)*vo'*model_response(m.lm)
@@ -1055,16 +1052,16 @@ function StatsBase.nulldeviance(m::phyloNetworkLinearModel)
 end
 # Null Log likelihood (null model with only the intercept)
 # Same remark
-function StatsBase.nullloglikelihood(m::phyloNetworkLinearModel)
+function StatsBase.nullloglikelihood(m::PhyloNetworkLinearModel)
 	n = length(m.Y)
 	return -n/2 * (log(2*pi * nulldeviance(m)/n) + 1) - 1/2 * m.logdetVy
 end
 # coefficient of determination (1 - SS_res/SS_null)
 # Copied from GLM.jl/src/lm.jl, line 139
-StatsBase.r2(m::phyloNetworkLinearModel) = 1 - deviance(m)/nulldeviance(m)
+StatsBase.r2(m::PhyloNetworkLinearModel) = 1 - deviance(m)/nulldeviance(m)
 # adjusted coefficient of determination 
 # Copied from GLM.jl/src/lm.jl, lines 141-146
-function StatsBase.adjr2(obj::phyloNetworkLinearModel)
+function StatsBase.adjr2(obj::PhyloNetworkLinearModel)
 	n = nobs(obj)
 	# dof() includes the dispersion parameter
 	p = dof(obj) - 1
@@ -1072,24 +1069,24 @@ function StatsBase.adjr2(obj::phyloNetworkLinearModel)
 end
 
 ## REMARK
-# As phyloNetworkLinearModel <: LinPredModel, the following functions are automatically defined:
+# As PhyloNetworkLinearModel <: LinPredModel, the following functions are automatically defined:
 # aic, aicc, bic
 
 ## New quantities
 # ML estimate for variance of the BM
 """
-`sigma2_estim(m::phyloNetworkLinearModel)`
+`sigma2_estim(m::PhyloNetworkLinearModel)`
 Estimated variance for a fitted object.
 """
-sigma2_estim(m::phyloNetworkLinearModel) = deviance(m.lm) / nobs(m)
+sigma2_estim(m::PhyloNetworkLinearModel) = deviance(m.lm) / nobs(m)
 # Need to be adapted manually to DataFrameRegressionModel beacouse it's a new function
 sigma2_estim(m::DataFrames.DataFrameRegressionModel) = sigma2_estim(m.model)
 # ML estimate for ancestral state of the BM
 """
-`mu_estim(m::phyloNetworkLinearModel)`
+`mu_estim(m::PhyloNetworkLinearModel)`
 Estimated root value for a fitted object.
 """
-function mu_estim(m::phyloNetworkLinearModel)
+function mu_estim(m::PhyloNetworkLinearModel)
 	warn("""You fitted the data against a custom matrix, so I have no way of
   knowing which column is your intercept (column of ones).
   I am using the first coefficient for ancestral mean mu by convention,
@@ -1097,7 +1094,7 @@ function mu_estim(m::phyloNetworkLinearModel)
 	return coef(m)[1]
 end
 # Need to be adapted manually to DataFrameRegressionModel beacouse it's a new function
-function mu_estim(m::DataFrames.DataFrameRegressionModel)#{PhyloNetworks.phyloNetworkLinearModel,Float64})
+function mu_estim(m::DataFrames.DataFrameRegressionModel)#{PhyloNetworks.PhyloNetworkLinearModel,Float64})
 	if (!m.mf.terms.intercept)
 		error("The fit was done without intercept, so I cannot estimate mu")
 	end
@@ -1105,10 +1102,10 @@ function mu_estim(m::DataFrames.DataFrameRegressionModel)#{PhyloNetworks.phyloNe
 end
 # Lambda estim
 """
-`lambda_estim(m::phyloNetworkLinearModel)`
+`lambda_estim(m::PhyloNetworkLinearModel)`
 Estimated lambda parameter for a fitted object.
 """
-lambda_estim(m::phyloNetworkLinearModel) = m.lambda
+lambda_estim(m::PhyloNetworkLinearModel) = m.lambda
 lambda_estim(m::DataFrames.DataFrameRegressionModel) = lambda_estim(m.model)
 
 ### Functions specific to DataFrameRegressionModel
@@ -1118,7 +1115,7 @@ DataFrames.Formula(m::DataFrames.DataFrameRegressionModel) = Formula(m.mf.terms)
 
 ### Print the results
 # Variance
-function paramstable(m::phyloNetworkLinearModel)
+function paramstable(m::PhyloNetworkLinearModel)
 	Sig = sigma2_estim(m)
 	res = "Sigma2: $(Sig)"
 	if (m.model == "lambda")
@@ -1127,11 +1124,11 @@ function paramstable(m::phyloNetworkLinearModel)
 	end
 	return(res)
 end
-function Base.show(io::IO, obj::phyloNetworkLinearModel)
+function Base.show(io::IO, obj::PhyloNetworkLinearModel)
 	println(io, "$(typeof(obj)):\n\nParameter(s) Estimates:\n", paramstable(obj), "\n\nCoefficients:\n", coeftable(obj))
 end
 # For DataFrameModel. Copied from DataFrames/jl/src/statsmodels/statsmodels.jl, lines 101-118
-function Base.show(io::IO, model::DataFrames.DataFrameRegressionModel)#{PhyloNetworks.phyloNetworkLinearModel,Float64})
+function Base.show(io::IO, model::DataFrames.DataFrameRegressionModel)#{PhyloNetworks.PhyloNetworkLinearModel,Float64})
 	ct = coeftable(model)
 	println(io, "$(typeof(model))")
 	println(io)
@@ -1149,7 +1146,7 @@ end
 
 
 ## Deprecated
-# function StatsBase.vcov(obj::phyloNetworkLinearModel)
+# function StatsBase.vcov(obj::PhyloNetworkLinearModel)
 #    sigma2_estim(obj) * inv(obj.X' * obj.X) 
 # end
 #function StatsBase.vcov(obj::phyloNetworkLinPredModel)
@@ -1157,15 +1154,15 @@ end
 #end
 #StatsBase.stderr(m::phyloNetworkLinPredModel) = sqrt(diag(vcov(m)))
 # Confidence intervals on coeficients
-# function StatsBase.confint(obj::phyloNetworkLinearModel, level=0.95::Real)
+# function StatsBase.confint(obj::PhyloNetworkLinearModel, level=0.95::Real)
 #     hcat(coef(obj),coef(obj)) + stderr(obj) *
 #     quantile(TDist(dof_residual(obj)), (1. - level)/2.) * [1. -1.]
 # end
 # Log likelihood of the fitted BM
-# StatsBase.loglikelihood(m::phyloNetworkLinearModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2_estim(m)) + m.logdetVy)
+# StatsBase.loglikelihood(m::PhyloNetworkLinearModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2_estim(m)) + m.logdetVy)
 #StatsBase.loglikelihood(m::phyloNetworkLinPredModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2_estim(m)) + m.logdetVy)
 # Coefficients
-# function StatsBase.coeftable(mm::phyloNetworkLinearModel)
+# function StatsBase.coeftable(mm::PhyloNetworkLinearModel)
 #     cc = coef(mm)
 #     se = stderr(mm)
 #     tt = cc ./ se
@@ -1181,7 +1178,7 @@ end
 ###############################################################################
 # Class for reconstructed states on a network
 """
-`reconstructedStates`
+`ReconstructedStates`
 
 Type containing the inferred information about the law of the ancestral states
 given the observed tips values. The missing tips are considered as ancestral states.
@@ -1190,10 +1187,10 @@ The following functions can be applied to it:
 `expectations` (vector of expectations at all nodes), `stderr` (the standard error),
 `predint` (the prediction interval), `plot`.
 
-The `reconstructedStates` object has fields: `traits_nodes`, `variances_nodes`, `NodeNumbers`, `traits_tips`, `tipNumbers`, `model`.
-Type in "?reconstructedStates.field" to get help on a specific field.
+The `ReconstructedStates` object has fields: `traits_nodes`, `variances_nodes`, `NodeNumbers`, `traits_tips`, `tipNumbers`, `model`.
+Type in "?ReconstructedStates.field" to get help on a specific field.
 """
-type reconstructedStates
+type ReconstructedStates
   "traits_nodes: the infered expectation of 'missing' values (ancestral nodes and missing tips)"
 	traits_nodes::Vector # Nodes are actually "missing" data (including tips)
   "variances_nodes: the variance covariance matrix between all the 'missing' nodes"
@@ -1204,25 +1201,25 @@ type reconstructedStates
 	traits_tips::Vector # Observed values at tips
   "TipNumbers: vector of tips numbers, in the same order as `traits_tips`"
 	TipNumbers::Vector # Observed tips only
-  "model (Nullable): if not null, the `phyloNetworkLinearModel` used for the computations."
-	model::Nullable{phyloNetworkLinearModel} # If empirical, the corresponding fitted object.
+  "model (Nullable): if not null, the `PhyloNetworkLinearModel` used for the computations."
+	model::Nullable{PhyloNetworkLinearModel} # If empirical, the corresponding fitted object.
 end
 
 """
-`expectations(obj::reconstructedStates)`
+`expectations(obj::ReconstructedStates)`
 Estimated reconstructed states at the nodes and tips.
 """
-function expectations(obj::reconstructedStates)
+function expectations(obj::ReconstructedStates)
 	return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], condExpectation = [obj.traits_nodes; obj.traits_tips])
 end
 
-StatsBase.stderr(obj::reconstructedStates) = sqrt(diag(obj.variances_nodes))
+StatsBase.stderr(obj::ReconstructedStates) = sqrt(diag(obj.variances_nodes))
 
 """
-`predint(obj::reconstructedStates)`
+`predint(obj::ReconstructedStates)`
 Estimated reconstructed states at the nodes and tips.
 """
-function predint(obj::reconstructedStates, level=0.95::Real)
+function predint(obj::ReconstructedStates, level=0.95::Real)
 	if isnull(obj.model)
 		qq = quantile(Normal(), (1. - level)/2.)
 	else
@@ -1233,14 +1230,14 @@ function predint(obj::reconstructedStates, level=0.95::Real)
 	return vcat(tmpnode, hcat(obj.traits_tips, obj.traits_tips))
 end
 
-function Base.show(io::IO, obj::reconstructedStates)
+function Base.show(io::IO, obj::ReconstructedStates)
 	println(io, "$(typeof(obj)):\n",
 	CoefTable(hcat(vcat(obj.NodeNumbers, obj.TipNumbers), vcat(obj.traits_nodes, obj.traits_tips), predint(obj)),
   					["Node index", "Pred.", "Min.", "Max. (95%)"],
 						fill("", length(obj.NodeNumbers)+length(obj.TipNumbers))))
 end
 
-function predintPlot(obj::reconstructedStates, level=0.95::Real)
+function predintPlot(obj::ReconstructedStates, level=0.95::Real)
 	pri = predint(obj, level)
 	pritxt = Array{AbstractString}(size(pri, 1))
 	for i=1:length(obj.NodeNumbers)
@@ -1253,25 +1250,25 @@ function predintPlot(obj::reconstructedStates, level=0.95::Real)
 end
 
 """
-'plot(net::HybridNetwork, obj::reconstructedStates; kwargs...)
+'plot(net::HybridNetwork, obj::ReconstructedStates; kwargs...)
 
 Plot the reconstructed states computed by function `ancestralStateReconstruction`
 on a network.
 
 # Arguments
 * `net::HybridNetwork`: a phylogenetic network.
-* `obj::reconstructedStates`: the reconstructed states on the network. 
+* `obj::ReconstructedStates`: the reconstructed states on the network. 
 * `kwargs...`: further arguments to be passed to the netwotk `plot` function.
 
-See documentation for function `ancestralStateReconstruction(obj::phyloNetworkLinearModel[, X_n::Matrix])` for examples.
+See documentation for function `ancestralStateReconstruction(obj::PhyloNetworkLinearModel[, X_n::Matrix])` for examples.
 
 """
-function Gadfly.plot(net::HybridNetwork, obj::reconstructedStates; kwargs...)
+function Gadfly.plot(net::HybridNetwork, obj::ReconstructedStates; kwargs...)
 	plot(net, nodeLabel = predintPlot(obj); kwargs...)
 end
 
 """
-`ancestralStateReconstruction(net::HybridNetwork, Y::Vector, params::paramsBM)`
+`ancestralStateReconstruction(net::HybridNetwork, Y::Vector, params::ParamsBM)`
 
 Compute the conditional expectations and variances of the ancestral (un-observed)
 traits values at the internal nodes of the phylogenetic network (`net`), 
@@ -1280,23 +1277,23 @@ known parameters of the process used for trait evolution (`params`, only BM with
 works for now).
 
 This function assumes that the parameters of the process are known. For a more general
-function, see `ancestralStateReconstruction(obj::phyloNetworkLinearModel[, X_n::Matrix])`.
+function, see `ancestralStateReconstruction(obj::PhyloNetworkLinearModel[, X_n::Matrix])`.
 
 """
 # Reconstruction from known BM parameters
 function ancestralStateReconstruction(
 	net::HybridNetwork,
   Y::Vector,
-  params::paramsBM
+  params::ParamsBM
 	)
 	V = sharedPathMatrix(net)
 	ancestralStateReconstruction(V, Y, params)
 end
 
 function ancestralStateReconstruction(
-	V::matrixTopologicalOrder,
+	V::MatrixTopologicalOrder,
 	Y::Vector,
-	params::paramsBM
+	params::ParamsBM
 	)
 	# Variances matrices
 	Vy = V[:Tips]
@@ -1328,20 +1325,20 @@ function ancestralStateReconstruction(
 	TipNumbers::Vector,
 	sigma2::Real,
 	add_var=zeros(size(Vz))::Matrix, # Additional variance for BLUP
-	model=Nullable{phyloNetworkLinearModel}()::Nullable{phyloNetworkLinearModel}
+	model=Nullable{PhyloNetworkLinearModel}()::Nullable{PhyloNetworkLinearModel}
 	) 
 	m_z_cond_y = m_z + VyzVyinvchol' * (RL \ (Y - m_y))
 	V_z_cond_y = sigma2 .* (Vz - VyzVyinvchol' * VyzVyinvchol)
-	reconstructedStates(m_z_cond_y, V_z_cond_y + add_var, NodeNumbers, Y, TipNumbers, model)
+	ReconstructedStates(m_z_cond_y, V_z_cond_y + add_var, NodeNumbers, Y, TipNumbers, model)
 end
 
 # """
-# `ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)`
+# `ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)`
 # Function to find the ancestral traits reconstruction on a network, given an
 # object fitted by function phyloNetworklm, and some predictors expressed at all the nodes of the network.
 # 
-# - obj: a phyloNetworkLinearModel object, or a
-# DataFrameRegressionModel{phyloNetworkLinearModel}, if data frames were used.
+# - obj: a PhyloNetworkLinearModel object, or a
+# DataFrameRegressionModel{PhyloNetworkLinearModel}, if data frames were used.
 # - X_n a matrix with as many columns as the number of predictors used, and as
 # many lines as the number of unknown nodes or tips.
 # 
@@ -1350,7 +1347,7 @@ end
 
 # Empirical reconstruciton from a fitted object
 # TO DO: Handle the order of internal nodes for matrix X_n
-function ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)
+function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)
 	if (size(X_n)[2] != length(coef(obj)))
 		error("""The number of predictors for the ancestral states (number of columns of X_n)
     does not match the number of predictors at the tips.""")
@@ -1404,7 +1401,7 @@ function ancestralStateReconstruction(obj::phyloNetworkLinearModel, X_n::Matrix)
 end
 
 """
-`ancestralStateReconstruction(obj::phyloNetworkLinearModel[, X_n::Matrix])`
+`ancestralStateReconstruction(obj::PhyloNetworkLinearModel[, X_n::Matrix])`
 
 Function to find the ancestral traits reconstruction on a network, given an
 object fitted by function `phyloNetworklm`. By default, the function assumes
@@ -1413,12 +1410,13 @@ all the ancestral states is known, it can be entered in X_n, a matrix with as
 many columns as the number of predictors used, and as many lines as the number
 of unknown nodes or tips.
 
-Returns an object of type `reconstructedStates`.
+Returns an object of type `ReconstructedStates`.
 See documentation for this type and examples for functions that can be applied to it.
 
 # Examples
+
 ```jldoctest
-julia> using PhyloNetworks, DataFrames
+julia> using PhyloNetworks, DataFrames # Needed to use handle data frames
 
 julia> phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "carnivores_tree.txt"));
 
@@ -1431,7 +1429,7 @@ WARNING: These prediction intervals show uncertainty in ancestral values,
 assuming that the estimated variance rate of evolution is correct.
 Additional uncertainty in the estimation of this variance rate is
 ignored, so prediction intervals should be larger.
-PhyloNetworks.reconstructedStates:
+PhyloNetworks.ReconstructedStates:
      Node index     Pred.       Min. Max. (95%)
            -5.0   1.32139  -0.288423     2.9312
            -8.0   1.03258  -0.539072    2.60423
@@ -1577,9 +1575,9 @@ julia> predint(ancStates)
 ```
 """
 # Default reconstruction for a simple BM (known predictors)
-function ancestralStateReconstruction(obj::phyloNetworkLinearModel)
+function ancestralStateReconstruction(obj::PhyloNetworkLinearModel)
 	if ((size(obj.X)[2] != 1) || !any(obj.X .== 1)) # Test if the regressor is just an intercept.
-		error("""Predictor(s) other than a plain intercept are used in this `phyloNetworkLinearModel` object.
+		error("""Predictor(s) other than a plain intercept are used in this `PhyloNetworkLinearModel` object.
     These predictors are unobserved at ancestral nodes, so they cannot be used
     for the ancestral state reconstruction. If these ancestral predictor values
     are known, please provide them as a matrix argument to the function.
@@ -1589,10 +1587,10 @@ function ancestralStateReconstruction(obj::phyloNetworkLinearModel)
 	ancestralStateReconstruction(obj, X_n)
 end
 # For a DataFrameRegressionModel
-function ancestralStateReconstruction{T<:Union{Float32,Float64}}(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel, Array{T,2}})
+function ancestralStateReconstruction{T<:Union{Float32,Float64}}(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel, Array{T,2}})
 	ancestralStateReconstruction(obj.model)
 end
-function ancestralStateReconstruction{T<:Union{Float32,Float64}}(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel, Array{T,2}}, X_n::Matrix)
+function ancestralStateReconstruction{T<:Union{Float32,Float64}}(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel, Array{T,2}}, X_n::Matrix)
 	ancestralStateReconstruction(obj.model, X_n::Matrix)
 end
 
@@ -1604,10 +1602,10 @@ Uses function `phyloNetworklm` to perform a phylogenetic regression of the data 
 intercept (amounts to fitting an evolutionary model on the network, BM being the only option 
 available for now).
 
-See documentation on `phyloNetworklm` and `ancestralStateReconstruction(obj::phyloNetworkLinearModel[, X_n::Matrix])`
+See documentation on `phyloNetworklm` and `ancestralStateReconstruction(obj::PhyloNetworkLinearModel[, X_n::Matrix])`
 for further details.
 
-Returns an object of type `reconstructedStates`.
+Returns an object of type `ReconstructedStates`.
 """
 # Deal with formulas
 function ancestralStateReconstruction(
@@ -1627,18 +1625,18 @@ function ancestralStateReconstruction(
 end
 
 # # Default reconstruction for a simple BM
-# function ancestralStateReconstruction(obj::phyloNetworkLinearModel, mu::Real)
+# function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, mu::Real)
 # 	m_y = predict(obj)
 #   m_z = ones(size(obj.V.internalNodeNumbers)[1]) .* mu # !! works if BM no shift.
 # 	ancestralStateReconstruction(obj, m_y, m_z)
 # end
 # # Handling the ancestral mean
-# function ancestralStateReconstruction(obj::phyloNetworkLinearModel)
+# function ancestralStateReconstruction(obj::PhyloNetworkLinearModel)
 # 	mu = mu_estim(obj) # Produce a warning if intercept is unknown.
 # 	ancestralStateReconstruction(obj, mu)
 # end
 # # For a DataFrameRegressionModel
-# function ancestralStateReconstruction(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.phyloNetworkLinearModel,Float64})
+# function ancestralStateReconstruction(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,Float64})
 # 	mu = mu_estim(obj) # Produces an error if intercept is not here.
 # 	ancestralStateReconstruction(obj.model, mu)
 # end

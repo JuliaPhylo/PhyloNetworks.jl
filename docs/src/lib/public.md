@@ -93,7 +93,7 @@ hybridBootstrapSupport
 ## Trait Evolution
 
 ```@docs
-paramsBM
+ParamsBM
 simulate
 phyloNetworklm
 sigma2_estim

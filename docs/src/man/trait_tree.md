@@ -30,16 +30,16 @@ phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "lizard_tree.t
 Tools are available to simulate trait data on a given phylogenetic tree.
 For now, only simulations according to a simple Brownian Motion (BM) are implemented.
 
-We first need to create an object of class `paramsBM <: paramsProcess`:
+We first need to create an object of class `ParamsBM <: ParamsProcess`:
 ```julia
-params_simu = paramsBM(2, 0.5) # BM with mean 2 and variance 0.5
+params_simu = ParamsBM(2, 0.5) # BM with mean 2 and variance 0.5
 ```
 We can then simulate according to these parameters on the phylogeny, using
 function `simulate`.
 ```julia
 sim = simulate(phy, params_simu) # simulate a BM on phy
 ```
-This creates an object of class `traitSimulation`, from which we can extract 
+This creates an object of class `TraitSimulation`, from which we can extract 
 the data at the tips:
 ```julia
 pred = sim[:Tips]
@@ -65,7 +65,7 @@ In this example, we simulate data for later analysis. We use the predictor
 simulated above to create a new trait that depends linearly on the predictor,
 with a noise that has a phylogenetic structure:
 ```julia
-noise = simulate(phy, paramsBM(0, 0.1)) # Phylogenetic residuals
+noise = simulate(phy, ParamsBM(0, 0.1)) # Phylogenetic residuals
 trait = 10 + 2 * pred + noise[:Tips] # Trait to study
 ```
 Below, we create a data frame that contains the trait, the predictor, and
@@ -82,14 +82,14 @@ need to specify the phylogeny we are using:
 ```julia
 fitTrait = phyloNetworklm(trait ~ pred, dat, phy)
 ``` 
-This returns an object of type `phyloNetworkLinearModel<:LinPredModel`. It is
+This returns an object of type `PhyloNetworkLinearModel<:LinPredModel`. It is
 dominated by the GLM type `LinPredModel`, which means that all base functions
 from Julia [StatsBase](https://github.com/JuliaStats/StatsBase.jl) can be
 applied to it. See the documentation for this type for a list of all functions
 that can be used. Some functions allow the user to retrieve directly the
 estimated parameters of the BM, and are specific to this object.
 ```julia
-@doc phyloNetworkLinearModel # list all base functions
+@doc PhyloNetworkLinearModel # list all base functions
 sigma2_estim(fitTrait) # estimated variance of the BM
 mu_estim(fitTrait) # estimated root value of the BM
 ```
@@ -108,7 +108,7 @@ reconstruction can be obtained using function `ancestralStateReconstruction`:
 ```julia
 ancPred = ancestralStateReconstruction(phy, pred, params_simu)
 ```
-The object created has type `reconstructedStates`. Several extractors, as well
+The object created has type `ReconstructedStates`. Several extractors, as well
 as a plot function, can be applied to it:
 ```julia
 plot(phy, ancPred)
@@ -140,7 +140,7 @@ ancPredApprox = ancestralStateReconstruction(fitPred)
 ```
 The prediction intervals ignore the fact that we estimated the process
 parameters, so they are less accurate and the function throws a warning.
-The output is an object of the same `reconstructedStates` type as earlier,
+The output is an object of the same `ReconstructedStates` type as earlier,
 and the same extractors can be applied to it:
 ```julia
 plot(phy, ancPredApprox)

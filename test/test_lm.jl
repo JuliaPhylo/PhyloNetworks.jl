@@ -13,7 +13,7 @@ preorder!(net)
 # several such distances depending on path: 2 parent choices at each hybrid
 
 # Ancestral state reconstruction with ready-made matrices
-params = paramsBM(10, 1)
+params = ParamsBM(10, 1)
 srand(1234) # sets the seed for reproducibility, to debug potential error
 sim = simulate(net, params)
 Y = sim[:Tips]
@@ -99,9 +99,9 @@ net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H
 b0 = 1
 b1 = 10
 srand(5678)
-sim = simulate(net, paramsBM(1, 1))
+sim = simulate(net, ParamsBM(1, 1))
 A = sim[:Tips]
-B = b0 + b1 * A + simulate(net,  paramsBM(0, 0.1))[:Tips]
+B = b0 + b1 * A + simulate(net,  ParamsBM(0, 0.1))[:Tips]
 
 # With Matrices
 X = hcat(ones(12), A)
@@ -266,7 +266,7 @@ fitnabis = phyloNetworklm(trait ~ pred, dfr, net)
 
 
 ### Ancestral State Reconstruction
-params = paramsBM(3, 1)
+params = ParamsBM(3, 1)
 sim = simulate(net, params)
 Y = sim[:Tips]
 # From known parameters
