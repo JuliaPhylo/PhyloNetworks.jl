@@ -808,7 +808,7 @@ If `model="lambda"`, there are a few more parameters to control the optimization
 
 # Examples
 ```jldoctest
-julia> using PhyloNetworks, DataFrames
+julia> using DataFrames # Needed to handle data frames.
 
 julia> phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_tree.txt"));
 
@@ -1416,7 +1416,7 @@ See documentation for this type and examples for functions that can be applied t
 # Examples
 
 ```jldoctest
-julia> using PhyloNetworks, DataFrames # Needed to use handle data frames
+julia> using DataFrames # Needed to use handle data frames
 
 julia> phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "carnivores_tree.txt"));
 

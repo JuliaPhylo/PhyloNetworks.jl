@@ -4,6 +4,12 @@ Documentation for `PhyloNetworks`'s public (exported) interface.
 
 See [Internal Documentation](@ref) for documentation on internal functions.
 
+```@meta
+DocTestSetup = quote
+    using PhyloNetworks
+end
+```
+
 ## Contents
 
 ```@contents
@@ -102,4 +108,8 @@ lambda_estim
 ancestralStateReconstruction
 expectations
 predint
+```
+
+```@meta
+DocTestSetup = nothing
 ```

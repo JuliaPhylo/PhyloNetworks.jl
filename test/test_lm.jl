@@ -275,7 +275,7 @@ ancestral_traits = ancestralStateReconstruction(net, Y, params)
 dfr = DataFrame(trait = Y, tipNames = tipLabels(sim))
 phynetlm = phyloNetworklm(trait~1, dfr, net)
 blup = ancestralStateReconstruction(phynetlm)
-plot(net, blup)
+# plot(net, blup)
 @show blup
 
 # BLUP same, using the function dirrectly
@@ -304,7 +304,7 @@ blup2 = ancestralStateReconstruction(phynetlm)
 dfr[[2, 4], :trait] = NA
 phynetlm = phyloNetworklm(trait~1, dfr, net)
 blup = ancestralStateReconstruction(phynetlm)
-plot(net, blup)
+# plot(net, blup)
 
 # Unordered
 dfr2 = dfr[[1, 2, 5, 3, 4, 6, 7, 8, 9, 10, 11, 12], :]

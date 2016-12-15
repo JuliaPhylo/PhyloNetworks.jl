@@ -1,5 +1,8 @@
 ```@meta
 CurrentModule = PhyloNetworks
+DocTestSetup = quote
+  using PhyloNetworks
+end
 ```
 
 # Internal Documentation
@@ -31,3 +34,8 @@ sampleBootstrapTrees
 sampleCFfromCI
 setNonIdBL!
 ```
+
+```@meta
+DocTestSetup = nothing
+```
+
