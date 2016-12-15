@@ -831,10 +831,10 @@ Coefficients:
 Log Likelihood: -78.96115078330865
 AIC: 161.9223015666173
 
-julia> round(sigma2_estim(fitBM), 6)
+julia> round(sigma2_estim(fitBM), 6) # rounding for jldoctest convinience
 0.002945
 
-julia> round(mu_estim(fitBM), 4)
+julia> round(mu_estim(fitBM), 4) # rounding for jldoctest convinience
 4.679
 
 julia> loglikelihood(fitBM)
@@ -857,10 +857,10 @@ julia> confint(fitBM)
 1×2 Array{Float64,2}:
  4.02696  5.33104
 
-julia> round(r2(fitBM), 10)
+julia> round(r2(fitBM), 10)) # rounding for jldoctest convinience
 0.0
 
-julia> round(adjr2(fitBM), 10)
+julia> round(adjr2(fitBM), 10)) # rounding for jldoctest convinience
 0.0
 
 julia> vcov(fitBM)
@@ -1185,7 +1185,7 @@ given the observed tips values. The missing tips are considered as ancestral sta
 
 The following functions can be applied to it:
 `expectations` (vector of expectations at all nodes), `stderr` (the standard error),
-`predint` (the prediction interval), `plot`.
+`predint` (the prediction interval).
 
 The `ReconstructedStates` object has fields: `traits_nodes`, `variances_nodes`, `NodeNumbers`, `traits_tips`, `tipNumbers`, `model`.
 Type in "?ReconstructedStates.field" to get help on a specific field.
@@ -1213,11 +1213,26 @@ function expectations(obj::ReconstructedStates)
 	return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], condExpectation = [obj.traits_nodes; obj.traits_tips])
 end
 
+"""
+`expectationsPlot(obj::ReconstructedStates)`
+Compute and format the expected reconstructed states for the plotting function.
+The resulting dataframe can be readilly used as a `nodeLabel` argument to
+`plot`.
+"""
+function expectationsPlot(obj::ReconstructedStates)
+	expe = expectations(obj)
+	expetxt = Array{AbstractString}(size(expe, 1))
+	for i=1:size(expe, 1)
+		expetxt[i] = string(round(expe[i, 2], 2))
+	end
+	return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], PredInt = expetxt)
+end
+
 StatsBase.stderr(obj::ReconstructedStates) = sqrt(diag(obj.variances_nodes))
 
 """
-`predint(obj::ReconstructedStates)`
-Estimated reconstructed states at the nodes and tips.
+`predint(obj::ReconstructedStates, level=0.95::Real)`
+Prediction intervals with level `level` for internal nodes and missing tips.
 """
 function predint(obj::ReconstructedStates, level=0.95::Real)
 	if isnull(obj.model)
@@ -1237,6 +1252,12 @@ function Base.show(io::IO, obj::ReconstructedStates)
 						fill("", length(obj.NodeNumbers)+length(obj.TipNumbers))))
 end
 
+"""
+`predintPlot(obj::ReconstructedStates, level=0.95::Real)`
+Compute and format the prediction intervals for the plotting function.
+The resulting dataframe can be readilly used as a `nodeLabel` argument to
+`plot`.
+"""
 function predintPlot(obj::ReconstructedStates, level=0.95::Real)
 	pri = predint(obj, level)
 	pritxt = Array{AbstractString}(size(pri, 1))
@@ -1249,23 +1270,23 @@ function predintPlot(obj::ReconstructedStates, level=0.95::Real)
 	return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], PredInt = pritxt)
 end
 
-"""
-'plot(net::HybridNetwork, obj::ReconstructedStates; kwargs...)
-
-Plot the reconstructed states computed by function `ancestralStateReconstruction`
-on a network.
-
-# Arguments
-* `net::HybridNetwork`: a phylogenetic network.
-* `obj::ReconstructedStates`: the reconstructed states on the network. 
-* `kwargs...`: further arguments to be passed to the netwotk `plot` function.
-
-See documentation for function `ancestralStateReconstruction(obj::PhyloNetworkLinearModel[, X_n::Matrix])` for examples.
-
-"""
-function Gadfly.plot(net::HybridNetwork, obj::ReconstructedStates; kwargs...)
-	plot(net, nodeLabel = predintPlot(obj); kwargs...)
-end
+# """
+# 'plot(net::HybridNetwork, obj::ReconstructedStates; kwargs...)
+# 
+# Plot the reconstructed states computed by function `ancestralStateReconstruction`
+# on a network.
+# 
+# # Arguments
+# * `net::HybridNetwork`: a phylogenetic network.
+# * `obj::ReconstructedStates`: the reconstructed states on the network. 
+# * `kwargs...`: further arguments to be passed to the netwotk `plot` function.
+# 
+# See documentation for function `ancestralStateReconstruction(obj::PhyloNetworkLinearModel[, X_n::Matrix])` for examples.
+# 
+# """
+# function Gadfly.plot(net::HybridNetwork, obj::ReconstructedStates; kwargs...)
+# 	plot(net, nodeLabel = predintPlot(obj); kwargs...)
+# end
 
 """
 `ancestralStateReconstruction(net::HybridNetwork, Y::Vector, params::ParamsBM)`
@@ -1463,9 +1484,6 @@ PhyloNetworks.ReconstructedStates:
             9.0   4.84236    4.84236    4.84236
             3.0    1.0695     1.0695     1.0695
 
-julia> plot(phy, ancStates)
-Plot(...)
-
 julia> expectations(ancStates)
 31×2 DataFrames.DataFrame
 │ Row │ nodeNumber │ condExpectation │
@@ -1524,9 +1542,6 @@ assuming that the estimated variance rate of evolution is correct.
 Additional uncertainty in the estimation of this variance rate is
 ignored, so prediction intervals should be larger.
 
-julia> plot(phy, ancStates)
-Plot(...)
-
 julia> expectations(ancStates)
 31×2 DataFrames.DataFrame
 │ Row │ nodeNumber │ condExpectation │
@@ -1572,6 +1587,59 @@ julia> predint(ancStates)
   0.73989     0.73989 
   4.84236     4.84236 
   1.0695      1.0695 
+
+julia> ## Format and plot the ancestral states:
+
+julia> expectationsPlot(ancStates)
+31×2 DataFrames.DataFrame
+│ Row │ nodeNumber │ PredInt │
+├─────┼────────────┼─────────┤
+│ 1   │ -5         │ "1.43"  │
+│ 2   │ -8         │ "1.35"  │
+│ 3   │ -7         │ "1.62"  │
+│ 4   │ -6         │ "1.54"  │
+│ 5   │ -4         │ "1.54"  │
+│ 6   │ -3         │ "1.65"  │
+│ 7   │ -13        │ "5.34"  │
+│ 8   │ -12        │ "4.55"  │
+⋮
+│ 23  │ 15         │ "0.54"  │
+│ 24  │ 7          │ "0.77"  │
+│ 25  │ 10         │ "6.95"  │
+│ 26  │ 11         │ "4.78"  │
+│ 27  │ 12         │ "5.33"  │
+│ 28  │ 1          │ "-0.12" │
+│ 29  │ 16         │ "0.74"  │
+│ 30  │ 9          │ "4.84"  │
+│ 31  │ 3          │ "1.07"  │
+
+julia> predintPlot(ancStates)
+31×2 DataFrames.DataFrame
+│ Row │ nodeNumber │ PredInt         │
+├─────┼────────────┼─────────────────┤
+│ 1   │ -5         │ "[-0.31, 3.17]" │
+│ 2   │ -8         │ "[-0.63, 3.33]" │
+│ 3   │ -7         │ "[-0.11, 3.35]" │
+│ 4   │ -6         │ "[-0.07, 3.16]" │
+│ 5   │ -4         │ "[-0.07, 3.15]" │
+│ 6   │ -3         │ "[-0.2, 3.5]"   │
+│ 7   │ -13        │ "[3.9, 6.77]"   │
+│ 8   │ -12        │ "[2.87, 6.23]"  │
+⋮
+│ 23  │ 15         │ "0.54"          │
+│ 24  │ 7          │ "0.77"          │
+│ 25  │ 10         │ "6.95"          │
+│ 26  │ 11         │ "4.78"          │
+│ 27  │ 12         │ "5.33"          │
+│ 28  │ 1          │ "-0.12"         │
+│ 29  │ 16         │ "0.74"          │
+│ 30  │ 9          │ "4.84"          │
+│ 31  │ 3          │ "1.07"          │
+
+```
+```julia
+julia> plot(phy, nodeLabel = expectationsPlot(ancStates))
+julia> plot(phy, nodeLabel = predintPlot(ancStates))
 ```
 """
 # Default reconstruction for a simple BM (known predictors)

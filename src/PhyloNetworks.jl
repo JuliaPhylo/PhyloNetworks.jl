@@ -87,7 +87,9 @@ sigma2_estim,
 mu_estim,
 lambda_estim,
 expectations,
-predint
+expectationsPlot,
+predint,
+predintPlot
 
 # export part
 

@@ -108,13 +108,22 @@ reconstruction can be obtained using function `ancestralStateReconstruction`:
 ```julia
 ancPred = ancestralStateReconstruction(phy, pred, params_simu)
 ```
-The object created has type `ReconstructedStates`. Several extractors, as well
-as a plot function, can be applied to it:
+The object created has type `ReconstructedStates`. Several extractors can be
+applied to it:
 ```julia
-plot(phy, ancPred)
 expectations(ancPred) # The predictors
 stderr(ancPred) # The standard errors associated
 predint(ancPred) # The prediction interval (default to 95%)
+```
+The `PhyloNetworks` plot function can be used to plot the ancestral states or
+prediction intervals on the tree, using the `nodeLabel` argument, and the
+`expectationsPlot` or `predintPlot` utility function:
+```julia
+ancExpe = expectationsPlot(ancPred) # Format the expected ancestral states for the plot
+plot(phy, nodeLabel = ancExpe)
+
+ancInt = predintPlot(ancPred) # Format the prediction intervals for the plot
+plot(phy, nodeLabel = ancInt)
 ```
 As we know the true ancestral states here, we can compare them to our
 estimation. In particular, we can count the number of times the true value lies

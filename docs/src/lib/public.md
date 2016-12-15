@@ -108,6 +108,8 @@ lambda_estim
 ancestralStateReconstruction
 expectations
 predint
+predintPlot
+expectationsPlot
 ```
 
 ```@meta
