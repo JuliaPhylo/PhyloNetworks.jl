@@ -76,18 +76,20 @@ readMultiTopology,
 hybridatnode!,
 undirectedOtherNetworks,
 phyloNetworklm,
-phyloNetworkLinearModel,
+PhyloNetworkLinearModel,
 simulate,
-traitSimulation,
-paramsBM,
+TraitSimulation,
+ParamsBM,
 sharedPathMatrix,
 ancestralStateReconstruction,
-reconstructedStates,
+ReconstructedStates,
 sigma2_estim,
 mu_estim,
 lambda_estim,
 expectations,
-predint
+expectationsPlot,
+predint,
+predintPlot
 
 # export part
 

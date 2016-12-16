@@ -1,4 +1,4 @@
-"tipsNames","trait"
+"tipNames","trait"
 "Ailuridae",1.64288816228843
 "Canidae",1.67724405797551
 "Eupleridae",0.331567884748627

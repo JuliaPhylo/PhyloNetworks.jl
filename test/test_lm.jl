@@ -1,35 +1,20 @@
-## Test of PhyloNetworklm
-## still not an automatic test function, needs work
+## tests of PhyloNetworklm
 
-using PhyloNetworks
-using GLM
-using DataFrames
-using Base.Test
-#include("../src/types.jl")
-#include("../src/functions.jl")
-#include("../src/traits.jl")
-
-tree= "(A,((B,#H1),(C,(D)#H1)));"
-net=readTopologyLevel1(tree)
-#printEdges(net)
-
-# Re-root the tree so that it matches my example
-rootatnode!(net, "A")
-printEdges(net)
+tree_str= "(A:2.5,((B:1,#H1:0.5::0.1):1,(C:1,(D:0.5)#H1:0.5::0.9):1):0.5);"
+net = readTopology(tree_str)
 preorder!(net)
-# plot(net, useEdgeLength = true,  showEdgeNumber=true)
+# printEdges(net)
+# plot(net, useEdgeLength = true,  showEdgeLength=true, showGamma=true)
 
-# Make the network ultrametric
-net.edge[1].length = 2.5
-net.edge[6].length = 0.5
-net.edge[7].length = 0.5
-net.edge[3].length = 0.5
-# plot(net, useEdgeLength = true)
-# Rk: Is there a way to check that the branch length are coherents with 
+# Rk: Is there a way to check that the branch length are coherent with
 # one another (Especialy for hybrids) ?
+# Not yet (CA, 2016-12-01).
+# Would be great to add functions to calculate distance node - root.
+# several such distances depending on path: 2 parent choices at each hybrid
 
 # Ancestral state reconstruction with ready-made matrices
-params = paramsBM(10, 1)
+params = ParamsBM(10, 1)
+srand(1234) # sets the seed for reproducibility, to debug potential error
 sim = simulate(net, params)
 Y = sim[:Tips]
 X = ones(4, 1)
@@ -71,14 +56,14 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test_approx_eq nullloglikelihood(phynetlm) nullloglik
 @test_approx_eq loglikelihood(phynetlm) nullloglikelihood(phynetlm)
 @test_approx_eq deviance(phynetlm) nulldeviance(phynetlm)
-#@test_approx_eq r2(phynetlm) 1-sigma2hat / nullsigma2hat 
-#@test_approx_eq adjr2(phynetlm) 1 - (1 - (1-sigma2hat/nullsigma2hat))*(ntaxa-1)/(ntaxa-length(betahat)) 
+@test_approx_eq_eps r2(phynetlm) 1-sigma2hat / nullsigma2hat 1e-15
+@test_approx_eq_eps adjr2(phynetlm) 1 - (1 - (1-sigma2hat/nullsigma2hat))*(ntaxa-1)/(ntaxa-length(betahat)) 1e-15
 @test_approx_eq aic(phynetlm) -2*loglik+2*(length(betahat)+1)
 @test_approx_eq aicc(phynetlm) -2*loglik+2*(length(betahat)+1)+2(length(betahat)+1)*((length(betahat)+1)+1)/(ntaxa-(length(betahat)+1)-1)
 @test_approx_eq bic(phynetlm) -2*loglik+(length(betahat)+1)*log(ntaxa)
 
 # with data frames
-dfr = DataFrame(trait = Y, tipsNames = sim.M.tipsNames)
+dfr = DataFrame(trait = Y, tipNames = sim.M.tipNames)
 fitbis = phyloNetworklm(trait ~ 1, dfr, net)
 @show fitbis
 
@@ -105,31 +90,18 @@ fitbis = phyloNetworklm(trait ~ 1, dfr, net)
 @test_approx_eq mu_estim(phynetlm)  mu_estim(fitbis)
 
 #### Other Network ###
-net = readTopology("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);");
-
-# Make it ultrametric
-for i = 1:27
-	net.edge[i].length = 1
-end
-net.edge[27].length = 7
-net.edge[26].length = 3
-net.edge[25].length = 4
-net.edge[24].length = 4
-net.edge[21].length = 5
-net.edge[19].length = 4
-net.edge[16].length = 2
-net.edge[8].length = 2
-net.edge[3].length = 2
-net.edge[1].length = 5
-
-plot(net, useEdgeLength = true,  showEdgeNumber=true)
+# originally: "(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);"
+# followed by changes in net.edge[?].length values to make the network ultrametric
+net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
+# plot(net, useEdgeLength = true,  showEdgeNumber=true)
 
 #### Simulate correlated data in data frames ####
 b0 = 1
 b1 = 10
-sim = simulate(net, paramsBM(1, 1))
+srand(5678)
+sim = simulate(net, ParamsBM(1, 1))
 A = sim[:Tips]
-B = b0 + b1 * A + simulate(net,  paramsBM(0, 0.1))[:Tips]
+B = b0 + b1 * A + simulate(net,  ParamsBM(0, 0.1))[:Tips]
 
 # With Matrices
 X = hcat(ones(12), A)
@@ -168,14 +140,14 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test_approx_eq deviance(fit_mat) sigma2hat * ntaxa
 @test_approx_eq nulldeviance(fit_mat) nullsigma2hat * ntaxa
 @test_approx_eq nullloglikelihood(fit_mat) nullloglik
-@test_approx_eq r2(fit_mat) 1-sigma2hat / nullsigma2hat
-@test_approx_eq adjr2(fit_mat) 1 - (1 - (1-sigma2hat/nullsigma2hat))*(ntaxa-1)/(ntaxa-length(betahat))
+@test_approx_eq_eps r2(fit_mat) 1-sigma2hat / nullsigma2hat 1e-15
+@test_approx_eq_eps adjr2(fit_mat) 1 - (1 - (1-sigma2hat/nullsigma2hat))*(ntaxa-1)/(ntaxa-length(betahat)) 1e-15
 @test_approx_eq aic(fit_mat) -2*loglik+2*(length(betahat)+1)
 @test_approx_eq aicc(fit_mat) -2*loglik+2*(length(betahat)+1)+2(length(betahat)+1)*((length(betahat)+1)+1)/(ntaxa-(length(betahat)+1)-1)
 @test_approx_eq bic(fit_mat) -2*loglik+(length(betahat)+1)*log(ntaxa)
 
 ## perfect user using right format and formula
-dfr = DataFrame(trait = B, pred = A, tipsNames = sim.M.tipsNames)
+dfr = DataFrame(trait = B, pred = A, tipNames = sim.M.tipNames)
 phynetlm = phyloNetworklm(trait ~ pred, dfr, net)
 @show phynetlm
 
@@ -203,6 +175,7 @@ phynetlm = phyloNetworklm(trait ~ pred, dfr, net)
 
 
 # unordered data
+srand(1234)
 dfr = dfr[sample(1:12, 12, replace=false), :]
 fitbis = phyloNetworklm(trait ~ pred, dfr, net)
 
@@ -261,7 +234,7 @@ dfr = dfr[sample(1:12, 12, replace=false), :]
 
 
 ### Add NAs
-dfr = DataFrame(trait = B, pred = A, tipsNames = tipLabels(sim))
+dfr = DataFrame(trait = B, pred = A, tipNames = tipLabels(sim))
 dfr[[2, 8, 11], :pred] = NA
 fitna = phyloNetworklm(trait ~ pred, dfr, net)
 @show fitna
@@ -293,16 +266,17 @@ fitnabis = phyloNetworklm(trait ~ pred, dfr, net)
 
 
 ### Ancestral State Reconstruction
-params = paramsBM(3, 1)
+params = ParamsBM(3, 1)
 sim = simulate(net, params)
 Y = sim[:Tips]
 # From known parameters
 ancestral_traits = ancestralStateReconstruction(net, Y, params)
 # BLUP
-dfr = DataFrame(trait = Y, tipsNames = tipLabels(sim))
+dfr = DataFrame(trait = Y, tipNames = tipLabels(sim))
 phynetlm = phyloNetworklm(trait~1, dfr, net)
 blup = ancestralStateReconstruction(phynetlm)
-plot(net, blup)
+# plot(net, blup)
+@show blup
 
 # BLUP same, using the function dirrectly
 blup_bis = ancestralStateReconstruction(dfr, net)
@@ -310,10 +284,10 @@ blup_bis = ancestralStateReconstruction(dfr, net)
 @test_approx_eq expectations(blup)[:condExpectation] expectations(blup_bis)[:condExpectation]
 @test_approx_eq expectations(blup)[:nodeNumber] expectations(blup_bis)[:nodeNumber]
 @test_approx_eq blup.traits_tips blup_bis.traits_tips
-@test_approx_eq blup.TipsNumbers blup_bis.TipsNumbers
+@test_approx_eq blup.TipNumbers blup_bis.TipNumbers
 @test_approx_eq predint(blup) predint(blup_bis)
 
-dfr = DataFrame(trait = Y, tipsNames = tipLabels(sim), reg = Y)
+dfr = DataFrame(trait = Y, tipNames = tipLabels(sim), reg = Y)
 @test_throws ErrorException fitter = ancestralStateReconstruction(dfr, net) # cannot handle a predictor
 
 # Unordered
@@ -321,22 +295,21 @@ dfr2 = dfr[sample(1:12, 12, replace=false), :]
 phynetlm = phyloNetworklm(trait~1, dfr2, net)
 blup2 = ancestralStateReconstruction(phynetlm)
 
-@test_approx_eq expectations(blup)[:condExpectation][1:length(blup.NodesNumbers)] expectations(blup2)[:condExpectation][1:length(blup.NodesNumbers)]
+@test_approx_eq expectations(blup)[:condExpectation][1:length(blup.NodeNumbers)] expectations(blup2)[:condExpectation][1:length(blup.NodeNumbers)]
 @test_approx_eq blup.traits_tips[phynetlm.model.ind] blup2.traits_tips
-@test_approx_eq blup.TipsNumbers[phynetlm.model.ind] blup2.TipsNumbers
-@test_approx_eq predint(blup)[1:length(blup.NodesNumbers), :] predint(blup2)[1:length(blup.NodesNumbers), :]
+@test_approx_eq blup.TipNumbers[phynetlm.model.ind] blup2.TipNumbers
+@test_approx_eq predint(blup)[1:length(blup.NodeNumbers), :] predint(blup2)[1:length(blup.NodeNumbers), :]
 
 # With unknown tips
 dfr[[2, 4], :trait] = NA
 phynetlm = phyloNetworklm(trait~1, dfr, net)
 blup = ancestralStateReconstruction(phynetlm)
-plot(net, blup)
+# plot(net, blup)
 
 # Unordered
 dfr2 = dfr[[1, 2, 5, 3, 4, 6, 7, 8, 9, 10, 11, 12], :]
 phynetlm = phyloNetworklm(trait~1, dfr, net)
 blup2 = ancestralStateReconstruction(phynetlm)
 
-@test_approx_eq expectations(blup)[:condExpectation][1:length(blup.NodesNumbers)] expectations(blup2)[:condExpectation][1:length(blup.NodesNumbers)]
-@test_approx_eq predint(blup)[1:length(blup.NodesNumbers), :] predint(blup2)[1:length(blup.NodesNumbers), :]
-
+@test_approx_eq expectations(blup)[:condExpectation][1:length(blup.NodeNumbers)] expectations(blup2)[:condExpectation][1:length(blup.NodeNumbers)]
+@test_approx_eq predint(blup)[1:length(blup.NodeNumbers), :] predint(blup2)[1:length(blup.NodeNumbers), :]

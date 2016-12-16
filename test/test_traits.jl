@@ -1,35 +1,20 @@
  # test for trait evolution
  # Claudia November 2015
 ## modified by Paul Bastide
-## still not an automatic test function, needs work
-## Made it automatic using Base.Test (14/06/2016).
-
-using Base.Test, PhyloNetworks
 
 function test_show(x)
 	io = IOBuffer()
 	show(io, x)
 end	
 
-#include("../src/types.jl")
-#include("../src/functions.jl")
-
-tree= "(A,((B,#H1),(C,(D)#H1)));"
-
-net=readTopologyLevel1(tree)
-#printEdges(net)
-
-## Re-root the tree so that it matches my example
-rootatnode!(net, "A")
-#printEdges(net)
-
-## Preorder
-directEdges!(net)
+tree_str= "(A:0.5,((B:1,#H1:1::0.1):1,(C:1,(D:1)#H1:1::0.9):1):0.5);"
+net = readTopology(tree_str)
 preorder!(net)
 
 ## V matrix
 V1 = sharedPathMatrix(net)
 test_show(V1)
+@show V1
 
 ## By hand V matrix
 l = ones(1, 9)
@@ -53,10 +38,10 @@ for i in 1:9
     end
 end
 
-nodesV2 = [6, 1, -3, -4, -5, 2, 3, 4, 5]
-ind = indexin(V1.nodesNumbersTopOrder, nodesV2)
+nodesV2 = [-2, 1, -3, -4, -5, 2, 3, 4, 5] # root was number 6 before: with readTopologyLevel1 + rootatnode
+ind = indexin(V1.nodeNumbersTopOrder, nodesV2)
 V2 = V2[ind, ind]
-test_show(V1)
+test_show(V2)
 
 @test_approx_eq V1[:All] V2
 
