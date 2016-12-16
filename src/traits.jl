@@ -822,7 +822,7 @@ DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,Array{
 Formula: trait ~ +1
 
 Parameter(s) Estimates:
-Sigma2: 0.0029452097331095334
+Sigma2: 0.00294521
 
 Coefficients:
              Estimate Std.Error t value Pr(>|t|)
@@ -831,10 +831,10 @@ Coefficients:
 Log Likelihood: -78.96115078330865
 AIC: 161.9223015666173
 
-julia> round(sigma2_estim(fitBM), 6) # rounding for jldoctest convinience
+julia> round(sigma2_estim(fitBM), 6) # rounding for jldoctest convenience
 0.002945
 
-julia> round(mu_estim(fitBM), 4) # rounding for jldoctest convinience
+julia> round(mu_estim(fitBM), 4)
 4.679
 
 julia> loglikelihood(fitBM)
@@ -857,10 +857,10 @@ julia> confint(fitBM)
 1×2 Array{Float64,2}:
  4.02696  5.33104
 
-julia> round(r2(fitBM), 10)) # rounding for jldoctest convinience
+julia> round(r2(fitBM), 10) # rounding for jldoctest convenience
 0.0
 
-julia> round(adjr2(fitBM), 10)) # rounding for jldoctest convinience
+julia> round(adjr2(fitBM), 10)
 0.0
 
 julia> vcov(fitBM)
@@ -1117,10 +1117,10 @@ DataFrames.Formula(m::DataFrames.DataFrameRegressionModel) = Formula(m.mf.terms)
 # Variance
 function paramstable(m::PhyloNetworkLinearModel)
 	Sig = sigma2_estim(m)
-	res = "Sigma2: $(Sig)"
+	res = "Sigma2: " * @sprintf("%.6g", Sig)
 	if (m.model == "lambda")
 	  Lamb = lambda_estim(m)
-		res = res*"\nLambda: $(Lamb)"
+		res = res*"\nLambda: " * @sprintf("%.6g", Lamb)
 	end
 	return(res)
 end
@@ -1216,7 +1216,7 @@ end
 """
 `expectationsPlot(obj::ReconstructedStates)`
 Compute and format the expected reconstructed states for the plotting function.
-The resulting dataframe can be readilly used as a `nodeLabel` argument to
+The resulting dataframe can be readily used as a `nodeLabel` argument to
 `plot`.
 """
 function expectationsPlot(obj::ReconstructedStates)
@@ -1255,7 +1255,7 @@ end
 """
 `predintPlot(obj::ReconstructedStates, level=0.95::Real)`
 Compute and format the prediction intervals for the plotting function.
-The resulting dataframe can be readilly used as a `nodeLabel` argument to
+The resulting dataframe can be readily used as a `nodeLabel` argument to
 `plot`.
 """
 function predintPlot(obj::ReconstructedStates, level=0.95::Real)
