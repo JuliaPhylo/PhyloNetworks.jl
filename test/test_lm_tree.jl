@@ -37,21 +37,34 @@ fitBM = phyloNetworklm(trait ~ 1, dat, phy)
 
 ## Ancestral state reconstruction (with Rphylopars)
 anc = ancestralStateReconstruction(fitBM)
+ancR = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_Rphylopars.txt"));
+
+## Expectations
 expe = expectations(anc)
-# Rphylopars
-expeR = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_Rphylopars.txt"));
+expeR = ancR[:trait]
 # Matching tips ?
-tipsR = expeR[expe[197:393, :nodeNumber], :trait]
+tipsR = expeR[expe[197:393, :nodeNumber]]
 tipsJulia = expe[197:393, :condExpectation]
 for i in 1:197
     @test_approx_eq tipsR[i] tipsJulia[i]
 end
 # Matching nodes ?
-nodesR = expeR[-expe[1:196, :nodeNumber] + 196, :trait]
+nodesR = expeR[-expe[1:196, :nodeNumber] + 196]
 nodesJulia = expe[1:196, :condExpectation]
 for i in 1:196
     @test_approx_eq nodesR[i] nodesJulia[i]
 end
+
+## Variances
+vars = diag(anc.variances_nodes)
+# Rphylopars
+varsR = ancR[:var]
+# Matching nodes ?
+nodesR = varsR[-expe[1:196, :nodeNumber] + 196]
+for i in 1:196
+    @test_approx_eq_eps nodesR[i] vars[i] 1e-3 ## RK: Small tol !!
+end
+
 
 ## Fit Pagel's lambda
 fitLambda = phyloNetworklm(trait ~ 1, dat, phy, model = "lambda")
