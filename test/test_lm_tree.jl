@@ -35,6 +35,24 @@ fitBM = phyloNetworklm(trait ~ 1, dat, phy)
 # @test_approx_eq_eps bic(fitBM)  bic(fitbis)
 # @test_approx_eq_eps mu_estim(fitBM)  mu_estim(fitbis)
 
+## Ancestral state reconstruction (with Rphylopars)
+anc = ancestralStateReconstruction(fitBM)
+expe = expectations(anc)
+# Rphylopars
+expeR = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_Rphylopars.txt"));
+# Matching tips ?
+tipsR = expeR[expe[197:393, :nodeNumber], :trait]
+tipsJulia = expe[197:393, :condExpectation]
+for i in 1:197
+    @test_approx_eq tipsR[i] tipsJulia[i]
+end
+# Matching nodes ?
+nodesR = expeR[-expe[1:196, :nodeNumber] + 196, :trait]
+nodesJulia = expe[1:196, :condExpectation]
+for i in 1:196
+    @test_approx_eq nodesR[i] nodesJulia[i]
+end
+
 ## Fit Pagel's lambda
 fitLambda = phyloNetworklm(trait ~ 1, dat, phy, model = "lambda")
 
