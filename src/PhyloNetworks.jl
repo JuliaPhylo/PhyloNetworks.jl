@@ -74,7 +74,22 @@ writeMultiTopology,
 readMultiTopologyLevel1,
 readMultiTopology,
 hybridatnode!,
-undirectedOtherNetworks
+undirectedOtherNetworks,
+phyloNetworklm,
+PhyloNetworkLinearModel,
+simulate,
+TraitSimulation,
+ParamsBM,
+sharedPathMatrix,
+ancestralStateReconstruction,
+ReconstructedStates,
+sigma2_estim,
+mu_estim,
+lambda_estim,
+expectations,
+expectationsPlot,
+predint,
+predintPlot
 
 # export part
 

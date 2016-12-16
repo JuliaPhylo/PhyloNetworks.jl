@@ -1,0 +1,1 @@
+((((Prionodontidae:33.3,Felidae:33.3):5.3,(Viverridae:37.4,((Herpestidae:25.5,Eupleridae:25.5):6.7,Hyaenidae:32.2):5.2):1.2):5.9,Nandiniidae:44.5):14.7,(Canidae:48.9,(Ursidae:42.6,(((Odobenidae:14.1,Otariidae:14.1):10.4,Phocidae:24.5):16,(Mephitidae:32,(Ailuridae:30,(Mustelidae:27.4,Procyonidae:27.4):2.6):2):8.5):2.1):6.3):10.3);
