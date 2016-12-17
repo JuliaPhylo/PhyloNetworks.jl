@@ -10,7 +10,7 @@ This tree is assumed to be rooted, fixed, and with branch lengths.
 The examples below use a dataset described in Mahler et al. (2013)[^fn1],
 available on Dryad [^fn2].
 We can read it in from file `examples/lizard_tree.txt`
-[(here)](https://github.com/crsl4/PhyloNetworks/master/examples/lizard_tree.txt)
+[(here)](https://github.com/crsl4/PhyloNetworks.jl/blob/master/examples/lizard_tree.txt)
 in Newick format:
 
 ```julia
@@ -219,7 +219,7 @@ dataset [^fn1] we already used:
 dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "lizard_trait.txt"));
 ```
 This example file can be accessed
-[here](https://github.com/crsl4/PhyloNetworks/master/examples/lizard_trait.txt).
+[here](https://github.com/crsl4/PhyloNetworks.jl/blob/master/examples/lizard_trait.txt).
 This DataFrame has four columns: `tipNames` contains the tips names of the
 species, matching the one on the phylogeny we already loaded earlier; `AVG_SVL`
 is the average body size ("Snout to Vent Length"); `AVG_ltoe_IV` and
