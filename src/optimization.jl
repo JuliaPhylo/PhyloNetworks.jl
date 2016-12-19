@@ -1352,7 +1352,7 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
       flush(logfile)
     end
     print(STDOUT,str)
-    print(STDOUT, "$(Libc.strftime(time()))\n")
+    print(STDOUT, Dates.format(now(), "yyyy-mm-dd H:M:S.s") * "\n")
     # time printed to logfile at start of every run, not here.
 
     maxNet = HybridNetwork();
@@ -1376,7 +1376,7 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
 
     tic();
     for i in 1:runs
-        writelog && write(logfile,"seed: $(seeds[i]) for run $(i)\n$(Libc.strftime(time()))\n")
+        writelog && write(logfile,"seed: $(seeds[i]) for run $(i)\n$(Dates.format(now(), "yyyy-mm-dd H:M:S.s"))\n")
         writelog && flush(logfile)
         print(STDOUT,"seed: $(seeds[i]) for run $(i)\n")
         gc();
@@ -1416,11 +1416,11 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     t=toc();
     if (writelog)
     write(errfile, "\n Total errors: $(length(failed)) in seeds $(failed)")
-    write(logfile,"\n$(Libc.strftime(time()))")
+    write(logfile,"\n" * Dates.format(now(), "yyyy-mm-dd H:M:S.s"))
     close(errfile)
     else
         verbose && print(STDOUT,"""\n Total errors: $(length(failed)) in seeds $(failed)
-                                     $(Libc.strftime(time()))""")
+                                     $(Dates.format(now(), "yyyy-mm-dd H:M:S.s"))""")
     end
 
     maxNet.numTaxa > 0 || error("the best network is empty!")
@@ -1715,14 +1715,14 @@ function snaqDebug(currT0::HybridNetwork, d::DataCF; hmax=1::Integer, liktolAbs=
     end
     sout = open(debuglog,"w")
     write(sout,"DEBUG for seed $(seed)")
-    write(sout,"\n$(Libc.strftime(time()))")
+    write(sout,"\n" * Dates.format(now(), "yyyy-mm-dd H:M:S.s"))
     flush(sout)
     julialog = string(rootname,".log")
     logfile = open(julialog,"w")
     write(logfile,"optimization of topology and BL for hmax = $(hmax), and tolerance parameters: ftolRel=$(ftolRel), ftolAbs= $(ftolAbs), xtolAbs= $(xtolAbs), xtolRel= $(xtolRel). Max number of failed proposals is $(Nfail), and liktolAbs is $(liktolAbs).")
     write(logfile,"\n Outgroup defined as $(outgroup) and rootname for files $(rootname)")
     write(logfile,"\nBEGIN: 1 run on starting tree $(writeTopologyLevel1(currT0,true))")
-    write(logfile,"\n$(Libc.strftime(time()))")
+    write(logfile,"\n" * Dates.format(now(), "yyyy-mm-dd H:M:S.s"))
     flush(logfile)
     res = nothing
     try
