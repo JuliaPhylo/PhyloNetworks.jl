@@ -1530,6 +1530,60 @@ julia> predint(ancStates)
   4.84236     4.84236 
   1.0695      1.0695 
 
+julia> ## Format and plot the ancestral states:
+
+julia> expectationsPlot(ancStates)
+31×2 DataFrames.DataFrame
+│ Row │ nodeNumber │ PredInt │
+├─────┼────────────┼─────────┤
+│ 1   │ -5         │ "1.32"  │
+│ 2   │ -8         │ "1.03"  │
+│ 3   │ -7         │ "1.42"  │
+│ 4   │ -6         │ "1.39"  │
+│ 5   │ -4         │ "1.4"   │
+│ 6   │ -3         │ "1.51"  │
+│ 7   │ -13        │ "5.32"  │
+│ 8   │ -12        │ "4.51"  │
+⋮
+│ 23  │ 15         │ "0.54"  │
+│ 24  │ 7          │ "0.77"  │
+│ 25  │ 10         │ "6.95"  │
+│ 26  │ 11         │ "4.78"  │
+│ 27  │ 12         │ "5.33"  │
+│ 28  │ 1          │ "-0.12" │
+│ 29  │ 16         │ "0.74"  │
+│ 30  │ 9          │ "4.84"  │
+│ 31  │ 3          │ "1.07"  │
+
+julia> plot(phy, nodeLabel = expectationsPlot(ancStates))
+Plot(...)
+
+julia> predintPlot(ancStates)
+31×2 DataFrames.DataFrame
+│ Row │ nodeNumber │ PredInt         │
+├─────┼────────────┼─────────────────┤
+│ 1   │ -5         │ "[-0.29, 2.93]" │
+│ 2   │ -8         │ "[-0.54, 2.6]"  │
+│ 3   │ -7         │ "[-0.09, 2.92]" │
+│ 4   │ -6         │ "[-0.06, 2.85]" │
+│ 5   │ -4         │ "[-0.06, 2.86]" │
+│ 6   │ -3         │ "[-0.18, 3.21]" │
+│ 7   │ -13        │ "[3.97, 6.67]"  │
+│ 8   │ -12        │ "[2.94, 6.08]"  │
+⋮
+│ 23  │ 15         │ "0.54"          │
+│ 24  │ 7          │ "0.77"          │
+│ 25  │ 10         │ "6.95"          │
+│ 26  │ 11         │ "4.78"          │
+│ 27  │ 12         │ "5.33"          │
+│ 28  │ 1          │ "-0.12"         │
+│ 29  │ 16         │ "0.74"          │
+│ 30  │ 9          │ "4.84"          │
+│ 31  │ 3          │ "1.07"          │
+
+julia> plot(phy, nodeLabel = predintPlot(ancStates))
+Plot(...)
+
 julia> ## Some tips may also be missing
 
 julia> dat[[2, 5], :trait] = NA;
@@ -1613,6 +1667,9 @@ julia> expectationsPlot(ancStates)
 │ 30  │ 9          │ "4.84"  │
 │ 31  │ 3          │ "1.07"  │
 
+julia> plot(phy, nodeLabel = expectationsPlot(ancStates))
+Plot(...)
+
 julia> predintPlot(ancStates)
 31×2 DataFrames.DataFrame
 │ Row │ nodeNumber │ PredInt         │
@@ -1636,10 +1693,8 @@ julia> predintPlot(ancStates)
 │ 30  │ 9          │ "4.84"          │
 │ 31  │ 3          │ "1.07"          │
 
-```
-```julia
-julia> plot(phy, nodeLabel = expectationsPlot(ancStates))
 julia> plot(phy, nodeLabel = predintPlot(ancStates))
+Plot(...)
 ```
 """
 # Default reconstruction for a simple BM (known predictors)
