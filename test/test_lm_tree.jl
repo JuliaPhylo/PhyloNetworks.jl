@@ -26,16 +26,16 @@ VR = convert(Matrix, VR);
 # data("caudata")
 # ## Save tree
 # write.tree(caudata$phy, file = "caudata_tree.txt", append = FALSE,
-# 					 digits = 10, tree.names = FALSE)
+#            digits = 10, tree.names = FALSE)
 # 
 # ## Times shared
 # V <- node.depth.edgelength(caudata$phy)
 # prac <- mrca(caudata$phy, full = TRUE)
 # V <- matrix(V[prac], dim(prac))
 # write.table(V,
-# 						file = "caudata_shared_paths.txt",
-# 						sep = ",", row.names = FALSE,
-# 						col.names = TRUE)
+#             file = "caudata_shared_paths.txt",
+#             sep = ",", row.names = FALSE,
+#             col.names = TRUE)
 
 ###############################################################################
 ## Caudata dataset - BM
@@ -110,12 +110,12 @@ end
 # 
 # ## Save tree and data
 # write.tree(caudata$phy, file = "caudata_tree.txt", append = FALSE,
-# 					 digits = 10, tree.names = FALSE)
+#            digits = 10, tree.names = FALSE)
 # 
 # write.table(data.frame(tipsNames = names(caudata$dat),
-# 											 trait = unname(caudata$dat)),
-# 						file = "caudata_trait.txt",
-# 						sep = ",", row.names = FALSE)
+#                        trait = unname(caudata$dat)),
+#             file = "caudata_trait.txt",
+#             sep = ",", row.names = FALSE)
 # 
 # ## Fit using Geiger
 # fitgeiger <- fitContinuous(caudata$phy, caudata$dat, model = "BM")
@@ -123,23 +123,23 @@ end
 # ## Fit using phylolm
 # library(phylolm)
 # fitphylolm <- phylolm(trait ~ 1, 
-# 											data.frame(trait = caudata$dat),
-# 											caudata$phy, model = "BM")
+#                       data.frame(trait = caudata$dat),
+#                       caudata$phy, model = "BM")
 # 
 # ## Fit using Rphylopars
 # library(Rphylopars)
 # fitphylopars <- phylopars(data.frame(species = names(caudata$dat),
-# 													trait = unname(caudata$dat)),
-# 													caudata$phy,
-# 													pheno_error = FALSE,
-# 													pheno_correlated = FALSE,
-# 													REML = FALSE)
+#                           trait = unname(caudata$dat)),
+#                           caudata$phy,
+#                           pheno_error = FALSE,
+#                           pheno_correlated = FALSE,
+#                           REML = FALSE)
 # 
 # ## Save results of Rphylopars for ancestral trait reconstruction
 # write.table(data.frame(trait = unname(fitphylopars$anc_recon),
-# 											var = unname(fitphylopars$anc_var)),
-# 					  file = "caudata_Rphylopars.txt",
-# 						sep = ",", row.names = FALSE)
+#                        var = unname(fitphylopars$anc_var)),
+#             file = "caudata_Rphylopars.txt",
+#             sep = ",", row.names = FALSE)
 # 
 # ## Quantities to compare
 # sprintf("%.10f", fitgeiger$opt$ln) # log likelihood
@@ -200,20 +200,20 @@ fitLambda = phyloNetworklm(trait ~ 1, dat, phy, model = "lambda")
 # ## Fit using phylolm
 # library(phylolm)
 # fitphylolm <- phylolm(trait ~ 1, 
-# 											data.frame(trait = caudata$dat),
-# 											caudata$phy, model = "lambda",
-#												starting.value = 0.9)
+#                       data.frame(trait = caudata$dat),
+#                       caudata$phy, model = "lambda",
+#                       starting.value = 0.9)
 # 
 # ## Fit using Rphylopars
 # library(Rphylopars)
 # fitphylopars <- phylopars(data.frame(species = names(caudata$dat),
-# 													trait = unname(caudata$dat)),
-# 													caudata$phy,
+#                           trait = unname(caudata$dat)),
+#                           caudata$phy,
 #                           model = "lambda",
 #                           model_par_start = 0.9,
-# 													pheno_error = FALSE,
-# 													pheno_correlated = FALSE,
-# 													REML = FALSE)
+#                           pheno_error = FALSE,
+#                           pheno_correlated = FALSE,
+#                           REML = FALSE)
 # 
 # ## Quantities to compare
 # sprintf("%.10f", fitgeiger$opt$ln) # log likelihood
@@ -258,14 +258,14 @@ fitBM = phyloNetworklm(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region, dat, phy)
 # @test_approx_eq_eps aicc(fitBM)
 @test_approx_eq_eps coef(fitBM) [2.7925712673 -0.2010704391 0.9832555589 -0.1021226296 -0.3703658712 0.1557471731 0.0374549036 0.1805667675 -0.0495767233]' 1e-10 
 vcovR =  [0.0200086273  -0.0136717540 0.0084815090  -0.0093192029 -0.0114417825 -0.0113346813 0.0041102304  0.0053787287  0.0050521693 
- -0.0136717540 0.0185396965  -0.0169114682 0.0020645005  0.0036352899  0.0026227856 -0.0012281620 -0.0018838231 -0.0014800242
-  0.0084815090  -0.0169114682 0.0174647413  0.0016403871  0.0005624488  0.0015003301 -0.0005714235 -0.0003201257 -0.0005423354
- -0.0093192029 0.0020645005  0.0016403871  0.0167953394  0.0078012534  0.0086329399 -0.0080782771 -0.0037333495 -0.0039327836
- -0.0114417825 0.0036352899  0.0005624488  0.0078012534  0.0490482083  0.0092203882 -0.0033670465 -0.0191567265 -0.0040068947
- -0.0113346813 0.0026227856  0.0015003301  0.0086329399  0.0092203882  0.0331395502 -0.0037513830 -0.0041592743 -0.0146108207
-	0.0041102304  -0.0012281620 -0.0005714235 -0.0080782771 -0.0033670465 -0.0037513830 0.0045172675  0.0018165174  0.0020857846
-  0.0053787287  -0.0018838231 -0.0003201257 -0.0037333495 -0.0191567265 -0.0041592743 0.0018165174  0.0093292284  0.0020427637
-	0.0050521693  -0.0014800242 -0.0005423354 -0.0039327836 -0.0040068947 -0.0146108207 0.0020857846  0.0020427637  0.0074817942]
+          -0.0136717540 0.0185396965  -0.0169114682 0.0020645005  0.0036352899  0.0026227856 -0.0012281620 -0.0018838231 -0.0014800242
+          0.0084815090  -0.0169114682 0.0174647413  0.0016403871  0.0005624488  0.0015003301 -0.0005714235 -0.0003201257 -0.0005423354
+          -0.0093192029 0.0020645005  0.0016403871  0.0167953394  0.0078012534  0.0086329399 -0.0080782771 -0.0037333495 -0.0039327836
+          -0.0114417825 0.0036352899  0.0005624488  0.0078012534  0.0490482083  0.0092203882 -0.0033670465 -0.0191567265 -0.0040068947
+          -0.0113346813 0.0026227856  0.0015003301  0.0086329399  0.0092203882  0.0331395502 -0.0037513830 -0.0041592743 -0.0146108207
+          0.0041102304  -0.0012281620 -0.0005714235 -0.0080782771 -0.0033670465 -0.0037513830 0.0045172675  0.0018165174  0.0020857846
+          0.0053787287  -0.0018838231 -0.0003201257 -0.0037333495 -0.0191567265 -0.0041592743 0.0018165174  0.0093292284  0.0020427637
+          0.0050521693  -0.0014800242 -0.0005423354 -0.0039327836 -0.0040068947 -0.0146108207 0.0020857846  0.0020427637  0.0074817942]
 @test_approx_eq_eps vcov(fitBM) vcovR 1e-10 
 @test_approx_eq_eps nobs(fitBM) 100.0 1e-10
 @test_approx_eq_eps sum(residuals(fitBM)) 0.6352899255 1e-10
@@ -287,43 +287,43 @@ vcovR =  [0.0200086273  -0.0136717540 0.0084815090  -0.0093192029 -0.0114417825 
 
 ### R script to get the above values
 # ## Data
-#	dat <- read.csv(file = "GA_Anolis_traits.csv")
-#	geo <- read.csv(file = "GA_Anolis_biogeography.csv")
+# dat <- read.csv(file = "GA_Anolis_traits.csv")
+# geo <- read.csv(file = "GA_Anolis_biogeography.csv")
 #
-#	dat <- merge(dat, geo, by = "species")
-#	# keep only toe and hand length
-#	dat <- dat[, c("species", "AVG.SVL", "AVG.ltoe.IV", "AVG.lfing.IV", "region")]
-#	colnames(dat)[1] <- "tipsNames"
+# dat <- merge(dat, geo, by = "species")
+# # keep only toe and hand length
+# dat <- dat[, c("species", "AVG.SVL", "AVG.ltoe.IV", "AVG.lfing.IV", "region")]
+# colnames(dat)[1] <- "tipsNames"
 #
-#	write.table(dat,
+# write.table(dat,
 #             file = "lizard_trait.txt",
-#						  sep = ",", row.names = FALSE)
+#             sep = ",", row.names = FALSE)
 #
-#	## Tree
-#	phy <- read.tree(file = "GA_Anolis_MCC.tre")
+# ## Tree
+# phy <- read.tree(file = "GA_Anolis_MCC.tre")
 #
-#	write.tree(phy, file = "lizards_tree.txt", append = FALSE,
+# write.tree(phy, file = "lizards_tree.txt", append = FALSE,
 #            digits = 10, tree.names = FALSE)
 #
-#	rownames(dat) <- dat$tipsNames
-#	dat <- dat[, -1]
-#	dat$region <- as.factor(dat$region)
+# rownames(dat) <- dat$tipsNames
+# dat <- dat[, -1]
+# dat$region <- as.factor(dat$region)
 #
-#	## Fit
-#	fitphylolm <- phylolm(AVG.SVL ~ 1 + AVG.ltoe.IV + AVG.lfing.IV * region, dat, phy, model = "BM")
-#	## Quantities to compare
-#	sprintf("%.10f", fitphylolm$logLik)
-#	sprintf("%.10f", summary(fitphylolm)$df) # df
-#	sprintf("%.10f", fitphylolm$aic)
-#	sprintf("%.10f", fitphylolm$coefficients) # coef
-#	matrix(sprintf("%.10f", fitphylolm$vcov), 9, 9) # vcov
-#	sprintf("%.10f", fitphylolm$n) # nobs
-#	sprintf("%.10f", sum(fitphylolm$residuals)) # residuals (sum)
-#	sprintf("%.10f", fitphylolm$n - fitphylolm$d) # df residuals
-#	sprintf("%.10f", fitphylolm$sigma2) # sigma 2
-#	sprintf("%.10f", summary(fitphylolm)$coefficients[,2]) # std error
-#	sprintf("%.10f", coef(fitphylolm) + summary(fitphylolm)$coefficients[, 2] * qt(0.025, 91))
-#	sprintf("%.10f", coef(fitphylolm) + summary(fitphylolm)$coefficients[, 2] * qt(0.975, 91))
+# ## Fit
+# fitphylolm <- phylolm(AVG.SVL ~ 1 + AVG.ltoe.IV + AVG.lfing.IV * region, dat, phy, model = "BM")
+# ## Quantities to compare
+# sprintf("%.10f", fitphylolm$logLik)
+# sprintf("%.10f", summary(fitphylolm)$df) # df
+# sprintf("%.10f", fitphylolm$aic)
+# sprintf("%.10f", fitphylolm$coefficients) # coef
+# matrix(sprintf("%.10f", fitphylolm$vcov), 9, 9) # vcov
+# sprintf("%.10f", fitphylolm$n) # nobs
+# sprintf("%.10f", sum(fitphylolm$residuals)) # residuals (sum)
+# sprintf("%.10f", fitphylolm$n - fitphylolm$d) # df residuals
+# sprintf("%.10f", fitphylolm$sigma2) # sigma 2
+# sprintf("%.10f", summary(fitphylolm)$coefficients[,2]) # std error
+# sprintf("%.10f", coef(fitphylolm) + summary(fitphylolm)$coefficients[, 2] * qt(0.025, 91))
+# sprintf("%.10f", coef(fitphylolm) + summary(fitphylolm)$coefficients[, 2] * qt(0.975, 91))
 
 ###############################################################################
 ## Lizard dataset - lambda
@@ -345,14 +345,14 @@ fitLambda = phyloNetworklm(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region, dat, p
 # @test_approx_eq_eps aicc(fitBM)
 @test_approx_eq_eps coef(fitLambda) [2.7940573420 -0.2066584606 0.9897083949 -0.1004840950 -0.3677991157 0.1576743022 0.0367633665 0.1792502383 -0.0505291142]' 1e-5 
 vcovR =  [0.0200251600  -0.0137474015 0.0085637021  -0.0092973836 -0.0114259722 -0.0113056243 0.0041037877  0.0053740100  0.0050429112 
-					-0.0137474015 0.0186885224  -0.0170645512 0.0020509207  0.0036334103 0.0026066694  -0.0012237488 -0.0018826836 -0.0014743137
-					0.0085637021  -0.0170645512 0.0176200143  0.0016494733  0.0005604169 0.0015116125  -0.0005735573 -0.0003192320 -0.0005457420
-					-0.0092973836 0.0020509207  0.0016494733  0.0167461876  0.0077885115 0.0086173037  -0.0080563819 -0.0037287856 -0.0039275469
-					-0.0114259722 0.0036334103  0.0005604169  0.0077885115  0.0490092393 0.0092036032  -0.0033631662 -0.0191657329 -0.0040017905
-					-0.0113056243 0.0026066694  0.0015116125  0.0086173037  0.0092036032 0.0330248707  -0.0037465110 -0.0041543671 -0.0145663751
-					0.0041037877  -0.0012237488 -0.0005735573 -0.0080563819 -0.0033631662 -0.0037465110 0.0045042057  0.0018142470  0.0020823721 
-					0.0053740100  -0.0018826836 -0.0003192320 -0.0037287856 -0.0191657329 -0.0041543671 0.0018142470  0.0093334212  0.0020404652 
-					0.0050429112  -0.0014743137 -0.0005457420 -0.0039275469 -0.0040017905 -0.0145663751 0.0020823721  0.0020404652  0.0074600880]
+          -0.0137474015 0.0186885224  -0.0170645512 0.0020509207  0.0036334103 0.0026066694  -0.0012237488 -0.0018826836 -0.0014743137
+          0.0085637021  -0.0170645512 0.0176200143  0.0016494733  0.0005604169 0.0015116125  -0.0005735573 -0.0003192320 -0.0005457420
+          -0.0092973836 0.0020509207  0.0016494733  0.0167461876  0.0077885115 0.0086173037  -0.0080563819 -0.0037287856 -0.0039275469
+          -0.0114259722 0.0036334103  0.0005604169  0.0077885115  0.0490092393 0.0092036032  -0.0033631662 -0.0191657329 -0.0040017905
+          -0.0113056243 0.0026066694  0.0015116125  0.0086173037  0.0092036032 0.0330248707  -0.0037465110 -0.0041543671 -0.0145663751
+          0.0041037877  -0.0012237488 -0.0005735573 -0.0080563819 -0.0033631662 -0.0037465110 0.0045042057  0.0018142470  0.0020823721 
+          0.0053740100  -0.0018826836 -0.0003192320 -0.0037287856 -0.0191657329 -0.0041543671 0.0018142470  0.0093334212  0.0020404652 
+          0.0050429112  -0.0014743137 -0.0005457420 -0.0039275469 -0.0040017905 -0.0145663751 0.0020823721  0.0020404652  0.0074600880]
 @test_approx_eq_eps vcov(fitLambda) vcovR 1e-7 
 @test_approx_eq_eps nobs(fitLambda) 100.0 1e-10
 @test_approx_eq_eps sum(residuals(fitLambda)) 0.6369008979 1e-6
@@ -374,40 +374,40 @@ vcovR =  [0.0200251600  -0.0137474015 0.0085637021  -0.0092973836 -0.0114259722 
 
 ### R script to get the above values
 # ## Data
-#	dat <- read.csv(file = "GA_Anolis_traits.csv")
-#	geo <- read.csv(file = "GA_Anolis_biogeography.csv")
+# dat <- read.csv(file = "GA_Anolis_traits.csv")
+# geo <- read.csv(file = "GA_Anolis_biogeography.csv")
 #
-#	dat <- merge(dat, geo, by = "species")
-#	# keep only toe and hand length
-#	dat <- dat[, c("species", "AVG.SVL", "AVG.ltoe.IV", "AVG.lfing.IV", "region")]
-#	colnames(dat)[1] <- "tipsNames"
+# dat <- merge(dat, geo, by = "species")
+# # keep only toe and hand length
+# dat <- dat[, c("species", "AVG.SVL", "AVG.ltoe.IV", "AVG.lfing.IV", "region")]
+# colnames(dat)[1] <- "tipsNames"
 #
-#	write.table(dat,
+# write.table(dat,
 #             file = "lizard_trait.txt",
-#						  sep = ",", row.names = FALSE)
+#             sep = ",", row.names = FALSE)
 #
-#	## Tree
-#	phy <- read.tree(file = "GA_Anolis_MCC.tre")
+# ## Tree
+# phy <- read.tree(file = "GA_Anolis_MCC.tre")
 #
-#	write.tree(phy, file = "lizards_tree.txt", append = FALSE,
+# write.tree(phy, file = "lizards_tree.txt", append = FALSE,
 #            digits = 10, tree.names = FALSE)
 #
-#	rownames(dat) <- dat$tipsNames
-#	dat <- dat[, -1]
-#	dat$region <- as.factor(dat$region)
+# rownames(dat) <- dat$tipsNames
+# dat <- dat[, -1]
+# dat$region <- as.factor(dat$region)
 #
-#	## Fit
-#	fitphylolm <- phylolm(AVG.SVL ~ 1 + AVG.ltoe.IV + AVG.lfing.IV * region, dat, phy, model = "lambda")
-#	## Quantities to compare
-#	sprintf("%.10f", fitphylolm$logLik)
-#	sprintf("%.10f", summary(fitphylolm)$df) # df
-#	sprintf("%.10f", fitphylolm$aic)
-#	sprintf("%.10f", fitphylolm$coefficients) # coef
-#	matrix(sprintf("%.10f", fitphylolm$vcov), 9, 9) # vcov
-#	sprintf("%.10f", fitphylolm$n) # nobs
-#	sprintf("%.10f", sum(fitphylolm$residuals)) # residuals (sum)
-#	sprintf("%.10f", fitphylolm$n - fitphylolm$d) # df residuals
-#	sprintf("%.10f", fitphylolm$sigma2) # sigma 2
-#	sprintf("%.10f", summary(fitphylolm)$coefficients[,2]) # std error
-#	sprintf("%.10f", coef(fitphylolm) + summary(fitphylolm)$coefficients[, 2] * qt(0.025, 91))
-#	sprintf("%.10f", coef(fitphylolm) + summary(fitphylolm)$coefficients[, 2] * qt(0.975, 91))
+# ## Fit
+# fitphylolm <- phylolm(AVG.SVL ~ 1 + AVG.ltoe.IV + AVG.lfing.IV * region, dat, phy, model = "lambda")
+# ## Quantities to compare
+# sprintf("%.10f", fitphylolm$logLik)
+# sprintf("%.10f", summary(fitphylolm)$df) # df
+# sprintf("%.10f", fitphylolm$aic)
+# sprintf("%.10f", fitphylolm$coefficients) # coef
+# matrix(sprintf("%.10f", fitphylolm$vcov), 9, 9) # vcov
+# sprintf("%.10f", fitphylolm$n) # nobs
+# sprintf("%.10f", sum(fitphylolm$residuals)) # residuals (sum)
+# sprintf("%.10f", fitphylolm$n - fitphylolm$d) # df residuals
+# sprintf("%.10f", fitphylolm$sigma2) # sigma 2
+# sprintf("%.10f", summary(fitphylolm)$coefficients[,2]) # std error
+# sprintf("%.10f", coef(fitphylolm) + summary(fitphylolm)$coefficients[, 2] * qt(0.025, 91))
+# sprintf("%.10f", coef(fitphylolm) + summary(fitphylolm)$coefficients[, 2] * qt(0.975, 91))

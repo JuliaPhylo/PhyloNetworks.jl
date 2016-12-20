@@ -30,7 +30,7 @@ betahat = inv(XtVyinv * X) * XtVyinv * Y
 fittedValues =  X * betahat
 resids = Y - fittedValues
 sigma2hat = 1/ntaxa * (resids' * Vyinv * resids)
- # log likelihood
+# log likelihood
 loglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(sigma2hat) + logdetVy)
 # null version
 nullX = ones(ntaxa, 1)
