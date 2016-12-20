@@ -72,7 +72,7 @@ fitBM = phyloNetworklm(trait ~ 1, dat, phy)
 # @test_approx_eq_eps bic(fitBM)  bic(fitbis)
 # @test_approx_eq_eps mu_estim(fitBM)  mu_estim(fitbis)
 
-## Ancestral state reconstruction (with Rphylopars)
+### Ancestral state reconstruction (with Rphylopars)
 anc = ancestralStateReconstruction(fitBM)
 ancR = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_Rphylopars.txt"));
 
@@ -82,15 +82,11 @@ expeR = ancR[:trait]
 # Matching tips ?
 tipsR = expeR[expe[197:393, :nodeNumber]]
 tipsJulia = expe[197:393, :condExpectation]
-for i in 1:197
-    @test_approx_eq tipsR[i] tipsJulia[i]
-end
+@test_approx_eq tipsR tipsJulia
 # Matching nodes ?
 nodesR = expeR[-expe[1:196, :nodeNumber] + 196]
 nodesJulia = expe[1:196, :condExpectation]
-for i in 1:196
-    @test_approx_eq nodesR[i] nodesJulia[i]
-end
+@test_approx_eq nodesR nodesJulia
 
 ## Variances
 vars = diag(anc.variances_nodes)
@@ -98,9 +94,29 @@ vars = diag(anc.variances_nodes)
 varsR = ancR[:var]
 # Matching nodes ?
 nodesR = varsR[-expe[1:196, :nodeNumber] + 196]
-for i in 1:196
-    @test_approx_eq_eps nodesR[i] vars[i] 1e-3 ## RK: Small tol !!
-end
+@test_approx_eq_eps nodesR vars 1e-3 ## RK: Small tol !!
+
+### Ancestral state reconstruction (with Phytools)
+ancRt = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_Phytools.txt"));
+
+## Expectations
+expe = expectations(anc)
+expeRt = ancRt[:trait]
+# Matching nodes ?
+nodesRt = expeRt[-expe[1:196, :nodeNumber] + 196 - 197]
+nodesJulia = expe[1:196, :condExpectation]
+@test_approx_eq nodesRt nodesJulia
+
+## Variances
+vars = diag(anc.variances_nodes)
+# Rphylopars
+varsRt = ancRt[:var]
+# Matching nodes ?
+nodesRt = varsRt[-expe[1:196, :nodeNumber] + 196 - 197]
+@test_approx_eq_eps nodesRt vars 1e-3 ## RK: Small tol !!
+
+### Comparison between Rphylopars and Phytools:
+@test_approx_eq_eps nodesRt nodesR 1e-3 ## RK: Small tol !!
 
 ### R script to get the above values:
 # library(geiger)
@@ -135,10 +151,20 @@ end
 #                           pheno_correlated = FALSE,
 #                           REML = FALSE)
 # 
-# ## Save results of Rphylopars for ancestral trait reconstruction
+# # Save results of Rphylopars for ancestral trait reconstruction
 # write.table(data.frame(trait = unname(fitphylopars$anc_recon),
 #                        var = unname(fitphylopars$anc_var)),
 #             file = "caudata_Rphylopars.txt",
+#             sep = ",", row.names = FALSE)
+# 
+# ## Ancestral State reconstruction using phytools
+# library(phytools)
+# fitphytools <- fastAnc(caudata$phy, caudata$dat, vars = TRUE)
+# 
+# # Save results of Rphylopars for ancestral trait reconstruction
+# write.table(data.frame(trait = unname(fitphytools$ace),
+#                        var = unname(fitphytools$var)),
+#             file = "caudata_Phytools.txt",
 #             sep = ",", row.names = FALSE)
 # 
 # ## Quantities to compare
