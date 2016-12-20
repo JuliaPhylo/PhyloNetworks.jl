@@ -28,6 +28,10 @@ Pages = ["public.md"]
 HybridNetwork
 DataCF
 Quartet
+ParamsBM
+TraitSimulation
+PhyloNetworkLinearModel
+ReconstructedStates
 ```
 
 ## Utilities
@@ -51,6 +55,7 @@ deleteHybridThreshold!
 # plotNetGraphViz
 plot
 rotate!
+getindex(::TraitSimulation, ::Symbol)
 ```
 
 ## Data and Topology read/write
@@ -99,7 +104,6 @@ hybridBootstrapSupport
 ## Trait Evolution
 
 ```@docs
-ParamsBM
 simulate
 phyloNetworklm
 sigma2_estim
@@ -108,8 +112,8 @@ lambda_estim
 ancestralStateReconstruction
 expectations
 predint
-predintPlot
 expectationsPlot
+predintPlot
 ```
 
 ```@meta

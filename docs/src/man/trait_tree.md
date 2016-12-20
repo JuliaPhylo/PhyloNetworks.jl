@@ -30,17 +30,17 @@ phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "lizard_tree.t
 Tools are available to simulate trait data on a given phylogenetic tree.
 For now, only simulations according to a simple Brownian Motion (BM) are implemented.
 
-We first need to create an object of class `ParamsBM <: ParamsProcess`:
+We first need to create an object of class [`ParamsBM`](@ref)`<:ParamsProcess`:
 ```julia
 params_simu = ParamsBM(2, 0.5) # BM with mean 2 and variance 0.5
 ```
 We can then simulate according to these parameters on the phylogeny, using
-function `simulate`.
+function [`simulate`](@ref).
 ```julia
 sim = simulate(phy, params_simu) # simulate a BM on phy
 ```
-This creates an object of class `TraitSimulation`, from which we can extract 
-the data at the tips:
+This creates an object of class [`TraitSimulation`](@ref), from which we can extract 
+the data at the tips, thanks to the method [`getindex(::TraitSimulation, ::Symbol)`](@ref):
 ```julia
 pred = sim[:Tips]
 ```
@@ -57,7 +57,7 @@ phylogeny used to simulate it.
 ## Phylogenetic Regression
 
 The main function that can be used to do phylogenetic regression is the
-function `phyloNetworklm`. It is based on function `lm` from package
+function [`phyloNetworklm`](@ref). It is based on function `lm` from package
 [GLM](https://github.com/JuliaStats/GLM.jl), and inherits from a lot of its
 features.
 
@@ -82,7 +82,7 @@ need to specify the phylogeny we are using:
 ```julia
 fitTrait = phyloNetworklm(trait ~ pred, dat, phy)
 ``` 
-This returns an object of type `PhyloNetworkLinearModel<:LinPredModel`. It is
+This returns an object of type [`PhyloNetworkLinearModel`](@ref)`<:LinPredModel`. It is
 dominated by the GLM type `LinPredModel`, which means that all base functions
 from Julia [StatsBase](https://github.com/JuliaStats/StatsBase.jl) can be
 applied to it. See the documentation for this type for a list of all functions
@@ -104,11 +104,11 @@ ancestral state reconstruction, finding the Best Linear Unbiased Predictor
 
 Here, we simulated the predictor trait ourselves, so we know the exact model of
 evolution that generated the data. In this favorable case, an ancestral state
-reconstruction can be obtained using function `ancestralStateReconstruction`:
+reconstruction can be obtained using function [`ancestralStateReconstruction`](@ref):
 ```julia
 ancPred = ancestralStateReconstruction(phy, pred, params_simu)
 ```
-The object created has type `ReconstructedStates`. Several extractors can be
+The object created has type [`ReconstructedStates`](@ref). Several extractors can be
 applied to it:
 ```julia
 expectations(ancPred) # The predictors
@@ -117,7 +117,7 @@ predint(ancPred) # The prediction interval (default to 95%)
 ```
 The `PhyloNetworks` plot function can be used to plot the ancestral states or
 prediction intervals on the tree, using the `nodeLabel` argument, and the
-`expectationsPlot` or `predintPlot` utility function:
+[`expectationsPlot`](@ref) or [`predintPlot`](@ref) utility function:
 ```julia
 ancExpe = expectationsPlot(ancPred) # Format the expected ancestral states for the plot
 plot(phy, nodeLabel = ancExpe)
@@ -142,21 +142,21 @@ just need to do a regression of the trait against a simple intercept:
 ```julia
 fitPred = phyloNetworklm(pred ~ 1, dat, phy)
 ```
-We can then apply the `ancestralStateReconstruction` function directly to
+We can then apply the [`ancestralStateReconstruction`](@ref) function directly to
 the fitted object:
 ```julia
 ancPredApprox = ancestralStateReconstruction(fitPred)
 ```
 The prediction intervals ignore the fact that we estimated the process
 parameters, so they are less accurate and the function throws a warning.
-The output is an object of the same `ReconstructedStates` type as earlier,
+The output is an object of the same [`ReconstructedStates`](@ref) type as earlier,
 and the same extractors can be applied to it:
 ```julia
 plot(phy, ancPredApprox)
 ```
 For convenience, the two steps described above (fitting against the
 intercept, and then do ancestral state reconstruction) can be done all at once
-with a single call of the function `ancestralStateReconstruction` on a
+with a single call of the function [`ancestralStateReconstruction`](@ref) on a
 DataFrame with the trait to reconstruct, and the tip labels:
 ```julia
 datPred = DataFrame(pred = pred, tipNames = tipLabels(sim))
@@ -197,7 +197,7 @@ predictors are often unknown, the use of this functionality is discouraged.
 
 There is no theoretical difference between an internal node, for which we could
 not measure the value of the trait, and a missing value at a tip of the
-phylogeny. Consequently, the previous `ancestralStateReconstruction` function
+phylogeny. Consequently, the previous [`ancestralStateReconstruction`](@ref) function
 can be used to do data imputation. To see this, let's add some missing values
 in the `pred` array we used earlier:
 ```julia
@@ -210,7 +210,7 @@ values.
 
 ## Phylogenetic ANOVA
 
-As mentioned above, the `phyloNetworklm`function is based on the `lm` function
+As mentioned above, the [`phyloNetworklm`](@ref)function is based on the `lm` function
 from [GLM](https://github.com/JuliaStats/GLM.jl). This means that it
 inherits from most of its features, and in particular, it can handle formulas
 with factors or interactions. To see this, let's load a subset of the lizard
@@ -238,7 +238,7 @@ into a `PooledDataArray`:
 ```julia
 dat[:region] = PooledDataArray(dat[:region]); # Pool by region
 ```
-Then, we just need to apply `phyloNerworklm` with the right formula:
+Then, we just need to apply [`phyloNetworklm`](@ref) with the right formula:
 ```julia
 fitAnova = phyloNetworklm(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region, dat, phy)
 ```
@@ -270,7 +270,7 @@ lambda_estim(fitPagel)
 ```
 
 Note that we took a version of the dataset with missing values, that can
-be readily handed by the function `phyloNetworklm`.
+be readily handed by the function [`phyloNetworklm`](@ref).
 
 
 [^fn3]: Pagel M (1999). Inferring the historical patterns of biological

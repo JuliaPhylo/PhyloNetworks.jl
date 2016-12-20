@@ -11,11 +11,11 @@
 """
 `MatrixTopologicalOrder`
 
-Matrix associated to an `HybridNetwork` sorted in topological order.
+Matrix associated to an [`HybridNetwork`](@ref) sorted in topological order.
 
-The following functions and extractors can be applied to it: `tipLabels`, `obj[:Tips]`, `obj[:InternalNodes]`, `obj[:TipsNodes]` (see documentation for function `getindex(obj, d,[ indTips, msng])`).
+The following functions and extractors can be applied to it: [`tipLabels`](@ref), `obj[:Tips]`, `obj[:InternalNodes]`, `obj[:TipsNodes]` (see documentation for function [`getindex(::MatrixTopologicalOrder, ::Symbol)`](@ref)).
 
-Functions `sharedPathMatrix` and `simulate` return objects of this type.
+Functions [`sharedPathMatrix`](@ref) and [`simulate`](@ref) return objects of this type.
 
 The `MatrixTopologicalOrder` object has fields: `V`, `nodeNumbersTopOrder`, `internalNodeNumbers`, `tipNumbers`, `tipNames`, `indexation`.
 Type in "?MatrixTopologicalOrder.field" to get documentation on a specific field.
@@ -159,7 +159,7 @@ end
 """
 `getindex(obj, d,[ indTips, msng])`
 
-Getting submatrices of an object of type `MatrixTopologicalOrder`.
+Getting submatrices of an object of type [`MatrixTopologicalOrder`](@ref).
 
 # Arguments
 * `obj::MatrixTopologicalOrder`: the matrix from which to extract.
@@ -217,9 +217,9 @@ end
 
 This function computes the shared path matrix between all the nodes of a
 network. It assumes that the network is in the pre-order. If checkPreorder is
-true (default), then it runs function 'preoder' on the network beforehand.
+true (default), then it runs function `preoder` on the network beforehand.
 
-Returns an object of type 'MatrixTopologicalOrder'.
+Returns an object of type [`MatrixTopologicalOrder`](@ref).
 
 """
 function sharedPathMatrix(net::HybridNetwork;
@@ -376,9 +376,9 @@ end
 """
 `TraitSimulation`
 
-Result of a trait simulation on an `HybridNetwork` with function `simulate`.
+Result of a trait simulation on an [`HybridNetwork`](@ref) with function [`simulate`](@ref).
 
-The following functions and extractors can be applied to it: `tipLabels`, `obj[:Tips]`, `obj[:InternalNodes]` (see documentation for function `getindex(obj, d,[ indTips, msng])`).
+The following functions and extractors can be applied to it: [`tipLabels`](@ref), `obj[:Tips]`, `obj[:InternalNodes]` (see documentation for function [`getindex(::TraitSimulation, ::Symbol)`](@ref)).
 
 The `TraitSimulation` object has fields: `M`, `params`, `model`.
 """
@@ -408,12 +408,12 @@ end
 `simulate(net::HybridNetwork, params::ParamsProcess, checkPreorder=true::Bool)`
 
 Simualte some traits on `net` using the parameters `params`. For now, only
-parameters of type `ParamsBM` (Brownian Motion) are accepted.
+parameters of type [`ParamsBM`](@ref) (Brownian Motion) are accepted.
 
 Assumes that the network is in the pre-order. If `checkPreorder=true` (default),
 then it runs function `preoder` on the network beforehand.
 
-Returns an object of type `TraitSimulation`.
+Returns an object of type [`TraitSimulation`](@ref).
 
 # Examples
 ```jldoctest
@@ -552,6 +552,17 @@ end
 # end
 
 # Extract the vector of simulated values at the tips
+"""
+`getindex(obj, d)`
+
+Getting submatrices of an object of type [`TraitSimulation`](@ref).
+
+# Arguments
+* `obj::TraitSimulation`: the matrix from which to extract.
+* `d::Symbol`: a symbol precising which sub-matrix to extract. Can be:
+  * `:Tips` columns and/or rows corresponding to the tips
+  * `:InternalNodes` columns and/or rows corresponding to the internal nodes
+"""
 function Base.getindex(obj::TraitSimulation, d::Symbol)
     #    if d == :Tips
     #       res = obj.M[:Tips]
@@ -576,7 +587,7 @@ end
 """
 `PhyloNetworkLinearModel<:LinPredModel`
 
-Regression object for a phylogenetic regression. Result of fitting function `phyloNetworklm`.
+Regression object for a phylogenetic regression. Result of fitting function [`phyloNetworklm`](@ref).
 Dominated by the `LinPredModel` class, from package `GLM`.
 
 The following StatsBase functions can be applied to it:
@@ -588,13 +599,13 @@ The following DataFrame functions can also be applied to it:
 `ModelFrame`, `ModelMatrix`, `Formula`.
 
 Estimated variance and mean of the BM process used can be retrieved with 
-functions `sigma2_estim` and `mu_estim`.
+functions [`sigma2_estim`](@ref) and [`mu_estim`](@ref).
 
 If a Pagel's lambda model is fitted, the parameter can be retrieved with function 
-`lambda_estim`.
+[`lambda_estim`](@ref).
 
 An ancestral state reconstruction can be performed from this fitted object using function:
-`ancestralStateReconstruction`.
+[`ancestralStateReconstruction`](@ref).
 
 The `PhyloNetworkLinearModel` object has fields: `lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `ind`, `msng`, `model`, `lambda`.
 Type in "?PhyloNetworkLinearModel.field" to get help on a specific field.
@@ -758,7 +769,7 @@ end
 
 Phylogenetic regression, using the correlation structure induced by the network.
 
-Returns an object of class `PhyloNetworkLinearModel`. See documentation for this type and
+Returns an object of class [`PhyloNetworkLinearModel`](@ref). See documentation for this type and
 example to see all the functions that can be applied to it.
 
 # Arguments
@@ -907,7 +918,7 @@ julia> predict(fitBM)
 ```
 
 # See also 
-Type `PhyloNetworkLinearModel`, Function `ancestralStatesReconstruction`
+Type [`PhyloNetworkLinearModel`](@ref), Function [`ancestralStateReconstruction`](@ref)
 """ #"
 # Deal with formulas
 function phyloNetworklm(f::Formula,
@@ -1150,7 +1161,7 @@ Type containing the inferred information about the law of the ancestral states
 given the observed tips values. The missing tips are considered as ancestral states.
 
 The following functions can be applied to it:
-`expectations` (vector of expectations at all nodes), `stderr` (the standard error),
+[`expectations`](@ref) (vector of expectations at all nodes), `stderr` (the standard error),
 `predint` (the prediction interval).
 
 The `ReconstructedStates` object has fields: `traits_nodes`, `variances_nodes`, `NodeNumbers`, `traits_tips`, `tipNumbers`, `model`.
@@ -1381,13 +1392,13 @@ end
 `ancestralStateReconstruction(obj::PhyloNetworkLinearModel[, X_n::Matrix])`
 
 Function to find the ancestral traits reconstruction on a network, given an
-object fitted by function `phyloNetworklm`. By default, the function assumes
+object fitted by function [`phyloNetworklm`](@ref). By default, the function assumes
 that the regressor is just an intercept. If the value of the regressor for 
 all the ancestral states is known, it can be entered in X_n, a matrix with as
 many columns as the number of predictors used, and as many lines as the number
 of unknown nodes or tips.
 
-Returns an object of type `ReconstructedStates`.
+Returns an object of type [`ReconstructedStates`](@ref).
 See documentation for this type and examples for functions that can be applied to it.
 
 # Examples
@@ -1677,14 +1688,14 @@ end
 `ancestralStateReconstruction(fr::AbstractDataFrame, net::HybridNetwork; kwargs...)`
 
 Function to find the ancestral traits reconstruction on a network, given some data at the tips.
-Uses function `phyloNetworklm` to perform a phylogenetic regression of the data against an
+Uses function [`phyloNetworklm`](@ref) to perform a phylogenetic regression of the data against an
 intercept (amounts to fitting an evolutionary model on the network, BM being the only option 
 available for now).
 
-See documentation on `phyloNetworklm` and `ancestralStateReconstruction(obj::PhyloNetworkLinearModel[, X_n::Matrix])`
+See documentation on [`phyloNetworklm`](@ref) and `ancestralStateReconstruction(obj::PhyloNetworkLinearModel[, X_n::Matrix])`
 for further details.
 
-Returns an object of type `ReconstructedStates`.
+Returns an object of type [`ReconstructedStates`](@ref).
 """
 # Deal with formulas
 function ancestralStateReconstruction(fr::AbstractDataFrame,
