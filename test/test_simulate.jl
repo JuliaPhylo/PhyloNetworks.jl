@@ -4,7 +4,7 @@
 net = readTopology("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);");
 
 for i = 1:27
-	  net.edge[i].length = 1;
+    net.edge[i].length = 1;
 end
 net.edge[27].length = 7;
 net.edge[26].length = 3;
@@ -49,21 +49,21 @@ N = 50000
 S = length(tipLabels(net));
 values = zeros(Float64, (S, N));
 for i = 1:N
-	values[:,i] = simulate(net, pars)[:Tips]
+    values[:,i] = simulate(net, pars)[:Tips]
 end
 
 ## Check that each tip has same mean (1)
 for s in 1:S
-	@test_approx_eq_eps mean(values[s, :]) pars.mu 1e-2
+    @test_approx_eq_eps mean(values[s, :]) pars.mu 1e-2
 end
 
 ## Check for variances
 V = sharedPathMatrix(net);
 Sig = V[:Tips] * pars.sigma2;
 for s in 1:S
-	for t in s:S
-		@test_approx_eq_eps cov(values[s, :], values[t,:]) Sig[s, t] 1e-2 
-	end
+    for t in s:S
+        @test_approx_eq_eps cov(values[s, :], values[t,:]) Sig[s, t] 1e-2 
+    end
 end
 
 

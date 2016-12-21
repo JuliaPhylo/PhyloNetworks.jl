@@ -23,6 +23,7 @@ Pages = ["internals.md"]
 
 ```@docs
 ANode
+MatrixTopologicalOrder
 ```
 
 ## Functions and methods
@@ -33,6 +34,8 @@ deleteNode!
 sampleBootstrapTrees
 sampleCFfromCI
 setNonIdBL!
+sharedPathMatrix
+getindex(::MatrixTopologicalOrder, ::Symbol)
 ```
 
 ```@meta
