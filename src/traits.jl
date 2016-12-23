@@ -807,8 +807,8 @@ Coefficients:
              Estimate Std.Error t value Pr(>|t|)
 (Intercept)     4.679  0.330627 14.1519   <1e-31
 
-Log Likelihood: -78.96115078330865
-AIC: 161.9223015666173
+Log Likelihood: -78.9611507833
+AIC: 161.9223015666
 
 julia> round(sigma2_estim(fitBM), 6) # rounding for jldoctest convenience
 0.002945
@@ -816,17 +816,17 @@ julia> round(sigma2_estim(fitBM), 6) # rounding for jldoctest convenience
 julia> round(mu_estim(fitBM), 4)
 4.679
 
-julia> loglikelihood(fitBM)
--78.96115078330865
+julia> round(loglikelihood(fitBM), 10)
+-78.9611507833
 
-julia> aic(fitBM)
-161.9223015666173
+julia> round(aic(fitBM), 10)
+161.9223015666
 
-julia> aicc(fitBM)
-161.9841572367204
+julia> round(aicc(fitBM), 10)
+161.9841572367
 
-julia> bic(fitBM)
-168.48870902409328
+julia> round(bic(fitBM), 10)
+168.4887090241
 
 julia> coef(fitBM)
 1-element Array{Float64,1}:
@@ -836,10 +836,10 @@ julia> confint(fitBM)
 1×2 Array{Float64,2}:
  4.02696  5.33104
 
-julia> round(r2(fitBM), 10) # rounding for jldoctest convenience
+julia> abs(round(r2(fitBM), 10)) # absolute value for jldoctest convenience
 0.0
 
-julia> round(adjr2(fitBM), 10)
+julia> abs(round(adjr2(fitBM), 10))
 0.0
 
 julia> vcov(fitBM)
@@ -1117,8 +1117,8 @@ function Base.show(io::IO, model::DataFrames.DataFrameRegressionModel)#{PhyloNet
     println(io,"Coefficients:")
     show(io, ct)
     println(io)
-    println(io, "Log Likelihood: "*"$(loglikelihood(model))")
-    println(io, "AIC: "*"$(aic(model))")
+    println(io, "Log Likelihood: "*"$(round(loglikelihood(model), 10))")
+    println(io, "AIC: "*"$(round(aic(model), 10))")
 end
 
 
