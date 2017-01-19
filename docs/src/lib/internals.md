@@ -38,6 +38,21 @@ sharedPathMatrix
 getindex(::MatrixTopologicalOrder, ::Symbol)
 ```
 
+## Main functions in SNaQ
+
+```@docs
+optTopRuns!
+optTopRun1!
+optTopLevel!
+proposedTop!
+optBL!
+afterOptBL!
+gammaZero!
+moveHybrid!
+afterOptBLRepeat!
+afterOptBLAll!
+```
+
 ```@meta
 DocTestSetup = nothing
 ```
