@@ -253,7 +253,7 @@ structure to explain variation in the observed traits.
 One way of doing measuring that is to use
 Pagel's lambda[^fn3] transformation of the branch lengths. This model assumes a
 BM on a tree where the internal branches are multiplied by a factor $\lambda$,
-while the external branches are modified so that the total hight of the tree is
+while the external branches are modified so that the total height of the tree is
 constant. Hence, $\lambda$ varies between $0$ (the tree has no influence on
 the data) and $1$ (the tree is unchanged).
 
