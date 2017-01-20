@@ -82,8 +82,8 @@ fitbis = phyloNetworklm(trait ~ 1, dfr, net)
 @test_approx_eq deviance(phynetlm)  deviance(fitbis)
 @test_approx_eq nulldeviance(phynetlm)  nulldeviance(fitbis)
 @test_approx_eq nullloglikelihood(phynetlm)  nullloglikelihood(fitbis)
-@test_approx_eq r2(phynetlm)  r2(fitbis)
-@test_approx_eq adjr2(phynetlm)  adjr2(fitbis)
+@test_approx_eq_eps r2(phynetlm)  r2(fitbis) 1e-15
+@test_approx_eq_eps adjr2(phynetlm)  adjr2(fitbis) 1e-15
 @test_approx_eq aic(phynetlm)  aic(fitbis)
 @test_approx_eq aicc(phynetlm)  aicc(fitbis)
 @test_approx_eq bic(phynetlm)  bic(fitbis)
