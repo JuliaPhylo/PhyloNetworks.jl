@@ -640,17 +640,19 @@ PhyloNetworkLinearModel(lm_fit, V, Vy, RL, Y, X, logdetVy, ind, msng, model) = P
 # Function for lm with net residuals
 function phyloNetworklm(X::Matrix,
                         Y::Vector,
-                        net::HybridNetwork,
+                        net::HybridNetwork;
                         msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                         model="BM"::AbstractString,
-                        ind=[0]::Vector{Int})
+                        ind=[0]::Vector{Int},
+                        startingValue=0.5::Real)
     # Geting variance covariance
     V = sharedPathMatrix(net)
     # Get gammas and heights
     gammas = getGammas(net)
     times = getHeights(net)
     # Fit
-    phyloNetworklm(X, Y, V, gammas, times, msng, model, ind)
+    phyloNetworklm(X, Y, V, gammas, times;
+                   msng = msng, model=model, ind=ind, startingValue=startingValue)
 end
 
 # Same function, but when the matrix V is already known.
@@ -658,16 +660,19 @@ function phyloNetworklm(X::Matrix,
                         Y::Vector,
                         V::MatrixTopologicalOrder,
                         gammas::Vector,
-                        times::Vector,
+                        times::Vector;
                         msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                         model="BM"::AbstractString,
-                        ind=[0]::Vector{Int})
+                        ind=[0]::Vector{Int},
+                        startingValue=0.5::Real)
     ## Choose Model
     if (model == "BM")
-        return phyloNetworklm_BM(X, Y, V, msng, ind) 
+        return phyloNetworklm_BM(X, Y, V;
+                                 msng=msng, ind=ind) 
     end
     if (model == "lambda")
-        return phyloNetworklm_lambda(X, Y, V, gammas, times, msng, ind) 
+        return phyloNetworklm_lambda(X, Y, V, gammas, times;
+                                     msng=msng, ind=ind, startingValue=startingValue) 
     end
 end
 
@@ -676,7 +681,7 @@ end
 
 function phyloNetworklm_BM(X::Matrix,
                            Y::Vector,
-                           V::MatrixTopologicalOrder,
+                           V::MatrixTopologicalOrder;
                            msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                            ind=[0]::Vector{Int})
     # Extract tips matrix
@@ -749,13 +754,13 @@ function logLik_lam{T <: AbstractFloat}(lam::T,
                                         Y::Vector,
                                         V::MatrixTopologicalOrder,
                                         gammas::Vector,
-                                        times::Vector,
+                                        times::Vector;
                                         msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                                         ind=[0]::Vector{Int})
     # Transform V according to lambda
     transform_matrix_lambda!(V, lam, gammas, times)
     # Fit and take likelihood
-    fit_lam = phyloNetworklm_BM(X, Y, V, msng, ind)
+    fit_lam = phyloNetworklm_BM(X, Y, V; msng=msng, ind=ind)
     res = - loglikelihood(fit_lam)
     # Go back to original V
     transform_matrix_lambda!(V, 1/lam, gammas, times)
@@ -772,7 +777,7 @@ function phyloNetworklm_lambda(X::Matrix,
                                Y::Vector,
                                V::MatrixTopologicalOrder,
                                gammas::Vector,
-                               times::Vector,
+                               times::Vector;
                                msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                                ind=[0]::Vector{Int},
                                ftolRel=fRelTr::AbstractFloat,
@@ -792,15 +797,16 @@ function phyloNetworklm_lambda(X::Matrix,
     count = 0
     function fun(x::Vector{Float64}, g::Vector{Float64})
         x = convert(AbstractFloat, x[1])
-        res = logLik_lam(x, X, Y, V, gammas, times, msng, ind)
+        res = logLik_lam(x, X, Y, V, gammas, times; msng=msng, ind=ind)
         count =+ 1
+        #println("f_$count: $(round(res,5)), x: $(x)")
         return res
     end
     NLopt.min_objective!(opt, fun)
     fmin, xmin, ret = NLopt.optimize(opt, [startingValue])
     # Best value dans result
     transform_matrix_lambda!(V, xmin[1], gammas, times)
-    res = phyloNetworklm_BM(X, Y, V, msng, ind)
+    res = phyloNetworklm_BM(X, Y, V; msng=msng, ind=ind)
     res.lambda = xmin[1]
     res.model = "lambda"
     return res
@@ -1019,7 +1025,8 @@ function phyloNetworklm(f::Formula,
     mm = ModelMatrix(mf)
     Y = convert(Vector{Float64},DataFrames.model_response(mf))
     # Fit the model (Method copied from DataFrame/src/statsmodels/statsmodels.jl, lines 47-58)
-    DataFrames.DataFrameRegressionModel(phyloNetworklm(mm.m, Y, V, gammas, times, mf.msng, model, ind), mf, mm)
+    DataFrames.DataFrameRegressionModel(phyloNetworklm(mm.m, Y, V, gammas, times;
+                                                       msng=mf.msng, model=model, ind=ind, startingValue=startingValue), mf, mm)
     #    # Create the object
     #    phyloNetworkLinPredModel(DataFrames.DataFrameRegressionModel(fit, mf, mm),
     #    fit.V, fit.Vy, fit.RL, fit.Y, fit.X, fit.logdetVy, ind, mf.msng)
