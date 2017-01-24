@@ -640,29 +640,39 @@ PhyloNetworkLinearModel(lm_fit, V, Vy, RL, Y, X, logdetVy, ind, msng, model) = P
 # Function for lm with net residuals
 function phyloNetworklm(X::Matrix,
                         Y::Vector,
-                        net::HybridNetwork,
+                        net::HybridNetwork;
                         msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                         model="BM"::AbstractString,
-                        ind=[0]::Vector{Int})
+                        ind=[0]::Vector{Int},
+                        startingValue=0.5::Real)
     # Geting variance covariance
     V = sharedPathMatrix(net)
+    # Get gammas and heights
+    gammas = getGammas(net)
+    times = getHeights(net)
     # Fit
-    phyloNetworklm(X, Y, V, msng, model, ind)
+    phyloNetworklm(X, Y, V, gammas, times;
+                   msng = msng, model=model, ind=ind, startingValue=startingValue)
 end
 
 # Same function, but when the matrix V is already known.
 function phyloNetworklm(X::Matrix,
                         Y::Vector,
                         V::MatrixTopologicalOrder,
+                        gammas::Vector,
+                        times::Vector;
                         msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                         model="BM"::AbstractString,
-                        ind=[0]::Vector{Int})
+                        ind=[0]::Vector{Int},
+                        startingValue=0.5::Real)
     ## Choose Model
     if (model == "BM")
-        return phyloNetworklm_BM(X, Y, V, msng, ind) 
+        return phyloNetworklm_BM(X, Y, V;
+                                 msng=msng, ind=ind) 
     end
     if (model == "lambda")
-        return phyloNetworklm_lambda(X, Y, V, msng, ind) 
+        return phyloNetworklm_lambda(X, Y, V, gammas, times;
+                                     msng=msng, ind=ind, startingValue=startingValue) 
     end
 end
 
@@ -671,7 +681,7 @@ end
 
 function phyloNetworklm_BM(X::Matrix,
                            Y::Vector,
-                           V::MatrixTopologicalOrder,
+                           V::MatrixTopologicalOrder;
                            msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                            ind=[0]::Vector{Int})
     # Extract tips matrix
@@ -690,15 +700,50 @@ end
 ###############################################################################
 ## Fit Pagel's Lambda
 
-function transform_matrix_lambda!{T <: AbstractFloat}(V::MatrixTopologicalOrder, lam::T)
-    # WARNING : This transformation is not the expected one if branch length are modified.
-    # Need a function for node heigh computation.
+# Get major gammas
+function getGammas(net::HybridNetwork)
+    isHybrid = [n.hybrid for n in net.nodes_changed]
+    gammas = ones(size(isHybrid))
+    for i in 1:size(isHybrid, 1)
+        if isHybrid[i]
+            majorHybrid = [n.hybrid & n.isMajor for n in net.nodes_changed[i].edge]
+            gammas[i] = net.nodes_changed[i].edge[majorHybrid][1].gamma
+        end
+    end
+    return gammas
+end
+
+function setGammas!(net::HybridNetwork, gammas::Vector)
+    isHybrid = [n.hybrid for n in net.nodes_changed]
+    for i in 1:size(isHybrid, 1)
+        if isHybrid[i]
+            majorHybrid = [n.hybrid & n.isMajor for n in net.nodes_changed[i].edge]
+            minorHybrid = [n.hybrid & !n.isMajor for n in net.nodes_changed[i].edge]
+            net.nodes_changed[i].edge[majorHybrid][1].gamma = gammas[i] 
+            net.nodes_changed[i].edge[minorHybrid][1].gamma = 1 - gammas[i] 
+        end
+    end
+    return nothing
+end
+
+function getHeights(net::HybridNetwork)
+    gammas = getGammas(net)
+    setGammas!(net, ones(net.numNodes))
+    V = sharedPathMatrix(net)
+    setGammas!(net, gammas)
+    return(diag(V[:All]))
+end
+
+function transform_matrix_lambda!{T <: AbstractFloat}(V::MatrixTopologicalOrder, lam::T,
+                                                      gammas::Vector, times::Vector)
     for i in 1:size(V.V, 1)
         for j in 1:size(V.V, 2)
-            if i != j
-                V.V[i,j] *= lam
-            end
+            V.V[i,j] *= lam
         end
+    end
+    maskTips = indexin(V.tipNumbers, V.nodeNumbersTopOrder)
+    for i in maskTips
+        V.V[i, i] += (1-lam) * (gammas[i]^2 + (1-gammas[i])^2) * times[i]
     end
     #   V_diag = diagm(diag(V.V))
     #   V.V = lam * V.V + (1 - lam) * V_diag
@@ -708,15 +753,17 @@ function logLik_lam{T <: AbstractFloat}(lam::T,
                                         X::Matrix,
                                         Y::Vector,
                                         V::MatrixTopologicalOrder,
+                                        gammas::Vector,
+                                        times::Vector;
                                         msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                                         ind=[0]::Vector{Int})
     # Transform V according to lambda
-    transform_matrix_lambda!(V, lam)
+    transform_matrix_lambda!(V, lam, gammas, times)
     # Fit and take likelihood
-    fit_lam = phyloNetworklm_BM(X, Y, V, msng, ind)
+    fit_lam = phyloNetworklm_BM(X, Y, V; msng=msng, ind=ind)
     res = - loglikelihood(fit_lam)
     # Go back to original V
-    transform_matrix_lambda!(V, 1/lam)
+    transform_matrix_lambda!(V, 1/lam, gammas, times)
     return res
 end
 
@@ -729,6 +776,8 @@ const xRelTr = 1e-10
 function phyloNetworklm_lambda(X::Matrix,
                                Y::Vector,
                                V::MatrixTopologicalOrder,
+                               gammas::Vector,
+                               times::Vector;
                                msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                                ind=[0]::Vector{Int},
                                ftolRel=fRelTr::AbstractFloat,
@@ -748,15 +797,16 @@ function phyloNetworklm_lambda(X::Matrix,
     count = 0
     function fun(x::Vector{Float64}, g::Vector{Float64})
         x = convert(AbstractFloat, x[1])
-        res = logLik_lam(x, X, Y, V, msng, ind)
+        res = logLik_lam(x, X, Y, V, gammas, times; msng=msng, ind=ind)
         count =+ 1
+        #println("f_$count: $(round(res,5)), x: $(x)")
         return res
     end
     NLopt.min_objective!(opt, fun)
     fmin, xmin, ret = NLopt.optimize(opt, [startingValue])
     # Best value dans result
-    transform_matrix_lambda!(V, xmin[1])
-    res = phyloNetworklm_BM(X, Y, V, msng, ind)
+    transform_matrix_lambda!(V, xmin[1], gammas, times)
+    res = phyloNetworklm_BM(X, Y, V; msng=msng, ind=ind)
     res.lambda = xmin[1]
     res.model = "lambda"
     return res
@@ -934,6 +984,9 @@ function phyloNetworklm(f::Formula,
     # Match the tips names: make sure that the data provided by the user will
     # be in the same order as the ordered tips in matrix V.
     V = sharedPathMatrix(net)
+    # Get gammas and heights
+    gammas = getGammas(net)
+    times = getHeights(net)
     if no_names # The names should not be taken into account.
         ind = [0]
         info("""As requested (no_names=true), I am ignoring the tips names
@@ -972,7 +1025,8 @@ function phyloNetworklm(f::Formula,
     mm = ModelMatrix(mf)
     Y = convert(Vector{Float64},DataFrames.model_response(mf))
     # Fit the model (Method copied from DataFrame/src/statsmodels/statsmodels.jl, lines 47-58)
-    DataFrames.DataFrameRegressionModel(phyloNetworklm(mm.m, Y, V, mf.msng, model, ind), mf, mm)
+    DataFrames.DataFrameRegressionModel(phyloNetworklm(mm.m, Y, V, gammas, times;
+                                                       msng=mf.msng, model=model, ind=ind, startingValue=startingValue), mf, mm)
     #    # Create the object
     #    phyloNetworkLinPredModel(DataFrames.DataFrameRegressionModel(fit, mf, mm),
     #    fit.V, fit.Vy, fit.RL, fit.Y, fit.X, fit.logdetVy, ind, mf.msng)
@@ -1110,6 +1164,8 @@ function Base.show(io::IO, model::DataFrames.DataFrameRegressionModel)#{PhyloNet
     println(io, "$(typeof(model))")
     println(io)
     println(io, Formula(model.mf.terms))
+    println(io)
+    println(io, "Model: $(model.model.model)")
     println(io)
     println(io,"Parameter(s) Estimates:")
     println(io, paramstable(model.model))

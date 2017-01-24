@@ -14,7 +14,7 @@ preorder!(net)
 
 # Ancestral state reconstruction with ready-made matrices
 params = ParamsBM(10, 1)
-srand(1234) # sets the seed for reproducibility, to debug potential error
+srand(2468) # sets the seed for reproducibility, to debug potential error
 sim = simulate(net, params)
 Y = sim[:Tips]
 X = ones(4, 1)
@@ -82,12 +82,39 @@ fitbis = phyloNetworklm(trait ~ 1, dfr, net)
 @test_approx_eq deviance(phynetlm)  deviance(fitbis)
 @test_approx_eq nulldeviance(phynetlm)  nulldeviance(fitbis)
 @test_approx_eq nullloglikelihood(phynetlm)  nullloglikelihood(fitbis)
-@test_approx_eq r2(phynetlm)  r2(fitbis)
-@test_approx_eq adjr2(phynetlm)  adjr2(fitbis)
+@test_approx_eq_eps r2(phynetlm)  r2(fitbis) 1e-15
+@test_approx_eq_eps adjr2(phynetlm)  adjr2(fitbis) 1e-15
 @test_approx_eq aic(phynetlm)  aic(fitbis)
 @test_approx_eq aicc(phynetlm)  aicc(fitbis)
 @test_approx_eq bic(phynetlm)  bic(fitbis)
 @test_approx_eq mu_estim(phynetlm)  mu_estim(fitbis)
+
+## Pagel's Lambda
+fitlam = phyloNetworklm(trait ~ 1, dfr, net, model = "lambda")
+@show fitlam
+
+@test_approx_eq lambda_estim(fitlam) 1.0
+@test_approx_eq coef(fitlam) coef(fitbis)
+@test_approx_eq vcov(fitlam) vcov(fitbis)
+@test_approx_eq nobs(fitlam) nobs(fitbis)
+@test_approx_eq residuals(fitlam)[fitbis.model.ind] residuals(fitbis)
+@test_approx_eq model_response(fitlam)[fitbis.model.ind] model_response(fitbis)
+@test_approx_eq predict(fitlam)[fitbis.model.ind] predict(fitbis)
+@test_approx_eq dof_residual(fitlam) dof_residual(fitbis) 
+@test_approx_eq sigma2_estim(fitlam) sigma2_estim(fitbis)
+@test_approx_eq stderr(fitlam) stderr(fitbis)
+@test_approx_eq confint(fitlam) confint(fitbis)
+@test_approx_eq loglikelihood(fitlam) loglikelihood(fitbis)
+@test_approx_eq dof(fitlam)  dof(fitbis) + 1
+@test_approx_eq deviance(fitlam)  deviance(fitbis)
+@test_approx_eq nulldeviance(fitlam)  nulldeviance(fitbis)
+@test_approx_eq nullloglikelihood(fitlam)  nullloglikelihood(fitbis)
+@test_approx_eq_eps r2(fitlam)  r2(fitbis) 1e-15
+@test_approx_eq_eps adjr2(fitlam)  adjr2(fitbis) - 0.5 1e-15
+@test_approx_eq aic(fitlam)  aic(fitbis) + 2
+#@test_approx_eq aicc(fitlam)  aicc(fitbis)
+@test_approx_eq bic(fitlam)  bic(fitbis) + log(nobs(fitbis))
+@test_approx_eq mu_estim(fitlam)  mu_estim(fitbis)
 
 #### Other Network ###
 # originally: "(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);"
@@ -263,6 +290,32 @@ fitnabis = phyloNetworklm(trait ~ pred, dfr, net)
 @test_approx_eq aicc(fitna)  aicc(fitnabis)
 @test_approx_eq bic(fitna)  bic(fitnabis)
 
+## Pagel's Lambda
+fitlam = phyloNetworklm(trait ~ pred, dfr, net, model = "lambda")
+@show fitlam
+
+@test_approx_eq lambda_estim(fitlam) 1.0
+@test_approx_eq coef(fitlam) coef(fitnabis)
+@test_approx_eq vcov(fitlam) vcov(fitnabis)
+@test_approx_eq nobs(fitlam) nobs(fitnabis)
+@test_approx_eq residuals(fitlam) residuals(fitnabis)
+@test_approx_eq model_response(fitlam) model_response(fitnabis)
+@test_approx_eq predict(fitlam) predict(fitnabis)
+@test_approx_eq dof_residual(fitlam) dof_residual(fitnabis) 
+@test_approx_eq sigma2_estim(fitlam) sigma2_estim(fitnabis)
+@test_approx_eq stderr(fitlam) stderr(fitnabis)
+@test_approx_eq confint(fitlam) confint(fitnabis)
+@test_approx_eq loglikelihood(fitlam) loglikelihood(fitnabis)
+@test_approx_eq dof(fitlam)  dof(fitnabis) + 1
+@test_approx_eq deviance(fitlam)  deviance(fitnabis)
+@test_approx_eq nulldeviance(fitlam)  nulldeviance(fitnabis)
+@test_approx_eq nullloglikelihood(fitlam)  nullloglikelihood(fitnabis)
+@test_approx_eq_eps r2(fitlam)  r2(fitnabis) 1e-15
+@test_approx_eq_eps adjr2(fitlam)-1  (adjr2(fitnabis)-1)*(nobs(fitnabis)-dof(fitnabis)+1)/(nobs(fitnabis)-dof(fitlam)+1) 1e-15
+@test_approx_eq aic(fitlam)  aic(fitnabis) + 2
+#@test_approx_eq aicc(fitlam)  aicc(fitnabis)
+@test_approx_eq bic(fitlam)  bic(fitnabis) + log(nobs(fitnabis))
+@test_approx_eq mu_estim(fitlam)  mu_estim(fitnabis)
 
 
 ### Ancestral State Reconstruction
@@ -313,3 +366,29 @@ blup2 = ancestralStateReconstruction(phynetlm)
 
 @test_approx_eq expectations(blup)[:condExpectation][1:length(blup.NodeNumbers)] expectations(blup2)[:condExpectation][1:length(blup.NodeNumbers)]
 @test_approx_eq predint(blup)[1:length(blup.NodeNumbers), :] predint(blup2)[1:length(blup.NodeNumbers), :]
+
+#################
+## Data with no phylogenetic signal
+#################
+
+net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
+# plot(net, useEdgeLength = true,  showEdgeNumber=true)
+
+#### Simulate correlated data in data frames ####
+b0 = 1
+b1 = 10
+srand(5678)
+A = randn(size(tipLabels(net), 1))
+B = b0 + b1 * A + randn(size(tipLabels(net), 1))
+dfr = DataFrame(trait = B, pred = A, tipNames = tipLabels(net))
+
+## Network
+phynetlm = phyloNetworklm(trait ~ pred, dfr, net, model = "lambda")
+
+@test_approx_eq lambda_estim(phynetlm) 0.5894200152459257
+
+## Major Tree
+tree = majorTree(net)
+phynetlm = phyloNetworklm(trait ~ pred, dfr, tree, model = "lambda")
+
+@test_approx_eq lambda_estim(phynetlm) 0.5903394493070625
