@@ -734,6 +734,12 @@ function getHeights(net::HybridNetwork)
     return(diag(V[:All]))
 end
 
+function maxLambda(times::Vector, V::MatrixTopologicalOrder)
+    maskTips = indexin(V.tipNumbers, V.nodeNumbersTopOrder)
+    maskNodes = indexin(V.internalNodeNumbers, V.nodeNumbersTopOrder)
+    return maximum(times[maskTips]) / maximum(times[maskNodes])
+end
+
 function transform_matrix_lambda!{T <: AbstractFloat}(V::MatrixTopologicalOrder, lam::T,
                                                       gammas::Vector, times::Vector)
     for i in 1:size(V.V, 1)
@@ -793,7 +799,9 @@ function phyloNetworklm_lambda(X::Matrix,
     NLopt.xtol_abs!(opt, xtolAbs) # criterion on parameter value changes
     NLopt.maxeval!(opt, 1000) # max number of iterations
     NLopt.lower_bounds!(opt, 1e-100) # Lower bound  
-    NLopt.upper_bounds!(opt, 1.0)
+    # Upper Bound
+    up = maxLambda(times, V)
+    NLopt.upper_bounds!(opt, up-up/1000)
     count = 0
     function fun(x::Vector{Float64}, g::Vector{Float64})
         x = convert(AbstractFloat, x[1])
