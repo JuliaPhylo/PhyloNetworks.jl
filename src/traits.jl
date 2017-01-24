@@ -645,34 +645,31 @@ function phyloNetworklm(X::Matrix,
                         model="BM"::AbstractString,
                         ind=[0]::Vector{Int},
                         startingValue=0.5::Real)
-    # Geting variance covariance
-    V = sharedPathMatrix(net)
-    # Get gammas and heights
-    gammas = getGammas(net)
-    times = getHeights(net)
-    # Fit
-    phyloNetworklm(X, Y, V, gammas, times;
-                   msng = msng, model=model, ind=ind, startingValue=startingValue)
-end
-
-# Same function, but when the matrix V is already known.
-function phyloNetworklm(X::Matrix,
-                        Y::Vector,
-                        V::MatrixTopologicalOrder,
-                        gammas::Vector,
-                        times::Vector;
-                        msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
-                        model="BM"::AbstractString,
-                        ind=[0]::Vector{Int},
-                        startingValue=0.5::Real)
     ## Choose Model
     if (model == "BM")
+        # Geting variance covariance
+        V = sharedPathMatrix(net)
+        # Fit
         return phyloNetworklm_BM(X, Y, V;
                                  msng=msng, ind=ind) 
     end
     if (model == "lambda")
+        # Geting variance covariance
+        V = sharedPathMatrix(net)
+        # Get gammas and heights
+        gammas = getGammas(net)
+        times = getHeights(net)
+        # Fit
         return phyloNetworklm_lambda(X, Y, V, gammas, times;
                                      msng=msng, ind=ind, startingValue=startingValue) 
+    end
+    if (model == "scalingHybrid")
+        # Get gammas
+        preorder!(net)
+        gammas = getGammas(net)
+        # Fit
+        return phyloNetworklm_scalingHybrid(X, Y, net, gammas;
+                                            msng=msng, ind=ind, startingValue=startingValue) 
     end
 end
 
@@ -811,6 +808,70 @@ function phyloNetworklm_lambda(X::Matrix,
     res.model = "lambda"
     return res
 end
+
+###############################################################################
+## Fit scaling hybrid
+
+function matrix_scalingHybrid{T <: AbstractFloat}(net::HybridNetwork, lam::T,
+                                                  gammas::Vector)
+    setGammas!(net, 1-lam*(1-gammas))
+    V = sharedPathMatrix(net)
+    setGammas!(net, gammas)
+    return V
+end
+
+function logLik_lam_hyb{T <: AbstractFloat}(lam::T,
+                                            X::Matrix,
+                                            Y::Vector,
+                                            net::HybridNetwork,
+                                            gammas::Vector;
+                                            msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
+                                            ind=[0]::Vector{Int})
+    # Transform V according to lambda
+    V = matrix_scalingHybrid(net, lam, gammas)
+    # Fit and take likelihood
+    fit_lam = phyloNetworklm_BM(X, Y, V; msng=msng, ind=ind)
+    return -loglikelihood(fit_lam)
+end
+
+function phyloNetworklm_scalingHybrid(X::Matrix,
+                                      Y::Vector,
+                                      net::HybridNetwork,
+                                      gammas::Vector;
+                                      msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
+                                      ind=[0]::Vector{Int},
+                                      ftolRel=fRelTr::AbstractFloat,
+                                      xtolRel=xRelTr::AbstractFloat,
+                                      ftolAbs=fAbsTr::AbstractFloat,
+                                      xtolAbs=xAbsTr::AbstractFloat,
+                                      startingValue=0.5::Real)
+    # Find Best lambda using optimize from package NLopt
+    opt = NLopt.Opt(:LN_BOBYQA, 1)
+    NLopt.ftol_rel!(opt, ftolRel) # relative criterion
+    NLopt.ftol_abs!(opt, ftolAbs) # absolute critetion 
+    NLopt.xtol_rel!(opt, xtolRel) # criterion on parameter value changes
+    NLopt.xtol_abs!(opt, xtolAbs) # criterion on parameter value changes
+    NLopt.maxeval!(opt, 1000) # max number of iterations
+    #NLopt.lower_bounds!(opt, 1e-100) # Lower bound  
+    #NLopt.upper_bounds!(opt, 1.0)
+    count = 0
+    function fun(x::Vector{Float64}, g::Vector{Float64})
+        x = convert(AbstractFloat, x[1])
+        res = logLik_lam_hyb(x, X, Y, net, gammas; msng=msng, ind=ind)
+        count =+ 1
+        println("f_$count: $(round(res,5)), x: $(x)")
+        return res
+    end
+    NLopt.min_objective!(opt, fun)
+    fmin, xmin, ret = NLopt.optimize(opt, [startingValue])
+    # Best value dans result
+    V = matrix_scalingHybrid(net, xmin[1], gammas)
+    res = phyloNetworklm_BM(X, Y, V; msng=msng, ind=ind)
+    res.lambda = xmin[1]
+    res.model = "scalingHybrid"
+    return res
+end
+
 
 """
     phyloNetworklm(f, fr, net, model="BM",
@@ -983,23 +1044,20 @@ function phyloNetworklm(f::Formula,
                         startingValue=0.5::Real)
     # Match the tips names: make sure that the data provided by the user will
     # be in the same order as the ordered tips in matrix V.
-    V = sharedPathMatrix(net)
-    # Get gammas and heights
-    gammas = getGammas(net)
-    times = getHeights(net)
+    preorder!(net)
     if no_names # The names should not be taken into account.
         ind = [0]
         info("""As requested (no_names=true), I am ignoring the tips names
              in the network and in the dataframe.""")
-    elseif (any(V.tipNames == "") || !any(DataFrames.names(fr) .== :tipNames))
-        if (any(V.tipNames == "") && !any(DataFrames.names(fr) .== :tipNames))
+    elseif (any(tipLabels(net) == "") || !any(DataFrames.names(fr) .== :tipNames))
+        if (any(tipLabels(net) == "") && !any(DataFrames.names(fr) .== :tipNames))
             error("""The network provided has no tip names, and the input dataframe has
                   no column labelled tipNames, so I can't match the data on the network
                   unambiguously. If you are sure that the tips of the network are in the
                   same order as the values of the dataframe provided, then please re-run
                   this function with argument no_name=true.""")
         end
-        if any(V.tipNames == "")
+        if any(tipLabels(net) == "")
             error("""The network provided has no tip names, so I can't match the data
                   on the network unambiguously. If you are sure that the tips of the
                   network are in the same order as the values of the dataframe provided,
@@ -1013,7 +1071,7 @@ function phyloNetworklm(f::Formula,
         end
     else
         #        ind = indexin(V.tipNames, fr[:tipNames])
-        ind = indexin(fr[:tipNames], V.tipNames)
+        ind = indexin(fr[:tipNames], tipLabels(net))
         if any(ind == 0) || length(unique(ind)) != length(ind)
             error("""Tips names of the network and names provided in column tipNames
                   of the dataframe do not match.""")
@@ -1025,7 +1083,7 @@ function phyloNetworklm(f::Formula,
     mm = ModelMatrix(mf)
     Y = convert(Vector{Float64},DataFrames.model_response(mf))
     # Fit the model (Method copied from DataFrame/src/statsmodels/statsmodels.jl, lines 47-58)
-    DataFrames.DataFrameRegressionModel(phyloNetworklm(mm.m, Y, V, gammas, times;
+    DataFrames.DataFrameRegressionModel(phyloNetworklm(mm.m, Y, net;
                                                        msng=mf.msng, model=model, ind=ind, startingValue=startingValue), mf, mm)
     #    # Create the object
     #    phyloNetworkLinPredModel(DataFrames.DataFrameRegressionModel(fit, mf, mm),
@@ -1149,7 +1207,7 @@ DataFrames.Formula(m::DataFrames.DataFrameRegressionModel) = Formula(m.mf.terms)
 function paramstable(m::PhyloNetworkLinearModel)
     Sig = sigma2_estim(m)
     res = "Sigma2: " * @sprintf("%.6g", Sig)
-    if (m.model == "lambda")
+    if (m.model == "lambda" || m.model == "scalingHybrid")
         Lamb = lambda_estim(m)
         res = res*"\nLambda: " * @sprintf("%.6g", Lamb)
     end
