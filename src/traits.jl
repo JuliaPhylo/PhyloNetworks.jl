@@ -700,13 +700,14 @@ end
 ###############################################################################
 ## Fit Pagel's Lambda
 
+# Get major gammas
 function getGammas(net::HybridNetwork)
     isHybrid = [n.hybrid for n in net.nodes_changed]
     gammas = ones(size(isHybrid))
     for i in 1:size(isHybrid, 1)
         if isHybrid[i]
-            hybridEdges = [n.hybrid for n in net.nodes_changed[i].edge]
-            gammas[i] = net.nodes_changed[i].edge[hybridEdges][2].gamma
+            majorHybrid = [n.hybrid & n.isMajor for n in net.nodes_changed[i].edge]
+            gammas[i] = net.nodes_changed[i].edge[majorHybrid][1].gamma
         end
     end
     return gammas
@@ -716,9 +717,10 @@ function setGammas!(net::HybridNetwork, gammas::Vector)
     isHybrid = [n.hybrid for n in net.nodes_changed]
     for i in 1:size(isHybrid, 1)
         if isHybrid[i]
-            hybridEdges = [n.hybrid for n in net.nodes_changed[i].edge]
-            net.nodes_changed[i].edge[hybridEdges][2].gamma = gammas[i] 
-            net.nodes_changed[i].edge[hybridEdges][1].gamma = 1 - gammas[i] 
+            majorHybrid = [n.hybrid & n.isMajor for n in net.nodes_changed[i].edge]
+            minorHybrid = [n.hybrid & !n.isMajor for n in net.nodes_changed[i].edge]
+            net.nodes_changed[i].edge[majorHybrid][1].gamma = gammas[i] 
+            net.nodes_changed[i].edge[minorHybrid][1].gamma = 1 - gammas[i] 
         end
     end
     return nothing
@@ -734,8 +736,6 @@ end
 
 function transform_matrix_lambda!{T <: AbstractFloat}(V::MatrixTopologicalOrder, lam::T,
                                                       gammas::Vector, times::Vector)
-    # WARNING : This transformation is not the expected one if branch length are modified.
-    # Need a function for node heigh computation.
     for i in 1:size(V.V, 1)
         for j in 1:size(V.V, 2)
             V.V[i,j] *= lam
@@ -1164,6 +1164,8 @@ function Base.show(io::IO, model::DataFrames.DataFrameRegressionModel)#{PhyloNet
     println(io, "$(typeof(model))")
     println(io)
     println(io, Formula(model.mf.terms))
+    println(io)
+    println(io, "Model: $(model.model.model)")
     println(io)
     println(io,"Parameter(s) Estimates:")
     println(io, paramstable(model.model))
