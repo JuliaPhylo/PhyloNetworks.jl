@@ -645,6 +645,7 @@ function phyloNetworklm(X::Matrix,
                         model="BM"::AbstractString,
                         ind=[0]::Vector{Int},
                         startingValue=0.5::Real)
+                        fixedValue=Nullable{Real}()::Nullable{Real})
     ## Choose Model
     if (model == "BM")
         # Geting variance covariance
@@ -661,7 +662,8 @@ function phyloNetworklm(X::Matrix,
         times = getHeights(net)
         # Fit
         return phyloNetworklm_lambda(X, Y, V, gammas, times;
-                                     msng=msng, ind=ind, startingValue=startingValue) 
+                                     msng=msng, ind=ind,
+                                     startingValue=startingValue, fixedValue=fixedValue) 
     end
     if (model == "scalingHybrid")
         # Get gammas
@@ -787,32 +789,38 @@ function phyloNetworklm_lambda(X::Matrix,
                                xtolRel=xRelTr::AbstractFloat,
                                ftolAbs=fAbsTr::AbstractFloat,
                                xtolAbs=xAbsTr::AbstractFloat,
-                               startingValue=0.5::Real)
-    # Find Best lambda using optimize from package NLopt
-    opt = NLopt.Opt(:LN_BOBYQA, 1)
-    NLopt.ftol_rel!(opt, ftolRel) # relative criterion
-    NLopt.ftol_abs!(opt, ftolAbs) # absolute critetion 
-    NLopt.xtol_rel!(opt, xtolRel) # criterion on parameter value changes
-    NLopt.xtol_abs!(opt, xtolAbs) # criterion on parameter value changes
-    NLopt.maxeval!(opt, 1000) # max number of iterations
-    NLopt.lower_bounds!(opt, 1e-100) # Lower bound  
-    # Upper Bound
-    up = maxLambda(times, V)
-    NLopt.upper_bounds!(opt, up-up/1000)
-    count = 0
-    function fun(x::Vector{Float64}, g::Vector{Float64})
-        x = convert(AbstractFloat, x[1])
-        res = logLik_lam(x, X, Y, V, gammas, times; msng=msng, ind=ind)
-        count =+ 1
-        #println("f_$count: $(round(res,5)), x: $(x)")
-        return res
+                               startingValue=0.5::Real,
+                               fixedValue=Nullable{Real}()::Nullable{Real})
+    if isnull(fixedValue)
+        # Find Best lambda using optimize from package NLopt
+        opt = NLopt.Opt(:LN_BOBYQA, 1)
+        NLopt.ftol_rel!(opt, ftolRel) # relative criterion
+        NLopt.ftol_abs!(opt, ftolAbs) # absolute critetion 
+        NLopt.xtol_rel!(opt, xtolRel) # criterion on parameter value changes
+        NLopt.xtol_abs!(opt, xtolAbs) # criterion on parameter value changes
+        NLopt.maxeval!(opt, 1000) # max number of iterations
+        NLopt.lower_bounds!(opt, 1e-100) # Lower bound  
+        # Upper Bound
+        up = maxLambda(times, V)
+        NLopt.upper_bounds!(opt, up-up/1000)
+        count = 0
+        function fun(x::Vector{Float64}, g::Vector{Float64})
+            x = convert(AbstractFloat, x[1])
+            res = logLik_lam(x, X, Y, V, gammas, times; msng=msng, ind=ind)
+            count =+ 1
+            #println("f_$count: $(round(res,5)), x: $(x)")
+            return res
+        end
+        NLopt.min_objective!(opt, fun)
+        fmin, xmin, ret = NLopt.optimize(opt, [startingValue])
+        # Best value dans result
+        res_lam = xmin[1]
+    else
+        res_lam = fixedValue
     end
-    NLopt.min_objective!(opt, fun)
-    fmin, xmin, ret = NLopt.optimize(opt, [startingValue])
-    # Best value dans result
-    transform_matrix_lambda!(V, xmin[1], gammas, times)
+    transform_matrix_lambda!(V, res_lam, gammas, times)
     res = phyloNetworklm_BM(X, Y, V; msng=msng, ind=ind)
-    res.lambda = xmin[1]
+    res.lambda = res_lam
     res.model = "lambda"
     return res
 end
@@ -1049,7 +1057,8 @@ function phyloNetworklm(f::Formula,
                         xtolRel=xRelTr::AbstractFloat,
                         ftolAbs=fAbsTr::AbstractFloat,
                         xtolAbs=xAbsTr::AbstractFloat,
-                        startingValue=0.5::Real)
+                        startingValue=0.5::Real,
+                        fixedValue=Nullable{Real}()::Nullable{Real})
     # Match the tips names: make sure that the data provided by the user will
     # be in the same order as the ordered tips in matrix V.
     preorder!(net)
@@ -1092,7 +1101,8 @@ function phyloNetworklm(f::Formula,
     Y = convert(Vector{Float64},DataFrames.model_response(mf))
     # Fit the model (Method copied from DataFrame/src/statsmodels/statsmodels.jl, lines 47-58)
     DataFrames.DataFrameRegressionModel(phyloNetworklm(mm.m, Y, net;
-                                                       msng=mf.msng, model=model, ind=ind, startingValue=startingValue), mf, mm)
+                                                       msng=mf.msng, model=model, ind=ind,
+                                                       startingValue=startingValue, fixedValue=fixedValue), mf, mm)
     #    # Create the object
     #    phyloNetworkLinPredModel(DataFrames.DataFrameRegressionModel(fit, mf, mm),
     #    fit.V, fit.Vy, fit.RL, fit.Y, fit.X, fit.logdetVy, ind, mf.msng)

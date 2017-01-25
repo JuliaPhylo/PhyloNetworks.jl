@@ -90,7 +90,7 @@ fitbis = phyloNetworklm(trait ~ 1, dfr, net)
 @test_approx_eq mu_estim(phynetlm)  mu_estim(fitbis)
 
 ## Pagel's Lambda
-fitlam = phyloNetworklm(trait ~ 1, dfr, net, model = "lambda")
+fitlam = phyloNetworklm(trait ~ 1, dfr, net, model = "lambda", fixedValue=1.0)
 @show fitlam
 
 @test_approx_eq lambda_estim(fitlam) 1.0
@@ -115,6 +115,11 @@ fitlam = phyloNetworklm(trait ~ 1, dfr, net, model = "lambda")
 #@test_approx_eq aicc(fitlam)  aicc(fitbis)
 @test_approx_eq bic(fitlam)  bic(fitbis) + log(nobs(fitbis))
 @test_approx_eq mu_estim(fitlam)  mu_estim(fitbis)
+
+## Pagel's Lambda
+fitlam = phyloNetworklm(trait ~ 1, dfr, net, model = "lambda")
+@show fitlam
+@test_approx_eq lambda_estim(fitlam) 1.24875
 
 #### Other Network ###
 # originally: "(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);"
@@ -291,7 +296,7 @@ fitnabis = phyloNetworklm(trait ~ pred, dfr, net)
 @test_approx_eq bic(fitna)  bic(fitnabis)
 
 ## Pagel's Lambda
-fitlam = phyloNetworklm(trait ~ pred, dfr, net, model = "lambda")
+fitlam = phyloNetworklm(trait ~ pred, dfr, net, model = "lambda", fixedValue = 1.0)
 @show fitlam
 
 @test_approx_eq lambda_estim(fitlam) 1.0
@@ -316,6 +321,11 @@ fitlam = phyloNetworklm(trait ~ pred, dfr, net, model = "lambda")
 #@test_approx_eq aicc(fitlam)  aicc(fitnabis)
 @test_approx_eq bic(fitlam)  bic(fitnabis) + log(nobs(fitnabis))
 @test_approx_eq mu_estim(fitlam)  mu_estim(fitnabis)
+
+## Pagel's Lambda
+fitlam = phyloNetworklm(trait ~ pred, dfr, net, model = "lambda")
+@show fitlam
+@test_approx_eq lambda_estim(fitlam) 1.11355183047571
 
 
 ### Ancestral State Reconstruction
@@ -385,10 +395,10 @@ dfr = DataFrame(trait = B, pred = A, tipNames = tipLabels(net))
 ## Network
 phynetlm = phyloNetworklm(trait ~ pred, dfr, net, model = "lambda")
 
-@test_approx_eq lambda_estim(phynetlm) 0.5894200152459257
+@test_approx_eq lambda_estim(phynetlm) 0.5894200150858138
 
 ## Major Tree
 tree = majorTree(net)
 phynetlm = phyloNetworklm(trait ~ pred, dfr, tree, model = "lambda")
 
-@test_approx_eq lambda_estim(phynetlm) 0.5903394493070625
+@test_approx_eq lambda_estim(phynetlm) 0.5903394374850571
