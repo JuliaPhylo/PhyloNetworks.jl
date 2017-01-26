@@ -1131,7 +1131,7 @@ Estimated variance for a fitted object.
 """
 sigma2_estim(m::PhyloNetworkLinearModel) = deviance(m.lm) / nobs(m)
 # Need to be adapted manually to DataFrameRegressionModel beacouse it's a new function
-sigma2_estim(m::DataFrames.DataFrameRegressionModel) = sigma2_estim(m.model)
+sigma2_estim{T<:DataFrames.AbstractFloatMatrix}(m::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T}) = sigma2_estim(m.model)
 # ML estimate for ancestral state of the BM
 """
 `mu_estim(m::PhyloNetworkLinearModel)`
@@ -1142,10 +1142,14 @@ function mu_estim(m::PhyloNetworkLinearModel)
          knowing which column is your intercept (column of ones).
          I am using the first coefficient for ancestral mean mu by convention,
          but that might not be what you are looking for.""")
-    return coef(m)[1]
+    if size(m.lm.pp.X,2) == 0
+        return 0
+    else
+        return coef(m)[1]
+    end
 end
 # Need to be adapted manually to DataFrameRegressionModel beacouse it's a new function
-function mu_estim(m::DataFrames.DataFrameRegressionModel)#{PhyloNetworks.PhyloNetworkLinearModel,Float64})
+function mu_estim{T<:DataFrames.AbstractFloatMatrix}(m::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T})
     if (!m.mf.terms.intercept)
         error("The fit was done without intercept, so I cannot estimate mu")
     end
@@ -1157,7 +1161,7 @@ end
 Estimated lambda parameter for a fitted object.
 """
 lambda_estim(m::PhyloNetworkLinearModel) = m.lambda
-lambda_estim(m::DataFrames.DataFrameRegressionModel) = lambda_estim(m.model)
+lambda_estim{T<:DataFrames.AbstractFloatMatrix}(m::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T}) = lambda_estim(m.model)
 
 ### Functions specific to DataFrameRegressionModel
 DataFrames.ModelFrame(m::DataFrames.DataFrameRegressionModel) = m.mf
@@ -1179,7 +1183,7 @@ function Base.show(io::IO, obj::PhyloNetworkLinearModel)
     println(io, "$(typeof(obj)):\n\nParameter(s) Estimates:\n", paramstable(obj), "\n\nCoefficients:\n", coeftable(obj))
 end
 # For DataFrameModel. Copied from DataFrames/jl/src/statsmodels/statsmodels.jl, lines 101-118
-function Base.show(io::IO, model::DataFrames.DataFrameRegressionModel)#{PhyloNetworks.PhyloNetworkLinearModel,Float64})
+function Base.show{T<:DataFrames.AbstractFloatMatrix}(io::IO, model::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T})
     ct = coeftable(model)
     println(io, "$(typeof(model))")
     println(io)
@@ -1753,10 +1757,10 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel)
     ancestralStateReconstruction(obj, X_n)
 end
 # For a DataFrameRegressionModel
-function ancestralStateReconstruction{T<:Union{Float32,Float64}}(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel, Array{T,2}})
+function ancestralStateReconstruction{T<:DataFrames.AbstractFloatMatrix}(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T})
     ancestralStateReconstruction(obj.model)
 end
-function ancestralStateReconstruction{T<:Union{Float32,Float64}}(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel, Array{T,2}}, X_n::Matrix)
+function ancestralStateReconstruction{T<:DataFrames.AbstractFloatMatrix}(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T}, X_n::Matrix)
     ancestralStateReconstruction(obj.model, X_n::Matrix)
 end
 
