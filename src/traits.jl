@@ -1041,7 +1041,11 @@ function phyloNetworklm(f::Formula,
     end
     # Find the regression matrix and answer vector
     mf = ModelFrame(f,fr)
-    mm = ModelMatrix(mf)
+    if isequal(f.rhs, -1) # If there are no regressors
+        mm = ModelMatrix(zeros(size(mf.df, 1), 0), [0])
+    else
+        mm = ModelMatrix(mf)
+    end
     Y = convert(Vector{Float64},DataFrames.model_response(mf))
     # Fit the model (Method copied from DataFrame/src/statsmodels/statsmodels.jl, lines 47-58)
     DataFrames.DataFrameRegressionModel(phyloNetworklm(mm.m, Y, V, gammas, times;
@@ -1066,7 +1070,13 @@ StatsBase.stderr(m::PhyloNetworkLinearModel) = stderr(m.lm)
 # Confidence Intervals
 StatsBase.confint(m::PhyloNetworkLinearModel; level=0.95::Real) = confint(m.lm, level)
 # coef table (coef, stderr, confint)
-StatsBase.coeftable(m::PhyloNetworkLinearModel) = coeftable(m.lm)
+function StatsBase.coeftable(m::PhyloNetworkLinearModel)
+    if size(m.lm.pp.X, 2) == 0
+        return CoefTable([0], ["Fixed Value"], ["(Intercept)"])
+    else
+        coeftable(m.lm)
+    end
+end
 # Degrees of freedom for residuals
 StatsBase.dof_residual(m::PhyloNetworkLinearModel) =  nobs(m) - length(coef(m))
 # Degrees of freedom consumed in the model
