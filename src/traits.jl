@@ -329,6 +329,68 @@ end
 # Abstract type of all the (future) types (BM, OU, ...)
 abstract ParamsProcess
 
+# Type for shifts
+"""
+`ShiftNet`
+
+Shifts associated to an [`HybridNetwork`](@ref) sorted in topological order.
+
+"""
+type ShiftNet
+    shift::Vector{Real}
+end
+
+# Default
+ShiftNet(net::HybridNetwork) = ShiftNet(zeros(length(net.node)))
+
+# Construct from edges and values
+function ShiftNet{T <: Real}(edge::Vector{Edge}, value::Vector{T},
+                             net::HybridNetwork; checkPreorder=true::Bool)
+    childs = Vector{Node}(length(edge))
+    for i in 1:length(edge)
+        childs[i] = getChild(edge[i])
+    end
+    return(ShiftNet(childs, value, net; checkPreorder=checkPreorder))
+end
+
+function ShiftNet{T <: Real}(node::Vector{Node}, value::Vector{T},
+                             net::HybridNetwork; checkPreorder=true::Bool)
+    if length(node) != length(value)
+        error("The vector of edges and of values must be of the same length.")
+    end
+    if(checkPreorder)
+        preorder!(net)
+    end
+    obj = ShiftNet(net)
+    for i in 1:length(node)
+        !node[i].hybrid || error("Shifts on hybrid edges are not allowed")
+        ind = getIndex(node[i], net.nodes_changed)
+        obj.shift[ind] = value[i]
+    end
+    return(obj)
+end
+
+ShiftNet(edge::Edge, value::Real, net::HybridNetwork; checkPreorder=true::Bool) = ShiftNet([edge], [value], net; checkPreorder=checkPreorder)
+ShiftNet(node::Node, value::Real, net::HybridNetwork; checkPreorder=true::Bool) = ShiftNet([node], [value], net; checkPreorder=checkPreorder)
+
+function getEdgeNumber(shift::ShiftNet)
+    collect(1:length(shift.shift))[shift.shift .!= 0]
+end
+function getValue(shift::ShiftNet)
+    shift.shift[shift.shift .!= 0]
+end
+
+function shiftTable(shift::ShiftNet)
+    CoefTable(hcat(getEdgeNumber(shift), getValue(shift)),
+              ["Edge Number", "Shift Value"],
+              fill("", length(getValue(shift))))
+end
+
+function Base.show(io::IO, obj::ShiftNet)
+    println(io, "$(typeof(obj)):\n",
+            shiftTable(obj))
+end
+
 """
 `ParamsBM <: ParamsProcess`
 
@@ -343,9 +405,20 @@ type ParamsBM <: ParamsProcess
     sigma2::Real # variance
     randomRoot::Bool # Root is random ? default false
     varRoot::Real # root variance. Default NaN
+    shift::Nullable{ShiftNet} # shifts
 end
 # Constructor
-ParamsBM(mu, sigma2) = ParamsBM(mu, sigma2, false, NaN) # default values
+ParamsBM(mu::Real, sigma2::Real) = ParamsBM(mu, sigma2, false, NaN, Nullable{ShiftNet}()) # default values
+ParamsBM(mu::Real, sigma2::Real, net::HybridNetwork) = ParamsBM(mu, sigma2, false, NaN, ShiftNet(net)) # default values
+ParamsBM(mu::Real, sigma2::Real, shift::ShiftNet) = ParamsBM(mu, sigma2, false, NaN, shift) # default values
+
+function anyShift(params::ParamsBM)
+    if isnull(params.shift) return(false) end
+    for v in params.shift.value.shift
+        if v != 0 return(true) end
+    end
+    return(false)
+end
 
 function Base.show(io::IO, obj::ParamsBM)
     disp =  "$(typeof(obj)):\n"
@@ -362,6 +435,10 @@ function paramstable(obj::ParamsBM)
     disp = "mu: $(obj.mu)\nSigma2: $(obj.sigma2)"
     if obj.randomRoot
         disp = disp * "\nvarRoot: $(obj.varRoot)"
+    end
+    if anyShift(obj)
+        disp = disp * "\n\nThere are $(length(getValue(obj.shift.value))) shifts on the network:\n"
+        disp = disp * "$(shiftTable(obj.shift.value))"
     end
     return(disp)
 end
@@ -468,6 +545,7 @@ function simulate(net::HybridNetwork,
     else
         error("The 'simulate' function only works for a BM process (for now).")
     end
+    !isnull(params.shift) || (params.shift = ShiftNet(net))
     M = recursionPreOrder(net,
                           checkPreorder,
                           initSimulateBM,
@@ -503,8 +581,8 @@ function updateTreeSimulateBM!(M::Matrix,
                                edge::Edge,
                                params::Tuple{ParamsBM})
     params = params[1]
-    M[1, i] = params.mu  # expectation
-    M[2, i] = M[2, parentIndex] + sqrt(params.sigma2 * edge.length) * randn() # random value
+    M[1, i] = M[1, parentIndex] + params.shift.value.shift[i] # expectation
+    M[2, i] = M[2, parentIndex] + params.shift.value.shift[i] + sqrt(params.sigma2 * edge.length) * randn() # random value
 end
 
 # Going down to an hybrid node
@@ -516,7 +594,7 @@ function updateHybridSimulateBM!(M::Matrix,
                                  edge2::Edge,
                                  params::Tuple{ParamsBM})
     params = params[1]
-    M[1, i] = params.mu  # expectation
+    M[1, i] =  edge1.gamma * M[1, parentIndex1] + edge2.gamma * M[1, parentIndex2] # expectation
     M[2, i] =  edge1.gamma * (M[2, parentIndex1] + sqrt(params.sigma2 * edge1.length) * randn()) + edge2.gamma * (M[2, parentIndex2] + sqrt(params.sigma2 * edge2.length) * randn()) # random value
 end
 
@@ -563,12 +641,10 @@ Getting submatrices of an object of type [`TraitSimulation`](@ref).
   * `:Tips` columns and/or rows corresponding to the tips
   * `:InternalNodes` columns and/or rows corresponding to the internal nodes
 """
-function Base.getindex(obj::TraitSimulation, d::Symbol)
-    #    if d == :Tips
-    #       res = obj.M[:Tips]
-    #       squeeze(res[2, :], 1)
-    #    end
-    #   squeeze(getindex(obj.M, d)[2, :], 1)
+function Base.getindex(obj::TraitSimulation, d::Symbol, w=:Sim::Symbol)
+     if w == :Exp
+        return(getindex(obj.M, d)[1, :])
+     end
     getindex(obj.M, d)[2, :]
 end
 

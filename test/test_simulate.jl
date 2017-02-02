@@ -1,21 +1,8 @@
 # Tests to simulate traits
 
 ## Get a network and make it ultrametric
-net = readTopology("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);");
-
-for i = 1:27
-    net.edge[i].length = 1;
-end
-net.edge[27].length = 7;
-net.edge[26].length = 3;
-net.edge[25].length = 4;
-net.edge[24].length = 4;
-net.edge[21].length = 5;
-net.edge[19].length = 4;
-net.edge[16].length = 2;
-net.edge[8].length = 2;
-net.edge[3].length = 2;
-net.edge[1].length = 5;
+net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
+plot(net, useEdgeLength = true,  showEdgeNumber=true)
 
 ## Simulate a BM
 srand(17920921); # fix the seed
@@ -67,3 +54,71 @@ for s in 1:S
 end
 
 
+###############################################################################
+## With Shifts
+###############################################################################
+tree_str= "(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6):1):0.5);"
+net = readTopology(tree_str)
+
+## Test construction function
+@test_throws ErrorException ShiftNet(net.edge[7], 3.0,  net) # can't put a shift on hybrid branch
+@test_throws ErrorException ShiftNet(net.node[6], 3.0,  net) # can't put a shift on hybrid branch
+@test_approx_eq ShiftNet(net.edge[8], 3.0,  net).shift ShiftNet([net.edge[8]], [3.0],  net).shift
+@test_approx_eq ShiftNet(net.edge[8], 3.0,  net).shift ShiftNet(net.node[7], 3.0,  net).shift
+@test_approx_eq ShiftNet(net.node[7], 3.0,  net).shift ShiftNet([net.node[7]], [3.0],  net).shift
+
+## Test simulate
+pars = ParamsBM(1, 0.1, ShiftNet(net.edge[8], 3.0,  net)); # params of a BM
+@show pars
+@show pars.shift.value
+
+srand(17920921); # fix the seed
+sim = simulate(net, pars); # simulate according to a BM
+@show sim
+
+traitsTips = sim[:Tips];
+traitsNodes = sim[:InternalNodes];
+
+meansTips = sim[:Tips, :Exp];
+meansNodes = sim[:InternalNodes, :Exp];
+
+# Expected values
+meansTipsExp = [1.0 1.0 1.0+3.0 1.0+3.0*0.6];
+traitsTipsExp = [0.9230584254019785 1.4363450675116494 4.180396447825185 3.299820483104897];
+
+meansNodesExp = [1.0 1.0+3.0*0.6 1.0+3.0 1.0 1.0];
+traitsNodesExp = [1.50594336537754 3.296894371572107 4.346436961253621 1.3212328642182367 1.0];
+
+@test_approx_eq traitsTips traitsTipsExp
+@test_approx_eq traitsNodes traitsNodesExp
+@test_approx_eq meansTips meansTipsExp
+@test_approx_eq meansNodes meansNodesExp
+
+###############################################################################
+## Test of distibution - with shifts
+###############################################################################
+
+## Generate some values
+srand(18480224); # fix the seed
+pars = ParamsBM(1, 0.1, ShiftNet(net.edge[8], 3.0,  net)); # params of a BM
+N = 50000
+S = length(tipLabels(net));
+values = zeros(Float64, (S, N));
+for i = 1:N
+    values[:,i] = simulate(net, pars)[:Tips]
+end
+
+## Check that each tip has same mean (1)
+expectations = simulate(net, pars)[:Tips,:Exp]
+for s in 1:S
+    @test_approx_eq_eps mean(values[s, :]) expectations[s] 1e-2
+end
+
+## Check for variances
+V = sharedPathMatrix(net);
+Sig = V[:Tips] * pars.sigma2;
+for s in 1:S
+    for t in s:S
+        @test_approx_eq_eps cov(values[s, :], values[t,:]) Sig[s, t] 1e-2 
+    end
+end

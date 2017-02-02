@@ -742,6 +742,12 @@ function getMajorParent(n::Node)
 end
 
 
+# function to get all parent nodes of a given node
+# it assumes the isChild1 attributes are correct
+function getChild(edge::Edge)
+    edge.isChild1 ? edge.node[1] : edge.node[2]
+end
+
 """
 `preorder!(net::HybridNetwork)`
 
