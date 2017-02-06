@@ -110,50 +110,54 @@ function updatePreOrder!(i::Int,
     end
 end
 
-# Function to get the indexes of the tips. Returns a mask.
-# function getTipsIndexes(net::HybridNetwork)
-#   tipNumbers = [n.number for n in net.leaf]
-#   nodesOrder = [n.number for n in net.nodes_changed]
-#     getTipsIndexes(nodesOrder, tipNumbers)
-# end
+## Same, but in post order (tips to root)
+function recursionPostOrder(net::HybridNetwork,
+                            checkPreorder=true::Bool,
+                            init=identity::Function,
+                            updateTip=identity::Function,
+                            updateNode=identity::Function,
+                            indexation="b"::AbstractString,
+                            params...)
+    net.isRooted || error("net needs to be rooted to get matrix of shared path lengths")
+    if(checkPreorder)
+        preorder!(net)
+    end
+    M = recursionPostOrder(net.nodes_changed, init, updateTip, updateNode, params)
+    # Find numbers of internal nodes
+    nNodes = [n.number for n in net.node]
+    nleaf = [n.number for n in net.leaf]
+    deleteat!(nNodes, indexin(nleaf, nNodes))
+    MatrixTopologicalOrder(M, [n.number for n in net.nodes_changed], nNodes, nleaf, [n.name for n in net.leaf], indexation)
+end
 
-# function getTipsIndexes(nodesOrder::Vector{Int64}, tipNumbers::Vector{Int64})
-#   mask = BitArray(length(nodesOrder)) ## Function Match ??
-#   for tip in tipNumbers
-#       mask = mask | (tip .== nodesOrder)
-#   end
-#   return(mask)
-# end
+function recursionPostOrder(nodes::Vector{Node},
+                            init::Function,
+                            updateTip::Function,
+                            updateNode::Function,
+                            params)
+    n = length(nodes)
+    M = init(nodes, params)
+    for i in n:-1:1 #sorted list of nodes
+        updatePostOrder!(i, nodes, M, updateTip, updateNode, params)
+    end
+    return M
+end
 
-# Extract the right part of a matrix in topological order
-# Tips : submatrix corresponding to tips
-# InternalNodes : submatrix corresponding to internal nodes
-# TipsNodes : submatrix nTips x nNodes of interactions
-# !! Extract sub-matrices in the original net nodes numbers !!
-# function Base.getindex(obj::MatrixTopologicalOrder, d::Symbol)
-#   if d == :Tips # Extract rows and/or columns corresponding to the tips
-#       mask = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
-#       obj.indexation == "b" && return obj.V[mask, mask] # both columns and rows are indexed by nodes
-#       obj.indexation == "c" && return obj.V[:, mask] # Only the columns
-#       obj.indexation == "r" && return obj.V[mask, :] # Only the rows
-#   end
-#   if d == :InternalNodes # Idem, for internal nodes
-#       mask = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
-#       obj.indexation == "b" && return obj.V[mask, mask]
-#       obj.indexation == "c" && return obj.V[:, mask] 
-#       obj.indexation == "r" && return obj.V[mask, :] 
-#   end
-#   if d == :TipsNodes
-#       maskNodes = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
-#       maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder,)
-#       obj.indexation == "b" && return obj.V[maskTips, maskNodes]
-#       obj.indexation == "c" && error("Both rows and columns must be net
-#       ordered to take the submatrix tips vs internal nodes.")
-#       obj.indexation == "r" && error("Both rows and columns must be net
-#       ordered to take the submatrix tips vs internal nodes.")
-#   end
-#   d == :All && return obj.V
-# end
+function updatePostOrder!(i::Int,
+                          nodes::Vector{Node},
+                          V::Matrix,
+                          updateTip::Function,
+                          updateNode::Function,
+                          params)
+    children = getChildren(nodes[i]) #array of nodes (empty, size 1 or 2)
+    if(isempty(children)) #nodes[i] is a tip
+        updateTip(V, i, params)
+    else 
+        childrenIndex = [getIndex(n, nodes) for n in children]
+        edges = [getConnectingEdge(nodes[i], c) for c in children]
+        updateNode(V, i, childrenIndex, edges, params)
+    end
+end
 
 # If some tips are missing, treat them as "internal nodes"
 """
@@ -264,62 +268,52 @@ function updateHybridSharedPathMatrix!(V::Matrix,
     V[i,i] = edge1.gamma*edge1.gamma*(V[parentIndex1,parentIndex1] + edge1.length) + edge2.gamma*edge2.gamma*(V[parentIndex2,parentIndex2] + edge2.length) + 2*edge1.gamma*edge2.gamma*V[parentIndex1,parentIndex2]
 end
 
-
-#function updateSharedPathMatrix!(i::Int,nodes::Vector{Node},V::Matrix, params)
-#    parent = getParents(nodes[i]) #array of nodes (empty, size 1 or 2)
-#    if(isempty(parent)) #nodes[i] is root
-#        return
-#    elseif(length(parent) == 1) #nodes[i] is tree
-#        parentIndex = getIndex(parent[1],nodes)
-#        for j in 1:(i-1)
-#            V[i,j] = V[j,parentIndex]
-#            V[j,i] = V[j,parentIndex]
-#        end
-#        V[i,i] = V[parentIndex,parentIndex] + getConnectingEdge(nodes[i],parent[1]).length
-#    elseif(length(parent) == 2) #nodes[i] is hybrid
-#        parentIndex1 = getIndex(parent[1],nodes)
-#        parentIndex2 = getIndex(parent[2],nodes)
-#        edge1 = getConnectingEdge(nodes[i],parent[1])
-#        edge2 = getConnectingEdge(nodes[i],parent[2])
-#        edge1.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[1].number) should be a hybrid egde")
-#        edge2.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[2].number) should be a hybrid egde")
-#        for j in 1:(i-1)
-#            V[i,j] = V[j,parentIndex1]*edge1.gamma + V[j,parentIndex2]*edge2.gamma
-#            V[j,i] = V[i,j]
-#        end
-#        V[i,i] = edge1.gamma*edge1.gamma*(V[parentIndex1,parentIndex1] + edge1.length) + edge2.gamma*edge2.gamma*(V[parentIndex2,parentIndex2] + edge2.length) + 2*edge1.gamma*edge2.gamma*V[parentIndex1,parentIndex2]
-#    end
-#end
-
 function initsharedPathMatrix(nodes::Vector{Node}, params)
     n = length(nodes)
     return(zeros(Float64,n,n))
 end
 
-# Extract the variance at the tips
-# function extractVarianceTips(V::Matrix, net::HybridNetwork)
-#   mask = getTipsIndexes(net)
-#   return(V[mask, mask])
-# end
+###############################################################################
+###############################################################################
+## Functions to compute the network matrix
+###############################################################################
+###############################################################################
+"""
+`incidenceMatrix(net::HybridNetwork; checkPreorder=true::Bool)`
 
-#function sharedPathMatrix(net::HybridNetwork; checkPreorder=true::Bool) #maybe we only need to input
-#    net.isRooted || error("net needs to be rooted to get matrix of shared path lengths")
-#    if(checkPreorder)
-#        preorder!(net)
-#    end
-#    sharedPathMatrix(net.nodes_changed)
-#end
+Returns an object of type [`MatrixTopologicalOrder`](@ref).
 
-#function sharedPathMatrix(nodes::Vector{Node})
-#    n = length(net.nodes_changed)
-#    V = zeros(Float64,n,n)
-#    for i in 1:n #sorted list of nodes
-#        updateSharedPathMatrix!(i,net.nodes_changed,V)
-#    end
-#    return V
-#end
+"""
+function incidenceMatrix(net::HybridNetwork;
+                         checkPreorder=true::Bool)
+    recursionPostOrder(net,
+                       checkPreorder,
+                       initIncidenceMatrix,
+                       updateTipIncidenceMatrix!,
+                       updateNodeIncidenceMatrix!,
+                       "b")
+end
 
+function updateTipIncidenceMatrix!(V::Matrix,
+                                   i::Int,
+                                   params)
+    return
+end
 
+function updateNodeIncidenceMatrix!(V::Matrix,
+                                    i::Int,
+                                    childrenIndex::Vector{Int},
+                                    edges::Vector{Edge},
+                                    params)
+    for j in 1:length(edges)
+        V[:,i] += edges[j].gamma*V[:,childrenIndex[j]]
+    end
+end
+
+function initIncidenceMatrix(nodes::Vector{Node}, params)
+    n = length(nodes)
+    return(eye(Float64,n,n))
+end
 ###############################################################################
 ###############################################################################
 ## Types for params process

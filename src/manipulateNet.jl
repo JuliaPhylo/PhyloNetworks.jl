@@ -742,10 +742,22 @@ function getMajorParent(n::Node)
 end
 
 
-# function to get all parent nodes of a given node
+# get child of a given edge
 # it assumes the isChild1 attributes are correct
 function getChild(edge::Edge)
     edge.isChild1 ? edge.node[1] : edge.node[2]
+end
+
+# get all children of a given node
+# it assumes the isChild1 attributes are correct
+function getChildren(node::Node)
+    children = Node[]
+    for e in node.edge
+        if(isEqual(node,e.isChild1 ? e.node[2] : e.node[1])) #node is parent of e
+            push!(children,getOtherNode(e,node))
+        end
+    end
+    return children
 end
 
 """

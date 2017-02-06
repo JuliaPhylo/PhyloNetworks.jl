@@ -45,23 +45,23 @@ test_show(V2)
 
 @test_approx_eq V1[:All] V2
 
-# ## Seem identical
-# V1[:All]
-# V2
-# 
-# ## Return false (floating errors ?)
-# V1[:All] == V2
-# 
-# ## A hanful of values are not strictly equal
-# V1[:All] .== V2
-# 
-# ## But accounting for floating errors, the to matrices are equal
-# isapprox(V1[:All], V2) # Frobenius norm of the difference is < tol
-# 
-# eq = zeros(9, 9)
-# for i in 1:9
-#     for j in 1:9
-#         eq[i,j] = isapprox(V1.V[i,j], V2[i,j]) # every couple of terms are approx equal
-#     end
-# end
-# eq
+########################
+## Incidence Matrix Test
+########################
+tree_str= "(A:0.5,((B:1,#H1:1::0.4):1,(C:1,(D:1)#H1:1::0.6):1):0.5);"
+net = readTopology(tree_str)
+preorder!(net)
+
+T = incidenceMatrix(net)
+
+T2 =  [1.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
+       1.0  1.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
+       1.0  1.0  1.0  0.0  0.0  0.0  0.0  0.0  0.0
+       1.0  1.0  1.0  1.0  0.0  0.0  0.0  0.0  0.0
+       1.0  1.0  0.0  0.0  1.0  0.0  0.0  0.0  0.0
+       1.0  1.0  0.6  0.0  0.4  1.0  0.0  0.0  0.0
+       1.0  1.0  0.6  0.0  0.4  1.0  1.0  0.0  0.0
+       1.0  1.0  0.0  0.0  1.0  0.0  0.0  1.0  0.0
+       1.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  1.0]
+
+@test_approx_eq T[:All] T2
