@@ -399,6 +399,11 @@ function topologyMaxQPseudolik!(net::HybridNetwork, d::DataCF; verbose=false::Bo
         err.msg = "starting topology not a level 1 network:\n" * err.msg
         rethrow(err)
     end
+    if(!isempty(d.repSpecies))
+      expandLeaves!(d.repSpecies, net)
+      net = readTopologyLevel1(writeTopologyLevel1(net)) # dirty fix to multiple alleles problem with expandLeaves
+    end
+    sameTaxa(d, net) || error("some taxon names in quartets do not appear on the topology")
     optBL!(net, d, verbose, ftolRel, ftolAbs, xtolRel,xtolAbs)
     if(net.numBad > 0) # to keep gammaz info in parenthetical description of bad diamond I
         for n in net.hybrid
@@ -406,6 +411,9 @@ function topologyMaxQPseudolik!(net::HybridNetwork, d::DataCF; verbose=false::Bo
         end
     end
     setNonIdBL!(net)
+    if(!isempty(d.repSpecies))
+      mergeLeaves!(net)
+    end
     return net
 end
 
@@ -1516,9 +1524,14 @@ Road map for various functions behind snaq!
 All return their optimized network.
 
 - snaq! calls optTopRuns! once, after a deep copy of the starting network.
+  If the data contain multiple alleles from a given species, `snaq!` first
+  expands the leaf for that species into 2 separate leaves, and merges them
+  back into a single leaf after calling `optTopRuns!`.
 - optTopRuns! calls optTopRun1! several (nrun) times.
   assumes level-1 network with >0 branch lengths.
-  each call gets the same starting network.
+  assumes same tips in network as in data: i.e. 2 separate tips per species
+                                           that has multiple alleles.
+  each call to optTopRun1! gets the same starting network.
 - optTopRun1! calls optTopLevel! once, after deep copying + changing the starting network slightly.
 - optTopLevel! calls optBL! various times and proposes new network with various moves.
 - snaqDebug calls optTopRun1! once
@@ -1720,10 +1733,6 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     writelog && close(s) # to close juliaout file (but not STDOUT!)
     writelog && close(logfile)
 
-    if(!isempty(d.repSpecies))
-        mergeLeaves!(maxNet)
-    end
-
     return maxNet
 end
 
@@ -1904,7 +1913,12 @@ function snaq!(currT0::HybridNetwork, d::DataCF; hmax=1::Integer, liktolAbs=likA
         startnet = readTopologyLevel1(writeTopologyLevel1(startnet)) # dirty fix to multiple alleles problem with expandLeaves
     end
     sameTaxa(d,startnet) || error("some taxon names in quartets do not appear on the starting topology")
-    optTopRuns!(startnet, liktolAbs, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename,seed,probST)
+    net = optTopRuns!(startnet, liktolAbs, Nfail, d, hmax, ftolRel,ftolAbs, xtolRel,xtolAbs,
+                      verbose, closeN, Nmov0, runs, outgroup, filename,seed,probST)
+    if(!isempty(d.repSpecies))
+        mergeLeaves!(net)
+    end
+    return net
 end
 
 
@@ -1924,6 +1938,10 @@ function snaqDebug(currT0::HybridNetwork, d::DataCF; hmax=1::Integer, liktolAbs=
     currT0 = readTopologyUpdate(writeTopologyLevel1(currT0)) # update all level-1 things
     flag = checkNet(currT0,true)
     flag && error("starting topology suspected not level-1")
+    if(!isempty(d.repSpecies))
+        expandLeaves!(d.repSpecies, currT0)
+        currT0 = readTopologyLevel1(writeTopologyLevel1(currT0))
+    end
 
     global DEBUG, REDIRECT
     debuglog = string(rootname,".debug.log")
@@ -1953,6 +1971,11 @@ function snaqDebug(currT0::HybridNetwork, d::DataCF; hmax=1::Integer, liktolAbs=
         write(logfile,"\n ERROR found on optTopRun1 for run with seed $(seed): $(err)")
         flush(logfile)
         flush(sout)
+    end
+    if(!isempty(d.repSpecies))
+      write(logfile,"network before merging sister tips from the same population:\n" *
+            writeTopologyLevel1(res,true) * "\n")
+      mergeLeaves!(res)
     end
     close(sout)
     close(logfile)

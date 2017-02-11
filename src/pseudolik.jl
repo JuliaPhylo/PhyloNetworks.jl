@@ -1309,6 +1309,10 @@ function topologyQPseudolik!(net0::HybridNetwork,d::DataCF; verbose=false::Bool)
     end
     missingBL = any([e.length < 0.0 for e in net0.edge]) # at least one BL was missing
     net = readTopologyUpdate(writeTopologyLevel1(net0))  # update level-1 attributes. Changes <0 BL into 1.0
+    if(!isempty(d.repSpecies))
+      expandLeaves!(d.repSpecies, net)
+      net = readTopologyLevel1(writeTopologyLevel1(net)) # dirty fix to multiple alleles problem with expandLeaves
+    end
     missingBL && any([(e.length == 1.0 && e.istIdentifiable) for e in net.edge]) &&
       warn("identifiable edges lengths were originally missing, so assigned default value of 1.0")
     try
