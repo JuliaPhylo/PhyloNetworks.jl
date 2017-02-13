@@ -110,50 +110,54 @@ function updatePreOrder!(i::Int,
     end
 end
 
-# Function to get the indexes of the tips. Returns a mask.
-# function getTipsIndexes(net::HybridNetwork)
-#   tipNumbers = [n.number for n in net.leaf]
-#   nodesOrder = [n.number for n in net.nodes_changed]
-#     getTipsIndexes(nodesOrder, tipNumbers)
-# end
+## Same, but in post order (tips to root)
+function recursionPostOrder(net::HybridNetwork,
+                            checkPreorder=true::Bool,
+                            init=identity::Function,
+                            updateTip=identity::Function,
+                            updateNode=identity::Function,
+                            indexation="b"::AbstractString,
+                            params...)
+    net.isRooted || error("net needs to be rooted to get matrix of shared path lengths")
+    if(checkPreorder)
+        preorder!(net)
+    end
+    M = recursionPostOrder(net.nodes_changed, init, updateTip, updateNode, params)
+    # Find numbers of internal nodes
+    nNodes = [n.number for n in net.node]
+    nleaf = [n.number for n in net.leaf]
+    deleteat!(nNodes, indexin(nleaf, nNodes))
+    MatrixTopologicalOrder(M, [n.number for n in net.nodes_changed], nNodes, nleaf, [n.name for n in net.leaf], indexation)
+end
 
-# function getTipsIndexes(nodesOrder::Vector{Int64}, tipNumbers::Vector{Int64})
-#   mask = BitArray(length(nodesOrder)) ## Function Match ??
-#   for tip in tipNumbers
-#       mask = mask | (tip .== nodesOrder)
-#   end
-#   return(mask)
-# end
+function recursionPostOrder(nodes::Vector{Node},
+                            init::Function,
+                            updateTip::Function,
+                            updateNode::Function,
+                            params)
+    n = length(nodes)
+    M = init(nodes, params)
+    for i in n:-1:1 #sorted list of nodes
+        updatePostOrder!(i, nodes, M, updateTip, updateNode, params)
+    end
+    return M
+end
 
-# Extract the right part of a matrix in topological order
-# Tips : submatrix corresponding to tips
-# InternalNodes : submatrix corresponding to internal nodes
-# TipsNodes : submatrix nTips x nNodes of interactions
-# !! Extract sub-matrices in the original net nodes numbers !!
-# function Base.getindex(obj::MatrixTopologicalOrder, d::Symbol)
-#   if d == :Tips # Extract rows and/or columns corresponding to the tips
-#       mask = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
-#       obj.indexation == "b" && return obj.V[mask, mask] # both columns and rows are indexed by nodes
-#       obj.indexation == "c" && return obj.V[:, mask] # Only the columns
-#       obj.indexation == "r" && return obj.V[mask, :] # Only the rows
-#   end
-#   if d == :InternalNodes # Idem, for internal nodes
-#       mask = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
-#       obj.indexation == "b" && return obj.V[mask, mask]
-#       obj.indexation == "c" && return obj.V[:, mask] 
-#       obj.indexation == "r" && return obj.V[mask, :] 
-#   end
-#   if d == :TipsNodes
-#       maskNodes = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
-#       maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder,)
-#       obj.indexation == "b" && return obj.V[maskTips, maskNodes]
-#       obj.indexation == "c" && error("Both rows and columns must be net
-#       ordered to take the submatrix tips vs internal nodes.")
-#       obj.indexation == "r" && error("Both rows and columns must be net
-#       ordered to take the submatrix tips vs internal nodes.")
-#   end
-#   d == :All && return obj.V
-# end
+function updatePostOrder!(i::Int,
+                          nodes::Vector{Node},
+                          V::Matrix,
+                          updateTip::Function,
+                          updateNode::Function,
+                          params)
+    children = getChildren(nodes[i]) #array of nodes (empty, size 1 or 2)
+    if(isempty(children)) #nodes[i] is a tip
+        updateTip(V, i, params)
+    else 
+        childrenIndex = [getIndex(n, nodes) for n in children]
+        edges = [getConnectingEdge(nodes[i], c) for c in children]
+        updateNode(V, i, childrenIndex, edges, params)
+    end
+end
 
 # If some tips are missing, treat them as "internal nodes"
 """
@@ -264,61 +268,98 @@ function updateHybridSharedPathMatrix!(V::Matrix,
     V[i,i] = edge1.gamma*edge1.gamma*(V[parentIndex1,parentIndex1] + edge1.length) + edge2.gamma*edge2.gamma*(V[parentIndex2,parentIndex2] + edge2.length) + 2*edge1.gamma*edge2.gamma*V[parentIndex1,parentIndex2]
 end
 
-
-#function updateSharedPathMatrix!(i::Int,nodes::Vector{Node},V::Matrix, params)
-#    parent = getParents(nodes[i]) #array of nodes (empty, size 1 or 2)
-#    if(isempty(parent)) #nodes[i] is root
-#        return
-#    elseif(length(parent) == 1) #nodes[i] is tree
-#        parentIndex = getIndex(parent[1],nodes)
-#        for j in 1:(i-1)
-#            V[i,j] = V[j,parentIndex]
-#            V[j,i] = V[j,parentIndex]
-#        end
-#        V[i,i] = V[parentIndex,parentIndex] + getConnectingEdge(nodes[i],parent[1]).length
-#    elseif(length(parent) == 2) #nodes[i] is hybrid
-#        parentIndex1 = getIndex(parent[1],nodes)
-#        parentIndex2 = getIndex(parent[2],nodes)
-#        edge1 = getConnectingEdge(nodes[i],parent[1])
-#        edge2 = getConnectingEdge(nodes[i],parent[2])
-#        edge1.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[1].number) should be a hybrid egde")
-#        edge2.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[2].number) should be a hybrid egde")
-#        for j in 1:(i-1)
-#            V[i,j] = V[j,parentIndex1]*edge1.gamma + V[j,parentIndex2]*edge2.gamma
-#            V[j,i] = V[i,j]
-#        end
-#        V[i,i] = edge1.gamma*edge1.gamma*(V[parentIndex1,parentIndex1] + edge1.length) + edge2.gamma*edge2.gamma*(V[parentIndex2,parentIndex2] + edge2.length) + 2*edge1.gamma*edge2.gamma*V[parentIndex1,parentIndex2]
-#    end
-#end
-
 function initsharedPathMatrix(nodes::Vector{Node}, params)
     n = length(nodes)
     return(zeros(Float64,n,n))
 end
 
-# Extract the variance at the tips
-# function extractVarianceTips(V::Matrix, net::HybridNetwork)
-#   mask = getTipsIndexes(net)
-#   return(V[mask, mask])
-# end
+###############################################################################
+###############################################################################
+## Functions to compute the network matrix
+###############################################################################
+###############################################################################
+"""
+`incidenceMatrix(net::HybridNetwork; checkPreorder=true::Bool)`
 
-#function sharedPathMatrix(net::HybridNetwork; checkPreorder=true::Bool) #maybe we only need to input
-#    net.isRooted || error("net needs to be rooted to get matrix of shared path lengths")
-#    if(checkPreorder)
-#        preorder!(net)
-#    end
-#    sharedPathMatrix(net.nodes_changed)
-#end
+Returns an object of type [`MatrixTopologicalOrder`](@ref).
 
-#function sharedPathMatrix(nodes::Vector{Node})
-#    n = length(net.nodes_changed)
-#    V = zeros(Float64,n,n)
-#    for i in 1:n #sorted list of nodes
-#        updateSharedPathMatrix!(i,net.nodes_changed,V)
-#    end
-#    return V
-#end
+"""
+function incidenceMatrix(net::HybridNetwork;
+                         checkPreorder=true::Bool)
+    recursionPostOrder(net,
+                       checkPreorder,
+                       initIncidenceMatrix,
+                       updateTipIncidenceMatrix!,
+                       updateNodeIncidenceMatrix!,
+                       "r")
+end
 
+function updateTipIncidenceMatrix!(V::Matrix,
+                                   i::Int,
+                                   params)
+    return
+end
+
+function updateNodeIncidenceMatrix!(V::Matrix,
+                                    i::Int,
+                                    childrenIndex::Vector{Int},
+                                    edges::Vector{Edge},
+                                    params)
+    for j in 1:length(edges)
+        V[:,i] += edges[j].gamma*V[:,childrenIndex[j]]
+    end
+end
+
+function initIncidenceMatrix(nodes::Vector{Node}, params)
+    n = length(nodes)
+    return(eye(Float64,n,n))
+end
+
+###############################################################################
+## Function to get the regressor out of a shift
+###############################################################################
+
+function regressorShift(node::Vector{Node},
+                        net::HybridNetwork; checkPreorder=true::Bool)
+    T = incidenceMatrix(net; checkPreorder=checkPreorder)
+    regressorShift(node, net, T)
+end
+
+function regressorShift(node::Vector{Node},
+                        net::HybridNetwork,
+                        T::MatrixTopologicalOrder)
+    ## Get the incidence matrix for tips
+    T_t = T[:Tips]
+    ## Get the indices of the columns to keep
+    ind = zeros(Int, length(node))
+    for i in 1:length(node)
+        !node[i].hybrid || error("Shifts on hybrid edges are not allowed")
+        ind[i] = getIndex(node[i], net.nodes_changed)
+    end
+    df = DataFrame(T_t[:, ind])
+    function tmp_fun(x::Int)
+        if x<0
+            return(Symbol("shift_m$(-x)"))
+        else
+            return(Symbol("shift_$(x)"))
+        end
+    end
+    names!(df, [tmp_fun(n.number) for n in node])
+    df[:tipNames]=T.tipNames
+    return(df)
+end
+
+function regressorShift(edge::Vector{Edge},
+                        net::HybridNetwork; checkPreorder=true::Bool)
+    childs = Vector{Node}(length(edge))
+    for i in 1:length(edge)
+        childs[i] = getChild(edge[i])
+    end
+    return(regressorShift(childs, net; checkPreorder=checkPreorder))
+end
+
+regressorShift(edge::Edge, net::HybridNetwork; checkPreorder=true::Bool) = regressorShift([edge], net; checkPreorder=checkPreorder)
+regressorShift(node::Node, net::HybridNetwork; checkPreorder=true::Bool) = regressorShift([node], net; checkPreorder=checkPreorder)
 
 ###############################################################################
 ###############################################################################
@@ -328,6 +369,68 @@ end
 
 # Abstract type of all the (future) types (BM, OU, ...)
 abstract ParamsProcess
+
+# Type for shifts
+"""
+`ShiftNet`
+
+Shifts associated to an [`HybridNetwork`](@ref) sorted in topological order.
+
+"""
+type ShiftNet
+    shift::Vector{Real}
+end
+
+# Default
+ShiftNet(net::HybridNetwork) = ShiftNet(zeros(length(net.node)))
+
+# Construct from edges and values
+function ShiftNet{T <: Real}(edge::Vector{Edge}, value::Vector{T},
+                             net::HybridNetwork; checkPreorder=true::Bool)
+    childs = Vector{Node}(length(edge))
+    for i in 1:length(edge)
+        childs[i] = getChild(edge[i])
+    end
+    return(ShiftNet(childs, value, net; checkPreorder=checkPreorder))
+end
+
+function ShiftNet{T <: Real}(node::Vector{Node}, value::Vector{T},
+                             net::HybridNetwork; checkPreorder=true::Bool)
+    if length(node) != length(value)
+        error("The vector of edges and of values must be of the same length.")
+    end
+    if(checkPreorder)
+        preorder!(net)
+    end
+    obj = ShiftNet(net)
+    for i in 1:length(node)
+        !node[i].hybrid || error("Shifts on hybrid edges are not allowed")
+        ind = getIndex(node[i], net.nodes_changed)
+        obj.shift[ind] = value[i]
+    end
+    return(obj)
+end
+
+ShiftNet(edge::Edge, value::Real, net::HybridNetwork; checkPreorder=true::Bool) = ShiftNet([edge], [value], net; checkPreorder=checkPreorder)
+ShiftNet(node::Node, value::Real, net::HybridNetwork; checkPreorder=true::Bool) = ShiftNet([node], [value], net; checkPreorder=checkPreorder)
+
+function getEdgeNumber(shift::ShiftNet)
+    collect(1:length(shift.shift))[shift.shift .!= 0]
+end
+function getValue(shift::ShiftNet)
+    shift.shift[shift.shift .!= 0]
+end
+
+function shiftTable(shift::ShiftNet)
+    CoefTable(hcat(getEdgeNumber(shift), getValue(shift)),
+              ["Edge Number", "Shift Value"],
+              fill("", length(getValue(shift))))
+end
+
+function Base.show(io::IO, obj::ShiftNet)
+    println(io, "$(typeof(obj)):\n",
+            shiftTable(obj))
+end
 
 """
 `ParamsBM <: ParamsProcess`
@@ -343,9 +446,20 @@ type ParamsBM <: ParamsProcess
     sigma2::Real # variance
     randomRoot::Bool # Root is random ? default false
     varRoot::Real # root variance. Default NaN
+    shift::Nullable{ShiftNet} # shifts
 end
 # Constructor
-ParamsBM(mu, sigma2) = ParamsBM(mu, sigma2, false, NaN) # default values
+ParamsBM(mu::Real, sigma2::Real) = ParamsBM(mu, sigma2, false, NaN, Nullable{ShiftNet}()) # default values
+ParamsBM(mu::Real, sigma2::Real, net::HybridNetwork) = ParamsBM(mu, sigma2, false, NaN, ShiftNet(net)) # default values
+ParamsBM(mu::Real, sigma2::Real, shift::ShiftNet) = ParamsBM(mu, sigma2, false, NaN, shift) # default values
+
+function anyShift(params::ParamsBM)
+    if isnull(params.shift) return(false) end
+    for v in params.shift.value.shift
+        if v != 0 return(true) end
+    end
+    return(false)
+end
 
 function Base.show(io::IO, obj::ParamsBM)
     disp =  "$(typeof(obj)):\n"
@@ -362,6 +476,10 @@ function paramstable(obj::ParamsBM)
     disp = "mu: $(obj.mu)\nSigma2: $(obj.sigma2)"
     if obj.randomRoot
         disp = disp * "\nvarRoot: $(obj.varRoot)"
+    end
+    if anyShift(obj)
+        disp = disp * "\n\nThere are $(length(getValue(obj.shift.value))) shifts on the network:\n"
+        disp = disp * "$(shiftTable(obj.shift.value))"
     end
     return(disp)
 end
@@ -468,6 +586,7 @@ function simulate(net::HybridNetwork,
     else
         error("The 'simulate' function only works for a BM process (for now).")
     end
+    !isnull(params.shift) || (params.shift = ShiftNet(net))
     M = recursionPreOrder(net,
                           checkPreorder,
                           initSimulateBM,
@@ -503,8 +622,8 @@ function updateTreeSimulateBM!(M::Matrix,
                                edge::Edge,
                                params::Tuple{ParamsBM})
     params = params[1]
-    M[1, i] = params.mu  # expectation
-    M[2, i] = M[2, parentIndex] + sqrt(params.sigma2 * edge.length) * randn() # random value
+    M[1, i] = M[1, parentIndex] + params.shift.value.shift[i] # expectation
+    M[2, i] = M[2, parentIndex] + params.shift.value.shift[i] + sqrt(params.sigma2 * edge.length) * randn() # random value
 end
 
 # Going down to an hybrid node
@@ -516,7 +635,7 @@ function updateHybridSimulateBM!(M::Matrix,
                                  edge2::Edge,
                                  params::Tuple{ParamsBM})
     params = params[1]
-    M[1, i] = params.mu  # expectation
+    M[1, i] =  edge1.gamma * M[1, parentIndex1] + edge2.gamma * M[1, parentIndex2] # expectation
     M[2, i] =  edge1.gamma * (M[2, parentIndex1] + sqrt(params.sigma2 * edge1.length) * randn()) + edge2.gamma * (M[2, parentIndex2] + sqrt(params.sigma2 * edge2.length) * randn()) # random value
 end
 
@@ -563,12 +682,10 @@ Getting submatrices of an object of type [`TraitSimulation`](@ref).
   * `:Tips` columns and/or rows corresponding to the tips
   * `:InternalNodes` columns and/or rows corresponding to the internal nodes
 """
-function Base.getindex(obj::TraitSimulation, d::Symbol)
-    #    if d == :Tips
-    #       res = obj.M[:Tips]
-    #       squeeze(res[2, :], 1)
-    #    end
-    #   squeeze(getindex(obj.M, d)[2, :], 1)
+function Base.getindex(obj::TraitSimulation, d::Symbol, w=:Sim::Symbol)
+     if w == :Exp
+        return(getindex(obj.M, d)[1, :])
+     end
     getindex(obj.M, d)[2, :]
 end
 

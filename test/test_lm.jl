@@ -121,7 +121,56 @@ fitlam = phyloNetworklm(trait ~ 1, dfr, net, model = "lambda")
 @show fitlam
 @test_approx_eq lambda_estim(fitlam) 1.24875
 
-#### Other Network ###
+###############################################################################
+### With shifts
+###############################################################################
+tree_str= "(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6):1):0.5);"
+net = readTopology(tree_str)
+preorder!(net)
+
+## Simulate
+params = ParamsBM(10, 0.1, ShiftNet(net.edge[[1,8]], [3.0, -3.0],  net))
+srand(2468) # sets the seed for reproducibility, to debug potential error
+sim = simulate(net, params)
+Y = sim[:Tips]
+## Construct regression matrix
+dfr = DataFrame(trait = Y, tipNames = sim.M.tipNames)
+dfr_shift = regressorShift(net.edge[[1,8]], net)
+dfr = join(dfr, dfr_shift, on=:tipNames)
+
+## Simple BM
+fitShift = phyloNetworklm(trait ~ shift_1 + shift_m5, dfr, net)
+@show fitShift
+
+## Pagel's Lambda (degenerated)
+fitlam = phyloNetworklm(trait ~ shift_1 + shift_m5, dfr, net, model = "lambda", fixedValue=1.0)
+
+@test_approx_eq lambda_estim(fitlam) 1.0
+@test_approx_eq coef(fitlam) coef(fitShift)
+@test_approx_eq vcov(fitlam) vcov(fitShift)
+@test_approx_eq nobs(fitlam) nobs(fitShift)
+@test_approx_eq residuals(fitlam)[fitShift.model.ind] residuals(fitShift)
+@test_approx_eq model_response(fitlam)[fitShift.model.ind] model_response(fitShift)
+@test_approx_eq predict(fitlam)[fitShift.model.ind] predict(fitShift)
+@test_approx_eq dof_residual(fitlam) dof_residual(fitShift) 
+@test_approx_eq sigma2_estim(fitlam) sigma2_estim(fitShift)
+@test_approx_eq stderr(fitlam) stderr(fitShift)
+@test_approx_eq confint(fitlam) confint(fitShift)
+@test_approx_eq loglikelihood(fitlam) loglikelihood(fitShift)
+@test_approx_eq dof(fitlam)  dof(fitShift) + 1
+@test_approx_eq deviance(fitlam)  deviance(fitShift)
+@test_approx_eq nulldeviance(fitlam)  nulldeviance(fitShift)
+@test_approx_eq nullloglikelihood(fitlam)  nullloglikelihood(fitShift)
+@test_approx_eq_eps r2(fitlam)  r2(fitShift) 1e-15
+#@test_approx_eq_eps adjr2(fitlam)  adjr2(fitShift) - 0.5 1e-15
+@test_approx_eq aic(fitlam)  aic(fitShift) + 2
+#@test_approx_eq aicc(fitlam)  aicc(fitShift)
+@test_approx_eq bic(fitlam)  bic(fitShift) + log(nobs(fitShift))
+@test_approx_eq mu_estim(fitlam)  mu_estim(fitShift)
+
+###############################################################################
+#### Other Network
+###############################################################################
 # originally: "(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);"
 # followed by changes in net.edge[?].length values to make the network ultrametric
 net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
