@@ -291,7 +291,7 @@ function incidenceMatrix(net::HybridNetwork;
                        initIncidenceMatrix,
                        updateTipIncidenceMatrix!,
                        updateNodeIncidenceMatrix!,
-                       "b")
+                       "r")
 end
 
 function updateTipIncidenceMatrix!(V::Matrix,
@@ -314,6 +314,53 @@ function initIncidenceMatrix(nodes::Vector{Node}, params)
     n = length(nodes)
     return(eye(Float64,n,n))
 end
+
+###############################################################################
+## Function to get the regressor out of a shift
+###############################################################################
+
+function regressorShift(node::Vector{Node},
+                        net::HybridNetwork; checkPreorder=true::Bool)
+    T = incidenceMatrix(net; checkPreorder=checkPreorder)
+    regressorShift(node, net, T)
+end
+
+function regressorShift(node::Vector{Node},
+                        net::HybridNetwork,
+                        T::MatrixTopologicalOrder)
+    ## Get the incidence matrix for tips
+    T_t = T[:Tips]
+    ## Get the indices of the columns to keep
+    ind = zeros(Int, length(node))
+    for i in 1:length(node)
+        !node[i].hybrid || error("Shifts on hybrid edges are not allowed")
+        ind[i] = getIndex(node[i], net.nodes_changed)
+    end
+    df = DataFrame(T_t[:, ind])
+    function tmp_fun(x::Int)
+        if x<0
+            return(Symbol("shift_m$(-x)"))
+        else
+            return(Symbol("shift_$(x)"))
+        end
+    end
+    names!(df, [tmp_fun(n.number) for n in node])
+    df[:tipNames]=T.tipNames
+    return(df)
+end
+
+function regressorShift(edge::Vector{Edge},
+                        net::HybridNetwork; checkPreorder=true::Bool)
+    childs = Vector{Node}(length(edge))
+    for i in 1:length(edge)
+        childs[i] = getChild(edge[i])
+    end
+    return(regressorShift(childs, net; checkPreorder=checkPreorder))
+end
+
+regressorShift(edge::Edge, net::HybridNetwork; checkPreorder=true::Bool) = regressorShift([edge], net; checkPreorder=checkPreorder)
+regressorShift(node::Node, net::HybridNetwork; checkPreorder=true::Bool) = regressorShift([node], net; checkPreorder=checkPreorder)
+
 ###############################################################################
 ###############################################################################
 ## Types for params process
