@@ -1218,3 +1218,64 @@ function writeTopology(net::HybridNetwork, s::IO,
     # names = true: to print leaf names (labels), not numbers
     ## printID = false: print all branch lengths, not just identifiable ones
 end
+
+
+###############################################################################
+## Generate symetric tree
+###############################################################################
+
+"""
+    symmetricTree(n, i=1)
+
+Create a string with a symmetric tree with 2^n tips, numbered from i to i+2^n-1.
+All the branch length are set equal to 1.
+The tree can be created with function readTopology.
+"""
+function symmetricTree(n::Int, i=1::Int)
+    # Build tree
+    tree = "A$(i-1+2^n):1"
+    if n==0 return("("*"A$(i-1+2^n):0"*");") end
+    for k in 1:(n-1)
+        tree = "(" * tree * "," * tree * "):1"
+    end
+    tree = "(" * tree * "," * tree * ");"
+    # Rename tips
+    for k in (2^n-1):-1:1
+        tree = replace(tree, "A$(i-1+k+1):1", "A$(i-1+k):1", k)
+    end
+    return(tree)
+end
+
+"""
+    symmetricNet(n, i, j, gamma)
+
+Create a string with a symmetric net with 2^n tips, numbered from 1 to 2^n
+All the branch length are set equal to 1.
+One hybrid branch, going from level i to level j is added, with weigth gamma.
+The tree can be created with function readTopology.
+"""
+function symmetricNet(n::Int, i::Int, j::Int, gamma::Real)
+    if (n <= i || n <= j || i <= j || j < 1) error("Must be n > i > j > 0") end
+    tree = symmetricTree(n)
+    ## start hyb
+    op = "(A1:1"
+    clo = "A$(2^(i-1)):1):1"
+    for k in 3:i
+        op = "("*op
+        clo = clo*"):1"
+    end
+    clobis = clo[1:(length(clo)-1)]*"0.5"
+    tree = replace(tree, op, "(#H:0.5::$(gamma),"*op)
+    tree = replace(tree, clo, clobis*"):0.5")
+    ## end hyb
+    op = "A$(2^(i-1)+1)"
+    clo = "A$(2^(i-1) + 2^(j-1)):1"
+    for k in 2:j
+        op = "("*op
+        clo = clo*"):1"
+    end
+    clobis = clo[1:(length(clo)-1)]*"0.5"
+    tree = replace(tree, op, "("*op)
+    tree = replace(tree, clo, clobis*")#H:0.5::$(1-gamma)")
+    return(tree)
+end
