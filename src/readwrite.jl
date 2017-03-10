@@ -48,7 +48,7 @@ function readNum(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int,1})
                        warn("Expected H, R or LGT after # but received $(c) in left parenthesis $(numLeft[1]-1).")
                    end
                else
-                   a = readall(s);
+                   a = readstring(s);
                    error("Expected name after # but received $(c) in left parenthesis $(numLeft[1]-1). Remaining is $(a).")
                end
             end
@@ -59,11 +59,11 @@ function readNum(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int,1})
         elseif(pound == 1)
             return size(net.names,1)+1, num, true
         else
-            a = readall(s);
+            a = readstring(s);
             error("strange node name with $(pound) # signs. remaining is $(a).")
         end
     else
-        a = readall(s);
+        a = readstring(s);
         error("Expected int digit, alphanum or # but received $(c). remaining is $(a).");
     end
 end
@@ -87,7 +87,7 @@ function readFloat(s::IO, c::Char)
         end
         return f
     else
-        a = readall(s);
+        a = readstring(s);
         error("Expected float digit after : but received $(c). remaining is $(a).");
     end
 end
@@ -124,7 +124,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
            if (c == ')')
                keepon = false
            elseif (c != ',')
-               a = readall(s);
+               a = readstring(s);
                error("Expected right parenthesis after left parenthesis $(numLeft[1]-1) but read $(c). The remainder of line is $(a).")
            end
        end
@@ -145,7 +145,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
         n = Node(num,true);
         DEBUG && println("creating node $(n.number)")
     else
-        a = readall(s);
+        a = readstring(s);
         error("Expected beginning of subtree but read $(c) after left parenthesis $(numLeft[1]-1), remaining is $(a).");
     end
     if(pound) # found pound sign in name
