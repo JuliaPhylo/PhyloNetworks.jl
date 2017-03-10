@@ -35,7 +35,7 @@ loglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(sigma2hat) + logde
 # null version
 nullX = ones(ntaxa, 1)
 nullXtVyinv = nullX' * Vyinv
-nullresids = Y - nullX * inv(nullXtVyinv * nullX) * nullXtVyinv * Y 
+nullresids = Y - nullX * inv(nullXtVyinv * nullX) * nullXtVyinv * Y
 nullsigma2hat = 1/ntaxa * (nullresids' * Vyinv * nullresids)
 nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat) + logdetVy)
 
@@ -46,13 +46,13 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test_approx_eq model_response(phynetlm) Y
 @test_approx_eq predict(phynetlm) fittedValues
 @test_approx_eq dof_residual(phynetlm) ntaxa-length(betahat)
-@test_approx_eq sigma2_estim(phynetlm) sigma2hat 
+@test_approx_eq sigma2_estim(phynetlm) sigma2hat
 @test_approx_eq loglikelihood(phynetlm) loglik
 @test_approx_eq vcov(phynetlm) sigma2hat*ntaxa/(ntaxa-length(betahat))*inv(XtVyinv * X)
 @test_approx_eq stderr(phynetlm) sqrt(diag(sigma2hat*ntaxa/(ntaxa-length(betahat))*inv(XtVyinv * X)))
 @test_approx_eq dof(phynetlm)  length(betahat)+1
 @test_approx_eq deviance(phynetlm) sigma2hat * ntaxa
-@test_approx_eq nulldeviance(phynetlm) nullsigma2hat * ntaxa 
+@test_approx_eq nulldeviance(phynetlm) nullsigma2hat * ntaxa
 @test_approx_eq nullloglikelihood(phynetlm) nullloglik
 @test_approx_eq loglikelihood(phynetlm) nullloglikelihood(phynetlm)
 @test_approx_eq deviance(phynetlm) nulldeviance(phynetlm)
@@ -100,7 +100,7 @@ fitlam = phyloNetworklm(trait ~ 1, dfr, net, model = "lambda", fixedValue=1.0)
 @test_approx_eq residuals(fitlam)[fitbis.model.ind] residuals(fitbis)
 @test_approx_eq model_response(fitlam)[fitbis.model.ind] model_response(fitbis)
 @test_approx_eq predict(fitlam)[fitbis.model.ind] predict(fitbis)
-@test_approx_eq dof_residual(fitlam) dof_residual(fitbis) 
+@test_approx_eq dof_residual(fitlam) dof_residual(fitbis)
 @test_approx_eq sigma2_estim(fitlam) sigma2_estim(fitbis)
 @test_approx_eq stderr(fitlam) stderr(fitbis)
 @test_approx_eq confint(fitlam) confint(fitbis)
@@ -152,7 +152,7 @@ fitlam = phyloNetworklm(trait ~ shift_1 + shift_m5, dfr, net, model = "lambda", 
 @test_approx_eq residuals(fitlam)[fitShift.model.ind] residuals(fitShift)
 @test_approx_eq model_response(fitlam)[fitShift.model.ind] model_response(fitShift)
 @test_approx_eq predict(fitlam)[fitShift.model.ind] predict(fitShift)
-@test_approx_eq dof_residual(fitlam) dof_residual(fitShift) 
+@test_approx_eq dof_residual(fitlam) dof_residual(fitShift)
 @test_approx_eq sigma2_estim(fitlam) sigma2_estim(fitShift)
 @test_approx_eq stderr(fitlam) stderr(fitShift)
 @test_approx_eq confint(fitlam) confint(fitShift)
@@ -253,8 +253,6 @@ phynetlm = phyloNetworklm(trait ~ pred, dfr, net)
 @test_approx_eq aicc(phynetlm)  aicc(fit_mat)
 @test_approx_eq bic(phynetlm)  bic(fit_mat)
 
-
-
 # unordered data
 srand(1234)
 dfr = dfr[sample(1:12, 12, replace=false), :]
@@ -282,7 +280,6 @@ fitbis = phyloNetworklm(trait ~ pred, dfr, net)
 @test_approx_eq bic(phynetlm)  bic(fitbis)
 @test_approx_eq mu_estim(phynetlm)  mu_estim(fitbis)
 
-
 # unnamed ordered data
 dfr = DataFrame(trait = B, pred = A)
 fitter = phyloNetworklm(trait ~ pred, dfr, net, no_names=true)
@@ -308,11 +305,9 @@ fitter = phyloNetworklm(trait ~ pred, dfr, net, no_names=true)
 @test_approx_eq aicc(phynetlm)  aicc(fitter)
 @test_approx_eq bic(phynetlm)  bic(fitter)
 
-
 # unnamed un-ordered data
 dfr = dfr[sample(1:12, 12, replace=false), :]
 @test_throws ErrorException fitter = phyloNetworklm(trait ~ pred, dfr, net) # Wrong pred
-
 
 ### Add NAs
 dfr = DataFrame(trait = B, pred = A, tipNames = tipLabels(sim))
@@ -355,7 +350,7 @@ fitlam = phyloNetworklm(trait ~ pred, dfr, net, model = "lambda", fixedValue = 1
 @test_approx_eq residuals(fitlam) residuals(fitnabis)
 @test_approx_eq model_response(fitlam) model_response(fitnabis)
 @test_approx_eq predict(fitlam) predict(fitnabis)
-@test_approx_eq dof_residual(fitlam) dof_residual(fitnabis) 
+@test_approx_eq dof_residual(fitlam) dof_residual(fitnabis)
 @test_approx_eq sigma2_estim(fitlam) sigma2_estim(fitnabis)
 @test_approx_eq stderr(fitlam) stderr(fitnabis)
 @test_approx_eq confint(fitlam) confint(fitnabis)
@@ -374,7 +369,7 @@ fitlam = phyloNetworklm(trait ~ pred, dfr, net, model = "lambda", fixedValue = 1
 ## Pagel's Lambda
 fitlam = phyloNetworklm(trait ~ pred, dfr, net, model = "lambda")
 @show fitlam
-@test_approx_eq lambda_estim(fitlam) 1.11355183047571
+@test_approx_eq_eps lambda_estim(fitlam) 1.1135518305 1e-10
 
 
 ### Ancestral State Reconstruction
@@ -444,13 +439,13 @@ dfr = DataFrame(trait = B, pred = A, tipNames = tipLabels(net))
 ## Network
 phynetlm = phyloNetworklm(trait ~ pred, dfr, net, model = "lambda")
 
-@test_approx_eq lambda_estim(phynetlm) 0.5894200150858138
+@test_approx_eq_eps lambda_estim(phynetlm) 0.5894200143 1e-8
 
 ## Major Tree
 tree = majorTree(net)
 phynetlm = phyloNetworklm(trait ~ pred, dfr, tree, model = "lambda")
 
-@test_approx_eq lambda_estim(phynetlm) 0.5903394374850571
+@test_approx_eq_eps lambda_estim(phynetlm) 0.5903394415 1e-6
 
 ############################
 ## Against no regressor
@@ -474,7 +469,7 @@ loglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(sigma2hat) + logde
 # null version
 nullX = ones(ntaxa, 1)
 nullXtVyinv = nullX' * Vyinv
-nullresids = Y - nullX * inv(nullXtVyinv * nullX) * nullXtVyinv * Y 
+nullresids = Y - nullX * inv(nullXtVyinv * nullX) * nullXtVyinv * Y
 nullsigma2hat = 1/ntaxa * (nullresids' * Vyinv * nullresids)
 nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat) + logdetVy)
 
@@ -483,10 +478,10 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test_approx_eq model_response(phynetlm) Y
 @test_approx_eq predict(phynetlm) fittedValues
 @test_approx_eq dof_residual(phynetlm) ntaxa
-@test_approx_eq sigma2_estim(phynetlm) sigma2hat 
+@test_approx_eq sigma2_estim(phynetlm) sigma2hat
 @test_approx_eq loglikelihood(phynetlm) loglik
 @test_approx_eq deviance(phynetlm) sigma2hat * ntaxa
-@test_approx_eq nulldeviance(phynetlm) nullsigma2hat * ntaxa 
+@test_approx_eq nulldeviance(phynetlm) nullsigma2hat * ntaxa
 @test_approx_eq nullloglikelihood(phynetlm) nullloglik
 @test_approx_eq_eps r2(phynetlm) 1-sigma2hat / nullsigma2hat 1e-14
 @test_approx_eq_eps adjr2(phynetlm) 1 - (1 - (1-sigma2hat/nullsigma2hat))*(ntaxa-1)/(ntaxa) 1e-14
