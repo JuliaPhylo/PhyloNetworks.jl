@@ -351,15 +351,19 @@ end
 
 function regressorShift(edge::Vector{Edge},
                         net::HybridNetwork; checkPreorder=true::Bool)
-    childs = Vector{Node}(length(edge))
-    for i in 1:length(edge)
-        childs[i] = getChild(edge[i])
-    end
+    childs = [getChild(ee) for ee in edge]
     return(regressorShift(childs, net; checkPreorder=checkPreorder))
 end
 
 regressorShift(edge::Edge, net::HybridNetwork; checkPreorder=true::Bool) = regressorShift([edge], net; checkPreorder=checkPreorder)
 regressorShift(node::Node, net::HybridNetwork; checkPreorder=true::Bool) = regressorShift([node], net; checkPreorder=checkPreorder)
+
+function regressorHybrid(net::HybridNetwork; checkPreorder=true::Bool)
+    childs = [getChildren(nn)[1] for nn in net.hybrid]
+    dfr = regressorShift(childs, net; checkPreorder=checkPreorder)
+    dfr[:sum] = vec(sum(Array(dfr[:,find(names(dfr) .!= :tipNames)]), 2))
+    return(dfr)
+end
 
 ###############################################################################
 ###############################################################################
@@ -384,20 +388,10 @@ end
 # Default
 ShiftNet(net::HybridNetwork) = ShiftNet(zeros(length(net.node)))
 
-# Construct from edges and values
-function ShiftNet{T <: Real}(edge::Vector{Edge}, value::Vector{T},
-                             net::HybridNetwork; checkPreorder=true::Bool)
-    childs = Vector{Node}(length(edge))
-    for i in 1:length(edge)
-        childs[i] = getChild(edge[i])
-    end
-    return(ShiftNet(childs, value, net; checkPreorder=checkPreorder))
-end
-
 function ShiftNet{T <: Real}(node::Vector{Node}, value::Vector{T},
                              net::HybridNetwork; checkPreorder=true::Bool)
     if length(node) != length(value)
-        error("The vector of edges and of values must be of the same length.")
+        error("The vector of nodes/edges and of values must be of the same length.")
     end
     if(checkPreorder)
         preorder!(net)
@@ -411,8 +405,24 @@ function ShiftNet{T <: Real}(node::Vector{Node}, value::Vector{T},
     return(obj)
 end
 
+# Construct from edges and values
+function ShiftNet{T <: Real}(edge::Vector{Edge}, value::Vector{T},
+                             net::HybridNetwork; checkPreorder=true::Bool)
+    childs = [getChild(ee) for ee in edge]
+    return(ShiftNet(childs, value, net; checkPreorder=checkPreorder))
+end
+
 ShiftNet(edge::Edge, value::Real, net::HybridNetwork; checkPreorder=true::Bool) = ShiftNet([edge], [value], net; checkPreorder=checkPreorder)
 ShiftNet(node::Node, value::Real, net::HybridNetwork; checkPreorder=true::Bool) = ShiftNet([node], [value], net; checkPreorder=checkPreorder)
+
+function ShiftHybrid{T <: Real}(value::Vector{T},
+                                net::HybridNetwork; checkPreorder=true::Bool)
+    if length(net.hybrid) != length(value)
+        error("You must provide as many values as the number of hybrid nodes.")
+    end
+    childs = [getChildren(nn)[1] for nn in net.hybrid]
+    return(ShiftNet(childs, value, net; checkPreorder=checkPreorder))
+end
 
 function getEdgeNumber(shift::ShiftNet)
     collect(1:length(shift.shift))[shift.shift .!= 0]
@@ -431,6 +441,24 @@ function Base.show(io::IO, obj::ShiftNet)
     println(io, "$(typeof(obj)):\n",
             shiftTable(obj))
 end
+
+function Base.:*(sh1::ShiftNet, sh2::ShiftNet)
+    length(sh1.shift) == length(sh2.shift) || error("Shifts to be concatenated must have the same length")
+    shiftNew = zeros(length(sh1.shift))
+    for i in 1:length(sh1.shift)
+        if sh1.shift[i] == 0
+            shiftNew[i] = sh2.shift[i]
+        elseif sh2.shift[i] == 0
+            shiftNew[i] = sh1.shift[i]
+        elseif sh1.shift[i] == sh2.shift[i]
+            shiftNew[i] = sh1.shift[i]
+        else
+            error("The two shifts vectors you provided affect the same edges, so I cannot choose which one you want.")
+        end
+    end
+    return(ShiftNet(shiftNew))
+end
+
 
 """
 `ParamsBM <: ParamsProcess`
@@ -1395,13 +1423,13 @@ Estimated variance for a fitted object.
       ## residuals
       dof2 = dof_residual(obj2)
       dev2 = deviance(obj2)
-    ## reducted residuals
-    dof1 = dof_residual(obj1) - dof2
-    dev1 = deviance(obj1) - dev2
-    ## Compute statistic
-    F = (dev1 / dof1) / (dev2 / dof2)
-    pval = ccdf(FDist(dof1, dof2), F)
-    return([dof2, dev2, dof1, dev1, F, pval])
+      ## reducted residuals
+      dof1 = dof_residual(obj1) - dof2
+      dev1 = deviance(obj1) - dev2
+      ## Compute statistic
+      F = (dev1 / dof1) / (dev2 / dof2)
+      pval = ccdf(FDist(dof1, dof2), F)
+      return([dof2, dev2, dof1, dev1, F, pval])
 end
 
 ###############################################################################

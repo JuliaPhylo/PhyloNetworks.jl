@@ -81,9 +81,11 @@ simulate,
 TraitSimulation,
 ParamsBM,
 ShiftNet,
+ShiftHybrid,
 sharedPathMatrix,
 incidenceMatrix,
 regressorShift,
+regressorHybrid,
 ancestralStateReconstruction,
 ReconstructedStates,
 sigma2_estim,
@@ -92,7 +94,8 @@ lambda_estim,
 expectations,
 expectationsPlot,
 predint,
-predintPlot
+predintPlot,
+anova
 
 # export part
 
