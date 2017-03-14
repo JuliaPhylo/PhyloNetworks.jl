@@ -1,6 +1,6 @@
 using Weave
 
-Pkg.dir("PhyloNetworks","docs","src", "man", "src", "make_weave.jl")
+set_chunk_defaults(Dict{Symbol, Any}(:results => "hidden", :eval => false))
 
 weave(Pkg.dir("PhyloNetworks","docs","src", "man", "src","trait_tree.jmd"),
       informat="markdown",
