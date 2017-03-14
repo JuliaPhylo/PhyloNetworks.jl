@@ -1,5 +1,7 @@
 using Documenter, PhyloNetworks
 
+include(Pkg.dir("PhyloNetworks","docs","src", "man", "src", "make_weave.jl"))
+
 makedocs()
 
 deploydocs(
