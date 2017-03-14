@@ -1,3 +1,4 @@
+Pkg.add("Weave")
 using Weave
 
 set_chunk_defaults(Dict{Symbol, Any}(:results => "hidden", :eval => false))
