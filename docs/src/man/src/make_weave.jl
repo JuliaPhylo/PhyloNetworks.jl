@@ -1,4 +1,4 @@
-using Weave
+using Weave, Fontconfig, Cairo
 
 set_chunk_defaults(Dict{Symbol, Any}(:results => "hidden", :eval => false))
 
