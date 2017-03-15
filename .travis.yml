@@ -8,10 +8,9 @@ julia:
 notifications:
   email: false
 after_success:
-#  - julia -e 'Pkg.add("Cairo")'
-#  - julia -e 'Pkg.add("Fontconfig")'
-  - julia -e 'Pkg.add("Weave")' # Weave already installs Documenter
-#  - julia -e 'Pkg.update()'
-#  - julia -e 'Pkg.status()'
-#  - julia -e 'Pkg.clone("https://github.com/JuliaDocs/Documenter.jl")'
+  - julia -e 'Pkg.clone("https://github.com/JuliaDocs/Documenter.jl")'
+  - julia -e 'Pkg.add("Cairo")'
+  - julia -e 'Pkg.add("Fontconfig")'
+  - julia -e 'Pkg.add("Weave")' 
+  - julia -e 'Pkg.status()'
   - julia -e 'cd(Pkg.dir("PhyloNetworks")); include(joinpath("docs", "make.jl"))'
