@@ -13,5 +13,4 @@ after_success:
   - julia -e 'Pkg.add("Fontconfig")'
   - rm /Users/travis/.julia/lib/v0.5/Compose.ji
   - julia -e 'Pkg.add("Weave")' 
-  - julia -e 'Pkg.status()'
   - julia -e 'cd(Pkg.dir("PhyloNetworks")); include(joinpath("docs", "make.jl"))'

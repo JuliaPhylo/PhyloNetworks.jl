@@ -6,8 +6,6 @@ weave(Pkg.dir("PhyloNetworks","docs","src", "man", "src","trait_tree.jmd"),
       informat="markdown",
       out_path = Pkg.dir("PhyloNetworks","docs","src", "man"),
       fig_path = "../assets/figures",
-      fig_ext = ".pdf",
+      fig_ext = ".png",
       doctype = "github")
 
-# weave("docs/src/man/src/trait_tree.jmd", informat="markdown",
-    #   out_path = "docs/src/man/", doctype = "github")
