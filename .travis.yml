@@ -5,6 +5,8 @@ os:
 julia:
 #  - release
  - 0.5
+ env:
+ - DRAW_FIG=false
 notifications:
   email: false
 after_success:
@@ -12,5 +14,5 @@ after_success:
   - julia -e 'Pkg.add("Cairo")'
   - julia -e 'Pkg.add("Fontconfig")'
   - rm /Users/travis/.julia/lib/v0.5/Compose.ji
-  - julia -e 'Pkg.add("Weave")' 
+  - julia -e 'Pkg.add("Weave")'
   - julia -e 'cd(Pkg.dir("PhyloNetworks")); include(joinpath("docs", "make.jl"))'
