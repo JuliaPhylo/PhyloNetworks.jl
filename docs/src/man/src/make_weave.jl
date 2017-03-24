@@ -11,6 +11,7 @@ weave(Pkg.dir("PhyloNetworks","docs","src", "man", "src","trait_tree.jmd"),
 
 ## Delete figures of not built
 draw_fig = get(ENV, "DRAW_FIG", "")
+draw_fig = !(draw_fig == "false")
 travis_tag = get(ENV, "TRAVIS_TAG", "")
 # If tagged version (to stable), always draw figures
 if travis_tag != ""
