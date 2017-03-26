@@ -17,7 +17,7 @@ function Documenter.deploydocs(;
         deps   = Deps.pip("pygments", "mkdocs"),
         make   = () -> run(`mkdocs build`),
 
-        figs_dir = "assets/figures",
+        figs_dir = "/assets/figures",
     )
     # Get environment variables.
     documenter_key      = get(ENV, "DOCUMENTER_KEY",       "")
