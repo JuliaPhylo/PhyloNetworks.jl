@@ -1,4 +1,8 @@
-function deploydocs(;
+using ..Documenter:
+        Utilities,
+        Writers,
+        Deps
+function Documenter.deploydocs(;
         root   = Utilities.currentdir(),
         target = "site",
         dirname = "",
