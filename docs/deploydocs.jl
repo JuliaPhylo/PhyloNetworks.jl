@@ -128,7 +128,7 @@ function Documenter.deploydocs(;
                 upstream = "git@$(replace(repo, "github.com/", "github.com:"))"
 
                 # Use a custom SSH config file to avoid overwriting the default user config.
-                withfile(joinpath(homedir(), ".ssh", "config"),
+                Documenter.withfile(joinpath(homedir(), ".ssh", "config"),
                     """
                     Host github.com
                         StrictHostKeyChecking no
