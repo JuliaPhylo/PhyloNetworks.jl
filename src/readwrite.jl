@@ -1270,7 +1270,7 @@ function symmetricNet(n::Int, i::Int, j::Int, gamma::Real, ell::Real)
     tree = replace(tree, op, "(#H:$(0.5*ell)::$(gamma),"*op)
     tree = replace(tree, clo, clobis*"):$(0.5*ell)")
     ## end hyb
-    op = "A$(2^(i-1)+1)"
+    op = "A$(2^(i-1)+1):$(ell)"
     clo = "A$(2^(i-1) + 2^(j-1)):$(ell)"
     for k in 2:j
         op = "("*op
