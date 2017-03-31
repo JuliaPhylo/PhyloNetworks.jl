@@ -1,3 +1,9 @@
+```{julia; eval=true; echo=false}
+using PhyloNetworks, DataFrames, Gadfly
+T=readTopologyLevel1(Pkg.dir("PhyloNetworks","examples","startTree.txt"))
+dat=readtable(Pkg.dir("PhyloNetworks","examples","tableCF.txt"))
+d = readTableCF(dat)
+```
 # Getting a Network
 
 ## Network Estimation
@@ -11,6 +17,9 @@ less("net1_snaq.err")
 less("net1_snaq.out")
 less("net1_snaq.networks")
 net2=snaq!(T,d,hmax=2, filename="net2_snaq");
+```
+```{julia; eval=true; echo=false}
+net1=snaq!(T,d,filename="net1_snaq");
 ```
 when viewing the result files "net1_snaq.err" and "net1_snaq.out" with `less`
 within Julia, use arrows to scroll down and type `q` to quit viewing the files.
@@ -59,7 +68,7 @@ simply print out the steps to retrace the bug, and hopefully fix it.
 ## Network Visualization
 
 To visualize the network:
-```julia
+```{julia; eval=true; results="markup"; fig_cap="Inferred Network."; label="net1_1"; fig_width=4; fig_height=4}
 p = plot(net1, showGamma=true)
 ```
 This function will open a browser where the plot will appear. To get a pdf version of the plot:
@@ -70,7 +79,7 @@ draw(PDF("bestnet_h1.pdf", 4inch, 4inch),p)
 The plot function has many options. Type `?` to switch to the help mode
 of Julia, then type the name of the function, here `plot`.
 Edge colors can be modified, for instance.
-```julia
+```{julia; eval=true; results="markup"; fig_cap="Inferred Network."; label="net1_2"; fig_width=4; fig_height=4}
 # using Gadfly # if not done earlier
 plot(net1, showEdgeLength=true, minorHybridEdgeColor=colorant"tan")
 ```
@@ -83,7 +92,7 @@ of hybrid edges can be inferred. To obtain a representative visualization,
 it is best to root the network first, using one or more outgroup.
 If there is a single outgroup, the network can be rooted with this outgroup,
 if compatible, like this:
-```julia
+```{julia; eval=true; results="markup"; fig_cap="Re-rooted Network."; label="net1_3"; fig_width=4; fig_height=4}
 rootatnode!(net1, "4")
 plot(net1, showGamma=true)
 ```

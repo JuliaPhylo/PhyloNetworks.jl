@@ -2,7 +2,8 @@ using Weave, Fontconfig, Cairo
 
 set_chunk_defaults(Dict{Symbol, Any}(:results => "hidden", :eval => false))
 
-files_to_weave = ["trait_tree.jmd"]
+files_to_weave = ["trait_tree.jmd",
+                  "snaq_plot.jmd"]
 
 for file in files_to_weave
     weave(Pkg.dir("PhyloNetworks","docs","src", "man", "src", file),
