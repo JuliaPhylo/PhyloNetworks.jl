@@ -49,7 +49,7 @@ V = sharedPathMatrix(net);
 Sig = V[:Tips] * pars.sigma2;
 for s in 1:S
     for t in s:S
-        @test_approx_eq_eps cov(values[s, :], values[t,:]) Sig[s, t] 1e-2 
+        @test_approx_eq_eps cov(values[s, :], values[t,:]) Sig[s, t] 1e-2
     end
 end
 
@@ -66,6 +66,15 @@ net = readTopology(tree_str)
 @test_approx_eq ShiftNet(net.edge[8], 3.0,  net).shift ShiftNet([net.edge[8]], [3.0],  net).shift
 @test_approx_eq ShiftNet(net.edge[8], 3.0,  net).shift ShiftNet(net.node[7], 3.0,  net).shift
 @test_approx_eq ShiftNet(net.node[7], 3.0,  net).shift ShiftNet([net.node[7]], [3.0],  net).shift
+
+## Concatenate functio
+sh1 = ShiftNet(net.node[7], 3.0,  net)*ShiftNet(net.node[9], -2.1,  net)
+@test_approx_eq sh1.shift ShiftNet([net.node[7], net.node[9]], [3.0, -2.1],  net).shift
+@test_throws ErrorException sh1*ShiftNet(net.edge[7], 2.0,  net) # can't concatenate if the two affect the same edges
+@test_approx_eq sh1.shift (sh1*ShiftNet([net.node[7]], [3.0],  net)).shift
+
+## Hybrid shifts
+@test_approx_eq ShiftHybrid([2.0], net).shift ShiftNet(net.edge[6], 2.0, net).shift
 
 ## Test simulate
 pars = ParamsBM(1, 0.1, ShiftNet(net.edge[8], 3.0,  net)); # params of a BM
@@ -119,6 +128,6 @@ V = sharedPathMatrix(net);
 Sig = V[:Tips] * pars.sigma2;
 for s in 1:S
     for t in s:S
-        @test_approx_eq_eps cov(values[s, :], values[t,:]) Sig[s, t] 1e-2 
+        @test_approx_eq_eps cov(values[s, :], values[t,:]) Sig[s, t] 1e-2
     end
 end

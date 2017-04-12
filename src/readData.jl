@@ -335,44 +335,45 @@ sameTaxa(d::DataCF, t::HybridNetwork) = sameTaxa(d.quartet, t)
 
 # function to extract the union of taxa of list of gene trees
 function unionTaxa(trees::Vector{HybridNetwork})
-    taxa = trees[1].names
+    taxa = Set{typeof(trees[1].leaf[1].name)}() # empty set
     for t in trees
-        taxa = union(taxa,t.names)
+      for lf in t.leaf
+         push!(taxa, lf.name)
+      end
     end
+    return sortUnionTaxa(taxa) # now an array
+end
+
+"""
+    sortUnionTaxa(taxa)
+
+Take a set of strings, return a sorted array of strings,
+but sorted numerically if taxa can be parsed as integers.
+"""
+function sortUnionTaxa(taxa)
     integers = true
     try
         parse(Int,taxa[1])
     catch
         integers = false
     end
-    # to sort taxa
     if(integers)
-        taxa = map(x->string(x),sort(map(x->parse(Int,x),taxa)))
+        taxa = sort!(collect(taxa), by=x->parse(Int,x))
     else
-        taxa = sort(taxa)
+        taxa = sort!(collect(taxa)) # now an array
     end
     return taxa
 end
 
 # function to extract the union of taxa of list of quartets
 function unionTaxa(quartets::Vector{Quartet})
-    taxa = quartets[1].taxon
+    taxa = Set{typeof(quartets[1].taxon[1])}() # empty set
     for q in quartets
-        taxa = union(taxa,q.taxon)
+      for lf in q.taxon
+         push!(taxa, lf)
+      end
     end
-    integers = true
-    try
-        parse(Int,taxa[1])
-    catch
-        integers = false
-    end
-    # to sort taxa
-    if(integers)
-        taxa = map(x->string(x),sort(map(x->parse(Int,x),taxa)))
-    else
-        taxa = sort(taxa)
-    end
-    return taxa
+    return sortUnionTaxa(taxa) # now an array
 end
 
 unionTaxaTree(file::AbstractString) = unionTaxa(readInputTrees(file))
@@ -562,7 +563,9 @@ readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Integer, writetab:
 readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Integer) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), true, "none",false, true)
 readInputData(treefile::AbstractString) = readInputData(treefile, :all, 0, unionTaxaTree(treefile), true, "none",false, true)
 readInputData(treefile::AbstractString,taxa::Union{Vector{String}, Vector{Int}}) = readInputData(treefile, :all, 0, taxa, true, "none",false, true)
-## readInputData(treefile::AbstractString, filename::AbstractString) = readInputData(treefile, :all, 0, unionTaxaTree(treefile), true, filename,false, true)
+# above: the use of unionTaxaTree to set the taxon set
+#        is not good: need to read the tree file twice: get the taxa, then get the trees
+#        this inefficiency was fixed in readTrees2CF
 
 # function to read input vector of HybridNetworks, and not the list of quartets
 # so it creates the list of quartets inside and calculates obsCF
@@ -619,14 +622,16 @@ Optional arguments include:
 - writeQ=true: save intermediate files with the list of all 4-taxon subsets and chosen random sample (default false).
 - writeSummary: write descriptive stats of input data (default: true)
 """
-function readTrees2CF(treefile::AbstractString; quartetfile="none"::AbstractString, whichQ="all"::AbstractString, numQ=0::Integer, writeTab=true::Bool, CFfile="none"::AbstractString, taxa=unionTaxaTree(treefile)::Union{Vector{String},Vector{Int}}, writeQ=false::Bool, writeSummary=true::Bool)
-    whichQ == "all" || whichQ == "rand" ||
-        error("whichQ should be all or rand, not $(whichQ)")
-    if(quartetfile == "none")
-        readInputData(treefile, Symbol(whichQ), numQ, taxa, writeTab, CFfile, writeQ, writeSummary)
-    else
-        readInputData(treefile, quartetfile, Symbol(whichQ), numQ, writeTab, CFfile, writeQ, writeSummary)
+function readTrees2CF(treefile::AbstractString; quartetfile="none"::AbstractString, whichQ="all"::AbstractString, numQ=0::Integer,
+                      writeTab=true::Bool, CFfile="none"::AbstractString,
+                      taxa=Vector{String}()::Union{Vector{String},Vector{Int}},
+                      writeQ=false::Bool, writeSummary=true::Bool)
+    trees = readInputTrees(treefile)
+    if length(taxa)==0        # unionTaxa(trees) NOT default argument:
+      taxa = unionTaxa(trees) # otherwise: tree file is read twice
     end
+    readTrees2CF(trees, quartetfile=quartetfile, whichQ=whichQ, numQ=numQ, writeTab=writeTab,
+                 CFfile=CFfile, taxa=taxa, writeQ=writeQ, writeSummary=writeSummary)
 end
 
 # same as before, but with input vector of HybridNetworks
