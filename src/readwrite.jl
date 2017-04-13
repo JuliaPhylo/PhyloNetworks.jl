@@ -1310,8 +1310,11 @@ function symmetricNet(n::Int, h::Int, gamma::Real, i=1::Int)
         net = replace(net, "H$(k+1)", "H$(k)", 2*k)
     end
     # Rename tips
+    for k in (2^h):-1:1
+        net = replace(net, "A$(k):", "A$(i-1+2^n):")
+    end
     for k in (2^n-1):-1:1
-        net = replace(net, "A$(i-1+k+1):$(ell)", "A$(i-1+k):$(ell)", k)
+        net = replace(net, "A$(i-1+k+1):", "A$(i-1+k):", k)
     end
     return(net)
 end

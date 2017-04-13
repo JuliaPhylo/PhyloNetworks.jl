@@ -865,7 +865,9 @@ function setGammas!(net::HybridNetwork, gammas::Vector)
             majorHybrid = [n.hybrid & n.isMajor for n in net.nodes_changed[i].edge]
             minorHybrid = [n.hybrid & !n.isMajor for n in net.nodes_changed[i].edge]
             net.nodes_changed[i].edge[majorHybrid][1].gamma = gammas[i]
-            net.nodes_changed[i].edge[minorHybrid][1].gamma = 1 - gammas[i]
+            if any(minorHybrid) # case where gamma = 0.5 exactly
+                net.nodes_changed[i].edge[minorHybrid][1].gamma = 1 - gammas[i]
+            end
         end
     end
     return nothing
@@ -1022,8 +1024,8 @@ function phyloNetworklm_scalingHybrid(X::Matrix,
         function fun(x::Vector{Float64}, g::Vector{Float64})
             x = convert(AbstractFloat, x[1])
             res = logLik_lam_hyb(x, X, Y, net, gammas; msng=msng, ind=ind)
-            count =+ 1
-            println("f_$count: $(round(res,5)), x: $(x)")
+            #count =+ 1
+            #println("f_$count: $(round(res,5)), x: $(x)")
             return res
         end
         NLopt.min_objective!(opt, fun)
