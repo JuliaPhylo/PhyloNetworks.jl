@@ -817,7 +817,7 @@ function phyloNetworklm(X::Matrix,
         # Fit
         return phyloNetworklm_scalingHybrid(X, Y, net, gammas;
                                             msng=msng, ind=ind,
-                                            startingValue=startingValue, fixedValue=fixedValue)  
+                                            startingValue=startingValue, fixedValue=fixedValue)
     end
 end
 
@@ -867,6 +867,8 @@ function setGammas!(net::HybridNetwork, gammas::Vector)
             net.nodes_changed[i].edge[majorHybrid][1].gamma = gammas[i]
             if any(minorHybrid) # case where gamma = 0.5 exactly
                 net.nodes_changed[i].edge[minorHybrid][1].gamma = 1 - gammas[i]
+            else
+                net.nodes_changed[i].edge[majorHybrid][2].gamma = 1 - gammas[i]
             end
         end
     end
@@ -1014,11 +1016,11 @@ function phyloNetworklm_scalingHybrid(X::Matrix,
         # Find Best lambda using optimize from package NLopt
         opt = NLopt.Opt(:LN_BOBYQA, 1)
         NLopt.ftol_rel!(opt, ftolRel) # relative criterion
-        NLopt.ftol_abs!(opt, ftolAbs) # absolute critetion 
+        NLopt.ftol_abs!(opt, ftolAbs) # absolute critetion
         NLopt.xtol_rel!(opt, xtolRel) # criterion on parameter value changes
         NLopt.xtol_abs!(opt, xtolAbs) # criterion on parameter value changes
         NLopt.maxeval!(opt, 1000) # max number of iterations
-        #NLopt.lower_bounds!(opt, 1e-100) # Lower bound  
+        #NLopt.lower_bounds!(opt, 1e-100) # Lower bound
         #NLopt.upper_bounds!(opt, 1.0)
         count = 0
         function fun(x::Vector{Float64}, g::Vector{Float64})
@@ -1546,10 +1548,10 @@ end
 
 ## Deprecated
 # function StatsBase.vcov(obj::PhyloNetworkLinearModel)
-#    sigma2_estim(obj) * inv(obj.X' * obj.X) 
+#    sigma2_estim(obj) * inv(obj.X' * obj.X)
 # end
 #function StatsBase.vcov(obj::phyloNetworkLinPredModel)
-#   sigma2_estim(obj) * inv(obj.X' * obj.X) 
+#   sigma2_estim(obj) * inv(obj.X' * obj.X)
 #end
 #StatsBase.stderr(m::phyloNetworkLinPredModel) = sqrt(diag(vcov(m)))
 # Confidence intervals on coeficients
