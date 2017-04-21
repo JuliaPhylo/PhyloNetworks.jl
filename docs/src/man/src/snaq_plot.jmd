@@ -19,7 +19,8 @@ less("net1_snaq.networks")
 net2=snaq!(T,d,hmax=2, filename="net2_snaq");
 ```
 ```{julia; eval=true; echo=false}
-net1=snaq!(T,d,filename="net1_snaq");
+#net1=snaq!(T,d,filename="net1_snaq");
+net1 = readTopology(Pkg.dir("PhyloNetworks","examples","net1_snaq.out")) # reading from output file of snaq
 ```
 when viewing the result files "net1_snaq.err" and "net1_snaq.out" with `less`
 within Julia, use arrows to scroll down and type `q` to quit viewing the files.
