@@ -64,7 +64,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 
 # with data frames
 dfr = DataFrame(trait = Y, tipNames = sim.M.tipNames)
-fitbis = phyloNetworklm(trait ~ 1, dfr, net)
+fitbis = phyloNetworklm(@formula(trait ~ 1), dfr, net)
 @show fitbis
 
 @test_approx_eq coef(phynetlm) coef(fitbis)
@@ -148,7 +148,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 
 ## perfect user using right format and formula
 dfr = DataFrame(trait = B, pred = A, tipNames = sim.M.tipNames)
-phynetlm = phyloNetworklm(trait ~ pred, dfr, net)
+phynetlm = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 @show phynetlm
 
 @test_approx_eq coef(phynetlm) coef(fit_mat)
@@ -177,7 +177,7 @@ phynetlm = phyloNetworklm(trait ~ pred, dfr, net)
 # unordered data
 srand(1234)
 dfr = dfr[sample(1:12, 12, replace=false), :]
-fitbis = phyloNetworklm(trait ~ pred, dfr, net)
+fitbis = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 
 @test_approx_eq coef(phynetlm) coef(fitbis)
 @test_approx_eq vcov(phynetlm) vcov(fitbis)
@@ -204,7 +204,7 @@ fitbis = phyloNetworklm(trait ~ pred, dfr, net)
 
 # unnamed ordered data
 dfr = DataFrame(trait = B, pred = A)
-fitter = phyloNetworklm(trait ~ pred, dfr, net, no_names=true)
+fitter = phyloNetworklm(@formula(trait ~ pred), dfr, net, no_names=true)
 
 @test_approx_eq coef(phynetlm) coef(fitter)
 @test_approx_eq vcov(phynetlm) vcov(fitter)
@@ -230,17 +230,17 @@ fitter = phyloNetworklm(trait ~ pred, dfr, net, no_names=true)
 
 # unnamed un-ordered data
 dfr = dfr[sample(1:12, 12, replace=false), :]
-@test_throws ErrorException fitter = phyloNetworklm(trait ~ pred, dfr, net) # Wrong pred
+@test_throws ErrorException fitter = phyloNetworklm(@formula(trait ~ pred), dfr, net) # Wrong pred
 
 
 ### Add NAs
 dfr = DataFrame(trait = B, pred = A, tipNames = tipLabels(sim))
 dfr[[2, 8, 11], :pred] = NA
-fitna = phyloNetworklm(trait ~ pred, dfr, net)
+fitna = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 @show fitna
 
 dfr = dfr[sample(1:12, 12, replace=false), :]
-fitnabis = phyloNetworklm(trait ~ pred, dfr, net)
+fitnabis = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 
 @test_approx_eq coef(fitna) coef(fitnabis)
 @test_approx_eq vcov(fitna) vcov(fitnabis)
@@ -273,7 +273,7 @@ Y = sim[:Tips]
 ancestral_traits = ancestralStateReconstruction(net, Y, params)
 # BLUP
 dfr = DataFrame(trait = Y, tipNames = tipLabels(sim))
-phynetlm = phyloNetworklm(trait~1, dfr, net)
+phynetlm = phyloNetworklm(@formula(trait~1), dfr, net)
 blup = ancestralStateReconstruction(phynetlm)
 # plot(net, blup)
 @show blup
@@ -292,7 +292,7 @@ dfr = DataFrame(trait = Y, tipNames = tipLabels(sim), reg = Y)
 
 # Unordered
 dfr2 = dfr[sample(1:12, 12, replace=false), :]
-phynetlm = phyloNetworklm(trait~1, dfr2, net)
+phynetlm = phyloNetworklm(@formula(trait~1), dfr2, net)
 blup2 = ancestralStateReconstruction(phynetlm)
 
 @test_approx_eq expectations(blup)[:condExpectation][1:length(blup.NodeNumbers)] expectations(blup2)[:condExpectation][1:length(blup.NodeNumbers)]
@@ -302,13 +302,13 @@ blup2 = ancestralStateReconstruction(phynetlm)
 
 # With unknown tips
 dfr[[2, 4], :trait] = NA
-phynetlm = phyloNetworklm(trait~1, dfr, net)
+phynetlm = phyloNetworklm(@formula(trait~1), dfr, net)
 blup = ancestralStateReconstruction(phynetlm)
 # plot(net, blup)
 
 # Unordered
 dfr2 = dfr[[1, 2, 5, 3, 4, 6, 7, 8, 9, 10, 11, 12], :]
-phynetlm = phyloNetworklm(trait~1, dfr, net)
+phynetlm = phyloNetworklm(@formula(trait~1), dfr, net)
 blup2 = ancestralStateReconstruction(phynetlm)
 
 @test_approx_eq expectations(blup)[:condExpectation][1:length(blup.NodeNumbers)] expectations(blup2)[:condExpectation][1:length(blup.NodeNumbers)]

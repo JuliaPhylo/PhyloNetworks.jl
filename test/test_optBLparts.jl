@@ -148,7 +148,7 @@ end
 #logPseudoLik(d)
 
 if(!error)
-    println("-------------Case G: NO ERRORS!------------")
+    #println("-------------Case G: NO ERRORS!------------")
 else
     globalerror = true
 end
@@ -258,7 +258,7 @@ end
 #logPseudoLik(d)
 
 if(!error)
-    println("-------------Case F: NO ERRORS!------------")
+    #println("-------------Case F: NO ERRORS!------------")
 else
     globalerror = true
 end
@@ -379,13 +379,13 @@ end
 #logPseudoLik(d)
 
 if(!error)
-    println("-------------Case I: NO ERRORS!------------")
+    #println("-------------Case I: NO ERRORS!------------")
 else
     globalerror = true
 end
 
 if(!globalerror)
-    println("-------- NO ERRORS!-------------")
+    #println("-------- NO ERRORS!-------------")
 else
     throw("errors in optBLparts")
 end

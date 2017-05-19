@@ -20,8 +20,8 @@ text = "(Xmayae,((Xhellerii,(((Xclemenciae_F2,Xmonticolus):1.458,(((((Xmontezuma
 
 #net = readTopology("cui3.out")
 net = readTopology(text)
-printPartitions(net)
-printEdges(net)
+#printPartitions(net)
+#printEdges(net)
 cleanBL!(net)
 cleanAfterRead!(net,false)
 length(net.hybrid)
@@ -110,5 +110,4 @@ length(net.partition) == 15 || error("wrong partition hybrid 2")
 [n.number for n in net.partition[14].edges] == [50] || error("wrong partition hybrid 3")
 [n.number for n in net.partition[15].edges] == [2] || error("wrong partition hybrid 3")
 
-
-printPartitions(net)
+#printPartitions(net)

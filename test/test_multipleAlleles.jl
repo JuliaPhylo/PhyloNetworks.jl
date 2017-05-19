@@ -107,7 +107,8 @@ estNet = snaq!(currT,d,hmax=1,seed=1010, runs=1, filename="", Nfail=10)
 estNet.hybrid[1].k == 4 || error("wrong k in hybrid for multiple alleles case")
 estNet.numTaxa == 5 || error("wrong number of taxa in estNet")
 
-estNet = snaq!(currT,d,hmax=1,seed=8378, runs=1, filename="", Nfail=10)
+estNet = snaq!(currT,d,hmax=1,seed=8378, runs=1, filename="", Nfail=10,
+               ftolAbs=1e-6,ftolRel=1e-5,xtolAbs=1e-4,xtolRel=1e-3)
 174.58 < estNet.loglik < 174.59 || error("estNet loglik wrong for multiple alleles")
 estNet.hybrid[1].k == 5 || error("wrong k in hybrid for multiple alleles case")
 estNet.numTaxa == 5 || error("wrong number of taxa in estNet")

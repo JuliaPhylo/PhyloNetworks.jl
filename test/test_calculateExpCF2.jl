@@ -23,7 +23,7 @@ qnet = extractQuartet!(net0,q1);
 
 identifyQuartet!(qnet)
 qnet.which != 2 ? error("qnet which not correctly assigned") : nothing
-printEdges(qnet)
+#printEdges(qnet)
 
 eliminateHybridization!(qnet)
 qnet.which != 2 ? error("qnet which not correctly assigned") : nothing

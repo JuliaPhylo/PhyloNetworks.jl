@@ -5,16 +5,44 @@
 
 const move2int = Dict{Symbol,Int}(:add=>1,:MVorigin=>2,:MVtarget=>3,:CHdir=>4,:delete=>5, :nni=>6)
 const int2move = Dict{Int,Symbol}(move2int[k]=>k for k in keys(move2int))
-# if changes are made here, make the same in the docstring for snaq! below.
-const fAbs = 1e-6 #1e-10 prof Bates, 1e-6
-const fRel = 1e-5 # 1e-12 prof Bates, 1e-5
-const xAbs = 1e-4 # 0.001 in phylonet, 1e-10 prof Bates, 1e-4
-const xRel = 1e-3 # 0.01 in phylonet, 1e-10 prof Bates, 1e-3
-const numFails = 100 # number of failed proposals allowed before stopping the procedure (like phylonet)
-const numMoves = Int[] #empty to be calculated inside based on coupon's collector
-const multiplier = 10000 # for loglik absolute tol (multiplier*fAbs), not used anymore, see likAbs
-const likAbs = 0.01 # instead of (multiplier*fAbs)
+"""
+default values for tolerance parameters,
+used in the optimization of branch lengths (fAbs, fRel, xAbs, xRel)
+and in the acceptance of topologies (likAbs, numFails).
 
+if changes are made here, **make the same** in the docstring for snaq! below
+
+version | fAbs | fRel | xAbs | xRel | numFails | likAbs | multiplier
+--------|------|------|------|------|----------|--------|-----------
+v0.5.1  | 1e-6 | 1e-6 | 1e-3 | 1e-2 |     75   |  1e-6  |
+v0.3.0  | 1e-6 | 1e-5 | 1e-4 | 1e-3 |    100   |  0.01  |
+v0.0.1  | 1e-6 | 1e-5 | 1e-4 | 1e-3 |    100   |        | 10000
+older   | 1e-10| 1e-12| 1e-10| 1e-10|
+
+v0.5.1: based on Nan Ji's work. same xAbs and xRel as in phylonet (as of 2015).
+earlier: multiplier was used; later: likAbs = multiplier*fAbs)
+"older": values from GLM.jl, Prof Bates
+
+default values used on a single topology, to optimize branch lengths
+and gammas, at the very end of snaq!, and by
+topologyMaxQPseudolik! since v0.5.1.
+
+version | fAbsBL | fRelBL | xAbsBL | xRelBL
+--------|--------|--------|--------|-------
+v0.0.1  | 1e-10  | 1e-12  | 1e-10  | 1e-10
+"""
+const fAbs = 1e-6
+const fRel = 1e-6
+const xAbs = 1e-3
+const xRel = 1e-2
+const numFails = 75 # number of failed proposals allowed before stopping the procedure (like phylonet)
+const numMoves = Int[] #empty to be calculated inside based on coupon's collector
+const likAbs = 1e-6 # loglik absolute tolerance to accept new topology
+
+const fAbsBL = 1e-10
+const fRelBL = 1e-12
+const xAbsBL = 1e-10
+const xRelBL = 1e-10
 # ---------------------- branch length optimization ---------------------------------
 
 # function to get the branch lengths/gammas to optimize for a given network
@@ -1277,7 +1305,7 @@ function optTopLevel!(currT::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     end
     if(ftolAbs > 1e-7 || ftolRel > 1e-7 || xtolAbs > 1e-7 || xtolRel > 1e-7)
         writelog && write(logfile,"\nfound best network, now we re-optimize branch lengths and gamma more precisely")
-        optBL!(newT,d,verbose,1e-12,1e-10,1e-10,1e-10)
+        optBL!(newT,d,verbose, fRelBL,fAbsBL,xRelBL,xAbsBL)
     end
     assignhybridnames!(newT)
     if(absDiff <= liktolAbs)
@@ -1860,23 +1888,24 @@ There are many optional arguments, including
 The following optional arguments control when to stop the optimization of branch lengths
 and γ's on each individual candidate network. Defaults are in parentheses:
 
-- ftolRel (1e-5) and ftolAbs (1e-6): relative and absolute differences of the network score
+- ftolRel (1e-6) and ftolAbs (1e-6): relative and absolute differences of the network score
   between the current and proposed parameters,
-- xtolRel (1e-3) and xtolAbs (1e-4): relative and absolute differences between the current
+- xtolRel (1e-2) and xtolAbs (1e-3): relative and absolute differences between the current
   and proposed parameters.
 
 Greater values will result in a less thorough but faster search. These parameters are used
-when evaluating candidate networks only. Branch lengths and γ's are optimized on the last
-"best" network with different and very thorough tolerance parameters (1e-12 for ftolRel
-and 1e-10 for the others).
-
+when evaluating candidate networks only.
 The following optional arguments control when to stop proposing new network topologies:
 
-- Nfail (100): maximum number of times that new topologies are proposed and rejected (in a row).
-- liktolAbs (0.1): the proposed network is accepted if its score is better than the current score by
+- Nfail (75): maximum number of times that new topologies are proposed and rejected (in a row).
+- liktolAbs (1e-6): the proposed network is accepted if its score is better than the current score by
   at least liktolAbs.
 
 Lower values of Nfail and greater values of liktolAbs and ftolAbs would result in a less thorough but faster search.
+
+At the end, branch lengths and γ's are optimized on the last "best" network
+with different and very thorough tolerance parameters:
+1e-12 for ftolRel, 1e-10 for ftolAbs, xtolRel, xtolAbs.
 
 See also: `topologyMaxQPseudolik!` to optimize parameters on a fixed topology,
 and `topologyQPseudolik!` to get the deviance (pseudo log-likelihood up to a constant)
