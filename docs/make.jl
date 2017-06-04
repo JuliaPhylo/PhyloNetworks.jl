@@ -10,7 +10,7 @@ include(Pkg.dir("PhyloNetworks","docs", "deploydocs.jl"))
 
 deploydocs(
     deps   = Deps.pip("pygments", "mkdocs", "mkdocs-material", "python-markdown-math"),
-    repo = "github.com/pbastide/PhyloNetworks.jl.git",
+    repo = "github.com/crsl4/PhyloNetworks.jl.git",
     julia  = "0.5",
     osname = "osx"
 )
