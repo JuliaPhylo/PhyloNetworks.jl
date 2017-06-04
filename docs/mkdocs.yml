@@ -37,7 +37,7 @@ pages:
     - Extract Expected CFs: man/expectedCFs.md
     - Bootstrap: man/bootstrap.md
     - Multiple Alleles: man/multiplealleles.md
-    - Trait Evolution: man/trait_tree.md
+    - Continuous Trait Evolution: man/trait_tree.md
   - Library:
     - Public: lib/public.md
     - Internals: lib/internals.md

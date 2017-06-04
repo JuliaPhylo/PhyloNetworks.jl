@@ -140,8 +140,8 @@ end
 #   if d == :InternalNodes # Idem, for internal nodes
 #       mask = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
 #       obj.indexation == "b" && return obj.V[mask, mask]
-#       obj.indexation == "c" && return obj.V[:, mask] 
-#       obj.indexation == "r" && return obj.V[mask, :] 
+#       obj.indexation == "c" && return obj.V[:, mask]
+#       obj.indexation == "r" && return obj.V[mask, :]
 #   end
 #   if d == :TipsNodes
 #       maskNodes = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
@@ -189,8 +189,8 @@ function Base.getindex(obj::MatrixTopologicalOrder,
         maskTips = maskTips[indTips]
         maskNodes = [maskNodes; maskTips[!msng]]
         obj.indexation == "b" && return obj.V[maskNodes, maskNodes]
-        obj.indexation == "c" && return obj.V[:, maskNodes] 
-        obj.indexation == "r" && return obj.V[maskNodes, :] 
+        obj.indexation == "c" && return obj.V[:, maskNodes]
+        obj.indexation == "r" && return obj.V[maskNodes, :]
     end
     if d == :TipsNodes
         maskNodes = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
@@ -435,21 +435,21 @@ Sigma2: 0.1
 
 julia> traits = sim[:Tips] # Extract simulated values at the tips.
 16-element Array{Float64,1}:
-  2.17618 
-  1.03308 
-  3.04898 
-  3.03796 
-  2.1897  
-  4.03159 
-  4.64773 
+  2.17618
+  1.03308
+  3.04898
+  3.03796
+  2.1897
+  4.03159
+  4.64773
  -0.877285
-  4.62512 
+  4.62512
  -0.511167
-  1.35604 
+  1.35604
  -0.103112
- -2.08847 
-  2.63991 
-  2.80512 
+ -2.08847
+  2.63991
+  2.80512
   3.19109
 
 ```
@@ -510,7 +510,7 @@ end
 # Going down to an hybrid node
 function updateHybridSimulateBM!(M::Matrix,
                                  i::Int,
-                                 parentIndex1::Int, 
+                                 parentIndex1::Int,
                                  parentIndex2::Int,
                                  edge1::Edge,
                                  edge2::Edge,
@@ -598,10 +598,10 @@ The following StatsBase functions can be applied to it:
 The following DataFrame functions can also be applied to it:
 `ModelFrame`, `ModelMatrix`, `Formula`.
 
-Estimated variance and mean of the BM process used can be retrieved with 
+Estimated variance and mean of the BM process used can be retrieved with
 functions [`sigma2_estim`](@ref) and [`mu_estim`](@ref).
 
-If a Pagel's lambda model is fitted, the parameter can be retrieved with function 
+If a Pagel's lambda model is fitted, the parameter can be retrieved with function
 [`lambda_estim`](@ref).
 
 An ancestral state reconstruction can be performed from this fitted object using function:
@@ -610,7 +610,7 @@ An ancestral state reconstruction can be performed from this fitted object using
 The `PhyloNetworkLinearModel` object has fields: `lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `ind`, `msng`, `model`, `lambda`.
 Type in "?PhyloNetworkLinearModel.field" to get help on a specific field.
 """
-type PhyloNetworkLinearModel <: LinPredModel 
+type PhyloNetworkLinearModel <: LinPredModel
     "lm: a GLM.LinearModel object, fitted on the cholesky-tranformend problem"
     lm::GLM.LinearModel # result of a lm on a matrix
     "V: a MatrixTopologicalOrder object of the network-induced correlations"
@@ -626,7 +626,7 @@ type PhyloNetworkLinearModel <: LinPredModel
     "logdetVy: the log-determinent of Vy"
     logdetVy::Real
     "ind: vector matching the tips of the network against the names of the dataframe provided. 0 if the match could not be performed."
-    ind::Vector{Int} 
+    ind::Vector{Int}
     "msng: vector indicating which of the tips are missing"
     msng::BitArray{1} # Which tips are not missing
     "model: the model used for the fit"
@@ -635,7 +635,7 @@ type PhyloNetworkLinearModel <: LinPredModel
     lambda::Real
 end
 
-PhyloNetworkLinearModel(lm_fit, V, Vy, RL, Y, X, logdetVy, ind, msng, model) = PhyloNetworkLinearModel(lm_fit, V, Vy, RL, Y, X, logdetVy, ind, msng, model, 1.0) 
+PhyloNetworkLinearModel(lm_fit, V, Vy, RL, Y, X, logdetVy, ind, msng, model) = PhyloNetworkLinearModel(lm_fit, V, Vy, RL, Y, X, logdetVy, ind, msng, model, 1.0)
 
 # Function for lm with net residuals
 function phyloNetworklm(X::Matrix,
@@ -671,12 +671,12 @@ function phyloNetworklm(X::Matrix,
     ## Choose Model
     if (model == "BM")
         return phyloNetworklm_BM(X, Y, V;
-                                 msng=msng, ind=ind) 
+                                 msng=msng, ind=ind)
     end
     if (model == "lambda")
         return phyloNetworklm_lambda(X, Y, V, gammas, times;
                                      msng=msng, ind=ind,
-                                     startingValue=startingValue, fixedValue=fixedValue) 
+                                     startingValue=startingValue, fixedValue=fixedValue)
     end
 end
 
@@ -723,8 +723,8 @@ function setGammas!(net::HybridNetwork, gammas::Vector)
         if isHybrid[i]
             majorHybrid = [n.hybrid & n.isMajor for n in net.nodes_changed[i].edge]
             minorHybrid = [n.hybrid & !n.isMajor for n in net.nodes_changed[i].edge]
-            net.nodes_changed[i].edge[majorHybrid][1].gamma = gammas[i] 
-            net.nodes_changed[i].edge[minorHybrid][1].gamma = 1 - gammas[i] 
+            net.nodes_changed[i].edge[majorHybrid][1].gamma = gammas[i]
+            net.nodes_changed[i].edge[minorHybrid][1].gamma = 1 - gammas[i]
         end
     end
     return nothing
@@ -778,9 +778,9 @@ function logLik_lam{T <: AbstractFloat}(lam::T,
 end
 
 # Code for optim taken from PhyloNetworks.jl/src/optimization.jl, lines 276 - 331
-const fAbsTr = 1e-10 
+const fAbsTr = 1e-10
 const fRelTr = 1e-10
-const xAbsTr = 1e-10 
+const xAbsTr = 1e-10
 const xRelTr = 1e-10
 
 function phyloNetworklm_lambda(X::Matrix,
@@ -800,11 +800,11 @@ function phyloNetworklm_lambda(X::Matrix,
         # Find Best lambda using optimize from package NLopt
         opt = NLopt.Opt(:LN_BOBYQA, 1)
         NLopt.ftol_rel!(opt, ftolRel) # relative criterion
-        NLopt.ftol_abs!(opt, ftolAbs) # absolute critetion 
+        NLopt.ftol_abs!(opt, ftolAbs) # absolute critetion
         NLopt.xtol_rel!(opt, xtolRel) # criterion on parameter value changes
         NLopt.xtol_abs!(opt, xtolAbs) # criterion on parameter value changes
         NLopt.maxeval!(opt, 1000) # max number of iterations
-        NLopt.lower_bounds!(opt, 1e-100) # Lower bound  
+        NLopt.lower_bounds!(opt, 1e-100) # Lower bound
         # Upper Bound
         up = maxLambda(times, V)
         NLopt.upper_bounds!(opt, up-up/1000)
@@ -861,12 +861,14 @@ julia> phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudat
 
 julia> dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_trait.txt"));
 
-julia> fitBM = phyloNetworklm(trait ~ 1, dat, phy);
+julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
 
 julia> fitBM # Shows a summary
 DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,Array{Float64,2}}
 
 Formula: trait ~ +1
+
+Model: BM
 
 Parameter(s) Estimates:
 Sigma2: 0.00294521
@@ -926,7 +928,7 @@ julia> residuals(fitBM)
  -0.584654
  -0.279882
  -0.302175
-  ⋮       
+  ⋮
  -0.777026
  -0.385121
  -0.443444
@@ -949,11 +951,11 @@ julia> model_response(fitBM)
  4.09434
  4.39912
  4.37682
- ⋮      
+ ⋮
  3.90197
  4.29388
  4.23555
- 4.3517 
+ 4.3517
  4.15305
  4.00551
  4.07584
@@ -972,7 +974,7 @@ julia> predict(fitBM)
  4.679
  4.679
  4.679
- ⋮    
+ ⋮
  4.679
  4.679
  4.679
@@ -985,7 +987,7 @@ julia> predict(fitBM)
 
 ```
 
-# See also 
+# See also
 Type [`PhyloNetworkLinearModel`](@ref), Function [`ancestralStateReconstruction`](@ref)
 """ #"
 # Deal with formulas
@@ -1060,9 +1062,9 @@ end
 
 ## Un-changed Quantities
 # Coefficients of the regression
-StatsBase.coef(m::PhyloNetworkLinearModel) = coef(m.lm) 
+StatsBase.coef(m::PhyloNetworkLinearModel) = coef(m.lm)
 # Number of observations
-StatsBase.nobs(m::PhyloNetworkLinearModel) = nobs(m.lm) 
+StatsBase.nobs(m::PhyloNetworkLinearModel) = nobs(m.lm)
 # vcov matrix
 StatsBase.vcov(m::PhyloNetworkLinearModel) = vcov(m.lm)
 # Standart error
@@ -1120,7 +1122,7 @@ end
 # coefficient of determination (1 - SS_res/SS_null)
 # Copied from GLM.jl/src/lm.jl, line 139
 StatsBase.r2(m::PhyloNetworkLinearModel) = 1 - deviance(m)/nulldeviance(m)
-# adjusted coefficient of determination 
+# adjusted coefficient of determination
 # Copied from GLM.jl/src/lm.jl, lines 141-146
 function StatsBase.adjr2(obj::PhyloNetworkLinearModel)
     n = nobs(obj)
@@ -1214,10 +1216,10 @@ end
 
 ## Deprecated
 # function StatsBase.vcov(obj::PhyloNetworkLinearModel)
-#    sigma2_estim(obj) * inv(obj.X' * obj.X) 
+#    sigma2_estim(obj) * inv(obj.X' * obj.X)
 # end
 #function StatsBase.vcov(obj::phyloNetworkLinPredModel)
-#   sigma2_estim(obj) * inv(obj.X' * obj.X) 
+#   sigma2_estim(obj) * inv(obj.X' * obj.X)
 #end
 #StatsBase.stderr(m::phyloNetworkLinPredModel) = sqrt(diag(vcov(m)))
 # Confidence intervals on coeficients
@@ -1339,17 +1341,17 @@ end
 
 # """
 # 'plot(net::HybridNetwork, obj::ReconstructedStates; kwargs...)
-# 
+#
 # Plot the reconstructed states computed by function `ancestralStateReconstruction`
 # on a network.
-# 
+#
 # # Arguments
 # * `net::HybridNetwork`: a phylogenetic network.
-# * `obj::ReconstructedStates`: the reconstructed states on the network. 
+# * `obj::ReconstructedStates`: the reconstructed states on the network.
 # * `kwargs...`: further arguments to be passed to the netwotk `plot` function.
-# 
+#
 # See documentation for function `ancestralStateReconstruction(obj::PhyloNetworkLinearModel[, X_n::Matrix])` for examples.
-# 
+#
 # """
 # function Gadfly.plot(net::HybridNetwork, obj::ReconstructedStates; kwargs...)
 #   plot(net, nodeLabel = predintPlot(obj); kwargs...)
@@ -1359,7 +1361,7 @@ end
 `ancestralStateReconstruction(net::HybridNetwork, Y::Vector, params::ParamsBM)`
 
 Compute the conditional expectations and variances of the ancestral (un-observed)
-traits values at the internal nodes of the phylogenetic network (`net`), 
+traits values at the internal nodes of the phylogenetic network (`net`),
 given the values of the traits at the tips of the network (`Y`) and some
 known parameters of the process used for trait evolution (`params`, only BM with fixed root
 works for now).
@@ -1387,7 +1389,7 @@ function ancestralStateReconstruction(V::MatrixTopologicalOrder,
     RL = R[:L]
     temp = RL \ Vyz
     # Vectors of means
-    m_y = ones(size(Vy)[1]) .* params.mu # !! correct only if no predictor. 
+    m_y = ones(size(Vy)[1]) .* params.mu # !! correct only if no predictor.
     m_z = ones(size(Vz)[1]) .* params.mu # !! works if BM no shift.
     # Actual computation
     ancestralStateReconstruction(Vz, temp, RL,
@@ -1406,7 +1408,7 @@ function ancestralStateReconstruction(Vz::Matrix,
                                       TipNumbers::Vector,
                                       sigma2::Real,
                                       add_var=zeros(size(Vz))::Matrix, # Additional variance for BLUP
-                                      model=Nullable{PhyloNetworkLinearModel}()::Nullable{PhyloNetworkLinearModel}) 
+                                      model=Nullable{PhyloNetworkLinearModel}()::Nullable{PhyloNetworkLinearModel})
     m_z_cond_y = m_z + VyzVyinvchol' * (RL \ (Y - m_y))
     V_z_cond_y = sigma2 .* (Vz - VyzVyinvchol' * VyzVyinvchol)
     ReconstructedStates(m_z_cond_y, V_z_cond_y + add_var, NodeNumbers, Y, TipNumbers, model)
@@ -1416,12 +1418,12 @@ end
 # `ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)`
 # Function to find the ancestral traits reconstruction on a network, given an
 # object fitted by function phyloNetworklm, and some predictors expressed at all the nodes of the network.
-# 
+#
 # - obj: a PhyloNetworkLinearModel object, or a
 # DataFrameRegressionModel{PhyloNetworkLinearModel}, if data frames were used.
 # - X_n a matrix with as many columns as the number of predictors used, and as
 # many lines as the number of unknown nodes or tips.
-# 
+#
 # Returns an object of type ancestralStateReconstruction.
 # """
 
@@ -1437,7 +1439,7 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)
               the number of nodes plus the number of missing tips.""")
     end
     m_y = predict(obj)
-    m_z = X_n * coef(obj) 
+    m_z = X_n * coef(obj)
     # If the tips were re-organized, do the same for Vyz
     if (obj.ind != [0])
 #       iii = indexin(1:length(obj.msng), obj.ind[obj.msng])
@@ -1459,7 +1461,7 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)
     temp = obj.RL \ Vyz
     U = X_n - temp' * (obj.RL \ obj.X)
     add_var = U * vcov(obj) * U'
-    # Warn about the prediction intervals 
+    # Warn about the prediction intervals
     warn("""These prediction intervals show uncertainty in ancestral values,
          assuming that the estimated variance rate of evolution is correct.
          Additional uncertainty in the estimation of this variance rate is
@@ -1483,7 +1485,7 @@ end
 
 Function to find the ancestral traits reconstruction on a network, given an
 object fitted by function [`phyloNetworklm`](@ref). By default, the function assumes
-that the regressor is just an intercept. If the value of the regressor for 
+that the regressor is just an intercept. If the value of the regressor for
 all the ancestral states is known, it can be entered in X_n, a matrix with as
 many columns as the number of predictors used, and as many lines as the number
 of unknown nodes or tips.
@@ -1500,7 +1502,7 @@ julia> phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "carniv
 
 julia> dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "carnivores_trait.txt"));
 
-julia> fitBM = phyloNetworklm(trait ~ 1, dat, phy);
+julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
 
 julia> ancStates = ancestralStateReconstruction(fitBM) # Should produce a warning, as variance is unknown.
 WARNING: These prediction intervals show uncertainty in ancestral values,
@@ -1566,26 +1568,26 @@ julia> expectations(ancStates)
 
 julia> predint(ancStates)
 31×2 Array{Float64,2}:
- -0.288423    2.9312  
- -0.539072    2.60423 
- -0.0934395   2.92495 
- -0.0643135   2.85265 
- -0.0603343   2.85955 
- -0.179626    3.20644 
-  3.96695     6.67145 
-  2.94268     6.08085 
-  0.0290151   2.98992 
-  0.241696    3.10679 
+ -0.288423    2.9312
+ -0.539072    2.60423
+ -0.0934395   2.92495
+ -0.0643135   2.85265
+ -0.0603343   2.85955
+ -0.179626    3.20644
+  3.96695     6.67145
+  2.94268     6.08085
+  0.0290151   2.98992
+  0.241696    3.10679
   ⋮
   0.542565    0.542565
   0.773436    0.773436
-  6.94985     6.94985 
-  4.78323     4.78323 
-  5.33016     5.33016 
+  6.94985     6.94985
+  4.78323     4.78323
+  5.33016     5.33016
  -0.122604   -0.122604
-  0.73989     0.73989 
-  4.84236     4.84236 
-  1.0695      1.0695 
+  0.73989     0.73989
+  4.84236     4.84236
+  1.0695      1.0695
 
 julia> ## Format and plot the ancestral states:
 
@@ -1645,9 +1647,9 @@ julia> ## Some tips may also be missing
 
 julia> dat[[2, 5], :trait] = NA;
 
-julia> fitBM = phyloNetworklm(trait ~ 1, dat, phy);
+julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
 
-julia> ancStates = ancestralStateReconstruction(fitBM); 
+julia> ancStates = ancestralStateReconstruction(fitBM);
 WARNING: These prediction intervals show uncertainty in ancestral values,
 assuming that the estimated variance rate of evolution is correct.
 Additional uncertainty in the estimation of this variance rate is
@@ -1678,26 +1680,26 @@ julia> expectations(ancStates)
 
 julia> predint(ancStates)
 31×2 Array{Float64,2}:
- -0.31245     3.16694 
- -0.625798    3.3295  
- -0.110165    3.35002 
- -0.0710391   3.15501 
- -0.0675924   3.14591 
- -0.197236    3.49692 
-  3.89644     6.77373 
-  2.8741      6.22808 
- -0.0358627   3.12834 
-  0.182594    3.2534  
+ -0.31245     3.16694
+ -0.625798    3.3295
+ -0.110165    3.35002
+ -0.0710391   3.15501
+ -0.0675924   3.14591
+ -0.197236    3.49692
+  3.89644     6.77373
+  2.8741      6.22808
+ -0.0358627   3.12834
+  0.182594    3.2534
   ⋮
   0.542565    0.542565
   0.773436    0.773436
-  6.94985     6.94985 
-  4.78323     4.78323 
-  5.33016     5.33016 
+  6.94985     6.94985
+  4.78323     4.78323
+  5.33016     5.33016
  -0.122604   -0.122604
-  0.73989     0.73989 
-  4.84236     4.84236 
-  1.0695      1.0695 
+  0.73989     0.73989
+  4.84236     4.84236
+  1.0695      1.0695
 
 julia> ## Format and plot the ancestral states:
 
@@ -1779,7 +1781,7 @@ end
 
 Function to find the ancestral traits reconstruction on a network, given some data at the tips.
 Uses function [`phyloNetworklm`](@ref) to perform a phylogenetic regression of the data against an
-intercept (amounts to fitting an evolutionary model on the network, BM being the only option 
+intercept (amounts to fitting an evolutionary model on the network, BM being the only option
 available for now).
 
 See documentation on [`phyloNetworklm`](@ref) and `ancestralStateReconstruction(obj::PhyloNetworkLinearModel[, X_n::Matrix])`
@@ -1820,7 +1822,7 @@ end
 # end
 
 #################################################
-## Old version of phyloNetworklm (naive) 
+## Old version of phyloNetworklm (naive)
 #################################################
 
 # function phyloNetworklmNaive(X::Matrix, Y::Vector, net::HybridNetwork, model="BM"::AbstractString)

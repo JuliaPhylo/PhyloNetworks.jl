@@ -1,7 +1,7 @@
 ```{julia; eval=true; echo=false}
 using PhyloNetworks, DataFrames
 ```
-# Trait Evolution
+# Continuous Trait Evolution
 
 Once the network is inferred, we can use it for downstream analysis, including
 for Phylogenetic Comparative Methods (PCM).
@@ -38,8 +38,9 @@ We first need to create an object of class [`ParamsBM`](@ref)`<:ParamsProcess`:
 params_simu = ParamsBM(2, 0.5) # BM with mean 2 and variance 0.5
 ```
 We can then simulate according to these parameters on the phylogeny, using
-function [`simulate`](@ref).
+function [`simulate`](@ref). We fix the seed here for reproducibility reasons.
 ```{julia; eval=true}
+srand(18480224)
 sim = simulate(phy, params_simu) # simulate a BM on phy
 ```
 This creates an object of class [`TraitSimulation`](@ref), from which we can extract
@@ -68,6 +69,7 @@ In this example, we simulate data for later analysis. We use the predictor
 simulated above to create a new trait that depends linearly on the predictor,
 with a noise that has a phylogenetic structure:
 ```{julia; eval=true}
+srand(18700904)
 noise = simulate(phy, ParamsBM(0, 0.1)) # Phylogenetic residuals
 trait = 10 + 2 * pred + noise[:Tips] # Trait to study
 ```
@@ -83,7 +85,7 @@ Phylogenetic regression / ANOVA can then be done like with the
 [GLM](https://github.com/JuliaStats/GLM.jl) package, using formulas. We just
 need to specify the phylogeny we are using:
 ```{julia; eval=true}
-fitTrait = phyloNetworklm(trait ~ pred, dat, phy)
+fitTrait = phyloNetworklm(@formula(trait ~ pred), dat, phy)
 ```
 This returns an object of type [`PhyloNetworkLinearModel`](@ref)`<:LinPredModel`. It is
 dominated by the GLM type `LinPredModel`, which means that all base functions
@@ -144,7 +146,7 @@ the process that generated the data. If we make an assumption on process
 using the previous function. To fit a regular BM, we
 just need to do a regression of the trait against a simple intercept:
 ```julia
-fitPred = phyloNetworklm(pred ~ 1, dat, phy)
+fitPred = phyloNetworklm(@formula(pred ~ 1), dat, phy)
 ```
 We can then apply the [`ancestralStateReconstruction`](@ref) function directly to
 the fitted object:
@@ -244,7 +246,7 @@ dat[:region] = PooledDataArray(dat[:region]); # Pool by region
 ```
 Then, we just need to apply [`phyloNetworklm`](@ref) with the right formula:
 ```julia
-fitAnova = phyloNetworklm(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region, dat, phy)
+fitAnova = phyloNetworklm(@formula(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region), dat, phy)
 ```
 As before, a summary is shown by default, and all the functions that can be applied
 to a `lm` result still apply here.
@@ -256,18 +258,18 @@ One classical question about trait evolution is the amount of
 structure to explain variation in the observed traits.
 One way of doing measuring that is to use
 Pagel's lambda[^fn3] transformation of the branch lengths. This model assumes a
-BM on a tree where the internal branches are multiplied by a factor $\lambda$,
+BM on a tree where the internal branches are multiplied by a factor λ,
 while the external branches are modified so that the total height of the tree is
-constant. Hence, $\lambda$ varies between $0$ (the tree has no influence on
-the data) and $1$ (the tree is unchanged).
+constant. Hence, λ varies between 0 (the tree has no influence on
+the data) and 1 (the tree is unchanged).
 
 We can illustrate this with the predictor trait we used earlier. We use the
 same function as before, only indicating the model we want to use:
 ```julia
-fitPagel = phyloNetworklm(pred ~ 1, datPred, phy, model = "lambda")
+fitPagel = phyloNetworklm(@formula(pred ~ 1), datPred, phy, model = "lambda")
 ```
 As it is indeed generated according to a plain BM on the phylogeny, the
-estimated $\lambda$ should be close to $1$. It can be extracted with function
+estimated λ should be close to 1. It can be extracted with function
 `lambda_estim`:
 ```julia
 lambda_estim(fitPagel)
