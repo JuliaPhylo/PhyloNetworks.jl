@@ -17,8 +17,8 @@ end
 tree = "(6,(5,#H7:0.0):9.970714072991349,(3,(((2,1):0.2950382234364404,4):0.036924483697671304)#H7:0.00926495670648208):1.1071489442240392);"
 net = readTopologyLevel1(tree);
 checkNet(net)
-printNodes(net)
-printEdges(net)
+#printNodes(net)
+#printEdges(net)
 net.node[10].number == 3 || error("wrong hybrid")
 net.node[10].hybrid || error("does not know it is hybrid")
 net.node[10].isBadDiamondII || error("does not know it is bad diamond II")
@@ -37,14 +37,14 @@ df=DataFrame(t1=["1","1","2","2","1","2","2","2","2","2","1","2","2","3","2"],
 df[:CF1423] = 1-df[:CF1234]-df[:CF1324]
 d = readTableCF(df)
 
-net2 = topologyMaxQPseudolik!(net,d)
+net2 = topologyMaxQPseudolik!(net,d, ftolRel=1e-5,ftolAbs=1e-6,xtolRel=1e-3,xtolAbs=1e-4)
 340 < net2.loglik < 340.5 || error("wrong loglik")
 net2.edge[3].istIdentifiable || error("wrong hybrid is t identifiable")
 9.95 < net2.edge[3].length < 9.99 || error("wrong bl estimated")
 net2.edge[11].istIdentifiable || error("wrong hybrid is t identifiable")
 net2.edge[11].length < 0.01 || error("wrong bl estimated")
 net2.edge[10].length == 0 || error("tree edge in bad diamond II not 0")
-printEdges(net2)
+#printEdges(net2)
 
 
 ## testing readTopology----------------------------------------------------------------

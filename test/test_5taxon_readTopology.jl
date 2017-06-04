@@ -158,7 +158,7 @@ end
 if(!isempty(wrong))
     throw("error in read topology")
 else
-    println("----------NO ERRORS!----------");
+    #println("----------NO ERRORS!----------");
 end
 
 

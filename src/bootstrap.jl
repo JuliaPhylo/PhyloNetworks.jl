@@ -313,6 +313,7 @@ Optional arguments include the following, with default values in parentheses:
 - seed (0 to get a random seed from the clock): seed for random number generator
 - otherNet (empty): another starting topology so that each replicate will start prcnet% runs on otherNet and (1-prcnet)% runs on T
 - prcnet (0): percentage of runs starting on otherNet; error if different than 0.0, and otherNet not specified.
+- ftolRel, ftolAbs, xtolRel, xtolAbs, liktolAbs, Nfail: see `snaq!`, same defaults.
 """
 # non documented arguments: liktolAbs, Nfail=numFails, probST=0.3::Float64
 #  ftolRel,ftolAbs,xtolRel,xtolAbs, verbose, closeN, Nmov0, outgroup="none",

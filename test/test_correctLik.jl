@@ -41,7 +41,7 @@ println("passed tree example")
 
 estTree = optTopRun1!(currT,d,0,5454)
 
-approxEq(estTree.loglik,0.0) || error("not correct tree estimated")
+@test_approx_eq_eps(estTree.loglik,0.0,1e-12)
 
 # ------------------5taxon network 1 hybridization: Case H-----------------
 # starting topology: Case G
@@ -58,11 +58,14 @@ extractQuartet!(currT,d)
 calculateExpCFAll!(d)
 lik = logPseudoLik(d)
 
-approxEq(lik,50.17161079450669) || error("not correct likelihood calculated with tree")
+@test lik ≈ 50.17161079450669
 println("passed computation of likelihood")
 
-estNet = optTopRun1!(currT,d,1,5454)
-
-0.00216 < estNet.loglik < 0.00217 || Base.error("not correct estimated network")
+estNet = optTopRun1!(currT, 0.01,75, d,1, 1e-5,1e-6,1e-3,1e-4,
+                     false,true,Int[], 5454, STDOUT,false,0.3, STDOUT)
+# topology, likAbs,Nfail, data,hmax, fRel,fAbs,xRel,xAbs,
+# verbose,closeN,numMoves, seed, logfile,writelog,probST,sout)
+@test_approx_eq_eps(estNet.loglik, 0.002165, 0.000005)
+# 0.00216 < estNet.loglik < 0.00217 || Base.error("not correct estimated network")
 println("passed estimation of net")
 
