@@ -5,8 +5,14 @@ os:
 julia:
 #  - release
  - 0.5
+env:
+ - DRAW_FIG="false"
 notifications:
   email: false
 after_success:
-  - julia -e 'Pkg.clone("https://github.com/JuliaDocs/Documenter.jl")'
+  - julia -e 'Pkg.clone("https://github.com/pbastide/Documenter.jl")'
+  - julia -e 'Pkg.add("Cairo")'
+  - julia -e 'Pkg.add("Fontconfig")'
+  - rm /Users/travis/.julia/lib/v0.5/Compose.ji
+  - julia -e 'Pkg.add("Weave")'
   - julia -e 'cd(Pkg.dir("PhyloNetworks")); include(joinpath("docs", "make.jl"))'
