@@ -23,6 +23,7 @@ markdown_extensions:
   - tables
   - fenced_code
   - mdx_math
+  - codehilite
 
 docs_dir: 'build'
 
