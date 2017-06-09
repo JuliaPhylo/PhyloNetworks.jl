@@ -57,7 +57,7 @@ raxmltrees = joinpath(Pkg.dir("PhyloNetworks"),"examples","raxmltrees.tre")
 genetrees = readMultiTopology(raxmltrees);
 genetrees[3]
 ```
-```{julia; eval=true}
+```{julia; eval=true; label="gene3"}
 plot(genetrees[3]) # tree for 3rd gene
 ```
 To read in all gene trees and directly summarize them by a list
@@ -75,6 +75,10 @@ rm("summaryTreesQuartets.txt")
 In this table, each 4-taxon set is listed in one row.
 The 3 "CF" columns gives the proportion of genes that has
 each of the 3 possible trees on these 4 taxa.
+
+For more help on any function, type `?` to enter the help mode,
+then type the name of the function. For example: type `?` then `readTrees2CF`
+for information on the various options of that function.
 
 When there are many more taxa, the number of quartets
 might be very large and we might want to use a subset to speed things up.
@@ -136,7 +140,7 @@ followed by their greedy consensus,
 followed by the best tree on the original data.
 It's this last tree that we are most interested in.
 We can read it with
-```{julia; eval=true; results="markup"}
+```{julia; eval=true; results="markup"; label="astraltree"}
 astralfile = joinpath(Pkg.dir("PhyloNetworks"),"examples","astral.tre")
 astraltree = readMultiTopology(astralfile)[102] # 102th tree = last tree here
 plot(astraltree)
