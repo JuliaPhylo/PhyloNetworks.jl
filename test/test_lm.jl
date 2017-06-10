@@ -90,7 +90,7 @@ fitbis = phyloNetworklm(@formula(trait ~ 1), dfr, net)
 @test_approx_eq mu_estim(phynetlm)  mu_estim(fitbis)
 
 ## Pagel's Lambda
-fitlam = phyloNetworklm(trait ~ 1, dfr, net, model = "lambda", fixedValue=1.0)
+fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedValue=1.0)
 @show fitlam
 
 @test_approx_eq lambda_estim(fitlam) 1.0
@@ -117,7 +117,7 @@ fitlam = phyloNetworklm(trait ~ 1, dfr, net, model = "lambda", fixedValue=1.0)
 @test_approx_eq mu_estim(fitlam)  mu_estim(fitbis)
 
 ## Pagel's Lambda
-fitlam = phyloNetworklm(trait ~ 1, dfr, net, model = "lambda")
+fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda")
 @show fitlam
 @test_approx_eq lambda_estim(fitlam) 1.24875
 
@@ -293,7 +293,7 @@ fitnabis = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 @test_approx_eq bic(fitna)  bic(fitnabis)
 
 ## Pagel's Lambda
-fitlam = phyloNetworklm(trait ~ pred, dfr, net, model = "lambda", fixedValue = 1.0)
+fitlam = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda", fixedValue = 1.0)
 @show fitlam
 
 @test_approx_eq lambda_estim(fitlam) 1.0
@@ -320,7 +320,7 @@ fitlam = phyloNetworklm(trait ~ pred, dfr, net, model = "lambda", fixedValue = 1
 @test_approx_eq mu_estim(fitlam)  mu_estim(fitnabis)
 
 ## Pagel's Lambda
-fitlam = phyloNetworklm(trait ~ pred, dfr, net, model = "lambda")
+fitlam = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda")
 @show fitlam
 @test_approx_eq_eps lambda_estim(fitlam) 1.1135518305 1e-10
 
@@ -390,13 +390,13 @@ B = b0 + b1 * A + randn(size(tipLabels(net), 1))
 dfr = DataFrame(trait = B, pred = A, tipNames = tipLabels(net))
 
 ## Network
-phynetlm = phyloNetworklm(trait ~ pred, dfr, net, model = "lambda")
+phynetlm = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda")
 
 @test_approx_eq_eps lambda_estim(phynetlm) 0.5894200143 1e-8
 
 ## Major Tree
 tree = majorTree(net)
-phynetlm = phyloNetworklm(trait ~ pred, dfr, tree, model = "lambda")
+phynetlm = phyloNetworklm(@formula(trait ~ pred), dfr, tree, model = "lambda")
 
 @test_approx_eq_eps lambda_estim(phynetlm) 0.5903394415 1e-6
 
@@ -444,7 +444,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 
 # with data frames
 dfr = DataFrame(trait = Y, tipNames = sim.M.tipNames)
-fitbis = phyloNetworklm(trait ~ -1, dfr, net)
+fitbis = phyloNetworklm(@formula(trait ~ -1), dfr, net)
 @show fitbis
 #@test_approx_eq coef(phynetlm) coef(fitbis)
 #@test_approx_eq vcov(phynetlm) vcov(fitbis)

@@ -82,7 +82,6 @@ writeTopology(net1)  # writes to screen, full precision for branch lengths and Î
 writeTopology(net1, round=true, digits=2)
 writeTopology(net1,di=true) # Î³ omitted: for dendroscope
 writeTopology(net1, "bestnet_h1.tre") # writes to file: creates or overwrites file
-less("bestnet_h1.tre") # view the file
 ```
 ```{julia; eval=true; echo=false}
 rm("bestnet_h1.tre")
