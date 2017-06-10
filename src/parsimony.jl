@@ -1,7 +1,3 @@
-using PhyloNetworks
-import PhyloNetworks.getOtherNode
-import PhyloNetworks.getIndex
-
 net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
 tips = Dict("A" => 0, "B" => 0, "C" => 1, "D" => 1)
 
