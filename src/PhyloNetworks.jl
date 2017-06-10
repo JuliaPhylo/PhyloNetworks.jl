@@ -12,6 +12,7 @@ using Gadfly # for plots
 using ColorTypes # used by Gadfly already. To resolve data type names (Colorant)
 using StatsBase: sample
 using Combinatorics.combinations
+using RCall
 
 import Base.show
 import Gadfly.plot
@@ -112,5 +113,8 @@ include("plotsGraphViz.jl")
 include("plotsGadfly.jl")
 include("compareNetworks.jl")
 include("traits.jl")
+include("parsimony.jl")
+include("RCall_network.jl")
+include("RCall_tree.jl")
 
 end #module
