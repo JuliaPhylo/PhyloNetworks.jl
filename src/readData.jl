@@ -593,6 +593,9 @@ function readInputData(trees::Vector{HybridNetwork}, whichQ::Symbol, numQ::Integ
     end
     d = calculateObsCFAll!(quartets,trees,taxa)
     if writetab
+        if(filename == "none")
+            filename = "tableCF.txt"
+        end
         println("table of obsCF printed to file $(filename)")
         df = writeObsCF(d)
         writetable(filename,df)

@@ -209,8 +209,9 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
     if (showTipLabel || showNodeNumber || showIntNodeLabel || labelnodes)
       # white dot beyond tip labels/name and root node label to force enough zoom out
       expfac = 0.1
+      expfacy = 0.5 # additive expansion for y axis
       push!(mylayers, layer(x=[xmin-(xmax-xmin)*expfac,xmax+(xmax-xmin)*expfac],
-                            y=[ymin,ymax+(ymax-ymin)*expfac],
+                            y=[ymin- expfacy, ymax+ expfacy],
                Geom.point, Theme(default_color=colorant"white"))[1])
       nrows = (showNodeNumber || showIntNodeLabel || labelnodes ? net.numNodes : net.numTaxa)
       ndf = DataFrame([String,String,String,Bool,Float64,Float64], # column types, column names, nrows
@@ -316,8 +317,8 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
                   Geom.label(position=:dynamic ;hide_overlaps=false))[1])
         end
 
-    plot(mylayers, Guide.xlabel("time"), Guide.ylabel(nothing),
+    plot(mylayers, Guide.ylabel(nothing), Guide.xlabel(nothing), #("time"),
          Guide.xticks(ticks=:auto, label=false), # ticks=[xmin,xmin,xmax,xmax*1.1],
          Guide.yticks(ticks=:auto, label=false), # ticks=[ymin,ymax],
-         Theme(default_color=edgeColor,grid_color=colorant"white"))
+         Theme(default_color=edgeColor,grid_color=colorant"white",grid_line_width=0pt))
 end
