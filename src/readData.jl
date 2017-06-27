@@ -115,7 +115,7 @@ function readTableCF!(df::DataFrames.DataFrame, co::Vector{Int})
     repSpecies = cleanAlleleDF!(df,co) # removes uninformative rows from df (not df0)
     if(!isempty(repSpecies))    # fixit: cleanAlleleDF! and mergeRows! are time consuming but many times not needed.
         mergeRows!(df,co)       # add option to skip them, for the user to say that each tip appears once only?
-    end
+    end                         # we cannot move to mapAllelesCFtable because we need repSpecies in here
     quartets = Quartet[]
     for i in 1:size(df,1)
         push!(quartets,Quartet(i,string(df[i,co[1]]),string(df[i,co[2]]),string(df[i,co[3]]),string(df[i,co[4]]),
