@@ -100,16 +100,24 @@ d = readTableCF(df)
 d.repSpecies == ["7"] || error("d.repSpecies wrong")
 
 tree = "((6,4),(7,8),10);"
-currT = readTopologyLevel1(tree);
+currT = readTopology(tree);
 
 estNet = snaq!(currT,d,hmax=1,seed=1010, runs=1, filename="", Nfail=10)
 185.27 < estNet.loglik < 185.29 || error("wrong loglik in multiple alleles example")
 estNet.hybrid[1].k == 4 || error("wrong k in hybrid for multiple alleles case")
 estNet.numTaxa == 5 || error("wrong number of taxa in estNet")
 
-estNet = snaq!(currT,d,hmax=1,seed=8378, runs=1, filename="", Nfail=10)
+estNet = snaq!(currT,d,hmax=1,seed=8378, runs=1, filename="", Nfail=10,
+               ftolAbs=1e-6,ftolRel=1e-5,xtolAbs=1e-4,xtolRel=1e-3)
 174.58 < estNet.loglik < 174.59 || error("estNet loglik wrong for multiple alleles")
 estNet.hybrid[1].k == 5 || error("wrong k in hybrid for multiple alleles case")
 estNet.numTaxa == 5 || error("wrong number of taxa in estNet")
 
-
+# net = snaq!(currT,d,hmax=1,seed=8378,filename="")
+net = readTopology("(((4,#H7:::0.47411636966376686):0.6360197250223204,10):0.09464128563363322,(7:0.0,(6)#H7:::0.5258836303362331):0.36355727108454877,8);")
+@test_approx_eq topologyQPseudolik!(net, d) 174.58674796123705
+@test_approx_eq net.loglik 174.58674796123705
+net = readTopology("(((4,#H1),10),(7,(6)#H1),8);")
+net = topologyMaxQPseudolik!(net,d,  # loose tolerance for faster test
+        ftolRel=1e-2,ftolAbs=1e-2,xtolAbs=1e-2,xtolRel=1e-2)
+@test net.loglik > 174.5

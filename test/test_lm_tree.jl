@@ -46,7 +46,7 @@ phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_tree.
 dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_trait.txt"));
 
 ## Fit a BM
-fitBM = phyloNetworklm(trait ~ 1, dat, phy)
+fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy)
 
 # Tests against results obtained with geiger::fitContinuous or phylolm::phylolm
 @test_approx_eq_eps loglikelihood(fitBM) -78.9611507833 1e-10 
@@ -196,7 +196,7 @@ nodesRt = varsRt[-expe[1:196, :nodeNumber] + 196 - 197]
 ###############################################################################
 
 ## Fit Pagel's lambda
-fitLambda = phyloNetworklm(trait ~ 1, dat, phy, model = "lambda")
+fitLambda = phyloNetworklm(@formula(trait ~ 1), dat, phy, model = "lambda")
 
 @test_approx_eq_eps lambda_estim(fitLambda) 0.9193 1e-4 # Due to convergence issues, tolerance is lower.
 @test_approx_eq_eps loglikelihood(fitLambda) -51.684379 1e-6
@@ -275,7 +275,7 @@ dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "lizard_trait.txt
 dat[:region] = PooledDataArray(dat[:region]); # Pool by region
 
 ## Fit a BM
-fitBM = phyloNetworklm(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region, dat, phy)
+fitBM = phyloNetworklm(@formula(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region), dat, phy)
 
 # Tests against results obtained with geiger::fitContinuous or phylolm::phylolm
 @test_approx_eq_eps loglikelihood(fitBM) 105.17337853473711 1e-10 
@@ -361,7 +361,7 @@ dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "lizard_trait.txt
 dat[:region] = PooledDataArray(dat[:region]); # Pool by region
 
 ## Fit lambda
-fitLambda = phyloNetworklm(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region, dat, phy, model = "lambda")
+fitLambda = phyloNetworklm(@formula(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region), dat, phy, model = "lambda")
 
 # Tests against results obtained with geiger::fitContinuous or phylolm::phylolm
 @test_approx_eq_eps lambda_estim(fitLambda) 0.9982715594 1e-5

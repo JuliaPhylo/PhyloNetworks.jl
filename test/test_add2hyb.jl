@@ -11,7 +11,7 @@ end
 seed=1234
 tree = "(((((((1,2),3),4),5),(6,7)),(8,9)),10);"
 currT0 = readTopologyLevel1(tree);
-printEdges(currT0)
+#printEdges(currT0)
 besttree = deepcopy(currT0);
 srand(1234);
 success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
@@ -50,7 +50,7 @@ tree = "(6,(5,#H7:0.0):9.970714072991349,(3,(((2,1):0.2950382234364404,4):0.0369
 net = readTopologyLevel1(tree);
 net.node[10].isBadDiamondII || error("does not recognize as bad diamond II")
 
-print("NO ERRORS!!")
+#print("NO ERRORS!!")
 
 # printEdges(besttree)
 # printNodes(besttree)

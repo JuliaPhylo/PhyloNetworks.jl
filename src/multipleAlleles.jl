@@ -9,7 +9,7 @@ global repeatAlleleSuffix = "__2"
 
 Create a new DataFrame containing the same concordance factors as in the input CF file,
 but with modified taxon names. Each allele name in the input CF table is replaced by the
-species name that the allele maps onto, based on the mapping file.
+species name that the allele maps onto, based on the mapping file. The mapping file should have column names: allele and species.
 
 Optional arguments:
 
@@ -17,9 +17,9 @@ Optional arguments:
   data frame is not saved to a file.
 - column numbers for the taxon names. 1-4 by default.
 """
-function mapAllelesCFtable(alleleDF::AbstractString, cfDF::AbstractString; filename=""::AbstractString, columns=Int[]::Vector{Int})
-    d = readtable(alleleDF)
-    d2 = readtable(cfDF)
+function mapAllelesCFtable(alleleDF::AbstractString, cfDF::AbstractString; filename=""::AbstractString, columns=Int[]::Vector{Int}, sep=','::Char)
+    d = readtable(alleleDF, separator=sep)
+    d2 = readtable(cfDF, separator=sep)
     if(filename=="")
         mapAllelesCFtable!(d,d2,columns,false,filename)
     else
@@ -37,12 +37,12 @@ function mapAllelesCFtable!(alleleDF::DataFrame, cfDF::DataFrame, co::Vector{Int
     if length(co)==0 co=[1,2,3,4]; end
     compareTaxaNames(alleleDF,cfDF,co)
     for j in 1:4
-      for ia in 1:size(alleleDF,1) # for all alleles
-        cfDF[co[j]] = map(x->replace(string(x),
-                                     Regex("^$(string(alleleDF[ia,:allele]))\$"),
-                                     alleleDF[ia,:species]),
-                          cfDF[co[j]])
-      end
+        for ia in 1:size(alleleDF,1) # for all alleles
+            cfDF[co[j]] = map(x->replace(string(x),
+                                         Regex("^$(string(alleleDF[ia,:allele]))\$"),
+                                         alleleDF[ia,:species]),
+                              cfDF[co[j]])
+        end
     end
     if(write)
         filename != "" || error("want to write table of CF with alleles mapped but filename is empty")
@@ -54,7 +54,8 @@ end
 # function to clean a df after changing allele names to species names
 # inside mapAllelesCFtable
 # by deleting rows that are not informative like sp1 sp1 sp1 sp2
-function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int})
+# keepOne=true: we only keep one allele per species
+function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int};keepOne=false::Bool)
     global DEBUG
     withngenes = (length(cols)==8)
     delrows = Int[] # indices of rows to delete
@@ -75,55 +76,59 @@ function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int})
         keep = false # default: used if 1 unique name, or 2 in some cases
         if(length(uniq) == 4)
             keep = true
-        elseif(length(uniq) == 3) #sp1 sp1 sp2 sp3
-            keep = true
-            for u in uniq
-                DEBUG && println("u $(u), typeof $(typeof(u))")
-                ind = row .== u #taxon names matching u
-                DEBUG && println("taxon names matching u $(ind)")
-                if(sum(ind) == 2)
-                    push!(repSpecies,string(u))
-                    found = false
-                    for k in 1:4
-                        if(ind[k])
-                            if(found)
-                                DEBUG && println("found the second one in k $(k), will change newdf[i,cols[k]] $(newdf[i,cols[k]]), typeof $(typeof(newdf[i,cols[k]]))")
-                                newdf[i,cols[k]] = string(u, repeatAlleleSuffix)
-                                break
-                            else
-                                found = true
-                            end
-                        end
-                    end
-                    break
-                end
-            end
-        elseif(length(uniq) == 2)
-            # keep was initialized to false
-            for u in uniq
-                DEBUG && println("length uniq is 2, u $(u)")
-                ind = row .== u
-                if(sum(ind) == 1 || sum(ind) == 3)
-                    DEBUG && println("ind $(ind) is 1 or 3, should not keep")
-                    break
-                elseif(sum(ind) == 2)
-                    DEBUG && println("ind $(ind) is 2, should keep")
+        else
+            if(!keepOne)
+                if(length(uniq) == 3) #sp1 sp1 sp2 sp3
                     keep = true
-                    found = false
-                    push!(repSpecies,string(u))
-                    for k in 1:4
-                        if(ind[k])
-                            if(found)
-                                newdf[i,cols[k]] = string(u, repeatAlleleSuffix)
-                                break
-                            else
-                                found = true
+                    for u in uniq
+                        DEBUG && println("u $(u), typeof $(typeof(u))")
+                        ind = row .== u #taxon names matching u
+                        DEBUG && println("taxon names matching u $(ind)")
+                        if(sum(ind) == 2)
+                            push!(repSpecies,string(u))
+                            found = false
+                            for k in 1:4
+                                if(ind[k])
+                                    if(found)
+                                        DEBUG && println("found the second one in k $(k), will change newdf[i,cols[k]] $(newdf[i,cols[k]]), typeof $(typeof(newdf[i,cols[k]]))")
+                                        newdf[i,cols[k]] = string(u, repeatAlleleSuffix)
+                                        break
+                                    else
+                                        found = true
+                                    end
+                                end
+                            end
+                            break
+                        end
+                    end
+                elseif(length(uniq) == 2)
+                    # keep was initialized to false
+                    for u in uniq
+                        DEBUG && println("length uniq is 2, u $(u)")
+                        ind = row .== u
+                        if(sum(ind) == 1 || sum(ind) == 3)
+                            DEBUG && println("ind $(ind) is 1 or 3, should not keep")
+                            break
+                        elseif(sum(ind) == 2)
+                            DEBUG && println("ind $(ind) is 2, should keep")
+                            keep = true
+                            found = false
+                            push!(repSpecies,string(u))
+                            for k in 1:4
+                                if(ind[k])
+                                    if(found)
+                                        newdf[i,cols[k]] = string(u, repeatAlleleSuffix)
+                                        break
+                                    else
+                                        found = true
+                                    end
+                                end
                             end
                         end
                     end
                 end
+                DEBUG && println("after if, keep is $(keep)")
             end
-            DEBUG && println("after if, keep is $(keep)")
         end
         keep || push!(delrows, i)
         DEBUG && (@show keep)
@@ -151,7 +156,9 @@ function mergeRows!(df::DataFrame, cols::Vector{Int})
     n4tax  = size(df,1) # total number of 4-taxon sets
     delrows = Int[] # indices of rows to delete
     nrows  =  ones(Int ,n4tax) # total # of rows that row i combines. 0 if row i is to be deleted.
+    @show n4tax
     for i in 1:n4tax # for each row / 4-taxon set
+        @show i
         if nrows[i]>0
             for j in (i+1):n4tax # rows with larger index
                 nrows[j]>0 || continue # skip j if it matched a 4-taxon set earlier

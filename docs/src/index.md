@@ -1,11 +1,8 @@
 # PhyloNetworks.jl
 
-PhyloNetworks is a Julia package for the manipulation, visualization
-and inference of phylogenetic networks.  SNaQ implements the
-statistical inference method in
-[Sol&iacute;s-Lemus and An&eacute; 2016](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896).
-The procedure involves a numerical optimization of branch lengths and inheritance
-probabilities and a heuristic search in the space of phylogenetic networks.
+PhyloNetworks is a [Julia](http://julialang.org) package for the
+manipulation, visualization, inference of phylogenetic networks,
+and their use for trait evolution.
 
 ## How to get help
 
@@ -14,7 +11,7 @@ probabilities and a heuristic search in the space of phylogenetic networks.
   explanations.
 - the [google group](https://groups.google.com/forum/#!forum/phylonetworks-users)
   has answers to common questions.
-- the Manual below has a quick tutorial on SNaQ and PhyloNetworks.
+- the Manual below has a quick tutorial (navigation on the left).
 - the [Index](@ref main-index) further below has the full list of documented functions.
 
 ## Manual Outline
@@ -25,6 +22,7 @@ Pages = [
     "man/inputdata.md",
     "man/ticr_howtogetQuartetCFs.md",
     "man/snaq_plot.md",
+    "man/dist_reroot.md",
     "man/fixednetworkoptim.md",
     "man/expectedCFs.md",
     "man/bootstrap.md",

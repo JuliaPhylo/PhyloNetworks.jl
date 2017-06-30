@@ -30,11 +30,12 @@ srand(seed);
 besttree = deepcopy(currT0);
 
 # ===== first hybridization ==========================
+println("starting first hybridization")
 success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
 success || error("not able to place first hybridization")
-printEdges(besttree)
-printNodes(besttree)
-writeTopologyLevel1(besttree)
+#printEdges(besttree)
+#printNodes(besttree)
+println(writeTopologyLevel1(besttree))
 net = deepcopy(besttree);
 # test contain root
 !net.edge[15].containRoot || error("edge 15 wrong contain Root")
@@ -66,12 +67,13 @@ length(net.partition) == 6 || error("wrong partition")
 [n.number for n in net.partition[6].edges] == [14] || error("wrong partition")
 
 # ===== second hybridization ==========================
+println("starting second hybridization")
 success = false
 success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
 success || error("could not add second hybridization")
-printEdges(besttree)
-printNodes(besttree)
-writeTopologyLevel1(besttree,true)
+#printEdges(besttree)
+#printNodes(besttree)
+println(writeTopologyLevel1(besttree,true))
 net = deepcopy(besttree);
 
 # test contain root
@@ -150,6 +152,7 @@ length(net.partition) == 10 || error("wrong partition")
 ## printEdges(net)
 
 # ================= delete second hybridization =============================
+println("starting deletion of second hybridization")
 deleteHybridizationUpdate!(net,net.node[21], false,false);
 length(net.partition) == 6 || error("wrong partition")
 # 15,11,10,[9,7,5,3,1,2,4,6,8],17,14
@@ -159,10 +162,10 @@ length(net.partition) == 6 || error("wrong partition")
 [n.number for n in net.partition[4].edges] == [17] || error("wrong partition")
 [n.number for n in net.partition[5].edges] == [14] || error("wrong partition")
 [n.number for n in net.partition[6].edges] == [3,1,2,8,6,4,9,7,5] || error("wrong partition")
-printNodes(net)
-printEdges(net)
-printPartitions(net)
-writeTopologyLevel1(net)
+#printNodes(net)
+#printEdges(net)
+#printPartitions(net)
+println(writeTopologyLevel1(net))
 
 # test contain root
 !net.edge[15].containRoot || error("edge 15 wrong contain Root")
@@ -189,8 +192,9 @@ net.node[20].inCycle == 11 || error("wrong incycle")
 
 
 # =============== delete first hybridization ===================
+println("starting deletion of first hybridization")
 deleteHybridizationUpdate!(net,net.node[19]);
 checkNet(net)
 length(net.partition) == 0 || error("wrong partition")
-printEdges(net)
+#printEdges(net)
 
