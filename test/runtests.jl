@@ -75,7 +75,7 @@ tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculat
          "test_orderings_plot.jl", "test_compareNetworks.jl", "test_badDiamII.jl",
          "test_multipleAlleles.jl", "test_bootstrap.jl", "test_perfectData.jl", # "test_readme.jl"
          "test_lm.jl", "test_lm_tree.jl", "test_traits.jl", "test_simulate.jl",
-         "test_parsimony.jl"]#, "test_plotsRCall.jl"]
+         "test_parsimony.jl", "test_plotsRCall.jl"]
 
 if isdefined(:PhyloNetworks)
     @show PhyloNetworks.CHECKNET
