@@ -90,7 +90,8 @@ lambda_estim,
 expectations,
 expectationsPlot,
 predint,
-predintPlot
+predintPlot,
+parsimonyDiscrete
 
 # export part
 
@@ -111,10 +112,9 @@ include("bootstrap.jl")
 include("multipleAlleles.jl")
 include("plotsGraphViz.jl")
 include("plotsGadfly.jl")
+include("plotsRCall.jl")
 include("compareNetworks.jl")
 include("traits.jl")
 include("parsimony.jl")
-include("RCall_network.jl")
-include("RCall_tree.jl")
 
 end #module

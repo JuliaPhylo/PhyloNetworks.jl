@@ -1,162 +1,161 @@
-net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
-tips = Dict("A" => 0, "B" => 0, "C" => 1, "D" => 1)
+# parsimony tools: by William Sparks, 2017
 
 """
-pushes leaf numbers and character states to nodeStates dictionary
+`parsimonyBottomUp!(node, states, score)`
+
+Bottom-up phase (from tips to root) of the Fitch algorithm:
+assign sets of character states to internal nodes based on
+character states at tips. Polytomies okay.
+Assumes a *tree* (no reticulation) and correct isChild1 attribute.
+
+output: dictionary with state sets and most parsimonious score
 """
 
-function initializeStates(tips::Dict{String,Int64}, possibleStates::Dict{Int64,Any})
-    for l in net.leaf
-        for k in keys(tips)
-            l.name == k ? possibleStates[l.number] = Set(tips[k]) : continue # if the name of a leaf node matches a key in the dictionary of tip states, assign key and corresponding value to possibleStates dictionary
-        end
-    end
-end
-
-"""
-performs the bottom-up phase of the fitch algorithm: assigns character states to internal nodes based on character states at tips; calculates parsimony score
-"""
-
-function parsimonyBottomUp!(node::PhyloNetworks.Node, possibleStates::Dict{Int64,Any}, parsimonyscore::Array{Int64,1})
-    children = [] #initialize array of child nodes
-    childrenStates = [] #initialize array of values for child keys
-
-    for e in node.edge #iterate across all edges for a given node
-        if e.node[e.isChild1 ? 1 : 2] != node #exclude parent edges
-            append!(children, [getOtherNode(e, node)]) #push child nodes to children array
-        end
-    end
-
-    for child in children # iterate over children array
-        if haskey(possibleStates, child.number) # if all child nodes already have a character state assigned:
-            append!(childrenStates, possibleStates[child.number]) # append the states of the child nodes to children values array
-        else # if one or more children do not have states assigned:
-            parsimonyBottomUp!(child, possibleStates, parsimonyscore) #recursively call parsimony function on children
-            append!(childrenStates, possibleStates[child.number])
-        end
-    end
-
-    if node.leaf == false
-        votes = Dict{Int,Int}()
-        for set in childrenStates
-            for i in set
-                if haskey(votes,i)
-                    votes[i] += 1
-                else
-                    votes[i] = 1
-                end
-            end
-        end
-
-        mv = 0 # max number of votes
-        for state in keys(votes)
-            if votes[state]>mv
-                mv = votes[state]
-            end
-        end
-
-        filter!((k,v) -> v==mv, votes) # filters d: keep states with mv votes
-        possibleStates[node.number] = Set(keys(votes)) # {1,2}: set of states for the parent node
-        parsimonyscore[1] += length(childrenStates) - mv # 2: parsimony cost
-    end
-
-    if haskey(possibleStates, net.node[net.root].number) # do nothing if the current node is also the root
-        return possibleStates, parsimonyscore[1]
-    end
-    return possibleStates, parsimonyscore[1]
-end
-
-"""
-performs top-down phase of Fitch Algorithm; assigns character states to internal nodes based on arbitrary state of the root; calculates parsimony
-"""
-
-function parsimonyTopDown!(node::PhyloNetworks.Node, possibleStates::Dict{Int64,Any}, treecost::Array{Int64,1})
+function parsimonyBottomUp!{T}(node::Node, possibleStates::Dict{Int64,Set{T}}, parsimonyscore::Array{Int64,1})
+    node.leaf && return # change nothing if leaf
+    childrenStates = Set{T}[] # state sets for the 2 (or more) children
     for e in node.edge
-        if e.node[e.isChild1 ? 1 : 2] != node
-            # continue if current edge is not the parent of current node
-            child = getOtherNode(e, node) # define child nodes of current node
-            childState = possibleStates[child.number]
-            parentState = possibleStates[node.number]
-
-            commonState = intersect(parentState, childState) # define commonstate as the intersection of the values of all children; see function listintersect
-            if isempty(commonState) # if parent and child nodes have no common character state
-                treecost[1] += 1 # increase parsimony score of tree
-            else # if parent and child nodes have one or more states in common
-                if !child.leaf
-                    possibleStates[child.number] = Set(commonState) # change character state of child to that of parent; do not change character states for leaves
-                end
-            end
-
-            if child.leaf
-                continue
-            else
-                parsimonyTopDown!(child, possibleStates, treecost) # recursively call function on child of current node
-            end
+        if e.node[e.isChild1 ? 1 : 2] == node continue; end
+        # excluded parent edges only: assuming tree here
+        child = getOtherNode(e, node)
+        parsimonyBottomUp!(child, possibleStates, parsimonyscore)
+        if haskey(possibleStates, child.number) # false if missing data
+            push!(childrenStates, possibleStates[child.number])
         end
     end
-    return possibleStates, treecost[1] # return updated character states dictionary corresponding parsimony score
+    if length(childrenStates)==0 return; end # change nothing if no data below
+
+    votes = Dict{T,Int}() # number of children that vote for a given state
+    for set in childrenStates
+      for i in set
+        if haskey(votes,i)
+          votes[i] += 1
+        else
+          votes[i] = 1
+        end
+      end
+    end
+    mv = maximum(values(votes))
+    filter!((k,v) -> v==mv, votes) # keep states with max votes
+    possibleStates[node.number] = Set(keys(votes))
+    parsimonyscore[1] += length(childrenStates) - mv # extra cost
 end
 
 """
-summarize character states at nodes and parsimony scores
+`parsimonyTopDown!(node, states)`
+
+Top-down phase (root to tips) of the Fitch algorithm:
+constrains character states at internal nodes based on
+the state of the root. Assumes a *tree*: no reticulation.
+
+output: dictionary with state sets
 """
 
-function parsimonySummary(tree::HybridNetwork, rootSpecificStates::Dict{Int64,Any}, parsimonyscore::Array{Int64,1}, treecost::Array{Int64,1})
-    println("\nparsimonyscore: ", parsimonyscore[1]) #print parsimony score for a given tree
-    println("Node Number => Character States \n")
-    for (k,v) in rootSpecificStates #iterate over keys and values
-        if k == net.node[net.root].number
-            println("root:") #print key, value pair for root node
-            println(k => v)
+function parsimonyTopDown!{T}(node::Node, possibleStates::Dict{Int64,Set{T}})
+    for e in node.edge
+        child = e.node[e.isChild1 ? 1 : 2]
+        if child == node continue; end # exclude parent edges
+        if child.leaf continue; end    # no changing the state of tips
+        commonState = intersect(possibleStates[node.number], possibleStates[child.number])
+        if !isempty(commonState)
+            possibleStates[child.number] = Set(commonState) # restrain states to those with cost 0
         end
+        parsimonyTopDown!(child, possibleStates)
     end
-
-    println("\ntips:") #print k,v for tips
-    for (k,v) in rootSpecificStates
-        for l in net.leaf
-            if l.number == k
-                println(k => v)
-            end
-        end
-    end
-
-    println("\ninternal nodes:") #print k,v for internal nodes
-    for (k,v) in rootSpecificStates
-        if k != net.node[net.root].number && issubset(k, [l.number for l in net.leaf]) == false
-            println(k => v)
-        end
-    end
-    println("\ntreecost: ", treecost[1]) #print tree cost for a given root state
+    return possibleStates # updated dictionary of sets of character states
 end
 
 """
-calculates parsimony score and optimized character states for a binary character on a PhyloNetworks.HybridNetwork given the character states at the tips
+`parsimonySummary(tree, nodestates)`
+
+summarize character states at nodes, assuming a *tree*
 """
 
-function parsimony(net::HybridNetwork, tips::Dict{String,Int64})
-    trees = displayedTrees(net, 0.0) #create list of all possible trees in a given network
-
-    for tree in trees #iterate over all trees in a network
-        possibleStates = Dict{Int64,Any}() # initialize character states dictionary
-        parsimonyscore = [0] # initialize parsimony score
-
-        directEdges!(net) #orders hybrid edges; necesary before preorder!, cladewiseorder!
-        preorder!(net)  #creates nodes_changed vector: nodes arranged for preorder traversal
-
-        initializeStates(tips, possibleStates) #create dictionary for states of all nodes
-
-        parsimonyBottomUp!(tree.node[tree.root], possibleStates, parsimonyscore) #calculate parsimony score and possible states at a given node
-
-        for state in possibleStates[tree.node[tree.root].number] #iterate over possible root states
-            rootSpecificStates = possibleStates #create a new dictionary that will contain optimized states for a given state at the root
-            rootSpecificStates[tree.node[tree.root].number] = Set(state) # set root state
-            treecost = [0] #initialize treecost
-
-            parsimonyTopDown!(tree.node[tree.root], rootSpecificStates, treecost) #calculate optimized states and relative cost for a given root state on a given tree
-
-            parsimonySummary(tree::HybridNetwork, rootSpecificStates::Dict, parsimonyscore::Array{Int64,1}, treecost::Array{Int64,1}) #summarize results
-        end
+function parsimonySummary{T}(tree::HybridNetwork, nodestates::Dict{Int64,Set{T}})
+    println("node number => character states on tree ",
+            writeTopology(tree,di=true,round=true,digits=1))
+    for n in tree.node
+        if !haskey(nodestates, n.number) continue; end
+        print(n.number)
+        if n.name != "" print(" (",n.name,")"); end
+        if n == tree.node[tree.root] print(" (root)"); end
+        println(": ", sort(collect(nodestates[n.number])))
     end
 end
 
-parsimony(net, tips)
+"""
+`parsimonyDiscrete(net, tipdata)`
+
+Calculate the most parsimonious (MP) score of a network given
+a discrete character at the tips.
+Tip data can be given in a data frame, in which case the taxon names
+are to appear in column 1 or in a column named "taxon" or "species", and
+trait values are to appear in column 2 or in a column named "trait".
+Alternatively, Tip data can be given as a dictionary taxon => trait.
+
+also return the union of all optimized character states
+at each internal node as obtained by Fitch algorithm,
+where the union is taken over displayed trees with the MP score.
+"""
+
+function parsimonyDiscrete{T}(net::HybridNetwork, tips::Dict{String,T})
+    # T = type of characters. Typically Int if data are binary 0-1
+    # initialize dictionary: node number -> admissible character states
+    possibleStates = Dict{Int64,Set{T}}()
+    for l in net.leaf
+        if haskey(tips, l.name)
+            possibleStates[l.number] = Set(tips[l.name])
+        end
+    end
+    charset = union(possibleStates) # fixit
+    # assign this set to all tips with no data
+
+    directEdges!(net) # parsimonyBottomUp! uses isChild1 attributes
+    trees = displayedTrees(net, 0.0) # all displayed trees
+    mpscore = Int[] # one score for each tree
+    statesets = Dict{Int64,Set{T}}[] # one state set dict per tree
+    for tree in trees
+        statedict = deepcopy(possibleStates)
+        parsimonyscore = [0] # initialization, mutable
+        parsimonyBottomUp!(tree.node[tree.root], statedict, parsimonyscore)
+        push!(mpscore, parsimonyscore[1])
+        push!(statesets, statedict)
+    end
+    mps = findmin(mpscore)[1] # MP score
+    mpt = find(x -> x==mps, mpscore) # indices of all trees with MP score
+    statedictUnion = statesets[mpt[1]] # later: union over all MP trees
+    println("parsimony score: ", mps)
+    for i in mpt # top down calculation for best trees only
+        parsimonyTopDown!(trees[i].node[trees[i].root], statesets[i])
+        parsimonySummary(trees[i], statesets[i])
+        if i == mpt[1] continue; end
+        for n in keys(statesets[i])
+          if haskey(statedictUnion, n) # degree-2 nodes absent from trees
+            union!(statedictUnion[n], statesets[i][n])
+          else
+            statedictUnion[n] = statesets[i][n]
+          end
+        end
+        # fixit: for each hybrid edge, count the number of MP trees that have it,
+        #        to return information on which hybrid edge is most parsimonious
+    end
+    return mps, statedictUnion
+end
+
+function parsimonyDiscrete(net::HybridNetwork, dat::DataFrame)
+    i = findfirst(DataFrames.names(dat), :taxon)
+    if i==0 i = findfirst(DataFrames.names(dat), :species); end
+    if i==0 i=1; end # first column if not column named "taxon" or "species"
+    j = findfirst(DataFrames.names(dat), :trait)
+    if j==0 j=2; end
+    if i==j
+        error("""expecting taxon names in column 'taxon', or 'species' or column 1,
+              and trait values in column 'trait' or column 2.""")
+    end
+    tips = Dict{String,eltypes(dat)[j]}()
+    for r in 1:nrow(dat)
+        if DataFrames.isna(dat[r,j]) continue; end
+        tips[dat[r,i]] = dat[r,j]
+    end
+    parsimonyDiscrete(net,tips)
+end
