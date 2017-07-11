@@ -150,7 +150,7 @@ function checkNodeDataFrame(net::HybridNetwork, nodeLabel::DataFrame)
         labelnodes = false
     end
     if labelnodes # remove rows with no node number, check if at least one row remains
-        nodeLabel = nodeLabel[~DataFrames.isna(nodeLabel[1]),:]
+        nodeLabel = nodeLabel[.~DataFrames.isna.(nodeLabel[1]),:]
         labelnodes = size(nodeLabel,1)>0
     end
     if labelnodes
@@ -227,7 +227,7 @@ function prepareEdgeDataFrame(net::HybridNetwork, edgeLabel::DataFrame, mainTree
         labeledges = false
     end
     if labeledges # remove rows with no edge number and check if at least one remains
-        edgeLabel = edgeLabel[~DataFrames.isna(edgeLabel[1]),:]
+        edgeLabel = edgeLabel[.~DataFrames.isna.(edgeLabel[1]),:]
         labeledges = size(edgeLabel,1)>0
     end
     if labeledges

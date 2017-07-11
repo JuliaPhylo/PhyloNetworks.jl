@@ -112,8 +112,8 @@ function plot(net::HybridNetwork, method::Symbol; useEdgeLength=false::Bool,
     """
     end
     if (showGamma && net.numHybrids>0)
-    im = edf[:hyb] & edf[:min]
-    iM = edf[:hyb] & !edf[:min]
+    im = edf[:hyb] .& edf[:min]
+    iM = edf[:hyb] .& .!edf[:min]
     R"""
     text($(edf[im,:x]), $(edf[im,:y]),$(edf[im,:gam]),
          adj=c(.5,1), col=$minorHybridEdgeColor)
