@@ -8,6 +8,13 @@ To install Julia, follow instructions [here](http://julialang.org/downloads/).
 For a quick & basic tutorial on Julia, see
 [learn x in y minutes](http://learnxinyminutes.com/docs/julia/).
 
+Editors:
+
+- [Juno](http://junolab.org) provides an IDE for Julia,
+  based on the (fantastic) [Atom](http://atom.io/) editor.
+- you can also run Julia within a [Jupyter](http://jupyter.org) notebook
+(formerly IPython notebook).
+
 IMPORTANT: Julia code is just-in-time compiled. This means that the
 first time you run a function, it will be compiled at that moment. So,
 please be patient! Future calls to the function will be much much

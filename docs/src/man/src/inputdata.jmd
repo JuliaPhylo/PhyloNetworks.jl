@@ -155,5 +155,7 @@ replaces missing branch lengths by 1 for starting values etc.):
 ```julia
 T=readTopologyLevel1("startNetwork.txt")
 ```
+(here `startNetwork.txt` is a hypothetical file: replace this by
+the name of a file that contains your network of interest.)
 
 Next: [Getting a Network](@ref)

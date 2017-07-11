@@ -156,9 +156,7 @@ function mergeRows!(df::DataFrame, cols::Vector{Int})
     n4tax  = size(df,1) # total number of 4-taxon sets
     delrows = Int[] # indices of rows to delete
     nrows  =  ones(Int ,n4tax) # total # of rows that row i combines. 0 if row i is to be deleted.
-    @show n4tax
     for i in 1:n4tax # for each row / 4-taxon set
-        @show i
         if nrows[i]>0
             for j in (i+1):n4tax # rows with larger index
                 nrows[j]>0 || continue # skip j if it matched a 4-taxon set earlier

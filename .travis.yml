@@ -6,7 +6,7 @@ julia:
 #  - release
  - 0.5
 env:
- - DRAW_FIG="true"
+ - DRAW_FIG="false"
 notifications:
   email: false
 after_success:

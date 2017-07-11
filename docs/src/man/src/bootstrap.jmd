@@ -95,7 +95,7 @@ The functions `treeEdgesBootstrap` and `hybridBootstrapSupport`
 read all bootstrap networks and map the edges / nodes
 onto a reference network: here net1.
 ```{julia; eval=true}
-BStable, tree1 = treeEdgesBootstrap(bootnet,net1)
+BSe_tree, tree1 = treeEdgesBootstrap(bootnet,net1)
 ```
 This calculates the major tree `tree1` displayed in `net1`, that is,
 the tree obtained by following the major parent (γ>0.5) of each hybrid node.
@@ -103,7 +103,7 @@ This tree can be visualized like this, with edge numbers shown for later use.
 ```{julia; eval=true; results="markup"; label="major_tree"; fig_width=4; fig_height=4}
 plot(tree1, showEdgeNumber=true)
 ```
-Next, we can look at bootstrap table `BStable`, which has one row for
+Next, we can look at bootstrap table `BSe_tree`, which has one row for
 each tree edge in `net1`. One column contains the edge number
 (same as shown in the plot) and another column contains the edge
 bootstrap support: the proportion of bootstrap replicates in which this edge was
@@ -111,14 +111,14 @@ found in the major tree of the inferred network.
 We can see the full bootstrap table and see
 which tree edges have bootstrap support lower than 100% (none here) with
 ```{julia; eval=true; term=true; results="markup"}
-showall(BStable)
-BStable[BStable[:proportion] .< 100.0, :]
+showall(BSe_tree)
+BSe_tree[BSe_tree[:proportion] .< 100.0, :]
 ```
 Finally, we can map the bootstrap proportions onto the network or its main tree
 by passing the bootstrap table to the `edgeLabel` option of `plot`:
 ```{julia; eval=true; results="markup"; label="boot_tree_net"; fig_width=4; fig_height=4}
-plot(tree1, edgeLabel=BStable)
-plot(net1,  edgeLabel=BStable)
+plot(tree1, edgeLabel=BSe_tree)
+plot(net1,  edgeLabel=BSe_tree)
 ```
 (Here, it is important that the numbers assigned to edges when building the boostrap
 table --those in `net1` at the time-- correspond to the current edge numbers
@@ -128,7 +128,7 @@ output file of `snaq!` earlier, for consistency across different Julia sessions.
 If we wanted to plot only certain bootstrap values, like those below 100% (1.0),
 we could do this:
 ```{julia; eval=false; results="markup"; label="boot_net"; fig_width=4; fig_height=4}
-plot(net1, edgeLabel=BStable[BStable[:proportion] .< 100.0, :])
+plot(net1, edgeLabel=BSe_tree[BSe_tree[:proportion] .< 100.0, :])
 ```
 
 ## support for hybrid edges and hybrid nodes

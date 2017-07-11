@@ -41,7 +41,8 @@ println("passed tree example")
 
 estTree = optTopRun1!(currT,d,0,5454)
 
-@test_approx_eq_eps(estTree.loglik,0.0,1e-12)
+@test_approx_eq_eps(estTree.loglik,0.0,1e-8)
+println("passed optTopRun1! on tree")
 
 # ------------------5taxon network 1 hybridization: Case H-----------------
 # starting topology: Case G
