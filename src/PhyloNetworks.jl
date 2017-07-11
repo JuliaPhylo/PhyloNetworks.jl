@@ -3,7 +3,7 @@ __precompile__()
 
 module PhyloNetworks
 
-using Base.Collections # for updateInCycle with priority queue
+using DataStructures # for updateInCycle with priority queue
 using DataFrames # for functions to read/write tables, and names()
 using GLM # for the lm function
 using NLopt # for branch lengths optimization

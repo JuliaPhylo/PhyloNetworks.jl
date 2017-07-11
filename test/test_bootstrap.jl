@@ -8,9 +8,8 @@ if(individualtest)
     include("../src/functions.jl")
 end
 
-scriptfile = @__FILE__
-exdir = (scriptfile==nothing ? joinpath("..","examples") : joinpath(dirname(dirname(@__FILE__)), "examples"))
-#exdir = "../examples";
+
+exdir = joinpath(Pkg.dir("PhyloNetworks"),"examples")
 
 info("testing hybridBootstrapSupport")
 bestnet = readTopology(joinpath(exdir,"fish2hyb.net"));

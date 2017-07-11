@@ -1325,7 +1325,7 @@ function optTopLevel!(currT::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
             setGammaBLfromGammaz!(n,newT) # get t and γ that are compatible with estimated gammaz values
         end
     end
-    writelog && write(logfile,"\nEND optTopLevel: found minimizer topology at step $(count) (failures: $(failures)) with -loglik=$(round(newT.loglik,5)) and ht_min=$(round(newT.ht,5))")
+    writelog && write(logfile,"\nEND optTopLevel: found minimizer topology at step $(count) (failures: $(failures)) with -loglik=$(round(newT.loglik,5)) and ht_min=$(round.(newT.ht,5))")
     writelog && printCounts(movescount,movesgamma,logfile)
     DEBUG && printEdges(newT)
     DEBUG && printPartitions(newT)
@@ -1620,7 +1620,7 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
       flush(logfile)
     else print(STDOUT,"\nmain seed $(seed)\n"); end
     srand(seed)
-    seeds = [seed;round(Integer,floor(rand(runs-1)*100000))]
+    seeds = [seed;round.(Integer,floor.(rand(runs-1)*100000))]
 
     tic();
     for i in 1:runs

@@ -39,8 +39,8 @@ lik = logPseudoLik(d)
 approxEq(lik,193.7812623319291) || error("not correct likelihood calculated with tree")
 println("passed tree example")
 
-# estTree = optTopRun1!(currT,d,0,5454) # issue with printCounts
-# @test_approx_eq_eps(estTree.loglik,0.0,1e-8)
+estTree = optTopRun1!(currT,d,0,5454) # issue with printCounts?
+@test estTree.loglik ≈ 0.0 atol=1e-8
 println("passed optTopRun1! on tree")
 
 # ------------------5taxon network 1 hybridization: Case H-----------------
@@ -65,7 +65,7 @@ estNet = optTopRun1!(currT, 0.01,75, d,1, 1e-5,1e-6,1e-3,1e-4,
                      false,true,Int[], 5454, STDOUT,false,0.3, STDOUT)
 # topology, likAbs,Nfail, data,hmax, fRel,fAbs,xRel,xAbs,
 # verbose,closeN,numMoves, seed, logfile,writelog,probST,sout)
-@test_approx_eq_eps(estNet.loglik, 0.002165, 0.000005)
+@test estNet.loglik ≈ 0.002165 atol=5.0e-6
 # 0.00216 < estNet.loglik < 0.00217 || Base.error("not correct estimated network")
 println("passed estimation of net")
 
