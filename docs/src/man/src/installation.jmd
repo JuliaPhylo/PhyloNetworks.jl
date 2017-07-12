@@ -13,7 +13,7 @@ Editors:
 - [Juno](http://junolab.org) provides an IDE for Julia,
   based on the (fantastic) [Atom](http://atom.io/) editor.
 - you can also run Julia within a [Jupyter](http://jupyter.org) notebook
-(formerly IPython notebook).
+  (formerly IPython notebook).
 
 IMPORTANT: Julia code is just-in-time compiled. This means that the
 first time you run a function, it will be compiled at that moment. So,
