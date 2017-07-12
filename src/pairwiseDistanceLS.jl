@@ -1,55 +1,36 @@
-"""
-Sets edges of HybridNetwork based on values in divergenceTimes dictionary;
-keys must be node numbers;
-values must be integers representing divergence time (mya) at a given node  
-"""
-
-function setBLfromDivergenceTimes(net::HybridNetwork, divergenceTimes::Dict{Int64,Int64})
+function setBLfromDivergenceTimes!(net::HybridNetwork, divergenceTimes::Dict{Int64,Float64})
     for e in net.edge
-        parent = 0
-        child = 0
-        for time in keys(divergenceTime)
-            if e.node[e.isChild1 ? 2 : 1].number == time
-                parent = divergenceTime[time]
-            end
-            if e.node[e.isChild1 ? 1 : 2].number == time
-                child = divergenceTime[time]
-            end
-        end
-        e.length = parent - child
+        parentTime = divergenceTimes[e.node[e.isChild1 ? 2 : 1].number]
+        childTime = divergenceTimes[e.node[e.isChild1 ? 1 : 2].number]
+        e.length = parentTime - childTime
     end
 end            
 
-"""
-Creates a MatrixTopologicalOrder of distances from each node to all other nodes
-"""
-
 function pairwiseTaxonDistanceMatrix(net::HybridNetwork;
                                      checkPreorder=true::Bool)
-    recursionPreOrder(net,
+    recursionPreOrderMatrixOnly(net,
                       checkPreorder,
-                      initPairwiseTaxonDistanceMatrix,
-                      updateRootPairwiseTaxonDistanceMatrix!,
+                      initsharedPathMatrix,
+                      updateRootSharedPathMatrix!,
                       updateTreePairwiseTaxonDistanceMatrix!,
                       updateHybridPairwiseTaxonDistanceMatrix!,
                       "b")
 end
 
-"""
-initializes taxon distance matrix
-"""
-function initPairwiseTaxonDistanceMatrix(nodes::Vector{PhyloNetworks.Node}, params)
-    n = length(nodes)
-    return(zeros(Float64,n,n))
+function recursionPreOrderMatrixOnly(net::HybridNetwork,
+                           checkPreorder=true::Bool,
+                           init=identity::Function,
+                           updateRoot=identity::Function,
+                           updateTree=identity::Function,
+                           updateHybrid=identity::Function,
+                           indexation="b"::AbstractString,
+                           params...)
+    net.isRooted || error("net needs to be rooted for preorder recursion")
+    if(checkPreorder)
+        preorder!(net)
+    end
+    M = recursionPreOrder(net.nodes_changed, init, updateRoot, updateTree, updateHybrid, params)
 end
-
-function updateRootPairwiseTaxonDistanceMatrix!(V::Matrix, i::Int, params)
-    return
-end
-
-"""
-calculates distance from tree nodes
-"""
 
 function updateTreePairwiseTaxonDistanceMatrix!(V::Matrix,
                                      i::Int,
@@ -62,10 +43,6 @@ function updateTreePairwiseTaxonDistanceMatrix!(V::Matrix,
     end
     V[i,i] = 0.0
 end
-
-"""
-calculates distance from hybrid nodes
-"""
 
 function updateHybridPairwiseTaxonDistanceMatrix!(V::Matrix,
                                        i::Int,
@@ -80,24 +57,10 @@ function updateHybridPairwiseTaxonDistanceMatrix!(V::Matrix,
     end
 end
 
-"""
-calcutates mismatch between pairwise distances observed between DNA sequences and pairwised distances observed from a network
-"""
-
-function pairwiseDistanceMismatch(networkDistances::PhyloNetworks.MatrixTopologicalOrder, dnaDistances::PhyloNetworks.MatrixTopologicalOrder)
-    distanceMismatch = sqrt(sum(sum((dnaDistances.V-networkDistances.V).^2)))
+function pairwiseDistanceLSscore(net::HybridNetwork, divergenceTimes::Dict{Int64,Float64}, dnaDistances::Array{Float64,2})
+    setBLfromDivergenceTimes!(net, divergenceTimes)
+    networkDistances = pairwiseTaxonDistanceMatrix(net;
+                                checkPreorder=true)
+    distanceMismatch = sqrt(sum(sum((dnaDistances-networkDistances).^2)))
     return distanceMismatch
 end
-
-"""
-calcutates mismatch between pairwise distances observed between DNA sequences and pairwised distances observed from a network given a HybridNetwork, a dictionary of divergence times at each node, and a pairwise DNA sequences distance matrix
-"""
-
-function pairwiseDistanceLSscore(net::HybridNetwork, divergenceTimes::Dict{Int64,Int64}, dnaDistances::PhyloNetworks.MatrixTopologicalOrder)
-    setBLfromDivergenceTimes(net::HybridNetwork, divergenceTime::Dict{Int64,Int64})
-    pairwiseTaxonDistanceMatrix(net::HybridNetwork;
-                                checkPreorder=true::Bool)
-    distanceMismatch = pairwiseDistanceMismatch(networkDistances::PhyloNetworks.MatrixTopologicalOrder, dnaDistances::PhyloNetworks.MatrixTopologicalOrder)
-    return distanceMismatch
-end
-
