@@ -65,7 +65,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 # with data frames
 dfr = DataFrame(trait = Y, tipNames = sim.M.tipNames)
 fitbis = phyloNetworklm(@formula(trait ~ 1), dfr, net)
-@show fitbis
+#@show fitbis
 
 @test coef(phynetlm) ≈ coef(fitbis)
 @test vcov(phynetlm) ≈ vcov(fitbis)
@@ -118,7 +118,7 @@ fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedVa
 
 ## Pagel's Lambda
 fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda")
-@show fitlam
+#@show fitlam
 @test lambda_estim(fitlam) ≈ 1.24875
 
 ###############################################################################
@@ -140,7 +140,7 @@ B = b0 + b1 * A + simulate(net,  ParamsBM(0, 0.1))[:Tips]
 # With Matrices
 X = hcat(ones(12), A)
 fit_mat = phyloNetworklm(X, B, net)
-@show fit_mat
+#@show fit_mat
 
 # Naive version (GLS)
 ntaxa = length(B)
@@ -266,7 +266,7 @@ dfr = dfr[sample(1:12, 12, replace=false), :]
 dfr = DataFrame(trait = B, pred = A, tipNames = tipLabels(sim))
 dfr[[2, 8, 11], :pred] = NA
 fitna = phyloNetworklm(@formula(trait ~ pred), dfr, net)
-@show fitna
+#@show fitna
 
 dfr = dfr[sample(1:12, 12, replace=false), :]
 fitnabis = phyloNetworklm(@formula(trait ~ pred), dfr, net)
@@ -294,7 +294,7 @@ fitnabis = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 
 ## Pagel's Lambda
 fitlam = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda", fixedValue = 1.0)
-@show fitlam
+#@show fitlam
 
 @test lambda_estim(fitlam) ≈ 1.0
 @test coef(fitlam) ≈ coef(fitnabis)
@@ -408,7 +408,7 @@ srand(2468) # sets the seed for reproducibility, to debug potential error
 sim = simulate(net, params)
 Y = sim[:Tips]
 phynetlm = phyloNetworklm(zeros(length(Y),0), Y, net)
-@show phynetlm
+#@show phynetlm
 # Naive version (GLS)
 ntaxa = length(Y)
 Vy = phynetlm.Vy

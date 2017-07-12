@@ -349,7 +349,7 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
             Geom.label(position=:right ;hide_overlaps=true))[1])
       end
       if (showIntNodeLabel)
-        push!(mylayers, layer(ndf[(!ndf[:lea]), [:x,:y,:name]], y="y", x="x", label="name",
+        push!(mylayers, layer(ndf[.!ndf[:lea], [:x,:y,:name]], y="y", x="x", label="name",
             Geom.label(position=:above ;hide_overlaps=true))[1])
       end
       if (showNodeNumber)
@@ -374,11 +374,11 @@ function Gadfly.plot(net::HybridNetwork; useEdgeLength=false::Bool,
         end
         if (showGamma && net.numHybrids>0)
             if !mainTree
-            push!(mylayers, layer(edf[(edf[:hyb]) & (edf[:min]), [:x,:y,:gam]], y="y", x="x",label="gam",
+            push!(mylayers, layer(edf[edf[:hyb] .& edf[:min], [:x,:y,:gam]], y="y", x="x",label="gam",
                   Geom.label(position=:below ;hide_overlaps=true),
                   Theme(point_label_color=minorHybridEdgeColor))[1])
             end
-            push!(mylayers, layer(edf[(edf[:hyb]) & (!edf[:min]),[:x,:y,:gam]], y="y", x="x",label="gam",
+            push!(mylayers, layer(edf[edf[:hyb] .& .!edf[:min],[:x,:y,:gam]], y="y", x="x",label="gam",
                   Geom.label(position=:below ;hide_overlaps=true),
                   Theme(point_label_color=majorHybridEdgeColor))[1])
         end
