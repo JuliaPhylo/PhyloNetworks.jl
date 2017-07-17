@@ -610,7 +610,7 @@ An ancestral state reconstruction can be performed from this fitted object using
 The `PhyloNetworkLinearModel` object has fields: `lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `ind`, `msng`, `model`, `lambda`.
 Type in "?PhyloNetworkLinearModel.field" to get help on a specific field.
 """
-mutable struct PhyloNetworkLinearModel <: LinPredModel
+struct PhyloNetworkLinearModel <: LinPredModel
     "lm: a GLM.LinearModel object, fitted on the cholesky-tranformend problem"
     lm::GLM.LinearModel # result of a lm on a matrix
     "V: a MatrixTopologicalOrder object of the network-induced correlations"
@@ -687,7 +687,9 @@ function phyloNetworklm_BM(X::Matrix,
                            Y::Vector,
                            V::MatrixTopologicalOrder;
                            msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
-                           ind=[0]::Vector{Int})
+                           ind=[0]::Vector{Int},
+                           model="BM"::AbstractString,
+                           lambda=1.0::Real)
     # Extract tips matrix
     Vy = V[:Tips]
     # Re-order if necessary
@@ -698,7 +700,7 @@ function phyloNetworklm_BM(X::Matrix,
     R = cholfact(Vy)
     RL = R[:L]
     # Fit
-    PhyloNetworkLinearModel(lm(RL\X, RL\Y), V, Vy, RL, Y, X, logdet(Vy), ind, msng, "BM")
+    PhyloNetworkLinearModel(lm(RL\X, RL\Y), V, Vy, RL, Y, X, logdet(Vy), ind, msng, model, lambda)
 end
 
 ###############################################################################
@@ -824,9 +826,9 @@ function phyloNetworklm_lambda(X::Matrix,
         res_lam = fixedValue
     end
     transform_matrix_lambda!(V, res_lam, gammas, times)
-    res = phyloNetworklm_BM(X, Y, V; msng=msng, ind=ind)
-    res.lambda = res_lam
-    res.model = "lambda"
+    res = phyloNetworklm_BM(X, Y, V; msng=msng, ind=ind, model="lambda", lambda=res_lam)
+#    res.lambda = res_lam
+#    res.model = "lambda"
     return res
 end
 
