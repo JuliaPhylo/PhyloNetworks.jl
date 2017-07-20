@@ -1573,17 +1573,20 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
                      verbose::Bool, closeN ::Bool, Nmov0::Vector{Int}, runs::Integer,
                      outgroup::AbstractString, rootname::AbstractString, seed::Integer, probST::Float64)
     writelog = true
+    writelog_1proc = false
     if (rootname != "")
-        juliaerr = string(rootname,".err")
-        errfile = open(juliaerr,"w")
         julialog = string(rootname,".log")
         logfile = open(julialog,"w")
         juliaout = string(rootname,".out")
+        if nprocs() == 1
+            writelog_1proc = true
+            juliaerr = string(rootname,".err")
+            errfile = open(juliaerr,"w")
+        end
     else
       writelog = false
       logfile = STDOUT # used in call to optTopRun1!
     end
-
     str = """optimization of topology, BL and inheritance probabilities using:
               hmax = $(hmax),
               tolerance parameters: ftolRel=$(ftolRel), ftolAbs=$(ftolAbs),
@@ -1595,20 +1598,16 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     end
     str *= (writelog ? "rootname for files: $(rootname)\n" : "no output files\n")
     str *= "BEGIN: $(runs) runs on starting tree $(writeTopologyLevel1(currT0,true))\n"
+    if nprocs()>1
+        str *= "       using $(nprocs()) processors\n"
+    end
     if (writelog)
       write(logfile,str)
       flush(logfile)
     end
     print(STDOUT,str)
     print(STDOUT, Dates.format(now(), "yyyy-mm-dd H:M:S.s") * "\n")
-    # time printed to logfile at start of every run, not here.
-
-    maxNet = HybridNetwork();
-    maxNet.loglik = 1.e15;
-
-    failed = Int[] #seeds with bugs
-    bestnet = HybridNetwork[];
-    #runs += 1 #extra run for compilation in v0.3
+    # if 1 proc: time printed to logfile at start of every run, not here.
 
     if(seed == 0)
         t = time()/1e9
@@ -1621,57 +1620,64 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     else print(STDOUT,"\nmain seed $(seed)\n"); end
     srand(seed)
     seeds = [seed;round.(Integer,floor.(rand(runs-1)*100000))]
+    if writelog && !writelog_1proc
+        for i in 1:runs # workers won't write to logfile
+            write(logfile, "seed: $(seeds[i]) for run $(i)\n")
+        end
+        flush(logfile)
+    end
 
     tic();
-    for i in 1:runs
-        writelog && write(logfile,"seed: $(seeds[i]) for run $(i)\n$(Dates.format(now(), "yyyy-mm-dd H:M:S.s"))\n")
-        writelog && flush(logfile)
-        print(STDOUT,"seed: $(seeds[i]) for run $(i)\n")
+    bestnet = pmap(1:runs) do i # for i in 1:runs
+        logstr = "seed: $(seeds[i]) for run $(i), $(Dates.format(now(), "yyyy-mm-dd H:M:S.s"))\n"
+        print(STDOUT, logstr)
+        msg = "\nBEGIN SNaQ for run $(i), seed $(seeds[i]) and hmax $(hmax)"
+        if writelog_1proc # workers can't write on streams opened by master
+            write(logfile, logstr * msg)
+            flush(logfile)
+        end
+        verbose && print(STDOUT, msg)
         gc();
         try
-            writelog && write(logfile,"\n BEGIN SNaQ for run $(i), seed $(seeds[i]) and hmax $(hmax)")
-            verbose && print(STDOUT,"\n BEGIN SNaQ for run $(i), seed $(seeds[i]) and hmax $(hmax)")
-            best = optTopRun1!(currT0, liktolAbs, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,seeds[i],logfile,writelog,probST);
-            writelog && write(logfile,"\n FINISHED SNaQ for run $(i), -loglik of best $(best.loglik)\n")
-            verbose && print(STDOUT,"\n FINISHED SNaQ for run $(i), -loglik of best $(best.loglik)\n")
-            if (writelog)
-              if(outgroup == "none")
-                write(logfile,writeTopologyLevel1(best,printID=true, multall=!isempty(d.repSpecies))) #no outgroup
-              else
-                write(logfile,writeTopologyLevel1(best,outgroup=outgroup, printID=true, multall=!isempty(d.repSpecies))) #outgroup
-              end
-            flush(logfile)
+            best = optTopRun1!(currT0, liktolAbs, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs,
+                       verbose, closeN , Nmov0,seeds[i],logfile,writelog_1proc,probST);
+            logstr *= "\nFINISHED SNaQ for run $(i), -loglik of best $(best.loglik)\n"
+            verbose && print(STDOUT, logstr)
+            if writelog_1proc
+              logstr = writeTopologyLevel1(best,outgroup=outgroup, printID=true, multall=!isempty(d.repSpecies))
+              logstr *= "\n---------------------\n"
+              write(logfile, logstr)
+              flush(logfile)
             end
-            push!(bestnet, best)
-            if(best.loglik < maxNet.loglik)
-                maxNet = best
-            end
-            DEBUG && println("typeof maxNet $(typeof(maxNet)), -loglik of maxNet $(maxNet.loglik)")
+            return best
         catch(err)
-            if (writelog)
-            write(logfile,"\n ERROR found on SNaQ for run $(i) seed $(seeds[i]): $(err)")
-            flush(logfile)
-            write(errfile,"\n ERROR found on SNaQ for run $(i) seed $(seeds[i]): $(err)")
-            flush(errfile)
-            push!(failed,seeds[i])
-            else
-                warn("\n ERROR found on SNaQ for run $(i) seed $(seeds[i]): $(err)")
+            msg = "\nERROR found on SNaQ for run $(i) seed $(seeds[i]): $(err)\n"
+            logstr = msg * "\n---------------------\n"
+            if writelog_1proc
+                write(logfile, logstr)
+                flush(logfile)
+                write(errfile, msg)
+                flush(errfile)
             end
+            warn(msg) # returns: nothing
         end
-        writelog && write(logfile,"\n---------------------\n")
-        writelog && flush(logfile)
     end
     t=toc();
-    if (writelog)
-    write(errfile, "\n Total errors: $(length(failed)) in seeds $(failed)")
-    write(logfile,"\n" * Dates.format(now(), "yyyy-mm-dd H:M:S.s"))
-    close(errfile)
-    else
-        verbose && print(STDOUT,"""\n Total errors: $(length(failed)) in seeds $(failed)
-                                     $(Dates.format(now(), "yyyy-mm-dd H:M:S.s"))""")
+    writelog_1proc && close(errfile)
+    msg = "\n" * Dates.format(now(), "yyyy-mm-dd H:M:S.s")
+    if writelog
+        write(logfile, msg)
+    elseif verbose
+        print(STDOUT, msg)
     end
-
-    maxNet.numTaxa > 0 || error("the best network is empty!")
+    filter!(n -> .!isa(n, Void), bestnet) # remove "nothing", failed runs
+    if length(bestnet)>0
+        ind = sortperm([n.loglik for n in bestnet])
+        bestnet = bestnet[ind]
+        maxNet = bestnet[1]::HybridNetwork # tell type to compiler
+    else
+        error("all runs failed")
+    end
 
     ## need to do this before setting BL to -1
     if (writelog && !isTree(maxNet)) ## only do networks file if maxNet is not tree
@@ -1720,8 +1726,6 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     write(logfile,"\nMaxNet is $(writeTopologyLevel1(maxNet,printID=true, multall=!isempty(d.repSpecies))) \nwith -loglik $(maxNet.loglik)\n")
     print(STDOUT,"\nMaxNet is $(writeTopologyLevel1(maxNet,printID=true, multall=!isempty(d.repSpecies))) \nwith -loglik $(maxNet.loglik)\n")
 
-    # new output file with (nearly) non-identifiable networks: (run before maxNet gets rooted)
-
     if outgroup != "none"
         try
             checkRootPlace!(maxNet,outgroup=outgroup) ## keeps all attributes
@@ -1743,13 +1747,10 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     str = writeTopologyLevel1(maxNet, printID=true,multall=!isempty(d.repSpecies)) * """
      -Ploglik = $(maxNet.loglik)
      Dendroscope: $(writeTopologyLevel1(maxNet,di=true, multall=!isempty(d.repSpecies)))
-     Elapsed time: $(t) seconds in $(runs-length(failed)) successful runs
+     Elapsed time: $(t) seconds, $(runs) attempted runs
     -------
     List of estimated networks for all runs (sorted by log-pseudolik; the smaller, the better):
     """
-    ## to sort bestnet by loglik value:
-    ind = sortperm([n.loglik for n in bestnet])
-    bestnet = bestnet[ind]
     for n in bestnet
       str *= " "
       str *= (outgroup == "none" ? writeTopologyLevel1(n,printID=true, multall=!isempty(d.repSpecies)) :

@@ -47,10 +47,7 @@ println("passed optTopRun1! on tree")
 # starting topology: Case G
 tree = "((((6:0.1,4:1.5)1:0.2,(7)11#H1)5:0.1,(11#H1,8)),10:0.1);" # Case G
 currT = readTopologyLevel1(tree);
-#printEdges(currT)
-
 # real network: Case H
-#df = readtable("CaseH_output.txt")
 df=DataFrame(t1=["6","6","10","6","6"],t2=["7","7","7","10","7"],t3=["4","10","4","4","4"],t4=["8","8","8","8","10"],CF1234=[0.13002257237728915, 0.36936019721747243, 0.34692592933269173, 0.12051951084152591, 0.11095702789935982], CF1324=[0.7399548552454217, 0.28371387344983595, 0.28371387344983595, 0.7589609783169482, 0.7780859442012804],CF1423=[0.13002257237728915, 0.34692592933269173, 0.36936019721747243, 0.12051951084152591, 0.11095702789935982])
 d = readTableCF(df)
 
@@ -69,3 +66,14 @@ estNet = optTopRun1!(currT, 0.01,75, d,1, 1e-5,1e-6,1e-3,1e-4,
 # 0.00216 < estNet.loglik < 0.00217 || Base.error("not correct estimated network")
 println("passed estimation of net")
 
+@testset "snaq! in serial and in parallel" begin
+  n1 = snaq!(currT, d, hmax=1, runs=2, Nfail=10, seed=1234,
+             ftolRel=1e-2,ftolAbs=1e-2,xtolAbs=1e-2,xtolRel=1e-2)
+  addprocs(2)
+  @everywhere using PhyloNetworks
+  n2 = snaq!(currT, d, hmax=1, runs=2, Nfail=10, seed=1234,
+             ftolRel=1e-2,ftolAbs=1e-2,xtolAbs=1e-2,xtolRel=1e-2)
+  rmprocs(workers())
+  @test writeTopology(n1, round=true)==writeTopology(n2, round=true)
+  @test n1.loglik == n2.loglik
+end
