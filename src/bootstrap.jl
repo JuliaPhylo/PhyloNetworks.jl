@@ -288,7 +288,6 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
 end
 
 # like snaq, only calls optTopRunsBoot
-# will later decide which to call depending on nproc()
 """
     bootsnaq(T::HybridNetwork, df::DataFrame)
     bootsnaq(T::HybridNetwork, vector of tree lists)
@@ -388,17 +387,15 @@ function bootsnaq(startnet::HybridNetwork, data::Union{DataFrame,Vector{Vector{H
         expandLeaves!(originald.repSpecies,startnet)
     end
 
-    if(nprocs() > 1) #more than 1 processor, still not working
-        error("bootsnaq not implemented for parallelization yet")
-        optTopRunsBootParallel(startnet,data,hmax, liktolAbs, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs, outgroup, filename, seed, probST, nrep, prcnet, bestNet)
-    else
-        optTopRunsBoot(startnet,data,hmax, liktolAbs, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs1, outgroup, filename, seed, probST, nrep, runs2, otherNet, quartetfile)
-    end
+    optTopRunsBoot(startnet,data,hmax, liktolAbs, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs,
+                   verbose, closeN, Nmov0, runs1, outgroup, filename,
+                   seed, probST, nrep, runs2, otherNet, quartetfile)
 end
 
 
 # same as optTopRunsBoot but for many processors in parallel
 # warning: still not debugged
+# snaq! already uses multiple cores for its multiple runs
 function optTopRunsBootParallel(currT0::HybridNetwork, df::DataFrame, hmax::Integer, liktolAbs::Float64, Nfail::Integer,
                                 ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
                                 verbose::Bool, closeN::Bool, Nmov0::Vector{Int},

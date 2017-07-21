@@ -57,14 +57,18 @@ bootnet = bootsnaq(T,df,nrep=2,runs=1,seed=1234,filename="",Nfail=2,ftolAbs=1e-3
 # "(2,((5,#H9:0.0::0.298):3.927,3):1.331,(((1,6):0.019,4):0.0)#H9:0.0::0.702);"
 # above: bad diamond 2, and both edges above the hybrid have estimated length of 0.0...
 
-info("testing bootsnaq from bootstrap gene trees")
+@testset "bootsnaq from bootstrap gene trees, multiple procs" begin
 treefile = joinpath(exdir,"treefile.txt") # pretending these are bootstrap trees, for all genes
 boottrees = Vector{HybridNetwork}[]
 for i=1:13 push!(boottrees, readMultiTopology(treefile)) end
 for i=1:13 @test size(boottrees[i])==(10,) end # 10 bootstrap trees for each of 13 "genes"
+addprocs(1)
+@everywhere using PhyloNetworks
 bootnet = bootsnaq(T,boottrees,nrep=2,runs=2,otherNet=net1,seed=1234,prcnet=0.5,filename="",Nfail=2,ftolAbs=1e-3,ftolRel=1e-3)
+rmprocs(workers())
 @test size(bootnet)==(2,)
 @test writeTopology(bootnet[1], round=true)=="((5,((2,(1)#H7:::0.629):2.374,4):0.487):0.0,(6,#H7:::0.371):1.409,3);"
 # "((((2,(1)#H7:::0.678):1.774,4):0.235,3):0.899,5,(6,#H7:::0.322):10.0);"
 @test writeTopology(bootnet[2], round=true)=="(5,(((2,(1)#H7:::0.751):1.559,4):0.373,3):0.688,(6,#H7:::0.249):10.0);"
 # "(((5,(6,#H7:::0.249):10.0):0.688,3):0.373,(2,(1)#H7:::0.751):1.559,4);"
+end

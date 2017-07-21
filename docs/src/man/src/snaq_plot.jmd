@@ -40,6 +40,7 @@ human-friendly, so we plot the tree:
 plot(net0)
 ```
 
+
 We can use this tree as a starting point to search for the best
 network allowing for at most `hmax=1` hybrid node (which is the default).
 ```{julia; eval=false}
@@ -111,6 +112,23 @@ and this output for net3 (again, only 1 hybrid found):
 
     MaxNet is (D,C,((O,(E,#H7:::0.19558839257941849):0.3135243301652981):0.6640664138384673,(B,(A)#H7:::0.8044116074205815):10.0):10.0);
     with -loglik 28.315067218909626
+
+## parallel computation
+
+For network estimation, multiple runs can done in parallel.
+For example, if your machine has 4 or more processors (or cores),
+you can tell julia to use 4 processors like this below.
+
+```julia
+addprocs(4)
+```
+
+After that, running any of the `snaq!(...)` command above will use
+different cores for different runs, as processors become available.
+Fewer details are printed to the log file when multiple cores
+are used in parallel.
+You may tell julia to add more processors than your machine has,
+but you will not receive any performance benefits.
 
 ## choosing the number of hybridizations
 
