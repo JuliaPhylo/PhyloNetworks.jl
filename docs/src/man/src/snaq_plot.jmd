@@ -171,6 +171,17 @@ Edge lengths are shown, too. They were estimated in coalescent units:
 number of generations / effective population size.
 Some edge lengths are not identifiable, hence not shown.
 
+Networks can also be displayed through R, using
+[RCall](https://github.com/JuliaInterop/RCall.jl)
+instead of [Gadfly](gadflyjl.org/).
+To do so, add the argument `:RCall` after the network,
+like this for example:
+
+```julia
+plot(net,:RCall, tipOffset=0.5, edgeColor="tomato4",
+     minorHybridEdgeColor="skyblue", majorHybridEdgeColor="tan");
+```
+
 ## Re-rooting networks
 
 SNaQ infers an unrooted semi-directed network.

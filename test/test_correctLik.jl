@@ -69,7 +69,7 @@ println("passed estimation of net")
 @testset "snaq! in serial and in parallel" begin
   n1 = snaq!(currT, d, hmax=1, runs=2, Nfail=10, seed=1234,
              ftolRel=1e-2,ftolAbs=1e-2,xtolAbs=1e-2,xtolRel=1e-2)
-  addprocs(2)
+  addprocs(1)
   @everywhere using PhyloNetworks
   n2 = snaq!(currT, d, hmax=1, runs=2, Nfail=10, seed=1234,
              ftolRel=1e-2,ftolAbs=1e-2,xtolAbs=1e-2,xtolRel=1e-2)
