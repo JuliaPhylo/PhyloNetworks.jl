@@ -114,6 +114,7 @@ expectations
 predint
 expectationsPlot
 predintPlot
+parsimonyDiscrete
 ```
 
 ```@meta

@@ -74,7 +74,8 @@ tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculat
          "test_partition.jl", "test_partition2.jl","test_deleteHybridizationUpdate.jl", "test_add2hyb.jl", "test_optBLparts.jl", "test_undirectedOtherNetworks.jl",
          "test_orderings_plot.jl", "test_compareNetworks.jl", "test_badDiamII.jl",
          "test_multipleAlleles.jl", "test_bootstrap.jl", "test_perfectData.jl", # "test_readme.jl"
-         "test_lm.jl", "test_lm_tree.jl", "test_traits.jl", "test_simulate.jl"]
+         "test_lm.jl", "test_lm_tree.jl", "test_traits.jl", "test_simulate.jl",
+         "test_parsimony.jl", "test_plotsRCall.jl"]
 
 if isdefined(:PhyloNetworks)
     @show PhyloNetworks.CHECKNET

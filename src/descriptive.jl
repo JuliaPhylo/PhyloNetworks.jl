@@ -49,8 +49,8 @@ function fittedQuartetCF(d::DataCF, format=:wide::Symbol)
             tx3 = repeat([q.taxon[3] for q in d.quartet], inner=[3]),
             tx4 = repeat([q.taxon[4] for q in d.quartet], inner=[3]),
             quartet = repeat(["12_34","13_24","14_23"], outer=[nQ]),
-            obsCF = Array(Float64, 3*nQ),
-            expCF = Array(Float64, 3*nQ)  )
+            obsCF = Array{Float64}(3*nQ),
+            expCF = Array{Float64}(3*nQ)  )
         row = 1
         for i in 1:nQ
             for j in 1:3

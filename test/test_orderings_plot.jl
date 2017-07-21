@@ -157,7 +157,7 @@ plot(net, mainTree=true);
 plot(net, showTipLabel=false);
 plot(net, showNodeNumber=true);
 plot(net, showEdgeLength=false, showEdgeNumber=true);
-plot(net, showGamma=false);
+plot(net, showGamma=true);
 
 using Colors
 plot(net, edgeColor=colorant"olive",

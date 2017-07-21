@@ -1,9 +1,8 @@
-VERSION >= v"0.5" || warn("you need to update Julia to current version: 0.5 or higher")
 __precompile__()
 
 module PhyloNetworks
 
-using Base.Collections # for updateInCycle with priority queue
+using DataStructures # for updateInCycle with priority queue
 using DataFrames # for functions to read/write tables, and names()
 using GLM # for the lm function
 using NLopt # for branch lengths optimization
@@ -12,6 +11,7 @@ using Gadfly # for plots
 using ColorTypes # used by Gadfly already. To resolve data type names (Colorant)
 using StatsBase: sample
 using Combinatorics.combinations
+using RCall
 
 import Base.show
 import Gadfly.plot
@@ -89,7 +89,8 @@ lambda_estim,
 expectations,
 expectationsPlot,
 predint,
-predintPlot
+predintPlot,
+parsimonyDiscrete
 
 # export part
 
@@ -110,7 +111,9 @@ include("bootstrap.jl")
 include("multipleAlleles.jl")
 include("plotsGraphViz.jl")
 include("plotsGadfly.jl")
+include("plotsRCall.jl")
 include("compareNetworks.jl")
 include("traits.jl")
+include("parsimony.jl")
 
 end #module

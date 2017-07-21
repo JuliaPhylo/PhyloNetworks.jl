@@ -115,8 +115,8 @@ estNet.numTaxa == 5 || error("wrong number of taxa in estNet")
 
 # net = snaq!(currT,d,hmax=1,seed=8378,filename="")
 net = readTopology("(((4,#H7:::0.47411636966376686):0.6360197250223204,10):0.09464128563363322,(7:0.0,(6)#H7:::0.5258836303362331):0.36355727108454877,8);")
-@test_approx_eq topologyQPseudolik!(net, d) 174.58674796123705
-@test_approx_eq net.loglik 174.58674796123705
+@test topologyQPseudolik!(net, d) ≈ 174.58674796123705
+@test net.loglik ≈ 174.58674796123705
 net = readTopology("(((4,#H1),10),(7,(6)#H1),8);")
 net = topologyMaxQPseudolik!(net,d,  # loose tolerance for faster test
         ftolRel=1e-2,ftolAbs=1e-2,xtolAbs=1e-2,xtolRel=1e-2)
