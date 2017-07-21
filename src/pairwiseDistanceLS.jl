@@ -1,3 +1,13 @@
+"""
+    setBLfromDivergenceTimes!(net::HybridNetwork, divergenceTimes::Dict{Int64,Float64})
+
+Modify branch lengths in `net` to match divergence times given in `divergenceTimes`.
+
+# Examples
+
+"""
+
+
 function setBLfromDivergenceTimes!(net::HybridNetwork, divergenceTimes::Dict{Int64,Float64})
     for e in net.edge
         parentTime = divergenceTimes[e.node[e.isChild1 ? 2 : 1].number]
@@ -5,6 +15,14 @@ function setBLfromDivergenceTimes!(net::HybridNetwork, divergenceTimes::Dict{Int
         e.length = parentTime - childTime
     end
 end            
+
+"""
+
+    parwiseTaxonDistanceMatrix(net::HybridNetwork, [checkPreorder=true::Bool])
+
+Create an n-by-n matrix (where n=# taxa in `net`) of pairwise distances between taxa in `net`.
+
+"""
 
 function pairwiseTaxonDistanceMatrix(net::HybridNetwork;
                                      checkPreorder=true::Bool)
@@ -56,6 +74,12 @@ function updateHybridPairwiseTaxonDistanceMatrix!(V::Matrix,
         V[j,i] = V[i,j]
     end
 end
+
+"""
+    pairwiseDistanceLSscore(net::HybridNetwork, divergenceTimes::Dict{Int64,Float64}, dnaDistances::Array{Float64,2})
+
+Produce mismatch between the network distances and the observed distances from DNA (`dnaDistances`).
+"""
 
 function pairwiseDistanceLSscore(net::HybridNetwork, divergenceTimes::Dict{Int64,Float64}, dnaDistances::Array{Float64,2})
     setBLfromDivergenceTimes!(net, divergenceTimes)
