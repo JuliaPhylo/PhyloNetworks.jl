@@ -1,9 +1,21 @@
 # TICR pipeline
 
-This page provides details to insert data into the TICR pipeline at various stages.
+PhyloNetworks' [wiki](https://github.com/crsl4/PhyloNetworks.jl/wiki/TICR:-from-alignments-to-quartet-concordance-factors)
+has a step-by-step tutorial,
+to go from multiple sequence alignments
+to a table of quartet gene frequencies (concordance factors: CFs),
+through BUCKy (to integrate out gene tree uncertainty) or through RAxML.
+To get the `raxml.pl` perl script to run RAxML on each gene,
+download the content of that wiki with
+
+`git clone https://github.com/crsl4/PhyloNetworks.jl.wiki.git`
+
+then go to the `script/` folder.  
+Below is more detail to insert data into the TICR pipeline at various stages.
 Full information and code for this pipeline is [here](https://github.com/nstenz/TICR).
 
 ## To run MrBayes: You already have alignments
+
 If you don't need to run mdl.pl because you already have aligned gene sequences which you would like to run through MrBayes, you can simply create a tarball of the Nexus files (fasta won't work at this stage) you wish to use. This command assumes that you want to use all the files ending with ".nex" in the current directory, one file per locus:
 
 `

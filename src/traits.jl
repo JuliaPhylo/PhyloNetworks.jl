@@ -20,7 +20,7 @@ Functions [`sharedPathMatrix`](@ref) and [`simulate`](@ref) return objects of th
 The `MatrixTopologicalOrder` object has fields: `V`, `nodeNumbersTopOrder`, `internalNodeNumbers`, `tipNumbers`, `tipNames`, `indexation`.
 Type in "?MatrixTopologicalOrder.field" to get documentation on a specific field.
 """
-type MatrixTopologicalOrder
+struct MatrixTopologicalOrder
     "V: the matrix per se"
     V::Matrix # Matrix in itself
     "nodeNumbersTopOrder: vector of nodes numbers in the topological order, used for the matrix"
@@ -159,6 +159,36 @@ function updatePostOrder!(i::Int,
     end
 end
 
+# Extract the right part of a matrix in topological order
+# Tips : submatrix corresponding to tips
+# InternalNodes : submatrix corresponding to internal nodes
+# TipsNodes : submatrix nTips x nNodes of interactions
+# !! Extract sub-matrices in the original net nodes numbers !!
+# function Base.getindex(obj::MatrixTopologicalOrder, d::Symbol)
+#   if d == :Tips # Extract rows and/or columns corresponding to the tips
+#       mask = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
+#       obj.indexation == "b" && return obj.V[mask, mask] # both columns and rows are indexed by nodes
+#       obj.indexation == "c" && return obj.V[:, mask] # Only the columns
+#       obj.indexation == "r" && return obj.V[mask, :] # Only the rows
+#   end
+#   if d == :InternalNodes # Idem, for internal nodes
+#       mask = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
+#       obj.indexation == "b" && return obj.V[mask, mask]
+#       obj.indexation == "c" && return obj.V[:, mask]
+#       obj.indexation == "r" && return obj.V[mask, :]
+#   end
+#   if d == :TipsNodes
+#       maskNodes = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
+#       maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder,)
+#       obj.indexation == "b" && return obj.V[maskTips, maskNodes]
+#       obj.indexation == "c" && error("Both rows and columns must be net
+#       ordered to take the submatrix tips vs internal nodes.")
+#       obj.indexation == "r" && error("Both rows and columns must be net
+#       ordered to take the submatrix tips vs internal nodes.")
+#   end
+#   d == :All && return obj.V
+# end
+
 # If some tips are missing, treat them as "internal nodes"
 """
 `getindex(obj, d,[ indTips, msng])`
@@ -191,7 +221,7 @@ function Base.getindex(obj::MatrixTopologicalOrder,
         maskNodes = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
         maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
         maskTips = maskTips[indTips]
-        maskNodes = [maskNodes; maskTips[!msng]]
+        maskNodes = [maskNodes; maskTips[.!msng]]
         obj.indexation == "b" && return obj.V[maskNodes, maskNodes]
         obj.indexation == "c" && return obj.V[:, maskNodes]
         obj.indexation == "r" && return obj.V[maskNodes, :]
@@ -200,7 +230,7 @@ function Base.getindex(obj::MatrixTopologicalOrder,
         maskNodes = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
         maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
         maskTips = maskTips[indTips]
-        maskNodes = [maskNodes; maskTips[!msng]]
+        maskNodes = [maskNodes; maskTips[.!msng]]
         maskTips = maskTips[msng]
         obj.indexation == "b" && return obj.V[maskTips, maskNodes]
         obj.indexation == "c" && error("""Both rows and columns must be net
@@ -372,7 +402,7 @@ end
 ###############################################################################
 
 # Abstract type of all the (future) types (BM, OU, ...)
-abstract ParamsProcess
+abstract type ParamsProcess end
 
 # Type for shifts
 """
@@ -469,7 +499,7 @@ and `varRoot` (if the root is random, the variance of the root, defalut to `NaN`
 
 """
 # BM type
-type ParamsBM <: ParamsProcess
+mutable struct ParamsBM <: ParamsProcess
     mu::Real # Ancestral value or mean
     sigma2::Real # variance
     randomRoot::Bool # Root is random ? default false
@@ -528,7 +558,7 @@ The following functions and extractors can be applied to it: [`tipLabels`](@ref)
 
 The `TraitSimulation` object has fields: `M`, `params`, `model`.
 """
-type TraitSimulation
+struct TraitSimulation
     M::MatrixTopologicalOrder
     params::ParamsProcess
     model::AbstractString
@@ -755,7 +785,7 @@ An ancestral state reconstruction can be performed from this fitted object using
 The `PhyloNetworkLinearModel` object has fields: `lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `ind`, `msng`, `model`, `lambda`.
 Type in "?PhyloNetworkLinearModel.field" to get help on a specific field.
 """
-type PhyloNetworkLinearModel <: LinPredModel
+mutable struct PhyloNetworkLinearModel <: LinPredModel
     "lm: a GLM.LinearModel object, fitted on the cholesky-tranformend problem"
     lm::GLM.LinearModel # result of a lm on a matrix
     "V: a MatrixTopologicalOrder object of the network-induced correlations"
@@ -828,7 +858,9 @@ function phyloNetworklm_BM(X::Matrix,
                            Y::Vector,
                            V::MatrixTopologicalOrder;
                            msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
-                           ind=[0]::Vector{Int})
+                           ind=[0]::Vector{Int},
+                           model="BM"::AbstractString,
+                           lambda=1.0::Real)
     # Extract tips matrix
     Vy = V[:Tips]
     # Re-order if necessary
@@ -839,7 +871,7 @@ function phyloNetworklm_BM(X::Matrix,
     R = cholfact(Vy)
     RL = R[:L]
     # Fit
-    PhyloNetworkLinearModel(lm(RL\X, RL\Y), V, Vy, RL, Y, X, logdet(Vy), ind, msng, "BM")
+    PhyloNetworkLinearModel(lm(RL\X, RL\Y), V, Vy, RL, Y, X, logdet(Vy), ind, msng, model, lambda)
 end
 
 ###############################################################################
@@ -870,6 +902,7 @@ function setGammas!(net::HybridNetwork, gammas::Vector)
             else
                 net.nodes_changed[i].edge[majorHybrid][2].gamma = 1 - gammas[i]
             end
+            net.nodes_changed[i].edge[minorHybrid][1].gamma = 1 - gammas[i]
         end
     end
     return nothing
@@ -969,9 +1002,9 @@ function phyloNetworklm_lambda(X::Matrix,
         res_lam = fixedValue
     end
     transform_matrix_lambda!(V, res_lam, gammas, times)
-    res = phyloNetworklm_BM(X, Y, V; msng=msng, ind=ind)
-    res.lambda = res_lam
-    res.model = "lambda"
+    res = phyloNetworklm_BM(X, Y, V; msng=msng, ind=ind, model="lambda", lambda=res_lam)
+#    res.lambda = res_lam
+#    res.model = "lambda"
     return res
 end
 
@@ -1076,12 +1109,14 @@ julia> phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudat
 
 julia> dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_trait.txt"));
 
-julia> fitBM = phyloNetworklm(trait ~ 1, dat, phy);
+julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
 
 julia> fitBM # Shows a summary
 DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,Array{Float64,2}}
 
 Formula: trait ~ +1
+
+Model: BM
 
 Parameter(s) Estimates:
 Sigma2: 0.00294521
@@ -1591,7 +1626,7 @@ The following functions can be applied to it:
 The `ReconstructedStates` object has fields: `traits_nodes`, `variances_nodes`, `NodeNumbers`, `traits_tips`, `tipNumbers`, `model`.
 Type in "?ReconstructedStates.field" to get help on a specific field.
 """
-type ReconstructedStates
+struct ReconstructedStates
     "traits_nodes: the infered expectation of 'missing' values (ancestral nodes and missing tips)"
     traits_nodes::Vector # Nodes are actually "missing" data (including tips)
     "variances_nodes: the variance covariance matrix between all the 'missing' nodes"
@@ -1629,7 +1664,7 @@ function expectationsPlot(obj::ReconstructedStates)
     return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], PredInt = expetxt)
 end
 
-StatsBase.stderr(obj::ReconstructedStates) = sqrt(diag(obj.variances_nodes))
+StatsBase.stderr(obj::ReconstructedStates) = sqrt.(diag(obj.variances_nodes))
 
 """
 `predint(obj::ReconstructedStates, level=0.95::Real)`
@@ -1766,7 +1801,7 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)
         error("""The number of predictors for the ancestral states (number of columns of X_n)
               does not match the number of predictors at the tips.""")
     end
-    if (size(X_n)[1] != length(obj.V.internalNodeNumbers) + sum(!obj.msng))
+    if (size(X_n)[1] != length(obj.V.internalNodeNumbers) + sum(.!obj.msng))
         error("""The number of lines of the predictors does not match
               the number of nodes plus the number of missing tips.""")
     end
@@ -1780,14 +1815,14 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)
 #       jjj = jjj[jjj .> 0]
 #       Vyz = Vyz[iii, jjj]
         Vyz = obj.V[:TipsNodes, obj.ind, obj.msng]
-        missingTipNumbers = obj.V.tipNumbers[obj.ind][!obj.msng]
+        missingTipNumbers = obj.V.tipNumbers[obj.ind][.!obj.msng]
         nmTipNumbers = obj.V.tipNumbers[obj.ind][obj.msng]
     else
         warn("""There were no indication for the position of the tips on the network.
              I am assuming that they are given in the same order.
              Please check that this is what you intended.""")
         Vyz = obj.V[:TipsNodes, collect(1:length(obj.V.tipNumbers)), obj.msng]
-        missingTipNumbers = obj.V.tipNumbers[!obj.msng]
+        missingTipNumbers = obj.V.tipNumbers[.!obj.msng]
         nmTipNumbers = obj.V.tipNumbers[obj.msng]
     end
     temp = obj.RL \ Vyz
@@ -1834,7 +1869,7 @@ julia> phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "carniv
 
 julia> dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "carnivores_trait.txt"));
 
-julia> fitBM = phyloNetworklm(trait ~ 1, dat, phy);
+julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
 
 julia> ancStates = ancestralStateReconstruction(fitBM) # Should produce a warning, as variance is unknown.
 WARNING: These prediction intervals show uncertainty in ancestral values,
@@ -1979,7 +2014,7 @@ julia> ## Some tips may also be missing
 
 julia> dat[[2, 5], :trait] = NA;
 
-julia> fitBM = phyloNetworklm(trait ~ 1, dat, phy);
+julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
 
 julia> ancStates = ancestralStateReconstruction(fitBM);
 WARNING: These prediction intervals show uncertainty in ancestral values,
@@ -2097,7 +2132,7 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel)
     are known, please provide them as a matrix argument to the function.
     Otherwise, you might consider doing a multivariate linear regression (not implemented yet).""")
     end
-  X_n = ones((length(obj.V.internalNodeNumbers) + sum(!obj.msng), 1))
+  X_n = ones((length(obj.V.internalNodeNumbers) + sum(.!obj.msng), 1))
     ancestralStateReconstruction(obj, X_n)
 end
 # For a DataFrameRegressionModel

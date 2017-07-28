@@ -113,5 +113,5 @@ if(!isempty(wrong))
     ## end
     throw("errors in parameters")
 else
-    println("----------NO ERRORS!----------");
+    #println("----------NO ERRORS!----------");
 end

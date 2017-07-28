@@ -5,16 +5,44 @@
 
 const move2int = Dict{Symbol,Int}(:add=>1,:MVorigin=>2,:MVtarget=>3,:CHdir=>4,:delete=>5, :nni=>6)
 const int2move = Dict{Int,Symbol}(move2int[k]=>k for k in keys(move2int))
-# if changes are made here, make the same in the docstring for snaq! below.
-const fAbs = 1e-6 #1e-10 prof Bates, 1e-6
-const fRel = 1e-5 # 1e-12 prof Bates, 1e-5
-const xAbs = 1e-4 # 0.001 in phylonet, 1e-10 prof Bates, 1e-4
-const xRel = 1e-3 # 0.01 in phylonet, 1e-10 prof Bates, 1e-3
-const numFails = 100 # number of failed proposals allowed before stopping the procedure (like phylonet)
-const numMoves = Int[] #empty to be calculated inside based on coupon's collector
-const multiplier = 10000 # for loglik absolute tol (multiplier*fAbs), not used anymore, see likAbs
-const likAbs = 0.01 # instead of (multiplier*fAbs)
+"""
+default values for tolerance parameters,
+used in the optimization of branch lengths (fAbs, fRel, xAbs, xRel)
+and in the acceptance of topologies (likAbs, numFails).
 
+if changes are made here, **make the same** in the docstring for snaq! below
+
+version | fAbs | fRel | xAbs | xRel | numFails | likAbs | multiplier
+--------|------|------|------|------|----------|--------|-----------
+v0.5.1  | 1e-6 | 1e-6 | 1e-3 | 1e-2 |     75   |  1e-6  |
+v0.3.0  | 1e-6 | 1e-5 | 1e-4 | 1e-3 |    100   |  0.01  |
+v0.0.1  | 1e-6 | 1e-5 | 1e-4 | 1e-3 |    100   |        | 10000
+older   | 1e-10| 1e-12| 1e-10| 1e-10|
+
+v0.5.1: based on Nan Ji's work. same xAbs and xRel as in phylonet (as of 2015).
+earlier: multiplier was used; later: likAbs = multiplier*fAbs)
+"older": values from GLM.jl, Prof Bates
+
+default values used on a single topology, to optimize branch lengths
+and gammas, at the very end of snaq!, and by
+topologyMaxQPseudolik! since v0.5.1.
+
+version | fAbsBL | fRelBL | xAbsBL | xRelBL
+--------|--------|--------|--------|-------
+v0.0.1  | 1e-10  | 1e-12  | 1e-10  | 1e-10
+"""
+const fAbs = 1e-6
+const fRel = 1e-6
+const xAbs = 1e-3
+const xRel = 1e-2
+const numFails = 75 # number of failed proposals allowed before stopping the procedure (like phylonet)
+const numMoves = Int[] #empty to be calculated inside based on coupon's collector
+const likAbs = 1e-6 # loglik absolute tolerance to accept new topology
+
+const fAbsBL = 1e-10
+const fRelBL = 1e-12
+const xAbsBL = 1e-10
+const xRelBL = 1e-10
 # ---------------------- branch length optimization ---------------------------------
 
 # function to get the branch lengths/gammas to optimize for a given network
@@ -1277,7 +1305,7 @@ function optTopLevel!(currT::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     end
     if(ftolAbs > 1e-7 || ftolRel > 1e-7 || xtolAbs > 1e-7 || xtolRel > 1e-7)
         writelog && write(logfile,"\nfound best network, now we re-optimize branch lengths and gamma more precisely")
-        optBL!(newT,d,verbose,1e-12,1e-10,1e-10,1e-10)
+        optBL!(newT,d,verbose, fRelBL,fAbsBL,xRelBL,xAbsBL)
     end
     assignhybridnames!(newT)
     if(absDiff <= liktolAbs)
@@ -1297,7 +1325,7 @@ function optTopLevel!(currT::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
             setGammaBLfromGammaz!(n,newT) # get t and γ that are compatible with estimated gammaz values
         end
     end
-    writelog && write(logfile,"\nEND optTopLevel: found minimizer topology at step $(count) (failures: $(failures)) with -loglik=$(round(newT.loglik,5)) and ht_min=$(round(newT.ht,5))")
+    writelog && write(logfile,"\nEND optTopLevel: found minimizer topology at step $(count) (failures: $(failures)) with -loglik=$(round(newT.loglik,5)) and ht_min=$(round.(newT.ht,5))")
     writelog && printCounts(movescount,movesgamma,logfile)
     DEBUG && printEdges(newT)
     DEBUG && printPartitions(newT)
@@ -1545,17 +1573,20 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
                      verbose::Bool, closeN ::Bool, Nmov0::Vector{Int}, runs::Integer,
                      outgroup::AbstractString, rootname::AbstractString, seed::Integer, probST::Float64)
     writelog = true
+    writelog_1proc = false
     if (rootname != "")
-        juliaerr = string(rootname,".err")
-        errfile = open(juliaerr,"w")
         julialog = string(rootname,".log")
         logfile = open(julialog,"w")
         juliaout = string(rootname,".out")
+        if nprocs() == 1
+            writelog_1proc = true
+            juliaerr = string(rootname,".err")
+            errfile = open(juliaerr,"w")
+        end
     else
       writelog = false
       logfile = STDOUT # used in call to optTopRun1!
     end
-
     str = """optimization of topology, BL and inheritance probabilities using:
               hmax = $(hmax),
               tolerance parameters: ftolRel=$(ftolRel), ftolAbs=$(ftolAbs),
@@ -1567,20 +1598,16 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     end
     str *= (writelog ? "rootname for files: $(rootname)\n" : "no output files\n")
     str *= "BEGIN: $(runs) runs on starting tree $(writeTopologyLevel1(currT0,true))\n"
+    if nprocs()>1
+        str *= "       using $(nprocs()) processors\n"
+    end
     if (writelog)
       write(logfile,str)
       flush(logfile)
     end
     print(STDOUT,str)
     print(STDOUT, Dates.format(now(), "yyyy-mm-dd H:M:S.s") * "\n")
-    # time printed to logfile at start of every run, not here.
-
-    maxNet = HybridNetwork();
-    maxNet.loglik = 1.e15;
-
-    failed = Int[] #seeds with bugs
-    bestnet = HybridNetwork[];
-    #runs += 1 #extra run for compilation in v0.3
+    # if 1 proc: time printed to logfile at start of every run, not here.
 
     if(seed == 0)
         t = time()/1e9
@@ -1592,58 +1619,65 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
       flush(logfile)
     else print(STDOUT,"\nmain seed $(seed)\n"); end
     srand(seed)
-    seeds = [seed;round(Integer,floor(rand(runs-1)*100000))]
+    seeds = [seed;round.(Integer,floor.(rand(runs-1)*100000))]
+    if writelog && !writelog_1proc
+        for i in 1:runs # workers won't write to logfile
+            write(logfile, "seed: $(seeds[i]) for run $(i)\n")
+        end
+        flush(logfile)
+    end
 
     tic();
-    for i in 1:runs
-        writelog && write(logfile,"seed: $(seeds[i]) for run $(i)\n$(Dates.format(now(), "yyyy-mm-dd H:M:S.s"))\n")
-        writelog && flush(logfile)
-        print(STDOUT,"seed: $(seeds[i]) for run $(i)\n")
+    bestnet = pmap(1:runs) do i # for i in 1:runs
+        logstr = "seed: $(seeds[i]) for run $(i), $(Dates.format(now(), "yyyy-mm-dd H:M:S.s"))\n"
+        print(STDOUT, logstr)
+        msg = "\nBEGIN SNaQ for run $(i), seed $(seeds[i]) and hmax $(hmax)"
+        if writelog_1proc # workers can't write on streams opened by master
+            write(logfile, logstr * msg)
+            flush(logfile)
+        end
+        verbose && print(STDOUT, msg)
         gc();
         try
-            writelog && write(logfile,"\n BEGIN SNaQ for run $(i), seed $(seeds[i]) and hmax $(hmax)")
-            verbose && print(STDOUT,"\n BEGIN SNaQ for run $(i), seed $(seeds[i]) and hmax $(hmax)")
-            best = optTopRun1!(currT0, liktolAbs, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,seeds[i],logfile,writelog,probST);
-            writelog && write(logfile,"\n FINISHED SNaQ for run $(i), -loglik of best $(best.loglik)\n")
-            verbose && print(STDOUT,"\n FINISHED SNaQ for run $(i), -loglik of best $(best.loglik)\n")
-            if (writelog)
-              if(outgroup == "none")
-                write(logfile,writeTopologyLevel1(best,printID=true, multall=!isempty(d.repSpecies))) #no outgroup
-              else
-                write(logfile,writeTopologyLevel1(best,outgroup=outgroup, printID=true, multall=!isempty(d.repSpecies))) #outgroup
-              end
-            flush(logfile)
+            best = optTopRun1!(currT0, liktolAbs, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs,
+                       verbose, closeN , Nmov0,seeds[i],logfile,writelog_1proc,probST);
+            logstr *= "\nFINISHED SNaQ for run $(i), -loglik of best $(best.loglik)\n"
+            verbose && print(STDOUT, logstr)
+            if writelog_1proc
+              logstr = writeTopologyLevel1(best,outgroup=outgroup, printID=true, multall=!isempty(d.repSpecies))
+              logstr *= "\n---------------------\n"
+              write(logfile, logstr)
+              flush(logfile)
             end
-            push!(bestnet, best)
-            if(best.loglik < maxNet.loglik)
-                maxNet = best
-            end
-            DEBUG && println("typeof maxNet $(typeof(maxNet)), -loglik of maxNet $(maxNet.loglik)")
+            return best
         catch(err)
-            if (writelog)
-            write(logfile,"\n ERROR found on SNaQ for run $(i) seed $(seeds[i]): $(err)")
-            flush(logfile)
-            write(errfile,"\n ERROR found on SNaQ for run $(i) seed $(seeds[i]): $(err)")
-            flush(errfile)
-            push!(failed,seeds[i])
-            else
-                warn("\n ERROR found on SNaQ for run $(i) seed $(seeds[i]): $(err)")
+            msg = "\nERROR found on SNaQ for run $(i) seed $(seeds[i]): $(err)\n"
+            logstr = msg * "\n---------------------\n"
+            if writelog_1proc
+                write(logfile, logstr)
+                flush(logfile)
+                write(errfile, msg)
+                flush(errfile)
             end
+            warn(msg) # returns: nothing
         end
-        writelog && write(logfile,"\n---------------------\n")
-        writelog && flush(logfile)
     end
     t=toc();
-    if (writelog)
-    write(errfile, "\n Total errors: $(length(failed)) in seeds $(failed)")
-    write(logfile,"\n" * Dates.format(now(), "yyyy-mm-dd H:M:S.s"))
-    close(errfile)
-    else
-        verbose && print(STDOUT,"""\n Total errors: $(length(failed)) in seeds $(failed)
-                                     $(Dates.format(now(), "yyyy-mm-dd H:M:S.s"))""")
+    writelog_1proc && close(errfile)
+    msg = "\n" * Dates.format(now(), "yyyy-mm-dd H:M:S.s")
+    if writelog
+        write(logfile, msg)
+    elseif verbose
+        print(STDOUT, msg)
     end
-
-    maxNet.numTaxa > 0 || error("the best network is empty!")
+    filter!(n -> .!isa(n, Void), bestnet) # remove "nothing", failed runs
+    if length(bestnet)>0
+        ind = sortperm([n.loglik for n in bestnet])
+        bestnet = bestnet[ind]
+        maxNet = bestnet[1]::HybridNetwork # tell type to compiler
+    else
+        error("all runs failed")
+    end
 
     ## need to do this before setting BL to -1
     if (writelog && !isTree(maxNet)) ## only do networks file if maxNet is not tree
@@ -1692,8 +1726,6 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     write(logfile,"\nMaxNet is $(writeTopologyLevel1(maxNet,printID=true, multall=!isempty(d.repSpecies))) \nwith -loglik $(maxNet.loglik)\n")
     print(STDOUT,"\nMaxNet is $(writeTopologyLevel1(maxNet,printID=true, multall=!isempty(d.repSpecies))) \nwith -loglik $(maxNet.loglik)\n")
 
-    # new output file with (nearly) non-identifiable networks: (run before maxNet gets rooted)
-
     if outgroup != "none"
         try
             checkRootPlace!(maxNet,outgroup=outgroup) ## keeps all attributes
@@ -1715,13 +1747,10 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     str = writeTopologyLevel1(maxNet, printID=true,multall=!isempty(d.repSpecies)) * """
      -Ploglik = $(maxNet.loglik)
      Dendroscope: $(writeTopologyLevel1(maxNet,di=true, multall=!isempty(d.repSpecies)))
-     Elapsed time: $(t) seconds in $(runs-length(failed)) successful runs
+     Elapsed time: $(t) seconds, $(runs) attempted runs
     -------
     List of estimated networks for all runs (sorted by log-pseudolik; the smaller, the better):
     """
-    ## to sort bestnet by loglik value:
-    ind = sortperm([n.loglik for n in bestnet])
-    bestnet = bestnet[ind]
     for n in bestnet
       str *= " "
       str *= (outgroup == "none" ? writeTopologyLevel1(n,printID=true, multall=!isempty(d.repSpecies)) :
@@ -1860,23 +1889,24 @@ There are many optional arguments, including
 The following optional arguments control when to stop the optimization of branch lengths
 and γ's on each individual candidate network. Defaults are in parentheses:
 
-- ftolRel (1e-5) and ftolAbs (1e-6): relative and absolute differences of the network score
+- ftolRel (1e-6) and ftolAbs (1e-6): relative and absolute differences of the network score
   between the current and proposed parameters,
-- xtolRel (1e-3) and xtolAbs (1e-4): relative and absolute differences between the current
+- xtolRel (1e-2) and xtolAbs (1e-3): relative and absolute differences between the current
   and proposed parameters.
 
 Greater values will result in a less thorough but faster search. These parameters are used
-when evaluating candidate networks only. Branch lengths and γ's are optimized on the last
-"best" network with different and very thorough tolerance parameters (1e-12 for ftolRel
-and 1e-10 for the others).
-
+when evaluating candidate networks only.
 The following optional arguments control when to stop proposing new network topologies:
 
-- Nfail (100): maximum number of times that new topologies are proposed and rejected (in a row).
-- liktolAbs (0.1): the proposed network is accepted if its score is better than the current score by
+- Nfail (75): maximum number of times that new topologies are proposed and rejected (in a row).
+- liktolAbs (1e-6): the proposed network is accepted if its score is better than the current score by
   at least liktolAbs.
 
 Lower values of Nfail and greater values of liktolAbs and ftolAbs would result in a less thorough but faster search.
+
+At the end, branch lengths and γ's are optimized on the last "best" network
+with different and very thorough tolerance parameters:
+1e-12 for ftolRel, 1e-10 for ftolAbs, xtolRel, xtolAbs.
 
 See also: `topologyMaxQPseudolik!` to optimize parameters on a fixed topology,
 and `topologyQPseudolik!` to get the deviance (pseudo log-likelihood up to a constant)

@@ -62,7 +62,7 @@ flag, nocycle,edges, nodes = updateInCycle!(net,node[1]);
 flag2, edges2 = updateContainRoot!(net,node[1]);
 flag3, edges3 = updateGammaz!(net,node[1]);
 
-printEdges(net)
+#printEdges(net)
 
 #deleteHybrid!(node[1],net,false)
 

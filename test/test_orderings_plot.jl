@@ -16,7 +16,7 @@ end
 if !isdefined(:doalltests) doalltests = false; end
 
 #----- test of directEdges! and re-rooting functions ----------#
-println("\n\nTesting directEdges! and re-rootings on a tree, then on a network with h=2")
+println("Testing directEdges! and re-rootings on a tree, then on a network with h=2")
 
 if doalltests
 tre = readTopology("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
@@ -102,7 +102,7 @@ rootatnode!(net,"10"); # or error("rootatnode! complained, leaf 10");
 
 
 #----- test of preorder! -------------#
-println("\n\nTesting preorder! on a tree, then on a network with h=2")
+println("Testing preorder! on a tree, then on a network with h=2")
 
 tre = readTopology("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
 net = readTopology("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);");
@@ -126,7 +126,7 @@ for i=1:length(net.node)
 end
 
 #----- test of cladewiseorder! --------#
-println("\n\nTesting cladewiseorder! on a tree, then on a network with h=2")
+println("Testing cladewiseorder! on a tree, then on a network with h=2")
 
 if doalltests
 cladewiseorder!(tre)
@@ -146,7 +146,7 @@ end
 
 
 #----- test of plot -------------------#
-println("\n\nTesting plot() on a tree, then on a network with h=2 and various options")
+println("Testing plot() on a tree, then on a network with h=2 and various options")
 
 # keep ";" below to avoid creating a new file
 plot(tre);
@@ -157,7 +157,7 @@ plot(net, mainTree=true);
 plot(net, showTipLabel=false);
 plot(net, showNodeNumber=true);
 plot(net, showEdgeLength=false, showEdgeNumber=true);
-plot(net, showGamma=false);
+plot(net, showGamma=true);
 
 using Colors
 plot(net, edgeColor=colorant"olive",
@@ -165,7 +165,7 @@ plot(net, edgeColor=colorant"olive",
           majorHybridEdgeColor=colorant"skyblue");
 
 #----- test of rotate! ----------------#
-println("\n\nTesting rotate! to change the order of children edges at a given node")
+println("Testing rotate! to change the order of children edges at a given node")
 
 if doalltests
 net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");

@@ -18,8 +18,8 @@ srand(seed);
 besttree = deepcopy(currT0);
 success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
 success
-printEdges(besttree)
-printNodes(besttree)
+#printEdges(besttree)
+#printNodes(besttree)
 writeTopologyLevel1(besttree,true)
 net = deepcopy(besttree);
 length(net.partition)
@@ -34,9 +34,9 @@ length(net.partition)
 success = false
 success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
 success
-printEdges(besttree)
-printNodes(besttree)
-writeTopologyLevel1(besttree,true)
+#printEdges(besttree)
+#printNodes(besttree)
+println(writeTopologyLevel1(besttree,true))
 net = deepcopy(besttree);
 length(net.partition)
 [n.number for n in net.partition[1].edges] == [15] || error("wrong partition")
@@ -60,7 +60,7 @@ length(net.partition) == 6 || error("wrong partition")
 [n.number for n in net.partition[4].edges] == [17] || error("wrong partition")
 [n.number for n in net.partition[5].edges] == [14] || error("wrong partition")
 [n.number for n in net.partition[6].edges] == [3,1,2,21,8,6,4,9,7] || error("wrong partition")
-printNodes(net)
+#printNodes(net)
 
 deleteHybridizationUpdate!(net,net.node[18]);
 length(net.partition) == 0 || error("wrong partition")

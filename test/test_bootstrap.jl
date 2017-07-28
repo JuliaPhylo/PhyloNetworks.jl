@@ -8,9 +8,8 @@ if(individualtest)
     include("../src/functions.jl")
 end
 
-scriptfile = @__FILE__
-exdir = (scriptfile==nothing ? joinpath("..","examples") : joinpath(dirname(dirname(@__FILE__)), "examples"))
-#exdir = "../examples";
+
+exdir = joinpath(Pkg.dir("PhyloNetworks"),"examples")
 
 info("testing hybridBootstrapSupport")
 bestnet = readTopology(joinpath(exdir,"fish2hyb.net"));
@@ -50,22 +49,26 @@ info("testing bootsnaq from quartet CF intervals")
 T=readTopology(joinpath(exdir,"startTree.txt"))
 df=readtable(joinpath(exdir,"tableCFCI.csv"))
 net1 = readTopology("(5,(((2,(1)#H7:::0.7143969494428192):1.5121337017411736,4):0.4894187322508883,3):0.519160762355313,(6,#H7:::0.2856030505571808):10.0);")
-bootnet = bootsnaq(T,df,nrep=2,runs=1,seed=1234,filename="",Nfail=2,ftolAbs=1e-3,ftolRel=1e-3)
+bootnet = bootsnaq(T,df,nrep=2,runs=1,seed=1234,filename="",Nfail=2,ftolAbs=1e-3,ftolRel=1e-3,
+                   xtolAbs=1e-4,xtolRel=1e-3,liktolAbs=0.01)
 @test size(bootnet)==(2,)
-@test writeTopology(bootnet[1], round=true)=="(3,((1,5):0.0,(6,(2,(4)#H7:::0.946):0.296):0.0):2.144,#H7:::0.054);"
-#"(2,(4,(3,(5,(6,#H7:::0.393):0.69):0.268):0.536):2.71,(1)#H7:::0.607);"
+@test writeTopology(bootnet[1], round=true)=="(4,(((6,#H7:0.0::0.222):10.0,2):0.0,((5,1):0.0)#H7:0.0::0.778):0.0,3);"
 @test writeTopology(bootnet[2], round=true)=="(2,3,((4,5):0.0,(1,6):0.011):0.0);"
 # "(2,((5,#H9:0.0::0.298):3.927,3):1.331,(((1,6):0.019,4):0.0)#H9:0.0::0.702);"
 # above: bad diamond 2, and both edges above the hybrid have estimated length of 0.0...
 
-info("testing bootsnaq from bootstrap gene trees")
+@testset "bootsnaq from bootstrap gene trees, multiple procs" begin
 treefile = joinpath(exdir,"treefile.txt") # pretending these are bootstrap trees, for all genes
 boottrees = Vector{HybridNetwork}[]
 for i=1:13 push!(boottrees, readMultiTopology(treefile)) end
 for i=1:13 @test size(boottrees[i])==(10,) end # 10 bootstrap trees for each of 13 "genes"
+addprocs(1)
+@everywhere using PhyloNetworks
 bootnet = bootsnaq(T,boottrees,nrep=2,runs=2,otherNet=net1,seed=1234,prcnet=0.5,filename="",Nfail=2,ftolAbs=1e-3,ftolRel=1e-3)
+rmprocs(workers())
 @test size(bootnet)==(2,)
 @test writeTopology(bootnet[1], round=true)=="((5,((2,(1)#H7:::0.629):2.374,4):0.487):0.0,(6,#H7:::0.371):1.409,3);"
 # "((((2,(1)#H7:::0.678):1.774,4):0.235,3):0.899,5,(6,#H7:::0.322):10.0);"
 @test writeTopology(bootnet[2], round=true)=="(5,(((2,(1)#H7:::0.751):1.559,4):0.373,3):0.688,(6,#H7:::0.249):10.0);"
 # "(((5,(6,#H7:::0.249):10.0):0.688,3):0.373,(2,(1)#H7:::0.751):1.559,4);"
+end
