@@ -24,7 +24,7 @@ function traverseTree2Matrix!(node::Node, edge::Edge, ie::Vector{Int}, M::Matrix
                 inde = ie[1];
                 # inde = getIndex(e.number,M[:,1])
                 traverseTree2Matrix!(child,e,ie,M,S)
-                M[indedge,2:size(M,2)] |= M[inde,2:size(M,2)]
+                M[indedge,2:size(M,2)] .|= M[inde,2:size(M,2)]
             end
         end
     end
@@ -134,7 +134,7 @@ function hardwiredClusters!(node::Node, edge::Edge, ie::Vector{Int}, M::Matrix{I
                 M[indedge,indsp+1] = 1 #indsp+1 because first column is edge numbers
             else
                 inde = hardwiredClusters!(child,e,ie,M,S)
-                M[indedge,2:end-1] |= M[inde,2:end-1]
+                M[indedge,2:end-1] .|= M[inde,2:end-1]
             end
         end
     end

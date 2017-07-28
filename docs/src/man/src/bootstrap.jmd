@@ -1,113 +1,139 @@
 ```{julia; eval=true; echo=false}
 using PhyloNetworks, DataFrames, Gadfly
-T=readTopologyLevel1(Pkg.dir("PhyloNetworks","examples","startTree.txt"))
-df=readtable(Pkg.dir("PhyloNetworks","examples","tableCFCI.csv"))
-#bootnet = bootsnaq(T, df, hmax=1, nrep=10, runs=3, filename="bootstrap")
-bootnet = readMultiTopology(Pkg.dir("PhyloNetworks","examples","bootstrapNets_h1.tre"));
-net1 = readTopology(Pkg.dir("PhyloNetworks","examples","net1_snaq.out")) # reading from output file of snaq
-BStable, tree1 = treeEdgesBootstrap(bootnet,net1)
-BSn, BSe, BSc, BSgam, BSedgenum = hybridBootstrapSupport(bootnet, net1);
+using PhyloNetworks
+#T=readTopologyLevel1(Pkg.dir("PhyloNetworks","examples","startTree.txt"))
+#df=readtable(Pkg.dir("PhyloNetworks","examples","tableCFCI.csv"))
 ```
 # Bootstrap
 
 ## Running a bootstrap analysis
 
-We can run a bootstrap analysis if we estimated quartet concordance factors (CFs)
-with credibility intervals, such as if we used the [TICR pipeline](@ref).
-This pipeline provides a CF table with extra columns for
-credibility intervals.
+There are two ways to do a bootstrap analysis.
+
+- From quartet CFs with credibility intervals, such as if we used BUCKy. The [TICR pipeline](@ref) outpus a CF table with extra columns for credibility intervals. We could then read that table and get bootstrap networks like this, and tweak options as needed:
 ```julia
 using DataFrames
-df = readtable("tableCFCI.csv")
-bootnet = bootsnaq(T, df, hmax=1, nrep=10, runs=3, filename="bootstrap")
+df = readtable("tableCF_withCI.csv")
+bootnet = bootsnaq(startnetwork, df, hmax=1, filename="bootstrap")
 ```
-This example file can be accessed
-[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/tableCFCI.csv)
-or [here](https://raw.githubusercontent.com/crsl4/PhyloNetworks/master/examples/tableCFCI.csv).
-Make sure that your downloaded file has the name `tableCFCI.csv` (to match the name in the
-Julia command), with no an extra extension `.txt`. Rename the file after download if necessary.
 
-This example uses a number of replicates (10) that is definitely too small, to
-make the example run faster. You might also increase the number of optimization
-runs (`runs`) done for each bootstrap replicate.
+- Alternatively, we can use bootstrap gene trees: one file of bootstrap trees per gene. Here, the input is a text file that lists all the bootstrap files (one per gene). We demonstrate this option here.
+
+The names of all our bootstrap files are listed in "BSlistfiles".
+(ASTRAL can use the same file to do its own bootstrap, see the
+[wiki](https://github.com/crsl4/PhyloNetworks.jl/wiki/Gene-Trees:-RAxML)
+for more details).
+The function `readBootstrapTrees` can read this list of file names, then
+read each bootstrap file to get the bootstrap sample for each gene.
+We can use them to sample input gene trees at random, one per gene,
+and estimate a network from them. We ask the `bootsnaq` function
+to repeat this resampling of bootstrap gene trees several times.
+
+```{julia; eval=false}
+bootTrees = readBootstrapTrees("BSlistfiles");
+bootnet = bootsnaq(net0, bootTrees, hmax=1, nrep=10, runs=3, filename="bootsnaq", seed=4321)
+```
+```{julia; echo=false}
+bootnet = readMultiTopology("bootsnaq.out");
+```
 
 The bootstrap networks are saved in the `boostrap.out` file, so they
-can be read in a new session with `bootnet =
-readMultiTopology("boostrap.out")`. To save the bootstrap networks to
+can be read in a new session with
+`bootnet = readMultiTopology("bootsnap.out")`. To save the bootstrap networks to
 a different file (perhaps after having re-rooted them with an
-outgroup), you can do this:
+outgroup), we could do this: `writeMultiTopology(bootnet, "bootstrapNets.tre")`.
 
-```julia
-writeMultiTopology(bootnet, "bootstrapNets_h1.tre")
-length(bootnet) # 10 networks in the array 'bootnet'
-less("bootstrapNets_h1.tre")
-```
-If you close your session and re-open it later, you can re-read the bootstrap networks
-back in memory like this:
-```julia
-bootnet = readMultiTopology("bootstrapNets_h1.tre");
+The example above asks for 10 bootstrap replicates,
+which is definitely too few, to make the example run faster.
+We might also increase the number of optimization runs (`runs`)
+done for each bootstrap replicate. This bootstrap was run with the
+default 10 runs per replicate, and 100 bootstrap replicates,
+and the 100 bootstrap networks come with the package:
+
+```{julia; eval=true; results="markup"; term=true}
+bootnet = readMultiTopology(Pkg.dir("PhyloNetworks","examples","bootsnaq.out"));
+length(bootnet)
 ```
 
-We can run bootstrap analysis from gene trees also. We need a text
-file with a list of files containg the bootstrap trees (one file per
-gene). This is the same format used by ASTRAL (see the wiki page for more details.).
-```julia
-bootTrees = readBootstrapTrees("BSlistfiles")
-bootnet = bootsnaq(T, bootTrees, hmax=1, nrep=100, filename="bootsnaq1_raxmlboot")
-```
-If you used a specified list of quartets on the original data, you
+If we used a specified list of quartets on the original data, we
 should use that same list for the bootstrap analysis through the
 option `quartetfile`.
 
-## Summarizing bootstrap on the main tree
+## support for tree edges
 
-The `bootsnaq` function, as used before, returned a list of 10 networks (`nrep=10`).
-Before summarizing them on the best network, it is best to re-read this network
-to get a reproducible internal numbering of its nodes and edges, used later for mapping
-bootstrap support to edges. We can then summarize bootstrap networks:
-```julia
-net1 = readTopology("net1_snaq.out") # reading from output file of snaq
-BStable, tree1 = treeEdgesBootstrap(bootnet,net1)
+Now that we have 100 bootstrap networks, we need to summarize
+what they have in common (highly supported features) and what they
+don't (areas of uncertainty).
+
+Before summarizing these bootstrap networks on the best network,
+it is best to re-read this network to get a reproducible internal numbering
+of its nodes and edges, used later for mapping bootstrap support to edges.
+```{julia; eval=true}
+net1 = readTopology(joinpath(Pkg.dir("PhyloNetworks"),"examples","net1.out"))
 ```
-This will calculate the major tree `tree1` displayed in `net1`, that is,
+
+It turns out that the direction of gene flow is quite uncertain
+in this example (see below) with a wrong direction inferred sometimes,
+so we re-root our best network net1 to the base of O,E, for the figures
+to be less confusing later.
+
+```{julia; eval=true; results="markup"; label="net1_rotate1"; fig_width=4; fig_height=4}
+using DataFrames
+plot(net1, showEdgeNumber=true) # edge 7 leads to O+E
+rootonedge!(net1, 7) # makes (O,E) outgroup clade
+plot(net1, showNodeNumber=true)
+```
+edges cross: but rotating at node -6 should remove this crossing
+of edges
+```{julia; eval=true; results="markup"; label="net1_rotate2"; fig_width=4; fig_height=4}
+rotate!(net1, -6)
+plot(net1, showGamma=true)
+```
+
+We can now summarize our bootstrap networks.
+The functions `treeEdgesBootstrap` and `hybridBootstrapSupport`
+read all bootstrap networks and map the edges / nodes
+onto a reference network: here net1.
+```{julia; eval=true}
+BSe_tree, tree1 = treeEdgesBootstrap(bootnet,net1)
+```
+This calculates the major tree `tree1` displayed in `net1`, that is,
 the tree obtained by following the major parent (γ>0.5) of each hybrid node.
 This tree can be visualized like this, with edge numbers shown for later use.
-```{julia; eval=true; results="markup"; fig_cap="Major Tree."; label="major_tree"; fig_width=4; fig_height=4}
-rootatnode!(net1, "4")
-rootatnode!(tree1, "4")
+```{julia; eval=true; results="markup"; label="major_tree"; fig_width=4; fig_height=4}
 plot(tree1, showEdgeNumber=true)
 ```
-Next, we can look at bootstrap table `BStable`, which has one row for
+Next, we can look at bootstrap table `BSe_tree`, which has one row for
 each tree edge in `net1`. One column contains the edge number
 (same as shown in the plot) and another column contains the edge
 bootstrap support: the proportion of bootstrap replicates in which this edge was
 found in the major tree of the inferred network.
 We can see the full bootstrap table and see
-which tree edges have bootstrap support lower than 100% with
+which tree edges have bootstrap support lower than 100% (none here) with
 ```{julia; eval=true; term=true; results="markup"}
-showall(BStable)
-BStable[BStable[:proportion] .< 100.0, :]
+showall(BSe_tree)
+BSe_tree[BSe_tree[:proportion] .< 100.0, :]
 ```
 Finally, we can map the bootstrap proportions onto the network or its main tree
 by passing the bootstrap table to the `edgeLabel` option of `plot`:
-```{julia; eval=true; results="markup"; fig_cap="Bootstrap trees and network."; label="boot_tree_net"; fig_width=4; fig_height=4}
-plot(tree1, edgeLabel=BStable)
-plot(net1,  edgeLabel=BStable)
+```{julia; eval=true; results="markup"; label="boot_tree_net"; fig_width=4; fig_height=4}
+plot(tree1, edgeLabel=BSe_tree)
+plot(net1,  edgeLabel=BSe_tree)
 ```
 (Here, it is important that the numbers assigned to edges when building the boostrap
 table --those in `net1` at the time-- correspond to the current edge numbers
 in `tree1` and `net1`. That was the purpose of reading the network from the
-output file of snaq! earlier, for consistency across different Julia sessions.)
+output file of `snaq!` earlier, for consistency across different Julia sessions.)
 
 If we wanted to plot only certain bootstrap values, like those below 100% (1.0),
 we could do this:
-```{julia; eval=true; results="markup"; fig_cap="Bootstrap network."; label="boot_net"; fig_width=4; fig_height=4}
-plot(net1, edgeLabel=BStable[BStable[:proportion] .< 100.0, :])
+```{julia; eval=false; results="markup"; label="boot_net"; fig_width=4; fig_height=4}
+plot(net1, edgeLabel=BSe_tree[BSe_tree[:proportion] .< 100.0, :])
 ```
 
-## Summarizing bootstrap on reticulations
+## support for hybrid edges and hybrid nodes
 
-Summarizing the placement of hybridization edges is not standard.
+Summarizing the placement of reticulations is not standard.
 The function `hybridBootstrapSupport` attempts to do so.
 The descendants of a given hybrid node form the "recipient" or "hybrid" clade,
 and is obtained after removing all other reticulations.
@@ -119,7 +145,7 @@ with γ>0.5) and the minor sister (through the minor hybrid edge with γ<0.5).
 Note that the network says *nothing* about the process: its shows the *relationships* only.
 We can calculate the frequency that each clade is a hybrid clade, or a major or minor sister
 for some other hybrid, in the bootstrap networks:
-```julia
+```{julia; eval=true}
 BSn, BSe, BSc, BSgam, BSedgenum = hybridBootstrapSupport(bootnet, net1);
 ```
 Let's look at the results.
@@ -152,7 +178,7 @@ BSe
 ```
 Here, each row describes a pair of 2 clades: one being the hybrid, the other being its sister,
 connected by a hybrid edge. The first rows corresponds to hybrid edges in the best network. Other
-rows correspond to edges seen in bootstrap networks but not in the best network.
+rows correspond to edges seen in bootstrap networks but not in the reference network.
 ```{julia; eval=true; term=true; results="markup"}
 BSedgenum
 ```
@@ -161,43 +187,76 @@ the major parent edge and then the minor parent edge.
 In our case, there is only one reticulation, so only 2 hybrid edges.
 
 We can plot the bootstrap values of the 2 hybrid edges in the best network:
-```{julia; eval=true; results="markup"; fig_cap="Bootstrap network."; label="boot_net_net"; fig_width=4; fig_height=4}
+```{julia; eval=true; results="markup"; label="boot_net_net"; fig_width=4; fig_height=4}
 plot(net1, edgeLabel=BSe[[:edge,:BS_hybrid_edge]])
 ```
 This is showing the bootstrap support each hybrid edge: percentage of bootstrap trees with an
 edge from the same sister clade to the same hybrid clade.
 Alternatively, we could show the bootstrap support for the full reticulation relationships in
-the network, one at each hybrid node (support for same hybrid with same sister clades):
-```{julia; eval=true; results="markup"; fig_cap="Bootstrap network."; label="boot_net_ret"; fig_width=4; fig_height=4}
+the network, one at each hybrid node (support for same hybrid with same sister clades).
+Here, we find that A received gene flow from E (and is sister to B otherwise) in just 32%
+of bootstrap networks. In another 1% bootstrap, A received gene flow from another source.
+```{julia; eval=true; results="markup"; label="boot_net_ret"; fig_width=4; fig_height=4}
 plot(net1, nodeLabel=BSn[[:hybridnode,:BS_hybrid_samesisters]])
 ```
-On a different plot, we can show the bootstrap support for hybrid clades, shown on the parent
-edge of each node with positive hybrid support:
-```{julia; eval=true; results="markup"; fig_cap="Bootstrap network."; label="boot_net_hyb"; fig_width=4; fig_height=4}
+
+Below is example code to place tree edge support and hybrid edge support
+on the same plot.
+
+```julia
+tmp = BSe[!isna(BSe[:edge]),[:edge,:BS_hybrid_edge]]
+rename!(tmp, :BS_hybrid_edge, :proportion)
+rename!(tmp, :edge, :edgeNumber)
+tmp = vcat(BSe_tree, tmp)
+plot(net1, edgeLabel=tmp, nodeLabel=BSn[[:hybridnode,:BS_hybrid_samesisters]])
+```
+
+### Who are the hybrids in bootstrap networks?
+
+On a different plot, we can show the bootstrap support for hybrid clades,
+first mapped to each node with positive hybrid support,
+and then mapped on the parent edge of these nodes.
+A is estimated as a hybrid in only 33% of our bootstrap networks.
+In another 44%, it is the lineage to (E,O) that is estimated as
+being of hybrid origin.
+```{julia; eval=true; results="markup"; label="boot_net_hyb"; fig_width=4; fig_height=4}
+plot(net1, nodeLabel=BSn[BSn[:BS_hybrid].>0, [:hybridnode,:BS_hybrid]])
 plot(net1, edgeLabel=BSn[BSn[:BS_hybrid].>0, [:edge,:BS_hybrid]])
 ```
-or plot the support for minor sister clades (shown along parent edge, and filtered to those with
-sister support > 5%):
-```{julia; eval=true; results="markup"; fig_cap="Bootstrap network."; label="boot_net_clade"; fig_width=4; fig_height=4}
+
+### Where is the origin of gene flow?
+
+We can plot the support for the various placements
+of the gene flow origin (minor sister clade),
+first mapped to each node with positive support for being the origin of gene flow,
+and then mapped along the parent edge of these nodes.
+We filtered clades to show those with sister support > 5%:
+```{julia; eval=true; results="markup"; label="boot_net_clade"; fig_width=4; fig_height=4}
+plot(net1, nodeLabel=BSn[BSn[:BS_minor_sister].>5, [:node,:BS_minor_sister]])
 plot(net1, edgeLabel=BSn[BSn[:BS_minor_sister].>5, [:edge,:BS_minor_sister]])
 ```
-To plot the same values next to the associated nodes, rather than edges, we use the option
-`nodeLabel` and we select the column `node` or `hybridnode`:
-```{julia; eval=true; results="markup"; fig_cap="Bootstrap network."; label="boot_net_last"; fig_width=4; fig_height=4}
-plot(net1, nodeLabel=BSn[BSn[:BS_hybrid].>0, [:hybridnode,:BS_hybrid]])
-plot(net1, nodeLabel=BSn[BSn[:BS_minor_sister].>5, [:node,:BS_minor_sister]])
+
+In our best network, the lineage to E is estimated as the origin
+of gene flow, but this is recovered in only 41% of our bootstrap networks.
+In another 49%, it is the lineage to A that is estimated as the *origin*
+of gene flow: so gene flow is estimated in the opposite direction.
+In this example, there is support for gene flow between (A,B) and (E,O),
+but there is much uncertainty about its exact placement and about its direction.
+
+Mapping the support for major sister clades might be interesting too:
+```{julia; eval=false}
 plot(net1, nodeLabel=BSn[BSn[:BS_major_sister].>5, [:node,:BS_major_sister]])
 ```
 
 The estimated heritability γ on hybrid edges in the reference network, when present in a
 bootstrap network, was also extracted:
 ```{julia; eval=true; term=true; results="markup"}
-BSgam
+BSgam[1:3,:] # first 3 rows only
 ```
 γ=0 values are for bootstrap replicates that did not have the edge in their network.
 Basic summaries on γ values for a given edge, say the minor parent,
 could be obtained like this:
-```{julia; eval=true; term=true; results="markup"}
+```{julia; eval=false; term=true; results="markup"}
 minimum(BSgam[:,2])
 maximum(BSgam[:,2])
 mean(BSgam[:,2])

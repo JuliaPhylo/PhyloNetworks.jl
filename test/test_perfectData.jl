@@ -1389,4 +1389,4 @@ df = writeExpCF(dpre.quartet)
 
 d = readTableCF!(df)
 val = optBL!(net,d, .1,.1,.1,.1)
-@test_approx_eq_eps val 0.0 1e-12 # || error("not correct likelihood with perfect data")
+@test val ≈ 0.0 atol=1e-12 # || error("not correct likelihood with perfect data")

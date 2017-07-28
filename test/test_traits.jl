@@ -43,7 +43,7 @@ ind = indexin(V1.nodeNumbersTopOrder, nodesV2)
 V2 = V2[ind, ind]
 test_show(V2)
 
-@test_approx_eq V1[:All] V2
+@test V1[:All] ≈ V2
 
 # ## Seem identical
 # V1[:All]
