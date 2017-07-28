@@ -1,3 +1,5 @@
+DOCUMENTER_DEBUG=true
+
 using Documenter, PhyloNetworks
 
 # Weave the .jmd
