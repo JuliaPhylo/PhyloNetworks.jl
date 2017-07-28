@@ -139,34 +139,34 @@ dfr_shift = regressorShift(net.edge[[1,8]], net)
 dfr = join(dfr, dfr_shift, on=:tipNames)
 
 ## Simple BM
-fitShift = phyloNetworklm(trait ~ shift_1 + shift_m5, dfr, net)
+fitShift = phyloNetworklm(@formula(trait ~ shift_1 + shift_m5), dfr, net)
 @show fitShift
 
 ## Pagel's Lambda (degenerated)
-fitlam = phyloNetworklm(trait ~ shift_1 + shift_m5, dfr, net, model = "lambda", fixedValue=1.0)
+fitlam = phyloNetworklm(@formula(trait ~ shift_1 + shift_m5), dfr, net, model = "lambda", fixedValue=1.0)
 
-@test_approx_eq lambda_estim(fitlam) 1.0
-@test_approx_eq coef(fitlam) coef(fitShift)
-@test_approx_eq vcov(fitlam) vcov(fitShift)
-@test_approx_eq nobs(fitlam) nobs(fitShift)
-@test_approx_eq residuals(fitlam)[fitShift.model.ind] residuals(fitShift)
-@test_approx_eq model_response(fitlam)[fitShift.model.ind] model_response(fitShift)
-@test_approx_eq predict(fitlam)[fitShift.model.ind] predict(fitShift)
-@test_approx_eq dof_residual(fitlam) dof_residual(fitShift)
-@test_approx_eq sigma2_estim(fitlam) sigma2_estim(fitShift)
-@test_approx_eq stderr(fitlam) stderr(fitShift)
-@test_approx_eq confint(fitlam) confint(fitShift)
-@test_approx_eq loglikelihood(fitlam) loglikelihood(fitShift)
-@test_approx_eq dof(fitlam)  dof(fitShift) + 1
-@test_approx_eq deviance(fitlam)  deviance(fitShift)
-@test_approx_eq nulldeviance(fitlam)  nulldeviance(fitShift)
-@test_approx_eq nullloglikelihood(fitlam)  nullloglikelihood(fitShift)
-@test_approx_eq_eps r2(fitlam)  r2(fitShift) 1e-15
-#@test_approx_eq_eps adjr2(fitlam)  adjr2(fitShift) - 0.5 1e-15
-@test_approx_eq aic(fitlam)  aic(fitShift) + 2
-#@test_approx_eq aicc(fitlam)  aicc(fitShift)
-@test_approx_eq bic(fitlam)  bic(fitShift) + log(nobs(fitShift))
-@test_approx_eq mu_estim(fitlam)  mu_estim(fitShift)
+@test lambda_estim(fitlam) ≈ 1.0
+@test coef(fitlam) ≈ coef(fitShift)
+@test vcov(fitlam) ≈ vcov(fitShift)
+@test nobs(fitlam) ≈ nobs(fitShift)
+@test residuals(fitlam)[fitShift.model.ind] ≈ residuals(fitShift)
+@test model_response(fitlam)[fitShift.model.ind] ≈ model_response(fitShift)
+@test predict(fitlam)[fitShift.model.ind] ≈ predict(fitShift)
+@test dof_residual(fitlam) ≈ dof_residual(fitShift)
+@test sigma2_estim(fitlam) ≈ sigma2_estim(fitShift)
+@test stderr(fitlam) ≈ stderr(fitShift)
+@test confint(fitlam) ≈ confint(fitShift)
+@test loglikelihood(fitlam) ≈ loglikelihood(fitShift)
+@test dof(fitlam) ≈ dof(fitShift) + 1
+@test deviance(fitlam)  ≈ deviance(fitShift)
+@test nulldeviance(fitlam)  ≈ nulldeviance(fitShift)
+@test nullloglikelihood(fitlam)  ≈ nullloglikelihood(fitShift)
+@test r2(fitlam) ≈ r2(fitShift) atol=1e-15
+#@test adjr2(fitlam) ≈ adjr2(fitShift) - 0.5 atol=1e-15
+@test aic(fitlam) ≈ aic(fitShift) + 2
+#@test aicc(fitlam)  ≈ aicc(fitShift)
+@test bic(fitlam) ≈ bic(fitShift) + log(nobs(fitShift))
+@test mu_estim(fitlam)  ≈ mu_estim(fitShift)
 
 ###############################################################################
 #### Other Network

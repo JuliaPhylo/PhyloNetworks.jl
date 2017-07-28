@@ -64,7 +64,7 @@ T2 =  [1.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
        1.0  1.0  0.0  0.0  1.0  0.0  0.0  1.0  0.0
        1.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  1.0]
 
-@test_approx_eq T[:All] T2
+@test T[:All] ≈ T2
 
 ##################
 ## New formula
@@ -78,7 +78,7 @@ hyb = net.hybrid[2]
 
 ## Find child edge
 hyb_edges = [e.hybrid for e in hyb.edge]
-child_edge = hyb.edge[!hyb_edges][1]
+child_edge = hyb.edge[.!hyb_edges][1]
 child = child_edge.isChild1 ? child_edge.node[1] : child_edge[17].node[2]
 ## Find number of child edge
 nodeNumbersTopOrder = [n.number for n in net.nodes_changed]
@@ -112,5 +112,5 @@ D[mask, mask] = 1.0
 ## Formula
 V2 = gam*V_t_1[:All] + (1-gam)*V_t_2[:All] - gam*(1-gam) * (V_t_1.V[p, p] - V_t_1.V[a, b] + V_t_2.V[p, p] - V_t_2.V[a, b]) .* D
 
-@test_approx_eq V1[:All] V2
+@test V1[:All] ≈ V2
 

@@ -62,18 +62,18 @@ net = readTopology(tree_str)
 ## Test construction function
 @test_throws ErrorException ShiftNet(net.edge[7], 3.0,  net) # can't put a shift on hybrid branch
 @test_throws ErrorException ShiftNet(net.node[6], 3.0,  net) # can't put a shift on hybrid branch
-@test_approx_eq ShiftNet(net.edge[8], 3.0,  net).shift ShiftNet([net.edge[8]], [3.0],  net).shift
-@test_approx_eq ShiftNet(net.edge[8], 3.0,  net).shift ShiftNet(net.node[7], 3.0,  net).shift
-@test_approx_eq ShiftNet(net.node[7], 3.0,  net).shift ShiftNet([net.node[7]], [3.0],  net).shift
+@test ShiftNet(net.edge[8], 3.0,  net).shift ≈ ShiftNet([net.edge[8]], [3.0],  net).shift
+@test ShiftNet(net.edge[8], 3.0,  net).shift ≈ ShiftNet(net.node[7], 3.0,  net).shift
+@test ShiftNet(net.node[7], 3.0,  net).shift ≈ ShiftNet([net.node[7]], [3.0],  net).shift
 
 ## Concatenate functio
 sh1 = ShiftNet(net.node[7], 3.0,  net)*ShiftNet(net.node[9], -2.1,  net)
-@test_approx_eq sh1.shift ShiftNet([net.node[7], net.node[9]], [3.0, -2.1],  net).shift
+@test sh1.shift ≈ ShiftNet([net.node[7], net.node[9]], [3.0, -2.1],  net).shift
 @test_throws ErrorException sh1*ShiftNet(net.edge[7], 2.0,  net) # can't concatenate if the two affect the same edges
-@test_approx_eq sh1.shift (sh1*ShiftNet([net.node[7]], [3.0],  net)).shift
+@test sh1.shift ≈ (sh1*ShiftNet([net.node[7]], [3.0],  net)).shift
 
 ## Hybrid shifts
-@test_approx_eq ShiftHybrid([2.0], net).shift ShiftNet(net.edge[6], 2.0, net).shift
+@test ShiftHybrid([2.0], net).shift ≈ ShiftNet(net.edge[6], 2.0, net).shift
 
 ## Test simulate
 pars = ParamsBM(1, 0.1, ShiftNet(net.edge[8], 3.0,  net)); # params of a BM
@@ -91,16 +91,16 @@ meansTips = sim[:Tips, :Exp];
 meansNodes = sim[:InternalNodes, :Exp];
 
 # Expected values
-meansTipsExp = [1.0 1.0 1.0+3.0 1.0+3.0*0.6];
-traitsTipsExp = [0.9230584254019785 1.4363450675116494 4.180396447825185 3.299820483104897];
+meansTipsExp = [1.0 1.0 1.0+3.0 1.0+3.0*0.6]';
+traitsTipsExp = [0.9230584254019785 1.4363450675116494 4.180396447825185 3.299820483104897]';
 
-meansNodesExp = [1.0 1.0+3.0*0.6 1.0+3.0 1.0 1.0];
-traitsNodesExp = [1.50594336537754 3.296894371572107 4.346436961253621 1.3212328642182367 1.0];
+meansNodesExp = [1.0 1.0+3.0*0.6 1.0+3.0 1.0 1.0]';
+traitsNodesExp = [1.50594336537754 3.296894371572107 4.346436961253621 1.3212328642182367 1.0]';
 
-@test_approx_eq traitsTips traitsTipsExp
-@test_approx_eq traitsNodes traitsNodesExp
-@test_approx_eq meansTips meansTipsExp
-@test_approx_eq meansNodes meansNodesExp
+@test traitsTips ≈ traitsTipsExp
+@test traitsNodes ≈ traitsNodesExp
+@test meansTips ≈ meansTipsExp
+@test meansNodes ≈ meansNodesExp
 
 ###############################################################################
 ## Test of distibution - with shifts
@@ -119,7 +119,7 @@ end
 ## Check that each tip has same mean (1)
 expectations = simulate(net, pars)[:Tips,:Exp]
 for s in 1:S
-    @test_approx_eq_eps mean(values[s, :]) expectations[s] 1e-2
+    @test mean(values[s, :]) ≈ expectations[s] atol=1e-2
 end
 
 ## Check for variances
@@ -127,6 +127,6 @@ V = sharedPathMatrix(net);
 Sig = V[:Tips] * pars.sigma2;
 for s in 1:S
     for t in s:S
-        @test_approx_eq_eps cov(values[s, :], values[t,:]) Sig[s, t] 1e-2
+        @test cov(values[s, :], values[t,:]) ≈ Sig[s, t] atol=1e-2
     end
 end

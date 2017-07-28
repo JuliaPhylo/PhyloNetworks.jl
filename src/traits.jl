@@ -411,7 +411,7 @@ abstract type ParamsProcess end
 Shifts associated to an [`HybridNetwork`](@ref) sorted in topological order.
 
 """
-type ShiftNet
+struct ShiftNet
     shift::Vector{Real}
 end
 
