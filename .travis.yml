@@ -1,12 +1,13 @@
 language: julia
 os:
-#  - linux
-  - osx
+  - linux
+    #  - osx
 julia:
 #  - release
  - 0.6
 env:
  - DRAW_FIG="true"
+ - DOCUMENTER_DEBUG=true
 notifications:
   email: false
 
