@@ -29,6 +29,7 @@ after_success:
   - julia -e 'Pkg.checkout("Documenter", "release-0.11")'
   - julia -e 'Pkg.add("Cairo")'
   - julia -e 'Pkg.add("Fontconfig")'
-  - rm /Users/travis/.julia/lib/v0.6/Compose.ji
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then rm /Users/travis/.julia/lib/v0.6/Compose.ji; fi
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then rm /home/travis/.julia/lib/v0.6/Compose.ji; fi
   - julia -e 'Pkg.add("Weave")'
   - julia -e 'cd(Pkg.dir("PhyloNetworks")); include(joinpath("docs", "make.jl"))'
