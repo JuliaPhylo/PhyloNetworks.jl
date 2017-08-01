@@ -25,7 +25,7 @@ before_install:
 
 after_success:
   - julia -e 'Pkg.clone("https://github.com/pbastide/Documenter.jl")'
-  - julia -e 'Pkg.checkout("Documenter", branch="release-0.11")'
+  - julia -e 'Pkg.checkout("Documenter", "release-0.11")'
   - julia -e 'Pkg.add("Cairo")'
   - julia -e 'Pkg.add("Fontconfig")'
   - rm /Users/travis/.julia/lib/v0.5/Compose.ji
