@@ -726,19 +726,31 @@ function getParents(node::Node)
     return parents
 end
 
-# function to get only one parent (the major if hybrid) of a given node
-# assumes isChild1 and isMajor attributes are correct
+"""
+    getMajorParent(node)
+    getMinorParent(node)
+
+return only one parent of a given node: the major / minor if hybrid.  
+**warning**: assume isChild1 and isMajor attributes are correct
+"""
 function getMajorParent(n::Node)
-    found = false
-    for e in node.edge
-        if (isEqual(n, e.isChild1 ? e.node[1] : e.node[2]) # n is child of e
-            && e.isMajor) # in case n is a hybrid, e is major parent edge
-            found = true
-            break
+    for e in n.edge
+        if n == e.node[(e.isChild1 ? 1:2)] && e.isMajor
+            return e.node[(e.isChild1 ? 2:1)]
         end
     end
-    found || error("node $(n.number) has no major parent")
-    return getOtherNode(e,n)
+    error("node $(n.number) has no major parent")
+    return n
+end
+
+function getMinorParent(n::Node)
+    for e in n.edge
+        if !e.isMajor && n == e.node[(e.isChild1 ? 1:2)]
+            return e.node[(e.isChild1 ? 2:1)]
+        end
+    end
+    error("node $(n.number) has no minor parent")
+    return n
 end
 
 

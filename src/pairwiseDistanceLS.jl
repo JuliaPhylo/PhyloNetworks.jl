@@ -1,60 +1,110 @@
 """
     setBLfromDivergenceTimes!(net::HybridNetwork, divergenceTimes::Dict{Int64,Float64})
 
-Modify branch lengths in `net` to match divergence times given in `divergenceTimes`.
-
-# Examples
-
+Modify branch lengths in `net` to match input divergence times.
+Assumes correct `isChild1` field for all edges in the network.
 """
-
-
 function setBLfromDivergenceTimes!(net::HybridNetwork, divergenceTimes::Dict{Int64,Float64})
     for e in net.edge
         parentTime = divergenceTimes[e.node[e.isChild1 ? 2 : 1].number]
         childTime = divergenceTimes[e.node[e.isChild1 ? 1 : 2].number]
         e.length = parentTime - childTime
     end
-end            
+end
 
 """
+    getNodeAges(net)
 
-    parwiseTaxonDistanceMatrix(net::HybridNetwork, [checkPreorder=true::Bool])
+vector of node ages in pre-order, as in `nodes_changed`,
+which is assumed to have been calculated before.
+"""
+function getNodeAges(net::HybridNetwork)
+    x = Vector{Float64}(length(net.nodes_changed))
+    for i in reverse(1:length(net.nodes_changed)) # post-order
+        n = net.nodes_changed[i]
+        if n.leaf
+            x[i] = 0.0
+            continue
+        end
+        for e in n.edge
+            if e.node[e.isChild1?2:1] == n # n parent of e
+                childnode = e.node[e.isChild1?1:2]
+                childIndex = getIndex(childnode, net.nodes_changed)
+                x[i] = x[childIndex] + e.length
+                break # use 1st child, ignores all others
+            end
+        end
+    end
+    return x
+end
 
-Create an n-by-n matrix (where n=# taxa in `net`) of pairwise distances between taxa in `net`.
+"""
+    pairwiseTaxonDistanceMatrix(net; keepInternal=false,
+                                checkPreorder=true, nodeAges=[])
+    pairwiseTaxonDistanceMatrix!(M, net, nodeAges)
 
+Matrix of pairwise distances between nodes in the network:
+- between all nodes (internal and leaves) if `keepInternal=true`
+- between taxa only otherwise.
+Update `net.nodes_changed` to get a topological ordering
+if `checkPreorder` is true.
+The second form modifies `M` in place, assuming all nodes.
+
+If `nodeAges` is provided: this vector should list node ages in the
+pre-order in which they are listed in nodes_changed (including leaves),
+and **edge lengths** in `net` **are modified** accordingly.
 """
 
 function pairwiseTaxonDistanceMatrix(net::HybridNetwork;
-                                     checkPreorder=true::Bool)
-    recursionPreOrderMatrixOnly(net,
-                      checkPreorder,
-                      initsharedPathMatrix,
-                      updateRootSharedPathMatrix!,
-                      updateTreePairwiseTaxonDistanceMatrix!,
-                      updateHybridPairwiseTaxonDistanceMatrix!,
-                      "b")
-end
-
-function recursionPreOrderMatrixOnly(net::HybridNetwork,
-                           checkPreorder=true::Bool,
-                           init=identity::Function,
-                           updateRoot=identity::Function,
-                           updateTree=identity::Function,
-                           updateHybrid=identity::Function,
-                           indexation="b"::AbstractString,
-                           params...)
+            keepInternal=false::Bool, checkPreorder=true::Bool,
+            nodeAges=Float64[]::Vector{Float64})
     net.isRooted || error("net needs to be rooted for preorder recursion")
     if(checkPreorder)
         preorder!(net)
     end
-    M = recursionPreOrder(net.nodes_changed, init, updateRoot, updateTree, updateHybrid, params)
+    nnodes = net.numNodes
+    M = zeros(Float64,nnodes,nnodes)
+    if length(nodeAges)>0
+        length(nodeAges) == net.numNodes ||
+          error("there should be $(net.numNodes) node ages")
+    end
+    pairwiseTaxonDistanceMatrix!(M,net,nodeAges)
+    if !keepInternal
+        M = getTipSubmatrix(M, net)
+    end
+    return M
+end
+"""
+    getTipSubmatrix(M, net)
+
+Extract submatrix of M, with rows corresponding to tips in the network,
+ordered like in `net.leaf`.
+In M, rows are assumed ordered as in `net.nodes_changed`.
+"""
+function getTipSubmatrix(M::Matrix, net::HybridNetwork)
+    nodenames = [n.name for n in net.nodes_changed]
+    tipind = Int[]
+    for l in net.leaf
+        push!(tipind, findfirst(nodenames, l.name))
+    end
+    return M[tipind, tipind]
+end
+
+function pairwiseTaxonDistanceMatrix!(M::Matrix{Float64},net::HybridNetwork,nodeAges)
+    recursionPreOrder!(net.nodes_changed, M, # updates M in place
+            updateRootSharedPathMatrix!, # does nothing
+            updateTreePairwiseTaxonDistanceMatrix!,
+            updateHybridPairwiseTaxonDistanceMatrix!,
+            nodeAges)
 end
 
 function updateTreePairwiseTaxonDistanceMatrix!(V::Matrix,
-                                     i::Int,
-                                     parentIndex::Int,
-                                     edge::PhyloNetworks.Edge,
-                                     params)
+            i::Int,parentIndex::Int,edge::PhyloNetworks.Edge,
+            params)
+    nodeAges = params # assumed pre-ordered, as in nodes_changed
+    if length(nodeAges)>0
+        edge.length= nodeAges[parentIndex] - nodeAges[i]
+    end
     for j in 1:(i-1)
         V[i,j] = V[parentIndex,j]+edge.length
         V[j,i] = V[i,j]
@@ -63,28 +113,292 @@ function updateTreePairwiseTaxonDistanceMatrix!(V::Matrix,
 end
 
 function updateHybridPairwiseTaxonDistanceMatrix!(V::Matrix,
-                                       i::Int,
-                                       parentIndex1::Int,
-                                       parentIndex2::Int,
-                                       edge1::PhyloNetworks.Edge,
-                                       edge2::PhyloNetworks.Edge,
-                                       params)
+        i::Int, parentIndex1::Int, parentIndex2::Int,
+        edge1::PhyloNetworks.Edge, edge2::PhyloNetworks.Edge,
+        params)
+    nodeAges = params # should be pre-ordered
+    if length(nodeAges)>0
+        edge1.length= nodeAges[parentIndex1] - nodeAges[i]
+        edge2.length= nodeAges[parentIndex2] - nodeAges[i]
+    end
     for j in 1:(i-1)
-        V[i,j] = edge1.gamma*(edge1.length+V[parentIndex1,j])+edge2.gamma*(edge2.length+V[parentIndex2,j])
+        V[i,j] = edge1.gamma*(edge1.length+V[parentIndex1,j]) +
+                 edge2.gamma*(edge2.length+V[parentIndex2,j])
         V[j,i] = V[i,j]
     end
 end
 
 """
-    pairwiseDistanceLSscore(net::HybridNetwork, divergenceTimes::Dict{Int64,Float64}, dnaDistances::Array{Float64,2})
+    pairwiseTaxonDistanceGrad(net; checkEdgeNumber=true, nodeAges=[])
 
-Produce mismatch between the network distances and the observed distances from DNA (`dnaDistances`).
+3-dim array: gradient of pairwise distances between all nodes.
+(internal and leaves); gradient with respect to edge lengths
+if `nodeAges` is empty; with respect to node ages otherwise.
+Assume correct `net.nodes_changed` (preorder).  
+This gradient depends on the network's topology and γ's only,
+not on branch lengths or node ages (distances are linear in either).
+
+WARNING: edge numbers need to range between 1 and #edges.
 """
 
-function pairwiseDistanceLSscore(net::HybridNetwork, divergenceTimes::Dict{Int64,Float64}, dnaDistances::Array{Float64,2})
-    setBLfromDivergenceTimes!(net, divergenceTimes)
-    networkDistances = pairwiseTaxonDistanceMatrix(net;
-                                checkPreorder=true)
-    distanceMismatch = sqrt(sum(sum((dnaDistances-networkDistances).^2)))
-    return distanceMismatch
+function pairwiseTaxonDistanceGrad(net::HybridNetwork;
+        checkEdgeNumber=true::Bool, nodeAges=Float64[]::Vector{Float64})
+    if checkEdgeNumber
+      sort([e.number for e in net.edge]) == collect(1:net.numEdges) ||
+        error("edge numbers must range between 1 and #edges")
+    end
+    n = (length(nodeAges)==0 ? net.numEdges : net.numNodes)
+    M = zeros(Float64, net.numNodes, net.numNodes, n)
+    recursionPreOrder!(net.nodes_changed, M,
+            updateRootSharedPathMatrix!,  # does nothing
+            updateTreePairwiseTaxonDistanceGrad!,
+            updateHybridPairwiseTaxonDistanceGrad!,
+            nodeAges) # nodeAges assumed pre-ordered, like nodes_changed
+    return M
+end
+function updateTreePairwiseTaxonDistanceGrad!(V::Array{Float64,3}, i::Int,
+            parentIndex::Int, edge::PhyloNetworks.Edge, params)
+    nodeAges = params # assumed pre-ordered
+    for j in 1:(i-1)
+        if length(nodeAges) == 0 # d/d(edge length)
+            V[i,j,edge.number] = 1.0
+        else                     # d/d(node age)
+            V[i,j,parentIndex] = 1.0
+            V[i,j,i] = -1.0
+        end
+        for k in 1:size(V)[3] # brute force...
+            V[i,j,k] += V[parentIndex,j,k]
+            V[j,i,k] = V[i,j,k]
+        end
+    end
+    # V[i,i,k] initialized to 0.0 already
+end
+function updateHybridPairwiseTaxonDistanceGrad!(V::Array{Float64,3},i::Int,
+            parentIndex1::Int, parentIndex2::Int,
+            edge1::PhyloNetworks.Edge, edge2::PhyloNetworks.Edge, params)
+    nodeAges = params
+    for j in 1:(i-1)
+        if length(nodeAges) == 0 # d/d(edge length)
+            V[i,j,edge1.number] = edge1.gamma
+            V[i,j,edge2.number] = edge2.gamma
+        else                     # d/d(node age)
+            V[i,j,parentIndex1] = edge1.gamma
+            V[i,j,parentIndex2] = edge2.gamma
+            V[i,j,i] = - 1.0 # because γ1+γ2 = 1
+        end
+        for k in 1:size(V)[3]
+          V[i,j,k] += edge1.gamma*V[parentIndex1,j,k] + edge2.gamma*V[parentIndex2,j,k]
+          V[j,i,k] = V[i,j,k]
+        end
+    end
+end
+
+
+"""
+    calibrateFromPairwiseDistances!(net, distances::Matrix{Float64},
+        taxon_names::Vector{String})
+
+Calibrate the network to match (as best as possible) input
+pairwise distances between taxa, such as observed from sequence data.
+`taxon_names` should provide the list of taxa, in the same order
+in which they they are considered in the `distances` matrix.
+The optimization criterion is the sum of squares between the
+observed distances, and the distances from the network
+(weighted average of tree distances, weighted by γ's).
+The network's edge lengths are modified.
+
+Warning: for many networks, mutiple calibrations can fit the pairwise
+distance data equally well (lack of identifiability).
+This function will output *one* of these equally good calibrations.
+
+optional arguments (default):
+- checkPreorder (true)
+- forceMinorLength0 (false) to force minor hybrid edges to have a length of 0
+- NLoptMethod (:LD_MMA) for the optimization algorithm.
+  Other options include :LN_COBYLA (derivative-free); see NLopt package.
+- tolerance values to control when the optimization is stopped:
+  ftolRel (1e-12), ftolAbs (1e-10) on the criterion, and
+  xtolRel (1e-10), xtolAbs (1e-10) on branch lengths / divergence times.
+- verbose (false)
+"""
+
+function calibrateFromPairwiseDistances!(net::HybridNetwork,
+      D::Array{Float64,2}, taxNames::Vector{String};
+      checkPreorder=true::Bool, forceMinorLength0=false::Bool, verbose=false::Bool,
+      ultrametric=true::Bool, NLoptMethod=:LD_MMA::Symbol,
+      ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
+      xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
+
+    checkPreorder && preorder!(net)
+    # fixit: remove root node if of degree 2, and if BL optimized
+    for e in net.edge
+        if e.length == -1.0 e.length=0.0; end
+    end
+    # fixit: get smart starting values: NJ? fast dating?
+    if ultrametric # get all node ages in pre-order
+        na = getNodeAges(net)
+    else na = Float64[]; end
+    # get number and indices of edge/nodes to be optimized
+    if forceMinorLength0 && !ultrametric
+        parind = filter(i -> net.edge[i].isMajor, 1:net.numEdges)
+        nparams = length(parind) # edges to be optimized: indices
+        par = [e.length for e in net.edge][parind] # and lengths
+        for i in 1:net.numEdges
+            if !net.edge[i].isMajor net.edge[i].length=0.0; end
+        end
+    elseif !forceMinorLength0 && !ultrametric
+        nparams = length(net.edge) # number of parameters to optimize
+        par = [e.length for e in net.edge]
+        parind = 1:nparams
+    elseif !forceMinorLength0 && ultrametric
+        nparams = net.numNodes - net.numTaxa # internal nodes to be optimized
+        parind = filter(i -> !net.nodes_changed[i].leaf, 1:net.numNodes)
+        par = na[parind]
+    else # forceMinorLength0 && ultrametric
+        nparams = net.numNodes - net.numTaxa - net.numHybrids
+        parind = filter(i -> !(net.nodes_changed[i].leaf || net.nodes_changed[i].hybrid),
+                        1:net.numNodes)
+        par = na[parind]
+        hybInd = filter(i -> net.nodes_changed[i].hybrid, 1:net.numNodes)
+        hybParentInd = Int[] # index in nodes_changed of minor parent
+        hybGParentI = Int[] # index in 1:nparams of minor (grand-)parent in param list
+        for i in hybInd
+            n = net.nodes_changed[i]
+            p = getMinorParent(n)
+            pi = getIndex(p, net.nodes_changed)
+            push!(hybParentInd, pi)
+            pii = findfirst(parind, pi)
+            while pii==0 # in case minor parent of n is also hybrid node
+                p = getMinorParent(p)
+                pii = findfirst(parind, getIndex(p, net.nodes_changed))
+            end
+            push!(hybGParentI, pii)
+        end
+    end
+    # initialize M=dist b/w all nodes, G=gradient (constant)
+    M = pairwiseTaxonDistanceMatrix(net, keepInternal=true,
+            checkPreorder=false, nodeAges=na)
+    if !ultrametric && sort([e.number for e in net.edge]) != collect(1:net.numEdges)
+        for i in 1:net.numEdges # renumber edges, needed for G
+            net.edge[i].number = i
+        end
+    end # G assumes edges numbered 1:#edges, if optim edge lengths
+    G = pairwiseTaxonDistanceGrad(net, checkEdgeNumber=false, nodeAges=na) .* 2
+    # match order of leaves in input matrix, versus pre-order
+    nodenames = [n.name for n in net.nodes_changed] # pre-ordered
+    ntax = length(taxNames)
+    tipind = Int[] # pre-order index for leaf #i in dna distances
+    for l in taxNames
+        i = findfirst(nodenames, l)
+        i>0 || error("taxon $l not found in network")
+        push!(tipind, i)
+    end
+    # contraints: to force a parent to be older than its child
+    if ultrametric
+      numConstraints = length(parind) -1 + net.numHybrids
+      # calculate indices in param list of child & (grand-)parent once
+      chii = Int[] # non-root internal node, can be repeated: once per constraint
+      anii = Int[] # closest ancestor in param list
+      ci = 1 # index of constraint
+      for i in 2:length(net.nodes_changed) # 1=root, can skip
+        n = net.nodes_changed[i]
+        if n.leaf continue; end # node ages already bounded by 0
+        if n.hybrid && forceMinorLength0          # get index in param list of
+          nii = hybGParentI[findfirst(hybInd, i)] # minor grand-parent (same age)
+        else
+          nii = findfirst(parind, i)
+        end
+        for e in n.edge
+          if e.node[e.isChild1?1:2] == n # n child of e
+            p = e.node[e.isChild1?2:1]   # parent of n
+            if forceMinorLength0 && n.hybrid && !e.isMajor
+                continue; end # p and n at same age already
+            pi = findfirst([no.number for no in net.nodes_changed], p.number)
+            if forceMinorLength0 && p.hybrid
+              pii = hybGParentI[findfirst(hybInd, pi)]
+            else
+              pii = findfirst(parind, pi)
+            end
+            push!(chii, nii)
+            push!(anii, pii)
+            verbose && println("node $(net.nodes_changed[parind[nii]].number) constrained by age of parent $(net.nodes_changed[parind[pii]].number)")
+            ci += 1
+          end
+        end
+      end
+      length(chii) == numConstraints ||
+        error("incorrect number of node age constraints: $numConstraints")
+      function ageConstraints(result, nodeage, grad)
+        if length(grad) > 0 # grad: nparams x nConstraints: ∂cj/∂xi = grad[i,j]
+            fill!(grad, 0.0)
+        end
+        for j in 1:numConstraints
+          nii = chii[j]; pii = anii[j]
+          result[j] = nodeage[nii] - nodeage[pii] # jth constraint: cj ≤ 0
+          if length(grad) > 0 # nparams x nConstraints
+            grad[nii, j] =  1.
+            grad[pii, j] = -1.
+          end
+        end
+      end
+    end
+    opt = NLopt.Opt(NLoptMethod,nparams) # :LD_MMA to use gradient
+    # :LN_COBYLA for (non)linear constraits, :LN_BOBYQA for bound constraints
+    NLopt.maxeval!(opt,1000) # max iterations
+    NLopt.ftol_rel!(opt,ftolRel)
+    NLopt.ftol_abs!(opt,ftolAbs)
+    NLopt.xtol_rel!(opt,xtolRel)
+    NLopt.xtol_abs!(opt,xtolAbs)
+    # NLopt.maxtime!(opt, t::Real)
+    NLopt.lower_bounds!(opt, zeros(nparams))
+    if ultrametric
+      NLopt.inequality_constraint!(opt,ageConstraints,fill(0.0,numConstraints))
+    end
+    counter = [0]
+    function obj(x::Vector{Float64}, grad::Vector{Float64})
+        verbose && println("mismatch objective, BL = $(x)")
+        counter[1] += 1
+        # update edge lengths or node ages
+        if ultrametric # update na using x, in place
+            for i in 1:nparams # na=0 at leaves already
+                na[parind[i]] = x[i]
+            end
+            if forceMinorLength0 # set hybrid age to minor parent age
+                for i in 1:net.numHybrids
+                    na[hybInd[i]] = na[hybParentInd[i]] # pre-order important
+                end
+            end
+        else # not ultrametric: optimize branch lengths
+            for i in 1:nparams # update network
+                net.edge[parind[i]].length = x[i]
+            end
+        end
+        # update distances in M, in place
+        pairwiseTaxonDistanceMatrix!(M,net,na)
+        ss = 0.0 # sum of squares between M and observed distances
+        for i in 2:ntax; for j in 1:(i-1)
+            ss += (M[tipind[i],tipind[j]]-D[i,j])^2
+        end; end
+        if length(grad) > 0 # sum_ij 2 * dM_ij/dx_t * (M_ij-D_ij)
+          for t in 1:nparams grad[t] = 0.0; end;
+          for i in 2:ntax; for j in 1:(i-1);
+            for t in 1:nparams
+              G[tipind[i],tipind[j],parind[t]] != 0.0 || continue
+              grad[t] += G[tipind[i],tipind[j],parind[t]] *
+                        (M[tipind[i],tipind[j]]-D[i,j])
+            end
+            if ultrametric && forceMinorLength0
+              for i in 1:net.numHybrids # na[hybrid] set to na[minor parent]
+                grad[hybGParentI[i]] += G[tipind[i],tipind[j],hybInd[i]] *
+                        (M[tipind[i],tipind[j]]-D[i,j])
+              end
+            end
+          end; end
+        end
+        return ss
+    end
+    NLopt.min_objective!(opt,obj)
+    fmin, xmin, ret = NLopt.optimize(opt,par) # optimization here!
+    verbose && println("got $(round(fmin,5)) at $(round.(xmin,5)) after $(counter[1]) iterations (return code $(ret))")
+    return fmin,xmin,ret
 end
