@@ -1,12 +1,12 @@
 language: julia
-os:
+os: # WARNING: any change here must also be done in docs/make.jl
 #  - linux
   - osx
-julia:
+julia: # WARNING: any change here must also be done in docs/make.jl
 #  - release
  - 0.6
 env:
- - DRAW_FIG="false"
+ - DRAW_FIG="true"
 notifications:
   email: false
 
@@ -27,6 +27,7 @@ after_success:
   - julia -e 'Pkg.clone("https://github.com/pbastide/Documenter.jl")'
   - julia -e 'Pkg.add("Cairo")'
   - julia -e 'Pkg.add("Fontconfig")'
-  - rm /Users/travis/.julia/lib/v0.5/Compose.ji
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then rm /Users/travis/.julia/lib/v$TRAVIS_JULIA_VERSION/Compose.ji; fi
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then rm /home/travis/.julia/lib/v$TRAVIS_JULIA_VERSION/Compose.ji; fi
   - julia -e 'Pkg.add("Weave")'
   - julia -e 'cd(Pkg.dir("PhyloNetworks")); include(joinpath("docs", "make.jl"))'
