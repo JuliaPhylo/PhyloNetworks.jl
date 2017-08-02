@@ -6,7 +6,7 @@ julia: # WARNING: any change here must also be done in docs/make.jl
 #  - release
  - 0.6
 env:
- - DRAW_FIG="true"
+ - DRAW_FIG="false"
 notifications:
   email: false
 
