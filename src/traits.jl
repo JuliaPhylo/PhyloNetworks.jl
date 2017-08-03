@@ -70,15 +70,31 @@ function recursionPreOrder(net::HybridNetwork,
     MatrixTopologicalOrder(M, [n.number for n in net.nodes_changed], nNodes, nleaf, [n.name for n in net.leaf], indexation)
 end
 
+"""
+    recursionPreOrder(nodes, init_function, root_function, tree_node_function,
+                      hybrid_node_function, parameters)
+    recursionPreOrder!(nodes, AbstractArray, root_function, tree_node_function,
+                      hybrid_node_function, parameters)
+
+Generic tool to apply a pre-order (or topological ordering) algorithm.
+Used by `sharedPathMatrix` and by `pairwiseTaxonDistanceMatrix`.
+"""
 function recursionPreOrder(nodes::Vector{Node},
                            init::Function,
                            updateRoot::Function,
                            updateTree::Function,
                            updateHybrid::Function,
                            params)
-    n = length(nodes)
     M = init(nodes, params)
-    for i in 1:n #sorted list of nodes
+    recursionPreOrder!(nodes, M, updateRoot, updateTree, updateHybrid, params)
+end
+function recursionPreOrder!(nodes::Vector{Node},
+                           M::AbstractArray,
+                           updateRoot::Function,
+                           updateTree::Function,
+                           updateHybrid::Function,
+                           params)
+    for i in 1:length(nodes) #sorted list of nodes
         updatePreOrder!(i, nodes, M, updateRoot, updateTree, updateHybrid, params)
     end
     return M
@@ -88,7 +104,7 @@ end
 # Takes three function as arguments : updateRoot, updateTree, updateHybrid
 function updatePreOrder!(i::Int,
                          nodes::Vector{Node},
-                         V::Matrix, updateRoot::Function,
+                         V::AbstractArray, updateRoot::Function,
                          updateTree::Function,
                          updateHybrid::Function,
                          params)
@@ -233,7 +249,7 @@ function sharedPathMatrix(net::HybridNetwork;
                       "b")
 end
 
-function updateRootSharedPathMatrix!(V::Matrix, i::Int, params)
+function updateRootSharedPathMatrix!(V::AbstractArray, i::Int, params)
     return
 end
 
