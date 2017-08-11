@@ -73,7 +73,7 @@ sh1 = ShiftNet(net.node[7], 3.0,  net)*ShiftNet(net.node[9], -2.1,  net)
 @test sh1.shift ≈ (sh1*ShiftNet([net.node[7]], [3.0],  net)).shift
 
 ## Hybrid shifts
-@test ShiftHybrid([2.0], net).shift ≈ ShiftNet(net.edge[6], 2.0, net).shift
+@test shiftHybrid([2.0], net).shift ≈ ShiftNet(net.edge[6], 2.0, net).shift
 
 ## Test simulate
 pars = ParamsBM(1, 0.1, ShiftNet(net.edge[8], 3.0,  net)); # params of a BM

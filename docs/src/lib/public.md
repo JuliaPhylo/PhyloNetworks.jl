@@ -32,6 +32,7 @@ ParamsBM
 TraitSimulation
 PhyloNetworkLinearModel
 ReconstructedStates
+ShiftNet
 ```
 
 ## Utilities
@@ -105,6 +106,7 @@ hybridBootstrapSupport
 
 ```@docs
 simulate
+shiftHybrid
 phyloNetworklm
 sigma2_estim
 mu_estim
@@ -114,6 +116,9 @@ expectations
 predint
 expectationsPlot
 predintPlot
+incidenceMatrix
+regressorShift
+regressorHybrid
 parsimonyDiscrete
 ```
 
