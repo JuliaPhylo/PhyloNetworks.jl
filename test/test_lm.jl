@@ -179,6 +179,41 @@ fitlam = phyloNetworklm(@formula(trait ~ shift_1 + shift_m5), dfr, net, model = 
 @test bic(fitlam) ≈ bic(fitShift) + log(nobs(fitShift))
 @test mu_estim(fitlam)  ≈ mu_estim(fitShift)
 
+fitSH = phyloNetworklm(@formula(trait ~ shift_1 + shift_m5), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
+@test loglikelihood(fitlam) ≈ loglikelihood(fitSH)
+@test aic(fitlam) ≈ aic(fitSH)
+
+## ftest against own naive implementation
+modnull = phyloNetworklm(@formula(trait ~ 1), dfr, net)
+modhom = phyloNetworklm(@formula(trait ~ sum), dfr, net)
+modhet = phyloNetworklm(@formula(trait ~ sum + shift_m5), dfr, net)
+
+table1 = ftest(modhet, modhom, modnull)
+table2 = PhyloNetworks.anova(modnull, modhom, modhet)
+
+# @test table1.fstat[1] ≈ table2[:F][2]
+# @test table1.fstat[2] ≈ table2[:F][1]
+# @test table1.pval[1].v ≈ table2[Symbol("Pr(>F)")][2]
+# @test table1.pval[2].v ≈ table2[Symbol("Pr(>F)")][1]
+## Replace next 4 lines with previous ones when GLM.ftest available
+@test table1[:F][2] ≈ table2[:F][2] 
+@test table1[:F][1] ≈ table2[:F][1]
+@test table1[Symbol("Pr(>F)")][1] ≈ table2[Symbol("Pr(>F)")][1]
+@test table1[Symbol("Pr(>F)")][2] ≈ table2[Symbol("Pr(>F)")][2]
+
+# Check that it is the same as doing shift_1 + shift_m5
+modhetbis = phyloNetworklm(@formula(trait ~ shift_1 + shift_m5), dfr, net)
+
+table2bis = PhyloNetworks.anova(modnull, modhom, modhetbis)
+
+@test table2[:F] ≈ table2bis[:F]
+@test table2[Symbol("Pr(>F)")] ≈ table2bis[Symbol("Pr(>F)")]
+@test table2[:dof_res] ≈ table2bis[:dof_res]
+@test table2[:RSS] ≈ table2bis[:RSS]
+@test table2[:dof] ≈ table2bis[:dof]
+@test table2[:SS] ≈ table2bis[:SS]
+
+
 ###############################################################################
 #### Other Network
 ###############################################################################

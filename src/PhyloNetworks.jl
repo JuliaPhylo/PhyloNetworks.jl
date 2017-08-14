@@ -95,7 +95,7 @@ expectations,
 expectationsPlot,
 predint,
 predintPlot,
-anova,
+ftest, # To be removed when available in GLM
 parsimonyDiscrete
 
 # export part
