@@ -1524,7 +1524,7 @@ StatsBase.dof_residual(m::PhyloNetworkLinearModel) =  nobs(m) - length(coef(m))
 # Degrees of freedom consumed in the model
 function StatsBase.dof(m::PhyloNetworkLinearModel)
     res = length(coef(m)) + 1 # (+1: dispersion parameter)
-    if (m.model == "lambda")
+    if any(m.model .== ["lambda", "scalingHybrid"])
         res += 1 # lambda is one parameter
     end
     return res
@@ -1625,7 +1625,7 @@ DataFrames.Formula(m::DataFrames.DataFrameRegressionModel) = Formula(m.mf.terms)
 function paramstable(m::PhyloNetworkLinearModel)
     Sig = sigma2_estim(m)
     res = "Sigma2: " * @sprintf("%.6g", Sig)
-    if (m.model == "lambda" || m.model == "scalingHybrid")
+    if any(m.model .== ["lambda", "scalingHybrid"])
         Lamb = lambda_estim(m)
         res = res*"\nLambda: " * @sprintf("%.6g", Lamb)
     end

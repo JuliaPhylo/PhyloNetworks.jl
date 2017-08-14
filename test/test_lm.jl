@@ -89,7 +89,7 @@ fitbis = phyloNetworklm(@formula(trait ~ 1), dfr, net)
 @test bic(phynetlm) ≈ bic(fitbis)
 @test mu_estim(phynetlm) ≈ mu_estim(fitbis)
 
-## Pagel's Lambda
+## fixed values parameters
 fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedValue=1.0)
 @show fitlam
 
@@ -116,10 +116,17 @@ fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedVa
 @test bic(fitlam) ≈ bic(fitbis) + log(nobs(fitbis))
 @test mu_estim(fitlam) ≈ mu_estim(fitbis)
 
+fitSH = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
+@test loglikelihood(fitlam) ≈ loglikelihood(fitSH)
+@test aic(fitlam) ≈ aic(fitSH)
+
 ## Pagel's Lambda
 fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda")
-#@show fitlam
 @test lambda_estim(fitlam) ≈ 1.24875
+
+## Scaling Hybrid
+fitSH = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "scalingHybrid")
+@test lambda_estim(fitSH) ≈ 4.057891910001937 atol=1e-8
 
 ###############################################################################
 ### With shifts
@@ -127,6 +134,9 @@ fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda")
 tree_str= "(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6):1):0.5);"
 net = readTopology(tree_str)
 preorder!(net)
+
+## Choose shifts
+nodes_shifts = indexin([1,-5], [n.number for n in net.node])
 
 ## Simulate
 params = ParamsBM(10, 0.1, ShiftNet(net.edge[[1,8]], [3.0, -3.0],  net))
@@ -136,14 +146,15 @@ Y = sim[:Tips]
 ## Construct regression matrix
 dfr = DataFrame(trait = Y, tipNames = sim.M.tipNames)
 dfr_shift = regressorShift(net.edge[[1,8]], net)
+dfr_shift[:sum] = vec(sum(Array(dfr_shift[:,find(names(dfr_shift) .!= :tipNames)]), 2))
 dfr = join(dfr, dfr_shift, on=:tipNames)
 
 ## Simple BM
 fitShift = phyloNetworklm(@formula(trait ~ shift_1 + shift_m5), dfr, net)
 @show fitShift
 
-## Pagel's Lambda (degenerated)
-fitlam = phyloNetworklm(@formula(trait ~ shift_1 + shift_m5), dfr, net, model = "lambda", fixedValue=1.0)
+## Test against fixed values lambda models
+fitlam = phyloNetworklm(@formula(trait ~ shift_1 + shift_m5), dfr, net, model = "lambda", fixedValue = 1.0)
 
 @test lambda_estim(fitlam) ≈ 1.0
 @test coef(fitlam) ≈ coef(fitShift)
@@ -339,7 +350,7 @@ fitnabis = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 @test aicc(fitna) ≈ aicc(fitnabis)
 @test bic(fitna) ≈ bic(fitnabis)
 
-## Pagel's Lambda
+## Tests against fixed values parameters
 fitlam = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda", fixedValue = 1.0)
 #@show fitlam
 
@@ -366,11 +377,19 @@ fitlam = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda", fixe
 @test bic(fitlam) ≈ bic(fitnabis) + log(nobs(fitnabis))
 @test mu_estim(fitlam) ≈ mu_estim(fitnabis)
 
+fitSH = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
+@test loglikelihood(fitlam) ≈ loglikelihood(fitSH)
+@test aic(fitlam) ≈ aic(fitSH)
+
 ## Pagel's Lambda
 fitlam = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda")
 @show fitlam
 @test lambda_estim(fitlam) ≈ 1.1135518305 atol=1e-10
 
+## scaling Hybrid
+fitSH = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid")
+@show fitSH
+@test lambda_estim(fitSH) ≈ -52.81305448333567 atol=1e-8
 
 ### Ancestral State Reconstruction
 params = ParamsBM(3, 1)
@@ -446,6 +465,20 @@ tree = majorTree(net)
 phynetlm = phyloNetworklm(@formula(trait ~ pred), dfr, tree, model = "lambda")
 
 @test lambda_estim(phynetlm) ≈ 0.5903394415 atol=1e-6
+
+## scaling Hybrid
+lmtree = phyloNetworklm(@formula(trait ~ pred), dfr, tree, model = "BM")
+lmnet = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "BM")
+lmSHzero = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid", fixedValue = 0.0)
+lmSHone = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
+
+@test loglikelihood(lmtree) ≈ loglikelihood(lmSHzero)
+@test loglikelihood(lmnet) ≈ loglikelihood(lmSHone)
+
+lmSH = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid")
+
+@test lambda_estim(lmSH) ≈ 23.46668204551696 atol=1e-8
+
 
 ############################
 ## Against no regressor
