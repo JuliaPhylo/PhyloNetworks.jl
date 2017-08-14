@@ -2,7 +2,7 @@
 
 ## Get a network and make it ultrametric
 net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
-plot(net, useEdgeLength = true,  showEdgeNumber=true)
+#plot(net, useEdgeLength = true,  showEdgeNumber=true)
 
 ## Simulate a BM
 srand(17920921); # fix the seed
@@ -66,11 +66,16 @@ net = readTopology(tree_str)
 @test ShiftNet(net.edge[8], 3.0,  net).shift ≈ ShiftNet(net.node[7], 3.0,  net).shift
 @test ShiftNet(net.node[7], 3.0,  net).shift ≈ ShiftNet([net.node[7]], [3.0],  net).shift
 
-## Concatenate functio
+## Concatenate function
 sh1 = ShiftNet(net.node[7], 3.0,  net)*ShiftNet(net.node[9], -2.1,  net)
 @test sh1.shift ≈ ShiftNet([net.node[7], net.node[9]], [3.0, -2.1],  net).shift
 @test_throws ErrorException sh1*ShiftNet(net.edge[7], 2.0,  net) # can't concatenate if the two affect the same edges
 @test sh1.shift ≈ (sh1*ShiftNet([net.node[7]], [3.0],  net)).shift
+
+## Values and edge numbers functions
+sh = ShiftNet(net.node[7], 3.0,  net)
+@test getShiftEdgeNumber(sh) == [8]
+@test getShiftValue(sh) == [3.0]
 
 ## Hybrid shifts
 @test shiftHybrid([2.0], net).shift ≈ ShiftNet(net.edge[6], 2.0, net).shift

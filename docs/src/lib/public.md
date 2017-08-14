@@ -107,6 +107,8 @@ hybridBootstrapSupport
 ```@docs
 simulate
 shiftHybrid
+getShiftEdgeNumber
+getShiftValue
 phyloNetworklm
 sigma2_estim
 mu_estim

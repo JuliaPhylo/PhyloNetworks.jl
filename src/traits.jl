@@ -597,13 +597,16 @@ allowed.
 
 Constructor from a vector of edges and associated values.
 Warning, shifts on hybrid edges are not allowed.
+
+Extractors: [`getShiftEdgeNumber`](@ref), [`getShiftValue`](@ref)
 """
 struct ShiftNet
     shift::Vector{Real}
+    net::HybridNetwork
 end
 
 # Default
-ShiftNet(net::HybridNetwork) = ShiftNet(zeros(length(net.node)))
+ShiftNet(net::HybridNetwork) = ShiftNet(zeros(length(net.node)), net)
 
 function ShiftNet{T <: Real}(node::Vector{Node}, value::Vector{T},
                              net::HybridNetwork; checkPreorder=true::Bool)
@@ -649,17 +652,35 @@ function shiftHybrid{T <: Real}(value::Vector{T},
     return(ShiftNet(childs, value, net; checkPreorder=checkPreorder))
 end
 
-function getEdgeNumber(shift::ShiftNet)
-    collect(1:length(shift.shift))[shift.shift .!= 0]
+"""
+`getShiftEdgeNumber(shift::ShiftNet)`
+
+Get the edge numbers where the shifts are located, for an object [`ShiftNet`](@ef).
+"""
+function getShiftEdgeNumber(shift::ShiftNet)
+    nodInd = collect(1:length(shift.shift))[shift.shift .!= 0]
+    [getMajorParentEdgeNumber(n) for n in shift.net.nodes_changed[nodInd]]
 end
-function getValue(shift::ShiftNet)
+function getMajorParentEdgeNumber(n::Node)
+    try
+        getMajorParentEdge(n).number
+    catch
+        -1
+    end
+end
+"""
+`getShiftValue(shift::ShiftNet)`
+
+Get the values of the shifts, for an object [`ShiftNet`](@ef).
+"""
+function getShiftValue(shift::ShiftNet)
     shift.shift[shift.shift .!= 0]
 end
 
 function shiftTable(shift::ShiftNet)
-    CoefTable(hcat(getEdgeNumber(shift), getValue(shift)),
+    CoefTable(hcat(getShiftEdgeNumber(shift), getShiftValue(shift)),
               ["Edge Number", "Shift Value"],
-              fill("", length(getValue(shift))))
+              fill("", length(getShiftValue(shift))))
 end
 
 function Base.show(io::IO, obj::ShiftNet)
@@ -681,7 +702,7 @@ function Base.:*(sh1::ShiftNet, sh2::ShiftNet)
             error("The two shifts vectors you provided affect the same edges, so I cannot choose which one you want.")
         end
     end
-    return(ShiftNet(shiftNew))
+    return(ShiftNet(shiftNew, sh1.net))
 end
 
 
@@ -731,7 +752,7 @@ function paramstable(obj::ParamsBM)
         disp = disp * "\nvarRoot: $(obj.varRoot)"
     end
     if anyShift(obj)
-        disp = disp * "\n\nThere are $(length(getValue(obj.shift.value))) shifts on the network:\n"
+        disp = disp * "\n\nThere are $(length(getShiftValue(obj.shift.value))) shifts on the network:\n"
         disp = disp * "$(shiftTable(obj.shift.value))"
     end
     return(disp)
