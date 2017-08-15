@@ -363,7 +363,7 @@ Compute the regressor vectors associated with shifts on edges that are above nod
 `node`, or on edges `edge`, on a network `net`. It uses function [`incidenceMatrix`](@ref), so
 `net` might be modified to sort it in a pre-order.
 Return a `DataFrame` with as many rows as there are tips in net, and a column for
-each shift, each labelled according to the pattern shift_{number_of_node}. It has
+each shift, each labelled according to the pattern shift_{number_of_edge}. It has
 an aditional column labelled `tipNames` to allow easy fitting afterward (see example).
 
 # Examples
@@ -390,8 +390,8 @@ Sigma2: 0.1
 
 There are 2 shifts on the network:
      Edge Number Shift Value
-               3        -3.0
-               9         3.0
+               8        -3.0
+               1         3.0
 
 julia> srand(2468); # sets the seed for reproducibility
 
@@ -408,19 +408,19 @@ julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
 
 julia> dfr_shift = regressorShift(net.node[nodes_shifts], net) # the reressors matching the shifts.
 4×3 DataFrames.DataFrame
-│ Row │ shift_1 │ shift_m5 │ tipNames │
-├─────┼─────────┼──────────┼──────────┤
-│ 1   │ 1.0     │ 0.0      │ "A"      │
-│ 2   │ 0.0     │ 0.0      │ "B"      │
-│ 3   │ 0.0     │ 1.0      │ "C"      │
-│ 4   │ 0.0     │ 0.6      │ "D"      │
+│ Row │ shift_1 │ shift_8 │ tipNames │
+├─────┼─────────┼─────────┼──────────┤
+│ 1   │ 1.0     │ 0.0     │ "A"      │
+│ 2   │ 0.0     │ 0.0     │ "B"      │
+│ 3   │ 0.0     │ 1.0     │ "C"      │
+│ 4   │ 0.0     │ 0.6     │ "D"      │
 
 julia> dfr = join(dat, dfr_shift, on=:tipNames); # join data and regressors in a single dataframe
 
-julia> fitBM = phyloNetworklm(@formula(trait ~ shift_1 + shift_m5), dfr, net) # actual fit
+julia> fitBM = phyloNetworklm(@formula(trait ~ shift_1 + shift_8), dfr, net) # actual fit
 DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,Array{Float64,2}}
 
-Formula: trait ~ 1 + shift_1 + shift_m5
+Formula: trait ~ 1 + shift_1 + shift_8
 
 Model: BM
 
@@ -431,7 +431,7 @@ Coefficients:
              Estimate Std.Error  t value Pr(>|t|)
 (Intercept)   9.48238  0.327089  28.9902   0.0220
 shift_1        3.9096   0.46862  8.34279   0.0759
-shift_m5      -2.4179  0.422825 -5.71843   0.1102
+shift_8       -2.4179  0.422825 -5.71843   0.1102
 
 Log Likelihood: 1.8937302027
 AIC: 4.2125395947
@@ -459,14 +459,19 @@ function regressorShift(node::Vector{Node},
         ind[i] = getIndex(node[i], net.nodes_changed)
     end
     df = DataFrame(T_t[:, ind])
+    ## Get the names of the columns
+    eNum = [getMajorParentEdgeNumber(n) for n in net.nodes_changed[ind]]
+    # function tmp_fun(x::Int)
+    #     if x<0
+    #         return(Symbol("shift_m$(-x)"))
+    #     else
+    #         return(Symbol("shift_$(x)"))
+    #     end
+    # end
     function tmp_fun(x::Int)
-        if x<0
-            return(Symbol("shift_m$(-x)"))
-        else
-            return(Symbol("shift_$(x)"))
-        end
+        return(Symbol("shift_$(x)"))
     end
-    names!(df, [tmp_fun(n.number) for n in node])
+    names!(df, [tmp_fun(num) for num in eNum])
     df[:tipNames]=T.tipNames
     return(df)
 end
@@ -487,7 +492,7 @@ Compute the regressor vectors associated with shifts on edges that imediatly bel
 all hybrid nodes of `net`. It uses function [`incidenceMatrix`](@ref) through
 a call to [`regressorShift`](@ref), so `net` might be modified to sort it in a pre-order.
 Return a `DataFrame` with as many rows as there are tips in net, and a column for
-each hybrid, each labelled according to the pattern shift_{number_of_node}. It has
+each hybrid, each labelled according to the pattern shift_{number_of_edge}. It has
 an aditional column labelled `tipNames` to allow easy fitting afterward (see example).
 
 This function can be used to test for heterosis.
@@ -515,7 +520,7 @@ Sigma2: 0.1
 
 There are 1 shifts on the network:
      Edge Number Shift Value
-               7         3.0
+               6         3.0
 
 julia> srand(2468); # sets the seed for reproducibility
 
@@ -532,7 +537,7 @@ julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
 
 julia> dfr_hybrid = regressorHybrid(net) # the reressors matching the hybrids.
 4×3 DataFrames.DataFrame
-│ Row │ shift_5 │ tipNames │ sum │
+│ Row │ shift_6 │ tipNames │ sum │
 ├─────┼─────────┼──────────┼─────┤
 │ 1   │ 0.0     │ "A"      │ 0.0 │
 │ 2   │ 0.0     │ "B"      │ 0.0 │
@@ -541,10 +546,10 @@ julia> dfr_hybrid = regressorHybrid(net) # the reressors matching the hybrids.
 
 julia> dfr = join(dat, dfr_hybrid, on=:tipNames); # join data and regressors in a single dataframe
 
-julia> fitBM = phyloNetworklm(@formula(trait ~ shift_5), dfr, net) # actual fit
+julia> fitBM = phyloNetworklm(@formula(trait ~ shift_6), dfr, net) # actual fit
 DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,Array{Float64,2}}
 
-Formula: trait ~ 1 + shift_5
+Formula: trait ~ 1 + shift_6
 
 Model: BM
 
@@ -554,7 +559,7 @@ Sigma2: 0.041206
 Coefficients:
              Estimate Std.Error t value Pr(>|t|)
 (Intercept)    10.064  0.277959 36.2068   0.0008
-shift_5       2.72526  0.315456 8.63912   0.0131
+shift_6       2.72526  0.315456 8.63912   0.0131
 
 Log Likelihood: -0.7006021946
 AIC: 7.4012043891
@@ -651,6 +656,7 @@ function shiftHybrid{T <: Real}(value::Vector{T},
     childs = [getChildren(nn)[1] for nn in net.hybrid]
     return(ShiftNet(childs, value, net; checkPreorder=checkPreorder))
 end
+shiftHybrid(value::Real, net::HybridNetwork; checkPreorder=true::Bool) = shiftHybrid([value], net; checkPreorder=checkPreorder)
 
 """
 `getShiftEdgeNumber(shift::ShiftNet)`
@@ -689,7 +695,8 @@ function Base.show(io::IO, obj::ShiftNet)
 end
 
 function Base.:*(sh1::ShiftNet, sh2::ShiftNet)
-    length(sh1.shift) == length(sh2.shift) || error("Shifts to be concatenated must have the same length")
+    isEqual(sh1.net, sh2.net) || error("Shifts to be concatenated must be defined on the same network.")
+    length(sh1.shift) == length(sh2.shift) || error("Shifts to be concatenated must have the same length.")
     shiftNew = zeros(length(sh1.shift))
     for i in 1:length(sh1.shift)
         if sh1.shift[i] == 0
@@ -705,6 +712,11 @@ function Base.:*(sh1::ShiftNet, sh2::ShiftNet)
     return(ShiftNet(shiftNew, sh1.net))
 end
 
+# function Base.:(==)(sh1::ShiftNet, sh2::ShiftNet)
+#     isEqual(sh1.net, sh2.net) || return(false)
+#     sh1.shift == sh2.shift || return(false)
+#     return(true)
+# end
 
 """
 `ParamsBM <: ParamsProcess`

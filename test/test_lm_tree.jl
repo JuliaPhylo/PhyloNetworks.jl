@@ -277,7 +277,7 @@ dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_trait.tx
 df_shift = regressorShift(phy.edge[[98, 326, 287]], phy)
 dat = join(dat, df_shift, on=:tipNames)
 ## Fit a BM
-fitBM = phyloNetworklm(@formula(trait ~ shift_m22 + shift_m57 + shift_m116), dat, phy)
+fitBM = phyloNetworklm(@formula(trait ~ shift_98 + shift_326 + shift_287), dat, phy)
 
 # Tests against results obtained with geiger::fitContinuous or phylolm::phylolm
 @test loglikelihood(fitBM) ≈ -76.1541605207 atol=1e-10 

@@ -150,11 +150,11 @@ dfr_shift[:sum] = vec(sum(Array(dfr_shift[:,find(names(dfr_shift) .!= :tipNames)
 dfr = join(dfr, dfr_shift, on=:tipNames)
 
 ## Simple BM
-fitShift = phyloNetworklm(@formula(trait ~ shift_1 + shift_m5), dfr, net)
+fitShift = phyloNetworklm(@formula(trait ~ shift_1 + shift_8), dfr, net)
 @show fitShift
 
 ## Test against fixed values lambda models
-fitlam = phyloNetworklm(@formula(trait ~ shift_1 + shift_m5), dfr, net, model = "lambda", fixedValue = 1.0)
+fitlam = phyloNetworklm(@formula(trait ~ shift_1 + shift_8), dfr, net, model = "lambda", fixedValue = 1.0)
 
 @test lambda_estim(fitlam) ≈ 1.0
 @test coef(fitlam) ≈ coef(fitShift)
@@ -179,14 +179,14 @@ fitlam = phyloNetworklm(@formula(trait ~ shift_1 + shift_m5), dfr, net, model = 
 @test bic(fitlam) ≈ bic(fitShift) + log(nobs(fitShift))
 @test mu_estim(fitlam)  ≈ mu_estim(fitShift)
 
-fitSH = phyloNetworklm(@formula(trait ~ shift_1 + shift_m5), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
+fitSH = phyloNetworklm(@formula(trait ~ shift_1 + shift_8), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
 @test loglikelihood(fitlam) ≈ loglikelihood(fitSH)
 @test aic(fitlam) ≈ aic(fitSH)
 
 ## ftest against own naive implementation
 modnull = phyloNetworklm(@formula(trait ~ 1), dfr, net)
 modhom = phyloNetworklm(@formula(trait ~ sum), dfr, net)
-modhet = phyloNetworklm(@formula(trait ~ sum + shift_m5), dfr, net)
+modhet = phyloNetworklm(@formula(trait ~ sum + shift_8), dfr, net)
 
 table1 = ftest(modhet, modhom, modnull)
 table2 = PhyloNetworks.anova(modnull, modhom, modhet)
@@ -201,8 +201,8 @@ table2 = PhyloNetworks.anova(modnull, modhom, modhet)
 @test table1[Symbol("Pr(>F)")][1] ≈ table2[Symbol("Pr(>F)")][1]
 @test table1[Symbol("Pr(>F)")][2] ≈ table2[Symbol("Pr(>F)")][2]
 
-# Check that it is the same as doing shift_1 + shift_m5
-modhetbis = phyloNetworklm(@formula(trait ~ shift_1 + shift_m5), dfr, net)
+# Check that it is the same as doing shift_1 + shift_8
+modhetbis = phyloNetworklm(@formula(trait ~ shift_1 + shift_8), dfr, net)
 
 table2bis = PhyloNetworks.anova(modnull, modhom, modhetbis)
 
