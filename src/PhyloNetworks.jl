@@ -75,6 +75,9 @@ readMultiTopologyLevel1,
 readMultiTopology,
 hybridatnode!,
 undirectedOtherNetworks,
+getNodeAges,
+pairwiseTaxonDistanceMatrix,
+calibrateFromPairwiseDistances!,
 phyloNetworklm,
 PhyloNetworkLinearModel,
 simulate,
@@ -123,5 +126,6 @@ include("plotsRCall.jl")
 include("compareNetworks.jl")
 include("traits.jl")
 include("parsimony.jl")
+include("pairwiseDistanceLS.jl")
 
 end #module

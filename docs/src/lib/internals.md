@@ -34,8 +34,13 @@ deleteNode!
 sampleBootstrapTrees
 sampleCFfromCI
 setNonIdBL!
+recursionPreOrder
+recursionPreOrder!
+updatePreOrder!
 sharedPathMatrix
 getindex(::MatrixTopologicalOrder, ::Symbol)
+getMajorParent
+getMinorParent
 ```
 
 ## Main functions in SNaQ

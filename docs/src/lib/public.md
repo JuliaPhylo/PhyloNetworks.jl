@@ -54,9 +54,12 @@ setGamma!
 deleteleaf!
 deleteHybridThreshold!
 # plotNetGraphViz
-plot
+plot(::HybridNetwork)
+plot(::HybridNetwork, ::Symbol)
 rotate!
 getindex(::TraitSimulation, ::Symbol)
+getNodeAges
+pairwiseTaxonDistanceMatrix
 ```
 
 ## Data and Topology read/write
@@ -85,6 +88,7 @@ topologyMaxQPseudolik!
 topologyQPseudolik!
 fittedQuartetCF
 bootsnaq
+calibrateFromPairwiseDistances!
 ```
 ## Network Comparisons
 
