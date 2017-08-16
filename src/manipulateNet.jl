@@ -734,52 +734,58 @@ return only one parent of a given node: the major / minor if hybrid.
 **warning**: assume isChild1 and isMajor attributes are correct
 """
 function getMajorParent(n::Node)
-    for e in n.edge
-        if n == e.node[(e.isChild1 ? 1:2)] && e.isMajor
-            return e.node[(e.isChild1 ? 2:1)]
-        end
-    end
-    error("node $(n.number) has no major parent")
-    return n
+    ee = getMajorParentEdge(n)
+    return ee.node[(ee.isChild1 ? 2:1)]
 end
-
+@doc (@doc getMajorParent) getMinorParent
 function getMinorParent(n::Node)
-    for e in n.edge
-        if !e.isMajor && n == e.node[(e.isChild1 ? 1:2)]
-            return e.node[(e.isChild1 ? 2:1)]
-        end
-    end
-    error("node $(n.number) has no minor parent")
-    return n
+    ee = getMinorParentEdge(n)
+    return ee.node[(ee.isChild1 ? 2:1)]
 end
 
 # function getMajorParent(n::Node)
-#     # found = false
-#     # for e in node.edge
-#     #     if (isEqual(n, e.isChild1 ? e.node[1] : e.node[2]) # n is child of e
-#     #         && e.isMajor) # in case n is a hybrid, e is major parent edge
-#     #         found = true
-#     #         break
-#     #     end
-#     # end
-#     # found || error("node $(n.number) has no major parent")
-#     ee = getMajorParentEdge(n)
-#     return getOtherNode(ee,n)
+#     for e in n.edge
+#         if n == e.node[(e.isChild1 ? 1:2)] && e.isMajor
+#             return e.node[(e.isChild1 ? 2:1)]
+#         end
+#     end
+#     error("node $(n.number) has no major parent")
+#     return n
 # end
 
+# function getMinorParent(n::Node)
+#     for e in n.edge
+#         if !e.isMajor && n == e.node[(e.isChild1 ? 1:2)]
+#             return e.node[(e.isChild1 ? 2:1)]
+#         end
+#     end
+#     error("node $(n.number) has no minor parent")
+#     return n
+# end
+
+"""
+    getMajorParentEdge(node)
+    getMinorParentEdge(node)
+
+return the parent edge of a given node: the major / minor if hybrid.  
+**warning**: assume isChild1 and isMajor attributes are correct
+"""
 function getMajorParentEdge(n::Node)
-    found = false
-    eee = Edge(1)
     for ee in n.edge
-        if (isEqual(n, ee.isChild1 ? ee.node[1] : ee.node[2]) # n is child of ee
-            && ee.isMajor) # in case n is a hybrid, ee is major parent edge
-            found = true
-            eee = ee
-            break
+        if n == ee.node[(ee.isChild1 ? 1:2)] && ee.isMajor
+            return ee
         end
     end
-    found || error("node $(n.number) has no major parent")
-    return eee
+    error("node $(n.number) has no major parent")
+end
+@doc (@doc getMajorParentEdge) getMinorParentEdge
+function getMinorParentEdge(n::Node)
+    for ee in n.edge
+        if !ee.isMajor && n == ee.node[(ee.isChild1 ? 1:2)]
+            return ee
+        end
+    end
+    error("node $(n.number) has no minor parent")
 end
 
 # get child of a given edge

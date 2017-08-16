@@ -74,7 +74,9 @@ end
     recursionPreOrder(nodes, init_function, root_function, tree_node_function,
                       hybrid_node_function, parameters)
     recursionPreOrder!(nodes, AbstractArray, root_function, tree_node_function,
-                      hybrid_node_function, parameters)
+                       hybrid_node_function, parameters)
+    updatePreOrder(index, nodes, updated_matrix, root_function, tree_node_function,
+                   hybrid_node_function, parameters)
 
 Generic tool to apply a pre-order (or topological ordering) algorithm.
 Used by `sharedPathMatrix` and by `pairwiseTaxonDistanceMatrix`.
@@ -88,6 +90,7 @@ function recursionPreOrder(nodes::Vector{Node},
     M = init(nodes, params)
     recursionPreOrder!(nodes, M, updateRoot, updateTree, updateHybrid, params)
 end
+@doc (@doc recursionPreOrder) recursionPreOrder!
 function recursionPreOrder!(nodes::Vector{Node},
                            M::AbstractArray,
                            updateRoot::Function,
@@ -102,6 +105,7 @@ end
 
 # Update on the network
 # Takes three function as arguments : updateRoot, updateTree, updateHybrid
+@doc (@doc recursionPreOrder) updatePreOrder!
 function updatePreOrder!(i::Int,
                          nodes::Vector{Node},
                          V::AbstractArray, updateRoot::Function,
@@ -146,6 +150,15 @@ function recursionPostOrder(net::HybridNetwork,
     MatrixTopologicalOrder(M, [n.number for n in net.nodes_changed], nNodes, nleaf, [n.name for n in net.leaf], indexation)
 end
 
+"""
+    recursionPostOrder(nodes, init_function, tip_function, node_function,
+                       parameters)
+    updatePostOrder(index, nodes, updated_matrix, tip_function, node_function,
+                    parameters)
+
+Generic tool to apply a post-order (or topological ordering) algorithm.
+Used by `incidenceMatrix`.
+"""
 function recursionPostOrder(nodes::Vector{Node},
                             init::Function,
                             updateTip::Function,
@@ -158,7 +171,7 @@ function recursionPostOrder(nodes::Vector{Node},
     end
     return M
 end
-
+@doc (@doc recursionPostOrder) updatePostOrder!
 function updatePostOrder!(i::Int,
                           nodes::Vector{Node},
                           V::Matrix,

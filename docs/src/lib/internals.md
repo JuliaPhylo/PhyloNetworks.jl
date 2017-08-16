@@ -38,9 +38,13 @@ recursionPreOrder
 recursionPreOrder!
 updatePreOrder!
 sharedPathMatrix
+recursionPostOrder
+updatePostOrder!
 getindex(::MatrixTopologicalOrder, ::Symbol)
 getMajorParent
 getMinorParent
+getMajorParentEdge
+getMinorParentEdge
 ```
 
 ## Main functions in SNaQ
