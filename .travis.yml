@@ -1,8 +1,8 @@
 language: julia
-os:
- - linux
- - osx
-julia:
+os: # WARNING: any change here must also be done in docs/make.jl
+  - linux
+  - osx
+julia: # WARNING: any change here must also be done in docs/make.jl
 #  - release
  - 0.6
 env:

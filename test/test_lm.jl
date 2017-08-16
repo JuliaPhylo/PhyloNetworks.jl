@@ -89,7 +89,7 @@ fitbis = phyloNetworklm(@formula(trait ~ 1), dfr, net)
 @test bic(phynetlm) ≈ bic(fitbis)
 @test mu_estim(phynetlm) ≈ mu_estim(fitbis)
 
-## Pagel's Lambda
+## fixed values parameters
 fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedValue=1.0)
 @show fitlam
 
@@ -116,10 +116,103 @@ fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedVa
 @test bic(fitlam) ≈ bic(fitbis) + log(nobs(fitbis))
 @test mu_estim(fitlam) ≈ mu_estim(fitbis)
 
+fitSH = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
+@test loglikelihood(fitlam) ≈ loglikelihood(fitSH)
+@test aic(fitlam) ≈ aic(fitSH)
+
 ## Pagel's Lambda
 fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda")
-#@show fitlam
 @test lambda_estim(fitlam) ≈ 1.24875
+
+## Scaling Hybrid
+fitSH = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "scalingHybrid")
+@test lambda_estim(fitSH) ≈ 4.057891910001937 atol=1e-8
+
+###############################################################################
+### With shifts
+###############################################################################
+tree_str= "(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6):1):0.5);"
+net = readTopology(tree_str)
+preorder!(net)
+
+## Choose shifts
+nodes_shifts = indexin([1,-5], [n.number for n in net.node])
+
+## Simulate
+params = ParamsBM(10, 0.1, ShiftNet(net.edge[[1,8]], [3.0, -3.0],  net))
+srand(2468) # sets the seed for reproducibility, to debug potential error
+sim = simulate(net, params)
+Y = sim[:Tips]
+## Construct regression matrix
+dfr = DataFrame(trait = Y, tipNames = sim.M.tipNames)
+dfr_shift = regressorShift(net.edge[[1,8]], net)
+dfr_shift[:sum] = vec(sum(Array(dfr_shift[:,find(names(dfr_shift) .!= :tipNames)]), 2))
+dfr = join(dfr, dfr_shift, on=:tipNames)
+
+## Simple BM
+fitShift = phyloNetworklm(@formula(trait ~ shift_1 + shift_8), dfr, net)
+@show fitShift
+
+## Test against fixed values lambda models
+fitlam = phyloNetworklm(@formula(trait ~ shift_1 + shift_8), dfr, net, model = "lambda", fixedValue = 1.0)
+
+@test lambda_estim(fitlam) ≈ 1.0
+@test coef(fitlam) ≈ coef(fitShift)
+@test vcov(fitlam) ≈ vcov(fitShift)
+@test nobs(fitlam) ≈ nobs(fitShift)
+@test residuals(fitlam)[fitShift.model.ind] ≈ residuals(fitShift)
+@test model_response(fitlam)[fitShift.model.ind] ≈ model_response(fitShift)
+@test predict(fitlam)[fitShift.model.ind] ≈ predict(fitShift)
+@test dof_residual(fitlam) ≈ dof_residual(fitShift)
+@test sigma2_estim(fitlam) ≈ sigma2_estim(fitShift)
+@test stderr(fitlam) ≈ stderr(fitShift)
+@test confint(fitlam) ≈ confint(fitShift)
+@test loglikelihood(fitlam) ≈ loglikelihood(fitShift)
+@test dof(fitlam) ≈ dof(fitShift) + 1
+@test deviance(fitlam)  ≈ deviance(fitShift)
+@test nulldeviance(fitlam)  ≈ nulldeviance(fitShift)
+@test nullloglikelihood(fitlam)  ≈ nullloglikelihood(fitShift)
+@test r2(fitlam) ≈ r2(fitShift) atol=1e-15
+#@test adjr2(fitlam) ≈ adjr2(fitShift) - 0.5 atol=1e-15
+@test aic(fitlam) ≈ aic(fitShift) + 2
+#@test aicc(fitlam)  ≈ aicc(fitShift)
+@test bic(fitlam) ≈ bic(fitShift) + log(nobs(fitShift))
+@test mu_estim(fitlam)  ≈ mu_estim(fitShift)
+
+fitSH = phyloNetworklm(@formula(trait ~ shift_1 + shift_8), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
+@test loglikelihood(fitlam) ≈ loglikelihood(fitSH)
+@test aic(fitlam) ≈ aic(fitSH)
+
+## ftest against own naive implementation
+modnull = phyloNetworklm(@formula(trait ~ 1), dfr, net)
+modhom = phyloNetworklm(@formula(trait ~ sum), dfr, net)
+modhet = phyloNetworklm(@formula(trait ~ sum + shift_8), dfr, net)
+
+table1 = ftest(modhet, modhom, modnull)
+table2 = PhyloNetworks.anova(modnull, modhom, modhet)
+
+# @test table1.fstat[1] ≈ table2[:F][2]
+# @test table1.fstat[2] ≈ table2[:F][1]
+# @test table1.pval[1].v ≈ table2[Symbol("Pr(>F)")][2]
+# @test table1.pval[2].v ≈ table2[Symbol("Pr(>F)")][1]
+## Replace next 4 lines with previous ones when GLM.ftest available
+@test table1[:F][2] ≈ table2[:F][2] 
+@test table1[:F][1] ≈ table2[:F][1]
+@test table1[Symbol("Pr(>F)")][1] ≈ table2[Symbol("Pr(>F)")][1]
+@test table1[Symbol("Pr(>F)")][2] ≈ table2[Symbol("Pr(>F)")][2]
+
+# Check that it is the same as doing shift_1 + shift_8
+modhetbis = phyloNetworklm(@formula(trait ~ shift_1 + shift_8), dfr, net)
+
+table2bis = PhyloNetworks.anova(modnull, modhom, modhetbis)
+
+@test table2[:F] ≈ table2bis[:F]
+@test table2[Symbol("Pr(>F)")] ≈ table2bis[Symbol("Pr(>F)")]
+@test table2[:dof_res] ≈ table2bis[:dof_res]
+@test table2[:RSS] ≈ table2bis[:RSS]
+@test table2[:dof] ≈ table2bis[:dof]
+@test table2[:SS] ≈ table2bis[:SS]
+
 
 ###############################################################################
 #### Other Network
@@ -292,7 +385,7 @@ fitnabis = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 @test aicc(fitna) ≈ aicc(fitnabis)
 @test bic(fitna) ≈ bic(fitnabis)
 
-## Pagel's Lambda
+## Tests against fixed values parameters
 fitlam = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda", fixedValue = 1.0)
 #@show fitlam
 
@@ -319,11 +412,19 @@ fitlam = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda", fixe
 @test bic(fitlam) ≈ bic(fitnabis) + log(nobs(fitnabis))
 @test mu_estim(fitlam) ≈ mu_estim(fitnabis)
 
+fitSH = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
+@test loglikelihood(fitlam) ≈ loglikelihood(fitSH)
+@test aic(fitlam) ≈ aic(fitSH)
+
 ## Pagel's Lambda
 fitlam = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda")
 @show fitlam
 @test lambda_estim(fitlam) ≈ 1.1135518305 atol=1e-10
 
+## scaling Hybrid
+fitSH = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid")
+@show fitSH
+@test lambda_estim(fitSH) ≈ -52.81305448333567 atol=1e-8
 
 ### Ancestral State Reconstruction
 params = ParamsBM(3, 1)
@@ -399,6 +500,20 @@ tree = majorTree(net)
 phynetlm = phyloNetworklm(@formula(trait ~ pred), dfr, tree, model = "lambda")
 
 @test lambda_estim(phynetlm) ≈ 0.5903394415 atol=1e-6
+
+## scaling Hybrid
+lmtree = phyloNetworklm(@formula(trait ~ pred), dfr, tree, model = "BM")
+lmnet = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "BM")
+lmSHzero = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid", fixedValue = 0.0)
+lmSHone = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
+
+@test loglikelihood(lmtree) ≈ loglikelihood(lmSHzero)
+@test loglikelihood(lmnet) ≈ loglikelihood(lmSHone)
+
+lmSH = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid")
+
+@test lambda_estim(lmSH) ≈ 23.46668204551696 atol=1e-8
+
 
 ############################
 ## Against no regressor
