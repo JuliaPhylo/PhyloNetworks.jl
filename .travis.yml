@@ -23,8 +23,8 @@ before_install:
   # but no permalink to release download
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then wget "https://cran.rstudio.com/bin/macosx/$(wget -qO- https://cran.rstudio.com/bin/macosx/ | sed -n 's/.*href="\(R-[^"]*.pkg\)".*/\1/p' | head -n 1)"; fi
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then sudo installer -pkg R-*.pkg -target /; fi
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then julia -e 'Pkg.add("BinDeps")'; fi
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then julia -e 'Pkg.build("BinDeps")'; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then julia -e 'Pkg.add("NLopt")'; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then julia -e 'Pkg.build("NLopt")'; fi
 
 after_success:
   - julia -e 'Pkg.clone("https://github.com/pbastide/Documenter.jl")'
