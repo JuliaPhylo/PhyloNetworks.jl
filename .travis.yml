@@ -23,15 +23,15 @@ before_install:
   # but no permalink to release download
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then wget "https://cran.rstudio.com/bin/macosx/$(wget -qO- https://cran.rstudio.com/bin/macosx/ | sed -n 's/.*href="\(R-[^"]*.pkg\)".*/\1/p' | head -n 1)"; fi
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then sudo installer -pkg R-*.pkg -target /; fi
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then julia -e 'Pkg.add("NLopt")'; fi
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then julia -e 'Pkg.build("NLopt")'; fi
+
+  # Binaries
+  - export PATH=$HOME/.local/bin:$PATH
 
 after_success:
   - julia -e 'Pkg.clone("https://github.com/pbastide/Documenter.jl")'
 #  - julia -e 'Pkg.checkout("Documenter", "release-0.11")'
   - julia -e 'Pkg.add("Cairo")'
   - julia -e 'Pkg.add("Fontconfig")'
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then rm /Users/travis/.julia/lib/v$TRAVIS_JULIA_VERSION/Compose.ji; fi
-  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then rm /home/travis/.julia/lib/v$TRAVIS_JULIA_VERSION/Compose.ji; fi
+  - rm $HOME/.julia/lib/v$TRAVIS_JULIA_VERSION/Compose.ji; fi
   - julia -e 'Pkg.add("Weave")'
   - julia -e 'cd(Pkg.dir("PhyloNetworks")); include(joinpath("docs", "make.jl"))'
