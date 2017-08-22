@@ -3,11 +3,11 @@ os: # WARNING: any change here must also be done in docs/make.jl
   - linux
   - osx
 julia: # WARNING: any change here must also be done in docs/make.jl
-#  - release
- - 0.6
+# - release
+  - 0.6
 env:
- - DRAW_FIG="false"
-   DOCUMENTER_DEBUG="true"
+  - DRAW_FIG="false"
+    DOCUMENTER_DEBUG="true"
 notifications:
   email: false
 
@@ -25,11 +25,11 @@ before_install:
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then sudo installer -pkg R-*.pkg -target /; fi
 
   # Binaries
-  - export PATH=$HOME/.local/bin:$PATH
+# - export PATH=$HOME/.local/bin:$PATH
 
 after_success:
   - julia -e 'Pkg.clone("https://github.com/pbastide/Documenter.jl")'
-#  - julia -e 'Pkg.checkout("Documenter", "release-0.11")'
+# - julia -e 'Pkg.checkout("Documenter", "release-0.11")'
   - julia -e 'Pkg.add("Cairo")'
   - julia -e 'Pkg.add("Fontconfig")'
   - rm $HOME/.julia/lib/v$TRAVIS_JULIA_VERSION/Compose.ji; fi
