@@ -32,6 +32,6 @@ after_success:
 # - julia -e 'Pkg.checkout("Documenter", "release-0.11")'
   - julia -e 'Pkg.add("Cairo")'
   - julia -e 'Pkg.add("Fontconfig")'
-  - rm $HOME/.julia/lib/v$TRAVIS_JULIA_VERSION/Compose.ji; fi
+  - rm $HOME/.julia/lib/v$TRAVIS_JULIA_VERSION/Compose.ji
   - julia -e 'Pkg.add("Weave")'
   - julia -e 'cd(Pkg.dir("PhyloNetworks")); include(joinpath("docs", "make.jl"))'
