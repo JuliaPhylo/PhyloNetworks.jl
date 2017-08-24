@@ -1159,7 +1159,6 @@ function setGammas!(net::HybridNetwork, gammas::Vector)
             else
                 net.nodes_changed[i].edge[majorHybrid][2].gamma = 1 - gammas[i]
             end
-            net.nodes_changed[i].edge[minorHybrid][1].gamma = 1 - gammas[i]
         end
     end
     return nothing
@@ -1176,7 +1175,7 @@ end
 function maxLambda(times::Vector, V::MatrixTopologicalOrder)
     maskTips = indexin(V.tipNumbers, V.nodeNumbersTopOrder)
     maskNodes = indexin(V.internalNodeNumbers, V.nodeNumbersTopOrder)
-    return maximum(times[maskTips]) / maximum(times[maskNodes])
+    return minimum(times[maskTips]) / maximum(times[maskNodes])
 end
 
 function transform_matrix_lambda!{T <: AbstractFloat}(V::MatrixTopologicalOrder, lam::T,
