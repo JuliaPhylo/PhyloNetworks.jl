@@ -9,5 +9,5 @@ deploydocs(
     deps   = Deps.pip("pygments", "mkdocs", "mkdocs-material", "python-markdown-math"),
     repo = "github.com/crsl4/PhyloNetworks.jl.git",
     julia  = "0.6",
-    osname = "osx"
+    osname = "linux"
 )

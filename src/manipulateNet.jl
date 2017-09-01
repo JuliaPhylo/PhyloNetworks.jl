@@ -734,25 +734,77 @@ return only one parent of a given node: the major / minor if hybrid.
 **warning**: assume isChild1 and isMajor attributes are correct
 """
 function getMajorParent(n::Node)
-    for e in n.edge
-        if n == e.node[(e.isChild1 ? 1:2)] && e.isMajor
-            return e.node[(e.isChild1 ? 2:1)]
+    ee = getMajorParentEdge(n)
+    return ee.node[(ee.isChild1 ? 2:1)]
+end
+@doc (@doc getMajorParent) getMinorParent
+function getMinorParent(n::Node)
+    ee = getMinorParentEdge(n)
+    return ee.node[(ee.isChild1 ? 2:1)]
+end
+
+# function getMajorParent(n::Node)
+#     for e in n.edge
+#         if n == e.node[(e.isChild1 ? 1:2)] && e.isMajor
+#             return e.node[(e.isChild1 ? 2:1)]
+#         end
+#     end
+#     error("node $(n.number) has no major parent")
+#     return n
+# end
+
+# function getMinorParent(n::Node)
+#     for e in n.edge
+#         if !e.isMajor && n == e.node[(e.isChild1 ? 1:2)]
+#             return e.node[(e.isChild1 ? 2:1)]
+#         end
+#     end
+#     error("node $(n.number) has no minor parent")
+#     return n
+# end
+
+"""
+    getMajorParentEdge(node)
+    getMinorParentEdge(node)
+
+return the parent edge of a given node: the major / minor if hybrid.  
+**warning**: assume isChild1 and isMajor attributes are correct
+"""
+function getMajorParentEdge(n::Node)
+    for ee in n.edge
+        if n == ee.node[(ee.isChild1 ? 1:2)] && ee.isMajor
+            return ee
         end
     end
     error("node $(n.number) has no major parent")
-    return n
 end
-
-function getMinorParent(n::Node)
-    for e in n.edge
-        if !e.isMajor && n == e.node[(e.isChild1 ? 1:2)]
-            return e.node[(e.isChild1 ? 2:1)]
+@doc (@doc getMajorParentEdge) getMinorParentEdge
+function getMinorParentEdge(n::Node)
+    for ee in n.edge
+        if !ee.isMajor && n == ee.node[(ee.isChild1 ? 1:2)]
+            return ee
         end
     end
     error("node $(n.number) has no minor parent")
-    return n
 end
 
+# get child of a given edge
+# it assumes the isChild1 attributes are correct
+function getChild(edge::Edge)
+    edge.isChild1 ? edge.node[1] : edge.node[2]
+end
+
+# get all children of a given node
+# it assumes the isChild1 attributes are correct
+function getChildren(node::Node)
+    children = Node[]
+    for e in node.edge
+        if(isEqual(node,e.isChild1 ? e.node[2] : e.node[1])) #node is parent of e
+            push!(children,getOtherNode(e,node))
+        end
+    end
+    return children
+end
 
 """
 `preorder!(net::HybridNetwork)`

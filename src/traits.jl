@@ -74,7 +74,9 @@ end
     recursionPreOrder(nodes, init_function, root_function, tree_node_function,
                       hybrid_node_function, parameters)
     recursionPreOrder!(nodes, AbstractArray, root_function, tree_node_function,
-                      hybrid_node_function, parameters)
+                       hybrid_node_function, parameters)
+    updatePreOrder(index, nodes, updated_matrix, root_function, tree_node_function,
+                   hybrid_node_function, parameters)
 
 Generic tool to apply a pre-order (or topological ordering) algorithm.
 Used by `sharedPathMatrix` and by `pairwiseTaxonDistanceMatrix`.
@@ -88,6 +90,7 @@ function recursionPreOrder(nodes::Vector{Node},
     M = init(nodes, params)
     recursionPreOrder!(nodes, M, updateRoot, updateTree, updateHybrid, params)
 end
+@doc (@doc recursionPreOrder) recursionPreOrder!
 function recursionPreOrder!(nodes::Vector{Node},
                            M::AbstractArray,
                            updateRoot::Function,
@@ -102,6 +105,7 @@ end
 
 # Update on the network
 # Takes three function as arguments : updateRoot, updateTree, updateHybrid
+@doc (@doc recursionPreOrder) updatePreOrder!
 function updatePreOrder!(i::Int,
                          nodes::Vector{Node},
                          V::AbstractArray, updateRoot::Function,
@@ -126,20 +130,63 @@ function updatePreOrder!(i::Int,
     end
 end
 
-# Function to get the indexes of the tips. Returns a mask.
-# function getTipsIndexes(net::HybridNetwork)
-#   tipNumbers = [n.number for n in net.leaf]
-#   nodesOrder = [n.number for n in net.nodes_changed]
-#     getTipsIndexes(nodesOrder, tipNumbers)
-# end
+## Same, but in post order (tips to root)
+function recursionPostOrder(net::HybridNetwork,
+                            checkPreorder=true::Bool,
+                            init=identity::Function,
+                            updateTip=identity::Function,
+                            updateNode=identity::Function,
+                            indexation="b"::AbstractString,
+                            params...)
+    net.isRooted || error("net needs to be rooted to get matrix of shared path lengths")
+    if(checkPreorder)
+        preorder!(net)
+    end
+    M = recursionPostOrder(net.nodes_changed, init, updateTip, updateNode, params)
+    # Find numbers of internal nodes
+    nNodes = [n.number for n in net.node]
+    nleaf = [n.number for n in net.leaf]
+    deleteat!(nNodes, indexin(nleaf, nNodes))
+    MatrixTopologicalOrder(M, [n.number for n in net.nodes_changed], nNodes, nleaf, [n.name for n in net.leaf], indexation)
+end
 
-# function getTipsIndexes(nodesOrder::Vector{Int64}, tipNumbers::Vector{Int64})
-#   mask = BitArray(length(nodesOrder)) ## Function Match ??
-#   for tip in tipNumbers
-#       mask = mask | (tip .== nodesOrder)
-#   end
-#   return(mask)
-# end
+"""
+    recursionPostOrder(nodes, init_function, tip_function, node_function,
+                       parameters)
+    updatePostOrder(index, nodes, updated_matrix, tip_function, node_function,
+                    parameters)
+
+Generic tool to apply a post-order (or topological ordering) algorithm.
+Used by `incidenceMatrix`.
+"""
+function recursionPostOrder(nodes::Vector{Node},
+                            init::Function,
+                            updateTip::Function,
+                            updateNode::Function,
+                            params)
+    n = length(nodes)
+    M = init(nodes, params)
+    for i in n:-1:1 #sorted list of nodes
+        updatePostOrder!(i, nodes, M, updateTip, updateNode, params)
+    end
+    return M
+end
+@doc (@doc recursionPostOrder) updatePostOrder!
+function updatePostOrder!(i::Int,
+                          nodes::Vector{Node},
+                          V::Matrix,
+                          updateTip::Function,
+                          updateNode::Function,
+                          params)
+    children = getChildren(nodes[i]) #array of nodes (empty, size 1 or 2)
+    if(isempty(children)) #nodes[i] is a tip
+        updateTip(V, i, params)
+    else
+        childrenIndex = [getIndex(n, nodes) for n in children]
+        edges = [getConnectingEdge(nodes[i], c) for c in children]
+        updateNode(V, i, childrenIndex, edges, params)
+    end
+end
 
 # Extract the right part of a matrix in topological order
 # Tips : submatrix corresponding to tips
@@ -280,61 +327,283 @@ function updateHybridSharedPathMatrix!(V::Matrix,
     V[i,i] = edge1.gamma*edge1.gamma*(V[parentIndex1,parentIndex1] + edge1.length) + edge2.gamma*edge2.gamma*(V[parentIndex2,parentIndex2] + edge2.length) + 2*edge1.gamma*edge2.gamma*V[parentIndex1,parentIndex2]
 end
 
-
-#function updateSharedPathMatrix!(i::Int,nodes::Vector{Node},V::Matrix, params)
-#    parent = getParents(nodes[i]) #array of nodes (empty, size 1 or 2)
-#    if(isempty(parent)) #nodes[i] is root
-#        return
-#    elseif(length(parent) == 1) #nodes[i] is tree
-#        parentIndex = getIndex(parent[1],nodes)
-#        for j in 1:(i-1)
-#            V[i,j] = V[j,parentIndex]
-#            V[j,i] = V[j,parentIndex]
-#        end
-#        V[i,i] = V[parentIndex,parentIndex] + getConnectingEdge(nodes[i],parent[1]).length
-#    elseif(length(parent) == 2) #nodes[i] is hybrid
-#        parentIndex1 = getIndex(parent[1],nodes)
-#        parentIndex2 = getIndex(parent[2],nodes)
-#        edge1 = getConnectingEdge(nodes[i],parent[1])
-#        edge2 = getConnectingEdge(nodes[i],parent[2])
-#        edge1.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[1].number) should be a hybrid egde")
-#        edge2.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[2].number) should be a hybrid egde")
-#        for j in 1:(i-1)
-#            V[i,j] = V[j,parentIndex1]*edge1.gamma + V[j,parentIndex2]*edge2.gamma
-#            V[j,i] = V[i,j]
-#        end
-#        V[i,i] = edge1.gamma*edge1.gamma*(V[parentIndex1,parentIndex1] + edge1.length) + edge2.gamma*edge2.gamma*(V[parentIndex2,parentIndex2] + edge2.length) + 2*edge1.gamma*edge2.gamma*V[parentIndex1,parentIndex2]
-#    end
-#end
-
 function initsharedPathMatrix(nodes::Vector{Node}, params)
     n = length(nodes)
     return(zeros(Float64,n,n))
 end
 
-# Extract the variance at the tips
-# function extractVarianceTips(V::Matrix, net::HybridNetwork)
-#   mask = getTipsIndexes(net)
-#   return(V[mask, mask])
-# end
+###############################################################################
+###############################################################################
+## Functions to compute the network matrix
+###############################################################################
+###############################################################################
+"""
+`incidenceMatrix(net::HybridNetwork; checkPreorder=true::Bool)`
 
-#function sharedPathMatrix(net::HybridNetwork; checkPreorder=true::Bool) #maybe we only need to input
-#    net.isRooted || error("net needs to be rooted to get matrix of shared path lengths")
-#    if(checkPreorder)
-#        preorder!(net)
-#    end
-#    sharedPathMatrix(net.nodes_changed)
-#end
+This function computes the inciednce matrix between all the nodes of a
+network. It assumes that the network is in the pre-order. If checkPreorder is
+true (default), then it runs function `preoder` on the network beforehand.
 
-#function sharedPathMatrix(nodes::Vector{Node})
-#    n = length(net.nodes_changed)
-#    V = zeros(Float64,n,n)
-#    for i in 1:n #sorted list of nodes
-#        updateSharedPathMatrix!(i,net.nodes_changed,V)
-#    end
-#    return V
-#end
+Returns an object of type [`MatrixTopologicalOrder`](@ref).
 
+"""
+function incidenceMatrix(net::HybridNetwork;
+                         checkPreorder=true::Bool)
+    recursionPostOrder(net,
+                       checkPreorder,
+                       initIncidenceMatrix,
+                       updateTipIncidenceMatrix!,
+                       updateNodeIncidenceMatrix!,
+                       "r")
+end
+
+function updateTipIncidenceMatrix!(V::Matrix,
+                                   i::Int,
+                                   params)
+    return
+end
+
+function updateNodeIncidenceMatrix!(V::Matrix,
+                                    i::Int,
+                                    childrenIndex::Vector{Int},
+                                    edges::Vector{Edge},
+                                    params)
+    for j in 1:length(edges)
+        V[:,i] += edges[j].gamma*V[:,childrenIndex[j]]
+    end
+end
+
+function initIncidenceMatrix(nodes::Vector{Node}, params)
+    n = length(nodes)
+    return(eye(Float64,n,n))
+end
+
+###############################################################################
+###############################################################################
+## Function to get the regressor out of a shift
+###############################################################################
+###############################################################################
+"""
+`regressorShift(node::Vector{Node}, net::HybridNetwork; checkPreorder=true::Bool)`
+
+`regressorShift(edge::Vector{Edge}, net::HybridNetwork; checkPreorder=true::Bool)`
+
+Compute the regressor vectors associated with shifts on edges that are above nodes
+`node`, or on edges `edge`, on a network `net`. It uses function [`incidenceMatrix`](@ref), so
+`net` might be modified to sort it in a pre-order.
+Return a `DataFrame` with as many rows as there are tips in net, and a column for
+each shift, each labelled according to the pattern shift_{number_of_edge}. It has
+an aditional column labelled `tipNames` to allow easy fitting afterward (see example).
+
+# Examples
+```jldoctest
+julia> using DataFrames # Needed to handle data frames.
+
+julia> net = readTopology("(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6):1):0.5);");
+
+julia> preorder!(net)
+
+julia> plot(net, showNodeNumber=true) # Plot the network to locate edges
+Plot(...)
+
+julia> nodes_shifts = indexin([1,-5], [n.number for n in net.node]) # Put a shift on edges ending at nodes 1 and -5
+2-element Array{Int64,1}:
+ 1
+ 7
+
+julia> params = ParamsBM(10, 0.1, ShiftNet(net.node[nodes_shifts], [3.0, -3.0],  net))
+PhyloNetworks.ParamsBM:
+Parameters of a BM with fixed root:
+mu: 10
+Sigma2: 0.1
+
+There are 2 shifts on the network:
+     Edge Number Shift Value
+               8        -3.0
+               1         3.0
+
+julia> srand(2468); # sets the seed for reproducibility
+
+julia> sim = simulate(net, params); # simulate a dataset with shifts
+
+julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
+4×2 DataFrames.DataFrame
+│ Row │ trait   │ tipNames │
+├─────┼─────────┼──────────┤
+│ 1   │ 13.392  │ "A"      │
+│ 2   │ 9.55741 │ "B"      │
+│ 3   │ 7.17704 │ "C"      │
+│ 4   │ 7.88906 │ "D"      │
+
+julia> dfr_shift = regressorShift(net.node[nodes_shifts], net) # the reressors matching the shifts.
+4×3 DataFrames.DataFrame
+│ Row │ shift_1 │ shift_8 │ tipNames │
+├─────┼─────────┼─────────┼──────────┤
+│ 1   │ 1.0     │ 0.0     │ "A"      │
+│ 2   │ 0.0     │ 0.0     │ "B"      │
+│ 3   │ 0.0     │ 1.0     │ "C"      │
+│ 4   │ 0.0     │ 0.6     │ "D"      │
+
+julia> dfr = join(dat, dfr_shift, on=:tipNames); # join data and regressors in a single dataframe
+
+julia> fitBM = phyloNetworklm(@formula(trait ~ shift_1 + shift_8), dfr, net) # actual fit
+DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,Array{Float64,2}}
+
+Formula: trait ~ 1 + shift_1 + shift_8
+
+Model: BM
+
+Parameter(s) Estimates:
+Sigma2: 0.0112618
+
+Coefficients:
+             Estimate Std.Error  t value Pr(>|t|)
+(Intercept)   9.48238  0.327089  28.9902   0.0220
+shift_1        3.9096   0.46862  8.34279   0.0759
+shift_8       -2.4179  0.422825 -5.71843   0.1102
+
+Log Likelihood: 1.8937302027
+AIC: 4.2125395947
+
+```
+
+# See also
+[`phyloNetworklm`](@ref), [`incidenceMatrix`](@ref), [`regressorHybrid`](@ref).
+"""
+function regressorShift(node::Vector{Node},
+                        net::HybridNetwork; checkPreorder=true::Bool)
+    T = incidenceMatrix(net; checkPreorder=checkPreorder)
+    regressorShift(node, net, T)
+end
+
+function regressorShift(node::Vector{Node},
+                        net::HybridNetwork,
+                        T::MatrixTopologicalOrder)
+    ## Get the incidence matrix for tips
+    T_t = T[:Tips]
+    ## Get the indices of the columns to keep
+    ind = zeros(Int, length(node))
+    for i in 1:length(node)
+        !node[i].hybrid || error("Shifts on hybrid edges are not allowed")
+        ind[i] = getIndex(node[i], net.nodes_changed)
+    end
+    df = DataFrame(T_t[:, ind])
+    ## Get the names of the columns
+    eNum = [getMajorParentEdgeNumber(n) for n in net.nodes_changed[ind]]
+    # function tmp_fun(x::Int)
+    #     if x<0
+    #         return(Symbol("shift_m$(-x)"))
+    #     else
+    #         return(Symbol("shift_$(x)"))
+    #     end
+    # end
+    function tmp_fun(x::Int)
+        return(Symbol("shift_$(x)"))
+    end
+    names!(df, [tmp_fun(num) for num in eNum])
+    df[:tipNames]=T.tipNames
+    return(df)
+end
+
+function regressorShift(edge::Vector{Edge},
+                        net::HybridNetwork; checkPreorder=true::Bool)
+    childs = [getChild(ee) for ee in edge]
+    return(regressorShift(childs, net; checkPreorder=checkPreorder))
+end
+
+regressorShift(edge::Edge, net::HybridNetwork; checkPreorder=true::Bool) = regressorShift([edge], net; checkPreorder=checkPreorder)
+regressorShift(node::Node, net::HybridNetwork; checkPreorder=true::Bool) = regressorShift([node], net; checkPreorder=checkPreorder)
+
+"""
+`regressorHybrid(net::HybridNetwork; checkPreorder=true::Bool)`
+
+Compute the regressor vectors associated with shifts on edges that imediatly below
+all hybrid nodes of `net`. It uses function [`incidenceMatrix`](@ref) through
+a call to [`regressorShift`](@ref), so `net` might be modified to sort it in a pre-order.
+Return a `DataFrame` with as many rows as there are tips in net, and a column for
+each hybrid, each labelled according to the pattern shift_{number_of_edge}. It has
+an aditional column labelled `tipNames` to allow easy fitting afterward (see example).
+
+This function can be used to test for heterosis.
+
+# Examples
+```jldoctest
+julia> using DataFrames # Needed to handle data frames.
+
+julia> net = readTopology("(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6):1):0.5);");
+
+julia> preorder!(net)
+
+julia> plot(net, showNodeNumber=true) # Plot the network to locate edges
+Plot(...)
+
+julia> nodes_hybrids = indexin([5], [n.number for n in net.node]) # Put a shift on edges below hybrids
+1-element Array{Int64,1}:
+ 5
+
+julia> params = ParamsBM(10, 0.1, ShiftNet(net.node[nodes_hybrids], [3.0],  net))
+PhyloNetworks.ParamsBM:
+Parameters of a BM with fixed root:
+mu: 10
+Sigma2: 0.1
+
+There are 1 shifts on the network:
+     Edge Number Shift Value
+               6         3.0
+
+julia> srand(2468); # sets the seed for reproducibility
+
+julia> sim = simulate(net, params); # simulate a dataset with shifts
+
+julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
+4×2 DataFrames.DataFrame
+│ Row │ trait   │ tipNames │
+├─────┼─────────┼──────────┤
+│ 1   │ 10.392  │ "A"      │
+│ 2   │ 9.55741 │ "B"      │
+│ 3   │ 10.177  │ "C"      │
+│ 4   │ 12.6891 │ "D"      │
+
+julia> dfr_hybrid = regressorHybrid(net) # the reressors matching the hybrids.
+4×3 DataFrames.DataFrame
+│ Row │ shift_6 │ tipNames │ sum │
+├─────┼─────────┼──────────┼─────┤
+│ 1   │ 0.0     │ "A"      │ 0.0 │
+│ 2   │ 0.0     │ "B"      │ 0.0 │
+│ 3   │ 0.0     │ "C"      │ 0.0 │
+│ 4   │ 1.0     │ "D"      │ 1.0 │
+
+julia> dfr = join(dat, dfr_hybrid, on=:tipNames); # join data and regressors in a single dataframe
+
+julia> fitBM = phyloNetworklm(@formula(trait ~ shift_6), dfr, net) # actual fit
+DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,Array{Float64,2}}
+
+Formula: trait ~ 1 + shift_6
+
+Model: BM
+
+Parameter(s) Estimates:
+Sigma2: 0.041206
+
+Coefficients:
+             Estimate Std.Error t value Pr(>|t|)
+(Intercept)    10.064  0.277959 36.2068   0.0008
+shift_6       2.72526  0.315456 8.63912   0.0131
+
+Log Likelihood: -0.7006021946
+AIC: 7.4012043891
+
+```
+
+# See also
+[`phyloNetworklm`](@ref), [`incidenceMatrix`](@ref), [`regressorShift`](@ref).
+"""
+function regressorHybrid(net::HybridNetwork; checkPreorder=true::Bool)
+    childs = [getChildren(nn)[1] for nn in net.hybrid]
+    dfr = regressorShift(childs, net; checkPreorder=checkPreorder)
+    dfr[:sum] = vec(sum(Array(dfr[:,find(names(dfr) .!= :tipNames)]), 2))
+    return(dfr)
+end
 
 ###############################################################################
 ###############################################################################
@@ -344,6 +613,139 @@ end
 
 # Abstract type of all the (future) types (BM, OU, ...)
 abstract type ParamsProcess end
+
+# Type for shifts
+"""
+`ShiftNet`
+
+Shifts associated to an [`HybridNetwork`](@ref) sorted in topological order.
+Two `ShiftNet` objects on the same network can be concatened with `*`. 
+
+`ShiftNet{T <: Real}(node::Vector{Node}, value::Vector{T}, net::HybridNetwork; checkPreorder=true::Bool)`
+
+Constructor from a vector of nodes and associated values. The shifts are located
+on the edges above the nodes provided. Warning, shifts on hybrid edges are not
+allowed.
+
+`ShiftNet{T <: Real}(edge::Vector{Edge}, value::Vector{T}, net::HybridNetwork; checkPreorder=true::Bool)`
+
+Constructor from a vector of edges and associated values.
+Warning, shifts on hybrid edges are not allowed.
+
+Extractors: [`getShiftEdgeNumber`](@ref), [`getShiftValue`](@ref)
+"""
+struct ShiftNet
+    shift::Vector{Real}
+    net::HybridNetwork
+end
+
+# Default
+ShiftNet(net::HybridNetwork) = ShiftNet(zeros(length(net.node)), net)
+
+function ShiftNet{T <: Real}(node::Vector{Node}, value::Vector{T},
+                             net::HybridNetwork; checkPreorder=true::Bool)
+    if length(node) != length(value)
+        error("The vector of nodes/edges and of values must be of the same length.")
+    end
+    if(checkPreorder)
+        preorder!(net)
+    end
+    obj = ShiftNet(net)
+    for i in 1:length(node)
+        !node[i].hybrid || error("Shifts on hybrid edges are not allowed")
+        ind = getIndex(node[i], net.nodes_changed)
+        obj.shift[ind] = value[i]
+    end
+    return(obj)
+end
+
+# Construct from edges and values
+function ShiftNet{T <: Real}(edge::Vector{Edge}, value::Vector{T},
+                             net::HybridNetwork; checkPreorder=true::Bool)
+    childs = [getChild(ee) for ee in edge]
+    return(ShiftNet(childs, value, net; checkPreorder=checkPreorder))
+end
+
+ShiftNet(edge::Edge, value::Real, net::HybridNetwork; checkPreorder=true::Bool) = ShiftNet([edge], [value], net; checkPreorder=checkPreorder)
+ShiftNet(node::Node, value::Real, net::HybridNetwork; checkPreorder=true::Bool) = ShiftNet([node], [value], net; checkPreorder=checkPreorder)
+
+"""
+`shiftHybrid{T <: Real}(value::Vector{T}, net::HybridNetwork; checkPreorder=true::Bool)`
+
+Construct an object [`ShiftNet`](@ref) with shifts on all the edges below
+hybrid nodes, with values provided. The vector of values must have the 
+same length as the number of hybrids in the network.
+
+"""
+function shiftHybrid{T <: Real}(value::Vector{T},
+                                net::HybridNetwork; checkPreorder=true::Bool)
+    if length(net.hybrid) != length(value)
+        error("You must provide as many values as the number of hybrid nodes.")
+    end
+    childs = [getChildren(nn)[1] for nn in net.hybrid]
+    return(ShiftNet(childs, value, net; checkPreorder=checkPreorder))
+end
+shiftHybrid(value::Real, net::HybridNetwork; checkPreorder=true::Bool) = shiftHybrid([value], net; checkPreorder=checkPreorder)
+
+"""
+`getShiftEdgeNumber(shift::ShiftNet)`
+
+Get the edge numbers where the shifts are located, for an object [`ShiftNet`](@ef).
+"""
+function getShiftEdgeNumber(shift::ShiftNet)
+    nodInd = collect(1:length(shift.shift))[shift.shift .!= 0]
+    [getMajorParentEdgeNumber(n) for n in shift.net.nodes_changed[nodInd]]
+end
+function getMajorParentEdgeNumber(n::Node)
+    try
+        getMajorParentEdge(n).number
+    catch
+        -1
+    end
+end
+"""
+`getShiftValue(shift::ShiftNet)`
+
+Get the values of the shifts, for an object [`ShiftNet`](@ef).
+"""
+function getShiftValue(shift::ShiftNet)
+    shift.shift[shift.shift .!= 0]
+end
+
+function shiftTable(shift::ShiftNet)
+    CoefTable(hcat(getShiftEdgeNumber(shift), getShiftValue(shift)),
+              ["Edge Number", "Shift Value"],
+              fill("", length(getShiftValue(shift))))
+end
+
+function Base.show(io::IO, obj::ShiftNet)
+    println(io, "$(typeof(obj)):\n",
+            shiftTable(obj))
+end
+
+function Base.:*(sh1::ShiftNet, sh2::ShiftNet)
+    isEqual(sh1.net, sh2.net) || error("Shifts to be concatenated must be defined on the same network.")
+    length(sh1.shift) == length(sh2.shift) || error("Shifts to be concatenated must have the same length.")
+    shiftNew = zeros(length(sh1.shift))
+    for i in 1:length(sh1.shift)
+        if sh1.shift[i] == 0
+            shiftNew[i] = sh2.shift[i]
+        elseif sh2.shift[i] == 0
+            shiftNew[i] = sh1.shift[i]
+        elseif sh1.shift[i] == sh2.shift[i]
+            shiftNew[i] = sh1.shift[i]
+        else
+            error("The two shifts vectors you provided affect the same edges, so I cannot choose which one you want.")
+        end
+    end
+    return(ShiftNet(shiftNew, sh1.net))
+end
+
+# function Base.:(==)(sh1::ShiftNet, sh2::ShiftNet)
+#     isEqual(sh1.net, sh2.net) || return(false)
+#     sh1.shift == sh2.shift || return(false)
+#     return(true)
+# end
 
 """
 `ParamsBM <: ParamsProcess`
@@ -359,9 +761,20 @@ mutable struct ParamsBM <: ParamsProcess
     sigma2::Real # variance
     randomRoot::Bool # Root is random ? default false
     varRoot::Real # root variance. Default NaN
+    shift::Nullable{ShiftNet} # shifts
 end
 # Constructor
-ParamsBM(mu, sigma2) = ParamsBM(mu, sigma2, false, NaN) # default values
+ParamsBM(mu::Real, sigma2::Real) = ParamsBM(mu, sigma2, false, NaN, Nullable{ShiftNet}()) # default values
+ParamsBM(mu::Real, sigma2::Real, net::HybridNetwork) = ParamsBM(mu, sigma2, false, NaN, ShiftNet(net)) # default values
+ParamsBM(mu::Real, sigma2::Real, shift::ShiftNet) = ParamsBM(mu, sigma2, false, NaN, shift) # default values
+
+function anyShift(params::ParamsBM)
+    if isnull(params.shift) return(false) end
+    for v in params.shift.value.shift
+        if v != 0 return(true) end
+    end
+    return(false)
+end
 
 function Base.show(io::IO, obj::ParamsBM)
     disp =  "$(typeof(obj)):\n"
@@ -378,6 +791,10 @@ function paramstable(obj::ParamsBM)
     disp = "mu: $(obj.mu)\nSigma2: $(obj.sigma2)"
     if obj.randomRoot
         disp = disp * "\nvarRoot: $(obj.varRoot)"
+    end
+    if anyShift(obj)
+        disp = disp * "\n\nThere are $(length(getShiftValue(obj.shift.value))) shifts on the network:\n"
+        disp = disp * "$(shiftTable(obj.shift.value))"
     end
     return(disp)
 end
@@ -484,6 +901,7 @@ function simulate(net::HybridNetwork,
     else
         error("The 'simulate' function only works for a BM process (for now).")
     end
+    !isnull(params.shift) || (params.shift = ShiftNet(net))
     M = recursionPreOrder(net,
                           checkPreorder,
                           initSimulateBM,
@@ -519,8 +937,8 @@ function updateTreeSimulateBM!(M::Matrix,
                                edge::Edge,
                                params::Tuple{ParamsBM})
     params = params[1]
-    M[1, i] = params.mu  # expectation
-    M[2, i] = M[2, parentIndex] + sqrt(params.sigma2 * edge.length) * randn() # random value
+    M[1, i] = M[1, parentIndex] + params.shift.value.shift[i] # expectation
+    M[2, i] = M[2, parentIndex] + params.shift.value.shift[i] + sqrt(params.sigma2 * edge.length) * randn() # random value
 end
 
 # Going down to an hybrid node
@@ -532,7 +950,7 @@ function updateHybridSimulateBM!(M::Matrix,
                                  edge2::Edge,
                                  params::Tuple{ParamsBM})
     params = params[1]
-    M[1, i] = params.mu  # expectation
+    M[1, i] =  edge1.gamma * M[1, parentIndex1] + edge2.gamma * M[1, parentIndex2] # expectation
     M[2, i] =  edge1.gamma * (M[2, parentIndex1] + sqrt(params.sigma2 * edge1.length) * randn()) + edge2.gamma * (M[2, parentIndex2] + sqrt(params.sigma2 * edge2.length) * randn()) # random value
 end
 
@@ -579,12 +997,10 @@ Getting submatrices of an object of type [`TraitSimulation`](@ref).
   * `:Tips` columns and/or rows corresponding to the tips
   * `:InternalNodes` columns and/or rows corresponding to the internal nodes
 """
-function Base.getindex(obj::TraitSimulation, d::Symbol)
-    #    if d == :Tips
-    #       res = obj.M[:Tips]
-    #       squeeze(res[2, :], 1)
-    #    end
-    #   squeeze(getindex(obj.M, d)[2, :], 1)
+function Base.getindex(obj::TraitSimulation, d::Symbol, w=:Sim::Symbol)
+     if w == :Exp
+        return(getindex(obj.M, d)[1, :])
+     end
     getindex(obj.M, d)[2, :]
 end
 
@@ -662,37 +1078,33 @@ function phyloNetworklm(X::Matrix,
                         ind=[0]::Vector{Int},
                         startingValue=0.5::Real,
                         fixedValue=Nullable{Real}()::Nullable{Real})
-    # Geting variance covariance
-    V = sharedPathMatrix(net)
-    # Get gammas and heights
-    gammas = getGammas(net)
-    times = getHeights(net)
-    # Fit
-    phyloNetworklm(X, Y, V, gammas, times;
-                   msng = msng, model=model, ind=ind,
-                   startingValue=startingValue, fixedValue=fixedValue)
-end
-
-# Same function, but when the matrix V is already known.
-function phyloNetworklm(X::Matrix,
-                        Y::Vector,
-                        V::MatrixTopologicalOrder,
-                        gammas::Vector,
-                        times::Vector;
-                        msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
-                        model="BM"::AbstractString,
-                        ind=[0]::Vector{Int},
-                        startingValue=0.5::Real,
-                        fixedValue=Nullable{Real}()::Nullable{Real})
     ## Choose Model
     if (model == "BM")
+        # Geting variance covariance
+        V = sharedPathMatrix(net)
+        # Fit
         return phyloNetworklm_BM(X, Y, V;
                                  msng=msng, ind=ind)
     end
     if (model == "lambda")
+        # Geting variance covariance
+        V = sharedPathMatrix(net)
+        # Get gammas and heights
+        gammas = getGammas(net)
+        times = getHeights(net)
+        # Fit
         return phyloNetworklm_lambda(X, Y, V, gammas, times;
                                      msng=msng, ind=ind,
                                      startingValue=startingValue, fixedValue=fixedValue)
+    end
+    if (model == "scalingHybrid")
+        # Get gammas
+        preorder!(net)
+        gammas = getGammas(net)
+        # Fit
+        return phyloNetworklm_scalingHybrid(X, Y, net, gammas;
+                                            msng=msng, ind=ind,
+                                            startingValue=startingValue, fixedValue=fixedValue)
     end
 end
 
@@ -742,7 +1154,11 @@ function setGammas!(net::HybridNetwork, gammas::Vector)
             majorHybrid = [n.hybrid & n.isMajor for n in net.nodes_changed[i].edge]
             minorHybrid = [n.hybrid & !n.isMajor for n in net.nodes_changed[i].edge]
             net.nodes_changed[i].edge[majorHybrid][1].gamma = gammas[i]
-            net.nodes_changed[i].edge[minorHybrid][1].gamma = 1 - gammas[i]
+            if any(minorHybrid) # case where gamma = 0.5 exactly
+                net.nodes_changed[i].edge[minorHybrid][1].gamma = 1 - gammas[i]
+            else
+                net.nodes_changed[i].edge[majorHybrid][2].gamma = 1 - gammas[i]
+            end
         end
     end
     return nothing
@@ -759,7 +1175,9 @@ end
 function maxLambda(times::Vector, V::MatrixTopologicalOrder)
     maskTips = indexin(V.tipNumbers, V.nodeNumbersTopOrder)
     maskNodes = indexin(V.internalNodeNumbers, V.nodeNumbersTopOrder)
-    return maximum(times[maskTips]) / maximum(times[maskNodes])
+    return minimum(times[maskTips]) / maximum(times[maskNodes])
+    # res = minimum(times[maskTips]) / maximum(times[maskNodes])
+    # res = res * (1 - 1/5/maximum(times[maskTips]))
 end
 
 function transform_matrix_lambda!{T <: AbstractFloat}(V::MatrixTopologicalOrder, lam::T,
@@ -786,12 +1204,13 @@ function logLik_lam{T <: AbstractFloat}(lam::T,
                                         msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                                         ind=[0]::Vector{Int})
     # Transform V according to lambda
-    transform_matrix_lambda!(V, lam, gammas, times)
+    Vp = deepcopy(V)
+    transform_matrix_lambda!(Vp, lam, gammas, times)
     # Fit and take likelihood
-    fit_lam = phyloNetworklm_BM(X, Y, V; msng=msng, ind=ind)
+    fit_lam = phyloNetworklm_BM(X, Y, Vp; msng=msng, ind=ind)
     res = - loglikelihood(fit_lam)
     # Go back to original V
-    transform_matrix_lambda!(V, 1/lam, gammas, times)
+    # transform_matrix_lambda!(V, 1/lam, gammas, times)
     return res
 end
 
@@ -848,6 +1267,76 @@ function phyloNetworklm_lambda(X::Matrix,
     return res
 end
 
+###############################################################################
+## Fit scaling hybrid
+
+function matrix_scalingHybrid{T <: AbstractFloat}(net::HybridNetwork, lam::T,
+                                                  gammas::Vector)
+    setGammas!(net, 1-lam*(1-gammas))
+    V = sharedPathMatrix(net)
+    setGammas!(net, gammas)
+    return V
+end
+
+function logLik_lam_hyb{T <: AbstractFloat}(lam::T,
+                                            X::Matrix,
+                                            Y::Vector,
+                                            net::HybridNetwork,
+                                            gammas::Vector;
+                                            msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
+                                            ind=[0]::Vector{Int})
+    # Transform V according to lambda
+    V = matrix_scalingHybrid(net, lam, gammas)
+    # Fit and take likelihood
+    fit_lam = phyloNetworklm_BM(X, Y, V; msng=msng, ind=ind)
+    return -loglikelihood(fit_lam)
+end
+
+function phyloNetworklm_scalingHybrid(X::Matrix,
+                                      Y::Vector,
+                                      net::HybridNetwork,
+                                      gammas::Vector;
+                                      msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
+                                      ind=[0]::Vector{Int},
+                                      ftolRel=fRelTr::AbstractFloat,
+                                      xtolRel=xRelTr::AbstractFloat,
+                                      ftolAbs=fAbsTr::AbstractFloat,
+                                      xtolAbs=xAbsTr::AbstractFloat,
+                                      startingValue=0.5::Real,
+                                      fixedValue=Nullable{Real}()::Nullable{Real})
+    if isnull(fixedValue)
+        # Find Best lambda using optimize from package NLopt
+        opt = NLopt.Opt(:LN_BOBYQA, 1)
+        NLopt.ftol_rel!(opt, ftolRel) # relative criterion
+        NLopt.ftol_abs!(opt, ftolAbs) # absolute critetion
+        NLopt.xtol_rel!(opt, xtolRel) # criterion on parameter value changes
+        NLopt.xtol_abs!(opt, xtolAbs) # criterion on parameter value changes
+        NLopt.maxeval!(opt, 1000) # max number of iterations
+        #NLopt.lower_bounds!(opt, 1e-100) # Lower bound
+        #NLopt.upper_bounds!(opt, 1.0)
+        count = 0
+        function fun(x::Vector{Float64}, g::Vector{Float64})
+            x = convert(AbstractFloat, x[1])
+            res = logLik_lam_hyb(x, X, Y, net, gammas; msng=msng, ind=ind)
+            #count =+ 1
+            #println("f_$count: $(round(res,5)), x: $(x)")
+            return res
+        end
+        NLopt.min_objective!(opt, fun)
+        fmin, xmin, ret = NLopt.optimize(opt, [startingValue])
+        # Best value dans result
+        res_lam = xmin[1]
+    else
+        res_lam = fixedValue
+    end
+    V = matrix_scalingHybrid(net, res_lam, gammas)
+    res = phyloNetworklm_BM(X, Y, V; msng=msng, ind=ind)
+    res.lambda = res_lam
+    res.model = "scalingHybrid"
+    return res
+end
+
+
 """
     phyloNetworklm(f, fr, net, model="BM",
         fTolRel=1e^-10, fTolAbs=1e^-10, xTolRel=1e^-10, xTolAbs=1e^-10,
@@ -862,9 +1351,9 @@ example to see all the functions that can be applied to it.
 * `f::Formula`: formula to use for the regression (see the `DataFrame` package)
 * `fr::AbstractDataFrame`: DataFrame containing the data and regressors at the tips. It should have an extra column labelled "tipNames", that gives the names of the taxa for each observation.
 * `net::HybridNetwork`: phylogenetic network to use. Should have labelled tips.
-* `model::AbstractString="BM"`: the model to use, "BM" being the default and only available model for now. If the entry is a TREE, then "lambda" can fit a Pagel's lambda model.
+* `model::AbstractString="BM"`: the model to use, "BM" (default) or "lambda" (for Pagel's lambda).
 * `no_names::Bool=false`: if `true`, force the function to ignore the tips names. The data is then assumed to be in the same order as the tips of the network. Default to false, setting it to true is dangerous, and strongly discouraged.
-If `model="lambda"`, there are a few more parameters to control the optimization in the parameter:
+If `model="lambda"`, there are a some parameters to control the optimization in lambda:
 * `fTolRel::AbstractFloat=1e-10`: relative tolerance on the likelihood value for the optimization in lambda.
 * `fTolAbs::AbstractFloat=1e-10`: absolute tolerance on the likelihood value for the optimization in lambda.
 * `xTolRel::AbstractFloat=1e-10`: relative tolerance on the parameter value for the optimization in lambda.
@@ -1022,23 +1511,20 @@ function phyloNetworklm(f::Formula,
                         fixedValue=Nullable{Real}()::Nullable{Real})
     # Match the tips names: make sure that the data provided by the user will
     # be in the same order as the ordered tips in matrix V.
-    V = sharedPathMatrix(net)
-    # Get gammas and heights
-    gammas = getGammas(net)
-    times = getHeights(net)
+    preorder!(net)
     if no_names # The names should not be taken into account.
         ind = [0]
         info("""As requested (no_names=true), I am ignoring the tips names
              in the network and in the dataframe.""")
-    elseif (any(V.tipNames == "") || !any(DataFrames.names(fr) .== :tipNames))
-        if (any(V.tipNames == "") && !any(DataFrames.names(fr) .== :tipNames))
+    elseif (any(tipLabels(net) == "") || !any(DataFrames.names(fr) .== :tipNames))
+        if (any(tipLabels(net) == "") && !any(DataFrames.names(fr) .== :tipNames))
             error("""The network provided has no tip names, and the input dataframe has
                   no column labelled tipNames, so I can't match the data on the network
                   unambiguously. If you are sure that the tips of the network are in the
                   same order as the values of the dataframe provided, then please re-run
                   this function with argument no_name=true.""")
         end
-        if any(V.tipNames == "")
+        if any(tipLabels(net) == "")
             error("""The network provided has no tip names, so I can't match the data
                   on the network unambiguously. If you are sure that the tips of the
                   network are in the same order as the values of the dataframe provided,
@@ -1052,7 +1538,7 @@ function phyloNetworklm(f::Formula,
         end
     else
         #        ind = indexin(V.tipNames, fr[:tipNames])
-        ind = indexin(fr[:tipNames], V.tipNames)
+        ind = indexin(fr[:tipNames], tipLabels(net))
         if any(ind == 0) || length(unique(ind)) != length(ind)
             error("""Tips names of the network and names provided in column tipNames
                   of the dataframe do not match.""")
@@ -1068,7 +1554,7 @@ function phyloNetworklm(f::Formula,
     end
     Y = convert(Vector{Float64},DataFrames.model_response(mf))
     # Fit the model (Method copied from DataFrame/src/statsmodels/statsmodels.jl, lines 47-58)
-    DataFrames.DataFrameRegressionModel(phyloNetworklm(mm.m, Y, V, gammas, times;
+    DataFrames.DataFrameRegressionModel(phyloNetworklm(mm.m, Y, net;
                                                        msng=mf.msng, model=model, ind=ind,
                                                        startingValue=startingValue, fixedValue=fixedValue), mf, mm)
     #    # Create the object
@@ -1102,7 +1588,7 @@ StatsBase.dof_residual(m::PhyloNetworkLinearModel) =  nobs(m) - length(coef(m))
 # Degrees of freedom consumed in the model
 function StatsBase.dof(m::PhyloNetworkLinearModel)
     res = length(coef(m)) + 1 # (+1: dispersion parameter)
-    if (m.model == "lambda")
+    if any(m.model .== ["lambda", "scalingHybrid"])
         res += 1 # lambda is one parameter
     end
     return res
@@ -1203,7 +1689,7 @@ DataFrames.Formula(m::DataFrames.DataFrameRegressionModel) = Formula(m.mf.terms)
 function paramstable(m::PhyloNetworkLinearModel)
     Sig = sigma2_estim(m)
     res = "Sigma2: " * @sprintf("%.6g", Sig)
-    if (m.model == "lambda")
+    if any(m.model .== ["lambda", "scalingHybrid"])
         Lamb = lambda_estim(m)
         res = res*"\nLambda: " * @sprintf("%.6g", Lamb)
     end
@@ -1257,6 +1743,101 @@ end
 #               ["Estimate","Std.Error","t value", "Pr(>|t|)"],
 #               ["x$i" for i = 1:size(mm.lm.pp.X, 2)], 4)
 # end
+
+###############################################################################
+###############################################################################
+## Anova - using ftest from GLM - WARNING: need GLM 0.7+ (not in a release yet)
+###############################################################################
+###############################################################################
+
+#function GLM.ftest{T<:DataFrames.AbstractFloatMatrix}(objs::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T}...)
+#    objsModels = [obj.model for obj in objs]
+#    return ftest(objsModels...)
+#end
+
+#function GLM.ftest(objs::PhyloNetworkLinearModel...)
+#    objslm = [obj.lm for obj in objs]
+#    return ftest(objslm...)
+#end
+
+################################################################################
+###############################################################################
+## Anova - Patch waiting for GLM.ftest to be available
+###############################################################################
+###############################################################################
+# When GLM.ftest is available, do:
+#   - replace this paragraph with the previous (commented) one
+#   - remove ftest from exported functions in src/PhyloNetworks
+#   - change anova tests in test/test_lm.jl
+
+"""
+`ftest(objs::PhyloNetworkLinearModel...)`
+
+Takes several nested fits of the same data, and computes the F statistic for each
+pair of models.
+
+The fits must be results of function [`phyloNetworklm`](@ref) called on the same
+data, for models that have more and more effects.
+
+Returns a DataFrame object with the anova table.
+"""
+function ftest{T<:DataFrames.AbstractFloatMatrix}(objs::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T}...)
+    objsModels = [obj.model for obj in objs]
+    return ftest(objsModels...)
+end
+
+function ftest(objs::PhyloNetworkLinearModel...)
+    objs = objs[end:-1:1]
+    return anova(objs...)
+end
+
+###############################################################################
+###############################################################################
+## Anova - old version - kept for tests purposes - do not export
+###############################################################################
+###############################################################################
+
+"""
+`anova(objs::PhyloNetworkLinearModel...)`
+
+Takes several nested fits of the same data, and computes the F statistic for each
+pair of models.
+
+The fits must be results of function [`phyloNetworklm`](@ref) called on the same
+data, for models that have more and more effects.
+
+Returns a DataFrame object with the anova table.
+"""
+function anova{T<:DataFrames.AbstractFloatMatrix}(objs::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T}...)
+    objsModels = [obj.model for obj in objs]
+    return(anova(objsModels...))
+end
+
+function anova(objs::PhyloNetworkLinearModel...)
+    anovaTable = Array{Any}(length(objs)-1, 6)
+    ## Compute binary statistics
+    for i in 1:(length(objs) - 1)
+      anovaTable[i, :] = anovaBin(objs[i], objs[i+1])
+    end
+    ## Transform into a DataFrame
+    anovaTable = DataFrame(anovaTable)
+    names!(anovaTable, [:dof_res, :RSS, :dof, :SS, :F, Symbol("Pr(>F)")])
+    return(anovaTable)
+end
+
+function anovaBin(obj1::PhyloNetworkLinearModel, obj2::PhyloNetworkLinearModel)
+    length(coef(obj1)) < length(coef(obj2)) || error("Models must be nested, from the smallest to the largest.")
+    ## residuals
+    dof2 = dof_residual(obj2)
+    dev2 = deviance(obj2)
+    ## reducted residuals
+    dof1 = dof_residual(obj1) - dof2
+    dev1 = deviance(obj1) - dev2
+    ## Compute statistic
+    F = (dev1 / dof1) / (dev2 / dof2)
+    pval = ccdf(FDist(dof1, dof2), F)
+    return([dof2, dev2, dof1, dev1, F, pval])
+end
 
 ###############################################################################
 ###############################################################################

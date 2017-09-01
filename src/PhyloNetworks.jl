@@ -83,7 +83,14 @@ PhyloNetworkLinearModel,
 simulate,
 TraitSimulation,
 ParamsBM,
+ShiftNet,
+shiftHybrid,
+getShiftEdgeNumber,
+getShiftValue,
 sharedPathMatrix,
+incidenceMatrix,
+regressorShift,
+regressorHybrid,
 ancestralStateReconstruction,
 ReconstructedStates,
 sigma2_estim,
@@ -93,6 +100,7 @@ expectations,
 expectationsPlot,
 predint,
 predintPlot,
+ftest, # To be removed when available in GLM
 parsimonyDiscrete
 
 # export part
