@@ -38,3 +38,5 @@ after_success:
   - rm $HOME/.julia/lib/v$TRAVIS_JULIA_VERSION/Compose.ji
   - julia -e 'Pkg.add("Weave")'
   - julia -e 'cd(Pkg.dir("PhyloNetworks")); include(joinpath("docs", "make.jl"))'
+  # Code coverage
+  - julia -e 'cd(Pkg.dir("PhyloNetworks")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
