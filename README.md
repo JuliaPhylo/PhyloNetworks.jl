@@ -52,7 +52,4 @@ If you use the package, please cite
   [PLoS Genet](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896)
   12(3):e1005896. doi: 10.1371/journal.pgen.1005896
 
-  - Claudia Sol&iacute;s-Lemus, Paul Bastide and C&eacute;cile An&eacute; (2017).
-    PhyloNetworks: a package for phylogenetic networks.
-    [Molecular Biology and Evolution](https://academic.oup.com/mbe/article/doi/10.1093/molbev/msx235/4103410/PhyloNetworks-a-package-for-phylogenetic-networks?guestAccessKey=230afceb-df28-4160-832d-aa7c73f86369)
-    doi: 10.1093/molbev/msx235
+- Claudia Sol&iacute;s-Lemus, Paul Bastide and C&eacute;cile An&eacute; (2017). PhyloNetworks: a package for phylogenetic networks. [Molecular Biology and Evolution](https://academic.oup.com/mbe/article/doi/10.1093/molbev/msx235/4103410/PhyloNetworks-a-package-for-phylogenetic-networks?guestAccessKey=230afceb-df28-4160-832d-aa7c73f86369) doi: 10.1093/molbev/msx235
