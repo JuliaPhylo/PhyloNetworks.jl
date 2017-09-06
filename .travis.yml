@@ -23,6 +23,9 @@ before_install:
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then wget "https://cran.rstudio.com/bin/macosx/$(wget -qO- https://cran.rstudio.com/bin/macosx/ | sed -n 's/.*href="\(R-[^"]*.pkg\)".*/\1/p' | head -n 1)"; fi
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then sudo installer -pkg R-*.pkg -target /; fi
 
+  # Track master of NLopt. This line should be removed when a a new release of NLopt is out.
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then julia -e 'Pkg.clone("https://github.com/JuliaOpt/NLopt.jl"); Pkg.build("NLopt")'; fi
+
 after_success:
   - julia -e 'Pkg.clone("https://github.com/pbastide/Documenter.jl")'
   - julia -e 'Pkg.add("Cairo")'
