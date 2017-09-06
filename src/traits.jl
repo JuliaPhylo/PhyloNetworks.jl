@@ -1159,7 +1159,6 @@ function setGammas!(net::HybridNetwork, gammas::Vector)
             else
                 net.nodes_changed[i].edge[majorHybrid][2].gamma = 1 - gammas[i]
             end
-            net.nodes_changed[i].edge[minorHybrid][1].gamma = 1 - gammas[i]
         end
     end
     return nothing
@@ -1176,7 +1175,9 @@ end
 function maxLambda(times::Vector, V::MatrixTopologicalOrder)
     maskTips = indexin(V.tipNumbers, V.nodeNumbersTopOrder)
     maskNodes = indexin(V.internalNodeNumbers, V.nodeNumbersTopOrder)
-    return maximum(times[maskTips]) / maximum(times[maskNodes])
+    return minimum(times[maskTips]) / maximum(times[maskNodes])
+    # res = minimum(times[maskTips]) / maximum(times[maskNodes])
+    # res = res * (1 - 1/5/maximum(times[maskTips]))
 end
 
 function transform_matrix_lambda!{T <: AbstractFloat}(V::MatrixTopologicalOrder, lam::T,
@@ -1203,12 +1204,13 @@ function logLik_lam{T <: AbstractFloat}(lam::T,
                                         msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                                         ind=[0]::Vector{Int})
     # Transform V according to lambda
-    transform_matrix_lambda!(V, lam, gammas, times)
+    Vp = deepcopy(V)
+    transform_matrix_lambda!(Vp, lam, gammas, times)
     # Fit and take likelihood
-    fit_lam = phyloNetworklm_BM(X, Y, V; msng=msng, ind=ind)
+    fit_lam = phyloNetworklm_BM(X, Y, Vp; msng=msng, ind=ind)
     res = - loglikelihood(fit_lam)
     # Go back to original V
-    transform_matrix_lambda!(V, 1/lam, gammas, times)
+    # transform_matrix_lambda!(V, 1/lam, gammas, times)
     return res
 end
 
