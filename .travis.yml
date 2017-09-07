@@ -33,6 +33,6 @@ before_install:
 after_success:
   # Build doc
   - chmod +x make.sh
-  - ./make.sh
+  - ./docs/make.sh
   # Code coverage
   - julia -e 'cd(Pkg.dir("PhyloNetworks")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
