@@ -117,7 +117,7 @@ Function [`ancestralStateReconstruction`](@ref) creates an object with type
 ```{julia; eval=true; results="markup"; term=true}
 expectations(ancTrait1) # predictions
 stderr(ancTrait1) # associated standard errors
-predint(ancTrait1) # prediction interval (default to 95%)
+predint(ancTrait1, level=0.9) # prediction interval (with level 90%)
 ```
 We can plot the ancestral states or prediction intervals on the tree, using the
 `nodeLabel` argument of the `plot` function.
@@ -129,6 +129,9 @@ plot(truenet, nodeLabel = ancExpe)
 ancInt = predintPlot(ancTrait1) # format the prediction intervals for the plot
 plot(truenet, nodeLabel = ancInt)
 ```
+The `predint` and `predintPlot` functions have an optional argument to state
+the `level` of the prediction interval. If not given, the default value is
+0.95.
 
 As we know the true ancestral states here, we can compare them to our
 estimation.
@@ -166,9 +169,10 @@ DataFrame with the trait to reconstruct, and the tip labels:
 ```{julia; eval=true; label="ancestral2"; fig_width=6; fig_height=4}
 datTrait1 = DataFrame(trait1 = trait1, tipNames = tipLabels(sim1))
 ancTrait1Approx = ancestralStateReconstruction(datTrait1, truenet)
-plot(truenet, nodeLabel = predintPlot(ancTrait1Approx))
+plot(truenet, nodeLabel = predintPlot(ancTrait1Approx, level=0.9))
 ```
-This produces the exact same results.
+This produces the exact same results. Here, we chose a `level` of 90% for the
+plotted prediction intervals.
 
 ### Data imputation
 

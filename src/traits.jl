@@ -1899,10 +1899,10 @@ end
 StatsBase.stderr(obj::ReconstructedStates) = sqrt.(diag(obj.variances_nodes))
 
 """
-`predint(obj::ReconstructedStates, level=0.95::Real)`
+`predint(obj::ReconstructedStates; level=0.95::Real)`
 Prediction intervals with level `level` for internal nodes and missing tips.
 """
-function predint(obj::ReconstructedStates, level=0.95::Real)
+function predint(obj::ReconstructedStates; level=0.95::Real)
     if isnull(obj.model)
         qq = quantile(Normal(), (1. - level)/2.)
     else
@@ -1921,13 +1921,13 @@ function Base.show(io::IO, obj::ReconstructedStates)
 end
 
 """
-`predintPlot(obj::ReconstructedStates, level=0.95::Real)`
+`predintPlot(obj::ReconstructedStates; level=0.95::Real)`
 Compute and format the prediction intervals for the plotting function.
 The resulting dataframe can be readily used as a `nodeLabel` argument to
 `plot`.
 """
-function predintPlot(obj::ReconstructedStates, level=0.95::Real)
-    pri = predint(obj, level)
+function predintPlot(obj::ReconstructedStates; level=0.95::Real)
+    pri = predint(obj; level=level)
     pritxt = Array{AbstractString}(size(pri, 1))
     for i=1:length(obj.NodeNumbers)
         pritxt[i] = "[" * string(round(pri[i, 1], 2)) * ", " * string(round(pri[i, 2], 2)) * "]"
