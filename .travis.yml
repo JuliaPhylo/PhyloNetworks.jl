@@ -31,12 +31,8 @@ before_install:
 # - export PATH=$HOME/.local/bin:$PATH
 
 after_success:
-  - julia -e 'Pkg.clone("https://github.com/pbastide/Documenter.jl")'
-# - julia -e 'Pkg.checkout("Documenter", "release-0.11")'
-  - julia -e 'Pkg.add("Cairo")'
-  - julia -e 'Pkg.add("Fontconfig")'
-  - rm $HOME/.julia/lib/v$TRAVIS_JULIA_VERSION/Compose.ji
-  - julia -e 'Pkg.add("Weave")'
-  - julia -e 'cd(Pkg.dir("PhyloNetworks")); include(joinpath("docs", "make.jl"))'
+  # Build doc
+  - chmod +x make.sh
+  - ./make.sh
   # Code coverage
   - julia -e 'cd(Pkg.dir("PhyloNetworks")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
