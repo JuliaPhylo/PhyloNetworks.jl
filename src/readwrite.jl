@@ -21,12 +21,13 @@ function iswhitesymbol(c::Char)
 end
 
 function peekskip(s::IOBuffer)
-    mark(s)
     c = peekchar(s)
+    mark(s)
     while iswhitesymbol(c)
         c = read(s, Char)
     end
     reset(s)
+	return c
 end
 
 function readskip!(s::IOBuffer)
@@ -404,11 +405,11 @@ function readTopology(s::IO,verbose::Bool)
        numLeft[1] += 1;
        #println(numLeft)
        n = Node(-1*numLeft[1],false);
-       c = readskip!(s,Char)
+       c = readskip!(s)
        b = false;
        while(c != ';')
            b |= readSubtree!(s,n,numLeft,net,hybrids,index)
-           c = readskip!(s,Char);
+           c = readskip!(s);
            if(eof(s))
                error("Tree ended while reading in subtree beginning with left parenthesis number $(numLeft[1]-1).")
            elseif(c == ',')
@@ -417,7 +418,7 @@ function readTopology(s::IO,verbose::Bool)
                c = peekskip(s);
                if(c == ':')
                    while(c != ';')
-                       c = readskip!(s,Char)
+                       c = readskip!(s)
                    end
                end
            end
@@ -435,7 +436,8 @@ function readTopology(s::IO,verbose::Bool)
             net.root = getIndex(n,net);
         end
     else
-        error("Expected beginning of tree with ( but received $(c) instead")
+		a = readstring(s)
+        error("Expected beginning of tree with ( but received $(c) instead, rest is $(a)")
     end
     storeHybrids!(net)
     checkNumHybEdges!(net)
