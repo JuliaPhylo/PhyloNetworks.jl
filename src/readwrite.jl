@@ -15,6 +15,29 @@ function peekchar(s::IOBuffer)
     return c
 end
 
+function iswhitesymbol(c::Char)
+    whitesymbols = [' ', '\n', '\r', '\t']
+    return c in whitesymbols
+end
+
+function peekskip(s::IOBuffer)
+    mark(s)
+    c = peekchar(s)
+    while iswhitesymbol(c)
+        c = read(s, Char)
+    end
+    reset(s)
+end
+
+function readskip!(s::IOBuffer)
+    c = read(s, Char)
+    while iswhitesymbol(c)
+        c = read(s, Char)
+    end
+    return c
+end
+
+
 # aux function to advance stream in readSubtree
 # input: s IOStream/IOBuffer
 function advance!(s::IO, c::Char, numLeft::Array{Int,1})
@@ -35,14 +58,14 @@ function readNum(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int,1})
     pound = 0;
     if(isalnum(c) || isValidSymbol(c) || c == '#')
         pound += (c == '#') ? 1 : 0
-        num = read(s,Char)
-        c = peekchar(s)
+        num = readskip!(s)
+        c = peekskip(s)
         while(isalnum(c) || isValidSymbol(c) || c == '#')
-            d = read(s,Char)
+            d = readskip!(s)
             num = string(num,d)
             if(d == '#')
                 pound += 1;
-               c = peekchar(s);
+               c = peekskip(s);
                if(isalnum(c))
                    if(c != 'L' && c != 'H' && c != 'R')
                        warn("Expected H, R or LGT after # but received $(c) in left parenthesis $(numLeft[1]-1).")
@@ -52,7 +75,7 @@ function readNum(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int,1})
                    error("Expected name after # but received $(c) in left parenthesis $(numLeft[1]-1). Remaining is $(a).")
                end
             end
-            c = peekchar(s);
+            c = peekskip(s);
         end
         if(pound == 0)
             return size(net.names,1)+1, num, false
@@ -72,10 +95,10 @@ end
 # aux function to read floats like length
 function readFloat(s::IO, c::Char)
     if(isdigit(c) || in(c, ['.','e','-']))
-        num = string(read(s,Char));
+        num = string(readskip!(s));
         c = peekchar(s);
         while(isdigit(c) || in(c, ['.','e','-']))
-            d = read(s,Char);
+            d = readskip!(s);
             num = string(num,d);
             c = peekchar(s);
         end
@@ -106,7 +129,7 @@ end
 # warning: warning if hybrid edge without gamma value, warning if gamma value (ignored) without hybrid edge
 # modified from original Cecile c++ code to allow polytomies
 function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNetwork, hybrids::Array{String,1}, index::Array{Int,1})
-    c = peekchar(s)
+    c = peekskip(s)
     e = nothing;
     hasname = false; # to know if the current node has name
     pound = false;
@@ -117,7 +140,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
        DEBUG && println("creating node $(n.number)")
        cind = 1;
        keepon = true;
-       c = read(s,Char)
+       c = readskip!(s)
        while (keepon)
            bl = readSubtree!(s,n,numLeft,net,hybrids,index)
            c = advance!(s,c,numLeft)
@@ -128,12 +151,12 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
                error("Expected right parenthesis after left parenthesis $(numLeft[1]-1) but read $(c). The remainder of line is $(a).")
            end
        end
-        c = peekchar(s);
+        c = peekskip(s);
         if(isalnum(c) || isValidSymbol(c) || c == '#') # internal node has name
             hasname = true;
             num,name,pound = readNum(s,c,net,numLeft);
             n.number = num;
-            c = peekchar(s);
+            c = peekskip(s);
             #if(!pound)
             #    warn("internal node with name without it being a hybrid node. node name might be meaningless after tree modifications.")
             #end
@@ -235,24 +258,24 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
         setEdge!(n,e);
         setEdge!(parent,e);
     end
-    c = peekchar(s);
+    c = peekskip(s);
     if(c == ':')
-        c = read(s,Char);
-        c = peekchar(s);
+        c = readskip!(s);
+        c = peekskip(s);
         if(isdigit(c) || in(c, ['.','e','-']))
             length = readFloat(s,c);
             #setLength!(e,length); # e.length = length # do not use setLength because it does not allow BL too negative
             e.length = length
-            c = peekchar(s);
+            c = peekskip(s);
             if(c == ':')
-                c = read(s,Char);
-                c = peekchar(s);
+                c = readskip!(s);
+                c = peekskip(s);
                 if(isdigit(c) || in(c, ['.','e','-']))
                     length = readFloat(s,c); #bootstrap value
-                    c = peekchar(s);
+                    c = peekskip(s);
                     if(c == ':')
                         c = read(s, Char);
-                        c = peekchar(s);
+                        c = peekskip(s);
                         if(isdigit(c) || in(c, ['.','e','-']))
                             length = readFloat(s,c); #gamma
                             if(!e.hybrid)
@@ -268,7 +291,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
                     end
                 elseif(c == ':')
                     c = read(s, Char);
-                    c = peekchar(s);
+                    c = peekskip(s);
                     if(isdigit(c) || in(c, ['.','e','-']))
                         length = readFloat(s,c); #gamma
                         if(!e.hybrid)
@@ -287,14 +310,14 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
             end
         elseif(c == ':')
             e.length = -1.0 # do not use setLength because it does not allow BL too negative
-            c = read(s,Char);
-            c = peekchar(s);
+            c = readskip!(s);
+            c = peekskip(s);
             if(isdigit(c) || in(c, ['.','e','-']))
                 length = readFloat(s,c); #bootstrap value
-                c = peekchar(s);
+                c = peekskip(s);
                 if(c == ':')
                     c = read(s, Char);
-                    c = peekchar(s);
+                    c = peekskip(s);
                     if(isdigit(c) || in(c, ['.','e','-']))
                         length = readFloat(s,c); #gamma
                         if(!e.hybrid)
@@ -310,7 +333,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
                 end
             elseif(c == ':')
                 c = read(s, Char);
-                c = peekchar(s);
+                c = peekskip(s);
                 if(isdigit(c) || in(c, ['.','e','-']))
                     length = readFloat(s,c); #gamma
                     if(!e.hybrid)
@@ -373,7 +396,7 @@ function readTopology(s::IO,verbose::Bool)
         error("file does not end in ;")
     end
     seekstart(s)
-    c = peekchar(s)
+    c = peekskip(s)
     numLeft = [1]; # made Array to make it mutable; start at 1 to avoid node -1 which breaks undirectedOtherNetworks
     hybrids = String[];
     index = Int[];
@@ -381,20 +404,20 @@ function readTopology(s::IO,verbose::Bool)
        numLeft[1] += 1;
        #println(numLeft)
        n = Node(-1*numLeft[1],false);
-       c = read(s,Char)
+       c = readskip!(s,Char)
        b = false;
        while(c != ';')
            b |= readSubtree!(s,n,numLeft,net,hybrids,index)
-           c = read(s,Char);
+           c = readskip!(s,Char);
            if(eof(s))
                error("Tree ended while reading in subtree beginning with left parenthesis number $(numLeft[1]-1).")
            elseif(c == ',')
                continue;
            elseif(c == ')')
-               c = peekchar(s);
+               c = peekskip(s);
                if(c == ':')
                    while(c != ';')
-                       c = read(s,Char)
+                       c = readskip!(s,Char)
                    end
                end
            end
