@@ -15,12 +15,15 @@ function peekchar(s::IOBuffer)
     return c
 end
 
+# aux function to detect characters which should be ignored by readTopology
 function iswhitesymbol(c::Char)
     whitesymbols = [' ', '\n', '\r', '\t']
     return c in whitesymbols
 end
 
-function peekskip(s::IOBuffer)
+# aux function to peek the next non-white-symbol char in s, does not modify s
+# input: s IOStream/IOBuffer
+function peekskip(s::IO)
     c = peekchar(s)
     mark(s)
     while iswhitesymbol(c)
@@ -30,7 +33,9 @@ function peekskip(s::IOBuffer)
 	return c
 end
 
-function readskip!(s::IOBuffer)
+# aux function to read the next non-white-symbol char in s, advances s
+# input: s IOStream/IOBuffer
+function readskip!(s::IO)
     c = read(s, Char)
     while iswhitesymbol(c)
         c = read(s, Char)
@@ -42,11 +47,11 @@ end
 # aux function to advance stream in readSubtree
 # input: s IOStream/IOBuffer
 function advance!(s::IO, c::Char, numLeft::Array{Int,1})
-    c = peekchar(s)
+    c = peekskip(s)
     if(Base.eof(s))
         error("Tree ends prematurely while reading subtree after left parenthesis $(numLeft[1]-1).")
     end
-    return read(s,Char)
+    return readskip!(s)
 end
 
 
