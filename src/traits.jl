@@ -1921,16 +1921,22 @@ function Base.show(io::IO, obj::ReconstructedStates)
 end
 
 """
-`predintPlot(obj::ReconstructedStates; level=0.95::Real)`
+`predintPlot(obj::ReconstructedStates; level=0.95::Real, withExp=false::Bool)`
 Compute and format the prediction intervals for the plotting function.
 The resulting dataframe can be readily used as a `nodeLabel` argument to
-`plot`.
+`plot`. Keyworks argument `level` control the confidence level of the 
+prediction interval. If `withExp` is set to true, then the best 
+predicted value is also shown along with the interval.
 """
-function predintPlot(obj::ReconstructedStates; level=0.95::Real)
+function predintPlot(obj::ReconstructedStates; level=0.95::Real, withExp=false::Bool)
+    # predInt
     pri = predint(obj; level=level)
     pritxt = Array{AbstractString}(size(pri, 1))
+    # Exp
+    withExp ? exptxt = expectationsPlot(obj) : exptxt = ""
     for i=1:length(obj.NodeNumbers)
-        pritxt[i] = "[" * string(round(pri[i, 1], 2)) * ", " * string(round(pri[i, 2], 2)) * "]"
+        !withExp ? sep = ", " : sep = "; " * exptxt[i, 2] * "; "
+        pritxt[i] = "[" * string(round(pri[i, 1], 2)) * sep * string(round(pri[i, 2], 2)) * "]"
     end
     for i=(length(obj.NodeNumbers)+1):size(pri, 1)
         pritxt[i] = string(round(pri[i, 1], 2))
