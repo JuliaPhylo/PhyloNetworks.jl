@@ -9,7 +9,7 @@ if(individualtest)
 end
 
 
-exdir = joinpath(Pkg.dir("PhyloNetworks"),"examples")
+exdir = joinpath(@__DIR__,"..","examples")
 
 info("testing hybridBootstrapSupport")
 bestnet = readTopology(joinpath(exdir,"fish2hyb.net"));

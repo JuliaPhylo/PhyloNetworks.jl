@@ -5,10 +5,10 @@
 ###############################################################################
 
 ## Export "caudata" dataset (from geiger)
-phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_tree.txt"));
+phy = readTopology(joinpath(@__DIR__, "..", "examples", "caudata_tree.txt"));
 
 V = sharedPathMatrix(phy);
-VR = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_shared_paths.txt"));
+VR = readtable(joinpath(@__DIR__, "..", "examples", "caudata_shared_paths.txt"));
 VR = convert(Matrix, VR);
 
 # Tips
@@ -42,8 +42,8 @@ VR = convert(Matrix, VR);
 ###############################################################################
 
 ## Export "caudata" dataset (from geiger)
-phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_tree.txt"));
-dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_trait.txt"));
+phy = readTopology(joinpath(@__DIR__, "..", "examples", "caudata_tree.txt"));
+dat = readtable(joinpath(@__DIR__, "..", "examples", "caudata_trait.txt"));
 
 ## Fit a BM
 fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy)
@@ -74,7 +74,7 @@ fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy)
 
 ### Ancestral state reconstruction (with Rphylopars)
 anc = ancestralStateReconstruction(fitBM)
-ancR = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_Rphylopars.txt"));
+ancR = readtable(joinpath(@__DIR__, "..", "examples", "caudata_Rphylopars.txt"));
 
 ## Expectations
 expe = expectations(anc)
@@ -97,7 +97,7 @@ nodesR = varsR[-expe[1:196, :nodeNumber] + 196]
 @test nodesR ≈ vars atol=1e-3 ## RK: Small tol !!
 
 ### Ancestral state reconstruction (with Phytools)
-ancRt = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_Phytools.txt"));
+ancRt = readtable(joinpath(@__DIR__, "..", "examples", "caudata_Phytools.txt"));
 
 ## Expectations
 expe = expectations(anc)
@@ -335,8 +335,8 @@ predictR = [4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547
 ###############################################################################
 
 ## Export "lizard" dataset (Mahler et al 2013)
-phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "lizard_tree.txt"));
-dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "lizard_trait.txt"));
+phy = readTopology(joinpath(@__DIR__, "..", "examples", "lizard_tree.txt"));
+dat = readtable(joinpath(@__DIR__, "..", "examples", "lizard_trait.txt"));
 dat[:region] = PooledDataArray(dat[:region]); # Pool by region
 
 ## Fit a BM
@@ -421,8 +421,8 @@ vcovR =  [0.0200086273  -0.0136717540 0.0084815090  -0.0093192029 -0.0114417825 
 ###############################################################################
 
 ## Export "lizard" dataset (Mahler et al 2013)
-phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "lizard_tree.txt"));
-dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "lizard_trait.txt"));
+phy = readTopology(joinpath(@__DIR__, "..", "examples", "lizard_tree.txt"));
+dat = readtable(joinpath(@__DIR__, "..", "examples", "lizard_trait.txt"));
 dat[:region] = PooledDataArray(dat[:region]); # Pool by region
 
 ## Fit lambda
