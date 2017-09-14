@@ -133,6 +133,13 @@ The `predint` and `predintPlot` functions have an optional argument to state
 the `level` of the prediction interval. If not given, the default value is
 0.95.
 
+It is also possible to plot both the reconstructed state and the predicted value
+on the same plot, using the optional keywork argument `withExp`.
+As shown below, these plots tend to be quite busy, even for small networks.
+```{julia; eval=true; label="ancestral_predint_andexp"; fig_width=6; fig_height=4}
+plot(truenet, nodeLabel = predintPlot(ancTrait1, withExp=true))
+```
+
 As we know the true ancestral states here, we can compare them to our
 estimation.
 ```{julia; eval=true; term=true; results="markup"}
