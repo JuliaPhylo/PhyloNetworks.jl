@@ -1885,13 +1885,25 @@ end
 `expectationsPlot(obj::ReconstructedStates)`
 Compute and format the expected reconstructed states for the plotting function.
 The resulting dataframe can be readily used as a `nodeLabel` argument to
-`plot`.
+`plot`. Keyword argument `markMissing` is a string that is appended to predicted
+tip values, so that they can be distinguished from the actual datapoints. Default to
+"*". Set to "" to remove any visual cue.
 """
-function expectationsPlot(obj::ReconstructedStates)
+function expectationsPlot(obj::ReconstructedStates; markMissing="*"::AbstractString)
+    # Retrieve values
     expe = expectations(obj)
+    # Format values for plot
     expetxt = Array{AbstractString}(size(expe, 1))
     for i=1:size(expe, 1)
         expetxt[i] = string(round(expe[i, 2], 2))
+    end
+    # Find missing values
+    if !isnull(obj.model)
+        msng = obj.model.value.msng
+        ind = obj.model.value.ind
+        missingTipNumbers = obj.model.value.V.tipNumbers[ind][.!msng]
+        indexMissing = indexin(missingTipNumbers, expe[:nodeNumber])
+        expetxt[indexMissing] .*= markMissing
     end
     return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], PredInt = expetxt)
 end
@@ -1933,7 +1945,7 @@ function predintPlot(obj::ReconstructedStates; level=0.95::Real, withExp=false::
     pri = predint(obj; level=level)
     pritxt = Array{AbstractString}(size(pri, 1))
     # Exp
-    withExp ? exptxt = expectationsPlot(obj) : exptxt = ""
+    withExp ? exptxt = expectationsPlot(obj, markMissing="") : exptxt = ""
     for i=1:length(obj.NodeNumbers)
         !withExp ? sep = ", " : sep = "; " * exptxt[i, 2] * "; "
         pritxt[i] = "[" * string(round(pri[i, 1], 2)) * sep * string(round(pri[i, 2], 2)) * "]"

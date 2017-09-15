@@ -45,7 +45,7 @@ This extractor creates an `Array` with one column, and as many lines as the
 number of tips there are in the phylogeny.  It is sorted in the same order as
 the tips of the phylogeny used to simulate it.  
 If needed, we could also extract the simulated values at the internal nodes
-in the tre:
+in the network:
 ```{julia; eval=false}
 sim1[:InternalNodes]
 ```
