@@ -135,10 +135,11 @@ the `level` of the prediction interval. If not given, the default value is
 
 It is also possible to plot both the reconstructed state and the predicted value
 on the same plot, using the optional keywork argument `withExp`.
-As shown below, these plots tend to be quite busy, even for small networks.
-```{julia; eval=true; label="ancestral_predint_andexp"; fig_width=6; fig_height=4}
-plot(truenet, nodeLabel = predintPlot(ancTrait1, withExp=true))
+As shown below, we could also use the `:RCall` method from the [`plot`](@ref) function.
+```{julia; eval=false}
+plot(truenet, :RCall, nodeLabel = predintPlot(ancTrait1, withExp=true))
 ```
+These plots tend to be quite busy, even for small networks.
 
 As we know the true ancestral states here, we can compare them to our
 estimation.
