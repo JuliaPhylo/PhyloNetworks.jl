@@ -1244,7 +1244,9 @@ function phyloNetworklm_lambda(X::Matrix,
         NLopt.lower_bounds!(opt, 1e-100) # Lower bound
         # Upper Bound
         up = maxLambda(times, V)
-        NLopt.upper_bounds!(opt, up-up/1000)
+        up = up-up/1000
+        NLopt.upper_bounds!(opt, up)
+        info("Maximum lambda value to maintain positive branch lengths: " * @sprintf("%.6g", up))
         count = 0
         function fun(x::Vector{Float64}, g::Vector{Float64})
             x = convert(AbstractFloat, x[1])
