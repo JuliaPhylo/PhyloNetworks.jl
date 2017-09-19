@@ -4,6 +4,8 @@
 net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
 #plot(net, useEdgeLength = true,  showEdgeNumber=true)
 
+@testset "Simulate function against fixed values" begin
+
 ## Simulate a BM
 srand(17920921); # fix the seed
 pars = ParamsBM(1, 0.1); # params of a BM
@@ -23,10 +25,12 @@ traitsNodesExp = [-0.3481603206484607,-0.6698437934551933,-0.018135478212541654,
 @test traitsTips ≈ traitsTipsExp
 @test traitsNodes ≈ traitsNodesExp
 
+end
 
 ###############################################################################
 ## Test of distibution
 ###############################################################################
+@testset "Simulate test distribution" begin
 
 ## Generate some values
 srand(18480224); # fix the seed
@@ -52,10 +56,12 @@ for s in 1:S
     end
 end
 
-
+end
 ###############################################################################
 ## With Shifts
 ###############################################################################
+@testset "Simulate with Shifts" begin
+
 tree_str= "(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6):1):0.5);"
 net = readTopology(tree_str)
 
@@ -134,4 +140,6 @@ for s in 1:S
     for t in s:S
         @test cov(values[s, :], values[t,:]) ≈ Sig[s, t] atol=1e-2
     end
+end
+
 end

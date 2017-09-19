@@ -122,7 +122,7 @@ expectations
 predint
 expectationsPlot
 predintPlot
-incidenceMatrix
+descendenceMatrix
 regressorShift
 regressorHybrid
 parsimonyDiscrete

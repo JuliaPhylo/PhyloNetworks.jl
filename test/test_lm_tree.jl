@@ -3,7 +3,7 @@
 ###############################################################################
 ## Caudata dataset - shared paths matrix
 ###############################################################################
-
+@testset "phyloNetworklm: Caudata Dataset" begin
 ## Export "caudata" dataset (from geiger)
 phy = readTopology(joinpath(@__DIR__, "..", "examples", "caudata_tree.txt"));
 
@@ -330,9 +330,13 @@ predictR = [4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547
 # sprintf("%.10f", coef(fitphylolm) + summary(fitphylolm)$coefficients[,2] * qt(0.975, 193))
 # sprintf("%.10f", predict(fitphylolm))
 
+end
+
 ###############################################################################
 ## Lizard dataset - BM
 ###############################################################################
+
+@testset "phyloNetworklm: Lizard Dataset" begin
 
 ## Export "lizard" dataset (Mahler et al 2013)
 phy = readTopology(joinpath(@__DIR__, "..", "examples", "lizard_tree.txt"));
@@ -502,3 +506,5 @@ vcovR =  [0.0200251600  -0.0137474015 0.0085637021  -0.0092973836 -0.0114259722 
 # sprintf("%.10f", summary(fitphylolm)$coefficients[,2]) # std error
 # sprintf("%.10f", coef(fitphylolm) + summary(fitphylolm)$coefficients[, 2] * qt(0.025, 91))
 # sprintf("%.10f", coef(fitphylolm) + summary(fitphylolm)$coefficients[, 2] * qt(0.975, 91))
+
+end

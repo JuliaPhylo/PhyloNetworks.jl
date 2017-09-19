@@ -45,7 +45,7 @@ This extractor creates an `Array` with one column, and as many lines as the
 number of tips there are in the phylogeny.  It is sorted in the same order as
 the tips of the phylogeny used to simulate it.  
 If needed, we could also extract the simulated values at the internal nodes
-in the tre:
+in the network:
 ```{julia; eval=false}
 sim1[:InternalNodes]
 ```
@@ -132,6 +132,14 @@ plot(truenet, nodeLabel = ancInt)
 The `predint` and `predintPlot` functions have an optional argument to state
 the `level` of the prediction interval. If not given, the default value is
 0.95.
+
+It is also possible to plot both the reconstructed state and the predicted value
+on the same plot, using the optional keywork argument `withExp`.
+As shown below, we could also use the `:RCall` method from the [`plot`](@ref) function.
+```{julia; eval=false}
+plot(truenet, :RCall, nodeLabel = predintPlot(ancTrait1, withExp=true))
+```
+These plots tend to be quite busy, even for small networks.
 
 As we know the true ancestral states here, we can compare them to our
 estimation.
@@ -352,7 +360,7 @@ trait_sh = sim_sh[:Tips]              # trait at the tips (data)
 
 Let's assume that we measured `trait_sh`, and that we want to test whether
 there were some ancestral hybridizations. To do that, we can use the 
-custom columns of the [`incidenceMatrix`](@ref), that can be directly
+custom columns of the [`descendenceMatrix`](@ref), that can be directly
 defined thanks to function [`regressorHybrid`](@ref).
 ```{julia; eval=true}
 df_shift = regressorHybrid(truenet) # Regressors matching Hybrid Shifts

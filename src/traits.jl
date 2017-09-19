@@ -157,7 +157,7 @@ end
                     parameters)
 
 Generic tool to apply a post-order (or topological ordering) algorithm.
-Used by `incidenceMatrix`.
+Used by `descendenceMatrix`.
 """
 function recursionPostOrder(nodes::Vector{Node},
                             init::Function,
@@ -338,7 +338,7 @@ end
 ###############################################################################
 ###############################################################################
 """
-`incidenceMatrix(net::HybridNetwork; checkPreorder=true::Bool)`
+`descendenceMatrix(net::HybridNetwork; checkPreorder=true::Bool)`
 
 This function computes the inciednce matrix between all the nodes of a
 network. It assumes that the network is in the pre-order. If checkPreorder is
@@ -347,23 +347,23 @@ true (default), then it runs function `preoder` on the network beforehand.
 Returns an object of type [`MatrixTopologicalOrder`](@ref).
 
 """
-function incidenceMatrix(net::HybridNetwork;
+function descendenceMatrix(net::HybridNetwork;
                          checkPreorder=true::Bool)
     recursionPostOrder(net,
                        checkPreorder,
-                       initIncidenceMatrix,
-                       updateTipIncidenceMatrix!,
-                       updateNodeIncidenceMatrix!,
+                       initDescendenceMatrix,
+                       updateTipDescendenceMatrix!,
+                       updateNodeDescendenceMatrix!,
                        "r")
 end
 
-function updateTipIncidenceMatrix!(V::Matrix,
+function updateTipDescendenceMatrix!(V::Matrix,
                                    i::Int,
                                    params)
     return
 end
 
-function updateNodeIncidenceMatrix!(V::Matrix,
+function updateNodeDescendenceMatrix!(V::Matrix,
                                     i::Int,
                                     childrenIndex::Vector{Int},
                                     edges::Vector{Edge},
@@ -373,7 +373,7 @@ function updateNodeIncidenceMatrix!(V::Matrix,
     end
 end
 
-function initIncidenceMatrix(nodes::Vector{Node}, params)
+function initDescendenceMatrix(nodes::Vector{Node}, params)
     n = length(nodes)
     return(eye(Float64,n,n))
 end
@@ -389,7 +389,7 @@ end
 `regressorShift(edge::Vector{Edge}, net::HybridNetwork; checkPreorder=true::Bool)`
 
 Compute the regressor vectors associated with shifts on edges that are above nodes
-`node`, or on edges `edge`, on a network `net`. It uses function [`incidenceMatrix`](@ref), so
+`node`, or on edges `edge`, on a network `net`. It uses function [`descendenceMatrix`](@ref), so
 `net` might be modified to sort it in a pre-order.
 Return a `DataFrame` with as many rows as there are tips in net, and a column for
 each shift, each labelled according to the pattern shift_{number_of_edge}. It has
@@ -468,18 +468,18 @@ AIC: 4.2125395947
 ```
 
 # See also
-[`phyloNetworklm`](@ref), [`incidenceMatrix`](@ref), [`regressorHybrid`](@ref).
+[`phyloNetworklm`](@ref), [`descendenceMatrix`](@ref), [`regressorHybrid`](@ref).
 """
 function regressorShift(node::Vector{Node},
                         net::HybridNetwork; checkPreorder=true::Bool)
-    T = incidenceMatrix(net; checkPreorder=checkPreorder)
+    T = descendenceMatrix(net; checkPreorder=checkPreorder)
     regressorShift(node, net, T)
 end
 
 function regressorShift(node::Vector{Node},
                         net::HybridNetwork,
                         T::MatrixTopologicalOrder)
-    ## Get the incidence matrix for tips
+    ## Get the descendence matrix for tips
     T_t = T[:Tips]
     ## Get the indices of the columns to keep
     ind = zeros(Int, length(node))
@@ -518,7 +518,7 @@ regressorShift(node::Node, net::HybridNetwork; checkPreorder=true::Bool) = regre
 `regressorHybrid(net::HybridNetwork; checkPreorder=true::Bool)`
 
 Compute the regressor vectors associated with shifts on edges that imediatly below
-all hybrid nodes of `net`. It uses function [`incidenceMatrix`](@ref) through
+all hybrid nodes of `net`. It uses function [`descendenceMatrix`](@ref) through
 a call to [`regressorShift`](@ref), so `net` might be modified to sort it in a pre-order.
 Return a `DataFrame` with as many rows as there are tips in net, and a column for
 each hybrid, each labelled according to the pattern shift_{number_of_edge}. It has
@@ -596,7 +596,7 @@ AIC: 7.4012043891
 ```
 
 # See also
-[`phyloNetworklm`](@ref), [`incidenceMatrix`](@ref), [`regressorShift`](@ref).
+[`phyloNetworklm`](@ref), [`descendenceMatrix`](@ref), [`regressorShift`](@ref).
 """
 function regressorHybrid(net::HybridNetwork; checkPreorder=true::Bool)
     childs = [getChildren(nn)[1] for nn in net.hybrid]
@@ -1244,7 +1244,9 @@ function phyloNetworklm_lambda(X::Matrix,
         NLopt.lower_bounds!(opt, 1e-100) # Lower bound
         # Upper Bound
         up = maxLambda(times, V)
-        NLopt.upper_bounds!(opt, up-up/1000)
+        up = up-up/1000
+        NLopt.upper_bounds!(opt, up)
+        info("Maximum lambda value to maintain positive branch lengths: " * @sprintf("%.6g", up))
         count = 0
         function fun(x::Vector{Float64}, g::Vector{Float64})
             x = convert(AbstractFloat, x[1])
@@ -1885,13 +1887,25 @@ end
 `expectationsPlot(obj::ReconstructedStates)`
 Compute and format the expected reconstructed states for the plotting function.
 The resulting dataframe can be readily used as a `nodeLabel` argument to
-`plot`.
+`plot`. Keyword argument `markMissing` is a string that is appended to predicted
+tip values, so that they can be distinguished from the actual datapoints. Default to
+"*". Set to "" to remove any visual cue.
 """
-function expectationsPlot(obj::ReconstructedStates)
+function expectationsPlot(obj::ReconstructedStates; markMissing="*"::AbstractString)
+    # Retrieve values
     expe = expectations(obj)
+    # Format values for plot
     expetxt = Array{AbstractString}(size(expe, 1))
     for i=1:size(expe, 1)
         expetxt[i] = string(round(expe[i, 2], 2))
+    end
+    # Find missing values
+    if !isnull(obj.model)
+        msng = obj.model.value.msng
+        ind = obj.model.value.ind
+        missingTipNumbers = obj.model.value.V.tipNumbers[ind][.!msng]
+        indexMissing = indexin(missingTipNumbers, expe[:nodeNumber])
+        expetxt[indexMissing] .*= markMissing
     end
     return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], PredInt = expetxt)
 end
@@ -1921,16 +1935,22 @@ function Base.show(io::IO, obj::ReconstructedStates)
 end
 
 """
-`predintPlot(obj::ReconstructedStates; level=0.95::Real)`
+`predintPlot(obj::ReconstructedStates; level=0.95::Real, withExp=false::Bool)`
 Compute and format the prediction intervals for the plotting function.
 The resulting dataframe can be readily used as a `nodeLabel` argument to
-`plot`.
+`plot`. Keyworks argument `level` control the confidence level of the 
+prediction interval. If `withExp` is set to true, then the best 
+predicted value is also shown along with the interval.
 """
-function predintPlot(obj::ReconstructedStates; level=0.95::Real)
+function predintPlot(obj::ReconstructedStates; level=0.95::Real, withExp=false::Bool)
+    # predInt
     pri = predint(obj; level=level)
     pritxt = Array{AbstractString}(size(pri, 1))
+    # Exp
+    withExp ? exptxt = expectationsPlot(obj, markMissing="") : exptxt = ""
     for i=1:length(obj.NodeNumbers)
-        pritxt[i] = "[" * string(round(pri[i, 1], 2)) * ", " * string(round(pri[i, 2], 2)) * "]"
+        !withExp ? sep = ", " : sep = "; " * exptxt[i, 2] * "; "
+        pritxt[i] = "[" * string(round(pri[i, 1], 2)) * sep * string(round(pri[i, 2], 2)) * "]"
     end
     for i=(length(obj.NodeNumbers)+1):size(pri, 1)
         pritxt[i] = string(round(pri[i, 1], 2))
