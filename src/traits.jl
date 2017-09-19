@@ -157,7 +157,7 @@ end
                     parameters)
 
 Generic tool to apply a post-order (or topological ordering) algorithm.
-Used by `incidenceMatrix`.
+Used by `descendenceMatrix`.
 """
 function recursionPostOrder(nodes::Vector{Node},
                             init::Function,
@@ -338,7 +338,7 @@ end
 ###############################################################################
 ###############################################################################
 """
-`incidenceMatrix(net::HybridNetwork; checkPreorder=true::Bool)`
+`descendenceMatrix(net::HybridNetwork; checkPreorder=true::Bool)`
 
 This function computes the inciednce matrix between all the nodes of a
 network. It assumes that the network is in the pre-order. If checkPreorder is
@@ -347,23 +347,23 @@ true (default), then it runs function `preoder` on the network beforehand.
 Returns an object of type [`MatrixTopologicalOrder`](@ref).
 
 """
-function incidenceMatrix(net::HybridNetwork;
+function descendenceMatrix(net::HybridNetwork;
                          checkPreorder=true::Bool)
     recursionPostOrder(net,
                        checkPreorder,
-                       initIncidenceMatrix,
-                       updateTipIncidenceMatrix!,
-                       updateNodeIncidenceMatrix!,
+                       initDescendenceMatrix,
+                       updateTipDescendenceMatrix!,
+                       updateNodeDescendenceMatrix!,
                        "r")
 end
 
-function updateTipIncidenceMatrix!(V::Matrix,
+function updateTipDescendenceMatrix!(V::Matrix,
                                    i::Int,
                                    params)
     return
 end
 
-function updateNodeIncidenceMatrix!(V::Matrix,
+function updateNodeDescendenceMatrix!(V::Matrix,
                                     i::Int,
                                     childrenIndex::Vector{Int},
                                     edges::Vector{Edge},
@@ -373,7 +373,7 @@ function updateNodeIncidenceMatrix!(V::Matrix,
     end
 end
 
-function initIncidenceMatrix(nodes::Vector{Node}, params)
+function initDescendenceMatrix(nodes::Vector{Node}, params)
     n = length(nodes)
     return(eye(Float64,n,n))
 end
@@ -389,7 +389,7 @@ end
 `regressorShift(edge::Vector{Edge}, net::HybridNetwork; checkPreorder=true::Bool)`
 
 Compute the regressor vectors associated with shifts on edges that are above nodes
-`node`, or on edges `edge`, on a network `net`. It uses function [`incidenceMatrix`](@ref), so
+`node`, or on edges `edge`, on a network `net`. It uses function [`descendenceMatrix`](@ref), so
 `net` might be modified to sort it in a pre-order.
 Return a `DataFrame` with as many rows as there are tips in net, and a column for
 each shift, each labelled according to the pattern shift_{number_of_edge}. It has
@@ -468,18 +468,18 @@ AIC: 4.2125395947
 ```
 
 # See also
-[`phyloNetworklm`](@ref), [`incidenceMatrix`](@ref), [`regressorHybrid`](@ref).
+[`phyloNetworklm`](@ref), [`descendenceMatrix`](@ref), [`regressorHybrid`](@ref).
 """
 function regressorShift(node::Vector{Node},
                         net::HybridNetwork; checkPreorder=true::Bool)
-    T = incidenceMatrix(net; checkPreorder=checkPreorder)
+    T = descendenceMatrix(net; checkPreorder=checkPreorder)
     regressorShift(node, net, T)
 end
 
 function regressorShift(node::Vector{Node},
                         net::HybridNetwork,
                         T::MatrixTopologicalOrder)
-    ## Get the incidence matrix for tips
+    ## Get the descendence matrix for tips
     T_t = T[:Tips]
     ## Get the indices of the columns to keep
     ind = zeros(Int, length(node))
@@ -518,7 +518,7 @@ regressorShift(node::Node, net::HybridNetwork; checkPreorder=true::Bool) = regre
 `regressorHybrid(net::HybridNetwork; checkPreorder=true::Bool)`
 
 Compute the regressor vectors associated with shifts on edges that imediatly below
-all hybrid nodes of `net`. It uses function [`incidenceMatrix`](@ref) through
+all hybrid nodes of `net`. It uses function [`descendenceMatrix`](@ref) through
 a call to [`regressorShift`](@ref), so `net` might be modified to sort it in a pre-order.
 Return a `DataFrame` with as many rows as there are tips in net, and a column for
 each hybrid, each labelled according to the pattern shift_{number_of_edge}. It has
@@ -596,7 +596,7 @@ AIC: 7.4012043891
 ```
 
 # See also
-[`phyloNetworklm`](@ref), [`incidenceMatrix`](@ref), [`regressorShift`](@ref).
+[`phyloNetworklm`](@ref), [`descendenceMatrix`](@ref), [`regressorShift`](@ref).
 """
 function regressorHybrid(net::HybridNetwork; checkPreorder=true::Bool)
     childs = [getChildren(nn)[1] for nn in net.hybrid]

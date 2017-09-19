@@ -360,7 +360,7 @@ trait_sh = sim_sh[:Tips]              # trait at the tips (data)
 
 Let's assume that we measured `trait_sh`, and that we want to test whether
 there were some ancestral hybridizations. To do that, we can use the 
-custom columns of the [`incidenceMatrix`](@ref), that can be directly
+custom columns of the [`descendenceMatrix`](@ref), that can be directly
 defined thanks to function [`regressorHybrid`](@ref).
 ```{julia; eval=true}
 df_shift = regressorHybrid(truenet) # Regressors matching Hybrid Shifts
