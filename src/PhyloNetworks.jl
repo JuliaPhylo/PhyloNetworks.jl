@@ -15,6 +15,7 @@ using RCall
 
 import Base.show
 import Gadfly.plot
+import GLM.ftest
 
 global DEBUG = false #for debugging only
 const DEBUGC = false #more detailed prints
@@ -100,7 +101,6 @@ expectations,
 expectationsPlot,
 predint,
 predintPlot,
-ftest, # To be removed when available in GLM
 parsimonyDiscrete
 
 # export part

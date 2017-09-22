@@ -201,17 +201,17 @@ modhet = phyloNetworklm(@formula(trait ~ sum + shift_8), dfr, net)
 table1 = ftest(modhet, modhom, modnull)
 table2 = PhyloNetworks.anova(modnull, modhom, modhet)
 
-# @test table1.fstat[1] ≈ table2[:F][2]
-# @test table1.fstat[2] ≈ table2[:F][1]
-# @test table1.pval[1].v ≈ table2[Symbol("Pr(>F)")][2]
-# @test table1.pval[2].v ≈ table2[Symbol("Pr(>F)")][1]
-## Replace next 4 lines with previous ones when GLM.ftest available
-@test table1[:F][2] ≈ table2[:F][2] 
-@test table1[:F][1] ≈ table2[:F][1]
-@test table1[Symbol("Pr(>F)")][1] ≈ table2[Symbol("Pr(>F)")][1]
-@test table1[Symbol("Pr(>F)")][2] ≈ table2[Symbol("Pr(>F)")][2]
+@test table1.fstat[1] ≈ table2[:F][2]
+@test table1.fstat[2] ≈ table2[:F][1]
+@test table1.pval[1].v ≈ table2[Symbol("Pr(>F)")][2]
+@test table1.pval[2].v ≈ table2[Symbol("Pr(>F)")][1]
+# ## Replace next 4 lines with previous ones when GLM.ftest available
+# @test table1[:F][2] ≈ table2[:F][2] 
+# @test table1[:F][1] ≈ table2[:F][1]
+# @test table1[Symbol("Pr(>F)")][1] ≈ table2[Symbol("Pr(>F)")][1]
+# @test table1[Symbol("Pr(>F)")][2] ≈ table2[Symbol("Pr(>F)")][2]
 
-# Check that it is the same as doing shift_1 + shift_8
+# Check that it is the same as doing shift_8 + shift_17
 modhetbis = phyloNetworklm(@formula(trait ~ shift_8 + shift_17), dfr, net)
 
 table2bis = PhyloNetworks.anova(modnull, modhom, modhetbis)
