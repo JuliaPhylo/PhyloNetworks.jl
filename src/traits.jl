@@ -1748,19 +1748,19 @@ end
 
 ###############################################################################
 ###############################################################################
-## Anova - using ftest from GLM - WARNING: need GLM 0.7+ (not in a release yet)
+## Anova - using ftest from GLM - Need version 0.8.1
 ###############################################################################
 ###############################################################################
 
-#function GLM.ftest{T<:DataFrames.AbstractFloatMatrix}(objs::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T}...)
-#    objsModels = [obj.model for obj in objs]
-#    return ftest(objsModels...)
-#end
+function GLM.ftest{T<:DataFrames.AbstractFloatMatrix}(objs::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T}...)
+    objsModels = [obj.model for obj in objs]
+    return ftest(objsModels...)
+end
 
-#function GLM.ftest(objs::PhyloNetworkLinearModel...)
-#    objslm = [obj.lm for obj in objs]
-#    return ftest(objslm...)
-#end
+function GLM.ftest(objs::PhyloNetworkLinearModel...)
+    objslm = [obj.lm for obj in objs]
+    return ftest(objslm...)
+end
 
 ################################################################################
 ###############################################################################
@@ -1772,26 +1772,26 @@ end
 #   - remove ftest from exported functions in src/PhyloNetworks
 #   - change anova tests in test/test_lm.jl
 
-"""
-`ftest(objs::PhyloNetworkLinearModel...)`
+# """
+# `ftest(objs::PhyloNetworkLinearModel...)`
 
-Takes several nested fits of the same data, and computes the F statistic for each
-pair of models.
+# Takes several nested fits of the same data, and computes the F statistic for each
+# pair of models.
 
-The fits must be results of function [`phyloNetworklm`](@ref) called on the same
-data, for models that have more and more effects.
+# The fits must be results of function [`phyloNetworklm`](@ref) called on the same
+# data, for models that have more and more effects.
 
-Returns a DataFrame object with the anova table.
-"""
-function ftest{T<:DataFrames.AbstractFloatMatrix}(objs::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T}...)
-    objsModels = [obj.model for obj in objs]
-    return ftest(objsModels...)
-end
+# Returns a DataFrame object with the anova table.
+# """
+# function ftest{T<:DataFrames.AbstractFloatMatrix}(objs::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T}...)
+#     objsModels = [obj.model for obj in objs]
+#     return ftest(objsModels...)
+# end
 
-function ftest(objs::PhyloNetworkLinearModel...)
-    objs = objs[end:-1:1]
-    return anova(objs...)
-end
+# function ftest(objs::PhyloNetworkLinearModel...)
+#     objs = objs[end:-1:1]
+#     return anova(objs...)
+# end
 
 ###############################################################################
 ###############################################################################
