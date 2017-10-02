@@ -91,12 +91,18 @@ end
                     p0-a0, p1+a0)
 end
 
-function randomTrait(mod, t, start)
-    P = P(mod, t)
+"""
+    randomTrait(model, t, start)
+simulate traits along one edge of length t.  
+`start` must be a vector of integers, each representing the starting value of one trait.
+"""
+function randomTrait(mod::SM, t::Float64, start::Vector{Int})
+    Pt = P(mod, t)
     w = [aweights(Pt[1,:]), aweights(Pt[2,:])]
     res = Int[]
+    k = size(Pt, 1) # number of states
     for i in 1:length(start)
-        push!(res, sample(1:2, w[start[i]]))
+        push!(res, sample(1:k, w[start[i]]))
     end
     return res
 end
