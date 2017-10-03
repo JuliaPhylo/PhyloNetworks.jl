@@ -111,6 +111,7 @@ est = pairwiseTaxonDistanceMatrix(net1)
 @test est ≈ netdist[o,o] atol=.0005
 # plot(net1, :RCall, useEdgeLength=true, showEdgeLength=true);
 # still not identifiable: all good but the 3 edges adjacent to hybrid node
+# only the age of the hybrid node is wrong: zipped down nearer tips
 
 calibrateFromPairwiseDistances!(net, netdist, taxa, #verbose=true,
   forceMinorLength0=true, ultrametric=true, NLoptMethod=:LN_COBYLA)
