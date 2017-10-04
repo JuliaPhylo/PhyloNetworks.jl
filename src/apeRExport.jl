@@ -247,7 +247,7 @@ function generateMinorReticulationLength(net::HybridNetwork)
     return edgeLength
 end
 
-"""
+doc"""
     apeRExport(net::HybridNetwork)
 
 Export `net` to R as a `evonet` or `phylo` object (depending on degree of hybridization) 
@@ -274,7 +274,7 @@ the `plot` function:
 ```julia-repl
 julia> using RCall
 R> library(ape)
-R> plot($phy)
+R> plot.evonet($phy)
 ```
 
 """ #"
@@ -334,7 +334,7 @@ function apeRExport(net::HybridNetwork; mainTree::Bool=false, useEdgeLength::Boo
     end
 end
 
-"""
+doc"""
 
     function sexp(net::HybridNetwork; numHybrid::Int64=0)
 
@@ -359,7 +359,7 @@ the `plot` function:
 ```julia-repl
 julia> using RCall
 R> library(ape)
-R> plot($sobj)
+R> plot.evonet($sobj)
 
 """ #"
 
