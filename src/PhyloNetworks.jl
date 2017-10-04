@@ -104,7 +104,9 @@ expectations,
 expectationsPlot,
 predint,
 predintPlot,
-parsimonyDiscrete
+parsimonyDiscrete,
+apeRExport,
+sexp
 
 # export part
 
