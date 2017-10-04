@@ -277,7 +277,7 @@ R> library(ape)
 R> plot.evonet($phy)
 ```
 
-""" #"
+""" #" 
 
 function apeRExport(net::HybridNetwork; mainTree::Bool=false, useEdgeLength::Bool=false) 
     directEdges!(net)
@@ -360,6 +360,7 @@ the `plot` function:
 julia> using RCall
 R> library(ape)
 R> plot.evonet($sobj)
+```
 
 """ #"
 
