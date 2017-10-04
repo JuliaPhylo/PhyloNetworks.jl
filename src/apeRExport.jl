@@ -297,7 +297,11 @@ function apeRExport(net::HybridNetwork; mainTree::Bool=false, useEdgeLength::Boo
     elseif useEdgeLength == false
         #fill edge length vector with null lengths
         edgeLength = fill(-1.0, length(net.edge)-length(net.hybrid)) 
-    end 
+    end
+    R"""
+    edgeLength = $edgeLength
+    edgeLength[edgeLength==-1.0]=NA
+    """
     if net.numHybrids > 0
         reticulation = generateMinorReticulation(net) #generate reticulation matrix 
         if useEdgeLength == true
@@ -311,8 +315,6 @@ function apeRExport(net::HybridNetwork; mainTree::Bool=false, useEdgeLength::Boo
         #to RObject $phy and assign "phylo" and "evonet" class attribute and 
         #export as an RObject
         R"""
-        edgeLength = $edgeLength
-        edgeLength[edgeLength==-1.0]=NA
         reticulationLength = $reticulationLength
         reticulationLength[reticulationLength==-1.0]=NA
         phy = list(Nnode = $Nnode, edge = $edge, tip.label = $tipLabel, edge.length = edgeLength, reticulation = $reticulation, reticulation.length = reticulationLength)
@@ -324,8 +326,6 @@ function apeRExport(net::HybridNetwork; mainTree::Bool=false, useEdgeLength::Boo
         #push Nnode integer, major edge matrix and lengths, tiplabel vector to 
         #RObject $phy and assign "phylo" class attribute and export as an RObject
         R"""
-        edgeLength = $edgeLength
-        edgeLength[edgeLength==-1.0]=NA
         phy = list(Nnode = $Nnode, edge = $edge, tip.label = $tipLabel, edge.length = edgeLength)
         class(phy) = "phylo"
         """
@@ -377,20 +377,17 @@ function sexp(net::HybridNetwork)
     phy = Dict{Symbol, Any}()
     phy[:Nnode] = Nnode
     phy[Symbol("tip.label")] = tipLabel 
-    phy[:edge] = edge 
+    phy[:edge] = edge
+    edgeLength = generateMajorLength(net) #generate vector of major edge lengths
+    #have `R` interpret edge lengths of `-1.0` as `NA` 
+    edgeLength = [reinterpret(Float64, 0x7ff00000000007a2) for edge in edgeLength if edge == -1.0]
+    phy[Symbol("edge.length")] = edgeLength #add $edgeLength field to $phy
     if net.numHybrids == 0
-        edgeLength = generateMajorLength(net) #generate vector of major edge lengths
-        #have `R` interpret edge lengths of `-1.0` as `NA` 
-        edgeLength = [reinterpret(Float64, 0x7ff00000000007a2) for edge in edgeLength if edge == -1.0]
-        phy[Symbol("edge.length")] = edgeLength #add $edgeLength field to $phy 
         #assign "phylo" class to $phy
         sobj = protect(sexp(phy))
         setclass!(sobj, sexp("phylo"))
         unprotect(1)
     elseif net.numHybrids > 0
-        edgeLength = generateMajorLength(net)
-        edgeLength = [reinterpret(Float64, 0x7ff00000000007a2) for edge in edgeLength if edge == -1.0]
-        phy[Symbol("edge.length")] = edgeLength
         reticulation = generateMinorReticulation(net) #generate reticulation matrix
         #generate vector of minor edge lengths
         reticulationLength = generateMinorReticulationLength(net)
