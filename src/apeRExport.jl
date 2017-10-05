@@ -247,6 +247,56 @@ function generateMinorReticulationLength(net::HybridNetwork)
     return edgeLength
 end
 
+"""
+    apeRNullValues(edgeVector)
+
+Change null values, represented in a `julia` `HybridNetwork` by -1.0, to NaN values, 
+recognized as null by the `ape` library in the R programming language 
+using the `julia` `Float64` sentinel value for NA.
+
+# Examples
+
+```julia-repl
+julia> net = 
+julia> directEdges!(net)
+julia> preorder!(net)
+julia> edgeLength = generateMajorLength(net)
+8-element Array{Float64,1}:
+1.0
+1.0
+1.0
+1.0
+1.0
+-1.0
+1.0
+1.0
+julia> apeRNullValues(edgeLength)
+8-element Array{Float64,1}:
+1.0
+1.0
+1.0
+1.0
+1.0
+NaN  
+1.0
+1.0
+```
+
+"""
+
+function apeRNullValues(edgeVector::Vector{Float64})
+    i=1
+    for value in edgeVector     
+        if value == -1.0
+            edgeVector[i]= reinterpret(Float64, 0x7ff00000000007a2)
+        else
+            value = value
+        end
+        i=i+1
+    end
+    return(edgeVector)
+end
+
 doc"""
     apeRExport(net::HybridNetwork)
 
@@ -380,7 +430,7 @@ function sexp(net::HybridNetwork)
     phy[:edge] = edge
     edgeLength = generateMajorLength(net) #generate vector of major edge lengths
     #have `R` interpret edge lengths of `-1.0` as `NA` 
-    edgeLength = [reinterpret(Float64, 0x7ff00000000007a2) for edge in edgeLength if edge == -1.0]
+    edgeLength = apeRNullValues(edgeLength) 
     phy[Symbol("edge.length")] = edgeLength #add $edgeLength field to $phy
     if net.numHybrids == 0
         #assign "phylo" class to $phy
@@ -391,8 +441,8 @@ function sexp(net::HybridNetwork)
         reticulation = generateMinorReticulation(net) #generate reticulation matrix
         #generate vector of minor edge lengths
         reticulationLength = generateMinorReticulationLength(net)
-        #have R interpret edge lengths of `-1.0` as `NA`
-        reticulationLength = [reinterpret(Float64, 0x7ff00000000007a2) for reticulation in reticulationLength if reticulation == -1.0]
+        #have R interpret reticulation lengths of `-1.0` as `NA`
+        reticulationLength = apeRNullValues(reticulationLength) 
         phy[:reticulation] = reticulation #add $reticulation field to $phy
         #add $reticulationLength field to $phy
         phy[Symbol("reticulation.length")] = reticulationLength 
