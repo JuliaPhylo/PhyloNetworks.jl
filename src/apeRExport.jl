@@ -1,5 +1,4 @@
 """
-
     apeNodeNumbers(net::HybridNetwork)
 
 Change numbers of internal nodes of `net` to satisfy conditions assumed by the `ape` R 
@@ -51,7 +50,6 @@ julia> net.node
  number:5
  attached to 2 edges, numbered: 1 6
 ```
-
 """
 
 function apeNodeNumbers(net::HybridNetwork)  
@@ -71,7 +69,6 @@ function apeNodeNumbers(net::HybridNetwork)
 end
 
 """
-
     generateMajorEdge(net::HybridNetwork)
 
 Generate matrix of major edges from `net` where edge[i,1] 
@@ -96,7 +93,6 @@ julia> generateMajorEdge(net)
  7  2
  7  1
 ```
-
 """
 
 function generateMajorEdge(net::HybridNetwork)  
@@ -124,7 +120,9 @@ end
     generateMajorLength(net::HybridNetwork)
 
 Generate vector of edge lengths of major `net` edges organized in the same order 
-as the `edge` matrix created via `generateApeEdge`.
+as the `edge` matrix created via `generateApeEdge`. Replace values of `1.0` with `#NULL` values
+recognized by the `ape` library for the `R` programming language.
+
 
 # Examples
 
@@ -134,23 +132,20 @@ julia> directEdges!(net)
 julia> preorder!(net)
 julia> apeNodeNumbers(net)
 julia> generateMajorLength(net)
-8-element Array{Float64,1}:
- -1.0
- -1.0
- -1.0
- -1.0
- -1.0
- -1.0
- -1.0
- -1.0
+8-element NullableArrays.NullableArray{Float64,1}:
+#NULL
+#NULL
+#NULL
+#NULL
+#NULL
+#NULL
+#NULL
+#NULL
 ```
-
 """ #"
 
 function generateMajorLength(net::HybridNetwork) 
-    #initialize edge length vector 
     edgeLength = Array{Float64}(length(net.edge)-length(net.hybrid)) 
-    #fill edge length vector
     i=1
     for n in net.nodes_changed #traverse tree in topological order excluding leaves
         if !n.leaf
@@ -163,6 +158,8 @@ function generateMajorLength(net::HybridNetwork)
             end
         end
     end
+    #-1.0 interpreted as missing
+    edgeLength = NullableArray(edgeLength, map(x -> x==-1.0, edgeLength))
     return edgeLength
 end
 
@@ -185,9 +182,7 @@ julia> apeNodeNumbers(net)
 julia> generateMinorReticulation(net)
 1×2 Array{Int64,2}:
  7  9
- 
 ```
-
 """ #"
 
 function generateMinorReticulation(net::HybridNetwork)    
@@ -209,11 +204,11 @@ function generateMinorReticulation(net::HybridNetwork)
 end
 
 """
-
     generateMinorReticulationLength(net::HybridNetwork)
 
 Generate vector of minor edge lengths organized in the same order as the `edge` matrix 
-created via `generateApeReticulation`.
+created via `generateApeReticulation`. Replace values of `1.0` with `#NULL` values
+recognized by the `ape` library for the `R` programming language.
 
 # Examples
 
@@ -223,78 +218,27 @@ julia> directEdges!(net)
 julia> preorder!(net)
 julia> apeNodeNumbers(net)
 julia> generateApeReticulationLength(net)
-1-element Array{Float64,1}:
- -1.0
+1-element NullableArrays.NullableArray{Float64,1}:
+#NULL
 ```
-
 """ #"
 
 function generateMinorReticulationLength(net::HybridNetwork) 
-    edgeLength = Array{Float64}(length(net.hybrid)) #initialize edge length vector   
-    #fill edge length vector
+    reticulationLength = Array{Float64}(length(net.hybrid)) #initialize 
     i=1
     for n in net.nodes_changed #traverse tree in topological order excluding leaves
         if !n.leaf
             for e in n.edge #iterate over each edge attatched to a node
                 #exclude node that is parent of current edge and major hybrid edge
                 if e.node[e.isChild1 ? 1 : 2] != n && e.gamma < 0.5 
-                    edgeLength[i] = e.length
+                    reticulationLength[i] = e.length
                     i=i+1
                 end
             end
         end
     end
-    return edgeLength
-end
-
-"""
-    apeRNullValues(edgeVector)
-
-Change null values, represented in a `julia` `HybridNetwork` by -1.0, to NaN values, 
-recognized as null by the `ape` library in the R programming language 
-using the `julia` `Float64` sentinel value for NA.
-
-# Examples
-
-```julia-repl
-julia> net = 
-julia> directEdges!(net)
-julia> preorder!(net)
-julia> edgeLength = generateMajorLength(net)
-8-element Array{Float64,1}:
-1.0
-1.0
-1.0
-1.0
-1.0
--1.0
-1.0
-1.0
-julia> apeRNullValues(edgeLength)
-8-element Array{Float64,1}:
-1.0
-1.0
-1.0
-1.0
-1.0
-NaN  
-1.0
-1.0
-```
-
-"""
-
-function apeRNullValues(edgeVector::Vector{Float64})
-    i=1
-    for value in edgeVector     
-        if value == -1.0
-            edgeVector[i]= reinterpret(Float64, 0x7ff00000000007a2)
-        else
-            value = value
-        end
-        i=i+1
-    end
-    return(edgeVector)
+    reticulationLength = NullableArray(reticulationLength, map(x -> x==-1.0, reticulationLength))
+    return reticulationLength
 end
 
 doc"""
@@ -326,21 +270,20 @@ julia> using RCall
 R> library(ape)
 R> plot.evonet($phy)
 ```
-
 """ #" 
 
-function apeRExport(net::HybridNetwork; mainTree::Bool=false, useEdgeLength::Bool=false) 
+function apeRExport(net::HybridNetwork; mainTree::Bool=false, useEdgeLength::Bool=true) 
     directEdges!(net)
     preorder!(net) #organize nodes for preorder traversal 
     if mainTree == true
         net = majorTree(net)
         preorder!(net) #organize nodes for preorder traversal   
     end 
-    apeNodeNumbers(net) #number `julia` network like a `phylo` variable 
-    ntips = length(net.leaf) #number of leaves for Nnode 
-    totalnodes = length(net.node) #total number of nodes for edge matrix and Nnode 
-    Nnode = totalnodes - ntips #integer for number of internal nodes
-    tipLabel = [node.name for node in net.leaf] #tiplabel vector
+    apeNodeNumbers(net) 
+    ntips = length(net.leaf) 
+    totalnodes = length(net.node) 
+    Nnode = totalnodes - ntips 
+    tipLabel = [node.name for node in net.leaf] 
     edge = generateMajorEdge(net) #generate edge matrix 
     if useEdgeLength == true
         edgeLength = generateMajorLength(net) #generate vector of major edge lengths 
@@ -385,8 +328,7 @@ function apeRExport(net::HybridNetwork; mainTree::Bool=false, useEdgeLength::Boo
 end
 
 doc"""
-
-    function sexp(net::HybridNetwork; numHybrid::Int64=0)
+    function sexp(net::HybridNetwork)
 
 Sexp method to export HybridNework objects generated in the 
 Julia package `PhyloNetworks.jl` to the R language as either `phylo` or
@@ -411,40 +353,34 @@ julia> using RCall
 R> library(ape)
 R> plot.evonet($sobj)
 ```
-
 """ #"
 
 function sexp(net::HybridNetwork) 
     preorder!(net) #organize nodes for preorder traversal
     directEdges!(net) 
-    apeNodeNumbers(net) #number `julia` network like a `phylo` variable
-    ntips = length(net.leaf) #number of leaves for Nnode
-    totalnodes = length(net.node) #total number of nodes for edge matrix and Nnode
-    Nnode = totalnodes - ntips #integer for number of internal nodes
-    tipLabel = [node.name for node in net.leaf] #tip label vector 
+    apeNodeNumbers(net) 
+    ntips = length(net.leaf) 
+    totalnodes = length(net.node) 
+    Nnode = totalnodes - ntips 
+    tipLabel = [node.name for node in net.leaf] 
     edge = generateMajorEdge(net) #generate edge matrix
     #create an object with fields for $Nnode, $tipLabel, and $edge
     phy = Dict{Symbol, Any}()
     phy[:Nnode] = Nnode
     phy[Symbol("tip.label")] = tipLabel 
     phy[:edge] = edge
-    edgeLength = generateMajorLength(net) #generate vector of major edge lengths
-    #have `R` interpret edge lengths of `-1.0` as `NA` 
-    edgeLength = apeRNullValues(edgeLength) 
-    phy[Symbol("edge.length")] = edgeLength #add $edgeLength field to $phy
+    edgeLength = generateMajorLength(net) #major edges only
+    phy[Symbol("edge.length")] = edgeLength 
     if net.numHybrids == 0
         #assign "phylo" class to $phy
         sobj = protect(sexp(phy))
         setclass!(sobj, sexp("phylo"))
         unprotect(1)
     elseif net.numHybrids > 0
-        reticulation = generateMinorReticulation(net) #generate reticulation matrix
+        reticulation = generateMinorReticulation(net) #minor edges only
         #generate vector of minor edge lengths
         reticulationLength = generateMinorReticulationLength(net)
-        #have R interpret reticulation lengths of `-1.0` as `NA`
-        reticulationLength = apeRNullValues(reticulationLength) 
-        phy[:reticulation] = reticulation #add $reticulation field to $phy
-        #add $reticulationLength field to $phy
+        phy[:reticulation] = reticulation 
         phy[Symbol("reticulation.length")] = reticulationLength 
         #assign "phylo" and "evonet" classes to $phy
         sobj = protect(sexp(phy))

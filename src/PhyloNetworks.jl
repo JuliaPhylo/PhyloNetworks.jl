@@ -13,7 +13,7 @@ using StatsBase: sample
 using Combinatorics.combinations
 using RCall
 using RCall: protect, unprotect, RClass
-
+using NullableArrays
 
 import Base.show
 import Gadfly.plot
