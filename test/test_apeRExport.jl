@@ -1,9 +1,7 @@
 R"library(ape)";
 # checking for absence of errors, for the most part
 
-#info("Testing `apeRExport` and `sexp` functions")
-
-@testset "Testing `apeRExport` and `sexp` functions" begin
+info("Testing `apeRExport` and `sexp` functions")
 
 # on a tree with some edge lengths missing
 s = "(A,(B:1.0,(C:1.0,D:1.0):1.0):1.0);"
@@ -17,8 +15,6 @@ s = "(A,(B:1.0,(C:1.0,D:1.0):1.0):1.0);"
 net = readTopology("(A,(B:1.0,(C:1.0,D:1.0):1.0):1.0);")
 R"tree2 = read.tree(text = $s)"
 @test convert(Bool, R"dist.topo($net, tree2) == 0")
-
-end
 
 # network, h=1, some missing gamma values
 #s = "(((A:1.0,(B:1.0)#H1:1.0::0.9):1.0,(C:1.0,#H1:1.0):1.0):1.0,D:1.0);"
