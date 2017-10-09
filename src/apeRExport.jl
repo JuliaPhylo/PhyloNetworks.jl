@@ -145,7 +145,7 @@ function generateMajorLength(net::HybridNetwork)
         if !n.leaf
             for e in n.edge #iterate over each edge attatched to a node
                 #exclude node that is parent of current edge and minor hybrid edge
-                if e.node[e.isChild1 ? 1 : 2] != n && e.gamma > 0.5 
+                if e.node[e.isChild1 ? 2 : 1] == n && e.isMajor 
                     edgeLength[i] = e.length
                     i=i+1
                 end
@@ -183,15 +183,13 @@ function generateMinorReticulation(net::HybridNetwork)
     reticulation = Matrix{Int}(length(net.hybrid), 2) #initialize reticulation matrix 
     #fill reticulation matrix
     j = 1 #row index for reticulation matrix
-    for n in net.hybrid
-        for e in n.edge #iterate over each edge attatched to a hybrid node
-            if e.gamma < 0.5 #find minor hybrid edge
-                #push parent node to first column
-                reticulation[j,1] = e.node[e.isChild1 ? 2 : 1].number
-                #push child node to second column
-                reticulation[j,2] = e.node[e.isChild1 ? 1 : 2].number 
-                j += 1 #increase index value
-            end
+    for e in net.edge #iterate over each edge attatched to a hybrid node
+        if !e.isMajor #find minor hybrid edge
+            #push parent node to first column
+            reticulation[j,1] = e.node[e.isChild1 ? 2 : 1].number
+            #push child node to second column
+            reticulation[j,2] = e.node[e.isChild1 ? 1 : 2].number 
+            j += 1 #increase index value
         end
     end
     return reticulation
@@ -218,17 +216,10 @@ julia> generateApeReticulationLength(net)
 """ #"
 
 function generateMinorReticulationLength(net::HybridNetwork) 
-    reticulationLength = Array{Float64}(length(net.hybrid)) #initialize 
-    i=1
-    for n in net.nodes_changed #traverse tree in topological order excluding leaves
-        if !n.leaf
-            for e in n.edge #iterate over each edge attatched to a node
-                #exclude node that is parent of current edge and major hybrid edge
-                if e.node[e.isChild1 ? 1 : 2] != n && e.gamma < 0.5 
-                    reticulationLength[i] = e.length
-                    i=i+1
-                end
-            end
+    reticulationLength = Vector{Float64}(0) #initialize 
+    for e in net.edge #iterate over each edge attatched to a hybrid node
+        if !e.isMajor #find minor hybrid edge
+            push!(reticulationLength, e.length)
         end
     end
     reticulationLength = NullableArray(reticulationLength, map(x -> x==-1.0, reticulationLength))
