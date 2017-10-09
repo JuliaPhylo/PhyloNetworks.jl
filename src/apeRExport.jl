@@ -114,7 +114,7 @@ end
     generateMajorLength(net::HybridNetwork)
 
 Generate vector of edge lengths of major `net` edges organized in the same order 
-as the `edge` matrix created via `generateApeEdge`. Replace values of `1.0` with `#NULL` values
+as the `edge` matrix created via `generateMajorEdge`. Replace values of `1.0` with `#NULL` values
 recognized by the `ape` library for the `R` programming language.
 
 
@@ -198,9 +198,10 @@ end
 """
     generateMinorReticulationLength(net::HybridNetwork)
 
-Generate vector of minor edge lengths organized in the same order as the `edge` matrix 
-created via `generateApeReticulation`. Replace values of `1.0` with `#NULL` values
-recognized by the `ape` library for the `R` programming language.
+Generate vector of minor edge lengths organized in the same order as the 
+`reticulation` matrix created via `generateMinorReticulation`. 
+Replace values of `1.0` with `#NULL` values recognized by the `ape` library for 
+the `R` programming language.
 
 # Examples
 
