@@ -15,25 +15,25 @@ julia> apeNodeNumbers!(net)
 julia> net.node
 7-element Array{PhyloNetworks.Node,1}:
  PhyloNetworks.Node:
- number:4
+ number:1
  name:A
  leaf node
  attached to 1 edges, numbered: 1
 
  PhyloNetworks.Node:
- number:3
+ number:2
  name:B
  leaf node
  attached to 1 edges, numbered: 2
 
  PhyloNetworks.Node:
- number:2
+ number:3
  name:C
  leaf node
  attached to 1 edges, numbered: 3
 
  PhyloNetworks.Node:
- number:1
+ number:4
  name:D
  leaf node
  attached to 1 edges, numbered: 4
@@ -71,7 +71,7 @@ end
 """
     generateMajorEdge(net::HybridNetwork)
 
-Generate matrix of major edges from `net` where edge[i,1]  is the number of the
+Generate matrix of major edges from `net` where edge[i,1] is the number of the
 parent node of edge i and edge[i,2] is the number of the child node of edge i.
 Assume `nodes_changed` was updated, to list edges in pre-order.
 
@@ -114,7 +114,7 @@ end
     generateMajorLength(net::HybridNetwork)
 
 Generate vector of edge lengths of major `net` edges organized in the same order 
-as the `edge` matrix created via `generateMajorEdge`. Replace values of `1.0` with `#NULL` values
+as the `edge` matrix created via `generateMajorEdge`. Replace values of `-1.0` with `#NULL` values
 recognized by the `ape` library for the `R` programming language.
 
 
@@ -163,8 +163,7 @@ end
 Generate a matrix of minor hybrid edges from `net` where edge[i,1] represents 
 the parent node of edge i and edge[i,2] represents the child node of edge i.
 
-Assume nodes have been organized for preorder traversal and node numbering satisfies 
-the conditions assumed by the `ape` package in R.
+Assume nodes have been organized for preorder traversal.
 
 # Examples
 
@@ -200,7 +199,7 @@ end
 
 Generate vector of minor edge lengths organized in the same order as the 
 `reticulation` matrix created via `generateMinorReticulation`. 
-Replace values of `1.0` with `#NULL` values recognized by the `ape` library for 
+Replace values of `-1.0` with `#NULL` values recognized by the `ape` library for 
 the `R` programming language.
 
 # Examples
@@ -231,7 +230,7 @@ end
 generateMinorReticulationGamma(net::HybridNetwork)
 
 Generate vector of minor edge gammas organized in the same order as 
-the `reticulation` matrix created via `generateMinorReticulation.
+the `reticulation` matrix created via `generateMinorReticulation`.
 
 # Examples
 
