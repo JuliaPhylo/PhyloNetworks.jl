@@ -227,6 +227,35 @@ function generateMinorReticulationLength(net::HybridNetwork)
     return reticulationLength
 end
 
+"""
+generateMinorReticulationGamma(net::HybridNetwork)
+
+Generate vector of minor edge gammas organized in the same order as 
+the `reticulation` matrix created via `generateMinorReticulation.
+
+# Examples
+
+```julia-repl
+julia> net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
+julia> directEdges!(net)   
+julia> preorder!(net)
+julia> apeNodeNumbers!(net)
+julia> generateMinorReticulationGamma(net)
+1-element Array{Float64,1}:
+ 0.1
+ ```
+ """ #"
+
+function generateMinorReticulationGamma(net::HybridNetwork)    
+    reticulationGamma = Vector{Float64}(0) #initialize  
+    for e in net.edge #iterate over each edge attatched to a hybrid node
+        if !e.isMajor #find minor hybrid edge
+            push!(reticulationGamma, e.gamma)
+        end
+    end
+    return reticulationGamma
+end
+
 doc"""
     apeRExport(net::HybridNetwork)
 
@@ -282,8 +311,10 @@ function apeRExport(net::HybridNetwork; mainTree::Bool=false, useEdgeLength::Boo
     end
     if net.numHybrids > 0
         reticulation = generateMinorReticulation(net)
+        reticulationGamma = generateMinorReticulationGamma(net)
         R"""
         phy[['reticulation']] = $reticulation
+        phy[['reticulation.gamma']] = $reticulationGamma
         class(phy) <- c("evonet", "phylo")
         """
         if useEdgeLength == true # extract minor edge lengths
@@ -351,8 +382,10 @@ function sexp(net::HybridNetwork)
     end
     if net.numHybrids > 0
         reticulation = generateMinorReticulation(net) #minor edges only
+        reticulationGamma = generateMinorReticulationGamma(net)
         reticulationLength = generateMinorReticulationLength(net)
         phy[:reticulation] = reticulation
+        phy[Symbol("reticulation.gamma")] = reticulationGamma
         nBL = sum([isnull(e) for e in reticulationLength])
         if nBL >0
             phy[Symbol("reticulation.length")] = reticulationLength
