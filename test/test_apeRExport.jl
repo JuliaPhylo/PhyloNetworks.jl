@@ -1,23 +1,24 @@
-R"library(ape)"
+R"library(ape)";
+# checking for absence of errors, for the most part
 
 info("Testing `apeRExport` function")
-#checking for absence of errors, not testing for correctness
 
-#on a tree with some edge lengths missing
+# on a tree with some edge lengths missing
 s = "(A,(B:1.0,(C:1.0,D:1.0):1.0):1.0);"
 net = readTopology("(A,(B:1.0,(C:1.0,D:1.0):1.0):1.0);")
 tree1 = apeRExport(net)
-R"tree2 = read.evonet(text = $s)"
-@test convert(Bool, R"isTRUE(all.equal(tree2,$tree1))")
+# check for correct topology:
+R"tree2 = read.tree(text = $s)"
+@test convert(Bool, R"dist.topo($tree1, tree2) == 0")
         
-#on a network with some missing gamma values
+# network, h=1, some missing gamma values
 s = "(((A:1.0,(B:1.0)#H1:1.0::0.9):1.0,(C:1.0,#H1:1.0):1.0):1.0,D:1.0);"
 net = readTopology("(((A:1.0,(B:1.0)#H1:1.0::0.9):1.0,(C:1.0,#H1:1.0):1.0):1.0,D:1.0);") 
 tree1 = apeRExport(net)
 R"tree2 = read.evonet(text = $s)"
 @test convert(Bool, R"isTRUE(all.equal(tree2,$tree1))")
 
-#on a network with mainTree=true; minor hybrid edge length missing
+# network, h=1, mainTree=true; minor hybrid edge length missing
 s = "(((A:1.0,(B:1.0)#H1:1.0::0.9):1.0,(C:1.0,#H1:::0.1):1.0):1.0,D:1.0);"
 net = readTopology("(((A:1.0,(B:1.0)#H1:1.0::0.9):1.0,(C:1.0,#H1:::0.1):1.0):1.0,D:1.0);") 
 tree1 = apeRExport(net; mainTree=true)
@@ -38,14 +39,13 @@ R"tree2 = read.evonet(text = $s)"
 @test convert(Bool, R"isTRUE(all.equal(tree2,$tree1))")
 
 info("Testing `sexp` function")
-#checking for absence of errors, not testing for correctness
 
 #on a tree with some edge lengths missing
 s = "(A,(B:1.0,(C:1.0,D:1.0):1.0):1.0);"
 net = readTopology("(A,(B:1.0,(C:1.0,D:1.0):1.0):1.0);")
-tree1 = sexp(net)
+# fixit: move this up where the same example is used
 R"tree2 = read.evonet(text = $s)"
-@test convert(Bool, R"isTRUE(all.equal(tree2,$tree1))")
+@test convert(Bool, R"dist.topo($net, tree2) == 0")
         
 #on a network with some missing gamma values
 s = "(((A:1.0,(B:1.0)#H1:1.0::0.9):1.0,(C:1.0,#H1:1.0):1.0):1.0,D:1.0);"

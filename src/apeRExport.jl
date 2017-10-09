@@ -1,5 +1,5 @@
 """
-    apeNodeNumbers(net::HybridNetwork)
+    apeNodeNumbers!(net::HybridNetwork)
 
 Change numbers of internal nodes of `net` to satisfy conditions assumed by the `ape` R 
 package: leaves are 1-n, the root is n+1, and internal nodes are higher consecutive 
@@ -11,7 +11,7 @@ integers.
 julia> net = readTopology("(A,(B,(C,D)));")
 julia> directEdges!(net)
 julia> preorder!(net)
-julia> apeNodeNumbers(net)
+julia> apeNodeNumbers!(net)
 julia> net.node
 7-element Array{PhyloNetworks.Node,1}:
  PhyloNetworks.Node:
@@ -52,17 +52,17 @@ julia> net.node
 ```
 """
 
-function apeNodeNumbers(net::HybridNetwork)  
-    lnum = 1
-    inum = length(net.leaf) + 1 
+function apeNodeNumbers!(net::HybridNetwork)
+    lnum = 1 # first number for leaves
+    inum = length(net.leaf) + 1 # first number of internal nodes
     #ensure internal node numbers do not overlap with leaf numbers
     #root will be labeled ntips +1, consistent with ape "phylo" class
-    for n in net.nodes_changed #traverse tree in topological order excluding leaves
+    for n in net.nodes_changed # topological (pre)order
         if n.leaf
             n.number = lnum
             lnum += 1
         else
-            n.number = inum #change node number
+            n.number = inum # root will be ntips + 1, because pre-order
             inum += 1
         end
     end
@@ -71,11 +71,9 @@ end
 """
     generateMajorEdge(net::HybridNetwork)
 
-Generate matrix of major edges from `net` where edge[i,1] 
-represents the parent node of edge i and edge[i,2] represents the child node of edge i. 
-
-Assume nodes have been organized for preorder traversal 
-and node numbering satisfies the conditions assumed by the `ape` package in R.
+Generate matrix of major edges from `net` where edge[i,1]  is the number of the
+parent node of edge i and edge[i,2] is the number of the child node of edge i.
+Assume `nodes_changed` was updated, to list edges in pre-order.
 
 # Examples
 
@@ -83,7 +81,7 @@ and node numbering satisfies the conditions assumed by the `ape` package in R.
 julia> net = readTopology("(A,(B,(C,D)));")
 julia> directEdges!(net)
 julia> preorder!(net)
-julia> apeNodeNumbers(net)
+julia> apeNodeNumbers!(net)
 julia> generateMajorEdge(net)
 6×2 Array{Int64,2}:
  5  4
@@ -96,20 +94,16 @@ julia> generateMajorEdge(net)
 """
 
 function generateMajorEdge(net::HybridNetwork)  
-    edge = Matrix{Int}(length(net.edge)-length(net.hybrid), 2) #initialize edge matrix 
-    #fill edge matrix
+    edge = Matrix{Int}(length(net.edge)-length(net.hybrid), 2) # major edges
     i = 1 #row index for edge matrix
-    for n in net.nodes_changed #traverse tree in topological order excluding leaves
-        if !n.leaf
-            for e in n.edge #iterate over each edge attatched to a node
-                if e.node[e.isChild1 ? 1 : 2] != n && e.gamma > 0.5 
-                #exclude node that is parent of current edge and minor hybrid edge
-                    #push parent node to first column
-                    edge[i,1] = e.node[e.isChild1 ? 2 : 1].number 
-                    #push child node to second column
-                    edge[i,2] = e.node[e.isChild1 ? 1 : 2].number 
-                    i += 1 #increase index value
-                end
+    for n in net.nodes_changed # topological pre-order
+        !n.leaf || continue # skip leaves: associate node with children edges
+        for e in n.edge
+            if e.node[e.isChild1 ? 2 : 1] == n && e.isMajor
+                #exclude parent edge and minor hybrid edges
+                edge[i,1] = n.number # parent
+                edge[i,2] = e.node[e.isChild1 ? 1 : 2].number # child
+                i += 1 #increase index value
             end
         end
     end
@@ -130,7 +124,7 @@ recognized by the `ape` library for the `R` programming language.
 julia> net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
 julia> directEdges!(net)
 julia> preorder!(net)
-julia> apeNodeNumbers(net)
+julia> apeNodeNumbers!(net)
 julia> generateMajorLength(net)
 8-element NullableArrays.NullableArray{Float64,1}:
 #NULL
@@ -178,7 +172,7 @@ the conditions assumed by the `ape` package in R.
 julia> net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
 julia> directEdges!(net)
 julia> preorder!(net)
-julia> apeNodeNumbers(net)
+julia> apeNodeNumbers!(net)
 julia> generateMinorReticulation(net)
 1×2 Array{Int64,2}:
  7  9
@@ -216,7 +210,7 @@ recognized by the `ape` library for the `R` programming language.
 julia> net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
 julia> directEdges!(net)
 julia> preorder!(net)
-julia> apeNodeNumbers(net)
+julia> apeNodeNumbers!(net)
 julia> generateApeReticulationLength(net)
 1-element NullableArrays.NullableArray{Float64,1}:
 #NULL
@@ -273,79 +267,67 @@ R> plot.evonet($phy)
 """ #" 
 
 function apeRExport(net::HybridNetwork; mainTree::Bool=false, useEdgeLength::Bool=true) 
-    directEdges!(net)
-    preorder!(net) #organize nodes for preorder traversal 
-    if mainTree == true
+    if mainTree == true && net.numHybrids > 0
         net = majorTree(net)
-        preorder!(net) #organize nodes for preorder traversal   
-    end 
-    apeNodeNumbers(net) 
+    end
+    directEdges!(net)
+    preorder!(net) # create field nodes_changed
+    apeNodeNumbers!(net)
     ntips = length(net.leaf) 
     totalnodes = length(net.node) 
     Nnode = totalnodes - ntips 
-    tipLabel = [node.name for node in net.leaf] 
-    edge = generateMajorEdge(net) #generate edge matrix 
-    if useEdgeLength == true
-        edgeLength = generateMajorLength(net) #generate vector of major edge lengths 
-    elseif useEdgeLength == false
-        #fill edge length vector with null lengths
-        edgeLength = fill(-1.0, length(net.edge)-length(net.hybrid)) 
-    end
+    o = sortperm([n.number for n in net.leaf])
+    tipLabel = [net.leaf[i].name for i in o]
+    edge = generateMajorEdge(net)
     R"""
-    edgeLength = $edgeLength
-    edgeLength[edgeLength==-1.0]=NA
+    phy = list(Nnode = $Nnode, edge = $edge, tip.label = $tipLabel)
     """
-    if net.numHybrids > 0
-        reticulation = generateMinorReticulation(net) #generate reticulation matrix 
-        if useEdgeLength == true
-            #generate vector of minor edge lengths
-            reticulationLength = generateMinorReticulationLength(net) 
-        elseif useEdgeLength == false
-            #fill minor edge length vector with null lengths
-            reticulationLength = fill(-1.0, length(net.hybrid)) 
-        end 
-        #push Nnode integer, edge and reticulation matricies and lengths, tiplabel vector 
-        #to RObject $phy and assign "phylo" and "evonet" class attribute and 
-        #export as an RObject
+    if useEdgeLength == true
+        edgeLength = generateMajorLength(net)
         R"""
-        reticulationLength = $reticulationLength
-        reticulationLength[reticulationLength==-1.0]=NA
-        phy = list(Nnode = $Nnode, edge = $edge, tip.label = $tipLabel, edge.length = edgeLength, reticulation = $reticulation, reticulation.length = reticulationLength)
+        phy[['edge.length']] = $edgeLength
+        """
+    end
+    if net.numHybrids > 0
+        reticulation = generateMinorReticulation(net)
+        R"""
+        phy[['reticulation']] = $reticulation
         class(phy) <- c("evonet", "phylo")
         """
-        phy = reval("phy") 
-        return(phy) 
+        if useEdgeLength == true # extract minor edge lengths
+            reticulationLength = generateMinorReticulationLength(net)
+            R"""
+            phy[['reticulation.length']] = $reticulationLength
+            """
+        end
     elseif net.numHybrids == 0
-        #push Nnode integer, major edge matrix and lengths, tiplabel vector to 
-        #RObject $phy and assign "phylo" class attribute and export as an RObject
         R"""
-        phy = list(Nnode = $Nnode, edge = $edge, tip.label = $tipLabel, edge.length = edgeLength)
         class(phy) = "phylo"
         """
-        phy = reval("phy") 
-        return(phy)
     end
+    phy = reval("phy")
+    return(phy)
 end
 
 doc"""
     function sexp(net::HybridNetwork)
 
-Sexp method to export HybridNework objects generated in the 
-Julia package `PhyloNetworks.jl` to the R language as either `phylo` or
-`evonet` object (depending on degree of hybridization) recognized by the R package `ape`.
+Sexp method to export HybridNework objects to the R language
+as either `phylo` or `evonet` object (depending on degree of hybridization)
+recognized by the R package `ape`.
 
 Inspired by https://github.com/richardreeve/Phylo.jl/blob/master/src/rcall.jl
 
-# Examples 
+# Examples
 
 ```julia-repl
 julia> net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
 julia> sobj = sexp(net)
 ```
 
-This creates an RObject called `phy` that is essentially an `phylo` (or `evonet`) 
+This creates an RObject called `phy` that is essentially an `phylo` (or `evonet`)
 class S3 object. The resulting RObject can be evaluated using the tools
-available in the `ape` library in R. For example, we can visualize the network using 
+available in the `ape` library in R. For example, we can visualize the network using
 the `plot` function:
 
 ```julia-repl
@@ -355,37 +337,42 @@ R> plot.evonet($sobj)
 ```
 """ #"
 
-function sexp(net::HybridNetwork) 
+function sexp(net::HybridNetwork)
     preorder!(net) #organize nodes for preorder traversal
-    directEdges!(net) 
-    apeNodeNumbers(net) 
-    ntips = length(net.leaf) 
-    totalnodes = length(net.node) 
-    Nnode = totalnodes - ntips 
-    tipLabel = [node.name for node in net.leaf] 
+    directEdges!(net)
+    apeNodeNumbers!(net)
+    ntips = length(net.leaf)
+    totalnodes = length(net.node)
+    Nnode = totalnodes - ntips
+    o = sortperm([n.number for n in net.leaf])
+    tipLabel = [net.leaf[i].name for i in o]
     edge = generateMajorEdge(net) #generate edge matrix
     #create an object with fields for $Nnode, $tipLabel, and $edge
     phy = Dict{Symbol, Any}()
     phy[:Nnode] = Nnode
-    phy[Symbol("tip.label")] = tipLabel 
+    phy[Symbol("tip.label")] = tipLabel
     phy[:edge] = edge
     edgeLength = generateMajorLength(net) #major edges only
-    phy[Symbol("edge.length")] = edgeLength 
-    if net.numHybrids == 0
-        #assign "phylo" class to $phy
-        sobj = protect(sexp(phy))
-        setclass!(sobj, sexp("phylo"))
-        unprotect(1)
-    elseif net.numHybrids > 0
-        reticulation = generateMinorReticulation(net) #minor edges only
-        #generate vector of minor edge lengths
-        reticulationLength = generateMinorReticulationLength(net)
-        phy[:reticulation] = reticulation 
-        phy[Symbol("reticulation.length")] = reticulationLength 
-        #assign "phylo" and "evonet" classes to $phy
-        sobj = protect(sexp(phy))
-        setclass!(sobj, sexp(["phylo", "evonet"]))
-        unprotect(1)
+    nBL = sum([isnull(e) for e in edgeLength])
+    if nBL>0
+        phy[Symbol("edge.length")] = edgeLength
     end
+    if net.numHybrids > 0
+        reticulation = generateMinorReticulation(net) #minor edges only
+        reticulationLength = generateMinorReticulationLength(net)
+        phy[:reticulation] = reticulation
+        nBL = sum([isnull(e) for e in reticulationLength])
+        if nBL >0
+            phy[Symbol("reticulation.length")] = reticulationLength
+        end
+        # fixit: export gamma if available
+    end
+    sobj = protect(sexp(phy))
+    if net.numHybrids == 0
+        setclass!(sobj, sexp("phylo"))
+    else
+        setclass!(sobj, sexp(["evonet", "phylo"]))
+    end
+    unprotect(1)
     return(sobj) #export RObject
 end
