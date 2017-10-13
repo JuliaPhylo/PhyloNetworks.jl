@@ -1,8 +1,8 @@
 """
     apeNodeNumbers!(net::HybridNetwork)
 
-Change internal node numbers of `net` to satisfy the conditions assumed by the `ape` R 
-package: leaves are 1 to n, the root is n+1, and internal nodes are higher consecutive 
+Change internal node numbers of `net` to satisfy the conditions assumed by the `ape` R
+package: leaves are 1 to n, the root is n+1, and internal nodes are higher consecutive
 integers. Assume `nodes_changed` was updated, to list nodes in pre-order.
 
 # Examples
@@ -61,7 +61,7 @@ julia> PhyloNetworks.generateMajorEdge(net)
 ```
 """
 
-function generateMajorEdge(net::HybridNetwork)  
+function generateMajorEdge(net::HybridNetwork)
     edge = Matrix{Int}(length(net.edge)-length(net.hybrid), 2) # major edges
     i = 1 #row index for edge matrix
     for n in net.nodes_changed # topological pre-order
@@ -105,8 +105,8 @@ julia> PhyloNetworks.generateMajorLength(net)
 ```
 """ #"
 
-function generateMajorLength(net::HybridNetwork) 
-    edgeLength = Array{Float64}(length(net.edge)-length(net.hybrid)) 
+function generateMajorLength(net::HybridNetwork)
+    edgeLength = Array{Float64}(length(net.edge)-length(net.hybrid))
     i=1
     for n in net.nodes_changed # topological pre-order
         if !n.leaf
@@ -126,7 +126,7 @@ end
 """
     generateMinorReticulation(net::HybridNetwork)
 
-Generate a matrix of minor hybrid edges from `net` where edge[i,1] represents 
+Generate a matrix of minor hybrid edges from `net` where edge[i,1] represents
 the number of the parent node of edge i and edge[i,2] represents the number
 of the child node of edge i. (node numbers may be negative, unless they were
 modified by `apeNodeNumbers!`).
@@ -141,7 +141,7 @@ julia> PhyloNetworks.generateMinorReticulation(net)
 ```
 """ #"
 
-function generateMinorReticulation(net::HybridNetwork)    
+function generateMinorReticulation(net::HybridNetwork)
     reticulation = Matrix{Int}(length(net.hybrid), 2) # initialize
     j = 1 # row index, row = reticulate edge
     for e in net.edge
@@ -157,22 +157,22 @@ end
 """
     generateMinorReticulationLength(net::HybridNetwork)
 
-Generate vector of minor edge lengths organized in the same order as the 
-`reticulation` matrix created via `generateMinorReticulation`. 
-Replace values of `-1.0` with null values recognized by the `ape` library for 
+Generate vector of minor edge lengths organized in the same order as the
+`reticulation` matrix created via `generateMinorReticulation`.
+Replace values of `-1.0` with null values recognized by the `ape` library for
 the `R` programming language. Output is a NullableArray.
 
 # Examples
 
 ```julia-repl
-julia> net = readTopology("(((A:3.1,(B:0.2)#H1:0.3::0.9),(C,#H1:0.3::0.1):1.1),D:0.7);");
+julia> net = readTopology("(((A:3.1,(B:0.2)#H1:0.4::0.9),(C,#H1:0.3::0.1):1.1),D:0.7);");
 julia> PhyloNetworks.generateMinorReticulationLength(net)
 1-element NullableArrays.NullableArray{Float64,1}:
  0.3
 ```
 """ #"
 
-function generateMinorReticulationLength(net::HybridNetwork) 
+function generateMinorReticulationLength(net::HybridNetwork)
     reticulationLength = Vector{Float64}(0) # initialize
     for e in net.edge
         if !e.isMajor #find minor hybrid edge
@@ -196,13 +196,13 @@ Output is a NullableArray.
 ```julia-repl
 julia> net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);");
 julia> PhyloNetworks.generateMinorReticulationGamma(net)
-1-element Array{Float64,1}:
+1-element NullableArrays.NullableArray{Float64,1}:
  0.1
  ```
  """ #"
 
-function generateMinorReticulationGamma(net::HybridNetwork)    
-    reticulationGamma = Vector{Float64}(0) #initialize  
+function generateMinorReticulationGamma(net::HybridNetwork)
+    reticulationGamma = Vector{Float64}(0) #initialize
     for e in net.edge
         if !e.isMajor # minor hybrid edges only
             push!(reticulationGamma, e.gamma)
@@ -296,18 +296,18 @@ $ reticulation      : int [1, 1:2] 7 9
 $ reticulation.gamma: num 0.1
 - attr(*, "class")= chr [1:2] "evonet" "phylo"
 ```
-""" #" 
+""" #"
 
-function apeRExport(net::HybridNetwork; mainTree::Bool=false, useEdgeLength::Bool=true) 
+function apeRExport(net::HybridNetwork; mainTree::Bool=false, useEdgeLength::Bool=true)
     if mainTree == true && net.numHybrids > 0
         net = majorTree(net)
     end
     directEdges!(net)
     preorder!(net) # create field nodes_changed
     apeNodeNumbers!(net)
-    ntips = length(net.leaf) 
-    totalnodes = length(net.node) 
-    Nnode = totalnodes - ntips 
+    ntips = length(net.leaf)
+    totalnodes = length(net.node)
+    Nnode = totalnodes - ntips
     o = sortperm([n.number for n in net.leaf])
     tipLabel = [net.leaf[i].name for i in o]
     edge = generateMajorEdge(net)
