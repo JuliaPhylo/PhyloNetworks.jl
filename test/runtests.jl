@@ -5,6 +5,7 @@
 # Claudia May 2016
 
 using Base.Test
+using RCall # for export to R objects
 
 if !isdefined(:localtests) localtests = false; end
 
