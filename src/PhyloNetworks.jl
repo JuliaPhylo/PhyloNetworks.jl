@@ -12,10 +12,13 @@ using ColorTypes # used by Gadfly already. To resolve data type names (Colorant)
 using StatsBase: sample
 using Combinatorics.combinations
 using RCall
+using RCall: protect, unprotect, RClass
+using NullableArrays
 
 import Base.show
 import Gadfly.plot
 import GLM.ftest
+import RCall.sexp
 
 global DEBUG = false #for debugging only
 const DEBUGC = false #more detailed prints
@@ -101,7 +104,9 @@ expectations,
 expectationsPlot,
 predint,
 predintPlot,
-parsimonyDiscrete
+parsimonyDiscrete,
+apeRExport,
+sexp
 
 # export part
 
@@ -127,5 +132,6 @@ include("compareNetworks.jl")
 include("traits.jl")
 include("parsimony.jl")
 include("pairwiseDistanceLS.jl")
+include("apeRExport.jl")
 
 end #module
