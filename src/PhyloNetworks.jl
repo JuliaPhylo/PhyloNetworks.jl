@@ -6,7 +6,6 @@ using DataStructures # for updateInCycle with priority queue
 using DataFrames # for functions to read/write tables, and names()
 using GLM # for the lm function
 using NLopt # for branch lengths optimization
-# using GraphViz #for visualization
 using Gadfly # for plots
 using ColorTypes # used by Gadfly already. To resolve data type names (Colorant)
 using StatsBase: sample
@@ -53,7 +52,6 @@ directEdges!,
 preorder!,
 cladewiseorder!,
 fittedQuartetCF,
-plotNetGraphViz,
 plot,
 rotate!,
 setLength!,
@@ -125,7 +123,6 @@ include("descriptive.jl")
 include("manipulateNet.jl")
 include("bootstrap.jl")
 include("multipleAlleles.jl")
-include("plotsGraphViz.jl")
 include("plotsGadfly.jl")
 include("plotsRCall.jl")
 include("compareNetworks.jl")
