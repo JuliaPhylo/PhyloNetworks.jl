@@ -102,6 +102,7 @@ expectations,
 expectationsPlot,
 predint,
 predintPlot,
+ftest,
 parsimonyDiscrete,
 apeRExport,
 sexp
