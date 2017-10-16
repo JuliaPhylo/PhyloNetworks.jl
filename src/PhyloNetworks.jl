@@ -108,8 +108,13 @@ module PhyloNetworks
         expectationsPlot,
         predint,
         predintPlot,
-        #
+        ## Discrete Trait PCM
         parsimonyDiscrete,
+        EqualRatesSubstitutionModel,
+        BinaryTraitSubstitutionModel,
+        randomTrait,
+        randomTrait!,
+        #
         apeRExport
 
     # export part
