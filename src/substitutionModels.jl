@@ -37,6 +37,12 @@ function show(io::IO, object::BinaryTraitSubstitutionModel)
     print(io, str)
 end
 
+"""
+`EqualRatesSubstitutionModel` is an abstract type that contains all models
+describing a substitution process impacting biological characters with equal rates
+of transition between all character states with continous time Markov models.
+"""
+
 struct EqualRatesSubstitutionModel <: TraitSubstitutionModel
     k::Int
     α::Float64
@@ -59,7 +65,9 @@ function nStates(mod::EqualRatesSubstitutionModel)
 end
 
 """
-Generate a Q matrix for a `BinaryTraitSubstitutionModel`, of the form:
+    Q(mod)
+
+Generate a Q matrix for a `TraitSubstitutionModel`, of the form:
     ```math
     Q = \begin{bmatrix}
         Q_{0, 0} & Q_{0, 1} \\
@@ -81,13 +89,15 @@ function Q(mod::EqualRatesSubstitutionModel)
 end
 
 """
-Generate a P matrix for a `BinaryTraitSubstitutionModel`, of the form:
+    function P(mod, t)
+
+Generate a P matrix for a `TraitSubstitutionModel`, of the form:
     ```math
     P = \begin{bmatrix}
         P_{0, 0} & P_{0, 1} \\
         P_{1, 0} & P_{1, 1} \end{bmatrix}.
     ```
-    for specified time
+for specified time
 """
 
 @inline function P(mod::SM, t::Float64)
@@ -124,12 +134,6 @@ end
     return Bmatrix(p0+a1, p0-a0, p1-a1, p1+a0) # By columns
 end
 
-"""
-    randomTrait(model, t, start) #fixit document both options
-simulate traits along one edge of length t.
-`start` must be a vector of integers, each representing the starting value of one trait.
-"""
-
 function randomTrait!(endTrait::AbstractVector{Int}, mod::SM, t::Float64, start::AbstractVector{Int})
     Pt = P(mod, t)
     k = size(Pt, 1) # number of states
@@ -140,17 +144,62 @@ function randomTrait!(endTrait::AbstractVector{Int}, mod::SM, t::Float64, start:
     return endTrait
 end
 
+"""
+    randomTrait(model, t, start) 
+
+Simulate traits along one edge of length t.
+`start` must be a vector of integers, each representing the starting value of one trait.
+
+# Examples
+```julia-repl
+julia> m1 = PhyloNetworks.BinaryTraitSubstitutionModel(1.0, 2.0) 
+julia> srand(12345);
+julia> randomTrait(m1, 0.2, [1,2,1,2,2])
+ 5-element Array{Int64,1}:
+ 1
+ 2
+ 1
+ 2
+ 2
+```
+"""
+
 function randomTrait(mod::SM, t::Float64, start::AbstractVector{Int})
     res = Vector{Int}(length(start))
     randomTrait!(res, mod, t, start)
 end
 
 """
-    randomTrait(mod, net; ntraits=1, keepIinternal=true, checkPreorder=true)
+    randomTrait(mod, net; ntraits=1, keepInternal=true, checkPreorder=true)
 
-Trait sampling is uniform at the root.
+Simulates evolution of discrete traits on a rooted evolutionary network based on 
+the supplied evolutionary model and returns an array of character states for each character
+at each node. Trait sampling is uniform at the root.
+
+# Arguments
+- ntraits: the number of traits to be evaluated. Default value of 1.
+- keepInternal: if true, export character states at internal nodes
 
 # Examples
+```julia-repl
+julia> m1 = PhyloNetworks.BinaryTraitSubstitutionModel(1.0, 2.0) 
+julia> net = readTopology("(A:1.0,(B:1.0,(C:1.0,D:1.0):1.0):1.0);")
+julia> srand(12345);
+julia> a,b = randomTrait(m1, net)
+ ([1 2 … 1 2], String["-2", "-3", "-4", "D", "C", "B", "A"])
+julia> a
+ 1×7 Array{Int64,2}:
+ 1  2  1  1  1  1  2
+julia> b
+ 7-element Array{String,1}:
+ "-2"
+ "-3"
+ "-4"
+ "D"
+ "C"
+ "B"
+ "A"
+```
 """
 
 function randomTrait(mod::SM, net::HybridNetwork;
@@ -164,8 +213,10 @@ function randomTrait(mod::SM, net::HybridNetwork;
     randomTrait!(M,mod,net)
     if !keepInternal
         M = getTipSubmatrix(M, net)
+        nodeLabels = [n.name for n in net.nodes_changed if n.leaf]
+    else
+        nodeLabels = [n.name == "" ? string(n.number) : n.name for n in net.nodes_changed]    
     end
-    nodeLabels = [n.name == "" ? string(n.number) : n.name for n in net.nodes_changed]
     return M, nodeLabels
 end
 

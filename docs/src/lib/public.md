@@ -106,7 +106,7 @@ treeEdgesBootstrap
 hybridBootstrapSupport
 ```
 
-## Trait Evolution
+## Continuous Trait Evolution
 
 ```@docs
 simulate
@@ -125,7 +125,17 @@ predintPlot
 descendenceMatrix
 regressorShift
 regressorHybrid
+```
+
+## Discrete Trait Evolution
+
+```@docs
 parsimonyDiscrete
+BinaryTraitSubstitutionModel
+EqualRatesSubstitutionModel
+Q
+P
+randomTrait
 ```
 
 ```@meta

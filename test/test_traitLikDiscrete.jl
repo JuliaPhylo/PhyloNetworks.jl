@@ -5,7 +5,7 @@ using StaticArrays
 runall = false;
 
 m1 = PhyloNetworks.BinaryTraitSubstitutionModel(1.0, 2.0) 
-@test_throws ErrorException PhyloNetworks.BinaryTraitSubstitutionModel(-1.0,2.0)m1
+@test_throws ErrorException PhyloNetworks.BinaryTraitSubstitutionModel(-1.0,2.0)
 @show m1
 m2 = EqualRatesSubstitutionModel(4, 3.0)
 @show m2
@@ -21,7 +21,7 @@ m2 = EqualRatesSubstitutionModel(4, 3.0)
 srand(12345);
 @test randomTrait(m1, 0.2, [1,2,1,2,2]) == [1,2,1,1,2]
 @test randomTrait(m2, 0.05, [1,3,4,2,1]) == [1,3,3,4,1]
-a = randomTrait(m1, 100.0, fill(1, (10000,)))
+#a = randomTrait(m1, 100.0, fill(1, (10000,)))
 
 net = readTopology("(A:1.0,(B:1.0,(C:1.0,D:1.0):1.0):1.0);")
 
@@ -30,18 +30,32 @@ a,b = randomTrait(m1, net)
 @test a == [1 2 1 1 1 1 2]
 @test b == ["-2", "-3", "-4", "D", "C", "B", "A"]
 if runall
- plot(net, :RCall, showNodeNumber=true);
- for e in net.edge e.length = 10.0; end
- @time a,b = randomTrait(m1, net; ntraits=100000)
- mean(a[:,1]) # expect 1.5 at root
- mean(a[:,2]) # expect 1.333 at other nodes
+    plot(net, :RCall, showNodeNumber=true);
+    for e in net.edge e.length = 10.0; end
+    @time a,b = randomTrait(m1, net; ntraits=100000)
+    mean(a[:,1]) # expect 1.5 at root
+    mean(a[:,2]) # expect 1.333 at other nodes
+    @time a,b = randomTrait(m2, net; ntraits=100000)
+    length([x for x in a[:,1] if x==4])/length(a[:,1])
+    length([x for x in a[:,2] if x==4])/length(a[:,2])
+    length([x for x in a[:,3] if x==4])/length(a[:,3])
+    length([x for x in a[:,4] if x==4])/length(a[:,4])
+    length([x for x in a[:,5] if x==4])/length(a[:,5])
+    length([x for x in a[:,6] if x==4])/length(a[:,6])
+    length([x for x in a[:,7] if x==4])/length(a[:,7]) # expect 0.25
 end
 
 net2 = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0):1.0):3.0,D:5.0);")
 
+srand(12345);
 a,b = randomTrait(m1, net2; keepInternal=false)
-@test a == [1  1  1  1]
-@test b == [ "-2","D","-3","-6","C","-4","#H1","B","A"]
+@test a == [1  1  1  2]
+@test b == ["D", "C", "B", "A"]
+
+srand(12345);
+a,b = randomTrait(m1, net2; keepInternal=true)
+@test a == [1  2  1  1  1  1  1  1  1]
+@test b == ["-2", "D", "-3", "-6", "C", "-4", "#H1", "B", "A"]
 if runall
     for e in net2.edge
         if e.hybrid 
