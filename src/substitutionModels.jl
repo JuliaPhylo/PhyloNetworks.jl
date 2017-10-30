@@ -1,8 +1,5 @@
-using StaticArrays #move to PhyloNetworks.jl and add to REQUIRE
-
 abstract type TraitSubstitutionModel end
 const SM = TraitSubstitutionModel
-const BTSM = BinaryTraitSubstitutionModel
 const Bmatrix = SMatrix{2, 2, Float64}
 
 """
@@ -27,14 +24,16 @@ struct BinaryTraitSubstitutionModel <: TraitSubstitutionModel
     # Fixit function with Strings[ label0, label1] in SVector
 end
 
+const BTSM = BinaryTraitSubstitutionModel
+
 function nStates(mod::BTSM)
     return 2::Int
 end
 
 function show(io::IO, object::BinaryTraitSubstitutionModel)
     str = "Binary Trait Substitution Model:\n"
-    str *= "rate 0→ 1 α=$(object.α)\n"
-    str *= "rate 1→ 0 β =$(object.β)\n"
+    str *= "rate 0→1 α=$(object.α)\n"
+    str *= "rate 1→0 β=$(object.β)\n"
     print(io, str)
 end
 
@@ -69,8 +68,7 @@ Generate a Q matrix for a `BinaryTraitSubstitutionModel`, of the form:
 """
 
 @inline function Q(mod::BTSM)
-    return Bmatrix(-mod.α, mod.α,
-                   mod.β, -mod.β)
+    return Bmatrix(-mod.α, mod.β, mod.α, -mod.β)
 end
 
 function Q(mod::EqualRatesSubstitutionModel)
@@ -103,8 +101,15 @@ function P(mod::SM, t::Array{Float64})
     if any(t .< 0.0)
         error("t must be positive")
     end
-    eig_vals, eig_vecs = eig(Q(mod))
-    return [eig_vecs * expm(diagm(eig_vals)*i) * eig_vecs' for i in t]
+    try
+        eig_vals, eig_vecs = eig(Q(mod)) # Only hermitian matrices are diagonalizable by 
+        # *StaticArrays*. Non-Hermitian matrices should be converted to `Array`first.
+        return [eig_vecs * expm(diagm(eig_vals)*i) * eig_vecs' for i in t]
+    catch
+        eig_vals, eig_vecs = eig(Array(Q(mod)))
+        k = nStates(mod)
+        return [SMatrix{k,k}(eig_vecs * expm(diagm(eig_vals)*i) * inv(eig_vecs)) for i in t]
+    end
 end
 
 @inline function P(mod::BTSM, t::Float64)
@@ -116,8 +121,7 @@ end
     p1 = mod.π1
     a0= p0 *e1
     a1= p1*e1
-    return BMatrix (p0+a1, p1-a1, #fixit check order of matrix elements
-                    p0-a0, p1+a0)
+    return Bmatrix(p0+a1, p0-a0, p1-a1, p1+a0) # By columns
 end
 
 """
@@ -126,29 +130,25 @@ simulate traits along one edge of length t.
 `start` must be a vector of integers, each representing the starting value of one trait.
 """
 
-function randomTrait!(endTrait::Vector{Int}, mod::SM, t::Float64, start::Vector{Int})
+function randomTrait!(endTrait::AbstractVector{Int}, mod::SM, t::Float64, start::AbstractVector{Int})
     Pt = P(mod, t)
-    w = [aweights(Pt[1,:]), aweights(Pt[2,:])]
     k = size(Pt, 1) # number of states
+    w = [aweights(Pt[i,:]) for i in 1:k]
     for i in 1:length(start)
-        endTrait[i] = sample(1:k, w[start[i]]) #fixit use sample! instead
+        endTrait[i] =sample(1:k, w[start[i]])
     end
     return endTrait
 end
 
-function randomTrait(mod::SM, t::Float64, start::Vector{Int})
+function randomTrait(mod::SM, t::Float64, start::AbstractVector{Int})
     res = Vector{Int}(length(start))
     randomTrait!(res, mod, t, start)
 end
 
 """
-#Fixit adject name and options
-    discreteTraitDistanceMatrix(net::HybridNetwork;
-        keepInternal=false::Bool, checkPreorder=true::Bool)
+    randomTrait(mod, net; ntraits=1, keepIinternal=true, checkPreorder=true)
 
-Compute the shared path matrix between all the nodes of a
-network. Assumes that the network is in pre-order. If checkPreorder is
-true (default), then it runs function `preorder` on the network beforehand.
+Trait sampling is uniform at the root.
 
 # Examples
 """
@@ -165,7 +165,8 @@ function randomTrait(mod::SM, net::HybridNetwork;
     if !keepInternal
         M = getTipSubmatrix(M, net)
     end
-    return M
+    nodeLabels = [n.name == "" ? string(n.number) : n.name for n in net.nodes_changed]
+    return M, nodeLabels
 end
 
 function getTipSubmatrix(M::Matrix, net::HybridNetwork)
@@ -174,10 +175,10 @@ function getTipSubmatrix(M::Matrix, net::HybridNetwork)
     for l in net.leaf
         push!(tipind, findfirst(nodenames, l.name))
     end
-    return M[tipind, tipind]
+    return M[:, tipind]
 end
 
-function randomTrait!(M::Matrix{Float64}, mod::SM, net::HybridNetwork)
+function randomTrait!(M::Matrix{Int}, mod::SM, net::HybridNetwork)
     recursionPreOrder!(net.nodes_changed, M, # updates M in place
             updateRootRandomTrait!,
             updateTreeRandomTrait!,
@@ -193,21 +194,20 @@ end
 function updateTreeRandomTrait!(V::Matrix,
     i::Int,parentIndex::Int,edge::PhyloNetworks.Edge,
     mod)
-    for j in 1:(i-1)
-        V[i,j] = mod*(V[i,parentIndex] + edge.length)
-    end
+    randomTrait!(view(V, :, i), mod, edge.length, view(V, :, parentIndex))
 end
 
 function updateHybridRandomTrait!(V::Matrix,
         i::Int, parentIndex1::Int, parentIndex2::Int,
-        edge1::PhyloNetworks.Edge, edge2::PhyloNetworks.Edge)
-    γ1 = edge1.gamma
-    γ2 = edge2.gamma
-    r = :random in [0,1]
-    if r <= γ1
-        V[i,j] = V[i,parentIndex1]
-    else
-        V[i,j] = V[i,parentIndex2]
+        edge1::PhyloNetworks.Edge, edge2::PhyloNetworks.Edge, mod)
+    randomTrait!(view(V, :, i), mod, edge1.length, view(V, :, parentIndex1))
+    tmp = randomTrait(mod, edge2.length, view(V, :, parentIndex2))
+    for j in 1:size(V,1)
+        if V[j,i] == tmp[j]
+            continue
+        end
+        if rand() > edge1.gamma
+            V[j,i] = tmp[j]
+        end
     end
-    return
 end
