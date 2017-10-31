@@ -4,7 +4,8 @@ using StaticArrays
 
 runall = false;
 
-m1 = PhyloNetworks.BinaryTraitSubstitutionModel(1.0, 2.0) 
+m1 = PhyloNetworks.BinaryTraitSubstitutionModel(1.0, 2.0, "carnivore", "non-carnivore") 
+m1 = PhyloNetworks.BinaryTraitSubstitutionModel(1.0, 2.0)
 @test_throws ErrorException PhyloNetworks.BinaryTraitSubstitutionModel(-1.0,2.0)
 @show m1
 m2 = EqualRatesSubstitutionModel(4, 3.0)

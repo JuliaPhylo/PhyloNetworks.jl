@@ -13,16 +13,34 @@ struct BinaryTraitSubstitutionModel <: TraitSubstitutionModel
     β::Float64
     π0::Float64
     π1::Float64
-    label::SVector{2, String}
-    function BinaryTraitSubstitutionModel(α::Float64, β::Float64)
+    label0::String
+    label1::String
+    function BinaryTraitSubstitutionModel(α::Float64, β::Float64, label0::String, label1::String)
 	    α >= 0. || error("parameter α must be non-negative")
 	    β >= 0. || error("parameter β must be non-negative")
 	    ab = α+β
-	    ab > 0. || error("α+β must be positive")
-        new(α, β, β/ab, α/ab, SVector("0", "1"))
+        ab > 0. || error("α+β must be positive")
+        new(α, β, β/ab, α/ab, label0, label1)
     end
-    # Fixit function with Strings[ label0, label1] in SVector
 end
+
+BinaryTraitSubstitutionModel(α, β) = BinaryTraitSubstitutionModel(α, β, "0", "1")
+
+#struct BinaryTraitSubstitutionModel <: TraitSubstitutionModel
+#    α::Float64
+#    β::Float64
+#    π0::Float64
+#    π1::Float64
+#    label::SVector{2, String}
+#    function BinaryTraitSubstitutionModel(α::Float64, β::Float64)
+#	    α >= 0. || error("parameter α must be non-negative")
+#	    β >= 0. || error("parameter β must be non-negative")
+#	    ab = α+β
+#	    ab > 0. || error("α+β must be positive")
+#        new(α, β, β/ab, α/ab, SVector("0", "1"))
+#    end
+#    # Fixit function with Strings[ label0, label1] in SVector
+#end
 
 const BTSM = BinaryTraitSubstitutionModel
 
@@ -32,10 +50,17 @@ end
 
 function show(io::IO, object::BinaryTraitSubstitutionModel)
     str = "Binary Trait Substitution Model:\n"
-    str *= "rate 0→1 α=$(object.α)\n"
-    str *= "rate 1→0 β=$(object.β)\n"
+    str *= "rate $(object.label0)→$(object.label1) α=$(object.α)\n"
+    str *= "rate $(object.label1)→$(object.label0) β=$(object.β)\n"
     print(io, str)
 end
+
+#function show(io::IO, object::BinaryTraitSubstitutionModel)
+#    str = "Binary Trait Substitution Model:\n"
+#    str *= "rate 0→1 α=$(object.α)\n"
+#    str *= "rate 1→0 β=$(object.β)\n"
+#    print(io, str)
+#end
 
 """
 `EqualRatesSubstitutionModel` is an abstract type that contains all models
