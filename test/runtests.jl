@@ -6,6 +6,7 @@
 
 using Base.Test
 using RCall # for export to R objects
+using StaticArrays
 
 if !isdefined(:localtests) localtests = false; end
 

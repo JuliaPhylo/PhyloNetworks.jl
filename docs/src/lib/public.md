@@ -133,6 +133,7 @@ regressorHybrid
 parsimonyDiscrete
 BinaryTraitSubstitutionModel
 EqualRatesSubstitutionModel
+nStates
 Q
 P
 randomTrait

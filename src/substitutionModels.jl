@@ -8,41 +8,115 @@ describing a substitution process impacting biological characters with binary st
 with continous time Markov models.
 """
 
-struct BinaryTraitSubstitutionModel <: TraitSubstitutionModel
+mutable struct BinaryTraitSubstitutionModel <: TraitSubstitutionModel
     α::Float64
     β::Float64
     π0::Float64
     π1::Float64
-    label0::String
-    label1::String
-    function BinaryTraitSubstitutionModel(α::Float64, β::Float64, label0::String, label1::String)
+    label::SVector{2, String}
+    function BinaryTraitSubstitutionModel(α::Float64, β::Float64, label::SVector{2, String})
 	    α >= 0. || error("parameter α must be non-negative")
 	    β >= 0. || error("parameter β must be non-negative")
 	    ab = α+β
         ab > 0. || error("α+β must be positive")
-        new(α, β, β/ab, α/ab, label0, label1)
+        new(α, β, β/ab, α/ab, label)
     end
 end
 
-BinaryTraitSubstitutionModel(α, β) = BinaryTraitSubstitutionModel(α, β, "0", "1")
+BinaryTraitSubstitutionModel(α, β) = BinaryTraitSubstitutionModel(α, β, SVector("0", "1"))
 
-#struct BinaryTraitSubstitutionModel <: TraitSubstitutionModel
-#    α::Float64
-#    β::Float64
-#    π0::Float64
-#    π1::Float64
-#    label::SVector{2, String}
-#    function BinaryTraitSubstitutionModel(α::Float64, β::Float64)
-#	    α >= 0. || error("parameter α must be non-negative")
-#	    β >= 0. || error("parameter β must be non-negative")
-#	    ab = α+β
-#	    ab > 0. || error("α+β must be positive")
-#        new(α, β, β/ab, α/ab, SVector("0", "1"))
-#    end
-#    # Fixit function with Strings[ label0, label1] in SVector
-#end
+"""
+    TwoBinaryTraitSubstitutionModel(α [, label])
 
+    α1 = rate 0->1
+    α2 = rate 
+"""
+
+mutable struct TwoBinaryTraitSubstitutionModel <: TraitSubstitutionModel
+    α::Vector{Float64}
+    label::Vector{String}
+    function TwoBinaryTraitSubstitutionModel(α::AbstractVector{Float64}, label::AbstractVector{String})
+	    all( x -> x >= 0., α) || error("rates in α must be non-negative")
+        new(α, label)
+    end
+end
+
+TwoBinaryTraitSubstitutionModel(α) = TwoBinaryTraitSubstitutionModel(α, ["0", "1", "0", "1"])
+
+function show(io::IO, object::TwoBinaryTraitSubstitutionModel)
+    R"""
+    signif<-3
+    par(mfrow=c(2,1))
+    plot.new()
+    par(mar=c(1.1,2.1,3.1,2.1))
+    plot.window(xlim=c(0,2),ylim=c(0,1),asp=1)
+    """
+    R"""
+    mtext("Two Binary Trait Substitution Model",side=3,adj=0,line=1.2,cex=1.2)
+    arrows(x0=0.15,y0=0.15,y1=0.85,lwd=2,length=0.1)
+    arrows(x0=0.2,y0=0.85,y1=0.15,lwd=2,length=0.1)
+    arrows(x0=1.6,y0=0.05,x1=0.4,lwd=2,length=0.1)
+    arrows(x0=0.4,y0=0.1,x1=1.6,lwd=2,length=0.1)
+    arrows(x0=1.8,y0=0.15,y1=0.85,lwd=2,length=0.1)
+    arrows(x0=1.85,y0=0.85,y1=0.15,lwd=2,length=0.1)
+    arrows(x0=1.6,y0=0.9,x1=0.4,lwd=2,length=0.1)
+    arrows(x0=0.4,y0=0.95,x1=1.6,lwd=2,length=0.1)
+    text(x=0.175,y=0.95,paste($(object.label[1]), ",", $(object.label[1])))
+    text(x=1.825,y=0.95,paste($(object.label[1]), ",", $(object.label[2])))
+    text(x=1.825,y=0.05,paste($(object.label[2]), ",", $(object.label[2])))
+    text(x=0.175,y=0.05,paste($(object.label[2]), ",", $(object.label[1])))
+    """
+    R"""
+    text(x=1,y=1,round($(object.α[1]),signif),cex=0.8)
+    """
+    R"""
+    text(x=1,y=0.85,round($(object.α[2]),signif),cex=0.8)
+    text(x=1.9,y=0.5,round($(object.α[3]),signif),cex=0.8,srt=90)
+    text(x=1.75,y=0.5,round($(object.α[4]),signif),cex=0.8,srt=90)
+    """
+    R"""
+    text(x=1,y=0,round($(object.α[5]),signif),cex=0.8)
+    text(x=1,y=0.15,round($(object.α[6]),signif),cex=0.8)
+    text(x=0.1,y=0.5,round($(object.α[7]),signif),cex=0.8,srt=90)
+    text(x=0.25,y=0.5,round($(object.α[8]),signif),cex=0.8,srt=90)
+    """
+end
+
+function Q(mod::TwoBinaryTraitSubstitutionModel)
+    M = fill(0.0,(4,4))
+    a = mod.α
+    M[1,3] = a[1]
+    M[3,1] = a[2]
+    M[2,4] = a[3]
+    M[4,2] = a[4]
+    M[1,2] = a[5]
+    M[2,1] = a[6]
+    M[3,4] = a[7]
+    M[4,3] = a[8]
+    M[1,1] = -M[1,2] - M[1,3]
+    M[2,2] = -M[2,1] - M[2,4]
+    M[3,3] = -M[3,4] - M[3,1]
+    M[4,4] = -M[4,3] - M[4,2]
+    return M
+end
+        
 const BTSM = BinaryTraitSubstitutionModel
+
+const TBTSM = TwoBinaryTraitSubstitutionModel
+
+"""
+    nStates(mod)
+
+Show number of character states in a given model.
+
+# Examples
+
+```julia-repl
+julia> m1 = BinaryTraitSubstitutionModel(1.0, 2.0)
+julia> nStates(m1)
+ 2
+```
+"""
 
 function nStates(mod::BTSM)
     return 2::Int
@@ -50,17 +124,10 @@ end
 
 function show(io::IO, object::BinaryTraitSubstitutionModel)
     str = "Binary Trait Substitution Model:\n"
-    str *= "rate $(object.label0)→$(object.label1) α=$(object.α)\n"
-    str *= "rate $(object.label1)→$(object.label0) β=$(object.β)\n"
+    str *= "rate $(object.label[1])→$(object.label[2]) α=$(object.α)\n"
+    str *= "rate $(object.label[2])→$(object.label[1]) β=$(object.β)\n"
     print(io, str)
 end
-
-#function show(io::IO, object::BinaryTraitSubstitutionModel)
-#    str = "Binary Trait Substitution Model:\n"
-#    str *= "rate 0→1 α=$(object.α)\n"
-#    str *= "rate 1→0 β=$(object.β)\n"
-#    print(io, str)
-#end
 
 """
 `EqualRatesSubstitutionModel` is an abstract type that contains all models
@@ -68,21 +135,42 @@ describing a substitution process impacting biological characters with equal rat
 of transition between all character states with continous time Markov models.
 """
 
-struct EqualRatesSubstitutionModel <: TraitSubstitutionModel
+mutable struct EqualRatesSubstitutionModel <: TraitSubstitutionModel
     k::Int
     α::Float64
-    function EqualRatesSubstitutionModel(k::Int, α::Float64)
+    label::Vector{String}
+    function EqualRatesSubstitutionModel(k::Int, α::Float64, label::Vector{String})
         k >= 2 || error("parameter k must be greater than or equal to 2")
         α > 0 || error("parameter α must be positive")
-        new(k, α)
+        new(k, α, label)
     end
 end
 
 function show(io::IO, object::EqualRatesSubstitutionModel)
     str = "Equal Rates Substitution Model:\n"
     str *= "all rates α=$(object.α)\n"
-    str *= "number of states, k=$(object.k)\n"
+    str *= "number of states, k=$(object.k)\n"  
     print(io, str)
+    M = fill(object.α, object.k, object.k)
+    for i = 1:size(M,2)
+        pad = 8
+        if object.label != "" && i==1
+            pad = 2*8
+        end    
+        @printf("%s", lpad(object.label[i],pad," "))
+    end
+    @printf("\n")
+    # print the rows
+    for i = 1:size(M,1)
+        if object.label != ""
+            @printf("%s", lpad(object.label[i],8," "))
+        end
+        for j = 1:size(M,2)
+            # TBD: use fmt defined above to print array contents
+            @printf("%8.4f",(M[i,j]))
+        end
+        @printf("\n")
+    end  
 end
 
 function nStates(mod::EqualRatesSubstitutionModel)
