@@ -13,6 +13,8 @@ module PhyloNetworks
     using StaticArrays
     using BioSequences
     using BioSymbols
+    using StaticArrays
+    using StatsFuns
 
     import Base.show
     import GLM.ftest
@@ -147,5 +149,6 @@ module PhyloNetworks
     include("interop.jl")
     include("substitutionModels.jl")
     include("biconnectedComponents.jl")
+    include("traitsLikDiscrete.jl")
 
 end #module
