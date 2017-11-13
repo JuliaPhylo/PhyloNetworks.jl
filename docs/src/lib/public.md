@@ -131,12 +131,15 @@ regressorHybrid
 
 ```@docs
 parsimonyDiscrete
+TraitSubstitutionModel
 BinaryTraitSubstitutionModel
+TwoBinaryTraitSubstitutionModel
 EqualRatesSubstitutionModel
 nStates
 Q
 P
 randomTrait
+plot(::TraitSubstitutionModel)
 ```
 
 ```@meta

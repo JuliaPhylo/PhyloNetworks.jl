@@ -1,3 +1,9 @@
+"""
+`TraitSubstitutionModel` is an abstract type for all substitution models.
+Adapted from the substitutionModels module in BioJulia. The same Q and P function
+names are used for the transition rates and probabilities.
+"""
+
 abstract type TraitSubstitutionModel end
 const SM = TraitSubstitutionModel
 const Bmatrix = SMatrix{2, 2, Float64}
@@ -28,8 +34,17 @@ BinaryTraitSubstitutionModel(α, β) = BinaryTraitSubstitutionModel(α, β, SVec
 """
     TwoBinaryTraitSubstitutionModel(α [, label])
 
-    α1 = rate 0->1
-    α2 = rate 
+Default labels are x0, x1, y0, y1. If provided, input label should be a vector of size 4.
+List labels for trait 1 first, then labels for trait 2.
+Trait combinations are listed in the following order:
+x0-y0,  
+x0-y1,  
+x1-y0,  
+x1-y1  
+Input vector α should be a vector of substitution rates of size 8.
+α1..α4 describe rates of changes in trait 1.
+α5..α8 describe rates of changes in trait 2.
+try `plot(model)` to visualize states and rates.
 """
 
 mutable struct TwoBinaryTraitSubstitutionModel <: TraitSubstitutionModel
@@ -37,50 +52,14 @@ mutable struct TwoBinaryTraitSubstitutionModel <: TraitSubstitutionModel
     label::Vector{String}
     function TwoBinaryTraitSubstitutionModel(α::AbstractVector{Float64}, label::AbstractVector{String})
 	    all( x -> x >= 0., α) || error("rates in α must be non-negative")
-        new(α, label)
+        new(α, [string(label[1], "-", label[3]),
+                string(label[1], "-", label[4]),
+                string(label[2], "-", label[3]),
+                string(label[2], "-", label[4])])
     end
 end
 
-TwoBinaryTraitSubstitutionModel(α) = TwoBinaryTraitSubstitutionModel(α, ["0", "1", "0", "1"])
-
-function show(io::IO, object::TwoBinaryTraitSubstitutionModel)
-    R"""
-    signif<-3
-    par(mfrow=c(2,1))
-    plot.new()
-    par(mar=c(1.1,2.1,3.1,2.1))
-    plot.window(xlim=c(0,2),ylim=c(0,1),asp=1)
-    """
-    R"""
-    mtext("Two Binary Trait Substitution Model",side=3,adj=0,line=1.2,cex=1.2)
-    arrows(x0=0.15,y0=0.15,y1=0.85,lwd=2,length=0.1)
-    arrows(x0=0.2,y0=0.85,y1=0.15,lwd=2,length=0.1)
-    arrows(x0=1.6,y0=0.05,x1=0.4,lwd=2,length=0.1)
-    arrows(x0=0.4,y0=0.1,x1=1.6,lwd=2,length=0.1)
-    arrows(x0=1.8,y0=0.15,y1=0.85,lwd=2,length=0.1)
-    arrows(x0=1.85,y0=0.85,y1=0.15,lwd=2,length=0.1)
-    arrows(x0=1.6,y0=0.9,x1=0.4,lwd=2,length=0.1)
-    arrows(x0=0.4,y0=0.95,x1=1.6,lwd=2,length=0.1)
-    text(x=0.175,y=0.95,paste($(object.label[1]), ",", $(object.label[1])))
-    text(x=1.825,y=0.95,paste($(object.label[1]), ",", $(object.label[2])))
-    text(x=1.825,y=0.05,paste($(object.label[2]), ",", $(object.label[2])))
-    text(x=0.175,y=0.05,paste($(object.label[2]), ",", $(object.label[1])))
-    """
-    R"""
-    text(x=1,y=1,round($(object.α[1]),signif),cex=0.8)
-    """
-    R"""
-    text(x=1,y=0.85,round($(object.α[2]),signif),cex=0.8)
-    text(x=1.9,y=0.5,round($(object.α[3]),signif),cex=0.8,srt=90)
-    text(x=1.75,y=0.5,round($(object.α[4]),signif),cex=0.8,srt=90)
-    """
-    R"""
-    text(x=1,y=0,round($(object.α[5]),signif),cex=0.8)
-    text(x=1,y=0.15,round($(object.α[6]),signif),cex=0.8)
-    text(x=0.1,y=0.5,round($(object.α[7]),signif),cex=0.8,srt=90)
-    text(x=0.25,y=0.5,round($(object.α[8]),signif),cex=0.8,srt=90)
-    """
-end
+TwoBinaryTraitSubstitutionModel(α) = TwoBinaryTraitSubstitutionModel(α, ["x0", "x1", "y0", "y1"])
 
 function Q(mod::TwoBinaryTraitSubstitutionModel)
     M = fill(0.0,(4,4))
@@ -98,6 +77,80 @@ function Q(mod::TwoBinaryTraitSubstitutionModel)
     M[3,3] = -M[3,4] - M[3,1]
     M[4,4] = -M[4,3] - M[4,2]
     return M
+end
+
+plot(mod::TraitSubstitutionModel) = error("plot not defined for $(typeof(mod)).")
+
+"""
+    plot(mod::TwoBinaryTraitSubstitutionModel)
+
+Output graph using `RCall` of substitution rates for a substitution model for two 
+possibly dependent binary traits.
+Adapted from fitPagel functions found in the `R` package `phytools`.
+"""
+
+function plot(object::TwoBinaryTraitSubstitutionModel)
+    R"""
+    signif<-3
+    par(mfrow=c(2,1))
+    plot.new()
+    par(mar=c(1.1,2.1,3.1,2.1))
+    plot.window(xlim=c(0,2),ylim=c(0,1),asp=1)
+    """
+    R"""
+    mtext("Two Binary Trait Substitution Model",side=3,adj=0,line=1.2,cex=1.2)
+    arrows(x0=0.15,y0=0.15,y1=0.85,lwd=2,length=0.1)
+    arrows(x0=0.2,y0=0.85,y1=0.15,lwd=2,length=0.1)
+    arrows(x0=1.6,y0=0.05,x1=0.4,lwd=2,length=0.1)
+    arrows(x0=0.4,y0=0.1,x1=1.6,lwd=2,length=0.1)
+    arrows(x0=1.8,y0=0.15,y1=0.85,lwd=2,length=0.1)
+    arrows(x0=1.85,y0=0.85,y1=0.15,lwd=2,length=0.1)
+    arrows(x0=1.6,y0=0.9,x1=0.4,lwd=2,length=0.1)
+    arrows(x0=0.4,y0=0.95,x1=1.6,lwd=2,length=0.1)
+    text(x=0.175,y=0.95,$(object.label[1]))
+    text(x=1.825,y=0.95,$(object.label[2]))
+    text(x=1.825,y=0.05,$(object.label[4]))
+    text(x=0.175,y=0.05,$(object.label[3]))
+    """
+    R"""
+    text(x=1,y=1,round($(object.α[5]),signif),cex=0.8)
+    """
+    R"""
+    text(x=1,y=0.85,round($(object.α[6]),signif),cex=0.8)
+    text(x=1.9,y=0.5,round($(object.α[3]),signif),cex=0.8,srt=90)
+    text(x=1.75,y=0.5,round($(object.α[4]),signif),cex=0.8,srt=90)
+    """
+    R"""
+    text(x=1,y=0,round($(object.α[8]),signif),cex=0.8)
+    text(x=1,y=0.15,round($(object.α[7]),signif),cex=0.8)
+    text(x=0.1,y=0.5,round($(object.α[2]),signif),cex=0.8,srt=90)
+    text(x=0.25,y=0.5,round($(object.α[1]),signif),cex=0.8,srt=90)
+    """
+end
+
+function show(io::IO, object::TwoBinaryTraitSubstitutionModel)
+    M = Q(object)
+    #Matrix format adapted from prettyprint function by mcreel
+    #found at: 
+    #https://discourse.julialang.org/t/display-of-arrays-with-row-and-column-names/1961/6
+    for i = 1:size(M,2)
+        pad = 8
+        if object.label != "" && i==1
+            pad = 2*8
+        end    
+        @printf("%s", lpad(object.label[i],pad," "))
+    end
+    @printf("\n")
+    # print the rows
+    for i = 1:size(M,1)
+        if object.label != ""
+            @printf("%s", lpad(object.label[i],8," "))
+        end
+        for j = 1:size(M,2)
+            @printf("%8.4f",(M[i,j]))
+        end
+        @printf("\n")
+    end
 end
         
 const BTSM = BinaryTraitSubstitutionModel
@@ -146,12 +199,27 @@ mutable struct EqualRatesSubstitutionModel <: TraitSubstitutionModel
     end
 end
 
+EqualRatesSubstitutionModel(k, α) = EqualRatesSubstitutionModel(k, α, ["1","2","3","4"])
+
+"""
+    show(object)
+
+Print transition rate matrix for EqualRatesSubstituionModel.
+
+# Examples
+
+
+"""
+
 function show(io::IO, object::EqualRatesSubstitutionModel)
     str = "Equal Rates Substitution Model:\n"
     str *= "all rates α=$(object.α)\n"
     str *= "number of states, k=$(object.k)\n"  
     print(io, str)
-    M = fill(object.α, object.k, object.k)
+    M = Q(object)
+    #Matrix format adapted from prettyprint function by mcreel
+    #found at: 
+    #https://discourse.julialang.org/t/display-of-arrays-with-row-and-column-names/1961/6
     for i = 1:size(M,2)
         pad = 8
         if object.label != "" && i==1
@@ -166,8 +234,11 @@ function show(io::IO, object::EqualRatesSubstitutionModel)
             @printf("%s", lpad(object.label[i],8," "))
         end
         for j = 1:size(M,2)
-            # TBD: use fmt defined above to print array contents
-            @printf("%8.4f",(M[i,j]))
+            if j == i 
+                print(lpad("*",8," "))
+            else
+                @printf("%8.4f",(M[i,j]))
+            end
         end
         @printf("\n")
     end  
@@ -204,7 +275,7 @@ end
 """
     function P(mod, t)
 
-Generate a P matrix for a `TraitSubstitutionModel`, of the form:
+Generate a probability transition matrix for a `TraitSubstitutionModel`, of the form:
     ```math
     P = \begin{bmatrix}
         P_{0, 0} & P_{0, 1} \\
@@ -219,6 +290,13 @@ for specified time
     end
     return expm(Q(mod) * t)
 end
+
+"""
+    P(mod, t::Array{Float64})
+
+When applied to a general substitution model, matrix exponentiation is used.
+The time argument can be an array.
+"""
 
 function P(mod::SM, t::Array{Float64})
     if any(t .< 0.0)

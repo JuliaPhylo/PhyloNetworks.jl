@@ -114,6 +114,7 @@ module PhyloNetworks
         TraitSubstitutionModel,
         EqualRatesSubstitutionModel,
         BinaryTraitSubstitutionModel,
+        TwoBinaryTraitSubstitutionModel,
         nStates,
         Q, P,
         randomTrait,
