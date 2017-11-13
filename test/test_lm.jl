@@ -1,5 +1,7 @@
 ## tests of PhyloNetworklm
 
+@testset "phyloNetworklm on small network" begin
+
 tree_str= "(A:2.5,((B:1,#H1:0.5::0.1):1,(C:1,(D:0.5)#H1:0.5::0.9):1):0.5);"
 net = readTopology(tree_str)
 preorder!(net)
@@ -89,7 +91,7 @@ fitbis = phyloNetworklm(@formula(trait ~ 1), dfr, net)
 @test bic(phynetlm) ≈ bic(fitbis)
 @test mu_estim(phynetlm) ≈ mu_estim(fitbis)
 
-## Pagel's Lambda
+## fixed values parameters
 fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedValue=1.0)
 @show fitlam
 
@@ -116,14 +118,118 @@ fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedVa
 @test bic(fitlam) ≈ bic(fitbis) + log(nobs(fitbis))
 @test mu_estim(fitlam) ≈ mu_estim(fitbis)
 
+fitSH = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
+@test loglikelihood(fitlam) ≈ loglikelihood(fitSH)
+@test aic(fitlam) ≈ aic(fitSH)
+
 ## Pagel's Lambda
 fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda")
-#@show fitlam
 @test lambda_estim(fitlam) ≈ 1.24875
+
+## Scaling Hybrid
+fitSH = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "scalingHybrid")
+@test lambda_estim(fitSH) ≈ 4.057891910001937 atol=1e-8
+
+end
+
+###############################################################################
+### With shifts
+###############################################################################
+@testset "Shifts and Transgressive Evolution" begin
+
+net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
+preorder!(net)
+
+## Simulate
+params = ParamsBM(10, 0.1, shiftHybrid([3.0, -3.0],  net))
+srand(2468) # sets the seed for reproducibility, to debug potential error
+sim = simulate(net, params)
+Y = sim[:Tips]
+
+## Construct regression matrix
+dfr_shift = regressorShift(net.edge[[8,17]], net)
+dfr_shift[:sum] = vec(sum(Array(dfr_shift[:,find(names(dfr_shift) .!= :tipNames)]), 2))
+dfr_hybrid = regressorHybrid(net)
+
+@test dfr_shift[:shift_8] ≈ dfr_hybrid[:shift_8]
+@test dfr_shift[:shift_17] ≈ dfr_hybrid[:shift_17]
+@test dfr_shift[:sum] ≈ dfr_hybrid[:sum]
+
+## Data
+dfr = DataFrame(trait = Y, tipNames = sim.M.tipNames)
+dfr = join(dfr, dfr_hybrid, on=:tipNames)
+
+## Simple BM
+fitShift = phyloNetworklm(@formula(trait ~ shift_8 + shift_17), dfr, net)
+@show fitShift
+
+## Test against fixed values lambda models
+fitlam = phyloNetworklm(@formula(trait ~ shift_8 + shift_17), dfr, net, model = "lambda", fixedValue = 1.0)
+
+@test lambda_estim(fitlam) ≈ 1.0
+@test coef(fitlam) ≈ coef(fitShift)
+@test vcov(fitlam) ≈ vcov(fitShift)
+@test nobs(fitlam) ≈ nobs(fitShift)
+@test residuals(fitlam) ≈ residuals(fitShift)
+@test model_response(fitlam) ≈ model_response(fitShift)
+@test predict(fitlam) ≈ predict(fitShift)
+@test dof_residual(fitlam) ≈ dof_residual(fitShift)
+@test sigma2_estim(fitlam) ≈ sigma2_estim(fitShift)
+@test stderr(fitlam) ≈ stderr(fitShift)
+@test confint(fitlam) ≈ confint(fitShift)
+@test loglikelihood(fitlam) ≈ loglikelihood(fitShift)
+@test dof(fitlam) ≈ dof(fitShift) + 1
+@test deviance(fitlam)  ≈ deviance(fitShift)
+@test nulldeviance(fitlam)  ≈ nulldeviance(fitShift)
+@test nullloglikelihood(fitlam)  ≈ nullloglikelihood(fitShift)
+@test r2(fitlam) ≈ r2(fitShift) atol=1e-15
+#@test adjr2(fitlam) ≈ adjr2(fitShift) - 0.5 atol=1e-15
+@test aic(fitlam) ≈ aic(fitShift) + 2
+#@test aicc(fitlam)  ≈ aicc(fitShift)
+@test bic(fitlam) ≈ bic(fitShift) + log(nobs(fitShift))
+@test mu_estim(fitlam)  ≈ mu_estim(fitShift)
+
+fitSH = phyloNetworklm(@formula(trait ~ shift_8 + shift_17), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
+@test loglikelihood(fitlam) ≈ loglikelihood(fitSH)
+@test aic(fitlam) ≈ aic(fitSH)
+
+## ftest against own naive implementation
+modnull = phyloNetworklm(@formula(trait ~ 1), dfr, net)
+modhom = phyloNetworklm(@formula(trait ~ sum), dfr, net)
+modhet = phyloNetworklm(@formula(trait ~ sum + shift_8), dfr, net)
+
+table1 = ftest(modhet, modhom, modnull)
+table2 = PhyloNetworks.anova(modnull, modhom, modhet)
+
+@test table1.fstat[1] ≈ table2[:F][2]
+@test table1.fstat[2] ≈ table2[:F][1]
+@test table1.pval[1].v ≈ table2[Symbol("Pr(>F)")][2]
+@test table1.pval[2].v ≈ table2[Symbol("Pr(>F)")][1]
+# ## Replace next 4 lines with previous ones when GLM.ftest available
+# @test table1[:F][2] ≈ table2[:F][2] 
+# @test table1[:F][1] ≈ table2[:F][1]
+# @test table1[Symbol("Pr(>F)")][1] ≈ table2[Symbol("Pr(>F)")][1]
+# @test table1[Symbol("Pr(>F)")][2] ≈ table2[Symbol("Pr(>F)")][2]
+
+# Check that it is the same as doing shift_8 + shift_17
+modhetbis = phyloNetworklm(@formula(trait ~ shift_8 + shift_17), dfr, net)
+
+table2bis = PhyloNetworks.anova(modnull, modhom, modhetbis)
+
+@test table2[:F] ≈ table2bis[:F]
+@test table2[Symbol("Pr(>F)")] ≈ table2bis[Symbol("Pr(>F)")]
+@test table2[:dof_res] ≈ table2bis[:dof_res]
+@test table2[:RSS] ≈ table2bis[:RSS]
+@test table2[:dof] ≈ table2bis[:dof]
+@test table2[:SS] ≈ table2bis[:SS]
+
+end
 
 ###############################################################################
 #### Other Network
 ###############################################################################
+@testset "phyloNetworklm and ancestralStateReconstruction" begin
+
 # originally: "(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);"
 # followed by changes in net.edge[?].length values to make the network ultrametric
 net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
@@ -292,7 +398,7 @@ fitnabis = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 @test aicc(fitna) ≈ aicc(fitnabis)
 @test bic(fitna) ≈ bic(fitnabis)
 
-## Pagel's Lambda
+## Tests against fixed values parameters
 fitlam = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda", fixedValue = 1.0)
 #@show fitlam
 
@@ -319,11 +425,19 @@ fitlam = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda", fixe
 @test bic(fitlam) ≈ bic(fitnabis) + log(nobs(fitnabis))
 @test mu_estim(fitlam) ≈ mu_estim(fitnabis)
 
+fitSH = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
+@test loglikelihood(fitlam) ≈ loglikelihood(fitSH)
+@test aic(fitlam) ≈ aic(fitSH)
+
 ## Pagel's Lambda
 fitlam = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda")
 @show fitlam
 @test lambda_estim(fitlam) ≈ 1.1135518305 atol=1e-10
 
+## scaling Hybrid
+fitSH = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid")
+@show fitSH
+@test lambda_estim(fitSH) ≈ -52.81305448333567 atol=1e-8
 
 ### Ancestral State Reconstruction
 params = ParamsBM(3, 1)
@@ -346,6 +460,9 @@ blup_bis = ancestralStateReconstruction(dfr, net)
 @test blup.traits_tips ≈ blup_bis.traits_tips
 @test blup.TipNumbers ≈ blup_bis.TipNumbers
 @test predint(blup) ≈ predint(blup_bis)
+@test predintPlot(blup)[:PredInt] == predintPlot(blup_bis)[:PredInt]
+@test predintPlot(blup, withExp=true)[:PredInt] == predintPlot(blup_bis, withExp=true)[:PredInt]
+@test expectationsPlot(blup)[:PredInt] == expectationsPlot(blup_bis)[:PredInt]
 
 dfr = DataFrame(trait = Y, tipNames = tipLabels(sim), reg = Y)
 @test_throws ErrorException fitter = ancestralStateReconstruction(dfr, net) # cannot handle a predictor
@@ -371,12 +488,24 @@ dfr2 = dfr[[1, 2, 5, 3, 4, 6, 7, 8, 9, 10, 11, 12], :]
 phynetlm = phyloNetworklm(@formula(trait~1), dfr, net)
 blup2 = ancestralStateReconstruction(phynetlm)
 
-@test expectations(blup)[:condExpectation][1:length(blup.NodeNumbers)] ≈ expectations(blup2)[:condExpectation][1:length(blup.NodeNumbers)]
-@test predint(blup)[1:length(blup.NodeNumbers), :] ≈ predint(blup2)[1:length(blup.NodeNumbers), :]
+@test expectations(blup)[:condExpectation] ≈ expectations(blup2)[:condExpectation]
+@test predint(blup) ≈ predint(blup2)
+@test predintPlot(blup)[:PredInt] == predintPlot(blup2)[:PredInt]
+@test predintPlot(blup, withExp=true)[:PredInt] == predintPlot(blup2, withExp=true)[:PredInt]
+
+# Test mark on missing
+ee = expectationsPlot(blup)
+predMiss = ee[indexin([n.number for n in net.leaf][[2,4]], ee[:nodeNumber]),:PredInt]
+for pp = predMiss
+    @test pp[end] == '*'
+end
+
+end
 
 #################
 ## Data with no phylogenetic signal
 #################
+@testset "lambda when no signal" begin
 
 net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
 # plot(net, useEdgeLength = true,  showEdgeNumber=true)
@@ -400,9 +529,28 @@ phynetlm = phyloNetworklm(@formula(trait ~ pred), dfr, tree, model = "lambda")
 
 @test lambda_estim(phynetlm) ≈ 0.5903394415 atol=1e-6
 
+## scaling Hybrid
+lmtree = phyloNetworklm(@formula(trait ~ pred), dfr, tree, model = "BM")
+lmnet = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "BM")
+lmSHzero = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid", fixedValue = 0.0)
+lmSHone = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
+
+@test loglikelihood(lmtree) ≈ loglikelihood(lmSHzero)
+@test loglikelihood(lmnet) ≈ loglikelihood(lmSHone)
+
+lmSH = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid")
+
+@test lambda_estim(lmSH) ≈ 23.46668204551696 atol=1e-8
+
+end
+
 ############################
 ## Against no regressor
 ###########################
+@testset "phloNetworklm with no regressor" begin
+
+net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
+
 params = ParamsBM(10, 1)
 srand(2468) # sets the seed for reproducibility, to debug potential error
 sim = simulate(net, params)
@@ -467,3 +615,5 @@ fitbis = phyloNetworklm(@formula(trait ~ -1), dfr, net)
 @test aicc(phynetlm) ≈ aicc(fitbis)
 @test bic(phynetlm) ≈ bic(fitbis)
 #@test mu_estim(phynetlm)  mu_estim(fitbis)
+
+end

@@ -45,7 +45,7 @@ This extractor creates an `Array` with one column, and as many lines as the
 number of tips there are in the phylogeny.  It is sorted in the same order as
 the tips of the phylogeny used to simulate it.  
 If needed, we could also extract the simulated values at the internal nodes
-in the tre:
+in the network:
 ```{julia; eval=false}
 sim1[:InternalNodes]
 ```
@@ -117,7 +117,7 @@ Function [`ancestralStateReconstruction`](@ref) creates an object with type
 ```{julia; eval=true; results="markup"; term=true}
 expectations(ancTrait1) # predictions
 stderr(ancTrait1) # associated standard errors
-predint(ancTrait1) # prediction interval (default to 95%)
+predint(ancTrait1, level=0.9) # prediction interval (with level 90%)
 ```
 We can plot the ancestral states or prediction intervals on the tree, using the
 `nodeLabel` argument of the `plot` function.
@@ -129,6 +129,17 @@ plot(truenet, nodeLabel = ancExpe)
 ancInt = predintPlot(ancTrait1) # format the prediction intervals for the plot
 plot(truenet, nodeLabel = ancInt)
 ```
+The `predint` and `predintPlot` functions have an optional argument to state
+the `level` of the prediction interval. If not given, the default value is
+0.95.
+
+It is also possible to plot both the reconstructed state and the predicted value
+on the same plot, using the optional keywork argument `withExp`.
+As shown below, we could also use the `:RCall` method from the [`plot`](@ref) function.
+```{julia; eval=false}
+plot(truenet, :RCall, nodeLabel = predintPlot(ancTrait1, withExp=true))
+```
+These plots tend to be quite busy, even for small networks.
 
 As we know the true ancestral states here, we can compare them to our
 estimation.
@@ -166,9 +177,10 @@ DataFrame with the trait to reconstruct, and the tip labels:
 ```{julia; eval=true; label="ancestral2"; fig_width=6; fig_height=4}
 datTrait1 = DataFrame(trait1 = trait1, tipNames = tipLabels(sim1))
 ancTrait1Approx = ancestralStateReconstruction(datTrait1, truenet)
-plot(truenet, nodeLabel = predintPlot(ancTrait1Approx))
+plot(truenet, nodeLabel = predintPlot(ancTrait1Approx, level=0.9))
 ```
-This produces the exact same results.
+This produces the exact same results. Here, we chose a `level` of 90% for the
+plotted prediction intervals.
 
 ### Data imputation
 
@@ -290,3 +302,87 @@ lambda_estim(fitPagel)
 
 [^fn3]: Pagel M (1999). Inferring the historical patterns of biological
         evolution. Nature. 401: 877–884. doi:10.1038/44766
+
+
+## Shifts and Heterosis
+
+In the ANOVA section above, we showed how to include heterosis in a simple case.
+In general, heterosis can be seen as a particuliar exemple of a *shifted BM* on 
+the phylogenetic network.
+
+### Simulation of a Shifted BM
+
+In a shifted BM, the trait evolves as a BM on the network most of
+the time, but *shifts* on some of the branches.
+The positions and values of the shifts can be stored in a [`ShiftNet`](@ref)
+object. For identifiability reasons, shifts are only allowed on tree-like
+branches. The position of the shifts can be given using vector of edges.
+To see this, let's first plot the network with its associated edges and node
+numbers.
+```{julia; eval=true; label="truenet_with_numbers"; fig_width=4; fig_height=4}
+plot(truenet, useEdgeLength=true, showEdgeNumber=true)
+```
+Let's say that we want to add a shift with value 5.0 on the branch directly
+following the hybridization event, in order to model heterosis. We can see on the
+plot above that this branch is number 6, so we define the following object:
+```{julia; eval=true}
+shift = ShiftNet(truenet.edge[6], 5.0,  truenet)
+```
+Note that the edge numbers and values of a `ShiftNet` object can be retrieved
+thanks to functions [`getShiftEdgeNumber`](@ref) and [`getShiftValue`](@ref).
+The constructor can take a single edge and associated value, like here,
+or two vectors of edges and matching values.
+
+Because we often need to put shifts only on edges right after hybrids,
+there is a special function [`shiftHybrid`](@ref) to do that, so that 
+we do not have to find out their edges number. Here, the `shift` object
+could hence have been defined as:
+```{julia; eval=true; results="markup"}
+shift = shiftHybrid(5.0,  truenet)
+shift
+```
+
+The parameters for the simulation are then defined as above, just adding
+the `ShiftNet` object as a parameter.
+
+```{julia; eval=true}
+params_sh = ParamsBM(2, 0.5, shift) # BM with mean 2, variance 0.5, and shifts.
+```
+The traits are simulated using the same function [`simulate`](@ref), and
+extracted at the tips as before.
+```{julia; eval=true; results="markup"}
+srand(18700904)
+sim_sh = simulate(truenet, params_sh) # simulate a shifted BM on truenet
+trait_sh = sim_sh[:Tips]              # trait at the tips (data)
+```
+
+### Fit of a Shifted BM
+
+Let's assume that we measured `trait_sh`, and that we want to test whether
+there were some ancestral hybridizations. To do that, we can use the 
+custom columns of the [`descendenceMatrix`](@ref), that can be directly
+defined thanks to function [`regressorHybrid`](@ref).
+```{julia; eval=true}
+df_shift = regressorHybrid(truenet) # Regressors matching Hybrid Shifts
+```
+This creates a dataframe, with as many columns as the number of hybrids
+in the network, each named according to the number of the edge after the
+hybrid.
+We can use this dataframe as regressors in the `phyloNetworklm` function.
+
+```{julia; eval=true; results="markup"}
+dat = DataFrame(trait = trait_sh, tipNames = tipLabels(sim_sh))  # Data
+dat = join(dat, df_shift, on=:tipNames)                          # join the two
+fit_sh = phyloNetworklm(@formula(trait ~ shift_6), dat, truenet) # fit
+fit_sh
+```
+Here, because there is only one hybrid in the network, we can directly
+see whether the ancestral heterosis is significant or not thanks to the 
+Student test on the coefficient associated with `shift_6`. In more
+complex cases, it is possible to do a Fisher test, thanks to the `GLM`
+function `ftest`.
+```{julia; eval=true}
+fit_null = phyloNetworklm(@formula(trait ~ 1), dat, truenet) # fit against the null (no shift)
+ftest(fit_sh, fit_null)                                      # nested models, from more complex to most simple
+```
+Here, this test is equivalent to the Fisher test, and gives the same p-value.
