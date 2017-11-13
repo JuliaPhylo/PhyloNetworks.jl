@@ -99,194 +99,164 @@ function isValidSymbol(c::Char)
     return !isspace(c) && c != '(' && c != ')' && c != '[' && c != ']' && c != ':' && c != ';' && c != ',' #&& c != '.'
 end
 
-# aux function to read subtree
-# input: s IOStream/IOBuffer
-# warning: reads additional info :length:bootstrap:gamma
-# warning: allows for name of internal nodes without # after: (1,2)A,...
-# warning: warning if hybrid edge without gamma value, warning if gamma value (ignored) without hybrid edge
-# modified from original Cecile c++ code to allow polytomies
-function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNetwork, hybrids::Array{String,1}, index::Array{Int,1})
-    c = peekchar(s)
-    e = nothing;
-    hasname = false; # to know if the current node has name
-    pound = false;
-    if(c =='(')
-       numLeft[1] += 1
-       DEBUGC && println(numLeft)
-       n = Node(-1*numLeft[1],false);
-       DEBUG && println("creating node $(n.number)")
-       cind = 1;
-       keepon = true;
-       c = read(s,Char)
-       while (keepon)
-           bl = readSubtree!(s,n,numLeft,net,hybrids,index)
-           c = advance!(s,c,numLeft)
-           if (c == ')')
-               keepon = false
-           elseif (c != ',')
-               a = readstring(s);
-               error("Expected right parenthesis after left parenthesis $(numLeft[1]-1) but read $(c). The remainder of line is $(a).")
-           end
-       end
-        c = peekchar(s);
-        if(isalnum(c) || isValidSymbol(c) || c == '#') # internal node has name
-            hasname = true;
-            num,name,pound = readNum(s,c,net,numLeft);
-            n.number = num;
-            c = peekchar(s);
-            #if(!pound)
-            #    warn("internal node with name without it being a hybrid node. node name might be meaningless after tree modifications.")
-            #end
+"""parseRemainingSubtree! - Helper function for readSubtree!\n
+Called once a `(` has been read in a tree topology and reads until the corresponding `)` has been found.\n
+This function performs the recursive step for readSubtree!\n
+Advances `s` past the subtree, adds discovered nodes and edges to `net`, `hybrids`, and `index`
+"""
+@inline function parseRemainingSubtree!(s::IO, numLeft::Array{Int,1}, net::HybridNetwork, hybrids::Array{String, 1}, index::Array{Int, 1})
+    numLeft[1] += 1
+    DEBUGC && println(numLeft)
+    n = Node(-1*numLeft[1],false);
+    DEBUG && println("creating node $(n.number)")
+    keepon = true;
+    c = read(s,Char)
+    while (keepon)
+        bl = readSubtree!(s,n,numLeft,net,hybrids,index)
+        c = advance!(s,c,numLeft)
+        if (c == ')')
+            keepon = false
+        elseif (c != ',')
+            a = readstring(s);
+            error("Expected right parenthesis after left parenthesis $(numLeft[1]-1) but read $(c). The remainder of line is $(a).")
         end
-    elseif(isalnum(c) || isValidSymbol(c) || c == '#')
-        hasname = true;
-        bl = true;
-        num,name,pound = readNum(s,c,net,numLeft)
-        n = Node(num,true);
-        DEBUG && println("creating node $(n.number)")
-    else
-        a = readstring(s);
-        error("Expected beginning of subtree but read $(c) after left parenthesis $(numLeft[1]-1), remaining is $(a).");
     end
-    if(pound) # found pound sign in name
-        DEBUG && println("found pound in $(name)")
-        n.hybrid = true;
-        DEBUGC && println("encontro un hybrid $(name).")
-        DEBUGC && println("hybrids list tiene size $(size(hybrids,1))")
-        if(in(name,hybrids))
-            DEBUG && println("dice que $(name) esta en hybrids")
-            ind = getIndex(name,hybrids);
-            other = net.node[index[ind]];
-            DEBUG && println("other is $(other.number)")
-            DEBUGC && println("other is leaf? $(other.leaf), n is leaf? $(n.leaf)")
-            if(!n.leaf && !other.leaf)
-                error("both hybrid nodes are internal nodes: successors of the hybrid node must only be included in the node list of a single occurrence of the hybrid node.")
-            elseif(n.leaf)
-                DEBUG && println("n is leaf")
-                e = Edge(net.numEdges+1);
-                DEBUG && println("creating hybrid edge $(e.number) attached to other $(other.number) and parent $(parent.number)")
-                e.hybrid = true
-                e.isMajor = false;
-                pushEdge!(net,e);
-                setNode!(e,[other,parent]);
-                setEdge!(other,e);
-                setEdge!(parent,e);
-                DEBUG && println("e $(e.number )istIdentifiable? $(e.istIdentifiable)")
-            else # !n.leaf
-                DEBUG && println("n is not leaf, other is leaf")
-                if(size(other.edge,1) == 1) #other should be a leaf
-                    DEBUGC && println("other is $(other.number), n is $(n.number), edge of other is $(other.edge[1].number)")
-                    otheredge = other.edge[1];
-                    otherparent = getOtherNode(otheredge,other);
-                    DEBUG && println("otheredge is $(otheredge.number)")
-                    DEBUG && println("parent of other is $(otherparent.number)")
-                    removeNode!(other,otheredge);
-                    deleteNode!(net,other);
-                    setNode!(otheredge,n);
-                    setEdge!(n,otheredge);
-##                    otheredge.istIdentifiable = true ## setNode should catch this, but when fixed, causes a lot of problems
-                    DEBUG && println("setting otheredge to n $(n.number)")
-                    e = Edge(net.numEdges+1);
-                    DEBUG && println("creating hybrid edge $(e.number) between n $(n.number) and parent $(parent.number)")
-                    e.hybrid = true
-                    setNode!(e,[n,parent]);
-                    setEdge!(n,e);
-                    setEdge!(parent,e);
-                    pushNode!(net,n);
-                    pushEdge!(net,e);
-                    n.number = other.number;
-                    n.name = other.name;
-                    DEBUG && println("edge $(e.number) istIdentifiable? $(e.istIdentifiable)")
-                    DEBUG && println("otheredge $(otheredge.number) istIdentifiable? $(otheredge.istIdentifiable)")
-                else
-                    error("strange: node $(other.number) is a leaf hybrid node so it should have only one edge and it has $(size(other.edge,1))")
-                end
-            end
-        else
-            DEBUG && println("dice que $(name) no esta en hybrids")
-            DEBUG && println("$(name) es leaf? $(n.leaf)")
-            n.hybrid = true;
-            push!(net.names,string(name));
-            n.name = string(name);
-            DEBUGC && println("aqui vamos a meter a $(name) en hybrids")
-            push!(hybrids,string(name));
-            pushNode!(net,n);
-            push!(index,size(net.node,1));
+    return n
+end
+
+"""parseHybridNode! - Helper function for readSubtree!\n
+Handles any type of given hybrid node.\n
+Called once a `#` has been found in a tree topology.\n
+Creates a hybrid node and edges, then inserts those into `net`, `hybrids` and `index` accordingly.
+"""
+@inline function parseHybridNode!(n::Node, parent::Node, name::String, net::HybridNetwork, hybrids::Array{String, 1}, index::Array{Int, 1})
+    DEBUG && println("found pound in $(name)")
+    n.hybrid = true;
+    DEBUGC && println("encontro un hybrid $(name).")
+    DEBUGC && println("hybrids list tiene size $(size(hybrids,1))")
+    if(in(name, hybrids))
+        DEBUG && println("dice que $(name) esta en hybrids")
+        ind = getIndex(name,hybrids);
+        other = net.node[index[ind]];
+        DEBUG && println("other is $(other.number)")
+        DEBUGC && println("other is leaf? $(other.leaf), n is leaf? $(n.leaf)")
+        if(!n.leaf && !other.leaf)
+            error("both hybrid nodes are internal nodes: successors of the hybrid node must only be included in the node list of a single occurrence of the hybrid node.")
+        elseif(n.leaf)
+            DEBUG && println("n is leaf")
             e = Edge(net.numEdges+1);
-            DEBUG && println("creating hybrid edge $(e.number)")
+            DEBUG && println("creating hybrid edge $(e.number) attached to other $(other.number) and parent $(parent.number)")
             e.hybrid = true
-            n.leaf ? e.isMajor = false : e.isMajor = true
+            e.isMajor = false;
             pushEdge!(net,e);
-            setNode!(e,[n,parent]);
-            setEdge!(n,e);
+            setNode!(e,[other,parent]);
+            setEdge!(other,e);
             setEdge!(parent,e);
-            DEBUG && println("thus edge $(e.number) istIdentifiable? $(e.istIdentifiable)")
+            DEBUG && println("e $(e.number )istIdentifiable? $(e.istIdentifiable)")
+        else # !n.leaf
+            DEBUG && println("n is not leaf, other is leaf")
+            if(size(other.edge,1) == 1) #other should be a leaf
+                DEBUGC && println("other is $(other.number), n is $(n.number), edge of other is $(other.edge[1].number)")
+                otheredge = other.edge[1];
+                otherparent = getOtherNode(otheredge,other);
+                DEBUG && println("otheredge is $(otheredge.number)")
+                DEBUG && println("parent of other is $(otherparent.number)")
+                removeNode!(other,otheredge);
+                deleteNode!(net,other);
+                setNode!(otheredge,n);
+                setEdge!(n,otheredge);
+##                    otheredge.istIdentifiable = true ## setNode should catch this, but when fixed, causes a lot of problems
+                DEBUG && println("setting otheredge to n $(n.number)")
+                e = Edge(net.numEdges+1);
+                DEBUG && println("creating hybrid edge $(e.number) between n $(n.number) and parent $(parent.number)")
+                e.hybrid = true
+                setNode!(e,[n,parent]);
+                setEdge!(n,e);
+                setEdge!(parent,e);
+                pushNode!(net,n);
+                pushEdge!(net,e);
+                n.number = other.number;
+                n.name = other.name;
+                DEBUG && println("edge $(e.number) istIdentifiable? $(e.istIdentifiable)")
+                DEBUG && println("otheredge $(otheredge.number) istIdentifiable? $(otheredge.istIdentifiable)")
+            else
+                error("strange: node $(other.number) is a leaf hybrid node so it should have only one edge and it has $(size(other.edge,1))")
+            end
         end
-        e.containRoot = !e.hybrid
     else
-        if(hasname)
-            push!(net.names,string(name));
-            n.name = string(name)
-        end
+        DEBUG && println("dice que $(name) no esta en hybrids")
+        DEBUG && println("$(name) es leaf? $(n.leaf)")
+        n.hybrid = true;
+        push!(net.names,string(name));
+        n.name = string(name);
+        DEBUGC && println("aqui vamos a meter a $(name) en hybrids")
+        push!(hybrids,string(name));
         pushNode!(net,n);
+        push!(index,size(net.node,1));
         e = Edge(net.numEdges+1);
+        DEBUG && println("creating hybrid edge $(e.number)")
+        e.hybrid = true
+        n.leaf ? e.isMajor = false : e.isMajor = true
         pushEdge!(net,e);
         setNode!(e,[n,parent]);
         setEdge!(n,e);
         setEdge!(parent,e);
+        DEBUG && println("thus edge $(e.number) istIdentifiable? $(e.istIdentifiable)")
     end
+    e.containRoot = !e.hybrid
+    return e
+end
+
+"""parseNonhybridNode! - Helper function for readSubtree!\n
+Inserts a nonhybrid node and associated edge in `net`.
+"""
+@inline function parseNonhybridNode!(n::Node, parent::Node, net::HybridNetwork)
+    pushNode!(net,n);
+    e = Edge(net.numEdges+1);
+    pushEdge!(net,e);
+    setNode!(e,[n,parent]);
+    setEdge!(n,e);
+    setEdge!(parent,e);
+    return e
+end
+
+function getMetadataValue!(s::IO)
+    c = peekchar(s)
+    if (c != ':')
+        return -1
+    end
+    c = peekchar(s)
+    if (isdigit(c) || in(c, [',', 'e', '-']))
+        return readFloat(s,c)
+    end
+end
+
+function parseEdgeMetadata2!(s::IO, e::Edge)
+    edgeLen = getMetadataValue!(s)
+    bootstrap = getMetadataValue!(s)
+    gamma = getMetadataValue!(s)
+    
+    if (edgeLen != -1)
+        e.length = edgeLen
+    end
+
+end
+
+"""parseEdgeMetadata! - Helper function for readSubtree!\n
+Modifies `e` according to the specified edge length, bootstrap, and gamma values in the tree topology.\n
+Advances `s` past any existing metadata.\n
+Edges in a topology may optionally be followed by ":edgeLen:bootstrap:gamma"
+    where edgeLen, bootstrap, and gamma are decimal values
+"""
+@inline function parseEdgeMetadata!(s::IO, e::Edge)
+    c = read(s,Char);
     c = peekchar(s);
-    if(c == ':')
-        c = read(s,Char);
+    if(isdigit(c) || in(c, ['.','e','-']))
+        length = readFloat(s,c);
+        #setLength!(e,length); # e.length = length # do not use setLength because it does not allow BL too negative
+        e.length = length
         c = peekchar(s);
-        if(isdigit(c) || in(c, ['.','e','-']))
-            length = readFloat(s,c);
-            #setLength!(e,length); # e.length = length # do not use setLength because it does not allow BL too negative
-            e.length = length
-            c = peekchar(s);
-            if(c == ':')
-                c = read(s,Char);
-                c = peekchar(s);
-                if(isdigit(c) || in(c, ['.','e','-']))
-                    length = readFloat(s,c); #bootstrap value
-                    c = peekchar(s);
-                    if(c == ':')
-                        c = read(s, Char);
-                        c = peekchar(s);
-                        if(isdigit(c) || in(c, ['.','e','-']))
-                            length = readFloat(s,c); #gamma
-                            if(!e.hybrid)
-                                warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
-                            else
-                                setGamma!(e,length, false, true);
-                            end
-                        else
-                            warn("third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored")
-                        end
-                    else
-                        e.hybrid ? error("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1]-1)") : nothing
-                    end
-                elseif(c == ':')
-                    c = read(s, Char);
-                    c = peekchar(s);
-                    if(isdigit(c) || in(c, ['.','e','-']))
-                        length = readFloat(s,c); #gamma
-                        if(!e.hybrid)
-                            warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
-                        else
-                            setGamma!(e,length, false, true);
-                        end
-                    else
-                        warn("third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored.")
-                    end
-                else
-                    warn("second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.")
-                end
-            else
-                e.gamma = e.hybrid ? -1.0 : 1.0 # set missing gamma to -1.0
-            end
-        elseif(c == ':')
-            e.length = -1.0 # do not use setLength because it does not allow BL too negative
+        if(c == ':')
             c = read(s,Char);
             c = peekchar(s);
             if(isdigit(c) || in(c, ['.','e','-']))
@@ -306,7 +276,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
                         warn("third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored")
                     end
                 else
-                    e.hybrid ? warn("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1]-1)") : nothing
+                    e.hybrid ? error("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1]-1)") : nothing
                 end
             elseif(c == ':')
                 c = read(s, Char);
@@ -319,14 +289,105 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
                         setGamma!(e,length, false, true);
                     end
                 else
-                    warn("third colon : without gamma value after in left parenthesis number $(numLeft[1]-1), ignored")
+                    warn("third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored.")
                 end
             else
                 warn("second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.")
             end
         else
-            warn("one colon read without double in left parenthesis $(numLeft[1]-1), ignored.")
+            e.gamma = e.hybrid ? -1.0 : 1.0 # set missing gamma to -1.0
         end
+    elseif(c == ':')
+        e.length = -1.0 # do not use setLength because it does not allow BL too negative
+        c = read(s,Char);
+        c = peekchar(s);
+        if(isdigit(c) || in(c, ['.','e','-']))
+            length = readFloat(s,c); #bootstrap value
+            c = peekchar(s);
+            if(c == ':')
+                c = read(s, Char);
+                c = peekchar(s);
+                if(isdigit(c) || in(c, ['.','e','-']))
+                    length = readFloat(s,c); #gamma
+                    if(!e.hybrid)
+                        warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
+                    else
+                        setGamma!(e,length, false, true);
+                    end
+                else
+                    warn("third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored")
+                end
+            else
+                e.hybrid ? warn("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1]-1)") : nothing
+            end
+        elseif(c == ':')
+            c = read(s, Char);
+            c = peekchar(s);
+            if(isdigit(c) || in(c, ['.','e','-']))
+                length = readFloat(s,c); #gamma
+                if(!e.hybrid)
+                    warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
+                else
+                    setGamma!(e,length, false, true);
+                end
+            else
+                warn("third colon : without gamma value after in left parenthesis number $(numLeft[1]-1), ignored")
+            end
+        else
+            warn("second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.")
+        end
+    else
+        warn("one colon read without double in left parenthesis $(numLeft[1]-1), ignored.")
+    end
+end
+
+"""readSubtree! - A recursive helper method for readTopology \n
+Reads a subtree of a 
+input: s IOStream/IOBuffer
+warning: reads additional info :length:bootstrap:gamma
+warning: allows for name of internal nodes without # after: (1,2)A,...
+warning: warning if hybrid edge without gamma value, warning if gamma value (ignored) without hybrid edge
+modified from original Cecile c++ code to allow polytomies"""
+function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNetwork, hybrids::Array{String,1}, index::Array{Int,1})
+    c = peekchar(s)
+    e = nothing;
+    hasname = false; # to know if the current node has name
+    pound = false;
+    if(c == '(')
+        # read the rest of the subtree (perform the recursive step!)
+        n = parseRemainingSubtree!(s, numLeft, net, hybrids, index)
+        c = peekchar(s);
+        if(isalnum(c) || isValidSymbol(c) || c == '#') # internal node has name
+            hasname = true;
+            num, name, pound = readNum(s, c, net, numLeft);
+            n.number = num;
+            c = peekchar(s);
+            #if(!pound)
+            #    warn("internal node with name without it being a hybrid node. node name might be meaningless after tree modifications.")
+            #end
+        end
+    elseif(isalnum(c) || isValidSymbol(c) || c == '#')
+        hasname = true;
+        bl = true;
+        num, name, pound = readNum(s, c, net, numLeft)
+        n = Node(num, true);
+        DEBUG && println("creating node $(n.number)")
+    else
+        a = readstring(s);
+        error("Expected beginning of subtree but read $(c) after left parenthesis $(numLeft[1]-1), remaining is $(a).");
+    end
+    if(pound) # found pound sign in name
+        e = parseHybridNode!(n, parent, name, net, hybrids, index)
+    else
+        if(hasname)
+            push!(net.names,string(name));
+            n.name = string(name)
+        end
+        e = parseNonhybridNode!(n, parent, net)
+    end
+    c = peekchar(s);
+    if(c == ':')
+        parseEdgeMetadata!(s, e)
     else
         e.length = -1.0 # do not use setLength because it does not allow BL too negative
         e.gamma = e.hybrid ? -1.0 : 1.0 # set missing gamma as -1.0 for hybrid edge
