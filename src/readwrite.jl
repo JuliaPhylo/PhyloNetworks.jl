@@ -249,26 +249,67 @@ Inserts a nonhybrid node and associated edge in `net`.
     return e
 end
 
+"""getMetadataValue! - Helper function for parseEdgeMetadata2!\n
+Reads a single floating point metadatum in a tree topology.\n
+Returns -1 if no value exists before the next colon, returns a float if a value is present.\n
+Modifies s by advancing past the next colon character.
+"""
 function getMetadataValue!(s::IO)
+    """Only call this function to read a value when you know a numerical value exists"""
     c = peekchar(s)
-    if (c != ':')
+    # No value
+    if c == ':'
+        read(s, Char) # Advance `s` past one colon
         return -1
     end
-    c = peekchar(s)
-    if (isdigit(c) || in(c, [',', 'e', '-']))
-        return readFloat(s,c)
+    # Value is present
+    if isdigit(c) || in(c, [',', 'e', '-'])
+        val = readFloat(s, c)
+        return val
     end
+
 end
 
-function parseEdgeMetadata2!(s::IO, e::Edge)
+"""parseEdgeMetadata2! - Helper function for readSubtree!\n
+**This function is a work-in-progress meant to simplify parseEdgeMetadata!**\n
+Modifies `e` according to the specified edge length, bootstrap, and gamma values in the tree topology.\n
+Advances `s` past any existing metadata.\n
+Edges in a topology may optionally be followed by ":edgeLen:bootstrap:gamma"
+    where edgeLen, bootstrap, and gamma are decimal values
+"""
+function parseEdgeMetadata2!(s::IO, e::PhyloNetworks.Edge, numLeft::Array{Int,1})
+    peekchar(s) != ":" || error("No first colon in `s` when calling parseEdgeMetadata2!")
+    read(s, Char) # Advance `s` past the first colon
     edgeLen = getMetadataValue!(s)
+    peekchar(s) != ":" || error("No second colon in `s` when calling parseEdgeMetadata2!")
+    read(s, Char) # Advance `s` past the second colon
     bootstrap = getMetadataValue!(s)
+    peekchar(s) != ":" || error("No third colon in `s` when calling parseEdgeMetadata2!")
+    read(s, Char) # Advance `s` past the third colon
     gamma = getMetadataValue!(s)
     
-    if (edgeLen != -1)
-        e.length = edgeLen
+    e.length = float(edgeLen)
+    if edgeLen == -1
+        warn("one colon read without double in left parenthesis $(numLeft[1]-1), ignored.")
     end
-
+    if bootstrap == -1
+        # It looks like bootstrap is just ignored in readTopology...
+        warn("second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.")
+    end
+    if gamma != -1
+        if (!e.hybrid)
+            warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
+        else # gamma read for a hybrid edge
+            setGamma!(e, gamma, false, true)
+        end
+    else # Gamma does not exist
+        if e.hybrid
+            error("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1]-1)")
+        else
+            warn("third colon : without gamma value after in left parenthesis number $(numLeft[1]-1), ignored")
+        end
+        e.gamma = e.hybrid ? -1.0 : 1.0 # set missing gamma to -1.0
+    end
 end
 
 """parseEdgeMetadata! - Helper function for readSubtree!\n
