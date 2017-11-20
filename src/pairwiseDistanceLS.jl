@@ -75,19 +75,31 @@ function pairwiseTaxonDistanceMatrix(net::HybridNetwork;
     return M
 end
 """
-    getTipSubmatrix(M, net)
+    getTipSubmatrix(M, net; indexation=:both)
 
-Extract submatrix of M, with rows corresponding to tips in the network,
-ordered like in `net.leaf`.
-In M, rows are assumed ordered as in `net.nodes_changed`.
+Extract submatrix of M, with rows and/or columns corresponding to
+tips in the network, ordered like in `net.leaf`.
+In M, rows and/or columns are assumed ordered as in `net.nodes_changed`.
+
+indexation: one of `:rows`, `:cols` or `:both`: are nodes numbers indexed
+in the matrix by rows, by columns, or both? Subsetting is taken accordingly.
+
 """
-function getTipSubmatrix(M::Matrix, net::HybridNetwork)
+function getTipSubmatrix(M::Matrix, net::HybridNetwork; indexation=:both)
     nodenames = [n.name for n in net.nodes_changed]
     tipind = Int[]
     for l in net.leaf
         push!(tipind, findfirst(nodenames, l.name))
     end
-    return M[tipind, tipind]
+    if indexation == :both
+        return M[tipind, tipind]
+    elseif indexation == :rows
+        return M[tipind, :]
+    elseif indexation == :cols
+        return M[:, tipind]
+    else
+        error("indexation must be one of :both :rows or :cols")
+    end
 end
 
 function pairwiseTaxonDistanceMatrix!(M::Matrix{Float64},net::HybridNetwork,nodeAges)

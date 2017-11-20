@@ -1,26 +1,21 @@
-using PhyloNetworks
-using Base.Test
-using RCall
-using StaticArrays
-
 runall = false;
 
-@testset "Testing Substitution Model output, P and Q matricies" begin
+@testset "Testing Substitution Models, P and Q matrices" begin
 
-m1 = BinaryTraitSubstitutionModel(1.0,2.0, SVector("carnivory", "non-carnivory"))
-nStates(m1)
-@show m1
-m1 = PhyloNetworks.BinaryTraitSubstitutionModel(1.0, 2.0)
-@show m1
+m1 = BinaryTraitSubstitutionModel(1.0, 2.0);
+show(m1)
+m1 = BinaryTraitSubstitutionModel(1.0,2.0, SVector("carnivory", "non-carnivory"));
+@test nStates(m1)==2
+show(m1)
 @test_throws ErrorException PhyloNetworks.BinaryTraitSubstitutionModel(-1.0,2.0)
-m2 = EqualRatesSubstitutionModel(4, 3.0)
-m2 = EqualRatesSubstitutionModel(4, 3.0, ["S1","S2","S3","S4"])
-@show m2
-m3 = PhyloNetworks.TwoBinaryTraitSubstitutionModel([2.0,1.2,1.1,2.2,1.0,3.1,2.0,1.1], ["0", "1", "0", "1"])
-@show m3
+m2 = EqualRatesSubstitutionModel(4, 3.0);
+@test nStates(m2)==4
+m2 = EqualRatesSubstitutionModel(4, 3.0, ["S1","S2","S3","S4"]);
+show(m2)
+m3 = TwoBinaryTraitSubstitutionModel([2.0,1.2,1.1,2.2,1.0,3.1,2.0,1.1],
+["carnivory", "noncarnivory", "wet", "dry"]);
+show(m3)
 plot(m3)
-@test PhyloNetworks.nStates(m1) == 2
-@test PhyloNetworks.nStates(m2) == 4
 
 @test Q(m1) == SMatrix{2,2}(-1.0, 2.0, 1.0, -2.0)
 @test Q(m2) == SMatrix{4,4}(-9.0, 3, 3, 3, 3, -9, 3, 3, 3, 3, -9, 3, 3, 3, 3, -9)
@@ -31,26 +26,21 @@ plot(m3)
 @test P(m1, [0.02,0.01]) ≈ StaticArrays.SArray{Tuple{2,2},Float64,2,4}[[0.980588 0.0194118; 0.0388236 0.961176], [0.990149 0.00985149; 0.019703 0.980297]] atol=1e-6
 @test P(m2, [0.02,0.01]) ≈ Array{Float64,2}[[0.839971 0.053343 0.053343 0.053343; 0.053343 0.839971 0.053343 0.053343; 0.053343 0.053343 0.839971 0.053343; 0.053343 0.053343 0.053343 0.839971], [0.91519 0.0282699 0.0282699 0.0282699; 0.0282699 0.91519 0.0282699 0.0282699; 0.0282699 0.0282699 0.91519 0.0282699; 0.0282699 0.0282699 0.0282699 0.91519]] atol=1e-6
 
-end 
+end
 
-@testset "Testing randomTrait function on single branch" begin
+@testset "Testing random discrete trait simulation" begin
 
-m1 = PhyloNetworks.BinaryTraitSubstitutionModel(1.0, 2.0)
-m2 = EqualRatesSubstitutionModel(4, 3.0, ["1","2","3","4"])
+m1 = BinaryTraitSubstitutionModel(1.0,2.0, SVector("carnivory", "non-carnivory"));
+m2 = EqualRatesSubstitutionModel(4, 3.0, ["S1","S2","S3","S4"]);
 
+info("\ton a single branch")
 srand(12345);
 @test randomTrait(m1, 0.2, [1,2,1,2,2]) == [1,2,1,1,2]
 srand(12345);
 @test randomTrait(m2, 0.05, [1,3,4,2,1]) == [1,3,4,2,1]
-end
 
-@testset "Testing randomTrait function on network" begin
-
+info("\ton a network")
 net = readTopology("(A:1.0,(B:1.0,(C:1.0,D:1.0):1.0):1.0);")
-
-m1 = PhyloNetworks.BinaryTraitSubstitutionModel(1.0, 2.0)
-m2 = EqualRatesSubstitutionModel(4, 3.0, ["1","2","3","4"])
-
 srand(12345);
 a,b = randomTrait(m1, net)
 @test a == [1 2 1 1 1 1 2]
@@ -58,11 +48,11 @@ a,b = randomTrait(m1, net)
 if runall
     plot(net, :RCall, showNodeNumber=true);
     for e in net.edge e.length = 10.0; end
-    @time a,b = randomTrait(m1, net; ntraits=100000)
+    @time a,b = randomTrait(m1, net; ntraits=100000) # ~ 0.014 seconds
     mean(a[:,1]) # expect 1.5 at root
     mean(a[:,2]) # expect 1.333 at other nodes
-    @time a,b = randomTrait(m2, net; ntraits=100000)
-    length([x for x in a[:,1] if x==4])/length(a[:,1])
+    @time a,b = randomTrait(m2, net; ntraits=100000) # ~ 0.02 seconds
+    length([x for x in a[:,1] if x==4])/length(a[:,1]) # expect 0.25
     length([x for x in a[:,2] if x==4])/length(a[:,2])
     length([x for x in a[:,3] if x==4])/length(a[:,3])
     length([x for x in a[:,4] if x==4])/length(a[:,4])
@@ -72,12 +62,10 @@ if runall
 end
 
 net2 = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0):1.0):3.0,D:5.0);")
-
 srand(12345);
 a,b = randomTrait(m1, net2; keepInternal=false)
 @test a == [1  1  1  2]
 @test b == ["D", "C", "B", "A"]
-
 srand(12345);
 a,b = randomTrait(m1, net2; keepInternal=true)
 @test a == [1  2  1  1  1  1  1  1  1]
@@ -90,20 +78,20 @@ if runall
     end
     a,b = randomTrait(m1, net2; ntraits=100000)
     plot(net2, :RCall, showNodeNumber=true) # H1 listed 7th, Parents listed 4th and 6th
-    c = map( != , a[:, 4],a[:, 6] )
-    n1 = sum(map( ==, a[c,7],a[c,6] ))
-    n2 = sum(map( ==, a[c,7],a[c,4] ))
+    c = map( != , a[:, 4],a[:, 6] ); # traits when parents have different traits
+    n1 = sum(map( ==, a[c,7],a[c,6] )) # 39644 traits: hybrid ≠ major parent
+    n2 = sum(map( ==, a[c,7],a[c,4] )) #  4401 traits: hybrid ≠ minor parent
     n1/sum(c) # expected 0.9
     n2/sum(c) # expected 0.1
     for e in net2.edge
         e.length = 0.0
     end
     net2.edge[4].length = 10.0
-    a,b = randomTrait(m1, net2; ntraits=100000)
-    a[:, 1] == a[:, 2]  # check if root == leaf D
-    a[:, 1] == a[:, 5]  # check if root == leaf C
+    a,b = randomTrait(m1, net2; ntraits=100000);
+    a[:, 1] == a[:, 2]  # true: root = leaf D, as expected
+    a[:, 1] == a[:, 5]  # true: root = leaf C
     mean(a[:, 6]) # expected 1.3333
-    a[:, 6] == a[:, 9] # check if major hybrid parent node == leaf A
+    a[:, 6] == a[:, 9] # true: major hybrid parent node = leaf A
 end
 
 end

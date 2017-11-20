@@ -1,7 +1,10 @@
 """
-`TraitSubstitutionModel` is an abstract type for all substitution models.
-Adapted from the substitutionModels module in BioJulia. The same Q and P function
-names are used for the transition rates and probabilities.
+    TraitSubstitutionModel
+
+Abstract type for discrete trait substitution models,
+using a continous time Markov model on a phylogeny.
+Adapted from the substitutionModels module in BioJulia.
+The same Q and P function names are used for the transition rates and probabilities.
 """
 
 abstract type TraitSubstitutionModel end
@@ -9,11 +12,86 @@ const SM = TraitSubstitutionModel
 const Bmatrix = SMatrix{2, 2, Float64}
 
 """
-`BinaryTraitSubstitutionModel` is an abstract type that contains all models
-describing a substitution process impacting biological characters with binary states
-with continous time Markov models.
-"""
+    Q(model)
 
+Substitution rate matrix for a given substitution model:
+Q[i,j] is the rate of transitioning from state i to state j.
+"""
+Q(mod::TraitSubstitutionModel) = error("rate matrix Q not defined for $(typeof(mod)).")
+
+"""
+    showQ(model)
+
+Print the Q matrix to the screen, with trait states as labels on rows and columns.
+adapted from prettyprint function by mcreel, found 2017/10 at
+https://discourse.julialang.org/t/display-of-arrays-with-row-and-column-names/1961/6
+"""
+function showQ(object::TraitSubstitutionModel)
+    M = Q(object)
+    pad = max(8,maximum(length.(object.label))+1)
+    for i = 1:size(M,2) # print the header
+        print(lpad(object.label[i],(i==1? 2*pad : pad), " "))
+    end
+    print("\n")
+    for i = 1:size(M,1) # print one row per state
+        if object.label != ""
+            print(lpad(object.label[i],pad," "))
+        end
+        for j = 1:size(M,2)
+            if j == i
+                print(lpad("*",pad," "))
+            else
+                fmt = "%$(pad).4f"
+                @eval(@printf($fmt,$(M[i,j])))
+            end
+        end
+        print("\n")
+    end
+end
+
+"""
+    P(mod, t)
+
+Probability transition matrix for a [`TraitSubstitutionModel`](@ref), of the form
+
+    P[1,1] ... P[1,k]
+       .          .
+       .          .
+    P[k,1] ... P[k,k]
+
+where P[i,j] is the probability of ending in state j after time t,
+given that the process started in state i.
+"""
+@inline function P(mod::SM, t::Float64)
+    t >= 0.0 || error("t must be positive")
+    return expm(Q(mod) * t)
+end
+
+"""
+    P(mod, t::Array{Float64})
+
+When applied to a general substitution model, matrix exponentiation is used.
+The time argument `t` can be an array.
+"""
+function P(mod::SM, t::Array{Float64})
+    all(t .>= 0.0) || error("t's must all be positive")
+    try
+        eig_vals, eig_vecs = eig(Q(mod)) # Only hermitian matrices are diagonalizable by
+        # *StaticArrays*. Non-Hermitian matrices should be converted to `Array`first.
+        return [eig_vecs * expm(diagm(eig_vals)*i) * eig_vecs' for i in t]
+    catch
+        eig_vals, eig_vecs = eig(Array(Q(mod)))
+        k = nStates(mod)
+        return [SMatrix{k,k}(eig_vecs * expm(diagm(eig_vals)*i) * inv(eig_vecs)) for i in t]
+    end
+end
+
+"""
+    BinaryTraitSubstitutionModel
+
+[TraitSubstitutionModel](@ref) for binary traits (with 2 states).
+Default labels are "0" and "1".
+"""
 mutable struct BinaryTraitSubstitutionModel <: TraitSubstitutionModel
     α::Float64
     β::Float64
@@ -28,25 +106,72 @@ mutable struct BinaryTraitSubstitutionModel <: TraitSubstitutionModel
         new(α, β, β/ab, α/ab, label)
     end
 end
-
+const BTSM = BinaryTraitSubstitutionModel
 BinaryTraitSubstitutionModel(α, β) = BinaryTraitSubstitutionModel(α, β, SVector("0", "1"))
+
+"""
+For a BinaryTraitSubstitutionModel, the rate matrix Q is of the form:
+
+    -α  α
+     β -β
+"""
+@inline function Q(mod::BTSM)
+    return Bmatrix(-mod.α, mod.β, mod.α, -mod.β)
+end
+
+function show(io::IO, object::BinaryTraitSubstitutionModel)
+    str = "Binary Trait Substitution Model:\n"
+    str *= "rate $(object.label[1])→$(object.label[2]) α=$(object.α)\n"
+    str *= "rate $(object.label[2])→$(object.label[1]) β=$(object.β)\n"
+    print(io, str)
+end
+
+@inline function P(mod::BTSM, t::Float64)
+    t >= 0.0 || error("t must be positive")
+    e1 = exp(-(mod.α+mod.β)t)
+    p0 = mod.π0
+    p1 = mod.π1
+    a0= p0 *e1
+    a1= p1*e1
+    return Bmatrix(p0+a1, p0-a0, p1-a1, p1+a0) # by columns
+end
+
+"""
+    nStates(model)
+
+Number of character states for a given trait evolution model.
+"""
+nStates(mod::TraitSubstitutionModel) = error("nStates not defined for $(typeof(mod)).")
+
+"""
+# Examples
+
+```julia-repl
+julia> m1 = BinaryTraitSubstitutionModel(1.0, 2.0)
+julia> nStates(m1)
+2
+```
+"""
+function nStates(mod::BTSM)
+    return 2::Int
+end
 
 """
     TwoBinaryTraitSubstitutionModel(α [, label])
 
-Default labels are x0, x1, y0, y1. If provided, input label should be a vector of size 4.
-List labels for trait 1 first, then labels for trait 2.
-Trait combinations are listed in the following order:
-x0-y0,  
-x0-y1,  
-x1-y0,  
-x1-y1  
-Input vector α should be a vector of substitution rates of size 8.
-α1..α4 describe rates of changes in trait 1.
-α5..α8 describe rates of changes in trait 2.
+[TraitSubstitutionModel](@ref) for two binary traits, possibly correlated.
+Default labels are "x0", "x1" for trait 1, and "y0", "y1" for trait 2.
+If provided, `label` should be a vector of size 4, listing labels for
+trait 1 first then labels for trait 2.
+`α` should be a vector of substitution rates of size 8.
+α1,...,α4 describe rates of changes in trait 1.
+α5,...,α8 describe rates of changes in trait 2.
+
+In the transition matrix, trait combinations are listed in the following order:
+x0-y0, x0-y1, x1-y0, x1-y1.
+
 try `plot(model)` to visualize states and rates.
 """
-
 mutable struct TwoBinaryTraitSubstitutionModel <: TraitSubstitutionModel
     α::Vector{Float64}
     label::Vector{String}
@@ -58,7 +183,7 @@ mutable struct TwoBinaryTraitSubstitutionModel <: TraitSubstitutionModel
                 string(label[2], "-", label[4])])
     end
 end
-
+const TBTSM = TwoBinaryTraitSubstitutionModel
 TwoBinaryTraitSubstitutionModel(α) = TwoBinaryTraitSubstitutionModel(α, ["x0", "x1", "y0", "y1"])
 
 function Q(mod::TwoBinaryTraitSubstitutionModel)
@@ -87,12 +212,26 @@ plot(mod::TraitSubstitutionModel) = error("plot not defined for $(typeof(mod))."
 Output graph using `RCall` of substitution rates for a substitution model for two 
 possibly dependent binary traits.
 Adapted from fitPagel functions found in the `R` package `phytools`.
-"""
 
+# Examples
+
+```jldoctest
+julia> m3 = TwoBinaryTraitSubstitutionModel([2.0,1.2,1.1,2.2,1.0,3.1,2.0,1.1],
+                ["carnivory", "noncarnivory", "wet", "dry"])
+Substitution model for 2 binary traits, with rate matrix:
+                     carnivory-wet    carnivory-dry noncarnivory-wet noncarnivory-dry
+    carnivory-wet                *           1.0000           2.0000           0.0000
+    carnivory-dry           3.1000                *           0.0000           1.1000
+ noncarnivory-wet           1.2000           0.0000                *           2.0000
+ noncarnivory-dry           0.0000           2.2000           1.1000                *
+
+
+julia> plot(m3)
+```
+"""
 function plot(object::TwoBinaryTraitSubstitutionModel)
     R"""
     signif<-3
-    par(mfrow=c(2,1))
     plot.new()
     par(mar=c(1.1,2.1,3.1,2.1))
     plot.window(xlim=c(0,2),ylim=c(0,1),asp=1)
@@ -129,65 +268,17 @@ function plot(object::TwoBinaryTraitSubstitutionModel)
 end
 
 function show(io::IO, object::TwoBinaryTraitSubstitutionModel)
-    M = Q(object)
-    #Matrix format adapted from prettyprint function by mcreel
-    #found at: 
-    #https://discourse.julialang.org/t/display-of-arrays-with-row-and-column-names/1961/6
-    for i = 1:size(M,2)
-        pad = 8
-        if object.label != "" && i==1
-            pad = 2*8
-        end    
-        @printf("%s", lpad(object.label[i],pad," "))
-    end
-    @printf("\n")
-    # print the rows
-    for i = 1:size(M,1)
-        if object.label != ""
-            @printf("%s", lpad(object.label[i],8," "))
-        end
-        for j = 1:size(M,2)
-            @printf("%8.4f",(M[i,j]))
-        end
-        @printf("\n")
-    end
-end
-        
-const BTSM = BinaryTraitSubstitutionModel
-
-const TBTSM = TwoBinaryTraitSubstitutionModel
-
-"""
-    nStates(mod)
-
-Show number of character states in a given model.
-
-# Examples
-
-```julia-repl
-julia> m1 = BinaryTraitSubstitutionModel(1.0, 2.0)
-julia> nStates(m1)
- 2
-```
-"""
-
-function nStates(mod::BTSM)
-    return 2::Int
-end
-
-function show(io::IO, object::BinaryTraitSubstitutionModel)
-    str = "Binary Trait Substitution Model:\n"
-    str *= "rate $(object.label[1])→$(object.label[2]) α=$(object.α)\n"
-    str *= "rate $(object.label[2])→$(object.label[1]) β=$(object.β)\n"
-    print(io, str)
+    print("Substitution model for 2 binary traits, with rate matrix:\n")
+    showQ(object)
 end
 
 """
-`EqualRatesSubstitutionModel` is an abstract type that contains all models
-describing a substitution process impacting biological characters with equal rates
-of transition between all character states with continous time Markov models.
-"""
+    EqualRatesSubstitutionModel(numberStates, α, labels)
 
+[TraitSubstitutionModel](@ref) for traits with any number of states
+and equal substitution rates α between all states.
+Default labels are "1","2",...
+"""
 mutable struct EqualRatesSubstitutionModel <: TraitSubstitutionModel
     k::Int
     α::Float64
@@ -195,72 +286,22 @@ mutable struct EqualRatesSubstitutionModel <: TraitSubstitutionModel
     function EqualRatesSubstitutionModel(k::Int, α::Float64, label::Vector{String})
         k >= 2 || error("parameter k must be greater than or equal to 2")
         α > 0 || error("parameter α must be positive")
+        length(label)==k || error("label vector of incorrect length")
         new(k, α, label)
     end
 end
-
-EqualRatesSubstitutionModel(k, α) = EqualRatesSubstitutionModel(k, α, ["1","2","3","4"])
-
-"""
-    show(object)
-
-Print transition rate matrix for EqualRatesSubstituionModel.
-
-# Examples
-
-
-"""
+EqualRatesSubstitutionModel(k, α) = EqualRatesSubstitutionModel(k, α, string.(1:k))
 
 function show(io::IO, object::EqualRatesSubstitutionModel)
-    str = "Equal Rates Substitution Model:\n"
-    str *= "all rates α=$(object.α)\n"
-    str *= "number of states, k=$(object.k)\n"  
+    str = "Equal Rates Substitution Model with k=$(object.k),\n"
+    str *= "all rates equal to α=$(object.α).\n"
+    str *= "rate matrix Q:\n"
     print(io, str)
-    M = Q(object)
-    #Matrix format adapted from prettyprint function by mcreel
-    #found at: 
-    #https://discourse.julialang.org/t/display-of-arrays-with-row-and-column-names/1961/6
-    for i = 1:size(M,2)
-        pad = 8
-        if object.label != "" && i==1
-            pad = 2*8
-        end    
-        @printf("%s", lpad(object.label[i],pad," "))
-    end
-    @printf("\n")
-    # print the rows
-    for i = 1:size(M,1)
-        if object.label != ""
-            @printf("%s", lpad(object.label[i],8," "))
-        end
-        for j = 1:size(M,2)
-            if j == i 
-                print(lpad("*",8," "))
-            else
-                @printf("%8.4f",(M[i,j]))
-            end
-        end
-        @printf("\n")
-    end  
+    showQ(object)
 end
 
 function nStates(mod::EqualRatesSubstitutionModel)
     return mod.k
-end
-
-"""
-    Q(mod)
-
-Generate a Q matrix for a `TraitSubstitutionModel`, of the form:
-    ```math
-    Q = \begin{bmatrix}
-        Q_{0, 0} & Q_{0, 1} \\
-        Q_{1, 0} & Q_{1, 1} \end{bmatrix}
-    ```
-"""
-
-@inline function Q(mod::BTSM)
-    return Bmatrix(-mod.α, mod.β, mod.α, -mod.β)
 end
 
 function Q(mod::EqualRatesSubstitutionModel)
@@ -273,73 +314,12 @@ function Q(mod::EqualRatesSubstitutionModel)
 end
 
 """
-    function P(mod, t)
-
-Generate a probability transition matrix for a `TraitSubstitutionModel`, of the form:
-    ```math
-    P = \begin{bmatrix}
-        P_{0, 0} & P_{0, 1} \\
-        P_{1, 0} & P_{1, 1} \end{bmatrix}.
-    ```
-for specified time
-"""
-
-@inline function P(mod::SM, t::Float64)
-    if t < 0.0
-        error("t must be positive")
-    end
-    return expm(Q(mod) * t)
-end
-
-"""
-    P(mod, t::Array{Float64})
-
-When applied to a general substitution model, matrix exponentiation is used.
-The time argument can be an array.
-"""
-
-function P(mod::SM, t::Array{Float64})
-    if any(t .< 0.0)
-        error("t must be positive")
-    end
-    try
-        eig_vals, eig_vecs = eig(Q(mod)) # Only hermitian matrices are diagonalizable by 
-        # *StaticArrays*. Non-Hermitian matrices should be converted to `Array`first.
-        return [eig_vecs * expm(diagm(eig_vals)*i) * eig_vecs' for i in t]
-    catch
-        eig_vals, eig_vecs = eig(Array(Q(mod)))
-        k = nStates(mod)
-        return [SMatrix{k,k}(eig_vecs * expm(diagm(eig_vals)*i) * inv(eig_vecs)) for i in t]
-    end
-end
-
-@inline function P(mod::BTSM, t::Float64)
-    if t < 0.0
-        error("t must be positive")
-    end
-    e1 = exp(-(mod.α+mod.β)t)
-    p0 = mod.π0
-    p1 = mod.π1
-    a0= p0 *e1
-    a1= p1*e1
-    return Bmatrix(p0+a1, p0-a0, p1-a1, p1+a0) # By columns
-end
-
-function randomTrait!(endTrait::AbstractVector{Int}, mod::SM, t::Float64, start::AbstractVector{Int})
-    Pt = P(mod, t)
-    k = size(Pt, 1) # number of states
-    w = [aweights(Pt[i,:]) for i in 1:k]
-    for i in 1:length(start)
-        endTrait[i] =sample(1:k, w[start[i]])
-    end
-    return endTrait
-end
-
-"""
-    randomTrait(model, t, start) 
+    randomTrait(model, t, start)
+    randomTrait!(end, model, t, start)
 
 Simulate traits along one edge of length t.
 `start` must be a vector of integers, each representing the starting value of one trait.
+The bang version (ending with !) uses the vector `end` to store the simulated values.
 
 # Examples
 ```julia-repl
@@ -354,22 +334,36 @@ julia> randomTrait(m1, 0.2, [1,2,1,2,2])
  2
 ```
 """
-
 function randomTrait(mod::SM, t::Float64, start::AbstractVector{Int})
     res = Vector{Int}(length(start))
     randomTrait!(res, mod, t, start)
 end
 
+function randomTrait!(endTrait::AbstractVector{Int}, mod::SM, t::Float64, start::AbstractVector{Int})
+    Pt = P(mod, t)
+    k = size(Pt, 1) # number of states
+    w = [aweights(Pt[i,:]) for i in 1:k]
+    for i in 1:length(start)
+        endTrait[i] =sample(1:k, w[start[i]])
+    end
+    return endTrait
+end
+
 """
     randomTrait(mod, net; ntraits=1, keepInternal=true, checkPreorder=true)
 
-Simulates evolution of discrete traits on a rooted evolutionary network based on 
-the supplied evolutionary model and returns an array of character states for each character
-at each node. Trait sampling is uniform at the root.
+Simulate evolution of discrete traits on a rooted evolutionary network based on
+the supplied evolutionary model. Trait sampling is uniform at the root.
 
 # Arguments
-- ntraits: the number of traits to be evaluated. Default value of 1.
-- keepInternal: if true, export character states at internal nodes
+- ntraits: number of traits to be simulated (default: 1 trait).
+- keepInternal: if true, export character states at all nodes, including
+  internal nodes. if false, export character states at tips only.
+
+# Output
+- matrix of character states with one row per trait, one column per node
+- array of node labels (for tips) or node numbers (for internal nodes)
+  in the same order as columns in the character state matrix
 
 # Examples
 ```julia-repl
@@ -403,21 +397,12 @@ function randomTrait(mod::SM, net::HybridNetwork;
     M = Matrix{Int}(ntraits, nnodes) # M[i,j]= trait i for node j
     randomTrait!(M,mod,net)
     if !keepInternal
-        M = getTipSubmatrix(M, net)
+        M = getTipSubmatrix(M, net, indexation=:cols) # subset columns only. rows=traits
         nodeLabels = [n.name for n in net.nodes_changed if n.leaf]
     else
         nodeLabels = [n.name == "" ? string(n.number) : n.name for n in net.nodes_changed]    
     end
     return M, nodeLabels
-end
-
-function getTipSubmatrix(M::Matrix, net::HybridNetwork)
-    nodenames = [n.name for n in net.nodes_changed]
-    tipind = Int[]
-    for l in net.leaf
-        push!(tipind, findfirst(nodenames, l.name))
-    end
-    return M[:, tipind]
 end
 
 function randomTrait!(M::Matrix{Int}, mod::SM, net::HybridNetwork)
@@ -429,7 +414,7 @@ function randomTrait!(M::Matrix{Int}, mod::SM, net::HybridNetwork)
 end
 
 function updateRootRandomTrait!(V::AbstractArray, i::Int, mod)
-    sample!(1:nStates(mod), view(V, :, i))
+    sample!(1:nStates(mod), view(V, :, i)) # uniform at the root
     return
 end
 
@@ -444,12 +429,12 @@ function updateHybridRandomTrait!(V::Matrix,
         edge1::PhyloNetworks.Edge, edge2::PhyloNetworks.Edge, mod)
     randomTrait!(view(V, :, i), mod, edge1.length, view(V, :, parentIndex1))
     tmp = randomTrait(mod, edge2.length, view(V, :, parentIndex2))
-    for j in 1:size(V,1)
-        if V[j,i] == tmp[j]
-            continue
+    for j in 1:size(V,1) # loop over traits
+        if V[j,i] == tmp[j] # both parents of the hybrid node have the same trait
+            continue # skip the rest: go to next trait
         end
         if rand() > edge1.gamma
-            V[j,i] = tmp[j]
+            V[j,i] = tmp[j] # switch to inherit trait of parent 2
         end
     end
 end

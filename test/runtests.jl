@@ -6,7 +6,7 @@
 
 using Base.Test
 using RCall # for export to R objects
-using StaticArrays
+using StaticArrays # for rate substitution matrices
 
 if !isdefined(:localtests) localtests = false; end
 

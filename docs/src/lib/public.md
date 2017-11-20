@@ -33,6 +33,10 @@ TraitSimulation
 PhyloNetworkLinearModel
 ReconstructedStates
 ShiftNet
+TraitSubstitutionModel
+BinaryTraitSubstitutionModel
+TwoBinaryTraitSubstitutionModel
+EqualRatesSubstitutionModel
 ```
 
 ## Utilities
@@ -131,10 +135,6 @@ regressorHybrid
 
 ```@docs
 parsimonyDiscrete
-TraitSubstitutionModel
-BinaryTraitSubstitutionModel
-TwoBinaryTraitSubstitutionModel
-EqualRatesSubstitutionModel
 nStates
 Q
 P
