@@ -249,132 +249,140 @@ Inserts a nonhybrid node and associated edge in `net`.
     return e
 end
 
-"""getMetadataValue! - Helper function for parseEdgeMetadata2!\n
+"""getdataValue! - Helper function for parseEdgeData2!\n
 Reads a single floating point metadatum in a tree topology.\n
 Returns -1 if no value exists before the next colon, returns a float if a value is present.\n
 Modifies s by advancing past the next colon character.
 """
-function getMetadataValue!(s::IO)
+function getdataValue!(s::IO, call::Int, numLeft::Array{Int,1})
+    errors = ["one colon read without double in left parenthesis $(numLeft[1]-1), ignored.",
+              "second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.",
+              "third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored"]
     """Only call this function to read a value when you know a numerical value exists"""
     c = peekchar(s)
-    # No value
-    if c == ':'
-        read(s, Char) # Advance `s` past one colon
-        return -1
-    end
+
     # Value is present
     if isdigit(c) || in(c, [',', 'e', '-'])
         val = readFloat(s, c)
         return val
     end
-
+    # No value
+    if c == ':'
+        read(s, Char) # Advance `s` past one colon
+        return -1
+    else
+        warn(errors[call])
+    end
 end
 
-"""parseEdgeMetadata2! - Helper function for readSubtree!\n
-**This function is a work-in-progress meant to simplify parseEdgeMetadata!**\n
+"""parseEdgeData2! - Helper function for readSubtree!\n
+**This function is a work-in-progress meant to simplify parseEdgeData!**\n
 Modifies `e` according to the specified edge length, bootstrap, and gamma values in the tree topology.\n
 Advances `s` past any existing metadata.\n
 Edges in a topology may optionally be followed by ":edgeLen:bootstrap:gamma"
     where edgeLen, bootstrap, and gamma are decimal values
 """
-function parseEdgeMetadata2!(s::IO, e::PhyloNetworks.Edge, numLeft::Array{Int,1})
-    peekchar(s) != ":" || error("No first colon in `s` when calling parseEdgeMetadata2!")
-    read(s, Char) # Advance `s` past the first colon
-    edgeLen = getMetadataValue!(s)
-    peekchar(s) != ":" || error("No second colon in `s` when calling parseEdgeMetadata2!")
-    read(s, Char) # Advance `s` past the second colon
-    bootstrap = getMetadataValue!(s)
-    peekchar(s) != ":" || error("No third colon in `s` when calling parseEdgeMetadata2!")
-    read(s, Char) # Advance `s` past the third colon
-    gamma = getMetadataValue!(s)
-    
-    e.length = float(edgeLen)
-    if edgeLen == -1
-        warn("one colon read without double in left parenthesis $(numLeft[1]-1), ignored.")
+function parseEdgeData2!(s::IO, e::PhyloNetworks.Edge, numLeft::Array{Int,1})
+    function _eqn1(v)
+        return (isa(v, Int)) && (v == -1);
     end
-    if bootstrap == -1
-        # It looks like bootstrap is just ignored in readTopology...
-        warn("second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.")
-    end
-    if gamma != -1
-        if (!e.hybrid)
+
+    function _handleGamma(e::PhyloNetworks.Edge)
+        if(!e.hybrid)
             warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
-        else # gamma read for a hybrid edge
-            setGamma!(e, gamma, false, true)
-        end
-    else # Gamma does not exist
-        if e.hybrid
-            error("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1]-1)")
         else
-            warn("third colon : without gamma value after in left parenthesis number $(numLeft[1]-1), ignored")
+            setGamma!(e,length, false, true);
         end
-        e.gamma = e.hybrid ? -1.0 : 1.0 # set missing gamma to -1.0
     end
+
+    peekchar(s) == ":" && error("No first colon in `s` when calling parseEdgeData2!")
+    read(s, Char) # Advance `s` past the first colon
+    edgeLen = getdataValue!(s, 1, numLeft)
+    peekchar(s) == ":" && error("No second colon in `s` when calling parseEdgeData2!")
+    read(s, Char) # Advance `s` past the second colon
+    bootstrap = getdataValue!(s, 2, numLeft)
+    peekchar(s) == ":" && error("No third colon in `s` when calling parseEdgeData2!")
+    read(s, Char) # Advance `s` past the third colon
+    gamma = getdataValue!(s, 3, numLeft)
+    
+    isEdgeLen   = (_eqn1(edgeLen));
+    isBootstrap = (_eqn1(bootstrap));
+    isGamma     = (_eqn1(gamma));
+
+    if isGamma
+        _handeGamma(e);
+    end
+    if isEdgeLen
+        e.length = edgeLen;
+    else
+        e.length = -1.0;
+    end
+      
 end
 
-"""parseEdgeMetadata! - Helper function for readSubtree!\n
+"""parseEdgeData! - Helper function for readSubtree!\n
 Modifies `e` according to the specified edge length, bootstrap, and gamma values in the tree topology.\n
 Advances `s` past any existing metadata.\n
 Edges in a topology may optionally be followed by ":edgeLen:bootstrap:gamma"
     where edgeLen, bootstrap, and gamma are decimal values
 """
-@inline function parseEdgeMetadata!(s::IO, e::Edge)
+@inline function parseEdgeData!(s::IO, e::Edge)
     c = read(s,Char);
     c = peekchar(s);
-    if(isdigit(c) || in(c, ['.','e','-']))
+    if(isdigit(c) || in(c, ['.','e','-'])) #R1
         length = readFloat(s,c);
         #setLength!(e,length); # e.length = length # do not use setLength because it does not allow BL too negative
         e.length = length
         c = peekchar(s);
-        if(c == ':')
+        if(c == ':') #R1L2
             c = read(s,Char);
             c = peekchar(s);
-            if(isdigit(c) || in(c, ['.','e','-']))
+            if(isdigit(c) || in(c, ['.','e','-'])) #R1L2R3
                 length = readFloat(s,c); #bootstrap value
                 c = peekskip(s);
-                if(c == ':')
+                if(c == ':') #R1L2R3L4
                     c = read(s, Char);
                     c = peekskip(s);
-                    if(isdigit(c) || in(c, ['.','e','-']))
+                    if(isdigit(c) || in(c, ['.','e','-'])) #R1L2R3L4L5
                         length = readFloat(s,c); #gamma
                         if(!e.hybrid)
                             warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
                         else
                             setGamma!(e,length, false, true);
                         end
-                    else
+                    else #R1L2R3L4E5
                         warn("third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored")
                     end
-                else
+                else #R1L2R3E4
                     e.hybrid ? error("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1]-1)") : nothing
                 end
-            elseif(c == ':')
+            elseif(c == ':') #R1L2L3
                 c = read(s, Char);
                 c = peekskip(s);
-                if(isdigit(c) || in(c, ['.','e','-']))
+                if(isdigit(c) || in(c, ['.','e','-'])) #R1L2L3L4
                     length = readFloat(s,c); #gamma
                     if(!e.hybrid)
                         warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
                     else
                         setGamma!(e,length, false, true);
                     end
-                else
+                else #R1L2L3E4
                     warn("third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored.")
                 end
-            else
+            else #R1L2E3
                 warn("second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.")
             end
-        else
+        else #R1R2
             e.gamma = e.hybrid ? -1.0 : 1.0 # set missing gamma to -1.0
         end
-    elseif(c == ':')
+    elseif(c == ':') #L1
         e.length = -1.0 # do not use setLength because it does not allow BL too negative
         c = read(s,Char);
         c = peekchar(s);
-        if(isdigit(c) || in(c, ['.','e','-']))
+        if(isdigit(c) || in(c, ['.','e','-'])) #L1R2
             length = readFloat(s,c); #bootstrap value
             c = peekchar(s);
-            if(c == ':')
+            if(c == ':') #L1R2L3
                 c = read(s, Char);
                 c = peekchar(s);
                 if(isdigit(c) || in(c, ['.','e','-']))
@@ -387,26 +395,26 @@ Edges in a topology may optionally be followed by ":edgeLen:bootstrap:gamma"
                 else
                     warn("third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored")
                 end
-            else
+            else #L1R2E3
                 e.hybrid ? warn("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1]-1)") : nothing
             end
-        elseif(c == ':')
+        elseif(c == ':') #L1L2
             c = read(s, Char);
             c = peekchar(s);
-            if(isdigit(c) || in(c, ['.','e','-']))
+            if(isdigit(c) || in(c, ['.','e','-'])) #L1L2L3
                 length = readFloat(s,c); #gamma
                 if(!e.hybrid)
                     warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
                 else
                     setGamma!(e,length, false, true);
                 end
-            else
+            else #L1L2R3
                 warn("third colon : without gamma value after in left parenthesis number $(numLeft[1]-1), ignored")
             end
-        else
+        else #L1E2
             warn("second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.")
         end
-    else
+    else #E1
         warn("one colon read without double in left parenthesis $(numLeft[1]-1), ignored.")
     end
 end
@@ -457,7 +465,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
     end
     c = peekchar(s);
     if(c == ':')
-        parseEdgeMetadata!(s, e)
+        parseEdgeData!(s, e)
     else
         e.length = -1.0 # do not use setLength because it does not allow BL too negative
         e.gamma = e.hybrid ? -1.0 : 1.0 # set missing gamma as -1.0 for hybrid edge
@@ -1345,85 +1353,6 @@ function writeTopology(net::HybridNetwork, s::IO,
             changeroot=false # safety exit of while (but useless)
         end
     end
-    # finally, write parenthetical format
-    writeSubTree!(s,net,di,true,round,digits)
-    # names = true: to print leaf names (labels), not numbers
-    ## printID = false: print all branch lengths, not just identifiable ones
-end
-
-
-###############################################################################
-## Generate symetric tree
-###############################################################################
-
-"""
-    symmetricTree(n, i=1)
-
-Create a string with a symmetric tree with 2^n tips, numbered from i to i+2^n-1.
-All the branch length are set equal to 1.
-The tree can be created with function readTopology.
-"""
-function symmetricTree(n::Int, ell::Real, i=1::Int)
-    # Build tree
-    tree = "A$(i-1+2^n):$(ell)"
-    if n==0 return("("*"A$(i-1+2^n):0"*");") end
-    for k in 1:(n-1)
-        tree = "(" * tree * "," * tree * "):$(ell)"
-    end
-    tree = "(" * tree * "," * tree * ");"
-    # Rename tips
-    for k in (2^n-1):-1:1
-        tree = replace(tree, "A$(i-1+k+1):$(ell)", "A$(i-1+k):$(ell)", k)
-    end
-    return(tree)
-end
-
-"""
-    symmetricNet(n, i, j, gamma)
-
-Create a string with a symmetric net with 2^n tips, numbered from 1 to 2^n
-All the branch length are set equal to 1.
-One hybrid branch, going from level i to level j is added, with weigth gamma.
-The tree can be created with function readTopology.
-"""
-function symmetricNet(n::Int, i::Int, j::Int, gamma::Real, ell::Real)
-    # Checks
-    if (n < i || i < j || j < 1) error("Must be n > i > j > 0") end
-    # Underlying tree
-    tree = symmetricTree(n, ell)
-    ## start hyb
-    op = "(A1:$(ell)"
-    clo = "A$(2^(i-1)):$(ell)):$(ell)"
-    for k in 3:i
-        op = "("*op
-        clo = clo*"):$(ell)"
-    end
-    clobis = clo[1:(length(clo)-length("$(ell)"))]*"$(0.5*ell)"
-    tree = replace(tree, op, "(#H:$(ell)::$(gamma),"*op)
-    tree = replace(tree, clo, clobis*"):$(0.5*ell)")
-    ## end hyb
-    op = "A$(2^(i-1)+1):$(ell)"
-    clo = "A$(2^(i-1) + 2^(j-1)):$(ell)"
-    for k in 2:j
-        op = "("*op
-        clo = clo*"):$(ell)"
-    end
-    clobis = clo[1:(length(clo)-length("$(ell)"))]*"$(0.5*ell)"
-    tree = replace(tree, op, "("*op)
-    tree = replace(tree, clo, clobis*")#H:$(0.5*ell)::$(1-gamma)")
-    return(tree)
-end
-
-
-"""
-    symmetricNet(n, h, gamma)
-
-Create a string with a symmetric net with 2^n tips, numbered from 1 to 2^n
-The total height of the network is set to 1.
-Hybrids are added from level h to h-1 symmetrically.
-"""
-function symmetricNet(n::Int, h::Int, gamma::Real, i=1::Int)
-    # Checks
     if (n < h || h < 2) error("Must be n >= h > 1.") end
     # length of branch
     ell = 1.0/n
