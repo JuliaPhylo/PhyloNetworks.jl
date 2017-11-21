@@ -384,7 +384,7 @@ see whether the ancestral transgressive evolution is significant or not thanks t
 Student test on the coefficient associated with `shift_6`. In more
 complex cases, it is possible to do a Fisher test, thanks to the `GLM`
 function `ftest`.
-```{julia; eval=true}
+```{julia; eval=true; results="markup"; term=true}
 fit_null = phyloNetworklm(@formula(trait ~ 1), dat, truenet) # fit against the null (no shift)
 ftest(fit_sh, fit_null)                                      # nested models, from more complex to most simple
 ```
