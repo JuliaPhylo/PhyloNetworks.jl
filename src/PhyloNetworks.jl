@@ -13,6 +13,7 @@ module PhyloNetworks
     using RCall
     using RCall: protect, unprotect, RClass
     using NullableArrays
+    using StaticArrays
 
     import Base.show
     import Gadfly.plot
@@ -108,8 +109,17 @@ module PhyloNetworks
         expectationsPlot,
         predint,
         predintPlot,
-        #
+        ## Discrete Trait PCM
         parsimonyDiscrete,
+        TraitSubstitutionModel,
+        EqualRatesSubstitutionModel,
+        BinaryTraitSubstitutionModel,
+        TwoBinaryTraitSubstitutionModel,
+        nStates,
+        Q, P,
+        randomTrait,
+        randomTrait!,
+        #
         apeRExport
 
     # export part
@@ -136,5 +146,6 @@ module PhyloNetworks
     include("parsimony.jl")
     include("pairwiseDistanceLS.jl")
     include("apeRExport.jl")
+    include("substitutionModels.jl")
 
 end #module

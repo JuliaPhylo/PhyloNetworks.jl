@@ -33,6 +33,10 @@ TraitSimulation
 PhyloNetworkLinearModel
 ReconstructedStates
 ShiftNet
+TraitSubstitutionModel
+BinaryTraitSubstitutionModel
+TwoBinaryTraitSubstitutionModel
+EqualRatesSubstitutionModel
 ```
 
 ## Utilities
@@ -106,7 +110,7 @@ treeEdgesBootstrap
 hybridBootstrapSupport
 ```
 
-## Trait Evolution
+## Continuous Trait Evolution
 
 ```@docs
 simulate
@@ -125,7 +129,17 @@ predintPlot
 descendenceMatrix
 regressorShift
 regressorHybrid
+```
+
+## Discrete Trait Evolution
+
+```@docs
 parsimonyDiscrete
+nStates
+Q
+P
+randomTrait
+plot(::TraitSubstitutionModel)
 ```
 
 ```@meta
