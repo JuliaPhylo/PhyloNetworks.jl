@@ -175,7 +175,13 @@ end
 """
 `readInputTrees(file)`
 
-function to read a text file with a list of trees in parenthetical format (one tree per line), it returns an array of HybridNetwork object.
+Read a text file with a list of trees/networks in parenthetical format
+(one tree per line) and transform them like [`readTopologyLevel1`](@ref)
+does: to be unrooted, with resolved polytomies, missing branch lengths
+set to 1.0, etc. See [`readMultiTopology`](@ref) to read multiple
+trees or networks with no modification.
+
+Output: array of HybridNetwork objects.
 """
 function readInputTrees(file::AbstractString)
     try

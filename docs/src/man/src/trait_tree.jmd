@@ -241,7 +241,7 @@ between body length and region.
 of the function).
 
 To illustrate the use of categorical predictors of particular interest
-in a network with reticulations, let's assume that some heterosis took place
+in a network with reticulations, let's assume that some transgressive evolution took place
 after the hybridization event, so that tips "A" and "B" have larger mean
 compared to the others.
 ```{julia; eval=true; results="markup"}
@@ -266,10 +266,11 @@ Now we can include this factor in the regression.
 fitTrait = phyloNetworklm(@formula(trait3 ~ trait1 + underHyb), dat, truenet)
 ```
 In this case, the categorical variable indicating which tips are descendants
-of the reticulation event is indeed relevant, and the heterosis effect
+of the reticulation event is indeed relevant, and the transgressive evolution effect
 is recovered.
 
-This is a very simple example of how to include heterosis, but some general
+This is a very simple example of how to include transgressive evolution,
+but some general
 functions to test for it, on networks with more than on hybrid, are also
 available.
 
@@ -304,11 +305,12 @@ lambda_estim(fitPagel)
         evolution. Nature. 401: 877–884. doi:10.1038/44766
 
 
-## Shifts and Heterosis
+## Shifts and transgressive evolution
 
-In the ANOVA section above, we showed how to include heterosis in a simple case.
-In general, heterosis can be seen as a particuliar exemple of a *shifted BM* on 
-the phylogenetic network.
+In the ANOVA section above, we showed how to include transgressive evolution
+in a simple case.
+In general, transgressive evolution can be seen as a particuliar exemple
+of a *shifted BM* on the phylogenetic network.
 
 ### Simulation of a Shifted BM
 
@@ -323,7 +325,8 @@ numbers.
 plot(truenet, useEdgeLength=true, showEdgeNumber=true)
 ```
 Let's say that we want to add a shift with value 5.0 on the branch directly
-following the hybridization event, in order to model heterosis. We can see on the
+following the hybridization event, in order to model transgressive evolution.
+We can see on the
 plot above that this branch is number 6, so we define the following object:
 ```{julia; eval=true}
 shift = ShiftNet(truenet.edge[6], 5.0,  truenet)
@@ -377,7 +380,7 @@ fit_sh = phyloNetworklm(@formula(trait ~ shift_6), dat, truenet) # fit
 fit_sh
 ```
 Here, because there is only one hybrid in the network, we can directly
-see whether the ancestral heterosis is significant or not thanks to the 
+see whether the ancestral transgressive evolution is significant or not thanks to the
 Student test on the coefficient associated with `shift_6`. In more
 complex cases, it is possible to do a Fisher test, thanks to the `GLM`
 function `ftest`.

@@ -117,18 +117,35 @@ and this output for net3 (again, only 1 hybrid found):
 
 For network estimation, multiple runs can done in parallel.
 For example, if your machine has 4 or more processors (or cores),
-you can tell julia to use 4 processors like this below.
+you can tell julia to use 4 processors by starting julia with `julia -p 4`,
+or by starting julia the usual way (`julia`) and then adding processors with:
 
 ```julia
 addprocs(4)
 ```
 
-After that, running any of the `snaq!(...)` command above will use
+If we load a package (`using PhyloNetworks`) before adding processors,
+then we need to re-load it again so that all processors have access to it:
+
+```julia
+@everywhere using PhyloNetworks
+```
+
+After that, running any of the `snaq!(...)` command will use
 different cores for different runs, as processors become available.
 Fewer details are printed to the log file when multiple cores
 are used in parallel.
+
+When running `bootsnaq`, the analysis of each bootstrap replicate
+will use multiple cores to parallelize separate runs of that particular
+bootstrap replicate. You may parallelize things further by running
+`bootsnaq` multiple times (on separate machines for instance), each time
+for a small subset of bootstrap replicates, and with a different seed each time.
+
 You may tell julia to add more processors than your machine has,
 but you will not receive any performance benefits.
+At any time during the julia session, `nworkers()` tells us how many
+worker processors julia has access to.
 
 ## choosing the number of hybridizations
 

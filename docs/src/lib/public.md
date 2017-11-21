@@ -64,6 +64,7 @@ rotate!
 getindex(::TraitSimulation, ::Symbol)
 getNodeAges
 pairwiseTaxonDistanceMatrix
+apeRExport
 ```
 
 ## Data and Topology read/write
