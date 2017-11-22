@@ -619,7 +619,7 @@ abstract type ParamsProcess end
 `ShiftNet`
 
 Shifts associated to an [`HybridNetwork`](@ref) sorted in topological order.
-Two `ShiftNet` objects on the same network can be concatened with `*`. 
+Two `ShiftNet` objects on the same network can be concatened with `*`.
 
 `ShiftNet{T <: Real}(node::Vector{Node}, value::Vector{T}, net::HybridNetwork; checkPreorder=true::Bool)`
 
@@ -673,7 +673,7 @@ ShiftNet(node::Node, value::Real, net::HybridNetwork; checkPreorder=true::Bool) 
 `shiftHybrid{T <: Real}(value::Vector{T}, net::HybridNetwork; checkPreorder=true::Bool)`
 
 Construct an object [`ShiftNet`](@ref) with shifts on all the edges below
-hybrid nodes, with values provided. The vector of values must have the 
+hybrid nodes, with values provided. The vector of values must have the
 same length as the number of hybrids in the network.
 
 """
@@ -1837,7 +1837,7 @@ function anovaBin(obj1::PhyloNetworkLinearModel, obj2::PhyloNetworkLinearModel)
     dev1 = deviance(obj1) - dev2
     ## Compute statistic
     F = (dev1 / dof1) / (dev2 / dof2)
-    pval = ccdf(FDist(dof1, dof2), F)
+    pval = ccdf.(FDist(dof1, dof2), F)
     return([dof2, dev2, dof1, dev1, F, pval])
 end
 
@@ -1938,8 +1938,8 @@ end
 `predintPlot(obj::ReconstructedStates; level=0.95::Real, withExp=false::Bool)`
 Compute and format the prediction intervals for the plotting function.
 The resulting dataframe can be readily used as a `nodeLabel` argument to
-`plot`. Keyworks argument `level` control the confidence level of the 
-prediction interval. If `withExp` is set to true, then the best 
+`plot`. Keyworks argument `level` control the confidence level of the
+prediction interval. If `withExp` is set to true, then the best
 predicted value is also shown along with the interval.
 """
 function predintPlot(obj::ReconstructedStates; level=0.95::Real, withExp=false::Bool)

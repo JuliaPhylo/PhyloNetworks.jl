@@ -206,7 +206,7 @@ table2 = PhyloNetworks.anova(modnull, modhom, modhet)
 @test table1.pval[1].v ≈ table2[Symbol("Pr(>F)")][2]
 @test table1.pval[2].v ≈ table2[Symbol("Pr(>F)")][1]
 # ## Replace next 4 lines with previous ones when GLM.ftest available
-# @test table1[:F][2] ≈ table2[:F][2] 
+# @test table1[:F][2] ≈ table2[:F][2]
 # @test table1[:F][1] ≈ table2[:F][1]
 # @test table1[Symbol("Pr(>F)")][1] ≈ table2[Symbol("Pr(>F)")][1]
 # @test table1[Symbol("Pr(>F)")][2] ≈ table2[Symbol("Pr(>F)")][2]
@@ -540,7 +540,7 @@ lmSHone = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybri
 
 lmSH = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid")
 
-@test lambda_estim(lmSH) ≈ 23.46668204551696 atol=1e-8
+@test lambda_estim(lmSH) ≈ 23.46668204551696 atol=1e-5
 
 end
 
