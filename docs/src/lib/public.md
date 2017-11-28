@@ -33,6 +33,10 @@ TraitSimulation
 PhyloNetworkLinearModel
 ReconstructedStates
 ShiftNet
+TraitSubstitutionModel
+BinaryTraitSubstitutionModel
+TwoBinaryTraitSubstitutionModel
+EqualRatesSubstitutionModel
 ```
 
 ## Utilities
@@ -60,6 +64,7 @@ rotate!
 getindex(::TraitSimulation, ::Symbol)
 getNodeAges
 pairwiseTaxonDistanceMatrix
+apeRExport
 ```
 
 ## Data and Topology read/write
@@ -106,7 +111,7 @@ treeEdgesBootstrap
 hybridBootstrapSupport
 ```
 
-## Trait Evolution
+## Continuous Trait Evolution
 
 ```@docs
 simulate
@@ -125,7 +130,17 @@ predintPlot
 descendenceMatrix
 regressorShift
 regressorHybrid
+```
+
+## Discrete Trait Evolution
+
+```@docs
 parsimonyDiscrete
+nStates
+Q
+P
+randomTrait
+plot(::TraitSubstitutionModel)
 ```
 
 ```@meta

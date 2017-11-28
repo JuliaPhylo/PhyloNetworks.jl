@@ -76,4 +76,6 @@ println("passed estimation of net")
   rmprocs(workers())
   @test writeTopology(n1, round=true)==writeTopology(n2, round=true)
   @test n1.loglik == n2.loglik
+  rm("snaq.out")
+  rm("snaq.networks")
 end

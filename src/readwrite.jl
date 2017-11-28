@@ -1219,7 +1219,6 @@ end
 
 Read a text file with a list of networks in parenthetical format (one per line).
 Each network is read with `readTopology`.
-Crash if a network is broken over several lines.
 Return an array of HybridNetwork object.
 """
 function readMultiTopology(file::AbstractString)

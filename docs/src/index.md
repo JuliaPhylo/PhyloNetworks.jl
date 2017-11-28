@@ -1,6 +1,7 @@
 # PhyloNetworks.jl
 
-PhyloNetworks is a [Julia](http://julialang.org) package for the
+[PhyloNetworks](https://github.com/crsl4/PhyloNetworks.jl)
+is a [Julia](http://julialang.org) package for the
 manipulation, visualization, inference of phylogenetic networks,
 and their use for trait evolution.
 
