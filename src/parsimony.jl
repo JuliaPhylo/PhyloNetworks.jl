@@ -88,10 +88,12 @@ end
 
 Calculate the most parsimonious (MP) score of a network given
 a discrete character at the tips.
+The softwired parsimony concept is used: where the number of state
+transitions is minimized over all trees displayed in the network.
 Tip data can be given in a data frame, in which case the taxon names
 are to appear in column 1 or in a column named "taxon" or "species", and
 trait values are to appear in column 2 or in a column named "trait".
-Alternatively, Tip data can be given as a dictionary taxon => trait.
+Alternatively, tip data can be given as a dictionary taxon => trait.
 
 also return the union of all optimized character states
 at each internal node as obtained by Fitch algorithm,
