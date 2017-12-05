@@ -274,14 +274,13 @@ function getDataValue!(s::IO, call::Int, numLeft::Array{Int,1})
     end
 end
 
-"""parseEdgeData2! - Helper function for readSubtree!\n
-**This function is a work-in-progress meant to simplify parseEdgeData!**\n
-Modifies `e` according to the specified edge length, bootstrap, and gamma values in the tree topology.\n
-Advances `s` past any existing metadata.\n
+"""parseEdgeData! - Helper function for readSubtree!\n
+Modifies `e` according to the specified edge length and gamma values in the tree topology.\n
+Advances `s` past any existing edge data.\n
 Edges in a topology may optionally be followed by ":edgeLen:bootstrap:gamma"
     where edgeLen, bootstrap, and gamma are decimal values
 """
-function parseEdgeData2!(s::IO, e::PhyloNetworks.Edge, numLeft::Array{Int,1})
+function parseEdgeData!(s::IO, e::PhyloNetworks.Edge, numLeft::Array{Int,1})
     bootstrap = nothing;
     gamma = nothing;
     read(s, Char);
@@ -302,110 +301,11 @@ function parseEdgeData2!(s::IO, e::PhyloNetworks.Edge, numLeft::Array{Int,1})
         if(!e.hybrid)
             warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(gamma) ignored")
         else
-            setGamma!(e,gamma, false, true);
+            setGamma!(e, gamma, false, true);
         end
     end
     e.length = edgeLen;
       
-end
-
-"""parseEdgeData! - Helper function for readSubtree!\n
-Modifies `e` according to the specified edge length, bootstrap, and gamma values in the tree topology.\n
-Advances `s` past any existing metadata.\n
-Edges in a topology may optionally be followed by ":edgeLen:bootstrap:gamma"
-    where edgeLen, bootstrap, and gamma are decimal values
-"""
-@inline function parseEdgeData!(s::IO, e::PhyloNetworks.Edge, numLeft::Array{Int,1})
-    c = read(s,Char);
-    c = peekchar(s);
-    if(isdigit(c) || in(c, ['.','e','-'])) #R1
-        length = readFloat(s,c);
-        #setLength!(e,length); # e.length = length # do not use setLength because it does not allow BL too negative
-        e.length = length
-        c = peekchar(s);
-        if(c == ':') #R1L2
-            c = read(s,Char);
-            c = peekchar(s);
-            if(isdigit(c) || in(c, ['.','e','-'])) #R1L2R3
-                length = readFloat(s,c); #bootstrap value
-                c = peekskip(s);
-                if(c == ':') #R1L2R3L4
-                    c = read(s, Char);
-                    c = peekskip(s);
-                    if(isdigit(c) || in(c, ['.','e','-'])) #R1L2R3L4L5
-                        length = readFloat(s,c); #gamma
-                        if(!e.hybrid)
-                            warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
-                        else
-                            setGamma!(e,length, false, true);
-                        end
-                    else #R1L2R3L4E5
-                        warn("third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored")
-                    end
-                else #R1L2R3E4
-                    e.hybrid ? error("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1]-1)") : nothing
-                end
-            elseif(c == ':') #R1L2L3
-                c = read(s, Char);
-                c = peekskip(s);
-                if(isdigit(c) || in(c, ['.','e','-'])) #R1L2L3L4
-                    length = readFloat(s,c); #gamma
-                    if(!e.hybrid)
-                        warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
-                    else
-                        setGamma!(e,length, false, true);
-                    end
-                else #R1L2L3E4
-                    warn("third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored.")
-                end
-            else #R1L2E3
-                warn("second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.")
-            end
-        else #R1R2
-            e.gamma = e.hybrid ? -1.0 : 1.0 # set missing gamma to -1.0
-        end
-    elseif(c == ':') #L1
-        e.length = -1.0 # do not use setLength because it does not allow BL too negative
-        c = read(s,Char);
-        c = peekchar(s);
-        if(isdigit(c) || in(c, ['.','e','-'])) #L1R2
-            length = readFloat(s,c); #bootstrap value
-            c = peekchar(s);
-            if(c == ':') #L1R2L3
-                c = read(s, Char);
-                c = peekchar(s);
-                if(isdigit(c) || in(c, ['.','e','-']))
-                    length = readFloat(s,c); #gamma
-                    if(!e.hybrid)
-                        warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
-                    else
-                        setGamma!(e,length, false, true);
-                    end
-                else
-                    warn("third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored")
-                end
-            else #L1R2E3
-                e.hybrid ? warn("hybrid edge $(e.number) read but without gamma value in left parenthesis $(numLeft[1]-1)") : nothing
-            end
-        elseif(c == ':') #L1L2
-            c = read(s, Char);
-            c = peekchar(s);
-            if(isdigit(c) || in(c, ['.','e','-'])) #L1L2L3
-                length = readFloat(s,c); #gamma
-                if(!e.hybrid)
-                    warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
-                else
-                    setGamma!(e,length, false, true);
-                end
-            else #L1L2R3
-                warn("third colon : without gamma value after in left parenthesis number $(numLeft[1]-1), ignored")
-            end
-        else #L1E2
-            warn("second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.")
-        end
-    else #E1
-        warn("one colon read without double in left parenthesis $(numLeft[1]-1), ignored.")
-    end
 end
 
 """readSubtree! - A recursive helper method for readTopology \n
