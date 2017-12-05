@@ -1341,6 +1341,85 @@ function writeTopology(net::HybridNetwork, s::IO,
             changeroot=false # safety exit of while (but useless)
         end
     end
+    # finally, write parenthetical format
+    writeSubTree!(s,net,di,true,round,digits)
+    # names = true: to print leaf names (labels), not numbers
+    ## printID = false: print all branch lengths, not just identifiable ones
+end
+
+
+###############################################################################
+## Generate symetric tree
+###############################################################################
+
+"""
+    symmetricTree(n, i=1)
+
+Create a string with a symmetric tree with 2^n tips, numbered from i to i+2^n-1.
+All the branch length are set equal to 1.
+The tree can be created with function readTopology.
+"""
+function symmetricTree(n::Int, ell::Real, i=1::Int)
+    # Build tree
+    tree = "A$(i-1+2^n):$(ell)"
+    if n==0 return("("*"A$(i-1+2^n):0"*");") end
+    for k in 1:(n-1)
+        tree = "(" * tree * "," * tree * "):$(ell)"
+    end
+    tree = "(" * tree * "," * tree * ");"
+    # Rename tips
+    for k in (2^n-1):-1:1
+        tree = replace(tree, "A$(i-1+k+1):$(ell)", "A$(i-1+k):$(ell)", k)
+    end
+    return(tree)
+end
+
+"""
+    symmetricNet(n, i, j, gamma)
+
+Create a string with a symmetric net with 2^n tips, numbered from 1 to 2^n
+All the branch length are set equal to 1.
+One hybrid branch, going from level i to level j is added, with weigth gamma.
+The tree can be created with function readTopology.
+"""
+function symmetricNet(n::Int, i::Int, j::Int, gamma::Real, ell::Real)
+    # Checks
+    if (n < i || i < j || j < 1) error("Must be n > i > j > 0") end
+    # Underlying tree
+    tree = symmetricTree(n, ell)
+    ## start hyb
+    op = "(A1:$(ell)"
+    clo = "A$(2^(i-1)):$(ell)):$(ell)"
+    for k in 3:i
+        op = "("*op
+        clo = clo*"):$(ell)"
+    end
+    clobis = clo[1:(length(clo)-length("$(ell)"))]*"$(0.5*ell)"
+    tree = replace(tree, op, "(#H:$(ell)::$(gamma),"*op)
+    tree = replace(tree, clo, clobis*"):$(0.5*ell)")
+    ## end hyb
+    op = "A$(2^(i-1)+1):$(ell)"
+    clo = "A$(2^(i-1) + 2^(j-1)):$(ell)"
+    for k in 2:j
+        op = "("*op
+        clo = clo*"):$(ell)"
+    end
+    clobis = clo[1:(length(clo)-length("$(ell)"))]*"$(0.5*ell)"
+    tree = replace(tree, op, "("*op)
+    tree = replace(tree, clo, clobis*")#H:$(0.5*ell)::$(1-gamma)")
+    return(tree)
+end
+
+
+"""
+    symmetricNet(n, h, gamma)
+
+Create a string with a symmetric net with 2^n tips, numbered from 1 to 2^n
+The total height of the network is set to 1.
+Hybrids are added from level h to h-1 symmetrically.
+"""
+function symmetricNet(n::Int, h::Int, gamma::Real, i=1::Int)
+    # Checks
     if (n < h || h < 2) error("Must be n >= h > 1.") end
     # length of branch
     ell = 1.0/n
