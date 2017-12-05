@@ -102,11 +102,11 @@ end
 function readFloat(s::IO, c::Char)
     if(isdigit(c) || in(c, ['.','e','-']))
         num = string(readskip!(s));
-        c = peekchar(s);
+        c = peekskip(s);
         while(isdigit(c) || in(c, ['.','e','-']))
             d = readskip!(s);
             num = string(num,d);
-            c = peekchar(s);
+            c = peekskip(s);
         end
         f = 0.0
         try
@@ -139,7 +139,7 @@ Advances `s` past the subtree, adds discovered nodes and edges to `net`, `hybrid
     n = Node(-1*numLeft[1],false);
     DEBUG && println("creating node $(n.number)")
     keepon = true;
-    c = read(s,Char)
+    c = readskip!(s)
     while (keepon)
         bl = readSubtree!(s,n,numLeft,net,hybrids,index)
         c = advance!(s,c,numLeft)
@@ -254,24 +254,23 @@ Reads a single floating point metadatum in a tree topology.\n
 Returns -1 if no value exists before the next colon, returns a float if a value is present.\n
 Modifies s by advancing past the next colon character.
 """
-function getdataValue!(s::IO, call::Int, numLeft::Array{Int,1})
+function getDataValue!(s::IO, call::Int, numLeft::Array{Int,1})
     errors = ["one colon read without double in left parenthesis $(numLeft[1]-1), ignored.",
               "second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.",
               "third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored"]
     """Only call this function to read a value when you know a numerical value exists"""
-    c = peekchar(s)
+    c = peekskip(s)
 
     # Value is present
-    if isdigit(c) || in(c, [',', 'e', '-'])
+    if isdigit(c)
         val = readFloat(s, c)
         return val
-    end
     # No value
-    if c == ':'
-        read(s, Char) # Advance `s` past one colon
-        return -1
+    elseif c == ':'
+        return -1.0
     else
         warn(errors[call])
+        return -1.0
     end
 end
 
@@ -283,40 +282,30 @@ Edges in a topology may optionally be followed by ":edgeLen:bootstrap:gamma"
     where edgeLen, bootstrap, and gamma are decimal values
 """
 function parseEdgeData2!(s::IO, e::PhyloNetworks.Edge, numLeft::Array{Int,1})
-    function _eqn1(v)
-        return (isa(v, Int)) && (v == -1);
+    bootstrap = nothing;
+    gamma = nothing;
+    read(s, Char);
+    edgeLen = getDataValue!(s, 1, numLeft)
+    if peekskip(s) == ':'
+        readskip!(s)
+        bootstrap = getDataValue!(s, 2, numLeft)
     end
-
-    function _handleGamma(e::PhyloNetworks.Edge)
-        if(!e.hybrid)
-            warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(length) ignored")
-        else
-            setGamma!(e,length, false, true);
-        end
+    if peekskip(s) == ':'
+        readskip!(s)
+        gamma = getDataValue!(s, 3, numLeft)
     end
-
-    peekchar(s) == ":" && error("No first colon in `s` when calling parseEdgeData2!")
-    read(s, Char) # Advance `s` past the first colon
-    edgeLen = getdataValue!(s, 1, numLeft)
-    peekchar(s) == ":" && error("No second colon in `s` when calling parseEdgeData2!")
-    read(s, Char) # Advance `s` past the second colon
-    bootstrap = getdataValue!(s, 2, numLeft)
-    peekchar(s) == ":" && error("No third colon in `s` when calling parseEdgeData2!")
-    read(s, Char) # Advance `s` past the third colon
-    gamma = getdataValue!(s, 3, numLeft)
     
-    isEdgeLen   = (_eqn1(edgeLen));
-    isBootstrap = (_eqn1(bootstrap));
-    isGamma     = (_eqn1(gamma));
+    isEdgeLen   = (edgeLen != -1.0);
+    isGamma     = (gamma != -1.0 && gamma != nothing);
 
     if isGamma
-        _handeGamma(e);
+        if(!e.hybrid)
+            warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(gamma) ignored")
+        else
+            setGamma!(e,gamma, false, true);
+        end
     end
-    if isEdgeLen
-        e.length = edgeLen;
-    else
-        e.length = -1.0;
-    end
+    e.length = edgeLen;
       
 end
 
@@ -326,7 +315,7 @@ Advances `s` past any existing metadata.\n
 Edges in a topology may optionally be followed by ":edgeLen:bootstrap:gamma"
     where edgeLen, bootstrap, and gamma are decimal values
 """
-@inline function parseEdgeData!(s::IO, e::Edge)
+@inline function parseEdgeData!(s::IO, e::PhyloNetworks.Edge, numLeft::Array{Int,1})
     c = read(s,Char);
     c = peekchar(s);
     if(isdigit(c) || in(c, ['.','e','-'])) #R1
@@ -427,19 +416,19 @@ warning: allows for name of internal nodes without # after: (1,2)A,...
 warning: warning if hybrid edge without gamma value, warning if gamma value (ignored) without hybrid edge
 modified from original Cecile c++ code to allow polytomies"""
 function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNetwork, hybrids::Array{String,1}, index::Array{Int,1})
-    c = peekchar(s)
+    c = peekskip(s)
     e = nothing;
     hasname = false; # to know if the current node has name
     pound = false;
     if(c == '(')
         # read the rest of the subtree (perform the recursive step!)
         n = parseRemainingSubtree!(s, numLeft, net, hybrids, index)
-        c = peekchar(s);
+        c = peekskip(s);
         if(isalnum(c) || isValidSymbol(c) || c == '#') # internal node has name
             hasname = true;
             num, name, pound = readNum(s, c, net, numLeft);
             n.number = num;
-            c = peekchar(s);
+            c = peekskip(s);
             #if(!pound)
             #    warn("internal node with name without it being a hybrid node. node name might be meaningless after tree modifications.")
             #end
@@ -463,9 +452,9 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
         end
         e = parseNonhybridNode!(n, parent, net)
     end
-    c = peekchar(s);
+    c = peekskip(s);
     if(c == ':')
-        parseEdgeData!(s, e)
+        parseEdgeData!(s, e, numLeft)
     else
         e.length = -1.0 # do not use setLength because it does not allow BL too negative
         e.gamma = e.hybrid ? -1.0 : 1.0 # set missing gamma as -1.0 for hybrid edge
