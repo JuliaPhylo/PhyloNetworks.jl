@@ -87,23 +87,21 @@ function P(mod::SM, t::Array{Float64})
 end
 
 """
-    BinaryTraitSubstitutionModel
+    BinaryTraitSubstitutionModel(α, β [, label])
 
 [TraitSubstitutionModel](@ref) for binary traits (with 2 states).
 Default labels are "0" and "1".
+α is the rate of transition from "0" to "1", and β from "1" to "0".
 """
 mutable struct BinaryTraitSubstitutionModel <: TraitSubstitutionModel
-    α::Float64
-    β::Float64
-    π0::Float64
-    π1::Float64
+    rate::Vector{Float64}
     label::SVector{2, String}
     function BinaryTraitSubstitutionModel(α::Float64, β::Float64, label::SVector{2, String})
 	    α >= 0. || error("parameter α must be non-negative")
 	    β >= 0. || error("parameter β must be non-negative")
 	    ab = α+β
         ab > 0. || error("α+β must be positive")
-        new(α, β, β/ab, α/ab, label)
+        new([α,β], label)
     end
 end
 const BTSM = BinaryTraitSubstitutionModel
@@ -116,21 +114,22 @@ For a BinaryTraitSubstitutionModel, the rate matrix Q is of the form:
      β -β
 """
 @inline function Q(mod::BTSM)
-    return Bmatrix(-mod.α, mod.β, mod.α, -mod.β)
+    return Bmatrix(-mod.rate[1], mod.rate[2], mod.rate[1], -mod.rate[2])
 end
 
 function show(io::IO, object::BinaryTraitSubstitutionModel)
     str = "Binary Trait Substitution Model:\n"
-    str *= "rate $(object.label[1])→$(object.label[2]) α=$(object.α)\n"
-    str *= "rate $(object.label[2])→$(object.label[1]) β=$(object.β)\n"
+    str *= "rate $(object.label[1])→$(object.label[2]) α=$(object.rate[1])\n"
+    str *= "rate $(object.label[2])→$(object.label[1]) β=$(object.rate[2])\n"
     print(io, str)
 end
 
 @inline function P(mod::BTSM, t::Float64)
     t >= 0.0 || error("t must be positive")
-    e1 = exp(-(mod.α+mod.β)t)
-    p0 = mod.π0
-    p1 = mod.π1
+    ab = mod.rate[1] + mod.rate[2]
+    e1 = exp(-ab*t)
+    p0 = mod.rate[2]/ab # asymptotic frequency of state "0"
+    p1 = mod.rate[1]/ab # asymptotic frequency of state "1"
     a0= p0 *e1
     a1= p1*e1
     return Bmatrix(p0+a1, p0-a0, p1-a1, p1+a0) # by columns
@@ -157,15 +156,15 @@ function nStates(mod::BTSM)
 end
 
 """
-    TwoBinaryTraitSubstitutionModel(α [, label])
+    TwoBinaryTraitSubstitutionModel(rate [, label])
 
 [TraitSubstitutionModel](@ref) for two binary traits, possibly correlated.
 Default labels are "x0", "x1" for trait 1, and "y0", "y1" for trait 2.
 If provided, `label` should be a vector of size 4, listing labels for
 trait 1 first then labels for trait 2.
-`α` should be a vector of substitution rates of size 8.
-α1,...,α4 describe rates of changes in trait 1.
-α5,...,α8 describe rates of changes in trait 2.
+`rate` should be a vector of substitution rates of size 8.
+rate[1],...,rate[4] describe rates of changes in trait 1.
+rate[5],...,rate[8] describe rates of changes in trait 2.
 
 In the transition matrix, trait combinations are listed in the following order:
 x0-y0, x0-y1, x1-y0, x1-y1.
@@ -173,10 +172,10 @@ x0-y0, x0-y1, x1-y0, x1-y1.
 try `plot(model)` to visualize states and rates.
 """
 mutable struct TwoBinaryTraitSubstitutionModel <: TraitSubstitutionModel
-    α::Vector{Float64}
+    rate::Vector{Float64}
     label::Vector{String}
     function TwoBinaryTraitSubstitutionModel(α::AbstractVector{Float64}, label::AbstractVector{String})
-	    all( x -> x >= 0., α) || error("rates in α must be non-negative")
+	    all( x -> x >= 0., α) || error("rates must be non-negative")
         new(α, [string(label[1], "-", label[3]),
                 string(label[1], "-", label[4]),
                 string(label[2], "-", label[3]),
@@ -188,7 +187,7 @@ TwoBinaryTraitSubstitutionModel(α) = TwoBinaryTraitSubstitutionModel(α, ["x0",
 
 function Q(mod::TwoBinaryTraitSubstitutionModel)
     M = fill(0.0,(4,4))
-    a = mod.α
+    a = mod.rate
     M[1,3] = a[1]
     M[3,1] = a[2]
     M[2,4] = a[3]
@@ -252,18 +251,18 @@ function plot(object::TwoBinaryTraitSubstitutionModel)
     text(x=0.175,y=0.05,$(object.label[3]))
     """
     R"""
-    text(x=1,y=1,round($(object.α[5]),signif),cex=0.8)
+    text(x=1,y=1,round($(object.rate[5]),signif),cex=0.8)
     """
     R"""
-    text(x=1,y=0.85,round($(object.α[6]),signif),cex=0.8)
-    text(x=1.9,y=0.5,round($(object.α[3]),signif),cex=0.8,srt=90)
-    text(x=1.75,y=0.5,round($(object.α[4]),signif),cex=0.8,srt=90)
+    text(x=1,y=0.85,round($(object.rate[6]),signif),cex=0.8)
+    text(x=1.9,y=0.5,round($(object.rate[3]),signif),cex=0.8,srt=90)
+    text(x=1.75,y=0.5,round($(object.rate[4]),signif),cex=0.8,srt=90)
     """
     R"""
-    text(x=1,y=0,round($(object.α[8]),signif),cex=0.8)
-    text(x=1,y=0.15,round($(object.α[7]),signif),cex=0.8)
-    text(x=0.1,y=0.5,round($(object.α[2]),signif),cex=0.8,srt=90)
-    text(x=0.25,y=0.5,round($(object.α[1]),signif),cex=0.8,srt=90)
+    text(x=1,y=0,round($(object.rate[8]),signif),cex=0.8)
+    text(x=1,y=0.15,round($(object.rate[7]),signif),cex=0.8)
+    text(x=0.1,y=0.5,round($(object.rate[2]),signif),cex=0.8,srt=90)
+    text(x=0.25,y=0.5,round($(object.rate[1]),signif),cex=0.8,srt=90)
     """
 end
 
