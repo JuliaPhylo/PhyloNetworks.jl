@@ -1062,8 +1062,10 @@ function readOutfile(file::AbstractString)
     if(c == '(')
        println("Estimated network from file $(file): $(line)")
        net = readTopologyUpdate(line)
+       vec = split(line,"-Ploglik = ")
+       net.loglik = parse(Float64,vec[2])
     else
-        error("output file $(filename).out does not contain a tree in the first line, instead it has $(line)")
+        error("output file $(filename).out does not contain a tree in the first line, instead it has $(line); or we had trouble finding ploglik.")
     end
     return net
 end
