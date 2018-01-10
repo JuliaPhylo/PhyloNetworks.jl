@@ -117,7 +117,7 @@ function readFloat(s::IO, c::Char)
         return f
     else
         a = readstring(s);
-        error("Expected float digit after : but received $(c). remaining is $(a).");
+        error("Expected float digit after : but found $(c). remaining is $(a).");
     end
 end
 
@@ -128,10 +128,13 @@ function isValidSymbol(c::Char)
     return !isspace(c) && c != '(' && c != ')' && c != '[' && c != ']' && c != ':' && c != ';' && c != ',' #&& c != '.'
 end
 
-"""parseRemainingSubtree! - Helper function for readSubtree!\n
-Called once a `(` has been read in a tree topology and reads until the corresponding `)` has been found.\n
-This function performs the recursive step for readSubtree!\n
-Advances `s` past the subtree, adds discovered nodes and edges to `net`, `hybrids`, and `index`
+"""
+    parseRemainingSubtree!(s::IO, numLeft, net, hybrids, index)
+
+Helper function for readSubtree!
+Called once a `(` has been read in a tree topology and reads until the corresponding `)` has been found.
+This function performs the recursive step for readSubtree!
+Advances `s` past the subtree, adds discovered nodes and edges to `net`, `hybrids`, and `index`.
 """
 @inline function parseRemainingSubtree!(s::IO, numLeft::Array{Int,1}, net::HybridNetwork, hybrids::Array{String, 1}, index::Array{Int, 1})
     numLeft[1] += 1
@@ -153,10 +156,13 @@ Advances `s` past the subtree, adds discovered nodes and edges to `net`, `hybrid
     return n
 end
 
-"""parseHybridNode! - Helper function for readSubtree!\n
-Handles any type of given hybrid node.\n
-Called once a `#` has been found in a tree topology.\n
-Creates a hybrid node and edges, then inserts those into `net`, `hybrids` and `index` accordingly.
+"""
+    parseHybridNode!(node, parentNode, hybridName, net, hybrids, index)
+
+Helper function for readSubtree!
+Handles any type of given hybrid node.
+To be called once a `#` has been found in a tree topology.
+Creates a hybrid node and its edges, then inserts those into `net`, `hybrids` and `index` accordingly.
 """
 @inline function parseHybridNode!(n::Node, parent::Node, name::String, net::HybridNetwork, hybrids::Array{String, 1}, index::Array{Int, 1})
     DEBUG && println("found pound in $(name)")
@@ -236,8 +242,11 @@ Creates a hybrid node and edges, then inserts those into `net`, `hybrids` and `i
     return e
 end
 
-"""parseNonhybridNode! - Helper function for readSubtree!\n
-Inserts a nonhybrid node and associated edge in `net`.
+"""
+    parseNonhybridNode!(node, parentNode, net)
+
+Helper function for readSubtree!
+Inserts a nonhybrid node and associated edge into `net`.
 """
 @inline function parseNonhybridNode!(n::Node, parent::Node, net::HybridNetwork)
     pushNode!(net,n);
@@ -249,16 +258,19 @@ Inserts a nonhybrid node and associated edge in `net`.
     return e
 end
 
-"""getdataValue! - Helper function for parseEdgeData2!\n
-Reads a single floating point metadatum in a tree topology.\n
-Returns -1 if no value exists before the next colon, returns a float if a value is present.\n
-Modifies s by advancing past the next colon character.
 """
-function getDataValue!(s::IO, call::Int, numLeft::Array{Int,1})
+    getdataValue!(s::IO, int, numLeft::Array{Int,1})
+
+Helper function for parseEdgeData!
+Reads a single floating point edge data value in a tree topology.
+Returns -1 if no value exists before the next colon, returns a float if a value is present.
+Modifies s by advancing past the next colon character.
+Only call this function to read a value when you know a numerical value exists!
+"""
+@inline function getDataValue!(s::IO, call::Int, numLeft::Array{Int,1})
     errors = ["one colon read without double in left parenthesis $(numLeft[1]-1), ignored.",
               "second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.",
               "third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored"]
-    """Only call this function to read a value when you know a numerical value exists"""
     c = peekskip(s)
 
     # Value is present
@@ -274,13 +286,18 @@ function getDataValue!(s::IO, call::Int, numLeft::Array{Int,1})
     end
 end
 
-"""parseEdgeData! - Helper function for readSubtree!\n
-Modifies `e` according to the specified edge length and gamma values in the tree topology.\n
-Advances `s` past any existing edge data.\n
-Edges in a topology may optionally be followed by ":edgeLen:bootstrap:gamma"
-    where edgeLen, bootstrap, and gamma are decimal values
+#TODO: Check the windows version
+
 """
-function parseEdgeData!(s::IO, e::PhyloNetworks.Edge, numLeft::Array{Int,1})
+    parseEdgeData!(s::IO, edge, node, numberOfLeftParentheses::Array{Int,1})
+
+Helper function for readSubtree!, fixes a bug from using setGamma
+Modifies `e` according to the specified edge length and gamma values in the tree topology.
+Advances the stream `s` past any existing edge data.
+Edges in a topology may optionally be followed by ":edgeLen:bootstrap:gamma"
+where edgeLen, bootstrap, and gamma are decimal values.
+"""
+@inline function parseEdgeData!(s::IO, e::PhyloNetworks.Edge, n::PhyloNetworks.Node, numLeft::Array{Int,1})
     bootstrap = nothing;
     gamma = nothing;
     read(s, Char);
@@ -293,28 +310,87 @@ function parseEdgeData!(s::IO, e::PhyloNetworks.Edge, numLeft::Array{Int,1})
         readskip!(s)
         gamma = getDataValue!(s, 3, numLeft)
     end
-    
-    isEdgeLen   = (edgeLen != -1.0);
-    isGamma     = (gamma != -1.0 && gamma != nothing);
 
-    if isGamma
+    edgeLenPresent = (edgeLen != -1.0);
+    gammaPresent   = (gamma != -1.0 && gamma != nothing);
+
+    e.length = edgeLen;
+    if gammaPresent
         if(!e.hybrid)
             warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(gamma) ignored")
         else
-            setGamma!(e, gamma, false, true);
+            parentEdges = Edge[] # The edges which have n as a child
+            for e in n.edge
+                if e.hybrid
+                    nIsChild = (e.isChild1 && e.node[1] == n || !e.isChild1 && e.node[2] == n)
+                    if nIsChild
+                        push!(parentEdges, e)
+                    end
+                end
+            end
+            numParents = size(parentEdges)[1]
+            if (numParents == 0)
+                return
+            elseif (numParents == 1) #other edge not yet read, gamma provided for this edge
+                e.gamma = gamma
+                # isMajor will be set when the other edge is found
+            elseif (numParents == 2) #other edge has been read, may have gamma set
+                local otheredge::PhyloNetworks.Edge
+                parentEdges[1] == e ? otheredge = parentaledges[2] :
+                                        otheredge = parentEdges[1]
+                # Note: only need to correct isMajor if the gamma values are not equal
+                if (!approxEq(gamma + otheredge.gamma, 1)) # gammas do not sum to 1
+                    # some gamma < 0
+                    if (gamma <= 0 && otheredge.gamma > 0)
+                        println("gamma < 0: $(gamma), ogamma > 0: $(otheredge.gamma)")
+                        gamma = 1 - otheredge.gamma
+                    elseif (otheredge.gamma <= 0 && gamma > 0)
+                        println("gamma < 0: $(otheredge.gamma), ogamma > 0: $(gamma)")
+                        otheredge.gamma = 1 - gamma
+                    end
+                    # rescale so that they sum to 1
+                    e.gamma, otheredge.gamma = ((gamma)/(gamma + otheredge.gamma),
+                                                (otheredge.gamma)/(gamma + otheredge.gamma))
+                    if (!approxEq(e.gamma, 0.5))
+                        if e.gamma > 0.5
+                            e.isMajor = true
+                            otheredge.isMajor = false
+                        else
+                            e.isMajor = false
+                            otheredge.isMajor = true
+                        end
+                    end
+                else # both gamma values sum to 1
+                    e.gamma = gamma
+                    if (!approxEq(e.gamma, 0.5))
+                        if e.gamma > 0.5
+                            e.isMajor = true
+                            otheredge.isMajor = false
+                        else
+                            e.isMajor = false
+                            otheredge.isMajor = true
+                        end
+                    end
+                end
+            else
+                error("hybrid edge gamma value parsed but hybrid node has $(size(parentEdges)[1]) parent edges! (should be between 0 and 2)")
+            end
         end
     end
-    e.length = edgeLen;
-      
 end
 
-"""readSubtree! - A recursive helper method for readTopology \n
-Reads a subtree of a 
+"""
+    readSubtree!(s::IO, parentNode, numLeft, net, hybrids, index)
+
+A recursive helper method for readTopology
+Reads a subtree of a Extended Newick tree topology
 input: s IOStream/IOBuffer
 warning: reads additional info :length:bootstrap:gamma
 warning: allows for name of internal nodes without # after: (1,2)A,...
 warning: warning if hybrid edge without gamma value, warning if gamma value (ignored) without hybrid edge
-modified from original Cecile c++ code to allow polytomies"""
+modified from original Cecile c++ code to allow polytomies
+"""
+
 function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNetwork, hybrids::Array{String,1}, index::Array{Int,1})
     c = peekskip(s)
     e = nothing;
@@ -354,7 +430,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
     end
     c = peekskip(s);
     if(c == ':')
-        parseEdgeData!(s, e, numLeft)
+        parseEdgeData!(s, e, n, numLeft)
     else
         e.length = -1.0 # do not use setLength because it does not allow BL too negative
         e.gamma = e.hybrid ? -1.0 : 1.0 # set missing gamma as -1.0 for hybrid edge
