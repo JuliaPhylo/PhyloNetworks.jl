@@ -78,7 +78,7 @@ tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculat
          "test_multipleAlleles.jl", "test_bootstrap.jl", "test_perfectData.jl", # "test_readme.jl"
          "test_lm.jl", "test_lm_tree.jl", "test_traits.jl", "test_simulate.jl",
          "test_parsimony.jl", "test_plotsRCall.jl", "test_calibratePairwise.jl", "test_relaxed_reading.jl",
-         "test_apeRExport.jl",
+         "test_isMajor.jl", "test_apeRExport.jl",
          "test_traitLikDiscrete.jl"]
 
 if isdefined(:PhyloNetworks)

@@ -64,11 +64,11 @@ function readNum(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int,1})
     pound = 0;
     if(isalnum(c) || isValidSymbol(c) || c == '#')
         pound += (c == '#') ? 1 : 0
-        num = readskip!(s)
+        name = readskip!(s)
         c = peekskip(s)
         while(isalnum(c) || isValidSymbol(c) || c == '#')
             d = readskip!(s)
-            num = string(num,d)
+            name = string(name,d)
             if(d == '#')
                 pound += 1;
                c = peekskip(s);
@@ -84,9 +84,9 @@ function readNum(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int,1})
             c = peekskip(s);
         end
         if(pound == 0)
-            return size(net.names,1)+1, num, false
+            return size(net.names,1)+1, name, false
         elseif(pound == 1)
-            return size(net.names,1)+1, num, true
+            return size(net.names,1)+1, name, true
         else
             a = readstring(s);
             error("strange node name with $(pound) # signs. remaining is $(a).")
@@ -151,7 +151,7 @@ Advances `s` past the subtree, adds discovered nodes and edges to `net`, `hybrid
         elseif (c != ',')
             a = readstring(s);
             error("Expected right parenthesis after left parenthesis $(numLeft[1]-1) but read $(c). The remainder of line is $(a).")
-       end
+        end
     end
     return n
 end
@@ -274,7 +274,7 @@ Only call this function to read a value when you know a numerical value exists!
     c = peekskip(s)
 
     # Value is present
-    if isdigit(c)
+    if isdigit(c) || c == '.'
         val = readFloat(s, c)
         return val
     # No value
@@ -299,7 +299,7 @@ where edgeLen, bootstrap, and gamma are decimal values.
 """
 @inline function parseEdgeData!(s::IO, e::PhyloNetworks.Edge, n::PhyloNetworks.Node, numLeft::Array{Int,1})
     bootstrap = nothing;
-    gamma = nothing;
+    gamma = -1.0;
     read(s, Char);
     edgeLen = getDataValue!(s, 1, numLeft)
     if peekskip(s) == ':'
@@ -314,7 +314,7 @@ where edgeLen, bootstrap, and gamma are decimal values.
     edgeLenPresent = (edgeLen != -1.0);
     gammaPresent   = (gamma != -1.0 && gamma != nothing);
 
-    e.length = edgeLen;
+    e.length = edgeLen
     if gammaPresent
         if(!e.hybrid)
             warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(gamma) ignored")
@@ -329,9 +329,7 @@ where edgeLen, bootstrap, and gamma are decimal values.
                 end
             end
             numParents = size(parentEdges)[1]
-            if (numParents == 0)
-                return
-            elseif (numParents == 1) #other edge not yet read, gamma provided for this edge
+            if (numParents == 0) || (numParents == 1)
                 e.gamma = gamma
                 # isMajor will be set when the other edge is found
             elseif (numParents == 2) #other edge has been read, may have gamma set
@@ -342,27 +340,17 @@ where edgeLen, bootstrap, and gamma are decimal values.
                 if (!approxEq(gamma + otheredge.gamma, 1)) # gammas do not sum to 1
                     # some gamma < 0
                     if (gamma <= 0 && otheredge.gamma > 0)
-                        println("gamma < 0: $(gamma), ogamma > 0: $(otheredge.gamma)")
                         gamma = 1 - otheredge.gamma
                     elseif (otheredge.gamma <= 0 && gamma > 0)
-                        println("gamma < 0: $(otheredge.gamma), ogamma > 0: $(gamma)")
                         otheredge.gamma = 1 - gamma
                     end
                     # rescale so that they sum to 1
                     e.gamma, otheredge.gamma = ((gamma)/(gamma + otheredge.gamma),
                                                 (otheredge.gamma)/(gamma + otheredge.gamma))
-                    if (!approxEq(e.gamma, 0.5))
-                        if e.gamma > 0.5
-                            e.isMajor = true
-                            otheredge.isMajor = false
-                        else
-                            e.isMajor = false
-                            otheredge.isMajor = true
-                        end
-                    end
                 else # both gamma values sum to 1
                     e.gamma = gamma
-                    if (!approxEq(e.gamma, 0.5))
+                end
+                if (!approxEq(e.gamma, 0.5))
                         if e.gamma > 0.5
                             e.isMajor = true
                             otheredge.isMajor = false
@@ -371,7 +359,6 @@ where edgeLen, bootstrap, and gamma are decimal values.
                             otheredge.isMajor = true
                         end
                     end
-                end
             else
                 error("hybrid edge gamma value parsed but hybrid node has $(size(parentEdges)[1]) parent edges! (should be between 0 and 2)")
             end
@@ -429,11 +416,10 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
         e = parseNonhybridNode!(n, parent, net)
     end
     c = peekskip(s);
+    e.length = -1.0
+    e.gamma = e.hybrid? -1.0 : 1.0
     if(c == ':')
         parseEdgeData!(s, e, n, numLeft)
-    else
-        e.length = -1.0 # do not use setLength because it does not allow BL too negative
-        e.gamma = e.hybrid ? -1.0 : 1.0 # set missing gamma as -1.0 for hybrid edge
     end
     return true
 end
@@ -482,27 +468,27 @@ function readTopology(s::IO,verbose::Bool)
     hybrids = String[];
     index = Int[];
     if(c == '(')
-       numLeft[1] += 1;
-       #println(numLeft)
-       n = Node(-1*numLeft[1],false);
-       c = readskip!(s)
-       b = false;
-       while(c != ';')
-           b |= readSubtree!(s,n,numLeft,net,hybrids,index)
-           c = readskip!(s);
-           if(eof(s))
-               error("Tree ended while reading in subtree beginning with left parenthesis number $(numLeft[1]-1).")
-           elseif(c == ',')
-               continue;
-           elseif(c == ')')
-               c = peekskip(s);
-               if(c == ':')
-                   while(c != ';')
-                       c = readskip!(s)
-                   end
-               end
-           end
-       end
+        numLeft[1] += 1;
+        #println(numLeft)
+        n = Node(-1*numLeft[1],false);
+        c = readskip!(s)
+        b = false;
+        while(c != ';')
+            b |= readSubtree!(s,n,numLeft,net,hybrids,index)
+            c = readskip!(s);
+            if(eof(s))
+                error("Tree ended while reading in subtree beginning with left parenthesis number $(numLeft[1]-1).")
+            elseif(c == ',')
+                continue;
+            elseif(c == ')')
+                c = peekskip(s);
+                if(c == ':')
+                    while(c != ';')
+                        c = readskip!(s)
+                    end
+                end
+            end
+        end
         DEBUG && println("after readsubtree:")
         DEBUG && printEdges(net)
         if(size(n.edge,1) == 1) # root has only one child
@@ -526,7 +512,7 @@ function readTopology(s::IO,verbose::Bool)
        ## end
     net.isRooted = true
     return net
- end
+end
 
 readTopology(s::IO) = readTopology(s,true)
 
