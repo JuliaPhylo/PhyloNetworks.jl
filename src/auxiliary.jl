@@ -826,11 +826,9 @@ This will automatically set γ of the sister hybrid edge to 0.8.
 # changeOther = true, looks for the other hybrid edge and changes gamma too
 # read = true, function called in readSubtree, needs to be the old one
 
-setGamma!(edge::Edge, new_gamma::Float64) = setGamma!(edge, new_gamma, true, false)
+setGamma!(edge::Edge, new_gamma::Float64) = setGamma!(edge, new_gamma, true)
 
-setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool) = setGamma!(edge, new_gamma, changeOther, false)
-
-function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool, read::Bool)
+function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool)
     global DEBUG
     new_gamma >= 0 || error("gamma has to be positive: $(new_gamma)")
     new_gamma <= 1 || error("gamma has to be less than 1: $(new_gamma)")
@@ -841,40 +839,35 @@ function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool, read::Bool
     if(DEBUG)
         !node.isBadDiamondI || warn("bad diamond situation: gamma not identifiable")
     end
-    if(!read)
-        edges = hybridEdges(node,edge)
-        length(edges) == 2 || error("strange here: node $(node.number) should have 3 edges and it has $(length(edges)+1).")
-        if(edges[1].hybrid && !edges[2].hybrid)
-            ind = 1
-        elseif(edges[2].hybrid && !edges[1].hybrid)
-            ind = 2
-        else
-            error("strange hybrid node $(node.number) with only one hybrid edge or with three hybrid edges")
+    edges = hybridEdges(node,edge)
+    length(edges) == 2 || error("strange here: node $(node.number) should have 3 edges and it has $(length(edges)+1).")
+    if(edges[1].hybrid && !edges[2].hybrid)
+        ind = 1
+    elseif(edges[2].hybrid && !edges[1].hybrid)
+        ind = 2
+    else
+        error("strange hybrid node $(node.number) with only one hybrid edge or with three hybrid edges")
+    end
+    if(changeOther)
+        if(!approxEq(new_gamma,0.5))
+            edge.gamma = new_gamma;
+            edge.isMajor = (new_gamma>0.5) ? true : false
+            edges[ind].gamma = 1 - new_gamma;
+            edges[ind].isMajor = (new_gamma<0.5) ? true : false
+        else #new gamma is 0.5
+            edge.gamma = new_gamma
+            edge.isMajor = true
+            edges[ind].gamma = 1 - new_gamma
+            edges[ind].isMajor = false
         end
-        if(changeOther)
-            if(!approxEq(new_gamma,0.5))
-                edge.gamma = new_gamma;
-                edge.isMajor = (new_gamma>0.5) ? true : false
-                edges[ind].gamma = 1 - new_gamma;
-                edges[ind].isMajor = (new_gamma<0.5) ? true : false
-            else #new gamma is 0.5
-                edge.gamma = new_gamma
-                edge.isMajor = true
-                edges[ind].gamma = 1 - new_gamma
-                edges[ind].isMajor = false
-            end
-        else
-            if(!approxEq(new_gamma,0.5))
-                edge.gamma = new_gamma;
-                edge.isMajor = (new_gamma>0.5) ? true : false
-            else #new gamma is 0.5
-                edge.gamma = new_gamma
-                edge.isMajor = !edges[ind].isMajor
-            end
+    else
+        if(!approxEq(new_gamma,0.5))
+            edge.gamma = new_gamma;
+            edge.isMajor = (new_gamma>0.5) ? true : false
+        else #new gamma is 0.5
+            edge.gamma = new_gamma
+            edge.isMajor = !edges[ind].isMajor
         end
-    else # comes from readSubtree
-        edge.gamma = new_gamma;
-        edge.isMajor = (new_gamma>=0.5) ? true : false
     end
     return nothing
 end
