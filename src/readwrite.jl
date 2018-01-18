@@ -705,7 +705,13 @@ function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
                         println("hybrid edges for hybrid node $(n.number) have missing gamma's, set default: 0.9,0.1")
                         for e in n.edge
                             if(e.hybrid)
-                                (!e.isMajor) ? setGamma!(e,0.1, false, true) : setGamma!(e,0.9, false, true)
+                                if (e.isMajor)
+                                    e.gamma = 0.9;
+                                    e.isMajor = true
+                                else
+                                    e.gamma = 0.1;
+                                    e.isMajor = false
+                                end
                             end
                         end
                     elseif(suma != 1)
