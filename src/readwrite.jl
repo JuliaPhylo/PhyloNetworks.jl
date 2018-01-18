@@ -243,12 +243,12 @@ Creates a hybrid node and its edges, then inserts those into `net`, `hybrids` an
 end
 
 """
-    parseNonhybridNode!(node, parentNode, net)
+    parseTreeNode!(node, parentNode, net)
 
 Helper function for readSubtree!
-Inserts a nonhybrid node and associated edge into `net`.
+Inserts a tree node and associated edge into `net`.
 """
-@inline function parseNonhybridNode!(n::Node, parent::Node, net::HybridNetwork)
+@inline function parseTreeNode!(n::Node, parent::Node, net::HybridNetwork)
     pushNode!(net,n);
     e = Edge(net.numEdges+1);
     pushEdge!(net,e);
@@ -369,14 +369,15 @@ end
 """
     readSubtree!(s::IO, parentNode, numLeft, net, hybrids, index)
 
-A recursive helper method for readTopology
-Reads a subtree of a Extended Newick tree topology
-input: s IOStream/IOBuffer
-warning: reads additional info :length:bootstrap:gamma
-warning: allows for name of internal nodes without # after: (1,2)A,...
-warning: warning if hybrid edge without gamma value, warning if gamma value (ignored) without hybrid edge
-modified from original Cecile c++ code to allow polytomies
+Recursive helper method for `readTopology`:
+read a subtree from an extended Newick topology.
+input `s`: IOStream/IOBuffer.
+
+Reads additional info formatted as: `:length:bootstrap:gamma`.
+Allows for name of internal nodes without # after closing parenthesis: (1,2)A.
+Warning if hybrid edge without γ, or if γ (ignored) without hybrid edge
 """
+# modified from original Cecile c++ code to allow polytomies
 
 function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNetwork, hybrids::Array{String,1}, index::Array{Int,1})
     c = peekskip(s)
@@ -413,7 +414,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
             push!(net.names,string(name));
             n.name = string(name)
         end
-        e = parseNonhybridNode!(n, parent, net)
+        e = parseTreeNode!(n, parent, net)
     end
     c = peekskip(s);
     e.length = -1.0
