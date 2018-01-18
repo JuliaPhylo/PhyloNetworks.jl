@@ -781,7 +781,7 @@ function setLength!(edge::Edge, new_length::Number, negative::Bool)
     end
     edge.length = new_length;
     edge.y = exp(-new_length);
-    edge.z = 1 - edge.y;
+    edge.z = 1.0 - edge.y;
     #edge.istIdentifiable || warn("set edge length for edge $(edge.number) that is not identifiable")
     return nothing
 end
@@ -807,74 +807,69 @@ function setBranchLength!(edge::Edge, new_length::Number)
     (new_length >= 0 || new_length == -1.0) || error("length $(new_length) has to be nonnegative or -1.0 (for missing).")
     edge.length = new_length;
     edge.y = exp(-new_length);
-    edge.z = 1 - edge.y;
+    edge.z = 1.0 - edge.y;
 end
 
 
 """
 `setGamma!(Edge,new gamma)`
 
-set γ for an edge, which must be a hybrid edge. The new γ needs to be in (0,1).
-The γ of the sister hybrid edge is changed accordingly, to 1-γ.
-If `net` is a HybridNetwork object, `printEdges(net)` will show the list of edges and their γ's.
-The γ of the third hybrid edge (say) can be changed to 0.2 with `setGamma!(net.edge[3],0.2)`.
-This will automatically set γ of the sister hybrid edge to 0.8.
+Set inheritance probability γ for an edge, which must be a hybrid edge.
+The new γ needs to be in [0,1]. The γ of the "partner" hybrid edge is changed
+accordingly, to 1-γ. The field `isMajor` is also changed accordingly.
+If the new γ is approximately 0.5, `Edge` is set to the major parent,
+its partner is set to the minor parent.
+
+If `net` is a HybridNetwork object, `printEdges(net)` will show the list of edges
+and their γ's. The γ of the third hybrid edge (say) can be changed to 0.2 with
+`setGamma!(net.edge[3],0.2)`.
+This will automatically set γ of the partner hybrid edge to 0.8.
 """
-# setGamma
 # warning in the bad diamond/triangle cases because gamma is not identifiable
-# updates isMajor according to gamma value
 # changeOther = true, looks for the other hybrid edge and changes gamma too
-# read = true, function called in readSubtree, needs to be the old one
 
-setGamma!(edge::Edge, new_gamma::Float64) = setGamma!(edge, new_gamma, true, false)
+setGamma!(edge::Edge, new_gamma::Float64) = setGamma!(edge, new_gamma, true)
 
-setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool) = setGamma!(edge, new_gamma, changeOther, false)
-
-function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool, read::Bool)
+function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool)
     global DEBUG
-    new_gamma >= 0 || error("gamma has to be positive: $(new_gamma)")
-    new_gamma <= 1 || error("gamma has to be less than 1: $(new_gamma)")
+    new_gamma >= 0.0 || error("gamma has to be positive: $(new_gamma)")
+    new_gamma <= 1.0 || error("gamma has to be less than 1: $(new_gamma)")
     edge.hybrid || error("cannot change gamma in a tree edge");
     edge.isChild1 ? ind = 1 : ind = 2 ; # hybrid edge pointing at node 1 or 2
-    node = edge.node[ind]
+    node = edge.node[ind] # child of hybrid edge
     node.hybrid || warn("hybrid edge $(edge.number) not pointing at hybrid node")
     if(DEBUG)
         !node.isBadDiamondI || warn("bad diamond situation: gamma not identifiable")
     end
-    if(!read)
-        edges = hybridEdges(node,edge)
-        length(edges) == 2 || error("strange here: node $(node.number) should have 3 edges and it has $(length(edges)+1).")
-        if(edges[1].hybrid && !edges[2].hybrid)
-            ind = 1
-        elseif(edges[2].hybrid && !edges[1].hybrid)
-            ind = 2
-        else
-            error("strange hybrid node $(node.number) with only one hybrid edge or with three hybrid edges")
+    edges = hybridEdges(node,edge)
+    length(edges) == 2 || error("strange here: node $(node.number) should have 3 edges and it has $(length(edges)+1).")
+    if(edges[1].hybrid && !edges[2].hybrid)
+        ind = 1
+    elseif(edges[2].hybrid && !edges[1].hybrid)
+        ind = 2
+    else
+        error("strange hybrid node $(node.number) with only one hybrid edge or with three hybrid edges")
+    end
+    if(changeOther)
+        if(!approxEq(new_gamma,0.5))
+            edge.gamma = new_gamma;
+            edge.isMajor = (new_gamma>0.5)
+            edges[ind].gamma = 1.0 - new_gamma;
+            edges[ind].isMajor = !edge.isMajor
+        else #new gamma is 0.5 approximately
+            edge.gamma = new_gamma
+            edge.isMajor = true
+            edges[ind].gamma = 1.0 - new_gamma
+            edges[ind].isMajor = false
         end
-        if(changeOther)
-            if(!approxEq(new_gamma,0.5))
-                edge.gamma = new_gamma;
-                edge.isMajor = (new_gamma>0.5) ? true : false
-                edges[ind].gamma = 1 - new_gamma;
-                edges[ind].isMajor = (new_gamma<0.5) ? true : false
-            else #new gamma is 0.5
-                edge.gamma = new_gamma
-                edge.isMajor = true
-                edges[ind].gamma = 1 - new_gamma
-                edges[ind].isMajor = false
-            end
-        else
-            if(!approxEq(new_gamma,0.5))
-                edge.gamma = new_gamma;
-                edge.isMajor = (new_gamma>0.5) ? true : false
-            else #new gamma is 0.5
-                edge.gamma = new_gamma
-                edge.isMajor = !edges[ind].isMajor
-            end
+    else
+        if(!approxEq(new_gamma,0.5))
+            edge.gamma = new_gamma;
+            edge.isMajor = (new_gamma>0.5)
+        else #new gamma is 0.5
+            edge.gamma = new_gamma
+            edge.isMajor = !edges[ind].isMajor
         end
-    else # comes from readSubtree
-        edge.gamma = new_gamma;
-        edge.isMajor = (new_gamma>=0.5) ? true : false
     end
     return nothing
 end
