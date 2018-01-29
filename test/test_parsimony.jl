@@ -30,3 +30,8 @@ score, states = parsimonyDiscrete(net, dat)
   -3=>Set([1]),2=>Set([0]),-2=>Set([1]),5=>Set([1]))
 
 end
+
+@testset "Testing Tarjan's algorithm to get biconnected components"
+
+net = readTopology("(A,(B,(C,D)));")
+a = biconnectedComponents(net);

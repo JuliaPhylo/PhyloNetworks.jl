@@ -70,6 +70,7 @@ module PhyloNetworks
         hardwiredCluster,
         hardwiredCluster!,
         hardwiredClusterDistance,
+        biconnectedComponents,
         ## Network Bootstrap
         treeEdgesBootstrap,
         hybridDetection,
@@ -147,5 +148,6 @@ module PhyloNetworks
     include("pairwiseDistanceLS.jl")
     include("apeRExport.jl")
     include("substitutionModels.jl")
+    include("biconnectedComponents.jl")
 
 end #module
