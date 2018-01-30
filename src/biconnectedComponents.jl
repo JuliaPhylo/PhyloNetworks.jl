@@ -3,8 +3,11 @@
 
 Calculate biconnected components (aka "blobs) using Tarjan's algorithm:
 the output is an array of arrays of edges.
+These blobs are returned in post-order, but within a blob,
+edges are *not* necessarily sorted in topological order.
 If `ignoreTrivial` is true, trivial components (of a single edge)
 are not returned.
+The network is assumed to be connected.
 
 **Warnings**: for nodes, fields `k`, `inCycle`, and `prev``
 are modified during the algorithm. They are used to store the
@@ -104,4 +107,66 @@ function biconnectedComponents(node, index, S, blobs, ignoreTrivial)
             #println(" nothing to do from node $(node.number) to w $(w.number) along edge $(e.number)")
         end
     end
+    return nothing
+end
+
+"""
+    blobRoots(network, ignoreTrivial=false)
+
+Calculate the biconnected components (blobs) using function
+`biconnectedComponents`.
+Output: array of nodes that are the roots of each blob.
+Blobs are ordered in reverse topological ordering
+(aka post order).
+If `ignoreTrivial` is true, trivial components are ignored.
+"""
+function blobRoots(net, ignoreTrivial=false::Bool)
+    # fixit: option to skip next 2 lines?
+    directEdges!(net) # to update isChild1, needed for preorder
+    preorder!(net) # creates / updates net.nodes_changed
+    bcc = biconnectedComponents(net, ignoreTrivial)
+    bccRoots = Vector{Node}(0)
+    for bicomp in bcc
+        jmin = length(net.node)
+        for edge in bicomp
+            n = edge.node[edge.isChild1 ? 2 : 1]
+            j = findfirst(net.nodes_changed, n)
+            jmin = min(j, jmin)
+        end
+        push!(bccRoots, net.nodes_changed[jmin])
+    end
+    return(bccRoots)
+end
+
+"""
+    blobDecomposition(network)
+
+Find blobs using `biconnectedComponents`; find their roots
+using `blobRoots`; output a forest in the form of a
+disconnected network (for efficiency), by deconnecting the
+root of each non-trivial blob from its parent.
+The root of each blob corresponds to a new leaf
+(in another tree of the forest):
+the number of the blob's root is given to the newly created leaf.
+"""
+function blobDecomposition(net)
+    net2 = deepcopy(net)
+    nextnumber = maximum([n.number for n in net2.node])+1
+    blobR = blobRoots(net2, true) # true: ignore trivial single-edge blobs
+    for r in blobR
+        for e in r.edge
+            r == e.node[e.isChild1 ? 1 : 2] || continue
+            removeEdge!(r,e) # detach edge e from root r
+            removeNode!(e,r) # detach root r from edge e
+            dummyleaf = Node(nextnumber, true) # true: leaf
+            nextnumber += 1
+            dummyleaf.name = string("dummy ", r.number)
+            setEdge!(dummyleaf, e) # attach e to new dummy leaf
+            setNode!(e,dummyleaf)  # attach new leaf to edge e
+            e.isChild1 = false
+            pushNode!(net2, dummyleaf)
+            break
+        end
+    end
+    return net2, blobR
 end

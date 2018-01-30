@@ -754,6 +754,7 @@ end
 # warning: only removes node from edge, edge might still
 #          be in node.edge
 function removeNode!(node::Node,edge::Edge)
+    index = 0
     try
         index = getIndexNode(edge,node);
     catch e
@@ -761,7 +762,6 @@ function removeNode!(node::Node,edge::Edge)
             error("node $(node.number) not in edge or strange edge with more than 2 nodes")
         end
     end
-    index = getIndexNode(edge,node);
     deleteat!(edge.node,index);
 end
 

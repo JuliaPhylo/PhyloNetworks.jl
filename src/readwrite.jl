@@ -921,6 +921,12 @@ function writeSubTree!(s::IO, net::HybridNetwork, di::Bool, names::Bool,
     return nothing
 end
 
+"""
+    writeSubTree!(s::IO, n::Node, parent::Edge, forDendroscope::Bool,
+        names::Bool, roundBL::Bool, digits::Integer)
+
+If `parent` is `nothing`, then
+"""
 # method to start at a node coming from an adjacent (parent) edge
 function writeSubTree!(s::IO, n::Node, parent::Edge,di::Bool,names::Bool,
                        roundBL::Bool, digits::Integer)
