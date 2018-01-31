@@ -893,15 +893,17 @@ function checkRootPlace!(net::HybridNetwork; verbose=false::Bool, outgroup="none
     canBeRoot(net.node[net.root]) || error("tried to place root, but couldn't. root is node $(net.node[net.root])")
 end
 
+"""
+    writeSubTree!(IO, network, dendroscope::Bool, names::Bool,
+                  round_branch_lengths::Bool, digits::Integer)
 
-
-
-    # --------------------------- write topology -------------------------------------
-# function to write a node and its descendants in parenthetical format
-# di=true in densdroscope format, names=true, prints names
-writeSubTree!(s::IO, n::Node, parent::Edge, di::Bool, names::Bool) =
-    writeSubTree!(s,n,parent,di,names, true,3)
-
+Write to IO the extended newick format (parenthetical description)
+of a network.
+If written for dendroscope, inheritance γ's are not written.
+If `names` is true, taxon names are written, otherwise taxon numbers
+are written instead of taxon names.
+If unspecified, branch lengths and γ's are rounded to 3 digits.
+"""
 # method to start at the root and write the whole tree/network
 function writeSubTree!(s::IO, net::HybridNetwork, di::Bool, names::Bool,
                        roundBL::Bool, digits::Integer)
@@ -921,21 +923,45 @@ function writeSubTree!(s::IO, net::HybridNetwork, di::Bool, names::Bool,
     return nothing
 end
 
-"""
-    writeSubTree!(s::IO, n::Node, parent::Edge, forDendroscope::Bool,
-        names::Bool, roundBL::Bool, digits::Integer)
 
-If `parent` is `nothing`, then
 """
-# method to start at a node coming from an adjacent (parent) edge
-function writeSubTree!(s::IO, n::Node, parent::Edge,di::Bool,names::Bool,
-                       roundBL::Bool, digits::Integer)
+    writeSubTree!(IO, node, edge, dendroscope::Bool, names::Bool,
+                  round_branch_lengths::Bool, digits::Integer)
+
+Write the extended newick format of the sub-network rooted at
+`node` and assuming that `edge` is a parent of `node`.
+
+If `parent` is `nothing`, the edge attribute `isChild1` is used
+and assumed to be correct to write the subtree rooted at `node`.
+This is useful to write a subtree starting at a non-root node.
+Example:
+
+```julia
+net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
+directEdges!(net)
+s = IOBuffer()
+PhyloNetworks.writeSubTree!(s, net.node[7], nothing, false, true)
+String(s)
+```
+
+Used by [`writeTopology`](@ref).
+"""
+writeSubTree!(s,n,parent,di,names) =
+    writeSubTree!(s,n,parent,di,names, true,3)
+
+# "parent' is assumed to be adjancent to "node". not checked.
+# algorithm comes from "parent": do not traverse again.
+function writeSubTree!(s::IO, n::Node, parent::Union{Edge,Void},
+    di::Bool,names::Bool, roundBL::Bool, digits::Integer)
     # subtree below node n:
-    if (parent.isMajor && !n.leaf) # do not descent below a minor hybrid edge
+    if (!n.leaf && (parent == nothing || parent.isMajor)) # do not descent below a minor hybrid edge
         print(s,"(")
         firstchild = true
         for e in n.edge
-            e == parent && continue # skip parent edge where we come from
+            e != parent || continue # skip parent edge where we come from
+            if parent == nothing    # skip if n = child of e
+                n != e.node[e.isChild1? 1 : 2] || continue
+            end
             (e.hybrid && e.node[(e.isChild1 ? 1 : 2)]==n) && continue # no going up minor hybrid
             firstchild || print(s, ",")
             firstchild = false
@@ -945,7 +971,7 @@ function writeSubTree!(s::IO, n::Node, parent::Edge,di::Bool,names::Bool,
         print(s,")")
     end
     # node label:
-    if (parent.hybrid)
+    if parent != nothing && parent.hybrid
         print(s, (names ? n.name : string("#H",n.number)))
         n.name != "" || parent.isMajor || warn("hybrid node $(n.number) has no name")
     elseif (n.leaf)
@@ -953,30 +979,23 @@ function writeSubTree!(s::IO, n::Node, parent::Edge,di::Bool,names::Bool,
     end
     # branch lengths and γ, if available:
     printBL = false
-    if(parent.length != -1.0) # -1.0 means missing
+    if parent != nothing && parent.length != -1.0 # -1.0 means missing
         print(s,string(":",(roundBL ? round(parent.length,digits) : parent.length)))
         printBL = true
     end
-    if(parent.hybrid && !di) # && (!printID || !n.isBadDiamondI))
+    if parent != nothing && parent.hybrid && !di # && (!printID || !n.isBadDiamondI))
         if(parent.gamma != -1.0)
             if(!printBL) print(s,":"); end
             print(s,string("::",(roundBL ? round(parent.gamma,digits) : parent.gamma)))
         end
     end
+    if parent == nothing
+        print(s, ";")
+    end
 end
 
-# function to writeTopology for level 1 networks. bad net.root okay
-#                           deepcopies net -> does *not* modify it
-# if string=true, returns a string with network in parenthetical format
-#                 ow returns the IOBuffer object
-# need as input HybridNetwork, since QuartetNetwork does not have root
-# input di=true if written for Dendroscope (without gammas)
-# names=true, writes the names instead of node numbers, default true
-# outgroup: place the root in the external edge of this taxon if possible,
-# if none given, placed the root wherever possible
-# printID=true, only print identifiable BL as determined by setNonIdBL!.
-#         false by default. true inside snaq.
-# multall = true, multiple alleles case
+# see full docstring below
+# Need HybridNetwork input, since QuartetNetwork does not have root.
 function writeTopologyLevel1(net0::HybridNetwork, di::Bool, str::Bool, names::Bool,outgroup::AbstractString, printID::Bool, roundBL::Bool, digits::Integer, multall::Bool)
     s = IOBuffer()
     writeTopologyLevel1(net0,s,di,names,outgroup,printID,roundBL,digits, multall)
@@ -1028,21 +1047,32 @@ writeTopologyLevel1(net::HybridNetwork,di::Bool,outgroup::AbstractString) = writ
 """
 `writeTopologyLevel1(net::HybridNetwork)`
 
-writes the parenthetical format of a HybridNetwork object with many optional arguments:
+Write the extended Newick parenthetical format of a
+level-1 network object with many optional arguments (see below).
+Makes a deep copy of net: does *not* modify `net`.
 
 - di=true: write in format for Dendroscope (default false)
 - names=false: write the leaf nodes numbers instead of taxon names (default true)
-- outgroup (string): name of outgroup to root the tree/network
-- printID=true, only print branch lengths for identifiable egdes according to the snaq estimation procedure (default false)
+- outgroup (string): name of outgroup to root the tree/network.
+  if "none" is given, the root is placed wherever possible.
+- printID=true, only print branch lengths for identifiable egdes
+  according to the snaq estimation procedure (default false)
+  (true inside of `snaq!`.)
 - round: rounds branch lengths and heritabilities γ (default: true)
 - digits: digits after the decimal place for rounding (defult: 3)
+- string: if true (default), returns a string,
+  otherwise returns an IOBuffer object.
+- multall: (default false). set to true when there are multiple
+  alleles per population.
 
 The topology may be written using a root different than net.root,
 if net.root is incompatible with one of more hybrid node.
 Missing hybrid names are written as "#Hi" where "i" is the hybrid node number if possible.
-The network object is *not* modified.
 """ #"
-writeTopologyLevel1(net::HybridNetwork; di=false::Bool, string=true::Bool, names=true::Bool,outgroup="none"::AbstractString, printID=false::Bool, round=false::Bool, digits=3::Integer, multall=false::Bool) = writeTopologyLevel1(net, di, string, names,outgroup,printID, round,digits, multall)
+writeTopologyLevel1(net::HybridNetwork; di=false::Bool, string=true::Bool, names=true::Bool,
+    outgroup="none"::AbstractString, printID=false::Bool, round=false::Bool, digits=3::Integer,
+    multall=false::Bool) =
+writeTopologyLevel1(net, di, string, names, outgroup, printID, round, digits, multall)
 
 # function to check if root is well-placed
 # and look for a better place if not
@@ -1184,7 +1214,7 @@ end
 `readMultiTopology(file)`
 
 Read a text file with a list of networks in parenthetical format (one per line).
-Each network is read with `readTopology`.
+Each network is read with [`readTopology`](@ref).
 Return an array of HybridNetwork object.
 """
 function readMultiTopology(file::AbstractString)
@@ -1256,16 +1286,21 @@ end
 """
     writeTopology(net)
     writeTopology(net, filename)
+    writeTopology(net, IO)
 
-write the parenthetical extended Newick format of a HybridNetwork object, as a string or to a file.
+Write the parenthetical extended Newick format of a network,
+as a string, to a file or to an IO buffer / stream.
 Optional arguments (default values):
 
 - di (false): write in format for Dendroscope
 - round (false): rounds branch lengths and heritabilities γ
 - digits (3): digits after the decimal place for rounding
+- append (false): if true, appends to the file
 
 If the current root placement is not admissible, other placements are tried.
 The network is updated with this new root placement, if successful.
+
+Uses lower-level function [`writeSubTree!`](@ref).
 """
 function writeTopology(n::HybridNetwork, file::AbstractString; append::Bool=false,
         round=false::Bool, digits=3::Integer, di=false::Bool) # keyword arguments

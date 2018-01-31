@@ -35,6 +35,7 @@ module PhyloNetworks
         readTopologyLevel1,
         tipLabels,
         writeTopology,
+        writeSubTree!,
         deleteleaf!,
         printEdges,
         printNodes,
@@ -71,6 +72,8 @@ module PhyloNetworks
         hardwiredCluster!,
         hardwiredClusterDistance,
         biconnectedComponents,
+        blobDecomposition!,
+        blobDecomposition,
         ## Network Bootstrap
         treeEdgesBootstrap,
         hybridDetection,
