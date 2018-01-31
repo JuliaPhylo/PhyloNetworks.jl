@@ -163,6 +163,27 @@ function parsimonyDiscrete(net::HybridNetwork, dat::DataFrame)
 end
 
 
+function generateSwitchingVectors(n, switchingVectors::Array{Bool,2} ,prefix=""::String) #fixit avoid to create all the vectors using myabe products and iterators
+    if (!n)
+        i=1
+        switching = Vector{Bool}(0)
+        while i <= length(prefix)
+            if prefix.ch[i]=='0'
+                push!(switching, false)
+            else
+                push!(switching, true)
+            end
+            i+=1
+        end
+       push!(switchingVectors, switching)
+       return nothing
+    end
+    generateSwitchingVectors(n-1, switchingVectors, prefix + '0')
+    generateSwitchingVectors(n-1, switchingVectors, prefix + '1')
+    return nothing
+end
+
+
 """
 `parsimonyBottomUpWeight!(node, states, w, scores)`
 
@@ -172,7 +193,7 @@ Fischer, M., van Iersel, L., Kelk, S., Scornavacca, C. On computing the Maximum
 Parsimony score of a phylogenetic network. SIDMA, 29 (1), pp 559 - 585.
 Polytomies okay.
 
-Assumes a *tree* (no reticulation) and correct isChild1 attribute.
+Assumes a *switching* (ie correct fromBadDiamnodI field) and correct isChild1 field.
 
 """
 
@@ -191,11 +212,14 @@ function parsimonyBottomUpWeight!{T}(node::Node, tips::Dict{String,Set{T}},
             if ! node.isExtBadTriangle # isExtBadTriangle=dummy leaf in the algorithm
                 for e in node.edge
                     bestMin =Inf
-                    if e.node[e.isChild1 ? 1 : 2] == node continue; end
+                    if e.fromBadDiamnodI || e.node[e.isChild1 ? 1 : 2] == node continue; end #fromBadDiamnodI= off edge
                     son=getOtherNode(e, node)
                     parsimonyBottomUpWeight!(son, possibleStates, charset, w, parsimonyscore)
                     for sf in charset # best assignement for the son
-                        min= parsimonyscore[son.number][sf] + 1 #fixit (celine) code it with cost of change delta(sf,s)
+                        min= parsimonyscore[son.number][sf]
+                        if s !=sf
+                            min +=1 #fixit (celine) code it with cost of change delta(sf,s)
+                        end
                         bestMin = min(min, bestMin)
                     end
                     parsimonyscore[node.number][s] += bestMin  # add best assignement for the son to the PS of the parent
@@ -234,26 +258,42 @@ function parsimonyDiscreteDP{T}(net::HybridNetwork, tips::Dict{String,T})
     w = zeros(Int,(length(net.node), length(charset)))
     parsimonyscore = zeros(Int,(length(net.node), length(charset)))
 
-    blobR = setblobs!(net) # calls directEdges! by default: sets isChild1
+    blobroots, majorEdges, minorEdges = blobInfo!(net) # calls directEdges! by default: sets isChild1
 
-    for r in blobR
+    bcnumber=1;
+    for r in blobroots
         mpscoreSwitchings = Array{Int64,2}
-        #for each switching Sr of Br  # displayedTrees(net, 0.0) # all displayed trees
-            #push!(mpscoreSwitchings, parsimonyBottomUpWeight!{T}(Sr.root, charset, tips, w, parsimonyscore))
-        #end
-        for sf in charset # best assignement for the son
+        switchingVectors = Vector{Bool}(0)(0)
+        generateSwitchingVectors(length(majorEdges[bcnumber]), switchingVectors ) # length(majorEdges) is the level of our biconnected component
+
+        for switching in switchingVectors
+            switchingEdge=1;
+            while switchingEdge <= length(majorEdges[bcnumber]) #assigning on off to the hybid edges of the blob w.r.t. the switching[switchingEdge]
+                if switching[switchingEdge]
+                    majorEdges[bcnumber][switchingEdge].fromBadDiamnodI=true
+                    minorEdges[bcnumber][switchingEdge].fromBadDiamnodI=false
+                else
+                    majorEdges[bcnumber][switchingEdge].fromBadDiamnodI=false
+                    minorEdges[bcnumber][switchingEdge].fromBadDiamnodI=true
+                end
+                switchingEdge+=1
+            end
+            push!(mpscoreSwitchings, parsimonyBottomUpWeight!{T}(r, charset, tips, w, parsimonyscore))
+        end
+
+        for s in charset # best assignement for the son
             switchingNumber=1;
             bestMin=Inf
-            while switchingNumber < length(mpscoreSwitchings)
-                min= mpscoreSwitchings[switchingNumber][sf]
+            while switchingNumber <= length(mpscoreSwitchings)
+                min= mpscoreSwitchings[switchingNumber][s]
                 bestMin = min(min, bestMin)
                 switchingNumber+=1
             end
-            w[node.number][s] += bestMin  # add best assignement for the son to the PS of the parent
+            w[r.number][s] += bestMin  # add best assignement for the son to the PS of the parent
         end
-
-
+        bcnumber+=1
     end
+
     bestMin=Inf
     for s in charset
         min= w[net.root.number][s]
