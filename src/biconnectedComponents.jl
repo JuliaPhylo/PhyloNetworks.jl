@@ -117,7 +117,8 @@ end
 
 Calculate the biconnected components (blobs) using function
 [`biconnectedComponents`](@ref).
-Output: array of nodes that are the roots of each blob.
+Output: array of nodes that are the roots of each non-trivial blob,
+and the network root.
 Blobs are ordered in reverse topological ordering
 (aka post order).
 If `ignoreTrivial` is true, trivial components are ignored.
@@ -142,6 +143,11 @@ function blobRoots(net, ignoreTrivial=false::Bool;
             jmin = min(j, jmin)
         end
         push!(bccRoots, net.nodes_changed[jmin])
+    end
+    # add the network root, if it was in a trivial bi-component
+    # blobs in post-order, so if there the root is there, it's the last blob
+    if length(bcc)==0 || bccRoots[end]!=net.node[net.root]
+        push!(bccRoots,net.node[net.root])
     end
     return(bccRoots)
 end
@@ -184,6 +190,25 @@ function blobDecomposition!(net)
             pushNode!(net, dummyleaf)
             break
         end
+    end
+    return blobR
+end
+
+"""
+    setblobs!(net)
+
+Set the field `isExtBadTriangle` of nodes in the network: to true if the
+node is the root or the root of a non-trivial blob, false otherwise.
+A better name for the field would be something like "isBlobRoot".
+See [`blobRoots`](@ref).
+"""
+function setblobs!(net)
+    for n in net.node
+        n.isExtBadTriangle = false
+    end
+    blobR = blobRoots(net, true) # true: ignore trivial single-edge blobs
+    for r in blobR
+        r.isExtBadTriangle = true #roots of blobs are dummy levaes for the other blobs
     end
     return blobR
 end

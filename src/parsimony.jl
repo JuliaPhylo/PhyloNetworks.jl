@@ -176,11 +176,12 @@ Assumes a *tree* (no reticulation) and correct isChild1 attribute.
 
 """
 
-function parsimonyBottomUpWeight!{T}(node::Node, possibleStates::Dict{Int64,Set{T}}, charset::set{T}, w::Array{Int64,2}, parsimonyscore::Array{Int64,2})
+function parsimonyBottomUpWeight!{T}(node::Node, tips::Dict{String,Set{T}},
+    charset::Set{T}, w::Array{Int64,2}, parsimonyscore::Array{Int64,2})
 
     for s in charset
         if node.leaf
-            if s== possibleStates[node.numer]
+            if s== tips[node.name]
                 parsimonyscore[node.number][s] = 0
             else
                 parsimonyscore[node.number][s] = Inf
@@ -226,24 +227,19 @@ Alternatively, tip data can be given as a dictionary taxon => trait.
 function parsimonyDiscreteDP{T}(net::HybridNetwork, tips::Dict{String,T})
     # T = type of characters. Typically Int if data are binary 0-1
     # initialize dictionary: node number -> admissible character states
-    possibleStates = Dict{Int64,Set{T}}()
-    for l in net.leaf
-        if haskey(tips, l.name)
-            possibleStates[l.number] = Set(tips[l.name])
-        end
-    end
-    charset = union(possibleStates) # fixit
+
+    charset = union(tips) # fixit
     # assign this set to all tips with no data
 
     w = zeros(Int,(length(net.node), length(charset)))
     parsimonyscore = zeros(Int,(length(net.node), length(charset)))
 
-    directEdges!(net) # parsimonyBottomUp! uses isChild1 attributes
+    blobR = setblobs!(net) # calls directEdges! by default: sets isChild1
 
-    #for all biconnected components of net
+    for r in blobR
         mpscoreSwitchings = Array{Int64,2}
         #for each switching Sr of Br  # displayedTrees(net, 0.0) # all displayed trees
-            #push!(mpscoreSwitchings, parsimonyBottomUpWeight!{T}(Sr.root, charset, possibleStates, w, parsimonyscore))
+            #push!(mpscoreSwitchings, parsimonyBottomUpWeight!{T}(Sr.root, charset, tips, w, parsimonyscore))
         #end
         for sf in charset # best assignement for the son
             switchingNumber=1;
@@ -257,7 +253,7 @@ function parsimonyDiscreteDP{T}(net::HybridNetwork, tips::Dict{String,T})
         end
 
 
-    #end
+    end
     bestMin=Inf
     for s in charset
         min= w[net.root.number][s]

@@ -62,11 +62,13 @@ a = biconnectedComponents(net, true);
 a = PhyloNetworks.blobRoots(net)
 @test [n.number for n in a] == [-5, 3, -8, 6, -10, -3, 9, -14, -12, -11, -2, -2]
 forest, blobs = blobDecomposition(net);
-@test length(blobs)==2
+@test length(blobs)==3
 @test writeTopology(forest) == "(dummy -3,dummy -11);"
 s = IOBuffer()
 writeSubTree!(s, blobs[1], nothing, false, true)
 @test String(take!(s)) == "(((A,(B)#H1),((C,(E)#H2),#H1)),(D,#H2));"
 writeSubTree!(s, blobs[2], nothing, false, true)
 @test String(take!(s)) == "(((F)#H3,G),(H,#H3));"
+writeSubTree!(s, blobs[3], nothing, false, true)
+@test String(take!(s)) == "(dummy -3,dummy -11);"
 end
