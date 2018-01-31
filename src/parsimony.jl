@@ -161,3 +161,127 @@ function parsimonyDiscrete(net::HybridNetwork, dat::DataFrame)
     end
     parsimonyDiscrete(net,tips)
 end
+
+
+"""
+`parsimonyBottomUpWeight!(node, states, w, scores)`
+
+Computing the MP scores (one per each assigemenet assignment of the root state)
+of a swicthing as described in Algorithm 1 in the following paper:
+Fischer, M., van Iersel, L., Kelk, S., Scornavacca, C. On computing the Maximum
+Parsimony score of a phylogenetic network. SIDMA, 29 (1), pp 559 - 585.
+Polytomies okay.
+
+Assumes a *tree* (no reticulation) and correct isChild1 attribute.
+
+"""
+
+function parsimonyBottomUpWeight!{T}(node::Node, possibleStates::Dict{Int64,Set{T}}, charset::set{T}, w::Array{Int64,2}, parsimonyscore::Array{Int64,2})
+
+    for s in charset
+        if node.leaf
+            if s== possibleStates[node.numer]
+                parsimonyscore[node.number][s] = 0
+            else
+                parsimonyscore[node.number][s] = Inf
+            end
+        else
+            parsimonyscore[node.number][s] = w[node.number][s]
+            if ! node.isExtBadTriangle # isExtBadTriangle=dummy leaf in the algorithm
+                for e in node.edge
+                    bestMin =Inf
+                    if e.node[e.isChild1 ? 1 : 2] == node continue; end
+                    son=getOtherNode(e, node)
+                    parsimonyBottomUpWeight!(son, possibleStates, charset, w, parsimonyscore)
+                    for sf in charset # best assignement for the son
+                        min= parsimonyscore[son.number][sf] + 1 #fixit (celine) code it with cost of change delta(sf,s)
+                        bestMin = min(min, bestMin)
+                    end
+                    parsimonyscore[node.number][s] += bestMin  # add best assignement for the son to the PS of the parent
+                end
+            end
+        end
+    end
+    return nothing
+end
+
+
+"""
+`parsimonyDiscreteDP(net, tipdata)`
+
+Calculate the most parsimonious (MP) score of a network given
+a discrete character at the tips using the dynamic programming algorithm given
+in the paper
+Fischer, M., van Iersel, L., Kelk, S., Scornavacca, C. On computing the Maximum
+Parsimony score of a phylogenetic network. SIDMA, 29 (1), pp 559 - 585.
+The softwired parsimony concept is used: where the number of state
+transitions is minimized over all trees displayed in the network.
+Tip data can be given in a data frame, in which case the taxon names
+are to appear in column 1 or in a column named "taxon" or "species", and
+trait values are to appear in column 2 or in a column named "trait".
+Alternatively, tip data can be given as a dictionary taxon => trait.
+
+"""
+
+function parsimonyDiscreteDP{T}(net::HybridNetwork, tips::Dict{String,T})
+    # T = type of characters. Typically Int if data are binary 0-1
+    # initialize dictionary: node number -> admissible character states
+    possibleStates = Dict{Int64,Set{T}}()
+    for l in net.leaf
+        if haskey(tips, l.name)
+            possibleStates[l.number] = Set(tips[l.name])
+        end
+    end
+    charset = union(possibleStates) # fixit
+    # assign this set to all tips with no data
+
+    w = zeros(Int,(length(net.node), length(charset)))
+    parsimonyscore = zeros(Int,(length(net.node), length(charset)))
+
+    directEdges!(net) # parsimonyBottomUp! uses isChild1 attributes
+
+    #for all biconnected components of net
+        mpscoreSwitchings = Array{Int64,2}
+        #for each switching Sr of Br  # displayedTrees(net, 0.0) # all displayed trees
+            #push!(mpscoreSwitchings, parsimonyBottomUpWeight!{T}(Sr.root, charset, possibleStates, w, parsimonyscore))
+        #end
+        for sf in charset # best assignement for the son
+            switchingNumber=1;
+            bestMin=Inf
+            while switchingNumber < length(mpscoreSwitchings)
+                min= mpscoreSwitchings[switchingNumber][sf]
+                bestMin = min(min, bestMin)
+                switchingNumber+=1
+            end
+            w[node.number][s] += bestMin  # add best assignement for the son to the PS of the parent
+        end
+
+
+    #end
+    bestMin=Inf
+    for s in charset
+        min= w[net.root.number][s]
+        bestMin = min(min, bestMin)
+    end
+    return  bestMin
+end
+
+
+
+function parsimonyDiscreteDP(net::HybridNetwork, dat::DataFrame)
+    i = findfirst(DataFrames.names(dat), :taxon)
+    if i==0 i = findfirst(DataFrames.names(dat), :species); end
+    if i==0 i=1; end # first column if not column named "taxon" or "species"
+    j = findfirst(DataFrames.names(dat), :trait)
+    if j==0 j=2; end
+    if i==j
+        error("""expecting taxon names in column 'taxon', or 'species' or column 1,
+              and trait values in column 'trait' or column 2.""")
+    end
+    tips = Dict{String,eltypes(dat)[j]}()
+    for r in 1:nrow(dat)
+        if DataFrames.isna(dat[r,j]) continue; end
+        tips[dat[r,i]] = dat[r,j]
+    end
+    parsimonyDiscreteDP(net,tips)
+end
