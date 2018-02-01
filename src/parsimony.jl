@@ -84,7 +84,7 @@ function parsimonySummary{T}(tree::HybridNetwork, nodestates::Dict{Int64,Set{T}}
 end
 
 """
-`parsimonyDiscrete(net, tipdata)`
+    parsimonyDiscrete(net, tipdata)
 
 Calculate the most parsimonious (MP) score of a network given
 a discrete character at the tips.
@@ -232,13 +232,11 @@ end
 
 
 """
-`parsimonyDiscreteDP(net, tipdata)`
+    parsimonyDiscreteDP(net, tipdata)
 
 Calculate the most parsimonious (MP) score of a network given
 a discrete character at the tips using the dynamic programming algorithm given
-in the paper
-Fischer, M., van Iersel, L., Kelk, S., Scornavacca, C. On computing the Maximum
-Parsimony score of a phylogenetic network. SIDMA, 29 (1), pp 559 - 585.
+in Fischer et al. (2015).
 The softwired parsimony concept is used: where the number of state
 transitions is minimized over all trees displayed in the network.
 Tip data can be given in a data frame, in which case the taxon names
@@ -246,6 +244,11 @@ are to appear in column 1 or in a column named "taxon" or "species", and
 trait values are to appear in column 2 or in a column named "trait".
 Alternatively, tip data can be given as a dictionary taxon => trait.
 
+# References
+
+1. Fischer, M., van Iersel, L., Kelk, S., Scornavacca, C. (2015).
+   On computing the Maximum Parsimony score of a phylogenetic network.
+   SIAM J. Discrete Math., 29(1):559-585.
 """
 
 function parsimonyDiscreteDP{T}(net::HybridNetwork, tips::Dict{String,T})
@@ -258,25 +261,18 @@ function parsimonyDiscreteDP{T}(net::HybridNetwork, tips::Dict{String,T})
     w = zeros(Int,(length(net.node), length(charset)))
     parsimonyscore = zeros(Int,(length(net.node), length(charset)))
 
-    blobroots, majorEdges, minorEdges = blobInfo!(net) # calls directEdges! by default: sets isChild1
+    blobroots, majorEdges, minorEdges = blobInfo(net) # calls directEdges!: sets isChild1
 
-    bcnumber=1;
-    for r in blobroots
-        mpscoreSwitchings = Array{Int64,2}
-        switchingVectors = Vector{Bool}(0)(0)
-        generateSwitchingVectors(length(majorEdges[bcnumber]), switchingVectors ) # length(majorEdges) is the level of our biconnected component
-
-        for switching in switchingVectors
-            switchingEdge=1;
-            while switchingEdge <= length(majorEdges[bcnumber]) #assigning on off to the hybid edges of the blob w.r.t. the switching[switchingEdge]
-                if switching[switchingEdge]
-                    majorEdges[bcnumber][switchingEdge].fromBadDiamnodI=true
-                    minorEdges[bcnumber][switchingEdge].fromBadDiamnodI=false
-                else
-                    majorEdges[bcnumber][switchingEdge].fromBadDiamnodI=false
-                    minorEdges[bcnumber][switchingEdge].fromBadDiamnodI=true
-                end
-                switchingEdge+=1
+    for bcnumber in 1:length(blobroots)
+        mpscoreSwitchings = Array{Int64,2} # fixit: this is a Type
+        r = blobroots[bcnumber]
+        nhyb = length(majorEdges[bcnumber])
+        for switching in IterTools.product([[true, false] for i=1:nhyb]...)
+            # next: modify the `fromBadDiamnodI` of hybrid edges in the blob:
+            # switching[h] = pick the major parent of hybrid h if true, pick minor if false
+            for h in 1:nhyb
+                majorEdges[bcnumber][h].fromBadDiamnodI =  switching[h]
+                minorEdges[bcnumber][h].fromBadDiamnodI = !switching[h]
             end
             push!(mpscoreSwitchings, parsimonyBottomUpWeight!{T}(r, charset, tips, w, parsimonyscore))
         end
