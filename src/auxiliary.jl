@@ -159,7 +159,43 @@ function setNode!(edge::Edge,node::Array{Node,1})
     end
 end
 
+"""
+    getChild(edge::Edge)
 
+Return child node using the `isChild1` attribute of the edge.
+"""
+@inline function getChild(edge::Edge)
+    edge.node[edge.isChild1 ? 1 : 2]
+end
+
+"""
+    getParent(edge::Edge)
+
+Return parent node using the `isChild1` attribute of the edge.
+"""
+@inline function getParent(edge::Edge)
+    edge.node[edge.isChild1 ? 2 : 1]
+end
+
+"""
+    getPartner(edge::Edge)
+
+Return hybrid partner of edge, that is, hybrid edge pointing
+to the same child as `edge`. Assumes correct `isChild1` attributes.
+Assumes no in-coming polytomy: a node has 0, 1 or 2 parents, no more.
+"""
+@inline function getPartner(edge)
+    node = getChild(edge)
+    getPartner(edge, node)
+end
+@inline function getPartner(edge::Edge, node::Node)
+    for e in node.edge
+        if e.hybrid && e != edge && node == getChild(e)
+            return e
+        end
+    end
+    error("did not find a partner for edge $(edge.number)")
+end
 # -------------- NODE -------------------------#
 
 function setEdge!(node::Node,edge::Edge)

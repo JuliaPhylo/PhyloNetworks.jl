@@ -788,19 +788,13 @@ function getMinorParentEdge(n::Node)
     error("node $(n.number) has no minor parent")
 end
 
-# get child of a given edge
-# it assumes the isChild1 attributes are correct
-function getChild(edge::Edge)
-    edge.isChild1 ? edge.node[1] : edge.node[2]
-end
-
 # get all children of a given node
 # it assumes the isChild1 attributes are correct
 function getChildren(node::Node)
     children = Node[]
     for e in node.edge
-        if(isEqual(node,e.isChild1 ? e.node[2] : e.node[1])) #node is parent of e
-            push!(children,getOtherNode(e,node))
+        if node == getParent(e)
+            push!(children, getChild(e))
         end
     end
     return children
@@ -827,21 +821,17 @@ function preorder!(net::HybridNetwork)
         net.visited[getIndex(curr,net)] = true # visit curr node
         push!(net.nodes_changed,curr) #push curr into path
         for e in curr.edge
-            if(isEqual(curr,e.node[e.isChild1 ? 2 : 1])) # curr is the parent node if e
-                other = getOtherNode(e,curr)
-                if(!e.hybrid)
+            if curr == getParent(e)
+                other = getChild(e)
+                if !e.hybrid
                     push!(queue,other)
                     # print("queuing: "); @show other.number
                 else
-                    for e2 in other.edge # find other hybrid parent edge for 'other'
-                        if(e2.hybrid && !isEqual(e,e2))
-                            parent = getOtherNode(e2,other)
-                            if(net.visited[getIndex(parent,net)])
-                                push!(queue,other)
-                                # print("queuing: "); @show other.number
-                            end
-                            break
-                        end
+                    e2 = getPartner(e, other)
+                    parent = getParent(e2)
+                    if(net.visited[getIndex(parent,net)])
+                    push!(queue,other)
+                    # print("queuing: "); @show other.number
                     end
                 end
             end

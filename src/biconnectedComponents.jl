@@ -113,12 +113,23 @@ function biconnectedComponents(node, index, S, blobs, ignoreTrivial)
 end
 
 """
-    blobRoots(network, ignoreTrivial=false)
+    blobInfo(network, ignoreTrivial=true)
 
 Calculate the biconnected components (blobs) using function
-[`biconnectedComponents`](@ref).
-Output: array of nodes that are the roots of each non-trivial blob,
-and the network root.
+[`biconnectedComponents`](@ref) then:
+- set node field `isExtBadTriangle` to true at the root of each
+  non-trivial blob (and at the network root), false otherwise.
+  (a better name for the field would be something like "isBlobRoot".)
+- output:
+  1. array of nodes that are the roots of each non-trivial blob,
+    and the network root. If the root of the full network is
+    not part of a non-trivial blob, a corresponding blob is
+    added to the list.
+  2. array of arrays: for each non-trivial blob,
+     array of major hybrid edges in that blob.
+  3. array of arrays: same as #2 but for minor hybrid edges,
+     with hybrids listed in the same order, for each blob.
+
 Blobs are ordered in reverse topological ordering
 (aka post order).
 If `ignoreTrivial` is true, trivial components are ignored.
@@ -127,29 +138,49 @@ keyword argument: `checkPreorder`, true by default. If false,
 the `isChild1` edge field and the `net.nodes_changed` network field
 are supposed to be correct.
 """
-function blobRoots(net, ignoreTrivial=false::Bool;
+function blobInfo(net, ignoreTrivial=true::Bool;
     checkPreorder=true::Bool)
     if checkPreorder
       directEdges!(net) # update isChild1, needed for preorder
       preorder!(net) # creates / updates net.nodes_changed
     end
     bcc = biconnectedComponents(net, ignoreTrivial)
-    bccRoots = Vector{Node}(0)
+    bccRoots = Vector{Node}(0)     # one root node for each blob
+    bccMajor = Vector{Vector{Edge}}(0) # one array for each blob
+    bccMinor = Vector{Vector{Edge}}(0)
     for bicomp in bcc
+        bccMa = Vector{Edge}(0)
         jmin = length(net.node)
         for edge in bicomp
-            n = edge.node[edge.isChild1 ? 2 : 1]
+            n = getParent(edge)
             j = findfirst(net.nodes_changed, n)
             jmin = min(j, jmin)
+            if edge.hybrid && edge.isMajor
+                push!(bccMa, edge)
+            end
         end
         push!(bccRoots, net.nodes_changed[jmin])
+        push!(bccMajor, bccMa)
+        bccmi = Vector{Edge}(0) # find minor hybrid edges, in same order
+        for edge in bccMa
+            e = getPartner(edge)
+            !e.isMajor || warn("major edge $(edge.number) has a major partner: edge $(e.number)")
+            push!(bccmi, e)
+        end
+        push!(bccMinor, bccmi)
     end
-    # add the network root, if it was in a trivial bi-component
+    # add the network root, if it was in a trivial bi-component (no hybrids)
     # blobs in post-order, so if there the root is there, it's the last blob
     if length(bcc)==0 || bccRoots[end]!=net.node[net.root]
         push!(bccRoots,net.node[net.root])
+        push!(bccMajor, Vector{Edge}(0))
+        push!(bccMinor, Vector{Edge}(0))
     end
-    return(bccRoots)
+    # update `isExtBadTriangle` to mark nodes that are blob roots:
+    # these nodes will serve as dummy leaves when reached from other blobs
+    for n in net.node n.isExtBadTriangle = false; end
+    for r in bccRoots r.isExtBadTriangle = true;  end
+    return(bccRoots, bccMajor, bccMinor)
 end
 
 """
@@ -157,7 +188,7 @@ end
     blobDecomposition(network)
 
 Find blobs using [`biconnectedComponents`](@ref); find their roots
-using [`blobRoots`](@ref); create a forest in the form of a
+using [`blobInfo`](@ref); create a forest in the form of a
 disconnected network (for efficiency), by deconnecting the
 root of each non-trivial blob from its parent.
 The root of each blob corresponds to a new leaf
@@ -175,7 +206,7 @@ function blobDecomposition(net)
 end
 function blobDecomposition!(net)
     nextnumber = maximum([n.number for n in net.node])+1
-    blobR = blobRoots(net, true) # true: ignore trivial single-edge blobs
+    blobR, tmp, tmp = blobInfo(net, true) # true: ignore trivial single-edge blobs
     for r in blobR
         for e in r.edge
             r == e.node[e.isChild1 ? 1 : 2] || continue
@@ -190,25 +221,6 @@ function blobDecomposition!(net)
             pushNode!(net, dummyleaf)
             break
         end
-    end
-    return blobR
-end
-
-"""
-    setblobs!(net)
-
-Set the field `isExtBadTriangle` of nodes in the network: to true if the
-node is the root or the root of a non-trivial blob, false otherwise.
-A better name for the field would be something like "isBlobRoot".
-See [`blobRoots`](@ref).
-"""
-function setblobs!(net)
-    for n in net.node
-        n.isExtBadTriangle = false
-    end
-    blobR = blobRoots(net, true) # true: ignore trivial single-edge blobs
-    for r in blobR
-        r.isExtBadTriangle = true #roots of blobs are dummy levaes for the other blobs
     end
     return blobR
 end
