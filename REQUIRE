@@ -10,3 +10,4 @@ GLM 0.8.1
 Combinatorics 0.2.1
 RCall 0.6.1
 StatsFuns 0.4.0 #already required by GLM
+IterTools 0.2.1 # possibly 0.1.0

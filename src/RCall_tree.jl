@@ -1,23 +1,3 @@
-#net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
-
-"""
-change numbers of internal nodes to predictable, non-negative integers
-"""
-
-function phyloNumbers(tree::HybridNetwork)  
-    lnum = 1
-    inum = length(tree.leaf) + 1 #ensures internal node numbers do not overlap with leaf numbers
-    #root will be labeled ntips +1, consistent with ape "phylo" class
-    for n in tree.nodes_changed #traverse tree in topological order excluding leaves
-        if n.leaf
-            n.number = lnum
-            lnum += 1
-        else
-            n.number = inum #change node number
-            inum += 1
-        end
-    end
-end
 
 """
 colors hybrid edges based on inheritance values
@@ -87,7 +67,7 @@ function RPlot(net::HybridNetwork)
     
     treeColors(net, tree, edgeColors) #fill edgeColors vector
     
-    phyloNumbers(tree)
+    resetNodeNumbers!(tree, checkPreorder=false)
     ntips = length(tree.leaf) #number of leaves for Nnode
     totalnodes = length(tree.node) #total number of nodes for edge matrix and Nnode
     Nnode = totalnodes - ntips #integer for number of internal nodes

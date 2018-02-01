@@ -14,6 +14,7 @@ module PhyloNetworks
     using RCall: protect, unprotect, RClass
     using NullableArrays
     using StaticArrays
+    using IterTools
 
     import Base.show
     import Gadfly.plot

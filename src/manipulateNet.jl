@@ -1068,4 +1068,56 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
     return nothing
 end
 
+"""
+    resetNodeNumbers!(net::HybridNetwork; checkPreorder=true, ape=true)
 
+Change internal node numbers of `net` to consecutive numbers from 1 to the number of nodes.
+ 
+
+keyword arguments:
+- `ape`: if true, the new numbers satisfy the conditions assumed by the
+  `ape` R package: leaves are 1 to n, the root is n+1, and internal nodes
+  are higher consecutive integers. If false, nodes are numbered in post-order,
+  with leaves from 1 to n (and the root last).
+- `checkPreorder`: if false, the `isChild1` edge field and the `net.nodes_changed`
+network field are supposed to be correct (to get nodes in preorder)
+
+# Examples
+
+```julia-repl
+julia> net = readTopology("(A,(B,(C,D)));");
+julia> PhyloNetworks.resetNodeNumbers!(net)
+julia> printNodes(net)
+Node    In Cycle        isHybrid        hasHybEdge      Node label      isLeaf  Edges numbers
+4       -1              false           false           A               true    1
+3       -1              false           false           B               true    2
+2       -1              false           false           C               true    3
+1       -1              false           false           D               true    4
+7       -1              false           false                           false   3       4       5
+6       -1              false           false                           false   2       5       6
+5       -1              false           false                           false   1       6
+```
+"""
+
+function resetNodeNumbers!(net::HybridNetwork; checkPreorder=true::Bool, ape=true::Bool)
+    if checkPreorder
+      directEdges!(net)
+      preorder!(net) # to create/update net.nodes_changed
+    end
+    lnum = 1 # first number
+    for n in net.node
+        n.leaf || continue
+        n.number = lnum
+        lnum += 1
+    end
+    if ape
+        nodelist = net.nodes_changed # pre-order: root first
+    else
+        nodelist = reverse(net.nodes_changed) # post-order
+    end
+    for n in nodelist
+        !n.leaf || continue
+        n.number = lnum
+        lnum += 1
+    end
+end

@@ -1,43 +1,4 @@
 """
-    apeNodeNumbers!(net::HybridNetwork)
-
-Change internal node numbers of `net` to satisfy the conditions assumed by the `ape` R
-package: leaves are 1 to n, the root is n+1, and internal nodes are higher consecutive
-integers. Assume `nodes_changed` was updated, to list nodes in pre-order.
-
-# Examples
-
-```julia-repl
-julia> net = readTopology("(A,(B,(C,D)));");
-julia> directEdges!(net); preorder!(net)
-julia> PhyloNetworks.apeNodeNumbers!(net)
-julia> printNodes(net)
-Node    In Cycle        isHybrid        hasHybEdge      Node label      isLeaf  Edges numbers
-4       -1              false           false           A               true    1
-3       -1              false           false           B               true    2
-2       -1              false           false           C               true    3
-1       -1              false           false           D               true    4
-7       -1              false           false                           false   3       4       5
-6       -1              false           false                           false   2       5       6
-5       -1              false           false                           false   1       6
-```
-"""
-
-function apeNodeNumbers!(net::HybridNetwork)
-    lnum = 1 # first number for leaves
-    inum = length(net.leaf) + 1 # first number of internal nodes
-    for n in net.nodes_changed # topological (pre)order
-        if n.leaf
-            n.number = lnum
-            lnum += 1
-        else
-            n.number = inum # root will be ntips + 1, because pre-order
-            inum += 1
-        end
-    end
-end
-
-"""
     generateMajorEdge(net::HybridNetwork)
 
 Generate matrix of major edges from `net` where edge[i,1] is the number of the
@@ -48,8 +9,7 @@ Assume `nodes_changed` was updated, to list nodes in pre-order.
 
 ```julia-repl
 julia> net = readTopology("(A,(B,(C,D)));");
-julia> directEdges!(net); preorder!(net)
-julia> PhyloNetworks.apeNodeNumbers!(net)
+julia> PhyloNetworks.resetNodeNumbers!(net)
 julia> PhyloNetworks.generateMajorEdge(net)
 6×2 Array{Int64,2}:
  5  4
@@ -129,7 +89,7 @@ end
 Generate a matrix of minor hybrid edges from `net` where edge[i,1] represents
 the number of the parent node of edge i and edge[i,2] represents the number
 of the child node of edge i. (node numbers may be negative, unless they were
-modified by `apeNodeNumbers!`).
+modified by `resetNodeNumbers!`).
 
 # Examples
 
@@ -302,9 +262,7 @@ function apeRExport(net::HybridNetwork; mainTree::Bool=false, useEdgeLength::Boo
     if mainTree == true && net.numHybrids > 0
         net = majorTree(net)
     end
-    directEdges!(net)
-    preorder!(net) # create field nodes_changed
-    apeNodeNumbers!(net)
+    resetNodeNumbers!(net)
     ntips = length(net.leaf)
     totalnodes = length(net.node)
     Nnode = totalnodes - ntips
@@ -379,9 +337,7 @@ Rooted; includes branch lengths.
 """ #"
 
 function sexp(net::HybridNetwork)
-    preorder!(net) #organize nodes for preorder traversal
-    directEdges!(net)
-    apeNodeNumbers!(net)
+    resetNodeNumbers!(net)
     ntips = length(net.leaf)
     totalnodes = length(net.node)
     Nnode = totalnodes - ntips
