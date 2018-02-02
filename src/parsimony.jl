@@ -177,9 +177,9 @@ Assumes a *switching* (ie correct fromBadDiamnodI field) and correct isChild1 fi
 function parsimonyBottomUpWeight!(node::Node, blobroot::Node, charset::AbstractArray,
     w::AbstractArray, parsimonyscore::AbstractArray)
 
-    println("entering with node $(node.number)")
+    #println("entering with node $(node.number)")
+    parsimonyscore[node.number,:] = w[node.number,:] # at all nodes to re-initialize between switchings
     if node.leaf || (node.isExtBadTriangle && node != blobroot)
-        parsimonyscore[node.number,:] = w[node.number,:]
         return nothing # isExtBadTriangle=dummy leaf: root of another blob
     end
     for e in node.edge
@@ -198,17 +198,12 @@ function parsimonyBottomUpWeight!(node::Node, blobroot::Node, charset::AbstractA
                     minpars +=1 #fixit (celine) code it with cost of change delta(sf,s)
                 end
                 bestMin = min(minpars, bestMin)
-                if node.number == 6
-                    @show charset[s]
-                    @show charset[sf]
-                    @show bestMin
                 end
-            end
             parsimonyscore[node.number,s] += bestMin  # add best assignement for the son to the PS of the parent
         end
     end
-    println("end of node $(node.number)")
-    @show parsimonyscore
+    #println("end of node $(node.number)")
+    #@show parsimonyscore
     return nothing
 end
 
@@ -239,34 +234,27 @@ function parsimonyDiscrete(net::HybridNetwork, tips::Dict{String,T}) where {T}
 
     resetNodeNumbers!(net)
     charset = union(values(tips))
-    @show charset
-
     w = zeros(Float64,(length(net.node), length(charset)))
     initializeWeightsFromLeaves!(w, net, tips, charset) # data are now in w
     parsimonyscore = zeros(Float64,(length(net.node), length(charset)))
-    @show size(w)
-    @show size(parsimonyscore)
-
     blobroots, majorEdges, minorEdges = blobInfo(net) # calls directEdges!: sets isChild1
 
     for bcnumber in 1:length(blobroots)
         r = blobroots[bcnumber]
-        @show r.number
         nhyb = length(majorEdges[bcnumber])
-        @show nhyb
+        #@show r.number, @show nhyb
         mpscoreSwitchings = Array{Float64}(2^nhyb, length(charset)) # grabs memory
         iswitch = 0
         for switching in IterTools.product([[true, false] for i=1:nhyb]...)
             # next: modify the `fromBadDiamnodI` of hybrid edges in the blob:
             # switching[h] = pick the major parent of hybrid h if true, pick minor if false
             iswitch += 1
-            @show switching
+            #@show switching
             for h in 1:nhyb
                 majorEdges[bcnumber][h].fromBadDiamondI =  switching[h]
                 minorEdges[bcnumber][h].fromBadDiamondI = !switching[h]
             end
             parsimonyBottomUpWeight!(r, r, charset, w, parsimonyscore) # updates parsimonyscore
-            @show parsimonyscore
             mpscoreSwitchings[iswitch,:] = parsimonyscore[r.number,:]
         end
 
@@ -318,6 +306,6 @@ function initializeWeightsFromLeaves!(w::AbstractArray, net::HybridNetwork, tips
                 w[node.number,i] = Inf
             end
         end
-        @show w[node.number,:]
+        #@show w[node.number,:]
     end
 end

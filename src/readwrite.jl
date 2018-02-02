@@ -517,33 +517,62 @@ end
 
 readTopology(s::IO) = readTopology(s,true)
 
-# aux function to send an error if the number of hybrid attached to every
-# hybrid node are 0,1 or >2
-# to be used in readTopology
-# need to be run after storeHybrids
+"""
+    `checkNumHybEdges!(net)`
+
+Check for consistency between hybrid-related attributes in the network:
+- for each hybrid node: 2 or more hybrid edges
+- exception: allows for a leaf to be attached to a single hybrid edge
+- exactly 2 incoming parent hybrid edges
+Run after `storeHybrids!`. See also `check2HybEdges`.
+"""
 function checkNumHybEdges!(net::HybridNetwork)
-    if(!isTree(net))
-        isempty(net.hybrid) && error("net.hybrid should not be empty for this network")
-        for n in net.hybrid
-            hyb = sum([e.hybrid?1:0 for e in n.edge]);
-            if(hyb > 2)
-                error("hybrid node $(n.number) has more than two hybrid edges attached to it: polytomy that cannot be resolved without intersecting cycles.")
-            elseif(hyb == 1)
-                if(net.numHybrids == 1)
-                    error("only one hybrid node number $(n.number) with name $(net.names[n.number]) found with one hybrid edge attached")
-                else
-                    error("current hybrid node $(n.number) with name S(net.names[n.number]) has only one hybrid edge attached. there are other $(net.numHybrids-1) hybrids out there but this one remained unmatched")
-                end
-            elseif(hyb == 0)
-                if(length(n.edge) == 0)
-                    error("strange hybrid node $(n.number) attached to 0 edges")
-                elseif(length(n.edge) == 1)
-                    n.leaf || error("hybrid node $(n.number) has only one tree edge attached and it is not a leaf")
-                elseif(length(n.edge) >= 2)
-                    warn("hybrid node $(n.number) is not connected to any hybrid edges, it was transformed to tree node")
-                    n.hybrid = false;
+    if isTree(net) return nothing; end
+    !isempty(net.hybrid) || error("net.hybrid should not be empty for this network")
+    for n in net.hybrid
+        hyb = sum([e.hybrid for e in n.edge]); # number of hybrid edges attached to node
+        if hyb == 1
+            if net.numHybrids == 1
+                error("only one hybrid node $(n.number) named $(n.name) found with one hybrid edge attached")
+            else
+                error("hybrid node $(n.number) named $(n.name) has only one hybrid edge attached. there are $(net.numHybrids-1) other hybrids out there but this one remained unmatched")
+            end
+        elseif hyb == 0
+            if length(n.edge) == 0
+                error("strange hybrid node $(n.number) attached to 0 edges")
+            elseif length(n.edge) == 1
+                n.leaf || error("hybrid node $(n.number) has only one tree edge attached and it is not a leaf")
+            elseif length(n.edge) >= 2
+                warn("hybrid node $(n.number) not connected to any hybrid edges. Now transformed to tree node")
+                n.hybrid = false;
+            end
+        elseif hyb >=2 # check: exactly 2 incoming, no more.
+            nhybparents = 0
+            for e in n.edge
+                if n == getChild(e)
+                    if e.hybrid
+                        nhybparents += 1
+                    else warn("node $(n.number) has parent tree edge $(e.number): wrong isChild1 for this edge?")
+                    end
                 end
             end
+            if nhybparents < 2
+                error("hybrid node $(n.number) with $nhybparents = fewer than 2 hybrid parents")
+            elseif nhybparents >2
+                error("hybrid node $(n.number) with $nhybparents: we don't allow such polytomies")
+            end
+        end
+    end
+    return nothing
+end
+
+# aux function to send an error if the number of hybrid attached to every
+# hybrid node is >2
+function check2HybEdges(net::HybridNetwork)
+    for n in net.hybrid
+        hyb = sum([e.hybrid for e in n.edge]);
+        if hyb > 2
+            error("hybrid node $(n.number) has more than two hybrid edges attached to it: polytomy that cannot be resolved without intersecting cycles.")
         end
     end
 end
@@ -810,6 +839,8 @@ end
 
 # cleanAfterReadAll includes all the step to clean a network after read
 function cleanAfterReadAll!(net::HybridNetwork, leaveRoot::Bool)
+    DEBUG && println("check for 2 hybrid edges at each hybrid node -----")
+    check2HybEdges(net)
     DEBUG && println("cleanBL -----")
     cleanBL!(net)
     DEBUG && println("cleanAfterRead -----")

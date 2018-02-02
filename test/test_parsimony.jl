@@ -81,8 +81,18 @@ end
 
 net = readTopology("(A,(B,(C,D)));");
 tips = Dict("A" => 0, "B" => 0, "C" => 1, "D" => 1);
-parsimonyDiscrete(net, tips)
-
+@test parsimonyDiscrete(net, tips) == 1.0
 net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
-#parsimonyDiscrete(net, tips)
+@test parsimonyDiscrete(net, tips) == 1.0
+net = readTopology("((((A,(B)#H1),((C,(E)#H2),#H1)),(D,#H2)),(((F)#H3,G),(H,#H3)));");
+tips = Dict("A"=>0, "B"=>0, "C"=>0, "D"=>0, "E"=>0, "F"=>0, "G"=>0, "H"=>0);
+@test parsimonyDiscrete(net, tips) == 0.0
+tips = Dict("A"=>0, "B"=>0, "C"=>0, "D"=>0, "E"=>0, "F"=>1, "G"=>1, "H"=>1);
+@test parsimonyDiscrete(net, tips) == 1.0
+tips = Dict("A"=>1, "B"=>0, "C"=>0, "D"=>0, "E"=>0, "F"=>1, "G"=>1, "H"=>1);
+@test parsimonyDiscrete(net, tips) == 2.0
+tips = Dict("A"=>"no", "B"=>"no", "C"=>"no", "D"=>"maybe", "E"=>"maybe", "F"=>"yes", "G"=>"yes", "H"=>"yes");
+@test parsimonyDiscrete(net, tips) == 2.0
+tips = Dict("A"=>"notatall", "B"=>"no", "C"=>"no", "D"=>"maybe", "E"=>"maybe", "F"=>"yes", "G"=>"notatall", "H"=>"yes");
+@test parsimonyDiscrete(net, tips) == 3.0
 end

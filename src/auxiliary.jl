@@ -600,53 +600,19 @@ end
 # in an array
 # throws error if no hybrid in network
 function searchHybridNode(net::Network)
-    suma = sum([net.node[i].hybrid?1:0 for i = 1:size(net.node,1)]);
-    if(suma == 0)
-        error("network has no hybrid node");
-    end
-    k = getIndex(true,[net.node[i].hybrid for i = 1:size(net.node,1)]);
-    if(suma>1)
-        a = [net.node[k]];
-        count = suma-1;
-        index = k;
-        vect = [net.node[i].hybrid for i = 1:size(net.node,1)];
-        while(count>0 && count<size(net.node,1))
-            index == 1 ? vect = [false;vect[2:size(net.node,1)]] : vect = [vect[1:(index-1)];false;vect[(index+1):size(net.node,1)]]
-            index = getIndex(true,vect);
-            push!(a,net.node[index]);
-            count = count-1;
-        end
-        return a
-    else
-        return [net.node[k]]
-    end
+    a = [n for n in net.node if n.hybrid]
+    suma = length(a)
+    suma != 0 || error("network has no hybrid node")
+    return a
 end
 
-# search the hybrid edges in network: returns the hybrid edges
-# hybrid edges come in pairs, both edges are returned
+# search and returns the hybrid edges in network
 # throws error if no hybrid in network
-# check: change to return only the minor edge?
 function searchHybridEdge(net::Network)
-    suma = sum([net.edge[i].hybrid?1:0 for i = 1:size(net.edge,1)]);
-    if(suma == 0)
-        error("network has no hybrid edge");
-    end
-    k = getIndex(true,[net.edge[i].hybrid for i = 1:size(net.edge,1)]);
-    if(suma>1)
-        a = [net.edge[k]];
-        count = suma-1;
-        index = k;
-        vect = [net.edge[i].hybrid for i = 1:size(net.edge,1)];
-        while(count>0 && count<size(net.edge,1))
-            index == 1 ? vect = [false,vect[2:size(net.node,1)]] : vect = [vect[1:(index-1)],false,vect[(index+1):size(net.node,1)]]
-            index = getIndex(true,vect);
-            push!(a,net.edge[index]);
-            count = count-1;
-        end
-        return a
-    else
-        return net.edge[k]
-    end
+    a = [n for n in net.edge if n.hybrid]
+    suma = length(a)
+    suma != 0 || error("network has no hybrid edge")
+    return a
 end
 
 # print for every edge, nodes, inCycle, containRoot, istIdentifiable
