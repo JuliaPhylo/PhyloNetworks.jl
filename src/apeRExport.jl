@@ -12,12 +12,12 @@ julia> net = readTopology("(A,(B,(C,D)));");
 julia> PhyloNetworks.resetNodeNumbers!(net)
 julia> PhyloNetworks.generateMajorEdge(net)
 6×2 Array{Int64,2}:
- 5  4
+ 5  1
  5  6
- 6  3
+ 6  2
  6  7
- 7  2
- 7  1
+ 7  3
+ 7  4
 ```
 """
 
@@ -89,7 +89,7 @@ end
 Generate a matrix of minor hybrid edges from `net` where edge[i,1] represents
 the number of the parent node of edge i and edge[i,2] represents the number
 of the child node of edge i. (node numbers may be negative, unless they were
-modified by `resetNodeNumbers!`).
+modified by `resetNodeNumbers!`). Assumes correct `isChild1` fields.
 
 # Examples
 
@@ -106,8 +106,8 @@ function generateMinorReticulation(net::HybridNetwork)
     j = 1 # row index, row = reticulate edge
     for e in net.edge
         if !e.isMajor # minor (hybrid) edges only
-            reticulation[j,1] = e.node[e.isChild1 ? 2 : 1].number # parent
-            reticulation[j,2] = e.node[e.isChild1 ? 1 : 2].number # child
+            reticulation[j,1] = getParent(e).number
+            reticulation[j,2] = getChild(e).number
             j += 1
         end
     end
@@ -197,16 +197,16 @@ $Nnode
 $edge
      [,1] [,2]
 [1,]    5    6
-[2,]    5    1
+[2,]    5    4
 [3,]    6    8
 [4,]    6    7
-[5,]    7    2
-[6,]    8    4
+[5,]    7    3
+[6,]    8    1
 [7,]    8    9
-[8,]    9    3
+[8,]    9    2
 
 $tip.label
-[1] "D" "C" "B" "A"
+[1] "A" "B" "C" "D"
 
 $reticulation
      [,1] [,2]
@@ -220,7 +220,7 @@ attr(,"class")
 
 julia> using RCall
 
-julia> R"library(ape)"
+julia> R"library(ape)";
 
 julia> phy
 RCall.RObject{RCall.VecSxp}
@@ -231,7 +231,7 @@ RCall.RObject{RCall.VecSxp}
 Phylogenetic tree with 4 tips and 5 internal nodes.
 
 Tip labels:
-[1] "D" "C" "B" "A"
+[1] "A" "B" "C" "D"
 
 Rooted; no branch lengths.
 
@@ -243,15 +243,15 @@ Evolutionary network with 1 reticulation
 Phylogenetic tree with 4 tips and 5 internal nodes.
 
 Tip labels:
-[1] "D" "C" "B" "A"
+[1] "A" "B" "C" "D"
 
 Rooted; no branch lengths.
 
 R> str(phy)
 List of 5
 $ Nnode             : int 5
-$ edge              : int [1:8, 1:2] 5 5 6 6 7 8 8 9 6 1 ...
-$ tip.label         : chr [1:4] "D" "C" "B" "A"
+$ edge              : int [1:8, 1:2] 5 5 6 6 7 8 8 9 6 4 ...
+$ tip.label         : chr [1:4] "A" "B" "C" "D"
 $ reticulation      : int [1, 1:2] 7 9
 $ reticulation.gamma: num 0.1
 - attr(*, "class")= chr [1:2] "evonet" "phylo"
@@ -330,7 +330,7 @@ Evolutionary network with 1 reticulation
 Phylogenetic tree with 4 tips and 5 internal nodes.
 
 Tip labels:
-[1] "D" "C" "B" "A"
+[1] "A" "B" "C" "D"
 
 Rooted; includes branch lengths.
 ```

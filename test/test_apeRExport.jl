@@ -18,8 +18,9 @@ if useAPE
     @test convert(Bool, R"dist.topo($net2, tree2, method='score') == 0")
 end
 R"""
-tree1r = list(Nnode=3, edge=matrix(c(5,5,6,6,7,7, 4,6,3,7,2,1), 6,2),
-             tip.label=c("D","C","B","A"), edge.length=c(NA,1,1,1,1,1))
+tree1r = list(Nnode=3L, edge=matrix(c(5,5,6,6,7,7, 1,6,2,7,3,4), 6,2),
+             tip.label=c("A","B","C","D"), edge.length=c(NA,1,1,1,1,1))
+storage.mode(tree1r$edge) <- "integer"
 class(tree1r) = "phylo"
 tree2r = tree1r[c(2,1,4,3)]
 class(tree2r) = "phylo"
@@ -37,9 +38,10 @@ if useAPE # needs ape version > 4.1 with read.evonet (not in 4.1)
     @test convert(Bool, R"dist.topo($net2, phyr, method='score') == 0")
 end
 R"""
-phy1r = list(Nnode=5, edge=matrix(c(5,5,6,6,7,8,8,9, 6,1,8,7,2,4,9,3), 8,2),
-             tip.label=c("D","C","B","A"), edge.length=c(3,5,.5,1,.6,4,1.1,1),
-             reticulation=matrix(c(7,9),1,2), reticulation.length=1)
+phy1r = list(Nnode=5L, edge=matrix(c(5,5,6,6,7,8,8,9, 6,4,8,7,3,1,9,2), 8,2),
+             tip.label=c("A","B","C","D"), edge.length=c(3,5,.5,1,.6,4,1.1,1),
+             reticulation=matrix(c(7L,9L),1,2), reticulation.length=1)
+storage.mode(phy1r$edge) <- "integer"
 class(phy1r) = c("evonet","phylo")
 phy2r = phy1r[c(2,6,1,4,5,3)]
 class(phy2r) = c("evonet","phylo")
@@ -60,12 +62,14 @@ if useAPE
     @test convert(Bool, R"dist.topo($tree2, tree2r, method='score') == 0")
 end
 R"""
-tree1r = list(Nnode=3, edge=matrix(c(5,5,6,6,7,7, 6,1,7,2,4,3), 6,2),
-             tip.label=c("D","C","B","A"), edge.length=c(3,5,.5,1.6,4,NA))
+tree1r = list(Nnode=3L, edge=matrix(c(5,5,6,6,7,7, 6,4,7,3,1,2), 6,2),
+             tip.label=c("A","B","C","D"), edge.length=c(3,5,.5,1.6,4,NA))
+storage.mode(tree1r$edge) <- "integer"
 class(tree1r) = "phylo"
-phy2r = list(edge=matrix(c(5,5,6,6,7,8,8,9, 6,1,8,7,2,4,9,3), 8,2),
-             Nnode=5, edge.length=c(3,5,.5,1,.6,4,1.1,NA),
-             reticulation=matrix(c(7,9),1,2), tip.label=c("D","C","B","A"))
+phy2r = list(edge=matrix(c(5,5,6,6,7,8,8,9, 6,4,8,7,3,1,9,2), 8,2),
+             Nnode=5L, edge.length=c(3,5,.5,1,.6,4,1.1,NA),
+             reticulation=matrix(c(7L,9L),1,2), tip.label=c("A","B","C","D"))
+storage.mode(phy2r$edge) <- "integer"
 class(phy2r) = c("evonet","phylo")
 """;
 @test convert(Bool, R"isTRUE(all.equal($phy1, tree1r))")
@@ -76,12 +80,13 @@ s = "(((A:1.0,(B:.5)#H1:.2::0.9):.8,(C:1.5,#H1:.01::0.1):2):.6,D:5.0);";
 phy1 = apeRExport(readTopology(s), useEdgeLength=false);
 if useAPE # needs ape version > 4.1 with read.evonet (not in 4.1), also dist.topo for networks
     R"phyr = read.evonet(text = $s)"
-    @test convert(Bool, R"dist.topo($phy1, phyr, method='score') == 0")
+    @test convert(Bool, R"dist.topo($phy1, phyr) == 0")
 end
 R"""
-phy1r = list(Nnode=5, edge=matrix(c(5,5,6,6,7,8,8,9, 6,1,8,7,2,4,9,3), 8,2),
-             tip.label=c("D","C","B","A"), reticulation=matrix(c(7,9),1,2),
+phy1r = list(Nnode=5L, edge=matrix(c(5,5,6,6,7,8,8,9, 6,4,8,7,3,1,9,2), 8,2),
+             tip.label=c("A","B","C","D"), reticulation=matrix(c(7L,9L),1,2),
              reticulation.gamma=0.1)
+storage.mode(phy1r$edge) <- "integer"
 class(phy1r) = c("evonet","phylo")
 """;
 @test convert(Bool, R"isTRUE(all.equal($phy1, phy1r))")
@@ -92,18 +97,21 @@ s = "(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H
 phy1 = apeRExport(readTopology(s));
 net2 = readTopology(s);
 R"""
-phy1r = list(Nnode=14, edge=matrix(c(13,13,13,14,14,15,15,16,16,17,17,18,18,19,20,20,21,21,22,23,24,25,25,26,26,
-                            15,14,1,3,2,18,16,17,4,24,5,12,19,20,21,23,8,22,7,6,25,26,9,11,10), 25,2),
-             tip.label=c("165","20","P","Ar","Ap","M","E","Ak","As","Ag2","Az","Ag"),
+phy1r = list(Nnode=14L, edge=matrix(c(13,13,13,14,14,15,15,16,16,17,17,18,18,19,20,20,21,21,22,23,24,25,25,26,26,
+             15,14,12,10,11,18,16,17,9,24,8,1,19,20,21,23,2,22,3,4,25,26,7,5,6), 25,2),
+             tip.label=c("Ag","Ak","E","M","Az","Ag2","As","Ap","Ar","P","20","165"),
              edge.length=c(5.943,1.863,NA,NA,NA,.026,.723,.187,NA,0,NA,NA,2.214,2.490,.078,NA,NA,
                            .023,.08,0,1.697,2.11,2.027,.002,.023),
-             reticulation=matrix(c(19,22, 24,23),2,2), reticulation.gamma=c(0.056,0.004),
+             reticulation=matrix(c(19,22, 24,23),2,2),
+             reticulation.gamma=c(0.056,0.004),
              reticulation.length=c(7.159,0.0))
+storage.mode(phy1r$edge) <- "integer"
+storage.mode(phy1r$reticulation) <- "integer"
 class(phy1r) = c("evonet","phylo")
 phy2r = phy1r[c(2,7,1,4,5,6,3)]
 class(phy2r) = c("evonet","phylo")
 """;
-@test convert(Bool, R"isTRUE(all.equal($phy1, phy1r))")
-@test convert(Bool, R"isTRUE(all.equal($net2, phy2r))")
+@test convert(Bool, R"identical($phy1, phy1r)")
+@test convert(Bool, R"identical($net2, phy2r)")
 
 end

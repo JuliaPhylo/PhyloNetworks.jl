@@ -1089,10 +1089,10 @@ julia> net = readTopology("(A,(B,(C,D)));");
 julia> PhyloNetworks.resetNodeNumbers!(net)
 julia> printNodes(net)
 Node    In Cycle        isHybrid        hasHybEdge      Node label      isLeaf  Edges numbers
-4       -1              false           false           A               true    1
-3       -1              false           false           B               true    2
-2       -1              false           false           C               true    3
-1       -1              false           false           D               true    4
+1       -1              false           false           A               true    1
+2       -1              false           false           B               true    2
+3       -1              false           false           C               true    3
+4       -1              false           false           D               true    4
 7       -1              false           false                           false   3       4       5
 6       -1              false           false                           false   2       5       6
 5       -1              false           false                           false   1       6
