@@ -210,16 +210,21 @@ end
 
 """
     parsimonyDiscrete(net, tipdata)
+    parsimonyDiscrete(net, species, sequences)
 
 Calculate the most parsimonious (MP) score of a network given
 a discrete character at the tips using the dynamic programming algorithm given
 in Fischer et al. (2015).
 The softwired parsimony concept is used: where the number of state
 transitions is minimized over all trees displayed in the network.
-Tip data can be given in a data frame, in which case the taxon names
+
+Data can given in one of the following:
+- `tipdata`: data frame for a single trait, in which case the taxon names
 are to appear in column 1 or in a column named "taxon" or "species", and
 trait values are to appear in column 2 or in a column named "trait".
-Alternatively, tip data can be given as a dictionary taxon => trait.
+- `tipdata`: dictionary taxon => state, for a single trait.
+- `species`: array of strings, and `sequences`: array of sequences,
+   in the order corresponding to the order of species names.
 
 # References
 
@@ -230,16 +235,48 @@ Alternatively, tip data can be given as a dictionary taxon => trait.
 
 function parsimonyDiscrete(net::HybridNetwork, tips::Dict{String,T}) where {T}
     # T = type of characters. Typically Int if data are binary 0-1
-    # initialize dictionary: node number -> admissible character states
+    species = Array{String}(0)
+    dat = Vector{Vector{T}}(0)
+    for (k,v) in tips
+        push!(species, k)
+        push!(dat, [v])
+    end
+    parsimonyDiscrete(net, species, dat)
+end
+
+function parsimonyDiscrete(net::HybridNetwork, species=Array{String},
+    sequenceData=AbstractArray)
 
     resetNodeNumbers!(net)
-    charset = union(values(tips))
-    w = zeros(Float64,(length(net.node), length(charset)))
-    initializeWeightsFromLeaves!(w, net, tips, charset) # data are now in w
-    parsimonyscore = zeros(Float64,(length(net.node), length(charset)))
+    nsites = length(sequenceData[1])
+    nspecies = length(species) # no check to see if == length(sequenceData)
+    nchar = 0 # this is to allocate the needed memory for w and
+    # parsimonyscore matrices below. Only the first few columns will be
+    # used for sites that have fewer than the maximum number of states.
+    for i in 1:nsites
+        nchar = max(nchar, length(unique([s[i] for s in sequenceData])))
+    end
+    w = zeros(Float64,(length(net.node), nchar))
+    parsimonyscore = zeros(Float64,(length(net.node), nchar))
+    tips = Dict{String, typeof(sequenceData[1][1])}() # to re-use memory later (?)
+    checkGap = isa(sequenceData[1], BioSequences.BioSequence)
     blobroots, majorEdges, minorEdges = blobInfo(net) # calls directEdges!: sets isChild1
 
-    for bcnumber in 1:length(blobroots)
+    score = 0.0
+    for isite in 1:nsites
+      for sp in 1:nspecies
+        nu = sequenceData[sp][isite] # nucleotide
+        if checkGap && isgap(nu)
+            delete!(tips, species[sp])
+        else
+            tips[species[sp]] = nu # fixit: allow for ambiguous nucleotides?
+        end
+      end # tips now contains data for 1 site
+      charset = union(values(tips))
+      initializeWeightsFromLeaves!(w, net, tips, charset) # data are now in w
+      fill!(parsimonyscore, 0.0) # reinitialize parsimonyscore too
+
+      for bcnumber in 1:length(blobroots)
         r = blobroots[bcnumber]
         nhyb = length(majorEdges[bcnumber])
         #@show r.number, @show nhyb
@@ -263,10 +300,12 @@ function parsimonyDiscrete(net::HybridNetwork, tips::Dict{String,T}) where {T}
             w[r.number,i] += minimum(mpscoreSwitchings[:,i])
         end
         bcnumber+=1
-    end
+      end
 
-    bestMin = minimum(w[net.node[net.root].number, :])
-    return  bestMin
+      bestMin = minimum(w[net.node[net.root].number, :])
+      score += bestMin
+    end
+    return score
 end
 
 
@@ -297,6 +336,7 @@ has a state different from s at node number n.
 Assumes that w was initialized to 0 for the leaves.
 """
 function initializeWeightsFromLeaves!(w::AbstractArray, net::HybridNetwork, tips, charset)
+    fill!(w, 0.0)
     for node in net.node
         node.leaf || continue
         haskey(tips, node.name) || continue
@@ -308,4 +348,27 @@ function initializeWeightsFromLeaves!(w::AbstractArray, net::HybridNetwork, tips
         end
         #@show w[node.number,:]
     end
+end
+
+function readFastaToSequenceDict(filename::String)
+    reader = BioSequences.FASTA.Reader(open(filename))
+    #dat = Dict{String, }()
+    sequences = Array{BioSequences.BioSequence}(0)
+    species = Array{String}(0)
+    for record in reader
+        #push!(dat, FASTA.identifier(record) => sequence(record))
+        push!(sequences, sequence(record))
+        push!(species, FASTA.identifier(record))
+    end
+    seqlengths = [length(s) for s in sequences] # values(dat)
+    nsites, tmp = extrema(seqlengths)
+    nsites == tmp || error("sequences not of same lengths: from $nsites to $tmp sites")
+    """
+    fixit:
+    - deleteat!(seq::BioSequence, i::Integer) to delete all but 1 site with identical patterns
+    - calculate and output the weights
+    - also delete invariant sites
+    - clever: change AACC to 0011 because score AACC=AATT=CCTT etc. Sort, keep uniques.
+    """
+    return species, sequences
 end

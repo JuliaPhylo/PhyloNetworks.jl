@@ -15,6 +15,7 @@ module PhyloNetworks
     using NullableArrays
     using StaticArrays
     using IterTools
+    using BioSequences
 
     import Base.show
     import Gadfly.plot
