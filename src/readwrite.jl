@@ -1260,7 +1260,7 @@ function readMultiTopology(file::AbstractString)
                push!(vnet, readTopology(line,false)) # false for non-verbose
            catch(err)
                println("could not read tree on line $(numl) of file $file. error was this:")
-               rethrow(err)
+               # rethrow(err)
            end
         end
         numl += 1

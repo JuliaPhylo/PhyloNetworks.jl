@@ -16,6 +16,7 @@ module PhyloNetworks
     using StaticArrays
     using IterTools
     using BioSequences
+    using BioSymbols
 
     import Base.show
     import Gadfly.plot

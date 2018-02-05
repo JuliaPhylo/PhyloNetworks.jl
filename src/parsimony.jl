@@ -125,7 +125,7 @@ function parsimonyDiscreteFitch(net::HybridNetwork, tips::Dict{String,T}) where 
     mps = findmin(mpscore)[1] # MP score
     mpt = find(x -> x==mps, mpscore) # indices of all trees with MP score
     statedictUnion = statesets[mpt[1]] # later: union over all MP trees
-    println("parsimony score: ", mps)
+    # println("parsimony score: ", mps)
     for i in mpt # top down calculation for best trees only
         parsimonyTopDownFitch!(trees[i].node[trees[i].root], statesets[i])
         parsimonySummaryFitch(trees[i], statesets[i])
@@ -174,7 +174,7 @@ Assumes a *switching* (ie correct fromBadDiamnodI field) and correct isChild1 fi
 
 """
 
-function parsimonyBottomUpWeight!(node::Node, blobroot::Node, charset::AbstractArray,
+function parsimonyBottomUpWeight!(node::Node, blobroot::Node, nchar::Integer,
     w::AbstractArray, parsimonyscore::AbstractArray)
 
     #println("entering with node $(node.number)")
@@ -185,14 +185,14 @@ function parsimonyBottomUpWeight!(node::Node, blobroot::Node, charset::AbstractA
     for e in node.edge
         if (e.hybrid && e.fromBadDiamondI) || getChild(e) == node continue; end # fromBadDiamnodI= edge switched off
         son = getChild(e)
-        parsimonyBottomUpWeight!(son, blobroot, charset, w, parsimonyscore)
+        parsimonyBottomUpWeight!(son, blobroot, nchar, w, parsimonyscore)
     end
-    for s in 1:length(charset)
+    for s in 1:nchar
         for e in node.edge
             if (e.hybrid && e.fromBadDiamondI) || getChild(e) == node continue; end
             son = getChild(e)
             bestMin = Inf # best score from to this one child starting from s at the node
-            for sf in 1:length(charset) # best assignement for the son
+            for sf in 1:nchar # best assignement for the son
                 minpars = parsimonyscore[son.number,sf]
                 if s != sf
                     minpars +=1 #fixit (celine) code it with cost of change delta(sf,s)
@@ -259,28 +259,38 @@ function parsimonyDiscrete(net::HybridNetwork, species=Array{String},
     w = zeros(Float64,(length(net.node), nchar))
     parsimonyscore = zeros(Float64,(length(net.node), nchar))
     tips = Dict{String, typeof(sequenceData[1][1])}() # to re-use memory later (?)
-    checkGap = isa(sequenceData[1], BioSequences.BioSequence)
+    checkGap = eltype(sequenceData) == BioSequences.BioSequence
+    sequenceType = eltype(sequenceData[1])
     blobroots, majorEdges, minorEdges = blobInfo(net) # calls directEdges!: sets isChild1
 
     score = 0.0
+    #allscores = Vector{Float64}(0)
     for isite in 1:nsites
       for sp in 1:nspecies
         nu = sequenceData[sp][isite] # nucleotide
-        if checkGap && isgap(nu)
+        if checkGap &&
+            (isgap(nu) ||
+             (sequenceType==BioSymbols.DNA && nu == BioSymbols.DNA_N) ||
+             (sequenceType==BioSymbols.RNA && nu == BioSymbols.RNA_N) ||
+             (sequenceType==BioSymbols.AminoAcid && nu == BioSymbols.AA_N) )
             delete!(tips, species[sp])
         else
             tips[species[sp]] = nu # fixit: allow for ambiguous nucleotides?
         end
       end # tips now contains data for 1 site
       charset = union(values(tips))
+      nchari = length(charset) # possibly < nchar
+      nchari > 0 || continue
       initializeWeightsFromLeaves!(w, net, tips, charset) # data are now in w
       fill!(parsimonyscore, 0.0) # reinitialize parsimonyscore too
+      # @show tips; @show w
 
       for bcnumber in 1:length(blobroots)
         r = blobroots[bcnumber]
         nhyb = length(majorEdges[bcnumber])
-        #@show r.number, @show nhyb
-        mpscoreSwitchings = Array{Float64}(2^nhyb, length(charset)) # grabs memory
+        # println("site $isite, r.number = $(r.number), nhyb=$(nhyb)")
+        mpscoreSwitchings = Array{Float64}(2^nhyb, nchari) # grabs memory
+        # fixit: move that outside to avoid grabbing memory over and over again
         iswitch = 0
         for switching in IterTools.product([[true, false] for i=1:nhyb]...)
             # next: modify the `fromBadDiamnodI` of hybrid edges in the blob:
@@ -291,21 +301,25 @@ function parsimonyDiscrete(net::HybridNetwork, species=Array{String},
                 majorEdges[bcnumber][h].fromBadDiamondI =  switching[h]
                 minorEdges[bcnumber][h].fromBadDiamondI = !switching[h]
             end
-            parsimonyBottomUpWeight!(r, r, charset, w, parsimonyscore) # updates parsimonyscore
-            mpscoreSwitchings[iswitch,:] = parsimonyscore[r.number,:]
+            parsimonyBottomUpWeight!(r, r, nchari, w, parsimonyscore) # updates parsimonyscore
+            for s in 1:nchari
+              mpscoreSwitchings[iswitch,s] = parsimonyscore[r.number,s]
+            end
         end
 
-        for i in 1:length(charset)
+        for i in 1:nchari
             # add best assignement for the son to the PS of the parent
             w[r.number,i] += minimum(mpscoreSwitchings[:,i])
         end
         bcnumber+=1
       end
 
-      bestMin = minimum(w[net.node[net.root].number, :])
+      bestMin = minimum(w[net.node[net.root].number, 1:nchari])
+      #if bestMin>0 println("site $isite, score $bestMin"); end
+      #push!(allscores, bestMin)
       score += bestMin
     end
-    return score
+    return score #, allscores
 end
 
 
