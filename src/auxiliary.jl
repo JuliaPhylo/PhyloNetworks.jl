@@ -206,6 +206,35 @@ end
 function getOtherNode(edge::Edge,node::Node)
   isequal(edge.node[1],node) ? edge.node[2] : edge.node[1]
 end
+
+"""
+    getMajorParent(node::Node)
+
+Return major parent of a hybrid node using the `isChild1` attribute of edges.
+"""
+@inline function getMajorParent(node::Node)
+    for e in node.edge
+        if e.hybrid && e.isMajor && node == getChild(e)
+            return getParent(e)
+        end
+    end
+    error("could not find major parent of node $(node.number) (supposedly hybrid)")
+end
+
+"""
+    getMinorParent(node::Node)
+
+Return minor parent of a hybrid node using the `isChild1` attribute of edges.
+"""
+@inline function getMinorParent(node::Node)
+    for e in node.edge
+        if e.hybrid && !e.isMajor && node == getChild(e)
+            return getParent(e)
+        end
+    end
+    error("could not find minor parent of node $(node.number) (supposedly hybrid)")
+end
+
 # -------------- NETWORK ----------------------- #
 
 function getIndex(node::Node, net::Network)
