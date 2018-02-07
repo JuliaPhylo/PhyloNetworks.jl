@@ -117,7 +117,8 @@ module PhyloNetworks
         predint,
         predintPlot,
         ## Discrete Trait PCM
-        parsimonyDiscrete,
+        parsimonySoftwired,
+        parsimonyGF,
         TraitSubstitutionModel,
         EqualRatesSubstitutionModel,
         BinaryTraitSubstitutionModel,

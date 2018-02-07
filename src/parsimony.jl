@@ -162,7 +162,7 @@ function parsimonyDiscreteFitch(net::HybridNetwork, dat::DataFrame)
 end
 
 """
-`parsimonyBottomUpWeight!(node, blobroot, states, w, scores)`
+`parsimonyBottomUpSoftwired!(node, blobroot, states, w, scores)`
 
 Computing the MP scores (one for each assignment of the root state)
 of a swicthing as described in Algorithm 1 in the following paper:
@@ -175,7 +175,7 @@ Assumes a *switching* (ie correct `fromBadDiamondI` field) and correct isChild1 
 The field `isExtBadTriangle` is used to know which nodes are at the root of a blob.
 """
 
-function parsimonyBottomUpWeight!(node::Node, blobroot::Node, nchar::Integer,
+function parsimonyBottomUpSoftwired!(node::Node, blobroot::Node, nchar::Integer,
     w::AbstractArray, parsimonyscore::AbstractArray)
 
     #println("entering with node $(node.number)")
@@ -186,7 +186,7 @@ function parsimonyBottomUpWeight!(node::Node, blobroot::Node, nchar::Integer,
     for e in node.edge
         if (e.hybrid && e.fromBadDiamondI) || getChild(e) == node continue; end # fromBadDiamondI= edge switched off
         son = getChild(e)
-        parsimonyBottomUpWeight!(son, blobroot, nchar, w, parsimonyscore)
+        parsimonyBottomUpSoftwired!(son, blobroot, nchar, w, parsimonyscore)
     end
     for s in 1:nchar
         for e in node.edge
@@ -196,7 +196,7 @@ function parsimonyBottomUpWeight!(node::Node, blobroot::Node, nchar::Integer,
             for sf in 1:nchar # best assignement for the son
                 minpars = parsimonyscore[son.number,sf]
                 if s != sf
-                    minpars +=1 #fixit (celine) code it with cost of change delta(sf,s)
+                    minpars +=1 # could be variable cost of change delta(sf,s)
                 end
                 bestMin = min(minpars, bestMin)
                 end
@@ -210,8 +210,8 @@ end
 
 
 """
-    parsimonyDiscrete(net, tipdata)
-    parsimonyDiscrete(net, species, sequences)
+    parsimonySoftwired(net, tipdata)
+    parsimonySoftwired(net, species, sequences)
 
 Calculate the most parsimonious (MP) score of a network given
 a discrete character at the tips using the dynamic programming algorithm given
@@ -234,7 +234,7 @@ trait values are to appear in column 2 or in a column named "trait".
    SIAM J. Discrete Math., 29(1):559-585.
 """
 
-function parsimonyDiscrete(net::HybridNetwork, tips::Dict{String,T}) where {T}
+function parsimonySoftwired(net::HybridNetwork, tips::Dict{String,T}) where {T}
     # T = type of characters. Typically Int if data are binary 0-1
     species = Array{String}(0)
     dat = Vector{Vector{T}}(0)
@@ -242,10 +242,28 @@ function parsimonyDiscrete(net::HybridNetwork, tips::Dict{String,T}) where {T}
         push!(species, k)
         push!(dat, [v])
     end
-    parsimonyDiscrete(net, species, dat)
+    parsimonySoftwired(net, species, dat)
 end
 
-function parsimonyDiscrete(net::HybridNetwork, species=Array{String},
+function parsimonySoftwired(net::HybridNetwork, dat::DataFrame)
+    i = findfirst(DataFrames.names(dat), :taxon)
+    if i==0 i = findfirst(DataFrames.names(dat), :species); end
+    if i==0 i=1; end # first column if not column named "taxon" or "species"
+    j = findfirst(DataFrames.names(dat), :trait)
+    if j==0 j=2; end
+    if i==j
+        error("""expecting taxon names in column 'taxon', or 'species' or column 1,
+              and trait values in column 'trait' or column 2.""")
+    end
+    tips = Dict{String,eltypes(dat)[j]}() # fixit: give the species and trait arrays, not dictionary
+    for r in 1:nrow(dat)
+        if DataFrames.isna(dat[r,j]) continue; end
+        tips[dat[r,i]] = dat[r,j]
+    end
+    parsimonySoftwired(net,tips)
+end
+
+function parsimonySoftwired(net::HybridNetwork, species=Array{String},
     sequenceData=AbstractArray)
 
     resetNodeNumbers!(net)
@@ -282,7 +300,7 @@ function parsimonyDiscrete(net::HybridNetwork, species=Array{String},
       charset = union(values(tips))
       nchari = length(charset) # possibly < nchar
       nchari > 0 || continue
-      initializeWeightsFromLeaves!(w, net, tips, charset) # data are now in w
+      initializeWeightsFromLeavesSoftwired!(w, net, tips, charset) # data are now in w
       fill!(parsimonyscore, 0.0) # reinitialize parsimonyscore too
       # @show tips; @show w
 
@@ -302,7 +320,7 @@ function parsimonyDiscrete(net::HybridNetwork, species=Array{String},
                 majorEdges[bcnumber][h].fromBadDiamondI =  switching[h]
                 minorEdges[bcnumber][h].fromBadDiamondI = !switching[h]
             end
-            parsimonyBottomUpWeight!(r, r, nchari, w, parsimonyscore) # updates parsimonyscore
+            parsimonyBottomUpSoftwired!(r, r, nchari, w, parsimonyscore) # updates parsimonyscore
             for s in 1:nchari
               mpscoreSwitchings[iswitch,s] = parsimonyscore[r.number,s]
             end
@@ -323,41 +341,21 @@ function parsimonyDiscrete(net::HybridNetwork, species=Array{String},
     return score #, allscores
 end
 
-
-
-function parsimonyDiscrete(net::HybridNetwork, dat::DataFrame)
-    i = findfirst(DataFrames.names(dat), :taxon)
-    if i==0 i = findfirst(DataFrames.names(dat), :species); end
-    if i==0 i=1; end # first column if not column named "taxon" or "species"
-    j = findfirst(DataFrames.names(dat), :trait)
-    if j==0 j=2; end
-    if i==j
-        error("""expecting taxon names in column 'taxon', or 'species' or column 1,
-              and trait values in column 'trait' or column 2.""")
-    end
-    tips = Dict{String,eltypes(dat)[j]}()
-    for r in 1:nrow(dat)
-        if DataFrames.isna(dat[r,j]) continue; end
-        tips[dat[r,i]] = dat[r,j]
-    end
-    parsimonyDiscrete(net,tips)
-end
-
 """
-    initializeWeightsFromLeaves!(w, net, tips, charset)
+    initializeWeightsFromLeavesSoftwired!(w, net, tips, charset)
 
 Modify weight in w: to Inf for w[n, s] if the "tips" data
 has a state different from s at node number n.
 Assumes that w was initialized to 0 for the leaves.
 """
-function initializeWeightsFromLeaves!(w::AbstractArray, net::HybridNetwork, tips, charset)
+function initializeWeightsFromLeavesSoftwired!(w::AbstractArray, net::HybridNetwork, tips, charset)
     fill!(w, 0.0)
     for node in net.node
         node.leaf || continue
         haskey(tips, node.name) || continue
         for i in 1:length(charset)
             s = charset[i]
-            if s != tips[node.name] # change later: for parental parsimony etc.
+            if s != tips[node.name]
                 w[node.number,i] = Inf
             end
         end
@@ -394,10 +392,22 @@ parsimonyGF(net::HybridNetwork, species, sequenceData)
 GF = general framework
 """
 
+function parsimonyGF(net::HybridNetwork, tips::Dict{String,T}) where {T}
+    # T = type of characters. Typically Int if data are binary 0-1
+    species = Array{String}(0)
+    dat = Vector{Vector{T}}(0)
+    for (k,v) in tips
+        push!(species, k)
+        push!(dat, [v])
+    end
+    parsimonyGF(net, species, dat)
+end
+
 function parsimonyGF(net::HybridNetwork, species=Array{String},
-    sequenceData=AbstractArray, method=:softwired::Symbol)
+    sequenceData=AbstractArray, criterion=:softwired::Symbol)
 
     resetNodeNumbers!(net)
+    rootnumber = net.node[net.root].number
     nsites = length(sequenceData[1])
     nspecies = length(species) # no check to see if == length(sequenceData)
     nstates = 0 # this is to allocate the needed memory for w and
@@ -406,31 +416,55 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
     for i in 1:nsites
         nstates = max(nstates, length(unique([s[i] for s in sequenceData])))
     end
-    if method == :softwired
-        nchar = nstates + 1 # characters: ∅, {1}, {2}, ... , {nstates}
-        # dictionaries instead of arrays?
-        costmatrix1 = ones(Float64, (nchar,nchar)) # cost to go from state i to state j
-        for i in 1:nchar costmatrix1[i,nchar] = 0.0; end # no cost to go to ∅
-        for i in 1:(nchar-1) costmatrix1[i,i] = 0.0; end # no cost to stay from s to s
-        for j in 1:(nchar-1) costmatrix1[nchar,j] = Inf; end # infinite cost from ∅ to non-empty set
-        @show costmatrix1
-        # fixit: costmatrix2
-    end
-    elseif method == :parental
+    if criterion == :softwired # lineage states: ∅, 1, 2, 3, ..., nstates
+        lineagestate = [Set{Int}()] # first element: empty set ∅
+        for i in 1:nstates
+            push!(lineagestate, Set(i))
+        end
+        nchar = length(lineagestate)
+        allowedAtRoot = 2:nchar # ∅ is not allowed at root of network
+        costfunction = function(finalset, parentsets) # parentsets = array of sets: 0, 1, 2
+            if length(finalset) > sum([length(s) for s in parentsets])
+                return Inf
+            else # calculate final set minus (union of parent sets)
+                missingstates = finalset
+                for s in parentsets
+                    missingstates = setdiff(missingstates, s)
+                end
+                return length(missingstates)
+            end
+        end
+        costmatrix1 = Array{Float64}(nchar,nchar) # i = 1 parent set, j = final set
+        for i in 1:nchar
+            for j in 1:nchar
+                costmatrix1[i,j] = costfunction(lineagestate[j], [lineagestate[i]])
+            end
+        end
+        costmatrix2 = Vector{Array{Float64}}(nchar)
+        # costmatrix2[k][i,j]: from parents k,i to final set j
+        for k in 1:nchar
+            costmatrix2[k] = Array{Float64}(nchar,nchar)
+            for i in 1:nchar
+                for j in 1:nchar
+                    costmatrix2[k][i,j] = costfunction(lineagestate[j], [lineagestate[i], lineagestate[k]])
+                end
+            end
+        end
+    elseif criterion == :parental
         error("parental parsimony not implemented yet")
     else
-        error("method $method unknown")
+        error("criterion $criterion unknown")
     end
+
     w = zeros(Float64,(length(net.node), nchar))
     parsimonyscore = zeros(Float64,(length(net.node), nchar))
-    guessStates = Array{Float64}(2^net.numHybrids, nchar) # grabs memory
-    costs = Vector{Float64}(nchar)
-    # fixit: replace net.numHybrids by the smallest nhyb across blobs = level of the network
     tips = Dict{String, typeof(sequenceData[1][1])}() # to re-use memory later (?)
     checkGap = eltype(sequenceData) == BioSequences.BioSequence
     sequenceType = eltype(sequenceData[1])
     blobroots, majorEdges, minorEdges = blobInfo(net) # calls directEdges!: sets isChild1
     # fixit: use trivial biconnected components, and compare running time
+    networkLevel = maximum([length(me) for me in minorEdges]) # max # hybrids per blob
+    guessStates = Array{Float64}(2^networkLevel, nchar) # grabs memory
     # pick 1 parent node (the minor parent arbitrarily) for each hybrid, then
     # "cut" both children edges of that parent: mark its `fromBadDiamondI` = false
     for e in net.edge
@@ -441,7 +475,7 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
         guessedparentBlob = Vector{Node}(0)
         for e in melist
             p = getParent(e)
-            push!(guessedparentBlob, pacf)
+            push!(guessedparentBlob, p)
             for e2 in p.edge
                 p == getChild(e2) || continue
                 e2.fromBadDiamondI = true # cut the edge: not followed in recursive call
@@ -449,6 +483,7 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
         end
         push!(guessedparent, guessedparentBlob)
     end
+    @show guessedparent
 
     score = 0.0
     #allscores = Vector{Float64}(0)
@@ -465,10 +500,13 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
             tips[species[sp]] = nu # fixit: allow for ambiguous nucleotides?
         end
       end # tips now contains data for 1 site
-      charset = union(values(tips))
-      nchari = length(charset) # possibly < nchar
-      nchari > 0 || continue
-      initializeWeightsFromLeaves!(w, net, tips, charset) # data are now in w
+      stateset = union(values(tips))
+      nstatesi = length(stateset) # possibly < nstates
+      nstatesi > 0 || continue
+      if criterion == :softwired
+        nchari = nstatesi + 1
+      end
+      initializeWeightsFromLeaves!(w, net, tips, stateset, criterion) # data are now in w
       fill!(parsimonyscore, 0.0) # reinitialize parsimonyscore too
       # @show tips; @show w
 
@@ -479,6 +517,7 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
         iguess = 0
         for guesses in IterTools.product([1:nchari for i=1:nhyb]...)
             iguess += 1
+            @show guesses
             for pind in 1:nhyb
                 p = guessedparent[bcnumber][pind] # detached parent of hybrid with index pind in blob number pcnumber
                 for s in 1:nchari
@@ -486,8 +525,10 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
                 end
                 w[p.number, guesses[pind]] = 0.0
             end
-            parsimonyBottomUpWeightGF!(r, r, nchari, w, parsimonyscore, costs) # updates parsimonyscore
-            #fixithere: write this function and continue
+            parsimonyBottomUpGF!(r, r, nchari, w, parsimonyscore, costmatrix1, costmatrix2)
+            # recursion above: updates parsimonyscore
+            @show nchari
+            @show guessStates
             for s in 1:nchari
                 guessStates[iguess,s] = parsimonyscore[r.number,s]
             end
@@ -500,7 +541,11 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
         bcnumber+=1
       end
 
-      bestMin = minimum(w[net.node[net.root].number, 1:nchari])
+      bestMin = Inf
+      for s in allowedAtRoot
+        s <= nchari || break
+        bestMin = min(bestMin, w[rootnumber, s])
+      end
       #if bestMin>0 println("site $isite, score $bestMin"); end
       #push!(allscores, bestMin)
       score += bestMin
@@ -509,7 +554,42 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
 end
 
 """
-`parsimonyBottomUpWeightGF!(node, blobroot, states, w, scores)`
+    initializeWeightsFromLeaves!(w, net, tips, stateset, criterion)
+
+Modify weight in w: to Inf for w[n, i] if the "tips" data
+has a state different from the lineage state of index i at node number n.
+Assumes that w was initialized to 0 for the leaves.
+
+criterion: should be one of `:softwired`, `:parental` or `:hardwired`.
+- softwired parsimony: lineage states are in this order: ∅,{1},{2},{3},...,{nstates}
+"""
+function initializeWeightsFromLeaves!(w::AbstractArray, net::HybridNetwork, tips, stateset,
+        criterion::Symbol)
+    fill!(w, 0.0)
+    if criterion == :softwired
+        nchar = length(stateset) + 1
+    elseif criterion == :parental
+        error("parental parsimony not implemented yet")
+    else
+        error("unknown criterion: $criterion")
+    end
+    for node in net.node
+        node.leaf || continue
+        w[node.number,1] = Inf # ∅ comes first
+        haskey(tips, node.name) || continue
+        for i in 2:nchar
+            s = stateset[i-1] # state s correspond to lineage at index s+1
+            if s != tips[node.name]
+                w[node.number,i] = Inf
+            end
+        end
+        @show w[node.number,:]
+    end
+end
+
+"""
+    `parsimonyBottomUpGF!(node, blobroot, states, w, scores,
+        costmatrix1, costmatrix2)`
 
 Computing the MP scores (one for each assignment of the blob root state)
 given the descendants of a blob, conditional on the states at predefined parents
@@ -522,51 +602,87 @@ Systematic Biology,
 
 Assumes a set of state *guesses*, ie correct initialization of `w` for
 predefined hybrid parents, and correct `fromBadDiamondI` field for the children
-edges of these predefined parents.
+edges of these predefined parents. For edges that are cut `fromBadDiamondI` is true.
 
 The field `isExtBadTriangle` is used to know which nodes are at the root of a blob.
 The field isChild1 is used (and assumed correct).
+
+fixit: explain last arguments
 """
 
-function parsimonyBottomUpWeightGF!(node::Node, blobroot::Node, nchar::Integer,
-    w::AbstractArray, parsimonyscore::AbstractArray, costs::AbstractArray)
+function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
+    w::AbstractArray, parsimonyscore::AbstractArray,
+    costmatrix1::AbstractArray, costmatrix2::AbstractArray)
 
     println("entering with node $(node.number)")
     parsimonyscore[node.number,1:nchar] = w[node.number,1:nchar] # at all nodes to re-initialize between guesses
-    if node.leaf || (node.isExtBadTriangle && node != blobroot)
-        return nothing # isExtBadTriangle=dummy leaf: root of another blob
-    end
+    if !node.leaf && (!node.isExtBadTriangle || node == blobroot)
+    # isExtBadTriangle=dummy leaf: root of another blob
     for e in node.edge # post-order traversal according to major tree: detached edges were minor.
-        if !e.ismajor || getChild(e) == node continue; end # Even if we didn't visit one parent (yet),
+        if !e.isMajor || getChild(e) == node continue; end # Even if we didn't visit one parent (yet),
         son = getChild(e) # that parent is a minor parent with an assigned guessed state.
-        parsimonyBottomUpWeight!(son, blobroot, nchar, w, parsimonyscore)
+        parsimonyBottomUpGF!(son, blobroot, nchar, w, parsimonyscore, costmatrix1, costmatrix2)
     end
-    for s in 1:nchar
+    # check to see if "node" has guessed value: by checking to see if all its children edges were cut
+    cutparent = false
+    for e in node.edge
+        if getChild(e) == node continue; end
+        cutparent = cutparent || e.fromBadDiamondI # if fromBadDiamondI=true: edge is cut
+    end
+    if !cutparent # look at best assignment of children, to score each assignment at node
         for e in node.edge # avoid edges that were cut: those for which fromBadDiamondI is true
-            if e.fromBadDiamondI || getChild(e) == node continue; end
+            if getChild(e) == node continue; end
             son = getChild(e)
-            # calculate cost to go from s (and from parents' guesses, stored in w) to son state:
-            pars = parsimonyCost1edge!(costs, son, s, nchar, w, parsimonyscore)
-            parsimonyscore[node.number,s] += minimum(pars) # add score from best assignement for this son
+            bestpars = [Inf for s in 1:nchar] # best score, so far, for state s at node.
+            # calculate cost to go from each s (and from parents' guesses, stored in w) to son state:
+            if son.hybrid
+                # find potential other parent of son, detached with guessed states
+                p2 = getMinorParent(son)
+                k = findfirst(w[p2.number, 1:nchar], 0.0) # guess made for parent p2
+                for sfinal in 1:nchar
+                    pars = parsimonyscore[son.number, sfinal] + costmatrix2[k][1:nchar,sfinal]
+                    for s in 1:nchar
+                        bestpars[s] = min(bestpars[s], pars[s])
+                    end
+                end
+            else # son has no guessed parent: has only 1 parent: "node"
+                for sfinal in 1:nchar
+                    pars = parsimonyscore[son.number, sfinal] + costmatrix1[1:nchar,sfinal]
+                    for s in 1:nchar
+                        bestpars[s] = min(bestpars[s], pars[s])
+                    end
+                end
+            end
+            parsimonyscore[node.number,1:nchar] += bestpars # add score from best assignement for this son
         end
     end
-    # check to see if node is completely detached: if so, optimize its state and add
-    # corresponding cost to the parsimony score of the blob root.
-    println("end of node $(node.number)")
+    end # of if: not leaf, not root of another blob
+    println("almost the end of node $(node.number)")
     @show parsimonyscore
+    node != blobroot || return nothing
+    # if blob root has detached parents only, these are paid for in the blob
+    # in which this blob root is a leaf.
+    # pay now for re-attaching the guessed nodes to their children
+    detachedParents = Vector{Node}(0)
+    for e in node.edge
+        if getParent(e) == node continue; end
+        e.fromBadDiamondI || return nothing # break if one parent edge was not cut
+        push!(detachedParents, getParent(e))
+    end
+    # if we get here, it means that "node" is the root of the blob
+    # or the root of a tree after detaching the guessed parents from all their children.
+    if length(detachedParents) == 1
+        k = findfirst(w[detachedParents[1].number, 1:nchar], 0.0) # guess made for parent p1
+        pars = parsimonyscore[node.number, 1:nchar] + costmatrix1[k,1:nchar]
+    elseif length(detachedParents) == 2
+        k1 = findfirst(w[detachedParents[1].number, 1:nchar], 0.0)
+        k2 = findfirst(w[detachedParents[2].number, 1:nchar], 0.0)
+        pars = parsimonyscore[node.number, 1:nchar] + costmatrix2[k1][k2,1:nchar]
+    end
+    cost = minimum(pars)
+    for s in 1:nchar
+        parsimonyscore[blobroot.number, s] += cost
+    end
+    println("end of node $(node.number)")
     return nothing
-end
-
-"""
-    parsimonyCost_oneEdge!(costs, node, parentstate, nchar, w, parsimonyscore)
-
-Modify `costs` to contain the cost of assigning each state at `node`,
-given a particular state of at the parent of the node,
-and given states of predefined parents (with guessed states).
-"""
-function parsimonyCost1edge!(costs::AbstractArray, node::Node, state::Integer,
-    nchar::Integer,
-    w::AbstractArray, parsimonyscore::AbstractArray)
-
-
 end
