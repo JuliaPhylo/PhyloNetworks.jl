@@ -463,27 +463,31 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
     sequenceType = eltype(sequenceData[1])
     blobroots, majorEdges, minorEdges = blobInfo(net) # calls directEdges!: sets isChild1
     # fixit: use trivial biconnected components, and compare running time
-    networkLevel = maximum([length(me) for me in minorEdges]) # max # hybrids per blob
-    guessStates = Array{Float64}(2^networkLevel, nchar) # grabs memory
-    # pick 1 parent node (the minor parent arbitrarily) for each hybrid, then
+        # pick 1 parent node (the minor parent arbitrarily) for each hybrid, then
     # "cut" both children edges of that parent: mark its `fromBadDiamondI` = false
     for e in net.edge
         e.fromBadDiamondI = false # don't cut by default
     end
     guessedparent = Vector{Vector{Node}}(0)
-    for melist in minorEdges # minor edge list for one single blob
+    for melist in minorEdges # minor edge list for one single blob + loop over blobs
         guessedparentBlob = Vector{Node}(0)
         for e in melist
             p = getParent(e)
-            push!(guessedparentBlob, p)
+            if p ∉ guessedparentBlob
+                push!(guessedparentBlob, p)
+            end
             for e2 in p.edge
-                p == getChild(e2) || continue
+                p == getParent(e2) || continue
                 e2.fromBadDiamondI = true # cut the edge: not followed in recursive call
             end
         end
         push!(guessedparent, guessedparentBlob)
     end
-    @show guessedparent
+
+    maxguessedParents = maximum([length(me) for me in guessedparent])
+    guessStates = Array{Float64}(nchar^maxguessedParents, nchar) # grabs memory
+
+    #@show guessedparent
 
     score = 0.0
     #allscores = Vector{Float64}(0)
@@ -507,7 +511,6 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
         nchari = nstatesi + 1
       end
       initializeWeightsFromLeaves!(w, net, tips, stateset, criterion) # data are now in w
-      fill!(parsimonyscore, 0.0) # reinitialize parsimonyscore too
       # @show tips; @show w
 
       for bcnumber in 1:length(blobroots)
@@ -515,9 +518,10 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
         nhyb = length(majorEdges[bcnumber])
         # println("site $isite, r.number = $(r.number), nhyb=$(nhyb)")
         iguess = 0
-        for guesses in IterTools.product([1:nchari for i=1:nhyb]...)
+        for guesses in IterTools.product([1:nchari for i=1:length(guessedparent[bcnumber])]...)
             iguess += 1
-            @show guesses
+            fill!(parsimonyscore, 0.0) # reinitialize parsimonyscore too
+            #@show guesses
             for pind in 1:nhyb
                 p = guessedparent[bcnumber][pind] # detached parent of hybrid with index pind in blob number pcnumber
                 for s in 1:nchari
@@ -527,11 +531,12 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
             end
             parsimonyBottomUpGF!(r, r, nchari, w, parsimonyscore, costmatrix1, costmatrix2)
             # recursion above: updates parsimonyscore
-            @show nchari
-            @show guessStates
+            #@show nchari
             for s in 1:nchari
                 guessStates[iguess,s] = parsimonyscore[r.number,s]
             end
+            #@show guessStates
+
         end
         # now iguess = total number of guess assignments for that blob
         for i in 1:nchari
@@ -583,7 +588,7 @@ function initializeWeightsFromLeaves!(w::AbstractArray, net::HybridNetwork, tips
                 w[node.number,i] = Inf
             end
         end
-        @show w[node.number,:]
+        #@show w[node.number,:]
     end
 end
 
@@ -658,8 +663,9 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
     end
     end # of if: not leaf, not root of another blob
     println("almost the end of node $(node.number)")
-    @show parsimonyscore
-    node != blobroot || return nothing
+    #@show parsimonyscore
+    #@show w
+    node != blobroot ||  return nothing
     # if blob root has detached parents only, these are paid for in the blob
     # in which this blob root is a leaf.
     # pay now for re-attaching the guessed nodes to their children
@@ -671,7 +677,11 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
     end
     # if we get here, it means that "node" is the root of the blob
     # or the root of a tree after detaching the guessed parents from all their children.
-    if length(detachedParents) == 1
+    #@show detachedParents
+
+    if length(detachedParents) == 0 return nothing # nothing to add
+
+    elseif length(detachedParents) == 1
         k = findfirst(w[detachedParents[1].number, 1:nchar], 0.0) # guess made for parent p1
         pars = parsimonyscore[node.number, 1:nchar] + costmatrix1[k,1:nchar]
     elseif length(detachedParents) == 2
@@ -683,6 +693,11 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
     for s in 1:nchar
         parsimonyscore[blobroot.number, s] += cost
     end
+
+    println("the end of node $(node.number)")
+    #@show parsimonyscore
+    #@show w
+
     println("end of node $(node.number)")
     return nothing
 end
