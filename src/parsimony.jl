@@ -485,7 +485,9 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
     end
 
     maxguessedParents = maximum([length(me) for me in guessedparent])
-    guessStates = Array{Float64}(nchar^maxguessedParents, nchar) # grabs memory
+    guessStates = Vector{Float64}(nchar) # grabs memory
+    # will contain the best score for a blob root starting at some state s,
+    # from best guess so far (different guesses are okay for different s)
 
     #@show guessedparent
 
@@ -511,16 +513,15 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
         nchari = nstatesi + 1
       end
       initializeWeightsFromLeaves!(w, net, tips, stateset, criterion) # data are now in w
+      #fill!(parsimonyscore, 0.0) # reinitialize parsimonyscore too
       # @show tips; @show w
 
       for bcnumber in 1:length(blobroots)
         r = blobroots[bcnumber]
         nhyb = length(majorEdges[bcnumber])
-        # println("site $isite, r.number = $(r.number), nhyb=$(nhyb)")
-        iguess = 0
+        #println("site $isite, r.number = $(r.number), nhyb=$(nhyb)")
+        firstguess = true
         for guesses in IterTools.product([1:nchari for i=1:length(guessedparent[bcnumber])]...)
-            iguess += 1
-            fill!(parsimonyscore, 0.0) # reinitialize parsimonyscore too
             #@show guesses
             for pind in 1:nhyb
                 p = guessedparent[bcnumber][pind] # detached parent of hybrid with index pind in blob number pcnumber
@@ -532,16 +533,21 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
             parsimonyBottomUpGF!(r, r, nchari, w, parsimonyscore, costmatrix1, costmatrix2)
             # recursion above: updates parsimonyscore
             #@show nchari
-            for s in 1:nchari
-                guessStates[iguess,s] = parsimonyscore[r.number,s]
+            if firstguess
+              for s in 1:nchari
+                guessStates[s] = parsimonyscore[r.number,s]
+              end
+              firstguess = false
+            else
+              for s in 1:nchari
+                guessStates[s] = min(guessStates[s], parsimonyscore[r.number,s])
+              end
             end
             #@show guessStates
-
         end
-        # now iguess = total number of guess assignments for that blob
         for i in 1:nchari
             # add best assignement for the son to the PS of the parent
-            w[r.number,i] += minimum(guessStates[1:iguess,i])
+            w[r.number,i] += guessStates[i]
         end
         bcnumber+=1
       end
