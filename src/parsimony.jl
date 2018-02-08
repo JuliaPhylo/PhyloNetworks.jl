@@ -619,7 +619,7 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
     w::AbstractArray, parsimonyscore::AbstractArray,
     costmatrix1::AbstractArray, costmatrix2::AbstractArray)
 
-    println("entering with node $(node.number)")
+    #println("entering with node $(node.number)")
     parsimonyscore[node.number,1:nchar] = w[node.number,1:nchar] # at all nodes to re-initialize between guesses
     if !node.leaf && (!node.isExtBadTriangle || node == blobroot)
     # isExtBadTriangle=dummy leaf: root of another blob
@@ -662,7 +662,7 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
         end
     end
     end # of if: not leaf, not root of another blob
-    println("almost the end of node $(node.number)")
+    #println("almost the end of node $(node.number)")
     #@show parsimonyscore
     #@show w
     node != blobroot ||  return nothing
@@ -694,10 +694,10 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
         parsimonyscore[blobroot.number, s] += cost
     end
 
-    println("the end of node $(node.number)")
+    #println("the end of node $(node.number)")
     #@show parsimonyscore
     #@show w
 
-    println("end of node $(node.number)")
+    #println("end of node $(node.number)")
     return nothing
 end
