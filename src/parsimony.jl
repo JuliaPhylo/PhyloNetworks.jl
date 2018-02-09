@@ -540,7 +540,9 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
               firstguess = false
             else
               for s in 1:nchari
-                guessStates[s] = min(guessStates[s], parsimonyscore[r.number,s])
+                if guessStates[s] > parsimonyscore[r.number,s]
+                   guessStates[s] = parsimonyscore[r.number,s]
+                end
               end
             end
             #@show guessStates
@@ -660,7 +662,9 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
                 for sfinal in 1:nchar
                     pars = parsimonyscore[son.number, sfinal] + costmatrix1[1:nchar,sfinal]
                     for s in 1:nchar
-                        bestpars[s] = min(bestpars[s], pars[s])
+                        if bestpars[s] > pars[s]
+                           bestpars[s] = pars[s]
+                        end
                     end
                 end
             end

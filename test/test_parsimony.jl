@@ -138,4 +138,7 @@ species, sequences = PhyloNetworks.readFastaToSequenceDict(fastafile);
 @test parsimonyGF(net, species, sequences) == 583.0
 # @time parsimonyGF(net, species, sequences)
 # 8.890167 seconds (107.25 M allocations: 3.702 GiB, 7.70% gc time)
+# after changing a = min(a, b) to if ... end in 2 places:
+# reduced time and # allocations, but not reduced total GiB
+# 5.298533 seconds (84.46 M allocations: 3.360 GiB, 9.04% gc time)
 end
