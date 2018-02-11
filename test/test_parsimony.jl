@@ -116,7 +116,7 @@ using Base.Test
 net = readTopology("(A,(B,(C,D)));");
 tips = Dict("A" => 0, "B" => 0, "C" => 1, "D" => 1);
 @test parsimonyGF(net, tips) == 1.0
-net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
+net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);");
 @test parsimonyGF(net, tips) == 1.0
 net = readTopology("((((A,(B)#H1),((C,(E)#H2),#H1)),(D,#H2)),(((F)#H3,G),(H,#H3)));");
 tips = Dict("A"=>0, "B"=>0, "C"=>0, "D"=>0, "E"=>0, "F"=>0, "G"=>0, "H"=>0);

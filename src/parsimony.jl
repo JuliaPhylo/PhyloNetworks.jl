@@ -387,12 +387,44 @@ function readFastaToSequenceDict(filename::String)
 end
 
 """
-parsimonyGF(net::HybridNetwork, species, sequenceData)
+    parsimonyGF(net, tip_dictionary, criterion=:softwired)
+    parsimonyGF(net, species, sequenceData, criterion=:softwired)
 
-GF = general framework
+Calculate the most parsimonious score of a network given
+discrete characters at the tips using a general framework
+(Van Iersel et al. 2018) allowing for various parsimony criteria:
+softwired (default), hardwired, parental etc.
+The complexity of the algorithm is exponential in the level of the
+network, that is, the maximum number of hybridizations in a single
+blob (Fischer et al. 2015).
+
+Data can given in one of the following:
+- `tipdata`: data frame for a single trait, in which case the taxon names
+are to appear in column 1 or in a column named "taxon" or "species", and
+trait values are to appear in column 2 or in a column named "trait".
+- `tipdata`: dictionary taxon => state, for a single trait.
+- `species`: array of strings, and `sequences`: array of sequences,
+    in the order corresponding to the order of species names.
+
+# References
+
+1. Leo Van Iersel, Mark Jones, Celine Scornavacca (2017).
+   Improved Maximum Parsimony Models for Phylogenetic Networks,
+   Systematic Biology,
+   (https://doi.org/10.1093/sysbio/syx094).
+
+2. Fischer, M., van Iersel, L., Kelk, S., Scornavacca, C. (2015).
+   On computing the Maximum Parsimony score of a phylogenetic network.
+   SIAM J. Discrete Math., 29(1):559-585.
+
+Use the recursive helper function [parsimonyBottomUpGF!](@ref).
+Use the fields `isChild1`,
+`isExtBadTriangle` to know which nodes are at the root of a blob, and
+`fromBadDiamondI` to know which edges are cut (below the minor parent of each hybrid).
 """
 
-function parsimonyGF(net::HybridNetwork, tips::Dict{String,T}) where {T}
+function parsimonyGF(net::HybridNetwork, tips::Dict{String,T},
+                     criterion=:softwired::Symbol) where {T}
     # T = type of characters. Typically Int if data are binary 0-1
     species = Array{String}(0)
     dat = Vector{Vector{T}}(0)
@@ -400,13 +432,13 @@ function parsimonyGF(net::HybridNetwork, tips::Dict{String,T}) where {T}
         push!(species, k)
         push!(dat, [v])
     end
-    parsimonyGF(net, species, dat)
+    parsimonyGF(net, species, dat, criterion)
 end
 
 function parsimonyGF(net::HybridNetwork, species=Array{String},
     sequenceData=AbstractArray, criterion=:softwired::Symbol)
 
-    resetNodeNumbers!(net)
+    resetNodeNumbers!(net) # direct edges and checks pre-order by default
     rootnumber = net.node[net.root].number
     nsites = length(sequenceData[1])
     nspecies = length(species) # no check to see if == length(sequenceData)
@@ -601,10 +633,10 @@ function initializeWeightsFromLeaves!(w::AbstractArray, net::HybridNetwork, tips
 end
 
 """
-    `parsimonyBottomUpGF!(node, blobroot, states, w, scores,
+    `parsimonyBottomUpGF!(node, blobroot, nchar, w, scores,
         costmatrix1, costmatrix2)`
 
-Computing the MP scores (one for each assignment of the blob root state)
+Compute the MP scores (one for each assignment of the blob root state)
 given the descendants of a blob, conditional on the states at predefined parents
 of hybrids in the blobs (one parent per hybrid) as described in
 
@@ -615,12 +647,24 @@ Systematic Biology,
 
 Assumes a set of state *guesses*, ie correct initialization of `w` for
 predefined hybrid parents, and correct `fromBadDiamondI` field for the children
-edges of these predefined parents. For edges that are cut `fromBadDiamondI` is true.
+edges of these predefined parents. `fromBadDiamondI` is true for edges that are cut.
 
 The field `isExtBadTriangle` is used to know which nodes are at the root of a blob.
 The field isChild1 is used (and assumed correct).
 
-fixit: explain last arguments
+- `nchar`: number of characters considered at internal lineages.
+  For softwired parsimony, this is # states + 1, because characters
+  at internal nodes are ∅, {1}, {2}, etc.
+  For parental parsimony, this is 2^#states -1, because characters
+  are all sets on {1,2,...} except for the empty set ∅.
+- `costmatrix1`[i,j] and `costmatrix2`[k][i,j]: 2d array and vector of 2d arrays
+  containing the cost of going to character j starting from character i
+  when the end node has a single parent, or the cost of a child node
+  having character j when its parents have characters k and i.
+  These cost matrices are pre-computed depending on the parsimony criterion
+  (softwired, hardwired, parental etc.)
+
+used by [parsimonyGF](@ref).
 """
 
 function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
@@ -640,12 +684,15 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
     cutparent = false
     for e in node.edge
         if getChild(e) == node continue; end
-        cutparent = cutparent || e.fromBadDiamondI # if fromBadDiamondI=true: edge is cut
+        if e.fromBadDiamondI # if true: one child edge is cut, so all are cut
+            cutparent = true
+            break
+        end
     end
     if !cutparent # look at best assignment of children, to score each assignment at node
         for e in node.edge # avoid edges that were cut: those for which fromBadDiamondI is true
-            if getChild(e) == node continue; end
             son = getChild(e)
+            if son == node continue; end
             bestpars = [Inf for s in 1:nchar] # best score, so far, for state s at node.
             # calculate cost to go from each s (and from parents' guesses, stored in w) to son state:
             if son.hybrid
