@@ -581,6 +581,7 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
             #@show guesses
             for pind in 1:nhyb
                 p = guessedparent[bcnumber][pind] # detached parent of hybrid with index pind in blob number pcnumber
+                # fixit: memory greedy below. check what was changed only.
                 for s in 1:nchari
                     w[p.number, s] = Inf
                 end

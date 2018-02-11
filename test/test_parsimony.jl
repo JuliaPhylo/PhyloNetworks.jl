@@ -1,8 +1,4 @@
-using PhyloNetworks
-using Base.Test
-using DataFrames
-
-notrun = true
+extrarun = false
 
 @testset "Testing parsimony score & reconstruction" begin
 
@@ -99,20 +95,25 @@ tips = Dict("A"=>"notatall", "B"=>"no", "C"=>"no", "D"=>"maybe", "E"=>"maybe", "
 @test parsimonySoftwired(net, tips) == 3.0
 
 net = readTopology("((((((((((((((Ae_caudata_Tr275,Ae_caudata_Tr276),Ae_caudata_Tr139))#H1,#H2),(((Ae_umbellulata_Tr266,Ae_umbellulata_Tr257),Ae_umbellulata_Tr268),#H1)),((Ae_comosa_Tr271,Ae_comosa_Tr272),(((Ae_uniaristata_Tr403,Ae_uniaristata_Tr357),Ae_uniaristata_Tr402),Ae_uniaristata_Tr404))),(((Ae_tauschii_Tr352,Ae_tauschii_Tr351),(Ae_tauschii_Tr180,Ae_tauschii_Tr125)),(((((((Ae_longissima_Tr241,Ae_longissima_Tr242),Ae_longissima_Tr355),(Ae_sharonensis_Tr265,Ae_sharonensis_Tr264)),((Ae_bicornis_Tr408,Ae_bicornis_Tr407),Ae_bicornis_Tr406)),((Ae_searsii_Tr164,Ae_searsii_Tr165),Ae_searsii_Tr161)))#H2,#H4))),(((T_boeoticum_TS8,(T_boeoticum_TS10,T_boeoticum_TS3)),T_boeoticum_TS4),((T_urartu_Tr315,T_urartu_Tr232),(T_urartu_Tr317,T_urartu_Tr309)))),(((((Ae_speltoides_Tr320,Ae_speltoides_Tr323),Ae_speltoides_Tr223),Ae_speltoides_Tr251))H3,((((Ae_mutica_Tr237,Ae_mutica_Tr329),Ae_mutica_Tr244),Ae_mutica_Tr332))#H4))),Ta_caputMedusae_TB2),S_vavilovii_Tr279),Er_bonaepartis_TB1),H_vulgare_HVens23);");
-fastafile = "test/Ae_bicornis_Tr406_Contig10132.aln"
+fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_8sites.aln")
 species, sequences = PhyloNetworks.readFastaToSequenceDict(fastafile);
-@test parsimonySoftwired(net, species, sequences) == 209.0
-fastafile = "test/Ae_bicornis_Tr406_Contig10722.aln"
-species, sequences = PhyloNetworks.readFastaToSequenceDict(fastafile);
-@test parsimonySoftwired(net, species, sequences) == 583.0
-# @time parsimonySoftwired(net, species, sequences)
-# 1.299817 seconds (16.93 M allocations: 414.510 MiB, 3.47% gc time)
+@test parsimonySoftwired(net, species, sequences) == 11.0
+
+end # of test set for softwired parsimony
+
+if extrarun
+  fastafile = "../examples/Ae_bicornis_Tr406_Contig10132.aln"
+  @test parsimonySoftwired(net, species, sequences) == 209.0
+  fastafile = "../examples/Ae_bicornis_Tr406_Contig10722.aln"
+  species, sequences = PhyloNetworks.readFastaToSequenceDict(fastafile);
+  @test parsimonySoftwired(net, species, sequences) == 583.0
+  @time parsimonySoftwired(net, species, sequences)
+  # 1.299817 seconds (16.93 M allocations: 414.510 MiB, 3.47% gc time)
 end
+
 
 @testset "Testing general framework parsimony" begin
 
-using PhyloNetworks
-using Base.Test
 net = readTopology("(A,(B,(C,D)));");
 tips = Dict("A" => 0, "B" => 0, "C" => 1, "D" => 1);
 @test parsimonyGF(net, tips) == 1.0
@@ -130,17 +131,24 @@ tips = Dict("A"=>"no", "B"=>"no", "C"=>"no", "D"=>"maybe", "E"=>"maybe", "F"=>"y
 tips = Dict("A"=>"notatall", "B"=>"no", "C"=>"no", "D"=>"maybe", "E"=>"maybe", "F"=>"yes", "G"=>"notatall", "H"=>"yes");
 @test parsimonyGF(net, tips) == 3.0
 net = readTopology("((((((((((((((Ae_caudata_Tr275,Ae_caudata_Tr276),Ae_caudata_Tr139))#H1,#H2),(((Ae_umbellulata_Tr266,Ae_umbellulata_Tr257),Ae_umbellulata_Tr268),#H1)),((Ae_comosa_Tr271,Ae_comosa_Tr272),(((Ae_uniaristata_Tr403,Ae_uniaristata_Tr357),Ae_uniaristata_Tr402),Ae_uniaristata_Tr404))),(((Ae_tauschii_Tr352,Ae_tauschii_Tr351),(Ae_tauschii_Tr180,Ae_tauschii_Tr125)),(((((((Ae_longissima_Tr241,Ae_longissima_Tr242),Ae_longissima_Tr355),(Ae_sharonensis_Tr265,Ae_sharonensis_Tr264)),((Ae_bicornis_Tr408,Ae_bicornis_Tr407),Ae_bicornis_Tr406)),((Ae_searsii_Tr164,Ae_searsii_Tr165),Ae_searsii_Tr161)))#H2,#H4))),(((T_boeoticum_TS8,(T_boeoticum_TS10,T_boeoticum_TS3)),T_boeoticum_TS4),((T_urartu_Tr315,T_urartu_Tr232),(T_urartu_Tr317,T_urartu_Tr309)))),(((((Ae_speltoides_Tr320,Ae_speltoides_Tr323),Ae_speltoides_Tr223),Ae_speltoides_Tr251))H3,((((Ae_mutica_Tr237,Ae_mutica_Tr329),Ae_mutica_Tr244),Ae_mutica_Tr332))#H4))),Ta_caputMedusae_TB2),S_vavilovii_Tr279),Er_bonaepartis_TB1),H_vulgare_HVens23);");
-fastafile = "test/Ae_bicornis_Tr406_Contig10132.aln"
+fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_8sites.aln")
 species, sequences = PhyloNetworks.readFastaToSequenceDict(fastafile);
-@test parsimonyGF(net, species, sequences) == 209.0
-fastafile = "test/Ae_bicornis_Tr406_Contig10722.aln"
-species, sequences = PhyloNetworks.readFastaToSequenceDict(fastafile);
-@test parsimonyGF(net, species, sequences) == 583.0
-# @time parsimonyGF(net, species, sequences)
-# 8.890167 seconds (107.25 M allocations: 3.702 GiB, 7.70% gc time)
-# after changing a = min(a, b) to if ... end in 2 places:
-# reduced time and # allocations, but not reduced total GiB
-# 5.298533 seconds (84.46 M allocations: 3.360 GiB, 9.04% gc time)
-# small time reduction by storing the # of detached parents:
-# 4.908907 seconds (82.30 M allocations: 3.193 GiB, 9.78% gc time)
+@test parsimonyGF(net, species, sequences) == 11.0
+
+end # of test set for GF parsimony
+
+if extrarun
+  fastafile = "../examples/Ae_bicornis_Tr406_Contig10132.aln"
+  species, sequences = PhyloNetworks.readFastaToSequenceDict(fastafile);
+  @test parsimonyGF(net, species, sequences) == 209.0
+  fastafile = "../examples/Ae_bicornis_Tr406_Contig10722.aln"
+  species, sequences = PhyloNetworks.readFastaToSequenceDict(fastafile);
+  @test parsimonyGF(net, species, sequences) == 583.0
+  @time parsimonyGF(net, species, sequences)
+  # 8.890167 seconds (107.25 M allocations: 3.702 GiB, 7.70% gc time)
+  # after changing a = min(a, b) to if ... end in 2 places:
+  # reduced time and # allocations, but not reduced total GiB
+  # 5.298533 seconds (84.46 M allocations: 3.360 GiB, 9.04% gc time)
+  # small time reduction by storing the # of detached parents:
+  # 4.908907 seconds (82.30 M allocations: 3.193 GiB, 9.78% gc time)
 end

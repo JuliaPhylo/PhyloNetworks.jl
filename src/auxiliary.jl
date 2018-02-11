@@ -209,30 +209,27 @@ end
 
 """
     getMajorParent(node::Node)
+    getMinorParent(node::Node)
 
-Return major parent of a hybrid node using the `isChild1` attribute of edges.
+Return major or minor parent of a node using the `isChild1` field of edges
+(and assuming correct `isMajor` field).
 """
 @inline function getMajorParent(node::Node)
     for e in node.edge
-        if e.hybrid && e.isMajor && node == getChild(e)
+        if e.isMajor && node == getChild(e)
             return getParent(e)
         end
     end
-    error("could not find major parent of node $(node.number) (supposedly hybrid)")
+    error("could not find major parent of node $(node.number)")
 end
-
-"""
-    getMinorParent(node::Node)
-
-Return minor parent of a hybrid node using the `isChild1` attribute of edges.
-"""
+@doc (@doc getMajorParent) getMinorParent
 @inline function getMinorParent(node::Node)
     for e in node.edge
-        if e.hybrid && !e.isMajor && node == getChild(e)
+        if !e.isMajor && node == getChild(e)
             return getParent(e)
         end
     end
-    error("could not find minor parent of node $(node.number) (supposedly hybrid)")
+    error("could not find minor parent of node $(node.number)")
 end
 
 # -------------- NETWORK ----------------------- #

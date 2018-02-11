@@ -726,42 +726,7 @@ function getParents(node::Node)
     return parents
 end
 
-"""
-    getMajorParent(node)
-    getMinorParent(node)
-
-return only one parent of a given node: the major / minor if hybrid.  
-**warning**: assume isChild1 and isMajor attributes are correct
-"""
-function getMajorParent(n::Node)
-    ee = getMajorParentEdge(n)
-    return ee.node[(ee.isChild1 ? 2:1)]
-end
-@doc (@doc getMajorParent) getMinorParent
-function getMinorParent(n::Node)
-    ee = getMinorParentEdge(n)
-    return ee.node[(ee.isChild1 ? 2:1)]
-end
-
-# function getMajorParent(n::Node)
-#     for e in n.edge
-#         if n == e.node[(e.isChild1 ? 1:2)] && e.isMajor
-#             return e.node[(e.isChild1 ? 2:1)]
-#         end
-#     end
-#     error("node $(n.number) has no major parent")
-#     return n
-# end
-
-# function getMinorParent(n::Node)
-#     for e in n.edge
-#         if !e.isMajor && n == e.node[(e.isChild1 ? 1:2)]
-#             return e.node[(e.isChild1 ? 2:1)]
-#         end
-#     end
-#     error("node $(n.number) has no minor parent")
-#     return n
-# end
+# getMajorParent and getMinorParent: defined (inlined) in auxiliary.jl
 
 """
     getMajorParentEdge(node)
