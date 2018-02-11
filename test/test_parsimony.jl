@@ -141,4 +141,6 @@ species, sequences = PhyloNetworks.readFastaToSequenceDict(fastafile);
 # after changing a = min(a, b) to if ... end in 2 places:
 # reduced time and # allocations, but not reduced total GiB
 # 5.298533 seconds (84.46 M allocations: 3.360 GiB, 9.04% gc time)
+# small time reduction by storing the # of detached parents:
+# 4.908907 seconds (82.30 M allocations: 3.193 GiB, 9.78% gc time)
 end

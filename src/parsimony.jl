@@ -446,7 +446,10 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
     # parsimonyscore matrices below. Only the first few columns will be
     # used for sites that have fewer than the maximum number of states.
     for i in 1:nsites
-        nstates = max(nstates, length(unique([s[i] for s in sequenceData])))
+        nstatesi = length(unique([s[i] for s in sequenceData]))
+        if nstates < nstatesi
+           nstates = nstatesi
+        end
     end
     if criterion == :softwired # lineage states: ∅, 1, 2, 3, ..., nstates
         lineagestate = [Set{Int}()] # first element: empty set ∅
@@ -506,22 +509,43 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
         for e in melist
             p = getParent(e)
             if p ∉ guessedparentBlob
-                push!(guessedparentBlob, p)
-            end
-            for e2 in p.edge
+              push!(guessedparentBlob, p)
+              for e2 in p.edge
                 p == getParent(e2) || continue
                 e2.fromBadDiamondI = true # cut the edge: not followed in recursive call
+              end
             end
         end
         push!(guessedparent, guessedparentBlob)
     end
-
     maxguessedParents = maximum([length(me) for me in guessedparent])
     guessStates = Vector{Float64}(nchar) # grabs memory
     # will contain the best score for a blob root starting at some state s,
     # from best guess so far (different guesses are okay for different s)
 
-    #@show guessedparent
+    # determine which nodes are the root of trees after we cut off edges
+    # below guessed parents. For this, at each node, set its
+    # inCycle = 0 if the node has (at least) 1 non-cut edge, and
+    # inCycle = # of detached parents if the node has detached parents only.
+    # Do this now to avoid re-doing it at each site.
+    # `inCycle` was used earlier to find blobs.
+    for n in net.node n.inCycle=0; end
+    # first: calculate inCycle = # of detached parents
+    for e in net.edge
+        e.fromBadDiamondI || continue # to next edge if current edge not cut
+        n = getChild(e)
+        n.inCycle += 1
+    end
+    # second: make inCycle = 0 if node has a non-detached parent
+    for n in net.node
+        n.inCycle > 0 || continue # to next node if inCycle = 0 already
+        for e in n.edge
+            n == getChild(e) || continue
+            !e.fromBadDiamondI || continue
+            n.inCycle = 0 # if e parent of n and e not cut: make inCycle 0
+            break
+        end
+    end
 
     score = 0.0
     #allscores = Vector{Float64}(0)
@@ -589,7 +613,9 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
       bestMin = Inf
       for s in allowedAtRoot
         s <= nchari || break
-        bestMin = min(bestMin, w[rootnumber, s])
+        if bestMin > w[rootnumber, s]
+           bestMin = w[rootnumber, s]
+        end
       end
       #if bestMin>0 println("site $isite, score $bestMin"); end
       #push!(allscores, bestMin)
@@ -650,7 +676,8 @@ predefined hybrid parents, and correct `fromBadDiamondI` field for the children
 edges of these predefined parents. `fromBadDiamondI` is true for edges that are cut.
 
 The field `isExtBadTriangle` is used to know which nodes are at the root of a blob.
-The field isChild1 is used (and assumed correct).
+The field `isChild1` is used (and assumed correct).
+Field `inCycle` is assumed to store the # of detached parents (with guessed states)
 
 - `nchar`: number of characters considered at internal lineages.
   For softwired parsimony, this is # states + 1, because characters
@@ -702,7 +729,9 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
                 for sfinal in 1:nchar
                     pars = parsimonyscore[son.number, sfinal] + costmatrix2[k][1:nchar,sfinal]
                     for s in 1:nchar
-                        bestpars[s] = min(bestpars[s], pars[s])
+                        if bestpars[s] > pars[s]
+                           bestpars[s] = pars[s]
+                        end
                     end
                 end
             else # son has no guessed parent: has only 1 parent: "node"
@@ -725,36 +754,43 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
     node != blobroot ||  return nothing
     # if blob root has detached parents only, these are paid for in the blob
     # in which this blob root is a leaf.
-    # pay now for re-attaching the guessed nodes to their children
-    detachedParents = Vector{Node}(0)
-    for e in node.edge
-        if getParent(e) == node continue; end
-        e.fromBadDiamondI || return nothing # break if one parent edge was not cut
-        push!(detachedParents, getParent(e))
-    end
-    # if we get here, it means that "node" is the root of the blob
-    # or the root of a tree after detaching the guessed parents from all their children.
-    #@show detachedParents
-
-    if length(detachedParents) == 0 return nothing # nothing to add
-
-    elseif length(detachedParents) == 1
-        k = findfirst(w[detachedParents[1].number, 1:nchar], 0.0) # guess made for parent p1
-        pars = parsimonyscore[node.number, 1:nchar] + costmatrix1[k,1:nchar]
-    elseif length(detachedParents) == 2
-        k1 = findfirst(w[detachedParents[1].number, 1:nchar], 0.0)
-        k2 = findfirst(w[detachedParents[2].number, 1:nchar], 0.0)
-        pars = parsimonyscore[node.number, 1:nchar] + costmatrix2[k1][k2,1:nchar]
-    end
-    cost = minimum(pars)
+    node.inCycle > 0 || return nothing # inCycle = # of detached parents
+    # if we get here, it means that "node" is not root of current blob, but
+    # is root of a tree after detaching all guessed parents from their children.
+    # pay now for re-attaching the guessed parents to node
+    cost = 0.0 # variable external to 'for' loops below
+    if node.inCycle == 1 # 1 detached parent, no non-detached parents
+        for e in node.edge
+            par = getParent(e)
+            if par == node continue; end
+            # now 'par' is the single detached parent
+            k = findfirst(w[par.number, 1:nchar], 0.0) # guess at parent
+            cost = minimum(parsimonyscore[node.number, 1:nchar] +
+                            costmatrix1[k,1:nchar])
+            #println("node $(node.number), parent $(par.number), guess k=$k")
+            break # out of for loop
+        end
+    else # node.inCycle should be 2: 2 detached parents
+        k1 = 0 # guess made on first detached parent
+        for e in node.edge
+            par = getParent(e)
+            if par == node continue; end
+            # now 'par' is one of the 2 guessed parents
+            if k1 == 0
+                k1 = findfirst(w[par.number, 1:nchar], 0.0) # guess at 1st parent
+            else
+                k2 = findfirst(w[par.number, 1:nchar], 0.0) # guess at 2nd parent
+                cost = minimum(parsimonyscore[node.number, 1:nchar] +
+                               costmatrix2[k1][k2,1:nchar])
+                break
+            end
+        end
+    end # now 'cost' is up-to-date
     for s in 1:nchar
         parsimonyscore[blobroot.number, s] += cost
     end
-
-    #println("the end of node $(node.number)")
     #@show parsimonyscore
     #@show w
-
     #println("end of node $(node.number)")
     return nothing
 end
