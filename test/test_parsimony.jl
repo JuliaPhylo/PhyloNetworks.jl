@@ -24,7 +24,7 @@ score, states = PhyloNetworks.parsimonyDiscreteFitch(net, tips)
   -3=>Set([0]),2=>Set([1]),-2=>Set([0,1]),5=>Set([1]),1=>Set([0]))
 
 # from a data frame and with missing data:
-dat = DataFrame(taxon=["A","B","C","D"], trait=[0,0,1,1])
+dat = DataFrame(taxon=["A","E","B","C","D"], trait=[0,2,0,1,1])
 dat[1,2]=NA
 score, states = PhyloNetworks.parsimonyDiscreteFitch(net, dat)
 @test score==1

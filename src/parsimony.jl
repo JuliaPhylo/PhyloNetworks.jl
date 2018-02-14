@@ -255,11 +255,12 @@ function parsimonySoftwired(net::HybridNetwork, dat::DataFrame)
         error("""expecting taxon names in column 'taxon', or 'species' or column 1,
               and trait values in column 'trait' or column 2.""")
     end
-    tips = Dict{String,eltypes(dat)[j]}() # fixit: give the species and trait arrays, not dictionary
-    for r in 1:nrow(dat)
-        if DataFrames.isna(dat[r,j]) continue; end
-        tips[dat[r,i]] = dat[r,j]
-    end
+    innet = findin(dat[i], tipLabels(net)) # species in the network
+    species = dat[innet, i]
+    tips = dat[j][innet]
+    indna = find(isna.(tips)) # species with missing data
+    deleteat!(species, indna)
+    deleteat!(tips,    indna)
     parsimonySoftwired(net,tips)
 end
 
