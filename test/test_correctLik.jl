@@ -78,4 +78,6 @@ println("passed estimation of net")
   @test n1.loglik == n2.loglik
   rm("snaq.out")
   rm("snaq.networks")
+  rm("snaq.log") # .log and .err should be git-ignored, but still
+  rm("snaq.err")
 end

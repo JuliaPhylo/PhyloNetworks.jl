@@ -418,14 +418,14 @@ function updateRootRandomTrait!(V::AbstractArray, i::Int, mod)
 end
 
 function updateTreeRandomTrait!(V::Matrix,
-    i::Int,parentIndex::Int,edge::PhyloNetworks.Edge,
+    i::Int,parentIndex::Int,edge::Edge,
     mod)
     randomTrait!(view(V, :, i), mod, edge.length, view(V, :, parentIndex))
 end
 
 function updateHybridRandomTrait!(V::Matrix,
         i::Int, parentIndex1::Int, parentIndex2::Int,
-        edge1::PhyloNetworks.Edge, edge2::PhyloNetworks.Edge, mod)
+        edge1::Edge, edge2::Edge, mod)
     randomTrait!(view(V, :, i), mod, edge1.length, view(V, :, parentIndex1))
     tmp = randomTrait(mod, edge2.length, view(V, :, parentIndex2))
     for j in 1:size(V,1) # loop over traits

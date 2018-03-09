@@ -111,7 +111,7 @@ function pairwiseTaxonDistanceMatrix!(M::Matrix{Float64},net::HybridNetwork,node
 end
 
 function updateTreePairwiseTaxonDistanceMatrix!(V::Matrix,
-            i::Int,parentIndex::Int,edge::PhyloNetworks.Edge,
+            i::Int,parentIndex::Int,edge::Edge,
             params)
     nodeAges = params # assumed pre-ordered, as in nodes_changed
     if length(nodeAges)>0
@@ -126,7 +126,7 @@ end
 
 function updateHybridPairwiseTaxonDistanceMatrix!(V::Matrix,
         i::Int, parentIndex1::Int, parentIndex2::Int,
-        edge1::PhyloNetworks.Edge, edge2::PhyloNetworks.Edge,
+        edge1::Edge, edge2::Edge,
         params)
     nodeAges = params # should be pre-ordered
     if length(nodeAges)>0
@@ -169,7 +169,7 @@ function pairwiseTaxonDistanceGrad(net::HybridNetwork;
     return M
 end
 function updateTreePairwiseTaxonDistanceGrad!(V::Array{Float64,3}, i::Int,
-            parentIndex::Int, edge::PhyloNetworks.Edge, params)
+            parentIndex::Int, edge::Edge, params)
     nodeAges = params # assumed pre-ordered
     for j in 1:(i-1)
         if length(nodeAges) == 0 # d/d(edge length)
@@ -187,7 +187,7 @@ function updateTreePairwiseTaxonDistanceGrad!(V::Array{Float64,3}, i::Int,
 end
 function updateHybridPairwiseTaxonDistanceGrad!(V::Array{Float64,3},i::Int,
             parentIndex1::Int, parentIndex2::Int,
-            edge1::PhyloNetworks.Edge, edge2::PhyloNetworks.Edge, params)
+            edge1::Edge, edge2::Edge, params)
     nodeAges = params
     for j in 1:(i-1)
         if length(nodeAges) == 0 # d/d(edge length)

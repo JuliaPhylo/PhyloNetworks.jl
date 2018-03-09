@@ -167,65 +167,64 @@ Creates a hybrid node and its edges, then inserts those into `net`, `hybrids` an
 @inline function parseHybridNode!(n::Node, parent::Node, name::String, net::HybridNetwork, hybrids::Array{String, 1}, index::Array{Int, 1})
     DEBUG && println("found pound in $(name)")
     n.hybrid = true;
-    DEBUGC && println("encontro un hybrid $(name).")
-    DEBUGC && println("hybrids list tiene size $(size(hybrids,1))")
-    if(in(name, hybrids))
-        DEBUG && println("dice que $(name) esta en hybrids")
-        ind = getIndex(name,hybrids);
-        other = net.node[index[ind]];
+    DEBUGC && println("got hybrid $(name)")
+    DEBUGC && println("hybrids list has length $(length(hybrids))")
+    ind = findfirst(hybrids, name) # index of 'name' in the list 'hybrid'. 0 if not found
+    if ind>0 # the hybrid name was seen before
+        DEBUG && println("$(name) was found in hybrids list")
+        other = net.node[index[ind]]; # other node with same hybrid name
         DEBUG && println("other is $(other.number)")
         DEBUGC && println("other is leaf? $(other.leaf), n is leaf? $(n.leaf)")
-        if(!n.leaf && !other.leaf)
+        if !n.leaf && !other.leaf
             error("both hybrid nodes are internal nodes: successors of the hybrid node must only be included in the node list of a single occurrence of the hybrid node.")
-        elseif(n.leaf)
+        elseif n.leaf
             DEBUG && println("n is leaf")
             e = Edge(net.numEdges+1);
             DEBUG && println("creating hybrid edge $(e.number) attached to other $(other.number) and parent $(parent.number)")
             e.hybrid = true
-            e.isMajor = false;
+            e.isMajor = false; # isMajor = true by default constructor
             pushEdge!(net,e);
-            setNode!(e,[other,parent]);
+            setNode!(e,[other,parent]); # isChild1 = true by default constructor
             setEdge!(other,e);
             setEdge!(parent,e);
             DEBUG && println("e $(e.number )istIdentifiable? $(e.istIdentifiable)")
         else # !n.leaf
             DEBUG && println("n is not leaf, other is leaf")
-            if(size(other.edge,1) == 1) #other should be a leaf
-                DEBUGC && println("other is $(other.number), n is $(n.number), edge of other is $(other.edge[1].number)")
-                otheredge = other.edge[1];
-                otherparent = getOtherNode(otheredge,other);
-                DEBUG && println("otheredge is $(otheredge.number)")
-                DEBUG && println("parent of other is $(otherparent.number)")
-                removeNode!(other,otheredge);
-                deleteNode!(net,other);
-                setNode!(otheredge,n);
-                setEdge!(n,otheredge);
-##                    otheredge.istIdentifiable = true ## setNode should catch this, but when fixed, causes a lot of problems
-                DEBUG && println("setting otheredge to n $(n.number)")
-                e = Edge(net.numEdges+1);
-                DEBUG && println("creating hybrid edge $(e.number) between n $(n.number) and parent $(parent.number)")
-                e.hybrid = true
-                setNode!(e,[n,parent]);
-                setEdge!(n,e);
-                setEdge!(parent,e);
-                pushNode!(net,n);
-                pushEdge!(net,e);
-                n.number = other.number;
-                n.name = other.name;
-                DEBUG && println("edge $(e.number) istIdentifiable? $(e.istIdentifiable)")
-                DEBUG && println("otheredge $(otheredge.number) istIdentifiable? $(otheredge.istIdentifiable)")
-            else
-                error("strange: node $(other.number) is a leaf hybrid node so it should have only one edge and it has $(size(other.edge,1))")
-            end
+            size(other.edge,1) == 1 || # other should be a leaf
+               error("strange: node $(other.number) is a leaf hybrid node. should have only 1 edge but has $(size(other.edge,1))")
+            DEBUGC && println("other is $(other.number), n is $(n.number), edge of other is $(other.edge[1].number)")
+            otheredge = other.edge[1];
+            otherparent = getOtherNode(otheredge,other);
+            DEBUG && println("otheredge is $(otheredge.number)")
+            DEBUG && println("parent of other is $(otherparent.number)")
+            removeNode!(other,otheredge);
+            deleteNode!(net,other);
+            setNode!(otheredge,n);
+            setEdge!(n,otheredge);
+            ## otheredge.istIdentifiable = true ## setNode should catch this, but when fixed, causes a lot of problems
+            DEBUG && println("setting otheredge to n $(n.number)")
+            e = Edge(net.numEdges+1) # isMajor = true by default
+            DEBUG && println("creating hybrid edge $(e.number) between n $(n.number) and parent $(parent.number)")
+            e.hybrid = true
+            setNode!(e,[n,parent]);
+            setEdge!(n,e);
+            setEdge!(parent,e);
+            pushNode!(net,n);
+            pushEdge!(net,e);
+            n.number = other.number;
+            n.name = other.name;
+            DEBUG && println("edge $(e.number) istIdentifiable? $(e.istIdentifiable)")
+            DEBUG && println("otheredge $(otheredge.number) istIdentifiable? $(otheredge.istIdentifiable)")
         end
-    else
-        DEBUG && println("dice que $(name) no esta en hybrids")
-        DEBUG && println("$(name) es leaf? $(n.leaf)")
+    else # ind=0: hybrid name not seen before
+        DEBUG && println("$(name) not found in hybrids list")
+        DEBUG && println("$(name) is leaf? $(n.leaf)")
         n.hybrid = true;
-        push!(net.names,string(name));
-        n.name = string(name);
-        DEBUGC && println("aqui vamos a meter a $(name) en hybrids")
-        push!(hybrids,string(name));
+        nam = string(name)
+        push!(net.names, nam);
+        n.name = nam;
+        DEBUGC && println("put $(nam) in hybrids name list")
+        push!(hybrids, nam);
         pushNode!(net,n);
         push!(index,size(net.node,1));
         e = Edge(net.numEdges+1);
@@ -236,9 +235,9 @@ Creates a hybrid node and its edges, then inserts those into `net`, `hybrids` an
         setNode!(e,[n,parent]);
         setEdge!(n,e);
         setEdge!(parent,e);
-        DEBUG && println("thus edge $(e.number) istIdentifiable? $(e.istIdentifiable)")
+        DEBUG && println("edge $(e.number) istIdentifiable? $(e.istIdentifiable)")
     end
-    e.containRoot = !e.hybrid
+    e.containRoot = !e.hybrid # not good: but necessay for SNaQ functions
     return e
 end
 
@@ -297,7 +296,7 @@ Advances the stream `s` past any existing edge data.
 Edges in a topology may optionally be followed by ":edgeLen:bootstrap:gamma"
 where edgeLen, bootstrap, and gamma are decimal values.
 """
-@inline function parseEdgeData!(s::IO, e::PhyloNetworks.Edge, n::PhyloNetworks.Node, numLeft::Array{Int,1})
+@inline function parseEdgeData!(s::IO, e::Edge, n::Node, numLeft::Array{Int,1})
     bootstrap = nothing;
     gamma = -1.0;
     read(s, Char);
@@ -333,7 +332,7 @@ where edgeLen, bootstrap, and gamma are decimal values.
                 e.gamma = gamma
                 # isMajor will be set when the other edge is found
             elseif (numParents == 2) #other edge has been read, may have gamma set
-                local otheredge::PhyloNetworks.Edge
+                local otheredge::Edge
                 parentEdges[1] == e ? otheredge = parentaledges[2] :
                                         otheredge = parentEdges[1]
                 # Note: only need to correct isMajor if the gamma values are not equal
