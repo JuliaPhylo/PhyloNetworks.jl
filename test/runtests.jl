@@ -5,8 +5,10 @@
 # Claudia May 2016
 
 using Base.Test
-using RCall # for export to R objects
 using StaticArrays # for rate substitution matrices
+using StatsBase # for aic etc., stderr
+using CSV # for reading files
+using Missings
 
 if !isdefined(:localtests) localtests = false; end
 
@@ -77,8 +79,9 @@ tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculat
          "test_orderings_plot.jl", "test_compareNetworks.jl", "test_badDiamII.jl",
          "test_multipleAlleles.jl", "test_bootstrap.jl", "test_perfectData.jl", # "test_readme.jl"
          "test_lm.jl", "test_lm_tree.jl", "test_traits.jl", "test_simulate.jl",
-         "test_parsimony.jl", "test_plotsRCall.jl", "test_calibratePairwise.jl", "test_relaxed_reading.jl",
-         "test_isMajor.jl", "test_apeRExport.jl",
+         "test_parsimony.jl",
+         "test_calibratePairwise.jl", "test_relaxed_reading.jl",
+         "test_isMajor.jl", "test_interop.jl",
          "test_traitLikDiscrete.jl"]
 
 if isdefined(:PhyloNetworks)
@@ -93,10 +96,10 @@ for t in tests
     try
         info("starting $t")
         include(t)
-        println("\t\033[1m\033[32mPASSED\033[0m: $t")
+        println("\033[1m\033[32mPASSED\033[0m: $t")
     catch
         anyerrors = true
-        println("\t\033[1m\033[31mFAILED\033[0m: $t")
+        println("\033[1m\033[31mFAILED\033[0m: $t")
     end
 end
 println("-------------------------------------")
@@ -104,5 +107,5 @@ println("-------------------------------------")
 if anyerrors
     throw("Tests failed")
 else
-    println("\t\033[1m\033[32mTests passed")
+    println("\033[1m\033[32mTests passed")
 end

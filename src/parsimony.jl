@@ -155,7 +155,7 @@ function parsimonyDiscreteFitch(net::HybridNetwork, dat::DataFrame)
     end
     tips = Dict{String,eltypes(dat)[j]}()
     for r in 1:nrow(dat)
-        if DataFrames.isna(dat[r,j]) continue; end
+        if ismissing(dat[r,j]) continue; end
         tips[dat[r,i]] = dat[r,j]
     end
     parsimonyDiscreteFitch(net,tips)
@@ -258,7 +258,7 @@ function parsimonySoftwired(net::HybridNetwork, dat::DataFrame)
     innet = findin(dat[i], tipLabels(net)) # species in the network
     species = dat[innet, i]
     tips = dat[j][innet]
-    indna = find(isna.(tips)) # species with missing data
+    indna = find(ismissing.(tips)) # species with missing data
     deleteat!(species, indna)
     deleteat!(tips,    indna)
     parsimonySoftwired(net,tips)

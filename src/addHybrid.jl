@@ -352,36 +352,36 @@ addHybridizationUpdateSmart!(net::HybridNetwork, N::Integer) = addHybridizationU
 ## can we put in a different color in the plot?
 ## Cecile: you could add a new option to our RCall-based plot function to take a vector of colors.
 """
-`addAlternativeHybridizations!(net::HybridNetwork,BSe::DataFrame; cutoff=10::Number,top=3::Int)`
+    addAlternativeHybridizations!(net::HybridNetwork, BSe::DataFrame;
+                                  cutoff=10::Number, top=3::Int)
 
 Modify the network `net` (the best network estimated with snaq) by adding other hybridizations
 that are present in the bootstrap networks. By default, it will only consider hybrid edges with
 more than 10% bootstrap support (`cutoff`) and it will only include the three top hybridizations
 (`top`) sorted by bootstrap support.
 The function also modifies the dataframe `BSe` obtained with `hybridBootstrapSupport`. In the original
-`BSe` dataframe, hybrid edges that do not appear in the best network have NA as number.
+`BSe` dataframe, hybrid edges that do not appear in the best network have a missing number.
 After the hybrid edges are added with `addAlternativeHybridizations`, `BSe` is modified to include the
 edge numbers of the newly added hybrid edges. Note that the function only adds the hybrid edges as minor to
 keep the underlying tree topology.
 
-Example:
+# example
 
+```julia
 bootnet = readMultiTopology("bootstrap-networks.txt")
-
 bestnet = readTopology("best.tre")
-
 BSn, BSe, BSc, BSgam, BSedgenum = hybridBootstrapSupport(bootnet, bestnet);
-
 addAlternativeHybridizations!(bestnet,BSe)
-
+using PhyloPlots
 plot(bestnet, edgeLabel=BSe[[:edge,:BS_hybrid_edge]])
+```
 """
 function addAlternativeHybridizations!(net::HybridNetwork,BSe::DataFrame; cutoff=10::Number,top=3::Int)
     top > 0 || error("top must be greater than 0")
     BSe[:alternative] = falses(length(BSe[:hybrid]))
     newBSe = BSe[BSe[:BS_hybrid_edge] .> cutoff,:]
-    newBSe = newBSe[.!isna.(newBSe[:hybrid]) & .!isna.(newBSe[:sister]),:]
-    newBSe = newBSe[isna.(newBSe[:edge]),:]
+    newBSe = newBSe[.!ismissing.(newBSe[:hybrid]) & .!ismissing.(newBSe[:sister]),:]
+    newBSe = newBSe[ismissing.(newBSe[:edge]),:]
     newHyb = newBSe[1:top,:]
 
     if(size(newHyb,1) == 0)
@@ -393,8 +393,8 @@ function addAlternativeHybridizations!(net::HybridNetwork,BSe::DataFrame; cutoff
         hybnum = newHyb[:hybrid][i]
         sisnum = newHyb[:sister][i]
         edgenum = addHybridBetweenClades!(hybnum,sisnum,net)
-        ind1 = find(x->!isna(x) && x==hybnum,BSe[:hybrid])
-        ind2 = find(x->!isna(x) && x==sisnum,BSe[:sister])
+        ind1 = find(x->!ismissing(x) && x==hybnum,BSe[:hybrid])
+        ind2 = find(x->!ismissing(x) && x==sisnum,BSe[:sister])
         ind = intersect(ind1,ind2)
         BSe[ind,:edge] = edgenum
         BSe[ind,:alternative] = true

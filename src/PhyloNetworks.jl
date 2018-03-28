@@ -4,31 +4,25 @@ module PhyloNetworks
 
     using DataStructures # for updateInCycle with priority queue
     using DataFrames # for functions to read/write tables, and names()
+    using StatsBase # sample, coef etc.
+    using StatsModels
     using GLM # for the lm function
     using NLopt # for branch lengths optimization
-    using Gadfly # for plots
-    using ColorTypes # used by Gadfly already. To resolve data type names (Colorant)
-    using StatsBase: sample
     using Combinatorics.combinations
-    using RCall
-    using RCall: protect, unprotect, RClass
-    using NullableArrays
     using StaticArrays
     using IterTools
     using BioSequences
     using BioSymbols
 
     import Base.show
-    import Gadfly.plot
     import GLM.ftest
-    import RCall.sexp
-    export plot, ftest, sexp
 
     global DEBUG = false #for debugging only
     const DEBUGC = false #more detailed prints
     global CHECKNET = false #for debugging only
     global REDIRECT = false # changed for debugging to a file
 
+    export ftest
     export
         ## Network Definition
         HybridNetwork,
@@ -126,11 +120,7 @@ module PhyloNetworks
         nStates,
         Q, P,
         randomTrait,
-        randomTrait!,
-        #
-        apeRExport
-
-    # export part
+        randomTrait!
 
     include("types.jl")
     include("auxiliary.jl")
@@ -147,13 +137,11 @@ module PhyloNetworks
     include("manipulateNet.jl")
     include("bootstrap.jl")
     include("multipleAlleles.jl")
-    include("plotsGadfly.jl")
-    include("plotsRCall.jl")
     include("compareNetworks.jl")
     include("traits.jl")
     include("parsimony.jl")
     include("pairwiseDistanceLS.jl")
-    include("apeRExport.jl")
+    include("interop.jl")
     include("substitutionModels.jl")
     include("biconnectedComponents.jl")
 

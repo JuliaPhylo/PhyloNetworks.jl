@@ -30,7 +30,7 @@ Pages = [
     "man/multiplealleles.md",
     "man/trait_tree.md"
 ]
-Depth = 2
+Depth = 3
 ```
 
 ## Library Outline

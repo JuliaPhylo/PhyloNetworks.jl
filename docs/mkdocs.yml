@@ -3,9 +3,8 @@ repo_url:         https://github.com/crsl4/PhyloNetworks.jl
 site_description: PhyloNetworks is a Julia package for the manipulation, visualization and inference of phylogenetic networks.
 site_author:      Claudia Sol&iacute;s-Lemus
 
-theme: material
-
-extra:
+theme:
+  name: 'material'
   palette:
     primary: 'teal'
     accent:  'teal'

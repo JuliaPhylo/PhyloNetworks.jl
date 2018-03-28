@@ -89,7 +89,8 @@ fitbis = phyloNetworklm(@formula(trait ~ 1), dfr, net)
 @test aic(phynetlm) ≈ aic(fitbis)
 @test aicc(phynetlm) ≈ aicc(fitbis)
 @test bic(phynetlm) ≈ bic(fitbis)
-@test mu_estim(phynetlm) ≈ mu_estim(fitbis)
+tmp = (@test_warn "You fitted the data against a custom matrix" mu_estim(phynetlm))
+@test tmp ≈ mu_estim(fitbis)
 
 ## fixed values parameters
 fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedValue=1.0)
@@ -123,7 +124,7 @@ fitSH = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "scalingHybrid", f
 @test aic(fitlam) ≈ aic(fitSH)
 
 ## Pagel's Lambda
-fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda")
+fitlam = (@test_warn "Maximum lambda value" phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda"))
 @test lambda_estim(fitlam) ≈ 1.24875
 
 ## Scaling Hybrid
@@ -289,7 +290,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 ## perfect user using right format and formula
 dfr = DataFrame(trait = B, pred = A, tipNames = sim.M.tipNames)
 phynetlm = phyloNetworklm(@formula(trait ~ pred), dfr, net)
-@show phynetlm
+#@show phynetlm
 
 @test coef(phynetlm) ≈ coef(fit_mat)
 @test vcov(phynetlm) ≈ vcov(fit_mat)
@@ -341,7 +342,7 @@ fitbis = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 
 # unnamed ordered data
 dfr = DataFrame(trait = B, pred = A)
-fitter = phyloNetworklm(@formula(trait ~ pred), dfr, net, no_names=true)
+fitter = (@test_warn "As requested (no_names=true)" phyloNetworklm(@formula(trait ~ pred), dfr, net, no_names=true))
 
 @test coef(phynetlm) ≈ coef(fitter)
 @test vcov(phynetlm) ≈ vcov(fitter)
@@ -366,11 +367,12 @@ fitter = phyloNetworklm(@formula(trait ~ pred), dfr, net, no_names=true)
 
 # unnamed un-ordered data
 dfr = dfr[sample(1:12, 12, replace=false), :]
-@test_throws ErrorException fitter = phyloNetworklm(@formula(trait ~ pred), dfr, net) # Wrong pred
+@test_throws ErrorException phyloNetworklm(@formula(trait ~ pred), dfr, net) # Wrong pred
 
 ### Add NAs
 dfr = DataFrame(trait = B, pred = A, tipNames = tipLabels(sim))
-dfr[[2, 8, 11], :pred] = NA
+dfr[:pred] = allowmissing(dfr[:pred])
+dfr[[2, 8, 11], :pred] = missing
 fitna = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 #@show fitna
 
@@ -430,8 +432,8 @@ fitSH = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid"
 @test aic(fitlam) ≈ aic(fitSH)
 
 ## Pagel's Lambda
-fitlam = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda")
-@show fitlam
+fitlam = (@test_warn "Maximum lambda value" phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda"))
+#@show fitlam
 @test lambda_estim(fitlam) ≈ 1.1135518305 atol=1e-10
 
 ## scaling Hybrid
@@ -448,12 +450,12 @@ ancestral_traits = ancestralStateReconstruction(net, Y, params)
 # BLUP
 dfr = DataFrame(trait = Y, tipNames = tipLabels(sim))
 phynetlm = phyloNetworklm(@formula(trait~1), dfr, net)
-blup = ancestralStateReconstruction(phynetlm)
+blup = (@test_warn "These prediction intervals show uncertainty in ancestral values" ancestralStateReconstruction(phynetlm));
 # plot(net, blup)
 @show blup
 
 # BLUP same, using the function dirrectly
-blup_bis = ancestralStateReconstruction(dfr, net)
+blup_bis = (@test_warn "These prediction intervals show uncertainty in ancestral values" ancestralStateReconstruction(dfr, net));
 
 @test expectations(blup)[:condExpectation] ≈ expectations(blup_bis)[:condExpectation]
 @test expectations(blup)[:nodeNumber] ≈ expectations(blup_bis)[:nodeNumber]
@@ -465,12 +467,12 @@ blup_bis = ancestralStateReconstruction(dfr, net)
 @test expectationsPlot(blup)[:PredInt] == expectationsPlot(blup_bis)[:PredInt]
 
 dfr = DataFrame(trait = Y, tipNames = tipLabels(sim), reg = Y)
-@test_throws ErrorException fitter = ancestralStateReconstruction(dfr, net) # cannot handle a predictor
+@test_throws ErrorException ancestralStateReconstruction(dfr, net) # cannot handle a predictor
 
 # Unordered
 dfr2 = dfr[sample(1:12, 12, replace=false), :]
 phynetlm = phyloNetworklm(@formula(trait~1), dfr2, net)
-blup2 = ancestralStateReconstruction(phynetlm)
+blup2 = (@test_warn "These prediction intervals show uncertainty in ancestral values" ancestralStateReconstruction(phynetlm))
 
 @test expectations(blup)[:condExpectation][1:length(blup.NodeNumbers)] ≈ expectations(blup2)[:condExpectation][1:length(blup.NodeNumbers)]
 @test blup.traits_tips[phynetlm.model.ind] ≈ blup2.traits_tips
@@ -478,15 +480,16 @@ blup2 = ancestralStateReconstruction(phynetlm)
 @test predint(blup)[1:length(blup.NodeNumbers), :] ≈ predint(blup2)[1:length(blup.NodeNumbers), :]
 
 # With unknown tips
-dfr[[2, 4], :trait] = NA
+dfr[:trait] = allowmissing(dfr[:trait])
+dfr[[2, 4], :trait] = missing
 phynetlm = phyloNetworklm(@formula(trait~1), dfr, net)
-blup = ancestralStateReconstruction(phynetlm)
+blup = (@test_warn "These prediction intervals show uncertainty in ancestral values" ancestralStateReconstruction(phynetlm))
 # plot(net, blup)
 
 # Unordered
 dfr2 = dfr[[1, 2, 5, 3, 4, 6, 7, 8, 9, 10, 11, 12], :]
 phynetlm = phyloNetworklm(@formula(trait~1), dfr, net)
-blup2 = ancestralStateReconstruction(phynetlm)
+blup2 = (@test_warn "These prediction intervals show uncertainty in ancestral values" ancestralStateReconstruction(phynetlm))
 
 @test expectations(blup)[:condExpectation] ≈ expectations(blup2)[:condExpectation]
 @test predint(blup) ≈ predint(blup2)
@@ -519,13 +522,13 @@ B = b0 + b1 * A + randn(size(tipLabels(net), 1))
 dfr = DataFrame(trait = B, pred = A, tipNames = tipLabels(net))
 
 ## Network
-phynetlm = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda")
+phynetlm = (@test_warn "Maximum lambda value" phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda"))
 
 @test lambda_estim(phynetlm) ≈ 0.5894200143 atol=1e-8
 
 ## Major Tree
 tree = majorTree(net)
-phynetlm = phyloNetworklm(@formula(trait ~ pred), dfr, tree, model = "lambda")
+phynetlm = (@test_warn "Maximum lambda value" phyloNetworklm(@formula(trait ~ pred), dfr, tree, model = "lambda"))
 
 @test lambda_estim(phynetlm) ≈ 0.5903394415 atol=1e-6
 

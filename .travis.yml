@@ -11,24 +11,15 @@ notifications:
   email: false
 
 before_install:
-  # linux
-  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E084DAB9; fi
-  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo add-apt-repository -y "deb http://cran.rstudio.com/bin/linux/ubuntu $(lsb_release -s -c)/"; fi
-  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get update -qq -y; fi
-  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get install git r-base r-base-dev r-recommended -y; fi
-
-  # osx
-  # faster than using homebrew/science tap
-  # but no permalink to release download
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then wget "https://cran.rstudio.com/bin/macosx/$(wget -qO- https://cran.rstudio.com/bin/macosx/ | sed -n 's/.*href="\(R-[^"]*.pkg\)".*/\1/p' | head -n 1)"; fi
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then sudo installer -pkg R-*.pkg -target /; fi
 
   # Track master of NLopt. This line should be removed when a a new release of NLopt is out.
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then julia -e 'Pkg.clone("https://github.com/JuliaOpt/NLopt.jl"); Pkg.build("NLopt")'; fi
 
 after_success:
-  # Build doc
+  # push coverage results to Coveralls
+  - julia -e 'cd(Pkg.dir("PhyloNetworks")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
+  # push coverage results to Codecov
+  - julia -e 'cd(Pkg.dir("PhyloNetworks")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
+  # build doc
   - chmod +x docs/make.sh
   - ./docs/make.sh
-  # Code coverage
-  - julia -e 'cd(Pkg.dir("PhyloNetworks")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'

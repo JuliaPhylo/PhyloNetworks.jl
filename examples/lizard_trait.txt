@@ -1,4 +1,4 @@
-"tipNames","AVG.SVL","AVG.ltoe.IV","AVG.lfing.IV","region"
+"tipNames","AVG_SVL","AVG_ltoe_IV","AVG_lfing_IV","region"
 "ahli",4.039125443,2.553343811,1.943287666,0
 "alayoni",3.815704818,1.875257738,1.40302856,0
 "alfaroi",3.526654599,1.73254011,1.040276712,0

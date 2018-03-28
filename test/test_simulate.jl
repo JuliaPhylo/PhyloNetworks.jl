@@ -89,7 +89,7 @@ sh = ShiftNet(net.node[7], 3.0,  net)
 ## Test simulate
 pars = ParamsBM(1, 0.1, ShiftNet(net.edge[8], 3.0,  net)); # params of a BM
 @show pars
-@show pars.shift.value
+@show pars.shift
 
 srand(17920921); # fix the seed
 sim = simulate(net, pars); # simulate according to a BM

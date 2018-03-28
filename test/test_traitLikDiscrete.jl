@@ -15,7 +15,6 @@ show(m2)
 m3 = TwoBinaryTraitSubstitutionModel([2.0,1.2,1.1,2.2,1.0,3.1,2.0,1.1],
 ["carnivory", "noncarnivory", "wet", "dry"]);
 show(m3)
-plot(m3)
 
 @test Q(m1) == SMatrix{2,2}(-1.0, 2.0, 1.0, -2.0)
 @test Q(m2) == SMatrix{4,4}(-9.0, 3, 3, 3, 3, -9, 3, 3, 3, 3, -9, 3, 3, 3, 3, -9)
@@ -46,7 +45,6 @@ a,b = randomTrait(m1, net)
 @test a == [1 2 1 1 1 1 2]
 @test b == ["-2", "-3", "-4", "D", "C", "B", "A"]
 if runall
-    plot(net, :RCall, showNodeNumber=true);
     for e in net.edge e.length = 10.0; end
     @time a,b = randomTrait(m1, net; ntraits=100000) # ~ 0.014 seconds
     mean(a[:,1]) # expect 1.5 at root
@@ -77,7 +75,7 @@ if runall
         end
     end
     a,b = randomTrait(m1, net2; ntraits=100000)
-    plot(net2, :RCall, showNodeNumber=true) # H1 listed 7th, Parents listed 4th and 6th
+    # plot(net2, showNodeNumber=true) shows: H1 listed 7th, parents listed 4th and 6th
     c = map( != , a[:, 4],a[:, 6] ); # traits when parents have different traits
     n1 = sum(map( ==, a[c,7],a[c,6] )) # 39644 traits: hybrid ≠ major parent
     n2 = sum(map( ==, a[c,7],a[c,4] )) #  4401 traits: hybrid ≠ minor parent

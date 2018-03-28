@@ -100,7 +100,9 @@ and credibility intervals in columns 8-13.
   If `seed=0`, the random generator is seeded from the clock. Otherwise the random generator
   is seeded using `seed`.
 
-Warning: the modifying version does *not* check the df: assumes correct columns.
+Warning: the modifying version does *not* check the data frame: assumes correct columns.
+
+optional argument: `delim=','` by default: how columns are delimited.
 """
 function sampleCFfromCI(df::DataFrame, seed=0::Integer)
     global DEBUG
@@ -147,7 +149,7 @@ function sampleCFfromCI!(df::DataFrame, seed=0::Integer)
     return df
 end
 
-sampleCFfromCI(file::AbstractString;sep=','::Char,seed=0::Integer) = sampleCFfromCI(readtable(file,separator=sep),seed)
+sampleCFfromCI(file::AbstractString; delim=','::Char,seed=0::Integer) = sampleCFfromCI(CSV.read(file, delim=delim),seed)
 
 # function that will do bootstrap of snaq estimation in series
 # it repeats optTopRuns nrep times
@@ -670,11 +672,11 @@ The "node" data frame has one row per clade and 9 columns giving:
 
    - **clade**: the clade's name, like the taxon name (if a hybrid is a single taxon) or
      the hybrid tag (like 'H1') in the reference network
-   - **node**: the node number in the reference network. NA if the clade is not in this network.
+   - **node**: the node number in the reference network. missing if the clade is not in this network.
    - **hybridnode**: typically the same node number as above, except for hybrid clades in the
      reference network. For those, the hybrid node number is listed here.
    - **edge**: number of the parent edge, parent to the node in column 2,
-     if found in the ref network. NA otherwise.
+     if found in the ref network. missing otherwise.
    - **BS_hybrid**: percentage of bootstrap networks in which the clade is found to be a hybrid clade.
    - **BS_sister**: percentage of bootstrap networks in which the clade is found to be sister to
      some hybrid clade (sum of the next 2 columns)
@@ -683,13 +685,13 @@ The "node" data frame has one row per clade and 9 columns giving:
    - **BS_minor_sister**: same as previous, but minor
    - **BS_hybrid_samesisters**: percentage of bootstrap networks in which the clade is found to be
      a hybrid and with the same set of sister clades as in the reference network.
-     Applies to hybrid clades found in the reference network only, NA for all other clades.
+     Applies to hybrid clades found in the reference network only, missing for all other clades.
 
 The "edge" data frame has one row for each pair of clades, and 8 columns:
 
-  - **edge**: hybrid edge number, if the edge appears in the reference network. NA otherwise.
+  - **edge**: hybrid edge number, if the edge appears in the reference network. missing otherwise.
   - **hybrid_clade**: name of the clade found to be a hybrid, descendent of 'edge'
-  - **hybrid**: node number of that clade, if it appears in the reference network. NA otherwise.
+  - **hybrid**: node number of that clade, if it appears in the reference network. missing otherwise.
   - **sister_clade**: name of the clade that is sister to 'edge', i.e. be sister to a hybrid
   - **sister**: node number of that clade, if in the ref network.
   - **BS_hybrid_edge**: percentage of bootstrap networks in which 'edge' is found to be a hybrid
@@ -1008,23 +1010,25 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
         end
     end
     # node summaries
-    resNode = DataFrame(clade=cladestr[keepc], node=treenode[keepc],
-                        hybridnode=treenode[keepc], edge=treeedge[keepc],
+    resNode = DataFrame(clade=cladestr[keepc],
+                        node=allowmissing(treenode[keepc]),
+                        hybridnode=allowmissing(treenode[keepc]),
+                        edge=allowmissing(treeedge[keepc]),
                         BS_hybrid=BShyb, BS_sister = BSmajsis + BSminsis,
                         BS_major_sister=BSmajsis, BS_minor_sister=BSminsis,
-                        BS_hybrid_samesisters=Array{Float64}(nkeepc))
+                        BS_hybrid_samesisters=Vector{Union{Missing,Float64}}(nkeepc))
     rowh = 1
     for h=1:length(clade)
         if h <= nclades && keepc[h] && hybparent[h]>0
             resNode[:hybridnode][rowh]            =      hybnode[hybparent[h]]
             resNode[:BS_hybrid_samesisters][rowh] = BShybsamesis[hybparent[h]]
         elseif keepc[h]
-            resNode[:BS_hybrid_samesisters][rowh] = NA
+            resNode[:BS_hybrid_samesisters][rowh] = missing
         end
         if h>nclades # clade *not* in the reference network
-            resNode[:node][rowh] = NA
-            resNode[:hybridnode][rowh] = NA
-            resNode[:edge][rowh] = NA
+            resNode[:node][rowh] = missing
+            resNode[:hybridnode][rowh] = missing
+            resNode[:edge][rowh] = missing
         end
         if keepc[h]  rowh += 1; end
     end
@@ -1032,9 +1036,11 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
     sort!(resNode, cols=[:BS_all,:BS_hybrid], rev=true)
     delete!(resNode, :BS_all)
     # edge summaries
-    resEdge = DataFrame(edge = Array{Int}(length(hybcladei)),
-                        hybrid_clade=cladestr[hybcladei], hybrid=treenode[hybcladei],
-                        sister_clade=cladestr[siscladei], sister=treenode[siscladei],
+    resEdge = DataFrame(edge = Vector{Union{Int, Missing}}(length(hybcladei)),
+                        hybrid_clade=cladestr[hybcladei],
+                        hybrid=Vector{Union{Int, Missing}}(treenode[hybcladei]),
+                        sister_clade=cladestr[siscladei],
+                        sister=Vector{Union{Int, Missing}}(treenode[siscladei]),
                         BS_hybrid_edge = BShybmajsis+BShybminsis,
                         BS_major=BShybmajsis, BS_minor=BShybminsis)
     for i=1:length(hybcladei)
@@ -1042,11 +1048,11 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
         if h <= nclades && hybparent[h]>0
             resEdge[:hybrid][i] = hybnode[hybparent[h]]
         end
-        if h>nclades            resEdge[:hybrid][i]=NA; end
-        if siscladei[i]>nclades resEdge[:sister][i]=NA; end
+        if h>nclades            resEdge[:hybrid][i]=missing; end
+        if siscladei[i]>nclades resEdge[:sister][i]=missing; end
         if i <= nedges
              resEdge[:edge][i] = edgenum[i]
-        else resEdge[:edge][i] = NA
+        else resEdge[:edge][i] = missing
         end
     end
     o = [1:nedges; sortperm(resEdge[:BS_hybrid_edge][nedges+1:length(hybcladei)],rev=true)+nedges]

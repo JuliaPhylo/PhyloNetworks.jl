@@ -98,6 +98,7 @@ This node must be in one (and only one) cycle, otherwise an error will be thrown
 # Example #"
 ```julia
 julia> net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
+julia> using PhyloPlots
 julia> plot(net, showNodeNumber=true)
 julia> hybridatnode!(net, -4)
 julia> plot(net)
@@ -213,6 +214,7 @@ number 'nodeNumber' (by default) or with index 'nodeNumber' if index=true.
 Attributes isChild1 and containRoot are updated along the way.
 Use `plot(net, showNodeNumber=true, showEdgeLength=false)` to
 visualize and identify a node of interest.
+(see package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl))
 
 Returns the network.
 
@@ -225,7 +227,7 @@ Warnings:
   * a RootMismatch error is thrown
   * the input network will still have some attributes modified.
 
-See also: `rootonedge!`.
+See also: [`rootonedge!`](@ref).
 """
 function rootatnode!(net::HybridNetwork, node::Node)
     rootatnode!(net, node.number, index=false)
@@ -292,8 +294,9 @@ updated along the way.
 This adds a new node and a new edge to the network.
 Use `plot(net, showEdgeNumber=true, showEdgeLength=false)` to
 visualize and identify an edge of interest.
+(see package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl))
 
-See also: `rootatnode!`.
+See also: [`rootatnode!`](@ref).
 """
 function rootonedge!(net::HybridNetwork, edge::Edge)
     rootonedge!(net, edge.number, index=false)
@@ -584,8 +587,9 @@ end
 
 Roots the network/tree object along an edge with number 'edgeNumber'.
 This adds a new node (and a new edge) to the network.
-Use plot(net, showEdgeNumber=true, showEdgeLength=false) to
+Use `plot(net, showEdgeNumber=true, showEdgeLength=false)` to
 visualize and identify an edge of interest.
+(see package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl))
 """
 function root!(net::HybridNetwork, edgeNum::Integer)
     ind=0 # to declare outside of try/catch
@@ -807,12 +811,13 @@ end
 
 
 """
-`cladewiseorder!(net::HybridNetwork)`
+    cladewiseorder!(net::HybridNetwork)
 
 Updates attribute net.cladewiseorder_nodeIndex. Used for plotting the network.
 In the major tree, all nodes in a given clade are consecutive. On a tree, this function
 also provides a pre-ordering of the nodes.
-The edges' direction needs to be correct before calling cladewiseorder!, using directEdges!
+The edges' direction needs to be correct before calling
+[`cladewiseorder!`](@ref), using [`directEdges!`](@ref)
 """
 function cladewiseorder!(net::HybridNetwork)
     net.isRooted || error("net needs to be rooted for cladewiseorder!\n run root functions or directEdges!")
@@ -842,22 +847,25 @@ function cladewiseorder!(net::HybridNetwork)
 end
 
 """
-`rotate!(net::HybridNetwork, nodeNumber::Integer; orderedEdgeNum::Array{Int,1})`
+    rotate!(net::HybridNetwork, nodeNumber::Integer; orderedEdgeNum::Array{Int,1})
 
 Rotates the order of the node's children edges. Useful for plotting,
 to remove crossing edges.
 If `node` is a tree node with no polytomy, the 2 children edges are switched
 and the optional argument `orderedEdgeNum` is ignored.
 
-Use plot(net, showNodeNumber=true, showEdgeNumber=false) to map node and edge numbers
+Use `plot(net, showNodeNumber=true, showEdgeNumber=false)` to map node and edge numbers
 on the network, as shown in the examples below.
+(see package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl))
 
 Warning: assumes that edges are correctly directed (isChild1 updated). This is done
-by plot(net). Otherwise run directEdges!(net).
+by `plot(net)`. Otherwise run `directEdges!(net)`.
 
 # Example #"
+
 ```julia
 julia> net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
+julia> using PhyloPlots
 julia> plot(net, showNodeNumber=true)
 julia> rotate!(net, -4)
 julia> plot(net)

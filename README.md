@@ -3,10 +3,11 @@
 [![Build Status](https://travis-ci.org/crsl4/PhyloNetworks.jl.svg)](https://travis-ci.org/crsl4/PhyloNetworks.jl)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://crsl4.github.io/PhyloNetworks.jl/stable)
 [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://crsl4.github.io/PhyloNetworks.jl/latest)
-[![codecov](https://codecov.io/gh/crsl4/PhyloNetworks.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/crsl4/PhyloNetworks.jl)
+[![codecov.io](http://codecov.io/github/crsl4/PhyloNetworks.jl/coverage.svg?branch=master)](http://codecov.io/github/crsl4/PhyloNetworks.jl?branch=master)
 <!--
-[![Coverage Status](https://coveralls.io/repos/crsl4/PhyloNetworks/badge.svg?branch=master&service=github)](https://coveralls.io/github/crsl4/PhyloNetworks?branch=master)
+[![codecov](https://codecov.io/gh/crsl4/PhyloNetworks.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/crsl4/PhyloNetworks.jl)
 -->
+[![Coverage Status](https://coveralls.io/repos/crsl4/PhyloNetworks.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/crsl4/PhyloNetworks?branch=master)
 
 ## Overview
 
@@ -15,7 +16,6 @@ PhyloNetworks is a [Julia](http://julialang.org) package with utilities to:
   in (extended) Newick format.
   Networks are considered explicit: nodes represent ancestral species.
   They can be rooted or unrooted.
-- plot networks (and trees)
 - manipulate networks: re-root, prune taxa, remove hybrid edges,
   extract the major tree from a network, extract displayed networks / trees
 - compare networks / trees with dissimilarity measures
@@ -25,6 +25,8 @@ PhyloNetworks is a [Julia](http://julialang.org) package with utilities to:
 - estimate species networks from multilocus data (see below)
 - phylogenetic comparative methods for continuous trait evolution
   on species networks / trees
+- plot networks (and trees), via the companion package
+  [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl)
 
 To get help, check
 

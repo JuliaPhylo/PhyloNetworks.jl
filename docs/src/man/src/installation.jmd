@@ -10,8 +10,10 @@ For a quick & basic tutorial on Julia, see
 
 Editors:
 
+- [Visual Studio Code](https://code.visualstudio.com) provides an editor
+  and an integrated development environment (IDE) for Julia: highly recommended!
 - [Juno](http://junolab.org) provides an IDE for Julia,
-  based on the (fantastic) [Atom](http://atom.io/) editor.
+  based on the [Atom](http://atom.io/) editor.
 - you can also run Julia within a [Jupyter](http://jupyter.org) notebook
   (formerly IPython notebook).
 
@@ -19,9 +21,6 @@ IMPORTANT: Julia code is just-in-time compiled. This means that the
 first time you run a function, it will be compiled at that moment. So,
 please be patient! Future calls to the function will be much much
 faster. Trying out toy examples for the first calls is a good idea.
-
-Users should have Julia 0.4 or above.
-
 
 ## Installation of the package PhyloNetworks
 
@@ -59,9 +58,22 @@ users can do the following through the terminal:
 where HOME is replaced by your home directory.
 -->
 
-The PhyloNetworks package has dependencies like NLopt and Gadfly
+The PhyloNetworks package has dependencies like NLopt and
+[DataFrames](http://juliadata.github.io/DataFrames.jl/stable/)
 (see the REQUIRE file for the full list), but everything is installed automatically.
 
+The companion package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl)
+has utilities to visualize networks, and for interoperability,
+such as to export networks to R (which can then be plotted via R).
+To install:
+
+```julia
+Pkg.add("PhyloPlots")
+```
+
+PhyloPlots depends on PhyloNetworks, and has further dependencies
+like [Gadfly](http://gadflyjl.org/stable/) and
+[RCall](https://github.com/JuliaInterop/RCall.jl)
 
 ## Test example
 

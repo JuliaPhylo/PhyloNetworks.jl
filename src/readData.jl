@@ -55,15 +55,15 @@ used to estimate the CFs for each 4-taxon set.
 Optional arguments:
 
 - summaryfile: if specified, a summary file will be created with that name.
-- sep (for the first form only): to specify the type of separator in the file,
-  with single quotes: sep=';'. Default is a `csv` file, i.e. `sep=','`.
+- delim (for the first form only): to specify how columns are delimited,
+  with single quotes: delim=';'. Default is a `csv` file, i.e. `delim=','`.
 
 The last version modifies the input data frame, if species are represented by multiple alleles
 for instance (see `readTableCF!`).
 """
 # warning: file AbstractString bc it can be read as UTF8String
-function readTableCF(file::AbstractString; sep=','::Char, summaryfile=""::AbstractString)
-    df = readtable(file,separator=sep)
+function readTableCF(file::AbstractString; delim=','::Char, summaryfile=""::AbstractString)
+    df = CSV.read(file, delim=delim)
     readTableCF!(df, summaryfile=summaryfile)
 end
 

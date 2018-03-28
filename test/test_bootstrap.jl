@@ -1,17 +1,8 @@
 # test the functions in src/bootstrap.jl
 
-if !isdefined(:individualtest) individualtest = false; end
-
-if(individualtest)
-    using Base.Test
-    include("../src/types.jl")
-    include("../src/functions.jl")
-end
-
-
 exdir = joinpath(@__DIR__,"..","examples")
 
-info("testing hybridBootstrapSupport")
+@testset "testing hybridBootstrapSupport" begin
 bestnet = readTopology(joinpath(exdir,"fish2hyb.net"));
 bootnet = readMultiTopology(joinpath(exdir,"fish3hyb_20boostrap.net"));
 # issues with bootstrap networks 12, 21, 42, 96
@@ -43,11 +34,12 @@ resn, rese, resc, gam, edgenum = hybridBootstrapSupport(bootnet,bestnet);
 @test gam[:,2] == [.0,.0,.192,.0,.0,.0,.0,.0,.193,.0,.184,.193,.0,.0,.0,.0,.0,.193,.0,.0]
 @test gam[:,4] == [.165,.166,.165,.166,.165,.165,.166,.165,.165,.166,.164,.166,.166,.165,.165,.165,.166,.165,.166,.166]
 @test edgenum ==[25,39,43,7]
+end # of testset, hybridBootstrapSupport
 
 # exdir = ""
 info("testing bootsnaq from quartet CF intervals")
 T=readTopology(joinpath(exdir,"startTree.txt"))
-df=readtable(joinpath(exdir,"tableCFCI.csv"))
+df=CSV.read(joinpath(exdir,"tableCFCI.csv"))
 net1 = readTopology("(5,(((2,(1)#H7:::0.7143969494428192):1.5121337017411736,4):0.4894187322508883,3):0.519160762355313,(6,#H7:::0.2856030505571808):10.0);")
 bootnet = bootsnaq(T,df,nrep=2,runs=1,seed=1234,filename="",Nfail=2,ftolAbs=1e-3,ftolRel=1e-3,
                    xtolAbs=1e-4,xtolRel=1e-3,liktolAbs=0.01)

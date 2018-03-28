@@ -2,23 +2,14 @@
 #      used to compare networks with the hardwired cluster distance.
 # Cecile March 2016
 
-# using PhyloNetworks
-
-if !isdefined(:individualtest) individualtest = false; end
-
-if(individualtest)
-    include("../src/types.jl")
-    include("../src/functions.jl")
-end
-
 if !isdefined(:doalltests) doalltests = false; end
 
 #----------------------------------------------------------#
 #   testing functions to delete edges and nodes            #
 #----------------------------------------------------------#
-println("Testing deleteHybridEdge!")
+@testset "testing deleteHybridEdge!" begin
 
-if (doalltests)
+if doalltests
 # example of network with one hybrid edge connected to the root:
 net = readTopology("((Adif:1.0,(Aech:0.122,#H6:10.0::0.047):10.0):1.614,Aten:1.0,((Asub:1.0,Agem:1.0):0.0)#H6:5.062::0.953);");
 # plot(net, showEdgeNumber=true, showNodeNumber=true)
@@ -45,11 +36,11 @@ end
 # example with wrong attributed inChild1
 net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.1361111):10.0);");
 net.edge[5].isChild1 = false;
-deleteHybridEdge!(net, net.edge[4]);
-writeTopologyLevel1(net) == "(4,((6,5):3.423,1):0.265,(3,2):10.0);" ||
- error("deleteHybridEdge! didn't work on 4th edge when isChild1 was outdated")
+@test_nowarn deleteHybridEdge!(net, net.edge[4]);
+@test writeTopologyLevel1(net) == "(4,((6,5):3.423,1):0.265,(3,2):10.0);"
+# or: deleteHybridEdge! didn't work on 4th edge when isChild1 was outdated
 
-if (doalltests)
+if doalltests
 net = readTopology("((Adif:1.0,(Aech:0.122,#H6:10.0::0.047):10.0):1.614,Aten:1.0,((Asub:1.0,Agem:1.0):0.0)#H6:5.062::0.953);");
 net.edge[5].isChild1 = false # edge 5 from -1 to -2
 deleteHybridEdge!(net, net.edge[10]);
@@ -59,7 +50,9 @@ writeTopologyLevel1(net) == "(Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.
 # plot(net, showEdgeNumber=true, showNodeNumber=true)
 end
 
-println("Testing deleteleaf! (also uses hardwiredClusterDistance and plot)")
+end # of testing deleteHybridEdge!
+
+@testset "testing deleteleaf! and hardwiredClusterDistance" begin
 
 cui2str = "(Xgordoni,Xmeyeri,(Xcouchianus,(Xvariatus,(Xevelynae,((Xxiphidium,#H25:9.992::0.167):1.383,(Xmilleri,(Xandersi,(Xmaculatus,((((Xhellerii,(Xalvarezi,Xmayae):0.327):0.259,Xsignum):1.866,(Xclemenciae_F2,Xmonticolus):1.461):0.786,((((Xmontezumae,(Xnezahuacoyotl)#H26:0.247::0.807):0.372,((Xbirchmanni_GARC,Xmalinche_CHIC2):1.003,Xcortezi):0.454):0.63,((Xcontinens,Xpygmaeus):1.927,((Xnigrensis,Xmultilineatus):1.304,#H26:0.0::0.193):0.059):2.492):2.034)#H25:0.707::0.833):1.029):0.654):0.469):0.295):0.41):0.646):3.509):0.263);"
 cui3str = "(Xmayae,((Xhellerii,(((Xclemenciae_F2,Xmonticolus):1.458,(((((Xmontezumae,(Xnezahuacoyotl)#H26:0.247::0.804):0.375,((Xbirchmanni_GARC,Xmalinche_CHIC2):0.997,Xcortezi):0.455):0.63,(#H26:0.0::0.196,((Xcontinens,Xpygmaeus):1.932,(Xnigrensis,Xmultilineatus):1.401):0.042):2.439):2.0)#H7:0.787::0.835,(Xmaculatus,(Xandersi,(Xmilleri,((Xxiphidium,#H7:9.563::0.165):1.409,(Xevelynae,(Xvariatus,(Xcouchianus,(Xgordoni,Xmeyeri):0.263):3.532):0.642):0.411):0.295):0.468):0.654):1.022):0.788):1.917)#H27:0.149::0.572):0.668,Xalvarezi):0.257,(Xsignum,#H27:1.381::0.428):4.669);"
@@ -67,7 +60,7 @@ cui3str = "(Xmayae,((Xhellerii,(((Xclemenciae_F2,Xmonticolus):1.458,(((((Xmontez
 net3  = readTopology(cui3str);
 net2  = readTopology(cui2str);
 
-if(doalltests)
+if doalltests
 # major tree, root with outgroup then delete 2 leaves:
 tree2 = majorTree(net2);        tree3 = majorTree(net3);
 rootatnode!(tree2,"Xmayae");    rootatnode!(tree3,"Xmayae");
@@ -90,30 +83,33 @@ end
 
 # network: delete 2 leaves
 net2  = readTopology(cui2str);
-deleteleaf!(net2,"Xhellerii"); deleteleaf!(net2,"Xsignum");
-rootatnode!(net2,"Xmayae");    #plot(net2);
+@test_nowarn deleteleaf!(net2,"Xhellerii");
+@test_nowarn deleteleaf!(net2,"Xsignum");
+@test_warn """node 13 is a leaf. Will create a new node if needed, to set taxon "Xmayae" as outgroup.""" rootatnode!(net2,"Xmayae");
 net3  = readTopology(cui3str);
-deleteleaf!(net3,"Xhellerii"); deleteleaf!(net3,"Xsignum");
-rootatnode!(net2,"Xmayae");    #plot(net3);
-hardwiredClusterDistance(net2, net3, true) == 3 ||
-  error("HW dist wrong after deleteleaf! on networks");
-deleteleaf!(net3,"Xmayae");    #plot(net3);
-net3.numHybrids==2 || error("deleteleaf wrong on mayae")
+@test_nowarn deleteleaf!(net3,"Xhellerii");
+@test_nowarn deleteleaf!(net3,"Xsignum");
+@test_warn """node 13 is a leaf. Will create a new node if needed, to set taxon "Xmayae" as outgroup.""" rootatnode!(net2,"Xmayae");
+@test hardwiredClusterDistance(net2, net3, true) == 3
+@test_nowarn deleteleaf!(net3,"Xmayae");    #plot(net3);
+@test net3.numHybrids == 2
 # using simplify=false in deleteleaf!
 net3  = readTopology(cui3str);
 deleteleaf!(net3,"Xhellerii"); deleteleaf!(net3,"Xsignum");
 deleteleaf!(net3,"Xmayae", simplify=false);
-net3.numHybrids==3 || error("deleteleaf wrong on mayae with simplify=false")
-plot(net3); # looks weird though: k=2 cycle at the root. 3 root edges:
+@test net3.numHybrids==3 # or: deleteleaf wrong on mayae with simplify=false
+# plot(net3); # looks weird though: k=2 cycle at the root. 3 root edges:
 # one to a leaf, 1 major & 1 minor hybrid edge to the same child.
+
+end # of testset for deleteleaf! and hardwiredClusterDistance
 
 #----------------------------------------------------------#
 #   testing functions to display trees / subnetworks       #
 #----------------------------------------------------------#
 
-println("Testing deleteHybridThreshold!")
+@testset "testing deleteHybridThreshold!" begin
 
-if (doalltests)
+if doalltests
 net21 = readTopology("(A,((B,#H1),(C,(D)#H1)));");
 # manual bug fix to get good gamma's (0.5 not 1.0) and major/minor
 net21.edge[3].gamma = 0.5;
@@ -148,24 +144,26 @@ end
 
 net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 # plot(net5)
-deleteHybridThreshold!(net5,0.5);  # both H1 and H2 eliminated
-writeTopologyLevel1(net5) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);" ||
- error("deleteHybridThreshold! didn't work on net5, gamma=0.5")
+@test_nowarn deleteHybridThreshold!(net5,0.5);  # both H1 and H2 eliminated
+@test writeTopologyLevel1(net5) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);"
+# or: deleteHybridThreshold! didn't work on net5, gamma=0.5
 net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
-deleteHybridThreshold!(net5,0.3);  # H2 remains
-writeTopologyLevel1(net5) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.7);" ||
- error("deleteHybridThreshold! didn't work on net5, gamma=0.3")
+@test_nowarn deleteHybridThreshold!(net5,0.3);  # H2 remains
+@test writeTopologyLevel1(net5) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.7);"
+# or: deleteHybridThreshold! didn't work on net5, gamma=0.3
 
-println("Testing displayedNetworks! and displayedTrees")
+end # of testset, deleteHybridThreshold!
+
+@testset "testing displayedNetworks! and displayedTrees" begin
 
 net3 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(C:0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 net31 = displayedNetworks!(net3, net3.node[6]); #H1 = 6th node
-writeTopologyLevel1(net31) == "(A:1.0,((B:1.1,D:1.0):1.2,C:2.2):0.7);" ||
- error("displayedNetworks! didn't work on net3, minor at 6th node")
-writeTopologyLevel1(net3)  == "(A:1.0,((C:0.9,D:1.1):1.3,B:2.3):0.7);" ||
- error("displayedNetworks! didn't work on net3, major at 6th node")
+@test writeTopologyLevel1(net31) == "(A:1.0,((B:1.1,D:1.0):1.2,C:2.2):0.7);"
+# or: displayedNetworks! didn't work on net3, minor at 6th node
+@test writeTopologyLevel1(net3)  == "(A:1.0,((C:0.9,D:1.1):1.3,B:2.3):0.7);"
+# or: displayedNetworks! didn't work on net3, major at 6th node
 
-if (doalltests)
+if doalltests
 net3 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(C:0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 a = displayedTrees(net3, 0.2);
 length(a) == 2 ||
@@ -178,36 +176,34 @@ end
 
 net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 a = displayedTrees(net5, 0.5);
-length(a) == 1 ||
- error("displayedTrees didn't work on net5, gamma=0.5: output not of length 1")
-writeTopologyLevel1(a[1]) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);" ||
- error("displayedTrees didn't work on net5, gamma=0.5: wrong tree")
+@test length(a) == 1 # or: displayedTrees didn't work on net5, gamma=0.5
+@test writeTopologyLevel1(a[1]) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);"
+# or: displayedTrees didn't work on net5, gamma=0.5
 a = displayedTrees(net5, 0.1);
-length(a) == 4 ||
- error("displayedTrees didn't work on net5, gamma=0.1: output not of length 4")
-(writeTopologyLevel1(a[1]) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);" &&
- writeTopologyLevel1(a[2]) == "(A:1.0,((B:1.1,D:1.0):1.2,((C:0.52,E:0.52):0.6,F:1.5):2.2):0.7);" &&
- writeTopologyLevel1(a[3]) == "(A:1.0,((((F:0.7,E:0.51):0.8,C:1.12):0.9,D:1.1):1.3,B:2.3):0.7);" &&
- writeTopologyLevel1(a[4]) == "(A:1.0,((B:1.1,D:1.0):1.2,((F:0.7,E:0.51):0.8,C:1.12):2.2):0.7);") ||
- error("displayedTrees didn't work on net5, gamma=0.1: one or more tree(s) is/are wrong")
+@test length(a) == 4 # or: displayedTrees didn't work on net5, gamma=0.1
+@test writeTopologyLevel1(a[1]) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);"
+@test writeTopologyLevel1(a[2]) == "(A:1.0,((B:1.1,D:1.0):1.2,((C:0.52,E:0.52):0.6,F:1.5):2.2):0.7);"
+@test writeTopologyLevel1(a[3]) == "(A:1.0,((((F:0.7,E:0.51):0.8,C:1.12):0.9,D:1.1):1.3,B:2.3):0.7);"
+@test writeTopologyLevel1(a[4]) == "(A:1.0,((B:1.1,D:1.0):1.2,((F:0.7,E:0.51):0.8,C:1.12):2.2):0.7);"
 
-println("Testing majorTree and displayedNetworkAt!")
+end # of testset, displayedNetworks! & displayedTrees
 
-writeTopologyLevel1(majorTree(net5)) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);" ||
- error("majorTree didn't work on net5")
+@testset "testing majorTree and displayedNetworkAt!" begin
 
 net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
-displayedNetworkAt!(net5, net5.hybrid[1]);
-writeTopologyLevel1(net5) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.7);" ||
- error("displayedNetworkAt! didn't work on net5, 1st hybrid")
+@test writeTopology(majorTree(net5)) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);"
+@test_nowarn displayedNetworkAt!(net5, net5.hybrid[1]);
+@test writeTopology(net5) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.7);"
+
+end # of testset, majorTree & displayedNetworkAt!
 
 #----------------------------------------------------------#
 #   testing functions to compare trees                     #
 #----------------------------------------------------------#
 
-println("Testing tree2Matrix")
+@testset "testing tree2Matrix" begin
 
-if (doalltests)
+if doalltests
 net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 tree = displayedTrees(net5, 0.0);
 taxa = tipLabels(net5);
@@ -258,15 +254,17 @@ phy2 = readTopology("((t3:0.9152618761,t4:0.4574306419):0.7603277895,(((t1:0.429
 phy3 = readTopology("(((t7:0.3309174306,t6:0.8330178803):0.7741786113,(((t2:0.4048132468,t8:0.6809111023):0.6810255498,(t4:0.6540613638,t5:0.2610215396):0.8490990005):0.6802781771,t3:0.2325445588):0.911911567):0.94644987,t1:0.09404937108);");
 phy10= readTopology("((t4:0.1083955287,((t1:0.8376079942,t8:0.1745392387):0.6178579947,((t6:0.3196466176,t2:0.9228881211):0.3112748025,t7:0.05162345758):0.7137957355):0.5162231021):0.06693460606,(t5:0.005652675638,t3:0.2584615161):0.7333540542);");
 
-(hardwiredClusterDistance(phy1, phy10, false)== 8 &&
- hardwiredClusterDistance(phy2, phy10, false)== 6 &&
- hardwiredClusterDistance(phy3, phy10, false)==10 &&
- hardwiredClusterDistance(phy1, phy2,  false)== 8 &&
- hardwiredClusterDistance(phy1, phy3,  false)==10 &&
- hardwiredClusterDistance(phy2, phy3,  false)==10 &&
- hardwiredClusterDistance(phy1, phy10, true) ==10 &&
- hardwiredClusterDistance(phy2, phy10, true) == 8 ) ||
-  error("wrong RF distance between some of the trees");
+@test hardwiredClusterDistance(phy1, phy10, false)== 8
+@test hardwiredClusterDistance(phy2, phy10, false)== 6
+@test hardwiredClusterDistance(phy3, phy10, false)==10
+@test hardwiredClusterDistance(phy1, phy2,  false)== 8
+@test hardwiredClusterDistance(phy1, phy3,  false)==10
+@test hardwiredClusterDistance(phy2, phy3,  false)==10
+@test hardwiredClusterDistance(phy1, phy10, true) ==10
+@test hardwiredClusterDistance(phy2, phy10, true) == 8
+# or: wrong RF distance between some of the trees
+
+end # of testset, tree2Matrix
 
 #----------------------------------------------------------#
 #   testing function to compare networks                   #
@@ -274,36 +272,33 @@ phy10= readTopology("((t4:0.1083955287,((t1:0.8376079942,t8:0.1745392387):0.6178
 #   used for detection of given hybridization event        #
 #----------------------------------------------------------#
 
-println("Testing displayedTrees, hardwiredClusters, hardwiredClusterDistance, displayedNetworkAt!")
+@testset "test displayedTrees, hardwiredClusters, hardwiredClusterDistance, displayedNetworkAt!" begin
 
 estnet = readTopology("(6,((5,#H7:0.0::0.402):8.735,((1,2):6.107,((3,4):1.069)#H7:9.509::0.598):6.029):0.752);")
 # originally from "../msSNaQ/simulations/estimatedNetworks/baseline/nloci10/1_julia.out"
 trunet = readTopology("((((1,2),((3,4))#H1),(#H1,5)),6);");
-hardwiredClusterDistance(majorTree(trunet), majorTree(estnet),false) == 0 ||
- error("estnet and trunet should be found to have the same unrooted major tree");
+@test hardwiredClusterDistance(majorTree(trunet), majorTree(estnet),false) == 0 # false: unrooted
 truminor = minorTreeAt(trunet, 1); # (1:1.0,2:1.0,((5:1.0,(3:1.0,4:1.0):2.0):1.0,6:1.0):2.0);
 estminor = minorTreeAt(estnet, 1); # (5:1.0,(3:1.0,4:1.0):1.069,(6:1.0,(1:1.0,2:1.0):10.0):8.735);
-writeTopologyLevel1(truminor) == "((((1,2),(3,4)),5),6);" || error("wrong truminor");
-writeTopologyLevel1(estminor) == "(6,(((1,2):6.107,(3,4):10.578):6.029,5):0.752);" || error("wrong estminor");
-hardwiredClusterDistance(truminor, estminor, false) == 0 ||
- error("truminor and estminor should be found to be at distance 0 when unrooted.");
+@test writeTopology(truminor) == "((((1,2),(3,4)),5),6);"
+@test writeTopology(estminor) == "(6,(((1,2):6.107,(3,4):10.578):6.029,5):0.752);"
+@test hardwiredClusterDistance(truminor, estminor, false) == 0 # false: unrooted
 # so the hybrid edge was estimated correctly!!
-
 
 net5 = readTopology("(A,((B,#H1:::0.2),(((C,(E)#H2:::0.7),(#H2:::0.3,F)),(D)#H1:::0.8)));");
 tree = displayedTrees(net5, 0.0);
 taxa = tipLabels(net5);
-hardwiredClusters(tree[1], taxa) ==
+@test hardwiredClusters(tree[1], taxa) ==
 [16 0 1 1 1 1 1 10;
  15 0 0 1 1 1 1 10;
  12 0 0 1 1 1 0 10;
-  8 0 0 1 1 0 0 10] || error("wrong hardwired cluster matrix for tree 1");
-hardwiredClusters(tree[2], taxa) ==
+  8 0 0 1 1 0 0 10]
+@test hardwiredClusters(tree[2], taxa) ==
 [16 0 1 1 1 1 1 10;
   4 0 1 0 0 0 1 10;
  12 0 0 1 1 1 0 10;
-  8 0 0 1 1 0 0 10] || error("wrong hardwired cluster matrix for tree 2");
-hardwiredClusters(net5, taxa) ==
+  8 0 0 1 1 0 0 10]
+@test hardwiredClusters(net5, taxa) ==
 [16 0 1 1 1 1 1 10;
   4 0 1 0 0 0 1 10;
   3 0 0 0 0 0 1 11;
@@ -311,9 +306,9 @@ hardwiredClusters(net5, taxa) ==
  12 0 0 1 1 1 0 10;
   8 0 0 1 1 0 0 10;
   7 0 0 0 1 0 0 11;
- 11 0 0 0 1 1 0 10] || error("wrong hardwired cluster matrix for net5");
+ 11 0 0 0 1 1 0 10]
 
-if (doalltests)
+if doalltests
 trunet = readTopology("(((1,2),((3,4))#H1),(#H1,5),6);"); # unrooted
 taxa = tipLabels(trunet);
 hardwiredClusters(trunet, taxa) ==
@@ -370,7 +365,9 @@ hardwiredClusterDistance(net51,net52,true) == 4 ||
  error("wrong HWDist between net51 and net52");
 end
 
-println("Testing hardwiredCluster! on single nodes")
+end # of testset: displayedTrees, hardwiredClusters, hardwiredClusterDistance, displayedNetworkAt!
+
+@testset "testing hardwiredCluster! on single nodes" begin
 
 net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readTopology |> directEdges! ;
 taxa = net5 |> tipLabels # ABC EF D
@@ -393,3 +390,4 @@ m = hcat([true,false,false,false,false,false],
 for i = 1:16
   @test hardwiredCluster(net5.edge[i], taxa) == m[:,i]
 end
+end # of testset, hardwiredCluster! on single nodes
