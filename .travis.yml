@@ -9,11 +9,13 @@ env:
   - DRAW_FIG="false"
 notifications:
   email: false
-
-before_install:
-
-  # Track master of NLopt. This line should be removed when a a new release of NLopt is out.
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then julia -e 'Pkg.clone("https://github.com/JuliaOpt/NLopt.jl"); Pkg.build("NLopt")'; fi
+## Following 4 lines are taken from here:
+# https://github.com/JuliaOpt/NLopt.jl/blob/master/.travis.yml#L10
+# They're meant to fix the NLopt build on Linux.
+addons:
+    apt: # apt-get for linux
+        packages:
+            - libnlopt0 # We install it this way to be able to run Travis with `sudo: false`
 
 after_success:
   # push coverage results to Coveralls
