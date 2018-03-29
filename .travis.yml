@@ -9,6 +9,13 @@ env:
   - DRAW_FIG="false"
 notifications:
   email: false
+## Following 4 lines are taken from here:
+# https://github.com/JuliaOpt/NLopt.jl/blob/master/.travis.yml#L10
+# They're meant to fix the NLopt build on Linux.
+addons:
+    apt: # apt-get for linux
+        packages:
+            - libnlopt0 # We install it this way to be able to run Travis with `sudo: false`
 
 before_install:
 
