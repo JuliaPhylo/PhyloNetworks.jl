@@ -3,7 +3,8 @@ __precompile__()
 module PhyloNetworks
 
     using DataStructures # for updateInCycle with priority queue
-    using DataFrames # for functions to read/write tables, and names()
+    using DataFrames
+    using CSV
     using StatsBase # sample, coef etc.
     using StatsModels
     using GLM # for the lm function
