@@ -48,7 +48,7 @@ function mapAllelesCFtable!(alleleDF::DataFrame, cfDF::DataFrame, co::Vector{Int
     end
     if(write)
         filename != "" || error("want to write table of CF with alleles mapped but filename is empty")
-        writetable(filename, cfDF)
+        CSV.write(filename, cfDF)
     end
     return cfDF
 end

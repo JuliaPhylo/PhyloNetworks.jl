@@ -76,7 +76,16 @@ function readTableCF!(df::DataFrames.DataFrame; summaryfile=""::AbstractString)
     DEBUG && println("assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network")
     obsCFcol = [findfirst(DataFrames.names(df), :CF12_34),
                 findfirst(DataFrames.names(df), :CF13_24),
-                findfirst(DataFrames.names(df), :CF14_23)] # use DataFrames.index( ).names ow
+                findfirst(DataFrames.names(df), :CF14_23)]
+    if obsCFcol[1]==0 # CF12_34 was not found. try CF12.34 then
+        obsCFcol[1] = findfirst(DataFrames.names(df), Symbol("CF12.34"))
+    end
+    if obsCFcol[2]==0
+        obsCFcol[2] = findfirst(DataFrames.names(df), Symbol("CF13.24"))
+    end
+    if obsCFcol[3]==0
+        obsCFcol[3] = findfirst(DataFrames.names(df), Symbol("CF14.23"))
+    end
     ngenecol =  findfirst(DataFrames.names(df), :ngenes)
     withngenes = ngenecol>0
     if findfirst(obsCFcol, 0) > 0 # one or more col names for CFs were not found
@@ -528,7 +537,7 @@ function readInputData(trees::Vector{HybridNetwork}, quartetfile::AbstractString
         end
         println("\ntable of obsCF printed to file $(filename)")
         df = writeObsCF(d)
-        writetable(filename,df)
+        CSV.write(filename,df)
     end
     #descData(d,"summaryTreesQuartets$(string(integer(time()/1000))).txt")
     writeSummary && descData(d,"summaryTreesQuartets.txt")
@@ -604,7 +613,7 @@ function readInputData(trees::Vector{HybridNetwork}, whichQ::Symbol, numQ::Integ
         end
         println("table of obsCF printed to file $(filename)")
         df = writeObsCF(d)
-        writetable(filename,df)
+        CSV.write(filename,df)
     end
     #descData(d,"summaryTreesQuartets$(string(integer(time()/1000))).txt")
     writeSummary && descData(d,"summaryTreesQuartets.txt")

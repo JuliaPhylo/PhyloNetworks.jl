@@ -57,7 +57,10 @@ raxmltrees = joinpath(Pkg.dir("PhyloNetworks"),"examples","raxmltrees.tre")
 genetrees = readMultiTopology(raxmltrees);
 genetrees[3]
 ```
+To visualize any of these input trees, use the
+[PhyloPlots](https://github.com/cecileane/PhyloPlots.jl) package:
 ```{julia; eval=true; label="gene3"}
+using PhyloPlots
 plot(genetrees[3]) # tree for 3rd gene
 ```
 To read in all gene trees and directly summarize them by a list
@@ -67,7 +70,7 @@ raxmlCF = readTrees2CF(raxmltrees, CFfile="tableCF.txt")
 PhyloNetworks.writeObsCF(raxmlCF) # observed CFs: gene frequencies
 ```
 `less("tableCF.txt")` lets you see the content of the newly created
-file "tableCFall.txt", within Julia. Again, type `q` to quit viewing this file.
+file "tableCF.txt", within Julia. Again, type `q` to quit viewing this file.
 ```{julia; eval=true; echo=false}
 rm("tableCF.txt")
 rm("summaryTreesQuartets.txt")
@@ -114,8 +117,8 @@ The same thing could be done in 2 steps:
 first to read the file and convert it to a 'DataFrame' object,
 and then to convert this DataFrame into a DataCF object.
 ```{julia; eval=true; results="markup"; term=true; line_width=190}
-using DataFrames
-dat = readtable(buckyCFfile);
+using CSV
+dat = CSV.read(buckyCFfile);
 head(dat) # head shows the first 6 rows only
 buckyCF = readTableCF(dat)
 PhyloNetworks.writeObsCF(buckyCF)
