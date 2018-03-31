@@ -50,6 +50,7 @@ rotate!
 getindex(::TraitSimulation, ::Symbol)
 getNodeAges
 pairwiseTaxonDistanceMatrix
+biconnectedComponents
 ```
 
 ## data and topology read/write
@@ -64,6 +65,7 @@ readTrees2CF
 readTableCF
 readTableCF!
 readBootstrapTrees
+writeSubTree!
 writeTopology
 writeMultiTopology
 mapAllelesCFtable
@@ -115,12 +117,14 @@ predintPlot
 descendenceMatrix
 regressorShift
 regressorHybrid
+sharedPathMatrix
 ```
 
 ## discrete trait evolution
 
 ```@docs
-parsimonyDiscrete
+parsimonySoftwired
+parsimonyGF
 nStates
 Q
 P

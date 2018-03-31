@@ -418,7 +418,7 @@ trait values are to appear in column 2 or in a column named "trait".
    On computing the Maximum Parsimony score of a phylogenetic network.
    SIAM J. Discrete Math., 29(1):559-585.
 
-Use the recursive helper function [parsimonyBottomUpGF!](@ref).
+Use the recursive helper function [`parsimonyBottomUpGF!`](@ref).
 Use the fields `isChild1`,
 `isExtBadTriangle` to know which nodes are at the root of a blob, and
 `fromBadDiamondI` to know which edges are cut (below the minor parent of each hybrid).
@@ -693,7 +693,7 @@ Field `inCycle` is assumed to store the # of detached parents (with guessed stat
   These cost matrices are pre-computed depending on the parsimony criterion
   (softwired, hardwired, parental etc.)
 
-used by [parsimonyGF](@ref).
+used by [`parsimonyGF`](@ref).
 """
 
 function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,

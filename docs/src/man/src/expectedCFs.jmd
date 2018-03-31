@@ -23,15 +23,18 @@ These functions update the fitted concordance factors (those expected under the 
 inside the DataCF object `raxmlCF`.
 
 Now, we can plot them with any of the Julia packages for plotting. For example:
-```{julia; eval=true; label="obsvsfitted"; fig_width=5; fig_height=4}
+```{julia; eval=false; label="obsvsfitted"; fig_width=5; fig_height=4}
 using Gadfly
 plot(layer(df_long, Geom.point, x="obsCF", y="expCF"),
      layer(x=0:1,y=0:1, Geom.line), # diagonal line
      Guide.xlabel("CF observed in gene trees"), Guide.ylabel("CF expected from network"))
 ```
+![obsvsfitted](../../assets/figures/expectedCFs_obsvsfitted_1.png)
+
 To export this table and explore the fit of the network with other tools:
 ```julia
-writetable("fittedCF.csv", df_long)
+using CSV
+CSV.write("fittedCF.csv", df_long)
 ```
 
 To highlight quartets that include taxon A, say,

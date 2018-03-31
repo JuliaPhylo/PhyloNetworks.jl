@@ -89,7 +89,7 @@ end
 """
     BinaryTraitSubstitutionModel(α, β [, label])
 
-[TraitSubstitutionModel](@ref) for binary traits (with 2 states).
+[`TraitSubstitutionModel`](@ref) for binary traits (with 2 states).
 Default labels are "0" and "1".
 α is the rate of transition from "0" to "1", and β from "1" to "0".
 """
@@ -158,7 +158,7 @@ end
 """
     TwoBinaryTraitSubstitutionModel(rate [, label])
 
-[TraitSubstitutionModel](@ref) for two binary traits, possibly correlated.
+[`TraitSubstitutionModel`](@ref) for two binary traits, possibly correlated.
 Default labels are "x0", "x1" for trait 1, and "y0", "y1" for trait 2.
 If provided, `label` should be a vector of size 4, listing labels for
 trait 1 first then labels for trait 2.
@@ -219,7 +219,7 @@ end
 """
     EqualRatesSubstitutionModel(numberStates, α, labels)
 
-[TraitSubstitutionModel](@ref) for traits with any number of states
+[`TraitSubstitutionModel`](@ref) for traits with any number of states
 and equal substitution rates α between all states.
 Default labels are "1","2",...
 """

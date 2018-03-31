@@ -1,8 +1,6 @@
 ```{julia; eval=true; echo=false}
-using PhyloNetworks, DataFrames, Gadfly
+# using Gadfly
 using PhyloNetworks
-#T=readTopologyLevel1(Pkg.dir("PhyloNetworks","examples","startTree.txt"))
-#df=readtable(Pkg.dir("PhyloNetworks","examples","tableCFCI.csv"))
 ```
 # Bootstrap
 
@@ -12,8 +10,8 @@ There are two ways to do a bootstrap analysis.
 
 - From quartet CFs with credibility intervals, such as if we used BUCKy. The [TICR pipeline](@ref) outpus a CF table with extra columns for credibility intervals. We could then read that table and get bootstrap networks like this, and tweak options as needed:
 ```julia
-using DataFrames
-df = readtable("tableCF_withCI.csv")
+using CSV
+df = CSV.read("tableCF_withCI.csv")
 bootnet = bootsnaq(startnetwork, df, hmax=1, filename="bootstrap")
 ```
 
@@ -77,18 +75,27 @@ in this example (see below) with a wrong direction inferred sometimes,
 so we re-root our best network net1 to the base of O,E, for the figures
 to be less confusing later.
 
-```{julia; eval=true; results="markup"; label="net1_rotate1"; fig_width=4; fig_height=4}
-using DataFrames
+```{julia; eval=true; echo=false}
+rootonedge!(net1, 7)
+```
+```{julia; eval=false; results="markup"; label="net1_rotate1"; fig_width=4; fig_height=4}
+using PhyloPlots
 plot(net1, showEdgeNumber=true) # edge 7 leads to O+E
 rootonedge!(net1, 7) # makes (O,E) outgroup clade
 plot(net1, showNodeNumber=true)
 ```
+![net1_rotate1 1](../../assets/figures/bootstrap_net1_rotate1_1.png)
+![net1_rotate1 2](../../assets/figures/bootstrap_net1_rotate1_2.png)
+
 edges cross: but rotating at node -6 should remove this crossing
 of edges
-```{julia; eval=true; results="markup"; label="net1_rotate2"; fig_width=4; fig_height=4}
+```{julia; eval=true; results="markup"}
 rotate!(net1, -6)
+```
+```{julia; eval=false; label="net1_rotate2"; fig_width=4; fig_height=4}
 plot(net1, showGamma=true)
 ```
+![net1_rotate2](../../assets/figures/bootstrap_net1_rotate2_1.png)
 
 We can now summarize our bootstrap networks.
 The functions `treeEdgesBootstrap` and `hybridBootstrapSupport`
@@ -100,9 +107,11 @@ BSe_tree, tree1 = treeEdgesBootstrap(bootnet,net1)
 This calculates the major tree `tree1` displayed in `net1`, that is,
 the tree obtained by following the major parent (γ>0.5) of each hybrid node.
 This tree can be visualized like this, with edge numbers shown for later use.
-```{julia; eval=true; results="markup"; label="major_tree"; fig_width=4; fig_height=4}
+```{julia; eval=false; results="markup"; label="major_tree"; fig_width=4; fig_height=4}
 plot(tree1, showEdgeNumber=true)
 ```
+![major_tree](../../assets/figures/bootstrap_major_tree_1.png)
+
 Next, we can look at bootstrap table `BSe_tree`, which has one row for
 each tree edge in `net1`. One column contains the edge number
 (same as shown in the plot) and another column contains the edge
@@ -116,10 +125,13 @@ BSe_tree[BSe_tree[:proportion] .< 100.0, :]
 ```
 Finally, we can map the bootstrap proportions onto the network or its main tree
 by passing the bootstrap table to the `edgeLabel` option of `plot`:
-```{julia; eval=true; results="markup"; label="boot_tree_net"; fig_width=4; fig_height=4}
+```{julia; eval=false; results="markup"; label="boot_tree_net"; fig_width=4; fig_height=4}
 plot(tree1, edgeLabel=BSe_tree)
 plot(net1,  edgeLabel=BSe_tree)
 ```
+![boot_tree_net 1](../../assets/figures/bootstrap_boot_tree_net_1.png)
+![boot_tree_net 2](../../assets/figures/bootstrap_boot_tree_net_2.png)
+
 (Here, it is important that the numbers assigned to edges when building the boostrap
 table --those in `net1` at the time-- correspond to the current edge numbers
 in `tree1` and `net1`. That was the purpose of reading the network from the
@@ -187,18 +199,21 @@ the major parent edge and then the minor parent edge.
 In our case, there is only one reticulation, so only 2 hybrid edges.
 
 We can plot the bootstrap values of the 2 hybrid edges in the best network:
-```{julia; eval=true; results="markup"; label="boot_net_net"; fig_width=4; fig_height=4}
+```{julia; eval=false; results="markup"; label="boot_net_net"; fig_width=4; fig_height=4}
 plot(net1, edgeLabel=BSe[[:edge,:BS_hybrid_edge]])
 ```
+![boot_net_net](../../assets/figures/bootstrap_boot_net_net_1.png)
+
 This is showing the bootstrap support each hybrid edge: percentage of bootstrap trees with an
 edge from the same sister clade to the same hybrid clade.
 Alternatively, we could show the bootstrap support for the full reticulation relationships in
 the network, one at each hybrid node (support for same hybrid with same sister clades).
 Here, we find that A received gene flow from E (and is sister to B otherwise) in just 32%
 of bootstrap networks. In another 1% bootstrap, A received gene flow from another source.
-```{julia; eval=true; results="markup"; label="boot_net_ret"; fig_width=4; fig_height=4}
+```{julia; eval=false; results="markup"; label="boot_net_ret"; fig_width=4; fig_height=4}
 plot(net1, nodeLabel=BSn[[:hybridnode,:BS_hybrid_samesisters]])
 ```
+![boot_net_ret](../../assets/figures/bootstrap_boot_net_ret_1.png)
 
 Below is example code to place tree edge support and hybrid edge support
 on the same plot.
@@ -219,10 +234,12 @@ and then mapped on the parent edge of these nodes.
 A is estimated as a hybrid in only 33% of our bootstrap networks.
 In another 44%, it is the lineage to (E,O) that is estimated as
 being of hybrid origin.
-```{julia; eval=true; results="markup"; label="boot_net_hyb"; fig_width=4; fig_height=4}
+```{julia; eval=false; results="markup"; label="boot_net_hyb"; fig_width=4; fig_height=4}
 plot(net1, nodeLabel=BSn[BSn[:BS_hybrid].>0, [:hybridnode,:BS_hybrid]])
 plot(net1, edgeLabel=BSn[BSn[:BS_hybrid].>0, [:edge,:BS_hybrid]])
 ```
+![boot_net_hyb 1](../../assets/figures/bootstrap_boot_net_hyb_1.png)
+![boot_net_hyb 2](../../assets/figures/bootstrap_boot_net_hyb_2.png)
 
 ### Where is the origin of gene flow?
 
@@ -231,10 +248,12 @@ of the gene flow origin (minor sister clade),
 first mapped to each node with positive support for being the origin of gene flow,
 and then mapped along the parent edge of these nodes.
 We filtered clades to show those with sister support > 5%:
-```{julia; eval=true; results="markup"; label="boot_net_clade"; fig_width=4; fig_height=4}
+```{julia; eval=false; results="markup"; label="boot_net_clade"; fig_width=4; fig_height=4}
 plot(net1, nodeLabel=BSn[BSn[:BS_minor_sister].>5, [:node,:BS_minor_sister]])
 plot(net1, edgeLabel=BSn[BSn[:BS_minor_sister].>5, [:edge,:BS_minor_sister]])
 ```
+![boot_net_clade 1](../../assets/figures/bootstrap_boot_net_clade_1.png)
+![boot_net_clade 2](../../assets/figures/bootstrap_boot_net_clade_2.png)
 
 In our best network, the lineage to E is estimated as the origin
 of gene flow, but this is recovered in only 41% of our bootstrap networks.

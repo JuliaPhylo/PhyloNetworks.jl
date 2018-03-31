@@ -36,10 +36,10 @@ Part of the screen output shows this:
 
 This parenthetical (extended Newick) description is not very
 human-friendly, so we plot the tree:
-```{julia; eval=true; label="net0_1"; fig_width=4; fig_height=4}
+```{julia; eval=false; label="net0_1"; fig_width=4; fig_height=4}
 plot(net0)
 ```
-
+![net0_1](../../assets/figures/snaq_plot_net0_1_1.png)
 
 We can use this tree as a starting point to search for the best
 network allowing for at most `hmax=1` hybrid node (which is the default).
@@ -52,9 +52,14 @@ part of screen output:
     MaxNet is (C,D,((O,(E,#H7:::0.19558838614943078):0.31352437658618976):0.6640664399202987,(B,(A)#H7:::0.8044116138505693):10.0):10.0);
     with -loglik 28.31506721890958
 
-```{julia; eval=true; label="net1_1"; fig_width=4; fig_height=4}
+To visualize the estimated network, we can use the companion package
+[PhyloPlots](https://github.com/cecileane/PhyloPlots.jl).
+```{julia; eval=false; label="net1_1"; fig_width=4; fig_height=4}
+using PhyloPlots
 plot(net1, showGamma=true)
 ```
+![net1_1](../../assets/figures/snaq_plot_net1_1_1.png)
+
 This network has A as a hybrid, 80.4% sister to B,
 and 19.6% sister to E (which is otherwise sister to O).
 C & D are sister to each other.
@@ -98,10 +103,12 @@ net2 = snaq!(net1,raxmlCF, hmax=2, filename="net2", seed=3456)
 net3 = snaq!(net0,raxmlCF, hmax=3, filename="net3", seed=4567)
 ```
 and plot them (they are identical):
-```{julia; eval=true; label="net23"}
+```{julia; eval=false; label="net23"}
 plot(net2, showGamma=true)
 plot(net3, showGamma=true)
 ```
+![net23 1](../../assets/figures/snaq_plot_net23_1.png)
+![net23 2](../../assets/figures/snaq_plot_net23_2.png)
 
 with this screen output for net2 (only 1 hybrid node found):
 
@@ -153,19 +160,23 @@ Each network has a `loglik` attribute, which is its pseudo deviance:
 twice the negative log-likelihood up to a constant (the constant is
 such that the score is 0 if the network fits the data perfectly).
 The lower the better. We can plot these scores across hybrid values:
-```{julia; eval=true; label="scores_heuristic"; fig_width=4; fig_height=4}
+```{julia; eval=false; label="scores_heuristic"; fig_width=4; fig_height=4}
 using Gadfly
 scores = [net0.loglik, net1.loglik, net2.loglik, net3.loglik]
 plot(x=collect(0:3), y=scores, Geom.point, Geom.line)
 ```
+![scores_heuristic](../../assets/figures/snaq_plot_scores_heuristic_1.png)
+
 Here the slope heuristic suggests a single hybrid node:
 the score does not get much better beyond h=1.
 
 ## Network Visualization
 
-```{julia; eval=true; results="markup"; label="net1_1"; fig_width=4; fig_height=4}
+```{julia; eval=false; results="markup"; label="net1_1"; fig_width=4; fig_height=4}
 p = plot(net1, showGamma=true)
 ```
+![net1_1](../../assets/figures/snaq_plot_net1_1_1.png)
+
 This will open a browser where the plot will appear
 (unless you use [Juno](http://junolab.org),
 which would capture and display the plot).
@@ -180,10 +191,12 @@ The plot function has many options, to annotate nodes and edges
 Type `?` to switch to the help mode
 of Julia, then type the name of the function, here `plot`.
 Edge colors can be modified, for instance.
-```{julia; eval=true; results="markup"; label="net1_2"; fig_width=4; fig_height=4}
+```{julia; eval=false; results="markup"; label="net1_2"; fig_width=4; fig_height=4}
 # using Gadfly # if not done earlier, for colorant
 plot(net1, showEdgeLength=true, minorHybridEdgeColor=colorant"tan")
 ```
+![net1_2](../../assets/figures/snaq_plot_net1_2_1.png)
+
 Edge lengths are shown, too. They were estimated in coalescent units:
 number of generations / effective population size.
 Some edge lengths are not identifiable, hence not shown.
