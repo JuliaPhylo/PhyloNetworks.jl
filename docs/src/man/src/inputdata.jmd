@@ -63,7 +63,7 @@ To visualize any of these input trees, use the
 using PhyloPlots
 plot(genetrees[3]) # tree for 3rd gene
 ```
-![gene3](../../assets/figures/inputdata_gene3_1.png)
+![gene3](../assets/figures/inputdata_gene3_1.png)
 
 To read in all gene trees and directly summarize them by a list
 of quartet CFs (proportion of input trees with a given quartet):
@@ -150,7 +150,7 @@ astralfile = joinpath(Pkg.dir("PhyloNetworks"),"examples","astral.tre")
 astraltree = readMultiTopology(astralfile)[102] # 102th tree = last tree here
 plot(astraltree)
 ```
-![astraltree](../../assets/figures/inputdata_astraltree_1.png)
+![astraltree](../assets/figures/inputdata_astraltree_1.png)
 
 To start its search, SNaQ will need a network of "level 1".
 All trees and all networks with 1 hybridization are of level 1.

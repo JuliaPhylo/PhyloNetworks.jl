@@ -29,7 +29,7 @@ plot(layer(df_long, Geom.point, x="obsCF", y="expCF"),
      layer(x=0:1,y=0:1, Geom.line), # diagonal line
      Guide.xlabel("CF observed in gene trees"), Guide.ylabel("CF expected from network"))
 ```
-![obsvsfitted](../../assets/figures/expectedCFs_obsvsfitted_1.png)
+![obsvsfitted](../assets/figures/expectedCFs_obsvsfitted_1.png)
 
 To export this table and explore the fit of the network with other tools:
 ```julia

@@ -39,7 +39,7 @@ human-friendly, so we plot the tree:
 ```{julia; eval=false; label="net0_1"; fig_width=4; fig_height=4}
 plot(net0)
 ```
-![net0_1](../../assets/figures/snaq_plot_net0_1_1.png)
+![net0_1](../assets/figures/snaq_plot_net0_1_1.png)
 
 We can use this tree as a starting point to search for the best
 network allowing for at most `hmax=1` hybrid node (which is the default).
@@ -58,7 +58,7 @@ To visualize the estimated network, we can use the companion package
 using PhyloPlots
 plot(net1, showGamma=true)
 ```
-![net1_1](../../assets/figures/snaq_plot_net1_1_1.png)
+![net1_1](../assets/figures/snaq_plot_net1_1_1.png)
 
 This network has A as a hybrid, 80.4% sister to B,
 and 19.6% sister to E (which is otherwise sister to O).
@@ -107,8 +107,8 @@ and plot them (they are identical):
 plot(net2, showGamma=true)
 plot(net3, showGamma=true)
 ```
-![net23 1](../../assets/figures/snaq_plot_net23_1.png)
-![net23 2](../../assets/figures/snaq_plot_net23_2.png)
+![net23 1](../assets/figures/snaq_plot_net23_1.png)
+![net23 2](../assets/figures/snaq_plot_net23_2.png)
 
 with this screen output for net2 (only 1 hybrid node found):
 
@@ -165,7 +165,7 @@ using Gadfly
 scores = [net0.loglik, net1.loglik, net2.loglik, net3.loglik]
 plot(x=collect(0:3), y=scores, Geom.point, Geom.line)
 ```
-![scores_heuristic](../../assets/figures/snaq_plot_scores_heuristic_1.png)
+![scores_heuristic](../assets/figures/snaq_plot_scores_heuristic_1.png)
 
 Here the slope heuristic suggests a single hybrid node:
 the score does not get much better beyond h=1.
@@ -175,7 +175,7 @@ the score does not get much better beyond h=1.
 ```{julia; eval=false; results="markup"; label="net1_1"; fig_width=4; fig_height=4}
 p = plot(net1, showGamma=true)
 ```
-![net1_1](../../assets/figures/snaq_plot_net1_1_1.png)
+![net1_1](../assets/figures/snaq_plot_net1_1_1.png)
 
 This will open a browser where the plot will appear
 (unless you use [Juno](http://junolab.org),
@@ -195,7 +195,7 @@ Edge colors can be modified, for instance.
 # using Gadfly # if not done earlier, for colorant
 plot(net1, showEdgeLength=true, minorHybridEdgeColor=colorant"tan")
 ```
-![net1_2](../../assets/figures/snaq_plot_net1_2_1.png)
+![net1_2](../assets/figures/snaq_plot_net1_2_1.png)
 
 Edge lengths are shown, too. They were estimated in coalescent units:
 number of generations / effective population size.

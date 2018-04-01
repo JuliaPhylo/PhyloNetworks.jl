@@ -18,7 +18,7 @@ truenet = readTopology("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.
 using PhyloPlots
 plot(truenet, useEdgeLength=true, showGamma=true)
 ```
-![truenet](../../assets/figures/trait_tree_truenet_1.png)
+![truenet](../assets/figures/trait_tree_truenet_1.png)
 
 ## Trait simulation
 
@@ -131,13 +131,13 @@ We can plot the ancestral states or prediction intervals on the tree, using the
 ancExpe = expectationsPlot(ancTrait1); # format expected ancestral states for the plot
 plot(truenet, nodeLabel = ancExpe)
 ```
-![ancestral_expe](../../assets/figures/trait_tree_ancestral_expe_1.png)
+![ancestral_expe](../assets/figures/trait_tree_ancestral_expe_1.png)
 
 ```{julia; eval=false; label="ancestral_predint"; fig_width=6; fig_height=4}
 ancInt = predintPlot(ancTrait1) # format the prediction intervals for the plot
 plot(truenet, nodeLabel = ancInt)
 ```
-![ancestral_predint](../../assets/figures/trait_tree_ancestral_predint_1.png)
+![ancestral_predint](../assets/figures/trait_tree_ancestral_predint_1.png)
 
 The `predint` and `predintPlot` functions have an optional argument to state
 the `level` of the prediction interval. If not given, the default value is
@@ -181,7 +181,7 @@ and the same extractors can be applied to it:
 ```{julia; eval=false; label="ancestral1"; fig_width=6; fig_height=4}
 plot(truenet, nodeLabel = expectationsPlot(ancTrait1Approx))
 ```
-![ancestral1](../../assets/figures/trait_tree_ancestral1_1.png)
+![ancestral1](../assets/figures/trait_tree_ancestral1_1.png)
 
 For convenience, the two steps described above (fitting against the
 intercept, and then do ancestral state reconstruction) can be done all at once
@@ -194,7 +194,7 @@ ancTrait1Approx = ancestralStateReconstruction(datTrait1, truenet)
 ```{julia; eval=false; label="ancestral2"; fig_width=6; fig_height=4}
 plot(truenet, nodeLabel = predintPlot(ancTrait1Approx, level=0.9))
 ```
-![ancestral2](../../assets/figures/trait_tree_ancestral2_1.png)
+![ancestral2](../assets/figures/trait_tree_ancestral2_1.png)
 
 This produces the exact same results. Here, we chose a `level` of 90% for the
 plotted prediction intervals.
@@ -214,7 +214,7 @@ ancTrait1Approx = ancestralStateReconstruction(datTrait1, truenet)
 ```{julia; eval=false; label="ancestral3"; fig_width=6; fig_height=4}
 plot(truenet, nodeLabel = predintPlot(ancTrait1Approx))
 ```
-![ancestral3](../../assets/figures/trait_tree_ancestral3_1.png)
+![ancestral3](../assets/figures/trait_tree_ancestral3_1.png)
 
 A prediction interval is shown for the missing values.
 
@@ -243,7 +243,7 @@ ancTrait3 = ancestralStateReconstruction(fitTrait3,
 ```{julia; eval=false; label="ancestral4"; fig_width=6; fig_height=4}
 plot(truenet, nodeLabel = predintPlot(ancTrait3))
 ```
-![ancestral4](../../assets/figures/trait_tree_ancestral4_1.png)
+![ancestral4](../assets/figures/trait_tree_ancestral4_1.png)
 
 where we provided the ancestral predictors as a matrix, containing the
 intercept, and the known predictor at the nodes. The user must be very careful
@@ -349,7 +349,7 @@ numbers.
 ```{julia; eval=false; label="truenet_with_numbers"; fig_width=4; fig_height=4}
 plot(truenet, useEdgeLength=true, showEdgeNumber=true)
 ```
-![truenet_with_numbers](../../assets/figures/trait_tree_truenet_with_numbers_1.png)
+![truenet_with_numbers](../assets/figures/trait_tree_truenet_with_numbers_1.png)
 
 Let's say that we want to add a shift with value 5.0 on the branch directly
 following the hybridization event, in order to model transgressive evolution.
