@@ -528,16 +528,6 @@ function treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)
 end
 
 
-# function can only compare hybrid nodes in networks that have the same underlying major tree
-# also, need to root all networks in the same place, and the root has to be compatible with the
-# direction of the hybrid edges
-# it computes the rooted hardwired distance between networks, the root matters.
-# input: vector of bootstrap networks (net), estimated network (net1), outgroup
-# returns 1)a matrix with one row per bootstrap network, and 2*number of hybrids in net1,
-# 2) list of discrepant trees (trees not matching the main tree in net1)
-# column i corresponds to whether hybrid i (net1.hybrid[i]) is found in the bootstrap network,
-# column 2i+1 corresponds to the estimated gamma on the bootstrap network (0.0 if hybrid not found)
-# to know the order of hybrids, print net1.hybrid[i] i=1,...,num of hybrids
 """
 `hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgroup::AbstractString)`
 
@@ -552,7 +542,9 @@ returns
 
 - a matrix with one row per bootstrap network, and 2*number of hybrids in net1,
 column i corresponds to whether hybrid i (net1.hybrid[i]) is found in the bootstrap network,
-column 2i+1 corresponds to the estimated gamma on the bootstrap network (0.0 if hybrid not found)
+column 2i+1 corresponds to the estimated gamma on the bootstrap network
+(0.0 if hybrid not found).
+To know the order of hybrids, print net1.hybrid[i] i=1,...,num of hybrids
 
 - list of discrepant trees (trees not matching the main tree in net1)
 """
@@ -1059,39 +1051,18 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
     return resNode, resEdge[o,:], resCluster, gamma, edgenum
 end
 
-@deprecate hybridBootstrapFrequency hybridBootstrapSupport
-
-
-# Function to summarize df output from hybridDetection input: HFdf
-# (see hybridDetection) returns dataframe with one row per hybrid, and
-# 5 columns: - hybrid index (order from estimated network, see
-# hybridDetection), - number of bootstrap trees that match the
-# underlying tree of estimated network, - number of bootstrap networks
-# that have the hybrid - mean estimated gamma in the bootstrap
-# networks that have the hybrid - sd estimated gamma in the bootstrap
-# networks that have the hybrid also, last row has index -1, and the
-# third column has the number of networks that have all hybrids
-# (hybrid index, mean gamma, sd gamma are meaningless in this last
-# row)
 """
 `summarizeHFdf(HFmat::Matrix)`
 
-function to summarize df output from hybridDetection input: HFdf
-(see hybridDetection) returns dataframe with one row per hybrid, and
-5 columns:
+Summarize data frame output from [`hybridDetection`](@ref).
+Output: dataframe with one row per hybrid, and 5 columns:
 
-- hybrid index (order from estimated network, see
-hybridDetection),
-
+- hybrid index (order from estimated network, see [`hybridDetection`](@ref),
 - number of bootstrap trees that match the
-underlying tree of estimated network, - number of bootstrap networks
-that have the hybrid
-
-- mean estimated gamma in the bootstrap
-networks that have the hybrid
-
-- sd estimated gamma in the bootstrap
-networks that have the hybrid also
+  underlying tree of estimated network
+- number of bootstrap networks that have the hybrid
+- mean estimated gamma in the bootstrap networks that have the hybrid
+- sd estimated gamma in the bootstrap networks that have the hybrid also
 
 last row has index -1, and the third column has the number of networks
 that have all hybrids (hybrid index, mean gamma, sd gamma are
