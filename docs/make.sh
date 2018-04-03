@@ -5,7 +5,7 @@ set -ev
 
 if [ "$TRAVIS_OS_NAME" == "linux" ]; then
     julia -e 'Pkg.clone("https://github.com/pbastide/Documenter.jl")';
-    julia -e 'Pkg.checkout("Documenter", "update_documenter")';
+    #julia -e 'Pkg.checkout("Documenter", "update_documenter")';
     julia -e 'Pkg.clone("https://github.com/cecileane/PhyloPlots.jl")';
     #julia -e 'Pkg.add("Cairo")';
     #julia -e 'Pkg.add("Fontconfig")';
