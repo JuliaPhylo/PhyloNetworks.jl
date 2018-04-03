@@ -157,7 +157,7 @@ end
                     parameters)
 
 Generic tool to apply a post-order (or topological ordering) algorithm.
-Used by `incidenceMatrix`.
+Used by `descendenceMatrix`.
 """
 function recursionPostOrder(nodes::Vector{Node},
                             init::Function,
@@ -338,7 +338,7 @@ end
 ###############################################################################
 ###############################################################################
 """
-`incidenceMatrix(net::HybridNetwork; checkPreorder=true::Bool)`
+`descendenceMatrix(net::HybridNetwork; checkPreorder=true::Bool)`
 
 This function computes the inciednce matrix between all the nodes of a
 network. It assumes that the network is in the pre-order. If checkPreorder is
@@ -347,23 +347,23 @@ true (default), then it runs function `preoder` on the network beforehand.
 Returns an object of type [`MatrixTopologicalOrder`](@ref).
 
 """
-function incidenceMatrix(net::HybridNetwork;
+function descendenceMatrix(net::HybridNetwork;
                          checkPreorder=true::Bool)
     recursionPostOrder(net,
                        checkPreorder,
-                       initIncidenceMatrix,
-                       updateTipIncidenceMatrix!,
-                       updateNodeIncidenceMatrix!,
+                       initDescendenceMatrix,
+                       updateTipDescendenceMatrix!,
+                       updateNodeDescendenceMatrix!,
                        "r")
 end
 
-function updateTipIncidenceMatrix!(V::Matrix,
+function updateTipDescendenceMatrix!(V::Matrix,
                                    i::Int,
                                    params)
     return
 end
 
-function updateNodeIncidenceMatrix!(V::Matrix,
+function updateNodeDescendenceMatrix!(V::Matrix,
                                     i::Int,
                                     childrenIndex::Vector{Int},
                                     edges::Vector{Edge},
@@ -373,7 +373,7 @@ function updateNodeIncidenceMatrix!(V::Matrix,
     end
 end
 
-function initIncidenceMatrix(nodes::Vector{Node}, params)
+function initDescendenceMatrix(nodes::Vector{Node}, params)
     n = length(nodes)
     return(eye(Float64,n,n))
 end
@@ -389,7 +389,7 @@ end
 `regressorShift(edge::Vector{Edge}, net::HybridNetwork; checkPreorder=true::Bool)`
 
 Compute the regressor vectors associated with shifts on edges that are above nodes
-`node`, or on edges `edge`, on a network `net`. It uses function [`incidenceMatrix`](@ref), so
+`node`, or on edges `edge`, on a network `net`. It uses function [`descendenceMatrix`](@ref), so
 `net` might be modified to sort it in a pre-order.
 Return a `DataFrame` with as many rows as there are tips in net, and a column for
 each shift, each labelled according to the pattern shift_{number_of_edge}. It has
@@ -397,14 +397,13 @@ an aditional column labelled `tipNames` to allow easy fitting afterward (see exa
 
 # Examples
 ```jldoctest
-julia> using DataFrames # Needed to handle data frames.
-
 julia> net = readTopology("(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6):1):0.5);");
 
 julia> preorder!(net)
 
-julia> plot(net, showNodeNumber=true) # Plot the network to locate edges
-Plot(...)
+julia> using PhyloPlots
+
+julia> plot(net, :RCall, showNodeNumber=true); # to locate nodes
 
 julia> nodes_shifts = indexin([1,-5], [n.number for n in net.node]) # Put a shift on edges ending at nodes 1 and -5
 2-element Array{Int64,1}:
@@ -419,35 +418,39 @@ Sigma2: 0.1
 
 There are 2 shifts on the network:
      Edge Number Shift Value
-               8        -3.0
-               1         3.0
+             8.0        -3.0
+             1.0         3.0
 
 julia> srand(2468); # sets the seed for reproducibility
 
 julia> sim = simulate(net, params); # simulate a dataset with shifts
 
+julia> using DataFrames # to handle data frames
+
 julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
 4×2 DataFrames.DataFrame
 │ Row │ trait   │ tipNames │
 ├─────┼─────────┼──────────┤
-│ 1   │ 13.392  │ "A"      │
-│ 2   │ 9.55741 │ "B"      │
-│ 3   │ 7.17704 │ "C"      │
-│ 4   │ 7.88906 │ "D"      │
+│ 1   │ 13.392  │ A        │
+│ 2   │ 9.55741 │ B        │
+│ 3   │ 7.17704 │ C        │
+│ 4   │ 7.88906 │ D        │
 
 julia> dfr_shift = regressorShift(net.node[nodes_shifts], net) # the reressors matching the shifts.
 4×3 DataFrames.DataFrame
 │ Row │ shift_1 │ shift_8 │ tipNames │
 ├─────┼─────────┼─────────┼──────────┤
-│ 1   │ 1.0     │ 0.0     │ "A"      │
-│ 2   │ 0.0     │ 0.0     │ "B"      │
-│ 3   │ 0.0     │ 1.0     │ "C"      │
-│ 4   │ 0.0     │ 0.6     │ "D"      │
+│ 1   │ 1.0     │ 0.0     │ A        │
+│ 2   │ 0.0     │ 0.0     │ B        │
+│ 3   │ 0.0     │ 1.0     │ C        │
+│ 4   │ 0.0     │ 0.6     │ D        │
 
 julia> dfr = join(dat, dfr_shift, on=:tipNames); # join data and regressors in a single dataframe
 
+julia> using StatsModels # for statistical model formulas
+
 julia> fitBM = phyloNetworklm(@formula(trait ~ shift_1 + shift_8), dfr, net) # actual fit
-DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,Array{Float64,2}}
+StatsModels.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,Array{Float64,2}}
 
 Formula: trait ~ 1 + shift_1 + shift_8
 
@@ -468,18 +471,18 @@ AIC: 4.2125395947
 ```
 
 # See also
-[`phyloNetworklm`](@ref), [`incidenceMatrix`](@ref), [`regressorHybrid`](@ref).
+[`phyloNetworklm`](@ref), [`descendenceMatrix`](@ref), [`regressorHybrid`](@ref).
 """
 function regressorShift(node::Vector{Node},
                         net::HybridNetwork; checkPreorder=true::Bool)
-    T = incidenceMatrix(net; checkPreorder=checkPreorder)
+    T = descendenceMatrix(net; checkPreorder=checkPreorder)
     regressorShift(node, net, T)
 end
 
 function regressorShift(node::Vector{Node},
                         net::HybridNetwork,
                         T::MatrixTopologicalOrder)
-    ## Get the incidence matrix for tips
+    ## Get the descendence matrix for tips
     T_t = T[:Tips]
     ## Get the indices of the columns to keep
     ind = zeros(Int, length(node))
@@ -518,7 +521,7 @@ regressorShift(node::Node, net::HybridNetwork; checkPreorder=true::Bool) = regre
 `regressorHybrid(net::HybridNetwork; checkPreorder=true::Bool)`
 
 Compute the regressor vectors associated with shifts on edges that imediatly below
-all hybrid nodes of `net`. It uses function [`incidenceMatrix`](@ref) through
+all hybrid nodes of `net`. It uses function [`descendenceMatrix`](@ref) through
 a call to [`regressorShift`](@ref), so `net` might be modified to sort it in a pre-order.
 Return a `DataFrame` with as many rows as there are tips in net, and a column for
 each hybrid, each labelled according to the pattern shift_{number_of_edge}. It has
@@ -534,8 +537,9 @@ julia> net = readTopology("(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6
 
 julia> preorder!(net)
 
-julia> plot(net, showNodeNumber=true) # Plot the network to locate edges
-Plot(...)
+julia> using PhyloPlots
+
+julia> plot(net, :RCall, showNodeNumber=true); # to locate nodes: node 5 is child of hybrid node
 
 julia> nodes_hybrids = indexin([5], [n.number for n in net.node]) # Put a shift on edges below hybrids
 1-element Array{Int64,1}:
@@ -549,7 +553,9 @@ Sigma2: 0.1
 
 There are 1 shifts on the network:
      Edge Number Shift Value
-               6         3.0
+             6.0         3.0
+
+
 
 julia> srand(2468); # sets the seed for reproducibility
 
@@ -559,24 +565,26 @@ julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
 4×2 DataFrames.DataFrame
 │ Row │ trait   │ tipNames │
 ├─────┼─────────┼──────────┤
-│ 1   │ 10.392  │ "A"      │
-│ 2   │ 9.55741 │ "B"      │
-│ 3   │ 10.177  │ "C"      │
-│ 4   │ 12.6891 │ "D"      │
+│ 1   │ 10.392  │ A        │
+│ 2   │ 9.55741 │ B        │
+│ 3   │ 10.177  │ C        │
+│ 4   │ 12.6891 │ D        │
 
 julia> dfr_hybrid = regressorHybrid(net) # the reressors matching the hybrids.
 4×3 DataFrames.DataFrame
 │ Row │ shift_6 │ tipNames │ sum │
 ├─────┼─────────┼──────────┼─────┤
-│ 1   │ 0.0     │ "A"      │ 0.0 │
-│ 2   │ 0.0     │ "B"      │ 0.0 │
-│ 3   │ 0.0     │ "C"      │ 0.0 │
-│ 4   │ 1.0     │ "D"      │ 1.0 │
+│ 1   │ 0.0     │ A        │ 0.0 │
+│ 2   │ 0.0     │ B        │ 0.0 │
+│ 3   │ 0.0     │ C        │ 0.0 │
+│ 4   │ 1.0     │ D        │ 1.0 │
 
 julia> dfr = join(dat, dfr_hybrid, on=:tipNames); # join data and regressors in a single dataframe
 
+julia> using StatsModels
+
 julia> fitBM = phyloNetworklm(@formula(trait ~ shift_6), dfr, net) # actual fit
-DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,Array{Float64,2}}
+StatsModels.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,Array{Float64,2}}
 
 Formula: trait ~ 1 + shift_6
 
@@ -596,7 +604,7 @@ AIC: 7.4012043891
 ```
 
 # See also
-[`phyloNetworklm`](@ref), [`incidenceMatrix`](@ref), [`regressorShift`](@ref).
+[`phyloNetworklm`](@ref), [`descendenceMatrix`](@ref), [`regressorShift`](@ref).
 """
 function regressorHybrid(net::HybridNetwork; checkPreorder=true::Bool)
     childs = [getChildren(nn)[1] for nn in net.hybrid]
@@ -618,16 +626,20 @@ abstract type ParamsProcess end
 """
 `ShiftNet`
 
-Shifts associated to an [`HybridNetwork`](@ref) sorted in topological order.
-Two `ShiftNet` objects on the same network can be concatened with `*`. 
+Shifts associated to a [`HybridNetwork`](@ref) sorted in topological order.
+Its `shift` field is a vector of shift values, one for each node,
+corresponding to the shift on the parent edge of the node
+(which makes sense for tree nodes only: they have a single parent edge).
 
-`ShiftNet{T <: Real}(node::Vector{Node}, value::Vector{T}, net::HybridNetwork; checkPreorder=true::Bool)`
+Two `ShiftNet` objects on the same network can be concatened with `*`.
+
+`ShiftNet(node::Vector{Node}, value::Vector{T} where T<:Real, net::HybridNetwork; checkPreorder=true::Bool)`
 
 Constructor from a vector of nodes and associated values. The shifts are located
 on the edges above the nodes provided. Warning, shifts on hybrid edges are not
 allowed.
 
-`ShiftNet{T <: Real}(edge::Vector{Edge}, value::Vector{T}, net::HybridNetwork; checkPreorder=true::Bool)`
+`ShiftNet(edge::Vector{Edge}, value::Vector{T} where T<:Real, net::HybridNetwork; checkPreorder=true::Bool)`
 
 Constructor from a vector of edges and associated values.
 Warning, shifts on hybrid edges are not allowed.
@@ -635,15 +647,15 @@ Warning, shifts on hybrid edges are not allowed.
 Extractors: [`getShiftEdgeNumber`](@ref), [`getShiftValue`](@ref)
 """
 struct ShiftNet
-    shift::Vector{Real}
+    shift::Vector{T} where T<:Real
     net::HybridNetwork
 end
 
 # Default
 ShiftNet(net::HybridNetwork) = ShiftNet(zeros(length(net.node)), net)
 
-function ShiftNet{T <: Real}(node::Vector{Node}, value::Vector{T},
-                             net::HybridNetwork; checkPreorder=true::Bool)
+function ShiftNet(node::Vector{Node}, value::Vector{T} where T<:Real,
+                  net::HybridNetwork; checkPreorder=true::Bool)
     if length(node) != length(value)
         error("The vector of nodes/edges and of values must be of the same length.")
     end
@@ -653,15 +665,15 @@ function ShiftNet{T <: Real}(node::Vector{Node}, value::Vector{T},
     obj = ShiftNet(net)
     for i in 1:length(node)
         !node[i].hybrid || error("Shifts on hybrid edges are not allowed")
-        ind = getIndex(node[i], net.nodes_changed)
+        ind = findfirst(net.nodes_changed, node[i])
         obj.shift[ind] = value[i]
     end
     return(obj)
 end
 
 # Construct from edges and values
-function ShiftNet{T <: Real}(edge::Vector{Edge}, value::Vector{T},
-                             net::HybridNetwork; checkPreorder=true::Bool)
+function ShiftNet(edge::Vector{Edge}, value::Vector{T} where T<:Real,
+                  net::HybridNetwork; checkPreorder=true::Bool)
     childs = [getChild(ee) for ee in edge]
     return(ShiftNet(childs, value, net; checkPreorder=checkPreorder))
 end
@@ -670,15 +682,15 @@ ShiftNet(edge::Edge, value::Real, net::HybridNetwork; checkPreorder=true::Bool) 
 ShiftNet(node::Node, value::Real, net::HybridNetwork; checkPreorder=true::Bool) = ShiftNet([node], [value], net; checkPreorder=checkPreorder)
 
 """
-`shiftHybrid{T <: Real}(value::Vector{T}, net::HybridNetwork; checkPreorder=true::Bool)`
+`shiftHybrid(value::Vector{T} where T<:Real, net::HybridNetwork; checkPreorder=true::Bool)`
 
 Construct an object [`ShiftNet`](@ref) with shifts on all the edges below
-hybrid nodes, with values provided. The vector of values must have the 
+hybrid nodes, with values provided. The vector of values must have the
 same length as the number of hybrids in the network.
 
 """
-function shiftHybrid{T <: Real}(value::Vector{T},
-                                net::HybridNetwork; checkPreorder=true::Bool)
+function shiftHybrid(value::Vector{T} where T<:Real,
+                     net::HybridNetwork; checkPreorder=true::Bool)
     if length(net.hybrid) != length(value)
         error("You must provide as many values as the number of hybrid nodes.")
     end
@@ -693,7 +705,7 @@ shiftHybrid(value::Real, net::HybridNetwork; checkPreorder=true::Bool) = shiftHy
 Get the edge numbers where the shifts are located, for an object [`ShiftNet`](@ef).
 """
 function getShiftEdgeNumber(shift::ShiftNet)
-    nodInd = collect(1:length(shift.shift))[shift.shift .!= 0]
+    nodInd = find(shift.shift)
     [getMajorParentEdgeNumber(n) for n in shift.net.nodes_changed[nodInd]]
 end
 function getMajorParentEdgeNumber(n::Node)
@@ -713,9 +725,10 @@ function getShiftValue(shift::ShiftNet)
 end
 
 function shiftTable(shift::ShiftNet)
-    CoefTable(hcat(getShiftEdgeNumber(shift), getShiftValue(shift)),
+    sv = getShiftValue(shift)
+    CoefTable(hcat(getShiftEdgeNumber(shift), sv),
               ["Edge Number", "Shift Value"],
-              fill("", length(getShiftValue(shift))))
+              fill("", length(sv)))
 end
 
 function Base.show(io::IO, obj::ShiftNet)
@@ -761,16 +774,16 @@ mutable struct ParamsBM <: ParamsProcess
     sigma2::Real # variance
     randomRoot::Bool # Root is random ? default false
     varRoot::Real # root variance. Default NaN
-    shift::Nullable{ShiftNet} # shifts
+    shift::Union{ShiftNet, Missing} # shifts
 end
 # Constructor
-ParamsBM(mu::Real, sigma2::Real) = ParamsBM(mu, sigma2, false, NaN, Nullable{ShiftNet}()) # default values
+ParamsBM(mu::Real, sigma2::Real) = ParamsBM(mu, sigma2, false, NaN, missing) # default values
 ParamsBM(mu::Real, sigma2::Real, net::HybridNetwork) = ParamsBM(mu, sigma2, false, NaN, ShiftNet(net)) # default values
 ParamsBM(mu::Real, sigma2::Real, shift::ShiftNet) = ParamsBM(mu, sigma2, false, NaN, shift) # default values
 
 function anyShift(params::ParamsBM)
-    if isnull(params.shift) return(false) end
-    for v in params.shift.value.shift
+    if ismissing(params.shift) return(false) end
+    for v in params.shift.shift
         if v != 0 return(true) end
     end
     return(false)
@@ -793,8 +806,8 @@ function paramstable(obj::ParamsBM)
         disp = disp * "\nvarRoot: $(obj.varRoot)"
     end
     if anyShift(obj)
-        disp = disp * "\n\nThere are $(length(getShiftValue(obj.shift.value))) shifts on the network:\n"
-        disp = disp * "$(shiftTable(obj.shift.value))"
+        disp = disp * "\n\nThere are $(length(getShiftValue(obj.shift))) shifts on the network:\n"
+        disp = disp * "$(shiftTable(obj.shift))"
     end
     return(disp)
 end
@@ -858,6 +871,7 @@ Parameters of a BM with fixed root:
 mu: 1
 Sigma2: 0.1
 
+
 julia> srand(17920921); # Seed for reproducibility
 
 julia> sim = simulate(phy, par) # Simulate on the tree.
@@ -865,6 +879,7 @@ PhyloNetworks.TraitSimulation:
 Trait simulation results on a network with 16 tips, using a BM model, with parameters:
 mu: 1
 Sigma2: 0.1
+
 
 julia> traits = sim[:Tips] # Extract simulated values at the tips.
 16-element Array{Float64,1}:
@@ -901,7 +916,7 @@ function simulate(net::HybridNetwork,
     else
         error("The 'simulate' function only works for a BM process (for now).")
     end
-    !isnull(params.shift) || (params.shift = ShiftNet(net))
+    !ismissing(params.shift) || (params.shift = ShiftNet(net))
     M = recursionPreOrder(net,
                           checkPreorder,
                           initSimulateBM,
@@ -937,8 +952,8 @@ function updateTreeSimulateBM!(M::Matrix,
                                edge::Edge,
                                params::Tuple{ParamsBM})
     params = params[1]
-    M[1, i] = M[1, parentIndex] + params.shift.value.shift[i] # expectation
-    M[2, i] = M[2, parentIndex] + params.shift.value.shift[i] + sqrt(params.sigma2 * edge.length) * randn() # random value
+    M[1, i] = M[1, parentIndex] + params.shift.shift[i] # expectation
+    M[2, i] = M[2, parentIndex] + params.shift.shift[i] + sqrt(params.sigma2 * edge.length) * randn() # random value
 end
 
 # Going down to an hybrid node
@@ -1027,7 +1042,7 @@ The following StatsBase functions can be applied to it:
 `residuals`, `model_response`, `predict`, `loglikelihood`, `nulldeviance`, `nullloglikelihood`,
 `r2`, `adjr2`, `aic`, `aicc`, `bic`.
 
-The following DataFrame functions can also be applied to it:
+The following StatsModels functions can also be applied to it:
 `ModelFrame`, `ModelMatrix`, `Formula`.
 
 Estimated variance and mean of the BM process used can be retrieved with
@@ -1077,16 +1092,16 @@ function phyloNetworklm(X::Matrix,
                         model="BM"::AbstractString,
                         ind=[0]::Vector{Int},
                         startingValue=0.5::Real,
-                        fixedValue=Nullable{Real}()::Nullable{Real})
+                        fixedValue=missing::Union{Real,Missing})
     ## Choose Model
-    if (model == "BM")
+    if model == "BM"
         # Geting variance covariance
         V = sharedPathMatrix(net)
         # Fit
         return phyloNetworklm_BM(X, Y, V;
                                  msng=msng, ind=ind)
     end
-    if (model == "lambda")
+    if model == "lambda"
         # Geting variance covariance
         V = sharedPathMatrix(net)
         # Get gammas and heights
@@ -1180,8 +1195,8 @@ function maxLambda(times::Vector, V::MatrixTopologicalOrder)
     # res = res * (1 - 1/5/maximum(times[maskTips]))
 end
 
-function transform_matrix_lambda!{T <: AbstractFloat}(V::MatrixTopologicalOrder, lam::T,
-                                                      gammas::Vector, times::Vector)
+function transform_matrix_lambda!(V::MatrixTopologicalOrder, lam::AbstractFloat,
+                                  gammas::Vector, times::Vector)
     for i in 1:size(V.V, 1)
         for j in 1:size(V.V, 2)
             V.V[i,j] *= lam
@@ -1195,14 +1210,12 @@ function transform_matrix_lambda!{T <: AbstractFloat}(V::MatrixTopologicalOrder,
     #   V.V = lam * V.V + (1 - lam) * V_diag
 end
 
-function logLik_lam{T <: AbstractFloat}(lam::T,
-                                        X::Matrix,
-                                        Y::Vector,
-                                        V::MatrixTopologicalOrder,
-                                        gammas::Vector,
-                                        times::Vector;
-                                        msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
-                                        ind=[0]::Vector{Int})
+function logLik_lam(lam::AbstractFloat,
+                    X::Matrix, Y::Vector,
+                    V::MatrixTopologicalOrder,
+                    gammas::Vector, times::Vector;
+                    msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
+                    ind=[0]::Vector{Int})
     # Transform V according to lambda
     Vp = deepcopy(V)
     transform_matrix_lambda!(Vp, lam, gammas, times)
@@ -1232,8 +1245,8 @@ function phyloNetworklm_lambda(X::Matrix,
                                ftolAbs=fAbsTr::AbstractFloat,
                                xtolAbs=xAbsTr::AbstractFloat,
                                startingValue=0.5::Real,
-                               fixedValue=Nullable{Real}()::Nullable{Real})
-    if isnull(fixedValue)
+                               fixedValue=missing::Union{Real,Missing})
+    if ismissing(fixedValue)
         # Find Best lambda using optimize from package NLopt
         opt = NLopt.Opt(:LN_BOBYQA, 1)
         NLopt.ftol_rel!(opt, ftolRel) # relative criterion
@@ -1244,7 +1257,9 @@ function phyloNetworklm_lambda(X::Matrix,
         NLopt.lower_bounds!(opt, 1e-100) # Lower bound
         # Upper Bound
         up = maxLambda(times, V)
-        NLopt.upper_bounds!(opt, up-up/1000)
+        up = up-up/1000
+        NLopt.upper_bounds!(opt, up)
+        info("Maximum lambda value to maintain positive branch lengths: " * @sprintf("%.6g", up))
         count = 0
         function fun(x::Vector{Float64}, g::Vector{Float64})
             x = convert(AbstractFloat, x[1])
@@ -1270,21 +1285,19 @@ end
 ###############################################################################
 ## Fit scaling hybrid
 
-function matrix_scalingHybrid{T <: AbstractFloat}(net::HybridNetwork, lam::T,
-                                                  gammas::Vector)
+function matrix_scalingHybrid(net::HybridNetwork, lam::AbstractFloat,
+                              gammas::Vector)
     setGammas!(net, 1-lam*(1-gammas))
     V = sharedPathMatrix(net)
     setGammas!(net, gammas)
     return V
 end
 
-function logLik_lam_hyb{T <: AbstractFloat}(lam::T,
-                                            X::Matrix,
-                                            Y::Vector,
-                                            net::HybridNetwork,
-                                            gammas::Vector;
-                                            msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
-                                            ind=[0]::Vector{Int})
+function logLik_lam_hyb(lam::AbstractFloat,
+                        X::Matrix, Y::Vector,
+                        net::HybridNetwork, gammas::Vector;
+                        msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
+                        ind=[0]::Vector{Int})
     # Transform V according to lambda
     V = matrix_scalingHybrid(net, lam, gammas)
     # Fit and take likelihood
@@ -1303,8 +1316,8 @@ function phyloNetworklm_scalingHybrid(X::Matrix,
                                       ftolAbs=fAbsTr::AbstractFloat,
                                       xtolAbs=xAbsTr::AbstractFloat,
                                       startingValue=0.5::Real,
-                                      fixedValue=Nullable{Real}()::Nullable{Real})
-    if isnull(fixedValue)
+                                      fixedValue=missing::Union{Real,Missing})
+    if ismissing(fixedValue)
         # Find Best lambda using optimize from package NLopt
         opt = NLopt.Opt(:LN_BOBYQA, 1)
         NLopt.ftol_rel!(opt, ftolRel) # relative criterion
@@ -1360,18 +1373,25 @@ If `model="lambda"`, there are a some parameters to control the optimization in 
 * `xTolAbs::AbstractFloat=1e-10`: absolute tolerance on the parameter value for the optimization in lambda.
 * `startingValue::Real=0.5`: the starting value for the parameter in the optimization in lambda.
 
-# Examples
-```jldoctest
-julia> using DataFrames # Needed to handle data frames.
+# See also
 
+Type [`PhyloNetworkLinearModel`](@ref), Function [`ancestralStateReconstruction`](@ref)
+
+# Examples
+
+```jldoctest
 julia> phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_tree.txt"));
 
-julia> dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_trait.txt"));
+julia> using CSV # to read data file, next
+
+julia> dat = CSV.read(joinpath(Pkg.dir("PhyloNetworks"), "examples", "caudata_trait.txt"));
+
+julia> using StatsModels # for stat model formulas
 
 julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
 
 julia> fitBM # Shows a summary
-DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,Array{Float64,2}}
+StatsModels.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,Array{Float64,2}}
 
 Formula: trait ~ +1
 
@@ -1392,6 +1412,8 @@ julia> round(sigma2_estim(fitBM), 6) # rounding for jldoctest convenience
 
 julia> round(mu_estim(fitBM), 4)
 4.679
+
+julia> using StatsBase # for aic() stderr() loglikelihood() etc.
 
 julia> round(loglikelihood(fitBM), 10)
 -78.9611507833
@@ -1493,9 +1515,6 @@ julia> predict(fitBM)
  4.679
 
 ```
-
-# See also
-Type [`PhyloNetworkLinearModel`](@ref), Function [`ancestralStateReconstruction`](@ref)
 """ #"
 # Deal with formulas
 function phyloNetworklm(f::Formula,
@@ -1508,7 +1527,7 @@ function phyloNetworklm(f::Formula,
                         ftolAbs=fAbsTr::AbstractFloat,
                         xtolAbs=xAbsTr::AbstractFloat,
                         startingValue=0.5::Real,
-                        fixedValue=Nullable{Real}()::Nullable{Real})
+                        fixedValue=missing::Union{Real,Missing})
     # Match the tips names: make sure that the data provided by the user will
     # be in the same order as the ordered tips in matrix V.
     preorder!(net)
@@ -1554,12 +1573,10 @@ function phyloNetworklm(f::Formula,
     end
     Y = convert(Vector{Float64},DataFrames.model_response(mf))
     # Fit the model (Method copied from DataFrame/src/statsmodels/statsmodels.jl, lines 47-58)
-    DataFrames.DataFrameRegressionModel(phyloNetworklm(mm.m, Y, net;
+    # (then StatsModels/src/statsmodels.jl lines 42-46)
+    StatsModels.DataFrameRegressionModel(phyloNetworklm(mm.m, Y, net;
                                                        msng=mf.msng, model=model, ind=ind,
                                                        startingValue=startingValue, fixedValue=fixedValue), mf, mm)
-    #    # Create the object
-    #    phyloNetworkLinPredModel(DataFrames.DataFrameRegressionModel(fit, mf, mm),
-    #    fit.V, fit.Vy, fit.RL, fit.Y, fit.X, fit.logdetVy, ind, mf.msng)
 end
 
 ### Methods on type phyloNetworkRegression
@@ -1647,7 +1664,8 @@ Estimated variance for a fitted object.
 """
 sigma2_estim(m::PhyloNetworkLinearModel) = deviance(m.lm) / nobs(m)
 # Need to be adapted manually to DataFrameRegressionModel beacouse it's a new function
-sigma2_estim{T<:DataFrames.AbstractFloatMatrix}(m::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T}) = sigma2_estim(m.model)
+sigma2_estim(m::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} where T) =
+  sigma2_estim(m.model)
 # ML estimate for ancestral state of the BM
 """
 `mu_estim(m::PhyloNetworkLinearModel)`
@@ -1665,7 +1683,7 @@ function mu_estim(m::PhyloNetworkLinearModel)
     end
 end
 # Need to be adapted manually to DataFrameRegressionModel beacouse it's a new function
-function mu_estim{T<:DataFrames.AbstractFloatMatrix}(m::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T})
+function mu_estim(m::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} where T)
     if (!m.mf.terms.intercept)
         error("The fit was done without intercept, so I cannot estimate mu")
     end
@@ -1677,12 +1695,12 @@ end
 Estimated lambda parameter for a fitted object.
 """
 lambda_estim(m::PhyloNetworkLinearModel) = m.lambda
-lambda_estim{T<:DataFrames.AbstractFloatMatrix}(m::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T}) = lambda_estim(m.model)
+lambda_estim(m::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} where T) = lambda_estim(m.model)
 
 ### Functions specific to DataFrameRegressionModel
-DataFrames.ModelFrame(m::DataFrames.DataFrameRegressionModel) = m.mf
-DataFrames.ModelMatrix(m::DataFrames.DataFrameRegressionModel) = m.mm
-DataFrames.Formula(m::DataFrames.DataFrameRegressionModel) = Formula(m.mf.terms)
+StatsModels.ModelFrame(m::StatsModels.DataFrameRegressionModel) = m.mf
+StatsModels.ModelMatrix(m::StatsModels.DataFrameRegressionModel) = m.mm
+StatsModels.Formula(m::StatsModels.DataFrameRegressionModel) = Formula(m.mf.terms)
 
 ### Print the results
 # Variance
@@ -1698,8 +1716,9 @@ end
 function Base.show(io::IO, obj::PhyloNetworkLinearModel)
     println(io, "$(typeof(obj)):\n\nParameter(s) Estimates:\n", paramstable(obj), "\n\nCoefficients:\n", coeftable(obj))
 end
-# For DataFrameModel. Copied from DataFrames/jl/src/statsmodels/statsmodels.jl, lines 101-118
-function Base.show{T<:DataFrames.AbstractFloatMatrix}(io::IO, model::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T})
+# For DataFrameModel. see also Base.show in
+# https://github.com/JuliaStats/StatsModels.jl/blob/master/src/statsmodel.jl
+function Base.show(io::IO, model::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} where T)
     ct = coeftable(model)
     println(io, "$(typeof(model))")
     println(io)
@@ -1746,49 +1765,18 @@ end
 
 ###############################################################################
 ###############################################################################
-## Anova - using ftest from GLM - WARNING: need GLM 0.7+ (not in a release yet)
+## Anova - using ftest from GLM - Need version 0.8.1
 ###############################################################################
 ###############################################################################
 
-#function GLM.ftest{T<:DataFrames.AbstractFloatMatrix}(objs::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T}...)
-#    objsModels = [obj.model for obj in objs]
-#    return ftest(objsModels...)
-#end
-
-#function GLM.ftest(objs::PhyloNetworkLinearModel...)
-#    objslm = [obj.lm for obj in objs]
-#    return ftest(objslm...)
-#end
-
-################################################################################
-###############################################################################
-## Anova - Patch waiting for GLM.ftest to be available
-###############################################################################
-###############################################################################
-# When GLM.ftest is available, do:
-#   - replace this paragraph with the previous (commented) one
-#   - remove ftest from exported functions in src/PhyloNetworks
-#   - change anova tests in test/test_lm.jl
-
-"""
-`ftest(objs::PhyloNetworkLinearModel...)`
-
-Takes several nested fits of the same data, and computes the F statistic for each
-pair of models.
-
-The fits must be results of function [`phyloNetworklm`](@ref) called on the same
-data, for models that have more and more effects.
-
-Returns a DataFrame object with the anova table.
-"""
-function ftest{T<:DataFrames.AbstractFloatMatrix}(objs::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T}...)
+function GLM.ftest(objs::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T}...)  where T
     objsModels = [obj.model for obj in objs]
     return ftest(objsModels...)
 end
 
-function ftest(objs::PhyloNetworkLinearModel...)
-    objs = objs[end:-1:1]
-    return anova(objs...)
+function GLM.ftest(objs::PhyloNetworkLinearModel...)
+    objslm = [obj.lm for obj in objs]
+    return ftest(objslm...)
 end
 
 ###############################################################################
@@ -1808,7 +1796,7 @@ data, for models that have more and more effects.
 
 Returns a DataFrame object with the anova table.
 """
-function anova{T<:DataFrames.AbstractFloatMatrix}(objs::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T}...)
+function anova(objs::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T}...) where T
     objsModels = [obj.model for obj in objs]
     return(anova(objsModels...))
 end
@@ -1835,7 +1823,7 @@ function anovaBin(obj1::PhyloNetworkLinearModel, obj2::PhyloNetworkLinearModel)
     dev1 = deviance(obj1) - dev2
     ## Compute statistic
     F = (dev1 / dof1) / (dev2 / dof2)
-    pval = ccdf(FDist(dof1, dof2), F)
+    pval = GLM.ccdf.(GLM.FDist(dof1, dof2), F) # ccdf and FDist from Distributions, used by GLM
     return([dof2, dev2, dof1, dev1, F, pval])
 end
 
@@ -1869,8 +1857,8 @@ struct ReconstructedStates
     traits_tips::Vector # Observed values at tips
     "TipNumbers: vector of tips numbers, in the same order as `traits_tips`"
     TipNumbers::Vector # Observed tips only
-    "model (Nullable): if not null, the `PhyloNetworkLinearModel` used for the computations."
-    model::Nullable{PhyloNetworkLinearModel} # If empirical, the corresponding fitted object.
+    "model: if not missing, the `PhyloNetworkLinearModel` used for the computations."
+    model::Union{PhyloNetworkLinearModel, Missing} # if empirical, corresponding fitted object
 end
 
 """
@@ -1885,13 +1873,26 @@ end
 `expectationsPlot(obj::ReconstructedStates)`
 Compute and format the expected reconstructed states for the plotting function.
 The resulting dataframe can be readily used as a `nodeLabel` argument to
-`plot`.
+`plot` from package [`PhyloPlots`](https://github.com/cecileane/PhyloPlots.jl).
+Keyword argument `markMissing` is a string that is appended to predicted
+tip values, so that they can be distinguished from the actual datapoints. Default to
+"*". Set to "" to remove any visual cue.
 """
-function expectationsPlot(obj::ReconstructedStates)
+function expectationsPlot(obj::ReconstructedStates; markMissing="*"::AbstractString)
+    # Retrieve values
     expe = expectations(obj)
+    # Format values for plot
     expetxt = Array{AbstractString}(size(expe, 1))
     for i=1:size(expe, 1)
         expetxt[i] = string(round(expe[i, 2], 2))
+    end
+    # Find missing values
+    if !ismissing(obj.model)
+        msng = obj.model.msng
+        ind = obj.model.ind
+        missingTipNumbers = obj.model.V.tipNumbers[ind][.!msng]
+        indexMissing = indexin(missingTipNumbers, expe[:nodeNumber])
+        expetxt[indexMissing] .*= markMissing
     end
     return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], PredInt = expetxt)
 end
@@ -1899,15 +1900,15 @@ end
 StatsBase.stderr(obj::ReconstructedStates) = sqrt.(diag(obj.variances_nodes))
 
 """
-`predint(obj::ReconstructedStates, level=0.95::Real)`
+`predint(obj::ReconstructedStates; level=0.95::Real)`
 Prediction intervals with level `level` for internal nodes and missing tips.
 """
-function predint(obj::ReconstructedStates, level=0.95::Real)
-    if isnull(obj.model)
+function predint(obj::ReconstructedStates; level=0.95::Real)
+    if ismissing(obj.model)
         qq = quantile(Normal(), (1. - level)/2.)
     else
-        qq = quantile(TDist(dof_residual(get(obj.model))), (1. - level)/2.)
-        #       warn("As the variance is estimated, the predictions intervals are not exact, and should probably be larger.")
+        qq = quantile(GLM.TDist(dof_residual(obj.model)), (1. - level)/2.) # TDist from Distributions
+        # warn("As the variance is estimated, the predictions intervals are not exact, and should probably be larger.")
     end
     tmpnode = hcat(obj.traits_nodes, obj.traits_nodes) + stderr(obj) * qq * [1. -1.]
     return vcat(tmpnode, hcat(obj.traits_tips, obj.traits_tips))
@@ -1921,16 +1922,23 @@ function Base.show(io::IO, obj::ReconstructedStates)
 end
 
 """
-`predintPlot(obj::ReconstructedStates, level=0.95::Real)`
+`predintPlot(obj::ReconstructedStates; level=0.95::Real, withExp=false::Bool)`
 Compute and format the prediction intervals for the plotting function.
 The resulting dataframe can be readily used as a `nodeLabel` argument to
-`plot`.
+`plot` from package [`PhyloPlots`](https://github.com/cecileane/PhyloPlots.jl).
+Keyworks argument `level` control the confidence level of the
+prediction interval. If `withExp` is set to true, then the best
+predicted value is also shown along with the interval.
 """
-function predintPlot(obj::ReconstructedStates, level=0.95::Real)
-    pri = predint(obj, level)
+function predintPlot(obj::ReconstructedStates; level=0.95::Real, withExp=false::Bool)
+    # predInt
+    pri = predint(obj; level=level)
     pritxt = Array{AbstractString}(size(pri, 1))
+    # Exp
+    withExp ? exptxt = expectationsPlot(obj, markMissing="") : exptxt = ""
     for i=1:length(obj.NodeNumbers)
-        pritxt[i] = "[" * string(round(pri[i, 1], 2)) * ", " * string(round(pri[i, 2], 2)) * "]"
+        !withExp ? sep = ", " : sep = "; " * exptxt[i, 2] * "; "
+        pritxt[i] = "[" * string(round(pri[i, 1], 2)) * sep * string(round(pri[i, 2], 2)) * "]"
     end
     for i=(length(obj.NodeNumbers)+1):size(pri, 1)
         pritxt[i] = string(round(pri[i, 1], 2))
@@ -2007,7 +2015,7 @@ function ancestralStateReconstruction(Vz::Matrix,
                                       TipNumbers::Vector,
                                       sigma2::Real,
                                       add_var=zeros(size(Vz))::Matrix, # Additional variance for BLUP
-                                      model=Nullable{PhyloNetworkLinearModel}()::Nullable{PhyloNetworkLinearModel})
+                                      model=missing::Union{PhyloNetworkLinearModel,Missing})
     m_z_cond_y = m_z + VyzVyinvchol' * (RL \ (Y - m_y))
     V_z_cond_y = sigma2 .* (Vz - VyzVyinvchol' * VyzVyinvchol)
     ReconstructedStates(m_z_cond_y, V_z_cond_y + add_var, NodeNumbers, Y, TipNumbers, model)
@@ -2095,11 +2103,13 @@ See documentation for this type and examples for functions that can be applied t
 # Examples
 
 ```jldoctest
-julia> using DataFrames # Needed to use handle data frames
+julia> using CSV # to read data file
 
 julia> phy = readTopology(joinpath(Pkg.dir("PhyloNetworks"), "examples", "carnivores_tree.txt"));
 
-julia> dat = readtable(joinpath(Pkg.dir("PhyloNetworks"), "examples", "carnivores_trait.txt"));
+julia> dat = CSV.read(joinpath(Pkg.dir("PhyloNetworks"), "examples", "carnivores_trait.txt"));
+
+julia> using StatsModels # for statistical model formulas
 
 julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
 
@@ -2141,6 +2151,7 @@ PhyloNetworks.ReconstructedStates:
            16.0   0.73989    0.73989    0.73989
             9.0   4.84236    4.84236    4.84236
             3.0    1.0695     1.0695     1.0695
+
 
 julia> expectations(ancStates)
 31×2 DataFrames.DataFrame
@@ -2188,63 +2199,63 @@ julia> predint(ancStates)
   4.84236     4.84236
   1.0695      1.0695
 
-julia> ## Format and plot the ancestral states:
-
-julia> expectationsPlot(ancStates)
+julia> expectationsPlot(ancStates) # format the ancestral states
 31×2 DataFrames.DataFrame
 │ Row │ nodeNumber │ PredInt │
 ├─────┼────────────┼─────────┤
-│ 1   │ -5         │ "1.32"  │
-│ 2   │ -8         │ "1.03"  │
-│ 3   │ -7         │ "1.42"  │
-│ 4   │ -6         │ "1.39"  │
-│ 5   │ -4         │ "1.4"   │
-│ 6   │ -3         │ "1.51"  │
-│ 7   │ -13        │ "5.32"  │
-│ 8   │ -12        │ "4.51"  │
+│ 1   │ -5         │ 1.32    │
+│ 2   │ -8         │ 1.03    │
+│ 3   │ -7         │ 1.42    │
+│ 4   │ -6         │ 1.39    │
+│ 5   │ -4         │ 1.4     │
+│ 6   │ -3         │ 1.51    │
+│ 7   │ -13        │ 5.32    │
+│ 8   │ -12        │ 4.51    │
 ⋮
-│ 23  │ 15         │ "0.54"  │
-│ 24  │ 7          │ "0.77"  │
-│ 25  │ 10         │ "6.95"  │
-│ 26  │ 11         │ "4.78"  │
-│ 27  │ 12         │ "5.33"  │
-│ 28  │ 1          │ "-0.12" │
-│ 29  │ 16         │ "0.74"  │
-│ 30  │ 9          │ "4.84"  │
-│ 31  │ 3          │ "1.07"  │
+│ 23  │ 15         │ 0.54    │
+│ 24  │ 7          │ 0.77    │
+│ 25  │ 10         │ 6.95    │
+│ 26  │ 11         │ 4.78    │
+│ 27  │ 12         │ 5.33    │
+│ 28  │ 1          │ -0.12   │
+│ 29  │ 16         │ 0.74    │
+│ 30  │ 9          │ 4.84    │
+│ 31  │ 3          │ 1.07    │
 
-julia> plot(phy, nodeLabel = expectationsPlot(ancStates))
-Plot(...)
+julia> using PhyloPlots # next: plot ancestral states on the tree
+
+julia> plot(phy, :RCall, nodeLabel = expectationsPlot(ancStates));
 
 julia> predintPlot(ancStates)
 31×2 DataFrames.DataFrame
-│ Row │ nodeNumber │ PredInt         │
-├─────┼────────────┼─────────────────┤
-│ 1   │ -5         │ "[-0.29, 2.93]" │
-│ 2   │ -8         │ "[-0.54, 2.6]"  │
-│ 3   │ -7         │ "[-0.09, 2.92]" │
-│ 4   │ -6         │ "[-0.06, 2.85]" │
-│ 5   │ -4         │ "[-0.06, 2.86]" │
-│ 6   │ -3         │ "[-0.18, 3.21]" │
-│ 7   │ -13        │ "[3.97, 6.67]"  │
-│ 8   │ -12        │ "[2.94, 6.08]"  │
+│ Row │ nodeNumber │ PredInt       │
+├─────┼────────────┼───────────────┤
+│ 1   │ -5         │ [-0.29, 2.93] │
+│ 2   │ -8         │ [-0.54, 2.6]  │
+│ 3   │ -7         │ [-0.09, 2.92] │
+│ 4   │ -6         │ [-0.06, 2.85] │
+│ 5   │ -4         │ [-0.06, 2.86] │
+│ 6   │ -3         │ [-0.18, 3.21] │
+│ 7   │ -13        │ [3.97, 6.67]  │
+│ 8   │ -12        │ [2.94, 6.08]  │
 ⋮
-│ 23  │ 15         │ "0.54"          │
-│ 24  │ 7          │ "0.77"          │
-│ 25  │ 10         │ "6.95"          │
-│ 26  │ 11         │ "4.78"          │
-│ 27  │ 12         │ "5.33"          │
-│ 28  │ 1          │ "-0.12"         │
-│ 29  │ 16         │ "0.74"          │
-│ 30  │ 9          │ "4.84"          │
-│ 31  │ 3          │ "1.07"          │
+│ 23  │ 15         │ 0.54          │
+│ 24  │ 7          │ 0.77          │
+│ 25  │ 10         │ 6.95          │
+│ 26  │ 11         │ 4.78          │
+│ 27  │ 12         │ 5.33          │
+│ 28  │ 1          │ -0.12         │
+│ 29  │ 16         │ 0.74          │
+│ 30  │ 9          │ 4.84          │
+│ 31  │ 3          │ 1.07          │
 
-julia> plot(phy, nodeLabel = predintPlot(ancStates))
-Plot(...)
+julia> plot(phy, :RCall, nodeLabel = predintPlot(ancStates));
 
-julia> ## Some tips may also be missing
+julia> using Missings; # preparation to mask 2 values next, for taxa in rows 2 and 5
 
-julia> dat[[2, 5], :trait] = NA;
+julia> dat[:trait] = allowmissing(dat[:trait]);
+
+julia> dat[[2, 5], :trait] = missing; # missing values allowed to fit model
 
 julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
 
@@ -2300,59 +2311,55 @@ julia> predint(ancStates)
   4.84236     4.84236
   1.0695      1.0695
 
-julia> ## Format and plot the ancestral states:
-
-julia> expectationsPlot(ancStates)
+julia> expectationsPlot(ancStates) # format node <-> ancestral state
 31×2 DataFrames.DataFrame
 │ Row │ nodeNumber │ PredInt │
 ├─────┼────────────┼─────────┤
-│ 1   │ -5         │ "1.43"  │
-│ 2   │ -8         │ "1.35"  │
-│ 3   │ -7         │ "1.62"  │
-│ 4   │ -6         │ "1.54"  │
-│ 5   │ -4         │ "1.54"  │
-│ 6   │ -3         │ "1.65"  │
-│ 7   │ -13        │ "5.34"  │
-│ 8   │ -12        │ "4.55"  │
+│ 1   │ -5         │ 1.43    │
+│ 2   │ -8         │ 1.35    │
+│ 3   │ -7         │ 1.62    │
+│ 4   │ -6         │ 1.54    │
+│ 5   │ -4         │ 1.54    │
+│ 6   │ -3         │ 1.65    │
+│ 7   │ -13        │ 5.34    │
+│ 8   │ -12        │ 4.55    │
 ⋮
-│ 23  │ 15         │ "0.54"  │
-│ 24  │ 7          │ "0.77"  │
-│ 25  │ 10         │ "6.95"  │
-│ 26  │ 11         │ "4.78"  │
-│ 27  │ 12         │ "5.33"  │
-│ 28  │ 1          │ "-0.12" │
-│ 29  │ 16         │ "0.74"  │
-│ 30  │ 9          │ "4.84"  │
-│ 31  │ 3          │ "1.07"  │
+│ 23  │ 15         │ 0.54    │
+│ 24  │ 7          │ 0.77    │
+│ 25  │ 10         │ 6.95    │
+│ 26  │ 11         │ 4.78    │
+│ 27  │ 12         │ 5.33    │
+│ 28  │ 1          │ -0.12   │
+│ 29  │ 16         │ 0.74    │
+│ 30  │ 9          │ 4.84    │
+│ 31  │ 3          │ 1.07    │
 
-julia> plot(phy, nodeLabel = expectationsPlot(ancStates))
-Plot(...)
+julia> plot(phy, :RCall, nodeLabel = expectationsPlot(ancStates));
 
-julia> predintPlot(ancStates)
+julia> predintPlot(ancStates) # prediction intervals, in data frame, useful to plot
 31×2 DataFrames.DataFrame
-│ Row │ nodeNumber │ PredInt         │
-├─────┼────────────┼─────────────────┤
-│ 1   │ -5         │ "[-0.31, 3.17]" │
-│ 2   │ -8         │ "[-0.63, 3.33]" │
-│ 3   │ -7         │ "[-0.11, 3.35]" │
-│ 4   │ -6         │ "[-0.07, 3.16]" │
-│ 5   │ -4         │ "[-0.07, 3.15]" │
-│ 6   │ -3         │ "[-0.2, 3.5]"   │
-│ 7   │ -13        │ "[3.9, 6.77]"   │
-│ 8   │ -12        │ "[2.87, 6.23]"  │
+│ Row │ nodeNumber │ PredInt       │
+├─────┼────────────┼───────────────┤
+│ 1   │ -5         │ [-0.31, 3.17] │
+│ 2   │ -8         │ [-0.63, 3.33] │
+│ 3   │ -7         │ [-0.11, 3.35] │
+│ 4   │ -6         │ [-0.07, 3.16] │
+│ 5   │ -4         │ [-0.07, 3.15] │
+│ 6   │ -3         │ [-0.2, 3.5]   │
+│ 7   │ -13        │ [3.9, 6.77]   │
+│ 8   │ -12        │ [2.87, 6.23]  │
 ⋮
-│ 23  │ 15         │ "0.54"          │
-│ 24  │ 7          │ "0.77"          │
-│ 25  │ 10         │ "6.95"          │
-│ 26  │ 11         │ "4.78"          │
-│ 27  │ 12         │ "5.33"          │
-│ 28  │ 1          │ "-0.12"         │
-│ 29  │ 16         │ "0.74"          │
-│ 30  │ 9          │ "4.84"          │
-│ 31  │ 3          │ "1.07"          │
+│ 23  │ 15         │ 0.54          │
+│ 24  │ 7          │ 0.77          │
+│ 25  │ 10         │ 6.95          │
+│ 26  │ 11         │ 4.78          │
+│ 27  │ 12         │ 5.33          │
+│ 28  │ 1          │ -0.12         │
+│ 29  │ 16         │ 0.74          │
+│ 30  │ 9          │ 4.84          │
+│ 31  │ 3          │ 1.07          │
 
-julia> plot(phy, nodeLabel = predintPlot(ancStates))
-Plot(...)
+julia> plot(phy, :RCall, nodeLabel = predintPlot(ancStates));
 ```
 """
 # Default reconstruction for a simple BM (known predictors)
@@ -2368,11 +2375,11 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel)
     ancestralStateReconstruction(obj, X_n)
 end
 # For a DataFrameRegressionModel
-function ancestralStateReconstruction{T<:DataFrames.AbstractFloatMatrix}(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T})
+function ancestralStateReconstruction(obj::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} where T)
     ancestralStateReconstruction(obj.model)
 end
-function ancestralStateReconstruction{T<:DataFrames.AbstractFloatMatrix}(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,T}, X_n::Matrix)
-    ancestralStateReconstruction(obj.model, X_n::Matrix)
+function ancestralStateReconstruction(obj::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} where T, X_n::Matrix)
+    ancestralStateReconstruction(obj.model, X_n)
 end
 
 """
@@ -2402,23 +2409,6 @@ function ancestralStateReconstruction(fr::AbstractDataFrame,
     reg = phyloNetworklm(f, fr, net; kwargs...)
     return ancestralStateReconstruction(reg)
 end
-
-# # Default reconstruction for a simple BM
-# function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, mu::Real)
-#   m_y = predict(obj)
-#   m_z = ones(size(obj.V.internalNodeNumbers)[1]) .* mu # !! works if BM no shift.
-#   ancestralStateReconstruction(obj, m_y, m_z)
-# end
-# # Handling the ancestral mean
-# function ancestralStateReconstruction(obj::PhyloNetworkLinearModel)
-#   mu = mu_estim(obj) # Produce a warning if intercept is unknown.
-#   ancestralStateReconstruction(obj, mu)
-# end
-# # For a DataFrameRegressionModel
-# function ancestralStateReconstruction(obj::DataFrames.DataFrameRegressionModel{PhyloNetworks.PhyloNetworkLinearModel,Float64})
-#   mu = mu_estim(obj) # Produces an error if intercept is not here.
-#   ancestralStateReconstruction(obj.model, mu)
-# end
 
 #################################################
 ## Old version of phyloNetworklm (naive)

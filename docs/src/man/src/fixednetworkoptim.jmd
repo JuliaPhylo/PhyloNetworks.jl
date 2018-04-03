@@ -28,9 +28,11 @@ net1alt = topologyMaxQPseudolik!(truenet, raxmlCF);
 writeTopology(net1alt, round=true)
 net1alt.loglik # pseudo deviance, actually
 ```
-```{julia; eval=true; label="truenet_opt"; fig_width=4; fig_height=4}
+```{julia; eval=false; label="truenet_opt"; fig_width=4; fig_height=4}
+using PhyloPlots
 plot(net1alt, showGamma=true)
 ```
+![truenet_opt](../assets/figures/fixednetworkoptim_truenet_opt_1.png)
 
 We get a score of 29.941,
 which is comparable to the score of the SNaQ network (net1: 28.315),

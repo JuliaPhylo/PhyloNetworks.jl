@@ -10,8 +10,6 @@ DocTestSetup = quote
 end
 ```
 
-## Contents
-
 ```@contents
 Pages = ["public.md"]
 ```
@@ -22,20 +20,15 @@ Pages = ["public.md"]
 Pages = ["public.md"]
 ```
 
-## Types
+## types
 
-```@docs
-HybridNetwork
-DataCF
-Quartet
-ParamsBM
-TraitSimulation
-PhyloNetworkLinearModel
-ReconstructedStates
-ShiftNet
+```@autodocs
+Modules = [PhyloNetworks]
+Private = false
+Order   = [:type]
 ```
 
-## Utilities
+## utilities
 
 ```@docs
 tipLabels
@@ -53,16 +46,14 @@ setLength!
 setGamma!
 deleteleaf!
 deleteHybridThreshold!
-# plotNetGraphViz
-plot(::HybridNetwork)
-plot(::HybridNetwork, ::Symbol)
 rotate!
 getindex(::TraitSimulation, ::Symbol)
 getNodeAges
 pairwiseTaxonDistanceMatrix
+biconnectedComponents
 ```
 
-## Data and Topology read/write
+## data and topology read/write
 
 ```@docs
 readTopology
@@ -74,12 +65,13 @@ readTrees2CF
 readTableCF
 readTableCF!
 readBootstrapTrees
+writeSubTree!
 writeTopology
 writeMultiTopology
 mapAllelesCFtable
 ```
 
-## Network inference
+## network inference
 
 ```@docs
 snaq!
@@ -90,7 +82,7 @@ fittedQuartetCF
 bootsnaq
 calibrateFromPairwiseDistances!
 ```
-## Network Comparisons
+## network Comparisons
 
 ```@docs
 majorTree
@@ -106,7 +98,7 @@ treeEdgesBootstrap
 hybridBootstrapSupport
 ```
 
-## Trait Evolution
+## continuous trait evolution
 
 ```@docs
 simulate
@@ -122,10 +114,21 @@ expectations
 predint
 expectationsPlot
 predintPlot
-incidenceMatrix
+descendenceMatrix
 regressorShift
 regressorHybrid
-parsimonyDiscrete
+sharedPathMatrix
+```
+
+## discrete trait evolution
+
+```@docs
+parsimonySoftwired
+parsimonyGF
+nStates
+Q
+P
+randomTrait
 ```
 
 ```@meta

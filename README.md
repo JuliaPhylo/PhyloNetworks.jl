@@ -3,9 +3,8 @@
 [![Build Status](https://travis-ci.org/crsl4/PhyloNetworks.jl.svg)](https://travis-ci.org/crsl4/PhyloNetworks.jl)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://crsl4.github.io/PhyloNetworks.jl/stable)
 [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://crsl4.github.io/PhyloNetworks.jl/latest)
-<!--
-[![Coverage Status](https://coveralls.io/repos/crsl4/PhyloNetworks/badge.svg?branch=master&service=github)](https://coveralls.io/github/crsl4/PhyloNetworks?branch=master)
--->
+[![codecov.io](http://codecov.io/github/crsl4/PhyloNetworks.jl/coverage.svg?branch=master)](http://codecov.io/github/crsl4/PhyloNetworks.jl?branch=master)
+[![Coverage Status](https://coveralls.io/repos/crsl4/PhyloNetworks.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/crsl4/PhyloNetworks?branch=master)
 
 ## Overview
 
@@ -14,7 +13,6 @@ PhyloNetworks is a [Julia](http://julialang.org) package with utilities to:
   in (extended) Newick format.
   Networks are considered explicit: nodes represent ancestral species.
   They can be rooted or unrooted.
-- plot networks (and trees)
 - manipulate networks: re-root, prune taxa, remove hybrid edges,
   extract the major tree from a network, extract displayed networks / trees
 - compare networks / trees with dissimilarity measures
@@ -24,6 +22,8 @@ PhyloNetworks is a [Julia](http://julialang.org) package with utilities to:
 - estimate species networks from multilocus data (see below)
 - phylogenetic comparative methods for continuous trait evolution
   on species networks / trees
+- plot networks (and trees), via the companion package
+  [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl)
 
 To get help, check
 
@@ -33,6 +33,10 @@ To get help, check
 - the [google group](https://groups.google.com/forum/#!forum/phylonetworks-users)
   for common questions. Join the group to post/email your questions,
   or to receive information on new versions, bugs fixed, etc.
+
+If you use the package, please cite
+
+- Claudia Sol&iacute;s-Lemus, Paul Bastide and C&eacute;cile An&eacute; (2017). PhyloNetworks: a package for phylogenetic networks. [Molecular Biology and Evolution](https://academic.oup.com/mbe/article/doi/10.1093/molbev/msx235/4103410/PhyloNetworks-a-package-for-phylogenetic-networks?guestAccessKey=230afceb-df28-4160-832d-aa7c73f86369) doi: 10.1093/molbev/msx235
 
 ## Maximum pseudolikelihood estimation of species network: SNaQ <img src="http://pages.stat.wisc.edu/~claudia/Images/snaq.png" align=right title="SNaQ logo" width=262.5 height=111>
 <!-- ![SNaQ logo](http://pages.stat.wisc.edu/~claudia/Images/snaq.png)
@@ -45,10 +49,9 @@ numerical optimization of branch lengths and inheritance probabilities
 and a heuristic search in the space of phylogenetic
 networks.
 
-If you use the package, and for details on SNaQ, please cite
+If you use SNaQ, please cite
 
 - Claudia Sol&iacute;s-Lemus and C&eacute;cile An&eacute; (2016).
   Inferring Phylogenetic Networks with Maximum Pseudolikelihood under Incomplete Lineage Sorting.
   [PLoS Genet](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896)
   12(3):e1005896. doi: 10.1371/journal.pgen.1005896
-

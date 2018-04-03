@@ -5,7 +5,7 @@ global repeatAlleleSuffix = "__2"
 
 
 """
-`mapAllelesCFtable(mapping file, CF file; filename, columns)`
+`mapAllelesCFtable(mapping file, CF file; filename, columns, delim)`
 
 Create a new DataFrame containing the same concordance factors as in the input CF file,
 but with modified taxon names. Each allele name in the input CF table is replaced by the
@@ -16,10 +16,12 @@ Optional arguments:
 - file name to write/save resulting CF table. If not specified, then the output
   data frame is not saved to a file.
 - column numbers for the taxon names. 1-4 by default.
+- delim=',': how columns are delimited. comma by default: for csv files.
 """
-function mapAllelesCFtable(alleleDF::AbstractString, cfDF::AbstractString; filename=""::AbstractString, columns=Int[]::Vector{Int}, sep=','::Char)
-    d = readtable(alleleDF, separator=sep)
-    d2 = readtable(cfDF, separator=sep)
+function mapAllelesCFtable(alleleDF::AbstractString, cfDF::AbstractString;
+        filename=""::AbstractString, columns=Int[]::Vector{Int}, delim=','::Char)
+    d = CSV.read(alleleDF, delim=delim)
+    d2 = CSV.read(cfDF, delim=delim)
     if(filename=="")
         mapAllelesCFtable!(d,d2,columns,false,filename)
     else
@@ -46,7 +48,7 @@ function mapAllelesCFtable!(alleleDF::DataFrame, cfDF::DataFrame, co::Vector{Int
     end
     if(write)
         filename != "" || error("want to write table of CF with alleles mapped but filename is empty")
-        writetable(filename, cfDF)
+        CSV.write(filename, cfDF)
     end
     return cfDF
 end
@@ -66,9 +68,11 @@ function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int};keepOne=false::Bool)
         newdf[cols[3]] = map(x->string(x),newdf[cols[3]])
         newdf[cols[4]] = map(x->string(x),newdf[cols[4]])
     end
+    row = Vector{String}(4)
     for i in 1:size(newdf,1) #check all rows
         DEBUG && println("row number: $i")
-        row = convert(Array,DataArray(newdf[i,cols[1:4]]))
+        # fixit: check for no missing value, or error below
+        map!(j -> newdf[i,cols[j]], row, 1:4)
         DEBUG && println("row $(row)")
         uniq = unique(row)
         DEBUG && println("unique $(uniq)")

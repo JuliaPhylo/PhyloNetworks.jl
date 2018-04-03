@@ -1,19 +1,4 @@
-# functions to test the functions for multiple alleles per species
-# Claudia October 2015 - Cecile July 2016
-
-if !isdefined(:individualtest) individualtest = false; end
-
-if(individualtest)
-    using Base.Test
-    include("../src/types.jl")
-    include("../src/functions.jl")
-end
-
-#--------------------------------------------------------------#
-# old code from October 2015: please adapt as you wish Claudia #
-#--------------------------------------------------------------#
-
-if (false)
+if false
     treefile = "(6,(5,(7,(3,4))));"
     tree = readTopologyUpdate(treefile);
     printEdges(tree)
@@ -36,7 +21,7 @@ end
 #----------------------------------------------------------#
 #   testing sorting of taxa and CFs                        #
 #----------------------------------------------------------#
-info("testing sorttaxa!")
+@testset "testing sorttaxa!" begin
 
 letters = ["a","b","c","d"]; cfvalues = [0.6, 0.39, 0.01] # for ab_cd, ac_bd, ad_bc
 d = DataFrame(t1=Array{String}(24),t2=Array{String}(24),t3=Array{String}(24),t4=Array{String}(24),
@@ -76,9 +61,8 @@ d3 = DataFrame(t1=repeat([letters[1]],outer=[24]),t2=repeat([letters[2]],outer=[
 @test d2==d3
 
 dat = readTableCF(d);
-net = readTopologyLevel1("(a,((b)#H1,((#H1,c),d)));");
-topologyQPseudolik!(net, dat);
-println("these 4 warnings are normal: only 4 taxa in network")
+net = (@test_warn "net does not have identifiable branch lengths" readTopologyLevel1("(a,((b)#H1,((#H1,c),d)));"));
+@test_warn "net does not have identifiable branch lengths" topologyQPseudolik!(net, dat);
 sorttaxa!(dat)
 
 @test [q.obsCF for q in dat.quartet] == [[0.6,0.39,0.01] for i in 1:24]
@@ -86,8 +70,9 @@ sorttaxa!(dat)
 @test [q.taxon for q in dat.quartet] == [letters for i in 1:24]
 @test [q.qnet.quartetTaxon for q in dat.quartet] == [letters for i in 1:24]
 
+end # of testset: sorttaxa!
 
-info("testing snaq on multiple alleles")
+@testset "testing snaq on multiple alleles" begin
 df=DataFrame(t1=["6","6","10","6","6","7","7","7","7","7","7"],
              t2=["7","7","7","10","7","7","7","7","7","7","7"],
              t3=["4","10","4","4","4","8","8","8","10","10","6"],
@@ -96,22 +81,22 @@ df=DataFrame(t1=["6","6","10","6","6","7","7","7","7","7","7"],
              CF1324=[0.45417949794801216, 0.30161247267865315, 0.30161247267865315, 0.5061211862121882, 0.45417949794801216, 0.673426 ,0.145408,  0.391103,  0.023078,  0.714826,  0.419015],
              CF1423=[0.2729102510259939, 0.30161247267865315, 0.3967750546426937, 0.24693940689390592, 0.2729102510259939, 0.171393,  0.062439,  0.122195,  0.014188,  0.082643,  0.094099])
 d = readTableCF(df)
-!isempty(d.repSpecies) || error("d.repSpecies should not be empty")
-d.repSpecies == ["7"] || error("d.repSpecies wrong")
+@test !isempty(d.repSpecies)
+@test d.repSpecies == ["7"]
 
 tree = "((6,4),(7,8),10);"
 currT = readTopology(tree);
 
 estNet = snaq!(currT,d,hmax=1,seed=1010, runs=1, filename="", Nfail=10)
-185.27 < estNet.loglik < 185.29 || error("wrong loglik in multiple alleles example")
-estNet.hybrid[1].k == 4 || error("wrong k in hybrid for multiple alleles case")
-estNet.numTaxa == 5 || error("wrong number of taxa in estNet")
+@test 185.27 < estNet.loglik < 185.29 # or: wrong loglik
+@test estNet.hybrid[1].k == 4 # or: wrong k
+@test estNet.numTaxa == 5 # or: wrong number of taxa
 
 estNet = snaq!(currT,d,hmax=1,seed=8378, runs=1, filename="", Nfail=10,
                ftolAbs=1e-6,ftolRel=1e-5,xtolAbs=1e-4,xtolRel=1e-3)
-174.58 < estNet.loglik < 174.59 || error("estNet loglik wrong for multiple alleles")
-estNet.hybrid[1].k == 5 || error("wrong k in hybrid for multiple alleles case")
-estNet.numTaxa == 5 || error("wrong number of taxa in estNet")
+@test 174.58 < estNet.loglik < 174.59 # or: loglik wrong
+@test estNet.hybrid[1].k == 5 # or: wrong k in hybrid
+@test estNet.numTaxa == 5 # or: wrong # taxa
 
 # net = snaq!(currT,d,hmax=1,seed=8378,filename="")
 net = readTopology("(((4,#H7:::0.47411636966376686):0.6360197250223204,10):0.09464128563363322,(7:0.0,(6)#H7:::0.5258836303362331):0.36355727108454877,8);")
@@ -121,3 +106,4 @@ net = readTopology("(((4,#H1),10),(7,(6)#H1),8);")
 net = topologyMaxQPseudolik!(net,d,  # loose tolerance for faster test
         ftolRel=1e-2,ftolAbs=1e-2,xtolAbs=1e-2,xtolRel=1e-2)
 @test net.loglik > 174.5
+end # of testset

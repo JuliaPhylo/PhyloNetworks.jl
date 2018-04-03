@@ -174,7 +174,7 @@ deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node) = deleteHybridizati
 # warning: it is meant after undoing the effect of the
 #          hybridization in deleteHybridizationUpdate!
 #          by itself, it leaves things as is
-# branch lengths of -1.0 are interpreted as NA.
+# branch lengths of -1.0 are interpreted as missing.
 function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool, blacklist::Bool)
     node.hybrid || error("node $(node.number) has to be hybrid for deleteHybrid")
     if(minor)

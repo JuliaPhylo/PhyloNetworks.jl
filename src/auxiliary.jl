@@ -159,7 +159,43 @@ function setNode!(edge::Edge,node::Array{Node,1})
     end
 end
 
+"""
+    getChild(edge::Edge)
 
+Return child node using the `isChild1` attribute of the edge.
+"""
+@inline function getChild(edge::Edge)
+    edge.node[edge.isChild1 ? 1 : 2]
+end
+
+"""
+    getParent(edge::Edge)
+
+Return parent node using the `isChild1` attribute of the edge.
+"""
+@inline function getParent(edge::Edge)
+    edge.node[edge.isChild1 ? 2 : 1]
+end
+
+"""
+    getPartner(edge::Edge)
+
+Return hybrid partner of edge, that is, hybrid edge pointing
+to the same child as `edge`. Assumes correct `isChild1` attributes.
+Assumes no in-coming polytomy: a node has 0, 1 or 2 parents, no more.
+"""
+@inline function getPartner(edge)
+    node = getChild(edge)
+    getPartner(edge, node)
+end
+@inline function getPartner(edge::Edge, node::Node)
+    for e in node.edge
+        if e.hybrid && e != edge && node == getChild(e)
+            return e
+        end
+    end
+    error("did not find a partner for edge $(edge.number)")
+end
 # -------------- NODE -------------------------#
 
 function setEdge!(node::Node,edge::Edge)
@@ -170,6 +206,32 @@ end
 function getOtherNode(edge::Edge,node::Node)
   isequal(edge.node[1],node) ? edge.node[2] : edge.node[1]
 end
+
+"""
+    getMajorParent(node::Node)
+    getMinorParent(node::Node)
+
+Return major or minor parent of a node using the `isChild1` field of edges
+(and assuming correct `isMajor` field).
+"""
+@inline function getMajorParent(node::Node)
+    for e in node.edge
+        if e.isMajor && node == getChild(e)
+            return getParent(e)
+        end
+    end
+    error("could not find major parent of node $(node.number)")
+end
+@doc (@doc getMajorParent) getMinorParent
+@inline function getMinorParent(node::Node)
+    for e in node.edge
+        if !e.isMajor && node == getChild(e)
+            return getParent(e)
+        end
+    end
+    error("could not find minor parent of node $(node.number)")
+end
+
 # -------------- NETWORK ----------------------- #
 
 function getIndex(node::Node, net::Network)
@@ -564,53 +626,19 @@ end
 # in an array
 # throws error if no hybrid in network
 function searchHybridNode(net::Network)
-    suma = sum([net.node[i].hybrid?1:0 for i = 1:size(net.node,1)]);
-    if(suma == 0)
-        error("network has no hybrid node");
-    end
-    k = getIndex(true,[net.node[i].hybrid for i = 1:size(net.node,1)]);
-    if(suma>1)
-        a = [net.node[k]];
-        count = suma-1;
-        index = k;
-        vect = [net.node[i].hybrid for i = 1:size(net.node,1)];
-        while(count>0 && count<size(net.node,1))
-            index == 1 ? vect = [false;vect[2:size(net.node,1)]] : vect = [vect[1:(index-1)];false;vect[(index+1):size(net.node,1)]]
-            index = getIndex(true,vect);
-            push!(a,net.node[index]);
-            count = count-1;
-        end
-        return a
-    else
-        return [net.node[k]]
-    end
+    a = [n for n in net.node if n.hybrid]
+    suma = length(a)
+    suma != 0 || error("network has no hybrid node")
+    return a
 end
 
-# search the hybrid edges in network: returns the hybrid edges
-# hybrid edges come in pairs, both edges are returned
+# search and returns the hybrid edges in network
 # throws error if no hybrid in network
-# check: change to return only the minor edge?
 function searchHybridEdge(net::Network)
-    suma = sum([net.edge[i].hybrid?1:0 for i = 1:size(net.edge,1)]);
-    if(suma == 0)
-        error("network has no hybrid edge");
-    end
-    k = getIndex(true,[net.edge[i].hybrid for i = 1:size(net.edge,1)]);
-    if(suma>1)
-        a = [net.edge[k]];
-        count = suma-1;
-        index = k;
-        vect = [net.edge[i].hybrid for i = 1:size(net.edge,1)];
-        while(count>0 && count<size(net.edge,1))
-            index == 1 ? vect = [false,vect[2:size(net.node,1)]] : vect = [vect[1:(index-1)],false,vect[(index+1):size(net.node,1)]]
-            index = getIndex(true,vect);
-            push!(a,net.edge[index]);
-            count = count-1;
-        end
-        return a
-    else
-        return net.edge[k]
-    end
+    a = [n for n in net.edge if n.hybrid]
+    suma = length(a)
+    suma != 0 || error("network has no hybrid edge")
+    return a
 end
 
 # print for every edge, nodes, inCycle, containRoot, istIdentifiable
@@ -754,6 +782,7 @@ end
 # warning: only removes node from edge, edge might still
 #          be in node.edge
 function removeNode!(node::Node,edge::Edge)
+    index = 0
     try
         index = getIndexNode(edge,node);
     catch e
@@ -761,7 +790,6 @@ function removeNode!(node::Node,edge::Edge)
             error("node $(node.number) not in edge or strange edge with more than 2 nodes")
         end
     end
-    index = getIndexNode(edge,node);
     deleteat!(edge.node,index);
 end
 
@@ -781,7 +809,7 @@ function setLength!(edge::Edge, new_length::Number, negative::Bool)
     end
     edge.length = new_length;
     edge.y = exp(-new_length);
-    edge.z = 1 - edge.y;
+    edge.z = 1.0 - edge.y;
     #edge.istIdentifiable || warn("set edge length for edge $(edge.number) that is not identifiable")
     return nothing
 end
@@ -807,74 +835,69 @@ function setBranchLength!(edge::Edge, new_length::Number)
     (new_length >= 0 || new_length == -1.0) || error("length $(new_length) has to be nonnegative or -1.0 (for missing).")
     edge.length = new_length;
     edge.y = exp(-new_length);
-    edge.z = 1 - edge.y;
+    edge.z = 1.0 - edge.y;
 end
 
 
 """
 `setGamma!(Edge,new gamma)`
 
-set γ for an edge, which must be a hybrid edge. The new γ needs to be in (0,1).
-The γ of the sister hybrid edge is changed accordingly, to 1-γ.
-If `net` is a HybridNetwork object, `printEdges(net)` will show the list of edges and their γ's.
-The γ of the third hybrid edge (say) can be changed to 0.2 with `setGamma!(net.edge[3],0.2)`.
-This will automatically set γ of the sister hybrid edge to 0.8.
+Set inheritance probability γ for an edge, which must be a hybrid edge.
+The new γ needs to be in [0,1]. The γ of the "partner" hybrid edge is changed
+accordingly, to 1-γ. The field `isMajor` is also changed accordingly.
+If the new γ is approximately 0.5, `Edge` is set to the major parent,
+its partner is set to the minor parent.
+
+If `net` is a HybridNetwork object, `printEdges(net)` will show the list of edges
+and their γ's. The γ of the third hybrid edge (say) can be changed to 0.2 with
+`setGamma!(net.edge[3],0.2)`.
+This will automatically set γ of the partner hybrid edge to 0.8.
 """
-# setGamma
 # warning in the bad diamond/triangle cases because gamma is not identifiable
-# updates isMajor according to gamma value
 # changeOther = true, looks for the other hybrid edge and changes gamma too
-# read = true, function called in readSubtree, needs to be the old one
 
-setGamma!(edge::Edge, new_gamma::Float64) = setGamma!(edge, new_gamma, true, false)
+setGamma!(edge::Edge, new_gamma::Float64) = setGamma!(edge, new_gamma, true)
 
-setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool) = setGamma!(edge, new_gamma, changeOther, false)
-
-function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool, read::Bool)
+function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool)
     global DEBUG
-    new_gamma >= 0 || error("gamma has to be positive: $(new_gamma)")
-    new_gamma <= 1 || error("gamma has to be less than 1: $(new_gamma)")
+    new_gamma >= 0.0 || error("gamma has to be positive: $(new_gamma)")
+    new_gamma <= 1.0 || error("gamma has to be less than 1: $(new_gamma)")
     edge.hybrid || error("cannot change gamma in a tree edge");
     edge.isChild1 ? ind = 1 : ind = 2 ; # hybrid edge pointing at node 1 or 2
-    node = edge.node[ind]
+    node = edge.node[ind] # child of hybrid edge
     node.hybrid || warn("hybrid edge $(edge.number) not pointing at hybrid node")
     if(DEBUG)
         !node.isBadDiamondI || warn("bad diamond situation: gamma not identifiable")
     end
-    if(!read)
-        edges = hybridEdges(node,edge)
-        length(edges) == 2 || error("strange here: node $(node.number) should have 3 edges and it has $(length(edges)+1).")
-        if(edges[1].hybrid && !edges[2].hybrid)
-            ind = 1
-        elseif(edges[2].hybrid && !edges[1].hybrid)
-            ind = 2
-        else
-            error("strange hybrid node $(node.number) with only one hybrid edge or with three hybrid edges")
+    edges = hybridEdges(node,edge)
+    length(edges) == 2 || error("strange here: node $(node.number) should have 3 edges and it has $(length(edges)+1).")
+    if(edges[1].hybrid && !edges[2].hybrid)
+        ind = 1
+    elseif(edges[2].hybrid && !edges[1].hybrid)
+        ind = 2
+    else
+        error("strange hybrid node $(node.number) with only one hybrid edge or with three hybrid edges")
+    end
+    if(changeOther)
+        if(!approxEq(new_gamma,0.5))
+            edge.gamma = new_gamma;
+            edge.isMajor = (new_gamma>0.5)
+            edges[ind].gamma = 1.0 - new_gamma;
+            edges[ind].isMajor = !edge.isMajor
+        else #new gamma is 0.5 approximately
+            edge.gamma = new_gamma
+            edge.isMajor = true
+            edges[ind].gamma = 1.0 - new_gamma
+            edges[ind].isMajor = false
         end
-        if(changeOther)
-            if(!approxEq(new_gamma,0.5))
-                edge.gamma = new_gamma;
-                edge.isMajor = (new_gamma>0.5) ? true : false
-                edges[ind].gamma = 1 - new_gamma;
-                edges[ind].isMajor = (new_gamma<0.5) ? true : false
-            else #new gamma is 0.5
-                edge.gamma = new_gamma
-                edge.isMajor = true
-                edges[ind].gamma = 1 - new_gamma
-                edges[ind].isMajor = false
-            end
-        else
-            if(!approxEq(new_gamma,0.5))
-                edge.gamma = new_gamma;
-                edge.isMajor = (new_gamma>0.5) ? true : false
-            else #new gamma is 0.5
-                edge.gamma = new_gamma
-                edge.isMajor = !edges[ind].isMajor
-            end
+    else
+        if(!approxEq(new_gamma,0.5))
+            edge.gamma = new_gamma;
+            edge.isMajor = (new_gamma>0.5)
+        else #new gamma is 0.5
+            edge.gamma = new_gamma
+            edge.isMajor = !edges[ind].isMajor
         end
-    else # comes from readSubtree
-        edge.gamma = new_gamma;
-        edge.isMajor = (new_gamma>=0.5) ? true : false
     end
     return nothing
 end

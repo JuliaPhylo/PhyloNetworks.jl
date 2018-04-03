@@ -98,6 +98,7 @@ This node must be in one (and only one) cycle, otherwise an error will be thrown
 # Example #"
 ```julia
 julia> net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
+julia> using PhyloPlots
 julia> plot(net, showNodeNumber=true)
 julia> hybridatnode!(net, -4)
 julia> plot(net)
@@ -213,6 +214,7 @@ number 'nodeNumber' (by default) or with index 'nodeNumber' if index=true.
 Attributes isChild1 and containRoot are updated along the way.
 Use `plot(net, showNodeNumber=true, showEdgeLength=false)` to
 visualize and identify a node of interest.
+(see package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl))
 
 Returns the network.
 
@@ -225,7 +227,7 @@ Warnings:
   * a RootMismatch error is thrown
   * the input network will still have some attributes modified.
 
-See also: `rootonedge!`.
+See also: [`rootonedge!`](@ref).
 """
 function rootatnode!(net::HybridNetwork, node::Node)
     rootatnode!(net, node.number, index=false)
@@ -292,8 +294,9 @@ updated along the way.
 This adds a new node and a new edge to the network.
 Use `plot(net, showEdgeNumber=true, showEdgeLength=false)` to
 visualize and identify an edge of interest.
+(see package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl))
 
-See also: `rootatnode!`.
+See also: [`rootatnode!`](@ref).
 """
 function rootonedge!(net::HybridNetwork, edge::Edge)
     rootonedge!(net, edge.number, index=false)
@@ -584,8 +587,9 @@ end
 
 Roots the network/tree object along an edge with number 'edgeNumber'.
 This adds a new node (and a new edge) to the network.
-Use plot(net, showEdgeNumber=true, showEdgeLength=false) to
+Use `plot(net, showEdgeNumber=true, showEdgeLength=false)` to
 visualize and identify an edge of interest.
+(see package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl))
 """
 function root!(net::HybridNetwork, edgeNum::Integer)
     ind=0 # to declare outside of try/catch
@@ -726,42 +730,7 @@ function getParents(node::Node)
     return parents
 end
 
-"""
-    getMajorParent(node)
-    getMinorParent(node)
-
-return only one parent of a given node: the major / minor if hybrid.  
-**warning**: assume isChild1 and isMajor attributes are correct
-"""
-function getMajorParent(n::Node)
-    ee = getMajorParentEdge(n)
-    return ee.node[(ee.isChild1 ? 2:1)]
-end
-@doc (@doc getMajorParent) getMinorParent
-function getMinorParent(n::Node)
-    ee = getMinorParentEdge(n)
-    return ee.node[(ee.isChild1 ? 2:1)]
-end
-
-# function getMajorParent(n::Node)
-#     for e in n.edge
-#         if n == e.node[(e.isChild1 ? 1:2)] && e.isMajor
-#             return e.node[(e.isChild1 ? 2:1)]
-#         end
-#     end
-#     error("node $(n.number) has no major parent")
-#     return n
-# end
-
-# function getMinorParent(n::Node)
-#     for e in n.edge
-#         if !e.isMajor && n == e.node[(e.isChild1 ? 1:2)]
-#             return e.node[(e.isChild1 ? 2:1)]
-#         end
-#     end
-#     error("node $(n.number) has no minor parent")
-#     return n
-# end
+# getMajorParent and getMinorParent: defined (inlined) in auxiliary.jl
 
 """
     getMajorParentEdge(node)
@@ -788,19 +757,13 @@ function getMinorParentEdge(n::Node)
     error("node $(n.number) has no minor parent")
 end
 
-# get child of a given edge
-# it assumes the isChild1 attributes are correct
-function getChild(edge::Edge)
-    edge.isChild1 ? edge.node[1] : edge.node[2]
-end
-
 # get all children of a given node
 # it assumes the isChild1 attributes are correct
 function getChildren(node::Node)
     children = Node[]
     for e in node.edge
-        if(isEqual(node,e.isChild1 ? e.node[2] : e.node[1])) #node is parent of e
-            push!(children,getOtherNode(e,node))
+        if node == getParent(e)
+            push!(children, getChild(e))
         end
     end
     return children
@@ -827,21 +790,17 @@ function preorder!(net::HybridNetwork)
         net.visited[getIndex(curr,net)] = true # visit curr node
         push!(net.nodes_changed,curr) #push curr into path
         for e in curr.edge
-            if(isEqual(curr,e.node[e.isChild1 ? 2 : 1])) # curr is the parent node if e
-                other = getOtherNode(e,curr)
-                if(!e.hybrid)
+            if curr == getParent(e)
+                other = getChild(e)
+                if !e.hybrid
                     push!(queue,other)
                     # print("queuing: "); @show other.number
                 else
-                    for e2 in other.edge # find other hybrid parent edge for 'other'
-                        if(e2.hybrid && !isEqual(e,e2))
-                            parent = getOtherNode(e2,other)
-                            if(net.visited[getIndex(parent,net)])
-                                push!(queue,other)
-                                # print("queuing: "); @show other.number
-                            end
-                            break
-                        end
+                    e2 = getPartner(e, other)
+                    parent = getParent(e2)
+                    if(net.visited[getIndex(parent,net)])
+                    push!(queue,other)
+                    # print("queuing: "); @show other.number
                     end
                 end
             end
@@ -852,12 +811,13 @@ end
 
 
 """
-`cladewiseorder!(net::HybridNetwork)`
+    cladewiseorder!(net::HybridNetwork)
 
 Updates attribute net.cladewiseorder_nodeIndex. Used for plotting the network.
 In the major tree, all nodes in a given clade are consecutive. On a tree, this function
 also provides a pre-ordering of the nodes.
-The edges' direction needs to be correct before calling cladewiseorder!, using directEdges!
+The edges' direction needs to be correct before calling
+[`cladewiseorder!`](@ref), using [`directEdges!`](@ref)
 """
 function cladewiseorder!(net::HybridNetwork)
     net.isRooted || error("net needs to be rooted for cladewiseorder!\n run root functions or directEdges!")
@@ -887,22 +847,25 @@ function cladewiseorder!(net::HybridNetwork)
 end
 
 """
-`rotate!(net::HybridNetwork, nodeNumber::Integer; orderedEdgeNum::Array{Int,1})`
+    rotate!(net::HybridNetwork, nodeNumber::Integer; orderedEdgeNum::Array{Int,1})
 
 Rotates the order of the node's children edges. Useful for plotting,
 to remove crossing edges.
 If `node` is a tree node with no polytomy, the 2 children edges are switched
 and the optional argument `orderedEdgeNum` is ignored.
 
-Use plot(net, showNodeNumber=true, showEdgeNumber=false) to map node and edge numbers
+Use `plot(net, showNodeNumber=true, showEdgeNumber=false)` to map node and edge numbers
 on the network, as shown in the examples below.
+(see package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl))
 
 Warning: assumes that edges are correctly directed (isChild1 updated). This is done
-by plot(net). Otherwise run directEdges!(net).
+by `plot(net)`. Otherwise run `directEdges!(net)`.
 
 # Example #"
+
 ```julia
 julia> net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
+julia> using PhyloPlots
 julia> plot(net, showNodeNumber=true)
 julia> rotate!(net, -4)
 julia> plot(net)
@@ -1078,4 +1041,56 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
     return nothing
 end
 
+"""
+    resetNodeNumbers!(net::HybridNetwork; checkPreorder=true, ape=true)
 
+Change internal node numbers of `net` to consecutive numbers from 1 to the number of nodes.
+ 
+
+keyword arguments:
+- `ape`: if true, the new numbers satisfy the conditions assumed by the
+  `ape` R package: leaves are 1 to n, the root is n+1, and internal nodes
+  are higher consecutive integers. If false, nodes are numbered in post-order,
+  with leaves from 1 to n (and the root last).
+- `checkPreorder`: if false, the `isChild1` edge field and the `net.nodes_changed`
+network field are supposed to be correct (to get nodes in preorder)
+
+# Examples
+
+```julia-repl
+julia> net = readTopology("(A,(B,(C,D)));");
+julia> PhyloNetworks.resetNodeNumbers!(net)
+julia> printNodes(net)
+Node    In Cycle        isHybrid        hasHybEdge      Node label      isLeaf  Edges numbers
+1       -1              false           false           A               true    1
+2       -1              false           false           B               true    2
+3       -1              false           false           C               true    3
+4       -1              false           false           D               true    4
+7       -1              false           false                           false   3       4       5
+6       -1              false           false                           false   2       5       6
+5       -1              false           false                           false   1       6
+```
+"""
+
+function resetNodeNumbers!(net::HybridNetwork; checkPreorder=true::Bool, ape=true::Bool)
+    if checkPreorder
+      directEdges!(net)
+      preorder!(net) # to create/update net.nodes_changed
+    end
+    lnum = 1 # first number
+    for n in net.node
+        n.leaf || continue
+        n.number = lnum
+        lnum += 1
+    end
+    if ape
+        nodelist = net.nodes_changed # pre-order: root first
+    else
+        nodelist = reverse(net.nodes_changed) # post-order
+    end
+    for n in nodelist
+        !n.leaf || continue
+        n.number = lnum
+        lnum += 1
+    end
+end

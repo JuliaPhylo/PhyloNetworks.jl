@@ -46,13 +46,13 @@ test_show(V2)
 @test V1[:All] ≈ V2
 
 ########################
-## Incidence Matrix Test
+## Descendence Matrix Test
 ########################
 tree_str= "(A:0.5,((B:1,#H1:1::0.4):1,(C:1,(D:1)#H1:1::0.6):1):0.5);"
 net = readTopology(tree_str)
 preorder!(net)
 
-T = incidenceMatrix(net)
+T = descendenceMatrix(net)
 
 T2 =  [1.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
        1.0  1.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0

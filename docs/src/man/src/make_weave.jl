@@ -1,4 +1,6 @@
-using Weave, Fontconfig, Cairo
+using Weave
+# using Fontconfig, Cairo
+# using PhyloPlots
 
 set_chunk_defaults(Dict{Symbol, Any}(:results => "hidden", :eval => false))
 

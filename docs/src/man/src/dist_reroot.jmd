@@ -35,12 +35,16 @@ hardwiredClusterDistance(astraltree, net0, true)
 We can re-root our networks with the outgroup, O,
 and then re-compare the ASTRAL tree and the SNaQ tree
 as rooted topologies (and find no difference):
-```{julia; eval=true; results="markup"; term=true; label="net0_O"; fig_width=4; fig_height=4}
+```{julia; eval=true; results="markup"; term=true}
 rootatnode!(astraltree, "O")
 rootatnode!(net0, "O")
 hardwiredClusterDistance(astraltree, net0, true)
+```
+```{julia; eval=false; label="net0_O"; fig_width=4; fig_height=4}
 plot(net0)
 ```
+![net0_O](../assets/figures/dist_reroot_net0_O_1.png)
+
 After trees/networks are rooted with a correct outgroup,
 their visualization is more meaningful.
 
@@ -61,11 +65,15 @@ See an example in the [Bootstrap](@ref) section, or type `?` then `rotate!`.
 ## Extracting the major tree
 
 We can also compare the networks estimated with h=0 (net0) and h=1 (net1):
-```{julia; eval=true; results="markup"; term=true; label="net1_O"; fig_width=4; fig_height=4}
+```{julia; eval=true; results="markup"; term=true}
 rootatnode!(net1, "O"); # the ; suppresses screen output
 hardwiredClusterDistance(net0, net1, true)
+```
+```{julia; eval=false; label="net1_O"; fig_width=4; fig_height=4}
 plot(net1, showGamma=true)
 ```
+![net1_O](../assets/figures/dist_reroot_net1_O_1.png)
+
 They differ by 2 clusters: that's because A is of hybrid descent
 in net1, not in net0.
 
@@ -93,13 +101,14 @@ these estimated gene trees served as input to both ASTRAL and SNaQ.)
 The true network is shown below, correctly rooted at the outgroup O,
 and plotted with branch lengths proportional to their
 values in coalescence units:
-```{julia; eval=true; label="truenet"; fig_width=4; fig_height=4}
-truenet = readTopology("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.0,(#H1:0::0.3,E:3.0):6.2):2.0,O:11.2);");
-plot(truenet, useEdgeLength=true, showGamma=true)
-```
 ```{julia; eval=true; results="markup"; term=true}
+truenet = readTopology("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.0,(#H1:0::0.3,E:3.0):6.2):2.0,O:11.2);");
 hardwiredClusterDistance(net1, truenet, true)
 ```
+```{julia; eval=false; label="truenet"; fig_width=4; fig_height=4}
+plot(truenet, useEdgeLength=true, showGamma=true)
+```
+![truenet](../assets/figures/dist_reroot_truenet_1.png)
 
 Our estimated network is not the same as the true network:
 - the underlying tree is correctly estimated

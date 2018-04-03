@@ -19,47 +19,20 @@ Pages = ["internals.md"]
 Pages = ["internals.md"]
 ```
 
-## Types
+## types
 
-```@docs
-ANode
-MatrixTopologicalOrder
+```@autodocs
+Modules = [PhyloNetworks]
+Public = false
+Order   = [:type]
 ```
 
-## Functions and methods
+## functions
 
-```@docs
-assignhybridnames!
-deleteNode!
-sampleBootstrapTrees
-sampleCFfromCI
-setNonIdBL!
-recursionPreOrder
-recursionPreOrder!
-updatePreOrder!
-sharedPathMatrix
-recursionPostOrder
-updatePostOrder!
-getindex(::MatrixTopologicalOrder, ::Symbol)
-getMajorParent
-getMinorParent
-getMajorParentEdge
-getMinorParentEdge
-```
-
-## Main functions in SNaQ
-
-```@docs
-optTopRuns!
-optTopRun1!
-optTopLevel!
-proposedTop!
-optBL!
-afterOptBL!
-gammaZero!
-moveHybrid!
-afterOptBLRepeat!
-afterOptBLAll!
+```@autodocs
+Modules = [PhyloNetworks]
+Public = false
+Order   = [:function]
 ```
 
 ```@meta

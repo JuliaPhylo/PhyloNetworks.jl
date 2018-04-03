@@ -76,4 +76,8 @@ println("passed estimation of net")
   rmprocs(workers())
   @test writeTopology(n1, round=true)==writeTopology(n2, round=true)
   @test n1.loglik == n2.loglik
+  rm("snaq.out")
+  rm("snaq.networks")
+  rm("snaq.log") # .log and .err should be git-ignored, but still
+  rm("snaq.err")
 end

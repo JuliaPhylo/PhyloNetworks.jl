@@ -57,9 +57,14 @@ raxmltrees = joinpath(Pkg.dir("PhyloNetworks"),"examples","raxmltrees.tre")
 genetrees = readMultiTopology(raxmltrees);
 genetrees[3]
 ```
-```{julia; eval=true; label="gene3"}
+To visualize any of these input trees, use the
+[PhyloPlots](https://github.com/cecileane/PhyloPlots.jl) package:
+```{julia; eval=false; label="gene3"}
+using PhyloPlots
 plot(genetrees[3]) # tree for 3rd gene
 ```
+![gene3](../assets/figures/inputdata_gene3_1.png)
+
 To read in all gene trees and directly summarize them by a list
 of quartet CFs (proportion of input trees with a given quartet):
 ```{julia; eval=true; results="markup"; term=true}
@@ -67,7 +72,7 @@ raxmlCF = readTrees2CF(raxmltrees, CFfile="tableCF.txt")
 PhyloNetworks.writeObsCF(raxmlCF) # observed CFs: gene frequencies
 ```
 `less("tableCF.txt")` lets you see the content of the newly created
-file "tableCFall.txt", within Julia. Again, type `q` to quit viewing this file.
+file "tableCF.txt", within Julia. Again, type `q` to quit viewing this file.
 ```{julia; eval=true; echo=false}
 rm("tableCF.txt")
 rm("summaryTreesQuartets.txt")
@@ -114,8 +119,8 @@ The same thing could be done in 2 steps:
 first to read the file and convert it to a 'DataFrame' object,
 and then to convert this DataFrame into a DataCF object.
 ```{julia; eval=true; results="markup"; term=true; line_width=190}
-using DataFrames
-dat = readtable(buckyCFfile);
+using CSV, DataFrames
+dat = CSV.read(buckyCFfile);
 head(dat) # head shows the first 6 rows only
 buckyCF = readTableCF(dat)
 PhyloNetworks.writeObsCF(buckyCF)
@@ -140,11 +145,12 @@ followed by their greedy consensus,
 followed by the best tree on the original data.
 It's this last tree that we are most interested in.
 We can read it with
-```{julia; eval=true; results="markup"; label="astraltree"}
+```{julia; eval=false; results="markup"; label="astraltree"}
 astralfile = joinpath(Pkg.dir("PhyloNetworks"),"examples","astral.tre")
 astraltree = readMultiTopology(astralfile)[102] # 102th tree = last tree here
 plot(astraltree)
 ```
+![astraltree](../assets/figures/inputdata_astraltree_1.png)
 
 To start its search, SNaQ will need a network of "level 1".
 All trees and all networks with 1 hybridization are of level 1.

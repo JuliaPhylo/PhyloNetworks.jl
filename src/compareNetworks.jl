@@ -224,8 +224,8 @@ and the function does not test for this.
 ```jldoctest
 julia> net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readTopology |> directEdges! ;
 
-julia> descendants(net5.edge[12]) # descendants of 12th
-7-element Array{Int32,1}:
+julia> PhyloNetworks.descendants(net5.edge[12]) # descendants of 12th
+7-element Array{Int64,1}:
  -6
  -7
   4

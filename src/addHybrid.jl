@@ -340,3 +340,103 @@ function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::In
 end
 
 addHybridizationUpdateSmart!(net::HybridNetwork, N::Integer) = addHybridizationUpdateSmart!(net, false,N)
+
+
+# ----------------------------------- add alternative hybridizations found in bootstrap ------------------------------------
+## function to add the top hybridizations (not in best network)
+## found in bootstrap networks
+## it modifies the network and BSe to add the new edge number,
+## it also adds a new column 0/1, with 1 if the edge is not present in the original estimated network
+## cutoff=10, only show hybridizations with bootstrap support>10%
+## top=3, only show the top three alternative hybridizations (sorted by bootstrap support)
+## can we put in a different color in the plot?
+## Cecile: you could add a new option to our RCall-based plot function to take a vector of colors.
+"""
+    addAlternativeHybridizations!(net::HybridNetwork, BSe::DataFrame;
+                                  cutoff=10::Number, top=3::Int)
+
+Modify the network `net` (the best network estimated with snaq) by adding other hybridizations
+that are present in the bootstrap networks. By default, it will only consider hybrid edges with
+more than 10% bootstrap support (`cutoff`) and it will only include the three top hybridizations
+(`top`) sorted by bootstrap support.
+The function also modifies the dataframe `BSe` obtained with `hybridBootstrapSupport`. In the original
+`BSe` dataframe, hybrid edges that do not appear in the best network have a missing number.
+After the hybrid edges are added with `addAlternativeHybridizations`, `BSe` is modified to include the
+edge numbers of the newly added hybrid edges. Note that the function only adds the hybrid edges as minor to
+keep the underlying tree topology.
+
+# example
+
+```julia
+bootnet = readMultiTopology("bootstrap-networks.txt")
+bestnet = readTopology("best.tre")
+BSn, BSe, BSc, BSgam, BSedgenum = hybridBootstrapSupport(bootnet, bestnet);
+addAlternativeHybridizations!(bestnet,BSe)
+using PhyloPlots
+plot(bestnet, edgeLabel=BSe[[:edge,:BS_hybrid_edge]])
+```
+"""
+function addAlternativeHybridizations!(net::HybridNetwork,BSe::DataFrame; cutoff=10::Number,top=3::Int)
+    top > 0 || error("top must be greater than 0")
+    BSe[:alternative] = falses(length(BSe[:hybrid]))
+    newBSe = BSe[BSe[:BS_hybrid_edge] .> cutoff,:]
+    newBSe = newBSe[.!ismissing.(newBSe[:hybrid]) & .!ismissing.(newBSe[:sister]),:]
+    newBSe = newBSe[ismissing.(newBSe[:edge]),:]
+    newHyb = newBSe[1:top,:]
+
+    if(size(newHyb,1) == 0)
+        warn("Did not find any alternative hybridizations with bootstrap support greater than the cutoff, so nothign added")
+        return
+    end
+
+    for i in 1:top
+        hybnum = newHyb[:hybrid][i]
+        sisnum = newHyb[:sister][i]
+        edgenum = addHybridBetweenClades!(hybnum,sisnum,net)
+        ind1 = find(x->!ismissing(x) && x==hybnum,BSe[:hybrid])
+        ind2 = find(x->!ismissing(x) && x==sisnum,BSe[:sister])
+        ind = intersect(ind1,ind2)
+        BSe[ind,:edge] = edgenum
+        BSe[ind,:alternative] = true
+    end
+end
+
+
+## function to a hybrid edge between hybrid clade (hybnum = node number) and sister clade (sisnum = node number)
+## the function finds the parent edges to these nodes, and puts a hybrid edge between them
+## the function modifies net, and it returns the number of the minor hybrid edge added
+function addHybridBetweenClades!(hybnum::Number,sisnum::Number,net::HybridNetwork)
+    hybind = getIndexNode(hybnum,net)
+    sisind = getIndexNode(sisnum,net)
+
+    ## hybridization ed1->ed2
+    edge1 = getMajorParentEdge(net.node[sisind])
+    edge2 = getMajorParentEdge(net.node[hybind])
+
+    edge3,edge4 = parameters4createHybrid!(edge1, edge2,net)
+    hybridnode = createHybrid!(edge1, edge2, edge3, edge4, net, 0.1) ## gamma=0.1, fixed later
+    if(edge1.length < 0)
+        setBranchLength!(edge1,-1.0)
+        setBranchLength!(edge3,-1.0)
+    end
+    if(edge2.length < 0)
+        setBranchLength!(edge2,-1.0)
+        setBranchLength!(edge4,-1.0)
+    end
+
+    if(edge2.isChild1)
+        edge4.hybrid = true
+        setGamma!(edge4,0.9)
+        edge4.isChild1 = true
+    else
+        edge2.hybrid = true
+        setGamma!(edge2,0.9)
+        edge2.isChild1 = false
+    end
+    ## used gamma=0.1 to make the new edge a minor edge, but we really do not have gamma value:
+    emaj = getMajorParentEdge(hybridnode)
+    emaj.gamma = -1
+    e = getMinorParentEdge(hybridnode)
+    e.gamma = -1
+    return e.number
+end

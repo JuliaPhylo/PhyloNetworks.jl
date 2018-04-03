@@ -75,19 +75,31 @@ function pairwiseTaxonDistanceMatrix(net::HybridNetwork;
     return M
 end
 """
-    getTipSubmatrix(M, net)
+    getTipSubmatrix(M, net; indexation=:both)
 
-Extract submatrix of M, with rows corresponding to tips in the network,
-ordered like in `net.leaf`.
-In M, rows are assumed ordered as in `net.nodes_changed`.
+Extract submatrix of M, with rows and/or columns corresponding to
+tips in the network, ordered like in `net.leaf`.
+In M, rows and/or columns are assumed ordered as in `net.nodes_changed`.
+
+indexation: one of `:rows`, `:cols` or `:both`: are nodes numbers indexed
+in the matrix by rows, by columns, or both? Subsetting is taken accordingly.
+
 """
-function getTipSubmatrix(M::Matrix, net::HybridNetwork)
+function getTipSubmatrix(M::Matrix, net::HybridNetwork; indexation=:both)
     nodenames = [n.name for n in net.nodes_changed]
     tipind = Int[]
     for l in net.leaf
         push!(tipind, findfirst(nodenames, l.name))
     end
-    return M[tipind, tipind]
+    if indexation == :both
+        return M[tipind, tipind]
+    elseif indexation == :rows
+        return M[tipind, :]
+    elseif indexation == :cols
+        return M[:, tipind]
+    else
+        error("indexation must be one of :both :rows or :cols")
+    end
 end
 
 function pairwiseTaxonDistanceMatrix!(M::Matrix{Float64},net::HybridNetwork,nodeAges)
@@ -99,7 +111,7 @@ function pairwiseTaxonDistanceMatrix!(M::Matrix{Float64},net::HybridNetwork,node
 end
 
 function updateTreePairwiseTaxonDistanceMatrix!(V::Matrix,
-            i::Int,parentIndex::Int,edge::PhyloNetworks.Edge,
+            i::Int,parentIndex::Int,edge::Edge,
             params)
     nodeAges = params # assumed pre-ordered, as in nodes_changed
     if length(nodeAges)>0
@@ -114,7 +126,7 @@ end
 
 function updateHybridPairwiseTaxonDistanceMatrix!(V::Matrix,
         i::Int, parentIndex1::Int, parentIndex2::Int,
-        edge1::PhyloNetworks.Edge, edge2::PhyloNetworks.Edge,
+        edge1::Edge, edge2::Edge,
         params)
     nodeAges = params # should be pre-ordered
     if length(nodeAges)>0
@@ -157,7 +169,7 @@ function pairwiseTaxonDistanceGrad(net::HybridNetwork;
     return M
 end
 function updateTreePairwiseTaxonDistanceGrad!(V::Array{Float64,3}, i::Int,
-            parentIndex::Int, edge::PhyloNetworks.Edge, params)
+            parentIndex::Int, edge::Edge, params)
     nodeAges = params # assumed pre-ordered
     for j in 1:(i-1)
         if length(nodeAges) == 0 # d/d(edge length)
@@ -175,7 +187,7 @@ function updateTreePairwiseTaxonDistanceGrad!(V::Array{Float64,3}, i::Int,
 end
 function updateHybridPairwiseTaxonDistanceGrad!(V::Array{Float64,3},i::Int,
             parentIndex1::Int, parentIndex2::Int,
-            edge1::PhyloNetworks.Edge, edge2::PhyloNetworks.Edge, params)
+            edge1::Edge, edge2::Edge, params)
     nodeAges = params
     for j in 1:(i-1)
         if length(nodeAges) == 0 # d/d(edge length)
@@ -401,4 +413,21 @@ function calibrateFromPairwiseDistances!(net::HybridNetwork,
     fmin, xmin, ret = NLopt.optimize(opt,par) # optimization here!
     verbose && println("got $(round(fmin,5)) at $(round.(xmin,5)) after $(counter[1]) iterations (return code $(ret))")
     return fmin,xmin,ret
+end
+
+# This is a helper function to accept symbols instead of strings
+function calibrateFromPairwiseDistances!(net::HybridNetwork,
+      D::Array{Float64,2}, taxNames::Vector{Symbol};
+      checkPreorder=true::Bool, forceMinorLength0=false::Bool, verbose=false::Bool,
+      ultrametric=true::Bool, NLoptMethod=:LD_MMA::Symbol,
+      ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
+      xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
+    taxNames = [String(t) for t in taxNames]
+    calibrateFromPairwiseDistances!(net, D, taxNames;
+                                    checkPreorder=checkPreorder,
+                                    forceMinorLength0=forceMinorLength0,
+                                    verbose=verbose, ultrametric=ultrametric,
+                                    NLoptMethod=NLoptMethod, ftolRel=ftolRel,
+                                    ftolAbs=ftolAbs, xtolRel=xtolRel,
+                                    xtolAbs=xtolAbs)
 end
