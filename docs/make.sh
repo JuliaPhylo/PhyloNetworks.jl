@@ -4,7 +4,7 @@
 set -ev
 
 if [ "$TRAVIS_OS_NAME" == "linux" ]; then
-    julia -e 'Pkg.clone("https://github.com/pbastide/Documenter.jl")';
+    julia -e 'Pkg.clone("https://github.com/pbastide/Documenter.jl")'; # Using custom fork to add the "DRAW_FIG" option.
     julia -e 'Pkg.clone("https://github.com/cecileane/PhyloPlots.jl")';
     #julia -e 'Pkg.add("Cairo")';
     #julia -e 'Pkg.add("Fontconfig")';
