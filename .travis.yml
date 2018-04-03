@@ -7,7 +7,7 @@ julia: # WARNING: any change here must also be done in docs/make.jl
   - 0.6
 env:
   - DRAW_FIG="false"
-    #DOCUMENTER_DEBUG="true"
+    DOCUMENTER_DEBUG="true"
 notifications:
   email: false
 ## Following 4 lines are taken from here:
@@ -17,12 +17,6 @@ addons:
     apt: # apt-get for linux
         packages:
             - libnlopt0 # We install it this way to be able to run Travis with `sudo: false`
-
-  # Fix NLopt. This line should be removed when a a new release of NLopt is out.
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then julia -e 'Pkg.clone("https://github.com/JuliaOpt/NLopt.jl"); Pkg.build("NLopt")'; fi
-
-  # Binaries
-# - export PATH=$HOME/.local/bin:$PATH
 
 after_success:
   # push coverage results to Coveralls
