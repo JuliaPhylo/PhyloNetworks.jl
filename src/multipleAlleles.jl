@@ -141,7 +141,7 @@ function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int};keepOne=false::Bool)
     DEBUG && (@show repSpecies)
     nrows = size(newdf,1)
     nkeep = nrows - length(delrows)
-    if(nkeep < nrows)
+    if nkeep < nrows
         print("""found $(length(delrows)) 4-taxon sets uninformative about between-species relationships, out of $(nrows).
               These 4-taxon sets will be deleted from the data frame. $nkeep informative 4-taxon sets will be used.
               """)
@@ -156,7 +156,7 @@ end
 # function to merge rows that have repeated taxon names by using the weigthed average of CF
 # (if info on number of genes is provided) or simple average
 function mergeRows!(df::DataFrame, cols::Vector{Int})
-    sorttaxa!(df, cols)
+    sorttaxa!(df, cols) # sort taxa alphabetically within each row
     n4tax  = size(df,1) # total number of 4-taxon sets
     delrows = Int[] # indices of rows to delete
     nrows  =  ones(Int ,n4tax) # total # of rows that row i combines. 0 if row i is to be deleted.
@@ -194,8 +194,8 @@ function mergeRows!(df::DataFrame, cols::Vector{Int})
     n4tax = size(df,1) # re-defined
     print("$n4tax unique 4-taxon sets were found. CF values of repeated 4-taxon sets will be averaged")
     println((length(cols)>7 ? " (ngenes too)." : "."))
-    if length(cols)>7 && eltype(df[cols[8]])<: Integer # ngenes is present: integer. Need to convert to float
-        df[cols[8]] = convert(Array{Float64},df[cols[8]])
+    if length(cols)>7 && Missings.T(eltype(df[cols[8]]))<: Integer # ngenes is present: integer. Need to convert to float
+        df[cols[8]] = convert(Array{Float64},df[cols[8]]) # or Union{Float64, Missings.Missing} ...
     end
     for i in 1:n4tax
         nrows[i]>0 || error("Original $(delrows[i])) was retained (now row $i) but has nrows=0")
