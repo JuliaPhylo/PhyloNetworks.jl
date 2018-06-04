@@ -11,7 +11,6 @@ module PhyloNetworks
     using NLopt # for branch lengths optimization
     using Combinatorics.combinations
     using StaticArrays
-    using IterTools
     using BioSequences
     using BioSymbols
 
