@@ -1,12 +1,6 @@
 # functions to read/write networks topologies
-# originally in functions.jl
-# Claudia March 2015
 
-# ------------------------------- Read topology ------------------------------------------
-
-function peekchar(s::IOStream)
-    Base.peekchar(s)
-end
+import Base.peekchar # defined in Base for an IOStream, not for an IOBuffer
 
 function peekchar(s::IOBuffer)
     mark(s)
@@ -129,14 +123,18 @@ function isValidSymbol(c::Char)
 end
 
 """
-    parseRemainingSubtree!(s::IO, numLeft, net, hybrids, index)
+    parseRemainingSubtree!(s::IO, numLeft, net, hybrids)
 
-Helper function for readSubtree!
+Helper function for [`readSubtree!`](@ref):
+`readSubtree!` calls `parseRemainingSubtree!`, and vice versa.
 Called once a `(` has been read in a tree topology and reads until the corresponding `)` has been found.
 This function performs the recursive step for readSubtree!
-Advances `s` past the subtree, adds discovered nodes and edges to `net`, `hybrids`, and `index`.
+Advances `s` past the subtree, adds discovered nodes and edges to `net`, and `hybrids`.
+
+Does *not* read the node name and the edge information of the subtree root:
+this is done by [`readSubtree!`](@ref)
 """
-@inline function parseRemainingSubtree!(s::IO, numLeft::Array{Int,1}, net::HybridNetwork, hybrids::Array{String, 1}, index::Array{Int, 1})
+@inline function parseRemainingSubtree!(s::IO, numLeft::Array{Int,1}, net::HybridNetwork, hybrids::Vector{String})
     numLeft[1] += 1
     DEBUGC && println(numLeft)
     n = Node(-1*numLeft[1],false);
@@ -144,7 +142,7 @@ Advances `s` past the subtree, adds discovered nodes and edges to `net`, `hybrid
     keepon = true;
     c = readskip!(s)
     while (keepon)
-        bl = readSubtree!(s,n,numLeft,net,hybrids,index)
+        bl = readSubtree!(s,n,numLeft,net,hybrids)
         c = advance!(s,c,numLeft)
         if (c == ')')
             keepon = false
@@ -157,14 +155,14 @@ Advances `s` past the subtree, adds discovered nodes and edges to `net`, `hybrid
 end
 
 """
-    parseHybridNode!(node, parentNode, hybridName, net, hybrids, index)
+    parseHybridNode!(node, parentNode, hybridName, net, hybrids)
 
 Helper function for readSubtree!
 Handles any type of given hybrid node.
 To be called once a `#` has been found in a tree topology.
-Creates a hybrid node and its edges, then inserts those into `net`, `hybrids` and `index` accordingly.
+Creates a hybrid node (if needed) and its edges, then inserts those into `net` and `hybrids` accordingly.
 """
-@inline function parseHybridNode!(n::Node, parent::Node, name::String, net::HybridNetwork, hybrids::Array{String, 1}, index::Array{Int, 1})
+@inline function parseHybridNode!(n::Node, parent::Node, name::String, net::HybridNetwork, hybrids::Vector{String})
     DEBUG && println("found pound in $(name)")
     n.hybrid = true;
     DEBUGC && println("got hybrid $(name)")
@@ -172,7 +170,9 @@ Creates a hybrid node and its edges, then inserts those into `net`, `hybrids` an
     ind = findfirst(hybrids, name) # index of 'name' in the list 'hybrid'. 0 if not found
     if ind>0 # the hybrid name was seen before
         DEBUG && println("$(name) was found in hybrids list")
-        other = net.node[index[ind]]; # other node with same hybrid name
+        ni = findfirst([no.name for no in net.node], name)
+        ni > 0 || error("hybrid name $name was supposed to be in the network, but not found")
+        other = net.node[ni]
         DEBUG && println("other is $(other.number)")
         DEBUGC && println("other is leaf? $(other.leaf), n is leaf? $(n.leaf)")
         if !n.leaf && !other.leaf
@@ -188,7 +188,7 @@ Creates a hybrid node and its edges, then inserts those into `net`, `hybrids` an
             setEdge!(other,e);
             setEdge!(parent,e);
             DEBUG && println("e $(e.number )istIdentifiable? $(e.istIdentifiable)")
-        else # !n.leaf
+        else # !n.leaf : delete 'other' from the network
             DEBUG && println("n is not leaf, other is leaf")
             size(other.edge,1) == 1 || # other should be a leaf
                error("strange: node $(other.number) is a leaf hybrid node. should have only 1 edge but has $(size(other.edge,1))")
@@ -211,7 +211,7 @@ Creates a hybrid node and its edges, then inserts those into `net`, `hybrids` an
             setEdge!(parent,e);
             pushNode!(net,n);
             pushEdge!(net,e);
-            n.number = other.number;
+            n.number = other.number; # modifies original negative node number, to positive node #
             n.name = other.name;
             DEBUG && println("edge $(e.number) istIdentifiable? $(e.istIdentifiable)")
             DEBUG && println("otheredge $(otheredge.number) istIdentifiable? $(otheredge.istIdentifiable)")
@@ -226,7 +226,6 @@ Creates a hybrid node and its edges, then inserts those into `net`, `hybrids` an
         DEBUGC && println("put $(nam) in hybrids name list")
         push!(hybrids, nam);
         pushNode!(net,n);
-        push!(index,size(net.node,1));
         e = Edge(net.numEdges+1);
         DEBUG && println("creating hybrid edge $(e.number)")
         e.hybrid = true
@@ -366,7 +365,7 @@ where edgeLen, bootstrap, and gamma are decimal values.
 end
 
 """
-    readSubtree!(s::IO, parentNode, numLeft, net, hybrids, index)
+    readSubtree!(s::IO, parentNode, numLeft, net, hybrids)
 
 Recursive helper method for `readTopology`:
 read a subtree from an extended Newick topology.
@@ -378,38 +377,34 @@ Warning if hybrid edge without γ, or if γ (ignored) without hybrid edge
 """
 # modified from original Cecile c++ code to allow polytomies
 
-function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNetwork, hybrids::Array{String,1}, index::Array{Int,1})
+function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNetwork, hybrids::Vector{String})
     c = peekskip(s)
     e = nothing;
     hasname = false; # to know if the current node has name
     pound = false;
-    if(c == '(')
+    if c == '('
         # read the rest of the subtree (perform the recursive step!)
-        n = parseRemainingSubtree!(s, numLeft, net, hybrids, index)
+        n = parseRemainingSubtree!(s, numLeft, net, hybrids)
         c = peekskip(s);
         if(isalnum(c) || isValidSymbol(c) || c == '#') # internal node has name
             hasname = true;
             num, name, pound = readNum(s, c, net, numLeft);
-            n.number = num;
+            n.number = num; # n was given <0 number by parseRemainingSubtree!, now >0
             c = peekskip(s);
-            #if(!pound)
-            #    warn("internal node with name without it being a hybrid node. node name might be meaningless after tree modifications.")
-            #end
         end
-    elseif(isalnum(c) || isValidSymbol(c) || c == '#')
+    elseif isalnum(c) || isValidSymbol(c) || c == '#' # leaf, with name of course
         hasname = true;
-        bl = true;
         num, name, pound = readNum(s, c, net, numLeft)
-        n = Node(num, true);
+        n = Node(num, true); # positive node number to leaves in the newick-tree description
         DEBUG && println("creating node $(n.number)")
     else
         a = readstring(s);
         error("Expected beginning of subtree but read $(c) after left parenthesis $(numLeft[1]-1), remaining is $(a).");
     end
-    if(pound) # found pound sign in name
-        e = parseHybridNode!(n, parent, name, net, hybrids, index)
+    if pound # found pound sign in name
+        e = parseHybridNode!(n, parent, name, net, hybrids) # makes hybrid node number positive
     else
-        if(hasname)
+        if hasname
             push!(net.names,string(name));
             n.name = string(name)
         end
@@ -418,7 +413,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
     c = peekskip(s);
     e.length = -1.0
     e.gamma = e.hybrid? -1.0 : 1.0
-    if(c == ':')
+    if c == ':'
         parseEdgeData!(s, e, n, numLeft)
     end
     return true
@@ -466,7 +461,6 @@ function readTopology(s::IO,verbose::Bool)
     c = peekskip(s)
     numLeft = [1]; # made Array to make it mutable; start at 1 to avoid node -1 which breaks undirectedOtherNetworks
     hybrids = String[];
-    index = Int[];
     if(c == '(')
         numLeft[1] += 1;
         #println(numLeft)
@@ -474,7 +468,7 @@ function readTopology(s::IO,verbose::Bool)
         c = readskip!(s)
         b = false;
         while(c != ';')
-            b |= readSubtree!(s,n,numLeft,net,hybrids,index)
+            b |= readSubtree!(s,n,numLeft,net,hybrids)
             c = readskip!(s);
             if(eof(s))
                 error("Tree ended while reading in subtree beginning with left parenthesis number $(numLeft[1]-1).")
@@ -1257,9 +1251,9 @@ function readMultiTopology(file::AbstractString)
         if(c == '(')
            try
                push!(vnet, readTopology(line,false)) # false for non-verbose
-           catch(err)
-               println("could not read tree on line $(numl) of file $file. error was this:")
-               # rethrow(err)
+           catch err
+               print("skipped phylogeny on line $(numl) of file $file: ")
+               if findfirst(fieldnames(err),:msg)>0 println(err.msg); else println(typeof(err)); end
            end
         end
         numl += 1

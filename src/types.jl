@@ -139,7 +139,7 @@ mutable struct HybridNetwork <: Network
     blacklist::Vector{Int} # reusable array of integers, used in afterOptBL
     partition::Vector{Partition} # to choose edges from a partition only to avoid intersecting cycles
     cleaned::Bool # attribute to know if the network has been cleaned after readm default false
-    isRooted::Bool #attribute to know if network is rooted (after root! or directEdges)
+    isRooted::Bool # to know if network is rooted, e.g. after directEdges! (which updates isChild1 of each edge)
     # inner constructor
     function HybridNetwork(node::Array{Node,1},edge::Array{Edge,1})
         hybrid=Node[];
