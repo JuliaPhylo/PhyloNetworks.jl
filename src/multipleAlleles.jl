@@ -141,7 +141,7 @@ function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int};keepOne=false::Bool)
     DEBUG && (@show repSpecies)
     nrows = size(newdf,1)
     nkeep = nrows - length(delrows)
-    if(nkeep < nrows)
+    if nkeep < nrows
         print("""found $(length(delrows)) 4-taxon sets uninformative about between-species relationships, out of $(nrows).
               These 4-taxon sets will be deleted from the data frame. $nkeep informative 4-taxon sets will be used.
               """)
@@ -155,54 +155,14 @@ end
 
 # function to merge rows that have repeated taxon names by using the weigthed average of CF
 # (if info on number of genes is provided) or simple average
-function mergeRows!(df::DataFrame, cols::Vector{Int})
-    sorttaxa!(df, cols)
-    n4tax  = size(df,1) # total number of 4-taxon sets
-    delrows = Int[] # indices of rows to delete
-    nrows  =  ones(Int ,n4tax) # total # of rows that row i combines. 0 if row i is to be deleted.
-    for i in 1:n4tax # for each row / 4-taxon set
-        if nrows[i]>0
-            for j in (i+1):n4tax # rows with larger index
-                nrows[j]>0 || continue # skip j if it matched a 4-taxon set earlier
-                rowmatch = true
-                for k in 1:4
-                    rowmatch *= (df[j,cols[k]] == df[i,cols[k]])
-                end
-                rowmatch || continue   # skip j if doesn't match i^th taxon set
-                nrows[j]=0
-                push!(delrows, j)
-                for k in 5:length(cols)
-                    df[i,cols[k]] += df[j,cols[k]]
-                end
-                nrows[i] += 1
-            end
-        end
-    end
-    # @show head(df); @show delrows[1:10]; @show length(delrows); @show sum(nrows); println("number with nrows>0: $(sum(map(x -> x>0, nrows)))")
-    for ir in delrows
-        if nrows[ir]>0
-            println("problem: ir=$ir, nrows=$(nrows[ir])")
-            @show df[ir,:]
-        end
-    end
-    length(delrows)>0 || return df
-    sort!(delrows)
-    for i in 1:size(df,2)
-        deleteat!(df[i], delrows) # more efficient than deleterows!(df, delrows)
-    end
-    deleteat!(nrows, delrows)
-    n4tax = size(df,1) # re-defined
+function mergeRows(df::DataFrame, cols::Vector{Int})
+    sorttaxa!(df, cols) # sort taxa alphabetically within each row
+    colnam = names(df)[cols[5:end]]
+    df = aggregate(df, names(df)[cols[1:4]], mean);
+    rename!(df, Dict((Symbol(n, "_mean"), n) for n in colnam) )
+    n4tax = size(df,1) # total number of 4-taxon sets
     print("$n4tax unique 4-taxon sets were found. CF values of repeated 4-taxon sets will be averaged")
     println((length(cols)>7 ? " (ngenes too)." : "."))
-    if length(cols)>7 && eltype(df[cols[8]])<: Integer # ngenes is present: integer. Need to convert to float
-        df[cols[8]] = convert(Array{Float64},df[cols[8]])
-    end
-    for i in 1:n4tax
-        nrows[i]>0 || error("Original $(delrows[i])) was retained (now row $i) but has nrows=0")
-        for k in 5:length(cols)
-            df[i,cols[k]] /= nrows[i]
-        end
-    end
     return df
 end
 
