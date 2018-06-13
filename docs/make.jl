@@ -1,8 +1,5 @@
 using Documenter, PhyloNetworks
 
-# Weave the .jmd
-include(Pkg.dir("PhyloNetworks","docs","src", "man", "src", "make_weave.jl"))
-
 makedocs()
 
 deploydocs(
