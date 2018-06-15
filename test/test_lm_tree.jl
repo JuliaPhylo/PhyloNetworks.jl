@@ -64,11 +64,12 @@ fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy)
 @test confint(fitBM)[1] ≈ 4.0269551772 atol=1e-10
 @test confint(fitBM)[2] ≈ 5.3310426231 atol=1e-10
 tmp = predict(fitBM);
-@show length(tmp) # fixit: tests fail here
-@show tmp[1:6], tmp[190:end] # 4.679 except for last 5: 9.31707, 9.33832, 9.33052, 9.34356, 9.31707
-println("are they all 4.6789989001?")
+# below: print for when the test was broken
+#@show length(tmp) # fixit: tests fail here
+#@show tmp[1:6], tmp[190:end] # 4.679 except for last 5: 9.31707, 9.33832, 9.33052, 9.34356, 9.31707
+#println("are they all 4.6789989001?")
 # next: looks random. sometimes passes, most times fails
-@test_skip predict(fitBM) ≈ [4.6789989001 for i in 1:197] atol=1e-10
+@test predict(fitBM) ≈ [4.6789989001 for i in 1:197] atol=1e-10
 # @test_approx_eq_eps model_response(fitBM)[fitbis.model.ind] model_response(fitbis)
 # @test_approx_eq_eps deviance(fitBM)  deviance(fitbis)
 # @test_approx_eq_eps nulldeviance(fitBM)  nulldeviance(fitbis)
@@ -93,9 +94,10 @@ tipsJulia = expe[197:393, :condExpectation]
 # Matching nodes ?
 nodesR = expeR[-expe[1:196, :nodeNumber] + 196]
 nodesJulia = expe[1:196, :condExpectation]
-@show nodesR[1:6],    nodesR[190:end]
-@show nodesJulia[1:6],nodesJulia[190:end]
-@test_skip isapprox(nodesR, nodesJulia)
+# below: print for when the test was broken
+#@show nodesR[1:6],    nodesR[190:end]
+#@show nodesJulia[1:6],nodesJulia[190:end]
+@test isapprox(nodesR, nodesJulia)
 
 ## Variances
 vars = diag(anc.variances_nodes)
@@ -114,9 +116,10 @@ expeRt = ancRt[:trait]
 # Matching nodes ?
 nodesRt = expeRt[-expe[1:196, :nodeNumber] + 196 - 197]
 nodesJulia = expe[1:196, :condExpectation]
-@show nodesRt[1:6],   nodesRt[190:end]
-@show nodesJulia[1:6],nodesJulia[190:end]
-@test_skip isapprox(nodesRt, nodesJulia)
+# below: print for when the test was broken
+#@show nodesRt[1:6],   nodesRt[190:end]
+#@show nodesJulia[1:6],nodesJulia[190:end]
+@test isapprox(nodesRt, nodesJulia)
 
 ## Variances
 vars = diag(anc.variances_nodes)
@@ -217,20 +220,22 @@ fitLambda = (@test_warn "Maximum lambda value" phyloNetworklm(@formula(trait ~ 1
 @test coef(fitLambda) ≈ [4.66893] atol=1e-5
 @test vcov(fitLambda) ≈ [0.05111] atol=1e-5
 @test nobs(fitLambda) ≈ 197.0 atol=1e-10
-@show sum(residuals(fitLambda)) # locally: -115.91591040367894
-println("is this -113.594?")
-@test_skip isapprox(sum(residuals(fitLambda)), -113.594, atol=1e-2) ## Low Tolerance !!
+# below: print for when the test was broken
+#@show sum(residuals(fitLambda)) # locally: -115.91591040367894
+#println("is this -113.594?")
+@test isapprox(sum(residuals(fitLambda)), -113.594, atol=1e-2) ## Low Tolerance !!
 @test dof_residual(fitLambda) ≈ 196.0 atol=1e-10 ## Correct Definition ?
 @test sigma2_estim(fitLambda) ≈ 0.0014756 atol=1e-7
 @test stderror(fitLambda) ≈ [0.22608] atol=1e-5
 @test confint(fitLambda)[1] ≈ 4.2230 atol=1e-4
 @test confint(fitLambda)[2] ≈ 5.114 atol=1e-3
 tmp = predict(fitLambda);
-@show length(tmp)
-@show tmp[1:6], tmp[190:end] # all 4.66893 except for last 5: 8.42676, 8.44585, etc.
-println("are they all 4.66893?")
+# below: print for when the test was broken
+#@show length(tmp)
+#@show tmp[1:6], tmp[190:end] # all 4.66893 except for last 5: 8.42676, 8.44585, etc.
+#println("are they all 4.66893?")
 # next: looks random. sometimes passes, most times fails
-@test_skip predict(fitLambda) ≈ [4.66893 for i in 1:197] atol=6e-5
+@test predict(fitLambda) ≈ [4.66893 for i in 1:197] atol=6e-5
 
 ### R script to get the above values:
 # library(geiger)
@@ -317,9 +322,10 @@ vcovR = [ 0.1165148753  -0.0431446679 -0.0305707092 0.0000000000
 predictR = [4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 4.2109125624, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.7921505131, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 3.8080854332, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547, 4.8773804547]
 tmp  = predict(fitBM)
 tmp2 = predictR[fitBM.model.ind]
-@show tmp[1:6],  tmp[190:end]
-@show tmp2[1:6],tmp2[190:end] # the last 5 values are different
-@test_skip isapprox(predict(fitBM), predictR[fitBM.model.ind], atol=1e-8)
+# below: print for when the test was broken
+#@show tmp[1:6],  tmp[190:end]
+#@show tmp2[1:6],tmp2[190:end] # the last 5 values are different
+@test isapprox(predict(fitBM), predictR[fitBM.model.ind], atol=1e-8)
 
 # ## R code to get those results
 # library(geiger)
@@ -385,9 +391,10 @@ vcovR =  [0.0200086273  -0.0136717540 0.0084815090  -0.0093192029 -0.0114417825 
           0.0050521693  -0.0014800242 -0.0005423354 -0.0039327836 -0.0040068947 -0.0146108207 0.0020857846  0.0020427637  0.0074817942]
 @test vcov(fitBM) ≈ vcovR atol=1e-10 
 @test nobs(fitBM) ≈ 100.0 atol=1e-10
-@show sum(residuals(fitBM)) # looks random, e.g. 1.6091413520064477, or 0.8338189090359597
-println("is this equal to 0.6352899255?") # sometimes NO, yet the test passes below!!
-@test_skip sum(residuals(fitBM)) ≈ 0.6352899255 atol=1e-10
+# below: print for when the test was broken (with @test_skip)
+#@show sum(residuals(fitBM)) # looks random, e.g. 1.6091413520064477, or 0.8338189090359597
+#println("is this equal to 0.6352899255?") # sometimes NO, yet the test passes below!!
+@test sum(residuals(fitBM)) ≈ 0.6352899255 atol=1e-10
 @test dof_residual(fitBM) ≈ 91.0 atol=1e-10
 @test sigma2_estim(fitBM) ≈ 0.0003025014 atol=1e-10
 @test stderror(fitBM) ≈ [0.1414518551,0.1361605540,0.1321542330,0.1295968341,0.2214683008,0.1820427154,0.0672106202,0.0965879311,0.0864973651] atol=1e-10
@@ -469,9 +476,10 @@ vcovR =  [0.0200251600  -0.0137474015 0.0085637021  -0.0092973836 -0.0114259722 
           0.0050429112  -0.0014743137 -0.0005457420 -0.0039275469 -0.0040017905 -0.0145663751 0.0020823721  0.0020404652  0.0074600880]
 @test vcov(fitLambda) ≈ vcovR atol=3e-7 
 @test nobs(fitLambda) ≈ 100.0 atol=1e-10
-@show sum(residuals(fitLambda)) # looks random, eg 0.033126277561337916 or 0.644941961666333
-println("is this equal to 0.6369008979?")
-@test_skip sum(residuals(fitLambda)) ≈ 0.6369008979 atol=1e-5
+# below: print for when the test was broken (with @test_skip)
+#@show sum(residuals(fitLambda)) # looks random, eg 0.033126277561337916 or 0.644941961666333
+#println("is this equal to 0.6369008979?")
+@test sum(residuals(fitLambda)) ≈ 0.6369008979 atol=1e-5
 @test dof_residual(fitLambda) ≈ 91.0 atol=1e-10
 @test sigma2_estim(fitLambda) ≈ 0.0003009914 atol=1e-9
 @test stderror(fitLambda) ≈ [0.1415102824,0.1367059706,0.1327404019,0.1294070617,0.2213803048,0.1817274626,0.0671133793,0.0966096332,0.0863718011] atol=1e-6
