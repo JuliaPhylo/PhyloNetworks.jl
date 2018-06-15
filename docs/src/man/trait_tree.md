@@ -1,4 +1,4 @@
-```@example tree_trait
+```@setup tree_trait
 using PhyloNetworks
 mkpath("../assets/figures")
 ```
@@ -8,6 +8,11 @@ Once the network is inferred, we can take
 these species relationships into account when studying the distribution of quantitative
 traits measured for extant species.
 This is the goal of phylogenetic comparative methods (PCM).
+More details can be found on the developments below in Bastide et al. 2018[^fnBastide2018]
+
+[^fnBastide2018]: Bastide, Solís-Lemus, Kriebel, Sparks, Ané (2018):
+                  Phylogenetic Comparative Methods for Phylogenetic Networks with Reticulations.
+                  Systematic Biology. doi:10.1093/sysbio/syy033
 
 We assume a fixed network, correctly rooted, with branch lengths
 proportional to calendar time. Here, we consider the true network that was
@@ -18,15 +23,15 @@ truenet = readTopology("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.
 As previously, we can plot the network thanks to the `RCall` package.
 The `name` function is only instrumental here, to ensure that the figure is
 saved in the correct directory when the documentation is built.
-We only show the comands to actually save the plot in this first example for
+We only show the commands to actually save the plot in this first example for
 the interested reader, but we will hide those in the rest of the chapter, for
 the sake of clarity.
 ```@example tree_trait
 using PhyloPlots, RCall
-R"name <- function(x) file.path(\"..\", \"assets\", \"figures\", x)"
-R"svg(name(\"truenet.svg\"), width=8, height=4)"
+R"name <- function(x) file.path('..', 'assets', 'figures', x)"
+R"svg(name('truenet.svg'), width=8, height=4)"
 R"par(mar = c(0, 0, 0, 0))"
-plot(truenet, :R, useEdgeLength=true, showGamma=true)
+plot(truenet, :R, useEdgeLength=true, showGamma=true);
 R"dev.off()"
 nothing # hide
 ```
@@ -96,7 +101,7 @@ dat = DataFrame(trait1 = trait1, trait2 = trait2, trait3 = trait3,
 
 Phylogenetic regression / ANOVA is based on the
 [GLM](https://github.com/JuliaStats/GLM.jl) package, with the network as an
-extra argument, using funtion [`phyloNetworklm`](@ref).
+extra argument, using function [`phyloNetworklm`](@ref).
 ```@example tree_trait
 using StatsModels # for statistical model formulas
 fitTrait3 = phyloNetworklm(@formula(trait3 ~ trait1 + trait2), dat, truenet)
@@ -104,7 +109,7 @@ fitTrait3 = phyloNetworklm(@formula(trait3 ~ trait1 + trait2), dat, truenet)
 From this, we can see that the intercept, the coefficient for trait 1
 and the variance of the noise are correctly estimated
 (given that there are only 6 taxa).
-In addition, the Student test for the coefficient
+In addition, the Student T test for the coefficient
 associated with trait 2 has a high p-value, which means that this coefficient
 is not significantly different from 0. This is consistent with the
 way we simulated trait 3.
@@ -139,17 +144,17 @@ Function [`ancestralStateReconstruction`](@ref) creates an object with type
 [`ReconstructedStates`](@ref). Several extractors can be applied to it:
 ```@repl tree_trait
 expectations(ancTrait1) # predictions
-using StatsBase # for stderr(), aic(), likelihood() etc.
-stderr(ancTrait1) # associated standard errors
+using StatsBase # for stderror(), aic(), likelihood() etc.
+stderror(ancTrait1) # associated standard errors
 predint(ancTrait1, level=0.9) # prediction interval (with level 90%)
 ```
 We can plot the ancestral states or prediction intervals on the tree, using the
 `nodeLabel` argument of the `plot` function.
 ```@example tree_trait
 ancExpe = expectationsPlot(ancTrait1); # format expected ancestral states for the plot
-R"svg(name(\"ancestral_expe.svg\"), width=8, height=4)" # hide
+R"svg(name('ancestral_expe.svg'), width=8, height=4)" # hide
 R"par(mar = c(0, 0, 0, 0))" # hide
-plot(truenet, :R, nodeLabel = ancExpe)
+plot(truenet, :R, nodeLabel = ancExpe);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -157,9 +162,9 @@ nothing # hide
 
 ```@example tree_trait
 ancInt = predintPlot(ancTrait1) # format the prediction intervals for the plot
-R"svg(name(\"ancestral_predint.svg\"), width=8, height=4)" # hide
+R"svg(name('ancestral_predint.svg'), width=8, height=4)" # hide
 R"par(mar = c(0, 0, 0, 0))" # hide
-plot(truenet,:R, nodeLabel = ancInt)
+plot(truenet,:R, nodeLabel = ancInt);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -170,11 +175,11 @@ the `level` of the prediction interval. If not given, the default value is
 0.95.
 
 It is also possible to plot both the reconstructed state and the predicted value
-on the same plot, using the optional keywork argument `withExp`.
+on the same plot, using the optional keyword argument `withExp`.
 As shown below, we could also use the `:RCall` method from the
 [`plot`](https://cecileane.github.io/PhyloPlots.jl/latest/lib/public/) function.
 ```@example tree_trait
-plot(truenet, :R, nodeLabel = predintPlot(ancTrait1, withExp=true))
+plot(truenet, :R, nodeLabel = predintPlot(ancTrait1, withExp=true));
 nothing # hide
 ```
 These plots tend to be quite busy, even for small networks.
@@ -208,9 +213,9 @@ parameters, so they are less accurate and the function throws a warning.
 The output is an object of the same [`ReconstructedStates`](@ref) type as earlier,
 and the same extractors can be applied to it:
 ```@example tree_trait
-R"svg(name(\"ancestral1.svg\"), width=8, height=4)" # hide
+R"svg(name('ancestral1.svg'), width=8, height=4)" # hide
 R"par(mar = c(0, 0, 0, 0))" # hide
-plot(truenet, :R, nodeLabel = expectationsPlot(ancTrait1Approx))
+plot(truenet, :R, nodeLabel = expectationsPlot(ancTrait1Approx));
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -226,9 +231,9 @@ ancTrait1Approx = ancestralStateReconstruction(datTrait1, truenet)
 nothing # hide
 ```
 ```@example tree_trait
-R"svg(name(\"ancestral2.svg\"), width=8, height=4)" # hide
+R"svg(name('ancestral2.svg'), width=8, height=4)" # hide
 R"par(mar = c(0, 0, 0, 0))" # hide
-plot(truenet, :R, nodeLabel = predintPlot(ancTrait1Approx, level=0.9))
+plot(truenet, :R, nodeLabel = predintPlot(ancTrait1Approx, level=0.9));
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -251,9 +256,9 @@ ancTrait1Approx = ancestralStateReconstruction(datTrait1, truenet)
 nothing # hide
 ```
 ```@example tree_trait
-R"svg(name(\"ancestral3.svg\"), width=8, height=4)" # hide
+R"svg(name('ancestral3.svg'), width=8, height=4)" # hide
 R"par(mar = c(0, 0, 0, 0))" # hide
-plot(truenet, :R, nodeLabel = predintPlot(ancTrait1Approx))
+plot(truenet, :R, nodeLabel = predintPlot(ancTrait1Approx));
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -285,9 +290,9 @@ ancTrait3 = ancestralStateReconstruction(fitTrait3,
 nothing # hide
 ```
 ```@example tree_trait
-R"svg(name(\"ancestral4.svg\"), width=8, height=4)" # hide
+R"svg(name('ancestral4.svg'), width=8, height=4)" # hide
 R"par(mar = c(0, 0, 0, 0))" # hide
-plot(truenet, :R, nodeLabel = predintPlot(ancTrait3))
+plot(truenet, :R, nodeLabel = predintPlot(ancTrait3));
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -324,8 +329,10 @@ underHyb
 for i in 1:length(trait3)
     underHyb[i] && (trait3[i]+=delta) # add delta to tips A and B
 end
-trait3 # changed: +5 was added by the previous loop to A and B
 nothing # hide
+```
+```@repl tree_trait
+trait3 # changed: +5 was added by the previous loop to A and B
 ```
 The categorical variable `underHyb` separates tips "A" and "B" from the others.
 We need to mark it as a factor, not a numerical variable, i.e. as a `PooledDataArray`.
@@ -335,6 +342,9 @@ dat = DataFrame(trait1 = trait1, trait2 = trait2, trait3 = trait3,
                 tipNames = tipLabels(sim1))
 categorical!(dat, :underHyb)
 nothing # hide
+```
+```@repl tree_trait
+dat
 ```
 Now we can include this factor in the regression.
 ```@example tree_trait
@@ -372,7 +382,7 @@ fitPagel = phyloNetworklm(@formula(trait1 ~ 1), dat, truenet, model="lambda")
 As it is indeed generated according to a plain BM on the phylogeny, the
 estimated λ should be close to 1. It can be extracted with function
 `lambda_estim`:
-```@example tree_trait
+```@repl tree_trait
 lambda_estim(fitPagel)
 ```
 
@@ -384,7 +394,7 @@ lambda_estim(fitPagel)
 
 In the ANOVA section above, we showed how to include transgressive evolution
 in a simple case.
-In general, transgressive evolution can be seen as a particuliar exemple
+In general, transgressive evolution can be seen as a particular example
 of a *shifted BM* on the phylogenetic network.
 
 ### Simulation of a Shifted BM
@@ -397,9 +407,9 @@ branches. The position of the shifts can be given using vector of edges.
 To see this, let's first plot the network with its associated edges and node
 numbers.
 ```@example tree_trait
-R"svg(name(\"truenet_with_numbers.svg\"), width=8, height=4)" # hide
+R"svg(name('truenet_with_numbers.svg'), width=8, height=4)" # hide
 R"par(mar = c(0, 0, 0, 0))" # hide
-plot(truenet, :R, useEdgeLength=true, showEdgeNumber=true)
+plot(truenet, :R, useEdgeLength=true, showEdgeNumber=true);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -464,11 +474,17 @@ fit_sh = phyloNetworklm(@formula(trait ~ shift_6), dat, truenet) # fit
 ```
 Here, because there is only one hybrid in the network, we can directly
 see whether the ancestral transgressive evolution is significant or not thanks to the
-Student test on the coefficient associated with `shift_6`. In more
-complex cases, it is possible to do a Fisher test, thanks to the `GLM`
+Student T test on the coefficient associated with `shift_6`. In more
+complex cases, it is possible to do a Fisher F test, thanks to the `GLM`
 function `ftest`.
 ```@example tree_trait
 fit_null = phyloNetworklm(@formula(trait ~ 1), dat, truenet) # fit against the null (no shift)
 ftest(fit_sh, fit_null)                                      # nested models, from more complex to most simple
 ```
-Here, this test is equivalent to the Fisher test, and gives the same p-value.
+Here, this test is equivalent to the Fisher F test, and gives the same p-value.
+
+Note that, for conventional reasons, the `ftest` function always takes the
+*most complex* model as the first one. This means that, in the table of
+results, the models are actually named in a reverse order, so that "Model 2" is
+actually our model under H<sub>0</sub> (null model), and "Model 1" the one under H<sub>1</sub>
+(model with shifts).
