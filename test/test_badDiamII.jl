@@ -14,19 +14,21 @@ else
     CHECKNET || error("need CHECKNET==true to test snaq in test_correctLik.jl")
 end
 
+@testset "test: bad diamond, max pseudo lik" begin
+
 tree = "(6,(5,#H7:0.0):9.970714072991349,(3,(((2,1):0.2950382234364404,4):0.036924483697671304)#H7:0.00926495670648208):1.1071489442240392);"
 net = readTopologyLevel1(tree);
 checkNet(net)
 #printNodes(net)
 #printEdges(net)
-net.node[10].number == 3 || error("wrong hybrid")
-net.node[10].hybrid || error("does not know it is hybrid")
-net.node[10].isBadDiamondII || error("does not know it is bad diamond II")
+@test net.node[10].number == 3 # or: wrong hybrid
+@test net.node[10].hybrid # or: does not know it is hybrid
+@test net.node[10].isBadDiamondII # or: does not know it is bad diamond II
 ##plot(net,showEdgeNumber=true)
-[e.inCycle for e in net.edge] == [-1,-1,3,3,-1,-1,-1,-1,-1,-1,3,3] || error("error in incycle")
-[e.containRoot for e in net.edge] == [true,true,false,true,true,false,false,false,false,false,false,true] || error("error in contain root")
-[e.istIdentifiable for e in net.edge] == [false,false,true,true,false,false,false,true,false,false,true,true] || error("istIdentifiable not correct")
-(net.edge[3].hybrid && net.edge[11].hybrid) || error("hybrid edges wrong")
+@test [e.inCycle for e in net.edge] == [-1,-1,3,3,-1,-1,-1,-1,-1,-1,3,3] # or: error in incycle
+@test [e.containRoot for e in net.edge] == [true,true,false,true,true,false,false,false,false,false,false,true] # or: error in contain root
+@test [e.istIdentifiable for e in net.edge] == [false,false,true,true,false,false,false,true,false,false,true,true] # or: istIdentifiable not correct
+@test (net.edge[3].hybrid && net.edge[11].hybrid) # or: hybrid edges wrong")
 
 df=DataFrame(t1=["1","1","2","2","1","2","2","2","2","2","1","2","2","3","2"],
              t2=["3","3","3","3","3","1","5","1","1","1","5","1","1","5","3"],
@@ -38,14 +40,27 @@ df[:CF1423] = 1-df[:CF1234]-df[:CF1324]
 d = readTableCF(df)
 
 net2 = topologyMaxQPseudolik!(net,d, ftolRel=1e-5,ftolAbs=1e-6,xtolRel=1e-3,xtolAbs=1e-4)
-340 < net2.loglik < 340.5 || error("wrong loglik")
-net2.edge[3].istIdentifiable || error("wrong hybrid is t identifiable")
-9.95 < net2.edge[3].length < 9.99 || error("wrong bl estimated")
-net2.edge[11].istIdentifiable || error("wrong hybrid is t identifiable")
-net2.edge[11].length < 0.01 || error("wrong bl estimated")
-net2.edge[10].length == 0 || error("tree edge in bad diamond II not 0")
+@test 340 < net2.loglik < 340.5 # or: wrong loglik
+@test net2.edge[3].istIdentifiable # or: wrong hybrid is t identifiable
+@test 9.95 < net2.edge[3].length < 9.99 # or: wrong bl estimated
+@test net2.edge[11].istIdentifiable # or: wrong hybrid is t identifiable
+@test net2.edge[11].length < 0.01 # or: wrong bl estimated
+@test net2.edge[10].length == 0 # or: tree edge in bad diamond II not 0
 #printEdges(net2)
 
+@test_nowarn show(DevNull, net2)
+@test_nowarn [show(DevNull, net2.node[i]) for i in [1,3,10]];
+@test_nowarn [show(DevNull, net2.edge[i]) for i in [1,3,11]];
+@test_nowarn show(DevNull, d)
+@test_nowarn show(DevNull, d.quartet[1])
+@test_nowarn show(DevNull, d.quartet[1].qnet)
+@test tipLabels(d.quartet) == ["1","2","3","4","5","6"]
+a = (@test_nowarn fittedQuartetCF(d, :wide));
+@test size(a) == (15,10)
+a = (@test_nowarn fittedQuartetCF(d, :long));
+@test size(a) == (45,7)
+
+end
 
 ## testing readTopology----------------------------------------------------------------
 ## will remove this from the test because readTopology should not have to worry about istIdentifiable

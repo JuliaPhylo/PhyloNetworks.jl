@@ -3,18 +3,18 @@ runall = false;
 @testset "Testing Substitution Models, P and Q matrices" begin
 
 m1 = BinaryTraitSubstitutionModel(1.0, 2.0);
-show(m1)
+@test_nowarn show(DevNull, m1)
 m1 = BinaryTraitSubstitutionModel(1.0,2.0, SVector("carnivory", "non-carnivory"));
 @test nStates(m1)==2
-show(m1)
+@test_nowarn show(DevNull, m1)
 @test_throws ErrorException PhyloNetworks.BinaryTraitSubstitutionModel(-1.0,2.0)
 m2 = EqualRatesSubstitutionModel(4, 3.0);
 @test nStates(m2)==4
 m2 = EqualRatesSubstitutionModel(4, 3.0, ["S1","S2","S3","S4"]);
-show(m2)
+@test_nowarn show(DevNull, m2)
 m3 = TwoBinaryTraitSubstitutionModel([2.0,1.2,1.1,2.2,1.0,3.1,2.0,1.1],
 ["carnivory", "noncarnivory", "wet", "dry"]);
-show(m3)
+@test_nowarn show(DevNull, m3)
 
 @test Q(m1) == SMatrix{2,2}(-1.0, 2.0, 1.0, -2.0)
 @test Q(m2) == SMatrix{4,4}(-9.0, 3, 3, 3, 3, -9, 3, 3, 3, 3, -9, 3, 3, 3, 3, -9)

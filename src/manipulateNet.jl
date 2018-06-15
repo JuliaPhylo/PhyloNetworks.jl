@@ -501,13 +501,18 @@ end
 ## Topological sorting
 #################################################
 
-# function to get all parent nodes of a given node
-# it assumes the isChild1 attributes are correct
-function getParents(node::Node)
+"""
+getParents(n::Node)
+
+Get vector of all parent nodes of `n`, based on `isChild1` field (for edges).
+To get the parent node of an edge: see [`getParent`](@ref).
+"""
+# getParent defined (inlined) in auxiliary.jl
+@inline function getParents(node::Node)
     parents = Node[]
     for e in node.edge
-            if(isEqual(node,e.isChild1 ? e.node[1] : e.node[2])) #node is child of e
-                push!(parents,getOtherNode(e,node))
+            if node == getChild(e)
+                push!(parents, getParent(e))
             end
     end
     return parents
@@ -724,7 +729,7 @@ of all levels.
 #   on which parameters in the full network affect the quartet.
 # deleteIntLeaf! somewhat similar to fuseedgesat!
 function deleteleaf!(net::HybridNetwork, node::Node; simplify=true::Bool)
-    node.leaf || error("node number $(net.node[i].number) is not a leaf.")
+    node.leaf || error("node number $(node.number) is not a leaf.")
     deleteleaf!(net, node.number, index=false, simplify=simplify)
 end
 

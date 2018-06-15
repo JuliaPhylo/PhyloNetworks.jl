@@ -44,6 +44,7 @@ function Base.show(io::IO, obj::MatrixTopologicalOrder)
     println(io, "$(typeof(obj)):\n$(obj.V)")
 end
 
+# docstring already in descriptive.jl
 function tipLabels(obj::MatrixTopologicalOrder)
     return obj.tipNames
 end
@@ -841,10 +842,7 @@ function Base.show(io::IO, obj::TraitSimulation)
     println(io, disp)
 end
 
-"""
-`tipLabels(obj::TraitSimulation)`
-returns a vector of taxon names (at the leaves) for a simulated object.
-"""
+# docstring already in descriptive.jl
 function tipLabels(obj::TraitSimulation)
     return tipLabels(obj.M)
 end

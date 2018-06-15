@@ -169,10 +169,12 @@ Return child node using the `isChild1` attribute of the edge.
 end
 
 """
-    getParent(edge::Edge)
+    getParent(e::Edge)
 
-Return parent node using the `isChild1` attribute of the edge.
+Return parent node of edge `e` using the `isChild1` attribute of the edge.
+To get parents of nodes: see [`getParents`](@ref).
 """
+# getParents defined in manipulateNet.jl
 @inline function getParent(edge::Edge)
     edge.node[edge.isChild1 ? 2 : 1]
 end
@@ -213,7 +215,9 @@ end
 
 Return major or minor parent of a node using the `isChild1` field of edges
 (and assuming correct `isMajor` field).
+See also [`getMajorParentEdge`](@ref) and [`getMinorParentEdge`](@ref)
 """
+# get[Major|Minor]ParentEdge and getChildren: defined in manipulateNet.jl
 @inline function getMajorParent(node::Node)
     for e in node.edge
         if e.isMajor && node == getChild(e)
@@ -670,7 +674,7 @@ function printEdges(net::HybridNetwork)
         s *= "$(e.inCycle)\t$(e.containRoot)\t\t$(e.istIdentifiable)\t\t"
         s *= "$(e.length==-1.0 ? miss : round(e.length,2))\t$(e.hybrid)\t\t"
         s *= "$(e.gamma ==-1.0 ? miss : round(e.gamma,4))\t$(e.isMajor)"
-        println()
+        println(s)
     end
 end
 

@@ -82,13 +82,13 @@ function whichtest(t::String,net::HybridNetwork)
 end
 
 for t in tests
-    println("running $(t)")
+    #println("running $(t)")
     net = nothing;
     tree = whichtree(t)
     net = readTopologyLevel1(tree);
-    println("---- Case $(t)")
-    println("$(net.ht)")
-    println("$(net.numht)")
+    #println("---- Case $(t)")
+    #println("$(net.ht)")
+    #println("$(net.numht)")
     try
         whichtest(t,net)
     catch
@@ -98,20 +98,4 @@ for t in tests
     end
 end
 
-
-
-if(!isempty(wrong))
-    ## for t in wrong
-    ##     println("running $(t)")
-    ##     net = nothing;
-    ##     tree = whichtree(t)
-    ##     f = open("prueba_tree.txt","w")
-    ##     write(f,tree)
-    ##     close(f)
-    ##     net = readTopologyUpdate("prueba_tree.txt");
-    ##     whichtest(t,net)
-    ## end
-    throw("errors in parameters")
-else
-    #println("----------NO ERRORS!----------");
-end
+@test isempty(wrong)

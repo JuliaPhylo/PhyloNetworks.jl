@@ -3,7 +3,7 @@
 # Cecile March 2016
 
 if !isdefined(:doalltests) doalltests = false; end
-
+@testset "test sets: compareNetworks" begin
 #----------------------------------------------------------#
 #   testing functions to delete edges and nodes            #
 #----------------------------------------------------------#
@@ -391,3 +391,5 @@ for i = 1:16
   @test hardwiredCluster(net5.edge[i], taxa) == m[:,i]
 end
 end # of testset, hardwiredCluster! on single nodes
+
+end

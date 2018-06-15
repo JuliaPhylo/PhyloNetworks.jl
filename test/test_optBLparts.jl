@@ -17,9 +17,9 @@ extractQuartet!(net,d)
 oldht = net.ht
 
 x = [0.3,1.0,1.5,2.0]
-error = false
+err = false
 
-println("x is $(x) all changed-----------")
+#println("x is $(x) all changed-----------")
 
 try
     update!(q1.qnet,x,net)
@@ -46,7 +46,7 @@ try
     update!(net,x)
     net.ht == x || ("net.ht not correctly changed to x with update")
 catch
-    error = true
+    err = true
 end
 
 for q in d.quartet
@@ -56,7 +56,7 @@ update!(net,oldht)
 
 
 x = [0.1,0.2,0.1,2.0] # changing t9 only
-println("x is $(x) changing t9 only-----------")
+#println("x is $(x) changing t9 only-----------")
 
 try
     update!(q1.qnet,x,net)
@@ -83,7 +83,7 @@ try
     update!(net,x)
     net.ht == x || error("net.ht not correctly changed to x with update")
 catch
-    error = true
+    err = true
 end
 
 for q in d.quartet
@@ -92,7 +92,7 @@ end
 update!(net,oldht)
 
 x = [0.3,0.2,0.1,2.0] # changing gamma and t9 only
-println("x is $(x) changing gamma and t9 only-----------")
+#println("x is $(x) changing gamma and t9 only-----------")
 
 try
     update!(q1.qnet,x,net)
@@ -119,7 +119,7 @@ try
     update!(net,x)
     net.ht == x || error("net.ht not correctly changed to x with update")
 catch
-    error = true
+    err = true
 end
 
 for q in d.quartet
@@ -130,7 +130,7 @@ update!(net,oldht)
 
 # ---- calculateExpCF
 x = [0.3,0.2,0.1,2.0] # changing gamma and t9 only
-println("---- calculate expCF for $(x)")
+#println("---- calculate expCF for $(x)")
 try
     calculateExpCFAll!(d,x,net)
     reduce(&,map(approxEq,q1.qnet.expCF,[(1-x[1])/3*exp(-x[2])+x[1]/3*exp(-x[2]-x[3]-x[4]),(1-x[1])*(1-2/3*exp(-x[2]))+x[1]*(1-2/3*exp(-x[2]-x[3]-x[4])),
@@ -142,12 +142,12 @@ try
     reduce(&,map(approxEq,q5.qnet.expCF,[(1-x[1])/3*exp(-x[2])+x[1]/3*exp(-x[2]-x[3]),(1-x[1])*(1-2/3*exp(-x[2]))+x[1]*(1-2/3*exp(-x[2]-x[3])),
                                     (1-x[1])/3*exp(-x[2])+x[1]/3*exp(-x[2]-x[3])])) || error("q5 expCF wrong")
 catch
-    error = true
+    err = true
 end
 
 #logPseudoLik(d)
 
-if(!error)
+if !err
     #println("-------------Case G: NO ERRORS!------------")
 else
     globalerror = true
@@ -169,9 +169,9 @@ extractQuartet!(net,d)
 oldht = net.ht
 
 x = [0.4,0.2,0.1]
-error = false
+err = false
 
-println("x is $(x) all changed-----------")
+#println("x is $(x) all changed-----------")
 
 try
     update!(q1.qnet,x,net)
@@ -196,7 +196,7 @@ try
     update!(net,x)
     net.ht == x || ("net.ht not correctly changed to x with update")
 catch
-    error = true
+    err = true
 end
 
 for q in d.quartet
@@ -206,7 +206,7 @@ update!(net,oldht)
 
 
 x = [0.1,0.2,0.1] # changing gammaz1, gammaz2 only
-println("x is $(x) changing gammaz1, gammaz2 only-----------")
+#println("x is $(x) changing gammaz1, gammaz2 only-----------")
 
 try
     update!(q1.qnet,x,net)
@@ -231,7 +231,7 @@ try
     update!(net,x)
     net.ht == x || error("net.ht not correctly changed to x with update")
 catch
-    error = true
+    err = true
 end
 
 for q in d.quartet
@@ -242,7 +242,7 @@ update!(net,oldht)
 
 # ---- calculateExpCF
 x = [0.3,0.2,0.1]
-println("---- calculate expCF for $(x)")
+#println("---- calculate expCF for $(x)")
 try
     calculateExpCFAll!(d,x,net)
     reduce(&,map(approxEq,q1.qnet.expCF,[(1-x[2]-x[3])/3,(1+2*x[2]-x[3])/3,(1-x[2]+2*x[3])/3])) || error("q1 expCF wrong")
@@ -252,12 +252,12 @@ try
     reduce(&,map(approxEq,q5.qnet.expCF,[(1-x[2]-x[3])/3,(1+2*x[2]-x[3])/3,(1-x[2]+2*x[3])/3])) || error("q5 expCF wrong")
 
 catch
-    error = true
+    err = true
 end
 
 #logPseudoLik(d)
 
-if(!error)
+if !err
     #println("-------------Case F: NO ERRORS!------------")
 else
     globalerror = true
@@ -279,9 +279,9 @@ extractQuartet!(net,d)
 oldht = net.ht
 
 x = [0.2,0.2,0.1,0.1,0.1]
-error = false
+err = false
 
-println("x is $(x) all changed-----------")
+#println("x is $(x) all changed-----------")
 
 try
     update!(q1.qnet,x,net)
@@ -309,7 +309,7 @@ try
     update!(net,x)
     net.ht == x || ("net.ht not correctly changed to x with update")
 catch
-    error = true
+    err = true
 end
 
 for q in d.quartet
@@ -318,9 +318,9 @@ end
 update!(net,oldht)
 
 x = [0.1,0.2,1.,1.,1.] # changing t3 only
-error = false
+err = false
 
-println("x is $(x) changing t3 only-----------")
+#println("x is $(x) changing t3 only-----------")
 
 try
     update!(q1.qnet,x,net)
@@ -348,7 +348,7 @@ try
     update!(net,x)
     net.ht == x || ("net.ht not correctly changed to x with update")
 catch
-    error = true
+    err = true
 end
 
 for q in d.quartet
@@ -360,7 +360,7 @@ update!(net,oldht)
 
 # ---- calculateExpCF
 x = [0.2,0.2,0.1,0.1,0.1]
-println("---- calculate expCF for $(x)")
+#println("---- calculate expCF for $(x)")
 try
     calculateExpCFAll!(d,x,net)
     reduce(&,map(approxEq,q1.qnet.expCF,[(1-x[1])*(1/3*exp(-x[3]))+x[1]*(1-2/3*exp(-x[4])),(1-x[1])*(1-2/3*exp(-x[3]))+x[1]*(1/3*exp(-x[4])),(1-x[1])*(1/3*exp(-x[3]))+x[1]*(1/3*exp(-x[4]))])) || error("q1 expCF wrong")
@@ -373,19 +373,15 @@ try
     reduce(&,map(approxEq,q5.qnet.expCF,[(1-x[1])*(1/3*exp(-x[3]))+x[1]*(1-2/3*exp(-x[4])),(1-x[1])*(1-2/3*exp(-x[3]))+x[1]*(1/3*exp(-x[4])),(1-x[1])*(1/3*exp(-x[3]))+x[1]*(1/3*exp(-x[4]))])) || error("q5 expCF wrong")
 
 catch
-    error = true
+    err = true
 end
 
 #logPseudoLik(d)
 
-if(!error)
+if !err
     #println("-------------Case I: NO ERRORS!------------")
 else
     globalerror = true
 end
 
-if(!globalerror)
-    #println("-------- NO ERRORS!-------------")
-else
-    throw("errors in optBLparts")
-end
+@test !globalerror

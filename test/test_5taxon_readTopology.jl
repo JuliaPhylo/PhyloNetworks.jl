@@ -48,7 +48,7 @@ end
 
 
 for t in tests
-    println("running $(t)")
+    #println("running $(t)")
     net = nothing;
     tree = whichtree(t)
     net = readTopologyLevel1(tree);
@@ -155,12 +155,4 @@ end
 ##     println("----------NO ERRORS!----------");
 ## end
 
-if(!isempty(wrong))
-    throw("error in read topology")
-else
-    #println("----------NO ERRORS!----------");
-end
-
-
-
-
+@test isempty(wrong)
