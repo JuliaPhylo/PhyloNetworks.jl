@@ -312,7 +312,8 @@ function parsimonySoftwired(net::HybridNetwork, species=Array{String},
         mpscoreSwitchings = Array{Float64}(2^nhyb, nchari) # grabs memory
         # fixit: move that outside to avoid grabbing memory over and over again
         iswitch = 0
-        for switching in IterTools.product([[true, false] for i=1:nhyb]...)
+        perms = nhyb == 0 ? [()] : Iterators.product([[true, false] for i=1:nhyb]...)
+        for switching in perms
             # next: modify the `fromBadDiamondI` of hybrid edges in the blob:
             # switching[h] = pick the major parent of hybrid h if true, pick minor if false
             iswitch += 1
@@ -578,7 +579,9 @@ function parsimonyGF(net::HybridNetwork, species=Array{String},
         nhyb = length(majorEdges[bcnumber])
         #println("site $isite, r.number = $(r.number), nhyb=$(nhyb)")
         firstguess = true
-        for guesses in IterTools.product([1:nchari for i=1:length(guessedparent[bcnumber])]...)
+        gplen = length(guessedparent[bcnumber])
+        perms = gplen == 0 ? [()] : Iterators.product([1:nchari for i=1:gplen]...)
+        for guesses in perms
             #@show guesses
             for pind in 1:nhyb
                 p = guessedparent[bcnumber][pind] # detached parent of hybrid with index pind in blob number pcnumber
