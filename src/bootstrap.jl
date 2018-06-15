@@ -1025,7 +1025,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
         if keepc[h]  rowh += 1; end
     end
     insert!(resNode, 10, resNode[:BS_hybrid]+resNode[:BS_sister], :BS_all)
-    sort!(resNode, cols=[:BS_all,:BS_hybrid], rev=true)
+    sort!(resNode, [:BS_all,:BS_hybrid]; rev=true)
     delete!(resNode, :BS_all)
     # edge summaries
     resEdge = DataFrame(edge = Vector{Union{Int, Missing}}(length(hybcladei)),
