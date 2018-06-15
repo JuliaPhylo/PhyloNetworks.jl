@@ -1038,7 +1038,7 @@ Regression object for a phylogenetic regression. Result of fitting function [`ph
 Dominated by the `LinPredModel` class, from package `GLM`.
 
 The following StatsBase functions can be applied to it:
-`coef`, `nobs`, `vcov`, `stderr`, `confint`, `coeftable`, `dof_residual`, `dof`, `deviance`,
+`coef`, `nobs`, `vcov`, `stderror`, `confint`, `coeftable`, `dof_residual`, `dof`, `deviance`,
 `residuals`, `model_response`, `predict`, `loglikelihood`, `nulldeviance`, `nullloglikelihood`,
 `r2`, `adjr2`, `aic`, `aicc`, `bic`.
 
@@ -1413,7 +1413,7 @@ julia> round(sigma2_estim(fitBM), 6) # rounding for jldoctest convenience
 julia> round(mu_estim(fitBM), 4)
 4.679
 
-julia> using StatsBase # for aic() stderr() loglikelihood() etc.
+julia> using StatsBase # for aic() stderror() loglikelihood() etc.
 
 julia> round(loglikelihood(fitBM), 10)
 -78.9611507833
@@ -1586,13 +1586,17 @@ end
 StatsBase.coef(m::PhyloNetworkLinearModel) = coef(m.lm)
 # Number of observations
 StatsBase.nobs(m::PhyloNetworkLinearModel) = nobs(m.lm)
-# vcov matrix
+# vcov matrix: sigma2_estim * inv(X' * X)
 StatsBase.vcov(m::PhyloNetworkLinearModel) = vcov(m.lm)
-# Standart error
-StatsBase.stderr(m::PhyloNetworkLinearModel) = stderr(m.lm)
-# Confidence Intervals
+# standard error of coefficients: sqrt(diag(vcov))
+StatsBase.stderror(m::PhyloNetworkLinearModel) = stderror(m.lm)
+# confidence Intervals for coefficients:
+#  hcat(coef,coef) + stderror * quantile(TDist(dof_residual, (1.-level)/2.) * [1. -1.]
 StatsBase.confint(m::PhyloNetworkLinearModel; level=0.95::Real) = confint(m.lm, level)
-# coef table (coef, stderr, confint)
+# coef table: t-values t=coef/se
+#    CoefTable(hcat(coef,se,t,ccdf(FDist(1, dof_residual), abs2(t))),
+#              ["Estimate","Std.Error","t value", "Pr(>|t|)"],
+#              ["x$i" for i = 1:size(X, 2)], 4)
 function StatsBase.coeftable(m::PhyloNetworkLinearModel)
     if size(m.lm.pp.X, 2) == 0
         return CoefTable([0], ["Fixed Value"], ["(Intercept)"])
@@ -1624,6 +1628,7 @@ StatsBase.model_response(m::PhyloNetworkLinearModel) = m.Y
 StatsBase.predict(m::PhyloNetworkLinearModel) = m.RL * predict(m.lm)
 #Log likelihood of the fitted linear model
 StatsBase.loglikelihood(m::PhyloNetworkLinearModel) =  loglikelihood(m.lm) - 1/2 * m.logdetVy
+# - 0.5*(nobs + nobs * log(2pi) + nobs * log(sigma2_estim) + logdetVy)
 # Null  Deviance (sum of squared residuals with metric V)
 # REMARK Not just the null deviance of the cholesky regression
 # Might be something better to do than this, though.
@@ -1736,33 +1741,6 @@ function Base.show(io::IO, model::StatsModels.DataFrameRegressionModel{PhyloNetw
     println(io, "AIC: "*"$(round(aic(model), 10))")
 end
 
-
-## Deprecated
-# function StatsBase.vcov(obj::PhyloNetworkLinearModel)
-#    sigma2_estim(obj) * inv(obj.X' * obj.X)
-# end
-#function StatsBase.vcov(obj::phyloNetworkLinPredModel)
-#   sigma2_estim(obj) * inv(obj.X' * obj.X)
-#end
-#StatsBase.stderr(m::phyloNetworkLinPredModel) = sqrt(diag(vcov(m)))
-# Confidence intervals on coeficients
-# function StatsBase.confint(obj::PhyloNetworkLinearModel, level=0.95::Real)
-#     hcat(coef(obj),coef(obj)) + stderr(obj) *
-#     quantile(TDist(dof_residual(obj)), (1. - level)/2.) * [1. -1.]
-# end
-# Log likelihood of the fitted BM
-# StatsBase.loglikelihood(m::PhyloNetworkLinearModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2_estim(m)) + m.logdetVy)
-#StatsBase.loglikelihood(m::phyloNetworkLinPredModel) = - 1 / 2 * (nobs(m) + nobs(m) * log(2 * pi) + nobs(m) * log(sigma2_estim(m)) + m.logdetVy)
-# Coefficients
-# function StatsBase.coeftable(mm::PhyloNetworkLinearModel)
-#     cc = coef(mm)
-#     se = stderr(mm)
-#     tt = cc ./ se
-#     CoefTable(hcat(cc,se,tt,ccdf(FDist(1, dof_residual(mm)), abs2(tt))),
-#               ["Estimate","Std.Error","t value", "Pr(>|t|)"],
-#               ["x$i" for i = 1:size(mm.lm.pp.X, 2)], 4)
-# end
-
 ###############################################################################
 ###############################################################################
 ## Anova - using ftest from GLM - Need version 0.8.1
@@ -1840,7 +1818,7 @@ Type containing the inferred information about the law of the ancestral states
 given the observed tips values. The missing tips are considered as ancestral states.
 
 The following functions can be applied to it:
-[`expectations`](@ref) (vector of expectations at all nodes), `stderr` (the standard error),
+[`expectations`](@ref) (vector of expectations at all nodes), `stderror` (the standard error),
 `predint` (the prediction interval).
 
 The `ReconstructedStates` object has fields: `traits_nodes`, `variances_nodes`, `NodeNumbers`, `traits_tips`, `tipNumbers`, `model`.
@@ -1897,7 +1875,7 @@ function expectationsPlot(obj::ReconstructedStates; markMissing="*"::AbstractStr
     return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], PredInt = expetxt)
 end
 
-StatsBase.stderr(obj::ReconstructedStates) = sqrt.(diag(obj.variances_nodes))
+StatsBase.stderror(obj::ReconstructedStates) = sqrt.(diag(obj.variances_nodes))
 
 """
 `predint(obj::ReconstructedStates; level=0.95::Real)`
@@ -1910,7 +1888,7 @@ function predint(obj::ReconstructedStates; level=0.95::Real)
         qq = quantile(GLM.TDist(dof_residual(obj.model)), (1. - level)/2.) # TDist from Distributions
         # warn("As the variance is estimated, the predictions intervals are not exact, and should probably be larger.")
     end
-    tmpnode = hcat(obj.traits_nodes, obj.traits_nodes) + stderr(obj) * qq * [1. -1.]
+    tmpnode = hcat(obj.traits_nodes, obj.traits_nodes) + stderror(obj) * qq * [1. -1.]
     return vcat(tmpnode, hcat(obj.traits_tips, obj.traits_tips))
 end
 

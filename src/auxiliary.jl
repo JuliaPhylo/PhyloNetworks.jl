@@ -650,9 +650,13 @@ function printEdges(net::QuartetNetwork)
 end
 
 """
-`printEdges(net::HybridNetwork)`
+    printEdges(net::HybridNetwork)
+    printEdges(qnet::QuartetNetwork)
 
-prints the information on the edges of net: edge number, node numbers of nodes attached to it, in which cycle it is contained (-1 if no cycle), can it contain root, is it an identifiable edge, length, is it hybrid, gamma value
+print information on the edges of a network: edge number, node numbers of nodes attached to it,
+in which cycle it is contained (-1 if no cycle), can it contain root,
+is it an identifiable edge (based on quartet concordance factors),
+length, is it a hybrid edge, gamma inheritance value
 """
 
 function printEdges(net::HybridNetwork)
@@ -662,7 +666,11 @@ function printEdges(net::HybridNetwork)
     miss = "NA"
     println("Edge\tNode1\tNode2\tInCycle\tcontainRoot\tistIdentitiable\tLength\tisHybrid\tGamma\tisMajor")
     for e in net.edge
-        println("$(e.number)\t$(e.node[1].number)\t$(e.node[2].number)\t$(e.inCycle)\t$(e.containRoot)\t\t$(e.istIdentifiable)\t\t$(e.length==-1? miss :round(e.length,2))\t$(e.hybrid)\t\t$(e.gamma == 1.0 && e.hybrid ? miss : round(e.gamma,4))\t$(e.isMajor)")
+        s  = "$(e.number)\t$(e.node[1].number)\t$(e.node[2].number)\t"
+        s *= "$(e.inCycle)\t$(e.containRoot)\t\t$(e.istIdentifiable)\t\t"
+        s *= "$(e.length==-1.0 ? miss : round(e.length,2))\t$(e.hybrid)\t\t"
+        s *= "$(e.gamma ==-1.0 ? miss : round(e.gamma,4))\t$(e.isMajor)"
+        println()
     end
 end
 
