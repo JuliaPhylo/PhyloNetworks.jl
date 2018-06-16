@@ -2,10 +2,18 @@
 # Claudia August 2015
 
 """
-`tipLabels(net::HybridNetwork)`
+    tipLabels(x)
 
-returns a vector of taxon names (at the leaves) from a HybridNetwork object
+
+Return a vector of taxon names at the leaves, for objects of various types:
+`HybridNetwork`,
+Vector of `HybridNetwork`s (in which case the union is taken then sorted),
+Vector of `Quartet`s, `DataCF`,
+`TraitSimulation`, `MatrixTopologicalOrder`.
+
+For a network, the taxon names are coerced to strings.
 """
+# see readData.jl and traits.jl
 function tipLabels(net::HybridNetwork)
     return String[l.name for l in net.leaf] # AbstractString does not work for use by tree2Matrix
 end

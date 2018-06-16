@@ -20,32 +20,32 @@ Q[i,j] is the rate of transitioning from state i to state j.
 Q(mod::TraitSubstitutionModel) = error("rate matrix Q not defined for $(typeof(mod)).")
 
 """
-    showQ(model)
+    showQ(IO, model)
 
 Print the Q matrix to the screen, with trait states as labels on rows and columns.
 adapted from prettyprint function by mcreel, found 2017/10 at
 https://discourse.julialang.org/t/display-of-arrays-with-row-and-column-names/1961/6
 """
-function showQ(object::TraitSubstitutionModel)
+function showQ(io::IO, object::TraitSubstitutionModel)
     M = Q(object)
     pad = max(8,maximum(length.(object.label))+1)
     for i = 1:size(M,2) # print the header
-        print(lpad(object.label[i],(i==1? 2*pad : pad), " "))
+        print(io, lpad(object.label[i],(i==1? 2*pad : pad), " "))
     end
-    print("\n")
+    print(io, "\n")
     for i = 1:size(M,1) # print one row per state
         if object.label != ""
-            print(lpad(object.label[i],pad," "))
+            print(io, lpad(object.label[i],pad," "))
         end
         for j = 1:size(M,2)
             if j == i
-                print(lpad("*",pad," "))
+                print(io, lpad("*",pad," "))
             else
                 fmt = "%$(pad).4f"
-                @eval(@printf($fmt,$(M[i,j])))
+                @eval(@printf($io,$fmt,$(M[i,j])))
             end
         end
-        print("\n")
+        print(io, "\n")
     end
 end
 
@@ -117,7 +117,7 @@ For a BinaryTraitSubstitutionModel, the rate matrix Q is of the form:
     return Bmatrix(-mod.rate[1], mod.rate[2], mod.rate[1], -mod.rate[2])
 end
 
-function show(io::IO, object::BinaryTraitSubstitutionModel)
+function Base.show(io::IO, object::BinaryTraitSubstitutionModel)
     str = "Binary Trait Substitution Model:\n"
     str *= "rate $(object.label[1])→$(object.label[2]) α=$(object.rate[1])\n"
     str *= "rate $(object.label[2])→$(object.label[1]) β=$(object.rate[2])\n"
@@ -211,9 +211,9 @@ function Q(mod::TwoBinaryTraitSubstitutionModel)
     return M
 end
 
-function show(io::IO, object::TwoBinaryTraitSubstitutionModel)
-    print("Substitution model for 2 binary traits, with rate matrix:\n")
-    showQ(object)
+function Base.show(io::IO, object::TwoBinaryTraitSubstitutionModel)
+    print(io, "Substitution model for 2 binary traits, with rate matrix:\n")
+    showQ(io, object)
 end
 
 """
@@ -236,12 +236,12 @@ mutable struct EqualRatesSubstitutionModel <: TraitSubstitutionModel
 end
 EqualRatesSubstitutionModel(k, α) = EqualRatesSubstitutionModel(k, α, string.(1:k))
 
-function show(io::IO, object::EqualRatesSubstitutionModel)
+function Base.show(io::IO, object::EqualRatesSubstitutionModel)
     str = "Equal Rates Substitution Model with k=$(object.k),\n"
     str *= "all rates equal to α=$(object.α).\n"
     str *= "rate matrix Q:\n"
     print(io, str)
-    showQ(object)
+    showQ(io, object)
 end
 
 function nStates(mod::EqualRatesSubstitutionModel)

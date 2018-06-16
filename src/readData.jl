@@ -395,6 +395,9 @@ end
 
 unionTaxaTree(file::AbstractString) = unionTaxa(readInputTrees(file))
 
+tipLabels(t::Vector{HybridNetwork}) = unionTaxa(t)
+tipLabels(q::Vector{Quartet}) = unionTaxa(q)
+tipLabels(d::DataCF) = unionTaxa(d.quartet)
 
 """
     calculateObsCFAll!(DataCF, taxa::Union{Vector{String}, Vector{Int}})

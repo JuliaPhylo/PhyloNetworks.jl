@@ -9,10 +9,10 @@ net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H
 ## Simulate a BM
 srand(17920921); # fix the seed
 pars = ParamsBM(1, 0.1); # params of a BM
-@show pars
+@test_nowarn show(DevNull, pars)
 
 sim = simulate(net, pars); # simulate according to a BM
-@show sim
+@test_nowarn show(DevNull, sim)
 
 # Extract simulated values
 traitsTips = sim[:Tips];
@@ -88,12 +88,12 @@ sh = ShiftNet(net.node[7], 3.0,  net)
 
 ## Test simulate
 pars = ParamsBM(1, 0.1, ShiftNet(net.edge[8], 3.0,  net)); # params of a BM
-@show pars
-@show pars.shift
+@test_nowarn show(DevNull, pars)
+@test_nowarn show(DevNull, pars.shift)
 
 srand(17920921); # fix the seed
 sim = simulate(net, pars); # simulate according to a BM
-@show sim
+@test_nowarn show(DevNull, sim)
 
 traitsTips = sim[:Tips];
 traitsNodes = sim[:InternalNodes];

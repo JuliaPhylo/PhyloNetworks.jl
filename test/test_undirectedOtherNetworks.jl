@@ -10,6 +10,11 @@ if(individualtest)
     include("../src/functions.jl")
 end
 
+@testset "test: move hybrid around cycle" begin
+net = readTopology("(((B)#H2,((C,#H2)S1,(A)S2)S3)S4);")
+@test_nowarn hybridatnode!(net, 7)
+@test_throws ErrorException hybridatnode!(net, 8)
+
 ## very important semicolon at the end because show changes containRoot
 net = readTopologyLevel1("(6,(((1,2):1.8702617089780738,(3,(4)#H7:0.042493238243074646::0.9015570666393798):10.0):10.0,(5,#H7:1.1830905092006163::0.09844293336062017):10.0):0.5);");
 out = "6"
@@ -101,12 +106,6 @@ otherNet2[4].hybrid[1].number == 5 && otherNet2[4].hybrid[2].number == -5 || err
 ##i=3
 ##plot(otherNet2[i])
 
-
-
-
 ## net = readTopologyLevel1("(Xgordoni,Xmeyeri,(Xcouchianus,(Xvariatus,(Xevelynae,((Xxiphidium,#H25:9.992::0.167):1.383,(Xmilleri,(Xandersi,(Xmaculatus,((((Xhellerii,(Xalvarezi,Xmayae):0.327):0.259,Xsignum):1.866,(Xclemenciae_F2,Xmonticolus):1.461):0.786,((((Xmontezumae,(Xnezahuacoyotl)#H26:0.247::0.807):0.372,((Xbirchmanni_GARC,Xmalinche_CHIC2):1.003,Xcortezi):0.454):0.63,((Xcontinens,Xpygmaeus):1.927,((Xnigrensis,Xmultilineatus):1.304,#H26:0.0::0.193):0.059):2.492):2.034)#H25:0.707::0.833):1.029):0.654):0.469):0.295):0.41):0.646):3.509):0.263);")
 
-
-
-
-
+end

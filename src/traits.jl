@@ -44,6 +44,7 @@ function Base.show(io::IO, obj::MatrixTopologicalOrder)
     println(io, "$(typeof(obj)):\n$(obj.V)")
 end
 
+# docstring already in descriptive.jl
 function tipLabels(obj::MatrixTopologicalOrder)
     return obj.tipNames
 end
@@ -841,10 +842,7 @@ function Base.show(io::IO, obj::TraitSimulation)
     println(io, disp)
 end
 
-"""
-`tipLabels(obj::TraitSimulation)`
-returns a vector of taxon names (at the leaves) for a simulated object.
-"""
+# docstring already in descriptive.jl
 function tipLabels(obj::TraitSimulation)
     return tipLabels(obj.M)
 end
@@ -2383,7 +2381,7 @@ function ancestralStateReconstruction(fr::AbstractDataFrame,
         error("""Besides one column labelled 'tipNames', the dataframe fr should have
               only one column, corresponding to the data at the tips of the network.""")
     end
-    f = Formula(nn[datpos][1], 1)
+    f = @eval(@formula($(nn[datpos][1]) ~ 1))
     reg = phyloNetworklm(f, fr, net; kwargs...)
     return ancestralStateReconstruction(reg)
 end

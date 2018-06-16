@@ -2,6 +2,7 @@ extrarun = false
 
 @testset "Testing parsimony score & reconstruction" begin
 
+@testset "Fitch" begin
 # on a tree:
 net = readTopology("(A,(B,(C,D)));")
 tips = Dict("A" => 0, "B" => 0, "C" => 1, "D" => 1)
@@ -29,7 +30,6 @@ score, states = PhyloNetworks.parsimonyDiscreteFitch(net, dat)
 @test score==1
 @test states==Dict(4=>Set([1]),-6=>Set([1]),-4=>Set([0]),
   -3=>Set([1]),2=>Set([0]),-2=>Set([1]),5=>Set([1]))
-
 end
 
 @testset "Testing Tarjan's biconnected components" begin
@@ -152,4 +152,5 @@ if extrarun
   small time reduction by storing the # of detached parents:
   4.908907 seconds (82.30 M allocations: 3.193 GiB, 9.78% gc time)
   """
+end
 end
