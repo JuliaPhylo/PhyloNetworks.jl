@@ -2381,7 +2381,7 @@ function ancestralStateReconstruction(fr::AbstractDataFrame,
         error("""Besides one column labelled 'tipNames', the dataframe fr should have
               only one column, corresponding to the data at the tips of the network.""")
     end
-    f = Formula(nn[datpos][1], 1)
+    f = @eval(@formula($(nn[datpos][1]) ~ 1))
     reg = phyloNetworklm(f, fr, net; kwargs...)
     return ancestralStateReconstruction(reg)
 end
