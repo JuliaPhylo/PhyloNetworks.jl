@@ -16,6 +16,8 @@ else
     CHECKNET || error("need CHECKNET==true to test snaq in test_correctLik.jl")
 end
 
+@testset "test: delete hybridization" begin
+
 tree = "(((((((1,2),3),4),5),(6,7)),(8,9)),10);"
 
 #seed = 2738
@@ -30,102 +32,104 @@ srand(seed);
 besttree = deepcopy(currT0);
 
 # ===== first hybridization ==========================
-println("starting first hybridization")
+@testset "first hybridization" begin
 success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
-success || error("not able to place first hybridization")
+@test success
 #printEdges(besttree)
 #printNodes(besttree)
-println(writeTopologyLevel1(besttree))
+@test_nowarn writeTopologyLevel1(besttree)
 net = deepcopy(besttree);
 # test contain root
-!net.edge[15].containRoot || error("edge 15 wrong contain Root")
-!net.edge[19].containRoot || error("edge 19 wrong contain Root")
-!net.edge[20].containRoot || error("edge 20 wrong contain Root")
+@test !net.edge[15].containRoot
+@test !net.edge[19].containRoot
+@test !net.edge[20].containRoot
 
 # test inCycle
-net.edge[12].inCycle == 11 || error("wrong incycle")
-net.edge[13].inCycle == 11 || error("wrong incycle")
-net.edge[16].inCycle == 11 || error("wrong incycle")
-net.edge[18].inCycle == 11 || error("wrong incycle")
-net.edge[19].inCycle == 11 || error("wrong incycle")
-net.edge[20].inCycle == 11 || error("wrong incycle")
+@test net.edge[12].inCycle == 11
+@test net.edge[13].inCycle == 11
+@test net.edge[16].inCycle == 11
+@test net.edge[18].inCycle == 11
+@test net.edge[19].inCycle == 11
+@test net.edge[20].inCycle == 11
 
-net.node[12].inCycle == 11 || error("wrong incycle")
-net.node[13].inCycle == 11 || error("wrong incycle")
-net.node[16].inCycle == 11 || error("wrong incycle")
-net.node[17].inCycle == 11 || error("wrong incycle")
-net.node[19].inCycle == 11 || error("wrong incycle")
-net.node[20].inCycle == 11 || error("wrong incycle")
+@test net.node[12].inCycle == 11
+@test net.node[13].inCycle == 11
+@test net.node[16].inCycle == 11
+@test net.node[17].inCycle == 11
+@test net.node[19].inCycle == 11
+@test net.node[20].inCycle == 11
 
 # test partition
-length(net.partition) == 6 || error("wrong partition")
-[n.number for n in net.partition[1].edges] == [15] || error("wrong partition")
-[n.number for n in net.partition[2].edges] == [11] || error("wrong partition")
-[n.number for n in net.partition[3].edges] == [10] || error("wrong partition")
-[n.number for n in net.partition[4].edges] == [9,7,5,3,1,2,4,6,8] || error("wrong partition")
-[n.number for n in net.partition[5].edges] == [17] || error("wrong partition")
-[n.number for n in net.partition[6].edges] == [14] || error("wrong partition")
+@test length(net.partition) == 6
+@test [n.number for n in net.partition[1].edges] == [15]
+@test [n.number for n in net.partition[2].edges] == [11]
+@test [n.number for n in net.partition[3].edges] == [10]
+@test [n.number for n in net.partition[4].edges] == [9,7,5,3,1,2,4,6,8]
+@test [n.number for n in net.partition[5].edges] == [17]
+@test [n.number for n in net.partition[6].edges] == [14]
+end
 
 # ===== second hybridization ==========================
-println("starting second hybridization")
+@testset "second hybridization" begin
 success = false
 success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
-success || error("could not add second hybridization")
+@test success
 #printEdges(besttree)
 #printNodes(besttree)
-println(writeTopologyLevel1(besttree,true))
+@test_nowarn writeTopologyLevel1(besttree,true)
 net = deepcopy(besttree);
 
 # test contain root
-!net.edge[15].containRoot || error("edge 15 wrong contain Root")
-!net.edge[19].containRoot || error("edge 19 wrong contain Root")
-!net.edge[20].containRoot || error("edge 20 wrong contain Root")
-!net.edge[3].containRoot || error("edge 15 wrong contain Root")
-!net.edge[1].containRoot || error("edge 19 wrong contain Root")
-!net.edge[2].containRoot || error("edge 20 wrong contain Root")
-!net.edge[23].containRoot || error("edge 15 wrong contain Root")
-!net.edge[22].containRoot || error("edge 19 wrong contain Root")
+@test !net.edge[15].containRoot
+@test !net.edge[19].containRoot
+@test !net.edge[20].containRoot
+@test !net.edge[3].containRoot
+@test !net.edge[1].containRoot
+@test !net.edge[2].containRoot
+@test !net.edge[23].containRoot
+@test !net.edge[22].containRoot
 
 # test inCycle
-net.edge[12].inCycle == 11 || error("wrong incycle")
-net.edge[13].inCycle == 11 || error("wrong incycle")
-net.edge[16].inCycle == 11 || error("wrong incycle")
-net.edge[18].inCycle == 11 || error("wrong incycle")
-net.edge[19].inCycle == 11 || error("wrong incycle")
-net.edge[20].inCycle == 11 || error("wrong incycle")
+@test net.edge[12].inCycle == 11
+@test net.edge[13].inCycle == 11
+@test net.edge[16].inCycle == 11
+@test net.edge[18].inCycle == 11
+@test net.edge[19].inCycle == 11
+@test net.edge[20].inCycle == 11
 
-net.node[12].inCycle == 11 || error("wrong incycle")
-net.node[13].inCycle == 11 || error("wrong incycle")
-net.node[16].inCycle == 11 || error("wrong incycle")
-net.node[17].inCycle == 11 || error("wrong incycle")
-net.node[19].inCycle == 11 || error("wrong incycle")
-net.node[20].inCycle == 11 || error("wrong incycle")
+@test net.node[12].inCycle == 11
+@test net.node[13].inCycle == 11
+@test net.node[16].inCycle == 11
+@test net.node[17].inCycle == 11
+@test net.node[19].inCycle == 11
+@test net.node[20].inCycle == 11
 
-net.edge[9].inCycle == 13 || error("wrong incycle")
-net.edge[7].inCycle == 13 || error("wrong incycle")
-net.edge[5].inCycle == 13 || error("wrong incycle")
-net.edge[22].inCycle == 13 || error("wrong incycle")
-net.edge[23].inCycle == 13 || error("wrong incycle")
+@test net.edge[9].inCycle == 13
+@test net.edge[7].inCycle == 13
+@test net.edge[5].inCycle == 13
+@test net.edge[22].inCycle == 13
+@test net.edge[23].inCycle == 13
 
-net.node[5].inCycle == 13 || error("wrong incycle")
-net.node[7].inCycle == 13 || error("wrong incycle")
-net.node[9].inCycle == 13 || error("wrong incycle")
-net.node[21].inCycle == 13 || error("wrong incycle")
-net.node[22].inCycle == 13 || error("wrong incycle")
+@test net.node[5].inCycle == 13
+@test net.node[7].inCycle == 13
+@test net.node[9].inCycle == 13
+@test net.node[21].inCycle == 13
+@test net.node[22].inCycle == 13
 
 
 # test partition
-length(net.partition) == 10 || error("wrong partition")
-[n.number for n in net.partition[1].edges] == [15] || error("wrong partition")
-[n.number for n in net.partition[2].edges] == [11] || error("wrong partition")
-[n.number for n in net.partition[3].edges] == [10] || error("wrong partition")
-[n.number for n in net.partition[4].edges] == [17] || error("wrong partition")
-[n.number for n in net.partition[5].edges] == [14] || error("wrong partition")
-[n.number for n in net.partition[6].edges] == [3,1,2] || error("wrong partition")
-[n.number for n in net.partition[7].edges] == [21] || error("wrong partition")
-[n.number for n in net.partition[8].edges] == [8] || error("wrong partition")
-[n.number for n in net.partition[9].edges] == [6] || error("wrong partition")
-[n.number for n in net.partition[10].edges] == [4] || error("wrong partition")
+@test length(net.partition) == 10
+@test [n.number for n in net.partition[1].edges] == [15]
+@test [n.number for n in net.partition[2].edges] == [11]
+@test [n.number for n in net.partition[3].edges] == [10]
+@test [n.number for n in net.partition[4].edges] == [17]
+@test [n.number for n in net.partition[5].edges] == [14]
+@test [n.number for n in net.partition[6].edges] == [3,1,2]
+@test [n.number for n in net.partition[7].edges] == [21]
+@test [n.number for n in net.partition[8].edges] == [8]
+@test [n.number for n in net.partition[9].edges] == [6]
+@test [n.number for n in net.partition[10].edges] == [4]
+end
 
 ## # ===== identify containRoot for net.node[21]
 ## net0=deepcopy(net);
@@ -152,49 +156,50 @@ length(net.partition) == 10 || error("wrong partition")
 ## printEdges(net)
 
 # ================= delete second hybridization =============================
-println("starting deletion of second hybridization")
+@testset "delete 2nd hybridization" begin
 deleteHybridizationUpdate!(net,net.node[21], false,false);
-length(net.partition) == 6 || error("wrong partition")
+@test length(net.partition) == 6
 # 15,11,10,[9,7,5,3,1,2,4,6,8],17,14
-[n.number for n in net.partition[1].edges] == [15] || error("wrong partition")
-[n.number for n in net.partition[2].edges] == [11] || error("wrong partition")
-[n.number for n in net.partition[3].edges] == [10] || error("wrong partition")
-[n.number for n in net.partition[4].edges] == [17] || error("wrong partition")
-[n.number for n in net.partition[5].edges] == [14] || error("wrong partition")
-[n.number for n in net.partition[6].edges] == [3,1,2,8,6,4,9,7,5] || error("wrong partition")
+@test [n.number for n in net.partition[1].edges] == [15]
+@test [n.number for n in net.partition[2].edges] == [11]
+@test [n.number for n in net.partition[3].edges] == [10]
+@test [n.number for n in net.partition[4].edges] == [17]
+@test [n.number for n in net.partition[5].edges] == [14]
+@test [n.number for n in net.partition[6].edges] == [3,1,2,8,6,4,9,7,5]
 #printNodes(net)
 #printEdges(net)
 #printPartitions(net)
-println(writeTopologyLevel1(net))
+@test_nowarn writeTopologyLevel1(net)
 
 # test contain root
-!net.edge[15].containRoot || error("edge 15 wrong contain Root")
-!net.edge[19].containRoot || error("edge 19 wrong contain Root")
-!net.edge[20].containRoot || error("edge 20 wrong contain Root")
-net.edge[1].containRoot || error("edge 1 wrong contain Root")
-net.edge[2].containRoot || error("edge 2 wrong contain Root")
-net.edge[3].containRoot || error("edge 3 wrong contain Root")
+@test !net.edge[15].containRoot
+@test !net.edge[19].containRoot
+@test !net.edge[20].containRoot
+@test net.edge[1].containRoot
+@test net.edge[2].containRoot
+@test net.edge[3].containRoot
 
 # test inCycle
-net.edge[12].inCycle == 11 || error("wrong incycle")
-net.edge[13].inCycle == 11 || error("wrong incycle")
-net.edge[16].inCycle == 11 || error("wrong incycle")
-net.edge[18].inCycle == 11 || error("wrong incycle")
-net.edge[19].inCycle == 11 || error("wrong incycle")
-net.edge[20].inCycle == 11 || error("wrong incycle")
+@test net.edge[12].inCycle == 11
+@test net.edge[13].inCycle == 11
+@test net.edge[16].inCycle == 11
+@test net.edge[18].inCycle == 11
+@test net.edge[19].inCycle == 11
+@test net.edge[20].inCycle == 11
 
-net.node[12].inCycle == 11 || error("wrong incycle")
-net.node[13].inCycle == 11 || error("wrong incycle")
-net.node[16].inCycle == 11 || error("wrong incycle")
-net.node[17].inCycle == 11 || error("wrong incycle")
-net.node[19].inCycle == 11 || error("wrong incycle")
-net.node[20].inCycle == 11 || error("wrong incycle")
-
+@test net.node[12].inCycle == 11
+@test net.node[13].inCycle == 11
+@test net.node[16].inCycle == 11
+@test net.node[17].inCycle == 11
+@test net.node[19].inCycle == 11
+@test net.node[20].inCycle == 11
+end
 
 # =============== delete first hybridization ===================
-println("starting deletion of first hybridization")
+@testset "delete 1st hybridization" begin
 deleteHybridizationUpdate!(net,net.node[19]);
 checkNet(net)
-length(net.partition) == 0 || error("wrong partition")
+@test length(net.partition) == 0
 #printEdges(net)
-
+end
+end

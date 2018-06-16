@@ -1,6 +1,6 @@
-DATA: data consists of 10 gene trees and 15 4-taxon subsets
+data consists of 10 gene trees and 15 4-taxon subsets
 
-DATA: same taxa in gene trees and quartets: ASCIIString["1","2","3","4","5","6"]
+ same taxa in gene trees and quartets: String["1", "2", "3", "4", "5", "6"]
 Taxon 1 appears in 10 input trees (100.0 %)
 Taxon 2 appears in 10 input trees (100.0 %)
 Taxon 3 appears in 10 input trees (100.0 %)

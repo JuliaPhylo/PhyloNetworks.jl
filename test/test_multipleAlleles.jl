@@ -87,13 +87,18 @@ d = readTableCF(df)
 tree = "((6,4),(7,8),10);"
 currT = readTopology(tree);
 
+originalSTDOUT = STDOUT
+redirect_stdout(open("/dev/null", "w")) # not portable to Windows
 estNet = snaq!(currT,d,hmax=1,seed=1010, runs=1, filename="", Nfail=10)
+redirect_stdout(originalSTDOUT)
 @test 185.27 < estNet.loglik < 185.29 # or: wrong loglik
 @test estNet.hybrid[1].k == 4 # or: wrong k
 @test estNet.numTaxa == 5 # or: wrong number of taxa
 
+redirect_stdout(open("/dev/null", "w")) # not portable to Windows
 estNet = snaq!(currT,d,hmax=1,seed=8378, runs=1, filename="", Nfail=10,
                ftolAbs=1e-6,ftolRel=1e-5,xtolAbs=1e-4,xtolRel=1e-3)
+redirect_stdout(originalSTDOUT)
 @test 174.58 < estNet.loglik < 174.59 # or: loglik wrong
 @test estNet.hybrid[1].k == 5 # or: wrong k in hybrid
 @test estNet.numTaxa == 5 # or: wrong # taxa

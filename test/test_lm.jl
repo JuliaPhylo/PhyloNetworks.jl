@@ -21,7 +21,7 @@ sim = simulate(net, params)
 Y = sim[:Tips]
 X = ones(4, 1)
 phynetlm = phyloNetworklm(X, Y, net)
-@show phynetlm
+@test_nowarn show(DevNull, phynetlm)
 # Naive version (GLS)
 ntaxa = length(Y)
 Vy = phynetlm.Vy
@@ -94,7 +94,7 @@ tmp = (@test_warn "You fitted the data against a custom matrix" mu_estim(phynetl
 
 ## fixed values parameters
 fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedValue=1.0)
-@show fitlam
+@test_nowarn show(DevNull, fitlam)
 
 @test lambda_estim(fitlam) ≈ 1.0
 @test coef(fitlam) ≈ coef(fitbis)
@@ -162,7 +162,7 @@ dfr = join(dfr, dfr_hybrid, on=:tipNames)
 
 ## Simple BM
 fitShift = phyloNetworklm(@formula(trait ~ shift_8 + shift_17), dfr, net)
-@show fitShift
+@test_nowarn show(DevNull, fitShift)
 
 ## Test against fixed values lambda models
 fitlam = phyloNetworklm(@formula(trait ~ shift_8 + shift_17), dfr, net, model = "lambda", fixedValue = 1.0)
@@ -438,7 +438,7 @@ fitlam = (@test_warn "Maximum lambda value" phyloNetworklm(@formula(trait ~ pred
 
 ## scaling Hybrid
 fitSH = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid")
-@show fitSH
+@test_nowarn show(DevNull, fitSH)
 @test lambda_estim(fitSH) ≈ -52.81305448333567 atol=1e-8
 
 ### Ancestral State Reconstruction
@@ -452,7 +452,7 @@ dfr = DataFrame(trait = Y, tipNames = tipLabels(sim))
 phynetlm = phyloNetworklm(@formula(trait~1), dfr, net)
 blup = (@test_warn "These prediction intervals show uncertainty in ancestral values" ancestralStateReconstruction(phynetlm));
 # plot(net, blup)
-@show blup
+@test_nowarn show(DevNull, blup)
 
 # BLUP same, using the function dirrectly
 blup_bis = (@test_warn "These prediction intervals show uncertainty in ancestral values" ancestralStateReconstruction(dfr, net));
@@ -596,7 +596,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 # with data frames
 dfr = DataFrame(trait = Y, tipNames = sim.M.tipNames)
 fitbis = phyloNetworklm(@formula(trait ~ -1), dfr, net)
-@show fitbis
+@test_nowarn show(DevNull, fitbis)
 #@test coef(phynetlm) ≈ coef(fitbis)
 #@test vcov(phynetlm) ≈ vcov(fitbis)
 @test nobs(phynetlm) ≈ nobs(fitbis)

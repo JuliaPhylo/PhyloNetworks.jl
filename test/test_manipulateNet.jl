@@ -3,6 +3,38 @@
 
 if !isdefined(:doalltests) doalltests = false; end
 
+@testset "test: auxiliary" begin
+net = readTopology("((((B)#H1)#H2,((D,C,#H2)S1,(#H1,A)S2)S3)S4);")
+# using PhyloPlots; plot(net, :R, showEdgeNumber=true, showNodeNumber=true);
+originalSTDOUT = STDOUT
+redirect_stdout(open("/dev/null", "w")) # not portable to Windows
+@test_nowarn printEdges(net) # output goes to screen... not easy to check
+redirect_stdout(originalSTDOUT)
+@test_throws ErrorException PhyloNetworks.getMinorParent(net.node[1])
+@test PhyloNetworks.getMajorParent(net.node[1]).number == 2
+@test PhyloNetworks.getMinorParent(net.node[3]).number == 6
+@test PhyloNetworks.getMajorParent(net.node[3]).number == 10
+@test PhyloNetworks.getMajorParentEdge(net.node[6]).number == 7
+@test_throws ErrorException PhyloNetworks.getMinorParentEdge(net.node[6])
+@test PhyloNetworks.getMajorParentEdge(net.node[2]).number == 2
+@test PhyloNetworks.getMinorParentEdge(net.node[2]).number == 8
+@test [n.number for n in PhyloNetworks.getChildren(net.node[4])] == [] # leaf
+@test [n.number for n in PhyloNetworks.getChildren(net.node[2])] == [1] # hybrid node
+@test [n.number for n in PhyloNetworks.getChildren(net.node[9])] == [6,8] # tree node
+@test [n.number for n in PhyloNetworks.getChildren(net.node[10])] == [3,9] # at root
+@test [n.number for n in PhyloNetworks.getChildren(net.node[6])] == [4,5,3] # polytomy
+@test PhyloNetworks.getParent(net.edge[8]).number == 8
+@test [n.number for n in PhyloNetworks.getParents(net.node[3])] == [10, 6]
+@test [n.number for n in PhyloNetworks.getParents(net.node[6])] == [9]
+@test_throws ErrorException deleteleaf!(net, net.node[9])
+n = deepcopy(net)
+@test_nowarn deleteleaf!(n, n.node[7])
+@test n.numNodes == 8; @test n.numEdges == 9;
+@test_nowarn deleteleaf!(net, net.node[7], simplify=false)
+deleteleaf!(net, 4, simplify=false); deleteleaf!(net, 5, simplify=false)
+@test net.numNodes == 5; @test net.numEdges == 6;
+end
+
 @testset "testing directEdges! and re-rootings" begin
 # on a tree, then on a network with h=2"
 
