@@ -125,10 +125,11 @@ end
 """
     parseRemainingSubtree!(s::IO, numLeft, net, hybrids)
 
-Helper function for [`readSubtree!`](@ref):
+Create internal node. Helper for [`readSubtree!`](@ref),
+which creates the parent edge of the node created by `parseRemainingSubtree!`:
 `readSubtree!` calls `parseRemainingSubtree!`, and vice versa.
 Called once a `(` has been read in a tree topology and reads until the corresponding `)` has been found.
-This function performs the recursive step for readSubtree!
+This function performs the recursive step for `readSubtree!`.
 Advances `s` past the subtree, adds discovered nodes and edges to `net`, and `hybrids`.
 
 Does *not* read the node name and the edge information of the subtree root:
@@ -157,10 +158,11 @@ end
 """
     parseHybridNode!(node, parentNode, hybridName, net, hybrids)
 
-Helper function for readSubtree!
+Helper function for `readSubtree!`. Create the parent edge for `node`.
+Return this edge, and the hybrid node retained (`node` or its clone in the newick string).
+Insert new edge and appropriate node into `net` and `hybrids` accordingly.
 Handles any type of given hybrid node.
-To be called once a `#` has been found in a tree topology.
-Creates a hybrid node (if needed) and its edges, then inserts those into `net` and `hybrids` accordingly.
+Called after a `#` has been found in a tree topology.
 """
 @inline function parseHybridNode!(n::Node, parent::Node, name::String, net::HybridNetwork, hybrids::Vector{String})
     DEBUG && println("found pound in $(name)")
@@ -168,6 +170,10 @@ Creates a hybrid node (if needed) and its edges, then inserts those into `net` a
     DEBUGC && println("got hybrid $(name)")
     DEBUGC && println("hybrids list has length $(length(hybrids))")
     ind = findfirst(hybrids, name) # index of 'name' in the list 'hybrid'. 0 if not found
+    e = Edge(net.numEdges+1) # isMajor = true by default
+    if n.leaf e.isMajor = false; end
+    e.hybrid = true
+    e.gamma = -1.0
     if ind>0 # the hybrid name was seen before
         DEBUG && println("$(name) was found in hybrids list")
         ni = findfirst([no.name for no in net.node], name)
@@ -179,14 +185,12 @@ Creates a hybrid node (if needed) and its edges, then inserts those into `net` a
             error("both hybrid nodes are internal nodes: successors of the hybrid node must only be included in the node list of a single occurrence of the hybrid node.")
         elseif n.leaf
             DEBUG && println("n is leaf")
-            e = Edge(net.numEdges+1);
             DEBUG && println("creating hybrid edge $(e.number) attached to other $(other.number) and parent $(parent.number)")
-            e.hybrid = true
-            e.isMajor = false; # isMajor = true by default constructor
             pushEdge!(net,e);
             setNode!(e,[other,parent]); # isChild1 = true by default constructor
             setEdge!(other,e);
             setEdge!(parent,e);
+            n = other # original 'n' dropped, 'other' retained: 'n' output to modify 'n' outside
             DEBUG && println("e $(e.number )istIdentifiable? $(e.istIdentifiable)")
         else # !n.leaf : delete 'other' from the network
             DEBUG && println("n is not leaf, other is leaf")
@@ -203,9 +207,7 @@ Creates a hybrid node (if needed) and its edges, then inserts those into `net` a
             setEdge!(n,otheredge);
             ## otheredge.istIdentifiable = true ## setNode should catch this, but when fixed, causes a lot of problems
             DEBUG && println("setting otheredge to n $(n.number)")
-            e = Edge(net.numEdges+1) # isMajor = true by default
             DEBUG && println("creating hybrid edge $(e.number) between n $(n.number) and parent $(parent.number)")
-            e.hybrid = true
             setNode!(e,[n,parent]);
             setEdge!(n,e);
             setEdge!(parent,e);
@@ -226,10 +228,7 @@ Creates a hybrid node (if needed) and its edges, then inserts those into `net` a
         DEBUGC && println("put $(nam) in hybrids name list")
         push!(hybrids, nam);
         pushNode!(net,n);
-        e = Edge(net.numEdges+1);
         DEBUG && println("creating hybrid edge $(e.number)")
-        e.hybrid = true
-        n.leaf ? e.isMajor = false : e.isMajor = true
         pushEdge!(net,e);
         setNode!(e,[n,parent]);
         setEdge!(n,e);
@@ -237,14 +236,14 @@ Creates a hybrid node (if needed) and its edges, then inserts those into `net` a
         DEBUG && println("edge $(e.number) istIdentifiable? $(e.istIdentifiable)")
     end
     e.containRoot = !e.hybrid # not good: but necessay for SNaQ functions
-    return e
+    return (e,n)
 end
 
 """
     parseTreeNode!(node, parentNode, net)
 
-Helper function for readSubtree!
-Inserts a tree node and associated edge into `net`.
+Helper function for `readSubtree!`.
+Insert the input tree node and associated edge (created here) into `net`.
 """
 @inline function parseTreeNode!(n::Node, parent::Node, net::HybridNetwork)
     pushNode!(net,n);
@@ -259,9 +258,9 @@ end
 """
     getdataValue!(s::IO, int, numLeft::Array{Int,1})
 
-Helper function for parseEdgeData!
-Reads a single floating point edge data value in a tree topology.
-Returns -1 if no value exists before the next colon, returns a float if a value is present.
+Helper function for `parseEdgeData!`.
+Read a single floating point edge data value in a tree topology.
+Return -1.0 if no value exists before the next colon, return the value as a float otherwise.
 Modifies s by advancing past the next colon character.
 Only call this function to read a value when you know a numerical value exists!
 """
@@ -296,70 +295,96 @@ Edges in a topology may optionally be followed by ":edgeLen:bootstrap:gamma"
 where edgeLen, bootstrap, and gamma are decimal values.
 """
 @inline function parseEdgeData!(s::IO, e::Edge, n::Node, numLeft::Array{Int,1})
+    read(s, Char); # to read the first ":"
+    e.length = getDataValue!(s, 1, numLeft)
     bootstrap = nothing;
-    gamma = -1.0;
-    read(s, Char);
-    edgeLen = getDataValue!(s, 1, numLeft)
     if peekskip(s) == ':'
         readskip!(s)
         bootstrap = getDataValue!(s, 2, numLeft)
     end
+    # e.gamma = -1.0 by default when e is created by parseHybridNode!
     if peekskip(s) == ':'
         readskip!(s)
-        gamma = getDataValue!(s, 3, numLeft)
+        e.gamma = getDataValue!(s, 3, numLeft)
     end
+    if e.gamma != -1.0 && !e.hybrid && e.gamma != 1.0
+        warn("γ read for edge $(e.number) but it is not hybrid, so γ=$(gamma) ignored")
+        e.gamma = 1.0
+    end
+end
 
-    edgeLenPresent = (edgeLen != -1.0);
-    gammaPresent   = (gamma != -1.0 && gamma != nothing);
+"""
+    synchronizePartnersData!(e::Edge, n::Node)
 
-    e.length = edgeLen
-    if gammaPresent
-        if(!e.hybrid)
-            warn("gamma read for current edge $(e.number) but it is not hybrid, so gamma=$(gamma) ignored")
-        else
-            parentEdges = Edge[] # The edges which have n as a child
-            for e in n.edge
-                if e.hybrid
-                    nIsChild = (e.isChild1 && e.node[1] == n || !e.isChild1 && e.node[2] == n)
-                    if nIsChild
-                        push!(parentEdges, e)
-                    end
-                end
-            end
-            numParents = size(parentEdges)[1]
-            if (numParents == 0) || (numParents == 1)
-                e.gamma = gamma
-                # isMajor will be set when the other edge is found
-            elseif (numParents == 2) #other edge has been read, may have gamma set
-                local otheredge::Edge
-                parentEdges[1] == e ? otheredge = parentaledges[2] :
-                                        otheredge = parentEdges[1]
-                # Note: only need to correct isMajor if the gamma values are not equal
-                if (!approxEq(gamma + otheredge.gamma, 1)) # gammas do not sum to 1
-                    # some gamma < 0
-                    if (gamma <= 0 && otheredge.gamma > 0)
-                        gamma = 1 - otheredge.gamma
-                    elseif (otheredge.gamma <= 0 && gamma > 0)
-                        otheredge.gamma = 1 - gamma
-                    end
-                    # rescale so that they sum to 1
-                    e.gamma, otheredge.gamma = ((gamma)/(gamma + otheredge.gamma),
-                                                (otheredge.gamma)/(gamma + otheredge.gamma))
-                else # both gamma values sum to 1
-                    e.gamma = gamma
-                end
-                if (!approxEq(e.gamma, 0.5))
-                        if e.gamma > 0.5
-                            e.isMajor = true
-                            otheredge.isMajor = false
-                        else
-                            e.isMajor = false
-                            otheredge.isMajor = true
-                        end
-                    end
-            else
-                error("hybrid edge gamma value parsed but hybrid node has $(size(parentEdges)[1]) parent edges! (should be between 0 and 2)")
-            end
+Synchronize γ and isMajor for edges `e` and its partner,
+both hybrid edges with the same child `n`:
+
+- if one γ is missing and the other is not: set the missing γ to 1 - the other
+- γ's should sum up to 1.0
+- update `isMajor` to match the γ information: the major edge is the one with γ > 0.5.
+
+**Warnings**: does not check that `e` is a hybrid edge,
+nor that `n` is the child of `e`.
+"""
+@inline function synchronizePartnersData!(e::Edge, n::Node)
+    partners = Edge[] # The edges having n as a child, other than e
+    for e2 in n.edge
+        if e2.hybrid && e2!=e && n==getChild(e2)
+            push!(partners, e2)
+        end
+    end
+    numPartners = length(partners)
+    if numPartners == 0
+        return nothing
+    end
+    if numPartners > 1 # 3 or more hybrid parents
+        error("γ value parsed but hybrid edge has $numPartners partners (should be 0 or 1)")
+    end
+    # numPartners == 1 then. partner edge has been read, may have gamma set
+    partner = partners[1]
+    if e.gamma == -1. && partner.gamma == -1. # exact -1.0 means missing
+        return nothing
+    end
+    # γ non-missing for e and/or partner, then
+    # update γ and isMajor of both edges, to be consistent with each other
+    if e.gamma == -1.
+        if partner.gamma < 0.0
+            warn("partners: $(e.number) with no γ, $(partner.number) with γ<0. will turn to 1 and 0")
+            partner.gamma = 0.0
+            e.gamma = 1.0
+        elseif partner.gamma > 1.0
+            warn("partners: $(e.number) with no γ, $(partner.number) with γ>1. will turn to 0 and 1")
+            partner.gamma = 1.0
+            e.gamma = 0.0
+        else # partner γ in [0,1]
+            e.gamma = 1. - partner.gamma
+        end
+    elseif partner.gamma == -1.
+        if e.gamma < 0.0
+            warn("partners: $(partner.number) with no γ, $(e.number) with γ<0. will turn to 1 and 0")
+            e.gamma = 0.0
+            partner.gamma = 1.0
+        elseif e.gamma > 1.0
+            warn("partners: $(partner.number) with no γ, $(e.number) with γ>1. will turn to 0 and 1")
+            e.gamma = 1.0
+            partner.gamma = 0.0
+        else # γ in [0,1]
+            partner.gamma = 1. - e.gamma
+        end
+    else # both γ's are non-missing. won't check if negative
+        gammasum = e.gamma + partner.gamma
+        if !isapprox(gammasum, 1.0)
+            e.gamma = e.gamma/gammasum
+            partner.gamma = 1. - e.gamma
+        end
+    end
+    # next: update isMajor, originally based on which node was a leaf and which was not
+    # if both γ are 0.5: keep isMajor as is. Otherwise: γ's take precedence.
+    if !isapprox(e.gamma, 0.5)
+        emajor = e.gamma > 0.5
+        if e.isMajor != emajor # leaf status was inconsistent with γ info
+            e.isMajor = emajor
+            partner.isMajor = !emajor
         end
     end
 end
@@ -402,7 +427,8 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
         error("Expected beginning of subtree but read $(c) after left parenthesis $(numLeft[1]-1), remaining is $(a).");
     end
     if pound # found pound sign in name
-        e = parseHybridNode!(n, parent, name, net, hybrids) # makes hybrid node number positive
+        # merge the 2 nodes corresponding the hybrid: make n the node that is retained
+        e,n = parseHybridNode!(n, parent, name, net, hybrids) # makes hybrid node number >0
     else
         if hasname
             push!(net.names,string(name));
@@ -412,9 +438,12 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
     end
     c = peekskip(s);
     e.length = -1.0
-    e.gamma = e.hybrid? -1.0 : 1.0
     if c == ':'
         parseEdgeData!(s, e, n, numLeft)
+    end
+    if e.hybrid
+        # if hybrid edge: 'e' might have no info, but its partner may have had info
+        synchronizePartnersData!(e, n) # update γ and isMajor of e and/or its partner
     end
     return true
 end
@@ -444,6 +473,8 @@ end
     readTopology(parenthetical description)
 
 Read tree or network topology from parenthetical format (extended Newick).
+If the root node has a single child: ignore (i.e. delete from the topology)
+the root node and its child edge.
 
 Input: text file or parenthetical format directly.
 The file name may not start with a left parenthesis, otherwise the file
@@ -672,7 +703,6 @@ end
 #   default values of 0.1,0.9 if not present
 # leaveRoot=true: leaves the root even if it has only 2 edges (for plotting), default=false
 function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
-    mod(sum([!e.hybrid?e.gamma:0 for e in net.edge]),1) == 0 ? nothing : error("tree (not network) read and some tree edge has gamma different than 1")
     nodes = copy(net.node)
     for n in nodes
         if(isNodeNumIn(n,net.node)) # very important to check
@@ -722,52 +752,29 @@ function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
                         warn("hybrid node $(n.number) has more than one child so we need to expand with another node")
                         expandChild!(net,n);
                     end
-                    suma = sum([e.hybrid?e.gamma:0 for e in n.edge]);
-                    if(suma == -2)
-                        #warn("hybrid edges in read network without gammas")
+                    suma = sum([e.hybrid?e.gamma:0.0 for e in n.edge]);
+                    # synchronizePartnersData! already made suma ≈ 1.0, when non-missing,
+                    # and already synchronized isMajor, even when γ's ≈ 0.5
+                    if suma == -2.0 # hybrid edges have no gammas in newick description
                         println("hybrid edges for hybrid node $(n.number) have missing gamma's, set default: 0.9,0.1")
                         for e in n.edge
-                            if(e.hybrid)
-                                if (e.isMajor)
-                                    e.gamma = 0.9;
-                                    e.isMajor = true
-                                else
-                                    e.gamma = 0.1;
-                                    e.isMajor = false
-                                end
-                            end
-                        end
-                    elseif(suma != 1)
-                        ed1 = nothing
-                        ed2 = nothing
-                        for e in n.edge
-                            if(e.hybrid)
-                                isa(ed1,Void) ? ed1=e : ed2=e
-                            end
-                        end
-                        if(ed1.gamma > 0 && ed2.gamma > 0 && ed1.gamma < 1 && ed2.gamma < 1) #both gammas were set, but contradictory
-                            error("hybrid edges for hybrid node $(n.number) have gammas that do not sum up to one: $(ed1.gamma),$(ed2.gamma)")
-                        elseif(ed1.gamma != -1.0)
-                            warn("only one hybrid edge of hybrid node $(n.number) has gamma value $(ed1.gamma) set, the other edge will be assigned $(1-ed1.gamma).")
-                            setGamma!(ed2,1-ed1.gamma, false);
-                        else
-                            warn("only one hybrid edge of hybrid node $(n.number) has gamma value $(ed2.gamma) set, the other edge will be assigned $(1-ed2.gamma).")
-                            setGamma!(ed1,1-ed2.gamma, false);
-                        end
-                    elseif(suma == 1)
-                        for e in n.edge
-                            if(e.hybrid)
-                                if(approxEq(e.gamma,0.5))
-                                    e.isMajor = false
-                                    break
-                                else
-                                    break
-                                end
+                            if e.hybrid
+                                e.gamma = (e.isMajor ? 0.9 : 0.1)
                             end
                         end
                     end
                 end
             end
+        end
+    end
+    for e in net.edge
+        if e.hybrid
+          if e.gamma < 0.0 || e.gamma > 1.0 # no -1.0 (missing) γ's by now
+            error("hybrid edge $(e.number) with γ = $(e.gamma) outside of [0,1]")
+          end
+        else
+          e.gamma == 1.0 ||
+            error("tree edge $(e.number) with γ = $(e.gamma) instead of 1.0")
         end
     end
 end

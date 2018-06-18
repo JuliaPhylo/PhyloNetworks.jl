@@ -9,6 +9,7 @@ net = readTopology("((((B)#H1)#H2,((D,C,#H2)S1,(#H1,A)S2)S3)S4);")
 originalSTDOUT = STDOUT
 redirect_stdout(open("/dev/null", "w")) # not portable to Windows
 @test_nowarn printEdges(net) # output goes to screen... not easy to check
+@test_nowarn printNodes(net)
 redirect_stdout(originalSTDOUT)
 @test_throws ErrorException PhyloNetworks.getMinorParent(net.node[1])
 @test PhyloNetworks.getMajorParent(net.node[1]).number == 2
