@@ -575,7 +575,7 @@ function preorder!(net::HybridNetwork)
         #println("at this moment, queue is $([n.number for n in queue])")
         curr = pop!(queue); # deliberate choice over shift! for cladewise order
         # @show curr.number
-        net.visited[getIndex(curr,net)] = true # visit curr node
+        net.visited[findfirst(net.node, curr)] = true # visit curr node
         push!(net.nodes_changed,curr) #push curr into path
         for e in curr.edge
             if curr == getParent(e)
@@ -610,23 +610,16 @@ The edges' direction needs to be correct before calling
 function cladewiseorder!(net::HybridNetwork)
     net.isRooted || error("net needs to be rooted for cladewiseorder!\n run root functions or directEdges!")
     net.cladewiseorder_nodeIndex = Int[]
-    queue = Int[] # index (in net) of nodes in the queue
-    push!(net.cladewiseorder_nodeIndex, net.root)
-    for e in net.node[net.root].edge
-        if (e.isMajor) # follow the major tree only
-            push!(queue, getIndex(getOtherNode(e,net.node[net.root]),net))
-        end
-    end
+    queue = [net.root] # index (in net) of nodes in the queue
     # print("queued the root's children's indices: "); @show queue
-    while (!isempty(queue))
+    while !isempty(queue)
         ni = pop!(queue); # deliberate choice over shift! for cladewise order
         # @show net.node[ni].number
         push!(net.cladewiseorder_nodeIndex, ni)
         for e in net.node[ni].edge
-            if (isEqual(net.node[ni],e.node[e.isChild1 ? 2 : 1])) # net.node[ni] is parent node of e
-                other = getOtherNode(e, net.node[ni])
-                if (e.isMajor)
-                    push!(queue, getIndex(other,net))
+            if net.node[ni] ≡ getParent(e) # net.node[ni] is parent node of e
+                if e.isMajor
+                    push!(queue, findfirst(net.node, getChild(e)))
                     # print("queuing: "); @show other.number
                 end
             end
