@@ -181,10 +181,13 @@ end
 
 """
     getPartner(edge::Edge)
+    getPartner(edge::Edge, node::Node)
 
 Return hybrid partner of edge, that is, hybrid edge pointing
 to the same child as `edge`. Assumes correct `isChild1` attributes.
-Assumes no in-coming polytomy: a node has 0, 1 or 2 parents, no more.
+Assumes no in-coming polytomy: a node has 0, 1 or 2 parents, no more.  
+When `node` is given, it is assumed to be the child of `edge`
+(the first form calls the second).
 """
 @inline function getPartner(edge)
     node = getChild(edge)

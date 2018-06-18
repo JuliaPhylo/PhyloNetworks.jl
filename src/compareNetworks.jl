@@ -259,13 +259,14 @@ end
 
 
 """
-`deleteHybridThreshold!(net::HybridNetwork,gamma::Float64)`
+    deleteHybridThreshold!(net::HybridNetwork, threshold::Float64)
 
 Deletes from a network all hybrid edges with heritability below a threshold gamma.
 Returns the network.
 
-- if gamma<0.5: deletes     minor hybrid edges with gamma value <  threshold
-- if gamma=0.5: deletes all minor hybrid edges (i.e gamma value <= threshold)
+- if threshold<0.5: delete minor hybrid edges with γ < threshold
+  (or with a missing γ, for any threshold > -1.0)
+- if threshold=0.5: delete all minor hybrid edges (i.e normally with γ < 0.5, if γ non-missing)
 
 Warning: assumes correct isMajor attributes.
 """
@@ -273,13 +274,13 @@ function deleteHybridThreshold!(net::HybridNetwork,gamma::Float64)
     gamma <= 0.5 || error("deleteHybridThreshold! called with gamma = $(gamma)>0.5")
     for i = net.numHybrids:-1:1
     # starting from last because net.hybrid changes as hybrids are removed. Empty range if 0 hybrids.
-        hybedges = hybridEdges(net.hybrid[i]) # vector of 3 edges: major, minor, tree edge
-        # remove minor hybrid edge if: gamma < threshold OR threshold=0.5=gamma
-        # warning: no check that the minor edge actually has gamma <= 0.5.
-        if(hybedges[2].gamma < gamma || gamma == 0.5)
+        e = getMinorParentEdge(net.hybrid[i])
+        # remove minor edge e if γ < threshold OR threshold=0.5
+        # warning: no check if γ and isMajor are in conflict
+        if e.gamma < gamma || gamma == 0.5 # note: γ=-1 if missing, so < gamma threshold
             # deleteHybrid!(net.hybrid[i],net,true,false) # requires non-missing edge lengths
             # deleteHybridizationUpdate! requires level-1 network with corresponding attributes
-            deleteHybridEdge!(net, hybedges[2]) # does not update inCycle, containRoot, etc.
+            deleteHybridEdge!(net, e) # does not update inCycle, containRoot, etc.
         end
     end
     return net

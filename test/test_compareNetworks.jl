@@ -194,6 +194,10 @@ net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02:
 @test writeTopology(majorTree(net5)) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);"
 @test_nowarn displayedNetworkAt!(net5, net5.hybrid[1]);
 @test writeTopology(net5) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.7);"
+net = readTopology("((((B)#H1)#H2,((D,C,#H2)S1,(#H1,A)S2)S3)S4);") # missing γ's, level 2
+@test writeTopology(majorTree(net)) == "(((D,C),A),B);"
+setGamma!(net.edge[8], 0.8)
+@test writeTopology(majorTree(net)) == "((D,C),(A,B));"
 
 end # of testset, majorTree & displayedNetworkAt!
 
