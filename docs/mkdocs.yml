@@ -36,7 +36,7 @@ pages:
     # - Network comparison and manipulation: man/dist_reroot.md
     # - Candidate Networks: man/fixednetworkoptim.md
     # - Extract Expected CFs: man/expectedCFs.md
-    # - Bootstrap: man/bootstrap.md
+    - Bootstrap: man/bootstrap.md
     # - Multiple Alleles: man/multiplealleles.md
     - Continuous Trait Evolution: man/trait_tree.md
   - Library:
