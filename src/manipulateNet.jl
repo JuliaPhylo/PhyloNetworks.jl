@@ -571,11 +571,13 @@ function preorder!(net::HybridNetwork)
                    # random member if all have the same priority 1.
     net.visited = [false for i = 1:size(net.node,1)];
     push!(queue,net.node[net.root]) # push root into queue
-    while(!isempty(queue))
+    while !isempty(queue)
         #println("at this moment, queue is $([n.number for n in queue])")
         curr = pop!(queue); # deliberate choice over shift! for cladewise order
-        # @show curr.number
-        net.visited[findfirst(net.node, curr)] = true # visit curr node
+        currind = findfirst(net.node, curr)
+        # the "curr"ent node may have been already visited: because simple loop (2-cycle)
+        !net.visited[currind] || continue
+        net.visited[currind] = true # visit curr node
         push!(net.nodes_changed,curr) #push curr into path
         for e in curr.edge
             if curr == getParent(e)
@@ -586,9 +588,9 @@ function preorder!(net::HybridNetwork)
                 else
                     e2 = getPartner(e, other)
                     parent = getParent(e2)
-                    if(net.visited[getIndex(parent,net)])
-                    push!(queue,other)
-                    # print("queuing: "); @show other.number
+                    if net.visited[findfirst(net.node, parent)]
+                      push!(queue,other)
+                      # warning: if simple loop, the same node will be pushed twice: child of "curr" via 2 edges
                     end
                 end
             end
