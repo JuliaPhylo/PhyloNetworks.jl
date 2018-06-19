@@ -22,10 +22,14 @@ df=DataFrame(t1=["6","6","10","6","6"],
              t2=["7","7","7","10","7"],
              t3=["4","10","4","4","4"],
              t4=["8","8","8","8","10"],
-             CF1234=[0.2729102510259939, 0.3967750546426937, 0.30161247267865315, 0.24693940689390592, 0.2729102510259939],
-             CF1324=[0.45417949794801216, 0.30161247267865315, 0.30161247267865315, 0.5061211862121882, 0.45417949794801216],
-             CF1423=[0.2729102510259939, 0.30161247267865315, 0.3967750546426937, 0.24693940689390592, 0.2729102510259939])
+             obsCF12=[0.2729102510259939, 0.3967750546426937, 0.30161247267865315, 0.24693940689390592, 0.2729102510259939],
+             obsCF13=[0.45417949794801216, 0.30161247267865315, 0.30161247267865315, 0.5061211862121882, 0.45417949794801216],
+             obsCF14=[0.2729102510259939, 0.30161247267865315, 0.3967750546426937, 0.24693940689390592, 0.2729102510259939])
 d = readTableCF(df)
+@test_throws ErrorException PhyloNetworks.writeExpCF(d)
+@test PhyloNetworks.writeObsCF(d)[1:7] == rename(df, [:obsCF12 => :CF12_34, :obsCF13 => :CF13_24, :obsCF14 => :CF14_23])
+@test tipLabels(d) ==  ["4","6","7","8","10"]
+@test_nowarn PhyloNetworks.descData(d, DevNull)
 
 # starting tree:
 tree = "((6,4),(7,8),10);"
@@ -36,6 +40,9 @@ currT = readTopologyLevel1(tree);
 @testset "lik on tree" begin
 extractQuartet!(currT,d)
 calculateExpCFAll!(d)
+tmp = (@test_nowarn PhyloNetworks.writeExpCF(d))
+for i in [5,7] for j in 2:5 @test tmp[i][j] ≈ 0.12262648039048077; end end
+for j in 2:5 @test tmp[6][j] ≈ 0.7547470392190385; end
 lik = logPseudoLik(d)
 @test lik ≈ 193.7812623319291
 #estTree = optTopRun1!(currT,d,0,5454) # issue with printCounts, TravisCI?

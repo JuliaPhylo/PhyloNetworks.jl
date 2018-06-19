@@ -74,30 +74,26 @@ end
 
 function readTableCF!(df::DataFrames.DataFrame; summaryfile=""::AbstractString)
     DEBUG && println("assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network")
-    obsCFcol = [findfirst(DataFrames.names(df), :CF12_34),
-                findfirst(DataFrames.names(df), :CF13_24),
-                findfirst(DataFrames.names(df), :CF14_23)]
-    if obsCFcol[1]==0 # CF12_34 was not found. try CF12.34 then
-        obsCFcol[1] = findfirst(DataFrames.names(df), Symbol("CF12.34"))
-    end
-    if obsCFcol[2]==0
-        obsCFcol[2] = findfirst(DataFrames.names(df), Symbol("CF13.24"))
-    end
-    if obsCFcol[3]==0
-        obsCFcol[3] = findfirst(DataFrames.names(df), Symbol("CF14.23"))
-    end
+    alternativecolnames = [ # obsCF12 is as exported by fittedQuartetCF()
+        [:CF12_34, Symbol("CF12.34"), :obsCF12],
+        [:CF13_24, Symbol("CF13.24"), :obsCF13],
+        [:CF14_23, Symbol("CF14.23"), :obsCF14]
+    ]
+    obsCFcol = [findfirst(x-> x ∈ alternativecolnames[1], DataFrames.names(df)),
+                findfirst(x-> x ∈ alternativecolnames[2], DataFrames.names(df)),
+                findfirst(x-> x ∈ alternativecolnames[3], DataFrames.names(df))]
     ngenecol =  findfirst(DataFrames.names(df), :ngenes)
     withngenes = ngenecol>0
     if findfirst(obsCFcol, 0) > 0 # one or more col names for CFs were not found
         size(df,2) == (withngenes ? 8 : 7) ||
           warn("""Column names for quartet concordance factors (CFs) were not recognized.
-          Was expecting CF12_34, CF13_24 and CF14_23 for the columns with CF values.
+          Was expecting CF12_34, CF13_24 and CF14_23 for the columns with CF values,
+          or CF12.34 or obsCF12, etc.
           Will assume that the first 4 columns give the taxon names, and that columns 5-7 give the CFs.""")
         obsCFcol = [5,6,7] # assuming CFs are in columns 5,6,7, with colname mismatch
     end
-    if minimum(obsCFcol) <= 4
+    minimum(obsCFcol) > 4 ||
         error("CFs found in columns $obsCFcol, but taxon labels expected in columns 1-4")
-    end
     # fixit: what about columns giving the taxon names: always assumed to be columns 1-4? No warning if not?
     columns = [[1,2,3,4]; obsCFcol]
     if withngenes  push!(columns, ngenecol)  end
@@ -352,45 +348,35 @@ sameTaxa(d::DataCF, t::HybridNetwork) = sameTaxa(d.quartet, t)
 
 # function to extract the union of taxa of list of gene trees
 function unionTaxa(trees::Vector{HybridNetwork})
-    taxa = Set{typeof(trees[1].leaf[1].name)}() # empty set
-    for t in trees
-      for lf in t.leaf
-         push!(taxa, lf.name)
-      end
-    end
-    return sortUnionTaxa(taxa) # now an array
+    taxa = union([tipLabels(t) for t in trees]...) # vector, order maintained
+    return sortUnionTaxa!(taxa)
 end
 
 """
-    sortUnionTaxa(taxa)
+    sortUnionTaxa!(taxa)
 
-Take a set of strings, return a sorted array of strings,
-but sorted numerically if taxa can be parsed as integers.
+Take a vector of strings `taxa`, sort it numerically if
+the first element can be parsed as an integer, alphabetically otherwise.
 """
-function sortUnionTaxa(taxa)
+function sortUnionTaxa!(taxa)
     integers = true
     try
-        parse(Int,taxa[1])
+        parse(Int,taxa[1]) # "taxa" needs to be an array to take 1st element
     catch
         integers = false
     end
-    if(integers)
-        taxa = sort!(collect(taxa), by=x->parse(Int,x))
+    if integers
+        sort!(taxa, by=x->parse(Int,x))
     else
-        taxa = sort!(collect(taxa)) # now an array
+        sort!(taxa)
     end
     return taxa
 end
 
 # function to extract the union of taxa of list of quartets
 function unionTaxa(quartets::Vector{Quartet})
-    taxa = Set{typeof(quartets[1].taxon[1])}() # empty set
-    for q in quartets
-      for lf in q.taxon
-         push!(taxa, lf)
-      end
-    end
-    return sortUnionTaxa(taxa) # now an array
+    taxa = union([q.taxon for q in quartets]...) # vector, order maintained
+    return sortUnionTaxa!(taxa) # now an array
 end
 
 unionTaxaTree(file::AbstractString) = unionTaxa(readInputTrees(file))
