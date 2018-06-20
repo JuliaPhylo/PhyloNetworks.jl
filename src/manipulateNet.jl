@@ -1,20 +1,27 @@
 """
 `undirectedOtherNetworks(net::HybridNetwork)`
 
-Returns a vector of HybridNetwork object, obtained by switching the hybrid node to other nodes inside its cycle. Optional argument is outgroup. If outgroup is specified, then networks conflicting with the placement of the root are avoided.
+Return a vector of HybridNetwork objects, obtained by switching the placement
+of each hybrid node to other nodes inside its cycle. This amounts to changing
+the direction of a gene flow event (recursively to move around the whole cycle
+of each reticulation).
 
+Optional argument: outgroup, as a String. If an outgroup is specified,
+then networks conflicting with the placement of the root are avoided.
+
+Assumptions: `net` is assumed to be of level 1, that is, each blob has a
+single cycle with a single reticulation.
+All level-1 fields of `net` are assumed up-to-date.
 # Example #"
 ```julia
 julia> net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 julia> vnet = undirectedOtherNetworks(net)
 ```
 """ #"
-# function to give all the networks obtained from moving the hybrid node
-# inside its cycle
-# WARNING: assumes net has all the attributes. It is called inside optTopRuns only
+# extra optional argument: "insideSnaq". When true, all attributes are assumed perfect
+# So far, undirectedOtherNetworks is called inside optTopRuns only
 # Potential bug: if new node is -1, then inCycle will become meaningless: changed in readSubTree here
 # WARNING: does not update partition, because only thing to change is hybrid node number
-## insideSnaq=true means that all attributes are perfect
 function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractString, insideSnaq=false::Bool)
     global DEBUG
     if(!insideSnaq)
@@ -87,13 +94,17 @@ function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractS
     end
 end
 
-# function to change the hybrid node in a cycle
-# will try to update incycle inside
 """
-`hybridatnode!(net::HybridNetwork, nodeNumber::Integer)`
+    hybridatnode!(net::HybridNetwork, nodeNumber::Integer)
 
-Changes the hybrid in a cycle to the node with number `nodeNumber`.
+Change the status of edges in network `net`,
+to move the hybrid node in a cycle to the node with number `nodeNumber`.
 This node must be in one (and only one) cycle, otherwise an error will be thrown.
+
+
+`net` is assumed to be of level 1, that is, each blob has a
+single cycle with a single reticulation.
+Check and update the nodes' field `inCycle`.
 
 # Example #"
 ```julia
@@ -129,10 +140,14 @@ function hybridatnode!(net::HybridNetwork, nodeNumber::Integer)
     return net
 end
 
-# auxiliary function to change the hybrid node inside a cycle to another node
-# WARNING: it assumes all the attributes are correct
-# it is called by hybridatnode! with node number as input, and it is called
-# by undirectedOtherNetworks
+"""
+    hybridatnode!(net, hybrid::Node, newNode::Node)
+
+Move the reticulation from `hybrid` to `newNode`,
+which must in the same cycle. `net` is assumed to be of level 1,
+but **no checks** are made and fields are supposed up-to-date.
+"""
+# called by hybridatnode!(net, node number), itself called by undirectedOtherNetworks
 function hybridatnode!(net::HybridNetwork, hybrid::Node, newNode::Node)
     hybrid.hybrid || error("node $(hybrid.number) should be hybrid, but it is not")
     hybedges = hybridEdges(hybrid)
@@ -332,7 +347,7 @@ function rootonedge!(net::HybridNetwork, edgeNumber::Integer; index=false::Bool)
 end
 
 """
-`breakedge!(Edge, HybridNetwork)`
+    breakedge!(Edge, HybridNetwork)
 
 breaks an edge into 2 edges (each of length half that of original edge).
 creates new node of degree 2. Useful to root network along an edge.
@@ -370,7 +385,7 @@ function breakedge!(edge::Edge, net::HybridNetwork)
 end
 
 """
-`fuseedgesat!(i::Integer,net::HybridNetwork)`
+    fuseedgesat!(i::Integer,net::HybridNetwork)
 
 Removes `i`th node in net.node, if it is of degree 2.
 The parent and child edges of this node are fused.
@@ -420,7 +435,7 @@ end
 #################################################
 
 """
-`directEdges!(net::HybridNetwork; checkMajor=true::Bool)`
+    directEdges!(net::HybridNetwork; checkMajor=true::Bool)
 
 Updates the edges' attribute `isChild1`, according to the root placement.
 Also updates edges' attribute `containRoot`, for other possible root placements
@@ -502,10 +517,12 @@ end
 #################################################
 
 """
-getParents(n::Node)
+    getParents(n::Node)
 
 Get vector of all parent nodes of `n`, based on `isChild1` field (for edges).
-To get the parent node of an edge: see [`getParent`](@ref).
+To get the parent node of an edge: see [`getParent`](@ref).  
+To get individual parent edges (rather than all parent *nodes*):
+see [`getMajorParentEdge`](@ref) and `getMinorParentEdge`.
 """
 # getParent defined (inlined) in auxiliary.jl
 @inline function getParents(node::Node)
@@ -526,6 +543,8 @@ end
 
 return the parent edge of a given node: the major / minor if hybrid.  
 **warning**: assume isChild1 and isMajor attributes are correct
+
+To get all parent *nodes*: see [`getParents`](@ref).  
 """
 function getMajorParentEdge(n::Node)
     for ee in n.edge
@@ -662,11 +681,8 @@ julia> plot(net)
 """ #"
 function rotate!(net::HybridNetwork, nnum::Integer; orderedEdgeNum=Int[]::Array{Int,1})
     nind = 0
-    try
-        nind = getIndexNode(nnum,net)
-    catch
-        error("cannot find any node with number $nnum in network.")
-    end
+    nind = findfirst(n -> n.number == nnum, net.node)
+    nind > 0 || error("cannot find any node with number $nnum in network.")
     n = net.node[nind]
     ci = Int[] # children edge indices
     for i = 1:length(n.edge)
