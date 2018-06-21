@@ -75,13 +75,18 @@ estNet = optTopRun1!(currT, 0.01,75, d,1, 1e-5,1e-6,1e-3,1e-4,
 end
 
 @testset "snaq! in serial and in parallel" begin
+  tree = readTopology("((((6:0.1,4:1.5),9)1:0.1,8),10:0.1);")
+  @test_throws ErrorException snaq!(tree, d) # some taxa are in quartets, not in tree
   originalSTDOUT = STDOUT
   redirect_stdout(open("/dev/null", "w")) # not portable to Windows
-  n1 = snaq!(currT, d, hmax=1, runs=2, Nfail=10, seed=1234,
+  net = readTopology("((((6:0.1,4:1.5)1:0.2,((7,60))11#H1)5:0.1,(11#H1,8)),10:0.1);")
+  @test_warn "these taxa will be deleted" snaq!(net, d, # taxon "60" in net: not in quartets
+    hmax=1, runs=1, Nfail=1, seed=1234, ftolRel=1e-2,ftolAbs=1e-2,xtolAbs=1e-2,xtolRel=1e-2)
+  n1 = snaq!(currT, d, hmax=1, runs=2, Nfail=1, seed=1234,
              ftolRel=1e-2,ftolAbs=1e-2,xtolAbs=1e-2,xtolRel=1e-2)
   addprocs(1)
   @everywhere using PhyloNetworks
-  n2 = snaq!(currT, d, hmax=1, runs=2, Nfail=10, seed=1234,
+  n2 = snaq!(currT, d, hmax=1, runs=2, Nfail=1, seed=1234,
              ftolRel=1e-2,ftolAbs=1e-2,xtolAbs=1e-2,xtolRel=1e-2)
   redirect_stdout(originalSTDOUT)
   rmprocs(workers())

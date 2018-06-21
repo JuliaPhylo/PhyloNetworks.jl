@@ -323,8 +323,15 @@ function readListQuartets(file::AbstractString)
     return quartets
 end
 
+"""
+    sameTaxa(Quartet, HybridNetwork)
 
-# function to check if taxa in quartet is in tree t
+Return `true` if all taxa in the quartet are represented in the network,
+`false` if one or more taxa in the quartet does not appear in the network.
+
+warning: the name can cause confusion. A more appropriate name might be
+"in", or "taxain", or "taxonsubset", or etc.
+"""
 function sameTaxa(q::Quartet, t::HybridNetwork)
     for name in q.taxon
         in(name,t.names) || return false
@@ -332,18 +339,37 @@ function sameTaxa(q::Quartet, t::HybridNetwork)
     return true
 end
 
-# function to check if taxa in all quartets is in tree t
-function sameTaxa(quartets::Vector{Quartet}, t::HybridNetwork)
-    suc = true
-    for q in quartets
-        for name in q.taxon
-            suc = in(name,t.names) ? true : false
+"""
+    taxadiff(Vector{Quartet}, network; multiplealleles=true)
+    taxadiff(DataCF, network; multiplealleles=true)
+
+Return 2 vectors:
+
+- taxa in at least 1 of the quartets but not in the network, and
+- taxa in the network but in none of the quartets.
+
+When `multiplealleles` is true, the taxon names that end with "__2"
+are ignored in the quartets: they are not expected to appear in the
+networks that users give as input, or get as output.
+"""
+function taxadiff(quartets::Vector{Quartet}, t::HybridNetwork;
+                  multiplealleles=true::Bool)
+    tq = tipLabels(quartets)
+    secondallele = ismatch.(r"__2$", tq)
+    for i in length(secondallele):-1:1
+        secondallele[i] || continue
+        basetax = match(r"(.*)__2$", tq[i]).captures[1]
+        # if tq[i] = "mouse__2" for instance, then basetax = "mouse"
+        if findfirst(tq, basetax) > 0 # some other taxon is "mouse"
+            deleteat!(tq, i) # delete "mouse__2" from tq IF "mouse" is present
         end
     end
-    return suc
+    tn = tipLabels(t)
+    return (setdiff(tq,tn), setdiff(tn,tq))
 end
 
-sameTaxa(d::DataCF, t::HybridNetwork) = sameTaxa(d.quartet, t)
+taxadiff(d::DataCF, t::HybridNetwork; multiplealleles=true::Bool) =
+    taxadiff(d.quartet, t; multiplealleles=multiplealleles)
 
 
 # function to extract the union of taxa of list of gene trees
@@ -356,12 +382,12 @@ end
     sortUnionTaxa!(taxa)
 
 Take a vector of strings `taxa`, sort it numerically if
-the first element can be parsed as an integer, alphabetically otherwise.
+elements can be parsed as an integer, alphabetically otherwise.
 """
 function sortUnionTaxa!(taxa)
     integers = true
     try
-        parse(Int,taxa[1]) # "taxa" needs to be an array to take 1st element
+        parse.(Int,taxa)
     catch
         integers = false
     end
@@ -376,7 +402,7 @@ end
 # function to extract the union of taxa of list of quartets
 function unionTaxa(quartets::Vector{Quartet})
     taxa = union([q.taxon for q in quartets]...) # vector, order maintained
-    return sortUnionTaxa!(taxa) # now an array
+    return sortUnionTaxa!(taxa)
 end
 
 unionTaxaTree(file::AbstractString) = unionTaxa(readInputTrees(file))
@@ -418,11 +444,7 @@ function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{Hy
     totalq = length(quartets)
     println("Reading in quartets...")
     r = round(1/totalq,2)
-    if(r > 0.02)
-        numq = totalq
-    else
-        numq = 50
-    end
+    numq = (r > 0.02 ? totalq : 50)
     print("0+")
     for i in 1:numq
         print("-")
@@ -441,7 +463,7 @@ function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{Hy
         sum14 = 0
         for t in trees
             isTree(t) || error("gene tree found in file that is a network $(writeTopology(t))")
-            if(sameTaxa(q,t))
+            if sameTaxa(q,t)
                 M = tree2Matrix(t,taxa) #fixit: way to reuse M? length(t.edge) will be different across trees
                 res = extractQuartetTree(q,M,taxa)
                 DEBUG && println("res is $(res)")

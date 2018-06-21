@@ -564,8 +564,14 @@ function getMinorParentEdge(n::Node)
     error("node $(n.number) has no minor parent")
 end
 
-# get all children of a given node
-# it assumes the isChild1 attributes are correct
+"""
+    getChildren(node)
+
+return a vector with all children *nodes* of `node`.  
+**warning**: assume `isChild1` field (for edges) are correct
+
+To get all parent *nodes*: see [`getParents`](@ref).  
+"""
 function getChildren(node::Node)
     children = Node[]
     for e in node.edge
