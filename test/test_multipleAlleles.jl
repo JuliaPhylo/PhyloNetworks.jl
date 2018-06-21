@@ -1,21 +1,20 @@
-if false
-    treefile = "(6,(5,(7,(3,4))));"
-    tree = readTopologyUpdate(treefile);
-    printEdges(tree)
-    printNodes(tree)
-    repSpecies=["7"]
-    expandLeaves!(repSpecies,tree)
-    tree
-    plot(tree)
-    #writeTopologyLevel1(tree)
-    mergeLeaves!(tree)
-    tree
-    plot(tree)
+@testset "multiple alleles" begin
 
-    df = readtable("CFtable1.csv")
-    alleleDF=DataFrame(allele=["1","2"],species=["7","7"])
-    newdf = mapAllelesCFtable!(alleleDF,df,true,"CFmapped.csv")
-    mapD= readTableCF("CFmapped.csv")
+@testset "test: map alleles to species" begin
+    tree = readTopology("(6,(5,(7,(3,4))));");
+    PhyloNetworks.expandLeaves!(["7"],tree)
+    @test writeTopology(tree) == "(6,(5,((7:0.0,7__2:0.0):1.0,(3,4))));"
+    PhyloNetworks.mergeLeaves!(tree)
+    @test writeTopology(tree) == "(6,(5,(7:1.0,(3,4))));"
+    alleleDF=DataFrame(allele=["1","2"], species=["7","7"])
+    # df = CSV.read(joinpath(@__DIR__, "..", "examples", "tableCFCI.csv"))
+    # PhyloNetworks.mapAllelesCFtable!(df,alleleDF,[1,2,3,4],true,"CFmapped.csv")
+    CSV.write("tmp.csv", alleleDF);
+    df = (@test_warn "not all alleles were mapped" mapAllelesCFtable("tmp.csv",
+      joinpath(@__DIR__, "..", "examples", "tableCFCI.csv"), filename="CFmapped.csv"))
+    rm("CFmapped.csv")
+    rm("tmp.csv")
+    @test df[:t4] == ["4","7","3","7","3","3","7","3","3","3","7","3","3","3","3"]
 end
 
 #----------------------------------------------------------#
@@ -111,4 +110,6 @@ net = readTopology("(((4,#H1),10),(7,(6)#H1),8);")
 net = topologyMaxQPseudolik!(net,d,  # loose tolerance for faster test
         ftolRel=1e-2,ftolAbs=1e-2,xtolAbs=1e-2,xtolRel=1e-2)
 @test net.loglik > 174.5
-end # of testset
+end # of snaq testset
+
+end # overall multiple allele sets of testests
