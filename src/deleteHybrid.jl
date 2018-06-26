@@ -289,23 +289,24 @@ end
 deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool) = deleteHybrid!(node,net,minor, false)
 
 """
-`deleteHybridEdge!(net::HybridNetwork,edge::Edge)`
+    deleteHybridEdge!(net::HybridNetwork, edge::Edge, keepNodes=false)
 
 Deletes a hybrid edge from a network. The network does not have to be of level 1,
 and may contain some polytomies. Updates branch lengths, allowing for missing values.
 Returns the network.
 
-At each of the 2 junctions, the child edge is retained (i.e. the tree edge is retained,
-below the hybrid node).
+At each of the 2 junctions, the child edge is retained (below the hybrid node).
+If `keepNodes` is true, all nodes are retained during edge removal.
 
 Warnings:
 
+- if `keepNodes` is true: partner hybrid parent edge has its γ value unchanged
 - does **not** update containRoot (could be implemented later)
 - does **not** update attributes needed for snaq! (like containRoot, inCycle, edge.z, edge.y etc.)
 - if the parent of edge is the root, the root will be moved to keep the network unrooted
   with a root of degree two.
 """
-function deleteHybridEdge!(net::HybridNetwork,edge::Edge)
+function deleteHybridEdge!(net::HybridNetwork, edge::Edge, keepNodes=false::Bool)
     edge.hybrid || error("edge $(edge.number) has to be hybrid for deleteHybridEdge!")
     n1 = getChild(edge)  # child  of edge, to be deleted
     n1.hybrid || error("child node $(n1.number) of hybrid edge $(edge.number) should be a hybrid.")
