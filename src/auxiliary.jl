@@ -183,9 +183,12 @@ end
     getPartner(edge::Edge)
     getPartner(edge::Edge, node::Node)
 
-Return hybrid partner of edge, that is, hybrid edge pointing
-to the same child as `edge`. Assumes correct `isChild1` attributes.
-Assumes no in-coming polytomy: a node has 0, 1 or 2 parents, no more.  
+Return hybrid partner of edge, that is, hybrid edge pointing to the same
+child as `edge`. Assumptions (not checked):
+
+- correct `isChild1` field for `edge` and for hybrid edges
+- no in-coming polytomy: a node has 0, 1 or 2 parents, no more
+
 When `node` is given, it is assumed to be the child of `edge`
 (the first form calls the second).
 """
@@ -523,25 +526,24 @@ function deleteNode!(net::QuartetNetwork, n::Node)
     end
 end
 
-# function to delete an Edge in net.edge and
-# update numEdges from a HybridNetwork
-# added part boolean, default true to check the partition only when part=true
+"""
+    deleteEdge!(net::HybridNetwork,  e::Edge, part=true)
+    deleteEdge!(net::QuartetNetwork, e::Edge)
+
+Delete edge `e` from `net.edge` and update `net.numEdges`.
+If `part` is true, update the network's partition field.
+"""
 function deleteEdge!(net::HybridNetwork, e::Edge; part=true::Bool)
-    if(part)
-        if(e.inCycle == -1 && !e.hybrid && !isempty(net.partition) && !isTree(net))
+    if part
+        if e.inCycle == -1 && !e.hybrid && !isempty(net.partition) && !isTree(net)
             ind = whichPartition(net,e)
             indE = getIndex(e,net.partition[ind].edges)
             deleteat!(net.partition[ind].edges,indE)
         end
     end
-    index = 0
-    try
-        index = getIndex(e,net);
-    catch
-        error("Edge $(e.number) not in network");
-    end
-    #println("delete edge $(e.number) from net")
-    deleteat!(net.edge,index);
+    i = findfirst(net.edge, e)
+    i > 0 || error("edge $(e.number) not in network: can't delete");
+    deleteat!(net.edge, i);
     net.numEdges -= 1;
 end
 
@@ -560,19 +562,17 @@ function deleteEdge!(net::QuartetNetwork, e::Edge)
 end
 
 
-# function to delete a hybrid Node in net.hybrid and
-# update numHybrid
-# used when you do not want to delete the actual node
-# only remove it from net.hybrid
+"""
+    removeHybrid!(net::Network, n::Node)
+
+Delete a hybrid node `n` from `net.hybrid`, and update `net.numHybrid`.
+The actual node `n` is not deleted. It is kept in the full list `net.node`.
+"""
 function removeHybrid!(net::Network, n::Node)
     n.hybrid || error("cannot delete node $(n.number) from net.hybrid because it is not hybrid")
-    index = 0
-    try
-        index = getIndexHybrid(n,net);
-    catch
-        error("Hybrid Node $(n.number) not in network");
-    end
-    deleteat!(net.hybrid,index);
+    i = findfirst(net.hybrid, n)
+    i > 0 || error("hybrid node $(n.number) not in the network's list of hybrids");
+    deleteat!(net.hybrid, i);
     net.numHybrids -= 1;
 end
 
