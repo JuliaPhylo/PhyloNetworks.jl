@@ -33,8 +33,8 @@ pages:
     # - Input Data for SNaQ: man/inputdata.md
     # - TICR pipeline: man/ticr_howtogetQuartetCFs.md
     # - Network estimation and display: man/snaq_plot.md
-    # - Network comparison and manipulation: man/dist_reroot.md
-    # - Candidate Networks: man/fixednetworkoptim.md
+    - Network comparison and manipulation: man/dist_reroot.md
+    - Candidate Networks: man/fixednetworkoptim.md
     # - Extract Expected CFs: man/expectedCFs.md
     - Bootstrap: man/bootstrap.md
     # - Multiple Alleles: man/multiplealleles.md
