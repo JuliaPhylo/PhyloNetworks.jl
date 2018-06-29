@@ -1,25 +1,77 @@
 # notes to maintain documentation
 
-- built with [Documenter](https://juliadocs.github.io/Documenter.jl)
-  using Paul Bastide's [fork](https://github.com/pbastide/Documenter.jl)
-  to have the flexibility to avoid committing new figures (see below)
+- built with [Documenter](https://juliadocs.github.io/Documenter.jl).
 - deployed [here](http://crsl4.github.io/PhyloNetworks.jl/)
   (go to `latest/` or `stable/`)
-  using github and files committed to the `gh-pages` branch.
+  using GitHub and files committed to the `gh-pages` branch.
 
 ## how it works: overview
 
 - `.travis.yml` asks to run `docs/make.jl` after a successful test & build.
-- the julia script `docs/make.jl` has 3 steps:
-  1. run `docs/src/man/src/make_weave.jl` to
-     [Weave](http://weavejl.mpastell.com/stable/) the `.jmd` files
-     in `docs/src/man/src/*.jmd`: turns them into markdown files placed in
-     `docs/src/man/*.md`, that contain the input & output of julia code.
-  2. run `makedocs()` from `Documenter`: make the documentation.
+- the julia script `docs/make.jl` has 2 steps:
+  1. run `makedocs()` from `Documenter`: make the documentation.
      also runs all `jldoctest` blocks in the source files, to check that
      the output in the blocks matches the actual output.
-  3. run `deploydocs(...)` also from Documenter. This step calls `mkdocs`,
+     This steps also translate the "Documenter md" documentation files
+     into vanilla "GitHub md" (see below).
+  2. run `deploydocs(...)` also from Documenter. This step calls `mkdocs`,
      which turns the markdown files in `docs/.../*.md` into html files.
+
+## The "Documenter md" format
+
+### Note on the format
+
+The documentation pages are all written in this format. It is a regular md, but
+with extra blocks of codes (as `@example` and `@setup`) that contain Julia
+commands. These lines will be executed during the `makedoc()` process. See the
+`Documenter` documentation for more details on the syntax:
+https://juliadocs.github.io/Documenter.jl/stable/man/syntax/
+
+### Setting up the plot environment
+
+Some of these blocs may contain plots, which are going to be drawn during the
+process, which require the use of `PhyloPlots` along with `RCall`. Hence,
+before the doc is built, the script `.travis.yml` install `R` on the server,
+and then call the script `docs/make.sh`, that installs `PhyloPlots` before
+starting the build in itself.
+Note that, for an unknown reason, `R` must be installed *outside* of `make.sh`,
+in the main body of `.travis.sh`.
+
+### Directory of the plots
+
+We chose to group all the output plots in the directory `assets/figures`.
+Hence, the typical setup in a documentation page containing plots is:
+```@setup name
+using PhyloPlots, RCall
+mkpath("../assets/figures")
+R"name <- function(x) file.path('..', 'assets', 'figures', x)" # hide
+```
+The `mkpath` command is there to ensure that the target directory does indeed
+exist. In theory, it only needs to be called once (by the first documentation
+page being built). However, as this order might be subject to change over time,
+it could be safer to include it on every such page.
+
+### Format of the plots
+
+After trial and error and discussions, we chose to use only the *SVG* format
+for the plot. This format should ensure that when a plot is drawn again,
+identical, in a new build, then Git will recognize that it has not change, and
+hence not save a new version of it. This should ensure that the repository does
+not grows unreasonably at each build of the doc, i.e. after each push to
+master. The typical commands to save and display a plot should hence be:
+```@example name
+R"svg(name('my_useful_name.svg'), width=4, height=4)" # hide
+plot(net, :R);
+R"dev.off()" # hide
+nothing # hide
+```
+![my_useful_name](../assets/figures/my_useful_name.svg)
+
+Note that in previous versions of the doc, `Weave` was used to format the
+documentation pages (until version 0.7.0), and the saving of the plots on the
+Git repository was handled with an extra Travis environment variable DRAW_FIG.
+Instructions about this previous previous setup can be found in this very
+readme file, in version 0.7.0.
 
 ## to make a local version of the website
 
