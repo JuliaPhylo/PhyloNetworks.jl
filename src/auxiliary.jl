@@ -181,10 +181,16 @@ end
 
 """
     getPartner(edge::Edge)
+    getPartner(edge::Edge, node::Node)
 
-Return hybrid partner of edge, that is, hybrid edge pointing
-to the same child as `edge`. Assumes correct `isChild1` attributes.
-Assumes no in-coming polytomy: a node has 0, 1 or 2 parents, no more.
+Return hybrid partner of edge, that is, hybrid edge pointing to the same
+child as `edge`. Assumptions (not checked):
+
+- correct `isChild1` field for `edge` and for hybrid edges
+- no in-coming polytomy: a node has 0, 1 or 2 parents, no more
+
+When `node` is given, it is assumed to be the child of `edge`
+(the first form calls the second).
 """
 @inline function getPartner(edge)
     node = getChild(edge)
@@ -520,25 +526,24 @@ function deleteNode!(net::QuartetNetwork, n::Node)
     end
 end
 
-# function to delete an Edge in net.edge and
-# update numEdges from a HybridNetwork
-# added part boolean, default true to check the partition only when part=true
+"""
+    deleteEdge!(net::HybridNetwork,  e::Edge, part=true)
+    deleteEdge!(net::QuartetNetwork, e::Edge)
+
+Delete edge `e` from `net.edge` and update `net.numEdges`.
+If `part` is true, update the network's partition field.
+"""
 function deleteEdge!(net::HybridNetwork, e::Edge; part=true::Bool)
-    if(part)
-        if(e.inCycle == -1 && !e.hybrid && !isempty(net.partition) && !isTree(net))
+    if part
+        if e.inCycle == -1 && !e.hybrid && !isempty(net.partition) && !isTree(net)
             ind = whichPartition(net,e)
             indE = getIndex(e,net.partition[ind].edges)
             deleteat!(net.partition[ind].edges,indE)
         end
     end
-    index = 0
-    try
-        index = getIndex(e,net);
-    catch
-        error("Edge $(e.number) not in network");
-    end
-    #println("delete edge $(e.number) from net")
-    deleteat!(net.edge,index);
+    i = findfirst(net.edge, e)
+    i > 0 || error("edge $(e.number) not in network: can't delete");
+    deleteat!(net.edge, i);
     net.numEdges -= 1;
 end
 
@@ -557,19 +562,17 @@ function deleteEdge!(net::QuartetNetwork, e::Edge)
 end
 
 
-# function to delete a hybrid Node in net.hybrid and
-# update numHybrid
-# used when you do not want to delete the actual node
-# only remove it from net.hybrid
+"""
+    removeHybrid!(net::Network, n::Node)
+
+Delete a hybrid node `n` from `net.hybrid`, and update `net.numHybrid`.
+The actual node `n` is not deleted. It is kept in the full list `net.node`.
+"""
 function removeHybrid!(net::Network, n::Node)
     n.hybrid || error("cannot delete node $(n.number) from net.hybrid because it is not hybrid")
-    index = 0
-    try
-        index = getIndexHybrid(n,net);
-    catch
-        error("Hybrid Node $(n.number) not in network");
-    end
-    deleteat!(net.hybrid,index);
+    i = findfirst(net.hybrid, n)
+    i > 0 || error("hybrid node $(n.number) not in the network's list of hybrids");
+    deleteat!(net.hybrid, i);
     net.numHybrids -= 1;
 end
 
@@ -695,12 +698,29 @@ function printNodes(net::Network)
     end
 end
 
-# find the edges for a given hybrid node
-# in the order: hybrid major, hybrid minor, tree edge
-# if node is tree node with hybrid edges, it returns
-# hybrid edge, tree edge in cycle, tree edge not in cycle
-# warning: assumes any tree node with hybrid edge has two tree edges
-#          one in cycle, the other not in cycle
+"""
+    hybridEdges(node::Node)
+
+Return the 3 edges attached to `node` in a specific order [e1,e2,e3].
+**Warning**: assume a level-1 network with node field `hasHybEdge`
+and edge field `inCycle` up-to-date.
+
+If `node` is a hybrid node:
+
+- e1 is the major hybrid parent edge of `node`
+- e2 is the minor hybrid parent edge
+- e3 is the tree edge, child of `node`.
+
+If `node` is a tree node parent of one child edge:
+
+- e1 is the hybrid edge, child of `node`
+- e2 is the tree edge that belongs to the cycle created by e1
+- e3 is the other tree edge attached to `node` (not in a cycle)
+
+Otherwise:
+
+- e3 is an external edge from `node` to a leaf, if one exists.
+"""
 function hybridEdges(node::Node)
     size(node.edge,1) == 3 || error("node $(node.number) has $(size(node.edge,1)) edges instead of 3");
     if(node.hybrid)
@@ -752,9 +772,16 @@ function hybridEdges(node::Node)
     end
 end
 
-# function to get the other two edges of a node
-# besides the one specified
-# it is called hybridEdges, but it not restricted to hybrid
+"""
+    hybridEdges(node::Node, e::Edge)
+
+Return the 2 edges connected to `node` other than `e`,
+in the same order as `node.edge`,
+except that `e` absent from the list.
+
+Despite what the name suggest, `node` need not be a hybrid node!
+`node` is assumed to have 3 edges, though.
+"""
 function hybridEdges(node::Node, edge::Edge)
     size(node.edge,1) == 3 || error("node $(node.number) has $(size(node.edge,1)) edges instead of 3")
     edge1 = nothing
@@ -852,7 +879,8 @@ end
 
 
 """
-`setGamma!(Edge,new gamma)`
+    setGamma!(Edge, new γ)
+    setGamma!(Edge, new γ, change other=true::Bool)
 
 Set inheritance probability γ for an edge, which must be a hybrid edge.
 The new γ needs to be in [0,1]. The γ of the "partner" hybrid edge is changed
@@ -864,6 +892,8 @@ If `net` is a HybridNetwork object, `printEdges(net)` will show the list of edge
 and their γ's. The γ of the third hybrid edge (say) can be changed to 0.2 with
 `setGamma!(net.edge[3],0.2)`.
 This will automatically set γ of the partner hybrid edge to 0.8.
+
+The last argument is true by default. If false: the partner edge is not updated.
 """
 # warning in the bad diamond/triangle cases because gamma is not identifiable
 # changeOther = true, looks for the other hybrid edge and changes gamma too
@@ -881,34 +911,28 @@ function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool)
     if(DEBUG)
         !node.isBadDiamondI || warn("bad diamond situation: gamma not identifiable")
     end
-    edges = hybridEdges(node,edge)
-    length(edges) == 2 || error("strange here: node $(node.number) should have 3 edges and it has $(length(edges)+1).")
-    if(edges[1].hybrid && !edges[2].hybrid)
-        ind = 1
-    elseif(edges[2].hybrid && !edges[1].hybrid)
-        ind = 2
-    else
-        error("strange hybrid node $(node.number) with only one hybrid edge or with three hybrid edges")
-    end
-    if(changeOther)
-        if(!approxEq(new_gamma,0.5))
-            edge.gamma = new_gamma;
-            edge.isMajor = (new_gamma>0.5)
-            edges[ind].gamma = 1.0 - new_gamma;
-            edges[ind].isMajor = !edge.isMajor
-        else #new gamma is 0.5 approximately
-            edge.gamma = new_gamma
-            edge.isMajor = true
-            edges[ind].gamma = 1.0 - new_gamma
-            edges[ind].isMajor = false
+    partner = Edge[] # list of other hybrid parents of node, other than edge
+    for e in node.edge
+        if e.hybrid && e != edge && node == getChild(e)
+            push!(partner, e)
         end
+    end
+    length(partner) == 1 ||
+      error("strange hybrid node $(node.number) with $(length(hybridparents)+1) hybrid parents")
+    e2 = partner[1]
+    onehalf = isapprox(new_gamma,0.5)
+    if onehalf new_gamma=0.5; end
+    new_ismajor = new_gamma >= 0.5
+    edge.gamma = new_gamma
+    if changeOther
+        edge.isMajor = new_ismajor
+        e2.gamma = 1.0 - new_gamma
+        e2.isMajor = !new_ismajor
     else
-        if(!approxEq(new_gamma,0.5))
-            edge.gamma = new_gamma;
-            edge.isMajor = (new_gamma>0.5)
-        else #new gamma is 0.5
-            edge.gamma = new_gamma
-            edge.isMajor = !edges[ind].isMajor
+        if onehalf # who is major is arbitrary: so we pick what's consistent with the partner
+            edge.isMajor = !e2.isMajor
+        else
+            edge.isMajor = new_ismajor
         end
     end
     return nothing

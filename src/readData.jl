@@ -74,30 +74,26 @@ end
 
 function readTableCF!(df::DataFrames.DataFrame; summaryfile=""::AbstractString)
     DEBUG && println("assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network")
-    obsCFcol = [findfirst(DataFrames.names(df), :CF12_34),
-                findfirst(DataFrames.names(df), :CF13_24),
-                findfirst(DataFrames.names(df), :CF14_23)]
-    if obsCFcol[1]==0 # CF12_34 was not found. try CF12.34 then
-        obsCFcol[1] = findfirst(DataFrames.names(df), Symbol("CF12.34"))
-    end
-    if obsCFcol[2]==0
-        obsCFcol[2] = findfirst(DataFrames.names(df), Symbol("CF13.24"))
-    end
-    if obsCFcol[3]==0
-        obsCFcol[3] = findfirst(DataFrames.names(df), Symbol("CF14.23"))
-    end
+    alternativecolnames = [ # obsCF12 is as exported by fittedQuartetCF()
+        [:CF12_34, Symbol("CF12.34"), :obsCF12],
+        [:CF13_24, Symbol("CF13.24"), :obsCF13],
+        [:CF14_23, Symbol("CF14.23"), :obsCF14]
+    ]
+    obsCFcol = [findfirst(x-> x ∈ alternativecolnames[1], DataFrames.names(df)),
+                findfirst(x-> x ∈ alternativecolnames[2], DataFrames.names(df)),
+                findfirst(x-> x ∈ alternativecolnames[3], DataFrames.names(df))]
     ngenecol =  findfirst(DataFrames.names(df), :ngenes)
     withngenes = ngenecol>0
     if findfirst(obsCFcol, 0) > 0 # one or more col names for CFs were not found
         size(df,2) == (withngenes ? 8 : 7) ||
           warn("""Column names for quartet concordance factors (CFs) were not recognized.
-          Was expecting CF12_34, CF13_24 and CF14_23 for the columns with CF values.
+          Was expecting CF12_34, CF13_24 and CF14_23 for the columns with CF values,
+          or CF12.34 or obsCF12, etc.
           Will assume that the first 4 columns give the taxon names, and that columns 5-7 give the CFs.""")
         obsCFcol = [5,6,7] # assuming CFs are in columns 5,6,7, with colname mismatch
     end
-    if minimum(obsCFcol) <= 4
+    minimum(obsCFcol) > 4 ||
         error("CFs found in columns $obsCFcol, but taxon labels expected in columns 1-4")
-    end
     # fixit: what about columns giving the taxon names: always assumed to be columns 1-4? No warning if not?
     columns = [[1,2,3,4]; obsCFcol]
     if withngenes  push!(columns, ngenecol)  end
@@ -327,8 +323,15 @@ function readListQuartets(file::AbstractString)
     return quartets
 end
 
+"""
+    sameTaxa(Quartet, HybridNetwork)
 
-# function to check if taxa in quartet is in tree t
+Return `true` if all taxa in the quartet are represented in the network,
+`false` if one or more taxa in the quartet does not appear in the network.
+
+warning: the name can cause confusion. A more appropriate name might be
+"in", or "taxain", or "taxonsubset", or etc.
+"""
 function sameTaxa(q::Quartet, t::HybridNetwork)
     for name in q.taxon
         in(name,t.names) || return false
@@ -336,61 +339,70 @@ function sameTaxa(q::Quartet, t::HybridNetwork)
     return true
 end
 
-# function to check if taxa in all quartets is in tree t
-function sameTaxa(quartets::Vector{Quartet}, t::HybridNetwork)
-    suc = true
-    for q in quartets
-        for name in q.taxon
-            suc = in(name,t.names) ? true : false
+"""
+    taxadiff(Vector{Quartet}, network; multiplealleles=true)
+    taxadiff(DataCF, network; multiplealleles=true)
+
+Return 2 vectors:
+
+- taxa in at least 1 of the quartets but not in the network, and
+- taxa in the network but in none of the quartets.
+
+When `multiplealleles` is true, the taxon names that end with "__2"
+are ignored in the quartets: they are not expected to appear in the
+networks that users give as input, or get as output.
+"""
+function taxadiff(quartets::Vector{Quartet}, t::HybridNetwork;
+                  multiplealleles=true::Bool)
+    tq = tipLabels(quartets)
+    secondallele = ismatch.(r"__2$", tq)
+    for i in length(secondallele):-1:1
+        secondallele[i] || continue
+        basetax = match(r"(.*)__2$", tq[i]).captures[1]
+        # if tq[i] = "mouse__2" for instance, then basetax = "mouse"
+        if findfirst(tq, basetax) > 0 # some other taxon is "mouse"
+            deleteat!(tq, i) # delete "mouse__2" from tq IF "mouse" is present
         end
     end
-    return suc
+    tn = tipLabels(t)
+    return (setdiff(tq,tn), setdiff(tn,tq))
 end
 
-sameTaxa(d::DataCF, t::HybridNetwork) = sameTaxa(d.quartet, t)
+taxadiff(d::DataCF, t::HybridNetwork; multiplealleles=true::Bool) =
+    taxadiff(d.quartet, t; multiplealleles=multiplealleles)
 
 
 # function to extract the union of taxa of list of gene trees
 function unionTaxa(trees::Vector{HybridNetwork})
-    taxa = Set{typeof(trees[1].leaf[1].name)}() # empty set
-    for t in trees
-      for lf in t.leaf
-         push!(taxa, lf.name)
-      end
-    end
-    return sortUnionTaxa(taxa) # now an array
+    taxa = union([tipLabels(t) for t in trees]...) # vector, order maintained
+    return sortUnionTaxa!(taxa)
 end
 
 """
-    sortUnionTaxa(taxa)
+    sortUnionTaxa!(taxa)
 
-Take a set of strings, return a sorted array of strings,
-but sorted numerically if taxa can be parsed as integers.
+Take a vector of strings `taxa`, sort it numerically if
+elements can be parsed as an integer, alphabetically otherwise.
 """
-function sortUnionTaxa(taxa)
+function sortUnionTaxa!(taxa)
     integers = true
     try
-        parse(Int,taxa[1])
+        parse.(Int,taxa)
     catch
         integers = false
     end
-    if(integers)
-        taxa = sort!(collect(taxa), by=x->parse(Int,x))
+    if integers
+        sort!(taxa, by=x->parse(Int,x))
     else
-        taxa = sort!(collect(taxa)) # now an array
+        sort!(taxa)
     end
     return taxa
 end
 
 # function to extract the union of taxa of list of quartets
 function unionTaxa(quartets::Vector{Quartet})
-    taxa = Set{typeof(quartets[1].taxon[1])}() # empty set
-    for q in quartets
-      for lf in q.taxon
-         push!(taxa, lf)
-      end
-    end
-    return sortUnionTaxa(taxa) # now an array
+    taxa = union([q.taxon for q in quartets]...) # vector, order maintained
+    return sortUnionTaxa!(taxa)
 end
 
 unionTaxaTree(file::AbstractString) = unionTaxa(readInputTrees(file))
@@ -432,11 +444,7 @@ function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{Hy
     totalq = length(quartets)
     println("Reading in quartets...")
     r = round(1/totalq,2)
-    if(r > 0.02)
-        numq = totalq
-    else
-        numq = 50
-    end
+    numq = (r > 0.02 ? totalq : 50)
     print("0+")
     for i in 1:numq
         print("-")
@@ -455,7 +463,7 @@ function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{Hy
         sum14 = 0
         for t in trees
             isTree(t) || error("gene tree found in file that is a network $(writeTopology(t))")
-            if(sameTaxa(q,t))
+            if sameTaxa(q,t)
                 M = tree2Matrix(t,taxa) #fixit: way to reuse M? length(t.edge) will be different across trees
                 res = extractQuartetTree(q,M,taxa)
                 DEBUG && println("res is $(res)")

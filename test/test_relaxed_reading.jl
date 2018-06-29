@@ -1,3 +1,4 @@
+@testset "test: newick parsing" begin
 @testset "readTopology White Symbol Tests" begin
 	#Test newlines, spaces, tabs, and carriage returns
 	n1 = readTopology("(A,((B,#H1),(C,(D)#H1)));")
@@ -17,4 +18,15 @@
 	resultant = readTopology("('H\tom\ro\nsa   p \n\n\n\n\n\n\n\ni\t\t\t\t\t\t\t\ten s   ', ((B,#H1),(C,(D)#H1)));")
 	expected = readTopology("('Homosapiens',((B,#H1),(C,(D)#H1)));")
 	@test writeTopology(resultant) == writeTopology(expected)
+end
+@testset "isMajor and gamma consistency" begin
+	net = readTopology("((((B)#H1)#H2,((D,C,#H2:::0.8)S1,(#H1,A)S2)S3)S4);");
+	@test writeTopology(net, round=true, digits=8) == "(#H2:::0.2,((D,C,((B)#H1)#H2:::0.8),(#H1,A)));"
+	net = readTopologyLevel1("(E,((B)#H1:::.5,((D,C),(#H1:::.5,A))));");
+	@test writeTopology(net) == "(D:1.0,C:1.0,((#H1:1.0::0.5,A:1.0):1.0,((B:1.0)#H1:1.0::0.5,E:1.0):1.0):1.0);"
+    originalSTDOUT = STDOUT
+	redirect_stdout(open("/dev/null", "w")) # not portable to Windows
+	@test_nowarn PhyloNetworks.printEverything(net)
+	redirect_stdout(originalSTDOUT)
+end
 end

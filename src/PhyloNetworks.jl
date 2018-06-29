@@ -49,6 +49,9 @@ module PhyloNetworks
         topologyMaxQPseudolik!,
         topologyQPseudolik!,
         ## Network Manipulation
+        # getParent, getParents, getMajorParentEdge, getMinorParentEdge, getChildren,
+        # functions above: first rename them throughout to be consistent with other packages, like:
+        # parent child parents children parentmajor parentminor ancestor sibling offspring
         rootatnode!,
         rootonedge!,
         directEdges!,
