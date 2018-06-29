@@ -10,7 +10,7 @@ tree1 = readTopology("(A,(B:1.0,(C:1.0,D:1.0):1.0):1.0);");
 @test size(PhyloNetworks.minorreticulationgamma(tree1)) == (0,)
 
 # network, h=1, some missing gamma values
-net1 = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0):1.0):3.0,D:5.0);");
+net1 = readTopology("(((A:4.0,(B:1.0)#H1:1.1::):0.5,(C:0.6,#H1:1.0):1.0):3.0,D:5.0);");
 @test_nowarn PhyloNetworks.resetNodeNumbers!(net1);
 @test PhyloNetworks.majoredgematrix(net1) == [5 6; 5 4; 6 8; 6 7; 7 3; 8 1; 8 9; 9 2]
 @test PhyloNetworks.majoredgelength(net1) ==  [3.,5.,.5,1.,.6,4.,1.1,1.]

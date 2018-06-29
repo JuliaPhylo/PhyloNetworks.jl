@@ -420,6 +420,17 @@ Optional arguments (default value):
   and the parameters
 """
 function topologyMaxQPseudolik!(net::HybridNetwork, d::DataCF; verbose=false::Bool, ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
+    tmp1, tmp2 = taxadiff(d,net)
+    length(tmp1)==0 || error("these taxa appear in one or more quartets, but not in the starting topology: $tmp1")
+    if length(tmp2)>0
+        s = "these taxa will be deleted from the starting topology, they have no quartet CF data:\n"
+        for tax in tmp2 s *= " $tax"; end
+        warn(s)
+        net = deepcopy(net)
+        for tax in tmp2
+            deleteleaf!(net, tax)
+        end
+    end
     net = readTopologyUpdate(writeTopologyLevel1(net)) # update everything for level 1
     try
         checkNet(net)
@@ -431,7 +442,6 @@ function topologyMaxQPseudolik!(net::HybridNetwork, d::DataCF; verbose=false::Bo
       expandLeaves!(d.repSpecies, net)
       net = readTopologyLevel1(writeTopologyLevel1(net)) # dirty fix to multiple alleles problem with expandLeaves
     end
-    sameTaxa(d, net) || error("some taxon names in quartets do not appear on the topology")
     optBL!(net, d, verbose, ftolRel, ftolAbs, xtolRel,xtolAbs)
     if(net.numBad > 0) # to keep gammaz info in parenthetical description of bad diamond I
         for n in net.hybrid
@@ -1925,6 +1935,17 @@ function snaq!(currT0::HybridNetwork, d::DataCF; hmax=1::Integer, liktolAbs=likA
     warn("the number of rows / 4-taxon sets exceeds the max integer of type $Int ($(typemax(Int))). High risk of overflow errors...")
     # need a clean starting net. fixit: maybe we need to be more thorough here
     # yes, need to check that everything is ok because it could have been cleaned and then modified
+    tmp1, tmp2 = taxadiff(d,currT0)
+    length(tmp1)==0 || error("these taxa appear in one or more quartets, but not in the starting topology: $tmp1")
+    if length(tmp2)>0
+        s = "these taxa will be deleted from the starting topology, they have no quartet CF data:\n"
+        for tax in tmp2 s *= " $tax"; end
+        warn(s)
+        currT0 = deepcopy(currT0)
+        for tax in tmp2
+            deleteleaf!(currT0, tax)
+        end
+    end
     startnet = readTopologyUpdate(writeTopologyLevel1(currT0)) # update all level-1 things
     flag = checkNet(startnet,true) # light checking only
     flag && error("starting topology suspected not level-1")
@@ -1942,7 +1963,6 @@ function snaq!(currT0::HybridNetwork, d::DataCF; hmax=1::Integer, liktolAbs=likA
         expandLeaves!(d.repSpecies,startnet)
         startnet = readTopologyLevel1(writeTopologyLevel1(startnet)) # dirty fix to multiple alleles problem with expandLeaves
     end
-    sameTaxa(d,startnet) || error("some taxon names in quartets do not appear on the starting topology")
     net = optTopRuns!(startnet, liktolAbs, Nfail, d, hmax, ftolRel,ftolAbs, xtolRel,xtolAbs,
                       verbose, closeN, Nmov0, runs, outgroup, filename,seed,probST)
     if(!isempty(d.repSpecies))

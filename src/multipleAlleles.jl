@@ -5,7 +5,7 @@ global repeatAlleleSuffix = "__2"
 
 
 """
-`mapAllelesCFtable(mapping file, CF file; filename, columns, delim)`
+    mapAllelesCFtable(mapping file, CF file; filename, columns, delim)
 
 Create a new DataFrame containing the same concordance factors as in the input CF file,
 but with modified taxon names. Each allele name in the input CF table is replaced by the
@@ -16,25 +16,51 @@ Optional arguments:
 - file name to write/save resulting CF table. If not specified, then the output
   data frame is not saved to a file.
 - column numbers for the taxon names. 1-4 by default.
-- delim=',': how columns are delimited. comma by default: for csv files.
+- any keyword arguments that `CSV.read` would accept.
+  For example, delim=',' by default: columns are delimited by commas.
+  Unless specified otherwise by the user, `categorical`=false
+  (to read taxon names as Strings, not levels of a categorical factor,
+  for combining the 4 columns with taxon names more easily).
+  The same CSV arguments are used to read both input file (mapping file and quartet file)
+
+See also [`mapAllelesCFtable!`](@ref) to input DataFrames instead of file names.
+
+If a `filename` is specified, such as "quartetCF_speciesNames.csv"
+in the example below, this file is best read later with the option
+`categorical=false`. example:
+
+```julia
+mapAllelesCFtable("allele-species-map.csv", "allele-quartet-CF.csv";
+                  filename = "quartetCF_speciesNames.csv")
+df_sp = CSV.read("quartetCF_speciesNames.csv", categorical=false); # DataFrame object
+dataCF_specieslevel = readTableCF!(df_sp); # DataCF object
+```
 """
 function mapAllelesCFtable(alleleDF::AbstractString, cfDF::AbstractString;
-        filename=""::AbstractString, columns=Int[]::Vector{Int}, delim=','::Char)
-    d = CSV.read(alleleDF, delim=delim)
-    d2 = CSV.read(cfDF, delim=delim)
-    if(filename=="")
-        mapAllelesCFtable!(d,d2,columns,false,filename)
-    else
-        mapAllelesCFtable!(d,d2,columns,true,filename)
-    end
+        filename=""::AbstractString, columns=Int[]::Vector{Int}, CSVargs...)
+    # force categorical=false unless the user wants otherwise
+    i = findfirst([pair[1] for pair in CSVargs], :categorical)
+    if i == 0 CSVargs = (CSVargs..., (:categorical, false)); end
+    d = CSV.read(alleleDF; CSVargs...)
+    d2 = CSV.read(cfDF; CSVargs...)
+    mapAllelesCFtable!(d2,d, columns, filename != "", filename)
 end
 
-# function to read a table of allele-species matchs (dataframe with 2 columns)
-# and a table of CF in the allele names, and replace all the allele names
-# to the species names
-# this will create a new CF table, will not rewrite on the original one
-# filename is the name to give to the new table, if write=true
-function mapAllelesCFtable!(alleleDF::DataFrame, cfDF::DataFrame, co::Vector{Int},write::Bool,filename::AbstractString)
+"""
+    mapAllelesCFtable!(quartet CF DataFrame, mapping DataFrame, columns, write?, filename)
+
+Modify (and return) the quartet concordance factor (CF) DataFrame:
+replace each allele name by the species name that the allele maps onto
+based on the mapping data frame. This mapping data frame should have columns
+named "allele" and "species" (see `rename!` to change column names if need be).
+
+If `write?` is `true`, the modified data frame is written to a file named "filename".
+
+Warning: [`mapAllelesCFtable`](@ref) takes the quartet data file as its second
+argument, while `mapAllelesCFtable!` takes the quartet data (which it modifies)
+as its first argument.
+"""
+function mapAllelesCFtable!(cfDF::DataFrame, alleleDF::DataFrame, co::Vector{Int},write::Bool,filename::AbstractString)
     size(cfDF,2) >= 7 || error("CF DataFrame should have 7+ columns: 4taxa, 3CF, and possibly ngenes")
     if length(co)==0 co=[1,2,3,4]; end
     compareTaxaNames(alleleDF,cfDF,co)
@@ -46,8 +72,8 @@ function mapAllelesCFtable!(alleleDF::DataFrame, cfDF::DataFrame, co::Vector{Int
                               cfDF[co[j]])
         end
     end
-    if(write)
-        filename != "" || error("want to write table of CF with alleles mapped but filename is empty")
+    if write
+        filename != "" || error("cannot write quartet CF with mapped alleles: empty filename")
         CSV.write(filename, cfDF)
     end
     return cfDF
@@ -212,27 +238,24 @@ end
 # and the CF table
 function compareTaxaNames(alleleDF::DataFrame, cfDF::DataFrame, co::Vector{Int})
     checkMapDF(alleleDF)
-    println("Allele map: found $(length(alleleDF[1])) allele-species matches")
+    #println("found $(length(alleleDF[1])) allele-species matches")
     CFtaxa = convert(Array, unique(stack(cfDF[co[1:4]], 1:4)[:value]))
     CFtaxa = map(x->string(x),CFtaxa) #treat as string
     alleleTaxa = map(x->string(x),alleleDF[:allele]) #treat as string
     sizeCF = length(CFtaxa)
     sizeAllele = length(alleleTaxa)
-    if(sizeAllele > sizeCF)
-        println("Allele map: more alleles in the mapping file: $(sizeAllele) than in the CF table: $(sizeCF). Extra allele names will be ignored")
+    if sizeAllele > sizeCF
+        warn("some alleles in the mapping file do not occur in the quartet CF data. Extra allele names will be ignored")
         alleleTaxa = intersect(alleleTaxa,CFtaxa)
-    elseif(sizeAllele < sizeCF)
-        println("Allele map: fewer alleles in the mapping file: $(sizeAllele) than in the CF table: $(sizeCF). Some names in the CF table will remain unchanged")
     end
     unchanged = setdiff(CFtaxa,alleleTaxa)
-    if(length(unchanged) == length(CFtaxa))
+    if length(unchanged) == length(CFtaxa)
         warn("None of the taxon names in CF table match with allele names in the mapping file")
     end
-    if(isempty(unchanged))
-        println("All allele names in the CF table were found in the allele-species mapping file.")
-    else
+    if !isempty(unchanged)
         warn("not all alleles were mapped")
-        println("The following taxa in the CF table were not found in the allele-species mapping file:\n$(unchanged)")
+        print("alleles not mapped to a species name:")
+        for n in unchanged print(" $n"); end; println()
     end
     return nothing
 end
