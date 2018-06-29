@@ -1,6 +1,6 @@
 using Documenter, PhyloNetworks
 
-makedocs(doctest=false)
+makedocs()
 
 deploydocs(
     deps   = Deps.pip("pygments", "mkdocs", "mkdocs-material", "python-markdown-math"),

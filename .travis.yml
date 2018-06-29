@@ -7,7 +7,6 @@ julia: # WARNING: any change here must also be done in docs/make.jl
   - 0.6
 env:
   - DOCUMENTER_DEBUG="true"
-    # DRAW_FIG="false"
 notifications:
   email: false
 ## Following 4 lines are taken from here:
@@ -20,9 +19,9 @@ addons:
 
 after_success:
   # push coverage results to Coveralls
-  # - julia -e 'cd(Pkg.dir("PhyloNetworks")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
+  - julia -e 'cd(Pkg.dir("PhyloNetworks")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
   # push coverage results to Codecov
-  # - julia -e 'cd(Pkg.dir("PhyloNetworks")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
+  - julia -e 'cd(Pkg.dir("PhyloNetworks")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
   # Install R
   - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E084DAB9; fi
   - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo add-apt-repository -y "deb http://cran.rstudio.com/bin/linux/ubuntu $(lsb_release -s -c)/"; fi
