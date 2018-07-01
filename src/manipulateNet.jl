@@ -849,8 +849,8 @@ end
 """
     resetNodeNumbers!(net::HybridNetwork; checkPreorder=true, ape=true)
 
-Change internal node numbers of `net` to consecutive numbers from 1 to the number of nodes.
- 
+Change internal node numbers of `net` to consecutive numbers from 1 to the total
+number of nodes.
 
 keyword arguments:
 - `ape`: if true, the new numbers satisfy the conditions assumed by the
@@ -858,7 +858,7 @@ keyword arguments:
   are higher consecutive integers. If false, nodes are numbered in post-order,
   with leaves from 1 to n (and the root last).
 - `checkPreorder`: if false, the `isChild1` edge field and the `net.nodes_changed`
-network field are supposed to be correct (to get nodes in preorder)
+  network field are supposed to be correct (to get nodes in preorder)
 
 # Examples
 
@@ -898,4 +898,26 @@ function resetNodeNumbers!(net::HybridNetwork; checkPreorder=true::Bool, ape=tru
         n.number = lnum
         lnum += 1
     end
+end
+
+"""
+    resetEdgeNumbers!(net::HybridNetwork; checkPreorder=true, ape=true)
+
+Check that edge numbers of `net` are consecutive numbers from 1 to the total
+number of edges. If not, reset the edge numbers to be so.
+"""
+function resetEdgeNumbers!(net::HybridNetwork)
+    enum = [e.number for e in net.edge]
+    ne = length(enum)
+    unused = setdiff(1:ne, enum)
+    if isempty(unused)
+        return nothing # all good
+    end
+    warn("resetting edge numbers to be from 1 to $ne")
+    ind2change = find(x -> x ∉ 1:ne, enum)
+    length(ind2change) == length(unused) || error("can't reset edge numbers")
+    for i in 1:length(unused)
+        net.edge[ind2change[i]].number = unused[i]
+    end
+    return nothing;
 end

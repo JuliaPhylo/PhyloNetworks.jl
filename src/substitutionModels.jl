@@ -7,9 +7,24 @@ Adapted from the substitutionModels module in BioJulia.
 The same Q and P function names are used for the transition rates and probabilities.
 """
 
-abstract type TraitSubstitutionModel end
-const SM = TraitSubstitutionModel
+abstract type TraitSubstitutionModel{T} end
+const SM = TraitSubstitutionModel{T} where T
 const Bmatrix = SMatrix{2, 2, Float64}
+
+"""
+    nStates(model)
+
+Number of character states for a given trait evolution model.
+"""
+nStates(mod::SM) = error("nStates not defined for $(typeof(mod)).")
+
+"""
+    nparams(model)
+
+Number of parameters for a given trait evolution model
+(length of field `model.rate`).
+"""
+nparams(mod::SM) = error("nparams not defined for $(typeof(mod)).")
 
 """
     Q(model)
@@ -17,7 +32,7 @@ const Bmatrix = SMatrix{2, 2, Float64}
 Substitution rate matrix for a given substitution model:
 Q[i,j] is the rate of transitioning from state i to state j.
 """
-Q(mod::TraitSubstitutionModel) = error("rate matrix Q not defined for $(typeof(mod)).")
+Q(mod::SM) = error("rate matrix Q not defined for $(typeof(mod)).")
 
 """
     showQ(IO, model)
@@ -26,7 +41,7 @@ Print the Q matrix to the screen, with trait states as labels on rows and column
 adapted from prettyprint function by mcreel, found 2017/10 at
 https://discourse.julialang.org/t/display-of-arrays-with-row-and-column-names/1961/6
 """
-function showQ(io::IO, object::TraitSubstitutionModel)
+function showQ(io::IO, object::SM)
     M = Q(object)
     pad = max(8,maximum(length.(object.label))+1)
     for i = 1:size(M,2) # print the header
@@ -93,19 +108,38 @@ end
 Default labels are "0" and "1".
 α is the rate of transition from "0" to "1", and β from "1" to "0".
 """
-mutable struct BinaryTraitSubstitutionModel <: TraitSubstitutionModel
+mutable struct BinaryTraitSubstitutionModel{T} <: TraitSubstitutionModel{T}
     rate::Vector{Float64}
-    label::SVector{2, String}
-    function BinaryTraitSubstitutionModel(α::Float64, β::Float64, label::SVector{2, String})
-	    α >= 0. || error("parameter α must be non-negative")
-	    β >= 0. || error("parameter β must be non-negative")
-	    ab = α+β
+    label::Vector{T} # most often: T = String, but could be BioSymbols.DNA
+    function BinaryTraitSubstitutionModel{T}(rate, label::Vector{T}) where T
+        @assert length(rate) == 2 "binary state: need 2 rates"
+        rate[1] >= 0. || error("parameter α must be non-negative")
+        rate[2] >= 0. || error("parameter β must be non-negative")
+        ab = rate[1] + rate[1]
         ab > 0. || error("α+β must be positive")
-        new([α,β], label)
+        @assert length(label) == 2 "need 2 labels exactly"
+        new(rate, label)
     end
 end
-const BTSM = BinaryTraitSubstitutionModel
-BinaryTraitSubstitutionModel(α, β) = BinaryTraitSubstitutionModel(α, β, SVector("0", "1"))
+const BTSM = BinaryTraitSubstitutionModel{T} where T
+BinaryTraitSubstitutionModel(r::AbstractVector, label::AbstractVector) = BinaryTraitSubstitutionModel{eltype(label)}(r, label)
+BinaryTraitSubstitutionModel(α::Float64, β::Float64, label) = BinaryTraitSubstitutionModel([α,β], label)
+BinaryTraitSubstitutionModel(α::Float64, β::Float64) = BinaryTraitSubstitutionModel(α, β, ["0", "1"])
+
+"""
+# Examples
+
+```julia-repl
+julia> m1 = BinaryTraitSubstitutionModel([1.0,2.0], ["low","high"])
+julia> nStates(m1)
+2
+```
+"""
+function nStates(::BTSM)
+    return 2::Int
+end
+
+nparams(::BTSM) = 2::Int
 
 """
 For a BinaryTraitSubstitutionModel, the rate matrix Q is of the form:
@@ -117,7 +151,7 @@ For a BinaryTraitSubstitutionModel, the rate matrix Q is of the form:
     return Bmatrix(-mod.rate[1], mod.rate[2], mod.rate[1], -mod.rate[2])
 end
 
-function Base.show(io::IO, object::BinaryTraitSubstitutionModel)
+function Base.show(io::IO, object::BTSM)
     str = "Binary Trait Substitution Model:\n"
     str *= "rate $(object.label[1])→$(object.label[2]) α=$(object.rate[1])\n"
     str *= "rate $(object.label[2])→$(object.label[1]) β=$(object.rate[2])\n"
@@ -133,26 +167,6 @@ end
     a0= p0 *e1
     a1= p1*e1
     return Bmatrix(p0+a1, p0-a0, p1-a1, p1+a0) # by columns
-end
-
-"""
-    nStates(model)
-
-Number of character states for a given trait evolution model.
-"""
-nStates(mod::TraitSubstitutionModel) = error("nStates not defined for $(typeof(mod)).")
-
-"""
-# Examples
-
-```julia-repl
-julia> m1 = BinaryTraitSubstitutionModel(1.0, 2.0)
-julia> nStates(m1)
-2
-```
-"""
-function nStates(mod::BTSM)
-    return 2::Int
 end
 
 """
@@ -179,21 +193,26 @@ using PhyloPlots
 plot(model) # to visualize states and rates
 ```
 """
-mutable struct TwoBinaryTraitSubstitutionModel <: TraitSubstitutionModel
+mutable struct TwoBinaryTraitSubstitutionModel <: TraitSubstitutionModel{String}
     rate::Vector{Float64}
     label::Vector{String}
-    function TwoBinaryTraitSubstitutionModel(α::AbstractVector{Float64}, label::AbstractVector{String})
-	    all( x -> x >= 0., α) || error("rates must be non-negative")
-        new(α, [string(label[1], "-", label[3]),
+    function TwoBinaryTraitSubstitutionModel(α, label)
+        all( x -> x >= 0., α) || error("rates must be non-negative")
+        @assert length(α)==8 "need 8 rates"
+        @assert length(label)==4 "need 4 labels for all combinations of 2 binary traits"
+        new(α, [string(label[1], "-", label[3]), # warning: original type of 'label' lost here
                 string(label[1], "-", label[4]),
                 string(label[2], "-", label[3]),
                 string(label[2], "-", label[4])])
     end
 end
 const TBTSM = TwoBinaryTraitSubstitutionModel
-TwoBinaryTraitSubstitutionModel(α) = TwoBinaryTraitSubstitutionModel(α, ["x0", "x1", "y0", "y1"])
+TwoBinaryTraitSubstitutionModel(α::Vector{Float64}) = TwoBinaryTraitSubstitutionModel(α, ["x0", "x1", "y0", "y1"])
 
-function Q(mod::TwoBinaryTraitSubstitutionModel)
+nStates(::TBTSM) = 4::Int
+nparams(::TBTSM) = 8::Int
+
+function Q(mod::TBTSM)
     M = fill(0.0,(4,4))
     a = mod.rate
     M[1,3] = a[1]
@@ -211,7 +230,7 @@ function Q(mod::TwoBinaryTraitSubstitutionModel)
     return M
 end
 
-function Base.show(io::IO, object::TwoBinaryTraitSubstitutionModel)
+function Base.show(io::IO, object::TBTSM)
     print(io, "Substitution model for 2 binary traits, with rate matrix:\n")
     showQ(io, object)
 end
@@ -223,34 +242,37 @@ end
 and equal substitution rates α between all states.
 Default labels are "1","2",...
 """
-mutable struct EqualRatesSubstitutionModel <: TraitSubstitutionModel
+mutable struct EqualRatesSubstitutionModel{T} <: TraitSubstitutionModel{T}
     k::Int
-    α::Float64
-    label::Vector{String}
-    function EqualRatesSubstitutionModel(k::Int, α::Float64, label::Vector{String})
+    rate::Float64
+    label::Vector{T}
+    function EqualRatesSubstitutionModel{T}(k, rate, label::Vector{T}) where T
         k >= 2 || error("parameter k must be greater than or equal to 2")
-        α > 0 || error("parameter α must be positive")
-        length(label)==k || error("label vector of incorrect length")
-        new(k, α, label)
+        rate > 0 || error("parameter α (rate) must be positive")
+        @assert length(label)==k "label vector of incorrect length"
+        new(k, rate, label)
     end
 end
-EqualRatesSubstitutionModel(k, α) = EqualRatesSubstitutionModel(k, α, string.(1:k))
+const ERSM = EqualRatesSubstitutionModel{T} where T
+EqualRatesSubstitutionModel(k::Int, α::Float64, label::AbstractVector) = EqualRatesSubstitutionModel{eltype(label)}(k,α,label)
+EqualRatesSubstitutionModel(k::Int, α::Float64) = EqualRatesSubstitutionModel{String}(k, α, string.(1:k))
 
-function Base.show(io::IO, object::EqualRatesSubstitutionModel)
+function nStates(mod::ERSM)
+    return mod.k
+end
+nparams(::ERSM) = 1::Int
+
+function Base.show(io::IO, object::ERSM)
     str = "Equal Rates Substitution Model with k=$(object.k),\n"
-    str *= "all rates equal to α=$(object.α).\n"
+    str *= "all rates equal to α=$(object.rate).\n"
     str *= "rate matrix Q:\n"
     print(io, str)
     showQ(io, object)
 end
 
-function nStates(mod::EqualRatesSubstitutionModel)
-    return mod.k
-end
-
-function Q(mod::EqualRatesSubstitutionModel)
-    M = fill(mod.α,(mod.k,mod.k))
-    d = -(mod.k-1)*mod.α
+function Q(mod::ERSM)
+    M = fill(mod.rate, (mod.k,mod.k))
+    d = -(mod.k-1)*mod.rate
     for i in 1:mod.k
         M[i,i] = d
     end
@@ -311,8 +333,8 @@ the supplied evolutionary model. Trait sampling is uniform at the root.
 
 # Examples
 ```julia-repl
-julia> m1 = PhyloNetworks.BinaryTraitSubstitutionModel(1.0, 2.0) 
-julia> net = readTopology("(A:1.0,(B:1.0,(C:1.0,D:1.0):1.0):1.0);")
+julia> m1 = PhyloNetworks.BinaryTraitSubstitutionModel(1.0, 2.0);
+julia> net = readTopology("(A:1.0,(B:1.0,(C:1.0,D:1.0):1.0):1.0);");
 julia> srand(12345);
 julia> a,b = randomTrait(m1, net)
  ([1 2 … 1 2], String["-2", "-3", "-4", "D", "C", "B", "A"])

@@ -4,17 +4,21 @@ runall = false;
 
 m1 = BinaryTraitSubstitutionModel(1.0, 2.0);
 @test_nowarn show(DevNull, m1)
-m1 = BinaryTraitSubstitutionModel(1.0,2.0, SVector("carnivory", "non-carnivory"));
+m1 = BinaryTraitSubstitutionModel(1.0,2.0, ["carnivory", "non-carnivory"]);
 @test nStates(m1)==2
+@test PhyloNetworks.nparams(m1)==2
 @test_nowarn show(DevNull, m1)
 @test_throws ErrorException PhyloNetworks.BinaryTraitSubstitutionModel(-1.0,2.0)
 m2 = EqualRatesSubstitutionModel(4, 3.0);
 @test nStates(m2)==4
+@test PhyloNetworks.nparams(m2)==1
 m2 = EqualRatesSubstitutionModel(4, 3.0, ["S1","S2","S3","S4"]);
 @test_nowarn show(DevNull, m2)
 m3 = TwoBinaryTraitSubstitutionModel([2.0,1.2,1.1,2.2,1.0,3.1,2.0,1.1],
 ["carnivory", "noncarnivory", "wet", "dry"]);
 @test_nowarn show(DevNull, m3)
+@test nStates(m3)==4
+@test PhyloNetworks.nparams(m3)==8
 
 @test Q(m1) == SMatrix{2,2}(-1.0, 2.0, 1.0, -2.0)
 @test Q(m2) == SMatrix{4,4}(-9.0, 3, 3, 3, 3, -9, 3, 3, 3, 3, -9, 3, 3, 3, 3, -9)
@@ -29,7 +33,7 @@ end
 
 @testset "Testing random discrete trait simulation" begin
 
-m1 = BinaryTraitSubstitutionModel(1.0,2.0, SVector("carnivory", "non-carnivory"));
+m1 = BinaryTraitSubstitutionModel(1.0,2.0, ["carnivory", "non-carnivory"]);
 m2 = EqualRatesSubstitutionModel(4, 3.0, ["S1","S2","S3","S4"]);
 
 info("\ton a single branch")
