@@ -212,6 +212,7 @@ net = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):
 trees = (@test_nowarn displayedTrees(net,0.0; keepNodes=true));
 @test writeTopology(trees[1])=="(((A:4.0,(B:1.0):1.1):0.5,(C:0.6):1.0):3.0,D:5.0);"
 @test writeTopology(trees[2])=="(((A:4.0):0.5,(C:0.6,(B:1.0):1.0):1.0):3.0,D:5.0);"
+@test PhyloNetworks.inheritanceWeight.(trees) ≈ [log(0.9), log(0.1)]
 
 end # of testset, displayedNetworks! & displayedTrees
 

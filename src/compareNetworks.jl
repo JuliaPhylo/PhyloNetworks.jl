@@ -337,6 +337,41 @@ function displayedTrees(net0::HybridNetwork, gamma::Float64; keepNodes=false::Bo
 end
 
 """
+    inheritanceWeight(tree::HybridNetwork)
+
+Return the *log* inheritance weight of a network or tree
+(as provided by [`displayedTrees`](@ref) with `keepNodes` = true for instance).
+For a tree displayed in a network, its inheritance weight is the log of the product
+of γ's of all edges retained in the tree. To avoid underflow, the log is calculated:
+i.e. sum of log(γ) across retained edges.
+
+If any edge has a negative γ, it is assumed to mean that its γ is missing,
+and the function returns `missing`.
+
+# Example
+
+```julia-repl
+julia> net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);");
+
+julia> trees = displayedTrees(net,0.0; keepNodes=true);
+
+julia> PhyloNetworks.inheritanceWeight.(trees)
+2-element Array{Float64,1}:
+ -0.105361
+ -2.30259 
+```
+"""
+function inheritanceWeight(tree::HybridNetwork)
+    ltw = 0.0
+    for e in tree.edge
+        e.gamma != 1.0 || continue
+        if e.gamma < 0.0 return missing; end # any negative γ assumed -1.0: missing
+        ltw += log(e.gamma)
+    end
+    return ltw
+end
+
+"""
 `majorTree(net::HybridNetwork)`
 
 Warning: assumes correct isMajor attributes.
