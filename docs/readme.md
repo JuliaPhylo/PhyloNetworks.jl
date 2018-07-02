@@ -72,6 +72,12 @@ master. The typical commands to save and display a plot should hence be:
     ```
     ![my_useful_name](../assets/figures/my_useful_name.svg)
 
+**Warning**: this is not like an interactive session. If the same file name
+is re-used by some other documentation page for some other plot, only the
+final version of the plot will be committed by git, with possible unintended
+consequences. Make sure to use different file names for plots that are supposed
+to look different (across the whole site).
+
 Note that in previous versions of the doc, `Weave` was used to format the
 documentation pages (until version 0.7.0), and the saving of the plots on the
 Git repository was handled with an extra Travis environment variable DRAW_FIG.
