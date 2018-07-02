@@ -10,7 +10,6 @@ module PhyloNetworks
     using GLM # for the lm function
     using NLopt # for branch lengths optimization
     using Combinatorics.combinations
-    using StaticArrays
     using BioSequences
     using BioSymbols
     using StaticArrays
@@ -125,7 +124,10 @@ module PhyloNetworks
         nStates,
         Q, P,
         randomTrait,
-        randomTrait!
+        randomTrait!,
+        fitDiscrete,
+        ancestralStateDistribution
+
 
     include("types.jl")
     include("auxiliary.jl")

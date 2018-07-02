@@ -4,7 +4,12 @@
 Abstract type for discrete trait substitution models,
 using a continous time Markov model on a phylogeny.
 Adapted from the substitutionModels module in BioJulia.
-The same Q and P function names are used for the transition rates and probabilities.
+The same [`Q`](@ref) and [`P`](@ref) function names are used for the
+transition rates and probabilities.
+
+see [`BinaryTraitSubstitutionModel`](@ref),
+[`EqualRatesSubstitutionModel`](@ref),
+[`TwoBinaryTraitSubstitutionModel`](@ref)
 """
 
 abstract type TraitSubstitutionModel{T} end
@@ -78,7 +83,7 @@ where P[i,j] is the probability of ending in state j after time t,
 given that the process started in state i.
 """
 @inline function P(mod::SM, t::Float64)
-    t >= 0.0 || error("t must be positive")
+    t >= 0.0 || error("substitution model: >=0 branch lengths are needed")
     return expm(Q(mod) * t)
 end
 
@@ -159,7 +164,7 @@ function Base.show(io::IO, object::BTSM)
 end
 
 @inline function P(mod::BTSM, t::Float64)
-    t >= 0.0 || error("t must be positive")
+    t >= 0.0 || error("substitution model: >=0 branch lengths are needed")
     ab = mod.rate[1] + mod.rate[2]
     e1 = exp(-ab*t)
     p0 = mod.rate[2]/ab # asymptotic frequency of state "0"
@@ -244,18 +249,19 @@ Default labels are "1","2",...
 """
 mutable struct EqualRatesSubstitutionModel{T} <: TraitSubstitutionModel{T}
     k::Int
-    rate::Float64
+    rate::Vector{Float64}
     label::Vector{T}
     function EqualRatesSubstitutionModel{T}(k, rate, label::Vector{T}) where T
         k >= 2 || error("parameter k must be greater than or equal to 2")
-        rate > 0 || error("parameter α (rate) must be positive")
+        @assert length(rate)==1 "rate must be a vector of length 1"
+        rate[1] > 0 || error("parameter α (rate) must be positive")
         @assert length(label)==k "label vector of incorrect length"
         new(k, rate, label)
     end
 end
 const ERSM = EqualRatesSubstitutionModel{T} where T
-EqualRatesSubstitutionModel(k::Int, α::Float64, label::AbstractVector) = EqualRatesSubstitutionModel{eltype(label)}(k,α,label)
-EqualRatesSubstitutionModel(k::Int, α::Float64) = EqualRatesSubstitutionModel{String}(k, α, string.(1:k))
+EqualRatesSubstitutionModel(k::Int, α::Float64, label::AbstractVector) = EqualRatesSubstitutionModel{eltype(label)}(k,[α],label)
+EqualRatesSubstitutionModel(k::Int, α::Float64) = EqualRatesSubstitutionModel{String}(k, [α], string.(1:k))
 
 function nStates(mod::ERSM)
     return mod.k
@@ -264,15 +270,16 @@ nparams(::ERSM) = 1::Int
 
 function Base.show(io::IO, object::ERSM)
     str = "Equal Rates Substitution Model with k=$(object.k),\n"
-    str *= "all rates equal to α=$(object.rate).\n"
+    str *= "all rates equal to α=$(object.rate[1]).\n"
     str *= "rate matrix Q:\n"
     print(io, str)
     showQ(io, object)
 end
 
 function Q(mod::ERSM)
-    M = fill(mod.rate, (mod.k,mod.k))
-    d = -(mod.k-1)*mod.rate
+    α = mod.rate[1]
+    M = fill(α, (mod.k,mod.k))
+    d = -(mod.k-1) * α
     for i in 1:mod.k
         M[i,i] = d
     end
