@@ -48,17 +48,10 @@ Similarly, you can pin a version of the package
 `Pkg.pin("PhyloNetworks")` so that `Pkg.update()` will not modify
 it. You can always free a pinned package with
 `Pkg.free("PhyloNetworks")`. More on checked and pinned packages [here]
-(http://docs.julialang.org/en/release-0.4/manual/packages/).
+(http://docs.julialang.org/en/stable/manual/packages/).
 
-<!--
-If, for some reason, the *Pkg.update* function does not update to the latest version,
-users can do the following through the terminal:
-    cd HOME/.julia/v0.4/PhyloNetworks/
-    git pull
-where HOME is replaced by your home directory.
--->
-
-The PhyloNetworks package has dependencies like NLopt and
+The PhyloNetworks package has dependencies like
+[NLopt](https://github.com/JuliaOpt/NLopt.jl) and
 [DataFrames](http://juliadata.github.io/DataFrames.jl/stable/)
 (see the REQUIRE file for the full list), but everything is installed automatically.
 
@@ -79,14 +72,14 @@ like [Gadfly](http://gadflyjl.org/stable/) and
 
 To check that your installation worked, type this in Julia to load the package.
 This is something to type every time you start a Julia session:
-```@example 1
+```@example install
 using PhyloNetworks;
 ```
 This step can also take a while, if Julia needs to pre-compile the code (after a package
 update for instance).
 Here is a very small test for the installation of PhyloNetworks.
 
-```@example 1
+```@repl install
 net = readTopology("(A,(B,(C,D)));");
 tipLabels(net)
 ```
@@ -101,22 +94,20 @@ followed by the name of a function (or type) to get more details about it.
 
 ## Julia types
 
-Objects in Julia are called *types*. We show here small example on how to get more
+Each object in Julia has a *type*. We show here small examples on how to get more
 info on an object, what's its type, and how to manipulate objects.
 For example, let's take an object `raxmlCF` created from reading in some data
 (see [Input for SNaQ](@ref)):
-```{julia; eval=true; echo=false}
-using PhyloNetworks
-```
-```{julia; eval=true}
-raxmltrees = joinpath(Pkg.dir("PhyloNetworks"),"examples","raxmltrees.tre")
+
+```@repl install
+raxmltrees = joinpath(Pkg.dir("PhyloNetworks"),"examples","raxmltrees.tre");
 raxmlCF = readTrees2CF(raxmltrees);
 ```
 
 Typing `whos()` will provide a list of objects and packages in memory,
 including `raxmlCF` that we just created.
 If we want to know the type of a particular object, we do:
-```{julia; eval=true; results="markup"; term=true}
+```@repl install
 typeof(raxmlCF)
 ```
 which shows us that `raxmlCF` is of type `DataCF`.
@@ -124,36 +115,36 @@ If we want to know about the attributes the object has, we can type `?` in Julia
 followed by `DataCF` for a description.
 We can also ask for a list of all its attributes with
 
-```{julia; eval=true; results="markup"; term=true}
+```@repl install
 fieldnames(raxmlCF)
 ```
 For example, we see that one attribute is `numQuartets`: its the number of 4-taxon subsets
 in the data. To see what this number is:
-```{julia; eval=true; results="markup"; term=true}
+```@repl install
 raxmlCF.numQuartets
 ```
 We also noticed an attribute `quartet`. It is a vector of Quartet objects inside `raxmlCF`, so
-```{julia; eval=true; results="markup"; term=true}
+```@repl install
 raxmlCF.quartet[2].taxon
 ```
 will provide the list of taxon names for the second 4-taxon subset in the data.
 To see the observed CF, we can type
-```{julia; eval=true; results="markup"; term=true}
+```@repl install
 raxmlCF.quartet[2].obsCF
 ```
 We can verify the type with
-```{julia; eval=true; results="markup"; term=true}
+```@repl install
 typeof(raxmlCF.quartet[2])
 ```
 We can also read a simple network in Julia and print the list of edges
-```{julia; eval=true; results="markup"; term=true}
+```@repl install
 str = "(A,((B,#H1),(C,(D)#H1)));";
-net = readTopology(str)
+net = readTopology(str);
 printEdges(net)
 ```
 We see that the edges do not have branch lengths,
 and the hybrid edges do not have gamma values. We can set them with
-```{julia; eval=true; results="markup"; term=true}
+```@repl install
 setLength!(net.edge[1],1.9)
 setGamma!(net.edge[3],0.8)
 printEdges(net)
