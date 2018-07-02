@@ -78,11 +78,14 @@ final version of the plot will be committed by git, with possible unintended
 consequences. Make sure to use different file names for plots that are supposed
 to look different (across the whole site).
 
-Note that in previous versions of the doc, `Weave` was used to format the
-documentation pages (until version 0.7.0), and the saving of the plots on the
-Git repository was handled with an extra Travis environment variable DRAW_FIG.
+Note that [`Weave`](https://github.com/mpastell/Weave.jl) was used to format the
+documentation pages until v0.7.0
+(see [v0.7.0 doc](http://crsl4.github.io/PhyloNetworks.jl/v0.7.0/)),
+and the saving of the plots on the Git repository was handled with an
+extra Travis environment variable DRAW_FIG.
 Instructions about this previous previous setup can be found in this very
-readme file, in version 0.7.0.
+[docs/readme file, in v0.7.0](https://github.com/crsl4/PhyloNetworks.jl/blob/v0.7.0/docs/readme.md).
+An extra step used file [make_weave.jl](https://github.com/crsl4/PhyloNetworks.jl/blob/v0.7.0/docs/src/man/src/make_weave.jl).
 
 ## to make a local version of the website
 
