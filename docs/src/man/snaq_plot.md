@@ -1,5 +1,6 @@
-```{julia; eval=true; echo=false}
+```@setup snaqplot
 using PhyloNetworks
+mkpath("../assets/figures")
 raxmltrees = joinpath(Pkg.dir("PhyloNetworks"),"examples","raxmltrees.tre")
 raxmlCF = readTrees2CF(raxmltrees, writeTab=false, writeSummary=false)
 astralfile = joinpath(Pkg.dir("PhyloNetworks"),"examples","astral.tre")
@@ -26,7 +27,7 @@ After [Input for SNaQ](@ref), we can estimate the network using the
 input data `raxmlCF` and starting from tree (or network) `astraltree`.
 We first impose the constraint of at most 0 hybrid node,
 that is, we ask for a tree.
-```{julia; eval=false}
+```julia
 net0 = snaq!(astraltree,raxmlCF, hmax=0, filename="net0", seed=1234)
 ```
 Part of the screen output shows this:
@@ -35,16 +36,24 @@ Part of the screen output shows this:
     with -loglik 53.53150526187732
 
 This parenthetical (extended Newick) description is not very
-human-friendly, so we plot the tree:
-```{julia; eval=false; label="net0_1"; fig_width=4; fig_height=4}
-plot(net0)
+human-friendly, so we plot the tree
+(more about plotting networks below: [Network Visualization](@ref) ).
+
+```@example snaqplot
+using PhyloPlots
+using RCall # hide
+R"name <- function(x) file.path('..', 'assets', 'figures', x)" # hide
+R"svg(name('snaqplot_net0_1.svg'), width=4, height=3)" # hide
+R"par(mar = c(0, 0, 0, 0))" # hide
+plot(net0, :R);
+R"dev.off()"; # hide
 ```
-![net0_1](../assets/figures/snaq_plot_net0_1_1.png)
+![net0_1](../assets/figures/snaqplot_net0_1.svg)
 
 We can use this tree as a starting point to search for the best
 network allowing for at most `hmax=1` hybrid node (which is the default).
-```{julia; eval=false}
-net1 = snaq!(net0,raxmlCF, hmax=1, filename="net1", seed=2345)
+```julia
+net1 = snaq!(net0, raxmlCF, hmax=1, filename="net1", seed=2345)
 ```
 part of screen output:
 
@@ -52,13 +61,16 @@ part of screen output:
     MaxNet is (C,D,((O,(E,#H7:::0.19558838614943078):0.31352437658618976):0.6640664399202987,(B,(A)#H7:::0.8044116138505693):10.0):10.0);
     with -loglik 28.31506721890958
 
-To visualize the estimated network, we can use the companion package
-[PhyloPlots](https://github.com/cecileane/PhyloPlots.jl).
-```{julia; eval=false; label="net1_1"; fig_width=4; fig_height=4}
-using PhyloPlots
-plot(net1, showGamma=true)
+We can visualize the estimated network and its inheritance values γ, which
+measure the proportion of genes inherited via each parent at a reticulation event
+(e.g. proportion of genes inherited via gene flow).
+```@example snaqplot
+R"svg(name('snaqplot_net1_1.svg'), width=4, height=3)" # hide
+R"par(mar = c(0, 0, 0, 0))" # hide
+plot(net1, :R, showGamma=true);
+R"dev.off()"; # hide
 ```
-![net1_1](../assets/figures/snaq_plot_net1_1_1.png)
+![net1_1](../assets/figures/snaqplot_net1_1.svg)
 
 This network has A as a hybrid, 80.4% sister to B,
 and 19.6% sister to E (which is otherwise sister to O).
@@ -82,15 +94,13 @@ by including the expected CF. Type `?` then `snaq!` to get help on that function
 
 The main output file, here `net1.out` (or `snaq.out` by default) has the estimated
 network in parenthetical format, but we can also print it directly to the screen:
-```{julia; eval=true; results="markup"; term=true}
+```@repl snaqplot
 net1
 writeTopology(net1)  # writes to screen, full precision for branch lengths and γ
 writeTopology(net1, round=true, digits=2)
 writeTopology(net1,di=true) # γ omitted: for dendroscope
 writeTopology(net1, "bestnet_h1.tre") # writes to file: creates or overwrites file
-```
-```{julia; eval=true; echo=false}
-rm("bestnet_h1.tre")
+rm("bestnet_h1.tre") # hide
 ```
 The option `di=true` is for the parenthetical format used by
 [Dendroscope](http://dendroscope.org/) (without reticulation heritabilities).
@@ -98,17 +108,23 @@ Copy this parenthetical description and paste it into Dendroscope,
 or use the plotting function described below.
 
 We can go on and let the network have up to 2 or 3 hybrid nodes:
-```{julia; eval=false}
+```julia
 net2 = snaq!(net1,raxmlCF, hmax=2, filename="net2", seed=3456)
 net3 = snaq!(net0,raxmlCF, hmax=3, filename="net3", seed=4567)
 ```
-and plot them (they are identical):
-```{julia; eval=false; label="net23"}
-plot(net2, showGamma=true)
-plot(net3, showGamma=true)
+and plot them (they are identical and they both have a single reticulation):
+```@example snaqplot
+R"svg(name('snaqplot_net23.svg'), width=7, height=3)" # hide
+using RCall                  # to be able to tweak our plot within R
+R"layout(matrix(1:2, 1, 2))" # to get 2 plots into a single figure: 1 row, 2 columns
+R"par(mar = c(0,0,1,0))"     # for smaller margins
+plot(net2, :R, showGamma=true);
+R"mtext('hmax=2')"           # add text annotation: title here
+plot(net3, :R, showGamma=true);
+R"mtext('hmax=3')"
+R"dev.off()"; # hide
 ```
-![net23 1](../assets/figures/snaq_plot_net23_1.png)
-![net23 2](../assets/figures/snaq_plot_net23_2.png)
+![net23](../assets/figures/snaqplot_net23.svg)
 
 with this screen output for net2 (only 1 hybrid node found):
 
@@ -149,8 +165,8 @@ bootstrap replicate. You may parallelize things further by running
 `bootsnaq` multiple times (on separate machines for instance), each time
 for a small subset of bootstrap replicates, and with a different seed each time.
 
-You may tell julia to add more processors than your machine has,
-but you will not receive any performance benefits.
+We may tell julia to add more processors than our machine has,
+but we will not receive any performance benefits.
 At any time during the julia session, `nworkers()` tells us how many
 worker processors julia has access to.
 
@@ -160,57 +176,85 @@ Each network has a `loglik` attribute, which is its pseudo deviance:
 twice the negative log-likelihood up to a constant (the constant is
 such that the score is 0 if the network fits the data perfectly).
 The lower the better. We can plot these scores across hybrid values:
-```{julia; eval=false; label="scores_heuristic"; fig_width=4; fig_height=4}
-using Gadfly
+```@example snaqplot
 scores = [net0.loglik, net1.loglik, net2.loglik, net3.loglik]
-plot(x=collect(0:3), y=scores, Geom.point, Geom.line)
+R"svg(name('snaqplot_scores_heuristic.svg'), width=4, height=3)" # hide
+R"par(mar=c(2.5,2.5,.5,.5), mgp=c(1.4,.4,0), tck=-0.02)";  # hide
+R"plot($scores, type='b', ylab='network score', xlab='hmax', col='blue')"
+R"dev.off()"; # hide
 ```
-![scores_heuristic](../assets/figures/snaq_plot_scores_heuristic_1.png)
+![scores_heuristic](../assets/figures/snaqplot_scores_heuristic.svg)
 
 Here the slope heuristic suggests a single hybrid node:
 the score does not get much better beyond h=1.
 
-## Network Visualization
-
-```{julia; eval=false; results="markup"; label="net1_1"; fig_width=4; fig_height=4}
-p = plot(net1, showGamma=true)
-```
-![net1_1](../assets/figures/snaq_plot_net1_1_1.png)
-
-This will open a browser where the plot will appear
-(unless you use [Juno](http://junolab.org),
-which would capture and display the plot).
-To get a pdf version, for instance:
-(see [Gadfly tutorial](http://gadflyjl.org/) for other formats)
+We made the plot via R above. A more Julian way would use a Julia plotting
+package such as [Gadfly](http://gadflyjl.org/stable/) or
+[Plots](http://docs.juliaplots.org/latest/ecosystem/), like this for instance:
 ```julia
 using Gadfly
-draw(PDF("bestnet_h1.pdf", 4inch, 4inch),p)
+plot(x=collect(0:3), y=scores, Geom.point, Geom.line)
 ```
-The plot function has many options, to annotate nodes and edges
-(with γ heritabilities as show above, for example).
+<!-- cool blog post here about using ggplot within julia: http://avt.im/blog/2018/03/23/R-packages-ggplot-in-julia -->
+
+## Network Visualization
+
+To visualize the estimated network, we can use the companion package
+[PhyloPlots](https://github.com/cecileane/PhyloPlots.jl).
+In the example below, julia creates and sends the plot to R
+via [RCall](https://github.com/JuliaInterop/RCall.jl),
+so we can tweak the plot in various ways via commands sent to R.
+To save the plot in a file: we first tell R to create an image file,
+then we send the plot of the network,
+then we tell R to wrap up and save its image file.
+
+```@example snaqplot
+using PhyloPlots # to visualize networks
+using RCall      # to send additional commands to R like this: R"..."
+R"name = function(x) file.path('..', 'assets', 'figures', x)" # function to create file name in appropriate folder
+R"svg(name('snaqplot_net1_2.svg'), width=4, height=3)" # starts image file
+R"par(mar = c(0,0,0,0))" # to reduce margins (no margins at all here)
+plot(net1, :R, showGamma=true, showEdgeNumber=true); # network is plotted & sent to file
+R"dev.off()"; # wrap up and save image file
+```
+![net1_2](../assets/figures/snaqplot_net1_2.svg)
+
+<!-- This will open a browser where the plot will appear (unless you use [Juno](http://junolab.org), which would capture and display the plot). To get a pdf version, for instance (see [Gadfly tutorial](http://gadflyjl.org/) for other formats): using Gadfly; p=pdf(...); draw(PDF("bestnet_h1.pdf", 4inch, 4inch),p) -->
+
+The plot function has many options, to annotate nodes and edges. In the
+example above, hybrid edges were annotated with their γ inheritance values
+(in blue: light blue for the minor edge with γ<0.5, and dark blue for the
+major edge with γ>0.5), and edges were annotated with their internal numbers.
+
 Type `?` to switch to the help mode
 of Julia, then type the name of the function, here `plot`.
 Edge colors can be modified, for instance.
-```{julia; eval=false; results="markup"; label="net1_2"; fig_width=4; fig_height=4}
-# using Gadfly # if not done earlier, for colorant
-plot(net1, showEdgeLength=true, minorHybridEdgeColor=colorant"tan")
+```@example snaqplot
+R"svg(name('snaqplot_net1_3.svg'), width=4, height=3)" # hide
+R"par(mar = c(0,0,0,0))" # hide
+plot(net1, :R, showEdgeLength=true, minorHybridEdgeColor="tan")
+R"dev.off()"; # hide
 ```
-![net1_2](../assets/figures/snaq_plot_net1_2_1.png)
+![net1_3](../assets/figures/snaqplot_net1_3.svg)
+
+<!-- for Gadfly: "using Gadfly" and option minorHybridEdgeColor=colorant"tan" -->
 
 Edge lengths are shown, too. They were estimated in coalescent units:
 number of generations / effective population size.
 Some edge lengths are not identifiable, hence not shown.
 
-Networks can also be displayed through R, using
-[RCall](https://github.com/JuliaInterop/RCall.jl)
-instead of [Gadfly](gadflyjl.org/).
-To do so, add the argument `:RCall` after the network,
-like this for example:
+Below is another example, where space was added between the network and
+the taxon names via the `tipOffset` option.
+Also, edge colors were changed, and the nodes numbers are shown (used internally)
 
-```julia
-plot(net,:RCall, tipOffset=0.5, edgeColor="tomato4",
+```@example snaqplot
+R"svg(name('snaqplot_net1_4.svg'), width=4, height=3)" # hide
+R"par(mar = c(0,0,0,0))" # hide
+plot(net1,:R, tipOffset=0.5, showNodeNumber=true, edgeColor="tomato4",
      minorHybridEdgeColor="skyblue", majorHybridEdgeColor="tan");
+R"dev.off()"; # hide
 ```
+![net1_4](../assets/figures/snaqplot_net1_4.svg)
 
 ## Re-rooting networks
 

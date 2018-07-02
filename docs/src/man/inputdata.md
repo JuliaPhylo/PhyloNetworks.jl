@@ -62,6 +62,7 @@ To visualize any of these input trees, use the
 ```@example qcf
 using PhyloPlots
 using RCall # hide
+mkpath("../assets/figures") # hide
 R"name <- function(x) file.path('..', 'assets', 'figures', x)" # hide
 R"svg(name('inputdata_gene3.svg'), width=4, height=3)" # hide
 R"par(mar = c(0, 0, 0, 0))"                    # hide
