@@ -5,8 +5,6 @@ os: # WARNING: any change here must also be done in docs/make.jl
 julia: # WARNING: any change here must also be done in docs/make.jl
 # - release
   - 0.6
-env:
-  - DOCUMENTER_DEBUG="true"
 notifications:
   email: false
 ## Following 4 lines are taken from here:
