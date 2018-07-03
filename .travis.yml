@@ -25,7 +25,8 @@ after_success:
   - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo add-apt-repository -y "deb http://cran.rstudio.com/bin/linux/ubuntu $(lsb_release -s -c)/"; fi
   - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get update -qq -y; fi
   - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get install git r-base r-base-dev r-recommended -y; fi
-  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo R -e 'install.packages("ggplot2", dep=TRUE, repos="http://cran.us.r-project.org")'; fi
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo R -e 'install.packages("ggplot2", dep=FALSE, repos="http://cran.us.r-project.org")'; fi
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo R -e 'install.packages("svglite", repos="http://cran.us.r-project.org")'; fi
   # build doc
   - chmod +x docs/make.sh
   - ./docs/make.sh
