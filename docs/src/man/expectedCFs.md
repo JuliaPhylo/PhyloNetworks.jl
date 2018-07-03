@@ -24,29 +24,44 @@ These functions update the fitted concordance factors (those expected under the 
 inside the DataCF object `raxmlCF`.
 
 Here is one way to plot them, via R again, and using the R package `ggplot2`.
-Many points are overlapping, so they are "jittered" a little to see them all better.
-There are always many point overlapping at 0.0 concordance factors (quartet
-resolutions not observed, and not expected).
+
 ```@example expCFs
 using RCall
-# to install ggplot2 if not installed already:
-# R"install.packages('ggplot2', dep=TRUE)"
+obsCF = df_long[:obsCF]; expCF = df_long[:expCF]; # hide
+R"name <- function(x) file.path('..', 'assets', 'figures', x)"; # hide
+R"svg(name('expCFs_obsvsfitted.svg'), width=5, height=4)"; # hide
+R"par(mar=c(2.5,2.6,.5,.5), mgp=c(1.5,.4,0), tck=-0.01, las=1, pty='s')"; # hide
+R"plot(0:1, 0:1, type='l', bty='L', lwd=0.3, col='#008080', xlab='quartet CF observed in gene trees', ylab='quartet CF expected from network')"; # hide
+R"set.seed(1234)"; # hide
+R"points(jitter($obsCF,amount=0.005),jitter($expCF,amount=0.005),col='#008080',bg='#00808090',pch=21)"; # hide
+R"dev.off()"; # hide
+```
+To install ggplot2 if not installed already, do:
+`R"install.packages('ggplot2', dep=TRUE)"`
+
+<!-- next: not run, would require installing ggplot2 by travis: about 6min -->
+
+```julia
 @rlibrary ggplot2
-R"set.seed(1234)" # hide
-ggplot(df_long, aes(x=:obsCF,y=:expCF)) + theme_minimal() +
+ggplot(df_long, aes(x=:obsCF,y=:expCF)) + theme_classic() +
     geom_segment(x=0,y=0,xend=1,yend=1, color="#008080", size=0.3) + # diagonal line
     geom_point(alpha=0.5, color="#008080", position=position_jitter(width=0.005, height=0.005)) +
     ylab("quartet CF expected from network") + xlab("quartet CF observed in gene trees") + coord_equal(ratio=1);
-ggsave(joinpath("..", "assets", "figures", "expCFs_obsvsfitted.svg"), scale=1, width=6, height=5); # hide
 ```
+<!-- ggsave(joinpath("..", "assets", "figures", "expCFs_obsvsfitted.svg"), scale=1, width=6, height=5); # hide -->
+
 ![obsvsfitted](../assets/figures/expCFs_obsvsfitted.svg)
 
-To export this table and explore the fit of the network with other tools:
+Many points are overlapping, so they were "jittered" a little to see them all better.
+There are always many points overlapping on the bottom-left corner:
+concordance factors of 0.0 for quartet resolutions not observed, and not expected.  
+To export the table of quartet CFs and explore the fit of the network with other tools:
+
 ```julia
 using CSV
 CSV.write("fittedCF.csv", df_long)
 ```
-alternative code to get this plot with [Gadfly](http://gadflyjl.org/):
+alternative code to get a similar plot with [Gadfly](http://gadflyjl.org/):
 ```julia
 using Gadfly
 plot(layer(df_long, Geom.point, x="obsCF", y="expCF"),
@@ -66,11 +81,27 @@ for r in eachrow(df_long)
        r[:has_A]="yes"
     end
 end
+has_A = df_long[:has_A]; # hide
+nq = length(has_A) # hide
+R"colA=rep('#008080',$nq); bgA=rep('#00808090',$nq);"; # hide
+R"colA[$has_A=='yes']='#F8766D'; bgA[$has_A=='yes']='#F8766D90'"; # hide
+R"svg(name('expCFs_obsvsfitted_A.svg'), width=5, height=4)"; # hide
+R"par(mar=c(2.5,2.6,.5,.5), mgp=c(1.5,.4,0), tck=-0.01, las=1, pty='s')"; # hide
+R"plot(0:1, 0:1, type='l', bty='L', lwd=0.3, col='#008080', xlab='quartet CF observed in gene trees', ylab='quartet CF expected from network')"; # hide
 R"set.seed(2345)" # hide
-ggplot(df_long, aes(x=:obsCF, y=:expCF, color=:has_A)) + theme_minimal() +
+R"points(jitter($obsCF,amount=0.005),jitter($expCF,amount=0.005),col=colA,bg=bgA,pch=21)"; # hide
+R"legend(x=1.05,y=0.6,pch=21,col=c('#008080','#F8766D'),legend=c('no','yes'),title='has A?', bty='n',bg=c('#00808090','#F8766D90'))"; # hide
+R"dev.off()"; # hide
+df_long
+```
+
+```julia
+ggplot(df_long, aes(x=:obsCF, y=:expCF, color=:has_A)) + theme_classic() +
     geom_segment(x=0,y=0,xend=1,yend=1, color="black", size=0.3) + # diagonal line
     geom_point(alpha=0.5, position=position_jitter(width=0.005, height=0.005)) +
     ylab("quartet CF expected from network") + xlab("quartet CF observed in gene trees") + coord_equal(ratio=1);
-ggsave(joinpath("..", "assets", "figures", "expCFs_obsvsfitted_A.svg"), width=6, height=5); # hide
 ```
+
+<!-- ggsave(joinpath("..", "assets", "figures", "expCFs_obsvsfitted_A.svg"), width=6, height=5); # hide -->
+
 ![obsvsfitted A present or not](../assets/figures/expCFs_obsvsfitted_A.svg)
