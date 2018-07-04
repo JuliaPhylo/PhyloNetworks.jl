@@ -1,5 +1,6 @@
-```{julia; eval=true; echo=false}
+```@setup dist_reroot
 using PhyloNetworks
+mkpath("../assets/figures")
 raxmltrees = joinpath(Pkg.dir("PhyloNetworks"),"examples","raxmltrees.tre")
 raxmlCF = readTrees2CF(raxmltrees, writeTab=false, writeSummary=false)
 astralfile = joinpath(Pkg.dir("PhyloNetworks"),"examples","astral.tre")
@@ -18,7 +19,7 @@ Examples below follow those in [Getting a Network](@ref).
 Is the SNaQ tree (network with h=0) the same as the ASTRAL tree?
 We can calculate their Robinson-Foulds distance:
 
-```{julia; eval=true; results="markup"; term=true}
+```@repl dist_reroot
 hardwiredClusterDistance(astraltree, net0, false)
 ```
 The last option `false` is to consider topologies as unrooted.
@@ -26,7 +27,7 @@ The RF distance is 0, so the two unrooted topologies are the same.
 If we had considered them as rooted, with whatever root they
 currently have in their internal representation,
 we would find a difference:
-```{julia; eval=true; results="markup"; term=true}
+```@repl dist_reroot
 hardwiredClusterDistance(astraltree, net0, true)
 ```
 
@@ -35,15 +36,25 @@ hardwiredClusterDistance(astraltree, net0, true)
 We can re-root our networks with the outgroup, O,
 and then re-compare the ASTRAL tree and the SNaQ tree
 as rooted topologies (and find no difference):
-```{julia; eval=true; results="markup"; term=true}
+```@repl dist_reroot
 rootatnode!(astraltree, "O")
 rootatnode!(net0, "O")
 hardwiredClusterDistance(astraltree, net0, true)
 ```
-```{julia; eval=false; label="net0_O"; fig_width=4; fig_height=4}
-plot(net0)
+```@example dist_reroot
+using PhyloPlots, RCall
+R"name <- function(x) file.path('..', 'assets', 'figures', x)" 
+R"svg(name('net0_O.svg'), width=4, height=4)" 
+R"par(mar = c(0, 0, 0, 0))" 
+plot(net0, :R);
+R"dev.off()" 
+nothing # hide
 ```
-![net0_O](../assets/figures/dist_reroot_net0_O_1.png)
+![net0_O](../assets/figures/net0_O.svg)
+
+Note that, as in previous chapters, we use the possibilities of `RCall`
+to save the plot. We only show this commands once, but they will be run
+behind the scene each time a plot is called.
 
 After trees/networks are rooted with a correct outgroup,
 their visualization is more meaningful.
@@ -65,14 +76,18 @@ See an example in the [Bootstrap](@ref) section, or type `?` then `rotate!`.
 ## Extracting the major tree
 
 We can also compare the networks estimated with h=0 (net0) and h=1 (net1):
-```{julia; eval=true; results="markup"; term=true}
+```@repl dist_reroot
 rootatnode!(net1, "O"); # the ; suppresses screen output
 hardwiredClusterDistance(net0, net1, true)
 ```
-```{julia; eval=false; label="net1_O"; fig_width=4; fig_height=4}
-plot(net1, showGamma=true)
+```@example dist_reroot
+R"svg(name('net1_O.svg'), width=4, height=4)" # hide
+R"par(mar = c(0, 0, 0, 0))" # hide
+plot(net1, :R, showGamma=true);
+R"dev.off()" # hide
+nothing # hide
 ```
-![net1_O](../assets/figures/dist_reroot_net1_O_1.png)
+![net1_O](../assets/figures/net1_O.svg)
 
 They differ by 2 clusters: that's because A is of hybrid descent
 in net1, not in net0.
@@ -81,7 +96,7 @@ To beyond this hybrid difference,
 we can extract the major tree from the network with 1 hybridization,
 that is, delete the hybrid edge supported by less than 50% of genes.
 Then we can compare this tree with the ASTRAL/SNaQ tree net0.
-```{julia; eval=true; results="markup"; term=true}
+```@repl dist_reroot
 tree1 = majorTree(net1); # major tree from net1
 hardwiredClusterDistance(net0, tree1, true)
 ```
@@ -101,14 +116,18 @@ these estimated gene trees served as input to both ASTRAL and SNaQ.)
 The true network is shown below, correctly rooted at the outgroup O,
 and plotted with branch lengths proportional to their
 values in coalescence units:
-```{julia; eval=true; results="markup"; term=true}
+```@repl dist_reroot
 truenet = readTopology("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.0,(#H1:0::0.3,E:3.0):6.2):2.0,O:11.2);");
 hardwiredClusterDistance(net1, truenet, true)
 ```
-```{julia; eval=false; label="truenet"; fig_width=4; fig_height=4}
-plot(truenet, useEdgeLength=true, showGamma=true)
+```@example dist_reroot
+R"svg(name('truenet.svg'), width=4, height=4)" # hide
+R"par(mar = c(0, 0, 0, 0))" # hide
+plot(truenet, :R, useEdgeLength=true, showGamma=true);
+R"dev.off()" # hide
+nothing # hide
 ```
-![truenet](../assets/figures/dist_reroot_truenet_1.png)
+![truenet](../assets/figures/truenet.svg)
 
 Our estimated network is not the same as the true network:
 - the underlying tree is correctly estimated
@@ -130,7 +149,7 @@ at each hybrid node, and dropping the other parent hybrid edge.
 We can choose to pick the "important" hybrid edges only,
 with heritability γ at or above a threshold.
 Below we use a γ threshold of 0, so we get all displayed trees:
-```{julia; eval=true; results="markup"; term=true}
+```@repl dist_reroot
 t = displayedTrees(net1, 0.0) # list of trees displayed in network
 writeTopology(t[1], round=true)
 writeTopology(t[2], round=true)
@@ -138,7 +157,7 @@ writeTopology(t[2], round=true)
 If we decide to keep edges with γ>0.2 only, then we are
 left with a single tree in the list (the major tree).
 This is because our example has 1 hybrid node with minor γ=0.196.
-```{julia; eval=true; results="markup"; term=true}
+```@repl dist_reroot
 t = displayedTrees(net1, 0.2)
 ```
 
@@ -147,12 +166,12 @@ those with a minor heritability γ below some threshold.
 The function below changes our network `net1`,
 as indicated by its name ending with a `!`.
 
-```{julia; eval=true; results="markup"; term=true}
+```@repl dist_reroot
 deleteHybridThreshold!(net1, 0.1)
 ```
 Nothing happened to our network: because its γ is above 0.1.
 But if we set the threshold to 0.3, then our reticulation disappears:
-```{julia; eval=true; results="markup"; term=true}
+```@repl dist_reroot
 deleteHybridThreshold!(net1, 0.3)
 ```
 See also function `displayedNetworkAt!` to get the network with

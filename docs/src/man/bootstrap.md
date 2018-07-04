@@ -1,6 +1,7 @@
-```{julia; eval=true; echo=false}
+```@setup bootstrap
 # using Gadfly
 using PhyloNetworks
+mkpath("../assets/figures")
 ```
 # Bootstrap
 
@@ -8,7 +9,7 @@ using PhyloNetworks
 
 There are two ways to do a bootstrap analysis.
 
-- From quartet CFs with credibility intervals, such as if we used BUCKy. The [TICR pipeline](@ref) outpus a CF table with extra columns for credibility intervals. We could then read that table and get bootstrap networks like this, and tweak options as needed:
+- From quartet CFs with credibility intervals, such as if we used BUCKy. The [TICR pipeline](@ref) outputs a CF table with extra columns for credibility intervals. We could then read that table and get bootstrap networks like this, and tweak options as needed:
 ```julia
 using CSV
 df = CSV.read("tableCF_withCI.csv")
@@ -27,12 +28,10 @@ We can use them to sample input gene trees at random, one per gene,
 and estimate a network from them. We ask the `bootsnaq` function
 to repeat this resampling of bootstrap gene trees several times.
 
-```{julia; eval=false}
+```julia
 bootTrees = readBootstrapTrees("BSlistfiles");
-bootnet = bootsnaq(net0, bootTrees, hmax=1, nrep=10, runs=3, filename="bootsnaq", seed=4321)
-```
-```{julia; echo=false}
-bootnet = readMultiTopology("bootsnaq.out");
+bootnet = bootsnaq(net0, bootTrees, hmax=1, nrep=10, runs=3,
+                   filename="bootsnaq", seed=4321)
 ```
 
 The bootstrap networks are saved in the `boostrap.out` file, so they
@@ -48,7 +47,7 @@ done for each bootstrap replicate. This bootstrap was run with the
 default 10 runs per replicate, and 100 bootstrap replicates,
 and the 100 bootstrap networks come with the package:
 
-```{julia; eval=true; results="markup"; term=true}
+```@example bootstrap
 bootnet = readMultiTopology(Pkg.dir("PhyloNetworks","examples","bootsnaq.out"));
 length(bootnet)
 ```
@@ -66,7 +65,7 @@ don't (areas of uncertainty).
 Before summarizing these bootstrap networks on the best network,
 it is best to re-read this network to get a reproducible internal numbering
 of its nodes and edges, used later for mapping bootstrap support to edges.
-```{julia; eval=true}
+```@example bootstrap
 net1 = readTopology(joinpath(Pkg.dir("PhyloNetworks"),"examples","net1.out"))
 ```
 
@@ -75,42 +74,58 @@ in this example (see below) with a wrong direction inferred sometimes,
 so we re-root our best network net1 to the base of O,E, for the figures
 to be less confusing later.
 
-```{julia; eval=true; echo=false}
+```@setup bootstrap
 rootonedge!(net1, 7)
 ```
-```{julia; eval=false; results="markup"; label="net1_rotate1"; fig_width=4; fig_height=4}
-using PhyloPlots
-plot(net1, showEdgeNumber=true) # edge 7 leads to O+E
+```@example bootstrap
+using PhyloPlots, RCall
+R"name <- function(x) file.path('..', 'assets', 'figures', x)" # hide
+R"svg(name('net1_rotate1_1.svg'), width=4, height=4)" # hide
+R"par(mar = c(0, 0, 0, 0))" # hide
+plot(net1, :R, showEdgeNumber=true); # edge 7 leads to O+E
+R"dev.off()" # hide
 rootonedge!(net1, 7) # makes (O,E) outgroup clade
-plot(net1, showNodeNumber=true)
+R"svg(name('net1_rotate1_2.svg'), width=4, height=4)" # hide
+R"par(mar = c(0, 0, 0, 0))" # hide
+plot(net1, :R, showNodeNumber=true);
+R"dev.off()" # hide
+nothing # hide
 ```
-![net1_rotate1 1](../assets/figures/bootstrap_net1_rotate1_1.png)
-![net1_rotate1 2](../assets/figures/bootstrap_net1_rotate1_2.png)
+![net1_rotate1 1](../assets/figures/net1_rotate1_1.svg)
+![net1_rotate1 2](../assets/figures/net1_rotate1_2.svg)
 
-edges cross: but rotating at node -6 should remove this crossing
+Edges cross: but rotating at node -6 should remove this crossing
 of edges
-```{julia; eval=true; results="markup"}
+```@example bootstrap
 rotate!(net1, -6)
 ```
-```{julia; eval=false; label="net1_rotate2"; fig_width=4; fig_height=4}
-plot(net1, showGamma=true)
+```@example bootstrap
+R"svg(name('net1_rotate2.svg'), width=4, height=4)" # hide
+R"par(mar = c(0, 0, 0, 0))" # hide
+plot(net1, :R, showGamma=true);
+R"dev.off()" # hide
+nothing # hide
 ```
-![net1_rotate2](../assets/figures/bootstrap_net1_rotate2_1.png)
+![net1_rotate2](../assets/figures/net1_rotate2.svg)
 
 We can now summarize our bootstrap networks.
 The functions `treeEdgesBootstrap` and `hybridBootstrapSupport`
 read all bootstrap networks and map the edges / nodes
 onto a reference network: here net1.
-```{julia; eval=true}
-BSe_tree, tree1 = treeEdgesBootstrap(bootnet,net1)
+```@example bootstrap
+BSe_tree, tree1 = treeEdgesBootstrap(bootnet,net1);
 ```
 This calculates the major tree `tree1` displayed in `net1`, that is,
 the tree obtained by following the major parent (γ>0.5) of each hybrid node.
 This tree can be visualized like this, with edge numbers shown for later use.
-```{julia; eval=false; results="markup"; label="major_tree"; fig_width=4; fig_height=4}
-plot(tree1, showEdgeNumber=true)
+```@example bootstrap
+R"svg(name('major_tree.svg'), width=4, height=4)" # hide
+R"par(mar = c(0, 0, 0, 0))" # hide
+plot(tree1, :R, showEdgeNumber=true);
+R"dev.off()" # hide
+nothing # hide
 ```
-![major_tree](../assets/figures/bootstrap_major_tree_1.png)
+![major_tree](../assets/figures/major_tree.svg)
 
 Next, we can look at bootstrap table `BSe_tree`, which has one row for
 each tree edge in `net1`. One column contains the edge number
@@ -119,18 +134,25 @@ bootstrap support: the proportion of bootstrap replicates in which this edge was
 found in the major tree of the inferred network.
 We can see the full bootstrap table and see
 which tree edges have bootstrap support lower than 100% (none here) with
-```{julia; eval=true; term=true; results="markup"}
+```@repl bootstrap
 showall(BSe_tree)
 BSe_tree[BSe_tree[:proportion] .< 100.0, :]
 ```
 Finally, we can map the bootstrap proportions onto the network or its main tree
 by passing the bootstrap table to the `edgeLabel` option of `plot`:
-```{julia; eval=false; results="markup"; label="boot_tree_net"; fig_width=4; fig_height=4}
-plot(tree1, edgeLabel=BSe_tree)
-plot(net1,  edgeLabel=BSe_tree)
+```@example bootstrap
+R"svg(name('boot_tree_net_1.svg'), width=4, height=4)" # hide
+R"par(mar = c(0, 0, 0, 0))" # hide
+plot(tree1, :R, edgeLabel=BSe_tree);
+R"dev.off()" # hide
+R"svg(name('boot_tree_net_2.svg'), width=4, height=4)" # hide
+R"par(mar = c(0, 0, 0, 0))" # hide
+plot(net1, :R, edgeLabel=BSe_tree);
+R"dev.off()" # hide
+nothing # hide
 ```
-![boot_tree_net 1](../assets/figures/bootstrap_boot_tree_net_1.png)
-![boot_tree_net 2](../assets/figures/bootstrap_boot_tree_net_2.png)
+![boot_tree_net 1](../assets/figures/boot_tree_net_1.svg)
+![boot_tree_net 2](../assets/figures/boot_tree_net_2.svg)
 
 (Here, it is important that the numbers assigned to edges when building the boostrap
 table --those in `net1` at the time-- correspond to the current edge numbers
@@ -139,8 +161,8 @@ output file of `snaq!` earlier, for consistency across different Julia sessions.
 
 If we wanted to plot only certain bootstrap values, like those below 100% (1.0),
 we could do this:
-```{julia; eval=false; results="markup"; label="boot_net"; fig_width=4; fig_height=4}
-plot(net1, edgeLabel=BSe_tree[BSe_tree[:proportion] .< 100.0, :])
+```julia
+plot(net1, :R, edgeLabel=BSe_tree[BSe_tree[:proportion] .< 100.0, :]);
 ```
 
 ## support for hybrid edges and hybrid nodes
@@ -157,13 +179,13 @@ with γ>0.5) and the minor sister (through the minor hybrid edge with γ<0.5).
 Note that the network says *nothing* about the process: its shows the *relationships* only.
 We can calculate the frequency that each clade is a hybrid clade, or a major or minor sister
 for some other hybrid, in the bootstrap networks:
-```{julia; eval=true}
+```@example bootstrap
 BSn, BSe, BSc, BSgam, BSedgenum = hybridBootstrapSupport(bootnet, net1);
 ```
 Let's look at the results.
 We can list all the clades and the percentage of bootstrap networks (bootstrap support)
 in which each clade is a hybrid or sister to a hybrid:
-```{julia; eval=true; term=true; results="markup"}
+```@repl bootstrap
 BSn
 ```
 If a clade contains a single taxon, it is listed with its taxon name.
@@ -178,20 +200,20 @@ best network: same hybrid with same two sisters.
 These bootstrap values are associated with nodes (or possibly, their parent edges).
 
 To see what is the clade named "H7", for instance:
-```{julia; eval=true; term=true; results="markup"}
+```@repl bootstrap
 BSc # this might be too big
 showall(BSc)
 BSc[:taxa][BSc[:H7]]
 ```
 We can also get bootstrap values associated with edges, to describe the support that a given
 hybrid clade has a given sister clade.
-```{julia; eval=true; term=true; results="markup"}
+```@repl bootstrap
 BSe
 ```
 Here, each row describes a pair of 2 clades: one being the hybrid, the other being its sister,
 connected by a hybrid edge. The first rows corresponds to hybrid edges in the best network. Other
 rows correspond to edges seen in bootstrap networks but not in the reference network.
-```{julia; eval=true; term=true; results="markup"}
+```@repl bootstrap
 BSedgenum
 ```
 lists all the hybrid edges in the best network, two for each hybrid node:
@@ -199,10 +221,14 @@ the major parent edge and then the minor parent edge.
 In our case, there is only one reticulation, so only 2 hybrid edges.
 
 We can plot the bootstrap values of the 2 hybrid edges in the best network:
-```{julia; eval=false; results="markup"; label="boot_net_net"; fig_width=4; fig_height=4}
-plot(net1, edgeLabel=BSe[[:edge,:BS_hybrid_edge]])
+```@example bootstrap
+R"svg(name('boot_net_net.svg'), width=4, height=4)" # hide
+R"par(mar = c(0, 0, 0, 0))" # hide
+plot(net1, :R, edgeLabel=BSe[[:edge,:BS_hybrid_edge]]);
+R"dev.off()" # hide
+nothing # hide
 ```
-![boot_net_net](../assets/figures/bootstrap_boot_net_net_1.png)
+![boot_net_net](../assets/figures/boot_net_net.svg)
 
 This is showing the bootstrap support each hybrid edge: percentage of bootstrap trees with an
 edge from the same sister clade to the same hybrid clade.
@@ -210,10 +236,14 @@ Alternatively, we could show the bootstrap support for the full reticulation rel
 the network, one at each hybrid node (support for same hybrid with same sister clades).
 Here, we find that A received gene flow from E (and is sister to B otherwise) in just 32%
 of bootstrap networks. In another 1% bootstrap, A received gene flow from another source.
-```{julia; eval=false; results="markup"; label="boot_net_ret"; fig_width=4; fig_height=4}
-plot(net1, nodeLabel=BSn[[:hybridnode,:BS_hybrid_samesisters]])
+```@example bootstrap
+R"svg(name('boot_net_ret.svg'), width=4, height=4)" # hide
+R"par(mar = c(0, 0, 0, 0))" # hide
+plot(net1, :R, nodeLabel=BSn[[:hybridnode,:BS_hybrid_samesisters]]);
+R"dev.off()" # hide
+nothing # hide
 ```
-![boot_net_ret](../assets/figures/bootstrap_boot_net_ret_1.png)
+![boot_net_ret](../assets/figures/boot_net_ret.svg)
 
 Below is example code to place tree edge support and hybrid edge support
 on the same plot.
@@ -234,12 +264,20 @@ and then mapped on the parent edge of these nodes.
 A is estimated as a hybrid in only 33% of our bootstrap networks.
 In another 44%, it is the lineage to (E,O) that is estimated as
 being of hybrid origin.
-```{julia; eval=false; results="markup"; label="boot_net_hyb"; fig_width=4; fig_height=4}
-plot(net1, nodeLabel=BSn[BSn[:BS_hybrid].>0, [:hybridnode,:BS_hybrid]])
-plot(net1, edgeLabel=BSn[BSn[:BS_hybrid].>0, [:edge,:BS_hybrid]])
+```@example bootstrap
+R"svg(name('boot_net_hyb_1.svg'), width=4, height=4)" # hide
+R"par(mar = c(0, 0, 0, 0))" # hide
+plot(net1, :R, nodeLabel=BSn[BSn[:BS_hybrid].>0, [:hybridnode,:BS_hybrid]]);
+R"dev.off()" # hide
+nothing # hide
+R"svg(name('boot_net_hyb_2.svg'), width=4, height=4)" # hide
+R"par(mar = c(0, 0, 0, 0))" # hide
+plot(net1, :R, edgeLabel=BSn[BSn[:BS_hybrid].>0, [:edge,:BS_hybrid]]);
+R"dev.off()" # hide
+nothing # hide
 ```
-![boot_net_hyb 1](../assets/figures/bootstrap_boot_net_hyb_1.png)
-![boot_net_hyb 2](../assets/figures/bootstrap_boot_net_hyb_2.png)
+![boot_net_hyb 1](../assets/figures/boot_net_hyb_1.svg)
+![boot_net_hyb 2](../assets/figures/boot_net_hyb_2.svg)
 
 ### Where is the origin of gene flow?
 
@@ -248,12 +286,20 @@ of the gene flow origin (minor sister clade),
 first mapped to each node with positive support for being the origin of gene flow,
 and then mapped along the parent edge of these nodes.
 We filtered clades to show those with sister support > 5%:
-```{julia; eval=false; results="markup"; label="boot_net_clade"; fig_width=4; fig_height=4}
-plot(net1, nodeLabel=BSn[BSn[:BS_minor_sister].>5, [:node,:BS_minor_sister]])
-plot(net1, edgeLabel=BSn[BSn[:BS_minor_sister].>5, [:edge,:BS_minor_sister]])
+```@example bootstrap
+R"svg(name('boot_net_clade_1.svg'), width=4, height=4)" # hide
+R"par(mar = c(0, 0, 0, 0))" # hide
+plot(net1, :R, nodeLabel=BSn[BSn[:BS_minor_sister].>5, [:node,:BS_minor_sister]]);
+R"dev.off()" # hide
+nothing # hide
+R"svg(name('boot_net_clade_2.svg'), width=4, height=4)" # hide
+R"par(mar = c(0, 0, 0, 0))" # hide
+plot(net1, :R, edgeLabel=BSn[BSn[:BS_minor_sister].>5, [:edge,:BS_minor_sister]]);
+R"dev.off()" # hide
+nothing # hide
 ```
-![boot_net_clade 1](../assets/figures/bootstrap_boot_net_clade_1.png)
-![boot_net_clade 2](../assets/figures/bootstrap_boot_net_clade_2.png)
+![boot_net_clade 1](../assets/figures/boot_net_clade_1.svg)
+![boot_net_clade 2](../assets/figures/bootstrap_clade_2.svg)
 
 In our best network, the lineage to E is estimated as the origin
 of gene flow, but this is recovered in only 41% of our bootstrap networks.
@@ -263,19 +309,19 @@ In this example, there is support for gene flow between (A,B) and (E,O),
 but there is much uncertainty about its exact placement and about its direction.
 
 Mapping the support for major sister clades might be interesting too:
-```{julia; eval=false}
+```julia
 plot(net1, nodeLabel=BSn[BSn[:BS_major_sister].>5, [:node,:BS_major_sister]])
 ```
 
 The estimated heritability γ on hybrid edges in the reference network, when present in a
 bootstrap network, was also extracted:
-```{julia; eval=true; term=true; results="markup"}
+```@repl bootstrap
 BSgam[1:3,:] # first 3 rows only
 ```
 γ=0 values are for bootstrap replicates that did not have the edge in their network.
 Basic summaries on γ values for a given edge, say the minor parent,
 could be obtained like this:
-```{julia; eval=false; term=true; results="markup"}
+```@repl bootstrap
 minimum(BSgam[:,2])
 maximum(BSgam[:,2])
 mean(BSgam[:,2])

@@ -16,23 +16,29 @@ Following our example in [Getting a Network](@ref),
 we can optimize parameters on the true network
 (the one originally used to simulate the data):
 
-```{julia; eval=true; echo=false}
+```@setup fixednetworkoptim
 using PhyloNetworks
+mkpath("../assets/figures")
 raxmltrees = joinpath(Pkg.dir("PhyloNetworks"),"examples","raxmltrees.tre")
 raxmlCF = readTrees2CF(raxmltrees, writeTab=false, writeSummary=false)
 ```
 
-```{julia; eval=true; results="markup"; term=true}
+```@repl fixednetworkoptim
 truenet = readTopology("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.0,(#H1:0::0.3,E:3.0):6.2):2.0,O:11.2);");
 net1alt = topologyMaxQPseudolik!(truenet, raxmlCF);
 writeTopology(net1alt, round=true)
 net1alt.loglik # pseudo deviance, actually
 ```
-```{julia; eval=false; label="truenet_opt"; fig_width=4; fig_height=4}
-using PhyloPlots
-plot(net1alt, showGamma=true)
+```@example fixednetworkoptim
+using PhyloPlots, RCall
+R"name <- function(x) file.path('..', 'assets', 'figures', x)" 
+R"svg(name('truenet_opt.svg'), width=4, height=4)" 
+R"par(mar = c(0, 0, 0, 0))" 
+plot(net1alt, :R, showGamma=true);
+R"dev.off()" 
+nothing # hide
 ```
-![truenet_opt](../assets/figures/fixednetworkoptim_truenet_opt_1.png)
+![truenet_opt](../assets/figures/truenet_opt.svg)
 
 We get a score of 29.941,
 which is comparable to the score of the SNaQ network (net1: 28.315),
@@ -53,7 +59,7 @@ net1par.loglik
 
 For a network with given branch lengths and γ heritabilies,
 we can compute the pseudolikelihood with:
-```{julia; eval=true; results="markup"; term=true}
+```@repl fixednetworkoptim
 topologyQPseudolik!(truenet,raxmlCF);
 truenet.loglik
 ```
