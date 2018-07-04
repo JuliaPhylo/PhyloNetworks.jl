@@ -1304,7 +1304,7 @@ concordance factors under the input network.
 """
 function topologyQPseudolik!(net0::HybridNetwork,d::DataCF; verbose=false::Bool)
     for ed in net0.edge
-      !ed.hybrid || (ed.gamma > 0.0) ||
+      !ed.hybrid || (ed.gamma >= 0.0) ||
         error("hybrid edge has missing γ value. Cannot compute quartet pseudo-likelihood.\nTry `topologyMaxQPseudolik!` instead, to estimate these γ's.")
     end
     missingBL = any([e.length < 0.0 for e in net0.edge]) # at least one BL was missing

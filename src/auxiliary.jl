@@ -648,53 +648,67 @@ function searchHybridEdge(net::Network)
     return a
 end
 
-# print for every edge, nodes, inCycle, containRoot, istIdentifiable
-function printEdges(net::QuartetNetwork)
-    println("Edge\tNode1\tNode2\tInCycle\tcontainRoot\tistIdentifiable\tLength\tisHybrid\tGamma")
+"""
+    printEdges(net)
+    printEdges(io::IO, net)
+
+Print information on the edges of a `HybridNetwork` or `QuartetNetwork` object
+`net`: edge number, numbers of nodes attached to it, edge length, whether it's
+a hybrid edge, its γ inheritance value, whether it's a major edge,
+if it could contain the root (this field is not always updated, though)
+and attributes pertaining to level-1 networks used in SNaQ:
+in which cycle it is contained (-1 if no cycle), and if the edge length
+is identifiable (based on quartet concordance factors).
+"""
+
+printEdges(x) = printEdges(STDOUT::IO, x)
+function printEdges(io::IO, net::HybridNetwork)
+    if net.numBad > 0
+        println(io, "net has $(net.numBad) bad diamond I. Some γ and edge lengths t are not identifiable, although their γ * (1-exp(-t)) are.")
+    end
+    miss = ""
+    println(io, "edge parent child  length  hybrid isMajor gamma   containRoot inCycle istIdentitiable")
     for e in net.edge
-        println("$(e.number)\t$(e.node[1].number)\t$(e.node[2].number)\t$(e.inCycle)\t$(e.containRoot)\t\t$(e.istIdentifiable)\t\t$(round(e.length,2))\t$(e.hybrid)\t$(round(e.gamma,4))")
+        @printf(io, "%-4d %-6d %-6d ", e.number, getParent(e).number, getChild(e).number)
+        if e.length==-1.0 @printf(io, "%-7s ", miss); else @printf(io, "%-7.3f ", e.length); end
+        @printf(io, "%-6s %-7s ", e.hybrid, e.isMajor)
+        if e.gamma==-1.0  @printf(io, "%-7s ", miss); else @printf(io, "%-7.4g ", e.gamma); end
+        @printf(io, "%-11s %-7d %-5s\n", e.containRoot, e.inCycle, e.istIdentifiable)
     end
 end
 
-"""
-    printEdges(net::HybridNetwork)
-    printEdges(qnet::QuartetNetwork)
-
-print information on the edges of a network: edge number, node numbers of nodes attached to it,
-in which cycle it is contained (-1 if no cycle), can it contain root,
-is it an identifiable edge (based on quartet concordance factors),
-length, is it a hybrid edge, gamma inheritance value
-"""
-
-function printEdges(net::HybridNetwork)
-    if(net.numBad > 0)
-        println("net has $(net.numBad) bad diamond I. Some γ and edge lengths t are not identifiable, although their γ * (1-exp(-t)) are.")
-    end
-    miss = "NA"
-    println("Edge\tNode1\tNode2\tInCycle\tcontainRoot\tistIdentitiable\tLength\tisHybrid\tGamma\tisMajor")
+function printEdges(io::IO, net::QuartetNetwork)
+    println(io, "edge parent child  length  hybrid isMajor gamma   containRoot inCycle istIdentitiable")
     for e in net.edge
-        s  = "$(e.number)\t$(e.node[1].number)\t$(e.node[2].number)\t"
-        s *= "$(e.inCycle)\t$(e.containRoot)\t\t$(e.istIdentifiable)\t\t"
-        s *= "$(e.length==-1.0 ? miss : round(e.length,2))\t$(e.hybrid)\t\t"
-        s *= "$(e.gamma ==-1.0 ? miss : round(e.gamma,4))\t$(e.isMajor)"
-        println(s)
+        @printf(io, "%-4d %-6d %-6d ", e.number, getParent(e).number, getChild(e).number)
+        @printf(io, "%-7.3f %-6s %-7s ", e.length, e.hybrid, e.isMajor)
+        @printf(io, "%-7.4g %-11s %-7d %-5s\n", e.gamma, e.containRoot, e.inCycle, e.istIdentifiable)
     end
 end
 
 # print for every node, inCycle and edges
 """
-`printNodes(net::HybridNetwork)`
+    printNodes(net)
+    printNodes(io, net)
 
-prints information on the nodes of net: node number, in which cycle it is contained (-1 if no cycle), is it hybrid, does it has hybrid edges, edges number attached to it
+Print information on the nodes of a `HybridNetwork` net: node number,
+whether it's a leaf, whether it's a hybrid node, whether it's connected to one
+or more hybrid edges, it's name (label),
+the cycle in which it is belong (-1 if no cycle; makes sense for level-1 networks),
+and the list of edges attached to it, by their numbers.
 """
-function printNodes(net::Network)
-    println("Node\tIn Cycle\tisHybrid\thasHybEdge\tNode label\tisLeaf\tEdges numbers")
+printNodes(x) = printNodes(STDOUT::IO, x)
+function printNodes(io::IO, net::Network)
+    namepad = max(4, maximum(length.([n.name for n in net.node])))
+    println(io, "node leaf  hybrid hasHybEdge ", rpad("name", namepad), " inCycle edges'numbers")
     for n in net.node
-        print("$(n.number)\t$(n.inCycle)\t\t$(n.hybrid)\t\t$(n.hasHybEdge)\t\t$(n.name)\t\t$(n.leaf)")
+        @printf(io, "%-4d %-5s %-6s %-10s ", n.number, n.leaf, n.hybrid, n.hasHybEdge)
+        print(io, rpad(n.name,namepad))
+        @printf(io, " %-7d", n.inCycle)
         for e in n.edge
-            print("\t$(e.number)")
+            @printf(io, " %-4d", e.number)
         end
-        print("\n")
+        print(io, "\n")
     end
 end
 

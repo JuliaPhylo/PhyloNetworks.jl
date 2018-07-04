@@ -4,13 +4,39 @@
 if !isdefined(:doalltests) doalltests = false; end
 
 @testset "test: auxiliary" begin
-net = readTopology("((((B)#H1)#H2,((D,C,#H2)S1,(#H1,A)S2)S3)S4);")
+net = readTopology("((((B:102.3456789)#H1)#H2,((D:0.00123456789,C,#H2:::0.123456789)S1,(#H1,A_coolname)S2)S3)S4);")
 # using PhyloPlots; plot(net, :R, showEdgeNumber=true, showNodeNumber=true);
-originalSTDOUT = STDOUT
-redirect_stdout(open("/dev/null", "w")) # not portable to Windows
-@test_nowarn printEdges(net) # output goes to screen... not easy to check
-@test_nowarn printNodes(net)
-redirect_stdout(originalSTDOUT)
+s = IOBuffer()
+@test_nowarn printEdges(s, net)
+@test String(s) == """
+edge parent child  length  hybrid isMajor gamma   containRoot inCycle istIdentitiable
+1    2      1      102.346 false  true    1       true        -1      false
+2    3      2              true   true            false       -1      true 
+3    10     3              true   true    0.8765  false       -1      true 
+4    6      4      0.001   false  true    1       true        -1      false
+5    6      5              false  true    1       true        -1      false
+6    6      3              true   false   0.1235  false       -1      true 
+7    9      6              false  true    1       true        -1      true 
+8    8      2              true   false           false       -1      true 
+9    8      7              false  true    1       true        -1      false
+10   9      8              false  true    1       true        -1      true 
+11   10     9              false  true    1       true        -1      true 
+"""
+close(s); s = IOBuffer()
+@test_nowarn printNodes(s, net)
+@test String(s) == """
+node leaf  hybrid hasHybEdge name       inCycle edges'numbers
+1    true  false  false      B          -1      1   
+2    false true   true       #H1        -1      1    2    8   
+3    false true   true       #H2        -1      2    3    6   
+4    true  false  false      D          -1      4   
+5    true  false  false      C          -1      5   
+6    false false  true       S1         -1      4    5    6    7   
+7    true  false  false      A_coolname -1      9   
+8    false false  true       S2         -1      8    9    10  
+9    false false  false      S3         -1      7    10   11  
+10   false false  true       S4         -1      3    11  
+"""
 @test_throws ErrorException PhyloNetworks.getMinorParent(net.node[1])
 @test PhyloNetworks.getMajorParent(net.node[1]).number == 2
 @test PhyloNetworks.getMinorParent(net.node[3]).number == 6
