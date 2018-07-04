@@ -285,7 +285,7 @@ function rootatnode!(net::HybridNetwork, nodeNumber::Integer; index=false::Bool)
           directEdges!(net)
         catch e
           if isa(e, RootMismatch) # new root incompatible with hybrid directions: revert back
-            println("RootMismatch: ", e.msg, "\nReverting to old root position.")
+            println("RootMismatch: reverting to old root position.")
             net.root = rootsaved
           end
           rethrow(e)
@@ -334,7 +334,7 @@ function rootonedge!(net::HybridNetwork, edgeNumber::Integer; index=false::Bool)
       directEdges!(net)
     catch e
       if isa(e, RootMismatch) # new root incompatible with hybrid directions: revert back
-        println("RootMismatch: ", e.msg, "\nReverting to old root position.")
+        println("RootMismatch: reverting to old root position.")
         fuseedgesat!(net.root,net) # reverts breakedge!
         net.root = rootsaved
       end

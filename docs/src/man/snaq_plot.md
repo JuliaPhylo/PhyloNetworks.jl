@@ -83,11 +83,11 @@ less("net1.networks") # extra info
 ```
 when viewing these result files with `less`
 within Julia, use arrows to scroll down and type `q` to quit viewing the files.
-The file `net1.networks` contains a list of networks obtained from
-the estimated network, `net1`, by changing the direction of each hybridization,
-and by moving
-the placement of the hybrid node to another node inside the cycle,
-along with its pseudolikelihood score.
+The file `net1.networks` contains a list of networks that are slight modifications
+of the best (estimated) network `net1`. The modifications changed the direction
+of one reticulation at a time, by moving the placement of one hybrid node to another
+node inside the same cycle.
+For each modified network, the pseudolikelihood score was calculated.
 
 The function name `snaq!` ends with ! because it modifies the argument `raxmlCF`
 by including the expected CF. Type `?` then `snaq!` to get help on that function.
@@ -263,7 +263,10 @@ The direction of hybrid edges can be inferred,
 but the direction of tree edges cannot be inferred.
 To obtain a representative visualization,
 it is best to root the network first, using one or more outgroup.
-Go to [Comparing and manipulating networks](@ref) for this.
+Go to [Re-rooting trees and networks](@ref) for this.
+If your outgroup conflicts with the direction of reticulations
+in the estimated network, see section
+[Candidate networks compatible with a known outgroup](@ref).
 
 ## Candidate Network Evaluation
 

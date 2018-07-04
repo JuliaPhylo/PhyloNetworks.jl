@@ -59,11 +59,6 @@ behind the scene each time a plot is called.
 After trees/networks are rooted with a correct outgroup,
 their visualization is more meaningful.
 
-With 1 or more hybridization, the direction of hybrid edges
-constrain the position of the root, which cannot be downstream of hybrid edges.
-An attempt to re-root the network at a position incompatible with hybrid edges
-will fail.
-
 Networks can be re-rooted at a given node or along a given edge.
 Get help (type `?`) on the functions `rootatnode!` and `rootonedge!`
 for more info. There are examples in the [Bootstrap](@ref) section.
@@ -72,6 +67,88 @@ If the network is plotted with crossing edges, you may identify
 ways to rotate the children edges at some nodes to untangle some crossing edges.
 This can be done using the function `rotate!`.
 See an example in the [Bootstrap](@ref) section, or type `?` then `rotate!`.
+
+## What if the root conflicts with the direction of a reticulation?
+
+With 1 hybridization or more, the direction of hybrid edges
+constrain the position of the root. The root cannot be downstream of hybrid edges.
+Any hybrid node has to be younger than, or of the same age as both of its parents.
+So time has to flow "downwards" of any hybrid node, and the root cannot be
+placed "below" a hybrid node.
+An attempt to re-root the network at a position incompatible with hybrid edges
+will fail, with a `RootMismatch` error. To show an example, let's use the
+network below. We plotted the edge numbers, because we will want to use them
+later to place the root.
+
+```@example dist_reroot
+net7taxa = readTopology("(C,D,((O,(E,#H7:::0.196):0.314):0.664,(B,((A1,A2))#H7:::0.804):10.0):10.0);")
+R"svg(name('reroot_net7taxa_1.svg'), width=4, height=4)" # hide
+R"par(mar = c(0,0,0,0))" # hide
+plot(net7taxa, :R, showGamma=true, showEdgeNumber=true, tipOffset=0.2);
+R"dev.off()"; # hide
+```
+![reroot net7taxa 1](../assets/figures/reroot_net7taxa_1.svg)
+
+Let's imagine that the A1 and A2 are our outgroups, and we estimated the network above.
+According to this network, time must flow from the hybrid node towards A1 and A2.
+So any attempt to reroot the network with A1 as outgroup, or with A2 as outgroup,
+or with the A clade (on edge 11), will fail with a `RootMismatch` error:
+
+```julia
+rootatnode!(net7taxa, "A1"); # ERROR: RootMismatch: non-leaf node 5 had 0 children. ...
+rootatnode!(net7taxa, "A2"); # ERROR: RootMismatch (again)
+rootonedge!(net7taxa, 11);   # ERROR: RootMismatch (again)
+```
+
+In this case, however, it is possible to root the network on either parent edge
+of the hybrid node. These edges have numbers 12 and 5, based on the plot above.
+We get these 2 rooted versions of the network:
+
+```@example dist_reroot
+R"svg(name('reroot_net7taxa_2.svg'), width=7, height=4)"; # hide
+R"layout(matrix(1:2,1,2))";
+R"par(mar = c(0,0,0.5,0))"; # hide
+rootonedge!(net7taxa, 12);
+plot(net7taxa, :R, showGamma=true, tipOffset=0.2);
+R"mtext('rooted on hybrid edge 12 (major)', line=-1)"
+rootonedge!(net7taxa, 5);
+plot(net7taxa, :R, showGamma=true, tipOffset=0.2);
+R"mtext('rooted on hybrid edge 5 (minor)', line=-1)"
+R"dev.off()"; # hide
+```
+![reroot net7taxa 2](../assets/figures/reroot_net7taxa_2.svg)
+
+On the second plot, the A clade does not *appear* to be an outgroup,
+but this is just because the plot follows the major tree primarily,
+based the major hybrid edges (those with γ>0.5).
+We can display the exact same network differently, by changing
+the γ inheritance values to invert the major/minor consideration of the hybrid edges.
+```@example dist_reroot
+net7taxa.edge[5] # just to check that it's one of the 2 hybrid edges of interest
+setGamma!(net7taxa.edge[5], 0.501) # switch major/minor edges
+R"svg(name('reroot_net7taxa_3.svg'), width=4, height=4)"; # hide
+R"layout(matrix(1,1,1))"; # hide
+R"par(mar = c(0,0,0,0))"; # hide
+plot(net7taxa, :R, tipOffset=0.2); # not showing gamma values, because we changed them artificially
+R"mtext('rooted on hybrid edge 5 (considered major)', line=-1)"
+R"dev.off()"; # hide
+```
+![reroot net7taxa 3](../assets/figures/reroot_net7taxa_3.svg)
+
+Conclusion, in this particular example: it is possible to re-root the network to a place
+where the A clade is indeed an outgroup. But it did require some care,
+and we discovered that there are 2 acceptable rooting options.
+The first is more plausible, if we think that the *species tree* is the *major tree*,
+meaning that any gene flow or introgression event replaced less than 50% of the genes
+in the recipient population.
+
+In other cases, it may not be possible to re-root the network with a known outgroup.
+It would be the case if A1 was the only outgroup, and if A2 was an ingroup taxon.
+In such a case, the outgroup knowledge tells us that our estimated network is wrong.
+One (or more) reticulation in the network must be incorrect.
+Its placement might be correct, but then its direction would be incorrect.
+If the network was estimated via `snaq!`, check tips
+about [Candidate networks compatible with a known outgroup](@ref).
 
 ## Extracting the major tree
 
