@@ -87,10 +87,10 @@ R"colA=rep('#008080',$nq); bgA=rep('#00808090',$nq);"; # hide
 R"colA[$has_A=='yes']='#F8766D'; bgA[$has_A=='yes']='#F8766D90'"; # hide
 R"svg(name('expCFs_obsvsfitted_A.svg'), width=5, height=4)"; # hide
 R"par(mar=c(2.5,2.6,.5,.5), mgp=c(1.5,.4,0), tck=-0.01, las=1, pty='s')"; # hide
-R"plot(0:1, 0:1, type='l', bty='L', lwd=0.3, col='#008080', xlab='quartet CF observed in gene trees', ylab='quartet CF expected from network')"; # hide
+R"plot(0:1, 0:1, type='l', bty='L', lwd=0.3, col='black', xlab='quartet CF observed in gene trees', ylab='quartet CF expected from network')"; # hide
 R"set.seed(2345)" # hide
 R"points(jitter($obsCF,amount=0.005),jitter($expCF,amount=0.005),col=colA,bg=bgA,pch=21)"; # hide
-R"legend(x=1.05,y=0.6,pch=21,col=c('#008080','#F8766D'),legend=c('no','yes'),title='has A?', bty='n',bg=c('#00808090','#F8766D90'))"; # hide
+R"legend(x=0.7,y=0.3,pch=21,col=c('#008080','#F8766D'),legend=c('no','yes'),title='has A?', bty='n',bg=c('#00808090','#F8766D90'))"; # hide
 R"dev.off()"; # hide
 df_long
 ```
