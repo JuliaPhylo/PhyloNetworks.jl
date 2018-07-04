@@ -136,7 +136,7 @@ and this output for net3 (again, only 1 hybrid found):
     MaxNet is (D,C,((O,(E,#H7:::0.19558839257941849):0.3135243301652981):0.6640664138384673,(B,(A)#H7:::0.8044116074205815):10.0):10.0);
     with -loglik 28.315067218909626
 
-## parallel computation
+## parallel computations
 
 For network estimation, multiple runs can done in parallel.
 For example, if your machine has 4 or more processors (or cores),
@@ -169,6 +169,94 @@ We may tell julia to add more processors than our machine has,
 but we will not receive any performance benefits.
 At any time during the julia session, `nworkers()` tells us how many
 worker processors julia has access to.
+
+Below is an example of how to use a cluster, to run many independent
+`snaq!` searches in parallel on a cluster running the
+[slurm](https://slurm.schedmd.com) job manager
+(other managers would require a different, but similar submit file).
+This example uses 2 files:
+1. a julia script file, to do many runs of `snaq!` in parallel,
+   asking for many cores (default: 10 runs, asking for 10 cores).
+   This julia script can take arguments: the maximum allowed
+   number of hybridizations `hmax`, and the number of runs
+   (to run 50 runs instead of 10, say).
+2. a submit file, to launch the julia script.
+
+**First**: the example julia script, below, is assumed (by the submit file)
+to be called `runSNaQ.jl`. It uses a starting tree that
+is assumed to be available in a file named `astraltree.tre`, but that
+could be modified
+(to use a network with h=1 to start the search with hmax=2 for instance).
+It also assumes that the quartet concordance factor data are in file
+`tableCF_speciesNames.csv`. Again, this file name should be adjusted.
+To run this julia script for 50 runs and hmax=3, do `julia runSNaQ.jl 3 50`.
+
+```julia
+#!/usr/bin/env julia
+
+# file "runSNaQ.jl". run in the shell like this in general:
+# julia runSNaQ.jl hvalue nruns
+# example for h=2 and default 10 runs:
+# julia runSNaQ.jl 2
+# or example for h=3 and 50 runs:
+# julia runSNaQ.jl 3 50
+
+length(ARGS) > 0 ||
+    error("need 1 or 2 arguments: # reticulations (h) and # runs (optional, 10 by default)")
+h = parse(Int, ARGS[1])
+nruns = 10
+if length(ARGS) > 1
+    nruns = parse(Int, ARGS[2])
+end
+outputfile = string("net", h, "_", nruns, "runs") # example: "net2_10runs"
+seed = 1234 + h # change as desired! Best to have it different for different h
+info("will run SNaQ with h=",h,
+    ", # of runs=",nruns,
+    ", seed=",seed,
+    ", output will go to: ", outputfile)
+
+addprocs(nruns)
+@everywhere using PhyloNetworks
+net0 = readTopology("astraltree.tre");
+df_sp = CSV.read("tableCF_speciesNames.csv", categorical=false);
+d_sp = readTableCF!(df_sp);
+net = snaq!(net0, d_sp, hmax=h, filename=outputfile, seed=seed, runs=nruns)
+```
+
+When julia is called on a script, whatever comes after "julia scriptname"
+is given to julia in an array of values. This array is called `ARGS`.
+So if we call a script like this: `julia runSNaQ.jl 2`
+then the script will know the arguments through `ARGS`,
+which would contain a single element, `"2"`.
+This first element is just a string, at this stage. We want to use it as a number,
+so we ask julia to parse the string into an integer.
+
+**Second**: we need a "submit" file to ask a job scheduler like
+[slurm](https://slurm.schedmd.com) to submit our julia script to a cluster.
+In the submit file below, the first 5 lines set things up for slurm.
+They are most likely to be specific to your cluster.
+The main idea here is to use a slurm "array" from 0 to 3, to run our
+julia script multiple times, 4 times actually: from hmax=0 to hmax=3.
+Each would do 30 runs.
+Then log out of the cluster and go for coffee... 😃
+
+```bash
+#!/bin/bash
+#SBATCH -o path/to/slurm/log/file/runsnaq_slurm%a.log
+#SBATCH -J runsnaq
+#SBATCH --array=0-3
+#SBATCH -n 120
+## --array: to run multiple instances of this script,
+##          one for each value in the array
+## -J job name
+## -n number of cores
+
+echo "slurm task ID = $SLURM_ARRAY_TASK_ID used as hmax"
+echo "start of SNaQ parallel runs on $(hostname)"
+# finally: launch the julia script, using Julia executable appropriate for slurm, with full paths:
+/workspace/software/bin/julia --history-file=no -- runSNaQ.jl $SLURM_ARRAY_TASK_ID 30 > net$SLURM_ARRAY_TASK_ID_30runs.screenlog 2>&1
+echo "end of SNaQ run ..."
+```
 
 ## choosing the number of hybridizations
 

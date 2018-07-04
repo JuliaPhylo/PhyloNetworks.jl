@@ -102,7 +102,7 @@ We can read this file and look at its list of networks like this:
 ```@repl fixednetworkoptim
 file = "net1.networks";
 # or use the example file available with the package:
-file = joinpath(Pkg.dir("PhyloNetworks"),"examples","net1.networks")
+file = joinpath(Pkg.dir("PhyloNetworks"),"examples","net1.networks");
 netlist = readMultiTopology(file) # read the full list of networks in that file
 ```
 Next, we would like to extract the network scores from the file.
@@ -161,7 +161,9 @@ rotate!(netlist[1], -4); # to 'un-cross' edges
 rotate!(netlist[1], -6);
 plot(netlist[1], :R, showGamma=true, tipOffset=0.1);
 R"mtext('best net, score=28.3', line=-1)";
+logging(DevNull, ; kind=:info) # hide
 rootatnode!(netlist[2], "A"); # net with modified direction: first way to make A outgroup
+logging() # hide
 plot(netlist[2], :R, showGamma=true, tipOffset=0.1);
 R"mtext('second best in list, score=31.5\nrequires unsampled population', line=-2)";
 rootonedge!(netlist[2], 10) # net with modified direction: second way to make A outgroup
