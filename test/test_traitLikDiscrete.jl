@@ -1,5 +1,5 @@
 runall = false;
-
+@testset "Testing traitLikDiscrete" begin
 @testset "Testing Substitution Models, P and Q matrices" begin
 
 m1 = BinaryTraitSubstitutionModel(1.0, 2.0);
@@ -35,14 +35,12 @@ end
 
 m1 = BinaryTraitSubstitutionModel(1.0,2.0, ["carnivory", "non-carnivory"]);
 m2 = EqualRatesSubstitutionModel(4, 3.0, ["S1","S2","S3","S4"]);
-
-info("\ton a single branch")
+# on a single branch
 srand(12345);
 @test randomTrait(m1, 0.2, [1,2,1,2,2]) == [1,2,1,1,2]
 srand(12345);
 @test randomTrait(m2, 0.05, [1,3,4,2,1]) == [1,3,4,2,1]
-
-info("\ton a network")
+# on a network
 net = readTopology("(A:1.0,(B:1.0,(C:1.0,D:1.0):1.0):1.0);")
 srand(12345);
 a,b = randomTrait(m1, net)
@@ -156,12 +154,12 @@ fit1 = (@test_nowarn fitDiscrete(net, m1, tips; fixedparam=true));
 species = ["G","C","A","B","D"]
 dat1 = DataFrame(trait = ["hi","hi","lo","lo","hi"], species = species)
 m2 = BinaryTraitSubstitutionModel(0.2, 0.3, ["lo", "hi"])
-fit2 = fitDiscrete(net, m2, dat1; fixedparam=true)
+fit2 = (@test_nowarn fitDiscrete(net, m2, dat1; fixedparam=true))
 @test fit2.trait == [[1],[1],[2],[2]]
 @test loglikelihood(fit2) ≈ -2.6754091090953693
 originalSTDOUT = STDOUT
 redirect_stdout(open("/dev/null", "w"))
-fit2 = @test_nowarn fitDiscrete(net, m2, dat1; verbose=true)
+fit2 = @test_nowarn fitDiscrete(net, m2, dat1; verbose=true) # 65 iterations
 redirect_stdout(originalSTDOUT)
 @test fit2.model.rate ≈ [0.29993140042699212, 0.38882902905265493] atol=2e-4
 @test loglikelihood(fit2) ≈ -2.6447247349802496 atol=2e-4
@@ -170,10 +168,105 @@ dat2 = DataFrame(trait1= ["hi","hi","lo","lo","hi"], trait2=["hi",missing,"lo","
 fit3 = (@test_nowarn fitDiscrete(net, m2, species, dat2; fixedparam=true))
 @test fit3.loglik ≈ (-2.6754091090953693 - 2.1207856874033491)
 PhyloNetworks.fit!(fit3; fixedparam=false)
+@test fit3.model.rate ≈ [0.3245640354187991, 0.5079501745877728]
 fit3.net = readTopology("(A,(B,(C,D):1.0):1.0);"); # no branch lengths
 @test_throws ErrorException PhyloNetworks.fit!(fit3; fixedparam=false)
 
 # test on a network, 1 hybridization
 net = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.0,D:5.0);")
+# function below used to check that simulation proportions == likelihood
+m1 = BinaryTraitSubstitutionModel([1.0, 2.0], [1,2]) # model.label = model.index
+function traitprobabilities(model, net, ntraits=10)
+    res, lab = randomTrait(model, net; ntraits=ntraits)
+    tips = findin(lab, tipLabels(net)) # indices of tips: columns in res
+    dat = DataFrame(species = lab[tips])
+    tmp = StatsBase.countmap([res[i,tips] for i in 1:ntraits])
+    i = 0
+    prop = Float64[]
+    for (k,v) in tmp
+        i += 1
+        dat[Symbol("x",i)] = k
+        push!(prop, v/ntraits)
+    end
+    npatterns = i
+    lik = Float64[]
+    for i in 1:npatterns
+        fit = fitDiscrete(net, model, dat[[:species, Symbol("x",i)]]; fixedparam=true)
+        push!(lik, fit.loglik)
+    end
+    return dat, prop, lik
+end
+#=
+using PhyloNetworks, StatsBase, DataFrames
+d, p, ll = traitprobabilities(m1, net, 100000000);
+all(isapprox.(log.(p), ll, atol=1e-3)) # true
+hcat(log.(p), ll)
+ -1.62173  -1.62184
+ -3.00805  -3.00807
+ -4.39506  -4.39436
+ -3.00747  -3.0082 
+ -3.70119  -3.70121
+ -3.00759  -3.0082 
+ -2.31516  -2.31505
+ -2.31554  -2.31499
+ -3.0083   -3.0082 
+ -3.008    -3.0082 
+ -2.31475  -2.31505
+ -3.702    -3.70135
+ -3.00836  -3.00813
+ -3.70033  -3.70121
+ -2.31546  -2.31499
+ -3.70124  -3.70135
+=#
+d = DataFrame(species=["D","C","B","A"], x1=[1,1,1,1], x2=[1,2,2,1], x3=[2,2,2,2], x4=[1,1,2,2],
+    x5=[2,2,2,1], x6=[2,2,1,1], x7=[1,1,2,1], x8=[2,1,1,1], x9=[2,1,2,1], x10=[1,2,1,2],
+    x11=[1,2,1,1], x12=[2,2,1,2], x13=[2,1,1,2], x14=[1,2,2,2], x15=[1,1,1,2], x16=[2,1,2,2])
+lik = Float64[]
+for i in 1:16
+    fit = fitDiscrete(net, m1, d[[:species, Symbol("x",i)]]; fixedparam=true)
+    push!(lik, fit.loglik)
+end
+@test lik ≈ [-1.6218387598967712, -3.008066347196894, -4.3943604143403245, -3.008199100743402,
+    -3.70121329832901, -3.0081981601869483, -2.315051933868397, -2.314985711030534,
+    -3.0081988850020873, -3.0081983709272504, -2.3150512090547584, -3.70134532205944,
+    -3.008132923628349, -3.7012134632082083, -2.3149859724945876, -3.7013460518770915]
+fit1 = fitDiscrete(net, m1, d[[:species, :x6]])
 
+# with parameter estimation
+net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
+m1 = BinaryTraitSubstitutionModel([1.0, 1.0], ["lo", "hi"])
+dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"])
+fit1 = fitDiscrete(net, m1, dat; fixedparam=true)
+@test fit1.loglik ≈ -2.77132013004859
+PhyloNetworks.fit!(fit1; fixedparam=false)
+@test fit1.model.rate ≈ [0.2722263130324768, 0.34981109618902395] atol=1e-4
+@test fit1.loglik ≈ -2.727701700695741
+# for information only: function used locally to check for correct parameter estimation
+function simulateManyTraits_estimate(ntraits)
+    m1 = BinaryTraitSubstitutionModel([1.0, 0.5], [1,2])
+    res, lab = randomTrait(m1, net; ntraits=ntraits)
+    tips = findin(lab, tipLabels(net)) # indices of tips: columns in res
+    dat = DataFrame(transpose(res[:,tips])); species = lab[tips]
+    return fitDiscrete(net, m1, species, dat)
+end
+# simulateManyTraits_estimate(100000)
+# α=1.1124637623451075, β=0.5604529225895175, loglik=-25587.1  with ntraits=10000
+# α=0.9801472136310236, β=0.4891696992781437, loglik=-255755.6 with ntraits=100000
+# time with ntraits=100000: 907.2s = 15min 7s (one single processor, no binning of traits with same pattern)
+
+# ancestral state reconstruction - fixit!!
+fit1.model.rate[1] = 0.2722263130324768;
+fit1.model.rate[2] = 0.34981109618902395;
+@test_throws ErrorException ancestralStateReconstruction(fit1, 4) # 1 trait, not 4: error
+asr = ancestralStateReconstruction(fit1)
+@test names(asr) == [:nodenumber, :nodelabel, :lo, :hi]
+@test asr[:nodenumber] == collect(1:9)
+@test asr[:nodelabel] == ["A","B","C","D","5","6","7","8","#H1"]
+@test asr[:lo] ≈ [1.,1.,0.,0., 0.28602239466671175, 0.31945742289603263,
+    0.16855042517785512, 0.7673588716207436, 0.7827758475866091]
+@test asr[:hi] ≈ [0.,0.,1.,1.,0.713977605333288, 0.6805425771039674,
+    0.8314495748221447, 0.23264112837925616, 0.21722415241339132]
+@test fit1.postltw ≈ [-0.08356534477069566, -2.5236181051014333]
 end # end of testset, fixed topology
+
+end # of nested testsets

@@ -296,8 +296,10 @@ The bang version (ending with !) uses the vector `end` to store the simulated va
 
 # Examples
 ```julia-repl
-julia> m1 = PhyloNetworks.BinaryTraitSubstitutionModel(1.0, 2.0) 
+julia> m1 = BinaryTraitSubstitutionModel(1.0, 2.0)
+
 julia> srand(12345);
+
 julia> randomTrait(m1, 0.2, [1,2,1,2,2])
  5-element Array{Int64,1}:
  1
@@ -323,40 +325,46 @@ function randomTrait!(endTrait::AbstractVector{Int}, mod::SM, t::Float64, start:
 end
 
 """
-    randomTrait(mod, net; ntraits=1, keepInternal=true, checkPreorder=true)
+    randomTrait(model, net; ntraits=1, keepInternal=true, checkPreorder=true)
 
 Simulate evolution of discrete traits on a rooted evolutionary network based on
 the supplied evolutionary model. Trait sampling is uniform at the root.
 
-# Arguments
-- ntraits: number of traits to be simulated (default: 1 trait).
-- keepInternal: if true, export character states at all nodes, including
+optional arguments:
+
+- `ntraits`: number of traits to be simulated (default: 1 trait).
+- `keepInternal`: if true, export character states at all nodes, including
   internal nodes. if false, export character states at tips only.
 
-# Output
-- matrix of character states with one row per trait, one column per node
-- array of node labels (for tips) or node numbers (for internal nodes)
+output:
+
+- matrix of character states with one row per trait, one column per node;
+  these states are *indices* in `model.label`, not the trait labels themselves.
+- vector of node labels (for tips) or node numbers (for internal nodes)
   in the same order as columns in the character state matrix
 
-# Examples
+# examples
+
 ```julia-repl
-julia> m1 = PhyloNetworks.BinaryTraitSubstitutionModel(1.0, 2.0);
-julia> net = readTopology("(A:1.0,(B:1.0,(C:1.0,D:1.0):1.0):1.0);");
-julia> srand(12345);
-julia> a,b = randomTrait(m1, net)
- ([1 2 … 1 2], String["-2", "-3", "-4", "D", "C", "B", "A"])
-julia> a
- 1×7 Array{Int64,2}:
- 1  2  1  1  1  1  2
-julia> b
- 7-element Array{String,1}:
- "-2"
- "-3"
- "-4"
- "D"
- "C"
- "B"
- "A"
+julia> m1 = BinaryTraitSubstitutionModel(1.0, 2.0, ["low","high"]);
+julia> net = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.0,D:5.0);");
+julia> srand(1234);
+julia> trait, lab = randomTrait(m1, net)
+([1 2 … 1 1], String["-2", "D", "-3", "-6", "C", "-4", "#H1", "B", "A"])
+julia> trait
+1×9 Array{Int64,2}:
+ 1  2  1  1  2  2  1  1  1
+julia> lab
+9-element Array{String,1}:
+ "-2" 
+ "D"  
+ "-3" 
+ "-6" 
+ "C"  
+ "-4" 
+ "#H1"
+ "B"  
+ "A"  
 ```
 """
 
@@ -378,6 +386,7 @@ function randomTrait(mod::SM, net::HybridNetwork;
     return M, nodeLabels
 end
 
+@doc (@doc randomTrait) randomTrait!
 function randomTrait!(M::Matrix{Int}, mod::SM, net::HybridNetwork)
     recursionPreOrder!(net.nodes_changed, M, # updates M in place
             updateRootRandomTrait!,

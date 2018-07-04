@@ -13,7 +13,7 @@ module PhyloNetworks
     using BioSequences
     using BioSymbols
     using StaticArrays
-    using StatsFuns
+    using StatsFuns # for logsumexp
 
     import Base.show
     import GLM.ftest
@@ -126,7 +126,7 @@ module PhyloNetworks
         randomTrait,
         randomTrait!,
         fitDiscrete,
-        ancestralStateDistribution
+        ancestralStateReconstruction
 
 
     include("types.jl")
