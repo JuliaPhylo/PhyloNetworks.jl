@@ -125,9 +125,7 @@ module PhyloNetworks
         Q, P,
         randomTrait,
         randomTrait!,
-        fitDiscrete,
-        ancestralStateReconstruction
-
+        fitDiscrete
 
     include("types.jl")
     include("auxiliary.jl")

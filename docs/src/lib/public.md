@@ -129,6 +129,7 @@ nStates
 Q
 P
 randomTrait
+fitDiscrete
 ```
 
 ```@meta
