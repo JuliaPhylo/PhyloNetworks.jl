@@ -9,3 +9,4 @@ GLM 0.10 # requires StatsModels, Distributions
 NLopt 0.3
 StaticArrays 0.6.0
 StatsBase 0.22
+StatsFuns 0.6.1

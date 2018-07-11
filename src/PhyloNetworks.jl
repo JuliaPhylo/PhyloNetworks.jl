@@ -10,9 +10,10 @@ module PhyloNetworks
     using GLM # for the lm function
     using NLopt # for branch lengths optimization
     using Combinatorics.combinations
-    using StaticArrays
     using BioSequences
     using BioSymbols
+    using StaticArrays
+    using StatsFuns # for logsumexp
 
     import Base.show
     import GLM.ftest
@@ -123,7 +124,8 @@ module PhyloNetworks
         nStates,
         Q, P,
         randomTrait,
-        randomTrait!
+        randomTrait!,
+        fitDiscrete
 
     include("types.jl")
     include("auxiliary.jl")
@@ -147,5 +149,6 @@ module PhyloNetworks
     include("interop.jl")
     include("substitutionModels.jl")
     include("biconnectedComponents.jl")
+    include("traitsLikDiscrete.jl")
 
 end #module
