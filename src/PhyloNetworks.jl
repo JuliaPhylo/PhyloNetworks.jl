@@ -125,7 +125,10 @@ module PhyloNetworks
         Q, P,
         randomTrait,
         randomTrait!,
-        fitDiscrete
+        fitDiscrete,
+        ## TICR test
+        ticr,
+        ticr!
 
     include("types.jl")
     include("auxiliary.jl")
@@ -150,5 +153,6 @@ module PhyloNetworks
     include("substitutionModels.jl")
     include("biconnectedComponents.jl")
     include("traitsLikDiscrete.jl")
+    include("ticr.jl")
 
 end #module

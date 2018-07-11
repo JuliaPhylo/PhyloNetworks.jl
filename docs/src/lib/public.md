@@ -81,6 +81,8 @@ topologyQPseudolik!
 fittedQuartetCF
 bootsnaq
 calibrateFromPairwiseDistances!
+ticr
+ticr!
 ```
 ## network Comparisons
 
