@@ -1147,7 +1147,12 @@ end
 ###############################################################################
 ## Fit Pagel's Lambda
 
-# Get major gammas
+"""
+    getGammas(net)
+
+Get inheritance γ's of major hybrid edges. Assume pre-order calculated already
+(with up-to-date field `nodes_changed`). See [`setGammas!`](@ref)
+"""
 function getGammas(net::HybridNetwork)
     isHybrid = [n.hybrid for n in net.nodes_changed]
     gammas = ones(size(isHybrid))
@@ -1160,23 +1165,45 @@ function getGammas(net::HybridNetwork)
     return gammas
 end
 
+"""
+    setGammas!(net, γ vector)
+
+Set inheritance γ's of hybrid edges, using input vector for *major* edges.
+Assume pre-order calculated already, with up-to-date field `nodes_changed`.
+See [`getGammas`](@ref).
+
+Very different from [`setGamma!`](@ref), which focuses on a single hybrid event,
+updates the field `isMajor` according to the new γ, and is not used here.
+
+May assume a tree-child network.
+"""
 function setGammas!(net::HybridNetwork, gammas::Vector)
     isHybrid = [n.hybrid for n in net.nodes_changed]
     for i in 1:size(isHybrid, 1)
         if isHybrid[i]
-            majorHybrid = [n.hybrid & n.isMajor for n in net.nodes_changed[i].edge]
-            minorHybrid = [n.hybrid & !n.isMajor for n in net.nodes_changed[i].edge]
-            net.nodes_changed[i].edge[majorHybrid][1].gamma = gammas[i]
+            nod = net.nodes_changed[i]
+            majorHybrid = [edg.hybrid &  edg.isMajor for edg in nod.edge]
+            # worry: assume tree-child network? getMajorParent and getMinorParent would be safer
+            minorHybrid = [edg.hybrid & !edg.isMajor for edg in nod.edge]
+            nod.edge[majorHybrid][1].gamma = gammas[i]
             if any(minorHybrid) # case where gamma = 0.5 exactly
-                net.nodes_changed[i].edge[minorHybrid][1].gamma = 1 - gammas[i]
+                nod.edge[minorHybrid][1].gamma = 1 - gammas[i]
             else
-                net.nodes_changed[i].edge[majorHybrid][2].gamma = 1 - gammas[i]
+                nod.edge[majorHybrid][2].gamma = 1 - gammas[i]
             end
         end
     end
     return nothing
 end
 
+"""
+    getHeights(net)
+
+Return the height (distance to the root) of all nodes, assuming a time-consistent network
+(where all paths from the root to a given hybrid node have the same length).
+Also assumes that the network has been preordered, because it uses
+[`getGammas`](@ref) and [`setGammas!`](@ref)).
+"""
 function getHeights(net::HybridNetwork)
     gammas = getGammas(net)
     setGammas!(net, ones(net.numNodes))
@@ -1675,8 +1702,8 @@ sigma2_estim(m::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} 
 Estimated root value for a fitted object.
 """
 function mu_estim(m::PhyloNetworkLinearModel)
-    warn("""You fitted the data against a custom matrix, so I have no way of
-         knowing which column is your intercept (column of ones).
+    warn("""You fitted the data against a custom matrix, so I have no way
+         to know which column is your intercept (column of ones).
          I am using the first coefficient for ancestral mean mu by convention,
          but that might not be what you are looking for.""")
     if size(m.lm.pp.X,2) == 0

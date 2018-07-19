@@ -51,6 +51,7 @@ getindex(::TraitSimulation, ::Symbol)
 getNodeAges
 pairwiseTaxonDistanceMatrix
 biconnectedComponents
+blobDecomposition
 ```
 
 ## data and topology read/write

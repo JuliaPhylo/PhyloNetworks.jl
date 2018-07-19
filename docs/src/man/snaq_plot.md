@@ -218,6 +218,7 @@ info("will run SNaQ with h=",h,
 addprocs(nruns)
 @everywhere using PhyloNetworks
 net0 = readTopology("astraltree.tre");
+using CSV
 df_sp = CSV.read("tableCF_speciesNames.csv", categorical=false);
 d_sp = readTableCF!(df_sp);
 net = snaq!(net0, d_sp, hmax=h, filename=outputfile, seed=seed, runs=nruns)
