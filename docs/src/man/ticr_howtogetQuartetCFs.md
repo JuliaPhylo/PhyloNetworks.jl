@@ -78,37 +78,37 @@ There is *no* need to do any of the steps below: they are already done by `bucky
 SLURM will parallelize the MrBayes runs across genes.
 
 1. Place all nexus files in a given folder.
-  Include in this folder a text file with the MrBayes block for all the genes.
-  If we want a different MrBayes block per gene, step 2 should be skipped,
-  and we should instead find some other way to put the specific MrBayes block
-  at the end of each nexus file.
+   Include in this folder a text file with the MrBayes block for all the genes.
+   If we want a different MrBayes block per gene, step 2 should be skipped,
+   and we should instead find some other way to put the specific MrBayes block
+   at the end of each nexus file.
 
 2. Copy the julia script
-  [`paste-mb-block.jl`](https://github.com/nstenz/TICR/blob/master/scripts-cluster/paste-mb-block.jl)
-  and run it inside this folder. This script will read all the
-  nexus files in the directory, will read the text file with the MrBayes block to paste
-  onto all nexus files (option `‑m, ‑‑mb‑block` in the original `mb.pl` script),
-  will create a new directory, and will create new nexus files (containing the MrBayes block)
-  as `1.nex, 2.nex, ...` in the new directory. A `translate.txt` file will also be created
-  to map the original gene file names to the new (numbered) file names.
+   [`paste-mb-block.jl`](https://github.com/nstenz/TICR/blob/master/scripts-cluster/paste-mb-block.jl)
+   and run it inside this folder. This script will read all the
+   nexus files in the directory, will read the text file with the MrBayes block to paste
+   onto all nexus files (option `‑m, ‑‑mb‑block` in the original `mb.pl` script),
+   will create a new directory, and will create new nexus files (containing the MrBayes block)
+   as `1.nex, 2.nex, ...` in the new directory. A `translate.txt` file will also be created
+   to map the original gene file names to the new (numbered) file names.
 
 3. Modify the submit script
-  [`mb-slurm-submit.sh`](https://github.com/nstenz/TICR/blob/master/scripts-cluster/mb-slurm-submit.sh),
-  which will parallelize all the individual-gene MrBayes runs with SLURM:
+   [`mb-slurm-submit.sh`](https://github.com/nstenz/TICR/blob/master/scripts-cluster/mb-slurm-submit.sh),
+   which will parallelize all the individual-gene MrBayes runs with SLURM:
 
-  - change `--array` to the correct number of genes
-  - change `--mail-user` to the user's email (if this is an option for your job scheduler)
-  - replace the `/workspace/software/bin` in `PATH="/workspace/software/bin:$PATH"`
-    to the path where the `mb` executable is located or put the whole path in the command:
-    `/s/mrbayes-3.2.6-1/bin/mb`
+   - change `--array` to the correct number of genes
+   -  change `--mail-user` to the user's email (if this is an option for your job scheduler)
+   - replace the `/workspace/software/bin` in `PATH="/workspace/software/bin:$PATH"`
+     to the path where the `mb` executable is located or put the whole path in the command:
+     `/s/mrbayes-3.2.6-1/bin/mb`
 
-  In slurm, we can then submit the MrBayes array job with:
+    In slurm, we can then submit the MrBayes array job with:
 
-  ```bash
-  sbatch mb-slurm-submit.sh
-  ```
+```bash
+sbatch mb-slurm-submit.sh
+```
 
-  With this slurm pipeline, the steps below need to be done: keep reading.
+  With this slurm pipeline, the steps below are needed: keep reading.
 
 ## To run mbsum on the output of MrBayes for each gene
 
