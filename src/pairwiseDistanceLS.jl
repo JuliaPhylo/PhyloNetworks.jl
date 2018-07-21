@@ -1,18 +1,4 @@
 """
-    setBLfromDivergenceTimes!(net::HybridNetwork, divergenceTimes::Dict{Int64,Float64})
-
-Modify branch lengths in `net` to match input divergence times.
-Assumes correct `isChild1` field for all edges in the network.
-"""
-function setBLfromDivergenceTimes!(net::HybridNetwork, divergenceTimes::Dict{Int64,Float64})
-    for e in net.edge
-        parentTime = divergenceTimes[e.node[e.isChild1 ? 2 : 1].number]
-        childTime = divergenceTimes[e.node[e.isChild1 ? 1 : 2].number]
-        e.length = parentTime - childTime
-    end
-end
-
-"""
     getNodeAges(net)
 
 vector of node ages in pre-order, as in `nodes_changed`,
@@ -43,16 +29,34 @@ end
                                 checkPreorder=true, nodeAges=[])
     pairwiseTaxonDistanceMatrix!(M, net, nodeAges)
 
-Matrix of pairwise distances between nodes in the network:
-- between all nodes (internal and leaves) if `keepInternal=true`
-- between taxa only otherwise.
-Update `net.nodes_changed` to get a topological ordering
-if `checkPreorder` is true.
+Return the matrix `M` of pairwise distances between nodes in the network:
+- between all nodes (internal and leaves) if `keepInternal=true`,
+  in which case the nodes are listed in `M` in the
+  order in which they appear in `net.nodes_changed`
+- between taxa only otherwise, in which case the nodes are listed
+  in `M` in the order in which they appear in `tipLabels(net)`
+  (i.e. same order as in `net.leaf`)
+
 The second form modifies `M` in place, assuming all nodes.
 
-If `nodeAges` is provided: this vector should list node ages in the
-pre-order in which they are listed in nodes_changed (including leaves),
-and **edge lengths** in `net` **are modified** accordingly.
+The distance between the root and a given hybrid node (to take an example)
+is the weighted average of path lengths from the root to that node,
+where each path is weighted by the product of γs of all edges on that path.
+This distance measures the average genetic distance across the genome,
+if branch lengths are in substitutions/site.
+
+optional arguments:
+
+- `checkPreorder`: if true, `net.nodes_changed` is updated to get a
+  topological ordering of nodes.
+- `nodeAges`: if not provided, i.e. empty vector, the network is *not* modified.  
+  If provided and non-empty, `nodeAges` should list node ages in the
+  pre-order in which nodes are listed in `nodes_changed` (including leaves),
+  and **edge lengths** in `net` **are modified** accordingly.
+
+Providing node ages hence makes the network time consistent: such that
+all paths from the root to a given hybrid node have the same length.
+If node ages are not provided, the network need not be time consistent.
 """
 
 function pairwiseTaxonDistanceMatrix(net::HybridNetwork;
@@ -88,8 +92,8 @@ in the matrix by rows, by columns, or both? Subsetting is taken accordingly.
 function getTipSubmatrix(M::Matrix, net::HybridNetwork; indexation=:both)
     nodenames = [n.name for n in net.nodes_changed]
     tipind = Int[]
-    for l in net.leaf
-        push!(tipind, findfirst(nodenames, l.name))
+    for l in tipLabels(net)
+        push!(tipind, findfirst(nodenames, l))
     end
     if indexation == :both
         return M[tipind, tipind]
