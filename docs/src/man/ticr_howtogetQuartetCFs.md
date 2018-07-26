@@ -89,6 +89,7 @@ SLURM will parallelize the MrBayes runs across genes.
 2. In the "working" directory above, run the julia script
    [`paste-mb-block.jl`](https://github.com/nstenz/TICR/blob/master/scripts-cluster/paste-mb-block.jl)
    with "nexusfolder" as argument, to tell the script where to find all the nexus files:
+
    ```bash
    julia path/to/paste-mb-block.jl nexusfolder
    ```
@@ -214,6 +215,7 @@ In the submit script that gives instructions to the job scheduler:
 
 
 In slurm, we would submit the BUCKy array job with:
+
 ```bash
 sbatch bucky-slurm-submit.sh
 ```

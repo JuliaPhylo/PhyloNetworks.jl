@@ -7,7 +7,8 @@
 
 ## how it works: overview
 
-- `.travis.yml` asks to run `docs/make.jl` after a successful test & build.
+- `.travis.yml` asks to run `./docs/make.sh` after a successful test & build.
+- `./docs/make.sh` asks julia to install PhyloPlots & Documenter, then run `docs/make.jl`
 - the julia script `docs/make.jl` has 2 steps:
   1. run `makedocs()` from `Documenter`: make the documentation.
      also runs all `jldoctest` blocks in the source files, to check that
