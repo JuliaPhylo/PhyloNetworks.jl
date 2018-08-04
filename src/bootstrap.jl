@@ -649,16 +649,16 @@ Output:
 1. a "node" data frame (see below)
 2. an "edge" data frame (see below)
 3. a "clade" data frame to describe the make up of all clades found as hybrids or sisters,
-  starting with a column `taxa` that lists all taxa. All other columns correspond to a given
-  clade and contain true/false values. `true` means that a given taxon belongs in a given clade.
-  For a clade named `H1`, for instance, and if the data frame was named `cla`, the
-  list of taxa in this clade can be obtained with `cla[:taxa][cla[:H1]]`.
+   starting with a column `taxa` that lists all taxa. All other columns correspond to a given
+   clade and contain true/false values. `true` means that a given taxon belongs in a given clade.
+   For a clade named `H1`, for instance, and if the data frame was named `cla`, the
+   list of taxa in this clade can be obtained with `cla[:taxa][cla[:H1]]`.
 4. an array of gamma values, with one row for each bootstrap network and two columns (major/minor)
-  for each hybrid edge in the reference network. If this hybrid edge was found in the bootstrap network
-  (i.e. same hybrid and sister clades, after removal of all other hybrid nodes),
-  its bootstrap gamma value is recorded here. Otherwise, the gamma entry is 0.0.
-5. a vector with the number of each hybrid edge in the reference network, in the same order
-as for the columns in the array of gamma values above.
+   for each hybrid edge in the reference network. If this hybrid edge was found in the bootstrap network
+   (i.e. same hybrid and sister clades, after removal of all other hybrid nodes),
+   its bootstrap gamma value is recorded here. Otherwise, the gamma entry is 0.0.
+5. a vector with the number of each hybrid edge in the reference network,
+   in the same order as for the columns in the array of gamma values above.
 
 The "node" data frame has one row per clade and 9 columns giving:
 
