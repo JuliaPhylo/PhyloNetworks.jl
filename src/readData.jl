@@ -656,8 +656,12 @@ Optional arguments include:
 function readTrees2CF(treefile::AbstractString; quartetfile="none"::AbstractString, whichQ="all"::AbstractString, numQ=0::Integer,
                       writeTab=true::Bool, CFfile="none"::AbstractString,
                       taxa=Vector{String}()::Union{Vector{String},Vector{Int}},
-                      writeQ=false::Bool, writeSummary=true::Bool)
-    trees = readInputTrees(treefile)
+                      writeQ=false::Bool, writeSummary=true::Bool, nexus=false::Bool)
+    if(nexus)
+        trees = readNexusTrees(treefile)
+    else
+        trees = readInputTrees(treefile)
+    end
     if length(taxa)==0        # unionTaxa(trees) NOT default argument:
       taxa = unionTaxa(trees) # otherwise: tree file is read twice
     end
@@ -999,4 +1003,35 @@ function createQuartet(taxa::Union{Vector{String},Vector{Int}},qvec::Vector{Int}
 end
 
 
+
+## internal function to read a treefile in nexus format
+function readNexusTrees(file::AbstractString)
+    try
+        s = open(file)
+    catch
+        error("Could not find or open $(file) file");
+    end
+    vnet = HybridNetwork[]
+    s = open(file)
+    numl = 1
+    for line in eachline(s)
+        line = strip(line) # remove spaces
+        DEBUG && println("$(line)")
+        c = isempty(line) ? "" : line[1:4]
+        if(c == "Tree")
+            init = search(line,'(')
+            endit = search(line,';')
+            line = line[init:endit]
+           try
+               push!(vnet, readTopologyUpdate(line,false))
+               ##@show line
+           catch(err)
+               error("could not read tree in line $(numl). The error is $(err)")
+           end
+        end
+        numl += 1
+    end
+    close(s)
+    return vnet # consistent output type: HybridNetwork vector. might be of length 0.
+end
 
