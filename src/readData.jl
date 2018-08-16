@@ -652,6 +652,7 @@ Optional arguments include:
 - CFfile: name of file to save the observedCF (default tableCF.txt)
 - writeQ=true: save intermediate files with the list of all 4-taxon subsets and chosen random sample (default false).
 - writeSummary: write descriptive stats of input data (default: true)
+- nexus: if true, it assumes the gene trees are written in nexus file (default: false)
 """
 function readTrees2CF(treefile::AbstractString; quartetfile="none"::AbstractString, whichQ="all"::AbstractString, numQ=0::Integer,
                       writeTab=true::Bool, CFfile="none"::AbstractString,
