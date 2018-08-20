@@ -94,14 +94,17 @@ net.root = 5
 # or: "directEdges! didn't correct containRoot of hyb edges."
 # plot(net, showNodeNumber=true, showEdgeLength=false, showEdgeNumber=true)
 @test_nowarn rootatnode!(net, -10); # or: rootatnode! complained, node -10
-@test_throws PhyloNetworks.RootMismatch rootatnode!(net, "M");
+@test_throws PhyloNetworks.RootMismatch rootatnode!(net, "M"; verbose=false);
 # println("the rootmismatch about node 5 is good and expected.")
 @test_nowarn rootonedge!(net, 9); # or: rootonedge! complained, edge 9
 @test_nowarn PhyloNetworks.fuseedgesat!(27, net);
-@test_warn """node 1 is a leaf. Will create a new node if needed, to set taxon "Ag" as outgroup.""" rootatnode!(net, "Ag"); # need for new node
-@test_warn """node 1 is a leaf. Will create a new node if needed, to set taxon "Ag" as outgroup.""" rootatnode!(net, "Ag"); # no need this time
+# @test_warn """node 1 is a leaf. Will create a new node if needed, to set taxon "Ag" as outgroup."""
+@test_nowarn rootatnode!(net, "Ag"); # need for new node
+# @test_warn """node 1 is a leaf. Will create a new node if needed, to set taxon "Ag" as outgroup."""
+@test_nowarn rootatnode!(net, "Ag"); # no need this time
 @test length(net.node) == 27 # or: wrong # of nodes after rootatnode! twice on same outgroup
-@test_warn """node 10 is a leaf. Will create a new node if needed, to set taxon "Ap" as outgroup.""" rootatnode!(net, "Ap"); # or: rootatnode! complained, leaf Ap
+# @test_warn """node 10 is a leaf. Will create a new node if needed, to set taxon "Ap" as outgroup."""
+@test_nowarn rootatnode!(net, "Ap");
 @test length(net.node) == 27 # or: wrong # of nodes, after 3rd rooting with outgroup
 @test_nowarn rootonedge!(net, 5);
 
@@ -124,11 +127,12 @@ net.root=15; # node number -5 (clau: previously -4)
 @test_throws PhyloNetworks.RootMismatch directEdges!(net);
 # ismatch(r"non-leaf node 9 had 0 children",e.msg))
 @test_nowarn rootatnode!(net, -13); # or: rootatnode complained...
-@test_throws PhyloNetworks.RootMismatch rootatnode!(net, -5); ## clau: previously -4
+@test_throws PhyloNetworks.RootMismatch rootatnode!(net, -5); # verbose = true this time
 # ismatch(r"non-leaf node 9 had 0 children", e.msg))
-@test_throws PhyloNetworks.RootMismatch rootatnode!(net,"#H2"); #try rethrow();
+@test_throws PhyloNetworks.RootMismatch rootatnode!(net,"#H2"; verbose=false); #try rethrow();
 # ismatch(r"hybrid edge 17 conflicts", e.msg))
-@test_warn """node 12 is a leaf. Will create a new node if needed, to set taxon "10" as outgroup.""" rootatnode!(net,"10");
+# @test_warn """node 12 is a leaf. Will create a new node if needed, to set taxon "10" as outgroup."""
+@test_nowarn rootatnode!(net,"10");
 
 end # of testset for directEdges! and re-rootings
 

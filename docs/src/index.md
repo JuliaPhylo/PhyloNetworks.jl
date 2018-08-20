@@ -8,7 +8,7 @@ and their use for trait evolution.
 ## How to get help
 
 - the package [wiki](https://github.com/crsl4/PhyloNetworks.jl/wiki) has a step-by-step
-  tutorial, done for the Evolution 2016 conference, with background on networks and
+  tutorial, done for the 2018 MBL workshop, with background on networks and
   explanations.
 - the [google group](https://groups.google.com/forum/#!forum/phylonetworks-users)
   has answers to common questions.
@@ -28,7 +28,8 @@ Pages = [
     "man/expectedCFs.md",
     "man/bootstrap.md",
     "man/multiplealleles.md",
-    "man/trait_tree.md"
+    "man/trait_tree.md",
+    "man/parsimony.md"
 ]
 Depth = 3
 ```

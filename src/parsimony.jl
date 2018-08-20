@@ -214,20 +214,32 @@ end
     parsimonySoftwired(net, species, sequences)
 
 Calculate the most parsimonious (MP) score of a network given
-a discrete character at the tips using the dynamic programming algorithm given
-in Fischer et al. (2015).
+a discrete character at the tips.
 The softwired parsimony concept is used: where the number of state
 transitions is minimized over all trees displayed in the network.
 
 Data can given in one of the following:
 - `tipdata`: data frame for a single trait, in which case the taxon names
-are to appear in column 1 or in a column named "taxon" or "species", and
-trait values are to appear in column 2 or in a column named "trait".
+   are to appear in column 1 or in a column named "taxon" or "species", and
+   trait values are to appear in column 2 or in a column named "trait".
 - `tipdata`: dictionary taxon => state, for a single trait.
 - `species`: array of strings, and `sequences`: array of sequences,
    in the order corresponding to the order of species names.
 
-# References
+## algorithm
+
+The dynamic programming algorithm by Fischer et al. (2015) is used.
+The function loops over all the displayed subtrees within a blob
+(biconnected component), so its complexity is of the order of
+`n * m * c^2 * 2^level` where `n` is the number of tips,
+`m` the number of traits, `c` the number of states, and `level`
+is the level of the network: the maximum number of hybridizations
+within a blob.
+
+See [`parsimonyGF`](@ref) for a different algorithm, slower but
+extendable to other parsimony criteria.
+
+## references
 
 1. Fischer, M., van Iersel, L., Kelk, S., Scornavacca, C. (2015).
    On computing the Maximum Parsimony score of a phylogenetic network.
@@ -365,7 +377,7 @@ function initializeWeightsFromLeavesSoftwired!(w::AbstractArray, net::HybridNetw
     end
 end
 
-function readFastaToSequenceDict(filename::String)
+function readFastaToArray(filename::String)
     reader = BioSequences.FASTA.Reader(open(filename))
     #dat = Dict{String, }()
     sequences = Array{BioSequences.BioSequence}(0)
@@ -388,6 +400,56 @@ function readFastaToSequenceDict(filename::String)
     return species, sequences
 end
 
+## for parsimonyGF:
+## created similar to readFastaToArray (hence the name)
+## see readFastaToArray for possible improvements
+"""
+    readCSVtoArray(dat::DataFrame)
+    readCSVtoArray(filename::String)
+
+Read a CSV table containing both species names and data,
+create two separate arrays: one for the species names,
+a second for the data, in a format that [`parsimonyGF`](@ref) needs.
+
+Warning:
+- it will try to find a column 'taxon' or 'species' for the taxon names.
+  If none found, it will assume the taxon names are in column 1.
+- will use all other columns as characters
+"""
+function readCSVtoArray(dat::DataFrame)
+    i = findfirst(DataFrames.names(dat), :taxon)
+    if i==0 i = findfirst(DataFrames.names(dat), :species); end
+    if i==0
+        warn("expecting taxon names in column 'taxon', or 'species', so will assume column 1")
+        i = 1
+    end
+
+    species = Array{String}(0)
+    for d in dat[:, i]
+        push!(species,string(d))
+    end
+
+    ind = deleteat!(collect(1:size(dat,2)),i) ##character columns
+    seq = Vector{Vector{Any}}(0)
+    for j=1:size(dat,1) ##for every taxon:
+        v = Vector{Any}(0)
+        for ii in ind
+            if ismissing(dat[j,ii])
+                push!(v,missing)
+            else
+                push!(v,dat[j,ii])
+            end
+        end
+        push!(seq,v)
+    end
+    return species,seq
+end
+
+function readCSVtoArray(filename::String)
+    dat = CSV.read(filename)
+    readCSVtoArray(dat)
+end
+
 """
     parsimonyGF(net, tip_dictionary, criterion=:softwired)
     parsimonyGF(net, species, sequenceData, criterion=:softwired)
@@ -396,19 +458,30 @@ Calculate the most parsimonious score of a network given
 discrete characters at the tips using a general framework
 (Van Iersel et al. 2018) allowing for various parsimony criteria:
 softwired (default), hardwired, parental etc.
-The complexity of the algorithm is exponential in the level of the
-network, that is, the maximum number of hybridizations in a single
-blob (Fischer et al. 2015).
+Only softwired is implemented at the moment.
 
 Data can given in one of the following:
 - `tipdata`: data frame for a single trait, in which case the taxon names
-are to appear in column 1 or in a column named "taxon" or "species", and
-trait values are to appear in column 2 or in a column named "trait".
+   are to appear in column 1 or in a column named "taxon" or "species", and
+   trait values are to appear in column 2 or in a column named "trait".
 - `tipdata`: dictionary taxon => state, for a single trait.
 - `species`: array of strings, and `sequences`: array of sequences,
     in the order corresponding to the order of species names.
 
-# References
+## algorithm
+
+The complexity of the algorithm is exponential in the level of the
+network, that is, the maximum number of hybridizations in a single
+blob, or biconnected component (Fischer et al. 2015).
+The function loops over all the state assignments of the minor parent
+of each hybrid node within a blob, so its complexity is of the order of
+`n * m * c^2 * c^level` where `n` is the number of tips,
+`m` the number of traits and `c` the number of states.
+
+See [`parsimonySoftwired`](@ref) for a faster algorithm, but
+solving the softwired criterion only.
+
+## references
 
 1. Leo Van Iersel, Mark Jones, Celine Scornavacca (2017).
    Improved Maximum Parsimony Models for Phylogenetic Networks,
@@ -436,6 +509,7 @@ function parsimonyGF(net::HybridNetwork, tips::Dict{String,T},
     end
     parsimonyGF(net, species, dat, criterion)
 end
+
 
 function parsimonyGF(net::HybridNetwork, species=Array{String},
     sequenceData=AbstractArray, criterion=:softwired::Symbol)
@@ -799,3 +873,366 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
     #println("end of node $(node.number)")
     return nothing
 end
+
+
+## --------------------------------------------------
+## Search for most parsimonious network
+
+## start the search from (or near) topology currT,
+## .loglik will save now parsimony score
+## fixit: we are using the functions for level1 network, we need to include level-k networks
+## this will be done by changing the current proposedTop! function
+## the current search/moves functions are the same for snaq, so they need a "good" semi-directed
+## network, so currently we propose new topology from this set of networks, and simply root to
+## compute the parsimony score (we do not keep rooted networks as the search objects),
+## that is, newT and currT are unrooted through the whole algorithm (because computing the parsimony destroys inCycle)
+## criterion=softwired by default
+## at this stage, currT is compatible with the outgroup, but still unrooted (for moves functions to work)
+## tolAbs: could be set to 0.1 and removed from list of arguments. up to 0.5 should work,
+##         because parsimony scores are integers, but Float64 to extend cost function later perhaps
+"""
+Road map for various functions behind maxParsimonyNet
+
+    maxParsimonyNet
+    maxParsimonyNetRun1
+    maxParsimonyNetRun1!
+
+All return their optimized network. Only maxParsimonyNet returns a rooted network
+(though all functions guarantee that the returned networks agree with the outgroup).
+
+- maxParsimonyNet calls maxParsimonyNetRun1 per run, after a read(write(.)) of the starting network
+  (to ensure level-1 and semi-directedness).
+- maxParsimonyNetRun1 will make a copy of the topology, and will call findStartingTopology!
+  to modify the topology according to random NNI/move origin/move target moves. It then calls maxParsimonyNetRun1!
+  on the modified network
+- maxParsimonyNetRun1! proposes new network with various moves (same moves as snaq), and stops when it finds the
+  most parsimonious network, using [`parsimonyGF`](@ref).
+
+None of these functions allow for multiple alleles yet.
+
+Note that the search algorithm keeps two HybridNetworks at a time: currT (current topology) and newT (proposed topology).
+Both are kept unrooted (semi-directed), otherwise the moves in proposedTop! function fail.
+We only root the topologies to calculate the parsimony, so we create a rooted copy (currTr, newTr) to compute parsimony
+score in this copied topology. We do not root and calculate parsimony score in the original HybridNetworks objects (currT,newT)
+because the computation of the parsimony score overwrites the inCycle attribute of the Nodes, which messes with
+the search moves.
+
+Extensions:
+- other criteria: hardwired, parental (only softwired implemented now)
+- remove level-1 restriction: this will involve changing the proposedTop! function to use rSPR or rNNI moves
+  (instead of the level-1 moves coded for snaq!).
+  We need:
+  - functions for rSPR and rNNI moves
+  - create new proposedTop! function (proposedRootedTop?) to choose from the rSPR/rNNI/other moves
+  - have the search in maxParsimonuNetRun1! to have rooted currT and rooted newT, instead of keeping semi-directed objects
+    (currT, newT), only to root for the parsimony score (currTr, newTr)
+- outgroup is currently String or Node number, but it would be good if it allowed Edge number as an option too.
+  Not sure best way to distinguish between Node number and Edge number, which is why left as Node number for now.
+"""
+function maxParsimonyNetRun1!(currT::HybridNetwork, tolAbs::Float64, Nfail::Integer, df::DataFrame, hmax::Integer,
+                              logfile::IO, writelog::Bool, outgroup::Union{AbstractString,Integer},
+                              criterion=:softwired::Symbol)
+    tolAbs >= 0 || error("tolAbs must be greater than zero: $(tolAbs)")
+    Nfail > 0 || error("Nfail must be greater than zero: $(Nfail)")
+    DEBUG && printEverything(currT)
+    CHECKNET && checkNet(currT)
+    count = 0
+    movescount = zeros(Int,18) #1:6 number of times moved proposed, 7:12 number of times success move (no intersecting cycles, etc.), 13:18 accepted by parsimony score
+    movesfail = zeros(Int,6) #count of failed moves for current topology
+    failures = 0
+    stillmoves = true
+    Nmov = zeros(Int,6)
+    species, traits = readCSVtoArray(df)
+    currTr = deepcopy(currT)
+    rootatnode!(currTr,outgroup)
+    currT.loglik = parsimonyGF(currTr,species,traits,criterion)
+    absDiff = tolAbs + 1
+    newT = deepcopy(currT)
+    writelog && write(logfile, "\nBegins heuristic search of most parsimonious network------\n")
+    while absDiff > tolAbs && failures < Nfail && stillmoves
+        count += 1
+        calculateNmov!(newT,Nmov)
+        move = whichMove(newT,hmax,movesfail,Nmov)
+        if move != :none
+            newT0 = deepcopy(newT) ## to go back if proposed topology conflicts with the outgroup
+            flag = proposedTop!(move,newT,true, count,10, movescount,movesfail,false) #N=10 because with 1 it never finds an edge for nni
+            newTr = deepcopy(newT) ##rooted version only to compute parsimony
+            try
+                rootatnode!(newTr,outgroup; verbose=false)
+            catch
+                flag = false
+            end
+
+            if flag #no need else in general because newT always undone if failed, but needed for conflicts with root
+                DEBUG && println("successful move and correct root placement")
+                accepted = false
+                newT.loglik = parsimonyGF(newTr,species,traits,criterion)
+                accepted = (newT.loglik < currT.loglik && abs(newT.loglik-currT.loglik) > tolAbs) ? true : false
+                #newT better parsimony score: need to check for error or keeps jumping back and forth
+                if accepted
+                    absDiff = abs(newT.loglik - currT.loglik)
+                    currT = deepcopy(newT)
+                    failures = 0
+                    movescount[move2int[move]+12] += 1
+                    movesfail = zeros(Int,6) #count of failed moves for current topology
+                else
+                    failures += 1
+                    movesfail[move2int[move]] += 1
+                    newT = deepcopy(currT)
+                end
+            else
+                DEBUG && println("unsuccessful move or incorrect root placement")
+                newT = newT0 ## not counting errors in outgroup as failures, maybe we should
+            end
+        else
+            stillmoves = false
+        end
+    end
+    assignhybridnames!(newT)
+    if absDiff <= tolAbs
+        writelog && write(logfile,"\nSTOPPED by absolute difference criteria")
+    elseif !stillmoves
+        writelog && write(logfile,"\nSTOPPED for not having more moves to propose: movesfail $(movesfail), Nmov $(Nmov)")
+    else
+        writelog && write(logfile,"\nSTOPPED by number of failures criteria")
+    end
+    writelog && write(logfile,"\nEND: found minimizer topology at step $(count) (failures: $(failures)) with parsimony score=$(round(newT.loglik,5))")
+    writelog && printCounts(movescount,zeros(Int,13),logfile) ## zeroes in lieu of movesgamma, not used in parsimony
+    setBLGammaParsimony!(newT)
+    return newT
+end
+
+
+## find the maximum parsimony network;
+## transform the starting topology first
+## does not allow multiple alleles
+@doc (@doc maxPArsimonyNetRun1!) maxParsimonyNetRun1
+function maxParsimonyNetRun1(currT0::HybridNetwork, df::DataFrame, Nfail::Integer, tolAbs::Float64,
+                                      hmax::Integer,seed::Integer,logfile::IO, writelog::Bool, probST::Float64,
+                                      outgroup::Union{AbstractString,Integer}, criterion=:softwired::Symbol)
+    srand(seed)
+    currT = findStartingTopology!(currT0, probST, false,writelog, logfile, outgroup=outgroup)
+    net = maxParsimonyNetRun1!(currT, tolAbs, Nfail, df, hmax,logfile,writelog, outgroup, criterion)
+    return net
+end
+
+
+## find the most parsimonious network over multiple runs
+## no multiple alleles for now;
+## if rootname not defined, it does not save output files
+## fixit: now it only works if currT0 is tree, or level-1 network
+## also, throws an error if outgroup not compatible with starting network
+## (instead of choosing another root)
+"""
+    maxParsimonyNet(T::HybridNetwork, df::DataFrame)
+
+Search for the most parsimonious network (or tree).
+A level-1 network is assumed.
+`df` should be a data frame containing the species names in column 1,
+or in a column named `species` or `taxon`. Trait data are assumed to be
+in all other columns. The search starts from topology `T`,
+which can be a tree or a network with no more than `hmax` hybrid nodes
+(see optional arguments below for `hmax`).
+
+Output:
+
+- estimated network in file `.out` (also in `.log`): best network overall and list of
+  networks from each individual run.
+- if any error occurred, file `.err` provides information (seed) to reproduce the error.
+
+Optional arguments include
+
+- hmax: maximum number of hybridizations allowed (default 1)
+- runs: number of starting points for the search (default 10);
+  each starting point is `T` with probability `probST`=0.3 or a
+  modification of `T` otherwise (using a NNI move, or a hybrid edge
+  direction change)
+- Nfail: number of failures (proposed networks with equal or worse score)
+  before the search is aborted. 75 by default: this is quite small,
+  which is okay for a first trial. Larger values are recommended.
+- outgroup: outgroup taxon.
+            It can be a taxon name (String) or Node number (Integer).
+            If none provided, or if the outgroup conflicts the starting
+            topology, the function returns an error
+- filename: root name for the output files. Default is "mp". If empty (""),
+  files are *not* created, progress log goes to the screen only (standard out).
+- seed: seed to replicate a given search
+- criterion: parsimony score could be hardwired, softwired (default) or parental. Currently,
+             only softwired is implemented
+
+# References
+
+1. Leo Van Iersel, Mark Jones, Celine Scornavacca (2017).
+   Improved Maximum Parsimony Models for Phylogenetic Networks,
+   Systematic Biology,
+   (https://doi.org/10.1093/sysbio/syx094).
+
+2. Fischer, M., van Iersel, L., Kelk, S., Scornavacca, C. (2015).
+   On computing the Maximum Parsimony score of a phylogenetic network.
+   SIAM J. Discrete Math., 29(1):559-585.
+
+For a roadmap of the functions inside maxParsimonyNet, see [`maxPArsimonyNetRun1!`](@ref).
+"""
+function maxParsimonyNet(currT::HybridNetwork, df::DataFrame;
+    tolAbs=fAbs::Float64, Nfail=numFails::Integer,
+    hmax=1::Integer, runs=10::Integer, outgroup="none"::Union{AbstractString,Integer},
+    rootname="mp"::AbstractString, seed=0::Integer, probST=0.3::Float64,
+    criterion=:softwired::Symbol)
+
+    currT0 = readTopologyUpdate(writeTopologyLevel1(currT)) # update all level-1 things
+    flag = checkNet(currT0,true) # light checking only
+    flag && error("starting topology suspected not level-1")
+
+    writelog = true
+    writelog_1proc = false
+    if (rootname != "")
+        julialog = string(rootname,".log")
+        logfile = open(julialog,"w")
+        juliaout = string(rootname,".out")
+        if nprocs() == 1
+            writelog_1proc = true
+            juliaerr = string(rootname,".err")
+            errfile = open(juliaerr,"w")
+        end
+    else
+      writelog = false
+      logfile = STDOUT # used in call to optTopRun1!
+    end
+    str = """optimization of topology using:
+              hmax = $(hmax),
+              max number of failed proposals = $(Nfail).
+             """
+
+    ## need to root the network in a good place before parsimony
+    ## throw an error if outgroup conflicts with starting topology,
+    ## instead of choosing another outgroup
+    outgroup == "none" && error("provide a sensible outgroup for parsimony score computation")
+    rootatnode!(currT,outgroup) ##currT (not currT0) bc we just want to check that starting topology
+                                ##is not in conflict with outgroup,
+                                ##but we need a semi-directed level-1 "good" network (currT0) for search
+
+    str *= (writelog ? "rootname for files: $(rootname)\n" : "no output files\n")
+    str *= "BEGIN: $(runs) runs on starting tree $(writeTopology(currT0))\n"
+    if nprocs()>1
+        str *= "       using $(nprocs()) processors\n"
+    end
+    str *= "       with parsimony criterion: $(string(criterion))\n"
+    if (writelog)
+        write(logfile,str)
+        flush(logfile)
+    end
+    print(STDOUT,str)
+    print(STDOUT, Dates.format(now(), "yyyy-mm-dd H:M:S.s") * "\n")
+    # if 1 proc: time printed to logfile at start of every run, not here.
+
+    if seed == 0
+        t = time()/1e9
+        a = split(string(t),".")
+        seed = parse(Int,a[2][end-4:end]) #better seed based on clock
+    end
+    if  writelog
+        write(logfile,"\nmain seed $(seed)\n")
+        flush(logfile)
+    else print(STDOUT,"\nmain seed $(seed)\n"); end
+    srand(seed)
+    seeds = [seed;round.(Integer,floor.(rand(runs-1)*100000))]
+    if writelog && !writelog_1proc
+        for i in 1:runs # workers won't write to logfile
+            write(logfile, "seed: $(seeds[i]) for run $(i)\n")
+        end
+        flush(logfile)
+    end
+
+    tic();
+    bestnet = pmap(1:runs) do i # for i in 1:runs
+        logstr = "seed: $(seeds[i]) for run $(i), $(Dates.format(now(), "yyyy-mm-dd H:M:S.s"))\n"
+        print(STDOUT, logstr)
+        msg = "\nBEGIN Max Parsimony search for run $(i), seed $(seeds[i]) and hmax $(hmax)"
+        if writelog_1proc # workers can't write on streams opened by master
+            write(logfile, logstr * msg)
+            flush(logfile)
+        end
+        gc();
+        try
+            best = maxParsimonyNetRun1(currT0, df, Nfail, tolAbs, hmax, seeds[i],logfile,writelog_1proc,
+                                                probST,outgroup,criterion);
+            logstr *= "\nFINISHED Max $(string(criterion)) parsimony for run $(i), parsimony of best: $(best.loglik)\n"
+            if writelog_1proc
+                logstr = writeTopology(best)
+                logstr *= "\n---------------------\n"
+                write(logfile, logstr)
+                flush(logfile)
+            end
+            return best
+        catch(err)
+            msg = "\nERROR found on Max Parsimony for run $(i) seed $(seeds[i]): $(err)\n"
+            logstr = msg * "\n---------------------\n"
+            if writelog_1proc
+                write(logfile, logstr)
+                flush(logfile)
+                write(errfile, msg)
+                flush(errfile)
+            end
+            warn(msg) # returns: nothing
+        end
+    end
+    t=toc();
+    writelog_1proc && close(errfile)
+    msg = "\n" * Dates.format(now(), "yyyy-mm-dd H:M:S.s")
+    if writelog
+        write(logfile, msg)
+    end
+    filter!(n -> .!isa(n, Void), bestnet) # remove "nothing", failed runs
+    if length(bestnet)>0
+        ind = sortperm([n.loglik for n in bestnet])
+        bestnet = bestnet[ind]
+        maxNet = bestnet[1]::HybridNetwork # tell type to compiler
+    else
+        error("all runs failed")
+    end
+
+    rootatnode!(maxNet,outgroup)
+    writelog &&
+    write(logfile,"\nMaxNet is $(writeTopology(maxNet)) \nwith $(string(criterion)) parsimony score $(maxNet.loglik)\n")
+    print(STDOUT,"\nMaxNet is $(writeTopology(maxNet)) \nwith $(string(criterion)) parsimony score $(maxNet.loglik)\n")
+
+    s = writelog ? open(juliaout,"w") : STDOUT
+    str = writeTopology(maxNet) * """
+     $(string(criterion)) parsimony score = $(maxNet.loglik)
+     Dendroscope: $(writeTopology(maxNet,di=true))
+     Elapsed time: $(t) seconds, $(runs) attempted runs
+    -------
+    List of estimated networks for all runs (sorted by $(string(criterion)) parsimony score; the smaller, the better):
+    """
+    for n in bestnet
+        str *= " "
+        str *= writeTopology(rootatnode!(n,outgroup))
+        str *= ", with $(string(criterion)) parsimony $(n.loglik)\n"
+    end
+    str *= "-------\n"
+    write(s,str);
+    writelog && close(s) # to close juliaout file (but not STDOUT!)
+    writelog && close(logfile)
+
+    return maxNet
+end
+
+
+## unused function:
+## function to check if currT agrees with the outgroup
+function correctRootPlace(currT::HybridNetwork, outgroup::AbstractString)
+    try
+        checkRootPlace!(currT,outgroup=outgroup)
+    catch err
+        if isa(err, RootMismatch)
+            println("RootMismatch: ", err.msg,
+                    """\nThe starting topology has hybrid edges that are incompatible with the desired outgroup.
+                    """)
+        else
+            println("error trying to reroot: ", err.msg);
+        end
+        return false
+    end
+    return true
+end
+

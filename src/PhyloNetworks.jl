@@ -118,6 +118,7 @@ module PhyloNetworks
         ## Discrete Trait PCM
         parsimonySoftwired,
         parsimonyGF,
+        maxParsimonyNet,
         TraitSubstitutionModel,
         EqualRatesSubstitutionModel,
         BinaryTraitSubstitutionModel,

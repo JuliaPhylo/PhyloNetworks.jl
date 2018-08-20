@@ -106,6 +106,24 @@ function setNonIdBL!(net::HybridNetwork)
     end
 end
 
+"""
+setBLGammaParsimony!(net::HybridNetwork)
+
+Maximum parsimony function does not provide estimates for branch lengths, or gamma.
+But since the `maxParsimonyNet` function is using snaq move functions, branch lengths
+and gamma values are set randomly (to initialize optimization).
+We need to remove these random values before returning the maximum parsimony network.
+"""
+function setBLGammaParsimony!(net::HybridNetwork)
+    for e in net.edge
+        e.length = -1.0
+        if e.hybrid
+            e.gamma = -1.0
+        end
+    end
+end
+
+
 # function that we need to overwrite to avoid printing useless scary
 # output for HybridNetworks
 # PROBLEM: writeTopology changes the network and thus show changes the network

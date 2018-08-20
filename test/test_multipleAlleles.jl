@@ -60,8 +60,10 @@ d3 = DataFrame(t1=repeat([letters[1]],outer=[24]),t2=repeat([letters[2]],outer=[
 @test d2==d3
 
 dat = readTableCF(d);
-net = (@test_warn "net does not have identifiable branch lengths" readTopologyLevel1("(a,((b)#H1,((#H1,c),d)));"));
-@test_warn "net does not have identifiable branch lengths" topologyQPseudolik!(net, dat);
+# net = (@test_warn "net does not have identifiable branch lengths" readTopologyLevel1("(a,((b)#H1,((#H1,c),d)));"));
+net = (@test_nowarn readTopologyLevel1("(a,((b)#H1,((#H1,c),d)));"));
+# @test_warn "net does not have identifiable branch lengths"
+@test_nowarn topologyQPseudolik!(net, dat);
 sorttaxa!(dat)
 
 @test [q.obsCF for q in dat.quartet] == [[0.6,0.39,0.01] for i in 1:24]

@@ -107,11 +107,13 @@ end
 net2  = readTopology(cui2str);
 @test_nowarn deleteleaf!(net2,"Xhellerii");
 @test_nowarn deleteleaf!(net2,"Xsignum");
-@test_warn """node 13 is a leaf. Will create a new node if needed, to set taxon "Xmayae" as outgroup.""" rootatnode!(net2,"Xmayae");
+# @test_warn """node 13 is a leaf. Will create a new node if needed, to set taxon "Xmayae" as outgroup."""
+@test_nowarn rootatnode!(net2,"Xmayae");
 net3  = readTopology(cui3str);
 @test_nowarn deleteleaf!(net3,"Xhellerii");
 @test_nowarn deleteleaf!(net3,"Xsignum");
-@test_warn """node 13 is a leaf. Will create a new node if needed, to set taxon "Xmayae" as outgroup.""" rootatnode!(net2,"Xmayae");
+# @test_warn """node 13 is a leaf. Will create a new node if needed, to set taxon "Xmayae" as outgroup."""
+@test_nowarn rootatnode!(net2,"Xmayae");
 @test hardwiredClusterDistance(net2, net3, true) == 3
 @test_nowarn deleteleaf!(net3,"Xmayae");    #plot(net3);
 @test net3.numHybrids == 2

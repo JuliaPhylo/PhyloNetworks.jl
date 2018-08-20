@@ -133,6 +133,7 @@ Q
 P
 randomTrait
 fitDiscrete
+maxParsimonyNet
 ```
 
 ```@meta

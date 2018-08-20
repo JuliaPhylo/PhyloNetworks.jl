@@ -220,45 +220,46 @@ end
 
 
 """
-    rootatnode!(HybridNetwork, nodeNumber::Integer; index=false::Bool)
-    rootatnode!(HybridNetwork, Node)
-    rootatnode!(HybridNetwork, nodeName::AbstractString)
+    rootatnode!(HybridNetwork, nodeNumber::Integer; index=false::Bool, verbose=true::Bool)
+    rootatnode!(HybridNetwork, Node; verbose=true)
+    rootatnode!(HybridNetwork, nodeName::AbstractString; verbose=true)
 
-Roots the network/tree object at the node with name 'nodeName' or
+Root the network/tree object at the node with name 'nodeName' or
 number 'nodeNumber' (by default) or with index 'nodeNumber' if index=true.
 Attributes isChild1 and containRoot are updated along the way.
 Use `plot(net, showNodeNumber=true, showEdgeLength=false)` to
 visualize and identify a node of interest.
 (see package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl))
 
-Returns the network.
+Return the network.
 
 Warnings:
 
 - If the node is a leaf, the root will be placed along
-  the edge adjacent to the leaf, with a message. This might add a new node.
+  the edge adjacent to the leaf. This might add a new node.
 - If the desired root placement is incompatible with one or more hybrids, then
 
-  * a RootMismatch error is thrown
+  * a RootMismatch error is thrown; use `verbose=false` to silence
+    the root mismatch info printed before the error is thrown.
   * the input network will still have some attributes modified.
 
 See also: [`rootonedge!`](@ref).
 """
-function rootatnode!(net::HybridNetwork, node::Node)
-    rootatnode!(net, node.number, index=false)
+function rootatnode!(net::HybridNetwork, node::Node; kwargs...)
+    rootatnode!(net, node.number; kwargs..., index=false)
 end
 
-function rootatnode!(net::HybridNetwork, nodeName::AbstractString)
+function rootatnode!(net::HybridNetwork, nodeName::AbstractString; kwargs...)
     tmp = findin([n.name for n in net.node], [nodeName])
     if length(tmp)==0
         error("node named $nodeName was not found in the network.")
     elseif length(tmp)>1
         error("several nodes were found with name $nodeName.")
     end
-    rootatnode!(net, tmp[1], index=true)
+    rootatnode!(net, tmp[1]; kwargs..., index=true)
 end
 
-function rootatnode!(net::HybridNetwork, nodeNumber::Integer; index=false::Bool)
+function rootatnode!(net::HybridNetwork, nodeNumber::Integer; index=false::Bool, verbose=true::Bool)
     ind = nodeNumber # good if index=true
     if !index
       try
@@ -270,13 +271,13 @@ function rootatnode!(net::HybridNetwork, nodeNumber::Integer; index=false::Bool)
         error("node index $ind too large: the network only has $(length(net.node)) nodes.")
     end
     if net.node[ind].leaf
-        info("node $(net.node[ind].number) is a leaf. Will create a new node if needed, to set taxon \"$(net.node[ind].name)\" as outgroup.")
+        # info("node $(net.node[ind].number) is a leaf. Will create a new node if needed, to set taxon \"$(net.node[ind].name)\" as outgroup.")
         length(net.node[ind].edge)==1 || error("leaf has $(length(net.node[ind].edge)) edges!")
         pn = getOtherNode(net.node[ind].edge[1], net.node[ind])
         if length(pn.edge) <= 2 # if parent of leaf has degree 2, use it as new root
-            rootatnode!(net, pn.number)
+            rootatnode!(net, pn.number; verbose=verbose)
         else # otherwise, create a new node between leaf and its parent
-            rootonedge!(net,net.node[ind].edge[1])
+            rootonedge!(net,net.node[ind].edge[1]; verbose=verbose)
         end
     else
         rootsaved = net.root
@@ -285,7 +286,7 @@ function rootatnode!(net::HybridNetwork, nodeNumber::Integer; index=false::Bool)
           directEdges!(net)
         catch e
           if isa(e, RootMismatch) # new root incompatible with hybrid directions: revert back
-            println("RootMismatch: reverting to old root position.")
+            verbose && println("RootMismatch: reverting to old root position.")
             net.root = rootsaved
           end
           rethrow(e)
@@ -299,12 +300,12 @@ end
 
 
 """
-    rootonedge!(HybridNetwork, edgeNumber::Integer; index=false::Bool)
-    rootonedge!(HybridNetwork, Edge)
+    rootonedge!(HybridNetwork, edgeNumber::Integer; index=false::Bool, verbose=true::Bool)
+    rootonedge!(HybridNetwork, Edge; verbose=true::Bool)
 
-Roots the network/tree object along an edge with number 'edgeNumber' (by default)
-or with index 'edgeNumber if index=true. Attributes isChild1 and containRoot are
-updated along the way.
+Root the network/tree along an edge with number `edgeNumber` (by default)
+or with index `edgeNumber` if `index=true`.
+Attributes `isChild1` and `containRoot` are updated along the way.
 
 This adds a new node and a new edge to the network.
 Use `plot(net, showEdgeNumber=true, showEdgeLength=false)` to
@@ -313,11 +314,11 @@ visualize and identify an edge of interest.
 
 See also: [`rootatnode!`](@ref).
 """
-function rootonedge!(net::HybridNetwork, edge::Edge)
-    rootonedge!(net, edge.number, index=false)
+function rootonedge!(net::HybridNetwork, edge::Edge; kwargs...)
+    rootonedge!(net, edge.number, index=false; kwargs...)
 end
 
-function rootonedge!(net::HybridNetwork, edgeNumber::Integer; index=false::Bool)
+function rootonedge!(net::HybridNetwork, edgeNumber::Integer; index=false::Bool, verbose=true::Bool)
     ind = edgeNumber # good if index=true
     if !index
       try
@@ -334,7 +335,7 @@ function rootonedge!(net::HybridNetwork, edgeNumber::Integer; index=false::Bool)
       directEdges!(net)
     catch e
       if isa(e, RootMismatch) # new root incompatible with hybrid directions: revert back
-        println("RootMismatch: reverting to old root position.")
+        verbose && println("RootMismatch: reverting to old root position.")
         fuseedgesat!(net.root,net) # reverts breakedge!
         net.root = rootsaved
       end

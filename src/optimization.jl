@@ -84,7 +84,7 @@ function parameters(net::Network)
             end
         end
     end
-    size(t,1) == 0 ? warn("net does not have identifiable branch lengths") : nothing
+    # size(t,1) > 0 || warn("net does not have identifiable branch lengths")
     return vcat(h,t,hz),vcat(n2,n,hzn),vcat(indxh,indxt,indxhz)
 end
 
@@ -2035,3 +2035,73 @@ function snaqDebug(currT0::HybridNetwork, d::DataCF; hmax=1::Integer, liktolAbs=
 end
 
 
+## function to modify the starting topology currT0 by an NNI move with probability 1-probST
+## if starting topology is a network: also do move Origin/Target with prob 1-probST, each 50-50 chance
+## if outgroup!="none" means that the root placement matters at the end (on outgroup), used for max parsimony
+function findStartingTopology!(currT0::HybridNetwork, probST::Float64, multAll::Bool, writelog::Bool, logfile::IO;
+                               outgroup="none"::Union{AbstractString,Integer})
+    currT = deepcopy(currT0);
+    if(probST<1.0 && rand() < 1-probST) # modify starting tree by a nni move
+        suc = NNIRepeat!(currT,10); #will try 10 attempts to do an nni move, if set to 1, hard to find it depending on currT
+        if(multAll)
+            suc2 = checkTop4multAllele(currT)
+            suc &= suc2
+            if(!suc2)
+                currT = deepcopy(currT0)
+            end
+        end
+        writelog && suc && write(logfile," changed starting topology by NNI move\n")
+        if(!isTree(currT))
+            if(rand() < 1-probST) # modify starting network by mvorigin, mvtarget with equal prob
+                currT0 = deepcopy(currT) # to go back if new topology does not work for mult alleles
+                if(currT.numHybrids == 1)
+                    ind = 1
+                else
+                    ind = 0
+                    while(ind == 0 || ind > length(currT.hybrid))
+                        ind = round(Integer,rand()*length(currT.hybrid));
+                    end
+                end
+                if(rand()<0.5)
+                    suc = moveOriginUpdateRepeat!(currT,currT.hybrid[ind],true)
+                    if(multAll)
+                        suc2 = checkTop4multAllele(currT)
+                        suc &= suc2
+                        if(!suc2)
+                            currT = deepcopy(currT0)
+                        end
+                    end
+                    writelog && suc && write(logfile,"\n changed starting network by move origin")
+                else
+                    suc = moveTargetUpdateRepeat!(currT,currT.hybrid[ind],true)
+                    if(multAll)
+                        suc2 = checkTop4multAllele(currT)
+                        suc &= suc2
+                        if(!suc2)
+                            currT = deepcopy(currT0)
+                        end
+                    end
+                    writelog && suc && write(logfile,"\n changed starting network by move target")
+                end
+            end
+        end
+    end
+    gc();
+    if(outgroup != "none")
+        currT1 = deepcopy(currT) ##just to check, but we do not want a rooted network at the end
+        try
+            rootatnode!(currT1,outgroup)
+        catch err
+            if isa(err, RootMismatch)
+                 println("RootMismatch: ", err.msg,
+                 """\nThe starting topology has hybrid edges that are incompatible with the desired outgroup.
+                    Reverting to original starting topology.
+                    """)
+            else
+                println("error trying to reroot: ", err.msg);
+            end
+            currT = deepcopy(currT0)
+        end
+    end
+    return currT
+end
