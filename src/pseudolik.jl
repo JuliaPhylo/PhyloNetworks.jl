@@ -370,7 +370,7 @@ function deleteLeaf!(net::Network, leaf::AbstractString)
             break
         end
     end
-    found || error("cannot delete leaf $(l) because it was not found in the network")
+    found || error("cannot delete leaf $(leaf) because it was not found in the network")
 end
 
 
