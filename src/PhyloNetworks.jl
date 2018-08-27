@@ -43,6 +43,7 @@ module PhyloNetworks
         readTableCF,
         readTableCF!,
         readInputTrees,
+        readNexusTrees,
         summarizeDataCF,
         snaq!,
         readSnaqNetwork,

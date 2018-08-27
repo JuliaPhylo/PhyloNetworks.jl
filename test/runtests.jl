@@ -86,7 +86,8 @@ tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculat
          "test_calibratePairwise.jl", "test_relaxed_reading.jl",
          "test_isMajor.jl", "test_interop.jl",
          "test_traitLikDiscrete.jl",
-         "test_ticr.jl"]
+         "test_ticr.jl",
+         "test_readInputData.jl"]
 
 if isdefined(:PhyloNetworks)
     @show PhyloNetworks.CHECKNET
