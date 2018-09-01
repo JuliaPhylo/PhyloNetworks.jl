@@ -29,7 +29,7 @@ To get help, check
 
 - the [latest documentation](https://crsl4.github.io/PhyloNetworks.jl/latest)
 - the [wiki](https://github.com/crsl4/PhyloNetworks.jl/wiki) for a step-by-step tutorial
-  (June 2016) with background on networks
+  (July 2018) with background on networks
 - the [google group](https://groups.google.com/forum/#!forum/phylonetworks-users)
   for common questions. Join the group to post/email your questions,
   or to receive information on new versions, bugs fixed, etc.
