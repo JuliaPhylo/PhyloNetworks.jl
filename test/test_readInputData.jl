@@ -25,7 +25,8 @@
 ## d2= readTableCF("tableCFbad.txt")
 ## end
 
-nexusfile = joinpath(@__DIR__, "..", "examples", "test.nex")
+
+nexusfile = joinpath(Pkg.dir("PhyloNetworks"), "examples","test.nex")
 @testset "test: reading nexus file" begin
     vnet = readNexusTrees(nexusfile)
     @test length(vnet) == 10
