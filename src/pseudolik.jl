@@ -2,7 +2,6 @@
 # originally in functions.jl
 # Claudia March 2015
 
-
 # -------------------- delete Leaf-------------------------------------
 
 
@@ -359,7 +358,8 @@ Warnings:
   is affected by the leaf removal.
 - does not merge edges, i.e. does not remove all nodes of degree 2. Within snaq!, this
   is used to extract quartets and to keep track of which
-  edge lengths in the original network map to the quartet network.
+  edge lengths in the original network map to the quartet network. 
+TODO will have to update when we allow networks of level > 1
 """
 function deleteLeaf!(net::Network, leaf::AbstractString)
     found = false
@@ -1294,9 +1294,9 @@ end
 Calculate the quartet pseudo-deviance of a given network/tree for
 DataCF `d`. This is the negative log pseudo-likelihood,
 up to an additive constant, such that a perfect fit corresponds to a deviance of 0.0.
+Q: In some documentation, given as -2*log pseudo-likelihood?
 
-Be careful if the net object does
-not have all internal branch lengths specified because then the
+Be careful if the net object does not have all internal branch lengths specified because then the
 pseudolikelihood will be meaningless.
 
 The loglik attribute of the network is undated, and `d` is updated with the expected

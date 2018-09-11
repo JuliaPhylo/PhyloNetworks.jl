@@ -1,3 +1,5 @@
+# Cora edited Sept 2018 
+
 """
     StatisticalSubstitutionModel
 
@@ -19,6 +21,10 @@ mutable struct StatisticalSubstitutionModel{T} <: StatsBase.StatisticalModel
     # log of transition probabilities: where e goes from X to Y
     # logtrans[i,j,e] = P{Y=j|X=i} where i=start_state, j=end_state, e=edge.number
     # all displayed trees use same edge numbers and same logtrans as in full network
+
+    # fixit: add substitution model option e.g. JC69 here to use different transition probabilities 
+    # loglik is an attribute of the SSM object, right? If so, where do we create logtrans?
+
     logtrans::Array{Float64,3}   # size: k,k, net.numEdges where k=nStates(model)
     activetrait::Int
     # type based on extracting displayed trees
@@ -287,7 +293,7 @@ Calculate the likelihood and update `obj.loglik` for discrete characters on a ne
 Update forward and direct partial likelihoods while doing so.
 The algorithm extracts all displayed trees and weights the likelihood under all these trees.
 """
-
+#fixit add option to use a new substitution model like jc69 here? 
 function discrete_corelikelihood!(obj::SSM; whichtrait=:all::Union{Symbol,Integer})
     if whichtrait == :all
         traitrange = 1:obj.ntraits
