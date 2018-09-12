@@ -422,34 +422,27 @@ function updateHybridRandomTrait!(V::Matrix,
 end
 
 """
-    BioJuliaSubstitutionModel(numberStates, α, labels)
+    NASMToTraitSM!(modelfunction, rate)
 
-[`TraitSubstitutionModel`](@ref) for traits with any number of states
-and equal substitution rates α between all states.
-Default labels are "1","2",...
-uses BioJulia SubstitutionModel (which is of abstract type `NucleicAcidSubstitutionModel` describing a substitution process 
+uses BioJulia SubstitutionModels (which is of abstract type `NucleicAcidSubstitutionModel` describing a substitution process 
     impacting biological sequences of `DNA` or `RNA` with continous time Markov models.)
 to create a TraitSubstitutionModel object (?)
-"""
-#fixit How do we make the substitution models a subtype of TraitSubstitutionModel?
-#can we just use JC69abs(gammarate) in the place of BinaryTraitSubstitutionModels? (for example) 
-#does it have all the attributes we need or do we need to convert it to a TraitSubstitutionModel?
 
-mutable struct NucleicAcidSubstitutionModel{T}
-    rate::Vector{Float64}
-    label::Vector{T} # most often: T = String, but could be BioSymbols.DNA
-    function NucleicAcidSubstitutionModel{T}(gammarate, label::Vector{T}) where T
-        @assert length(rate) == 2 "binary state: need 2 rates" #fixit rewrite these messages
-        rate[1] >= 0. || error("parameter α must be non-negative")
-        rate[2] >= 0. || error("parameter β must be non-negative")
-        ab = rate[1] + rate[1]
-        ab > 0. || error("α+β must be positive")
-        @assert length(label) == 2 "need 2 labels exactly"
-        
-        new(rate, label)
-    end
+model functions: any NucleicAcidSubstitutionModel used by BioJulia (e.g. JC69rel)
+rate is a vector of appropriate length for this model.
+
+#TODO How do we make the substitution models a subtype of TraitSubstitutionModel?
+    Can we just use JC69abs(gammarate) in the place of BinaryTraitSubstitutionModels? (for example) 
+    Check: Does it have all the attributes we need?
+    Do we need to convert it to a TraitSubstitutionModel?
+#TODO add @doc (@doc NASMToTraitSM) NASMToTraitSM!
+"""
+function NASMToTraitSM!(modelfunction, rate) 
+    #TODO How do we tell it we're using SubstitutionModels pkg?
+    SM = modelfunction(rate);
+    show(SM);
+    println();
+    show(Q(SM));
+    #SubstitutionModels::P_generic(SM);
+    #convert(TraitSubstitutionModel{T}, SM); # or is it convert(SSM, SM)?
 end
-const SM = JC69(gamma) #fixit where should we get gamma?
-BinaryTraitSubstitutionModel(r::AbstractVector, label::AbstractVector) = BinaryTraitSubstitutionModel{eltype(label)}(r, label)
-BinaryTraitSubstitutionModel(α::Float64, β::Float64, label) = BinaryTraitSubstitutionModel([α,β], label)
-BinaryTraitSubstitutionModel(α::Float64, β::Float64) = BinaryTraitSubstitutionModel(α, β, ["0", "1"])
