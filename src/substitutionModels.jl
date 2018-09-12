@@ -12,7 +12,7 @@ see [`BinaryTraitSubstitutionModel`](@ref),
 [`TwoBinaryTraitSubstitutionModel`](@ref)
 """
 
-abstract type TraitSubstitutionModel{T} end
+abstract type TraitSubstitutionModel{T} <: SubstitutionModel end
 const SM = TraitSubstitutionModel{T} where T
 const Bmatrix = SMatrix{2, 2, Float64}
 
@@ -422,27 +422,30 @@ function updateHybridRandomTrait!(V::Matrix,
 end
 
 """
-    NASMToTraitSM!(modelfunction, rate)
+GetLabels(mod:NASM)
 
-uses BioJulia SubstitutionModels (which is of abstract type `NucleicAcidSubstitutionModel` describing a substitution process 
-    impacting biological sequences of `DNA` or `RNA` with continous time Markov models.)
-to create a TraitSubstitutionModel object (?)
-
-model functions: any NucleicAcidSubstitutionModel used by BioJulia (e.g. JC69rel)
-rate is a vector of appropriate length for this model.
-
-#TODO How do we make the substitution models a subtype of TraitSubstitutionModel?
-    Can we just use JC69abs(gammarate) in the place of BinaryTraitSubstitutionModels? (for example) 
-    Check: Does it have all the attributes we need?
-    Do we need to convert it to a TraitSubstitutionModel?
-#TODO add @doc (@doc NASMToTraitSM) NASMToTraitSM!
 """
-function NASMToTraitSM!(modelfunction, rate) 
-    #TODO How do we tell it we're using SubstitutionModels pkg?
-    SM = modelfunction(rate);
-    show(SM);
-    println();
-    show(Q(SM));
-    #SubstitutionModels::P_generic(SM);
-    #convert(TraitSubstitutionModel{T}, SM); # or is it convert(SSM, SM)?
+function GetLabels(mod:NASM)
+    if model of type NASM{
+        return BioSymbols.DNA #or add as member? check
+    }
+    end
+#TODO add a label function with uses ACGT for NASM and for ours uses input labels. 
+#function that returns acgt in order of matrix.see if he has this
+
+
+#from parsimony:
+(sequenceType==BioSymbols.DNA && nu == BioSymbols.DNA_N) ||
+             (sequenceType==BioSymbols.RNA && nu == BioSymbols.RNA_N) ||
+             (sequenceType==BioSymbols.AminoAcid && nu == BioSymbols.AA_N) )
+
+#SM has numerical parameters for rates, SSM is like fit from glm
+#need to define nStates (which is currently a function, need to add own underneath) nStates is 4 here 
+# e.g. length(label(object)) migth be faster to check type. if type NASM, then 4
+#use jc69 relative because branch lengths will be optimized, no need to give lambda
+#HKY85rel optimizing vector = 1  each model will need a different .rate member. need to set rate
+
+#TODO setRate look at examples . make an example to test in docstring
+function setRate!(mod:NASM)
+
 end

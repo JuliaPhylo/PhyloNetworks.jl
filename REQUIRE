@@ -10,3 +10,4 @@ NLopt 0.3
 StaticArrays 0.6.0
 StatsBase 0.22
 StatsFuns 0.6.1
+SubstitutionModels #TODO add min requirement if is one

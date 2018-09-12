@@ -14,6 +14,7 @@ module PhyloNetworks
     using BioSymbols
     using StaticArrays
     using StatsFuns # for logsumexp
+    using SubstitutionModels
 
     import Base.show
     import GLM.ftest
