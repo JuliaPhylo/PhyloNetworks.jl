@@ -422,22 +422,31 @@ function updateHybridRandomTrait!(V::Matrix,
 end
 
 """
-GetLabels(mod:NASM)
+    GetLabels(mod:NASM)
 
+
+return labels for a given nucelied acid substitution model (ordered as in rate matrix)
+see BioJulia SubstitutionModels pkg NucleicAcidSubstitutionModel
+
+if model is a NASM, returns ACGT
+
+#function that returns acgt in order of 
+#TODO check matrix.see if he has this
+
+#TODO write docs
+#TODO write 
 """
-function GetLabels(mod:NASM)
-    if model of type NASM{
-        return BioSymbols.DNA #or add as member? check
-    }
+
+function getLabels(mod:SubstitutionModel)
+    if typeof(mod == NucleicAcidSubstitutionModel)
+        #return alphabet(DNA) this returns all possible letters. we probably just want four
+        return BioSymbols.ACGT
+    elseif typeof(mod == TraitSubstitutionModel){
+        return mod.label
+    else
+        return("ERROR: Model must be of type TraitSubstitutionModel or NucleicAcidSubstitutionModel")
     end
-#TODO add a label function with uses ACGT for NASM and for ours uses input labels. 
-#function that returns acgt in order of matrix.see if he has this
-
-
-#from parsimony:
-(sequenceType==BioSymbols.DNA && nu == BioSymbols.DNA_N) ||
-             (sequenceType==BioSymbols.RNA && nu == BioSymbols.RNA_N) ||
-             (sequenceType==BioSymbols.AminoAcid && nu == BioSymbols.AA_N) )
+end
 
 #SM has numerical parameters for rates, SSM is like fit from glm
 #need to define nStates (which is currently a function, need to add own underneath) nStates is 4 here 
