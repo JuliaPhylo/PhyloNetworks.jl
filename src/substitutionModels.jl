@@ -15,6 +15,7 @@ see [`BinaryTraitSubstitutionModel`](@ref),
 abstract type TraitSubstitutionModel{T} <: SubstitutionModel end
 const SM = TraitSubstitutionModel{T} where T
 const Bmatrix = SMatrix{2, 2, Float64}
+const NASM = NucleicAcidSubstitutionModel{T} where T
 
 """
     nStates(model)
@@ -430,15 +431,11 @@ see BioJulia SubstitutionModels pkg NucleicAcidSubstitutionModel
 
 if model is a NASM, returns ACGT
 
-#function that returns acgt in order of 
-#TODO check matrix.see if he has this
-
-#TODO write docs
-#TODO write 
+#function that returns acgt in order of matrix
 """
 
-function getLabels(mod:SubstitutionModel)
-    if typeof(mod == NucleicAcidSubstitutionModel)
+function getLabels(mod::SubstitutionModel)
+    if typeof(mod == SubstitutionModel.NucleicAcidSubstitutionModel)
         #return alphabet(DNA) this returns all possible letters. we probably just want four
         return BioSymbols.ACGT
     elseif typeof(mod == TraitSubstitutionModel){
@@ -448,13 +445,57 @@ function getLabels(mod:SubstitutionModel)
     end
 end
 
+"""
+    nStates(model::NASM)
+
+Number of character states for a NucleicAcidSubstitutionModel
+"""
+
+"""
+# Examples
+
+```julia-repl
+julia> m1 = JC69(0.01)
+julia> nStates(m1)
+4
+```
+"""
+function nStates(mod::NASM)
+    return 4::Int
+end
+
 #SM has numerical parameters for rates, SSM is like fit from glm
 #need to define nStates (which is currently a function, need to add own underneath) nStates is 4 here 
-# e.g. length(label(object)) migth be faster to check type. if type NASM, then 4
+# e.g. length(label(object)) might be faster to check type. if type NASM, then 4
 #use jc69 relative because branch lengths will be optimized, no need to give lambda
 #HKY85rel optimizing vector = 1  each model will need a different .rate member. need to set rate
 
-#TODO setRate look at examples . make an example to test in docstring
-function setRate!(mod:NASM)
+"""
+    setRate(model::NASM, Vector::rate)
 
+set rate to a model using a vector of rates
+"""
+
+"""
+# Examples
+
+```julia-repl
+julia> m1 = JC69(0.01)
+Jukes and Cantor 1969 model (absolute rate form)
+λ = 0.01
+julia> m2 = setRate!(m1, [0.02])
+Jukes and Cantor 1969 model (absolute rate form)
+λ = 0.02
+```
+"""
+
+#ERROR: MethodError: Cannot `convert` an object of type Array{Float64,1} to an object of type SubstitutionModels.JC69abs
+#This may have arisen from a call to the constructor SubstitutionModels.JC69abs(...),
+#since type constructors fall back to convert methods.
+
+function setRate!(mod::NASM, rate::Array{Float64})
+    #mod.setfield! need to figure out how to reset rates for these objects 
+    #maybe just make a new object as below? e.g. this works: m2 = typeof(m1)(0.02)
+        #however, we might lose information if we do this. might be a dangerous hack
+    mod = typeof(mod)(rate)
 end
