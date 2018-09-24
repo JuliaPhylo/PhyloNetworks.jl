@@ -12,17 +12,17 @@ see [`BinaryTraitSubstitutionModel`](@ref),
 [`TwoBinaryTraitSubstitutionModel`](@ref)
 """
 
-abstract type TraitSubstitutionModel{T} <: SubstitutionModel end
-const SM = TraitSubstitutionModel{T} where T
+abstract type TraitSubstitutionModel{T} <: SubstitutionModels.SubstitutionModel end
+const TSM = TraitSubstitutionModel{T} where T #TODO change all TSM to TSM in every file, but search first to check (make it a word boundary)
 const Bmatrix = SMatrix{2, 2, Float64}
-const NASM = NucleicAcidSubstitutionModel{T} where T
+#NASM = SubstitutionModels.NucleicAcidSubstitutionModel and is already exported
 
 """
     nStates(model)
 
 Number of character states for a given trait evolution model.
 """
-nStates(mod::SM) = error("nStates not defined for $(typeof(mod)).")
+nStates(mod::TSM) = error("nStates not defined for $(typeof(mod)).")
 
 """
     nparams(model)
@@ -30,7 +30,7 @@ nStates(mod::SM) = error("nStates not defined for $(typeof(mod)).")
 Number of parameters for a given trait evolution model
 (length of field `model.rate`).
 """
-nparams(mod::SM) = error("nparams not defined for $(typeof(mod)).")
+nparams(mod::TSM) = error("nparams not defined for $(typeof(mod)).")
 
 """
     Q(model)
@@ -38,7 +38,7 @@ nparams(mod::SM) = error("nparams not defined for $(typeof(mod)).")
 Substitution rate matrix for a given substitution model:
 Q[i,j] is the rate of transitioning from state i to state j.
 """
-Q(mod::SM) = error("rate matrix Q not defined for $(typeof(mod)).")
+Q(mod::TSM) = error("rate matrix Q not defined for $(typeof(mod)).")
 
 """
     showQ(IO, model)
@@ -47,7 +47,7 @@ Print the Q matrix to the screen, with trait states as labels on rows and column
 adapted from prettyprint function by mcreel, found 2017/10 at
 https://discourse.julialang.org/t/display-of-arrays-with-row-and-column-names/1961/6
 """
-function showQ(io::IO, object::SM)
+function showQ(io::IO, object::TSM)
     M = Q(object)
     pad = max(8,maximum(length.(object.label))+1)
     for i = 1:size(M,2) # print the header
@@ -83,7 +83,7 @@ Probability transition matrix for a [`TraitSubstitutionModel`](@ref), of the for
 where P[i,j] is the probability of ending in state j after time t,
 given that the process started in state i.
 """
-@inline function P(mod::SM, t::Float64)
+@inline function P(mod::TSM, t::Float64)
     t >= 0.0 || error("substitution model: >=0 branch lengths are needed")
     return expm(Q(mod) * t)
 end
@@ -94,7 +94,7 @@ end
 When applied to a general substitution model, matrix exponentiation is used.
 The time argument `t` can be an array.
 """
-function P(mod::SM, t::Array{Float64})
+function P(mod::TSM, t::Array{Float64})
     all(t .>= 0.0) || error("t's must all be positive")
     try
         eig_vals, eig_vecs = eig(Q(mod)) # Only hermitian matrices are diagonalizable by
@@ -310,12 +310,12 @@ julia> randomTrait(m1, 0.2, [1,2,1,2,2])
  2
 ```
 """
-function randomTrait(mod::SM, t::Float64, start::AbstractVector{Int})
+function randomTrait(mod::TSM, t::Float64, start::AbstractVector{Int})
     res = Vector{Int}(length(start))
     randomTrait!(res, mod, t, start)
 end
 
-function randomTrait!(endTrait::AbstractVector{Int}, mod::SM, t::Float64, start::AbstractVector{Int})
+function randomTrait!(endTrait::AbstractVector{Int}, mod::TSM, t::Float64, start::AbstractVector{Int})
     Pt = P(mod, t)
     k = size(Pt, 1) # number of states
     w = [aweights(Pt[i,:]) for i in 1:k]
@@ -369,7 +369,7 @@ julia> lab
 ```
 """
 
-function randomTrait(mod::SM, net::HybridNetwork;
+function randomTrait(mod::TSM, net::HybridNetwork;
     ntraits=1::Int, keepInternal=true::Bool, checkPreorder=true::Bool)
     net.isRooted || error("net needs to be rooted for preorder recursion")
     if(checkPreorder)
@@ -388,7 +388,7 @@ function randomTrait(mod::SM, net::HybridNetwork;
 end
 
 @doc (@doc randomTrait) randomTrait!
-function randomTrait!(M::Matrix{Int}, mod::SM, net::HybridNetwork)
+function randomTrait!(M::Matrix{Int}, mod::TSM, net::HybridNetwork)
     recursionPreOrder!(net.nodes_changed, M, # updates M in place
             updateRootRandomTrait!,
             updateTreeRandomTrait!,
@@ -423,26 +423,26 @@ function updateHybridRandomTrait!(V::Matrix,
 end
 
 """
-    GetLabels(mod:NASM)
+    getLabels(mod:SM)
+TODO change docstring, change to small case function names
 
-
-return labels for a given nucelied acid substitution model (ordered as in rate matrix)
+return labels for a given nuceliec acid substitution model (labels ordered as in rate matrix)
 see BioJulia SubstitutionModels pkg NucleicAcidSubstitutionModel
 
 if model is a NASM, returns ACGT
-
+if model 
 #function that returns acgt in order of matrix
 """
 
-function getLabels(mod::SubstitutionModel)
-    if typeof(mod == SubstitutionModel.NucleicAcidSubstitutionModel)
-        #return alphabet(DNA) this returns all possible letters. we probably just want four
-        return BioSymbols.ACGT
-    elseif typeof(mod == TraitSubstitutionModel){
-        return mod.label
-    else
-        return("ERROR: Model must be of type TraitSubstitutionModel or NucleicAcidSubstitutionModel")
-    end
+function getLabels(::NASM)
+    #return alphabet(DNA) this returns all possible letters. we probably just want four
+    return BioSymbols.ACGT
+end
+function getLabels(mod::TSM)
+    return mod.label
+end
+function getLabels(mod::SM)
+    error("Model must be of type TraitSubstitutionModel or NucleicAcidSubstitutionModel. got $(typeof(mod))")
 end
 
 """
@@ -464,7 +464,7 @@ function nStates(mod::NASM)
     return 4::Int
 end
 
-#SM has numerical parameters for rates, SSM is like fit from glm
+#TSM has numerical parameters for rates, SSM is like fit from glm
 #need to define nStates (which is currently a function, need to add own underneath) nStates is 4 here 
 # e.g. length(label(object)) might be faster to check type. if type NASM, then 4
 #use jc69 relative because branch lengths will be optimized, no need to give lambda
@@ -480,11 +480,11 @@ set rate to a model using a vector of rates
 # Examples
 
 ```julia-repl
-julia> m1 = JC69(0.01)
-Jukes and Cantor 1969 model (absolute rate form)
+julia> m1 = JC69rel(0.01)
+Jukes and Cantor 1969 model (relative rate form)
 λ = 0.01
 julia> m2 = setRate!(m1, [0.02])
-Jukes and Cantor 1969 model (absolute rate form)
+Jukes and Cantor 1969 model (relative rate form)
 λ = 0.02
 ```
 """
@@ -492,10 +492,28 @@ Jukes and Cantor 1969 model (absolute rate form)
 #ERROR: MethodError: Cannot `convert` an object of type Array{Float64,1} to an object of type SubstitutionModels.JC69abs
 #This may have arisen from a call to the constructor SubstitutionModels.JC69abs(...),
 #since type constructors fall back to convert methods.
-
+#TODO have several methods starting with SubstitutionModel
+#TODO code into SubstitutionModels package
 function setRate!(mod::NASM, rate::Array{Float64})
     #mod.setfield! need to figure out how to reset rates for these objects 
     #maybe just make a new object as below? e.g. this works: m2 = typeof(m1)(0.02)
-        #however, we might lose information if we do this. might be a dangerous hack
+        #however, we might lose information if we do this. might be a dangerous hack. Yes, want ot add setRate
     mod = typeof(mod)(rate)
 end
+
+#fork, change to mutable. then define a setrate function inside nucleicacids.jl here you'd have defaults that give error for NASM. For each one, use info to give info for abstract
+#for absolute, create setRate function that allows you to update. Add above show . We expect just a Float64 for jc69. 
+#Then use a list of floats for other models. Check taht rate is positive. give error if not possitive.  chnGE ALL struct to mutable struct. 
+
+#hky rate refers only to k. at some point, we could have functions that set pi but lets NOT do this now.  
+
+#use ... to expand a vector into a list. And vice versa. this could be useful in setrate
+
+#this will allow us to bundle the objects given to setrate for all 
+
+#prefer setrate to take a vector. first check length of vector
+#check that first one is positive, second is pos, etc
+#assign alpha to first, etc. then do pull request (after cecile looks at tit)
+#"We want somethign mutable bc we want to optimize based on data"
+
+#tag issue
