@@ -13,7 +13,7 @@ see [`BinaryTraitSubstitutionModel`](@ref),
 """
 
 abstract type TraitSubstitutionModel{T} <: SubstitutionModels.SubstitutionModel end
-const TSM = TraitSubstitutionModel{T} where T #TODO change all TSM to TSM in every file, but search first to check (make it a word boundary)
+const TSM = TraitSubstitutionModel{T} where T
 const Bmatrix = SMatrix{2, 2, Float64}
 #NASM = SubstitutionModels.NucleicAcidSubstitutionModel and is already exported
 
