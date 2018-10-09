@@ -9,7 +9,7 @@
 
 # Matrix with rows and/or columns in topological order of the net.
 """
-`MatrixTopologicalOrder`
+    MatrixTopologicalOrder
 
 Matrix associated to an [`HybridNetwork`](@ref) sorted in topological order.
 
@@ -221,7 +221,7 @@ end
 
 # If some tips are missing, treat them as "internal nodes"
 """
-`getindex(obj, d,[ indTips, msng])`
+    getindex(obj, d,[ indTips, msng])
 
 Getting submatrices of an object of type [`MatrixTopologicalOrder`](@ref).
 
@@ -277,7 +277,85 @@ end
 ###############################################################################
 ###############################################################################
 """
-`sharedPathMatrix(net::HybridNetwork; checkPreorder=true::Bool)`
+    vcv(net::HybridNetwork; model="BM"::AbstractString, 
+                            corr=false::Bool,
+                            checkPreorder=true::Bool)
+
+This function computes the variance covariance matrix between the tips of the
+network, assuming a Brownian model of trait evolution (with unit variance).
+If optional argument `corr` is set to `true`, then the correlation matrix is returned instead.
+
+The function returns a `DataFrame` object, with columns named by the tips of the network.
+
+The calculation of the covariance matrix requires a pre-ordering of nodes to be fast.
+If `checkPreorder` is true (default), then `preorder` is run on the network beforehand.
+Otherwise, the network is assumed to be already in pre-order.
+
+This function internally calls [`sharedPathMatrix`](@ref), that computes the variance
+matrix between all the nodes of the network.
+
+# Examples
+```jldoctest
+julia> tree_str = "(((t2:0.14,t4:0.33):0.59,t3:0.96):0.14,(t5:0.70,t1:0.18):0.90);";
+
+julia> tree = readTopology(tree_str);
+
+julia> C = vcv(tree)
+5×5 DataFrames.DataFrame
+│ Row │ t2   │ t4   │ t3   │ t5  │ t1   │
+├─────┼──────┼──────┼──────┼─────┼──────┤
+│ 1   │ 0.87 │ 0.73 │ 0.14 │ 0.0 │ 0.0  │
+│ 2   │ 0.73 │ 1.06 │ 0.14 │ 0.0 │ 0.0  │
+│ 3   │ 0.14 │ 0.14 │ 1.1  │ 0.0 │ 0.0  │
+│ 4   │ 0.0  │ 0.0  │ 0.0  │ 1.6 │ 0.9  │
+│ 5   │ 0.0  │ 0.0  │ 0.0  │ 0.9 │ 1.08 │
+
+```
+The following block needs `ape` to be installed (not run):
+```julia
+julia> using RCall # Comparison with ape vcv function
+
+julia> R"ape::vcv(ape::read.tree(text = \$tree_str))"
+RCall.RObject{RCall.RealSxp}
+     t2   t4   t3  t5   t1
+t2 0.87 0.73 0.14 0.0 0.00
+t4 0.73 1.06 0.14 0.0 0.00
+t3 0.14 0.14 1.10 0.0 0.00
+t5 0.00 0.00 0.00 1.6 0.90
+t1 0.00 0.00 0.00 0.9 1.08
+
+```
+
+The covariance can also be calculated on a network
+(for the model, see for Bastide et al. 2018)
+```jldoctest
+julia> net = readTopology("((t1:1.0,#H1:0.1::0.30):0.5,((t2:0.9)#H1:0.2::0.70,t3:1.1):0.4);");
+
+julia> C = vcv(net)
+3×3 DataFrames.DataFrame
+│ Row │ t1   │ t2    │ t3   │
+├─────┼──────┼───────┼──────┤
+│ 1   │ 1.5  │ 0.15  │ 0.0  │
+│ 2   │ 0.15 │ 1.248 │ 0.28 │
+│ 3   │ 0.0  │ 0.28  │ 1.5  │
+```
+"""
+function vcv(net::HybridNetwork;
+             model="BM"::AbstractString,
+             corr=false::Bool,
+             checkPreorder=true::Bool)
+    @assert (model == "BM") "The 'vcv' function only works for a BM process (for now)."
+    V = sharedPathMatrix(net; checkPreorder=checkPreorder)
+    C = V[:Tips]
+    corr && StatsBase.cov2cor!(C, sqrt.(diag(C)))
+    Cd = convert(DataFrame, C)
+    names!(Cd, map(Symbol, V.tipNames))
+    return(Cd)
+end
+
+
+"""
+    sharedPathMatrix(net::HybridNetwork; checkPreorder=true::Bool)
 
 This function computes the shared path matrix between all the nodes of a
 network. It assumes that the network is in the pre-order. If checkPreorder is
@@ -339,7 +417,7 @@ end
 ###############################################################################
 ###############################################################################
 """
-`descendenceMatrix(net::HybridNetwork; checkPreorder=true::Bool)`
+    descendenceMatrix(net::HybridNetwork; checkPreorder=true::Bool)
 
 This function computes the inciednce matrix between all the nodes of a
 network. It assumes that the network is in the pre-order. If checkPreorder is
@@ -385,7 +463,7 @@ end
 ###############################################################################
 ###############################################################################
 """
-`regressorShift(node::Vector{Node}, net::HybridNetwork; checkPreorder=true::Bool)`
+    regressorShift(node::Vector{Node}, net::HybridNetwork; checkPreorder=true::Bool)
 
 `regressorShift(edge::Vector{Edge}, net::HybridNetwork; checkPreorder=true::Bool)`
 
@@ -519,7 +597,7 @@ regressorShift(edge::Edge, net::HybridNetwork; checkPreorder=true::Bool) = regre
 regressorShift(node::Node, net::HybridNetwork; checkPreorder=true::Bool) = regressorShift([node], net; checkPreorder=checkPreorder)
 
 """
-`regressorHybrid(net::HybridNetwork; checkPreorder=true::Bool)`
+    regressorHybrid(net::HybridNetwork; checkPreorder=true::Bool)
 
 Compute the regressor vectors associated with shifts on edges that imediatly below
 all hybrid nodes of `net`. It uses function [`descendenceMatrix`](@ref) through
@@ -625,7 +703,7 @@ abstract type ParamsProcess end
 
 # Type for shifts
 """
-`ShiftNet`
+    ShiftNet
 
 Shifts associated to a [`HybridNetwork`](@ref) sorted in topological order.
 Its `shift` field is a vector of shift values, one for each node,
@@ -683,7 +761,7 @@ ShiftNet(edge::Edge, value::Real, net::HybridNetwork; checkPreorder=true::Bool) 
 ShiftNet(node::Node, value::Real, net::HybridNetwork; checkPreorder=true::Bool) = ShiftNet([node], [value], net; checkPreorder=checkPreorder)
 
 """
-`shiftHybrid(value::Vector{T} where T<:Real, net::HybridNetwork; checkPreorder=true::Bool)`
+    shiftHybrid(value::Vector{T} where T<:Real, net::HybridNetwork; checkPreorder=true::Bool)
 
 Construct an object [`ShiftNet`](@ref) with shifts on all the edges below
 hybrid nodes, with values provided. The vector of values must have the
@@ -701,7 +779,7 @@ end
 shiftHybrid(value::Real, net::HybridNetwork; checkPreorder=true::Bool) = shiftHybrid([value], net; checkPreorder=checkPreorder)
 
 """
-`getShiftEdgeNumber(shift::ShiftNet)`
+    getShiftEdgeNumber(shift::ShiftNet)
 
 Get the edge numbers where the shifts are located, for an object [`ShiftNet`](@ef).
 """
@@ -717,7 +795,7 @@ function getMajorParentEdgeNumber(n::Node)
     end
 end
 """
-`getShiftValue(shift::ShiftNet)`
+    getShiftValue(shift::ShiftNet)
 
 Get the values of the shifts, for an object [`ShiftNet`](@ef).
 """
@@ -762,7 +840,7 @@ end
 # end
 
 """
-`ParamsBM <: ParamsProcess`
+    ParamsBM <: ParamsProcess
 
 Type for a BM process on a network. Fields are `mu` (expectation),
 `sigma2` (variance), `randomRoot` (whether the root is random, default to `false`),
@@ -821,7 +899,7 @@ end
 ###############################################################################
 
 """
-`TraitSimulation`
+    TraitSimulation
 
 Result of a trait simulation on an [`HybridNetwork`](@ref) with function [`simulate`](@ref).
 
@@ -849,7 +927,7 @@ end
 
 
 """
-`simulate(net::HybridNetwork, params::ParamsProcess, checkPreorder=true::Bool)`
+    simulate(net::HybridNetwork, params::ParamsProcess, checkPreorder=true::Bool)
 
 Simualte some traits on `net` using the parameters `params`. For now, only
 parameters of type [`ParamsBM`](@ref) (Brownian Motion) are accepted.
@@ -1000,7 +1078,7 @@ end
 
 # Extract the vector of simulated values at the tips
 """
-`getindex(obj, d)`
+    getindex(obj, d)
 
 Getting submatrices of an object of type [`TraitSimulation`](@ref).
 
@@ -1030,7 +1108,7 @@ end
 
 # New type for phyloNetwork regression
 """
-`PhyloNetworkLinearModel<:LinPredModel`
+    PhyloNetworkLinearModel<:LinPredModel
 
 Regression object for a phylogenetic regression. Result of fitting function [`phyloNetworklm`](@ref).
 Dominated by the `LinPredModel` class, from package `GLM`.
@@ -1689,7 +1767,8 @@ end
 ## New quantities
 # ML estimate for variance of the BM
 """
-`sigma2_estim(m::PhyloNetworkLinearModel)`
+    sigma2_estim(m::PhyloNetworkLinearModel)
+
 Estimated variance for a fitted object.
 """
 sigma2_estim(m::PhyloNetworkLinearModel) = deviance(m.lm) / nobs(m)
@@ -1698,7 +1777,8 @@ sigma2_estim(m::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} 
   sigma2_estim(m.model)
 # ML estimate for ancestral state of the BM
 """
-`mu_estim(m::PhyloNetworkLinearModel)`
+    mu_estim(m::PhyloNetworkLinearModel)
+
 Estimated root value for a fitted object.
 """
 function mu_estim(m::PhyloNetworkLinearModel)
@@ -1721,7 +1801,8 @@ function mu_estim(m::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearMode
 end
 # Lambda estim
 """
-`lambda_estim(m::PhyloNetworkLinearModel)`
+    lambda_estim(m::PhyloNetworkLinearModel)
+
 Estimated lambda parameter for a fitted object.
 """
 lambda_estim(m::PhyloNetworkLinearModel) = m.lambda
@@ -1789,7 +1870,7 @@ end
 ###############################################################################
 
 """
-`anova(objs::PhyloNetworkLinearModel...)`
+    anova(objs::PhyloNetworkLinearModel...)
 
 Takes several nested fits of the same data, and computes the F statistic for each
 pair of models.
@@ -1837,7 +1918,7 @@ end
 ###############################################################################
 # Class for reconstructed states on a network
 """
-`ReconstructedStates`
+    ReconstructedStates
 
 Type containing the inferred information about the law of the ancestral states
 given the observed tips values. The missing tips are considered as ancestral states.
@@ -1865,7 +1946,8 @@ struct ReconstructedStates
 end
 
 """
-`expectations(obj::ReconstructedStates)`
+    expectations(obj::ReconstructedStates)
+
 Estimated reconstructed states at the nodes and tips.
 """
 function expectations(obj::ReconstructedStates)
@@ -1873,7 +1955,8 @@ function expectations(obj::ReconstructedStates)
 end
 
 """
-`expectationsPlot(obj::ReconstructedStates)`
+    expectationsPlot(obj::ReconstructedStates)
+
 Compute and format the expected reconstructed states for the plotting function.
 The resulting dataframe can be readily used as a `nodeLabel` argument to
 `plot` from package [`PhyloPlots`](https://github.com/cecileane/PhyloPlots.jl).
@@ -1903,7 +1986,8 @@ end
 StatsBase.stderror(obj::ReconstructedStates) = sqrt.(diag(obj.variances_nodes))
 
 """
-`predint(obj::ReconstructedStates; level=0.95::Real)`
+    predint(obj::ReconstructedStates; level=0.95::Real)
+
 Prediction intervals with level `level` for internal nodes and missing tips.
 """
 function predint(obj::ReconstructedStates; level=0.95::Real)
@@ -1925,7 +2009,8 @@ function Base.show(io::IO, obj::ReconstructedStates)
 end
 
 """
-`predintPlot(obj::ReconstructedStates; level=0.95::Real, withExp=false::Bool)`
+    predintPlot(obj::ReconstructedStates; level=0.95::Real, withExp=false::Bool)
+
 Compute and format the prediction intervals for the plotting function.
 The resulting dataframe can be readily used as a `nodeLabel` argument to
 `plot` from package [`PhyloPlots`](https://github.com/cecileane/PhyloPlots.jl).
@@ -1968,7 +2053,7 @@ end
 # end
 
 """
-`ancestralStateReconstruction(net::HybridNetwork, Y::Vector, params::ParamsBM)`
+    ancestralStateReconstruction(net::HybridNetwork, Y::Vector, params::ParamsBM)
 
 Compute the conditional expectations and variances of the ancestral (un-observed)
 traits values at the internal nodes of the phylogenetic network (`net`),
@@ -2091,7 +2176,7 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)
 end
 
 """
-`ancestralStateReconstruction(obj::PhyloNetworkLinearModel[, X_n::Matrix])`
+    ancestralStateReconstruction(obj::PhyloNetworkLinearModel[, X_n::Matrix])
 
 Function to find the ancestral traits reconstruction on a network, given an
 object fitted by function [`phyloNetworklm`](@ref). By default, the function assumes
@@ -2386,7 +2471,7 @@ function ancestralStateReconstruction(obj::StatsModels.DataFrameRegressionModel{
 end
 
 """
-`ancestralStateReconstruction(fr::AbstractDataFrame, net::HybridNetwork; kwargs...)`
+    ancestralStateReconstruction(fr::AbstractDataFrame, net::HybridNetwork; kwargs...)
 
 Function to find the ancestral traits reconstruction on a network, given some data at the tips.
 Uses function [`phyloNetworklm`](@ref) to perform a phylogenetic regression of the data against an

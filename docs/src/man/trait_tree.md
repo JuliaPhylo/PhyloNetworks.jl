@@ -12,7 +12,7 @@ More details can be found on the developments below in Bastide et al. 2018[^fnBa
 
 [^fnBastide2018]: Bastide, Solís-Lemus, Kriebel, Sparks, Ané (2018):
                   Phylogenetic Comparative Methods for Phylogenetic Networks with Reticulations.
-                  Systematic Biology. doi:10.1093/sysbio/syy033
+                  Systematic Biology 67(5):800–820. doi:10.1093/sysbio/syy033
 
 We assume a fixed network, correctly rooted, with branch lengths
 proportional to calendar time. Here, we consider the true network that was
@@ -36,6 +36,24 @@ R"dev.off()"
 nothing # hide
 ```
 ![truenet](../assets/figures/truenet.svg)
+
+## Model and Variance Matrix
+
+Assuming that the network is known and that the continuous traits evolve like a
+Brownian Motion (BM) in time, it is possible to compute the expected variance
+covariance matrix between tip measurements. This can be done using function
+[`vcv`](@ref), whose syntax is inspired from the well known corresponding
+[`ape`](https://CRAN.R-project.org/package=ape) function.
+```@example tree_trait
+C = vcv(truenet)
+```
+The matrix is returned as a `DataFrame`, with columns named by the
+tips of the network to allow for easy identification.
+
+The computation of this matrix is based on the more general function
+[`sharedPathMatrix`](@ref). It is at the core of all the Phylogenetic
+Comparative Methods described below.
+
 
 ## Trait simulation
 

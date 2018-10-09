@@ -121,6 +121,7 @@ descendenceMatrix
 regressorShift
 regressorHybrid
 sharedPathMatrix
+vcv
 ```
 
 ## discrete trait evolution

@@ -38,6 +38,31 @@ V2 = V2[ind, ind]
 @test V1[:All] ≈ V2
 
 ########################
+## vcv function
+########################
+
+## Simple test
+C = convert(Array, vcv(net))
+@test C ≈ V1[:Tips]
+vv = diag(C)
+for i in 1:4
+    for j in 1:4
+        C[i, j] = C[i, j] / sqrt(vv[i] * vv[j])
+    end
+end
+@test convert(Array, vcv(net; corr = true)) ≈ C
+
+## Test names with tree
+tree_str = "(((t2:0.1491947961,t4:0.3305515735):0.5953111246,t3:0.9685578963):0.1415281736,(t5:0.7093406462,t1:0.1888024569):0.9098094522);"
+tree = readTopology(tree_str)
+C = vcv(tree)
+# C_R = R"ape::vcv(ape::read.tree(text = $tree_str))"
+# names_R = rcopy(R"colnames($C_R)")
+names_R = ["t2", "t4", "t3", "t5", "t1"]
+
+@test names(C) == map(Symbol, names_R)
+
+########################
 ## Descendence Matrix Test
 ########################
 tree_str= "(A:0.5,((B:1,#H1:1::0.4):1,(C:1,(D:1)#H1:1::0.6):1):0.5);"

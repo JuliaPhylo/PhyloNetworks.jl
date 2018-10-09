@@ -1006,7 +1006,7 @@ end
 ## find the maximum parsimony network;
 ## transform the starting topology first
 ## does not allow multiple alleles
-@doc (@doc maxPArsimonyNetRun1!) maxParsimonyNetRun1
+@doc (@doc maxParsimonyNetRun1!) maxParsimonyNetRun1
 function maxParsimonyNetRun1(currT0::HybridNetwork, df::DataFrame, Nfail::Integer, tolAbs::Float64,
                                       hmax::Integer,seed::Integer,logfile::IO, writelog::Bool, probST::Float64,
                                       outgroup::Union{AbstractString,Integer}, criterion=:softwired::Symbol)
@@ -1071,7 +1071,7 @@ Optional arguments include
    On computing the Maximum Parsimony score of a phylogenetic network.
    SIAM J. Discrete Math., 29(1):559-585.
 
-For a roadmap of the functions inside maxParsimonyNet, see [`maxPArsimonyNetRun1!`](@ref).
+For a roadmap of the functions inside maxParsimonyNet, see [`maxParsimonyNetRun1!`](@ref).
 """
 function maxParsimonyNet(currT::HybridNetwork, df::DataFrame;
     tolAbs=fAbs::Float64, Nfail=numFails::Integer,
