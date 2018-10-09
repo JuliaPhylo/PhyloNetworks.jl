@@ -277,7 +277,70 @@ end
 ###############################################################################
 ###############################################################################
 """
-`sharedPathMatrix(net::HybridNetwork; checkPreorder=true::Bool)`
+    vcv(net::HybridNetwork; model="BM"::AbstractString, 
+                            corr=false::Bool,
+                            checkPreorder=true::Bool)
+
+This function computes the variance covariance matrix between the tips of the
+network, assuming a Brownian model of trait evolution (with unit variance).
+If optional argument `corr` is set to `true`, then the correlation matrix is returned instead.
+
+The function returns a `DataFrame` objects, with columns named as the tips of the network.
+
+It assumes that the network is in the pre-order. If checkPreorder is
+true (default), then it runs function `preoder` on the network beforehand.
+
+This function internally calls [`sharedPathMatrix`](@ref), that computes the variance
+matrix between all the nodes of the network.
+
+# Examples
+```jldoctest
+julia> tree_str = "(((t2:0.14,t4:0.33):0.59,t3:0.96):0.14,(t5:0.70,t1:0.18):0.90);";
+
+julia> tree = readTopology(tree_str);
+
+julia> C = vcv(tree)
+5×5 DataFrames.DataFrame
+│ Row │ t2   │ t4   │ t3   │ t5  │ t1   │
+├─────┼──────┼──────┼──────┼─────┼──────┤
+│ 1   │ 0.87 │ 0.73 │ 0.14 │ 0.0 │ 0.0  │
+│ 2   │ 0.73 │ 1.06 │ 0.14 │ 0.0 │ 0.0  │
+│ 3   │ 0.14 │ 0.14 │ 1.1  │ 0.0 │ 0.0  │
+│ 4   │ 0.0  │ 0.0  │ 0.0  │ 1.6 │ 0.9  │
+│ 5   │ 0.0  │ 0.0  │ 0.0  │ 0.9 │ 1.08 │
+
+```
+The following block needs `ape` to be installed (not run):
+```julia
+julia> using RCall # Comparison with ape vcv function
+
+julia> R"ape::vcv(ape::read.tree(text = \$tree_str))"
+RCall.RObject{RCall.RealSxp}
+     t2   t4   t3  t5   t1
+t2 0.87 0.73 0.14 0.0 0.00
+t4 0.73 1.06 0.14 0.0 0.00
+t3 0.14 0.14 1.10 0.0 0.00
+t5 0.00 0.00 0.00 1.6 0.90
+t1 0.00 0.00 0.00 0.9 1.08
+
+```
+"""
+function vcv(net::HybridNetwork;
+             model="BM"::AbstractString,
+             corr=false::Bool,
+             checkPreorder=true::Bool)
+    @assert (model == "BM") "The 'vcv' function only works for a BM process (for now)."
+    V = sharedPathMatrix(net; checkPreorder=checkPreorder)
+    C = V[:Tips]
+    corr && StatsBase.cov2cor!(C, sqrt.(diag(C)))
+    Cd = convert(DataFrame, C)
+    names!(Cd, map(Symbol, V.tipNames))
+    return(Cd)
+end
+
+
+"""
+    sharedPathMatrix(net::HybridNetwork; checkPreorder=true::Bool)
 
 This function computes the shared path matrix between all the nodes of a
 network. It assumes that the network is in the pre-order. If checkPreorder is

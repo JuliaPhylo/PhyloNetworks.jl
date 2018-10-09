@@ -115,6 +115,7 @@ module PhyloNetworks
         expectationsPlot,
         predint,
         predintPlot,
+        vcv,
         ## Discrete Trait PCM
         parsimonySoftwired,
         parsimonyGF,

@@ -37,6 +37,24 @@ nothing # hide
 ```
 ![truenet](../assets/figures/truenet.svg)
 
+## Model and Variance Matrix
+
+Assuming that the network is known and that the continuous traits evolve like a
+Brownian Motion (BM) in time, it is possible to compute the expected variance
+covariance matrix between tip measurements. This can be done using function
+[`vcv`](@ref), which syntax is inspired from the well known corresponding
+[`ape`](https://CRAN.R-project.org/package=ape) function.
+```@example tree_trait
+C = vcv(truenet)
+```
+The matrix is returned as a `DataFrame`, with columns named as the
+tips of the network to allow for easy identification.
+
+The computation of this matrix is based on the more general function
+[`sharedPathMatrix`](@ref). It is at the core of all the Phylogenetic
+Comparative Methods described below.
+
+
 ## Trait simulation
 
 We start by generating continuous traits to study. We simulate three
