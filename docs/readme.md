@@ -80,7 +80,7 @@ consequences. Make sure to use different file names for plots that are supposed
 to look different (across the whole site).
 
 Note that [`Weave`](https://github.com/mpastell/Weave.jl) was used to format the
-documentation pages until v0.7.0
+documentation pages until PhyloNetworks v0.7.0
 (see [v0.7.0 doc](http://crsl4.github.io/PhyloNetworks.jl/v0.7.0/)),
 and the saving of the plots on the Git repository was handled with an
 extra Travis environment variable DRAW_FIG.
