@@ -1,51 +1,60 @@
 # functions to read/write networks topologies
 
-import Base.peekchar # defined in Base for an IOStream, not for an IOBuffer
-
-function peekchar(s::IOBuffer)
-    mark(s)
+function peekchar(s::IO)
     c = read(s,Char)
-    reset(s)
+    skip(s, -codelen(c))
     return c
 end
 
-# aux function to detect characters which should be ignored by readTopology
-function iswhitesymbol(c::Char)
-    whitesymbols = [' ', '\n', '\r', '\t']
-    return c in whitesymbols
-end
-
-# aux function to peek the next non-white-symbol char in s, does not modify s
-# input: s IOStream/IOBuffer
-function peekskip(s::IO)
-    c = peekchar(s)
-    mark(s)
-    while iswhitesymbol(c)
-        c = read(s, Char)
+# peek the next non-white-space char
+# removes white spaces from the IOStream/IOBuffer
+# see skipchars(predicate, io::IO; linecomment=nothing) in io.jl
+# https://github.com/JuliaLang/julia/blob/cb523904be125c4c28afdf7e773bf43dbee4f343/base/io.jl#L971
+function peekskip(io::IO, linecomment=nothing)
+    c = missing
+    while !eof(io)
+        c = read(io, Char)
+        if c === linecomment
+            readline(io)
+        elseif !isspace(c)
+            skip(io, -codelen(c))
+            break
+        end
     end
-    reset(s)
-	return c
+    return c # skipchar returns io instead
 end
+## does not modify s at all (white spaces left in)
+# function peekskip(s::IO)
+#     c = peekchar(s)
+#     mark(s)
+#     while isspace(c)
+#         c = read(s, Char)
+#     end
+#     reset(s)
+# 	return c
+# end
 
 # aux function to read the next non-white-symbol char in s, advances s
 # input: s IOStream/IOBuffer
 function readskip!(s::IO)
-    c = read(s, Char)
-    while iswhitesymbol(c)
+    c = missing
+    while !eof(io)
         c = read(s, Char)
+        if !isspace(c)
+            break
+        end
     end
     return c
 end
 
 
-# aux function to advance stream in readSubtree
-# input: s IOStream/IOBuffer
-function advance!(s::IO, c::Char, numLeft::Array{Int,1})
-    c = peekskip(s)
-    if(Base.eof(s))
+# advance stream in readSubtree
+function advance!(s::IO, numLeft::Array{Int,1})
+    c = readskip!(s)
+    if ismissing(c)
         error("Tree ends prematurely while reading subtree after left parenthesis $(numLeft[1]-1).")
     end
-    return readskip!(s)
+    return c
 end
 
 
@@ -144,10 +153,10 @@ this is done by [`readSubtree!`](@ref)
     c = readskip!(s)
     while (keepon)
         bl = readSubtree!(s,n,numLeft,net,hybrids)
-        c = advance!(s,c,numLeft)
-        if (c == ')')
+        c = advance!(s,numLeft)
+        if c == ')'
             keepon = false
-        elseif (c != ',')
+        elseif c != ','
             a = readstring(s);
             error("Expected right parenthesis after left parenthesis $(numLeft[1]-1) but read $(c). The remainder of line is $(a).")
         end
@@ -400,8 +409,6 @@ Reads additional info formatted as: `:length:bootstrap:gamma`.
 Allows for name of internal nodes without # after closing parenthesis: (1,2)A.
 Warning if hybrid edge without γ, or if γ (ignored) without hybrid edge
 """
-# modified from original Cecile c++ code to allow polytomies
-
 function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNetwork, hybrids::Vector{String})
     c = peekskip(s)
     e = nothing;
@@ -651,15 +658,15 @@ function addChild!(net::HybridNetwork, n::Node)
 end
 # aux function to expand the children of a hybrid node
 function expandChild!(net::HybridNetwork, n::Node)
-    if(n.hybrid)
-        suma = sum([!e.hybrid?1:0 for e in n.edge]);
+    if n.hybrid
+        suma = count([!e.hybrid for e in n.edge]);
         #println("create edge $(net.numEdges+1)")
         ed1 = Edge(net.numEdges+1,0.0);
         n1 = Node(size(net.names,1)+1,false,false,[ed1]);
         #println("create node $(n1.number)")
         hyb = Edge[];
         for i in 1:size(n.edge,1)
-            !n.edge[i].hybrid ? push!(hyb,n.edge[i]) : nothing
+            if !n.edge[i].hybrid push!(hyb,n.edge[i]); end
         end
         #println("hyb tiene $([e.number for e in hyb])")
         for e in hyb
@@ -674,7 +681,7 @@ function expandChild!(net::HybridNetwork, n::Node)
         setNode!(ed1,[n,n1]);
         pushNode!(net,n1);
         pushEdge!(net,ed1);
-        if(size(n1.edge,1) > 3)
+        if size(n1.edge,1) > 3
             solvePolytomy!(net,n1);
         end
     else
@@ -705,54 +712,54 @@ end
 function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
     nodes = copy(net.node)
     for n in nodes
-        if(isNodeNumIn(n,net.node)) # very important to check
-            if(size(n.edge,1) == 2)
-                if(!n.hybrid)
-                    if(!leaveRoot || !isEqual(net.node[net.root],n)) #if n is the root
+        if isNodeNumIn(n,net.node) # very important to check
+            if size(n.edge,1) == 2
+                if !n.hybrid
+                    if !leaveRoot || !isEqual(net.node[net.root],n) #if n is the root
                         deleteIntNode!(net,n);
                     end
                 else
-                    hyb = sum([e.hybrid?1:0 for e in n.edge]);
-                    if(hyb == 1)
+                    hyb = count([e.hybrid for e in n.edge]);
+                    if hyb == 1
                         deleteIntNode!(net,n);
                     end
                 end
             end
-            if(!n.hybrid)
-                if(size(n.edge,1) > 3)
+            if !n.hybrid
+                if size(n.edge,1) > 3
                     DEBUG && warn("polytomy found in node $(n.number), random resolution chosen")
                     solvePolytomy!(net,n);
                 end
-                hyb = sum([e.hybrid?1:0 for e in n.edge]);
-                if(hyb == 1)
+                hyb = count([e.hybrid for e in n.edge])
+                if hyb == 1
                     n.hasHybEdge == true;
-                elseif(hyb > 1)
+                elseif hyb > 1
                     warn("strange tree node $(n.number) with more than one hybrid edge, intersecting cycles maybe")
                 end
             else
-                hyb = sum([e.hybrid?1:0 for e in n.edge]);
-                tre = sum([!e.hybrid?1:0 for e in n.edge]);
-                if(hyb > 2)
+                hyb = count([e.hybrid for e in n.edge]);
+                tre = length(n.edge) - hyb
+                if hyb > 2
                     error("hybrid node $(n.number) has more than two hybrid edges attached to it: polytomy that cannot be resolved without intersecting cycles.")
-                elseif(hyb == 1)
-                    hybnodes = sum([n.hybrid?1:0 for n in net.node]);
-                    if(hybnodes == 1)
+                elseif hyb == 1
+                    hybnodes = count([n.hybrid for n in net.node]);
+                    if hybnodes == 1
                         error("only one hybrid node number $(n.number) with name $(net.names[n.number]) found with one hybrid edge attached")
                     else
                         error("current hybrid node $(n.number) with name $(net.names[n.number]) has only one hybrid edge attached. there are other $(hybnodes-1) hybrids out there but this one remained unmatched")
                     end
-                elseif(hyb == 0)
+                elseif hyb == 0
                     warn("hybrid node $(n.number) is not connected to any hybrid edges, it was transformed to tree node")
                     n.hybrid = false;
                 else # 2 hybrid edges
-                    if(tre == 0) #hybrid leaf
+                    if tre == 0 #hybrid leaf
                         warn("hybrid node $(n.number) is a leaf, so we add an extra child")
                         addChild!(net,n);
-                    elseif(tre > 1)
+                    elseif tre > 1
                         warn("hybrid node $(n.number) has more than one child so we need to expand with another node")
                         expandChild!(net,n);
                     end
-                    suma = sum([e.hybrid?e.gamma:0.0 for e in n.edge]);
+                    suma = sum([e.hybrid ? e.gamma : 0.0 for e in n.edge]);
                     # synchronizePartnersData! already made suma ≈ 1.0, when non-missing,
                     # and already synchronized isMajor, even when γ's ≈ 0.5
                     if suma == -2.0 # hybrid edges have no gammas in newick description
@@ -935,11 +942,10 @@ If `names` is true, taxon names are written, otherwise taxon numbers
 are written instead of taxon names.
 If unspecified, branch lengths and γ's are rounded to 3 digits.
 """
-# method to start at the root and write the whole tree/network
 function writeSubTree!(s::IO, net::HybridNetwork, di::Bool, names::Bool,
                        roundBL::Bool, digits::Integer)
     if net.numNodes == 1
-        print(s, (names? net.node[net.root].name : string(net.node[net.root].number)))
+        print(s, (names ? net.node[net.root].name : string(net.node[net.root].number)))
     elseif net.numNodes > 1
         print(s,"(")
         degree = length(net.node[net.root].edge)
@@ -982,18 +988,18 @@ writeSubTree!(s,n,parent,di,names) =
 
 # "parent' is assumed to be adjancent to "node". not checked.
 # algorithm comes from "parent": do not traverse again.
-function writeSubTree!(s::IO, n::Node, parent::Union{Edge,Void},
+function writeSubTree!(s::IO, n::Node, parent::Union{Edge,Nothing},
     di::Bool,names::Bool, roundBL::Bool, digits::Integer)
     # subtree below node n:
-    if (!n.leaf && (parent == nothing || parent.isMajor)) # do not descent below a minor hybrid edge
+    if !n.leaf && (parent == nothing || parent.isMajor) # do not descent below a minor hybrid edge
         print(s,"(")
         firstchild = true
         for e in n.edge
             e != parent || continue # skip parent edge where we come from
             if parent == nothing    # skip if n = child of e
-                n != e.node[e.isChild1? 1 : 2] || continue
+                n != getChild(e) || continue
             end
-            (e.hybrid && e.node[(e.isChild1 ? 1 : 2)]==n) && continue # no going up minor hybrid
+            (e.hybrid && getChild(e)==n) && continue # no going up minor hybrid
             firstchild || print(s, ",")
             firstchild = false
             child = getOtherNode(e,n)
@@ -1367,7 +1373,7 @@ function writeTopology(net::HybridNetwork, s::IO,
         for e in net.edge
           # parents of hybrid edges should be sufficient, but gives weird look
           #if e.hybrid
-            i = getIndex(e.node[e.isChild1? 2 : 1], net)
+            i = getIndex(getParent(e), net)
             net.root = i
             try
                 directEdges!(net)
@@ -1375,6 +1381,8 @@ function writeTopology(net::HybridNetwork, s::IO,
                 print(msg)
                 changeroot = false
                 break # stop loop over edges
+            catch err
+                if !isa(err, RootMismatch) rethrow(err); end
             end
           #end
         end

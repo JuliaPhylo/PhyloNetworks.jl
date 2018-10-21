@@ -4,7 +4,7 @@
 # the include(...) or the using PhyloNetworks part
 # Claudia May 2016
 
-using Base.Test
+using Test
 using StaticArrays # for rate substitution matrices
 using StatsBase # for aic etc., stderr
 using CSV # for reading files

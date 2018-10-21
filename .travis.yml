@@ -1,10 +1,11 @@
 language: julia
+## Documentation: http://docs.travis-ci.com/user/languages/julia/
+sudo: required
 os: # WARNING: any change here must also be done in docs/make.jl
   - linux
   - osx
 julia: # WARNING: any change here must also be done in docs/make.jl
-# - release
-  - 0.6
+  - 0.7
 notifications:
   email: false
 ## Following 4 lines are taken from here:

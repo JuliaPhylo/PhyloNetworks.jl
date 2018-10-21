@@ -9,7 +9,6 @@ Assumes a *tree* (no reticulation) and correct isChild1 attribute.
 
 output: dictionary with state sets and most parsimonious score
 """
-
 function parsimonyBottomUpFitch!(node::Node, possibleStates::Dict{Int64,Set{T}}, parsimonyscore::Array{Int64,1}) where {T}
     node.leaf && return # change nothing if leaf
     childrenStates = Set{T}[] # state sets for the 2 (or more) children
@@ -49,7 +48,6 @@ the state of the root. Assumes a *tree*: no reticulation.
 
 output: dictionary with state sets
 """
-
 function parsimonyTopDownFitch!(node::Node, possibleStates::Dict{Int64,Set{T}}) where {T}
     for e in node.edge
         child = e.node[e.isChild1 ? 1 : 2]
@@ -69,7 +67,6 @@ end
 
 summarize character states at nodes, assuming a *tree*
 """
-
 function parsimonySummaryFitch(tree::HybridNetwork, nodestates::Dict{Int64,Set{T}}) where {T}
     println("node number => character states on tree ",
             writeTopology(tree,di=true,round=true,digits=1))
@@ -98,7 +95,6 @@ also return the union of all optimized character states
 at each internal node as obtained by Fitch algorithm,
 where the union is taken over displayed trees with the MP score.
 """
-
 function parsimonyDiscreteFitch(net::HybridNetwork, tips::Dict{String,T}) where {T}
     # T = type of characters. Typically Int if data are binary 0-1
     # initialize dictionary: node number -> admissible character states
@@ -174,7 +170,6 @@ SIAM J. Discrete Math., 29(1):559-585.
 Assumes a *switching* (ie correct `fromBadDiamondI` field) and correct isChild1 field.
 The field `isExtBadTriangle` is used to know which nodes are at the root of a blob.
 """
-
 function parsimonyBottomUpSoftwired!(node::Node, blobroot::Node, nchar::Integer,
     w::AbstractArray, parsimonyscore::AbstractArray)
 
@@ -245,7 +240,6 @@ extendable to other parsimony criteria.
    On computing the Maximum Parsimony score of a phylogenetic network.
    SIAM J. Discrete Math., 29(1):559-585.
 """
-
 function parsimonySoftwired(net::HybridNetwork, tips::Dict{String,T}) where {T}
     # T = type of characters. Typically Int if data are binary 0-1
     species = Array{String}(0)
@@ -497,7 +491,6 @@ Use the fields `isChild1`,
 `isExtBadTriangle` to know which nodes are at the root of a blob, and
 `fromBadDiamondI` to know which edges are cut (below the minor parent of each hybrid).
 """
-
 function parsimonyGF(net::HybridNetwork, tips::Dict{String,T},
                      criterion=:softwired::Symbol) where {T}
     # T = type of characters. Typically Int if data are binary 0-1
@@ -772,7 +765,6 @@ Field `inCycle` is assumed to store the # of detached parents (with guessed stat
 
 used by [`parsimonyGF`](@ref).
 """
-
 function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
     w::AbstractArray, parsimonyscore::AbstractArray,
     costmatrix1::AbstractArray, costmatrix2::AbstractArray)

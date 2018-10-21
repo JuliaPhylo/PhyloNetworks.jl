@@ -1106,7 +1106,9 @@ function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::In
 end
 
 
-proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Integer,N::Integer, movescount::Vector{Int},movesfail::Vector{Int}, multall::Bool) = proposedTop!(try move2int[move] catch error("invalid move $(string(move))") end,newT, random,count,N, movescount,movesfail, multall)
+proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Integer,N::Integer, movescount::Vector{Int},movesfail::Vector{Int}, multall::Bool) =
+    proposedTop!( try move2int[move] catch; error("invalid move $(string(move))") end,
+        newT, random,count,N, movescount,movesfail, multall)
 
 # function to calculate Nmov, number max of tries per move
 # order: (add,mvorigin,mvtarget,chdir,delete,nni)
@@ -1299,7 +1301,7 @@ function optTopLevel!(currT::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
                     #printNodes(newT)
                 DEBUG && println("++++")
                 DEBUG && println(writeTopologyLevel1(newT,true))
-                DEBUG && println("ends step $(count) with absDiff $(accepted? absDiff : 0.0) and failures $(failures)")
+                DEBUG && println("ends step $(count) with absDiff $(accepted ? absDiff : 0.0) and failures $(failures)")
             else
                 if(!isempty(d.repSpecies))
                     newT = newT0 ## only need to go back with multiple alleles, bc other functions in proposedTop undo what they did
@@ -1861,7 +1863,7 @@ optTopRun1!(currT::HybridNetwork, d::DataCF, hmax::Integer, seed::Integer) = opt
 #    check that it's of level 1 and updates its BL.
 # only currT and d are necessary, all others are optional and have default values
 """
-`snaq!(T::HybridNetwork, d::DataCF)`
+    snaq!(T::HybridNetwork, d::DataCF)
 
 Estimate the network (or tree) to fit observed quartet concordance factors (CFs)
 stored in a DataCF object, using maximum pseudo-likelihood. A level-1 network is assumed.
@@ -1888,41 +1890,44 @@ Output:
 
 There are many optional arguments, including
 
-- hmax: maximum number of hybridizations allowed (default 1)
-- verbose: if true, print information about the numerical optimization
-- runs: number of independent starting points for the search (default 10)
-- outgroup: outgroup taxon to root the estimated topology at the very end
-- filename: root name for the output files. Default is "snaq". If empty (""),
+- `hmax` (default 1): maximum number of hybridizations allowed
+- `verbose` (default false): if true, print information about the numerical optimization
+- `runs` (default 10): number of independent starting points for the search
+- `outgroup` (default none): outgroup taxon to root the estimated topology at the very end
+- `filename` (default "snaq"): root name for the output files. If empty (""),
   files are *not* created, progress log goes to the screen only (standard out).
-- seed: seed to replicate a given search
+- `seed` (default 0 to get it from the clock): seed to replicate a given search
+- `probST` (default 0.3): probability to start from `T` at each given run.
+  With problability 1-probST, the search is started from an NNI modification of `T`,
+  with a possible modification of one reticulation if `T` has one.
 
 The following optional arguments control when to stop the optimization of branch lengths
 and γ's on each individual candidate network. Defaults are in parentheses:
 
-- ftolRel (1e-6) and ftolAbs (1e-6): relative and absolute differences of the network score
+- `ftolRel` (1e-6) and `ftolAbs` (1e-6): relative and absolute differences of the network score
   between the current and proposed parameters,
-- xtolRel (1e-2) and xtolAbs (1e-3): relative and absolute differences between the current
+- `xtolRel` (1e-2) and `xtolAbs` (1e-3): relative and absolute differences between the current
   and proposed parameters.
 
 Greater values will result in a less thorough but faster search. These parameters are used
 when evaluating candidate networks only.
 The following optional arguments control when to stop proposing new network topologies:
 
-- Nfail (75): maximum number of times that new topologies are proposed and rejected (in a row).
-- liktolAbs (1e-6): the proposed network is accepted if its score is better than the current score by
+- `Nfail` (75): maximum number of times that new topologies are proposed and rejected (in a row).
+- `liktolAbs` (1e-6): the proposed network is accepted if its score is better than the current score by
   at least liktolAbs.
 
-Lower values of Nfail and greater values of liktolAbs and ftolAbs would result in a less thorough but faster search.
+Lower values of `Nfail` and greater values of `liktolAbs` and `ftolAbs` would result in a less thorough but faster search.
 
 At the end, branch lengths and γ's are optimized on the last "best" network
 with different and very thorough tolerance parameters:
 1e-12 for ftolRel, 1e-10 for ftolAbs, xtolRel, xtolAbs.
 
-See also: `topologyMaxQPseudolik!` to optimize parameters on a fixed topology,
-and `topologyQPseudolik!` to get the deviance (pseudo log-likelihood up to a constant)
+See also: [`topologyMaxQPseudolik!`](@ref) to optimize parameters on a fixed topology,
+and [`topologyQPseudolik!`](@ref) to get the deviance (pseudo log-likelihood up to a constant)
 of a fixed topology with fixed parameters.
 
-Reference:
+Reference:  
 Claudia Solís-Lemus and Cécile Ané (2016).
 Inferring phylogenetic networks with maximum pseudolikelihood under incomplete lineage sorting.
 [PLoS Genetics](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896)
@@ -2041,53 +2046,36 @@ end
 function findStartingTopology!(currT0::HybridNetwork, probST::Float64, multAll::Bool, writelog::Bool, logfile::IO;
                                outgroup="none"::Union{AbstractString,Integer})
     currT = deepcopy(currT0);
-    if(probST<1.0 && rand() < 1-probST) # modify starting tree by a nni move
+    if probST<1.0 && rand() < 1-probST # modify starting tree by a nni move
         suc = NNIRepeat!(currT,10); #will try 10 attempts to do an nni move, if set to 1, hard to find it depending on currT
-        if(multAll)
+        if multAll
             suc2 = checkTop4multAllele(currT)
             suc &= suc2
-            if(!suc2)
+            if !suc2
                 currT = deepcopy(currT0)
             end
         end
         writelog && suc && write(logfile," changed starting topology by NNI move\n")
-        if(!isTree(currT))
-            if(rand() < 1-probST) # modify starting network by mvorigin, mvtarget with equal prob
+        if !isTree(currT)
+            if rand() < 1-probST # modify starting network by mvorigin, mvtarget with equal prob
                 currT0 = deepcopy(currT) # to go back if new topology does not work for mult alleles
-                if(currT.numHybrids == 1)
-                    ind = 1
-                else
-                    ind = 0
-                    while(ind == 0 || ind > length(currT.hybrid))
-                        ind = round(Integer,rand()*length(currT.hybrid));
+                ind = rand(1:currT.numHybrids)
+                mymove = ( rand()<0.5 ? "origin" : "target" )
+                mymove_fun! = (mymove=="origin" ? moveOriginUpdateRepeat! : moveTargetUpdateRepeat!)
+                suc = mymove_fun!(currT,currT.hybrid[ind],true)
+                if multAll
+                    suc2 = checkTop4multAllele(currT)
+                    suc &= suc2
+                    if !suc2
+                        currT = deepcopy(currT0)
                     end
                 end
-                if(rand()<0.5)
-                    suc = moveOriginUpdateRepeat!(currT,currT.hybrid[ind],true)
-                    if(multAll)
-                        suc2 = checkTop4multAllele(currT)
-                        suc &= suc2
-                        if(!suc2)
-                            currT = deepcopy(currT0)
-                        end
-                    end
-                    writelog && suc && write(logfile,"\n changed starting network by move origin")
-                else
-                    suc = moveTargetUpdateRepeat!(currT,currT.hybrid[ind],true)
-                    if(multAll)
-                        suc2 = checkTop4multAllele(currT)
-                        suc &= suc2
-                        if(!suc2)
-                            currT = deepcopy(currT0)
-                        end
-                    end
-                    writelog && suc && write(logfile,"\n changed starting network by move target")
-                end
+                writelog && suc && write(logfile,"\n changed starting network by move $(mymove)")
             end
         end
     end
     gc();
-    if(outgroup != "none")
+    if outgroup != "none"
         currT1 = deepcopy(currT) ##just to check, but we do not want a rooted network at the end
         try
             rootatnode!(currT1,outgroup)

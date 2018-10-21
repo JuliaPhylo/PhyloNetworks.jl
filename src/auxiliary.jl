@@ -168,13 +168,13 @@ Return child node using the `isChild1` attribute of the edge.
     edge.node[edge.isChild1 ? 1 : 2]
 end
 
+# getParents defined in manipulateNet.jl
 """
     getParent(e::Edge)
 
 Return parent node of edge `e` using the `isChild1` attribute of the edge.
 To get parents of nodes: see [`getParents`](@ref).
 """
-# getParents defined in manipulateNet.jl
 @inline function getParent(edge::Edge)
     edge.node[edge.isChild1 ? 2 : 1]
 end
@@ -215,6 +215,7 @@ function getOtherNode(edge::Edge,node::Node)
   isequal(edge.node[1],node) ? edge.node[2] : edge.node[1]
 end
 
+# get[Major|Minor]ParentEdge and getChildren: defined in manipulateNet.jl
 """
     getMajorParent(node::Node)
     getMinorParent(node::Node)
@@ -223,7 +224,6 @@ Return major or minor parent of a node using the `isChild1` field of edges
 (and assuming correct `isMajor` field).
 See also [`getMajorParentEdge`](@ref) and [`getMinorParentEdge`](@ref)
 """
-# get[Major|Minor]ParentEdge and getChildren: defined in manipulateNet.jl
 @inline function getMajorParent(node::Node)
     for e in node.edge
         if e.isMajor && node == getChild(e)
@@ -249,7 +249,8 @@ function getIndex(node::Node, net::Network)
     while(i<= size(net.node,1) && !isEqual(node,net.node[i]))
         i = i+1;
     end
-    i>size(net.node,1)?error("node $(node.number) not in network"):return i;
+    i <= size(net.node,1) || error("node $(node.number) not in network")
+    return i
 end
 
 function getIndex(edge::Edge, net::Network)
@@ -257,7 +258,8 @@ function getIndex(edge::Edge, net::Network)
     while(i<= size(net.edge,1) && !isEqual(edge,net.edge[i]))
         i = i+1;
     end
-    i>size(net.edge,1)?error("edge $(edge.number) not in network"):return i;
+    i <= size(net.edge,1) || error("edge $(edge.number) not in network")
+    return i
 end
 
 function getIndex(edge::Edge, edges::Vector{Edge})
@@ -265,7 +267,8 @@ function getIndex(edge::Edge, edges::Vector{Edge})
     while(i<= size(edges,1) && !isEqual(edge,edges[i]))
         i = i+1;
     end
-    i>size(edges,1)?error("edge $(edge.number) not in array of edges"):return i;
+    i <= size(edges,1) || error("edge $(edge.number) not in array of edges")
+    return i
 end
 
 function getIndex(bool::Bool, array::Array{Bool,1})
@@ -273,23 +276,17 @@ function getIndex(bool::Bool, array::Array{Bool,1})
     while(i<= size(array,1) && !isequal(bool,array[i]))
         i = i+1;
     end
-    i>size(array,1)?error("$(bool) not in array"):return i;
+    i <= size(array,1) || error("$(bool) not in array")
+    return i
 end
-
-## function getIndex(bool::Bool, array::Array{Bool,1})
-##     i = 1;
-##     while(i<= size(array,1) && !isequal(bool,array[i]))
-##         i = i+1;
-##     end
-##     i>size(array,1)?error("$(bool) not in array"):return i;
-## end
 
 function getIndex(bool::Bool, array::Array{Any,1})
     i = 1;
     while(i<= size(array,1) && !isequal(bool,array[i]))
         i = i+1;
     end
-    i>size(array,1)?error("$(bool) not in array"):return i;
+    i <= size(array,1) || error("$(bool) not in array")
+    return i
 end
 
 
@@ -300,7 +297,8 @@ function getIndex(name::AbstractString, array::Array{String,1})
     while(i<= size(array,1) && !isequal(name,array[i]))
         i = i+1;
     end
-    i>size(array,1)?error("$(name) not in array"):return i;
+    i <= size(array,1) || error("$(name) not in array")
+    return i
 end
 
 # aux function to find the index of a int in an int array.
@@ -310,7 +308,8 @@ function getIndex(name::Integer, array::Array{Int,1})
     while(i<= size(array,1) && !isequal(name,array[i]))
         i = i+1;
     end
-    i>size(array,1)?error("$(name) not in array"):return i;
+    i <= size(array,1) || error("$(name) not in array")
+    return i
 end
 
 
@@ -321,7 +320,8 @@ function getIndex(name::Node, array::Array{Node,1})
     while(i<= size(array,1) && !isequal(name,array[i]))
         i = i+1;
     end
-    i>size(array,1)?error("$(name.number) not in array"):return i;
+    i <= size(array,1) || error("$(name.number) not in array")
+    return i
 end
 
 
@@ -354,9 +354,9 @@ end
 # find the index of a node in edge.node
 function getIndexNode(edge::Edge,node::Node)
     size(edge.node,1) == 2 || warn("this edge $(edge.number) has more or less than 2 nodes: $([n.number for n in edge.node])")
-    if(isequal(node,edge.node[1]))
+    if isequal(node,edge.node[1])
         return 1
-    elseif(isequal(node,edge.node[2]))
+    elseif isequal(node,edge.node[2])
         return 2
     else
         error("node not in edge.node")
@@ -370,20 +370,19 @@ function getIndexHybrid(node::Node, net::Network)
     while(i<= size(net.hybrid,1) && !isEqual(node,net.hybrid[i]))
         i = i+1;
     end
-    i>size(net.hybrid,1)?error("hybrid node not in network"):return i;
+    if i>size(net.hybrid,1) error("hybrid node not in network"); end
+    return i
 end
 
 # function to find leaf index in qnet.leaf
 function getIndexLeaf(node::Node, net::Network)
-    if(node.leaf)
-        i = 1;
-        while(i<= size(net.leaf,1) && !isEqual(node,net.leaf[i]))
-            i = i+1;
-        end
-        i>size(net.leaf,1)?error("leaf node not in network"):return i;
-    else
-        error("node $(node.number) is not leaf so it cannot be in net.leaf")
+    node.leaf || error("node $(node.number) is not leaf so it cannot be in net.leaf")
+    i = 1;
+    while(i<= size(net.leaf,1) && !isEqual(node,net.leaf[i]))
+        i = i+1;
     end
+    if i>size(net.leaf,1) error("leaf node not in network"); end
+    return i
 end
 
 
@@ -486,15 +485,15 @@ function deleteNode!(net::HybridNetwork, n::Node)
     # println("deleting node $(n.number) from net, index $(index).")
     deleteat!(net.node,index);
     net.numNodes -= 1;
-    if(net.root == index) # do not check containRoot to save time in snaq!
+    if net.root == index  # do not check containRoot to save time in snaq!
         net.root = 1      # arbitrary
-    elseif(net.root > index)
+    elseif net.root > index
         net.root -= 1
     end
-    if(n.hybrid)
+    if n.hybrid
        removeHybrid!(net,n)
     end
-    if(n.leaf)
+    if n.leaf
         removeLeaf!(net,n)
     end
 end
@@ -599,7 +598,7 @@ function deleteIntNode!(net::Network, n::Node)
 #    isEqual(n,net.node[net.root]) && println("deleting the root $(n.number) because it has only two edges attached")
     index = n.edge[1].number < n.edge[2].number ? 1 : 2;
     edge1 = n.edge[index];
-    edge2 = n.edge[index==1?2:1];
+    edge2 = n.edge[index==1 ? 2 : 1];
     if(!edge1.hybrid && !edge2.hybrid)
         node1 = getOtherNode(edge1,n);
         node2 = getOtherNode(edge2,n);
@@ -660,7 +659,6 @@ and attributes pertaining to level-1 networks used in SNaQ:
 in which cycle it is contained (-1 if no cycle), and if the edge length
 is identifiable (based on quartet concordance factors).
 """
-
 printEdges(x) = printEdges(STDOUT::IO, x)
 function printEdges(io::IO, net::HybridNetwork)
     if net.numBad > 0
@@ -909,10 +907,10 @@ This will automatically set γ of the partner hybrid edge to 0.8.
 
 The last argument is true by default. If false: the partner edge is not updated.
 """
+setGamma!(edge::Edge, new_gamma::Float64) = setGamma!(edge, new_gamma, true)
+
 # warning in the bad diamond/triangle cases because gamma is not identifiable
 # changeOther = true, looks for the other hybrid edge and changes gamma too
-
-setGamma!(edge::Edge, new_gamma::Float64) = setGamma!(edge, new_gamma, true)
 
 function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool)
     global DEBUG
@@ -953,15 +951,17 @@ function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool)
 end
 
 """
-`setGammaBLfromGammaz!(node, network)`
+    setGammaBLfromGammaz!(node, network)
 
 Update the γ values of the two sister hybrid edges in a bad diamond I, given the `gammaz` values
-of their parent nodes, and updates the branch lengths t1 and t2 of their parent edges
+of their parent nodes, and update the branch lengths t1 and t2 of their parent edges
 (those across from the hybrid nodes), in such a way that t1=t2 and that these branch lengths
 and γ values are consistent with the `gammaz` values in the network.
+
+Similar to the first section of [`undoGammaz!`](@ref),
+but does not update anything else than γ and t's.
+Unlike `undoGammaz!`, no error if non-hybrid `node` or not at bad diamond I.
 """
-# similar to the beginning of undoGammaz!, but does not update anything else than γ and t's.
-# unlike undoGammaz!, does nothing (no error) if non-hybrid or not at bad diamond I.
 function setGammaBLfromGammaz!(node::Node, net::HybridNetwork)
     if !node.isBadDiamondI || !node.hybrid
         return nothing
@@ -1276,7 +1276,7 @@ end
     sorttaxa!(DataFrame, columns)
 
 Reorder the 4 taxa and reorders the observed concordance factors accordingly, on each row of
-the data frame. If `columns` is committed, taxon names are assumed to be in columns 1-4 and
+the data frame. If `columns` is ommitted, taxon names are assumed to be in columns 1-4 and
 CFs are assumed to be in columns 5-6 with quartets in this order: 12_34, 13_24, 14_23.
 Does **not** reorder credibility interval values, if present.
 
@@ -1289,9 +1289,10 @@ and reorder the 3 concordance values accordingly, in `obsCF` and `qnet.expCF`.
 
 `permutation_tax` and `permutation_cf` should be vectors of short integers (Int8) of length 4 and 3
 respectively, whose memory allocation gets reused. Their length is *not checked*.
-"""
-# qnet.names unchanged: order of taxon names here relates to the order of nodes in the network
 
+`qnet.names` is unchanged: the order of taxon names here relates to the order of nodes in the network
+(???)
+"""
 function sorttaxa!(dat::DataCF)
     ptax = Array{Int8}(4) # to hold the sort permutations
     pCF  = Array{Int8}(3)

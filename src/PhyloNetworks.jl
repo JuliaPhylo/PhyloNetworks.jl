@@ -2,20 +2,22 @@ __precompile__()
 
 module PhyloNetworks
 
-    using DataStructures # for updateInCycle with priority queue
-    using DataFrames
-    using CSV
-    using StatsBase # sample, coef etc.
-    using StatsModels
-    using GLM # for the lm function
-    using NLopt # for branch lengths optimization
-    using Combinatorics.combinations
     using BioSequences
     using BioSymbols
+    using Combinatorics.combinations
+    using CSV
+    using DataFrames
+    using DataStructures # for updateInCycle with priority queue
+    using GLM # for the lm function
+    using LinearAlgebra # for LowerTriangular. not in REQUIRE or Project.toml: stdlib
+    using NLopt # for branch lengths optimization
+    using Printf: @printf, @sprintf # not in REQUIRE or Project.toml: stdlib
     using StaticArrays
-    using StatsFuns # for logsumexp
+    using StatsBase # sample, coef etc.
+    using StatsFuns: logsumexp
+    using StatsModels # re-exported by GLM. for ModelFrame ModelMatrix Formula etc
 
-    import Base.show
+    import Base: show
     import GLM.ftest
 
     global DEBUG = false #for debugging only

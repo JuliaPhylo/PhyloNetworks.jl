@@ -11,7 +11,6 @@ see [`BinaryTraitSubstitutionModel`](@ref),
 [`EqualRatesSubstitutionModel`](@ref),
 [`TwoBinaryTraitSubstitutionModel`](@ref)
 """
-
 abstract type TraitSubstitutionModel{T} end
 const SM = TraitSubstitutionModel{T} where T
 const Bmatrix = SMatrix{2, 2, Float64}
@@ -50,7 +49,7 @@ function showQ(io::IO, object::SM)
     M = Q(object)
     pad = max(8,maximum(length.(object.label))+1)
     for i = 1:size(M,2) # print the header
-        print(io, lpad(object.label[i],(i==1? 2*pad : pad), " "))
+        print(io, lpad(object.label[i],(i==1 ? 2*pad : pad), " "))
     end
     print(io, "\n")
     for i = 1:size(M,1) # print one row per state
@@ -367,7 +366,6 @@ julia> lab
  "A"  
 ```
 """
-
 function randomTrait(mod::SM, net::HybridNetwork;
     ntraits=1::Int, keepInternal=true::Bool, checkPreorder=true::Bool)
     net.isRooted || error("net needs to be rooted for preorder recursion")

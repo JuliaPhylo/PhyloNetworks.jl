@@ -191,7 +191,7 @@ hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{String},Vector{I
 
 function hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{String},Vector{Int}},
                            visited::Vector{Int})
-    n = edge.node[edge.isChild1?1:2]
+    n = getChild(edge)
     if n.leaf
         j = findin(taxa,[n.name])
         length(j)==1 || error("taxon $(n.name) was not found in taxon list")
@@ -203,7 +203,7 @@ function hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{String}
     end
     push!(visited, n.number)
     for ce in n.edge
-        if n == ce.node[ce.isChild1?2:1]
+        if n == getParent(ce)
             hardwiredCluster!(v,ce,taxa,visited)
         end
     end
@@ -220,7 +220,7 @@ The node should belong in a rooted network for which isChild1 is up-to-date.
 Run directEdges! beforehand. This is very important, otherwise one might enter an infinite loop,
 and the function does not test for this.
 
-# Examples: #"
+## Examples
 ```jldoctest
 julia> net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readTopology |> directEdges! ;
 
@@ -234,8 +234,7 @@ julia> PhyloNetworks.descendants(net5.edge[12]) # descendants of 12th
  -9
   7
 ```
-""" #"
-## Simple adaptation of hardwiredCluster function
+"""
 function descendants(edge::Edge)
     visited = Int[]
     descendants!(edge, visited)
@@ -243,13 +242,13 @@ function descendants(edge::Edge)
 end
 
 function descendants!(edge::Edge, visited::Vector{Int})
-    n = edge.node[edge.isChild1?1:2]
+    n = getChild(edge)
     if findfirst(visited,n.number)>0
         return nothing  # n was already visited: exit. avoid infinite loop is isChild1 was bad.
     end
     push!(visited, n.number)
     for ce in n.edge
-        if n == ce.node[ce.isChild1?2:1]
+        if n == getParent(ce)
             descendants!(ce, visited)
         end
     end

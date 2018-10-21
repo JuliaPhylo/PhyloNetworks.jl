@@ -1,4 +1,4 @@
-julia 0.6 0.7-
+julia 0.7
 BioSequences 0.7
 BioSymbols 1.0
 Combinatorics 0.2.1
@@ -10,3 +10,4 @@ NLopt 0.3
 StaticArrays 0.6.0
 StatsBase 0.22
 StatsFuns 0.6.1
+StatsModels

@@ -519,10 +519,10 @@ extractQuartet!(net::HybridNetwork, d::DataCF) = extractQuartet!(net, d.quartet)
 # return the flag (true=redundant cycle found) and the hybrid node for the redundant cycle
 function hasRedundantCycle(net::Network)
     length(net.hybrid) == net.numHybrids || error("found net with length net.hybrid of $(length(net.hybrid)) and net.numHybrids of $(net.numHybrids)")
-    if(net.numHybrids > 0)
+    if net.numHybrids > 0
         for h in net.hybrid
-            k = sum([(n.inCycle == h.number && length(n.edge) == 3) ? 1: 0 for n in net.node])
-            if(k < 2)
+            k = sum([(n.inCycle == h.number && length(n.edge) == 3) ? 1 : 0 for n in net.node])
+            if k < 2
                 return true,h
             end
         end

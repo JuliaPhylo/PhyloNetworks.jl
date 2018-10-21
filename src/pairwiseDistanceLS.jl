@@ -13,8 +13,8 @@ function getNodeAges(net::HybridNetwork)
             continue
         end
         for e in n.edge
-            if e.node[e.isChild1?2:1] == n # n parent of e
-                childnode = e.node[e.isChild1?1:2]
+            if getParent(e) == n # n parent of e
+                childnode = getChild(e)
                 childIndex = getIndex(childnode, net.nodes_changed)
                 x[i] = x[childIndex] + e.length
                 break # use 1st child, ignores all others
@@ -58,7 +58,6 @@ Providing node ages hence makes the network time consistent: such that
 all paths from the root to a given hybrid node have the same length.
 If node ages are not provided, the network need not be time consistent.
 """
-
 function pairwiseTaxonDistanceMatrix(net::HybridNetwork;
             keepInternal=false::Bool, checkPreorder=true::Bool,
             nodeAges=Float64[]::Vector{Float64})
@@ -156,7 +155,6 @@ not on branch lengths or node ages (distances are linear in either).
 
 WARNING: edge numbers need to range between 1 and #edges.
 """
-
 function pairwiseTaxonDistanceGrad(net::HybridNetwork;
         checkEdgeNumber=true::Bool, nodeAges=Float64[]::Vector{Float64})
     if checkEdgeNumber
@@ -237,7 +235,6 @@ optional arguments (default):
   xtolRel (1e-10), xtolAbs (1e-10) on branch lengths / divergence times.
 - verbose (false)
 """
-
 function calibrateFromPairwiseDistances!(net::HybridNetwork,
       D::Array{Float64,2}, taxNames::Vector{String};
       checkPreorder=true::Bool, forceMinorLength0=false::Bool, verbose=false::Bool,
@@ -325,8 +322,8 @@ function calibrateFromPairwiseDistances!(net::HybridNetwork,
           nii = findfirst(parind, i)
         end
         for e in n.edge
-          if e.node[e.isChild1?1:2] == n # n child of e
-            p = e.node[e.isChild1?2:1]   # parent of n
+          if getChild(e) == n # n child of e
+            p = getParent(e)  # parent of n
             if forceMinorLength0 && n.hybrid && !e.isMajor
                 continue; end # p and n at same age already
             pi = findfirst([no.number for no in net.nodes_changed], p.number)

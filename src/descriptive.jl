@@ -13,7 +13,6 @@ Vector of `Quartet`s, `DataCF`,
 
 For a network, the taxon names are coerced to strings.
 """
-# see readData.jl and traits.jl
 function tipLabels(net::HybridNetwork)
     return String[l.name for l in net.leaf] # AbstractString does not work for use by tree2Matrix
 end
@@ -85,8 +84,9 @@ except for edges in
   but are kept, because the two γ*(1-exp(-t)) values are identifiable.
 
 will break if `inCycle` attributes are not initialized (at -1) or giving a correct node number.
+
+fixit, earlier comment: "'good' triangle in the paper = bad triangle in hyb node attribute: Not extremely or very bad"
 """
-# 'good' triangle in the paper = bad triangle in hyb node attribute: Not extremely or very bad
 function setNonIdBL!(net::HybridNetwork)
     for e in net.edge
         if(!e.istIdentifiable)

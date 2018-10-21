@@ -847,7 +847,6 @@ Type for a BM process on a network. Fields are `mu` (expectation),
 and `varRoot` (if the root is random, the variance of the root, defalut to `NaN`).
 
 """
-# BM type
 mutable struct ParamsBM <: ParamsProcess
     mu::Real # Ancestral value or mean
     sigma2::Real # variance
@@ -929,13 +928,18 @@ end
 """
     simulate(net::HybridNetwork, params::ParamsProcess, checkPreorder=true::Bool)
 
-Simualte some traits on `net` using the parameters `params`. For now, only
+Simulate traits on `net` using the parameters `params`. For now, only
 parameters of type [`ParamsBM`](@ref) (Brownian Motion) are accepted.
 
-Assumes that the network is in the pre-order. If `checkPreorder=true` (default),
-then it runs function `preoder` on the network beforehand.
+The simulation using a recursion from the root to the tips of the network,
+therefore, a pre-ordering of nodes is needed. If `checkPreorder=true` (default),
+[`preorder`](@ref) is called on the network beforehand. Otherwise, it is assumed
+that the `preorder`ing has already been calculated.
 
-Returns an object of type [`TraitSimulation`](@ref).
+Returns an object of type [`TraitSimulation`](@ref),
+which has a matrix with two rows:
+row 1 for the trait expectations at all the nodes, and
+row 2 for the actual simulated trait values at all the nodes.
 
 # Examples
 ```jldoctest
@@ -978,12 +982,6 @@ julia> traits = sim[:Tips] # Extract simulated values at the tips.
 
 ```
 """
-# Uses recursion on the network.
-# Takes params of type ParamsProcess as an entry
-# Returns a matrix with two lines:
-# - line one = expectations at all the nodes
-# - line two = simulated values at all the nodes
-# The nodes are ordered as given by topological sorting
 function simulate(net::HybridNetwork,
                   params::ParamsProcess,
                   checkPreorder=true::Bool)
@@ -1619,7 +1617,6 @@ julia> predict(fitBM)
 
 ```
 """ #"
-# Deal with formulas
 function phyloNetworklm(f::Formula,
                         fr::AbstractDataFrame,
                         net::HybridNetwork;
@@ -2065,7 +2062,6 @@ This function assumes that the parameters of the process are known. For a more g
 function, see `ancestralStateReconstruction(obj::PhyloNetworkLinearModel[, X_n::Matrix])`.
 
 """
-# Reconstruction from known BM parameters
 function ancestralStateReconstruction(net::HybridNetwork,
                                       Y::Vector,
                                       params::ParamsBM)
@@ -2450,8 +2446,8 @@ julia> predintPlot(ancStates) # prediction intervals, in data frame, useful to p
 julia> plot(phy, :RCall, nodeLabel = predintPlot(ancStates));
 ```
 """
-# Default reconstruction for a simple BM (known predictors)
 function ancestralStateReconstruction(obj::PhyloNetworkLinearModel)
+    # default reconstruction for known predictors
     if ((size(obj.X)[2] != 1) || !any(obj.X .== 1)) # Test if the regressor is just an intercept.
         error("""Predictor(s) other than a plain intercept are used in this `PhyloNetworkLinearModel` object.
     These predictors are unobserved at ancestral nodes, so they cannot be used
@@ -2483,7 +2479,6 @@ for further details.
 
 Returns an object of type [`ReconstructedStates`](@ref).
 """
-# Deal with formulas
 function ancestralStateReconstruction(fr::AbstractDataFrame,
                                       net::HybridNetwork;
                                       kwargs...)

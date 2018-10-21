@@ -1,21 +1,3 @@
-# Tests with the 5 taxon networks read from parenthetical format
-# Claudia November 2014
-
-
-# types in "types.jl"
-
-if !isdefined(:individualtest) individualtest = false; end
-
-if(individualtest)
-    include("../src/types.jl")
-    include("../src/functions.jl")
-end
-
-# needed modules:
-using Base.Collections # for updateInCycle with priority queue
-
-# test functions
-
 include("test_functions_5taxon_read.jl")
 
 tests = ["F","G","H","J","I"];

@@ -8,9 +8,8 @@
 input: name of file containing the path/name to multiple bootstrap files, one per line.
 Each bootstrap file corresponds to bootstrap trees from a single gene.
 
-output: vector of vectors of trees.
+output: vector of vectors of trees (networks with h>0 allowed).
 """
-# *No* error if a network topology (h>0) is encountered. This is tested in bootsnaq.
 function readBootstrapTrees(filelist::AbstractString)
     s = open(filelist) # IOStream
     bootfile = readdlm(s,AbstractString)
@@ -58,7 +57,7 @@ function sampleBootstrapTrees!(bootTrees::Vector{HybridNetwork}, trees::Vector{V
     numgen <= length(bootTrees) || error("the input tree list needs to be of length $numgen at least")
     if (generesampling) row=0; end
     if row==0
-      if(seed == 0)
+      if seed == 0
         t = time()/1e9
         a = split(string(t),".")
         seed = parse(Int,a[2][end-4:end]) #better seed based on clock
@@ -130,7 +129,7 @@ function sampleCFfromCI(df::DataFrame, seed=0::Integer)
 end
 
 function sampleCFfromCI!(df::DataFrame, seed=0::Integer)
-    if(seed == 0)
+    if seed == 0
         t = time()/1e9
         a = split(string(t),".")
         seed = parse(Int,a[2][end-4:end]) #better seed based on clock
@@ -169,7 +168,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
     global DEBUG
     println("BOOTSTRAP OF SNAQ ESTIMATION")
     writelog = true
-    if (filename != "")
+    if filename != ""
         logfile = open(string(filename,".log"),"w")
         write(logfile, "BOOTSTRAP OF SNAQ ESTIMATION \n")
     else
@@ -181,7 +180,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
     inputastrees || isa(data, DataFrame) ||
         error("Input data not recognized: $(typeof(data))")
 
-    if(runs1>0 && runs2>0)
+    if runs1>0 && runs2>0
         str = """Will use this network as starting topology for $runs1 run(s) for each bootstrap replicate:
                  $(writeTopologyLevel1(currT0))
                  and this other network for $runs2 run(s):
@@ -200,11 +199,11 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
         # seed=-1: deep copy only, no rand()
         newd = readTableCF!(newdf, collect(1:7)) # allocate memory for DataCF object
     end
-    if (runs1>0 && isTree(currT0)) # get rough first estimate of branch lengths in startnet
+    if runs1>0 && isTree(currT0) # get rough first estimate of branch lengths in startnet
         updateBL!(currT0, newd)
     end
 
-    if(seed == 0)
+    if seed == 0
         t = time()/1e9
         a = split(string(t),".")
         seed = parse(Int,a[2][end-4:end]) #better seed based on clock
@@ -237,7 +236,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
             calculateObsCFAll!(newd,taxa) # do not use readTrees2CF: to save memory and gc time
         end
         if runs1>0
-            str = "estimation, $runs1 run" * (runs1>1?"s":"") * ": seed $(seeds[i])\n"
+            str = "estimation, $runs1 run" * (runs1>1 ? "s" : "") * ": seed $(seeds[i])\n"
             writelog && write(logfile, str)
             print(str)
             rootname = (DEBUG ? string(filename,"_",i) : "")
@@ -248,7 +247,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
             end
         end
         if runs2>0
-            str = "estimation, $runs2 run" * (runs2>1?"s":"") * " starting from other net: seed $(seedsOtherNet[i])\n"
+            str = "estimation, $runs2 run" * (runs2>1 ? "s" : "") * " starting from other net: seed $(seedsOtherNet[i])\n"
             writelog && write(logfile, str)
             print(str)
             rootname = (DEBUG ? string(filename,"_",i,"_startNet2") : "")
@@ -258,7 +257,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
                 net = net2
             end
         end
-        if (runs1>0 && runs2>0)
+        if runs1>0 && runs2>0
             net = (net1.loglik < net2.loglik ? net1 : net2)
         end
         writelog && flush(logfile)
@@ -277,7 +276,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
     if writelog
       s = open(string(filename,".out"),"w")
       for n in bootNet
-        if(outgroup == "none")
+        if outgroup == "none"
             write(s,"$(writeTopologyLevel1(n))\n")
         else
             write(s,"$(writeTopologyLevel1(n,outgroup))\n")
@@ -290,6 +289,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
 end
 
 # like snaq, only calls optTopRunsBoot
+# undocumented arguments: closeN, Nmov0
 """
     bootsnaq(T::HybridNetwork, df::DataFrame)
     bootsnaq(T::HybridNetwork, vector of tree lists)
@@ -307,24 +307,22 @@ From each bootstrap replicate, a network
 is estimated with snaq!, with a search starting from topology `T`.
 Optional arguments include the following, with default values in parentheses:
 
-- hmax (1): max number of reticulations in the estimated networks
-- nrep (10): number of bootstrap replicates.
-- runs (10): number of independent optimization runs for each replicate
-- filename ("bootsnaq"): root name for output files. No output files if "".
-- seed (0 to get a random seed from the clock): seed for random number generator
-- otherNet (empty): another starting topology so that each replicate will start prcnet% runs on otherNet and (1-prcnet)% runs on T
-- prcnet (0): percentage of runs starting on otherNet; error if different than 0.0, and otherNet not specified.
-- ftolRel, ftolAbs, xtolRel, xtolAbs, liktolAbs, Nfail: see `snaq!`, same defaults.
+- `hmax` (1): max number of reticulations in the estimated networks
+- `nrep` (10): number of bootstrap replicates.
+- `runs` (10): number of independent optimization runs for each replicate
+- `filename` ("bootsnaq"): root name for output files. No output files if "".
+- `seed` (0 to get a random seed from the clock): seed for random number generator
+- `otherNet` (empty): another starting topology so that each replicate will start prcnet% runs on otherNet and (1-prcnet)% runs on `T`
+- `prcnet` (0): percentage of runs starting on `otherNet`; error if different than 0.0, and otherNet not specified.
+- `ftolRel`, `ftolAbs`, `xtolRel`, `xtolAbs`, `liktolAbs`, `Nfail`,
+  `probST`, `verbose`, `outgroup`: see `snaq!`, same defaults.
+
+If `T` is a tree, its branch lengths in `T` are first optimized roughly with [`updateBL`](@ref)
+(by using the average CF of all quartets defining each branch and calculating the coalescent units
+corresponding to this quartet CF).
+If `T` has one or more reticulations, its branch lengths are taken as is to start the search.
+The branch lengths of `otherNet` are always taken as is to start the search.
 """
-# non documented arguments: liktolAbs, Nfail=numFails, probST=0.3::Float64
-#  ftolRel,ftolAbs,xtolRel,xtolAbs, verbose, closeN, Nmov0, outgroup="none",
-#  bestNet (none): best estimated network from the original data.
-#  prcnet (0): probability to start a run from bestNet instead of T.
-#
-# important: branch lengths in startnet are updated with updateBL (it it's a tree)
-#            branch lengths in otherNet are *not* updated. For example,
-#            runs=10 and prcnet=.99 or 99 would cause all 10 runs to start at otherNet, just
-#            like prcnet=0 and startnet=otherNet, but branch lengths would not be updated.
 function bootsnaq(startnet::HybridNetwork, data::Union{DataFrame,Vector{Vector{HybridNetwork}}};
                   hmax=1::Integer, liktolAbs=likAbs::Float64, Nfail=numFails::Integer,
                   ftolRel=fRel::Float64, ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64,
@@ -385,7 +383,7 @@ function bootsnaq(startnet::HybridNetwork, data::Union{DataFrame,Vector{Vector{H
     end
 
     # for multiple alleles: expand into two leaves quartets like sp1 sp1 sp2 sp3.
-    if(isdefined(:originald) && !isempty(originald.repSpecies)) ## not defined if treefile empty, but not needed
+    if isdefined(:originald) && !isempty(originald.repSpecies) ## not defined if treefile empty, but not needed
         expandLeaves!(originald.repSpecies,startnet)
     end
 
@@ -394,88 +392,10 @@ function bootsnaq(startnet::HybridNetwork, data::Union{DataFrame,Vector{Vector{H
                    seed, probST, nrep, runs2, otherNet, quartetfile)
 end
 
-
-# same as optTopRunsBoot but for many processors in parallel
-# warning: still not debugged
-# snaq! already uses multiple cores for its multiple runs
-function optTopRunsBootParallel(currT0::HybridNetwork, df::DataFrame, hmax::Integer, liktolAbs::Float64, Nfail::Integer,
-                                ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
-                                verbose::Bool, closeN::Bool, Nmov0::Vector{Int},
-                                runs::Integer, outgroup::AbstractString, filename::AbstractString,
-                                seed::Integer, probST::Float64, nrep::Integer, prcnet::Float64,
-                                bestNet::HybridNetwork)
-    warn("bootsnaq function not debugged yet")
-    prcnet > 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
-    prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
-    println("BOOTSTRAP OF SNAQ ESTIMATION")
-    # shared arrays, variables
-    dfS = convert2SharedArray(df) #fixit: need to code
-    intS = convert2SharedArray(hmax,liktolAbs,Nfail,runs,Nmov0) #fixit: need to code
-    floatS = convert2SharedArray(ftolRel,ftolAbs,xtolRel,xtolAbs,probST,prcnet) #fixit: need to code
-    @everywhere verbose,closeN,outgroup,filename
-
-    # split of replicates
-    nrep_proc = floor(nrep/nworkers())
-    nrep_missing = nrep - nrep_proc * nworkers()
-    bootNet = HybridNetwork[]
-
-    # seeds
-    if(seed == 0)
-        t = time()/1e9
-        a = split(string(t),".")
-        seed = parse(Int,a[2][end-4:end]) #better seed based on clock
-    end
-    srand(seed)
-    seeds = [parse(Int,floor.(rand(nworkers())*100000))] #seeds for all workers
-
-
-    @sync begin
-        i = 1
-        for p in workers()
-            addrep = nrep_missing > 0 ? 1 : 0
-            net = @async remotecall_fetch(p,loc_bootsnaq,dfS, intS, floatS, currT, bestNet, seeds[i], nrep_proc+addrep)
-            push!(bootNet,net)
-            nrep_missing -= addrep
-            i += 1
-        end
-    end
-end
-
-# function to the each local run of bootsnaq
-# in optTopRunsBootParallel
-# dfS = shared array with CF table
-# intS = shared array with integer arguments: hmax, liktolAbs, Nfail, runs, Nmov0
-# floatS= shared array with float arguments: ftolRel, ftolAbs, xtolRel, xtolAbs, probST, prcnet
-# currT, bestNet are starting topology and best network
-# seed= to start the procedure, if seed=0, then clock used
-# nrep= number of replicates in this particular processor
-# other parameters of optTopRunsBoot are global by @everywhere in optTopRunsBootParallel
-function loc_bootsnaq(dfS::SharedArray, intS::SharedArray, floatS::SharedArray, currT::HybridNetwork, bestNet::HybridNetwork, seed::Integer, nrep::Integer)
-    df = sampleCFfromCI(dfS) #fixit: need to code this
-    optTopRunsBoot(currT,df,intS[1],intS[2],floatS[1],floatS[2],floatS[3],floatS[4],verbose,closeN,intS[5:end],intS[4],outgroup,string(filename,seed),true,seed,floatS[5],nrep,floatS[6],bestNet)
-end
-
-
-# function to take a DataFrame and convert to SharedArray
-# fixit: does not work, S is filled with zeros, but also how to pass the strings of taxon names??
-function convert2SharedArray(df::DataFrame)
-    error("convert2SharedArray not working, should not be called")
-    S = SharedArray{Float64}(size(df))
-    for i in size(df,1)
-        for j in size(df,2)
-            S[i,j] = df[i,j]
-        end
-    end
-    return S
-end
-
-# function that reads the list of bootstrap networks (net), and the estimated network (net0)
-# and calculates the bootstrap support of the tree edges in the estimated network
-# it returns a data frame with one row per tree edge, and two columns: edge number, bootstrap support
 """
 `treeEdgesBootstrap(boot_net::Vector{HybridNetwork}, ref_net::HybridNetwork)`
 
-read a list of bootstrap networks (`boot_net`) and a reference network (`ref_net`),
+Read a list of bootstrap networks (`boot_net`) and a reference network (`ref_net`),
 and calculate the bootstrap support of the tree edges in the reference network.
 All minor hybrid edges (γ<0.5) are removed to extract the major tree from
 each network. All remaining edges are tree edges, each associated with a bipartition.
@@ -508,7 +428,7 @@ function treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)
         cnt = 0 #count
         for j in 1:length(M) #for every M
             for k in 1:size(M[j],1) #check every row in M
-                if(M0[i,2:end] == M[j][k,2:end] || M0[i,2:end] == map(x->(x+1)%2,M[j][k,2:end])) #same row
+                if M0[i,2:end] == M[j][k,2:end] || M0[i,2:end] == map(x->(x+1)%2,M[j][k,2:end]) #same row
                     #println("found same row: $(M0[i,2:end]) and $(M[j][k,2:end])")
                     cnt += 1
                     break
@@ -566,7 +486,7 @@ function hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgro
         tree = majorTree(n)
         push!(majorTrees,tree)
         RFmajor = hardwiredClusterDistance(tree, tree1, false)
-        if(RFmajor != 0)
+        if RFmajor != 0
             push!(discTrees,tree)
             i+=1
             continue # skip replicate if major tree is *not* correct
@@ -576,10 +496,10 @@ function hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgro
         gamma = zeros(Float64,net1.numHybrids) # repeats 0.0
         # re-root estimated network if not rooted correctly
         reroot = true
-        if (length(n.node[n.root].edge) == 2) # check if root connects to correct outgroup
+        if length(n.node[n.root].edge) == 2 # check if root connects to correct outgroup
             for e in n.node[n.root].edge
                 for node in e.node
-                    if (node.name == outgroup)
+                    if node.name == outgroup
                         reroot = false
                         break
                     end
@@ -594,10 +514,10 @@ function hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgro
             for esth = 1:n.numHybrids
                 netE = deepcopy(n)
                 displayedNetworkAt!(netE, netE.hybrid[esth])
-                if (reroot)
+                if reroot
                     rootatnode!(netE, outgroup) # if re-rooting is not possible,
                 end                         # then the hybridization doesn't match.
-                if (hardwiredClusterDistance(netT, netE, true) == 0) # true: rooted
+                if hardwiredClusterDistance(netT, netE, true) == 0 # true: rooted
                     found[trueh] = true
                     node = netE.hybrid[1]
                     edges = hybridEdges(node)
@@ -734,13 +654,13 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
     skipone = (!rooted && length(reftre.node[reftre.root].edge)<3) # not count same bipartition twice
     for pe in reftre.edge
         hwc = hardwiredCluster(pe,taxa) # not very efficient, but human readable
-        if (skipone && refnet.node[refnet.root] ≡ pe.node[pe.isChild1?2:1] && sum(hwc)>1)
+        if skipone && refnet.node[refnet.root] ≡ getParent(pe) && sum(hwc)>1
             skipone = false             # wrong algo for trivial 2-taxon rooted tree (A,B);
             println("skip edge $(pe.number)")
         else
             push!(clade, hwc)
             push!(treeedge, pe.number)
-            cn = pe.node[pe.isChild1?1:2] # child node of pe
+            cn = getChild(pe) # child node of pe
             push!(treenode, cn.number)
             push!(leafname, (cn.leaf ? cn.name : ""))
         end
@@ -761,14 +681,14 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
         push!(majsisedge, hemaj.number)
         push!(minsisedge, hemin.number)
         for sis in ["min","maj"]
-          he = (sis=="min"? hemin : hemaj)
-          pn = he.node[he.isChild1?2:1] # parent node of sister (origin of gene flow if minor)
+          he = (sis=="min" ? hemin : hemaj)
+          pn = getParent(he) # parent node of sister (origin of gene flow if minor)
           atroot = (!rooted && pn ≡ net0.node[net0.root]) # polytomy at root pn of degree 3: will exclude one child edge
           hwc = zeros(Bool,ntax) # new binding each time. pushed to clade below.
           for ce in pn.edge    # important if polytomy
-            if (ce ≢ he && pn ≡ ce.node[ce.isChild1?2:1])
+            if ce ≢ he && pn ≡ getParent(ce)
                 hw = hardwiredCluster(ce,taxa)
-                if (atroot && any(hw & clade[ic])) # sister clade intersects child clade
+                if atroot && any(hw & clade[ic]) # sister clade intersects child clade
                     (hw & clade[ic]) == clade[ic] ||
                         warn("weird clusters at the root in reference, hybrid node $(hn.number)")
                 else
@@ -785,7 +705,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
           if sis=="min"  # need to get clade not in main tree: hybrid + minor sister
             pe = nothing # looking for the (or one) parent edge of pn
             for ce in pn.edge
-              if pn ≡ ce.node[ce.isChild1?1:2]
+              if pn ≡ getChild(ce)
                   pe=ce
                   break
               end
@@ -862,16 +782,16 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
             (hemaj.hybrid &&  hemaj.isMajor) || error("edge should be hybrid and major")
             hardwiredCluster!(hwcChi,hemin,taxa)
             for sis in ["min","maj"]
-                he = (sis=="min"? hemin : hemaj)
-                pn = he.node[he.isChild1?2:1] # parent of hybrid edge
+                he = (sis=="min" ? hemin : hemaj)
+                pn = getParent(he) # parent of hybrid edge
                 atroot = (!rooted && pn ≡ net1.node[net1.root])
                 # if at root: exclude the child edge in the same cycle as he.
                 # its cluster includes hwcChi. all other child edges do not interest hwcChi.
                 # if (atroot) @show i; warn("$(sis)or edge is at the root!"); end
                 for ce in pn.edge
-                  if (ce ≢ he && pn ≡ ce.node[ce.isChild1?2:1])
+                  if ce ≢ he && pn ≡ getParent(ce)
                     hwc = hardwiredCluster(ce,taxa)
-                    if (!atroot || sum(hwc .& hwcChi) == 0) # empty intersection
+                    if !atroot || sum(hwc .& hwcChi) == 0 # empty intersection
                       if (sis=="maj") hwcSib .|= hwc;
                       else            hwcPar .|= hwc; end
                     elseif (hwc .& hwcChi) != hwcChi
@@ -881,7 +801,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
                 end # will use complement too: test network may be rooted differently
             end
             # @show taxa[hwcChi]; @show taxa[hwcPar]
-            if (all(hwcPar) || all(hwcSib) || all(.!hwcPar) || all(.!hwcSib))
+            if all(hwcPar) || all(hwcSib) || all(.!hwcPar) || all(.!hwcSib)
                 warn("parent or sibling cluster is full or empty. bootstrap net i=$i, hybrid $(net.hybrid[esth].name)")
             end
 
@@ -930,11 +850,11 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
             else
               BSminsis[iSmin] += 1.0
             end
-            samehyb = (newhyb? Int[]: findin(hybcladei, [ihyb]))
+            samehyb = (newhyb ? Int[] : findin(hybcladei, [ihyb]))
             for sis in ["maj","min"]
-                newpair = newhyb || (sis=="min"? newmin : newmaj)
+                newpair = newhyb || (sis=="min" ? newmin : newmaj)
                 if !newpair # hyb and sis clades were already found, but not sure if together
-                    iish = findfirst(siscladei[samehyb], (sis=="min"? iSmin : iSmaj))
+                    iish = findfirst(siscladei[samehyb], (sis=="min" ? iSmin : iSmaj))
                     if iish > 0 # pair was indeed found
                         ipair = samehyb[iish]
                         if (sis=="min") BShybminsis[ipair] += 1.0
@@ -946,12 +866,12 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
                 end
                 if newpair
                     push!(hybcladei, ihyb)
-                    push!(siscladei, (sis=="min"? iSmin: iSmaj))
-                    push!(BShybminsis, (sis=="min"? 1.0 : 0.0))
-                    push!(BShybmajsis, (sis=="min"? 0.0 : 1.0))
+                    push!(siscladei, (sis=="min" ? iSmin : iSmaj))
+                    push!(BShybminsis, (sis=="min" ? 1.0 : 0.0))
+                    push!(BShybmajsis, (sis=="min" ? 0.0 : 1.0))
                 end
             end
-            if (ihyb<=nclades && hybparent[ihyb]>0) # hyb clade match in ref net
+            if ihyb<=nclades && hybparent[ihyb]>0 # hyb clade match in ref net
                 th = hybparent[ihyb]
                 if ((iSmaj==majsisind[th] && iSmin==minsisind[th]) ||
                     (iSmin==majsisind[th] && iSmaj==minsisind[th]) )
@@ -974,7 +894,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
     # first: detect nodes with all BS=0
     keepc = ones(Bool,length(clade)) # keep clade h in output tables?
     for h=nclades:-1:1
-        if (BShyb[h]==0.0 && BSmajsis[h]==0.0 && BSminsis[h]==0.0)
+        if BShyb[h]==0.0 && BSmajsis[h]==0.0 && BSminsis[h]==0.0
             keepc[h] = false
             deleteat!(BShyb,h); deleteat!(BSmajsis,h); deleteat!(BSminsis,h)
         end
@@ -986,7 +906,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
     rowh = 1
     for h=1:length(clade)
         nn = treenode[h] # node number in ref net
-        cladestr[h] = string("c_", (nn<0?"minus":""), abs(nn))
+        cladestr[h] = string("c_", (nn<0 ? "minus" : ""), abs(nn))
         # column name for a clade at node 5: "c_5". At node -5: "c_minus5"
         # because symbol :c_-5 causes an error.
         if h <= nclades &&  leafname[h] != "" # replace "c5" by leaf name, e.g. "taxon1"

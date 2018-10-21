@@ -1,5 +1,4 @@
 # functions to update incycle, containRoot, gammaz
-# originally in functions.jl
 # Claudia March 2015
 #####################
 
@@ -9,7 +8,6 @@
 # based on program 3 CS367 with priority queue
 # expected to be much faster than the other two udpateInCycle (queue and recursive)
 # input: hybrid node around which we want to update inCycle
-# needs module "Base.Collections"
 # returns tuple: flag, nocycle, array of edges changed, array of nodes changed
 #   flag: false if cycle intersects existing cycle or number of nodes in cycle < 3
 #         (there is the possibility of returning edges in intersection: path)
@@ -123,7 +121,7 @@ The input `node` to `updateContainRoot!` must be a hybrid node
 `updateContainRoot!` starts at the input node and calls `traverseContainRoot!`,
 which traverses the network recursively.
 By default, containRoot attributes of edges are true.
-Changes containRoot to false for all the visited edges: those
+Changes `containRoot` to false for all the visited edges: those
 below the input node, but not beyond any other hybrid node.
 
 `updateContainRoot!` Returns a `flag` and an array of edges whose
@@ -135,23 +133,18 @@ have incompatible directions (vector of length 1, to be modified).
 
 Warning:
 
-- does *not* update containRoot of minor hybrid edges.
-- assumes correct isMajor attributes: to stop the recursion at minor hybrid edges.
+- does *not* update `containRoot` of minor hybrid edges.
+- assumes correct `isMajor` attributes: to stop the recursion at minor hybrid edges.
 - assumes correct hybrid attributes of both nodes & edges: to check if various
   hybridizations have compatible directions.
   For each hybrid node that is encountered, checks if it was reached
   via a hybrid edge (ok) or tree edge (not ok).
+
+`rightDir`: vector of length 1 boolean, to be mutable and modified by the function
 """
-# aux function to traverse the network for updateContainRoot
-# it changes the containRoot argument to false
-# of all the edges visited
-# changed to recursive after Cecile's idea
-# warning: it does not go accross hybrid node, minor hybrid edge
-# it checks if we approach a hybrid node via a hybrid edge (ok) or tree edge (not ok)
-# rightDir will be modified inside depending in this criteria (has to be an array to be modified)
 function traverseContainRoot!(node::Node, edge::Edge, edges_changed::Array{Edge,1}, rightDir::Vector{Bool})
-    if(node.hybrid)
-        if(edge.hybrid)
+    if node.hybrid
+        if edge.hybrid
             edge.isMajor || error("hybrid edge $(edge.number) is minor and we should not traverse the graph through minor edges")
             DEBUGC && println("traverseContainRoot reaches hybrid node $(node.number) through major hybrid edge $(edge.number)")
             rightDir[1] &= true  # This line has no effect: x && true = x
@@ -159,11 +152,11 @@ function traverseContainRoot!(node::Node, edge::Edge, edges_changed::Array{Edge,
             rightDir[1] &= false # same as rightDir[1] = false: x && false = false
             DEBUGC && println("traverseContainRoot reaches hybrid node $(node.number) through tree edge $(edge.number), so rightDir $(rightDir[1])")
         end
-    elseif(!node.leaf)
+    elseif !node.leaf
         for e in node.edge
-            if(!isEqual(edge,e) && e.isMajor) # minor edges avoided-> their containRoot not updated
+            if !isEqual(edge,e) && e.isMajor # minor edges avoided-> their containRoot not updated
                 other = getOtherNode(e,node);
-                if(e.containRoot) # only considered changed those that were true and not hybrid
+                if e.containRoot # only considered changed those that were true and not hybrid
                     DEBUGC && println("traverseContainRoot changing edge $(e.number) to false, at this moment, rightDir is $(rightDir[1])")
                     e.containRoot = false;
                     push!(edges_changed, e);
@@ -175,24 +168,23 @@ function traverseContainRoot!(node::Node, edge::Edge, edges_changed::Array{Edge,
 end
 
 
-# function to update containRoot (by default true)
-# depending on the network
-# input: hybrid node (can come from searchHybridNode)
+# node: must be hybrid node (can come from searchHybridNode)
 # return flag, array of edges changed
 #        flag: false if the set of edges to place the root is empty
+@doc (@doc traverseContainRoot!) updateContainRoot!
 function updateContainRoot!(net::HybridNetwork, node::Node)
     node.hybrid || error("node $(node.number )is not hybrid, cannot update containRoot")
     net.edges_changed = Edge[];
     rightDir = [true] #assume good direction, only changed if found hybrid node through tree edge
     for e in node.edge
-        if(!e.hybrid)
+        if !e.hybrid
             other = getOtherNode(e,node);
             e.containRoot = false;
             push!(net.edges_changed,e);
             traverseContainRoot!(other,e, net.edges_changed,rightDir);
         end
     end
-    if(!rightDir[1] || all((e->!e.containRoot), net.edge))
+    if !rightDir[1] || all((e->!e.containRoot), net.edge)
         return false,net.edges_changed
     else
         return true,net.edges_changed
@@ -276,12 +268,13 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
             isLeaf1 = getOtherNode(tree_edge1,other_min);
             isLeaf2 = getOtherNode(tree_edge2,node);
             isLeaf3 = getOtherNode(tree_edge3,other_maj);
-            if(isLeaf1.leaf || isLeaf2.leaf || isLeaf3.leaf)
-                if(sum([l.leaf?1:0 for l in [isLeaf1,isLeaf2,isLeaf3]]) >= 2)
+            if isLeaf1.leaf || isLeaf2.leaf || isLeaf3.leaf
+                nl = count([l.leaf for l in [isLeaf1,isLeaf2,isLeaf3]])
+                if nl >= 2
                     DEBUG && warn("extremely bad triangle found")
                     node.isExtBadTriangle = true;
                     net.hasVeryBadTriangle = true
-                elseif(sum([l.leaf?1:0 for l in [isLeaf1,isLeaf2,isLeaf3]]) == 1)
+                elseif nl == 1
                     DEBUG && warn("bad triangle I or II found")
                     node.isVeryBadTriangle = true;
                     net.hasVeryBadTriangle = true

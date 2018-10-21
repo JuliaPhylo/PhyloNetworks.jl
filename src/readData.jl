@@ -1,11 +1,3 @@
-# functions to read data
-# originally in functions.jl
-# Claudia March 2015
-# based on Julia 0.4
-# Claudia October 2015
-
-# ----- read data --------
-
 # function to write a csv table from the expCF of an
 # array of quartets
 # warning: does not check if the expCF have been calculated
@@ -37,8 +29,6 @@ end
 
 writeObsCF(d::DataCF) = writeObsCF(d.quartet)
 
-# function that takes a dataframe and creates a DataCF object
-# has ! because it can modify the dataframe inside
 """
     readTableCF(file)
     readTableCF(data frame)
@@ -52,6 +42,8 @@ Columns containing the CFs are assumed to be named
 If present, a column named 'ngenes' will be used to get the number of loci
 used to estimate the CFs for each 4-taxon set.
 
+Output: [`DataCF`](@ref) object
+
 Optional arguments:
 
 - summaryfile: if specified, a summary file will be created with that name.
@@ -59,9 +51,8 @@ Optional arguments:
   with single quotes: delim=';'. Default is a `csv` file, i.e. `delim=','`.
 
 The last version modifies the input data frame, if species are represented by multiple alleles
-for instance (see `readTableCF!`).
+for instance (see [`readTableCF!`](@ref)(data frame, columns)).
 """
-# warning: file AbstractString bc it can be read as UTF8String
 function readTableCF(file::AbstractString; delim=','::Char, summaryfile=""::AbstractString)
     df = CSV.read(file, delim=delim)
     readTableCF!(df, summaryfile=summaryfile)
@@ -159,11 +150,14 @@ If multiple rows correspond to the same 4-taxon set, these rows are merged and t
 Modify the `.quartet.obsCF` values in the `DataCF` object with those read from the data frame
 in columns numbered `columns`.
 `columns` should have **3** columns numbers for the 3 CFs in this order: 12_34, 13_24 and 14_23.
-Assume the same 4-taxon sets in `DataCF` and in the data frame, and in the same order,
-but this assumption is *not checked* (for speed, e.g. during bootstrapping).
+
+Assumptions:
+- same 4-taxon sets in `DataCF` and in the data frame, and in the same order,
+  but this assumption is *not checked* (for speed, e.g. during bootstrapping).
+- one single row per 4-taxon set (multiple individuals representatives
+  of the same 4-taxon set should have been already merged);
+  basically: the DataCF should have been created from the data frame by `readTableCF!(df, colums)`
 """
-# WARNING: assumes df has a single row per 4-taxon sets (multiple ind already merged)
-#                  dcf created earlier from df.
 function readTableCF!(datcf::DataCF, df::DataFrame, cols::Vector{Int})
     for i in 1:size(df,1)
         for j in 1:3
@@ -175,12 +169,8 @@ end
 
 # ---------------- read input gene trees and calculate obsCF ----------------------
 
-# function to read a file and create one object per line read
-# (each line starting with "(" will be considered a topology)
-# the file can have extra lines that are ignored
-# returns an array of HybridNetwork objects (that can be trees)
 """
-`readInputTrees(file)`
+    readInputTrees(file)
 
 Read a text file with a list of trees/networks in parenthetical format
 (one tree per line) and transform them like [`readTopologyLevel1`](@ref)
@@ -189,6 +179,9 @@ set to 1.0, etc. See [`readMultiTopology`](@ref) to read multiple
 trees or networks with no modification.
 
 Output: array of HybridNetwork objects.
+
+Each line starting with "(" will be considered as describing one topology.
+The file can have extra lines that are ignored.
 """
 function readInputTrees(file::AbstractString)
     try
@@ -414,20 +407,21 @@ tipLabels(d::DataCF) = unionTaxa(d.quartet)
 """
     calculateObsCFAll!(DataCF, taxa::Union{Vector{String}, Vector{Int}})
 
-update the .quartet[i].obsCF values of the DataCF object, based on its .tree vector.
+Calculate observed concordance factors:
+update the `.quartet[i].obsCF` values of the `DataCF` object based on its .tree vector.
 
     calculateObsCFAll!(vector of quartets, vector of trees, taxa)
 
-update the .obsCF values of the quartets, based on the trees, and returns a new DataCF object
+Calculate observed concordance factors:
+update the `.obsCF` values of the quartets, based on the trees, and returns a new `DataCF` object
 with these updated quartets and trees.
 
     calculateObsCFAll_noDataCF!(vector of quartets, vector of trees, taxa)
 
-update the .obsCF values of the quartets based on the trees, but returns nothing.
+update the `.obsCF` values of the quartets based on the trees, but returns nothing.
+
+Warning: all these functions need input trees (h=0).
 """
-# function to calculate the obsCF from a file with a set of gene trees
-# returns a DataCF object (*no* longer writes a csv table with the obsCF)
-# warning: it needs trees (not networks) as input
 function calculateObsCFAll!(dat::DataCF, taxa::Union{Vector{String}, Vector{Int}})
     calculateObsCFAll_noDataCF!(dat.quartet, dat.tree, taxa)
 end
@@ -1003,8 +997,6 @@ function createQuartet(taxa::Union{Vector{String},Vector{Int}},qvec::Vector{Int}
     return Quartet(num,names,[1.0,0.0,0.0])
 end
 
-
-
 ## internal function to read a treefile in nexus format
 function readNexusTrees(file::AbstractString)
     try
@@ -1013,26 +1005,25 @@ function readNexusTrees(file::AbstractString)
         error("Could not find or open $(file) file");
     end
     vnet = HybridNetwork[]
-    s = open(file)
-    numl = 1
-    for line in eachline(s)
-        line = strip(line) # remove spaces
-        DEBUG && println("$(line)")
-        c = isempty(line) ? "" : line[1:4]
-        if(c == "Tree")
-            init = search(line,'(')
-            endit = search(line,';')
-            line = line[init:endit]
-           try
-               push!(vnet, readTopologyUpdate(line,false))
-               ##@show line
-           catch(err)
-               error("could not read tree in line $(numl). The error is $(err)")
-           end
+    open(file) do s
+        numl = 1
+        for line in eachline(s)
+            line = strip(line) # remove spaces
+            DEBUG && println("$(line)")
+            m = match(r"^\s*Tree\s+[^(]+(\([^;]*;)", $line)
+            # regex: spaces,"Tree",spaces,any_symbols_other_than_(, then we capture:
+            # ( any_symbols_other_than_; ;
+            if m != nothing
+                phy = m.captures[1]
+                try
+                    push!(vnet, readTopologyUpdate(phy,false))
+                catch err
+                    error("could not read tree in line $(numl). The error is $(err)")
+                end
+            end
+            numl += 1
         end
-        numl += 1
     end
-    close(s)
     return vnet # consistent output type: HybridNetwork vector. might be of length 0.
 end
 

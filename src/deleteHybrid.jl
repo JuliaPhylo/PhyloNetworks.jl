@@ -10,7 +10,6 @@
 # only returning array of edges/nodes affected by the hybrid
 # used when attempting to delete
 # input: hybrid node around which we want to identify inCycle
-# needs module "Base.Collections"
 # returns tuple: nocycle, array of edges changed, array of nodes changed
 # check: is this traversal much faster than a simple loop over
 #        all edges/nodes and check if incycle==hybrid.number?
