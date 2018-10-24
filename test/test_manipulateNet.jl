@@ -1,7 +1,7 @@
 # changed node numbering on 5/28 when readSubTree will start internal
 # node numbers at -2 to avoid error in undirectedOtherNetworks
 
-if !isdefined(:doalltests) doalltests = false; end
+if !(@isdefined doalltests) doalltests = false; end
 
 @testset "test: auxiliary" begin
 net = readTopology("((((B:102.3456789)#H1)#H2,((D:0.00123456789,C,#H2:::0.123456789)S1,(#H1,A_coolname)S2)S3)S4);")

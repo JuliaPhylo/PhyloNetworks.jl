@@ -383,7 +383,7 @@ function bootsnaq(startnet::HybridNetwork, data::Union{DataFrame,Vector{Vector{H
     end
 
     # for multiple alleles: expand into two leaves quartets like sp1 sp1 sp2 sp3.
-    if isdefined(:originald) && !isempty(originald.repSpecies) ## not defined if treefile empty, but not needed
+    if (@isdefined originald) && !isempty(originald.repSpecies) ## not defined if treefile empty, but not needed
         expandLeaves!(originald.repSpecies,startnet)
     end
 

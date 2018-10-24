@@ -3,13 +3,6 @@
 # seed 4545
 # Claudia August 2015
 
-if !isdefined(:individualtest) individualtest = false; end
-
-if(individualtest)
-    include("../src/types.jl")
-    include("../src/functions.jl")
-end
-
 # to debug problem
 tree="(3,(2,(((6,(5)#H9:0.91507):0.93066,(4,#H9:0.0):0.73688):0.0)#H7:1.79104::0.99498):0.11675,(1,#H7:0.04487::0.00502):0.4897);"
 net0=readTopologyLevel1(tree);

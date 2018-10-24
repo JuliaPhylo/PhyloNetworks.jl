@@ -10,14 +10,11 @@ using StatsBase # for aic etc., stderr
 using CSV # for reading files
 using Missings
 
-if !isdefined(:localtests) localtests = false; end
+using PhyloNetworks
+using DataFrames
+using GLM # for trait evolution
 
-
-if(!localtests)
-    using PhyloNetworks
-    using DataFrames
-    using GLM # for trait evolution
-    PhyloNetworks.setCHECKNET(true)
+PhyloNetworks.setCHECKNET(true)
 
     ## readTopology
     getIndexEdge = PhyloNetworks.getIndexEdge
@@ -68,11 +65,6 @@ if(!localtests)
     ## perfect data
     writeExpCF = PhyloNetworks.writeExpCF
     optBL! = PhyloNetworks.optBL!
-else
-    const CHECKNET = true #for debugging only
-    include("../src/types.jl")
-    include("../src/functions.jl")
-end
 
 tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculateExpCF2.jl", "test_hasEdge.jl", "test_parameters.jl","test_correctLik.jl",
          "test_partition.jl", "test_partition2.jl","test_deleteHybridizationUpdate.jl", "test_add2hyb.jl", "test_optBLparts.jl", "test_undirectedOtherNetworks.jl",
@@ -89,11 +81,7 @@ tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculat
          "test_ticr.jl",
          "test_readInputData.jl"]
 
-if isdefined(:PhyloNetworks)
-    @show PhyloNetworks.CHECKNET
-else
-    @show CHECKNET
-end
+@show PhyloNetworks.CHECKNET
 
 anyerrors = false
 

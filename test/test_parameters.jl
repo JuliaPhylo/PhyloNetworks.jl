@@ -3,7 +3,7 @@
 
 
 # types in "types.jl"
-if !isdefined(:individualtest) individualtest = false; end
+if !(@isdefined individualtest) individualtest = false; end
 
 if(individualtest)
     include("../src/types.jl")

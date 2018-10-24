@@ -2,7 +2,7 @@
 #      used to compare networks with the hardwired cluster distance.
 # Cecile March 2016
 
-if !isdefined(:doalltests) doalltests = false; end
+if !(@isdefined doalltests) doalltests = false; end
 @testset "test sets: compareNetworks" begin
 #----------------------------------------------------------#
 #   testing functions to delete edges and nodes            #

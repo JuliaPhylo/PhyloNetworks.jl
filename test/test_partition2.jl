@@ -1,19 +1,7 @@
 # functions to try to debug cui3.out
 # converted to test function
 
-if !isdefined(:individualtest) individualtest = false; end
-
-if(individualtest)
-    include("../src/types.jl")
-    include("../src/functions.jl")
-    const DEBUG = true
-end
-
-if isdefined(:PhyloNetworks)
-    PhyloNetworks.CHECKNET || error("need CHECKNET==true in PhyloNetworks to test snaq in test_correctLik.jl")
-else
-    CHECKNET || error("need CHECKNET==true to test snaq in test_correctLik.jl")
-end
+PhyloNetworks.CHECKNET || error("need CHECKNET==true in PhyloNetworks to test snaq in test_correctLik.jl")
 
 @testset "test: level-1 partitions" begin
 

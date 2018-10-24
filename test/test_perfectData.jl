@@ -2,18 +2,7 @@
 ## with a network of 15 taxa, 3 hyb
 ## Claudia September 2016
 
-if !isdefined(:individualtest) individualtest = false; end
-
-if(individualtest)
-    include("../src/types.jl")
-    include("../src/functions.jl")
-end
-
-if isdefined(:PhyloNetworks)
-    PhyloNetworks.CHECKNET || error("need CHECKNET==true in PhyloNetworks to test snaq in test_correctLik.jl")
-else
-    CHECKNET || error("need CHECKNET==true to test snaq in test_correctLik.jl")
-end
+PhyloNetworks.CHECKNET || error("need CHECKNET==true in PhyloNetworks to test snaq in test_correctLik.jl")
 
 qvec = Quartet[];
 push!(qvec,Quartet(1,["10","12","7","9"],[0.5,0.4,0.1]));

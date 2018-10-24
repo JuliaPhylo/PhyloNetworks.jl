@@ -18,7 +18,7 @@ module PhyloNetworks
     using StatsModels # re-exported by GLM. for ModelFrame ModelMatrix Formula etc
 
     import Base: show
-    import GLM.ftest
+    import GLM: ftest
 
     global DEBUG = false #for debugging only
     const DEBUGC = false #more detailed prints

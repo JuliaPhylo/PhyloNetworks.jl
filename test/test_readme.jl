@@ -4,18 +4,7 @@
 ##using PhyloNetworks
 using DataFrames
 
-if !isdefined(:individualtest) individualtest = false; end
-
-if(individualtest)
-    include("../src/types.jl")
-    include("../src/functions.jl")
-end
-
-if isdefined(:PhyloNetworks)
-    PhyloNetworks.CHECKNET || error("need CHECKNET==true in PhyloNetworks to test snaq in test_correctLik.jl")
-else
-    CHECKNET || error("need CHECKNET==true to test snaq in test_correctLik.jl")
-end
+PhyloNetworks.CHECKNET || error("need CHECKNET==true in PhyloNetworks to test snaq in test_correctLik.jl")
 
 try
     d=readTrees2CF("../examples/treefile.txt", CFfile = "none", writeTab=false, writeSummary=false)

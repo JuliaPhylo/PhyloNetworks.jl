@@ -1,13 +1,6 @@
 # test to see if update partition works
 # Claudia May 2015
 
-if !isdefined(:individualtest) individualtest = false; end
-
-if(individualtest)
-    include("../src/types.jl")
-    include("../src/functions.jl")
-end
-
 tree = "(((((((1,2),3),4),5),(6,7)),(8,9)),10);"
 
 #seed = 2738

@@ -4,18 +4,7 @@
 
 # -------------------5taxon tree------------------
 
-if !isdefined(:individualtest) individualtest = false; end
-
-if(individualtest)
-    include("../src/types.jl")
-    include("../src/functions.jl")
-end
-
-if isdefined(:PhyloNetworks)
-    PhyloNetworks.CHECKNET || error("need CHECKNET==true in PhyloNetworks to test snaq in test_correctLik.jl")
-else
-    CHECKNET || error("need CHECKNET==true to test snaq in test_correctLik.jl")
-end
+PhyloNetworks.CHECKNET || error("need CHECKNET==true in PhyloNetworks to test snaq in test_correctLik.jl")
 
 #df = readtable("Tree_output.txt")
 df=DataFrame(t1=["6","6","10","6","6"],
