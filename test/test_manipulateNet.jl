@@ -125,12 +125,12 @@ end
 net = readTopology("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
 net.root=15; # node number -5 (clau: previously -4)
 @test_throws PhyloNetworks.RootMismatch directEdges!(net);
-# ismatch(r"non-leaf node 9 had 0 children",e.msg))
+# occursin(r"non-leaf node 9 had 0 children",e.msg))
 @test_nowarn rootatnode!(net, -13); # or: rootatnode complained...
 @test_throws PhyloNetworks.RootMismatch rootatnode!(net, -5); # verbose = true this time
-# ismatch(r"non-leaf node 9 had 0 children", e.msg))
+# occursin(r"non-leaf node 9 had 0 children", e.msg))
 @test_throws PhyloNetworks.RootMismatch rootatnode!(net,"#H2"; verbose=false); #try rethrow();
-# ismatch(r"hybrid edge 17 conflicts", e.msg))
+# occursin(r"hybrid edge 17 conflicts", e.msg))
 # @test_warn """node 12 is a leaf. Will create a new node if needed, to set taxon "10" as outgroup."""
 @test_nowarn rootatnode!(net,"10");
 

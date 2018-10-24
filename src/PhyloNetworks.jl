@@ -4,7 +4,7 @@ module PhyloNetworks
 
     using BioSequences
     using BioSymbols
-    using Combinatorics.combinations
+    using Combinatorics: combinations
     using CSV
     using DataFrames
     using DataStructures # for updateInCycle with priority queue

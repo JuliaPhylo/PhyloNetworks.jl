@@ -85,17 +85,19 @@ except for edges in
 
 will break if `inCycle` attributes are not initialized (at -1) or giving a correct node number.
 
-fixit, earlier comment: "'good' triangle in the paper = bad triangle in hyb node attribute: Not extremely or very bad"
+see [`Node`](@ref) for the meaning of boolean attributes
+`isBadTriangle` (which corresponds to a "good" triangle above),
+`isBadDiamondI` and `isBadDiamondII`.
 """
 function setNonIdBL!(net::HybridNetwork)
     for e in net.edge
-        if(!e.istIdentifiable)
+        if !e.istIdentifiable
             keeplength = any(n -> (n.isBadDiamondII || n.isBadTriangle), e.node)
             # if below 'bad' hybrid node, length=0 by constraint. If above, length estimated.
             # next: keep length if edge across from hybrid node in bad diamond I.
-            if (!keeplength && e.inCycle != -1)
+            if  !keeplength && e.inCycle != -1
                 hyb = net.node[getIndexNode(e.inCycle, net)]
-                if (hyb.isBadDiamondI)
+                if hyb.isBadDiamondI
                     keeplength |= !any(n -> (n==hyb), e.node) # only if e across hyb: no touching it
                 end
             end

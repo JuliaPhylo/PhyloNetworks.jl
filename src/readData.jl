@@ -348,7 +348,7 @@ networks that users give as input, or get as output.
 function taxadiff(quartets::Vector{Quartet}, t::HybridNetwork;
                   multiplealleles=true::Bool)
     tq = tipLabels(quartets)
-    secondallele = ismatch.(r"__2$", tq)
+    secondallele = occursin.(Ref(r"__2$"), tq)
     for i in length(secondallele):-1:1
         secondallele[i] || continue
         basetax = match(r"(.*)__2$", tq[i]).captures[1]
@@ -999,18 +999,13 @@ end
 
 ## internal function to read a treefile in nexus format
 function readNexusTrees(file::AbstractString)
-    try
-        s = open(file)
-    catch
-        error("Could not find or open $(file) file");
-    end
     vnet = HybridNetwork[]
     open(file) do s
         numl = 1
         for line in eachline(s)
             line = strip(line) # remove spaces
             DEBUG && println("$(line)")
-            m = match(r"^\s*Tree\s+[^(]+(\([^;]*;)", $line)
+            m = match(r"^\s*Tree\s+[^(]+(\([^;]*;)", line)
             # regex: spaces,"Tree",spaces,any_symbols_other_than_(, then we capture:
             # ( any_symbols_other_than_; ;
             if m != nothing
