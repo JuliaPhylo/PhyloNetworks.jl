@@ -84,7 +84,6 @@ end
 # by deleting rows that are not informative like sp1 sp1 sp1 sp2
 # keepOne=true: we only keep one allele per species
 function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int};keepOne=false::Bool)
-    global DEBUG
     withngenes = (length(cols)==8)
     delrows = Int[] # indices of rows to delete
     repSpecies = String[]
@@ -96,12 +95,12 @@ function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int};keepOne=false::Bool)
     end
     row = Vector{String}(4)
     for i in 1:size(newdf,1) #check all rows
-        DEBUG && println("row number: $i")
+        @debug "row number: $i"
         # fixit: check for no missing value, or error below
         map!(j -> newdf[i,cols[j]], row, 1:4)
-        DEBUG && println("row $(row)")
+        @debug "row $(row)"
         uniq = unique(row)
-        DEBUG && println("unique $(uniq)")
+        @debug "unique $(uniq)"
 
         keep = false # default: used if 1 unique name, or 2 in some cases
         if(length(uniq) == 4)
@@ -111,16 +110,16 @@ function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int};keepOne=false::Bool)
                 if(length(uniq) == 3) #sp1 sp1 sp2 sp3
                     keep = true
                     for u in uniq
-                        DEBUG && println("u $(u), typeof $(typeof(u))")
+                        @debug "u $(u), typeof $(typeof(u))"
                         ind = row .== u #taxon names matching u
-                        DEBUG && println("taxon names matching u $(ind)")
+                        @debug "taxon names matching u $(ind)"
                         if(sum(ind) == 2)
                             push!(repSpecies,string(u))
                             found = false
                             for k in 1:4
                                 if(ind[k])
                                     if(found)
-                                        DEBUG && println("found the second one in k $(k), will change newdf[i,cols[k]] $(newdf[i,cols[k]]), typeof $(typeof(newdf[i,cols[k]]))")
+                                        @debug "found the second one in k $(k), will change newdf[i,cols[k]] $(newdf[i,cols[k]]), typeof $(typeof(newdf[i,cols[k]]))"
                                         newdf[i,cols[k]] = string(u, repeatAlleleSuffix)
                                         break
                                     else
@@ -134,13 +133,13 @@ function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int};keepOne=false::Bool)
                 elseif(length(uniq) == 2)
                     # keep was initialized to false
                     for u in uniq
-                        DEBUG && println("length uniq is 2, u $(u)")
+                        @debug "length uniq is 2, u $(u)"
                         ind = row .== u
                         if(sum(ind) == 1 || sum(ind) == 3)
-                            DEBUG && println("ind $(ind) is 1 or 3, should not keep")
+                            @debug "ind $(ind) is 1 or 3, should not keep"
                             break
                         elseif(sum(ind) == 2)
-                            DEBUG && println("ind $(ind) is 2, should keep")
+                            @debug "ind $(ind) is 2, should keep"
                             keep = true
                             found = false
                             push!(repSpecies,string(u))
@@ -157,21 +156,21 @@ function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int};keepOne=false::Bool)
                         end
                     end
                 end
-                DEBUG && println("after if, keep is $(keep)")
+                @debug "after if, keep is $(keep)"
             end
         end
         keep || push!(delrows, i)
-        DEBUG && (@show keep)
+        @debug "" keep
     end
-    DEBUG && (@show delrows)
-    DEBUG && (@show repSpecies)
+    @debug "" delrows
+    @debug "" repSpecies
     nrows = size(newdf,1)
     nkeep = nrows - length(delrows)
     if nkeep < nrows
         print("""found $(length(delrows)) 4-taxon sets uninformative about between-species relationships, out of $(nrows).
               These 4-taxon sets will be deleted from the data frame. $nkeep informative 4-taxon sets will be used.
               """)
-        nkeep > 0 || warn("All 4-taxon subsets are uninformative, so the dataframe will be left empty")
+        nkeep > 0 || @warn "All 4-taxon subsets are uninformative, so the dataframe will be left empty"
         deleterows!(newdf, delrows)
     end
     # @show size(newdf)
@@ -245,17 +244,18 @@ function compareTaxaNames(alleleDF::DataFrame, cfDF::DataFrame, co::Vector{Int})
     sizeCF = length(CFtaxa)
     sizeAllele = length(alleleTaxa)
     if sizeAllele > sizeCF
-        warn("some alleles in the mapping file do not occur in the quartet CF data. Extra allele names will be ignored")
+        @warn "some alleles in the mapping file do not occur in the quartet CF data. Extra allele names will be ignored"
         alleleTaxa = intersect(alleleTaxa,CFtaxa)
     end
     unchanged = setdiff(CFtaxa,alleleTaxa)
     if length(unchanged) == length(CFtaxa)
-        warn("None of the taxon names in CF table match with allele names in the mapping file")
+        @warn "None of the taxon names in CF table match with allele names in the mapping file"
     end
     if !isempty(unchanged)
-        warn("not all alleles were mapped")
-        print("alleles not mapped to a species name:")
-        for n in unchanged print(" $n"); end; println()
+        warnmsg = "not all alleles were mapped\n"
+        warnmsg *= "alleles not mapped to a species name:"
+        for n in unchanged warnmsg *= " $n"; end
+        @warn warnmsg
     end
     return nothing
 end
@@ -263,7 +263,7 @@ end
 # function to check that the allele df has one column labelled alleles and one column labelled species
 function checkMapDF(alleleDF::DataFrame)
     size(alleleDF,2) <= 2 || error("Allele-Species matching Dataframe should have at least 2 columns")
-    size(alleleDF,2) >= 2 || warn("allele mapping file contains more than two columns: will ignore all columns not labelled allele or species")
+    size(alleleDF,2) >= 2 || @warn "allele mapping file contains more than two columns: will ignore all columns not labelled allele or species"
     try
         alleleDF[:allele]
     catch

@@ -6,8 +6,8 @@
 function setCHECKNET(b::Bool)
     global CHECKNET
     CHECKNET = b
-    CHECKNET && warn("PhyloNetworks.CHECKNET is true: will slow snaq! down.")
-    b || println("PhyloNetworks.CHECKNET set to false")
+    CHECKNET && @warn "PhyloNetworks.CHECKNET is true: will slow snaq! down."
+    b || @info "PhyloNetworks.CHECKNET set to false"
 end
 
 # ----- aux general functions ---------------
@@ -82,58 +82,43 @@ end
 #          the nodes are added to it. If the node added is leaf, the
 #          edge length is set unidentifiable (as it is external edge)
 function setNode!(edge::Edge, node::Node)
-    global DEBUG
     size(edge.node,1)  !=  2 || error("vector of nodes already has 2 values");
     push!(edge.node,node);
-    if(size(edge.node,1) == 1)
-        if(edge.hybrid)
-            if(node.hybrid)
-                edge.isChild1 = true;
-            else
-                edge.isChild1 = false;
-	    end
+    if size(edge.node,1) == 1
+        if edge.hybrid
+            edge.isChild1 = node.hybrid
         end
-        if(node.leaf)
-            edge.istIdentifiable = false;
-        else
-            edge.istIdentifiable = true
-        end
+        edge.istIdentifiable = !node.leaf
     else
-        if(node.leaf)
+        if node.leaf
             !edge.node[1].leaf || error("edge $(edge.number) has two leaves")
             edge.istIdentifiable = false;
         else
-            if(edge.hybrid)
-	        if(node.hybrid)
-                    if(DEBUG)
-                        !edge.node[1].hybrid || println("hybrid edge $(edge.number) has two hybrid nodes");
-                    end
-                    edge.isChild1 = false;
+          if edge.hybrid
+            if node.hybrid
+                @debug (edge.node[1].hybrid ? "hybrid edge $(edge.number) has two hybrid nodes" : "")
+                edge.isChild1 = false;
 	        else
 	            edge.node[1].hybrid || error("hybrid edge $(edge.number) has no hybrid nodes");
 	            edge.isChild1 = true;
 	        end
-            else #edge is tree
-                if(!edge.node[1].leaf)
-                    if(!node.hybrid && !edge.node[1].hybrid)
-                        if(edge.fromBadDiamondI)
-                            edge.istIdentifiable = false
-                        else
-                            edge.istIdentifiable = true
-                        end
-                    else
-                        if(node.hybrid && (node.isBadDiamondI || node.isBadDiamondII || node.isBadTriangle))
-                            edge.istIdentifiable = false
-                        elseif(edge.node[1].hybrid && (edge.node[1].isBadDiamondI ||edge.node[1].isBadDiamondII || edge.node[1].isBadTriangle))
-                            edge.istIdentifiable = false
-                        else
-                            edge.istIdentifiable = true
-                        end
-                    end
+          else #edge is tree
+            if !edge.node[1].leaf
+                if !node.hybrid && !edge.node[1].hybrid
+                    edge.istIdentifiable = !edge.fromBadDiamondI
                 else
-                    edge.istIdentifiable = false
+                    if node.hybrid && (node.isBadDiamondI || node.isBadDiamondII || node.isBadTriangle)
+                        edge.istIdentifiable = false
+                    elseif edge.node[1].hybrid && (edge.node[1].isBadDiamondI ||edge.node[1].isBadDiamondII || edge.node[1].isBadTriangle)
+                        edge.istIdentifiable = false
+                    else
+                        edge.istIdentifiable = true
+                    end
                 end
+            else
+                edge.istIdentifiable = false
             end
+          end
         end
     end
 end
@@ -353,7 +338,7 @@ end
 
 # find the index of a node in edge.node
 function getIndexNode(edge::Edge,node::Node)
-    size(edge.node,1) == 2 || warn("this edge $(edge.number) has more or less than 2 nodes: $([n.number for n in edge.node])")
+    size(edge.node,1) == 2 || @warn "this edge $(edge.number) has more or less than 2 nodes: $([n.number for n in edge.node])"
     if isequal(node,edge.node[1])
         return 1
     elseif isequal(node,edge.node[2])
@@ -609,7 +594,7 @@ function deleteIntNode!(net::Network, n::Node)
         deleteNode!(net,n);
         deleteEdge!(net,edge2);
     else
-        warn("the two edges $([edge1.number,edge2.number]) attached to node $(n.number) must be tree edges to delete node")
+        @warn "the two edges $([edge1.number,edge2.number]) attached to node $(n.number) must be tree edges to delete node"
         if(edge1.hybrid)
             hybedge = edge1
             otheredge = edge2
@@ -756,7 +741,7 @@ function hybridEdges(node::Node)
         end
         return hybrid, treecycle, tree
     else
-        #warn("node $(node.number) is not hybrid $(node.hybrid) nor tree with hybrid edges (hasHybEdge) $(node.hasHybEdge), return the node.edge in order, unless a leaf is attached, then the edge attached to leaf is last");
+        #@warn "node $(node.number) is not hybrid $(node.hybrid) nor tree with hybrid edges (hasHybEdge) $(node.hasHybEdge), return the node.edge in order, unless a leaf is attached, then the edge attached to leaf is last";
         edge1 = nothing
         edge2 = nothing
         edge3 = nothing
@@ -861,7 +846,7 @@ function setLength!(edge::Edge, new_length::Number, negative::Bool)
     edge.length = new_length;
     edge.y = exp(-new_length);
     edge.z = 1.0 - edge.y;
-    #edge.istIdentifiable || warn("set edge length for edge $(edge.number) that is not identifiable")
+    #edge.istIdentifiable || @warn "set edge length for edge $(edge.number) that is not identifiable"
     return nothing
 end
 
@@ -913,16 +898,13 @@ setGamma!(edge::Edge, new_gamma::Float64) = setGamma!(edge, new_gamma, true)
 # changeOther = true, looks for the other hybrid edge and changes gamma too
 
 function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool)
-    global DEBUG
     new_gamma >= 0.0 || error("gamma has to be positive: $(new_gamma)")
     new_gamma <= 1.0 || error("gamma has to be less than 1: $(new_gamma)")
     edge.hybrid || error("cannot change gamma in a tree edge");
     edge.isChild1 ? ind = 1 : ind = 2 ; # hybrid edge pointing at node 1 or 2
     node = edge.node[ind] # child of hybrid edge
-    node.hybrid || warn("hybrid edge $(edge.number) not pointing at hybrid node")
-    if(DEBUG)
-        !node.isBadDiamondI || warn("bad diamond situation: gamma not identifiable")
-    end
+    node.hybrid || @warn "hybrid edge $(edge.number) not pointing at hybrid node"
+    @debug (node.isBadDiamondI ? "bad diamond situation: gamma not identifiable" : "")
     partner = Edge[] # list of other hybrid parents of node, other than edge
     for e in node.edge
         if e.hybrid && e != edge && node == getChild(e)
@@ -1004,22 +986,21 @@ end
 # to use splice and delete it from net.partition later on
 # cycle: is the number to look for partition on that cycle only
 function whichPartition(net::HybridNetwork,edge::Edge,cycle::Integer)
-    global DEBUG
     !edge.hybrid || error("edge $(edge.number) is hybrid so it cannot be in any partition")
     edge.inCycle == -1 || error("edge $(edge.number) is in cycle $(edge.inCycle) so it cannot be in any partition")
-    DEBUG && println("search partition for edge $(edge.number) in cycle $(cycle)")
+    @debug "search partition for edge $(edge.number) in cycle $(cycle)"
     in(edge,net.edge) || error("edge $(edge.number) is not in net.edge")
     for i in 1:length(net.partition)
-        DEBUG && println("looking for edge $(edge.number) in partition $(i): $([e.number for e in net.partition[i].edges])")
+        @debug "looking for edge $(edge.number) in partition $(i): $([e.number for e in net.partition[i].edges])"
         if(in(cycle,net.partition[i].cycle))
-            DEBUG && println("looking for edge $(edge.number) in partition $(i), with cycle $(cycle): $([e.number for e in net.partition[i].edges])")
-            if(in(edge,net.partition[i].edges))
-                DEBUG && println("partition for edge $(edge.number) is $([e.number for e in net.partition[i].edges])")
+            @debug "looking for edge $(edge.number) in partition $(i), with cycle $(cycle): $([e.number for e in net.partition[i].edges])"
+            if in(edge,net.partition[i].edges)
+                @debug "partition for edge $(edge.number) is $([e.number for e in net.partition[i].edges])"
                 return i
             end
         end
     end
-    DEBUG && printPartitions(net)
+    @debug begin; printPartitions(net); "" end
     error("edge $(edge.number) is not hybrid, nor part of any cycle, and it is not in any partition")
 end
 
@@ -1028,19 +1009,18 @@ end
 # better to return the index than the partition itself, because we need the index
 # to use splice and delete it from net.partition later on
 function whichPartition(net::HybridNetwork,edge::Edge)
-    global DEBUG
     !edge.hybrid || error("edge $(edge.number) is hybrid so it cannot be in any partition")
     edge.inCycle == -1 || error("edge $(edge.number) is in cycle $(edge.inCycle) so it cannot be in any partition")
-    DEBUG && println("search partition for edge $(edge.number) without knowing its cycle")
+    @debug "search partition for edge $(edge.number) without knowing its cycle"
     in(edge,net.edge) || error("edge $(edge.number) is not in net.edge")
     for i in 1:length(net.partition)
-        DEBUG && println("looking for edge $(edge.number) in partition $(i): $([e.number for e in net.partition[i].edges])")
+        @debug "looking for edge $(edge.number) in partition $(i): $([e.number for e in net.partition[i].edges])"
         if(in(edge,net.partition[i].edges))
-            DEBUG && println("partition for edge $(edge.number) is $([e.number for e in net.partition[i].edges])")
+            @debug "partition for edge $(edge.number) is $([e.number for e in net.partition[i].edges])"
             return i
         end
     end
-    DEBUG && printPartitions(net)
+    @debug begin printPartitions(net); "printed partitions" end
     error("edge $(edge.number) is not hybrid, nor part of any cycle, and it is not in any partition")
 end
 
@@ -1072,8 +1052,7 @@ end
 # returns true if found egde with BL -1.0 (only when light=true, ow error)
 # added checkPartition for undirectedOtherNetworks that do not need correct hybrid node number
 function checkNet(net::HybridNetwork, light::Bool; checkPartition=true::Bool)
-    global DEBUG
-    DEBUG && println("checking net")
+    @debug "checking net"
     net.numHybrids == length(net.hybrid) || error("discrepant number on net.numHybrids (net.numHybrids) and net.hybrid length $(length(net.hybrid))")
     net.numTaxa == length(net.leaf) || error("discrepant number on net.numTaxa (net.numTaxa) and net.leaf length $(length(net.leaf))")
     net.numNodes == length(net.node) || error("discrepant number on net.numNodes (net.numNodes) and net.node length $(length(net.node))")
@@ -1088,7 +1067,7 @@ function checkNet(net::HybridNetwork, light::Bool; checkPartition=true::Bool)
     end
     for h in net.hybrid
         if(isBadTriangle(h))
-            DEBUG && println("hybrid $(h.number) is very bad triangle")
+            @debug "hybrid $(h.number) is very bad triangle"
             net.hasVeryBadTriangle || error("hybrid node $(h.number) is very bad triangle, but net.hasVeryBadTriangle is $(net.hasVeryBadTriangle)")
             h.isVeryBadTriangle || h.isExtBadTriangle || error("hybrid node $(h.number) is very bad triangle but it does not know it")
         end
@@ -1131,8 +1110,8 @@ function checkNet(net::HybridNetwork, light::Bool; checkPartition=true::Bool)
             i == 1 || error("strange node $(n.number) incycle $(h.number) but with $(i) edges not in cycle, should be only one")
             edgesRoot = identifyContainRoot(net,h)
             for edge in edgesRoot
-                if(edge.containRoot)
-                    DEBUG && printEverything(net)
+                if edge.containRoot
+                    @debug begin printEverything(net); "printed everything" end
                     error("edge $(edge.number) should not contain root")
                 end
             end
@@ -1144,7 +1123,7 @@ function checkNet(net::HybridNetwork, light::Bool; checkPartition=true::Bool)
         else
             if(light)
                 if(length(n.edge) != 3)
-                    DEBUG && warn("node $(n.number) with $(length(n.edge)) edges instead of 3")
+                    @debug "warning: node $(n.number) with $(length(n.edge)) edges instead of 3"
                     return true
                 end
             else
@@ -1161,14 +1140,14 @@ function checkNet(net::HybridNetwork, light::Bool; checkPartition=true::Bool)
             end
         end
     end
-    DEBUG && println("no errors in checking net")
+    @debug "no errors in checking net"
     return false
 end
 
 checkNet(net::HybridNetwork) = checkNet(net, false)
 
 # function to print everything for a given net
-# this is used a lot inside snaq when DEBUG is true, so need to use level1 attributes
+# this is used a lot inside snaq to debug, so need to use level1 attributes
 # and not change the network: with writeTopologyLevel1
 function printEverything(net::HybridNetwork)
     printEdges(net)
@@ -1249,7 +1228,7 @@ function assignhybridnames!(net::HybridNetwork)
         lab != "" || continue # do nothing if label is missing
         jh = findfirst([net.hybrid[j].name for j in 1:ih-1], lab)
         if jh > 0 # set repeated names to ""
-            warn("hybrid nodes $(net.hybrid[ih].number) and $(net.hybrid[jh].number) have the same label: $lab. Will change the name of the former.")
+            @warn "hybrid nodes $(net.hybrid[ih].number) and $(net.hybrid[jh].number) have the same label: $lab. Will change the name of the former."
             net.hybrid[ih].name = ""
         else
             m = match(r"^#H(\d+)$", lab)

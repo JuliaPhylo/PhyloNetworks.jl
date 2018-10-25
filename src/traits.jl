@@ -1992,7 +1992,7 @@ function predint(obj::ReconstructedStates; level=0.95::Real)
         qq = quantile(Normal(), (1. - level)/2.)
     else
         qq = quantile(GLM.TDist(dof_residual(obj.model)), (1. - level)/2.) # TDist from Distributions
-        # warn("As the variance is estimated, the predictions intervals are not exact, and should probably be larger.")
+        # @warn "As the variance is estimated, the predictions intervals are not exact, and should probably be larger."
     end
     tmpnode = hcat(obj.traits_nodes, obj.traits_nodes) + stderror(obj) * qq * [1. -1.]
     return vcat(tmpnode, hcat(obj.traits_tips, obj.traits_tips))

@@ -23,7 +23,6 @@ function undirectedOtherNetworks(net0::HybridNetwork; outgroup="none"::AbstractS
 # So far, undirectedOtherNetworks is called inside optTopRuns only
 # Potential bug: if new node is -1, then inCycle will become meaningless: changed in readSubTree here
 # WARNING: does not update partition, because only thing to change is hybrid node number
-global DEBUG
     if !insideSnaq
         net0 = readTopologyLevel1(writeTopologyLevel1(net0))
     end
@@ -33,7 +32,7 @@ global DEBUG
         ## undo attributes at current hybrid node:
         hybrid = net.hybrid[i]
         nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,hybrid);
-        DEBUG && println("nodesInCycle are: $([n.number for n in nodesInCycle])")
+        @debug "nodesInCycle are: $([n.number for n in nodesInCycle])"
         !nocycle || error("the hybrid node $(hybrid.number) does not create a cycle")
         edgesRoot = identifyContainRoot(net,hybrid);
         edges = hybridEdges(hybrid);
@@ -50,17 +49,17 @@ global DEBUG
                 newnocycle, newedgesInCycle, newnodesInCycle = identifyInCycle(newnet,newnet.hybrid[i]);
                 !newnocycle || error("the hybrid node $(newnet.hybrid[i].number) does not create a cycle")
                 ind = getIndexNode(newn.number,newnet) # find the newn node in the new network
-                DEBUG && println("moving hybrid to node $(newnet.node[ind].number)")
+                @debug "moving hybrid to node $(newnet.node[ind].number)"
                 hybridatnode!(newnet, newnet.hybrid[i], newnet.node[ind])
-                DEBUG && printEdges(newnet)
-                DEBUG && printNodes(newnet)
+                @debug begin printEdges(newnet); "printed edges" end
+                @debug begin printNodes(newnet); "printed nodes" end
                 undoInCycle!(newedgesInCycle, newnodesInCycle);
-                DEBUG && printEdges(newnet)
-                DEBUG && printNodes(newnet)
+                @debug begin printEdges(newnet); "printed edges" end
+                @debug begin printNodes(newnet); "printed nodes" end
                 ##undoPartition!(net,hybrid, edgesInCycle)
                 success, hybrid0, flag, nocycle, flag2, flag3 = updateAllNewHybrid!(newnet.node[ind], newnet, false,false,false)
                 if success
-                    DEBUG && println("successfully added new network: $(writeTopologyLevel1(newnet))")
+                    @debug "successfully added new network: $(writeTopologyLevel1(newnet))"
                     push!(otherNet,newnet)
                 else
                     println("the network obtained by putting the new hybrid in node $(newnet.node[ind].number) is not good, inCycle,gammaz,containRoot: $([flag,flag2,flag3]), we will skip it")
@@ -75,7 +74,7 @@ global DEBUG
         end
         return otherNet
     else ## root already in good place
-        DEBUG && println("we will remove networks contradicting the outgroup in undirectedOtherNetworks")
+        @debug "we will remove networks contradicting the outgroup in undirectedOtherNetworks"
         whichKeep = ones(Bool,length(otherNet)) # repeats 'true'
         i = 1
         for n in otherNet
@@ -83,8 +82,8 @@ global DEBUG
                 try
                     checkRootPlace!(n, verbose=true, outgroup=outgroup)
                 catch
-                    DEBUG && println("found one network incompatible with outgroup")
-                    DEBUG && println("$(writeTopologyLevel1(n))")
+                    @debug "found one network incompatible with outgroup"
+                    @debug "$(writeTopologyLevel1(n))"
                     whichKeep[i] = false
                 end
             end
@@ -701,7 +700,7 @@ function rotate!(net::HybridNetwork, nnum::Integer; orderedEdgeNum=Int[]::Array{
         end
     end
     if length(ci) < 2
-        warn("no edge to rotate: node $nnum has $(length(ci)) children edge.")
+        @warn "no edge to rotate: node $nnum has $(length(ci)) children edge."
     elseif length(ci)==2 || length(orderedEdgeNum)==0
         etmp          = n.edge[ci[1]]
         n.edge[ci[1]] = n.edge[ci[2]]
@@ -917,7 +916,7 @@ function resetEdgeNumbers!(net::HybridNetwork)
     if isempty(unused)
         return nothing # all good
     end
-    warn("resetting edge numbers to be from 1 to $ne")
+    @warn "resetting edge numbers to be from 1 to $ne"
     ind2change = find(x -> x ∉ 1:ne, enum)
     length(ind2change) == length(unused) || error("can't reset edge numbers")
     for i in 1:length(unused)

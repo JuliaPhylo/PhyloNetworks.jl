@@ -104,9 +104,8 @@ Warning: the modifying version does *not* check the data frame: assumes correct 
 optional argument: `delim=','` by default: how columns are delimited.
 """
 function sampleCFfromCI(df::DataFrame, seed=0::Integer)
-    global DEBUG
-    DEBUG && warn("order of columns should be: t1,t2,t3,t4,cf1234,cf1324,cf1423,cf1234LO,cf1234HI,...")
-    size(df,2) == 13 || size(df,2) == 14 || warn("sampleCFfromCI function assumes table from TICR: CF, CFlo, CFhi")
+    @debug "order of columns should be: t1,t2,t3,t4,cf1234,cf1324,cf1423,cf1234LO,cf1234HI,..."
+    size(df,2) == 13 || size(df,2) == 14 || @warn "sampleCFfromCI function assumes table from TICR: CF, CFlo, CFhi"
     obsCFcol = [findfirst(DataFrames.names(df), :CF12_34),
                 findfirst(DataFrames.names(df), :CF13_24),
                 findfirst(DataFrames.names(df), :CF14_23)]
@@ -165,7 +164,6 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
                         verbose::Bool, closeN::Bool, Nmov0::Vector{Int},
                         runs1::Integer, outgroup::AbstractString, filename::AbstractString, seed::Integer, probST::Float64,
                         nrep::Integer, runs2::Integer, bestNet::HybridNetwork, quartetfile::AbstractString)
-    global DEBUG
     println("BOOTSTRAP OF SNAQ ESTIMATION")
     writelog = true
     if filename != ""
@@ -239,7 +237,9 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
             str = "estimation, $runs1 run" * (runs1>1 ? "s" : "") * ": seed $(seeds[i])\n"
             writelog && write(logfile, str)
             print(str)
-            rootname = (DEBUG ? string(filename,"_",i) : "")
+            rootname = ""
+            @debug begin rootname = string(filename,"_",i);
+                         "rootname set to $rootname"; end
             net1 = optTopRuns!(currT0, liktolAbs, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs1, outgroup,
                                rootname,seeds[i],probST)
             if runs2==0
@@ -250,7 +250,9 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
             str = "estimation, $runs2 run" * (runs2>1 ? "s" : "") * " starting from other net: seed $(seedsOtherNet[i])\n"
             writelog && write(logfile, str)
             print(str)
-            rootname = (DEBUG ? string(filename,"_",i,"_startNet2") : "")
+            rootname = ""
+            @debug begin rootname = string(filename,"_",i,"_startNet2");
+                         "rootname set to $rootname"; end
             net2 = optTopRuns!(bestNet, liktolAbs, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs2, outgroup,
                                rootname,seedsOtherNet[i],probST)
             if runs1==0
@@ -690,7 +692,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
                 hw = hardwiredCluster(ce,taxa)
                 if atroot && any(hw & clade[ic]) # sister clade intersects child clade
                     (hw & clade[ic]) == clade[ic] ||
-                        warn("weird clusters at the root in reference, hybrid node $(hn.number)")
+                        @warn "weird clusters at the root in reference, hybrid node $(hn.number)"
                 else
                     hwc .|= hw
                 end
@@ -787,7 +789,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
                 atroot = (!rooted && pn ≡ net1.node[net1.root])
                 # if at root: exclude the child edge in the same cycle as he.
                 # its cluster includes hwcChi. all other child edges do not interest hwcChi.
-                # if (atroot) @show i; warn("$(sis)or edge is at the root!"); end
+                # if (atroot) @show i; @warn "$(sis)or edge is at the root!"; end
                 for ce in pn.edge
                   if ce ≢ he && pn ≡ getParent(ce)
                     hwc = hardwiredCluster(ce,taxa)
@@ -795,14 +797,14 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
                       if (sis=="maj") hwcSib .|= hwc;
                       else            hwcPar .|= hwc; end
                     elseif (hwc .& hwcChi) != hwcChi
-                        warn("weird clusters at the root. bootstrap net i=$i, hybrid $(net.hybrid[esth].name)")
+                        @warn "weird clusters at the root. bootstrap net i=$i, hybrid $(net.hybrid[esth].name)"
                     end
                   end
                 end # will use complement too: test network may be rooted differently
             end
             # @show taxa[hwcChi]; @show taxa[hwcPar]
             if all(hwcPar) || all(hwcSib) || all(.!hwcPar) || all(.!hwcSib)
-                warn("parent or sibling cluster is full or empty. bootstrap net i=$i, hybrid $(net.hybrid[esth].name)")
+                @warn "parent or sibling cluster is full or empty. bootstrap net i=$i, hybrid $(net.hybrid[esth].name)"
             end
 
             ihyb = findfirst(clade, hwcChi)

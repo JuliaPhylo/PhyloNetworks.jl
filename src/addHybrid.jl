@@ -25,7 +25,7 @@ function createHybrid!(edge1::Edge, edge2::Edge, edge3::Edge, edge4::Edge, net::
     # create hybridization
     max_node = maximum([e.number for e in net.node]);
     max_edge = maximum([e.number for e in net.edge]);
-    gamma < 0.5 || warn("adding a major hybrid edge with gamma $(gamma), this can cause problems when updating incycle")
+    gamma < 0.5 || @warn "adding a major hybrid edge with gamma $(gamma), this can cause problems when updating incycle"
     hybrid_edge = Edge(max_edge+1,0.0,true,gamma,gamma>=0.5);
     pushEdge!(net,hybrid_edge);
     hybrid_node = Node(max_node+1,false,true,[edge2,hybrid_edge,edge4]);
@@ -94,8 +94,6 @@ end
 # input: edges, list of edges from which to choose, default is net.edge
 # warning: if edges is not net.edge, it still need to contain Edge objects from net (not deepcopies)
 function chooseEdgesGamma(net::HybridNetwork, blacklist::Bool, edges::Vector{Edge})
-    global DEBUG
-    #println("net.edge length: $(length(net.edge))")
     index1 = 1;
     index2 = 1;
     inlimits = false
@@ -133,7 +131,7 @@ function chooseEdgesGamma(net::HybridNetwork, blacklist::Bool, edges::Vector{Edg
         end
     end
     gamma = rand()*0.5;
-    !DEBUG || println("choose edges and gamma: from $(edges[index1].number) to $(edges[index2].number), $(gamma)");
+    @debug "choose edges and gamma: from $(edges[index1].number) to $(edges[index2].number), $(gamma)"
     return edges[index1],edges[index2],gamma
 end
 
@@ -166,21 +164,20 @@ end
 # blacklist used in afterOptBLAll
 # usePartition=true if we use the information on net.partition, default true
 function addHybridization!(net::HybridNetwork, blacklist::Bool, usePartition::Bool)
-    global DEBUG
     if(net.numHybrids > 0 && usePartition)
         !isempty(net.partition) || error("net has $(net.numHybrids) but net.partition is empty")
         index = choosePartition(net)
         if(index == 0) #no place for new hybrid
-            DEBUG && println("no partition suitable to place new hybridization")
+            @debug "no partition suitable to place new hybridization"
             return nothing
         end
         partition = splice!(net.partition,index) #type partition
-        DEBUG && println("add hybrid with partition $([n.number for n in partition.edges])")
+        @debug "add hybrid with partition $([n.number for n in partition.edges])"
         edge1, edge2, gamma = chooseEdgesGamma(net, blacklist,partition.edges);
     else
         edge1, edge2, gamma = chooseEdgesGamma(net, blacklist);
     end
-    DEBUG && println("add hybridization between edge1, $(edge1.number) and edge2 $(edge2.number) with gamma $(gamma)")
+    @debug "add hybridization between edge1, $(edge1.number) and edge2 $(edge2.number) with gamma $(gamma)"
     edge3, edge4 = parameters4createHybrid!(edge1,edge2,net);
     hybrid = createHybrid!(edge1, edge2, edge3, edge4, net, gamma);
     return hybrid
@@ -291,51 +288,53 @@ addHybridizationUpdate!(net::HybridNetwork, blacklist::Bool) = addHybridizationU
 # declaring failure
 # blacklist used in afterOptBLAll
 function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::Integer)
-    global CHECKNET, DEBUG
-    DEBUG && println("MOVE: addHybridizationUpdateSmart")
+    global CHECKNET
+    @debug "MOVE: addHybridizationUpdateSmart"
     success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
-    DEBUG && println("success $(success), flag $(flag), flag2 $(flag2), flag3 $(flag3)")
-    DEBUG && printEverything(net)
+    @debug begin
+        printEverything(net)
+        "success $(success), flag $(flag), flag2 $(flag2), flag3 $(flag3)"
+    end
     i = 0
-    if(!success)
-        if(isa(hybrid,Void))
-            DEBUG && println("MOVE: could not add hybrid by any means")
+    if !success
+        if isa(hybrid,Void)
+            @debug "MOVE: could not add hybrid by any means"
         else
             while((nocycle || !flag) && i < N) #incycle failed
-                DEBUG && println("MOVE: added hybrid causes conflict with previous cycle, need to delete and add another")
+                @debug "MOVE: added hybrid causes conflict with previous cycle, need to delete and add another"
                 deleteHybrid!(hybrid,net,true)
                 success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
             end
             if(nocycle || !flag)
-                DEBUG && println("MOVE: added hybridization $(i) times trying to avoid incycle conflicts, but failed")
+                @debug "MOVE: added hybridization $(i) times trying to avoid incycle conflicts, but failed"
             else
                 if(!flag3 && flag2) #containRoot failed
-                    DEBUG && println("MOVE: added hybrid causes problems with containRoot, will change the direction to fix it")
+                    @debug "MOVE: added hybrid causes problems with containRoot, will change the direction to fix it"
                     success = changeDirectionUpdate!(net,hybrid) #change dir of minor
                 elseif(!flag2 && flag3) #gammaz failed
-                    DEBUG && println("MOVE: added hybrid has problem with gammaz (not identifiable bad triangle)")
+                    @debug "MOVE: added hybrid has problem with gammaz (not identifiable bad triangle)"
                     if(flag3)
-                        DEBUG && println("MOVE: we will move origin to fix the gammaz situation")
+                        @debug "MOVE: we will move origin to fix the gammaz situation"
                         success = moveOriginUpdateRepeat!(net,hybrid,true)
                     else
-                        DEBUG && println("MOVE: we will move target to fix the gammaz situation")
+                        @debug "MOVE: we will move target to fix the gammaz situation"
                         success = moveTargetUpdateRepeat!(net,hybrid,true)
                     end
                 elseif(!flag2 && !flag3) #containRoot AND gammaz failed
-                    DEBUG && println("MOVE: containRoot and gammaz both fail")
+                    @debug "MOVE: containRoot and gammaz both fail"
                 end
             end
-            if(!success)
-                DEBUG && println("MOVE: could not fix the added hybrid by any means, we will delete it now")
+            if !success
+                @debug "MOVE: could not fix the added hybrid by any means, we will delete it now"
                 CHECKNET && checkNet(net)
-                DEBUG && printEverything(net)
+                @debug begin printEverything(net); "printed everything" end
                 deleteHybridizationUpdate!(net,hybrid)
-                DEBUG && printEverything(net)
+                @debug begin printEverything(net); "printed everything" end
                 CHECKNET && checkNet(net)
             end
         end
     end
-    success && DEBUG && println("MOVE: added hybridization SUCCESSFUL: new hybrid $(hybrid.number)")
+    success && @debug "MOVE: added hybridization SUCCESSFUL: new hybrid $(hybrid.number)"
     return success
 end
 
@@ -385,7 +384,7 @@ function addAlternativeHybridizations!(net::HybridNetwork,BSe::DataFrame; cutoff
     newHyb = newBSe[1:top,:]
 
     if(size(newHyb,1) == 0)
-        warn("Did not find any alternative hybridizations with bootstrap support greater than the cutoff, so nothign added")
+        @warn "Did not find any alternative hybridizations with bootstrap support greater than the cutoff, so nothign added"
         return
     end
 

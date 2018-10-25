@@ -102,7 +102,7 @@ function updateInCycle!(net::HybridNetwork,node::Node)
             end
         end
         if(!isempty(path) || node.k<3)
-            DEBUG && warn("new cycle intersects existing cycle")
+            @debug "warning: new cycle intersects existing cycle"
             return false, false, net.edges_changed, net.nodes_changed
         else
             return true, false, net.edges_changed, net.nodes_changed
@@ -234,7 +234,7 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
             end
         end
         if(isEqual(other_min2,getOtherNode(edge_maj2,other_maj)) && isLeaf1.leaf && isLeaf2.leaf && isLeaf3.leaf) # bad diamond I
-            DEBUG && println("bad diamond I found")
+            @debug "bad diamond I found"
             net.numBad += 1
             node.isBadDiamondI = true;
             other_min.gammaz = edge_min.gamma*edge_min2.z;
@@ -248,7 +248,7 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
             push!(net.edges_changed,edge_maj2);
             push!(net.edges_changed,edge_maj);
         elseif(isEqual(other_min2,getOtherNode(edge_maj2,other_maj)) && isLeaf1.leaf && !isLeaf2.leaf && isLeaf3.leaf && getOtherNode(tree_edge4,other_min2).leaf) # bad diamond II
-            DEBUG && println("bad diamond II found")
+            @debug "bad diamond II found"
             node.isBadDiamondII = true;
             setLength!(edge_maj,edge_maj.length+tree_edge2.length)
             setLength!(tree_edge2,0.0)
@@ -259,7 +259,7 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
         end
     elseif(node.k == 3) # could be extreme/very bad triangle or just bad triangle
         if(net.numTaxa <= 5)
-            DEBUG && println("extremely or very bad triangle found")
+            @debug "extremely or very bad triangle found"
             node.isVeryBadTriangle = true
             net.hasVeryBadTriangle = true
         elseif(net.numTaxa >= 6)
@@ -271,11 +271,11 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
             if isLeaf1.leaf || isLeaf2.leaf || isLeaf3.leaf
                 nl = count([l.leaf for l in [isLeaf1,isLeaf2,isLeaf3]])
                 if nl >= 2
-                    DEBUG && warn("extremely bad triangle found")
+                    @debug "warning: extremely bad triangle found"
                     node.isExtBadTriangle = true;
                     net.hasVeryBadTriangle = true
                 elseif nl == 1
-                    DEBUG && warn("bad triangle I or II found")
+                    @debug "warning: bad triangle I or II found"
                     node.isVeryBadTriangle = true;
                     net.hasVeryBadTriangle = true
                 end
@@ -364,7 +364,7 @@ function updatePartition!(net::HybridNetwork, nodesChanged::Vector{Node})
             cycleNum = [nodesChanged[1].inCycle]
             getDescendants!(getOtherNode(edge,n),edge,descendants,cycleNum)
             !isempty(descendants) || error("descendants is empty for node $(n.number)")
-            DEBUG && println("for node $(n.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
+            @debug "for node $(n.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)"
             partition = Partition(cycleNum,descendants)
             if(!isPartitionInNet(net,partition)) #need to check not already added by other hybrid nodes
                 push!(net.partition, partition)
@@ -388,7 +388,7 @@ function choosePartition(net::HybridNetwork)
     while(index1 == 0 || index1 > length(partition))
         index1 = round(Integer,rand()*size(partition,1));
     end
-    DEBUG && println("chosen partition $([n.number for n in net.partition[partition[index1]].edges])")
+    @debug "chosen partition $([n.number for n in net.partition[partition[index1]].edges])"
     return partition[index1]
 end
 
@@ -398,7 +398,7 @@ end
 # used in chooseEdgesGamma and to set net.partition
 # cycleNum is a variable that will save another hybrid node number if found
 function getDescendants!(node::Node, edge::Edge, descendants::Vector{Edge}, cycleNum::Vector{Int})
-    DEBUG && println("getDescendants of node $(node.number) and edge $(edge.number)")
+    @debug "getDescendants of node $(node.number) and edge $(edge.number)"
     if(node.inCycle != -1)
         push!(cycleNum,node.inCycle)
     elseif(!node.leaf && node.inCycle == -1)

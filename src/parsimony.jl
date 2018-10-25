@@ -414,7 +414,7 @@ function readCSVtoArray(dat::DataFrame)
     i = findfirst(DataFrames.names(dat), :taxon)
     if i==0 i = findfirst(DataFrames.names(dat), :species); end
     if i==0
-        warn("expecting taxon names in column 'taxon', or 'species', so will assume column 1")
+        @warn "expecting taxon names in column 'taxon', or 'species', so will assume column 1"
         i = 1
     end
 
@@ -926,7 +926,7 @@ function maxParsimonyNetRun1!(currT::HybridNetwork, tolAbs::Float64, Nfail::Inte
                               criterion=:softwired::Symbol)
     tolAbs >= 0 || error("tolAbs must be greater than zero: $(tolAbs)")
     Nfail > 0 || error("Nfail must be greater than zero: $(Nfail)")
-    DEBUG && printEverything(currT)
+    @debug begin printEverything(currT); "printed everything" end
     CHECKNET && checkNet(currT)
     count = 0
     movescount = zeros(Int,18) #1:6 number of times moved proposed, 7:12 number of times success move (no intersecting cycles, etc.), 13:18 accepted by parsimony score
@@ -956,7 +956,7 @@ function maxParsimonyNetRun1!(currT::HybridNetwork, tolAbs::Float64, Nfail::Inte
             end
 
             if flag #no need else in general because newT always undone if failed, but needed for conflicts with root
-                DEBUG && println("successful move and correct root placement")
+                @debug "successful move and correct root placement"
                 accepted = false
                 newT.loglik = parsimonyGF(newTr,species,traits,criterion)
                 accepted = (newT.loglik < currT.loglik && abs(newT.loglik-currT.loglik) > tolAbs) ? true : false
@@ -973,7 +973,7 @@ function maxParsimonyNetRun1!(currT::HybridNetwork, tolAbs::Float64, Nfail::Inte
                     newT = deepcopy(currT)
                 end
             else
-                DEBUG && println("unsuccessful move or incorrect root placement")
+                @debug "unsuccessful move or incorrect root placement"
                 newT = newT0 ## not counting errors in outgroup as failures, maybe we should
             end
         else

@@ -164,7 +164,7 @@ function blobInfo(net, ignoreTrivial=true::Bool;
         bccmi = Vector{Edge}(0) # find minor hybrid edges, in same order
         for edge in bccMa
             e = getPartner(edge)
-            !e.isMajor || warn("major edge $(edge.number) has a major partner: edge $(e.number)")
+            !e.isMajor || @warn "major edge $(edge.number) has a major partner: edge $(e.number)"
             push!(bccmi, e)
         end
         push!(bccMinor, bccmi)

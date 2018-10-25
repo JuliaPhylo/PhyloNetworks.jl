@@ -10,7 +10,7 @@
 # change index1, index2 according to the specific case
 # warning: not real chooseEdgesGamma, the real one is in functions.jl
 function chooseEdgesGamma(net::HybridNetwork)
-warn("function chooseEdgesGamma is deterministic")
+@warn "function chooseEdgesGamma is deterministic"
     index1 = 1;
     index2 = 4;
     edge1 = net.edge[index1];

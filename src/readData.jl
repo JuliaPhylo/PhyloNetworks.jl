@@ -64,7 +64,7 @@ function readTableCF(df0::DataFrames.DataFrame; summaryfile=""::AbstractString)
 end
 
 function readTableCF!(df::DataFrames.DataFrame; summaryfile=""::AbstractString)
-    DEBUG && println("assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network")
+    @debug "assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network"
     alternativecolnames = [ # obsCF12 is as exported by fittedQuartetCF()
         [:CF12_34, Symbol("CF12.34"), :obsCF12],
         [:CF13_24, Symbol("CF13.24"), :obsCF13],
@@ -77,10 +77,10 @@ function readTableCF!(df::DataFrames.DataFrame; summaryfile=""::AbstractString)
     withngenes = ngenecol>0
     if findfirst(obsCFcol, 0) > 0 # one or more col names for CFs were not found
         size(df,2) == (withngenes ? 8 : 7) ||
-          warn("""Column names for quartet concordance factors (CFs) were not recognized.
+          @warn """Column names for quartet concordance factors (CFs) were not recognized.
           Was expecting CF12_34, CF13_24 and CF14_23 for the columns with CF values,
           or CF12.34 or obsCF12, etc.
-          Will assume that the first 4 columns give the taxon names, and that columns 5-7 give the CFs.""")
+          Will assume that the first 4 columns give the taxon names, and that columns 5-7 give the CFs."""
         obsCFcol = [5,6,7] # assuming CFs are in columns 5,6,7, with colname mismatch
     end
     minimum(obsCFcol) > 4 ||
@@ -194,7 +194,7 @@ function readInputTrees(file::AbstractString)
     numl = 1
     for line in eachline(s)
         line = strip(line) # remove spaces
-        DEBUG && println("$(line)")
+        @debug "$(line)"
         c = isempty(line) ? "" : line[1]
         if(c == '(')
            try
@@ -460,7 +460,7 @@ function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{Hy
             if sameTaxa(q,t)
                 M = tree2Matrix(t,taxa) #fixit: way to reuse M? length(t.edge) will be different across trees
                 res = extractQuartetTree(q,M,taxa)
-                DEBUG && println("res is $(res)")
+                @debug "res is $(res)"
                 if(res == 1)
                     sum12 += 1
                 elseif(res == 2)
@@ -518,12 +518,12 @@ readInputData(treefile::AbstractString, quartetfile::AbstractString, writetab::B
 # writeFile=true writes file with sampled quartets, default false
 function readInputData(trees::Vector{HybridNetwork}, quartetfile::AbstractString, whichQ::Symbol, numQ::Integer, writetab::Bool, filename::AbstractString, writeFile::Bool, writeSummary::Bool)
     if(whichQ == :all)
-        numQ == 0 || warn("set numQ=$(numQ) but whichQ is not rand, so all quartets will be used and numQ will be ignored. If you want a specific number of 4-taxon subsets not random, you can input with the quartetfile option")
+        numQ == 0 || @warn "set numQ=$(numQ) but whichQ is not rand, so all quartets will be used and numQ will be ignored. If you want a specific number of 4-taxon subsets not random, you can input with the quartetfile option"
         println("will use all quartets in file $(quartetfile)")
         quartets = readListQuartets(quartetfile)
     elseif(whichQ == :rand)
         if(numQ == 0)
-            warn("not specified numQ but whichQ=rand, so 10% of quartets will be sampled") #handled inside randQuartets
+            @warn "not specified numQ but whichQ=rand, so 10% of quartets will be sampled" #handled inside randQuartets
         else
             println("will take a random sample of $(numQ) 4-taxon sets from file $(quartetfile)")
         end
@@ -600,12 +600,12 @@ readInputData(treefile::AbstractString,taxa::Union{Vector{String}, Vector{Int}})
 # writeFile= true, writes intermediate files with the quartets info (default false)
 function readInputData(trees::Vector{HybridNetwork}, whichQ::Symbol, numQ::Integer, taxa::Union{Vector{String}, Vector{Int}}, writetab::Bool, filename::AbstractString, writeFile::Bool, writeSummary::Bool)
     if(whichQ == :all)
-        numQ == 0 || warn("set numQ=$(numQ) but whichQ=all, so all quartets will be used and numQ will be ignored. If you want a specific number of 4-taxon subsets not random, you can input with the quartetfile option")
+        numQ == 0 || @warn "set numQ=$(numQ) but whichQ=all, so all quartets will be used and numQ will be ignored. If you want a specific number of 4-taxon subsets not random, you can input with the quartetfile option"
         quartets = allQuartets(taxa,writeFile)
         println("will use all quartets on $(length(taxa)) taxa")
     elseif(whichQ == :rand)
         if(numQ == 0)
-            warn("not specified numQ with whichQ=rand, so 10% of quartets will be sampled") #handled inside randQuartets
+            @warn "not specified numQ with whichQ=rand, so 10% of quartets will be sampled" #handled inside randQuartets
         else
             println("will use a random sample of $(numQ) 4-taxon sets ($(round((100*numQ)/binomial(length(taxa),4),2)) percent) on $(length(taxa)) taxa")
         end
@@ -823,7 +823,7 @@ function updateBL!(net::HybridNetwork,d::DataCF)
         end
         return x
     else
-        warn("updateStartBL was created for a tree, and net here is not a tree, so no branch lengths updated")
+        @error "updateStartBL was created for a tree, and net here is not a tree, so no branch lengths updated"
     end
 end
 
@@ -926,8 +926,8 @@ end
 # input: Quartet, Matrix, vector of taxa names
 # returns 1 if quartet found is 12|34, 2 if 13|24, 3 if 14|23, and 0 if not found
 function extractQuartetTree(q::Quartet, M::Matrix{Int},S::Union{Vector{String},Vector{Int}})
-    DEBUG && println("extractQuartet: $(q.taxon)")
-    DEBUG && println("matrix: $(M)")
+    @debug "extractQuartet: $(q.taxon)"
+    @debug "matrix: $(M)"
     try
         ind1 = getIndex(q.taxon[1],S)
         ind2 = getIndex(q.taxon[2],S)
@@ -941,9 +941,9 @@ function extractQuartetTree(q::Quartet, M::Matrix{Int},S::Union{Vector{String},V
     ind3 = getIndex(q.taxon[3],S)
     ind4 = getIndex(q.taxon[4],S)
     subM = M[:,[ind1+1,ind2+1,ind3+1,ind4+1]]
-    DEBUG && println("subM: $(subM)")
+    @debug "subM: $(subM)"
     for r in 1:size(subM,1) #rows in subM
-        DEBUG && println("subM[r,:]: $(subM[r,:])")
+        @debug "subM[r,:]: $(subM[r,:])"
         if(subM[r,:] == [0,0,1,1] || subM[r,:] == [1,1,0,0])
             return 1
         elseif(subM[r,:] == [0,1,0,1] || subM[r,:] == [1,0,1,0])
@@ -1004,7 +1004,7 @@ function readNexusTrees(file::AbstractString)
         numl = 1
         for line in eachline(s)
             line = strip(line) # remove spaces
-            DEBUG && println("$(line)")
+            @debug "$(line)"
             m = match(r"^\s*Tree\s+[^(]+(\([^;]*;)", line)
             # regex: spaces,"Tree",spaces,any_symbols_other_than_(, then we capture:
             # ( any_symbols_other_than_; ;

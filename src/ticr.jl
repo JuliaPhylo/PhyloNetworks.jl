@@ -84,7 +84,7 @@ function ticr(D::DataCF)
         max_idx = max[2]
         p_max_hat = getindex(phat,max_idx)
         p_sort = sort(D.quartet[i].qnet.expCF)
-        abs(p_max-p_sort[end-1]) > 1e-6 || warn("Check the network for major quartet")
+        abs(p_max-p_sort[end-1]) > 1e-6 || @warn "Check the network for major quartet"
         d = abs(p_max_hat - p_max)
         temp = [1-(1-p_max)*alpha/2, 0.0]
         shapeAdd = maximum(temp)

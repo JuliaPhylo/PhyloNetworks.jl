@@ -300,12 +300,12 @@ mutable struct Quartet
     # inner constructor: to guarantee obsCF are only three and add up to 1
     function Quartet(number::Integer,t1::AbstractString,t2::AbstractString,t3::AbstractString,t4::AbstractString,obsCF::Array{Float64,1})
         size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing
-        0.99 < sum(obsCF) < 1.02 || warn("observed CF should add up to 1, not $(sum(obsCF))")
+        0.99 < sum(obsCF) < 1.02 || @warn "observed CF should add up to 1, not $(sum(obsCF))"
         new(number,[t1,t2,t3,t4],obsCF,QuartetNetwork(),0,-1);
     end
     function Quartet(number::Integer,t1::Array{String,1},obsCF::Array{Float64,1})
         size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing
-        0.99< sum(obsCF) < 1.02 || warn("observed CF should add up to 1, not $(sum(obsCF))")
+        0.99< sum(obsCF) < 1.02 || @warn "observed CF should add up to 1, not $(sum(obsCF))"
         size(t1,1) != 4 ? error("array of taxa should have size 4, not $(size(t1,1))") : nothing
         0.0 <= obsCF[1] <= 1.0 || error("obsCF must be between (0,1), but it is $(obsCF[1]) for $(t1)")
         0.0 <= obsCF[2] <= 1.0 || error("obsCF must be between (0,1), but it is $(obsCF[2]) for $(t1)")

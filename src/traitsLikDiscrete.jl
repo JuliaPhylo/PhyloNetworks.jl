@@ -442,7 +442,7 @@ function check_matchtaxonnames!(species::AbstractVector, dat::AbstractVector, ne
     indnotindat = find(x -> x ∉ species, netlab) # species not in data
     net = deepcopy(net)
     if !isempty(indnotindat)
-        warn("the network contains taxa with no data: those will be pruned")
+        @warn "the network contains taxa with no data: those will be pruned"
         for i in indnotindat
             deleteleaf!(net, netlab[i])
         end
