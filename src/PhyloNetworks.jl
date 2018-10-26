@@ -20,10 +20,8 @@ module PhyloNetworks
     import Base: show
     import GLM: ftest
 
-    # one option to execute @debug messages / blocks: ENV["JULIA_DEBUG"] = "all"
-    const DEBUGC = false #more detailed prints
-    global CHECKNET = false #for debugging only
-    global REDIRECT = false # changed for debugging to a file
+    const DEBUGC = false # even more debug messages
+    global CHECKNET = false # for debugging only
 
     export ftest
     export

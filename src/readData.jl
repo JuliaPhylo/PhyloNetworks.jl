@@ -771,60 +771,44 @@ function summarizeDataCF(d::DataCF; filename="none"::AbstractString, pc=0.7::Flo
     end
 end
 
-# ------------------ read starting tree from astral and put branch lengths ------------------------------
-
-# function to read the starting topology (can be tree/network)
-# if updateBL=true, updates the branch lengths with the obsCF in d
-# by default, updateBL=true
-function readStartTop(file::AbstractString,d::DataCF,updateBL::Bool)
-    net = readTopologyUpdate(file)
-    if(updateBL)
-        updateBL!(net,d)
-    end
-    return net
-end
+# -------- branch length estimate in coalescent units on species tree ------
 
 """
-`readStartTop(treefile,d::DataCF)`
+    updateBL!(net::HybridNetwork, d::DataCF)
 
-function to read a tree in parenthetical format from text file treefile and a DataCF object to update the branch lengths according to the average observed CF for any given edge.
+Update internal branch lengths of `net` based on the average quartet concordance
+factor (CF) across all quartets that exactly correspond to a given branch:
+new branch length = `-log(3/2(1-mean(CF observed in d)))`.
+`net` is assumed to be a tree, such that the above equation holds.
 """
-readStartTop(file::AbstractString,d::DataCF) = readStartTop(file,d,true)
-#readStartTop(file::AbstractString) = readStartTop(file,DataCF(),false) #not sure why we need this one
-
-# function to update starting branch lengths for starting tree read from ASTRAL
-# BL are updated as -log(3/2(1-mean(obsCF)))
-# based on Cecile's chr4-species-tree-units.r
-# input: starting tree, data after read table of obsCF
 function updateBL!(net::HybridNetwork,d::DataCF)
-    if(isTree(net))
-        parts = edgesParts(net)
-        df = makeTable(net,parts,d)
-        x=by(df,[:edge],df->DataFrame(Nquartets=length(df[:CF]),edgeL=-log(3/2*(1-mean(df[:CF])))))
-        # ommitting columns: meanCF=mean(df[:CF]), sdCF=std(df[:CF])
-        edges = x[:edge]
-        lengths = x[:edgeL]
-        for i in 1:length(edges)
-            try
-                ind = getIndexEdge(edges[i],net)
-            catch
-                error("edge $(edges[i]) not in net")
-            end
-            ind = getIndexEdge(edges[i],net)
-            if (net.edge[ind].length < 0.0 || net.edge[ind].length==1.0)
-                # readTopologyLevel1 changes missing branch length to 1.0
-                setLength!(net.edge[ind], (lengths[i] > 0 ? lengths[i] : 0.0))
-            end
-        end
-        for e in net.edge
-            if e.length < 0.0 # some edges might have *no* quartet in the data
-                setLength!(e, 1.0)
-            end
-        end
-        return x
-    else
-        @error "updateStartBL was created for a tree, and net here is not a tree, so no branch lengths updated"
+    if !isTree(net)
+        @error "updateBL! was created for a tree, and net here is not a tree, so no branch lengths updated"
     end
+    parts = edgesParts(net)
+    df = makeTable(net,parts,d)
+    x=by(df,[:edge],df->DataFrame(Nquartets=length(df[:CF]),edgeL=-log(3/2*(1-mean(df[:CF])))))
+    # ommitting columns: meanCF=mean(df[:CF]), sdCF=std(df[:CF])
+    edges = x[:edge]
+    lengths = x[:edgeL]
+    for i in 1:length(edges)
+        try
+            ind = getIndexEdge(edges[i],net)
+        catch
+            error("edge $(edges[i]) not in net")
+        end
+        ind = getIndexEdge(edges[i],net)
+        if net.edge[ind].length < 0.0 || net.edge[ind].length==1.0
+            # readTopologyLevel1 changes missing branch length to 1.0
+            setLength!(net.edge[ind], (lengths[i] > 0 ? lengths[i] : 0.0))
+        end
+    end
+    for e in net.edge
+        if e.length < 0.0 # some edges might have *no* quartet in the data
+            setLength!(e, 1.0)
+        end
+    end
+    return x
 end
 
 

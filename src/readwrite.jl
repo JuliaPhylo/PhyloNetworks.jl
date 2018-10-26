@@ -146,7 +146,7 @@ this is done by [`readSubtree!`](@ref)
 """
 @inline function parseRemainingSubtree!(s::IO, numLeft::Array{Int,1}, net::HybridNetwork, hybrids::Vector{String})
     numLeft[1] += 1
-    DEBUGC && println(numLeft)
+    DEBUGC && @debug "" numLeft
     n = Node(-1*numLeft[1],false);
     @debug "creating node $(n.number)"
     keepon = true;
@@ -176,8 +176,8 @@ Called after a `#` has been found in a tree topology.
 @inline function parseHybridNode!(n::Node, parent::Node, name::String, net::HybridNetwork, hybrids::Vector{String})
     @debug "found pound in $(name)"
     n.hybrid = true;
-    DEBUGC && println("got hybrid $(name)")
-    DEBUGC && println("hybrids list has length $(length(hybrids))")
+    DEBUGC && @debug "got hybrid $(name)"
+    DEBUGC && @debug "hybrids list has length $(length(hybrids))"
     ind = findfirst(hybrids, name) # index of 'name' in the list 'hybrid'. 0 if not found
     e = Edge(net.numEdges+1) # isMajor = true by default
     if n.leaf e.isMajor = false; end
@@ -189,7 +189,7 @@ Called after a `#` has been found in a tree topology.
         ni > 0 || error("hybrid name $name was supposed to be in the network, but not found")
         other = net.node[ni]
         @debug "other is $(other.number)"
-        DEBUGC && println("other is leaf? $(other.leaf), n is leaf? $(n.leaf)")
+        DEBUGC && @debug "other is leaf? $(other.leaf), n is leaf? $(n.leaf)"
         if !n.leaf && !other.leaf
             error("both hybrid nodes are internal nodes: successors of the hybrid node must only be included in the node list of a single occurrence of the hybrid node.")
         elseif n.leaf
@@ -205,7 +205,7 @@ Called after a `#` has been found in a tree topology.
             @debug "n is not leaf, other is leaf"
             size(other.edge,1) == 1 || # other should be a leaf
                error("strange: node $(other.number) is a leaf hybrid node. should have only 1 edge but has $(size(other.edge,1))")
-            DEBUGC && println("other is $(other.number), n is $(n.number), edge of other is $(other.edge[1].number)")
+            DEBUGC && @debug "other is $(other.number), n is $(n.number), edge of other is $(other.edge[1].number)"
             otheredge = other.edge[1];
             otherparent = getOtherNode(otheredge,other);
             @debug "otheredge is $(otheredge.number)"
@@ -234,7 +234,7 @@ Called after a `#` has been found in a tree topology.
         nam = string(name)
         push!(net.names, nam);
         n.name = nam;
-        DEBUGC && println("put $(nam) in hybrids name list")
+        DEBUGC && @debug "put $(nam) in hybrids name list"
         push!(hybrids, nam);
         pushNode!(net,n);
         @debug "creating hybrid edge $(e.number)"
@@ -1134,7 +1134,7 @@ function updateRoot!(net::HybridNetwork, outgroup::AbstractString)
         length(net.node[index].edge) == 1 || error("strange leaf $(outgroup), node number $(net.node[index].number) with $(length(net.node[index].edge)) edges instead of 1")
         edge = net.node[index].edge[1]
         if(edge.containRoot)
-            DEBUGC && println("creating new node in the middle of the external edge $(edge.number) leading to outgroup $(node.number)")
+            DEBUGC && @debug "creating new node in the middle of the external edge $(edge.number) leading to outgroup $(node.number)"
             othernode = getOtherNode(edge,node)
             removeEdge!(othernode,edge)
             removeNode!(othernode,edge)

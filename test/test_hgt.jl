@@ -41,7 +41,6 @@ addHybridizationUpdate!(currT); #add hybrid at random (different test would be t
 printEdges(currT)
 
 @time optTopLevel!(currT,d2,1)
-@time optTop!(currT,d2,1)
 
 # ----------------- optTopLevel with expCF and starting tree 1_astral.out, branches updated --------
 include("../src/types.jl")
