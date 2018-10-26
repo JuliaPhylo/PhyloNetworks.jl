@@ -1088,7 +1088,7 @@ function maxParsimonyNet(currT::HybridNetwork, df::DataFrame;
         end
     else
       writelog = false
-      logfile = STDOUT # used in call to optTopRun1!
+      logfile = stdout # used in call to optTopRun1!
     end
     str = """optimization of topology using:
               hmax = $(hmax),
@@ -1113,8 +1113,8 @@ function maxParsimonyNet(currT::HybridNetwork, df::DataFrame;
         write(logfile,str)
         flush(logfile)
     end
-    print(STDOUT,str)
-    print(STDOUT, Dates.format(now(), "yyyy-mm-dd H:M:S.s") * "\n")
+    print(stdout,str)
+    print(stdout, Dates.format(now(), "yyyy-mm-dd H:M:S.s") * "\n")
     # if 1 proc: time printed to logfile at start of every run, not here.
 
     if seed == 0
@@ -1125,7 +1125,7 @@ function maxParsimonyNet(currT::HybridNetwork, df::DataFrame;
     if  writelog
         write(logfile,"\nmain seed $(seed)\n")
         flush(logfile)
-    else print(STDOUT,"\nmain seed $(seed)\n"); end
+    else print(stdout,"\nmain seed $(seed)\n"); end
     srand(seed)
     seeds = [seed;round.(Integer,floor.(rand(runs-1)*100000))]
     if writelog && !writelog_1proc
@@ -1138,7 +1138,7 @@ function maxParsimonyNet(currT::HybridNetwork, df::DataFrame;
     tic();
     bestnet = pmap(1:runs) do i # for i in 1:runs
         logstr = "seed: $(seeds[i]) for run $(i), $(Dates.format(now(), "yyyy-mm-dd H:M:S.s"))\n"
-        print(STDOUT, logstr)
+        print(stdout, logstr)
         msg = "\nBEGIN Max Parsimony search for run $(i), seed $(seeds[i]) and hmax $(hmax)"
         if writelog_1proc # workers can't write on streams opened by master
             write(logfile, logstr * msg)
@@ -1174,7 +1174,7 @@ function maxParsimonyNet(currT::HybridNetwork, df::DataFrame;
     if writelog
         write(logfile, msg)
     end
-    filter!(n -> .!isa(n, Void), bestnet) # remove "nothing", failed runs
+    filter!(n -> .!isa(n, Nothing), bestnet) # remove "nothing", failed runs
     if length(bestnet)>0
         ind = sortperm([n.loglik for n in bestnet])
         bestnet = bestnet[ind]
@@ -1186,9 +1186,9 @@ function maxParsimonyNet(currT::HybridNetwork, df::DataFrame;
     rootatnode!(maxNet,outgroup)
     writelog &&
     write(logfile,"\nMaxNet is $(writeTopology(maxNet)) \nwith $(string(criterion)) parsimony score $(maxNet.loglik)\n")
-    print(STDOUT,"\nMaxNet is $(writeTopology(maxNet)) \nwith $(string(criterion)) parsimony score $(maxNet.loglik)\n")
+    print(stdout,"\nMaxNet is $(writeTopology(maxNet)) \nwith $(string(criterion)) parsimony score $(maxNet.loglik)\n")
 
-    s = writelog ? open(juliaout,"w") : STDOUT
+    s = writelog ? open(juliaout,"w") : stdout
     str = writeTopology(maxNet) * """
      $(string(criterion)) parsimony score = $(maxNet.loglik)
      Dendroscope: $(writeTopology(maxNet,di=true))
@@ -1203,7 +1203,7 @@ function maxParsimonyNet(currT::HybridNetwork, df::DataFrame;
     end
     str *= "-------\n"
     write(s,str);
-    writelog && close(s) # to close juliaout file (but not STDOUT!)
+    writelog && close(s) # to close juliaout file (but not stdout!)
     writelog && close(logfile)
 
     return maxNet

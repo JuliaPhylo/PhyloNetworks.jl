@@ -1292,7 +1292,7 @@ julia> net = [readTopology("(D,((A,(B)#H7:::0.864):2.069,(F,E):3.423):0.265,(C,#
 
 julia> writeMultiTopology(net, "fournets.net") # to (over)write to file "fournets.net"
 julia> writeMultiTopology(net, "fournets.net", append=true) # to append to this file
-julia> writeMultiTopology(net, STDOUT)         # to write to the screen (standard out)
+julia> writeMultiTopology(net, stdout)         # to write to the screen (standard out)
 (D,((A,(B)#H7:::0.864):2.069,(F,E):3.423):0.265,(C,#H7:::0.1361111):10.0);
 (A,(B,C));
 (E,F);

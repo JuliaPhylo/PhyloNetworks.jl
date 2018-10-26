@@ -769,7 +769,7 @@ While `startover=true` and `tries<N`
 If first while ends by `tries>N`, then it checks one last time the flags, if bad h/hz will move down one level, and exit
 """
 function afterOptBLAll!(currT::HybridNetwork, d::DataCF, N::Integer,closeN ::Bool, liktolAbs::Float64, ftolAbs::Float64, verbose::Bool, movesgamma::Vector{Int},ftolRel::Float64, xtolRel::Float64, xtolAbs::Float64)
-    @debug "afterOptBLAll: checking if currT has gamma(z) = 0.0(1.0): currT.ht $(currT.ht)"
+    @debug "afterOptBLAll: checking if currT has gamma (gammaz) = 0.0(1.0): currT.ht $(currT.ht)"
     currloglik = currT.loglik
     currT.blacklist = Int[];
     origin = (rand() > 0.5) #true=moveOrigin, false=moveTarget
@@ -1138,7 +1138,7 @@ end
 # liktolAbs: to stop the search if loglik close to liktolAbs, or if absDiff less than liktolAbs
 # hmax: max number of hybrids allowed
 # closeN =true if gamma=0.0 fixed only around neighbors with move origin/target
-# logfile=IOStream to capture the information on the heurisitc optimization, default STDOUT
+# logfile=IOStream to capture the information on the heurisitc optimization, default stdout
 """
 `optTopLevel` road map
 
@@ -1267,7 +1267,7 @@ function optTopLevel!(currT::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
                     else
                         newT = afterOptBLAll!(newT, d, Nfail,closeN , liktolAbs, ftolAbs,verbose,movesgamma,ftolRel, xtolRel,xtolAbs) #needed return because of deepcopy inside
                     end
-                    @debug "loglik before afterOptBL $(newloglik), newT.loglik now $(newT.loglik), loss in loglik by fixing gamma(z)=0.0(1.0): $(newloglik>newT.loglik ? 0 : abs(newloglik-newT.loglik))"
+                    @debug "loglik before afterOptBL $(newloglik), newT.loglik now $(newT.loglik), loss in loglik by fixing gamma (gammaz)=0.0(1.0): $(newloglik>newT.loglik ? 0 : abs(newloglik-newT.loglik))"
                     accepted = true
                 else
                     accepted = false
@@ -1339,9 +1339,9 @@ function optTopLevel!(currT::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     return newT
 end
 
-optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Integer) = optTopLevel!(currT, likAbs, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false,true,numMoves, STDOUT,true)
-optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Integer, verbose::Bool) = optTopLevel!(currT, likAbs, numFails, d, hmax,fRel, fAbs, xRel, xAbs, verbose,true,numMoves,STDOUT,true)
-optTopLevel!(currT::HybridNetwork, liktolAbs::Float64, Nfail::Integer, d::DataCF, hmax::Integer,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int}) = optTopLevel!(currT, liktolAbs, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,STDOUT,true)
+optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Integer) = optTopLevel!(currT, likAbs, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false,true,numMoves, stdout,true)
+optTopLevel!(currT::HybridNetwork, d::DataCF, hmax::Integer, verbose::Bool) = optTopLevel!(currT, likAbs, numFails, d, hmax,fRel, fAbs, xRel, xAbs, verbose,true,numMoves,stdout,true)
+optTopLevel!(currT::HybridNetwork, liktolAbs::Float64, Nfail::Integer, d::DataCF, hmax::Integer,ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, verbose::Bool, closeN ::Bool, Nmov0::Vector{Int}) = optTopLevel!(currT, liktolAbs, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,stdout,true)
 
 
 
@@ -1369,7 +1369,7 @@ function printCounts(movescount::Vector{Int}, movesgamma::Vector{Int},s::Union{I
     print(s,"Proportion\t -- \t\t $(round(sum(movescount[7:12])/suma,1))\t\t $(round(sum(movescount[13:18])/suma,1))\t |\t -- \t\t $(round(sum(movesgamma[7:12])/suma2,1))\t\t $(round(movesgamma[13]/suma2,1))\n")
 end
 
-printCounts(movescount::Vector{Int}, movesgamma::Vector{Int}) = printCounts(movescount, movesgamma,STDOUT)
+printCounts(movescount::Vector{Int}, movesgamma::Vector{Int}) = printCounts(movescount, movesgamma,stdout)
 
 # function to print count of number of moves to a file
 # file=name of file where to save
@@ -1510,7 +1510,7 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
         end
     else
       writelog = false
-      logfile = STDOUT # used in call to optTopRun1!
+      logfile = stdout # used in call to optTopRun1!
     end
     str = """optimization of topology, BL and inheritance probabilities using:
               hmax = $(hmax),
@@ -1530,8 +1530,8 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
       write(logfile,str)
       flush(logfile)
     end
-    print(STDOUT,str)
-    print(STDOUT, Dates.format(now(), "yyyy-mm-dd H:M:S.s") * "\n")
+    print(stdout,str)
+    print(stdout, Dates.format(now(), "yyyy-mm-dd H:M:S.s") * "\n")
     # if 1 proc: time printed to logfile at start of every run, not here.
 
     if(seed == 0)
@@ -1542,7 +1542,7 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     if (writelog)
       write(logfile,"\nmain seed $(seed)\n")
       flush(logfile)
-    else print(STDOUT,"\nmain seed $(seed)\n"); end
+    else print(stdout,"\nmain seed $(seed)\n"); end
     srand(seed)
     seeds = [seed;round.(Integer,floor.(rand(runs-1)*100000))]
     if writelog && !writelog_1proc
@@ -1555,19 +1555,19 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     tic();
     bestnet = pmap(1:runs) do i # for i in 1:runs
         logstr = "seed: $(seeds[i]) for run $(i), $(Dates.format(now(), "yyyy-mm-dd H:M:S.s"))\n"
-        print(STDOUT, logstr)
+        print(stdout, logstr)
         msg = "\nBEGIN SNaQ for run $(i), seed $(seeds[i]) and hmax $(hmax)"
         if writelog_1proc # workers can't write on streams opened by master
             write(logfile, logstr * msg)
             flush(logfile)
         end
-        verbose && print(STDOUT, msg)
+        verbose && print(stdout, msg)
         gc();
         try
             best = optTopRun1!(currT0, liktolAbs, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs,
                        verbose, closeN , Nmov0,seeds[i],logfile,writelog_1proc,probST);
             logstr *= "\nFINISHED SNaQ for run $(i), -loglik of best $(best.loglik)\n"
-            verbose && print(STDOUT, logstr)
+            verbose && print(stdout, logstr)
             if writelog_1proc
               logstr = writeTopologyLevel1(best,outgroup=outgroup, printID=true, multall=!isempty(d.repSpecies))
               logstr *= "\n---------------------\n"
@@ -1593,9 +1593,9 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     if writelog
         write(logfile, msg)
     elseif verbose
-        print(STDOUT, msg)
+        print(stdout, msg)
     end
-    filter!(n -> .!isa(n, Void), bestnet) # remove "nothing", failed runs
+    filter!(n -> .!isa(n, Nothing), bestnet) # remove "nothing", failed runs
     if length(bestnet)>0
         ind = sortperm([n.loglik for n in bestnet])
         bestnet = bestnet[ind]
@@ -1649,7 +1649,7 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     setNonIdBL!(maxNet)
     writelog &&
     write(logfile,"\nMaxNet is $(writeTopologyLevel1(maxNet,printID=true, multall=!isempty(d.repSpecies))) \nwith -loglik $(maxNet.loglik)\n")
-    print(STDOUT,"\nMaxNet is $(writeTopologyLevel1(maxNet,printID=true, multall=!isempty(d.repSpecies))) \nwith -loglik $(maxNet.loglik)\n")
+    print(stdout,"\nMaxNet is $(writeTopologyLevel1(maxNet,printID=true, multall=!isempty(d.repSpecies))) \nwith -loglik $(maxNet.loglik)\n")
 
     if outgroup != "none"
         try
@@ -1668,7 +1668,7 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     else
         checkRootPlace!(maxNet,verbose=false) #leave root in good place after snaq
     end
-    s = writelog ? open(juliaout,"w") : STDOUT
+    s = writelog ? open(juliaout,"w") : stdout
     str = writeTopologyLevel1(maxNet, printID=true,multall=!isempty(d.repSpecies)) * """
      -Ploglik = $(maxNet.loglik)
      Dendroscope: $(writeTopologyLevel1(maxNet,di=true, multall=!isempty(d.repSpecies)))
@@ -1684,7 +1684,7 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     end
     str *= "-------\n"
     write(s,str);
-    writelog && close(s) # to close juliaout file (but not STDOUT!)
+    writelog && close(s) # to close juliaout file (but not stdout!)
     writelog && close(logfile)
 
     return maxNet
@@ -1773,8 +1773,8 @@ function optTopRun1!(currT0::HybridNetwork, liktolAbs, Nfail::Integer, d::DataCF
     optTopLevel!(currT, liktolAbs, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN , Nmov0,logfile,writelog)
 end
 
-optTopRun1!(currT::HybridNetwork, d::DataCF, hmax::Integer) = optTopRun1!(currT, likAbs, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, 0,STDOUT,true,0.3)
-optTopRun1!(currT::HybridNetwork, d::DataCF, hmax::Integer, seed::Integer) = optTopRun1!(currT, likAbs, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves,seed,STDOUT,true,0.3)
+optTopRun1!(currT::HybridNetwork, d::DataCF, hmax::Integer) = optTopRun1!(currT, likAbs, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves, 0,stdout,true,0.3)
+optTopRun1!(currT::HybridNetwork, d::DataCF, hmax::Integer, seed::Integer) = optTopRun1!(currT, likAbs, numFails, d, hmax,fRel, fAbs, xRel, xAbs, false, true, numMoves,seed,stdout,true,0.3)
 
 
 # function SNaQ: it calls directly optTopRuns but has a prettier name

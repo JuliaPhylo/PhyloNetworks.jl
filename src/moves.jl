@@ -675,7 +675,7 @@ function moveOriginUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
     success = false
     while(!isempty(neighbor) && !success)
         success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor,node)
-        !isa(newedge,Void) || return false
+        !isa(newedge,Nothing) || return false
         success1 || return false
         #println("newedge is $(newedge.number), success1 is $(success1)")
         in(newedge,net.edge) || error("newedge $(newedge.number) is not in net.edge")

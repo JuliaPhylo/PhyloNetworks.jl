@@ -171,7 +171,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
         write(logfile, "BOOTSTRAP OF SNAQ ESTIMATION \n")
     else
         writelog = false
-        logfile = STDOUT
+        logfile = stdout
     end
 
     inputastrees = isa(data, Vector{Vector{HybridNetwork}})
@@ -441,11 +441,10 @@ function treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)
         # fixit later, when edges have an attribute for bootstrap support:
         # set BS to cnt/length(M) for the edge numbered M0[i,1].
     end
-    info("edge numbers in the data frame correspond to the current edge numbers in the network.")
-    println(
-    """If the network is modified, the edge numbers in the (modified) network might not correspond
+    @info """edge numbers in the data frame correspond to the current edge numbers in the network.
+       If the network is modified, the edge numbers in the (modified) network might not correspond
        to those in the bootstrap table. Plot the bootstrap values onto the current network with
-       plot(network_name, edgeLabel=bootstrap_table_name)""")
+       plot(network_name, edgeLabel=bootstrap_table_name)"""
     return df, tree0
 end
 

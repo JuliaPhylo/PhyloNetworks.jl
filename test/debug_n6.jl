@@ -124,7 +124,7 @@ updateSplit!(qnet)
 qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
 
 updateFormula!(qnet)
-qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") :nothing
+qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") : nothing
 
 calculateExpCF!(qnet)
 qnet.expCF != [1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1),1/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing

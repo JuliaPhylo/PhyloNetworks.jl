@@ -157,7 +157,7 @@ function Base.show(io::IO, obj::HybridNetwork)
         par = String(s)
     catch err
         println("ERROR with writeSubTree!:")
-        showerror(STDOUT, err)
+        showerror(stdout, err)
         println("Trying writeTopologyLevel1")
         par = writeTopologyLevel1(obj)
     end

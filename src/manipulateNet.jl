@@ -274,7 +274,7 @@ function rootatnode!(net::HybridNetwork, nodeNumber::Integer; index=false::Bool,
         error("node index $ind too large: the network only has $(length(net.node)) nodes.")
     end
     if net.node[ind].leaf
-        # info("node $(net.node[ind].number) is a leaf. Will create a new node if needed, to set taxon \"$(net.node[ind].name)\" as outgroup.")
+        # @info "node $(net.node[ind].number) is a leaf. Will create a new node if needed, to set taxon \"$(net.node[ind].name)\" as outgroup."
         length(net.node[ind].edge)==1 || error("leaf has $(length(net.node[ind].edge)) edges!")
         pn = getOtherNode(net.node[ind].edge[1], net.node[ind])
         if length(pn.edge) <= 2 # if parent of leaf has degree 2, use it as new root

@@ -378,7 +378,7 @@ function getHybridEdge(node::Node)
     for e in node.edge
         (e.hybrid && !e.isMajor) ? a = e : nothing;
     end
-    isa(a,Void) ? error("hybrid node $(node.number) does not have minor hybrid edge, edges: $([e.number for e in node.edge])") : return a
+    isa(a,Nothing) ? error("hybrid node $(node.number) does not have minor hybrid edge, edges: $([e.number for e in node.edge])") : return a
 end
 
 
@@ -644,7 +644,7 @@ and attributes pertaining to level-1 networks used in SNaQ:
 in which cycle it is contained (-1 if no cycle), and if the edge length
 is identifiable (based on quartet concordance factors).
 """
-printEdges(x) = printEdges(STDOUT::IO, x)
+printEdges(x) = printEdges(stdout::IO, x)
 function printEdges(io::IO, net::HybridNetwork)
     if net.numBad > 0
         println(io, "net has $(net.numBad) bad diamond I. Some γ and edge lengths t are not identifiable, although their γ * (1-exp(-t)) are.")
@@ -680,7 +680,7 @@ or more hybrid edges, it's name (label),
 the cycle in which it is belong (-1 if no cycle; makes sense for level-1 networks),
 and the list of edges attached to it, by their numbers.
 """
-printNodes(x) = printNodes(STDOUT::IO, x)
+printNodes(x) = printNodes(stdout::IO, x)
 function printNodes(io::IO, net::Network)
     namepad = max(4, maximum(length.([n.name for n in net.node])))
     println(io, "node leaf  hybrid hasHybEdge ", rpad("name", namepad), " inCycle edges'numbers")
@@ -785,7 +785,7 @@ function hybridEdges(node::Node, edge::Edge)
     edge2 = nothing
     for e in node.edge
         if(!isequal(e,edge))
-            isa(edge1,Void) ? edge1 = e : edge2 = e
+            isa(edge1,Nothing) ? edge1 = e : edge2 = e
         end
     end
     return edge1,edge2
@@ -1092,9 +1092,9 @@ function checkNet(net::HybridNetwork, light::Bool; checkPartition=true::Bool)
             e1,e2,e3 = hybridEdges(n)
             i = 0
             for e in [e1,e2,e3]
-                if(isa(e,Void) && h.k != 2)
-                    error("edge found that is Void, and hybrid node $(h.number) k is $(h.k). edge as nothing can only happen when k=2")
-                elseif(!isa(e,Void))
+                if(isa(e,Nothing) && h.k != 2)
+                    error("edge found that is Nothing, and hybrid node $(h.number) k is $(h.k). edge as nothing can only happen when k=2")
+                elseif(!isa(e,Nothing))
                     if(e.inCycle == -1)
                         i += 1
                         desc = [e]

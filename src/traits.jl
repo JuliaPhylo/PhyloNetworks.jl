@@ -1360,7 +1360,7 @@ function phyloNetworklm_lambda(X::Matrix,
         up = maxLambda(times, V)
         up = up-up/1000
         NLopt.upper_bounds!(opt, up)
-        info("Maximum lambda value to maintain positive branch lengths: " * @sprintf("%.6g", up))
+        @info "Maximum lambda value to maintain positive branch lengths: " * @sprintf("%.6g", up)
         count = 0
         function fun(x::Vector{Float64}, g::Vector{Float64})
             x = convert(AbstractFloat, x[1])
@@ -1633,8 +1633,8 @@ function phyloNetworklm(f::Formula,
     preorder!(net)
     if no_names # The names should not be taken into account.
         ind = [0]
-        info("""As requested (no_names=true), I am ignoring the tips names
-             in the network and in the dataframe.""")
+        @info """As requested (no_names=true), I am ignoring the tips names
+             in the network and in the dataframe."""
     elseif (any(tipLabels(net) == "") || !any(DataFrames.names(fr) .== :tipNames))
         if (any(tipLabels(net) == "") && !any(DataFrames.names(fr) .== :tipNames))
             error("""The network provided has no tip names, and the input dataframe has

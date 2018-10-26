@@ -24,9 +24,9 @@ end
 	@test writeTopology(net, round=true, digits=8) == "(#H2:::0.2,((D,C,((B)#H1)#H2:::0.8),(#H1,A)));"
 	net = readTopologyLevel1("(E,((B)#H1:::.5,((D,C),(#H1:::.5,A))));");
 	@test writeTopology(net) == "(D:1.0,C:1.0,((#H1:1.0::0.5,A:1.0):1.0,((B:1.0)#H1:1.0::0.5,E:1.0):1.0):1.0);"
-    originalSTDOUT = STDOUT
+    originalstdout = stdout
 	redirect_stdout(open("/dev/null", "w")) # not portable to Windows
 	@test_nowarn PhyloNetworks.printEverything(net)
-	redirect_stdout(originalSTDOUT)
+	redirect_stdout(originalstdout)
 end
 end

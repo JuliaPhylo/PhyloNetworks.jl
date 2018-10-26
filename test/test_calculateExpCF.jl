@@ -26,7 +26,7 @@ try
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1),1/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
@@ -44,7 +44,7 @@ try
     qnet.which != 2 ? error("qnet which not correctly assigned") : nothing
     qnet.hybrid[1].k != 4 ? error("qnet.hybrid[1].k not correctly assigned") : nothing
     qnet.hybrid[1].typeHyb != 5 ? error("qnet.hybrid[1].typeHyb not correctly assigned") : nothing
-    !isa(qnet.hybrid[1].prev,Void) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
+    !isa(qnet.hybrid[1].prev,Nothing) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
 
     eliminateHybridization!(qnet)
     size(qnet.hybrid,1) != 1 || qnet.numHybrids != 1 ? error("qnet should have 1 hybrid nodes") : nothing
@@ -54,7 +54,7 @@ try
     qnet.split != [-1,-1,-1,-1] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [0.9*(1-2/3*exp(-0.1))+0.1*1/3*exp(-1.0), 0.9*(1/3*exp(-0.1))+0.1*(1-2/3*exp(-1.0)), 0.9*(1/3*exp(-0.1))+0.1*(1/3*exp(-1.0))] ? error("qnet.expCF wrongly calculated") : nothing
@@ -71,7 +71,7 @@ try
     qnet.which != 2 ? error("qnet which not correctly assigned") : nothing
     qnet.hybrid[1].k != 4 ? error("qnet.hybrid[1].k not correctly assigned") : nothing
     qnet.hybrid[1].typeHyb != 5 ? error("qnet.hybrid[1].typeHyb not correctly assigned") : nothing
-    !isa(qnet.hybrid[1].prev,Void) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
+    !isa(qnet.hybrid[1].prev,Nothing) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
 
     eliminateHybridization!(qnet)
     size(qnet.hybrid,1) != 1 || qnet.numHybrids != 1 ? error("qnet should have 1 hybrid nodes") : nothing
@@ -81,7 +81,7 @@ try
     qnet.split != [-1,-1,-1,-1] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [0.9*(1/3*exp(-0.1))+0.1*1/3*exp(-1.0), 0.9*(1/3*exp(-0.1))+0.1*(1-2/3*exp(-1.0)), 0.9*(1-2/3*exp(-0.1))+0.1*(1/3*exp(-1.0))] ? error("qnet.expCF wrongly calculated") : nothing
@@ -105,7 +105,7 @@ try
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1),1/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
@@ -133,7 +133,7 @@ try
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1),1/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
@@ -167,7 +167,7 @@ try
     qnet.which != 2 ? error("qnet which not correctly assigned") : nothing
     qnet.hybrid[1].k != 4 ? error("qnet.hybrid[1].k not correctly assigned") : nothing
     qnet.hybrid[1].typeHyb != 5 ? error("qnet.hybrid[1].typeHyb not correctly assigned") : nothing
-    !isa(qnet.hybrid[1].prev,Void) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
+    !isa(qnet.hybrid[1].prev,Nothing) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
 
     eliminateHybridization!(qnet)
     size(qnet.hybrid,1) != 1 || qnet.numHybrids != 1 ? error("qnet should not have hybrid nodes anymore") : nothing
@@ -177,7 +177,7 @@ try
     qnet.split != [-1,-1,-1,-1] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [(1-(0.7*(1-exp(-0.2)))-(0.3*(1-exp(-0.1))))/3, (1+2*(0.7*(1-exp(-0.2)))-(0.3*(1-exp(-0.1))))/3,(1-(0.7*(1-exp(-0.2)))+2*(0.3*(1-exp(-0.1))))/3] ? error("qnet.expCF wrongly calculated") : nothing
@@ -202,7 +202,7 @@ try
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [1,2,2] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [1,2,2] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [1-2/3*(exp(-0.1)),1/3*(exp(-0.1)),1/3*(exp(-0.1))] ? error("qnet.expCF wrongly calculated") : nothing
@@ -226,7 +226,7 @@ try
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [2,2,1] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [2,2,1] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [1/3*exp(-qnet.t1),1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
@@ -252,7 +252,7 @@ try
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1),1/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
@@ -270,7 +270,7 @@ try
     qnet.which != 2 ? error("qnet which not correctly assigned") : nothing
     qnet.hybrid[1].k != 4 ? error("qnet.hybrid[1].k not correctly assigned") : nothing
     qnet.hybrid[1].typeHyb != 5 ? error("qnet.hybrid[1].typeHyb not correctly assigned") : nothing
-    !isa(qnet.hybrid[1].prev,Void) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
+    !isa(qnet.hybrid[1].prev,Nothing) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
 
     eliminateHybridization!(qnet)
     size(qnet.hybrid,1) != 1 || qnet.numHybrids != 1 ? error("qnet should not have hybrid nodes anymore") : nothing
@@ -280,7 +280,7 @@ try
     qnet.split != [-1,-1,-1,-1] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [(1-0.7*(1-exp(-0.2))-0.3*(1-exp(-0.1)))/3,(1+2*0.7*(1-exp(-0.2))-0.3*(1-exp(-0.1)))/3,(1-0.7*(1-exp(-0.2))+2*0.3*(1-exp(-0.1)))/3] ? error("qnet.expCF wrongly calculated") : nothing
@@ -312,7 +312,7 @@ try
     qnet.which != 2 ? error("qnet which not correctly assigned") : nothing
     qnet.hybrid[1].k != 4 ? error("qnet.hybrid[1].k not correctly assigned") : nothing
     qnet.hybrid[1].typeHyb != 5 ? error("qnet.hybrid[1].typeHyb not correctly assigned") : nothing
-    !isa(qnet.hybrid[1].prev,Void) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
+    !isa(qnet.hybrid[1].prev,Nothing) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
 
     eliminateHybridization!(qnet)
     size(qnet.hybrid,1) != 1 || qnet.numHybrids != 1 ? error("qnet should not have hybrid nodes anymore") : nothing
@@ -322,7 +322,7 @@ try
     qnet.split != [-1,-1,-1,-1] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [0.9*(1/3*exp(-1))+0.1*(1-2/3*exp(-1)),0.9*(1-2/3*exp(-1))+0.1*1/3*exp(-1),0.9*(1/3*exp(-1))+0.1*(1/3*exp(-1))] ? error("qnet.expCF wrongly calculated") : nothing
@@ -350,7 +350,7 @@ try
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [1,2,2] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [1,2,2] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [1-2/3*(exp(-qnet.t1)),1/3*(exp(-qnet.t1)),1/3*(exp(-qnet.t1))] ? error("qnet.expCF wrongly calculated") : nothing
@@ -377,7 +377,7 @@ try
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [2,2,1] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [2,2,1] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [1/3*exp(-qnet.t1),1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
@@ -406,7 +406,7 @@ try
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1),1/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
@@ -424,7 +424,7 @@ try
     qnet.which != 2 ? error("qnet which not correctly assigned") : nothing
     qnet.hybrid[1].k != 4 ? error("qnet.hybrid[1].k not correctly assigned") : nothing
     qnet.hybrid[1].typeHyb != 5 ? error("qnet.hybrid[1].typeHyb not correctly assigned") : nothing
-    !isa(qnet.hybrid[1].prev,Void) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
+    !isa(qnet.hybrid[1].prev,Nothing) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
 
     eliminateHybridization!(qnet)
     size(qnet.hybrid,1) != 1 || qnet.numHybrids != 1 ? error("qnet should not have hybrid nodes anymore") : nothing
@@ -434,7 +434,7 @@ try
     qnet.split != [-1,-1,-1,-1] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [0.9*(1/3*exp(-1))+0.1*(1-2/3*exp(-1)),0.9*(1-2/3*exp(-1))+0.1*1/3*exp(-1),0.9*(1/3*exp(-1))+0.1*(1/3*exp(-1))] ? error("qnet.expCF wrongly calculated") : nothing

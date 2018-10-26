@@ -229,7 +229,7 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
         isLeaf3 = getOtherNode(tree_edge3,other_min);
         tree_edge4 = nothing;
         for e in other_min2.edge
-            if(isa(tree_edge4,Void) && e.inCycle == -1 && !e.hybrid)
+            if(isa(tree_edge4,Nothing) && e.inCycle == -1 && !e.hybrid)
                 tree_edge4 = e;
             end
         end
@@ -359,7 +359,7 @@ function updatePartition!(net::HybridNetwork, nodesChanged::Vector{Node})
                     edge = e
                 end
             end
-            !isa(edge,Void) || error("one edge in n.edge for node $(n.number) should not be in cycle")
+            !isa(edge,Nothing) || error("one edge in n.edge for node $(n.number) should not be in cycle")
             descendants = [edge]
             cycleNum = [nodesChanged[1].inCycle]
             getDescendants!(getOtherNode(edge,n),edge,descendants,cycleNum)

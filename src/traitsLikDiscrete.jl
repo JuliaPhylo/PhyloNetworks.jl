@@ -317,7 +317,7 @@ end
 @doc (@doc discrete_corelikelihood!) discrete_corelikelihood_tree!
 function discrete_corelikelihood_tree!(obj::SSM, t::Integer, traitrange::AbstractArray)
     tree = obj.displayedtree[t]
-    # info("tree: $(writeTopology(tree))")
+    # @info "tree: $(writeTopology(tree))"
     forwardlik = view(obj.forwardlik, :,:,t)
     directlik  = view(obj.directlik,  :,:,t)
     k = nStates(obj.model)   # also = size(logtrans,1)

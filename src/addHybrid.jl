@@ -63,7 +63,7 @@ function sisterOrCherry(edge1::Edge,edge2::Edge)
     elseif(isEqual(edge1.node[2],edge2.node[1]) || isEqual(edge1.node[2],edge2.node[2]))
         node = edge1.node[2];
     end
-    if(!isa(node,Void))
+    if(!isa(node,Nothing))
         size(node.edge,1) == 3 || error("node found $(node.number) that does not have exactly 3 edges, it has $(size(node.edge,1)) edges instead.")
         sisters = true
         if(getOtherNode(edge1,node).leaf && getOtherNode(edge2,node).leaf)
@@ -202,8 +202,8 @@ function updateMajorHybrid!(net::HybridNetwork, node::Node)
             edgecycle = e
         end
     end
-    !isa(hybedge,Void) || error("hybrid node $(node.number) does not have hybrid edge")
-    !isa(edgecycle,Void) || error("hybrid node $(node.number) does not have tree edge in cycle to update to hybrid edge after updateInCycle")
+    !isa(hybedge,Nothing) || error("hybrid node $(node.number) does not have hybrid edge")
+    !isa(edgecycle,Nothing) || error("hybrid node $(node.number) does not have tree edge in cycle to update to hybrid edge after updateInCycle")
     #println("updating hybrid status to edgeincycle $(edgecycle.number) for hybedge $(hybedge.number)")
     makeEdgeHybrid!(edgecycle,node,1-hybedge.gamma)
 end
@@ -273,7 +273,7 @@ updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool) = update
 # blacklist used in afterOptBLAll
 function addHybridizationUpdate!(net::HybridNetwork, blacklist::Bool, usePartition::Bool)
     hybrid = addHybridization!(net,blacklist, usePartition);
-    isa(hybrid,Void) && return false,nothing,false,false,false,false
+    isa(hybrid,Nothing) && return false,nothing,false,false,false,false
     updateAllNewHybrid!(hybrid,net,true)
 end
 
@@ -297,7 +297,7 @@ function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::In
     end
     i = 0
     if !success
-        if isa(hybrid,Void)
+        if isa(hybrid,Nothing)
             @debug "MOVE: could not add hybrid by any means"
         else
             while((nocycle || !flag) && i < N) #incycle failed

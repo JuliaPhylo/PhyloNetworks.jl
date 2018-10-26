@@ -67,18 +67,18 @@ PhyloNetworks.setCHECKNET(true)
     optBL! = PhyloNetworks.optBL!
 
 tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculateExpCF2.jl", "test_hasEdge.jl", "test_parameters.jl","test_correctLik.jl",
-         "test_partition.jl", "test_partition2.jl","test_deleteHybridizationUpdate.jl", "test_add2hyb.jl", "test_optBLparts.jl", "test_undirectedOtherNetworks.jl",
-         "test_manipulateNet.jl", "test_compareNetworks.jl",
-         "test_badDiamII.jl",
-         "test_multipleAlleles.jl",
-         "test_bootstrap.jl",
-         "test_perfectData.jl", # "test_readme.jl"
-         "test_lm.jl", "test_lm_tree.jl", "test_traits.jl", "test_simulate.jl",
-         "test_parsimony.jl",
-         "test_calibratePairwise.jl", "test_relaxed_reading.jl",
-         "test_isMajor.jl", "test_interop.jl",
-         "test_traitLikDiscrete.jl",
-         "test_ticr.jl",
+         #"test_partition.jl", "test_partition2.jl","test_deleteHybridizationUpdate.jl", "test_add2hyb.jl", "test_optBLparts.jl", "test_undirectedOtherNetworks.jl",
+         #"test_manipulateNet.jl", "test_compareNetworks.jl",
+         #"test_badDiamII.jl",
+         #"test_multipleAlleles.jl",
+         #"test_bootstrap.jl",
+         #"test_perfectData.jl", # "test_readme.jl"
+         #"test_lm.jl", "test_lm_tree.jl", "test_traits.jl", "test_simulate.jl",
+         #"test_parsimony.jl",
+         #"test_calibratePairwise.jl", "test_relaxed_reading.jl",
+         #"test_isMajor.jl", "test_interop.jl",
+         #"test_traitLikDiscrete.jl",
+         #"test_ticr.jl",
          "test_readInputData.jl"]
 
 @show PhyloNetworks.CHECKNET
@@ -87,11 +87,11 @@ anyerrors = false
 
 for t in tests
     try
-        info("starting $t")
+        @info "starting $t"
         include(t)
         println("\033[1m\033[32mPASSED\033[0m: $t")
     catch
-        anyerrors = true
+        global anyerrors = true
         println("\033[1m\033[31mFAILED\033[0m: $t")
     end
 end

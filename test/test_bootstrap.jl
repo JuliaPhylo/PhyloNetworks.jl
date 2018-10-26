@@ -37,15 +37,15 @@ resn, rese, resc, gam, edgenum = hybridBootstrapSupport(bootnet,bestnet);
 end # of testset, hybridBootstrapSupport
 
 # exdir = ""
-info("testing bootsnaq from quartet CF intervals")
+@info "testing bootsnaq from quartet CF intervals"
 T=readTopology(joinpath(exdir,"startTree.txt"))
 df=CSV.read(joinpath(exdir,"tableCFCI.csv"))
 net1 = readTopology("(5,(((2,(1)#H7:::0.7143969494428192):1.5121337017411736,4):0.4894187322508883,3):0.519160762355313,(6,#H7:::0.2856030505571808):10.0);")
-originalSTDOUT = STDOUT
+originalstdout = stdout
 redirect_stdout(open("/dev/null", "w")) # not portable to Windows
 bootnet = bootsnaq(T,df,nrep=2,runs=1,seed=1234,filename="",Nfail=2,ftolAbs=1e-3,ftolRel=1e-3,
                    xtolAbs=1e-4,xtolRel=1e-3,liktolAbs=0.01)
-redirect_stdout(originalSTDOUT)
+redirect_stdout(originalstdout)
 @test size(bootnet)==(2,)
 @test writeTopology(bootnet[1], round=true)=="(4,(((6,#H7:0.0::0.222):10.0,2):0.0,((5,1):0.0)#H7:0.0::0.778):0.0,3);"
 @test writeTopology(bootnet[2], round=true)=="(2,3,((4,5):0.0,(1,6):0.011):0.0);"
@@ -61,7 +61,7 @@ addprocs(1)
 @everywhere using PhyloNetworks
 redirect_stdout(open("/dev/null", "w"))
 bootnet = bootsnaq(T,boottrees,nrep=2,runs=2,otherNet=net1,seed=1234,prcnet=0.5,filename="",Nfail=2,ftolAbs=1e-3,ftolRel=1e-3)
-redirect_stdout(originalSTDOUT)
+redirect_stdout(originalstdout)
 rmprocs(workers())
 @test size(bootnet)==(2,)
 @test writeTopology(bootnet[1], round=true)=="((((2,(1)#H7:::0.597):10.0,4):0.407,(6,#H7:::0.403):0.307):0.0,3,5);"

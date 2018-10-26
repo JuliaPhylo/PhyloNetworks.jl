@@ -12,7 +12,9 @@ module PhyloNetworks
     using LinearAlgebra # for LowerTriangular. not in REQUIRE or Project.toml: stdlib
     using NLopt # for branch lengths optimization
     using Printf: @printf, @sprintf # not in REQUIRE or Project.toml: stdlib
+    using SpecialFunctions: lgamma
     using StaticArrays
+    using Statistics: mean # stdlib
     using StatsBase # sample, coef etc.
     using StatsFuns: logsumexp
     using StatsModels # re-exported by GLM. for ModelFrame ModelMatrix Formula etc

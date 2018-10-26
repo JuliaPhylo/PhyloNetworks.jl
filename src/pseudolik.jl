@@ -537,7 +537,7 @@ function redundantCycle!(net::Network)
     if(length(net.hybrid) > 0)
         redCycle, node = hasRedundantCycle(net)
         while(redCycle)
-            !isa(node,Void) || error("redundant cycle found, but the hybrid node is set to nothing")
+            !isa(node,Nothing) || error("redundant cycle found, but the hybrid node is set to nothing")
             redundantCycle!(net,node)
             DEBUGC && @debug "after redundante cycle for hybrid node $(n.number)"
             DEBUGC && printEdges(net)
@@ -700,7 +700,7 @@ function removeWeirdNodes!(net::Network, n::Node)
             @error "calling removeWeirdNode on normal node $(n.number)"
             n = nothing
         end
-        if(!isa(n,Void) && !isa(n,Vector{Void}))
+        if(!isa(n,Nothing) && !isa(n,Vector{Nothing}))
             @debug "typeof n $(typeof(n))"
             for l in n
                 @debug "typeof l $(typeof(l))"
@@ -871,7 +871,7 @@ function intermediateEdge(node1::Node,node2::Node)
             edge = e
         end
     end
-    if(isa(edge, Void))
+    if(isa(edge, Nothing))
         error("nodes $(node1.number), $(node2.number) are not connected by an edge")
     end
     return edge
@@ -887,8 +887,8 @@ function eliminateTriangle!(qnet::QuartetNetwork, node::Node, other::Node, case:
     node.hybrid || error("cannot eliminate triangle around node $(node.number) since it is not hybrid")
     #println("hybrid node is $(node.number), with edges $([e.number for e in node.edge]), with gammas $([e.gamma for e in node.edge])")
     edgemaj, edgemin, treeedge = hybridEdges(node)
-    isa(edgemaj,Void) ? error("edge maj is nothing for node $(node.number), other $(other.number) and taxon $(qnet.quartetTaxon), $(printEdges(qnet))") : nothing
-    isa(edgemin,Void) ? error("edge min is nothing for node $(node.number), other $(other.number) and taxon $(qnet.quartetTaxon), $(printEdges(qnet))") : nothing
+    isa(edgemaj,Nothing) ? error("edge maj is nothing for node $(node.number), other $(other.number) and taxon $(qnet.quartetTaxon), $(printEdges(qnet))") : nothing
+    isa(edgemin,Nothing) ? error("edge min is nothing for node $(node.number), other $(other.number) and taxon $(qnet.quartetTaxon), $(printEdges(qnet))") : nothing
     deleteIntLeafWhile!(qnet, edgemaj, node)
     deleteIntLeafWhile!(qnet, edgemin, node)
     if(isEqual(getOtherNode(edgemaj,node),other))
@@ -967,7 +967,7 @@ function quartetType5!(qnet::QuartetNetwork, node::Node)
     end
     #println("cf1,cf2,cf3: $(cf1),$(cf2),$(cf3)")
     leaf1 = getOtherNode(edge3,node)
-    if(isa(edgetree1,Void))
+    if(isa(edgetree1,Nothing))
         println("node $(node.number), edge3 $(edge3.number), other1 $(other1.number), leaf1 $(leaf1.number), other2 $(other2.number)")
         println("edge1 $(edge1.number), edge2 $(edge2.number), edge5 $(edge5.number), edge6 $(edge6.number)")
         printEdges(qnet)
@@ -1079,7 +1079,7 @@ function internalLength!(qnet::QuartetNetwork)
                 edge = e
             end
         end
-        !isa(edge,Void) || error("cannot find internal edge attached to node $(node.number) in qnet")
+        !isa(edge,Nothing) || error("cannot find internal edge attached to node $(node.number) in qnet")
         isEqual(getOtherNode(edge,node),node2) || error("strange internal edge $(edge.number) found in qnet, should have as nodes $(node.number), $(node2.number)")
         qnet.t1 = edge.length
     end
@@ -1100,7 +1100,7 @@ function eliminateHybridization!(qnet::QuartetNetwork)
             hybrids = copy(qnet.hybrid)
             for n in hybrids
                 if(n.typeHyb == 1) #only delete type 1 hybridizations (non identifiable ones)
-                    !isa(n.prev,Void) || error("hybrid node $(n.number) is type 1 hybridization, prev should be automatically set")
+                    !isa(n.prev,Nothing) || error("hybrid node $(n.number) is type 1 hybridization, prev should be automatically set")
                     eliminateHybridization!(qnet,n)
                 end
             end

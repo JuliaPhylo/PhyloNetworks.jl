@@ -210,10 +210,7 @@ if length(ARGS) > 1
 end
 outputfile = string("net", h, "_", nruns, "runs") # example: "net2_10runs"
 seed = 1234 + h # change as desired! Best to have it different for different h
-info("will run SNaQ with h=",h,
-    ", # of runs=",nruns,
-    ", seed=",seed,
-    ", output will go to: ", outputfile)
+@info "will run SNaQ with h=$h, # of runs=$nruns, seed=$seed, output will go to: $outputfile"
 
 addprocs(nruns)
 @everywhere using PhyloNetworks

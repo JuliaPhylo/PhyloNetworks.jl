@@ -157,10 +157,10 @@ m2 = BinaryTraitSubstitutionModel(0.2, 0.3, ["lo", "hi"])
 fit2 = (@test_nowarn fitDiscrete(net, m2, dat1; fixedparam=true))
 @test fit2.trait == [[1],[1],[2],[2]]
 @test loglikelihood(fit2) ≈ -2.6754091090953693
-originalSTDOUT = STDOUT
+originalstdout = stdout
 redirect_stdout(open("/dev/null", "w"))
 fit2 = @test_nowarn fitDiscrete(net, m2, dat1; verbose=true) # 65 iterations
-redirect_stdout(originalSTDOUT)
+redirect_stdout(originalstdout)
 @test fit2.model.rate ≈ [0.29993140042699212, 0.38882902905265493] atol=2e-4
 @test loglikelihood(fit2) ≈ -2.6447247349802496 atol=2e-4
 m2.rate = [0.2, 0.3];

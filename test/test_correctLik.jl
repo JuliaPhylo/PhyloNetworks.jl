@@ -56,7 +56,7 @@ end
 
 @testset "network estimation h=1" begin
 estNet = optTopRun1!(currT, 0.01,75, d,1, 1e-5,1e-6,1e-3,1e-4,
-                     false,true,Int[], 5454, STDOUT,false,0.3, STDOUT)
+                     false,true,Int[], 5454, stdout,false,0.3, stdout)
 # topology, likAbs,Nfail, data,hmax, fRel,fAbs,xRel,xAbs,
 # verbose,closeN,numMoves, seed, logfile,writelog,probST,sout)
 @test estNet.loglik ≈ 0.002165 atol=5.0e-6
@@ -66,7 +66,7 @@ end
 @testset "snaq! in serial and in parallel" begin
   tree = readTopology("((((6:0.1,4:1.5),9)1:0.1,8),10:0.1);")
   @test_throws ErrorException snaq!(tree, d) # some taxa are in quartets, not in tree
-  originalSTDOUT = STDOUT
+  originalstdout = stdout
   redirect_stdout(open("/dev/null", "w")) # not portable to Windows
   net = readTopology("((((6:0.1,4:1.5)1:0.2,((7,60))11#H1)5:0.1,(11#H1,8)),10:0.1);")
   @test_warn "these taxa will be deleted" snaq!(net, d, # taxon "60" in net: not in quartets
@@ -77,7 +77,7 @@ end
   @everywhere using PhyloNetworks
   n2 = snaq!(currT, d, hmax=1, runs=2, Nfail=1, seed=1234,
              ftolRel=1e-2,ftolAbs=1e-2,xtolAbs=1e-2,xtolRel=1e-2)
-  redirect_stdout(originalSTDOUT)
+  redirect_stdout(originalstdout)
   rmprocs(workers())
   @test writeTopology(n1, round=true)==writeTopology(n2, round=true)
   @test n1.loglik == n2.loglik

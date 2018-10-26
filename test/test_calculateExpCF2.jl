@@ -29,7 +29,7 @@ updateSplit!(qnet)
 qnet.split != [-1,-1,-1,-1] ? error("qnet.split not correctly assigned") : nothing
 
 updateFormula!(qnet)
-qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") :nothing
+qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") : nothing
 
 calculateExpCF!(qnet)
 qnet.expCF[2] < 0. || error("expCF not correctly calculated")

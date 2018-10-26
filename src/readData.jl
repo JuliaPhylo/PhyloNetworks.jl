@@ -692,7 +692,7 @@ function taxaTreesQuartets(trees::Vector{HybridNetwork}, quartets::Vector{Quarte
     end
 end
 
-taxaTreesQuartets(trees::Vector{HybridNetwork}, quartets::Vector{Quartet}) = taxaTreesQuartets(trees, quartets, STDOUT)
+taxaTreesQuartets(trees::Vector{HybridNetwork}, quartets::Vector{Quartet}) = taxaTreesQuartets(trees, quartets, stdout)
 
 # function that counts the number of trees in which taxon appears
 function taxonTrees(taxon::AbstractString, trees::Vector{HybridNetwork})
@@ -714,8 +714,8 @@ end
 
 
 # function to create descriptive stat from input data, will save in stream sout
-# which can be a file or STDOUT
-# default: send to STDOUT
+# which can be a file or stdout
+# default: send to stdout
 # pc: only 4-taxon subsets with percentage of gene trees less than pc will be printed (default 70%)
 function descData(d::DataCF, sout::IO, pc::Float64)
     0<=pc<=1 || error("percentage of missing genes should be between 0,1, not: $(pc)")
@@ -751,8 +751,8 @@ function descData(d::DataCF, filename::AbstractString,pc::Float64)
 end
 
 descData(d::DataCF, sout::IO) = descData(d, sout,0.7)
-descData(d::DataCF) = descData(d, STDOUT,0.7)
-descData(d::DataCF,pc::Float64) = descData(d, STDOUT,pc)
+descData(d::DataCF) = descData(d, stdout,0.7)
+descData(d::DataCF,pc::Float64) = descData(d, stdout,pc)
 descData(d::DataCF, filename::AbstractString) = descData(d, filename,0.7)
 
 """
@@ -765,7 +765,7 @@ function to summarize the information contained in a DataCF object. It has the f
 function summarizeDataCF(d::DataCF; filename="none"::AbstractString, pc=0.7::Float64)
     0<=pc<=1 || error("percentage of missing genes should be between 0,1, not: $(pc)")
     if(filename == "none")
-        descData(d,STDOUT,pc)
+        descData(d,stdout,pc)
     else
         descData(d,filename,pc)
     end

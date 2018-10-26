@@ -6,10 +6,10 @@ extrarun = false
 # on a tree:
 net = readTopology("(A,(B,(C,D)));")
 tips = Dict("A" => 0, "B" => 0, "C" => 1, "D" => 1)
-originalSTDOUT = STDOUT
+originalstdout = stdout
 redirect_stdout(open("/dev/null", "w")) # not portable to Windows
 score, states = PhyloNetworks.parsimonyDiscreteFitch(net, tips)
-redirect_stdout(originalSTDOUT)
+redirect_stdout(originalstdout)
 @test score==1
 @test states==Dict(4=>Set([1]),-4=>Set([1]),-3=>Set([0]),
          2=>Set([0]),3=>Set([1]),-2=>Set([0]),1=>Set([0]))
@@ -18,7 +18,7 @@ redirect_stdout(originalSTDOUT)
 net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
 redirect_stdout(open("/dev/null", "w"))
 score, states = PhyloNetworks.parsimonyDiscreteFitch(net, tips)
-redirect_stdout(originalSTDOUT)
+redirect_stdout(originalstdout)
 @test score==1
 @test states==Dict(4=>Set([1]),-4=>Set([0]),-3=>Set([1]),
          2=>Set([0]),-2=>Set([1]),5=>Set([1]),1=>Set([0]))
@@ -26,7 +26,7 @@ redirect_stdout(originalSTDOUT)
 tips = Dict("A" => 0, "B" => 1, "C" => 0, "D" => 1)
 redirect_stdout(open("/dev/null", "w"))
 score, states = PhyloNetworks.parsimonyDiscreteFitch(net, tips)
-redirect_stdout(originalSTDOUT)
+redirect_stdout(originalstdout)
 @test score==2
 @test states==Dict(4=>Set([0]),-6=>Set([0]),-4=>Set([0]),
   -3=>Set([0]),2=>Set([1]),-2=>Set([0,1]),5=>Set([1]),1=>Set([0]))
@@ -35,7 +35,7 @@ redirect_stdout(originalSTDOUT)
 dat = DataFrame(taxon=["A","E","B","C","D"], trait=[missing,2,0,1,1])
 redirect_stdout(open("/dev/null", "w"))
 score, states = PhyloNetworks.parsimonyDiscreteFitch(net, dat)
-redirect_stdout(originalSTDOUT)
+redirect_stdout(originalstdout)
 @test score==1
 @test states==Dict(4=>Set([1]),-6=>Set([1]),-4=>Set([0]),
   -3=>Set([1]),2=>Set([0]),-2=>Set([1]),5=>Set([1]))
@@ -174,6 +174,6 @@ dat = CSV.read(joinpath(@__DIR__, "..","examples","Swadesh.csv"));
 redirect_stdout(open("/dev/null", "w"))
 @test_nowarn maxParsimonyNet(readTopology("(((English,Spanish),Norwegian),(German,Portuguese));"),
     dat, hmax=1, runs=1, Nfail=2, outgroup="Spanish", rootname="", seed=6)
-redirect_stdout(originalSTDOUT)
-# best = PhyloNetworks.maxParsimonyNetRun1(net, dat, 100, 0.1, 1, 1234,STDOUT,false,0.3,"Spanish",:softwired)
+redirect_stdout(originalstdout)
+# best = PhyloNetworks.maxParsimonyNetRun1(net, dat, 100, 0.1, 1, 1234,stdout,false,0.3,"Spanish",:softwired)
 end
