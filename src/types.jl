@@ -122,18 +122,12 @@ Other more internal attributes include:
   "good", as per Solís-Lemus & Ané (2016), that is, if all 3 nodes in the cycle
   are not connected to any leaves (the reticulation is detectable from quartet
   concordance factors, even though all branch lengths are not identifiable).
-  `isVeryBadTriangle` is true if
+  `isVeryBadTriangle` is true if 2 (or all) of the 3 nodes are connected to a
+  leaf, in which case the reticulation is undetectable from unrooted gene tree
+  topologies (thus it's best to exclude these reticulations from a search).
+  `isBadTriangle` is true if exactly 1 of the 3 nodes is connected to a leaf.
 
 For details see Solís-Lemus & Ané (2016, doi:10.1371/journal.pgen.1005896)
-
-fixitfixit
-
-ExtremelyBadTriangle is the one that the reticulation is not even detectable
-(so excluded from the search), and
-BadTriangle is the one with detectable reticulation,
-but not all branch lengths are identifiable (so we set one BL to zero).
-I don't recall which one is the VeryBadTriangle, I have to check my notes.
-
 """
 mutable struct Node <: ANode
     number::Int
@@ -149,8 +143,7 @@ mutable struct Node <: ANode
     isVeryBadTriangle::Bool # for hybrid node, is it very bad triangle, udpate in updateGammaz!
     isBadTriangle::Bool # for hybrid node, is it very bad triangle, udpate in updateGammaz!
     inCycle::Int # = hybrid node if this node is part of a cycle created by such hybrid node, -1 if not part of cycle
-    # type Any for "prev" below!!! fixitfixit
-    prev # previous node in cycle, used in updateInCycle. defined as "Any", set as "nothing" to begin with
+    prev::Union{Nothing,ANode} # previous node in cycle, used in updateInCycle. set to "nothing" to begin with
     k::Int # num nodes in cycle, only stored in hybrid node, updated after node becomes part of network
            # default -1
     typeHyb::Int8 # type of hybridization (1,2,3,4, or 5), needed for quartet network only. default -1
@@ -175,7 +168,9 @@ abstract type Network end
 # warning: no check if it is network or tree, node array can have no hybrids
 # warning: nodes and edges need to be defined and linked before adding to a network
 """
-`HybridNetwork type`
+    HybridNetwork
+
+Subtype of abstract `Network` type.
 Explicit network or tree with the following attributes:
 
 - numTaxa
@@ -244,6 +239,12 @@ mutable struct HybridNetwork <: Network
 end
 
 # type created from a HybridNetwork only to extract a given quartet
+"""
+    QuartetNetwork(net::HybridNetwork)
+
+Subtype of `Network` abstract type.
+need documentation!
+"""
 mutable struct QuartetNetwork <: Network
     numTaxa::Int
     numNodes::Int
@@ -279,16 +280,17 @@ mutable struct QuartetNetwork <: Network
 end
 
 """
-`Quartet type`
+    Quartet
 
 type that saves the information on a given 4-taxon subset. It contains the following attributes:
 
-- number
-- taxon (vector of taxon names)
-- obsCF (vector of observed CF)
+- number: integer
+- taxon: vector of taxon names, like t1 t2 t3 t4
+- obsCF: vector of observed CF, in order 12|34, 13|24, 14|23
 - logPseudoLik
-- ngenes (number of gene trees used to compute the observed CF: -1 if unknown)
-- qnet (internal topological structure that saves the expCF after snaq estimation to emphasize that the expCF depend on a specific network, not the data)
+- ngenes: number of gene trees used to compute the observed CF; -1 if unknown
+- qnet: [`QuartetNetwork`](@ref), which saves the expCF after snaq estimation to
+  emphasize that the expCF depend on a specific network, not the data
 """
 mutable struct Quartet
     number::Int
@@ -318,7 +320,7 @@ end
 # Data -------
 
 """
-`DataCF type`
+    DataCF
 
 type that contains the following attributes:
 
