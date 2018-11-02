@@ -18,6 +18,7 @@ const TSM = TraitSubstitutionModel{T} where T #T is type of labels
 const Bmatrix = SMatrix{2, 2, Float64}
 const NASM = NucleicAcidSubstitutionModel
 const Qmatrix = SMatrix{4, 4, Float64}
+const Pmatrix = SMatrix{4, 4, Float64}
 
 
 """
@@ -510,8 +511,6 @@ return Q rate matrix for the given model. Mutable version modeled after BioJulia
 """
 function Q(mod::HKY85Model)
     if HKY85Model.relative == false
-        #α = mod.α; β = mod.β
-        rate = mod.rate; pi = mod.pi
         a = mod.rate[1]; b = mod.rate[2]
         πA = mod.pi[1]; πC = mod.pi[2]; πG = mod.pi[3]; πT = mod.pi[4]
       
@@ -551,6 +550,63 @@ function Q(mod::HKY85Model)
                     Q₇,  Q₈,  Q₇,  Q₁₂)
 
 end
+
+"""
+    P(model::NASM, t::Float64)
+    Probability transition matrix for a [`HKY85Model`](@ref)
+    Mutable version modeled after BioJulia/SubstitionModel.jl
+"""
+function P(mod::HKY85Model, t::Float64)
+    if t < 0.0
+        error("t must be positive")
+    end
+    if HKY85Model.relative == false
+        a = mod.rate[1]; b = mod.rate[2]
+        πA = mod.pi[1]; πC = mod.pi[2]; πG = mod.pi[3]; πT = mod.pi[4]
+          
+        e₁ = exp(-b * t)
+        e₂ = exp(-(πR * a + πY * b) * t)
+        e₃ = exp(-(πY * a + πR * b) * t)
+          
+        P₁  = πA + (πA * πY / πR) * e₁ + (πG / πR) * e₂
+        P₂  = πC + (πT * πR / πY) * e₁ + (πT / πY) * e₃
+        P₃  = πG + (πG * πY / πR) * e₁ + (πA / πR) * e₂
+        P₄  = πT + (πT * πR / πY) * e₁ + (πC / πY) * e₃
+        P₅  = πA * (1 - e₁)
+        P₆  = πA + (πA * πY / πR) * e₁ - (πA / πR) * e₂
+        P₇  = πC * (1 - e₁)
+        P₈  = πC + (πT * πR / πY) * e₁ - (πC / πY) * e₃
+        P₉  = πG + (πG * πY / πR) * e₁ - (πG / πR) * e₂
+        P₁₀ = πG * (1 - e₁)
+        P₁₁ = πT * (1 - e₁)
+        P₁₂ = πT + (πT * πR / πY) * e₁ - (πT / πY) * e₃
+    else #relative version
+        k = mod.rate[1]
+        πA = mod.pi[1]; πC = mod.pi[2]; πG = mod.pi[3]; πT = mod.pi[4]
+        
+        e₁ = exp(-t)
+        e₂ = exp(-(πR * κ + πY) * t)
+        e₃ = exp(-(πY * κ + πR) * t)
+        
+        P₁  = πA + (πA * πY / πR) * e₁ + (πG / πR) * e₂
+        P₂  = πC + (πT * πR / πY) * e₁ + (πT / πY) * e₃
+        P₃  = πG + (πG * πY / πR) * e₁ + (πA / πR) * e₂
+        P₄  = πT + (πT * πR / πY) * e₁ + (πC / πY) * e₃
+        P₅  = πA * (1 - e₁)
+        P₆  = πA + (πA * πY / πR) * e₁ - (πA / πR) * e₂
+        P₇  = πC * (1 - e₁)
+        P₈  = πC + (πT * πR / πY) * e₁ - (πC / πY) * e₃
+        P₉  = πG + (πG * πY / πR) * e₁ - (πG / πR) * e₂
+        P₁₀ = πG * (1 - e₁)
+        P₁₁ = πT * (1 - e₁)
+        P₁₂ = πT + (πT * πR / πY) * e₁ - (πT / πY) * e₃
+    end
+    return Pmatrix(P₁,  P₅,  P₆,  P₅,
+                    P₇,  P₂,  P₇,  P₈,
+                    P₉,  P₁₀, P₃,  P₁₀,
+                    P₁₁, P₁₂, P₁₁, P₄)
+end
+
 
 """
     variablerates(model::NASM)
