@@ -556,6 +556,13 @@ end
     Probability transition matrix for a [`HKY85Model`](@ref)
     Mutable version modeled after BioJulia/SubstitionModel.jl
 """
+function P(mod::NASM, t::Float64) #TODO do we need this generic version?
+    if t < 0.0
+        error("t must be positive")
+    end
+    return exp(Q(mod) * t)
+end
+
 function P(mod::HKY85Model, t::Float64)
     if t < 0.0
         error("t must be positive")
@@ -621,8 +628,13 @@ We accomodate rate variantion by assuming that rate r for any site is a random v
 ```julia-repl
 
 ```
+TODO calc U, the matrix of eigenvectors
+TODO calc lambda_k for k = 1 to 4
 """
-function variablerate(mod::HKY85Model)
-
+function variablerate(mod::NASM)
+    if typeof(mod) != HKY85Model
+        error("For now, only implemented for HKY85Model")
+    else
+       # p[i,j] = U[i,k]*U_inv[k,j]*exp(lambda_k*t)#from k = 1 to k = 4 
+    end
 end
-function variablerate(mod::JC69Model)
