@@ -11,11 +11,12 @@ see [`BinaryTraitSubstitutionModel`](@ref),
 [`EqualRatesSubstitutionModel`](@ref),
 [`TwoBinaryTraitSubstitutionModel`](@ref)
 """
-
-abstract type TraitSubstitutionModel{T} <: SubstitutionModels.SubstitutionModel end
-const TSM = TraitSubstitutionModel{T} where T
+abstract type SubstitutionModel end #ideally, we'd like this to be SubstitutionModels.SubstitionModel
+abstract type TraitSubstitutionModel{T} <: SubstitutionModel end #this accepts labels
+abstract type NucleicAcidSubstitutionModel <: SubstitutionModel end
+const TSM = TraitSubstitutionModel{T} where T #T is type of labels
 const Bmatrix = SMatrix{2, 2, Float64}
-#NASM = SubstitutionModels.NucleicAcidSubstitutionModel and is already exported
+const NASM = NucleicAcidSubstitutionModel
 
 """
     nStates(model)
@@ -244,7 +245,7 @@ end
 """
     EqualRatesSubstitutionModel(numberStates, α, labels)
 
-[`TraitSubstitutionModel`](@ref) for traits with any number of states
+[`TraitSubstitutionModel`](@ref) for traits with any k number of states
 and equal substitution rates α between all states.
 Default labels are "1","2",...
 """
@@ -423,32 +424,69 @@ function updateHybridRandomTrait!(V::Matrix,
 end
 
 """
-    getLabels(mod:SM)
-TODO change docstring, change to small case function names
+    HKY85Model ()
 
-return labels for a given nuceliec acid substitution model (labels ordered as in rate matrix)
-see BioJulia SubstitutionModels pkg NucleicAcidSubstitutionModel
-
-if model is a NASM, returns ACGT
-if model 
-#function that returns acgt in order of matrix
+[`HKY85Model`](@ref) nucleic acid substitution model based on Hasegawa et al. 1984 
+substitution model. Default is relative rate model. Based on depricated PhyloModels.jl by Justin Angevaare
 """
+mutable struct HKY85Model <: NucleicAcidSubstitutionModel
+    rate::Vector{Float64}
+    pi::Vector{Float64}
+    relative::Bool
+    function HKY85Model(rate, pi, relative)
+        if any(rate .<= 0.)
+            error("All elements of rate must be positive")
+          elseif !(1 <= length(rate) <= 2)
+            error("rate is not a valid length for HKY85 model")
+          elseif length(π) !== 4
+            error("pi must be of length 4")
+          elseif !all(0. .< pi.< 1.)
+            error("All base proportions must be between 0 and 1")
+          elseif sum(pi) !== 1.
+            error("Base proportions must sum to 1")
+          end
+      
+          if length(rate) == 1
+            new(rate, pi, true)
+          else
+            new(rate, pi, false)
+          end
+        end
+      end
+const HKY = HKY85Model
+HKY85Model(rate::Vector{Float64}, pi::Vector{Float64}, relative::Bool) = 
+HKY85Model(rate,pi,relative)
+HKY85Model(rate::Vector{Float64}, pi::Vector{Float64}) = 
+HKY85Model(rate,pi,true)
 
-function getLabels(::NASM)
-    #return alphabet(DNA) this returns all possible letters. we probably just want four
+"""
+    getlabels(mod:SM)
+require:
+    PhyloModels
+
+return labels for a given nuceleic acid substitution model. 
+If model is a NASM, returns ACGT. 
+
+# examples
+
+```julia-repl 
+TODO
+````
+"""
+function getlabels(::NASM)
     return BioSymbols.ACGT
 end
-function getLabels(mod::TSM)
+function getlabels(mod::TSM)
     return mod.label
 end
-function getLabels(mod::SM)
-    error("Model must be of type TraitSubstitutionModel or NucleicAcidSubstitutionModel. got $(typeof(mod))")
+function getlabels(mod::SM)
+    error("Model must be of type TraitSubstitutionModel or NucleicAcidSubstitutionModel. Got $(typeof(mod))")
 end
 
 """
-    nStates(model::NASM)
+    nstates(model::NASM)
 
-Number of character states for a NucleicAcidSubstitutionModel
+return number of character states for a NucleicAcidSubstitutionModel
 """
 
 """
@@ -456,10 +494,37 @@ Number of character states for a NucleicAcidSubstitutionModel
 
 ```julia-repl
 julia> m1 = JC69(0.01)
-julia> nStates(m1)
+julia> nstates(m1)
 4
 ```
 """
-function nStates(mod::NASM)
+function nstates(mod::NASM)
     return 4::Int
 end
+
+"""
+    variablerates(model::NASM)
+
+allow variable rates over sites
+
+Options: 
+    local clock model (Yang & Yoder 2000)
+
+    Bayesian option:
+    ARM: relaxed-clock model for autocorrelated-rates model (ARM)
+    IRM: independent-rates model
+    Rannala B, Yang Z. 2007. 
+    Inferring speciation times under an episodic molecular clock. Syst Biol. 56(3):453–466
+"""
+"""
+# Examples
+```julia-repl
+```
+"""
+#= function variablerates(mod::NASM, ratemodel = "ARM")
+    if ratemodel == "ARM"
+        
+    else if ratemodel == "IRM"
+
+    end
+end =#
