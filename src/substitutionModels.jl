@@ -17,6 +17,8 @@ abstract type NucleicAcidSubstitutionModel <: SubstitutionModel end
 const TSM = TraitSubstitutionModel{T} where T #T is type of labels
 const Bmatrix = SMatrix{2, 2, Float64}
 const NASM = NucleicAcidSubstitutionModel
+const Qmatrix = SMatrix{4, 4, Float64}
+
 
 """
     nStates(model)
@@ -503,28 +505,68 @@ function nstates(mod::NASM)
 end
 
 """
+    Q(model::NASM)
+return Q rate matrix for the given model. Mutable version modeled after BioJulia/SubstitionModel.jl
+"""
+function Q(mod::HKY85Model)
+    if HKY85Model.relative == false
+        #α = mod.α; β = mod.β
+        rate = mod.rate; pi = mod.pi
+        a = mod.rate[1]; b = mod.rate[2]
+        πA = mod.pi[1]; πC = mod.pi[2]; πG = mod.pi[3]; πT = mod.pi[4]
+      
+        Q₁  = a * πA
+        Q₂  = a * πA
+        Q₃  = b * πC
+        Q₄  = a * πC
+        Q₅  = a * πG
+        Q₆  = b * πG
+        Q₇  = b * πT
+        Q₈  = a * πT
+        Q₉  = -(Q₃ + Q₅ + Q₇)
+        Q₁₀ = -(Q₁ + Q₆ + Q₈)
+        Q₁₁ = -(Q₂ + Q₃ + Q₇)
+        Q₁₂ = -(Q₁ + Q₄ + Q₆)
+      
+    else #relative version
+        k = mod.rate[1]
+        πA = mod.pi[1]; πC = mod.pi[2]; πG = mod.pi[3]; πT = mod.pi[4]
+      
+        Q₁  = πA
+        Q₂  = k * πA
+        Q₃  = πC
+        Q₄  = k * πC
+        Q₅  = k * πG
+        Q₆  = πG
+        Q₇  = πT
+        Q₈  = k * πT
+        Q₉  = -(Q₃ + Q₅ + Q₇)
+        Q₁₀ = -(Q₁ + Q₆ + Q₈)
+        Q₁₁ = -(Q₂ + Q₃ + Q₇)
+        Q₁₂ = -(Q₁ + Q₄ + Q₆)
+    end
+    return Qmatrix(Q₉,  Q₁,  Q₂,  Q₁,
+                    Q₃,  Q₁₀, Q₃,  Q₄,
+                    Q₅,  Q₆,  Q₁₁, Q₆,
+                    Q₇,  Q₈,  Q₇,  Q₁₂)
+
+end
+
+"""
     variablerates(model::NASM)
 
-allow variable rates over sites
+allow variable substitution rates across sites
 
-Options: 
-    local clock model (Yang & Yoder 2000)
+We accomodate rate variantion by assuming that rate r for any site is a random variable drawn from Gamma.
+    Turns HKY85 model to HKY85 + gamma model
 
-    Bayesian option:
-    ARM: relaxed-clock model for autocorrelated-rates model (ARM)
-    IRM: independent-rates model
-    Rannala B, Yang Z. 2007. 
-    Inferring speciation times under an episodic molecular clock. Syst Biol. 56(3):453–466
-"""
-"""
+    Because alpha and beta, alpha = beta, so we only need to optimize one parameter, which I'll refer to as alpha here.
 # Examples
 ```julia-repl
+
 ```
 """
-#= function variablerates(mod::NASM, ratemodel = "ARM")
-    if ratemodel == "ARM"
-        
-    else if ratemodel == "IRM"
+function variablerate(mod::HKY85Model)
 
-    end
-end =#
+end
+function variablerate(mod::JC69Model)
