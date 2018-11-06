@@ -702,8 +702,8 @@ return PMatrix, modified with variable gamma rate
 ?should this override P matrix/be part of that function or the model object?
 """
 function variablerateP(mod::NASM, t::Float64)
-    f = Matrix{Float64} #need this?
-    lambda = Vector{Float64}
+    Fmatrix = Matrix{Float64} #? need this?
+    lambda = Vector{4, Float64}
     umatrix = SMatrix{4, 4, Float64}
     #add new vector for set of 4 rates over gamma distribution
     if typeof(mod) == HKY85Model
@@ -732,16 +732,13 @@ function variablerateP(mod::NASM, t::Float64)
     else
         error("For now, variablerate only implemented for JC69Model and HKY85Model")
     end
-    for k = 1:4 #to use this, need to go over i, j
-        for i = 1:4
-            for j = 1:4
-        #this is the general formula
-        Pmatrix[i,j] = U[i,k]*U_inv[k,j]*exp(lambda_k*t)#from k = 1 to k = 4
-        f[i,j] = pi[i]*u[i,k]*inv_u[k,j]*(1-lambda[k]*t/alpha)^(-alpha) #pr(observ nucleotides i,j at site)
-        #mod.varRate[k] = (I(b*alpha,alpha + 1) - I(a*alpha, alpha+1))(1/k) #average over gamma
-        #prob of data
-            end
+    for k = 1:4 #eigenvalues
+        for j = 1:4, i = 1:4 #nucleotides
+            #general formula p 17
+            Pmatrix[i,j] = U[i,k]*U_inv[k,j]*exp(lambda_k*t)#from k = 1 to k = 4
+            Fmatrix[i,j] = pi[i]*u[i,k]*inv_u[k,j]*(1-lambda[k]*t/alpha)^(-alpha) #pr(observ nucleotides i,j at site)
+            #mod.varRate[k] = (I(b*alpha,alpha + 1) - I(a*alpha, alpha+1))(1/k) #average over gamma
         end
     end
-    return PMatrix() #replaces the p matrix from function P 
+    return Pmatrix() #replaces the p matrix from function P 
 end
