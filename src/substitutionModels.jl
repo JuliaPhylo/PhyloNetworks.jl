@@ -14,6 +14,8 @@ see [`BinaryTraitSubstitutionModel`](@ref),
 abstract type SubstitutionModel end #ideally, we'd like this to be SubstitutionModels.SubstitionModel
 abstract type TraitSubstitutionModel{T} <: SubstitutionModel end #this accepts labels
 abstract type NucleicAcidSubstitutionModel <: SubstitutionModel end
+const Qmatrix = SMatrix{4, 4, Float64}
+const Pmatrix = SMatrix{4, 4, Float64}
 const TSM = TraitSubstitutionModel{T} where T #T is type of labels
 const Bmatrix = SMatrix{2, 2, Float64}
 const NASM = NucleicAcidSubstitutionModel
@@ -427,10 +429,41 @@ function updateHybridRandomTrait!(V::Matrix,
 end
 
 """
+    JC69Model ()
+
+[`JC69Model`](@ref) nucleic acid substitution model based on Jukes and Cantor's 1969 substitution model. 
+Default is relative rate model. Based on depricated PhyloModels.jl by Justin Angevaare
+"""
+mutable struct JC69 <:  NucleicAcidSubstitutionModel
+    rate::Vector{Float64}
+    pi::Vector{Float64}
+    relativerate::Bool
+  
+    function JC69(rate::Vector{Float64})
+      if !(0 <= length(rate) <= 1)
+        error("rate not a valid length for a JC69 model")
+      elseif any(rate .<= 0.)
+        error("All elements of rate must be positive for a JC69 model")
+      end
+      pi = [0.25, 0.25, 0.25, 0.25]
+      if length(rate) == 0
+        new(rate, pi, true)
+      else
+        new(rate, pi, false)
+      end
+    end
+  end
+const JC69 = JC69Model
+JC69Model(rate::Vector{Float64}, pi::Vector{Float64}, relative::Bool) = 
+JC69Model(rate,pi,relative)
+JC69Model(rate::Vector{Float64}, pi::Vector{Float64}) = 
+JC69Model(rate,pi,true)
+
+"""
     HKY85Model ()
 
-[`HKY85Model`](@ref) nucleic acid substitution model based on Hasegawa et al. 1984 
-substitution model. Default is relative rate model. Based on depricated PhyloModels.jl by Justin Angevaare
+[`HKY85Model`](@ref) nucleic acid substitution model based on Hasegawa et al. 1984 substitution model. 
+Default is relative rate model. Based on depricated PhyloModels.jl by Justin Angevaare
 """
 mutable struct HKY85Model <: NucleicAcidSubstitutionModel
     rate::Vector{Float64}
@@ -441,7 +474,7 @@ mutable struct HKY85Model <: NucleicAcidSubstitutionModel
             error("All elements of rate must be positive")
           elseif !(1 <= length(rate) <= 2)
             error("rate is not a valid length for HKY85 model")
-          elseif length(π) !== 4
+          elseif length(pi) !== 4
             error("pi must be of length 4")
           elseif !all(0. .< pi.< 1.)
             error("All base proportions must be between 0 and 1")
@@ -461,6 +494,7 @@ HKY85Model(rate::Vector{Float64}, pi::Vector{Float64}, relative::Bool) =
 HKY85Model(rate,pi,relative)
 HKY85Model(rate::Vector{Float64}, pi::Vector{Float64}) = 
 HKY85Model(rate,pi,true)
+
 
 """
     getlabels(mod:SM)
@@ -508,37 +542,49 @@ end
 """
     Q(model::NASM)
 return Q rate matrix for the given model. Mutable version modeled after BioJulia/SubstitionModel.jl
+and PyloModels.jl
 """
+function Q(mod::JC69Model)
+    if mod.relativerate
+        lambda = 0.25
+    else
+        lambda = 0.25*mod.rate[1]
+    end
+  
+    return [[-3*lambda lambda lambda lambda]
+            [lambda -3*lambda lambda lambda]
+            [lambda lambda -3*lambda lambda]
+            [lambda lambda lambda -3*lambda]]
+end
+
+
 function Q(mod::HKY85Model)
-    if HKY85Model.relative == false
-        a = mod.rate[1]; b = mod.rate[2]
-        πA = mod.pi[1]; πC = mod.pi[2]; πG = mod.pi[3]; πT = mod.pi[4]
-      
-        Q₁  = a * πA
-        Q₂  = a * πA
-        Q₃  = b * πC
-        Q₄  = a * πC
-        Q₅  = a * πG
-        Q₆  = b * πG
-        Q₇  = b * πT
-        Q₈  = a * πT
+    piA = mod.pi[1]; piC = mod.pi[2]; piG = mod.pi[3]; piT = mod.pi[4]
+    if HKY85Model.relative == true
+        k = mod.rate[1]
+
+        Q₁  = piA
+        Q₂  = k * piA
+        Q₃  = piC
+        Q₄  = k * piC
+        Q₅  = k * piG
+        Q₆  = piG
+        Q₇  = piT
+        Q₈  = k * piT
         Q₉  = -(Q₃ + Q₅ + Q₇)
         Q₁₀ = -(Q₁ + Q₆ + Q₈)
         Q₁₁ = -(Q₂ + Q₃ + Q₇)
         Q₁₂ = -(Q₁ + Q₄ + Q₆)
-      
-    else #relative version
-        k = mod.rate[1]
-        πA = mod.pi[1]; πC = mod.pi[2]; πG = mod.pi[3]; πT = mod.pi[4]
-      
-        Q₁  = πA
-        Q₂  = k * πA
-        Q₃  = πC
-        Q₄  = k * πC
-        Q₅  = k * πG
-        Q₆  = πG
-        Q₇  = πT
-        Q₈  = k * πT
+    else
+        a = mod.rate[1]; b = mod.rate[2]      
+        Q₁  = a * piA
+        Q₂  = a * piA
+        Q₃  = b * piC
+        Q₄  = a * piC
+        Q₅  = a * piG
+        Q₆  = b * piG
+        Q₇  = b * piT
+        Q₈  = a * piT
         Q₉  = -(Q₃ + Q₅ + Q₇)
         Q₁₀ = -(Q₁ + Q₆ + Q₈)
         Q₁₁ = -(Q₂ + Q₃ + Q₇)
@@ -563,50 +609,70 @@ function P(mod::NASM, t::Float64) #TODO do we need this generic version?
     return exp(Q(mod) * t)
 end
 
+function P(mod::JC69Model, t::Float64)
+    if t < 0
+        error("Time must be positive")
+    end
+    if mod.relativerate
+        lambda = 1.
+    else
+        lambda = mod.rate[1]
+    end
+      
+    P_0 = 0.25 + 0.75 * exp(-t * lambda)
+    P_1 = 0.25 - 0.25 * exp(-t * lambda)
+      
+    return [[P_0 P_1 P_1 P_1]
+            [P_1 P_0 P_1 P_1]
+            [P_1 P_1 P_0 P_1]
+            [P_1 P_1 P_1 P_0]]
+end
+
 function P(mod::HKY85Model, t::Float64)
     if t < 0.0
         error("t must be positive")
     end
+    piA = mod.pi[1]; piC = mod.pi[2]; piG = mod.pi[3]; piT = mod.pi[4]
+    piR = piA + piG
+    piY = piT + piC
     if HKY85Model.relative == false
         a = mod.rate[1]; b = mod.rate[2]
-        πA = mod.pi[1]; πC = mod.pi[2]; πG = mod.pi[3]; πT = mod.pi[4]
           
         e₁ = exp(-b * t)
-        e₂ = exp(-(πR * a + πY * b) * t)
-        e₃ = exp(-(πY * a + πR * b) * t)
+        e₂ = exp(-(piR * a + piY * b) * t)
+        e₃ = exp(-(piY * a + piR * b) * t)
           
-        P₁  = πA + (πA * πY / πR) * e₁ + (πG / πR) * e₂
-        P₂  = πC + (πT * πR / πY) * e₁ + (πT / πY) * e₃
-        P₃  = πG + (πG * πY / πR) * e₁ + (πA / πR) * e₂
-        P₄  = πT + (πT * πR / πY) * e₁ + (πC / πY) * e₃
-        P₅  = πA * (1 - e₁)
-        P₆  = πA + (πA * πY / πR) * e₁ - (πA / πR) * e₂
-        P₇  = πC * (1 - e₁)
-        P₈  = πC + (πT * πR / πY) * e₁ - (πC / πY) * e₃
-        P₉  = πG + (πG * πY / πR) * e₁ - (πG / πR) * e₂
-        P₁₀ = πG * (1 - e₁)
-        P₁₁ = πT * (1 - e₁)
-        P₁₂ = πT + (πT * πR / πY) * e₁ - (πT / πY) * e₃
+        P₁  = piA + (piA * piY / piR) * e₁ + (piG / piR) * e₂
+        P₂  = piC + (piT * piR / piY) * e₁ + (piT / piY) * e₃
+        P₃  = piG + (piG * piY / piR) * e₁ + (piA / piR) * e₂
+        P₄  = piT + (piT * piR / piY) * e₁ + (piC / piY) * e₃
+        P₅  = piA * (1 - e₁)
+        P₆  = piA + (piA * piY / piR) * e₁ - (piA / piR) * e₂
+        P₇  = piC * (1 - e₁)
+        P₈  = piC + (piT * piR / piY) * e₁ - (piC / piY) * e₃
+        P₉  = piG + (piG * piY / piR) * e₁ - (piG / piR) * e₂
+        P₁₀ = piG * (1 - e₁)
+        P₁₁ = piT * (1 - e₁)
+        P₁₂ = piT + (piT * piR / piY) * e₁ - (piT / piY) * e₃
     else #relative version
         k = mod.rate[1]
-        πA = mod.pi[1]; πC = mod.pi[2]; πG = mod.pi[3]; πT = mod.pi[4]
         
         e₁ = exp(-t)
-        e₂ = exp(-(πR * κ + πY) * t)
-        e₃ = exp(-(πY * κ + πR) * t)
+        e₂ = exp(-(piR * k + piY) * t)
+        e₃ = exp(-(piY * k + piR) * t)
         
-        P₁  = πA + (πA * πY / πR) * e₁ + (πG / πR) * e₂
-        P₂  = πC + (πT * πR / πY) * e₁ + (πT / πY) * e₃
-        P₃  = πG + (πG * πY / πR) * e₁ + (πA / πR) * e₂
-        P₄  = πT + (πT * πR / πY) * e₁ + (πC / πY) * e₃
-        P₅  = πA * (1 - e₁)
-        P₆  = πA + (πA * πY / πR) * e₁ - (πA / πR) * e₂
-        P₇  = πC * (1 - e₁)
-        P₈  = πC + (πT * πR / πY) * e₁ - (πC / πY) * e₃
-        P₉  = πG + (πG * πY / πR) * e₁ - (πG / πR) * e₂
-        P₁₀ = πG * (1 - e₁)
-        P₁₁ = πT * (1 - e₁)
-        P₁₂ = πT + (πT * πR / πY) * e₁ - (πT / πY) * e₃
+        P₁  = piA + (piA * piY / piR) * e₁ + (piG / piR) * e₂
+        P₂  = piC + (piT * piR / piY) * e₁ + (piT / piY) * e₃
+        P₃  = piG + (piG * piY / piR) * e₁ + (piA / piR) * e₂
+        P₄  = piT + (piT * piR / piY) * e₁ + (piC / piY) * e₃
+        P₅  = piA * (1 - e₁)
+        P₆  = piA + (piA * piY / piR) * e₁ - (piA / piR) * e₂
+        P₇  = piC * (1 - e₁)
+        P₈  = piC + (piT * piR / piY) * e₁ - (piC / piY) * e₃
+        P₉  = piG + (piG * piY / piR) * e₁ - (piG / piR) * e₂
+        P₁₀ = piG * (1 - e₁)
+        P₁₁ = piT * (1 - e₁)
+        P₁₂ = piT + (piT * piR / piY) * e₁ - (piT / piY) * e₃
     end
     return Pmatrix(P₁,  P₅,  P₆,  P₅,
                     P₇,  P₂,  P₇,  P₈,
@@ -618,23 +684,64 @@ end
 """
     variablerates(model::NASM)
 
-allow variable substitution rates across sites
+allow variable substitution rates across sites using the discrete gamma model with k = 4
+(Yang 1994, Journal of Molecular Evolution)
 
-We accomodate rate variantion by assuming that rate r for any site is a random variable drawn from Gamma.
-    Turns HKY85 model to HKY85 + gamma model
+Accomodate rate variantion by assuming that rate r for any site is a random gamma variable.
+Turn any NASM to NASM + gamma.
 
-    Because alpha and beta, alpha = beta, so we only need to optimize one parameter, which I'll refer to as alpha here.
+Because mean(gamma) must = 1, alpha = beta. Refer to this parameter as alpha here.
+Mainly, this function estimates the gamma parameter alpha, right?
+
+return PMatrix, modified with variable gamma rate
+
 # Examples
 ```julia-repl
 
 ```
-TODO calc U, the matrix of eigenvectors
-TODO calc lambda_k for k = 1 to 4
+?should this override P matrix/be part of that function or the model object?
 """
-function variablerate(mod::NASM)
-    if typeof(mod) != HKY85Model
-        error("For now, only implemented for HKY85Model")
+function variablerateP(mod::NASM, t::Float64)
+    f = Matrix{Float64} #need this?
+    lambda = Vector{Float64}
+    umatrix = SMatrix{4, 4, Float64}
+    #add new vector for set of 4 rates over gamma distribution
+    if typeof(mod) == HKY85Model
+        #eigenvectors
+        u = (1, 1/piY, 0, piC/piY, 
+        1, 1/piY, 0, -piT/piY,
+        1, -1/piR, piG/piR, 0,
+        1, -1/piR, -piA/piR, 0)
+        inv_u = inv(u)
+        #eigenvalues
+        for k = 1:4
+            lambda[k] = (exp(-t), exp(-(piR * k + piY) * t), exp(-(piY * k + piR) * t)) #eigenvalues of rate matrix Q
+        end
+
+    elseif typeof(mod) == JC69Model
+        #? eigenvectors and values for JC69
+        #eigen = eig(Q(mod)) #eigenvalues and eigenvectors of Q
+        #eigen[1] = eval #lambda
+        #eigen[2] = evec #u
+        #lambda = #eigenvalues of rate matrix Q
+        #u = 
+        #inv_u = inv(u)
+        #pr_differentsites = (3/4) - (3/4)*(1+((4*d)/(3*alpha))^(-alpha)
+        #d_hat = (3/4)*alpha*((1-(4/3)*p)^(-1/alpha)-1)
+        #var_d_hat = ((p_hat*(1-p_hat))/n)*((1-(4/3)*p_hat)^(-(2/alpha)-2))
     else
-       # p[i,j] = U[i,k]*U_inv[k,j]*exp(lambda_k*t)#from k = 1 to k = 4 
+        error("For now, variablerate only implemented for JC69Model and HKY85Model")
     end
+    for k = 1:4 #to use this, need to go over i, j
+        for i = 1:4
+            for j = 1:4
+        #this is the general formula
+        Pmatrix[i,j] = U[i,k]*U_inv[k,j]*exp(lambda_k*t)#from k = 1 to k = 4
+        f[i,j] = pi[i]*u[i,k]*inv_u[k,j]*(1-lambda[k]*t/alpha)^(-alpha) #pr(observ nucleotides i,j at site)
+        #mod.varRate[k] = (I(b*alpha,alpha + 1) - I(a*alpha, alpha+1))(1/k) #average over gamma
+        #prob of data
+            end
+        end
+    end
+    return PMatrix() #replaces the p matrix from function P 
 end
