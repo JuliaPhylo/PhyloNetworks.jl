@@ -704,7 +704,10 @@ return PMatrix, modified with variable gamma rate
 function variablerateP(mod::NASM, t::Float64)
     Fmatrix = Matrix{Float64} #? need this?
     lambda = Vector{4, Float64}
-    umatrix = SMatrix{4, 4, Float64}
+    umatrix = Matrix{4, 4, Float64}
+    piA = mod.pi[1]; piC = mod.pi[2]; piG = mod.pi[3]; piT = mod.pi[4]
+    piR = piA + piG
+    piY = piT + piC
     #add new vector for set of 4 rates over gamma distribution
     if typeof(mod) == HKY85Model
         #eigenvectors
@@ -737,8 +740,37 @@ function variablerateP(mod::NASM, t::Float64)
             #general formula p 17
             Pmatrix[i,j] = U[i,k]*U_inv[k,j]*exp(lambda_k*t)#from k = 1 to k = 4
             Fmatrix[i,j] = pi[i]*u[i,k]*inv_u[k,j]*(1-lambda[k]*t/alpha)^(-alpha) #pr(observ nucleotides i,j at site)
-            #mod.varRate[k] = (I(b*alpha,alpha + 1) - I(a*alpha, alpha+1))(1/k) #average over gamma
         end
     end
     return Pmatrix() #replaces the p matrix from function P 
+end
+
+```
+chooseR(Float64::alpha)
+discrete gamma model to approximate gamma distribution for 
+    variable rate model
+return vector of k gamma means to use as Rates
+```
+function chooseR(alpha::Float64)
+    using Distributions
+    d1 = Gamma(alpha, alpha) 
+    rates = quantile.(d1, [0.125, ])
+    return rates
+    #varRate = Array{Float64}
+    for k = 1:4
+        if k == 1
+            a = 0
+        else
+            a = cuts[k-1]
+        end
+            b = cuts[k]
+        varRate[k] = (Ifunction(b*alpha,alpha + 1) - Ifunction(a*alpha, alpha+1))(1/k)
+    end
+end
+
+function Ifunction(z::Float64, alpha::Float64)
+    Pkg.add("QuadGK")
+    using QuadGK
+    integral = quadgk(exp(-x)*x^(alpha -1), 0, z, rtol=1e-3)
+    return (1/gamma(alpha))*integral
 end

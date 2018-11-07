@@ -11,12 +11,13 @@ functions can be applied, like `loglikelihood(object)`, `aic(object)` etc.
 """
 mutable struct StatisticalSubstitutionModel{T} <: StatsBase.StatisticalModel
     model::TraitSubstitutionModel{T} # T: type of trait labels
+    ratemodel::
     net::HybridNetwork
     # data: trait[i] for leaf with n.number = i
     #       type Int: for indices of trait labels in model.label
     #       allows missing, but not half-ambiguous and not multi-state
-    trait::Vector{Vector{Union{Missings.Missing,Int}}}
-    ntraits::Int
+    trait::Vector{Vector{Union{Missings.Missing,Int}}} #traitstate
+    ntraits::Int #for NASM, this is nsites in alignment. nsites or ncol
     loglik::Union{Missings.Missing, Float64}
     # log of transition probabilities: where e goes from X to Y
     # logtrans[i,j,e] = P{Y=j|X=i} where i=start_state, j=end_state, e=edge.number
@@ -26,7 +27,7 @@ mutable struct StatisticalSubstitutionModel{T} <: StatsBase.StatisticalModel
     # loglik is an attribute of the SSM object, right? If so, where do we create logtrans?
 
     logtrans::Array{Float64,3}   # size: k,k, net.numEdges where k=nStates(model)
-    activetrait::Int
+    activetrait::Int #TODO change this to activesite
     # type based on extracting displayed trees
     displayedtree::Vector{HybridNetwork}
     priorltw::Vector{Float64} # prior log tree weight: log product of γ's
@@ -43,7 +44,7 @@ const SSM = StatisticalSubstitutionModel{T} where T
 
 StatsBase.loglikelihood(obj::SSM) = obj.loglik
 StatsBase.islinear(SSM) = false
-StatsBase.dof(obj::SSM) = nparams(obj.model)
+StatsBase.dof(obj::SSM) = nparams(obj.model) #todo
 function Base.show(io::IO, obj::SSM)
     disp =  "$(typeof(obj)):\n"
     disp *= string(obj.model)
@@ -292,8 +293,7 @@ Calculate the likelihood and update `obj.loglik` for discrete characters on a ne
 (or on a single tree: `t`th tree displayed in the network, for the second form).
 Update forward and direct partial likelihoods while doing so.
 The algorithm extracts all displayed trees and weights the likelihood under all these trees.
-"""
-#fixit add option to use a new substitution model like jc69 here? 
+""" 
 function discrete_corelikelihood!(obj::SSM; whichtrait=:all::Union{Symbol,Integer})
     if whichtrait == :all
         traitrange = 1:obj.ntraits
@@ -306,7 +306,9 @@ function discrete_corelikelihood!(obj::SSM; whichtrait=:all::Union{Symbol,Intege
         error("'whichtrait' should be :all or :active or an integer in the correct range")
     end
     for edge in obj.net.edge # update logtrans: same for all displayed trees, all traits
-        obj.logtrans[:,:,edge.number] = log.(P(obj.model, edge.length)) # element-wise
+        for i = 1:4
+            obj.logtrans[:,:,edge.number, i] = log.(P(obj.model, edge.length*object.ratemultiplier[i])) # element-wise
+        end
     end
     for t in 1:length(obj.displayedtree) # calculate P{data | tree t} & store in obj.postltw[t]
         discrete_corelikelihood_tree!(obj, t, traitrange)
@@ -329,9 +331,11 @@ function discrete_corelikelihood_tree!(obj::SSM, t::Integer, traitrange::Abstrac
     directlik  = view(obj.directlik,  :,:,t)
     k = nStates(obj.model)   # also = size(logtrans,1)
     fullloglik = 0.0
+    currentfullloglik = 0.0
     for ci in traitrange     # ci = character index
-      fill!(forwardlik, 0.0) # re-initialize for each trait, each iteration
-      fill!(directlik,  0.0)
+        for iratemultiplier in 1:4
+            fill!(forwardlik, 0.0) # re-initialize for each trait, each iteration
+            fill!(directlik,  0.0)
       for ni in reverse(1:length(tree.nodes_changed)) # post-order
         n = tree.nodes_changed[ni]
         nnum = n.number # same n.number across trees for a given node
@@ -359,7 +363,7 @@ function discrete_corelikelihood_tree!(obj::SSM, t::Integer, traitrange::Abstrac
         # calculate direct likelihood on the parent edge of n
         for e in n.edge
             if n == getChild(e)
-                lt = view(obj.logtrans, :,:,e.number)
+                lt = view(obj.logtrans, :,:,e.number, ratemultiplier[i])
                 for i in 1:k # state at parent node
                     directlik[i,e.number] = logsumexp(view(lt,i,:) + view(forwardlik,:,nnum))
                 end
@@ -367,6 +371,15 @@ function discrete_corelikelihood_tree!(obj::SSM, t::Integer, traitrange::Abstrac
             end
         end
       end # of loop over nodes
+      
+      if iratemultiplier == 1
+        currentfullloglike = fullloglik
+      else
+      #next it:
+        currentfullloglik = logsumexp(currentfullloglik, fullloglik)
+      end
+      fullloglik = currentfullloglik - log(4)
+    end # of loop over rate multipliers
     end # of loop over traits
     obj.postltw[t] = fullloglik
     return fullloglik
