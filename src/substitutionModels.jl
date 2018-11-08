@@ -14,6 +14,7 @@ see [`BinaryTraitSubstitutionModel`](@ref),
 abstract type SubstitutionModel end #ideally, we'd like this to be SubstitutionModels.SubstitionModel
 abstract type TraitSubstitutionModel{T} <: SubstitutionModel end #this accepts labels
 abstract type NucleicAcidSubstitutionModel <: SubstitutionModel end
+abstract type VariableRateModel end
 const Qmatrix = SMatrix{4, 4, Float64}
 const Pmatrix = SMatrix{4, 4, Float64}
 const TSM = TraitSubstitutionModel{T} where T #T is type of labels
@@ -495,7 +496,6 @@ HKY85Model(rate,pi,relative)
 HKY85Model(rate::Vector{Float64}, pi::Vector{Float64}) = 
 HKY85Model(rate,pi,true)
 
-
 """
     getlabels(mod:SM)
 require:
@@ -682,67 +682,37 @@ end
 
 
 """
-    variablerates(model::NASM)
+    VariableRateModel ()
 
-allow variable substitution rates across sites using the discrete gamma model with k = 4
-(Yang 1994, Journal of Molecular Evolution)
+[`VariableRateModel`](@ref) Allow variable substitution rates across sites using the discrete gamma model
+(Yang 1994, Journal of Molecular Evolution). Turn any NASM to NASM + gamma.
 
-Accomodate rate variantion by assuming that rate r for any site is a random gamma variable.
-Turn any NASM to NASM + gamma.
-
-Because mean(gamma) must = 1, alpha = beta. Refer to this parameter as alpha here.
-Mainly, this function estimates the gamma parameter alpha, right?
-
-return PMatrix, modified with variable gamma rate
+Because mean(gamma) must = 1, alpha = beta, refer to this parameter as alpha here.
 
 # Examples
 ```julia-repl
-
+TODO
 ```
-?should this override P matrix/be part of that function or the model object?
 """
-function variablerateP(mod::NASM, t::Float64)
-    Fmatrix = Matrix{Float64} #? need this?
-    lambda = Vector{4, Float64}
-    umatrix = Matrix{4, 4, Float64}
-    piA = mod.pi[1]; piC = mod.pi[2]; piG = mod.pi[3]; piT = mod.pi[4]
-    piR = piA + piG
-    piY = piT + piC
-    #add new vector for set of 4 rates over gamma distribution
-    if typeof(mod) == HKY85Model
-        #eigenvectors
-        u = (1, 1/piY, 0, piC/piY, 
-        1, 1/piY, 0, -piT/piY,
-        1, -1/piR, piG/piR, 0,
-        1, -1/piR, -piA/piR, 0)
-        inv_u = inv(u)
-        #eigenvalues
-        for k = 1:4
-            lambda[k] = (exp(-t), exp(-(piR * k + piY) * t), exp(-(piY * k + piR) * t)) #eigenvalues of rate matrix Q
-        end
+mutable struct VariableRateModel(alpha::Float64, k)
+    using Distributions
+    rates = Array{Float64}
+    cuts = Array{Float64}
+    d1 = Gamma(alpha, alpha) 
+    cuts = (0:(k-1))/k + 1/2k
+    rates = quantile.(d1, cuts)
+    VariableRateModel.ratemultiplier = rates
+end
 
-    elseif typeof(mod) == JC69Model
-        #? eigenvectors and values for JC69
-        #eigen = eig(Q(mod)) #eigenvalues and eigenvectors of Q
-        #eigen[1] = eval #lambda
-        #eigen[2] = evec #u
-        #lambda = #eigenvalues of rate matrix Q
-        #u = 
-        #inv_u = inv(u)
-        #pr_differentsites = (3/4) - (3/4)*(1+((4*d)/(3*alpha))^(-alpha)
-        #d_hat = (3/4)*alpha*((1-(4/3)*p)^(-1/alpha)-1)
-        #var_d_hat = ((p_hat*(1-p_hat))/n)*((1-(4/3)*p_hat)^(-(2/alpha)-2))
-    else
-        error("For now, variablerate only implemented for JC69Model and HKY85Model")
+"""
+    nparams(model)
+Number of parameters for a given trait evolution model
+(length of field `model.rate`).
+"""
+function nparams(mod::NASM)
+    if mod.variablerate
+        return nparams(mod::NASM) + 1
     end
-    for k = 1:4 #eigenvalues
-        for j = 1:4, i = 1:4 #nucleotides
-            #general formula p 17
-            Pmatrix[i,j] = U[i,k]*U_inv[k,j]*exp(lambda_k*t)#from k = 1 to k = 4
-            Fmatrix[i,j] = pi[i]*u[i,k]*inv_u[k,j]*(1-lambda[k]*t/alpha)^(-alpha) #pr(observ nucleotides i,j at site)
-        end
-    end
-    return Pmatrix() #replaces the p matrix from function P 
 end
 
 ```
