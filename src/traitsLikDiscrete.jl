@@ -1,4 +1,4 @@
-# Cora edited Sept 2018 
+
 
 """
     StatisticalSubstitutionModel
@@ -9,9 +9,9 @@ See [`fitDiscrete`](@ref) to fit a trait substitution model to discrete data.
 It returns an object of type `StatisticalSubstitutionModel`, to which standard
 functions can be applied, like `loglikelihood(object)`, `aic(object)` etc.
 """
-mutable struct StatisticalSubstitutionModel{T} <: StatsBase.StatisticalModel
+mutable struct StatisticalSubstitutionModel{T} <: StatsBase.StatisticalModel #TODO what to do about T
     model::TraitSubstitutionModel{T} # T: type of trait labels
-    ratemodel::
+    ratemodel::VariableRateModel
     net::HybridNetwork
     # data: trait[i] for leaf with n.number = i
     #       type Int: for indices of trait labels in model.label
