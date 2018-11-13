@@ -16,7 +16,6 @@ see [`BinaryTraitSubstitutionModel`](@ref),
 abstract type SubstitutionModel end #ideally, we'd like this to be SubstitutionModels.SubstitionModel
 abstract type TraitSubstitutionModel{T} <: SubstitutionModel end #this accepts labels
 abstract type NucleicAcidSubstitutionModel <: SubstitutionModel end
-abstract type VariableRateModel end
 const SM = SubstitutionModel
 const TSM = TraitSubstitutionModel{T} where T #T is type of labels
 const NASM = NucleicAcidSubstitutionModel
@@ -430,6 +429,15 @@ function updateHybridRandomTrait!(V::Matrix,
     end
 end
 
+function Base.show(io::IO, object::NucleicAcidSubstitutionModel)
+    str = "$(object) Nucleic Acid Substitution Model \n" #TODO test this
+    str *= "rates: $(object.rate)\n"
+    str *= "pi: $(object.pi)\n"
+    str *= "rate matrix Q:\n"
+    print(io, str)
+    showQ(io, object)
+end
+
 """
     JC69Model ()
 
@@ -447,13 +455,13 @@ julia> nstates(m2)
 4
 ```
 """
-mutable struct JC69 <:  NucleicAcidSubstitutionModel
+mutable struct JC69Model <:  NucleicAcidSubstitutionModel
     rate::Vector{Float64}
     pi::Vector{Float64}
     relativerate::Bool
     variablerate::VariableRateModel
   
-    function JC69(rate::Vector{Float64})
+    function JC69Model(rate::Vector{Float64})
       if !(0 <= length(rate) <= 1)
         error("rate not a valid length for a JC69 model")
       elseif any(rate .<= 0.)
@@ -496,7 +504,7 @@ mutable struct HKY85Model <: NucleicAcidSubstitutionModel
     relative::Bool
     variablerate::VariableRateModel
     
-    function HKY85Model(rate, pi, relative)
+    function HKY85Model(rate, pi, relative, variablerate)
         if any(rate .<= 0.)
             error("All elements of rate must be positive")
         elseif !(1 <= length(rate) <= 2)
@@ -510,9 +518,9 @@ mutable struct HKY85Model <: NucleicAcidSubstitutionModel
         end
       
           if length(rate) == 1
-            new(rate, pi, true)
+            new(rate, pi, true, variablerate)
           else
-            new(rate, pi, false)
+            new(rate, pi, false, variablerate)
           end
         end
       end
@@ -741,19 +749,27 @@ Because mean(gamma) must = 1, alpha = beta, refer to this parameter as alpha her
 
 # Examples
 ```julia-repl
-TODO
+#TODO
 ```
 """
-mutable struct VariableRateModel(alpha::Float64, k)
-    using Distributions
-    rates = Array{Float64}
-    cuts = Array{Float64}
-    d1 = Gamma(alpha, alpha) 
-    cuts = (0:(k-1))/k + 1/2k
-    rates = quantile.(d1, cuts)
-    VariableRateModel.ratemultiplier = rates
+#TODO alpha should be optimized in traitsLikDiscrete.jl
+mutable struct VariableRateModel
+    using Distributions #? Is this the right place for this?
+    alpha::Float64
+    k::Int
+    ratemultiplier::Array{Float64}
+    function VariableRateModel(alpha, k, ratemultiplier)
+        @assert alpha >= 0 "alpha must be >= 0"
+        cuts = (0:(k-1))/k + 1/2k
+        ratemultiplier = quantile.(Gamma(alpha, alpha), cuts)
+        new(alpha, k, ratemultiplier)
+    end
 end
-
+const VRM = VariableRateModel
+VariableRateModel(alpha::Float64, k::Int) = 
+VariableRateModel(alpha, k, zeros(4))
+VariableRateModel(alpha::Float64) = 
+VariableRateModel(alpha, 4, zeros(4))
 """
     nparams(model)
 Number of parameters for a given trait evolution model
