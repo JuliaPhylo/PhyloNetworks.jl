@@ -22,14 +22,8 @@ const NASM = NucleicAcidSubstitutionModel
 const Qmatrix = MMatrix{4, 4, Float64} #MMatrix is mutable efficient matrix from StaticArrays
 const Pmatrix = MMatrix{4, 4, Float64}
 const Bmatrix = MMatrix{2, 2, Float64}
-
-
-"""
-    nStates(model)
-
-Number of character states for a given trait evolution model.
-"""
-nStates(mod::TSM) = error("nStates not defined for $(typeof(mod)).")
+#for nparams(), getlabels(), Q(), P() functions,
+# changed model from TSM to SM to allow general NASM to be caught here too
 
 """
     nparams(model)
@@ -37,7 +31,11 @@ nStates(mod::TSM) = error("nStates not defined for $(typeof(mod)).")
 Number of parameters for a given trait evolution model
 (length of field `model.rate`).
 """
-nparams(mod::TSM) = error("nparams not defined for $(typeof(mod)).")
+nparams(mod::SM) = error("nparams not defined for $(typeof(mod)).")
+
+function getlabels(mod::SM)
+    error("Model must be of type TraitSubstitutionModel or NucleicAcidSubstitutionModel. Got $(typeof(mod))")
+end
 
 """
     Q(model)
@@ -45,7 +43,23 @@ nparams(mod::TSM) = error("nparams not defined for $(typeof(mod)).")
 Substitution rate matrix for a given substitution model:
 Q[i,j] is the rate of transitioning from state i to state j.
 """
-Q(mod::TSM) = error("rate matrix Q not defined for $(typeof(mod)).")
+Q(mod::SM) = error("rate matrix Q not defined for $(typeof(mod)).")
+
+"""
+    nstates(model)
+
+return number of character states for a given trait evolution model.
+"""
+nstates(mod::TSM) = error("nStates not defined for $(typeof(mod)).")
+
+"""
+    getlabels(model)
+
+Return labels for trait substitution model
+"""
+function getlabels(mod::TSM)
+    return mod.label
+end
 
 """
     showQ(IO, model)
@@ -90,7 +104,7 @@ Probability transition matrix for a [`TraitSubstitutionModel`](@ref), of the for
 where P[i,j] is the probability of ending in state j after time t,
 given that the process started in state i.
 """
-@inline function P(mod::TSM, t::Float64)
+@inline function P(mod::SM, t::Float64)
     t >= 0.0 || error("substitution model: >=0 branch lengths are needed")
     return expm(Q(mod) * t)
 end
@@ -109,13 +123,13 @@ function P(mod::TSM, t::Array{Float64})
         return [eig_vecs * expm(diagm(eig_vals)*i) * eig_vecs' for i in t]
     catch
         eig_vals, eig_vecs = eig(Array(Q(mod)))
-        k = nStates(mod)
+        k = nstates(mod)
         return [Matrix{k,k}(eig_vecs * expm(diagm(eig_vals)*i) * inv(eig_vecs)) for i in t]
     end
 end
 
 """
-    BinaryTraitSubstitutionModel(α, β [, label]) #NOTE use this as model
+    BinaryTraitSubstitutionModel(α, β [, label])
 
 [`TraitSubstitutionModel`](@ref) for binary traits (with 2 states).
 Default labels are "0" and "1".
@@ -144,11 +158,11 @@ BinaryTraitSubstitutionModel(α::Float64, β::Float64) = BinaryTraitSubstitution
 
 ```julia-repl
 julia> m1 = BinaryTraitSubstitutionModel([1.0,2.0], ["low","high"])
-julia> nStates(m1)
+julia> nstates(m1)
 2
 ```
 """
-function nStates(::BTSM)
+function nstates(::BTSM)
     return 2::Int
 end
 
@@ -222,7 +236,7 @@ end
 const TBTSM = TwoBinaryTraitSubstitutionModel
 TwoBinaryTraitSubstitutionModel(α::Vector{Float64}) = TwoBinaryTraitSubstitutionModel(α, ["x0", "x1", "y0", "y1"])
 
-nStates(::TBTSM) = 4::Int
+nstates(::TBTSM) = 4::Int
 nparams(::TBTSM) = 8::Int
 
 function Q(mod::TBTSM)
@@ -271,7 +285,7 @@ const ERSM = EqualRatesSubstitutionModel{T} where T
 EqualRatesSubstitutionModel(k::Int, α::Float64, label::AbstractVector) = EqualRatesSubstitutionModel{eltype(label)}(k,[α],label)
 EqualRatesSubstitutionModel(k::Int, α::Float64) = EqualRatesSubstitutionModel{String}(k, [α], string.(1:k))
 
-function nStates(mod::ERSM)
+function nstates(mod::ERSM)
     return mod.k
 end
 nparams(::ERSM) = 1::Int
@@ -404,7 +418,7 @@ function randomTrait!(M::Matrix{Int}, mod::TSM, net::HybridNetwork)
 end
 
 function updateRootRandomTrait!(V::AbstractArray, i::Int, mod)
-    sample!(1:nStates(mod), view(V, :, i)) # uniform at the root
+    sample!(1:nstates(mod), view(V, :, i)) # uniform at the root
     return
 end
 
@@ -429,8 +443,8 @@ function updateHybridRandomTrait!(V::Matrix,
     end
 end
 
-function Base.show(io::IO, object::NucleicAcidSubstitutionModel)
-    str = "$(object) Nucleic Acid Substitution Model \n" #TODO test this
+function Base.show(io::IO, object::NASM)
+    str = "$(object) Nucleic Acid Substitution Model \n"
     str *= "rates: $(object.rate)\n"
     str *= "pi: $(object.pi)\n"
     str *= "rate matrix Q:\n"
@@ -451,17 +465,17 @@ julia> m1 = JC69Model()
 julia> nstates(m1)
 4
 julia> m2 = JC69Model([0.5])
-julia> nstates(m2)
-4
+julia> nparams(m2)
+1
 ```
 """
 mutable struct JC69Model <:  NucleicAcidSubstitutionModel
     rate::Vector{Float64}
     pi::Vector{Float64}
     relativerate::Bool
-    variablerate::VariableRateModel
+    variableratemodel::VariableRateModel
   
-    function JC69Model(rate::Vector{Float64})
+    function JC69Model(rate::Vector{Float64}, variableratemodel::VariableRateModel)
       if !(0 <= length(rate) <= 1)
         error("rate not a valid length for a JC69 model")
       elseif any(rate .<= 0.)
@@ -469,15 +483,18 @@ mutable struct JC69Model <:  NucleicAcidSubstitutionModel
       end
       pi = [0.25, 0.25, 0.25, 0.25]
       if length(rate) == 0
-        new(rate, pi, true)
+        new(rate, pi, true, variablerate)
       else
-        new(rate, pi, false)
-      end
+        new(rate, pi, false, variablerate)
     end
   end
 const JC69 = JC69Model
+JC69Model(rate::Vector{Float64}, pi::Vector{Float64}, relative::Bool, variableratemodel::VariableRateModel) = 
+JC69Model(rate,pi,relative, variableratemodel)
 JC69Model(rate::Vector{Float64}, pi::Vector{Float64}, relative::Bool) = 
 JC69Model(rate,pi,relative)
+JC69Model(rate::Vector{Float64}, pi::Vector{Float64}, variableratemodel::VariableRateModel) = 
+JC69Model(rate,pi,true, variableratemodel)
 JC69Model(rate::Vector{Float64}, pi::Vector{Float64}) = 
 JC69Model(rate,pi,true)
 
@@ -504,7 +521,7 @@ mutable struct HKY85Model <: NucleicAcidSubstitutionModel
     relative::Bool
     variablerate::VariableRateModel
     
-    function HKY85Model(rate, pi, relative, variablerate)
+    function HKY85Model(rate, pi, relative, variableratemodel) #?do I need to give types here as i do for JC69?
         if any(rate .<= 0.)
             error("All elements of rate must be positive")
         elseif !(1 <= length(rate) <= 2)
@@ -518,17 +535,81 @@ mutable struct HKY85Model <: NucleicAcidSubstitutionModel
         end
       
           if length(rate) == 1
-            new(rate, pi, true, variablerate)
+            new(rate, pi, true, variablerate) #? will this still work correctly for non variable rate models?
           else
             new(rate, pi, false, variablerate)
           end
         end
       end
 const HKY = HKY85Model
+HKY85Model(rate::Vector{Float64}, pi::Vector{Float64}, relative::Bool, variableratemodel::VariableRateModel) = 
+HKY85Model(rate,pi,relative, variableratemodel)
 HKY85Model(rate::Vector{Float64}, pi::Vector{Float64}, relative::Bool) = 
 HKY85Model(rate,pi,relative)
+HKY85Model(rate::Vector{Float64}, pi::Vector{Float64}, variableratemodel::VariableRateModel) = 
+HKY85Model(rate,pi,true, variableratemodel)
 HKY85Model(rate::Vector{Float64}, pi::Vector{Float64}) = 
 HKY85Model(rate,pi,true)
+
+"""
+    nstates(model::NASM)
+
+return number of character states for a NucleicAcidSubstitutionModel
+
+# Examples
+
+```julia-repl
+julia> nstates(JC69Model())
+4
+julia> nstates(HKY85Model([.5], [0.25, 0.25, 0.25, 0.25]))
+4
+```
+"""
+function nstates(mod::NASM)
+    return 4::Int
+end
+
+"""
+    nparams(model::JC69Model)
+
+return number of parameters for JC69Model
+
+"""
+@inline function nparams(mod::JC69)
+    if mod.relative
+        if mod.variablerate
+            return 1
+        else
+            return 0
+        end
+    else
+        if mod.variablerate
+            return 2
+        else
+            return 1
+        end
+end
+
+"""
+    nparams(model::HKY85Model)
+
+Return number of parameters for HKY85Model
+"""
+@inline function nparams(mod::HKY85)
+    if mod.relative
+        if mod.variablerate
+            return 6
+        else
+            return 5
+        end
+    else
+        if mod.variablerate
+            return 7
+        else
+            return 6
+        end
+    end
+end
 
 """
     getlabels(mod:SM)
@@ -550,51 +631,16 @@ julia> getlabels(HKY85Model([.5], [0.25, 0.25, 0.25, 0.25]))
 function getlabels(::NASM)
     return BioSymbols.ACGT
 end
-function getlabels(mod::TSM)
-    return mod.label
-end
-function getlabels(mod::SM)
-    error("Model must be of type TraitSubstitutionModel or NucleicAcidSubstitutionModel. Got $(typeof(mod))")
-end
+
 
 """
-    nstates(model::NASM)
-
-return number of character states for a NucleicAcidSubstitutionModel
-"""
-
-"""
-# Examples
-
-```julia-repl
-julia> nstates(JC69Model())
-4
-julia> nstates(HKY85Model([.5], [0.25, 0.25, 0.25, 0.25]))
-4
-```
-"""
-function nstates(mod::NASM)
-    return 4::Int
-end
-
-"""
-    Q(model::NASM)
+    Q(mod::JC69Model)
 return Q rate matrix for the given model. Mutable version modeled after BioJulia/SubstitionModel.jl
 and PyloModels.jl
 
 Substitution rate matrix for a given substitution model:
 Q[i,j] is the rate of transitioning from state i to state j.
-
-# Examples
-
-```julia-repl
-julia> Q(JC69Model())
-#TODO add these as tests instead
-julia> Q(HKY85Model([.5], [0.25, 0.25, 0.25, 0.25]))
-```
 """
-
-@inline function Q(mod::NASM) = error("rate matrix Q not defined for $(typeof(mod)).")
 
 @inline function Q(mod::JC69Model)
     if mod.relativerate
@@ -609,7 +655,14 @@ julia> Q(HKY85Model([.5], [0.25, 0.25, 0.25, 0.25]))
             lambda, lambda, lambda, -3*lambda)
 end
 
-
+"""
+Q(mod::JC69Model)
+    return Q rate matrix. Mutable version modeled after BioJulia/SubstitionModel.jl
+    and PyloModels.jl
+    
+    Substitution rate matrix for a given substitution model:
+    Q[i,j] is the rate of transitioning from state i to state j.
+"""
 @inline function Q(mod::HKY85Model)
     piA = mod.pi[1]; piC = mod.pi[2]; piG = mod.pi[3]; piT = mod.pi[4]
     if HKY85Model.relative == true
@@ -650,7 +703,7 @@ end
 end
 
 """
-P(mod, t)
+P(NASM, t)
 
 Probability transition matrix for a [`NucleicAcidSubstitutionModel`](@ref), of the form
 
@@ -662,10 +715,6 @@ P[k,1] ... P[k,k]
 where P[i,j] is the probability of ending in state j after time t,
 given that the process started in state i.
 """
-@inline function P(mod::NASM, t::Float64)
-    t >= 0.0 || error("substitution model: >=0 branch lengths are needed")
-    return expm(Q(mod) * t)
-end
 
 @inline function P(mod::JC69Model, t::Float64)
     if t < 0
@@ -746,13 +795,7 @@ end
 (Yang 1994, Journal of Molecular Evolution). Turn any NASM to NASM + gamma.
 
 Because mean(gamma) must = 1, alpha = beta, refer to this parameter as alpha here.
-
-# Examples
-```julia-repl
-#TODO
-```
 """
-#TODO alpha should be optimized in traitsLikDiscrete.jl
 mutable struct VariableRateModel
     using Distributions #? Is this the right place for this?
     alpha::Float64
@@ -770,13 +813,11 @@ VariableRateModel(alpha::Float64, k::Int) =
 VariableRateModel(alpha, k, zeros(4))
 VariableRateModel(alpha::Float64) = 
 VariableRateModel(alpha, 4, zeros(4))
-"""
-    nparams(model)
-Number of parameters for a given trait evolution model
-(length of field `model.rate`).
-"""
-function nparams(mod::NASM)
-    if mod.variablerate
-        return nparams(mod::NASM) + 1
-    end
+
+function Base.show(io::IO, object::VRM)
+    str = "$(object) Gamma Variable Rate Model \n"
+    str *= "alpha: $(object.alpha)\n"
+    str *= "ratemultiplier: $(object.ratemultiplier)\n"
+    print(io, str)
+    showQ(io, object)
 end

@@ -10,13 +10,13 @@ It returns an object of type `StatisticalSubstitutionModel`, to which standard
 functions can be applied, like `loglikelihood(object)`, `aic(object)` etc.
 """
 #? change to EvolutionModel?
-
+#? where is this constructed? need to add ratemultiplier 
 mutable struct StatisticalSubstitutionModel{T} <: StatsBase.StatisticalModel
     model::SubstitutionModel
     label::Vector{T} #trait labels from TraitSubstitutionModel{T} or NucleicAcidSubstitutionModel
     #? how to make this optional?
-    ratemodel::VariableRateModel #allows rates to vary according to gamma
-    ratemultiplier = VariableRateModel.ratemultiplier
+    variablerate::VariableRateModel #allows rates to vary according to gamma
+    ratemultiplier::Array{Float64}
     net::HybridNetwork
     # data: trait[i] for leaf with n.number = i
     #       type Int: for indices of trait labels in model.label
@@ -27,7 +27,7 @@ mutable struct StatisticalSubstitutionModel{T} <: StatsBase.StatisticalModel
     # log of transition probabilities: where e goes from X to Y
     # logtrans[i,j,e,r] = P{Y=j|X=i} where i=start_state, j=end_state, e=edge.number, r = rate (if using variableratemodel)
     # all displayed trees use same edge numbers and same logtrans as in full network
-#? below two notes: should we deal with these?
+#?below two notes: should we deal with these?
     # fixit: add substitution model option e.g. JC69 here to use different transition probabilities 
     # loglik is an attribute of the SSM object, right? If so, where do we create logtrans?
 
@@ -282,7 +282,11 @@ function fit!(obj::SSM; fixedparam=false::Bool, verbose=false::Bool,
         counter = [0]
         function loglikfun(x::Vector{Float64}, grad::Vector{Float64}) # modifies obj
             counter[1] += 1
-            obj.model.rate[:] = x
+            if obj.variablerate #? does this check if the obj has a VRM?
+                obj.model.rate[:] = obj.model.rate[:].variablerate.ratemultiplier[:]
+            else
+                obj.model.rate[:] = x
+            end
             res = discrete_corelikelihood!(obj)
             verbose && println("loglik: $res, model rates: $x")
             length(grad) == 0 || error("gradient not implemented")
@@ -317,8 +321,8 @@ function discrete_corelikelihood!(obj::SSM; whichtrait=:all::Union{Symbol,Intege
         error("'whichtrait' should be :all or :active or an integer in the correct range")
     end
     for edge in obj.net.edge # update logtrans: same for all displayed trees, all traits
-        for i = 1:4 #rate 
-            obj.logtrans[:,:,edge.number, i] = log.(P(obj.model, edge.length*object.ratemultiplier[i])) # element-wise
+        for i = 1:4 #rate #? is ratemultiplier grabbed in this next line? need to check with test
+            obj.logtrans[:,:,edge.number, i] = log.(P(obj.model, edge.length*object.variableratemodel.ratemultiplier[i])) # element-wise
         end
     end
     for t in 1:length(obj.displayedtree) # calculate P{data | tree t} & store in obj.postltw[t]
