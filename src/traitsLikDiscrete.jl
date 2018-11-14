@@ -11,7 +11,7 @@ functions can be applied, like `loglikelihood(object)`, `aic(object)` etc.
 """
 mutable struct StatisticalSubstitutionModel{T} <: StatsBase.StatisticalModel
     model::SubstitutionModel
-    variablerate::VariableRateModel #allows rates to vary according to gamma
+    ratemodel::RateVariationAcrossSites #allows rates to vary according to gamma
     net::HybridNetwork
     # data: trait[i] for leaf with n.number = i
     #       type Int: for indices of trait labels in model.label
@@ -20,7 +20,7 @@ mutable struct StatisticalSubstitutionModel{T} <: StatsBase.StatisticalModel
     nsites::Int #number of columns in data.
     loglik::Union{Missings.Missing, Float64}
     # log of transition probabilities: where e goes from X to Y
-    # logtrans[i,j,e,r] = P{Y=j|X=i} where i=start_state, j=end_state, e=edge.number, r = rate (if using variableratemodel)
+    # logtrans[i,j,e,r] = P{Y=j|X=i} where i=start_state, j=end_state, e=edge.number, r = rate (if using RateVariationAcrossSites)
     # all displayed trees use same edge numbers and same logtrans as in full network
 #?below two notes: should we deal with these?
     # fixit: add substitution model option e.g. JC69 here to use different transition probabilities 
@@ -49,8 +49,9 @@ StatsBase.dof(obj::SSM) = nparams(obj.model)
 function Base.show(io::IO, obj::SSM)
     disp =  "$(typeof(obj)):\n"
     disp *= string(obj.model)
-    if ratemodel
+    if obj.ratemodel.ncat != 1
         disp *= "with gamma variable rate model according to $(obj.ratemodel)"
+    end
     disp *= "$(obj.nsites) traits, $(length(obj.traitstate)) species, "
     disp *= "on a network with $(obj.net.numHybrids) reticulations"
     if !ismissing(obj.loglik)
@@ -222,14 +223,15 @@ See [`traitlabels2indices`](@ref) to convert trait labels to trait indices.
 after doing checks, preordering nodes in the network, making sure nodes have
 consecutive numbers, species are matched between data and network etc.
 """
-#TODO add a fit function that takes VariableRateModel (make one call other)
+
 function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::TraitSubstitutionModel,
     trait::AbstractVector; kwargs...)
-    #create VRM
-    call function below
+    ratemodel = RateVariationAcrossSites(ncat=1)
+    StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::TraitSubstitutionModel, ratemodel::RateVariationAcrossSites, trait::AbstractVector; kwargs...)
 end
-function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::TraitSubstitutionModel,VRM
-    trait::AbstractVector; kwargs...)
+#TODO everywhere fit( is called, add ratemodel?
+function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::TraitSubstitutionModel, 
+    ratemodel::RateVariationAcrossSites, trait::AbstractVector; kwargs...)
     T = eltype(getlabel(model))
     # extract displayed trees
     trees = displayedTrees(net, 0.0; keepNodes=true)
@@ -252,7 +254,7 @@ function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::TraitSubstitution
     backwardlik= zeros(Float64, k, nnodes,           ntrees)
     postltw    = Vector{Float64}(ntrees)
     # create new model object then fit:
-    fit!(StatisticalSubstitutionModel{T}(deepcopy(model), VariableRateModel(k=1),
+    fit!(StatisticalSubstitutionModel{T}(deepcopy(model), RateVariationAcrossSites(k=1),
             net, trait, length(trait[1]), missing,
             logtrans, 1, trees, priorltw, postltw, forwardlik, directlik, backwardlik);
         kwargs...)
@@ -283,11 +285,7 @@ function fit!(obj::SSM; fixedparam=false::Bool, verbose=false::Bool,
         counter = [0]
         function loglikfun(x::Vector{Float64}, grad::Vector{Float64}) # modifies obj
             counter[1] += 1
-            if obj.variablerate #? does this check if the obj has a VRM?
-                obj.model.rate[:] = obj.model.rate[:].variablerate.ratemultiplier[:]
-            else
-                obj.model.rate[:] = x
-            end
+            obj.model.rate[:] = obj.model.rate[:]*obj.ratemodel.ratemultiplier[:] #TODO test this
             res = discrete_corelikelihood!(obj)
             verbose && println("loglik: $res, model rates: $x")
             length(grad) == 0 || error("gradient not implemented")
@@ -323,7 +321,7 @@ function discrete_corelikelihood!(obj::SSM; whichtrait=:all::Union{Symbol,Intege
     end
     for edge in obj.net.edge # update logtrans: same for all displayed trees, all traits
         for i = 1:4 #rate #? is ratemultiplier grabbed in this next line? need to check with test
-            obj.logtrans[:,:,edge.number, i] = log.(P(obj.model, edge.length*obj.variableratemodel.ratemultiplier[i])) # element-wise
+            obj.logtrans[:,:,edge.number, i] = log.(P(obj.model, edge.length*obj.RateVariationAcrossSites.ratemultiplier[i])) # element-wise
         end
     end
     for t in 1:length(obj.displayedtree) # calculate P{data | tree t} & store in obj.postltw[t]
@@ -345,7 +343,7 @@ function discrete_corelikelihood_tree!(obj::SSM, t::Integer, traitrange::Abstrac
     # info("tree: $(writeTopology(tree))")
     forwardlik = view(obj.forwardlik, :,:,t)
     directlik  = view(obj.directlik,  :,:,t)
-    k = nStates(obj.model)   # also = size(logtrans,1) if not variableratemodel
+    k = nStates(obj.model)   # also = size(logtrans,1) if not RateVariationAcrossSites
     fullloglik = 0.0
     currentfullloglik = 0.0
     for ci in traitrange     # ci = character index

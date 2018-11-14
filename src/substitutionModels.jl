@@ -531,7 +531,6 @@ struct HKY85Model <: NucleicAcidSubstitutionModel
         end
       end
 const HKY = HKY85Model
-#TODO remove variableratemodel
 
 """
     nstates(model::NASM)
@@ -628,7 +627,7 @@ Q(mod::JC69Model)
 """
 @inline function Q(mod::HKY85Model)
     piA = mod.pi[1]; piC = mod.pi[2]; piG = mod.pi[3]; piT = mod.pi[4]
-    if HKY85Model.relative == true #TODO reoganaize
+    if HKY85Model.relative == true
         k = mod.rate[1]
         lambda = (2*(piT*piC + piA*piG)k + 2*(piY+piR)) #for sub/year interpretation
 
@@ -685,7 +684,7 @@ given that the process started in state i.
         error("Time must be positive")
     end
     if mod.relativerate
-        lambda = (4.0/3.0) #to make branch lengths interpretable. lambda = substitutions/year
+        lambda = (4.0/3.0). #to make branch lengths interpretable. lambda = substitutions/year
     else
         lambda = (4.0/3.0)*mod.rate[1]
     end
@@ -705,9 +704,9 @@ function P!(Pmat::AbstractMatrix, mod::JC69Model, t::Float64)
         error("Time must be positive")
     end
     if mod.relativerate #TODO update with new lambda
-        lambda = 1.
+        lambda = (4.0/3.0).
     else
-        lambda = mod.rate[1]
+        lambda = (4.0/3.0)*mod.rate[1]
     end
       
     P_0 = 0.25 + 0.75 * exp(-t * lambda)
@@ -729,26 +728,7 @@ for relative,
     piR = piA + piG
     piY = piT + piC
     
-    if HKY85Model.relative == false
-        a = mod.rate[1]/(); b = mod.rate[2]/() #alpha and beta
-          
-        e₁ = exp(-b * t)
-        e₂ = exp(-(piR * a + piY * b) * t)
-        e₃ = exp(-(piY * a + piR * b) * t)
-        
-        P₁  = piA + (piA * piY / piR) * e₁ + (piG / piR) * e₂
-        P₂  = piC + (piT * piR / piY) * e₁ + (piT / piY) * e₃
-        P₃  = piG + (piG * piY / piR) * e₁ + (piA / piR) * e₂
-        P₄  = piT + (piT * piR / piY) * e₁ + (piC / piY) * e₃
-        P₅  = piA * (1 - e₁)
-        P₆  = piA + (piA * piY / piR) * e₁ - (piA / piR) * e₂
-        P₇  = piC * (1 - e₁)
-        P₈  = piC + (piT * piR / piY) * e₁ - (piC / piY) * e₃
-        P₉  = piG + (piG * piY / piR) * e₁ - (piG / piR) * e₂
-        P₁₀ = piG * (1 - e₁)
-        P₁₁ = piT * (1 - e₁)
-        P₁₂ = piT + (piT * piR / piY) * e₁ - (piT / piY) * e₃
-    else #relative version
+    if HKY85Model.relative == true
         k = mod.rate[1] #kappa = alpha 
         s = t/(2*(piT*piC + piA*piG)k + 2*(piY+piR)) #t/lambda
         e₁ = exp(-s)
@@ -767,38 +747,57 @@ for relative,
         P₁₀ = piG * (1 - e₁)
         P₁₁ = piT * (1 - e₁)
         P₁₂ = piT + (piT * piR / piY) * e₁ - (piT / piY) * e₃
+    else
+        a = mod.rate[1]/(); b = mod.rate[2]/() #alpha and beta
+          
+        e₁ = exp(-b * t)
+        e₂ = exp(-(piR * a + piY * b) * t)
+        e₃ = exp(-(piY * a + piR * b) * t)
+        
+        P₁  = piA + (piA * piY / piR) * e₁ + (piG / piR) * e₂
+        P₂  = piC + (piT * piR / piY) * e₁ + (piT / piY) * e₃
+        P₃  = piG + (piG * piY / piR) * e₁ + (piA / piR) * e₂
+        P₄  = piT + (piT * piR / piY) * e₁ + (piC / piY) * e₃
+        P₅  = piA * (1 - e₁)
+        P₆  = piA + (piA * piY / piR) * e₁ - (piA / piR) * e₂
+        P₇  = piC * (1 - e₁)
+        P₈  = piC + (piT * piR / piY) * e₁ - (piC / piY) * e₃
+        P₉  = piG + (piG * piY / piR) * e₁ - (piG / piR) * e₂
+        P₁₀ = piG * (1 - e₁)
+        P₁₁ = piT * (1 - e₁)
+        P₁₂ = piT + (piT * piR / piY) * e₁ - (piT / piY) * e₃ 
     end
     return Pmatrix(P₁,  P₅,  P₆,  P₅,
-                    P₇,  P₂,  P₇,  P₈,
-                    P₉,  P₁₀, P₃,  P₁₀,
-                    P₁₁, P₁₂, P₁₁, P₄)
-    #? Are subscripts okay on PCs?
+        P₇,  P₂,  P₇,  P₈,
+        P₉,  P₁₀, P₃,  P₁₀,
+        P₁₁, P₁₂, P₁₁, P₄)
 end
+#TODO P! for HKY
 
 """
-    VariableRateModel ()
+    RateVariationAcrossSites ()
 
-[`VariableRateModel`](@ref) Allow variable substitution rates across sites using the discrete gamma model
+[`RateVariationAcrossSites`](@ref) Allow variable substitution rates across sites using the discrete gamma model
 (Yang 1994, Journal of Molecular Evolution). Turn any NASM to NASM + gamma.
 
 Because mean(gamma) should equal 1, alpha = beta. Refer to this parameter as alpha here.
 """
-mutable struct RateVariationAcrossSites #TODO change everywhere
+mutable struct RateVariationAcrossSites
     alpha::Float64
-    ncat::Int #k changed to ncat TODO
+    ncat::Int
     ratemultiplier::Array{Float64}
-    function VariableRateModel(alpha::Float64, k = 4::Int) #TODO add types everywhere
+    function RateVariationAcrossSites(alpha::Float64, ncat = 4::Int) #TODO add types everywhere
         @assert alpha >= 0 "alpha must be >= 0"
-        if k = 1
+        if ncat = 1
             ratemultiplier = [1.0]
         else
-            cuts = (0:(k-1))/k + 1/2k
+            cuts = (0:(ncat-1))/ncat + 1/2ncat
             ratemultiplier = quantile.(Distributions.Gamma(alpha, alpha), cuts)
-            new(alpha, k, ratemultiplier)
+            new(alpha, ncat, ratemultiplier)
         end
     end
 end
-const VRM = VariableRateModel
+const RVAS = RateVariationAcrossSites
 
 
 function setalpha(obj::RateVariationAcrossSites, alpha)
