@@ -9,14 +9,9 @@ See [`fitDiscrete`](@ref) to fit a trait substitution model to discrete data.
 It returns an object of type `StatisticalSubstitutionModel`, to which standard
 functions can be applied, like `loglikelihood(object)`, `aic(object)` etc.
 """
-#? change to EvolutionModel?
-#? where is this constructed? need to add ratemultiplier 
 mutable struct StatisticalSubstitutionModel{T} <: StatsBase.StatisticalModel
     model::SubstitutionModel
-    label::Vector{T} #trait labels from TraitSubstitutionModel{T} or NucleicAcidSubstitutionModel
-    #? how to make this optional?
     variablerate::VariableRateModel #allows rates to vary according to gamma
-    ratemultiplier::Array{Float64}
     net::HybridNetwork
     # data: trait[i] for leaf with n.number = i
     #       type Int: for indices of trait labels in model.label
@@ -227,9 +222,15 @@ See [`traitlabels2indices`](@ref) to convert trait labels to trait indices.
 after doing checks, preordering nodes in the network, making sure nodes have
 consecutive numbers, species are matched between data and network etc.
 """
+#TODO add a fit function that takes VariableRateModel (make one call other)
 function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::TraitSubstitutionModel,
     trait::AbstractVector; kwargs...)
-    T = eltype(model.label)
+    #create VRM
+    call function below
+end
+function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::TraitSubstitutionModel,VRM
+    trait::AbstractVector; kwargs...)
+    T = eltype(getlabel(model))
     # extract displayed trees
     trees = displayedTrees(net, 0.0; keepNodes=true)
     nnodes = length(net.node)
@@ -251,7 +252,7 @@ function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::TraitSubstitution
     backwardlik= zeros(Float64, k, nnodes,           ntrees)
     postltw    = Vector{Float64}(ntrees)
     # create new model object then fit:
-    fit!(StatisticalSubstitutionModel{T}(deepcopy(model),
+    fit!(StatisticalSubstitutionModel{T}(deepcopy(model), VariableRateModel(k=1),
             net, trait, length(trait[1]), missing,
             logtrans, 1, trees, priorltw, postltw, forwardlik, directlik, backwardlik);
         kwargs...)
@@ -322,7 +323,7 @@ function discrete_corelikelihood!(obj::SSM; whichtrait=:all::Union{Symbol,Intege
     end
     for edge in obj.net.edge # update logtrans: same for all displayed trees, all traits
         for i = 1:4 #rate #? is ratemultiplier grabbed in this next line? need to check with test
-            obj.logtrans[:,:,edge.number, i] = log.(P(obj.model, edge.length*object.variableratemodel.ratemultiplier[i])) # element-wise
+            obj.logtrans[:,:,edge.number, i] = log.(P(obj.model, edge.length*obj.variableratemodel.ratemultiplier[i])) # element-wise
         end
     end
     for t in 1:length(obj.displayedtree) # calculate P{data | tree t} & store in obj.postltw[t]
@@ -476,7 +477,7 @@ function check_matchtaxonnames!(species::AbstractVector, dat::AbstractVector, ne
     indnotindat = find(x -> x ∉ species, netlab) # species not in data
     net = deepcopy(net)
     if !isempty(indnotindat)
-        warn("the network contains taxa with no data: those will be pruned")
+        warn("the network contains taxa with no data: those will be pruned") #TODO change to @warn for julia10
         for i in indnotindat
             deleteleaf!(net, netlab[i])
         end

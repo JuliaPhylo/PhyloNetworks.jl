@@ -1,5 +1,3 @@
-using StaticArrays #more efficient for small matrices https://github.com/JuliaArrays/StaticArrays.jl
-
 """
     TraitSubstitutionModel
 
@@ -19,9 +17,9 @@ abstract type NucleicAcidSubstitutionModel <: SubstitutionModel end
 const SM = SubstitutionModel
 const TSM = TraitSubstitutionModel{T} where T #T is type of labels
 const NASM = NucleicAcidSubstitutionModel
-const Qmatrix = MMatrix{4, 4, Float64} #MMatrix is mutable efficient matrix from StaticArrays
-const Pmatrix = MMatrix{4, 4, Float64}
-const Bmatrix = MMatrix{2, 2, Float64}
+const Qmatrix = SMatrix{4, 4, Float64} #for mutable, use MMatrix
+const Pmatrix = SMatrix{4, 4, Float64}
+const Bmatrix = SMatrix{2, 2, Float64}
 #for nparams(), getlabels(), Q(), P() functions,
 # changed model from TSM to SM to allow general NASM to be caught here too
 
@@ -68,7 +66,7 @@ Print the Q matrix to the screen, with trait states as labels on rows and column
 adapted from prettyprint function by mcreel, found 2017/10 at
 https://discourse.julialang.org/t/display-of-arrays-with-row-and-column-names/1961/6
 """
-function showQ(io::IO, object::TSM)
+function showQ(io::IO, object::SM) #TODO make this work for NucleicAcidSubstitutionModel
     M = Q(object)
     pad = max(8,maximum(length.(object.label))+1)
     for i = 1:size(M,2) # print the header
@@ -103,6 +101,7 @@ Probability transition matrix for a [`TraitSubstitutionModel`](@ref), of the for
 
 where P[i,j] is the probability of ending in state j after time t,
 given that the process started in state i.
+faster when t is scalar (not an array)
 """
 @inline function P(mod::SM, t::Float64)
     t >= 0.0 || error("substitution model: >=0 branch lengths are needed")
@@ -115,7 +114,7 @@ end
 When applied to a general substitution model, matrix exponentiation is used.
 The time argument `t` can be an array.
 """
-function P(mod::TSM, t::Array{Float64})
+function P(mod::SM, t::Array{Float64})
     all(t .>= 0.0) || error("t's must all be positive")
     try
         eig_vals, eig_vecs = eig(Q(mod)) # Only hermitian matrices are diagonalizable by
@@ -443,7 +442,7 @@ function updateHybridRandomTrait!(V::Matrix,
     end
 end
 
-function Base.show(io::IO, object::NASM)
+function Base.show(io::IO, object::NASM) #add this to TSM and change to SM if NASM, add pi
     str = "$(object) Nucleic Acid Substitution Model \n"
     str *= "rates: $(object.rate)\n"
     str *= "pi: $(object.pi)\n"
@@ -469,13 +468,12 @@ julia> nparams(m2)
 1
 ```
 """
-mutable struct JC69Model <:  NucleicAcidSubstitutionModel
+struct JC69Model <:  NucleicAcidSubstitutionModel
     rate::Vector{Float64}
     pi::Vector{Float64}
     relativerate::Bool
-    variableratemodel::VariableRateModel
   
-    function JC69Model(rate::Vector{Float64}, variableratemodel::VariableRateModel)
+    function JC69Model(rate::Vector{Float64})
       if !(0 <= length(rate) <= 1)
         error("rate not a valid length for a JC69 model")
       elseif any(rate .<= 0.)
@@ -483,20 +481,12 @@ mutable struct JC69Model <:  NucleicAcidSubstitutionModel
       end
       pi = [0.25, 0.25, 0.25, 0.25]
       if length(rate) == 0
-        new(rate, pi, true, variablerate)
+        new(rate, pi, true)
       else
-        new(rate, pi, false, variablerate)
+        new(rate, pi, false)
     end
   end
 const JC69 = JC69Model
-JC69Model(rate::Vector{Float64}, pi::Vector{Float64}, relative::Bool, variableratemodel::VariableRateModel) = 
-JC69Model(rate,pi,relative, variableratemodel)
-JC69Model(rate::Vector{Float64}, pi::Vector{Float64}, relative::Bool) = 
-JC69Model(rate,pi,relative)
-JC69Model(rate::Vector{Float64}, pi::Vector{Float64}, variableratemodel::VariableRateModel) = 
-JC69Model(rate,pi,true, variableratemodel)
-JC69Model(rate::Vector{Float64}, pi::Vector{Float64}) = 
-JC69Model(rate,pi,true)
 
 """
     HKY85Model ()
@@ -515,13 +505,12 @@ julia> nstates(m2)
 4
 ```
 """
-mutable struct HKY85Model <: NucleicAcidSubstitutionModel
+struct HKY85Model <: NucleicAcidSubstitutionModel
     rate::Vector{Float64}
     pi::Vector{Float64}
     relative::Bool
-    variablerate::VariableRateModel
     
-    function HKY85Model(rate, pi, relative, variableratemodel) #?do I need to give types here as i do for JC69?
+    function HKY85Model(rate::Vector{Float64}, pi::Vector{Float64}, relative::Bool)
         if any(rate .<= 0.)
             error("All elements of rate must be positive")
         elseif !(1 <= length(rate) <= 2)
@@ -535,21 +524,14 @@ mutable struct HKY85Model <: NucleicAcidSubstitutionModel
         end
       
           if length(rate) == 1
-            new(rate, pi, true, variablerate) #? will this still work correctly for non variable rate models?
+            new(rate, pi, true) 
           else
-            new(rate, pi, false, variablerate)
+            new(rate, pi, false)
           end
         end
       end
 const HKY = HKY85Model
-HKY85Model(rate::Vector{Float64}, pi::Vector{Float64}, relative::Bool, variableratemodel::VariableRateModel) = 
-HKY85Model(rate,pi,relative, variableratemodel)
-HKY85Model(rate::Vector{Float64}, pi::Vector{Float64}, relative::Bool) = 
-HKY85Model(rate,pi,relative)
-HKY85Model(rate::Vector{Float64}, pi::Vector{Float64}, variableratemodel::VariableRateModel) = 
-HKY85Model(rate,pi,true, variableratemodel)
-HKY85Model(rate::Vector{Float64}, pi::Vector{Float64}) = 
-HKY85Model(rate,pi,true)
+#TODO remove variableratemodel
 
 """
     nstates(model::NASM)
@@ -576,18 +558,7 @@ return number of parameters for JC69Model
 
 """
 @inline function nparams(mod::JC69)
-    if mod.relative
-        if mod.variablerate
-            return 1
-        else
-            return 0
-        end
-    else
-        if mod.variablerate
-            return 2
-        else
-            return 1
-        end
+    (mod.relative ? 0 : 1)
 end
 
 """
@@ -596,19 +567,7 @@ end
 Return number of parameters for HKY85Model
 """
 @inline function nparams(mod::HKY85)
-    if mod.relative
-        if mod.variablerate
-            return 6
-        else
-            return 5
-        end
-    else
-        if mod.variablerate
-            return 7
-        else
-            return 6
-        end
-    end
+    (mod.relative ? 4 : 5)
 end
 
 """
@@ -644,11 +603,11 @@ Q[i,j] is the rate of transitioning from state i to state j.
 
 @inline function Q(mod::JC69Model)
     if mod.relativerate
-        lambda = 0.25
+        lambda = 1.0/3.0 #this allows branch lengths to be interpreted as substitutions/site (pi-weighted avg of diagonal is -1)
     else
-        lambda = 0.25*mod.rate[1]
+        lambda = (1.0/3.0)*mod.rate[1]
     end
-  
+
     return QMatrix(-3*lambda, lambda, lambda, lambda,
             lambda, -3*lambda, lambda, lambda,
             lambda, lambda, -3*lambda, lambda,
@@ -662,25 +621,30 @@ Q(mod::JC69Model)
     
     Substitution rate matrix for a given substitution model:
     Q[i,j] is the rate of transitioning from state i to state j.
+    For absolute, 
+    average number of substitutions per site for time 1. lambda (or d) = (2*(piT*piC + piA*piG)*alpha + 2*(piY+piR)*beta)
+    For relative,
+    average number of substitutions per site is 1 (lambda = 1). kappa = alpha/beta. 
 """
 @inline function Q(mod::HKY85Model)
     piA = mod.pi[1]; piC = mod.pi[2]; piG = mod.pi[3]; piT = mod.pi[4]
-    if HKY85Model.relative == true
+    if HKY85Model.relative == true #TODO reoganaize
         k = mod.rate[1]
+        lambda = (2*(piT*piC + piA*piG)k + 2*(piY+piR)) #for sub/year interpretation
 
-        Q₁  = piA
-        Q₂  = k * piA
-        Q₃  = piC
-        Q₄  = k * piC
-        Q₅  = k * piG
-        Q₆  = piG
-        Q₇  = piT
-        Q₈  = k * piT
+        Q₁  = piA/lambda
+        Q₂  = k * Q₁
+        Q₃  = piC/lambda
+        Q₄  = k * Q₃
+        Q₆  = piG/lambda
+        Q₅  = k * Q₆
+        Q₇  = piT/lambda
+        Q₈  = k * Q₇
         Q₉  = -(Q₃ + Q₅ + Q₇)
         Q₁₀ = -(Q₁ + Q₆ + Q₈)
         Q₁₁ = -(Q₂ + Q₃ + Q₇)
         Q₁₂ = -(Q₁ + Q₄ + Q₆)
-    else
+    else 
         a = mod.rate[1]; b = mod.rate[2]      
         Q₁  = a * piA
         Q₂  = a * piA
@@ -721,9 +685,9 @@ given that the process started in state i.
         error("Time must be positive")
     end
     if mod.relativerate
-        lambda = 1.
+        lambda = (4.0/3.0) #to make branch lengths interpretable. lambda = substitutions/year
     else
-        lambda = mod.rate[1]
+        lambda = (4.0/3.0)*mod.rate[1]
     end
       
     P_0 = 0.25 + 0.75 * exp(-t * lambda)
@@ -733,7 +697,30 @@ given that the process started in state i.
             P_1, P_1, P_0, P_1,
             P_1, P_1, P_1, P_0)
 end
-
+"""
+takes a slice of logtrans as first argument
+"""
+function P!(Pmat::AbstractMatrix, mod::JC69Model, t::Float64)
+    if t < 0
+        error("Time must be positive")
+    end
+    if mod.relativerate #TODO update with new lambda
+        lambda = 1.
+    else
+        lambda = mod.rate[1]
+    end
+      
+    P_0 = 0.25 + 0.75 * exp(-t * lambda)
+    P_1 = 0.25 - 0.25 * exp(-t * lambda)
+    Pmat[:,:] = P_1
+    for i in 1:4 Pmat[i,i]=P_0;end
+    return Pmat
+end
+#TODO add this for HKY P! (one entry at a time)
+"""
+for absolute version in book (TODO cite and check)
+for relative, 
+"""
 @inline function P(mod::HKY85Model, t::Float64)
     if t < 0.0
         error("t must be positive")
@@ -741,13 +728,14 @@ end
     piA = mod.pi[1]; piC = mod.pi[2]; piG = mod.pi[3]; piT = mod.pi[4]
     piR = piA + piG
     piY = piT + piC
+    
     if HKY85Model.relative == false
-        a = mod.rate[1]; b = mod.rate[2]
+        a = mod.rate[1]/(); b = mod.rate[2]/() #alpha and beta
           
         e₁ = exp(-b * t)
         e₂ = exp(-(piR * a + piY * b) * t)
         e₃ = exp(-(piY * a + piR * b) * t)
-          
+        
         P₁  = piA + (piA * piY / piR) * e₁ + (piG / piR) * e₂
         P₂  = piC + (piT * piR / piY) * e₁ + (piT / piY) * e₃
         P₃  = piG + (piG * piY / piR) * e₁ + (piA / piR) * e₂
@@ -761,11 +749,11 @@ end
         P₁₁ = piT * (1 - e₁)
         P₁₂ = piT + (piT * piR / piY) * e₁ - (piT / piY) * e₃
     else #relative version
-        k = mod.rate[1]
-        
-        e₁ = exp(-t)
-        e₂ = exp(-(piR * k + piY) * t)
-        e₃ = exp(-(piY * k + piR) * t)
+        k = mod.rate[1] #kappa = alpha 
+        s = t/(2*(piT*piC + piA*piG)k + 2*(piY+piR)) #t/lambda
+        e₁ = exp(-s)
+        e₂ = exp(-(piR * k + piY) * s)
+        e₃ = exp(-(piY * k + piR) * s)
         
         P₁  = piA + (piA * piY / piR) * e₁ + (piG / piR) * e₂
         P₂  = piC + (piT * piR / piY) * e₁ + (piT / piY) * e₃
@@ -787,37 +775,45 @@ end
     #? Are subscripts okay on PCs?
 end
 
-
 """
     VariableRateModel ()
 
 [`VariableRateModel`](@ref) Allow variable substitution rates across sites using the discrete gamma model
 (Yang 1994, Journal of Molecular Evolution). Turn any NASM to NASM + gamma.
 
-Because mean(gamma) must = 1, alpha = beta, refer to this parameter as alpha here.
+Because mean(gamma) should equal 1, alpha = beta. Refer to this parameter as alpha here.
 """
-mutable struct VariableRateModel
-    using Distributions #? Is this the right place for this?
+mutable struct RateVariationAcrossSites #TODO change everywhere
     alpha::Float64
-    k::Int
+    ncat::Int #k changed to ncat TODO
     ratemultiplier::Array{Float64}
-    function VariableRateModel(alpha, k, ratemultiplier)
+    function VariableRateModel(alpha::Float64, k = 4::Int) #TODO add types everywhere
         @assert alpha >= 0 "alpha must be >= 0"
-        cuts = (0:(k-1))/k + 1/2k
-        ratemultiplier = quantile.(Gamma(alpha, alpha), cuts)
-        new(alpha, k, ratemultiplier)
+        if k = 1
+            ratemultiplier = [1.0]
+        else
+            cuts = (0:(k-1))/k + 1/2k
+            ratemultiplier = quantile.(Distributions.Gamma(alpha, alpha), cuts)
+            new(alpha, k, ratemultiplier)
+        end
     end
 end
 const VRM = VariableRateModel
-VariableRateModel(alpha::Float64, k::Int) = 
-VariableRateModel(alpha, k, zeros(4))
-VariableRateModel(alpha::Float64) = 
-VariableRateModel(alpha, 4, zeros(4))
 
-function Base.show(io::IO, object::VRM)
-    str = "$(object) Gamma Variable Rate Model \n"
+
+function setalpha(obj::RateVariationAcrossSites, alpha)
+    @assert alpha >= 0 "alpha must be >= 0"
+    obj.alpha = alpha
+    cuts = (0:(obj.ncat-1))/obj.ncat + 1/2obj.ncat
+    obj.ratemultiplier[:] = quantile.(Distributions.Gamma(alpha, alpha), cuts)
+end
+function Base.show(io::IO, object::RateVariationAcrossSites)
+    str = "$(object) Rate Variation Across Sites using Discretized Gamma Model\n"
     str *= "alpha: $(object.alpha)\n"
+    str *= "categories for Gamma discretization: $(object.ncat)\n"
     str *= "ratemultiplier: $(object.ratemultiplier)\n"
     print(io, str)
     showQ(io, object)
 end
+
+#add nparams for variablerate model

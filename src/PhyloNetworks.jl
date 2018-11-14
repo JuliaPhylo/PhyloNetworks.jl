@@ -15,6 +15,7 @@ module PhyloNetworks
     using StaticArrays
     using StatsFuns # for logsumexp
     using SubstitutionModels
+    using Distributions
 
     import Base.show
     import GLM.ftest
