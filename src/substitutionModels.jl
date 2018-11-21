@@ -66,16 +66,16 @@ Print the Q matrix to the screen, with trait states as labels on rows and column
 adapted from prettyprint function by mcreel, found 2017/10 at
 https://discourse.julialang.org/t/display-of-arrays-with-row-and-column-names/1961/6
 """
-function showQ(io::IO, object::SM) #TODO make this work for NucleicAcidSubstitutionModel
-    M = Q(object)
-    pad = max(8,maximum(length.(object.label))+1)
+function showQ(io::IO, obj::SM)
+    M = Q(obj)
+    pad = max(8,maximum(length.(getlabel(obj))+1)
     for i = 1:size(M,2) # print the header
-        print(io, lpad(object.label[i],(i==1? 2*pad : pad), " "))
+        print(io, lpad(getlabel(obj)[i],(i==1? 2*pad : pad), " "))
     end
     print(io, "\n")
     for i = 1:size(M,1) # print one row per state
-        if object.label != ""
-            print(io, lpad(object.label[i],pad," "))
+        if getlabel(obj) != ""
+            print(io, lpad(getlabel(obj)[i],pad," "))
         end
         for j = 1:size(M,2)
             if j == i
@@ -177,10 +177,10 @@ For a BinaryTraitSubstitutionModel, the rate matrix Q is of the form:
     return Bmatrix(-mod.rate[1], mod.rate[2], mod.rate[1], -mod.rate[2])
 end
 
-function Base.show(io::IO, object::BTSM)
+function Base.show(io::IO, obj::BTSM)
     str = "Binary Trait Substitution Model:\n"
-    str *= "rate $(object.label[1])→$(object.label[2]) α=$(object.rate[1])\n"
-    str *= "rate $(object.label[2])→$(object.label[1]) β=$(object.rate[2])\n"
+    str *= "rate $(obj.label[1])→$(obj.label[2]) α=$(obj.rate[1])\n"
+    str *= "rate $(obj.label[2])→$(obj.label[1]) β=$(obj.rate[2])\n"
     print(io, str)
 end
 
@@ -256,9 +256,9 @@ function Q(mod::TBTSM)
     return M
 end
 
-function Base.show(io::IO, object::TBTSM)
+function Base.show(io::IO, obj::TBTSM)
     print(io, "Substitution model for 2 binary traits, with rate matrix:\n")
-    showQ(io, object)
+    showQ(io, obj)
 end
 
 """
@@ -289,12 +289,12 @@ function nstates(mod::ERSM)
 end
 nparams(::ERSM) = 1::Int
 
-function Base.show(io::IO, object::ERSM)
-    str = "Equal Rates Substitution Model with k=$(object.k),\n"
-    str *= "all rates equal to α=$(object.rate[1]).\n"
+function Base.show(io::IO, obj::ERSM)
+    str = "Equal Rates Substitution Model with k=$(obj.k),\n"
+    str *= "all rates equal to α=$(obj.rate[1]).\n"
     str *= "rate matrix Q:\n"
     print(io, str)
-    showQ(io, object)
+    showQ(io, obj)
 end
 
 function Q(mod::ERSM)
@@ -442,38 +442,38 @@ function updateHybridRandomTrait!(V::Matrix,
     end
 end
 
-function Base.show(io::IO, object::NASM) #add this to TSM and change to SM if NASM, add pi
-    str = "$(object) Nucleic Acid Substitution Model \n"
-    str *= "rates: $(object.rate)\n"
-    str *= "pi: $(object.pi)\n"
+function Base.show(io::IO, obj::NASM) #add this to TSM and change to SM if NASM, add pi
+    str = "$(obj) Nucleic Acid Substitution Model \n"
+    str *= "rates: $(obj.rate)\n"
+    str *= "pi: $(obj.pi)\n"
     str *= "rate matrix Q:\n"
     print(io, str)
-    showQ(io, object)
+    showQ(io, obj)
 end
 
 """
-    JC69Model ()
+    JC69 ()
 
-[`JC69Model`](@ref) nucleic acid substitution model based on Jukes and Cantor's 1969 substitution model. 
+[`JC69`](@ref) nucleic acid substitution model based on Jukes and Cantor's 1969 substitution model. 
 Default is relative rate model. Based on depricated PhyloModels.jl by Justin Angevaare
 
 # examples
 
 ```julia-repl
-julia> m1 = JC69Model()
+julia> m1 = JC69()
 julia> nstates(m1)
 4
-julia> m2 = JC69Model([0.5])
+julia> m2 = JC69([0.5])
 julia> nparams(m2)
 1
 ```
 """
-struct JC69Model <:  NucleicAcidSubstitutionModel
+struct JC69 <:  NucleicAcidSubstitutionModel
     rate::Vector{Float64}
     pi::Vector{Float64}
     relativerate::Bool
   
-    function JC69Model(rate::Vector{Float64})
+    function JC69(rate::Vector{Float64})
       if !(0 <= length(rate) <= 1)
         error("rate not a valid length for a JC69 model")
       elseif any(rate .<= 0.)
@@ -486,31 +486,31 @@ struct JC69Model <:  NucleicAcidSubstitutionModel
         new(rate, pi, false)
     end
   end
-const JC69 = JC69Model
+const JC69 = JC69
 
 """
-    HKY85Model ()
+    HKY85 ()
 
-[`HKY85Model`](@ref) nucleic acid substitution model based on Hasegawa et al. 1984 substitution model. 
+[`HKY85`](@ref) nucleic acid substitution model based on Hasegawa et al. 1984 substitution model. 
 Default is relative rate model. Based on depricated PhyloModels.jl by Justin Angevaare
 
 # examples
 
 ```julia-repl
-julia> m1 = HKY85Model([.5], [0.25, 0.25, 0.25, 0.25])
+julia> m1 = HKY85([.5], [0.25, 0.25, 0.25, 0.25])
 julia> nstates(m1)
 4
-julia> m2 = HKY85Model([0.5, 0.5], [0.25, 0.25, 0.25, 0.25])
+julia> m2 = HKY85([0.5, 0.5], [0.25, 0.25, 0.25, 0.25])
 julia> nstates(m2)
 4
 ```
 """
-struct HKY85Model <: NucleicAcidSubstitutionModel
+struct HKY85 <: NucleicAcidSubstitutionModel
     rate::Vector{Float64}
     pi::Vector{Float64}
     relative::Bool
     
-    function HKY85Model(rate::Vector{Float64}, pi::Vector{Float64}, relative::Bool)
+    function HKY85(rate::Vector{Float64}, pi::Vector{Float64}, relative::Bool)
         if any(rate .<= 0.)
             error("All elements of rate must be positive")
         elseif !(1 <= length(rate) <= 2)
@@ -530,7 +530,7 @@ struct HKY85Model <: NucleicAcidSubstitutionModel
           end
         end
       end
-const HKY = HKY85Model
+const HKY = HKY85
 
 """
     nstates(model::NASM)
@@ -540,9 +540,9 @@ return number of character states for a NucleicAcidSubstitutionModel
 # Examples
 
 ```julia-repl
-julia> nstates(JC69Model())
+julia> nstates(JC69())
 4
-julia> nstates(HKY85Model([.5], [0.25, 0.25, 0.25, 0.25]))
+julia> nstates(HKY85([.5], [0.25, 0.25, 0.25, 0.25]))
 4
 ```
 """
@@ -551,9 +551,9 @@ function nstates(mod::NASM)
 end
 
 """
-    nparams(model::JC69Model)
+    nparams(model::JC69)
 
-return number of parameters for JC69Model
+return number of parameters for JC69
 
 """
 @inline function nparams(mod::JC69)
@@ -561,9 +561,9 @@ return number of parameters for JC69Model
 end
 
 """
-    nparams(model::HKY85Model)
+    nparams(model::HKY85)
 
-Return number of parameters for HKY85Model
+Return number of parameters for HKY85
 """
 @inline function nparams(mod::HKY85)
     (mod.relative ? 4 : 5)
@@ -580,9 +580,9 @@ If model is a NASM, returns ACGT.
 # examples
 
 ```julia-repl 
-julia> getlabels(JC69Model())
+julia> getlabels(JC69())
 (DNA_A, DNA_C, DNA_G, DNA_T)
-julia> getlabels(HKY85Model([.5], [0.25, 0.25, 0.25, 0.25]))
+julia> getlabels(HKY85([.5], [0.25, 0.25, 0.25, 0.25]))
 (DNA_A, DNA_C, DNA_G, DNA_T)
 ````
 """
@@ -592,7 +592,7 @@ end
 
 
 """
-    Q(mod::JC69Model)
+    Q(mod::JC69)
 return Q rate matrix for the given model. Mutable version modeled after BioJulia/SubstitionModel.jl
 and PyloModels.jl
 
@@ -600,7 +600,7 @@ Substitution rate matrix for a given substitution model:
 Q[i,j] is the rate of transitioning from state i to state j.
 """
 
-@inline function Q(mod::JC69Model)
+@inline function Q(mod::JC69)
     if mod.relativerate
         lambda = 1.0/3.0 #this allows branch lengths to be interpreted as substitutions/site (pi-weighted avg of diagonal is -1)
     else
@@ -614,7 +614,7 @@ Q[i,j] is the rate of transitioning from state i to state j.
 end
 
 """
-Q(mod::JC69Model)
+Q(mod::JC69)
     return Q rate matrix. Mutable version modeled after BioJulia/SubstitionModel.jl
     and PyloModels.jl
     
@@ -625,9 +625,9 @@ Q(mod::JC69Model)
     For relative,
     average number of substitutions per site is 1 (lambda = 1). kappa = alpha/beta. 
 """
-@inline function Q(mod::HKY85Model)
+@inline function Q(mod::HKY85)
     piA = mod.pi[1]; piC = mod.pi[2]; piG = mod.pi[3]; piT = mod.pi[4]
-    if HKY85Model.relative == true
+    if HKY85.relative == true
         k = mod.rate[1]
         lambda = (2*(piT*piC + piA*piG)k + 2*(piY+piR)) #for sub/year interpretation
 
@@ -666,7 +666,7 @@ Q(mod::JC69Model)
 end
 
 """
-P(NASM, t)
+P(JC69, t)
 
 Probability transition matrix for a [`NucleicAcidSubstitutionModel`](@ref), of the form
 
@@ -679,12 +679,12 @@ where P[i,j] is the probability of ending in state j after time t,
 given that the process started in state i.
 """
 
-@inline function P(mod::JC69Model, t::Float64)
+@inline function P(mod::JC69, t::Float64)
     if t < 0
         error("Time must be positive")
     end
     if mod.relativerate
-        lambda = (4.0/3.0). #to make branch lengths interpretable. lambda = substitutions/year
+        lambda = (4.0/3.0) #to make branch lengths interpretable. lambda = substitutions/year
     else
         lambda = (4.0/3.0)*mod.rate[1]
     end
@@ -697,14 +697,16 @@ given that the process started in state i.
             P_1, P_1, P_1, P_0)
 end
 """
-takes a slice of logtrans as first argument
+    P!(Pmat::AbstractMatrix, mod::JC69, t::Float64)
+modifies P rate matrix (see traitsLikeDiscrete)
+#TODO add to traitsLikDiscrete.jl
 """
-function P!(Pmat::AbstractMatrix, mod::JC69Model, t::Float64)
+function P!(Pmat::AbstractMatrix, mod::JC69, t::Float64)
     if t < 0
         error("Time must be positive")
     end
-    if mod.relativerate #TODO update with new lambda
-        lambda = (4.0/3.0).
+    if mod.relativerate
+        lambda = (4.0/3.0)
     else
         lambda = (4.0/3.0)*mod.rate[1]
     end
@@ -715,12 +717,26 @@ function P!(Pmat::AbstractMatrix, mod::JC69Model, t::Float64)
     for i in 1:4 Pmat[i,i]=P_0;end
     return Pmat
 end
-#TODO add this for HKY P! (one entry at a time)
+
 """
-for absolute version in book (TODO cite and check)
-for relative, 
+P(JC69, t)
+
+Probability transition matrix for a [`NucleicAcidSubstitutionModel`](@ref), of the form
+
+P[1,1] ... P[1,k]
+   .          .
+   .          .
+P[k,1] ... P[k,k]
+
+where P[i,j] is the probability of ending in state j after time t,
+given that the process started in state i.
+
+For absolute version, 
+For relative, 
+Both models according to Molecular Evolution (Yang 2014)
+#TODO update doc string
 """
-@inline function P(mod::HKY85Model, t::Float64)
+@inline function P(mod::HKY85, t::Float64)
     if t < 0.0
         error("t must be positive")
     end
@@ -728,7 +744,7 @@ for relative,
     piR = piA + piG
     piY = piT + piC
     
-    if HKY85Model.relative == true
+    if HKY85.relative == true
         k = mod.rate[1] #kappa = alpha 
         s = t/(2*(piT*piC + piA*piG)k + 2*(piY+piR)) #t/lambda
         e₁ = exp(-s)
@@ -772,8 +788,51 @@ for relative,
         P₉,  P₁₀, P₃,  P₁₀,
         P₁₁, P₁₂, P₁₁, P₄)
 end
-#TODO P! for HKY
+"""
+    P!(Pmat::AbstractMatrix, mod::HKY85, t::Float64)
+modifies P rate matrix (see traitsLikeDiscrete)
+The model will have optimized the rate using NLopt in loglikfun 
+in traitsLikDiscrete.jl.
 
+#TODO add to traitsLikeDiscrete.jl
+#TODO add HKY P! (one matrix entry at a time)
+"""
+function P!(Pmat::AbstractMatrix, mod::HKY85, t::Float64, kappa or (alpha, beta)?)
+    if t < 0.0
+        error("t must be positive")
+    end
+    piA = mod.pi[1]; piC = mod.pi[2]; piG = mod.pi[3]; piT = mod.pi[4]
+    piR = piA + piG
+    piY = piT + piC
+    
+    if HKY85.relative == true
+        k = mod.rate[1] #kappa = alpha 
+        s = t/(2*(piT*piC + piA*piG)k + 2*(piY+piR)) #t/lambda
+        e₁ = exp(-s)
+        e₂ = exp(-(piR * k + piY) * s)
+        e₃ = exp(-(piY * k + piR) * s)
+        
+    else
+        a = mod.rate[1]/(); b = mod.rate[2]/() #alpha and beta
+          
+        e₁ = exp(-b * t)
+        e₂ = exp(-(piR * a + piY * b) * t)
+        e₃ = exp(-(piY * a + piR * b) * t)
+    end
+    Pmat[1,1] = piA + (piA * piY / piR) * e₁ + (piG / piR) * e₂
+    Pmat[2,2] = piC + (piT * piR / piY) * e₁ + (piT / piY) * e₃
+    Pmat[3,3] = piG + (piG * piY / piR) * e₁ + (piA / piR) * e₂
+    Pmat[4,4] = piT + (piT * piR / piY) * e₁ + (piC / piY) * e₃
+    Pmat[1,[2,4]] = piA * (1 - e₁)
+    Pmat[2,[1,3]] = piC * (1 - e₁)
+    Pmat[3,[2,4]] = piG * (1 - e₁)
+    Pmat[4,[1,3]] = piT * (1 - e₁)
+    Pmat[1,3] = piA + (piA * piY / piR) * e₁ - (piA / piR) * e₂
+    Pmat[2,4] = piC + (piT * piR / piY) * e₁ - (piC / piY) * e₃
+    Pmat[3,1] = piG + (piG * piY / piR) * e₁ - (piG / piR) * e₂
+    Pmat[4,2] = piT + (piT * piR / piY) * e₁ - (piT / piY) * e₃ 
+    return Pmat
+end
 """
     RateVariationAcrossSites ()
 
@@ -786,7 +845,7 @@ mutable struct RateVariationAcrossSites
     alpha::Float64
     ncat::Int
     ratemultiplier::Array{Float64}
-    function RateVariationAcrossSites(alpha::Float64, ncat = 4::Int) #TODO add types everywhere
+    function RateVariationAcrossSites(alpha::Float64, ncat = 4::Int)
         @assert alpha >= 0 "alpha must be >= 0"
         if ncat = 1
             ratemultiplier = [1.0]
@@ -800,19 +859,19 @@ end
 const RVAS = RateVariationAcrossSites
 
 
-function setalpha(obj::RateVariationAcrossSites, alpha)
+function setalpha(obj::RateVariationAcrossSites, alpha::Int)
     @assert alpha >= 0 "alpha must be >= 0"
     obj.alpha = alpha
     cuts = (0:(obj.ncat-1))/obj.ncat + 1/2obj.ncat
     obj.ratemultiplier[:] = quantile.(Distributions.Gamma(alpha, alpha), cuts)
 end
-function Base.show(io::IO, object::RateVariationAcrossSites)
-    str = "$(object) Rate Variation Across Sites using Discretized Gamma Model\n"
-    str *= "alpha: $(object.alpha)\n"
-    str *= "categories for Gamma discretization: $(object.ncat)\n"
-    str *= "ratemultiplier: $(object.ratemultiplier)\n"
+function Base.show(io::IO, obj::RateVariationAcrossSites)
+    str = "$(obj) Rate Variation Across Sites using Discretized Gamma Model\n"
+    str *= "alpha: $(obj.alpha)\n"
+    str *= "categories for Gamma discretization: $(obj.ncat)\n"
+    str *= "ratemultiplier: $(obj.ratemultiplier)\n"
     print(io, str)
-    showQ(io, object)
+    showQ(io, obj)
 end
 
 #add nparams for variablerate model

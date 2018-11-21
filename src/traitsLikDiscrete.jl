@@ -183,9 +183,9 @@ function fitDiscrete(net, model, tips::Dict; kwargs...)
     end
     o, net = check_matchtaxonnames!(species, dat, net)
     # dat[o] would make a shallow copy only
-    StatsBase.fit(StatisticalSubstitutionModel, net, model, view(dat, o); kwargs...)
+    StatsBase.fit(StatisticalSubstitutionModel, net, model, ratemodel, view(dat, o); kwargs...)
 end
-
+#TODO test .fit for ratemodel. might need to be obj.ratemodel
 function fitDiscrete(net, model, dat::DataFrame; kwargs...)
     i = findfirst(DataFrames.names(dat), :taxon)
     if i==0 i = findfirst(DataFrames.names(dat), :species); end
@@ -199,13 +199,13 @@ function fitDiscrete(net, model, dat::DataFrame; kwargs...)
     species = copy(dat[i])    # modified in place later
     dat = traitlabels2indices(dat[j], model)   # vec of vec, indices
     o, net = check_matchtaxonnames!(species, dat, net)
-    StatsBase.fit(StatisticalSubstitutionModel, net, model, view(dat, o); kwargs...)
+    StatsBase.fit(StatisticalSubstitutionModel, net, model, ratemodel, view(dat, o); kwargs...)
 end
 
 function fitDiscrete(net, model, species::Array{String}, dat::DataFrame; kwargs...)
     dat2 = traitlabels2indices(dat, model) # vec of vec, indices
     o, net = check_matchtaxonnames!(copy(species), dat2, net)
-    StatsBase.fit(StatisticalSubstitutionModel, net, model, view(dat2, o); kwargs...)
+    StatsBase.fit(StatisticalSubstitutionModel, net, model, ratemodel, view(dat2, o); kwargs...)
 end
 
 """
@@ -227,7 +227,8 @@ consecutive numbers, species are matched between data and network etc.
 function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::TraitSubstitutionModel,
     trait::AbstractVector; kwargs...)
     ratemodel = RateVariationAcrossSites(ncat=1)
-    StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::TraitSubstitutionModel, ratemodel::RateVariationAcrossSites, trait::AbstractVector; kwargs...)
+    StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::TraitSubstitutionModel, 
+        ratemodel::RateVariationAcrossSites, trait::AbstractVector; kwargs...)
 end
 #TODO everywhere fit( is called, add ratemodel?
 function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::TraitSubstitutionModel, 
