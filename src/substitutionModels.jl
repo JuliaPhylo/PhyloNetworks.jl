@@ -44,15 +44,15 @@ For subtypes, see [`JC69`](@ref), [`HKY85`](@ref)
 abstract type NucleicAcidSubstitutionModel <: SubstitutionModel end
 const NASM = NucleicAcidSubstitutionModel
 
-function Base.show(io::IO, obj::SM) #TODO check that this works for TSM
-    
+function Base.show(io::IO, obj::SM)
     if (typeof(obj) == TraitSubstitutionModel)
+        str = "$(obj) Trait Substitution Model: "
+        str *= "$(typeof(obj))\n"
+    elseif (typeof(obj) == NucleicAcidSubstitutionModel) 
+        #? I shouldnt include RateVariationAcrossSites here, right? It should get its own .show()
         str = "$(obj) Nucleic Acid Substitution Model: "
         str *= "$(typeof(obj))\n"
         str *= "pi: $(obj.pi)\n"
-    elseif (typeof(obj) == NucleicAcidSubstitutionModel) 
-        #? I shouldnt include RateVariationAcrossSites here, right? It should get its own .show()
-        str = "$(obj) Nucleic Acid Substitution Model \n"
     else
         #? error? or warning?
         error("show not defined for abstract $(typeof(mod)).") #TODO 1.0 change to @error
@@ -752,10 +752,10 @@ P[k,1] ... P[k,k]
 where P[i,j] is the probability of ending in state j after time t,
 given that the process started in state i.
 
-For absolute version, 
+For absolute version, #TODO update doc string
 For relative, 
 Both models according to Molecular Evolution (Yang 2014)
-#TODO update doc string
+
 ```julia-repl 
 julia> TODO
 ````
@@ -816,7 +816,6 @@ end
 """
     P!(Pmat::AbstractMatrix, mod::JC69, t::Float64)
 modifies P rate matrix (see traitsLikeDiscrete)
-#TODO add P!() to traitsLikDiscrete.jl
 """
 function P!(Pmat::AbstractMatrix, mod::JC69, t::Float64)
     if t < 0

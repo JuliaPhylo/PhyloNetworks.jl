@@ -322,7 +322,7 @@ function discrete_corelikelihood!(obj::SSM; whichtrait=:all::Union{Symbol,Intege
     end
     for edge in obj.net.edge # update logtrans: same for all displayed trees, all traits
         for i = 1:4 #rate #? is ratemultiplier grabbed in this next line? need to check with test
-            obj.logtrans[:,:,edge.number, i] = log.(P(obj.model, edge.length*obj.RateVariationAcrossSites.ratemultiplier[i])) # element-wise
+            obj.logtrans[:,:,edge.number, i] = log.(P!(P(obj.model), obj.model, edge.length*obj.RateVariationAcrossSites.ratemultiplier[i])) # element-wise
         end
     end
     for t in 1:length(obj.displayedtree) # calculate P{data | tree t} & store in obj.postltw[t]
