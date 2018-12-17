@@ -1,27 +1,67 @@
 """
-    TraitSubstitutionModel
+    SubstitutionModel
 
-Abstract type for discrete trait substitution models,
+Abstract type for substitution models, 
 using a continous time Markov model on a phylogeny.
 Adapted from the SubstitutionModels module in BioJulia.
 The same [`Q`](@ref) and [`P`](@ref) function names are used for the
 transition rates and probabilities.
 
-see [`BinaryTraitSubstitutionModel`](@ref),
+For variable rates, see [`RateVariationAcrossSites`](@ref)
+
+For sub types, see [`NucleicAcidSubstitutionModel`](@ref), [`TraitSubstitutionModel`](@ref)
+"""
+abstract type SubstitutionModel end #ideally, we'd like this to be SubstitutionModels.SubstitionModel
+const SM = SubstitutionModel
+const Qmatrix = SMatrix{4, 4, Float64}
+const Pmatrix = SMatrix{4, 4, Float64}
+const Bmatrix = SMatrix{2, 2, Float64}
+
+"""
+    TraitSubstitutionModel
+
+Adapted from the SubstitutionModels module in BioJulia.
+The same [`Q`](@ref) and [`P`](@ref) function names are used for the
+transition rates and probabilities.
+
+For subtypes, see [`BinaryTraitSubstitutionModel`](@ref),
 [`EqualRatesSubstitutionModel`](@ref),
 [`TwoBinaryTraitSubstitutionModel`](@ref)
 """
-abstract type SubstitutionModel end #ideally, we'd like this to be SubstitutionModels.SubstitionModel
 abstract type TraitSubstitutionModel{T} <: SubstitutionModel end #this accepts labels
-abstract type NucleicAcidSubstitutionModel <: SubstitutionModel end
-const SM = SubstitutionModel
 const TSM = TraitSubstitutionModel{T} where T #T is type of labels
+
+"""
+    NucleicAcidSubstitutionModel
+
+Adapted from the SubstitutionModels module in BioJulia and 
+depricated PhyloModels.jl by Justin Angevaare
+The same [`Q`](@ref) and [`P`](@ref) function names are used for the
+transition rates and probabilities.
+
+For subtypes, see [`JC69`](@ref), [`HKY85`](@ref)
+"""
+abstract type NucleicAcidSubstitutionModel <: SubstitutionModel end
 const NASM = NucleicAcidSubstitutionModel
-const Qmatrix = SMatrix{4, 4, Float64} #for mutable, use MMatrix
-const Pmatrix = SMatrix{4, 4, Float64}
-const Bmatrix = SMatrix{2, 2, Float64}
-#for nparams(), getlabels(), Q(), P() functions,
-# changed model from TSM to SM to allow general NASM to be caught here too
+
+function Base.show(io::IO, obj::SM) #TODO check that this works for TSM
+    
+    if (typeof(obj) == TraitSubstitutionModel)
+        str = "$(obj) Nucleic Acid Substitution Model: "
+        str *= "$(typeof(obj))\n"
+        str *= "pi: $(obj.pi)\n"
+    elseif (typeof(obj) == NucleicAcidSubstitutionModel) 
+        #check for RateVariationAcrossSites add ratemodel
+        str = "$(obj) Nucleic Acid Substitution Model \n"
+    else
+        #? error? or warning?
+        error("show not defined for abstract $(typeof(mod)).") #TODO 1.0 change to @error
+    end
+    str *= "rates: $(obj.rate)\n"
+    str *= "rate matrix Q:\n"
+    print(io, str)
+    showQ(io, obj)
+end
 
 """
     nparams(model)
@@ -36,14 +76,6 @@ function getlabels(mod::SM)
 end
 
 """
-    Q(model)
-
-Substitution rate matrix for a given substitution model:
-Q[i,j] is the rate of transitioning from state i to state j.
-"""
-Q(mod::SM) = error("rate matrix Q not defined for $(typeof(mod)).")
-
-"""
     nstates(model)
 
 return number of character states for a given trait evolution model.
@@ -51,13 +83,58 @@ return number of character states for a given trait evolution model.
 nstates(mod::TSM) = error("nStates not defined for $(typeof(mod)).")
 
 """
-    getlabels(model)
+    nstates(model::NASM)
+
+return number of character states for a NucleicAcidSubstitutionModel
+
+# Examples
+
+```julia-repl
+julia> nstates(JC69())
+4
+julia> nstates(HKY85([.5], [0.25, 0.25, 0.25, 0.25]))
+4
+```
+"""
+function nstates(mod::NASM)
+    return 4::Int
+end
+
+"""
+    getlabels(model::TSM)
 
 Return labels for trait substitution model
 """
 function getlabels(mod::TSM)
     return mod.label
 end
+
+"""
+    getlabels(mod:NASM)
+
+return labels for a given nuceleic acid substitution model. 
+If model is a NASM, returns ACGT. 
+
+# examples
+
+```julia-repl 
+julia> getlabels(JC69())
+(DNA_A, DNA_C, DNA_G, DNA_T)
+julia> getlabels(HKY85([.5], [0.25, 0.25, 0.25, 0.25]))
+(DNA_A, DNA_C, DNA_G, DNA_T)
+````
+"""
+function getlabels(::NASM)
+    return BioSymbols.ACGT
+end
+
+"""
+    Q(model)
+
+Substitution rate matrix for a given substitution model:
+Q[i,j] is the rate of transitioning from state i to state j.
+"""
+Q(mod::SM) = error("rate matrix Q not defined for $(typeof(mod)).")
 
 """
     showQ(IO, model)
@@ -442,17 +519,8 @@ function updateHybridRandomTrait!(V::Matrix,
     end
 end
 
-function Base.show(io::IO, obj::NASM) #add this to TSM and change to SM if NASM, add pi
-    str = "$(obj) Nucleic Acid Substitution Model \n"
-    str *= "rates: $(obj.rate)\n"
-    str *= "pi: $(obj.pi)\n"
-    str *= "rate matrix Q:\n"
-    print(io, str)
-    showQ(io, obj)
-end
-
 """
-    JC69 ()
+    JC69()
 
 [`JC69`](@ref) nucleic acid substitution model based on Jukes and Cantor's 1969 substitution model. 
 Default is relative rate model. Based on depricated PhyloModels.jl by Justin Angevaare
@@ -489,7 +557,7 @@ struct JC69 <:  NucleicAcidSubstitutionModel
 const JC69 = JC69
 
 """
-    HKY85 ()
+    HKY85(rate, pi, relative)
 
 [`HKY85`](@ref) nucleic acid substitution model based on Hasegawa et al. 1984 substitution model. 
 Default is relative rate model. Based on depricated PhyloModels.jl by Justin Angevaare
@@ -532,23 +600,6 @@ struct HKY85 <: NucleicAcidSubstitutionModel
       end
 const HKY = HKY85
 
-"""
-    nstates(model::NASM)
-
-return number of character states for a NucleicAcidSubstitutionModel
-
-# Examples
-
-```julia-repl
-julia> nstates(JC69())
-4
-julia> nstates(HKY85([.5], [0.25, 0.25, 0.25, 0.25]))
-4
-```
-"""
-function nstates(mod::NASM)
-    return 4::Int
-end
 
 """
     nparams(model::JC69)
@@ -569,27 +620,6 @@ Return number of parameters for HKY85
     (mod.relative ? 4 : 5)
 end
 
-"""
-    getlabels(mod:SM)
-require:
-    PhyloModels
-
-return labels for a given nuceleic acid substitution model. 
-If model is a NASM, returns ACGT. 
-
-# examples
-
-```julia-repl 
-julia> getlabels(JC69())
-(DNA_A, DNA_C, DNA_G, DNA_T)
-julia> getlabels(HKY85([.5], [0.25, 0.25, 0.25, 0.25]))
-(DNA_A, DNA_C, DNA_G, DNA_T)
-````
-"""
-function getlabels(::NASM)
-    return BioSymbols.ACGT
-end
-
 
 """
     Q(mod::JC69)
@@ -598,6 +628,12 @@ and PyloModels.jl
 
 Substitution rate matrix for a given substitution model:
 Q[i,j] is the rate of transitioning from state i to state j.
+
+# examples
+
+```julia-repl 
+julia> TODO
+````
 """
 
 @inline function Q(mod::JC69)
@@ -624,6 +660,9 @@ Q(mod::JC69)
     average number of substitutions per site for time 1. lambda (or d) = (2*(piT*piC + piA*piG)*alpha + 2*(piY+piR)*beta)
     For relative,
     average number of substitutions per site is 1 (lambda = 1). kappa = alpha/beta. 
+    ```julia-repl 
+    julia> TODO
+    ````
 """
 @inline function Q(mod::HKY85)
     piA = mod.pi[1]; piC = mod.pi[2]; piG = mod.pi[3]; piT = mod.pi[4]
@@ -677,6 +716,9 @@ P[k,1] ... P[k,k]
 
 where P[i,j] is the probability of ending in state j after time t,
 given that the process started in state i.
+```julia-repl 
+julia> TODO
+````
 """
 
 @inline function P(mod::JC69, t::Float64)
@@ -735,6 +777,9 @@ For absolute version,
 For relative, 
 Both models according to Molecular Evolution (Yang 2014)
 #TODO update doc string
+```julia-repl 
+julia> TODO
+````
 """
 @inline function P(mod::HKY85, t::Float64)
     if t < 0.0
@@ -796,6 +841,9 @@ in traitsLikDiscrete.jl.
 
 #TODO add to traitsLikeDiscrete.jl
 #TODO add HKY P! (one matrix entry at a time)
+```julia-repl 
+julia> TODO
+````
 """
 function P!(Pmat::AbstractMatrix, mod::HKY85, t::Float64, kappa or (alpha, beta)?)
     if t < 0.0
