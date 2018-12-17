@@ -51,7 +51,7 @@ function Base.show(io::IO, obj::SM) #TODO check that this works for TSM
         str *= "$(typeof(obj))\n"
         str *= "pi: $(obj.pi)\n"
     elseif (typeof(obj) == NucleicAcidSubstitutionModel) 
-        #check for RateVariationAcrossSites add ratemodel
+        #? I shouldnt include RateVariationAcrossSites here, right? It should get its own .show()
         str = "$(obj) Nucleic Acid Substitution Model \n"
     else
         #? error? or warning?
@@ -650,7 +650,7 @@ julia> TODO
 end
 
 """
-Q(mod::JC69)
+    Q(mod::HKY85)
     return Q rate matrix. Mutable version modeled after BioJulia/SubstitionModel.jl
     and PyloModels.jl
     
@@ -705,7 +705,7 @@ Q(mod::JC69)
 end
 
 """
-P(JC69, t)
+    P(JC69, t)
 
 Probability transition matrix for a [`NucleicAcidSubstitutionModel`](@ref), of the form
 
@@ -738,30 +738,9 @@ julia> TODO
             P_1, P_1, P_0, P_1,
             P_1, P_1, P_1, P_0)
 end
-"""
-    P!(Pmat::AbstractMatrix, mod::JC69, t::Float64)
-modifies P rate matrix (see traitsLikeDiscrete)
-#TODO add to traitsLikDiscrete.jl
-"""
-function P!(Pmat::AbstractMatrix, mod::JC69, t::Float64)
-    if t < 0
-        error("Time must be positive")
-    end
-    if mod.relativerate
-        lambda = (4.0/3.0)
-    else
-        lambda = (4.0/3.0)*mod.rate[1]
-    end
-      
-    P_0 = 0.25 + 0.75 * exp(-t * lambda)
-    P_1 = 0.25 - 0.25 * exp(-t * lambda)
-    Pmat[:,:] = P_1
-    for i in 1:4 Pmat[i,i]=P_0;end
-    return Pmat
-end
 
 """
-P(JC69, t)
+    P(HKY85, t)
 
 Probability transition matrix for a [`NucleicAcidSubstitutionModel`](@ref), of the form
 
@@ -833,14 +812,34 @@ julia> TODO
         P₉,  P₁₀, P₃,  P₁₀,
         P₁₁, P₁₂, P₁₁, P₄)
 end
+
+"""
+    P!(Pmat::AbstractMatrix, mod::JC69, t::Float64)
+modifies P rate matrix (see traitsLikeDiscrete)
+#TODO add P!() to traitsLikDiscrete.jl
+"""
+function P!(Pmat::AbstractMatrix, mod::JC69, t::Float64)
+    if t < 0
+        error("Time must be positive")
+    end
+    if mod.relativerate
+        lambda = (4.0/3.0)
+    else
+        lambda = (4.0/3.0)*mod.rate[1]
+    end
+      
+    P_0 = 0.25 + 0.75 * exp(-t * lambda)
+    P_1 = 0.25 - 0.25 * exp(-t * lambda)
+    Pmat[:,:] = P_1
+    for i in 1:4 Pmat[i,i]=P_0;end #diagonal
+    return Pmat
+end
+
 """
     P!(Pmat::AbstractMatrix, mod::HKY85, t::Float64)
 modifies P rate matrix (see traitsLikeDiscrete)
 The model will have optimized the rate using NLopt in loglikfun 
 in traitsLikDiscrete.jl.
-
-#TODO add to traitsLikeDiscrete.jl
-#TODO add HKY P! (one matrix entry at a time)
 ```julia-repl 
 julia> TODO
 ````
@@ -881,6 +880,7 @@ function P!(Pmat::AbstractMatrix, mod::HKY85, t::Float64, kappa or (alpha, beta)
     Pmat[4,2] = piT + (piT * piR / piY) * e₁ - (piT / piY) * e₃ 
     return Pmat
 end
+
 """
     RateVariationAcrossSites ()
 
@@ -906,13 +906,13 @@ mutable struct RateVariationAcrossSites
 end
 const RVAS = RateVariationAcrossSites
 
-
 function setalpha(obj::RateVariationAcrossSites, alpha::Int)
     @assert alpha >= 0 "alpha must be >= 0"
     obj.alpha = alpha
     cuts = (0:(obj.ncat-1))/obj.ncat + 1/2obj.ncat
     obj.ratemultiplier[:] = quantile.(Distributions.Gamma(alpha, alpha), cuts)
 end
+
 function Base.show(io::IO, obj::RateVariationAcrossSites)
     str = "$(obj) Rate Variation Across Sites using Discretized Gamma Model\n"
     str *= "alpha: $(obj.alpha)\n"
@@ -922,4 +922,4 @@ function Base.show(io::IO, obj::RateVariationAcrossSites)
     showQ(io, obj)
 end
 
-#add nparams for variablerate model
+#? add nparams for variablerate model? check notes
