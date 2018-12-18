@@ -11,6 +11,7 @@ For variable rates, see [`RateVariationAcrossSites`](@ref)
 
 For sub types, see [`NucleicAcidSubstitutionModel`](@ref), [`TraitSubstitutionModel`](@ref)
 """
+using StaticArrays
 abstract type SubstitutionModel end #ideally, we'd like this to be SubstitutionModels.SubstitionModel
 const SM = SubstitutionModel
 const Qmatrix = SMatrix{4, 4, Float64}
@@ -44,11 +45,31 @@ For subtypes, see [`JC69`](@ref), [`HKY85`](@ref)
 abstract type NucleicAcidSubstitutionModel <: SubstitutionModel end
 const NASM = NucleicAcidSubstitutionModel
 
+# function Base.show(io::IO, object::BTSM)
+#     str = "Binary Trait Substitution Model:\n"
+#     str *= "rate $(object.label[1])→$(object.label[2]) α=$(object.rate[1])\n"
+#     str *= "rate $(object.label[2])→$(object.label[1]) β=$(object.rate[2])\n"
+#     print(io, str)
+# end
+
+# function Base.show(io::IO, object::TBTSM)
+#     print(io, "Substitution model for 2 binary traits, with rate matrix:\n")
+#     showQ(io, object)
+# end
+
+# function Base.show(io::IO, object::ERSM)
+#     str = "Equal Rates Substitution Model with k=$(object.k),\n"
+#     str *= "all rates equal to α=$(object.rate[1]).\n"
+#     str *= "rate matrix Q:\n"
+#     print(io, str)
+#     showQ(io, object)
+# end
+
 function Base.show(io::IO, obj::SM)
-    if (typeof(obj) == TraitSubstitutionModel)
+    if (isa(obj, TraitSubstitutionModel))
         str = "$(obj) Trait Substitution Model: "
         str *= "$(typeof(obj))\n"
-    elseif (typeof(obj) == NucleicAcidSubstitutionModel) 
+    elseif (isa(obj,NucleicAcidSubstitutionModel))
         #? I shouldnt include RateVariationAcrossSites here, right? It should get its own .show()
         str = "$(obj) Nucleic Acid Substitution Model: "
         str *= "$(typeof(obj))\n"
@@ -145,7 +166,7 @@ https://discourse.julialang.org/t/display-of-arrays-with-row-and-column-names/19
 """
 function showQ(io::IO, obj::SM)
     M = Q(obj)
-    pad = max(8,maximum(length.(getlabel(obj))+1)
+    pad = max(8,maximum(length.(getlabel(obj))+1))
     for i = 1:size(M,2) # print the header
         print(io, lpad(getlabel(obj)[i],(i==1? 2*pad : pad), " "))
     end
@@ -528,7 +549,7 @@ Default is relative rate model. Based on depricated PhyloModels.jl by Justin Ang
 # examples
 
 ```julia-repl
-julia> m1 = JC69()
+julia> m1 = JC69(0.25)
 julia> nstates(m1)
 4
 julia> m2 = JC69([0.5])
@@ -536,12 +557,11 @@ julia> nparams(m2)
 1
 ```
 """
-struct JC69 <:  NucleicAcidSubstitutionModel
+struct JC69 <: NucleicAcidSubstitutionModel
     rate::Vector{Float64}
-    pi::Vector{Float64}
     relativerate::Bool
   
-    function JC69(rate::Vector{Float64})
+    function JC69(rate::Vector{Float64} = [0.25], relativerate::Bool = true) #? need to give argument if empty, right?
       if !(0 <= length(rate) <= 1)
         error("rate not a valid length for a JC69 model")
       elseif any(rate .<= 0.)
@@ -549,12 +569,19 @@ struct JC69 <:  NucleicAcidSubstitutionModel
       end
       pi = [0.25, 0.25, 0.25, 0.25]
       if length(rate) == 0
-        new(rate, pi, true)
+        JC69() = new(rate, true)
       else
-        new(rate, pi, false)
+        JC69() = new(rate, false)
+      end
     end
-  end
-const JC69 = JC69
+    # function JC69(λ::Float64 = 0.25, relativerate::Bool = true)
+    #     if λ <= 0.
+    #         error("JC69 parameter λ must be positive")
+    #     end
+    #     JC69() = new(λ, true)
+    # end
+end
+#const JC69 = JC69(rate, relativerate)
 
 """
     HKY85(rate, pi, relative)
@@ -660,9 +687,9 @@ end
     average number of substitutions per site for time 1. lambda (or d) = (2*(piT*piC + piA*piG)*alpha + 2*(piY+piR)*beta)
     For relative,
     average number of substitutions per site is 1 (lambda = 1). kappa = alpha/beta. 
-    ```julia-repl 
-    julia> TODO
-    ````
+```julia-repl 
+julia> m1 = HKY85([.5], [0.25, 0.25, 0.25, 0.25])
+````
 """
 @inline function Q(mod::HKY85)
     piA = mod.pi[1]; piC = mod.pi[2]; piG = mod.pi[3]; piT = mod.pi[4]
@@ -717,7 +744,9 @@ P[k,1] ... P[k,k]
 where P[i,j] is the probability of ending in state j after time t,
 given that the process started in state i.
 ```julia-repl 
-julia> TODO
+julia> m1 = JC69(0.25)
+julia> P(m1, 3)
+TODO
 ````
 """
 
@@ -757,7 +786,9 @@ For relative,
 Both models according to Molecular Evolution (Yang 2014)
 
 ```julia-repl 
-julia> TODO
+julia> m1 = HKY85([.5], [0.25, 0.25, 0.25, 0.25])
+julia> P(m1, 3)
+TODO
 ````
 """
 @inline function P(mod::HKY85, t::Float64)
@@ -816,6 +847,11 @@ end
 """
     P!(Pmat::AbstractMatrix, mod::JC69, t::Float64)
 modifies P rate matrix (see traitsLikeDiscrete)
+```julia-repl 
+julia> m1 = JC69(0.25)
+julia> P!(m1, 3)
+TODO
+````
 """
 function P!(Pmat::AbstractMatrix, mod::JC69, t::Float64)
     if t < 0
@@ -840,7 +876,9 @@ modifies P rate matrix (see traitsLikeDiscrete)
 The model will have optimized the rate using NLopt in loglikfun 
 in traitsLikDiscrete.jl.
 ```julia-repl 
-julia> TODO
+julia> m1 = HKY85([.5], [0.25, 0.25, 0.25, 0.25])
+julia> P!(m1, 3)
+TODO
 ````
 """
 function P!(Pmat::AbstractMatrix, mod::HKY85, t::Float64, kappa or (alpha, beta)?)
@@ -884,9 +922,19 @@ end
     RateVariationAcrossSites ()
 
 [`RateVariationAcrossSites`](@ref) Allow variable substitution rates across sites using the discrete gamma model
-(Yang 1994, Journal of Molecular Evolution). Turn any NASM to NASM + gamma.
+(Yang 1994, Journal of Molecular Evolution). Turn any NASM to NASM + gamma. 
+
+Using this model increases nparams by one.
 
 Because mean(gamma) should equal 1, alpha = beta. Refer to this parameter as alpha here.
+
+```julia-repl
+julia> rv = RateVariationAcrossSites()
+julia> show(rv)
+#TODO
+julia> setalpha(rv)
+#TODO
+```
 """
 mutable struct RateVariationAcrossSites
     alpha::Float64
@@ -905,6 +953,10 @@ mutable struct RateVariationAcrossSites
 end
 const RVAS = RateVariationAcrossSites
 
+"""
+    setalpha(obj, alpha)
+Set alpha in RateVariationAcrossSites model
+"""
 function setalpha(obj::RateVariationAcrossSites, alpha::Int)
     @assert alpha >= 0 "alpha must be >= 0"
     obj.alpha = alpha
@@ -920,5 +972,3 @@ function Base.show(io::IO, obj::RateVariationAcrossSites)
     print(io, str)
     showQ(io, obj)
 end
-
-#? add nparams for variablerate model? check notes

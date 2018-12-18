@@ -270,3 +270,59 @@ asr = ancestralStateReconstruction(fit1)
 end # end of testset, fixed topology
 
 end # of nested testsets
+
+
+
+@testset "testing NucleicAcidSubsitutionModels & RateVariationAcrossSites" begin
+
+#tests StatsBase.fit() with NASM and with NASM + RateVariationAcrossSites
+
+# #net = readTopology("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);");
+# tips = Dict("A" => "lo", "B" => "lo", "C" => "hi", "D" => "hi");
+# #m1 = EqualRatesSubstitutionModel(2,0.36836216513047726, ["lo", "hi"]);
+# #fit1 = (@test_nowarn fitDiscrete(net, m1, tips; fixedparam=true));
+# @test_nowarn show(DevNull, fit1)
+# @test loglikelihood(fit1) ≈ -2.6638637960257574
+# species = ["G","C","A","B","D"]
+# dat1 = DataFrame(trait = ["hi","hi","lo","lo","hi"], species = species)
+# m2 = BinaryTraitSubstitutionModel(0.2, 0.3, ["lo", "hi"])
+# fit2 = (@test_nowarn fitDiscrete(net, m2, dat1; fixedparam=true))
+# @test fit2.trait == [[1],[1],[2],[2]]
+# @test loglikelihood(fit2) ≈ -2.6754091090953693
+# originalSTDOUT = STDOUT
+# redirect_stdout(open("/dev/null", "w"))
+# fit2 = @test_nowarn fitDiscrete(net, m2, dat1; verbose=true) # 65 iterations
+# redirect_stdout(originalSTDOUT)
+# @test fit2.model.rate ≈ [0.29993140042699212, 0.38882902905265493] atol=2e-4
+# @test loglikelihood(fit2) ≈ -2.6447247349802496 atol=2e-4
+# m2.rate = [0.2, 0.3];
+# dat2 = DataFrame(trait1= ["hi","hi","lo","lo","hi"], trait2=["hi",missing,"lo","hi","lo"]);
+# fit3 = (@test_nowarn fitDiscrete(net, m2, species, dat2; fixedparam=true))
+# @test fit3.loglik ≈ (-2.6754091090953693 - 2.1207856874033491)
+# PhyloNetworks.fit!(fit3; fixedparam=false)
+# @test fit3.model.rate ≈ [0.3245640354187991, 0.5079501745877728]
+# fit3.net = readTopology("(A,(B,(C,D):1.0):1.0);"); # no branch lengths
+# @test_throws ErrorException PhyloNetworks.fit!(fit3; fixedparam=false)
+
+#test NASM models
+net = readTopology("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);"); #TODO
+tips = Dict("A" => "lo", "B" => "lo", "C" => "hi", "D" => "hi"); #TODO
+
+mJC69 = JC69();
+fitJC69 = (@test_nowarn fitDiscrete(net, mJC69, tips; fixedparam=true));
+@test_nowarn show(DevNull, fitJC69)
+@test loglikelihood(fitJC69) ≈ -2.6638637960257574 #TODO
+
+mHKY85 = HKY85();
+fitHKY85 = (@test_nowarn fitDiscrete(net, mHKY85, tips; fixedparam=true));
+@test_nowarn show(DevNull, fitHKY85)
+@test loglikelihood(fitHKY85) ≈ -2.6638637960257574 #TODO
+
+# test RateVariationAcrossSites using NASM
+#create rate model
+rv = RateVariationAcrossSites();
+fitJC69rv = (@test_nowarn fitDiscrete(net, mJC69, rv, tips; fixedparam = true));
+@test_nowarn show(DevNull, fitJC69rv)
+@test loglikelihood(fitJC69rv) ≈ -2.6638637960257574 #TODO
+
+end
