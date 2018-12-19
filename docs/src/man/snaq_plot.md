@@ -144,6 +144,7 @@ you can tell julia to use 4 processors by starting julia with `julia -p 4`,
 or by starting julia the usual way (`julia`) and then adding processors with:
 
 ```julia
+using Distributed
 addprocs(4)
 ```
 

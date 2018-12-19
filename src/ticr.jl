@@ -79,7 +79,7 @@ function ticr(D::DataCF)
     for i in 1:N
         phat = D.quartet[i].obsCF
         p = D.quartet[i].qnet.expCF
-        max = findmax(p)
+        max = argmax(p)
         p_max = max[1]
         max_idx = max[2]
         p_max_hat = getindex(phat,max_idx)

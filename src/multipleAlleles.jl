@@ -39,8 +39,9 @@ dataCF_specieslevel = readTableCF!(df_sp); # DataCF object
 function mapAllelesCFtable(alleleDF::AbstractString, cfDF::AbstractString;
         filename=""::AbstractString, columns=Int[]::Vector{Int}, CSVargs...)
     # force categorical=false unless the user wants otherwise
-    i = findfirst([pair[1] for pair in CSVargs], :categorical)
-    if i == 0 CSVargs = (CSVargs..., (:categorical, false)); end
+    if :categorical ∉ [pair[1] for pair in CSVargs]
+        CSVargs = (CSVargs..., (:categorical, false))
+    end
     d = CSV.read(alleleDF; CSVargs...)
     d2 = CSV.read(cfDF; CSVargs...)
     mapAllelesCFtable!(d2,d, columns, filename != "", filename)
@@ -93,7 +94,7 @@ function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int};keepOne=false::Bool)
         newdf[cols[3]] = map(x->string(x),newdf[cols[3]])
         newdf[cols[4]] = map(x->string(x),newdf[cols[4]])
     end
-    row = Vector{String}(4)
+    row = Vector{String}(undef, 4)
     for i in 1:size(newdf,1) #check all rows
         @debug "row number: $i"
         # fixit: check for no missing value, or error below

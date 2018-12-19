@@ -342,8 +342,8 @@ function deleteHybridEdge!(net::HybridNetwork, edge::Edge, keepNodes=false::Bool
         deleteNode!(net,n1) # decreases net.numHybrids by 1, numNodes too.
         # warning: containRoot could be updated in ce and down the tree.
         if atRoot
-            i = findfirst(net.node, pn)
-            i > 0 || error("node $(pn.number) not in net!")
+            i = findfirst(x -> x===pn, net.node)
+            i !== nothing || error("node $(pn.number) not in net!")
             net.root = i
         end
     else # n1 has 4+ edges (polytomy) or 3 edges but we want to keep it anyway:
@@ -366,7 +366,7 @@ function deleteHybridEdge!(net::HybridNetwork, edge::Edge, keepNodes=false::Bool
         pe = (edge ≡ n2.edge[1] ? n2.edge[2] : n2.edge[1]) #  <--edge-- n2 ---pe--- pn
         pn = (  n2 ≡ pe.node[1] ? pe.node[2] : pe.node[1])
         if net.node[net.root] ≡ n2 # if n2 was root, new root = pn
-            net.root = findfirst(net.node, pn)
+            net.root = findfirst(x -> x===pn, net.node)
         end
         # remove n2 and pe
         removeEdge!(pn,pe)

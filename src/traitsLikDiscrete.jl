@@ -159,13 +159,13 @@ julia> [n.number for n in net.node]
 ```
 """
 function fitDiscrete(net, model, tips::Dict; kwargs...)
-    species = Array{String}(0)
-    dat = Vector{Vector{Int}}(0) # indices of trait labels
+    species = String[]
+    dat = Vector{Int}[] # indices of trait labels
     for (k,v) in tips
         !ismissing(v) || continue
         push!(species, k)
-        vi = findfirst(model.label, v) # value index in model labels
-        vi > 0 || error("trait $v not found in model")
+        vi = findfirst(isequal(v), model.label) # value index in model labels
+        vi !== nothing || error("trait $v not found in model")
         push!(dat, [vi])
     end
     o, net = check_matchtaxonnames!(species, dat, net)
@@ -174,11 +174,11 @@ function fitDiscrete(net, model, tips::Dict; kwargs...)
 end
 
 function fitDiscrete(net, model, dat::DataFrame; kwargs...)
-    i = findfirst(DataFrames.names(dat), :taxon)
-    if i==0 i = findfirst(DataFrames.names(dat), :species); end
-    if i==0 i=1; end # first column if not column named "taxon" or "species"
-    j = findfirst(DataFrames.names(dat), :trait)
-    if j==0 j=2; end
+    i = findfirst(isequal(:taxon), DataFrames.names(dat))
+    if i===nothing i = findfirst(isequal(:species), DataFrames.names(dat)); end
+    if i===nothing i=1; end # first column if no column named "taxon" or "species"
+    j = findfirst(isequal(:trait), DataFrames.names(dat))
+    if j===nothing j=2; end
     if i==j
         error("""expecting taxon names in column 'taxon', or 'species' or column 1,
               and trait values in column 'trait' or column 2.""")
@@ -232,7 +232,7 @@ function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::TraitSubstitution
     forwardlik = zeros(Float64, k, nnodes,           ntrees)
     directlik  = zeros(Float64, k, length(net.edge), ntrees)
     backwardlik= zeros(Float64, k, nnodes,           ntrees)
-    postltw    = Vector{Float64}(ntrees)
+    postltw    = Vector{Float64}(undef, ntrees)
     # create new model object then fit:
     fit!(StatisticalSubstitutionModel{T}(deepcopy(model),
             net, trait, length(trait[1]), missing,
@@ -272,7 +272,7 @@ function fit!(obj::SSM; fixedparam=false::Bool, verbose=false::Bool,
         end
         NLopt.max_objective!(opt, loglikfun)
         fmax, xmax, ret = NLopt.optimize(opt, obj.model.rate) # optimization here!
-        verbose && println("got $(round(fmax,5)) at $(round.(xmax,5)) after $(counter[1]) iterations (return code $(ret))")
+        verbose && println("got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
     end
     # return fmax,xmax,ret
     return obj
@@ -376,13 +376,13 @@ Return a vector of vectors (one per species) with integer entries,
 where each state (label) is replaced by its index in `model`.
 """
 function traitlabels2indices(data::AbstractVector, model::TraitSubstitutionModel)
-    A = Vector{Vector{Union{Missings.Missing,Int}}}(0) # indices of trait labels
+    A = Vector{Vector{Union{Missings.Missing,Int}}}(undef, 0) # indices of trait labels
     labs = model.label
     for l in data
         vi = missing
         if !ismissing(l)
-            vi = findfirst(model.label, l) # value index in model labels
-            vi > 0 || error("trait $l not found in model")
+            vi = findfirst(isequal(l), model.label) # value index in model labels
+            vi !== nothing || error("trait $l not found in model")
         end
         push!(A, [vi])
     end
@@ -390,17 +390,17 @@ function traitlabels2indices(data::AbstractVector, model::TraitSubstitutionModel
 end
 function traitlabels2indices(data::Union{AbstractMatrix,DataFrame},
                              model::TraitSubstitutionModel)
-    A = Vector{Vector{Union{Missings.Missing,Int}}}(0) # indices of trait labels
+    A = Vector{Vector{Union{Missings.Missing,Int}}}(undef, 0) # indices of trait labels
     labs = model.label
     ntraits = size(data,2)
     for i in 1:size(data,1) # go row by row
-        V = Vector{Union{Missings.Missing,Int}}(ntraits)
+        V = Vector{Union{Missings.Missing,Int}}(undef, ntraits)
         for j in 1:ntraits
             vi = missing # value index
             @inbounds l = data[i,j] # value label
             if !ismissing(l)
-                vi = findfirst(labs, l)
-                vi > 0 || error("trait $l not found in model")
+                vi = findfirst(isequal(l), labs)
+                vi !== nothing || error("trait $l not found in model")
             end
             V[j] = vi
         end
@@ -452,11 +452,11 @@ function check_matchtaxonnames!(species::AbstractVector, dat::AbstractVector, ne
     resetEdgeNumbers!(net) # to use edge as indices: 1:numEdges
     netlab = [n.name for n in sort(net.leaf, by = x -> x.number)]
     nspecies = length(netlab)
-    o = Vector{Int}(nspecies)
+    o = Vector{Int}(undef, nspecies)
     for i in 1:nspecies
-        @inbounds o[i] = findfirst(species, netlab[i])
+        @inbounds o[i] = something(findfirst(isequal(netlab[i]), species),0)
     end
-    countnz(o) == nspecies || # number of non-zeros should be total size
+    count(!iszero, o) == nspecies || # number of non-zeros should be total size
         error("weird: even after pruning, species in network have no data")
     return (o,net)
 end
@@ -537,7 +537,7 @@ function ancestralStateReconstruction(obj::SSM, trait::Integer)
     # ll = pmap(t -> discrete_backwardlikelihood_tree!(obj,t, trait), 1:ntrees)
     k = nStates(obj.model)
     nnodes = length(obj.net.node)
-    res = Array{Float64}((k,nnodes))
+    res = Array{Float64}(undef, k,nnodes)
     frd = obj.forwardlik
     ltw = obj.priorltw
     for i in 1:k
@@ -548,7 +548,7 @@ function ancestralStateReconstruction(obj::SSM, trait::Integer)
     ll = obj.loglik
     map!(x -> exp(x - ll), res, res)  # to normalize: p_i / sum(p_j over all states j)
     # alternative syntax: res .= exp.(res .- obj.loglik)
-    nodestringlabels = Vector{String}(nnodes)
+    nodestringlabels = Vector{String}(undef, nnodes)
     for n in obj.net.node
         nodestringlabels[n.number] = (n.name == "" ? string(n.number) : n.name)
     end
@@ -570,7 +570,7 @@ function discrete_backwardlikelihood_tree!(obj::SSM, t::Integer, trait::Integer)
     dirlik = view(obj.directlik , :,:,t)
     bkdlik = view(obj.backwardlik,:,:,t)
     k = nStates(obj.model)
-    bkwtmp = Vector{Float64}(k) # to hold bkw lik without parent edge transition
+    bkwtmp = Vector{Float64}(undef, k) # to hold bkw lik without parent edge transition
     logprior = [-log(k) for i in 1:k]
     for ni in 1:length(tree.nodes_changed) # pre-order traversal to calculate backwardlik
         n = tree.nodes_changed[ni]

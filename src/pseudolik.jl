@@ -689,18 +689,18 @@ function removeWeirdNodes!(net::Network, n::Node)
     @debug "calling removeWeirdNodes in node $(n.number)"
     list = Node[]
     push!(list,n)
-    while(!isempty(list))
+    while !isempty(list)
         n = pop!(list)
-        if(length(n.edge) == 1 && !n.leaf)
+        if length(n.edge) == 1 && !n.leaf
             n = removeWeirdNode!(net,n)
-        elseif(n.hybrid && length(n.edge) == 2)
+        elseif n.hybrid && length(n.edge) == 2
             (n.edge[1].hybrid && n.edge[2].hybrid) || error("hybrid node $(n.number) only has two edges and they must be hybrids")
             n = removeWeirdNode!(net,n)
         else
             @error "calling removeWeirdNode on normal node $(n.number)"
             n = nothing
         end
-        if(!isa(n,Nothing) && !isa(n,Vector{Nothing}))
+        if n !== nothing && !isa(n,Vector{Nothing})
             @debug "typeof n $(typeof(n))"
             for l in n
                 @debug "typeof l $(typeof(l))"

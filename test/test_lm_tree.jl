@@ -80,7 +80,7 @@ tmp = predict(fitBM);
 # @test_approx_eq_eps mu_estim(fitBM)  mu_estim(fitbis)
 
 ### Ancestral state reconstruction (with Rphylopars)
-anc = (@test_warn "These prediction intervals show uncertainty in ancestral values" ancestralStateReconstruction(fitBM));
+anc = (@test_logs (:warn, r"^These prediction intervals show uncertainty in ancestral values") ancestralStateReconstruction(fitBM));
 ancR = CSV.read(joinpath(@__DIR__, "..", "examples", "caudata_Rphylopars.txt"),
                 types=[Float64,Float64]); # to avoid bug in CSV
 
@@ -210,7 +210,7 @@ nodesRt = varsRt[-expe[1:196, :nodeNumber] + 196 - 197]
 ###############################################################################
 
 ## Fit Pagel's lambda
-fitLambda = (@test_warn "Maximum lambda value" phyloNetworklm(@formula(trait ~ 1), dat, phy, model = "lambda"));
+fitLambda = (@test_logs (:warn, r"^Maximum lambda value") phyloNetworklm(@formula(trait ~ 1), dat, phy, model = "lambda"));
 
 @test lambda_estim(fitLambda) ≈ 0.9193 atol=1e-4 # Due to convergence issues, tolerance is lower.
 @test loglikelihood(fitLambda) ≈ -51.684379 atol=1e-6
@@ -456,7 +456,7 @@ vcovR =  [0.0200086273  -0.0136717540 0.0084815090  -0.0093192029 -0.0114417825 
 ###############################################################################
 
 ## Fit lambda
-fitLambda = (@test_warn "Maximum lambda value" phyloNetworklm(@formula(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region), dat, phy, model = "lambda"))
+fitLambda = (@test_logs (:warn, r"^Maximum lambda value") phyloNetworklm(@formula(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region), dat, phy, model = "lambda"))
 
 # Tests against results obtained with geiger::fitContinuous or phylolm::phylolm
 @test lambda_estim(fitLambda) ≈ 0.9982715594 atol=1e-5

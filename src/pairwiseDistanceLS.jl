@@ -5,7 +5,7 @@ vector of node ages in pre-order, as in `nodes_changed`,
 which is assumed to have been calculated before.
 """
 function getNodeAges(net::HybridNetwork)
-    x = Vector{Float64}(length(net.nodes_changed))
+    x = Vector{Float64}(undef, length(net.nodes_changed))
     for i in reverse(1:length(net.nodes_changed)) # post-order
         n = net.nodes_changed[i]
         if n.leaf
@@ -92,7 +92,7 @@ function getTipSubmatrix(M::Matrix, net::HybridNetwork; indexation=:both)
     nodenames = [n.name for n in net.nodes_changed]
     tipind = Int[]
     for l in tipLabels(net)
-        push!(tipind, findfirst(nodenames, l))
+        push!(tipind, findfirst(isequal(l), nodenames))
     end
     if indexation == :both
         return M[tipind, tipind]
@@ -278,12 +278,13 @@ function calibrateFromPairwiseDistances!(net::HybridNetwork,
         for i in hybInd
             n = net.nodes_changed[i]
             p = getMinorParent(n)
-            pi = getIndex(p, net.nodes_changed)
+            pi = findfirst(n -> n===p, net.nodes_changed)
             push!(hybParentInd, pi)
-            pii = findfirst(parind, pi)
-            while pii==0 # in case minor parent of n is also hybrid node
+            pii = findfirst(isequal(pi), parind)
+            while pii===nothing # in case minor parent of n is also hybrid node
                 p = getMinorParent(p)
-                pii = findfirst(parind, getIndex(p, net.nodes_changed))
+                pi = findfirst(n -> n===p, net.nodes_changed)
+                pii = findfirst(isequal(pi), parind)
             end
             push!(hybGParentI, pii)
         end
@@ -302,8 +303,8 @@ function calibrateFromPairwiseDistances!(net::HybridNetwork,
     ntax = length(taxNames)
     tipind = Int[] # pre-order index for leaf #i in dna distances
     for l in taxNames
-        i = findfirst(nodenames, l)
-        i>0 || error("taxon $l not found in network")
+        i = findfirst(isequal(l), nodenames)
+        i !== nothing || error("taxon $l not found in network")
         push!(tipind, i)
     end
     # contraints: to force a parent to be older than its child
@@ -317,20 +318,20 @@ function calibrateFromPairwiseDistances!(net::HybridNetwork,
         n = net.nodes_changed[i]
         if n.leaf continue; end # node ages already bounded by 0
         if n.hybrid && forceMinorLength0          # get index in param list of
-          nii = hybGParentI[findfirst(hybInd, i)] # minor grand-parent (same age)
+          nii = hybGParentI[findfirst(isequal(i), hybInd)] # minor grand-parent (same age)
         else
-          nii = findfirst(parind, i)
+          nii = findfirst(isequal(i), parind)
         end
         for e in n.edge
           if getChild(e) == n # n child of e
             p = getParent(e)  # parent of n
             if forceMinorLength0 && n.hybrid && !e.isMajor
                 continue; end # p and n at same age already
-            pi = findfirst([no.number for no in net.nodes_changed], p.number)
+            pi = findfirst(isequal(p.number), [no.number for no in net.nodes_changed])
             if forceMinorLength0 && p.hybrid
-              pii = hybGParentI[findfirst(hybInd, pi)]
+              pii = hybGParentI[findfirst(isequal(pi), hybInd)]
             else
-              pii = findfirst(parind, pi)
+              pii = findfirst(isequal(pi), parind)
             end
             push!(chii, nii)
             push!(anii, pii)
@@ -412,7 +413,7 @@ function calibrateFromPairwiseDistances!(net::HybridNetwork,
     end
     NLopt.min_objective!(opt,obj)
     fmin, xmin, ret = NLopt.optimize(opt,par) # optimization here!
-    verbose && println("got $(round(fmin,5)) at $(round.(xmin,5)) after $(counter[1]) iterations (return code $(ret))")
+    verbose && println("got $(round(fmin, digits=5)) at $(round.(xmin, digits=5)) after $(counter[1]) iterations (return code $(ret))")
     return fmin,xmin,ret
 end
 
@@ -423,7 +424,7 @@ function calibrateFromPairwiseDistances!(net::HybridNetwork,
       ultrametric=true::Bool, NLoptMethod=:LD_MMA::Symbol,
       ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
       xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
-    taxNames = [String(t) for t in taxNames]
+    taxNames = String.(taxNames)
     calibrateFromPairwiseDistances!(net, D, taxNames;
                                     checkPreorder=checkPreorder,
                                     forceMinorLength0=forceMinorLength0,

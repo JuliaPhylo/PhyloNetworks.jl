@@ -9,6 +9,8 @@ using StaticArrays # for rate substitution matrices
 using StatsBase # for aic etc., stderr
 using CSV # for reading files
 using Missings
+using Distributed # parallel in test_correctLik.jl and test_bootstrap.jl
+using Random
 
 using PhyloNetworks
 using DataFrames
@@ -66,7 +68,8 @@ PhyloNetworks.setCHECKNET(true)
     writeExpCF = PhyloNetworks.writeExpCF
     optBL! = PhyloNetworks.optBL!
 
-tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculateExpCF2.jl", "test_hasEdge.jl", "test_parameters.jl","test_correctLik.jl",
+tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculateExpCF2.jl",
+         "test_hasEdge.jl", "test_parameters.jl", "test_correctLik.jl",
          #"test_partition.jl", "test_partition2.jl","test_deleteHybridizationUpdate.jl", "test_add2hyb.jl", "test_optBLparts.jl", "test_undirectedOtherNetworks.jl",
          #"test_manipulateNet.jl", "test_compareNetworks.jl",
          #"test_badDiamII.jl",

@@ -287,7 +287,7 @@ function getIndex(name::AbstractString, array::Array{String,1})
 end
 
 # aux function to find the index of a int in an int array.
-# But findfirst can do that as well, and probably more efficiently (returning 0 if not found)
+# But findfirst can do that as well, and probably more efficiently (returning nothing if not found)
 function getIndex(name::Integer, array::Array{Int,1})
     i = 1;
     while(i<= size(array,1) && !isequal(name,array[i]))
@@ -311,16 +311,16 @@ end
 
 
 function getIndexNode(number::Integer,net::Network)
-    ind = findfirst([number==n.number for n in net.node])
-    if ind==0
+    ind = findfirst(n -> n.number == number, net.node)
+    if ind === nothing
         error("node number not in net.node")
     end
     return ind
 end
 
 function getIndexEdge(number::Integer,net::Network)
-    ind = findfirst([number==n.number for n in net.edge])
-    if ind==0
+    ind = findfirst(x -> x.number == number, net.edge)
+    if ind === nothing
         error("edge number not in net.edge")
     end
     return ind
@@ -525,8 +525,8 @@ function deleteEdge!(net::HybridNetwork, e::Edge; part=true::Bool)
             deleteat!(net.partition[ind].edges,indE)
         end
     end
-    i = findfirst(net.edge, e)
-    i > 0 || error("edge $(e.number) not in network: can't delete");
+    i = findfirst(x -> x===e, net.edge)
+    i !== nothing || error("edge $(e.number) not in network: can't delete");
     deleteat!(net.edge, i);
     net.numEdges -= 1;
 end
@@ -554,8 +554,8 @@ The actual node `n` is not deleted. It is kept in the full list `net.node`.
 """
 function removeHybrid!(net::Network, n::Node)
     n.hybrid || error("cannot delete node $(n.number) from net.hybrid because it is not hybrid")
-    i = findfirst(net.hybrid, n)
-    i > 0 || error("hybrid node $(n.number) not in the network's list of hybrids");
+    i = findfirst(x -> x===n, net.hybrid)
+    i !== nothing || error("hybrid node $(n.number) not in the network's list of hybrids");
     deleteat!(net.hybrid, i);
     net.numHybrids -= 1;
 end
@@ -1226,8 +1226,8 @@ function assignhybridnames!(net::HybridNetwork)
     for ih in 1:length(net.hybrid)
         lab = net.hybrid[ih].name
         lab != "" || continue # do nothing if label is missing
-        jh = findfirst([net.hybrid[j].name for j in 1:ih-1], lab)
-        if jh > 0 # set repeated names to ""
+        jh = findfirst(isequal(lab), [net.hybrid[j].name for j in 1:ih-1])
+        if jh !== nothing # set repeated names to ""
             @warn "hybrid nodes $(net.hybrid[ih].number) and $(net.hybrid[jh].number) have the same label: $lab. Will change the name of the former."
             net.hybrid[ih].name = ""
         else
@@ -1273,8 +1273,8 @@ respectively, whose memory allocation gets reused. Their length is *not checked*
 (???)
 """
 function sorttaxa!(dat::DataCF)
-    ptax = Array{Int8}(4) # to hold the sort permutations
-    pCF  = Array{Int8}(3)
+    ptax = Array{Int8}(undef, 4) # to hold the sort permutations
+    pCF  = Array{Int8}(undef, 3)
     for q in dat.quartet
         sorttaxa!(q, ptax, pCF)
     end
@@ -1285,9 +1285,9 @@ function sorttaxa!(df::DataFrame, co=Int[]::Vector{Int})
         co = collect(1:7)
     end
     length(co) > 6 || error("column vector must be of length 7 or more")
-    ptax = Array{Int8}(4)
-    pCF  = Array{Int8}(3)
-    taxnam = Array{eltype(df[co[1]])}(4)
+    ptax = Array{Int8}(undef, 4)
+    pCF  = Array{Int8}(undef, 3)
+    taxnam = Array{eltype(df[co[1]])}(undef, 4)
     for i in 1:size(df,1)
         for j=1:4 taxnam[j] = df[i,co[j]]; end
         sortperm!(ptax, taxnam)

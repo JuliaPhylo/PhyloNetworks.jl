@@ -3,20 +3,20 @@ runall = false;
 @testset "Testing Substitution Models, P and Q matrices" begin
 
 m1 = BinaryTraitSubstitutionModel(1.0, 2.0);
-@test_nowarn show(DevNull, m1)
+@test_nowarn show(devnull, m1)
 m1 = BinaryTraitSubstitutionModel(1.0,2.0, ["carnivory", "non-carnivory"]);
 @test nStates(m1)==2
 @test PhyloNetworks.nparams(m1)==2
-@test_nowarn show(DevNull, m1)
+@test_nowarn show(devnull, m1)
 @test_throws ErrorException PhyloNetworks.BinaryTraitSubstitutionModel(-1.0,2.0)
 m2 = EqualRatesSubstitutionModel(4, 3.0);
 @test nStates(m2)==4
 @test PhyloNetworks.nparams(m2)==1
 m2 = EqualRatesSubstitutionModel(4, 3.0, ["S1","S2","S3","S4"]);
-@test_nowarn show(DevNull, m2)
+@test_nowarn show(devnull, m2)
 m3 = TwoBinaryTraitSubstitutionModel([2.0,1.2,1.1,2.2,1.0,3.1,2.0,1.1],
 ["carnivory", "noncarnivory", "wet", "dry"]);
-@test_nowarn show(DevNull, m3)
+@test_nowarn show(devnull, m3)
 @test nStates(m3)==4
 @test PhyloNetworks.nparams(m3)==8
 
@@ -36,13 +36,13 @@ end
 m1 = BinaryTraitSubstitutionModel(1.0,2.0, ["carnivory", "non-carnivory"]);
 m2 = EqualRatesSubstitutionModel(4, 3.0, ["S1","S2","S3","S4"]);
 # on a single branch
-srand(12345);
+Random.seed!(12345);
 @test randomTrait(m1, 0.2, [1,2,1,2,2]) == [1,2,1,1,2]
-srand(12345);
+Random.seed!(12345);
 @test randomTrait(m2, 0.05, [1,3,4,2,1]) == [1,3,4,2,1]
 # on a network
 net = readTopology("(A:1.0,(B:1.0,(C:1.0,D:1.0):1.0):1.0);")
-srand(12345);
+Random.seed!(12345);
 a,b = randomTrait(m1, net)
 @test a == [1 2 1 1 1 1 2]
 @test b == ["-2", "-3", "-4", "D", "C", "B", "A"]
@@ -62,11 +62,11 @@ if runall
 end
 
 net2 = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0):1.0):3.0,D:5.0);")
-srand(12345);
+Random.seed!(12345);
 a,b = randomTrait(m1, net2; keepInternal=false)
 @test a == [1  1  1  2]
 @test b == ["D", "C", "B", "A"]
-srand(12345);
+Random.seed!(12345);
 a,b = randomTrait(m1, net2; keepInternal=true)
 @test a == [1  2  1  1  1  1  1  1  1]
 @test b == ["-2", "D", "-3", "-6", "C", "-4", "#H1", "B", "A"]
@@ -149,7 +149,7 @@ net = readTopology("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);");
 tips = Dict("A" => "lo", "B" => "lo", "C" => "hi", "D" => "hi");
 m1 = EqualRatesSubstitutionModel(2,0.36836216513047726, ["lo", "hi"]);
 fit1 = (@test_nowarn fitDiscrete(net, m1, tips; fixedparam=true));
-@test_nowarn show(DevNull, fit1)
+@test_nowarn show(devnull, fit1)
 @test loglikelihood(fit1) ≈ -2.6638637960257574
 species = ["G","C","A","B","D"]
 dat1 = DataFrame(trait = ["hi","hi","lo","lo","hi"], species = species)
@@ -178,7 +178,7 @@ net = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):
 m1 = BinaryTraitSubstitutionModel([1.0, 2.0], [1,2]) # model.label = model.index
 function traitprobabilities(model, net, ntraits=10)
     res, lab = randomTrait(model, net; ntraits=ntraits)
-    tips = findin(lab, tipLabels(net)) # indices of tips: columns in res
+    tips = findall(in(tipLabels(net)), lab) # indices of tips: columns in res
     dat = DataFrame(species = lab[tips])
     tmp = StatsBase.countmap([res[i,tips] for i in 1:ntraits])
     i = 0
@@ -245,7 +245,7 @@ PhyloNetworks.fit!(fit1; fixedparam=false)
 function simulateManyTraits_estimate(ntraits)
     m1 = BinaryTraitSubstitutionModel([1.0, 0.5], [1,2])
     res, lab = randomTrait(m1, net; ntraits=ntraits)
-    tips = findin(lab, tipLabels(net)) # indices of tips: columns in res
+    tips = findall(in(tipLabels(net)), lab) # indices of tips: columns in res
     dat = DataFrame(transpose(res[:,tips])); species = lab[tips]
     return fitDiscrete(net, m1, species, dat)
 end

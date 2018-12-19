@@ -500,7 +500,7 @@ There are 2 shifts on the network:
              8.0        -3.0
              1.0         3.0
 
-julia> srand(2468); # sets the seed for reproducibility
+julia> using Random; Random.seed!(2468); # sets the seed for reproducibility
 
 julia> sim = simulate(net, params); # simulate a dataset with shifts
 
@@ -636,7 +636,7 @@ There are 1 shifts on the network:
 
 
 
-julia> srand(2468); # sets the seed for reproducibility
+julia> using Random; Random.seed!(2468); # sets the seed for reproducibility
 
 julia> sim = simulate(net, params); # simulate a dataset with shifts
 
@@ -738,13 +738,13 @@ function ShiftNet(node::Vector{Node}, value::Vector{T} where T<:Real,
     if length(node) != length(value)
         error("The vector of nodes/edges and of values must be of the same length.")
     end
-    if(checkPreorder)
+    if checkPreorder
         preorder!(net)
     end
     obj = ShiftNet(net)
     for i in 1:length(node)
         !node[i].hybrid || error("Shifts on hybrid edges are not allowed")
-        ind = findfirst(net.nodes_changed, node[i])
+        ind = findfirst(x -> x===node[i], net.nodes_changed)
         obj.shift[ind] = value[i]
     end
     return(obj)
@@ -952,7 +952,7 @@ mu: 1
 Sigma2: 0.1
 
 
-julia> srand(17920921); # Seed for reproducibility
+julia> using Random; Random.seed!(17920921); # for reproducibility
 
 julia> sim = simulate(phy, par) # Simulate on the tree.
 PhyloNetworks.TraitSimulation:
@@ -1366,7 +1366,7 @@ function phyloNetworklm_lambda(X::Matrix,
             x = convert(AbstractFloat, x[1])
             res = logLik_lam(x, X, Y, V, gammas, times; msng=msng, ind=ind)
             count =+ 1
-            #println("f_$count: $(round(res,5)), x: $(x)")
+            #println("f_$count: $(round(res, digits=5)), x: $(x)")
             return res
         end
         NLopt.min_objective!(opt, fun)
@@ -1433,7 +1433,7 @@ function phyloNetworklm_scalingHybrid(X::Matrix,
             x = convert(AbstractFloat, x[1])
             res = logLik_lam_hyb(x, X, Y, net, gammas; msng=msng, ind=ind)
             #count =+ 1
-            #println("f_$count: $(round(res,5)), x: $(x)")
+            #println("f_$count: $(round(res, digits=5)), x: $(x)")
             return res
         end
         NLopt.min_objective!(opt, fun)
@@ -1508,24 +1508,24 @@ Coefficients:
 Log Likelihood: -78.9611507833
 AIC: 161.9223015666
 
-julia> round(sigma2_estim(fitBM), 6) # rounding for jldoctest convenience
+julia> round(sigma2_estim(fitBM),  digits=6) # rounding for jldoctest convenience
 0.002945
 
-julia> round(mu_estim(fitBM), 4)
+julia> round(mu_estim(fitBM),  digits=4)
 4.679
 
 julia> using StatsBase # for aic() stderror() loglikelihood() etc.
 
-julia> round(loglikelihood(fitBM), 10)
+julia> round(loglikelihood(fitBM),  digits=10)
 -78.9611507833
 
-julia> round(aic(fitBM), 10)
+julia> round(aic(fitBM),  digits=10)
 161.9223015666
 
-julia> round(aicc(fitBM), 10)
+julia> round(aicc(fitBM),  digits=10)
 161.9841572367
 
-julia> round(bic(fitBM), 10)
+julia> round(bic(fitBM),  digits=10)
 168.4887090241
 
 julia> coef(fitBM)
@@ -1536,10 +1536,10 @@ julia> confint(fitBM)
 1×2 Array{Float64,2}:
  4.02696  5.33104
 
-julia> abs(round(r2(fitBM), 10)) # absolute value for jldoctest convenience
+julia> abs(round(r2(fitBM),  digits=10)) # absolute value for jldoctest convenience
 0.0
 
-julia> abs(round(adjr2(fitBM), 10))
+julia> abs(round(adjr2(fitBM),  digits=10))
 0.0
 
 julia> vcov(fitBM)
@@ -1779,10 +1779,10 @@ sigma2_estim(m::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} 
 Estimated root value for a fitted object.
 """
 function mu_estim(m::PhyloNetworkLinearModel)
-    warn("""You fitted the data against a custom matrix, so I have no way
+    @warn """You fitted the data against a custom matrix, so I have no way
          to know which column is your intercept (column of ones).
          I am using the first coefficient for ancestral mean mu by convention,
-         but that might not be what you are looking for.""")
+         but that might not be what you are looking for."""
     if size(m.lm.pp.X,2) == 0
         return 0
     else
@@ -1840,8 +1840,8 @@ function Base.show(io::IO, model::StatsModels.DataFrameRegressionModel{PhyloNetw
     println(io,"Coefficients:")
     show(io, ct)
     println(io)
-    println(io, "Log Likelihood: "*"$(round(loglikelihood(model), 10))")
-    println(io, "AIC: "*"$(round(aic(model), 10))")
+    println(io, "Log Likelihood: "*"$(round(loglikelihood(model),  digits=10))")
+    println(io, "AIC: "*"$(round(aic(model),  digits=10))")
 end
 
 ###############################################################################
@@ -1883,7 +1883,7 @@ function anova(objs::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearMode
 end
 
 function anova(objs::PhyloNetworkLinearModel...)
-    anovaTable = Array{Any}(length(objs)-1, 6)
+    anovaTable = Array{Any}(undef, length(objs)-1, 6)
     ## Compute binary statistics
     for i in 1:(length(objs) - 1)
       anovaTable[i, :] = anovaBin(objs[i], objs[i+1])
@@ -1965,9 +1965,9 @@ function expectationsPlot(obj::ReconstructedStates; markMissing="*"::AbstractStr
     # Retrieve values
     expe = expectations(obj)
     # Format values for plot
-    expetxt = Array{AbstractString}(size(expe, 1))
+    expetxt = Array{AbstractString}(undef, size(expe, 1))
     for i=1:size(expe, 1)
-        expetxt[i] = string(round(expe[i, 2], 2))
+        expetxt[i] = string(round(expe[i, 2],  digits=2))
     end
     # Find missing values
     if !ismissing(obj.model)
@@ -2018,15 +2018,15 @@ predicted value is also shown along with the interval.
 function predintPlot(obj::ReconstructedStates; level=0.95::Real, withExp=false::Bool)
     # predInt
     pri = predint(obj; level=level)
-    pritxt = Array{AbstractString}(size(pri, 1))
+    pritxt = Array{AbstractString}(undef, size(pri, 1))
     # Exp
     withExp ? exptxt = expectationsPlot(obj, markMissing="") : exptxt = ""
     for i=1:length(obj.NodeNumbers)
         !withExp ? sep = ", " : sep = "; " * exptxt[i, 2] * "; "
-        pritxt[i] = "[" * string(round(pri[i, 1], 2)) * sep * string(round(pri[i, 2], 2)) * "]"
+        pritxt[i] = "[" * string(round(pri[i, 1],  digits=2)) * sep * string(round(pri[i, 2],  digits=2)) * "]"
     end
     for i=(length(obj.NodeNumbers)+1):size(pri, 1)
-        pritxt[i] = string(round(pri[i, 1], 2))
+        pritxt[i] = string(round(pri[i, 1],  digits=2))
     end
     return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], PredInt = pritxt)
 end
@@ -2142,9 +2142,9 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)
         missingTipNumbers = obj.V.tipNumbers[obj.ind][.!obj.msng]
         nmTipNumbers = obj.V.tipNumbers[obj.ind][obj.msng]
     else
-        warn("""There were no indication for the position of the tips on the network.
+        @warn """There were no indication for the position of the tips on the network.
              I am assuming that they are given in the same order.
-             Please check that this is what you intended.""")
+             Please check that this is what you intended."""
         Vyz = obj.V[:TipsNodes, collect(1:length(obj.V.tipNumbers)), obj.msng]
         missingTipNumbers = obj.V.tipNumbers[.!obj.msng]
         nmTipNumbers = obj.V.tipNumbers[obj.msng]
@@ -2153,10 +2153,10 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)
     U = X_n - temp' * (obj.RL \ obj.X)
     add_var = U * vcov(obj) * U'
     # Warn about the prediction intervals
-    warn("""These prediction intervals show uncertainty in ancestral values,
+    @warn """These prediction intervals show uncertainty in ancestral values,
          assuming that the estimated variance rate of evolution is correct.
          Additional uncertainty in the estimation of this variance rate is
-         ignored, so prediction intervals should be larger.""")
+         ignored, so prediction intervals should be larger."""
     # Actual reconstruction
     ancestralStateReconstruction(obj.V[:InternalNodes, obj.ind, obj.msng],
                                  temp,

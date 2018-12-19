@@ -17,7 +17,7 @@ function readBootstrapTrees(filelist::AbstractString)
     size(bootfile)[2] == 1 ||
         error("there should be a single bootstrap file name on each row of file $filelist")
     ngenes = size(bootfile)[1]
-    treelists = Array{Vector{HybridNetwork}}(ngenes)
+    treelists = Array{Vector{HybridNetwork}}(undef, ngenes)
     for igene in 1:ngenes
         treelists[igene] = readMultiTopology(bootfile[igene])
         print("read $igene/$ngenes bootstrap tree files\r") # using \r for better progress display
@@ -46,7 +46,7 @@ output: one vector of trees. the modifying function (!) modifies the input tree 
 """
 function sampleBootstrapTrees(trees::Vector{Vector{HybridNetwork}};
                               seed=0::Integer, generesampling=false::Bool, row=0::Integer)
-    bootTrees = Array{HybridNetwork}(length(trees))
+    bootTrees = Array{HybridNetwork}(undef, length(trees))
     sampleBootstrapTrees!(bootTrees, trees, seed=seed, generesampling=generesampling, row=row)
 end
 
@@ -63,7 +63,7 @@ function sampleBootstrapTrees!(bootTrees::Vector{HybridNetwork}, trees::Vector{V
         seed = parse(Int,a[2][end-4:end]) #better seed based on clock
         println("using seed $(seed) for bootstrap trees")
       end
-      srand(seed)
+      Random.seed!(seed)
       if generesampling
         indxg = sample(1:numgen, numgen) # default is with replacement. good!
       end
@@ -106,18 +106,18 @@ optional argument: `delim=','` by default: how columns are delimited.
 function sampleCFfromCI(df::DataFrame, seed=0::Integer)
     @debug "order of columns should be: t1,t2,t3,t4,cf1234,cf1324,cf1423,cf1234LO,cf1234HI,..."
     size(df,2) == 13 || size(df,2) == 14 || @warn "sampleCFfromCI function assumes table from TICR: CF, CFlo, CFhi"
-    obsCFcol = [findfirst(DataFrames.names(df), :CF12_34),
-                findfirst(DataFrames.names(df), :CF13_24),
-                findfirst(DataFrames.names(df), :CF14_23)]
-    findfirst(obsCFcol, 0) == 0 || error("""CF columns were not found: should be named like 'CF12_34'""")
+    obsCFcol = [findfirst(isequal(:CF12_34), DataFrames.names(df)),
+                findfirst(isequal(:CF13_24), DataFrames.names(df)),
+                findfirst(isequal(:CF14_23), DataFrames.names(df))]
+    nothing ∉ obsCFcol || error("""CF columns were not found: should be named like 'CF12_34'""")
     obsCFcol == [5,8,11] ||
-        warn("""CF columns were found, but not in the expected columns.
-                Lower/upper bounds of credibility intervals assumed in columns 6,7, 9,10 and 12,13.""")
+        @warn """CF columns were found, but not in the expected columns.
+                Lower/upper bounds of credibility intervals assumed in columns 6,7, 9,10 and 12,13."""
     colsTa = [1,2,3,4]        # column numbers for taxon names
     colsCI = [6,7,9,10,12,13] # for lower/upper CI bounds
-    length(findin(colsTa, obsCFcol)) ==0 ||
+    length(findall(in(obsCFcol), colsTa)) ==0 ||
         error("CFs found in columns 1-4 where taxon labels are expected")
-    length(findin(colsCI, obsCFcol)) ==0 ||
+    length(findall(in(obsCFcol), colsCI)) ==0 ||
         error("CFs found in columns where credibility intervals are expected")
     newdf = deepcopy(df[:, [colsTa; obsCFcol; colsCI] ])
     if seed==-1
@@ -134,7 +134,7 @@ function sampleCFfromCI!(df::DataFrame, seed=0::Integer)
         seed = parse(Int,a[2][end-4:end]) #better seed based on clock
         println("using seed $(seed) for bootstrap table")
     end
-    srand(seed)
+    Random.seed!(seed)
     for i in 1:size(df,1)
         c1 = (df[i, 9]-df[i, 8])*rand()+df[i, 8]
         c2 = (df[i,11]-df[i,10])*rand()+df[i,10]
@@ -209,7 +209,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
     println("main seed $(seed)")
     writelog && write(logfile,"\nmain seed $(seed)\n")
     writelog && flush(logfile)
-    srand(seed)
+    Random.seed!(seed)
     seedsData = round.(Int,floor.(rand(nrep)*100000)) # seeds to sample bootstrap data
     if runs1>0
         seeds = round.(Int,floor.(rand(nrep)*100000)) # seeds for all optimizations from currT0
@@ -339,8 +339,8 @@ function bootsnaq(startnet::HybridNetwork, data::Union{DataFrame,Vector{Vector{H
 
     if !inputastrees
     (DataFrames.names(data)[[6,7,9,10,12,13]] == [:CF12_34_lo,:CF12_34_hi,:CF13_24_lo,:CF13_24_hi,:CF14_23_lo,:CF14_23_hi]) ||
-      warn("""assume table with CI from TICR: CFlo, CFhi in columns 6,7; 9,10; and 12,13.
-              Found different column names: $(DataFrames.names(data)[[6,7,9,10,12,13]])""")
+      @warn """assume table with CI from TICR: CFlo, CFhi in columns 6,7; 9,10; and 12,13.
+              Found different column names: $(DataFrames.names(data)[[6,7,9,10,12,13]])"""
     else # check 1+ genes, each with 1+ trees, all with h=0.
         ngenes = length(data)
         ngenes > 0 || error("empty list of bootstrap trees (0 genes)")
@@ -354,7 +354,7 @@ function bootsnaq(startnet::HybridNetwork, data::Union{DataFrame,Vector{Vector{H
     end
     prcnet >= 0 || error("percentage of times to use the best network as starting topology should be positive: $(prcnet)")
     prcnet = (prcnet <= 1.0) ? prcnet : prcnet/100
-    runs2 = convert(Int, round(runs*prcnet)) # runs starting from otherNet
+    runs2 = round(Int, runs*prcnet)            # runs starting from otherNet
     runs1 = runs - runs2                       # runs starting from startnet
 
     if runs1>0
@@ -674,8 +674,8 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
         hemaj, hemin, ce = hybridEdges(hn) # assumes no polytomy at hybrid nodes and correct node.hybrid
         (hemin.hybrid && !hemin.isMajor) || error("edge should be hybrid and minor")
         (hemaj.hybrid &&  hemaj.isMajor) || error("edge should be hybrid and major")
-        ic = findfirst(treeedge, ce.number)
-        ic>0 || error("hybrid node $(hn.number): child edge not found in major tree")
+        ic = findfirst(isequal(ce.number), treeedge)
+        ic !== nothing || error("hybrid node $(hn.number): child edge not found in major tree")
         hybparent[ic] = trueh
         push!(hybind,ic)
         push!(hybnode, hn.number)
@@ -697,9 +697,9 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
                 end
             end
           end
-          i = findfirst(clade, hwc)
-          if (!rooted && i==0) i = findfirst(clade, .!hwc) end
-          i>0 || error(string("hyb node $(hn.number): ",sis,"or clade not found in main tree"))
+          i = findfirst(isequal(hwc), clade)
+          if (!rooted && i===nothing) i = findfirst(isequal(.!hwc), clade) end
+          i !== nothing || error(string("hyb node $(hn.number): ",sis,"or clade not found in main tree"))
           if (sis=="min") push!(minsisind, i)
           else            push!(majsisind, i)
           end
@@ -715,9 +715,9 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
             # for that clade, but in that case, the minor sister might have been assigned that edge anyway...
             if pe != nothing
               hwc = hardwiredCluster(pe,taxa)
-              i = findfirst(clade, hwc) # i>0: (hybrid + minor sister) can be in main tree if
+              i = findfirst(isequal(hwc), clade) # i>0: (hybrid + minor sister) can be in main tree if
               # hybrid origin is ancestral, i.e. hybrid clade is nested within minor sister.
-              if i==0
+              if i===nothing
                 push!(clade, hwc)
                 push!(treenode, pn.number)
                 push!(treeedge, pe.number)
@@ -740,8 +740,8 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
     BSminsis     = zeros(Float64, nclades) # clade = minor sister of some hybrid
     # edge-associated summaries, i.e. associated to a pair of clades (hyb,sis):
     hybcladei   = repeat(hybind, inner=[2]) # indices in 'clade'
-    siscladei   = Array{Int}(nedges)       # edge order: (major then minor) for all hybrids
-    edgenum     = Array{Int}(nedges)
+    siscladei   = Array{Int}(undef, nedges) # edge order: (major then minor) for all hybrids
+    edgenum     = Array{Int}(undef, nedges)
     for i=1:nh
         siscladei[2*i-1] = majsisind[i]
         siscladei[2*i]   = minsisind[i]
@@ -806,8 +806,8 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
                 @warn "parent or sibling cluster is full or empty. bootstrap net i=$i, hybrid $(net.hybrid[esth].name)"
             end
 
-            ihyb = findfirst(clade, hwcChi)
-            newhyb = (ihyb==0) # hwcChi not found in clade list
+            ihyb = findfirst(isequal(hwcChi), clade)
+            newhyb = (ihyb===nothing) # hwcChi not found in clade list
             if newhyb
               push!(clade, hwcChi)
               push!(treenode, nextnum)
@@ -815,17 +815,17 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
               push!(BShyb,    1.0)
               push!(BSmajsis, 0.0)
               push!(BSminsis, 0.0)
-              ihyb = length(clade)
+              ihyb = length(clade) # was nothing; converted to nex available integer
               nextnum += 1
             else
               BShyb[ihyb] += 1.0
             end
 
-            iSmaj = findfirst(clade, hwcSib)
-            iSmin = findfirst(clade, hwcPar)
-            if (!rooted && iSmaj==0) iSmaj = findfirst(clade, .!hwcSib) end
-            if (!rooted && iSmin==0) iSmin = findfirst(clade, .!hwcPar) end
-            newmaj = (iSmaj==0)
+            iSmaj = findfirst(isequal(hwcSib), clade)
+            iSmin = findfirst(isequal(hwcPar), clade)
+            if (!rooted && iSmaj===nothing) iSmaj = findfirst(isequal(.!hwcSib), clade) end
+            if (!rooted && iSmin===nothing) iSmin = findfirst(isequal(.!hwcPar), clade) end
+            newmaj = (iSmaj===nothing)
             if newmaj
               push!(clade, hwcSib)
               push!(treenode, nextnum)
@@ -833,12 +833,12 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
               push!(BShyb,    0.0)
               push!(BSmajsis, 1.0)
               push!(BSminsis, 0.0)
-              iSmaj = length(clade)
+              iSmaj = length(clade) # was nothing; now integer
               nextnum += 1
             else
               BSmajsis[iSmaj] += 1.0
             end
-            newmin = (iSmin==0)
+            newmin = (iSmin===nothing)
             if newmin
               push!(clade, hwcPar)
               push!(treenode, nextnum)
@@ -846,17 +846,18 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
               push!(BShyb,    0.0)
               push!(BSmajsis, 0.0)
               push!(BSminsis, 1.0)
-              iSmin = length(clade)
+              iSmin = length(clade) # was nothing; now integer
               nextnum += 1
             else
               BSminsis[iSmin] += 1.0
             end
-            samehyb = (newhyb ? Int[] : findin(hybcladei, [ihyb]))
+            samehyb = (newhyb ? Int[] : findall(isequal(ihyb), hybcladei))
             for sis in ["maj","min"]
                 newpair = newhyb || (sis=="min" ? newmin : newmaj)
+                iSsis = (sis=="min" ? iSmin : iSmaj)
                 if !newpair # hyb and sis clades were already found, but not sure if together
-                    iish = findfirst(siscladei[samehyb], (sis=="min" ? iSmin : iSmaj))
-                    if iish > 0 # pair was indeed found
+                    iish = findfirst(isequal(iSsis), siscladei[samehyb])
+                    if iish !== nothing # pair was indeed found
                         ipair = samehyb[iish]
                         if (sis=="min") BShybminsis[ipair] += 1.0
                         else            BShybmajsis[ipair] += 1.0 end
@@ -867,7 +868,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
                 end
                 if newpair
                     push!(hybcladei, ihyb)
-                    push!(siscladei, (sis=="min" ? iSmin : iSmaj))
+                    push!(siscladei, iSsis)
                     push!(BShybminsis, (sis=="min" ? 1.0 : 0.0))
                     push!(BShybmajsis, (sis=="min" ? 0.0 : 1.0))
                 end
@@ -903,7 +904,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
     nkeepc = sum(keepc)
     # clade descriptions
     resCluster = DataFrame(taxa=taxa)
-    cladestr = Array{String}(length(clade))
+    cladestr = Array{String}(undef, length(clade))
     rowh = 1
     for h=1:length(clade)
         nn = treenode[h] # node number in ref net
@@ -929,7 +930,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
                         edge=allowmissing(treeedge[keepc]),
                         BS_hybrid=BShyb, BS_sister = BSmajsis + BSminsis,
                         BS_major_sister=BSmajsis, BS_minor_sister=BSminsis,
-                        BS_hybrid_samesisters=Vector{Union{Missing,Float64}}(nkeepc))
+                        BS_hybrid_samesisters=Vector{Union{Missing,Float64}}(undef, nkeepc))
     rowh = 1
     for h=1:length(clade)
         if h <= nclades && keepc[h] && hybparent[h]>0
@@ -949,7 +950,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
     sort!(resNode, [:BS_all,:BS_hybrid]; rev=true)
     delete!(resNode, :BS_all)
     # edge summaries
-    resEdge = DataFrame(edge = Vector{Union{Int, Missing}}(length(hybcladei)),
+    resEdge = DataFrame(edge = Vector{Union{Int, Missing}}(undef, length(hybcladei)),
                         hybrid_clade=cladestr[hybcladei],
                         hybrid=Vector{Union{Int, Missing}}(treenode[hybcladei]),
                         sister_clade=cladestr[siscladei],

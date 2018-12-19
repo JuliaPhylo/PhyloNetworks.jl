@@ -4,11 +4,11 @@
 tree1 = readTopology("(A,(B:1.0,(C:1.0,D:1.0):1.0):1.0);");
 @test_nowarn PhyloNetworks.resetNodeNumbers!(tree1);
 tree1.edge[3].number = 50
-@test_warn "resetting edge numbers" PhyloNetworks.resetEdgeNumbers!(tree1);
+@test_logs (:warn, r"^resetting edge numbers") PhyloNetworks.resetEdgeNumbers!(tree1);
 @test tree1.edge[3].number == 3
 @test PhyloNetworks.majoredgematrix(tree1) == [5 1; 5 6; 6 2; 6 7; 7 3; 7 4]
 @test all(PhyloNetworks.majoredgelength(tree1) .===  [missing, 1.0,1.0,1.0,1.0,1.0])
-@test PhyloNetworks.minorreticulationmatrix(tree1) == Array{Int64,2}(0,2)
+@test PhyloNetworks.minorreticulationmatrix(tree1) == Array{Int64,2}(undef, 0,2)
 @test size(PhyloNetworks.minorreticulationlength(tree1)) == (0,)
 @test size(PhyloNetworks.minorreticulationgamma(tree1)) == (0,)
 

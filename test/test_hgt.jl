@@ -33,9 +33,9 @@ printEdges(net)
 
 currT0 = readTopologyUpdate("1_astral.out");
 printEdges(currT0)
-srand(1234) #found right network in 135secs, wrong BL, right gamma (debug3hgtGood.txt)
-srand(4568) # bug with movedownlevel, will leave for later (debug4hgt.txt)
-srand(11233) #found right network in 119.34secs (debug4hgtBad.txt, by mistake)
+Random.seed!(1234) #found right network in 135secs, wrong BL, right gamma (debug3hgtGood.txt)
+Random.seed!(4568) # bug with movedownlevel, will leave for later (debug4hgt.txt)
+Random.seed!(11233) #found right network in 119.34secs (debug4hgtBad.txt, by mistake)
 currT = deepcopy(currT0);
 addHybridizationUpdate!(currT); #add hybrid at random (different test would be to start with the tree)
 printEdges(currT)
@@ -57,9 +57,9 @@ printEdges(net)
 currT0 = readTopologyUpdate("1_astral.out");
 x = updateBL!(currT0,d2)
 printEdges(currT0)
-srand(1234) #right network in 20secs(debug12hgt)
-srand(4568) #movedownlevel: debug13hgtBad
-srand(11233) #very close to right network in 135secs (debug8hgtgood.txt)
+Random.seed!(1234) #right network in 20secs(debug12hgt)
+Random.seed!(4568) #movedownlevel: debug13hgtBad
+Random.seed!(11233) #very close to right network in 135secs (debug8hgtgood.txt)
 currT = deepcopy(currT0);
 addHybridizationUpdate!(currT); #add hybrid at random (different test would be to start with the tree)
 printEdges(currT)
@@ -80,9 +80,9 @@ printEdges(net)
 
 currT0 = readTopologyUpdate("1_astral.out");
 printEdges(currT0)
-srand(1234) #local max found debug5hgtBad
-srand(4568) #local max2 found debug6hgtBad
-srand(11233) #local max found debug7hgtBad
+Random.seed!(1234) #local max found debug5hgtBad
+Random.seed!(4568) #local max2 found debug6hgtBad
+Random.seed!(11233) #local max found debug7hgtBad
 currT = deepcopy(currT0);
 addHybridizationUpdate!(currT); #add hybrid at random (different test would be to start with the tree)
 printEdges(currT)
@@ -104,9 +104,9 @@ printEdges(net)
 currT0 = readTopologyUpdate("1_astral.out");
 x = updateBL!(currT0,d)
 printEdges(currT0)
-srand(1234) #local max found debug9hgt.txt
-srand(4568) #local max2 found debug9hgt.txt
-srand(11233) #local max3 found debug9hgt.txt
+Random.seed!(1234) #local max found debug9hgt.txt
+Random.seed!(4568) #local max2 found debug9hgt.txt
+Random.seed!(11233) #local max3 found debug9hgt.txt
 currT = deepcopy(currT0);
 addHybridizationUpdate!(currT); #add hybrid at random (different test would be to start with the tree)
 printEdges(currT)
@@ -115,9 +115,9 @@ printEdges(currT)
 
 
 # -----------------------
-# bug in srand(4568)
+# bug in Random.seed!(4568)
 net = readTopologyUpdate("((4,#H7:9.99670403892172::0.43454301575229803):1.5467254857425556,((6,(5)#H7:2.512064322645178::0.565456984247702):9.221085796210835,(2,1):0.38003642076628485):0.0,3);");
-srand(4568)
+Random.seed!(4568)
 flag = proposedTop!(:nni,net,true,0,100, zeros(Int,18), zeros(Int,6))
 df = readtable("HGTtableCF.txt") #from 1.ms
 d = readTableCF(df); #obsCF

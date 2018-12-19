@@ -1,19 +1,6 @@
 # tests with the 5 taxon networks parameters: net.ht, net.numht
 # Claudia January 2015
 
-
-# types in "types.jl"
-if !(@isdefined individualtest) individualtest = false; end
-
-if(individualtest)
-    include("../src/types.jl")
-    include("../src/functions.jl")
-end
-
-# needed modules:
-
-using Base.Collections # for updateInCycle with priority queue
-
 # test functions
 
 #tests = ["C","F","G","H","J","D","E","I"];
@@ -83,17 +70,11 @@ end
 
 for t in tests
     #println("running $(t)")
-    net = nothing;
-    tree = whichtree(t)
-    net = readTopologyLevel1(tree);
-    #println("---- Case $(t)")
-    #println("$(net.ht)")
-    #println("$(net.numht)")
+    global net = readTopologyLevel1(whichtree(t));
     try
         whichtest(t,net)
     catch
         println("error in $(t)")
-        #whichtest(t,net)
         push!(wrong,t);
     end
 end

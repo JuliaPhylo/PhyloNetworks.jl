@@ -161,7 +161,7 @@ rotate!(netlist[1], -4); # to 'un-cross' edges
 rotate!(netlist[1], -6);
 plot(netlist[1], :R, showGamma=true, tipOffset=0.1);
 R"mtext('best net, score=28.3', line=-1)";
-logging(DevNull, ; kind=:info) # hide
+logging(devnull, ; kind=:info) # hide
 rootatnode!(netlist[2], "A"); # net with modified direction: first way to make A outgroup
 logging() # hide
 plot(netlist[2], :R, showGamma=true, tipOffset=0.1);

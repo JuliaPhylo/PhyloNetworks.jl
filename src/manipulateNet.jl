@@ -253,7 +253,7 @@ function rootatnode!(net::HybridNetwork, node::Node; kwargs...)
 end
 
 function rootatnode!(net::HybridNetwork, nodeName::AbstractString; kwargs...)
-    tmp = findin([n.name for n in net.node], [nodeName])
+    tmp = findall(n -> n.name == nodeName, net.node)
     if length(tmp)==0
         error("node named $nodeName was not found in the network.")
     elseif length(tmp)>1
@@ -404,7 +404,7 @@ function fuseedgesat!(i::Integer, net::HybridNetwork)
       error("can't fuse edges at node number $(net.node[i].number): connected to $(length(net.node[i].edge)) edges.")
     !(net.node[i].edge[1].hybrid && net.node[i].edge[2].hybrid) ||
       error("can't fuse edges at node number $(net.node[i].number): connected to exactly 2 hybrid edges")
-    j = indmax([e.number for e in net.node[i].edge])
+    j = argmax([e.number for e in net.node[i].edge])
     pe = net.node[i].edge[j] # edge to remove: pe.number > ce.number
     if pe.hybrid             #                 unless it's a hybrid
         ce = pe # keep ce, the hybrid edge -> keep its isMajor & gamma.
@@ -468,8 +468,8 @@ function directEdges!(net::HybridNetwork; checkMajor=true::Bool)
             (nparents==0 || nmajor == 1) ||
               error("hybrid node $(n.number) has 0 or 2+ major hybrid parents")
             (nparents!=2 || n.hybrid) ||
-              warn("node $(n.number) has 2 parents but its hybrid attribute is false.
-It is not used in directEdges!, but might cause an error elsewhere.")
+              @warn "node $(n.number) has 2 parents but its hybrid attribute is false.
+It is not used in directEdges!, but might cause an error elsewhere."
             # to fix this: change n.hybrid, net.hybrid, net.numHybrids etc.
             # none of those attributes are used here.
         end
@@ -602,7 +602,7 @@ function preorder!(net::HybridNetwork)
     while !isempty(queue)
         #println("at this moment, queue is $([n.number for n in queue])")
         curr = pop!(queue); # deliberate choice over shift! for cladewise order
-        currind = findfirst(net.node, curr)
+        currind = findfirst(x -> x===curr, net.node)
         # the "curr"ent node may have been already visited: because simple loop (2-cycle)
         !net.visited[currind] || continue
         net.visited[currind] = true # visit curr node
@@ -616,7 +616,7 @@ function preorder!(net::HybridNetwork)
                 else
                     e2 = getPartner(e, other)
                     parent = getParent(e2)
-                    if net.visited[findfirst(net.node, parent)]
+                    if net.visited[findfirst(x -> x===parent, net.node)]
                       push!(queue,other)
                       # warning: if simple loop, the same node will be pushed twice: child of "curr" via 2 edges
                     end
@@ -649,7 +649,7 @@ function cladewiseorder!(net::HybridNetwork)
         for e in net.node[ni].edge
             if net.node[ni] ≡ getParent(e) # net.node[ni] is parent node of e
                 if e.isMajor
-                    push!(queue, findfirst(net.node, getChild(e)))
+                    push!(queue, findfirst(isequal(getChild(e)), net.node))
                     # print("queuing: "); @show other.number
                 end
             end
@@ -691,7 +691,7 @@ julia> plot(net)
 function rotate!(net::HybridNetwork, nnum::Integer; orderedEdgeNum=Int[]::Array{Int,1})
     nind = 0
     nind = findfirst(n -> n.number == nnum, net.node)
-    nind > 0 || error("cannot find any node with number $nnum in network.")
+    nind !== nothing || error("cannot find any node with number $nnum in network.")
     n = net.node[nind]
     ci = Int[] # children edge indices
     for i = 1:length(n.edge)
@@ -708,9 +708,9 @@ function rotate!(net::HybridNetwork, nnum::Integer; orderedEdgeNum=Int[]::Array{
     else # 3+ children edges and orderedEdgeNum provided
         length(orderedEdgeNum)==length(ci) || error("orderedEdgeNum $orderedEdgeNum should be of length $(length(ci))")
         length(unique(orderedEdgeNum))==length(ci) || error("orderedEdgeNum $orderedEdgeNum should not have duplicates")
-        childrenedge = n.edge[ci]
+        childrenedge = n.edge[ci] # makes a shallow copy, because of subsetting [ci]
         for i=1:length(ci)
-            tmp = findin([e.number for e in childrenedge], orderedEdgeNum[i])
+            tmp = findall(x -> x.number == orderedEdgeNum[i], childrenedge)
             length(tmp)==1 || error("edge number $(orderedEdgeNum[i]) not found as child of node $(n.number)")
             n.edge[ci[i]] = childrenedge[tmp[1]]
         end
@@ -755,7 +755,7 @@ function deleteleaf!(net::HybridNetwork, node::Node; simplify=true::Bool)
 end
 
 function deleteleaf!(net::HybridNetwork, nodeName::AbstractString; simplify=true::Bool)
-    tmp = findin([n.name for n in net.node], [nodeName])
+    tmp = findall(n -> n.name == nodeName, net.node)
     if length(tmp)==0
         error("node named $nodeName was not found in the network.")
     elseif length(tmp)>1

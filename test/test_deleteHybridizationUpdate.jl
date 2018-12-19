@@ -16,7 +16,7 @@ currT0 = readTopologyLevel1(tree);
 ## printNodes(currT0)
 ## writeTopologyLevel1(currT0)
 checkNet(currT0)
-srand(seed);
+Random.seed!(seed);
 besttree = deepcopy(currT0);
 
 # ===== first hybridization ==========================

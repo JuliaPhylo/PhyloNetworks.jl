@@ -100,7 +100,8 @@ instead of all quartets, we could do:
 
 Be careful to use a numQ value smaller than the total number of possible
 4-taxon subsets, which is *n choose 4* on *n* taxa (e.g. 15 on 6 taxa).
-To get a predictable random sample, you may set the seed with `srand(12321)`
+To get a predictable random sample, you may set the seed with
+`using Random; Random.seed!(12321)`
 (for instance) prior to sampling the quartets as above.
 
 ## Tutorial data: quartet CFs

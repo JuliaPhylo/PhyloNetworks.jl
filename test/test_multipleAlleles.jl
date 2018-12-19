@@ -10,7 +10,7 @@
     # df = CSV.read(joinpath(@__DIR__, "..", "examples", "tableCFCI.csv"))
     # PhyloNetworks.mapAllelesCFtable!(df,alleleDF,[1,2,3,4],true,"CFmapped.csv")
     CSV.write("tmp.csv", alleleDF);
-    df = (@test_warn "not all alleles were mapped" mapAllelesCFtable("tmp.csv",
+    df = (@test_logs (:warn, r"^not all alleles were mapped") mapAllelesCFtable("tmp.csv",
       joinpath(@__DIR__, "..", "examples", "tableCFCI.csv"), filename="CFmapped.csv"))
     rm("CFmapped.csv")
     rm("tmp.csv")
@@ -23,14 +23,14 @@ end
 @testset "testing sorttaxa!" begin
 
 letters = ["a","b","c","d"]; cfvalues = [0.6, 0.39, 0.01] # for ab_cd, ac_bd, ad_bc
-d = DataFrame(t1=Array{String}(24),t2=Array{String}(24),t3=Array{String}(24),t4=Array{String}(24),
-              CF12_34=Array{Float64}(24), CF13_24=Array{Float64}(24), CF14_23=Array{Float64}(24));
+d = DataFrame(t1=Array{String}(undef,24),t2=Array{String}(undef,24),t3=Array{String}(undef,24),t4=Array{String}(undef,24),
+              CF12_34=Array{Float64}(undef,24), CF13_24=Array{Float64}(undef,24), CF14_23=Array{Float64}(undef,24));
 irow=1        # d will contain 6!=24 rows: for all permutations on 4 letters
 for i1 in 1:4
   ind234 = deleteat!(collect(1:4),i1)
   for i2 in ind234
     ind34 = deepcopy(ind234)
-    deleteat!(ind34,findfirst(ind34, i2))
+    deleteat!(ind34, findfirst(isequal(i2), ind34))
     for j in 1:2
       i3=ind34[j]; i4=ind34[3-j]
       d[:t1][irow]=letters[i1]; d[:t2][irow]=letters[i2]; d[:t3][irow]=letters[i3]; d[:t4][irow]=letters[i4]
@@ -60,9 +60,8 @@ d3 = DataFrame(t1=repeat([letters[1]],outer=[24]),t2=repeat([letters[2]],outer=[
 @test d2==d3
 
 dat = readTableCF(d);
-# net = (@test_warn "net does not have identifiable branch lengths" readTopologyLevel1("(a,((b)#H1,((#H1,c),d)));"));
 net = (@test_nowarn readTopologyLevel1("(a,((b)#H1,((#H1,c),d)));"));
-# @test_warn "net does not have identifiable branch lengths"
+# earlier warning: "net does not have identifiable branch lengths"
 @test_nowarn topologyQPseudolik!(net, dat);
 sorttaxa!(dat)
 

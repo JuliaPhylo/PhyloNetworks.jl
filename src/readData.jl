@@ -73,9 +73,9 @@ function readTableCF!(df::DataFrames.DataFrame; summaryfile=""::AbstractString)
     obsCFcol = [findfirst(x-> x ∈ alternativecolnames[1], DataFrames.names(df)),
                 findfirst(x-> x ∈ alternativecolnames[2], DataFrames.names(df)),
                 findfirst(x-> x ∈ alternativecolnames[3], DataFrames.names(df))]
-    ngenecol =  findfirst(DataFrames.names(df), :ngenes)
-    withngenes = ngenecol>0
-    if findfirst(obsCFcol, 0) > 0 # one or more col names for CFs were not found
+    ngenecol =  findfirst(isequal(:ngenes), DataFrames.names(df))
+    withngenes = ngenecol !== nothing
+    if nothing in obsCFcol # one or more col names for CFs were not found
         size(df,2) == (withngenes ? 8 : 7) ||
           @warn """Column names for quartet concordance factors (CFs) were not recognized.
           Was expecting CF12_34, CF13_24 and CF14_23 for the columns with CF values,
@@ -353,7 +353,7 @@ function taxadiff(quartets::Vector{Quartet}, t::HybridNetwork;
         secondallele[i] || continue
         basetax = match(r"(.*)__2$", tq[i]).captures[1]
         # if tq[i] = "mouse__2" for instance, then basetax = "mouse"
-        if findfirst(tq, basetax) > 0 # some other taxon is "mouse"
+        if basetax in tq     # some other taxon is "mouse"
             deleteat!(tq, i) # delete "mouse__2" from tq IF "mouse" is present
         end
     end
@@ -437,7 +437,7 @@ function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{Hy
     index = 1
     totalq = length(quartets)
     println("Reading in quartets...")
-    r = round(1/totalq,2)
+    r = round(1/totalq, digits=2)
     numq = (r > 0.02 ? totalq : 50)
     print("0+")
     for i in 1:numq
@@ -447,7 +447,7 @@ function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{Hy
     println("  ")
     print("  ")
     for q in quartets
-        if(round(index/totalq,2)>0.02)
+        if round(index/totalq, digits=2) > 0.02
             print("*")
             index = 1
         end
@@ -607,7 +607,7 @@ function readInputData(trees::Vector{HybridNetwork}, whichQ::Symbol, numQ::Integ
         if(numQ == 0)
             @warn "not specified numQ with whichQ=rand, so 10% of quartets will be sampled" #handled inside randQuartets
         else
-            println("will use a random sample of $(numQ) 4-taxon sets ($(round((100*numQ)/binomial(length(taxa),4),2)) percent) on $(length(taxa)) taxa")
+            println("will use a random sample of $(numQ) 4-taxon sets ($(round((100*numQ)/binomial(length(taxa),4), digits=2)) percent) on $(length(taxa)) taxa")
         end
         quartets = randQuartets(taxa,numQ, writeFile)
     else
@@ -688,7 +688,7 @@ function taxaTreesQuartets(trees::Vector{HybridNetwork}, quartets::Vector{Quarte
     for taxon in u
         numT = taxonTrees(taxon,trees)
         #numQ = taxonQuartets(taxon,quartets)
-        write(s,"Taxon $(taxon) appears in $(numT) input trees ($(round(100*numT/length(trees),2)) %)\n")  #and $(numQ) quartets ($(round(100*numQ/length(quartets),2)) %)\n")
+        write(s,"Taxon $(taxon) appears in $(numT) input trees ($(round(100*numT/length(trees),2)) %)\n")  #and $(numQ) quartets ($(round(100*numQ/length(quartets), digits=2)) %)\n")
     end
 end
 
@@ -723,9 +723,9 @@ function descData(d::DataCF, sout::IO, pc::Float64)
         print(sout,"data consists of $(d.numTrees) gene trees and $(d.numQuartets) 4-taxon subsets\n")
         taxaTreesQuartets(d.tree,d.quartet,sout)
         print(sout,"----------------------------\n\n")
-        print(sout,"will print below only the 4-taxon subsets with data from <= $(round((pc)*100,2))% genes\n")
+        print(sout,"will print below only the 4-taxon subsets with data from <= $(round((pc)*100, digits=2))% genes\n")
         for q in d.quartet
-            percent  = q.ngenes == -1 ? 0.0 : round(q.ngenes/d.numTrees*100,2)
+            percent  = q.ngenes == -1 ? 0.0 : round(q.ngenes/d.numTrees*100, digits=2)
             if(percent < pc)
                 print(sout,"4-taxon subset $(q.taxon) obsCF constructed with $(q.ngenes) gene trees ($(percent)%)\n")
             end
@@ -738,7 +738,7 @@ function descData(d::DataCF, sout::IO, pc::Float64)
             print(sout,"\nTaxa: $(taxa)\n")
             print(sout,"Number of Taxa: $(length(taxa))\n")
             numQ = binomial(length(taxa),4);
-            print(sout,"Maximum number of 4-taxon subsets: $(numQ). Thus, $(round(100*d.numQuartets/numQ,2)) percent of 4-taxon subsets sampled\n")
+            print(sout,"Maximum number of 4-taxon subsets: $(numQ). Thus, $(round(100*d.numQuartets/numQ, digits=2)) percent of 4-taxon subsets sampled\n")
         end
     end
 end
@@ -870,9 +870,7 @@ function makeTable(net::HybridNetwork, parts::Vector{EdgeParts},d::DataCF)
                         tx4 = net.names[t4.number]
                         nam = [tx1,tx2,tx3,tx4]
                         snam = sort(nam)
-                        # row = getIndex(true,[sort(nam) == sort(q.taxon) for q in d.quartet])
-                        # getIndex was getting the first index only: like findfirst
-                        row = findin([dnam==snam for dnam in sortedDataQ], true)
+                        row = findall(isequal(snam), sortedDataQ)
                         for r in row # nothing if tax set not found: length(row)=0
                           col,res = resolution(nam,d.quartet[r].taxon)
                           push!(df, [p.edgenum,tx1,tx2,tx3,tx4,res,d.quartet[r].obsCF[col]])

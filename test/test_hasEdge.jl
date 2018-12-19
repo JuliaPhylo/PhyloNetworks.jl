@@ -40,7 +40,7 @@ try
     q5.qnet.index == [7,3,6] ? nothing : error("q5.qnet.index not correct")
 catch
     println("---- error in case G -----")
-    error1 = true
+    global error1 = true
 end
 
 
@@ -82,7 +82,7 @@ try
     q5.qnet.index == [1,3] ? nothing : error("q5.qnet.index not correct")
 catch
     println("---- error in case F -----")
-    error1 = true
+    global error1 = true
 end
 
 println("----- Case I: bad diamondII ------")
@@ -123,13 +123,10 @@ try
 
 catch
     println("---- error in case I -----")
-    error1 = true
+    global error1 = true
 end
 
-
-if(!error1)
-    #println("------- NO ERRORS!! -----")
-else
+if error1
     throw("errors in has edge")
 end
 

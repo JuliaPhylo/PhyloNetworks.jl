@@ -193,12 +193,12 @@ function hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{String}
                            visited::Vector{Int})
     n = getChild(edge)
     if n.leaf
-        j = findin(taxa,[n.name])
-        length(j)==1 || error("taxon $(n.name) was not found in taxon list")
+        j = findall(isequal(n.name), taxa)
+        length(j)==1 || error("taxon $(n.name) was not found in taxon list, or more than once")
         v[j[1]]=true
         return nothing
     end
-    if findfirst(visited,n.number)>0
+    if n.number in visited
         return nothing  # n was already visited: exit. avoid infinite loop is isChild1 was bad.
     end
     push!(visited, n.number)
@@ -243,7 +243,7 @@ end
 
 function descendants!(edge::Edge, visited::Vector{Int})
     n = getChild(edge)
-    if findfirst(visited,n.number)>0
+    if n.number in visited
         return nothing  # n was already visited: exit. avoid infinite loop is isChild1 was bad.
     end
     push!(visited, n.number)
@@ -302,7 +302,8 @@ If `keepNodes` is true, all original nodes are kept in both networks.
 """
 function displayedNetworks!(net::HybridNetwork, node::Node, keepNodes=false::Bool)
     node.hybrid || error("will not extract networks from tree node $(node.number)")
-    ind = findfirst(net.node, node)
+    ind = findfirst(x -> x===node, net.node)
+    ind !== nothing || error("node $(node.number) was not found in net")
     netmin = deepcopy(net)
     emin = getMinorParentEdge(node)
     deleteHybridEdge!(net   , emin, keepNodes)  # *no* update of inCycle, containRoot, etc.

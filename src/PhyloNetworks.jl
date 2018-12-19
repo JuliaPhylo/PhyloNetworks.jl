@@ -8,11 +8,14 @@ module PhyloNetworks
     using CSV
     using DataFrames
     using DataStructures # for updateInCycle with priority queue
+    using Dates       # stdlib
+    using Distributed # stdlib
     using GLM # for the lm function
     using LinearAlgebra # for LowerTriangular. not in REQUIRE or Project.toml: stdlib
     using NLopt # for branch lengths optimization
     using Printf: @printf, @sprintf # not in REQUIRE or Project.toml: stdlib
-    using SpecialFunctions: lgamma
+    using Random      # stdlib
+    using SpecialFunctions: lgamma, gamma
     using StaticArrays
     using Statistics: mean # stdlib
     using StatsBase # sample, coef etc.

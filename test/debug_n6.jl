@@ -16,7 +16,7 @@ tree = readTopologyUpdate("1_astral.out");
 printEdges(tree)
 writeTopologyLevel1(tree)
 net = deepcopy(tree);
-srand(1234)
+Random.seed!(1234)
 addHybridizationUpdate!(net);
 printEdges(net)
 writeTopologyLevel1(net)
@@ -47,7 +47,7 @@ tree = readTopologyUpdate("1_astral.out");
 printEdges(tree)
 writeTopologyLevel1(tree)
 net = deepcopy(tree);
-srand(1234)
+Random.seed!(1234)
 hybrid = addHybridization!(net);
 printNodes(net)
 printEdges(net)
@@ -70,7 +70,7 @@ d = readTableCF(df); #expCF
 tree = readTopologyUpdate("1_astral.out");
 printEdges(tree)
 net = deepcopy(tree);
-srand(1234)
+Random.seed!(1234)
 addHybridizationUpdate!(net);
 printEdges(net)
 

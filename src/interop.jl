@@ -87,7 +87,7 @@ julia> PhyloNetworks.majoredgelength(net)
 ```
 """ #"
 function majoredgelength(net::HybridNetwork)
-    edgeLength = Array{Union{Float64,Missing}}(length(net.edge)-length(net.hybrid))
+    edgeLength = Array{Union{Float64,Missing}}(undef, length(net.edge)-length(net.hybrid))
     i=1
     for n in net.nodes_changed # topological pre-order
         if !n.leaf
@@ -154,7 +154,7 @@ julia> PhyloNetworks.minorreticulationlength(net)
 ```
 """ #"
 function minorreticulationlength(net::HybridNetwork)
-    reticulationLength = Vector{Union{Float64,Missing}}(0) # initialize
+    reticulationLength = Vector{Union{Float64,Missing}}(undef, 0) # initialize
     for e in net.edge
         if !e.isMajor #find minor hybrid edge
             push!(reticulationLength, e.length)
@@ -183,7 +183,7 @@ julia> PhyloNetworks.minorreticulationgamma(net)
 ```
  """ #"
 function minorreticulationgamma(net::HybridNetwork)
-    reticulationGamma = Vector{Union{Float64,Missing}}(0) #initialize
+    reticulationGamma = Vector{Union{Float64,Missing}}(undef, 0) #initialize
     for e in net.edge
         if !e.isMajor # minor hybrid edges only
             push!(reticulationGamma, e.gamma)

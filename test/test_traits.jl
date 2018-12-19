@@ -6,7 +6,7 @@ preorder!(net)
 
 ## V matrix
 V1 = sharedPathMatrix(net)
-@test_nowarn show(DevNull, V1)
+@test_nowarn show(devnull, V1)
 
 ## By hand V matrix
 l = ones(1, 9)
@@ -33,7 +33,7 @@ end
 nodesV2 = [-2, 1, -3, -4, -5, 2, 3, 4, 5] # root was number 6 before: with readTopologyLevel1 + rootatnode
 ind = indexin(V1.nodeNumbersTopOrder, nodesV2)
 V2 = V2[ind, ind]
-@test_nowarn show(DevNull, V2)
+@test_nowarn show(devnull, V2)
 
 @test V1[:All] ≈ V2
 

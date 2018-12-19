@@ -297,7 +297,7 @@ The bang version (ending with !) uses the vector `end` to store the simulated va
 ```julia-repl
 julia> m1 = BinaryTraitSubstitutionModel(1.0, 2.0)
 
-julia> srand(12345);
+julia> using Random; Random.seed!(12345);
 
 julia> randomTrait(m1, 0.2, [1,2,1,2,2])
  5-element Array{Int64,1}:
@@ -309,7 +309,7 @@ julia> randomTrait(m1, 0.2, [1,2,1,2,2])
 ```
 """
 function randomTrait(mod::SM, t::Float64, start::AbstractVector{Int})
-    res = Vector{Int}(length(start))
+    res = Vector{Int}(undef, length(start))
     randomTrait!(res, mod, t, start)
 end
 
@@ -347,7 +347,8 @@ output:
 ```julia-repl
 julia> m1 = BinaryTraitSubstitutionModel(1.0, 2.0, ["low","high"]);
 julia> net = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.0,D:5.0);");
-julia> srand(1234);
+julia> using Random
+julia> Random.seed!(1234);
 julia> trait, lab = randomTrait(m1, net)
 ([1 2 … 1 1], String["-2", "D", "-3", "-6", "C", "-4", "#H1", "B", "A"])
 julia> trait

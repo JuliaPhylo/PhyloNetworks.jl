@@ -1,15 +1,10 @@
 # functions to read/write networks topologies
 
-function peekchar(s::IO)
-    c = read(s,Char)
-    skip(s, -codelen(c))
-    return c
-end
-
 # peek the next non-white-space char
 # removes white spaces from the IOStream/IOBuffer
 # see skipchars(predicate, io::IO; linecomment=nothing) in io.jl
-# https://github.com/JuliaLang/julia/blob/cb523904be125c4c28afdf7e773bf43dbee4f343/base/io.jl#L971
+# https://github.com/JuliaLang/julia/blob/3b02991983dd47313776091720871201f75f644a/base/io.jl#L971
+ncodeunits(c::Char) = write(devnull, c) # for Julia v0.7. Remove for Julia v1.0.3+
 function peekskip(io::IO, linecomment=nothing)
     c = missing
     while !eof(io)
@@ -17,29 +12,19 @@ function peekskip(io::IO, linecomment=nothing)
         if c === linecomment
             readline(io)
         elseif !isspace(c)
-            skip(io, -codelen(c))
+            skip(io, -ncodeunits(c))
             break
         end
     end
     return c # skipchar returns io instead
 end
-## does not modify s at all (white spaces left in)
-# function peekskip(s::IO)
-#     c = peekchar(s)
-#     mark(s)
-#     while isspace(c)
-#         c = read(s, Char)
-#     end
-#     reset(s)
-# 	return c
-# end
 
 # aux function to read the next non-white-symbol char in s, advances s
 # input: s IOStream/IOBuffer
-function readskip!(s::IO)
+function readskip!(io::IO)
     c = missing
     while !eof(io)
-        c = read(s, Char)
+        c = read(io, Char)
         if !isspace(c)
             break
         end
@@ -65,24 +50,23 @@ end
 # warning: treats digit taxon numbers as strings to avoid repeated node numbers
 function readNum(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int,1})
     pound = 0;
-    if(isalnum(c) || isValidSymbol(c) || c == '#')
+    if isValidSymbol(c)
         pound += (c == '#') ? 1 : 0
         name = readskip!(s)
         c = peekskip(s)
-        while(isalnum(c) || isValidSymbol(c) || c == '#')
+        while isValidSymbol(c)
             d = readskip!(s)
             name = string(name,d)
-            if(d == '#')
+            if d == '#'
                 pound += 1;
-               c = peekskip(s);
-               if(isalnum(c))
-                   if(c != 'L' && c != 'H' && c != 'R')
-                       @warn "Expected H, R or LGT after # but received $(c) in left parenthesis $(numLeft[1]-1)."
-                   end
-               else
+                c = peekskip(s);
+                if !isletter(c)
                    a = readstring(s);
                    error("Expected name after # but received $(c) in left parenthesis $(numLeft[1]-1). Remaining is $(a).")
-               end
+                end
+                if c != 'L' && c != 'H' && c != 'R'
+                    @warn "Expected H, R or LGT after # but received $(c) in left parenthesis $(numLeft[1]-1)."
+                end
             end
             c = peekskip(s);
         end
@@ -101,34 +85,35 @@ function readNum(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int,1})
 end
 
 
-# aux function to read floats like length
+# aux function to read floats like length or gamma values, to be read after a colon
 function readFloat(s::IO, c::Char)
-    if(isdigit(c) || in(c, ['.','e','-']))
-        num = string(readskip!(s));
-        c = peekskip(s);
-        while(isdigit(c) || in(c, ['.','e','-']))
-            d = readskip!(s);
-            num = string(num,d);
-            c = peekskip(s);
-        end
-        f = 0.0
-        try
-            f = float(num)
-        catch
-            error("problem with number read $(num), not a float number")
-        end
-        return f
-    else
+    if !(isdigit(c) || c in ['.','e','-'])
         a = readstring(s);
-        error("Expected float digit after : but found $(c). remaining is $(a).");
+        error("Expected float digit after ':' but found $(c). remaining is $(a).");
     end
+    num = ""
+    while isdigit(c) || c in ['.','e','-']
+        d = read(s, Char) # reads c and advances IO
+        num = string(num,d);
+        c = peekskip(s);
+    end
+    f = 0.0
+    try
+        f = parse(Float64, num)
+    catch
+        error("problem with number read $(num), not a float number")
+    end
+    return f
 end
 
 # aux function to identify if a symbol in taxon name is valid
-# symbol cannot be: () [] : ; ' , . space \t \r \n
+# allowed: letters, numbers, underscores, # (for hybrid name)
+# NOT allowed: white space () [] : ; ' ,
 # according to richnewick.pdf
+# actually: ' is allowed. coded weirdly imo!
 function isValidSymbol(c::Char)
-    return !isspace(c) && c != '(' && c != ')' && c != '[' && c != ']' && c != ':' && c != ';' && c != ',' #&& c != '.'
+    return isletter(c) || isnumeric(c) || c=='_' || c=='#' ||
+      (!isspace(c) && c != '(' && c != ')' && c != '[' && c != ']' && c != ':' && c != ';' && c != ',')
 end
 
 """
@@ -178,15 +163,15 @@ Called after a `#` has been found in a tree topology.
     n.hybrid = true;
     DEBUGC && @debug "got hybrid $(name)"
     DEBUGC && @debug "hybrids list has length $(length(hybrids))"
-    ind = findfirst(hybrids, name) # index of 'name' in the list 'hybrid'. 0 if not found
+    ind = findfirst(isequal(name), hybrids) # index of 'name' in the list 'hybrid'. nothing if not found
     e = Edge(net.numEdges+1) # isMajor = true by default
     if n.leaf e.isMajor = false; end
     e.hybrid = true
     e.gamma = -1.0
-    if ind>0 # the hybrid name was seen before
+    if ind !== nothing # the hybrid name was seen before
         @debug "$(name) was found in hybrids list"
-        ni = findfirst([no.name for no in net.node], name)
-        ni > 0 || error("hybrid name $name was supposed to be in the network, but not found")
+        ni = findfirst(isequal(name), [no.name for no in net.node])
+        ni !== nothing || error("hybrid name $name was supposed to be in the network, but not found")
         other = net.node[ni]
         @debug "other is $(other.number)"
         DEBUGC && @debug "other is leaf? $(other.leaf), n is leaf? $(n.leaf)"
@@ -227,7 +212,7 @@ Called after a `#` has been found in a tree topology.
             @debug "edge $(e.number) istIdentifiable? $(e.istIdentifiable)"
             @debug "otheredge $(otheredge.number) istIdentifiable? $(otheredge.istIdentifiable)"
         end
-    else # ind=0: hybrid name not seen before
+    else # ind==nothing: hybrid name not seen before
         @debug "$(name) not found in hybrids list"
         @debug "$(name) is leaf? $(n.leaf)"
         n.hybrid = true;
@@ -287,7 +272,7 @@ Only call this function to read a value when you know a numerical value exists!
     elseif c == ':'
         return -1.0
     else
-        warn(errors[call])
+        @warn errors[call]
         return -1.0
     end
 end
@@ -418,13 +403,13 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
         # read the rest of the subtree (perform the recursive step!)
         n = parseRemainingSubtree!(s, numLeft, net, hybrids)
         c = peekskip(s);
-        if(isalnum(c) || isValidSymbol(c) || c == '#') # internal node has name
+        if isValidSymbol(c) # internal node has name
             hasname = true;
             num, name, pound = readNum(s, c, net, numLeft);
             n.number = num; # n was given <0 number by parseRemainingSubtree!, now >0
             c = peekskip(s);
         end
-    elseif isalnum(c) || isValidSymbol(c) || c == '#' # leaf, with name of course
+    elseif isValidSymbol(c) # leaf, with name of course
         hasname = true;
         num, name, pound = readNum(s, c, net, numLeft)
         n = Node(num, true); # positive node number to leaves in the newick-tree description
@@ -491,7 +476,7 @@ readTopology(input::AbstractString) = readTopology(input,true)
 
 function readTopology(s::IO,verbose::Bool)
     net = HybridNetwork()
-    line = readuntil(s,";");
+    line = readuntil(s,";", keep=true);
     if(line[end] != ';')
         error("file does not end in ;")
     end
@@ -913,7 +898,7 @@ function checkRootPlace!(net::HybridNetwork; verbose=false::Bool, outgroup="none
             end
         end
     else # outgroup
-        tmp = findin([n.name for n in net.leaf], [outgroup])
+        tmp = findall(n -> n.name == outgroup, net.leaf)
         if length(tmp)==0
             error("leaf named $(outgroup) was not found in the network.")
         elseif length(tmp)>1
@@ -979,7 +964,7 @@ net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
 directEdges!(net)
 s = IOBuffer()
 PhyloNetworks.writeSubTree!(s, net.node[7], nothing, false, true)
-String(s)
+String(take!(s))
 ```
 
 Used by [`writeTopology`](@ref).
@@ -1018,13 +1003,13 @@ function writeSubTree!(s::IO, n::Node, parent::Union{Edge,Nothing},
     # branch lengths and γ, if available:
     printBL = false
     if parent != nothing && parent.length != -1.0 # -1.0 means missing
-        print(s,string(":",(roundBL ? round(parent.length,digits) : parent.length)))
+        print(s,string(":",(roundBL ? round(parent.length, digits=digits) : parent.length)))
         printBL = true
     end
     if parent != nothing && parent.hybrid && !di # && (!printID || !n.isBadDiamondI))
         if(parent.gamma != -1.0)
             if(!printBL) print(s,":"); end
-            print(s,string("::",(roundBL ? round(parent.gamma,digits) : parent.gamma)))
+            print(s,string("::",(roundBL ? round(parent.gamma, digits=digits) : parent.gamma)))
         end
     end
     if parent == nothing
@@ -1037,8 +1022,8 @@ end
 function writeTopologyLevel1(net0::HybridNetwork, di::Bool, str::Bool, names::Bool,outgroup::AbstractString, printID::Bool, roundBL::Bool, digits::Integer, multall::Bool)
     s = IOBuffer()
     writeTopologyLevel1(net0,s,di,names,outgroup,printID,roundBL,digits, multall)
-    if(str)
-        return String(s)
+    if str
+        return String(take!(s))
     else
         return s
     end
@@ -1267,7 +1252,7 @@ function readMultiTopology(file::AbstractString)
                push!(vnet, readTopology(line,false)) # false for non-verbose
            catch err
                print("skipped phylogeny on line $(numl) of file $file: ")
-               if findfirst(fieldnames(err),:msg)>0 println(err.msg); else println(typeof(err)); end
+               if :msg in fieldnames(typeof(err)) println(err.msg); else println(typeof(err)); end
            end
         end
         numl += 1
@@ -1314,7 +1299,7 @@ function writeMultiTopology(net::Vector{HybridNetwork},s::IO)
         write(s,"\n")
       catch err
         if isa(err, RootMismatch) # continue writing other networks in list
-            warn("\nError with topology $i:\n" * err.msg)
+            @error "\nError with topology $i:\n" * err.msg
         else rethrow(err); end
       end
     end
@@ -1353,7 +1338,7 @@ function writeTopology(n::HybridNetwork;
         round=false::Bool, digits=3::Integer, di=false::Bool) # keyword arguments
     s = IOBuffer()
     writeTopology(n,s,round,digits,di)
-    return String(s)
+    return String(take!(s))
 end
 
 function writeTopology(net::HybridNetwork, s::IO,

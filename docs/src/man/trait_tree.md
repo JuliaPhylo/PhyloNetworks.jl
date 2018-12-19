@@ -70,7 +70,8 @@ nothing # hide
 We then simulate the independent traits according to these parameters, using
 function [`simulate`](@ref) (fixing the seed, for reproducibility).
 ```@example tree_trait
-srand(18480224);
+using Random
+Random.seed!(18480224);
 sim1 = simulate(truenet, params_trait1) # simulate a BM on truenet
 sim2 = simulate(truenet, params_trait2)
 nothing # hide
@@ -96,7 +97,7 @@ nothing # hide
 Finally, we generate the last trait correlated with trait 1
 (but not trait 2), with phylogenetic noise.
 ```@example tree_trait
-srand(18700904);
+Random.seed!(18700904);
 noise = simulate(truenet, ParamsBM(0, 0.1)) # phylogenetic residuals
 trait3 = 10 + 2 * trait1 + noise[:Tips] # trait to study. independent of trait2
 nothing # hide
@@ -464,7 +465,7 @@ nothing # hide
 The traits are simulated using the same function [`simulate`](@ref), and
 extracted at the tips as before.
 ```@example tree_trait
-srand(18700904)
+Random.seed!(18700904)
 sim_sh = simulate(truenet, params_sh) # simulate a shifted BM on truenet
 trait_sh = sim_sh[:Tips]              # trait at the tips (data)
 nothing # hide
