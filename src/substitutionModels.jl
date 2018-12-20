@@ -45,7 +45,7 @@ abstract type NucleicAcidSubstitutionModel <: SubstitutionModel end
 const NASM = NucleicAcidSubstitutionModel
 
 function Base.show(io::IO, obj::SM)
-    error("show not defined for $(typeof(mod)).") #TODO 1.0 change to @error
+    error("show not defined for $(typeof(obj)).") #TODO 1.0 change to @error
 end
 
 """
@@ -54,10 +54,10 @@ end
 Number of parameters for a given trait evolution model
 (length of field `model.rate`).
 """
-nparams(mod::SM) = error("nparams not defined for $(typeof(mod)).")
+nparams(obj::SM) = error("nparams not defined for $(typeof(obj)).")
 
-function getlabels(mod::SM)
-    error("Model must be of type TraitSubstitutionModel or NucleicAcidSubstitutionModel. Got $(typeof(mod))")
+function getlabels(obj::SM)
+    error("Model must be of type TraitSubstitutionModel or NucleicAcidSubstitutionModel. Got $(typeof(obj))")
 end
 
 """
@@ -65,7 +65,7 @@ end
 
 return number of character states for a given trait evolution model.
 """
-nstates(mod::TSM) = error("nStates not defined for $(typeof(mod)).")
+nstates(obj::TSM) = error("nStates not defined for $(typeof(obj)).")
 
 """
     nstates(model::NASM)
@@ -81,7 +81,7 @@ julia> nstates(HKY85([.5], [0.25, 0.25, 0.25, 0.25]))
 4
 ```
 """
-function nstates(mod::NASM)
+function nstates(obj::NASM)
     return 4::Int
 end
 
@@ -90,27 +90,26 @@ end
 
 Return labels for trait substitution model
 """
-function getlabels(mod::TSM)
-    return mod.label
+function getlabels(obj::TSM)
+    return obj.label
 end
 
 """
-    getlabels(mod:NASM)
+    getlabels(mod::NASM)
 
-return labels for a given nuceleic acid substitution model. 
-If model is a NASM, returns ACGT. 
+return labels for a given NuceleicAcidSubstitutionModel using BioSymbols symbols.
 
 # examples
 
 ```julia-repl 
 julia> getlabels(JC69())
-(DNA_A, DNA_C, DNA_G, DNA_T)
+[DNA_A, DNA_C, DNA_G, DNA_T]
 julia> getlabels(HKY85([.5], [0.25, 0.25, 0.25, 0.25]))
-(DNA_A, DNA_C, DNA_G, DNA_T)
+[DNA_A, DNA_C, DNA_G, DNA_T]
 ````
 """
 function getlabels(::NASM)
-    return BioSymbols.ACGT
+    return [BioSymbols.DNA_A, BioSymbols.DNA_C, BioSymbols.DNA_G, BioSymbols.DNA_T]
 end
 
 """
@@ -119,7 +118,7 @@ end
 Substitution rate matrix for a given substitution model:
 Q[i,j] is the rate of transitioning from state i to state j.
 """
-Q(mod::SM) = error("rate matrix Q not defined for $(typeof(mod)).")
+Q(obj::SM) = error("rate matrix Q not defined for $(typeof(obj)).")
 
 """
     showQ(IO, model)
@@ -130,14 +129,14 @@ https://discourse.julialang.org/t/display-of-arrays-with-row-and-column-names/19
 """
 function showQ(io::IO, obj::SM)
     M = Q(obj)
-    pad = max(8,maximum(length.(getlabel(obj))+1))
+    pad = max(8,maximum(length.(getlabels(obj))+1))
     for i = 1:size(M,2) # print the header
-        print(io, lpad(getlabel(obj)[i],(i==1? 2*pad : pad), " "))
+        print(io, lpad(getlabels(obj)[i],(i==1? 2*pad : pad), " "))
     end
     print(io, "\n")
     for i = 1:size(M,1) # print one row per state
-        if getlabel(obj) != ""
-            print(io, lpad(getlabel(obj)[i],pad," "))
+        if getlabels(obj) != ""
+            print(io, lpad(getlabels(obj)[i],pad," "))
         end
         for j = 1:size(M,2)
             if j == i
@@ -152,7 +151,7 @@ function showQ(io::IO, obj::SM)
 end
 
 """
-    P(mod, t)
+    P(obj, t)
 
 Probability transition matrix for a [`TraitSubstitutionModel`](@ref), of the form
 
@@ -165,26 +164,26 @@ where P[i,j] is the probability of ending in state j after time t,
 given that the process started in state i.
 faster when t is scalar (not an array)
 """
-@inline function P(mod::SM, t::Float64)
+@inline function P(obj::SM, t::Float64)
     t >= 0.0 || error("substitution model: >=0 branch lengths are needed")
-    return expm(Q(mod) * t)
+    return expm(Q(obj) * t)
 end
 
 """
-    P(mod, t::Array{Float64})
+    P(obj, t::Array{Float64})
 
 When applied to a general substitution model, matrix exponentiation is used.
 The time argument `t` can be an array.
 """
-function P(mod::SM, t::Array{Float64})
+function P(obj::SM, t::Array{Float64})
     all(t .>= 0.0) || error("t's must all be positive")
     try
-        eig_vals, eig_vecs = eig(Q(mod)) # Only hermitian matrices are diagonalizable by
+        eig_vals, eig_vecs = eig(Q(obj)) # Only hermitian matrices are diagonalizable by
         # *StaticArrays*. Non-Hermitian matrices should be converted to `Array`first.
         return [eig_vecs * expm(diagm(eig_vals)*i) * eig_vecs' for i in t]
     catch
-        eig_vals, eig_vecs = eig(Array(Q(mod)))
-        k = nstates(mod)
+        eig_vals, eig_vecs = eig(Array(Q(obj)))
+        k = nstates(obj)
         return [Matrix{k,k}(eig_vecs * expm(diagm(eig_vals)*i) * inv(eig_vecs)) for i in t]
     end
 end
@@ -235,8 +234,8 @@ For a BinaryTraitSubstitutionModel, the rate matrix Q is of the form:
     -α  α
      β -β
 """
-@inline function Q(mod::BTSM)
-    return Bmatrix(-mod.rate[1], mod.rate[2], mod.rate[1], -mod.rate[2])
+@inline function Q(obj::BTSM)
+    return Bmatrix(-obj.rate[1], obj.rate[2], obj.rate[1], -obj.rate[2])
 end
 
 function Base.show(io::IO, obj::BTSM)
@@ -246,12 +245,12 @@ function Base.show(io::IO, obj::BTSM)
     print(io, str)
 end
 
-@inline function P(mod::BTSM, t::Float64)
+@inline function P(obj::BTSM, t::Float64)
     t >= 0.0 || error("substitution model: >=0 branch lengths are needed")
-    ab = mod.rate[1] + mod.rate[2]
+    ab = obj.rate[1] + obj.rate[2]
     e1 = exp(-ab*t)
-    p0 = mod.rate[2]/ab # asymptotic frequency of state "0"
-    p1 = mod.rate[1]/ab # asymptotic frequency of state "1"
+    p0 = obj.rate[2]/ab # asymptotic frequency of state "0"
+    p1 = obj.rate[1]/ab # asymptotic frequency of state "1"
     a0= p0 *e1
     a1= p1*e1
     return Bmatrix(p0+a1, p0-a0, p1-a1, p1+a0) # by columns
@@ -300,9 +299,9 @@ TwoBinaryTraitSubstitutionModel(α::Vector{Float64}) = TwoBinaryTraitSubstitutio
 nstates(::TBTSM) = 4::Int
 nparams(::TBTSM) = 8::Int
 
-function Q(mod::TBTSM)
+function Q(obj::TBTSM)
     M = fill(0.0,(4,4))
-    a = mod.rate
+    a = obj.rate
     M[1,3] = a[1]
     M[3,1] = a[2]
     M[2,4] = a[3]
@@ -346,8 +345,8 @@ const ERSM = EqualRatesSubstitutionModel{T} where T
 EqualRatesSubstitutionModel(k::Int, α::Float64, label::AbstractVector) = EqualRatesSubstitutionModel{eltype(label)}(k,[α],label)
 EqualRatesSubstitutionModel(k::Int, α::Float64) = EqualRatesSubstitutionModel{String}(k, [α], string.(1:k))
 
-function nstates(mod::ERSM)
-    return mod.k
+function nstates(obj::ERSM)
+    return obj.k
 end
 nparams(::ERSM) = 1::Int
 
@@ -359,11 +358,11 @@ function Base.show(io::IO, obj::ERSM)
     showQ(io, obj)
 end
 
-function Q(mod::ERSM)
-    α = mod.rate[1]
-    M = fill(α, (mod.k,mod.k))
-    d = -(mod.k-1) * α
-    for i in 1:mod.k
+function Q(obj::ERSM)
+    α = obj.rate[1]
+    M = fill(α, (obj.k,obj.k))
+    d = -(obj.k-1) * α
+    for i in 1:obj.k
         M[i,i] = d
     end
     return M
@@ -392,13 +391,13 @@ julia> randomTrait(m1, 0.2, [1,2,1,2,2])
  2
 ```
 """
-function randomTrait(mod::TSM, t::Float64, start::AbstractVector{Int})
+function randomTrait(obj::TSM, t::Float64, start::AbstractVector{Int})
     res = Vector{Int}(length(start))
     randomTrait!(res, mod, t, start)
 end
 
-function randomTrait!(endTrait::AbstractVector{Int}, mod::TSM, t::Float64, start::AbstractVector{Int})
-    Pt = P(mod, t)
+function randomTrait!(endTrait::AbstractVector{Int}, obj::TSM, t::Float64, start::AbstractVector{Int})
+    Pt = P(obj, t)
     k = size(Pt, 1) # number of states
     w = [aweights(Pt[i,:]) for i in 1:k]
     for i in 1:length(start)
@@ -451,7 +450,7 @@ julia> lab
 ```
 """
 
-function randomTrait(mod::TSM, net::HybridNetwork;
+function randomTrait(obj::TSM, net::HybridNetwork;
     ntraits=1::Int, keepInternal=true::Bool, checkPreorder=true::Bool)
     net.isRooted || error("net needs to be rooted for preorder recursion")
     if(checkPreorder)
@@ -470,7 +469,7 @@ function randomTrait(mod::TSM, net::HybridNetwork;
 end
 
 @doc (@doc randomTrait) randomTrait!
-function randomTrait!(M::Matrix{Int}, mod::TSM, net::HybridNetwork)
+function randomTrait!(M::Matrix{Int}, obj::TSM, net::HybridNetwork)
     recursionPreOrder!(net.nodes_changed, M, # updates M in place
             updateRootRandomTrait!,
             updateTreeRandomTrait!,
@@ -479,7 +478,7 @@ function randomTrait!(M::Matrix{Int}, mod::TSM, net::HybridNetwork)
 end
 
 function updateRootRandomTrait!(V::AbstractArray, i::Int, mod)
-    sample!(1:nstates(mod), view(V, :, i)) # uniform at the root
+    sample!(1:nstates(obj), view(V, :, i)) # uniform at the root
     return
 end
 
@@ -493,7 +492,7 @@ function updateHybridRandomTrait!(V::Matrix,
         i::Int, parentIndex1::Int, parentIndex2::Int,
         edge1::Edge, edge2::Edge, mod)
     randomTrait!(view(V, :, i), mod, edge1.length, view(V, :, parentIndex1))
-    tmp = randomTrait(mod, edge2.length, view(V, :, parentIndex2))
+    tmp = randomTrait(obj, edge2.length, view(V, :, parentIndex2))
     for j in 1:size(V,1) # loop over traits
         if V[j,i] == tmp[j] # both parents of the hybrid node have the same trait
             continue # skip the rest: go to next trait
@@ -523,22 +522,34 @@ julia> nparams(m2)
 """
 struct JC69 <: NucleicAcidSubstitutionModel
     rate::Vector{Float64}
-    pi::Vector{Float64} #keep this?
-    relativerate::Bool
+    pi::Vector{Float64} #? keep this?
+    relative::Bool
   
-    function JC69(rate=[1.0]::Vector{Float64}, relativerate=true::Bool) #? need to give argument if empty, right?
+    function JC69(rate=[1.0]::Vector{Float64}, relative=true::Bool)
         if !(0 <= length(rate) <= 1)
             error("rate not a valid length for a JC69 model")
         elseif any(rate .<= 0.)
             error("All elements of rate must be positive for a JC69 model")
         end
         pi = [0.25, 0.25, 0.25, 0.25] #? need this?
-        new(rate, relativerate)
+        new(rate, relative)
     end
 end
-#JC69() = JC69([1.0], true) #? need these?
-#JC69(rate::Vector{Float64}) = JC69(rate, true)
-JC69(rate::Float64, relativerate=true::Bool) = JC69([rate], relativerate)
+#JC69(rate::Float64, relative=true::Bool) = JC69([rate], relative)
+
+function Base.show(io::IO, obj::JC69)
+    str = "Jukes and Cantor 69 Substitution Model,\n"
+    if obj.relative == true
+        str *= "relative rate version\n"
+        str *= "all rates equal to 0.25.\n"
+    else
+        str *= "absolute rate version\n"
+        str *= "all rates equal to $(obj.rate).\n"
+    end
+    str *= "rate matrix Q:\n"
+    print(io, str)
+    showQ(io, obj)
+end
 
 """
     HKY85(rate, pi, relative)
@@ -580,18 +591,15 @@ struct HKY85 <: NucleicAcidSubstitutionModel
           else
             new(rate, pi, false)
           end
-        end
-      end
-const HKY = HKY85
+    end
+end
 
-function Base.show(io::IO, obj::JC69)
-    str = "Jukes and Cantor 69 Substitution Model with k=$(object.k),\n"
-    if obj.relativerate == true
+function Base.show(io::IO, obj::HKY85)
+    str = "HKY85 Substitution Model with rate=$(obj.rate),\n"
+    if obj.relative
         str *= "relative rate version\n"
-        str *= "all rates equal to 0.25.\n"
     else
         str *= "absolute rate version\n"
-        str *= "all rates equal to $(obj.rate).\n"
     end
     str *= "rate matrix Q:\n"
     print(io, str)
@@ -604,8 +612,8 @@ end
 return number of parameters for JC69
 
 """
-@inline function nparams(mod::JC69)
-    (mod.relative ? 0 : 1)
+@inline function nparams(obj::JC69)
+    (obj.relative ? 0 : 1)
 end
 
 """
@@ -613,13 +621,13 @@ end
 
 Return number of parameters for HKY85
 """
-@inline function nparams(mod::HKY85)
-    (mod.relative ? 4 : 5)
+@inline function nparams(obj::HKY85)
+    (obj.relative ? 4 : 5)
 end
 
 
 """
-    Q(mod::JC69)
+    Q(obj::JC69)
 return Q rate matrix for the given model. Mutable version modeled after BioJulia/SubstitionModel.jl
 and PyloModels.jl
 
@@ -627,11 +635,11 @@ Substitution rate matrix for a given substitution model:
 Q[i,j] is the rate of transitioning from state i to state j.
 """
 
-@inline function Q(mod::JC69)
-    if mod.relativerate
+@inline function Q(obj::JC69)
+    if obj.relativerate
         lambda = 1.0/3.0 #this allows branch lengths to be interpreted as substitutions/site (pi-weighted avg of diagonal is -1)
     else
-        lambda = (1.0/3.0)*mod.rate[1]
+        lambda = (1.0/3.0)*obj.rate[1]
     end
 
     return QMatrix(-3*lambda, lambda, lambda, lambda,
@@ -641,7 +649,7 @@ Q[i,j] is the rate of transitioning from state i to state j.
 end
 
 """
-    Q(mod::HKY85)
+    Q(obj::HKY85)
     return Q rate matrix. Mutable version modeled after BioJulia/SubstitionModel.jl
     and PyloModels.jl
     
@@ -655,10 +663,12 @@ end
 julia> m1 = HKY85([.5], [0.25, 0.25, 0.25, 0.25])
 ````
 """
-@inline function Q(mod::HKY85)
-    piA = mod.pi[1]; piC = mod.pi[2]; piG = mod.pi[3]; piT = mod.pi[4]
-    if HKY85.relative == true
-        k = mod.rate[1]
+@inline function Q(obj::HKY85)
+    piA = obj.pi[1]; piC = obj.pi[2]; piG = obj.pi[3]; piT = obj.pi[4]
+    piR = piA + piG
+    piY = piT + piC
+    if obj.relative
+        k = obj.rate[1]
         lambda = (2*(piT*piC + piA*piG)k + 2*(piY+piR)) #for sub/year interpretation
 
         Q₁  = piA/lambda
@@ -674,7 +684,7 @@ julia> m1 = HKY85([.5], [0.25, 0.25, 0.25, 0.25])
         Q₁₁ = -(Q₂ + Q₃ + Q₇)
         Q₁₂ = -(Q₁ + Q₄ + Q₆)
     else 
-        a = mod.rate[1]; b = mod.rate[2]      
+        a = obj.rate[1]; b = obj.rate[2]      
         Q₁  = a * piA
         Q₂  = a * piA
         Q₃  = b * piC
@@ -714,14 +724,14 @@ TODO
 ````
 """
 
-@inline function P(mod::JC69, t::Float64)
+@inline function P(obj::JC69, t::Float64)
     if t < 0
         error("Time must be positive")
     end
-    if mod.relativerate
+    if obj.relativerate
         lambda = (4.0/3.0) #to make branch lengths interpretable. lambda = substitutions/year
     else
-        lambda = (4.0/3.0)*mod.rate[1]
+        lambda = (4.0/3.0)*obj.rate[1]
     end
       
     P_0 = 0.25 + 0.75 * exp(-t * lambda)
@@ -755,16 +765,16 @@ julia> P(m1, 3)
 TODO
 ````
 """
-@inline function P(mod::HKY85, t::Float64)
+@inline function P(obj::HKY85, t::Float64)
     if t < 0.0
         error("t must be positive")
     end
-    piA = mod.pi[1]; piC = mod.pi[2]; piG = mod.pi[3]; piT = mod.pi[4]
+    piA = obj.pi[1]; piC = obj.pi[2]; piG = obj.pi[3]; piT = obj.pi[4]
     piR = piA + piG
     piY = piT + piC
     
     if HKY85.relative == true
-        k = mod.rate[1] #kappa = alpha 
+        k = obj.rate[1] #kappa = alpha 
         s = t/(2*(piT*piC + piA*piG)k + 2*(piY+piR)) #t/lambda
         e₁ = exp(-s)
         e₂ = exp(-(piR * k + piY) * s)
@@ -783,7 +793,7 @@ TODO
         P₁₁ = piT * (1 - e₁)
         P₁₂ = piT + (piT * piR / piY) * e₁ - (piT / piY) * e₃
     else
-        a = mod.rate[1]/(); b = mod.rate[2]/() #alpha and beta
+        a = obj.rate[1]/(); b = obj.rate[2]/() #alpha and beta
           
         e₁ = exp(-b * t)
         e₂ = exp(-(piR * a + piY * b) * t)
@@ -809,7 +819,7 @@ TODO
 end
 
 """
-    P!(Pmat::AbstractMatrix, mod::JC69, t::Float64)
+    P!(Pmat::AbstractMatrix, obj::JC69, t::Float64)
 modifies P rate matrix (see traitsLikeDiscrete)
 ```julia-repl 
 julia> m1 = JC69(0.25)
@@ -817,14 +827,14 @@ julia> P!(m1, 3)
 TODO
 ````
 """
-function P!(Pmat::AbstractMatrix, mod::JC69, t::Float64)
+function P!(Pmat::AbstractMatrix, obj::JC69, t::Float64)
     if t < 0
         error("Time must be positive")
     end
-    if mod.relativerate
+    if obj.relativerate
         lambda = (4.0/3.0)
     else
-        lambda = (4.0/3.0)*mod.rate[1]
+        lambda = (4.0/3.0)*obj.rate[1]
     end
       
     P_0 = 0.25 + 0.75 * exp(-t * lambda)
@@ -835,7 +845,7 @@ function P!(Pmat::AbstractMatrix, mod::JC69, t::Float64)
 end
 
 """
-    P!(Pmat::AbstractMatrix, mod::HKY85, t::Float64)
+    P!(Pmat::AbstractMatrix, obj::HKY85, t::Float64)
 modifies P rate matrix (see traitsLikeDiscrete)
 The model will have optimized the rate using NLopt in loglikfun 
 in traitsLikDiscrete.jl.
@@ -845,23 +855,23 @@ julia> P!(m1, 3)
 TODO
 ````
 """
-function P!(Pmat::AbstractMatrix, mod::HKY85, t::Float64)
+function P!(Pmat::AbstractMatrix, obj::HKY85, t::Float64)
     if t < 0.0
         error("t must be positive")
     end
-    piA = mod.pi[1]; piC = mod.pi[2]; piG = mod.pi[3]; piT = mod.pi[4]
+    piA = obj.pi[1]; piC = obj.pi[2]; piG = obj.pi[3]; piT = obj.pi[4]
     piR = piA + piG
     piY = piT + piC
     
     if HKY85.relative == true
-        k = mod.rate[1] #kappa = alpha 
+        k = obj.rate[1] #kappa = alpha 
         s = t/(2*(piT*piC + piA*piG)k + 2*(piY+piR)) #t/lambda
         e₁ = exp(-s)
         e₂ = exp(-(piR * k + piY) * s)
         e₃ = exp(-(piY * k + piR) * s)
         
     else
-        a = mod.rate[1]/(); b = mod.rate[2]/() #alpha and beta
+        a = obj.rate[1]/(); b = obj.rate[2]/() #alpha and beta
           
         e₁ = exp(-b * t)
         e₂ = exp(-(piR * a + piY * b) * t)
