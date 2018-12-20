@@ -1,5 +1,5 @@
 
-
+#Future TODOs. allow users to indicate models and rate models using
 """
     StatisticalSubstitutionModel
 
@@ -167,11 +167,16 @@ julia> [n.number for n in net.node]
  -3
   5
  -2
-
- #? should i add an example for variable rate or NASM or both here?
 ```
 """
-function fitDiscrete(net, model, tips::Dict; kwargs...)
+function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, 
+    tips::Dict; kwargs...)
+    ratemodel = RateVariationAcrossSites(ncat=1)
+    fitDiscrete(net, model, 
+        ratemodel, tips; kwargs...)
+end
+function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, 
+        ratemodel::RateVariationAcrossSites, tips::Dict; kwargs...)
     species = Array{String}(0)
     dat = Vector{Vector{Int}}(0) # indices of trait labels
     for (k,v) in tips
@@ -185,8 +190,14 @@ function fitDiscrete(net, model, tips::Dict; kwargs...)
     # dat[o] would make a shallow copy only
     StatsBase.fit(StatisticalSubstitutionModel, net, model, ratemodel, view(dat, o); kwargs...)
 end
-#TODO test .fit for ratemodel. might need to be obj.ratemodel
-function fitDiscrete(net, model, dat::DataFrame; kwargs...)
+
+function fitDiscrete(net::HybridNetwork, model, dat::DataFrame; kwargs...)
+    ratemodel = RateVariationAcrossSites(ncat=1)
+    fitDiscrete(net, model, ratemodel,
+        dat; kwargs...)
+end
+function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites,
+        dat::DataFrame; kwargs...)
     i = findfirst(DataFrames.names(dat), :taxon)
     if i==0 i = findfirst(DataFrames.names(dat), :species); end
     if i==0 i=1; end # first column if not column named "taxon" or "species"
@@ -202,7 +213,12 @@ function fitDiscrete(net, model, dat::DataFrame; kwargs...)
     StatsBase.fit(StatisticalSubstitutionModel, net, model, ratemodel, view(dat, o); kwargs...)
 end
 
-function fitDiscrete(net, model, species::Array{String}, dat::DataFrame; kwargs...)
+function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, species::Array{String}, dat::DataFrame; kwargs...)
+    ratemodel = RateVariationAcrossSites(ncat=1)
+    fitDiscrete(net, model, ratemodel, species, dat; kwargs...)
+end
+function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites,
+        species::Array{String}, dat::DataFrame; kwargs...)
     dat2 = traitlabels2indices(dat, model) # vec of vec, indices
     o, net = check_matchtaxonnames!(copy(species), dat2, net)
     StatsBase.fit(StatisticalSubstitutionModel, net, model, ratemodel, view(dat2, o); kwargs...)
@@ -223,15 +239,7 @@ See [`traitlabels2indices`](@ref) to convert trait labels to trait indices.
 after doing checks, preordering nodes in the network, making sure nodes have
 consecutive numbers, species are matched between data and network etc.
 """
-
-function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::TraitSubstitutionModel,
-    trait::AbstractVector; kwargs...)
-    ratemodel = RateVariationAcrossSites(ncat=1)
-    StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::TraitSubstitutionModel, 
-        ratemodel::RateVariationAcrossSites, trait::AbstractVector; kwargs...)
-end
-#TODO everywhere fit( is called, add ratemodel?
-function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::TraitSubstitutionModel, 
+function StatsBase.fit(self::Type{SSM}, net::HybridNetwork, model::TraitSubstitutionModel, 
     ratemodel::RateVariationAcrossSites, trait::AbstractVector; kwargs...)
     T = eltype(getlabel(model))
     # extract displayed trees
@@ -255,14 +263,13 @@ function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::TraitSubstitution
     backwardlik= zeros(Float64, k, nnodes,           ntrees)
     postltw    = Vector{Float64}(ntrees)
     # create new model object then fit:
-    fit!(StatisticalSubstitutionModel{T}(deepcopy(model), RateVariationAcrossSites(k=1),
+    fit!(StatisticalSubstitutionModel{T}(deepcopy(model), deepcopy(ratemodel),
             net, trait, length(trait[1]), missing,
             logtrans, 1, trees, priorltw, postltw, forwardlik, directlik, backwardlik);
         kwargs...)
 end
 
-#? add variable rate option, need to optimize
-function fit!(obj::SSM; fixedparam=false::Bool, verbose=false::Bool,
+function fit!(obj::SSM; ratemodel::RateVariationAcrossSites, fixedparam=false::Bool, verbose=false::Bool,
       NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
       xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
 
@@ -286,7 +293,7 @@ function fit!(obj::SSM; fixedparam=false::Bool, verbose=false::Bool,
         counter = [0]
         function loglikfun(x::Vector{Float64}, grad::Vector{Float64}) # modifies obj
             counter[1] += 1
-            obj.model.rate[:] = obj.model.rate[:]*obj.ratemodel.ratemultiplier[:] #TODO test this
+            obj.model.rate[:] = obj.model.rate[:]*ratemodel.ratemultiplier[:] #TODO test this
             res = discrete_corelikelihood!(obj)
             verbose && println("loglik: $res, model rates: $x")
             length(grad) == 0 || error("gradient not implemented")

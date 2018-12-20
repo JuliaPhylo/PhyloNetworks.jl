@@ -45,43 +45,8 @@ For subtypes, see [`JC69`](@ref), [`HKY85`](@ref)
 abstract type NucleicAcidSubstitutionModel <: SubstitutionModel end
 const NASM = NucleicAcidSubstitutionModel
 
-# function Base.show(io::IO, object::BTSM)
-#     str = "Binary Trait Substitution Model:\n"
-#     str *= "rate $(object.label[1])→$(object.label[2]) α=$(object.rate[1])\n"
-#     str *= "rate $(object.label[2])→$(object.label[1]) β=$(object.rate[2])\n"
-#     print(io, str)
-# end
-
-# function Base.show(io::IO, object::TBTSM)
-#     print(io, "Substitution model for 2 binary traits, with rate matrix:\n")
-#     showQ(io, object)
-# end
-
-# function Base.show(io::IO, object::ERSM)
-#     str = "Equal Rates Substitution Model with k=$(object.k),\n"
-#     str *= "all rates equal to α=$(object.rate[1]).\n"
-#     str *= "rate matrix Q:\n"
-#     print(io, str)
-#     showQ(io, object)
-# end
-
 function Base.show(io::IO, obj::SM)
-    if (isa(obj, TraitSubstitutionModel))
-        str = "$(obj) Trait Substitution Model: "
-        str *= "$(typeof(obj))\n"
-    elseif (isa(obj,NucleicAcidSubstitutionModel))
-        #? I shouldnt include RateVariationAcrossSites here, right? It should get its own .show()
-        str = "$(obj) Nucleic Acid Substitution Model: "
-        str *= "$(typeof(obj))\n"
-        str *= "pi: $(obj.pi)\n"
-    else
-        #? error? or warning?
-        error("show not defined for abstract $(typeof(mod)).") #TODO 1.0 change to @error
-    end
-    str *= "rates: $(obj.rate)\n"
-    str *= "rate matrix Q:\n"
-    print(io, str)
-    showQ(io, obj)
+    error("show not defined for $(typeof(mod)).") #TODO 1.0 change to @error
 end
 
 """
@@ -549,7 +514,7 @@ Default is relative rate model. Based on depricated PhyloModels.jl by Justin Ang
 # examples
 
 ```julia-repl
-julia> m1 = JC69(0.25)
+julia> m1 = JC69([0.25])
 julia> nstates(m1)
 4
 julia> m2 = JC69([0.5])
@@ -559,29 +524,22 @@ julia> nparams(m2)
 """
 struct JC69 <: NucleicAcidSubstitutionModel
     rate::Vector{Float64}
+    pi::Vector{Float64} #keep this?
     relativerate::Bool
   
-    function JC69(rate::Vector{Float64} = [0.25], relativerate::Bool = true) #? need to give argument if empty, right?
-      if !(0 <= length(rate) <= 1)
-        error("rate not a valid length for a JC69 model")
-      elseif any(rate .<= 0.)
-        error("All elements of rate must be positive for a JC69 model")
-      end
-      pi = [0.25, 0.25, 0.25, 0.25]
-      if length(rate) == 0
-        JC69() = new(rate, true)
-      else
-        JC69() = new(rate, false)
-      end
+    function JC69(rate=[1.0]::Vector{Float64}, relativerate=true::Bool) #? need to give argument if empty, right?
+        if !(0 <= length(rate) <= 1)
+            error("rate not a valid length for a JC69 model")
+        elseif any(rate .<= 0.)
+            error("All elements of rate must be positive for a JC69 model")
+        end
+        pi = [0.25, 0.25, 0.25, 0.25] #? need this?
+        new(rate, relativerate)
     end
-    # function JC69(λ::Float64 = 0.25, relativerate::Bool = true)
-    #     if λ <= 0.
-    #         error("JC69 parameter λ must be positive")
-    #     end
-    #     JC69() = new(λ, true)
-    # end
 end
-#const JC69 = JC69(rate, relativerate)
+#JC69() = JC69([1.0], true) #? need these?
+#JC69(rate::Vector{Float64}) = JC69(rate, true)  #TODO catch bool only case
+JC69(rate::Float64, relativerate=true::Bool) = JC69([rate], relativerate)
 
 """
     HKY85(rate, pi, relative)
@@ -595,7 +553,7 @@ Default is relative rate model. Based on depricated PhyloModels.jl by Justin Ang
 julia> m1 = HKY85([.5], [0.25, 0.25, 0.25, 0.25])
 julia> nstates(m1)
 4
-julia> m2 = HKY85([0.5, 0.5], [0.25, 0.25, 0.25, 0.25])
+julia> m2 = HKY85([0.5, 0.5], [0.25, 0.25, 0.25, 0.25], false)
 julia> nstates(m2)
 4
 ```
@@ -605,7 +563,7 @@ struct HKY85 <: NucleicAcidSubstitutionModel
     pi::Vector{Float64}
     relative::Bool
     
-    function HKY85(rate::Vector{Float64}, pi::Vector{Float64}, relative::Bool)
+    function HKY85(rate::Vector{Float64}, pi::Vector{Float64}, relative=true::Bool)
         if any(rate .<= 0.)
             error("All elements of rate must be positive")
         elseif !(1 <= length(rate) <= 2)
@@ -627,6 +585,19 @@ struct HKY85 <: NucleicAcidSubstitutionModel
       end
 const HKY = HKY85
 
+function Base.show(io::IO, obj::JC69)
+    str = "Jukes and Cantor 69 Substitution Model with k=$(object.k),\n"
+    if obj.relativerate == true
+        str *= "relative rate version\n"
+        str *= "all rates equal to 0.25.\n"
+    else
+        str *= "absolute rate version\n"
+        str *= "all rates equal to $(obj.rate).\n"
+    end
+    str *= "rate matrix Q:\n"
+    print(io, str)
+    showQ(io, obj)
+end
 
 """
     nparams(model::JC69)

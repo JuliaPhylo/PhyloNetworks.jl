@@ -311,7 +311,7 @@ tips = Dict("A" => "lo", "B" => "lo", "C" => "hi", "D" => "hi"); #TODO
 mJC69 = JC69();
 fitJC69 = (@test_nowarn fitDiscrete(net, mJC69, tips; fixedparam=true));
 @test_nowarn show(DevNull, fitJC69)
-@test loglikelihood(fitJC69) ≈ -2.6638637960257574 #TODO
+@test loglikelihood(fitJC69) ≈ -2.6638637960257574 #TODO phangorn R pkg to find loglikelihood of DNA
 
 mHKY85 = HKY85();
 fitHKY85 = (@test_nowarn fitDiscrete(net, mHKY85, tips; fixedparam=true));
