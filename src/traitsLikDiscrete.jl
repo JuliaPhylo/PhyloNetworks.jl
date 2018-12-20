@@ -1,5 +1,5 @@
 
-#Future TODOs. allow users to indicate models and rate models using
+#TODO in future, allow users to indicate models and rate models using
 """
     StatisticalSubstitutionModel
 
@@ -269,7 +269,7 @@ function StatsBase.fit(self::Type{SSM}, net::HybridNetwork, model::TraitSubstitu
         kwargs...)
 end
 
-function fit!(obj::SSM; ratemodel::RateVariationAcrossSites, fixedparam=false::Bool, verbose=false::Bool,
+function fit!(obj::SSM, ratemodel::RateVariationAcrossSites; fixedparam=false::Bool, verbose=false::Bool,
       NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
       xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
 

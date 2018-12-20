@@ -14,7 +14,6 @@ module PhyloNetworks
     using BioSymbols
     using StaticArrays
     using StatsFuns # for logsumexp
-    using SubstitutionModels
     using Distributions
 
     import Base.show
@@ -120,10 +119,16 @@ module PhyloNetworks
         ## Discrete Trait PCM
         parsimonySoftwired,
         parsimonyGF,
+        SubstitutionModel,
         TraitSubstitutionModel,
         EqualRatesSubstitutionModel,
         BinaryTraitSubstitutionModel,
         TwoBinaryTraitSubstitutionModel,
+        ## Nucelic Acid Substition Models
+        NucleicAcidSubstitutionModel,
+        JC69,
+        HKY85,
+        RateVariationAcrossSites,        
         nStates,
         Q, P,
         randomTrait,

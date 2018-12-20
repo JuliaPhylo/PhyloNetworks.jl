@@ -11,7 +11,6 @@ For variable rates, see [`RateVariationAcrossSites`](@ref)
 
 For sub types, see [`NucleicAcidSubstitutionModel`](@ref), [`TraitSubstitutionModel`](@ref)
 """
-using StaticArrays
 abstract type SubstitutionModel end #ideally, we'd like this to be SubstitutionModels.SubstitionModel
 const SM = SubstitutionModel
 const Qmatrix = SMatrix{4, 4, Float64}
@@ -538,7 +537,7 @@ struct JC69 <: NucleicAcidSubstitutionModel
     end
 end
 #JC69() = JC69([1.0], true) #? need these?
-#JC69(rate::Vector{Float64}) = JC69(rate, true)  #TODO catch bool only case
+#JC69(rate::Vector{Float64}) = JC69(rate, true)
 JC69(rate::Float64, relativerate=true::Bool) = JC69([rate], relativerate)
 
 """
@@ -626,12 +625,6 @@ and PyloModels.jl
 
 Substitution rate matrix for a given substitution model:
 Q[i,j] is the rate of transitioning from state i to state j.
-
-# examples
-
-```julia-repl 
-julia> TODO
-````
 """
 
 @inline function Q(mod::JC69)
@@ -852,7 +845,7 @@ julia> P!(m1, 3)
 TODO
 ````
 """
-function P!(Pmat::AbstractMatrix, mod::HKY85, t::Float64, kappa or (alpha, beta)?)
+function P!(Pmat::AbstractMatrix, mod::HKY85, t::Float64)
     if t < 0.0
         error("t must be positive")
     end
@@ -913,7 +906,7 @@ mutable struct RateVariationAcrossSites
     ratemultiplier::Array{Float64}
     function RateVariationAcrossSites(alpha::Float64, ncat = 4::Int)
         @assert alpha >= 0 "alpha must be >= 0"
-        if ncat = 1
+        if ncat == 1
             ratemultiplier = [1.0]
         else
             cuts = (0:(ncat-1))/ncat + 1/2ncat
