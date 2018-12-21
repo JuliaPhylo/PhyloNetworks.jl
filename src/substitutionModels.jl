@@ -13,9 +13,9 @@ For sub types, see [`NucleicAcidSubstitutionModel`](@ref), [`TraitSubstitutionMo
 """
 abstract type SubstitutionModel end #ideally, we'd like this to be SubstitutionModels.SubstitionModel
 const SM = SubstitutionModel
-const Qmatrix = SMatrix{4, 4, Float64}
-const Pmatrix = SMatrix{4, 4, Float64}
-const Bmatrix = SMatrix{2, 2, Float64}
+const Qmatrix = StaticArrays.SMatrix{4, 4, Float64}
+const Pmatrix = StaticArrays.SMatrix{4, 4, Float64}
+const Bmatrix = StaticArrays.SMatrix{2, 2, Float64}
 
 """
     TraitSubstitutionModel
@@ -129,7 +129,7 @@ https://discourse.julialang.org/t/display-of-arrays-with-row-and-column-names/19
 """
 function showQ(io::IO, obj::SM)
     M = Q(obj)
-    pad = max(8,maximum(length.(getlabels(obj))+1))
+    pad = max(8,maximum(length(getlabels(obj))+1)) #? Error here with length. Removed . Is this okay?
     for i = 1:size(M,2) # print the header
         print(io, lpad(getlabels(obj)[i],(i==1? 2*pad : pad), " "))
     end
@@ -512,7 +512,7 @@ Default is relative rate model. Based on depricated PhyloModels.jl by Justin Ang
 # examples
 
 ```julia-repl
-julia> m1 = JC69([0.25])
+julia> m1 = JC69([0.25], false)
 julia> nstates(m1)
 4
 julia> m2 = JC69([0.5])
@@ -531,12 +531,37 @@ struct JC69 <: NucleicAcidSubstitutionModel
         elseif any(rate .<= 0.)
             error("All elements of rate must be positive for a JC69 model")
         end
-        pi = [0.25, 0.25, 0.25, 0.25] #? need this?
-        new(rate, relative)
+        pi = [0.25, 0.25, 0.25, 0.25] #? need this? (connected to above ?)
+        new(rate, pi, relative)
     end
 end
 #JC69(rate::Float64, relative=true::Bool) = JC69([rate], relative)
 
+# struct HKY85 <: NucleicAcidSubstitutionModel
+#     rate::Vector{Float64}
+#     pi::Vector{Float64}
+#     relative::Bool
+    
+#     function HKY85(rate::Vector{Float64}, pi::Vector{Float64}, relative=true::Bool)
+#         if any(rate .<= 0.)
+#             error("All elements of rate must be positive")
+#         elseif !(1 <= length(rate) <= 2)
+#             error("rate is not a valid length for HKY85 model")
+#         elseif length(pi) !== 4
+#             error("pi must be of length 4")
+#         elseif !all(0. .< pi.< 1.)
+#             error("All base proportions must be between 0 and 1")
+#         elseif sum(pi) !== 1.
+#             error("Base proportions must sum to 1")
+#         end
+      
+#         if length(rate) == 1
+#             new(rate, pi, true) 
+#         else
+#             new(rate, pi, false)
+#         end
+#     end
+# end
 function Base.show(io::IO, obj::JC69)
     str = "Jukes and Cantor 69 Substitution Model,\n"
     if obj.relative == true
@@ -636,13 +661,13 @@ Q[i,j] is the rate of transitioning from state i to state j.
 """
 
 @inline function Q(obj::JC69)
-    if obj.relativerate
+    if obj.relative
         lambda = 1.0/3.0 #this allows branch lengths to be interpreted as substitutions/site (pi-weighted avg of diagonal is -1)
     else
         lambda = (1.0/3.0)*obj.rate[1]
     end
 
-    return QMatrix(-3*lambda, lambda, lambda, lambda,
+    return Qmatrix(-3*lambda, lambda, lambda, lambda,
             lambda, -3*lambda, lambda, lambda,
             lambda, lambda, -3*lambda, lambda,
             lambda, lambda, lambda, -3*lambda)
@@ -718,7 +743,7 @@ P[k,1] ... P[k,k]
 where P[i,j] is the probability of ending in state j after time t,
 given that the process started in state i.
 ```julia-repl 
-julia> m1 = JC69(0.25)
+julia> m1 = JC69([0.25])
 julia> P(m1, 3)
 TODO
 ````
@@ -728,7 +753,7 @@ TODO
     if t < 0
         error("Time must be positive")
     end
-    if obj.relativerate
+    if obj.relative
         lambda = (4.0/3.0) #to make branch lengths interpretable. lambda = substitutions/year
     else
         lambda = (4.0/3.0)*obj.rate[1]
@@ -822,7 +847,7 @@ end
     P!(Pmat::AbstractMatrix, obj::JC69, t::Float64)
 modifies P rate matrix (see traitsLikeDiscrete)
 ```julia-repl 
-julia> m1 = JC69(0.25)
+julia> m1 = JC69([0.25])
 julia> P!(m1, 3)
 TODO
 ````
@@ -831,7 +856,7 @@ function P!(Pmat::AbstractMatrix, obj::JC69, t::Float64)
     if t < 0
         error("Time must be positive")
     end
-    if obj.relativerate
+    if obj.relative
         lambda = (4.0/3.0)
     else
         lambda = (4.0/3.0)*obj.rate[1]
