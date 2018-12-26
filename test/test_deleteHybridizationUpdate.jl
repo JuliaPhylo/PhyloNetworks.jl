@@ -5,27 +5,29 @@
 PhyloNetworks.CHECKNET || error("need CHECKNET==true in PhyloNetworks to test snaq in test_correctLik.jl")
 
 @testset "test: delete hybridization" begin
-
-tree = "(((((((1,2),3),4),5),(6,7)),(8,9)),10);"
+global seed, currT0, besttree, net, success,hybrid,flag,nocycle,flag2,flag3
 
 #seed = 2738
 seed = 56326
 
-currT0 = readTopologyLevel1(tree);
+currT0 = readTopologyLevel1("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
 ## printEdges(currT0)
 ## printNodes(currT0)
 ## writeTopologyLevel1(currT0)
 checkNet(currT0)
+# warning: the random number generator has a local scope:
+# with subsets of tests, the same seed would be re-used over and over.
 Random.seed!(seed);
 besttree = deepcopy(currT0);
 
 # ===== first hybridization ==========================
-@testset "first hybridization" begin
+# @testset "first hybridization" begin
 success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
 @test success
 #printEdges(besttree)
 #printNodes(besttree)
-@test_nowarn writeTopologyLevel1(besttree)
+@test_logs writeTopologyLevel1(besttree)
+# "(1:1.0,2:1.0,(3:1.0,(4:1.0,(5:1.0,((6:1.0,(7:0.4918119005933492,#H11:0.0::0.2227763931131359):0.5081880994066508):1.0,((8:1.0,(9:0.7497438380865815)#H11:0.2502561619134185::0.7772236068868641):1.0,10:1.0):1.0):1.0):1.0):1.0):1.0);"
 net = deepcopy(besttree);
 # test contain root
 @test !net.edge[15].containRoot
@@ -55,16 +57,17 @@ net = deepcopy(besttree);
 @test [n.number for n in net.partition[4].edges] == [9,7,5,3,1,2,4,6,8]
 @test [n.number for n in net.partition[5].edges] == [17]
 @test [n.number for n in net.partition[6].edges] == [14]
-end
+#end
 
 # ===== second hybridization ==========================
-@testset "second hybridization" begin
+#@testset "second hybridization" begin
 success = false
 success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
 @test success
 #printEdges(besttree)
 #printNodes(besttree)
-@test_nowarn writeTopologyLevel1(besttree,true)
+@test_logs writeTopologyLevel1(besttree,true)
+# "(3,(4,(5,(((6,(7,#H11:::0.2227763931131359):0.5081880994066508):1.0,((8,(9)#H11:::0.7772236068868641):1.0,10):1.0):0.9561820134835957,#H13:0.0::0.28555825607592755):0.04381798651640434):1.0):1.0,((1,2):0.011459257289162528)#H13:0.9885407427108375::0.7144417439240724);"
 net = deepcopy(besttree);
 
 # test contain root
@@ -117,7 +120,7 @@ net = deepcopy(besttree);
 @test [n.number for n in net.partition[8].edges] == [8]
 @test [n.number for n in net.partition[9].edges] == [6]
 @test [n.number for n in net.partition[10].edges] == [4]
-end
+#end
 
 ## # ===== identify containRoot for net.node[21]
 ## net0=deepcopy(net);
@@ -157,7 +160,8 @@ deleteHybridizationUpdate!(net,net.node[21], false,false);
 #printNodes(net)
 #printEdges(net)
 #printPartitions(net)
-@test_nowarn writeTopologyLevel1(net)
+@test_logs writeTopologyLevel1(net)
+# "(1:1.0,2:1.0,(3:1.0,(4:1.0,(5:1.0,((6:1.0,(7:0.4918119005933492,#H11:0.0::0.2227763931131359):0.5081880994066508):1.0,((8:1.0,(9:0.7497438380865815)#H11:0.2502561619134185::0.7772236068868641):1.0,10:1.0):1.0):1.0):1.0):1.0):1.0);"
 
 # test contain root
 @test !net.edge[15].containRoot

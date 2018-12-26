@@ -4,6 +4,7 @@
 PhyloNetworks.CHECKNET || error("need CHECKNET==true in PhyloNetworks to test snaq in test_correctLik.jl")
 
 @testset "test: bad diamond, max pseudo lik" begin
+global tree, net, df, d
 
 tree = "(6,(5,#H7:0.0):9.970714072991349,(3,(((2,1):0.2950382234364404,4):0.036924483697671304)#H7:0.00926495670648208):1.1071489442240392);"
 net = readTopologyLevel1(tree);
@@ -37,16 +38,16 @@ net2 = topologyMaxQPseudolik!(net,d, ftolRel=1e-5,ftolAbs=1e-6,xtolRel=1e-3,xtol
 @test net2.edge[10].length == 0 # or: tree edge in bad diamond II not 0
 #printEdges(net2)
 
-@test_nowarn show(devnull, net2)
-@test_nowarn [show(devnull, net2.node[i]) for i in [1,3,10]];
-@test_nowarn [show(devnull, net2.edge[i]) for i in [1,3,11]];
-@test_nowarn show(devnull, d)
-@test_nowarn show(devnull, d.quartet[1])
-@test_nowarn show(devnull, d.quartet[1].qnet)
+@test_logs show(devnull, net2)
+@test_logs [show(devnull, net2.node[i]) for i in [1,3,10]];
+@test_logs [show(devnull, net2.edge[i]) for i in [1,3,11]];
+@test_logs show(devnull, d)
+@test_logs show(devnull, d.quartet[1])
+@test_logs show(devnull, d.quartet[1].qnet)
 @test tipLabels(d.quartet) == ["1","2","3","4","5","6"]
-a = (@test_nowarn fittedQuartetCF(d, :wide));
+a = (@test_logs fittedQuartetCF(d, :wide));
 @test size(a) == (15,10)
-a = (@test_nowarn fittedQuartetCF(d, :long));
+a = (@test_logs fittedQuartetCF(d, :long));
 @test size(a) == (45,7)
 
 end

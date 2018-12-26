@@ -1114,7 +1114,7 @@ function maxParsimonyNet(currT::HybridNetwork, df::DataFrame;
         flush(logfile)
     end
     print(stdout,str)
-    print(stdout, Dates.format(now(), "yyyy-mm-dd H:M:S.s") * "\n")
+    print(stdout, Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s") * "\n")
     # if 1 proc: time printed to logfile at start of every run, not here.
 
     if seed == 0
@@ -1137,7 +1137,7 @@ function maxParsimonyNet(currT::HybridNetwork, df::DataFrame;
 
     tstart = time_ns()
     bestnet = Distributed.pmap(1:runs) do i # for i in 1:runs
-        logstr = "seed: $(seeds[i]) for run $(i), $(Dates.format(now(), "yyyy-mm-dd H:M:S.s"))\n"
+        logstr = "seed: $(seeds[i]) for run $(i), $(Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s"))\n"
         print(stdout, logstr)
         msg = "\nBEGIN Max Parsimony search for run $(i), seed $(seeds[i]) and hmax $(hmax)"
         if writelog_1proc # workers can't write on streams opened by master
@@ -1171,7 +1171,7 @@ function maxParsimonyNet(currT::HybridNetwork, df::DataFrame;
     tend = time_ns() # in nanoseconds
     telapsed = round(convert(Int64, tend-tstart) * 1e-9, digits=2) # in seconds
     writelog_1proc && close(errfile)
-    msg = "\n" * Dates.format(now(), "yyyy-mm-dd H:M:S.s")
+    msg = "\n" * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s")
     if writelog
         write(logfile, msg)
     end

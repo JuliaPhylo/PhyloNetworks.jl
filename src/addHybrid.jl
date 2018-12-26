@@ -58,24 +58,24 @@ function sisterOrCherry(edge1::Edge,edge2::Edge)
     cherry = false
     nonidentifiable = false
     node = nothing;
-    if(isEqual(edge1.node[1],edge2.node[1]) || isEqual(edge1.node[1],edge2.node[2]))
+    if isEqual(edge1.node[1],edge2.node[1]) || isEqual(edge1.node[1],edge2.node[2])
         node = edge1.node[1];
-    elseif(isEqual(edge1.node[2],edge2.node[1]) || isEqual(edge1.node[2],edge2.node[2]))
+    elseif isEqual(edge1.node[2],edge2.node[1]) || isEqual(edge1.node[2],edge2.node[2])
         node = edge1.node[2];
     end
-    if(!isa(node,Nothing))
+    if node !== nothing
         size(node.edge,1) == 3 || error("node found $(node.number) that does not have exactly 3 edges, it has $(size(node.edge,1)) edges instead.")
         sisters = true
-        if(getOtherNode(edge1,node).leaf && getOtherNode(edge2,node).leaf)
+        if getOtherNode(edge1,node).leaf && getOtherNode(edge2,node).leaf
             cherry = true
-        elseif(getOtherNode(edge1,node).leaf || getOtherNode(edge2,node).leaf)
+        elseif getOtherNode(edge1,node).leaf || getOtherNode(edge2,node).leaf
             edge = nothing
             for e in node.edge
                 if(!isEqual(e,edge1) && !isEqual(e,edge2))
                     edge = e
                 end
             end
-            if(getOtherNode(edge,node).leaf)
+            if getOtherNode(edge,node).leaf
                 nonidentifiable = true
             end
         end
@@ -98,27 +98,29 @@ function chooseEdgesGamma(net::HybridNetwork, blacklist::Bool, edges::Vector{Edg
     index2 = 1;
     inlimits = false
     inblack = true
-    while(!inlimits || edges[index1].inCycle != -1 || edges[index2].inCycle != -1 || cherry || nonidentifiable || inblack)
+    cherry = false
+    nonidentifiable = false
+    while !inlimits || edges[index1].inCycle != -1 || edges[index2].inCycle != -1 || inblack || cherry || nonidentifiable
         index1 = round(Integer,rand()*size(edges,1));
         index2 = round(Integer,rand()*size(edges,1));
-        if(index1 != index2 && index1 != 0 && index2 != 0 && index1 <= size(edges,1) && index2 <= size(edges,1))
+        if index1 != index2 && index1 != 0 && index2 != 0 && index1 <= size(edges,1) && index2 <= size(edges,1)
             inlimits = true
             sisters, cherry, nonidentifiable = sisterOrCherry(edges[index1],edges[index2]);
         else
             inlimits = false
         end
-        if(blacklist && !isempty(net.blacklist))
+        if blacklist && !isempty(net.blacklist)
             length(net.blacklist) % 2 == 0 || error("net.blacklist should have even number of entries, not length: $(length(net.blacklist))")
             i = 1
-            while(i < length(net.blacklist))
-                if(edges[index1].number == net.blacklist[i])
-                    if(edges[index2].number == net.blacklist[i+1])
+            while i < length(net.blacklist)
+                if edges[index1].number == net.blacklist[i]
+                    if edges[index2].number == net.blacklist[i+1]
                         inblack = true
                     else
                         inblack = false
                     end
-                elseif(edges[index2].number == net.blacklist[i])
-                    if(edges[index1].number == net.blacklist[i+1])
+                elseif edges[index2].number == net.blacklist[i]
+                    if edges[index1].number == net.blacklist[i+1]
                         inblack = true
                     else
                         inblack = false

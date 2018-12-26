@@ -70,8 +70,8 @@ PhyloNetworks.setCHECKNET(true)
 
 tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculateExpCF2.jl",
          "test_hasEdge.jl", "test_parameters.jl", "test_correctLik.jl",
-         #"test_partition.jl", "test_partition2.jl","test_deleteHybridizationUpdate.jl", "test_add2hyb.jl", "test_optBLparts.jl", "test_undirectedOtherNetworks.jl",
-         #"test_manipulateNet.jl", "test_compareNetworks.jl",
+         "test_partition.jl", "test_partition2.jl", "test_deleteHybridizationUpdate.jl", "test_add2hyb.jl", "test_optBLparts.jl", "test_undirectedOtherNetworks.jl",
+         "test_manipulateNet.jl", "test_compareNetworks.jl",
          #"test_badDiamII.jl",
          #"test_multipleAlleles.jl",
          #"test_bootstrap.jl",

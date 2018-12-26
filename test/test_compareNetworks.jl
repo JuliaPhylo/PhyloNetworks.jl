@@ -4,6 +4,7 @@
 
 if !(@isdefined doalltests) doalltests = false; end
 @testset "test sets: compareNetworks" begin
+global net, tree
 #----------------------------------------------------------#
 #   testing functions to delete edges and nodes            #
 #----------------------------------------------------------#
@@ -12,12 +13,12 @@ if !(@isdefined doalltests) doalltests = false; end
 # with keepNodes=true
 netstr = "(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.0,D:5.0);"
 net = readTopology(netstr)
-@test_nowarn PhyloNetworks.deleteHybridEdge!(net, net.edge[6], true);
+@test_logs PhyloNetworks.deleteHybridEdge!(net, net.edge[6], true);
 @test writeTopology(net) == "(((A:4.0,(B:1.0):1.1):0.5,(C:0.6):1.0):3.0,D:5.0);"
 @test net.edge[3].gamma == 0.9
 @test net.node[3].name == "#H1"
 net = readTopology(netstr)
-@test_nowarn PhyloNetworks.deleteHybridEdge!(net, net.edge[3], true);
+@test_logs PhyloNetworks.deleteHybridEdge!(net, net.edge[3], true);
 @test writeTopology(net) == "(((A:4.0):0.5,(C:0.6,(B:1.0):1.0):1.0):3.0,D:5.0);"
 @test  net.edge[5].gamma == 0.1
 @test !net.edge[5].hybrid
@@ -29,18 +30,18 @@ net = readTopology(netstr)
 #  3 edges below the root (1 of them hybrid):
 netstr = "((Adif:1.0,(Aech:0.122,#H6:10.0::0.047):10.0):1.614,Aten:1.0,((Asub:1.0,Agem:1.0):0.0)#H6:5.062::0.953);";
 net = readTopology(netstr);
-@test_nowarn PhyloNetworks.deleteHybridEdge!(net, net.edge[10]);
+@test_logs PhyloNetworks.deleteHybridEdge!(net, net.edge[10]);
 @test writeTopology(net) == "(Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0,Aten:2.614);"
 net = readTopology(netstr);
-@test_nowarn PhyloNetworks.deleteHybridEdge!(net, net.edge[3]);
+@test_logs PhyloNetworks.deleteHybridEdge!(net, net.edge[3]);
 @test writeTopology(net) == "((Adif:1.0,Aech:10.122):1.614,Aten:1.0,(Asub:1.0,Agem:1.0):5.062);"
 # 2 edges below the root (1 of them hybrid):
 netstr = "((Adif:1.0,(Aech:0.122,#H6:10.0::0.047):10.0):1.614,((Asub:1.0,Agem:1.0):0.0)#H6:5.062::0.953);";
 net = readTopology(netstr);
-@test_nowarn PhyloNetworks.deleteHybridEdge!(net, net.edge[9]);
+@test_logs PhyloNetworks.deleteHybridEdge!(net, net.edge[9]);
 @test writeTopology(net) == "(Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0);"
 net = readTopology(netstr);
-@test_nowarn PhyloNetworks.deleteHybridEdge!(net, net.edge[9], true);
+@test_logs PhyloNetworks.deleteHybridEdge!(net, net.edge[9], true);
 @test writeTopology(net) == "((Adif:1.0,(Aech:0.122,((Asub:1.0,Agem:1.0):0.0):10.0):10.0):1.614);"
 
 if doalltests
@@ -58,7 +59,7 @@ end
 # example with wrong attributed inChild1
 net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.1361111):10.0);");
 net.edge[5].isChild1 = false;
-@test_nowarn deleteHybridEdge!(net, net.edge[4]);
+@test_logs deleteHybridEdge!(net, net.edge[4]);
 @test writeTopologyLevel1(net) == "(4,((6,5):3.423,1):0.265,(3,2):10.0);"
 # or: deleteHybridEdge! didn't work on 4th edge when isChild1 was outdated
 
@@ -105,17 +106,17 @@ end
 
 # network: delete 2 leaves
 net2  = readTopology(cui2str);
-@test_nowarn deleteleaf!(net2,"Xhellerii");
-@test_nowarn deleteleaf!(net2,"Xsignum");
+@test_logs deleteleaf!(net2,"Xhellerii");
+@test_logs deleteleaf!(net2,"Xsignum");
 # earlier warning: """node 13 is a leaf. Will create a new node if needed, to set taxon "Xmayae" as outgroup."""
-@test_nowarn rootatnode!(net2,"Xmayae");
+@test_logs rootatnode!(net2,"Xmayae");
 net3  = readTopology(cui3str);
-@test_nowarn deleteleaf!(net3,"Xhellerii");
-@test_nowarn deleteleaf!(net3,"Xsignum");
+@test_logs deleteleaf!(net3,"Xhellerii");
+@test_logs deleteleaf!(net3,"Xsignum");
 # earlier warning: """node 13 is a leaf. Will create a new node if needed, to set taxon "Xmayae" as outgroup."""
-@test_nowarn rootatnode!(net2,"Xmayae");
+@test_logs rootatnode!(net2,"Xmayae");
 @test hardwiredClusterDistance(net2, net3, true) == 3
-@test_nowarn deleteleaf!(net3,"Xmayae");    #plot(net3);
+@test_logs deleteleaf!(net3,"Xmayae");    #plot(net3);
 @test net3.numHybrids == 2
 # using simplify=false in deleteleaf!
 net3  = readTopology(cui3str);
@@ -168,11 +169,11 @@ end
 
 net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 # plot(net5)
-@test_nowarn deleteHybridThreshold!(net5,0.5);  # both H1 and H2 eliminated
+@test_logs deleteHybridThreshold!(net5,0.5);  # both H1 and H2 eliminated
 @test writeTopologyLevel1(net5) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);"
 # or: deleteHybridThreshold! didn't work on net5, gamma=0.5
 net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
-@test_nowarn deleteHybridThreshold!(net5,0.3);  # H2 remains
+@test_logs deleteHybridThreshold!(net5,0.3);  # H2 remains
 @test writeTopologyLevel1(net5) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.7);"
 # or: deleteHybridThreshold! didn't work on net5, gamma=0.3
 
@@ -211,7 +212,7 @@ a = displayedTrees(net5, 0.1);
 @test writeTopologyLevel1(a[4]) == "(A:1.0,((B:1.1,D:1.0):1.2,((F:0.7,E:0.51):0.8,C:1.12):2.2):0.7);"
 
 net = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.0,D:5.0);")
-trees = (@test_nowarn displayedTrees(net,0.0; keepNodes=true));
+trees = (@test_logs displayedTrees(net,0.0; keepNodes=true));
 @test writeTopology(trees[1])=="(((A:4.0,(B:1.0):1.1):0.5,(C:0.6):1.0):3.0,D:5.0);"
 @test writeTopology(trees[2])=="(((A:4.0):0.5,(C:0.6,(B:1.0):1.0):1.0):3.0,D:5.0);"
 @test PhyloNetworks.inheritanceWeight.(trees) ≈ [log(0.9), log(0.1)]
@@ -222,7 +223,7 @@ end # of testset, displayedNetworks! & displayedTrees
 
 net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 @test writeTopology(majorTree(net5)) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);"
-@test_nowarn displayedNetworkAt!(net5, net5.hybrid[1]);
+@test_logs displayedNetworkAt!(net5, net5.hybrid[1]);
 @test writeTopology(net5) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.7);"
 net = readTopology("((((B)#H1)#H2,((D,C,#H2)S1,(#H1,A)S2)S3)S4);") # missing γ's, level 2
 @test writeTopology(majorTree(net)) == "(((D,C),A),B);"

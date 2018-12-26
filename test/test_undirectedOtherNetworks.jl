@@ -4,8 +4,9 @@
 ## Claudia April 2016
 
 @testset "test: move hybrid around cycle" begin
+global net
 net = readTopology("(((B)#H2,((C,#H2)S1,(A)S2)S3)S4);")
-@test_nowarn hybridatnode!(net, 7)
+@test_logs hybridatnode!(net, 7)
 @test_throws ErrorException hybridatnode!(net, 8)
 
 ## very important semicolon at the end because show changes containRoot

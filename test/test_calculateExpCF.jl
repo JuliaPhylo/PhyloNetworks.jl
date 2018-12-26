@@ -3,7 +3,7 @@
 
 # Case G -----------------
 
-println("------ Case G ----------")
+#println("------ Case G ----------")
 include("../examples/case_g_example.jl")
 #net.names
 error1 = false
@@ -151,7 +151,7 @@ end
 
 # Case F Bad Diamond I -----------------
 
-println("------ Case F Bad diamond I ----------")
+#println("------ Case F Bad diamond I ----------")
 include("../examples/case_f_example.jl");
 #net.names
 error1 = false
@@ -295,7 +295,7 @@ end
 
 # Case I Bad Diamond II -----------------
 
-println("------ Case I Bad diamond II ----------")
+#println("------ Case I Bad diamond II ----------")
 include("../examples/case_i_example.jl");
 #net.names
 error1 = false

@@ -454,7 +454,7 @@ function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, root
     length(setdiff(taxa, String[net2.leaf[i].name for i in 1:net2.numTaxa])) == 0 ||
         error("net1 and net2 do not share the same taxon set. Please prune networks first.")
     nTax = length(taxa)
-    if (bothtrees) # even if rooted, different treatment at the root if root=leaf
+    if bothtrees # even if rooted, different treatment at the root if root=leaf
         M1 = tree2Matrix(net1, taxa, rooted=rooted)
         M2 = tree2Matrix(net2, taxa, rooted=rooted)
     else
@@ -466,7 +466,7 @@ function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, root
 
     for i1=1:size(M1)[1]
         found = false
-        m1 = 1-M1[i1,2:end] # going to the end: i.e. we want to match a tree edge with a tree edge
+        m1 = 1 .- M1[i1,2:end] # going to the end: i.e. we want to match a tree edge with a tree edge
         for i2=1:size(M2)[1]                                  # and hybrid edge with hybrid edge
             if (M1[i1,2:end] == M2[i2,2:end] ||
                   ( !rooted && m1 == M2[i2,2:end])     )
@@ -474,7 +474,7 @@ function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, root
                 break
             end
         end
-        if (!found)
+        if !found
             dis += 1
         end
     end # (size(M1)[1] - dis) edges have been found in net2, dis edges have not.

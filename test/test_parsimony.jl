@@ -172,7 +172,7 @@ dat = CSV.read(joinpath(@__DIR__, "..","examples","Swadesh.csv"));
 # @test parsimonyGF(net, species, sequences) == 17.0
 # arguments chosen for a very short run
 redirect_stdout(open("/dev/null", "w"))
-@test_nowarn maxParsimonyNet(readTopology("(((English,Spanish),Norwegian),(German,Portuguese));"),
+@test_logs maxParsimonyNet(readTopology("(((English,Spanish),Norwegian),(German,Portuguese));"),
     dat, hmax=1, runs=1, Nfail=2, outgroup="Spanish", rootname="", seed=6)
 redirect_stdout(originalstdout)
 # best = PhyloNetworks.maxParsimonyNetRun1(net, dat, 100, 0.1, 1, 1234,stdout,false,0.3,"Spanish",:softwired)

@@ -18,7 +18,7 @@ d = readTableCF(df)
 @test_throws ErrorException PhyloNetworks.writeExpCF(d)
 @test PhyloNetworks.writeObsCF(d)[1:7] == rename(df, [:obsCF12 => :CF12_34, :obsCF13 => :CF13_24, :obsCF14 => :CF14_23])
 @test tipLabels(d) ==  ["4","6","7","8","10"]
-@test_nowarn PhyloNetworks.descData(d, devnull)
+@test_logs PhyloNetworks.descData(d, devnull)
 
 # starting tree:
 tree = "((6,4),(7,8),10);"
@@ -29,7 +29,7 @@ currT = readTopologyLevel1(tree);
 @testset "lik on tree" begin
 extractQuartet!(currT,d)
 calculateExpCFAll!(d)
-tmp = (@test_nowarn PhyloNetworks.writeExpCF(d))
+tmp = (@test_logs PhyloNetworks.writeExpCF(d))
 for i in [5,7] for j in 2:5 @test tmp[i][j] ≈ 0.12262648039048077; end end
 for j in 2:5 @test tmp[6][j] ≈ 0.7547470392190385; end
 lik = logPseudoLik(d)

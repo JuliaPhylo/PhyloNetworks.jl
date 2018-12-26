@@ -26,7 +26,7 @@ end
 	@test writeTopology(net) == "(D:1.0,C:1.0,((#H1:1.0::0.5,A:1.0):1.0,((B:1.0)#H1:1.0::0.5,E:1.0):1.0):1.0);"
     originalstdout = stdout
 	redirect_stdout(open("/dev/null", "w")) # not portable to Windows
-	@test_nowarn PhyloNetworks.printEverything(net)
+	@test_logs PhyloNetworks.printEverything(net)
 	redirect_stdout(originalstdout)
 end
 end

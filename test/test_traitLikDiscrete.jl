@@ -3,20 +3,20 @@ runall = false;
 @testset "Testing Substitution Models, P and Q matrices" begin
 
 m1 = BinaryTraitSubstitutionModel(1.0, 2.0);
-@test_nowarn show(devnull, m1)
+@test_logs show(devnull, m1)
 m1 = BinaryTraitSubstitutionModel(1.0,2.0, ["carnivory", "non-carnivory"]);
 @test nStates(m1)==2
 @test PhyloNetworks.nparams(m1)==2
-@test_nowarn show(devnull, m1)
+@test_logs show(devnull, m1)
 @test_throws ErrorException PhyloNetworks.BinaryTraitSubstitutionModel(-1.0,2.0)
 m2 = EqualRatesSubstitutionModel(4, 3.0);
 @test nStates(m2)==4
 @test PhyloNetworks.nparams(m2)==1
 m2 = EqualRatesSubstitutionModel(4, 3.0, ["S1","S2","S3","S4"]);
-@test_nowarn show(devnull, m2)
+@test_logs show(devnull, m2)
 m3 = TwoBinaryTraitSubstitutionModel([2.0,1.2,1.1,2.2,1.0,3.1,2.0,1.1],
 ["carnivory", "noncarnivory", "wet", "dry"]);
-@test_nowarn show(devnull, m3)
+@test_logs show(devnull, m3)
 @test nStates(m3)==4
 @test PhyloNetworks.nparams(m3)==8
 
@@ -148,24 +148,24 @@ lik(Q, root="flat") # -2.1207856874033491
 net = readTopology("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);");
 tips = Dict("A" => "lo", "B" => "lo", "C" => "hi", "D" => "hi");
 m1 = EqualRatesSubstitutionModel(2,0.36836216513047726, ["lo", "hi"]);
-fit1 = (@test_nowarn fitDiscrete(net, m1, tips; fixedparam=true));
-@test_nowarn show(devnull, fit1)
+fit1 = (@test_logs fitDiscrete(net, m1, tips; fixedparam=true));
+@test_logs show(devnull, fit1)
 @test loglikelihood(fit1) ≈ -2.6638637960257574
 species = ["G","C","A","B","D"]
 dat1 = DataFrame(trait = ["hi","hi","lo","lo","hi"], species = species)
 m2 = BinaryTraitSubstitutionModel(0.2, 0.3, ["lo", "hi"])
-fit2 = (@test_nowarn fitDiscrete(net, m2, dat1; fixedparam=true))
+fit2 = (@test_logs fitDiscrete(net, m2, dat1; fixedparam=true))
 @test fit2.trait == [[1],[1],[2],[2]]
 @test loglikelihood(fit2) ≈ -2.6754091090953693
 originalstdout = stdout
 redirect_stdout(open("/dev/null", "w"))
-fit2 = @test_nowarn fitDiscrete(net, m2, dat1; verbose=true) # 65 iterations
+fit2 = @test_logs fitDiscrete(net, m2, dat1; verbose=true) # 65 iterations
 redirect_stdout(originalstdout)
 @test fit2.model.rate ≈ [0.29993140042699212, 0.38882902905265493] atol=2e-4
 @test loglikelihood(fit2) ≈ -2.6447247349802496 atol=2e-4
 m2.rate = [0.2, 0.3];
 dat2 = DataFrame(trait1= ["hi","hi","lo","lo","hi"], trait2=["hi",missing,"lo","hi","lo"]);
-fit3 = (@test_nowarn fitDiscrete(net, m2, species, dat2; fixedparam=true))
+fit3 = (@test_logs fitDiscrete(net, m2, species, dat2; fixedparam=true))
 @test fit3.loglik ≈ (-2.6754091090953693 - 2.1207856874033491)
 PhyloNetworks.fit!(fit3; fixedparam=false)
 @test fit3.model.rate ≈ [0.3245640354187991, 0.5079501745877728]

@@ -4,7 +4,7 @@
 
 ## @testset "test: read CF data" begin
 ## # d=readInputData("1.ms"); #tableCF0.txt
-## d = (@test_nowarn PhyloNetworks.readInputData("1.ms",:all,0,["1","2","3","4","5","6"],false,"none",false,false);) #tableCF0.txt
+## d = (@test_logs PhyloNetworks.readInputData("1.ms",:all,0,["1","2","3","4","5","6"],false,"none",false,false);) #tableCF0.txt
 ## d = PhyloNetworks.readInputData("1.ms",:all,0,false); # writes summaryTreesQuartets.txt
 ## d=readInputData("1.ms",:rand,10); #tableCF3.txt
 ## d=readInputData("1.ms",[1,2,3,4,5]); #tableCF4.txt

@@ -25,10 +25,10 @@ end
 
 @testset "parsing extended newick" begin
 # second reticulation has minor before major, issue #70:
-net1 = (@test_nowarn readTopology("(((lo,#H3),#H4),((sp)#H3,(mu)#H4));"));
-net3 = (@test_nowarn readTopology("(((sp)#H3,(mu)#H4),((lo,#H3),#H4));"));
+net1 = (@test_logs readTopology("(((lo,#H3),#H4),((sp)#H3,(mu)#H4));"));
+net3 = (@test_logs readTopology("(((sp)#H3,(mu)#H4),((lo,#H3),#H4));"));
 @test hardwiredClusterDistance(net1, net3, true) == 0
-@test_nowarn readTopology("((((((((((((((Ae_ca1,Ae_ca2),Ae_ca3))#H1,#H2),(((Ae_um1,Ae_um2),Ae_um3),#H1)),((Ae_co1,Ae_co),(((Ae_un1,Ae_un2),Ae_un3),Ae_un4))),(((Ae_ta1,Ae_ta2),(Ae_ta3,Ae_ta4)),((((((((Ae_lo1,Ae_lo2),Ae_lo3),(Ae_sh1,Ae_sh2)),((Ae_bi1,Ae_bi2),Ae_bi3)),((Ae_se1,Ae_se2),Ae_se3)))#H2,#H3),#H4))),(((T_bo1,(T_bo2,T_bo3)),T_bo4),((T_ur1,T_ur2),(T_ur3,T_ur4)))),(((((Ae_sp1,Ae_sp2),Ae_sp3),Ae_sp4))#H3,((((Ae_mu1,Ae_mu2),Ae_mu3),Ae_mu4))#H4))),Ta_ca),S_va),Er_bo),H_vu);");
+@test_logs readTopology("((((((((((((((Ae_ca1,Ae_ca2),Ae_ca3))#H1,#H2),(((Ae_um1,Ae_um2),Ae_um3),#H1)),((Ae_co1,Ae_co),(((Ae_un1,Ae_un2),Ae_un3),Ae_un4))),(((Ae_ta1,Ae_ta2),(Ae_ta3,Ae_ta4)),((((((((Ae_lo1,Ae_lo2),Ae_lo3),(Ae_sh1,Ae_sh2)),((Ae_bi1,Ae_bi2),Ae_bi3)),((Ae_se1,Ae_se2),Ae_se3)))#H2,#H3),#H4))),(((T_bo1,(T_bo2,T_bo3)),T_bo4),((T_ur1,T_ur2),(T_ur3,T_ur4)))),(((((Ae_sp1,Ae_sp2),Ae_sp3),Ae_sp4))#H3,((((Ae_mu1,Ae_mu2),Ae_mu3),Ae_mu4))#H4))),Ta_ca),S_va),Er_bo),H_vu);");
 @test_throws ErrorException readTopology("(((lo,#H3),#H4);") # "Tree ended while reading in subtree ..."
 @test_throws ErrorException readTopology("((lo,#H3),);") # "Expected beginning of subtree but read ..."
 end
