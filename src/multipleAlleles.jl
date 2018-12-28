@@ -2,6 +2,7 @@
 # Claudia November 2015
 
 global repeatAlleleSuffix = "__2"
+repeatAlleleSuffix_re = Regex("$repeatAlleleSuffix\$")
 
 
 """
@@ -68,7 +69,7 @@ function mapAllelesCFtable!(cfDF::DataFrame, alleleDF::DataFrame, co::Vector{Int
     for j in 1:4
         for ia in 1:size(alleleDF,1) # for all alleles
             cfDF[co[j]] = map(x->replace(string(x),
-                                         Regex("^$(string(alleleDF[ia,:allele]))\$"),
+                                         Regex("^$(string(alleleDF[ia,:allele]))\$") =>
                                          alleleDF[ia,:species]),
                               cfDF[co[j]])
         end
@@ -284,14 +285,14 @@ end
 ## returns false if the network is not ok
 function checkTop4multAllele(net::HybridNetwork)
     for n in net.leaf
-        if(endswith(n.name, repeatAlleleSuffix))
+        if occursin(repeatAlleleSuffix_re, n.name)
             n.leaf || error("weird node $(n.number) not leaf in net.leaf list")
             length(n.edge) == 1 || error("weird leaf with $(length(n.edge)) edges")
             par = getOtherNode(n.edge[1],n)
             if(par.hybrid) ## there is gene flow into n
                 return false
             end
-            nameOther = replace(n.name,repeatAlleleSuffix,"")
+            nameOther = replace(n.name, repeatAlleleSuffix_re => "")
             foundOther = false
             for i in 1:3
                 other = getOtherNode(par.edge[i],par)
@@ -311,13 +312,13 @@ end
 function mergeLeaves!(net::HybridNetwork)
     leaves = copy(net.leaf) # bc we change this list
     for n in leaves
-        if(endswith(n.name, repeatAlleleSuffix))
+        if occursin(repeatAlleleSuffix_re, n.name)
             n.leaf || error("weird node $(n.number) not leaf in net.leaf list")
             length(n.edge) == 1 || error("weird leaf with $(length(n.edge)) edges")
             par = getOtherNode(n.edge[1],n)
             foundOther = false
             other = Node()
-            nameOther = replace(n.name,repeatAlleleSuffix,"")
+            nameOther = replace(n.name, repeatAlleleSuffix_re => "")
             for i in 1:3
                 other = getOtherNode(par.edge[i],par)
                 if(other.leaf && other.name == nameOther)

@@ -5,16 +5,18 @@
 # Claudia May 2016
 
 using Test
-using StaticArrays # for rate substitution matrices
-using StatsBase # for aic etc., stderr
-using CSV # for reading files
-using Missings
-using Distributed # parallel in test_correctLik.jl and test_bootstrap.jl
-using Random
-
 using PhyloNetworks
+
+using CSV # for reading files
 using DataFrames
-using GLM # for trait evolution
+using Distributed # parallel in test_correctLik.jl and test_bootstrap.jl
+using GLM # for coef, nobs, residuals etc.
+using LinearAlgebra
+using Random
+using StaticArrays # for rate substitution matrices
+using Statistics
+using StatsBase # for aic etc., stderr
+
 
 PhyloNetworks.setCHECKNET(true)
 
@@ -72,13 +74,13 @@ tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculat
          "test_hasEdge.jl", "test_parameters.jl", "test_correctLik.jl",
          "test_partition.jl", "test_partition2.jl", "test_deleteHybridizationUpdate.jl", "test_add2hyb.jl", "test_optBLparts.jl", "test_undirectedOtherNetworks.jl",
          "test_manipulateNet.jl", "test_compareNetworks.jl",
-         #"test_badDiamII.jl",
-         #"test_multipleAlleles.jl",
-         #"test_bootstrap.jl",
-         #"test_perfectData.jl", # "test_readme.jl"
-         #"test_lm.jl", "test_lm_tree.jl", "test_traits.jl", "test_simulate.jl",
-         #"test_parsimony.jl",
-         #"test_calibratePairwise.jl", "test_relaxed_reading.jl",
+         "test_badDiamII.jl",
+         "test_multipleAlleles.jl",
+         "test_bootstrap.jl",
+         "test_perfectData.jl", # "test_readme.jl"
+         "test_lm.jl", "test_lm_tree.jl", "test_traits.jl", "test_simulate.jl",
+         "test_parsimony.jl",
+         "test_calibratePairwise.jl", "test_relaxed_reading.jl",
          #"test_isMajor.jl", "test_interop.jl",
          #"test_traitLikDiscrete.jl",
          #"test_ticr.jl",
@@ -89,12 +91,13 @@ tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculat
 anyerrors = false
 
 for t in tests
+    global anyerrors
     try
         @info "starting $t"
         include(t)
         println("\033[1m\033[32mPASSED\033[0m: $t")
     catch
-        global anyerrors = true
+        anyerrors = true
         println("\033[1m\033[31mFAILED\033[0m: $t")
     end
 end

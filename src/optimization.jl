@@ -286,7 +286,7 @@ function calculateIneqGammaz(x::Vector{Float64}, net::HybridNetwork, ind::Intege
     hz = x[net.numHybrids - net.numBad + k + 1 : length(x)]
     if verbose # goes to stdout
         println("enters calculateIneqGammaz with hz $(hz), and hz[ind*2] + hz[ind*2-1] - 1 = $(hz[ind*2] + hz[ind*2-1] - 1)")
-    else # goes to stderr (if debug messages are turned on by user)
+    else # goes to logger (if debug messages are turned on by user)
         @debug "enters calculateIneqGammaz with hz $(hz), and hz[ind*2] + hz[ind*2-1] - 1 = $(hz[ind*2] + hz[ind*2-1] - 1)"
     end
     hz[ind*2] + hz[ind*2-1] - 1
@@ -386,7 +386,7 @@ function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool, ftolRel::Float64, 
     ##     NLopt.inequality_constraint!(opt,inequalityGammaz)
     ## end
     if verbose println("OPTBL: starting point $(ht)")     # to stdout
-    else @debug        "OPTBL: starting point $(ht)"; end # to stderr if debug turned on by user
+    else @debug        "OPTBL: starting point $(ht)"; end # to logger if debug turned on by user
     fmin, xmin, ret = NLopt.optimize(opt,ht)
     if verbose println("got $(round(fmin, digits=5)) at $(round(xmin, digits=5)) after $(count) iterations (returned $(ret))")
     else @debug        "got $(round(fmin, digits=5)) at $(round(xmin, digits=5)) after $(count) iterations (returned $(ret))"; end
@@ -1596,7 +1596,7 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     elseif verbose
         print(stdout, msg)
     end
-    filter!(n -> .!isa(n, Nothing), bestnet) # remove "nothing", failed runs
+    filter!(n -> n !== nothing, bestnet) # remove "nothing", failed runs
     if length(bestnet)>0
         ind = sortperm([n.loglik for n in bestnet])
         bestnet = bestnet[ind]

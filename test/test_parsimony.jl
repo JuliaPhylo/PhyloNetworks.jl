@@ -1,12 +1,13 @@
 extrarun = false
+originalstdout = stdout
 
 @testset "Testing parsimony score & reconstruction" begin
+global net
 
 @testset "Fitch" begin
 # on a tree:
 net = readTopology("(A,(B,(C,D)));")
 tips = Dict("A" => 0, "B" => 0, "C" => 1, "D" => 1)
-originalstdout = stdout
 redirect_stdout(open("/dev/null", "w")) # not portable to Windows
 score, states = PhyloNetworks.parsimonyDiscreteFitch(net, tips)
 redirect_stdout(originalstdout)

@@ -147,7 +147,7 @@ function ticr_optimalpha(D::DataCF; x_start=1.0::Float64,
     minNonZeroObsCF = minimum([minimum(filter(!iszero,q.obsCF)) for q in D.quartet])
     minObsCF = min(minExpCF,minNonZeroObsCF)
     for q in D.quartet 
-        q.obsCF[find(q.obsCF .== 0)] = minObsCF
+        q.obsCF[findall(iszero, q.obsCF)] = minObsCF
     end
     for i in 1:M
         lobsCF = log.(D.quartet[i].obsCF)

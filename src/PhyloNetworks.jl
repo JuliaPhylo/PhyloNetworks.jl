@@ -11,13 +11,13 @@ module PhyloNetworks
     using Dates       # stdlib
     using Distributed # stdlib
     using GLM # for the lm function
-    using LinearAlgebra # for LowerTriangular. not in REQUIRE or Project.toml: stdlib
+    using LinearAlgebra # for LowerTriangular, logdet, diag. not in REQUIRE or Project.toml: stdlib
     using NLopt # for branch lengths optimization
     using Printf: @printf, @sprintf # not in REQUIRE or Project.toml: stdlib
     using Random      # stdlib
     using SpecialFunctions: lgamma, gamma
     using StaticArrays
-    using Statistics: mean # stdlib
+    using Statistics: mean, quantile # stdlib
     using StatsBase # sample, coef etc.
     using StatsFuns: logsumexp
     using StatsModels # re-exported by GLM. for ModelFrame ModelMatrix Formula etc

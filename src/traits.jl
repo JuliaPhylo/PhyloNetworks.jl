@@ -221,7 +221,7 @@ end
 
 # If some tips are missing, treat them as "internal nodes"
 """
-    getindex(obj, d,[ indTips, msng])
+    getindex(obj, d,[ indTips, nonmissing])
 
 Getting submatrices of an object of type [`MatrixTopologicalOrder`](@ref).
 
@@ -232,17 +232,17 @@ Getting submatrices of an object of type [`MatrixTopologicalOrder`](@ref).
   * `:InternalNodes` columns and/or rows corresponding to the internal nodes
   * `:TipsNodes` columns corresponding to internal nodes, and row to tips (works only is indexation="b")
 * `indTips::Vector{Int}`: optional argument precising a specific order for the tips (internal use).
-* `msng::BitArray{1}`: optional argument precising the missing tips (internal use).
+* `nonmissing::BitArray{1}`: optional argument saying which tips have data (internal use).
 
 """
 function Base.getindex(obj::MatrixTopologicalOrder,
                        d::Symbol,
                        indTips=collect(1:length(obj.tipNumbers))::Vector{Int},
-                       msng=trues(length(obj.tipNumbers))::BitArray{1})
+                       nonmissing=trues(length(obj.tipNumbers))::BitArray{1})
     if d == :Tips # Extract rows and/or columns corresponding to the tips with data
         maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
         maskTips = maskTips[indTips]
-        maskTips = maskTips[msng]
+        maskTips = maskTips[nonmissing]
         obj.indexation == "b" && return obj.V[maskTips, maskTips] # both columns and rows are indexed by nodes
         obj.indexation == "c" && return obj.V[:, maskTips] # Only the columns
         obj.indexation == "r" && return obj.V[maskTips, :] # Only the rows
@@ -251,7 +251,7 @@ function Base.getindex(obj::MatrixTopologicalOrder,
         maskNodes = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
         maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
         maskTips = maskTips[indTips]
-        maskNodes = [maskNodes; maskTips[.!msng]]
+        maskNodes = [maskNodes; maskTips[.!nonmissing]]
         obj.indexation == "b" && return obj.V[maskNodes, maskNodes]
         obj.indexation == "c" && return obj.V[:, maskNodes]
         obj.indexation == "r" && return obj.V[maskNodes, :]
@@ -260,8 +260,8 @@ function Base.getindex(obj::MatrixTopologicalOrder,
         maskNodes = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
         maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
         maskTips = maskTips[indTips]
-        maskNodes = [maskNodes; maskTips[.!msng]]
-        maskTips = maskTips[msng]
+        maskNodes = [maskNodes; maskTips[.!nonmissing]]
+        maskTips = maskTips[nonmissing]
         obj.indexation == "b" && return obj.V[maskTips, maskNodes]
         obj.indexation == "c" && error("""Both rows and columns must be net
                                        ordered to take the submatrix tips vs internal nodes.""")
@@ -347,7 +347,7 @@ function vcv(net::HybridNetwork;
     @assert (model == "BM") "The 'vcv' function only works for a BM process (for now)."
     V = sharedPathMatrix(net; checkPreorder=checkPreorder)
     C = V[:Tips]
-    corr && StatsBase.cov2cor!(C, sqrt.(diag(C)))
+    corr && StatsBase.cov2cor!(C, sqrt.(LinearAlgebra.diag(C)))
     Cd = convert(DataFrame, C)
     names!(Cd, map(Symbol, V.tipNames))
     return(Cd)
@@ -448,13 +448,13 @@ function updateNodeDescendenceMatrix!(V::Matrix,
                                     edges::Vector{Edge},
                                     params)
     for j in 1:length(edges)
-        V[:,i] += edges[j].gamma*V[:,childrenIndex[j]]
+        V[:,i] .+= edges[j].gamma .* V[:,childrenIndex[j]]
     end
 end
 
 function initDescendenceMatrix(nodes::Vector{Node}, params)
     n = length(nodes)
-    return(eye(Float64,n,n))
+    return(Matrix{Float64}(LinearAlgebra.I, n, n)) # identity matrix
 end
 
 ###############################################################################
@@ -688,7 +688,7 @@ AIC: 7.4012043891
 function regressorHybrid(net::HybridNetwork; checkPreorder=true::Bool)
     childs = [getChildren(nn)[1] for nn in net.hybrid]
     dfr = regressorShift(childs, net; checkPreorder=checkPreorder)
-    dfr[:sum] = vec(sum(Array(dfr[:,find(names(dfr) .!= :tipNames)]), 2))
+    dfr[:sum] = vec(sum(Matrix(dfr[findall(names(dfr) .!= :tipNames)]), dims=2))
     return(dfr)
 end
 
@@ -712,13 +712,13 @@ corresponding to the shift on the parent edge of the node
 
 Two `ShiftNet` objects on the same network can be concatened with `*`.
 
-`ShiftNet(node::Vector{Node}, value::Vector{T} where T<:Real, net::HybridNetwork; checkPreorder=true::Bool)`
+`ShiftNet(node::Vector{Node}, value::AbstractVector, net::HybridNetwork; checkPreorder=true::Bool)`
 
 Constructor from a vector of nodes and associated values. The shifts are located
 on the edges above the nodes provided. Warning, shifts on hybrid edges are not
 allowed.
 
-`ShiftNet(edge::Vector{Edge}, value::Vector{T} where T<:Real, net::HybridNetwork; checkPreorder=true::Bool)`
+`ShiftNet(edge::Vector{Edge}, value::AbstractVector, net::HybridNetwork; checkPreorder=true::Bool)`
 
 Constructor from a vector of edges and associated values.
 Warning, shifts on hybrid edges are not allowed.
@@ -726,14 +726,14 @@ Warning, shifts on hybrid edges are not allowed.
 Extractors: [`getShiftEdgeNumber`](@ref), [`getShiftValue`](@ref)
 """
 struct ShiftNet
-    shift::Vector{T} where T<:Real
+    shift::Vector{Float64}
     net::HybridNetwork
 end
 
 # Default
 ShiftNet(net::HybridNetwork) = ShiftNet(zeros(length(net.node)), net)
 
-function ShiftNet(node::Vector{Node}, value::Vector{T} where T<:Real,
+function ShiftNet(node::Vector{Node}, value::AbstractVector,
                   net::HybridNetwork; checkPreorder=true::Bool)
     if length(node) != length(value)
         error("The vector of nodes/edges and of values must be of the same length.")
@@ -751,14 +751,14 @@ function ShiftNet(node::Vector{Node}, value::Vector{T} where T<:Real,
 end
 
 # Construct from edges and values
-function ShiftNet(edge::Vector{Edge}, value::Vector{T} where T<:Real,
+function ShiftNet(edge::Vector{Edge}, value::AbstractVector,
                   net::HybridNetwork; checkPreorder=true::Bool)
     childs = [getChild(ee) for ee in edge]
     return(ShiftNet(childs, value, net; checkPreorder=checkPreorder))
 end
 
-ShiftNet(edge::Edge, value::Real, net::HybridNetwork; checkPreorder=true::Bool) = ShiftNet([edge], [value], net; checkPreorder=checkPreorder)
-ShiftNet(node::Node, value::Real, net::HybridNetwork; checkPreorder=true::Bool) = ShiftNet([node], [value], net; checkPreorder=checkPreorder)
+ShiftNet(edge::Edge, value::Float64, net::HybridNetwork; checkPreorder=true::Bool) = ShiftNet([edge], [value], net; checkPreorder=checkPreorder)
+ShiftNet(node::Node, value::Float64, net::HybridNetwork; checkPreorder=true::Bool) = ShiftNet([node], [value], net; checkPreorder=checkPreorder)
 
 """
     shiftHybrid(value::Vector{T} where T<:Real, net::HybridNetwork; checkPreorder=true::Bool)
@@ -784,7 +784,7 @@ shiftHybrid(value::Real, net::HybridNetwork; checkPreorder=true::Bool) = shiftHy
 Get the edge numbers where the shifts are located, for an object [`ShiftNet`](@ef).
 """
 function getShiftEdgeNumber(shift::ShiftNet)
-    nodInd = find(shift.shift)
+    nodInd = findall(!iszero, shift.shift)
     [getMajorParentEdgeNumber(n) for n in shift.net.nodes_changed[nodInd]]
 end
 function getMajorParentEdgeNumber(n::Node)
@@ -820,9 +820,9 @@ function Base.:*(sh1::ShiftNet, sh2::ShiftNet)
     length(sh1.shift) == length(sh2.shift) || error("Shifts to be concatenated must have the same length.")
     shiftNew = zeros(length(sh1.shift))
     for i in 1:length(sh1.shift)
-        if sh1.shift[i] == 0
+        if iszero(sh1.shift[i])
             shiftNew[i] = sh2.shift[i]
-        elseif sh2.shift[i] == 0
+        elseif iszero(sh2.shift[i])
             shiftNew[i] = sh1.shift[i]
         elseif sh1.shift[i] == sh2.shift[i]
             shiftNew[i] = sh1.shift[i]
@@ -1128,7 +1128,7 @@ If a Pagel's lambda model is fitted, the parameter can be retrieved with functio
 An ancestral state reconstruction can be performed from this fitted object using function:
 [`ancestralStateReconstruction`](@ref).
 
-The `PhyloNetworkLinearModel` object has fields: `lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `ind`, `msng`, `model`, `lambda`.
+The `PhyloNetworkLinearModel` object has fields: `lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `ind`, `nonmissing`, `model`, `lambda`.
 Type in "?PhyloNetworkLinearModel.field" to get help on a specific field.
 """
 mutable struct PhyloNetworkLinearModel <: LinPredModel
@@ -1145,24 +1145,25 @@ mutable struct PhyloNetworkLinearModel <: LinPredModel
     "X: the matrix of regressors"
     X::Matrix
     "logdetVy: the log-determinent of Vy"
-    logdetVy::Real
+    logdetVy::Float64
     "ind: vector matching the tips of the network against the names of the dataframe provided. 0 if the match could not be performed."
     ind::Vector{Int}
-    "msng: vector indicating which of the tips are missing"
-    msng::BitArray{1} # Which tips are not missing
+    "nonmissing: vector indicating which tips have non-missing data"
+    nonmissing::BitArray{1}
     "model: the model used for the fit"
-    model::AbstractString
+    model::String
     "If applicable, value of lambda (default to 1)."
-    lambda::Real
+    lambda::Float64
 end
 
-PhyloNetworkLinearModel(lm_fit, V, Vy, RL, Y, X, logdetVy, ind, msng, model) = PhyloNetworkLinearModel(lm_fit, V, Vy, RL, Y, X, logdetVy, ind, msng, model, 1.0)
+PhyloNetworkLinearModel(lm_fit, V, Vy, RL, Y, X, logdetVy, ind, nonmissing, model) =
+  PhyloNetworkLinearModel(lm_fit,V,Vy, RL, Y, X, logdetVy, ind, nonmissing, model, 1.0)
 
 # Function for lm with net residuals
 function phyloNetworklm(X::Matrix,
                         Y::Vector,
                         net::HybridNetwork;
-                        msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
+                        nonmissing=trues(length(Y))::BitArray{1},
                         model="BM"::AbstractString,
                         ind=[0]::Vector{Int},
                         startingValue=0.5::Real,
@@ -1173,7 +1174,7 @@ function phyloNetworklm(X::Matrix,
         V = sharedPathMatrix(net)
         # Fit
         return phyloNetworklm_BM(X, Y, V;
-                                 msng=msng, ind=ind)
+                                 nonmissing=nonmissing, ind=ind)
     end
     if model == "lambda"
         # Geting variance covariance
@@ -1183,7 +1184,7 @@ function phyloNetworklm(X::Matrix,
         times = getHeights(net)
         # Fit
         return phyloNetworklm_lambda(X, Y, V, gammas, times;
-                                     msng=msng, ind=ind,
+                                     nonmissing=nonmissing, ind=ind,
                                      startingValue=startingValue, fixedValue=fixedValue)
     end
     if (model == "scalingHybrid")
@@ -1192,7 +1193,7 @@ function phyloNetworklm(X::Matrix,
         gammas = getGammas(net)
         # Fit
         return phyloNetworklm_scalingHybrid(X, Y, net, gammas;
-                                            msng=msng, ind=ind,
+                                            nonmissing=nonmissing, ind=ind,
                                             startingValue=startingValue, fixedValue=fixedValue)
     end
 end
@@ -1203,7 +1204,7 @@ end
 function phyloNetworklm_BM(X::Matrix,
                            Y::Vector,
                            V::MatrixTopologicalOrder;
-                           msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
+                           nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                            ind=[0]::Vector{Int},
                            model="BM"::AbstractString,
                            lambda=1.0::Real)
@@ -1212,12 +1213,12 @@ function phyloNetworklm_BM(X::Matrix,
     # Re-order if necessary
     if (ind != [0]) Vy = Vy[ind, ind] end
     # Keep only not missing values
-    Vy = Vy[msng, msng]
+    Vy = Vy[nonmissing, nonmissing]
     # Cholesky decomposition
-    R = cholfact(Vy)
-    RL = R[:L]
+    R = cholesky(Vy)
+    RL = R.L
     # Fit
-    PhyloNetworkLinearModel(lm(RL\X, RL\Y), V, Vy, RL, Y, X, logdet(Vy), ind, msng, model, lambda)
+    PhyloNetworkLinearModel(lm(RL\X, RL\Y), V, Vy, RL, Y, X, LinearAlgebra.logdet(Vy), ind, nonmissing, model, lambda)
 end
 
 ###############################################################################
@@ -1285,7 +1286,7 @@ function getHeights(net::HybridNetwork)
     setGammas!(net, ones(net.numNodes))
     V = sharedPathMatrix(net)
     setGammas!(net, gammas)
-    return(diag(V[:All]))
+    return(LinearAlgebra.diag(V[:All]))
 end
 
 function maxLambda(times::Vector, V::MatrixTopologicalOrder)
@@ -1308,20 +1309,20 @@ function transform_matrix_lambda!(V::MatrixTopologicalOrder, lam::AbstractFloat,
         V.V[i, i] += (1-lam) * (gammas[i]^2 + (1-gammas[i])^2) * times[i]
     end
     #   V_diag = diagm(diag(V.V))
-    #   V.V = lam * V.V + (1 - lam) * V_diag
+    #   V.V = lam * V.V .+ (1 - lam) .* V_diag
 end
 
 function logLik_lam(lam::AbstractFloat,
                     X::Matrix, Y::Vector,
                     V::MatrixTopologicalOrder,
                     gammas::Vector, times::Vector;
-                    msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
+                    nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                     ind=[0]::Vector{Int})
     # Transform V according to lambda
     Vp = deepcopy(V)
     transform_matrix_lambda!(Vp, lam, gammas, times)
     # Fit and take likelihood
-    fit_lam = phyloNetworklm_BM(X, Y, Vp; msng=msng, ind=ind)
+    fit_lam = phyloNetworklm_BM(X, Y, Vp; nonmissing=nonmissing, ind=ind)
     res = - loglikelihood(fit_lam)
     # Go back to original V
     # transform_matrix_lambda!(V, 1/lam, gammas, times)
@@ -1339,7 +1340,7 @@ function phyloNetworklm_lambda(X::Matrix,
                                V::MatrixTopologicalOrder,
                                gammas::Vector,
                                times::Vector;
-                               msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
+                               nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                                ind=[0]::Vector{Int},
                                ftolRel=fRelTr::AbstractFloat,
                                xtolRel=xRelTr::AbstractFloat,
@@ -1364,7 +1365,7 @@ function phyloNetworklm_lambda(X::Matrix,
         count = 0
         function fun(x::Vector{Float64}, g::Vector{Float64})
             x = convert(AbstractFloat, x[1])
-            res = logLik_lam(x, X, Y, V, gammas, times; msng=msng, ind=ind)
+            res = logLik_lam(x, X, Y, V, gammas, times; nonmissing=nonmissing, ind=ind)
             count =+ 1
             #println("f_$count: $(round(res, digits=5)), x: $(x)")
             return res
@@ -1377,7 +1378,7 @@ function phyloNetworklm_lambda(X::Matrix,
         res_lam = fixedValue
     end
     transform_matrix_lambda!(V, res_lam, gammas, times)
-    res = phyloNetworklm_BM(X, Y, V; msng=msng, ind=ind, model="lambda", lambda=res_lam)
+    res = phyloNetworklm_BM(X, Y, V; nonmissing=nonmissing, ind=ind, model="lambda", lambda=res_lam)
 #    res.lambda = res_lam
 #    res.model = "lambda"
     return res
@@ -1388,7 +1389,7 @@ end
 
 function matrix_scalingHybrid(net::HybridNetwork, lam::AbstractFloat,
                               gammas::Vector)
-    setGammas!(net, 1-lam*(1-gammas))
+    setGammas!(net, 1.0 .- lam .* (1. .- gammas))
     V = sharedPathMatrix(net)
     setGammas!(net, gammas)
     return V
@@ -1397,12 +1398,12 @@ end
 function logLik_lam_hyb(lam::AbstractFloat,
                         X::Matrix, Y::Vector,
                         net::HybridNetwork, gammas::Vector;
-                        msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
+                        nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                         ind=[0]::Vector{Int})
     # Transform V according to lambda
     V = matrix_scalingHybrid(net, lam, gammas)
     # Fit and take likelihood
-    fit_lam = phyloNetworklm_BM(X, Y, V; msng=msng, ind=ind)
+    fit_lam = phyloNetworklm_BM(X, Y, V; nonmissing=nonmissing, ind=ind)
     return -loglikelihood(fit_lam)
 end
 
@@ -1410,7 +1411,7 @@ function phyloNetworklm_scalingHybrid(X::Matrix,
                                       Y::Vector,
                                       net::HybridNetwork,
                                       gammas::Vector;
-                                      msng=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
+                                      nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                                       ind=[0]::Vector{Int},
                                       ftolRel=fRelTr::AbstractFloat,
                                       xtolRel=xRelTr::AbstractFloat,
@@ -1431,7 +1432,7 @@ function phyloNetworklm_scalingHybrid(X::Matrix,
         count = 0
         function fun(x::Vector{Float64}, g::Vector{Float64})
             x = convert(AbstractFloat, x[1])
-            res = logLik_lam_hyb(x, X, Y, net, gammas; msng=msng, ind=ind)
+            res = logLik_lam_hyb(x, X, Y, net, gammas; nonmissing=nonmissing, ind=ind)
             #count =+ 1
             #println("f_$count: $(round(res, digits=5)), x: $(x)")
             return res
@@ -1444,7 +1445,7 @@ function phyloNetworklm_scalingHybrid(X::Matrix,
         res_lam = fixedValue
     end
     V = matrix_scalingHybrid(net, res_lam, gammas)
-    res = phyloNetworklm_BM(X, Y, V; msng=msng, ind=ind)
+    res = phyloNetworklm_BM(X, Y, V; nonmissing=nonmissing, ind=ind)
     res.lambda = res_lam
     res.model = "scalingHybrid"
     return res
@@ -1467,7 +1468,7 @@ example to see all the functions that can be applied to it.
 * `net::HybridNetwork`: phylogenetic network to use. Should have labelled tips.
 * `model::AbstractString="BM"`: the model to use, "BM" (default) or "lambda" (for Pagel's lambda).
 * `no_names::Bool=false`: if `true`, force the function to ignore the tips names. The data is then assumed to be in the same order as the tips of the network. Default to false, setting it to true is dangerous, and strongly discouraged.
-If `model="lambda"`, there are a some parameters to control the optimization in lambda:
+If `model="lambda"`, these parameters control the optimization of lambda:
 * `fTolRel::AbstractFloat=1e-10`: relative tolerance on the likelihood value for the optimization in lambda.
 * `fTolAbs::AbstractFloat=1e-10`: absolute tolerance on the likelihood value for the optimization in lambda.
 * `xTolRel::AbstractFloat=1e-10`: relative tolerance on the parameter value for the optimization in lambda.
@@ -1675,7 +1676,7 @@ function phyloNetworklm(f::Formula,
     # Fit the model (Method copied from DataFrame/src/statsmodels/statsmodels.jl, lines 47-58)
     # (then StatsModels/src/statsmodels.jl lines 42-46)
     StatsModels.DataFrameRegressionModel(phyloNetworklm(mm.m, Y, net;
-                                                       msng=mf.msng, model=model, ind=ind,
+                                                       nonmissing=mf.nonmissing, model=model, ind=ind,
                                                        startingValue=startingValue, fixedValue=fixedValue), mf, mm)
 end
 
@@ -1971,16 +1972,16 @@ function expectationsPlot(obj::ReconstructedStates; markMissing="*"::AbstractStr
     end
     # Find missing values
     if !ismissing(obj.model)
-        msng = obj.model.msng
+        nonmissing = obj.model.nonmissing
         ind = obj.model.ind
-        missingTipNumbers = obj.model.V.tipNumbers[ind][.!msng]
+        missingTipNumbers = obj.model.V.tipNumbers[ind][.!nonmissing]
         indexMissing = indexin(missingTipNumbers, expe[:nodeNumber])
         expetxt[indexMissing] .*= markMissing
     end
     return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], PredInt = expetxt)
 end
 
-StatsBase.stderror(obj::ReconstructedStates) = sqrt.(diag(obj.variances_nodes))
+StatsBase.stderror(obj::ReconstructedStates) = sqrt.(LinearAlgebra.diag(obj.variances_nodes))
 
 """
     predint(obj::ReconstructedStates; level=0.95::Real)
@@ -1994,7 +1995,7 @@ function predint(obj::ReconstructedStates; level=0.95::Real)
         qq = quantile(GLM.TDist(dof_residual(obj.model)), (1. - level)/2.) # TDist from Distributions
         # @warn "As the variance is estimated, the predictions intervals are not exact, and should probably be larger."
     end
-    tmpnode = hcat(obj.traits_nodes, obj.traits_nodes) + stderror(obj) * qq * [1. -1.]
+    tmpnode = hcat(obj.traits_nodes, obj.traits_nodes) .+ (stderror(obj) * qq) .* [1. -1.]
     return vcat(tmpnode, hcat(obj.traits_tips, obj.traits_tips))
 end
 
@@ -2076,8 +2077,8 @@ function ancestralStateReconstruction(V::MatrixTopologicalOrder,
     Vy = V[:Tips]
     Vz = V[:InternalNodes]
     Vyz = V[:TipsNodes]
-    R = cholfact(Vy)
-    RL = R[:L]
+    R = cholesky(Vy)
+    RL = R.L
     temp = RL \ Vyz
     # Vectors of means
     m_y = ones(size(Vy)[1]) .* params.mu # !! correct only if no predictor.
@@ -2125,7 +2126,7 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)
         error("""The number of predictors for the ancestral states (number of columns of X_n)
               does not match the number of predictors at the tips.""")
     end
-    if (size(X_n)[1] != length(obj.V.internalNodeNumbers) + sum(.!obj.msng))
+    if size(X_n)[1] != length(obj.V.internalNodeNumbers) + sum(.!obj.nonmissing)
         error("""The number of lines of the predictors does not match
               the number of nodes plus the number of missing tips.""")
     end
@@ -2133,21 +2134,21 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)
     m_z = X_n * coef(obj)
     # If the tips were re-organized, do the same for Vyz
     if (obj.ind != [0])
-#       iii = indexin(1:length(obj.msng), obj.ind[obj.msng])
+#       iii = indexin(1:length(obj.nonmissing), obj.ind[obj.nonmissing])
 #       iii = iii[iii .> 0]
-#       jjj = [1:length(obj.V.internalNodeNumbers); indexin(1:length(obj.msng), obj.ind[!obj.msng])]
+#       jjj = [1:length(obj.V.internalNodeNumbers); indexin(1:length(obj.nonmissing), obj.ind[!obj.nonmissing])]
 #       jjj = jjj[jjj .> 0]
 #       Vyz = Vyz[iii, jjj]
-        Vyz = obj.V[:TipsNodes, obj.ind, obj.msng]
-        missingTipNumbers = obj.V.tipNumbers[obj.ind][.!obj.msng]
-        nmTipNumbers = obj.V.tipNumbers[obj.ind][obj.msng]
+        Vyz = obj.V[:TipsNodes, obj.ind, obj.nonmissing]
+        missingTipNumbers = obj.V.tipNumbers[obj.ind][.!obj.nonmissing]
+        nmTipNumbers = obj.V.tipNumbers[obj.ind][obj.nonmissing]
     else
         @warn """There were no indication for the position of the tips on the network.
              I am assuming that they are given in the same order.
              Please check that this is what you intended."""
-        Vyz = obj.V[:TipsNodes, collect(1:length(obj.V.tipNumbers)), obj.msng]
-        missingTipNumbers = obj.V.tipNumbers[.!obj.msng]
-        nmTipNumbers = obj.V.tipNumbers[obj.msng]
+        Vyz = obj.V[:TipsNodes, collect(1:length(obj.V.tipNumbers)), obj.nonmissing]
+        missingTipNumbers = obj.V.tipNumbers[.!obj.nonmissing]
+        nmTipNumbers = obj.V.tipNumbers[obj.nonmissing]
     end
     temp = obj.RL \ Vyz
     U = X_n - temp' * (obj.RL \ obj.X)
@@ -2158,7 +2159,7 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)
          Additional uncertainty in the estimation of this variance rate is
          ignored, so prediction intervals should be larger."""
     # Actual reconstruction
-    ancestralStateReconstruction(obj.V[:InternalNodes, obj.ind, obj.msng],
+    ancestralStateReconstruction(obj.V[:InternalNodes, obj.ind, obj.nonmissing],
                                  temp,
                                  obj.RL,
                                  obj.Y,
@@ -2335,8 +2336,6 @@ julia> predintPlot(ancStates)
 
 julia> plot(phy, :RCall, nodeLabel = predintPlot(ancStates));
 
-julia> using Missings; # preparation to mask 2 values next, for taxa in rows 2 and 5
-
 julia> dat[:trait] = allowmissing(dat[:trait]);
 
 julia> dat[[2, 5], :trait] = missing; # missing values allowed to fit model
@@ -2455,7 +2454,7 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel)
     are known, please provide them as a matrix argument to the function.
     Otherwise, you might consider doing a multivariate linear regression (not implemented yet).""")
     end
-  X_n = ones((length(obj.V.internalNodeNumbers) + sum(.!obj.msng), 1))
+  X_n = ones((length(obj.V.internalNodeNumbers) + sum(.!obj.nonmissing), 1))
     ancestralStateReconstruction(obj, X_n)
 end
 # For a DataFrameRegressionModel

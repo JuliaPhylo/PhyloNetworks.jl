@@ -277,7 +277,7 @@ function randQuartets(taxon::Union{Vector{String},Vector{Int}},num::Integer, wri
     num <= ntotal || error("you cannot choose a sample of $(num) quartets when there are $(ntotal) in total")
     # indx = [rep(1,num);rep(0,ntotal-num)] # requires much more memory than necessary:
     # indx = indx[sortperm(randn(ntotal))]  # several arrays of size ntotal !!
-    # rq = find(indx .== 1)
+    # rq = findall(x -> x==1, indx)
     rq = sample(1:ntotal, num, replace=false, ordered=true)
     randName = "rand$(num)Quartets.txt"
     println("list of randomly selected quartets in file $(randName)")
@@ -764,7 +764,7 @@ function to summarize the information contained in a DataCF object. It has the f
 """
 function summarizeDataCF(d::DataCF; filename="none"::AbstractString, pc=0.7::Float64)
     0<=pc<=1 || error("percentage of missing genes should be between 0,1, not: $(pc)")
-    if(filename == "none")
+    if filename == "none"
         descData(d,stdout,pc)
     else
         descData(d,filename,pc)
@@ -787,17 +787,13 @@ function updateBL!(net::HybridNetwork,d::DataCF)
     end
     parts = edgesParts(net)
     df = makeTable(net,parts,d)
-    x=by(df,[:edge],df->DataFrame(Nquartets=length(df[:CF]),edgeL=-log(3/2*(1-mean(df[:CF])))))
-    # ommitting columns: meanCF=mean(df[:CF]), sdCF=std(df[:CF])
+    x = by(df, :edge, Nquartets= :CF => length,
+                      edgeL = :CF => x -> -log(3/2*(1. - mean(x))))
+    # ommitting columns: meanCF= :CF => mean, sdCF= :CF => std
     edges = x[:edge]
     lengths = x[:edgeL]
     for i in 1:length(edges)
-        try
-            ind = getIndexEdge(edges[i],net)
-        catch
-            error("edge $(edges[i]) not in net")
-        end
-        ind = getIndexEdge(edges[i],net)
+        ind = getIndexEdge(edges[i],net) # helpful error if not found
         if net.edge[ind].length < 0.0 || net.edge[ind].length==1.0
             # readTopologyLevel1 changes missing branch length to 1.0
             setLength!(net.edge[ind], (lengths[i] > 0 ? lengths[i] : 0.0))

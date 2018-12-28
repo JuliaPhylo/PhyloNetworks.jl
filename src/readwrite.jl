@@ -1406,7 +1406,7 @@ function symmetricTree(n::Int, ell::Real, i=1::Int)
     tree = "(" * tree * "," * tree * ");"
     # Rename tips
     for k in (2^n-1):-1:1
-        tree = replace(tree, "A$(i-1+k+1):$(ell)", "A$(i-1+k):$(ell)", k)
+        tree = replace(tree, "A$(i-1+k+1):$(ell)"=>"A$(i-1+k):$(ell)", count=k)
     end
     return(tree)
 end
@@ -1432,8 +1432,8 @@ function symmetricNet(n::Int, i::Int, j::Int, gamma::Real, ell::Real)
         clo = clo*"):$(ell)"
     end
     clobis = clo[1:(length(clo)-length("$(ell)"))]*"$(0.5*ell)"
-    tree = replace(tree, op, "(#H:$(ell)::$(gamma),"*op)
-    tree = replace(tree, clo, clobis*"):$(0.5*ell)")
+    tree = replace(tree,  op => "(#H:$(ell)::$(gamma),"*op)
+    tree = replace(tree, clo => clobis*"):$(0.5*ell)")
     ## end hyb
     op = "A$(2^(i-1)+1):$(ell)"
     clo = "A$(2^(i-1) + 2^(j-1)):$(ell)"
@@ -1442,8 +1442,8 @@ function symmetricNet(n::Int, i::Int, j::Int, gamma::Real, ell::Real)
         clo = clo*"):$(ell)"
     end
     clobis = clo[1:(length(clo)-length("$(ell)"))]*"$(0.5*ell)"
-    tree = replace(tree, op, "("*op)
-    tree = replace(tree, clo, clobis*")#H:$(0.5*ell)::$(1-gamma)")
+    tree = replace(tree, op  => "("*op)
+    tree = replace(tree, clo => clobis*")#H:$(0.5*ell)::$(1-gamma)")
     return(tree)
 end
 
@@ -1470,16 +1470,16 @@ function symmetricNet(n::Int, h::Int, gamma::Real, i=1::Int)
     end
     net = net * ";"
     # Rename hybrids
-    net = replace(net, "H", "H$(2^(n-h))")
+    net = replace(net, "H" => "H$(2^(n-h))")
     for k in (2^(n-h)-1):-1:1
-        net = replace(net, "H$(k+1)", "H$(k)", 2*k)
+        net = replace(net, "H$(k+1)" => "H$(k)", count=2*k)
     end
     # Rename tips
     for k in (2^h):-1:1
-        net = replace(net, "A$(k):", "A$(i-1+2^n):")
+        net = replace(net, "A$(k):" => "A$(i-1+2^n):")
     end
     for k in (2^n-1):-1:1
-        net = replace(net, "A$(i-1+k+1):", "A$(i-1+k):", k)
+        net = replace(net, "A$(i-1+k+1):" => "A$(i-1+k):", count=k)
     end
     return(net)
 end

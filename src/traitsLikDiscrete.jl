@@ -432,14 +432,14 @@ function check_matchtaxonnames!(species::AbstractVector, dat::AbstractVector, ne
     @assert length(dat) == length(species) "need as many species as rows in trait data"
     # 2. match taxon labels between data and network
     netlab = tipLabels(net)
-    ind2notinnet = find(x -> x ∉ netlab, species) # species not in network
+    ind2notinnet = findall(x -> x ∉ netlab, species) # species not in network
     deleteat!(species, ind2notinnet)
     deleteat!(dat,     ind2notinnet)
     nvalues = [sum(.!ismissing.(d)) for d in dat] # species with completely missing data
-    indmissing = find(x -> x==0, nvalues)
+    indmissing = findall(x -> x==0, nvalues)
     deleteat!(species, indmissing)
     deleteat!(dat,     indmissing)
-    indnotindat = find(x -> x ∉ species, netlab) # species not in data
+    indnotindat = findall(x -> x ∉ species, netlab) # species not in data
     net = deepcopy(net)
     if !isempty(indnotindat)
         @warn "the network contains taxa with no data: those will be pruned"
@@ -553,8 +553,8 @@ function ancestralStateReconstruction(obj::SSM, trait::Integer)
         nodestringlabels[n.number] = (n.name == "" ? string(n.number) : n.name)
     end
     dat = DataFrame(transpose(res), Symbol.(obj.model.label))
-    insert!(dat, 1, collect(1:nnodes), :nodenumber, makeunique=true)
-    insert!(dat, 2, nodestringlabels,  :nodelabel,  makeunique=true)
+    insertcols!(dat, 1, :nodenumber => collect(1:nnodes), makeunique=true)
+    insertcols!(dat, 2, :nodelabel  => nodestringlabels,  makeunique=true)
     return dat
 end
 

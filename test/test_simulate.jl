@@ -61,9 +61,8 @@ end
 ## With Shifts
 ###############################################################################
 @testset "Simulate with Shifts" begin
-
-tree_str= "(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6):1):0.5);"
-net = readTopology(tree_str)
+global net
+net = readTopology("(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6):1):0.5);")
 
 ## Test construction function
 @test_throws ErrorException ShiftNet(net.edge[7], 3.0,  net) # can't put a shift on hybrid branch

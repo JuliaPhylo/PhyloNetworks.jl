@@ -917,7 +917,7 @@ function resetEdgeNumbers!(net::HybridNetwork)
         return nothing # all good
     end
     @warn "resetting edge numbers to be from 1 to $ne"
-    ind2change = find(x -> x ∉ 1:ne, enum)
+    ind2change = findall(x -> x ∉ 1:ne, enum)
     length(ind2change) == length(unused) || error("can't reset edge numbers")
     for i in 1:length(unused)
         net.edge[ind2change[i]].number = unused[i]

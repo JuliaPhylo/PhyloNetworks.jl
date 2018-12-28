@@ -29,6 +29,7 @@ g = PhyloNetworks.pairwiseTaxonDistanceGrad(net2, nodeAges=na);
  1 2 2 0 .6 .6 0 0 0; 1 2 2 0 .6 .6 0 0 0; 1 2 2 0 .6 .6 0 0 0]
 # plot(net2, :RCall, useEdgeLength=true, showEdgeNumber=true);
 
+global net
 net  = readTopology("((#H1:0.06::0.3,A:0.6):1.3,(B:0.1)#H1:0.7::0.7,(C,D):1.4);");
 # same topology, unrooted, different BL, leaves ordered differently
 # here: branch lengths not identifiable, even if minor fixed to 0
@@ -68,6 +69,7 @@ end
 # most lengths identifiable when we force
 # minor hybrid to length 0 and ultrametric network
 # not identifiable otherwise
+global net
 net = readTopology("((Ag:3.0,(#H1:0.0::0.2,Ak:2.5):0.5):0.5,(((((Az:0.2,Ag2:0.2):1.3,As:1.5):1.0)#H1:0.3::0.8,Ap:2.8):0.2,Ar:3.0):0.5);");
 #plot(net, :RCall, useEdgeLength=true, showNodeNumber=true, showGamma=true);
 taxa = [l.name for l in net.leaf];

@@ -394,8 +394,8 @@ function addAlternativeHybridizations!(net::HybridNetwork,BSe::DataFrame; cutoff
         hybnum = newHyb[:hybrid][i]
         sisnum = newHyb[:sister][i]
         edgenum = addHybridBetweenClades!(hybnum,sisnum,net)
-        ind1 = find(x->!ismissing(x) && x==hybnum,BSe[:hybrid])
-        ind2 = find(x->!ismissing(x) && x==sisnum,BSe[:sister])
+        ind1 = findall(x->!ismissing(x) && x==hybnum,BSe[:hybrid])
+        ind2 = findall(x->!ismissing(x) && x==sisnum,BSe[:sister])
         ind = intersect(ind1,ind2)
         BSe[ind,:edge] = edgenum
         BSe[ind,:alternative] = true

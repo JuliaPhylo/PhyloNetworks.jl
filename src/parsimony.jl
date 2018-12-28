@@ -34,7 +34,7 @@ function parsimonyBottomUpFitch!(node::Node, possibleStates::Dict{Int64,Set{T}},
       end
     end
     mv = maximum(values(votes))
-    filter!((k,v) -> v==mv, votes) # keep states with max votes
+    filter!(p -> p.second==mv, votes) # keep states with max votes
     possibleStates[node.number] = Set(keys(votes))
     parsimonyscore[1] += length(childrenStates) - mv # extra cost
 end
@@ -119,7 +119,7 @@ function parsimonyDiscreteFitch(net::HybridNetwork, tips::Dict{String,T}) where 
         push!(statesets, statedict)
     end
     mps = findmin(mpscore)[1] # MP score
-    mpt = find(x -> x==mps, mpscore) # indices of all trees with MP score
+    mpt = findall(x -> x==mps, mpscore) # indices of all trees with MP score
     statedictUnion = statesets[mpt[1]] # later: union over all MP trees
     # println("parsimony score: ", mps)
     for i in mpt # top down calculation for best trees only
@@ -264,7 +264,7 @@ function parsimonySoftwired(net::HybridNetwork, dat::DataFrame)
     innet = findall(in(tipLabels(net)), dat[i]) # species in the network
     species = dat[innet, i]
     tips = dat[j][innet]
-    indna = find(ismissing.(tips)) # species with missing data
+    indna = findall(ismissing, tips) # species with missing data
     deleteat!(species, indna)
     deleteat!(tips,    indna)
     parsimonySoftwired(net,tips)
@@ -419,7 +419,7 @@ function readCSVtoArray(dat::DataFrame)
     end
 
     species = String[]
-    for d in dat[:, i]
+    for d in dat[i]
         push!(species,string(d))
     end
 
@@ -798,7 +798,7 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
                 p2 = getMinorParent(son)
                 k = findfirst(isequal(0.0), w[p2.number, 1:nchar]) # guess made for parent p2
                 for sfinal in 1:nchar
-                    pars = parsimonyscore[son.number, sfinal] + costmatrix2[k][1:nchar,sfinal]
+                    pars = parsimonyscore[son.number, sfinal] .+ costmatrix2[k][1:nchar,sfinal]
                     for s in 1:nchar
                         if bestpars[s] > pars[s]
                            bestpars[s] = pars[s]
@@ -807,7 +807,7 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
                 end
             else # son has no guessed parent: has only 1 parent: "node"
                 for sfinal in 1:nchar
-                    pars = parsimonyscore[son.number, sfinal] + costmatrix1[1:nchar,sfinal]
+                    pars = parsimonyscore[son.number, sfinal] .+ costmatrix1[1:nchar,sfinal]
                     for s in 1:nchar
                         if bestpars[s] > pars[s]
                            bestpars[s] = pars[s]
@@ -815,7 +815,7 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
                     end
                 end
             end
-            parsimonyscore[node.number,1:nchar] += bestpars # add score from best assignement for this son
+            parsimonyscore[node.number,1:nchar] .+= bestpars # add score from best assignement for this son
         end
     end
     end # of if: not leaf, not root of another blob
@@ -1175,7 +1175,7 @@ function maxParsimonyNet(currT::HybridNetwork, df::DataFrame;
     if writelog
         write(logfile, msg)
     end
-    filter!(n -> .!isa(n, Nothing), bestnet) # remove "nothing", failed runs
+    filter!(n -> n !== nothing, bestnet) # remove "nothing", failed runs
     if length(bestnet)>0
         ind = sortperm([n.loglik for n in bestnet])
         bestnet = bestnet[ind]

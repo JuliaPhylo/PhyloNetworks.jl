@@ -1331,14 +1331,17 @@ function topologyQPseudolik!(net0::HybridNetwork,d::DataCF; verbose=false::Bool)
     extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
     all((q->(q.qnet.numTaxa != 0)), d.quartet) || error("qnet in quartets on data are not correctly updated with extractQuartet")
     for q in d.quartet
-        (DEBUG || verbose) && println("computing expCF for quartet $(q.taxon)")
+        if verbose println("computing expCF for quartet $(q.taxon)") # to stdout
+        else @debug        "computing expCF for quartet $(q.taxon)"; end # to logger if debug turned on by user 
         qnet = deepcopy(q.qnet);
         calculateExpCFAll!(qnet);
         q.qnet.expCF = qnet.expCF
-        (DEBUG || verbose) && println("$(qnet.expCF)")
+        if verbose println("$(qnet.expCF)") # to stdout
+        else @debug        "$(qnet.expCF)"; end # to logger
     end
     val = logPseudoLik(d)
-    (DEBUG || verbose) && println("the value of pseudolikelihood is $(val)")
+    if verbose println("$the value of pseudolikelihood is $(val)") # to stdout
+    else @debug        "$the value of pseudolikelihood is $(val)"; end # to logger
     net0.loglik = val
     return val
 end

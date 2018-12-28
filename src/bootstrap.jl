@@ -119,7 +119,7 @@ function sampleCFfromCI(df::DataFrame, seed=0::Integer)
         error("CFs found in columns 1-4 where taxon labels are expected")
     length(findall(in(obsCFcol), colsCI)) ==0 ||
         error("CFs found in columns where credibility intervals are expected")
-    newdf = deepcopy(df[:, [colsTa; obsCFcol; colsCI] ])
+    newdf = deepcopy(df[ [colsTa; obsCFcol; colsCI] ])
     if seed==-1
       return newdf
     else
@@ -916,11 +916,11 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
         end
         if h <= nclades &&  hybparent[h]>0 # replace "c5" or leaf name by hybrid name, e.g. "H1"
             na = refnet.hybrid[hybparent[h]].name
-            cladestr[h] = (na=="" ? string("H", refnet.hybrid[hybparent[h]].number) : replace(na, r"^#",""))
+            cladestr[h] = (na=="" ? string("H", refnet.hybrid[hybparent[h]].number) : replace(na, r"^#" => ""))
         end
         if keepc[h]
             rowh += 1
-            insert!(resCluster, rowh, clade[h], Symbol(cladestr[h]))
+            insertcols!(resCluster, rowh, Symbol(cladestr[h]) => clade[h])
         end
     end
     # node summaries
@@ -946,9 +946,9 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
         end
         if keepc[h]  rowh += 1; end
     end
-    insert!(resNode, 10, resNode[:BS_hybrid]+resNode[:BS_sister], :BS_all)
+    insertcols!(resNode, 10, :BS_all => resNode[:BS_hybrid]+resNode[:BS_sister])
     sort!(resNode, [:BS_all,:BS_hybrid]; rev=true)
-    delete!(resNode, :BS_all)
+    deletecols!(resNode, :BS_all)
     # edge summaries
     resEdge = DataFrame(edge = Vector{Union{Int, Missing}}(undef, length(hybcladei)),
                         hybrid_clade=cladestr[hybcladei],
@@ -969,7 +969,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
         else resEdge[:edge][i] = missing
         end
     end
-    o = [1:nedges; sortperm(resEdge[:BS_hybrid_edge][nedges+1:length(hybcladei)],rev=true)+nedges]
+    o = [1:nedges; sortperm(resEdge[:BS_hybrid_edge][nedges+1:length(hybcladei)],rev=true) .+ nedges]
     return resNode, resEdge[o,:], resCluster, gamma, edgenum
 end
 

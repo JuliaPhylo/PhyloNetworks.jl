@@ -1,6 +1,7 @@
 ## tests of PhyloNetworklm
 
 @testset "phyloNetworklm on small network" begin
+global net
 
 tree_str= "(A:2.5,((B:1,#H1:0.5::0.1):1,(C:1,(D:0.5)#H1:0.5::0.9):1):0.5);"
 net = readTopology(tree_str)
@@ -16,7 +17,7 @@ preorder!(net)
 
 # Ancestral state reconstruction with ready-made matrices
 params = ParamsBM(10, 1)
-Random.seed!(2468) # sets the seed for reproducibility, to debug potential error
+Random.seed!(2468); # sets the seed for reproducibility, to debug potential error
 sim = simulate(net, params)
 Y = sim[:Tips]
 X = ones(4, 1)
@@ -51,7 +52,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test sigma2_estim(phynetlm) ≈ sigma2hat
 @test loglikelihood(phynetlm) ≈ loglik
 @test vcov(phynetlm) ≈ sigma2hat*ntaxa/(ntaxa-length(betahat))*inv(XtVyinv * X)
-@test stderror(phynetlm) ≈ sqrt.(diag(sigma2hat*ntaxa/(ntaxa-length(betahat))*inv(XtVyinv * X)))
+@test stderror(phynetlm) ≈ sqrt.(LinearAlgebra.diag(sigma2hat*ntaxa/(ntaxa-length(betahat))*inv(XtVyinv * X)))
 @test dof(phynetlm) ≈ length(betahat)+1
 @test deviance(phynetlm) ≈ sigma2hat * ntaxa
 @test nulldeviance(phynetlm) ≈ nullsigma2hat * ntaxa
@@ -124,12 +125,12 @@ fitSH = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "scalingHybrid", f
 @test aic(fitlam) ≈ aic(fitSH)
 
 ## Pagel's Lambda
-fitlam = (@test_logs (:warn, r"^Maximum lambda value") phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda"))
+fitlam = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda"))
 @test lambda_estim(fitlam) ≈ 1.24875
 
 ## Scaling Hybrid
 fitSH = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "scalingHybrid")
-@test lambda_estim(fitSH) ≈ 4.057891910001937 atol=1e-8
+@test lambda_estim(fitSH) ≈ 4.057891910001937 atol=1e-5
 
 end
 
@@ -137,19 +138,19 @@ end
 ### With shifts
 ###############################################################################
 @testset "Shifts and Transgressive Evolution" begin
-
+global net
 net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
 preorder!(net)
 
 ## Simulate
 params = ParamsBM(10, 0.1, shiftHybrid([3.0, -3.0],  net))
-Random.seed!(2468) # sets the seed for reproducibility, to debug potential error
+Random.seed!(2468); # sets the seed for reproducibility, to debug potential error
 sim = simulate(net, params)
 Y = sim[:Tips]
 
 ## Construct regression matrix
 dfr_shift = regressorShift(net.edge[[8,17]], net)
-dfr_shift[:sum] = vec(sum(Array(dfr_shift[:,find(names(dfr_shift) .!= :tipNames)]), 2))
+dfr_shift[:sum] = vec(sum(Matrix(dfr_shift[findall(names(dfr_shift) .!= :tipNames)]), dims=2))
 dfr_hybrid = regressorHybrid(net)
 
 @test dfr_shift[:shift_8] ≈ dfr_hybrid[:shift_8]
@@ -230,7 +231,7 @@ end
 #### Other Network
 ###############################################################################
 @testset "phyloNetworklm and ancestralStateReconstruction" begin
-
+global net
 # originally: "(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);"
 # followed by changes in net.edge[?].length values to make the network ultrametric
 net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
@@ -242,7 +243,7 @@ b1 = 10
 Random.seed!(5678)
 sim = simulate(net, ParamsBM(1, 1))
 A = sim[:Tips]
-B = b0 + b1 * A + simulate(net,  ParamsBM(0, 0.1))[:Tips]
+B = b0 .+ b1 * A .+ simulate(net,  ParamsBM(0, 0.1))[:Tips]
 
 # With Matrices
 X = hcat(ones(12), A)
@@ -276,7 +277,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test sigma2_estim(fit_mat) ≈ sigma2hat
 @test loglikelihood(fit_mat) ≈ loglik
 @test vcov(fit_mat) ≈ sigma2hat*ntaxa/(ntaxa-length(betahat)).*inv(XtVyinv * X)
-@test stderror(fit_mat) ≈ sqrt.(diag(sigma2hat*ntaxa/(ntaxa-length(betahat)).*inv(XtVyinv * X)))
+@test stderror(fit_mat) ≈ sqrt.(LinearAlgebra.diag(sigma2hat*ntaxa/(ntaxa-length(betahat)).*inv(XtVyinv * X)))
 @test dof(fit_mat) ≈ length(betahat)+1
 @test deviance(fit_mat) ≈ sigma2hat * ntaxa
 @test nulldeviance(fit_mat) ≈ nullsigma2hat * ntaxa
@@ -342,7 +343,7 @@ fitbis = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 
 # unnamed ordered data
 dfr = DataFrame(trait = B, pred = A)
-fitter = (@test_logs (:warn, r"^As requested (no_names=true)") phyloNetworklm(@formula(trait ~ pred), dfr, net, no_names=true))
+fitter = (@test_logs (:info, r"^As requested \(no_names=true\)")  match_mode=:any phyloNetworklm(@formula(trait ~ pred), dfr, net, no_names=true))
 
 @test coef(phynetlm) ≈ coef(fitter)
 @test vcov(phynetlm) ≈ vcov(fitter)
@@ -432,14 +433,14 @@ fitSH = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid"
 @test aic(fitlam) ≈ aic(fitSH)
 
 ## Pagel's Lambda
-fitlam = (@test_logs (:warn, r"^Maximum lambda value") phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda"))
+fitlam = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda"))
 #@show fitlam
-@test lambda_estim(fitlam) ≈ 1.1135518305 atol=1e-10
+@test lambda_estim(fitlam) ≈ 1.1135518305 atol=1e-6
 
 ## scaling Hybrid
 fitSH = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid")
 @test_logs show(devnull, fitSH)
-@test lambda_estim(fitSH) ≈ -52.81305448333567 atol=1e-8
+@test lambda_estim(fitSH) ≈ -52.81305448333567 atol=1e-6
 
 ### Ancestral State Reconstruction
 params = ParamsBM(3, 1)
@@ -454,8 +455,8 @@ blup = (@test_logs (:warn, r"^These prediction intervals show uncertainty in anc
 # plot(net, blup)
 @test_logs show(devnull, blup)
 
-# BLUP same, using the function dirrectly
-blup_bis = (@test_logs (:warn, r"^These prediction intervals show uncertainty in ancestral values") ancestralStateReconstruction(dfr, net));
+# BLUP same, using the function directly
+blup_bis = (@test_logs (:warn, r"^These prediction intervals show uncertainty in ancestral values") match_mode=:any ancestralStateReconstruction(dfr, net));
 
 @test expectations(blup)[:condExpectation] ≈ expectations(blup_bis)[:condExpectation]
 @test expectations(blup)[:nodeNumber] ≈ expectations(blup_bis)[:nodeNumber]
@@ -509,26 +510,27 @@ end
 ## Data with no phylogenetic signal
 #################
 @testset "lambda when no signal" begin
-
+global net
 net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
 # plot(net, useEdgeLength = true,  showEdgeNumber=true)
 
 #### Simulate correlated data in data frames ####
 b0 = 1
 b1 = 10
-Random.seed!(5678)
+Random.seed!(5678);
 A = randn(size(tipLabels(net), 1))
-B = b0 + b1 * A + randn(size(tipLabels(net), 1))
+B = b0 .+ (b1 .* A + randn(size(tipLabels(net), 1)))
 dfr = DataFrame(trait = B, pred = A, tipNames = tipLabels(net))
 
 ## Network
-phynetlm = (@test_logs (:warn, r"^Maximum lambda value") phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda"))
+phynetlm = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda"))
 
 @test lambda_estim(phynetlm) ≈ 0.5894200143 atol=1e-8
 
 ## Major Tree
+global tree
 tree = majorTree(net)
-phynetlm = (@test_logs (:warn, r"^Maximum lambda value") phyloNetworklm(@formula(trait ~ pred), dfr, tree, model = "lambda"))
+phynetlm = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(@formula(trait ~ pred), dfr, tree, model = "lambda"))
 
 @test lambda_estim(phynetlm) ≈ 0.5903394415 atol=1e-6
 
@@ -550,8 +552,8 @@ end
 ############################
 ## Against no regressor
 ###########################
-@testset "phloNetworklm with no regressor" begin
-
+@testset "phyloNetworklm with no regressor" begin
+global net
 net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
 
 params = ParamsBM(10, 1)

@@ -1,4 +1,5 @@
 @testset "multiple alleles" begin
+global tree, df, d, net, currT
 
 @testset "test: map alleles to species" begin
     tree = readTopology("(6,(5,(7,(3,4))));");
@@ -11,7 +12,9 @@
     # PhyloNetworks.mapAllelesCFtable!(df,alleleDF,[1,2,3,4],true,"CFmapped.csv")
     CSV.write("tmp.csv", alleleDF);
     df = (@test_logs (:warn, r"^not all alleles were mapped") mapAllelesCFtable("tmp.csv",
-      joinpath(@__DIR__, "..", "examples", "tableCFCI.csv"), filename="CFmapped.csv"))
+      joinpath(@__DIR__, "..", "examples", "tableCFCI.csv"),
+      # joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "tableCFCI.csv"),
+      filename="CFmapped.csv"))
     rm("CFmapped.csv")
     rm("tmp.csv")
     @test df[:t4] == ["4","7","3","7","3","3","7","3","3","3","7","3","3","3","3"]
@@ -20,7 +23,7 @@ end
 #----------------------------------------------------------#
 #   testing sorting of taxa and CFs                        #
 #----------------------------------------------------------#
-@testset "testing sorttaxa!" begin
+@testset "sorttaxa!" begin
 
 letters = ["a","b","c","d"]; cfvalues = [0.6, 0.39, 0.01] # for ab_cd, ac_bd, ad_bc
 d = DataFrame(t1=Array{String}(undef,24),t2=Array{String}(undef,24),t3=Array{String}(undef,24),t4=Array{String}(undef,24),
@@ -72,7 +75,7 @@ sorttaxa!(dat)
 
 end # of testset: sorttaxa!
 
-@testset "testing snaq on multiple alleles" begin
+@testset "snaq on multiple alleles" begin
 df=DataFrame(t1=["6","6","10","6","6","7","7","7","7","7","7"],
              t2=["7","7","7","10","7","7","7","7","7","7","7"],
              t3=["4","10","4","4","4","8","8","8","10","10","6"],
@@ -111,6 +114,6 @@ net = readTopology("(((4,#H1),10),(7,(6)#H1),8);")
 net = topologyMaxQPseudolik!(net,d,  # loose tolerance for faster test
         ftolRel=1e-2,ftolAbs=1e-2,xtolAbs=1e-2,xtolRel=1e-2)
 @test net.loglik > 174.5
-end # of snaq testset
+end # test of snaq on multiple alleles
 
 end # overall multiple allele sets of testests
