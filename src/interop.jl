@@ -41,7 +41,7 @@ julia> PhyloNetworks.majoredgematrix(net)
 ```
 """
 function majoredgematrix(net::HybridNetwork)
-    edge = Matrix{Int}(length(net.edge)-length(net.hybrid), 2) # major edges
+    edge = Matrix{Int}(undef, length(net.edge)-length(net.hybrid), 2) # major edges
     i = 1 #row index for edge matrix
     for n in net.nodes_changed # topological pre-order
         !n.leaf || continue # skip leaves: associate node with children edges
@@ -123,7 +123,7 @@ julia> PhyloNetworks.minorreticulationmatrix(net)
 ```
 """ #"
 function minorreticulationmatrix(net::HybridNetwork)
-    reticulation = Matrix{Int}(length(net.hybrid), 2) # initialize
+    reticulation = Matrix{Int}(undef, length(net.hybrid), 2) # initialize
     j = 1 # row index, row = reticulate edge
     for e in net.edge
         if !e.isMajor # minor (hybrid) edges only

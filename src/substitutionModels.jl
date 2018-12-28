@@ -83,7 +83,7 @@ given that the process started in state i.
 """
 @inline function P(mod::SM, t::Float64)
     t >= 0.0 || error("substitution model: >=0 branch lengths are needed")
-    return expm(Q(mod) * t)
+    return exp(Q(mod) * t)
 end
 
 """
@@ -95,13 +95,13 @@ The time argument `t` can be an array.
 function P(mod::SM, t::Array{Float64})
     all(t .>= 0.0) || error("t's must all be positive")
     try
-        eig_vals, eig_vecs = eig(Q(mod)) # Only hermitian matrices are diagonalizable by
+        eig_vals, eig_vecs = eigen(Q(mod)) # Only hermitian matrices are diagonalizable by
         # *StaticArrays*. Non-Hermitian matrices should be converted to `Array`first.
-        return [eig_vecs * expm(diagm(eig_vals)*i) * eig_vecs' for i in t]
+        return [eig_vecs * Matrix(Diagonal(exp.(eig_vals*i))) * eig_vecs' for i in t]
     catch
-        eig_vals, eig_vecs = eig(Array(Q(mod)))
+        eig_vals, eig_vecs = eigen(Array(Q(mod)))
         k = nStates(mod)
-        return [SMatrix{k,k}(eig_vecs * expm(diagm(eig_vals)*i) * inv(eig_vecs)) for i in t]
+        return [SMatrix{k,k}(eig_vecs * Matrix(Diagonal(exp.(eig_vals*i))) * inv(eig_vecs)) for i in t]
     end
 end
 
@@ -374,7 +374,7 @@ function randomTrait(mod::SM, net::HybridNetwork;
         preorder!(net)
     end
     nnodes = net.numNodes
-    M = Matrix{Int}(ntraits, nnodes) # M[i,j]= trait i for node j
+    M = Matrix{Int}(undef, ntraits, nnodes) # M[i,j]= trait i for node j
     randomTrait!(M,mod,net)
     if !keepInternal
         M = getTipSubmatrix(M, net, indexation=:cols) # subset columns only. rows=traits
@@ -386,7 +386,7 @@ function randomTrait(mod::SM, net::HybridNetwork;
 end
 
 @doc (@doc randomTrait) randomTrait!
-function randomTrait!(M::Matrix{Int}, mod::SM, net::HybridNetwork)
+function randomTrait!(M::Matrix, mod::SM, net::HybridNetwork)
     recursionPreOrder!(net.nodes_changed, M, # updates M in place
             updateRootRandomTrait!,
             updateTreeRandomTrait!,

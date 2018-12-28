@@ -1,5 +1,6 @@
 runall = false;
 @testset "Testing traitLikDiscrete" begin
+global net, n1, n2, d
 @testset "Testing Substitution Models, P and Q matrices" begin
 
 m1 = BinaryTraitSubstitutionModel(1.0, 2.0);
@@ -170,7 +171,9 @@ fit3 = (@test_logs fitDiscrete(net, m2, species, dat2; fixedparam=true))
 PhyloNetworks.fit!(fit3; fixedparam=false)
 @test fit3.model.rate ≈ [0.3245640354187991, 0.5079501745877728]
 fit3.net = readTopology("(A,(B,(C,D):1.0):1.0);"); # no branch lengths
-@test_throws ErrorException PhyloNetworks.fit!(fit3; fixedparam=false)
+@test_throws ErrorException PhyloNetworks.fit!(fit3; fixedparam=true)
+# if optimized, NLOpt catches the error (due to negative branch lengths)
+# and stops with no error, return code FORCED_STOP
 
 # test on a network, 1 hybridization
 net = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.0,D:5.0);")

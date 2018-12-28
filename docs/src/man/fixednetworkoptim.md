@@ -109,7 +109,7 @@ Next, we would like to extract the network scores from the file.
 Below is a one-liner to do this
 (we make Julia send a `sed` command to the shell --sorry, Mac or Linux for this.)
 ```@repl fixednetworkoptim
-scoresInString = readstring(`sed -E 's/.+with -loglik ([0-9]+.[0-9]+).+/\1/' $file`)
+scoresInString = read(`sed -E 's/.+with -loglik ([0-9]+.[0-9]+).+/\1/' $file`, String)
 scores = parse.(Float64, split(scoresInString))
 # next: update the "loglik" of each network with the score read from the file
 for i in eachindex(netlist)

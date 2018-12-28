@@ -1,6 +1,7 @@
 @testset "test: newick parsing" begin
 global net
 @testset "readTopology White Symbol Tests" begin
+    global n1, n2, n3
 	#Test newlines, spaces, tabs, and carriage returns
 	n1 = readTopology("(A,((B,#H1),(C,(D)#H1)));")
 	n2 = readTopology("(A\n,\t (\n\r (B , #H1 ),( C ,(D )#H1 ) \n\n\n\n\n) );")

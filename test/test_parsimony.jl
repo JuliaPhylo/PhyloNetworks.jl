@@ -1,8 +1,8 @@
 extrarun = false
-originalstdout = stdout
 
 @testset "Testing parsimony score & reconstruction" begin
 global net
+originalstdout = stdout
 
 @testset "Fitch" begin
 # on a tree:
@@ -167,6 +167,7 @@ end
 
 
 @testset "data from CSV, parsimony search" begin
+originalstdout = stdout
 dat = CSV.read(joinpath(@__DIR__, "..","examples","Swadesh.csv"));
 # net = readTopology("(((English,German),Norwegian),(Spanish,Portuguese));")
 # species, sequences = PhyloNetworks.readCSVtoArray(dat)

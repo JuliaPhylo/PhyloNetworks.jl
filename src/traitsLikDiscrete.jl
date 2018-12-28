@@ -292,9 +292,9 @@ function discrete_corelikelihood!(obj::SSM; whichtrait=:all::Union{Symbol,Intege
         traitrange = 1:obj.ntraits
     elseif isinteger(whichtrait) && whichtrait > 0 && whichtrait <= obj.ntraits
         obj.activetrait = whichtrait
-        traitrange = range(whichtrait, 1)
+        traitrange = range(whichtrait, length=1)
     elseif whichtrait == :active
-        traitrange = range(obj.activetrait, 1)
+        traitrange = range(obj.activetrait, length=1)
     else
         error("'whichtrait' should be :all or :active or an integer in the correct range")
     end

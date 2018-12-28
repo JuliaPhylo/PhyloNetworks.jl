@@ -2,24 +2,27 @@ __precompile__()
 
 module PhyloNetworks
 
+    # stdlib (standard libraries): no need to list in REQUIRE or Project.toml
+    using Dates
+    using Distributed
+    using LinearAlgebra # for LowerTriangular, logdet, diag
+    using Printf: @printf, @sprintf
+    using Random
+    using Statistics: mean, quantile
+
+    # other libraries, to list as dependencies
     using BioSequences
     using BioSymbols
     using Combinatorics: combinations
     using CSV
     using DataFrames
     using DataStructures # for updateInCycle with priority queue
-    using Dates       # stdlib
-    using Distributed # stdlib
     using GLM # for the lm function
-    using LinearAlgebra # for LowerTriangular, logdet, diag. not in REQUIRE or Project.toml: stdlib
     using NLopt # for branch lengths optimization
-    using Printf: @printf, @sprintf # not in REQUIRE or Project.toml: stdlib
-    using Random      # stdlib
     using SpecialFunctions: lgamma, gamma
     using StaticArrays
-    using Statistics: mean, quantile # stdlib
     using StatsBase # sample, coef etc.
-    using StatsFuns: logsumexp
+    using StatsFuns # logsumexp, logaddexp, various cdf
     using StatsModels # re-exported by GLM. for ModelFrame ModelMatrix Formula etc
 
     import Base: show

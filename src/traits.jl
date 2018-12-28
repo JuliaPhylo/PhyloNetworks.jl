@@ -1308,7 +1308,7 @@ function transform_matrix_lambda!(V::MatrixTopologicalOrder, lam::AbstractFloat,
     for i in maskTips
         V.V[i, i] += (1-lam) * (gammas[i]^2 + (1-gammas[i])^2) * times[i]
     end
-    #   V_diag = diagm(diag(V.V))
+    #   V_diag = Matrix(Diagonal(diag(V.V)))
     #   V.V = lam * V.V .+ (1 - lam) .* V_diag
 end
 

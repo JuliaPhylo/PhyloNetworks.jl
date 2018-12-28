@@ -1,5 +1,6 @@
 @testset "readTopology Hybrid Node isMajor Tests" begin
-	# n1 previously failed (issue #44): both hybrid parent edges were minor
+    global n1, n2, n3
+	# n1: see issue #44, both hybrid parent edges were minor
 	n1 = readTopology("(A,((B,#H1),(C,(D)#H1:::0.2)));")
 	@test writeTopology(n1) == "(A,((B,(D)#H1:::0.8),(C,#H1:::0.2)));"
 	hybridParents = [x for x in n1.hybrid[1].edge if x.hybrid]

@@ -81,9 +81,9 @@ tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculat
          "test_lm.jl", "test_lm_tree.jl", "test_traits.jl", "test_simulate.jl",
          "test_parsimony.jl",
          "test_calibratePairwise.jl", "test_relaxed_reading.jl",
-         #"test_isMajor.jl", "test_interop.jl",
-         #"test_traitLikDiscrete.jl",
-         #"test_ticr.jl",
+         "test_isMajor.jl", "test_interop.jl",
+         "test_traitLikDiscrete.jl",
+         "test_ticr.jl",
          "test_readInputData.jl"]
 
 @show PhyloNetworks.CHECKNET

@@ -61,7 +61,7 @@ function readNum(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int,1})
                 pound += 1;
                 c = peekskip(s);
                 if !isletter(c)
-                   a = readstring(s);
+                   a = read(s, String);
                    error("Expected name after # but received $(c) in left parenthesis $(numLeft[1]-1). Remaining is $(a).")
                 end
                 if c != 'L' && c != 'H' && c != 'R'
@@ -75,11 +75,11 @@ function readNum(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int,1})
         elseif(pound == 1)
             return size(net.names,1)+1, name, true
         else
-            a = readstring(s);
+            a = read(s, String);
             error("strange node name with $(pound) # signs. remaining is $(a).")
         end
     else
-        a = readstring(s);
+        a = read(s, String);
         error("Expected int digit, alphanum or # but received $(c). remaining is $(a).");
     end
 end
@@ -88,7 +88,7 @@ end
 # aux function to read floats like length or gamma values, to be read after a colon
 function readFloat(s::IO, c::Char)
     if !(isdigit(c) || c in ['.','e','-'])
-        a = readstring(s);
+        a = read(s, String);
         error("Expected float digit after ':' but found $(c). remaining is $(a).");
     end
     num = ""
@@ -142,7 +142,7 @@ this is done by [`readSubtree!`](@ref)
         if c == ')'
             keepon = false
         elseif c != ','
-            a = readstring(s);
+            a = read(s, String);
             error("Expected right parenthesis after left parenthesis $(numLeft[1]-1) but read $(c). The remainder of line is $(a).")
         end
     end
@@ -415,7 +415,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
         n = Node(num, true); # positive node number to leaves in the newick-tree description
         @debug "creating node $(n.number)"
     else
-        a = readstring(s);
+        a = read(s, String);
         error("Expected beginning of subtree but read $(c) after left parenthesis $(numLeft[1]-1), remaining is $(a).");
     end
     if pound # found pound sign in name
@@ -519,7 +519,7 @@ function readTopology(s::IO,verbose::Bool)
             net.root = getIndex(n,net);
         end
     else
-		a = readstring(s)
+		a = read(s, String)
         error("Expected beginning of tree with ( but received $(c) instead, rest is $(a)")
     end
     storeHybrids!(net)
