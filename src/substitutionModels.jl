@@ -65,7 +65,7 @@ end
 
 return number of character states for a given trait evolution model.
 """
-nstates(obj::TSM) = error("nStates not defined for $(typeof(obj)).")
+nstates(obj::TSM) = error("nstates not defined for $(typeof(obj)).")
 
 """
     nstates(model::NASM)
@@ -184,7 +184,7 @@ function P(obj::SM, t::Array{Float64})
     catch
         eig_vals, eig_vecs = eig(Array(Q(obj)))
         k = nstates(obj)
-        return [Matrix{k,k}(eig_vecs * expm(diagm(eig_vals)*i) * inv(eig_vecs)) for i in t]
+        return [Matrix{k}(eig_vecs * expm(diagm(eig_vals)*i) * inv(eig_vecs)) for i in t] #removed ,k from Matrix declaration bc of ERROR: too many parameters for type
     end
 end
 
@@ -255,7 +255,7 @@ end
     a1= p1*e1
     return Bmatrix(p0+a1, p0-a0, p1-a1, p1+a0) # by columns
 end
-
+#? why did we add a BTSM version of this?  Why not just use the SM version as ERSM does?
 """
     TwoBinaryTraitSubstitutionModel(rate [, label])
 
@@ -392,8 +392,8 @@ julia> randomTrait(m1, 0.2, [1,2,1,2,2])
 ```
 """
 function randomTrait(obj::TSM, t::Float64, start::AbstractVector{Int})
-    res = Vector{Int}(length(start))
-    randomTrait!(res, mod, t, start)
+    res = Vector{Int}(length(start)) #this should be an abstract array?
+    randomTrait!(res, obj, t, start)
 end
 
 function randomTrait!(endTrait::AbstractVector{Int}, obj::TSM, t::Float64, start::AbstractVector{Int})
@@ -458,7 +458,7 @@ function randomTrait(obj::TSM, net::HybridNetwork;
     end
     nnodes = net.numNodes
     M = Matrix{Int}(ntraits, nnodes) # M[i,j]= trait i for node j
-    randomTrait!(M,mod,net)
+    randomTrait!(M,obj,net)
     if !keepInternal
         M = getTipSubmatrix(M, net, indexation=:cols) # subset columns only. rows=traits
         nodeLabels = [n.name for n in net.nodes_changed if n.leaf]
@@ -474,24 +474,24 @@ function randomTrait!(M::Matrix{Int}, obj::TSM, net::HybridNetwork)
             updateRootRandomTrait!,
             updateTreeRandomTrait!,
             updateHybridRandomTrait!,
-            mod)
+            obj)
 end
 
-function updateRootRandomTrait!(V::AbstractArray, i::Int, mod)
+function updateRootRandomTrait!(V::AbstractArray, i::Int, obj)
     sample!(1:nstates(obj), view(V, :, i)) # uniform at the root
     return
 end
 
 function updateTreeRandomTrait!(V::Matrix,
     i::Int,parentIndex::Int,edge::Edge,
-    mod)
-    randomTrait!(view(V, :, i), mod, edge.length, view(V, :, parentIndex))
+    obj)
+    randomTrait!(view(V, :, i), obj, edge.length, view(V, :, parentIndex))
 end
 
 function updateHybridRandomTrait!(V::Matrix,
         i::Int, parentIndex1::Int, parentIndex2::Int,
-        edge1::Edge, edge2::Edge, mod)
-    randomTrait!(view(V, :, i), mod, edge1.length, view(V, :, parentIndex1))
+        edge1::Edge, edge2::Edge, obj)
+    randomTrait!(view(V, :, i), obj, edge1.length, view(V, :, parentIndex1))
     tmp = randomTrait(obj, edge2.length, view(V, :, parentIndex2))
     for j in 1:size(V,1) # loop over traits
         if V[j,i] == tmp[j] # both parents of the hybrid node have the same trait

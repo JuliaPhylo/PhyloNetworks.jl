@@ -129,7 +129,7 @@ module PhyloNetworks
         JC69,
         HKY85,
         RateVariationAcrossSites,        
-        nStates,
+        nstates,
         Q, P,
         randomTrait,
         randomTrait!,
