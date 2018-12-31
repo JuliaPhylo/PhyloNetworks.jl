@@ -1,5 +1,5 @@
 """
-`undirectedOtherNetworks(net::HybridNetwork)`
+    undirectedOtherNetworks(net::HybridNetwork)
 
 Return a vector of HybridNetwork objects, obtained by switching the placement
 of each hybrid node to other nodes inside its cycle. This amounts to changing
@@ -586,7 +586,7 @@ function getChildren(node::Node)
 end
 
 """
-`preorder!(net::HybridNetwork)`
+    preorder!(net::HybridNetwork)
 
 Updates attribute net.nodes_changed in which the nodes are pre-ordered
 (also called topological sorting), such that each node is visited after its parent(s).

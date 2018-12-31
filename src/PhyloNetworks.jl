@@ -55,7 +55,6 @@ module PhyloNetworks
         summarizeDataCF,
         snaq!,
         readSnaqNetwork,
-        snaqDebug,
         topologyMaxQPseudolik!,
         topologyQPseudolik!,
         ## Network Manipulation

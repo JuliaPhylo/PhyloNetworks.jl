@@ -688,7 +688,7 @@ function taxaTreesQuartets(trees::Vector{HybridNetwork}, quartets::Vector{Quarte
     for taxon in u
         numT = taxonTrees(taxon,trees)
         #numQ = taxonQuartets(taxon,quartets)
-        write(s,"Taxon $(taxon) appears in $(numT) input trees ($(round(100*numT/length(trees),2)) %)\n")  #and $(numQ) quartets ($(round(100*numQ/length(quartets), digits=2)) %)\n")
+        write(s,"Taxon $(taxon) appears in $(numT) input trees ($(round(100*numT/length(trees), digits=2)) %)\n")  #and $(numQ) quartets ($(round(100*numQ/length(quartets), digits=2)) %)\n")
     end
 end
 

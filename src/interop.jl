@@ -75,7 +75,7 @@ julia> net = readTopology("(((A:3.1,(B:0.2)#H1:0.3::0.9),(C,#H1:0.3::0.1):1.1),D
 julia> directEdges!(net); preorder!(net);
 
 julia> PhyloNetworks.majoredgelength(net)
-8-element Array{Union{Float64, Missings.Missing},1}:
+8-element Array{Union{Missing, Float64},1}:
   missing
  0.7     
   missing
@@ -149,7 +149,7 @@ Output: vector allowing for missing values.
 julia> net = readTopology("(((A:3.1,(B:0.2)#H1:0.4::0.9),(C,#H1:0.3::0.1):1.1),D:0.7);");
 
 julia> PhyloNetworks.minorreticulationlength(net)
-1-element Array{Union{Float64, Missings.Missing},1}:
+1-element Array{Union{Missing, Float64},1}:
  0.3
 ```
 """ #"

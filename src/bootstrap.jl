@@ -319,7 +319,7 @@ Optional arguments include the following, with default values in parentheses:
 - `ftolRel`, `ftolAbs`, `xtolRel`, `xtolAbs`, `liktolAbs`, `Nfail`,
   `probST`, `verbose`, `outgroup`: see `snaq!`, same defaults.
 
-If `T` is a tree, its branch lengths are first optimized roughly with [`updateBL`](@ref)
+If `T` is a tree, its branch lengths are first optimized roughly with [`updateBL!`](@ref)
 (by using the average CF of all quartets defining each branch and calculating the coalescent units
 corresponding to this quartet CF).
 If `T` has one or more reticulations, its branch lengths are taken as is to start the search.
@@ -450,7 +450,7 @@ end
 
 
 """
-`hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgroup::AbstractString)`
+    hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgroup::AbstractString)
 
 function can only compare hybrid nodes in networks that have the same underlying major tree
 also, need to root all networks in the same place, and the root has to be compatible with the
@@ -974,7 +974,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
 end
 
 """
-`summarizeHFdf(HFmat::Matrix)`
+    summarizeHFdf(HFmat::Matrix)
 
 Summarize data frame output from [`hybridDetection`](@ref).
 Output: dataframe with one row per hybrid, and 5 columns:

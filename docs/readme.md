@@ -1,15 +1,17 @@
 # notes to maintain documentation
 
 - built with [Documenter](https://juliadocs.github.io/Documenter.jl).
-- deployed [here](http://crsl4.github.io/PhyloNetworks.jl/)
-  (go to `latest/` or `stable/`)
+- deployed [here](https://crsl4.github.io/PhyloNetworks.jl/)
+  (go to `dev/` or `stable/`)
   using GitHub and files committed to the `gh-pages` branch.
 
 ## how it works: overview
 
-- `.travis.yml` asks to run `./docs/make.sh` after a successful test & build.
-- `./docs/make.sh` asks julia to install PhyloPlots & Documenter, then run `docs/make.jl`
-- the julia script `docs/make.jl` has 2 steps:
+- `.travis.yml` asks to start the doc project
+  (installs dependencies like `PhyloPlots` & `Documenter`) and
+  run `./docs/make.jl` after a successful test & build.
+- the julia script `docs/make.jl` has these steps:
+  1. check out the master version of PhyloPlots
   1. run `makedocs()` from `Documenter`: make the documentation.
      also runs all `jldoctest` blocks in the source files, to check that
      the output in the blocks matches the actual output.
@@ -35,9 +37,9 @@ is run in its own anonymous Modules.
 Some of these blocs may contain plots, which are going to be drawn during the
 process, requiring the use of `PhyloPlots` along with `RCall`. Hence,
 before the doc is built, the script `.travis.yml` installs `R` on the server,
-and then calls the script `docs/make.sh`, that installs `PhyloPlots` before
+sets up the julia environment with dependencies like `PhyloPlots` before
 starting the build in itself.
-Note that, for an unknown reason, `R` must be installed *outside* of `make.sh`,
+Note that, for an unknown reason, `R` must be installed *outside* of (the former) `make.sh`,
 in the main body of `.travis.sh`.
 
 ### Directory of the plots
@@ -91,12 +93,21 @@ An extra step used file [make_weave.jl](https://github.com/crsl4/PhyloNetworks.j
 ## to make a local version of the website
 
 ```shell
-cd ~/.julia/v0.6/PhyloNetworks/docs
-julia --color=yes make.jl
+julia --project=docs/ -e 'using Pkg; Pkg.instantiate(); Pkg.develop(PackageSpec(path=pwd()))'
+julia --project=docs/ --color=yes docs/make.jl
 ```
 
-first line: adapt to where the package lives.
-second line:
+or interactively in `docs/`:
+
+```shell
+pkg> activate .
+pkg> instantiate
+pkg> # dev PhyloPlots # to get the master branch
+pkg> dev ~/.julia/dev/PhyloNetworks
+julia> include("make.jl")
+```
+
+it will:
 - tests the `jldoctest` blocks of examples in the docstrings
 - creates or updates a `build/` directory with markdown files.
 - does *not* convert the markdown files into html files.
@@ -112,13 +123,14 @@ pip install --upgrade mkdocs-material
 pip install --upgrade python-markdown-math
 ```
 and check the installed versions:
+(in comments are versions that work okay together):
 ```shell
-python --version
-mkdocs --version
-pip show mkdocs-material
-pip show Pygments
-pip show pymdown-extensions
-pip show python-markdown-math
+python --version # Python 3.5.5 :: Anaconda, Inc.
+mkdocs --version              # v0.17.4  v1.0.4
+pip show mkdocs-material      # v2.9.2   v3.2.0
+pip show Pygments             # v2.2.0   v2.3.1
+pip show pymdown-extensions   # v4.11    v4.11
+pip show python-markdown-math # v0.6     v0.6
 ```
 
 then use mkdocs to build the site.

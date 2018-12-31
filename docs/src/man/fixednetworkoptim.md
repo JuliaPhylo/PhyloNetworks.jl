@@ -18,8 +18,10 @@ we can optimize parameters on the true network
 
 ```@setup fixednetworkoptim
 using PhyloNetworks
+using Logging # to suppress info messages below
+baselogger = global_logger()
 mkpath("../assets/figures")
-raxmltrees = joinpath(Pkg.dir("PhyloNetworks"),"examples","raxmltrees.tre")
+raxmltrees = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","raxmltrees.tre")
 raxmlCF = readTrees2CF(raxmltrees, writeTab=false, writeSummary=false)
 ```
 
@@ -33,7 +35,7 @@ net1alt.loglik # pseudo deviance, actually
 using PhyloPlots, RCall
 R"name <- function(x) file.path('..', 'assets', 'figures', x)" 
 R"svg(name('truenet_opt.svg'), width=4, height=4)" 
-R"par(mar = c(0, 0, 0, 0))" 
+R"par"(mar=[0,0,0,0])
 plot(net1alt, :R, showGamma=true);
 R"dev.off()" 
 nothing # hide
@@ -102,7 +104,7 @@ We can read this file and look at its list of networks like this:
 ```@repl fixednetworkoptim
 file = "net1.networks";
 # or use the example file available with the package:
-file = joinpath(Pkg.dir("PhyloNetworks"),"examples","net1.networks");
+file = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net1.networks");
 netlist = readMultiTopology(file) # read the full list of networks in that file
 ```
 Next, we would like to extract the network scores from the file.
@@ -126,11 +128,11 @@ to re-root the networks.
 ```@example fixednetworkoptim
 R"svg(name('fixednetworkoptim_othernets1.svg'), width=7, height=4)" # hide
 R"layout(matrix(1:2,1,2))"; # hide
-R"par(mar = c(0,0,0,0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(netlist[1], :R, showGamma=true, showEdgeNumber=true, tipOffset=0.1);
-R"mtext('best net, score=28.3', line=-1)"
+R"mtext"("best net, score=28.3", line=-1);
 plot(netlist[2], :R, showGamma=true, showEdgeNumber=true, tipOffset=0.1);
-R"mtext('direction modified, score=31.5', line=-1)";
+R"mtext"("direction modified, score=31.5", line=-1);
 R"dev.off()"; # hide
 ```
 ![othernets before reroot](../assets/figures/fixednetworkoptim_othernets1.svg)
@@ -155,20 +157,20 @@ Now imagine that our outgroup is taxon A.
 ```@example fixednetworkoptim
 R"svg(name('fixednetworkoptim_othernets2.svg'), width=7, height=7)" # hide
 R"layout(matrix(c(1,4,2,3),2,2))"; # hide
-R"par(mar = c(0,0,0.5,0))" # hide
+R"par"(mar=[0,0,0.5,0]) # hide
 rootonedge!(netlist[1], 10); # root best net to make A outgroup
 rotate!(netlist[1], -4); # to 'un-cross' edges
 rotate!(netlist[1], -6);
 plot(netlist[1], :R, showGamma=true, tipOffset=0.1);
-R"mtext('best net, score=28.3', line=-1)";
-logging(devnull, ; kind=:info) # hide
+R"mtext"("best net, score=28.3", line=-1);
+global_logger(NullLogger()); # hide
 rootatnode!(netlist[2], "A"); # net with modified direction: first way to make A outgroup
-logging() # hide
+global_logger(baselogger);   # hide
 plot(netlist[2], :R, showGamma=true, tipOffset=0.1);
-R"mtext('second best in list, score=31.5\nrequires unsampled population', line=-2)";
+R"mtext"("second best in list, score=31.5\nrequires unsampled population", line=-2);
 rootonedge!(netlist[2], 10) # net with modified direction: second way to make A outgroup
 plot(netlist[2], :R, showGamma=true, tipOffset=0.1);
-R"mtext('second best in list, score=31.5\ndifferent root position', line=-2)";
+R"mtext"("second best in list, score=31.5\ndifferent root position", line=-2);
 R"dev.off()"; # hide
 ```
 ![othernets after reroot](../assets/figures/fixednetworkoptim_othernets2.svg)

@@ -1822,7 +1822,7 @@ There are many optional arguments, including
   along a tree edge with no hybrid neighbor,
   with a possible modification of one reticulation if `T` has one.
 - `updateBL` (default true): If true and if `T` is a tree, the branch lengths in `T`
-  are first optimized roughly with [`updateBL`](@ref) by using the average CF of
+  are first optimized roughly with [`updateBL!`](@ref) by using the average CF of
   all quartets defining each branch and back-calculating the coalescent units.
 
 The following optional arguments control when to stop the optimization of branch lengths

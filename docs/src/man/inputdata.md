@@ -44,14 +44,14 @@ less("raxmltrees.tre")
 ```
 or like this, to view the version downloaded with the package:
 ```julia
-raxmltrees = joinpath(Pkg.dir("PhyloNetworks"),"examples","raxmltrees.tre")
+raxmltrees = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","raxmltrees.tre")
 less(raxmltrees)
 ```
 Just type `q` to quit viewing this file.
 You could read in these 30 trees and visualize the third one (say) like this:
 ```@example qcf
 using PhyloNetworks
-raxmltrees = joinpath(Pkg.dir("PhyloNetworks"),"examples","raxmltrees.tre");
+raxmltrees = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","raxmltrees.tre");
 ```
 ```@repl qcf
 genetrees = readMultiTopology(raxmltrees);
@@ -65,7 +65,7 @@ using RCall # hide
 mkpath("../assets/figures") # hide
 R"name <- function(x) file.path('..', 'assets', 'figures', x)" # hide
 R"svg(name('inputdata_gene3.svg'), width=4, height=3)" # hide
-R"par(mar = c(0, 0, 0, 0))"                    # hide
+R"par"(mar=[0,0,0,0])                          # hide
 plot(genetrees[3], :R); # tree for 3rd gene
 R"dev.off()"                                   # hide
 nothing # hide
@@ -121,7 +121,7 @@ or
 [here](https://raw.githubusercontent.com/crsl4/PhyloNetworks/master/examples/buckyCF.csv).
 
 ```@repl qcf
-buckyCFfile = joinpath(Pkg.dir("PhyloNetworks"),"examples","buckyCF.csv");
+buckyCFfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","buckyCF.csv");
 buckyCF = readTableCF(buckyCFfile)
 ```
 The same thing could be done in 2 steps:
@@ -130,7 +130,7 @@ and then to convert this DataFrame into a DataCF object.
 ```@repl qcf
 using CSV, DataFrames
 dat = CSV.read(buckyCFfile);
-head(dat) # head shows the first 6 rows only
+first(dat, 6) # to see the first 6 rows
 buckyCF = readTableCF(dat)
 PhyloNetworks.writeObsCF(buckyCF)
 ```
@@ -155,10 +155,10 @@ followed by the best tree on the original data.
 It's this last tree that we are most interested in.
 We can read it with
 ```@example qcf
-astralfile = joinpath(Pkg.dir("PhyloNetworks"),"examples","astral.tre");
+astralfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","astral.tre");
 astraltree = readMultiTopology(astralfile)[102] # 102th tree: last tree here
 R"svg(name('inputdata_astraltree.svg'), width=4, height=3)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(astraltree, :R, showEdgeLength=true);
 R"dev.off()"; # hide
 ```

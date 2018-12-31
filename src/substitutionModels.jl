@@ -313,6 +313,7 @@ function randomTrait(mod::SM, t::Float64, start::AbstractVector{Int})
     randomTrait!(res, mod, t, start)
 end
 
+@doc (@doc randomTrait) randomTrait!
 function randomTrait!(endTrait::AbstractVector{Int}, mod::SM, t::Float64, start::AbstractVector{Int})
     Pt = P(mod, t)
     k = size(Pt, 1) # number of states
@@ -385,7 +386,6 @@ function randomTrait(mod::SM, net::HybridNetwork;
     return M, nodeLabels
 end
 
-@doc (@doc randomTrait) randomTrait!
 function randomTrait!(M::Matrix, mod::SM, net::HybridNetwork)
     recursionPreOrder!(net.nodes_changed, M, # updates M in place
             updateRootRandomTrait!,

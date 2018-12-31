@@ -76,7 +76,6 @@ mapAllelesCFtable
 
 ```@docs
 snaq!
-snaqDebug
 topologyMaxQPseudolik!
 topologyQPseudolik!
 fittedQuartetCF
@@ -84,6 +83,7 @@ bootsnaq
 calibrateFromPairwiseDistances!
 ticr
 ticr!
+undirectedOtherNetworks
 ```
 ## network Comparisons
 
@@ -96,8 +96,8 @@ hardwiredClusters
 hardwiredCluster
 hardwiredClusterDistance
 treeEdgesBootstrap
-# hybridDetection
-# summarizeHFdf
+hybridDetection
+summarizeHFdf
 hybridBootstrapSupport
 ```
 
@@ -133,6 +133,7 @@ nStates
 Q
 P
 randomTrait
+randomTrait!
 fitDiscrete
 maxParsimonyNet
 ```
