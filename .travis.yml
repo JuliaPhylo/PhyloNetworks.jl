@@ -1,10 +1,10 @@
 ## Documentation: http://docs.travis-ci.com/user/languages/julia/
 language: julia
 sudo: required
-os: # WARNING: any change here must also be done in docs/make.jl
+os:
   - linux
   - osx
-julia: # WARNING: any change here must also be done in docs/make.jl
+julia:
   - 0.7
   - 1.0
 
