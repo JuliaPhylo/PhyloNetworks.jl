@@ -16,8 +16,8 @@ makedocs(sitename = "PhyloNetworks.jl",
 # To be kept in mind: those versions might evolve in the future.
 deploydocs(
     repo = "github.com/cecileane/PhyloNetworks.jl.git",
-    # deps =Deps.pip("pygments", "mkdocs==0.17.5", "mkdocs-material==2.9.4", "python-markdown-math"),
-    deps = Deps.pip("pygments", "mkdocs", "mkdocs-material", "python-markdown-math"),
+    deps = Deps.pip("pygments", "mkdocs==0.17.5", "mkdocs-material==2.9.4", "python-markdown-math"),
+    # deps = Deps.pip("pygments", "mkdocs", "mkdocs-material", "python-markdown-math"),
     make = () -> run(`mkdocs build`),
     target = "site" # which files get copied to gh-pages
 )
