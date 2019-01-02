@@ -8,17 +8,17 @@
 ## how it works: overview
 
 - `.travis.yml` asks to start the doc project
-  (installs dependencies like `PhyloPlots` & `Documenter`) and
+  (installs R and dependencies like `PhyloPlots` & `Documenter`) and
   run `./docs/make.jl` after a successful test & build.
 - the julia script `docs/make.jl` has these steps:
   1. check out the master version of PhyloPlots
-  1. run `makedocs()` from `Documenter`: make the documentation.
+  2. run `makedocs()` from `Documenter`: make the documentation.
      also runs all `jldoctest` blocks in the source files, to check that
      the output in the blocks matches the actual output.
      This steps also translate the "Documenter md" documentation files
-     into vanilla "GitHub md" (see below).
-  2. run `deploydocs(...)` also from Documenter. This step calls `mkdocs`,
-     which turns the markdown files in `docs/.../*.md` into html files.
+     into html files.
+  3. run `deploydocs(...)` also from Documenter:
+     to push the files on github, gh-pages branch.
 
 ## The "Documenter md" format
 
@@ -81,15 +81,6 @@ final version of the plot will be committed by git, with possible unintended
 consequences. Make sure to use different file names for plots that are supposed
 to look different (across the whole site).
 
-Note that [`Weave`](https://github.com/mpastell/Weave.jl) was used to format the
-documentation pages until PhyloNetworks v0.7.0
-(see [v0.7.0 doc](http://crsl4.github.io/PhyloNetworks.jl/v0.7.0/)),
-and the saving of the plots on the Git repository was handled with an
-extra Travis environment variable DRAW_FIG.
-Instructions about this previous previous setup can be found in this very
-[docs/readme file, in v0.7.0](https://github.com/crsl4/PhyloNetworks.jl/blob/v0.7.0/docs/readme.md).
-An extra step used file [make_weave.jl](https://github.com/crsl4/PhyloNetworks.jl/blob/v0.7.0/docs/src/man/src/make_weave.jl).
-
 ## to make a local version of the website
 
 ```shell
@@ -108,13 +99,108 @@ julia> include("make.jl")
 ```
 
 it will:
-- tests the `jldoctest` blocks of examples in the docstrings
-- creates or updates a `build/` directory with markdown files.
-- does *not* convert the markdown files into html files.
+- test the `jldoctest` blocks of examples in the docstrings
+- create or update a `build/` directory with html files.
 
-To do this html conversion, use [MkDocs](http://www.mkdocs.org) directly,
-and the mkdocs-material package (for the "material" theme).
-First check/install MkDocs:
+To see the result, just open `docs/build/index.html` in a browser and follow the links.
+
+## references
+
+big difference:
+
+    [blabla](@ref)
+    [`blabla`](@ref)
+
+The first version will look for a *section* header "blabla", to link to that section.
+The secon version will look for a *function* named "blabla",
+to link to the documentation for that function.
+
+## earlier versions
+
+### weave
+
+[`Weave`](https://github.com/mpastell/Weave.jl) was used to format the
+documentation pages until PhyloNetworks v0.7.0
+(see [v0.7.0 doc](http://crsl4.github.io/PhyloNetworks.jl/v0.7.0/)),
+and the saving of the plots on the Git repository was handled with an
+extra Travis environment variable DRAW_FIG.
+Instructions about this previous previous setup can be found in this very
+[docs/readme file, in v0.7.0](https://github.com/crsl4/PhyloNetworks.jl/blob/v0.7.0/docs/readme.md).
+An extra step used file [make_weave.jl](https://github.com/crsl4/PhyloNetworks.jl/blob/v0.7.0/docs/src/man/src/make_weave.jl).
+
+### mkdocs
+
+[MkDocs](http://www.mkdocs.org) was used to format the documentation pages until
+PhyloNetworks [v0.8.0](http://crsl4.github.io/PhyloNetworks.jl/v0.8.0/).
+For this:
+- `makedocs( ..., format = Markdown(), ...)`
+  created vanilla "GitHub md" files only (no html conversion),
+- `deploydocs` called `mkdocs` to turn the markdown files in `docs/build/*.md` into html files:
+
+        deploydocs(
+            repo = ...,
+            deps= Deps.pip("pygments", "mkdocs==0.17.5", "mkdocs-material==2.9.4", "python-markdown-math"),
+            make = () -> run(`mkdocs build`),
+            target = "site" # which files get copied to gh-pages
+        )
+
+    problem: Travis uses python 2, but mkdocs v1.0 needs python 3.
+  Versions of `mkdocs` and `mkdocs-material` specified manually to avoid conflicts,
+  See https://discourse.julialang.org/t/mkdocs-material-in-documenter/13764/3
+- In this conversion, the `mkdocs-material` package was used, for its "material" theme,
+  via configuration in the `mkdocs.yml` file, in `docs/`:
+
+
+```yml
+# this is for MkDocs, to turn the .md files produced by Documenter into .html files
+site_name:        PhyloNetworks.jl
+repo_url:         https://github.com/crsl4/PhyloNetworks.jl
+site_description: PhyloNetworks is a Julia package for the manipulation, visualization and inference of phylogenetic networks.
+site_author:      Claudia Sol&iacute;s-Lemus
+
+theme:
+  name: 'material'
+  palette:
+    primary: 'teal'
+    accent:  'teal'
+  logo: 'snaq_small.png'
+
+extra_css:
+  - assets/Documenter.css
+
+extra_javascript:
+  - https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS_HTML
+  - assets/mathjaxhelper.js
+
+markdown_extensions:
+  - extra
+  - tables
+  - fenced_code
+  - mdx_math
+  - codehilite
+
+docs_dir: 'build'
+
+nav:
+  - Home: index.md
+  - Manual:
+    - Installation: man/installation.md
+    - Input Data for SNaQ: man/inputdata.md
+    - TICR pipeline: man/ticr_howtogetQuartetCFs.md
+    - Network estimation and display: man/snaq_plot.md
+    - Network comparison and manipulation: man/dist_reroot.md
+    - Candidate Networks: man/fixednetworkoptim.md
+    - Extract Expected CFs: man/expectedCFs.md
+    - Bootstrap: man/bootstrap.md
+    - Multiple Alleles: man/multiplealleles.md
+    - Continuous Trait Evolution: man/trait_tree.md
+    - Parsimony on networks: man/parsimony.md
+  - Library:
+    - Public: lib/public.md
+    - Internals: lib/internals.md
+```
+
+to check/install MkDocs:
 
 ```shell
 pip install --upgrade pip
@@ -141,14 +227,3 @@ they can be viewed at http://127.0.0.1:8000 (follow instructions)
 mkdocs build
 mkdocs serve
 ```
-
-## references
-
-big difference:
-
-    [blabla](@ref)
-    [`blabla`](@ref)
-
-The first version will look for a *section* header "blabla", to link to that section.
-The secon version will look for a *function* named "blabla",
-to link to the documentation for that function.

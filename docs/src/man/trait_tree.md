@@ -8,11 +8,7 @@ Once the network is inferred, we can take
 these species relationships into account when studying the distribution of quantitative
 traits measured for extant species.
 This is the goal of phylogenetic comparative methods (PCM).
-More details can be found on the developments below in Bastide et al. 2018[^fnBastide2018]
-
-[^fnBastide2018]: Bastide, Solís-Lemus, Kriebel, Sparks, Ané (2018):
-                  Phylogenetic Comparative Methods for Phylogenetic Networks with Reticulations.
-                  Systematic Biology 67(5):800–820. doi:10.1093/sysbio/syy033
+More details can be found on the developments below in Bastide et al. 2018 [^B18]
 
 We assume a fixed network, correctly rooted, with branch lengths
 proportional to calendar time. Here, we consider the true network that was
@@ -342,7 +338,8 @@ of the function).
 To illustrate the use of categorical predictors of particular interest
 in a network with reticulations, let's assume that some transgressive evolution took place
 after the hybridization event, so that tips "A" and "B" have larger mean
-compared to the others.
+compared to the others
+(see [^B18] for transgressive evolution after a reticulation event).
 ```@example tree_trait
 delta = 5.0; # value of heterosis
 underHyb = [(n == "A" || n == "B") for n in tipLabels(sim1)] # tips under hybrid
@@ -356,7 +353,8 @@ nothing # hide
 trait3 # changed: +5 was added by the previous loop to A and B
 ```
 The categorical variable `underHyb` separates tips "A" and "B" from the others.
-We need to mark it as a factor, not a numerical variable, i.e. as a `PooledDataArray`.
+We need to mark it as a categorical variable, not a numerical variable,
+i.e. as a `PooledDataArray`.
 ```@example tree_trait
 dat = DataFrame(trait1 = trait1, trait2 = trait2, trait3 = trait3,
                 underHyb = underHyb,
@@ -367,7 +365,7 @@ nothing # hide
 ```@repl tree_trait
 dat
 ```
-Now we can include this factor in the regression.
+Now we can include this reticulation variable in the regression.
 ```@example tree_trait
 fitTrait = phyloNetworklm(@formula(trait3 ~ trait1 + underHyb), dat, truenet)
 ```
@@ -387,7 +385,8 @@ One classical question about trait evolution is the amount of
 "phylogenetic signal" in a dataset, that is, the importance of the tree
 structure to explain variation in the observed traits.
 One way of doing measuring that is to use
-Pagel's lambda[^fn3] transformation of the branch lengths. This model assumes a
+Pagel's lambda transformation of the branch lengths [^P99].
+This model assumes a
 BM on a tree where the internal branches are multiplied by a factor λ,
 while the external branches are modified so that the total height of the tree is
 constant. Hence, λ varies between 0 (the tree has no influence on
@@ -406,10 +405,6 @@ estimated λ should be close to 1. It can be extracted with function
 ```@repl tree_trait
 lambda_estim(fitPagel)
 ```
-
-[^fn3]: Pagel M (1999). Inferring the historical patterns of biological
-        evolution. Nature. 401: 877–884. doi:10.1038/44766
-
 
 ## Shifts and transgressive evolution
 
@@ -507,5 +502,16 @@ Here, this test is equivalent to the Fisher F test, and gives the same p-value.
 Note that, for conventional reasons, the `ftest` function always takes the
 *most complex* model as the first one. This means that, in the table of
 results, the models are actually named in a reverse order, so that "Model 2" is
-actually our model under H<sub>0</sub> (null model), and "Model 1" the one under H<sub>1</sub>
+actually our model under H₀ (null model), and "Model 1" the one under H₁
 (model with shifts).
+
+---
+
+### References
+
+[^B18]: Bastide, Solís-Lemus, Kriebel, Sparks, Ané (2018):
+    Phylogenetic Comparative Methods for Phylogenetic Networks with Reticulations.
+    Systematic Biology 67(5):800–820. doi:10.1093/sysbio/syy033
+
+[^P99]: Pagel M (1999). Inferring the historical patterns of biological
+    evolution. Nature. 401: 877–884. doi:10.1038/44766
