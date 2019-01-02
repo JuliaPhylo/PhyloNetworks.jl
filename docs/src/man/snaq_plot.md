@@ -237,7 +237,8 @@ In the submit file below, the first 5 lines set things up for slurm.
 They are most likely to be specific to your cluster.
 The main idea here is to use a slurm "array" from 0 to 3, to run our
 julia script multiple times, 4 times actually: from hmax=0 to hmax=3.
-Each would do 30 runs.
+Each would do 30 runs
+(and each would be allocated 30 cores in the submit script below).
 Then log out of the cluster and go for coffee.
 
 ```bash
@@ -245,11 +246,12 @@ Then log out of the cluster and go for coffee.
 #SBATCH -o path/to/slurm/log/file/runsnaq_slurm%a.log
 #SBATCH -J runsnaq
 #SBATCH --array=0-3
-#SBATCH -n 120
+#SBATCH -c 30
 ## --array: to run multiple instances of this script,
-##          one for each value in the array
+##          one for each value in the array.
+##          1 instance = 1 task
 ## -J job name
-## -n number of cores
+## -c number of cores (CPUs) per task
 
 echo "slurm task ID = $SLURM_ARRAY_TASK_ID used as hmax"
 echo "start of SNaQ parallel runs on $(hostname)"
@@ -283,7 +285,7 @@ package such as [Gadfly](http://gadflyjl.org/stable/) or
 using Gadfly
 plot(x=collect(0:3), y=scores, Geom.point, Geom.line)
 ```
-<!-- cool blog post here about using ggplot within julia: http://avt.im/blog/2018/03/23/R-packages-ggplot-in-julia -->
+(btw, cool [blog](http://avt.im/blog/2018/03/23/R-packages-ggplot-in-julia) about using ggplot within julia)
 
 ## Network Visualization
 
@@ -307,8 +309,6 @@ R"dev.off()"; # wrap up and save image file
 ```
 ![net1_2](../assets/figures/snaqplot_net1_2.svg)
 
-<!-- This will open a browser where the plot will appear (unless you use [Juno](http://junolab.org), which would capture and display the plot). To get a pdf version, for instance (see [Gadfly tutorial](http://gadflyjl.org/) for other formats): using Gadfly; p=pdf(...); draw(PDF("bestnet_h1.pdf", 4inch, 4inch),p) -->
-
 The plot function has many options, to annotate nodes and edges. In the
 example above, hybrid edges were annotated with their γ inheritance values
 (in blue: light blue for the minor edge with γ<0.5, and dark blue for the
@@ -325,7 +325,8 @@ R"dev.off()"; # hide
 ```
 ![net1_3](../assets/figures/snaqplot_net1_3.svg)
 
-<!-- for Gadfly: "using Gadfly" and option minorHybridEdgeColor=colorant"tan" -->
+(for a Gadfly-based plot, do `using Colors` and change the color option
+to `minorHybridEdgeColor=colorant"tan"`)
 
 Edge lengths are shown, too. They were estimated in coalescent units:
 number of generations / effective population size.
@@ -343,6 +344,12 @@ plot(net1,:R, tipOffset=0.5, showNodeNumber=true, edgeColor="tomato4",
 R"dev.off()"; # hide
 ```
 ![net1_4](../assets/figures/snaqplot_net1_4.svg)
+
+Without the `:R` argument, a Gadly-based plot will be produced: would
+open a browser where the plot will appear
+(unless you use [Juno](http://junolab.org), which would capture and display the plot).
+To get a pdf version for instance (see [Gadfly tutorial](http://gadflyjl.org/) for other formats)
+`using Gadfly; p=pdf(...); draw(PDF("bestnet_h1.pdf", 4inch, 4inch),p)`.
 
 ## Re-rooting networks
 

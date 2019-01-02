@@ -316,9 +316,19 @@ Procedure:
    - This network is ugly and does not have edges collapsed. This is done to keep a one-to-one correspondence between the edges in `q.qnet` and the edges in `net` (if we remove nodes with only two edges, we will lose this correspondence)
    - Calculate expected CF with `calculateExpCFAll` for a copy of `q.qnet`. We do this copy because we want to keep `q.qnet` as it is (without collapsed edges into one). The function will then save the `expCF` in `q.qnet.expCF`
 - `calculateExpCFAll!(qnet)` will
-   - identify the type of quartet as type 1 (equivalent to a tree) or type 2 (minor CF different). Here the code will first clean up any hybrid node by removing nodes with only two edges before identifying the `qnet` (because identification depends on neighbor nodes to hybrid node); later, set `qnet.which` (1 or 2), `node.prev` (neighbor node to hybrid node), updates `node.k` (number of nodes in hybridization cycle, this can change after deleting the nodes with only two edges), `node.typeHyb` (1,2,3,4,5 depending on the number of nodes in the hybridization cycle and the origin/target of the minor hybrid edge; this attribute is never used).
-   - eliminate hybridization: this will remove type 1 hybridizations first. If `qnet.which=1`, then the `qnet` is similar to a tree quartet, so it will calculate the internal length of the tree quartet: `qnet.t1`.
-   - update split for `qnet.which=1`, to determine which taxa are together. For example, for the quartet 12|34, the split is [1,1,2,2] (or [2,2,1,1]), that is, taxon 1 and 2 are on the same side of the split. This will update `qnet.split`
+   - identify the type of quartet as type 1 (equivalent to a tree) or type 2 (minor CF different).
+     Here the code will first clean up any hybrid node by removing nodes with only two edges before
+     identifying the `qnet` (because identification depends on neighbor nodes to hybrid node);
+     later, set `qnet.which` (1 or 2), `node.prev` (neighbor node to hybrid node),
+     updates `node.k` (number of nodes in hybridization cycle, this can change after deleting the nodes with only two edges),
+     `node.typeHyb` (1,2,3,4,5 depending on the number of nodes in the hybridization cycle
+     and the origin/target of the minor hybrid edge; this attribute is never used).
+   - eliminate hybridization: this will remove type 1 hybridizations first.
+     If `qnet.which=1`, then the `qnet` is similar to a tree quartet,
+     so it will calculate the internal length of the tree quartet: `qnet.t1`.
+   - update split for `qnet.which=1`, to determine which taxa are together.
+     For example, for the quartet 12|34, the split is [1,1,2,2] or [2,2,1,1],
+     that is, taxon 1 and 2 are on the same side of the split. This will update `qnet.split`
    - update formula for `qnet.which=1` to know the order of minorCF and majorCF in the vector `qnet.expCF`. That is, if the quartet is 1342 (order in `qnet.quartet.taxon`), then the expected CF should match the observed CF in 13|42, 14|32, 12|34 and the `qnet` is 12|34 (given by `qnet.split`), `qnet.formula` will be [2,2,1] minor, minor, major
    - `calculateExpCF!(qnet)` for `qnet.which=1`, it will do `1-2/3exp(-qnet.t1)` if `qnet.formula[i]==1`, and `1/3exp(qnet.t1)` if `qnet.formula[i]==2`. For `qnet.which=2`, we need to make sure that there is only one hybrid node, and compute the major, minor1,minor2 expected CF in the order 12|34, 13|24, 14|23 of the taxa in `qnet.quartet.taxon`
 

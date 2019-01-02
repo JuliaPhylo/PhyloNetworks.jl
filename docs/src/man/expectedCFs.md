@@ -39,16 +39,15 @@ R"dev.off()"; # hide
 To install ggplot2 if not installed already, do:
 `R"install.packages('ggplot2', dep=TRUE)"`
 
-<!-- next: not run, would require installing ggplot2 by travis: about 6min -->
-
 ```julia
 @rlibrary ggplot2
 ggplot(df_long, aes(x=:obsCF,y=:expCF)) + theme_classic() +
     geom_segment(x=0,y=0,xend=1,yend=1, color="#008080", size=0.3) + # diagonal line
     geom_point(alpha=0.5, color="#008080", position=position_jitter(width=0.005, height=0.005)) +
     ylab("quartet CF expected from network") + xlab("quartet CF observed in gene trees") + coord_equal(ratio=1);
+# if needed, save with:
+ggsave("expCFs_obsvsfitted.svg", scale=1, width=6, height=5);
 ```
-<!-- ggsave(joinpath("..", "assets", "figures", "expCFs_obsvsfitted.svg"), scale=1, width=6, height=5); # hide -->
 
 ![obsvsfitted](../assets/figures/expCFs_obsvsfitted.svg)
 
@@ -92,7 +91,7 @@ R"set.seed"(2345) # hide
 R"points(jitter($obsCF,amount=0.005),jitter($expCF,amount=0.005),col=colA,bg=bgA,pch=21)"; # hide
 R"legend(x=0.7,y=0.3,pch=21,col=c('#008080','#F8766D'),legend=c('no','yes'),title='has A?', bty='n',bg=c('#00808090','#F8766D90'))"; # hide
 R"dev.off()"; # hide
-df_long
+first(df_long, 7) # first 7 rows
 ```
 
 ```julia
@@ -100,8 +99,8 @@ ggplot(df_long, aes(x=:obsCF, y=:expCF, color=:has_A)) + theme_classic() +
     geom_segment(x=0,y=0,xend=1,yend=1, color="black", size=0.3) + # diagonal line
     geom_point(alpha=0.5, position=position_jitter(width=0.005, height=0.005)) +
     ylab("quartet CF expected from network") + xlab("quartet CF observed in gene trees") + coord_equal(ratio=1);
+# can be saved:
+ggsave("expCFs_obsvsfitted_A.svg", width=6, height=5);
 ```
-
-<!-- ggsave(joinpath("..", "assets", "figures", "expCFs_obsvsfitted_A.svg"), width=6, height=5); # hide -->
 
 ![obsvsfitted A present or not](../assets/figures/expCFs_obsvsfitted_A.svg)

@@ -787,7 +787,7 @@ shiftHybrid(value::Real, net::HybridNetwork; checkPreorder=true::Bool) = shiftHy
 """
     getShiftEdgeNumber(shift::ShiftNet)
 
-Get the edge numbers where the shifts are located, for an object [`ShiftNet`](@ef).
+Get the edge numbers where the shifts are located, for an object [`ShiftNet`](@ref).
 """
 function getShiftEdgeNumber(shift::ShiftNet)
     nodInd = findall(!iszero, shift.shift)
@@ -803,7 +803,7 @@ end
 """
     getShiftValue(shift::ShiftNet)
 
-Get the values of the shifts, for an object [`ShiftNet`](@ef).
+Get the values of the shifts, for an object [`ShiftNet`](@ref).
 """
 function getShiftValue(shift::ShiftNet)
     shift.shift[shift.shift .!= 0]

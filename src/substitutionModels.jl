@@ -133,8 +133,13 @@ BinaryTraitSubstitutionModel(α::Float64, β::Float64) = BinaryTraitSubstitution
 """
 # Examples
 
-```julia-repl
+```jldoctest
 julia> m1 = BinaryTraitSubstitutionModel([1.0,2.0], ["low","high"])
+Binary Trait Substitution Model:
+rate low→high α=1.0
+rate high→low β=2.0
+
+
 julia> nStates(m1)
 2
 ```
@@ -157,8 +162,8 @@ end
 
 function Base.show(io::IO, object::BTSM)
     str = "Binary Trait Substitution Model:\n"
-    str *= "rate $(object.label[1])→$(object.label[2]) α=$(object.rate[1])\n"
-    str *= "rate $(object.label[2])→$(object.label[1]) β=$(object.rate[2])\n"
+    str *= "rate $(object.label[1])→$(object.label[2]) α=$(round(object.rate[1], digits=5))\n"
+    str *= "rate $(object.label[2])→$(object.label[1]) β=$(round(object.rate[2], digits=5))\n"
     print(io, str)
 end
 
@@ -294,17 +299,21 @@ Simulate traits along one edge of length t.
 The bang version (ending with !) uses the vector `end` to store the simulated values.
 
 # Examples
-```julia-repl
+```jldoctest
 julia> m1 = BinaryTraitSubstitutionModel(1.0, 2.0)
+Binary Trait Substitution Model:
+rate 0→1 α=1.0
+rate 1→0 β=2.0
+
 
 julia> using Random; Random.seed!(12345);
 
 julia> randomTrait(m1, 0.2, [1,2,1,2,2])
- 5-element Array{Int64,1}:
+5-element Array{Int64,1}:
  1
  2
  1
- 2
+ 1
  2
 ```
 """
@@ -345,16 +354,20 @@ output:
 
 # examples
 
-```julia-repl
+```jldoctest
 julia> m1 = BinaryTraitSubstitutionModel(1.0, 2.0, ["low","high"]);
+
 julia> net = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.0,D:5.0);");
-julia> using Random
-julia> Random.seed!(1234);
+
+julia> using Random; Random.seed!(1234);
+
 julia> trait, lab = randomTrait(m1, net)
-([1 2 … 1 1], String["-2", "D", "-3", "-6", "C", "-4", "#H1", "B", "A"])
+([1 2 … 1 1], ["-2", "D", "-3", "-6", "C", "-4", "#H1", "B", "A"])
+
 julia> trait
 1×9 Array{Int64,2}:
  1  2  1  1  2  2  1  1  1
+
 julia> lab
 9-element Array{String,1}:
  "-2" 

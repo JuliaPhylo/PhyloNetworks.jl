@@ -34,7 +34,7 @@ the latest registered version, just do this (which will update all of your packa
 ```julia
 Pkg.update()
 ```
-WARNING: It is important to update the package regularly as it is
+Warning: It is important to update the package regularly as it is
 undergoing constant development. Join the google group for updates
 [here]
 (https://groups.google.com/forum/#!forum/phylonetworks-users/new).

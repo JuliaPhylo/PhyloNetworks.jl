@@ -44,7 +44,7 @@ function Base.show(io::IO, obj::SSM)
     disp *= "$(obj.ntraits) traits, $(length(obj.trait)) species, "
     disp *= "on a network with $(obj.net.numHybrids) reticulations"
     if !ismissing(obj.loglik)
-        disp *= "\nlog-likelihood: $(obj.loglik)"
+        disp *= "\nlog-likelihood: $(round(obj.loglik, digits=5))"
     end
     print(io, disp)
 end
@@ -94,10 +94,12 @@ Optional arguments (default):
 
 # examples:
 
-```julia-repl
+```jldoctest fitDiscrete
 julia> net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
 
 julia> m1 = BinaryTraitSubstitutionModel([0.1, 0.1], ["lo", "hi"]);
+
+julia> using DataFrames
 
 julia> dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"]);
 
@@ -107,32 +109,32 @@ Binary Trait Substitution Model:
 rate lo→hi α=0.1
 rate hi→lo β=0.1
 1 traits, 4 species, on a network with 1 reticulations
-log-likelihood: -3.107539646785388
+log-likelihood: -3.10754
 
 julia> PhyloNetworks.fit!(fit1; fixedparam=false)
 PhyloNetworks.StatisticalSubstitutionModel{String}:
 Binary Trait Substitution Model:
-rate lo→hi α=0.2722215661432007
-rate hi→lo β=0.3498103666174014
+rate lo→hi α=0.27222
+rate hi→lo β=0.34981
 1 traits, 4 species, on a network with 1 reticulations
-log-likelihood: -2.727701700712135
+log-likelihood: -2.7277
 
 julia> tips = Dict("A" => "lo", "B" => "lo", "C" => "hi", "D" => "hi");
 
 julia> fit2 = fitDiscrete(net, m1, tips; xtolRel=1e-16, xtolAbs=1e-16, ftolRel=1e-16)
 PhyloNetworks.StatisticalSubstitutionModel{String}:
 Binary Trait Substitution Model:
-rate lo→hi α=0.2722215661432007
-rate hi→lo β=0.3498103666174014
+rate lo→hi α=0.27222
+rate hi→lo β=0.34981
 1 traits, 4 species, on a network with 1 reticulations
-log-likelihood: -2.727701700712135
+log-likelihood: -2.7277
 ```
 
 Note that a copy of the network is stored in the fitted object,
 but the internal representation of the network may be different in
 `fit1.net` and in the original network `net`:
 
-```julia-repl
+```jldoctest fitDiscrete
 julia> [n.number for n in fit2.net.node]
 9-element Array{Int64,1}:
  1
@@ -490,10 +492,12 @@ See also [`discrete_backwardlikelihood_tree!`](@ref) to update `obj.backwardlik`
 
 # examples
 
-```julia-repl
+```jldoctest
 julia> net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
 
 julia> m1 = BinaryTraitSubstitutionModel([0.1, 0.1], ["lo", "hi"]);
+
+julia> using DataFrames
 
 julia> dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"]);
 
@@ -502,6 +506,7 @@ julia> fit1 = fitDiscrete(net, m1, dat);
 julia> asr = ancestralStateReconstruction(fit1)
 9×4 DataFrames.DataFrame
 │ Row │ nodenumber │ nodelabel │ lo       │ hi       │
+│     │ Int64      │ String    │ Float64  │ Float64  │
 ├─────┼────────────┼───────────┼──────────┼──────────┤
 │ 1   │ 1          │ A         │ 1.0      │ 0.0      │
 │ 2   │ 2          │ B         │ 1.0      │ 0.0      │
@@ -513,10 +518,10 @@ julia> asr = ancestralStateReconstruction(fit1)
 │ 8   │ 8          │ 8         │ 0.76736  │ 0.23264  │
 │ 9   │ 9          │ #H1       │ 0.782777 │ 0.217223 │
 
-julia> exp.(fit1.postltw) # marginal (posterior) probability that the trait evolved on each displayed tree
+julia> round.(exp.(fit1.postltw), digits=6) # marginal (posterior) probability that the trait evolved on each displayed tree
 2-element Array{Float64,1}:
  0.919831 
- 0.0801689
+ 0.080169
 
 julia> using PhyloPlots
 
