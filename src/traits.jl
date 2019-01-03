@@ -2208,7 +2208,7 @@ julia> ancStates = ancestralStateReconstruction(fitBM) # Should produce a warnin
 │ assuming that the estimated variance rate of evolution is correct.
 │ Additional uncertainty in the estimation of this variance rate is
 │ ignored, so prediction intervals should be larger.
-└ @ PhyloNetworks ~/.julia/dev/PhyloNetworks/src/traits.jl:2162
+└ @ PhyloNetworks ~/build/crsl4/PhyloNetworks.jl/src/traits.jl:2162
 ReconstructedStates:
      Node index     Pred.       Min. Max. (95%)
            -5.0   1.32139  -0.288423     2.9312
@@ -2352,7 +2352,7 @@ julia> ancStates = ancestralStateReconstruction(fitBM);
 │ assuming that the estimated variance rate of evolution is correct.
 │ Additional uncertainty in the estimation of this variance rate is
 │ ignored, so prediction intervals should be larger.
-└ @ PhyloNetworks ~/.julia/dev/PhyloNetworks/src/traits.jl:2162
+└ @ PhyloNetworks ~/build/crsl4/PhyloNetworks.jl/src/traits.jl:2162
 
 julia> expectations(ancStates)
 31×2 DataFrames.DataFrame

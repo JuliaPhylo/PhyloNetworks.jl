@@ -33,5 +33,5 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/cecileane/PhyloNetworks.jl.git"
+    repo = "github.com/crsl4/PhyloNetworks.jl.git"
 )
