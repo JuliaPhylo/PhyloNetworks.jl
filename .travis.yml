@@ -19,11 +19,6 @@ addons:
         packages:
             - libnlopt0 # We install it this way to be able to run Travis with `sudo: false`
 
-#after_success:
-  # push coverage results
-  #- julia -e 'using Pkg; cd(Pkg.dir("PhyloNetworks")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
-  #- julia -e 'using Pkg; cd(Pkg.dir("PhyloNetworks")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
-
 codecov: true
 coveralls: true
 
