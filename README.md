@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/crsl4/PhyloNetworks.jl.svg)](https://travis-ci.org/crsl4/PhyloNetworks.jl)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://crsl4.github.io/PhyloNetworks.jl/stable)
-[![](https://img.shields.io/badge/docs-latest-blue.svg)](https://crsl4.github.io/PhyloNetworks.jl/latest)
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://crsl4.github.io/PhyloNetworks.jl/dev)
 [![codecov.io](http://codecov.io/github/crsl4/PhyloNetworks.jl/coverage.svg?branch=master)](http://codecov.io/github/crsl4/PhyloNetworks.jl?branch=master)
 [![Coverage Status](https://coveralls.io/repos/crsl4/PhyloNetworks.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/crsl4/PhyloNetworks?branch=master)
 
@@ -27,7 +27,7 @@ PhyloNetworks is a [Julia](http://julialang.org) package with utilities to:
 
 To get help, check
 
-- the [latest documentation](https://crsl4.github.io/PhyloNetworks.jl/latest)
+- the [latest documentation](https://crsl4.github.io/PhyloNetworks.jl/dev)
 - the [wiki](https://github.com/crsl4/PhyloNetworks.jl/wiki) for a step-by-step tutorial
   (July 2018) with background on networks
 - the [google group](https://groups.google.com/forum/#!forum/phylonetworks-users)

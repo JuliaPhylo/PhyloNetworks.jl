@@ -86,7 +86,7 @@ Optional arguments (default):
 - `fixedparam` (false): should model rate parameters be fixed, or should they be optimized?
 - `NLoptMethod` (`:LN_COBYLA`, derivative-free) for the optimization algorithm.
   For other options, see the
-  [NLopt](https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/).
+  [NLopt](https://nlopt.readthedocs.io/en/stable/NLopt_Algorithms/).
 - tolerance values to control when the optimization is stopped:
   `ftolRel` (1e-12), `ftolAbs` (1e-10) on the likelihood, and
   `xtolRel` (1e-10), `xtolAbs` (1e-10) on the model parameters.

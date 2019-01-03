@@ -193,8 +193,8 @@ the `level` of the prediction interval. If not given, the default value is
 
 It is also possible to plot both the reconstructed state and the predicted value
 on the same plot, using the optional keyword argument `withExp`.
-As shown below, we could also use the `:RCall` method from the
-[`plot`](https://cecileane.github.io/PhyloPlots.jl/latest/lib/public/) function.
+As shown below, we could also use the `RCall` method from the
+[`plot`](https://cecileane.github.io/PhyloPlots.jl/stable/lib/public/) function.
 ```@example tree_trait
 plot(truenet, :R, nodeLabel = predintPlot(ancTrait1, withExp=true));
 nothing # hide
