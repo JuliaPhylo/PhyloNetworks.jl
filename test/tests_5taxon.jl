@@ -3,7 +3,7 @@
 # Claudia September 2014
 ##########################################################
 
-warn("to run tests_5taxon.jl, you need to set updateGammaz to return true always. this is because we have bad triangles in here")
+@warn "to run tests_5taxon.jl, you need to set updateGammaz to return true always. this is because we have bad triangles in here"
 # types in "types.jl"
 include("../src/types.jl")
 
@@ -13,7 +13,7 @@ using Base.Collections # for updateInCycle with priority queue
 # test functions
 include("test_functions_5taxon.jl")
 
-warn("BUG IN CASE C: sometimes it shows errors, but if Julia is closed and reopened, no more error shown")
+@warn "BUG IN CASE C: sometimes it shows errors, but if Julia is closed and reopened, no more error shown"
 
 tests = ["F","G","H","J","I"];
 wrong = String[];

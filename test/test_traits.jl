@@ -1,4 +1,6 @@
 # continuous trait evolution
+@testset "traits: shared path, vcv, descendence matrix" begin
+global tree_str, net, ind
 
 tree_str= "(A:0.5,((B:1,#H1:1::0.1):1,(C:1,(D:1)#H1:1::0.9):1):0.5);"
 net = readTopology(tree_str)
@@ -6,7 +8,7 @@ preorder!(net)
 
 ## V matrix
 V1 = sharedPathMatrix(net)
-@test_nowarn show(DevNull, V1)
+@test_logs show(devnull, V1)
 
 ## By hand V matrix
 l = ones(1, 9)
@@ -33,7 +35,7 @@ end
 nodesV2 = [-2, 1, -3, -4, -5, 2, 3, 4, 5] # root was number 6 before: with readTopologyLevel1 + rootatnode
 ind = indexin(V1.nodeNumbersTopOrder, nodesV2)
 V2 = V2[ind, ind]
-@test_nowarn show(DevNull, V2)
+@test_logs show(devnull, V2)
 
 @test V1[:All] ≈ V2
 
@@ -42,20 +44,19 @@ V2 = V2[ind, ind]
 ########################
 
 ## Simple test
-C = convert(Array, vcv(net))
+C = convert(Matrix, vcv(net))
 @test C ≈ V1[:Tips]
-vv = diag(C)
+vv = LinearAlgebra.diag(C)
 for i in 1:4
     for j in 1:4
         C[i, j] = C[i, j] / sqrt(vv[i] * vv[j])
     end
 end
-@test convert(Array, vcv(net; corr = true)) ≈ C
+@test convert(Matrix, vcv(net; corr = true)) ≈ C
 
 ## Test names with tree
 tree_str = "(((t2:0.1491947961,t4:0.3305515735):0.5953111246,t3:0.9685578963):0.1415281736,(t5:0.7093406462,t1:0.1888024569):0.9098094522);"
-tree = readTopology(tree_str)
-C = vcv(tree)
+C = vcv(readTopology(tree_str))
 # C_R = R"ape::vcv(ape::read.tree(text = $tree_str))"
 # names_R = rcopy(R"colnames($C_R)")
 names_R = ["t2", "t4", "t3", "t5", "t1"]
@@ -112,22 +113,22 @@ b = indexin([b_n.number], nodeNumbersTopOrder)
 gam = par_edge_1.gamma
 
 ## Two extreme networks
-par_edge_1.gamma = 1
-par_edge_2.gamma = 0
+par_edge_1.gamma = 1.
+par_edge_2.gamma = 0.
 V_t_1 = sharedPathMatrix(net)
 
-par_edge_1.gamma = 0
-par_edge_2.gamma = 1
+par_edge_1.gamma = 0.
+par_edge_2.gamma = 1.
 V_t_2 = sharedPathMatrix(net)
 
 ## Descendant indicatrice matrix
 des = PhyloNetworks.descendants(par_edge_1)
 mask = indexin(des, V_t_1.nodeNumbersTopOrder)
 D = zeros(net.numNodes, net.numNodes)
-D[mask, mask] = 1.0
+D[mask, mask] .= 1.0
 
 ## Formula
 V2 = gam*V_t_1[:All] + (1-gam)*V_t_2[:All] - gam*(1-gam) * (V_t_1.V[p, p] - V_t_1.V[a, b] + V_t_2.V[p, p] - V_t_2.V[a, b]) .* D
 
 @test V1[:All] ≈ V2
-
+end

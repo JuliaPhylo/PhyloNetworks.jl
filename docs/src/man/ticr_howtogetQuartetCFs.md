@@ -247,7 +247,7 @@ open("CFtable.csv","w") do f_out
   for file in files
     @show file # to see the .cf file name: comment this out if that's too much screen output
     open(file) do f_in
-        line = readstring(f_in)
+        line = read(f_in, String)
         write(f_out, string(line,"\n"))
     end # closes "file" safely
   end

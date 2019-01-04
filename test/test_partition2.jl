@@ -1,22 +1,11 @@
 # functions to try to debug cui3.out
 # converted to test function
 
-if !isdefined(:individualtest) individualtest = false; end
-
-if(individualtest)
-    include("../src/types.jl")
-    include("../src/functions.jl")
-    const DEBUG = true
-end
-
-if isdefined(:PhyloNetworks)
-    PhyloNetworks.CHECKNET || error("need CHECKNET==true in PhyloNetworks to test snaq in test_correctLik.jl")
-else
-    CHECKNET || error("need CHECKNET==true to test snaq in test_correctLik.jl")
-end
+PhyloNetworks.CHECKNET || error("need CHECKNET==true in PhyloNetworks to test snaq in test_correctLik.jl")
 
 @testset "test: level-1 partitions" begin
 
+global net, flag, flag2, flag3, nocycle
 text = "(Xmayae,((Xhellerii,(((Xclemenciae_F2,Xmonticolus):1.458,(((((Xmontezumae,(Xnezahuacoyotl)#H26:0.247::0.804):0.375,((Xbirchmanni_GARC,Xmalinche_CHIC2):0.997,Xcortezi):0.455):0.63,(#H26:0.0::0.196,((Xcontinens,Xpygmaeus):1.932,(Xnigrensis,Xmultilineatus):1.401):0.042):2.439):2.0)#H7:0.787::0.835,(Xmaculatus,(Xandersi,(Xmilleri,((Xxiphidium,#H7:9.563::0.165):1.409,(Xevelynae,(Xvariatus,(Xcouchianus,(Xgordoni,Xmeyeri):0.263):3.532):0.642):0.411):0.295):0.468):0.654):1.022):0.788):1.917)#H27:0.149::0.572):0.668,Xalvarezi):0.257,(Xsignum,#H27:1.381::0.428):4.669);"
 
 #net = readTopology("cui3.out")

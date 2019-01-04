@@ -48,7 +48,7 @@ default 10 runs per replicate, and 100 bootstrap replicates,
 and the 100 bootstrap networks come with the package:
 
 ```@example bootstrap
-bootnet = readMultiTopology(Pkg.dir("PhyloNetworks","examples","bootsnaq.out"));
+bootnet = readMultiTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","bootsnaq.out"));
 length(bootnet)
 ```
 
@@ -66,7 +66,7 @@ Before summarizing these bootstrap networks on the best network,
 it is best to re-read this network to get a reproducible internal numbering
 of its nodes and edges, used later for mapping bootstrap support to edges.
 ```@example bootstrap
-net1 = readTopology(joinpath(Pkg.dir("PhyloNetworks"),"examples","net1.out"))
+net1 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net1.out"))
 ```
 
 It turns out that the direction of gene flow is quite uncertain
@@ -81,12 +81,12 @@ rootonedge!(net1, 7)
 using PhyloPlots, RCall
 R"name <- function(x) file.path('..', 'assets', 'figures', x)" # hide
 R"svg(name('net1_rotate1_1.svg'), width=4, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(net1, :R, showEdgeNumber=true); # edge 7 leads to O+E
 R"dev.off()" # hide
 rootonedge!(net1, 7) # makes (O,E) outgroup clade
 R"svg(name('net1_rotate1_2.svg'), width=4, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(net1, :R, showNodeNumber=true);
 R"dev.off()" # hide
 nothing # hide
@@ -101,7 +101,7 @@ rotate!(net1, -6)
 ```
 ```@example bootstrap
 R"svg(name('net1_rotate2.svg'), width=4, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(net1, :R, showGamma=true);
 R"dev.off()" # hide
 nothing # hide
@@ -120,7 +120,7 @@ the tree obtained by following the major parent (γ>0.5) of each hybrid node.
 This tree can be visualized like this, with edge numbers shown for later use.
 ```@example bootstrap
 R"svg(name('major_tree.svg'), width=4, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(tree1, :R, showEdgeNumber=true);
 R"dev.off()" # hide
 nothing # hide
@@ -135,18 +135,19 @@ found in the major tree of the inferred network.
 We can see the full bootstrap table and see
 which tree edges have bootstrap support lower than 100% (none here) with
 ```@repl bootstrap
-showall(BSe_tree)
+using DataFrames # for showall() below
+show(BSe_tree, allrows=true, allcols=true)
 BSe_tree[BSe_tree[:proportion] .< 100.0, :]
 ```
 Finally, we can map the bootstrap proportions onto the network or its main tree
 by passing the bootstrap table to the `edgeLabel` option of `plot`:
 ```@example bootstrap
 R"svg(name('boot_tree_net_1.svg'), width=4, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(tree1, :R, edgeLabel=BSe_tree);
 R"dev.off()" # hide
 R"svg(name('boot_tree_net_2.svg'), width=4, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(net1, :R, edgeLabel=BSe_tree);
 R"dev.off()" # hide
 nothing # hide
@@ -202,7 +203,7 @@ These bootstrap values are associated with nodes (or possibly, their parent edge
 To see what is the clade named "H7", for instance:
 ```@repl bootstrap
 BSc # this might be too big
-showall(BSc)
+show(BSc, allrows=true, allcols=true)
 BSc[:taxa][BSc[:H7]]
 ```
 We can also get bootstrap values associated with edges, to describe the support that a given
@@ -223,7 +224,7 @@ In our case, there is only one reticulation, so only 2 hybrid edges.
 We can plot the bootstrap values of the 2 hybrid edges in the best network:
 ```@example bootstrap
 R"svg(name('boot_net_net.svg'), width=4, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(net1, :R, edgeLabel=BSe[[:edge,:BS_hybrid_edge]]);
 R"dev.off()" # hide
 nothing # hide
@@ -238,7 +239,7 @@ Here, we find that A received gene flow from E (and is sister to B otherwise) in
 of bootstrap networks. In another 1% bootstrap, A received gene flow from another source.
 ```@example bootstrap
 R"svg(name('boot_net_ret.svg'), width=4, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(net1, :R, nodeLabel=BSn[[:hybridnode,:BS_hybrid_samesisters]]);
 R"dev.off()" # hide
 nothing # hide
@@ -266,12 +267,12 @@ In another 44%, it is the lineage to (E,O) that is estimated as
 being of hybrid origin.
 ```@example bootstrap
 R"svg(name('boot_net_hyb_1.svg'), width=4, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(net1, :R, nodeLabel=BSn[BSn[:BS_hybrid].>0, [:hybridnode,:BS_hybrid]]);
 R"dev.off()" # hide
 nothing # hide
 R"svg(name('boot_net_hyb_2.svg'), width=4, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(net1, :R, edgeLabel=BSn[BSn[:BS_hybrid].>0, [:edge,:BS_hybrid]]);
 R"dev.off()" # hide
 nothing # hide
@@ -288,18 +289,18 @@ and then mapped along the parent edge of these nodes.
 We filtered clades to show those with sister support > 5%:
 ```@example bootstrap
 R"svg(name('boot_net_clade_1.svg'), width=4, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(net1, :R, nodeLabel=BSn[BSn[:BS_minor_sister].>5, [:node,:BS_minor_sister]]);
 R"dev.off()" # hide
 nothing # hide
 R"svg(name('boot_net_clade_2.svg'), width=4, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(net1, :R, edgeLabel=BSn[BSn[:BS_minor_sister].>5, [:edge,:BS_minor_sister]]);
 R"dev.off()" # hide
 nothing # hide
 ```
 ![boot_net_clade 1](../assets/figures/boot_net_clade_1.svg)
-![boot_net_clade 2](../assets/figures/bootstrap_clade_2.svg)
+![boot_net_clade 2](../assets/figures/boot_net_clade_2.svg)
 
 In our best network, the lineage to E is estimated as the origin
 of gene flow, but this is recovered in only 41% of our bootstrap networks.
@@ -324,6 +325,7 @@ could be obtained like this:
 ```@repl bootstrap
 minimum(BSgam[:,2])
 maximum(BSgam[:,2])
+using Statistics # for functions like mean and std (standard deviation)
 mean(BSgam[:,2])
 std(BSgam[:,2])
 ```

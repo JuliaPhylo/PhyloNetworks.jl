@@ -4,15 +4,6 @@
 #
 # in julia: include("case_f_example.jl")
 
-if !isdefined(:individualtest) individualtest = false; end
-
-if(individualtest)
-    include("../src/types.jl")
-    include("../src/functions.jl")
-end
-
-using Base.Collections # for updateInCycle with priority queue
-
 ed1=Edge(1,0.6,true,0.7);
 ed2=Edge(2,0.7,true,0.3);
 ed3=Edge(3,0.9);

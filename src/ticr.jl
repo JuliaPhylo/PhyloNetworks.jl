@@ -79,12 +79,10 @@ function ticr(D::DataCF)
     for i in 1:N
         phat = D.quartet[i].obsCF
         p = D.quartet[i].qnet.expCF
-        max = findmax(p)
-        p_max = max[1]
-        max_idx = max[2]
+        p_max, max_idx = findmax(p)
         p_max_hat = getindex(phat,max_idx)
         p_sort = sort(D.quartet[i].qnet.expCF)
-        abs(p_max-p_sort[end-1]) > 1e-6 || warn("Check the network for major quartet")
+        abs(p_max-p_sort[end-1]) > 1e-6 || @warn "Check the network for major quartet"
         d = abs(p_max_hat - p_max)
         temp = [1-(1-p_max)*alpha/2, 0.0]
         shapeAdd = maximum(temp)
@@ -147,7 +145,7 @@ function ticr_optimalpha(D::DataCF; x_start=1.0::Float64,
     minNonZeroObsCF = minimum([minimum(filter(!iszero,q.obsCF)) for q in D.quartet])
     minObsCF = min(minExpCF,minNonZeroObsCF)
     for q in D.quartet 
-        q.obsCF[find(q.obsCF .== 0)] = minObsCF
+        q.obsCF[findall(iszero, q.obsCF)] .= minObsCF
     end
     for i in 1:M
         lobsCF = log.(D.quartet[i].obsCF)
@@ -158,7 +156,7 @@ function ticr_optimalpha(D::DataCF; x_start=1.0::Float64,
     end
     function obj(x::Vector, grad::Vector)
         a = x[1]
-        sum = 0
+        su = 0.0
         logCFbar = 0.0
         for i in 1:M
             lobsCF = log.(D.quartet[i].obsCF)
@@ -170,9 +168,9 @@ function ticr_optimalpha(D::DataCF; x_start=1.0::Float64,
                 b = 1 - a * p_min
             end
             logCFbar += mean(lobsCF)*(1-b)
-            sum += lgamma(a+3*b) - lgamma(a*p[1]+b) - lgamma(a*p[2]+b) - lgamma(a*p[3]+b)
+            su += lgamma(a+3*b) - lgamma(a*p[1]+b) - lgamma(a*p[2]+b) - lgamma(a*p[3]+b)
         end
-        PseudologLik = sum + a*logCFtilde-3*logCFbar
+        PseudologLik = su + a*logCFtilde -3*logCFbar
         return PseudologLik
     end
     opt = NLopt.Opt(NLoptMethod,1)

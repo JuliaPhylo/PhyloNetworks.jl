@@ -16,10 +16,10 @@ VR = convert(Matrix, VR);
 @test V[:Tips] ≈ VR[1:197, 1:197]
 
 # Internal nodes
-@test V[:InternalNodes] ≈ VR[-V.internalNodeNumbers + 196, -V.internalNodeNumbers + 196]
+@test V[:InternalNodes] ≈ VR[-V.internalNodeNumbers .+ 196, -V.internalNodeNumbers .+ 196]
 
 # Tips Nodes
-@test V[:TipsNodes] ≈ VR[1:197, -V.internalNodeNumbers + 196]
+@test V[:TipsNodes] ≈ VR[1:197, -V.internalNodeNumbers .+ 196]
 
 ### R Code to get those results
 # library(geiger)
@@ -54,7 +54,7 @@ fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy)
 @test dof(fitBM) ≈ 2.0 atol=1e-10
 @test aic(fitBM) ≈ 161.9223015666 atol=1e-10
 @test aicc(fitBM) ≈ 161.9841572367 atol=1e-10
-@test coef(fitBM) ≈ [4.6789989001] atol=1e-10
+@test coef(fitBM) ≈ [4.6789989001] atol=1e-8
 @test vcov(fitBM) ≈ [0.1093144100] atol=1e-10
 @test nobs(fitBM) ≈ 197.0 atol=1e-10
 @test sum(residuals(fitBM)) ≈ -115.5767321312 atol=1e-8
@@ -69,7 +69,7 @@ tmp = predict(fitBM);
 #@show tmp[1:6], tmp[190:end] # 4.679 except for last 5: 9.31707, 9.33832, 9.33052, 9.34356, 9.31707
 #println("are they all 4.6789989001?")
 # next: looks random. sometimes passes, most times fails
-@test predict(fitBM) ≈ [4.6789989001 for i in 1:197] atol=1e-10
+@test predict(fitBM) ≈ [4.6789989001 for i in 1:197] atol=1e-8
 # @test_approx_eq_eps model_response(fitBM)[fitbis.model.ind] model_response(fitbis)
 # @test_approx_eq_eps deviance(fitBM)  deviance(fitbis)
 # @test_approx_eq_eps nulldeviance(fitBM)  nulldeviance(fitbis)
@@ -80,7 +80,7 @@ tmp = predict(fitBM);
 # @test_approx_eq_eps mu_estim(fitBM)  mu_estim(fitbis)
 
 ### Ancestral state reconstruction (with Rphylopars)
-anc = (@test_warn "These prediction intervals show uncertainty in ancestral values" ancestralStateReconstruction(fitBM));
+anc = (@test_logs (:warn, r"^These prediction intervals show uncertainty in ancestral values") ancestralStateReconstruction(fitBM));
 ancR = CSV.read(joinpath(@__DIR__, "..", "examples", "caudata_Rphylopars.txt"),
                 types=[Float64,Float64]); # to avoid bug in CSV
 
@@ -92,7 +92,7 @@ tipsR = expeR[expe[197:393, :nodeNumber]]
 tipsJulia = expe[197:393, :condExpectation]
 @test tipsR ≈ tipsJulia
 # Matching nodes ?
-nodesR = expeR[-expe[1:196, :nodeNumber] + 196]
+nodesR = expeR[-expe[1:196, :nodeNumber] .+ 196]
 nodesJulia = expe[1:196, :condExpectation]
 # below: print for when the test was broken
 #@show nodesR[1:6],    nodesR[190:end]
@@ -100,11 +100,11 @@ nodesJulia = expe[1:196, :condExpectation]
 @test isapprox(nodesR, nodesJulia)
 
 ## Variances
-vars = diag(anc.variances_nodes)
+vars = LinearAlgebra.diag(anc.variances_nodes)
 # Rphylopars
 varsR = ancR[:var]
 # Matching nodes ?
-nodesR = varsR[-expe[1:196, :nodeNumber] + 196]
+nodesR = varsR[-expe[1:196, :nodeNumber] .+ 196]
 @test nodesR ≈ vars atol=1e-3 ## RK: Small tol !!
 
 ### Ancestral state reconstruction (with Phytools)
@@ -114,7 +114,7 @@ ancRt = CSV.read(joinpath(@__DIR__, "..", "examples", "caudata_Phytools.txt"));
 expe = expectations(anc)
 expeRt = ancRt[:trait]
 # Matching nodes ?
-nodesRt = expeRt[-expe[1:196, :nodeNumber] + 196 - 197]
+nodesRt = expeRt[-expe[1:196, :nodeNumber] .+ (196 - 197)]
 nodesJulia = expe[1:196, :condExpectation]
 # below: print for when the test was broken
 #@show nodesRt[1:6],   nodesRt[190:end]
@@ -122,11 +122,11 @@ nodesJulia = expe[1:196, :condExpectation]
 @test isapprox(nodesRt, nodesJulia)
 
 ## Variances
-vars = diag(anc.variances_nodes)
+vars = LinearAlgebra.diag(anc.variances_nodes)
 # Rphylopars
 varsRt = ancRt[:var]
 # Matching nodes ?
-nodesRt = varsRt[-expe[1:196, :nodeNumber] + 196 - 197]
+nodesRt = varsRt[-expe[1:196, :nodeNumber] .+ (196 - 197)]
 @test nodesRt ≈ vars atol=2e-3 ## RK: Small tol !!
 
 ### Comparison between Rphylopars and Phytools:
@@ -210,7 +210,7 @@ nodesRt = varsRt[-expe[1:196, :nodeNumber] + 196 - 197]
 ###############################################################################
 
 ## Fit Pagel's lambda
-fitLambda = (@test_warn "Maximum lambda value" phyloNetworklm(@formula(trait ~ 1), dat, phy, model = "lambda"));
+fitLambda = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(@formula(trait ~ 1), dat, phy, model = "lambda"));
 
 @test lambda_estim(fitLambda) ≈ 0.9193 atol=1e-4 # Due to convergence issues, tolerance is lower.
 @test loglikelihood(fitLambda) ≈ -51.684379 atol=1e-6
@@ -235,7 +235,7 @@ tmp = predict(fitLambda);
 #@show tmp[1:6], tmp[190:end] # all 4.66893 except for last 5: 8.42676, 8.44585, etc.
 #println("are they all 4.66893?")
 # next: looks random. sometimes passes, most times fails
-@test predict(fitLambda) ≈ [4.66893 for i in 1:197] atol=6e-5
+@test predict(fitLambda) ≈ [4.66893 for i in 1:197] atol=1e-5 norm=x->LinearAlgebra.norm(x,Inf)
 
 ### R script to get the above values:
 # library(geiger)
@@ -311,7 +311,7 @@ vcovR = [ 0.1165148753  -0.0431446679 -0.0305707092 0.0000000000
          -0.0431446679 0.3212796435  0.0340202694  -0.0000000000 
          -0.0305707092 0.0340202694 0.2472613252  -0.0236868278 
           0.0000000000  -0.0000000000 -0.0236868278 0.1263794810]
-@test vcov(fitBM) ≈ vcovR atol=1e-10 
+@test vcov(fitBM) ≈ vcovR atol=1e-8
 @test nobs(fitBM) ≈ 197.0 atol=1e-10
 @test sum(residuals(fitBM)) ≈ -10.1752334428 atol=1e-10
 @test dof_residual(fitBM) ≈ 193.0 atol=1e-10
@@ -389,7 +389,7 @@ vcovR =  [0.0200086273  -0.0136717540 0.0084815090  -0.0093192029 -0.0114417825 
           0.0041102304  -0.0012281620 -0.0005714235 -0.0080782771 -0.0033670465 -0.0037513830 0.0045172675  0.0018165174  0.0020857846
           0.0053787287  -0.0018838231 -0.0003201257 -0.0037333495 -0.0191567265 -0.0041592743 0.0018165174  0.0093292284  0.0020427637
           0.0050521693  -0.0014800242 -0.0005423354 -0.0039327836 -0.0040068947 -0.0146108207 0.0020857846  0.0020427637  0.0074817942]
-@test vcov(fitBM) ≈ vcovR atol=1e-10 
+@test vcov(fitBM) ≈ vcovR atol=1e-8
 @test nobs(fitBM) ≈ 100.0 atol=1e-10
 # below: print for when the test was broken (with @test_skip)
 #@show sum(residuals(fitBM)) # looks random, e.g. 1.6091413520064477, or 0.8338189090359597
@@ -398,7 +398,7 @@ vcovR =  [0.0200086273  -0.0136717540 0.0084815090  -0.0093192029 -0.0114417825 
 @test dof_residual(fitBM) ≈ 91.0 atol=1e-10
 @test sigma2_estim(fitBM) ≈ 0.0003025014 atol=1e-10
 @test stderror(fitBM) ≈ [0.1414518551,0.1361605540,0.1321542330,0.1295968341,0.2214683008,0.1820427154,0.0672106202,0.0965879311,0.0864973651] atol=1e-10
-@test confint(fitBM)[:,1] ≈ [2.5115945339,-0.4715366529,0.7207474097,-0.3595508202,-0.8102854443,-0.2058583178,-0.0960507369,-0.0112932922,-0.2213931131] atol=1e-10
+@test confint(fitBM)[:,1] ≈ [2.5115945339,-0.4715366529,0.7207474097,-0.3595508202,-0.8102854443,-0.2058583178,-0.0960507369,-0.0112932922,-0.2213931131] atol=1e-10 norm=x->LinearAlgebra.norm(x,Inf)
 @test confint(fitBM)[:,2] ≈ [3.0735480006,0.0693957746,1.2457637082,0.1553055609,0.0695537019,0.5173526640,0.1709605441,0.3724268272,0.1222396666] atol=1e-10
 # @test_approx_eq_eps model_response(fitBM)[fitbis.model.ind] model_response(fitbis)
 # @test_approx_eq_eps predict(fitBM)[fitbis.model.ind] predict(fitbis)
@@ -456,7 +456,7 @@ vcovR =  [0.0200086273  -0.0136717540 0.0084815090  -0.0093192029 -0.0114417825 
 ###############################################################################
 
 ## Fit lambda
-fitLambda = (@test_warn "Maximum lambda value" phyloNetworklm(@formula(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region), dat, phy, model = "lambda"))
+fitLambda = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(@formula(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region), dat, phy, model = "lambda"))
 
 # Tests against results obtained with geiger::fitContinuous or phylolm::phylolm
 @test lambda_estim(fitLambda) ≈ 0.9982715594 atol=1e-5

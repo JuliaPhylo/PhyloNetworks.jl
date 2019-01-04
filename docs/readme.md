@@ -1,22 +1,24 @@
 # notes to maintain documentation
 
 - built with [Documenter](https://juliadocs.github.io/Documenter.jl).
-- deployed [here](http://crsl4.github.io/PhyloNetworks.jl/)
-  (go to `latest/` or `stable/`)
+- deployed [here](https://crsl4.github.io/PhyloNetworks.jl/)
+  (go to `dev/` or `stable/`)
   using GitHub and files committed to the `gh-pages` branch.
 
 ## how it works: overview
 
-- `.travis.yml` asks to run `./docs/make.sh` after a successful test & build.
-- `./docs/make.sh` asks julia to install PhyloPlots & Documenter, then run `docs/make.jl`
-- the julia script `docs/make.jl` has 2 steps:
-  1. run `makedocs()` from `Documenter`: make the documentation.
+- `.travis.yml` asks to start the doc project
+  (installs R and dependencies like `PhyloPlots` & `Documenter`) and
+  run `./docs/make.jl` after a successful test & build.
+- the julia script `docs/make.jl` has these steps:
+  1. check out the master version of PhyloPlots
+  2. run `makedocs()` from `Documenter`: make the documentation.
      also runs all `jldoctest` blocks in the source files, to check that
      the output in the blocks matches the actual output.
      This steps also translate the "Documenter md" documentation files
-     into vanilla "GitHub md" (see below).
-  2. run `deploydocs(...)` also from Documenter. This step calls `mkdocs`,
-     which turns the markdown files in `docs/.../*.md` into html files.
+     into html files.
+  3. run `deploydocs(...)` also from Documenter:
+     to push the files on github, gh-pages branch.
 
 ## The "Documenter md" format
 
@@ -35,9 +37,9 @@ is run in its own anonymous Modules.
 Some of these blocs may contain plots, which are going to be drawn during the
 process, requiring the use of `PhyloPlots` along with `RCall`. Hence,
 before the doc is built, the script `.travis.yml` installs `R` on the server,
-and then calls the script `docs/make.sh`, that installs `PhyloPlots` before
+sets up the julia environment with dependencies like `PhyloPlots` before
 starting the build in itself.
-Note that, for an unknown reason, `R` must be installed *outside* of `make.sh`,
+Note that, for an unknown reason, `R` must be installed *outside* of (the former) `make.sh`,
 in the main body of `.travis.sh`.
 
 ### Directory of the plots
@@ -79,56 +81,28 @@ final version of the plot will be committed by git, with possible unintended
 consequences. Make sure to use different file names for plots that are supposed
 to look different (across the whole site).
 
-Note that [`Weave`](https://github.com/mpastell/Weave.jl) was used to format the
-documentation pages until PhyloNetworks v0.7.0
-(see [v0.7.0 doc](http://crsl4.github.io/PhyloNetworks.jl/v0.7.0/)),
-and the saving of the plots on the Git repository was handled with an
-extra Travis environment variable DRAW_FIG.
-Instructions about this previous previous setup can be found in this very
-[docs/readme file, in v0.7.0](https://github.com/crsl4/PhyloNetworks.jl/blob/v0.7.0/docs/readme.md).
-An extra step used file [make_weave.jl](https://github.com/crsl4/PhyloNetworks.jl/blob/v0.7.0/docs/src/man/src/make_weave.jl).
-
 ## to make a local version of the website
 
 ```shell
-cd ~/.julia/v0.6/PhyloNetworks/docs
-julia --color=yes make.jl
+julia --project=docs/ -e 'using Pkg; Pkg.instantiate(); Pkg.develop(PackageSpec(path=pwd()))'
+julia --project=docs/ --color=yes docs/make.jl
 ```
 
-first line: adapt to where the package lives.
-second line:
-- tests the `jldoctest` blocks of examples in the docstrings
-- creates or updates a `build/` directory with markdown files.
-- does *not* convert the markdown files into html files.
-
-To do this html conversion, use [MkDocs](http://www.mkdocs.org) directly,
-and the mkdocs-material package (for the "material" theme).
-First check/install MkDocs:
+or interactively in `docs/`:
 
 ```shell
-pip install --upgrade pip
-pip install --upgrade mkdocs
-pip install --upgrade mkdocs-material
-pip install --upgrade python-markdown-math
-```
-and check the installed versions:
-```shell
-python --version
-mkdocs --version
-pip show mkdocs-material
-pip show Pygments
-pip show pymdown-extensions
-pip show python-markdown-math
+pkg> activate .
+pkg> instantiate
+pkg> # dev PhyloPlots # to get the master branch
+pkg> dev ~/.julia/dev/PhyloNetworks
+julia> include("make.jl")
 ```
 
-then use mkdocs to build the site.
-this step creates a `site/` directory with html files.
-they can be viewed at http://127.0.0.1:8000 (follow instructions)
+it will:
+- test the `jldoctest` blocks of examples in the docstrings
+- create or update a `build/` directory with html files.
 
-```shell
-mkdocs build
-mkdocs serve
-```
+To see the result, just open `docs/build/index.html` in a browser and follow the links.
 
 ## references
 
@@ -140,3 +114,116 @@ big difference:
 The first version will look for a *section* header "blabla", to link to that section.
 The secon version will look for a *function* named "blabla",
 to link to the documentation for that function.
+
+## earlier versions
+
+### weave
+
+[`Weave`](https://github.com/mpastell/Weave.jl) was used to format the
+documentation pages until PhyloNetworks v0.7.0
+(see [v0.7.0 doc](http://crsl4.github.io/PhyloNetworks.jl/v0.7.0/)),
+and the saving of the plots on the Git repository was handled with an
+extra Travis environment variable DRAW_FIG.
+Instructions about this previous previous setup can be found in this very
+[docs/readme file, in v0.7.0](https://github.com/crsl4/PhyloNetworks.jl/blob/v0.7.0/docs/readme.md).
+An extra step used file [make_weave.jl](https://github.com/crsl4/PhyloNetworks.jl/blob/v0.7.0/docs/src/man/src/make_weave.jl).
+
+### mkdocs
+
+[MkDocs](http://www.mkdocs.org) was used to format the documentation pages until
+PhyloNetworks [v0.8.0](http://crsl4.github.io/PhyloNetworks.jl/v0.8.0/).
+For this:
+- `makedocs( ..., format = Markdown(), ...)`
+  created vanilla "GitHub md" files only (no html conversion),
+- `deploydocs` called `mkdocs` to turn the markdown files in `docs/build/*.md` into html files:
+
+        deploydocs(
+            repo = ...,
+            deps= Deps.pip("pygments", "mkdocs==0.17.5", "mkdocs-material==2.9.4", "python-markdown-math"),
+            make = () -> run(`mkdocs build`),
+            target = "site" # which files get copied to gh-pages
+        )
+
+    problem: Travis uses python 2, but mkdocs v1.0 needs python 3.
+  Versions of `mkdocs` and `mkdocs-material` specified manually to avoid conflicts,
+  See https://discourse.julialang.org/t/mkdocs-material-in-documenter/13764/3
+- In this conversion, the `mkdocs-material` package was used, for its "material" theme,
+  via configuration in the `mkdocs.yml` file, in `docs/`:
+
+
+```yml
+# this is for MkDocs, to turn the .md files produced by Documenter into .html files
+site_name:        PhyloNetworks.jl
+repo_url:         https://github.com/crsl4/PhyloNetworks.jl
+site_description: PhyloNetworks is a Julia package for the manipulation, visualization and inference of phylogenetic networks.
+site_author:      Claudia Sol&iacute;s-Lemus
+
+theme:
+  name: 'material'
+  palette:
+    primary: 'teal'
+    accent:  'teal'
+  logo: 'snaq_small.png'
+
+extra_css:
+  - assets/Documenter.css
+
+extra_javascript:
+  - https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS_HTML
+  - assets/mathjaxhelper.js
+
+markdown_extensions:
+  - extra
+  - tables
+  - fenced_code
+  - mdx_math
+  - codehilite
+
+docs_dir: 'build'
+
+nav:
+  - Home: index.md
+  - Manual:
+    - Installation: man/installation.md
+    - Input Data for SNaQ: man/inputdata.md
+    - TICR pipeline: man/ticr_howtogetQuartetCFs.md
+    - Network estimation and display: man/snaq_plot.md
+    - Network comparison and manipulation: man/dist_reroot.md
+    - Candidate Networks: man/fixednetworkoptim.md
+    - Extract Expected CFs: man/expectedCFs.md
+    - Bootstrap: man/bootstrap.md
+    - Multiple Alleles: man/multiplealleles.md
+    - Continuous Trait Evolution: man/trait_tree.md
+    - Parsimony on networks: man/parsimony.md
+  - Library:
+    - Public: lib/public.md
+    - Internals: lib/internals.md
+```
+
+to check/install MkDocs:
+
+```shell
+pip install --upgrade pip
+pip install --upgrade mkdocs
+pip install --upgrade mkdocs-material
+pip install --upgrade python-markdown-math
+```
+and check the installed versions:
+(in comments are versions that work okay together):
+```shell
+python --version # Python 3.5.5 :: Anaconda, Inc.
+mkdocs --version              # v0.17.4  v1.0.4
+pip show mkdocs-material      # v2.9.2   v3.2.0
+pip show Pygments             # v2.2.0   v2.3.1
+pip show pymdown-extensions   # v4.11    v4.11
+pip show python-markdown-math # v0.6     v0.6
+```
+
+then use mkdocs to build the site.
+this step creates a `site/` directory with html files.
+they can be viewed at http://127.0.0.1:8000 (follow instructions)
+
+```shell
+mkdocs build
+mkdocs serve
+```

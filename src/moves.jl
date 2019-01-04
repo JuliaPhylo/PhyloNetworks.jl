@@ -81,7 +81,6 @@ end
 # warning: it needs incycle attributes
 # returns flag of whether it needs update gammaz, and alreadyNoRoot = !edgemin2.containRoot
 function changeDirection!(node::Node, net::HybridNetwork, isminor::Bool)
-    global DEBUG
     node.hybrid || error("node $(node.number) is not hybrid, so we cannot change the direction of the hybrid edge")
     major,minor,tree = hybridEdges(node);
     othermin = getOtherNode(minor,node);
@@ -125,9 +124,9 @@ function changeDirection!(node::Node, net::HybridNetwork, isminor::Bool)
         push!(net.partition[indexPtree].edges,edgemin2)
         push!(net.partition[indexPedgemin].edges,tree)
         # --
-        DEBUG && println("edgemin2 is $(edgemin2.number) and its containRoot is $(edgemin2.containRoot)")
+        @debug "edgemin2 is $(edgemin2.number) and its containRoot is $(edgemin2.containRoot)"
         alreadyNoRoot = !edgemin2.containRoot
-        DEBUG && println("edgemin2 is $(edgemin2.number) and its containRoot is $(edgemin2.containRoot), alreadyNoRoot $(alreadyNoRoot)")
+        @debug "edgemin2 is $(edgemin2.number) and its containRoot is $(edgemin2.containRoot), alreadyNoRoot $(alreadyNoRoot)"
     else
         edgebla,edgemaj1,edgemaj2 = hybridEdges(othermaj);
         nodemaj1 = getOtherNode(edgemaj1,othermaj)
@@ -166,9 +165,9 @@ function changeDirection!(node::Node, net::HybridNetwork, isminor::Bool)
         push!(net.partition[indexPtree].edges,edgemaj2)
         push!(net.partition[indexPedgemaj].edges,tree)
         # --
-        DEBUG && println("edgemaj2 is $(edgemaj2.number) and its containRoot is $(edgemaj2.containRoot)")
+        @debug "edgemaj2 is $(edgemaj2.number) and its containRoot is $(edgemaj2.containRoot)"
         alreadyNoRoot = !edgemaj2.containRoot
-        DEBUG && println("edgemaj2 is $(edgemaj2.number) and its containRoot is $(edgemaj2.containRoot), alreadyNoRoot $(alreadyNoRoot)")
+        @debug "edgemaj2 is $(edgemaj2.number) and its containRoot is $(edgemaj2.containRoot), alreadyNoRoot $(alreadyNoRoot)"
     end
     if(node.isBadDiamondI || node.isBadDiamondII)
         node.isBadDiamondI = false
@@ -188,7 +187,7 @@ changeDirection!(node::Node, net::HybridNetwork) = changeDirection!(node, net, t
 # returns success
 # if success=false, it undoes the change direction
 function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
-    global CHECKNET, DEBUG
+    global CHECKNET
     node.hybrid || error("cannot change the direction of minor hybrid edge since node $(node.number) is not hybrid")
     undoGammaz!(node,net)
     edgesRoot = identifyContainRoot(net,node);
@@ -201,7 +200,7 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
     else
         minor = true
     end
-    DEBUG && println("MOVE: change direction around hybrid node $(node.number) for minor $(minor)------- ")
+    @debug "MOVE: change direction around hybrid node $(node.number) for minor $(minor)------- "
     update, alreadyNoRoot = changeDirection!(node,net,minor)
     if(node.k == 4 && update)
         flag2, edgesgammaz = updateGammaz!(net,node)
@@ -213,10 +212,10 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
         flag3,edgesroot = updateContainRootChangeDir!(net,node,edgesRoot, alreadyNoRoot)
         if(flag3)
             parameters!(net);
-            DEBUG && println("MOVE: change direction around hybrid node $(node.number) SUCCESSFUL")
+            @debug "MOVE: change direction around hybrid node $(node.number) SUCCESSFUL"
             return true
         else
-            DEBUG && println("MOVE: change direction around hybrid node $(node.number) FAILED because of containRoot")
+            @debug "MOVE: change direction around hybrid node $(node.number) FAILED because of containRoot"
             CHECKNET && checkNet(net)
             node.isBadDiamondI || undoGammaz!(node,net)
             alreadyNoRoot || undoContainRoot!(edgesroot) #only undo edgesroot if there were changed: alreadyNoRoot=true => no change
@@ -233,7 +232,7 @@ function changeDirectionUpdate!(net::HybridNetwork,node::Node, random::Bool)
             return false
         end
     else
-        DEBUG && println("MOVE: change direction around hybrid node $(node.number) FAILED because of gammaz")
+        @debug "MOVE: change direction around hybrid node $(node.number) FAILED because of gammaz"
         CHECKNET && checkNet(net)
         node.isBadDiamondI || undoGammaz!(node,net)
         update,a = changeDirection!(node,net,minor);
@@ -257,13 +256,12 @@ changeDirectionUpdate!(net::HybridNetwork,node::Node) = changeDirectionUpdate!(n
 # this function should be run after changeDirection which gives alreadyNoRoot
 # returns flag2, edgesroot
 function updateContainRootChangeDir!(net::HybridNetwork,node::Node,edgesRoot::Vector{Edge}, alreadyNoRoot::Bool)
-    global DEBUG
     node.hybrid || error("cannot update contain root on node $(node.number) because it is not hybrid")
-    DEBUG && println("updating contain root for hybrid node $(node.number), with alreadyNoRoot $(alreadyNoRoot)")
+    @debug "updating contain root for hybrid node $(node.number), with alreadyNoRoot $(alreadyNoRoot)"
     if(!alreadyNoRoot) #only update root if new descendats were not forbidden to carry root already
         undoContainRoot!(edgesRoot);
         flag3,edgesroot = updateContainRoot!(net,node);
-        DEBUG && println("alreadyNoRoot is $(alreadyNoRoot), undoing containRoot for $([e.number for e in edgesRoot]), updating containRoot for $([e.number for e in edgesroot]), with flag3 $(flag3)")
+        @debug "alreadyNoRoot is $(alreadyNoRoot), undoing containRoot for $([e.number for e in edgesRoot]), updating containRoot for $([e.number for e in edgesroot]), with flag3 $(flag3)"
         return flag3,edgesroot
     else
         flag3,edgesroot = updateContainRoot!(net,node);
@@ -310,12 +308,11 @@ end
 # needed tree1 and tree2 as parameters because we need to do undogammaz before moveOrigin
 # returns flag=true if newedge was incycle before, to be able to undo if needed (newedgeincycle)
 function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, tree2::Edge,newedge::Edge, undo::Bool, newedgeincycle::Bool)
-    global DEBUG
     node.hybrid || error("cannot move origin of hybridization because node $(node.number) is not hybrid")
     size(newedge.node,1) == 2 || error("strange edge $(newedge.number) that has $(size(newedge.node,1)) nodes instead of 2")
     in(newedge,net.edge) || error("newedge $(newedge.number) not in net.edge")
-    DEBUG && println("othermin $(othermin.number) with edges $([e.number for e in othermin.edge])")
-    DEBUG && println("tree1 is $(tree1.number), tree2 is $(tree2.number)")
+    @debug "othermin $(othermin.number) with edges $([e.number for e in othermin.edge])"
+    @debug "tree1 is $(tree1.number), tree2 is $(tree2.number)"
     if(tree1.inCycle == node.number && tree2.inCycle == -1)
         treej = tree1
         treei = tree2
@@ -325,14 +322,14 @@ function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, t
     else
         error("tree1 edge $(tree1.number) and tree2 edge $(tree2.number) should be one in cycle and one not incycle")
     end
-    DEBUG && println("MOVE: newedge is $(newedge.number)")
-    DEBUG && println("treei is $(treei.number), treej is $(treej.number) (the one incycle)")
+    @debug "MOVE: newedge is $(newedge.number)"
+    @debug "treei is $(treei.number), treej is $(treej.number) (the one incycle)"
     otheri = getOtherNode(treei,othermin);
     otherj = getOtherNode(treej,othermin);
-    DEBUG && println("otheri is $(otheri.number), otherj is $(otherj.number)")
+    @debug "otheri is $(otheri.number), otherj is $(otherj.number)"
     node1 = newedge.node[1]; # not waste of memory, needed step
     node2 = newedge.node[2];
-    DEBUG && println("node1 is $(node1.number), node2 is $(node2.number)")
+    @debug "node1 is $(node1.number), node2 is $(node2.number)"
     neighbor = false
     from_otheri = false
     from_otherj = false
@@ -357,7 +354,7 @@ function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, t
         neighbor = true
         from_otherj = true
     end
-    DEBUG && println("neighbor $(neighbor), from otheri $(otheri.number) $(from_otheri), from otherj $(otherj.number) $(from_otherj), n1 $(n1.number), n2 $(n2.number)")
+    @debug "neighbor $(neighbor), from otheri $(otheri.number) $(from_otheri), from otherj $(otherj.number) $(from_otherj), n1 $(n1.number), n2 $(n2.number)"
     if(neighbor && from_otheri)
         ## println("leaving n1 $(n1.number) as it is")
         ##println("removing n2 $(n2.number) from newedge $(newedge.number) and viceversa")
@@ -418,10 +415,10 @@ function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, t
         setLength!(treei,(ti/(ti+tj))*t)
         setLength!(treej,(tj/(ti+tj))*t)
     end
-    DEBUG && printEdges(net)
-    DEBUG && println(writeTopologyLevel1(net))
-    if(!undo)
-        if(from_otheri)
+    @debug begin printEdges(net); "printed edges" end
+    @debug writeTopologyLevel1(net)
+    if !undo
+        if from_otheri
             # -- update partition
             indexPtreei = whichPartition(net,treei,node.number)
             ind = getIndex(newedge,net.partition[indexPtreei].edges)
@@ -436,7 +433,7 @@ function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, t
                     cycleNum = [node.inCycle]
                     getDescendants!(getOtherNode(edges[i],otheri),edges[i],descendants,cycleNum)
                     !isempty(descendants) || error("descendants is empty for node $(otheri.number)")
-                    DEBUG && println("for node $(otheri.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
+                    @debug "for node $(otheri.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)"
                     partition = Partition(unique(cycleNum),descendants) # create new partition
                     push!(net.partition, partition)
                     for e in descendants #delete edges from partition with tree originally
@@ -531,7 +528,7 @@ function moveOrigin!(net::HybridNetwork,node::Node,othermin::Node,tree1::Edge, t
                         cycleNum = [node.inCycle]
                         getDescendants!(getOtherNode(edges[i],otheri),edges[i],descendants,cycleNum)
                         !isempty(descendants) || error("descendants is empty for node $(otheri.number)")
-                        DEBUG && println("for node $(otheri.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
+                        @debug "for node $(otheri.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)"
                         partition = Partition(unique(cycleNum),descendants) # create new partition
                         push!(net.partition, partition)
                         for e in descendants #delete edges from partition with tree originally
@@ -580,31 +577,24 @@ end
 # random=false always chooses the minor edge
 # returns the othermin node and majoredge for target
 function chooseMinorMajor(node::Node, random::Bool, target::Bool)
-    global DEBUG
     node.hybrid || error("node $(node.number) is not hybrid, so we cannot delete hybridization event around it")
     major,minor,tree = hybridEdges(node);
     #println("hybrid node $(node.number) has major $(major.number), minor $(minor.number) and tree $(tree.number)")
-    if(random)
+    if random
         r = rand()
         major.gamma >= 0.5 || error("strange major hybrid edge $(major.number) with gamma $(major.gamma) less than 0.5")
-        if(DEBUG)
-            major.gamma != 1.0 || println("strange major hybrid edge $(major.number) with gamma $(major.gamma) equal to 1.0")
-        end
+        @debug (major.gamma != 1.0 ? "" :
+            "strange major hybrid edge $(major.number) with gamma $(major.gamma) equal to 1.0")
         othermin = r < major.gamma ? getOtherNode(minor,node) : getOtherNode(major,node)
         majoredge = r < major.gamma ? major : minor
-        if(DEBUG)
-            if(r < major.gamma)
-                DEBUG && println("MOVE: will do move on minor hybrid edge")
-            else
-                DEBUG && println("MOVE: will do move on major hybrid edge")
-            end
-        end
+        @debug (r < major.gamma ? "MOVE: will do move on minor hybrid edge" :
+                                  "MOVE: will do move on major hybrid edge")
     else
-        DEBUG && println("MOVE: will do move on minor hybrid edge")
+        @debug "MOVE: will do move on minor hybrid edge"
         majoredge = major
         othermin = getOtherNode(minor,node);
     end
-    if(target)
+    if target
         return othermin, majoredge
     else
         return othermin
@@ -645,9 +635,9 @@ end
 # input: network, hybrid node, othermin already chosen with chooseMinorMajor
 # returns: success (bool), flag, nocycle, flag2
 function moveOriginUpdate!(net::HybridNetwork, node::Node, othermin::Node, newedge::Edge)
-    global CHECKNET, DEBUG
+    global CHECKNET
     node.hybrid || error("node $(node.number) is not hybrid, so we cannot delete hybridization event around it")
-    DEBUG && println("MOVE: move Origin for hybrid node $(node.number)")
+    @debug "MOVE: move Origin for hybrid node $(node.number)"
     in(newedge,net.edge) || error("newedge $(newedge.number) not in net.edge")
     edgebla, tree1, tree2 = hybridEdges(othermin);
     undoGammaz!(node,net);
@@ -656,14 +646,14 @@ function moveOriginUpdate!(net::HybridNetwork, node::Node, othermin::Node, newed
     flag2, edgesGammaz = updateGammaz!(net,node)
     if(flag2)
         parameters!(net);
-        DEBUG && println("MOVE: move Origin for hybrid node $(node.number) SUCCESSFUL")
+        @debug "MOVE: move Origin for hybrid node $(node.number) SUCCESSFUL"
         return true,flag2
     else
-        DEBUG && println("MOVE: move Origin for hybrid node $(node.number) FAILED")
+        @debug "MOVE: move Origin for hybrid node $(node.number) FAILED"
         CHECKNET && checkNet(net)
         isempty(edgesGammaz) || undoistIdentifiable!(edgesGammaz)
         undoGammaz!(node,net);
-        DEBUG && println("MOVE: undoing move origin for conflict: gammaz")
+        @debug "MOVE: undoing move origin for conflict: gammaz"
         moveOrigin!(net,node,othermin,tree1,tree2,newedge,true,newedgeincycle);
         flag2, edgesGammaz = updateGammaz!(net,node)
         (flag2 || node.isVeryBadTriangle || node.isExtBadTriangle) || error("updating gammaz for undone moveOrigin, should not be any problem")
@@ -677,7 +667,6 @@ end
 # returns success (bool): failure from: neighbors not suitable to begin
 # with, or conflicts incycle
 function moveOriginUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
-    global DEBUG
     node.hybrid || error("cannot move origin because node $(node.number) is not hybrid")
     othermin = chooseMinorMajor(node,random)
     #println("othermin is $(othermin.number) with edges $([e.number for e in othermin.edge])")
@@ -686,14 +675,14 @@ function moveOriginUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
     success = false
     while(!isempty(neighbor) && !success)
         success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor,node)
-        !isa(newedge,Void) || return false
+        !isa(newedge,Nothing) || return false
         success1 || return false
         #println("newedge is $(newedge.number), success1 is $(success1)")
         in(newedge,net.edge) || error("newedge $(newedge.number) is not in net.edge")
         success,flag2 = moveOriginUpdate!(net, node, othermin, newedge)
         #println("after update, success is $(success)")
         if(!success)
-            DEBUG && println("move origin failed, will delete that neighbor and try new one")
+            @debug "move origin failed, will delete that neighbor and try new one"
             deleteat!(neighbor,ind)
         end
         #println("neighbor list is $([n.number for n in neighbor])")
@@ -733,10 +722,9 @@ end
 
 # function to switch major and tree node in moveTarget
 function switchMajorTree!(major::Edge, tree::Edge, node::Node)
-    global DEBUG
     !tree.hybrid || error("tree edge $(tree.number) cannot be hybrid to switch to major")
     major.hybrid || error("major edge $(major.number) has to be hybrid to switch to tree")
-    DEBUG && println("switch major $(major.number) tree $(tree.number), node $(node.number)")
+    @debug "switch major $(major.number) tree $(tree.number), node $(node.number)"
     g = major.gamma #needed because changed inside makeEdgeTree
     cycle = major.inCycle #needed because changed inside makeEdgeTree
     makeEdgeTree!(major,node)
@@ -754,7 +742,6 @@ end
 # returns flag=true if newedge was incycle before, to be able to undo if needed (newedgeincycle)
 # also returns alreadyNoRoot
 function moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, newedge::Edge, undo::Bool, newedgeincycle::Bool)
-    global DEBUG
     node.hybrid || error("cannot move origin of hybridization because node $(node.number) is not hybrid")
     length(newedge.node) == 2 || error("strange edge $(newedge.number) that has $(size(newedge.node,1)) nodes instead of 2")
     newedge.inCycle == node.number || newedge.inCycle == -1 || error("newedge in cycle must be -1 or $(node.number), not $(newedge.inCycle)")
@@ -763,8 +750,8 @@ function moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, new
     treenode = getOtherNode(tree,node);
     node1 = newedge.node[1]; # not waste of memory, needed step
     node2 = newedge.node[2];
-    DEBUG && println("MOVE: hybrid node is $(node.number), major edge $(major.number), tree edge $(tree.number)")
-    DEBUG && println("MOVE: newedge is $(newedge.number), othermajor $(othermajor.number), treenode $(treenode.number), node1 $(node1.number), node2 $(node2.number)")
+    @debug "MOVE: hybrid node is $(node.number), major edge $(major.number), tree edge $(tree.number)"
+    @debug "MOVE: newedge is $(newedge.number), othermajor $(othermajor.number), treenode $(treenode.number), node1 $(node1.number), node2 $(node2.number)"
     neighbor = false
     from_othermajor = false
     from_treenode = false
@@ -812,7 +799,7 @@ function moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, new
             alreadyNoRoot = false
         end
     end
-    DEBUG && println("neighbor $(neighbor), from othermajor $(from_othermajor), from treenode $(from_treenode), n1 $(n1.number), n2 $(n2.number), alreadyNoRoot $(alreadyNoRoot)")
+    @debug "neighbor $(neighbor), from othermajor $(from_othermajor), from treenode $(from_treenode), n1 $(n1.number), n2 $(n2.number), alreadyNoRoot $(alreadyNoRoot)"
     if(neighbor && from_othermajor)
         #println("leaving n1 $(n1.number) as it is")
         #println("removing n2 $(n2.number) from newedge $(newedge.number) and viceversa")
@@ -895,7 +882,7 @@ function moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, new
                     cycleNum = [node.inCycle]
                     getDescendants!(getOtherNode(edges[i],treenode),edges[i],descendants,cycleNum)
                     !isempty(descendants) || error("descendants is empty for node $(treenode.number)")
-                    DEBUG && println("for node $(treenode.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
+                    @debug "for node $(treenode.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)"
                     partition = Partition(unique(cycleNum),descendants) # create new partition
                     push!(net.partition, partition)
                     for e in descendants #delete edges from partition with tree originally
@@ -907,14 +894,14 @@ function moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, new
                 end
             end
             # -- update in cycle
-            DEBUG && println("from treenode treatment, switch major $(major.number) to tree $(tree.number)")
+            @debug "from treenode treatment, switch major $(major.number) to tree $(tree.number)"
             switchMajorTree!(major,tree,node)
             node.k += 1
             newedge.inCycle = node.number
             treenode.inCycle = node.number
         elseif(from_othermajor)
             if(newedge.inCycle == node.number)
-                DEBUG && println("from othermajor and newedge incycle treatment, switch major $(major.number) to tree $(tree.number)")
+                @debug "from othermajor and newedge incycle treatment, switch major $(major.number) to tree $(tree.number)"
                 # -- update partition
                 indexPtree = whichPartition(net,tree,node.number)
                 push!(net.partition[indexPtree].edges,major)
@@ -994,7 +981,7 @@ function moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, new
                         cycleNum = [node.inCycle]
                         getDescendants!(getOtherNode(edges[i],othermajor),edges[i],descendants,cycleNum)
                         !isempty(descendants) || error("descendants is empty for node $(othermajor.number)")
-                        DEBUG && println("for node $(othermajor.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
+                        @debug "for node $(othermajor.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)"
                         partition = Partition(unique(cycleNum),descendants) # create new partition
                         push!(net.partition, partition)
                         for e in descendants #delete edges from partition with major originally
@@ -1035,16 +1022,16 @@ moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, newedge::Edg
 # input: network, hybrid node, othermin, majoredge (chosen with chooseMinorMajor), newedge
 # returns: success (bool), flag2, flag3
 function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, majoredge::Edge, newedge::Edge)
-    global CHECKNET, DEBUG
+    global CHECKNET
     node.hybrid || error("node $(node.number) is not hybrid, so we cannot delete hybridization event around it")
-    DEBUG && println("MOVE: move Target for hybrid node $(node.number)")
+    @debug "MOVE: move Target for hybrid node $(node.number)"
     in(newedge,net.edge) || error("newedge $(newedge.number) not in net.edge")
     major,minor,tree = hybridEdges(node)
     undoGammaz!(node,net);
     edgesRoot = identifyContainRoot(net,node);
     edgesRoot = setdiff(edgesRoot,[tree]) #need to remove tree from edgesRoot or it will be undone/updated with containRoot
     #undoContainRoot!(edgesRoot); now in updateContainRootChangeDir
-    #DEBUG && println("undoContainRoot for edges $([e.number for e in edgesRoot])")
+    #@debug "undoContainRoot for edges $([e.number for e in edgesRoot])"
     newedgeincycle, alreadyNoRoot = moveTarget!(net,node,majoredge,tree,newedge)
     flag2, edgesGammaz = updateGammaz!(net,node)
     if(flag2)
@@ -1052,27 +1039,27 @@ function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, major
         flag3,edgesroot = updateContainRootChangeDir!(net,node,edgesRoot, alreadyNoRoot)
         if(flag3)
             parameters!(net);
-            DEBUG && println("MOVE: move Target for hybrid node $(node.number) SUCCESSFUL")
+            @debug "MOVE: move Target for hybrid node $(node.number) SUCCESSFUL"
             return true,flag2, flag3
         else
-            DEBUG && println("MOVE: move Target for hybrid node $(node.number) FAILED")
-            DEBUG && printEverything(net)
+            @debug "MOVE: move Target for hybrid node $(node.number) FAILED"
+            @debug begin printEverything(net); "printed everything" end
             alreadyNoRoot || undoContainRoot!(edgesroot) #only undo edgesroot if there were changed: alreadyNoRoot=true => no change
             alreadyNoRoot || undoContainRoot!(edgesRoot,false);
             isempty(edgesGammaz) || undoistIdentifiable!(edgesGammaz)
             undoGammaz!(node,net);
-            DEBUG && println("MOVE: undoing move target for conflict: updategammaz")
+            @debug "MOVE: undoing move target for conflict: updategammaz"
             moveTarget!(net,node,majoredge,tree,newedge,true,newedgeincycle);
             flag2, edgesGammaz = updateGammaz!(net,node)
-            #DEBUG && println("undoContainRoot for edges $([e.number for e in edgesRoot])")
+            #@debug "undoContainRoot for edges $([e.number for e in edgesRoot])"
             (flag2 || node.isVeryBadTriangle || node.isExtBadTriangle) || error("updating gammaz/root for undone moveTarget, should not be any problem, but flag2 $(flag2) and node not very/ext bad triangle")
             CHECKNET && checkNet(net)
             return false, flag2,flag3
         end
     else
-        DEBUG && println("MOVE: move Target for hybrid node $(node.number) FAILED")
-        DEBUG && printEverything(net)
-        if(CHECKNET)
+        @debug "MOVE: move Target for hybrid node $(node.number) FAILED"
+        @debug begin printEverything(net); "printed everything" end
+        if CHECKNET
             flag3,edgesroot = updateContainRootChangeDir!(net,node,edgesRoot, alreadyNoRoot) #only to be sure there are no errors in the modified net
             checkNet(net)
             alreadyNoRoot || undoContainRoot!(edgesroot) #only undo edgesroot if there were changed: alreadyNoRoot=true => no change
@@ -1080,10 +1067,10 @@ function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, major
         end
         isempty(edgesGammaz) || undoistIdentifiable!(edgesGammaz)
         undoGammaz!(node,net);
-        DEBUG && println("MOVE: undoing move target for conflict: updategammaz")
+        @debug "MOVE: undoing move target for conflict: updategammaz"
         moveTarget!(net,node,majoredge,tree,newedge,true,newedgeincycle);
         flag2, edgesGammaz = updateGammaz!(net,node)
-        #DEBUG && println("undoContainRoot for edges $([e.number for e in edgesRoot])")
+        #@debug "undoContainRoot for edges $([e.number for e in edgesRoot])"
         (flag2 || node.isVeryBadTriangle || node.isExtBadTriangle) || error("updating gammaz/root for undone moveTarget, should not be any problem, but flag2 $(flag2) and node not very/ext bad triangle")
         CHECKNET && checkNet(net)
         return false, flag2, false
@@ -1096,7 +1083,6 @@ end
 # returns success (bool): failure from: neighbors not suitable to begin
 # with, or conflicts incycle
 function moveTargetUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
-    global DEBUG
     node.hybrid || error("cannot move origin because node $(node.number) is not hybrid")
     othermin,majoredge = chooseMinorMajor(node,random, true)
     #println("othermin is $(othermin.number), will move edge: majoredge $(majoredge.number)")
@@ -1111,7 +1097,7 @@ function moveTargetUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
         success,flag2 = moveTargetUpdate!(net, node, othermin, majoredge,newedge)
         #println("after update, success is $(success)")
         if(!success)
-            DEBUG && println("move target failed, will delete neighbor and try new one")
+            @debug "move target failed, will delete neighbor and try new one"
             deleteat!(neighbor,ind)
         end
         #println("neighbor list is $([n.number for n in neighbor])")
@@ -1139,7 +1125,6 @@ end
 # function to choose a tree edge for NNI
 # its two nodes must have hasHybEdge=false
 function chooseEdgeNNI(net::Network,N::Integer)
-    global DEBUG
     N > 0 || error("N must be positive: $(N)")
     index1 = 0
     i = 0
@@ -1150,7 +1135,7 @@ function chooseEdgeNNI(net::Network,N::Integer)
     if(i < N)
         return true,net.edge[index1]
     else
-        DEBUG && println("cannot find suitable tree edge for NNI after $(N) attempts")
+        @debug "cannot find suitable tree edge for NNI after $(N) attempts"
         return false,nothing
     end
 end
@@ -1162,9 +1147,8 @@ end
 # input: edge from chooseEdgeNNI
 # returns success; failure if cannot do nni without creating intersecting cycles
 function NNI!(net::Network,edge::Edge)
-    global DEBUG
     !edge.hybrid || error("cannot do NNI on hybrid edge: $(edge.number)")
-    DEBUG && println("MOVE: NNI on tree edge $(edge.number)")
+    @debug "MOVE: NNI on tree edge $(edge.number)"
     edges1 = hybridEdges(edge.node[1],edge)
     edges2 = hybridEdges(edge.node[2],edge)
      (!edges1[1].hybrid && !edges1[2].hybrid) || error("cannot do tree move NNI if one of the edges is hybrid: check neighbors of edge $(edge.number)")
@@ -1189,7 +1173,7 @@ function NNI!(net::Network,edge::Edge)
     n1 = edge.node[1]
     n2 = edge.node[2]
     nohybrid = false
-    DEBUG && println("e1 is $(e1.number), e2 is $(e2.number), e3 is $(e3.number), e4 is $(e4.number), n1 is $(n1.number), n2 is $(n2.number)")
+    @debug "e1 is $(e1.number), e2 is $(e2.number), e3 is $(e3.number), e4 is $(e4.number), n1 is $(n1.number), n2 is $(n2.number)"
     if(edge.inCycle != -1)
         node = net.node[getIndexNode(edge.inCycle,net)]
         node.hybrid || error("edge $(edge.number) has incycle $(edge.inCycle) but node $(node.number) is not hybrid")
@@ -1211,19 +1195,19 @@ function NNI!(net::Network,edge::Edge)
                 indexPe2 = whichPartition(net,e2,node.number)
                 part = splice!(net.partition,indexPe2) # delete partition e2
                 indexPe4 = whichPartition(net,e4,node.number)
-                DEBUG && println("deleted partition $([e.number for e in part.edges]) from net.partition")
+                @debug "deleted partition $([e.number for e in part.edges]) from net.partition"
                 for e in part.edges
-                    DEBUG && println("partition for e4 is $([e.number for e in net.partition[indexPe4].edges]), pushing edge $(e.number)")
+                    @debug "partition for e4 is $([e.number for e in net.partition[indexPe4].edges]), pushing edge $(e.number)"
                     push!(net.partition[indexPe4].edges,e) #put into partition e4
                 end
-                DEBUG && println("partition for e4 is $([e.number for e in net.partition[indexPe4].edges]), pushing edge $(edge.number)")
+                @debug "partition for e4 is $([e.number for e in net.partition[indexPe4].edges]), pushing edge $(edge.number)"
                 push!(net.partition[indexPe4].edges,edge) #put edge into partition e4
-                DEBUG && println("added the edges of such partition to partition of e4, so new partition is $([e.number for e in net.partition[indexPe4].edges])")
+                @debug "added the edges of such partition to partition of e4, so new partition is $([e.number for e in net.partition[indexPe4].edges])"
                 net.partition[indexPe4].cycle = union(net.partition[indexPe4].cycle,part.cycle)
-                DEBUG && println("new partition has cycle $(net.partition[indexPe4].cycle)")
+                @debug "new partition has cycle $(net.partition[indexPe4].cycle)"
             end
             # -- update inCycle
-            DEBUG && println("incycle e1 $(e1.inCycle), e2 $(e2.inCycle), e3 $(e3.inCycle), e4 $(e4.inCycle), edge $(edge.inCycle)")
+            @debug "incycle e1 $(e1.inCycle), e2 $(e2.inCycle), e3 $(e3.inCycle), e4 $(e4.inCycle), edge $(edge.inCycle)"
             if(e2.inCycle == e4.inCycle == edge.inCycle)
                 edge.inCycle = -1
                 n1.inCycle = -1
@@ -1239,7 +1223,7 @@ function NNI!(net::Network,edge::Edge)
     else #edge not in cycle
         (e1.inCycle == e2.inCycle && e3.inCycle == e4.inCycle) || error("both edges in edges1 $([e.number for e in edges1]) (or edges2 $([e.number for e in edges2])) must have the same inCycle attribute")
         if(e1.inCycle != -1 && e3.inCycle != -1)
-            DEBUG && println("cannot do tree NNI because it will create intersecting cycles, nothing done. e1,e2,e3,e4: $([e1.number,e2.number,e3.number,e4.number])")
+            @debug "cannot do tree NNI because it will create intersecting cycles, nothing done. e1,e2,e3,e4: $([e1.number,e2.number,e3.number,e4.number])"
             return false
         elseif(e1.inCycle != -1 && e3.inCycle == -1)
             node = net.node[getIndexNode(e1.inCycle,net)]
@@ -1255,7 +1239,7 @@ function NNI!(net::Network,edge::Edge)
                     cycleNum = [node.inCycle]
                     getDescendants!(getOtherNode(edges[i],n2),edges[i],descendants,cycleNum)
                     !isempty(descendants) || error("descendants is empty for node $(n2.number)")
-                    DEBUG && println("for node $(n2.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
+                    @debug "for node $(n2.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)"
                     partition = Partition(unique(cycleNum),descendants) # create new partition
                     push!(net.partition, partition)
                     for e in descendants #delete edges from partition with tree originally
@@ -1284,7 +1268,7 @@ function NNI!(net::Network,edge::Edge)
                     cycleNum = [node.inCycle]
                     getDescendants!(getOtherNode(edges[i],n1),edges[i],descendants,cycleNum)
                     !isempty(descendants) || error("descendants is empty for node $(n1.number)")
-                    DEBUG && println("for node $(n1.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)")
+                    @debug "for node $(n1.number), descendants are $([e.number for e in descendants]), and cycleNum is $(cycleNum)"
                     partition = Partition(unique(cycleNum),descendants) # create new partition
                     push!(net.partition, partition)
                     for e in descendants #delete edges from partition with tree originally
@@ -1328,7 +1312,7 @@ function NNI!(net::Network,edge::Edge)
         flag || error("cannot encounter bad triangles with NNI move")
     end
     parameters!(net);
-    DEBUG && println("MOVE: NNI around edge $(edge.number) SUCCESSFUL")
+    @debug "MOVE: NNI around edge $(edge.number) SUCCESSFUL"
     return true
 end
 

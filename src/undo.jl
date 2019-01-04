@@ -37,13 +37,16 @@ function undoistIdentifiable!(edges::Array{Edge,1})
 end
 
 
-# function to undo updategammaz for the 2 cases:
-# bad diamond I,II
-# input: hybrid node
-# set length to edges that were not identifiable and
-# changed the gammaz to -1
-# recalculates the branch lengths in terms of gammaz
-# warning: needs to know incycle attributes
+"""
+    undoGammaz!(node, network)
+
+Undo `updateGammaz!` for the 2 cases: bad diamond I,II.
+`node` should be a hybrid node.
+Set length to edges that were not identifiable and
+change edges' `gammaz` attribute to -1.0.
+Recalculate branch lengths in terms of `gammaz`.  
+*warning*: needs to know `incycle` attributes
+"""
 function undoGammaz!(node::Node, net::HybridNetwork)
     node.hybrid || error("cannot undo gammaz if starting node is not hybrid")
     if(node.isBadDiamondI)
@@ -56,7 +59,7 @@ function undoGammaz!(node::Node, net::HybridNetwork)
         setLength!(tree_edge_incycle1,-log(1-other_min.gammaz))
         other_maj.gammaz != -1 || error("bad diamond I in node $(node.number) but no gammaz updated correctly")
         setLength!(tree_edge_incycle2,-log(1-other_maj.gammaz))
-        if(approxEq(other_maj.gammaz,0.0) && approxEq(other_min.gammaz,0.0))
+        if approxEq(other_maj.gammaz,0.0) && approxEq(other_min.gammaz,0.0)
             setGamma!(edge_maj,0.0, true) # gamma could be anything if both gammaz are 0.0, but will set to 0.0
             setLength!(edge_maj,0.0)
             setLength!(edge_min,0.0)

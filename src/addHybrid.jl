@@ -25,7 +25,7 @@ function createHybrid!(edge1::Edge, edge2::Edge, edge3::Edge, edge4::Edge, net::
     # create hybridization
     max_node = maximum([e.number for e in net.node]);
     max_edge = maximum([e.number for e in net.edge]);
-    gamma < 0.5 || warn("adding a major hybrid edge with gamma $(gamma), this can cause problems when updating incycle")
+    gamma < 0.5 || @warn "adding a major hybrid edge with gamma $(gamma), this can cause problems when updating incycle"
     hybrid_edge = Edge(max_edge+1,0.0,true,gamma,gamma>=0.5);
     pushEdge!(net,hybrid_edge);
     hybrid_node = Node(max_node+1,false,true,[edge2,hybrid_edge,edge4]);
@@ -58,24 +58,24 @@ function sisterOrCherry(edge1::Edge,edge2::Edge)
     cherry = false
     nonidentifiable = false
     node = nothing;
-    if(isEqual(edge1.node[1],edge2.node[1]) || isEqual(edge1.node[1],edge2.node[2]))
+    if isEqual(edge1.node[1],edge2.node[1]) || isEqual(edge1.node[1],edge2.node[2])
         node = edge1.node[1];
-    elseif(isEqual(edge1.node[2],edge2.node[1]) || isEqual(edge1.node[2],edge2.node[2]))
+    elseif isEqual(edge1.node[2],edge2.node[1]) || isEqual(edge1.node[2],edge2.node[2])
         node = edge1.node[2];
     end
-    if(!isa(node,Void))
+    if node !== nothing
         size(node.edge,1) == 3 || error("node found $(node.number) that does not have exactly 3 edges, it has $(size(node.edge,1)) edges instead.")
         sisters = true
-        if(getOtherNode(edge1,node).leaf && getOtherNode(edge2,node).leaf)
+        if getOtherNode(edge1,node).leaf && getOtherNode(edge2,node).leaf
             cherry = true
-        elseif(getOtherNode(edge1,node).leaf || getOtherNode(edge2,node).leaf)
+        elseif getOtherNode(edge1,node).leaf || getOtherNode(edge2,node).leaf
             edge = nothing
             for e in node.edge
                 if(!isEqual(e,edge1) && !isEqual(e,edge2))
                     edge = e
                 end
             end
-            if(getOtherNode(edge,node).leaf)
+            if getOtherNode(edge,node).leaf
                 nonidentifiable = true
             end
         end
@@ -94,33 +94,33 @@ end
 # input: edges, list of edges from which to choose, default is net.edge
 # warning: if edges is not net.edge, it still need to contain Edge objects from net (not deepcopies)
 function chooseEdgesGamma(net::HybridNetwork, blacklist::Bool, edges::Vector{Edge})
-    global DEBUG
-    #println("net.edge length: $(length(net.edge))")
     index1 = 1;
     index2 = 1;
     inlimits = false
     inblack = true
-    while(!inlimits || edges[index1].inCycle != -1 || edges[index2].inCycle != -1 || cherry || nonidentifiable || inblack)
+    cherry = false
+    nonidentifiable = false
+    while !inlimits || edges[index1].inCycle != -1 || edges[index2].inCycle != -1 || inblack || cherry || nonidentifiable
         index1 = round(Integer,rand()*size(edges,1));
         index2 = round(Integer,rand()*size(edges,1));
-        if(index1 != index2 && index1 != 0 && index2 != 0 && index1 <= size(edges,1) && index2 <= size(edges,1))
+        if index1 != index2 && index1 != 0 && index2 != 0 && index1 <= size(edges,1) && index2 <= size(edges,1)
             inlimits = true
             sisters, cherry, nonidentifiable = sisterOrCherry(edges[index1],edges[index2]);
         else
             inlimits = false
         end
-        if(blacklist && !isempty(net.blacklist))
+        if blacklist && !isempty(net.blacklist)
             length(net.blacklist) % 2 == 0 || error("net.blacklist should have even number of entries, not length: $(length(net.blacklist))")
             i = 1
-            while(i < length(net.blacklist))
-                if(edges[index1].number == net.blacklist[i])
-                    if(edges[index2].number == net.blacklist[i+1])
+            while i < length(net.blacklist)
+                if edges[index1].number == net.blacklist[i]
+                    if edges[index2].number == net.blacklist[i+1]
                         inblack = true
                     else
                         inblack = false
                     end
-                elseif(edges[index2].number == net.blacklist[i])
-                    if(edges[index1].number == net.blacklist[i+1])
+                elseif edges[index2].number == net.blacklist[i]
+                    if edges[index1].number == net.blacklist[i+1]
                         inblack = true
                     else
                         inblack = false
@@ -133,7 +133,7 @@ function chooseEdgesGamma(net::HybridNetwork, blacklist::Bool, edges::Vector{Edg
         end
     end
     gamma = rand()*0.5;
-    !DEBUG || println("choose edges and gamma: from $(edges[index1].number) to $(edges[index2].number), $(gamma)");
+    @debug "choose edges and gamma: from $(edges[index1].number) to $(edges[index2].number), $(gamma)"
     return edges[index1],edges[index2],gamma
 end
 
@@ -166,21 +166,20 @@ end
 # blacklist used in afterOptBLAll
 # usePartition=true if we use the information on net.partition, default true
 function addHybridization!(net::HybridNetwork, blacklist::Bool, usePartition::Bool)
-    global DEBUG
     if(net.numHybrids > 0 && usePartition)
         !isempty(net.partition) || error("net has $(net.numHybrids) but net.partition is empty")
         index = choosePartition(net)
         if(index == 0) #no place for new hybrid
-            DEBUG && println("no partition suitable to place new hybridization")
+            @debug "no partition suitable to place new hybridization"
             return nothing
         end
         partition = splice!(net.partition,index) #type partition
-        DEBUG && println("add hybrid with partition $([n.number for n in partition.edges])")
+        @debug "add hybrid with partition $([n.number for n in partition.edges])"
         edge1, edge2, gamma = chooseEdgesGamma(net, blacklist,partition.edges);
     else
         edge1, edge2, gamma = chooseEdgesGamma(net, blacklist);
     end
-    DEBUG && println("add hybridization between edge1, $(edge1.number) and edge2 $(edge2.number) with gamma $(gamma)")
+    @debug "add hybridization between edge1, $(edge1.number) and edge2 $(edge2.number) with gamma $(gamma)"
     edge3, edge4 = parameters4createHybrid!(edge1,edge2,net);
     hybrid = createHybrid!(edge1, edge2, edge3, edge4, net, gamma);
     return hybrid
@@ -205,8 +204,8 @@ function updateMajorHybrid!(net::HybridNetwork, node::Node)
             edgecycle = e
         end
     end
-    !isa(hybedge,Void) || error("hybrid node $(node.number) does not have hybrid edge")
-    !isa(edgecycle,Void) || error("hybrid node $(node.number) does not have tree edge in cycle to update to hybrid edge after updateInCycle")
+    !isa(hybedge,Nothing) || error("hybrid node $(node.number) does not have hybrid edge")
+    !isa(edgecycle,Nothing) || error("hybrid node $(node.number) does not have tree edge in cycle to update to hybrid edge after updateInCycle")
     #println("updating hybrid status to edgeincycle $(edgecycle.number) for hybedge $(hybedge.number)")
     makeEdgeHybrid!(edgecycle,node,1-hybedge.gamma)
 end
@@ -276,7 +275,7 @@ updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool) = update
 # blacklist used in afterOptBLAll
 function addHybridizationUpdate!(net::HybridNetwork, blacklist::Bool, usePartition::Bool)
     hybrid = addHybridization!(net,blacklist, usePartition);
-    isa(hybrid,Void) && return false,nothing,false,false,false,false
+    isa(hybrid,Nothing) && return false,nothing,false,false,false,false
     updateAllNewHybrid!(hybrid,net,true)
 end
 
@@ -291,51 +290,53 @@ addHybridizationUpdate!(net::HybridNetwork, blacklist::Bool) = addHybridizationU
 # declaring failure
 # blacklist used in afterOptBLAll
 function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::Integer)
-    global CHECKNET, DEBUG
-    DEBUG && println("MOVE: addHybridizationUpdateSmart")
+    global CHECKNET
+    @debug "MOVE: addHybridizationUpdateSmart"
     success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
-    DEBUG && println("success $(success), flag $(flag), flag2 $(flag2), flag3 $(flag3)")
-    DEBUG && printEverything(net)
+    @debug begin
+        printEverything(net)
+        "success $(success), flag $(flag), flag2 $(flag2), flag3 $(flag3)"
+    end
     i = 0
-    if(!success)
-        if(isa(hybrid,Void))
-            DEBUG && println("MOVE: could not add hybrid by any means")
+    if !success
+        if isa(hybrid,Nothing)
+            @debug "MOVE: could not add hybrid by any means"
         else
             while((nocycle || !flag) && i < N) #incycle failed
-                DEBUG && println("MOVE: added hybrid causes conflict with previous cycle, need to delete and add another")
+                @debug "MOVE: added hybrid causes conflict with previous cycle, need to delete and add another"
                 deleteHybrid!(hybrid,net,true)
                 success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
             end
             if(nocycle || !flag)
-                DEBUG && println("MOVE: added hybridization $(i) times trying to avoid incycle conflicts, but failed")
+                @debug "MOVE: added hybridization $(i) times trying to avoid incycle conflicts, but failed"
             else
                 if(!flag3 && flag2) #containRoot failed
-                    DEBUG && println("MOVE: added hybrid causes problems with containRoot, will change the direction to fix it")
+                    @debug "MOVE: added hybrid causes problems with containRoot, will change the direction to fix it"
                     success = changeDirectionUpdate!(net,hybrid) #change dir of minor
                 elseif(!flag2 && flag3) #gammaz failed
-                    DEBUG && println("MOVE: added hybrid has problem with gammaz (not identifiable bad triangle)")
+                    @debug "MOVE: added hybrid has problem with gammaz (not identifiable bad triangle)"
                     if(flag3)
-                        DEBUG && println("MOVE: we will move origin to fix the gammaz situation")
+                        @debug "MOVE: we will move origin to fix the gammaz situation"
                         success = moveOriginUpdateRepeat!(net,hybrid,true)
                     else
-                        DEBUG && println("MOVE: we will move target to fix the gammaz situation")
+                        @debug "MOVE: we will move target to fix the gammaz situation"
                         success = moveTargetUpdateRepeat!(net,hybrid,true)
                     end
                 elseif(!flag2 && !flag3) #containRoot AND gammaz failed
-                    DEBUG && println("MOVE: containRoot and gammaz both fail")
+                    @debug "MOVE: containRoot and gammaz both fail"
                 end
             end
-            if(!success)
-                DEBUG && println("MOVE: could not fix the added hybrid by any means, we will delete it now")
+            if !success
+                @debug "MOVE: could not fix the added hybrid by any means, we will delete it now"
                 CHECKNET && checkNet(net)
-                DEBUG && printEverything(net)
+                @debug begin printEverything(net); "printed everything" end
                 deleteHybridizationUpdate!(net,hybrid)
-                DEBUG && printEverything(net)
+                @debug begin printEverything(net); "printed everything" end
                 CHECKNET && checkNet(net)
             end
         end
     end
-    success && DEBUG && println("MOVE: added hybridization SUCCESSFUL: new hybrid $(hybrid.number)")
+    success && @debug "MOVE: added hybridization SUCCESSFUL: new hybrid $(hybrid.number)"
     return success
 end
 
@@ -385,7 +386,7 @@ function addAlternativeHybridizations!(net::HybridNetwork,BSe::DataFrame; cutoff
     newHyb = newBSe[1:top,:]
 
     if(size(newHyb,1) == 0)
-        warn("Did not find any alternative hybridizations with bootstrap support greater than the cutoff, so nothign added")
+        @warn "Did not find any alternative hybridizations with bootstrap support greater than the cutoff, so nothign added"
         return
     end
 
@@ -393,8 +394,8 @@ function addAlternativeHybridizations!(net::HybridNetwork,BSe::DataFrame; cutoff
         hybnum = newHyb[:hybrid][i]
         sisnum = newHyb[:sister][i]
         edgenum = addHybridBetweenClades!(hybnum,sisnum,net)
-        ind1 = find(x->!ismissing(x) && x==hybnum,BSe[:hybrid])
-        ind2 = find(x->!ismissing(x) && x==sisnum,BSe[:sister])
+        ind1 = findall(x->!ismissing(x) && x==hybnum,BSe[:hybrid])
+        ind2 = findall(x->!ismissing(x) && x==sisnum,BSe[:sister])
         ind = intersect(ind1,ind2)
         BSe[ind,:edge] = edgenum
         BSe[ind,:alternative] = true

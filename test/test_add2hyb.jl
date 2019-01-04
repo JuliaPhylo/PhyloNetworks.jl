@@ -1,19 +1,12 @@
 # test to start debugging adding more than one hybrid
 # claudia may 2015
 
-if !isdefined(:individualtest) individualtest = false; end
-
-if(individualtest)
-    include("../src/types.jl")
-    include("../src/functions.jl")
-end
-
 seed=1234
 tree = "(((((((1,2),3),4),5),(6,7)),(8,9)),10);"
 currT0 = readTopologyLevel1(tree);
 #printEdges(currT0)
 besttree = deepcopy(currT0);
-srand(1234);
+Random.seed!(1234);
 success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
 success || error("added hybrid not successful")
 flag || error("added hybrid not successful")
@@ -64,10 +57,10 @@ net.node[10].isBadDiamondII || error("does not recognize as bad diamond II")
 # currT0 = readTopologyUpdate(tree);
 # printEdges(currT0)
 # besttree = deepcopy(currT0);
-# srand(1234);
+# Random.seed!(1234);
 # success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
 # printEdges(besttree)
-# ##srand(5678);
+# ##Random.seed!(5678);
 # hybrid = addHybridization!(besttree)
 # printEdges(besttree)
 # flag=false

@@ -11,7 +11,6 @@ see [`BinaryTraitSubstitutionModel`](@ref),
 [`EqualRatesSubstitutionModel`](@ref),
 [`TwoBinaryTraitSubstitutionModel`](@ref)
 """
-
 abstract type TraitSubstitutionModel{T} end
 const SM = TraitSubstitutionModel{T} where T
 const Bmatrix = SMatrix{2, 2, Float64}
@@ -50,7 +49,7 @@ function showQ(io::IO, object::SM)
     M = Q(object)
     pad = max(8,maximum(length.(object.label))+1)
     for i = 1:size(M,2) # print the header
-        print(io, lpad(object.label[i],(i==1? 2*pad : pad), " "))
+        print(io, lpad(object.label[i],(i==1 ? 2*pad : pad), " "))
     end
     print(io, "\n")
     for i = 1:size(M,1) # print one row per state
@@ -84,7 +83,7 @@ given that the process started in state i.
 """
 @inline function P(mod::SM, t::Float64)
     t >= 0.0 || error("substitution model: >=0 branch lengths are needed")
-    return expm(Q(mod) * t)
+    return exp(Q(mod) * t)
 end
 
 """
@@ -96,13 +95,13 @@ The time argument `t` can be an array.
 function P(mod::SM, t::Array{Float64})
     all(t .>= 0.0) || error("t's must all be positive")
     try
-        eig_vals, eig_vecs = eig(Q(mod)) # Only hermitian matrices are diagonalizable by
+        eig_vals, eig_vecs = eigen(Q(mod)) # Only hermitian matrices are diagonalizable by
         # *StaticArrays*. Non-Hermitian matrices should be converted to `Array`first.
-        return [eig_vecs * expm(diagm(eig_vals)*i) * eig_vecs' for i in t]
+        return [eig_vecs * Matrix(Diagonal(exp.(eig_vals*i))) * eig_vecs' for i in t]
     catch
-        eig_vals, eig_vecs = eig(Array(Q(mod)))
+        eig_vals, eig_vecs = eigen(Array(Q(mod)))
         k = nStates(mod)
-        return [SMatrix{k,k}(eig_vecs * expm(diagm(eig_vals)*i) * inv(eig_vecs)) for i in t]
+        return [SMatrix{k,k}(eig_vecs * Matrix(Diagonal(exp.(eig_vals*i))) * inv(eig_vecs)) for i in t]
     end
 end
 
@@ -134,8 +133,13 @@ BinaryTraitSubstitutionModel(α::Float64, β::Float64) = BinaryTraitSubstitution
 """
 # Examples
 
-```julia-repl
+```jldoctest
 julia> m1 = BinaryTraitSubstitutionModel([1.0,2.0], ["low","high"])
+Binary Trait Substitution Model:
+rate low→high α=1.0
+rate high→low β=2.0
+
+
 julia> nStates(m1)
 2
 ```
@@ -158,8 +162,8 @@ end
 
 function Base.show(io::IO, object::BTSM)
     str = "Binary Trait Substitution Model:\n"
-    str *= "rate $(object.label[1])→$(object.label[2]) α=$(object.rate[1])\n"
-    str *= "rate $(object.label[2])→$(object.label[1]) β=$(object.rate[2])\n"
+    str *= "rate $(object.label[1])→$(object.label[2]) α=$(round(object.rate[1], digits=5))\n"
+    str *= "rate $(object.label[2])→$(object.label[1]) β=$(round(object.rate[2], digits=5))\n"
     print(io, str)
 end
 
@@ -295,25 +299,30 @@ Simulate traits along one edge of length t.
 The bang version (ending with !) uses the vector `end` to store the simulated values.
 
 # Examples
-```julia-repl
+```jldoctest
 julia> m1 = BinaryTraitSubstitutionModel(1.0, 2.0)
+Binary Trait Substitution Model:
+rate 0→1 α=1.0
+rate 1→0 β=2.0
 
-julia> srand(12345);
+
+julia> using Random; Random.seed!(12345);
 
 julia> randomTrait(m1, 0.2, [1,2,1,2,2])
- 5-element Array{Int64,1}:
+5-element Array{Int64,1}:
  1
  2
  1
- 2
+ 1
  2
 ```
 """
 function randomTrait(mod::SM, t::Float64, start::AbstractVector{Int})
-    res = Vector{Int}(length(start))
+    res = Vector{Int}(undef, length(start))
     randomTrait!(res, mod, t, start)
 end
 
+@doc (@doc randomTrait) randomTrait!
 function randomTrait!(endTrait::AbstractVector{Int}, mod::SM, t::Float64, start::AbstractVector{Int})
     Pt = P(mod, t)
     k = size(Pt, 1) # number of states
@@ -345,15 +354,20 @@ output:
 
 # examples
 
-```julia-repl
+```jldoctest
 julia> m1 = BinaryTraitSubstitutionModel(1.0, 2.0, ["low","high"]);
+
 julia> net = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.0,D:5.0);");
-julia> srand(1234);
+
+julia> using Random; Random.seed!(1234);
+
 julia> trait, lab = randomTrait(m1, net)
-([1 2 … 1 1], String["-2", "D", "-3", "-6", "C", "-4", "#H1", "B", "A"])
+([1 2 … 1 1], ["-2", "D", "-3", "-6", "C", "-4", "#H1", "B", "A"])
+
 julia> trait
 1×9 Array{Int64,2}:
  1  2  1  1  2  2  1  1  1
+
 julia> lab
 9-element Array{String,1}:
  "-2" 
@@ -367,7 +381,6 @@ julia> lab
  "A"  
 ```
 """
-
 function randomTrait(mod::SM, net::HybridNetwork;
     ntraits=1::Int, keepInternal=true::Bool, checkPreorder=true::Bool)
     net.isRooted || error("net needs to be rooted for preorder recursion")
@@ -375,7 +388,7 @@ function randomTrait(mod::SM, net::HybridNetwork;
         preorder!(net)
     end
     nnodes = net.numNodes
-    M = Matrix{Int}(ntraits, nnodes) # M[i,j]= trait i for node j
+    M = Matrix{Int}(undef, ntraits, nnodes) # M[i,j]= trait i for node j
     randomTrait!(M,mod,net)
     if !keepInternal
         M = getTipSubmatrix(M, net, indexation=:cols) # subset columns only. rows=traits
@@ -386,8 +399,7 @@ function randomTrait(mod::SM, net::HybridNetwork;
     return M, nodeLabels
 end
 
-@doc (@doc randomTrait) randomTrait!
-function randomTrait!(M::Matrix{Int}, mod::SM, net::HybridNetwork)
+function randomTrait!(M::Matrix, mod::SM, net::HybridNetwork)
     recursionPreOrder!(net.nodes_changed, M, # updates M in place
             updateRootRandomTrait!,
             updateTreeRandomTrait!,

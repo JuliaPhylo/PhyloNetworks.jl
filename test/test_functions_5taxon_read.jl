@@ -47,7 +47,7 @@ function testCaseG(net::HybridNetwork)
     node.k != 4 ? error("k diff than 4") : nothing
     (net.edge[5].inCycle != node.number || net.edge[6].inCycle != node.number || net.edge[7].inCycle != node.number || net.edge[9].inCycle != node.number ) ? error("edges not correctly in cycle") : nothing
     (net.node[5].inCycle  != node.number || net.node[6].inCycle  != node.number || net.node[8].inCycle  != node.number || net.node[9].inCycle  != node.number) ? error("nodes not correctly in cycle") : nothing
-    (node.isBadDiamondI || node.isBadDiamondII )? error("thinks it is bad diamond") : nothing
+    (node.isBadDiamondI || node.isBadDiamondII ) ? error("thinks it is bad diamond") : nothing
     net.edge[4].containRoot ? error("edge can contain root") : nothing
     (!net.edge[5].hybrid || !net.edge[5].isMajor) ? error("edge 5 is not hybrid or major") : nothing
     (!net.edge[7].hybrid || net.edge[7].isMajor) ? error("edge 7 is not hybrid or is major") : nothing

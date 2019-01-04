@@ -25,7 +25,7 @@ using PhyloNetworks
 mkpath("../assets/figures")
 using RCall
 R"name <- function(x) file.path('..', 'assets', 'figures', x)"
-# net1 = readTopology(joinpath(Pkg.dir("PhyloNetworks"),"examples","swadesh.out"))
+# net1 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","swadesh.out"))
 # we would get net1 from analyzing the complete data, but not available with the package
 ```
 
@@ -33,9 +33,9 @@ First, we need to read the trait table as a DataFrame object:
 
 ```@repl parsimony
 using CSV, DataFrames
-csvfile = joinpath(Pkg.dir("PhyloNetworks"),"examples","Swadesh.csv");
+csvfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","Swadesh.csv");
 dat = CSV.read(csvfile);
-head(dat) # head shows the first 6 rows only
+first(dat, 6) # to see the first 6 rows
 ```
 
 Then, we need to convert the DataFrame object `dat`

@@ -25,7 +25,7 @@ move = :nni
 flag = proposedTop!(move,newT,true,count,N, zeros(Int,18), zeros(Int,6))
 printEdges(newT)
 printNodes(newT)
-sum([e.hybrid?1:0 for e in newT.edge]) == 2 || error("there are not 2 hybrid edges")
+count([e.hybrid for e in newT.edge]) == 2 || error("there are not 2 hybrid edges")
 newT.hybrid[1].k
 
 optBL!(newT,d)
@@ -61,7 +61,7 @@ move = :nni
 flag = proposedTop!(move,newT,true,count,N)
 printEdges(newT)
 printNodes(newT)
-sum([e.hybrid?1:0 for e in newT.edge]) == 2 || error("there are not 2 hybrid edges")
+count([e.hybrid for e in newT.edge]) == 2 || error("there are not 2 hybrid edges")
 newT.hybrid[1].k
 
 newloglik, newxmin = optBL!(newT,d)

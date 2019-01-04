@@ -7,12 +7,12 @@ net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H
 @testset "Simulate function against fixed values" begin
 
 ## Simulate a BM
-srand(17920921); # fix the seed
+Random.seed!(17920921); # fix the seed
 pars = ParamsBM(1, 0.1); # params of a BM
-@test_nowarn show(DevNull, pars)
+@test_logs show(devnull, pars)
 
 sim = simulate(net, pars); # simulate according to a BM
-@test_nowarn show(DevNull, sim)
+@test_logs show(devnull, sim)
 
 # Extract simulated values
 traitsTips = sim[:Tips];
@@ -33,7 +33,7 @@ end
 @testset "Simulate test distribution" begin
 
 ## Generate some values
-srand(18480224); # fix the seed
+Random.seed!(18480224); # fix the seed
 pars = ParamsBM(1, 0.1); # params of a BM
 N = 50000
 S = length(tipLabels(net));
@@ -61,9 +61,8 @@ end
 ## With Shifts
 ###############################################################################
 @testset "Simulate with Shifts" begin
-
-tree_str= "(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6):1):0.5);"
-net = readTopology(tree_str)
+global net
+net = readTopology("(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6):1):0.5);")
 
 ## Test construction function
 @test_throws ErrorException ShiftNet(net.edge[7], 3.0,  net) # can't put a shift on hybrid branch
@@ -88,12 +87,12 @@ sh = ShiftNet(net.node[7], 3.0,  net)
 
 ## Test simulate
 pars = ParamsBM(1, 0.1, ShiftNet(net.edge[8], 3.0,  net)); # params of a BM
-@test_nowarn show(DevNull, pars)
-@test_nowarn show(DevNull, pars.shift)
+@test_logs show(devnull, pars)
+@test_logs show(devnull, pars.shift)
 
-srand(17920921); # fix the seed
+Random.seed!(17920921); # fix the seed
 sim = simulate(net, pars); # simulate according to a BM
-@test_nowarn show(DevNull, sim)
+@test_logs show(devnull, sim)
 
 traitsTips = sim[:Tips];
 traitsNodes = sim[:InternalNodes];
@@ -118,7 +117,7 @@ traitsNodesExp = [1.50594336537754 3.296894371572107 4.346436961253621 1.3212328
 ###############################################################################
 
 ## Generate some values
-srand(18480224); # fix the seed
+Random.seed!(18480224); # fix the seed
 pars = ParamsBM(1, 0.1, ShiftNet(net.edge[8], 3.0,  net)); # params of a BM
 N = 50000
 S = length(tipLabels(net));

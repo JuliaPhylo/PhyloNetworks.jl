@@ -32,7 +32,7 @@ function optimizar(obsCF::Vector{Float64}, q::ToyQuartet)
         t = deepcopy(x)
         println("t is now $(t), x: $(x)")
         val = objective(x[1],obsCF)
-        println("f_$count: $(round(val,5)), x: $(x)")
+        println("f_$count: $(round(val, digits=5)), x: $(x)")
         return val
     end
     NLopt.min_objective!(opt,obj)

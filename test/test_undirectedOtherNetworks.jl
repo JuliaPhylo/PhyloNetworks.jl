@@ -3,16 +3,10 @@
 ## moving the hybrid nodes inside each cycle
 ## Claudia April 2016
 
-if !isdefined(:individualtest) individualtest = false; end
-
-if(individualtest)
-    include("../src/types.jl")
-    include("../src/functions.jl")
-end
-
 @testset "test: move hybrid around cycle" begin
+global net
 net = readTopology("(((B)#H2,((C,#H2)S1,(A)S2)S3)S4);")
-@test_nowarn hybridatnode!(net, 7)
+@test_logs hybridatnode!(net, 7)
 @test_throws ErrorException hybridatnode!(net, 8)
 
 ## very important semicolon at the end because show changes containRoot

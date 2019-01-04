@@ -1,4 +1,5 @@
 @testset "multiple alleles" begin
+global tree, df, d, net, currT
 
 @testset "test: map alleles to species" begin
     tree = readTopology("(6,(5,(7,(3,4))));");
@@ -10,8 +11,10 @@
     # df = CSV.read(joinpath(@__DIR__, "..", "examples", "tableCFCI.csv"))
     # PhyloNetworks.mapAllelesCFtable!(df,alleleDF,[1,2,3,4],true,"CFmapped.csv")
     CSV.write("tmp.csv", alleleDF);
-    df = (@test_warn "not all alleles were mapped" mapAllelesCFtable("tmp.csv",
-      joinpath(@__DIR__, "..", "examples", "tableCFCI.csv"), filename="CFmapped.csv"))
+    df = (@test_logs (:warn, r"^not all alleles were mapped") mapAllelesCFtable("tmp.csv",
+      joinpath(@__DIR__, "..", "examples", "tableCFCI.csv"),
+      # joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "tableCFCI.csv"),
+      filename="CFmapped.csv"))
     rm("CFmapped.csv")
     rm("tmp.csv")
     @test df[:t4] == ["4","7","3","7","3","3","7","3","3","3","7","3","3","3","3"]
@@ -20,17 +23,17 @@ end
 #----------------------------------------------------------#
 #   testing sorting of taxa and CFs                        #
 #----------------------------------------------------------#
-@testset "testing sorttaxa!" begin
+@testset "sorttaxa!" begin
 
 letters = ["a","b","c","d"]; cfvalues = [0.6, 0.39, 0.01] # for ab_cd, ac_bd, ad_bc
-d = DataFrame(t1=Array{String}(24),t2=Array{String}(24),t3=Array{String}(24),t4=Array{String}(24),
-              CF12_34=Array{Float64}(24), CF13_24=Array{Float64}(24), CF14_23=Array{Float64}(24));
+d = DataFrame(t1=Array{String}(undef,24),t2=Array{String}(undef,24),t3=Array{String}(undef,24),t4=Array{String}(undef,24),
+              CF12_34=Array{Float64}(undef,24), CF13_24=Array{Float64}(undef,24), CF14_23=Array{Float64}(undef,24));
 irow=1        # d will contain 6!=24 rows: for all permutations on 4 letters
 for i1 in 1:4
   ind234 = deleteat!(collect(1:4),i1)
   for i2 in ind234
     ind34 = deepcopy(ind234)
-    deleteat!(ind34,findfirst(ind34, i2))
+    deleteat!(ind34, findfirst(isequal(i2), ind34))
     for j in 1:2
       i3=ind34[j]; i4=ind34[3-j]
       d[:t1][irow]=letters[i1]; d[:t2][irow]=letters[i2]; d[:t3][irow]=letters[i3]; d[:t4][irow]=letters[i4]
@@ -60,10 +63,9 @@ d3 = DataFrame(t1=repeat([letters[1]],outer=[24]),t2=repeat([letters[2]],outer=[
 @test d2==d3
 
 dat = readTableCF(d);
-# net = (@test_warn "net does not have identifiable branch lengths" readTopologyLevel1("(a,((b)#H1,((#H1,c),d)));"));
-net = (@test_nowarn readTopologyLevel1("(a,((b)#H1,((#H1,c),d)));"));
-# @test_warn "net does not have identifiable branch lengths"
-@test_nowarn topologyQPseudolik!(net, dat);
+net = (@test_logs readTopologyLevel1("(a,((b)#H1,((#H1,c),d)));"));
+# earlier warning: "net does not have identifiable branch lengths"
+@test_logs topologyQPseudolik!(net, dat);
 sorttaxa!(dat)
 
 @test [q.obsCF for q in dat.quartet] == [[0.6,0.39,0.01] for i in 1:24]
@@ -73,7 +75,7 @@ sorttaxa!(dat)
 
 end # of testset: sorttaxa!
 
-@testset "testing snaq on multiple alleles" begin
+@testset "snaq on multiple alleles" begin
 df=DataFrame(t1=["6","6","10","6","6","7","7","7","7","7","7"],
              t2=["7","7","7","10","7","7","7","7","7","7","7"],
              t3=["4","10","4","4","4","8","8","8","10","10","6"],
@@ -88,10 +90,10 @@ d = readTableCF(df)
 tree = "((6,4),(7,8),10);"
 currT = readTopology(tree);
 
-originalSTDOUT = STDOUT
+originalstdout = stdout
 redirect_stdout(open("/dev/null", "w")) # not portable to Windows
 estNet = snaq!(currT,d,hmax=1,seed=1010, runs=1, filename="", Nfail=10)
-redirect_stdout(originalSTDOUT)
+redirect_stdout(originalstdout)
 @test 185.27 < estNet.loglik < 185.29 # or: wrong loglik
 @test estNet.hybrid[1].k == 4 # or: wrong k
 @test estNet.numTaxa == 5 # or: wrong number of taxa
@@ -99,7 +101,7 @@ redirect_stdout(originalSTDOUT)
 redirect_stdout(open("/dev/null", "w")) # not portable to Windows
 estNet = snaq!(currT,d,hmax=1,seed=8378, runs=1, filename="", Nfail=10,
                ftolAbs=1e-6,ftolRel=1e-5,xtolAbs=1e-4,xtolRel=1e-3)
-redirect_stdout(originalSTDOUT)
+redirect_stdout(originalstdout)
 @test 174.58 < estNet.loglik < 174.59 # or: loglik wrong
 @test estNet.hybrid[1].k == 5 # or: wrong k in hybrid
 @test estNet.numTaxa == 5 # or: wrong # taxa
@@ -112,6 +114,6 @@ net = readTopology("(((4,#H1),10),(7,(6)#H1),8);")
 net = topologyMaxQPseudolik!(net,d,  # loose tolerance for faster test
         ftolRel=1e-2,ftolAbs=1e-2,xtolAbs=1e-2,xtolRel=1e-2)
 @test net.loglik > 174.5
-end # of snaq testset
+end # test of snaq on multiple alleles
 
 end # overall multiple allele sets of testests

@@ -32,13 +32,13 @@ function biconnectedComponents(net, ignoreTrivial=false::Bool)
         n.k = -1       # inCycle = lowpoint
         n.prev = nothing # parent: will be a node later
     end
-    S = Vector{Edge}(0) # temporary stack
-    blobs = Vector{Vector{Edge}}(0) # will contain the blobs
+    S = Edge[] # temporary stack
+    blobs = Vector{Edge}[] # will contain the blobs
     biconnectedComponents(net.node[net.root], [0], S, blobs, ignoreTrivial)
     # if stack not empty: create last connected component
     if length(S)>0
         #println("stack not empty at the end.")
-        bb = Vector{Edge}(0)
+        bb = Edge[]
         while length(S)>0
             e2 = pop!(S)
             push!(bb, e2)
@@ -88,7 +88,7 @@ function biconnectedComponents(node, index, S, blobs, ignoreTrivial)
                (node.prev != nothing && w.inCycle >= node.k)
                 # node is either root or an articulation point
                 # start a new strongly connected component
-                bb = Vector{Edge}(0)
+                bb = Edge[]
                 while length(S)>0
                     e2 = pop!(S)
                     #println(" popping: edge $(e2.number)")
@@ -145,15 +145,15 @@ function blobInfo(net, ignoreTrivial=true::Bool;
       preorder!(net) # creates / updates net.nodes_changed
     end
     bcc = biconnectedComponents(net, ignoreTrivial)
-    bccRoots = Vector{Node}(0)     # one root node for each blob
-    bccMajor = Vector{Vector{Edge}}(0) # one array for each blob
-    bccMinor = Vector{Vector{Edge}}(0)
+    bccRoots = Node[]         # one root node for each blob
+    bccMajor = Vector{Edge}[] # one array for each blob
+    bccMinor = Vector{Edge}[]
     for bicomp in bcc
-        bccMa = Vector{Edge}(0)
+        bccMa = Edge[]
         jmin = length(net.node)
         for edge in bicomp
             n = getParent(edge)
-            j = findfirst(net.nodes_changed, n)
+            j = something(findfirst(x -> x===n, net.nodes_changed), 0)
             jmin = min(j, jmin)
             if edge.hybrid && edge.isMajor
                 push!(bccMa, edge)
@@ -161,10 +161,10 @@ function blobInfo(net, ignoreTrivial=true::Bool;
         end
         push!(bccRoots, net.nodes_changed[jmin])
         push!(bccMajor, bccMa)
-        bccmi = Vector{Edge}(0) # find minor hybrid edges, in same order
+        bccmi = Edge[] # find minor hybrid edges, in same order
         for edge in bccMa
             e = getPartner(edge)
-            !e.isMajor || warn("major edge $(edge.number) has a major partner: edge $(e.number)")
+            !e.isMajor || @warn "major edge $(edge.number) has a major partner: edge $(e.number)"
             push!(bccmi, e)
         end
         push!(bccMinor, bccmi)
@@ -173,8 +173,8 @@ function blobInfo(net, ignoreTrivial=true::Bool;
     # blobs in post-order, so if there the root is there, it's the last blob
     if length(bcc)==0 || bccRoots[end]!=net.node[net.root]
         push!(bccRoots,net.node[net.root])
-        push!(bccMajor, Vector{Edge}(0))
-        push!(bccMinor, Vector{Edge}(0))
+        push!(bccMajor, Edge[])
+        push!(bccMinor, Edge[])
     end
     # update `isExtBadTriangle` to mark nodes that are blob roots:
     # these nodes will serve as dummy leaves when reached from other blobs

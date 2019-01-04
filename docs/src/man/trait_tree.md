@@ -8,11 +8,7 @@ Once the network is inferred, we can take
 these species relationships into account when studying the distribution of quantitative
 traits measured for extant species.
 This is the goal of phylogenetic comparative methods (PCM).
-More details can be found on the developments below in Bastide et al. 2018[^fnBastide2018]
-
-[^fnBastide2018]: Bastide, Solís-Lemus, Kriebel, Sparks, Ané (2018):
-                  Phylogenetic Comparative Methods for Phylogenetic Networks with Reticulations.
-                  Systematic Biology 67(5):800–820. doi:10.1093/sysbio/syy033
+More details can be found on the developments below in Bastide et al. 2018 [^B18]
 
 We assume a fixed network, correctly rooted, with branch lengths
 proportional to calendar time. Here, we consider the true network that was
@@ -30,7 +26,7 @@ the sake of clarity.
 using PhyloPlots, RCall
 R"name <- function(x) file.path('..', 'assets', 'figures', x)"
 R"svg(name('truenet.svg'), width=8, height=4)"
-R"par(mar = c(0, 0, 0, 0))"
+R"par"(mar=[0,0,0,0])
 plot(truenet, :R, useEdgeLength=true, showGamma=true);
 R"dev.off()"
 nothing # hide
@@ -44,11 +40,13 @@ Brownian Motion (BM) in time, it is possible to compute the expected variance
 covariance matrix between tip measurements. This can be done using function
 [`vcv`](@ref), whose syntax is inspired from the well known corresponding
 [`ape`](https://CRAN.R-project.org/package=ape) function.
-```@example tree_trait
+```@repl tree_trait
 C = vcv(truenet)
 ```
 The matrix is returned as a `DataFrame`, with columns named by the
 tips of the network to allow for easy identification.
+Each row also corresponds to a tip in the network, and rows are
+ordered in the same way as columns.
 
 The computation of this matrix is based on the more general function
 [`sharedPathMatrix`](@ref). It is at the core of all the Phylogenetic
@@ -70,7 +68,8 @@ nothing # hide
 We then simulate the independent traits according to these parameters, using
 function [`simulate`](@ref) (fixing the seed, for reproducibility).
 ```@example tree_trait
-srand(18480224);
+using Random
+Random.seed!(18480224);
 sim1 = simulate(truenet, params_trait1) # simulate a BM on truenet
 sim2 = simulate(truenet, params_trait2)
 nothing # hide
@@ -96,9 +95,9 @@ nothing # hide
 Finally, we generate the last trait correlated with trait 1
 (but not trait 2), with phylogenetic noise.
 ```@example tree_trait
-srand(18700904);
+Random.seed!(18700904);
 noise = simulate(truenet, ParamsBM(0, 0.1)) # phylogenetic residuals
-trait3 = 10 + 2 * trait1 + noise[:Tips] # trait to study. independent of trait2
+trait3 = 10 .+ 2 * trait1 .+ noise[:Tips] # trait to study. independent of trait2
 nothing # hide
 ```
 
@@ -111,7 +110,7 @@ regression.
 In order to avoid confusion, the function takes in a `DataFrame`, that has an
 extra column with the names of the tips of the network, labeled `tipNames`.
 Here, we generated the traits ourselves, so they are all in the same order.
-```@example tree_trait
+```@repl tree_trait
 using DataFrames
 dat = DataFrame(trait1 = trait1, trait2 = trait2, trait3 = trait3,
                 tipNames = tipLabels(sim1))
@@ -120,7 +119,7 @@ dat = DataFrame(trait1 = trait1, trait2 = trait2, trait3 = trait3,
 Phylogenetic regression / ANOVA is based on the
 [GLM](https://github.com/JuliaStats/GLM.jl) package, with the network as an
 extra argument, using function [`phyloNetworklm`](@ref).
-```@example tree_trait
+```@repl tree_trait
 using StatsModels # for statistical model formulas
 fitTrait3 = phyloNetworklm(@formula(trait3 ~ trait1 + trait2), dat, truenet)
 ```
@@ -171,7 +170,7 @@ We can plot the ancestral states or prediction intervals on the tree, using the
 ```@example tree_trait
 ancExpe = expectationsPlot(ancTrait1); # format expected ancestral states for the plot
 R"svg(name('ancestral_expe.svg'), width=8, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(truenet, :R, nodeLabel = ancExpe);
 R"dev.off()" # hide
 nothing # hide
@@ -181,7 +180,7 @@ nothing # hide
 ```@example tree_trait
 ancInt = predintPlot(ancTrait1) # format the prediction intervals for the plot
 R"svg(name('ancestral_predint.svg'), width=8, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(truenet,:R, nodeLabel = ancInt);
 R"dev.off()" # hide
 nothing # hide
@@ -194,8 +193,8 @@ the `level` of the prediction interval. If not given, the default value is
 
 It is also possible to plot both the reconstructed state and the predicted value
 on the same plot, using the optional keyword argument `withExp`.
-As shown below, we could also use the `:RCall` method from the
-[`plot`](https://cecileane.github.io/PhyloPlots.jl/latest/lib/public/) function.
+As shown below, we could also use the `RCall` method from the
+[`plot`](https://cecileane.github.io/PhyloPlots.jl/stable/lib/public/) function.
 ```@example tree_trait
 plot(truenet, :R, nodeLabel = predintPlot(ancTrait1, withExp=true));
 nothing # hide
@@ -204,7 +203,7 @@ These plots tend to be quite busy, even for small networks.
 
 As we know the true ancestral states here, we can compare them to our
 estimation.
-```@example tree_trait
+```@repl tree_trait
 predictions = DataFrame(infPred=predint(ancTrait1)[1:7, 1],
                         trueValue=sim1[:InternalNodes],
                         supPred=predint(ancTrait1)[1:7, 2])
@@ -232,7 +231,7 @@ The output is an object of the same [`ReconstructedStates`](@ref) type as earlie
 and the same extractors can be applied to it:
 ```@example tree_trait
 R"svg(name('ancestral1.svg'), width=8, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(truenet, :R, nodeLabel = expectationsPlot(ancTrait1Approx));
 R"dev.off()" # hide
 nothing # hide
@@ -250,7 +249,7 @@ nothing # hide
 ```
 ```@example tree_trait
 R"svg(name('ancestral2.svg'), width=8, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(truenet, :R, nodeLabel = predintPlot(ancTrait1Approx, level=0.9));
 R"dev.off()" # hide
 nothing # hide
@@ -268,14 +267,14 @@ network. Consequently, the previous [`ancestralStateReconstruction`](@ref)
 function can be used to do data imputation. To see this, let's add some missing
 values in trait 1.
 ```@example tree_trait
-datTrait1[:trait1] = allowmissing(datTrait1[:trait1]);
-datTrait1[[2], :trait1] = missing; # second row: for taxon C
+allowmissing!(datTrait1, :trait1)
+datTrait1[2, :trait1] = missing; # second row: for taxon C
 ancTrait1Approx = ancestralStateReconstruction(datTrait1, truenet)
 nothing # hide
 ```
 ```@example tree_trait
 R"svg(name('ancestral3.svg'), width=8, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(truenet, :R, nodeLabel = predintPlot(ancTrait1Approx));
 R"dev.off()" # hide
 nothing # hide
@@ -309,7 +308,7 @@ nothing # hide
 ```
 ```@example tree_trait
 R"svg(name('ancestral4.svg'), width=8, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(truenet, :R, nodeLabel = predintPlot(ancTrait3));
 R"dev.off()" # hide
 nothing # hide
@@ -339,7 +338,8 @@ of the function).
 To illustrate the use of categorical predictors of particular interest
 in a network with reticulations, let's assume that some transgressive evolution took place
 after the hybridization event, so that tips "A" and "B" have larger mean
-compared to the others.
+compared to the others
+(see [^B18] for transgressive evolution after a reticulation event).
 ```@example tree_trait
 delta = 5.0; # value of heterosis
 underHyb = [(n == "A" || n == "B") for n in tipLabels(sim1)] # tips under hybrid
@@ -353,7 +353,8 @@ nothing # hide
 trait3 # changed: +5 was added by the previous loop to A and B
 ```
 The categorical variable `underHyb` separates tips "A" and "B" from the others.
-We need to mark it as a factor, not a numerical variable, i.e. as a `PooledDataArray`.
+We need to mark it as a categorical variable, not a numerical variable,
+i.e. as a `PooledDataArray`.
 ```@example tree_trait
 dat = DataFrame(trait1 = trait1, trait2 = trait2, trait3 = trait3,
                 underHyb = underHyb,
@@ -364,7 +365,7 @@ nothing # hide
 ```@repl tree_trait
 dat
 ```
-Now we can include this factor in the regression.
+Now we can include this reticulation variable in the regression.
 ```@example tree_trait
 fitTrait = phyloNetworklm(@formula(trait3 ~ trait1 + underHyb), dat, truenet)
 ```
@@ -384,7 +385,8 @@ One classical question about trait evolution is the amount of
 "phylogenetic signal" in a dataset, that is, the importance of the tree
 structure to explain variation in the observed traits.
 One way of doing measuring that is to use
-Pagel's lambda[^fn3] transformation of the branch lengths. This model assumes a
+Pagel's lambda transformation of the branch lengths [^P99].
+This model assumes a
 BM on a tree where the internal branches are multiplied by a factor λ,
 while the external branches are modified so that the total height of the tree is
 constant. Hence, λ varies between 0 (the tree has no influence on
@@ -404,10 +406,6 @@ estimated λ should be close to 1. It can be extracted with function
 lambda_estim(fitPagel)
 ```
 
-[^fn3]: Pagel M (1999). Inferring the historical patterns of biological
-        evolution. Nature. 401: 877–884. doi:10.1038/44766
-
-
 ## Shifts and transgressive evolution
 
 In the ANOVA section above, we showed how to include transgressive evolution
@@ -426,7 +424,7 @@ To see this, let's first plot the network with its associated edges and node
 numbers.
 ```@example tree_trait
 R"svg(name('truenet_with_numbers.svg'), width=8, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
+R"par"(mar=[0,0,0,0]) # hide
 plot(truenet, :R, useEdgeLength=true, showEdgeNumber=true);
 R"dev.off()" # hide
 nothing # hide
@@ -464,7 +462,7 @@ nothing # hide
 The traits are simulated using the same function [`simulate`](@ref), and
 extracted at the tips as before.
 ```@example tree_trait
-srand(18700904)
+Random.seed!(18700904)
 sim_sh = simulate(truenet, params_sh) # simulate a shifted BM on truenet
 trait_sh = sim_sh[:Tips]              # trait at the tips (data)
 nothing # hide
@@ -504,5 +502,16 @@ Here, this test is equivalent to the Fisher F test, and gives the same p-value.
 Note that, for conventional reasons, the `ftest` function always takes the
 *most complex* model as the first one. This means that, in the table of
 results, the models are actually named in a reverse order, so that "Model 2" is
-actually our model under H<sub>0</sub> (null model), and "Model 1" the one under H<sub>1</sub>
+actually our model under H₀ (null model), and "Model 1" the one under H₁
 (model with shifts).
+
+---
+
+### References
+
+[^B18]: Bastide, Solís-Lemus, Kriebel, Sparks, Ané (2018):
+    Phylogenetic Comparative Methods for Phylogenetic Networks with Reticulations.
+    Systematic Biology 67(5):800–820. doi:10.1093/sysbio/syy033
+
+[^P99]: Pagel M (1999). Inferring the historical patterns of biological
+    evolution. Nature. 401: 877–884. doi:10.1038/44766

@@ -10,7 +10,6 @@
 # only returning array of edges/nodes affected by the hybrid
 # used when attempting to delete
 # input: hybrid node around which we want to identify inCycle
-# needs module "Base.Collections"
 # returns tuple: nocycle, array of edges changed, array of nodes changed
 # check: is this traversal much faster than a simple loop over
 #        all edges/nodes and check if incycle==hybrid.number?
@@ -135,9 +134,8 @@ end
 #          it is not identifiable like in bad diamond I (assumes undone by now)
 # blacklist = true: add the edge as a bad choice to put a hybridization (not fully tested)
 function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bool, blacklist::Bool)
-    global DEBUG
     hybrid.hybrid || error("node $(hybrid.number) is not hybrid, so we cannot delete hybridization event around it")
-    DEBUG && println("MOVE: delete hybridization on hybrid node $(hybrid.number)")
+    @debug "MOVE: delete hybridization on hybrid node $(hybrid.number)"
     nocycle, edgesInCycle, nodesInCycle = identifyInCycle(net,hybrid);
     !nocycle || error("the hybrid node $(hybrid.number) does not create a cycle")
     edgesRoot = identifyContainRoot(net,hybrid);
@@ -145,15 +143,21 @@ function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bo
     undoGammaz!(hybrid,net);
     othermaj = getOtherNode(edges[1],hybrid)
     edgesmaj = hybridEdges(othermaj)
-    DEBUG && println("edgesmaj[3] $(edgesmaj[3].number) is the one to check if containRoot=false already: $(edgesmaj[3].containRoot)")
+    @debug "edgesmaj[3] $(edgesmaj[3].number) is the one to check if containRoot=false already: $(edgesmaj[3].containRoot)"
     if(edgesmaj[3].containRoot) #if containRoot=true, then we need to undo
         push!(edgesRoot, edges[1]) ## add hybrid edges to edgesRoot to undo containRoot
         push!(edgesRoot, edges[2])
         undoContainRoot!(edgesRoot);
     end
-    if(DEBUG)
-        edges[1].gamma >= 0.5 || println("strange major hybrid edge $(edges[1].number) with gamma $(edges[1].gamma) less than 0.5")
-        edges[1].gamma != 1.0 || println("strange major hybrid edge $(edges[1].number) with gamma $(edges[1].gamma) equal to 1.0")
+    @debug begin
+        msg = ""
+        if edges[1].gamma < 0.5
+            msg = "strange major hybrid edge $(edges[1].number) with gamma $(edges[1].gamma) less than 0.5"
+        end
+        if edges[1].gamma == 1.0
+            msg = "strange major hybrid edge $(edges[1].number) with gamma $(edges[1].gamma) equal to 1.0"
+        end
+        msg
     end
     limit = edges[1].gamma
     if(random)
@@ -338,8 +342,8 @@ function deleteHybridEdge!(net::HybridNetwork, edge::Edge, keepNodes=false::Bool
         deleteNode!(net,n1) # decreases net.numHybrids by 1, numNodes too.
         # warning: containRoot could be updated in ce and down the tree.
         if atRoot
-            i = findfirst(net.node, pn)
-            i > 0 || error("node $(pn.number) not in net!")
+            i = findfirst(x -> x===pn, net.node)
+            i !== nothing || error("node $(pn.number) not in net!")
             net.root = i
         end
     else # n1 has 4+ edges (polytomy) or 3 edges but we want to keep it anyway:
@@ -362,7 +366,7 @@ function deleteHybridEdge!(net::HybridNetwork, edge::Edge, keepNodes=false::Bool
         pe = (edge ≡ n2.edge[1] ? n2.edge[2] : n2.edge[1]) #  <--edge-- n2 ---pe--- pn
         pn = (  n2 ≡ pe.node[1] ? pe.node[2] : pe.node[1])
         if net.node[net.root] ≡ n2 # if n2 was root, new root = pn
-            net.root = findfirst(net.node, pn)
+            net.root = findfirst(x -> x===pn, net.node)
         end
         # remove n2 and pe
         removeEdge!(pn,pe)
@@ -405,7 +409,7 @@ function deleteHybridEdge!(net::HybridNetwork, edge::Edge, keepNodes=false::Bool
             end
         end
     elseif length(n2.edge) == 3 && !keepNodes # n2 is a hybrid node then. "edge" is its single child. Not level-1
-        warn("case not fully implemented yet: hybrid node $(n2.number) will be kept")
+        @warn "case not fully implemented yet: hybrid node $(n2.number) will be kept"
         removeEdge!(n2,edge)
         # fixit: mark n2 as leaf, but do not add to net.leaf?
         # fixit: deleteleaf!(net, n2; simplify) to delete the hybrid leaf & its parents edges??
@@ -421,7 +425,6 @@ end
 # function to update net.partition after deleting a hybrid node
 # needs a list of the edges in cycle
 function undoPartition!(net::HybridNetwork, hybrid::Node, edgesInCycle::Vector{Edge})
-    global DEBUG
     hybrid.hybrid || error("node $(hybrid.number) is not hybrid, and we need hybrid node inside deleteHybUpdate for undoPartition")
     if(net.numHybrids == 0)
         net.partition = Partition[]
@@ -431,30 +434,30 @@ function undoPartition!(net::HybridNetwork, hybrid::Node, edgesInCycle::Vector{E
         N = length(net.partition)
         i = 1
         while(i <= N)
-            DEBUG && println("hybrid number is $(hybrid.number) and partition is $([e.number for e in net.partition[i].edges]), with cycle $(net.partition[i].cycle)")
+            @debug "hybrid number is $(hybrid.number) and partition is $([e.number for e in net.partition[i].edges]), with cycle $(net.partition[i].cycle)"
             if(in(hybrid.number,net.partition[i].cycle))
-                DEBUG && println("hybrid number matches with partition.cycle")
+                @debug "hybrid number matches with partition.cycle"
                 p = splice!(net.partition,i)
-                DEBUG && println("after splice, p partition has edges $([e.number for e in p.edges]) and cycle $(p.cycle)")
+                @debug "after splice, p partition has edges $([e.number for e in p.edges]) and cycle $(p.cycle)"
                 ind = getIndex(hybrid.number,p.cycle)
                 deleteat!(p.cycle,ind) #get rid of that hybrid number
                 cycles = vcat(cycles,p.cycle)
                 edges = vcat(edges,p.edges)
-                DEBUG && println("edges is $([e.number for e in edges]) and cycles is $(cycles)")
+                @debug "edges is $([e.number for e in edges]) and cycles is $(cycles)"
                 N = length(net.partition)
             else
                 i += 1
             end
         end
         for e in edgesInCycle
-            DEBUG && println("edge in cycle is $(e.number)")
+            @debug "edge in cycle is $(e.number)"
             if(isEdgeNumIn(e,net.edge)) #only include edge if still in net
-                DEBUG && println("edge is in net still")
+                @debug "edge is in net still"
                 push!(edges,e)
             end
         end
         newPartition = Partition(unique(cycles),edges)
-        DEBUG && println("new partition with cycle $(newPartition.cycle), edges $([e.number for e in newPartition.edges])")
+        @debug "new partition with cycle $(newPartition.cycle), edges $([e.number for e in newPartition.edges])"
         push!(net.partition,newPartition)
     end
 end

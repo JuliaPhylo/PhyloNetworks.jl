@@ -1,11 +1,3 @@
-# functions to read data
-# originally in functions.jl
-# Claudia March 2015
-# based on Julia 0.4
-# Claudia October 2015
-
-# ----- read data --------
-
 # function to write a csv table from the expCF of an
 # array of quartets
 # warning: does not check if the expCF have been calculated
@@ -37,8 +29,6 @@ end
 
 writeObsCF(d::DataCF) = writeObsCF(d.quartet)
 
-# function that takes a dataframe and creates a DataCF object
-# has ! because it can modify the dataframe inside
 """
     readTableCF(file)
     readTableCF(data frame)
@@ -52,6 +42,8 @@ Columns containing the CFs are assumed to be named
 If present, a column named 'ngenes' will be used to get the number of loci
 used to estimate the CFs for each 4-taxon set.
 
+Output: [`DataCF`](@ref) object
+
 Optional arguments:
 
 - summaryfile: if specified, a summary file will be created with that name.
@@ -59,9 +51,8 @@ Optional arguments:
   with single quotes: delim=';'. Default is a `csv` file, i.e. `delim=','`.
 
 The last version modifies the input data frame, if species are represented by multiple alleles
-for instance (see `readTableCF!`).
+for instance (see [`readTableCF!`](@ref)(data frame, columns)).
 """
-# warning: file AbstractString bc it can be read as UTF8String
 function readTableCF(file::AbstractString; delim=','::Char, summaryfile=""::AbstractString)
     df = CSV.read(file, delim=delim)
     readTableCF!(df, summaryfile=summaryfile)
@@ -73,7 +64,7 @@ function readTableCF(df0::DataFrames.DataFrame; summaryfile=""::AbstractString)
 end
 
 function readTableCF!(df::DataFrames.DataFrame; summaryfile=""::AbstractString)
-    DEBUG && println("assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network")
+    @debug "assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network"
     alternativecolnames = [ # obsCF12 is as exported by fittedQuartetCF()
         [:CF12_34, Symbol("CF12.34"), :obsCF12],
         [:CF13_24, Symbol("CF13.24"), :obsCF13],
@@ -82,14 +73,14 @@ function readTableCF!(df::DataFrames.DataFrame; summaryfile=""::AbstractString)
     obsCFcol = [findfirst(x-> x ∈ alternativecolnames[1], DataFrames.names(df)),
                 findfirst(x-> x ∈ alternativecolnames[2], DataFrames.names(df)),
                 findfirst(x-> x ∈ alternativecolnames[3], DataFrames.names(df))]
-    ngenecol =  findfirst(DataFrames.names(df), :ngenes)
-    withngenes = ngenecol>0
-    if findfirst(obsCFcol, 0) > 0 # one or more col names for CFs were not found
+    ngenecol =  findfirst(isequal(:ngenes), DataFrames.names(df))
+    withngenes = ngenecol !== nothing
+    if nothing in obsCFcol # one or more col names for CFs were not found
         size(df,2) == (withngenes ? 8 : 7) ||
-          warn("""Column names for quartet concordance factors (CFs) were not recognized.
+          @warn """Column names for quartet concordance factors (CFs) were not recognized.
           Was expecting CF12_34, CF13_24 and CF14_23 for the columns with CF values,
           or CF12.34 or obsCF12, etc.
-          Will assume that the first 4 columns give the taxon names, and that columns 5-7 give the CFs.""")
+          Will assume that the first 4 columns give the taxon names, and that columns 5-7 give the CFs."""
         obsCFcol = [5,6,7] # assuming CFs are in columns 5,6,7, with colname mismatch
     end
     minimum(obsCFcol) > 4 ||
@@ -159,11 +150,14 @@ If multiple rows correspond to the same 4-taxon set, these rows are merged and t
 Modify the `.quartet.obsCF` values in the `DataCF` object with those read from the data frame
 in columns numbered `columns`.
 `columns` should have **3** columns numbers for the 3 CFs in this order: 12_34, 13_24 and 14_23.
-Assume the same 4-taxon sets in `DataCF` and in the data frame, and in the same order,
-but this assumption is *not checked* (for speed, e.g. during bootstrapping).
+
+Assumptions:
+- same 4-taxon sets in `DataCF` and in the data frame, and in the same order,
+  but this assumption is *not checked* (for speed, e.g. during bootstrapping).
+- one single row per 4-taxon set (multiple individuals representatives
+  of the same 4-taxon set should have been already merged);
+  basically: the DataCF should have been created from the data frame by `readTableCF!(df, colums)`
 """
-# WARNING: assumes df has a single row per 4-taxon sets (multiple ind already merged)
-#                  dcf created earlier from df.
 function readTableCF!(datcf::DataCF, df::DataFrame, cols::Vector{Int})
     for i in 1:size(df,1)
         for j in 1:3
@@ -175,12 +169,8 @@ end
 
 # ---------------- read input gene trees and calculate obsCF ----------------------
 
-# function to read a file and create one object per line read
-# (each line starting with "(" will be considered a topology)
-# the file can have extra lines that are ignored
-# returns an array of HybridNetwork objects (that can be trees)
 """
-`readInputTrees(file)`
+    readInputTrees(file)
 
 Read a text file with a list of trees/networks in parenthetical format
 (one tree per line) and transform them like [`readTopologyLevel1`](@ref)
@@ -189,6 +179,9 @@ set to 1.0, etc. See [`readMultiTopology`](@ref) to read multiple
 trees or networks with no modification.
 
 Output: array of HybridNetwork objects.
+
+Each line starting with "(" will be considered as describing one topology.
+The file can have extra lines that are ignored.
 """
 function readInputTrees(file::AbstractString)
     try
@@ -201,7 +194,7 @@ function readInputTrees(file::AbstractString)
     numl = 1
     for line in eachline(s)
         line = strip(line) # remove spaces
-        DEBUG && println("$(line)")
+        @debug "$(line)"
         c = isempty(line) ? "" : line[1]
         if(c == '(')
            try
@@ -284,7 +277,7 @@ function randQuartets(taxon::Union{Vector{String},Vector{Int}},num::Integer, wri
     num <= ntotal || error("you cannot choose a sample of $(num) quartets when there are $(ntotal) in total")
     # indx = [rep(1,num);rep(0,ntotal-num)] # requires much more memory than necessary:
     # indx = indx[sortperm(randn(ntotal))]  # several arrays of size ntotal !!
-    # rq = find(indx .== 1)
+    # rq = findall(x -> x==1, indx)
     rq = sample(1:ntotal, num, replace=false, ordered=true)
     randName = "rand$(num)Quartets.txt"
     println("list of randomly selected quartets in file $(randName)")
@@ -355,12 +348,12 @@ networks that users give as input, or get as output.
 function taxadiff(quartets::Vector{Quartet}, t::HybridNetwork;
                   multiplealleles=true::Bool)
     tq = tipLabels(quartets)
-    secondallele = ismatch.(r"__2$", tq)
+    secondallele = occursin.(Ref(r"__2$"), tq)
     for i in length(secondallele):-1:1
         secondallele[i] || continue
         basetax = match(r"(.*)__2$", tq[i]).captures[1]
         # if tq[i] = "mouse__2" for instance, then basetax = "mouse"
-        if findfirst(tq, basetax) > 0 # some other taxon is "mouse"
+        if basetax in tq     # some other taxon is "mouse"
             deleteat!(tq, i) # delete "mouse__2" from tq IF "mouse" is present
         end
     end
@@ -414,20 +407,21 @@ tipLabels(d::DataCF) = unionTaxa(d.quartet)
 """
     calculateObsCFAll!(DataCF, taxa::Union{Vector{String}, Vector{Int}})
 
-update the .quartet[i].obsCF values of the DataCF object, based on its .tree vector.
+Calculate observed concordance factors:
+update the `.quartet[i].obsCF` values of the `DataCF` object based on its .tree vector.
 
     calculateObsCFAll!(vector of quartets, vector of trees, taxa)
 
-update the .obsCF values of the quartets, based on the trees, and returns a new DataCF object
+Calculate observed concordance factors:
+update the `.obsCF` values of the quartets, based on the trees, and returns a new `DataCF` object
 with these updated quartets and trees.
 
     calculateObsCFAll_noDataCF!(vector of quartets, vector of trees, taxa)
 
-update the .obsCF values of the quartets based on the trees, but returns nothing.
+update the `.obsCF` values of the quartets based on the trees, but returns nothing.
+
+Warning: all these functions need input trees (h=0).
 """
-# function to calculate the obsCF from a file with a set of gene trees
-# returns a DataCF object (*no* longer writes a csv table with the obsCF)
-# warning: it needs trees (not networks) as input
 function calculateObsCFAll!(dat::DataCF, taxa::Union{Vector{String}, Vector{Int}})
     calculateObsCFAll_noDataCF!(dat.quartet, dat.tree, taxa)
 end
@@ -443,7 +437,7 @@ function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{Hy
     index = 1
     totalq = length(quartets)
     println("Reading in quartets...")
-    r = round(1/totalq,2)
+    r = round(1/totalq, digits=2)
     numq = (r > 0.02 ? totalq : 50)
     print("0+")
     for i in 1:numq
@@ -453,7 +447,7 @@ function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{Hy
     println("  ")
     print("  ")
     for q in quartets
-        if(round(index/totalq,2)>0.02)
+        if round(index/totalq, digits=2) > 0.02
             print("*")
             index = 1
         end
@@ -466,7 +460,7 @@ function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{Hy
             if sameTaxa(q,t)
                 M = tree2Matrix(t,taxa) #fixit: way to reuse M? length(t.edge) will be different across trees
                 res = extractQuartetTree(q,M,taxa)
-                DEBUG && println("res is $(res)")
+                @debug "res is $(res)"
                 if(res == 1)
                     sum12 += 1
                 elseif(res == 2)
@@ -524,12 +518,12 @@ readInputData(treefile::AbstractString, quartetfile::AbstractString, writetab::B
 # writeFile=true writes file with sampled quartets, default false
 function readInputData(trees::Vector{HybridNetwork}, quartetfile::AbstractString, whichQ::Symbol, numQ::Integer, writetab::Bool, filename::AbstractString, writeFile::Bool, writeSummary::Bool)
     if(whichQ == :all)
-        numQ == 0 || warn("set numQ=$(numQ) but whichQ is not rand, so all quartets will be used and numQ will be ignored. If you want a specific number of 4-taxon subsets not random, you can input with the quartetfile option")
+        numQ == 0 || @warn "set numQ=$(numQ) but whichQ is not rand, so all quartets will be used and numQ will be ignored. If you want a specific number of 4-taxon subsets not random, you can input with the quartetfile option"
         println("will use all quartets in file $(quartetfile)")
         quartets = readListQuartets(quartetfile)
     elseif(whichQ == :rand)
         if(numQ == 0)
-            warn("not specified numQ but whichQ=rand, so 10% of quartets will be sampled") #handled inside randQuartets
+            @warn "not specified numQ but whichQ=rand, so 10% of quartets will be sampled" #handled inside randQuartets
         else
             println("will take a random sample of $(numQ) 4-taxon sets from file $(quartetfile)")
         end
@@ -606,14 +600,14 @@ readInputData(treefile::AbstractString,taxa::Union{Vector{String}, Vector{Int}})
 # writeFile= true, writes intermediate files with the quartets info (default false)
 function readInputData(trees::Vector{HybridNetwork}, whichQ::Symbol, numQ::Integer, taxa::Union{Vector{String}, Vector{Int}}, writetab::Bool, filename::AbstractString, writeFile::Bool, writeSummary::Bool)
     if(whichQ == :all)
-        numQ == 0 || warn("set numQ=$(numQ) but whichQ=all, so all quartets will be used and numQ will be ignored. If you want a specific number of 4-taxon subsets not random, you can input with the quartetfile option")
+        numQ == 0 || @warn "set numQ=$(numQ) but whichQ=all, so all quartets will be used and numQ will be ignored. If you want a specific number of 4-taxon subsets not random, you can input with the quartetfile option"
         quartets = allQuartets(taxa,writeFile)
         println("will use all quartets on $(length(taxa)) taxa")
     elseif(whichQ == :rand)
         if(numQ == 0)
-            warn("not specified numQ with whichQ=rand, so 10% of quartets will be sampled") #handled inside randQuartets
+            @warn "not specified numQ with whichQ=rand, so 10% of quartets will be sampled" #handled inside randQuartets
         else
-            println("will use a random sample of $(numQ) 4-taxon sets ($(round((100*numQ)/binomial(length(taxa),4),2)) percent) on $(length(taxa)) taxa")
+            println("will use a random sample of $(numQ) 4-taxon sets ($(round((100*numQ)/binomial(length(taxa),4), digits=2)) percent) on $(length(taxa)) taxa")
         end
         quartets = randQuartets(taxa,numQ, writeFile)
     else
@@ -694,11 +688,11 @@ function taxaTreesQuartets(trees::Vector{HybridNetwork}, quartets::Vector{Quarte
     for taxon in u
         numT = taxonTrees(taxon,trees)
         #numQ = taxonQuartets(taxon,quartets)
-        write(s,"Taxon $(taxon) appears in $(numT) input trees ($(round(100*numT/length(trees),2)) %)\n")  #and $(numQ) quartets ($(round(100*numQ/length(quartets),2)) %)\n")
+        write(s,"Taxon $(taxon) appears in $(numT) input trees ($(round(100*numT/length(trees), digits=2)) %)\n")  #and $(numQ) quartets ($(round(100*numQ/length(quartets), digits=2)) %)\n")
     end
 end
 
-taxaTreesQuartets(trees::Vector{HybridNetwork}, quartets::Vector{Quartet}) = taxaTreesQuartets(trees, quartets, STDOUT)
+taxaTreesQuartets(trees::Vector{HybridNetwork}, quartets::Vector{Quartet}) = taxaTreesQuartets(trees, quartets, stdout)
 
 # function that counts the number of trees in which taxon appears
 function taxonTrees(taxon::AbstractString, trees::Vector{HybridNetwork})
@@ -720,8 +714,8 @@ end
 
 
 # function to create descriptive stat from input data, will save in stream sout
-# which can be a file or STDOUT
-# default: send to STDOUT
+# which can be a file or stdout
+# default: send to stdout
 # pc: only 4-taxon subsets with percentage of gene trees less than pc will be printed (default 70%)
 function descData(d::DataCF, sout::IO, pc::Float64)
     0<=pc<=1 || error("percentage of missing genes should be between 0,1, not: $(pc)")
@@ -729,9 +723,9 @@ function descData(d::DataCF, sout::IO, pc::Float64)
         print(sout,"data consists of $(d.numTrees) gene trees and $(d.numQuartets) 4-taxon subsets\n")
         taxaTreesQuartets(d.tree,d.quartet,sout)
         print(sout,"----------------------------\n\n")
-        print(sout,"will print below only the 4-taxon subsets with data from <= $(round((pc)*100,2))% genes\n")
+        print(sout,"will print below only the 4-taxon subsets with data from <= $(round((pc)*100, digits=2))% genes\n")
         for q in d.quartet
-            percent  = q.ngenes == -1 ? 0.0 : round(q.ngenes/d.numTrees*100,2)
+            percent  = q.ngenes == -1 ? 0.0 : round(q.ngenes/d.numTrees*100, digits=2)
             if(percent < pc)
                 print(sout,"4-taxon subset $(q.taxon) obsCF constructed with $(q.ngenes) gene trees ($(percent)%)\n")
             end
@@ -744,7 +738,7 @@ function descData(d::DataCF, sout::IO, pc::Float64)
             print(sout,"\nTaxa: $(taxa)\n")
             print(sout,"Number of Taxa: $(length(taxa))\n")
             numQ = binomial(length(taxa),4);
-            print(sout,"Maximum number of 4-taxon subsets: $(numQ). Thus, $(round(100*d.numQuartets/numQ,2)) percent of 4-taxon subsets sampled\n")
+            print(sout,"Maximum number of 4-taxon subsets: $(numQ). Thus, $(round(100*d.numQuartets/numQ, digits=2)) percent of 4-taxon subsets sampled\n")
         end
     end
 end
@@ -757,8 +751,8 @@ function descData(d::DataCF, filename::AbstractString,pc::Float64)
 end
 
 descData(d::DataCF, sout::IO) = descData(d, sout,0.7)
-descData(d::DataCF) = descData(d, STDOUT,0.7)
-descData(d::DataCF,pc::Float64) = descData(d, STDOUT,pc)
+descData(d::DataCF) = descData(d, stdout,0.7)
+descData(d::DataCF,pc::Float64) = descData(d, stdout,pc)
 descData(d::DataCF, filename::AbstractString) = descData(d, filename,0.7)
 
 """
@@ -770,67 +764,47 @@ function to summarize the information contained in a DataCF object. It has the f
 """
 function summarizeDataCF(d::DataCF; filename="none"::AbstractString, pc=0.7::Float64)
     0<=pc<=1 || error("percentage of missing genes should be between 0,1, not: $(pc)")
-    if(filename == "none")
-        descData(d,STDOUT,pc)
+    if filename == "none"
+        descData(d,stdout,pc)
     else
         descData(d,filename,pc)
     end
 end
 
-# ------------------ read starting tree from astral and put branch lengths ------------------------------
-
-# function to read the starting topology (can be tree/network)
-# if updateBL=true, updates the branch lengths with the obsCF in d
-# by default, updateBL=true
-function readStartTop(file::AbstractString,d::DataCF,updateBL::Bool)
-    net = readTopologyUpdate(file)
-    if(updateBL)
-        updateBL!(net,d)
-    end
-    return net
-end
+# -------- branch length estimate in coalescent units on species tree ------
 
 """
-`readStartTop(treefile,d::DataCF)`
+    updateBL!(net::HybridNetwork, d::DataCF)
 
-function to read a tree in parenthetical format from text file treefile and a DataCF object to update the branch lengths according to the average observed CF for any given edge.
+Update internal branch lengths of `net` based on the average quartet concordance
+factor (CF) across all quartets that exactly correspond to a given branch:
+new branch length = `-log(3/2(1-mean(CF observed in d)))`.
+`net` is assumed to be a tree, such that the above equation holds.
 """
-readStartTop(file::AbstractString,d::DataCF) = readStartTop(file,d,true)
-#readStartTop(file::AbstractString) = readStartTop(file,DataCF(),false) #not sure why we need this one
-
-# function to update starting branch lengths for starting tree read from ASTRAL
-# BL are updated as -log(3/2(1-mean(obsCF)))
-# based on Cecile's chr4-species-tree-units.r
-# input: starting tree, data after read table of obsCF
 function updateBL!(net::HybridNetwork,d::DataCF)
-    if(isTree(net))
-        parts = edgesParts(net)
-        df = makeTable(net,parts,d)
-        x=by(df,[:edge],df->DataFrame(Nquartets=length(df[:CF]),edgeL=-log(3/2*(1-mean(df[:CF])))))
-        # ommitting columns: meanCF=mean(df[:CF]), sdCF=std(df[:CF])
-        edges = x[:edge]
-        lengths = x[:edgeL]
-        for i in 1:length(edges)
-            try
-                ind = getIndexEdge(edges[i],net)
-            catch
-                error("edge $(edges[i]) not in net")
-            end
-            ind = getIndexEdge(edges[i],net)
-            if (net.edge[ind].length < 0.0 || net.edge[ind].length==1.0)
-                # readTopologyLevel1 changes missing branch length to 1.0
-                setLength!(net.edge[ind], (lengths[i] > 0 ? lengths[i] : 0.0))
-            end
-        end
-        for e in net.edge
-            if e.length < 0.0 # some edges might have *no* quartet in the data
-                setLength!(e, 1.0)
-            end
-        end
-        return x
-    else
-        warn("updateStartBL was created for a tree, and net here is not a tree, so no branch lengths updated")
+    if !isTree(net)
+        @error "updateBL! was created for a tree, and net here is not a tree, so no branch lengths updated"
     end
+    parts = edgesParts(net)
+    df = makeTable(net,parts,d)
+    x = by(df, :edge, Nquartets= :CF => length,
+                      edgeL = :CF => x -> -log(3/2*(1. - mean(x))))
+    # ommitting columns: meanCF= :CF => mean, sdCF= :CF => std
+    edges = x[:edge]
+    lengths = x[:edgeL]
+    for i in 1:length(edges)
+        ind = getIndexEdge(edges[i],net) # helpful error if not found
+        if net.edge[ind].length < 0.0 || net.edge[ind].length==1.0
+            # readTopologyLevel1 changes missing branch length to 1.0
+            setLength!(net.edge[ind], (lengths[i] > 0 ? lengths[i] : 0.0))
+        end
+    end
+    for e in net.edge
+        if e.length < 0.0 # some edges might have *no* quartet in the data
+            setLength!(e, 1.0)
+        end
+    end
+    return x
 end
 
 
@@ -892,9 +866,7 @@ function makeTable(net::HybridNetwork, parts::Vector{EdgeParts},d::DataCF)
                         tx4 = net.names[t4.number]
                         nam = [tx1,tx2,tx3,tx4]
                         snam = sort(nam)
-                        # row = getIndex(true,[sort(nam) == sort(q.taxon) for q in d.quartet])
-                        # getIndex was getting the first index only: like findfirst
-                        row = findin([dnam==snam for dnam in sortedDataQ], true)
+                        row = findall(isequal(snam), sortedDataQ)
                         for r in row # nothing if tax set not found: length(row)=0
                           col,res = resolution(nam,d.quartet[r].taxon)
                           push!(df, [p.edgenum,tx1,tx2,tx3,tx4,res,d.quartet[r].obsCF[col]])
@@ -932,8 +904,8 @@ end
 # input: Quartet, Matrix, vector of taxa names
 # returns 1 if quartet found is 12|34, 2 if 13|24, 3 if 14|23, and 0 if not found
 function extractQuartetTree(q::Quartet, M::Matrix{Int},S::Union{Vector{String},Vector{Int}})
-    DEBUG && println("extractQuartet: $(q.taxon)")
-    DEBUG && println("matrix: $(M)")
+    @debug "extractQuartet: $(q.taxon)"
+    @debug "matrix: $(M)"
     try
         ind1 = getIndex(q.taxon[1],S)
         ind2 = getIndex(q.taxon[2],S)
@@ -947,9 +919,9 @@ function extractQuartetTree(q::Quartet, M::Matrix{Int},S::Union{Vector{String},V
     ind3 = getIndex(q.taxon[3],S)
     ind4 = getIndex(q.taxon[4],S)
     subM = M[:,[ind1+1,ind2+1,ind3+1,ind4+1]]
-    DEBUG && println("subM: $(subM)")
+    @debug "subM: $(subM)"
     for r in 1:size(subM,1) #rows in subM
-        DEBUG && println("subM[r,:]: $(subM[r,:])")
+        @debug "subM[r,:]: $(subM[r,:])"
         if(subM[r,:] == [0,0,1,1] || subM[r,:] == [1,1,0,0])
             return 1
         elseif(subM[r,:] == [0,1,0,1] || subM[r,:] == [1,0,1,0])
@@ -1003,36 +975,28 @@ function createQuartet(taxa::Union{Vector{String},Vector{Int}},qvec::Vector{Int}
     return Quartet(num,names,[1.0,0.0,0.0])
 end
 
-
-
 ## internal function to read a treefile in nexus format
 function readNexusTrees(file::AbstractString)
-    try
-        s = open(file)
-    catch
-        error("Could not find or open $(file) file");
-    end
     vnet = HybridNetwork[]
-    s = open(file)
-    numl = 1
-    for line in eachline(s)
-        line = strip(line) # remove spaces
-        DEBUG && println("$(line)")
-        c = isempty(line) ? "" : line[1:4]
-        if(c == "Tree")
-            init = search(line,'(')
-            endit = search(line,';')
-            line = line[init:endit]
-           try
-               push!(vnet, readTopologyUpdate(line,false))
-               ##@show line
-           catch(err)
-               error("could not read tree in line $(numl). The error is $(err)")
-           end
+    open(file) do s
+        numl = 1
+        for line in eachline(s)
+            line = strip(line) # remove spaces
+            @debug "$(line)"
+            m = match(r"^\s*Tree\s+[^(]+(\([^;]*;)", line)
+            # regex: spaces,"Tree",spaces,any_symbols_other_than_(, then we capture:
+            # ( any_symbols_other_than_; ;
+            if m != nothing
+                phy = m.captures[1]
+                try
+                    push!(vnet, readTopologyUpdate(phy,false))
+                catch err
+                    error("could not read tree in line $(numl). The error is $(err)")
+                end
+            end
+            numl += 1
         end
-        numl += 1
     end
-    close(s)
     return vnet # consistent output type: HybridNetwork vector. might be of length 0.
 end
 

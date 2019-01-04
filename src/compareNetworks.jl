@@ -191,19 +191,19 @@ hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{String},Vector{I
 
 function hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{String},Vector{Int}},
                            visited::Vector{Int})
-    n = edge.node[edge.isChild1?1:2]
+    n = getChild(edge)
     if n.leaf
-        j = findin(taxa,[n.name])
-        length(j)==1 || error("taxon $(n.name) was not found in taxon list")
+        j = findall(isequal(n.name), taxa)
+        length(j)==1 || error("taxon $(n.name) was not found in taxon list, or more than once")
         v[j[1]]=true
         return nothing
     end
-    if findfirst(visited,n.number)>0
+    if n.number in visited
         return nothing  # n was already visited: exit. avoid infinite loop is isChild1 was bad.
     end
     push!(visited, n.number)
     for ce in n.edge
-        if n == ce.node[ce.isChild1?2:1]
+        if n == getParent(ce)
             hardwiredCluster!(v,ce,taxa,visited)
         end
     end
@@ -220,7 +220,7 @@ The node should belong in a rooted network for which isChild1 is up-to-date.
 Run directEdges! beforehand. This is very important, otherwise one might enter an infinite loop,
 and the function does not test for this.
 
-# Examples: #"
+## Examples
 ```jldoctest
 julia> net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readTopology |> directEdges! ;
 
@@ -234,8 +234,7 @@ julia> PhyloNetworks.descendants(net5.edge[12]) # descendants of 12th
  -9
   7
 ```
-""" #"
-## Simple adaptation of hardwiredCluster function
+"""
 function descendants(edge::Edge)
     visited = Int[]
     descendants!(edge, visited)
@@ -243,13 +242,13 @@ function descendants(edge::Edge)
 end
 
 function descendants!(edge::Edge, visited::Vector{Int})
-    n = edge.node[edge.isChild1?1:2]
-    if findfirst(visited,n.number)>0
+    n = getChild(edge)
+    if n.number in visited
         return nothing  # n was already visited: exit. avoid infinite loop is isChild1 was bad.
     end
     push!(visited, n.number)
     for ce in n.edge
-        if n == ce.node[ce.isChild1?2:1]
+        if n == getParent(ce)
             descendants!(ce, visited)
         end
     end
@@ -303,7 +302,8 @@ If `keepNodes` is true, all original nodes are kept in both networks.
 """
 function displayedNetworks!(net::HybridNetwork, node::Node, keepNodes=false::Bool)
     node.hybrid || error("will not extract networks from tree node $(node.number)")
-    ind = findfirst(net.node, node)
+    ind = findfirst(x -> x===node, net.node)
+    ind !== nothing || error("node $(node.number) was not found in net")
     netmin = deepcopy(net)
     emin = getMinorParentEdge(node)
     deleteHybridEdge!(net   , emin, keepNodes)  # *no* update of inCycle, containRoot, etc.
@@ -454,7 +454,7 @@ function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, root
     length(setdiff(taxa, String[net2.leaf[i].name for i in 1:net2.numTaxa])) == 0 ||
         error("net1 and net2 do not share the same taxon set. Please prune networks first.")
     nTax = length(taxa)
-    if (bothtrees) # even if rooted, different treatment at the root if root=leaf
+    if bothtrees # even if rooted, different treatment at the root if root=leaf
         M1 = tree2Matrix(net1, taxa, rooted=rooted)
         M2 = tree2Matrix(net2, taxa, rooted=rooted)
     else
@@ -466,7 +466,7 @@ function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, root
 
     for i1=1:size(M1)[1]
         found = false
-        m1 = 1-M1[i1,2:end] # going to the end: i.e. we want to match a tree edge with a tree edge
+        m1 = 1 .- M1[i1,2:end] # going to the end: i.e. we want to match a tree edge with a tree edge
         for i2=1:size(M2)[1]                                  # and hybrid edge with hybrid edge
             if (M1[i1,2:end] == M2[i2,2:end] ||
                   ( !rooted && m1 == M2[i2,2:end])     )
@@ -474,7 +474,7 @@ function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, root
                 break
             end
         end
-        if (!found)
+        if !found
             dis += 1
         end
     end # (size(M1)[1] - dis) edges have been found in net2, dis edges have not.

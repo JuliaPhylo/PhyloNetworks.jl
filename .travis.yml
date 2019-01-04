@@ -1,12 +1,16 @@
+## Documentation: http://docs.travis-ci.com/user/languages/julia/
 language: julia
-os: # WARNING: any change here must also be done in docs/make.jl
+sudo: required
+os:
   - linux
   - osx
-julia: # WARNING: any change here must also be done in docs/make.jl
-# - release
-  - 0.6
+julia:
+  - 0.7
+  - 1.0
+
 notifications:
   email: false
+
 ## Following 4 lines are taken from here:
 # https://github.com/JuliaOpt/NLopt.jl/blob/master/.travis.yml#L10
 # They're meant to fix the NLopt build on Linux.
@@ -15,17 +19,23 @@ addons:
         packages:
             - libnlopt0 # We install it this way to be able to run Travis with `sudo: false`
 
-after_success:
-  # push coverage results to Coveralls
-  - julia -e 'cd(Pkg.dir("PhyloNetworks")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
-  # push coverage results to Codecov
-  - julia -e 'cd(Pkg.dir("PhyloNetworks")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
-  # Install R
-  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E084DAB9; fi
-  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo add-apt-repository -y "deb http://cran.rstudio.com/bin/linux/ubuntu $(lsb_release -s -c)/"; fi
-  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get update -qq -y; fi
-  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get install git r-base r-base-dev r-recommended -y; fi
-  # - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo R -e 'install.packages("ggplot2", dep=TRUE, repos="http://cran.us.r-project.org")'; fi # takes ~ 6min 2018-06-02
-  # build doc
-  - chmod +x docs/make.sh
-  - ./docs/make.sh
+codecov: true
+coveralls: true
+
+jobs:
+  include:
+    - stage: "Documentation"
+      julia: 1.0
+      os: linux
+      script:
+        - julia --project=docs/ -e 'using Pkg; Pkg.instantiate();
+                                    Pkg.develop(PackageSpec(path=pwd()))'
+        - julia --project=docs/ docs/make.jl
+      before_script:
+        # Install R
+        - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E084DAB9; fi
+        - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo add-apt-repository -y "deb http://cran.rstudio.com/bin/linux/ubuntu $(lsb_release -s -c)/"; fi
+        - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get update -qq -y; fi
+        - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get install git r-base r-base-dev r-recommended -y; fi
+      # - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo R -e 'install.packages("ggplot2", dep=TRUE, repos="http://cran.us.r-project.org")'; fi # takes ~ 6min 2018-06-02
+      after_success: skip

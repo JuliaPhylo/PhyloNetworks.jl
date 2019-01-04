@@ -2,26 +2,34 @@ __precompile__()
 
 module PhyloNetworks
 
-    using DataStructures # for updateInCycle with priority queue
-    using DataFrames
-    using CSV
-    using StatsBase # sample, coef etc.
-    using StatsModels
-    using GLM # for the lm function
-    using NLopt # for branch lengths optimization
-    using Combinatorics.combinations
+    # stdlib (standard libraries): no need to list in REQUIRE or Project.toml
+    using Dates
+    using Distributed
+    using LinearAlgebra # for LowerTriangular, logdet, diag
+    using Printf: @printf, @sprintf
+    using Random
+    using Statistics: mean, quantile
+
+    # other libraries, to list as dependencies
     using BioSequences
     using BioSymbols
+    using Combinatorics: combinations
+    using CSV
+    using DataFrames
+    using DataStructures # for updateInCycle with priority queue
+    using GLM # for the lm function
+    using NLopt # for branch lengths optimization
+    using SpecialFunctions: lgamma, gamma
     using StaticArrays
-    using StatsFuns # for logsumexp
+    using StatsBase # sample, coef etc.
+    using StatsFuns # logsumexp, logaddexp, various cdf
+    using StatsModels # re-exported by GLM. for ModelFrame ModelMatrix Formula etc
 
-    import Base.show
-    import GLM.ftest
+    import Base: show
+    import GLM: ftest
 
-    global DEBUG = false #for debugging only
-    const DEBUGC = false #more detailed prints
-    global CHECKNET = false #for debugging only
-    global REDIRECT = false # changed for debugging to a file
+    const DEBUGC = false # even more debug messages
+    global CHECKNET = false # for debugging only
 
     export ftest
     export
@@ -47,7 +55,6 @@ module PhyloNetworks
         summarizeDataCF,
         snaq!,
         readSnaqNetwork,
-        snaqDebug,
         topologyMaxQPseudolik!,
         topologyQPseudolik!,
         ## Network Manipulation
