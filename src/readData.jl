@@ -479,14 +479,40 @@ function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{Hy
     return nothing
 end
 
-# function to read input list of gene trees/quartets and calculates obsCF
-# as opposed to readTableCF that read the table of obsCF directly
-# input: treefile (with gene trees), quartetfile (with list of quartets),
-# whichQ (:add/:rand to decide if all or random sample of quartets, default all)
-# numQ: number of quartets in random sample
-# writetab = true to write the table of obsCF as file with name filename
-# does it by default
-# writeFile=true writes file with sampled quartets, default false
+"""
+    readInputData(trees, quartetfile, whichQuartets, numQuartets, writetable, tablename, writeQfile, writesummary)
+    readInputData(trees, whichQuartets, numQuartets, taxonlist,   writetable, tablename, writeQfile, writesummary)
+
+Read gene trees and calculate the observed quartet concordance factors (CF),
+that is, the proportion of genes (and the number of genes) that display each
+quartet for a given list of four-taxon sets.
+
+Input:
+
+- `trees`: name of a file containing a list of input gene trees,
+  or vector of trees (`HybridNetwork` objects)
+
+Optional arguments (defaults):
+
+- `quartetfile`: name of a file containing a list of quartets, or more precisely,
+  a list of four-taxon sets
+- `whichQuartets` (`:all`): which quartets to sample.
+  `:all` for all of them, `:rand` for a random sample.
+- `numQuartets`: number of quartets in the sample.
+  default: total number of quartets if `whichQuartets=:all`
+  and 10% of total if `whichQuartets=:rand`
+- `taxonlist` (all in the input gene trees):
+  If `taxonlist` is used, `whichQuartets` will consist of *all* sets of 4 taxa in the `taxonlist`. 
+- `writetable` (true): write the table of observed CF?
+- `tablename` ("tableCF.txt"): if `writetable` is true, the table of observed CFs is write to file `tablename`
+- `writeQfile` (false): write intermediate file with sampled quartets?
+- `writesummary` (true): write a summary file?
+  if so, the summary will go in file "summaryTreesQuartets.txt".
+
+See also:
+[`readTrees2CF`](@ref), which is basically a re-naming of `readInputData`, and
+[`readTableCF`](@ref) to read a table of quartet CFs directly.
+"""
 function readInputData(treefile::AbstractString, quartetfile::AbstractString, whichQ::Symbol, numQ::Integer, writetab::Bool, filename::AbstractString, writeFile::Bool, writeSummary::Bool)
     if writetab
         if(filename == "none")
@@ -508,14 +534,6 @@ readInputData(treefile::AbstractString, quartetfile::AbstractString, whichQ::Sym
 ##readInputData(treefile::AbstractString, quartetfile::AbstractString) = readInputData(treefile, quartetfile, :all, 0, true, "none", false, true)
 readInputData(treefile::AbstractString, quartetfile::AbstractString, writetab::Bool, filename::AbstractString) = readInputData(treefile, quartetfile, :all, 0, writetab, filename, false, true)
 
-# function to read input list of gene trees/quartets and calculates obsCF
-# as opposed to readTableCF that read the table of obsCF directly
-# input: trees Vector of HybridNetwork, quartetfile (with list of quartets),
-# whichQ (:add/:rand to decide if all or random sample of quartets, default all)
-# numQ: number of quartets in random sample
-# writetab = true to write the table of obsCF as file with name filename
-# does it by default
-# writeFile=true writes file with sampled quartets, default false
 function readInputData(trees::Vector{HybridNetwork}, quartetfile::AbstractString, whichQ::Symbol, numQ::Integer, writetab::Bool, filename::AbstractString, writeFile::Bool, writeSummary::Bool)
     if(whichQ == :all)
         numQ == 0 || @warn "set numQ=$(numQ) but whichQ is not rand, so all quartets will be used and numQ will be ignored. If you want a specific number of 4-taxon subsets not random, you can input with the quartetfile option"
@@ -552,16 +570,6 @@ function readInputData(trees::Vector{HybridNetwork}, quartetfile::AbstractString
 end
 
 
-
-# function to read input list of gene trees, and not the list of quartets
-# so it creates the list of quartets inside and calculates obsCF
-# as opposed to readTableCF that read the table of obsCF directly
-# input: treefile (with gene trees), whichQ (:add/:rand to decide if all or random sample of quartets, default all)
-# numQ: number of quartets in random sample
-# taxa: list of taxa, if not given, all taxa in gene trees used
-# writetab = true to write the table of obsCF as file with name filename
-# does it by default
-# writeFile= true, writes intermediate files with the quartets info (default false)
 function readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Integer, taxa::Union{Vector{String}, Vector{Int}}, writetab::Bool, filename::AbstractString, writeFile::Bool, writeSummary::Bool)
     if writetab
         if(filename == "none")
@@ -589,15 +597,6 @@ readInputData(treefile::AbstractString,taxa::Union{Vector{String}, Vector{Int}})
 #        is not good: need to read the tree file twice: get the taxa, then get the trees
 #        this inefficiency was fixed in readTrees2CF
 
-# function to read input vector of HybridNetworks, and not the list of quartets
-# so it creates the list of quartets inside and calculates obsCF
-# as opposed to readTableCF that read the table of obsCF directly
-# input: trees (Vector of HybridNetwork), whichQ (:add/:rand to decide if all or random sample of quartets, default all)
-# numQ: number of quartets in random sample
-# taxa: list of taxa, if not given, all taxa in gene trees used
-# writetab = true to write the table of obsCF as file with name filename
-# does it by default
-# writeFile= true, writes intermediate files with the quartets info (default false)
 function readInputData(trees::Vector{HybridNetwork}, whichQ::Symbol, numQ::Integer, taxa::Union{Vector{String}, Vector{Int}}, writetab::Bool, filename::AbstractString, writeFile::Bool, writeSummary::Bool)
     if(whichQ == :all)
         numQ == 0 || @warn "set numQ=$(numQ) but whichQ=all, so all quartets will be used and numQ will be ignored. If you want a specific number of 4-taxon subsets not random, you can input with the quartetfile option"
