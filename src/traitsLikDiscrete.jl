@@ -293,7 +293,7 @@ function fit!(obj::SSM, ratemodel::RateVariationAcrossSites; fixedparam=false::B
         counter = [0]
         function loglikfun(x::Vector{Float64}, grad::Vector{Float64}) # modifies obj
             counter[1] += 1
-            obj.model.rate[:] = obj.model.rate[:]*ratemodel.ratemultiplier[:] #TODO test this
+            obj.model.rate[:] = x #TODO replace this with setrates!(obj.model, x)
             res = discrete_corelikelihood!(obj)
             verbose && println("loglik: $res, model rates: $x")
             length(grad) == 0 || error("gradient not implemented")
@@ -327,6 +327,7 @@ function discrete_corelikelihood!(obj::SSM; whichtrait=:all::Union{Symbol,Intege
     else
         error("'whichtrait' should be :all or :active or an integer in the correct range")
     end
+    #call setrates!()
     for edge in obj.net.edge # update logtrans: same for all displayed trees, all traits
         for i = 1:4 #rate #? is ratemultiplier grabbed in this next line? need to check with test
             obj.logtrans[:,:,edge.number, i] = log.(P!(P(obj.model), obj.model, edge.length*obj.RateVariationAcrossSites.ratemultiplier[i])) # element-wise

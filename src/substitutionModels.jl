@@ -56,6 +56,33 @@ Number of parameters for a given trait evolution model
 """
 nparams(obj::SM) = error("nparams not defined for $(typeof(obj)).")
 
+"""
+    setrates!(model, rates)
+
+update rates then call seteigeninfo!() to update a model's eigeninfo
+"""
+function setrates!(obj::SM, rates::AbstractVector) #TODO see pull request for SM packages
+    obj.rate = rates
+    seteigeninfo!(obj)
+end
+
+"""
+    seteigeninfo!(model)
+
+calculate eigeninfo for a model and stores it within the object.
+"""
+function seteigeninfo!(obj::SM) 
+    #generic version
+    obj.eigeninfo = #constructor allocates memory then calls this
+end
+
+#TODO change constructors
+
+"""
+    getlabels(model)
+
+return labels for a model
+"""
 function getlabels(obj::SM)
     error("Model must be of type TraitSubstitutionModel or NucleicAcidSubstitutionModel. Got $(typeof(obj))")
 end
@@ -178,7 +205,7 @@ The time argument `t` can be an array.
 function P(obj::SM, t::Array{Float64})
     all(t .>= 0.0) || error("t's must all be positive")
     try
-        eig_vals, eig_vecs = eig(Q(obj)) # Only hermitian matrices are diagonalizable by
+        eig_vals, eig_vecs = eig(Q(obj)) # Only hermitian matrices are diagonalizable by #TODO change for 1.0 to eigen
         # *StaticArrays*. Non-Hermitian matrices should be converted to `Array`first.
         return [eig_vecs * expm(diagm(eig_vals)*i) * eig_vecs' for i in t]
     catch
@@ -198,20 +225,36 @@ Default labels are "0" and "1".
 mutable struct BinaryTraitSubstitutionModel{T} <: TraitSubstitutionModel{T}
     rate::Vector{Float64}
     label::Vector{T} # most often: T = String, but could be BioSymbols.DNA
-    function BinaryTraitSubstitutionModel{T}(rate, label::Vector{T}) where T
+    eigeninfo::Vector{Float64}
+    function BinaryTraitSubstitutionModel{T}(rate::Vector{Float64}, label::Vector{T}, eigeninfo::Vector{Float64}) where T
+        #Warning: this constructor should not be used directly. Use it with the constructors below.
         @assert length(rate) == 2 "binary state: need 2 rates"
         rate[1] >= 0. || error("parameter α must be non-negative")
         rate[2] >= 0. || error("parameter β must be non-negative")
-        ab = rate[1] + rate[1]
-        ab > 0. || error("α+β must be positive")
         @assert length(label) == 2 "need 2 labels exactly"
-        new(rate, label)
+        new(rate, label, eigeninfo)
     end
 end
 const BTSM = BinaryTraitSubstitutionModel{T} where T
-BinaryTraitSubstitutionModel(r::AbstractVector, label::AbstractVector) = BinaryTraitSubstitutionModel{eltype(label)}(r, label)
-BinaryTraitSubstitutionModel(α::Float64, β::Float64, label) = BinaryTraitSubstitutionModel([α,β], label)
+function BinaryTraitSubstitutionModel(r::AbstractVector, label::AbstractVector)
+    obj = BinaryTraitSubstitutionModel{eltype(label)}(r, label, Vector{Float64}(3)) # Vector{Float64}(undef,3) for julia v1.0
+    seteigeninfo!(obj)
+end
+BinaryTraitSubstitutionModel(α::Float64, β::Float64, label::AbstractVector) = BinaryTraitSubstitutionModel([α,β], label)
 BinaryTraitSubstitutionModel(α::Float64, β::Float64) = BinaryTraitSubstitutionModel(α, β, ["0", "1"])
+
+"""
+    seteigeninfo!(obj::BinaryTraitSubstitutionModel)
+
+calculate eigeninfo for a model and stores it within the object.
+"""
+function seteigeninfo!(obj::BTSM) 
+    ab = obj.rate[1] + obj.rate[2] #eigenvalue = -(a+b)
+    ab > 0. || error("α+β must be positive")
+    p0 = obj.rate[2]/ab # asymptotic frequency of state "0"
+    p1 = obj.rate[1]/ab # asymptotic frequency of state "1"
+    obj.eigeninfo = [ab, p0, p1] #constructor allocates memory then calls this
+end
 
 """
 # Examples
@@ -247,15 +290,12 @@ end
 
 @inline function P(obj::BTSM, t::Float64)
     t >= 0.0 || error("substitution model: >=0 branch lengths are needed")
-    ab = obj.rate[1] + obj.rate[2]
-    e1 = exp(-ab*t)
-    p0 = obj.rate[2]/ab # asymptotic frequency of state "0"
-    p1 = obj.rate[1]/ab # asymptotic frequency of state "1"
-    a0= p0*e1
-    a1= p1*e1
-    return Bmatrix(p0+a1, p0-a0, p1-a1, p1+a0) # by columns
+    e1 = exp(-obj.eigeninfo[1]*t)
+    a0= obj.eigeninfo[2]*e1
+    a1= obj.eigeninfo[3]*e1
+    return Bmatrix(obj.eigeninfo[2]+a1, obj.eigeninfo[2]-a0, obj.eigeninfo[3]-a1, obj.eigeninfo[3]+a0) # by columns
 end
-#? why did we add a BTSM version of this?  Why not just use the SM version as ERSM does?
+
 """
     TwoBinaryTraitSubstitutionModel(rate [, label])
 
@@ -524,44 +564,39 @@ struct JC69 <: NucleicAcidSubstitutionModel
     rate::Vector{Float64}
     pi::Vector{Float64} #? keep this?
     relative::Bool
-  
-    function JC69(rate=[1.0]::Vector{Float64}, relative=true::Bool)
+    eigeninfo::Vector{Float64}
+
+    function JC69(rate=[1.0]::Vector{Float64}, relative=true::Bool, eigeninfo::Vector{Float64})
+        #Warning: this constructor should not be used directly. Use it with the constructor below.
         if !(0 <= length(rate) <= 1)
             error("rate not a valid length for a JC69 model")
         elseif any(rate .<= 0.)
             error("All elements of rate must be positive for a JC69 model")
         end
         pi = [0.25, 0.25, 0.25, 0.25] #? need this? (connected to above ?)
-        new(rate, pi, relative)
+        new(rate, pi, relative, eigeninfo)
     end
 end
 #JC69(rate::Float64, relative=true::Bool) = JC69([rate], relative)
+function JC69(rate::AbstractVector, relative::Bool)
+    obj = JC69(rate, relative, Vector{Float64}(3)) # Vector{Float64}(undef,3) for julia v1.0
+    seteigeninfo!(obj)
+end
 
-# struct HKY85 <: NucleicAcidSubstitutionModel
-#     rate::Vector{Float64}
-#     pi::Vector{Float64}
-#     relative::Bool
-    
-#     function HKY85(rate::Vector{Float64}, pi::Vector{Float64}, relative=true::Bool)
-#         if any(rate .<= 0.)
-#             error("All elements of rate must be positive")
-#         elseif !(1 <= length(rate) <= 2)
-#             error("rate is not a valid length for HKY85 model")
-#         elseif length(pi) !== 4
-#             error("pi must be of length 4")
-#         elseif !all(0. .< pi.< 1.)
-#             error("All base proportions must be between 0 and 1")
-#         elseif sum(pi) !== 1.
-#             error("Base proportions must sum to 1")
-#         end
-      
-#         if length(rate) == 1
-#             new(rate, pi, true) 
-#         else
-#             new(rate, pi, false)
-#         end
-#     end
-# end
+"""
+    seteigeninfo!(obj::JC69)
+
+calculate eigeninfo for a model and stores it within the object.
+"""
+function seteigeninfo!(obj::JC69) 
+    if obj.relative
+        lambda = (4.0/3.0) #to make branch lengths interpretable. lambda = substitutions/year
+    else
+        lambda = (4.0/3.0)*obj.rate[1]
+    end
+    obj.eigeninfo = [lambda] #constructor allocates memory then calls this TODO
+end
+
 function Base.show(io::IO, obj::JC69)
     str = "Jukes and Cantor 69 Substitution Model,\n"
     if obj.relative == true
@@ -598,7 +633,8 @@ struct HKY85 <: NucleicAcidSubstitutionModel
     pi::Vector{Float64}
     relative::Bool
     
-    function HKY85(rate::Vector{Float64}, pi::Vector{Float64}, relative=true::Bool)
+    function HKY85(rate::Vector{Float64}, pi::Vector{Float64}, relative=true::Bool, eigeninfo::Vector{Float64})
+        #Warning: this constructor should not be used directly. Use it with the constructor below.
         if any(rate .<= 0.)
             error("All elements of rate must be positive")
         elseif !(1 <= length(rate) <= 2)
@@ -612,11 +648,40 @@ struct HKY85 <: NucleicAcidSubstitutionModel
         end
       
           if length(rate) == 1
-            new(rate, pi, true) 
+            new(rate, pi, true, eigeninfo) 
           else
-            new(rate, pi, false)
+            new(rate, pi, false, eigeninfo)
           end
     end
+end
+function HKY85(rate::AbstractVector, pi::Vector{Float64}, relative::Bool)
+    obj = HKY85(rate, pi, relative, Vector{Float64}(3)) # Vector{Float64}(undef,3) for julia v1.0
+    seteigeninfo!(obj)
+end
+
+"""
+    seteigeninfo!(obj::HKY85)
+
+calculate eigeninfo for a model and stores it within the object.
+"""
+function seteigeninfo!(obj::HKY85)
+    
+    piA = obj.pi[1]; piC = obj.pi[2]; piG = obj.pi[3]; piT = obj.pi[4]
+    piR = piA + piG
+    piY = piT + piC
+    if obj.relative
+        k = obj.rate[1]
+        lambda = (2*(piT*piC + piA*piG)k + 2*(piY+piR)) #TODO
+        e₁ = exp(-s)
+        e₂ = exp(-(piR * k + piY) * s)
+        e₃ = exp(-(piY * k + piR) * s)
+    else
+        lambda = #?
+        e₁ = exp(-b * t) #TODO remove t, look for eigen values and vectors
+        e₂ = exp(-(piR * a + piY * b) * t)
+        e₃ = exp(-(piY * a + piR * b) * t)
+    end
+    obj.eigeninfo = [lambda, e₁, e₂, e₃] 
 end
 
 function Base.show(io::IO, obj::HKY85)
@@ -688,7 +753,7 @@ end
 julia> m1 = HKY85([.5], [0.25, 0.25, 0.25, 0.25])
 ````
 """
-@inline function Q(obj::HKY85)
+@inline function Q(obj::HKY85) #we end up not using this much -- we use this mostly to eamine our model
     piA = obj.pi[1]; piC = obj.pi[2]; piG = obj.pi[3]; piT = obj.pi[4]
     piR = piA + piG
     piY = piT + piC
@@ -753,18 +818,12 @@ TODO
     if t < 0
         error("Time must be positive")
     end
-    if obj.relative
-        lambda = (4.0/3.0) #to make branch lengths interpretable. lambda = substitutions/year
-    else
-        lambda = (4.0/3.0)*obj.rate[1]
-    end
-      
-    P_0 = 0.25 + 0.75 * exp(-t * lambda)
-    P_1 = 0.25 - 0.25 * exp(-t * lambda)
-    return PMatrix(P_0, P_1, P_1, P_1, 
-            P_1, P_0, P_1, P_1,
-            P_1, P_1, P_0, P_1,
-            P_1, P_1, P_1, P_0)
+    P0 = 0.25 + 0.75 * exp(-t * obj.eigeninfo[1]) #lambda
+    P1 = 0.25 - 0.25 * exp(-t * obj.eigeninfo[1])
+    return PMatrix(P0, P1, P1, P1, 
+            P1, P0, P1, P1,
+            P1, P1, P0, P1,
+            P1, P1, P1, P0)
 end
 
 """
@@ -790,7 +849,7 @@ julia> P(m1, 3)
 TODO
 ````
 """
-@inline function P(obj::HKY85, t::Float64)
+@inline function P(obj::HKY85, t::Float64) #TODO update when seteigeninfo! function is done
     if t < 0.0
         error("t must be positive")
     end
@@ -798,12 +857,12 @@ TODO
     piR = piA + piG
     piY = piT + piC
     
-    if HKY85.relative == true
-        k = obj.rate[1] #kappa = alpha 
-        s = t/(2*(piT*piC + piA*piG)k + 2*(piY+piR)) #t/lambda
+    if HKY85.relative
         e₁ = exp(-s)
         e₂ = exp(-(piR * k + piY) * s)
         e₃ = exp(-(piY * k + piR) * s)
+        k = obj.rate[1] #kappa = alpha 
+        s = t/(2*(piT*piC + piA*piG)k + 2*(piY+piR)) #t/lambda
         
         P₁  = piA + (piA * piY / piR) * e₁ + (piG / piR) * e₂
         P₂  = piC + (piT * piR / piY) * e₁ + (piT / piY) * e₃
@@ -969,10 +1028,10 @@ struct JC69 <: NucleicAcidSubstitutionModel
 end
 
 """
-    setalpha(obj, alpha)
+    setalpha!(obj, alpha)
 Set alpha in RateVariationAcrossSites model
 """
-function setalpha(obj::RateVariationAcrossSites, alpha::Int)
+function setalpha!(obj::RateVariationAcrossSites, alpha::Int)
     @assert alpha >= 0 "alpha must be >= 0"
     obj.alpha = alpha
     cuts = (0:(obj.ncat-1))/obj.ncat + 1/2obj.ncat
@@ -987,4 +1046,3 @@ function Base.show(io::IO, obj::RateVariationAcrossSites)
     print(io, str)
     showQ(io, obj)
 end
-

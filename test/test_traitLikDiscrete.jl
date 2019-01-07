@@ -302,13 +302,15 @@ end # end of testset, fixed topology
 # @test_throws ErrorException PhyloNetworks.fit!(fit3; fixedparam=false)
 
 #test NASM models
+#TODO see test_parsimony file for DNA data line 143
+#there are 3 alignments in PhyloNetworks/examples
 net = readTopology("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);"); #TODO
 tips = Dict("A" => BioSymbols.DNA_A, "B" => BioSymbols.DNA_G, "C" => BioSymbols.DNA_A, "D" => BioSymbols.DNA_G); #TODO
 
 mJC69 = JC69();
 fitJC69 = (@test_nowarn fitDiscrete(net, mJC69, tips; fixedparam=true));
 @test_nowarn show(DevNull, fitJC69)
-@test loglikelihood(fitJC69) ≈ -2.6638637960257574 #TODO phangorn R pkg to find loglikelihood of DNA
+@test loglikelihood(fitJC69) ≈ -2.6638637960257574 #TODO phangorn R pkg to find loglikelihood of DNA flexible on what it opitmizes
 
 mHKY85 = HKY85();
 fitHKY85 = (@test_nowarn fitDiscrete(net, mHKY85, tips; fixedparam=true));
