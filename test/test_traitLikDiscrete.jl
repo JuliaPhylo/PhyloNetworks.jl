@@ -270,10 +270,6 @@ asr = ancestralStateReconstruction(fit1)
 @test fit1.postltw ≈ [-0.08356534477069566, -2.5236181051014333]
 end # end of testset, fixed topology
 
-end # of nested testsets
-
-
-
 @testset "testing NucleicAcidSubsitutionModels & RateVariationAcrossSites" begin
 
 #tests StatsBase.fit() with NASM and with NASM + RateVariationAcrossSites
@@ -307,7 +303,7 @@ end # of nested testsets
 
 #test NASM models
 net = readTopology("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);"); #TODO
-tips = Dict("A" => "lo", "B" => "lo", "C" => "hi", "D" => "hi"); #TODO
+tips = Dict("A" => BioSymbols.DNA_A, "B" => BioSymbols.DNA_G, "C" => BioSymbols.DNA_A, "D" => BioSymbols.DNA_G); #TODO
 
 mJC69 = JC69();
 fitJC69 = (@test_nowarn fitDiscrete(net, mJC69, tips; fixedparam=true));
@@ -327,3 +323,5 @@ fitJC69rv = (@test_nowarn fitDiscrete(net, mJC69, rv, tips; fixedparam = true));
 @test loglikelihood(fitJC69rv) ≈ -2.6638637960257574 #TODO
 
 end
+
+end # of nested testsets

@@ -26,7 +26,7 @@ mutable struct StatisticalSubstitutionModel{T} <: StatsBase.StatisticalModel
     # fixit: add substitution model option e.g. JC69 here to use different transition probabilities 
     # loglik is an attribute of the SSM object, right? If so, where do we create logtrans?
 
-    logtrans::Array{Float64,4}   # size: k,k, net.numEdges, r where k=nStates(model)
+    logtrans::Array{Float64,4}   # size: k,k, net.numEdges, r where k=nstates(model)
     activesite::Int #changed from activetrait to activesite to accomodate NASM
     # type based on extracting displayed trees
     displayedtree::Vector{HybridNetwork}
@@ -171,7 +171,7 @@ julia> [n.number for n in net.node]
 """
 function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, 
     tips::Dict; kwargs...)
-    ratemodel = RateVariationAcrossSites(ncat=1)
+    ratemodel = RateVariationAcrossSites(1.0, 1)
     fitDiscrete(net, model, 
         ratemodel, tips; kwargs...)
 end
@@ -182,7 +182,7 @@ function fitDiscrete(net::HybridNetwork, model::SubstitutionModel,
     for (k,v) in tips
         !ismissing(v) || continue
         push!(species, k)
-        vi = findfirst(model.label, v) # value index in model labels
+        vi = findfirst(getlabels(model), v) # value index in model labels
         vi > 0 || error("trait $v not found in model")
         push!(dat, [vi])
     end
@@ -241,7 +241,7 @@ consecutive numbers, species are matched between data and network etc.
 """
 function StatsBase.fit(self::Type{SSM}, net::HybridNetwork, model::TraitSubstitutionModel, 
     ratemodel::RateVariationAcrossSites, trait::AbstractVector; kwargs...)
-    T = eltype(getlabel(model))
+    T = eltype(getlabels(model))
     # extract displayed trees
     trees = displayedTrees(net, 0.0; keepNodes=true)
     nnodes = length(net.node)
@@ -255,9 +255,9 @@ function StatsBase.fit(self::Type{SSM}, net::HybridNetwork, model::TraitSubstitu
     ntrees = length(trees)
     # log tree weights: sum log(γ) over edges, for each displayed tree
     priorltw = inheritanceWeight.(trees)
-    k = nStates(model)
+    k = nstates(model)
     # fixit: use SharedArray's below to parallelize things
-    logtrans   = zeros(Float64, k,k,length(net.edge), r)
+    logtrans   = zeros(Float64, k,k,length(net.edge), r) #? What is r?
     forwardlik = zeros(Float64, k, nnodes,           ntrees)
     directlik  = zeros(Float64, k, length(net.edge), ntrees)
     backwardlik= zeros(Float64, k, nnodes,           ntrees)
@@ -351,7 +351,7 @@ function discrete_corelikelihood_tree!(obj::SSM, t::Integer, traitrange::Abstrac
     # info("tree: $(writeTopology(tree))")
     forwardlik = view(obj.forwardlik, :,:,t)
     directlik  = view(obj.directlik,  :,:,t)
-    k = nStates(obj.model)   # also = size(logtrans,1) if not RateVariationAcrossSites
+    k = nstates(obj.model)   # also = size(logtrans,1) if not RateVariationAcrossSites
     fullloglik = 0.0
     currentfullloglik = 0.0
     for ci in traitrange     # ci = character index
@@ -576,7 +576,7 @@ function ancestralStateReconstruction(obj::SSM, trait::Integer)
     end
     # fixit: paralellize with
     # ll = pmap(t -> discrete_backwardlikelihood_tree!(obj,t, trait), 1:ntrees)
-    k = nStates(obj.model)
+    k = nstates(obj.model)
     nnodes = length(obj.net.node)
     res = Array{Float64}((k,nnodes))
     frd = obj.forwardlik
@@ -610,7 +610,7 @@ function discrete_backwardlikelihood_tree!(obj::SSM, t::Integer, trait::Integer)
     frdlik = view(obj.forwardlik, :,:,t)
     dirlik = view(obj.directlik , :,:,t)
     bkdlik = view(obj.backwardlik,:,:,t)
-    k = nStates(obj.model)
+    k = nstates(obj.model)
     bkwtmp = Vector{Float64}(k) # to hold bkw lik without parent edge transition
     logprior = [-log(k) for i in 1:k]
     for ni in 1:length(tree.nodes_changed) # pre-order traversal to calculate backwardlik

@@ -184,7 +184,7 @@ function P(obj::SM, t::Array{Float64})
     catch
         eig_vals, eig_vecs = eig(Array(Q(obj)))
         k = nstates(obj)
-        return [Matrix{k}(eig_vecs * expm(diagm(eig_vals)*i) * inv(eig_vecs)) for i in t] #removed ,k from Matrix declaration bc of ERROR: too many parameters for type
+        return [(eig_vecs * expm(diagm(eig_vals)*i) * inv(eig_vecs)) for i in t] 
     end
 end
 
@@ -251,7 +251,7 @@ end
     e1 = exp(-ab*t)
     p0 = obj.rate[2]/ab # asymptotic frequency of state "0"
     p1 = obj.rate[1]/ab # asymptotic frequency of state "1"
-    a0= p0 *e1
+    a0= p0*e1
     a1= p1*e1
     return Bmatrix(p0+a1, p0-a0, p1-a1, p1+a0) # by columns
 end
@@ -939,18 +939,34 @@ mutable struct RateVariationAcrossSites
     alpha::Float64
     ncat::Int
     ratemultiplier::Array{Float64}
-    function RateVariationAcrossSites(alpha::Float64, ncat = 4::Int)
+    function RateVariationAcrossSites(alpha = 1.0::Float64, ncat = 4::Int)
         @assert alpha >= 0 "alpha must be >= 0"
         if ncat == 1
             ratemultiplier = [1.0]
         else
             cuts = (0:(ncat-1))/ncat + 1/2ncat
             ratemultiplier = quantile.(Distributions.Gamma(alpha, alpha), cuts)
-            new(alpha, ncat, ratemultiplier)
         end
+        new(alpha, ncat, ratemultiplier)
     end
 end
 const RVAS = RateVariationAcrossSites
+
+struct JC69 <: NucleicAcidSubstitutionModel
+    rate::Vector{Float64}
+    pi::Vector{Float64} #? keep this?
+    relative::Bool
+  
+    function JC69(rate=[1.0]::Vector{Float64}, relative=true::Bool)
+        if !(0 <= length(rate) <= 1)
+            error("rate not a valid length for a JC69 model")
+        elseif any(rate .<= 0.)
+            error("All elements of rate must be positive for a JC69 model")
+        end
+        pi = [0.25, 0.25, 0.25, 0.25] #? need this? (connected to above ?)
+        new(rate, pi, relative)
+    end
+end
 
 """
     setalpha(obj, alpha)
@@ -971,3 +987,4 @@ function Base.show(io::IO, obj::RateVariationAcrossSites)
     print(io, str)
     showQ(io, obj)
 end
+
