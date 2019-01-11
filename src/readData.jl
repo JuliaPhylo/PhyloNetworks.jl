@@ -38,7 +38,9 @@ Read a file or DataFrame object containing a table of concordance factors (CF),
 with one row per 4-taxon set. The first 4 columns are assumed to give the labels
 of the 4 taxa in each set (tx1, tx2, tx3, tx4).
 Columns containing the CFs are assumed to be named
-'CF12_34', 'CF13_24' and 'CF14_23', or else are assumed to be columns 5,6,7.
+`CF12_34`, `CF13_24` and `CF14_23`;
+or `CF12.34`, `CF13.24` and `CF14.23`;
+or else are assumed to be columns 5,6,7.
 If present, a column named 'ngenes' will be used to get the number of loci
 used to estimate the CFs for each 4-taxon set.
 
