@@ -69,11 +69,10 @@ end
 """
     seteigeninfo!(model)
 
-calculate eigeninfo for a model and stores it within the object.
+calculate eigeninfo for a model and stores it within the object. Constructor allocate memory then call this function.
 """
 function seteigeninfo!(obj::SM) 
-    #generic version
-    obj.eigeninfo = #constructor allocates memory then calls this
+    obj.eigeninfo = error("seteigeninfo! not defined for $(typeof(obj)).")
 end
 
 #TODO change constructors
@@ -562,26 +561,28 @@ julia> nparams(m2)
 """
 struct JC69 <: NucleicAcidSubstitutionModel
     rate::Vector{Float64}
-    pi::Vector{Float64} #? keep this?
+    #pi::Vector{Float64} #? keep this? Isn't this always the same?
     relative::Bool
     eigeninfo::Vector{Float64}
-
-    function JC69(rate=[1.0]::Vector{Float64}, relative=true::Bool, eigeninfo::Vector{Float64})
-        #Warning: this constructor should not be used directly. Use it with the constructor below.
+    
+    function JC69(eigeninfo::Vector{Float64}, rate=[1.0]::Vector{Float64}, relative=true::Bool, )
+        #Warning: this constructor should not be used directly. Use the constructor below, 
+        #   which will call this.        
         if !(0 <= length(rate) <= 1)
             error("rate not a valid length for a JC69 model")
         elseif any(rate .<= 0.)
             error("All elements of rate must be positive for a JC69 model")
         end
-        pi = [0.25, 0.25, 0.25, 0.25] #? need this? (connected to above ?)
-        new(rate, pi, relative, eigeninfo)
+        new(rate, relative, eigeninfo)
     end
 end
-#JC69(rate::Float64, relative=true::Bool) = JC69([rate], relative)
-function JC69(rate::AbstractVector, relative::Bool)
+function JC69(rate=[1.0]::AbstractVector, relative=true::Bool)
+    #pi = [0.25, 0.25, 0.25, 0.25] #? need this? (connected to above ?)
     obj = JC69(rate, relative, Vector{Float64}(3)) # Vector{Float64}(undef,3) for julia v1.0
     seteigeninfo!(obj)
 end
+JC69(rate::Float64, relative=true::Bool) = JC69([rate], relative)
+
 
 """
     seteigeninfo!(obj::JC69)
@@ -594,7 +595,7 @@ function seteigeninfo!(obj::JC69)
     else
         lambda = (4.0/3.0)*obj.rate[1]
     end
-    obj.eigeninfo = [lambda] #constructor allocates memory then calls this TODO
+    obj.eigeninfo = [lambda]
 end
 
 function Base.show(io::IO, obj::JC69)
@@ -633,8 +634,9 @@ struct HKY85 <: NucleicAcidSubstitutionModel
     pi::Vector{Float64}
     relative::Bool
     
-    function HKY85(rate::Vector{Float64}, pi::Vector{Float64}, relative=true::Bool, eigeninfo::Vector{Float64})
-        #Warning: this constructor should not be used directly. Use it with the constructor below.
+    function HKY85(rate::Vector{Float64}, pi::Vector{Float64}, eigeninfo::Vector{Float64}, relative=true::Bool)
+        #Warning: this constructor should not be used directly. Use the constructor below, 
+        #   which will call this.
         if any(rate .<= 0.)
             error("All elements of rate must be positive")
         elseif !(1 <= length(rate) <= 2)
@@ -665,7 +667,7 @@ end
 calculate eigeninfo for a model and stores it within the object.
 """
 function seteigeninfo!(obj::HKY85)
-    
+    # s = t/(2*(piT*piC + piA*piG)k + 2*(piY+piR)) #t/lambda
     piA = obj.pi[1]; piC = obj.pi[2]; piG = obj.pi[3]; piT = obj.pi[4]
     piR = piA + piG
     piY = piT + piC
@@ -904,7 +906,8 @@ end
 
 """
     P!(Pmat::AbstractMatrix, obj::JC69, t::Float64)
-modifies P rate matrix (see traitsLikeDiscrete)
+modifies P rate matrix (see traitsLikDiscrete.jl) during optimization. 
+
 ```julia-repl 
 julia> m1 = JC69([0.25])
 julia> P!(m1, 3)
@@ -915,16 +918,10 @@ function P!(Pmat::AbstractMatrix, obj::JC69, t::Float64)
     if t < 0
         error("Time must be positive")
     end
-    if obj.relative
-        lambda = (4.0/3.0)
-    else
-        lambda = (4.0/3.0)*obj.rate[1]
-    end
-      
-    P_0 = 0.25 + 0.75 * exp(-t * lambda)
-    P_1 = 0.25 - 0.25 * exp(-t * lambda)
-    Pmat[:,:] = P_1
-    for i in 1:4 Pmat[i,i]=P_0;end #diagonal
+    P0 = 0.25 + 0.75 * exp(-t * obj.eigeninfo[1]) #lambda
+    P1 = 0.25 - 0.25 * exp(-t * obj.eigeninfo[1])
+    Pmat[:,:] = P1 #puts P1 on the off-diagonals
+    for i in 1:4 Pmat[i,i]=P0;end #diagonal
     return Pmat
 end
 
@@ -1010,22 +1007,6 @@ mutable struct RateVariationAcrossSites
     end
 end
 const RVAS = RateVariationAcrossSites
-
-struct JC69 <: NucleicAcidSubstitutionModel
-    rate::Vector{Float64}
-    pi::Vector{Float64} #? keep this?
-    relative::Bool
-  
-    function JC69(rate=[1.0]::Vector{Float64}, relative=true::Bool)
-        if !(0 <= length(rate) <= 1)
-            error("rate not a valid length for a JC69 model")
-        elseif any(rate .<= 0.)
-            error("All elements of rate must be positive for a JC69 model")
-        end
-        pi = [0.25, 0.25, 0.25, 0.25] #? need this? (connected to above ?)
-        new(rate, pi, relative)
-    end
-end
 
 """
     setalpha!(obj, alpha)

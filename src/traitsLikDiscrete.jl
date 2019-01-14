@@ -293,7 +293,7 @@ function fit!(obj::SSM, ratemodel::RateVariationAcrossSites; fixedparam=false::B
         counter = [0]
         function loglikfun(x::Vector{Float64}, grad::Vector{Float64}) # modifies obj
             counter[1] += 1
-            obj.model.rate[:] = x #TODO replace this with setrates!(obj.model, x)
+            setrates!(obj.model, x) #replaced assignment here for efficiency
             res = discrete_corelikelihood!(obj)
             verbose && println("loglik: $res, model rates: $x")
             length(grad) == 0 || error("gradient not implemented")
@@ -327,10 +327,12 @@ function discrete_corelikelihood!(obj::SSM; whichtrait=:all::Union{Symbol,Intege
     else
         error("'whichtrait' should be :all or :active or an integer in the correct range")
     end
-    #call setrates!()
+    #TODO call setrates!() to update each time you use P() function? Not efficient, but safe
+    startingP = P(obj.model, 1) #sets t = 1 for starting P for efficency
+    #? Is this correct? What should PmatAbstractMatrix be here?
     for edge in obj.net.edge # update logtrans: same for all displayed trees, all traits
-        for i = 1:4 #rate #? is ratemultiplier grabbed in this next line? need to check with test
-            obj.logtrans[:,:,edge.number, i] = log.(P!(P(obj.model), obj.model, edge.length*obj.RateVariationAcrossSites.ratemultiplier[i])) # element-wise
+        for i = 1:4 #rate
+            obj.logtrans[:,:,edge.number, i] = log.(P!(startingP, obj.model, edge.length*obj.RateVariationAcrossSites.ratemultiplier[i])) # element-wise
         end
     end
     for t in 1:length(obj.displayedtree) # calculate P{data | tree t} & store in obj.postltw[t]

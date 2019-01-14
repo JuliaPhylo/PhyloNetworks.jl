@@ -30,6 +30,8 @@ m3 = TwoBinaryTraitSubstitutionModel([2.0,1.2,1.1,2.2,1.0,3.1,2.0,1.1],
 #@test P(m1, [0.02,0.01]) ≈ StaticArrays.SArray{Tuple{2,2},Float64,2,4}[[0.980588 0.0194118; 0.0388236 0.961176], [0.990149 0.00985149; 0.019703 0.980297]] atol=1e-6
 @test P(m2, [0.02,0.01]) ≈ Array{Float64,2}[[0.839971 0.053343 0.053343 0.053343; 0.053343 0.839971 0.053343 0.053343; 0.053343 0.053343 0.839971 0.053343; 0.053343 0.053343 0.053343 0.839971], [0.91519 0.0282699 0.0282699 0.0282699; 0.0282699 0.91519 0.0282699 0.0282699; 0.0282699 0.0282699 0.91519 0.0282699; 0.0282699 0.0282699 0.0282699 0.91519]] atol=1e-6
 
+#test setrates! and seteigeninfo!
+@test setrates!(m1, [1.0, 2.0]) = BinaryTraitSubstitutionModel(1.0, 2.0);
 end
 
 @testset "Testing random discrete trait simulation" begin
@@ -317,10 +319,20 @@ fitHKY85 = (@test_nowarn fitDiscrete(net, mHKY85, tips; fixedparam=true));
 @test_nowarn show(DevNull, fitHKY85)
 @test loglikelihood(fitHKY85) ≈ -2.6638637960257574 #TODO
 
+# test P!
+startingP = P(mJC69, 1); #t = 1
+@test_nowarn show(startingP)
+@test P!(startingP, mJC69, 1) ≈ startingP
+@test P!(startingP, mJC69, 10) #updates P matrix with t=10
+
+#test setrates! and seteigeninfo!
+setrates!(mJC69, [0.75])
+
 # test RateVariationAcrossSites using NASM
 #create rate model
 rv = RateVariationAcrossSites();
-fitJC69rv = (@test_nowarn fitDiscrete(net, mJC69, rv, tips; fixedparam = true));
+fitJC69rv = (@test_nowarn fitDiscrete(net, mJC69, rv, tips; fixedparam = true)); 
+#Checks: Is ratemultiplier grabbed in this line 333 of traitsLikDiscrete.jl?
 @test_nowarn show(DevNull, fitJC69rv)
 @test loglikelihood(fitJC69rv) ≈ -2.6638637960257574 #TODO
 
