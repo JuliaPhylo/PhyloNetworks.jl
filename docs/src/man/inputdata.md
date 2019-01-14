@@ -75,13 +75,14 @@ nothing # hide
 To read in all gene trees and directly summarize them by a list
 of quartet CFs (proportion of input trees with a given quartet):
 ```@repl qcf
-raxmlCF = readTrees2CF(raxmltrees, CFfile="tableCF.txt");
-PhyloNetworks.writeObsCF(raxmlCF) # observed CFs: gene frequencies
-rm("tableCF.txt") # hide
+raxmlCF = readTrees2CF(raxmltrees, CFfile="tableCF.csv");
+df = writeTableCF(raxmlCF)   # data frame with observed CFs: gene frequencies
+CSV.write("tableCF.csv", df) # to save the data frame to a file
+rm("tableCF.csv") # hide
 rm("summaryTreesQuartets.txt") # hide
 ```
-`less("tableCF.txt")` lets you see the content of the newly created
-file "tableCF.txt", within Julia. Again, type `q` to quit viewing this file.
+`less("tableCF.csv")` lets you see the content of the newly created
+file "tableCF.csv", within Julia. Again, type `q` to quit viewing this file.
 
 In this table, each 4-taxon set is listed in one row.
 The 3 "CF" columns gives the proportion of genes that has
@@ -132,7 +133,7 @@ using CSV, DataFrames
 dat = CSV.read(buckyCFfile);
 first(dat, 6) # to see the first 6 rows
 buckyCF = readTableCF(dat)
-PhyloNetworks.writeObsCF(buckyCF)
+writeTableCF(buckyCF)
 ```
 In the input file, columns need to be in the right order:
 with the first 4 columns giving the names of the taxa in each 4-taxon set.

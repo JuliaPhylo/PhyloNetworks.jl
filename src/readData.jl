@@ -14,20 +14,33 @@ end
 
 writeExpCF(d::DataCF) = writeExpCF(d.quartet)
 
-# function to write a csv table from the obsCF of an
-# array of quartets
-function writeObsCF(quartets::Array{Quartet,1})
+"""
+    writeTableCF(vector of quartets)
+    writeTableCF(DataCF)
+
+Build a DataFrame containing observed quartet concordance factors,
+with columns named:
+- `:tx1`, `:tx2`, `:tx3`, `:tx4` for the four taxon names in each quartet
+-  `:CF12_34`, `:CF13_24`, `:CF14_23` for the 3 quartets of a given four-taxon set
+- `:ngenes` if this information is available for some quartets
+"""
+function writeTableCF(quartets::Array{Quartet,1})
     df = DataFrames.DataFrame(t1=String[],t2=String[],t3=String[],t4=String[],
-                              CF12_34=Float64[],CF13_24=Float64[],CF14_23=Float64[],ngenes=Int[])
+                              CF12_34=Float64[],CF13_24=Float64[],CF14_23=Float64[],
+                              ngenes=Union{Missing, Float64}[])
     for q in quartets
         length(q.taxon) == 4 || error("quartet $(q.number) does not have 4 taxa")
         length(q.obsCF) == 3 || error("quartet $(q.number) does have qnet with 3 expCF")
-        push!(df, [q.taxon[1],q.taxon[2],q.taxon[3],q.taxon[4],q.obsCF[1],q.obsCF[2],q.obsCF[3],q.ngenes])
+        push!(df, [q.taxon[1],q.taxon[2],q.taxon[3],q.taxon[4],q.obsCF[1],q.obsCF[2],q.obsCF[3],
+                   (q.ngenes==-1.0 ? missing : q.ngenes)])
+    end
+    if all(ismissing, df[:ngenes])
+        deletecols!(df, :ngenes)
     end
     return df
 end
 
-writeObsCF(d::DataCF) = writeObsCF(d.quartet)
+writeTableCF(d::DataCF) = writeTableCF(d.quartet)
 
 """
     readTableCF(file)
@@ -93,7 +106,7 @@ function readTableCF!(df::DataFrames.DataFrame; summaryfile=""::AbstractString)
 
     d = readTableCF!(df, columns)
 
-    if withngenes && d.numTrees == -1
+    if withngenes # && d.numTrees == -1
         m1 = minimum([q.ngenes for q in d.quartet])
         m2 = maximum([q.ngenes for q in d.quartet])
         if m1<m2 print("between $m1 and ") end
@@ -120,7 +133,7 @@ function readTableCF!(df::DataFrames.DataFrame, co::Vector{Int})
     for i in 1:size(df,1)
         push!(quartets,Quartet(i,string(df[i,co[1]]),string(df[i,co[2]]),string(df[i,co[3]]),string(df[i,co[4]]),
                                [df[i,co[5]],df[i,co[6]],df[i,co[7]]]))
-        if(withngenes)
+        if withngenes
             quartets[end].ngenes = df[i,co[8]]
         end
     end
@@ -563,7 +576,7 @@ function readInputData(trees::Vector{HybridNetwork}, quartetfile::AbstractString
                     with readTableCF(\"$(filename)\")""")
         end
         println("\ntable of obsCF printed to file $(filename)")
-        df = writeObsCF(d)
+        df = writeTableCF(d)
         CSV.write(filename,df)
     end
     #descData(d,"summaryTreesQuartets$(string(integer(time()/1000))).txt")
@@ -620,7 +633,7 @@ function readInputData(trees::Vector{HybridNetwork}, whichQ::Symbol, numQ::Integ
             filename = "tableCF.txt"
         end
         println("table of obsCF printed to file $(filename)")
-        df = writeObsCF(d)
+        df = writeTableCF(d)
         CSV.write(filename,df)
     end
     #descData(d,"summaryTreesQuartets$(string(integer(time()/1000))).txt")
@@ -720,20 +733,20 @@ end
 # pc: only 4-taxon subsets with percentage of gene trees less than pc will be printed (default 70%)
 function descData(d::DataCF, sout::IO, pc::Float64)
     0<=pc<=1 || error("percentage of missing genes should be between 0,1, not: $(pc)")
-    if(!isempty(d.tree))
+    if !isempty(d.tree)
         print(sout,"data consists of $(d.numTrees) gene trees and $(d.numQuartets) 4-taxon subsets\n")
         taxaTreesQuartets(d.tree,d.quartet,sout)
         print(sout,"----------------------------\n\n")
         print(sout,"will print below only the 4-taxon subsets with data from <= $(round((pc)*100, digits=2))% genes\n")
         for q in d.quartet
-            percent  = q.ngenes == -1 ? 0.0 : round(q.ngenes/d.numTrees*100, digits=2)
-            if(percent < pc)
-                print(sout,"4-taxon subset $(q.taxon) obsCF constructed with $(q.ngenes) gene trees ($(percent)%)\n")
+            percent  = q.ngenes == -1.0 ? 0.0 : round(q.ngenes/d.numTrees*100, digits=2)
+            if percent < pc
+                print(sout,"4-taxon subset $(q.taxon) obsCF constructed with $(round(q.ngenes)) gene trees ($(percent)%)\n")
             end
         end
         print(sout,"----------------------------\n\n")
     else
-        if(!isempty(d.quartet))
+        if !isempty(d.quartet)
             print(sout,"data consists of $(d.numQuartets) 4-taxon subsets")
             taxa=unionTaxa(d.quartet)
             print(sout,"\nTaxa: $(taxa)\n")
