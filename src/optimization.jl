@@ -398,8 +398,8 @@ function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool, ftolRel::Float64, 
     if verbose println("OPTBL: starting point $(ht)")     # to stdout
     else @debug        "OPTBL: starting point $(ht)"; end # to logger if debug turned on by user
     fmin, xmin, ret = NLopt.optimize(opt,ht)
-    if verbose println("got $(round(fmin, digits=5)) at $(round(xmin, digits=5)) after $(count) iterations (returned $(ret))")
-    else @debug        "got $(round(fmin, digits=5)) at $(round(xmin, digits=5)) after $(count) iterations (returned $(ret))"; end
+    if verbose println("got $(round(fmin, digits=5)) at $(round.(xmin, digits=5)) after $(count) iterations (returned $(ret))")
+    else @debug        "got $(round(fmin, digits=5)) at $(round.(xmin, digits=5)) after $(count) iterations (returned $(ret))"; end
     updateParameters!(net,xmin)
     net.loglik = fmin
     #return fmin,xmin

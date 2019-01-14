@@ -82,7 +82,7 @@ function mapAllelesCFtable!(cfDF::DataFrame, alleleDF::DataFrame, co::Vector{Int
 end
 
 # function to clean a df after changing allele names to species names
-# inside mapAllelesCFtable
+# inside readTableCF!
 # by deleting rows that are not informative like sp1 sp1 sp1 sp2
 # keepOne=true: we only keep one allele per species
 function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int};keepOne=false::Bool)

@@ -288,7 +288,7 @@ type that saves the information on a given 4-taxon subset. It contains the follo
 - taxon: vector of taxon names, like t1 t2 t3 t4
 - obsCF: vector of observed CF, in order 12|34, 13|24, 14|23
 - logPseudoLik
-- ngenes: number of gene trees used to compute the observed CF; -1 if unknown
+- ngenes: number of gene trees used to compute the observed CF; -1.0 if unknown
 - qnet: [`QuartetNetwork`](@ref), which saves the expCF after snaq estimation to
   emphasize that the expCF depend on a specific network, not the data
 """
@@ -297,13 +297,13 @@ mutable struct Quartet
     taxon::Array{String,1} # taxa 1234. qnet.quartetTaxon points to the same array.
     obsCF::Array{Float64,1} # three observed CF in order 12|34, 13|24, 14|23
     qnet::QuartetNetwork # quartet network for the current network (want to keep as if private attribute)
-    logPseudoLik::Float64 # log pseudolik value for the quartet
-    ngenes::Number # number of gene trees used to compute the obsCV, default -1; changed to Number in case ngenes is average, so float
+    logPseudoLik::Float64 # log pseudolik value for the quartet. 0.0 by default
+    ngenes::Float64 # number of gene trees used to compute the obsCV, default -1.; Float in case ngenes is average
     # inner constructor: to guarantee obsCF are only three and add up to 1
     function Quartet(number::Integer,t1::AbstractString,t2::AbstractString,t3::AbstractString,t4::AbstractString,obsCF::Array{Float64,1})
         size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing
         0.99 < sum(obsCF) < 1.02 || @warn "observed CF should add up to 1, not $(sum(obsCF))"
-        new(number,[t1,t2,t3,t4],obsCF,QuartetNetwork(),0,-1);
+        new(number,[t1,t2,t3,t4],obsCF,QuartetNetwork(),0.0,-1.0);
     end
     function Quartet(number::Integer,t1::Array{String,1},obsCF::Array{Float64,1})
         size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing
@@ -312,9 +312,9 @@ mutable struct Quartet
         0.0 <= obsCF[1] <= 1.0 || error("obsCF must be between (0,1), but it is $(obsCF[1]) for $(t1)")
         0.0 <= obsCF[2] <= 1.0 || error("obsCF must be between (0,1), but it is $(obsCF[2]) for $(t1)")
         0.0 <= obsCF[3] <= 1.0 || error("obsCF must be between (0,1), but it is $(obsCF[3]) for $(t1)")
-        new(number,t1,obsCF,QuartetNetwork(),0,-1);
+        new(number,t1,obsCF,QuartetNetwork(),0.0,-1.0);
     end
-    Quartet() = new(0,[],[],QuartetNetwork(),0,-1)
+    Quartet() = new(0,[],[],QuartetNetwork(),0.0,-1.0)
 end
 
 # Data -------

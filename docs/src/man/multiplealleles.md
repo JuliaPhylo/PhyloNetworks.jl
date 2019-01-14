@@ -19,13 +19,55 @@ species level: with the allele names replaced by the appropriate species names.
 The second command modifies this data frame `df_sp` by deleting rows that are uninformative
 about between-species relationships, such as rows corresponding to 4 individuals from the
 same species. The output `d_sp` of this second command is an object of type `DataCF` at the
-species level, which can be used as input for networks estimation with `snaq!`:
+species level, which can be used as input for networks estimation with `snaq!`.
+But before, it is safe to save the concordance factor of quartets of species,
+which can be calculated by averaging the CFs of quartets of individuals
+from the associated species:
+
+```julia
+df_sp = writeTableCF(d_sp) # data frame, quartet CFs averaged across individuals of same species
+CSV.write("CFtable_species.csv", df_sp) # save to file
+```
+
+Some quartets have the same species repeated twice,
+representing cases when 2 of the 4 individuals came from the same species.
+These quartets, with repeated species, are informative about the population
+size of extant populations, i.e. about the lengths of external branches in
+coalescent units.
+
+now we can run snaq:
 
 ```julia
 net = snaq!(T_sp, d_sp);
 ```
 where `T_sp` should be a starting topology with one tip per species,
 labelled with the same species names as the names used in the mapping file.
+
+If `snaq!` takes too long that way, we can try a less ambitious estimation
+that does not estimate the external branch lengths, that is,
+*without* using quartets that have 2 individuals from the same species.
+To do so, we can use the quartet concordance factors at the species level,
+but filter out the quartets with one (or more) species repeated:
+
+```julia
+df_sp = writeTableCF(d_sp) # some quartets have the same species twice
+function hasrep(row) # see if a row (4-taxon set) has a species name ending with "__2": repeated species
+  occursin(r"__2$", row[:tx1]) || occursin(r"__2$", row[:tx2]) ||
+    occursin(r"__2$", row[:tx3]) || occursin(r"__2$", row[:tx4])
+end
+df_sp_reduced = filter(!hasrep, df_sp) # removes rows with repeated species
+df_sp_reduced # should have fewer rows than df_sp
+CSV.write("CFtable_species_norep.csv", df_sp_reduced) # to save to file
+d_sp_reduced = readTableCF(df_sp_reduced) # DataCF object, for input to snaq!
+```
+
+and now we can run `snaq!` on the reduced set of quartets without repeats,
+which should be faster:
+
+```julia
+net = snaq!(T_sp, d_sp_reduced);
+```
+
 
 Warnings:
 

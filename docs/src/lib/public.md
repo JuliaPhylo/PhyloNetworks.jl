@@ -65,6 +65,7 @@ readSnaqNetwork
 readTrees2CF
 readTableCF
 readTableCF!
+writeTableCF
 readBootstrapTrees
 writeSubTree!
 writeTopology

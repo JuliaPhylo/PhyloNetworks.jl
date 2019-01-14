@@ -50,6 +50,7 @@ module PhyloNetworks
         readTrees2CF,
         readTableCF,
         readTableCF!,
+        writeTableCF,
         readInputTrees,
         readNexusTrees,
         summarizeDataCF,
@@ -164,5 +165,6 @@ module PhyloNetworks
     include("biconnectedComponents.jl")
     include("traitsLikDiscrete.jl")
     include("ticr.jl")
+    include("deprecated.jl")
 
 end #module
