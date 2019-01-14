@@ -252,8 +252,12 @@ function seteigeninfo!(obj::BTSM)
     ab > 0. || error("α+β must be positive")
     p0 = obj.rate[2]/ab # asymptotic frequency of state "0"
     p1 = obj.rate[1]/ab # asymptotic frequency of state "1"
-    obj.eigeninfo = [ab, p0, p1] #constructor allocates memory then calls this
+    obj.eigeninfo[1] = ab
+    obj.eigeninfo[2] = p0
+    obj.eigeninfo[3] = p1 #constructor allocates memory then calls this
 end
+
+#for equal rates, see paper relati
 
 """
 # Examples
@@ -561,12 +565,12 @@ julia> nparams(m2)
 """
 struct JC69 <: NucleicAcidSubstitutionModel
     rate::Vector{Float64}
-    #pi::Vector{Float64} #? keep this? Isn't this always the same?
+    #pi::Vector{Float64} #? keep this? Isn't this always [0.25, 0.25, 0.25, 0.25]?
     relative::Bool
     eigeninfo::Vector{Float64}
     
-    function JC69(eigeninfo::Vector{Float64}, rate=[1.0]::Vector{Float64}, relative=true::Bool, )
-        #Warning: this constructor should not be used directly. Use the constructor below, 
+    function JC69(rate::Vector{Float64}, relative::Bool, eigeninfo::Vector{Float64})
+        #Warning: this constructor should not be used directly. Use the constructor below
         #   which will call this.        
         if !(0 <= length(rate) <= 1)
             error("rate not a valid length for a JC69 model")
@@ -576,10 +580,11 @@ struct JC69 <: NucleicAcidSubstitutionModel
         new(rate, relative, eigeninfo)
     end
 end
-function JC69(rate=[1.0]::AbstractVector, relative=true::Bool)
+function JC69(rate::AbstractVector, relative=true::Bool)
     #pi = [0.25, 0.25, 0.25, 0.25] #? need this? (connected to above ?)
-    obj = JC69(rate, relative, Vector{Float64}(3)) # Vector{Float64}(undef,3) for julia v1.0
+    obj = JC69(rate, relative, Vector{Float64}(1)) # Vector{Float64}(undef,1) for julia v1.0
     seteigeninfo!(obj)
+    return obj #TODO add to all
 end
 JC69(rate::Float64, relative=true::Bool) = JC69([rate], relative)
 
@@ -595,7 +600,7 @@ function seteigeninfo!(obj::JC69)
     else
         lambda = (4.0/3.0)*obj.rate[1]
     end
-    obj.eigeninfo = [lambda]
+    obj.eigeninfo[1] = lambda
 end
 
 function Base.show(io::IO, obj::JC69)
@@ -618,6 +623,7 @@ end
 [`HKY85`](@ref) nucleic acid substitution model based on Hasegawa et al. 1984 substitution model. 
 Default is relative rate model. Based on depricated PhyloModels.jl by Justin Angevaare
 
+For the relative HKY85 model, there are 
 # examples
 
 ```julia-repl
@@ -673,17 +679,18 @@ function seteigeninfo!(obj::HKY85)
     piY = piT + piC
     if obj.relative
         k = obj.rate[1]
-        lambda = (2*(piT*piC + piA*piG)k + 2*(piY+piR)) #TODO
-        e₁ = exp(-s)
-        e₂ = exp(-(piR * k + piY) * s)
-        e₃ = exp(-(piY * k + piR) * s)
+        lambda = (2*(piT*piC + piA*piG)k + 2*(piY+piR)) #TODO check this
+        # e₁ = exp(-s)
+        # e₂ = exp(-(piR * k + piY) * s)
+        # e₃ = exp(-(piY * k + piR) * s)
     else
-        lambda = #?
-        e₁ = exp(-b * t) #TODO remove t, look for eigen values and vectors
-        e₂ = exp(-(piR * a + piY * b) * t)
-        e₃ = exp(-(piY * a + piR * b) * t)
+        a = obj.rate[1]/(); b = obj.rate[2]/() #alpha and beta
+        lambda = [exp(-b), exp(-(piR * a + piY * b)), exp(-(piY * a + piR * b))]
+        # e₁ = exp(-b * t) #TODO remove t, look for eigen values and vectors
+        # e₂ = exp(-(piR * a + piY * b) * t)
+        # e₃ = exp(-(piY * a + piR * b) * t)
     end
-    obj.eigeninfo = [lambda, e₁, e₂, e₃] 
+    obj.eigeninfo[1] = lambda[1]
 end
 
 function Base.show(io::IO, obj::HKY85)
@@ -867,7 +874,7 @@ TODO
         s = t/(2*(piT*piC + piA*piG)k + 2*(piY+piR)) #t/lambda
         
         P₁  = piA + (piA * piY / piR) * e₁ + (piG / piR) * e₂
-        P₂  = piC + (piT * piR / piY) * e₁ + (piT / piY) * e₃
+        P₂  = piC + (piC * piR / piY) * e₁ + (piT / piY) * e₃ #todo check
         P₃  = piG + (piG * piY / piR) * e₁ + (piA / piR) * e₂
         P₄  = piT + (piT * piR / piY) * e₁ + (piC / piY) * e₃
         P₅  = piA * (1 - e₁)
@@ -915,9 +922,11 @@ TODO
 ````
 """
 function P!(Pmat::AbstractMatrix, obj::JC69, t::Float64)
-    if t < 0
-        error("Time must be positive")
-    end
+    # if t < 0 
+    #This requirement should be handled by the optimization function 
+    #   and when we fit it to a tree we'll check that all branch lengths are positive
+    #     error("Time must be positive")
+    # end
     P0 = 0.25 + 0.75 * exp(-t * obj.eigeninfo[1]) #lambda
     P1 = 0.25 - 0.25 * exp(-t * obj.eigeninfo[1])
     Pmat[:,:] = P1 #puts P1 on the off-diagonals

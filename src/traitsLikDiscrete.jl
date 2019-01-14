@@ -327,9 +327,7 @@ function discrete_corelikelihood!(obj::SSM; whichtrait=:all::Union{Symbol,Intege
     else
         error("'whichtrait' should be :all or :active or an integer in the correct range")
     end
-    #TODO call setrates!() to update each time you use P() function? Not efficient, but safe
-    startingP = P(obj.model, 1) #sets t = 1 for starting P for efficency
-    #? Is this correct? What should PmatAbstractMatrix be here?
+    #make a Pmat as startingP = P(obj.model, 1) #sets t = 1 for starting P for efficency
     for edge in obj.net.edge # update logtrans: same for all displayed trees, all traits
         for i = 1:4 #rate
             obj.logtrans[:,:,edge.number, i] = log.(P!(startingP, obj.model, edge.length*obj.RateVariationAcrossSites.ratemultiplier[i])) # element-wise
