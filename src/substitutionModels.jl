@@ -200,6 +200,7 @@ end
 
 When applied to a general substitution model, matrix exponentiation is used.
 The time argument `t` can be an array.
+#TODO 
 """
 function P(obj::SM, t::Array{Float64})
     all(t .>= 0.0) || error("t's must all be positive")
@@ -236,7 +237,7 @@ mutable struct BinaryTraitSubstitutionModel{T} <: TraitSubstitutionModel{T}
 end
 const BTSM = BinaryTraitSubstitutionModel{T} where T
 function BinaryTraitSubstitutionModel(r::AbstractVector, label::AbstractVector)
-    obj = BinaryTraitSubstitutionModel{eltype(label)}(r, label, Vector{Float64}(3)) # Vector{Float64}(undef,3) for julia v1.0
+    obj = BinaryTraitSubstitutionModel{eltype(label)}(r::AbstractVector, label::AbstractVector, zeros(3)) # Vector{Float64}(undef,3) for julia v1.0
     seteigeninfo!(obj)
     return obj
 end
@@ -246,7 +247,7 @@ BinaryTraitSubstitutionModel(α::Float64, β::Float64) = BinaryTraitSubstitution
 """
     seteigeninfo!(obj::BinaryTraitSubstitutionModel)
 
-calculate eigeninfo for a model and stores it within the object.
+calculate eigeninfo for a model and store it within the object.
 """
 function seteigeninfo!(obj::BTSM) 
     ab = obj.rate[1] + obj.rate[2] #eigenvalue = -(a+b)
@@ -255,10 +256,8 @@ function seteigeninfo!(obj::BTSM)
     p1 = obj.rate[1]/ab # asymptotic frequency of state "1"
     obj.eigeninfo[1] = ab
     obj.eigeninfo[2] = p0
-    obj.eigeninfo[3] = p1 #constructor allocates memory then calls this
+    obj.eigeninfo[3] = p1
 end
-
-#TODO for equal rates, see email
 
 """
 # Examples
@@ -292,6 +291,17 @@ function Base.show(io::IO, obj::BTSM)
     print(io, str)
 end
 
+"""
+    P(obj::BTSM, t::Float64)
+
+```julia
+julia> m1 = BinaryTraitSubstitutionModel([1.0,2.0], ["low","high"])
+julia> P(m1, 1.0)
+2×2 StaticArrays.SArray{Tuple{2,2},Float64,2,4}:
+ 0.683262  0.316738
+ 0.633475  0.366525
+```
+"""
 @inline function P(obj::BTSM, t::Float64)
     t >= 0.0 || error("substitution model: >=0 branch lengths are needed")
     e1 = exp(-obj.eigeninfo[1]*t)
@@ -372,22 +382,44 @@ end
 [`TraitSubstitutionModel`](@ref) for traits with any k number of states
 and equal substitution rates α between all states.
 Default labels are "1","2",...
+
+#?alpha is qual to 1/k so do we need rate input here? could cause conflicts
 """
 mutable struct EqualRatesSubstitutionModel{T} <: TraitSubstitutionModel{T}
     k::Int
     rate::Vector{Float64}
     label::Vector{T}
-    function EqualRatesSubstitutionModel{T}(k, rate, label::Vector{T}) where T
+    eigeninfo::Vector{Float64}
+    function EqualRatesSubstitutionModel{T}(k::Int, rate::Vector{Float64}, 
+        label::Vector{T}, eigeninfo::Vector{Float64}) where T
         k >= 2 || error("parameter k must be greater than or equal to 2")
         @assert length(rate)==1 "rate must be a vector of length 1"
         rate[1] > 0 || error("parameter α (rate) must be positive")
         @assert length(label)==k "label vector of incorrect length"
-        new(k, rate, label)
+        new(k, rate, label, eigeninfo)
     end
 end
 const ERSM = EqualRatesSubstitutionModel{T} where T
-EqualRatesSubstitutionModel(k::Int, α::Float64, label::AbstractVector) = EqualRatesSubstitutionModel{eltype(label)}(k,[α],label)
-EqualRatesSubstitutionModel(k::Int, α::Float64) = EqualRatesSubstitutionModel{String}(k, [α], string.(1:k))
+function EqualRatesSubstitutionModel(k::Int, rate::Vector{Float64}, label::AbstractVector)
+    #obj = BinaryTraitSubstitutionModel{eltype(label)}(r::AbstractVector, label::AbstractVector, zeros(3)) # Vector{Float64}(undef,3) for julia v1.0
+    obj = EqualRatesSubstitutionModel{eltype(label)}(k::Int, rate::Vector{Float64}, label::AbstractVector, zeros(1)) # Vector{Float64}(undef,3) for julia v1.0
+    seteigeninfo!(obj)
+    return obj
+end
+#EqualRatesSubstitutionModel(k::Int, α::Float64, label::AbstractVector) = EqualRatesSubstitutionModel{eltype(label)}(k,[α],label)
+#EqualRatesSubstitutionModel(k::Int, α::Float64) = EqualRatesSubstitutionModel{String}(k, [α], string.(1:k))
+#this isnt working ^
+#TODO check this
+"""
+    seteigeninfo!(obj::EqualRatesSubstitutionModel)
+
+calculate eigeninfo for a model and store it within the object.
+"""
+#? obj.rate[1] = alpha = 1/k, right? we store this multiple times.
+function seteigeninfo!(obj::ERSM) 
+    q = (obj.k/(obj.k-1)) 
+    obj.eigeninfo[1] = 1
+end
 
 function nstates(obj::ERSM)
     return obj.k
@@ -402,6 +434,7 @@ function Base.show(io::IO, obj::ERSM)
     showQ(io, obj)
 end
 
+#? alpha = 1/k, right? Why do we store obj.rate = alpha and k if this is the case? could cause conflicts
 function Q(obj::ERSM)
     α = obj.rate[1]
     M = fill(α, (obj.k,obj.k))
@@ -411,6 +444,21 @@ function Q(obj::ERSM)
     end
     return M
 end
+"""
+    P(obj::ERSM)
+```julia
+julia> m1 = EqualRatesSubstitutionModel(2, [0.5])
+julia> P(m1)
+```
+"""
+function P(obj::ERSM, t::Float64)
+    p1 = exp(-obj.eigeninfo[1]*t) + obj.rate[1]*(1-exp(-obj.eigeninfo[1]*t))
+    p0 = obj.rate[1]*(1-exp(-obj.eigeninfo[1]*t))
+    return Bmatrix(p1, p0, 
+                    p0, p1)
+end
+
+#TODO P!
 
 """
     randomTrait(model, t, start)
