@@ -640,7 +640,7 @@ struct HKY85 <: NucleicAcidSubstitutionModel
     relative::Bool
     eigeninfo::Vector{Float64}
     
-    function HKY85(rate::Vector{Float64}, pi::Vector{Float64}, eigeninfo::Vector{Float64}, relative::Bool)
+    function HKY85(rate::Vector{Float64}, pi::Vector{Float64}, relative::Bool, eigeninfo::Vector{Float64})
         #Warning: this constructor should not be used directly. Use the constructor below, 
         #   which will call this.
         if any(rate .<= 0.)
@@ -655,18 +655,19 @@ struct HKY85 <: NucleicAcidSubstitutionModel
             error("Base proportions must sum to 1")
         end
       
-          if length(rate) == 1
-            new(rate, pi, true, eigeninfo) 
-          else
+        if length(rate) == 1
+            new(rate, pi, true, eigeninfo) #check this because of defaults
+        else
             new(rate, pi, false, eigeninfo)
-          end
+        end
     end
 end
 function HKY85(rate::AbstractVector, pi::Vector{Float64}, relative=true::Bool)
-    obj = HKY85(rate, pi, relative, Vector{Float64}(3)) # Vector{Float64}(undef,3) for julia v1.0
+    obj = HKY85(rate, pi, relative, zeros(5)) # Vector{Float64}(undef,3) for julia v1.0
     seteigeninfo!(obj)
     return obj
 end
+HKY85(rate::Float64, pi::Vector{Float64}, relative=true::Bool) = HKY85([rate], pi, relative)
 
 """
     seteigeninfo!(obj::HKY85)
@@ -674,28 +675,21 @@ end
 calculate eigeninfo for a model and stores it within the object.
 """
 function seteigeninfo!(obj::HKY85)
-    # s = t/(2*(piT*piC + piA*piG)k + 2*(piY+piR)) #t/lambda
     piA = obj.pi[1]; piC = obj.pi[2]; piG = obj.pi[3]; piT = obj.pi[4]
     piR = piA + piG
     piY = piT + piC
+
+    a = obj.rate[1]
     if obj.relative
-        k = obj.rate[1]
-        lambda = (2*(piT*piC + piA*piG)k + 2*(piY+piR)) #TODO check this
-        obj.eigeninfo[1] = k
-        obj.eigeninfo[2] = b
-        obj.eigeninfo[3] = -(piR*a + piY*b)
-        obj.eigeninfo[4] = -(piY*a + piR*b)
-        # e₁ = exp(-s)
-        # e₂ = exp(-(piR * k + piY) * s)
-        # e₃ = exp(-(piY * k + piR) * s)
+        b = 1.0
     else
-        a = obj.rate[1]/(); b = obj.rate[2]/() #alpha and beta
-        lambda = [exp(-b), exp(-(piR * a + piY * b)), exp(-(piY * a + piR * b))]
-        # e₁ = exp(-b * t) #TODO remove t, look for eigen values and vectors
-        # e₂ = exp(-(piR * a + piY * b) * t)
-        # e₃ = exp(-(piY * a + piR * b) * t)
-        obj.eigeninfo[1] = lambda[1]
+        b = obj.rate[2]
     end
+    obj.eigeninfo[1] = -b
+    obj.eigeninfo[2] = -((piR * a) + (piY * b))
+    obj.eigeninfo[3] = -((piY * a) + (piR * b))
+    obj.eigeninfo[4] = piR
+    obj.eigeninfo[5] = piY
 end
 
 function Base.show(io::IO, obj::HKY85)
@@ -763,9 +757,9 @@ end
     average number of substitutions per site for time 1. lambda (or d) = (2*(piT*piC + piA*piG)*alpha + 2*(piY+piR)*beta)
     For relative,
     average number of substitutions per site is 1 (lambda = 1). kappa = alpha/beta. 
-```julia-repl 
-julia> m1 = HKY85([.5], [0.25, 0.25, 0.25, 0.25])
-````
+    ```julia-repl 
+    julia> m1 = HKY85([.5], [0.25, 0.25, 0.25, 0.25])
+    ````
 """
 @inline function Q(obj::HKY85) #we end up not using this much -- we use this mostly to eamine our model
     piA = obj.pi[1]; piC = obj.pi[2]; piG = obj.pi[3]; piT = obj.pi[4]
@@ -853,8 +847,9 @@ P[k,1] ... P[k,k]
 where P[i,j] is the probability of ending in state j after time t,
 given that the process started in state i.
 
-For absolute version, #TODO update doc string
-For relative, 
+rate = [k] (relative rate model)
+or
+rate = [a, b] (absolute rate model)
 Both models according to Molecular Evolution (Yang 2014)
 
 ```julia-repl 
@@ -863,57 +858,38 @@ julia> P(m1, 3)
 TODO
 ````
 """
-@inline function P(obj::HKY85, t::Float64) #TODO update when seteigeninfo! function is done
+@inline function P(obj::HKY85, t::Float64)
     if t < 0.0
         error("t must be positive")
     end
     piA = obj.pi[1]; piC = obj.pi[2]; piG = obj.pi[3]; piT = obj.pi[4]
-    piR = piA + piG
-    piY = piT + piC
-    
-    if HKY85.relative
-        e₁ = exp(-s)
-        e₂ = exp(-(piR * k + piY) * s)
-        e₃ = exp(-(piY * k + piR) * s)
-        k = obj.rate[1] #kappa = alpha 
-        s = t/(2*(piT*piC + piA*piG)k + 2*(piY+piR)) #t/lambda
-        
-        P₁  = piA + (piA * piY / piR) * e₁ + (piG / piR) * e₂
-        P₂  = piC + (piC * piR / piY) * e₁ + (piT / piY) * e₃ #todo check
-        P₃  = piG + (piG * piY / piR) * e₁ + (piA / piR) * e₂
-        P₄  = piT + (piT * piR / piY) * e₁ + (piC / piY) * e₃
-        P₅  = piA * (1 - e₁)
-        P₆  = piA + (piA * piY / piR) * e₁ - (piA / piR) * e₂
-        P₇  = piC * (1 - e₁)
-        P₈  = piC + (piT * piR / piY) * e₁ - (piC / piY) * e₃
-        P₉  = piG + (piG * piY / piR) * e₁ - (piG / piR) * e₂
-        P₁₀ = piG * (1 - e₁)
-        P₁₁ = piT * (1 - e₁)
-        P₁₂ = piT + (piT * piR / piY) * e₁ - (piT / piY) * e₃
-    else
-        a = obj.rate[1]/(); b = obj.rate[2]/() #alpha and beta
-          
-        e₁ = exp(-b * t)
-        e₂ = exp(-(piR * a + piY * b) * t)
-        e₃ = exp(-(piY * a + piR * b) * t)
-        
-        P₁  = piA + (piA * piY / piR) * e₁ + (piG / piR) * e₂
-        P₂  = piC + (piT * piR / piY) * e₁ + (piT / piY) * e₃
-        P₃  = piG + (piG * piY / piR) * e₁ + (piA / piR) * e₂
-        P₄  = piT + (piT * piR / piY) * e₁ + (piC / piY) * e₃
-        P₅  = piA * (1 - e₁)
-        P₆  = piA + (piA * piY / piR) * e₁ - (piA / piR) * e₂
-        P₇  = piC * (1 - e₁)
-        P₈  = piC + (piT * piR / piY) * e₁ - (piC / piY) * e₃
-        P₉  = piG + (piG * piY / piR) * e₁ - (piG / piR) * e₂
-        P₁₀ = piG * (1 - e₁)
-        P₁₁ = piT * (1 - e₁)
-        P₁₂ = piT + (piT * piR / piY) * e₁ - (piT / piY) * e₃ 
-    end
-    return Pmatrix(P₁,  P₅,  P₆,  P₅,
-        P₇,  P₂,  P₇,  P₈,
-        P₉,  P₁₀, P₃,  P₁₀,
-        P₁₁, P₁₂, P₁₁, P₄)
+    piR = obj.eigeninfo[4]
+    piY = obj.eigeninfo[5]
+
+    e2 = exp(obj.eigeninfo[1] * t)
+    e3 = exp(obj.eigeninfo[2] * t)
+    e4 = exp(obj.eigeninfo[3] * t)
+
+    P_TT = piT + ((piT * piR)/piY) * e2 + (piC/piY) * e4
+    P_TC = piC + ((piT * piR)/piY) * e2 - (piC/piY) * e4
+    P_TA_CA = piA * (1 - e2) #repeated
+    P_TG_CG = piG * (1 - e2) #repeated
+
+    P_CT = piT + ((piT * piR)/piY) * e2 - (piT/piY) * e4
+    P_CC = piC + ((piT * piR)/piY) * e2 + (piT/piY) * e4
+
+    P_AT_GT = piT * (1 - e2) #repeated
+    P_AC_GC = piC * (1 - e2) #repeated
+    P_AA = piA + ((piA * piY)/piR) * e2 + (piG/piR) * e3
+    P_AG = piG + ((piG * piY)/piR) * e2 - (piG/piR) * e3
+
+    P_GA = piA + ((piA * piY)/piR) * e2 - (piA/piR) * e3
+    P_GG = piG + ((piG * piY)/piR) * e2 + (piA/piR) * e3
+
+    return Pmatrix(P_TT, P_TC, P_TA_CA, P_TG_CG,
+                    P_CT, P_CC, P_TA_CA, P_TG_CG,
+                    P_AT_GT, P_AC_GC, P_AA, P_AG,
+                    P_AT_GT, P_AC_GC, P_GA, P_GG)
 end
 
 """
@@ -950,6 +926,7 @@ julia> P!(m1, 3)
 TODO
 ````
 """
+#TODO update
 function P!(Pmat::AbstractMatrix, obj::HKY85, t::Float64)
     if t < 0.0
         error("t must be positive")
@@ -958,7 +935,7 @@ function P!(Pmat::AbstractMatrix, obj::HKY85, t::Float64)
     piR = piA + piG
     piY = piT + piC
     
-    if HKY85.relative == true
+    if obj.relative == true
         k = obj.rate[1] #kappa = alpha 
         s = t/(2*(piT*piC + piA*piG)k + 2*(piY+piR)) #t/lambda
         e₁ = exp(-s)
