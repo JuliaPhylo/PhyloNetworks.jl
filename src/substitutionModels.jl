@@ -61,9 +61,10 @@ nparams(obj::SM) = error("nparams not defined for $(typeof(obj)).")
 
 update rates then call seteigeninfo!() to update a model's eigeninfo
 """
+#? if seteigeninfo isnt set for SM, setrates shouldnt work either, right?
 function setrates!(obj::SM, rates::AbstractVector) #TODO see pull request for SM packages
     obj.rate = rates
-    seteigeninfo!(obj)
+    # seteigeninfo!(obj)
 end
 
 """
@@ -71,9 +72,8 @@ end
 
 calculate eigeninfo for a model and stores it within the object. Constructor allocate memory then call this function.
 """
-function seteigeninfo!(obj::SM) 
-    obj.eigeninfo = error("seteigeninfo! not defined for $(typeof(obj)).")
-end
+seteigeninfo!(obj::SM)  = error("seteigeninfo! not defined for $(typeof(obj)).")
+# seteigeninfo!(obj::TSM)  = error("seteigeninfo! not defined for $(typeof(obj)).") #? needed?
 
 #TODO change constructors
 
@@ -238,6 +238,7 @@ const BTSM = BinaryTraitSubstitutionModel{T} where T
 function BinaryTraitSubstitutionModel(r::AbstractVector, label::AbstractVector)
     obj = BinaryTraitSubstitutionModel{eltype(label)}(r, label, Vector{Float64}(3)) # Vector{Float64}(undef,3) for julia v1.0
     seteigeninfo!(obj)
+    return obj
 end
 BinaryTraitSubstitutionModel(α::Float64, β::Float64, label::AbstractVector) = BinaryTraitSubstitutionModel([α,β], label)
 BinaryTraitSubstitutionModel(α::Float64, β::Float64) = BinaryTraitSubstitutionModel(α, β, ["0", "1"])
@@ -257,7 +258,7 @@ function seteigeninfo!(obj::BTSM)
     obj.eigeninfo[3] = p1 #constructor allocates memory then calls this
 end
 
-#for equal rates, see paper relati
+#TODO for equal rates, see email
 
 """
 # Examples
@@ -565,9 +566,8 @@ julia> nparams(m2)
 """
 struct JC69 <: NucleicAcidSubstitutionModel
     rate::Vector{Float64}
-    #pi::Vector{Float64} #? keep this? Isn't this always [0.25, 0.25, 0.25, 0.25]?
     relative::Bool
-    eigeninfo::Vector{Float64}
+    eigeninfo::Vector{Float64} #TODO change to MVector, see if its faster
     
     function JC69(rate::Vector{Float64}, relative::Bool, eigeninfo::Vector{Float64})
         #Warning: this constructor should not be used directly. Use the constructor below
@@ -581,10 +581,9 @@ struct JC69 <: NucleicAcidSubstitutionModel
     end
 end
 function JC69(rate::AbstractVector, relative=true::Bool)
-    #pi = [0.25, 0.25, 0.25, 0.25] #? need this? (connected to above ?)
-    obj = JC69(rate, relative, Vector{Float64}(1)) # Vector{Float64}(undef,1) for julia v1.0
+    obj = JC69(rate, relative, zeros(1)) # Vector{Float64}(undef,1) for julia v1.0 mutable static array
     seteigeninfo!(obj)
-    return obj #TODO add to all
+    return obj
 end
 JC69(rate::Float64, relative=true::Bool) = JC69([rate], relative)
 
@@ -639,8 +638,9 @@ struct HKY85 <: NucleicAcidSubstitutionModel
     rate::Vector{Float64}
     pi::Vector{Float64}
     relative::Bool
+    eigeninfo::Vector{Float64}
     
-    function HKY85(rate::Vector{Float64}, pi::Vector{Float64}, eigeninfo::Vector{Float64}, relative=true::Bool)
+    function HKY85(rate::Vector{Float64}, pi::Vector{Float64}, eigeninfo::Vector{Float64}, relative::Bool)
         #Warning: this constructor should not be used directly. Use the constructor below, 
         #   which will call this.
         if any(rate .<= 0.)
@@ -662,9 +662,10 @@ struct HKY85 <: NucleicAcidSubstitutionModel
           end
     end
 end
-function HKY85(rate::AbstractVector, pi::Vector{Float64}, relative::Bool)
+function HKY85(rate::AbstractVector, pi::Vector{Float64}, relative=true::Bool)
     obj = HKY85(rate, pi, relative, Vector{Float64}(3)) # Vector{Float64}(undef,3) for julia v1.0
     seteigeninfo!(obj)
+    return obj
 end
 
 """
@@ -680,6 +681,10 @@ function seteigeninfo!(obj::HKY85)
     if obj.relative
         k = obj.rate[1]
         lambda = (2*(piT*piC + piA*piG)k + 2*(piY+piR)) #TODO check this
+        obj.eigeninfo[1] = k
+        obj.eigeninfo[2] = b
+        obj.eigeninfo[3] = -(piR*a + piY*b)
+        obj.eigeninfo[4] = -(piY*a + piR*b)
         # e₁ = exp(-s)
         # e₂ = exp(-(piR * k + piY) * s)
         # e₃ = exp(-(piY * k + piR) * s)
@@ -689,8 +694,8 @@ function seteigeninfo!(obj::HKY85)
         # e₁ = exp(-b * t) #TODO remove t, look for eigen values and vectors
         # e₂ = exp(-(piR * a + piY * b) * t)
         # e₃ = exp(-(piY * a + piR * b) * t)
+        obj.eigeninfo[1] = lambda[1]
     end
-    obj.eigeninfo[1] = lambda[1]
 end
 
 function Base.show(io::IO, obj::HKY85)
