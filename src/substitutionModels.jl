@@ -15,7 +15,7 @@ abstract type SubstitutionModel end #ideally, we'd like this to be SubstitutionM
 const SM = SubstitutionModel
 const Qmatrix = StaticArrays.SMatrix{4, 4, Float64}
 const Pmatrix = StaticArrays.MMatrix{4, 4, Float64}
-const Bmatrix = StaticArrays.SMatrix{2, 2, Float64}
+const Bmatrix = StaticArrays.MMatrix{2, 2, Float64}
 
 """
     TraitSubstitutionModel
@@ -308,6 +308,31 @@ julia> P(m1, 1.0)
     a0= obj.eigeninfo[2]*e1
     a1= obj.eigeninfo[3]*e1
     return Bmatrix(obj.eigeninfo[2]+a1, obj.eigeninfo[2]-a0, obj.eigeninfo[3]-a1, obj.eigeninfo[3]+a0) # by columns
+end
+
+"""
+    P!(Pmat::AbstractMatrix, obj::BTSM, t::Float64)
+modifies P rate matrix (see traitsLikDiscrete.jl) during optimization. 
+
+```julia-repl 
+julia> m1 = BinaryTraitSubstitutionModel([1.0,2.0], ["low","high"])
+julia> P!(P(m1, 1.0), m1, 3.0)
+2×2 StaticArrays.MArray{Tuple{2,2},Float64,2,4}:
+ 0.666708  0.333292
+ 0.666584  0.333416
+````
+#TODO
+"""
+function P!(Pmat::AbstractMatrix, obj::BTSM, t::Float64)
+    e1 = exp(-obj.eigeninfo[1]*t)
+    a0= obj.eigeninfo[2]*e1
+    a1= obj.eigeninfo[3]*e1
+    #return Bmatrix(obj.eigeninfo[2]+a1, obj.eigeninfo[2]-a0, obj.eigeninfo[3]-a1, obj.eigeninfo[3]+a0) # by columns
+    Pmat[1,1] = obj.eigeninfo[2]+a1
+    Pmat[2,2] = obj.eigeninfo[3]+a0
+    Pmat[1,2] = obj.eigeninfo[3]-a1
+    Pmat[2,1] = obj.eigeninfo[2]-a0
+    return Pmat
 end
 
 """
@@ -947,7 +972,6 @@ modifies P rate matrix (see traitsLikDiscrete.jl) during optimization.
 ```julia-repl 
 julia> m1 = JC69([0.25])
 julia> P!(P(m1, 1.0), m1, 3.0)
-TODO
 ````
 """
 function P!(Pmat::AbstractMatrix, obj::JC69, t::Float64)
