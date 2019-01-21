@@ -797,7 +797,7 @@ end
 """
     Q(obj::HKY85)
     return Q rate matrix. Mutable version modeled after BioJulia/SubstitionModel.jl
-    and PyloModels.jl
+    and PhyloModels.jl
     
     Substitution rate matrix for a given substitution model:
     Q[i,j] is the rate of transitioning from state i to state j.
@@ -902,7 +902,7 @@ Both models according to Molecular Evolution (Yang 2014)
 
 ```julia-repl 
 julia> m1 = HKY85([.5], [0.25, 0.25, 0.25, 0.25])
-julia> P(m1, 3)
+julia> P(m1, 3.0)
 TODO
 ````
 """
@@ -920,14 +920,14 @@ TODO
 
     P_TT = piT + ((piT * piR)/piY) * e2 + (piC/piY) * e4
     P_TC = piC + ((piT * piR)/piY) * e2 - (piC/piY) * e4
-    P_TA_CA = piA * (1 - e2) #repeated
-    P_TG_CG = piG * (1 - e2) #repeated
+    P_TA_CA = piA * (1 - e2) #double name because TA and CA are equal
+    P_TG_CG = piG * (1 - e2) #double name because TG and CG are equal
 
     P_CT = piT + ((piT * piR)/piY) * e2 - (piT/piY) * e4
     P_CC = piC + ((piT * piR)/piY) * e2 + (piT/piY) * e4
 
-    P_AT_GT = piT * (1 - e2) #repeated
-    P_AC_GC = piC * (1 - e2) #repeated
+    P_AT_GT = piT * (1 - e2) #double name because AT and GT are equal
+    P_AC_GC = piC * (1 - e2) #double name because AC and GC are equal
     P_AA = piA + ((piA * piY)/piR) * e2 + (piG/piR) * e3
     P_AG = piG + ((piG * piY)/piR) * e2 - (piG/piR) * e3
 
@@ -970,45 +970,46 @@ The model will have optimized the rate using NLopt in loglikfun
 in traitsLikDiscrete.jl.
 ```julia-repl 
 julia> m1 = HKY85([.5], [0.25, 0.25, 0.25, 0.25])
-julia> P!(m1, 3)
-TODO
+julia> P!(P(m1, 1.0), m1, 3.0)
 ````
 """
-#TODO update
 function P!(Pmat::AbstractMatrix, obj::HKY85, t::Float64)
-    if t < 0.0
-        error("t must be positive")
-    end
     piA = obj.pi[1]; piC = obj.pi[2]; piG = obj.pi[3]; piT = obj.pi[4]
-    piR = piA + piG
-    piY = piT + piC
-    
-    if obj.relative == true
-        k = obj.rate[1] #kappa = alpha 
-        s = t/(2*(piT*piC + piA*piG)k + 2*(piY+piR)) #t/lambda
-        e₁ = exp(-s)
-        e₂ = exp(-(piR * k + piY) * s)
-        e₃ = exp(-(piY * k + piR) * s)
-        
-    else
-        a = obj.rate[1]/(); b = obj.rate[2]/() #alpha and beta
-          
-        e₁ = exp(-b * t)
-        e₂ = exp(-(piR * a + piY * b) * t)
-        e₃ = exp(-(piY * a + piR * b) * t)
-    end
-    Pmat[1,1] = piA + (piA * piY / piR) * e₁ + (piG / piR) * e₂
-    Pmat[2,2] = piC + (piT * piR / piY) * e₁ + (piT / piY) * e₃
-    Pmat[3,3] = piG + (piG * piY / piR) * e₁ + (piA / piR) * e₂
-    Pmat[4,4] = piT + (piT * piR / piY) * e₁ + (piC / piY) * e₃
-    Pmat[1,[2,4]] = piA * (1 - e₁)
-    Pmat[2,[1,3]] = piC * (1 - e₁)
-    Pmat[3,[2,4]] = piG * (1 - e₁)
-    Pmat[4,[1,3]] = piT * (1 - e₁)
-    Pmat[1,3] = piA + (piA * piY / piR) * e₁ - (piA / piR) * e₂
-    Pmat[2,4] = piC + (piT * piR / piY) * e₁ - (piC / piY) * e₃
-    Pmat[3,1] = piG + (piG * piY / piR) * e₁ - (piG / piR) * e₂
-    Pmat[4,2] = piT + (piT * piR / piY) * e₁ - (piT / piY) * e₃ 
+    piR = obj.eigeninfo[4]
+    piY = obj.eigeninfo[5]
+
+    e2 = exp(obj.eigeninfo[1] * t)
+    e3 = exp(obj.eigeninfo[2] * t)
+    e4 = exp(obj.eigeninfo[3] * t)
+
+    P_TT = piT + ((piT * piR)/piY) * e2 + (piC/piY) * e4
+    P_TC = piC + ((piT * piR)/piY) * e2 - (piC/piY) * e4
+    P_TA_CA = piA * (1 - e2) #double name because TA and CA are equal
+    P_TG_CG = piG * (1 - e2) #double name because TG and CG are equal
+
+    P_CT = piT + ((piT * piR)/piY) * e2 - (piT/piY) * e4
+    P_CC = piC + ((piT * piR)/piY) * e2 + (piT/piY) * e4
+
+    P_AT_GT = piT * (1 - e2) #double name because AT and GT are equal
+    P_AC_GC = piC * (1 - e2) #double name because AC and GC are equal
+    P_AA = piA + ((piA * piY)/piR) * e2 + (piG/piR) * e3
+    P_AG = piG + ((piG * piY)/piR) * e2 - (piG/piR) * e3
+
+    P_GA = piA + ((piA * piY)/piR) * e2 - (piA/piR) * e3
+    P_GG = piG + ((piG * piY)/piR) * e2 + (piA/piR) * e3
+
+    Pmat[1,1] = P_TT
+    Pmat[2,2] = P_CC
+    Pmat[3,3] = P_AA
+    Pmat[4,4] = P_GG
+    Pmat[1,2] = P_TC
+    Pmat[[1,2],3] = P_TA_CA
+    Pmat[[1,2],4] = P_TG_CG
+    Pmat[2,1] = P_CT
+    Pmat[[3,4],1] = P_AT_GT
+    Pmat[[3,4],2] = P_AC_GC
+    P[3,4] = P_AG
+    P[4,3] = P_GA
     return Pmat
 end
 
