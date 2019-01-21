@@ -14,7 +14,7 @@ For sub types, see [`NucleicAcidSubstitutionModel`](@ref), [`TraitSubstitutionMo
 abstract type SubstitutionModel end #ideally, we'd like this to be SubstitutionModels.SubstitionModel
 const SM = SubstitutionModel
 const Qmatrix = StaticArrays.SMatrix{4, 4, Float64}
-const Pmatrix = StaticArrays.SMatrix{4, 4, Float64}
+const Pmatrix = StaticArrays.MMatrix{4, 4, Float64}
 const Bmatrix = StaticArrays.SMatrix{2, 2, Float64}
 
 """
@@ -876,7 +876,7 @@ TODO
     end
     P0 = 0.25 + 0.75 * exp(-t * obj.eigeninfo[1]) #lambda
     P1 = 0.25 - 0.25 * exp(-t * obj.eigeninfo[1])
-    return PMatrix(P0, P1, P1, P1, 
+    return Pmatrix(P0, P1, P1, P1, 
             P1, P0, P1, P1,
             P1, P1, P0, P1,
             P1, P1, P1, P0)
@@ -946,7 +946,7 @@ modifies P rate matrix (see traitsLikDiscrete.jl) during optimization.
 
 ```julia-repl 
 julia> m1 = JC69([0.25])
-julia> P!(m1, 3)
+julia> P!(P(m1, 1.0), m1, 3.0)
 TODO
 ````
 """
