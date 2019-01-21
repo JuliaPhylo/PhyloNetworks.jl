@@ -321,13 +321,11 @@ julia> P!(P(m1, 1.0), m1, 3.0)
  0.666708  0.333292
  0.666584  0.333416
 ````
-#TODO
 """
 function P!(Pmat::AbstractMatrix, obj::BTSM, t::Float64)
     e1 = exp(-obj.eigeninfo[1]*t)
     a0= obj.eigeninfo[2]*e1
     a1= obj.eigeninfo[3]*e1
-    #return Bmatrix(obj.eigeninfo[2]+a1, obj.eigeninfo[2]-a0, obj.eigeninfo[3]-a1, obj.eigeninfo[3]+a0) # by columns
     Pmat[1,1] = obj.eigeninfo[2]+a1
     Pmat[2,2] = obj.eigeninfo[3]+a0
     Pmat[1,2] = obj.eigeninfo[3]-a1
@@ -408,7 +406,17 @@ end
 and equal substitution rates α between all states.
 Default labels are "1","2",...
 
-#?alpha is qual to 1/k so do we need rate input here? could cause conflicts
+# example
+```julia
+julia> m1 = EqualRatesSubstitutionModel(2, [1.0], ["low","high"])
+Equal Rates Substitution Model with k=2,
+all rates equal to α=1.0.
+rate matrix Q:
+             low    high
+     low       *  1.0000
+    high  1.0000       *
+````
+#? Is rate alpha equal to 1/k? Doesnt seem so so do we need rate input here? could cause conflicts
 """
 mutable struct EqualRatesSubstitutionModel{T} <: TraitSubstitutionModel{T}
     k::Int
@@ -472,8 +480,11 @@ end
 """
     P(obj::ERSM)
 ```julia
-julia> m1 = EqualRatesSubstitutionModel(2, [0.5])
-julia> P(m1)
+julia> m1 = EqualRatesSubstitutionModel(2, [1.0], ["low","high"]);
+julia> P(m1, 2.0)
+2×2 StaticArrays.MArray{Tuple{2,2},Float64,2,4}:
+ 1.0       0.864665
+ 0.864665  1.0
 ```
 """
 function P(obj::ERSM, t::Float64)
@@ -483,7 +494,28 @@ function P(obj::ERSM, t::Float64)
                     p0, p1)
 end
 
-#TODO P!
+"""
+    P!(Pmat::AbstractMatrix, obj::ERSM, t::Float64)
+modifies P rate matrix (see traitsLikDiscrete.jl) during optimization. 
+
+```julia-repl 
+julia> m1 = EqualRatesSubstitutionModel(2, [1.0], ["low","high"]);
+julia> P!(P(m1, 1.0), m1, 3.0)
+2×2 StaticArrays.MArray{Tuple{2,2},Float64,2,4}:
+ 1.0       0.950213
+ 0.950213  1.0
+````
+"""
+function P!(Pmat::AbstractMatrix, obj::ERSM, t::Float64)
+    e1 = exp(-obj.eigeninfo[1]*t)
+    p1 = e1 + obj.rate[1]*(1-e1)
+    p0 = obj.rate[1]*(1-e1)
+    Pmat[1,1] = p1
+    Pmat[2,2] = p1
+    Pmat[1,2] = p0
+    Pmat[2,1] = p0
+    return Pmat
+end
 
 """
     randomTrait(model, t, start)
