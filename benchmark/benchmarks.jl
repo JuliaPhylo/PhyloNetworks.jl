@@ -1,6 +1,7 @@
 #benchmarking in development
 # see https://juliaci.github.io/PkgBenchmark.jl/stable/run_benchmarks.html
 # https://github.com/JuliaCI/BenchmarkTools.jl/blob/master/doc/manual.md
+# seehttps://github.com/JuliaArrays/StaticArrays.jl for good examples
 
 # To upload to GitHub as markdown: #TODO 
 #https://juliaci.github.io/PkgBenchmark.jl/stable/export_markdown.html
