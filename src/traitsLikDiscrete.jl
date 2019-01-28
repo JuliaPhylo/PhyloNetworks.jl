@@ -257,7 +257,7 @@ function StatsBase.fit(self::Type{SSM}, net::HybridNetwork, model::TraitSubstitu
     priorltw = inheritanceWeight.(trees)
     k = nstates(model)
     # fixit: use SharedArray's below to parallelize things
-    logtrans   = zeros(Float64, k,k,length(net.edge), r) #? What is r?
+    logtrans   = zeros(Float64, k,k,length(net.edge), #ratemodel.k? r) #? What is r?
     forwardlik = zeros(Float64, k, nnodes,           ntrees)
     directlik  = zeros(Float64, k, length(net.edge), ntrees)
     backwardlik= zeros(Float64, k, nnodes,           ntrees)
@@ -327,7 +327,7 @@ function discrete_corelikelihood!(obj::SSM; whichtrait=:all::Union{Symbol,Intege
     else
         error("'whichtrait' should be :all or :active or an integer in the correct range")
     end
-    #make a Pmat as startingP = P(obj.model, 1) #sets t = 1 for starting P for efficency
+    startingP = P(obj.model, 1) #sets t = 1 for starting P for efficency
     for edge in obj.net.edge # update logtrans: same for all displayed trees, all traits
         for i = 1:4 #rate
             obj.logtrans[:,:,edge.number, i] = log.(P!(startingP, obj.model, edge.length*obj.RateVariationAcrossSites.ratemultiplier[i])) # element-wise
