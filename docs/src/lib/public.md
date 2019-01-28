@@ -8,6 +8,7 @@ See [Internal Documentation](@ref) for documentation on internal functions.
 DocTestSetup = quote
     using PhyloNetworks
 end
+DocTestFilters = r" PhyloNetworks .*:\d+"
 ```
 
 ```@contents
@@ -52,11 +53,14 @@ getNodeAges
 pairwiseTaxonDistanceMatrix
 biconnectedComponents
 blobDecomposition
+getlabels
+nparams
 ```
 
 ## data and topology read/write
 
 ```@docs
+readfastatodna
 readTopology
 readTopologyLevel1
 readInputTrees
@@ -130,15 +134,17 @@ vcv
 ```@docs
 parsimonySoftwired
 parsimonyGF
-nStates
 Q
-P
 randomTrait
 randomTrait!
 fitDiscrete
 maxParsimonyNet
+nstates
+setrates!
+setalpha!
 ```
 
 ```@meta
 DocTestSetup = nothing
+DocTestFilters = nothing
 ```

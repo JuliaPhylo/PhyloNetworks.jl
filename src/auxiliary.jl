@@ -202,8 +202,8 @@ end
 
 # get[Major|Minor]ParentEdge and getChildren: defined in manipulateNet.jl
 """
-    getMajorParent(node::Node)
-    getMinorParent(node::Node)
+    getMajorParent(node)
+    getMinorParent(node)
 
 Return major or minor parent of a node using the `isChild1` field of edges
 (and assuming correct `isMajor` field).

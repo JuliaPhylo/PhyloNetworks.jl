@@ -5,6 +5,7 @@ Combinatorics 0.7
 CSV 0.4
 DataFrames 0.13
 DataStructures 0.9
+Distributions 0.15.0
 GLM 1.0
 NLopt 0.5.1
 SpecialFunctions 0.7

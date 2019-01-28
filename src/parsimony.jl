@@ -394,9 +394,61 @@ function readFastaToArray(filename::String)
     return species, sequences
 end
 
-## for parsimonyGF:
-## created similar to readFastaToArray (hence the name)
-## see readFastaToArray for possible improvements
+"""
+    readfastatodna(filename::String)
+
+Read fasta file to a dataframe containing a column for each site.
+Calculate weights and remove matching site patterns to reduce matrix dimension.
+
+Return a tuple containing:
+    dataframe of BioSequence DNA sequences, with taxon in column 1 and a column for each site. [1]
+    array of weights, one weights for each of the site columns. The length of the weight is equal to nsites. [2]
+
+"""
+function readfastatodna(fastafile::String, countPatterns=false::Bool)
+    reader = BioSequences.FASTA.Reader(open(fastafile))
+    siteList = Vector{Vector}(undef, 0) #array of arrays, one array for each site (8 in example)
+    species = String[]
+    firstspecies = Bool(true)
+    nsites = 0
+    for record in reader #species (row)
+        if firstspecies
+            nsites = length(sequence(record))
+            for site in 1:nsites # initialize an array for each site
+                push!(siteList, Vector{BioSequences.DNA}(undef, 0))
+            end
+            firstspecies = false
+        end
+        push!(species, FASTA.identifier(record))
+        length(sequence(record)) == nsites || error("sequences of different length: current sequences is ", 
+            length(sequence(record)), " long while first sequence is ", nsites, " long")
+        for site in 1:nsites
+            push!(siteList[site], sequence(record)[site])
+        end
+    end
+
+    # calculate weights and remove matching site patterns to reduce dimension of siteList
+    weights = ones(Float64, nsites)
+    if countPatterns
+        for c in nsites:-1:1
+            target = siteList[c]
+            for comparison in 1:(c-1)
+                if target == siteList[comparison] 
+                    weights[comparison] += weights[c] #add c's weight to comparison's weight
+                    deleteat!(siteList, c) # delete c in siteList
+                    deleteat!(weights, c) #delete c in weights
+                    break
+                end
+            end
+        end
+    end
+
+    #create dat here
+    dat = DataFrame(siteList)
+    insertcols!(dat, 1, taxon = species)
+    return (dat, weights)
+end
+
 """
     readCSVtoArray(dat::DataFrame)
     readCSVtoArray(filename::String)
@@ -556,6 +608,46 @@ function parsimonyGF(net::HybridNetwork, species::Array{String},
         end
     elseif criterion == :parental
         error("parental parsimony not implemented yet")
+        # costfunctionP = function(finalset, parentsets) # parentsets = array of sets: 0, 1, 2
+        #     # Input: node v in network N with at most one parent u not in P, set S in Y, set Sprime 
+        #     #   in Y, assignment fprime.
+        #     # Return: cost on eduges entering v for any lineage function f that extends fprime and 
+        #     #   assigns f(u) = S (if u exists) and f(v) = Sprime
+        #     if node v is root of Network N
+        #         return 0
+        #     else
+        #         if length(finalset) > sum([length(s) for s in parentsets])
+        #         return Inf
+        #         else # calculate final set minus (union of parent sets)
+        #             missingstates = finalset
+        #         for s in parentsets
+        #             missingstates = setdiff(missingstates, s)
+        #         end
+        #         return length(missingstates)
+        #     end
+        # end
+        # for fprime in set of fprimes
+        #     for i in 1:r
+        #         for each vertex u (in reverse topology ordering) and s in Y
+        #             if u is a leaf in X
+        #                 H[u,S] = 0*(S==alpha(u)) + inf(S!=alpha(u))
+        #             end
+        #             if u in P
+        #                 H[u,S] = 0*(S==fprime(u)) + inf(S!=fprime(u))
+        #             end
+        #             if u has one child v in T
+        #                 H[u,S] = min(H(v, Sprime)) + costfunctionP(v, s, sprime, fprime)
+        #             end
+        #             if u has two children v1,v2 in Ti
+        #                 H[u,S] = min(H(v1, Sprime)) + costfunctionP(v1, s, sprime, fprime) +
+        #                         min(H(v2, Sprime)) + costfunctionP(v2, s, sprime, fprime)
+        #             end
+        #         end
+        #     end
+        # end
+        # optfprime = min(H[rho1, (j)]) + min(costfunctionP(rho1, null, S, fprime) + H(rho[i], S))
+        # #note: its not clear where we optimize fprime ^
+        # return optfprime
     else
         error("criterion $criterion unknown")
     end

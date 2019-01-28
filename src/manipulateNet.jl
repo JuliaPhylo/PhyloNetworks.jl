@@ -521,7 +521,7 @@ end
 #################################################
 
 """
-    getParents(n::Node)
+    getParents(node)
 
 Get vector of all parent nodes of `n`, based on `isChild1` field (for edges).
 To get the parent node of an edge: see [`getParent`](@ref).  
