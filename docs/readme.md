@@ -92,6 +92,8 @@ or interactively in `docs/`:
 
 ```shell
 pkg> activate .
+pkg> status # just to check
+pkg> status --manifest
 pkg> instantiate
 pkg> # dev PhyloPlots # to get the master branch
 pkg> dev ~/.julia/dev/PhyloNetworks

@@ -3,6 +3,7 @@
 *.jl.mem
 docs/build/
 docs/site/
+docs/*.toml
 
 # Compiled source #
 ###################

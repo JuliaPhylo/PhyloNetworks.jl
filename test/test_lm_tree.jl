@@ -70,7 +70,6 @@ tmp = predict(fitBM);
 #println("are they all 4.6789989001?")
 # next: looks random. sometimes passes, most times fails
 @test predict(fitBM) ≈ [4.6789989001 for i in 1:197] atol=1e-8
-# @test_approx_eq_eps model_response(fitBM)[fitbis.model.ind] model_response(fitbis)
 # @test_approx_eq_eps deviance(fitBM)  deviance(fitbis)
 # @test_approx_eq_eps nulldeviance(fitBM)  nulldeviance(fitbis)
 # @test_approx_eq_eps nullloglikelihood(fitBM)  nullloglikelihood(fitbis)
@@ -400,7 +399,6 @@ vcovR =  [0.0200086273  -0.0136717540 0.0084815090  -0.0093192029 -0.0114417825 
 @test stderror(fitBM) ≈ [0.1414518551,0.1361605540,0.1321542330,0.1295968341,0.2214683008,0.1820427154,0.0672106202,0.0965879311,0.0864973651] atol=1e-10
 @test confint(fitBM)[:,1] ≈ [2.5115945339,-0.4715366529,0.7207474097,-0.3595508202,-0.8102854443,-0.2058583178,-0.0960507369,-0.0112932922,-0.2213931131] atol=1e-10 norm=x->LinearAlgebra.norm(x,Inf)
 @test confint(fitBM)[:,2] ≈ [3.0735480006,0.0693957746,1.2457637082,0.1553055609,0.0695537019,0.5173526640,0.1709605441,0.3724268272,0.1222396666] atol=1e-10
-# @test_approx_eq_eps model_response(fitBM)[fitbis.model.ind] model_response(fitbis)
 # @test_approx_eq_eps predict(fitBM)[fitbis.model.ind] predict(fitbis)
 # @test_approx_eq_eps deviance(fitBM)  deviance(fitbis)
 # @test_approx_eq_eps nulldeviance(fitBM)  nulldeviance(fitbis)
@@ -485,7 +483,6 @@ vcovR =  [0.0200251600  -0.0137474015 0.0085637021  -0.0092973836 -0.0114259722 
 @test stderror(fitLambda) ≈ [0.1415102824,0.1367059706,0.1327404019,0.1294070617,0.2213803048,0.1817274626,0.0671133793,0.0966096332,0.0863718011] atol=1e-6
 @test confint(fitLambda)[:,1] ≈ [2.5129645499,-0.4782080775,0.7260358930,-0.3575353260,-0.8075438955,-0.2033049779,-0.0965491169,-0.0126529301,-0.2220960868] atol=1e-5
 @test confint(fitLambda)[:,2] ≈ [3.0751501341,0.0648911562,1.2533808968,0.1565671360,0.0719456641,0.5186535822,0.1700758500,0.3711534067,0.1210378584] atol=1e-5
-# @test_approx_eq_eps model_response(fitLambda)[fitbis.model.ind] model_response(fitbis)
 # @test_approx_eq_eps predict(fitLambda)[fitbis.model.ind] predict(fitbis)
 # @test_approx_eq_eps deviance(fitLambda)  deviance(fitbis)
 # @test_approx_eq_eps nulldeviance(fitLambda)  nulldeviance(fitbis)

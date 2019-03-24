@@ -1118,7 +1118,7 @@ Dominated by the `LinPredModel` class, from package `GLM`.
 
 The following StatsBase functions can be applied to it:
 `coef`, `nobs`, `vcov`, `stderror`, `confint`, `coeftable`, `dof_residual`, `dof`, `deviance`,
-`residuals`, `model_response`, `predict`, `loglikelihood`, `nulldeviance`, `nullloglikelihood`,
+`residuals`, `response`, `predict`, `loglikelihood`, `nulldeviance`, `nullloglikelihood`,
 `r2`, `adjr2`, `aic`, `aicc`, `bic`.
 
 The following StatsModels functions can also be applied to it:
@@ -1575,7 +1575,7 @@ julia> round.(residuals(fitBM), digits=6)
  -0.211712
  -0.439833
 
-julia> round.(model_response(fitBM), digits=5)
+julia> round.(response(fitBM), digits=5)
 197-element Array{Float64,1}:
  4.44135
  4.32106
@@ -1677,7 +1677,7 @@ function phyloNetworklm(f::Formula,
     else
         mm = ModelMatrix(mf)
     end
-    Y = convert(Vector{Float64},DataFrames.model_response(mf))
+    Y = convert(Vector{Float64}, StatsModels.model_response(mf))
     # Fit the model (Method copied from DataFrame/src/statsmodels/statsmodels.jl, lines 47-58)
     # (then StatsModels/src/statsmodels.jl lines 42-46)
     StatsModels.DataFrameRegressionModel(phyloNetworklm(mm.m, Y, net;
@@ -1728,7 +1728,7 @@ StatsBase.deviance(m::PhyloNetworkLinearModel) = deviance(m.lm)
 # (Rescaled by cholesky of variance between tips)
 StatsBase.residuals(m::PhyloNetworkLinearModel) = m.RL * residuals(m.lm)
 # Tip data
-StatsBase.model_response(m::PhyloNetworkLinearModel) = m.Y
+StatsBase.response(m::PhyloNetworkLinearModel) = m.Y
 # Predicted values at the tips
 # (rescaled by cholesky of tips variances)
 StatsBase.predict(m::PhyloNetworkLinearModel) = m.RL * predict(m.lm)
@@ -1741,8 +1741,8 @@ StatsBase.loglikelihood(m::PhyloNetworkLinearModel) =  loglikelihood(m.lm) - 1/2
 function StatsBase.nulldeviance(m::PhyloNetworkLinearModel)
     vo = ones(length(m.Y), 1)
     vo = m.RL \ vo
-    bo = inv(vo'*vo)*vo'*model_response(m.lm)
-    ro = model_response(m.lm) - vo*bo
+    bo = inv(vo'*vo)*vo'*response(m.lm)
+    ro = response(m.lm) - vo*bo
     return sum(ro.^2)
 end
 # Null Log likelihood (null model with only the intercept)
@@ -1815,6 +1815,7 @@ lambda_estim(m::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} 
 StatsModels.ModelFrame(m::StatsModels.DataFrameRegressionModel) = m.mf
 StatsModels.ModelMatrix(m::StatsModels.DataFrameRegressionModel) = m.mm
 StatsModels.Formula(m::StatsModels.DataFrameRegressionModel) = Formula(m.mf.terms)
+StatsModels.response(m::StatsModels.DataFrameRegressionModel) = response(m.model)
 
 ### Print the results
 # Variance
@@ -2208,7 +2209,7 @@ julia> ancStates = ancestralStateReconstruction(fitBM) # Should produce a warnin
 │ assuming that the estimated variance rate of evolution is correct.
 │ Additional uncertainty in the estimation of this variance rate is
 │ ignored, so prediction intervals should be larger.
-└ @ PhyloNetworks ~/build/crsl4/PhyloNetworks.jl/src/traits.jl:2162
+└ @ PhyloNetworks ~/build/crsl4/PhyloNetworks.jl/src/traits.jl:2163
 ReconstructedStates:
      Node index     Pred.       Min. Max. (95%)
            -5.0   1.32139  -0.288423     2.9312
@@ -2352,7 +2353,7 @@ julia> ancStates = ancestralStateReconstruction(fitBM);
 │ assuming that the estimated variance rate of evolution is correct.
 │ Additional uncertainty in the estimation of this variance rate is
 │ ignored, so prediction intervals should be larger.
-└ @ PhyloNetworks ~/build/crsl4/PhyloNetworks.jl/src/traits.jl:2162
+└ @ PhyloNetworks ~/build/crsl4/PhyloNetworks.jl/src/traits.jl:2163
 
 julia> expectations(ancStates)
 31×2 DataFrames.DataFrame

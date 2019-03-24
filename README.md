@@ -1,4 +1,4 @@
-# PhyloNetworks: analysis for phylogenetic networks
+# PhyloNetworks: analysis for phylogenetic networks <img src="docs/src/logo_text.png" align=right>
 
 [![Build Status](https://travis-ci.org/crsl4/PhyloNetworks.jl.svg)](https://travis-ci.org/crsl4/PhyloNetworks.jl)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://crsl4.github.io/PhyloNetworks.jl/stable)
@@ -42,7 +42,7 @@ If you use the package, please cite
   34(12):3292–3298.
   [doi:10.1093/molbev/msx235](https://doi.org/10.1093/molbev/msx235)
 
-## Maximum pseudolikelihood estimation of species network: SNaQ <img src="http://pages.stat.wisc.edu/~claudia/Images/snaq.png" align=right title="SNaQ logo" width=262.5 height=111>
+## Maximum pseudolikelihood estimation of species network: SNaQ <img src="docs/src/snaq.png" align=right title="SNaQ logo" width=262.5 height=111>
 <!-- ![SNaQ logo](http://pages.stat.wisc.edu/~claudia/Images/snaq.png)
 original size: 525px × 222px-->
 

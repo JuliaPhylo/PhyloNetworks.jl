@@ -32,7 +32,7 @@ Order   = [:type]
 ```@autodocs
 Modules = [PhyloNetworks]
 Public = false
-Order   = [:function]
+Order   = [:function, :constant]
 ```
 
 ```@meta
