@@ -46,7 +46,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test coef(phynetlm) ≈ betahat
 @test nobs(phynetlm) ≈ ntaxa
 @test residuals(phynetlm) ≈ resids
-@test model_response(phynetlm) ≈ Y
+@test response(phynetlm) ≈ Y
 @test predict(phynetlm) ≈ fittedValues
 @test dof_residual(phynetlm) ≈ ntaxa-length(betahat)
 @test sigma2_estim(phynetlm) ≈ sigma2hat
@@ -74,7 +74,7 @@ fitbis = phyloNetworklm(@formula(trait ~ 1), dfr, net)
 @test vcov(phynetlm) ≈ vcov(fitbis)
 @test nobs(phynetlm) ≈ nobs(fitbis)
 @test residuals(phynetlm)[fitbis.model.ind] ≈ residuals(fitbis)
-@test model_response(phynetlm)[fitbis.model.ind] ≈ model_response(fitbis)
+@test response(phynetlm)[fitbis.model.ind] ≈ response(fitbis)
 @test predict(phynetlm)[fitbis.model.ind] ≈ predict(fitbis)
 @test dof_residual(phynetlm) ≈ dof_residual(fitbis)
 @test sigma2_estim(phynetlm) ≈ sigma2_estim(fitbis)
@@ -102,7 +102,7 @@ fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedVa
 @test vcov(fitlam) ≈ vcov(fitbis)
 @test nobs(fitlam) ≈ nobs(fitbis)
 @test residuals(fitlam)[fitbis.model.ind] ≈ residuals(fitbis)
-@test model_response(fitlam)[fitbis.model.ind] ≈ model_response(fitbis)
+@test response(fitlam)[fitbis.model.ind] ≈ response(fitbis)
 @test predict(fitlam)[fitbis.model.ind] ≈ predict(fitbis)
 @test dof_residual(fitlam) ≈ dof_residual(fitbis)
 @test sigma2_estim(fitlam) ≈ sigma2_estim(fitbis)
@@ -173,7 +173,7 @@ fitlam = phyloNetworklm(@formula(trait ~ shift_8 + shift_17), dfr, net, model = 
 @test vcov(fitlam) ≈ vcov(fitShift)
 @test nobs(fitlam) ≈ nobs(fitShift)
 @test residuals(fitlam) ≈ residuals(fitShift)
-@test model_response(fitlam) ≈ model_response(fitShift)
+@test response(fitlam) ≈ response(fitShift)
 @test predict(fitlam) ≈ predict(fitShift)
 @test dof_residual(fitlam) ≈ dof_residual(fitShift)
 @test sigma2_estim(fitlam) ≈ sigma2_estim(fitShift)
@@ -271,7 +271,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test coef(fit_mat) ≈ betahat
 @test nobs(fit_mat) ≈ ntaxa
 @test residuals(fit_mat) ≈ resids
-@test model_response(fit_mat) ≈ B
+@test response(fit_mat) ≈ B
 @test predict(fit_mat) ≈ fittedValues
 @test dof_residual(fit_mat) ≈ ntaxa-length(betahat)
 @test sigma2_estim(fit_mat) ≈ sigma2hat
@@ -297,7 +297,7 @@ phynetlm = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 @test vcov(phynetlm) ≈ vcov(fit_mat)
 @test nobs(phynetlm) ≈ nobs(fit_mat)
 @test residuals(phynetlm) ≈ residuals(fit_mat)
-@test model_response(phynetlm) ≈ model_response(fit_mat)
+@test response(phynetlm) ≈ response(fit_mat)
 @test predict(phynetlm) ≈ predict(fit_mat)
 @test dof_residual(phynetlm) ≈ dof_residual(fit_mat)
 @test sigma2_estim(phynetlm) ≈ sigma2_estim(fit_mat)
@@ -323,7 +323,7 @@ fitbis = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 @test vcov(phynetlm) ≈ vcov(fitbis)
 @test nobs(phynetlm) ≈ nobs(fitbis)
 @test residuals(phynetlm)[fitbis.model.ind] ≈ residuals(fitbis)
-@test model_response(phynetlm)[fitbis.model.ind] ≈ model_response(fitbis)
+@test response(phynetlm)[fitbis.model.ind] ≈ response(fitbis)
 @test predict(phynetlm)[fitbis.model.ind] ≈ predict(fitbis)
 @test dof_residual(phynetlm) ≈ dof_residual(fitbis)
 @test sigma2_estim(phynetlm) ≈ sigma2_estim(fitbis)
@@ -349,7 +349,7 @@ fitter = (@test_logs (:info, r"^As requested \(no_names=true\)")  match_mode=:an
 @test vcov(phynetlm) ≈ vcov(fitter)
 @test nobs(phynetlm) ≈ nobs(fitter)
 @test residuals(phynetlm) ≈ residuals(fitter)
-@test model_response(phynetlm) ≈ model_response(fitter)
+@test response(phynetlm) ≈ response(fitter)
 @test predict(phynetlm) ≈ predict(fitter)
 @test dof_residual(phynetlm) ≈ dof_residual(fitter)
 @test sigma2_estim(phynetlm) ≈ sigma2_estim(fitter)
@@ -384,7 +384,7 @@ fitnabis = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 @test vcov(fitna) ≈ vcov(fitnabis)
 @test nobs(fitna) ≈ nobs(fitnabis)
 @test sort(residuals(fitna)) ≈ sort(residuals(fitnabis))
-@test sort(model_response(fitna)) ≈ sort(model_response(fitnabis))
+@test sort(response(fitna)) ≈ sort(response(fitnabis))
 @test sort(predict(fitna)) ≈ sort(predict(fitnabis))
 @test dof_residual(fitna) ≈ dof_residual(fitnabis)
 @test sigma2_estim(fitna) ≈ sigma2_estim(fitnabis)
@@ -410,7 +410,7 @@ fitlam = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda", fixe
 @test vcov(fitlam) ≈ vcov(fitnabis)
 @test nobs(fitlam) ≈ nobs(fitnabis)
 @test residuals(fitlam) ≈ residuals(fitnabis)
-@test model_response(fitlam) ≈ model_response(fitnabis)
+@test response(fitlam) ≈ response(fitnabis)
 @test predict(fitlam) ≈ predict(fitnabis)
 @test dof_residual(fitlam) ≈ dof_residual(fitnabis)
 @test sigma2_estim(fitlam) ≈ sigma2_estim(fitnabis)
@@ -581,7 +581,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 
 @test nobs(phynetlm) ≈ ntaxa
 @test residuals(phynetlm) ≈ resids
-@test model_response(phynetlm) ≈ Y
+@test response(phynetlm) ≈ Y
 @test predict(phynetlm) ≈ fittedValues
 @test dof_residual(phynetlm) ≈ ntaxa
 @test sigma2_estim(phynetlm) ≈ sigma2hat
@@ -603,7 +603,7 @@ fitbis = phyloNetworklm(@formula(trait ~ -1), dfr, net)
 #@test vcov(phynetlm) ≈ vcov(fitbis)
 @test nobs(phynetlm) ≈ nobs(fitbis)
 @test residuals(phynetlm)[fitbis.model.ind] ≈ residuals(fitbis)
-@test model_response(phynetlm)[fitbis.model.ind] ≈ model_response(fitbis)
+@test response(phynetlm)[fitbis.model.ind] ≈ response(fitbis)
 @test predict(phynetlm)[fitbis.model.ind] ≈ predict(fitbis)
 @test dof_residual(phynetlm) ≈ dof_residual(fitbis)
 @test sigma2_estim(phynetlm) ≈ sigma2_estim(fitbis)
