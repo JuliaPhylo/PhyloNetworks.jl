@@ -77,4 +77,9 @@ rmprocs(workers())
 @test writeTopology(bootnet[2], round=true, digits=1) == "(5,(((2,(1)#H7:::0.8):0.5,3):0.2,4):0.2,(6,#H7:::0.2):10.0);"
 # "(5,(((2,(1)#H7:::0.751):1.559,4):0.373,3):0.688,(6,#H7:::0.249):10.0);"
 # "(((5,(6,#H7:::0.249):10.0):0.688,3):0.373,(2,(1)#H7:::0.751):1.559,4);"
+
+filelist = joinpath(exdir, "treefilelist.txt")
+boottrees = readBootstrapTrees(filelist)
+@test length(boottrees) == 2
+@test [length(b) for b in boottrees] == [10, 10]
 end

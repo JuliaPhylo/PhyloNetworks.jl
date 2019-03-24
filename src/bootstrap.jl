@@ -3,23 +3,30 @@
 # Cecile April 2016
 
 """
-    readBootstrapTrees(filename)
+    readBootstrapTrees(listfile; relative2listfile=true)
 
-input: name of file containing the path/name to multiple bootstrap files, one per line.
-Each bootstrap file corresponds to bootstrap trees from a single gene.
+Read the list of file names in `listfile`, then read all the trees in each of
+these files. Output: vector of vectors of trees (networks with h>0 allowed).
 
-output: vector of vectors of trees (networks with h>0 allowed).
+`listfile` should be the name of a file containing the path/name to multiple
+bootstrap files, one on each line (no header). Each named bootstrap file should
+contain multiple trees, one per line (such as bootstrap trees from a single gene).
+
+The path/name to each bootstrap file should be relative to `listfile`.
+Otherwise, use option `relative2listfile=false`, in which case the file names
+are interpreted as usual: relative to the user's current directory
+if not given as absolute paths.
 """
-function readBootstrapTrees(filelist::AbstractString)
-    s = open(filelist) # IOStream
-    bootfile = readdlm(s,AbstractString)
-    close(s)
-    size(bootfile)[2] == 1 ||
-        error("there should be a single bootstrap file name on each row of file $filelist")
-    ngenes = size(bootfile)[1]
+function readBootstrapTrees(filelist::AbstractString; relative2listfile=true::Bool)
+    filelistdir = dirname(filelist)
+    bootfiles = CSV.read(filelist, header=false, types=Dict(1=>String))
+    size(bootfiles)[2] > 0 ||
+        error("there should be a column in file $filelist: with a single bootstrap file name on each row (no header)")
+    ngenes = size(bootfiles)[1]
+    bf = (relative2listfile ? joinpath.(filelistdir, bootfiles[1]) : bootfiles[1])
     treelists = Array{Vector{HybridNetwork}}(undef, ngenes)
     for igene in 1:ngenes
-        treelists[igene] = readMultiTopology(bootfile[igene])
+        treelists[igene] = readMultiTopology(bf[igene])
         print("read $igene/$ngenes bootstrap tree files\r") # using \r for better progress display
     end
     return treelists
