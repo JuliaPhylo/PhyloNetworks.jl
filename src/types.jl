@@ -261,7 +261,7 @@ mutable struct QuartetNetwork <: Network
     t1::Float64 # length of internal edge, used when qnet.which=1, default = -1
     names::Array{String,1} # taxon and node names, same order as in network.node
     split::Array{Int8,1} # split that denotes to which side each leaf is from the split, i.e. [1,2,2,1] means that leaf1 and 4 are on the same side of the split, default -1,-1,-1,-1
-    formula::Array{Int8,1} # array for qnet.which=1 that indicates if the expCf is major (2) or minor (1) at qnet.expCF[i] depending on qnet.formula[i], default -1,-1,-1
+    formula::Array{Int8,1} # array for qnet.which=1 that indicates if the expCf is major (1) or minor (2) at qnet.expCF[i] depending on qnet.formula[i], default -1,-1,-1
     expCF::Array{Float64,1} # three expected CF in order 12|34, 13|24, 14|23 (matching obsCF from qnet.quartet), default [0,0,0]
     indexht::Vector{Int} # index in net.ht for each edge in qnet.ht
     changed::Bool # true if the expCF would be changed with the current parameters in the optimization, to recalculate, default true
