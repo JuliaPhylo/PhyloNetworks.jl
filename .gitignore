@@ -5,6 +5,10 @@ docs/build/
 docs/site/
 docs/*.toml
 
+# benchmark tuning parameters #
+benchmark/params.json
+benchmark/tune.json
+
 # Compiled source #
 ###################
 *.com

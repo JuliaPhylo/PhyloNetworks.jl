@@ -6,7 +6,6 @@
 
 using Test
 using PhyloNetworks
-
 using CSV # for reading files
 using DataFrames
 using Distributed # parallel in test_correctLik.jl and test_bootstrap.jl
@@ -16,6 +15,7 @@ using Random
 using StaticArrays # for rate substitution matrices
 using Statistics
 using StatsBase # for aic etc., stderr
+using BioSymbols
 
 
 PhyloNetworks.setCHECKNET(true)
@@ -69,8 +69,12 @@ PhyloNetworks.setCHECKNET(true)
     ## perfect data
     writeExpCF = PhyloNetworks.writeExpCF
     optBL! = PhyloNetworks.optBL!
+    ## traitLikDiscrete
+    P = PhyloNetworks.P
+    P! = PhyloNetworks.P!
 
-tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculateExpCF2.jl",
+tests = [
+    "test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculateExpCF2.jl",
          "test_hasEdge.jl", "test_parameters.jl", "test_correctLik.jl",
          "test_partition.jl", "test_partition2.jl", "test_deleteHybridizationUpdate.jl", "test_add2hyb.jl", "test_optBLparts.jl", "test_undirectedOtherNetworks.jl",
          "test_manipulateNet.jl", "test_compareNetworks.jl",
@@ -82,9 +86,10 @@ tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculat
          "test_parsimony.jl",
          "test_calibratePairwise.jl", "test_relaxed_reading.jl",
          "test_isMajor.jl", "test_interop.jl",
-         "test_traitLikDiscrete.jl",
+        "test_traitLikDiscrete.jl",
          "test_ticr.jl",
-         "test_readInputData.jl"]
+         "test_readInputData.jl"
+        ]
 
 @show PhyloNetworks.CHECKNET
 

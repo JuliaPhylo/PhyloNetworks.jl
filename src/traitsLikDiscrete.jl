@@ -7,23 +7,26 @@ See [`fitDiscrete`](@ref) to fit a trait substitution model to discrete data.
 It returns an object of type `StatisticalSubstitutionModel`, to which standard
 functions can be applied, like `loglikelihood(object)`, `aic(object)` etc.
 """
-mutable struct StatisticalSubstitutionModel{T} <: StatsBase.StatisticalModel
-    model::TraitSubstitutionModel{T} # T: type of trait labels
+mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
+    model::SubstitutionModel
+    ratemodel::RateVariationAcrossSites #allows rates to vary according to gamma
     net::HybridNetwork
     # data: trait[i] for leaf with n.number = i
-    #       type Int: for indices of trait labels in model.label
+    #       type Int: for indices of trait labels in getlabels(model)
     #       allows missing, but not half-ambiguous and not multi-state
-    trait::Vector{Vector{Union{Missings.Missing,Int}}}
-    ntraits::Int
+    trait::Vector{Vector{Union{Missing,Int, BioSequences.DNA}}}
+    nsites::Int #number of columns in data.
+    siteweight::Union{Missings.Missing, Vector{Float64}} # all weights = 1 if missing
     loglik::Union{Missings.Missing, Float64}
     # log of transition probabilities: where e goes from X to Y
-    # logtrans[i,j,e] = P{Y=j|X=i} where i=start_state, j=end_state, e=edge.number
+    # logtrans[i,j,e,r] = P{Y=j|X=i} where i=start_state, j=end_state, e=edge.number, r = rate (if using RateVariationAcrossSites)
     # all displayed trees use same edge numbers and same logtrans as in full network
-    logtrans::Array{Float64,3}   # size: k,k, net.numEdges where k=nStates(model)
-    activetrait::Int
+    logtrans::Array{Float64,4}   # size: k,k, net.numEdges, r where k=nstates(model)
+    activesite::Int #changed from activetrait to activesite to accomodate NASM
     # type based on extracting displayed trees
     displayedtree::Vector{HybridNetwork}
-    priorltw::Vector{Float64} # prior log tree weight: log product of γ's
+    priorltw::Vector{Union{Missing,Float64}} # prior log tree weight: log product of γ's. In fit! priorltw = inheritanceWeight.(trees)
+        #this can be missing if any γs are negative.
     postltw::Vector{Float64}  # posterior log tree weight: P{tree and data}
     # partial likelihoods for active trait, at indices [i, n.number or e.number ,t] :
     # - forward likelihood: log P{data below node n in tree t given state i at n}
@@ -33,22 +36,25 @@ mutable struct StatisticalSubstitutionModel{T} <: StatsBase.StatisticalModel
     directlik::Array{Float64,3}  # size: k, net.numEdges, number of displayed trees
     backwardlik::Array{Float64,3}# size: k, net.numNodes, number of displayed trees
 end
-const SSM = StatisticalSubstitutionModel{T} where T
+const SSM = StatisticalSubstitutionModel
 
 StatsBase.loglikelihood(obj::SSM) = obj.loglik
 StatsBase.islinear(SSM) = false
-StatsBase.dof(obj::SSM) = nparams(obj.model)
+StatsBase.dof(obj::SSM) = nparams(obj.model) + nparams(obj.ratemodel)
 function Base.show(io::IO, obj::SSM)
     disp =  "$(typeof(obj)):\n"
     disp *= string(obj.model)
-    disp *= "$(obj.ntraits) traits, $(length(obj.trait)) species, "
+    disp *= "$(obj.nsites) traits, $(length(obj.trait)) species, "
+    if obj.ratemodel.ncat != 1
+        disp *= "with gamma variable rate model according to $(obj.ratemodel) with alpha = $(obj.ratemodel.alpha) and $(obj.ratemodel.ncat) categories "
+    end
     disp *= "on a network with $(obj.net.numHybrids) reticulations"
     if !ismissing(obj.loglik)
         disp *= "\nlog-likelihood: $(round(obj.loglik, digits=5))"
     end
     print(io, disp)
 end
-# nobs: ntraits * nspecies, minus any missing, but ignores correlation between species
+# nobs: nsites * nspecies, minus any missing, but ignores correlation between species
 # fixit: extend the StatsBase methods
 # coef, coefnames, coeftable, confint,
 # deviance (not from loglik in StatsBase), nulldeviance (from intercept only. here?)
@@ -60,8 +66,14 @@ end
 
 """
     fitDiscrete(net, model, tipdata)
+    fitDiscrete(net, model, RateVariationAcrossSites, tipdata)
     fitDiscrete(net, model, species, traits)
-
+    fitDiscrete(net, model, RateVariationAcrossSites, species, traits)
+    fitDiscrete(net, model, dnadata, dnapatternweights)
+    fitDiscrete(net, model, RateVariationAcrossSites, dnadata, dnapatternweights)
+    fitDiscrete(net, modSymbol, species, traits)
+    fitDiscrete(net, modSymbol, dnadata, dnapatternweights)
+    
 Calculate the maximum likelihood (ML) score of a network given
 one or more discrete characters at the tips. Along each edge, transitions
 are modelled with a continous time Markov `model`, whose parameters are
@@ -76,17 +88,24 @@ Data can given in one of the following:
 - `tipdata`: data frame for a single trait, in which case the taxon names
   are to appear in column 1 or in a column named "taxon" or "species", and
   trait *labels* are to appear in column 2 or in a column named "trait".
-  Here, trait labels should be as they appear in `model.label`.
+  Here, trait labels should be as they appear in `getlabels(model)`.
 - `species`: vector of strings, and `traits`: DataFrame of traits,
   with rows in the order corresponding to the order of species names.
-  Again, trait labels should be as they appear in `model.label`.
+  Again, trait labels should be as they appear in `getlabels(model)`.
   All traits are assumed to follow the same model, with same parameters.
+- 'dnadata': the first part of the output of readfastatodna, 
+    a dataframe of BioSequence DNA sequences, with taxon in column 1 and a column for each site.
+- 'dnapatternweights': the second part of the output of readfastatodna, 
+    an array of weights, one weights for each of the site columns. The length of the weight is equal to nsites.
+    If using dnapatternweights, must provide dnadata.
+- RateVariationAcrossSites: model for rate variation (optional)
 
 Optional arguments (default):
-- `fixedparam` (false): should model rate parameters be fixed, or should they be optimized?
+- `optimizeQ` (true): should model rate parameters be fixed, or should they be optimized?
+- `optimizeRVAS` (true): should the model optimize the variable rates across sites?
 - `NLoptMethod` (`:LN_COBYLA`, derivative-free) for the optimization algorithm.
   For other options, see the
-  [NLopt](https://nlopt.readthedocs.io/en/stable/NLopt_Algorithms/).
+  [NLopt](https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/).
 - tolerance values to control when the optimization is stopped:
   `ftolRel` (1e-12), `ftolAbs` (1e-10) on the likelihood, and
   `xtolRel` (1e-10), `xtolAbs` (1e-10) on the model parameters.
@@ -94,7 +113,7 @@ Optional arguments (default):
 
 # examples:
 
-```jldoctest fitDiscrete
+```jldoctest fitDiscrete_block
 julia> net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
 
 julia> m1 = BinaryTraitSubstitutionModel([0.1, 0.1], ["lo", "hi"]);
@@ -103,16 +122,8 @@ julia> using DataFrames
 
 julia> dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"]);
 
-julia> fit1 = fitDiscrete(net, m1, dat; fixedparam=true)
-PhyloNetworks.StatisticalSubstitutionModel{String}:
-Binary Trait Substitution Model:
-rate lo→hi α=0.1
-rate hi→lo β=0.1
-1 traits, 4 species, on a network with 1 reticulations
-log-likelihood: -3.10754
-
-julia> PhyloNetworks.fit!(fit1; fixedparam=false)
-PhyloNetworks.StatisticalSubstitutionModel{String}:
+julia> fit1 = fitDiscrete(net, m1, dat; optimizeQ=true, optimizeRVAS=false)
+PhyloNetworks.StatisticalSubstitutionModel:
 Binary Trait Substitution Model:
 rate lo→hi α=0.27222
 rate hi→lo β=0.34981
@@ -121,8 +132,8 @@ log-likelihood: -2.7277
 
 julia> tips = Dict("A" => "lo", "B" => "lo", "C" => "hi", "D" => "hi");
 
-julia> fit2 = fitDiscrete(net, m1, tips; xtolRel=1e-16, xtolAbs=1e-16, ftolRel=1e-16)
-PhyloNetworks.StatisticalSubstitutionModel{String}:
+julia> fit2 = fitDiscrete(net, m1, tips; optimizeRVAS=false, xtolRel=1e-16, xtolAbs=1e-16, ftolRel=1e-16)
+PhyloNetworks.StatisticalSubstitutionModel:
 Binary Trait Substitution Model:
 rate lo→hi α=0.27222
 rate hi→lo β=0.34981
@@ -134,49 +145,87 @@ Note that a copy of the network is stored in the fitted object,
 but the internal representation of the network may be different in
 `fit1.net` and in the original network `net`:
 
-```jldoctest fitDiscrete
-julia> [n.number for n in fit2.net.node]
-9-element Array{Int64,1}:
- 1
- 2
- 9
- 8
- 3
- 7
- 6
- 4
- 5
+```jldoctest fitDiscrete_block
+julia> net = readTopology("(sp1:3.0,(sp2:2.0,(sp3:1.0,sp4:1.0):1.0):1.0);");
 
-julia> [n.number for n in net.node]
-9-element Array{Int64,1}:
-  1
-  2
-  3
- -4
-  4
- -6
- -3
-  5
- -2
+julia> using BioSymbols
+
+julia> tips = Dict("sp1" => BioSymbols.DNA_A, "sp2" => BioSymbols.DNA_A, "sp3" => BioSymbols.DNA_G, "sp4" => BioSymbols.DNA_G);
+
+julia> mJC69 = JC69([0.25], false);
+
+julia> fitJC69 = fitDiscrete(net, mJC69, tips; optimizeQ=true, optimizeRVAS=false)
+PhyloNetworks.StatisticalSubstitutionModel:
+Jukes and Cantor 69 Substitution Model,
+absolute rate version
+off-diagonal rates equal to [0.292336]/3.
+rate matrix Q:
+               A       C       G       T
+       A       *  0.0974  0.0974  0.0974
+       C  0.0974       *  0.0974  0.0974
+       G  0.0974  0.0974       *  0.0974
+       T  0.0974  0.0974  0.0974       *
+1 traits, 4 species, on a network with 0 reticulations
+log-likelihood: -4.99274
+
+julia> rv = RateVariationAcrossSites(1.0, 4)
+Rate Variation Across Sites using Discretized Gamma Model
+alpha: 1.0
+categories for Gamma discretization: 4
+ratemultiplier: [0.133531, 0.470004, 0.980829, 2.07944]
+
+julia> fitDiscrete(net, mJC69, rv, tips; optimizeQ=false, optimizeRVAS=false)
+PhyloNetworks.StatisticalSubstitutionModel:
+Jukes and Cantor 69 Substitution Model,
+absolute rate version
+off-diagonal rates equal to [0.25]/3.
+rate matrix Q:
+               A       C       G       T
+       A       *  0.0833  0.0833  0.0833
+       C  0.0833       *  0.0833  0.0833
+       G  0.0833  0.0833       *  0.0833
+       T  0.0833  0.0833  0.0833       *
+1 traits, 4 species, with gamma variable rate model according to Rate Variation Across Sites using Discretized Gamma Model
+alpha: 1.0
+categories for Gamma discretization: 4
+ratemultiplier: [0.133531, 0.470004, 0.980829, 2.07944]
+ with alpha = 1.0 and 4 categories on a network with 0 reticulations
+log-likelihood: -5.26879
 ```
 """
-function fitDiscrete(net, model, tips::Dict; kwargs...)
-    species = String[]
+function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, #tips::Dict no ratemodel version
+    tips::Dict; kwargs...)
+    ratemodel = RateVariationAcrossSites(1.0, 1)
+    fitDiscrete(net, model, ratemodel, tips; kwargs...)
+end
+
+#tips::Dict version with ratemodel
+function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites, 
+    tips::Dict; kwargs...)
+        species = String[]
     dat = Vector{Int}[] # indices of trait labels
     for (k,v) in tips
         !ismissing(v) || continue
         push!(species, k)
-        vi = findfirst(isequal(v), model.label) # value index in model labels
+        vi = findfirst(isequal(v), getlabels(model))
         vi !== nothing || error("trait $v not found in model")
         push!(dat, [vi])
     end
-    o, net = check_matchtaxonnames!(species, dat, net)
-    # dat[o] would make a shallow copy only
-    StatsBase.fit(StatisticalSubstitutionModel, net, model, view(dat, o); kwargs...)
+    o, net = check_matchtaxonnames!(species, dat, net) # dat[o] would make a shallow copy only
+    StatsBase.fit(StatisticalSubstitutionModel, net, model, ratemodel, view(dat, o); kwargs...)
 end
 
-function fitDiscrete(net, model, dat::DataFrame; kwargs...)
+#dat::DataFrame, no rate model version
+function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, dat::DataFrame; kwargs...)
+    ratemodel = RateVariationAcrossSites(1.0, 1)
+    fitDiscrete(net, model, ratemodel, dat; kwargs...)
+end
+
+#dat::DataFrame with rate model version
+function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites,
+        dat::DataFrame; kwargs...)
     i = findfirst(isequal(:taxon), DataFrames.names(dat))
+    
     if i===nothing i = findfirst(isequal(:species), DataFrames.names(dat)); end
     if i===nothing i=1; end # first column if no column named "taxon" or "species"
     j = findfirst(isequal(:trait), DataFrames.names(dat))
@@ -188,13 +237,91 @@ function fitDiscrete(net, model, dat::DataFrame; kwargs...)
     species = copy(dat[i])    # modified in place later
     dat = traitlabels2indices(dat[j], model)   # vec of vec, indices
     o, net = check_matchtaxonnames!(species, dat, net)
-    StatsBase.fit(StatisticalSubstitutionModel, net, model, view(dat, o); kwargs...)
+    StatsBase.fit(StatisticalSubstitutionModel, net, model, ratemodel, view(dat, o); kwargs...)
 end
 
-function fitDiscrete(net, model, species::Array{String}, dat::DataFrame; kwargs...)
+#species, dat version, no ratemodel
+function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, species::Array{String}, dat::DataFrame; kwargs...)
+    ratemodel = RateVariationAcrossSites(1.0, 1)
+    fitDiscrete(net, model, ratemodel, species, dat; kwargs...)
+end
+
+#species, dat version with ratemodel
+function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites,
+        species::Array{String}, dat::DataFrame; kwargs...)
     dat2 = traitlabels2indices(dat, model) # vec of vec, indices
     o, net = check_matchtaxonnames!(copy(species), dat2, net)
-    StatsBase.fit(StatisticalSubstitutionModel, net, model, view(dat2, o); kwargs...)
+    StatsBase.fit(StatisticalSubstitutionModel, net, model, ratemodel, view(dat2, o); kwargs...)
+end
+
+#wrapper: species, dat version with model symbol
+function fitDiscrete(net::HybridNetwork, modSymbol::Symbol, species::Array{String}, dat::DataFrame, rvSymbol=:noRV::Symbol; kwargs...)
+    rate = startingrate(net)
+    labels = learnLabels(modSymbol, species, dat)
+    if modSymbol == :JC69
+        model = JC69([rate], true)
+    elseif modSymbol == :HKY85
+        model = HKY85([rate, rate], [0.25, 0.25, 0.25, 0.25], true)
+    elseif modSymbol == :ERSM
+        model = EqualRatesSubstitutionModel(length(labels), rate, labels);
+    elseif modSymbol == :BTSM
+        model = BinaryTraitSubstitutionModel([rate, rate], labels)
+    elseif modSymbol == :TBTSM
+        model = TwoBinaryTraitSubstitutionModel([rate, rate, rate, rate, rate, rate, rate, rate], labels)
+    end
+
+    if rvSymbol == :RV
+        rvas = RateVariationAcrossSites(1.0, 4)
+    else
+        rvas = RateVariationAcrossSites(1.0, 1)
+    end
+
+    fitDiscrete(net, model, rvas, species, dat; kwargs...)
+end
+
+#dnadata with dnapatternweights version, no ratemodel
+function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, dnadata::DataFrame, 
+    dnapatternweights::Array{Float64}; kwargs...)
+    ratemodel = RateVariationAcrossSites(1.0, 1)
+    fitDiscrete(net, model, ratemodel, dnadata, dnapatternweights; kwargs...)
+end
+#dnadata with dnapatternweights version with ratemodel
+function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites,
+    dnadata::DataFrame, dnapatternweights::Array{Float64}; kwargs...)
+    
+    dat2 = traitlabels2indices(dnadata[2:end], model) 
+   # dat2 = traitlabels2indices(view(dnadata, 2:ncol(dnadata)), model) #removed view bc it wasnt recognized as DF by traitlabels2indices
+            # this doesnt work, but was attempting to uses view to avoid a shallow copy and 
+            # be more space efficient
+            #produces a vec of vec, indices
+    o, net = check_matchtaxonnames!(copy(dnadata[1]), dat2, net) 
+    kwargs = (:siteweights => dnapatternweights, kwargs...)
+    StatsBase.fit(StatisticalSubstitutionModel, net, model, ratemodel, view(dat2, o); 
+        kwargs...)
+end
+
+#wrapper for dna data
+function fitDiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame, dnapatternweights::Array{Float64}, rvSymbol=:noRV::Symbol; kwargs...)
+    rate = startingrate(net)
+    if modSymbol == :JC69
+        model = JC69([rate], true)
+    elseif modSymbol == :HKY85
+        model = HKY85([rate, rate], [0.25, 0.25, 0.25, 0.25], true)
+    elseif modSymbol == :ERSM
+        model = EqualRatesSubstitutionModel(4, rate, [BioSymbols.DNA_A, BioSymbols.DNA_C, BioSymbols.DNA_G, BioSymbols.DNA_T]);
+    elseif modSymbol == :BTSM
+        error("Binary Trait Substitution Model supports only two trait states, but dna data has four states.")
+    elseif modSymbol == :TBTSM
+        error("Two Binary Trait Substitution Model does not support dna data: it supports two sets of potentially correlated two trait states.")
+    end
+
+    if rvSymbol == :RV
+        rvas = RateVariationAcrossSites(1.0, 4)
+    else
+        rvas = RateVariationAcrossSites(1.0, 1)
+    end
+    
+    fitDiscrete(net, model, rvas, dnadata, dnapatternweights; kwargs...)
 end
 
 """
@@ -204,17 +331,16 @@ end
 Internal function called by [`fitDiscrete`](@ref): with same key word arguments `kwargs`.
 But dangerous: `traits` should be a vector of vectors as for [`fitDiscrete`](@ref)
 **but** here `traits` need to contain the *indices* of trait values corresponding
-to the indices in `model.label`, and species should appear in `traits` in the
+to the indices in `getlabels(model)`, and species should appear in `traits` in the
 order corresponding to the node numbers in `net`.
 See [`traitlabels2indices`](@ref) to convert trait labels to trait indices.
-
 **Warning**: does *not* perform checks. [`fitDiscrete`](@ref) calls this function
 after doing checks, preordering nodes in the network, making sure nodes have
 consecutive numbers, species are matched between data and network etc.
 """
-function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::TraitSubstitutionModel,
-    trait::AbstractVector; kwargs...)
-    T = eltype(model.label)
+function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::SubstitutionModel, 
+    ratemodel::RateVariationAcrossSites, trait::AbstractVector; kwargs...)
+    T = eltype(getlabels(model))
     # extract displayed trees
     trees = displayedTrees(net, 0.0; keepNodes=true)
     nnodes = length(net.node)
@@ -228,80 +354,144 @@ function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::TraitSubstitution
     ntrees = length(trees)
     # log tree weights: sum log(γ) over edges, for each displayed tree
     priorltw = inheritanceWeight.(trees)
-    k = nStates(model)
+    k = nstates(model)
     # fixit: use SharedArray's below to parallelize things
-    logtrans   = zeros(Float64, k,k,length(net.edge))
+    logtrans   = zeros(Float64, k,k,length(net.edge), length(ratemodel.ratemultiplier))
     forwardlik = zeros(Float64, k, nnodes,           ntrees)
     directlik  = zeros(Float64, k, length(net.edge), ntrees)
     backwardlik= zeros(Float64, k, nnodes,           ntrees)
     postltw    = Vector{Float64}(undef, ntrees)
-    # create new model object then fit:
-    fit!(StatisticalSubstitutionModel{T}(deepcopy(model),
-            net, trait, length(trait[1]), missing,
-            logtrans, 1, trees, priorltw, postltw, forwardlik, directlik, backwardlik);
-        kwargs...)
+    sw = missing
+    if haskey(kwargs, :siteweights)
+        sw = kwargs[:siteweights]
+        # todo: check that the length of sw == length(trait[1])
+        length(sw) == length(trait[1]) || error("dna pattern weights must be of same length as trait data")
+        kwargs = filter(p -> p.first != :siteweights, kwargs)
+    end
+    fit!(StatisticalSubstitutionModel(deepcopy(model), deepcopy(ratemodel),
+        net, trait, length(trait[1]), sw, missing, logtrans, 1, trees, 
+        priorltw, postltw, forwardlik, directlik, backwardlik); kwargs...)
 end
 
-function fit!(obj::SSM; fixedparam=false::Bool, verbose=false::Bool,
+function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,verbose=false::Bool,
       NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
       xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
-
-    if fixedparam
+    all(x -> x >= 0.0, [e.length for e in obj.net.edge]) || error("branch lengths should be >= 0")
+    all(x -> x >= 0.0, [e.gamma for e in obj.net.edge]) || error("gammas should be >= 0")
+    if optimizeQ && nparams(obj.model) <1
+        @debug "The Q matrix for this model is fixed, so there are no rate parameters to optimize. optimizeQ will be set to false."
+        optimizeQ = false
+    end
+    if optimizeRVAS && (nparams(obj.ratemodel) == 0)
+        @debug "Rate model has one rate category, so there are no parameters to optimize. optimizeRVAS will be set to false."
+        optimizeRVAS = false
+    end
+    if !optimizeQ & !optimizeRVAS 
+        #? rates need to be set?
         discrete_corelikelihood!(obj)
         verbose && println("loglik = $(loglikelihood(obj)) under fixed parameters, no optimization")
-    else
-        # set-up optimization object
-        NLoptMethod=:LN_COBYLA # no gradient
-        # :LN_COBYLA for (non)linear constraits, :LN_BOBYQA for bound constraints
-        npar = nparams(obj.model)
-        opt = NLopt.Opt(NLoptMethod, npar)
-        NLopt.ftol_rel!(opt,ftolRel) # relative criterion
-        NLopt.ftol_abs!(opt,ftolAbs) # absolute criterion
-        NLopt.xtol_rel!(opt,xtolRel)
-        NLopt.xtol_abs!(opt,xtolAbs)
-        NLopt.maxeval!(opt,1000) # max number of iterations
-        # NLopt.maxtime!(opt, t::Real)
-        NLopt.lower_bounds!(opt, zeros(Float64, npar))
-        # fixit: set upper bound depending on branch lengths in network?
-        counter = [0]
+        return obj # return fmax,xmax,ret
+    end
+    counter = [0]
+    if optimizeQ
         function loglikfun(x::Vector{Float64}, grad::Vector{Float64}) # modifies obj
             counter[1] += 1
-            obj.model.rate[:] = x
+            setrates!(obj.model, x) #replaced assignment here for efficiency will be setalpha!
             res = discrete_corelikelihood!(obj)
             verbose && println("loglik: $res, model rates: $x")
             length(grad) == 0 || error("gradient not implemented")
             return res
         end
-        NLopt.max_objective!(opt, loglikfun)
-        fmax, xmax, ret = NLopt.optimize(opt, obj.model.rate) # optimization here!
+        # build optimizer for Q
+        # optimize Q under fixedRVAS
+        # set-up optimization object
+        NLoptMethod=:LN_COBYLA # no gradient
+        # :LN_COBYLA for (non)linear constraits, :LN_BOBYQA for bound constraints
+        nparQ = nparams(obj.model)
+        optQ = NLopt.Opt(NLoptMethod, nparQ)
+        NLopt.ftol_rel!(optQ,ftolRel) # relative criterion
+        NLopt.ftol_abs!(optQ,ftolAbs) # absolute criterion
+        NLopt.xtol_rel!(optQ,xtolRel)
+        NLopt.xtol_abs!(optQ,xtolAbs)
+        NLopt.maxeval!(optQ,1000) # max number of iterations
+        # NLopt.maxtime!(optQ, t::Real)
+        NLopt.lower_bounds!(optQ, zeros(Float64, nparQ))
+        # fixit: set upper bound depending on branch lengths in network?
+        counter[1] = 0
+        NLopt.max_objective!(optQ, loglikfun)
+        fmax, xmax, ret = NLopt.optimize(optQ, obj.model.rate) # optimization here!
         verbose && println("got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
     end
-    # return fmax,xmax,ret
+    if optimizeRVAS
+        function loglikfunRVAS(alpha::Vector{Float64}, grad::Vector{Float64}) # modifies obj
+            counter[1] += 1
+            setalpha!(obj.ratemodel, alpha[1]) #replaced assignment here for efficiency will be setalpha!
+            res = discrete_corelikelihood!(obj)
+            verbose && println("loglik: $res, rate variation model shape parameter alpha: $(alpha[1])")
+            length(grad) == 0 || error("gradient not implemented")
+            return res
+        end
+        # build optimizer for RAS
+        # optimize RAS 
+        # set-up optimization object
+        NLoptMethod=:LN_COBYLA # no gradient
+        # :LN_COBYLA for (non)linear constraits, :LN_BOBYQA for bound constraints
+        nparRVAS = nparams(obj.ratemodel)
+        optRVAS = NLopt.Opt(NLoptMethod, nparRVAS)
+        NLopt.ftol_rel!(optRVAS,ftolRel) # relative criterion
+        NLopt.ftol_abs!(optRVAS,ftolAbs) # absolute criterion
+        NLopt.xtol_rel!(optRVAS,xtolRel)
+        NLopt.xtol_abs!(optRVAS,xtolAbs)
+        NLopt.maxeval!(optRVAS,1000) # max number of iterations
+        # NLopt.maxtime!(optRVAS, t::Real)
+        NLopt.lower_bounds!(optRVAS, zeros(Float64, nparRVAS))
+        # fixit: set upper bound depending on branch lengths in network?
+        counter[1] = 0
+        NLopt.max_objective!(optRVAS, loglikfunRVAS)
+        fmax, xmax, ret = NLopt.optimize(optRVAS, [obj.ratemodel.alpha]) # optimization here!
+        verbose && println("RVAS: got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
+    end
+    if optimizeQ && optimizeRVAS
+        # optimize Q under RVAS
+        # fixit: set upper bound depending on branch lengths in network?
+        counter[1] = 0
+        #NLopt.max_objective!(optQ, loglikfun)
+        fmax, xmax, ret = NLopt.optimize(optQ, obj.model.rate) # optimization here!
+        verbose && println("got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
+        # optimize RVAS
+        counter[1] = 0
+        #NLopt.max_objective!(optRVAS, loglikfunRVAS)
+        fmax, xmax, ret = NLopt.optimize(optRVAS, [obj.ratemodel.alpha]) # optimization here!
+        verbose && println("RVAS: got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
+    end
     return obj
 end
+
 
 """
     discrete_corelikelihood!(obj::StatisticalSubstitutionModel; whichtrait=:all)
     discrete_corelikelihood_tree!(obj, t::Integer, traitrange::AbstractArray)
-
 Calculate the likelihood and update `obj.loglik` for discrete characters on a network
 (or on a single tree: `t`th tree displayed in the network, for the second form).
 Update forward and direct partial likelihoods while doing so.
 The algorithm extracts all displayed trees and weights the likelihood under all these trees.
-"""
+""" 
 function discrete_corelikelihood!(obj::SSM; whichtrait=:all::Union{Symbol,Integer})
     if whichtrait == :all
-        traitrange = 1:obj.ntraits
-    elseif isinteger(whichtrait) && whichtrait > 0 && whichtrait <= obj.ntraits
-        obj.activetrait = whichtrait
+        traitrange = 1:obj.nsites
+    elseif isinteger(whichtrait) && whichtrait > 0 && whichtrait <= obj.nsites
+        obj.activesite = whichtrait
         traitrange = range(whichtrait, length=1)
     elseif whichtrait == :active
-        traitrange = range(obj.activetrait, length=1)
+        traitrange = range(obj.activesite, length=1)
     else
         error("'whichtrait' should be :all or :active or an integer in the correct range")
     end
+    startingP = P(obj.model, 1.0) #sets t = 1 for starting P for efficency
     for edge in obj.net.edge # update logtrans: same for all displayed trees, all traits
-        obj.logtrans[:,:,edge.number] = log.(P(obj.model, edge.length)) # element-wise
+        for i = 1:length(obj.ratemodel.ratemultiplier)
+            obj.logtrans[:,:,edge.number, i] = log.(P!(startingP, obj.model, edge.length*obj.ratemodel.ratemultiplier[i])) # element-wise
+        end
     end
     for t in 1:length(obj.displayedtree) # calculate P{data | tree t} & store in obj.postltw[t]
         discrete_corelikelihood_tree!(obj, t, traitrange)
@@ -312,7 +502,7 @@ function discrete_corelikelihood!(obj::SSM; whichtrait=:all::Union{Symbol,Intege
     res = StatsFuns.logsumexp(obj.postltw)
     obj.loglik = res
     obj.postltw .-= res # now P{tree t | data}
-    # fixit: function to get these posterior probabilities (just take exp.)
+    # fixit: write a function to get these posterior probabilities (just take exp.)
     return res
 end
 
@@ -322,68 +512,81 @@ function discrete_corelikelihood_tree!(obj::SSM, t::Integer, traitrange::Abstrac
     # @info "tree: $(writeTopology(tree))"
     forwardlik = view(obj.forwardlik, :,:,t)
     directlik  = view(obj.directlik,  :,:,t)
-    k = nStates(obj.model)   # also = size(logtrans,1)
-    fullloglik = 0.0
+    k = nstates(obj.model)   # also = size(logtrans,1) if not RateVariationAcrossSites
+    nr = length(obj.ratemodel.ratemultiplier)
+    fullloglik = 0.0         # full: for all characters
     for ci in traitrange     # ci = character index
-      fill!(forwardlik, 0.0) # re-initialize for each trait, each iteration
-      fill!(directlik,  0.0)
-      for ni in reverse(1:length(tree.nodes_changed)) # post-order
-        n = tree.nodes_changed[ni]
-        nnum = n.number # same n.number across trees for a given node
-        if n.leaf # need forwardlik initialized at 0: keep at 0 = log(1) if no data
-            state = obj.trait[nnum][ci] # here: data assumed in a row n.number
-            if !ismissing(state)
-                for i in 1:k
-                    forwardlik[i,nnum] = -Inf64 # log(0) = -Inf if i != observed state
+        currentloglik = 0.0  # current character
+        for iratemultiplier in 1:nr
+            fill!(forwardlik, 0.0) # re-initialize for each trait, each iteration
+            fill!(directlik,  0.0)
+            for ni in reverse(1:length(tree.nodes_changed)) # post-order
+                n = tree.nodes_changed[ni]
+                nnum = n.number # same n.number across trees for a given node
+                if n.leaf # need forwardlik initialized at 0: keep at 0 = log(1) if no data
+                    state = obj.trait[nnum][ci] # here: data assumed in a row n.number
+                    if !ismissing(state)
+                        for i in 1:k
+                        forwardlik[i,nnum] = -Inf64 # log(0) = -Inf if i != observed state
+                        end
+                        forwardlik[state, nnum] = 0.
+                    end
+                else # forward likelihood = product of direct likelihood over all children edges
+                    for e in n.edge
+                        n == getParent(e) || continue # to next edge if n is not parent of e
+                        forwardlik[:,nnum] .+= view(directlik, :,e.number)
+                    end
                 end
-                forwardlik[state, nnum] = 0.
-            end
-        else # forward likelihood = product of direct likelihood over all children edges
-            for e in n.edge
-                n == getParent(e) || continue # to next edge if n is not parent of e
-                forwardlik[:,nnum] .+= view(directlik, :,e.number)
-            end
-        end
-        if ni==1 # root is first index in nodes changed
-            logprior = [-log(k) for i in 1:k] # uniform prior at root
-            loglik = logsumexp(logprior + view(forwardlik, :,nnum)) # log P{data for ci | tree t}
-            fullloglik += loglik # add loglik of character ci
-            break # out of loop over nodes
-        end
-        # if we keep going: n is not the root
-        # calculate direct likelihood on the parent edge of n
-        for e in n.edge
-            if n == getChild(e)
-                lt = view(obj.logtrans, :,:,e.number)
-                for i in 1:k # state at parent node
-                    directlik[i,e.number] = logsumexp(view(lt,i,:) + view(forwardlik,:,nnum))
+                if ni==1 # root is first index in nodes changed
+                    logprior = [-log(k) for i in 1:k] # uniform prior at root
+                    loglik = logsumexp(logprior + view(forwardlik, :,nnum)) # log P{data for ci | tree t}
+                    if iratemultiplier == 1
+                        currentloglik = loglik
+                    else # next rate multiplier:
+                        currentloglik = logaddexp(currentloglik, loglik) 
+                    end
+                    break # out of loop over nodes
                 end
-                break # we visited the parent edge: break out of for loop
-            end
+                # if we keep going, n is not the root
+                # calculate direct likelihood on the parent edge of n
+                for e in n.edge
+                    if n == getChild(e)
+                        lt = view(obj.logtrans, :,:,e.number, iratemultiplier)
+                        for i in 1:k # state at parent node
+                            directlik[i,e.number] = logsumexp(view(lt,i,:) + view(forwardlik,:,nnum))
+                        end
+                        break # we visited the parent edge: break out of for loop
+                    end
+                end #loop over edges
+            end # of loop over nodes
+        end # of loop over rate multipliers
+        if !ismissing(obj.siteweight) #if dna data with dna site pattern weights, multiplied here
+            currentloglik *= obj.siteweight[ci]
         end
-      end # of loop over nodes
-    end # of loop over traits
-    obj.postltw[t] = fullloglik
-    return fullloglik
+        # add loglik of character ci to full loglik:
+        fullloglik += currentloglik #warning: this loglik missing one term - log(length(obj.ratemodel.ratemultiplier)), corrected below
+    end #of loop over traits
+    obj.postltw[t] = fullloglik - log(nr)*length(traitrange) #logL divided by (#of rates)(# of chars)
+    return fullloglik - log(nr)*length(traitrange)
 end
 
 """
-    traitlabels2indices(data, model::TraitSubstitutionModel)
+    traitlabels2indices(data, model::SubstitutionModel)
 
 Check that the character states in `data` are compatible with (i.e. subset of)
 the trait labels in `model`. All columns are used.
 `data` can be a DataFrame or a Matrix (multiple traits), or a Vector (one trait).
-
 Return a vector of vectors (one per species) with integer entries,
-where each state (label) is replaced by its index in `model`.
+where each state (label) is replaced by its index in `model`. 
+For DNA data, any ambiguous site is treated as missing.
 """
-function traitlabels2indices(data::AbstractVector, model::TraitSubstitutionModel)
+function traitlabels2indices(data::AbstractVector, model::SubstitutionModel)
     A = Vector{Vector{Union{Missings.Missing,Int}}}(undef, 0) # indices of trait labels
-    labs = model.label
+    labs = getlabels(model)
     for l in data
         vi = missing
         if !ismissing(l)
-            vi = findfirst(isequal(l), model.label) # value index in model labels
+            vi = findfirst(isequal(l), getlabels(model)) # value index in model labels
             vi !== nothing || error("trait $l not found in model")
         end
         push!(A, [vi])
@@ -391,18 +594,27 @@ function traitlabels2indices(data::AbstractVector, model::TraitSubstitutionModel
     return A
 end
 function traitlabels2indices(data::Union{AbstractMatrix,DataFrame},
-                             model::TraitSubstitutionModel)
+                             model::SubstitutionModel)
     A = Vector{Vector{Union{Missings.Missing,Int}}}(undef, 0) # indices of trait labels
-    labs = model.label
-    ntraits = size(data,2)
+    labs = getlabels(model)
+    isDNA = typeof(labs) == Array{DNA,1}
+    ntraits = size(data,2) #starting with spcies column
     for i in 1:size(data,1) # go row by row
         V = Vector{Union{Missings.Missing,Int}}(undef, ntraits)
         for j in 1:ntraits
             vi = missing # value index
             @inbounds l = data[i,j] # value label
             if !ismissing(l)
-                vi = findfirst(isequal(l), labs)
-                vi !== nothing || error("trait $l not found in model")
+                vi = findfirst(isequal(l), labs) 
+                if vi == nothing
+                    #FIXIT ideally, replace isambiguous with isgap and handle ambiguous DNA types
+                    #@show BioSymbols.isambiguous(l) #TODO this is false
+                    if isDNA #&& BioSymbols.isambiguous(l)
+                        vi = missing 
+                    else
+                        error("trait $l not found in model")
+                    end
+                end
             end
             V[j] = vi
         end
@@ -468,19 +680,18 @@ end
     ancestralStateReconstruction(obj::SSM)
 
 Estimate the marginal probability of ancestral states for discrete character
-number `trait`, or for the active trait if `trait` is unspecified: `obj.activetrait`.
+number `trait`, or for the active trait if `trait` is unspecified: `obj.activesite`.
 The parameters of the [`StatisticalSubstitutionModel`](@ref) object `obj`
 must first be fitted using [`fitDiscrete`](@ref), and ancestral state reconstruction
 is conditional on the estimated parameters. If these parameters were estimated
 using all traits, they are used as is to do ancestral state reconstruction of the
 particular `trait` of interest.
-
+number `trait`, or for the active trait if `trait` is unspecified: `obj.activesite`.
 **output**: data frame with a first column for the node numbers, a second column for
 the node labels, and a column for each possible state: the entries in these columns
 give the marginal probability that a given node has a given state.
 
-warnings
-
+warnings:
 - node numbers and node labels refer to those in `obj.net`, which might
   have a different internal representation of nodes than the original network
   used to build `obj`.
@@ -528,7 +739,7 @@ julia> using PhyloPlots
 julia> plot(fit1.net, :R, nodeLabel = asr[[:nodenumber, :lo]], tipOffset=0.2); # pp for "lo" state
 ```
 """
-ancestralStateReconstruction(obj::SSM) = ancestralStateReconstruction(obj, obj.activetrait)
+ancestralStateReconstruction(obj::SSM) = ancestralStateReconstruction(obj, obj.activesite)
 function ancestralStateReconstruction(obj::SSM, trait::Integer)
     # posterior probability of state i at node n: proportional to
     # sum_{trees t} exp( ltw[t] + backwardlik[i,n,t] + forwardlik[i,n,t] )
@@ -540,7 +751,7 @@ function ancestralStateReconstruction(obj::SSM, trait::Integer)
     end
     # fixit: paralellize with
     # ll = pmap(t -> discrete_backwardlikelihood_tree!(obj,t, trait), 1:ntrees)
-    k = nStates(obj.model)
+    k = nstates(obj.model)
     nnodes = length(obj.net.node)
     res = Array{Float64}(undef, k,nnodes)
     frd = obj.forwardlik
@@ -557,7 +768,7 @@ function ancestralStateReconstruction(obj::SSM, trait::Integer)
     for n in obj.net.node
         nodestringlabels[n.number] = (n.name == "" ? string(n.number) : n.name)
     end
-    dat = DataFrame(transpose(res), Symbol.(obj.model.label))
+    dat = DataFrame(transpose(res), Symbol.(getlabels(obj.model)))
     insertcols!(dat, 1, :nodenumber => collect(1:nnodes), makeunique=true)
     insertcols!(dat, 2, :nodelabel  => nodestringlabels,  makeunique=true)
     return dat
@@ -574,7 +785,7 @@ function discrete_backwardlikelihood_tree!(obj::SSM, t::Integer, trait::Integer)
     frdlik = view(obj.forwardlik, :,:,t)
     dirlik = view(obj.directlik , :,:,t)
     bkdlik = view(obj.backwardlik,:,:,t)
-    k = nStates(obj.model)
+    k = nstates(obj.model)
     bkwtmp = Vector{Float64}(undef, k) # to hold bkw lik without parent edge transition
     logprior = [-log(k) for i in 1:k]
     for ni in 1:length(tree.nodes_changed) # pre-order traversal to calculate backwardlik
@@ -602,3 +813,41 @@ end
 
 # fixit: new type for two (dependent) binary traits
 # need new algorithm for model at hybrid nodes: displayed trees aren't enough
+"""
+    learnLabels(model::SubstitutionModel, species::Array{String}, dat::DataFrame)
+
+Learn label names and length from data for fitDiscrete wrapper function with species vector and trait dataframe data
+"""
+function learnLabels(modSymbol::Symbol, species::Array{String}, dat::DataFrame)
+    labels = unique(reshape(convert(Matrix, dat), 1, size(dat)[1]*size(dat)[2]))
+    if modSymbol == :BTSM
+        length(labels) == 2 || error("Binary Trait Substitution Model supports traits with two states. These data have more than two states.")
+    elseif modSymbol == :TBTSM
+        unique(dat[1]) == 2 && unique(dat[2] == 2) || error("Two Binary Trait Substitution Model supports two traits with two states each. These data have more than two states.")
+    elseif modSymbol == :HKY85
+        uppercase(join(sort(labels))) == "ACGT" || error("HKY85 requires that trait data are dna bases A, C, G, and T")
+    elseif modSymbol == :JC69
+        uppercase(join(sort(labels))) == "ACGT" || error("JC69 requires that trait data are dna bases A, C, G, and T")
+    end
+    return labels
+end
+
+"""
+    startingrate(net)
+
+Estimate an evolutionary rate appropriate for the branch lengths in the network,
+which should be a good starting value before optimization in `fitDiscrete`,
+assuming approximately 1 change across the entire tree.
+"""
+function startingrate(net::HybridNetwork)
+    totaledgelength = 0.0
+    for e in net.edge
+        if e.length > 0.0
+            totaledgelength += e.length
+        end
+    end
+    if totaledgelength == 0.0 # as when all edge lengths are missing
+        totaledgelength = 0.25
+    end
+    return 1.0/totaledgelength
+end

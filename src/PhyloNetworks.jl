@@ -17,6 +17,7 @@ module PhyloNetworks
     using CSV
     using DataFrames
     using DataStructures # for updateInCycle with priority queue
+    using Distributions #for RateVariationAcrossSites
     using GLM # for the lm function
     using NLopt # for branch lengths optimization
     using SpecialFunctions: lgamma, gamma
@@ -132,11 +133,17 @@ module PhyloNetworks
         EqualRatesSubstitutionModel,
         BinaryTraitSubstitutionModel,
         TwoBinaryTraitSubstitutionModel,
-        nStates,
-        Q, P,
+        JC69, HKY85,
+        nstates,
+        Q, setrates!,
+        getlabels,
+        nparams,
+        RateVariationAcrossSites,
+        setalpha!,
         randomTrait,
         randomTrait!,
         fitDiscrete,
+        readfastatodna,
         ## TICR test
         ticr,
         ticr!

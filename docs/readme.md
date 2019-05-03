@@ -20,6 +20,12 @@
   3. run `deploydocs(...)` also from Documenter:
      to push the files on github, gh-pages branch.
 
+for now, docstrings are automatically used to build an entry for
+- each internal thing that has a docstring (e.g. not exported in `src/PhyloNetworks.jl`)
+- each public *type*
+Therefore: any public *function* needs to be manually listed in `docs/src/man/public.md`,
+in a section to get a nice organization of all these manual entries.
+
 ## The "Documenter md" format
 
 ### Note on the format
