@@ -538,7 +538,7 @@ function discrete_corelikelihood_tree!(obj::SSM, t::Integer, traitrange::Abstrac
                     end
                 end
                 if ni==1 # root is first index in nodes changed
-                    logprior = [-log(k) for i in 1:k] # uniform prior at root
+                    logprior = log.(stationary(obj.model))
                     loglik = logsumexp(logprior + view(forwardlik, :,nnum)) # log P{data for ci | tree t}
                     if iratemultiplier == 1
                         currentloglik = loglik
@@ -599,11 +599,15 @@ function traitlabels2indices(data::Union{AbstractMatrix,DataFrame},
     labs = getlabels(model)
     isDNA = typeof(labs) == Array{DNA,1}
     ntraits = size(data,2) #starting with spcies column
-    for i in 1:size(data,1) # go row by row
+    for i in 1:size(data,1) # go row by row (which is species by species)
         V = Vector{Union{Missings.Missing,Int}}(undef, ntraits)
         for j in 1:ntraits
             vi = missing # value index
             @inbounds l = data[i,j] # value label
+            if typeof(l) == String #takes string and converts to a Char so that we can convert to DNA
+                l = Vector{Char}(l)[1]
+            end
+            l = convert(DNA, l)
             if !ismissing(l)
                 vi = findfirst(isequal(l), labs) 
                 if vi == nothing
@@ -619,7 +623,7 @@ function traitlabels2indices(data::Union{AbstractMatrix,DataFrame},
             V[j] = vi
         end
         push!(A, V)
-      end
+    end
     return A
 end
 
@@ -787,7 +791,7 @@ function discrete_backwardlikelihood_tree!(obj::SSM, t::Integer, trait::Integer)
     bkdlik = view(obj.backwardlik,:,:,t)
     k = nstates(obj.model)
     bkwtmp = Vector{Float64}(undef, k) # to hold bkw lik without parent edge transition
-    logprior = [-log(k) for i in 1:k]
+    logprior = log.(stationary(obj.model))
     for ni in 1:length(tree.nodes_changed) # pre-order traversal to calculate backwardlik
         n = tree.nodes_changed[ni]
         nnum = n.number
@@ -851,3 +855,10 @@ function startingrate(net::HybridNetwork)
     end
     return 1.0/totaledgelength
 end
+
+"""
+    empiricalbasefrequencies(net)
+
+Estimate base frequency for models requiring it before optimization in `fitDiscrete`
+    TODO
+"""

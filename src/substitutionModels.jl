@@ -1039,3 +1039,20 @@ end
 function nparams(obj::RateVariationAcrossSites)
     return (obj.ncat == 1 ? 0 : 1)
 end
+
+"""
+    stationary
+return stationary distribution for each model
+TODO add stationary distribution for binary trait
+"""
+function stationary(mod::JC69)
+    return [0.25,0.25,0.25,0.25]  
+end
+
+function stationary(mod::HKY85)
+    return mod.pi # uniform prior at root
+end
+
+function stationary(mod::ERSM)
+    return [1/mod.k for i in 1:mod.k]
+end
