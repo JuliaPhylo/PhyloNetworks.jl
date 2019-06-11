@@ -31,4 +31,13 @@ end
 	@test_logs PhyloNetworks.printEverything(net)
 	redirect_stdout(originalstdout)
 end
+@testset "internal nodes" begin
+	net = (@test_logs (:warn, r"^root edge") readTopology("(a,b):0.5;"));
+	@test writeTopology(net) == "(a,b);"
+	@test writeTopology(readTopology("((a,(b)#H1)i1,(#H1,c)i2)r;")) == "((a,(b)#H1),(#H1,c));"
+	#@test writeTopology(readTopology("((a,(b)#H1)i1,(#H1,c))r;"), internallabel=true) ==
+	#	"((a,(b)#H1)i1,(#H1,c))r;"
+	@test_logs (:warn, r"^root edge") readTopology("((a,(b)#H1)i1,(#H1,c)i2)root:0.5;");
+	net = (@test_logs readTopology("(((a,(b)#H1)i1,(#H1,c)i2)root:0.5);"));
+end
 end

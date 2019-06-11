@@ -271,8 +271,6 @@ Only call this function to read a value when you know a numerical value exists!
     end
 end
 
-#TODO: Check the windows version
-
 """
     parseEdgeData!(s::IO, edge, node, numberOfLeftParentheses::Array{Int,1})
 
@@ -462,6 +460,9 @@ the root node and its child edge.
 Input: text file or parenthetical format directly.
 The file name may not start with a left parenthesis, otherwise the file
 name itself would be interpreted as the parenthetical description.
+
+A root edge, not enclosed within a pair a parentheses, is ignored.
+If the root node has a single edge, this one edge is removed.
 """
 readTopology(input::AbstractString) = readTopology(input,true)
 
@@ -496,11 +497,9 @@ function readTopology(s::IO,verbose::Bool)
                     # log warning or error if pound > 0?
                     c = peekskip(s);
                 end
-                # below: skip information on the root edge, if it exists
-                # todo later: read data on root edge & add root edge to network
-                # create e; parseEdgeData!(s, e, n, numLeft); add e to net
-                if(c == ':')
-                    while(c != ';')
+                if(c == ':') # skip information on the root edge, if it exists
+                    @warn "root edge ignored"
+                    while c != ';'
                         c = readskip!(s)
                     end
                 end
@@ -508,8 +507,9 @@ function readTopology(s::IO,verbose::Bool)
         end
         @debug "after readsubtree:"
         @debug begin printEdges(net); "printed edges" end
-        if(size(n.edge,1) == 1) # root has only one child
-            edge = n.edge[1]; # assume it has only one edge
+        # delete the root edge, if present
+        if size(n.edge,1) == 1 # root node n has only one edge
+            edge = n.edge[1]
             child = getOtherNode(edge,n);
             removeEdge!(child,edge);
             net.root = getIndex(child,net);
@@ -965,7 +965,7 @@ Example:
 net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
 directEdges!(net)
 s = IOBuffer()
-PhyloNetworks.writeSubTree!(s, net.node[7], nothing, false, true, true)
+writeSubTree!(s, net.node[7], nothing, false, true)
 String(take!(s))
 ```
 
@@ -1343,7 +1343,7 @@ function writeTopology(n::HybridNetwork;
         round=false::Bool, digits=3::Integer, di=false::Bool, # keyword arguments
         internallabel=true::Bool)
     s = IOBuffer()
-    writeTopology(n, s, kwargs...)
+    writeTopology(n,s,round,digits,di,internallabel)
     return String(take!(s))
 end
 
