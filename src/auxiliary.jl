@@ -1210,44 +1210,59 @@ function switchHybridNode!(net::HybridNetwork, hybrid::Node, newHybrid::Node)
 end
 
 """
-`assignhybridnames!(net)`
+    assignhybridnames!(net)
 
-Assign names to hybrid nodes in the network `net`. Hybrid nodes with an empty `name` field ("")
-are modified with a name that does not conflict with other hybrid names in the network.
-The preferred name is "#H3" if the node number is 3 or -3, but an index other than 3 would be
-used if "#H3" were the name of another hybrid node already.
+Assign names to hybrid nodes in the network `net`.
+Hybrid nodes with an empty `name` field ("") are modified with a name that
+does not conflict with other hybrid names in the network. The preferred name
+is "H3" if the node number is 3 or -3, but an index other than 3 would be used
+if "H3" were the name of another node already.
 
 If two hybrid nodes have non-empty and equal names, the name of one of them is changed and
 re-assigned as described above (with a warning).
 """
 function assignhybridnames!(net::HybridNetwork)
-    hybnum = Int[]  # indices 'i' in hybrid names: #Hi
+    rx = r"^H(\d+)$"
+    # prep: collect indices 'i' of any tree nodes named like Hi
+    trenum = Int[]  # indices 'i' in tree node name, in case some are named Hi
+    for n in net.node
+        !n.hybrid || continue # do nothing if node n is hybrid
+        m = match(rx, n.name)
+        m == nothing || push!(trenum, parse(Int, m[1]))
+    end
     # first: go through *all* existing non-empty names
+    hybnum = Int[]  # indices 'i' in hybrid names: Hi
     for ih in 1:length(net.hybrid)
-        lab = net.hybrid[ih].name
+        hnode = net.hybrid[ih]
+        lab = hnode.name
         lab != "" || continue # do nothing if label is missing
         jh = findfirst(isequal(lab), [net.hybrid[j].name for j in 1:ih-1])
         if jh !== nothing # set repeated names to ""
-            @warn "hybrid nodes $(net.hybrid[ih].number) and $(net.hybrid[jh].number) have the same label: $lab. Will change the name of the former."
-            net.hybrid[ih].name = ""
-        else
-            m = match(r"^#H(\d+)$", lab)
-            if m != nothing # make full list of existing indices "i" in #Hi
-                push!(hybnum, parse(Int, m[1]))
+            @warn "hybrid nodes $(hnode.number) and $(net.hybrid[jh].number) have the same label: $lab. Will change the name of the former."
+            hnode.name = ""
+        else # fill in list of existing indices "i" in Hi
+            m = match(rx, lab)
+            m != nothing || continue # skip the rest if name is not of the form Hi
+            ind = parse(Int, m[1])
+            if ind in trenum
+                @warn "hybrid node $(hnode.number) had same label as a tree node: H$ind. Will change hybrid name."
+                hnode.name = ""
+            else
+                push!(hybnum, ind)
             end
         end
     end
-    # second: assign empty names to #Hi
+    # second: assign empty names to "Hi" for some i
     hnext = 1
     for ih in 1:length(net.hybrid)
         net.hybrid[ih].name == "" || continue # do nothing if non-empty label
         hnum = abs(net.hybrid[ih].number)
-        while in(hnum, hybnum)
+        while hnum in hybnum || hnum in trenum
             hnum = hnext  # not efficient, but rare
             hnext += 1    # and okay on small networks
         end
         push!(hybnum, hnum)
-        net.hybrid[ih].name = "#H$hnum"
+        net.hybrid[ih].name = "H$hnum"
     end
 end
 

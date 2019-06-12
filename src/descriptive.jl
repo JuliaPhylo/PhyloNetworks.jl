@@ -153,7 +153,7 @@ function Base.show(io::IO, obj::HybridNetwork)
     try
         # par = writeTopology(obj,round=true) # but writeTopology changes the network, not good
         s = IOBuffer()
-        writeSubTree!(s, obj, false,true, true,3)
+        writeSubTree!(s, obj, false,true, true,3,false)
         par = String(take!(s))
     catch err
         println("ERROR with writeSubTree!:")

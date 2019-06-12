@@ -28,8 +28,8 @@ close(s); s = IOBuffer()
 @test String(take!(s)) == """
 node leaf  hybrid hasHybEdge name       inCycle edges'numbers
 1    true  false  false      B          -1      1   
-2    false true   true       #H1        -1      1    2    8   
-3    false true   true       #H2        -1      2    3    6   
+2    false true   true       H1         -1      1    2    8   
+3    false true   true       H2         -1      2    3    6   
 4    true  false  false      D          -1      4   
 5    true  false  false      C          -1      5   
 6    false false  true       S1         -1      4    5    6    7   
@@ -131,7 +131,7 @@ net.root=15; # node number -5 (clau: previously -4)
 @test_logs rootatnode!(net, -13); # or: rootatnode complained...
 @test_throws PhyloNetworks.RootMismatch rootatnode!(net, -5); # verbose = true this time
 # occursin(r"non-leaf node 9 had 0 children", e.msg))
-@test_throws PhyloNetworks.RootMismatch rootatnode!(net,"#H2"; verbose=false); #try rethrow();
+@test_throws PhyloNetworks.RootMismatch rootatnode!(net,"H2"; verbose=false); #try rethrow();
 # occursin(r"hybrid edge 17 conflicts", e.msg))
 # earlier: """node 12 is a leaf. Will create a new node if needed, to set taxon "10" as outgroup."""
 @test_logs rootatnode!(net,"10");

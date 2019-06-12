@@ -71,7 +71,7 @@ a,b = randomTrait(m1, net2; keepInternal=false)
 Random.seed!(12345);
 a,b = randomTrait(m1, net2; keepInternal=true)
 @test a == [1  2  1  1  1  1  1  1  1]
-@test b == ["-2", "D", "-3", "-6", "C", "-4", "#H1", "B", "A"]
+@test b == ["-2", "D", "-3", "-6", "C", "-4", "H1", "B", "A"]
 if runall
     for e in net2.edge
         if e.hybrid 
@@ -262,7 +262,7 @@ fit1.model.rate[2] = 0.34981109618902395;
 asr = ancestralStateReconstruction(fit1)
 @test names(asr) == [:nodenumber, :nodelabel, :lo, :hi]
 @test asr[:nodenumber] == collect(1:9)
-@test asr[:nodelabel] == ["A","B","C","D","5","6","7","8","#H1"]
+@test asr[:nodelabel] == ["A","B","C","D","5","6","7","8","H1"]
 @test asr[:lo] ≈ [1.,1.,0.,0., 0.28602239466671175, 0.31945742289603263,
     0.16855042517785512, 0.7673588716207436, 0.7827758475866091] atol=1e-5
 @test asr[:hi] ≈ [0.,0.,1.,1.,0.713977605333288, 0.6805425771039674,

@@ -19,7 +19,7 @@ net3.loglik = 28.315067218909626
 ## Network Estimation
 
 SNaQ implements the statistical inference method in
-[Sol&iacute;s-Lemus and An&eacute; 2016](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896).
+[Solís-Lemus & Ané 2016](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896).
 The procedure involves a numerical optimization of branch lengths and inheritance
 probabilities and a heuristic search in the space of phylogenetic networks.
 
@@ -47,6 +47,7 @@ R"svg(name('snaqplot_net0_1.svg'), width=4, height=3)" # hide
 R"par"(mar=[0,0,0,0]) # hide
 plot(net0, :R);
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![net0_1](../assets/figures/snaqplot_net0_1.svg)
 
@@ -69,6 +70,7 @@ R"svg(name('snaqplot_net1_1.svg'), width=4, height=3)" # hide
 R"par"(mar=[0,0,0,0]) # hide
 plot(net1, :R, showGamma=true);
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![net1_1](../assets/figures/snaqplot_net1_1.svg)
 
@@ -123,6 +125,7 @@ R"mtext"("hmax=2")           # add text annotation: title here
 plot(net3, :R, showGamma=true);
 R"mtext"("hmax=3")
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![net23](../assets/figures/snaqplot_net23.svg)
 
@@ -272,6 +275,7 @@ R"svg(name('snaqplot_scores_heuristic.svg'), width=4, height=3)" # hide
 R"par"(mar=[2.5,2.5,.5,.5], mgp=[1.4,.4,0], tck=-0.02);  # hide
 R"plot"(scores, type="b", ylab="network score", xlab="hmax", col="blue");
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![scores_heuristic](../assets/figures/snaqplot_scores_heuristic.svg)
 
@@ -306,6 +310,7 @@ R"svg(name('snaqplot_net1_2.svg'), width=4, height=3)" # starts image file
 R"par"(mar=[0,0,0,0]) # to reduce margins (no margins at all here)
 plot(net1, :R, showGamma=true, showEdgeNumber=true); # network is plotted & sent to file
 R"dev.off()"; # wrap up and save image file
+nothing # hide
 ```
 ![net1_2](../assets/figures/snaqplot_net1_2.svg)
 
@@ -322,6 +327,7 @@ R"svg(name('snaqplot_net1_3.svg'), width=4, height=3)" # hide
 R"par"(mar=[0,0,0,0]) # hide
 plot(net1, :R, showEdgeLength=true, minorHybridEdgeColor="tan")
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![net1_3](../assets/figures/snaqplot_net1_3.svg)
 
@@ -342,6 +348,7 @@ R"par"(mar=[0,0,0,0]) # hide
 plot(net1,:R, tipOffset=0.5, showNodeNumber=true, edgeColor="tomato4",
      minorHybridEdgeColor="skyblue", majorHybridEdgeColor="tan");
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![net1_4](../assets/figures/snaqplot_net1_4.svg)
 

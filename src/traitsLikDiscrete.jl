@@ -727,7 +727,7 @@ julia> asr = ancestralStateReconstruction(fit1)
 │ 6   │ 6          │ 6         │ 0.319454 │ 0.680546 │
 │ 7   │ 7          │ 7         │ 0.168549 │ 0.831451 │
 │ 8   │ 8          │ 8         │ 0.76736  │ 0.23264  │
-│ 9   │ 9          │ #H1       │ 0.782777 │ 0.217223 │
+│ 9   │ 9          │ H1        │ 0.782777 │ 0.217223 │
 
 julia> round.(exp.(fit1.postltw), digits=6) # marginal (posterior) probability that the trait evolved on each displayed tree
 2-element Array{Float64,1}:
