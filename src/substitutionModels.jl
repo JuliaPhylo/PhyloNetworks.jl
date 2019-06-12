@@ -565,7 +565,7 @@ julia> net = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1
 julia> using Random; Random.seed!(1234);
 
 julia> trait, lab = randomTrait(m1, net)
-([1 2 … 1 1], ["-2", "D", "-3", "-6", "C", "-4", "#H1", "B", "A"])
+([1 2 … 1 1], ["-2", "D", "-3", "-6", "C", "-4", "H1", "B", "A"])
 
 julia> trait
 1×9 Array{Int64,2}:
@@ -579,7 +579,7 @@ julia> lab
  "-6" 
  "C"  
  "-4" 
- "#H1"
+ "H1"
  "B"  
  "A"  
 ```
