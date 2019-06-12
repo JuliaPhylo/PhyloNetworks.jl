@@ -35,6 +35,7 @@ R"plot(0:1, 0:1, type='l', bty='L', lwd=0.3, col='#008080', xlab='quartet CF obs
 R"set.seed"(1234); # hide
 R"points(jitter($obsCF,amount=0.005),jitter($expCF,amount=0.005),col='#008080',bg='#00808090',pch=21)"; # hide
 R"dev.off()"; # hide
+nothing # hide
 ```
 To install ggplot2 if not installed already, do:
 `R"install.packages('ggplot2', dep=TRUE)"`

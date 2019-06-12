@@ -47,33 +47,34 @@ end
 # allows names with letters and numbers: treats numbers as strings
 # it also reads # as part of the name and returns pound=true
 # it returns the node name as string as well to check if it exists already (as hybrid)
-function readNum(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int,1})
+function readnodename(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int,1})
     if !isValidSymbol(c)
         a = read(s, String);
-        error("Expected digit, alphanum or # at the start of taxon name, but received $(c). remaining is $(a).");
+        error("Expected digit, alphanum or # at the start of taxon name, but received $(c). remaining: $(a).");
     end
-    pound = (c == '#') ? 1 : 0
-    name = string(readskip!(s)) # reads in c from s, convert to string
-    c = peekskip(s)
+    pound = 0
+    name = ""
     while isValidSymbol(c)
-        d = readskip!(s)
-        name = string(name,d)
-        if d == '#'
-            pound += 1;
-            c = peekskip(s);
+        readskip!(s) # advance s past c (discard c, already read)
+        if c == '#'
+            pound += 1
+            c = readskip!(s) # read the character after the #
             if !isletter(c)
                 a = read(s, String);
-                error("Expected name after # but received $(c) in left parenthesis $(numLeft[1]-1). Remaining is $(a).")
+                error("Expected name after # but received $(c) in left parenthesis $(numLeft[1]-1). remaining: $(a).")
             end
             if c != 'L' && c != 'H' && c != 'R'
                 @warn "Expected H, R or LGT after # but received $(c) in left parenthesis $(numLeft[1]-1)."
             end
+            name = c * name # put the H, R or LGT first
+        else
+            name *= c # original c: put it last
         end
         c = peekskip(s);
     end
     if pound >1
         a = read(s, String);
-        error("strange node name with $(pound) # signs. remaining is $(a).")
+        error("strange node name with $(pound) # signs: $name. remaining: $(a).")
     end
     return size(net.names,1)+1, name, pound == 1
 end
@@ -397,13 +398,13 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
         c = peekskip(s);
         if isValidSymbol(c) # internal node has name
             hasname = true;
-            num, name, pound = readNum(s, c, net, numLeft);
+            num, name, pound = readnodename(s, c, net, numLeft);
             n.number = num; # n was given <0 number by parseRemainingSubtree!, now >0
             c = peekskip(s);
         end
     else # leaf, it should have a name
         hasname = true;
-        num, name, pound = readNum(s, c, net, numLeft)
+        num, name, pound = readnodename(s, c, net, numLeft)
         n = Node(num, true); # positive node number to leaves in the newick-tree description
         @debug "creating node $(n.number)"
     end
@@ -492,13 +493,13 @@ function readTopology(s::IO,verbose::Bool)
             elseif c == ')'
                 c = peekskip(s);
                 if isValidSymbol(c) # the root has a name
-                    num, name, pound = readNum(s, c, net, numLeft);
+                    num, name, pound = readnodename(s, c, net, numLeft);
                     n.name = name
                     # log warning or error if pound > 0?
                     c = peekskip(s);
                 end
                 if(c == ':') # skip information on the root edge, if it exists
-                    @warn "root edge ignored"
+                    # @warn "root edge ignored"
                     while c != ';'
                         c = readskip!(s)
                     end
@@ -932,17 +933,19 @@ Use `internallabel=false` to suppress the labels of internal nodes.
 """
 function writeSubTree!(s::IO, net::HybridNetwork, di::Bool, namelabel::Bool,
                        roundBL::Bool, digits::Integer, internallabel::Bool)
-    if net.numNodes == 1
-        print(s, (namelabel ? net.node[net.root].name : string(net.node[net.root].number)))
-    elseif net.numNodes > 1
+    rootnode = net.node[net.root]
+    if net.numNodes > 1
         print(s,"(")
-        degree = length(net.node[net.root].edge)
-        for e in net.node[net.root].edge
-            writeSubTree!(s,getOtherNode(e,net.node[net.root]),e,di,namelabel,roundBL,digits,internallabel)
+        degree = length(rootnode.edge)
+        for e in rootnode.edge
+            writeSubTree!(s,getOtherNode(e,rootnode),e,di,namelabel,roundBL,digits,internallabel)
             degree -= 1
             degree == 0 || print(s,",")
         end
         print(s,")")
+    end
+    if internallabel || net.numNodes == 1
+        print(s, (namelabel ? rootnode.name : rootnode.number))
     end
     print(s,";")
     return nothing
@@ -956,7 +959,7 @@ end
 Write the extended newick format of the sub-network rooted at
 `node` and assuming that `edge` is a parent of `node`.
 
-If `parent` is `nothing`, the edge attribute `isChild1` is used
+If the parent `edge` is `nothing`, the edge attribute `isChild1` is used
 and assumed to be correct to write the subtree rooted at `node`.
 This is useful to write a subtree starting at a non-root node.
 Example:
@@ -997,9 +1000,10 @@ function writeSubTree!(s::IO, n::Node, parent::Union{Edge,Nothing},
     end
     # node label:
     if parent != nothing && parent.hybrid
-        print(s, (namelabel ? n.name : string("#H",n.number)))
+        print(s, "#")
+        print(s, (namelabel ? n.name : string("H", n.number)))
         n.name != "" || parent.isMajor || @warn "hybrid node $(n.number) has no name"
-    elseif (n.leaf)
+    elseif internallabel || n.leaf
         print(s, (namelabel ? n.name : n.number))
     end
     # branch lengths and γ, if available:
@@ -1388,7 +1392,6 @@ function writeTopology(net::HybridNetwork, s::IO,
     # finally, write parenthetical format
     writeSubTree!(s,net,di,true,round,digits,internallabel)
     # namelabel = true: to print leaf & node names (labels), not numbers
-    ## printID = false: print all branch lengths, not just identifiable ones
 end
 
 

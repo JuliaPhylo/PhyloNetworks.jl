@@ -14,16 +14,16 @@ global net, tree
 netstr = "(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.0,D:5.0);"
 net = readTopology(netstr)
 @test_logs PhyloNetworks.deleteHybridEdge!(net, net.edge[6], true);
-@test writeTopology(net) == "(((A:4.0,(B:1.0):1.1):0.5,(C:0.6):1.0):3.0,D:5.0);"
+@test writeTopology(net) == "(((A:4.0,(B:1.0)H1:1.1):0.5,(C:0.6):1.0):3.0,D:5.0);"
 @test net.edge[3].gamma == 0.9
-@test net.node[3].name == "#H1"
+@test net.node[3].name == "H1"
 net = readTopology(netstr)
 @test_logs PhyloNetworks.deleteHybridEdge!(net, net.edge[3], true);
-@test writeTopology(net) == "(((A:4.0):0.5,(C:0.6,(B:1.0):1.0):1.0):3.0,D:5.0);"
+@test writeTopology(net) == "(((A:4.0):0.5,(C:0.6,(B:1.0)H1:1.0):1.0):3.0,D:5.0);"
 @test  net.edge[5].gamma == 0.1
 @test !net.edge[5].hybrid
 @test  net.edge[5].isMajor
-@test  net.node[3].name == "#H1"
+@test  net.node[3].name == "H1"
 @test !net.node[3].hybrid
 
 # example of network with one hybrid edge connected to the root
@@ -42,7 +42,7 @@ net = readTopology(netstr);
 @test writeTopology(net) == "(Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0);"
 net = readTopology(netstr);
 @test_logs PhyloNetworks.deleteHybridEdge!(net, net.edge[9], true);
-@test writeTopology(net) == "((Adif:1.0,(Aech:0.122,((Asub:1.0,Agem:1.0):0.0):10.0):10.0):1.614);"
+@test writeTopology(net) == "((Adif:1.0,(Aech:0.122,((Asub:1.0,Agem:1.0):0.0)H6:10.0):10.0):1.614);"
 
 if doalltests
 net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.1361111):10.0);");
@@ -213,8 +213,8 @@ a = displayedTrees(net5, 0.1);
 
 net = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.0,D:5.0);")
 trees = (@test_logs displayedTrees(net,0.0; keepNodes=true));
-@test writeTopology(trees[1])=="(((A:4.0,(B:1.0):1.1):0.5,(C:0.6):1.0):3.0,D:5.0);"
-@test writeTopology(trees[2])=="(((A:4.0):0.5,(C:0.6,(B:1.0):1.0):1.0):3.0,D:5.0);"
+@test writeTopology(trees[1])=="(((A:4.0,(B:1.0)H1:1.1):0.5,(C:0.6):1.0):3.0,D:5.0);"
+@test writeTopology(trees[2])=="(((A:4.0):0.5,(C:0.6,(B:1.0)H1:1.0):1.0):3.0,D:5.0);"
 @test PhyloNetworks.inheritanceWeight.(trees) ≈ [log(0.9), log(0.1)]
 
 end # of testset, displayedNetworks! & displayedTrees
@@ -226,9 +226,9 @@ net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02:
 @test_logs displayedNetworkAt!(net5, net5.hybrid[1]);
 @test writeTopology(net5) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.7);"
 net = readTopology("((((B)#H1)#H2,((D,C,#H2)S1,(#H1,A)S2)S3)S4);") # missing γ's, level 2
-@test writeTopology(majorTree(net)) == "(((D,C),A),B);"
+@test writeTopology(majorTree(net)) == "(((D,C)S1,A)S3,B)S4;"
 setGamma!(net.edge[8], 0.8)
-@test writeTopology(majorTree(net)) == "((D,C),(A,B));"
+@test writeTopology(majorTree(net)) == "((D,C)S1,(A,B)S2)S3;"
 
 end # of testset, majorTree & displayedNetworkAt!
 
