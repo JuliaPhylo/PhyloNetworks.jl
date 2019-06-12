@@ -19,7 +19,7 @@ net3.loglik = 28.315067218909626
 ## Network Estimation
 
 SNaQ implements the statistical inference method in
-[Sol&iacute;s-Lemus and An&eacute; 2016](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896).
+[Solís-Lemus & Ané 2016](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896).
 The procedure involves a numerical optimization of branch lengths and inheritance
 probabilities and a heuristic search in the space of phylogenetic networks.
 
