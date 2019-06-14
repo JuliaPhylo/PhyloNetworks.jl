@@ -593,6 +593,7 @@ function traitlabels2indices(data::AbstractVector, model::SubstitutionModel)
     end
     return A
 end
+
 function traitlabels2indices(data::Union{AbstractMatrix,DataFrame},
                              model::SubstitutionModel)
     A = Vector{Vector{Union{Missings.Missing,Int}}}(undef, 0) # indices of trait labels
@@ -607,7 +608,11 @@ function traitlabels2indices(data::Union{AbstractMatrix,DataFrame},
             if typeof(l) == String #takes string and converts to a Char so that we can convert to DNA
                 l = Vector{Char}(l)[1]
             end
-            l = convert(DNA, l)
+            if !isDNA && ismissing(l)
+                vi = missing
+            else
+                l = convert(DNA, l)
+            end
             if !ismissing(l)
                 vi = findfirst(isequal(l), labs) 
                 if vi == nothing

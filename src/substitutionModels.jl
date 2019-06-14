@@ -1056,3 +1056,7 @@ end
 function stationary(mod::ERSM)
     return [1/mod.k for i in 1:mod.k]
 end
+
+function stationary(mod::BTSM)
+    return [1/2 for i in 1:2]
+end
