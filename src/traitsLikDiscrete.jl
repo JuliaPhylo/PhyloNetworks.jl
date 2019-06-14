@@ -605,12 +605,12 @@ function traitlabels2indices(data::Union{AbstractMatrix,DataFrame},
         for j in 1:ntraits
             vi = missing # value index
             @inbounds l = data[i,j] # value label
-            if typeof(l) == String #takes string and converts to a Char so that we can convert to DNA
-                l = Vector{Char}(l)[1]
-            end
             if !isDNA && ismissing(l)
                 vi = missing
-            else
+            elseif isDNA #else if DNA
+                if typeof(l) == String #takes string and converts to a Char so that we can convert to DNA
+                    l = Vector{Char}(l)[1]
+                end
                 l = convert(DNA, l)
             end
             if !ismissing(l)
