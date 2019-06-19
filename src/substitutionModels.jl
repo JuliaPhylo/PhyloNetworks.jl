@@ -302,6 +302,16 @@ function seteigeninfo!(obj::BTSM)
     ab > 0. || error("α+β must be positive")
     p0 = obj.rate[2]/ab # asymptotic frequency of state "0"
     p1 = obj.rate[1]/ab # asymptotic frequency of state "1"
+    if p0 <= 0 
+        p0 = 0.01
+    elseif p0 >= 1
+        p0 = 0.99
+    end
+    if p1 <= 0 
+        p1 = 0.01
+    elseif p1 >= 1
+        p1 = 0.99
+    end
     obj.eigeninfo[1] = ab
     obj.eigeninfo[2] = p0
     obj.eigeninfo[3] = p1
@@ -1041,9 +1051,49 @@ function nparams(obj::RateVariationAcrossSites)
 end
 
 """
-    stationary
+    stationarydistribution(dnaData, dnaWeights)
+Estimate base frequency for HKY model, which requires it when calling `fitDiscrete`
+with dna data
+"""
+function stationarydistribution(dnaDat::DataFrame, dnaWeights::Vector)
+    if !in(dnaDat[1,2], ["A", "C", "G", "T"]) && !(typeof(dnaDat[1,2]) == BioSymbols.DNA) && 
+        !(typeof(dnaDat[1,2] == Char))
+        error("the stationarydistribution() function requires that trait 
+        data are dna bases A, C, G, and T")
+    end
+    A_count = 0
+    C_count = 0
+    G_count = 0
+    T_count = 0
+
+    for col in 1:(size(dnaDat)[2]-1)
+        A_count += count(x->(x=="A" || x==DNA_A || x == 'A'), dnaDat[:,col+1])*dnaWeights[col]
+        C_count += count(x->(x=="C" || x==DNA_C || x == 'C'), dnaDat[:,col+1])*dnaWeights[col]
+        G_count += count(x->(x=="G" || x==DNA_G || x == 'G'), dnaDat[:,col+1])*dnaWeights[col]
+        T_count += count(x->(x=="T" || x==DNA_T || x == 'T'), dnaDat[:,col+1])*dnaWeights[col]
+    end
+    pA = A_count/sum([A_count, C_count, G_count, T_count])
+    pC = C_count/sum([A_count, C_count, G_count, T_count])
+    pG = G_count/sum([A_count, C_count, G_count, T_count])
+    pT = T_count/sum([A_count, C_count, G_count, T_count])
+
+    #catch proportions outside allowed 0 to 1 base proportions, fix
+    if !all(0. .< [pA, pC, pG, pT] .< 1.)
+        badpis = findall(0. .<= [pA, pC, pG, pT] .>= 1.)
+        for i in 1:length(badpis)
+            if [pA, pC, pG, pT][i] <= 0
+                [pA, pC, pG, pT][i] == 0.01
+            elseif [pA, pC, pG, pT][i] >= 1
+                [pA, pC, pG, pT][i] == 0.99
+            end
+        end
+    end
+    return [pA, pC, pG, pT]
+end
+
+"""
+    stationary(substitutionmodel)
 return stationary distribution for each model
-TODO add stationary distribution for binary trait
 """
 function stationary(mod::JC69)
     return [0.25,0.25,0.25,0.25]  
@@ -1058,5 +1108,5 @@ function stationary(mod::ERSM)
 end
 
 function stationary(mod::BTSM)
-    return [1/2 for i in 1:2]
+    return [mod.eigeninfo[2], mod.eigeninfo[3]]
 end

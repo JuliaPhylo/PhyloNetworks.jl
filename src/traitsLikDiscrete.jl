@@ -306,7 +306,7 @@ function fitDiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame, 
     if modSymbol == :JC69
         model = JC69([rate], true)
     elseif modSymbol == :HKY85
-        model = HKY85([rate, rate], [0.25, 0.25, 0.25, 0.25], true)
+        model = HKY85([rate, rate], stationarydistribution(dnadata, dnapatternweights), true)
     elseif modSymbol == :ERSM
         model = EqualRatesSubstitutionModel(4, rate, [BioSymbols.DNA_A, BioSymbols.DNA_C, BioSymbols.DNA_G, BioSymbols.DNA_T]);
     elseif modSymbol == :BTSM
@@ -337,6 +337,7 @@ See [`traitlabels2indices`](@ref) to convert trait labels to trait indices.
 **Warning**: does *not* perform checks. [`fitDiscrete`](@ref) calls this function
 after doing checks, preordering nodes in the network, making sure nodes have
 consecutive numbers, species are matched between data and network etc.
+Like, snaq!(), we estimate the network starting from tree (or network) `astraltree`.
 """
 function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::SubstitutionModel, 
     ratemodel::RateVariationAcrossSites, trait::AbstractVector; kwargs...)
@@ -415,7 +416,7 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,verbose=fa
         NLopt.xtol_abs!(optQ,xtolAbs)
         NLopt.maxeval!(optQ,1000) # max number of iterations
         # NLopt.maxtime!(optQ, t::Real)
-        NLopt.lower_bounds!(optQ, zeros(Float64, nparQ))
+        NLopt.lower_bounds!(optQ, zeros(Float64, nparQ)) #TODO should this be slightly greater than 0?
         # fixit: set upper bound depending on branch lengths in network?
         counter[1] = 0
         NLopt.max_objective!(optQ, loglikfun)
@@ -860,10 +861,3 @@ function startingrate(net::HybridNetwork)
     end
     return 1.0/totaledgelength
 end
-
-"""
-    empiricalbasefrequencies(net)
-
-Estimate base frequency for models requiring it before optimization in `fitDiscrete`
-    TODO
-"""

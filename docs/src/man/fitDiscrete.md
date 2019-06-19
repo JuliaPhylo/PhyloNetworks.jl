@@ -68,7 +68,8 @@ The DNA-specific models are optimized for aligned sequence data. We offer JC69
 and HKY85 models in both relative and absolute versions. The JC69 model was 
 developed by Jukes and Cantor in 1969 and uses one rate for all type of substitutions. 
 The HKY85 model was developed in 1985 by Hasegawa, Kishino, & Yano. It treats 
-transitions differently from transversions.    
+transitions differently from transversions. We estimate empirical base frequencies
+to use as a uniform prior at the root of the network.     
 `:JC69` Jukes Cantor 69 Model    
 `:HKY85` Hasegawa, Kishino and Yano 1985     
 
