@@ -306,7 +306,7 @@ function fitDiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame, 
     if modSymbol == :JC69
         model = JC69([rate], true)
     elseif modSymbol == :HKY85
-        model = HKY85([rate, rate], stationarydistribution(dnadata, dnapatternweights), true)
+        model = HKY85([rate, rate], empiricaldistribution(dnadata, dnapatternweights), true)
     elseif modSymbol == :ERSM
         model = EqualRatesSubstitutionModel(4, rate, [BioSymbols.DNA_A, BioSymbols.DNA_C, BioSymbols.DNA_G, BioSymbols.DNA_T]);
     elseif modSymbol == :BTSM
@@ -539,7 +539,11 @@ function discrete_corelikelihood_tree!(obj::SSM, t::Integer, traitrange::Abstrac
                     end
                 end
                 if ni==1 # root is first index in nodes changed
-                    logprior = log.(stationary(obj.model))
+                    # if option = uniform 
+                    #     #from before (this should be for traits)
+                    # else 
+                        logprior = log.(stationary(obj.model))
+                    # end
                     loglik = logsumexp(logprior + view(forwardlik, :,nnum)) # log P{data for ci | tree t}
                     if iratemultiplier == 1
                         currentloglik = loglik
