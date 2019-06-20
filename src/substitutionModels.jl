@@ -1055,35 +1055,97 @@ end
 Estimate base frequency for HKY model, which requires it when calling `fitDiscrete`
 with dna data
 """
-function empiricaldistribution(dnaDat::DataFrame, dnaWeights::Vector)
-    #TODO add option to toggle the correction on and off
-    #TODO check code in BioSequences/Symbols for function or more efficient ideas
-    #look at what they do to count .5 and .5 for Y e.g.
-    #Base.count
+function empiricaldistribution(dnaDat::DataFrame, dnaWeights::Vector, correctedestimate=true::Bool)
+
     if !in(dnaDat[1,2], ["A", "C", "G", "T"]) && !(typeof(dnaDat[1,2]) == BioSymbols.DNA) && 
         !(typeof(dnaDat[1,2] == Char))
         error("the empiricaldistribution() function requires that trait 
         data are dna bases A, C, G, and T")
     end
 
-    #TODO if char or string, convert to DNA
-    #use iscompatible to decide how to do weights
+    #if char or string, convert to DNA
+    #takes a string and converts the first letter to a Char so that we can convert to DNA
+    if typeof(l) == String 
+        l = Vector{Char}(l)[1]
+    end
+    if typeof(l) == Char
+        l = convert(DNA, l)
+    end
 
     A_count = 0
     C_count = 0
     G_count = 0
     T_count = 0
 
+    #TODO check code in BioSequences/Symbols for function or more efficient ideas
+    #look at what they do to count .5 and .5 for Y e.g.
+    #Base.count
     for col in 1:(size(dnaDat)[2]-1)
-        A_count += count(x->(x=="A" || x==DNA_A || x == 'A'), dnaDat[:,col+1])*dnaWeights[col]
-        C_count += count(x->(x=="C" || x==DNA_C || x == 'C'), dnaDat[:,col+1])*dnaWeights[col]
-        G_count += count(x->(x=="G" || x==DNA_G || x == 'G'), dnaDat[:,col+1])*dnaWeights[col]
-        T_count += count(x->(x=="T" || x==DNA_T || x == 'T'), dnaDat[:,col+1])*dnaWeights[col]
+        A_count += count(x->(x==DNA_A), dnaDat[:,col+1])*dnaWeights[col]
+        C_count += count(x->(x==DNA_C), dnaDat[:,col+1])*dnaWeights[col]
+        G_count += count(x->(x==DNA_G), dnaDat[:,col+1])*dnaWeights[col]
+        T_count += count(x->(x==DNA_T), dnaDat[:,col+1])*dnaWeights[col]
+
+        #uses BioSequences definitions here
+        # 'M'	DNA_M / RNA_M	A or C
+        M_count = count(x->(x==DNA_M), dnaDat[:,col+1])*dnaWeights[col]
+        A_count += 0.5*M_count
+        C_count += 0.5*M_count
+        # 'R'	DNA_R / RNA_R	A or G
+        R_count = count(x->(x==DNA_R), dnaDat[:,col+1])*dnaWeights[col]
+        A_count += 0.5*R_count
+        G_count += 0.5*R_count
+        # 'W'	DNA_W / RNA_W	A or T/U
+        W_count = count(x->(x==DNA_W), dnaDat[:,col+1])*dnaWeights[col]
+        A_count += 0.5*W_count
+        T_count += 0.5*W_count
+        # 'S'	DNA_S / RNA_S	C or G
+        S_count = count(x->(x==DNA_S), dnaDat[:,col+1])*dnaWeights[col]
+        C_count += 0.5*S_count
+        G_count += 0.5*S_count
+        # 'Y'	DNA_Y / RNA_Y	C or T/U
+        Y_count = count(x->(x==DNA_Y), dnaDat[:,col+1])*dnaWeights[col]
+        C_count += 0.5*Y_count
+        T_count += 0.5*Y_count
+        # 'K'	DNA_K / RNA_K	G or T/U
+        K_count = count(x->(x==DNA_K), dnaDat[:,col+1])*dnaWeights[col]
+        G_count += 0.5*K_count
+        T_count += 0.5*K_count
+        # 'V'	DNA_V / RNA_V	A or C or G; not T/U
+        V_count = count(x->(x==DNA_V), dnaDat[:,col+1])*dnaWeights[col]
+        A_count += (1/3)*V_count
+        C_count += (1/3)*V_count
+        G_count += (1/3)*V_count
+        # 'H'	DNA_H / RNA_H	A or C or T; not G
+        H_count = count(x->(x==DNA_H), dnaDat[:,col+1])*dnaWeights[col]
+        A_count += (1/3)*H_count
+        C_count += (1/3)*H_count
+        T_count += (1/3)*H_count
+        # 'D'	DNA_D / RNA_D	A or G or T/U; not C
+        D_count = count(x->(x==DNA_D), dnaDat[:,col+1])*dnaWeights[col]
+        A_count += (1/3)*D_count
+        G_count += (1/3)*D_count
+        T_count += (1/3)*D_count
+        # 'B'	DNA_B / RNA_B	C or G or T/U; not A
+        B_count = count(x->(x==DNA_B), dnaDat[:,col+1])*dnaWeights[col]
+        C_count += (1/3)*B_count
+        G_count += (1/3)*B_count
+        T_count += (1/3)*B_count
     end
-    pA = (A_count + 1)/sum([A_count, C_count, G_count, T_count, 4])
-    pC = (C_count + 1)/sum([A_count, C_count, G_count, T_count, 4])
-    pG = (G_count + 1)/sum([A_count, C_count, G_count, T_count, 4])
-    pT = (T_count + 1)/sum([A_count, C_count, G_count, T_count, 4])
+
+    if correctedestimate=true
+        pA = (A_count + 1)/sum([A_count, C_count, G_count, T_count, 4])
+        pC = (C_count + 1)/sum([A_count, C_count, G_count, T_count, 4])
+        pG = (G_count + 1)/sum([A_count, C_count, G_count, T_count, 4])
+        pT = (T_count + 1)/sum([A_count, C_count, G_count, T_count, 4])
+    else
+        pA = (A_count)/sum([A_count, C_count, G_count, T_count])
+        pC = (C_count)/sum([A_count, C_count, G_count, T_count])
+        pG = (G_count)/sum([A_count, C_count, G_count, T_count])
+        pT = (T_count)/sum([A_count, C_count, G_count, T_count])
+        all(0. .< [pA, pC, pG, pT] .< 1.) || error("one of the bases is estimated to have an empirical
+        percentage < 0 or > 1. To corrected this, call empiricaldistribution() with correctedestimate=true")
+    end
     #we add one to each numerator and 4 to the denominator for a better estimator 
     #(similar to starting with a Bayes prior of 1/4 and 
     # the Agresti-Coull interval in Binomial estimation)
