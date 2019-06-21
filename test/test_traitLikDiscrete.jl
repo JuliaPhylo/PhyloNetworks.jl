@@ -454,6 +454,11 @@ ERSM_1 = EqualRatesSubstitutionModel(4, 3.0, ["S1","S2","S3","S4"]);
 @test PhyloNetworks.stationary(BTSM_1) ≈ [0.6666666666666666, 0.3333333333333333] atol=1e-6
 @test PhyloNetworks.stationary(ERSM_1) == [0.25, 0.25, 0.25, 0.25]
 
+JC69_1 = JC69(0.5, false);
+@test PhyloNetworks.stationary(JC69_1) == [0.25, 0.25, 0.25, 0.25]
+HKY85_1 = HKY85([0.5, 0.5], [0.2, 0.3, 0.25, 0.25], false)
+@test PhyloNetworks.stationary(HKY85_1) == [0.2, 0.3, 0.25, 0.25]
+
 #tests empriicaldistribution with string type
 dna_String = DataFrame(A = ["s1", "s2"], site1 = ["A", "C"], site2 = ["G", "T"])
 @test PhyloNetworks.empiricaldistribution(dna_String, [1, 1]) == [0.25, 0.25, 0.25, 0.25]
@@ -461,11 +466,18 @@ dna_String = DataFrame(A = ["s1", "s2"], site1 = ["A", "C"], site2 = ["G", "T"])
 #test PhyloNetworks.empiricaldistribution with char type
 dna_Char = DataFrame(A = ["s1", "s2"], site1 = ['A', 'C'], site2 = ['G', 'T'])
 @test PhyloNetworks.empiricaldistribution(dna_Char, [1, 1]) == [0.25, 0.25, 0.25, 0.25]
+#test uncorrected estimate
+@test PhyloNetworks.empiricaldistribution(dna_Char, [1, 1], false) == [0.25, 0.25, 0.25, 0.25]
 
 #test PhyloNetworks.empiricaldistribution with DNA type and weights
 fastafile = joinpath(@__DIR__, "..", "examples", "test_8_withrepeatingsites.aln")
 dat, weights = readfastatodna(fastafile, true);
 @test PhyloNetworks.empiricaldistribution(dat, weights) ≈ [0.21153846153846154, 0.3076923076923077, 0.40384615384615385, 0.07692307692307693] atol=1e-9
+
+#test PhyloNetworks.empiricaldistribution with bad type
+dna_bad = DataFrame(A = ["s1", "s2"], trait1 = ["hi", "lo"], trait2 = ["lo", "hi"])
+
+@test_throws ErrorException PhyloNetworks.empiricaldistribution(dna_bad, [1, 1])
 
 end #testing stationary and empiricaldistribution functions
 

@@ -302,16 +302,6 @@ function seteigeninfo!(obj::BTSM)
     ab > 0. || error("α+β must be positive")
     p0 = obj.rate[2]/ab # asymptotic frequency of state "0"
     p1 = obj.rate[1]/ab # asymptotic frequency of state "1"
-    if p0 <= 0 
-        p0 = 0.01
-    elseif p0 >= 1
-        p0 = 0.99
-    end
-    if p1 <= 0 
-        p1 = 0.01
-    elseif p1 >= 1
-        p1 = 0.99
-    end
     obj.eigeninfo[1] = ab
     obj.eigeninfo[2] = p0
     obj.eigeninfo[3] = p1
@@ -1058,8 +1048,7 @@ with dna data
 function empiricaldistribution(dnaDat::DataFrame, dnaWeights::Vector, correctedestimate=true::Bool)
 
     if !in(dnaDat[1,2], ["A", "C", "G", "T", "M", "R", "Y", "M", "W", "S", "K", "V", "H", "D", "B"]) && !(typeof(dnaDat[1,2]) == BioSymbols.DNA) && !(typeof(dnaDat[1,2]) == Char)
-        error("the empiricaldistribution() function requires that trait 
-        data are dna bases in either String, Char, or BioSymbols.DNA format")
+        error("the empiricaldistribution() function requires that trait data are dna bases in either String, Char, or BioSymbols.DNA format")
     end
 
     #if char or string, convert to DNA
