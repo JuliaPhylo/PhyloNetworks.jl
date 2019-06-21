@@ -447,4 +447,26 @@ dna_net_opt_both = fitDiscrete(dna_net_top, nasm_model, dna_dat, dna_weights; op
 
 end #of testing readfastatodna with NASM and RateVariationAcrossSites
 
+@testset "testing stationary and empiricaldistribution functions" begin
+
+BTSM_1 = BinaryTraitSubstitutionModel(1.0, 2.0);
+ERSM_1 = EqualRatesSubstitutionModel(4, 3.0, ["S1","S2","S3","S4"]);
+@test PhyloNetworks.stationary(BTSM_1) ≈ [0.6666666666666666, 0.3333333333333333] atol=1e-6
+@test PhyloNetworks.stationary(ERSM_1) == [0.25, 0.25, 0.25, 0.25]
+
+#tests empriicaldistribution with string type
+dna_String = DataFrame(A = ["s1", "s2"], site1 = ["A", "C"], site2 = ["G", "T"])
+@test PhyloNetworks.empiricaldistribution(dna_String, [1, 1]) == [0.25, 0.25, 0.25, 0.25]
+
+#test PhyloNetworks.empiricaldistribution with char type
+dna_Char = DataFrame(A = ["s1", "s2"], site1 = ['A', 'C'], site2 = ['G', 'T'])
+@test PhyloNetworks.empiricaldistribution(dna_Char, [1, 1]) == [0.25, 0.25, 0.25, 0.25]
+
+#test PhyloNetworks.empiricaldistribution with DNA type and weights
+fastafile = joinpath(@__DIR__, "..", "examples", "test_8_withrepeatingsites.aln")
+dat, weights = readfastatodna(fastafile, true);
+@test PhyloNetworks.empiricaldistribution(dat, weights) ≈ [0.21153846153846154, 0.3076923076923077, 0.40384615384615385, 0.07692307692307693] atol=1e-9
+
+end #testing stationary and empiricaldistribution functions
+
 end # of nested testsets

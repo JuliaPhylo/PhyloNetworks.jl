@@ -416,7 +416,7 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,verbose=fa
         NLopt.xtol_abs!(optQ,xtolAbs)
         NLopt.maxeval!(optQ,1000) # max number of iterations
         # NLopt.maxtime!(optQ, t::Real)
-        NLopt.lower_bounds!(optQ, zeros(Float64, nparQ)) #TODO should this be slightly greater than 0?
+        NLopt.lower_bounds!(optQ, zeros(Float64, nparQ))
         # fixit: set upper bound depending on branch lengths in network?
         counter[1] = 0
         NLopt.max_objective!(optQ, loglikfun)
@@ -539,11 +539,11 @@ function discrete_corelikelihood_tree!(obj::SSM, t::Integer, traitrange::Abstrac
                     end
                 end
                 if ni==1 # root is first index in nodes changed
-                    # if option = uniform 
-                    #     #from before (this should be for traits)
-                    # else 
+                    if typeof(obj.model) == NASM 
                         logprior = log.(stationary(obj.model))
-                    # end
+                    else #other trait models
+                        logprior = [-log(k) for i in 1:k] # uniform prior at root
+                    end
                     loglik = logsumexp(logprior + view(forwardlik, :,nnum)) # log P{data for ci | tree t}
                     if iratemultiplier == 1
                         currentloglik = loglik
@@ -801,7 +801,11 @@ function discrete_backwardlikelihood_tree!(obj::SSM, t::Integer, trait::Integer)
     bkdlik = view(obj.backwardlik,:,:,t)
     k = nstates(obj.model)
     bkwtmp = Vector{Float64}(undef, k) # to hold bkw lik without parent edge transition
-    logprior = log.(stationary(obj.model))
+    if typeof(obj.model) == NASM 
+        logprior = log.(stationary(obj.model))
+    else #trait models
+        logprior = [-log(k) for i in 1:k] # uniform prior at root
+    end
     for ni in 1:length(tree.nodes_changed) # pre-order traversal to calculate backwardlik
         n = tree.nodes_changed[ni]
         nnum = n.number

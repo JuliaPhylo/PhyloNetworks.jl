@@ -1057,19 +1057,20 @@ with dna data
 """
 function empiricaldistribution(dnaDat::DataFrame, dnaWeights::Vector, correctedestimate=true::Bool)
 
-    if !in(dnaDat[1,2], ["A", "C", "G", "T"]) && !(typeof(dnaDat[1,2]) == BioSymbols.DNA) && 
-        !(typeof(dnaDat[1,2] == Char))
+    if !in(dnaDat[1,2], ["A", "C", "G", "T", "M", "R", "Y", "M", "W", "S", "K", "V", "H", "D", "B"]) && !(typeof(dnaDat[1,2]) == BioSymbols.DNA) && !(typeof(dnaDat[1,2]) == Char)
         error("the empiricaldistribution() function requires that trait 
-        data are dna bases A, C, G, and T")
+        data are dna bases in either String, Char, or BioSymbols.DNA format")
     end
 
     #if char or string, convert to DNA
-    #takes a string and converts the first letter to a Char so that we can convert to DNA
-    if typeof(l) == String 
-        l = Vector{Char}(l)[1]
-    end
-    if typeof(l) == Char
-        l = convert(DNA, l)
+    newDF = Matrix{DNA}(undef, size(dnaDat)[1], size(dnaDat)[2]-1)
+    if !(typeof(dnaDat[1,2]) == BioSymbols.DNA)
+        for col in 2:size(dnaDat)[2]
+            for row in 1:size(dnaDat)[1]
+                newDF[row, col-1] = dnaDat[row, col][1]
+            end
+        end
+        dnaDat[2:size(dnaDat)[2]] = DataFrame(newDF)
     end
 
     A_count = 0
@@ -1077,9 +1078,6 @@ function empiricaldistribution(dnaDat::DataFrame, dnaWeights::Vector, correctede
     G_count = 0
     T_count = 0
 
-    #TODO check code in BioSequences/Symbols for function or more efficient ideas
-    #look at what they do to count .5 and .5 for Y e.g.
-    #Base.count
     for col in 1:(size(dnaDat)[2]-1)
         A_count += count(x->(x==DNA_A), dnaDat[:,col+1])*dnaWeights[col]
         C_count += count(x->(x==DNA_C), dnaDat[:,col+1])*dnaWeights[col]
@@ -1133,7 +1131,7 @@ function empiricaldistribution(dnaDat::DataFrame, dnaWeights::Vector, correctede
         T_count += (1/3)*B_count
     end
 
-    if correctedestimate=true
+    if correctedestimate==true
         pA = (A_count + 1)/sum([A_count, C_count, G_count, T_count, 4])
         pC = (C_count + 1)/sum([A_count, C_count, G_count, T_count, 4])
         pG = (G_count + 1)/sum([A_count, C_count, G_count, T_count, 4])
@@ -1147,8 +1145,8 @@ function empiricaldistribution(dnaDat::DataFrame, dnaWeights::Vector, correctede
         percentage < 0 or > 1. To corrected this, call empiricaldistribution() with correctedestimate=true")
     end
     #we add one to each numerator and 4 to the denominator for a better estimator 
-    #(similar to starting with a Bayes prior of 1/4 and 
-    # the Agresti-Coull interval in Binomial estimation)
+    #(similar to starting with a Bayes prior of 1/4 and the Agresti-Coull interval
+    #in Binomial estimation)
     return [pA, pC, pG, pT]
 end
 
@@ -1164,11 +1162,10 @@ function stationary(mod::HKY85)
     return mod.pi
 end
 
-function stationary(mod::ERSM)
+function stationary(mod::ERSM) #for ERSM, uniform = stationary
     return [1/mod.k for i in 1:mod.k]
 end
 
 function stationary(mod::BTSM)
     return [mod.eigeninfo[2], mod.eigeninfo[3]]
 end
-#TODO add test for stationary for ERSM, BTSM
