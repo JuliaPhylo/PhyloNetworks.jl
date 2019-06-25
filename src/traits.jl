@@ -1120,10 +1120,10 @@ end
 
 # New type for phyloNetwork regression
 """
-    PhyloNetworkLinearModel<:LinPredModel
+    PhyloNetworkLinearModel<:GLM.LinPredModel
 
 Regression object for a phylogenetic regression. Result of fitting function [`phyloNetworklm`](@ref).
-Dominated by the `LinPredModel` class, from package `GLM`.
+Dominated by the `GLM.LinPredModel` class, from package `GLM`.
 
 The following StatsBase functions can be applied to it:
 `coef`, `nobs`, `vcov`, `stderror`, `confint`, `coeftable`, `dof_residual`, `dof`, `deviance`,
@@ -1145,7 +1145,7 @@ An ancestral state reconstruction can be performed from this fitted object using
 The `PhyloNetworkLinearModel` object has fields: `lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `ind`, `nonmissing`, `model`, `lambda`.
 Type in "?PhyloNetworkLinearModel.field" to get help on a specific field.
 """
-mutable struct PhyloNetworkLinearModel <: LinPredModel
+mutable struct PhyloNetworkLinearModel <: GLM.LinPredModel
     "lm: a GLM.LinearModel object, fitted on the cholesky-tranformend problem"
     lm::GLM.LinearModel # result of a lm on a matrix
     "V: a MatrixTopologicalOrder object of the network-induced correlations"
@@ -1775,7 +1775,7 @@ function StatsBase.adjr2(obj::PhyloNetworkLinearModel)
 end
 
 ## REMARK
-# As PhyloNetworkLinearModel <: LinPredModel, the following functions are automatically defined:
+# As PhyloNetworkLinearModel <: GLM.LinPredModel, the following functions are automatically defined:
 # aic, aicc, bic
 
 ## New quantities

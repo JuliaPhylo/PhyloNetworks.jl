@@ -131,7 +131,7 @@ associated with trait 2 has a high p-value, which means that this coefficient
 is not significantly different from 0. This is consistent with the
 way we simulated trait 3.
 
-The function returns an object of type [`PhyloNetworkLinearModel`](@ref)`<:LinPredModel`.
+The function returns an object of type [`PhyloNetworkLinearModel`](@ref)`<:GLM.LinPredModel`.
 It is a subtype of the GLM type `LinPredModel`, which means that all base
 functions from Julia [StatsBase](https://github.com/JuliaStats/StatsBase.jl) can
 be applied to it. See the documentation for this type for a list of all

@@ -144,6 +144,8 @@ module PhyloNetworks
         randomTrait!,
         fitDiscrete,
         readfastatodna,
+        stationary,
+        empiricaldistribution,
         ## TICR test
         ticr,
         ticr!
