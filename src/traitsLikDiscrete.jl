@@ -843,9 +843,9 @@ function learnLabels(modSymbol::Symbol, species::Array{String}, dat::DataFrame)
     elseif modSymbol == :TBTSM
         unique(dat[1]) == 2 && unique(dat[2] == 2) || error("Two Binary Trait Substitution Model supports two traits with two states each. These data have more than two states.")
     elseif modSymbol == :HKY85
-        uppercase(join(sort(labels))) == "ACGT" || error("HKY85 requires that trait data are dna bases A, C, G, and T")
+        occursin(uppercase(join(sort(labels))), "ACGT") || error("HKY85 requires that trait data are dna bases A, C, G, and T")
     elseif modSymbol == :JC69
-        uppercase(join(sort(labels))) == "ACGT" || error("JC69 requires that trait data are dna bases A, C, G, and T")
+        occursin(uppercase(join(sort(labels))), "ACGT") || error("JC69 requires that trait data are dna bases A, C, G, and T")
     end
     return labels
 end

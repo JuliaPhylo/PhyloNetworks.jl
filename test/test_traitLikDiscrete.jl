@@ -395,6 +395,11 @@ s1 = fitDiscrete(net_dat, :ERSM, species_alone, dat_alone, :RV; optimizeQ=false,
 s2 = fitDiscrete(net_dat, :BTSM, species_alone, dat_alone; optimizeQ=false, optimizeRVAS=false);
 @test_logs show(devnull, s2)
 @test_throws ErrorException fitDiscrete(net_dat, :TBTSM, species_alone, dat_alone; optimizeQ=false, optimizeRVAS=false);
+dna_alone = DataFrame(trait=['A','C','C','A'])
+s3 = fitDiscrete(net_dat, :JC69, species_alone, dna_alone; optimizeQ=true, optimizeRVAS=true);
+s4 = fitDiscrete(net_dat, :HKY85, species_alone, dna_alone; optimizeQ=false, optimizeRVAS=false);
+@test_logs show(devnull, s3)
+@test_logs show(devnull, s4)
 
 #for dna data (output of fastatodna)
 fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_Tr406_Contig10132.aln")
