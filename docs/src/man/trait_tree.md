@@ -121,7 +121,7 @@ Phylogenetic regression / ANOVA is based on the
 extra argument, using function [`phyloNetworklm`](@ref).
 ```@repl tree_trait
 using StatsModels # for statistical model formulas
-fitTrait3 = phyloNetworklm(@formula(trait3 ~ trait1 + trait2), dat, truenet)
+fitTrait3 = phyloNetworklm(StatsModels.@formula(trait3 ~ trait1 + trait2), dat, truenet)
 ```
 From this, we can see that the intercept, the coefficient for trait 1
 and the variance of the noise are correctly estimated
@@ -216,7 +216,7 @@ process that generated the data. We can estimate it using the previous function.
 To fit a regular BM, we just need to do a regression of trait 1 against a simple
 intercept:
 ```@example tree_trait
-fitTrait1 = phyloNetworklm(@formula(trait1 ~ 1), dat, truenet)
+fitTrait1 = phyloNetworklm(StatsModels.@formula(trait1 ~ 1), dat, truenet)
 nothing # hide
 ```
 We can then apply the [`ancestralStateReconstruction`](@ref) function directly
@@ -367,7 +367,7 @@ dat
 ```
 Now we can include this reticulation variable in the regression.
 ```@example tree_trait
-fitTrait = phyloNetworklm(@formula(trait3 ~ trait1 + underHyb), dat, truenet)
+fitTrait = phyloNetworklm(StatsModels.@formula(trait3 ~ trait1 + underHyb), dat, truenet)
 ```
 In this case, the categorical variable indicating which tips are descendants
 of the reticulation event is indeed relevant, and the transgressive evolution effect
@@ -397,7 +397,7 @@ be straightforwardly extended to phylogenetic networks.
 We can illustrate this with the predictor trait we used earlier. We use the
 same function as before, only indicating the model we want to use:
 ```@example tree_trait
-fitPagel = phyloNetworklm(@formula(trait1 ~ 1), dat, truenet, model="lambda")
+fitPagel = phyloNetworklm(StatsModels.@formula(trait1 ~ 1), dat, truenet, model="lambda")
 ```
 As it is indeed generated according to a plain BM on the phylogeny, the
 estimated λ should be close to 1. It can be extracted with function
@@ -486,7 +486,7 @@ We can use this dataframe as regressors in the `phyloNetworklm` function.
 ```@example tree_trait
 dat = DataFrame(trait = trait_sh, tipNames = tipLabels(sim_sh))  # Data
 dat = join(dat, df_shift, on=:tipNames)                          # join the two
-fit_sh = phyloNetworklm(@formula(trait ~ shift_6), dat, truenet) # fit
+fit_sh = phyloNetworklm(StatsModels.@formula(trait ~ shift_6), dat, truenet) # fit
 ```
 Here, because there is only one hybrid in the network, we can directly
 see whether the ancestral transgressive evolution is significant or not thanks to the
@@ -494,7 +494,7 @@ Student T test on the coefficient associated with `shift_6`. In more
 complex cases, it is possible to do a Fisher F test, thanks to the `GLM`
 function `ftest`.
 ```@example tree_trait
-fit_null = phyloNetworklm(@formula(trait ~ 1), dat, truenet) # fit against the null (no shift)
+fit_null = phyloNetworklm(StatsModels.@formula(trait ~ 1), dat, truenet) # fit against the null (no shift)
 ftest(fit_sh, fit_null)                                      # nested models, from more complex to most simple
 ```
 Here, this test is equivalent to the Fisher F test, and gives the same p-value.

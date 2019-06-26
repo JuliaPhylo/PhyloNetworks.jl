@@ -535,8 +535,8 @@ julia> dfr = join(dat, dfr_shift, on=:tipNames); # join data and regressors in a
 
 julia> using StatsModels # for statistical model formulas
 
-julia> fitBM = phyloNetworklm(@formula(trait ~ shift_1 + shift_8), dfr, net) # actual fit
-StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
+julia> fitBM = phyloNetworklm(StatsModels.@formula(trait ~ shift_1 + shift_8), dfr, net) # actual fit
+StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
 
 Formula: trait ~ 1 + shift_1 + shift_8
 
@@ -675,8 +675,8 @@ julia> dfr = join(dat, dfr_hybrid, on=:tipNames); # join data and regressors in 
 
 julia> using StatsModels
 
-julia> fitBM = phyloNetworklm(@formula(trait ~ shift_6), dfr, net) # actual fit
-StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
+julia> fitBM = phyloNetworklm(StatsModels.@formula(trait ~ shift_6), dfr, net) # actual fit
+StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
 
 Formula: trait ~ 1 + shift_6
 
@@ -1131,7 +1131,7 @@ The following StatsBase functions can be applied to it:
 `r2`, `adjr2`, `aic`, `aicc`, `bic`.
 
 The following StatsModels functions can also be applied to it:
-`ModelFrame`, `ModelMatrix`, `Formula`.
+`ModelFrame`, `ModelMatrix`, `StatsModels.FormulaTerm`.
 
 Estimated variance and mean of the BM process used can be retrieved with
 functions [`sigma2_estim`](@ref) and [`mu_estim`](@ref).
@@ -1473,11 +1473,10 @@ end
 
 Phylogenetic regression, using the correlation structure induced by the network.
 
-Returns an object of class [`PhyloNetworkLinearModel`](@ref). See documentation for this type and
-example to see all the functions that can be applied to it.
+Returns an object of class [`PhyloNetworkLinearModel`](@ref). See documentation for this type and example to see all the functions that can be applied to it.
 
 # Arguments
-* `f::Formula`: formula to use for the regression (see the `DataFrame` package)
+* `f::StatsModels.FormulaTerm`: formula to use for the regression
 * `fr::AbstractDataFrame`: DataFrame containing the data and regressors at the tips. It should have an extra column labelled "tipNames", that gives the names of the taxa for each observation.
 * `net::HybridNetwork`: phylogenetic network to use. Should have labelled tips.
 * `model::AbstractString="BM"`: the model to use, "BM" (default) or "lambda" (for Pagel's lambda).
@@ -1504,12 +1503,12 @@ julia> dat = CSV.read(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples",
 
 julia> using StatsModels # for stat model formulas
 
-julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
+julia> fitBM = phyloNetworklm(StatsModels.@formula(trait ~ 1), dat, phy);
 
 julia> fitBM # Shows a summary
-StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
+StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
 
-Formula: trait ~ +1
+StatsModels.FormulaTerm: trait ~ +1
 
 Model: BM
 
@@ -1633,8 +1632,8 @@ julia> round.(predict(fitBM), digits=5)
  4.679
 
 ```
-""" #"
-function phyloNetworklm(f::Formula,
+"""
+function phyloNetworklm(f::StatsModels.FormulaTerm,
                         fr::AbstractDataFrame,
                         net::HybridNetwork;
                         model="BM"::AbstractString,
@@ -1691,7 +1690,7 @@ function phyloNetworklm(f::Formula,
     Y = convert(Vector{Float64}, StatsModels.model_response(mf))
     # Fit the model (Method copied from DataFrame/src/statsmodels/statsmodels.jl, lines 47-58)
     # (then StatsModels/src/statsmodels.jl lines 42-46)
-    StatsModels.DataFrameRegressionModel(phyloNetworklm(mm.m, Y, net;
+    StatsModels.TableRegressionModel(phyloNetworklm(mm.m, Y, net;
                                                        nonmissing=mf.nonmissing, model=model, ind=ind,
                                                        startingValue=startingValue, fixedValue=fixedValue), mf, mm)
 end
@@ -1786,8 +1785,8 @@ end
 Estimated variance for a fitted object.
 """
 sigma2_estim(m::PhyloNetworkLinearModel) = deviance(m.lm) / nobs(m)
-# Need to be adapted manually to DataFrameRegressionModel beacouse it's a new function
-sigma2_estim(m::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} where T) =
+# Need to be adapted manually to TableRegressionModel beacouse it's a new function
+sigma2_estim(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T) =
   sigma2_estim(m.model)
 # ML estimate for ancestral state of the BM
 """
@@ -1806,8 +1805,8 @@ function mu_estim(m::PhyloNetworkLinearModel)
         return coef(m)[1]
     end
 end
-# Need to be adapted manually to DataFrameRegressionModel beacouse it's a new function
-function mu_estim(m::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} where T)
+# Need to be adapted manually to TableRegressionModel beacouse it's a new function
+function mu_estim(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T)
     if (!m.mf.terms.intercept)
         error("The fit was done without intercept, so I cannot estimate mu")
     end
@@ -1820,13 +1819,13 @@ end
 Estimated lambda parameter for a fitted object.
 """
 lambda_estim(m::PhyloNetworkLinearModel) = m.lambda
-lambda_estim(m::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} where T) = lambda_estim(m.model)
+lambda_estim(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T) = lambda_estim(m.model)
 
-### Functions specific to DataFrameRegressionModel
-StatsModels.ModelFrame(m::StatsModels.DataFrameRegressionModel) = m.mf
-StatsModels.ModelMatrix(m::StatsModels.DataFrameRegressionModel) = m.mm
-StatsModels.Formula(m::StatsModels.DataFrameRegressionModel) = Formula(m.mf.terms)
-StatsModels.response(m::StatsModels.DataFrameRegressionModel) = response(m.model)
+### Functions specific to TableRegressionModel
+StatsModels.ModelFrame(m::StatsModels.TableRegressionModel) = m.mf
+StatsModels.ModelMatrix(m::StatsModels.TableRegressionModel) = m.mm
+StatsModels.FormulaTerm(m::StatsModels.TableRegressionModel) = StatsModels.FormulaTerm(m.mf.terms)
+StatsModels.response(m::StatsModels.TableRegressionModel) = response(m.model)
 
 ### Print the results
 # Variance
@@ -1844,11 +1843,11 @@ function Base.show(io::IO, obj::PhyloNetworkLinearModel)
 end
 # For DataFrameModel. see also Base.show in
 # https://github.com/JuliaStats/StatsModels.jl/blob/master/src/statsmodel.jl
-function Base.show(io::IO, model::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} where T)
+function Base.show(io::IO, model::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T)
     ct = coeftable(model)
     println(io, "$(typeof(model))")
     println(io)
-    println(io, Formula(model.mf.terms))
+    println(io, StatsModels.FormulaTerm(model.mf.terms))
     println(io)
     println(io, "Model: $(model.model.model)")
     println(io)
@@ -1868,7 +1867,7 @@ end
 ###############################################################################
 ###############################################################################
 
-function GLM.ftest(objs::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T}...)  where T
+function GLM.ftest(objs::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T}...)  where T
     objsModels = [obj.model for obj in objs]
     return ftest(objsModels...)
 end
@@ -1895,7 +1894,7 @@ data, for models that have more and more effects.
 
 Returns a DataFrame object with the anova table.
 """
-function anova(objs::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T}...) where T
+function anova(objs::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T}...) where T
     objsModels = [obj.model for obj in objs]
     return(anova(objsModels...))
 end
@@ -2129,7 +2128,7 @@ end
 # object fitted by function phyloNetworklm, and some predictors expressed at all the nodes of the network.
 #
 # - obj: a PhyloNetworkLinearModel object, or a
-# DataFrameRegressionModel{PhyloNetworkLinearModel}, if data frames were used.
+# TableRegressionModel{PhyloNetworkLinearModel}, if data frames were used.
 # - X_n a matrix with as many columns as the number of predictors used, and as
 # many lines as the number of unknown nodes or tips.
 #
@@ -2213,7 +2212,7 @@ julia> dat = CSV.read(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples",
 
 julia> using StatsModels # for statistical model formulas
 
-julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
+julia> fitBM = phyloNetworklm(StatsModels.@formula(trait ~ 1), dat, phy);
 
 julia> ancStates = ancestralStateReconstruction(fitBM) # Should produce a warning, as variance is unknown.
 ┌ Warning: These prediction intervals show uncertainty in ancestral values,
@@ -2359,7 +2358,7 @@ julia> allowmissing!(dat, :trait);
 
 julia> dat[[2, 5], :trait] = missing; # missing values allowed to fit model
 
-julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
+julia> fitBM = phyloNetworklm(StatsModels.@formula(trait ~ 1), dat, phy);
 
 julia> ancStates = ancestralStateReconstruction(fitBM);
 ┌ Warning: These prediction intervals show uncertainty in ancestral values,
@@ -2474,11 +2473,11 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel)
   X_n = ones((length(obj.V.internalNodeNumbers) + sum(.!obj.nonmissing), 1))
     ancestralStateReconstruction(obj, X_n)
 end
-# For a DataFrameRegressionModel
-function ancestralStateReconstruction(obj::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} where T)
+# For a TableRegressionModel
+function ancestralStateReconstruction(obj::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T)
     ancestralStateReconstruction(obj.model)
 end
-function ancestralStateReconstruction(obj::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} where T, X_n::Matrix)
+function ancestralStateReconstruction(obj::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T, X_n::Matrix)
     ancestralStateReconstruction(obj.model, X_n)
 end
 
@@ -2504,7 +2503,7 @@ function ancestralStateReconstruction(fr::AbstractDataFrame,
         error("""Besides one column labelled 'tipNames', the dataframe fr should have
               only one column, corresponding to the data at the tips of the network.""")
     end
-    f = @eval(@formula($(nn[datpos][1]) ~ 1))
+    f = @eval(StatsModels.@formula($(nn[datpos][1]) ~ 1))
     reg = phyloNetworklm(f, fr, net; kwargs...)
     return ancestralStateReconstruction(reg)
 end
