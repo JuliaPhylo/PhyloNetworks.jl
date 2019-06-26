@@ -259,9 +259,9 @@ function fitDiscrete(net::HybridNetwork, modSymbol::Symbol, species::Array{Strin
     rate = startingrate(net)
     labels = learnLabels(modSymbol, species, dat)
     if modSymbol == :JC69
-        model = JC69([rate], true)
+        model = JC69([rate], false)
     elseif modSymbol == :HKY85
-        model = HKY85([rate, rate], [0.25, 0.25, 0.25, 0.25], true)
+        model = HKY85([rate, rate], [0.25, 0.25, 0.25, 0.25], false)
     elseif modSymbol == :ERSM
         model = EqualRatesSubstitutionModel(length(labels), rate, labels);
     elseif modSymbol == :BTSM
@@ -275,7 +275,6 @@ function fitDiscrete(net::HybridNetwork, modSymbol::Symbol, species::Array{Strin
     else
         rvas = RateVariationAcrossSites(1.0, 1)
     end
-
     fitDiscrete(net, model, rvas, species, dat; kwargs...)
 end
 
