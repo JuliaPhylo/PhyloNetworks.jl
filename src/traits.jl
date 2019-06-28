@@ -1129,7 +1129,7 @@ The following StatsBase functions can be applied to it:
 `coef`, `nobs`, `vcov`, `stderror`, `confint`, `coeftable`, `dof_residual`, `dof`, `deviance`,
 `residuals`, `response`, `predict`, `loglikelihood`, `nulldeviance`, `nullloglikelihood`,
 `r2`, `adjr2`, `aic`, `aicc`, `bic`.
-
+# fixit below
 The following StatsModels functions can also be applied to it:
 `ModelFrame`, `ModelMatrix`, `@formula`.
 
@@ -1508,7 +1508,7 @@ julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
 julia> fitBM # Shows a summary
 StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
 
-StatsModelsTerm: trait ~ +1
+Formula: trait ~ +1
 
 Model: BM
 
@@ -1680,19 +1680,19 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
         end
         #   fr = fr[ind, :]
     end
-    # Find the regression matrix and answer vector
-    mf = ModelFrame(f,fr)
-    if isequal(f.rhs, -1) # If there are no regressors
-        mm = ModelMatrix(zeros(size(mf.df, 1), 0), [0])
-    else
-        mm = ModelMatrix(mf)
-    end
-    Y = convert(Vector{Float64}, StatsModels.model_response(mf))
-    # Fit the model (Method copied from DataFrame/src/statsmodels/statsmodels.jl, lines 47-58)
-    # (then StatsModels/src/statsmodels.jl lines 42-46)
-    StatsModels.TableRegressionModel(phyloNetworklm(mm.m, Y, net;
-                                                       nonmissing=mf.nonmissing, model=model, ind=ind,
-                                                       startingValue=startingValue, fixedValue=fixedValue), mf, mm)
+    # Find the regression matrix and response vector
+    sch = StatsModels.schema(f, fr)
+    f = StatsModels.apply_schema(f, sch, PhyloNetworkLinearModel)
+    mf = ModelFrame(f, sch, StatsModels.columntable(fr), PhyloNetworkLinearModel)
+    mm = StatsModels.ModelMatrix(mf)
+    Y = StatsModels.response(mf)
+    # Y = convert(Vector{Float64}, StatsModels.response(mf))
+    # Y, pred = StatsModels.modelcols(f, fr)
+    tmp, nonmissing = StatsModels.missing_omit(StatsModels.columntable(fr), mf.f)
+    StatsModels.TableRegressionModel(
+        phyloNetworklm(mm.m, Y, net; nonmissing=nonmissing, model=model, ind=ind,
+                       startingValue=startingValue, fixedValue=fixedValue),
+        mf, mm)
 end
 
 ### Methods on type phyloNetworkRegression
@@ -1807,7 +1807,7 @@ function mu_estim(m::PhyloNetworkLinearModel)
 end
 # Need to be adapted manually to TableRegressionModel beacouse it's a new function
 function mu_estim(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T)
-    if (!m.mf.terms.intercept)
+    if m.mf.f.rhs.terms[1] != StatsModels.InterceptTerm{true}()
         error("The fit was done without intercept, so I cannot estimate mu")
     end
     return coef(m)[1]
@@ -1846,8 +1846,8 @@ end
 function Base.show(io::IO, model::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T)
     ct = coeftable(model)
     println(io, "$(typeof(model))")
-    println(io)
-    println(io, Formula(model.mf.terms))
+    print(io, "\nFormula: ")
+    println(io, string(model.mf.f)) # formula
     println(io)
     println(io, "Model: $(model.model.model)")
     println(io)
