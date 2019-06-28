@@ -1131,7 +1131,7 @@ The following StatsBase functions can be applied to it:
 `r2`, `adjr2`, `aic`, `aicc`, `bic`.
 
 The following StatsModels functions can also be applied to it:
-`ModelFrame`, `ModelMatrix`, `StatsModels.FormulaTerm`.
+`ModelFrame`, `ModelMatrix`, `@formula`.
 
 Estimated variance and mean of the BM process used can be retrieved with
 functions [`sigma2_estim`](@ref) and [`mu_estim`](@ref).
@@ -1508,7 +1508,7 @@ julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
 julia> fitBM # Shows a summary
 StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
 
-StatsModels.FormulaTerm: trait ~ +1
+StatsModelsTerm: trait ~ +1
 
 Model: BM
 
@@ -1822,10 +1822,10 @@ lambda_estim(m::PhyloNetworkLinearModel) = m.lambda
 lambda_estim(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T) = lambda_estim(m.model)
 
 ### Functions specific to TableRegressionModel
-StatsModels.ModelFrame(m::StatsModels.TableRegressionModel) = m.mf
-StatsModels.ModelMatrix(m::StatsModels.TableRegressionModel) = m.mm
-StatsModels.FormulaTerm(m::StatsModels.TableRegressionModel) = StatsModels.FormulaTerm(m.mf.terms)
-StatsModels.response(m::StatsModels.TableRegressionModel) = response(m.model)
+# StatsModels.ModelFrame(m::StatsModels.TableRegressionModel) = m.mf
+# StatsModels.ModelMatrix(m::StatsModels.TableRegressionModel) = m.mm
+# @formula(m::StatsModels.TableRegressionModel) = @formula(m.mf.terms)
+# StatsModels.response(m::StatsModels.TableRegressionModel) = response(m.model)
 
 ### Print the results
 # Variance
@@ -1847,7 +1847,7 @@ function Base.show(io::IO, model::StatsModels.TableRegressionModel{PhyloNetworkL
     ct = coeftable(model)
     println(io, "$(typeof(model))")
     println(io)
-    println(io, StatsModels.FormulaTerm(model.mf.terms))
+    println(io, Formula(model.mf.terms))
     println(io)
     println(io, "Model: $(model.model.model)")
     println(io)

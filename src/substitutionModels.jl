@@ -984,7 +984,7 @@ julia> rv = RateVariationAcrossSites()
 Rate Variation Across Sites using Discretized Gamma Model
 alpha: 1.0
 categories for Gamma discretization: 4
-ratemultiplier: [0.133531, 0.470004, 0.980829, 2.07944]
+ratemultiplier: [0.145784, 0.513132, 1.07083, 2.27025]
 
 julia> PhyloNetworks.setalpha!(rv, 2.0)
 
@@ -1006,7 +1006,7 @@ mutable struct RateVariationAcrossSites
         else
             cuts = Vector((0:(ncat-1))/ncat) + repeat([1/2ncat], ncat)
             ratemultiplier = quantile.(Distributions.Gamma(alpha, 1/alpha), cuts)
-            #ratemultiplier ./= mean(ratemultiplier)
+            ratemultiplier ./= mean(ratemultiplier)
         end
         new(alpha, ncat, ratemultiplier)
     end
