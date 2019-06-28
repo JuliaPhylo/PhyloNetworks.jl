@@ -255,13 +255,14 @@ function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::Ra
 end
 
 #wrapper: species, dat version with model symbol
-function fitDiscrete(net::HybridNetwork, modSymbol::Symbol, species::Array{String}, dat::DataFrame, rvSymbol=:noRV::Symbol; kwargs...)
+function fitDiscrete(net::HybridNetwork, modSymbol::Symbol,  
+    species::Array{String}, dat::DataFrame, rvSymbol=:noRV::Symbol; kwargs...)
     rate = startingrate(net)
     labels = learnLabels(modSymbol, species, dat)
     if modSymbol == :JC69
-        model = JC69([rate], false)
+        model = JC69([rate], true)
     elseif modSymbol == :HKY85
-        model = HKY85([rate, rate], [0.25, 0.25, 0.25, 0.25], false)
+        model = HKY85([rate, rate], [0.25, 0.25, 0.25, 0.25], true)
     elseif modSymbol == :ERSM
         model = EqualRatesSubstitutionModel(length(labels), rate, labels);
     elseif modSymbol == :BTSM
@@ -289,7 +290,8 @@ function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::Ra
     dnadata::DataFrame, dnapatternweights::Array{Float64}; kwargs...)
     
     dat2 = traitlabels2indices(dnadata[2:end], model) 
-   # dat2 = traitlabels2indices(view(dnadata, 2:ncol(dnadata)), model) #removed view bc it wasnt recognized as DF by traitlabels2indices
+   # dat2 = traitlabels2indices(view(dnadata, 2:ncol(dnadata)), model) #removed view bc it wasnt recognized 
+    #as DF by traitlabels2indices
             # this doesnt work, but was attempting to uses view to avoid a shallow copy and 
             # be more space efficient
             #produces a vec of vec, indices
@@ -300,7 +302,8 @@ function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::Ra
 end
 
 #wrapper for dna data
-function fitDiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame, dnapatternweights::Array{Float64}, rvSymbol=:noRV::Symbol; kwargs...)
+function fitDiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame, 
+    dnapatternweights::Array{Float64}, rvSymbol=:noRV::Symbol; kwargs...)
     rate = startingrate(net)
     if modSymbol == :JC69
         model = JC69([rate], true)
@@ -855,6 +858,7 @@ end
 Estimate an evolutionary rate appropriate for the branch lengths in the network,
 which should be a good starting value before optimization in `fitDiscrete`,
 assuming approximately 1 change across the entire tree.
+If all edge lengths are missing, set starting rate to 1/(number of taxa).
 """
 function startingrate(net::HybridNetwork)
     totaledgelength = 0.0
@@ -864,7 +868,7 @@ function startingrate(net::HybridNetwork)
         end
     end
     if totaledgelength == 0.0 # as when all edge lengths are missing
-        totaledgelength = 0.25
+        totaledgelength = net.numTaxa
     end
     return 1.0/totaledgelength
 end

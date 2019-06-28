@@ -396,8 +396,8 @@ s2 = fitDiscrete(net_dat, :BTSM, species_alone, dat_alone; optimizeQ=false, opti
 @test_logs show(devnull, s2)
 @test_throws ErrorException fitDiscrete(net_dat, :TBTSM, species_alone, dat_alone; optimizeQ=false, optimizeRVAS=false);
 dna_alone = DataFrame(trait=['A','C','C','A'])
-s3 = fitDiscrete(net_dat, :JC69, species_alone, dna_alone, :RV; optimizeQ=true, optimizeRVAS=true);
-s4 = fitDiscrete(net_dat, :HKY85, species_alone, dna_alone; optimizeQ=false, optimizeRVAS=false);
+s3 = fitDiscrete(net_dat, :JC69, species_alone, dna_alone, :RV; optimizeQ=false, optimizeRVAS=true);
+s4 = fitDiscrete(net_dat, :HKY85, species_alone, dna_alone; optimizeQ=true, optimizeRVAS=true);
 @test_logs show(devnull, s3)
 @test_logs show(devnull, s4)
 
@@ -406,7 +406,7 @@ fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_Tr406_Contig10132.
 dna_dat, dna_weights = readfastatodna(fastafile, true);
 net_dna = readTopology("((((((((((((((Ae_caudata_Tr275,Ae_caudata_Tr276),Ae_caudata_Tr139))#H1,#H2),(((Ae_umbellulata_Tr266,Ae_umbellulata_Tr257),Ae_umbellulata_Tr268),#H1)),((Ae_comosa_Tr271,Ae_comosa_Tr272),(((Ae_uniaristata_Tr403,Ae_uniaristata_Tr357),Ae_uniaristata_Tr402),Ae_uniaristata_Tr404))),(((Ae_tauschii_Tr352,Ae_tauschii_Tr351),(Ae_tauschii_Tr180,Ae_tauschii_Tr125)),(((((((Ae_longissima_Tr241,Ae_longissima_Tr242),Ae_longissima_Tr355),(Ae_sharonensis_Tr265,Ae_sharonensis_Tr264)),((Ae_bicornis_Tr408,Ae_bicornis_Tr407),Ae_bicornis_Tr406)),((Ae_searsii_Tr164,Ae_searsii_Tr165),Ae_searsii_Tr161)))#H2,#H4))),(((T_boeoticum_TS8,(T_boeoticum_TS10,T_boeoticum_TS3)),T_boeoticum_TS4),((T_urartu_Tr315,T_urartu_Tr232),(T_urartu_Tr317,T_urartu_Tr309)))),(((((Ae_speltoides_Tr320,Ae_speltoides_Tr323),Ae_speltoides_Tr223),Ae_speltoides_Tr251))H3,((((Ae_mutica_Tr237,Ae_mutica_Tr329),Ae_mutica_Tr244),Ae_mutica_Tr332))#H4))),Ta_caputMedusae_TB2),S_vavilovii_Tr279),Er_bonaepartis_TB1),H_vulgare_HVens23);");
 for edge in net_dna.edge #adds branch lengths
-    setLength!(edge,1.0)
+    setLength!(edge,1.0):
     if edge.gamma < 0
         setGamma!(edge, 0.5)
     end

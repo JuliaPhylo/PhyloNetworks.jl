@@ -535,7 +535,7 @@ julia> dfr = join(dat, dfr_shift, on=:tipNames); # join data and regressors in a
 
 julia> using StatsModels # for statistical model formulas
 
-julia> fitBM = phyloNetworklm(StatsModels.@formula(trait ~ shift_1 + shift_8), dfr, net) # actual fit
+julia> fitBM = phyloNetworklm(@formula(trait ~ shift_1 + shift_8), dfr, net) # actual fit
 StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
 
 Formula: trait ~ 1 + shift_1 + shift_8
@@ -675,7 +675,7 @@ julia> dfr = join(dat, dfr_hybrid, on=:tipNames); # join data and regressors in 
 
 julia> using StatsModels
 
-julia> fitBM = phyloNetworklm(StatsModels.@formula(trait ~ shift_6), dfr, net) # actual fit
+julia> fitBM = phyloNetworklm(@formula(trait ~ shift_6), dfr, net) # actual fit
 StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
 
 Formula: trait ~ 1 + shift_6
@@ -1503,7 +1503,7 @@ julia> dat = CSV.read(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples",
 
 julia> using StatsModels # for stat model formulas
 
-julia> fitBM = phyloNetworklm(StatsModels.@formula(trait ~ 1), dat, phy);
+julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
 
 julia> fitBM # Shows a summary
 StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
@@ -2212,7 +2212,7 @@ julia> dat = CSV.read(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples",
 
 julia> using StatsModels # for statistical model formulas
 
-julia> fitBM = phyloNetworklm(StatsModels.@formula(trait ~ 1), dat, phy);
+julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
 
 julia> ancStates = ancestralStateReconstruction(fitBM) # Should produce a warning, as variance is unknown.
 ┌ Warning: These prediction intervals show uncertainty in ancestral values,
@@ -2358,7 +2358,7 @@ julia> allowmissing!(dat, :trait);
 
 julia> dat[[2, 5], :trait] = missing; # missing values allowed to fit model
 
-julia> fitBM = phyloNetworklm(StatsModels.@formula(trait ~ 1), dat, phy);
+julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
 
 julia> ancStates = ancestralStateReconstruction(fitBM);
 ┌ Warning: These prediction intervals show uncertainty in ancestral values,
@@ -2503,7 +2503,7 @@ function ancestralStateReconstruction(fr::AbstractDataFrame,
         error("""Besides one column labelled 'tipNames', the dataframe fr should have
               only one column, corresponding to the data at the tips of the network.""")
     end
-    f = @eval(StatsModels.@formula($(nn[datpos][1]) ~ 1))
+    f = @eval(@formula($(nn[datpos][1]) ~ 1))
     reg = phyloNetworklm(f, fr, net; kwargs...)
     return ancestralStateReconstruction(reg)
 end

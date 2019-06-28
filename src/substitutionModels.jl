@@ -977,7 +977,7 @@ Because the mean of the desired continuous Gamma distribution is 1, we use
 shape α and scale θ=1/α (e.g. rate β=α).
 The shape parameter is referred to as alpha here.
 The Gamma distribution is discretized into `ncat` categories.
-In each category, the category's rate multiplier is selected as a quantile.
+In each category, the category's rate multiplier is a normalized quantile of the gamma distribution.
 
 ```jldoctest
 julia> rv = RateVariationAcrossSites()
@@ -1006,6 +1006,7 @@ mutable struct RateVariationAcrossSites
         else
             cuts = Vector((0:(ncat-1))/ncat) + repeat([1/2ncat], ncat)
             ratemultiplier = quantile.(Distributions.Gamma(alpha, 1/alpha), cuts)
+            #ratemultiplier ./= mean(ratemultiplier)
         end
         new(alpha, ncat, ratemultiplier)
     end

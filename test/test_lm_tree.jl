@@ -209,7 +209,7 @@ nodesRt = varsRt[-expe[1:196, :nodeNumber] .+ (196 - 197)]
 ###############################################################################
 
 ## Fit Pagel's lambda
-fitLambda = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(StatsModels.@formula(trait ~ 1), dat, phy, model = "lambda"));
+fitLambda = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(@formula(trait ~ 1), dat, phy, model = "lambda"));
 
 @test lambda_estim(fitLambda) ≈ 0.9193 atol=1e-4 # Due to convergence issues, tolerance is lower.
 @test loglikelihood(fitLambda) ≈ -51.684379 atol=1e-6
@@ -299,7 +299,7 @@ dat = CSV.read(joinpath(@__DIR__, "..", "examples", "caudata_trait.txt"));
 df_shift = regressorShift(phy.edge[[98, 326, 287]], phy)
 dat = join(dat, df_shift, on=:tipNames)
 ## Fit a BM
-fitBM = phyloNetworklm(StatsModels.@formula(trait ~ shift_98 + shift_326 + shift_287), dat, phy)
+fitBM = phyloNetworklm(@formula(trait ~ shift_98 + shift_326 + shift_287), dat, phy)
 
 # Tests against results obtained with geiger::fitContinuous or phylolm::phylolm
 @test loglikelihood(fitBM) ≈ -76.1541605207 atol=1e-10 
@@ -371,7 +371,7 @@ dat = CSV.read(joinpath(@__DIR__, "..", "examples", "lizard_trait.txt"));
 categorical!(dat, :region)
 
 ## Fit a BM
-fitBM = phyloNetworklm(StatsModels.@formula(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region), dat, phy)
+fitBM = phyloNetworklm(@formula(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region), dat, phy)
 
 # Tests against results obtained with geiger::fitContinuous or phylolm::phylolm
 @test loglikelihood(fitBM) ≈ 105.17337853473711 atol=1e-10 
@@ -454,7 +454,7 @@ vcovR =  [0.0200086273  -0.0136717540 0.0084815090  -0.0093192029 -0.0114417825 
 ###############################################################################
 
 ## Fit lambda
-fitLambda = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(StatsModels.@formula(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region), dat, phy, model = "lambda"))
+fitLambda = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(@formula(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region), dat, phy, model = "lambda"))
 
 # Tests against results obtained with geiger::fitContinuous or phylolm::phylolm
 @test lambda_estim(fitLambda) ≈ 0.9982715594 atol=1e-5

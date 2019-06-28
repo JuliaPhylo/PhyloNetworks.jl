@@ -67,7 +67,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 
 # with data frames
 dfr = DataFrame(trait = Y, tipNames = sim.M.tipNames)
-fitbis = phyloNetworklm(StatsModels.@formula(trait ~ 1), dfr, net)
+fitbis = phyloNetworklm(@formula(trait ~ 1), dfr, net)
 #@show fitbis
 
 @test coef(phynetlm) ≈ coef(fitbis)
@@ -94,7 +94,7 @@ tmp = (@test_logs (:warn, r"^You fitted the data against a custom matrix") mu_es
 @test tmp ≈ mu_estim(fitbis)
 
 ## fixed values parameters
-fitlam = phyloNetworklm(StatsModels.@formula(trait ~ 1), dfr, net, model = "lambda", fixedValue=1.0)
+fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedValue=1.0)
 @test_logs show(devnull, fitlam)
 
 @test lambda_estim(fitlam) ≈ 1.0
@@ -120,16 +120,16 @@ fitlam = phyloNetworklm(StatsModels.@formula(trait ~ 1), dfr, net, model = "lamb
 @test bic(fitlam) ≈ bic(fitbis) + log(nobs(fitbis))
 @test mu_estim(fitlam) ≈ mu_estim(fitbis)
 
-fitSH = phyloNetworklm(StatsModels.@formula(trait ~ 1), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
+fitSH = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
 @test loglikelihood(fitlam) ≈ loglikelihood(fitSH)
 @test aic(fitlam) ≈ aic(fitSH)
 
 ## Pagel's Lambda
-fitlam = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(StatsModels.@formula(trait ~ 1), dfr, net, model = "lambda"))
+fitlam = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda"))
 @test lambda_estim(fitlam) ≈ 1.24875
 
 ## Scaling Hybrid
-fitSH = phyloNetworklm(StatsModels.@formula(trait ~ 1), dfr, net, model = "scalingHybrid")
+fitSH = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "scalingHybrid")
 @test lambda_estim(fitSH) ≈ 4.057891910001937 atol=1e-5
 
 end
@@ -162,11 +162,11 @@ dfr = DataFrame(trait = Y, tipNames = sim.M.tipNames)
 dfr = join(dfr, dfr_hybrid, on=:tipNames)
 
 ## Simple BM
-fitShift = phyloNetworklm(StatsModels.@formula(trait ~ shift_8 + shift_17), dfr, net)
+fitShift = phyloNetworklm(@formula(trait ~ shift_8 + shift_17), dfr, net)
 @test_logs show(devnull, fitShift)
 
 ## Test against fixed values lambda models
-fitlam = phyloNetworklm(StatsModels.@formula(trait ~ shift_8 + shift_17), dfr, net, model = "lambda", fixedValue = 1.0)
+fitlam = phyloNetworklm(@formula(trait ~ shift_8 + shift_17), dfr, net, model = "lambda", fixedValue = 1.0)
 
 @test lambda_estim(fitlam) ≈ 1.0
 @test coef(fitlam) ≈ coef(fitShift)
@@ -191,14 +191,14 @@ fitlam = phyloNetworklm(StatsModels.@formula(trait ~ shift_8 + shift_17), dfr, n
 @test bic(fitlam) ≈ bic(fitShift) + log(nobs(fitShift))
 @test mu_estim(fitlam)  ≈ mu_estim(fitShift)
 
-fitSH = phyloNetworklm(StatsModels.@formula(trait ~ shift_8 + shift_17), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
+fitSH = phyloNetworklm(@formula(trait ~ shift_8 + shift_17), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
 @test loglikelihood(fitlam) ≈ loglikelihood(fitSH)
 @test aic(fitlam) ≈ aic(fitSH)
 
 ## ftest against own naive implementation
-modnull = phyloNetworklm(StatsModels.@formula(trait ~ 1), dfr, net)
-modhom = phyloNetworklm(StatsModels.@formula(trait ~ sum), dfr, net)
-modhet = phyloNetworklm(StatsModels.@formula(trait ~ sum + shift_8), dfr, net)
+modnull = phyloNetworklm(@formula(trait ~ 1), dfr, net)
+modhom = phyloNetworklm(@formula(trait ~ sum), dfr, net)
+modhet = phyloNetworklm(@formula(trait ~ sum + shift_8), dfr, net)
 
 table1 = ftest(modhet, modhom, modnull)
 table2 = PhyloNetworks.anova(modnull, modhom, modhet)
@@ -214,7 +214,7 @@ table2 = PhyloNetworks.anova(modnull, modhom, modhet)
 # @test table1[Symbol("Pr(>F)")][2] ≈ table2[Symbol("Pr(>F)")][2]
 
 # Check that it is the same as doing shift_8 + shift_17
-modhetbis = phyloNetworklm(StatsModels.@formula(trait ~ shift_8 + shift_17), dfr, net)
+modhetbis = phyloNetworklm(@formula(trait ~ shift_8 + shift_17), dfr, net)
 
 table2bis = PhyloNetworks.anova(modnull, modhom, modhetbis)
 
@@ -290,7 +290,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 
 ## perfect user using right format and formula
 dfr = DataFrame(trait = B, pred = A, tipNames = sim.M.tipNames)
-phynetlm = phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, net)
+phynetlm = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 #@show phynetlm
 
 @test coef(phynetlm) ≈ coef(fit_mat)
@@ -317,7 +317,7 @@ phynetlm = phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, net)
 # unordered data
 Random.seed!(1234)
 dfr = dfr[sample(1:12, 12, replace=false), :]
-fitbis = phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, net)
+fitbis = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 
 @test coef(phynetlm) ≈ coef(fitbis)
 @test vcov(phynetlm) ≈ vcov(fitbis)
@@ -343,7 +343,7 @@ fitbis = phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, net)
 
 # unnamed ordered data
 dfr = DataFrame(trait = B, pred = A)
-fitter = (@test_logs (:info, r"^As requested \(no_names=true\)")  match_mode=:any phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, net, no_names=true))
+fitter = (@test_logs (:info, r"^As requested \(no_names=true\)")  match_mode=:any phyloNetworklm(@formula(trait ~ pred), dfr, net, no_names=true))
 
 @test coef(phynetlm) ≈ coef(fitter)
 @test vcov(phynetlm) ≈ vcov(fitter)
@@ -368,17 +368,17 @@ fitter = (@test_logs (:info, r"^As requested \(no_names=true\)")  match_mode=:an
 
 # unnamed un-ordered data
 dfr = dfr[sample(1:12, 12, replace=false), :]
-@test_throws ErrorException phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, net) # Wrong pred
+@test_throws ErrorException phyloNetworklm(@formula(trait ~ pred), dfr, net) # Wrong pred
 
 ### Add NAs
 dfr = DataFrame(trait = B, pred = A, tipNames = tipLabels(sim))
 dfr[:pred] = allowmissing(dfr[:pred])
 dfr[[2, 8, 11], :pred] = missing
-fitna = phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, net)
+fitna = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 #@show fitna
 
 dfr = dfr[sample(1:12, 12, replace=false), :]
-fitnabis = phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, net)
+fitnabis = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 
 @test coef(fitna) ≈ coef(fitnabis)
 @test vcov(fitna) ≈ vcov(fitnabis)
@@ -402,7 +402,7 @@ fitnabis = phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, net)
 @test bic(fitna) ≈ bic(fitnabis)
 
 ## Tests against fixed values parameters
-fitlam = phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, net, model = "lambda", fixedValue = 1.0)
+fitlam = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda", fixedValue = 1.0)
 #@show fitlam
 
 @test lambda_estim(fitlam) ≈ 1.0
@@ -428,17 +428,17 @@ fitlam = phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, net, model = "l
 @test bic(fitlam) ≈ bic(fitnabis) + log(nobs(fitnabis))
 @test mu_estim(fitlam) ≈ mu_estim(fitnabis)
 
-fitSH = phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
+fitSH = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
 @test loglikelihood(fitlam) ≈ loglikelihood(fitSH)
 @test aic(fitlam) ≈ aic(fitSH)
 
 ## Pagel's Lambda
-fitlam = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, net, model = "lambda"))
+fitlam = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda"))
 #@show fitlam
 @test lambda_estim(fitlam) ≈ 1.1135518305 atol=1e-6
 
 ## scaling Hybrid
-fitSH = phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, net, model = "scalingHybrid")
+fitSH = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid")
 @test_logs show(devnull, fitSH)
 @test lambda_estim(fitSH) ≈ -52.81305448333567 atol=1e-6
 
@@ -450,7 +450,7 @@ Y = sim[:Tips]
 ancestral_traits = ancestralStateReconstruction(net, Y, params)
 # BLUP
 dfr = DataFrame(trait = Y, tipNames = tipLabels(sim))
-phynetlm = phyloNetworklm(StatsModels.@formula(trait~1), dfr, net)
+phynetlm = phyloNetworklm(@formula(trait~1), dfr, net)
 blup = (@test_logs (:warn, r"^These prediction intervals show uncertainty in ancestral values") ancestralStateReconstruction(phynetlm));
 # plot(net, blup)
 @test_logs show(devnull, blup)
@@ -472,7 +472,7 @@ dfr = DataFrame(trait = Y, tipNames = tipLabels(sim), reg = Y)
 
 # Unordered
 dfr2 = dfr[sample(1:12, 12, replace=false), :]
-phynetlm = phyloNetworklm(StatsModels.@formula(trait~1), dfr2, net)
+phynetlm = phyloNetworklm(@formula(trait~1), dfr2, net)
 blup2 = (@test_logs (:warn, r"^These prediction intervals show uncertainty in ancestral values") ancestralStateReconstruction(phynetlm))
 
 @test expectations(blup)[:condExpectation][1:length(blup.NodeNumbers)] ≈ expectations(blup2)[:condExpectation][1:length(blup.NodeNumbers)]
@@ -483,13 +483,13 @@ blup2 = (@test_logs (:warn, r"^These prediction intervals show uncertainty in an
 # With unknown tips
 dfr[:trait] = allowmissing(dfr[:trait])
 dfr[[2, 4], :trait] = missing
-phynetlm = phyloNetworklm(StatsModels.@formula(trait~1), dfr, net)
+phynetlm = phyloNetworklm(@formula(trait~1), dfr, net)
 blup = (@test_logs (:warn, r"^These prediction intervals show uncertainty in ancestral values") ancestralStateReconstruction(phynetlm))
 # plot(net, blup)
 
 # Unordered
 dfr2 = dfr[[1, 2, 5, 3, 4, 6, 7, 8, 9, 10, 11, 12], :]
-phynetlm = phyloNetworklm(StatsModels.@formula(trait~1), dfr, net)
+phynetlm = phyloNetworklm(@formula(trait~1), dfr, net)
 blup2 = (@test_logs (:warn, r"^These prediction intervals show uncertainty in ancestral values") ancestralStateReconstruction(phynetlm))
 
 @test expectations(blup)[:condExpectation] ≈ expectations(blup2)[:condExpectation]
@@ -523,27 +523,27 @@ B = b0 .+ (b1 .* A + randn(size(tipLabels(net), 1)))
 dfr = DataFrame(trait = B, pred = A, tipNames = tipLabels(net))
 
 ## Network
-phynetlm = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, net, model = "lambda"))
+phynetlm = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda"))
 
 @test lambda_estim(phynetlm) ≈ 0.5894200143 atol=1e-8
 
 ## Major Tree
 global tree
 tree = majorTree(net)
-phynetlm = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, tree, model = "lambda"))
+phynetlm = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(@formula(trait ~ pred), dfr, tree, model = "lambda"))
 
 @test lambda_estim(phynetlm) ≈ 0.5903394415 atol=1e-6
 
 ## scaling Hybrid
-lmtree = phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, tree, model = "BM")
-lmnet = phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, net, model = "BM")
-lmSHzero = phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, net, model = "scalingHybrid", fixedValue = 0.0)
-lmSHone = phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
+lmtree = phyloNetworklm(@formula(trait ~ pred), dfr, tree, model = "BM")
+lmnet = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "BM")
+lmSHzero = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid", fixedValue = 0.0)
+lmSHone = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
 
 @test loglikelihood(lmtree) ≈ loglikelihood(lmSHzero)
 @test loglikelihood(lmnet) ≈ loglikelihood(lmSHone)
 
-lmSH = phyloNetworklm(StatsModels.@formula(trait ~ pred), dfr, net, model = "scalingHybrid")
+lmSH = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid")
 
 @test lambda_estim(lmSH) ≈ 23.46668204551696 atol=1e-5
 
@@ -597,7 +597,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 
 # with data frames
 dfr = DataFrame(trait = Y, tipNames = sim.M.tipNames)
-fitbis = phyloNetworklm(StatsModels.@formula(trait ~ -1), dfr, net)
+fitbis = phyloNetworklm(@formula(trait ~ -1), dfr, net)
 @test_logs show(devnull, fitbis)
 #@test coef(phynetlm) ≈ coef(fitbis)
 #@test vcov(phynetlm) ≈ vcov(fitbis)
