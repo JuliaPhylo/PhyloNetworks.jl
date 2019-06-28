@@ -172,7 +172,7 @@ julia> rv = RateVariationAcrossSites(1.0, 4)
 Rate Variation Across Sites using Discretized Gamma Model
 alpha: 1.0
 categories for Gamma discretization: 4
-ratemultiplier: [0.133531, 0.470004, 0.980829, 2.07944]
+ratemultiplier: [0.145784, 0.513132, 1.07083, 2.27025]
 
 julia> fitdiscrete(net, mJC69, rv, tips; optimizeQ=false, optimizeRVAS=false)
 PhyloNetworks.StatisticalSubstitutionModel:
@@ -188,9 +188,9 @@ rate matrix Q:
 1 traits, 4 species, with gamma variable rate model according to Rate Variation Across Sites using Discretized Gamma Model
 alpha: 1.0
 categories for Gamma discretization: 4
-ratemultiplier: [0.133531, 0.470004, 0.980829, 2.07944]
+ratemultiplier: [0.145784, 0.513132, 1.07083, 2.27025]
  with alpha = 1.0 and 4 categories on a network with 0 reticulations
-log-likelihood: -5.26879
+log-likelihood: -5.2568
 ```
 """
 function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, #tips::Dict no ratemodel version
