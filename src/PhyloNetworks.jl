@@ -142,7 +142,7 @@ module PhyloNetworks
         setalpha!,
         randomTrait,
         randomTrait!,
-        fitDiscrete,
+        fitdiscrete,
         readfastatodna,
         stationary,
         empiricaldistribution,

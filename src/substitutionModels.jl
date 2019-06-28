@@ -742,7 +742,7 @@ transition/transversion ratio: κ=α/β. The rate transition matrix Q is normali
 
 `nparams` returns 1 or 2.
 In other words: the stationary distribution is not counted in the number of parameters
-(and `fitDiscrete` does not optimize the pi values at the moment).
+(and `fitdiscrete` does not optimize the pi values at the moment).
 
 # examples
 
@@ -1043,7 +1043,7 @@ end
 
 """
     empiricaldistribution(dnaData, dnaWeights)
-Estimate base frequency for HKY model, which requires it when calling `fitDiscrete`
+Estimate base frequency for HKY model, which requires it when calling `fitdiscrete`
 with dna data
 """
 function empiricaldistribution(dnaDat::DataFrame, dnaWeights::Vector, correctedestimate=true::Bool)

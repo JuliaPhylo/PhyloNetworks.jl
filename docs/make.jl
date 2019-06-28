@@ -24,7 +24,7 @@ makedocs(
             "Multiple Alleles" => "man/multiplealleles.md",
             "Continuous Trait Evolution" => "man/trait_tree.md",
             "Parsimony on networks" => "man/parsimony.md",
-            "Discrete Trait Evolution" => "man/fitDiscrete.md",
+            "Discrete Trait Evolution" => "man/fitdiscrete.md",
         ],
         "Library" => [
             "Public" => "lib/public.md",

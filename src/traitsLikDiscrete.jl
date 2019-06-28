@@ -3,7 +3,7 @@
 
 Subtype of `StatsBase.StatisticalModel`, to fit discrete data to a model
 of trait substitution along a network.
-See [`fitDiscrete`](@ref) to fit a trait substitution model to discrete data.
+See [`fitdiscrete`](@ref) to fit a trait substitution model to discrete data.
 It returns an object of type `StatisticalSubstitutionModel`, to which standard
 functions can be applied, like `loglikelihood(object)`, `aic(object)` etc.
 """
@@ -65,14 +65,14 @@ end
 # weights
 
 """
-    fitDiscrete(net, model, tipdata)
-    fitDiscrete(net, model, RateVariationAcrossSites, tipdata)
-    fitDiscrete(net, model, species, traits)
-    fitDiscrete(net, model, RateVariationAcrossSites, species, traits)
-    fitDiscrete(net, model, dnadata, dnapatternweights)
-    fitDiscrete(net, model, RateVariationAcrossSites, dnadata, dnapatternweights)
-    fitDiscrete(net, modSymbol, species, traits)
-    fitDiscrete(net, modSymbol, dnadata, dnapatternweights)
+    fitdiscrete(net, model, tipdata)
+    fitdiscrete(net, model, RateVariationAcrossSites, tipdata)
+    fitdiscrete(net, model, species, traits)
+    fitdiscrete(net, model, RateVariationAcrossSites, species, traits)
+    fitdiscrete(net, model, dnadata, dnapatternweights)
+    fitdiscrete(net, model, RateVariationAcrossSites, dnadata, dnapatternweights)
+    fitdiscrete(net, modSymbol, species, traits)
+    fitdiscrete(net, modSymbol, dnadata, dnapatternweights)
     
 Calculate the maximum likelihood (ML) score of a network given
 one or more discrete characters at the tips. Along each edge, transitions
@@ -122,7 +122,7 @@ julia> using DataFrames
 
 julia> dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"]);
 
-julia> fit1 = fitDiscrete(net, m1, dat; optimizeQ=true, optimizeRVAS=false)
+julia> fit1 = fitdiscrete(net, m1, dat; optimizeQ=true, optimizeRVAS=false)
 PhyloNetworks.StatisticalSubstitutionModel:
 Binary Trait Substitution Model:
 rate lo→hi α=0.27222
@@ -132,7 +132,7 @@ log-likelihood: -2.7277
 
 julia> tips = Dict("A" => "lo", "B" => "lo", "C" => "hi", "D" => "hi");
 
-julia> fit2 = fitDiscrete(net, m1, tips; optimizeRVAS=false, xtolRel=1e-16, xtolAbs=1e-16, ftolRel=1e-16)
+julia> fit2 = fitdiscrete(net, m1, tips; optimizeRVAS=false, xtolRel=1e-16, xtolAbs=1e-16, ftolRel=1e-16)
 PhyloNetworks.StatisticalSubstitutionModel:
 Binary Trait Substitution Model:
 rate lo→hi α=0.27222
@@ -154,7 +154,7 @@ julia> tips = Dict("sp1" => BioSymbols.DNA_A, "sp2" => BioSymbols.DNA_A, "sp3" =
 
 julia> mJC69 = JC69([0.25], false);
 
-julia> fitJC69 = fitDiscrete(net, mJC69, tips; optimizeQ=true, optimizeRVAS=false)
+julia> fitJC69 = fitdiscrete(net, mJC69, tips; optimizeQ=true, optimizeRVAS=false)
 PhyloNetworks.StatisticalSubstitutionModel:
 Jukes and Cantor 69 Substitution Model,
 absolute rate version
@@ -174,7 +174,7 @@ alpha: 1.0
 categories for Gamma discretization: 4
 ratemultiplier: [0.133531, 0.470004, 0.980829, 2.07944]
 
-julia> fitDiscrete(net, mJC69, rv, tips; optimizeQ=false, optimizeRVAS=false)
+julia> fitdiscrete(net, mJC69, rv, tips; optimizeQ=false, optimizeRVAS=false)
 PhyloNetworks.StatisticalSubstitutionModel:
 Jukes and Cantor 69 Substitution Model,
 absolute rate version
@@ -193,14 +193,14 @@ ratemultiplier: [0.133531, 0.470004, 0.980829, 2.07944]
 log-likelihood: -5.26879
 ```
 """
-function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, #tips::Dict no ratemodel version
+function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, #tips::Dict no ratemodel version
     tips::Dict; kwargs...)
     ratemodel = RateVariationAcrossSites(1.0, 1)
-    fitDiscrete(net, model, ratemodel, tips; kwargs...)
+    fitdiscrete(net, model, ratemodel, tips; kwargs...)
 end
 
 #tips::Dict version with ratemodel
-function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites, 
+function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites, 
     tips::Dict; kwargs...)
         species = String[]
     dat = Vector{Int}[] # indices of trait labels
@@ -216,13 +216,13 @@ function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::Ra
 end
 
 #dat::DataFrame, no rate model version
-function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, dat::DataFrame; kwargs...)
+function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, dat::DataFrame; kwargs...)
     ratemodel = RateVariationAcrossSites(1.0, 1)
-    fitDiscrete(net, model, ratemodel, dat; kwargs...)
+    fitdiscrete(net, model, ratemodel, dat; kwargs...)
 end
 
 #dat::DataFrame with rate model version
-function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites,
+function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites,
         dat::DataFrame; kwargs...)
     i = findfirst(isequal(:taxon), DataFrames.names(dat))
     
@@ -241,13 +241,13 @@ function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::Ra
 end
 
 #species, dat version, no ratemodel
-function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, species::Array{String}, dat::DataFrame; kwargs...)
+function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, species::Array{String}, dat::DataFrame; kwargs...)
     ratemodel = RateVariationAcrossSites(1.0, 1)
-    fitDiscrete(net, model, ratemodel, species, dat; kwargs...)
+    fitdiscrete(net, model, ratemodel, species, dat; kwargs...)
 end
 
 #species, dat version with ratemodel
-function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites,
+function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites,
         species::Array{String}, dat::DataFrame; kwargs...)
     dat2 = traitlabels2indices(dat, model) # vec of vec, indices
     o, net = check_matchtaxonnames!(copy(species), dat2, net)
@@ -255,7 +255,7 @@ function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::Ra
 end
 
 #wrapper: species, dat version with model symbol
-function fitDiscrete(net::HybridNetwork, modSymbol::Symbol,  
+function fitdiscrete(net::HybridNetwork, modSymbol::Symbol,  
     species::Array{String}, dat::DataFrame, rvSymbol=:noRV::Symbol; kwargs...)
     rate = startingrate(net)
     labels = learnLabels(modSymbol, species, dat)
@@ -276,17 +276,17 @@ function fitDiscrete(net::HybridNetwork, modSymbol::Symbol,
     else
         rvas = RateVariationAcrossSites(1.0, 1)
     end
-    fitDiscrete(net, model, rvas, species, dat; kwargs...)
+    fitdiscrete(net, model, rvas, species, dat; kwargs...)
 end
 
 #dnadata with dnapatternweights version, no ratemodel
-function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, dnadata::DataFrame, 
+function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, dnadata::DataFrame, 
     dnapatternweights::Array{Float64}; kwargs...)
     ratemodel = RateVariationAcrossSites(1.0, 1)
-    fitDiscrete(net, model, ratemodel, dnadata, dnapatternweights; kwargs...)
+    fitdiscrete(net, model, ratemodel, dnadata, dnapatternweights; kwargs...)
 end
 #dnadata with dnapatternweights version with ratemodel
-function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites,
+function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites,
     dnadata::DataFrame, dnapatternweights::Array{Float64}; kwargs...)
     
     dat2 = traitlabels2indices(dnadata[2:end], model) 
@@ -302,7 +302,7 @@ function fitDiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::Ra
 end
 
 #wrapper for dna data
-function fitDiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame, 
+function fitdiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame, 
     dnapatternweights::Array{Float64}, rvSymbol=:noRV::Symbol; kwargs...)
     rate = startingrate(net)
     if modSymbol == :JC69
@@ -323,20 +323,20 @@ function fitDiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame,
         rvas = RateVariationAcrossSites(1.0, 1)
     end
     
-    fitDiscrete(net, model, rvas, dnadata, dnapatternweights; kwargs...)
+    fitdiscrete(net, model, rvas, dnadata, dnapatternweights; kwargs...)
 end
 
 """
     fit(StatisticalSubstitutionModel, net, model, traits; kwargs...)
     fit!(StatisticalSubstitutionModel; kwargs...)
 
-Internal function called by [`fitDiscrete`](@ref): with same key word arguments `kwargs`.
-But dangerous: `traits` should be a vector of vectors as for [`fitDiscrete`](@ref)
+Internal function called by [`fitdiscrete`](@ref): with same key word arguments `kwargs`.
+But dangerous: `traits` should be a vector of vectors as for [`fitdiscrete`](@ref)
 **but** here `traits` need to contain the *indices* of trait values corresponding
 to the indices in `getlabels(model)`, and species should appear in `traits` in the
 order corresponding to the node numbers in `net`.
 See [`traitlabels2indices`](@ref) to convert trait labels to trait indices.
-**Warning**: does *not* perform checks. [`fitDiscrete`](@ref) calls this function
+**Warning**: does *not* perform checks. [`fitdiscrete`](@ref) calls this function
 after doing checks, preordering nodes in the network, making sure nodes have
 consecutive numbers, species are matched between data and network etc.
 Like, snaq!(), we estimate the network starting from tree (or network) `astraltree`.
@@ -647,7 +647,7 @@ Return a new network (`net` is *not* modified) with tips matching those in speci
 if some species in `net` have no data, these species are pruned from the network.
 The network also has its node names reset, such that leaves have nodes have
 consecutive numbers starting at 1, with leaves first.
-Used by [`fitDiscrete`](@ref) to build a new [`StatisticalSubstitutionModel`](@ref).
+Used by [`fitdiscrete`](@ref) to build a new [`StatisticalSubstitutionModel`](@ref).
 """
 function check_matchtaxonnames!(species::AbstractVector, dat::AbstractVector, net::HybridNetwork)
     # 1. basic checks for dimensions and types
@@ -698,7 +698,7 @@ end
 Estimate the marginal probability of ancestral states for discrete character
 number `trait`, or for the active trait if `trait` is unspecified: `obj.activesite`.
 The parameters of the [`StatisticalSubstitutionModel`](@ref) object `obj`
-must first be fitted using [`fitDiscrete`](@ref), and ancestral state reconstruction
+must first be fitted using [`fitdiscrete`](@ref), and ancestral state reconstruction
 is conditional on the estimated parameters. If these parameters were estimated
 using all traits, they are used as is to do ancestral state reconstruction of the
 particular `trait` of interest.
@@ -728,7 +728,7 @@ julia> using DataFrames
 
 julia> dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"]);
 
-julia> fit1 = fitDiscrete(net, m1, dat);
+julia> fit1 = fitdiscrete(net, m1, dat);
 
 julia> asr = ancestralStateReconstruction(fit1)
 9×4 DataFrames.DataFrame
@@ -836,7 +836,7 @@ end
 """
     learnLabels(model::SubstitutionModel, species::Array{String}, dat::DataFrame)
 
-Learn label names and length from data for fitDiscrete wrapper function with species vector and trait dataframe data
+Learn label names and length from data for fitdiscrete wrapper function with species vector and trait dataframe data
 """
 function learnLabels(modSymbol::Symbol, species::Array{String}, dat::DataFrame)
     labels = unique(reshape(convert(Matrix, dat), 1, size(dat)[1]*size(dat)[2]))
@@ -856,7 +856,7 @@ end
     startingrate(net)
 
 Estimate an evolutionary rate appropriate for the branch lengths in the network,
-which should be a good starting value before optimization in `fitDiscrete`,
+which should be a good starting value before optimization in `fitdiscrete`,
 assuming approximately 1 change across the entire tree.
 If all edge lengths are missing, set starting rate to 1/(number of taxa).
 """

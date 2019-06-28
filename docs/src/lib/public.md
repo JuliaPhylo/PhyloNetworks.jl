@@ -137,7 +137,7 @@ parsimonyGF
 Q
 randomTrait
 randomTrait!
-fitDiscrete
+fitdiscrete
 maxParsimonyNet
 nstates
 setrates!

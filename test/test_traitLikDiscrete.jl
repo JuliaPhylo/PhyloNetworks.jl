@@ -103,10 +103,10 @@ end
 # test on a tree
 #=
 likelihood calculated in R using a fixed Q matrix, first with ace() then
-with fitDiscrete(), then with fitMK(). problem: they give different results,
+with fitdiscrete(), then with fitMK(). problem: they give different results,
 see http://blog.phytools.org/2015/09/the-difference-between-different.html
 - ace: misses log(#states) in its log-likelihood
-- fitDiscrete in geiger: uses empirical prior at root, not stationary dist,
+- fitdiscrete in geiger: uses empirical prior at root, not stationary dist,
   but "lik" object is very flexible
 - fitMk is correct. also great for 2 correlated binary traits
 library(ape)
@@ -119,7 +119,7 @@ print(fitER$loglik - log(2), digits=17) #         -2.6638002683925799
 print(fitER$rates, digits=17)  # rates = 0.3743971742794559
 print(fitER$lik.anc, digits=17)# posterior probs of states at nodes: 3x2 matrix (3 internal nodes, 2 states)
 library(geiger)
-fitER = fitDiscrete(mytree, states, model="ER")
+fitER = fitdiscrete(mytree, states, model="ER")
 print(fitER$opt$q12, digits=17) # rates = 0.36836216513047726
 print(fitER$opt$lnL, digits=17) # log-likelihood = -2.6626566310743804
 lik = fitER$lik
@@ -128,7 +128,7 @@ library(phytools)
 Q2 = matrix(c(-1,1,1,-1),2,2)*fitER$opt$q12
 fit2 = fitMk(mytree, states, model="ER", fixedQ=Q2)
 print(fit2$logLik, digits=17) # log-likelihood = -2.6638637960257574
-fitER = fitDiscrete(mytree, states, model="ARD")
+fitER = fitdiscrete(mytree, states, model="ARD")
 lik = fitER$lik
 Q = c(0.29885191850718751, 0.38944304456937912) # q12, q21
 lik(Q, root="given", root.p=Q[2:1]/sum(Q)) # -2.6457428692377234
@@ -138,32 +138,32 @@ lik(Q, root="flat") # -2.6754091090953693 .1,.7: -3.3291679800706073
 optim(Q, lik, lower=1e-8, control=list(fnscale=-1), root="flat")
 # rates = 0.29993140042699212 0.38882902905265493 loglik=-2.6447247349802496
 states=c(1,2,1); names(states)=c("A","B","D")
-fitER = fitDiscrete(mytree, states, model="ARD"); lik = fitER$lik
+fitER = fitdiscrete(mytree, states, model="ARD"); lik = fitER$lik
 lik(Q, root="flat") # -2.1207856874033491
 =#
 
 net = readTopology("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);");
 tips = Dict("A" => "lo", "B" => "lo", "C" => "hi", "D" => "hi"); #? this is supposed to be an AbstractVector, is a Dict{String,String}
 m1 = EqualRatesSubstitutionModel(2,[0.36836216513047726], ["lo", "hi"]);
-fit1 = (@test_logs fitDiscrete(net, m1, tips; optimizeQ=false, optimizeRVAS=false));
+fit1 = (@test_logs fitdiscrete(net, m1, tips; optimizeQ=false, optimizeRVAS=false));
 @test_logs show(devnull, fit1)
 @test StatsBase.loglikelihood(fit1) ≈ -2.6638637960257574 atol=2e-4
 species = ["G","C","A","B","D"]
 dat1 = DataFrame(trait = ["hi","hi","lo","lo","hi"], species = species)
 m2 = BinaryTraitSubstitutionModel(0.2, 0.3, ["lo", "hi"])
-fit2 = (@test_logs fitDiscrete(net, m2, dat1; optimizeQ=false, optimizeRVAS=false))
+fit2 = (@test_logs fitdiscrete(net, m2, dat1; optimizeQ=false, optimizeRVAS=false))
 @test fit2.trait == [[1],[1],[2],[2]]
 @test StatsBase.loglikelihood(fit2) ≈ -2.6754091090953693 atol=2e-4
 originalstdout = stdout
 redirect_stdout(open("/dev/null", "w"))
 #OPTIMIZES RATES
-fit2 = @test_logs fitDiscrete(net, m2, dat1; optimizeQ=true, optimizeRVAS=false, verbose=true) # 65 iterations
+fit2 = @test_logs fitdiscrete(net, m2, dat1; optimizeQ=true, optimizeRVAS=false, verbose=true) # 65 iterations
 redirect_stdout(originalstdout)
 @test fit2.model.rate ≈ [0.29993140042699212, 0.38882902905265493] atol=2e-4
 @test StatsBase.loglikelihood(fit2) ≈ -2.6447247349802496 atol=2e-4
 m2.rate[:] = [0.2, 0.3];
 dat2 = DataFrame(trait1= ["hi","hi","lo","lo","hi"], trait2=["hi",missing,"lo","hi","lo"]);
-fit3 = (@test_logs fitDiscrete(net, m2, species, dat2; optimizeQ=false, optimizeRVAS=false))
+fit3 = (@test_logs fitdiscrete(net, m2, species, dat2; optimizeQ=false, optimizeRVAS=false))
 
 @test fit3.loglik ≈ (-2.6754091090953693 - 2.1207856874033491)
 PhyloNetworks.fit!(fit3; optimizeQ=true, optimizeRVAS=false)
@@ -192,7 +192,7 @@ function traitprobabilities(model, net, ntraits=10)
     npatterns = i
     lik = Float64[]
     for i in 1:npatterns
-        fit = fitDiscrete(net, model, dat[[:species, Symbol("x",i)]]; optimizeQ=false, optimizeRVAS=false)
+        fit = fitdiscrete(net, model, dat[[:species, Symbol("x",i)]]; optimizeQ=false, optimizeRVAS=false)
         push!(lik, fit.loglik)
     end
     return dat, prop, lik
@@ -224,20 +224,20 @@ d = DataFrame(species=["D","C","B","A"], x1=[1,1,1,1], x2=[1,2,2,1], x3=[2,2,2,2
     x11=[1,2,1,1], x12=[2,2,1,2], x13=[2,1,1,2], x14=[1,2,2,2], x15=[1,1,1,2], x16=[2,1,2,2])
 lik = Float64[]
 for i in 1:16
-    fit = fitDiscrete(net, m1, d[[:species, Symbol("x",i)]]; optimizeQ=false, optimizeRVAS=false)
+    fit = fitdiscrete(net, m1, d[[:species, Symbol("x",i)]]; optimizeQ=false, optimizeRVAS=false)
     push!(lik, fit.loglik)
 end
 @test lik ≈ [-1.6218387598967712, -3.008066347196894, -4.3943604143403245, -3.008199100743402,
     -3.70121329832901, -3.0081981601869483, -2.315051933868397, -2.314985711030534,
     -3.0081988850020873, -3.0081983709272504, -2.3150512090547584, -3.70134532205944,
     -3.008132923628349, -3.7012134632082083, -2.3149859724945876, -3.7013460518770915]
-fit1 = fitDiscrete(net, m1, d[[:species, :x6]]; optimizeRVAS=false)
+fit1 = fitdiscrete(net, m1, d[[:species, :x6]]; optimizeRVAS=false)
 
 # with parameter estimation
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 m1 = BinaryTraitSubstitutionModel([1.0, 1.0], ["lo", "hi"])
 dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"])
-fit1 = fitDiscrete(net, m1, dat; optimizeQ=false, optimizeRVAS=false)
+fit1 = fitdiscrete(net, m1, dat; optimizeQ=false, optimizeRVAS=false)
 @test fit1.loglik ≈ -2.77132013004859
 PhyloNetworks.fit!(fit1; optimizeQ=true, optimizeRVAS=false)
 @test fit1.model.rate ≈ [0.2722263130324768, 0.34981109618902395] atol=1e-4
@@ -248,7 +248,7 @@ function simulateManyTraits_estimate(ntraits)
     res, lab = randomTrait(m1, net; ntraits=ntraits)
     tips = findall(in(tipLabels(net)), lab) # indices of tips: columns in res
     dat = DataFrame(transpose(res[:,tips])); species = lab[tips]
-    return fitDiscrete(net, m1, species, dat; optimizeRVAS = false)
+    return fitdiscrete(net, m1, species, dat; optimizeRVAS = false)
 end
 # simulateManyTraits_estimate(100000)
 # α=1.1124637623451075, β=0.5604529225895175, loglik=-25587.1  with ntraits=10000
@@ -329,39 +329,39 @@ mHKY85rel = HKY85([0.5], [0.25, 0.25, 0.25, 0.25], true)
 @test_logs show(devnull, mHKY85)
 end # end of testing NASMs
 
-@testset "testing fitDiscrete for NucleicAcidSubsitutionModels & RateVariationAcrossSites" begin
-# test fitDiscrete with NASM #
+@testset "testing fitdiscrete for NucleicAcidSubsitutionModels & RateVariationAcrossSites" begin
+# test fitdiscrete with NASM #
 #there are 3 alignments in PhyloNetworks/examples
 net = readTopology("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);");
 tips = Dict("A" => BioSymbols.DNA_A, "B" => BioSymbols.DNA_A, "C" => BioSymbols.DNA_G, "D" => BioSymbols.DNA_G);
 
 #without optimization (confirmed with ape ace() function and phangorn)
 mJC69 = JC69(0.2923350741254221, false) #ace() gives Q matrix cell, not rate. lambda = (1.0/3.0)*obj.rate[1] so rate = 3*0.097445024708474035 = 0.2923350741254221
-fitJC69 = fitDiscrete(net, mJC69, tips; optimizeQ=false, optimizeRVAS=false); 
+fitJC69 = fitdiscrete(net, mJC69, tips; optimizeQ=false, optimizeRVAS=false); 
 @test loglikelihood(fitJC69) ≈ -4.9927386890207304 atol=2e-6 #ace() from ape pkg and our method agree here. 
 
 ##without optimize at 0.25
 mJC69 = JC69([0.25], false)
-fitJC69 = fitDiscrete(net, mJC69, tips; optimizeQ=false, optimizeRVAS=false); 
+fitJC69 = fitdiscrete(net, mJC69, tips; optimizeQ=false, optimizeRVAS=false); 
 @test loglikelihood(fitJC69) ≈ -4.99997 atol=2e-3 #from phangorn
 
 #with optimization (confirmed with ape ace() function and phangorn)
 mJC69 = JC69([0.25], false)
-fitJC69 = fitDiscrete(net, mJC69, tips; optimizeQ=true, optimizeRVAS=false); 
+fitJC69 = fitdiscrete(net, mJC69, tips; optimizeQ=true, optimizeRVAS=false); 
 @test Q(fitJC69.model)[1,2] ≈ 0.097445024708474035 atol = 2e-3 #from ace() in ape pkg
 @test loglikelihood(fitJC69) ≈ -4.9927386890207304 atol=2e-6 #from ace() + log(4)
 
 #without optimization (confirmed with phangorn function)
 mHKY85 = HKY85([4.0/3, 4.0/3], [0.25, 0.25, 0.25, 0.25], false); #absolute
-fitHKY85 = fitDiscrete(net, mHKY85, tips; optimizeQ=false, optimizeRVAS=false);
+fitHKY85 = fitdiscrete(net, mHKY85, tips; optimizeQ=false, optimizeRVAS=false);
 @test loglikelihood(fitHKY85) ≈ -5.365777014 atol = 2e-8
 mHKY85 = HKY85([1.0], [0.25, 0.25, 0.25, 0.25], true); #relative
-fitHKY85 = fitDiscrete(net, mHKY85, tips; optimizeQ=false, optimizeRVAS=false);
+fitHKY85 = fitdiscrete(net, mHKY85, tips; optimizeQ=false, optimizeRVAS=false);
 @test loglikelihood(fitHKY85) ≈ -5.365777014 atol = 2e-8
 
 #with optimization (confirmed with ape ace() function)
 mHKY85 = HKY85([0.5, 0.1], [0.25, 0.25, 0.25, 0.25], false); #absolute
-fitHKY85 = fitDiscrete(net, mHKY85, tips; optimizeQ=true, optimizeRVAS=false);
+fitHKY85 = fitdiscrete(net, mHKY85, tips; optimizeQ=true, optimizeRVAS=false);
 @test fitHKY85.model.rate[1] ≈ 1.4975887229148119 atol = 2e-3
 @test loglikelihood(fitHKY85) ≈ -3.3569474489525244 atol = 2e-8
 
@@ -370,16 +370,16 @@ rv = RateVariationAcrossSites(1.0, 4);
 @test_logs show(devnull, rv)
 rv.ratemultiplier[:] = [0.1369538, 0.4767519, 1.0000000, 2.3862944] # NOTE: phangorn calculates gamma quantiles differently, so I assign them for testing
 mJC69 = JC69([1.0], true)
-fitJC69rv = fitDiscrete(net, mJC69, rv, tips; optimizeQ=false, optimizeRVAS=false, ftolRel=1e-20);
+fitJC69rv = fitdiscrete(net, mJC69, rv, tips; optimizeQ=false, optimizeRVAS=false, ftolRel=1e-20);
 @test loglikelihood(fitJC69rv) ≈ -5.26390008 atol = 2e-8
 
-fitJC69rvOpt = fitDiscrete(net, mJC69, rv, tips, optimizeQ=false, optimizeRVAS=true);
+fitJC69rvOpt = fitdiscrete(net, mJC69, rv, tips, optimizeQ=false, optimizeRVAS=true);
 
 mHKY85 = HKY85([4.0/3, 4.0/3], [0.25, 0.25, 0.25, 0.25], false);
-fitHKY85rv = fitDiscrete(net, mHKY85, rv, tips; optimizeQ=false, optimizeRVAS=false);
+fitHKY85rv = fitdiscrete(net, mHKY85, rv, tips; optimizeQ=false, optimizeRVAS=false);
 @test loglikelihood(fitHKY85rv) ≈ -5.2639000803742979 atol = 2e-5 #from phangorn
 
-fitHKY85rvOpt = fitDiscrete(net, mHKY85, rv, tips; optimizeQ=false, optimizeRVAS=true);
+fitHKY85rvOpt = fitdiscrete(net, mHKY85, rv, tips; optimizeQ=false, optimizeRVAS=true);
 
 ## TEST WRAPPERS ##
 #for species, trait data
@@ -388,16 +388,16 @@ dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"])
 species_alone = ["C","A","B","D"]
 dat_alone = DataFrame(trait=["hi","lo","lo","hi"])
 net_tips = readTopology("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);");
-s1 = fitDiscrete(net_dat, :ERSM, species_alone, dat_alone; optimizeQ=false, optimizeRVAS=false);
+s1 = fitdiscrete(net_dat, :ERSM, species_alone, dat_alone; optimizeQ=false, optimizeRVAS=false);
 @test_logs show(devnull, s1)
-s1 = fitDiscrete(net_dat, :ERSM, species_alone, dat_alone, :RV; optimizeQ=false, optimizeRVAS=false);
+s1 = fitdiscrete(net_dat, :ERSM, species_alone, dat_alone, :RV; optimizeQ=false, optimizeRVAS=false);
 @test_logs show(devnull, s1)
-s2 = fitDiscrete(net_dat, :BTSM, species_alone, dat_alone; optimizeQ=false, optimizeRVAS=false);
+s2 = fitdiscrete(net_dat, :BTSM, species_alone, dat_alone; optimizeQ=false, optimizeRVAS=false);
 @test_logs show(devnull, s2)
-@test_throws ErrorException fitDiscrete(net_dat, :TBTSM, species_alone, dat_alone; optimizeQ=false, optimizeRVAS=false);
+@test_throws ErrorException fitdiscrete(net_dat, :TBTSM, species_alone, dat_alone; optimizeQ=false, optimizeRVAS=false);
 dna_alone = DataFrame(trait=['A','C','C','A'])
-s3 = fitDiscrete(net_dat, :JC69, species_alone, dna_alone, :RV; optimizeQ=false, optimizeRVAS=true);
-s4 = fitDiscrete(net_dat, :HKY85, species_alone, dna_alone; optimizeQ=true, optimizeRVAS=true);
+s3 = fitdiscrete(net_dat, :JC69, species_alone, dna_alone, :RV; optimizeQ=false, optimizeRVAS=true);
+s4 = fitdiscrete(net_dat, :HKY85, species_alone, dna_alone; optimizeQ=true, optimizeRVAS=true);
 @test_logs show(devnull, s3)
 @test_logs show(devnull, s4)
 
@@ -411,18 +411,18 @@ for edge in net_dna.edge #adds branch lengths
         setGamma!(edge, 0.5)
     end
 end
-d1 = fitDiscrete(net_dna, :ERSM, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
+d1 = fitdiscrete(net_dna, :ERSM, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
 @test_logs show(devnull, d1)
-@test_throws ErrorException fitDiscrete(net_dna, :BTSM, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
-@test_throws ErrorException fitDiscrete(net_dna, :TBTSM, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
-d2 = fitDiscrete(net_dna, :JC69, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
+@test_throws ErrorException fitdiscrete(net_dna, :BTSM, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
+@test_throws ErrorException fitdiscrete(net_dna, :TBTSM, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
+d2 = fitdiscrete(net_dna, :JC69, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
 @test_logs show(devnull, d2)
-d2 = fitDiscrete(net_dna, :JC69, dna_dat, dna_weights, :RV; optimizeQ=false, optimizeRVAS=false);
+d2 = fitdiscrete(net_dna, :JC69, dna_dat, dna_weights, :RV; optimizeQ=false, optimizeRVAS=false);
 @test_logs show(devnull, d2)
-d3 = fitDiscrete(net_dna, :HKY85, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
+d3 = fitdiscrete(net_dna, :HKY85, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
 @test_logs show(devnull, d3)
 
-end #testing fitDiscrete for NucleicAcidSubsitutionModels & RateVariationAcrossSites
+end #testing fitdiscrete for NucleicAcidSubsitutionModels & RateVariationAcrossSites
 
 @testset "testing readfastatodna with NASM and RateVariationAcrossSites" begin
 #fastafile = joinpath(@__DIR__, "../..", "dev/PhyloNetworks/examples", "Ae_bicornis_Tr406_Contig10132.aln")
@@ -435,20 +435,20 @@ for edge in dna_net_top.edge #adds branch lengths
 end
 
 nasm_model = JC69([0.5], false);
-@test_throws ErrorException fitDiscrete(dna_net_top, nasm_model, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false)
+@test_throws ErrorException fitdiscrete(dna_net_top, nasm_model, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false)
 
 #Fixes the gamma error (creates a network)
 setGamma!(dna_net_top.edge[6],0.6)
 setGamma!(dna_net_top.edge[7],0.6)
 setGamma!(dna_net_top.edge[58],0.6)
 
-dna_net = fitDiscrete(dna_net_top, nasm_model, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false)
+dna_net = fitdiscrete(dna_net_top, nasm_model, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false)
 
-dna_net_optQ = fitDiscrete(dna_net_top, nasm_model, dna_dat, dna_weights; optimizeQ=true, optimizeRVAS=false)
+dna_net_optQ = fitdiscrete(dna_net_top, nasm_model, dna_dat, dna_weights; optimizeQ=true, optimizeRVAS=false)
 
-dna_net_optRVAS = fitDiscrete(dna_net_top, nasm_model, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=true)
+dna_net_optRVAS = fitdiscrete(dna_net_top, nasm_model, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=true)
 
-dna_net_opt_both = fitDiscrete(dna_net_top, nasm_model, dna_dat, dna_weights; optimizeQ=true, optimizeRVAS=true)
+dna_net_opt_both = fitdiscrete(dna_net_top, nasm_model, dna_dat, dna_weights; optimizeQ=true, optimizeRVAS=true)
 
 end #of testing readfastatodna with NASM and RateVariationAcrossSites
 
