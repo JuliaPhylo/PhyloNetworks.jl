@@ -271,7 +271,7 @@ asr = ancestralStateReconstruction(fit1)
 end # end of testset, fixed topology
 
 @testset "testing readfastatodna" begin
-#fastafile = joinpath(@__DIR__, "../..", "dev/PhyloNetworks/examples", "test_8_withrepeatingsites.aln")
+#fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "test_8_withrepeatingsites.aln"))
 fastafile = joinpath(@__DIR__, "..", "examples", "test_8_withrepeatingsites.aln")
 dat, weights = readfastatodna(fastafile, true);
 @test weights ==  [3.0, 1.0, 1.0, 2.0, 1.0]
@@ -279,6 +279,7 @@ dat, weights = readfastatodna(fastafile, true);
 @test ncol(dat) == 6
 
 #test on data with no repeated site patterns
+#fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "Ae_bicornis_8sites.aln"))
 fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_8sites.aln")
 dat, weights = readfastatodna(fastafile, true);
 #check that weights are correct
@@ -388,6 +389,7 @@ dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"])
 species_alone = ["C","A","B","D"]
 dat_alone = DataFrame(trait=["hi","lo","lo","hi"])
 net_tips = readTopology("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);");
+@test_throws ErrorException fitdiscrete(net_dat, :bogus, species_alone, dat_alone; optimizeQ=false, optimizeRVAS=false);
 s1 = fitdiscrete(net_dat, :ERSM, species_alone, dat_alone; optimizeQ=false, optimizeRVAS=false);
 @test_logs show(devnull, s1)
 s1 = fitdiscrete(net_dat, :ERSM, species_alone, dat_alone, :RV; optimizeQ=false, optimizeRVAS=false);
@@ -402,30 +404,31 @@ s4 = fitdiscrete(net_dat, :HKY85, species_alone, dna_alone; optimizeQ=true, opti
 @test_logs show(devnull, s4)
 
 #for dna data (output of fastatodna)
+#fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "Ae_bicornis_Tr406_Contig10132.aln"))
 fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_Tr406_Contig10132.aln")
 dna_dat, dna_weights = readfastatodna(fastafile, true);
 net_dna = readTopology("((((((((((((((Ae_caudata_Tr275,Ae_caudata_Tr276),Ae_caudata_Tr139))#H1,#H2),(((Ae_umbellulata_Tr266,Ae_umbellulata_Tr257),Ae_umbellulata_Tr268),#H1)),((Ae_comosa_Tr271,Ae_comosa_Tr272),(((Ae_uniaristata_Tr403,Ae_uniaristata_Tr357),Ae_uniaristata_Tr402),Ae_uniaristata_Tr404))),(((Ae_tauschii_Tr352,Ae_tauschii_Tr351),(Ae_tauschii_Tr180,Ae_tauschii_Tr125)),(((((((Ae_longissima_Tr241,Ae_longissima_Tr242),Ae_longissima_Tr355),(Ae_sharonensis_Tr265,Ae_sharonensis_Tr264)),((Ae_bicornis_Tr408,Ae_bicornis_Tr407),Ae_bicornis_Tr406)),((Ae_searsii_Tr164,Ae_searsii_Tr165),Ae_searsii_Tr161)))#H2,#H4))),(((T_boeoticum_TS8,(T_boeoticum_TS10,T_boeoticum_TS3)),T_boeoticum_TS4),((T_urartu_Tr315,T_urartu_Tr232),(T_urartu_Tr317,T_urartu_Tr309)))),(((((Ae_speltoides_Tr320,Ae_speltoides_Tr323),Ae_speltoides_Tr223),Ae_speltoides_Tr251))H3,((((Ae_mutica_Tr237,Ae_mutica_Tr329),Ae_mutica_Tr244),Ae_mutica_Tr332))#H4))),Ta_caputMedusae_TB2),S_vavilovii_Tr279),Er_bonaepartis_TB1),H_vulgare_HVens23);");
 for edge in net_dna.edge #adds branch lengths
-    setLength!(edge,1.0):
+    setLength!(edge,1.0)
     if edge.gamma < 0
         setGamma!(edge, 0.5)
     end
 end
-d1 = fitdiscrete(net_dna, :ERSM, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
+d1 = (@test_logs (:warn, r"^the network contains taxa with no data") (:warn, r"^resetting edge numbers") fitdiscrete(net_dna, :ERSM, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false))
 @test_logs show(devnull, d1)
 @test_throws ErrorException fitdiscrete(net_dna, :BTSM, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
 @test_throws ErrorException fitdiscrete(net_dna, :TBTSM, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
-d2 = fitdiscrete(net_dna, :JC69, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
+d2 = (@test_logs (:warn, r"^the network contains taxa with no data") (:warn, r"^resetting edge numbers") fitdiscrete(net_dna, :JC69, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false))
 @test_logs show(devnull, d2)
-d2 = fitdiscrete(net_dna, :JC69, dna_dat, dna_weights, :RV; optimizeQ=false, optimizeRVAS=false);
+d2 = (@test_logs (:warn, r"^the network contains taxa with no data") (:warn, r"^resetting edge numbers") fitdiscrete(net_dna, :JC69, dna_dat, dna_weights, :RV; optimizeQ=false, optimizeRVAS=false))
 @test_logs show(devnull, d2)
-d3 = fitdiscrete(net_dna, :HKY85, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
+d3 = (@test_logs (:warn, r"^the network contains taxa with no data") (:warn, r"^resetting edge numbers") fitdiscrete(net_dna, :HKY85, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false))
 @test_logs show(devnull, d3)
 
 end #testing fitdiscrete for NucleicAcidSubsitutionModels & RateVariationAcrossSites
 
 @testset "testing readfastatodna with NASM and RateVariationAcrossSites" begin
-#fastafile = joinpath(@__DIR__, "../..", "dev/PhyloNetworks/examples", "Ae_bicornis_Tr406_Contig10132.aln")
+#fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "Ae_bicornis_Tr406_Contig10132.aln"))
 fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_Tr406_Contig10132.aln")
 dna_dat, dna_weights = readfastatodna(fastafile, true);
 
@@ -434,22 +437,30 @@ for edge in dna_net_top.edge #adds branch lengths
     setLength!(edge,1.0)
 end
 
-nasm_model = JC69([0.5], false);
+nasm_model = JC69([0.3], false); # relative=false: absolute version
+# below: error because missing gammas
 @test_throws ErrorException fitdiscrete(dna_net_top, nasm_model, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false)
-
-#Fixes the gamma error (creates a network)
+# set gamma at the 3 reticulations, to fix error above
 setGamma!(dna_net_top.edge[6],0.6)
 setGamma!(dna_net_top.edge[7],0.6)
 setGamma!(dna_net_top.edge[58],0.6)
 
-dna_net = fitdiscrete(dna_net_top, nasm_model, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false)
-
-dna_net_optQ = fitdiscrete(dna_net_top, nasm_model, dna_dat, dna_weights; optimizeQ=true, optimizeRVAS=false)
-
-dna_net_optRVAS = fitdiscrete(dna_net_top, nasm_model, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=true)
-
-dna_net_opt_both = fitdiscrete(dna_net_top, nasm_model, dna_dat, dna_weights; optimizeQ=true, optimizeRVAS=true)
-
+dna_net = (@test_logs (:warn, r"^the network contains taxa with no data") (:warn, r"^resetting edge numbers") fitdiscrete(dna_net_top, nasm_model, dna_dat, dna_weights;
+    optimizeQ=false, optimizeRVAS=false))
+@test dna_net.model.rate == nasm_model.rate
+dna_net_optQ = (@test_logs (:warn, r"^the network contains taxa with no data") (:warn, r"^resetting edge numbers") fitdiscrete(dna_net_top, nasm_model, dna_dat, dna_weights;
+    optimizeQ=true, optimizeRVAS=false, ftolRel=.1, ftolAbs=.2, xtolRel=.1, xtolAbs=.2))
+@test dna_net_optQ.model.rate != nasm_model.rate
+@test dna_net_optQ.ratemodel.alpha == 1.0
+# fixit: no rate model -> nothing to optimize even if optimizeRVAS=true
+dna_net_optRVAS = (@test_logs (:warn, r"^the network contains taxa with no data") (:warn, r"^resetting edge numbers") fitdiscrete(dna_net_top, nasm_model, dna_dat, dna_weights;
+    optimizeQ=false, optimizeRVAS=true))
+@test dna_net_optRVAS.model.rate == nasm_model.rate
+# fixit: add test for alpha != 1.0, that is: @test dna_net_optRVAS.ratemodel.alpha != 1.0
+dna_net_opt_both = (@test_logs (:warn, r"^the network contains taxa with no data") (:warn, r"^resetting edge numbers") fitdiscrete(dna_net_top, nasm_model, dna_dat, dna_weights;
+    optimizeQ=true, optimizeRVAS=true, ftolRel=.1, ftolAbs=.2, xtolRel=.1, xtolAbs=.2))
+@test dna_net_opt_both.model.rate != nasm_model.rate
+# @test dna_net_opt_both.ratemodel.alpha != 1.0
 end #of testing readfastatodna with NASM and RateVariationAcrossSites
 
 @testset "testing stationary and empiricaldistribution functions" begin

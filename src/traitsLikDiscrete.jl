@@ -269,6 +269,8 @@ function fitdiscrete(net::HybridNetwork, modSymbol::Symbol,
         model = BinaryTraitSubstitutionModel([rate, rate], labels)
     elseif modSymbol == :TBTSM
         model = TwoBinaryTraitSubstitutionModel([rate, rate, rate, rate, rate, rate, rate, rate], labels)
+    else
+        error("model $modSymbol is unknown or not implemented yet")
     end
 
     if rvSymbol == :RV
@@ -306,7 +308,7 @@ function fitdiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame,
     dnapatternweights::Array{Float64}, rvSymbol=:noRV::Symbol; kwargs...)
     rate = startingrate(net)
     if modSymbol == :JC69
-        model = JC69([rate], true)
+        model = JC69([rate], true) # relative = true: relative rates by default
     elseif modSymbol == :HKY85
         model = HKY85([rate, rate], empiricaldistribution(dnadata, dnapatternweights), true)
     elseif modSymbol == :ERSM

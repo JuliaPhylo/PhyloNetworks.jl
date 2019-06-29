@@ -1129,9 +1129,12 @@ The following StatsBase functions can be applied to it:
 `coef`, `nobs`, `vcov`, `stderror`, `confint`, `coeftable`, `dof_residual`, `dof`, `deviance`,
 `residuals`, `response`, `predict`, `loglikelihood`, `nulldeviance`, `nullloglikelihood`,
 `r2`, `adjr2`, `aic`, `aicc`, `bic`.
-# fixit below
-The following StatsModels functions can also be applied to it:
-`ModelFrame`, `ModelMatrix`, `@formula`.
+
+For accessing the model matrix (`object.mm` and `object.mm.m`),
+the model frame (`object.mf`) or formula (`object.mf.f`), refer to
+[StatsModels](https://juliastats.github.io/StatsModels.jl/stable/) functions,
+like `show(object.mf.f)`, `terms(object.mf.f)`, `coefnames(object.mf.f)`,
+`terms(object.mf.f.rhs)`, `response(object)` etc.
 
 Estimated variance and mean of the BM process used can be retrieved with
 functions [`sigma2_estim`](@ref) and [`mu_estim`](@ref).
@@ -1681,14 +1684,14 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
         #   fr = fr[ind, :]
     end
     # Find the regression matrix and response vector
-    sch = StatsModels.schema(f, fr)
+    data, nonmissing = StatsModels.missing_omit(StatsModels.columntable(fr), f)
+    sch = StatsModels.schema(f, data)
     f = StatsModels.apply_schema(f, sch, PhyloNetworkLinearModel)
-    mf = ModelFrame(f, sch, StatsModels.columntable(fr), PhyloNetworkLinearModel)
+    mf = ModelFrame(f, sch, data, PhyloNetworkLinearModel)
     mm = StatsModels.ModelMatrix(mf)
     Y = StatsModels.response(mf)
     # Y = convert(Vector{Float64}, StatsModels.response(mf))
     # Y, pred = StatsModels.modelcols(f, fr)
-    tmp, nonmissing = StatsModels.missing_omit(StatsModels.columntable(fr), mf.f)
     StatsModels.TableRegressionModel(
         phyloNetworklm(mm.m, Y, net; nonmissing=nonmissing, model=model, ind=ind,
                        startingValue=startingValue, fixedValue=fixedValue),
@@ -1820,12 +1823,6 @@ Estimated lambda parameter for a fitted object.
 """
 lambda_estim(m::PhyloNetworkLinearModel) = m.lambda
 lambda_estim(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T) = lambda_estim(m.model)
-
-### Functions specific to TableRegressionModel
-# StatsModels.ModelFrame(m::StatsModels.TableRegressionModel) = m.mf
-# StatsModels.ModelMatrix(m::StatsModels.TableRegressionModel) = m.mm
-# @formula(m::StatsModels.TableRegressionModel) = @formula(m.mf.terms)
-# StatsModels.response(m::StatsModels.TableRegressionModel) = response(m.model)
 
 ### Print the results
 # Variance
