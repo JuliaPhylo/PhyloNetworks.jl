@@ -2,6 +2,8 @@ using Documenter, DocumenterMarkdown
 
 using Pkg
 Pkg.add(PackageSpec(name="PhyloPlots", rev="master"))
+Pkg.pin(PackageSpec(name="StatsModels", version="0.5.0")) # release after RCall updates to StatsModels v0.6
+# problem: in traits, StatsModels v0.6.0 is now required
 
 using PhyloNetworks
 
@@ -24,7 +26,7 @@ makedocs(
             "Multiple Alleles" => "man/multiplealleles.md",
             "Continuous Trait Evolution" => "man/trait_tree.md",
             "Parsimony on networks" => "man/parsimony.md",
-            "Discrete Trait Evolution" => "man/fitdiscrete.md",
+            "Discrete Trait Evolution" => "man/fitDiscrete.md",
         ],
         "Library" => [
             "Public" => "lib/public.md",

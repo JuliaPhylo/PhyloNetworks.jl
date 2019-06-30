@@ -125,22 +125,24 @@ julia> using DataFrames
 
 julia> dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"]);
 
-julia> fit1 = fitdiscrete(net, m1, dat; optimizeQ=true, optimizeRVAS=false)
+julia> fit1 = fitdiscrete(net, m1, dat)
 PhyloNetworks.StatisticalSubstitutionModel:
 Binary Trait Substitution Model:
 rate lo→hi α=0.27222
 rate hi→lo β=0.34981
-1 traits, 4 species, on a network with 1 reticulations
+1 traits, 4 species
+on a network with 1 reticulations
 log-likelihood: -2.7277
 
 julia> tips = Dict("A" => "lo", "B" => "lo", "C" => "hi", "D" => "hi");
 
-julia> fit2 = fitdiscrete(net, m1, tips; optimizeRVAS=false, xtolRel=1e-16, xtolAbs=1e-16, ftolRel=1e-16)
+julia> fit2 = fitdiscrete(net, m1, tips; xtolRel=1e-16, xtolAbs=1e-16, ftolRel=1e-16)
 PhyloNetworks.StatisticalSubstitutionModel:
 Binary Trait Substitution Model:
 rate lo→hi α=0.27222
 rate hi→lo β=0.34981
-1 traits, 4 species, on a network with 1 reticulations
+1 traits, 4 species
+on a network with 1 reticulations
 log-likelihood: -2.7277
 ```
 
@@ -157,7 +159,7 @@ julia> tips = Dict("sp1" => BioSymbols.DNA_A, "sp2" => BioSymbols.DNA_A, "sp3" =
 
 julia> mJC69 = JC69([0.25], false);
 
-julia> fitJC69 = fitdiscrete(net, mJC69, tips; optimizeQ=true, optimizeRVAS=false)
+julia> fitJC69 = fitdiscrete(net, mJC69, tips)
 PhyloNetworks.StatisticalSubstitutionModel:
 Jukes and Cantor 69 Substitution Model,
 absolute rate version
@@ -168,10 +170,11 @@ rate matrix Q:
        C  0.0974       *  0.0974  0.0974
        G  0.0974  0.0974       *  0.0974
        T  0.0974  0.0974  0.0974       *
-1 traits, 4 species, on a network with 0 reticulations
+1 traits, 4 species
+on a network with 0 reticulations
 log-likelihood: -4.99274
 
-julia> rv = RateVariationAcrossSites(1.0, 4)
+julia> rv = RateVariationAcrossSites()
 Rate Variation Across Sites using Discretized Gamma Model
 alpha: 1.0
 categories for Gamma discretization: 4
@@ -188,11 +191,12 @@ rate matrix Q:
        C  0.0833       *  0.0833  0.0833
        G  0.0833  0.0833       *  0.0833
        T  0.0833  0.0833  0.0833       *
-1 traits, 4 species, with gamma variable rate model according to Rate Variation Across Sites using Discretized Gamma Model
-alpha: 1.0
-categories for Gamma discretization: 4
-ratemultiplier: [0.145784, 0.513132, 1.07083, 2.27025]
- with alpha = 1.0 and 4 categories on a network with 0 reticulations
+1 traits, 4 species
+variable rates across sites ~ discretized gamma with
+ alpha=1.0
+ 4 categories
+ rate multipliers: [0.145784, 0.513132, 1.07083, 2.27025]
+on a network with 0 reticulations
 log-likelihood: -5.2568
 ```
 """
@@ -737,7 +741,7 @@ julia> dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"]);
 julia> fit1 = fitdiscrete(net, m1, dat);
 
 julia> asr = ancestralStateReconstruction(fit1)
-9×4 DataFrames.DataFrame
+9×4 DataFrame
 │ Row │ nodenumber │ nodelabel │ lo       │ hi       │
 │     │ Int64      │ String    │ Float64  │ Float64  │
 ├─────┼────────────┼───────────┼──────────┼──────────┤
@@ -753,7 +757,7 @@ julia> asr = ancestralStateReconstruction(fit1)
 
 julia> round.(exp.(fit1.postltw), digits=6) # marginal (posterior) probability that the trait evolved on each displayed tree
 2-element Array{Float64,1}:
- 0.919831 
+ 0.919831
  0.080169
 
 julia> using PhyloPlots

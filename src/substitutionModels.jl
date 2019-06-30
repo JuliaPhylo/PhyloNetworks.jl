@@ -991,7 +991,7 @@ julia> rv
 Rate Variation Across Sites using Discretized Gamma Model
 alpha: 2.0
 categories for Gamma discretization: 4
-ratemultiplier: [0.304691, 0.652574, 1.05902, 1.80351]
+ratemultiplier: [0.319065, 0.683361, 1.10898, 1.8886]
 
 julia> RateVariationAcrossSites(2.0, 4)
 Rate Variation Across Sites using Discretized Gamma Model

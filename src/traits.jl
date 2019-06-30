@@ -512,7 +512,7 @@ julia> sim = simulate(net, params); # simulate a dataset with shifts
 julia> using DataFrames # to handle data frames
 
 julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
-4×2 DataFrames.DataFrame
+4×2 DataFrame
 │ Row │ trait   │ tipNames │
 │     │ Float64 │ String   │
 ├─────┼─────────┼──────────┤
@@ -522,7 +522,7 @@ julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
 │ 4   │ 7.88906 │ D        │
 
 julia> dfr_shift = regressorShift(net.node[nodes_shifts], net) # the regressors matching the shifts.
-4×3 DataFrames.DataFrame
+4×3 DataFrame
 │ Row │ shift_1 │ shift_8 │ tipNames │
 │     │ Float64 │ Float64 │ String   │
 ├─────┼─────────┼─────────┼──────────┤
@@ -652,7 +652,7 @@ julia> using Random; Random.seed!(2468); # sets the seed for reproducibility
 julia> sim = simulate(net, params); # simulate a dataset with shifts
 
 julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
-4×2 DataFrames.DataFrame
+4×2 DataFrame
 │ Row │ trait   │ tipNames │
 │     │ Float64 │ String   │
 ├─────┼─────────┼──────────┤
@@ -662,7 +662,7 @@ julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
 │ 4   │ 12.6891 │ D        │
 
 julia> dfr_hybrid = regressorHybrid(net) # the reressors matching the hybrids.
-4×3 DataFrames.DataFrame
+4×3 DataFrame
 │ Row │ shift_6 │ tipNames │ sum     │
 │     │ Float64 │ String   │ Float64 │
 ├─────┼─────────┼──────────┼─────────┤
@@ -1511,7 +1511,7 @@ julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
 julia> fitBM # Shows a summary
 StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
 
-Formula: trait ~ +1
+Formula: trait ~ 1
 
 Model: BM
 
@@ -2365,7 +2365,7 @@ julia> ancStates = ancestralStateReconstruction(fitBM);
 └ @ PhyloNetworks ~/build/crsl4/PhyloNetworks.jl/src/traits.jl:2163
 
 julia> expectations(ancStates)
-31×2 DataFrames.DataFrame
+31×2 DataFrame
 │ Row │ nodeNumber │ condExpectation │
 │     │ Int64      │ Float64         │
 ├─────┼────────────┼─────────────────┤
@@ -2410,7 +2410,7 @@ julia> predint(ancStates)
   1.0695      1.0695
 
 julia> expectationsPlot(ancStates) # format node <-> ancestral state
-31×2 DataFrames.DataFrame
+31×2 DataFrame
 │ Row │ nodeNumber │ PredInt   │
 │     │ Int64      │ Abstract… │
 ├─────┼────────────┼───────────┤
@@ -2434,7 +2434,7 @@ julia> expectationsPlot(ancStates) # format node <-> ancestral state
 julia> plot(phy, :RCall, nodeLabel = expectationsPlot(ancStates));
 
 julia> predintPlot(ancStates) # prediction intervals, in data frame, useful to plot
-31×2 DataFrames.DataFrame
+31×2 DataFrame
 │ Row │ nodeNumber │ PredInt       │
 │     │ Int64      │ Abstract…     │
 ├─────┼────────────┼───────────────┤

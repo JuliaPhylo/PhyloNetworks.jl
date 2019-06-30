@@ -503,16 +503,16 @@ HKY85_1 = HKY85([0.5, 0.5], [0.2, 0.3, 0.25, 0.25], false)
 # test empiricalDNAfrequencies with string type
 # Bayesian correction by default: more stable and avoids zeros
 dna_String = view(DataFrame(A = ["s1", "s2"], site1 = ["A", "A"], site2 = ["G", "T"]), 2:3)
-@test PhyloNetworks.empiricalDNAfrequencies(dna_String, [1, 1]) == [3,1,2,2]/(4+4)
+@test PhyloNetworks.empiricalDNAfrequencies(dna_String, [1, 1]) ≈ [3,1,2,2]/(4+4)
 # with char type
 dna_Char = view(DataFrame(A = ["s1", "s2"], site1 = ['A', 'A'], site2 = ['G', 'T']), 2:3)
-@test PhyloNetworks.empiricalDNAfrequencies(dna_Char, [1, 1]) == [3,1,2,2]/(4+4)
+@test PhyloNetworks.empiricalDNAfrequencies(dna_Char, [1, 1]) ≈ [3,1,2,2]/(4+4)
 # uncorrected estimate
-@test PhyloNetworks.empiricalDNAfrequencies(dna_Char, [1, 1], false) == [2,0,1,1]/4
+@test PhyloNetworks.empiricalDNAfrequencies(dna_Char, [1, 1], false) ≈ [2,0,1,1]/4
 # with ambiguous sites
 dna_Char = DataFrame(site1 = ['A','A','Y'], site2 = ['G','T','V'])
-@test PhyloNetworks.empiricalDNAfrequencies(dna_Char, [1, 1], false, false) == [2,0,1,1]/4
-@test PhyloNetworks.empiricalDNAfrequencies(dna_Char, [1, 1], false) == [2+1/3,1/2+1/3,1+1/3,1+1/2]/6
+@test PhyloNetworks.empiricalDNAfrequencies(dna_Char, [1, 1], false, false) ≈ [2,0,1,1]/4
+@test PhyloNetworks.empiricalDNAfrequencies(dna_Char, [1, 1], false) ≈ [2+1/3,1/2+1/3,1+1/3,1+1/2]/6
 # with DNA type and weights
 #fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "test_8_withrepeatingsites.aln"))
 fastafile = joinpath(@__DIR__, "..", "examples", "test_8_withrepeatingsites.aln")
