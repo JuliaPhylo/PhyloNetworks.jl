@@ -44,9 +44,10 @@ StatsBase.dof(obj::SSM) = nparams(obj.model) + nparams(obj.ratemodel)
 function Base.show(io::IO, obj::SSM)
     disp =  "$(typeof(obj)):\n"
     disp *= string(obj.model)
-    disp *= "$(obj.nsites) traits, $(length(obj.trait)) species, "
+    disp *= "$(obj.nsites) traits, $(length(obj.trait)) species\n"
     if obj.ratemodel.ncat != 1
-        disp *= "with gamma variable rate model according to $(obj.ratemodel) with alpha = $(obj.ratemodel.alpha) and $(obj.ratemodel.ncat) categories "
+        disp *= "variable rates across sites ~ discretized gamma with\n alpha=$(obj.ratemodel.alpha)"
+        disp *= "\n $(obj.ratemodel.ncat) categories\n rate multipliers: $(obj.ratemodel.ratemultiplier)\n"
     end
     disp *= "on a network with $(obj.net.numHybrids) reticulations"
     if !ismissing(obj.loglik)
@@ -109,6 +110,8 @@ Optional arguments (default):
 - tolerance values to control when the optimization is stopped:
   `ftolRel` (1e-12), `ftolAbs` (1e-10) on the likelihood, and
   `xtolRel` (1e-10), `xtolAbs` (1e-10) on the model parameters.
+- bounds for the alpha parameter of the Gamma distribution of rates across sites:
+  `alphamin=0.05`, `alphamax=500`.
 - `verbose` (false): if true, more information is output.
 
 # examples:
@@ -260,9 +263,11 @@ function fitdiscrete(net::HybridNetwork, modSymbol::Symbol,
     rate = startingrate(net)
     labels = learnLabels(modSymbol, species, dat)
     if modSymbol == :JC69
-        model = JC69([rate], true)
+        model = JC69([1.0], true) # 1.0 instead of rate because relative version
     elseif modSymbol == :HKY85
-        model = HKY85([rate, rate], [0.25, 0.25, 0.25, 0.25], true)
+        model = HKY85([1.0], # transition/transversion rate ratio
+                       empiricalDNAfrequencies(dat, repeat([1.], inner=ncol(dat))),
+                       true)
     elseif modSymbol == :ERSM
         model = EqualRatesSubstitutionModel(length(labels), rate, labels);
     elseif modSymbol == :BTSM
@@ -308,15 +313,19 @@ function fitdiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame,
     dnapatternweights::Array{Float64}, rvSymbol=:noRV::Symbol; kwargs...)
     rate = startingrate(net)
     if modSymbol == :JC69
-        model = JC69([rate], true) # relative = true: relative rates by default
+        model = JC69([1.0], true)  # 1.0 instead of rate because relative version (relative = true)
     elseif modSymbol == :HKY85
-        model = HKY85([rate, rate], empiricaldistribution(dnadata, dnapatternweights), true)
+        model = HKY85([1.0], # transition/transversion rate ratio
+                      empiricalDNAfrequencies(view(dnadata, 2:ncol(dnadata)), dnapatternweights),
+                      true)
     elseif modSymbol == :ERSM
         model = EqualRatesSubstitutionModel(4, rate, [BioSymbols.DNA_A, BioSymbols.DNA_C, BioSymbols.DNA_G, BioSymbols.DNA_T]);
     elseif modSymbol == :BTSM
         error("Binary Trait Substitution Model supports only two trait states, but dna data has four states.")
     elseif modSymbol == :TBTSM
         error("Two Binary Trait Substitution Model does not support dna data: it supports two sets of potentially correlated two trait states.")
+    else
+        error("model $modSymbol is unknown or not implemented yet")
     end
 
     if rvSymbol == :RV
@@ -380,7 +389,8 @@ end
 
 function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,verbose=false::Bool,
       NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-      xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
+      xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
+      alphamin=0.05, alphamax=500)
     all(x -> x >= 0.0, [e.length for e in obj.net.edge]) || error("branch lengths should be >= 0")
     all(x -> x >= 0.0, [e.gamma for e in obj.net.edge]) || error("gammas should be >= 0")
     if optimizeQ && nparams(obj.model) <1
@@ -391,25 +401,23 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,verbose=fa
         @debug "Rate model has one rate category, so there are no parameters to optimize. optimizeRVAS will be set to false."
         optimizeRVAS = false
     end
-    if !optimizeQ & !optimizeRVAS 
-        #? rates need to be set?
+    if !optimizeQ && !optimizeRVAS
         discrete_corelikelihood!(obj)
         verbose && println("loglik = $(loglikelihood(obj)) under fixed parameters, no optimization")
-        return obj # return fmax,xmax,ret
+        return obj
     end
     counter = [0]
     if optimizeQ
         function loglikfun(x::Vector{Float64}, grad::Vector{Float64}) # modifies obj
             counter[1] += 1
-            setrates!(obj.model, x) #replaced assignment here for efficiency will be setalpha!
+            setrates!(obj.model, x)
             res = discrete_corelikelihood!(obj)
             verbose && println("loglik: $res, model rates: $x")
             length(grad) == 0 || error("gradient not implemented")
             return res
         end
-        # build optimizer for Q
-        # optimize Q under fixedRVAS
-        # set-up optimization object
+        # optimize Q under fixed RVAS parameters
+        # set-up optimization object for Q
         NLoptMethod=:LN_COBYLA # no gradient
         # :LN_COBYLA for (non)linear constraits, :LN_BOBYQA for bound constraints
         nparQ = nparams(obj.model)
@@ -430,15 +438,13 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,verbose=fa
     if optimizeRVAS
         function loglikfunRVAS(alpha::Vector{Float64}, grad::Vector{Float64}) # modifies obj
             counter[1] += 1
-            setalpha!(obj.ratemodel, alpha[1]) #replaced assignment here for efficiency will be setalpha!
+            setalpha!(obj.ratemodel, alpha[1]) # obj.ratemodel.alpha is a scalar, alpha is a vector within here
             res = discrete_corelikelihood!(obj)
             verbose && println("loglik: $res, rate variation model shape parameter alpha: $(alpha[1])")
             length(grad) == 0 || error("gradient not implemented")
             return res
         end
-        # build optimizer for RAS
-        # optimize RAS 
-        # set-up optimization object
+        # set-up optimization object for RVAS parameter
         NLoptMethod=:LN_COBYLA # no gradient
         # :LN_COBYLA for (non)linear constraits, :LN_BOBYQA for bound constraints
         nparRVAS = nparams(obj.ratemodel)
@@ -449,24 +455,21 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,verbose=fa
         NLopt.xtol_abs!(optRVAS,xtolAbs)
         NLopt.maxeval!(optRVAS,1000) # max number of iterations
         # NLopt.maxtime!(optRVAS, t::Real)
-        NLopt.lower_bounds!(optRVAS, zeros(Float64, nparRVAS))
-        # fixit: set upper bound depending on branch lengths in network?
+        NLopt.lower_bounds!(optRVAS, fill(alphamin, (nparRVAS,)) ) # for 0 as lower bound: zeros(Float64, nparRVAS)
+        NLopt.upper_bounds!(optRVAS, fill(alphamax, (nparRVAS,)) ) # delete to remove upper bound
         counter[1] = 0
         NLopt.max_objective!(optRVAS, loglikfunRVAS)
         fmax, xmax, ret = NLopt.optimize(optRVAS, [obj.ratemodel.alpha]) # optimization here!
         verbose && println("RVAS: got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
     end
     if optimizeQ && optimizeRVAS
-        # optimize Q under RVAS
-        # fixit: set upper bound depending on branch lengths in network?
+        # optimize Q under fixed RVAS parameters: a second time
         counter[1] = 0
-        #NLopt.max_objective!(optQ, loglikfun)
-        fmax, xmax, ret = NLopt.optimize(optQ, obj.model.rate) # optimization here!
+        fmax, xmax, ret = NLopt.optimize(optQ, obj.model.rate)
         verbose && println("got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
-        # optimize RVAS
+        # optimize RVAS under fixed Q: a second time
         counter[1] = 0
-        #NLopt.max_objective!(optRVAS, loglikfunRVAS)
-        fmax, xmax, ret = NLopt.optimize(optRVAS, [obj.ratemodel.alpha]) # optimization here!
+        fmax, xmax, ret = NLopt.optimize(optRVAS, [obj.ratemodel.alpha])
         verbose && println("RVAS: got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
     end
     return obj
@@ -476,6 +479,7 @@ end
 """
     discrete_corelikelihood!(obj::StatisticalSubstitutionModel; whichtrait=:all)
     discrete_corelikelihood_tree!(obj, t::Integer, traitrange::AbstractArray)
+
 Calculate the likelihood and update `obj.loglik` for discrete characters on a network
 (or on a single tree: `t`th tree displayed in the network, for the second form).
 Update forward and direct partial likelihoods while doing so.
@@ -843,9 +847,9 @@ Learn label names and length from data for fitdiscrete wrapper function with spe
 function learnLabels(modSymbol::Symbol, species::Array{String}, dat::DataFrame)
     labels = unique(reshape(convert(Matrix, dat), 1, size(dat)[1]*size(dat)[2]))
     if modSymbol == :BTSM
-        length(labels) == 2 || error("Binary Trait Substitution Model supports traits with two states. These data have more than two states.")
+        length(labels) == 2 || error("Binary Trait Substitution Model supports traits with two states. These data have do not have two states.")
     elseif modSymbol == :TBTSM
-        unique(dat[1]) == 2 && unique(dat[2] == 2) || error("Two Binary Trait Substitution Model supports two traits with two states each. These data have more than two states.")
+        unique(dat[1]) == 2 && unique(dat[2] == 2) || error("Two Binary Trait Substitution Model supports two traits with two states each.")
     elseif modSymbol == :HKY85
         occursin(uppercase(join(sort(labels))), "ACGT") || error("HKY85 requires that trait data are dna bases A, C, G, and T")
     elseif modSymbol == :JC69

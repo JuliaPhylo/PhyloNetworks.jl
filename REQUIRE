@@ -12,4 +12,4 @@ SpecialFunctions 0.7
 StaticArrays 0.8.3
 StatsBase 0.26
 StatsFuns 0.7
-StatsModels 0.3
+StatsModels 0.6

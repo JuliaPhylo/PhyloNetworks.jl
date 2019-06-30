@@ -140,8 +140,8 @@ randomTrait!
 fitdiscrete
 maxParsimonyNet
 nstates
-setrates!
-setalpha!
+stationary
+empiricalDNAfrequencies
 ```
 
 ```@meta
