@@ -1,3 +1,9 @@
+```@setup traitevol_fixednet
+using PhyloNetworks
+using DataFrames
+mkpath("../assets/figures")
+```
+
 # Discrete Trait Evolution
 
 With a phylogenetic network structure inferred, we can now estimate how quickly traits
@@ -13,12 +19,7 @@ add data about the tips of this network. We allow data of two types.
 
 1. A vector of species names with a data frame of traits:
 
-   ```@setup fitdiscrete
-   using PhyloNetworks, DataFrames
-   mkpath("../assets/figures")
-   ```
-
-   ```@example fitdiscrete
+   ```@example traitevol_fixednet
    # read in network
    net = readTopology("(A:3,((B:0.4)#H1:1.6::0.92,((C:0.4,#H1:0::0.08):0.6,D:1):1):1);");
    # read in trait data
@@ -28,7 +29,7 @@ add data about the tips of this network. We allow data of two types.
 
    If your species names and trait data are in the same data frame,
    read in your data frame then subset the data like this:
-   ```@example fitdiscrete
+   ```@example traitevol_fixednet
    dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"])
    species = dat[:species]
    dat = DataFrame(trait = dat[:trait])
@@ -38,7 +39,7 @@ add data about the tips of this network. We allow data of two types.
    file. Reading the data from this file using the `readfastatodna` function.
    This creates a data frame of dna data and a vector of dna pattern weights.
 
-   ```@example fitdiscrete
+   ```@example traitevol_fixednet
    # read in network
    dna_net = readTopology("((((((((((((((Ae_caudata_Tr275:1.0,Ae_caudata_Tr276:1.0):1.0,Ae_caudata_Tr139:1.0):1.0)#H1:1.0::0.6,((((((Ae_longissima_Tr241:1.0,Ae_longissima_Tr242:1.0):1.0,Ae_longissima_Tr355:1.0):1.0,(Ae_sharonensis_Tr265:1.0,Ae_sharonensis_Tr264:1.0):1.0):1.0,((Ae_bicornis_Tr408:1.0,Ae_bicornis_Tr407:1.0):1.0,Ae_bicornis_Tr406:1.0):1.0):1.0,((Ae_searsii_Tr164:1.0,Ae_searsii_Tr165:1.0):1.0,Ae_searsii_Tr161:1.0):1.0):1.0)#H2:1.0::0.6):1.0,(((Ae_umbellulata_Tr266:1.0,Ae_umbellulata_Tr257:1.0):1.0,Ae_umbellulata_Tr268:1.0):1.0,#H1:1.0::0.4):1.0):1.0,((Ae_comosa_Tr271:1.0,Ae_comosa_Tr272:1.0):1.0,(((Ae_uniaristata_Tr403:1.0,Ae_uniaristata_Tr357:1.0):1.0,Ae_uniaristata_Tr402:1.0):1.0,Ae_uniaristata_Tr404:1.0):1.0):1.0):1.0,(((Ae_tauschii_Tr352:1.0,Ae_tauschii_Tr351:1.0):1.0,(Ae_tauschii_Tr180:1.0,Ae_tauschii_Tr125:1.0):1.0):1.0,(#H2:1.0::0.4,((((Ae_mutica_Tr237:1.0,Ae_mutica_Tr329:1.0):1.0,Ae_mutica_Tr244:1.0):1.0,Ae_mutica_Tr332:1.0):1.0)#H4:1.0::0.6):1.0):1.0):1.0,(((T_boeoticum_TS8:1.0,(T_boeoticum_TS10:1.0,T_boeoticum_TS3:1.0):1.0):1.0,T_boeoticum_TS4:1.0):1.0,((T_urartu_Tr315:1.0,T_urartu_Tr232:1.0):1.0,(T_urartu_Tr317:1.0,T_urartu_Tr309:1.0):1.0):1.0):1.0):1.0,(((((Ae_speltoides_Tr320:1.0,Ae_speltoides_Tr323:1.0):1.0,Ae_speltoides_Tr223:1.0):1.0,Ae_speltoides_Tr251:1.0):1.0):1.0,#H4:1.0::0.4):1.0):1.0):1.0,Ta_caputMedusae_TB2:1.0):1.0,S_vavilovii_Tr279:1.0):1.0,Er_bonaepartis_TB1:1.0):1.0,H_vulgare_HVens23:1.0);");
    # read in dna data
@@ -93,7 +94,7 @@ The model ignores incomplete lineage sorting (e.g. hemiplasy).
 
 ### General Trait Data
 
-```@repl fitdiscrete
+```@repl traitevol_fixednet
 s1 = fitdiscrete(net, :ERSM, species, dat; optimizeQ=false)
 s2 = fitdiscrete(net, :BTSM, species, dat; optimizeQ=false)
 ```
@@ -107,7 +108,7 @@ function estimates the parameters of the rate matrix.
 Because we didn't allow for rate variation across sites in these models,
 there is nothing to optimize in the way rates may vary across traits (sites).
 
-```@repl fitdiscrete
+```@repl traitevol_fixednet
 s3 = fitdiscrete(net, :ERSM, species, dat)
 s4 = fitdiscrete(net, :BTSM, species, dat)
 ```
@@ -117,7 +118,7 @@ s4 = fitdiscrete(net, :BTSM, species, dat)
 For DNA data, use one of `:JC69` or `:HKY85`.
 To allow for rate variation across sites, use the `:RV` option.
 
-```@example fitdiscrete
+```@example traitevol_fixednet
 d1 = fitdiscrete(dna_net, :JC69, dna_dat, dna_weights, :RV; optimizeQ=false, optimizeRVAS=false)
 d2 = fitdiscrete(dna_net, :HKY85, dna_dat, dna_weights, :RV; optimizeQ=false, optimizeRVAS=false)
 ```
@@ -135,7 +136,7 @@ also optimize the parameter α of the distribution of rates across sites.
 
 We optimize the evolutionary rates and the way rates vary across sites for the
 DNA data here:
-```@repl fitdiscrete
+```@repl traitevol_fixednet
 d3 = fitdiscrete(dna_net, :JC69, dna_dat, dna_weights, :RV; optimizeRVAS=false)
 d4 = fitdiscrete(dna_net, :HKY85, dna_dat, dna_weights, :RV)
 ```
