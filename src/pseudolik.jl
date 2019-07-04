@@ -1364,6 +1364,8 @@ function logPseudoLik(quartet::Quartet)
             suma += -1.e15
         else
             suma += quartet.obsCF[i] == 0 ? 0.0 : 100*quartet.obsCF[i]*log(quartet.qnet.expCF[i]/quartet.obsCF[i])
+            # WARNING: 100 should be replaced by -2*ngenes to get the deviance.
+            # below: negative sign used below in logPseudoLik() when summing up across 4-taxon sets
         end
     end
     ## to account for missing data:

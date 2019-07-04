@@ -8,9 +8,9 @@ This is useful if we have a few candidate networks to compare.
 Each network can be optimized individually, and the network with the best
 pseudolikelihood can be chosen.
 
-The score being optimized is the pseudo-deviance, i.e.
-the negative log pseudo-likelihood up to an additive constant
-(the lower the better).
+The score being optimized is a pseudo-deviance, i.e.
+a multiple of the negative log pseudo-likelihood up to an additive constant
+(the lower the better; a pseudo-deviance of 0 corresponds to a perfect fit).
 
 Following our example in [Getting a Network](@ref),
 we can optimize parameters on the true network
@@ -29,7 +29,7 @@ raxmlCF = readTrees2CF(raxmltrees, writeTab=false, writeSummary=false)
 truenet = readTopology("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.0,(#H1:0::0.3,E:3.0):6.2):2.0,O:11.2);");
 net1alt = topologyMaxQPseudolik!(truenet, raxmlCF);
 writeTopology(net1alt, round=true)
-net1alt.loglik # pseudo deviance, actually
+net1alt.loglik # pseudo deviance actually: the lower the better
 ```
 ```@example fixednetworkoptim
 using PhyloPlots, RCall
@@ -54,16 +54,16 @@ the search stops (but the optimization will take longer).
 It makes no difference on this small data set.
 ```julia
 net1par = topologyMaxQPseudolik!(truenet, raxmlCF, ftolRel=1e-10, xtolAbs=1e-10)
-net1par.loglik
+net1par.loglik # pseudo deviance, actually: the lower the better
 ```
 
 ## Network Score with no optimization
 
 For a network with given branch lengths and γ heritabilies,
-we can compute the pseudolikelihood with:
+we can compute the pseudolikelihood (well, a pseudo-deviance) with:
 ```@repl fixednetworkoptim
 topologyQPseudolik!(truenet,raxmlCF);
-truenet.loglik
+truenet.loglik # again, pseudo deviance
 ```
 This function is not maximizing the pseudolikelihood, it is simply computing the
 pseudolikelihood (or deviance) for the given branch lengths and probabilities of

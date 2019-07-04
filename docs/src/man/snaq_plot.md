@@ -89,7 +89,8 @@ The file `net1.networks` contains a list of networks that are slight modificatio
 of the best (estimated) network `net1`. The modifications changed the direction
 of one reticulation at a time, by moving the placement of one hybrid node to another
 node inside the same cycle.
-For each modified network, the pseudolikelihood score was calculated.
+For each modified network, the pseudolikelihood score was calculated
+(the `loglik` or `-Ploglik` values give a pseudo deviance actually).
 
 The function name `snaq!` ends with ! because it modifies the argument `raxmlCF`
 by including the expected CF. Type `?` then `snaq!` to get help on that function.
@@ -266,7 +267,7 @@ echo "end of SNaQ run ..."
 ## choosing the number of hybridizations
 
 Each network has a `loglik` attribute, which is its pseudo deviance:
-twice the negative log-likelihood up to a constant (the constant is
+a multiple of the negative log-likelihood up to a constant (the constant is
 such that the score is 0 if the network fits the data perfectly).
 The lower the better. We can plot these scores across hybrid values:
 ```@example snaqplot
