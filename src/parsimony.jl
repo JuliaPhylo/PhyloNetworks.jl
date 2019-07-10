@@ -411,7 +411,7 @@ function readfastatodna(fastafile::String, countPatterns=false::Bool)
     species = String[]
     firstspecies = Bool(true)
     nsites = 0
-    for record in reader #species (row)
+    for record in reader #by species (row)
         if firstspecies
             nsites = length(sequence(record))
             for site in 1:nsites # initialize an array for each site
@@ -419,7 +419,7 @@ function readfastatodna(fastafile::String, countPatterns=false::Bool)
             end
             firstspecies = false
         end
-        push!(species, FASTA.identifier(record))
+        push!(species, FASTA.identifier(record)) #adds species name to end of species vector
         length(sequence(record)) == nsites || error("sequences of different length: current sequences is ", 
             length(sequence(record)), " long while first sequence is ", nsites, " long")
         for site in 1:nsites

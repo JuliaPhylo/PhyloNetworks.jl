@@ -512,7 +512,7 @@ julia> sim = simulate(net, params); # simulate a dataset with shifts
 julia> using DataFrames # to handle data frames
 
 julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
-4×2 DataFrames.DataFrame
+4×2 DataFrame
 │ Row │ trait   │ tipNames │
 │     │ Float64 │ String   │
 ├─────┼─────────┼──────────┤
@@ -522,7 +522,7 @@ julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
 │ 4   │ 7.88906 │ D        │
 
 julia> dfr_shift = regressorShift(net.node[nodes_shifts], net) # the regressors matching the shifts.
-4×3 DataFrames.DataFrame
+4×3 DataFrame
 │ Row │ shift_1 │ shift_8 │ tipNames │
 │     │ Float64 │ Float64 │ String   │
 ├─────┼─────────┼─────────┼──────────┤
@@ -536,7 +536,7 @@ julia> dfr = join(dat, dfr_shift, on=:tipNames); # join data and regressors in a
 julia> using StatsModels # for statistical model formulas
 
 julia> fitBM = phyloNetworklm(@formula(trait ~ shift_1 + shift_8), dfr, net) # actual fit
-StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
+StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
 
 Formula: trait ~ 1 + shift_1 + shift_8
 
@@ -652,7 +652,7 @@ julia> using Random; Random.seed!(2468); # sets the seed for reproducibility
 julia> sim = simulate(net, params); # simulate a dataset with shifts
 
 julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
-4×2 DataFrames.DataFrame
+4×2 DataFrame
 │ Row │ trait   │ tipNames │
 │     │ Float64 │ String   │
 ├─────┼─────────┼──────────┤
@@ -662,7 +662,7 @@ julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
 │ 4   │ 12.6891 │ D        │
 
 julia> dfr_hybrid = regressorHybrid(net) # the reressors matching the hybrids.
-4×3 DataFrames.DataFrame
+4×3 DataFrame
 │ Row │ shift_6 │ tipNames │ sum     │
 │     │ Float64 │ String   │ Float64 │
 ├─────┼─────────┼──────────┼─────────┤
@@ -676,7 +676,7 @@ julia> dfr = join(dat, dfr_hybrid, on=:tipNames); # join data and regressors in 
 julia> using StatsModels
 
 julia> fitBM = phyloNetworklm(@formula(trait ~ shift_6), dfr, net) # actual fit
-StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
+StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
 
 Formula: trait ~ 1 + shift_6
 
@@ -1120,18 +1120,21 @@ end
 
 # New type for phyloNetwork regression
 """
-    PhyloNetworkLinearModel<:LinPredModel
+    PhyloNetworkLinearModel<:GLM.LinPredModel
 
 Regression object for a phylogenetic regression. Result of fitting function [`phyloNetworklm`](@ref).
-Dominated by the `LinPredModel` class, from package `GLM`.
+Dominated by the `GLM.LinPredModel` class, from package `GLM`.
 
 The following StatsBase functions can be applied to it:
 `coef`, `nobs`, `vcov`, `stderror`, `confint`, `coeftable`, `dof_residual`, `dof`, `deviance`,
 `residuals`, `response`, `predict`, `loglikelihood`, `nulldeviance`, `nullloglikelihood`,
 `r2`, `adjr2`, `aic`, `aicc`, `bic`.
 
-The following StatsModels functions can also be applied to it:
-`ModelFrame`, `ModelMatrix`, `Formula`.
+For accessing the model matrix (`object.mm` and `object.mm.m`),
+the model frame (`object.mf`) or formula (`object.mf.f`), refer to
+[StatsModels](https://juliastats.github.io/StatsModels.jl/stable/) functions,
+like `show(object.mf.f)`, `terms(object.mf.f)`, `coefnames(object.mf.f)`,
+`terms(object.mf.f.rhs)`, `response(object)` etc.
 
 Estimated variance and mean of the BM process used can be retrieved with
 functions [`sigma2_estim`](@ref) and [`mu_estim`](@ref).
@@ -1145,7 +1148,7 @@ An ancestral state reconstruction can be performed from this fitted object using
 The `PhyloNetworkLinearModel` object has fields: `lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `ind`, `nonmissing`, `model`, `lambda`.
 Type in "?PhyloNetworkLinearModel.field" to get help on a specific field.
 """
-mutable struct PhyloNetworkLinearModel <: LinPredModel
+mutable struct PhyloNetworkLinearModel <: GLM.LinPredModel
     "lm: a GLM.LinearModel object, fitted on the cholesky-tranformend problem"
     lm::GLM.LinearModel # result of a lm on a matrix
     "V: a MatrixTopologicalOrder object of the network-induced correlations"
@@ -1473,11 +1476,10 @@ end
 
 Phylogenetic regression, using the correlation structure induced by the network.
 
-Returns an object of class [`PhyloNetworkLinearModel`](@ref). See documentation for this type and
-example to see all the functions that can be applied to it.
+Returns an object of class [`PhyloNetworkLinearModel`](@ref). See documentation for this type and example to see all the functions that can be applied to it.
 
 # Arguments
-* `f::Formula`: formula to use for the regression (see the `DataFrame` package)
+* `f::StatsModels.FormulaTerm`: formula to use for the regression
 * `fr::AbstractDataFrame`: DataFrame containing the data and regressors at the tips. It should have an extra column labelled "tipNames", that gives the names of the taxa for each observation.
 * `net::HybridNetwork`: phylogenetic network to use. Should have labelled tips.
 * `model::AbstractString="BM"`: the model to use, "BM" (default) or "lambda" (for Pagel's lambda).
@@ -1507,9 +1509,9 @@ julia> using StatsModels # for stat model formulas
 julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
 
 julia> fitBM # Shows a summary
-StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
+StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
 
-Formula: trait ~ +1
+Formula: trait ~ 1
 
 Model: BM
 
@@ -1633,8 +1635,8 @@ julia> round.(predict(fitBM), digits=5)
  4.679
 
 ```
-""" #"
-function phyloNetworklm(f::Formula,
+"""
+function phyloNetworklm(f::StatsModels.FormulaTerm,
                         fr::AbstractDataFrame,
                         net::HybridNetwork;
                         model="BM"::AbstractString,
@@ -1681,19 +1683,19 @@ function phyloNetworklm(f::Formula,
         end
         #   fr = fr[ind, :]
     end
-    # Find the regression matrix and answer vector
-    mf = ModelFrame(f,fr)
-    if isequal(f.rhs, -1) # If there are no regressors
-        mm = ModelMatrix(zeros(size(mf.df, 1), 0), [0])
-    else
-        mm = ModelMatrix(mf)
-    end
-    Y = convert(Vector{Float64}, StatsModels.model_response(mf))
-    # Fit the model (Method copied from DataFrame/src/statsmodels/statsmodels.jl, lines 47-58)
-    # (then StatsModels/src/statsmodels.jl lines 42-46)
-    StatsModels.DataFrameRegressionModel(phyloNetworklm(mm.m, Y, net;
-                                                       nonmissing=mf.nonmissing, model=model, ind=ind,
-                                                       startingValue=startingValue, fixedValue=fixedValue), mf, mm)
+    # Find the regression matrix and response vector
+    data, nonmissing = StatsModels.missing_omit(StatsModels.columntable(fr), f)
+    sch = StatsModels.schema(f, data)
+    f = StatsModels.apply_schema(f, sch, PhyloNetworkLinearModel)
+    mf = ModelFrame(f, sch, data, PhyloNetworkLinearModel)
+    mm = StatsModels.ModelMatrix(mf)
+    Y = StatsModels.response(mf)
+    # Y = convert(Vector{Float64}, StatsModels.response(mf))
+    # Y, pred = StatsModels.modelcols(f, fr)
+    StatsModels.TableRegressionModel(
+        phyloNetworklm(mm.m, Y, net; nonmissing=nonmissing, model=model, ind=ind,
+                       startingValue=startingValue, fixedValue=fixedValue),
+        mf, mm)
 end
 
 ### Methods on type phyloNetworkRegression
@@ -1775,7 +1777,7 @@ function StatsBase.adjr2(obj::PhyloNetworkLinearModel)
 end
 
 ## REMARK
-# As PhyloNetworkLinearModel <: LinPredModel, the following functions are automatically defined:
+# As PhyloNetworkLinearModel <: GLM.LinPredModel, the following functions are automatically defined:
 # aic, aicc, bic
 
 ## New quantities
@@ -1786,8 +1788,8 @@ end
 Estimated variance for a fitted object.
 """
 sigma2_estim(m::PhyloNetworkLinearModel) = deviance(m.lm) / nobs(m)
-# Need to be adapted manually to DataFrameRegressionModel beacouse it's a new function
-sigma2_estim(m::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} where T) =
+# Need to be adapted manually to TableRegressionModel beacouse it's a new function
+sigma2_estim(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T) =
   sigma2_estim(m.model)
 # ML estimate for ancestral state of the BM
 """
@@ -1806,9 +1808,9 @@ function mu_estim(m::PhyloNetworkLinearModel)
         return coef(m)[1]
     end
 end
-# Need to be adapted manually to DataFrameRegressionModel beacouse it's a new function
-function mu_estim(m::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} where T)
-    if (!m.mf.terms.intercept)
+# Need to be adapted manually to TableRegressionModel beacouse it's a new function
+function mu_estim(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T)
+    if m.mf.f.rhs.terms[1] != StatsModels.InterceptTerm{true}()
         error("The fit was done without intercept, so I cannot estimate mu")
     end
     return coef(m)[1]
@@ -1820,13 +1822,7 @@ end
 Estimated lambda parameter for a fitted object.
 """
 lambda_estim(m::PhyloNetworkLinearModel) = m.lambda
-lambda_estim(m::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} where T) = lambda_estim(m.model)
-
-### Functions specific to DataFrameRegressionModel
-StatsModels.ModelFrame(m::StatsModels.DataFrameRegressionModel) = m.mf
-StatsModels.ModelMatrix(m::StatsModels.DataFrameRegressionModel) = m.mm
-StatsModels.Formula(m::StatsModels.DataFrameRegressionModel) = Formula(m.mf.terms)
-StatsModels.response(m::StatsModels.DataFrameRegressionModel) = response(m.model)
+lambda_estim(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T) = lambda_estim(m.model)
 
 ### Print the results
 # Variance
@@ -1844,11 +1840,11 @@ function Base.show(io::IO, obj::PhyloNetworkLinearModel)
 end
 # For DataFrameModel. see also Base.show in
 # https://github.com/JuliaStats/StatsModels.jl/blob/master/src/statsmodel.jl
-function Base.show(io::IO, model::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} where T)
+function Base.show(io::IO, model::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T)
     ct = coeftable(model)
     println(io, "$(typeof(model))")
-    println(io)
-    println(io, Formula(model.mf.terms))
+    print(io, "\nFormula: ")
+    println(io, string(model.mf.f)) # formula
     println(io)
     println(io, "Model: $(model.model.model)")
     println(io)
@@ -1868,7 +1864,7 @@ end
 ###############################################################################
 ###############################################################################
 
-function GLM.ftest(objs::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T}...)  where T
+function GLM.ftest(objs::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T}...)  where T
     objsModels = [obj.model for obj in objs]
     return ftest(objsModels...)
 end
@@ -1895,7 +1891,7 @@ data, for models that have more and more effects.
 
 Returns a DataFrame object with the anova table.
 """
-function anova(objs::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T}...) where T
+function anova(objs::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T}...) where T
     objsModels = [obj.model for obj in objs]
     return(anova(objsModels...))
 end
@@ -2129,7 +2125,7 @@ end
 # object fitted by function phyloNetworklm, and some predictors expressed at all the nodes of the network.
 #
 # - obj: a PhyloNetworkLinearModel object, or a
-# DataFrameRegressionModel{PhyloNetworkLinearModel}, if data frames were used.
+# TableRegressionModel{PhyloNetworkLinearModel}, if data frames were used.
 # - X_n a matrix with as many columns as the number of predictors used, and as
 # many lines as the number of unknown nodes or tips.
 #
@@ -2369,7 +2365,7 @@ julia> ancStates = ancestralStateReconstruction(fitBM);
 └ @ PhyloNetworks ~/build/crsl4/PhyloNetworks.jl/src/traits.jl:2163
 
 julia> expectations(ancStates)
-31×2 DataFrames.DataFrame
+31×2 DataFrame
 │ Row │ nodeNumber │ condExpectation │
 │     │ Int64      │ Float64         │
 ├─────┼────────────┼─────────────────┤
@@ -2414,7 +2410,7 @@ julia> predint(ancStates)
   1.0695      1.0695
 
 julia> expectationsPlot(ancStates) # format node <-> ancestral state
-31×2 DataFrames.DataFrame
+31×2 DataFrame
 │ Row │ nodeNumber │ PredInt   │
 │     │ Int64      │ Abstract… │
 ├─────┼────────────┼───────────┤
@@ -2438,7 +2434,7 @@ julia> expectationsPlot(ancStates) # format node <-> ancestral state
 julia> plot(phy, :RCall, nodeLabel = expectationsPlot(ancStates));
 
 julia> predintPlot(ancStates) # prediction intervals, in data frame, useful to plot
-31×2 DataFrames.DataFrame
+31×2 DataFrame
 │ Row │ nodeNumber │ PredInt       │
 │     │ Int64      │ Abstract…     │
 ├─────┼────────────┼───────────────┤
@@ -2474,11 +2470,11 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel)
   X_n = ones((length(obj.V.internalNodeNumbers) + sum(.!obj.nonmissing), 1))
     ancestralStateReconstruction(obj, X_n)
 end
-# For a DataFrameRegressionModel
-function ancestralStateReconstruction(obj::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} where T)
+# For a TableRegressionModel
+function ancestralStateReconstruction(obj::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T)
     ancestralStateReconstruction(obj.model)
 end
-function ancestralStateReconstruction(obj::StatsModels.DataFrameRegressionModel{PhyloNetworkLinearModel,T} where T, X_n::Matrix)
+function ancestralStateReconstruction(obj::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T, X_n::Matrix)
     ancestralStateReconstruction(obj.model, X_n)
 end
 

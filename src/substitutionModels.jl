@@ -742,7 +742,7 @@ transition/transversion ratio: κ=α/β. The rate transition matrix Q is normali
 
 `nparams` returns 1 or 2.
 In other words: the stationary distribution is not counted in the number of parameters
-(and `fitDiscrete` does not optimize the pi values at the moment).
+(and `fitdiscrete` does not optimize the pi values at the moment).
 
 # examples
 
@@ -785,15 +785,14 @@ struct HKY85 <: NucleicAcidSubstitutionModel
         #Warning: this constructor should not be used directly. Use the constructor below,
         #   which will call this.
         all(rate .> 0.) || error("All elements of rate must be positive")
-        1 <= length(rate) <= 2 || error("rate is not a valid length for HKY85 model")
+        1 <= length(rate) <= 2 || error("rate has invalid length for HKY85 model")
+        if relative length(rate) == 1 || error("the relative version of HKY85 takes a single rate")
+        else        length(rate) == 2 || error("the absolute version of HKY85 takes 2 rates")
+        end
         length(pi) == 4 || error("pi must be of length 4")
         all(0. .< pi.< 1.) || error("All base proportions must be between 0 and 1")
         sum(pi) == 1. || error("Base proportions must sum to 1")
-        if length(rate) == 1
-            new(rate, pi, true, eigeninfo)
-        else
-            new(rate, pi, false, eigeninfo)
-        end
+        new(rate, pi, relative, eigeninfo)
     end
 end
 function HKY85(rate::AbstractVector, pi::Vector{Float64}, relative=true::Bool)
@@ -801,7 +800,7 @@ function HKY85(rate::AbstractVector, pi::Vector{Float64}, relative=true::Bool)
     seteigeninfo!(obj)
     return obj
 end
-HKY85(rate::Float64, pi::Vector{Float64}, relative=true::Bool) = HKY85([rate], pi, relative)
+HKY85(rate::Float64, pi::Vector{Float64}) = HKY85([rate], pi, true)
 
 """
 for [`HKY85`](@ref): store piR, piY, the 2 non-zero eigenvalues and a scaling factor
@@ -977,14 +976,14 @@ Because the mean of the desired continuous Gamma distribution is 1, we use
 shape α and scale θ=1/α (e.g. rate β=α).
 The shape parameter is referred to as alpha here.
 The Gamma distribution is discretized into `ncat` categories.
-In each category, the category's rate multiplier is selected as a quantile.
+In each category, the category's rate multiplier is a normalized quantile of the gamma distribution.
 
 ```jldoctest
 julia> rv = RateVariationAcrossSites()
 Rate Variation Across Sites using Discretized Gamma Model
 alpha: 1.0
 categories for Gamma discretization: 4
-ratemultiplier: [0.133531, 0.470004, 0.980829, 2.07944]
+ratemultiplier: [0.145784, 0.513132, 1.07083, 2.27025]
 
 julia> PhyloNetworks.setalpha!(rv, 2.0)
 
@@ -992,7 +991,13 @@ julia> rv
 Rate Variation Across Sites using Discretized Gamma Model
 alpha: 2.0
 categories for Gamma discretization: 4
-ratemultiplier: [0.304691, 0.652574, 1.05902, 1.80351]
+ratemultiplier: [0.319065, 0.683361, 1.10898, 1.8886]
+
+julia> RateVariationAcrossSites(2.0, 4)
+Rate Variation Across Sites using Discretized Gamma Model
+alpha: 2.0
+categories for Gamma discretization: 4
+ratemultiplier: [0.319065, 0.683361, 1.10898, 1.8886]
 ```
 """
 mutable struct RateVariationAcrossSites
@@ -1001,11 +1006,13 @@ mutable struct RateVariationAcrossSites
     ratemultiplier::Array{Float64}
     function RateVariationAcrossSites(alpha = 1.0::Float64, ncat = 4::Int)
         @assert alpha >= 0.0 "alpha must be >= 0"
+        @assert ncat > 0 "ncat must be 1 or greater"
         if ncat == 1
             ratemultiplier = [1.0]
         else
-            cuts = Vector((0:(ncat-1))/ncat) + repeat([1/2ncat], ncat)
+            cuts = Vector((0:(ncat-1))/ncat) + repeat([1/(2ncat)], ncat)
             ratemultiplier = quantile.(Distributions.Gamma(alpha, 1/alpha), cuts)
+            ratemultiplier ./= mean(ratemultiplier)
         end
         new(alpha, ncat, ratemultiplier)
     end
@@ -1022,8 +1029,10 @@ function setalpha!(obj::RateVariationAcrossSites, alpha::Float64)
     @assert alpha >= 0 "alpha must be a float >= 0"
     obj.alpha = alpha
     if obj.ncat > 1
+        rv = obj.ratemultiplier
         cuts = Vector((0:(obj.ncat-1))/obj.ncat) + repeat([1/(2*obj.ncat)], obj.ncat)
-        obj.ratemultiplier[:] = quantile.(Distributions.Gamma(alpha, 1/alpha), cuts)
+        rv[:] = quantile.(Distributions.Gamma(alpha, 1/alpha), cuts)
+        rv ./= mean(rv)
     end
     return nothing
 end
@@ -1038,4 +1047,113 @@ end
 
 function nparams(obj::RateVariationAcrossSites)
     return (obj.ncat == 1 ? 0 : 1)
+end
+
+"""
+    empiricalDNAfrequencies(DNAdata::AbstractDataFrame, DNAweights,
+                            correction=true, useambiguous=true)
+
+Estimate base frequencies in DNA data `DNAdata`, ordered ACGT.
+
+- `DNAdata`: data frame. All columns are used. If the first column
+  gives species names, find a way to ignore it before calculating empirical
+  frequencies, e.g. `empiricalDNAfrequencies(view(DNAdata, 2:ncol(DNAdata)))`.
+  Data type must be `BioSymbols.DNA` or `Char` or `String`.
+  WARNING: this is checked on the first column only.
+- `DNAweights`: vector of weights, to weigh each column in `DNAdata`.
+- `correction`: if `true`, add 1 to each count and 4 to the denominator
+  for a more stable estimator, similar to Bayes prior of 1/4 and
+  the Agresti-Coull interval in binomial estimation.
+- `useambiguous`: if `true`, ambiguous bases are used (except gaps and Ns).
+  For example, `Y` adds 0.5 weight to `C` and 0.5 weight to `T`.
+"""
+function empiricalDNAfrequencies(dnaDat::AbstractDataFrame, dnaWeights::Vector,
+    correctedestimate=true::Bool, useambiguous=true::Bool)
+
+    # warning: checking first column and first row only
+    eltypes(dnaDat)[1] == BioSymbols.DNA || eltypes(dnaDat)[1] == Char ||
+      dnaDat[1,1] ∈ string.(BioSymbols.alphabet(DNA)) ||
+        error("empiricalDNAfrequencies requires data of type String, Char, or BioSymbols.DNA")
+
+    # initialize counts: keys same as BioSymbols.ACGT (which are ordered)
+    prior = correctedestimate ? 1.0 : 0.0
+    dnacounts = Dict(DNA_A=>prior, DNA_C=>prior, DNA_G=>prior, DNA_T=>prior)
+
+    convert2dna = eltypes(dnaDat)[1] != BioSymbols.DNA
+    for j in 1:ncol(dnaDat) # for each column
+        col = dnaDat[j]
+        wt = dnaWeights[j]
+        for nuc in col      # for each row
+            if convert2dna
+                nuc = convert(DNA, nuc[1]) # if nuc is a string, nuc[1] = 1st character
+            end
+            if nuc ∈ BioSymbols.ACGT
+                dnacounts[nuc] += wt
+            elseif nuc == DNA_Gap || nuc == DNA_N || !useambiguous
+                continue # to next row
+            # else: ambiguity, uses BioSequences definitions
+            elseif nuc == DNA_M # A or C
+                dnacounts[DNA_A] += 0.5*wt
+                dnacounts[DNA_C] += 0.5*wt
+            elseif nuc == DNA_R # A or G
+                dnacounts[DNA_A] += 0.5*wt
+                dnacounts[DNA_G] += 0.5*wt
+            elseif nuc == DNA_W # A or T/U
+                dnacounts[DNA_A] += 0.5*wt
+                dnacounts[DNA_T] += 0.5*wt
+            elseif nuc == DNA_S # C or G
+                dnacounts[DNA_C] += 0.5*wt
+                dnacounts[DNA_G] += 0.5*wt
+            elseif nuc == DNA_Y # C or T/U
+                dnacounts[DNA_C] += 0.5*wt
+                dnacounts[DNA_T] += 0.5*wt
+            elseif nuc == DNA_K # G or T/U
+                dnacounts[DNA_G] += 0.5*wt
+                dnacounts[DNA_T] += 0.5*wt
+            elseif nuc == DNA_V # A or C or G
+                dnacounts[DNA_A] += wt/3
+                dnacounts[DNA_C] += wt/3
+                dnacounts[DNA_G] += wt/3
+            elseif nuc == DNA_H # A or C or T
+                dnacounts[DNA_A] += wt/3
+                dnacounts[DNA_C] += wt/3
+                dnacounts[DNA_T] += wt/3
+            elseif nuc == DNA_D # A or G or T/U
+                dnacounts[DNA_A] += wt/3
+                dnacounts[DNA_G] += wt/3
+                dnacounts[DNA_T] += wt/3
+            elseif nuc == DNA_B # C or G or T/U
+                dnacounts[DNA_C] += wt/3
+                dnacounts[DNA_G] += wt/3
+                dnacounts[DNA_T] += wt/3
+            end
+        end
+    end
+    totalweight = sum(values(dnacounts))
+    res = [dnacounts[key]/totalweight for key in BioSymbols.ACGT] # to control the order
+    all(0. .<= res .<= 1.) || error("""weird: empirical base frequency < 0 or > 1""")
+    return res
+end
+
+"""
+    stationary(substitutionmodel)
+
+Stationary distribution of a Markov model
+"""
+stationary(mod::SM) = error("stationary not defined for $(typeof(mod)).")
+
+function stationary(mod::JC69)
+    return [0.25,0.25,0.25,0.25]  
+end
+
+function stationary(mod::HKY85)
+    return mod.pi
+end
+
+function stationary(mod::ERSM) #for ERSM, uniform = stationary
+    return [1/mod.k for i in 1:mod.k]
+end
+
+function stationary(mod::BTSM)
+    return [mod.eigeninfo[2], mod.eigeninfo[3]]
 end

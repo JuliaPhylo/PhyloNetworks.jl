@@ -2,7 +2,7 @@ __precompile__()
 
 module PhyloNetworks
 
-    # stdlib (standard libraries): no need to list in REQUIRE or Project.toml
+    # stdlib (standard libraries)
     using Dates
     using Distributed
     using LinearAlgebra # for LowerTriangular, logdet, diag
@@ -10,7 +10,7 @@ module PhyloNetworks
     using Random
     using Statistics: mean, quantile
 
-    # other libraries, to list as dependencies
+    # other libraries, indicate compatible version in Project.toml
     using BioSequences
     using BioSymbols
     using Combinatorics: combinations
@@ -135,15 +135,16 @@ module PhyloNetworks
         TwoBinaryTraitSubstitutionModel,
         JC69, HKY85,
         nstates,
-        Q, setrates!,
+        Q,
         getlabels,
         nparams,
         RateVariationAcrossSites,
-        setalpha!,
         randomTrait,
         randomTrait!,
-        fitDiscrete,
+        fitdiscrete,
         readfastatodna,
+        stationary,
+        empiricalDNAfrequencies,
         ## TICR test
         ticr,
         ticr!

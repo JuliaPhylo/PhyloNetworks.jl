@@ -9,7 +9,7 @@ const SUITE = BenchmarkGroup()
 
 SUITE["nasm"] = BenchmarkGroup(["JC69", "HKY85"])
 SUITE["fitDiscreteFixed"] = BenchmarkGroup(["ERSM", "BTSM", "JC69", "HKY85"])
-SUITE["fitDiscrete"] = BenchmarkGroup(["ERSM", "BTSM", "JC69", "HKY85"])
+SUITE["fitdiscrete"] = BenchmarkGroup(["ERSM", "BTSM", "JC69", "HKY85"])
 
 # Add benchmarks to nasm group
 SUITE["nasm"]["JC69"] = @benchmarkable JC69([0.5])
@@ -20,8 +20,8 @@ SUITE["nasm"]["HKY85"] = @benchmarkable P!(P(m1, 1.0), m1, 3.0)
 net_dat = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 species_alone = ["C","A","B","D"]
 dat_alone = DataFrame(trait=["hi","lo","lo","hi"])
-SUITE["fitDiscreteFixed"]["ERSM"] = @benchmarkable fitDiscrete(net_dat, :ERSM, species_alone, dat_alone; optimizeQ=false, optimizeRVAS=false)
-SUITE["fitDiscreteFixed"]["BTSM"] = @benchmarkable fitDiscrete(net_dat, :BTSM, species_alone, dat_alone; optimizeQ=false, optimizeRVAS=false)
+SUITE["fitDiscreteFixed"]["ERSM"] = @benchmarkable fitdiscrete(net_dat, :ERSM, species_alone, dat_alone; optimizeQ=false, optimizeRVAS=false)
+SUITE["fitDiscreteFixed"]["BTSM"] = @benchmarkable fitdiscrete(net_dat, :BTSM, species_alone, dat_alone; optimizeQ=false, optimizeRVAS=false)
 
 fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_Tr406_Contig10132.aln")
 dna_dat, dna_weights = readfastatodna(fastafile, true);
@@ -32,14 +32,14 @@ for edge in net_dna.edge #adds branch lengths
         setGamma!(edge, 0.5)
     end
 end
-SUITE["fitDiscreteFixed"]["JC69"] = @benchmarkable fitDiscrete(net_dna, :JC69, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false)
-SUITE["fitDiscreteFixed"]["HKY85"] = @benchmarkable fitDiscrete(net_dna, :HKY85, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false)
+SUITE["fitDiscreteFixed"]["JC69"] = @benchmarkable fitdiscrete(net_dna, :JC69, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false)
+SUITE["fitDiscreteFixed"]["HKY85"] = @benchmarkable fitdiscrete(net_dna, :HKY85, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false)
 
-## fitDiscrete benchmarks
-SUITE["fitDiscrete"]["ERSM"] = @benchmarkable fitDiscrete(net_dat, :ERSM, species_alone, dat_alone; optimizeQ=true, optimizeRVAS=true)
-SUITE["fitDiscrete"]["BTSM"] = @benchmarkable fitDiscrete(net_dat, :BTSM, species_alone, dat_alone; optimizeQ=true, optimizeRVAS=true)
-SUITE["fitDiscrete"]["JC69"] = @benchmarkable fitDiscrete(net_dna, :JC69, dna_dat, dna_weights; optimizeQ=true, optimizeRVAS=true)
-SUITE["fitDiscrete"]["HKY85"] = @benchmarkable fitDiscrete(net_dna, :HKY85, dna_dat, dna_weights; optimizeQ=true, optimizeRVAS=true)
+## fitdiscrete benchmarks
+SUITE["fitdiscrete"]["ERSM"] = @benchmarkable fitdiscrete(net_dat, :ERSM, species_alone, dat_alone; optimizeQ=true, optimizeRVAS=true)
+SUITE["fitdiscrete"]["BTSM"] = @benchmarkable fitdiscrete(net_dat, :BTSM, species_alone, dat_alone; optimizeQ=true, optimizeRVAS=true)
+SUITE["fitdiscrete"]["JC69"] = @benchmarkable fitdiscrete(net_dna, :JC69, dna_dat, dna_weights; optimizeQ=true, optimizeRVAS=true)
+SUITE["fitdiscrete"]["HKY85"] = @benchmarkable fitdiscrete(net_dna, :HKY85, dna_dat, dna_weights; optimizeQ=true, optimizeRVAS=true)
 
 # If a cache of tuned parameters already exists, use it, otherwise, tune and cache
 # the benchmark parameters. Reusing cached parameters is faster and more reliable
