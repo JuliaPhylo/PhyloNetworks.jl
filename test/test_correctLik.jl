@@ -6,7 +6,6 @@
 
 PhyloNetworks.CHECKNET || error("need CHECKNET==true in PhyloNetworks to test snaq in test_correctLik.jl")
 
-#df = readtable("Tree_output.txt")
 df=DataFrame(t1=["6","6","10","6","6"],
              t2=["7","7","7","10","7"],
              t3=["4","10","4","4","4"],

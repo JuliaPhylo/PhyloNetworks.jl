@@ -1,24 +1,15 @@
 ### Tests functions
 All in runtests.jl
 
-#### add hybridization
-(deprecated)
-tests_5taxon.jl runs all the tests for the eight 5taxon networks of
-starting with tree_example.jl and adding one hybridization
-It calls add_hybrid_caseC,D,E,F,G,H,I,J.jl
-aux functions: print_add.jl and test_functions_5taxon.jl
+old test files: checkout PhyloNetworks v0.9.1 or older to see those older files.
 
-test_add2hyb.jl add a second hybrid which is a bad triangle, and the
+#### add hybridization
+
+test_add2hyb.jl add a first hybrid, then a second hybrid that
+makes a bad triangle, and the
 functions should identify it
 
 #### delete hybridization
-(deprecated)
-tests_5taxon_delete.jl runs all the tests for the eight 5taxon
-networks of starting with tree_example.jl and adding one
-hybridization, and then deleting it and comparing to the original tree
-example
-It calls delete_hybrid_caseC,D,E,F,G,H,I,J.jl
-aux functions: test_functions_5taxon.jl
 
 test_deleteHybridizationUpdate.jl checks that all attributes are correctly updated after deleting a hybridization (1 and 2 hybrids)
 
