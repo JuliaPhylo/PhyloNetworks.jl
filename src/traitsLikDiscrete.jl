@@ -241,8 +241,8 @@ function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::Ra
         error("""expecting taxon names in column 'taxon', or 'species' or column 1,
               and trait values in column 'trait' or column 2.""")
     end
-    species = copy(dat[i])    # modified in place later
-    dat = traitlabels2indices(dat[j], model)   # vec of vec, indices
+    species = dat[:,i]    # modified in place later
+    dat = traitlabels2indices(dat[!,j], model)   # vec of vec, indices
     o, net = check_matchtaxonnames!(species, dat, net)
     StatsBase.fit(StatisticalSubstitutionModel, net, model, ratemodel, view(dat, o); kwargs...)
 end
@@ -300,13 +300,8 @@ end
 function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites,
     dnadata::DataFrame, dnapatternweights::Array{Float64}; kwargs...)
     
-    dat2 = traitlabels2indices(dnadata[2:end], model) 
-   # dat2 = traitlabels2indices(view(dnadata, 2:ncol(dnadata)), model) #removed view bc it wasnt recognized 
-    #as DF by traitlabels2indices
-            # this doesnt work, but was attempting to uses view to avoid a shallow copy and 
-            # be more space efficient
-            #produces a vec of vec, indices
-    o, net = check_matchtaxonnames!(copy(dnadata[1]), dat2, net) 
+    dat2 = traitlabels2indices(dnadata[!,2:end], model)
+    o, net = check_matchtaxonnames!(dnadata[:,1], dat2, net)
     kwargs = (:siteweights => dnapatternweights, kwargs...)
     StatsBase.fit(StatisticalSubstitutionModel, net, model, ratemodel, view(dat2, o); 
         kwargs...)
@@ -320,7 +315,7 @@ function fitdiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame,
         model = JC69([1.0], true)  # 1.0 instead of rate because relative version (relative = true)
     elseif modSymbol == :HKY85
         model = HKY85([1.0], # transition/transversion rate ratio
-                      empiricalDNAfrequencies(view(dnadata, 2:ncol(dnadata)), dnapatternweights),
+                      empiricalDNAfrequencies(view(dnadata, :, 2:ncol(dnadata)), dnapatternweights),
                       true)
     elseif modSymbol == :ERSM
         model = EqualRatesSubstitutionModel(4, rate, [BioSymbols.DNA_A, BioSymbols.DNA_C, BioSymbols.DNA_G, BioSymbols.DNA_T]);
@@ -853,7 +848,7 @@ function learnLabels(modSymbol::Symbol, species::Array{String}, dat::DataFrame)
     if modSymbol == :BTSM
         length(labels) == 2 || error("Binary Trait Substitution Model supports traits with two states. These data have do not have two states.")
     elseif modSymbol == :TBTSM
-        unique(dat[1]) == 2 && unique(dat[2] == 2) || error("Two Binary Trait Substitution Model supports two traits with two states each.")
+        unique(dat[!,1]) == 2 && unique(dat[!,2] == 2) || error("Two Binary Trait Substitution Model supports two traits with two states each.")
     elseif modSymbol == :HKY85
         occursin(uppercase(join(sort(labels))), "ACGT") || error("HKY85 requires that trait data are dna bases A, C, G, and T")
     elseif modSymbol == :JC69

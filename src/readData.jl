@@ -34,8 +34,8 @@ function writeTableCF(quartets::Array{Quartet,1})
         push!(df, [q.taxon[1],q.taxon[2],q.taxon[3],q.taxon[4],q.obsCF[1],q.obsCF[2],q.obsCF[3],
                    (q.ngenes==-1.0 ? missing : q.ngenes)])
     end
-    if all(ismissing, df[:ngenes])
-        deletecols!(df, :ngenes)
+    if all(ismissing, df[!,:ngenes])
+        select!(df, Not(:ngenes))
     end
     return df
 end
@@ -804,8 +804,8 @@ function updateBL!(net::HybridNetwork,d::DataCF)
     x = by(df, :edge, Nquartets= :CF => length,
                       edgeL = :CF => x -> -log(3/2*(1. - mean(x))))
     # ommitting columns: meanCF= :CF => mean, sdCF= :CF => std
-    edges = x[:edge]
-    lengths = x[:edgeL]
+    edges = x[!,:edge]
+    lengths = x[!,:edgeL]
     for i in 1:length(edges)
         ind = getIndexEdge(edges[i],net) # helpful error if not found
         if net.edge[ind].length < 0.0 || net.edge[ind].length==1.0

@@ -471,7 +471,7 @@ function readCSVtoArray(dat::DataFrame)
     end
 
     species = String[]
-    for d in dat[i]
+    for d in dat[!,i]
         push!(species,string(d))
     end
 

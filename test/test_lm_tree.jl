@@ -85,7 +85,7 @@ ancR = CSV.read(joinpath(@__DIR__, "..", "examples", "caudata_Rphylopars.txt"),
 
 ## Expectations
 expe = expectations(anc)
-expeR = ancR[:trait]
+expeR = ancR[!,:trait]
 # Matching tips ?
 tipsR = expeR[expe[197:393, :nodeNumber]]
 tipsJulia = expe[197:393, :condExpectation]
@@ -101,7 +101,7 @@ nodesJulia = expe[1:196, :condExpectation]
 ## Variances
 vars = LinearAlgebra.diag(anc.variances_nodes)
 # Rphylopars
-varsR = ancR[:var]
+varsR = ancR[!,:var]
 # Matching nodes ?
 nodesR = varsR[-expe[1:196, :nodeNumber] .+ 196]
 @test nodesR ≈ vars atol=1e-3 ## RK: Small tol !!
@@ -111,7 +111,7 @@ ancRt = CSV.read(joinpath(@__DIR__, "..", "examples", "caudata_Phytools.txt"));
 
 ## Expectations
 expe = expectations(anc)
-expeRt = ancRt[:trait]
+expeRt = ancRt[!,:trait]
 # Matching nodes ?
 nodesRt = expeRt[-expe[1:196, :nodeNumber] .+ (196 - 197)]
 nodesJulia = expe[1:196, :condExpectation]
@@ -123,7 +123,7 @@ nodesJulia = expe[1:196, :condExpectation]
 ## Variances
 vars = LinearAlgebra.diag(anc.variances_nodes)
 # Rphylopars
-varsRt = ancRt[:var]
+varsRt = ancRt[!,:var]
 # Matching nodes ?
 nodesRt = varsRt[-expe[1:196, :nodeNumber] .+ (196 - 197)]
 @test nodesRt ≈ vars atol=2e-3 ## RK: Small tol !!

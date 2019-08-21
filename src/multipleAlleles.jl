@@ -68,10 +68,10 @@ function mapAllelesCFtable!(cfDF::DataFrame, alleleDF::DataFrame, co::Vector{Int
     compareTaxaNames(alleleDF,cfDF,co)
     for j in 1:4
         for ia in 1:size(alleleDF,1) # for all alleles
-            cfDF[co[j]] = map(x->replace(string(x),
+            cfDF[!,co[j]] = map(x->replace(string(x),
                                          Regex("^$(string(alleleDF[ia,:allele]))\$") =>
                                          alleleDF[ia,:species]),
-                              cfDF[co[j]])
+                                cfDF[!,co[j]])
         end
     end
     if write
@@ -90,10 +90,10 @@ function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int};keepOne=false::Bool)
     delrows = Int[] # indices of rows to delete
     repSpecies = String[]
     if(isa(newdf[1,cols[1]],Integer)) #taxon names as integers: we need this to be able to add __2
-        newdf[cols[1]] = map(x->string(x),newdf[cols[1]])
-        newdf[cols[2]] = map(x->string(x),newdf[cols[2]])
-        newdf[cols[3]] = map(x->string(x),newdf[cols[3]])
-        newdf[cols[4]] = map(x->string(x),newdf[cols[4]])
+        newdf[!,cols[1]] = map(string, newdf[!,cols[1]])
+        newdf[!,cols[2]] = map(string, newdf[!,cols[2]])
+        newdf[!,cols[3]] = map(string, newdf[!,cols[3]])
+        newdf[!,cols[4]] = map(string, newdf[!,cols[4]])
     end
     row = Vector{String}(undef, 4)
     for i in 1:size(newdf,1) #check all rows
@@ -240,9 +240,8 @@ end
 function compareTaxaNames(alleleDF::DataFrame, cfDF::DataFrame, co::Vector{Int})
     checkMapDF(alleleDF)
     #println("found $(length(alleleDF[1])) allele-species matches")
-    CFtaxa = convert(Array, unique(stack(cfDF[co[1:4]], 1:4)[:value]))
-    CFtaxa = map(x->string(x),CFtaxa) #treat as string
-    alleleTaxa = map(x->string(x),alleleDF[:allele]) #treat as string
+    CFtaxa = string.(mapreduce(x -> unique(skipmissing(x)), union, eachcol(cfDF[!,co[1:4]])))
+    alleleTaxa = map(string, alleleDF[!,:allele]) # as string, too
     sizeCF = length(CFtaxa)
     sizeAllele = length(alleleTaxa)
     if sizeAllele > sizeCF
@@ -267,12 +266,12 @@ function checkMapDF(alleleDF::DataFrame)
     size(alleleDF,2) <= 2 || error("Allele-Species matching Dataframe should have at least 2 columns")
     size(alleleDF,2) >= 2 || @warn "allele mapping file contains more than two columns: will ignore all columns not labelled allele or species"
     try
-        alleleDF[:allele]
+        alleleDF[!,:allele]
     catch
         error("In allele mapping file there is no column named allele")
     end
     try
-        alleleDF[:species]
+        alleleDF[!,:species]
     catch
         error("In allele mapping file there is no column named species")
     end

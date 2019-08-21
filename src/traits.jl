@@ -592,7 +592,7 @@ function regressorShift(node::Vector{Node},
         return(Symbol("shift_$(x)"))
     end
     names!(df, [tmp_fun(num) for num in eNum])
-    df[:tipNames]=T.tipNames
+    df[!,:tipNames]=T.tipNames
     return(df)
 end
 
@@ -703,7 +703,7 @@ AIC: 7.4012043891
 function regressorHybrid(net::HybridNetwork; checkPreorder=true::Bool)
     childs = [getChildren(nn)[1] for nn in net.hybrid]
     dfr = regressorShift(childs, net; checkPreorder=checkPreorder)
-    dfr[:sum] = vec(sum(Matrix(dfr[findall(names(dfr) .!= :tipNames)]), dims=2))
+    dfr[!,:sum] = sum.(eachrow(select(dfr, Not(:tipNames), copycols=false)))
     return(dfr)
 end
 
@@ -1676,7 +1676,7 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
         end
     else
         #        ind = indexin(V.tipNames, fr[:tipNames])
-        ind = indexin(fr[:tipNames], tipLabels(net))
+        ind = indexin(fr[!,:tipNames], tipLabels(net))
         if any(ind == 0) || length(unique(ind)) != length(ind)
             error("""Tips names of the network and names provided in column tipNames
                   of the dataframe do not match.""")
@@ -1711,7 +1711,7 @@ StatsBase.vcov(m::PhyloNetworkLinearModel) = vcov(m.lm)
 StatsBase.stderror(m::PhyloNetworkLinearModel) = stderror(m.lm)
 # confidence Intervals for coefficients:
 #  hcat(coef,coef) + stderror * quantile(TDist(dof_residual, (1.-level)/2.) * [1. -1.]
-StatsBase.confint(m::PhyloNetworkLinearModel; level=0.95::Real) = confint(m.lm, level)
+StatsBase.confint(m::PhyloNetworkLinearModel; level=0.95::Real) = confint(m.lm, level=level)
 # coef table: t-values t=coef/se
 #    CoefTable(hcat(coef,se,t,ccdf(FDist(1, dof_residual), abs2(t))),
 #              ["Estimate","Std.Error","t value", "Pr(>|t|)"],
@@ -1988,7 +1988,7 @@ function expectationsPlot(obj::ReconstructedStates; markMissing="*"::AbstractStr
         nonmissing = obj.model.nonmissing
         ind = obj.model.ind
         missingTipNumbers = obj.model.V.tipNumbers[ind][.!nonmissing]
-        indexMissing = indexin(missingTipNumbers, expe[:nodeNumber])
+        indexMissing = indexin(missingTipNumbers, expe[!,:nodeNumber])
         expetxt[indexMissing] .*= markMissing
     end
     return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], PredInt = expetxt)

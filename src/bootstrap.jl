@@ -23,7 +23,7 @@ function readBootstrapTrees(filelist::AbstractString; relative2listfile=true::Bo
     size(bootfiles)[2] > 0 ||
         error("there should be a column in file $filelist: with a single bootstrap file name on each row (no header)")
     ngenes = size(bootfiles)[1]
-    bf = (relative2listfile ? joinpath.(filelistdir, bootfiles[1]) : bootfiles[1])
+    bf = (relative2listfile ? joinpath.(filelistdir, bootfiles[!,1]) : bootfiles[!,1])
     treelists = Array{Vector{HybridNetwork}}(undef, ngenes)
     for igene in 1:ngenes
         treelists[igene] = readMultiTopology(bf[igene])
@@ -126,7 +126,7 @@ function sampleCFfromCI(df::DataFrame, seed=0::Integer)
         error("CFs found in columns 1-4 where taxon labels are expected")
     length(findall(in(obsCFcol), colsCI)) ==0 ||
         error("CFs found in columns where credibility intervals are expected")
-    newdf = deepcopy(df[ [colsTa; obsCFcol; colsCI] ])
+    newdf = df[:, [colsTa; obsCFcol; colsCI] ]
     if seed==-1
       return newdf
     else
@@ -147,9 +147,9 @@ function sampleCFfromCI!(df::DataFrame, seed=0::Integer)
         c2 = (df[i,11]-df[i,10])*rand()+df[i,10]
         c3 = (df[i,13]-df[i,12])*rand()+df[i,12]
         suma = c1+c2+c3
-        df[5][i] = c1/suma
-        df[6][i] = c2/suma
-        df[7][i] = c3/suma
+        df[i,5] = c1/suma
+        df[i,6] = c2/suma
+        df[i,7] = c3/suma
     end
     return df
 end
@@ -941,21 +941,21 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
     rowh = 1
     for h=1:length(clade)
         if h <= nclades && keepc[h] && hybparent[h]>0
-            resNode[:hybridnode][rowh]            =      hybnode[hybparent[h]]
-            resNode[:BS_hybrid_samesisters][rowh] = BShybsamesis[hybparent[h]]
+            resNode[rowh,:hybridnode]            =      hybnode[hybparent[h]]
+            resNode[rowh,:BS_hybrid_samesisters] = BShybsamesis[hybparent[h]]
         elseif keepc[h]
-            resNode[:BS_hybrid_samesisters][rowh] = missing
+            resNode[rowh,:BS_hybrid_samesisters] = missing
         end
         if h>nclades # clade *not* in the reference network
-            resNode[:node][rowh] = missing
-            resNode[:hybridnode][rowh] = missing
-            resNode[:edge][rowh] = missing
+            resNode[rowh,:node] = missing
+            resNode[rowh,:hybridnode] = missing
+            resNode[rowh,:edge] = missing
         end
         if keepc[h]  rowh += 1; end
     end
-    insertcols!(resNode, 10, :BS_all => resNode[:BS_hybrid]+resNode[:BS_sister])
+    insertcols!(resNode, 10, :BS_all => resNode[!,:BS_hybrid]+resNode[!,:BS_sister])
     sort!(resNode, [:BS_all,:BS_hybrid]; rev=true)
-    deletecols!(resNode, :BS_all)
+    select!(resNode, Not(:BS_all))
     # edge summaries
     resEdge = DataFrame(edge = Vector{Union{Int, Missing}}(undef, length(hybcladei)),
                         hybrid_clade=cladestr[hybcladei],
@@ -967,16 +967,16 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
     for i=1:length(hybcladei)
         h = hybcladei[i]
         if h <= nclades && hybparent[h]>0
-            resEdge[:hybrid][i] = hybnode[hybparent[h]]
+            resEdge[i,:hybrid] = hybnode[hybparent[h]]
         end
-        if h>nclades            resEdge[:hybrid][i]=missing; end
-        if siscladei[i]>nclades resEdge[:sister][i]=missing; end
+        if h>nclades            resEdge[i,:hybrid]=missing; end
+        if siscladei[i]>nclades resEdge[i,:sister]=missing; end
         if i <= nedges
-             resEdge[:edge][i] = edgenum[i]
-        else resEdge[:edge][i] = missing
+             resEdge[i,:edge] = edgenum[i]
+        else resEdge[i,:edge] = missing
         end
     end
-    o = [1:nedges; sortperm(resEdge[:BS_hybrid_edge][nedges+1:length(hybcladei)],rev=true) .+ nedges]
+    o = [1:nedges; sortperm(resEdge[nedges+1:length(hybcladei),:BS_hybrid_edge],rev=true) .+ nedges]
     return resNode, resEdge[o,:], resCluster, gamma, edgenum
 end
 

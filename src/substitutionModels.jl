@@ -1057,7 +1057,7 @@ Estimate base frequencies in DNA data `DNAdata`, ordered ACGT.
 
 - `DNAdata`: data frame. All columns are used. If the first column
   gives species names, find a way to ignore it before calculating empirical
-  frequencies, e.g. `empiricalDNAfrequencies(view(DNAdata, 2:ncol(DNAdata)))`.
+  frequencies, e.g. `empiricalDNAfrequencies(view(DNAdata, :, 2:ncol(DNAdata)))`.
   Data type must be `BioSymbols.DNA` or `Char` or `String`.
   WARNING: this is checked on the first column only.
 - `DNAweights`: vector of weights, to weigh each column in `DNAdata`.
@@ -1081,7 +1081,7 @@ function empiricalDNAfrequencies(dnaDat::AbstractDataFrame, dnaWeights::Vector,
 
     convert2dna = eltypes(dnaDat)[1] != BioSymbols.DNA
     for j in 1:ncol(dnaDat) # for each column
-        col = dnaDat[j]
+        col = dnaDat[!,j]
         wt = dnaWeights[j]
         for nuc in col      # for each row
             if convert2dna
