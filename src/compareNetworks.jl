@@ -172,12 +172,12 @@ julia> taxa = net5 |> tipLabels # ABC EF D
 
 julia> hardwiredCluster(net5.edge[12], taxa) # descendants of 12th edge = CEF
 6-element Array{Bool,1}:
- false
- false
-  true
-  true
-  true
- false
+ 0
+ 0
+ 1
+ 1
+ 1
+ 0
 ```
 """ #"
 function hardwiredCluster(edge::Edge,taxa::Union{Vector{String},Vector{Int}})

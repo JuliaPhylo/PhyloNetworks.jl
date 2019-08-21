@@ -6,6 +6,7 @@ os:
   - osx
 julia:
   - 1.1
+  - 1.2
 
 notifications:
   email: false
@@ -24,7 +25,7 @@ coveralls: true
 jobs:
   include:
     - stage: "Documentation"
-      julia: 1.0
+      julia: 1.2
       os: linux
       script:
         - julia --project=docs/ -e 'using Pkg; Pkg.instantiate();

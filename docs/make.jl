@@ -4,6 +4,7 @@ using Pkg
 Pkg.add(PackageSpec(name="PhyloPlots", rev="master"))
 
 using PhyloNetworks
+DocMeta.setdocmeta!(PhyloNetworks, :DocTestSetup, :(using PhyloNetworks); recursive=true)
 
 makedocs(
     sitename = "PhyloNetworks.jl",

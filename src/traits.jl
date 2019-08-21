@@ -477,7 +477,7 @@ each shift, each labelled according to the pattern shift_{number_of_edge}. It ha
 an aditional column labelled `tipNames` to allow easy fitting afterward (see example).
 
 # Examples
-```jldoctest
+```jldoctest; filter = r"Info: Loading DataFrames support into Gadfly"
 julia> net = readTopology("(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6):1):0.5);");
 
 julia> preorder!(net)
@@ -512,7 +512,7 @@ julia> sim = simulate(net, params); # simulate a dataset with shifts
 julia> using DataFrames # to handle data frames
 
 julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
-4×2 DataFrame
+4×2 DataFrames.DataFrame
 │ Row │ trait   │ tipNames │
 │     │ Float64 │ String   │
 ├─────┼─────────┼──────────┤
@@ -522,7 +522,7 @@ julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
 │ 4   │ 7.88906 │ D        │
 
 julia> dfr_shift = regressorShift(net.node[nodes_shifts], net) # the regressors matching the shifts.
-4×3 DataFrame
+4×3 DataFrames.DataFrame
 │ Row │ shift_1 │ shift_8 │ tipNames │
 │     │ Float64 │ Float64 │ String   │
 ├─────┼─────────┼─────────┼──────────┤
@@ -546,13 +546,13 @@ Parameter(s) Estimates:
 Sigma2: 0.0112618
 
 Coefficients:
-────────────────────────────────────────────────────
-             Estimate  Std.Error   t value  Pr(>|t|)
-────────────────────────────────────────────────────
-(Intercept)   9.48238   0.327089  28.9902     0.0220
-shift_1       3.9096    0.46862    8.34279    0.0759
-shift_8      -2.4179    0.422825  -5.71843    0.1102
-────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────
+             Estimate  Std. Error   t value  Pr(>|t|)  Lower 95%  Upper 95%
+───────────────────────────────────────────────────────────────────────────
+(Intercept)   9.48238    0.327089  28.9902     0.0220    5.32632   13.6384
+shift_1       3.9096     0.46862    8.34279    0.0759   -2.04479    9.86399
+shift_8      -2.4179     0.422825  -5.71843    0.1102   -7.7904     2.95461
+───────────────────────────────────────────────────────────────────────────
 Log Likelihood: 1.8937302027
 AIC: 4.2125395947
 
@@ -618,7 +618,7 @@ an aditional column labelled `tipNames` to allow easy fitting afterward (see exa
 This function can be used to test for heterosis.
 
 # Examples
-```jldoctest
+```jldoctest; filter = r"Info: Loading DataFrames support into Gadfly"
 julia> using DataFrames # Needed to handle data frames.
 
 julia> net = readTopology("(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6):1):0.5);");
@@ -652,7 +652,7 @@ julia> using Random; Random.seed!(2468); # sets the seed for reproducibility
 julia> sim = simulate(net, params); # simulate a dataset with shifts
 
 julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
-4×2 DataFrame
+4×2 DataFrames.DataFrame
 │ Row │ trait   │ tipNames │
 │     │ Float64 │ String   │
 ├─────┼─────────┼──────────┤
@@ -662,7 +662,7 @@ julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
 │ 4   │ 12.6891 │ D        │
 
 julia> dfr_hybrid = regressorHybrid(net) # the reressors matching the hybrids.
-4×3 DataFrame
+4×3 DataFrames.DataFrame
 │ Row │ shift_6 │ tipNames │ sum     │
 │     │ Float64 │ String   │ Float64 │
 ├─────┼─────────┼──────────┼─────────┤
@@ -686,12 +686,12 @@ Parameter(s) Estimates:
 Sigma2: 0.041206
 
 Coefficients:
-────────────────────────────────────────────────────
-             Estimate  Std.Error   t value  Pr(>|t|)
-────────────────────────────────────────────────────
-(Intercept)  10.064     0.277959  36.2068     0.0008
-shift_6       2.72526   0.315456   8.63912    0.0131
-────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────
+             Estimate  Std. Error   t value  Pr(>|t|)  Lower 95%  Upper 95%
+───────────────────────────────────────────────────────────────────────────
+(Intercept)  10.064      0.277959  36.2068     0.0008    8.86805   11.26
+shift_6       2.72526    0.315456   8.63912    0.0131    1.36796    4.08256
+───────────────────────────────────────────────────────────────────────────
 Log Likelihood: -0.7006021946
 AIC: 7.4012043891
 
@@ -1519,11 +1519,11 @@ Parameter(s) Estimates:
 Sigma2: 0.00294521
 
 Coefficients:
-───────────────────────────────────────────────────
-             Estimate  Std.Error  t value  Pr(>|t|)
-───────────────────────────────────────────────────
-(Intercept)     4.679   0.330627  14.1519    <1e-31
-───────────────────────────────────────────────────
+──────────────────────────────────────────────────────────────────────────
+             Estimate  Std. Error  t value  Pr(>|t|)  Lower 95%  Upper 95%
+──────────────────────────────────────────────────────────────────────────
+(Intercept)     4.679    0.330627  14.1519    <1e-31    4.02696    5.33104
+──────────────────────────────────────────────────────────────────────────
 Log Likelihood: -78.9611507833
 AIC: 161.9223015666
 
@@ -2185,7 +2185,7 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)
                                  obj)
 end
 
-"""
+@doc raw"""
     ancestralStateReconstruction(obj::PhyloNetworkLinearModel[, X_n::Matrix])
 
 Function to find the ancestral traits reconstruction on a network, given an
@@ -2200,7 +2200,7 @@ See documentation for this type and examples for functions that can be applied t
 
 # Examples
 
-```jldoctest
+```jldoctest; filter = r" PhyloNetworks .*:\d+"
 julia> using CSV # to read data file
 
 julia> phy = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "carnivores_tree.txt"));
@@ -2353,7 +2353,7 @@ julia> using DataFrames # to use allowmissing!
 
 julia> allowmissing!(dat, :trait);
 
-julia> dat[[2, 5], :trait] = missing; # missing values allowed to fit model
+julia> dat[[2, 5], :trait] .= missing; # missing values allowed to fit model
 
 julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
 
@@ -2365,7 +2365,7 @@ julia> ancStates = ancestralStateReconstruction(fitBM);
 └ @ PhyloNetworks ~/build/crsl4/PhyloNetworks.jl/src/traits.jl:2163
 
 julia> expectations(ancStates)
-31×2 DataFrame
+31×2 DataFrames.DataFrame
 │ Row │ nodeNumber │ condExpectation │
 │     │ Int64      │ Float64         │
 ├─────┼────────────┼─────────────────┤
@@ -2410,7 +2410,7 @@ julia> predint(ancStates)
   1.0695      1.0695
 
 julia> expectationsPlot(ancStates) # format node <-> ancestral state
-31×2 DataFrame
+31×2 DataFrames.DataFrame
 │ Row │ nodeNumber │ PredInt   │
 │     │ Int64      │ Abstract… │
 ├─────┼────────────┼───────────┤
@@ -2434,7 +2434,7 @@ julia> expectationsPlot(ancStates) # format node <-> ancestral state
 julia> plot(phy, :RCall, nodeLabel = expectationsPlot(ancStates));
 
 julia> predintPlot(ancStates) # prediction intervals, in data frame, useful to plot
-31×2 DataFrame
+31×2 DataFrames.DataFrame
 │ Row │ nodeNumber │ PredInt       │
 │     │ Int64      │ Abstract…     │
 ├─────┼────────────┼───────────────┤

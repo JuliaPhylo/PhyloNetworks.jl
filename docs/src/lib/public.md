@@ -4,13 +4,6 @@ Documentation for `PhyloNetworks`'s public (exported) interface.
 
 See [Internal Documentation](@ref) for documentation on internal functions.
 
-```@meta
-DocTestSetup = quote
-    using PhyloNetworks
-end
-DocTestFilters = r" PhyloNetworks .*:\d+"
-```
-
 ```@contents
 Pages = ["public.md"]
 ```
@@ -142,9 +135,4 @@ maxParsimonyNet
 nstates
 stationary
 empiricalDNAfrequencies
-```
-
-```@meta
-DocTestSetup = nothing
-DocTestFilters = nothing
 ```

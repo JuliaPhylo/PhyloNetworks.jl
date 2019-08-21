@@ -33,11 +33,11 @@ net1alt.loglik # pseudo deviance actually: the lower the better
 ```
 ```@example fixednetworkoptim
 using PhyloPlots, RCall
-R"name <- function(x) file.path('..', 'assets', 'figures', x)" 
-R"svg(name('truenet_opt.svg'), width=4, height=4)" 
+R"name <- function(x) file.path('..', 'assets', 'figures', x)" # hide
+R"svg(name('truenet_opt.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0])
 plot(net1alt, :R, showGamma=true);
-R"dev.off()" 
+R"dev.off()" # hide
 nothing # hide
 ```
 ![truenet_opt](../assets/figures/truenet_opt.svg)
@@ -134,6 +134,7 @@ R"mtext"("best net, score=28.3", line=-1);
 plot(netlist[2], :R, showGamma=true, showEdgeNumber=true, tipOffset=0.1);
 R"mtext"("direction modified, score=31.5", line=-1);
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![othernets before reroot](../assets/figures/fixednetworkoptim_othernets1.svg)
 
@@ -172,5 +173,6 @@ rootonedge!(netlist[2], 10) # net with modified direction: second way to make A 
 plot(netlist[2], :R, showGamma=true, tipOffset=0.1);
 R"mtext"("second best in list, score=31.5\ndifferent root position", line=-2);
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![othernets after reroot](../assets/figures/fixednetworkoptim_othernets2.svg)

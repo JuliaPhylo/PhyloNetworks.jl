@@ -47,7 +47,8 @@ function Base.show(io::IO, obj::SSM)
     disp *= "$(obj.nsites) traits, $(length(obj.trait)) species\n"
     if obj.ratemodel.ncat != 1
         disp *= "variable rates across sites ~ discretized gamma with\n alpha=$(obj.ratemodel.alpha)"
-        disp *= "\n $(obj.ratemodel.ncat) categories\n rate multipliers: $(obj.ratemodel.ratemultiplier)\n"
+        disp *= "\n $(obj.ratemodel.ncat) categories"
+        disp *= "\n rate multipliers: $(round.(obj.ratemodel.ratemultiplier, digits=5))\n"
     end
     disp *= "on a network with $(obj.net.numHybrids) reticulations"
     if !ismissing(obj.loglik)
@@ -163,7 +164,7 @@ julia> fitJC69 = fitdiscrete(net, mJC69, tips)
 PhyloNetworks.StatisticalSubstitutionModel:
 Jukes and Cantor 69 Substitution Model,
 absolute rate version
-off-diagonal rates equal to [0.292336]/3.
+off-diagonal rates equal to 0.29234/3.
 rate matrix Q:
                A       C       G       T
        A       *  0.0974  0.0974  0.0974
@@ -178,13 +179,13 @@ julia> rv = RateVariationAcrossSites()
 Rate Variation Across Sites using Discretized Gamma Model
 alpha: 1.0
 categories for Gamma discretization: 4
-ratemultiplier: [0.145784, 0.513132, 1.07083, 2.27025]
+ratemultiplier: [0.14578, 0.51313, 1.07083, 2.27025]
 
 julia> fitdiscrete(net, mJC69, rv, tips; optimizeQ=false, optimizeRVAS=false)
 PhyloNetworks.StatisticalSubstitutionModel:
 Jukes and Cantor 69 Substitution Model,
 absolute rate version
-off-diagonal rates equal to [0.25]/3.
+off-diagonal rates equal to 0.25/3.
 rate matrix Q:
                A       C       G       T
        A       *  0.0833  0.0833  0.0833
@@ -195,7 +196,7 @@ rate matrix Q:
 variable rates across sites ~ discretized gamma with
  alpha=1.0
  4 categories
- rate multipliers: [0.145784, 0.513132, 1.07083, 2.27025]
+ rate multipliers: [0.14578, 0.51313, 1.07083, 2.27025]
 on a network with 0 reticulations
 log-likelihood: -5.2568
 ```
@@ -736,7 +737,7 @@ julia> dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"]);
 julia> fit1 = fitdiscrete(net, m1, dat);
 
 julia> asr = ancestralStateReconstruction(fit1)
-9×4 DataFrame
+9×4 DataFrames.DataFrame
 │ Row │ nodenumber │ nodelabel │ lo       │ hi       │
 │     │ Int64      │ String    │ Float64  │ Float64  │
 ├─────┼────────────┼───────────┼──────────┼──────────┤
@@ -757,7 +758,7 @@ julia> round.(exp.(fit1.postltw), digits=6) # marginal (posterior) probability t
 
 julia> using PhyloPlots
 
-julia> plot(fit1.net, :R, nodeLabel = asr[[:nodenumber, :lo]], tipOffset=0.2); # pp for "lo" state
+julia> plot(fit1.net, :R, nodeLabel = asr[!,[:nodenumber, :lo]], tipOffset=0.2); # pp for "lo" state
 ```
 """
 ancestralStateReconstruction(obj::SSM) = ancestralStateReconstruction(obj, obj.activesite)

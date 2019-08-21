@@ -137,7 +137,7 @@ which tree edges have bootstrap support lower than 100% (none here) with
 ```@repl bootstrap
 using DataFrames # for showall() below
 show(BSe_tree, allrows=true, allcols=true)
-BSe_tree[BSe_tree[:proportion] .< 100.0, :]
+filter(row -> row[:proportion] < 100, BSe_tree)
 ```
 Finally, we can map the bootstrap proportions onto the network or its main tree
 by passing the bootstrap table to the `edgeLabel` option of `plot`:
@@ -163,7 +163,7 @@ output file of `snaq!` earlier, for consistency across different Julia sessions.
 If we wanted to plot only certain bootstrap values, like those below 100% (1.0),
 we could do this:
 ```julia
-plot(net1, :R, edgeLabel=BSe_tree[BSe_tree[:proportion] .< 100.0, :]);
+plot(net1, :R, edgeLabel=filter(row -> row[:proportion] < 100, BSe_tree));
 ```
 
 ## support for hybrid edges and hybrid nodes
@@ -204,7 +204,8 @@ To see what is the clade named "H7", for instance:
 ```@repl bootstrap
 BSc # this might be too big
 show(BSc, allrows=true, allcols=true)
-BSc[:taxa][BSc[:H7]]
+# BSc[BSc[!,:H7], :taxa] # just a different syntax to subset the data in the same way
+filter(row -> row[:H7], BSc).taxa
 ```
 We can also get bootstrap values associated with edges, to describe the support that a given
 hybrid clade has a given sister clade.
@@ -225,7 +226,7 @@ We can plot the bootstrap values of the 2 hybrid edges in the best network:
 ```@example bootstrap
 R"svg(name('boot_net_net.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net1, :R, edgeLabel=BSe[[:edge,:BS_hybrid_edge]]);
+plot(net1, :R, edgeLabel=BSe[!,[:edge,:BS_hybrid_edge]]);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -240,7 +241,7 @@ of bootstrap networks. In another 1% bootstrap, A received gene flow from anothe
 ```@example bootstrap
 R"svg(name('boot_net_ret.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net1, :R, nodeLabel=BSn[[:hybridnode,:BS_hybrid_samesisters]]);
+plot(net1, :R, nodeLabel=BSn[!,[:hybridnode,:BS_hybrid_samesisters]]);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -250,11 +251,12 @@ Below is example code to place tree edge support and hybrid edge support
 on the same plot.
 
 ```julia
-tmp = BSe[!isna(BSe[:edge]),[:edge,:BS_hybrid_edge]]
-rename!(tmp, :BS_hybrid_edge, :proportion)
-rename!(tmp, :edge, :edgeNumber)
+tmp = filter(row -> !ismissing(row[:edge]), BSe) # filter rows
+select!(tmp, [:edge,:BS_hybrid_edge])            # select 2 columns only
+rename!(tmp, :BS_hybrid_edge => :proportion)     # rename those columns, to match names in BSe_tree
+rename!(tmp, :edge => :edgeNumber)
 tmp = vcat(BSe_tree, tmp)
-plot(net1, edgeLabel=tmp, nodeLabel=BSn[[:hybridnode,:BS_hybrid_samesisters]])
+plot(net1, edgeLabel=tmp, nodeLabel=BSn[!, [:hybridnode,:BS_hybrid_samesisters]])
 ```
 
 ### Who are the hybrids in bootstrap networks?
@@ -268,12 +270,12 @@ being of hybrid origin.
 ```@example bootstrap
 R"svg(name('boot_net_hyb_1.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net1, :R, nodeLabel=BSn[BSn[:BS_hybrid].>0, [:hybridnode,:BS_hybrid]]);
+plot(net1, :R, nodeLabel=filter(row->row[:BS_hybrid]>0, BSn)[!,[:hybridnode,:BS_hybrid]]);
 R"dev.off()" # hide
 nothing # hide
 R"svg(name('boot_net_hyb_2.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net1, :R, edgeLabel=BSn[BSn[:BS_hybrid].>0, [:edge,:BS_hybrid]]);
+plot(net1, :R, edgeLabel=filter(row->row[:BS_hybrid]>0, BSn)[!,[:edge,:BS_hybrid]]);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -290,12 +292,12 @@ We filtered clades to show those with sister support > 5%:
 ```@example bootstrap
 R"svg(name('boot_net_clade_1.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net1, :R, nodeLabel=BSn[BSn[:BS_minor_sister].>5, [:node,:BS_minor_sister]]);
+plot(net1, :R, nodeLabel=filter(r->r[:BS_minor_sister]>5, BSn)[!,[:node,:BS_minor_sister]]);
 R"dev.off()" # hide
 nothing # hide
 R"svg(name('boot_net_clade_2.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net1, :R, edgeLabel=BSn[BSn[:BS_minor_sister].>5, [:edge,:BS_minor_sister]]);
+plot(net1, :R, edgeLabel=filter(r->r[:BS_minor_sister]>5, BSn)[!,[:edge,:BS_minor_sister]]);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -311,7 +313,7 @@ but there is much uncertainty about its exact placement and about its direction.
 
 Mapping the support for major sister clades might be interesting too:
 ```julia
-plot(net1, nodeLabel=BSn[BSn[:BS_major_sister].>5, [:node,:BS_major_sister]])
+plot(net1, nodeLabel=filter(r->r[:BS_major_sister]>5, BSn)[!,[:node,:BS_major_sister]])
 ```
 
 The estimated heritability γ on hybrid edges in the reference network, when present in a
