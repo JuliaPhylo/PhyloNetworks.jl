@@ -47,6 +47,8 @@ setNode!(ed10,[n9,n10]);
 
 net=HybridNetwork([n1,n2,n3,n4,n5,n6,n7,n8,n9,n10],[ed1,ed2,ed3,ed4,ed5,ed6,ed7,ed8,ed9,ed10]);
 node=searchHybridNode(net);
+n2.name = "H1"; n4.name = "4"; n6.name = "6"; n7.name = "7";
+n8.name = "8"; n10.name = "10"
 net.names=["1","2","3","4","5","6","7","8","9","10"]
 
 flag, nocycle,edges, nodes = updateInCycle!(net,node[1]);

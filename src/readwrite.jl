@@ -1115,12 +1115,9 @@ function updateRoot!(net::HybridNetwork, outgroup::AbstractString)
         checkroot = true
     else
         println("outgroup defined $(outgroup)")
-        try
-            index = getIndex(true,[isequal(outgroup,n.name) for n in net.node])
-        catch
+        index = findfirst(n -> outgroup == n.name, net.node)
+        index != nothing ||
             error("outgroup $(outgroup) not in net.names $(net.names)")
-        end
-        index = getIndex(true,[isequal(outgroup,n.name) for n in net.node])
         node = net.node[index]
         node.leaf || error("outgroup $(outgroup) is not a leaf in net")
         length(net.node[index].edge) == 1 || error("strange leaf $(outgroup), node number $(net.node[index].number) with $(length(net.node[index].edge)) edges instead of 1")

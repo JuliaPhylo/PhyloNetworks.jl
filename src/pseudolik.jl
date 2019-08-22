@@ -482,12 +482,9 @@ end
 function extractQuartet!(net::HybridNetwork, quartet::Quartet)
     list = Node[]
     for q in quartet.taxon
-        try
-            getIndexNode(getIndex(q,net.names),net)
-        catch
-            error("taxon $(q) not in network")
-        end
-        push!(list, net.node[getIndexNode(getIndex(q,net.names),net)])
+        tax_in_net = findfirst(n -> n.name == q, net.node)
+        tax_in_net != nothing || error("taxon $(q) not in network")
+        push!(list, net.node[tax_in_net])
     end
     qnet = extractQuartet(net,list)
     @debug "EXTRACT: extracted quartet $(quartet.taxon)"
@@ -731,7 +728,7 @@ function identifyQuartet!(qnet::QuartetNetwork, node::Node)
         end
         error("strange quartet network with a hybrid node $(node.number) but no cycle")
     elseif(k == 2)
-        other = qnet.node[getIndex(true, [(n.inCycle == node.number && size(n.edge,1) == 3 && !isEqual(n,node)) for n in qnet.node])]
+        other = qnet.node[findfirst(n -> (n.inCycle == node.number && size(n.edge,1) == 3 && !isEqual(n,node)), qnet.node)]
         edgebla,edgebla,edge1 = hybridEdges(node)
         edgebla,edgebla,edge2 = hybridEdges(other)
         if(getOtherNode(edge1,node).leaf || getOtherNode(edge2,other).leaf)
@@ -901,9 +898,10 @@ function eliminateTriangle!(qnet::QuartetNetwork, node::Node, other::Node, case:
         error("node $(node.number) and other node $(other.number) are not connected by an edge")
     end
     #println("hybedge is $(hybedge.number), otheredge is $(otheredge.number)")
-    middle = qnet.node[getIndex(true, [(n.inCycle == node.number && size(n.edge,1) == 3 && !isEqual(n,other) && !isEqual(n,node)) for n in qnet.node])]
+    middle = qnet.node[findfirst(n -> (n.inCycle == node.number && size(n.edge,1) == 3 && !isEqual(n,other) && !isEqual(n,node)), qnet.node)]
     #println("middle node is $(middle.number) in eliminateTriangle")
-    ind = getIndex(true,[(e.inCycle == node.number && !isEqual(getOtherNode(e,middle),node)) for e in middle.edge])
+    ind = findfirst(e -> (e.inCycle == node.number && !isEqual(getOtherNode(e,middle),node)), middle.edge)
+    ind != nothing || error("edge number not found in middle edge")
     edge = middle.edge[ind]
     #println("edge is $(edge.number) with length $(edge.length) in eliminateTriangle, will do deleteIntLeaf from middle through edge")
     deleteIntLeafWhile!(qnet,edge,middle)
@@ -975,7 +973,7 @@ function quartetType5!(qnet::QuartetNetwork, node::Node)
     end
     leaf2 = getOtherNode(edgetree1,other1)
     leaf3 = getOtherNode(edgetree2, other2)
-    leaf4 = qnet.leaf[getIndex(true,[(!isEqual(n,leaf1) && !isEqual(n,leaf2) && !isEqual(n,leaf3)) for n in qnet.leaf])]
+    leaf4 = qnet.leaf[findfirst(n -> (!isEqual(n,leaf1) && !isEqual(n,leaf2) && !isEqual(n,leaf3)), qnet.leaf)]
     #println("leaf1 is $(leaf1.number)")
     #println("leaf2 is $(leaf2.number)")
     #println("leaf3 is $(leaf3.number)")
@@ -1049,24 +1047,22 @@ end
 # two edges in a quartet network with qnet.which=1
 # eliminate internal nodes in every direction
 function internalLength!(qnet::QuartetNetwork)
-    if(qnet.which == 1)
-        try
-            getIndex(true,[size(n.edge,1) == 3 for n in qnet.node])
-        catch
+    if qnet.which == 1
+        ind_3e = findfirst(n -> length(n.edge) == 3, qnet.node)
+        if isnothing(ind_3e)
             printEdges(qnet)
             printNodes(qnet)
             error("not found internal node in qnet with 3 edges")
         end
-        node = qnet.node[getIndex(true,[size(n.edge,1) == 3 for n in qnet.node])]
-        try
-            getIndex(true,[size(n.edge,1) == 3 && !isEqual(n,node) for n in qnet.node])
-        catch
+        node = qnet.node[ind_3e]
+        ind_3eo = findfirst(n -> (size(n.edge,1) == 3 && n !== node), qnet.node)
+        if isnothing(ind_3eo)
             println("first node found with 3 edges $(node.number)")
             printEdges(qnet)
             printNodes(qnet)
             error("not found another internal node in qnet with 3 edges")
         end
-        node2 = qnet.node[getIndex(true,[size(n.edge,1) == 3 && !isEqual(n,node) for n in qnet.node])]
+        node2 = qnet.node[ind_3eo]
         for e in node.edge
             deleteIntLeafWhile!(qnet,e,node,true)
         end
@@ -1130,6 +1126,7 @@ end
 # returns leaf for taxon1, leaf for taxon2 (i.e. 12)
 # warning: assumes that the numbers for the taxon in the output.csv table are the names
 function whichLeaves(qnet::QuartetNetwork, taxon1::String, taxon2::String, leaf1::Node, leaf2::Node, leaf3::Node, leaf4::Node)
+    # danger: this quartet code assumes a particular correspondance between net.names and [n.name for n in net.node]
     if(taxon1 == qnet.names[leaf1.number])
         if(taxon2 == qnet.names[leaf2.number])
             return 1,2
@@ -1184,9 +1181,9 @@ function updateSplit!(qnet::QuartetNetwork)
     if(qnet.which == 1)
         if(qnet.split == [-1,-1,-1,-1])
             qnet.split = [2,2,2,2]
-            middle = qnet.node[getIndex(true,[size(n.edge,1) == 3 for n in qnet.node])]
-            leaf1 = middle.edge[getIndex(true,[getOtherNode(e,middle).leaf for e in middle.edge])]
-            leaf2 = middle.edge[getIndex(true,[(getOtherNode(e,middle).leaf && !isEqual(leaf1,e)) for e in middle.edge])]
+            middle = qnet.node[findfirst(n -> size(n.edge,1) == 3, qnet.node)]
+            leaf1 = middle.edge[findfirst(e -> getOtherNode(e,middle).leaf, middle.edge)]
+            leaf2 = middle.edge[findfirst(e -> getOtherNode(e,middle).leaf && !isEqual(leaf1,e), middle.edge)]
             leaf1 = getOtherNode(leaf1,middle) #leaf1 was edge, now it is node
             leaf2 = getOtherNode(leaf2,middle)
             ind1 = getIndex(leaf1,qnet.leaf)

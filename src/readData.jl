@@ -920,27 +920,19 @@ end
 function extractQuartetTree(q::Quartet, M::Matrix{Int},S::Union{Vector{String},Vector{Int}})
     @debug "extractQuartet: $(q.taxon)"
     @debug "matrix: $(M)"
-    try
-        ind1 = getIndex(q.taxon[1],S)
-        ind2 = getIndex(q.taxon[2],S)
-        ind3 = getIndex(q.taxon[3],S)
-        ind4 = getIndex(q.taxon[4],S)
-    catch
+    inds = indexin(q.taxon, S)
+    if any(isnothing, inds)
         error("some taxon in quartet $(q.taxon) not found in list of all species $(S)")
     end
-    ind1 = getIndex(q.taxon[1],S)
-    ind2 = getIndex(q.taxon[2],S)
-    ind3 = getIndex(q.taxon[3],S)
-    ind4 = getIndex(q.taxon[4],S)
-    subM = M[:,[ind1+1,ind2+1,ind3+1,ind4+1]]
+    subM = M[:, inds.+1]
     @debug "subM: $(subM)"
     for r in 1:size(subM,1) #rows in subM
         @debug "subM[r,:]: $(subM[r,:])"
-        if(subM[r,:] == [0,0,1,1] || subM[r,:] == [1,1,0,0])
+        if subM[r,:] == [0,0,1,1] || subM[r,:] == [1,1,0,0]
             return 1
-        elseif(subM[r,:] == [0,1,0,1] || subM[r,:] == [1,0,1,0])
+        elseif subM[r,:] == [0,1,0,1] || subM[r,:] == [1,0,1,0]
             return 2
-        elseif(subM[r,:] == [0,1,1,0] || subM[r,:] == [1,0,0,1])
+        elseif subM[r,:] == [0,1,1,0] || subM[r,:] == [1,0,0,1]
             return 3
         end
     end

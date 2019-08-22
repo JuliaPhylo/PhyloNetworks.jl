@@ -256,48 +256,6 @@ function getIndex(edge::Edge, edges::Vector{Edge})
     return i
 end
 
-function getIndex(bool::Bool, array::Array{Bool,1})
-    i = 1;
-    while(i<= size(array,1) && !isequal(bool,array[i]))
-        i = i+1;
-    end
-    i <= size(array,1) || error("$(bool) not in array")
-    return i
-end
-
-function getIndex(bool::Bool, array::Array{Any,1})
-    i = 1;
-    while(i<= size(array,1) && !isequal(bool,array[i]))
-        i = i+1;
-    end
-    i <= size(array,1) || error("$(bool) not in array")
-    return i
-end
-
-
-# aux function to find the index of a string in a
-# string array
-function getIndex(name::AbstractString, array::Array{String,1})
-    i = 1;
-    while(i<= size(array,1) && !isequal(name,array[i]))
-        i = i+1;
-    end
-    i <= size(array,1) || error("$(name) not in array")
-    return i
-end
-
-# aux function to find the index of a int in an int array.
-# But findfirst can do that as well, and probably more efficiently (returning nothing if not found)
-function getIndex(name::Integer, array::Array{Int,1})
-    i = 1;
-    while(i<= size(array,1) && !isequal(name,array[i]))
-        i = i+1;
-    end
-    i <= size(array,1) || error("$(name) not in array")
-    return i
-end
-
-
 # aux function to find the index of a node in a
 # node array
 function getIndex(name::Node, array::Array{Node,1})
@@ -328,12 +286,13 @@ end
 
 # find the index of an edge in node.edge
 function getIndexEdge(edge::Edge,node::Node)
-    getIndex(true,[isequal(edge,e) for e in node.edge])
+    findfirst(e -> isequal(edge,e), node.edge)
 end
 
 # find the index of an edge with given number in node.edge
+# bug found & fixed 2019-08-22. Unused function?
 function getIndexEdge(number::Integer,node::Node)
-    getIndex(true,[isequal(edge,e) for e in node.edge])
+    findfirst(e -> isequal(number,e.number), node.edge)
 end
 
 # find the index of a node in edge.node
