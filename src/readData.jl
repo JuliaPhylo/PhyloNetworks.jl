@@ -164,7 +164,8 @@ If multiple rows correspond to the same 4-taxon set, these rows are merged and t
 
 Modify the `.quartet.obsCF` values in the `DataCF` object with those read from the data frame
 in columns numbered `columns`.
-`columns` should have **3** columns numbers for the 3 CFs in this order: 12_34, 13_24 and 14_23.
+`columns` should have **3** columns numbers for the 3 CFs in this order:
+`12_34`, `13_24` and `14_23`.
 
 Assumptions:
 - same 4-taxon sets in `DataCF` and in the data frame, and in the same order,
@@ -666,11 +667,7 @@ function readTrees2CF(treefile::AbstractString; quartetfile="none"::AbstractStri
                       writeTab=true::Bool, CFfile="none"::AbstractString,
                       taxa=Vector{String}()::Union{Vector{String},Vector{Int}},
                       writeQ=false::Bool, writeSummary=true::Bool, nexus=false::Bool)
-    if(nexus)
-        trees = readNexusTrees(treefile)
-    else
-        trees = readInputTrees(treefile)
-    end
+    trees = (nexus ? readNexusTrees(treefile, readTopologyUpdate, false, false) : readInputTrees(treefile))
     if length(taxa)==0        # unionTaxa(trees) NOT default argument:
       taxa = unionTaxa(trees) # otherwise: tree file is read twice
     end
@@ -981,26 +978,46 @@ function createQuartet(taxa::Union{Vector{String},Vector{Int}},qvec::Vector{Int}
     return Quartet(num,names,[1.0,0.0,0.0])
 end
 
-## internal function to read a treefile in nexus format
-function readNexusTrees(file::AbstractString)
+"""
+    readNexusTrees(filename::AbstractString, treereader=readTopology::Function [, args...])
+
+Read trees in nexus-formatted file and return a vector of `HybridNetwork`s.
+For the nexus format, see Maddison, Swofford & Maddison (1997)
+https://doi.org/10.1093/sysbio/46.4.590.
+The optional arguments are passed onto the individual tree reader.
+
+Warnings:
+- "translate" tables are not supported yet
+- only the first tree block is read
+"""
+function readNexusTrees(file::AbstractString, treereader=readTopology::Function, args...)
     vnet = HybridNetwork[]
+    rx_start = r"^\s*begin\s+trees\s*;"i
+    rx_end = r"^\s*end\s*;"i
+    rx_tree = r"^\s*tree\s+[^(]+(\([^;]*;)"i
+    # spaces,"Tree",spaces,any_symbols_other_than_(, then we capture:
+    # ( any_symbols_other_than_; ;
+    treeblock = false # whether we are currently reading the TREE block or not
     open(file) do s
-        numl = 1
+        numl = 0
         for line in eachline(s)
-            line = strip(line) # remove spaces
-            @debug "$(line)"
-            m = match(r"^\s*Tree\s+[^(]+(\([^;]*;)", line)
-            # regex: spaces,"Tree",spaces,any_symbols_other_than_(, then we capture:
-            # ( any_symbols_other_than_; ;
-            if m != nothing
-                phy = m.captures[1]
-                try
-                    push!(vnet, readTopologyUpdate(phy,false))
-                catch err
-                    error("could not read tree in line $(numl). The error is $(err)")
-                end
-            end
             numl += 1
+            if treeblock # currently reading trees, check for END signal
+                occursin(rx_end, line) && break # break if end of tree block
+            else # not reading trees: check for the BEGIN signal
+                if occursin(rx_start, line) treeblock=true; end
+                continue # to next line, either way
+            end
+            # if we get there, it's that we are inside the treeblock (true) and no END signal yet
+            m = match(rx_tree, line)
+            m != nothing || continue # continue to next line if no match
+            phy = m.captures[1] # string
+            try
+                push!(vnet, treereader(phy, args...)) # readTopologyUpdate(phy,false)
+            catch err
+                print("skipped phylogeny on line $(numl) of file $file: ")
+                if :msg in fieldnames(typeof(err)) println(err.msg); else println(typeof(err)); end
+            end
         end
     end
     return vnet # consistent output type: HybridNetwork vector. might be of length 0.

@@ -10,7 +10,7 @@ and their use for trait evolution.
 **How to get help**
 
 - the package [wiki](https://github.com/crsl4/PhyloNetworks.jl/wiki) has a step-by-step
-  tutorial, done for the 2018 MBL workshop, with background on networks and
+  tutorial, done for the 2019 MBL workshop, with background on networks and
   explanations.
 - the [google group](https://groups.google.com/forum/#!forum/phylonetworks-users)
   has answers to common questions.

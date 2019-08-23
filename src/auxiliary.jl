@@ -1230,7 +1230,7 @@ end
 
 Reorder the 4 taxa and reorders the observed concordance factors accordingly, on each row of
 the data frame. If `columns` is ommitted, taxon names are assumed to be in columns 1-4 and
-CFs are assumed to be in columns 5-6 with quartets in this order: 12_34, 13_24, 14_23.
+CFs are assumed to be in columns 5-6 with quartets in this order: `12_34`, `13_24`, `14_23`.
 Does **not** reorder credibility interval values, if present.
 
     sorttaxa!(DataCF)

@@ -469,11 +469,10 @@ input: vector of bootstrap networks (net), estimated network (net1), outgroup
 returns
 
 - a matrix with one row per bootstrap network, and 2*number of hybrids in net1,
-column i corresponds to whether hybrid i (net1.hybrid[i]) is found in the bootstrap network,
-column 2i+1 corresponds to the estimated gamma on the bootstrap network
-(0.0 if hybrid not found).
-To know the order of hybrids, print net1.hybrid[i] i=1,...,num of hybrids
-
+  column i corresponds to whether hybrid i (`net1.hybrid[i]`) is found in the bootstrap network,
+  column 2i+1 corresponds to the estimated gamma on the bootstrap network
+  (0.0 if hybrid not found).
+  To know the order of hybrids, print `net1.hybrid` or `h.name for h in net1.hybrid`
 - list of discrepant trees (trees not matching the main tree in net1)
 """
 function hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgroup::AbstractString)
@@ -590,37 +589,37 @@ Output:
 
 The "node" data frame has one row per clade and 9 columns giving:
 
-   - **clade**: the clade's name, like the taxon name (if a hybrid is a single taxon) or
+   - `:clade`: the clade's name, like the taxon name (if a hybrid is a single taxon) or
      the hybrid tag (like 'H1') in the reference network
-   - **node**: the node number in the reference network. missing if the clade is not in this network.
-   - **hybridnode**: typically the same node number as above, except for hybrid clades in the
+   - `:node`: the node number in the reference network. missing if the clade is not in this network.
+   - `:hybridnode`: typically the same node number as above, except for hybrid clades in the
      reference network. For those, the hybrid node number is listed here.
-   - **edge**: number of the parent edge, parent to the node in column 2,
+   - `:edge`: number of the parent edge, parent to the node in column 2,
      if found in the ref network. missing otherwise.
-   - **BS_hybrid**: percentage of bootstrap networks in which the clade is found to be a hybrid clade.
-   - **BS_sister**: percentage of bootstrap networks in which the clade is found to be sister to
+   - `:BS_hybrid`: percentage of bootstrap networks in which the clade is found to be a hybrid clade.
+   - `:BS_sister`: percentage of bootstrap networks in which the clade is found to be sister to
      some hybrid clade (sum of the next 2 columns)
-   - **BS_major_sister**: percentage of bootstrap networks in which the clade is found to be the
+   - `:BS_major_sister`: percentage of bootstrap networks in which the clade is found to be the
      major sister to some hybrid clade
-   - **BS_minor_sister**: same as previous, but minor
-   - **BS_hybrid_samesisters**: percentage of bootstrap networks in which the clade is found to be
+   - `:BS_minor_sister`: same as previous, but minor
+   - `:BS_hybrid_samesisters`: percentage of bootstrap networks in which the clade is found to be
      a hybrid and with the same set of sister clades as in the reference network.
      Applies to hybrid clades found in the reference network only, missing for all other clades.
 
 The "edge" data frame has one row for each pair of clades, and 8 columns:
 
-  - **edge**: hybrid edge number, if the edge appears in the reference network. missing otherwise.
-  - **hybrid_clade**: name of the clade found to be a hybrid, descendent of 'edge'
-  - **hybrid**: node number of that clade, if it appears in the reference network. missing otherwise.
-  - **sister_clade**: name of the clade that is sister to 'edge', i.e. be sister to a hybrid
-  - **sister**: node number of that clade, if in the ref network.
-  - **BS_hybrid_edge**: percentage of bootstrap networks in which 'edge' is found to be a hybrid
+  - `:edge`: hybrid edge number, if the edge appears in the reference network. missing otherwise.
+  - `:hybrid_clade`: name of the clade found to be a hybrid, descendent of 'edge'
+  - `:hybrid`: node number of that clade, if it appears in the reference network. missing otherwise.
+  - `:sister_clade`: name of the clade that is sister to 'edge', i.e. be sister to a hybrid
+  - `:sister`: node number of that clade, if in the ref network.
+  - `:BS_hybrid_edge`: percentage of bootstrap networks in which 'edge' is found to be a hybrid
      edge, i.e. when the clade in the 'hybrid' column is found to be a hybrid and the clade in
      the 'sister' column is one of its sisters.
-  - **BS_major**: percentage of bootstrap networks in which 'edge' is found to be a major hybrid
+  - `:BS_major`: percentage of bootstrap networks in which 'edge' is found to be a major hybrid
      edge, i.e. when 'hybrid' is found to be a hybrid clade and 'sister' is found to be its
      major sister.
-  - **BS_minor**: same as previous, but minor
+  - `:BS_minor`: same as previous, but minor
 """
 function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwork;
          rooted=false::Bool)

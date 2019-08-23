@@ -1274,7 +1274,7 @@ Use the option append=true to append to the file. Otherwise, the default is to c
 file or overwrite it, if it already existed.
 Each network is written with `writeTopology`.
 
-# Examples #"
+# Examples
 ```
 julia> net = [readTopology("(D,((A,(B)#H7:::0.864):2.069,(F,E):3.423):0.265,(C,#H7:::0.1361111):10);"),
               readTopology("(A,(B,C));"),readTopology("(E,F);"),readTopology("(G,H,F);")];
@@ -1287,7 +1287,7 @@ julia> writeMultiTopology(net, stdout)         # to write to the screen (standar
 (E,F);
 (G,H,F);
 ```
-""" #"
+"""
 function writeMultiTopology(n::Vector{HybridNetwork},file::AbstractString; append::Bool=false)
     mode = (append ? "a" : "w")
     s = open(file, mode)

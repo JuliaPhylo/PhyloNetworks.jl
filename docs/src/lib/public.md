@@ -58,6 +58,7 @@ readTopology
 readTopologyLevel1
 readInputTrees
 readMultiTopology
+readNexusTrees
 readSnaqNetwork
 readTrees2CF
 readTableCF

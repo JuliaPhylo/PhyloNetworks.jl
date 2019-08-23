@@ -147,7 +147,7 @@ and the function does not test for this.
 
 visited: vector of node numbers, of all visited nodes.
 
-# Examples: #"
+# Examples:
 ```jldoctest
 julia> net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readTopology |> directEdges! ;
 
@@ -169,7 +169,7 @@ julia> hardwiredCluster(net5.edge[12], taxa) # descendants of 12th edge = CEF
  1
  0
 ```
-""" #"
+"""
 function hardwiredCluster(edge::Edge,taxa::Union{Vector{String},Vector{Int}})
     v = zeros(Bool,length(taxa))
     hardwiredCluster!(v,edge,taxa)

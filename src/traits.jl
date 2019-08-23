@@ -2045,23 +2045,6 @@ function predintPlot(obj::ReconstructedStates; level=0.95::Real, withExp=false::
     return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], PredInt = pritxt)
 end
 
-# """
-# 'plot(net::HybridNetwork, obj::ReconstructedStates; kwargs...)
-#
-# Plot the reconstructed states computed by function `ancestralStateReconstruction`
-# on a network.
-#
-# # Arguments
-# * `net::HybridNetwork`: a phylogenetic network.
-# * `obj::ReconstructedStates`: the reconstructed states on the network.
-# * `kwargs...`: further arguments to be passed to the netwotk `plot` function.
-#
-# See documentation for function `ancestralStateReconstruction(obj::PhyloNetworkLinearModel[, X_n::Matrix])` for examples.
-#
-# """
-# function Gadfly.plot(net::HybridNetwork, obj::ReconstructedStates; kwargs...)
-#   plot(net, nodeLabel = predintPlot(obj); kwargs...)
-# end
 
 """
     ancestralStateReconstruction(net::HybridNetwork, Y::Vector, params::ParamsBM)
@@ -2200,7 +2183,7 @@ See documentation for this type and examples for functions that can be applied t
 
 # Examples
 
-```jldoctest; filter = r" PhyloNetworks .*:\d+"
+```jldoctest; filter = [r" PhyloNetworks .*:\d+", r"Info: Loading DataFrames support into Gadfly"]
 julia> using CSV # to read data file
 
 julia> phy = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "carnivores_tree.txt"));

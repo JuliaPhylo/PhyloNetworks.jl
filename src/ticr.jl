@@ -50,7 +50,7 @@ output:
 NWM Stenz, B Larget, DA Baum and C Ané (2015).
 Exploring tree-like and non-tree-like patterns using genome sequences:
 An example using the inbreeding plant species *Arabidopsis thaliana* (L.) Heynh.
-Systematic Biology, 64(5):809-823. doi: 10.1093/sysbio/syv039
+Systematic Biology, 64(5):809-823. (https://doi.org/10.1093/sysbio/syv039)
 """
 function ticr!(net, D::DataFrame, optimizeBL::Bool)
     d = readTableCF(D);
