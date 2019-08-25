@@ -71,7 +71,8 @@ For general trait types, use one of these three models:
 - `:BTSM` Binary Trait Substitution Model (2 states, rates unconstrained)
 - `:ERSM` Equal Rates Substitution Model
   (`k` states, all transitions possible with equal rates)
-- `:TBTSM` Two Binary Trait Substituion Model (though not fully implemented yet)
+- `:TBTSM` Two Binary Trait Substitution Model (though not fully implemented yet)
+
 
 ## Inference
 
@@ -79,14 +80,16 @@ To infer evolutionary rates, run [`fitdiscrete`](@ref) on the network and data.
 It will calculate the maximum likelihood score
 of one or more discrete trait characters at the tips
 on a fixed network.
-Along each edge, evolutionary changes
-are modeled with a continous time Markov model, with parameters estimated by
-maximizing the likelihood.
-At a hybrid node, the trait is assumed to be inherited from one or the other
-of its parents (immediately before the reticulation event),
-with probabilities equal to the inheritance γ of each parent edge,
-which is given by the network.
-The model ignores incomplete lineage sorting (e.g. hemiplasy).
+
+- Along each edge, evolutionary changes are modeled with a
+  continous time Markov model.
+- At a hybrid node, the trait is assumed to be inherited from one or the other
+  of its parents (immediately before the reticulation event),
+  with probabilities equal to the inheritance γ of each parent edge,
+  which is given by the network.
+- At the root of the network, a uniform distribution among the possible
+  states is assumed a priori.
+- The model ignores incomplete lineage sorting (e.g. hemiplasy).
 
 ### parameter estimation & model fit
 
@@ -188,3 +191,41 @@ evidence is very equivocal.
 This may not be surprising given that
 gene flow occurred between fairly closely related species,
 and that the data set is very small.
+
+## Trait simulation
+
+[`randomTrait`](@ref) can simulate traits along a known network.
+For example, we can define a binary trait model with states
+"carnivory" (state 1) and "non-carnivory" (state 2), then ask for
+a trait to be simulated along our network. We can ask for
+3 independent simulations, giving us 3 traits then, arranged in 3 rows.
+
+```@repl fitdiscrete_trait
+m1 = BinaryTraitSubstitutionModel(1.0,2.0, ["carnivory", "non-carnivory"])
+using Random; Random.seed!(1234); # for reproducibility of this example
+traitmatrix, nodecolumn = randomTrait(m1, net; ntraits=3);
+traitmatrix
+```
+
+In this trait matrix, each column corresponds to a node,
+each row is a trait, and each entry gives the state of that trait for that node,
+as an index. To get the state labels:
+
+```@repl fitdiscrete_trait
+m1.label[traitmatrix]
+```
+
+The `nodecolumn` vector says which node corresponds to which column
+in the trait matrix, and we can compare to the node numbers in the network.
+For example, the first column corresponds to node `-2`, which is the root.
+(The root is always in the first column: that's where the simulation starts.)
+Also, as an example, the column for taxon "A" is column 12:
+
+```@repl fitdiscrete_trait
+nodecolumn
+net.node[net.root]
+findfirst(isequal("A"), nodecolumn)
+nodecolumn[12]
+traitmatrix[:,12]
+m1.label[traitmatrix[:,12]]
+```
