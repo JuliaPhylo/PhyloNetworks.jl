@@ -90,6 +90,9 @@ end
   rmprocs(workers())
   @test writeTopology(n1, round=true)==writeTopology(n2, round=true)
   @test n1.loglik == n2.loglik
+  n3 = readSnaqNetwork("snaq.out")
+  @test writeTopology(n3, round=true)==writeTopology(n2, round=true)
+  @test n3.loglik > 0.0
   rm("snaq.out")
   rm("snaq.networks")
   rm("snaq.log") # .log and .err should be git-ignored, but still
