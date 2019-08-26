@@ -1290,9 +1290,9 @@ julia> writeMultiTopology(net, stdout)         # to write to the screen (standar
 """
 function writeMultiTopology(n::Vector{HybridNetwork},file::AbstractString; append::Bool=false)
     mode = (append ? "a" : "w")
-    s = open(file, mode)
+    open(file, mode) do s
     writeMultiTopology(n,s)
-    close(s)
+    end # closes file safely
 end
 
 function writeMultiTopology(net::Vector{HybridNetwork},s::IO)
