@@ -28,7 +28,7 @@ and their use for trait evolution.
   Phylogenetic Comparative Methods for Phylogenetic Networks with Reticulations.
   Systematic Biology, 67(5):800–820.
   [doi:10.1093/sysbio/syy033](https://doi.org/10.1093/sysbio/syy033).
-- Claudia Solís-Lemus and Cécile Ané(2016).
+- Claudia Solís-Lemus and Cécile Ané (2016).
   Inferring Phylogenetic Networks with Maximum Pseudolikelihood under Incomplete Lineage Sorting.
   [PLoS Genet](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896)
   12(3):e1005896. [doi:10.1371/journal.pgen.1005896](https://doi.org/10.1371/journal.pgen.1005896)

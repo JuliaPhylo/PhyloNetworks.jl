@@ -128,7 +128,7 @@ so we will use `s3` below.
 
 This is traditionally called "ancestral state reconstruction",
 but we do not actually reconstruct anything.
-We make predictions for (past of presend-day) values,
+We make predictions for (past of present-day) values,
 hopefully with some measure to quantify our uncertainty.
 
 ```@repl fitdiscrete_trait
@@ -159,7 +159,7 @@ less uncertainty near the tips.
 The most recent common ancestor of D and E (node 11),
 in particular, is predicted to be "lo" with fairly high certainty.
 
-### gene flow impact on the trait
+### impact of gene flow on the trait
 
 An interesting question is whether there is evidence that B obtained
 it's "hi" state via gene flow. The prior probability for this is γ:
