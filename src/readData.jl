@@ -34,8 +34,8 @@ function writeTableCF(quartets::Array{Quartet,1})
         push!(df, [q.taxon[1],q.taxon[2],q.taxon[3],q.taxon[4],q.obsCF[1],q.obsCF[2],q.obsCF[3],
                    (q.ngenes==-1.0 ? missing : q.ngenes)])
     end
-    if all(ismissing, df[:ngenes])
-        deletecols!(df, :ngenes)
+    if all(ismissing, df[!,:ngenes])
+        select!(df, Not(:ngenes))
     end
     return df
 end
@@ -164,7 +164,8 @@ If multiple rows correspond to the same 4-taxon set, these rows are merged and t
 
 Modify the `.quartet.obsCF` values in the `DataCF` object with those read from the data frame
 in columns numbered `columns`.
-`columns` should have **3** columns numbers for the 3 CFs in this order: 12_34, 13_24 and 14_23.
+`columns` should have **3** columns numbers for the 3 CFs in this order:
+`12_34`, `13_24` and `14_23`.
 
 Assumptions:
 - same 4-taxon sets in `DataCF` and in the data frame, and in the same order,
@@ -666,11 +667,7 @@ function readTrees2CF(treefile::AbstractString; quartetfile="none"::AbstractStri
                       writeTab=true::Bool, CFfile="none"::AbstractString,
                       taxa=Vector{String}()::Union{Vector{String},Vector{Int}},
                       writeQ=false::Bool, writeSummary=true::Bool, nexus=false::Bool)
-    if(nexus)
-        trees = readNexusTrees(treefile)
-    else
-        trees = readInputTrees(treefile)
-    end
+    trees = (nexus ? readNexusTrees(treefile, readTopologyUpdate, false, false) : readInputTrees(treefile))
     if length(taxa)==0        # unionTaxa(trees) NOT default argument:
       taxa = unionTaxa(trees) # otherwise: tree file is read twice
     end
@@ -804,8 +801,8 @@ function updateBL!(net::HybridNetwork,d::DataCF)
     x = by(df, :edge, Nquartets= :CF => length,
                       edgeL = :CF => x -> -log(3/2*(1. - mean(x))))
     # ommitting columns: meanCF= :CF => mean, sdCF= :CF => std
-    edges = x[:edge]
-    lengths = x[:edgeL]
+    edges = x[!,:edge]
+    lengths = x[!,:edgeL]
     for i in 1:length(edges)
         ind = getIndexEdge(edges[i],net) # helpful error if not found
         if net.edge[ind].length < 0.0 || net.edge[ind].length==1.0
@@ -920,27 +917,19 @@ end
 function extractQuartetTree(q::Quartet, M::Matrix{Int},S::Union{Vector{String},Vector{Int}})
     @debug "extractQuartet: $(q.taxon)"
     @debug "matrix: $(M)"
-    try
-        ind1 = getIndex(q.taxon[1],S)
-        ind2 = getIndex(q.taxon[2],S)
-        ind3 = getIndex(q.taxon[3],S)
-        ind4 = getIndex(q.taxon[4],S)
-    catch
+    inds = indexin(q.taxon, S)
+    if any(isnothing, inds)
         error("some taxon in quartet $(q.taxon) not found in list of all species $(S)")
     end
-    ind1 = getIndex(q.taxon[1],S)
-    ind2 = getIndex(q.taxon[2],S)
-    ind3 = getIndex(q.taxon[3],S)
-    ind4 = getIndex(q.taxon[4],S)
-    subM = M[:,[ind1+1,ind2+1,ind3+1,ind4+1]]
+    subM = M[:, inds.+1]
     @debug "subM: $(subM)"
     for r in 1:size(subM,1) #rows in subM
         @debug "subM[r,:]: $(subM[r,:])"
-        if(subM[r,:] == [0,0,1,1] || subM[r,:] == [1,1,0,0])
+        if subM[r,:] == [0,0,1,1] || subM[r,:] == [1,1,0,0]
             return 1
-        elseif(subM[r,:] == [0,1,0,1] || subM[r,:] == [1,0,1,0])
+        elseif subM[r,:] == [0,1,0,1] || subM[r,:] == [1,0,1,0]
             return 2
-        elseif(subM[r,:] == [0,1,1,0] || subM[r,:] == [1,0,0,1])
+        elseif subM[r,:] == [0,1,1,0] || subM[r,:] == [1,0,0,1]
             return 3
         end
     end
@@ -989,26 +978,46 @@ function createQuartet(taxa::Union{Vector{String},Vector{Int}},qvec::Vector{Int}
     return Quartet(num,names,[1.0,0.0,0.0])
 end
 
-## internal function to read a treefile in nexus format
-function readNexusTrees(file::AbstractString)
+"""
+    readNexusTrees(filename::AbstractString, treereader=readTopology::Function [, args...])
+
+Read trees in nexus-formatted file and return a vector of `HybridNetwork`s.
+For the nexus format, see Maddison, Swofford & Maddison (1997)
+https://doi.org/10.1093/sysbio/46.4.590.
+The optional arguments are passed onto the individual tree reader.
+
+Warnings:
+- "translate" tables are not supported yet
+- only the first tree block is read
+"""
+function readNexusTrees(file::AbstractString, treereader=readTopology::Function, args...)
     vnet = HybridNetwork[]
+    rx_start = r"^\s*begin\s+trees\s*;"i
+    rx_end = r"^\s*end\s*;"i
+    rx_tree = r"^\s*tree\s+[^(]+(\([^;]*;)"i
+    # spaces,"Tree",spaces,any_symbols_other_than_(, then we capture:
+    # ( any_symbols_other_than_; ;
+    treeblock = false # whether we are currently reading the TREE block or not
     open(file) do s
-        numl = 1
+        numl = 0
         for line in eachline(s)
-            line = strip(line) # remove spaces
-            @debug "$(line)"
-            m = match(r"^\s*Tree\s+[^(]+(\([^;]*;)", line)
-            # regex: spaces,"Tree",spaces,any_symbols_other_than_(, then we capture:
-            # ( any_symbols_other_than_; ;
-            if m != nothing
-                phy = m.captures[1]
-                try
-                    push!(vnet, readTopologyUpdate(phy,false))
-                catch err
-                    error("could not read tree in line $(numl). The error is $(err)")
-                end
-            end
             numl += 1
+            if treeblock # currently reading trees, check for END signal
+                occursin(rx_end, line) && break # break if end of tree block
+            else # not reading trees: check for the BEGIN signal
+                if occursin(rx_start, line) treeblock=true; end
+                continue # to next line, either way
+            end
+            # if we get there, it's that we are inside the treeblock (true) and no END signal yet
+            m = match(rx_tree, line)
+            m != nothing || continue # continue to next line if no match
+            phy = m.captures[1] # string
+            try
+                push!(vnet, treereader(phy, args...)) # readTopologyUpdate(phy,false)
+            catch err
+                print("skipped phylogeny on line $(numl) of file $file: ")
+                if :msg in fieldnames(typeof(err)) println(err.msg); else println(typeof(err)); end
+            end
         end
     end
     return vnet # consistent output type: HybridNetwork vector. might be of length 0.

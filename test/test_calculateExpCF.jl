@@ -5,7 +5,7 @@
 
 #println("------ Case G ----------")
 include("../examples/case_g_example.jl")
-#net.names
+# include(joinpath(dirname(pathof(PhyloNetworks)),  "..","examples","case_g_example.jl"))
 error1 = false
 ind = 0
 
@@ -153,7 +153,7 @@ end
 
 #println("------ Case F Bad diamond I ----------")
 include("../examples/case_f_example.jl");
-#net.names
+# include(joinpath(dirname(pathof(PhyloNetworks)),  "..","examples","case_f_example.jl"))
 error1 = false
 ind = 0
 parameters!(net)
@@ -297,7 +297,7 @@ end
 
 #println("------ Case I Bad diamond II ----------")
 include("../examples/case_i_example.jl");
-#net.names
+# include(joinpath(dirname(pathof(PhyloNetworks)),  "..","examples","case_i_example.jl"))
 error1 = false
 ind = 0
 

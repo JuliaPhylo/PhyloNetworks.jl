@@ -17,7 +17,7 @@ global tree, df, d, net, currT
       filename="CFmapped.csv"))
     rm("CFmapped.csv")
     rm("tmp.csv")
-    @test df[:t4] == ["4","7","3","7","3","3","7","3","3","3","7","3","3","3","3"]
+    @test df[!,:t4] == ["4","7","3","7","3","3","7","3","3","3","7","3","3","3","3"]
 end
 
 #----------------------------------------------------------#
@@ -36,19 +36,19 @@ for i1 in 1:4
     deleteat!(ind34, findfirst(isequal(i2), ind34))
     for j in 1:2
       i3=ind34[j]; i4=ind34[3-j]
-      d[:t1][irow]=letters[i1]; d[:t2][irow]=letters[i2]; d[:t3][irow]=letters[i3]; d[:t4][irow]=letters[i4]
+      d[irow,:t1]=letters[i1]; d[irow,:t2]=letters[i2]; d[irow,:t3]=letters[i3]; d[irow,:t4]=letters[i4]
       # CF12_34 corresponds to CFi1i2_i3i4
-      if     (i1,i2)∈[(1,2),(2,1),(3,4),(4,3)] d[:CF12_34][irow] = cfvalues[1]
-      elseif (i1,i2)∈[(1,3),(3,1),(2,4),(4,2)] d[:CF12_34][irow] = cfvalues[2]
-      elseif (i1,i2)∈[(1,4),(4,1),(2,3),(3,2)] d[:CF12_34][irow] = cfvalues[3]
+      if     (i1,i2)∈[(1,2),(2,1),(3,4),(4,3)] d[irow,:CF12_34] = cfvalues[1]
+      elseif (i1,i2)∈[(1,3),(3,1),(2,4),(4,2)] d[irow,:CF12_34] = cfvalues[2]
+      elseif (i1,i2)∈[(1,4),(4,1),(2,3),(3,2)] d[irow,:CF12_34] = cfvalues[3]
       end # next: set CF13_24
-      if     (i1,i3)∈[(1,2),(2,1),(3,4),(4,3)] d[:CF13_24][irow] = cfvalues[1]
-      elseif (i1,i3)∈[(1,3),(3,1),(2,4),(4,2)] d[:CF13_24][irow] = cfvalues[2]
-      elseif (i1,i3)∈[(1,4),(4,1),(2,3),(3,2)] d[:CF13_24][irow] = cfvalues[3]
+      if     (i1,i3)∈[(1,2),(2,1),(3,4),(4,3)] d[irow,:CF13_24] = cfvalues[1]
+      elseif (i1,i3)∈[(1,3),(3,1),(2,4),(4,2)] d[irow,:CF13_24] = cfvalues[2]
+      elseif (i1,i3)∈[(1,4),(4,1),(2,3),(3,2)] d[irow,:CF13_24] = cfvalues[3]
       end # nest: set CF14_23
-      if     (i1,i4)∈[(1,2),(2,1),(3,4),(4,3)] d[:CF14_23][irow] = cfvalues[1]
-      elseif (i1,i4)∈[(1,3),(3,1),(2,4),(4,2)] d[:CF14_23][irow] = cfvalues[2]
-      elseif (i1,i4)∈[(1,4),(4,1),(2,3),(3,2)] d[:CF14_23][irow] = cfvalues[3]
+      if     (i1,i4)∈[(1,2),(2,1),(3,4),(4,3)] d[irow,:CF14_23] = cfvalues[1]
+      elseif (i1,i4)∈[(1,3),(3,1),(2,4),(4,2)] d[irow,:CF14_23] = cfvalues[2]
+      elseif (i1,i4)∈[(1,4),(4,1),(2,3),(3,2)] d[irow,:CF14_23] = cfvalues[3]
       end
       irow += 1
     end

@@ -6,7 +6,6 @@
 
 PhyloNetworks.CHECKNET || error("need CHECKNET==true in PhyloNetworks to test snaq in test_correctLik.jl")
 
-#df = readtable("Tree_output.txt")
 df=DataFrame(t1=["6","6","10","6","6"],
              t2=["7","7","7","10","7"],
              t3=["4","10","4","4","4"],
@@ -20,14 +19,14 @@ d = readTableCF(df)
 @test tipLabels(d) ==  ["4","6","7","8","10"]
 @test_logs PhyloNetworks.descData(d, devnull)
 
-df[:ngenes] = [10,10,10,10,20]
+df[!,:ngenes] = [10,10,10,10,20]
 allowmissing!(df, :ngenes)
 d = readTableCF(df)
-df[:ngenes][1] = missing; d.quartet[1].ngenes = -1.0
+df[1,:ngenes] = missing; d.quartet[1].ngenes = -1.0
 newdf = writeTableCF(d)
-@test newdf[1:7] == rename(df, [:obsCF12 => :CF12_34, :obsCF13 => :CF13_24, :obsCF14 => :CF14_23])[1:7]
-@test ismissing(newdf[:ngenes][1])
-@test newdf[:ngenes][2:end] == df[:ngenes][2:end]
+@test newdf[!,1:7] == rename(df, [:obsCF12 => :CF12_34, :obsCF13 => :CF13_24, :obsCF14 => :CF14_23])[!,1:7]
+@test ismissing(newdf[1,:ngenes])
+@test newdf[2:end,:ngenes] == df[2:end,:ngenes]
 
 # starting tree:
 tree = "((6,4),(7,8),10);"
@@ -39,8 +38,8 @@ currT = readTopologyLevel1(tree);
 extractQuartet!(currT,d)
 calculateExpCFAll!(d)
 tmp = (@test_logs PhyloNetworks.writeExpCF(d))
-for i in [5,7] for j in 2:5 @test tmp[i][j] ≈ 0.12262648039048077; end end
-for j in 2:5 @test tmp[6][j] ≈ 0.7547470392190385; end
+for i in [5,7] for j in 2:5 @test tmp[j,i] ≈ 0.12262648039048077; end end
+for j in 2:5 @test tmp[j,6] ≈ 0.7547470392190385; end
 lik = logPseudoLik(d)
 @test lik ≈ 193.7812623319291
 #estTree = optTopRun1!(currT,d,0,5454) # issue with printCounts, TravisCI?
@@ -91,6 +90,9 @@ end
   rmprocs(workers())
   @test writeTopology(n1, round=true)==writeTopology(n2, round=true)
   @test n1.loglik == n2.loglik
+  n3 = readSnaqNetwork("snaq.out")
+  @test writeTopology(n3, round=true)==writeTopology(n2, round=true)
+  @test n3.loglik > 0.0
   rm("snaq.out")
   rm("snaq.networks")
   rm("snaq.log") # .log and .err should be git-ignored, but still

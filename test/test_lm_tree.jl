@@ -85,7 +85,7 @@ ancR = CSV.read(joinpath(@__DIR__, "..", "examples", "caudata_Rphylopars.txt"),
 
 ## Expectations
 expe = expectations(anc)
-expeR = ancR[:trait]
+expeR = ancR[!,:trait]
 # Matching tips ?
 tipsR = expeR[expe[197:393, :nodeNumber]]
 tipsJulia = expe[197:393, :condExpectation]
@@ -101,7 +101,7 @@ nodesJulia = expe[1:196, :condExpectation]
 ## Variances
 vars = LinearAlgebra.diag(anc.variances_nodes)
 # Rphylopars
-varsR = ancR[:var]
+varsR = ancR[!,:var]
 # Matching nodes ?
 nodesR = varsR[-expe[1:196, :nodeNumber] .+ 196]
 @test nodesR ≈ vars atol=1e-3 ## RK: Small tol !!
@@ -111,7 +111,7 @@ ancRt = CSV.read(joinpath(@__DIR__, "..", "examples", "caudata_Phytools.txt"));
 
 ## Expectations
 expe = expectations(anc)
-expeRt = ancRt[:trait]
+expeRt = ancRt[!,:trait]
 # Matching nodes ?
 nodesRt = expeRt[-expe[1:196, :nodeNumber] .+ (196 - 197)]
 nodesJulia = expe[1:196, :condExpectation]
@@ -123,7 +123,7 @@ nodesJulia = expe[1:196, :condExpectation]
 ## Variances
 vars = LinearAlgebra.diag(anc.variances_nodes)
 # Rphylopars
-varsRt = ancRt[:var]
+varsRt = ancRt[!,:var]
 # Matching nodes ?
 nodesRt = varsRt[-expe[1:196, :nodeNumber] .+ (196 - 197)]
 @test nodesRt ≈ vars atol=2e-3 ## RK: Small tol !!
@@ -209,7 +209,7 @@ nodesRt = varsRt[-expe[1:196, :nodeNumber] .+ (196 - 197)]
 ###############################################################################
 
 ## Fit Pagel's lambda
-fitLambda = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(@formula(trait ~ 1), dat, phy, model = "lambda"));
+fitLambda = (@test_logs (:info, r"^Maximum lambda value") phyloNetworklm(@formula(trait ~ 1), dat, phy, model = "lambda"));
 
 @test lambda_estim(fitLambda) ≈ 0.9193 atol=1e-4 # Due to convergence issues, tolerance is lower.
 @test loglikelihood(fitLambda) ≈ -51.684379 atol=1e-6
@@ -454,7 +454,7 @@ vcovR =  [0.0200086273  -0.0136717540 0.0084815090  -0.0093192029 -0.0114417825 
 ###############################################################################
 
 ## Fit lambda
-fitLambda = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(@formula(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region), dat, phy, model = "lambda"))
+fitLambda = (@test_logs (:info, r"^Maximum lambda value") phyloNetworklm(@formula(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region), dat, phy, model = "lambda"))
 
 # Tests against results obtained with geiger::fitContinuous or phylolm::phylolm
 @test lambda_estim(fitLambda) ≈ 0.9982715594 atol=1e-5

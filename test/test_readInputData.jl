@@ -26,8 +26,15 @@
 ## end
 
 
-nexusfile = joinpath(@__DIR__, "..", "examples", "test.nex")
 @testset "test: reading nexus file" begin
-    vnet = readNexusTrees(nexusfile)
-    @test length(vnet) == 10
+nexusfile = joinpath(@__DIR__, "..", "examples", "test.nex")
+# nexusfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","test.nex")
+vnet = readNexusTrees(nexusfile);
+@test length(vnet) == 10
+@test length(vnet[10].edge) == 10
+@test vnet[10].edge[7].length ≈ 0.00035
+vnet = readNexusTrees(nexusfile, PhyloNetworks.readTopologyUpdate, false, false);
+@test length(vnet) == 10
+@test length(vnet[10].edge) == 9
+@test vnet[10].edge[7].length ≈ 0.00035
 end

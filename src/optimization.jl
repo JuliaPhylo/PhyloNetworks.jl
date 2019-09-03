@@ -114,7 +114,8 @@ function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
     if(qnet.numHybrids == 1 && qnet.hybrid[1].isBadDiamondI)
         ind1 = parse(Int,string(string(qnet.hybrid[1].number),"1"))
         ind2 = parse(Int,string(string(qnet.hybrid[1].number),"2"))
-        i = getIndex(ind1,nhz)
+        i = findfirst(isequal(ind1), nhz)
+        i != nothing || error("ind1 not found in nhz")
         edges = hybridEdges(qnet.hybrid[1])
         push!(qnhz,i+net.numHybrids-net.numBad+k)
         push!(qnhz,i+1+net.numHybrids-net.numBad+k)
@@ -126,7 +127,8 @@ function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
             if(n.isBadDiamondI)
                 ind1 = parse(Int,string(string(n.number),"1"))
                 ind2 = parse(Int,string(string(n.number),"2"))
-                i = getIndex(ind1,nhz)
+                i = findfirst(isequal(ind1), nhz)
+                i != nothing || error("ind1 not found in nhz")
                 edges = hybridEdges(n)
                 push!(qnhz,i+net.numHybrids-net.numBad+k)
                 push!(qnhz,i+1+net.numHybrids-net.numBad+k)
@@ -140,33 +142,27 @@ function parameters!(qnet::QuartetNetwork, net::HybridNetwork)
             all((n -> !n.isBadDiamondI),qnet.hybrid) || error("cannot have bad diamond I hybrid nodes in this qnet, case dealt separately before")
             for e in qnet.edge
                 if(e.istIdentifiable)
-                    try
-                        getIndex(e.number,nt)
-                    catch
+                    enum_in_nt = findfirst(isequal(e.number), nt)
+                    if isnothing(enum_in_nt)
                         error("identifiable edge $(e.number) in qnet not found in net")
                     end
-                    push!(qnt, getIndex(e.number,nt) + net.numHybrids - net.numBad)
+                    push!(qnt, enum_in_nt + net.numHybrids - net.numBad)
                     push!(qindxt, getIndex(e,qnet))
                 end
                 if(!e.istIdentifiable && all((n->!n.leaf),e.node) && !e.hybrid && e.fromBadDiamondI) # tree edge not identifiable but internal with length!=0 (not bad diamII nor bad triangle)
-                    try
-                        getIndex(e.number,nhz)
-                    catch
+                    enum_in_nhz = findfirst(isequal(e.number), nhz)
+                    if isnothing(enum_in_nhz)
                         error("internal edge $(e.number) corresponding to gammaz in qnet not found in net.ht")
                     end
-                    push!(qnhz, getIndex(e.number,nhz) + net.numHybrids - net.numBad + k)
+                    push!(qnhz, enum_in_nhz + net.numHybrids - net.numBad + k)
                     push!(qindxhz, getIndex(e,qnet))
                 end
                 if(e.hybrid && !e.isMajor)
                     node = e.node[e.isChild1 ? 1 : 2]
                     node.hybrid || error("strange hybrid edge $(e.number) poiting to tree node $(node.number)")
-                    found = true
-                    try
-                        getIndex(e.number,nh)
-                    catch
-                        found = false
-                    end
-                    found  ? push!(qnh, getIndex(e.number,nh)) : nothing
+                    enum_in_nh = findfirst(isequal(e.number), nh)
+                    found = (enum_in_nh != nothing)
+                    found ? push!(qnh, enum_in_nh) : nothing
                     found ? push!(qindxh, getIndex(e,qnet)) : nothing
                 end
             end # for qnet.edge

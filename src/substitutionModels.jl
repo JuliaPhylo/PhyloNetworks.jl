@@ -206,7 +206,7 @@ rate matrix Q:
 
 
 julia> PhyloNetworks.P(m1, 3.0)
-4×4 StaticArrays.MArray{Tuple{4,4},Float64,2,16}:
+4×4 StaticArrays.MArray{Tuple{4,4},Float64,2,16} with indices SOneTo(4)×SOneTo(4):
  0.217509  0.198417  0.190967  0.198417
  0.297625  0.312992  0.297625  0.28645
  0.28645   0.297625  0.312992  0.297625
@@ -218,7 +218,7 @@ Juke-Cantor example:
 julia> m1 = JC69([1.]);
 
 julia> PhyloNetworks.P(m1, 0.2)
-4×4 StaticArrays.MArray{Tuple{4,4},Float64,2,16}:
+4×4 StaticArrays.MArray{Tuple{4,4},Float64,2,16} with indices SOneTo(4)×SOneTo(4):
  0.824446   0.0585179  0.0585179  0.0585179
  0.0585179  0.824446   0.0585179  0.0585179
  0.0585179  0.0585179  0.824446   0.0585179
@@ -477,7 +477,7 @@ nparams(::ERSM) = 1::Int
 
 function Base.show(io::IO, obj::ERSM)
     str = "Equal Rates Substitution Model with k=$(obj.k),\n"
-    str *= "all rates equal to α=$(obj.rate[1]).\n"
+    str *= "all rates equal to α=$(round(obj.rate[1], digits=5)).\n"
     str *= "rate matrix Q:\n"
     print(io, str)
     showQ(io, obj)
@@ -651,7 +651,7 @@ to an average of 1 transition per unit of time: in which case `rate` is set to 1
 julia> m1 = JC69([0.25], false)
 Jukes and Cantor 69 Substitution Model,
 absolute rate version
-off-diagonal rates equal to [0.25]/3.
+off-diagonal rates equal to 0.25/3.
 rate matrix Q:
                A       C       G       T
        A       *  0.0833  0.0833  0.0833
@@ -721,7 +721,7 @@ function Base.show(io::IO, obj::JC69)
         str *= "off-diagonal rates equal to 1/3\n"
     else
         str *= "absolute rate version\n"
-        str *= "off-diagonal rates equal to $(obj.rate)/3.\n"
+        str *= "off-diagonal rates equal to $(round(obj.rate[1], digits=5))/3.\n"
     end
     str *= "rate matrix Q:\n"
     print(io, str)
@@ -829,9 +829,12 @@ end
 function Base.show(io::IO, obj::HKY85)
     str = "HKY85 Substitution Model base frequencies: $(obj.pi)\n"
     if obj.relative
-        str *= "relative rate version with transition/tranversion ratio kappa = $(obj.rate[1]),\n scaled so that there is one substitution per unit time\n"
+        str *= "relative rate version with transition/tranversion ratio kappa = $(round(obj.rate[1], digits=5)),"
+        str *= "\n scaled so that there is one substitution per unit time\n"
     else
-        str *= "absolute rate version with transition/transversion ratio kappa = a/b = $(obj.rate[1]/obj.rate[2])\n with rates a = $(obj.rate[1]) and b = $(obj.rate[2])\n"
+        str *= "absolute rate version with transition/transversion ratio kappa = a/b = "
+        str *= "$(round(obj.rate[1]/obj.rate[2], digits=5))"
+        str *= "\n with rates a = $(round(obj.rate[1], digits=5)) and b = $(round(obj.rate[2], digits=5))\n"
     end
     str *= "rate matrix Q:\n"
     print(io, str)
@@ -983,7 +986,7 @@ julia> rv = RateVariationAcrossSites()
 Rate Variation Across Sites using Discretized Gamma Model
 alpha: 1.0
 categories for Gamma discretization: 4
-ratemultiplier: [0.145784, 0.513132, 1.07083, 2.27025]
+ratemultiplier: [0.14578, 0.51313, 1.07083, 2.27025]
 
 julia> PhyloNetworks.setalpha!(rv, 2.0)
 
@@ -991,13 +994,13 @@ julia> rv
 Rate Variation Across Sites using Discretized Gamma Model
 alpha: 2.0
 categories for Gamma discretization: 4
-ratemultiplier: [0.319065, 0.683361, 1.10898, 1.8886]
+ratemultiplier: [0.31907, 0.68336, 1.10898, 1.8886]
 
 julia> RateVariationAcrossSites(2.0, 4)
 Rate Variation Across Sites using Discretized Gamma Model
 alpha: 2.0
 categories for Gamma discretization: 4
-ratemultiplier: [0.319065, 0.683361, 1.10898, 1.8886]
+ratemultiplier: [0.31907, 0.68336, 1.10898, 1.8886]
 ```
 """
 mutable struct RateVariationAcrossSites
@@ -1039,9 +1042,9 @@ end
 
 function Base.show(io::IO, obj::RateVariationAcrossSites)
     str = "Rate Variation Across Sites using Discretized Gamma Model\n"
-    str *= "alpha: $(obj.alpha)\n"
+    str *= "alpha: $(round(obj.alpha, digits=5))\n"
     str *= "categories for Gamma discretization: $(obj.ncat)\n"
-    str *= "ratemultiplier: $(obj.ratemultiplier)\n"
+    str *= "ratemultiplier: $(round.(obj.ratemultiplier, digits=5))\n"
     print(io, str)
 end
 
@@ -1057,7 +1060,7 @@ Estimate base frequencies in DNA data `DNAdata`, ordered ACGT.
 
 - `DNAdata`: data frame. All columns are used. If the first column
   gives species names, find a way to ignore it before calculating empirical
-  frequencies, e.g. `empiricalDNAfrequencies(view(DNAdata, 2:ncol(DNAdata)))`.
+  frequencies, e.g. `empiricalDNAfrequencies(view(DNAdata, :, 2:ncol(DNAdata)))`.
   Data type must be `BioSymbols.DNA` or `Char` or `String`.
   WARNING: this is checked on the first column only.
 - `DNAweights`: vector of weights, to weigh each column in `DNAdata`.
@@ -1081,7 +1084,7 @@ function empiricalDNAfrequencies(dnaDat::AbstractDataFrame, dnaWeights::Vector,
 
     convert2dna = eltypes(dnaDat)[1] != BioSymbols.DNA
     for j in 1:ncol(dnaDat) # for each column
-        col = dnaDat[j]
+        col = dnaDat[!,j]
         wt = dnaWeights[j]
         for nuc in col      # for each row
             if convert2dna

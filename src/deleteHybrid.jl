@@ -213,7 +213,8 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool, blacklist::Boo
                 push!(net.blacklist, hybedge1.number)
             end
         end
-        hybindex = getIndex(true,[e.hybrid for e in other2.edge]);
+        hybindex = findfirst([e.hybrid for e in other2.edge]);
+        hybindex != nothing || error("didn't find hybrid edge in other2")
         if(hybindex == 1)
             treeedge1 = other2.edge[2];
             treeedge2 = other2.edge[3];
@@ -439,7 +440,8 @@ function undoPartition!(net::HybridNetwork, hybrid::Node, edgesInCycle::Vector{E
                 @debug "hybrid number matches with partition.cycle"
                 p = splice!(net.partition,i)
                 @debug "after splice, p partition has edges $([e.number for e in p.edges]) and cycle $(p.cycle)"
-                ind = getIndex(hybrid.number,p.cycle)
+                ind = findfirst(isequal(hybrid.number), p.cycle)
+                ind != nothing || error("hybrid not found in p.cycle")
                 deleteat!(p.cycle,ind) #get rid of that hybrid number
                 cycles = vcat(cycles,p.cycle)
                 edges = vcat(edges,p.edges)

@@ -125,7 +125,7 @@ fitSH = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "scalingHybrid", f
 @test aic(fitlam) ≈ aic(fitSH)
 
 ## Pagel's Lambda
-fitlam = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda"))
+fitlam = (@test_logs (:info, r"^Maximum lambda value") phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda"))
 @test lambda_estim(fitlam) ≈ 1.24875
 
 ## Scaling Hybrid
@@ -150,12 +150,12 @@ Y = sim[:Tips]
 
 ## Construct regression matrix
 dfr_shift = regressorShift(net.edge[[8,17]], net)
-dfr_shift[:sum] = vec(sum(Matrix(dfr_shift[findall(names(dfr_shift) .!= :tipNames)]), dims=2))
+dfr_shift[!,:sum] = vec(sum(Matrix(dfr_shift[:,findall(names(dfr_shift) .!= :tipNames)]), dims=2))
 dfr_hybrid = regressorHybrid(net)
 
-@test dfr_shift[:shift_8] ≈ dfr_hybrid[:shift_8]
-@test dfr_shift[:shift_17] ≈ dfr_hybrid[:shift_17]
-@test dfr_shift[:sum] ≈ dfr_hybrid[:sum]
+@test dfr_shift[!,:shift_8] ≈ dfr_hybrid[!,:shift_8]
+@test dfr_shift[!,:shift_17] ≈ dfr_hybrid[!,:shift_17]
+@test dfr_shift[!,:sum] ≈ dfr_hybrid[!,:sum]
 
 ## Data
 dfr = DataFrame(trait = Y, tipNames = sim.M.tipNames)
@@ -203,10 +203,10 @@ modhet = phyloNetworklm(@formula(trait ~ sum + shift_8), dfr, net)
 table1 = ftest(modhet, modhom, modnull)
 table2 = PhyloNetworks.anova(modnull, modhom, modhet)
 
-@test table1.fstat[1] ≈ table2[:F][2]
-@test table1.fstat[2] ≈ table2[:F][1]
-@test table1.pval[1].v ≈ table2[Symbol("Pr(>F)")][2]
-@test table1.pval[2].v ≈ table2[Symbol("Pr(>F)")][1]
+@test table1.fstat[1] ≈ table2[2,:F]
+@test table1.fstat[2] ≈ table2[1,:F]
+@test table1.pval[1].v ≈ table2[2,Symbol("Pr(>F)")]
+@test table1.pval[2].v ≈ table2[1,Symbol("Pr(>F)")]
 # ## Replace next 4 lines with previous ones when GLM.ftest available
 # @test table1[:F][2] ≈ table2[:F][2]
 # @test table1[:F][1] ≈ table2[:F][1]
@@ -218,12 +218,12 @@ modhetbis = phyloNetworklm(@formula(trait ~ shift_8 + shift_17), dfr, net)
 
 table2bis = PhyloNetworks.anova(modnull, modhom, modhetbis)
 
-@test table2[:F] ≈ table2bis[:F]
-@test table2[Symbol("Pr(>F)")] ≈ table2bis[Symbol("Pr(>F)")]
-@test table2[:dof_res] ≈ table2bis[:dof_res]
-@test table2[:RSS] ≈ table2bis[:RSS]
-@test table2[:dof] ≈ table2bis[:dof]
-@test table2[:SS] ≈ table2bis[:SS]
+@test table2[!,:F] ≈ table2bis[!,:F]
+@test table2[!,Symbol("Pr(>F)")] ≈ table2bis[!,Symbol("Pr(>F)")]
+@test table2[!,:dof_res] ≈ table2bis[!,:dof_res]
+@test table2[!,:RSS] ≈ table2bis[!,:RSS]
+@test table2[!,:dof] ≈ table2bis[!,:dof]
+@test table2[!,:SS] ≈ table2bis[!,:SS]
 
 end
 
@@ -343,7 +343,7 @@ fitbis = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 
 # unnamed ordered data
 dfr = DataFrame(trait = B, pred = A)
-fitter = (@test_logs (:info, r"^As requested \(no_names=true\)")  match_mode=:any phyloNetworklm(@formula(trait ~ pred), dfr, net, no_names=true))
+fitter = (@test_logs (:info, r"^As requested \(no_names=true\)")  phyloNetworklm(@formula(trait ~ pred), dfr, net, no_names=true))
 
 @test coef(phynetlm) ≈ coef(fitter)
 @test vcov(phynetlm) ≈ vcov(fitter)
@@ -372,8 +372,8 @@ dfr = dfr[sample(1:12, 12, replace=false), :]
 
 ### Add NAs
 dfr = DataFrame(trait = B, pred = A, tipNames = tipLabels(sim))
-dfr[:pred] = allowmissing(dfr[:pred])
-dfr[[2, 8, 11], :pred] = missing
+allowmissing!(dfr, :pred)
+dfr[[2, 8, 11], :pred] .= missing
 fitna = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 #@show fitna
 
@@ -433,7 +433,7 @@ fitSH = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid"
 @test aic(fitlam) ≈ aic(fitSH)
 
 ## Pagel's Lambda
-fitlam = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda"))
+fitlam = (@test_logs (:info, r"^Maximum lambda value") phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda"))
 #@show fitlam
 @test lambda_estim(fitlam) ≈ 1.1135518305 atol=1e-6
 
@@ -456,16 +456,16 @@ blup = (@test_logs (:warn, r"^These prediction intervals show uncertainty in anc
 @test_logs show(devnull, blup)
 
 # BLUP same, using the function directly
-blup_bis = (@test_logs (:warn, r"^These prediction intervals show uncertainty in ancestral values") match_mode=:any ancestralStateReconstruction(dfr, net));
+blup_bis = (@test_logs (:warn, r"^These prediction intervals show uncertainty in ancestral values") ancestralStateReconstruction(dfr, net));
 
-@test expectations(blup)[:condExpectation] ≈ expectations(blup_bis)[:condExpectation]
-@test expectations(blup)[:nodeNumber] ≈ expectations(blup_bis)[:nodeNumber]
+@test expectations(blup)[!,:condExpectation] ≈ expectations(blup_bis)[!,:condExpectation]
+@test expectations(blup)[!,:nodeNumber] ≈ expectations(blup_bis)[!,:nodeNumber]
 @test blup.traits_tips ≈ blup_bis.traits_tips
 @test blup.TipNumbers ≈ blup_bis.TipNumbers
 @test predint(blup) ≈ predint(blup_bis)
-@test predintPlot(blup)[:PredInt] == predintPlot(blup_bis)[:PredInt]
-@test predintPlot(blup, withExp=true)[:PredInt] == predintPlot(blup_bis, withExp=true)[:PredInt]
-@test expectationsPlot(blup)[:PredInt] == expectationsPlot(blup_bis)[:PredInt]
+@test predintPlot(blup)[!,:PredInt] == predintPlot(blup_bis)[!,:PredInt]
+@test predintPlot(blup, withExp=true)[!,:PredInt] == predintPlot(blup_bis, withExp=true)[!,:PredInt]
+@test expectationsPlot(blup)[!,:PredInt] == expectationsPlot(blup_bis)[!,:PredInt]
 
 dfr = DataFrame(trait = Y, tipNames = tipLabels(sim), reg = Y)
 @test_throws ErrorException ancestralStateReconstruction(dfr, net) # cannot handle a predictor
@@ -475,14 +475,14 @@ dfr2 = dfr[sample(1:12, 12, replace=false), :]
 phynetlm = phyloNetworklm(@formula(trait~1), dfr2, net)
 blup2 = (@test_logs (:warn, r"^These prediction intervals show uncertainty in ancestral values") ancestralStateReconstruction(phynetlm))
 
-@test expectations(blup)[:condExpectation][1:length(blup.NodeNumbers)] ≈ expectations(blup2)[:condExpectation][1:length(blup.NodeNumbers)]
+@test expectations(blup)[1:length(blup.NodeNumbers),:condExpectation] ≈ expectations(blup2)[1:length(blup.NodeNumbers),:condExpectation]
 @test blup.traits_tips[phynetlm.model.ind] ≈ blup2.traits_tips
 @test blup.TipNumbers[phynetlm.model.ind] ≈ blup2.TipNumbers
 @test predint(blup)[1:length(blup.NodeNumbers), :] ≈ predint(blup2)[1:length(blup.NodeNumbers), :]
 
 # With unknown tips
-dfr[:trait] = allowmissing(dfr[:trait])
-dfr[[2, 4], :trait] = missing
+allowmissing!(dfr, :trait)
+dfr[[2, 4], :trait] .= missing
 phynetlm = phyloNetworklm(@formula(trait~1), dfr, net)
 blup = (@test_logs (:warn, r"^These prediction intervals show uncertainty in ancestral values") ancestralStateReconstruction(phynetlm))
 # plot(net, blup)
@@ -492,14 +492,14 @@ dfr2 = dfr[[1, 2, 5, 3, 4, 6, 7, 8, 9, 10, 11, 12], :]
 phynetlm = phyloNetworklm(@formula(trait~1), dfr, net)
 blup2 = (@test_logs (:warn, r"^These prediction intervals show uncertainty in ancestral values") ancestralStateReconstruction(phynetlm))
 
-@test expectations(blup)[:condExpectation] ≈ expectations(blup2)[:condExpectation]
+@test expectations(blup)[!,:condExpectation] ≈ expectations(blup2)[!,:condExpectation]
 @test predint(blup) ≈ predint(blup2)
-@test predintPlot(blup)[:PredInt] == predintPlot(blup2)[:PredInt]
-@test predintPlot(blup, withExp=true)[:PredInt] == predintPlot(blup2, withExp=true)[:PredInt]
+@test predintPlot(blup)[!,:PredInt] == predintPlot(blup2)[!,:PredInt]
+@test predintPlot(blup, withExp=true)[!,:PredInt] == predintPlot(blup2, withExp=true)[!,:PredInt]
 
 # Test mark on missing
 ee = expectationsPlot(blup)
-predMiss = ee[indexin([n.number for n in net.leaf][[2,4]], ee[:nodeNumber]),:PredInt]
+predMiss = ee[indexin([n.number for n in net.leaf][[2,4]], ee[!,:nodeNumber]),:PredInt]
 for pp = predMiss
     @test pp[end] == '*'
 end
@@ -523,14 +523,14 @@ B = b0 .+ (b1 .* A + randn(size(tipLabels(net), 1)))
 dfr = DataFrame(trait = B, pred = A, tipNames = tipLabels(net))
 
 ## Network
-phynetlm = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda"))
+phynetlm = (@test_logs (:info, r"^Maximum lambda value") phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda"))
 
 @test lambda_estim(phynetlm) ≈ 0.5894200143 atol=1e-8
 
 ## Major Tree
 global tree
 tree = majorTree(net)
-phynetlm = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(@formula(trait ~ pred), dfr, tree, model = "lambda"))
+phynetlm = (@test_logs (:info, r"^Maximum lambda value") phyloNetworklm(@formula(trait ~ pred), dfr, tree, model = "lambda"))
 
 @test lambda_estim(phynetlm) ≈ 0.5903394415 atol=1e-6
 

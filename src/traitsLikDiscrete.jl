@@ -47,7 +47,8 @@ function Base.show(io::IO, obj::SSM)
     disp *= "$(obj.nsites) traits, $(length(obj.trait)) species\n"
     if obj.ratemodel.ncat != 1
         disp *= "variable rates across sites ~ discretized gamma with\n alpha=$(obj.ratemodel.alpha)"
-        disp *= "\n $(obj.ratemodel.ncat) categories\n rate multipliers: $(obj.ratemodel.ratemultiplier)\n"
+        disp *= "\n $(obj.ratemodel.ncat) categories"
+        disp *= "\n rate multipliers: $(round.(obj.ratemodel.ratemultiplier, digits=5))\n"
     end
     disp *= "on a network with $(obj.net.numHybrids) reticulations"
     if !ismissing(obj.loglik)
@@ -163,7 +164,7 @@ julia> fitJC69 = fitdiscrete(net, mJC69, tips)
 PhyloNetworks.StatisticalSubstitutionModel:
 Jukes and Cantor 69 Substitution Model,
 absolute rate version
-off-diagonal rates equal to [0.292336]/3.
+off-diagonal rates equal to 0.29234/3.
 rate matrix Q:
                A       C       G       T
        A       *  0.0974  0.0974  0.0974
@@ -178,13 +179,13 @@ julia> rv = RateVariationAcrossSites()
 Rate Variation Across Sites using Discretized Gamma Model
 alpha: 1.0
 categories for Gamma discretization: 4
-ratemultiplier: [0.145784, 0.513132, 1.07083, 2.27025]
+ratemultiplier: [0.14578, 0.51313, 1.07083, 2.27025]
 
 julia> fitdiscrete(net, mJC69, rv, tips; optimizeQ=false, optimizeRVAS=false)
 PhyloNetworks.StatisticalSubstitutionModel:
 Jukes and Cantor 69 Substitution Model,
 absolute rate version
-off-diagonal rates equal to [0.25]/3.
+off-diagonal rates equal to 0.25/3.
 rate matrix Q:
                A       C       G       T
        A       *  0.0833  0.0833  0.0833
@@ -195,7 +196,7 @@ rate matrix Q:
 variable rates across sites ~ discretized gamma with
  alpha=1.0
  4 categories
- rate multipliers: [0.145784, 0.513132, 1.07083, 2.27025]
+ rate multipliers: [0.14578, 0.51313, 1.07083, 2.27025]
 on a network with 0 reticulations
 log-likelihood: -5.2568
 ```
@@ -241,8 +242,8 @@ function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::Ra
         error("""expecting taxon names in column 'taxon', or 'species' or column 1,
               and trait values in column 'trait' or column 2.""")
     end
-    species = copy(dat[i])    # modified in place later
-    dat = traitlabels2indices(dat[j], model)   # vec of vec, indices
+    species = dat[:,i]    # modified in place later
+    dat = traitlabels2indices(dat[!,j], model)   # vec of vec, indices
     o, net = check_matchtaxonnames!(species, dat, net)
     StatsBase.fit(StatisticalSubstitutionModel, net, model, ratemodel, view(dat, o); kwargs...)
 end
@@ -300,13 +301,8 @@ end
 function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites,
     dnadata::DataFrame, dnapatternweights::Array{Float64}; kwargs...)
     
-    dat2 = traitlabels2indices(dnadata[2:end], model) 
-   # dat2 = traitlabels2indices(view(dnadata, 2:ncol(dnadata)), model) #removed view bc it wasnt recognized 
-    #as DF by traitlabels2indices
-            # this doesnt work, but was attempting to uses view to avoid a shallow copy and 
-            # be more space efficient
-            #produces a vec of vec, indices
-    o, net = check_matchtaxonnames!(copy(dnadata[1]), dat2, net) 
+    dat2 = traitlabels2indices(dnadata[!,2:end], model)
+    o, net = check_matchtaxonnames!(dnadata[:,1], dat2, net)
     kwargs = (:siteweights => dnapatternweights, kwargs...)
     StatsBase.fit(StatisticalSubstitutionModel, net, model, ratemodel, view(dat2, o); 
         kwargs...)
@@ -320,7 +316,7 @@ function fitdiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame,
         model = JC69([1.0], true)  # 1.0 instead of rate because relative version (relative = true)
     elseif modSymbol == :HKY85
         model = HKY85([1.0], # transition/transversion rate ratio
-                      empiricalDNAfrequencies(view(dnadata, 2:ncol(dnadata)), dnapatternweights),
+                      empiricalDNAfrequencies(view(dnadata, :, 2:ncol(dnadata)), dnapatternweights),
                       true)
     elseif modSymbol == :ERSM
         model = EqualRatesSubstitutionModel(4, rate, [BioSymbols.DNA_A, BioSymbols.DNA_C, BioSymbols.DNA_G, BioSymbols.DNA_T]);
@@ -741,7 +737,7 @@ julia> dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"]);
 julia> fit1 = fitdiscrete(net, m1, dat);
 
 julia> asr = ancestralStateReconstruction(fit1)
-9×4 DataFrame
+9×4 DataFrames.DataFrame
 │ Row │ nodenumber │ nodelabel │ lo       │ hi       │
 │     │ Int64      │ String    │ Float64  │ Float64  │
 ├─────┼────────────┼───────────┼──────────┼──────────┤
@@ -762,7 +758,7 @@ julia> round.(exp.(fit1.postltw), digits=6) # marginal (posterior) probability t
 
 julia> using PhyloPlots
 
-julia> plot(fit1.net, :R, nodeLabel = asr[[:nodenumber, :lo]], tipOffset=0.2); # pp for "lo" state
+julia> plot(fit1.net, :R, nodeLabel = asr[!,[:nodenumber, :lo]], tipOffset=0.2); # pp for "lo" state
 ```
 """
 ancestralStateReconstruction(obj::SSM) = ancestralStateReconstruction(obj, obj.activesite)
@@ -853,7 +849,7 @@ function learnLabels(modSymbol::Symbol, species::Array{String}, dat::DataFrame)
     if modSymbol == :BTSM
         length(labels) == 2 || error("Binary Trait Substitution Model supports traits with two states. These data have do not have two states.")
     elseif modSymbol == :TBTSM
-        unique(dat[1]) == 2 && unique(dat[2] == 2) || error("Two Binary Trait Substitution Model supports two traits with two states each.")
+        unique(dat[!,1]) == 2 && unique(dat[!,2] == 2) || error("Two Binary Trait Substitution Model supports two traits with two states each.")
     elseif modSymbol == :HKY85
         occursin(uppercase(join(sort(labels))), "ACGT") || error("HKY85 requires that trait data are dna bases A, C, G, and T")
     elseif modSymbol == :JC69

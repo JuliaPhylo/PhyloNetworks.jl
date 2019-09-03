@@ -52,6 +52,7 @@ You could read in these 30 trees and visualize the third one (say) like this:
 ```@example qcf
 using PhyloNetworks
 raxmltrees = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","raxmltrees.tre");
+nothing # hide
 ```
 ```@repl qcf
 genetrees = readMultiTopology(raxmltrees);
@@ -162,6 +163,7 @@ R"svg(name('inputdata_astraltree.svg'), width=4, height=3)" # hide
 R"par"(mar=[0,0,0,0]) # hide
 plot(astraltree, :R, showEdgeLength=true);
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![astraltree](../assets/figures/inputdata_astraltree.svg)
 

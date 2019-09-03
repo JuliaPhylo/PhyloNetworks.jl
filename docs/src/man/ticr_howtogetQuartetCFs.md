@@ -111,11 +111,11 @@ SLURM will parallelize the MrBayes runs across genes.
      to the path where the `mb` executable is located or put the whole path in the command:
      `/s/mrbayes-3.2.6-1/bin/mb`
 
-    In slurm, we can then submit the MrBayes array job with:
+   In slurm, we can then submit the MrBayes array job with:
 
-```bash
-sbatch mb-slurm-submit.sh
-```
+   ```bash
+   sbatch mb-slurm-submit.sh
+   ```
 
   With this slurm pipeline, the steps below are needed: keep reading.
 
@@ -141,11 +141,12 @@ to run mbsum for *all* the genes.
 `mbsum` is fast, so there is no attempt to parallelize the various mbsum commands.
 
 ```bash
-julia mbsum-t-files.jl mbfolder
+julia mbsum-t-files.jl mbfolder outputfolder burnin                # or
+julia --color=yes -- mbsum-t-files.jl mbfolder outputfolder burnin # for colorized messages to the screen
 ```
-**Warning:** a burnin of 2500 generations is hard coded in this script. This can
-easily be changed: edit this short script near the top of the file, to change the
-value of `burnin`.
+where `burnin` is replaced by the number of trees to ignore in each tree file
+for burnin. This `burnin` argument is optional (default: 2501).
+The `outputfolder` will contain the output of `mbsum`.
 
 ## To run bucky on all 4-taxon sets: we already have the mbsum output
 
@@ -244,6 +245,8 @@ for f in filter(x -> endswith(x, ".cf"), readdir())
 end
 println("found $(length(files)) cf files") # to check how many .cf output files were found
 open("CFtable.csv","w") do f_out
+  # write the header:
+  write(f_out, "taxon1,taxon2,taxon3,taxon4,CF12_34,CF12_34_lo,CF12_34_hi,CF13_24,CF13_24_lo,CF13_24_hi,CF14_23,CF14_23_lo,CF14_23_hi,ngenes\n")
   for file in files
     @show file # to see the .cf file name: comment this out if that's too much screen output
     open(file) do f_in

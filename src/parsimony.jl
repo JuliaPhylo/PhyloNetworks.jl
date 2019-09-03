@@ -397,13 +397,14 @@ end
 """
     readfastatodna(filename::String)
 
-Read fasta file to a dataframe containing a column for each site.
+Read a fasta file to a dataframe containing a column for each site.
 Calculate weights and remove matching site patterns to reduce matrix dimension.
 
 Return a tuple containing:
-    dataframe of BioSequence DNA sequences, with taxon in column 1 and a column for each site. [1]
-    array of weights, one weights for each of the site columns. The length of the weight is equal to nsites. [2]
-
+1. data frame of BioSequence DNA sequences, with taxon names in column 1
+   followed by a column for each site pattern, in columns 2-npatterns;
+2. array of weights, one weight for each of the site columns.
+   The length of the weight vector is equal to npatterns.
 """
 function readfastatodna(fastafile::String, countPatterns=false::Bool)
     reader = BioSequences.FASTA.Reader(open(fastafile))
@@ -471,7 +472,7 @@ function readCSVtoArray(dat::DataFrame)
     end
 
     species = String[]
-    for d in dat[i]
+    for d in dat[!,i]
         push!(species,string(d))
     end
 

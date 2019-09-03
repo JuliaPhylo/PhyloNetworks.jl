@@ -31,13 +31,20 @@ end
 	@test_logs PhyloNetworks.printEverything(net)
 	redirect_stdout(originalstdout)
 end
-@testset "internal nodes" begin
+@testset "internal nodes, writemulti" begin
 	@test writeTopology(readTopology("(a,b):0.5;")) == "(a,b);"
 	@test writeTopology(readTopology("((a,(b)#H1)i1,(#H1,c))r;")) == "((a,(b)#H1)i1,(#H1,c))r;"
 	@test writeTopology(readTopology("((a,(b)#H1)i1,(#H1,c))r;"), internallabel=false) == "((a,(b)#H1),(#H1,c));"
-	@test_logs readTopology("((a,(b)#H1)i1,(#H1,c)i2)root:0.5;");
-	@test_logs readTopology("(((a,(b)#H1)i1,(#H1,c)i2)root:0.5);"); # root edge was deleted
+	n11 = (@test_logs readTopology("((a,(b)#H1)i1,(#H1,c)i2)root:0.5;"));
+	n12 = (@test_logs readTopology("(((a,(b)#H2)i1,(#H2,c)i2)root:0.5);")); # root edge was deleted
 	# writeTopology(net) == "((a,(b)#H1)i1,(#H1,c)i2);"
 	# readTopology("((((a,(b)#H1)i1,(#H1,c)i2)root:0.5));"); still has 1 (of the 2) root edges
+	# writeMultiTopology([n1,n2], stdout)
+	n11.root = 2 # below the hybrid node: will trigger RootMismatch and message below
+	originalstdout = stdout
+	redirect_stdout(open("/dev/null", "w"))
+	writeMultiTopology([n11,n12], "test_relaxedreading.net")
+	rm("test_relaxedreading.net")
+	redirect_stdout(originalstdout)
 end
 end

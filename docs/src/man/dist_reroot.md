@@ -86,6 +86,7 @@ R"svg(name('reroot_net7taxa_1.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
 plot(net7taxa, :R, showGamma=true, showEdgeNumber=true, tipOffset=0.2);
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![reroot net7taxa 1](../assets/figures/reroot_net7taxa_1.svg)
 
@@ -115,6 +116,7 @@ rootonedge!(net7taxa, 5);
 plot(net7taxa, :R, showGamma=true, tipOffset=0.2);
 R"mtext"("rooted on hybrid edge 5 (minor)", line=-1);
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![reroot net7taxa 2](../assets/figures/reroot_net7taxa_2.svg)
 
@@ -132,6 +134,7 @@ R"par"(mar=[0,0,0,0]); # hide
 plot(net7taxa, :R, tipOffset=0.2); # not showing gamma values, because we changed them artificially
 R"mtext"("rooted on hybrid edge 5 (considered major)", line=-1);
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![reroot net7taxa 3](../assets/figures/reroot_net7taxa_3.svg)
 

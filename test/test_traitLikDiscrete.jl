@@ -224,14 +224,14 @@ d = DataFrame(species=["D","C","B","A"], x1=[1,1,1,1], x2=[1,2,2,1], x3=[2,2,2,2
     x11=[1,2,1,1], x12=[2,2,1,2], x13=[2,1,1,2], x14=[1,2,2,2], x15=[1,1,1,2], x16=[2,1,2,2])
 lik = Float64[]
 for i in 1:16
-    fit = fitdiscrete(net, m1, d[[:species, Symbol("x",i)]]; optimizeQ=false, optimizeRVAS=false)
+    fit = fitdiscrete(net, m1, d[!,[:species, Symbol("x",i)]]; optimizeQ=false, optimizeRVAS=false)
     push!(lik, fit.loglik)
 end
 @test lik ≈ [-1.6218387598967712, -3.008066347196894, -4.3943604143403245, -3.008199100743402,
     -3.70121329832901, -3.0081981601869483, -2.315051933868397, -2.314985711030534,
     -3.0081988850020873, -3.0081983709272504, -2.3150512090547584, -3.70134532205944,
     -3.008132923628349, -3.7012134632082083, -2.3149859724945876, -3.7013460518770915]
-fit1 = fitdiscrete(net, m1, d[[:species, :x6]]; optimizeRVAS=false)
+fit1 = fitdiscrete(net, m1, d[!,[:species, :x6]]; optimizeRVAS=false)
 
 # with parameter estimation
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
@@ -261,11 +261,11 @@ fit1.model.rate[2] = 0.34981109618902395;
 @test_throws ErrorException ancestralStateReconstruction(fit1, 4) # 1 trait, not 4: error
 asr = ancestralStateReconstruction(fit1)
 @test names(asr) == [:nodenumber, :nodelabel, :lo, :hi]
-@test asr[:nodenumber] == collect(1:9)
-@test asr[:nodelabel] == ["A","B","C","D","5","6","7","8","H1"]
-@test asr[:lo] ≈ [1.,1.,0.,0., 0.28602239466671175, 0.31945742289603263,
+@test asr[!,:nodenumber] == collect(1:9)
+@test asr[!,:nodelabel] == ["A","B","C","D","5","6","7","8","H1"]
+@test asr[!,:lo] ≈ [1.,1.,0.,0., 0.28602239466671175, 0.31945742289603263,
     0.16855042517785512, 0.7673588716207436, 0.7827758475866091] atol=1e-5
-@test asr[:hi] ≈ [0.,0.,1.,1.,0.713977605333288, 0.6805425771039674,
+@test asr[!,:hi] ≈ [0.,0.,1.,1.,0.713977605333288, 0.6805425771039674,
     0.8314495748221447, 0.23264112837925616, 0.21722415241339132] atol=1e-5
 @test fit1.postltw ≈ [-0.08356534477069566, -2.5236181051014333] atol=1e-5
 end # end of testset, fixed topology
@@ -365,7 +365,7 @@ fitHKY85 = fitdiscrete(net, mHKY85, tips; optimizeQ=false);
 
 #with optimization (confirmed with ape ace() function)
 mHKY85 = HKY85([0.5, 0.1], [0.25, 0.25, 0.25, 0.25], false); #absolute
-@time fitHKY85 = fitdiscrete(net, mHKY85, tips; optimizeQ=true)
+fitHKY85 = fitdiscrete(net, mHKY85, tips; optimizeQ=true)
 @test fitHKY85.model.rate[1] ≈ 1.4975887229148119 atol = 2e-4
 @test loglikelihood(fitHKY85) ≈ -3.3569474489525244 atol = 2e-8
 
@@ -502,10 +502,10 @@ HKY85_1 = HKY85([0.5, 0.5], [0.2, 0.3, 0.25, 0.25], false)
 
 # test empiricalDNAfrequencies with string type
 # Bayesian correction by default: more stable and avoids zeros
-dna_String = view(DataFrame(A = ["s1", "s2"], site1 = ["A", "A"], site2 = ["G", "T"]), 2:3)
+dna_String = view(DataFrame(A = ["s1", "s2"], site1 = ["A", "A"], site2 = ["G", "T"]), :, 2:3)
 @test PhyloNetworks.empiricalDNAfrequencies(dna_String, [1, 1]) ≈ [3,1,2,2]/(4+4)
 # with char type
-dna_Char = view(DataFrame(A = ["s1", "s2"], site1 = ['A', 'A'], site2 = ['G', 'T']), 2:3)
+dna_Char = view(DataFrame(A = ["s1", "s2"], site1 = ['A', 'A'], site2 = ['G', 'T']), :, 2:3)
 @test PhyloNetworks.empiricalDNAfrequencies(dna_Char, [1, 1]) ≈ [3,1,2,2]/(4+4)
 # uncorrected estimate
 @test PhyloNetworks.empiricalDNAfrequencies(dna_Char, [1, 1], false) ≈ [2,0,1,1]/4
@@ -517,10 +517,10 @@ dna_Char = DataFrame(site1 = ['A','A','Y'], site2 = ['G','T','V'])
 #fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "test_8_withrepeatingsites.aln"))
 fastafile = joinpath(@__DIR__, "..", "examples", "test_8_withrepeatingsites.aln")
 dat, weights = readfastatodna(fastafile, true);
-@test PhyloNetworks.empiricalDNAfrequencies(view(dat, 2:6), weights) ≈ [0.21153846153846154, 0.3076923076923077, 0.40384615384615385, 0.07692307692307693] atol=1e-9
+@test PhyloNetworks.empiricalDNAfrequencies(view(dat, :, 2:6), weights) ≈ [0.21153846153846154, 0.3076923076923077, 0.40384615384615385, 0.07692307692307693] atol=1e-9
 
 #test PhyloNetworks.empiricalDNAfrequencies with bad type
-dna_bad = view(DataFrame(A = ["s1", "s2"], trait1 = ["hi", "lo"], trait2 = ["lo", "hi"]), 2:3)
+dna_bad = view(DataFrame(A = ["s1", "s2"], trait1 = ["hi", "lo"], trait2 = ["lo", "hi"]), :, 2:3)
 @test_throws ErrorException PhyloNetworks.empiricalDNAfrequencies(dna_bad, [1, 1])
 
 end #testing stationary and empiricalDNAfrequencies functions

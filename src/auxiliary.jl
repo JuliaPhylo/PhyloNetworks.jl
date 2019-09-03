@@ -256,48 +256,6 @@ function getIndex(edge::Edge, edges::Vector{Edge})
     return i
 end
 
-function getIndex(bool::Bool, array::Array{Bool,1})
-    i = 1;
-    while(i<= size(array,1) && !isequal(bool,array[i]))
-        i = i+1;
-    end
-    i <= size(array,1) || error("$(bool) not in array")
-    return i
-end
-
-function getIndex(bool::Bool, array::Array{Any,1})
-    i = 1;
-    while(i<= size(array,1) && !isequal(bool,array[i]))
-        i = i+1;
-    end
-    i <= size(array,1) || error("$(bool) not in array")
-    return i
-end
-
-
-# aux function to find the index of a string in a
-# string array
-function getIndex(name::AbstractString, array::Array{String,1})
-    i = 1;
-    while(i<= size(array,1) && !isequal(name,array[i]))
-        i = i+1;
-    end
-    i <= size(array,1) || error("$(name) not in array")
-    return i
-end
-
-# aux function to find the index of a int in an int array.
-# But findfirst can do that as well, and probably more efficiently (returning nothing if not found)
-function getIndex(name::Integer, array::Array{Int,1})
-    i = 1;
-    while(i<= size(array,1) && !isequal(name,array[i]))
-        i = i+1;
-    end
-    i <= size(array,1) || error("$(name) not in array")
-    return i
-end
-
-
 # aux function to find the index of a node in a
 # node array
 function getIndex(name::Node, array::Array{Node,1})
@@ -328,12 +286,13 @@ end
 
 # find the index of an edge in node.edge
 function getIndexEdge(edge::Edge,node::Node)
-    getIndex(true,[isequal(edge,e) for e in node.edge])
+    findfirst(e -> isequal(edge,e), node.edge)
 end
 
 # find the index of an edge with given number in node.edge
+# bug found & fixed 2019-08-22. Unused function?
 function getIndexEdge(number::Integer,node::Node)
-    getIndex(true,[isequal(edge,e) for e in node.edge])
+    findfirst(e -> isequal(number,e.number), node.edge)
 end
 
 # find the index of a node in edge.node
@@ -1271,7 +1230,7 @@ end
 
 Reorder the 4 taxa and reorders the observed concordance factors accordingly, on each row of
 the data frame. If `columns` is ommitted, taxon names are assumed to be in columns 1-4 and
-CFs are assumed to be in columns 5-6 with quartets in this order: 12_34, 13_24, 14_23.
+CFs are assumed to be in columns 5-6 with quartets in this order: `12_34`, `13_24`, `14_23`.
 Does **not** reorder credibility interval values, if present.
 
     sorttaxa!(DataCF)
@@ -1302,7 +1261,7 @@ function sorttaxa!(df::DataFrame, co=Int[]::Vector{Int})
     length(co) > 6 || error("column vector must be of length 7 or more")
     ptax = Array{Int8}(undef, 4)
     pCF  = Array{Int8}(undef, 3)
-    taxnam = Array{eltype(df[co[1]])}(undef, 4)
+    taxnam = Array{eltypes(df)[co[1]]}(undef, 4)
     for i in 1:size(df,1)
         for j=1:4 taxnam[j] = df[i,co[j]]; end
         sortperm!(ptax, taxnam)

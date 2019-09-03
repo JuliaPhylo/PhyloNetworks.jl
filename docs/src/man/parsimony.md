@@ -63,6 +63,7 @@ R"svg(name('parsimony-fixed-net.svg'), width=4, height=4)"; # hide
 R"par"(mar = [0,0,0,0]);
 plot(net, :R, xlim=[0.8,7.5]);
 R"dev.off"(); # hide
+nothing # hide
 ```
 ![parsimony-fixed-net](../assets/figures/parsimony-fixed-net.svg)
 

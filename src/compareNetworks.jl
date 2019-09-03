@@ -12,17 +12,12 @@ function traverseTree2Matrix!(node::Node, edge::Edge, ie::Vector{Int}, M::Matrix
     for e in child.edge #postorder traversal
         if(!isEqual(e,edge)) # assumes a tree here
             grandchild = getOtherNode(e,child)
-            if (grandchild.leaf)
-                indsp= 0
-                try
-                    indsp = getIndex(grandchild.name,S)
-                catch
-                    error("leaf $(grandchild.name) not in species list $(S)")
-                end
+            if grandchild.leaf
+                indsp = findfirst(isequal(grandchild.name), S)
+                indsp != nothing || error("leaf $(grandchild.name) not in species list $(S)")
                 M[indedge,indsp+1] = 1 #indsp+1 bc first column is edge numbers
             else
                 inde = ie[1];
-                # inde = getIndex(e.number,M[:,1])
                 traverseTree2Matrix!(child,e,ie,M,S)
                 M[indedge,2:size(M,2)] .|= M[inde,2:size(M,2)]
             end
@@ -104,9 +99,8 @@ function hardwiredClusters!(node::Node, edge::Edge, ie::Vector{Int}, M::Matrix{I
         for e in child.edge
             if (e.hybrid && e != edge && (e.isChild1 ? e.node[1] == child : e.node[2] == child))
                 partner = e
-                try
-                    indpartner = getIndex(partner.number,M[:,1])
-                catch
+                indpartner = findfirst(isequal(partner.number), M[:,1])
+                if isnothing(indpartner)
                     partnerVisited = false # will need to continue traversal
                 end
                 break # partner hybrid edge was found
@@ -124,13 +118,9 @@ function hardwiredClusters!(node::Node, edge::Edge, ie::Vector{Int}, M::Matrix{I
     for e in child.edge # postorder traversal
         if (e != edge && (!edge.hybrid || e!=partner)) # do not go back to (either) parent edge.
             grandchild = getOtherNode(e,child)
-            if (grandchild.leaf)
-                indsp = 0
-                try
-                    indsp = getIndex(grandchild.name,S)
-                catch
-                    error("leaf $(grandchild.name) not in species list $(S)")
-                end
+            if grandchild.leaf
+                indsp = findfirst(isequal(grandchild.name), S)
+                indsp != nothing || error("leaf $(grandchild.name) not in species list $(S)")
                 M[indedge,indsp+1] = 1 #indsp+1 because first column is edge numbers
             else
                 inde = hardwiredClusters!(child,e,ie,M,S)
@@ -157,7 +147,7 @@ and the function does not test for this.
 
 visited: vector of node numbers, of all visited nodes.
 
-# Examples: #"
+# Examples:
 ```jldoctest
 julia> net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readTopology |> directEdges! ;
 
@@ -172,14 +162,14 @@ julia> taxa = net5 |> tipLabels # ABC EF D
 
 julia> hardwiredCluster(net5.edge[12], taxa) # descendants of 12th edge = CEF
 6-element Array{Bool,1}:
- false
- false
-  true
-  true
-  true
- false
+ 0
+ 0
+ 1
+ 1
+ 1
+ 0
 ```
-""" #"
+"""
 function hardwiredCluster(edge::Edge,taxa::Union{Vector{String},Vector{Int}})
     v = zeros(Bool,length(taxa))
     hardwiredCluster!(v,edge,taxa)

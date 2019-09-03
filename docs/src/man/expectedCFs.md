@@ -27,7 +27,7 @@ Here is one way to plot them, via R again, and using the R package `ggplot2`.
 
 ```@example expCFs
 using RCall
-obsCF = df_long[:obsCF]; expCF = df_long[:expCF]; # hide
+obsCF = df_long[!,:obsCF]; expCF = df_long[!,:expCF]; # hide
 R"name <- function(x) file.path('..', 'assets', 'figures', x)"; # hide
 R"svg(name('expCFs_obsvsfitted.svg'), width=5, height=4)"; # hide
 R"par"(mar=[2.5,2.6,.5,.5], mgp=[1.5,.4,0], tck=-0.01, las=1, pty="s"); # hide
@@ -75,23 +75,26 @@ Many points are overlapping, like before, so they are again "jittered" a bit.
 
 ```@example expCFs
 using DataFrames
-df_long[:has_A] = "no" # add a column to our data, to indicate which 4-taxon sets have A or not
+df_long[!,:has_A] .= "no"; # add a column to our data, to indicate which 4-taxon sets have A or not
 for r in eachrow(df_long)
     if "A" ∈ [r[:tx1], r[:tx2], r[:tx3], r[:tx4]]
        r[:has_A]="yes"
     end
 end
-has_A = df_long[:has_A]; # hide
-nq = length(has_A) # hide
+has_A = df_long.has_A # hide
+nq = length(has_A); # hide
 R"colA=rep('#008080',$nq); bgA=rep('#00808090',$nq);"; # hide
 R"colA[$has_A=='yes']='#F8766D'; bgA[$has_A=='yes']='#F8766D90'"; # hide
 R"svg(name('expCFs_obsvsfitted_A.svg'), width=5, height=4)"; # hide
 R"par"(mar=[2.5,2.6,.5,.5], mgp=[1.5,.4,0], tck=-0.01, las=1, pty="s"); # hide
 R"plot(0:1, 0:1, type='l', bty='L', lwd=0.3, col='black', xlab='quartet CF observed in gene trees', ylab='quartet CF expected from network')"; # hide
-R"set.seed"(2345) # hide
+R"set.seed"(2345); # hide
 R"points(jitter($obsCF,amount=0.005),jitter($expCF,amount=0.005),col=colA,bg=bgA,pch=21)"; # hide
 R"legend(x=0.7,y=0.3,pch=21,col=c('#008080','#F8766D'),legend=c('no','yes'),title='has A?', bty='n',bg=c('#00808090','#F8766D90'))"; # hide
 R"dev.off()"; # hide
+nothing # hide
+```
+```@repl expCFs
 first(df_long, 7) # first 7 rows
 ```
 
