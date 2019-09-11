@@ -53,6 +53,7 @@ nparams
 ## data and topology read/write
 
 ```@docs
+prepdata
 readfastatodna
 readTopology
 readTopologyLevel1
