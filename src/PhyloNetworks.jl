@@ -149,7 +149,9 @@ module PhyloNetworks
         empiricalDNAfrequencies,
         ## TICR test
         ticr,
-        ticr!
+        ticr!,
+        # neighbor joining
+        nj!
 
     include("types.jl")
     include("auxiliary.jl")
@@ -176,5 +178,6 @@ module PhyloNetworks
     include("traitsLikDiscrete.jl")
     include("ticr.jl")
     include("deprecated.jl")
+    include("nj.jl")
 
 end #module
