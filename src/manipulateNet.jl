@@ -904,7 +904,7 @@ function resetNodeNumbers!(net::HybridNetwork; checkPreorder=true::Bool, ape=tru
 end
 
 """
-    resetEdgeNumbers!(net::HybridNetwork; checkPreorder=true, ape=true)
+    resetEdgeNumbers!(net::HybridNetwork)
 
 Check that edge numbers of `net` are consecutive numbers from 1 to the total
 number of edges. If not, reset the edge numbers to be so.

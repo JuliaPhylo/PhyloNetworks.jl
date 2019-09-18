@@ -381,37 +381,33 @@ taxadiff(d::DataCF, t::HybridNetwork; multiplealleles=true::Bool) =
     taxadiff(d.quartet, t; multiplealleles=multiplealleles)
 
 
-# function to extract the union of taxa of list of gene trees
+# extract & sort the union of taxa of list of gene trees
 function unionTaxa(trees::Vector{HybridNetwork})
-    taxa = union([tipLabels(t) for t in trees]...) # vector, order maintained
-    return sortUnionTaxa!(taxa)
+    taxa = reduce(union, tipLabels(t) for t in trees)
+    return sort_stringasinteger!(taxa)
 end
 
 """
-    sortUnionTaxa!(taxa)
+    sort_stringasinteger!(taxa)
 
-Take a vector of strings `taxa`, sort it numerically if
+Sort a vector of strings `taxa`, numerically if
 elements can be parsed as an integer, alphabetically otherwise.
 """
-function sortUnionTaxa!(taxa)
-    integers = true
+function sort_stringasinteger!(taxa)
+    sortby = x->parse(Int,x)
     try
         parse.(Int,taxa)
     catch
-        integers = false
+        sortby = identity
     end
-    if integers
-        sort!(taxa, by=x->parse(Int,x))
-    else
-        sort!(taxa)
-    end
+    sort!(taxa, by=sortby)
     return taxa
 end
 
-# function to extract the union of taxa of list of quartets
+# extract & sort the union of taxa of list of quartets
 function unionTaxa(quartets::Vector{Quartet})
-    taxa = union([q.taxon for q in quartets]...) # vector, order maintained
-    return sortUnionTaxa!(taxa)
+    taxa = reduce(union, q.taxon for q in quartets)
+    return sort_stringasinteger!(taxa)
 end
 
 unionTaxaTree(file::AbstractString) = unionTaxa(readInputTrees(file))
@@ -493,6 +489,96 @@ function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{Hy
     end
     println("  ")
     return nothing
+end
+
+"""
+fixithere
+
+Calculate the quartet concordance factors (CF) observed in the input gene trees.
+see also: [`calculateObsCFAll_noDataCF!`](@ref), which uses a slower algorithm
+(reading each input tree `nquartet` times, where `nquartet` is the number
+of quartets)
+`taxonmap`: maps each individual to a species
+only consider quartets among 4 distinct species, even if the gene trees may have
+multiple alleles from the same species. For 4 distinct species `a,b,c,d`,
+all alleles from each species (`a` etc.) will be considered to calculate
+the quartet concordance factors.
+"""
+function observedquartetCF(tree::Vector{HybridNetwork}, whichQ::Symbol,
+                           taxonmap=Dict{String,Int64}()::Dict{String,String})
+    whichQ in [:all, :intrees] || error("whichQ must be either :all or :intrees, but got $whichQ")
+    if isempty(taxonmap)
+        taxa = unionTaxa(tree)
+    else
+        taxa = sort!(collect(Set(haskey(taxonmap, l.name) ? taxonmap[l.name] : l.name
+                                 for t in tree for l in t.leaf)))
+    end
+    leafnumber = Dict(taxa[i] => i for i in eachindex(taxa))
+    ntax = length(taxa)
+    nCk = nchoose1234(ntax) # matrix used to ranks 4-taxon sets
+    qtype = MVector{4,Float64} # 4 floats: CF12_34, CF13_24, CF14_23, ngenes; initialized at 0.0
+    if whichQ == :all
+        numq = nCk[ntax+1,4]
+        quartet = Vector{QuartetT{qtype}}(undef, numq)
+        ts = [1,2,3,4]
+        for qi in 1:numq
+            quartet[qi] = QuartetT(qi, SVector{4}(ts), MVector(0.,0.,0.,0.))
+            # next: find the 4-taxon set with the next rank,
+            #       faster than using the direct mapping function
+            ind = findfirst(x -> x>1, diff(ts))
+            if ind === nothing ind = 4; end
+            ts[ind] += 1
+            for j in 1:(ind-1)
+                ts[j] = j
+            end
+        end
+    else
+        error("whichQ = :intrees not implemented yet")
+        # fixit: read all the trees, go through each edge, check if the current quartet list covers the edge, if not: add a quartet
+    end
+    for t in tree
+        observedquartetCF!(quartet, t, whichQ, nCk, taxa, leafnumber, taxonmap)
+    end
+    return quartet
+end
+function observedquartetCF!(quartet::Vector{QuartetT{MVector{4,Float64}}},
+            tree::HybridNetwork, whichQ::Symbol, nCk::Matrix,
+            taxa::Vector, leafnumber::Dict{String,Int64}, taxonmap::Dict{String,String})
+    tree.numHybrids == 0 || error("input phylogenies must be trees")
+    resetEdgeNumbers!(tree) # to be able to use edge number as an index in an array
+    # next: reset node numbers so that they can be used as indices: 1,2,3,...
+    #       and match the post-order traversal (tiny bit more efficient?)
+    # next: build dictionary: leaf number -> species ID, using the node name then taxon map
+    # next: build data structure to get descendant / ancestor clades
+    #       below[n][1:2 generally (more if polytomy)]: left & clades below node number n
+    #       above[n][1:end]: grade of clades above node n
+end
+
+function quartetRankResolution(t1::Int, t2::Int, t3::Int, t4::Int, nCk::Matrix)
+    # quartet: t1 t2 | t3 t4, but indices have not yet been ordered: t1<t2, t3<t4, t1<min(t3,t4)
+    if t3 > t4 # make t3 smallest of t3, t4
+        (t3,t4) = (t4,t3)
+    end
+    if t1 > t2 # make t1 smallest of t1, t2
+        (t1,t2) = (t2,t1)
+    end
+    if t1 > t3 # swap t1 with t3, t2 with t4 - makes t1 smallest
+        (t1,t3) = (t3,t1)
+        (t2,t4) = (t4,t2)
+    end
+    if t2 < t3 # t2 2nd smallest: order t1 < t2 < t3 < t4
+        resolution = 1; # 12|34 after ordering indices
+        rank = quartetrank(t1, t2, t3, t4, nCk)
+    else # t3 2nd smallest
+        if t2 < t4 # order t1 < t3 < t2 < t4
+            resolution = 2; # 13|24 after ordering
+            rank = quartetrank(t1, t3, t2, t4, nCk);
+        else # order t1 < t3 < t4 < t2
+            resolution = 3; # 14|23 after ordering
+            rank = quartetrank(t1, t3, t4, t2, nCk);
+        end
+    end
+    return rank, resolution
 end
 
 """
