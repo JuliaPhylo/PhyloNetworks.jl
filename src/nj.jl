@@ -68,7 +68,7 @@ function nj!(D::Matrix{Float64})
             end
         end
         newidx = filter!(u->u!=j, collect(1:n))
-        D = D[newidx, newidx]
+        D = view(D, newidx, newidx)
         id = filter!(u->u!=id[j], id) # delete node_j from id
         id[i] = new_node_id
 
