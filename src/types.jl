@@ -349,8 +349,7 @@ julia> nCk = PhyloNetworks.nchoose1234(5)
 
 julia> PhyloNetworks.QuartetT(1,3,4,6, [.92,.04,.04, 100], nCk)
 4-taxon set number 8; taxon numbers: 1,3,4,6
-data:
-[0.92, 0.04, 0.04, 100.0]
+data: [0.92, 0.04, 0.04, 100.0]
 ```
 """
 struct QuartetT{T} <: AQuartet where T
@@ -361,9 +360,9 @@ end
 function Base.show(io::IO, obj::QuartetT{T}) where T
     disp = "4-taxon set number $(obj.number); taxon numbers: "
     disp *= join(obj.taxonnumber,",")
-    disp *= "\ndata:"
-    println(io, disp)
-    show(io, obj.data)
+    disp *= "\ndata: "
+    print(io, disp)
+    print(io, obj.data)
 end
 function QuartetT(tn1::Int,tn2::Int,tn3::Int,tn4::Int, data::T, nCk::Matrix, checksorted=true::Bool) where T
     if checksorted

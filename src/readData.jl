@@ -492,20 +492,76 @@ function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{Hy
 end
 
 """
-fixithere
+    observedquartetCF(trees, which::Symbol [, taxonmap=Dict{String,String}])
 
-Calculate the quartet concordance factors (CF) observed in the input gene trees.
+Calculate the quartet concordance factors (CF) observed in the `trees` vector.
+If present, `taxonmap` should map each allele name to it's species name.
+
 see also: [`calculateObsCFAll_noDataCF!`](@ref), which uses a slower algorithm
 (reading each input tree `nquartet` times, where `nquartet` is the number
 of quartets)
-`taxonmap`: maps each individual to a species
-only consider quartets among 4 distinct species, even if the gene trees may have
-multiple alleles from the same species. For 4 distinct species `a,b,c,d`,
-all alleles from each species (`a` etc.) will be considered to calculate
-the quartet concordance factors.
+
+CFs are calculated at the species level only, that is, considering 4-taxon sets
+made of 4 distinct species, even if the gene trees may have multiple alleles
+from the same species. For 4 distinct species `a,b,c,d`, all alleles from
+each species (`a` etc.) will be considered to calculate the quartet CF.
+
+# examples
+```jldoctest
+julia> tree1 = readTopology("(E,(A,B),(C,D),O);"); tree2 = readTopology("(((A,B),(C,D)),E);");
+
+julia> q,t = PhyloNetworks.observedquartetCF([tree1, tree2], :all);
+
+julia> t # taxon order: t[i] = name of taxon number i
+6-element Array{String,1}:
+ "A"
+ "B"
+ "C"
+ "D"
+ "E"
+ "O"
+
+julia> length(q) # 15 four-taxon sets on 6 taxa
+15
+
+julia> q[1] # both trees agree on AB|CD: resolution 1
+4-taxon set number 1; taxon numbers: 1,2,3,4
+data: [1.0, 0.0, 0.0, 2.0]
+
+julia> q[8] # tree 2 is missing O (taxon 6), tree 1 wants resolution 3: AO|CD
+4-taxon set number 8; taxon numbers: 1,3,4,6
+data: [0.0, 0.0, 1.0, 1.0]
+
+julia> q[11] # tree 1 has ACEO unresolved, and tree 2 is missing O: no data for this quartet
+4-taxon set number 11; taxon numbers: 1,3,5,6
+data: [0.0, 0.0, 0.0, 0.0]
+
+julia> tree1 = readTopology("(E,(a1,B),(a2,D),O);"); tree2 = readTopology("(((a1,a2),(B,D)),E);");
+
+julia> q,t = PhyloNetworks.observedquartetCF([tree1, tree2], :all, Dict("a1"=>"A", "a2"=>"A"));
+
+julia> t
+5-element Array{String,1}:
+ "A"
+ "B"
+ "D"
+ "E"
+ "O"
+
+julia> length(q) # 5 four-taxon sets on 5 taxa
+5
+
+julia> q[1] # tree 1 has discordance: a1B|DE and a2D|BE. tree 2 has AE|BD for both alleles of A
+4-taxon set number 1; taxon numbers: 1,2,3,4
+data: [0.25, 0.25, 0.5, 2.0]
+
+julia> q[3] # tree 2 is missing O (taxon 5), and a2 is unresolved in tree 1. There's only a1B|EO
+4-taxon set number 3; taxon numbers: 1,2,4,5
+data: [1.0, 0.0, 0.0, 0.5]
+```
 """
 function observedquartetCF(tree::Vector{HybridNetwork}, whichQ::Symbol,
-                           taxonmap=Dict{String,Int64}()::Dict{String,String})
+                           taxonmap=Dict{String,String}()::Dict{String,String})
     whichQ in [:all, :intrees] || error("whichQ must be either :all or :intrees, but got $whichQ")
     if isempty(taxonmap)
         taxa = unionTaxa(tree)
@@ -513,7 +569,7 @@ function observedquartetCF(tree::Vector{HybridNetwork}, whichQ::Symbol,
         taxa = sort!(collect(Set(haskey(taxonmap, l.name) ? taxonmap[l.name] : l.name
                                  for t in tree for l in t.leaf)))
     end
-    leafnumber = Dict(taxa[i] => i for i in eachindex(taxa))
+    taxonnumber = Dict(taxa[i] => i for i in eachindex(taxa))
     ntax = length(taxa)
     nCk = nchoose1234(ntax) # matrix used to ranks 4-taxon sets
     qtype = MVector{4,Float64} # 4 floats: CF12_34, CF13_24, CF14_23, ngenes; initialized at 0.0
@@ -536,22 +592,83 @@ function observedquartetCF(tree::Vector{HybridNetwork}, whichQ::Symbol,
         error("whichQ = :intrees not implemented yet")
         # fixit: read all the trees, go through each edge, check if the current quartet list covers the edge, if not: add a quartet
     end
-    for t in tree
-        observedquartetCF!(quartet, t, whichQ, nCk, taxa, leafnumber, taxonmap)
+    for t in tree # number of times each quartet resolution is seen in each tree
+        observedquartetCF!(quartet, t, whichQ, nCk, taxonnumber, taxonmap)
     end
-    return quartet
+    # normalize counts to frequencies & number of genes
+    for q in quartet
+        d = q.data
+        d[4] = d[1]+d[2]+d[3] # number of genes
+        if d[4] > 0.0
+            d[1:3] /= d[4]
+        end # otherwise: no genes with data on this quartet (missing taxa or polytomy): leave all zeros (NaN if /0)
+    end
+    return quartet, taxa
 end
 function observedquartetCF!(quartet::Vector{QuartetT{MVector{4,Float64}}},
             tree::HybridNetwork, whichQ::Symbol, nCk::Matrix,
-            taxa::Vector, leafnumber::Dict{String,Int64}, taxonmap::Dict{String,String})
+            taxonnumber::Dict{String,Int64}, taxonmap::Dict{String,String})
     tree.numHybrids == 0 || error("input phylogenies must be trees")
-    resetEdgeNumbers!(tree) # to be able to use edge number as an index in an array
-    # next: reset node numbers so that they can be used as indices: 1,2,3,...
-    #       and match the post-order traversal (tiny bit more efficient?)
-    # next: build dictionary: leaf number -> species ID, using the node name then taxon map
+    # next: reset node & edge numbers so that they can be used as indices: 1,2,3,...
+    resetNodeNumbers!(tree; checkPreorder=true, ape=false) # leaves first & post-order
+    resetEdgeNumbers!(tree)
+    # next: build list leaf number -> species ID, using the node name then taxon map
+    nleaves = length(tree.leaf)
+    nnodes  = length(tree.node)
+    taxID = Vector{Int}(undef, nleaves)
+    for n in tree.leaf
+        taxID[n.number] = haskey(taxonmap, n.name) ? taxonnumber[taxonmap[n.name]] : taxonnumber[n.name]
+    end
+    # number of individuals from each species: needed to weigh the quartets at the individual level
+    # weight of t1,t2,t3,t4: 1/(taxcount[t1]*taxcount[t2]*taxcount[t3]*taxcount[t4])
+    taxcount = zeros(Int, length(taxonnumber))
+    for ti in taxID taxcount[ti] += 1; end
     # next: build data structure to get descendant / ancestor clades
-    #       below[n][1:2 generally (more if polytomy)]: left & clades below node number n
-    #       above[n][1:end]: grade of clades above node n
+    below,above = ladderpartition(tree) # re-checks that node numbers can be used as indices, with leaves first
+    # below[n][1:2 ]: left & clades below node number n
+    # above[n][1:end]: grade of clades above node n
+    for n in (nleaves+1):nnodes # loop through internal nodes indices only
+        bn = below[n]
+        an = above[n]
+        for c1 in 2:length(bn) # c = child clade, loop over all pairs of child clades
+          for t1 in bn[c1]     # pick 1 tip from each child clade
+            s1 = taxID[t1]
+            for c2 in 1:(c1-1)
+              for t2 in bn[c2]
+                s2 = taxID[t2]
+                s1 != s2 || continue # skip quartets that have repeated species
+                t12max = max(t1,t2)
+                leftweight = 1/(taxcount[s1]*taxcount[s2])
+                for p1 in 1:length(an) # p = parent clade
+                  for t3i in 1:length(an[p1])
+                    t3 = an[p1][t3i]
+                    s3 = taxID[t3]
+                    (s3 != s1 && s3 != s2) || continue
+                    for t4i in 1:(t3i-1) # pick 2 distinct tips from the same parent clade
+                        t4 = an[p1][t4i]
+                        t3 > t12max || t4 > t12max || continue   # skip: would be counted twice otherwise
+                        s4 = taxID[t4]
+                        (s4 != s1 && s4 != s2 && s4 != s3) || continue
+                        rank,res = quartetRankResolution(s1, s2, s3, s4, nCk)
+                        weight = leftweight / (taxcount[s3]*taxcount[s4])
+                        quartet[rank].data[res] += weight
+                    end
+                    for p2 in 1:(p1-1) # distinct parent clade: no risk of counting twice
+                      for t4 in an[p2]
+                        s4 = taxID[t4]
+                        (s4 != s1 && s4 != s2 && s4 != s3) || continue
+                        rank,res = quartetRankResolution(s1, s2, s3, s4, nCk)
+                        weight = leftweight / (taxcount[s3]*taxcount[s4])
+                        quartet[rank].data[res] += weight
+                      end
+                    end
+                  end
+                end
+              end
+            end
+          end
+        end
+    end
 end
 
 function quartetRankResolution(t1::Int, t2::Int, t3::Int, t4::Int, nCk::Matrix)
