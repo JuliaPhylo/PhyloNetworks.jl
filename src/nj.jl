@@ -12,13 +12,11 @@ function nj!(D::Matrix{Float64})
     check_distance_matrix(D)
     n = size(D, 1)              # number of species
     # create empty network with n unconnected leaf nodes
-    nodes = Node[]
-    for i in 1:n
-        node = Node(i, true)
-        push!(nodes, node)
-    end
+    nodes = [ Node(i, true) for i = 1:n ]
     net = HybridNetwork(nodes, Edge[])
-    id = collect(1:n)
+    # an array of Node s.t. active_nodes[i] would correspond to the
+    # ith entry in distance matrix D at each iteration
+    active_nodes = nodes
 
     while n > 2
         # compute Q matrix and find min
@@ -38,19 +36,18 @@ function nj!(D::Matrix{Float64})
             end
         end
 
-        # connect the nodes, compute the length of the edge, update tree
+        # connect the nodes, compute the length of the edge
         (i, j) = min_index
-        new_node_id = maximum(id) + 1 # call this node k
         dik = D[i,j] / 2 + (sums[i] - sums[j]) / (2 * (n - 2))
         djk = D[i,j] - dik
 
-        # create new edges and node, update network
+        # create new edges and node, update tree
         edgenum = net.numEdges
         eik = Edge(edgenum + 1, dik)
         ejk = Edge(edgenum + 2, djk)
-        node_k = Node(new_node_id, false, false, [eik, ejk])
-        node_i = net.node[getIndexNode(id[i], net)]
-        node_j = net.node[getIndexNode(id[j], net)]
+        node_k = Node(net.numNodes+1, false, false, [eik, ejk]) # new node
+        node_i = active_nodes[i]
+        node_j = active_nodes[j]
         setNode!(eik, Node[node_i, node_k])
         setNode!(ejk, Node[node_j, node_k])
         setEdge!(node_i, eik)
@@ -69,15 +66,16 @@ function nj!(D::Matrix{Float64})
         end
         newidx = filter!(u->u!=j, collect(1:n))
         D = view(D, newidx, newidx)
-        id = filter!(u->u!=id[j], id) # delete node_j from id
-        id[i] = new_node_id
+
+        # update active_nodes
+        active_nodes[i] = node_k
 
         n = n - 1
     end
 
     # base case
-    node1 = net.node[getIndexNode(id[1], net)]
-    node2 = net.node[getIndexNode(id[2], net)]
+    node1 = active_nodes[1]
+    node2 = active_nodes[2]
     newedge = Edge(net.numEdges+1, D[1,2])
     setNode!(newedge, [node1, node2])
     setEdge!(node1, newedge)
