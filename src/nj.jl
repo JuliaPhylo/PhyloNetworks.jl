@@ -64,11 +64,12 @@ function nj!(D::Matrix{Float64})
                 D[i, l] = D[l, i]
             end
         end
-        newidx = filter!(u->u!=j, collect(1:n))
+        newidx = filter!(u->u!=j, collect(1:n)) # index 1:n\{j}
         D = view(D, newidx, newidx)
 
         # update active_nodes
         active_nodes[i] = node_k
+        active_nodes = view(active_nodes, newidx)
 
         n = n - 1
     end
