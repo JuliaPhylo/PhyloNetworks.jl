@@ -8,11 +8,23 @@ function check_distance_matrix(D::Matrix{Float64})
     end
 end
 
-function nj!(D::Matrix{Float64})
+function nj!(D::Matrix{Float64}, names::Vector{String}=String[])
+
     check_distance_matrix(D)
     n = size(D, 1)              # number of species
+
+    # when no names arg is supplied
+    if isempty(names)
+        names = fill("", n)
+    end
+
     # create empty network with n unconnected leaf nodes
-    nodes = [ Node(i, true) for i = 1:n ]
+    nodes = map(function(i)
+                node = Node(i, true)
+                node.name = names[i]
+                end,
+                collect(1:n))
+
     net = HybridNetwork(nodes, Edge[])
     # an array of Node s.t. active_nodes[i] would correspond to the
     # ith entry in distance matrix D at each iteration
