@@ -22,6 +22,7 @@ function nj!(D::Matrix{Float64}, names::Vector{String}=String[])
     nodes = map(function(i)
                 node = Node(i, true)
                 node.name = names[i]
+                return node
                 end,
                 collect(1:n))
 
@@ -95,6 +96,10 @@ function nj!(D::Matrix{Float64}, names::Vector{String}=String[])
     setEdge!(node2, newedge)
     pushEdge!(net, newedge)
     return net
+end
+
+function nj!(D::DataFrame)
+    nj!(convert(Matrix, D), string.(names(D)))
 end
 
 D = float([0 5 9 9 8; 5 0 10 10 9; 9 10 0 8 7; 9 10 8 0 3; 8 9 7 3 0])
