@@ -15,14 +15,18 @@ end
 writeExpCF(d::DataCF) = writeExpCF(d.quartet)
 
 """
-    writeTableCF(vector of quartets)
+    writeTableCF(vector of Quartet objects)
     writeTableCF(DataCF)
+    writeTableCF(vector of QuartetT objects [, taxonames])
 
 Build a DataFrame containing observed quartet concordance factors,
 with columns named:
 - `:tx1`, `:tx2`, `:tx3`, `:tx4` for the four taxon names in each quartet
 -  `:CF12_34`, `:CF13_24`, `:CF14_23` for the 3 quartets of a given four-taxon set
 - `:ngenes` if this information is available for some quartets
+
+If the input are [`QuartetT`](@ref) objects, their `data` field needs to
+contain vectors of 4 values.
 """
 function writeTableCF(quartets::Array{Quartet,1})
     df = DataFrames.DataFrame(t1=String[],t2=String[],t3=String[],t4=String[],
@@ -41,6 +45,22 @@ function writeTableCF(quartets::Array{Quartet,1})
 end
 
 writeTableCF(d::DataCF) = writeTableCF(d.quartet)
+
+function writeTableCF(quartets::Vector{QuartetT{T}},
+                      taxa=Vector{String}()::AbstractVector{String}) where T<:AbstractVector
+    V = eltype(T) # would expect Float64, but Int would be reasonable if counts are not normalized
+    V <: Real || error("CFs need to take real values")
+    df = DataFrames.DataFrame(t1=String[],t2=String[],t3=String[],t4=String[],
+                              CF12_34=V[],CF13_24=V[],CF14_23=V[], ngenes=V[])
+    ntaxa = length(taxa)
+    taxstring = x -> ( x>ntaxa ? string(x) : taxa[x] )
+    for q in quartets
+        length(q.data) == 4 || error("quartet $(q.data) does not have 4 data points: CF12, CF13, CF14, ngenes")
+        qn = taxstring.(q.taxonnumber)
+        push!(df, [qn[1],qn[2],qn[3],qn[4],q.data[1],q.data[2],q.data[3],q.data[4]])
+    end
+    return df
+end
 
 """
     readTableCF(file)
@@ -496,6 +516,7 @@ end
 
 Calculate the quartet concordance factors (CF) observed in the `trees` vector.
 If present, `taxonmap` should map each allele name to it's species name.
+To save to a file, use [`writeTableCF`](@ref) to first convert to a data frame.
 
 see also: [`calculateObsCFAll_noDataCF!`](@ref), which uses a slower algorithm
 (reading each input tree `nquartet` times, where `nquartet` is the number
@@ -510,7 +531,7 @@ each species (`a` etc.) will be considered to calculate the quartet CF.
 ```jldoctest
 julia> tree1 = readTopology("(E,(A,B),(C,D),O);"); tree2 = readTopology("(((A,B),(C,D)),E);");
 
-julia> q,t = PhyloNetworks.observedquartetCF([tree1, tree2], :all);
+julia> q,t = observedquartetCF([tree1, tree2], :all);
 
 julia> t # taxon order: t[i] = name of taxon number i
 6-element Array{String,1}:
@@ -538,7 +559,7 @@ data: [0.0, 0.0, 0.0, 0.0]
 
 julia> tree1 = readTopology("(E,(a1,B),(a2,D),O);"); tree2 = readTopology("(((a1,a2),(B,D)),E);");
 
-julia> q,t = PhyloNetworks.observedquartetCF([tree1, tree2], :all, Dict("a1"=>"A", "a2"=>"A"));
+julia> q,t = observedquartetCF([tree1, tree2], :all, Dict("a1"=>"A", "a2"=>"A"));
 
 julia> t
 5-element Array{String,1}:
@@ -548,9 +569,6 @@ julia> t
  "E"
  "O"
 
-julia> length(q) # 5 four-taxon sets on 5 taxa
-5
-
 julia> q[1] # tree 1 has discordance: a1B|DE and a2D|BE. tree 2 has AE|BD for both alleles of A
 4-taxon set number 1; taxon numbers: 1,2,3,4
 data: [0.25, 0.25, 0.5, 2.0]
@@ -558,6 +576,19 @@ data: [0.25, 0.25, 0.5, 2.0]
 julia> q[3] # tree 2 is missing O (taxon 5), and a2 is unresolved in tree 1. There's only a1B|EO
 4-taxon set number 3; taxon numbers: 1,2,4,5
 data: [1.0, 0.0, 0.0, 0.5]
+
+julia> df = writeTableCF(q,t) # to get a DataFrame that can be saved to a file later
+5×8 DataFrames.DataFrame
+│ Row │ t1     │ t2     │ t3     │ t4     │ CF12_34 │ CF13_24 │ CF14_23 │ ngenes  │
+│     │ String │ String │ String │ String │ Float64 │ Float64 │ Float64 │ Float64 │
+├─────┼────────┼────────┼────────┼────────┼─────────┼─────────┼─────────┼─────────┤
+│ 1   │ A      │ B      │ D      │ E      │ 0.25    │ 0.25    │ 0.5     │ 2.0     │
+│ 2   │ A      │ B      │ D      │ O      │ 0.5     │ 0.5     │ 0.0     │ 1.0     │
+│ 3   │ A      │ B      │ E      │ O      │ 1.0     │ 0.0     │ 0.0     │ 0.5     │
+│ 4   │ A      │ D      │ E      │ O      │ 1.0     │ 0.0     │ 0.0     │ 0.5     │
+│ 5   │ B      │ D      │ E      │ O      │ 0.0     │ 0.0     │ 0.0     │ 0.0     │
+
+julia # using CSV; CSV.write(df, "filename.csv");
 ```
 """
 function observedquartetCF(tree::Vector{HybridNetwork}, whichQ::Symbol,
