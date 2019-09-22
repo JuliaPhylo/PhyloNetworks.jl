@@ -33,7 +33,7 @@ in the example below, this file is best read later with the option
 ```julia
 mapAllelesCFtable("allele-species-map.csv", "allele-quartet-CF.csv";
                   filename = "quartetCF_speciesNames.csv")
-df_sp = CSV.read("quartetCF_speciesNames.csv", categorical=false); # DataFrame object
+df_sp = CSV.read("quartetCF_speciesNames.csv"); # DataFrame object
 dataCF_specieslevel = readTableCF!(df_sp); # DataCF object
 ```
 """
@@ -41,8 +41,11 @@ function mapAllelesCFtable(alleleDF::AbstractString, cfDF::AbstractString;
         filename=""::AbstractString, columns=Int[]::Vector{Int}, CSVargs...)
     # force categorical=false unless the user wants otherwise
     if :categorical ∉ [pair[1] for pair in CSVargs]
-        CSVargs = (CSVargs..., (:categorical, false))
+        CSVargs = (CSVargs..., :categorical=>false)
     end
+    # force :copycols = true in CSV arguments, even if user asks otherwise
+    CSVargs = [pair for pair in CSVargs if pair[1] != :copycols]
+    CSVargs = (CSVargs..., :copycols=>true)
     d = CSV.read(alleleDF; CSVargs...)
     d2 = CSV.read(cfDF; CSVargs...)
     mapAllelesCFtable!(d2,d, columns, filename != "", filename)
@@ -263,18 +266,9 @@ end
 
 # function to check that the allele df has one column labelled alleles and one column labelled species
 function checkMapDF(alleleDF::DataFrame)
-    size(alleleDF,2) <= 2 || error("Allele-Species matching Dataframe should have at least 2 columns")
-    size(alleleDF,2) >= 2 || @warn "allele mapping file contains more than two columns: will ignore all columns not labelled allele or species"
-    try
-        alleleDF[!,:allele]
-    catch
-        error("In allele mapping file there is no column named allele")
-    end
-    try
-        alleleDF[!,:species]
-    catch
-        error("In allele mapping file there is no column named species")
-    end
+    size(alleleDF,2) >= 2 || error("Allele-Species matching Dataframe should have at least 2 columns")
+    :allele in names(alleleDF) || error("In allele mapping file there is no column named allele")
+    :species in names(alleleDF) || error("In allele mapping file there is no column named species")
 end
 
 

@@ -277,27 +277,27 @@ allQuartets(numTaxa::Integer, writeFile::Bool) = allQuartets(1:numTaxa, writeFil
 function randQuartets(allquartets::Vector{Quartet},num::Integer, writeFile::Bool)
     randquartets = Quartet[]
     n = length(allquartets)
-    if(num == 0)
-        num = integer(floor(0.1*n))
+    if num == 0
+        num = Integer(floor(0.1*n))
     end
     num <= n || error("you cannot choose a sample of $(num) quartets when there are $(n) in total")
-    indx = [ones(Int,num); zeros(Int,n-num)]
+    indx = [ones(Bool,num); zeros(Bool,n-num)]
     indx = indx[sortperm(randn(n))]
-    if(writeFile)
-        #randName = "rand$(numQ)Quartets$(string(integer(time()/1000))).txt"
-        randName = "rand$(numQ)Quartets.txt"
+    if writeFile
+        randName = "rand$(num)Quartets.txt"
         println("list of randomly selected quartets in file $(randName)")
         out = open(randName,"w")
     end
     for i in 1:n
-        if(indx[i] == 1)
-            if(writeFile)
-                write(out,"$(lines[i])")
+        if indx[i]
+            if writeFile
+                q = allquartets[i].taxon
+                write(out,"$(q[1]),$(q[2]),$(q[3]),$(q[4])\n")
             end
             push!(randquartets,allquartets[i])
         end
     end
-    if(writeFile)
+    if writeFile
         close(out)
     end
     return randquartets
@@ -452,7 +452,11 @@ with these updated quartets and trees.
 
 update the `.obsCF` values of the quartets based on the trees, but returns nothing.
 
-Warning: all these functions need input trees (h=0).
+Warning: all these functions need input trees (without any reticulations: h=0).
+
+See also: [`observedquartetCF`](@ref), which uses a faster algorithm,
+processing each input tree only once.
+`calculateObsCFAll_noDataCF!` processes each input tree `# quartet` times.
 """
 function calculateObsCFAll!(dat::DataCF, taxa::Union{Vector{String}, Vector{Int}})
     calculateObsCFAll_noDataCF!(dat.quartet, dat.tree, taxa)
@@ -512,15 +516,16 @@ function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{Hy
 end
 
 """
-    observedquartetCF(trees, which::Symbol [, taxonmap=Dict{String,String}])
+    observedquartetCF(trees [, taxonmap=Dict{String,String}]; which=:all)
 
 Calculate the quartet concordance factors (CF) observed in the `trees` vector.
 If present, `taxonmap` should map each allele name to it's species name.
-To save to a file, use [`writeTableCF`](@ref) to first convert to a data frame.
+To save to a file, first convert to a data frame using [`writeTableCF`](@ref).
+When `which=:all`, quartet CFs are calculated for all 4-taxon sets.
+(Other options are not implemented yet.)
 
-see also: [`calculateObsCFAll_noDataCF!`](@ref), which uses a slower algorithm
-(reading each input tree `nquartet` times, where `nquartet` is the number
-of quartets)
+The algorithm runs in O(mn⁴) where m is the number of trees and n is the number
+of tips in the trees.
 
 CFs are calculated at the species level only, that is, considering 4-taxon sets
 made of 4 distinct species, even if the gene trees may have multiple alleles
@@ -531,7 +536,7 @@ each species (`a` etc.) will be considered to calculate the quartet CF.
 ```jldoctest
 julia> tree1 = readTopology("(E,(A,B),(C,D),O);"); tree2 = readTopology("(((A,B),(C,D)),E);");
 
-julia> q,t = observedquartetCF([tree1, tree2], :all);
+julia> q,t = observedquartetCF([tree1, tree2]);
 
 julia> t # taxon order: t[i] = name of taxon number i
 6-element Array{String,1}:
@@ -559,7 +564,7 @@ data: [0.0, 0.0, 0.0, 0.0]
 
 julia> tree1 = readTopology("(E,(a1,B),(a2,D),O);"); tree2 = readTopology("(((a1,a2),(B,D)),E);");
 
-julia> q,t = observedquartetCF([tree1, tree2], :all, Dict("a1"=>"A", "a2"=>"A"));
+julia> q,t = observedquartetCF([tree1, tree2], Dict("a1"=>"A", "a2"=>"A"));
 
 julia> t
 5-element Array{String,1}:
@@ -591,8 +596,9 @@ julia> df = writeTableCF(q,t) # to get a DataFrame that can be saved to a file l
 julia # using CSV; CSV.write(df, "filename.csv");
 ```
 """
-function observedquartetCF(tree::Vector{HybridNetwork}, whichQ::Symbol,
-                           taxonmap=Dict{String,String}()::Dict{String,String})
+function observedquartetCF(tree::Vector{HybridNetwork},
+                           taxonmap=Dict{String,String}()::Dict{String,String};
+                           whichQ=:all::Symbol)
     whichQ in [:all, :intrees] || error("whichQ must be either :all or :intrees, but got $whichQ")
     if isempty(taxonmap)
         taxa = unionTaxa(tree)
@@ -759,7 +765,10 @@ Optional arguments (defaults):
 - `writesummary` (true): write a summary file?
   if so, the summary will go in file "summaryTreesQuartets.txt".
 
+Uses [`calculateObsCFAll!`](@ref), which implements a slow algorithm.
+
 See also:
+[`observedquartetCF`](@ref), which uses a much faster algorithm;
 [`readTrees2CF`](@ref), which is basically a re-naming of `readInputData`, and
 [`readTableCF`](@ref) to read a table of quartet CFs directly.
 """
@@ -781,7 +790,6 @@ end
 
 readInputData(treefile::AbstractString, quartetfile::AbstractString, whichQ::Symbol, numQ::Integer, writetab::Bool) = readInputData(treefile, quartetfile, whichQ, numQ, writetab, "none", false, true)
 readInputData(treefile::AbstractString, quartetfile::AbstractString, whichQ::Symbol, numQ::Integer) = readInputData(treefile, quartetfile, whichQ, numQ, true, "none", false, true)
-##readInputData(treefile::AbstractString, quartetfile::AbstractString) = readInputData(treefile, quartetfile, :all, 0, true, "none", false, true)
 readInputData(treefile::AbstractString, quartetfile::AbstractString, writetab::Bool, filename::AbstractString) = readInputData(treefile, quartetfile, :all, 0, writetab, filename, false, true)
 
 function readInputData(trees::Vector{HybridNetwork}, quartetfile::AbstractString, whichQ::Symbol, numQ::Integer, writetab::Bool, filename::AbstractString, writeFile::Bool, writeSummary::Bool)
@@ -896,6 +904,10 @@ Optional arguments include:
 - writeQ=true: save intermediate files with the list of all 4-taxon subsets and chosen random sample (default false).
 - writeSummary: write descriptive stats of input data (default: true)
 - nexus: if true, it assumes the gene trees are written in nexus file (default: false)
+
+See also:
+[`observedquartetCF`](@ref), which uses a much faster algorithm;
+[`readTableCF`](@ref) to read a table of quartet CFs directly.
 """
 function readTrees2CF(treefile::AbstractString; quartetfile="none"::AbstractString, whichQ="all"::AbstractString, numQ=0::Integer,
                       writeTab=true::Bool, CFfile="none"::AbstractString,
