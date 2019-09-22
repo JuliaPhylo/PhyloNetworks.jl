@@ -8,6 +8,7 @@ function check_distance_matrix(D::Matrix{Float64})
     end
 end
 
+@doc (@doc nj) nj!
 function nj!(D::Matrix{Float64}, names::AbstractVector{String}=String[])
 
     check_distance_matrix(D)
@@ -98,6 +99,14 @@ function nj!(D::Matrix{Float64}, names::AbstractVector{String}=String[])
     return net
 end
 
+"""
+    nj(D::DataFrame)
+
+Construct a tree from a distance matrix by neighbor joining, where `D`
+is a `DataFrame` of the distance matrix, with taxon names taken from
+the header of the data frame.
+
+"""
 function nj(D::DataFrame)
     nj!(convert(Matrix, D), string.(names(D)))
 end
