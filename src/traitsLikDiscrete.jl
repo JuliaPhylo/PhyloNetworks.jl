@@ -659,7 +659,7 @@ function check_matchtaxonnames!(species::AbstractVector, dat::AbstractVector, ne
     # 1. basic checks for dimensions and types
     eltt = eltype(dat)
     @assert eltt <: AbstractVector "traits should be a vector of vectors"
-    @assert Missings.T(eltype(eltt)) <: Integer "traits should be integers (label indices)"
+    @assert nonmissingtype(eltype(eltt)) <: Integer "traits should be integers (label indices)"
     @assert !isempty(dat) "empty data vector!"
     ntraits = length(dat[1])
     for d in dat
