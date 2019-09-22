@@ -516,7 +516,7 @@ function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{Hy
 end
 
 """
-    observedquartetCF(trees [, taxonmap=Dict{String,String}]; which=:all)
+    observedquartetCF(trees [, taxonmap=Dict{String,String}]; which=:all, weight_byallele=true)
 
 Calculate the quartet concordance factors (CF) observed in the `trees` vector.
 If present, `taxonmap` should map each allele name to it's species name.
@@ -532,11 +532,23 @@ made of 4 distinct species, even if the gene trees may have multiple alleles
 from the same species. For 4 distinct species `a,b,c,d`, all alleles from
 each species (`a` etc.) will be considered to calculate the quartet CF.
 
+By default, each gene has a weight of 1. So if there are `n_a` alleles from `a`,
+`n_b` alleles from `b` etc. in a given gene, then each set of 4 alleles has a
+weight of `1/(n_a n_b b_c n_c)` in the calculation of the CF for `a,b,c,d`.
+With option `weight_byallele=true`, then each set of 4 alleles is given a
+weight of 1 instead. This inflates the total number of sets used to calculate
+the quartet CFs (to something larger than the number of genes). This may also
+affect the CF values if the number of alleles varies across genes: genes with
+more alleles will be given more weight.
+
 # examples
 ```jldoctest
 julia> tree1 = readTopology("(E,(A,B),(C,D),O);"); tree2 = readTopology("(((A,B),(C,D)),E);");
 
 julia> q,t = observedquartetCF([tree1, tree2]);
+Reading in trees, looking at 15 quartets in each...
+0+--+100%
+  **
 
 julia> t # taxon order: t[i] = name of taxon number i
 6-element Array{String,1}:
@@ -564,7 +576,7 @@ data: [0.0, 0.0, 0.0, 0.0]
 
 julia> tree1 = readTopology("(E,(a1,B),(a2,D),O);"); tree2 = readTopology("(((a1,a2),(B,D)),E);");
 
-julia> q,t = observedquartetCF([tree1, tree2], Dict("a1"=>"A", "a2"=>"A"));
+julia> q,t = observedquartetCF([tree1, tree2], Dict("a1"=>"A", "a2"=>"A"); showprogressbar=false);
 
 julia> t
 5-element Array{String,1}:
@@ -594,11 +606,30 @@ julia> df = writeTableCF(q,t) # to get a DataFrame that can be saved to a file l
 │ 5   │ B      │ D      │ E      │ O      │ 0.0     │ 0.0     │ 0.0     │ 0.0     │
 
 julia # using CSV; CSV.write(df, "filename.csv");
+
+julia> tree2 = readTopology("((A,(B,D)),E);");
+
+julia> q,t = observedquartetCF([tree1, tree2], Dict("a1"=>"A", "a2"=>"A"); weight_byallele=true);
+Reading in trees, looking at 5 quartets in each...
+0+--+100%
+  **
+
+julia> writeTableCF(q,t)
+5×8 DataFrames.DataFrame
+│ Row │ t1     │ t2     │ t3     │ t4     │ CF12_34  │ CF13_24  │ CF14_23  │ ngenes  │
+│     │ String │ String │ String │ String │ Float64  │ Float64  │ Float64  │ Float64 │
+├─────┼────────┼────────┼────────┼────────┼──────────┼──────────┼──────────┼─────────┤
+│ 1   │ A      │ B      │ D      │ E      │ 0.333333 │ 0.333333 │ 0.333333 │ 3.0     │
+│ 2   │ A      │ B      │ D      │ O      │ 0.5      │ 0.5      │ 0.0      │ 2.0     │
+│ 3   │ A      │ B      │ E      │ O      │ 1.0      │ 0.0      │ 0.0      │ 1.0     │
+│ 4   │ A      │ D      │ E      │ O      │ 1.0      │ 0.0      │ 0.0      │ 1.0     │
+│ 5   │ B      │ D      │ E      │ O      │ 0.0      │ 0.0      │ 0.0      │ 0.0     │
 ```
 """
 function observedquartetCF(tree::Vector{HybridNetwork},
                            taxonmap=Dict{String,String}()::Dict{String,String};
-                           whichQ=:all::Symbol)
+                           whichQ=:all::Symbol, weight_byallele=false::Bool,
+                           showprogressbar=true::Bool)
     whichQ in [:all, :intrees] || error("whichQ must be either :all or :intrees, but got $whichQ")
     if isempty(taxonmap)
         taxa = unionTaxa(tree)
@@ -629,9 +660,24 @@ function observedquartetCF(tree::Vector{HybridNetwork},
         error("whichQ = :intrees not implemented yet")
         # fixit: read all the trees, go through each edge, check if the current quartet list covers the edge, if not: add a quartet
     end
-    for t in tree # number of times each quartet resolution is seen in each tree
-        observedquartetCF!(quartet, t, whichQ, nCk, taxonnumber, taxonmap)
+    totalt = length(tree)
+    if showprogressbar
+        nstars = (totalt < 50 ? totalt : 50)
+        ntrees_perstar = (totalt/nstars)
+        println("Reading in trees, looking at $numq quartets in each...")
+        print("0+" * "-"^nstars * "+100%\n  ")
+        stars = 0
+        nextstar = Integer(ceil(ntrees_perstar))
     end
+    for i in 1:totalt # number of times each quartet resolution is seen in each tree
+        observedquartetCF!(quartet, tree[i], whichQ, weight_byallele, nCk, taxonnumber, taxonmap)
+        if showprogressbar && i >= nextstar
+            print("*")
+            stars += 1
+            nextstar = Integer(ceil((stars+1) * ntrees_perstar))
+        end
+    end
+    showprogressbar && print("\n")
     # normalize counts to frequencies & number of genes
     for q in quartet
         d = q.data
@@ -643,7 +689,7 @@ function observedquartetCF(tree::Vector{HybridNetwork},
     return quartet, taxa
 end
 function observedquartetCF!(quartet::Vector{QuartetT{MVector{4,Float64}}},
-            tree::HybridNetwork, whichQ::Symbol, nCk::Matrix,
+            tree::HybridNetwork, whichQ::Symbol, weight_byallele::Bool, nCk::Matrix,
             taxonnumber::Dict{String,Int64}, taxonmap::Dict{String,String})
     tree.numHybrids == 0 || error("input phylogenies must be trees")
     # next: reset node & edge numbers so that they can be used as indices: 1,2,3,...
@@ -687,7 +733,7 @@ function observedquartetCF!(quartet::Vector{QuartetT{MVector{4,Float64}}},
                         s4 = taxID[t4]
                         (s4 != s1 && s4 != s2 && s4 != s3) || continue
                         rank,res = quartetRankResolution(s1, s2, s3, s4, nCk)
-                        weight = leftweight / (taxcount[s3]*taxcount[s4])
+                        weight = ( weight_byallele ? 1.0 : leftweight / (taxcount[s3]*taxcount[s4]) )
                         quartet[rank].data[res] += weight
                     end
                     for p2 in 1:(p1-1) # distinct parent clade: no risk of counting twice
@@ -695,7 +741,7 @@ function observedquartetCF!(quartet::Vector{QuartetT{MVector{4,Float64}}},
                         s4 = taxID[t4]
                         (s4 != s1 && s4 != s2 && s4 != s3) || continue
                         rank,res = quartetRankResolution(s1, s2, s3, s4, nCk)
-                        weight = leftweight / (taxcount[s3]*taxcount[s4])
+                        weight = ( weight_byallele ? 1.0 : leftweight / (taxcount[s3]*taxcount[s4]) )
                         quartet[rank].data[res] += weight
                       end
                     end
