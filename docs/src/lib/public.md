@@ -85,6 +85,7 @@ calibrateFromPairwiseDistances!
 ticr
 ticr!
 undirectedOtherNetworks
+nj
 ```
 ## network Comparisons
 

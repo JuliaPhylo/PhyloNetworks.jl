@@ -8,7 +8,7 @@ function check_distance_matrix(D::Matrix{Float64})
     end
 end
 
-function nj!(D::Matrix{Float64}, names::Vector{String}=String[])
+function nj!(D::Matrix{Float64}, names::AbstractVector{String}=String[])
 
     check_distance_matrix(D)
     n = size(D, 1)              # number of species
@@ -98,8 +98,6 @@ function nj!(D::Matrix{Float64}, names::Vector{String}=String[])
     return net
 end
 
-function nj!(D::DataFrame)
+function nj(D::DataFrame)
     nj!(convert(Matrix, D), string.(names(D)))
 end
-
-D = float([0 5 9 9 8; 5 0 10 10 9; 9 10 0 8 7; 9 10 8 0 3; 8 9 7 3 0])

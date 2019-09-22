@@ -151,7 +151,7 @@ module PhyloNetworks
         ticr,
         ticr!,
         # neighbor joining
-        nj!
+        nj
 
     include("types.jl")
     include("auxiliary.jl")
