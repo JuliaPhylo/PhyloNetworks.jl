@@ -22,7 +22,7 @@ using Logging # to suppress info messages below
 baselogger = global_logger()
 mkpath("../assets/figures")
 raxmltrees = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","raxmltrees.tre")
-raxmlCF = readTrees2CF(raxmltrees, writeTab=false, writeSummary=false)
+raxmlCF = readTableCF(writeTableCF(observedquartetCF(readMultiTopology(raxmltrees), showprogressbar=false)...))
 ```
 
 ```@repl fixednetworkoptim

@@ -311,7 +311,7 @@ clades below node 12: [1] [2] [3, 4, 5, 6, 7]
 
 julia> above[8:12] # clades sister to and above nodes 8 through 12:
 5-element Array{Array{Array{Int64,1},1},1}:
- [[5, 6, 700], [1], [2]]
+ [[5, 6, 7], [1], [2]]
  [[5], [3, 4], [1], [2]]
  [[3, 4], [1], [2]]     
  [[1], [2]]             

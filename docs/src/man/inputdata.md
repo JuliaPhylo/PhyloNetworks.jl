@@ -76,11 +76,12 @@ nothing # hide
 To read in all gene trees and directly summarize them by a list
 of quartet CFs (proportion of input trees with a given quartet):
 ```@repl qcf
-raxmlCF = readTrees2CF(raxmltrees, CFfile="tableCF.csv");
-df = writeTableCF(raxmlCF)   # data frame with observed CFs: gene frequencies
-CSV.write("tableCF.csv", df) # to save the data frame to a file
+q,t = observedquartetCF(genetrees); # read in trees, calculate quartet CFs
+df = writeTableCF(q,t)   # data frame with observed CFs: gene frequencies
+using CSV
+CSV.write("tableCF.csv", df); # to save the data frame to a file
+raxmlCF = readTableCF("tableCF.csv") # read in the file and produces a "DataCF" object
 rm("tableCF.csv") # hide
-rm("summaryTreesQuartets.txt") # hide
 ```
 `less("tableCF.csv")` lets you see the content of the newly created
 file "tableCF.csv", within Julia. Again, type `q` to quit viewing this file.
@@ -90,7 +91,7 @@ The 3 "CF" columns gives the proportion of genes that has
 each of the 3 possible trees on these 4 taxa.
 
 For more help on any function, type `?` to enter the help mode,
-then type the name of the function. For example: type `?` then `readTrees2CF`
+then type the name of the function. For example: type `?` then `observedquartetCF`
 for information on the various options of that function.
 
 When there are many more taxa, the number of quartets
@@ -98,13 +99,17 @@ might be very large and we might want to use a subset to speed things up.
 Here, if we wanted to use a random sample of 10 quartets
 instead of all quartets, we could do:
 
-`readTrees2CF(raxmltrees, whichQ="rand", numQ=10, CFfile="tableCF10.txt")`
+`raxmlCF = readTrees2CF(raxmltrees, whichQ="rand", numQ=10, CFfile="tableCF10.txt")`
 
 Be careful to use a numQ value smaller than the total number of possible
 4-taxon subsets, which is *n choose 4* on *n* taxa (e.g. 15 on 6 taxa).
 To get a predictable random sample, you may set the seed with
 `using Random; Random.seed!(12321)`
 (for instance) prior to sampling the quartets as above.
+The `readTrees2CF` is *much* slower than the function `observedquartetCF`
+to read in trees and calculate the quartet CFs observed in the trees,
+when we want to get *all* quartet CFs. But for a small sample of quartets,
+then `readTrees2CF` is available.
 
 ## Tutorial data: quartet CFs
 
