@@ -61,6 +61,7 @@ readMultiTopology
 readNexusTrees
 readSnaqNetwork
 readTrees2CF
+observedquartetCF
 readTableCF
 readTableCF!
 writeTableCF

@@ -49,6 +49,7 @@ module PhyloNetworks
         sorttaxa!,
         ## SNAQ
         readTrees2CF,
+        observedquartetCF,
         readTableCF,
         readTableCF!,
         writeTableCF,

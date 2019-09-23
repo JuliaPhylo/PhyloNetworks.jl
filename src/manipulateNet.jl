@@ -866,18 +866,34 @@ keyword arguments:
 
 # Examples
 
-```julia-repl
+```jldoctest
 julia> net = readTopology("(A,(B,(C,D)));");
+
 julia> PhyloNetworks.resetNodeNumbers!(net)
-julia> printNodes(net)
-Node    In Cycle        isHybrid        hasHybEdge      Node label      isLeaf  Edges numbers
-1       -1              false           false           A               true    1
-2       -1              false           false           B               true    2
-3       -1              false           false           C               true    3
-4       -1              false           false           D               true    4
-7       -1              false           false                           false   3       4       5
-6       -1              false           false                           false   2       5       6
-5       -1              false           false                           false   1       6
+
+julia> printNodes(net) # first column "node": root is 5
+node leaf  hybrid hasHybEdge name inCycle edges'numbers
+1    true  false  false      A    -1      1   
+2    true  false  false      B    -1      2   
+3    true  false  false      C    -1      3   
+4    true  false  false      D    -1      4   
+7    false false  false           -1      3    4    5   
+6    false false  false           -1      2    5    6   
+5    false false  false           -1      1    6   
+
+julia> net = readTopology("(A,(B,(C,D)));");
+
+julia> PhyloNetworks.resetNodeNumbers!(net; ape=false)
+
+julia> printNodes(net) # first column "node": root is 7
+node leaf  hybrid hasHybEdge name inCycle edges'numbers
+1    true  false  false      A    -1      1   
+2    true  false  false      B    -1      2   
+3    true  false  false      C    -1      3   
+4    true  false  false      D    -1      4   
+5    false false  false           -1      3    4    5   
+6    false false  false           -1      2    5    6   
+7    false false  false           -1      1    6   
 ```
 """
 function resetNodeNumbers!(net::HybridNetwork; checkPreorder=true::Bool, ape=true::Bool)
@@ -904,7 +920,7 @@ function resetNodeNumbers!(net::HybridNetwork; checkPreorder=true::Bool, ape=tru
 end
 
 """
-    resetEdgeNumbers!(net::HybridNetwork; checkPreorder=true, ape=true)
+    resetEdgeNumbers!(net::HybridNetwork)
 
 Check that edge numbers of `net` are consecutive numbers from 1 to the total
 number of edges. If not, reset the edge numbers to be so.

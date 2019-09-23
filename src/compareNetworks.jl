@@ -245,7 +245,117 @@ function descendants!(edge::Edge, visited::Vector{Int})
     return nothing
 end
 
+"""
+    ladderpartition(tree::HybridNetwork)
 
+For each node in `tree`, calculate the clade below each child edge of the node,
+and each clade moving up the "ladder" from the node to the root. The output is a
+tuple of 2 vectors (node) of vector (clade) of vectors (taxon in clade):
+`below,above`. More specifically, for node number `n`,
+`below[n]` is generally of vector of 2 clades: one for the left child and one
+for the right child of the node (unless the node is of degree 2 or is a polytomy).
+`above[n]` contains the grade of clades above node number `n`.
+
+WARNING: assumes that
+1. node numbers and edge numbers can be used as indices, that is,
+   be all distinct, positive, covering exactly 1:#nodes and 1:#edges.
+2. edges are corrected directed (`isChild1` is up-to-date) and
+   nodes have been pre-ordered already (field `nodes_changed` up-to-date).
+
+# examples
+```jldoctest
+julia> tree = readTopology("(O,A,((B1,B2),(E,(C,D))));");
+
+julia> PhyloNetworks.resetNodeNumbers!(tree; checkPreorder=true, ape=false) # to number nodes in postorder, leaves first
+
+julia> printNodes(tree)
+node leaf  hybrid hasHybEdge name inCycle edges'numbers
+1    true  false  false      O    -1      1   
+2    true  false  false      A    -1      2   
+3    true  false  false      B1   -1      3   
+4    true  false  false      B2   -1      4   
+8    false false  false           -1      3    4    5   
+5    true  false  false      E    -1      6   
+6    true  false  false      C    -1      7   
+7    true  false  false      D    -1      8   
+9    false false  false           -1      7    8    9   
+10   false false  false           -1      6    9    10  
+11   false false  false           -1      5    10   11  
+12   false false  false           -1      1    2    11  
+
+julia> below, above = PhyloNetworks.ladderpartition(tree);
+
+julia> below
+12-element Array{Array{Array{Int64,1},1},1}:
+ [[1]]                      
+ [[2]]                      
+ [[3]]                      
+ [[4]]                      
+ [[5]]                      
+ [[6]]                      
+ [[7]]                      
+ [[3], [4]]                 
+ [[6], [7]]                 
+ [[5], [6, 7]]              
+ [[3, 4], [5, 6, 7]]        
+ [[1], [2], [3, 4, 5, 6, 7]]
+
+julia> for n in 8:12
+         println("clades below node ", n, ": ", join(below[n], " "))
+       end
+clades below node 8: [3] [4]
+clades below node 9: [6] [7]
+clades below node 10: [5] [6, 7]
+clades below node 11: [3, 4] [5, 6, 7]
+clades below node 12: [1] [2] [3, 4, 5, 6, 7]
+
+julia> above[8:12] # clades sister to and above nodes 8 through 12:
+5-element Array{Array{Array{Int64,1},1},1}:
+ [[5, 6, 7], [1], [2]]
+ [[5], [3, 4], [1], [2]]
+ [[3, 4], [1], [2]]     
+ [[1], [2]]             
+ []                     
+```
+"""
+function ladderpartition(net::HybridNetwork)
+    nnodes = length(net.node)
+    nleaf  = length(net.leaf)
+    for n in net.node
+        n.number > 0 && n.number <= nnodes || error("node numbers must be in 1 - #nodes")
+    end
+    sort!([n.number for n in net.leaf]) == collect(1:nleaf) || error("leaves must come first")
+    below = Vector{Vector{Vector{Int}}}(undef, nnodes)
+    above = Vector{Vector{Vector{Int}}}(undef, nnodes)
+    for nni in nnodes:-1:1 # post-order (not pre-order) traversal
+        nn = net.nodes_changed[nni]
+        above[nn.number] = Vector{Vector{Int}}(undef,0) # initialize
+        if nn.leaf
+            below[nn.number] = [[nn.number]]
+            continue
+        end
+        below[nn.number]  = Vector{Vector{Int}}(undef,0) # initialize
+        !nn.hybrid || error("ladder partitions not implemented for non-tree networks")
+        children = [getChild(e) for e in nn.edge]
+        filter!(n -> n!=nn, children)
+        for cc in children
+            allbelowc = union(below[cc.number]...)
+            push!(below[nn.number], allbelowc)
+            for cc2 in children
+                cc2 !=cc || continue
+                push!(above[cc2.number], allbelowc)
+            end
+        end
+    end
+    # so far: above[n] contains the clades *sister* to node number n, only.
+    #         add those above = any above n's parent, using pre-order this time.
+    for nni in 2:nnodes # avoid 1: it's the root, no parent, nothing to update
+        nn = net.nodes_changed[nni]
+        pn = getMajorParent(nn).number # parent number
+        for clade in above[pn]  push!(above[nn.number], clade); end
+    end
+    return below,above
+end
 
 """
     deleteHybridThreshold!(net::HybridNetwork, threshold::Float64, keepNodes=false)

@@ -2,7 +2,7 @@
 using PhyloNetworks
 mkpath("../assets/figures")
 raxmltrees = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","raxmltrees.tre")
-raxmlCF = readTrees2CF(raxmltrees, writeTab=false, writeSummary=false)
+raxmlCF = readTableCF(writeTableCF(observedquartetCF(readMultiTopology(raxmltrees), showprogressbar=false)...))
 truenet = readTopology("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.0,(#H1:0::0.3,E:3.0):6.2):2.0,O:11.2);");
 ```
 

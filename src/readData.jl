@@ -15,14 +15,18 @@ end
 writeExpCF(d::DataCF) = writeExpCF(d.quartet)
 
 """
-    writeTableCF(vector of quartets)
+    writeTableCF(vector of Quartet objects)
     writeTableCF(DataCF)
+    writeTableCF(vector of QuartetT objects [, taxonames])
 
 Build a DataFrame containing observed quartet concordance factors,
 with columns named:
 - `:tx1`, `:tx2`, `:tx3`, `:tx4` for the four taxon names in each quartet
 -  `:CF12_34`, `:CF13_24`, `:CF14_23` for the 3 quartets of a given four-taxon set
 - `:ngenes` if this information is available for some quartets
+
+If the input are [`QuartetT`](@ref) objects, their `data` field needs to
+contain vectors of 4 values.
 """
 function writeTableCF(quartets::Array{Quartet,1})
     df = DataFrames.DataFrame(t1=String[],t2=String[],t3=String[],t4=String[],
@@ -41,6 +45,22 @@ function writeTableCF(quartets::Array{Quartet,1})
 end
 
 writeTableCF(d::DataCF) = writeTableCF(d.quartet)
+
+function writeTableCF(quartets::Vector{QuartetT{T}},
+                      taxa=Vector{String}()::AbstractVector{String}) where T<:AbstractVector
+    V = eltype(T) # would expect Float64, but Int would be reasonable if counts are not normalized
+    V <: Real || error("CFs need to take real values")
+    df = DataFrames.DataFrame(t1=String[],t2=String[],t3=String[],t4=String[],
+                              CF12_34=V[],CF13_24=V[],CF14_23=V[], ngenes=V[])
+    ntaxa = length(taxa)
+    taxstring = x -> ( x>ntaxa ? string(x) : taxa[x] )
+    for q in quartets
+        length(q.data) == 4 || error("quartet $(q.data) does not have 4 data points: CF12, CF13, CF14, ngenes")
+        qn = taxstring.(q.taxonnumber)
+        push!(df, [qn[1],qn[2],qn[3],qn[4],q.data[1],q.data[2],q.data[3],q.data[4]])
+    end
+    return df
+end
 
 """
     readTableCF(file)
@@ -257,27 +277,27 @@ allQuartets(numTaxa::Integer, writeFile::Bool) = allQuartets(1:numTaxa, writeFil
 function randQuartets(allquartets::Vector{Quartet},num::Integer, writeFile::Bool)
     randquartets = Quartet[]
     n = length(allquartets)
-    if(num == 0)
-        num = integer(floor(0.1*n))
+    if num == 0
+        num = Integer(floor(0.1*n))
     end
     num <= n || error("you cannot choose a sample of $(num) quartets when there are $(n) in total")
-    indx = [ones(Int,num); zeros(Int,n-num)]
+    indx = [ones(Bool,num); zeros(Bool,n-num)]
     indx = indx[sortperm(randn(n))]
-    if(writeFile)
-        #randName = "rand$(numQ)Quartets$(string(integer(time()/1000))).txt"
-        randName = "rand$(numQ)Quartets.txt"
+    if writeFile
+        randName = "rand$(num)Quartets.txt"
         println("list of randomly selected quartets in file $(randName)")
         out = open(randName,"w")
     end
     for i in 1:n
-        if(indx[i] == 1)
-            if(writeFile)
-                write(out,"$(lines[i])")
+        if indx[i]
+            if writeFile
+                q = allquartets[i].taxon
+                write(out,"$(q[1]),$(q[2]),$(q[3]),$(q[4])\n")
             end
             push!(randquartets,allquartets[i])
         end
     end
-    if(writeFile)
+    if writeFile
         close(out)
     end
     return randquartets
@@ -381,37 +401,33 @@ taxadiff(d::DataCF, t::HybridNetwork; multiplealleles=true::Bool) =
     taxadiff(d.quartet, t; multiplealleles=multiplealleles)
 
 
-# function to extract the union of taxa of list of gene trees
+# extract & sort the union of taxa of list of gene trees
 function unionTaxa(trees::Vector{HybridNetwork})
-    taxa = union([tipLabels(t) for t in trees]...) # vector, order maintained
-    return sortUnionTaxa!(taxa)
+    taxa = reduce(union, tipLabels(t) for t in trees)
+    return sort_stringasinteger!(taxa)
 end
 
 """
-    sortUnionTaxa!(taxa)
+    sort_stringasinteger!(taxa)
 
-Take a vector of strings `taxa`, sort it numerically if
+Sort a vector of strings `taxa`, numerically if
 elements can be parsed as an integer, alphabetically otherwise.
 """
-function sortUnionTaxa!(taxa)
-    integers = true
+function sort_stringasinteger!(taxa)
+    sortby = x->parse(Int,x)
     try
         parse.(Int,taxa)
     catch
-        integers = false
+        sortby = identity
     end
-    if integers
-        sort!(taxa, by=x->parse(Int,x))
-    else
-        sort!(taxa)
-    end
+    sort!(taxa, by=sortby)
     return taxa
 end
 
-# function to extract the union of taxa of list of quartets
+# extract & sort the union of taxa of list of quartets
 function unionTaxa(quartets::Vector{Quartet})
-    taxa = union([q.taxon for q in quartets]...) # vector, order maintained
-    return sortUnionTaxa!(taxa)
+    taxa = reduce(union, q.taxon for q in quartets)
+    return sort_stringasinteger!(taxa)
 end
 
 unionTaxaTree(file::AbstractString) = unionTaxa(readInputTrees(file))
@@ -436,7 +452,11 @@ with these updated quartets and trees.
 
 update the `.obsCF` values of the quartets based on the trees, but returns nothing.
 
-Warning: all these functions need input trees (h=0).
+Warning: all these functions need input trees (without any reticulations: h=0).
+
+See also: [`observedquartetCF`](@ref), which uses a faster algorithm,
+processing each input tree only once.
+`calculateObsCFAll_noDataCF!` processes each input tree `# quartet` times.
 """
 function calculateObsCFAll!(dat::DataCF, taxa::Union{Vector{String}, Vector{Int}})
     calculateObsCFAll_noDataCF!(dat.quartet, dat.tree, taxa)
@@ -496,6 +516,274 @@ function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{Hy
 end
 
 """
+    observedquartetCF(trees [, taxonmap=Dict{String,String}]; which=:all, weight_byallele=true)
+
+Calculate the quartet concordance factors (CF) observed in the `trees` vector.
+If present, `taxonmap` should map each allele name to it's species name.
+To save to a file, first convert to a data frame using [`writeTableCF`](@ref).
+When `which=:all`, quartet CFs are calculated for all 4-taxon sets.
+(Other options are not implemented yet.)
+
+The algorithm runs in O(mn⁴) where m is the number of trees and n is the number
+of tips in the trees.
+
+CFs are calculated at the species level only, that is, considering 4-taxon sets
+made of 4 distinct species, even if the gene trees may have multiple alleles
+from the same species. For 4 distinct species `a,b,c,d`, all alleles from
+each species (`a` etc.) will be considered to calculate the quartet CF.
+
+By default, each gene has a weight of 1. So if there are `n_a` alleles from `a`,
+`n_b` alleles from `b` etc. in a given gene, then each set of 4 alleles has a
+weight of `1/(n_a n_b b_c n_c)` in the calculation of the CF for `a,b,c,d`.
+With option `weight_byallele=true`, then each set of 4 alleles is given a
+weight of 1 instead. This inflates the total number of sets used to calculate
+the quartet CFs (to something larger than the number of genes). This may also
+affect the CF values if the number of alleles varies across genes: genes with
+more alleles will be given more weight.
+
+# examples
+```jldoctest
+julia> tree1 = readTopology("(E,(A,B),(C,D),O);"); tree2 = readTopology("(((A,B),(C,D)),E);");
+
+julia> q,t = observedquartetCF([tree1, tree2]);
+Reading in trees, looking at 15 quartets in each...
+0+--+100%
+  **
+
+julia> t # taxon order: t[i] = name of taxon number i
+6-element Array{String,1}:
+ "A"
+ "B"
+ "C"
+ "D"
+ "E"
+ "O"
+
+julia> length(q) # 15 four-taxon sets on 6 taxa
+15
+
+julia> q[1] # both trees agree on AB|CD: resolution 1
+4-taxon set number 1; taxon numbers: 1,2,3,4
+data: [1.0, 0.0, 0.0, 2.0]
+
+julia> q[8] # tree 2 is missing O (taxon 6), tree 1 wants resolution 3: AO|CD
+4-taxon set number 8; taxon numbers: 1,3,4,6
+data: [0.0, 0.0, 1.0, 1.0]
+
+julia> q[11] # tree 1 has ACEO unresolved, and tree 2 is missing O: no data for this quartet
+4-taxon set number 11; taxon numbers: 1,3,5,6
+data: [0.0, 0.0, 0.0, 0.0]
+
+julia> tree1 = readTopology("(E,(a1,B),(a2,D),O);"); tree2 = readTopology("(((a1,a2),(B,D)),E);");
+
+julia> q,t = observedquartetCF([tree1, tree2], Dict("a1"=>"A", "a2"=>"A"); showprogressbar=false);
+
+julia> t
+5-element Array{String,1}:
+ "A"
+ "B"
+ "D"
+ "E"
+ "O"
+
+julia> q[1] # tree 1 has discordance: a1B|DE and a2D|BE. tree 2 has AE|BD for both alleles of A
+4-taxon set number 1; taxon numbers: 1,2,3,4
+data: [0.25, 0.25, 0.5, 2.0]
+
+julia> q[3] # tree 2 is missing O (taxon 5), and a2 is unresolved in tree 1. There's only a1B|EO
+4-taxon set number 3; taxon numbers: 1,2,4,5
+data: [1.0, 0.0, 0.0, 0.5]
+
+julia> df = writeTableCF(q,t); # to get a DataFrame that can be saved to a file later
+
+julia> show(df, allcols=true, splitcols=false)
+5×8 DataFrames.DataFrame
+│ Row │ t1     │ t2     │ t3     │ t4     │ CF12_34 │ CF13_24 │ CF14_23 │ ngenes  │
+│     │ String │ String │ String │ String │ Float64 │ Float64 │ Float64 │ Float64 │
+├─────┼────────┼────────┼────────┼────────┼─────────┼─────────┼─────────┼─────────┤
+│ 1   │ A      │ B      │ D      │ E      │ 0.25    │ 0.25    │ 0.5     │ 2.0     │
+│ 2   │ A      │ B      │ D      │ O      │ 0.5     │ 0.5     │ 0.0     │ 1.0     │
+│ 3   │ A      │ B      │ E      │ O      │ 1.0     │ 0.0     │ 0.0     │ 0.5     │
+│ 4   │ A      │ D      │ E      │ O      │ 1.0     │ 0.0     │ 0.0     │ 0.5     │
+│ 5   │ B      │ D      │ E      │ O      │ 0.0     │ 0.0     │ 0.0     │ 0.0     │
+
+julia # using CSV; CSV.write(df, "filename.csv");
+
+julia> tree2 = readTopology("((A,(B,D)),E);");
+
+julia> q,t = observedquartetCF([tree1, tree2], Dict("a1"=>"A", "a2"=>"A"); weight_byallele=true);
+Reading in trees, looking at 5 quartets in each...
+0+--+100%
+  **
+
+julia> show(writeTableCF(q,t), allcols=true, splitcols=false)
+5×8 DataFrames.DataFrame
+│ Row │ t1     │ t2     │ t3     │ t4     │ CF12_34  │ CF13_24  │ CF14_23  │ ngenes  │
+│     │ String │ String │ String │ String │ Float64  │ Float64  │ Float64  │ Float64 │
+├─────┼────────┼────────┼────────┼────────┼──────────┼──────────┼──────────┼─────────┤
+│ 1   │ A      │ B      │ D      │ E      │ 0.333333 │ 0.333333 │ 0.333333 │ 3.0     │
+│ 2   │ A      │ B      │ D      │ O      │ 0.5      │ 0.5      │ 0.0      │ 2.0     │
+│ 3   │ A      │ B      │ E      │ O      │ 1.0      │ 0.0      │ 0.0      │ 1.0     │
+│ 4   │ A      │ D      │ E      │ O      │ 1.0      │ 0.0      │ 0.0      │ 1.0     │
+│ 5   │ B      │ D      │ E      │ O      │ 0.0      │ 0.0      │ 0.0      │ 0.0     │
+```
+"""
+function observedquartetCF(tree::Vector{HybridNetwork},
+                           taxonmap=Dict{String,String}()::Dict{String,String};
+                           whichQ=:all::Symbol, weight_byallele=false::Bool,
+                           showprogressbar=true::Bool)
+    whichQ in [:all, :intrees] || error("whichQ must be either :all or :intrees, but got $whichQ")
+    if isempty(taxonmap)
+        taxa = unionTaxa(tree)
+    else
+        taxa = sort!(collect(Set(haskey(taxonmap, l.name) ? taxonmap[l.name] : l.name
+                                 for t in tree for l in t.leaf)))
+    end
+    taxonnumber = Dict(taxa[i] => i for i in eachindex(taxa))
+    ntax = length(taxa)
+    nCk = nchoose1234(ntax) # matrix used to ranks 4-taxon sets
+    qtype = MVector{4,Float64} # 4 floats: CF12_34, CF13_24, CF14_23, ngenes; initialized at 0.0
+    if whichQ == :all
+        numq = nCk[ntax+1,4]
+        quartet = Vector{QuartetT{qtype}}(undef, numq)
+        ts = [1,2,3,4]
+        for qi in 1:numq
+            quartet[qi] = QuartetT(qi, SVector{4}(ts), MVector(0.,0.,0.,0.))
+            # next: find the 4-taxon set with the next rank,
+            #       faster than using the direct mapping function
+            ind = findfirst(x -> x>1, diff(ts))
+            if ind === nothing ind = 4; end
+            ts[ind] += 1
+            for j in 1:(ind-1)
+                ts[j] = j
+            end
+        end
+    else
+        error("whichQ = :intrees not implemented yet")
+        # fixit: read all the trees, go through each edge, check if the current quartet list covers the edge, if not: add a quartet
+    end
+    totalt = length(tree)
+    if showprogressbar
+        nstars = (totalt < 50 ? totalt : 50)
+        ntrees_perstar = (totalt/nstars)
+        println("Reading in trees, looking at $numq quartets in each...")
+        print("0+" * "-"^nstars * "+100%\n  ")
+        stars = 0
+        nextstar = Integer(ceil(ntrees_perstar))
+    end
+    for i in 1:totalt # number of times each quartet resolution is seen in each tree
+        observedquartetCF!(quartet, tree[i], whichQ, weight_byallele, nCk, taxonnumber, taxonmap)
+        if showprogressbar && i >= nextstar
+            print("*")
+            stars += 1
+            nextstar = Integer(ceil((stars+1) * ntrees_perstar))
+        end
+    end
+    showprogressbar && print("\n")
+    # normalize counts to frequencies & number of genes
+    for q in quartet
+        d = q.data
+        d[4] = d[1]+d[2]+d[3] # number of genes
+        if d[4] > 0.0
+            d[1:3] /= d[4]
+        end # otherwise: no genes with data on this quartet (missing taxa or polytomy): leave all zeros (NaN if /0)
+    end
+    return quartet, taxa
+end
+function observedquartetCF!(quartet::Vector{QuartetT{MVector{4,Float64}}},
+            tree::HybridNetwork, whichQ::Symbol, weight_byallele::Bool, nCk::Matrix,
+            taxonnumber::Dict{String,Int64}, taxonmap::Dict{String,String})
+    tree.numHybrids == 0 || error("input phylogenies must be trees")
+    # next: reset node & edge numbers so that they can be used as indices: 1,2,3,...
+    resetNodeNumbers!(tree; checkPreorder=true, ape=false) # leaves first & post-order
+    resetEdgeNumbers!(tree)
+    # next: build list leaf number -> species ID, using the node name then taxon map
+    nleaves = length(tree.leaf)
+    nnodes  = length(tree.node)
+    taxID = Vector{Int}(undef, nleaves)
+    for n in tree.leaf
+        taxID[n.number] = haskey(taxonmap, n.name) ? taxonnumber[taxonmap[n.name]] : taxonnumber[n.name]
+    end
+    # number of individuals from each species: needed to weigh the quartets at the individual level
+    # weight of t1,t2,t3,t4: 1/(taxcount[t1]*taxcount[t2]*taxcount[t3]*taxcount[t4])
+    taxcount = zeros(Int, length(taxonnumber))
+    for ti in taxID taxcount[ti] += 1; end
+    # next: build data structure to get descendant / ancestor clades
+    below,above = ladderpartition(tree) # re-checks that node numbers can be used as indices, with leaves first
+    # below[n][1:2 ]: left & clades below node number n
+    # above[n][1:end]: grade of clades above node n
+    for n in (nleaves+1):nnodes # loop through internal nodes indices only
+        bn = below[n]
+        an = above[n]
+        for c1 in 2:length(bn) # c = child clade, loop over all pairs of child clades
+          for t1 in bn[c1]     # pick 1 tip from each child clade
+            s1 = taxID[t1]
+            for c2 in 1:(c1-1)
+              for t2 in bn[c2]
+                s2 = taxID[t2]
+                s1 != s2 || continue # skip quartets that have repeated species
+                t12max = max(t1,t2)
+                leftweight = 1/(taxcount[s1]*taxcount[s2])
+                for p1 in 1:length(an) # p = parent clade
+                  for t3i in 1:length(an[p1])
+                    t3 = an[p1][t3i]
+                    s3 = taxID[t3]
+                    (s3 != s1 && s3 != s2) || continue
+                    for t4i in 1:(t3i-1) # pick 2 distinct tips from the same parent clade
+                        t4 = an[p1][t4i]
+                        t3 > t12max || t4 > t12max || continue   # skip: would be counted twice otherwise
+                        s4 = taxID[t4]
+                        (s4 != s1 && s4 != s2 && s4 != s3) || continue
+                        rank,res = quartetRankResolution(s1, s2, s3, s4, nCk)
+                        weight = ( weight_byallele ? 1.0 : leftweight / (taxcount[s3]*taxcount[s4]) )
+                        quartet[rank].data[res] += weight
+                    end
+                    for p2 in 1:(p1-1) # distinct parent clade: no risk of counting twice
+                      for t4 in an[p2]
+                        s4 = taxID[t4]
+                        (s4 != s1 && s4 != s2 && s4 != s3) || continue
+                        rank,res = quartetRankResolution(s1, s2, s3, s4, nCk)
+                        weight = ( weight_byallele ? 1.0 : leftweight / (taxcount[s3]*taxcount[s4]) )
+                        quartet[rank].data[res] += weight
+                      end
+                    end
+                  end
+                end
+              end
+            end
+          end
+        end
+    end
+end
+
+function quartetRankResolution(t1::Int, t2::Int, t3::Int, t4::Int, nCk::Matrix)
+    # quartet: t1 t2 | t3 t4, but indices have not yet been ordered: t1<t2, t3<t4, t1<min(t3,t4)
+    if t3 > t4 # make t3 smallest of t3, t4
+        (t3,t4) = (t4,t3)
+    end
+    if t1 > t2 # make t1 smallest of t1, t2
+        (t1,t2) = (t2,t1)
+    end
+    if t1 > t3 # swap t1 with t3, t2 with t4 - makes t1 smallest
+        (t1,t3) = (t3,t1)
+        (t2,t4) = (t4,t2)
+    end
+    if t2 < t3 # t2 2nd smallest: order t1 < t2 < t3 < t4
+        resolution = 1; # 12|34 after ordering indices
+        rank = quartetrank(t1, t2, t3, t4, nCk)
+    else # t3 2nd smallest
+        if t2 < t4 # order t1 < t3 < t2 < t4
+            resolution = 2; # 13|24 after ordering
+            rank = quartetrank(t1, t3, t2, t4, nCk);
+        else # order t1 < t3 < t4 < t2
+            resolution = 3; # 14|23 after ordering
+            rank = quartetrank(t1, t3, t4, t2, nCk);
+        end
+    end
+    return rank, resolution
+end
+
+"""
     readInputData(trees, quartetfile, whichQuartets, numQuartets, writetable, tablename, writeQfile, writesummary)
     readInputData(trees, whichQuartets, numQuartets, taxonlist,   writetable, tablename, writeQfile, writesummary)
 
@@ -525,7 +813,10 @@ Optional arguments (defaults):
 - `writesummary` (true): write a summary file?
   if so, the summary will go in file "summaryTreesQuartets.txt".
 
+Uses [`calculateObsCFAll!`](@ref), which implements a slow algorithm.
+
 See also:
+[`observedquartetCF`](@ref), which uses a much faster algorithm;
 [`readTrees2CF`](@ref), which is basically a re-naming of `readInputData`, and
 [`readTableCF`](@ref) to read a table of quartet CFs directly.
 """
@@ -547,7 +838,6 @@ end
 
 readInputData(treefile::AbstractString, quartetfile::AbstractString, whichQ::Symbol, numQ::Integer, writetab::Bool) = readInputData(treefile, quartetfile, whichQ, numQ, writetab, "none", false, true)
 readInputData(treefile::AbstractString, quartetfile::AbstractString, whichQ::Symbol, numQ::Integer) = readInputData(treefile, quartetfile, whichQ, numQ, true, "none", false, true)
-##readInputData(treefile::AbstractString, quartetfile::AbstractString) = readInputData(treefile, quartetfile, :all, 0, true, "none", false, true)
 readInputData(treefile::AbstractString, quartetfile::AbstractString, writetab::Bool, filename::AbstractString) = readInputData(treefile, quartetfile, :all, 0, writetab, filename, false, true)
 
 function readInputData(trees::Vector{HybridNetwork}, quartetfile::AbstractString, whichQ::Symbol, numQ::Integer, writetab::Bool, filename::AbstractString, writeFile::Bool, writeSummary::Bool)
@@ -662,6 +952,10 @@ Optional arguments include:
 - writeQ=true: save intermediate files with the list of all 4-taxon subsets and chosen random sample (default false).
 - writeSummary: write descriptive stats of input data (default: true)
 - nexus: if true, it assumes the gene trees are written in nexus file (default: false)
+
+See also:
+[`observedquartetCF`](@ref), which uses a much faster algorithm;
+[`readTableCF`](@ref) to read a table of quartet CFs directly.
 """
 function readTrees2CF(treefile::AbstractString; quartetfile="none"::AbstractString, whichQ="all"::AbstractString, numQ=0::Integer,
                       writeTab=true::Bool, CFfile="none"::AbstractString,

@@ -1,22 +1,79 @@
 # Multiple alleles per species
 
+## between-species 4-taxon sets
+
 The default setting for SNaQ considers that each allele in a gene tree corresponds
 to a taxon (a tip) in the network. If instead each allele/individual can be mapped confidently
 to a species, and if only the species-level network needs to be estimated,
-then the following functions should be used:
+then the following functions can be used:
 
 ```julia
-df_sp = mapAllelesCFtable(mappingFile, CFtable_ind);
+tm = CSV.read(mappingFile) # taxon map as a data frame
+taxonmap = Dict(tm[i,:allele] => tm[i,:species] for i in 1:110) # taxon map as a dictionary
+```
+
+The mapping file can be a text (or `csv`) file with two columns (at least):
+one column named `allele` and one named `species`,
+mapping each allele name to a species name. Next, read in the gene trees
+and calculate the quartet CFs at the species level:
+
+
+```julia
+genetrees = readMultiTopology(genetreeFile)
+df_sp = writeTableCF(observedquartetCF(genetrees, taxonmap)...)
+```
+
+Now `df_sp` is a data frame containing the quartet concordance factors
+at the species level only, that is, considering sets made of 4 distinct species,
+even if the gene trees may have multiple alleles from the same species.
+For 4 distinct species `A,B,C,D`, all alleles from each species (`A` etc.)
+will be used to calculate the quartet CF. If a given gene tree has
+`n_a` alleles from `a`, `n_b` alleles from `b` etc., then
+each set of 4 alleles is given a weight of `1/(n_a n_b b_c n_c)`
+to calculated of the CF for `A,B,C,D` (such that the total weight from
+this particular gene trees is 1).
+It is save to save this data frame, then use it for `snaq!` like this:
+
+```julia
+CSV.write("tableCF_species.csv", df)      # to save the data frame to a file
+d_sp = readTableCF("tableCF_species.csv") # to get a "DataCF" object for use in snaq!.
+```
+
+## within-species 4-taxon sets
+
+Four-taxon sets involving 2 individuals per species can provide more
+information about the underlying network, including external branch
+length in coalescent units. However, `snaq!` runs more slowly when
+using this extra information. To get quartet CFs from sets of 4 individuals
+in which 2 individuals are from the same species, the following functions
+should be used:
+
+```julia
+df_ind = writeTableCF(observedquartetCF(genetrees)...) # no mapping here: so quartet CFs across individuals
+CSV.write("tableCF_individuals.csv", df)               # to save to a file
+df_sp = mapAllelesCFtable(mappingFile, "tableCF_individuals.csv");
 d_sp = readTableCF!(df_sp);
 ```
 where the mapping file can be a text (or `csv`) file with two columns
 named `allele` and `species`, mapping each allele name to a species name.
-The CF table `CFtable_ind` should be a table of concordance factors at the level of individuals.
-In other words, it should list CFs using one row for each set of 4 alleles/individuals.
-The first command creates a new data frame `df_sp` of quartet concordance factors at the
+The data in `df_ind` is the table of concordance factors at the level of individuals.
+In other words, it list CFs using one row for each set of 4 alleles/individuals.
+
+`mapAllelesCFtable` creates a new data frame `df_sp` of quartet concordance factors at the
 species level: with the allele names replaced by the appropriate species names.
 
-The second command modifies this data frame `df_sp` by deleting rows that are uninformative
+**Warnings**:
+- This procedure requires that all alleles from the same
+  individual are given the same name (the individual's 'name') across
+  all genes for which that individual was sequenced.
+- For a four-taxon set `A,B,C,D`, all the individuals from `A`, `B`, `C` and `D`
+  are considered, say `a1,b1,c1,d1`, `a2,b1,c1,d1`, `a1,b2,c1,d1`, `a2,b2,c1,d1`
+  and so on. The CFs of these 4-taxon sets are averaged together to obtain the
+  CFs at the species level. This procedures gives more weight to genes that have
+  many alleles (because they contribute to more sets of 4 individuals) and less
+  weight to genes that have few alleles.
+
+The last command modifies this data frame `df_sp` by deleting rows that are uninformative
 about between-species relationships, such as rows corresponding to 4 individuals from the
 same species. The output `d_sp` of this second command is an object of type `DataCF` at the
 species level, which can be used as input for networks estimation with `snaq!`.
@@ -67,18 +124,3 @@ which should be faster:
 ```julia
 net = snaq!(T_sp, d_sp_reduced);
 ```
-
-
-Warnings:
-
-- This feature has not been fully tested
-- This procedure is slow and should be made faster, when working with gene trees as input.
-- If input data are gene trees, the CF table at the individual level should be created first,
-  like this:
-  ```julia
-  CFtable_ind = readTrees2CF(gene tree file);
-  ```
-  before applying the two commands above.
-  At this time, however, this procedure requires that all alleles from the same
-  individual are given the same name (the individual's 'name') across
-  all genes for which that individual was sequenced.

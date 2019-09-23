@@ -147,7 +147,7 @@ mutable struct Node <: ANode
     k::Int # num nodes in cycle, only stored in hybrid node, updated after node becomes part of network
            # default -1
     typeHyb::Int8 # type of hybridization (1,2,3,4, or 5), needed for quartet network only. default -1
-    name::AbstractString
+    name::String
     # inner constructor: set hasHybEdge depending on edge
     Node() = new(-1,false,false,-1.,Edge[],false,false,false,false,false,false,-1,nothing,-1,-1,"")
     Node(number::Int, leaf::Bool) = new(number,leaf,false,-1.,[],false,false,false,false,false,false,-1.,nothing,-1,-1,"")
@@ -279,6 +279,8 @@ mutable struct QuartetNetwork <: Network
     QuartetNetwork() = new(0,0,0,[],[],[],[],0,[],[],-1,[],-1.0,[],[],[],[],[],true,[])
 end
 
+abstract type AQuartet end
+
 """
     Quartet
 
@@ -291,8 +293,11 @@ type that saves the information on a given 4-taxon subset. It contains the follo
 - ngenes: number of gene trees used to compute the observed CF; -1.0 if unknown
 - qnet: [`QuartetNetwork`](@ref), which saves the expCF after snaq estimation to
   emphasize that the expCF depend on a specific network, not the data
+
+see also: [`QuartetT`](@ref) for quartet with data of user-defined type `T`,
+using a mapping between quartet indices and quartet taxa.
 """
-mutable struct Quartet
+mutable struct Quartet <: AQuartet
     number::Int
     taxon::Array{String,1} # taxa 1234. qnet.quartetTaxon points to the same array.
     obsCF::Array{Float64,1} # three observed CF in order 12|34, 13|24, 14|23
@@ -317,7 +322,117 @@ mutable struct Quartet
     Quartet() = new(0,[],[],QuartetNetwork(),0.0,-1.0)
 end
 
-# Data -------
+"""
+QuartetT{T}
+
+Generic type for 4-taxon sets. Fields:
+- `number`: rank of the 4-taxon set
+- `taxonnumber`: static vector of 4 integers, assumed to be distinct and sorted
+- `data`: object of type `T`
+
+For easier look-up, a unique mapping is used between the rank (`number`) of a
+4-taxon set and its 4 taxa (see [`quartetrank`](@ref) and [`nchoose1234`](@ref)):
+
+rank-1 = (t1-1) choose 1 + (t2-1) choose 2 + (t3-1) choose 3 + (t4-1) choose 4
+
+# examples
+
+```jldoctest
+julia> nCk = PhyloNetworks.nchoose1234(5)
+6×4 Array{Int64,2}:
+ 0   0   0  0
+ 1   0   0  0
+ 2   1   0  0
+ 3   3   1  0
+ 4   6   4  1
+ 5  10  10  5
+
+julia> PhyloNetworks.QuartetT(1,3,4,6, [.92,.04,.04, 100], nCk)
+4-taxon set number 8; taxon numbers: 1,3,4,6
+data: [0.92, 0.04, 0.04, 100.0]
+```
+"""
+struct QuartetT{T} <: AQuartet where T
+    number::Int
+    taxonnumber::StaticArrays.SVector{4,Int}
+    data::T
+end
+function Base.show(io::IO, obj::QuartetT{T}) where T
+    disp = "4-taxon set number $(obj.number); taxon numbers: "
+    disp *= join(obj.taxonnumber,",")
+    disp *= "\ndata: "
+    print(io, disp)
+    print(io, obj.data)
+end
+function QuartetT(tn1::Int,tn2::Int,tn3::Int,tn4::Int, data::T, nCk::Matrix, checksorted=true::Bool) where T
+    if checksorted
+        (tn1<tn2 && tn2<tn3 && tn3<tn4) || error("taxon numbers must be sorted")
+    end
+    QuartetT{T}(quartetrank(tn1,tn2,tn3,tn4,nCk), SVector(tn1,tn2,tn3,tn4), data)
+end
+
+"""
+    quartetrank(t1,t2,t3,t4, nCk::Matrix)
+    quartetrank([t1,t2,t3,t4], nCk)
+
+Return the rank of a four-taxon set with taxon numbers `t1,t2,t3,t4`,
+assuming that `ti`s are positive integers such that t1<t2, t2<t3 and t3<t4
+(assumptions not checked!).
+`nCk` should be a matrix of "n choose k" binomial coefficients:
+see [`nchoose1234`](@ref).
+
+# examples
+
+```jldoctest
+julia> nCk = PhyloNetworks.nchoose1234(5)
+6×4 Array{Int64,2}:
+ 0   0   0  0
+ 1   0   0  0
+ 2   1   0  0
+ 3   3   1  0
+ 4   6   4  1
+ 5  10  10  5
+
+julia> PhyloNetworks.quartetrank([1,2,3,4], nCk)
+1
+
+julia> PhyloNetworks.quartetrank([3,4,5,6], nCk)
+15
+```
+"""
+@inline function quartetrank(tnum::AbstractVector, nCk::Matrix)
+    quartetrank(tnum..., nCk)
+end
+@inline function quartetrank(t1::Int, t2::Int, t3::Int, t4::Int, nCk::Matrix)
+    # rank-1 = t1-1 choose 1 + t2-1 choose 2 + t3-1 choose 3 + t4-1 choose 4
+    return nCk[t1,1] + nCk[t2,2] + nCk[t3,3] + nCk[t4,4] + 1
+end
+
+"""
+    nchoose1234(nmax)
+
+`nmax+1 x 4` matrix containing the binomial coefficient
+"n choose k" in row `n+1` and column `k`. In other words,
+`M[i,k]` gives "i-1 choose k". It is useful to store these
+values and look them up to rank (a large number of) 4-taxon sets:
+see [`quartetrank`](@ref).
+"""
+function nchoose1234(nmax::Int)
+    # compute nC1, nC2, nC3, nC4 for n in [0, nmax]: used for ranking quartets
+    M = Matrix{Int}(undef, nmax+1, 4)
+    for i in 1:(nmax+1)
+        M[i,1] = i-1 # n choose 1 = n. row i is for n=i-1
+    end
+    M[1,2:4] .= 0 # 0 choose 2,3,4 = 0
+    for i in 2:(nmax+1)
+        for k in 2:4 # to choose k items in 1..n: the largest could be n, else <= n-1
+            M[i,k] = M[i-1,k-1] + M[i-1,k]
+        end
+    end
+    return M
+end
+
+# Data on quartet concordance factors -------
 
 """
     DataCF

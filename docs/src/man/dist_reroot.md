@@ -2,7 +2,7 @@
 using PhyloNetworks
 mkpath("../assets/figures")
 raxmltrees = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","raxmltrees.tre")
-raxmlCF = readTrees2CF(raxmltrees, writeTab=false, writeSummary=false)
+raxmlCF = readTableCF(writeTableCF(observedquartetCF(readMultiTopology(raxmltrees), showprogressbar=false)...))
 astralfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","astral.tre")
 astraltree = readMultiTopology(astralfile)[102] # 102th tree = last tree here
 net0 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net0.out"))
