@@ -36,7 +36,7 @@ function nj!(D::Matrix{Float64}, names::AbstractVector{String}=String[])
                 node.name = names[i]
                 return node
                 end,
-                collect(1:n))
+                1:n)
 
     net = HybridNetwork(nodes, Edge[])
     # an array of Node s.t. active_nodes[i] would correspond to the
@@ -89,7 +89,7 @@ function nj!(D::Matrix{Float64}, names::AbstractVector{String}=String[])
                 D[i, l] = D[l, i]
             end
         end
-        newidx = filter!(u->u!=j, collect(1:n)) # index 1:n\{j}
+        newidx = filter!(u->u!=j, 1:n) # index 1:n\{j}
         D = view(D, newidx, newidx)
 
         # update active_nodes
