@@ -1,4 +1,4 @@
-function check_distance_matrix(D::Matrix{Float64})
+function check_distance_matrix(D::Matrix{<:Real})
     size(D, 1) > 1 || throw(DomainError(D, "Too few nodes"))
     if any(D .< 0)
         throw(DomainError(D, "Negative entries in distance matrix"))
@@ -11,7 +11,7 @@ end
 @doc (@doc nj) nj!
 """
     nj(df::DataFrame)
-    nj!(D::Matrix{Float64}, names::AbstractVector{String}=String[])
+    nj!(D::Matrix{<:Real}, names::AbstractVector{String}=String[])
 
 The `nj!` function takes the distance matrix and the vector of names
 (as strings) as input, and constructs the corresponding tree.  The
@@ -20,7 +20,7 @@ column) of the matrix `D`.
 
 """
 
-function nj!(D::Matrix{Float64}, names::AbstractVector{String}=String[])
+function nj!(D::Matrix{<:Real}, names::AbstractVector{String}=String[])
 
     check_distance_matrix(D)
     n = size(D, 1)              # number of species
