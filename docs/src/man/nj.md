@@ -1,15 +1,17 @@
 # Neighbor joining
 
-Neighbor joining is also implemented in the package, and we can using
-pairwise distances to construct a tree.
+A tree can be inferred from pairwise distances using the neighbor
+joining algorithm ([Satou & Nei
+1987](https://doi.org/10.1093/oxfordjournals.molbev.a040454))
 
-The `nj` function takes a data frame of pairwise distances as input,
-and construct a tree using the neighbor joining method.  The column
-names (headers) are used as taxon names.
+The `nj` function takes a data frame of pairwise distances as input
+and constructs a tree using the neighbor joining method.  The column
+names (headers) are used as taxon names.  Rows are assumed to
+correspond to taxa in the same order as they do in columns.
 
 ```@example
 using PhyloNetworks
-D = CSV.read(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","caudata_dist.txt"); types=[Float64 for i in 1:197]);
+D = CSV.read(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","caudata_dist.txt"));
 ```
 
 ```@repl
