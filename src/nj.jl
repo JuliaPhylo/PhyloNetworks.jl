@@ -89,7 +89,7 @@ function nj!(D::Matrix{<:Real}, names::AbstractVector{String}=String[])
                 D[i, l] = D[l, i]
             end
         end
-        newidx = filter!(u->u!=j, 1:n) # index 1:n\{j}
+        newidx = filter(u->u!=j, 1:n) # index 1:n\{j}
         D = view(D, newidx, newidx)
 
         # update active_nodes
