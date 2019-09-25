@@ -1,7 +1,6 @@
 @testset "Neighbour joining implementation" begin
 
-    D = CSV.read(joinpath(@__DIR__, "..", "examples", "caudata_dist.txt");
-              types=[Float64 for i in 1:197])
+    D = CSV.read(joinpath(@__DIR__, "..", "examples", "caudata_dist.txt"))
     tree = nj(D)
 
     # read results from ape implementation of nj
