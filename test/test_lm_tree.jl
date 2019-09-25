@@ -8,8 +8,7 @@
 phy = readTopology(joinpath(@__DIR__, "..", "examples", "caudata_tree.txt"));
 
 V = sharedPathMatrix(phy);
-VR = CSV.read(joinpath(@__DIR__, "..", "examples", "caudata_shared_paths.txt");
-              types=[Float64 for i in 1:393]); # to avoid bug in CSV
+VR = CSV.read(joinpath(@__DIR__, "..", "examples", "caudata_shared_paths.txt"));
 VR = convert(Matrix, VR);
 
 # Tips
@@ -80,8 +79,7 @@ tmp = predict(fitBM);
 
 ### Ancestral state reconstruction (with Rphylopars)
 anc = (@test_logs (:warn, r"^These prediction intervals show uncertainty in ancestral values") ancestralStateReconstruction(fitBM));
-ancR = CSV.read(joinpath(@__DIR__, "..", "examples", "caudata_Rphylopars.txt"),
-                types=[Float64,Float64]); # to avoid bug in CSV
+ancR = CSV.read(joinpath(@__DIR__, "..", "examples", "caudata_Rphylopars.txt"))
 
 ## Expectations
 expe = expectations(anc)
