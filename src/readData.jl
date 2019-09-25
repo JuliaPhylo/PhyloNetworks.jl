@@ -454,7 +454,7 @@ update the `.obsCF` values of the quartets based on the trees, but returns nothi
 
 Warning: all these functions need input trees (without any reticulations: h=0).
 
-See also: [`observedquartetCF`](@ref), which uses a faster algorithm,
+See also: [`countquartetsintrees`](@ref), which uses a faster algorithm,
 processing each input tree only once.
 `calculateObsCFAll_noDataCF!` processes each input tree `# quartet` times.
 """
@@ -516,7 +516,7 @@ function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{Hy
 end
 
 """
-    observedquartetCF(trees [, taxonmap=Dict{String,String}]; which=:all, weight_byallele=true)
+    countquartetsintrees(trees [, taxonmap=Dict{String,String}]; which=:all, weight_byallele=true)
 
 Calculate the quartet concordance factors (CF) observed in the `trees` vector.
 If present, `taxonmap` should map each allele name to it's species name.
@@ -545,7 +545,7 @@ more alleles will be given more weight.
 ```jldoctest
 julia> tree1 = readTopology("(E,(A,B),(C,D),O);"); tree2 = readTopology("(((A,B),(C,D)),E);");
 
-julia> q,t = observedquartetCF([tree1, tree2]);
+julia> q,t = countquartetsintrees([tree1, tree2]);
 Reading in trees, looking at 15 quartets in each...
 0+--+100%
   **
@@ -576,7 +576,7 @@ data: [0.0, 0.0, 0.0, 0.0]
 
 julia> tree1 = readTopology("(E,(a1,B),(a2,D),O);"); tree2 = readTopology("(((a1,a2),(B,D)),E);");
 
-julia> q,t = observedquartetCF([tree1, tree2], Dict("a1"=>"A", "a2"=>"A"); showprogressbar=false);
+julia> q,t = countquartetsintrees([tree1, tree2], Dict("a1"=>"A", "a2"=>"A"); showprogressbar=false);
 
 julia> t
 5-element Array{String,1}:
@@ -607,11 +607,11 @@ julia> show(df, allcols=true, splitcols=false)
 │ 4   │ A      │ D      │ E      │ O      │ 1.0     │ 0.0     │ 0.0     │ 0.5     │
 │ 5   │ B      │ D      │ E      │ O      │ 0.0     │ 0.0     │ 0.0     │ 0.0     │
 
-julia # using CSV; CSV.write(df, "filename.csv");
+julia> # using CSV; CSV.write(df, "filename.csv");
 
 julia> tree2 = readTopology("((A,(B,D)),E);");
 
-julia> q,t = observedquartetCF([tree1, tree2], Dict("a1"=>"A", "a2"=>"A"); weight_byallele=true);
+julia> q,t = countquartetsintrees([tree1, tree2], Dict("a1"=>"A", "a2"=>"A"); weight_byallele=true);
 Reading in trees, looking at 5 quartets in each...
 0+--+100%
   **
@@ -628,7 +628,7 @@ julia> show(writeTableCF(q,t), allcols=true, splitcols=false)
 │ 5   │ B      │ D      │ E      │ O      │ 0.0      │ 0.0      │ 0.0      │ 0.0     │
 ```
 """
-function observedquartetCF(tree::Vector{HybridNetwork},
+function countquartetsintrees(tree::Vector{HybridNetwork},
                            taxonmap=Dict{String,String}()::Dict{String,String};
                            whichQ=:all::Symbol, weight_byallele=false::Bool,
                            showprogressbar=true::Bool)
@@ -672,7 +672,7 @@ function observedquartetCF(tree::Vector{HybridNetwork},
         nextstar = Integer(ceil(ntrees_perstar))
     end
     for i in 1:totalt # number of times each quartet resolution is seen in each tree
-        observedquartetCF!(quartet, tree[i], whichQ, weight_byallele, nCk, taxonnumber, taxonmap)
+        countquartetsintrees!(quartet, tree[i], whichQ, weight_byallele, nCk, taxonnumber, taxonmap)
         if showprogressbar && i >= nextstar
             print("*")
             stars += 1
@@ -690,7 +690,7 @@ function observedquartetCF(tree::Vector{HybridNetwork},
     end
     return quartet, taxa
 end
-function observedquartetCF!(quartet::Vector{QuartetT{MVector{4,Float64}}},
+function countquartetsintrees!(quartet::Vector{QuartetT{MVector{4,Float64}}},
             tree::HybridNetwork, whichQ::Symbol, weight_byallele::Bool, nCk::Matrix,
             taxonnumber::Dict{String,Int64}, taxonmap::Dict{String,String})
     tree.numHybrids == 0 || error("input phylogenies must be trees")
@@ -816,7 +816,7 @@ Optional arguments (defaults):
 Uses [`calculateObsCFAll!`](@ref), which implements a slow algorithm.
 
 See also:
-[`observedquartetCF`](@ref), which uses a much faster algorithm;
+[`countquartetsintrees`](@ref), which uses a much faster algorithm;
 [`readTrees2CF`](@ref), which is basically a re-naming of `readInputData`, and
 [`readTableCF`](@ref) to read a table of quartet CFs directly.
 """
@@ -954,7 +954,7 @@ Optional arguments include:
 - nexus: if true, it assumes the gene trees are written in nexus file (default: false)
 
 See also:
-[`observedquartetCF`](@ref), which uses a much faster algorithm;
+[`countquartetsintrees`](@ref), which uses a much faster algorithm;
 [`readTableCF`](@ref) to read a table of quartet CFs directly.
 """
 function readTrees2CF(treefile::AbstractString; quartetfile="none"::AbstractString, whichQ="all"::AbstractString, numQ=0::Integer,

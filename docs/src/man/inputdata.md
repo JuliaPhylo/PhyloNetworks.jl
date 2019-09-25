@@ -76,7 +76,7 @@ nothing # hide
 To read in all gene trees and directly summarize them by a list
 of quartet CFs (proportion of input trees with a given quartet):
 ```@repl qcf
-q,t = observedquartetCF(genetrees); # read in trees, calculate quartet CFs
+q,t = countquartetsintrees(genetrees); # read in trees, calculate quartet CFs
 df = writeTableCF(q,t)   # data frame with observed CFs: gene frequencies
 using CSV
 CSV.write("tableCF.csv", df); # to save the data frame to a file
@@ -91,7 +91,7 @@ The 3 "CF" columns gives the proportion of genes that has
 each of the 3 possible trees on these 4 taxa.
 
 For more help on any function, type `?` to enter the help mode,
-then type the name of the function. For example: type `?` then `observedquartetCF`
+then type the name of the function. For example: type `?` then `countquartetsintrees`
 for information on the various options of that function.
 
 When there are many more taxa, the number of quartets
@@ -106,7 +106,7 @@ Be careful to use a numQ value smaller than the total number of possible
 To get a predictable random sample, you may set the seed with
 `using Random; Random.seed!(12321)`
 (for instance) prior to sampling the quartets as above.
-The `readTrees2CF` is *much* slower than the function `observedquartetCF`
+The `readTrees2CF` is *much* slower than the function `countquartetsintrees`
 to read in trees and calculate the quartet CFs observed in the trees,
 when we want to get *all* quartet CFs. But for a small sample of quartets,
 then `readTrees2CF` is available.

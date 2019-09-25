@@ -43,18 +43,18 @@ end
 sixtreestr = ["(E,((A,B),(C,D)),O);","(((A,B),(C,D)),(E,O));","(A,B,((C,D),(E,O)));",
               "(B,((C,D),(E,O)));","((C,D),(A,(B,E)),O);","((C,D),(A,B,E),O);"]
 sixtrees = readTopology.(sixtreestr)
-df1 = writeTableCF(observedquartetCF(sixtrees)...)
+df1 = writeTableCF(countquartetsintrees(sixtrees)...)
 df2 = writeTableCF(readTrees2CF(sixtrees, writeTab=false, writeSummary=false))
 o = [1,2,4,7,11,3,5,8,12,6,9,13,10,14,15]
 @test df1 == df2[o,:]
-q,t = observedquartetCF(sixtrees, Dict("A"=>"AB", "B"=>"AB"); showprogressbar=false);
+q,t = countquartetsintrees(sixtrees, Dict("A"=>"AB", "B"=>"AB"); showprogressbar=false);
 df1 = writeTableCF(q,t)
 @test df1[!,:CF12_34] ≈ [0,0,2/3,2/3,1]
 @test df1[!,:CF13_24] ≈ [0,0,1/3,1/3,0]
 @test df1[!,:CF14_23] ≈ [1.,1,0,0,0]
 @test df1[!,:ngenes]  ≈ [6.,6,6,6,6]
 # again, but weight each allele
-q,t = observedquartetCF(sixtrees, Dict("A"=>"AB", "B"=>"AB"); weight_byallele=true, showprogressbar=false);
+q,t = countquartetsintrees(sixtrees, Dict("A"=>"AB", "B"=>"AB"); weight_byallele=true, showprogressbar=false);
 df1 = writeTableCF(q,t)
 @test df1[!,:CF12_34] ≈ [0,0,7/11,7/11,1]
 @test df1[!,:CF13_24] ≈ [0,0,4/11,4/11,0]
@@ -83,19 +83,19 @@ df2 = writeTableCF(q) # 45×8 DataFrames.DataFrame
 )
 end
 
-if false # was used to time `observedquartetCF` vs `readTrees2CF`
+if false # was used to time `countquartetsintrees` vs `readTrees2CF`
 dir = "/Users/ane/Documents/private/concordance/quartetNetwork/multiind/data"
 treefile = joinpath(dir, "raxml_1387_sample_5species4alleles.tre")
 tree = readMultiTopology(treefile); # 1387 trees
 # extrema([t.numTaxa for t in tree]) # 4-16 taxa in each
-@time df1 = writeTableCF(observedquartetCF(tree)...)
+@time df1 = writeTableCF(countquartetsintrees(tree)...)
 # 0.139761 seconds (900.12 k allocations: 52.000 MiB, 11.52% gc time). 3876×8 DataFrames.DataFrame
 @time df2 = writeTableCF(readTrees2CF(tree, writeTab=false, writeSummary=false))
 # 13.154085 seconds (84.86 M allocations: 10.010 GiB, 7.21% gc time).  3876×8 DataFrames.DataFrame
 df12 = join(df1, df2, on=[:t1,:t2,:t3,:t4], makeunique=true)
 @test all([df12[:,4+i] == df12[:,8+i] for i in 1:4])
 # using BenchmarkTools
-# @benchmark observedquartetCF(tree)
+# @benchmark countquartetsintrees(tree)
 #=
 memory estimate:  49.08 MiB
 allocs estimate:  788504
@@ -126,15 +126,15 @@ mappingfile = joinpath(dir, "strain2bin_map.csv")
 using CSV
 taxonmap = CSV.read(mappingfile) # 110×3 DataFrames.DataFrame
 taxonmap = Dict(taxonmap[i,:allele] => taxonmap[i,:species] for i in 1:110)
-@time df1 = writeTableCF(observedquartetCF(tree, taxonmap; weight_byallele=true)...)
+@time df1 = writeTableCF(countquartetsintrees(tree, taxonmap; weight_byallele=true)...)
 # 0.119289 seconds (698.57 k allocations: 43.305 MiB, 17.40% gc time). 5×8 DataFrames.DataFrame
 ## larger examples: 98 to 110 taxa, 1387 trees
 tree = readMultiTopology(joinpath(dir, "raxml_1387.tre")) # 1387 trees, 98-110 taxa in each
-@time df1 = writeTableCF(observedquartetCF(tree)...)
+@time df1 = writeTableCF(countquartetsintrees(tree)...)
 # 1219.94 seconds = 20.3 min (298.45 M allocations: 8.509 GiB, 0.79% gc time). 5773185×8 DataFrames.DataFrame
 ## mid-size example: to be able to run the slower algorithm and compare times
 tree = readMultiTopology(joinpath(dir, "raxml_1387_sample_13species4alleles.tre")); # 1387 trees, 19-40 taxa in each
-@time df1 = writeTableCF(observedquartetCF(tree)...)
+@time df1 = writeTableCF(countquartetsintrees(tree)...)
 # 5.639443 seconds (16.84 M allocations: 568.496 MiB, 7.50% gc time). 292825×8 DataFrame
 # ~ 600 times faster
 @time df2 = writeTableCF(readTrees2CF(tree, writeTab=false, writeSummary=false))
@@ -142,6 +142,6 @@ tree = readMultiTopology(joinpath(dir, "raxml_1387_sample_13species4alleles.tre"
 df12 = join(df1, df2, on=[:t1,:t2,:t3,:t4], makeunique=true)
 @test df12[!,8] ≈ df12[!,12] # number of genes
 hasdata = map(iszero, df12[!,8]) # sum: 34 four-taxon sets have data for 0 genes
-df12[hasdata,5:12] # observedquartetCF gives 0s, readTrees2CF gives NaN
+df12[hasdata,5:12] # countquartetsintrees gives 0s, readTrees2CF gives NaN
 @test all([df12[.!hasdata,4+i] ≈ df12[.!hasdata,8+i] for i in 1:3]) # true. yeah!
 end

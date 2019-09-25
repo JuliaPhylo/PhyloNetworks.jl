@@ -20,7 +20,7 @@ and calculate the quartet CFs at the species level:
 
 ```julia
 genetrees = readMultiTopology(genetreeFile)
-df_sp = writeTableCF(observedquartetCF(genetrees, taxonmap)...)
+df_sp = writeTableCF(countquartetsintrees(genetrees, taxonmap)...)
 ```
 
 Now `df_sp` is a data frame containing the quartet concordance factors
@@ -49,7 +49,7 @@ in which 2 individuals are from the same species, the following functions
 should be used:
 
 ```julia
-df_ind = writeTableCF(observedquartetCF(genetrees)...) # no mapping here: so quartet CFs across individuals
+df_ind = writeTableCF(countquartetsintrees(genetrees)...) # no mapping here: so quartet CFs across individuals
 CSV.write("tableCF_individuals.csv", df)               # to save to a file
 df_sp = mapAllelesCFtable(mappingFile, "tableCF_individuals.csv");
 d_sp = readTableCF!(df_sp);

@@ -61,7 +61,7 @@ readMultiTopology
 readNexusTrees
 readSnaqNetwork
 readTrees2CF
-observedquartetCF
+countquartetsintrees
 readTableCF
 readTableCF!
 writeTableCF
@@ -69,6 +69,7 @@ readBootstrapTrees
 writeSubTree!
 writeTopology
 writeMultiTopology
+hybridlambdaformat
 mapAllelesCFtable
 ```
 
