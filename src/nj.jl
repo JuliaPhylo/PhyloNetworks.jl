@@ -11,7 +11,8 @@ end
 @doc (@doc nj) nj!
 """
     nj(df::DataFrame)
-    nj!(D::Matrix{<:Real}, names::AbstractVector{String}=String[])
+    nj!(D::Matrix{<:Real}, names::AbstractVector{String}=String[];
+        return_negative_edges::Bool=false)
 
 The `nj!` function takes the distance matrix and the vector of names
 (as strings) as input, and constructs the corresponding tree.  The
@@ -20,7 +21,8 @@ column) of the matrix `D`.
 
 """
 
-function nj!(D::Matrix{<:Real}, names::AbstractVector{String}=String[])
+function nj!(D::Matrix{<:Real}, names::AbstractVector{String}=String[];
+             return_negative_edges::Bool=false)
 
     check_distance_matrix(D)
     n = size(D, 1)              # number of species
@@ -42,6 +44,9 @@ function nj!(D::Matrix{<:Real}, names::AbstractVector{String}=String[])
     # an array of Node s.t. active_nodes[i] would correspond to the
     # ith entry in distance matrix D at each iteration
     active_nodes = nodes
+
+    neglenp = false              # any negative lengths?
+    negedges = Edge[]
 
     while n > 2
         # compute Q matrix and find min
@@ -81,6 +86,17 @@ function nj!(D::Matrix{<:Real}, names::AbstractVector{String}=String[])
         pushEdge!(net, ejk)
         pushNode!(net, node_k)
 
+        # log negative lengths if any
+        if (dik < 0) | (djk < 0)
+            neglenp = true
+            if dik < 0
+                push!(negedges, eik)
+            end
+            if djk < 0
+                push!(negedges, ejk)
+            end
+        end
+
         # update map and D
         # replace D[l, i] with D[l, k], delete D[ , j]
         for l in 1:n
@@ -107,17 +123,31 @@ function nj!(D::Matrix{<:Real}, names::AbstractVector{String}=String[])
     setEdge!(node1, newedge)
     setEdge!(node2, newedge)
     pushEdge!(net, newedge)
-    return net
+
+    # log the number of negative branches
+    if neglenp
+        @info string(length(negedges), " branches with negative lengths")
+    end
+
+    if return_negative_edges
+        return (net, negedges)
+    else
+        return net
+    end
 end
 
 """
-    `nj(D::DataFrame)`
+    `nj(D::DataFrame; return_negative_edges::Bool=false)`
 
 Construct a tree from a distance matrix by neighbor joining, where
 `D` is a `DataFrame` of the distance matrix, with taxon names taken
 from the header of the data frame.
 
+With `return_negative_edges` being `true`, return `(net, negedges)`,
+where `net` is the tree constructed, and `negedges` an array of the
+edges with negative lengths.
+
 """
-function nj(D::DataFrame)
-    nj!(convert(Matrix, D), string.(names(D)))
+function nj(D::DataFrame; return_negative_edges::Bool=false)
+    nj!(convert(Matrix, D), string.(names(D)), return_negative_edges)
 end
