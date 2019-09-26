@@ -1433,16 +1433,18 @@ julia> writeTopology(net, round=true)
 "(#H2:::0.2,((D,C,((B)#H1:::0.6)#H2:::0.8),(#H1:::0.4,A)));"
 
 julia> hybridlambdaformat(net; prefix="int")
-"(H2#0.2:,((D,C,((B)H1#0.6:)H2#0.2:)int1,(H1#0.6:,A)int2)int3)int4;"
+"(H2#0.2,((D,C,((B)H1#0.6)H2#0.2)int1,(H1#0.6,A)int2)int3)int4;"
 ```
 """
 function hybridlambdaformat(net::HybridNetwork; prefix="I")
   net = deepcopy(net) # binding to new object
   nameinternalnodes!(net, prefix)
   str1 = writeTopology(net, round=true, digits=15) # internallabels=true by default
-  rx = r"#(H[\w\d]+):(\d*.?\d*):\d*.?\d*:(\d*.?\d*)"
-  subst = s"\1#\3:\2"
-  str2 = replace(str1, rx => subst)
+  rx_noBL = r"#(H[\w\d]+)::\d*\.?\d*:(\d*\.?\d*)"
+  subst_noBL = s"\1#\2"
+  rx_withBL = r"#(H[\w\d]+):(\d*\.?\d*):\d*\.?\d*:(\d*\.?\d*)"
+  subst_withBL = s"\1#\3:\2"
+  str2 = replace(replace(str1, rx_noBL => subst_noBL), rx_withBL => subst_withBL)
   ## next: replace the γ2 of the second occurrence by γ1 from the first occurrence:
   ## this is what Hybrid-Lambda wants...
   nh = length(net.hybrid)
@@ -1452,8 +1454,8 @@ function hybridlambdaformat(net::HybridNetwork; prefix="I")
   length(hboth) == 2length(hone) || error("did not find Hname# twice for some one (or more) of the hybrid names.")
   str3 = str2
   for hname in hone
-    rx = Regex( hname * raw"(?<gamma1>\d*\.?\d*):(?<middle>.*)" * hname * raw"(?<gamma2>\d*\.?\d*):")
-    subst = SubstitutionString(hname * raw"\g<gamma1>:\g<middle>" * hname * raw"\g<gamma1>:")
+    rx = Regex( hname * raw"(?<gamma1>\d*\.?\d*)(?<middle>.*)" * hname * raw"(?<gamma2>\d*\.?\d*)")
+    subst = SubstitutionString(hname * raw"\g<gamma1>\g<middle>" * hname * raw"\g<gamma1>")
     str3 = replace(str3, rx => subst)
   end
   return str3

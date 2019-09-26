@@ -47,4 +47,10 @@ end
 	rm("test_relaxedreading.net")
 	redirect_stdout(originalstdout)
 end
+@testset "write for hybrid-lambda" begin
+	net = readTopology("((a:1,(b:1)#H1:1::0.8):5,(#H1:0::0.2,c:1):1);");
+	@test hybridlambdaformat(net) == "((a:1.0,(b:1.0)H1#0.8:1.0)I1:5.0,(H1#0.8:0.0,c:1.0)I2:1.0)I3;"
+	net = readTopology("((#H1:::0.2,c),(I3,(b)#H1:::0.8):5);")
+	@test hybridlambdaformat(net) == "((H1#0.2,c)I4,(I3,(b)H1#0.2)I5:5.0)I6;"
+end
 end
