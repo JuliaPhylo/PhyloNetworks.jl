@@ -8,28 +8,30 @@ function check_distance_matrix(D::Matrix{<:Real})
     end
 end
 
-@doc (@doc nj) nj!
-"""
-    nj(df::DataFrame)
-    nj!(D::Matrix{<:Real}, names::AbstractVector{String}=String[];
-        return_negative_edges::Bool=false)
 
-The `nj!` function takes the distance matrix and the vector of names
-(as strings) as input, and constructs the corresponding tree.  The
-order of the `names` argument should match that of the row (and
+"""
+    nj!(D::Matrix{Float64}, names::AbstractVector{String}=String[];
+        force_nonnegative_edges::Bool=false)
+
+Construct a phylogenetic tree from the input distance matrix and
+vector of names (as strings), using the Neighbour-Joinging algorithm
+([Satou & Nei 1987](https://doi.org/10.1093/oxfordjournals.molbev.a040454)).
+The order of the `names` argument should match that of the row (and
 column) of the matrix `D`.
+With `force_nonnegative_edges` being `true`, any negative edge length
+is changed to 0.0 (with a message).
 
+Warning: `D` is modified.
 """
-
-function nj!(D::Matrix{<:Real}, names::AbstractVector{String}=String[];
-             return_negative_edges::Bool=false)
+function nj!(D::Matrix{Float64}, names::AbstractVector{String}=String[];
+             force_nonnegative_edges::Bool=false)
 
     check_distance_matrix(D)
     n = size(D, 1)              # number of species
 
     # when no names arg is supplied
     if isempty(names)
-        names = fill("", n)
+        names = string.(1:n)
     end
 
     # create empty network with n unconnected leaf nodes
@@ -45,8 +47,7 @@ function nj!(D::Matrix{<:Real}, names::AbstractVector{String}=String[];
     # ith entry in distance matrix D at each iteration
     active_nodes = nodes
 
-    neglenp = false              # any negative lengths?
-    negedges = Edge[]
+    neglenp = 0  # number of negative edge lengths
 
     while n > 2
         # compute Q matrix and find min
@@ -70,10 +71,19 @@ function nj!(D::Matrix{<:Real}, names::AbstractVector{String}=String[];
         (i, j) = min_index
         dik = D[i,j] / 2 + (sums[i] - sums[j]) / (2 * (n - 2))
         djk = D[i,j] - dik
+        # force negative lengths to 0, if any
+        if dik < 0.0
+            neglenp += 1
+            if force_nonnegative_edges dik = 0.0; end
+        end
+        if djk < 0.0
+            neglenp += 1
+            if force_nonnegative_edges djk = 0.0; end
+        end
 
         # create new edges and node, update tree
         edgenum = net.numEdges
-        eik = Edge(edgenum + 1, dik)
+        eik = Edge(edgenum + 1, dik) # edge length must be Float64 for Edge()
         ejk = Edge(edgenum + 2, djk)
         node_k = Node(net.numNodes+1, false, false, [eik, ejk]) # new node
         node_i = active_nodes[i]
@@ -85,17 +95,6 @@ function nj!(D::Matrix{<:Real}, names::AbstractVector{String}=String[];
         pushEdge!(net, eik)
         pushEdge!(net, ejk)
         pushNode!(net, node_k)
-
-        # log negative lengths if any
-        if (dik < 0) | (djk < 0)
-            neglenp = true
-            if dik < 0
-                push!(negedges, eik)
-            end
-            if djk < 0
-                push!(negedges, ejk)
-            end
-        end
 
         # update map and D
         # replace D[l, i] with D[l, k], delete D[ , j]
@@ -116,6 +115,10 @@ function nj!(D::Matrix{<:Real}, names::AbstractVector{String}=String[];
     end
 
     # base case
+    if D[1,2] < 0.0
+        neglenp += 1
+        if force_nonnegative_edges D[1,2] = 0.0; end
+    end
     node1 = active_nodes[1]
     node2 = active_nodes[2]
     newedge = Edge(net.numEdges+1, D[1,2])
@@ -124,30 +127,33 @@ function nj!(D::Matrix{<:Real}, names::AbstractVector{String}=String[];
     setEdge!(node2, newedge)
     pushEdge!(net, newedge)
 
-    # log the number of negative branches
-    if neglenp
-        @info string(length(negedges), " branches with negative lengths")
+    # report on number of negative branches
+    if neglenp > 0
+        infostr = (force_nonnegative_edges ?
+                   "$neglenp branches had negative lengths, reset to 0" :
+                   "$neglenp branches have negative lengths" )
+        @info infostr
     end
 
-    if return_negative_edges
-        return (net, negedges)
-    else
-        return net
-    end
+    return net
 end
 
 """
-    `nj(D::DataFrame; return_negative_edges::Bool=false)`
+    nj(D::DataFrame; force_nonnegative_edges::Bool=false)
 
 Construct a tree from a distance matrix by neighbor joining, where
 `D` is a `DataFrame` of the distance matrix, with taxon names taken
 from the header of the data frame.
+The rows are assumed to correspond to tips in the tree in the same order
+as they do in columns.
+With `force_nonnegative_edges` being `true`, any negative edge length
+is changed to 0.0 (with a message).
 
-With `return_negative_edges` being `true`, return `(net, negedges)`,
-where `net` is the tree constructed, and `negedges` an array of the
-edges with negative lengths.
+For the algorithm, see
+[Satou & Nei 1987](https://doi.org/10.1093/oxfordjournals.molbev.a040454).
 
+See [`nj!`](@ref) for using a matrix as input.
 """
-function nj(D::DataFrame; return_negative_edges::Bool=false)
-    nj!(convert(Matrix, D), string.(names(D)), return_negative_edges)
+function nj(D::DataFrame; force_nonnegative_edges::Bool=false)
+    nj!(convert(Matrix{Float64}, D), string.(names(D)); force_nonnegative_edges=force_nonnegative_edges)
 end
