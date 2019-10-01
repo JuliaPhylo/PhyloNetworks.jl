@@ -147,9 +147,6 @@ module PhyloNetworks
         readfastatodna,
         stationary,
         empiricalDNAfrequencies,
-        ## TICR test
-        ticr,
-        ticr!,
         # neighbor joining
         nj
 
@@ -176,7 +173,6 @@ module PhyloNetworks
     include("substitutionModels.jl")
     include("biconnectedComponents.jl")
     include("traitsLikDiscrete.jl")
-    include("ticr.jl")
     include("deprecated.jl")
     include("nj.jl")
 

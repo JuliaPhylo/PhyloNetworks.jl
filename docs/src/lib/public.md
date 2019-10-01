@@ -82,8 +82,6 @@ topologyQPseudolik!
 fittedQuartetCF
 bootsnaq
 calibrateFromPairwiseDistances!
-ticr
-ticr!
 undirectedOtherNetworks
 nj
 ```

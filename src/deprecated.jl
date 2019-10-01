@@ -1,1 +1,1 @@
-@deprecate writeObsCF writeTableCF
+@deprecate fitDiscrete fitdiscrete

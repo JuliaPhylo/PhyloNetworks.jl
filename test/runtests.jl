@@ -87,7 +87,6 @@ tests = [
     "test_calibratePairwise.jl", "test_relaxed_reading.jl",
     "test_isMajor.jl", "test_interop.jl",
     "test_traitLikDiscrete.jl",
-    "test_ticr.jl",
     "test_readInputData.jl",
     "test_nj.jl"
 ]
