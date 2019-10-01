@@ -48,7 +48,8 @@ Pages = [
     "man/multiplealleles.md",
     "man/trait_tree.md",
     "man/parsimony.md",
-    "man/fitdiscrete.md"
+    "man/fitdiscrete.md",
+    "man/nj.md"
 ]
 Depth = 3
 ```
