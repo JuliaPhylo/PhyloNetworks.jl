@@ -18,7 +18,7 @@ D = CSV.read(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","caudata_d
 tree = nj(D)
 ```
 
-There is also a method [`nj!`](@ref), which takes a distance
+There is also a method [`PhyloNetworks.nj!`](@ref), which takes a distance
 matrix and a vector of the names as argument.  This function, however,
 would modify `D`.  One also has to make sure the vector of names match
 the columns/rows of the distance matrix.

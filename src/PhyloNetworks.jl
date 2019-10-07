@@ -20,7 +20,6 @@ module PhyloNetworks
     using Distributions #for RateVariationAcrossSites
     using GLM # for the lm function
     using NLopt # for branch lengths optimization
-    using SpecialFunctions: lgamma, gamma
     using StaticArrays
     using StatsBase # sample, coef etc.
     using StatsFuns # logsumexp, logaddexp, various cdf
