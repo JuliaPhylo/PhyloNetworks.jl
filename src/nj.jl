@@ -45,7 +45,7 @@ function nj!(D::Matrix{Float64}, names::AbstractVector{String}=String[];
     net = HybridNetwork(nodes, Edge[])
     # an array of Node s.t. active_nodes[i] would correspond to the
     # ith entry in distance matrix D at each iteration
-    active_nodes = nodes
+    active_nodes = copy(nodes)
 
     neglenp = 0  # number of negative edge lengths
 
