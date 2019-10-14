@@ -45,7 +45,7 @@ function nj!(D::Matrix{Float64}, names::AbstractVector{String}=String[];
     net = HybridNetwork(nodes, Edge[])
     # an array of Node s.t. active_nodes[i] would correspond to the
     # ith entry in distance matrix D at each iteration
-    active_nodes = nodes
+    active_nodes = copy(nodes)
 
     neglenp = 0  # number of negative edge lengths
 
@@ -122,10 +122,15 @@ function nj!(D::Matrix{Float64}, names::AbstractVector{String}=String[];
     node1 = active_nodes[1]
     node2 = active_nodes[2]
     newedge = Edge(net.numEdges+1, D[1,2])
-    setNode!(newedge, [node1, node2])
+    setNode!(newedge, [node1, node2]) # isChild1 = true by default: nodes are [child, parent]
+    if node1.number == net.numNodes
+        newedge.isChild1 = false # to direct the edge from the last created node to the other node
+    end
     setEdge!(node1, newedge)
     setEdge!(node2, newedge)
     pushEdge!(net, newedge)
+
+    net.root = net.numNodes # to place the root at the last created node, which is internal
 
     # report on number of negative branches
     if neglenp > 0
