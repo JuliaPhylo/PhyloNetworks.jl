@@ -9,11 +9,7 @@ move types:
 constrained to user-defined topological constraints (like an outgroup)
 
 in `moves.jl`, functions are tailored to level-1 networks;
-here, functions apply to networks of all levels.
-my preference:
-- rename `moves.jl` to `moves_level1.jl`
-- then possibly: rename this file to `moves.jl` or `moves_semirooted.jl` or
-  `moves_topologyconstraits.jl` or anything better
+here, functions apply to semidirected networks of all levels.
 =#
 
 """

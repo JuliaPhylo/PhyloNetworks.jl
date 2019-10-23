@@ -157,7 +157,7 @@ module PhyloNetworks
     include("addHybrid.jl")
     include("deleteHybrid.jl")
     include("moves.jl")
-    include("moves_constrained.jl")
+    include("moves_semidirected.jl")
     include("readwrite.jl")
     include("readData.jl")
     include("optimization.jl")
