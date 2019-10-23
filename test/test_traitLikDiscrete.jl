@@ -592,10 +592,10 @@ test_SSM = PhyloNetworks.prepdata(dna_net_top, fastafile, :JC69)
 @test test_SSM.siteweight[1:5] == [23.0, 18.0, 13.0, 16.0, 1.0] 
 
 #test wrapper. should add clades, implement startingBL!()
-testwrapper = PhyloNetworks.wrapper(test_SSM, Dict("Ae_caudata_Tr275" => [3]), liktolabs = 1e-2)
-@test test_SSM.net.leaf[1].clade == [3]
+#TODO testwrapper = PhyloNetworks.wrapper(test_SSM, Dict("Ae_caudata_Tr275" => [3]), liktolabs = 1e-2)
+#TODO @test test_SSM.net.leaf[1].clade == [3]
 
-@test_logs show(devnull, testwrapper)
+#@test_logs show(devnull, testwrapper)
 end #of testing prep and wrapper functions
 
 @testset "testing fit! functions for full network optimization" begin
@@ -617,11 +617,11 @@ test_SSM = PhyloNetworks.prepdata(dna_net_top, fastafile, :JC69)
 
 # tests #
 clades = Dict("Ae_caudata_Tr275" => [3])
-testwrapper = PhyloNetworks.wrapper(test_SSM, Dict("Ae_caudata_Tr275" => [3]); liktolabs = 1e-2)
+#TODO testwrapper = PhyloNetworks.wrapper(test_SSM, Dict("Ae_caudata_Tr275" => [3]); liktolabs = 1e-2)
 uvlist = Random.shuffle([e for e in test_SSM.net.edge if !PhyloNetworks.getChild(e).leaf]) #random order
 
-PhyloNetworks.nni!(deepcopy(test_SSM), uvlist[1], clades)
-PhyloNetworks.donni!(deepcopy(test_SSM), 1, uvlist[1])
+#TODO PhyloNetworks.nni!(deepcopy(test_SSM), uvlist[1], clades)
+#TODO PhyloNetworks.donni!(deepcopy(test_SSM), 1, uvlist[1])
 end #of testing fit! functions for full network optimization
 
 end # of nested testsets

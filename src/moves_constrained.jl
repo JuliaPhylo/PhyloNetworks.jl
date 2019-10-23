@@ -378,9 +378,9 @@ end
 """
     cladesviolated(network::HybridNetwork, cladeconstraints)
 
-Check if network violates user-given clade constraints. Return true if passes,
-return false if violates clades.
+Check if network violates user-given clade constraints. Return false if passes,
+return true if violates clades.
 """
 function cladesviolated(net::HybridNetwork, cladeconstraints::Dict)
-    return true
+    return false
 end
