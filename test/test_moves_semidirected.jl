@@ -28,19 +28,45 @@ plot(net_hybridladder, :R, showNodeNumber=true, showEdgeNumber=true)
 @test isnothing(PhyloNetworks.nni!(net_level1, net_level1.edge[1], 0x01)) # external edge
 
 @testset "edge 3: BB undirected, move $move" for move in 0x01:0x08
+
     undoinfo = PhyloNetworks.nni!(net_level1, net_level1.edge[3], move);
+    u = getParent(net_level1.edge[3])
+    v = getChild(net_level1.edge[3])
+    #test that move was made
+    @test u.edge[3].number == 2
     PhyloNetworks.nni!(undoinfo...);
+    @test u.edge[3].number == 20
     @test writeTopology(net_level1) == str_level1
 end
+#TODO is this edge 17 or 16?
 @testset "edge 17: BB directed, move $move" for move in 0x01:0x02
     undoinfo = PhyloNetworks.nni!(net_level1, net_level1.edge[16], move);
+    u = getParent(net_level1.edge[16])
+    v = getChild(net_level1.edge[16])
+    #test that move was made
+    @test u.edge[3].number == 15
+    #test that directions are correct
+    @test getChild(net_level1.edge[16]).number == -11 #u is now the child of 16
+    #TODO check above to make sure this is correct. should it be flipped?
     PhyloNetworks.nni!(undoinfo...);
+    #after undoing, v is the child of 16
+    @test getChild(net_level1.edge[16]).number == -12 #u is now the child of 16
+    @test u.edge[3].number == 20
     @test writeTopology(net_level1) == str_level1
 end
 @test_throws Exception PhyloNetworks.nni!(net_level1, net_level1.edge[16], 0x03);
 @testset "edge 13: BR directed, move $move" for move in 0x01:0x03
     undoinfo = PhyloNetworks.nni!(net_level1, net_level1.edge[13], move);
+    u = getParent(net_level1.edge[13])
+    v = getChild(net_level1.edge[13])
+    #test that move was made
+    @test u.edge[3].number == 15 #TODO
+    @test getChild(net_level1.edge[13]).number == 8 #TODO
+    #test that directions are correct
     PhyloNetworks.nni!(undoinfo...);
+    #test that undo works
+    @test u.edge[3].number == 20 #TODO
+    @test getChild(net_level1.edge[13]).number == 8  #TODO
     @test writeTopology(net_level1) == str_level1
 end
 end # of testset on unconstrained NNIs
