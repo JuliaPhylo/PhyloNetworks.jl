@@ -222,7 +222,7 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8)
             end
             nmoves = 0x02
         end
-        # now nmoves should be in 1, ..., 2*nmoves: 1:4 (BB) or 1:6 (BR)
+        # now nmoves should be in 1, ..., 2*nmoves: 1:4 (BB) or 1:6 (BR) #? should this be 2*nummoves?
         # next: switch α & β with probability 1/2
         if nummove > nmoves
             nummove -= nmoves # now nummoves in 1,2 (BB) or 1,2,3 (BR)

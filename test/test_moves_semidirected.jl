@@ -28,50 +28,199 @@ plot(net_hybridladder, :R, showNodeNumber=true, showEdgeNumber=true)
 @test isnothing(PhyloNetworks.nni!(net_level1, net_level1.edge[1], 0x01)) # external edge
 
 @testset "edge 3: BB undirected, move $move" for move in 0x01:0x08
-
+    #assign labels
+    # uv = net_level1.edge[3]
+    # u = PhyloNetworks.getParent(uv)
+    # v = PhyloNetworks.getChild(uv)
+    # labs = [PhyloNetworks.edgerelation(e, u, uv) for e in u.edge]
+    # pi = findfirst(isequal(:parent), labs)
+    # αu = u.edge[pi]
+    # ci = findall(isequal(:child), labs)  # vector. there should be 1 or 2
+    # βu = u.edge[ci[1]] #edge 19
+    # labs = [PhyloNetworks.edgerelation(e, v, uv) for e in v.edge]
+    # ci = findall(isequal(:child), labs)
+    # vγ = v.edge[ci[1]] # γ = getChild(vγ)
+    # vδ = v.edge[ci[2]]
+    #do move
     undoinfo = PhyloNetworks.nni!(net_level1, net_level1.edge[3], move);
-    u = getParent(net_level1.edge[3])
-    v = getChild(net_level1.edge[3])
-    #test that move was made
-    @test u.edge[3].number == 2
+    #location of v node (number -4)
+    if move in [1, 2, 6, 8] #check that edge alpha connected to v
+        nodes = []
+        for n in net_level1.edge[20].node
+            push!(nodes, n.number)
+        end
+        @test -4 in nodes
+    elseif move in [3, 4, 5, 7] #check that edge beta connected to v
+        nodes = []
+        for n in net_level1.edge[19].node
+            push!(nodes, n.number)
+        end
+        @test -4 in nodes
+    end
+    #location of u node (number -3)
+    if move in [2, 4, 5, 6] #check that edge gamma connected to u
+        nodes = []
+        for n in net_level1.edge[1].node
+            push!(nodes, n.number)
+        end
+        @test -3 in nodes
+    elseif move in [1, 3, 7, 8]  #check that edge delta connected to u
+        nodes = []
+        for n in net_level1.edge[2].node
+            push!(nodes, n.number)
+        end
+        @test -3 in nodes
+    end
+    #check directionality
+    if move in [3, 4, 5, 7] 
+        #keeping α, β or flipping uv keeps node -4 as child of edge 3
+        @test PhyloNetworks.getChild(net_level1.edge[3]).number == -4
+    else 
+        #switching α, β AND flipping uv or doing neither makes node -3 child of edge 3
+        @test PhyloNetworks.getChild(net_level1.edge[3]).number == -3
+    end
+    #undo move
     PhyloNetworks.nni!(undoinfo...);
-    @test u.edge[3].number == 20
+    #confirm we're back to original topology 
     @test writeTopology(net_level1) == str_level1
 end
-#TODO is this edge 17 or 16?
-@testset "edge 17: BB directed, move $move" for move in 0x01:0x02
+
+@testset "edge 16: BB directed, move $move" for move in 0x01:0x02
+    # e not hybrid, tree parent:  BB case, 2 NNIs if directed, 8 if undirected
     undoinfo = PhyloNetworks.nni!(net_level1, net_level1.edge[16], move);
-    u = getParent(net_level1.edge[16])
-    v = getChild(net_level1.edge[16])
-    #test that move was made
-    @test u.edge[3].number == 15
-    #test that directions are correct
-    @test getChild(net_level1.edge[16]).number == -11 #u is now the child of 16
-    #TODO check above to make sure this is correct. should it be flipped?
+    #check beta connected to u node (number -11)
+    nodes = []
+    for n in net_level1.edge[13].node
+        push!(nodes, n.number)
+    end
+    @test -11 in nodes
+    nodes = []
+    for n in net_level1.edge[14].node
+        push!(nodes, n.number)
+    end
+    if move == 1 #check that edge gamma connected to v
+        @test -12 in nodes
+    else #check that edge gamma connected to u
+        @test -11 in nodes
+    end
+    #check directionality
+    #node -11 child of edge 16 in both cases
+    @test PhyloNetworks.getChild(net_level1.edge[16]).number == -11
+    #undo move
     PhyloNetworks.nni!(undoinfo...);
-    #after undoing, v is the child of 16
-    @test getChild(net_level1.edge[16]).number == -12 #u is now the child of 16
-    @test u.edge[3].number == 20
+    #confirm we're back to original topology 
     @test writeTopology(net_level1) == str_level1
 end
 @test_throws Exception PhyloNetworks.nni!(net_level1, net_level1.edge[16], 0x03);
+
+#TODO check this looks like it labels 13 as βu because βu = u.edge[ci[1]] = 13
 @testset "edge 13: BR directed, move $move" for move in 0x01:0x03
+    # e.hybrid and tree parent:   BR case, 3 because e cannot contain the root
     undoinfo = PhyloNetworks.nni!(net_level1, net_level1.edge[13], move);
-    u = getParent(net_level1.edge[13])
-    v = getChild(net_level1.edge[13])
     #test that move was made
-    @test u.edge[3].number == 15 #TODO
-    @test getChild(net_level1.edge[13]).number == 8 #TODO
-    #test that directions are correct
+    #location of v node
+    if move == 1 || (move == 3 && PhyloNetworks.getChild(net_level1.edge[17]) == -11)
+        #check that edge alpha connected to v
+        nodes = []
+        for n in net_level1.edge[17].node
+            push!(nodes, n.number)
+        end
+        @test 8 in nodes
+    elseif move == 2 || (move == 3 && PhyloNetworks.getChild(net_level1.edge[16]) == -11) 
+        #check that edge beta connected to v
+        nodes = []
+        for n in net_level1.edge[16].node
+            push!(nodes, n.number)
+        end
+        @test 8 in nodes
+    end
+    #location of u node (number -11)
+    if move in [3] #check that edge gamma connected to u
+        nodes = []
+        for n in net_level1.edge[11].node
+            push!(nodes, n.number)
+        end
+        @test -11 in nodes
+    elseif move in [1, 2]  #check that edge delta connected to u
+        nodes = []
+        for n in net_level1.edge[10].node
+            push!(nodes, n.number)
+        end
+        @test -11 in nodes
+    end
+    #check directionality
+    @test PhyloNetworks.getChild(net_level1.edge[13]).number == 8
+    #undo move
     PhyloNetworks.nni!(undoinfo...);
-    #test that undo works
-    @test u.edge[3].number == 20 #TODO
-    @test getChild(net_level1.edge[13]).number == 8  #TODO
+    #confirm we're back to original topology 
     @test writeTopology(net_level1) == str_level1
 end
+
+#hybrid at root
+@testset "net_hybridbelowroot edge 20: BR undirected, move $move" for move in 0x01:0x06
+    #in this case, α->u
+    undoinfo = PhyloNetworks.nni!(net_hybridbelowroot, net_hybridbelowroot.edge[20], move);
+    #test that move was made
+    #connections to gamma: 
+    nodes = []
+    for n in net_hybridbelowroot.edge[19].node
+        push!(nodes, n.number)
+    end
+    if move in [1, 2, 4, 5] #should be connected to v
+        @test 11 in nodes
+    elseif move in [3, 6] #should be connected to u 
+        #both α->u and β->u cases
+        @test -12 in nodes
+    end
+    #connections to alpha (edge 22)
+    nodes = []
+    for n in net_hybridbelowroot.edge[22].node
+        push!(nodes, n.number)
+    end
+    if move in [1, 3, 5] #should be connected to v 
+        @test 11 in nodes
+    else #should be connected to u (for 6 too since α->u)
+        @test -12 in nodes
+    end
+    #undo move
+    PhyloNetworks.nni!(undoinfo...);
+    #confirm we're back to original topology 
+    @test writeTopology(net_hybridbelowroot) == str_hybridbelowroot
+end
+
+#hybrid at root
+@testset "net_hybridbelowroot edge 22: BB undirected, move $move" for move in 0x01:0x06
+    #in this case, α->u
+    undoinfo = PhyloNetworks.nni!(net_hybridbelowroot, net_hybridbelowroot.edge[22], move);
+    #test that move was made
+    #connections to gamma
+    nodes = []
+    for n in net_hybridbelowroot.edge[20].node
+        push!(nodes, n.number)
+    end
+    if move in [1, 3, 7, 8] #gamma connected to v
+        @test -12 in nodes
+    else #gamma connected to u
+        @test -2 in nodes
+    end
+    #connections to alpha
+    nodes = []
+    for n in net_hybridbelowroot.edge[3].node
+        push!(nodes, n.number)
+    end
+    if move in [1, 2, 6, 8] #alpha connected to v
+        @test -12 in nodes
+    else #alpha connected to u
+        @test -2 in nodes
+    end
+    #undo move
+    PhyloNetworks.nni!(undoinfo...);
+    #confirm we're back to original topology 
+    @test writeTopology(net_hybridbelowroot) == str_hybridbelowroot
+end
+
 end # of testset on unconstrained NNIs
 
-#=
+
 myconstraint = PhyloNetworks.TopologyConstraint(0x03,Set("8"),net_level1)
 undoinfo = PhyloNetworks.nni!(net_level1, net_level1.edge[1], myconstraint)
-=#
