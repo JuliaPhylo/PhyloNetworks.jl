@@ -42,9 +42,9 @@ end
 # fixit: use these constraints in the functions below,
 # to check that the proposed NNI move is acceptable
 
+#- see test_moves_semidirected.jl for test file with example uses
+
 #= TODO
-- new test file with example uses
-- add option `no3cycle` to forbid moves that would create a 3-cycle
 - add option to modify branch lengths during NNI:
   `nni!` that take detailed input, and output of same signature
 - `unzip` (bool) to constrain branch lengths to 0 below a hybrid node:
@@ -61,11 +61,14 @@ end
 =#
 
 """
-    nni!(net::HybridNetwork, e::Edge, constraint::Vector{TopologyConstraint})
+    nni!(net::HybridNetwork, e::Edge, constraint::Vector{TopologyConstraint},
+    no3cycle=true::Bool)
 
 Attempt to perform a nearest neighbor interchange (NNI) around edge `e`,
 randomly chosen among all possible NNIs (e.g 3, sometimes more depending on `e`)
 satisfying the constraints, and such that the new network is a DAG.
+Option `no3cycle` forbids moves that would create a 3-cycle in the network.
+
 
 Output: information indicating which NNI was performed, or `nothing` if all NNIs failed.
 fixit: what information to return exactly? NNI number? info to undo?
@@ -81,12 +84,13 @@ net
 ```
 fixit: add example with constraint
 """
-function nni!(net::HybridNetwork, e::Edge, constraint::Vector{TopologyConstraint})
+function nni!(net::HybridNetwork, e::Edge, constraint::Vector{TopologyConstraint},
+    no3cycle=true::Bool)
     hybparent = getParent(e).hybrid
     nnirange = 0x01:nnimax(e) # 0x01 = 1 but UInt8 instead of Int
     nnis = Random.shuffle(nnirange)
     for nummove in nnis # iterate through all possible NNIs, but in random order
-        moveinfo = nni!(net, e, nummove)
+        moveinfo = nni!(net, e, nummove, no3cycle)
         moveinfo !== nothing || continue # to next possible NNI
         # fixit: if failure, make sure the network was not changed by nni!, else undo it
         if checknetwork(net, constraint)
@@ -170,7 +174,7 @@ choice of labelling adjacent nodes as α/β (BB), or as α/γ (BR).
 Warning: the edges' field `isChild1` is assumed to be correct,
 according to the `net.root`.
 """
-function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8)
+function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, no3cycle::Bool)
     nmovemax = nnimax(uv)
     if nmovemax == 0x00 # uv not internal, or polytomy e.g. species represented by polytomy with >2 indiv
         return nothing
@@ -209,6 +213,78 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8)
         vγ = v.edge[ci[1]] # γ = getChild(vγ)
         vδ = v.edge[ci[2]]
     end
+    #check if there is a 4-cycle. if so, prevent moves that would make a 3-cycle
+    #=     
+    if there is a four cycle (the nodes at the ends of two of the outer edges share 
+    an edge), then if these two outer edges become paired (at either u or v node)
+    then we get a 3-cycle =#
+    if no3cycle
+        if getChild(αu).edge[1] == getChild(vγ).edge[1] #doesnt allow moves that makes these pair
+            if nummove == 0x01 && !u.hybrid && !v.hybrid && !uv.containRoot
+                error("BB directed move 1 would create a three-cycle")
+            elseif nummove in [0x01, 0x04, 0x05, 0x08] && !u.hybrid && !v.hybrid
+                error("BB undirected moves 1, 4, 5, and 8 would create a three-cycle")
+            elseif (nummove == 0x01 || (nummove == 0x03 && getChild(βu) == u)) && !u.hybrid && v.hybrid && !uv.containRoot 
+                #TODO check this
+                error("BR directed moves 1 and 3 (if β->u) would create a three-cycle")
+            elseif (nummove in [0x01, 0x05] || (nummove == 0x03 && getChild(βu) == u) || (nummove == 0x06 && getChild(αu) == u)) &&
+                && !u.hybrid && v.hybrid
+                error("BR undirected moves 1, 3 (if β->u), 5, and 6 (if α->u) would create a three-cycle")
+            elseif nummove == 0x01
+                error("RR (directed) move 1 would create a three-cycle")
+            elseif nummove in [0x01, 0x04]
+                error("RB (directed) moves 1 and 4 would create a three-cycle")
+            end
+        elseif getChild(αu).edge[1] == getChild(vδ).edge[1]
+            if nummove == 0x02 && !u.hybrid && !v.hybrid && !uv.containRoot
+                error("BB directed move 2 would create a three-cycle")
+            elseif nummove in [0x02, 0x03, 0x06, 0x07] && !u.hybrid && !v.hybrid
+                error("BB undirected moves 2, 3, 6, and 7 would create a three-cycle")
+            elseif (nummove == 0x02 || (nummove == 0x03 && getChild(αu) == u)) && !u.hybrid && v.hybrid && !uv.containRoot  
+                #TODO check this
+                error("BR directed moves 2 and 3 (if α->u) would create a three-cycle")
+            elseif (nummove in [0x02, 0x04] || (nummove == 0x03 && getChild(αu) == u) || (nummove == 0x06 && getChild(βu) == u)) &&
+                && !u.hybrid && v.hybrid
+                error("BR undirected moves 2, 3 (if α->u), 4, and 6 (if β->u) would create a three-cycle")
+            elseif nummove == 0x02
+                error("RR (directed) move 2 would create a three-cycle")
+            elseif nummove in [0x02, 0x03]
+                error("RB (directed) moves 2 and 3 would create a three-cycle")
+            end
+        elseif  getChild(βu).edge[1] == getChild(vγ).edge[1]
+            if nummove == 0x02 && !u.hybrid && !v.hybrid && !uv.containRoot
+                error("BB directed move 2 would create a three-cycle")
+            elseif nummove in [0x02, 0x03, 0x06, 0x07] && !u.hybrid && !v.hybrid
+                error("BB undirected moves 2, 3, 6, and 7 would create a three-cycle")
+            elseif (nummove == 0x02 || (nummove == 0x03 && getChild(αu) == u)) && !u.hybrid && v.hybrid && !uv.containRoot 
+                #TODO check this
+                error("BR directed moves 2 and 3 (if α->u) would create a three-cycle")
+            elseif (nummove in [0x02, 0x04] || (nummove == 0x03 && getChild(αu) == u) || (nummove == 0x06 && getChild(βu) == u)) &&
+                && !u.hybrid && v.hybrid
+                error("BR undirected moves 2, 3 (if α->u), 4, and 6 (if β->u) would create a three-cycle")
+            elseif nummove == 0x02
+                error("RR (directed) move 2 would create a three-cycle")
+            elseif nummove in [0x02, 0x03]
+                error("RB (directed) moves 2 and 3 would create a three-cycle")
+            end
+        elseif getChild(βu).edge[1] == getChild(vδ).edge[1] 
+            if nummove == 0x01 && !u.hybrid && !v.hybrid && !uv.containRoot
+                error("BB directed move 1 would create a three-cycle")
+            elseif nummove in [0x01, 0x04, 0x05, 0x08] && !u.hybrid && !v.hybrid
+                error("BB undirected move 1, 4, 5, and 8 would create a three-cycle")
+            elseif (nummove == 0x01 || (nummove == 0x03 && getChild(βu) == u)) && !u.hybrid && v.hybrid && !uv.containRoot
+                #TODO check this
+                error("BR directed moves 1 and 3 (if β->u) would create a three-cycle")
+            elseif (nummove in [0x01, 0x05] || (nummove == 0x03 && getChild(βu) == u) || (nummove == 0x06 && getChild(αu) == u)) &&
+                && !u.hybrid && v.hybrid
+                error("BR undirected moves 1, 3 (if β->u), 5, and 6 (if α->u) would create a three-cycle")
+            elseif nummove == 0x01
+                error("RR (directed) move 1 would create a three-cycle")
+            elseif nummove in [0x01, 0x04]
+                error("RB (directed) moves 1 and 4 would create a three-cycle")
+            end
+        end
+    end
     ## TASK 2: semi-directed network swaps:
     ## swap u <-> v, α <-> β if undirected and according to move number
     if !u.hybrid && uv.containRoot # case BB or BR, with uv that may contain the root
@@ -234,6 +310,7 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8)
         # swap α & β: reduce NNIs from 2 to 1 (RR) or from 4 to 2 (RB)
         if nummove == 0x02 || nummove == 0x04
             (αu,βu) = (βu,αu)
+            #? should this reduce NNIs? I don't think it does
         end
         if !v.hybrid && nummove > 0x02 # case RB, moves 3 or 4
             (vγ,vδ) = (vδ,vγ)

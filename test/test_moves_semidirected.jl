@@ -219,6 +219,13 @@ end
     @test writeTopology(net_hybridbelowroot) == str_hybridbelowroot
 end
 
+
+#TODO test no3cycle option by adding a 4 cycle network and trying moves
+#net_level1 has a four-cycle at hybrid edge 17
+@testset "net_level1 no3cyle check edge 13: BB directed, move 1" for move in 0x01:0x02
+    @test_throws Exception PhyloNetworks.nni!(net_level1, net_level1.edge[17], 0x01);
+end #of net_level1 has a four-cycle at hybrid edge 17
+
 end # of testset on unconstrained NNIs
 
 
