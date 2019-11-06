@@ -151,7 +151,7 @@ function edgerelation(ee::Edge, n::Node, origin::Edge)
 end
 
 """
-    nni!(net::HybridNetwork, uv::Edge, nummove::UInt8)
+    nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, no3cycle=true::Bool)
 
 Modify `net` with a nearest neighbor interchange (NNI) around edge `uv`.
 Return the information necessary to undo the NNI, or `nothing` if the move
@@ -171,6 +171,8 @@ On a semi-directed network, there might be a choice of how to direct
 the edges that may contain the root, e.g. choice of e=uv versus vu, and
 choice of labelling adjacent nodes as α/β (BB), or as α/γ (BR).
 
+`no3cycle` prevents moves that would make a 3-cycle by checking for problem 4 cycles
+
 Warning: the edges' field `isChild1` is assumed to be correct,
 according to the `net.root`.
 """
@@ -189,6 +191,8 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, no3cycle=true::Bool)
     if u.hybrid
         αu = getMajorParentEdge(u)
         βu = getMinorParentEdge(u)
+        α = getParent(αu)
+        β = getParent(βu)
     else # u may not have any parent, e.g. if root node
         # pick αu = parent edge if possible, first edge of u (other than uv) otherwise
         labs = [edgerelation(e, u, uv) for e in u.edge]
@@ -197,113 +201,32 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, no3cycle=true::Bool)
         if pi === nothing
             length(ci) == 2 || error("node $(u.number) should have 2 children other than $(v.number)")
             pi = popfirst!(ci)
+            αu = u.edge[pi]
+            α = getChild(αu)
+        else
+            αu = u.edge[pi]
+            α = getParent(αu)
         end
-        αu = u.edge[pi]
         βu = u.edge[ci[1]]
+        β = getChild(βu)
     end
     # get edges vδ & vγ connected to v
     # δ = v's last child, γ = other child or v's parent other than u
     labs = [edgerelation(e, v, uv) for e in v.edge]
     if v.hybrid # then v must have another parent edge, other than uv
-        vγ = v.edge[findfirst(isequal(:parent), labs)] # γ = getParent(vδ)
+        vγ = v.edge[findfirst(isequal(:parent), labs)] # γ = getParent(vδ) ?this should be vγ right? 
         vδ = v.edge[findfirst(isequal(:child), labs)]
+        γ = getParent(vγ)
+        δ = getChild(vδ)
     else
         ci = findall(isequal(:child), labs)
         length(ci) == 2 || error("node $(v.number) should have 2 children")
         vγ = v.edge[ci[1]] # γ = getChild(vγ)
         vδ = v.edge[ci[2]]
+        γ = getChild(vγ)
+        δ = getChild(vδ)
     end
-    #check if there is a 4-cycle. if so, prevent moves that would make a 3-cycle
-    #=     
-    if there is a four cycle (the nodes at the ends of two of the outer edges share 
-    an edge), then if these two outer edges become paired (at either u or v node)
-    then we get a 3-cycle =#
-    if no3cycle
-        #get edges to compare (if edge is hybrid, need to use getChild instead of getParent)
-        if PhyloNetworks.getParent(αu) == u #αu.hybrid ||
-            αedges = PhyloNetworks.getChild(αu).edge
-        else
-            αedges = PhyloNetworks.getParent(αu).edge
-        end
-        if PhyloNetworks.getParent(βu) == u #βu.hybrid || 
-            βedges = PhyloNetworks.getChild(βu).edge
-        else
-            βedges = PhyloNetworks.getParent(βu).edge
-        end
-        if vγ.hybrid || PhyloNetworks.getParent(vγ) == v
-            γedges = PhyloNetworks.getChild(vγ).edge
-        else
-            γedges = PhyloNetworks.getParent(vγ).edge
-        end
-        if vδ.hybrid || PhyloNetworks.getParent(vδ) == v
-            δedges = PhyloNetworks.getChild(vδ).edge
-        else
-            δedges = PhyloNetworks.getParent(vδ).edge
-        end
 
-        #checks
-        if !isempty(intersect(αedges, γedges)) #doesnt allow moves that makes these pair
-            if (nummove == 0x01 && !u.hybrid && !v.hybrid && !uv.containRoot)
-                error("BB directed move 1 would create a three-cycle")
-            elseif nummove in [0x01, 0x04, 0x05, 0x08] && !u.hybrid && !v.hybrid
-                error("BB undirected moves 1, 4, 5, and 8 would create a three-cycle")
-            elseif (nummove == 0x01 || (nummove == 0x03 && getChild(βu) == u)) && !u.hybrid && v.hybrid && !uv.containRoot 
-                error("BR directed moves 1 and 3 (if β->u) would create a three-cycle")
-            elseif (nummove in [0x01, 0x05] || (nummove == 0x03 && getChild(βu) == u) || (nummove == 0x06 && getChild(αu) == u)) &&
-                !u.hybrid && v.hybrid
-                error("BR undirected moves 1, 3 (if β->u), 5, and 6 (if α->u) would create a three-cycle")
-            elseif nummove == 0x01 && u.hybrid && v.hybrid
-                error("RR (directed) move 1 would create a three-cycle")
-            elseif nummove in [0x01, 0x04] && u.hybrid && !v.hybrid
-                error("RB (directed) moves 1 and 4 would create a three-cycle")
-            end
-        elseif !isempty(intersect(αedges, δedges))
-            if nummove == 0x02 && !u.hybrid && !v.hybrid && !uv.containRoot
-                error("BB directed move 2 would create a three-cycle")
-            elseif nummove in [0x02, 0x03, 0x06, 0x07] && !u.hybrid && !v.hybrid
-                error("BB undirected moves 2, 3, 6, and 7 would create a three-cycle")
-            elseif (nummove == 0x02 || (nummove == 0x03 && getChild(αu) == u)) && !u.hybrid && v.hybrid && !uv.containRoot  
-                error("BR directed moves 2 and 3 (if α->u) would create a three-cycle")
-            elseif (nummove in [0x02, 0x04] || (nummove == 0x03 && getChild(αu) == u) || (nummove == 0x06 && getChild(βu) == u)) &&
-                !u.hybrid && v.hybrid
-                error("BR undirected moves 2, 3 (if α->u), 4, and 6 (if β->u) would create a three-cycle")
-            elseif nummove == 0x02 && u.hybrid && v.hybrid
-                error("RR (directed) move 2 would create a three-cycle")
-            elseif nummove in [0x02, 0x03] && u.hybrid && !v.hybrid
-                error("RB (directed) moves 2 and 3 would create a three-cycle")
-            end
-        elseif !isempty(intersect(βedges, γedges))
-            if nummove == 0x02 && !u.hybrid && !v.hybrid && !uv.containRoot
-                error("BB directed move 2 would create a three-cycle")
-            elseif nummove in [0x02, 0x03, 0x06, 0x07] && !u.hybrid && !v.hybrid
-                error("BB undirected moves 2, 3, 6, and 7 would create a three-cycle")
-            elseif (nummove == 0x02 || (nummove == 0x03 && getChild(αu) == u)) && !u.hybrid && v.hybrid && !uv.containRoot 
-                error("BR directed moves 2 and 3 (if α->u) would create a three-cycle")
-            elseif (nummove in [0x02, 0x04] || (nummove == 0x03 && getChild(αu) == u) || (nummove == 0x06 && getChild(βu) == u)) &&
-                !u.hybrid && v.hybrid
-                error("BR undirected moves 2, 3 (if α->u), 4, and 6 (if β->u) would create a three-cycle")
-            elseif nummove == 0x02 && u.hybrid && v.hybrid
-                error("RR (directed) move 2 would create a three-cycle")
-            elseif nummove in [0x02, 0x03] && u.hybrid && !v.hybrid
-                error("RB (directed) moves 2 and 3 would create a three-cycle")
-            end
-        elseif !isempty(intersect(βedges, δedges))
-            if nummove == 0x01 && !u.hybrid && !v.hybrid && !uv.containRoot
-                error("BB directed move 1 would create a three-cycle")
-            elseif nummove in [0x01, 0x04, 0x05, 0x08] && !u.hybrid && !v.hybrid
-                error("BB undirected move 1, 4, 5, and 8 would create a three-cycle")
-            elseif (nummove == 0x01 || (nummove == 0x03 && getChild(βu) == u)) && !u.hybrid && v.hybrid && !uv.containRoot
-                error("BR directed moves 1 and 3 (if β->u) would create a three-cycle")
-            elseif (nummove in [0x01, 0x05] || (nummove == 0x03 && getChild(βu) == u) || (nummove == 0x06 && getChild(αu) == u)) &&
-                !u.hybrid && v.hybrid
-                error("BR undirected moves 1, 3 (if β->u), 5, and 6 (if α->u) would create a three-cycle")
-            elseif nummove == 0x01 && u.hybrid && v.hybrid
-                error("RR (directed) move 1 would create a three-cycle")
-            elseif nummove in [0x01, 0x04] && u.hybrid && !v.hybrid
-                error("RB (directed) moves 1 and 4 would create a three-cycle")
-            end
-        end
-    end
     ## TASK 2: semi-directed network swaps:
     ## swap u <-> v, α <-> β if undirected and according to move number
     if !u.hybrid && uv.containRoot # case BB or BR, with uv that may contain the root
@@ -311,9 +234,8 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, no3cycle=true::Bool)
         if !v.hybrid # BB, uv and all adjacent edges are undirected: 8 moves
             if nummove > 0x04  # switch u & v with prob 1/2
                 nummove -= 0x04  # now in 1,2,3,4
-                (u,v) = (v,u)
-                (αu,βu,vγ,vδ) = (vγ,vδ,αu,βu)
-                # (α,αu,β,βu,γ,vγ,δ,vδ) = (γ,vγ,δ,vδ,α,αu,β,βu)
+                (u,v) = (v,u) #?could this be combined with below?
+                (α,αu,β,βu,γ,vγ,δ,vδ) = (γ,vγ,δ,vδ,α,αu,β,βu)
             end
             nmoves = 0x02
         end
@@ -321,18 +243,17 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, no3cycle=true::Bool)
         # next: switch α & β with probability 1/2
         if nummove > nmoves
             nummove -= nmoves # now nummoves in 1,2 (BB) or 1,2,3 (BR)
-            (αu,βu) = (βu,αu)
+            (α,αu,β,βu) = (β,βu,α,αu)
         end
     end
     ## TASK 3: rooted network swaps, then do the NNI
     if u.hybrid # RR or RB cases
         # swap α & β: reduce NNIs from 2 to 1 (RR) or from 4 to 2 (RB)
         if nummove == 0x02 || nummove == 0x04
-            (αu,βu) = (βu,αu)
-            #? should this reduce NNIs? I don't think it does
+            (α,αu,β,βu) = (β,βu,α,αu)
         end
         if !v.hybrid && nummove > 0x02 # case RB, moves 3 or 4
-            (vγ,vδ) = (vδ,vγ)
+            (γ,vγ,vδ,δ) = (δ,vδ,vγ,γ)
         end
         # detach β and graft onto vδ
         if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
@@ -340,30 +261,38 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, no3cycle=true::Bool)
     else # u = bifurcation: BB or BR cases
         if !v.hybrid # case BB: 2 options
             if nummove == 0x02
-                (vγ,vδ) = (vδ,vγ)
+                (γ,vγ,vδ,δ) = (δ,vδ,vγ,γ)
             end
             # detach β and graft onto vδ
             if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
             res = nni!(αu, u, uv, v, vδ)
         else # case BR: 3 options
             if nummove == 0x01 # graft γ onto α
+                if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
                 # check that there's no directed path from child of u -> γ (if u has a parent),
                 #        or no path from α -> γ (if u = root). If so: return nothing
-                if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
-                if isdescendant(γ, α) return nothing; end
+                if (!(u == net.root) && isdescendant(γ, u)) || (u == net.root && isdescendant(γ, α))
+                    return nothing
+                end
                 res = nni!(vδ, v, uv, u, αu)
             elseif nummove == 0x02 # graft γ onto β
+                if no3cycle && problem4cycle(β,γ, α,δ) return nothing; end
                 # check that there's no directed path from child of u -> γ (if u has a parent),
                 #        or no path from β -> γ (if u = root). If so: return nothing
-                if no3cycle && problem4cycle(β,γ, α,δ) return nothing; end
-                if isdescendant(γ, β) return nothing; end #TODO add these
+                if (!(u == net.root) && isdescendant(γ, u)) || (u == net.root && isdescendant(γ, β))
+                    return nothing
+                end
                 res = nni!(vδ, v, uv, u, βu)
             else # nummove == 0x03
                 if getChild(αu)===u # if α->u: graft δ onto α
-                    # fixit: check no directed path from α -> γ
                     if no3cycle && problem4cycle(α,δ, β,γ) return nothing; end
+                    # check no directed path from α -> γ
+                    if isdescendant(γ, α) return nothing; end
                     res = nni!(vγ, v, uv, u, αu)
                 elseif getChild(βu)===u # if β->u: graft δ onto β
+                    #? Cecile, is this check correct?
+                    # check if directed path from β -> γ?
+                    if isdescendant(γ, β) return nothing; end
                     if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
                     res = nni!(vγ, v, uv, u, βu)
                 else
@@ -486,20 +415,11 @@ function cladesviolated(net::HybridNetwork, cladeconstraints::Dict)
 end
 
 """
-    problem4cycle
+    problem4cycle(β::Node, δ::Node, α::Node, γ::Node)
 
-Check if there is a 4 cycle that would create a three cycle
+Checks if the edge uv has a 4 cycle that, after the chosen NNI,would create a 
+three cycle. Return true if there is a problem 4 cycle, false if no problem.
 """
-function problem4cycle()
-    isconnected(beta, delta) || isconnected(alpha, gamma)
-end
-
-#TODO put in compare.jl or auxillary.jl (near functions like getChild)
-function isconnected(node1, node2)
-    for e in node1.edge
-        if e in node2.edge
-            return true
-        end
-    end
-    return false
+function problem4cycle(β::Node, δ::Node, α::Node, γ::Node)
+    isconnected(β, δ) || isconnected(α, γ)
 end

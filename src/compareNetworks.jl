@@ -252,6 +252,7 @@ function isdescendant(des::Node, anc::Node)
             return true
         end
     end
+    return false
 end
 
 function isdescendant!(visited::Vector{Int}, des::Node, e::Edge)
@@ -259,8 +260,11 @@ function isdescendant!(visited::Vector{Int}, des::Node, e::Edge)
     if n == des
         return true
     end
-    if n.number in visited
-        return false  # n was already visited: exit. avoid infinite loop is isChild1 was bad.
+    if n.hybrid #only need to check this for hybrid nodes
+        push!(visited, n.number)
+        if n.number in visited
+            return false  # n was already visited: exit. avoid infinite loop is isChild1 was bad.
+        end
     end
     for ce in n.edge
         if n == getParent(ce)

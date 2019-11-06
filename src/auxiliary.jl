@@ -359,6 +359,21 @@ function getConnectingEdge(node1::Node,node2::Node)
     end
 end
 
+"""
+    isconnected(node1::Node, node2::Node)
+
+Check if two nodes are connected by an edge. Return true if connected, false
+if not connected.
+"""
+function isconnected(node1, node2)
+    for e in node1.edge
+        if e in node2.edge
+            return true
+        end
+    end
+    return false
+end
+
 # function to check in an edge is in an array by comparing
 # the edges numbers (uses isEqual)
 # needed for updateHasEdge
