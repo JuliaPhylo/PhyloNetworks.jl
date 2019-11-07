@@ -155,7 +155,7 @@ end
 
 Modify `net` with a nearest neighbor interchange (NNI) around edge `uv`.
 Return the information necessary to undo the NNI, or `nothing` if the move
-was not successful (such as if the resulting graph was not acyclic or if
+was not successful (such as if the resulting graph was not acyclic (not a DAG) or if
 the focus edge is adjacent to a polytomy).
 `nummove` specifies which of the available NNIs is performed.
 The network is modified even if the NNI failed. (fixit: check and update the comment accordingly!!)
@@ -183,8 +183,8 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, no3cycle=true::Bool)
     end
     nummove > 0x00 || error("nummove $(nummove) must be >0")
     nummove <= nmovemax || error("nummove $(nummove) must be <= $nmovemax for edge number $(uv.number)")
-    u = getParent(uv)
-    v = getChild(uv)
+    u = PhyloNetworks.getParent(uv) #todo remove
+    v = PhyloNetworks.getChild(uv)
     ## TASK 1: grab the edges adjacent to uv: αu, βu, vγ, vδ and adjacent nodes
     # get edges αu & βu connected to u
     # α = u's major parent if it exists, β = u's last child or minor parent
@@ -195,26 +195,27 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, no3cycle=true::Bool)
         β = getParent(βu)
     else # u may not have any parent, e.g. if root node
         # pick αu = parent edge if possible, first edge of u (other than uv) otherwise
-        labs = [edgerelation(e, u, uv) for e in u.edge]
-        pi = findfirst(isequal(:parent), labs) # parent index: there should be 1 or 0
+        labs = [PhyloNetworks.edgerelation(e, u, uv) for e in u.edge]
+        pti = findfirst(isequal(:parent), labs) # parent index: there should be 1 or 0 #changed name to pti because of ERROR: cannot assign a value to variable MathConstants.pi from module Main
         ci = findall(  isequal(:child), labs)  # vector. there should be 1 or 2
-        if pi === nothing
+        if pti === nothing
             length(ci) == 2 || error("node $(u.number) should have 2 children other than $(v.number)")
-            pi = popfirst!(ci)
-            αu = u.edge[pi]
-            α = getChild(αu)
+            pti = popfirst!(ci)
+            αu = u.edge[pti]
+            α = PhyloNetworks.getChild(αu) #TODO remove PhyloNetworks.
         else
-            αu = u.edge[pi]
-            α = getParent(αu)
+            αu = u.edge[pti]
+            α = PhyloNetworks.getParent(αu)
         end
         βu = u.edge[ci[1]]
-        β = getChild(βu)
+        β = PhyloNetworks.getChild(βu)
     end
     # get edges vδ & vγ connected to v
     # δ = v's last child, γ = other child or v's parent other than u
-    labs = [edgerelation(e, v, uv) for e in v.edge]
+    labs = [PhyloNetworks.edgerelation(e, v, uv) for e in v.edge]
     if v.hybrid # then v must have another parent edge, other than uv
         vγ = v.edge[findfirst(isequal(:parent), labs)] # γ = getParent(vδ) ?this should be vγ right? 
+            #on net_hybridladder edge 1 get ERROR: ArgumentError: invalid index: nothing of type Nothing
         vδ = v.edge[findfirst(isequal(:child), labs)]
         γ = getParent(vγ)
         δ = getChild(vδ)
