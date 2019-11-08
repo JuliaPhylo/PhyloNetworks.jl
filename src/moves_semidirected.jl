@@ -56,8 +56,6 @@ end
 - add moves that change the root position (and edge directions accordingly)
   without re-calculating the likelihood (accept the move): perhaps recalculate forward / direct likelihoods
   why: the root position affects the feasibility of the NNIs starting from a BR configuration
-- to check if there is a path from n1 to n2: see if we can use `descendants` and `descendants!` in `compareNetworks.jl`
-  check condition for getting a DAG in case the network is semi-rooted, BR case
 =#
 
 """
@@ -69,20 +67,27 @@ randomly chosen among all possible NNIs (e.g 3, sometimes more depending on `e`)
 satisfying the constraints, and such that the new network is a DAG.
 Option `no3cycle` forbids moves that would create a 3-cycle in the network.
 
-
-Output: information indicating which NNI was performed, or `nothing` if all NNIs failed.
-fixit: what information to return exactly? NNI number? info to undo?
+Output: information indicating how to undo the move or `nothing` if all NNIs failed.
 
 # examples
 
 ```jldoctest
-fixit: define a network, find suitable edge index i,
-undoinfo = nni!(net, net.edge[i])
-net
+# checks for 3cycle
+str_level1 = "(((8,9),(((((1,2,3),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));"
+net_level1 = readTopology(str_level1);
+undoinfo = nni!(net_level1, net_level1.edge[3])
 nni!(undoinfo...)
-net
+writeTopology(net_level1) == str_level1
+true
+
+# does not check for 3cycle
+undoinfo = nni!(net_level1, net_level1.edge[3], no3cycle=false)
+nni!(undoinfo...)
+writeTopology(net_level1) == str_level1
+true
+
+# TODO add example with constraint
 ```
-fixit: add example with constraint
 """
 function nni!(net::HybridNetwork, e::Edge, constraint::Vector{TopologyConstraint},
     no3cycle=true::Bool)
@@ -158,7 +163,7 @@ Return the information necessary to undo the NNI, or `nothing` if the move
 was not successful (such as if the resulting graph was not acyclic (not a DAG) or if
 the focus edge is adjacent to a polytomy).
 `nummove` specifies which of the available NNIs is performed.
-The network is modified even if the NNI failed. (fixit: check and update the comment accordingly!!)
+The network is modified even if the NNI failed. (fixit: check and update the comment accordingly!)
 
 rooted-NNI options according to Gambette et al. (2017), fig. 8:
 * BB: 2 moves, both to BB, if directed edges. 8 moves if undirected.
@@ -227,7 +232,6 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, no3cycle=true::Bool)
         γ = getChild(vγ)
         δ = getChild(vδ)
     end
-
     ## TASK 2: semi-directed network swaps:
     ## swap u <-> v, α <-> β if undirected and according to move number
     if !u.hybrid && uv.containRoot # case BB or BR, with uv that may contain the root
@@ -272,15 +276,23 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, no3cycle=true::Bool)
                 if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
                 # check that there's no directed path from child of u -> γ (if u has a parent),
                 #        or no path from α -> γ (if u = root). If so: return nothing
-                if (!(u == net.root) && isdescendant(γ, u)) || (u == net.root && isdescendant(γ, α))
-                    return nothing
+                if !uv.containRoot #if uv cannot contain the root then just check isdesc()
+                    if isdescendant(γ, u) return nothing; end
+                #if uv undirected, then more complex
+                #? Do we want to allow rerooting? Or just check for example 3 case?
+                elseif (!(u == net.root) && isdescendant(γ, u)) || (u == net.root && isdescendant(γ, α))
+                        return nothing
                 end
                 res = nni!(vδ, v, uv, u, αu)
             elseif nummove == 0x02 # graft γ onto β
                 if no3cycle && problem4cycle(β,γ, α,δ) return nothing; end
                 # check that there's no directed path from child of u -> γ (if u has a parent),
                 #        or no path from β -> γ (if u = root). If so: return nothing
-                if (!(u == net.root) && isdescendant(γ, u)) || (u == net.root && isdescendant(γ, β))
+                if !uv.containRoot #if uv cannot contain the root then just check isdesc()
+                    if isdescendant(γ, u) return nothing; end
+                #if uv undirected, then more complex
+                #? Do we want to allow rerooting to make this move work? Or just check for example 3 case?
+                elseif (!(u == net.root) && isdescendant(γ, u)) || (u == net.root && isdescendant(γ, β))
                     return nothing
                 end
                 res = nni!(vδ, v, uv, u, βu)
@@ -291,8 +303,7 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, no3cycle=true::Bool)
                     if isdescendant(γ, α) return nothing; end
                     res = nni!(vγ, v, uv, u, αu)
                 elseif getChild(βu)===u # if β->u: graft δ onto β
-                    #? Cecile, is this check correct?
-                    # check if directed path from β -> γ?
+                    #? check if directed path from β -> γ? or u -> γ?
                     if isdescendant(γ, β) return nothing; end
                     if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
                     res = nni!(vγ, v, uv, u, βu)
@@ -340,7 +351,7 @@ With the second version, the input has the same signature as the output.
 If `output = nni!(input)`, then `nni!(output...)` is valid and undoes
 the first operation.
 
-fixit: describe how branch lengths are modified,
+fixit: describe how branch lengths are modified
 """
 function nni!(αu::Edge, u::Node, uv::Edge, v::Node, vδ::Edge)
     # find indices to detach αu from u, and to detach v from vδ
@@ -418,8 +429,8 @@ end
 """
     problem4cycle(β::Node, δ::Node, α::Node, γ::Node)
 
-Checks if the edge uv has a 4 cycle that, after the chosen NNI,would create a 
-three cycle. Return true if there is a problem 4 cycle, false if no problem.
+Checks if the focus edge uv has a 4 cycle that could lead to a 3 cycle
+    after an chosen NNI. Return true if there is a problem 4 cycle, false if none.
 """
 function problem4cycle(β::Node, δ::Node, α::Node, γ::Node)
     isconnected(β, δ) || isconnected(α, γ)
