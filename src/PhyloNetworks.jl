@@ -144,7 +144,7 @@ module PhyloNetworks
         randomTrait!,
         fitdiscrete,
         readfastatodna,
-        prepdata,
+        datatoSSM,
         stationary,
         empiricalDNAfrequencies,
         nni!,

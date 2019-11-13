@@ -594,7 +594,7 @@ bmod = PhyloNetworks.symboltomodel(dna_net_top, :BTSM, dat, [1.0, 1.0, 1.0, 1.0]
 @test_throws ErrorException PhyloNetworks.symboltomodel(dna_net_top, :QR, dat, [1.0, 1.0, 1.0, 1.0])
 
 
-test_SSM = PhyloNetworks.prepdata(dna_net_top, fastafile, :JC69)
+test_SSM = PhyloNetworks.datatoSSM(dna_net_top, fastafile, :JC69)
 @test typeof(test_SSM.model) == JC69
 @test test_SSM.nsites == 209
 @test test_SSM.siteweight[1:5] == [23.0, 18.0, 13.0, 16.0, 1.0] 
@@ -621,7 +621,7 @@ end
 setGamma!(dna_net_top.edge[6],0.6)
 setGamma!(dna_net_top.edge[7],0.6)
 setGamma!(dna_net_top.edge[58],0.6)
-test_SSM = PhyloNetworks.prepdata(dna_net_top, fastafile, :JC69)
+test_SSM = PhyloNetworks.datatoSSM(dna_net_top, fastafile, :JC69)
 
 # tests #
 clades = Dict("Ae_caudata_Tr275" => [3])

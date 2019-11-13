@@ -944,168 +944,6 @@ function startingrate(net::HybridNetwork)
     return 1.0/totaledgelength
 end
 
-####
-    # Network Optimization #
-
-# See latex pseudocode doc for full explanation of the network, rate, 
-# branch length, gamma search and optimization algorithm
-####
-
-## fit! Functions ##
-
-"""
-    fit!(objs::Vector{SSM}, cladeconstraints=NULL::Dict; kwargs)
-
-Call this function to optimize substitution model, alpha, network structure
-This function calls all functions below.
-"""
-#?Are these the kwargs we need? Just took these from fitdiscrete()
-#? is this the correct way to use kwargs?
-# function fit!(objs::Vector{SSM}, cladeconstraints=NULL::Dict; verbose=false::Bool, 
-#     NLoptMethod=:LD_MMA::Symbol, liktolabs=liktolabs::Float64, ftolRel=fRelBL::Float64, 
-#     ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64, 
-#     alphamin=0.05, alphamax=500)
-
-#     obj = objs[1]
-#     candidateobj = objs[2]
-#     uvlist = Random.shuffle([e for e in obj.net.edge if !getChild(e).leaf]) #random order
-#     founduv = false
-#     for uv in uvlist
-#         #TODO need to send some kwargs to  this fit here and below
-#         #TODO fit!(obj, uv; kwargs) #update local branch lengths and gammas
-#         successfulnni, movenum = nni!(candidateobj, uv, cladeconstraints)
-#         successfulnni = true
-#         movenum = 1
-#         if successfulnni 
-#             founduv=true
-#             #TODO fit!(candidateobj, uv; kwargs) #update local branch lengths and gammas
-#             loglikdiff = candidateobj.loglik - obj.loglik 
-#             if (loglikdiff > liktolabs)
-#                 objs[1] = candidateobj
-#                 objs[2] = obj
-#                 #? Why is this here instead of in nni!? Is it bc we only want to update objs[2] if the move was successful?
-#                 #donni!(objs[2], movenum)
-#                 #TODO updatessm(objs[2], objs[1], :BL)
-#                 nfail = 0
-#                 break
-#             else
-#                 nfail += 1
-#             end
-#         else
-#             #TODO updateedges!(candidateobj, obj, uv)
-#         end
-#     end
-#    founduv || error("no NNI moves eligible")
-# end
-
-"""
-    fit!(obj::SSM,:substitutionmodel::Symbol) 
-
-optimize evolutionary rates in substitutionmodel using NLopt 
-"""
-# function fit!(obj::SSM, objsubmodel::SubstitutionModel) 
-#     #todo update this fit! function so that we can set maxiter = 3 
-#         #(can we add a kwarg to the first fit! function?)
-#     fit!(obj; optimizeQ=true, optimizeRVAS=false)
-# end
-
-"""
-    fit!(obj::SSM,:ratemodel::Symbol)
-    
-optimize alpha parameter in rate variation across sites model using NLopt
-"""
-# function fit!(obj::SSM, objalphamodel::RateVariationAcrossSites)
-#     #todo update this fit! function so that we can set maxiter = 3
-#         #(can we add a kwarg to the first fit! function?)
-#     fit!(obj; optimizeQ=false, optimizeRVAS=true)
-# end
-
-"""
-    fit!(obj::SSM, e::Edge)
-
-optimize branch lengths and gamma around edge e in obj.net using large tol NLOpt
-Simultaneaously update central branch (denoted uv) and those adjacent to it. 
-Update internal branch lengths of `net` using Turing.jl with a network's given branch lengths
-as centers of the prior distribution. 
-NOTE: We constrain every edge coming out of a hybrid node to be 0 because it’s not identifiable. 
-One less parameter to optimize (BL). We always create a new node when we add a hybrid edge.
-TODO add local gamma optimization (restrict gamma to 0 to 0.5 to keep these edges hybrid edges)
-"""
-# function fit!(obj::SSM, e::Edge; verbose=false::Bool, nparBL::Int, ftolRel::Float64,
-#     ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64)
-#     #make a list of adjacent edges, then reuse it for efficiency?
-#     edges = [e for e in obj.net.edge[e].node.edge]
-#     @show edges
-#     #use a technique similar to evol rate optim
-#     function loglikfun(x::Vector{Float64}, grad::Vector{Float64}) # modifies obj
-#         counter[1] += 1
-#         #TODO write a setBL function setrates!(obj.model, x)
-#         res = discrete_corelikelihood!(obj)
-#         verbose && println("loglik: $res, branch lengths: $x")
-#         length(grad) == 0 || error("gradient not implemented")
-#         return res
-#     end
-#     # set-up optimization object for BLs
-#     NLoptMethod=:LN_COBYLA # no gradient
-#     # :LN_COBYLA for (non)linear constraits, :LN_BOBYQA for bound constraints
-#     nparlocalBL = nparams(obj.model)
-#     optlocalBL = NLopt.Opt(NLoptMethod, nparBL)
-#     NLopt.ftol_rel!(optlocalBL,ftolRel) # relative criterion
-#     NLopt.ftol_abs!(optlocalBL,ftolAbs) # absolute criterion
-#     NLopt.xtol_rel!(optlocalBL,xtolRel)
-#     NLopt.xtol_abs!(optlocalBL,xtolAbs)
-#     NLopt.maxeval!(optlocalBL,1000) # max number of iterations
-#     # NLopt.maxtime!(optlocalBL, t::Real)
-#     NLopt.lower_bounds!(optlocalBL, zeros(Float64, nparlocalBL))
-#     # fixit: set upper bound depending on branch lengths in network?
-#     counter[1] = 0
-#     NLopt.max_objective!(optlocalBL, loglikfun)
-#     fmax, xmax, ret = NLopt.optimize(optlocalBL, obj.model.rate) # optimization here!
-#     verbose && println("got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
-# end
-
-"""
-    fitBL!(obj::SSM; kwargs)
-
-optimize all branch lengths and gamma in obj.net using smaller tolerance NLOpt
-
-Update internal branch lengths of `net` using Turing.jl with a network's given branch lengths
-as centers of the prior distribution. based on updateBL! from snaq!
-
-This is called at the end of network structure optimization.
-"""
-# function fitBL!(obj::SSM; kwargs) 
-#     niterations = 100
-#     function loglikfunBL(x::Vector{Float64}, grad::Vector{Float64}) # modifies obj
-#         counter[1] += 1
-#         setBranchLength!(obj.net.edge.length, x)
-#         res = discrete_corelikelihood!(obj)
-#         verbose && println("loglik: $res, model rates: $x")
-#         length(grad) == 0 || error("gradient not implemented")
-#         return res
-#     end
-#     for iterations in 1:niterations
-#         counter = [0]
-#         for edge in 1:length(obj.net.edge)
-#             NLoptMethod=:LN_COBYLA # no gradient
-#             # :LN_COBYLA for (non)linear constraits, :LN_BOBYQA for bound constraints
-#             nparBL = 1
-#             optBL = NLopt.Opt(NLoptMethod, nparBL)
-#             NLopt.ftol_rel!(optBL,ftolRel) # relative criterion
-#             NLopt.ftol_abs!(optBL,ftolAbs) # absolute criterion
-#             NLopt.xtol_rel!(optBL,xtolRel)
-#             NLopt.xtol_abs!(optBL,xtolAbs)
-#             NLopt.maxeval!(optBL,1000) # max number of iterations
-#             # NLopt.maxtime!(optQ, t::Real)
-#             NLopt.lower_bounds!(optBL, zeros(Float64, nparBL))
-#             counter[1] = 0
-#             NLopt.max_objective!(optBL, loglikfunBL)
-#             fmax, xmax, ret = NLopt.optimize(optBL, edge.length) # optimization here!
-#             verbose && println("got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret)) and $(iterations) rounds")
-#         end #edges
-#     end #iterations
-# end
-
 """
     startingBL!(net::HybridNetwork, trait::Vector{Vector} [, siteweight::Vector])
 
@@ -1165,16 +1003,16 @@ end
 
 # ## Prep and Wrapper Functions ##
 
-# """
-#     prepdata(net::HybridNetwork, dnadata::DataFrame, modsymbol::Symbol)
+"""
+    datatoSSM(net::HybridNetwork, dnadata::DataFrame, modsymbol::Symbol)
 
-# Create an SSM object for use in wrapper function. This should include all actions 
-#     that can happen only once. Probably need different versions for different 
-#     kinds of data (snp, amino acids). Start with dna
-#     should call readfastatodna(), startingrate(), startingBL!()
-#     Similar to fitdiscrete()
-# """
-function prepdata(net::HybridNetwork, fastafile::String, modsymbol::Symbol)
+Create an SSM object for use in wrapper function. This should include all actions 
+that can happen only once. Probably need different versions for different 
+kinds of data (snp, amino acids), but works for DNA now.
+Call readfastatodna(), startingrate(), startingBL!()
+Similar to fitdiscrete()
+"""
+function datatoSSM(net::HybridNetwork, fastafile::String, modsymbol::Symbol)
 
     data, siteweights = readfastatodna(fastafile, true)
     model = symboltomodel(net, modsymbol, data, siteweights)
@@ -1186,37 +1024,7 @@ function prepdata(net::HybridNetwork, fastafile::String, modsymbol::Symbol)
     startingBL!(net, trait, siteweights)
     obj = StatisticalSubstitutionModel(model, ratemodel, net, trait, siteweights)
 end
-# """
-#     writessmtofile(SSMobject::SSM)
 
-# write SSM data to a file so that users only need to call prep data once
-# TODO
-# """
-
-# """
-#     wrapper(net::HybridNetwork, dnadata::DataFrame, siteweights::VectorFloat, 
-#     modSymbol::Symbol, optim=:all::Symbol; kwargs)
-
-# Users call this function with their data to start the full process.
-# have an option for a user-defined model with their own rates. 
-#     calls these functions:
-#     addclades!(obj::SSM, clade)
-#     fit!(obj::SSM, :all::Symbol; kwargs)
-#     startingBL!(net::HybridNetwork, trait::Vector{Vector{Union{Missing,Int}}},
-#     siteweight::Union{Missings.Missing, Vector{Float64}})
-#? Cecile, should we construct the model here instead of in prepdata?
-# TODO rename this function. Something with snp, ML?
-# """
-# function wrapper(obj::SSM, cladecontraints::Dict{String,Vector{Int64}}; kwargs...)
-#     addclades!(obj.net, cladecontraints)
-#     fit!(obj, obj.model) #rough update of substitution model
-#     fit!(obj, obj.ratemodel) #rough update of rate variation model
-#     objs = [obj, deepcopy(obj)]
-#     fit!(objs, cladecontraints; kwargs...) #TODO make sure final is saved in objs[1]
-#     fit!(objs[1], obj.model) #fine update of substitution model
-#     fit!(objs[1], obj.ratemodel) #fine update of rate variation model
-#     fitBL!(objs[1]) #update branch lengths on final structure
-# end
 """
     addclades!(net::HybridNetwork, cladesDict::Dict{String, Vector{Int64}}
 
@@ -1252,11 +1060,10 @@ end
 """
     symboltomodel(network, modsymbol::Symbol, data::DataFrame, siteweights::Vector)
 
-Take a symbol and data to create a statistical substitution model.
-default site weights
-explain why is net necessary
-relative version
+Take a symbol and data to create a relative statistical substitution model using
+default site weights.
 """
+#TODO is net necessary?
 function symboltomodel(net::HybridNetwork, modsymbol::Symbol, data::DataFrame,
         siteweights=repeat([1.], inner=ncol(data))::Vector)
     rate = startingrate(net)
@@ -1276,15 +1083,3 @@ function symboltomodel(net::HybridNetwork, modsymbol::Symbol, data::DataFrame,
         error("model $modsymbol is unknown or not implemented yet")
     end
 end
-
-
-# ## Functions to Update SSM Objects Efficiently ##
-
-# # function updatessm!(candidateobj::SSM, orig::SSM, :BL::Symbol, uv::Edge) update local edges around uv so that they match orig SSM
-# # end function
-# # function updatessm!(candidateobj::SSM, :substitutionmodel, originalobj::SSM)
-# # update Q of candidate object using origObj.model.Q
-# # end function
-# # function updatessm!(candidateobj::SSM, :alpha, originalobj::SSM)
-# # update alpha of candidate object using origObj.ratemodel.alpha
-# # end function

@@ -54,7 +54,7 @@ nni!
 ## data and topology read/write
 
 ```@docs
-prepdata
+datatoSSM
 readfastatodna
 readTopology
 readTopologyLevel1
