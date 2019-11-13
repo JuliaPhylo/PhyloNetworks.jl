@@ -318,6 +318,7 @@ end # of hybrid ladder net edge 12: BB undirected (edge below root)
     net_level1 = readTopology(str_level1);
     @test PhyloNetworks.isdescendant(net_level1.node[7], net_level1.node[17]) == true # nodes -9, -6
     @test PhyloNetworks.isdescendant(net_level1.node[7], net_level1.node[3]) == false # nodes -9, -4
+    @test PhyloNetworks.isdescendant(net_level1.node[15], net_level1.node[17]) == true # node -12, -6
     @test PhyloNetworks.isconnected(net_level1.node[12], net_level1.node[17]) == true #node -7, -6
     @test PhyloNetworks.isconnected(net_level1.node[12], net_level1.node[19]) == false # node -7, -3 
 end

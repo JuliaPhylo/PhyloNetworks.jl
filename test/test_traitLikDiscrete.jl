@@ -579,12 +579,20 @@ setGamma!(dna_net_top.edge[7],0.6)
 setGamma!(dna_net_top.edge[58],0.6)
 
 # tests #
+net_dat = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
+dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"])
 
 jmod = PhyloNetworks.symboltomodel(dna_net_top, :JC69, dna_dat, dna_weights)
 @test jmod.rate == [1.0]
 emod = PhyloNetworks.symboltomodel(dna_net_top, :ERSM, dna_dat, dna_weights)
 @test emod.rate[1] ≈ 0.009708737864077669
 @test typeof(emod) == EqualRatesSubstitutionModel{DNA}
+hmod = PhyloNetworks.symboltomodel(dna_net_top, :HKY85, dna_dat, dna_weights)
+@test typeof(hmod) == HKY85
+bmod = PhyloNetworks.symboltomodel(dna_net_top, :BTSM, dat, [1.0, 1.0, 1.0, 1.0])
+@test typeof(bmod) == BinaryTraitSubstitutionModel{String}
+@test_throws ErrorException PhyloNetworks.symboltomodel(dna_net_top, :QR, dat, [1.0, 1.0, 1.0, 1.0])
+
 
 test_SSM = PhyloNetworks.prepdata(dna_net_top, fastafile, :JC69)
 @test typeof(test_SSM.model) == JC69
@@ -592,7 +600,7 @@ test_SSM = PhyloNetworks.prepdata(dna_net_top, fastafile, :JC69)
 @test test_SSM.siteweight[1:5] == [23.0, 18.0, 13.0, 16.0, 1.0] 
 
 #test wrapper. should add clades, implement startingBL!()
-#TODO testwrapper = PhyloNetworks.wrapper(test_SSM, Dict("Ae_caudata_Tr275" => [3]), liktolabs = 1e-2)
+#testwrapper = PhyloNetworks.wrapper(test_SSM, Dict("Ae_caudata_Tr275" => [3]), liktolabs = 1e-2)
 #TODO @test test_SSM.net.leaf[1].clade == [3]
 
 #@test_logs show(devnull, testwrapper)
