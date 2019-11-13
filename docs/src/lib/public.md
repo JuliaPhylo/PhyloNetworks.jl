@@ -48,6 +48,7 @@ biconnectedComponents
 blobDecomposition
 getlabels
 nparams
+nni!
 ```
 
 ## data and topology read/write

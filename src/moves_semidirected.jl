@@ -273,11 +273,13 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, no3cycle=true::Bool)
             if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
             res = nni!(αu, u, uv, v, vδ)
         else # case BR: 3 options 
-            # DAG check #TODO edit commentss
-            # check that there's no directed path from child of u -> γ (if u has a parent),
-            # or no path from α -> γ (if u = root). If so: return nothing
-            # check that there's no directed path from child of u -> γ (if u has a parent),
-            # or no path from β -> γ (if u = root). If so: return nothing
+            # DAG check
+            # if α parent of u, check if β -> γ (directed or undirected)
+            # if undirected with β parent of u, check α -> γ
+            # if undirected and u = root:
+            #   moves 1 and 3 will fail if α -> γ 
+            #   moves 2 and 3 will fail if β -> γ
+            # nummove 3 always creates a nonDAG when u is the root
             αparentu = getChild(αu)===u
             βparentu = getChild(βu)===u
             if αparentu
@@ -289,7 +291,7 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, no3cycle=true::Bool)
                     return nothing
                 elseif nummove == 0x02 && isdescendant(γ, β)
                     return nothing
-                elseif nummove == 0x03 # fail: nummove 3 is impossible when u is the root: not DAG
+                elseif nummove == 0x03 # fail: not DAG
                     return nothing
                 end
             end

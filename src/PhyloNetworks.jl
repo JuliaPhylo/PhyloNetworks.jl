@@ -147,6 +147,7 @@ module PhyloNetworks
         prepdata,
         stationary,
         empiricalDNAfrequencies,
+        nni!,
         # neighbor joining
         nj
 

@@ -244,7 +244,11 @@ function descendants!(edge::Edge, visited::Vector{Int})
     end
     return nothing
 end
+"""
+    isdescendant(des:Node, anc::Node)
 
+Return true if `des` is descendant of `anc`. Uses `isChild1` attribute.
+"""
 function isdescendant(des::Node, anc::Node)
     visited = Int[]
     for e in anc.edge
