@@ -272,44 +272,42 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, no3cycle=true::Bool)
             # detach β and graft onto vδ
             if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
             res = nni!(αu, u, uv, v, vδ)
-        else # case BR: 3 options
+        else # case BR: 3 options 
+            # DAG check #TODO edit commentss
+            # check that there's no directed path from child of u -> γ (if u has a parent),
+            # or no path from α -> γ (if u = root). If so: return nothing
+            # check that there's no directed path from child of u -> γ (if u has a parent),
+            # or no path from β -> γ (if u = root). If so: return nothing
+            αparentu = getChild(αu)===u
+            βparentu = getChild(βu)===u
+            if αparentu
+                if isdescendant(γ, β) return nothing; end
+            elseif βparentu
+                if isdescendant(γ, α) return nothing; end
+            else # cases when u is root
+                if nummove == 0x01 && isdescendant(γ, α)
+                    return nothing
+                elseif nummove == 0x02 && isdescendant(γ, β)
+                    return nothing
+                elseif nummove == 0x03 # fail: nummove 3 is impossible when u is the root: not DAG
+                    return nothing
+                end
+            end
             if nummove == 0x01 # graft γ onto α
                 if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
-                # check that there's no directed path from child of u -> γ (if u has a parent),
-                #        or no path from α -> γ (if u = root). If so: return nothing
-                if !uv.containRoot #if uv cannot contain the root then just check isdesc()
-                    if isdescendant(γ, u) return nothing; end
-                #if uv undirected, then more complex
-                #? Do we want to allow rerooting? Or just check for example 3 case?
-                elseif (!(u == net.root) && isdescendant(γ, u)) || (u == net.root && isdescendant(γ, α))
-                        return nothing
-                end
+                #TODO during optimization, change root position 
                 res = nni!(vδ, v, uv, u, αu)
             elseif nummove == 0x02 # graft γ onto β
                 if no3cycle && problem4cycle(β,γ, α,δ) return nothing; end
-                # check that there's no directed path from child of u -> γ (if u has a parent),
-                #        or no path from β -> γ (if u = root). If so: return nothing
-                if !uv.containRoot #if uv cannot contain the root then just check isdesc()
-                    if isdescendant(γ, u) return nothing; end
-                #if uv undirected, then more complex
-                #? Do we want to allow rerooting to make this move work? Or just check for example 3 case?
-                elseif (!(u == net.root) && isdescendant(γ, u)) || (u == net.root && isdescendant(γ, β))
-                    return nothing
-                end
                 res = nni!(vδ, v, uv, u, βu)
             else # nummove == 0x03
-                if getChild(αu)===u # if α->u: graft δ onto α
+                if αparentu # if α->u: graft δ onto α
                     if no3cycle && problem4cycle(α,δ, β,γ) return nothing; end
-                    # check no directed path from α -> γ
-                    if isdescendant(γ, α) return nothing; end
                     res = nni!(vγ, v, uv, u, αu)
-                elseif getChild(βu)===u # if β->u: graft δ onto β
-                    #? check if directed path from β -> γ? or u -> γ?
-                    if isdescendant(γ, β) return nothing; end
+                else # if β->u: graft δ onto β
                     if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
                     res = nni!(vγ, v, uv, u, βu)
-                else
-                    return nothing # fail: nummove 3 is impossible when u is the root: not DAG
+                # case when u is root already excluded (not DAG)
                 end
             end
         end
