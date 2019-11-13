@@ -164,6 +164,7 @@ was not successful (such as if the resulting graph was not acyclic (not a DAG) o
 the focus edge is adjacent to a polytomy).
 `nummove` specifies which of the available NNIs is performed.
 The network is modified even if the NNI failed. (fixit: check and update the comment accordingly!)
+(Cora note: I believe this isn't currently true)^
 
 rooted-NNI options according to Gambette et al. (2017), fig. 8:
 * BB: 2 moves, both to BB, if directed edges. 8 moves if undirected.
@@ -176,7 +177,7 @@ On a semi-directed network, there might be a choice of how to direct
 the edges that may contain the root, e.g. choice of e=uv versus vu, and
 choice of labelling adjacent nodes as α/β (BB), or as α/γ (BR).
 
-`no3cycle` prevents moves that would make a 3-cycle by checking for problem 4 cycles
+`no3cycle` prevents moves that would make a 3-cycle by checking for problem 4 cycles.
 
 Warning: the edges' field `isChild1` is assumed to be correct,
 according to the `net.root`.
@@ -188,8 +189,8 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, no3cycle=true::Bool)
     end
     nummove > 0x00 || error("nummove $(nummove) must be >0")
     nummove <= nmovemax || error("nummove $(nummove) must be <= $nmovemax for edge number $(uv.number)")
-    u = PhyloNetworks.getParent(uv) #todo remove
-    v = PhyloNetworks.getChild(uv)
+    u = getParent(uv)
+    v = getChild(uv)
     ## TASK 1: grab the edges adjacent to uv: αu, βu, vγ, vδ and adjacent nodes
     # get edges αu & βu connected to u
     # α = u's major parent if it exists, β = u's last child or minor parent
@@ -200,24 +201,24 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, no3cycle=true::Bool)
         β = getParent(βu)
     else # u may not have any parent, e.g. if root node
         # pick αu = parent edge if possible, first edge of u (other than uv) otherwise
-        labs = [PhyloNetworks.edgerelation(e, u, uv) for e in u.edge]
-        pti = findfirst(isequal(:parent), labs) # parent index: there should be 1 or 0 #changed name to pti because of ERROR: cannot assign a value to variable MathConstants.pi from module Main
+        labs = [edgerelation(e, u, uv) for e in u.edge]
+        pti = findfirst(isequal(:parent), labs) # parent index: there should be 1 or 0 
         ci = findall(  isequal(:child), labs)  # vector. there should be 1 or 2
         if pti === nothing
             length(ci) == 2 || error("node $(u.number) should have 2 children other than $(v.number)")
             pti = popfirst!(ci)
             αu = u.edge[pti]
-            α = PhyloNetworks.getChild(αu) #TODO remove PhyloNetworks.
+            α = getChild(αu)
         else
             αu = u.edge[pti]
-            α = PhyloNetworks.getParent(αu)
+            α = getParent(αu)
         end
         βu = u.edge[ci[1]]
-        β = PhyloNetworks.getChild(βu)
+        β = getChild(βu)
     end
     # get edges vδ & vγ connected to v
     # δ = v's last child, γ = other child or v's parent other than u
-    labs = [PhyloNetworks.edgerelation(e, v, uv) for e in v.edge]
+    labs = [edgerelation(e, v, uv) for e in v.edge]
     if v.hybrid # then v must have another parent edge, other than uv
         vγ = v.edge[findfirst(isequal(:parent), labs)] # γ = getParent(vδ) ?this should be vγ right? 
             #on net_hybridladder edge 1 get ERROR: ArgumentError: invalid index: nothing of type Nothing
@@ -239,7 +240,7 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, no3cycle=true::Bool)
         if !v.hybrid # BB, uv and all adjacent edges are undirected: 8 moves
             if nummove > 0x04  # switch u & v with prob 1/2
                 nummove -= 0x04  # now in 1,2,3,4
-                (u,v) = (v,u) #?could this be combined with below?
+                (u,v) = (v,u) #?could this be combined with the line below?
                 (α,αu,β,βu,γ,vγ,δ,vδ) = (γ,vγ,δ,vδ,α,αu,β,βu)
             end
             nmoves = 0x02
@@ -331,6 +332,17 @@ the following NNI, that detaches u-β and grafts it onto vδ:
              |    |
              γ    β
 
+`flip` boolean indicates if the uv edge was flipped
+`inner` boolean indicates if edges αu and uv both point toward node u,
+i.e. α->u<-v<-δ. If this is true, we flip the hybrid status of αu and vδ.
+
+`indices` give indices for nodes and edges u_in_αu, αu_in_u, vδ_in_v, and v_in_vδ.
+These are interpreted as:
+    u_in_αu: the index for u in the edge αu
+    αu_in_u: the index for αu in node u
+    vδ_in_v: the index for vδ in node v
+    v_in_vδ: the index for v in edge vδ
+
 **Warnings**:
 - *No* check of assumed adjacencies
 - Not implemented for cases that are not necessary thanks to symmetry,
@@ -346,10 +358,9 @@ Edge `uv` keeps its direction unchanged *unless* the directions were
 `α -> u -> v -> δ` or `α <- u <- v <- δ`,
 in which case the direction of `uv` is flipped.
 
-The second version is to undo the NNI more easily.
-With the second version, the input has the same signature as the output.
-If `output = nni!(input)`, then `nni!(output...)` is valid and undoes
-the first operation.
+The second version's input has the same signature as the output, but 
+will undo the NNI more easily. This means that if `output = nni!(input)`, 
+then `nni!(output...)` is valid and undoes the first operation.
 
 fixit: describe how branch lengths are modified
 """
@@ -411,8 +422,8 @@ function nni!(αu::Edge, u::Node, uv::Edge, v::Node, vδ::Edge,
             end
         end
     end
-    # throw error if u not hybrid & v hybrid? (does not need to be implemented)
-    return vδ,u,uv,v,αu, flip,inner, v_in_vδ,αu_in_u,vδ_in_v,u_in_αu
+    # throw error if u not hybrid & v hybrid? (does not need to be implemented) #?
+    return vδ, u, uv, v, αu, flip, inner, v_in_vδ, αu_in_u, vδ_in_v, u_in_αu
 end
 
 
