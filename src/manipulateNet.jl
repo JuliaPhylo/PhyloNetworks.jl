@@ -940,3 +940,47 @@ function resetEdgeNumbers!(net::HybridNetwork)
     end
     return nothing;
 end
+
+"""
+    norootbelow!(e::Edge)
+
+Set `containRoot` to `false` for edge `e` and all edges below, recursively.
+The traversal stops if `e.containRoot` is already `false`, assuming
+that `containRoot` is already false all the way below down that edge.
+"""
+function norootbelow!(e::Edge)
+    e.containRoot || return nothing # if already false: stop
+    # if true: turn to false then move down to e's children
+    e.containRoot = false
+    cn = getChild(e) # cn = child node
+    for ce in cn.edge
+        ce !== e || continue # skip e
+        getParent(ce) === cn || continue # skip edges that aren't children of cn
+        norootbelow!(ce)
+    end
+    return nothing
+end
+
+"""
+    allowrootbelow!(e::Edge)
+    allowrootbelow!(n::Node, parent_edge_of_n::Edge)
+
+Set `containRoot` to `true` for edge `e` and all edges below, recursively.
+The traversal stops whenever a hybrid node is encountered:
+if the child of `e` is a hybrid node (that is, if `e` is a hybrid edge)
+or if `n` is a hybrid node, then the edges below `e` or `n` are *not* traversed.
+"""
+function allowrootbelow!(e::Edge)
+    e.containRoot = true
+    e.hybrid && return nothing # e hybrid edge <=> its child hybrid node: stop
+    allowrootbelow!(getChild(e), e)
+end
+function allowrootbelow!(n::Node, pe::Edge)
+    # pe assumed to be the parent of n
+    for ce in n.edge
+        ce !== pe || continue # skip parent edge of n
+        getParent(ce) === n || continue # skip edges that aren't children of n
+        allowrootbelow!(ce)
+    end
+    return nothing
+end

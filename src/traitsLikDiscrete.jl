@@ -11,30 +11,84 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
     model::SubstitutionModel
     ratemodel::RateVariationAcrossSites #allows rates to vary according to gamma
     net::HybridNetwork
-    # data: trait[i] for leaf with n.number = i
-    #       type Int: for indices of trait labels in getlabels(model)
-    #       allows missing, but not half-ambiguous and not multi-state
-    trait::Vector{Vector{Union{Missing,Int, BioSequences.DNA}}}
-    nsites::Int #number of columns in data.
-    siteweight::Union{Missings.Missing, Vector{Float64}} # all weights = 1 if missing
+    """ data: trait[i] for leaf with n.number = i
+        type Int: for indices of trait labels in getlabels(model)
+        allows missing, but not half-ambiguous and not multi-state"""
+    trait::Vector{Vector{Union{Missing, Int}}}
+    "number of columns in the data: should be equal to `length(trait[i])` for all i"
+    nsites::Int
+    "vector of weights, one for each column, 1s if missing"
+    siteweight::Union{Missings.Missing, Vector{Float64}}
+    """
+    log of transition probabilities: where e goes from X to Y
+    logtrans[i,j,e,r] = P{Y=j|X=i} where i=start_state, j=end_state, e=edge.number, r = rate (if using RateVariationAcrossSites)
+    all displayed trees use same edge numbers and same logtrans as in full network
+    """
     loglik::Union{Missings.Missing, Float64}
-    # log of transition probabilities: where e goes from X to Y
-    # logtrans[i,j,e,r] = P{Y=j|X=i} where i=start_state, j=end_state, e=edge.number, r = rate (if using RateVariationAcrossSites)
-    # all displayed trees use same edge numbers and same logtrans as in full network
-    logtrans::Array{Float64,4}   # size: k,k, net.numEdges, r where k=nstates(model)
-    activesite::Int #changed from activetrait to activesite to accomodate NASM
+    """
+    log of transition probabilities.
+    size: k,k, net.numEdges, r where k=nstates(model)
+    """
+    logtrans::Array{Float64,4}
+    "index of active site, for state inference (reconstruction)"
+    activesite::Int
     # type based on extracting displayed trees
     displayedtree::Vector{HybridNetwork}
-    priorltw::Vector{Union{Missing,Float64}} # prior log tree weight: log product of γ's. In fit! priorltw = inheritanceWeight.(trees)
-        #this can be missing if any γs are negative.
-    postltw::Vector{Float64}  # posterior log tree weight: P{tree and data}
-    # partial likelihoods for active trait, at indices [i, n.number or e.number ,t] :
-    # - forward likelihood: log P{data below node n in tree t given state i at n}
-    # - direct likelihood:  log P{data below edge e in tree t given i at parent of e}
-    # - backward likelihood:log P{data at all non-descendants of n and state i at n}
+    """
+    prior log tree weight: log product of γ's.
+    In fit! priorltw = `inheritanceWeight.(trees)`
+    This can be missing if any γs are negative.
+    """
+    priorltw::Vector{Union{Missing,Float64}}
+    "posterior log tree weight: P{tree and data}"
+    postltw::Vector{Float64}
+    """
+    partial likelihoods for active trait, at indices [i, n.number or e.number ,t] :
+    - forward likelihood: log P{data below node n in tree t given state i at n}
+    - direct likelihood:  log P{data below edge e in tree t given i at parent of e}
+    - backward likelihood:log P{data at all non-descendants of n and state i at n}
+    sizes: k, net.numNodes or net.numEdges, number of displayed trees
+    """
     forwardlik::Array{Float64,3} # size: k, net.numNodes, number of displayed trees
     directlik::Array{Float64,3}  # size: k, net.numEdges, number of displayed trees
     backwardlik::Array{Float64,3}# size: k, net.numNodes, number of displayed trees
+    "inner (default) constructor: from model, rate model, network, trait and site weights"
+    function StatisticalSubstitutionModel(model::SubstitutionModel,
+            ratemodel::RateVariationAcrossSites,
+            net::HybridNetwork,
+            trait::AbstractVector,
+            siteweight=missing::Union{Missings.Missing, Vector{Float64}})
+
+        length(trait) > 0 || error("no trait data!")
+        nsites = length(trait[1])
+        ismissing(siteweight) || length(siteweight) == nsites ||
+            error("siteweight must be of same length as the number of traits")
+        # T = eltype(getlabels(model))
+        # extract displayed trees
+        trees = displayedTrees(net, 0.0; keepNodes=true)
+        nnodes = length(net.node)
+        for tree in trees
+            preorder!(tree) # no need to call directEdges! before: already done on net
+            length(tree.nodes_changed) == nnodes ||
+                error("displayed tree with too few nodes: $(writeTopology(tree))")
+            length(tree.edge) == length(net.edge)-net.numHybrids ||
+                error("displayed tree with too few edges: $(writeTopology(tree))")
+        end
+        ntrees = length(trees)
+        # log tree weights: sum log(γ) over edges, for each displayed tree
+        priorltw = inheritanceWeight.(trees)
+        k = nstates(model)
+        # fixit: use SharedArray's below to parallelize things
+        logtrans   = zeros(Float64, k,k,length(net.edge), length(ratemodel.ratemultiplier))
+        forwardlik = zeros(Float64, k, nnodes,           ntrees)
+        directlik  = zeros(Float64, k, length(net.edge), ntrees)
+        backwardlik= zeros(Float64, k, nnodes,           ntrees)
+        postltw    = Vector{Float64}(undef, ntrees)
+        new(deepcopy(model), deepcopy(ratemodel),
+            net, trait, nsites, siteweight, missing, # missing log likelihood
+            logtrans, 1, trees,
+            priorltw, postltw, forwardlik, directlik, backwardlik)
+    end
 end
 const SSM = StatisticalSubstitutionModel
 
@@ -76,7 +130,7 @@ end
     fitdiscrete(net, modSymbol, species, traits)
     fitdiscrete(net, modSymbol, dnadata, dnapatternweights)
     
-Calculate the maximum likelihood (ML) score of a network given
+Calculate the maximum likelihood (ML) score of a network or tree given
 one or more discrete characters at the tips. Along each edge, transitions
 are modelled with a continous time Markov `model`, whose parameters are
 estimated (by maximizing the likelihood). At each hybrid node,
@@ -105,6 +159,7 @@ Data can given in one of the following:
 Optional arguments (default):
 - `optimizeQ` (true): should model rate parameters be fixed, or should they be optimized?
 - `optimizeRVAS` (true): should the model optimize the variable rates across sites?
+- `optimizeTOPO` (false): should the model optimize network topology and branch lengths?
 - `NLoptMethod` (`:LN_COBYLA`, derivative-free) for the optimization algorithm.
   For other options, see the
   [NLopt](https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/).
@@ -200,6 +255,8 @@ variable rates across sites ~ discretized gamma with
 on a network with 0 reticulations
 log-likelihood: -5.2568
 ```
+#TODO add option to allow users to specify root prior (either equal frequencies or stationary frequencies)
+for trait models
 """
 function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, #tips::Dict no ratemodel version
     tips::Dict; kwargs...)
@@ -266,7 +323,7 @@ end
 function fitdiscrete(net::HybridNetwork, modSymbol::Symbol,  
     species::Array{String}, dat::DataFrame, rvSymbol=:noRV::Symbol; kwargs...)
     rate = startingrate(net)
-    labels = learnLabels(modSymbol, species, dat)
+    labels = learnlabels(modSymbol, dat)
     if modSymbol == :JC69
         model = JC69([1.0], true) # 1.0 instead of rate because relative version
     elseif modSymbol == :HKY85
@@ -297,6 +354,7 @@ function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, dnadata::Data
     ratemodel = RateVariationAcrossSites(1.0, 1)
     fitdiscrete(net, model, ratemodel, dnadata, dnapatternweights; kwargs...)
 end
+
 #dnadata with dnapatternweights version with ratemodel
 function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites,
     dnadata::DataFrame, dnapatternweights::Array{Float64}; kwargs...)
@@ -354,37 +412,14 @@ Like, snaq!(), we estimate the network starting from tree (or network) `astraltr
 """
 function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::SubstitutionModel, 
     ratemodel::RateVariationAcrossSites, trait::AbstractVector; kwargs...)
-    T = eltype(getlabels(model))
-    # extract displayed trees
-    trees = displayedTrees(net, 0.0; keepNodes=true)
-    nnodes = length(net.node)
-    for tree in trees
-        preorder!(tree) # no need to call directEdges! before: already done on net
-        length(tree.nodes_changed) == nnodes ||
-            error("displayed tree with too few nodes: $(writeTopology(tree))")
-        length(tree.edge) == length(net.edge)-net.numHybrids ||
-            error("displayed tree with too few edges: $(writeTopology(tree))")
-    end
-    ntrees = length(trees)
-    # log tree weights: sum log(γ) over edges, for each displayed tree
-    priorltw = inheritanceWeight.(trees)
-    k = nstates(model)
-    # fixit: use SharedArray's below to parallelize things
-    logtrans   = zeros(Float64, k,k,length(net.edge), length(ratemodel.ratemultiplier))
-    forwardlik = zeros(Float64, k, nnodes,           ntrees)
-    directlik  = zeros(Float64, k, length(net.edge), ntrees)
-    backwardlik= zeros(Float64, k, nnodes,           ntrees)
-    postltw    = Vector{Float64}(undef, ntrees)
+
     sw = missing
     if haskey(kwargs, :siteweights)
         sw = kwargs[:siteweights]
-        # todo: check that the length of sw == length(trait[1])
-        length(sw) == length(trait[1]) || error("dna pattern weights must be of same length as trait data")
         kwargs = filter(p -> p.first != :siteweights, kwargs)
     end
-    fit!(StatisticalSubstitutionModel(deepcopy(model), deepcopy(ratemodel),
-        net, trait, length(trait[1]), sw, missing, logtrans, 1, trees, 
-        priorltw, postltw, forwardlik, directlik, backwardlik); kwargs...)
+    obj = StatisticalSubstitutionModel(model, ratemodel, net, trait, sw)
+    fit!(obj; kwargs...)
 end
 
 function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,verbose=false::Bool,
@@ -393,6 +428,13 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,verbose=fa
       alphamin=0.05, alphamax=500)
     all(x -> x >= 0.0, [e.length for e in obj.net.edge]) || error("branch lengths should be >= 0")
     all(x -> x >= 0.0, [e.gamma for e in obj.net.edge]) || error("gammas should be >= 0")
+    # if optimizeTOPO
+    #     obj.net = startingBL!(obj.net, Array(obj.trait), obj.siteweight) #TODO check if Array() conversion needed
+    #     # TODO obj.net = updateTopo!(obj.net, liketolAbs, Nfail, data, hmax,
+    #     #     ftolRel, ftolAbs, xtolRel, 
+    #     #     xtolAbs, verbose, closeN, NmovO,
+    #     #     logfile, writelog)
+    # end
     if optimizeQ && nparams(obj.model) <1
         @debug "The Q matrix for this model is fixed, so there are no rate parameters to optimize. optimizeQ will be set to false."
         optimizeQ = false
@@ -607,7 +649,7 @@ function traitlabels2indices(data::AbstractVector, model::SubstitutionModel)
     return A
 end
 
-function traitlabels2indices(data::Union{AbstractMatrix,DataFrame},
+function traitlabels2indices(data::Union{AbstractMatrix,AbstractDataFrame},
                              model::SubstitutionModel)
     A = Vector{Vector{Union{Missings.Missing,Int}}}(undef, 0) # indices of trait labels
     labs = getlabels(model)
@@ -644,7 +686,7 @@ function traitlabels2indices(data::Union{AbstractMatrix,DataFrame},
     end
     return A
 end
-
+#TODO for data with multiple traits, add test for 2 traits to test above function
 """
     check_matchtaxonnames!(species, data, net)
 
@@ -840,20 +882,43 @@ end
 # fixit: new type for two (dependent) binary traits
 # need new algorithm for model at hybrid nodes: displayed trees aren't enough
 """
-    learnLabels(model::SubstitutionModel, species::Array{String}, dat::DataFrame)
+    learnlabels(model::Symbol, dat::DataFrame)
 
-Learn label names and length from data for fitdiscrete wrapper function with species vector and trait dataframe data
-"""
-function learnLabels(modSymbol::Symbol, species::Array{String}, dat::DataFrame)
-    labels = unique(reshape(convert(Matrix, dat), 1, size(dat)[1]*size(dat)[2]))
+Return unique non-missing values in `dat`, and check that these labels
+can be used to construct of substitution model of type `model`.
+Examples:
+
+```jldoctest
+julia> using DataFrames
+
+julia> dat = DataFrame(trait1 = ["A", "C", "A", missing])
+4×1 DataFrame
+
+
+julia> PhyloNetworks.learnlabels(:BTSM, dat)
+2-element Array{String,1}:
+ "A"
+ "C"
+
+julia> PhyloNetworks.learnlabels(:JC69, dat)
+2-element Array{String,1}:
+ "A"
+ "C"
+```
+`"""
+function learnlabels(modSymbol::Symbol, dat::AbstractDataFrame)
+    labels = mapreduce(x -> unique(skipmissing(x)), union, eachcol(dat))
     if modSymbol == :BTSM
         length(labels) == 2 || error("Binary Trait Substitution Model supports traits with two states. These data have do not have two states.")
     elseif modSymbol == :TBTSM
-        unique(dat[!,1]) == 2 && unique(dat[!,2] == 2) || error("Two Binary Trait Substitution Model supports two traits with two states each.")
-    elseif modSymbol == :HKY85
-        occursin(uppercase(join(sort(labels))), "ACGT") || error("HKY85 requires that trait data are dna bases A, C, G, and T")
-    elseif modSymbol == :JC69
-        occursin(uppercase(join(sort(labels))), "ACGT") || error("JC69 requires that trait data are dna bases A, C, G, and T")
+        unique(skipmissing(dat[!,1])) == 2 && unique(skipmissing(dat[!,2]) == 2) ||
+          error("Two Binary Trait Substitution Model supports two traits with two states each.")
+    elseif modSymbol in [:HKY85, :JC69]
+        typeof(labels) == Array{DNA,1} ||
+        (typeof(labels) == Array{Char,1}   &&       all(in.(uppercase.(labels), "-ABCDGHKMNRSTVWY"))) ||
+        (typeof(labels) == Array{String,1} && all(occursin.(uppercase.(labels), "-ABCDGHKMNRSTVWY"))) ||
+        # "ACGT" would dissallow ambiguous sites
+          error("$modSymbol requires that trait data are dna bases A, C, G, and T")
     end
     return labels
 end
@@ -877,4 +942,144 @@ function startingrate(net::HybridNetwork)
         totaledgelength = net.numTaxa
     end
     return 1.0/totaledgelength
+end
+
+"""
+    startingBL!(net::HybridNetwork, trait::Vector{Vector} [, siteweight::Vector])
+
+Calibrate branch lengths in `net` by minimizing the mean squared error
+between the JC-adjusted pairwise distance between taxa, and network-predicted
+pairwise distances, using [`calibrateFromPairwiseDistances!`](@ref).
+`siteweight[k]` gives the weight of site (or site pattern) `k` (default: all 1s).
+
+Assumptions:
+
+- all species have the same number of traits (sites): `length(trait[i])` constant
+- `trait[i]` is for leaf with `node.number = i` in `net`, and
+  `trait[i][j] = k` means that leaf number `i` has state index `k` for trait `j`.
+  These indices are those used in a substitution model:
+  kth value of `getlabels(model)`.
+- Hamming distances are < 0.75 with four states, or < (n-1)/n for n states.
+  If not, all pairwise hamming distances are scaled by `.75/(m*1.01)` where `m`
+  is the maximum observed hamming distance, to make them all < 0.75.
+"""
+function startingBL!(net::HybridNetwork,
+        trait::AbstractVector{Vector{Union{Missings.Missing,Int}}},
+        siteweight=ones(length(trait[1]))::AbstractVector{Float64})
+    nspecies = net.numTaxa
+    M = zeros(Float64, nspecies, nspecies) # pairwise distances, initialized to zeros
+    
+    # count pairwise differences, then multiply by pattern weight
+    ncols = length(trait[1]) # assumption: all species have same # columns
+    length(siteweight) == ncols ||
+      error("$(length(siteweight)) site weights but $ncols columns in the data")
+    for i in 2:nspecies
+        species1 = trait[i]
+        for j in 1:(i-1)
+            species2 = trait[j]
+            for col in 1:ncols
+                if !(ismissing(species1[col]) || ismissing(species2[col])) && (species1[col] != species2[col])
+                    M[i, j] += siteweight[col]
+                end
+            end
+            M[j,i] = M[i,j]
+        end
+    end
+    Mp = M ./ sum(siteweight) # to get proportion of sites, for each pair
+
+    # estimate pairwise evolutionary distances using extended Jukes Cantor model
+    nstates = mapreduce(x -> maximum(skipmissing(x)), max, trait)
+    maxdist = (nstates-1)/nstates
+    Mp[:] = Mp ./ max(maxdist, maximum(Mp*1.01)) # values in [0,0.9901]: log(1-Mp) well defined
+    dhat = - maxdist .* log.( 1.0 .- Mp)
+
+    taxonnames = [net.leaf[i].name for i in sortperm([n.number for n in net.leaf])]
+    # taxon names: to tell the calibration that row i of dhat if for taxonnames[i]
+    # ASSUMPTION: trait[i][j] = trait j for taxon at node number i: 'node.number' = i
+    calibrateFromPairwiseDistances!(net, dhat, taxonnames,
+        forceMinorLength0=false, ultrametric=false)
+    return net
+end
+
+# ## Prep and Wrapper Functions ##
+
+"""
+    datatoSSM(net::HybridNetwork, dnadata::DataFrame, modsymbol::Symbol)
+
+Create an SSM object for use in wrapper function. This should include all actions 
+that can happen only once. Probably need different versions for different 
+kinds of data (snp, amino acids), but works for DNA now.
+Call readfastatodna(), startingrate(), startingBL!()
+Similar to fitdiscrete()
+"""
+function datatoSSM(net::HybridNetwork, fastafile::String, modsymbol::Symbol)
+
+    data, siteweights = readfastatodna(fastafile, true)
+    model = symboltomodel(net, modsymbol, data, siteweights)
+    ratemodel = RateVariationAcrossSites(1.0, 1) #TODO add option for users
+
+    dat2 = traitlabels2indices(view(data, :, 2:ncol(data)), model)
+    o, net = check_matchtaxonnames!(data[:,1], dat2, net)
+    trait = dat2[o]
+    startingBL!(net, trait, siteweights)
+    obj = StatisticalSubstitutionModel(model, ratemodel, net, trait, siteweights)
+end
+
+"""
+    addclades!(net::HybridNetwork, cladesDict::Dict{String, Vector{Int64}}
+
+Add clade designation according to an array of clade dictionaries, where the array
+has length equal to the number of species in the non-main clades 
+(e.g. outgroups, known clades, etc).
+note: all nodes start with clade designation "Main" or 1.
+TODO See how this is done in other software (raxML). 
+Maybe we force a polytomy at top of outgroup? Let users give us a tree?
+"""
+function addclades!(net::HybridNetwork, cladesDict::Dict{String,Vector{Int64}})
+    #adds clades for leaves not in main clade
+    #interate over items in input dictionary 
+
+    #compare keys with net.leaf
+    for key in keys(cladesDict)
+        for index in 1:length(net.leaf) #net.leaf is an array of the network's leaves
+            if net.leaf[index].name == key
+                #removes main clade designation
+                filter!(x->x≠1,net.leaf[index].clade)
+                #adds new clade membership
+                for i in 1:length(cladesDict[key])
+                    cladetoadd = cladesDict[key][i]
+                    push!(net.leaf[index].clade, cladetoadd)
+                    #removes duplicates to catche when funct run with same values
+                    net.leaf[index].clade = unique(net.leaf[index].clade) 
+                end
+            end
+        end
+    end
+end
+
+"""
+    symboltomodel(network, modsymbol::Symbol, data::DataFrame, siteweights::Vector)
+
+Take a symbol and data to create a relative statistical substitution model using
+default site weights.
+"""
+#TODO is net necessary?
+function symboltomodel(net::HybridNetwork, modsymbol::Symbol, data::DataFrame,
+        siteweights=repeat([1.], inner=ncol(data))::Vector)
+    rate = startingrate(net)
+    actualdat = view(data, :, 2:ncol(data))
+    labels = learnlabels(modsymbol, actualdat)
+    if modsymbol == :JC69
+        return JC69([1.0], true) # 1.0 instead of rate because relative version
+    elseif modsymbol == :HKY85 # transition/transversion rate ratio 
+        return HKY85([1.0], empiricalDNAfrequencies(actualdat, siteweights), true)
+    elseif modsymbol == :ERSM
+        return EqualRatesSubstitutionModel(length(labels), rate, labels);
+    elseif modsymbol == :BTSM
+        return BinaryTraitSubstitutionModel([rate, rate], labels)
+    elseif modsymbol == :TBTSM
+        return TwoBinaryTraitSubstitutionModel([rate, rate, rate, rate, rate, rate, rate, rate], labels)
+    else
+        error("model $modsymbol is unknown or not implemented yet")
+    end
 end

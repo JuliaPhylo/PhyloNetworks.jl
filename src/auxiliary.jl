@@ -189,6 +189,32 @@ end
     end
     error("did not find a partner for edge $(edge.number)")
 end
+
+"""
+    edgerelation(e::Edge, node::Node, origin::Edge)
+
+Return a symbol:
+
+- `:origin` if `e` is equal to `origin`, and otherwise:
+- `:parent` if `e` is a parent of `node`,
+- `:child` if `e` is a child of `node`
+
+using the `isChild1` attribute of edges.
+Useful when `e` iterates over all edges adjacent to `node` and when
+`origin` is one of the edges adjacent to `node`,
+to known the order in which these edges come.
+
+example:
+```julia
+labs = [edgerelation(e, u, uv) for e in u.edge] # assuming u is a node of edge uv
+parentindex = findfirst(isequal(:parent), labs) # could be 'nothing' if no parent
+childindices = findall( isequal(:child), labs)  # vector. could be empty
+```
+"""
+function edgerelation(ee::Edge, n::Node, origin::Edge)
+    (ee===origin ? :origin : (n===getChild(ee) ? :parent : :child))
+end
+
 # -------------- NODE -------------------------#
 
 function setEdge!(node::Node,edge::Edge)
@@ -357,6 +383,21 @@ function getConnectingEdge(node1::Node,node2::Node)
     else
         error("nodes not connected")
     end
+end
+
+"""
+    isconnected(node1::Node, node2::Node)
+
+Check if two nodes are connected by an edge. Return true if connected, false
+if not connected.
+"""
+function isconnected(node1, node2)
+    for e in node1.edge
+        if e in node2.edge
+            return true
+        end
+    end
+    return false
 end
 
 # function to check in an edge is in an array by comparing

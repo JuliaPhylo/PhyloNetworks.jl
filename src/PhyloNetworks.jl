@@ -8,7 +8,7 @@ module PhyloNetworks
     using LinearAlgebra # for LowerTriangular, logdet, diag
     using Printf: @printf, @sprintf
     using Random
-    using Statistics: mean, quantile
+    using Statistics: mean, quantile, median
 
     # other libraries, indicate compatible version in Project.toml
     using BioSequences
@@ -144,8 +144,10 @@ module PhyloNetworks
         randomTrait!,
         fitdiscrete,
         readfastatodna,
+        datatoSSM,
         stationary,
         empiricalDNAfrequencies,
+        nni!,
         # neighbor joining
         nj
 
@@ -156,6 +158,7 @@ module PhyloNetworks
     include("addHybrid.jl")
     include("deleteHybrid.jl")
     include("moves.jl")
+    include("moves_semidirected.jl")
     include("readwrite.jl")
     include("readData.jl")
     include("optimization.jl")

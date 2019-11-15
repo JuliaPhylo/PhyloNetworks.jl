@@ -11,14 +11,14 @@ s = IOBuffer()
 @test_logs printEdges(s, net)
 @test String(take!(s)) == """
 edge parent child  length  hybrid isMajor gamma   containRoot inCycle istIdentitiable
-1    2      1      102.346 false  true    1       true        -1      false
+1    2      1      102.346 false  true    1       false       -1      false
 2    3      2              true   true            false       -1      true 
-3    10     3              true   true    0.8765  false       -1      true 
+3    10     3              true   true    0.8765  true        -1      true 
 4    6      4      0.001   false  true    1       true        -1      false
 5    6      5              false  true    1       true        -1      false
-6    6      3              true   false   0.1235  false       -1      true 
+6    6      3              true   false   0.1235  true        -1      true 
 7    9      6              false  true    1       true        -1      true 
-8    8      2              true   false           false       -1      true 
+8    8      2              true   false           true        -1      true 
 9    8      7              false  true    1       true        -1      false
 10   9      8              false  true    1       true        -1      true 
 11   10     9              false  true    1       true        -1      true 

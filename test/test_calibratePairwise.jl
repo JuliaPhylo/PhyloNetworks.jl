@@ -39,7 +39,7 @@ calibrateFromPairwiseDistances!(net, net2distances, taxa, #verbose=true,
 # plot(net, :RCall, showEdgeLength=true, useEdgeLength=true);
 est = pairwiseTaxonDistanceMatrix(net, checkPreorder=false)
 @test est ≈ [0 1.663 2.9 2.8; 1.663 0 2.703 2.603; 2.9 2.703 0 .3;
-             2.8 2.603 .3 0] atol=1e-5
+             2.8 2.603 .3 0] atol=.00002
 # deep    LN_BOBYQA: 146 evaluations
 # got 0.0 at [0.00536, 1.32091, 0.14155, 0.84494, 0.2, 0.1, 1.37373] after 152 iterations (returned FTOL_REACHED)
 # shallow LN_BOBYQA: 79 evaluations

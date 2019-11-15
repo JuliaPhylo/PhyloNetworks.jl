@@ -244,6 +244,39 @@ function descendants!(edge::Edge, visited::Vector{Int})
     end
     return nothing
 end
+"""
+    isdescendant(des:Node, anc::Node)
+
+Return true if `des` is descendant of `anc`. Uses `isChild1` attribute.
+"""
+function isdescendant(des::Node, anc::Node)
+    visited = Int[]
+    for e in anc.edge
+        if isdescendant!(visited, des, e)
+            return true
+        end
+    end
+    return false
+end
+
+function isdescendant!(visited::Vector{Int}, des::Node, e::Edge)
+    n = getChild(e)
+    if n == des
+        return true
+    end
+    if n.hybrid #only need to check this for hybrid nodes
+        push!(visited, n.number)
+        if n.number in visited
+            return false  # n was already visited: exit. avoid infinite loop is isChild1 was bad.
+        end
+    end
+    for ce in n.edge
+        if n == getParent(ce)
+            if isdescendant!(visited, des, ce) return true; end
+        end
+    end
+    return false
+end
 
 """
     ladderpartition(tree::HybridNetwork)

@@ -525,4 +525,111 @@ dna_bad = view(DataFrame(A = ["s1", "s2"], trait1 = ["hi", "lo"], trait2 = ["lo"
 
 end #testing stationary and empiricalDNAfrequencies functions
 
+@testset "startingBL!" begin
+fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_8sites.aln") # 8 sites only
+# locally: fastafile = joinpath(@__DIR__, "../../dev/PhyloNetworks/", "examples", "Ae_bicornis_8sites.aln") #small data
+dna_dat, dna_weights = readfastatodna(fastafile, true);
+# 22 species, 3 hybrid nodes, 103 edges
+dna_net = readTopology("((((((((((((((Ae_caudata_Tr275,Ae_caudata_Tr276),Ae_caudata_Tr139))#H1,#H2),(((Ae_umbellulata_Tr266,Ae_umbellulata_Tr257),Ae_umbellulata_Tr268),#H1)),((Ae_comosa_Tr271,Ae_comosa_Tr272),(((Ae_uniaristata_Tr403,Ae_uniaristata_Tr357),Ae_uniaristata_Tr402),Ae_uniaristata_Tr404))),(((Ae_tauschii_Tr352,Ae_tauschii_Tr351),(Ae_tauschii_Tr180,Ae_tauschii_Tr125)),(((((((Ae_longissima_Tr241,Ae_longissima_Tr242),Ae_longissima_Tr355),(Ae_sharonensis_Tr265,Ae_sharonensis_Tr264)),((Ae_bicornis_Tr408,Ae_bicornis_Tr407),Ae_bicornis_Tr406)),((Ae_searsii_Tr164,Ae_searsii_Tr165),Ae_searsii_Tr161)))#H2,#H4))),(((T_boeoticum_TS8,(T_boeoticum_TS10,T_boeoticum_TS3)),T_boeoticum_TS4),((T_urartu_Tr315,T_urartu_Tr232),(T_urartu_Tr317,T_urartu_Tr309)))),(((((Ae_speltoides_Tr320,Ae_speltoides_Tr323),Ae_speltoides_Tr223),Ae_speltoides_Tr251))H3,((((Ae_mutica_Tr237,Ae_mutica_Tr329),Ae_mutica_Tr244),Ae_mutica_Tr332))#H4))),Ta_caputMedusae_TB2),S_vavilovii_Tr279),Er_bonaepartis_TB1),H_vulgare_HVens23);");
+# create trait object
+dat2 = PhyloNetworks.traitlabels2indices(dna_dat[2:end], JC69([0.5], false))
+o, dna_net = @test_logs (:warn, "the network contains taxa with no data: those will be pruned") (:warn, r"resetting edge numbers") match_mode=:any PhyloNetworks.check_matchtaxonnames!(copy(dna_dat[1]), dat2, dna_net)
+trait = view(dat2, o)
+PhyloNetworks.startingBL!(dna_net, trait, dna_weights)
+@test maximum(e.length for e in dna_net.edge) > 0.03
+@test_logs PhyloNetworks.startingBL!(dna_net, trait) # no dna_weights
+end # of startingBL!
+
+@testset "testing clades" begin
+net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
+cladesDict = Dict("D" => [2, 3]) #assigns D to two clades
+@test net.leaf[1].clade == [1]
+PhyloNetworks.addclades!(net, cladesDict)
+@test_logs show(devnull, PhyloNetworks.addclades!(net, cladesDict)) #tests what happens if run twice
+@test net.leaf[4].clade == [2,3]
+@test net.node[net.root].clade == [1] #check that root's clade is [1]
+
+
+#a network with an two-species outgroup
+net_two = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,(D:2.0, E:1.9));")
+cladesDict = Dict("D" => [3], "E" => [3]) #assigns D to two clades
+PhyloNetworks.addclades!(net_two, cladesDict)
+@test net_two.leaf[4].clade == [3]
+@test net_two.leaf[5].clade == [3]
+# TODO these tests only matter if we want to label interior nodes
+# @test net.node[-7].clade == [3] #check that parent of D, E is also in clade 3
+# @test net.node[-2].clade == [1] #check that root's clade is [1]
+
+end
+
+@testset "testing prep and wrapper functions" begin
+# read in data #
+#test 
+#at home: fastafile = joinpath(@__DIR__, "../../dev/PhyloNetworks/", "examples", "Ae_bicornis_Tr406_Contig10132.aln") #small data
+fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_Tr406_Contig10132.aln")
+dna_dat, dna_weights = readfastatodna(fastafile, true);
+
+dna_net_top = readTopology("((((((((((((((Ae_caudata_Tr275,Ae_caudata_Tr276),Ae_caudata_Tr139))#H1,#H2),(((Ae_umbellulata_Tr266,Ae_umbellulata_Tr257),Ae_umbellulata_Tr268),#H1)),((Ae_comosa_Tr271,Ae_comosa_Tr272),(((Ae_uniaristata_Tr403,Ae_uniaristata_Tr357),Ae_uniaristata_Tr402),Ae_uniaristata_Tr404))),(((Ae_tauschii_Tr352,Ae_tauschii_Tr351),(Ae_tauschii_Tr180,Ae_tauschii_Tr125)),(((((((Ae_longissima_Tr241,Ae_longissima_Tr242),Ae_longissima_Tr355),(Ae_sharonensis_Tr265,Ae_sharonensis_Tr264)),((Ae_bicornis_Tr408,Ae_bicornis_Tr407),Ae_bicornis_Tr406)),((Ae_searsii_Tr164,Ae_searsii_Tr165),Ae_searsii_Tr161)))#H2,#H4))),(((T_boeoticum_TS8,(T_boeoticum_TS10,T_boeoticum_TS3)),T_boeoticum_TS4),((T_urartu_Tr315,T_urartu_Tr232),(T_urartu_Tr317,T_urartu_Tr309)))),(((((Ae_speltoides_Tr320,Ae_speltoides_Tr323),Ae_speltoides_Tr223),Ae_speltoides_Tr251))H3,((((Ae_mutica_Tr237,Ae_mutica_Tr329),Ae_mutica_Tr244),Ae_mutica_Tr332))#H4))),Ta_caputMedusae_TB2),S_vavilovii_Tr279),Er_bonaepartis_TB1),H_vulgare_HVens23);");
+for edge in dna_net_top.edge #adds branch lengths
+    setLength!(edge,1.0)
+end
+#Fixes the gamma error (creates a network)
+setGamma!(dna_net_top.edge[6],0.6)
+setGamma!(dna_net_top.edge[7],0.6)
+setGamma!(dna_net_top.edge[58],0.6)
+
+# tests #
+net_dat = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
+dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"])
+
+jmod = PhyloNetworks.symboltomodel(dna_net_top, :JC69, dna_dat, dna_weights)
+@test jmod.rate == [1.0]
+emod = PhyloNetworks.symboltomodel(dna_net_top, :ERSM, dna_dat, dna_weights)
+@test emod.rate[1] ≈ 0.009708737864077669
+@test typeof(emod) == EqualRatesSubstitutionModel{DNA}
+hmod = PhyloNetworks.symboltomodel(dna_net_top, :HKY85, dna_dat, dna_weights)
+@test typeof(hmod) == HKY85
+bmod = PhyloNetworks.symboltomodel(dna_net_top, :BTSM, dat, [1.0, 1.0, 1.0, 1.0])
+@test typeof(bmod) == BinaryTraitSubstitutionModel{String}
+@test_throws ErrorException PhyloNetworks.symboltomodel(dna_net_top, :QR, dat, [1.0, 1.0, 1.0, 1.0])
+
+
+test_SSM = PhyloNetworks.datatoSSM(dna_net_top, fastafile, :JC69)
+@test typeof(test_SSM.model) == JC69
+@test test_SSM.nsites == 209
+@test test_SSM.siteweight[1:5] == [23.0, 18.0, 13.0, 16.0, 1.0] 
+
+#test wrapper. should add clades, implement startingBL!()
+#testwrapper = PhyloNetworks.wrapper(test_SSM, Dict("Ae_caudata_Tr275" => [3]), liktolabs = 1e-2)
+#TODO @test test_SSM.net.leaf[1].clade == [3]
+
+#@test_logs show(devnull, testwrapper)
+end #of testing prep and wrapper functions
+
+@testset "testing fit! functions for full network optimization" begin
+# read in data #
+#test 
+#fastafile = joinpath(@__DIR__, "../../dev/PhyloNetworks/", "examples", "Ae_bicornis_Tr406_Contig10132.aln") #small data
+fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_Tr406_Contig10132.aln")
+dna_dat, dna_weights = readfastatodna(fastafile, true);
+
+dna_net_top = readTopology("((((((((((((((Ae_caudata_Tr275,Ae_caudata_Tr276),Ae_caudata_Tr139))#H1,#H2),(((Ae_umbellulata_Tr266,Ae_umbellulata_Tr257),Ae_umbellulata_Tr268),#H1)),((Ae_comosa_Tr271,Ae_comosa_Tr272),(((Ae_uniaristata_Tr403,Ae_uniaristata_Tr357),Ae_uniaristata_Tr402),Ae_uniaristata_Tr404))),(((Ae_tauschii_Tr352,Ae_tauschii_Tr351),(Ae_tauschii_Tr180,Ae_tauschii_Tr125)),(((((((Ae_longissima_Tr241,Ae_longissima_Tr242),Ae_longissima_Tr355),(Ae_sharonensis_Tr265,Ae_sharonensis_Tr264)),((Ae_bicornis_Tr408,Ae_bicornis_Tr407),Ae_bicornis_Tr406)),((Ae_searsii_Tr164,Ae_searsii_Tr165),Ae_searsii_Tr161)))#H2,#H4))),(((T_boeoticum_TS8,(T_boeoticum_TS10,T_boeoticum_TS3)),T_boeoticum_TS4),((T_urartu_Tr315,T_urartu_Tr232),(T_urartu_Tr317,T_urartu_Tr309)))),(((((Ae_speltoides_Tr320,Ae_speltoides_Tr323),Ae_speltoides_Tr223),Ae_speltoides_Tr251))H3,((((Ae_mutica_Tr237,Ae_mutica_Tr329),Ae_mutica_Tr244),Ae_mutica_Tr332))#H4))),Ta_caputMedusae_TB2),S_vavilovii_Tr279),Er_bonaepartis_TB1),H_vulgare_HVens23);");
+for edge in dna_net_top.edge #adds branch lengths
+    setLength!(edge,1.0)
+end
+#Fixes the gamma error (creates a network)
+setGamma!(dna_net_top.edge[6],0.6)
+setGamma!(dna_net_top.edge[7],0.6)
+setGamma!(dna_net_top.edge[58],0.6)
+test_SSM = PhyloNetworks.datatoSSM(dna_net_top, fastafile, :JC69)
+
+# tests #
+clades = Dict("Ae_caudata_Tr275" => [3])
+#TODO testwrapper = PhyloNetworks.wrapper(test_SSM, Dict("Ae_caudata_Tr275" => [3]); liktolabs = 1e-2)
+uvlist = Random.shuffle([e for e in test_SSM.net.edge if !PhyloNetworks.getChild(e).leaf]) #random order
+
+#TODO PhyloNetworks.nni!(deepcopy(test_SSM), uvlist[1], clades)
+#TODO PhyloNetworks.donni!(deepcopy(test_SSM), 1, uvlist[1])
+end #of testing fit! functions for full network optimization
+
 end # of nested testsets

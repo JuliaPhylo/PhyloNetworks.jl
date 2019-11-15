@@ -525,9 +525,7 @@ function readTopology(s::IO,verbose::Bool)
     end
     storeHybrids!(net)
     checkNumHybEdges!(net)
-       ## if(verbose)
-       ##     any([(e.length == -1.0 && e.istIdentifiable) for e in net.edge]) && println("edges lengths missing, so assigned default value of -1.0") #fixit: not best approach, better to add a flag inside readSubTree, careful bool not modified inside function, need bool array
-       ## end
+    directEdges!(net; checkMajor=true) # to update edges containRoot: true until hybrid, false below hybrid
     net.isRooted = true
     return net
 end
@@ -696,6 +694,8 @@ end
 #   default values of 0.1,0.9 if not present
 # leaveRoot=true: leaves the root even if it has only 2 edges (for plotting), default=false
 function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
+    # set e.containRoot to !e.hybrid: updated later by updateAllReadTopology as required by snaq!
+    for e in net.edge e.containRoot = !e.hybrid; end
     nodes = copy(net.node)
     for n in nodes
         if isNodeNumIn(n,net.node) # very important to check
