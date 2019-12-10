@@ -40,8 +40,6 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
     This can be missing if any γs are negative.
     """
     priorltw::Vector{Union{Missing,Float64}}
-    "posterior log tree weight: P{tree and data}"
-    postltw::Vector{Float64}
     """
     partial likelihoods for active trait, at indices [i, n.number or e.number ,t] :
     - forward likelihood: log P{data below node n in tree t given state i at n}
@@ -83,11 +81,10 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
         forwardlik = zeros(Float64, k, nnodes,           ntrees)
         directlik  = zeros(Float64, k, length(net.edge), ntrees)
         backwardlik= zeros(Float64, k, nnodes,           ntrees)
-        postltw    = Vector{Float64}(undef, ntrees)
         new(deepcopy(model), deepcopy(ratemodel),
             net, trait, nsites, siteweight, missing, # missing log likelihood
             logtrans, 1, trees,
-            priorltw, postltw, forwardlik, directlik, backwardlik)
+            priorltw, forwardlik, directlik, backwardlik)
     end
 end
 const SSM = StatisticalSubstitutionModel
@@ -548,15 +545,16 @@ function discrete_corelikelihood!(obj::SSM; whichtrait=:all::Union{Symbol,Intege
         error("'whichtrait' should be :all or :active or an integer in the correct range")
     end
     update_logtrans(obj)
-    for t in 1:length(obj.displayedtree) # calculate P{data | tree t} & store in obj.postltw[t]
+    for t in 1:length(obj.displayedtree) # calculate P{data | tree t}
         discrete_corelikelihood_tree!(obj, t, traitrange)
     end
+    res = 0.
     # fixit: paralellize with
     # ll = pmap(t -> discrete_corelikelihood_tree!(obj,t), 1:ntrees)
-    obj.postltw .+= obj.priorltw # P{tree t and data} .+= not += to re-use memory
-    res = StatsFuns.logsumexp(obj.postltw)
-    obj.loglik = res
-    obj.postltw .-= res # now P{tree t | data}
+    # obj.postltw .+= obj.priorltw # P{tree t and data} .+= not += to re-use memory
+    # res = StatsFuns.logsumexp(obj.postltw)
+    # obj.loglik = res
+    # obj.postltw .-= res # now P{tree t | data}
     # fixit: write a function to get these posterior probabilities (just take exp.)
     return res
 end
@@ -585,7 +583,6 @@ function discrete_corelikelihood_tree!(obj::SSM, t::Integer, traitrange::Abstrac
         # add loglik of character ci to full loglik:
         fullloglik += currentloglik #warning: this loglik missing one term - log(length(obj.ratemodel.ratemultiplier)), corrected below
     end #of loop over traits
-    obj.postltw[t] = fullloglik - log(nr)*length(traitrange) #logL divided by (#of rates)(# of chars)
     return fullloglik - log(nr)*length(traitrange)
 end
 
@@ -810,11 +807,6 @@ julia> asr = ancestralStateReconstruction(fit1)
 │ 8   │ 8          │ 8         │ 0.76736  │ 0.23264  │
 │ 9   │ 9          │ H1        │ 0.782777 │ 0.217223 │
 
-julia> round.(exp.(fit1.postltw), digits=6) # marginal (posterior) probability that the trait evolved on each displayed tree
-2-element Array{Float64,1}:
- 0.919831
- 0.080169
-
 julia> using PhyloPlots
 
 julia> plot(fit1.net, :R, nodeLabel = asr[!,[:nodenumber, :lo]], tipOffset=0.2); # pp for "lo" state
@@ -826,7 +818,7 @@ function ancestralStateReconstruction(obj::SSM, trait::Integer)
     # sum_{trees t} exp( ltw[t] + backwardlik[i,n,t] + forwardlik[i,n,t] )
     bkd = obj.backwardlik
     fill!(bkd, 0.0) # initialize
-    discrete_corelikelihood!(obj; whichtrait=trait) # update forward, direct, logtrans, postltw, loglik
+    discrete_corelikelihood!(obj; whichtrait=trait) # update forward, direct, logtrans, loglik
     for t in 1:length(obj.displayedtree)
         discrete_backwardlikelihood_tree!(obj, t, trait)
     end
