@@ -47,9 +47,12 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
     - backward likelihood:log P{data at all non-descendants of n and state i at n}
     sizes: k, net.numNodes or net.numEdges, number of displayed trees
     """
+    # reset for each trait and rate
     forwardlik::Array{Float64,3} # size: k, net.numNodes, number of displayed trees
     directlik::Array{Float64,3}  # size: k, net.numEdges, number of displayed trees
     backwardlik::Array{Float64,3}# size: k, net.numNodes, number of displayed trees
+    _loglikcache::Array{Float64, 3} # size: ntrees, nrates, nsites
+
     "inner (default) constructor: from model, rate model, network, trait and site weights"
     function StatisticalSubstitutionModel(model::SubstitutionModel,
             ratemodel::RateVariationAcrossSites,
@@ -81,10 +84,11 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
         forwardlik = zeros(Float64, k, nnodes,           ntrees)
         directlik  = zeros(Float64, k, length(net.edge), ntrees)
         backwardlik= zeros(Float64, k, nnodes,           ntrees)
+        _loglikcache = zeros(Float64, ntrees, length(ratemodel.ratemultiplier), nsites)
         new(deepcopy(model), deepcopy(ratemodel),
             net, trait, nsites, siteweight, missing, # missing log likelihood
             logtrans, 1, trees,
-            priorltw, forwardlik, directlik, backwardlik)
+            priorltw, forwardlik, directlik, backwardlik, _loglikcache)
     end
 end
 const SSM = StatisticalSubstitutionModel
@@ -525,8 +529,10 @@ function update_logtrans(obj::SSM)
 end
 
 """
-    discrete_corelikelihood!(obj::StatisticalSubstitutionModel; whichtrait=:all)
-    discrete_corelikelihood_tree!(obj, t::Integer, traitrange::AbstractArray)
+        discrete_corelikelihood!(obj::StatisticalSubstitutionModel; whichtrait=:all)
+        discrete_corelikelihood_trait!(obj::SSM, t::Integer, ci::Integer, ri::Integer,
+                                            forwardlik::AbstractArray{Float64, 2} = view(obj.forwardlik, :,:,t),
+                                            directlik::AbstractArray{Float64, 2} = view(obj.directlik,  :,:,t))
 
 Calculate the likelihood and update `obj.loglik` for discrete characters on a network
 (or on a single tree: `t`th tree displayed in the network, for the second form).
@@ -544,52 +550,32 @@ function discrete_corelikelihood!(obj::SSM; whichtrait=:all::Union{Symbol,Intege
     else
         error("'whichtrait' should be :all or :active or an integer in the correct range")
     end
-    update_logtrans(obj)
-    for t in 1:length(obj.displayedtree) # calculate P{data | tree t}
-        discrete_corelikelihood_tree!(obj, t, traitrange)
-    end
-    res = 0.
-    # fixit: paralellize with
-    # ll = pmap(t -> discrete_corelikelihood_tree!(obj,t), 1:ntrees)
-    # obj.postltw .+= obj.priorltw # P{tree t and data} .+= not += to re-use memory
-    # res = StatsFuns.logsumexp(obj.postltw)
-    # obj.loglik = res
-    # obj.postltw .-= res # now P{tree t | data}
-    # fixit: write a function to get these posterior probabilities (just take exp.)
-    return res
-end
-
-@doc (@doc discrete_corelikelihood!) discrete_corelikelihood_tree!
-# for a specific tree, aggregate likelihoods over different traits and rates
-# PRECONDITIONS: logtrans updated, edges directed, nodes/edges preordered
-function discrete_corelikelihood_tree!(obj::SSM, t::Integer, traitrange::AbstractArray)
-    forwardlik = view(obj.forwardlik, :,:,t)
-    directlik  = view(obj.directlik,  :,:,t)
+    # fill _loglikcache
     nr = length(obj.ratemodel.ratemultiplier)
-    fullloglik = 0.0         # full: for all characters
-    for ci in traitrange     # ci = character index
-        currentloglik = 0.0  # current character
-        for iratemultiplier in 1:nr
-            loglik = discrete_corelikelihood_trait!(obj, t, ci, iratemultiplier)[1]
-            if iratemultiplier == 1
-                currentloglik = loglik
-            else # next rate multiplier:
-                currentloglik = logaddexp(currentloglik, loglik) 
+    update_logtrans(obj)
+    for t in 1:length(obj.displayedtree)
+        for ri in 1:nr
+            for ci in traitrange
+                obj._loglikcache[t,ri,ci] = (discrete_corelikelihood_trait!(obj,t,ci,ri))[1]
             end
-        end # of loop over rate multipliers
-        if !ismissing(obj.siteweight) #if dna data with dna site pattern weights, multiplied here
-            currentloglik *= obj.siteweight[ci]
         end
-        # add loglik of character ci to full loglik:
-        fullloglik += currentloglik #warning: this loglik missing one term - log(length(obj.ratemodel.ratemultiplier)), corrected below
-    end #of loop over traits
-    return fullloglik - log(nr)*length(traitrange)
+    end
+    # aggregate over trees and rates
+    obj._loglikcache .+= obj.priorltw
+    obj._loglikcache .-= log(nr)
+    siteliks = dropdims(mapslices(logsumexp, obj._loglikcache, dims=[1,2]);dims=(1,2))
+    if !ismissing(obj.siteweight)
+        siteliks .*= obj.siteweight
+    end
+    loglik = sum(siteliks)
+    obj.loglik = loglik
+    return loglik
 end
 
 # return the forwardlik and directlik for tree `t`, trait index `ci` and rate index `ri`
 # returns forwardlik and directlik, indexed as lik[state, nnode or nedge]
 # modify the forwardlik and directlik provided if necessary
-# PRECONDITIONS: see `discrete_corelikelihood_tree!`
+# PRECONDITIONS: logtrans updated, edges directed, nodes/edges preordered
 function discrete_corelikelihood_trait!(obj::SSM, t::Integer, ci::Integer, ri::Integer,
                                         forwardlik::AbstractArray{Float64, 2} = view(obj.forwardlik, :,:,t),
                                         directlik::AbstractArray{Float64, 2} = view(obj.directlik,  :,:,t))
