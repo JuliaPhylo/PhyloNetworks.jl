@@ -2,6 +2,7 @@
 using Test
 using PhyloNetworks
 using PhyloPlots
+using CSV
 =#
 
 @testset "unconstrained NNI moves" begin
@@ -337,37 +338,77 @@ str_polytomy_species = "(((8,9),(((((1,2,3),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10
 net_species = readTopology(str_polytomy_species);
 
 #create constraints
-c_level1_simpleclade = PhyloNetworks.TopologyConstraint(0x01, ["3"], net_level1)
-c_level1_species = PhyloNetworks.TopologyConstraint(0x02, ["3", "4", "5"], net_level1)
+@test_throws ErrorException PhyloNetworks.TopologyConstraint(0x01, ["3"], net_level1)
+c_level1_species = PhyloNetworks.TopologyConstraint(0x02, ["1", "2", "3"], net_level1) #TODO fix
 
-c_nontree_simpleclade = PhyloNetworks.TopologyConstraint(0x01, ["Ap"],net_nontreechild)
-c_nontree_cladebelowhybrid = PhyloNetworks.TopologyConstraint(0x01, ["Az", "As"],net_nontreechild)
-
-@test c_nontree_simpleclade.edgenum == 20
-@test c_nontree_simpleclade.nodenum == 10
+@test_throws ErrorException PhyloNetworks.TopologyConstraint(0x01, ["Ap"],net_nontreechild)
+c_nontree_cladebelowhybrid = PhyloNetworks.TopologyConstraint(0x01, ["Az", "As"], net_nontreechild)
+@test c_nontree_cladebelowhybrid.taxonnums == Set([9, 8])
 @test c_nontree_cladebelowhybrid.edgenum == 18
 @test c_nontree_cladebelowhybrid.nodenum == -12
 
 @testset "constraint functions" begin
 
 #checkspeciesnetwork
-@test_throws ErrorException PhyloNetworks.checkspeciesnetwork(net_level1, c_level1_simpleclade)
-@test PhyloNetworks.checkspeciesnetwork(net_nontreechild, c_nontree_simpleclade)
-@test c_nontree_simpleclade.taxonnums == [10]
-@test c_nontree_cladebelowhybrid.taxonnums == [8, 9]
+#TODO @test_throws ErrorException PhyloNetworks.checkspeciesnetwork(net_level1, [c_level1_species])
+@test PhyloNetworks.checkspeciesnetwork(net_nontreechild, [c_nontree_cladebelowhybrid])
 end # of testset on constraint functions
 
 @testset "clade contraints" begin
 
 #nni!(net::HybridNetwork, e::Edge, constraint::Vector{TopologyConstraint}, no3cycle=true::Bool)
-@test isnothing(PhyloNetworks.nni!(net_nontreechild, net_nontreechild.edge[20], [c_nontree_simpleclade]))
-@test isnothing(PhyloNetworks.nni!(net_nontreechild, net_nontreechild.edge[18], [c_nontree_simpleclade]))
+@test isnothing(PhyloNetworks.nni!(net_nontreechild, net_nontreechild.edge[20], [c_nontree_cladebelowhybrid]))
+@test isnothing(PhyloNetworks.nni!(net_nontreechild, net_nontreechild.edge[18], [c_nontree_cladebelowhybrid]))
 
 #TODO test rooting on clade
 end #of testset on clade constraints
 
-@testset "species constraints" begin
-#TODO add species example (based on Claudia's?)
+@testset "species constraints" begin # multiple individuals from each species
+
+# Users give species-level tree and mapping DF. 
+# Then we use three functions on it: 
+# mapindividuals, which identifies individuals who share a species name
+# addindividuals, which adds individuals to the species tree in a star
+# cladeconstraint construvctor, which makes a cladeconstraint object for each species group
+
+# species example: net_level1 has a polytomy for individuals named 1, 2, 3 (tree node numbers 3, 4, 5)
+# Collapse this polytomy to create the species tree
+str_level1_s = "(((8,9),((((1,4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));" # indviduals 1A 1B 1C go on leaf 1
+net_level1_s = readTopology(str_level1_s)
+# mapping_level1 = CSV.read("../../dev/PhyloNetworks/examples/mappingIndividuals.csv") 
+#=
+plot(net_level1_s, :R, showNodeNumber=true, showEdgeNumber=true)
+=#
+
+# test addleaf! function
+PhyloNetworks.addleaf!(net_level1_s, "1A", net_level1_s.leaf[3]) # TODO remove PN
+@test !net_level1_s.node[findfirst([n.number == 3 for n in net_level1_s.node])].leaf
+
+# test addindividuals! function
+net_level1_s = readTopology(str_level1_s)
+PhyloNetworks.addindividuals!(net_level1_s, "1", ["1A", "1B", "1C"])
+@test !net_level1_s.node[findfirst([n.number == 3 for n in net_level1_s.node])].leaf
+@test length(net_level1_s.node[findfirst([n.number == 3 for n in net_level1_s.node])].edge) == 4
+
+# test mapindividuals! function
+net_level1_s = readTopology(str_level1_s)
+mapindividuals(net_level1_s, "../../dev/PhyloNetworks/examples/mappingIndividuals.csv") #TODO fix path for testing
+@test !net_level1_s.node[findfirst([n.number == 3 for n in net_level1_s.node])].leaf
+@test length([e.name for e in net_level1_s.node[3].edge]) == 3 # checks that we added 3 leaves
+
+# test clade contructor
+c_species = PhyloNetworks.TopologyConstraint(0x02, ["1A", "1B", "1C"], net_level1_s, "Sp 1")
+@test c_level1_species.edgenum = 4
+@test c_level1_species.nodenum = 3
+
+
+# TODO remove  if not needed
+# dat_1 = DataFrame(species=["1","2","3","4", "5", "6", "7", "8", "9", "10"], 
+# trait=["A", "A", "A", "C", "C", "A", "A", "C", "C", "C"])
+
+# user gives us individual-level tree, then we collapsed or restrict
+
+
 end # of testset on species constraits
 
 end # of testset on constrained NNI moves

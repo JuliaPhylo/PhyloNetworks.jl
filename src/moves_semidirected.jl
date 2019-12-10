@@ -25,55 +25,62 @@ struct TopologyConstraint
     "type of constraint: 1, 2. Type 3 not implemented yet"
     type::UInt8
     "names of taxa in the constraint (clade / species / outgroup members)"
-    taxonnames::Vector{String} #TODO decided to use vector to keep order
+    taxonnames::Vector{String}
     """
     node numbers of taxa in the constraint (clade / species / outgroup members).
     warning: interpretation will be network-dependent.
     """
-    taxonnums::Vector{Int}
+    taxonnums::Set{Int}
     "number of the stem edge of the constrained group"
     edgenum::Int
     "child node of stem edge"
     nodenum::Int
+    "for species constraints, name of species"
+    speciesname::String
 end
 
 """
-    TopologyConstraint(type::UInt8, taxonnames::Set{String}, net::HybridNetwork)
+    TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::HybridNetwork)
 
 Create a topology constraint from user-given type, taxon names, and network.
 """
-function TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::HybridNetwork)
-    #get taxonnums
-    taxonnums = []
-    for i in 1:length(net.leaf) # iterate through leaves
-        if net.leaf[i].name in taxonnames # check if leaf in clade
-            push!(taxonnums, net.leaf[i].number) # add taxon node number to end of vector
+function TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::HybridNetwork, 
+    speciesname="na"::String)
+
+    if length(taxonnames) < 2
+        error("For a clade or species constraint, there must be more than one taxon name given.")
+    end    
+    taxonnums = Set{Int}()
+    indices = findall(in(taxonnames), [n.name for n in net.leaf]) 
+    length(indices) == length(taxonnames) || error("taxa cannot be matched to node numbers. Check for typos.")
+    # TODO remove or use as check taxonnames = Set(net.leaf[i].name for i in indices)
+    outsideclade = setdiff([n.name for n in net.leaf], taxonnames)
+    for (i,taxa) in enumerate(taxonnames)
+        index = findfirst(isequal(taxa), [n.name for n in net.leaf])
+        !isnothing(index) || error("taxon $taxa cannot be matched to node numbers. Check for typos.")
+        push!(taxonnums, net.leaf[index].number) # note: not ordered as in taxonnames
+    end
+    matrix = hardwiredClusters(majorTree(net), vcat(taxonnames, outsideclade)) # get interior ancestor edges in major tree (no hybrids) 
+    # look for row with ones in relevant columns, zeros everywhere else (or zeros there and ones everywhere else)
+    # keep only ones with 10. (use majorTree to make sure this is true)
+    comp = zeros(Int8, size(matrix)[1], length(taxonnames))
+    comp[size(matrix)[1],:] = ones(Int8, length(taxonnames)) 
+    # TODO order original matrix so the row of ones is last
+    if matrix[:,2:(length(taxonnames) + 1)] == comp
+        # found the mrca!
+        edgenum = matrix[size(matrix)[1], 1]
+    else
+        opp = ones(Int8, size(matrix)[1], length(taxonnames))
+        opp[size(matrix)[1],:] = zeros(Int8, length(taxonnames)) 
+        if matrix[:,2:(length(taxonnames) + 1)] == opp
+            error("The clade given is not rooted correctly, making it a grade instead of a clade. Modify the rooting of your network.")
+        else
+            error("The taxa given are not a clade")
         end
     end
-    length(taxonnums) == length(taxonnames) || error("taxon names cannot be matched to node numbers. Check for typos.")
-    if type == 0x02 
-        # TODO if type is species, create mapping function to add a polytomy for species
-        # with multiple individuals. (add a leaf node for each of the individuals within a species)
-    end
-    matrix = hardwiredClusters(net, net.names) # find most recent common ancestor (mrca)
-    global mrcanumber = 0 # start with 0 as index of most recent common ancestor (mrca)
-    global mrcaedge = net.edge[1] # arbitrary, just starts here
-    sub = matrix[:, taxonnums.+1] # get only columns for the cluster taxa
-    for i in 1:size(sub)[1] # iterate over rows in sub matrix
-        if sum(sub[i,:]) == length(taxonnums) # all entries equal to one
-            potential_mrca = matrix[i,1] # internal edge that is parent to all taxa in clade
-            if mrcanumber == 0 || potential_mrca in descendants(mrcaedge) # mrcanumber is zero first time through
-                global mrcanumber = 1
-                global mrcaedge = net.edge[potential_mrca] #TODO not assigning
-            end
-        end
-    end
-    #find rows where all equal to 1
-    #find lowest of these rows. Make it the edgenum.
-    # first its child. assign nodenum.
-    edgenum = mrcaedge.number # fixit: check that the network satisfies the constraint and return the associated edge
+    mrcaedge = net.edge[edgenum] # TODO make sure this indexing is always right
     nodenum = PhyloNetworks.getChild(mrcaedge).number
-    TopologyConstraint(type, taxonnames, taxonnums, edgenum, nodenum)
+    TopologyConstraint(type, taxonnames, taxonnums, edgenum, nodenum, speciesname)
 end
 # fixit: use these constraints in the functions below,
 # to check that the proposed NNI move is acceptable
@@ -98,9 +105,9 @@ end
 =#
 
 """
-    nni!(net::HybridNetwork, e::Edge, constraint::Vector{TopologyConstraint},
-    no3cycle=true::Bool)
-
+    nni!(net::HybridNetwork, e::Edge, no3cycle=true::Bool, 
+    constraint=TopologyConstraint[]::Vector{TopologyConstraint})
+#todo look into order with default optional arguments
 Attempt to perform a nearest neighbor interchange (NNI) around edge `e`,
 randomly chosen among all possible NNIs (e.g 3, sometimes more depending on `e`)
 satisfying the constraints, and such that the new network is a DAG. The number of 
@@ -137,10 +144,12 @@ writeTopology(net_level1) == str_level1
 true
 ```
 """
-function nni!(net::HybridNetwork, e::Edge, constraint::Vector{TopologyConstraint},
-    no3cycle=true::Bool)
-    for c in constraint
-        c.edgenum != e.number || return nothing
+function nni!(net::HybridNetwork, e::Edge, no3cycle=true::Bool, 
+    constraint=TopologyConstraint[]::Vector{TopologyConstraint})
+    for con in constraint
+        con.edgenum != e.number || return nothing
+        #TODO lower down, if u or v is the node num, recalc the node num after nni move
+        # go through case by case to make sure this is true in every case.
     end
     hybparent = getParent(e).hybrid
     nnirange = 0x01:nnimax(e) # 0x01 = 1 but UInt8 instead of Int
@@ -479,6 +488,7 @@ function checkspeciesnetwork(network::HybridNetwork, cladeconstraints::Vector{To
 end
 
 # checknetwork for use in nni function
+# can we avoid ever using this? TODO
 function checknetwork(network::HybridNetwork, cladeconstraints::Vector{TopologyConstraint})
     return !cladesviolated(network, cladeconstraints)
 end
@@ -491,10 +501,71 @@ return true if violates clades.
 TODO NOTE: previously cladeconstraints was a Dict
 """
 function cladesviolated(net::HybridNetwork, cladeconstraints::Vector{TopologyConstraint})
-    for c in cladeconstraints # checks directionality of stem edge hasn't change
-        if !(getChild(net.edge[c.edgenum]).number == c.nodenum)
+    for con in cladeconstraints # checks directionality of stem edge hasn't change
+        if !(getChild(net.edge[con.edgenum]).number == con.nodenum) # root check
             return true
         end
+        #TODO check that clades below the edge are correct
     end
     return false
+end
+
+"""
+    mapindividuals(network::HybridNetwork, mappingFile::AbstractString)
+
+Identify individuals within a species using a mapping csv file, then call 
+addindividuals for each group of individuals. Return network iwth individuals at 
+the leaves.
+"""
+function mapindividuals(net::HybridNetwork, mappingFile::AbstractString)
+    try
+        mappingDF = CSV.read("../../dev/PhyloNetworks/examples/mappingIndividuals.csv") #TODO fix path for testing
+        specieslist = unique(mappingDF[:, 1])
+        individualnet = deepcopy(net)
+        for species in specieslist
+            individualnet = addindividuals!(net, species, mappingDF[mappingDF.species .== species, 2])
+        end
+        return individualnet
+    catch ArgumentError
+        return error("Mapping file name is not a valid path. Please check the file path and try again.")
+    end
+end
+
+"""
+    addindividuals!(net::HybridNetwork, species::AbstractString, individuals::Vector{String})
+
+Add individuals to their species leaf as a star.
+"""
+function addindividuals!(net::HybridNetwork, species::AbstractString, individuals::Vector{String})
+    for s in species # find leaf node number
+        speciesnodenumber = findfirst([l.name == species for l in net.leaf])
+        # add individuals to this node as a star
+        for ind in individuals
+            addleaf!(net, ind, net.leaf[speciesnodenumber])
+        end
+    end
+
+end
+
+"""
+    addleaf!(net::HybridNetwork, ind::AbstractString, species::AbstractString)
+
+Add a new exterior edge and new leaf node to a specified current leaf node
+#TODO leaf name isn't being assigned correctly
+"""
+
+function addleaf!(net::HybridNetwork, ind::AbstractString, speciesnode::Node)
+    speciesnode.leaf = false;
+    # create connecting edge
+    exterioredge = Edge(length(net.edge) + 1)
+    pushEdge!(net,exterioredge)
+    setEdge!(speciesnode, exterioredge)
+    # create individual's leaf
+    newleaf = Node(length(net.leaf) + 1, true, false, [exterioredge]) # Node(number::Int, leaf::Bool, hybrid::Bool, edge::Array{Edge,1})
+    # add nodes to exterior edge (see auxillary.jl)
+    setNode!(exterioredge, [newleaf, speciesnode])
+    # push node into network (see auxillary.jl)
+    pushNode!(net, newleaf)
+    setEdge!(newleaf, exterioredge)
+    newleaf.name = ind
 end

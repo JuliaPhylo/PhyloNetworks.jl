@@ -67,7 +67,7 @@ If the root is a leaf node, the external edge to that leaf is included (first ro
 Both parent hybrid edges to a given hybrid node only contribute a single row (they share the same hardwired cluster).
 
 - first column: edge number
-- next columns: 0/1 values. 1=descendant of edge, 0=not a descendant, or missing taxon.
+- next columns: 0/1. 1=descendant of edge, 0=not a descendant, or missing taxon.
 - last column:  10/11 values. 10=tree edge, 11=hybrid edge
 """
 function hardwiredClusters(net::HybridNetwork, S::Union{Vector{String},Vector{Int}})
