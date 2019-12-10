@@ -7,7 +7,7 @@ using PhyloPlots
 @testset "unconstrained NNI moves" begin
 
 str_level1 = "(((8,9),(((((1,2,3),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));"
-net_level1 = readTopology(str_level1);
+net_level1 = readTopology(str_level1); # this network has a polytomy at node -9 
 # same topology as: rootatnode!(net_level1, -3). edges 1:22
 str_nontreechild = "((((Ag,E))#H3,(#H1:7.159::0.056,((M:0.0)#H2:::0.996,(Ak,(#H3:0.08,#H2:0.0::0.004):0.023):0.078):2.49):2.214):0.026,((Az:2.13,As:2.027):1.697)#H1:0.0::0.944,Ap);"
 net_nontreechild = readTopology(str_nontreechild);
@@ -323,9 +323,51 @@ end # of hybrid ladder net edge 12: BB undirected (edge below root)
     @test PhyloNetworks.isconnected(net_level1.node[12], net_level1.node[19]) == false # node -7, -3 
 end
 
-#TODO add these after adding contraint functionality
-# myconstraint = PhyloNetworks.TopologyConstraint(0x03,Set("8"),net_level1)
-# undoinfo = PhyloNetworks.nni!(net_level1, net_level1.edge[1], myconstraint)
-
 end # of testset on unconstrained NNIs
 
+@testset "constrained NNI moves" begin
+
+str_level1 = "(((8,9),(((((1,2,3),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));"
+net_level1 = readTopology(str_level1); #polytomy at node -9 for leaves 3, 4, 5
+
+str_nontreechild = "((((Ag,E))#H3,(#H1:7.159::0.056,((M:0.0)#H2:::0.996,(Ak,(#H3:0.08,#H2:0.0::0.004):0.023):0.078):2.49):2.214):0.026,((Az:2.13,As:2.027):1.697)#H1:0.0::0.944,Ap);"
+net_nontreechild = readTopology(str_nontreechild);
+
+str_polytomy_species = "(((8,9),(((((1,2,3),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));"
+net_species = readTopology(str_polytomy_species);
+
+#create constraints
+c_level1_simpleclade = PhyloNetworks.TopologyConstraint(0x01, ["3"], net_level1)
+c_level1_species = PhyloNetworks.TopologyConstraint(0x02, ["3", "4", "5"], net_level1)
+
+c_nontree_simpleclade = PhyloNetworks.TopologyConstraint(0x01, ["Ap"],net_nontreechild)
+c_nontree_cladebelowhybrid = PhyloNetworks.TopologyConstraint(0x01, ["Az", "As"],net_nontreechild)
+
+@test c_nontree_simpleclade.edgenum == 20
+@test c_nontree_simpleclade.nodenum == 10
+@test c_nontree_cladebelowhybrid.edgenum == 18
+@test c_nontree_cladebelowhybrid.nodenum == -12
+
+@testset "constraint functions" begin
+
+#checkspeciesnetwork
+@test_throws ErrorException PhyloNetworks.checkspeciesnetwork(net_level1, c_level1_simpleclade)
+@test PhyloNetworks.checkspeciesnetwork(net_nontreechild, c_nontree_simpleclade)
+@test c_nontree_simpleclade.taxonnums == [10]
+@test c_nontree_cladebelowhybrid.taxonnums == [8, 9]
+end # of testset on constraint functions
+
+@testset "clade contraints" begin
+
+#nni!(net::HybridNetwork, e::Edge, constraint::Vector{TopologyConstraint}, no3cycle=true::Bool)
+@test isnothing(PhyloNetworks.nni!(net_nontreechild, net_nontreechild.edge[20], [c_nontree_simpleclade]))
+@test isnothing(PhyloNetworks.nni!(net_nontreechild, net_nontreechild.edge[18], [c_nontree_simpleclade]))
+
+#TODO test rooting on clade
+end #of testset on clade constraints
+
+@testset "species constraints" begin
+#TODO add species example (based on Claudia's?)
+end # of testset on species constraits
+
+end # of testset on constrained NNI moves

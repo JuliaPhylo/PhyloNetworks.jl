@@ -17,27 +17,63 @@ Type for various topological constraints, such as:
 
 1. a set of taxa forming a clade in the major tree
 2. a set of individuals belonging to the same species
-3. a set of taxa forming an outgroup clade or grade in the major tree
-4. a set of taxa forming a clade in any one of the displayed trees
-5. a set of taxa forming an outgroup clade or grade in any one of the displayed trees
+    if u or v in a list of clade constraints where u or v is the node at top of star, then don't
+        allow nni and return nothing
+3. a set of taxa forming a clade in any one of the displayed trees
 """
 struct TopologyConstraint
-    "type of constraint: 1, 2, or 3. Types 4 and 5 not implemented yet"
+    "type of constraint: 1, 2. Type 3 not implemented yet"
     type::UInt8
     "names of taxa in the constraint (clade / species / outgroup members)"
-    taxonname::Set{String}
+    taxonnames::Vector{String} #TODO decided to use vector to keep order
     """
     node numbers of taxa in the constraint (clade / species / outgroup members).
     warning: interpretation will be network-dependent.
     """
-    taxonnum::Set{Int}
+    taxonnums::Vector{Int}
     "number of the stem edge of the constrained group"
     edgenum::Int
+    "child node of stem edge"
+    nodenum::Int
 end
-function TopologyConstraint(type::UInt8, taxonname::Set{String}, net::HybridNetwork)
-    taxonnum = Set{Int}() # fixit: use the network instead
-    edgenum = -1 # fixit: check that the network satisfies the constraint and return the associated edge
-    TopologyConstraint(type, taxonname, taxonnum, edgenum)
+
+"""
+    TopologyConstraint(type::UInt8, taxonnames::Set{String}, net::HybridNetwork)
+
+Create a topology constraint from user-given type, taxon names, and network.
+"""
+function TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::HybridNetwork)
+    #get taxonnums
+    taxonnums = []
+    for i in 1:length(net.leaf) # iterate through leaves
+        if net.leaf[i].name in taxonnames # check if leaf in clade
+            push!(taxonnums, net.leaf[i].number) # add taxon node number to end of vector
+        end
+    end
+    length(taxonnums) == length(taxonnames) || error("taxon names cannot be matched to node numbers. Check for typos.")
+    if type == 0x02 
+        # TODO if type is species, create mapping function to add a polytomy for species
+        # with multiple individuals. (add a leaf node for each of the individuals within a species)
+    end
+    matrix = hardwiredClusters(net, net.names) # find most recent common ancestor (mrca)
+    global mrcanumber = 0 # start with 0 as index of most recent common ancestor (mrca)
+    global mrcaedge = net.edge[1] # arbitrary, just starts here
+    sub = matrix[:, taxonnums.+1] # get only columns for the cluster taxa
+    for i in 1:size(sub)[1] # iterate over rows in sub matrix
+        if sum(sub[i,:]) == length(taxonnums) # all entries equal to one
+            potential_mrca = matrix[i,1] # internal edge that is parent to all taxa in clade
+            if mrcanumber == 0 || potential_mrca in descendants(mrcaedge) # mrcanumber is zero first time through
+                global mrcanumber = 1
+                global mrcaedge = net.edge[potential_mrca] #TODO not assigning
+            end
+        end
+    end
+    #find rows where all equal to 1
+    #find lowest of these rows. Make it the edgenum.
+    # first its child. assign nodenum.
+    edgenum = mrcaedge.number # fixit: check that the network satisfies the constraint and return the associated edge
+    nodenum = PhyloNetworks.getChild(mrcaedge).number
+    TopologyConstraint(type, taxonnames, taxonnums, edgenum, nodenum)
 end
 # fixit: use these constraints in the functions below,
 # to check that the proposed NNI move is acceptable
@@ -56,6 +92,9 @@ end
 - add moves that change the root position (and edge directions accordingly)
   without re-calculating the likelihood (accept the move): perhaps recalculate forward / direct likelihoods
   why: the root position affects the feasibility of the NNIs starting from a BR configuration
+
+  when changing root position, be sure to check if the stem edge is still directed in the correct direction
+  stemedge.isChild1() 
 =#
 
 """
@@ -100,6 +139,9 @@ true
 """
 function nni!(net::HybridNetwork, e::Edge, constraint::Vector{TopologyConstraint},
     no3cycle=true::Bool)
+    for c in constraint
+        c.edgenum != e.number || return nothing
+    end
     hybparent = getParent(e).hybrid
     nnirange = 0x01:nnimax(e) # 0x01 = 1 but UInt8 instead of Int
     nnis = Random.shuffle(nnirange)
@@ -408,20 +450,51 @@ end
 """
     problem4cycle(β::Node, δ::Node, α::Node, γ::Node)
 
-Checks if the focus edge uv has a 4 cycle that could lead to a 3 cycle
+Check if the focus edge uv has a 4 cycle that could lead to a 3 cycle
     after an chosen NNI. Return true if there is a problem 4 cycle, false if none.
 """
 function problem4cycle(β::Node, δ::Node, α::Node, γ::Node)
     isconnected(β, δ) || isconnected(α, γ)
 end
 
+""" 
+    checkspeciesnetwork(network::HybridNetwork, cladeconstraints::TopologyConstraint)
+
+Check user-provided species-level network for polytomies and unnecessary nodes 
+(nodes with degree two). Fuze edges at nodes with degree two.
+Return error for polytomies.
 """
-    cladesviolated(network::HybridNetwork, cladeconstraints)
+function checkspeciesnetwork(network::HybridNetwork, cladeconstraints::Vector{TopologyConstraint}) #? one or multiple in a vector?
+    for node in network.node
+        if length(node.edge) < 3 && !node.leaf && !(node == network.root)
+            fuseedgesat!(node,network)
+        elseif length(node.edge) > 3 #? allow polytomies at root?
+            error("node $node degree is too large: all interior nodes must have degree 3. A species level network is required.")
+            #if error, breaks to return error
+        end
+    end
+    # check if user-given clades violated by their own given network
+    # if the function runs to here, no errors above. return !cladesviolated()
+    return !cladesviolated(network, cladeconstraints)
+end
+
+# checknetwork for use in nni function
+function checknetwork(network::HybridNetwork, cladeconstraints::Vector{TopologyConstraint})
+    return !cladesviolated(network, cladeconstraints)
+end
+
+"""
+    cladesviolated(network::HybridNetwork, cladeconstraints::TopologyConstraint)
 
 Check if network violates user-given clade constraints. Return false if passes,
 return true if violates clades.
+TODO NOTE: previously cladeconstraints was a Dict
 """
-function cladesviolated(net::HybridNetwork, cladeconstraints::Dict)
+function cladesviolated(net::HybridNetwork, cladeconstraints::Vector{TopologyConstraint})
+    for c in cladeconstraints # checks directionality of stem edge hasn't change
+        if !(getChild(net.edge[c.edgenum]).number == c.nodenum)
+            return true
+        end
+    end
     return false
 end
-
