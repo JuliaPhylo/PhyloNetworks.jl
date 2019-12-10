@@ -267,7 +267,7 @@ asr = ancestralStateReconstruction(fit1)
     0.16855042517785512, 0.7673588716207436, 0.7827758475866091] atol=1e-5
 @test asr[!,:hi] ≈ [0.,0.,1.,1.,0.713977605333288, 0.6805425771039674,
     0.8314495748221447, 0.23264112837925616, 0.21722415241339132] atol=1e-5
-@test fit1.postltw ≈ [-0.08356534477069566, -2.5236181051014333] atol=1e-5
+# @test fit1.postltw ≈ [-0.08356534477069566, -2.5236181051014333] atol=1e-5
 end # end of testset, fixed topology
 
 @testset "testing readfastatodna" begin
