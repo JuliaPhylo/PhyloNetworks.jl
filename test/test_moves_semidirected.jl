@@ -337,25 +337,24 @@ net_nontreechild = readTopology(str_nontreechild);
 str_polytomy_species = "(((8,9),(((((1,2,3),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));"
 net_species = readTopology(str_polytomy_species);
 
-#create constraints
-@test_throws ErrorException PhyloNetworks.TopologyConstraint(0x01, ["3"], net_level1)
-c_level1_species = PhyloNetworks.TopologyConstraint(0x02, ["1", "2", "3"], net_level1) #TODO fix
-
-@test_throws ErrorException PhyloNetworks.TopologyConstraint(0x01, ["Ap"],net_nontreechild)
+@testset "constraint functions" begin
+# constructor
 c_nontree_cladebelowhybrid = PhyloNetworks.TopologyConstraint(0x01, ["Az", "As"], net_nontreechild)
 @test c_nontree_cladebelowhybrid.taxonnums == Set([9, 8])
 @test c_nontree_cladebelowhybrid.edgenum == 18
 @test c_nontree_cladebelowhybrid.nodenum == -12
+@test_throws ErrorException PhyloNetworks.TopologyConstraint(0x01, ["3"], net_level1)
+@test_throws ErrorException PhyloNetworks.TopologyConstraint(0x01, ["Ap"],net_nontreechild)
 
-@testset "constraint functions" begin
-
-#checkspeciesnetwork
+# checkspeciesnetwork
 #TODO @test_throws ErrorException PhyloNetworks.checkspeciesnetwork(net_level1, [c_level1_species])
 @test PhyloNetworks.checkspeciesnetwork(net_nontreechild, [c_nontree_cladebelowhybrid])
 end # of testset on constraint functions
 
 @testset "clade contraints" begin
+c_nontree_cladebelowhybrid = PhyloNetworks.TopologyConstraint(0x01, ["Az", "As"], net_nontreechild)
 
+c_level1_clade = PhyloNetworks.TopologyConstraint(0x01, ["1", "2", "3"], net_level1)
 #nni!(net::HybridNetwork, e::Edge, constraint::Vector{TopologyConstraint}, no3cycle=true::Bool)
 @test isnothing(PhyloNetworks.nni!(net_nontreechild, net_nontreechild.edge[20], [c_nontree_cladebelowhybrid]))
 @test isnothing(PhyloNetworks.nni!(net_nontreechild, net_nontreechild.edge[18], [c_nontree_cladebelowhybrid]))
@@ -381,8 +380,14 @@ plot(net_level1_s, :R, showNodeNumber=true, showEdgeNumber=true)
 =#
 
 # test addleaf! function
-PhyloNetworks.addleaf!(net_level1_s, "1A", net_level1_s.leaf[3]) # TODO remove PN
+PhyloNetworks.addleaf!(net_level1_s, net_level1_s.node[4], "1A");
 @test !net_level1_s.node[findfirst([n.number == 3 for n in net_level1_s.node])].leaf
+PhyloNetworks.addleaf!(net_level1_s, net_level1_s.node[4], "1B");
+# check containRoot on edge 4 and exterior edges
+@test net_level1_s.edge[21].containRoot = false
+@test net_level1_s.edge[22].containRoot = false
+@test PhyloNetworks.getChild(net_level1_s.edge[21]).name == "1A"
+@test PhyloNetworks.getChild(net_level1_s.edge[22]).name == "1B"
 
 # test addindividuals! function
 net_level1_s = readTopology(str_level1_s)
@@ -392,22 +397,21 @@ PhyloNetworks.addindividuals!(net_level1_s, "1", ["1A", "1B", "1C"])
 
 # test mapindividuals! function
 net_level1_s = readTopology(str_level1_s)
-mapindividuals(net_level1_s, "../../dev/PhyloNetworks/examples/mappingIndividuals.csv") #TODO fix path for testing
-@test !net_level1_s.node[findfirst([n.number == 3 for n in net_level1_s.node])].leaf
-@test length([e.name for e in net_level1_s.node[3].edge]) == 3 # checks that we added 3 leaves
+net_level1_i = PhyloNetworks.mapindividuals(net_level1_s, "../../dev/PhyloNetworks/examples/mappingIndividuals.csv") #TODO fix path for testing
+@test !net_level1_i.node[findfirst([n.number == 3 for n in net_level1_s.node])].leaf
+@test length([e.name for e in net_level1_i.node[3].edge]) == 3 # checks that we added 3 leaves
 
-# test clade contructor
-c_species = PhyloNetworks.TopologyConstraint(0x02, ["1A", "1B", "1C"], net_level1_s, "Sp 1")
-@test c_level1_species.edgenum = 4
-@test c_level1_species.nodenum = 3
+# test species constraint contructor
+c_species = PhyloNetworks.TopologyConstraint(0x02, ["1A", "1B", "1C"], net_level1_i, "1")
+@test c_species.edgenum = 4
+@test c_species.nodenum = 3
 
+#test no nni on stem edge for species example
+@test isnothing(PhyloNetworks.nni!(net_level1_i , net_level1_i.edge[4], [c_species]))
 
 # TODO remove  if not needed
 # dat_1 = DataFrame(species=["1","2","3","4", "5", "6", "7", "8", "9", "10"], 
 # trait=["A", "A", "A", "C", "C", "A", "A", "C", "C", "C"])
-
-# user gives us individual-level tree, then we collapsed or restrict
-
 
 end # of testset on species constraits
 
