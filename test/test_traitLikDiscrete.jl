@@ -227,11 +227,13 @@ for i in 1:16
     fit = fitdiscrete(net, m1, d[!,[:species, Symbol("x",i)]]; optimizeQ=false, optimizeRVAS=false)
     push!(lik, fit.loglik)
 end
-@test lik ≈ [-1.6218387598967712, -3.008066347196894, -4.3943604143403245, -3.008199100743402,
+traitloglik_all16 = [-1.6218387598967712, -3.008066347196894, -4.3943604143403245, -3.008199100743402,
     -3.70121329832901, -3.0081981601869483, -2.315051933868397, -2.314985711030534,
     -3.0081988850020873, -3.0081983709272504, -2.3150512090547584, -3.70134532205944,
     -3.008132923628349, -3.7012134632082083, -2.3149859724945876, -3.7013460518770915]
-fit1 = fitdiscrete(net, m1, d[!,[:species, :x6]]; optimizeRVAS=false)
+@test lik ≈ traitloglik_all16
+fit1 = fitdiscrete(net, m1, d[!,:species], d[!,2:17]; optimizeQ=false, optimizeRVAS=false)
+@test fit1.loglik ≈ sum(traitloglik_all16) # log of product = sum of logs
 
 # with parameter estimation
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
@@ -268,6 +270,7 @@ asr = ancestralStateReconstruction(fit1)
 @test asr[!,:hi] ≈ [0.,0.,1.,1.,0.713977605333288, 0.6805425771039674,
     0.8314495748221447, 0.23264112837925616, 0.21722415241339132] atol=1e-5
 # @test fit1.postltw ≈ [-0.08356534477069566, -2.5236181051014333] atol=1e-5
+# fixit: need to output posterior log tree weights, to be bayes factor
 end # end of testset, fixed topology
 
 @testset "testing readfastatodna" begin
@@ -484,7 +487,11 @@ redirect_stdout(originalstdout)
 @test dna_net_opt_both.ratemodel.alpha != 1.0
 # for this example: all NaN values if no lower bound on RVAS's alpha, because it goes to 0
 @test dna_net_opt_both.ratemodel.ratemultiplier ≈ [1e-4, 2.0] atol=0.02
-@test dna_net_opt_both.loglik > -3100. # should be ~ -2901.3 -- but low tolerance: just check it's not horrible
+@test dna_net_opt_both.loglik > -3800.
+# should be ~ -3708.1 -- but low tolerance: just check it's not horrible.
+# with default tol: alpha=0.05, JC rate=0.00288, loglik=-3337.413
+# under wrong model where all traits have evolved under same (unknown) displayed tree:
+# should be ~ -2901.3 -- but low tolerance: just check it's > -3100.
 # with default strict tolerance values: takes *much* longer, alpha=0.05, JC rate = 0.00293, loglik = -2535.618
 end # of testing readfastatodna with NASM and RateVariationAcrossSites
 
