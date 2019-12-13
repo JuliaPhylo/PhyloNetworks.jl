@@ -625,6 +625,16 @@ function discrete_corelikelihood_trait!(obj::SSM, t::Integer, ci::Integer, ri::I
     return (loglik, forwardlik, directlik)
 end
 
+# PRECONDITION: _loglikcache updated by discrete_corelikelihood!
+# returns an array pltw s.t. pltw[site,:] = postltw at site
+function postltw(obj::SSM)
+    # ts[tree,site] = log P(data and tree) at site
+    ts = dropdims(mapslices(logsumexp, obj._loglikcache, dims=2);dims=2)
+    siteliks = dropdims(mapslices(logsumexp, obj._loglikcache, dims=[1,2]);dims=(1,2))
+    ts .-= siteliks'
+    return ts'
+end
+
 """
     traitlabels2indices(data, model::SubstitutionModel)
 
