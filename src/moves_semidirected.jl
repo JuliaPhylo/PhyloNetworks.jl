@@ -85,7 +85,7 @@ function TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::Hybrid
         error("The taxa given are not a clade")
     end
     mrcaedge = net.edge[edgenum] # TODO make sure this indexing is always right
-    nodenum = PhyloNetworks.getChild(mrcaedge).number
+    nodenum = getChild(mrcaedge).number
     TopologyConstraint(type, taxonnames, taxonnums, edgenum, nodenum, speciesname)
 end
 # fixit: use these constraints in the functions below,
@@ -153,8 +153,10 @@ true
 function nni!(net::HybridNetwork, e::Edge, no3cycle=true::Bool, 
     constraint=TopologyConstraint[]::Vector{TopologyConstraint})
     for con in constraint
-        con.edgenum != e.number || return nothing
-        #TODO lower down, if u or v is the node num, recalc the node num after nni move
+        if con.edgenum == e.number
+            return nothing
+        end
+        # TODO lower down, if u or v is the node num, recalculate the node num after nni move
         # go through case by case to make sure this is true in every case.
     end
     hybparent = getParent(e).hybrid
@@ -543,18 +545,17 @@ function mapindividuals(net::HybridNetwork, mappingFile::String)
 end
 
 """
-    addindividuals!(net::HybridNetwork, species::AbstractString, individuals::Vector{String})
+    addindividuals!(net::HybridNetwork, species::String, individuals::Vector{String})
 
 Add individuals to their species leaf as a star.
 """
-function addindividuals!(net::HybridNetwork, species::AbstractString, individuals::Vector{String})
-    for s in species # find leaf node number
-        speciesnodenumber = findfirst([l.name == species for l in net.leaf])
-        # add individuals to this node as a star
-        for ind in individuals
-            addleaf!(net, net.leaf[speciesnodenumber], ind)
-        end
+function addindividuals!(net::HybridNetwork, species::String, individuals::Vector{String})
+    speciesnodenumber = findfirst([l.name == species for l in net.node]) # index for correct node
+    # add individuals to this node as a star
+    for ind in individuals
+        addleaf!(net, net.node[speciesnodenumber], ind); #TODO could this index ever change over the course of the loop?
     end
+    return net
 end
 
 """
@@ -565,12 +566,11 @@ Add a new exterior edge and new leaf node to a specified current leaf node
 function addleaf!(net::HybridNetwork, speciesnode::Node, ind::String, edgelength::Float64=-1.0)
     # create connecting edge
     exterioredge = Edge(maximum(e.number for e in net.edge) + 1, edgelength) # isChild1 = true by default in edge creation
-    if speciesnode.hybrid || (speciesnode != net.node[net.root] && !getMajorParentEdge(speciesnode).containRoot)
-        exterioredge.containRoot = false # handle in constraint # TODO make sure exterior edges cannot contain root if they shouldn't
-
-    end
     pushEdge!(net, exterioredge)
     setEdge!(speciesnode, exterioredge) 
+    if speciesnode.hybrid || (speciesnode != net.node[net.root] && !getMajorParentEdge(speciesnode).containRoot)
+        exterioredge.containRoot = false # TODO make sure exterior edges cannot contain root if they shouldn't
+    end
     # create individual's leaf
     newleaf = Node(maximum(n.number for n in net.node) + 1, true, false, [exterioredge]) # Node(number::Int, leaf::Bool, hybrid::Bool, edge::Array{Edge,1})
     newleaf.name = ind
