@@ -22,7 +22,7 @@ Type for various topological constraints, such as:
 3. a set of taxa forming a clade in any one of the displayed trees
 """
 struct TopologyConstraint
-    "type of constraint: 1, 2. Type 3 not implemented yet"
+    "type of constraint: 2 (Types 1 and 3 not yet implemented.)"
     type::UInt8
     "names of taxa in the constraint (clade / species / outgroup members)"
     taxonnames::Vector{String}
@@ -43,6 +43,24 @@ end
     TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::HybridNetwork)
 
 Create a topology constraint from user-given type, taxon names, and network.
+
+```jldoctest
+julia> str_level1_i = "(((8,9),(((((1A,1B,1C),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));"
+
+julia> net_level1_i = readTopology(str_level1_i)
+HybridNetwork, Rooted Network
+23 edges
+22 nodes: 10 tips, 2 hybrid nodes, 10 internal tree nodes.
+tip labels: 8, 9, 1A, 1B, ...
+(((8,9),(((((1A,1B,1C),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));
+
+c_species = PhyloNetworks.TopologyConstraint(0x02, ["1A", "1B", "1C"], net_level1_i, "1")
+PhyloNetworks.TopologyConstraint(0x02, ["1A", "1B", "1C"], Set([4, 3, 5]), 7, -9, "1")
+
+julia> isnothing(PhyloNetworks.nni!(net_level1_i , net_level1_i.edge[4], [c_species]))
+true
+```
+
 """
 function TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::HybridNetwork, 
     speciesname="na"::String)
@@ -468,7 +486,7 @@ end
     problem4cycle(β::Node, δ::Node, α::Node, γ::Node)
 
 Check if the focus edge uv has a 4 cycle that could lead to a 3 cycle
-    after an chosen NNI. Return true if there is a problem 4 cycle, false if none.
+after an chosen NNI. Return true if there is a problem 4 cycle, false if none.
 """
 function problem4cycle(β::Node, δ::Node, α::Node, γ::Node)
     isconnected(β, δ) || isconnected(α, γ)
@@ -519,11 +537,20 @@ function cladesviolated(net::HybridNetwork, cladeconstraints::Vector{TopologyCon
 end
 
 """
-    mapindividuals(network::HybridNetwork, mappingFile::AbstractString)
+    mapindividuals(network::HybridNetwork, mappingFile::String)
 
-Identify individuals within a species using a mapping csv file, then call 
-addindividuals for each group of individuals. Return network iwth individuals at 
-the leaves.
+Identify individuals within species using a species-level tree and mapping csv file.
+Mapping file should provide individuals (two or more) belonging to 1 or more species. 
+Return tuple of individual-level network and species constraint(s).
+
+```jldoctest
+julia> str_level1_s = "(((8,9),((((1,4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));";
+
+julia> net_level1_s = readTopology(str_level1_s);
+
+julia> PhyloNetworks.mapindividuals(net_level1_s, joinpath(@__DIR__, "..","examples","mappingIndividuals.csv"))
+#TODO fix after int to string problem fixed
+```
 """
 function mapindividuals(net::HybridNetwork, mappingFile::String)
     mappingDF = CSV.read(mappingFile)
@@ -536,34 +563,62 @@ function mapindividuals(net::HybridNetwork, mappingFile::String)
             continue
         end
         addindividuals!(individualnet, species, individuals)
-        # create constraint
         constraint = TopologyConstraint(0x02, [mappingDF[mappingDF.species .== species, 2]], 
             individualnet, species)
         push!(constraints, constraint)
     end
-    return individualnet, constraints # returns tuple
+    return individualnet, constraints
 end
 
 """
     addindividuals!(net::HybridNetwork, species::String, individuals::Vector{String})
 
-Add individuals to their species leaf as a star.
+Add individuals to their species leaf as a star. Called only through 
+mapindividuals function.
+
+```jldoctest
+julia> str_level1_s = "(((8,9),((((1,4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));";
+
+julia> net_level1_s = readTopology(str_level1_s);
+
+julia> PhyloNetworks.addindividuals!(net_level1_s, "1", ["1A", "1B", "1C"])
+HybridNetwork, Rooted Network
+23 edges
+22 nodes: 10 tips, 2 hybrid nodes, 10 internal tree nodes.
+tip labels: 8, 9, 4, 5, ...
+(((8,9),(((((1A,1B,1C),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));
 """
 function addindividuals!(net::HybridNetwork, species::String, individuals::Vector{String})
     speciesnodenumber = findfirst([l.name == species for l in net.node]) # index for correct node
-    # add individuals to this node as a star
+    !isnothing(speciesnodenumber) || error("taxon $species cannot be matched to a node number. 
+    Check for typos in the species name.")
+
     for ind in individuals
-        addleaf!(net, net.node[speciesnodenumber], ind); #TODO could this index ever change over the course of the loop?
+        addleaftonode!(net, net.node[speciesnodenumber], ind); # TODO could this index ever change over the course of the loop?
     end
     return net
 end
 
 """
-    addleaf!(net::HybridNetwork, speciesnode::Node, ind::String, edgelength::Float64=-1.0)
+    addleaftonode!(net::HybridNetwork, speciesnode::Node, ind::String, edgelength::Float64=-1.0)
 
-Add a new exterior edge and new leaf node to a specified current leaf node
+Add a new exterior edge and new leaf node to a specified current leaf node. Called 
+only through mapindividuals function.
+
+```jldoctest
+julia> str_level1_s = "(((8,9),((((1,4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));";
+
+julia> net_level1_s = readTopology(str_level1_s);
+
+julia> PhyloNetworks.addleaftonode!(net_level1_s, net_level1_s.node[4], "Species 1 Individual 1")
+HybridNetwork, Rooted Network
+21 edges
+20 nodes: 8 tips, 2 hybrid nodes, 10 internal tree nodes.
+tip labels: 8, 9, 4, 5, ...
+(((8,9),(((((Species 1 Individual 1),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));
+```
 """
-function addleaf!(net::HybridNetwork, speciesnode::Node, ind::String, edgelength::Float64=-1.0)
+function addleaftonode!(net::HybridNetwork, speciesnode::Node, ind::String, edgelength::Float64=-1.0)
     # create connecting edge
     exterioredge = Edge(maximum(e.number for e in net.edge) + 1, edgelength) # isChild1 = true by default in edge creation
     pushEdge!(net, exterioredge)
@@ -582,5 +637,29 @@ function addleaf!(net::HybridNetwork, speciesnode::Node, ind::String, edgelength
         net.numTaxa -= 1
     end
     pushNode!(net, newleaf) # push node into network (see auxillary.jl)
+    return net
+end
+
+"""
+    addleafonedge!(net::HybridNetwork, startingedge::Edge, ind::String, edgelength::Float64=-1.0)
+
+Add a new node, new edge, and new leaf node to a specified edge.
+
+```jldoctest
+julia> str_level1_s = "(((8,9),((((1,4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));";
+
+julia> net_level1_s = readTopology(str_level1_s);
+
+julia> PhyloNetworks.addleafonedge!(net_level1_s, net_level1_s.edge[4], "Species 1 Individual 1")
+#TODO
+```
+"""
+function addleafonedge!(net::HybridNetwork, startingedge::Edge, ind::String, edgelength::Float64=-1.0)
+    # create new node
+    newnode = Node(maximum(n.number for n in net.node) + 1, false, false, [startingedge]) # Node(number::Int, leaf::Bool, hybrid::Bool, edge::Array{Edge,1})
+    setNode!(startingedge, [newnode, getParent(startingedge)])
+    pushNode!(net, newnode) # push node into network (see auxillary.jl)
+    # call addleaftonode!()
+    addleaftonode!(net, newnode, ind, edgelength)
     return net
 end
