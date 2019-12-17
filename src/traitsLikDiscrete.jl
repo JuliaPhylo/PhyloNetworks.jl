@@ -17,8 +17,10 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
     trait::Vector{Vector{Union{Missing, Int}}}
     "number of columns in the data: should be equal to `length(trait[i])` for all i"
     nsites::Int
-    "vector of weights, one for each column, 1s if missing"
-    siteweight::Union{Missings.Missing, Vector{Float64}}
+    "vector of weights, one for each column, taken as 1s if not provided"
+    siteweight::Union{Nothing, Vector{Float64}}
+    "total sum of site weights"
+    totalsiteweight::Float64
     """
     log of transition probabilities: where e goes from X to Y
     logtrans[i,j,e,r] = P{Y=j|X=i} where i=start_state, j=end_state, e=edge.number, r = rate (if using RateVariationAcrossSites)
@@ -30,8 +32,6 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
     size: k,k, net.numEdges, r where k=nstates(model)
     """
     logtrans::Array{Float64,4}
-    "index of active site, for state inference (reconstruction)"
-    activesite::Int
     # type based on extracting displayed trees
     displayedtree::Vector{HybridNetwork}
     """
@@ -58,12 +58,13 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
             ratemodel::RateVariationAcrossSites,
             net::HybridNetwork,
             trait::AbstractVector,
-            siteweight=missing::Union{Missings.Missing, Vector{Float64}})
+            siteweight=nothing::Union{Nothing, Vector{Float64}})
 
         length(trait) > 0 || error("no trait data!")
         nsites = length(trait[1])
-        ismissing(siteweight) || length(siteweight) == nsites ||
+        siteweight === nothing || length(siteweight) == nsites ||
             error("siteweight must be of same length as the number of traits")
+        totalsiteweight = (siteweight === nothing ? float(nsites) : sum(siteweight))
         # T = eltype(getlabels(model))
         # extract displayed trees
         trees = displayedTrees(net, 0.0; keepNodes=true)
@@ -86,8 +87,8 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
         backwardlik= zeros(Float64, k, nnodes,           ntrees)
         _loglikcache = zeros(Float64, ntrees, length(ratemodel.ratemultiplier), nsites)
         new(deepcopy(model), deepcopy(ratemodel),
-            net, trait, nsites, siteweight, missing, # missing log likelihood
-            logtrans, 1, trees,
+            net, trait, nsites, siteweight, totalsiteweight, missing, # missing log likelihood
+            logtrans, trees,
             priorltw, forwardlik, directlik, backwardlik, _loglikcache)
     end
 end
@@ -406,15 +407,15 @@ But dangerous: `traits` should be a vector of vectors as for [`fitdiscrete`](@re
 to the indices in `getlabels(model)`, and species should appear in `traits` in the
 order corresponding to the node numbers in `net`.
 See [`traitlabels2indices`](@ref) to convert trait labels to trait indices.
+
 **Warning**: does *not* perform checks. [`fitdiscrete`](@ref) calls this function
 after doing checks, preordering nodes in the network, making sure nodes have
 consecutive numbers, species are matched between data and network etc.
-Like, snaq!(), we estimate the network starting from tree (or network) `astraltree`.
 """
 function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::SubstitutionModel, 
     ratemodel::RateVariationAcrossSites, trait::AbstractVector; kwargs...)
 
-    sw = missing
+    sw = nothing
     if haskey(kwargs, :siteweights)
         sw = kwargs[:siteweights]
         kwargs = filter(p -> p.first != :siteweights, kwargs)
@@ -520,7 +521,7 @@ end
 
 # initialize/update logtrans
 function update_logtrans(obj::SSM)
-    startingP = P(obj.model, 1.0) #sets t = 1 for starting P for efficency
+    startingP = P(obj.model, 1.0) # same memory re-used for all branches below (t=1 arbitrary)
     for edge in obj.net.edge # update logtrans: same for all displayed trees, all traits
         for i = 1:length(obj.ratemodel.ratemultiplier)
             obj.logtrans[:,:,edge.number, i] = log.(P!(startingP, obj.model, edge.length*obj.ratemodel.ratemultiplier[i])) # element-wise
@@ -529,53 +530,55 @@ function update_logtrans(obj::SSM)
 end
 
 """
-        discrete_corelikelihood!(obj::StatisticalSubstitutionModel; whichtrait=:all)
-        discrete_corelikelihood_trait!(obj::SSM, t::Integer, ci::Integer, ri::Integer,
-                                            forwardlik::AbstractArray{Float64, 2} = view(obj.forwardlik, :,:,t),
-                                            directlik::AbstractArray{Float64, 2} = view(obj.directlik,  :,:,t))
+    discrete_corelikelihood!(obj::StatisticalSubstitutionModel;
+                             whichtrait::AbstractVector{Int} = 1:obj.nsites)
 
-Calculate the likelihood and update `obj.loglik` for discrete characters on a network
-(or on a single tree: `t`th tree displayed in the network, for the second form).
-Update forward and direct partial likelihoods while doing so.
-The algorithm extracts all displayed trees and weights the likelihood under all these trees.
+Calculate the likelihood and update `obj.loglik` for discrete characters on a network,
+calling [`discrete_corelikelihood_trait!`](@ref).
+The algorithm extracts all displayed trees and weighs the likelihood under all these trees.
+The object's partial likelihoods are updated:
+- forward and direct partial likelihoods are re-used, one trait at a time,
+- overall likelihoods on each displayed tree, given each rate category and for
+  each given site/trait: are cached in `_loglikcache`.
 """ 
-function discrete_corelikelihood!(obj::SSM; whichtrait=:all::Union{Symbol,Integer})
-    if whichtrait == :all
-        traitrange = 1:obj.nsites
-    elseif isinteger(whichtrait) && whichtrait > 0 && whichtrait <= obj.nsites
-        obj.activesite = whichtrait
-        traitrange = range(whichtrait, length=1)
-    elseif whichtrait == :active
-        traitrange = range(obj.activesite, length=1)
-    else
-        error("'whichtrait' should be :all or :active or an integer in the correct range")
-    end
+function discrete_corelikelihood!(obj::SSM; whichtrait::AbstractVector{Int} = 1:obj.nsites)
     # fill _loglikcache
     nr = length(obj.ratemodel.ratemultiplier)
     update_logtrans(obj)
     for t in 1:length(obj.displayedtree)
         for ri in 1:nr
-            for ci in traitrange
-                obj._loglikcache[t,ri,ci] = (discrete_corelikelihood_trait!(obj,t,ci,ri))[1]
+            for ci in whichtrait
+                obj._loglikcache[t,ri,ci] = discrete_corelikelihood_trait!(obj,t,ci,ri)
             end
         end
     end
     # aggregate over trees and rates
     obj._loglikcache .+= obj.priorltw
-    obj._loglikcache .-= log(nr)
+    # obj._loglikcache .-= log(nr)
+    # done below in 1 instead ntrees x nrates x nsites calculations, but _loglikcache not modified
     siteliks = dropdims(mapslices(logsumexp, obj._loglikcache, dims=[1,2]);dims=(1,2))
-    if !ismissing(obj.siteweight)
+    if obj.siteweight !== nothing
         siteliks .*= obj.siteweight
     end
     loglik = sum(siteliks)
+    loglik -= log(nr) * obj.totalsiteweight
     obj.loglik = loglik
     return loglik
 end
 
-# return the forwardlik and directlik for tree `t`, trait index `ci` and rate index `ri`
-# returns forwardlik and directlik, indexed as lik[state, nnode or nedge]
-# modify the forwardlik and directlik provided if necessary
-# PRECONDITIONS: logtrans updated, edges directed, nodes/edges preordered
+"""
+    discrete_corelikelihood_trait!(
+        obj::SSM, t::Integer, ci::Integer, ri::Integer,
+        forwardlik::AbstractArray{Float64, 2} = view(obj.forwardlik, :,:,t),
+        directlik::AbstractArray{Float64, 2} = view(obj.directlik,  :,:,t))
+
+Return the likelihood for tree `t`, trait (character/site) index `ci` and rate category `ri`.
+Update & modify the forward & directional likelihoods `forwardlik` and `directlik`
+(in `obj` by default), which are indexed by [state, node_number or edge_number].
+Used by [`discrete_corelikelihood!`](@ref).
+
+**Preconditions**: `obj.logtrans` updated, edges directed, nodes/edges preordered
+"""
 function discrete_corelikelihood_trait!(obj::SSM, t::Integer, ci::Integer, ri::Integer,
                                         forwardlik::AbstractArray{Float64, 2} = view(obj.forwardlik, :,:,t),
                                         directlik::AbstractArray{Float64, 2} = view(obj.directlik,  :,:,t))
@@ -602,12 +605,12 @@ function discrete_corelikelihood_trait!(obj::SSM, t::Integer, ci::Integer, ri::I
             end
         end
         if ni==1 # root is first index in nodes changed
-            if typeof(obj.model) == NASM 
+            if typeof(obj.model) == NASM
                 logprior = log.(stationary(obj.model))
             else #other trait models
                 logprior = [-log(k) for i in 1:k] # uniform prior at root
             end
-            loglik = logsumexp(logprior + view(forwardlik, :,nnum)) # log P{data for ci | tree t}
+            loglik = logsumexp(logprior + view(forwardlik, :,nnum)) # log P{data for ci | tree t, rate ri}
             break # out of loop over nodes
         end
         # if we keep going, n is not the root
@@ -622,17 +625,55 @@ function discrete_corelikelihood_trait!(obj::SSM, t::Integer, ci::Integer, ri::I
             end
         end #loop over edges
     end # of loop over nodes
-    return (loglik, forwardlik, directlik)
+    return loglik
 end
 
-# PRECONDITION: _loglikcache updated by discrete_corelikelihood!
-# returns an array pltw s.t. pltw[site,:] = postltw at site
-function postltw(obj::SSM)
+"""
+    posterior_logtreeweight(obj::SSM, trait = 1)
+
+Return an array A such that A[t] = log of P(tree `t` and trait `trait`)
+if a single `trait` is requested, or A[i,t]= log of P(tree `t` and trait `i`)
+if `trait` is a vector or range (e.g. `trait = 1:obj.nsites`).
+These probabilities are conditional on the model parameters in `obj`.
+
+**Precondition**: `_loglikcache` updated by [`discrete_corelikelihood!`](@ref)
+
+# examples
+
+```jldoctest
+julia> net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
+
+julia> m1 = BinaryTraitSubstitutionModel([0.1, 0.1], ["lo", "hi"]); # arbitrary rates
+
+julia> using DataFrames
+
+julia> dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"]);
+
+julia> fit = fitdiscrete(net, m1, dat); # optimized rates: α=0.27 and β=0.35
+
+julia> pltw = PhyloNetworks.posterior_logtreeweight(fit)
+2-element Array{Float64,1}:
+ -0.08356519024776699
+ -2.523619878044531  
+
+julia> exp.(pltw) # posterior trees probabilities (sum up to 1)
+exp.(pltw)
+2-element Array{Float64,1}:
+ 0.9198311206979973 
+ 0.08016887930200293
+
+julia> round.(exp.(fit.priorltw), digits=4) # the prior tree probabilities are similar here (tiny data set!)
+2-element Array{Float64,1}:
+ 0.9
+ 0.1
+"""
+function posterior_logtreeweight(obj::SSM, trait = 1)
     # ts[tree,site] = log P(data and tree) at site
-    ts = dropdims(mapslices(logsumexp, obj._loglikcache, dims=2);dims=2)
-    siteliks = dropdims(mapslices(logsumexp, obj._loglikcache, dims=[1,2]);dims=(1,2))
-    ts .-= siteliks'
-    return ts'
+    ts = dropdims(mapslices(logsumexp, view(obj._loglikcache, :,:,trait), dims=2);dims=2)
+    siteliks = mapslices(logsumexp, ts, dims=[1]) # 1 x ntraits array (or 1-element vector)
+    # -log(nr) missing from both ts and siteliks, but cancels out next
+    ts .-= siteliks
+    return ts
 end
 
 """
@@ -680,7 +721,7 @@ function traitlabels2indices(data::Union{AbstractMatrix,AbstractDataFrame},
             end
             if !ismissing(l)
                 vi = findfirst(isequal(l), labs) 
-                if vi == nothing
+                if vi === nothing
                     #FIXIT ideally, replace isambiguous with isgap and handle ambiguous DNA types
                     #@show BioSymbols.isambiguous(l) #TODO this is false
                     if isDNA #&& BioSymbols.isambiguous(l)
@@ -750,17 +791,16 @@ function check_matchtaxonnames!(species::AbstractVector, dat::AbstractVector, ne
 end
 
 """
-    ancestralStateReconstruction(obj::SSM, trait::Integer)
-    ancestralStateReconstruction(obj::SSM)
+    ancestralStateReconstruction(obj::SSM, trait::Integer = 1)
 
 Estimate the marginal probability of ancestral states for discrete character
-number `trait`, or for the active trait if `trait` is unspecified: `obj.activesite`.
+number `trait` (first trait by default).
 The parameters of the [`StatisticalSubstitutionModel`](@ref) object `obj`
 must first be fitted using [`fitdiscrete`](@ref), and ancestral state reconstruction
 is conditional on the estimated parameters. If these parameters were estimated
-using all traits, they are used as is to do ancestral state reconstruction of the
+using all traits, they are used as is, to do ancestral state reconstruction of the
 particular `trait` of interest.
-number `trait`, or for the active trait if `trait` is unspecified: `obj.activesite`.
+
 **output**: data frame with a first column for the node numbers, a second column for
 the node labels, and a column for each possible state: the entries in these columns
 give the marginal probability that a given node has a given state.
@@ -773,7 +813,8 @@ warnings:
   are updated to make sure that they correspond to the current parameter values
   in `obj.model`, and to the `trait` of interest.
 
-See also [`discrete_backwardlikelihood_tree!`](@ref) to update `obj.backwardlik`.
+See also [`posterior_logtreeweight`](@ref) and
+[`discrete_backwardlikelihood_trait!`](@ref) to update `obj.backwardlik`.
 
 # examples
 
@@ -808,18 +849,18 @@ julia> using PhyloPlots
 julia> plot(fit1.net, :R, nodeLabel = asr[!,[:nodenumber, :lo]], tipOffset=0.2); # pp for "lo" state
 ```
 """
-ancestralStateReconstruction(obj::SSM) = ancestralStateReconstruction(obj, obj.activesite)
-function ancestralStateReconstruction(obj::SSM, trait::Integer)
+function ancestralStateReconstruction(obj::SSM, trait::Integer = 1)
     # posterior probability of state i at node n: proportional to
     # sum_{trees t} exp( ltw[t] + backwardlik[i,n,t] + forwardlik[i,n,t] )
     bkd = obj.backwardlik
     fill!(bkd, 0.0) # initialize
-    discrete_corelikelihood!(obj; whichtrait=trait) # update forward, direct, logtrans, loglik
+    trait <= obj.nsites || error("trait $trait is larger than the number of traits in the data")
+    discrete_corelikelihood!(obj; whichtrait=[trait]) # update forward, direct, logtrans, loglik
     for t in 1:length(obj.displayedtree)
-        discrete_backwardlikelihood_tree!(obj, t, trait)
+        discrete_backwardlikelihood_trait!(obj, t, trait)
     end
-    # fixit: paralellize with
-    # ll = pmap(t -> discrete_backwardlikelihood_tree!(obj,t, trait), 1:ntrees)
+    # fixit: paralellize across trees? e.g.
+    # ll = pmap(t -> discrete_backwardlikelihood_trait!(obj,t, trait), 1:ntrees)
     k = nstates(obj.model)
     nnodes = length(obj.net.node)
     res = Array{Float64}(undef, k,nnodes)
@@ -844,16 +885,19 @@ function ancestralStateReconstruction(obj::SSM, trait::Integer)
 end
 
 """
-    discrete_backwardlikelihood_tree!(obj::SSM, tree::Integer, trait::Integer, ri::Integer)
+    discrete_backwardlikelihood_trait!(obj::SSM, tree::Integer, trait::Integer, ri::Integer = 1,
+                                       forwardlik = view(obj.forwardlik, :,:,tree),
+                                       directlik = view(obj.directlik , :,:,tree),
+                                       backwardlik = view(obj.backwardlik,:,:,tree))
 
-Update `obj.backwardlik`; assume correct forward likelihood, directional likelihood
+Update and return the backward likelihood (last argument `backwardlik`)
+for trait index `trait`, assuming rate category `ri` and tree index `tree`.
+Used by `ancestralStateReconstruction`.
+
+**warning**: assume correct forward likelihood, directional likelihood
 and transition probabilities.
-`ri` is the index for the rate multiplier.
 """
-# modifies the last provided argument to contain backwardliks
-# FIXME: should be named discrete_backwardlikelihood_trait!
-# backwardlik is modified and returned
-function discrete_backwardlikelihood_tree!(obj::SSM, t::Integer,
+function discrete_backwardlikelihood_trait!(obj::SSM, t::Integer,
                                            trait::Integer,
                                            ri::Integer = 1,
                                            forwardlik = view(obj.forwardlik, :,:,t),
@@ -1020,7 +1064,7 @@ end
 Create an SSM object for use in wrapper function. This should include all actions 
 that can happen only once. Probably need different versions for different 
 kinds of data (snp, amino acids), but works for DNA now.
-Call readfastatodna(), startingrate(), startingBL!()
+Call [`readfastatodna`](@ref), [`startingrate`](@ref), [`startingBL!`](@ref).
 Similar to fitdiscrete()
 """
 function datatoSSM(net::HybridNetwork, fastafile::String, modsymbol::Symbol)
@@ -1071,12 +1115,15 @@ end
 """
     symboltomodel(network, modsymbol::Symbol, data::DataFrame, siteweights::Vector)
 
-Take a symbol and data to create a relative statistical substitution model using
-default site weights.
+Return a statistical substitution model (SSM) with appropriate state labels
+and a rate appropriate for the branch lengths in `net` (see [`startingrate`](@ref)).
+The `data` frame must have the actual trait/site data in columns 2 and up,
+as when the species names are in column 1.
+For DNA data, the relative rate model is returned, with a
+stationary distribution equal to empirical frequencies for DNA data.
 """
-#TODO is net necessary?
 function symboltomodel(net::HybridNetwork, modsymbol::Symbol, data::DataFrame,
-        siteweights=repeat([1.], inner=ncol(data))::Vector)
+        siteweights=repeat([1.], inner=ncol(data))::AbstractVector)
     rate = startingrate(net)
     actualdat = view(data, :, 2:ncol(data))
     labels = learnlabels(modsymbol, actualdat)

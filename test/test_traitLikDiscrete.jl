@@ -269,7 +269,10 @@ asr = ancestralStateReconstruction(fit1)
     0.16855042517785512, 0.7673588716207436, 0.7827758475866091] atol=1e-5
 @test asr[!,:hi] ≈ [0.,0.,1.,1.,0.713977605333288, 0.6805425771039674,
     0.8314495748221447, 0.23264112837925616, 0.21722415241339132] atol=1e-5
-@test PhyloNetworks.postltw(fit1)[1,:] ≈ [-0.08356534477069566, -2.5236181051014333] atol=1e-5
+pltw = [-0.08356534477069566, -2.5236181051014333]
+@test PhyloNetworks.posterior_logtreeweight(fit1) ≈ pltw atol=1e-5
+@test PhyloNetworks.posterior_logtreeweight(fit1, 1:1) ≈ reshape(pltw, (2,1)) atol=1e-5
+
 end # end of testset, fixed topology
 
 @testset "testing readfastatodna" begin
@@ -538,7 +541,7 @@ dna_dat, dna_weights = readfastatodna(fastafile, true);
 # 22 species, 3 hybrid nodes, 103 edges
 dna_net = readTopology("((((((((((((((Ae_caudata_Tr275,Ae_caudata_Tr276),Ae_caudata_Tr139))#H1,#H2),(((Ae_umbellulata_Tr266,Ae_umbellulata_Tr257),Ae_umbellulata_Tr268),#H1)),((Ae_comosa_Tr271,Ae_comosa_Tr272),(((Ae_uniaristata_Tr403,Ae_uniaristata_Tr357),Ae_uniaristata_Tr402),Ae_uniaristata_Tr404))),(((Ae_tauschii_Tr352,Ae_tauschii_Tr351),(Ae_tauschii_Tr180,Ae_tauschii_Tr125)),(((((((Ae_longissima_Tr241,Ae_longissima_Tr242),Ae_longissima_Tr355),(Ae_sharonensis_Tr265,Ae_sharonensis_Tr264)),((Ae_bicornis_Tr408,Ae_bicornis_Tr407),Ae_bicornis_Tr406)),((Ae_searsii_Tr164,Ae_searsii_Tr165),Ae_searsii_Tr161)))#H2,#H4))),(((T_boeoticum_TS8,(T_boeoticum_TS10,T_boeoticum_TS3)),T_boeoticum_TS4),((T_urartu_Tr315,T_urartu_Tr232),(T_urartu_Tr317,T_urartu_Tr309)))),(((((Ae_speltoides_Tr320,Ae_speltoides_Tr323),Ae_speltoides_Tr223),Ae_speltoides_Tr251))H3,((((Ae_mutica_Tr237,Ae_mutica_Tr329),Ae_mutica_Tr244),Ae_mutica_Tr332))#H4))),Ta_caputMedusae_TB2),S_vavilovii_Tr279),Er_bonaepartis_TB1),H_vulgare_HVens23);");
 # create trait object
-dat2 = PhyloNetworks.traitlabels2indices(dna_dat[2:end], JC69([0.5], false))
+dat2 = PhyloNetworks.traitlabels2indices(dna_dat[!,2:end], JC69([0.5], false))
 o, dna_net = @test_logs (:warn, "the network contains taxa with no data: those will be pruned") (:warn, r"resetting edge numbers") match_mode=:any PhyloNetworks.check_matchtaxonnames!(copy(dna_dat[1]), dat2, dna_net)
 trait = view(dat2, o)
 PhyloNetworks.startingBL!(dna_net, trait, dna_weights)

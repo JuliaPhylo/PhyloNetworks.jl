@@ -149,7 +149,7 @@ function parsimonyDiscreteFitch(net::HybridNetwork, dat::DataFrame)
         error("""expecting taxon names in column 'taxon', or 'species' or column 1,
               and trait values in column 'trait' or column 2.""")
     end
-    tips = Dict{String,eltypes(dat)[j]}()
+    tips = Dict{String,eltype(dat[!,j])}()
     for r in 1:nrow(dat)
         if ismissing(dat[r,j]) continue; end
         tips[dat[r,i]] = dat[r,j]
