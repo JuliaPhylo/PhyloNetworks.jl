@@ -36,10 +36,10 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
     displayedtree::Vector{HybridNetwork}
     """
     prior log tree weight: log product of γ's.
-    In fit! priorltw = `inheritanceWeight.(trees)`
-    This can be missing if any γs are negative.
+    In fit!: priorltw = `inheritanceWeight.(trees)`
+    (which returns missing for any negative γ and would cause an error here)
     """
-    priorltw::Vector{Union{Missing,Float64}}
+    priorltw::Vector{Float64}
     """
     partial log-likelihoods for active trait(s) given a particular displayed tree
     and a particular rate category, at indices [i, n.number or e.number]:
@@ -81,6 +81,8 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
         ntrees = length(trees)
         # log tree weights: sum log(γ) over edges, for each displayed tree
         priorltw = inheritanceWeight.(trees)
+        all(!ismissing, priorltw) ||
+          error("one or more inheritance γ's are missing or negative. fix using setGamma!(network, edge)")
         k = nstates(model)
         # fixit: use SharedArray's below to parallelize things
         logtrans   = zeros(Float64, k,k,length(net.edge), length(ratemodel.ratemultiplier))
