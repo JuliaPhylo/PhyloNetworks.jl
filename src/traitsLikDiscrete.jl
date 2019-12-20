@@ -41,16 +41,18 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
     """
     priorltw::Vector{Union{Missing,Float64}}
     """
-    partial likelihoods for active trait, at indices [i, n.number or e.number ,t] :
-    - forward likelihood: log P{data below node n in tree t given state i at n}
-    - direct likelihood:  log P{data below edge e in tree t given i at parent of e}
-    - backward likelihood:log P{data at all non-descendants of n and state i at n}
-    sizes: k, net.numNodes or net.numEdges, number of displayed trees
+    partial log-likelihoods for active trait(s) given a particular displayed tree
+    and a particular rate category, at indices [i, n.number or e.number]:
+    - forward likelihood: log P{data below node n (in tree t) given state i at n}
+    - direct likelihood:  log P{data below edge e (in tree t) given i at parent of e}
+    - backward likelihood:log P{data at all non-descendants of n (in t) and state i at n}
+    sizes: k, net.numNodes or net.numEdges.
     """
     # reset for each trait and rate
-    forwardlik::Array{Float64,3} # size: k, net.numNodes, number of displayed trees
-    directlik::Array{Float64,3}  # size: k, net.numEdges, number of displayed trees
-    backwardlik::Array{Float64,3}# size: k, net.numNodes, number of displayed trees
+    forwardlik::Array{Float64,2} # size: k, net.numNodes
+    directlik::Array{Float64,2}  # size: k, net.numEdges
+    backwardlik::Array{Float64,2}# size: k, net.numNodes
+    "log-likelihood of ith displayed tree t, given rate category j, of site k"
     _loglikcache::Array{Float64, 3} # size: ntrees, nrates, nsites
 
     "inner (default) constructor: from model, rate model, network, trait and site weights"
@@ -58,7 +60,7 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
             ratemodel::RateVariationAcrossSites,
             net::HybridNetwork,
             trait::AbstractVector,
-            siteweight=nothing::Union{Nothing, Vector{Float64}})
+            siteweight::Union{Nothing, Vector{Float64}}=nothing)
 
         length(trait) > 0 || error("no trait data!")
         nsites = length(trait[1])
@@ -82,9 +84,9 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
         k = nstates(model)
         # fixit: use SharedArray's below to parallelize things
         logtrans   = zeros(Float64, k,k,length(net.edge), length(ratemodel.ratemultiplier))
-        forwardlik = zeros(Float64, k, nnodes,           ntrees)
-        directlik  = zeros(Float64, k, length(net.edge), ntrees)
-        backwardlik= zeros(Float64, k, nnodes,           ntrees)
+        forwardlik = zeros(Float64, k, nnodes)
+        directlik  = zeros(Float64, k, length(net.edge))
+        backwardlik= zeros(Float64, k, nnodes)
         _loglikcache = zeros(Float64, ntrees, length(ratemodel.ratemultiplier), nsites)
         new(deepcopy(model), deepcopy(ratemodel),
             net, trait, nsites, siteweight, totalsiteweight, missing, # missing log likelihood
@@ -569,19 +571,19 @@ end
 """
     discrete_corelikelihood_trait!(
         obj::SSM, t::Integer, ci::Integer, ri::Integer,
-        forwardlik::AbstractArray{Float64, 2} = view(obj.forwardlik, :,:,t),
-        directlik::AbstractArray{Float64, 2} = view(obj.directlik,  :,:,t))
+        forwardlik::AbstractArray{Float64, 2} = obj.forwardlik,
+        directlik::AbstractArray{Float64, 2} = obj.directlik)
 
 Return the likelihood for tree `t`, trait (character/site) index `ci` and rate category `ri`.
-Update & modify the forward & directional likelihoods `forwardlik` and `directlik`
+Update & modify the forward & directional log-likelihoods `forwardlik` and `directlik`
 (in `obj` by default), which are indexed by [state, node_number or edge_number].
 Used by [`discrete_corelikelihood!`](@ref).
 
 **Preconditions**: `obj.logtrans` updated, edges directed, nodes/edges preordered
 """
 function discrete_corelikelihood_trait!(obj::SSM, t::Integer, ci::Integer, ri::Integer,
-                                        forwardlik::AbstractArray{Float64, 2} = view(obj.forwardlik, :,:,t),
-                                        directlik::AbstractArray{Float64, 2} = view(obj.directlik,  :,:,t))
+                                        forwardlik::AbstractArray{Float64, 2} = obj.forwardlik,
+                                        directlik::AbstractArray{Float64, 2} = obj.directlik)
     tree = obj.displayedtree[t]
     k = nstates(obj.model)   # also = size(logtrans,1) if not RateVariationAcrossSites
     fill!(forwardlik, 0.0) # re-initialize for each trait, each iteration
@@ -851,29 +853,31 @@ julia> plot(fit1.net, :R, nodeLabel = asr[!,[:nodenumber, :lo]], tipOffset=0.2);
 """
 function ancestralStateReconstruction(obj::SSM, trait::Integer = 1)
     # posterior probability of state i at node n: proportional to
-    # sum_{trees t} exp( ltw[t] + backwardlik[i,n,t] + forwardlik[i,n,t] )
-    bkd = obj.backwardlik
-    fill!(bkd, 0.0) # initialize
+    # sum_{tree t, rate r} exp( ltw[t] + backwardll[i,n] given t,r + forwardll[i,n] given t,r ) / nr
     trait <= obj.nsites || error("trait $trait is larger than the number of traits in the data")
-    discrete_corelikelihood!(obj; whichtrait=[trait]) # update forward, direct, logtrans, loglik
-    for t in 1:length(obj.displayedtree)
-        discrete_backwardlikelihood_trait!(obj, t, trait)
-    end
-    # fixit: paralellize across trees? e.g.
-    # ll = pmap(t -> discrete_backwardlikelihood_trait!(obj,t, trait), 1:ntrees)
-    k = nstates(obj.model)
-    nnodes = length(obj.net.node)
-    res = Array{Float64}(undef, k,nnodes)
+    update_logtrans(obj)
+    bkd = obj.backwardlik
     frd = obj.forwardlik
     ltw = obj.priorltw
-    for i in 1:k
-        for n in 1:nnodes
-            res[i,n] = logsumexp(ltw + view(bkd, i,n,:) + view(frd, i,n,:))
+    res = similar(bkd) # first: hold the cumulative logsumexp of bkd + frd + ltw
+    fill!(res, -Inf64)
+    nr = length(obj.ratemodel.ratemultiplier)
+    for t in 1:length(obj.displayedtree)
+        ltprior = ltw[t]
+        for ri in 1:nr
+            # update forward & directional likelihoods
+            discrete_corelikelihood_trait!(obj,t,trait,ri)
+            # update backward likelihoods
+            discrete_backwardlikelihood_trait!(obj,t,trait,ri)
+            # P{state i at node n} ∝ bkd[i,n] * frd[i,n] given tree & rate:
+            # res = logaddexp(res, ltw[t] + bkd + frd)  ---   -log(nr) will cancel out
+            broadcast!(logaddexp, res, res, ltprior .+ bkd + frd)
         end
     end
-    ll = obj.loglik
-    map!(x -> exp(x - ll), res, res)  # to normalize: p_i / sum(p_j over all states j)
-    # alternative syntax: res .= exp.(res .- obj.loglik)
+    # normalize the results at each node: p_i / sum(p_j over all states j)
+    traitloglik = logsumexp(res[:,1]) # sum p_j at node 1 or at any node = loglikelihood + log(nr)
+    res .= exp.(res .- traitloglik)
+    nnodes = length(obj.net.node)
     nodestringlabels = Vector{String}(undef, nnodes)
     for n in obj.net.node
         nodestringlabels[n.number] = (n.name == "" ? string(n.number) : n.name)
@@ -886,9 +890,8 @@ end
 
 """
     discrete_backwardlikelihood_trait!(obj::SSM, tree::Integer, trait::Integer, ri::Integer = 1,
-                                       forwardlik = view(obj.forwardlik, :,:,tree),
-                                       directlik = view(obj.directlik , :,:,tree),
-                                       backwardlik = view(obj.backwardlik,:,:,tree))
+                                       backwardlik = obj.backwardlik,
+                                       directlik   = obj.directlik)
 
 Update and return the backward likelihood (last argument `backwardlik`)
 for trait index `trait`, assuming rate category `ri` and tree index `tree`.
@@ -897,14 +900,12 @@ Used by `ancestralStateReconstruction`.
 **warning**: assume correct forward likelihood, directional likelihood
 and transition probabilities.
 """
-function discrete_backwardlikelihood_trait!(obj::SSM, t::Integer,
-                                           trait::Integer,
-                                           ri::Integer = 1,
-                                           forwardlik = view(obj.forwardlik, :,:,t),
-                                           directlik = view(obj.directlik , :,:,t),
-                                           backwardlik = view(obj.backwardlik,:,:,t))
+function discrete_backwardlikelihood_trait!(obj::SSM, t::Integer, trait::Integer, ri::Integer,
+                                           backwardlik = obj.backwardlik,
+                                           directlik = obj.directlik)
     tree = obj.displayedtree[t]
     k = nstates(obj.model)
+    fill!(backwardlik, 0.0) # re-initialize for each trait, each iteration
     bkwtmp = Vector{Float64}(undef, k) # to hold bkw lik without parent edge transition
     if typeof(obj.model) == NASM 
         logprior = log.(stationary(obj.model))
