@@ -949,9 +949,7 @@ Examples:
 ```jldoctest
 julia> using DataFrames
 
-julia> dat = DataFrame(trait1 = ["A", "C", "A", missing])
-4×1 DataFrame
-
+julia> dat = DataFrame(trait1 = ["A", "C", "A", missing]); # 4×1 DataFrame
 
 julia> PhyloNetworks.learnlabels(:BTSM, dat)
 2-element Array{String,1}:
