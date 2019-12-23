@@ -1074,7 +1074,8 @@ function empiricalDNAfrequencies(dnaDat::AbstractDataFrame, dnaWeights::Vector,
     correctedestimate=true::Bool, useambiguous=true::Bool)
 
     # warning: checking first column and first row only
-    eltypes(dnaDat)[1] == BioSymbols.DNA || eltypes(dnaDat)[1] == Char ||
+    dnadat1type = eltype(dnaDat[!,1])
+    dnadat1type == BioSymbols.DNA || dnadat1type == Char ||
       dnaDat[1,1] ∈ string.(BioSymbols.alphabet(DNA)) ||
         error("empiricalDNAfrequencies requires data of type String, Char, or BioSymbols.DNA")
 
@@ -1082,7 +1083,7 @@ function empiricalDNAfrequencies(dnaDat::AbstractDataFrame, dnaWeights::Vector,
     prior = correctedestimate ? 1.0 : 0.0
     dnacounts = Dict(DNA_A=>prior, DNA_C=>prior, DNA_G=>prior, DNA_T=>prior)
 
-    convert2dna = eltypes(dnaDat)[1] != BioSymbols.DNA
+    convert2dna = dnadat1type != BioSymbols.DNA
     for j in 1:ncol(dnaDat) # for each column
         col = dnaDat[!,j]
         wt = dnaWeights[j]
