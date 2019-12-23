@@ -1302,7 +1302,7 @@ function sorttaxa!(df::DataFrame, co=Int[]::Vector{Int})
     length(co) > 6 || error("column vector must be of length 7 or more")
     ptax = Array{Int8}(undef, 4)
     pCF  = Array{Int8}(undef, 3)
-    taxnam = Array{eltypes(df)[co[1]]}(undef, 4)
+    taxnam = Array{eltype(df[!,co[1]])}(undef, 4)
     for i in 1:size(df,1)
         for j=1:4 taxnam[j] = df[i,co[j]]; end
         sortperm!(ptax, taxnam)

@@ -148,6 +148,7 @@ m1 = EqualRatesSubstitutionModel(2,[0.36836216513047726], ["lo", "hi"]);
 fit1 = (@test_logs fitdiscrete(net, m1, tips; optimizeQ=false, optimizeRVAS=false));
 @test_logs show(devnull, fit1)
 @test StatsBase.loglikelihood(fit1) ≈ -2.6638637960257574 atol=2e-4
+@test StatsBase.dof(fit1) == 1
 species = ["G","C","A","B","D"]
 dat1 = DataFrame(trait = ["hi","hi","lo","lo","hi"], species = species)
 m2 = BinaryTraitSubstitutionModel(0.2, 0.3, ["lo", "hi"])
@@ -227,11 +228,13 @@ for i in 1:16
     fit = fitdiscrete(net, m1, d[!,[:species, Symbol("x",i)]]; optimizeQ=false, optimizeRVAS=false)
     push!(lik, fit.loglik)
 end
-@test lik ≈ [-1.6218387598967712, -3.008066347196894, -4.3943604143403245, -3.008199100743402,
+traitloglik_all16 = [-1.6218387598967712, -3.008066347196894, -4.3943604143403245, -3.008199100743402,
     -3.70121329832901, -3.0081981601869483, -2.315051933868397, -2.314985711030534,
     -3.0081988850020873, -3.0081983709272504, -2.3150512090547584, -3.70134532205944,
     -3.008132923628349, -3.7012134632082083, -2.3149859724945876, -3.7013460518770915]
-fit1 = fitdiscrete(net, m1, d[!,[:species, :x6]]; optimizeRVAS=false)
+@test lik ≈ traitloglik_all16
+fit1 = fitdiscrete(net, m1, d[!,:species], d[!,2:17]; optimizeQ=false, optimizeRVAS=false)
+@test fit1.loglik ≈ sum(traitloglik_all16) # log of product = sum of logs
 
 # with parameter estimation
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
@@ -267,7 +270,10 @@ asr = ancestralStateReconstruction(fit1)
     0.16855042517785512, 0.7673588716207436, 0.7827758475866091] atol=1e-5
 @test asr[!,:hi] ≈ [0.,0.,1.,1.,0.713977605333288, 0.6805425771039674,
     0.8314495748221447, 0.23264112837925616, 0.21722415241339132] atol=1e-5
-@test fit1.postltw ≈ [-0.08356534477069566, -2.5236181051014333] atol=1e-5
+pltw = [-0.08356534477069566, -2.5236181051014333]
+@test PhyloNetworks.posterior_logtreeweight(fit1) ≈ pltw atol=1e-5
+@test PhyloNetworks.posterior_logtreeweight(fit1, 1:1) ≈ reshape(pltw, (2,1)) atol=1e-5
+
 end # end of testset, fixed topology
 
 @testset "testing readfastatodna" begin
@@ -380,12 +386,14 @@ rv.ratemultiplier[:] = [0.1369538, 0.4767519, 1.0000000, 2.3862944] # NOTE: phan
 mJC69 = JC69([1.0], true)
 fitJC69rv = fitdiscrete(net, mJC69, rv, tips; optimizeQ=false, optimizeRVAS=false, ftolRel=1e-20);
 @test loglikelihood(fitJC69rv) ≈ -5.26390008 atol = 2e-8
+@test dof(fitJC69rv) == 1 # relative JC: 0, rate variation: 1
 
 fitJC69rvOpt = fitdiscrete(net, mJC69, rv, tips, optimizeQ=false, optimizeRVAS=true);
 
 mHKY85 = HKY85([4.0/3, 4.0/3], [0.25, 0.25, 0.25, 0.25], false);
 fitHKY85rv = fitdiscrete(net, mHKY85, rv, tips; optimizeQ=false, optimizeRVAS=false);
 @test loglikelihood(fitHKY85rv) ≈ -5.2639000803742979 atol = 2e-5 #from phangorn
+@test dof(fitHKY85rv) == 3 # absolute HKY (fixed base freqs.): 2, rate variation: 1
 
 fitHKY85rvOpt = fitdiscrete(net, mHKY85, rv, tips; optimizeQ=false, optimizeRVAS=true);
 
@@ -397,6 +405,7 @@ species_alone = ["C","A","B","D"]
 dat_alone = DataFrame(trait=["hi","lo","lo","hi"])
 net_tips = readTopology("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);");
 @test_throws ErrorException fitdiscrete(net_dat, :bogus, species_alone, dat_alone);
+@test_throws ErrorException fitdiscrete(net_dat, BinaryTraitSubstitutionModel([1.,1.], ["lo","hi"]), dat_alone);
 s1 = fitdiscrete(net_dat, :ERSM, species_alone, dat_alone; optimizeQ=false)
 @test_logs show(devnull, s1)
 s1 = fitdiscrete(net_dat, :ERSM, species_alone, dat_alone, :RV; optimizeQ=false, optimizeRVAS=false)
@@ -420,17 +429,20 @@ fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_Tr406_Contig10132.
 #fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "Ae_bicornis_Tr406_Contig10132.aln"))
 dna_dat, dna_weights = readfastatodna(fastafile, true);
 net_dna = readTopology("((((((((((((((Ae_caudata_Tr275,Ae_caudata_Tr276),Ae_caudata_Tr139))#H1,#H2),(((Ae_umbellulata_Tr266,Ae_umbellulata_Tr257),Ae_umbellulata_Tr268),#H1)),((Ae_comosa_Tr271,Ae_comosa_Tr272),(((Ae_uniaristata_Tr403,Ae_uniaristata_Tr357),Ae_uniaristata_Tr402),Ae_uniaristata_Tr404))),(((Ae_tauschii_Tr352,Ae_tauschii_Tr351),(Ae_tauschii_Tr180,Ae_tauschii_Tr125)),(((((((Ae_longissima_Tr241,Ae_longissima_Tr242),Ae_longissima_Tr355),(Ae_sharonensis_Tr265,Ae_sharonensis_Tr264)),((Ae_bicornis_Tr408,Ae_bicornis_Tr407),Ae_bicornis_Tr406)),((Ae_searsii_Tr164,Ae_searsii_Tr165),Ae_searsii_Tr161)))#H2,#H4))),(((T_boeoticum_TS8,(T_boeoticum_TS10,T_boeoticum_TS3)),T_boeoticum_TS4),((T_urartu_Tr315,T_urartu_Tr232),(T_urartu_Tr317,T_urartu_Tr309)))),(((((Ae_speltoides_Tr320,Ae_speltoides_Tr323),Ae_speltoides_Tr223),Ae_speltoides_Tr251))H3,((((Ae_mutica_Tr237,Ae_mutica_Tr329),Ae_mutica_Tr244),Ae_mutica_Tr332))#H4))),Ta_caputMedusae_TB2),S_vavilovii_Tr279),Er_bonaepartis_TB1),H_vulgare_HVens23);");
-for edge in net_dna.edge #adds branch lengths
+@test PhyloNetworks.startingrate(net_dna) ≈ 0.02127659574468085 # 1/length(net_dna.leaf)
+for edge in net_dna.edge # adds branch lengths
     setLength!(edge,1.0)
     if edge.gamma < 0
         setGamma!(edge, 0.5)
     end
 end
+
 d1 = (@test_logs (:warn, r"^the network contains taxa with no data") (:warn, r"^resetting edge numbers") fitdiscrete(net_dna,
   :ERSM, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false))
 @test_logs show(devnull, d1)
 @test_throws ErrorException fitdiscrete(net_dna, :BTSM, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
 @test_throws ErrorException fitdiscrete(net_dna, :TBTSM, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
+@test_throws ErrorException fitdiscrete(net_dna, :bogus, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
 d2 = (@test_logs (:warn, r"^the network contains taxa with no data") (:warn, r"^resetting edge numbers") fitdiscrete(net_dna,
   :JC69, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false))
 @test_logs show(devnull, d2)
@@ -484,7 +496,11 @@ redirect_stdout(originalstdout)
 @test dna_net_opt_both.ratemodel.alpha != 1.0
 # for this example: all NaN values if no lower bound on RVAS's alpha, because it goes to 0
 @test dna_net_opt_both.ratemodel.ratemultiplier ≈ [1e-4, 2.0] atol=0.02
-@test dna_net_opt_both.loglik > -3100. # should be ~ -2901.3 -- but low tolerance: just check it's not horrible
+@test dna_net_opt_both.loglik > -3800.
+# should be ~ -3708.1 -- but low tolerance: just check it's not horrible.
+# with default tol: alpha=0.05, JC rate=0.00288, loglik=-3337.413
+# under wrong model where all traits have evolved under same (unknown) displayed tree:
+# should be ~ -2901.3 -- but low tolerance: just check it's > -3100.
 # with default strict tolerance values: takes *much* longer, alpha=0.05, JC rate = 0.00293, loglik = -2535.618
 end # of testing readfastatodna with NASM and RateVariationAcrossSites
 
@@ -532,7 +548,7 @@ dna_dat, dna_weights = readfastatodna(fastafile, true);
 # 22 species, 3 hybrid nodes, 103 edges
 dna_net = readTopology("((((((((((((((Ae_caudata_Tr275,Ae_caudata_Tr276),Ae_caudata_Tr139))#H1,#H2),(((Ae_umbellulata_Tr266,Ae_umbellulata_Tr257),Ae_umbellulata_Tr268),#H1)),((Ae_comosa_Tr271,Ae_comosa_Tr272),(((Ae_uniaristata_Tr403,Ae_uniaristata_Tr357),Ae_uniaristata_Tr402),Ae_uniaristata_Tr404))),(((Ae_tauschii_Tr352,Ae_tauschii_Tr351),(Ae_tauschii_Tr180,Ae_tauschii_Tr125)),(((((((Ae_longissima_Tr241,Ae_longissima_Tr242),Ae_longissima_Tr355),(Ae_sharonensis_Tr265,Ae_sharonensis_Tr264)),((Ae_bicornis_Tr408,Ae_bicornis_Tr407),Ae_bicornis_Tr406)),((Ae_searsii_Tr164,Ae_searsii_Tr165),Ae_searsii_Tr161)))#H2,#H4))),(((T_boeoticum_TS8,(T_boeoticum_TS10,T_boeoticum_TS3)),T_boeoticum_TS4),((T_urartu_Tr315,T_urartu_Tr232),(T_urartu_Tr317,T_urartu_Tr309)))),(((((Ae_speltoides_Tr320,Ae_speltoides_Tr323),Ae_speltoides_Tr223),Ae_speltoides_Tr251))H3,((((Ae_mutica_Tr237,Ae_mutica_Tr329),Ae_mutica_Tr244),Ae_mutica_Tr332))#H4))),Ta_caputMedusae_TB2),S_vavilovii_Tr279),Er_bonaepartis_TB1),H_vulgare_HVens23);");
 # create trait object
-dat2 = PhyloNetworks.traitlabels2indices(dna_dat[2:end], JC69([0.5], false))
+dat2 = PhyloNetworks.traitlabels2indices(dna_dat[!,2:end], JC69([0.5], false))
 o, dna_net = @test_logs (:warn, "the network contains taxa with no data: those will be pruned") (:warn, r"resetting edge numbers") match_mode=:any PhyloNetworks.check_matchtaxonnames!(copy(dna_dat[1]), dat2, dna_net)
 trait = view(dat2, o)
 PhyloNetworks.startingBL!(dna_net, trait, dna_weights)
