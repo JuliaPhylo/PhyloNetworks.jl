@@ -154,7 +154,8 @@ information indicating how to undo the move or `nothing` if all NNIs failed.
 
 ```jldoctest
 # checks for 3cycle
-str_network = "(((8,9),(((((1,2,3),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));"
+str_network = "(((S8,S9),(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
+
 net = readTopology(str_network);
 undoinfo = nni!(net, net.edge[3])
 nni!(undoinfo...)
@@ -544,7 +545,7 @@ Mapping file should provide individuals (two or more) belonging to 1 or more spe
 Return tuple of individual-level network and species constraint(s).
 
 ```jldoctest
-julia> str_species_net = "(((8,9),((((1,4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));";
+julia> str_species_net = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
 
 julia> species_net = readTopology(str_species_net);
 
@@ -577,7 +578,7 @@ Add individuals to their species leaf as a star. Called only through
 mapindividuals function.
 
 ```jldoctest
-julia> str_species_net = "(((8,9),((((1,4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));";
+julia> str_species_net = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
 
 julia> species_net = readTopology(str_species_net);
 
@@ -585,8 +586,8 @@ julia> PhyloNetworks.addindividuals!(species_net, "1", ["1A", "1B", "1C"])
 HybridNetwork, Rooted Network
 23 edges
 22 nodes: 10 tips, 2 hybrid nodes, 10 internal tree nodes.
-tip labels: 8, 9, 4, 5, ...
-(((8,9),(((((1A,1B,1C),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));
+tip labels: S8, S9, S4, S5, ...
+(((S8,S9),(((((S1A,S1B,S1C),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));
 """
 function addindividuals!(net::HybridNetwork, species::AbstractString, individuals::Vector{String})
     speciesnodeindex = findfirst(l -> l.name == species, net.node)
@@ -605,7 +606,7 @@ end
 Add a new exterior edge and new leaf node to a specified node.
 
 ```jldoctest
-julia> str_species_net = "(((8,9),((((1,4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));";
+julia> str_species_net = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
 
 julia> species_net = readTopology(str_species_net);
 
@@ -615,7 +616,7 @@ julia> PhyloNetworks.addleaf!(species_net, species_net.node[4], "1A")
 HybridNetwork, Rooted Network
 21 edges
 20 nodes: 8 tips, 2 hybrid nodes, 10 internal tree nodes.
-tip labels: 8, 9, 4, 5, ...
+tip labels: S8, S9, S4, S5, ...
 (((8,9),(((((1A),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));
 
 julia> writeTopology(species_net, internallabel=true) #TODO
@@ -649,7 +650,7 @@ end
 Add a new exterior edge and new leaf node to a specified edge.
 
 ```jldoctest
-julia> str_species_net = "(((8,9),((((1,4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));";
+julia> str_species_net = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
 
 julia> species_net = readTopology(str_species_net);
 
@@ -680,7 +681,7 @@ This function is used to add a leaf to an edge in the above addleaf! to edge
 function. In future, this function will be used to add hybrid edges to a network.
 
 ```jldoctest
-julia> str_species_net = "(((8,9),((((1,4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));";
+julia> str_species_net = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
 
 julia> species_net = readTopology(str_species_net);
 

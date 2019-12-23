@@ -7,7 +7,7 @@ using CSV
 
 @testset "unconstrained NNI moves" begin
 
-str_level1 = "(((8,9),(((((1,2,3),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));"
+str_level1 = "(((S8,S9),(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 net_level1 = readTopology(str_level1); # this network has a polytomy at node -9 
 # same topology as: rootatnode!(net_level1, -3). edges 1:22
 str_nontreechild = "((((Ag,E))#H3,(#H1:7.159::0.056,((M:0.0)#H2:::0.996,(Ak,(#H3:0.08,#H2:0.0::0.004):0.023):0.078):2.49):2.214):0.026,((Az:2.13,As:2.027):1.697)#H1:0.0::0.944,Ap);"
@@ -328,19 +328,19 @@ end # of testset on unconstrained NNIs
 
 @testset "constrained NNI moves" begin
 
-str_level1 = "(((8,9),(((((1,2,3),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));"
+str_level1 = "(((S8,S9),(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 net_level1 = readTopology(str_level1); #polytomy at node -9 for leaves 3, 4, 5
 
 str_nontreechild = "((((Ag,E))#H3,(#H1:7.159::0.056,((M:0.0)#H2:::0.996,(Ak,(#H3:0.08,#H2:0.0::0.004):0.023):0.078):2.49):2.214):0.026,((Az:2.13,As:2.027):1.697)#H1:0.0::0.944,Ap);"
 net_nontreechild = readTopology(str_nontreechild);
 
-str_polytomy_species = "(((8,9),(((((1,2,3),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));"
+str_polytomy_species = "(((S8,S9),(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 net_species = readTopology(str_polytomy_species);
 
 @testset "clade contraints" begin
 # # c_nontree_cladebelowhybrid = PhyloNetworks.TopologyConstraint(0x01, ["Az", "As"], net_nontreechild)
 
-# c_level1_clade = PhyloNetworks.TopologyConstraint(0x01, ["1", "2", "3"], net_level1)
+# c_level1_clade = PhyloNetworks.TopologyConstraint(0x01, ["S1", "S2", "S3"], net_level1)
 # #nni!(net::HybridNetwork, e::Edge, constraint::Vector{TopologyConstraint}, no3cycle=true::Bool)
 # # this test below returns nothing but shouldn't
 # @test isnothing(PhyloNetworks.nni!(net_nontreechild, net_nontreechild.edge[20], [c_nontree_cladebelowhybrid]))
@@ -364,14 +364,14 @@ net_species = readTopology(str_polytomy_species);
 end # of testset on constraint functions
 
 @testset "species constraints" begin # multiple individuals from each species
-str_level1_s = "(((8,9),((((1,4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));" # indviduals 1A 1B 1C go on leaf 1
+str_level1_s = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" # indviduals S1A S1B S1C go on leaf 1
 net_level1_s = readTopology(str_level1_s)
 #=
 plot(net_level1_s, :R, showNodeNumber=true, showEdgeNumber=true)
 =#
 
 # test addnodeonedge! function
-# PhyloNetworks.addnodeonedge!(net_level1_s, net_level1_s.edge[4], "1A");
+# PhyloNetworks.addnodeonedge!(net_level1_s, net_level1_s.edge[4], "S1A");
 # @test length(net_level1_s.node) = 20
 # @test length(net_level1_s.edge) = 21
 # @test net_level1_s.node[21].edge[1].number == 4
@@ -379,26 +379,26 @@ plot(net_level1_s, :R, showNodeNumber=true, showEdgeNumber=true)
 # @test PhyloNetworks.getParent(net_level1_s.edge[4]) == net_level1_s.node[20]
 
 # # test addleaf! function
-# PhyloNetworks.addleaf!(net_level1_s, net_level1_s.node[4], "1A");
+# PhyloNetworks.addleaf!(net_level1_s, net_level1_s.node[4], "S1A");
 # @test !net_level1_s.node[findfirst([n.number == 3 for n in net_level1_s.node])].leaf
-# PhyloNetworks.addleaf!(net_level1_s, net_level1_s.node[4], "1B");
-# PhyloNetworks.addleaf!(net_level1_s, net_level1_s.node[4], "1C");
+# PhyloNetworks.addleaf!(net_level1_s, net_level1_s.node[4], "S1B");
+# PhyloNetworks.addleaf!(net_level1_s, net_level1_s.node[4], "S1C");
 # @test net_level1_s.edge[21].containRoot == false # check containRoot on edge 4 and exterior edges
 # @test net_level1_s.edge[22].containRoot == false
-# @test PhyloNetworks.getChild(net_level1_s.edge[21]).name == "1A"
-# @test PhyloNetworks.getChild(net_level1_s.edge[22]).name == "1B"
+# @test PhyloNetworks.getChild(net_level1_s.edge[21]).name == "S1A"
+# @test PhyloNetworks.getChild(net_level1_s.edge[22]).name == "S1B"
 
 # # test addleaf! function
 # net_level1_s = readTopology(str_level1_s)
-# PhyloNetworks.addleaf!(net_level1_s, net_level1_s.edge[4], "1A");
+# PhyloNetworks.addleaf!(net_level1_s, net_level1_s.edge[4], "S1A");
 # @test length(net_level1_s.node[21].edge) == 2
 # @test net_level1_s.node[21].leaf
 # @test length(net_level1_s.node) == 21
 
 # test addindividuals! function
 # net_level1_s = readTopology(str_level1_s)
-# # # TODO the test seems to coerce "1" to an Int
-# PhyloNetworks.addindividuals!(net_level1_s, "1", ["1A", "1B", "1C"])
+
+# PhyloNetworks.addindividuals!(net_level1_s, "S1", ["S1A", "S1B", "S1C"])
 # @test !net_level1_s.node[findfirst([n.number == 3 for n in net_level1_s.node])].leaf
 # @test length(net_level1_s.node[findfirst([n.number == 3 for n in net_level1_s.node])].edge) == 4
 
@@ -415,7 +415,7 @@ plot(net_level1_s, :R, showNodeNumber=true, showEdgeNumber=true)
 # @test c_species.nodenum == -9
 
 # # test species constraint contructor on individual-level network
-# c_species = PhyloNetworks.TopologyConstraint(0x02, ["1A", "1B", "1C"], net_level1_i, "1")
+# c_species = PhyloNetworks.TopologyConstraint(0x02, ["S1A", "S1B", "S1C"], net_level1_i, "S1")
 # @test c_species.edgenum == 7
 # @test c_species.nodenum == -9
 
@@ -424,15 +424,15 @@ plot(net_level1_s, :R, showNodeNumber=true, showEdgeNumber=true)
 # @test !isnothing(PhyloNetworks.nni!(net_level1_i , net_level1_i.edge[8], [c_species]))
 
 # # # test errors in species constructor
-# @test_throws ErrorException PhyloNetworks.TopologyConstraint(0x02, ["1A"], net_level1_i, "1")
-# @test_throws ErrorException PhyloNetworks.TopologyConstraint(0x02, ["1A", "TypoTaxa"], net_level1_i, "1")
-# @test_throws ErrorException PhyloNetworks.TopologyConstraint(0x02, ["1A", "8"], net_level1_i, "1")
+# @test_throws ErrorException PhyloNetworks.TopologyConstraint(0x02, ["S1A"], net_level1_i, "S1")
+# @test_throws ErrorException PhyloNetworks.TopologyConstraint(0x02, ["S1A", "TypoTaxa"], net_level1_i, "S1")
+# @test_throws ErrorException PhyloNetworks.TopologyConstraint(0x02, ["S1A", "8"], net_level1_i, "S1")
 # rootonedge!(net_level1_i, 6); # root incorrectly. previously rooted at 22
-# @test_throws PhyloNetworks.TopologyConstraint(0x02, ["1A", "1B", "1C"], net_level1_i, "1")
+# @test_throws PhyloNetworks.TopologyConstraint(0x02, ["S1A", "S1B", "S1C"], net_level1_i, "S1")
 end
 
 @testset "checknetwork functions for species constraints" begin
-# PhyloNetworks.addindividuals!(net_level1_s, "1", ["1A", "1B", "1C"])
+# PhyloNetworks.addindividuals!(net_level1_s, "S1", ["S1A", "S1B", "S1C"])
 # @test_throws ErrorException PhyloNetworks.checkspeciesnetwork(net_level1_i, [c_species])
 # @test PhyloNetworks.cladesviolated(net_level1_i, c_species)
 @test PhyloNetworks.checknetwork(net_level1_i, c_species) #TODO will want to remove if we remove this function

@@ -556,28 +556,6 @@ PhyloNetworks.startingBL!(dna_net, trait, dna_weights)
 @test_logs PhyloNetworks.startingBL!(dna_net, trait) # no dna_weights
 end # of startingBL!
 
-@testset "testing clades" begin
-net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
-cladesDict = Dict("D" => [2, 3]) #assigns D to two clades
-@test net.leaf[1].clade == [1]
-PhyloNetworks.addclades!(net, cladesDict)
-@test_logs show(devnull, PhyloNetworks.addclades!(net, cladesDict)) #tests what happens if run twice
-@test net.leaf[4].clade == [2,3]
-@test net.node[net.root].clade == [1] #check that root's clade is [1]
-
-
-#a network with an two-species outgroup
-net_two = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,(D:2.0, E:1.9));")
-cladesDict = Dict("D" => [3], "E" => [3]) #assigns D to two clades
-PhyloNetworks.addclades!(net_two, cladesDict)
-@test net_two.leaf[4].clade == [3]
-@test net_two.leaf[5].clade == [3]
-# TODO these tests only matter if we want to label interior nodes
-# @test net.node[-7].clade == [3] #check that parent of D, E is also in clade 3
-# @test net.node[-2].clade == [1] #check that root's clade is [1]
-
-end
-
 @testset "testing prep and wrapper functions" begin
 # read in data #
 #test 
