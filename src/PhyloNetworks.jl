@@ -148,6 +148,7 @@ module PhyloNetworks
         stationary,
         empiricalDNAfrequencies,
         nni!,
+        mapindividuals,
         # neighbor joining
         nj
 
