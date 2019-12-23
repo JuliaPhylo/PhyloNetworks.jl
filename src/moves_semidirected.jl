@@ -169,26 +169,25 @@ writeTopology(net) == str_network
 true
 ```
 """
-function nni!(net::HybridNetwork, e::Edge, no3cycle=true::Bool, 
-    constraint=TopologyConstraint[]::Vector{TopologyConstraint})
-    for con in constraint
+function nni!(net::HybridNetwork, e::Edge, no3cycle=true::Bool, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    for con in constraints
         if con.edgenum == e.number
             return nothing
         end
         # TODO lower down, if u or v is the node num, recalculate the node num after nni move
-        # go through case by case to make sure this is true in every case.
     end
     hybparent = getParent(e).hybrid
     nnirange = 0x01:nnimax(e) # 0x01 = 1 but UInt8 instead of Int
     nnis = Random.shuffle(nnirange)
     for nummove in nnis # iterate through all possible NNIs, but in random order
-        moveinfo = nni!(net, e, nummove, no3cycle)
-        moveinfo !== nothing || continue # to next possible NNI
-        if checknetwork(net, constraint)
+        moveinfo = nni!(net, e, nummove, no3cycle) #TODO problem here
+        moveinfo != nothing || continue # to next possible NNI
+        if checknetwork(net, constraints)
             return moveinfo
         else nni!(moveinfo...); end # undo the previous NNI, try again
     end
     return nothing # if we get to this point, all NNIs failed
+    # TODO go through case by case to make sure this is true in every case.
 end
 
 """
@@ -564,7 +563,7 @@ function mapindividuals(net::HybridNetwork, mappingFile::String)
             continue
         end
         addindividuals!(individualnet, species, individuals)
-        constraint = TopologyConstraint(0x02, [mappingDF[mappingDF.species .== species, 2]], 
+        constraint = TopologyConstraint(0x02, mappingDF[mappingDF.species .== species, 2], 
             individualnet, species)
         push!(constraints, constraint)
     end
@@ -582,7 +581,7 @@ julia> str_species_net = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2
 
 julia> species_net = readTopology(str_species_net);
 
-julia> PhyloNetworks.addindividuals!(species_net, "1", ["1A", "1B", "1C"])
+julia> PhyloNetworks.addindividuals!(species_net, "S1", ["S1A", "S1B", "S1C"])
 HybridNetwork, Rooted Network
 23 edges
 22 nodes: 10 tips, 2 hybrid nodes, 10 internal tree nodes.
@@ -590,12 +589,15 @@ tip labels: S8, S9, S4, S5, ...
 (((S8,S9),(((((S1A,S1B,S1C),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));
 """
 function addindividuals!(net::HybridNetwork, species::AbstractString, individuals::Vector{String})
+    species = strip(species)
+    isnothing(match(r"\s", species)) || error("Spaces in species name may cause errors in future network readability.")
     speciesnodeindex = findfirst(l -> l.name == species, net.node)
     !isnothing(speciesnodeindex) || error("taxon $species cannot be matched to a node number. 
     Check for typos in the species name.")
-
     for ind in individuals
-        addleaftonode!(net, net.node[speciesnodeindex], ind);
+        ind = string(strip(ind))
+        isnothing(match(r"\s", ind)) || error("Spaces in individual names may cause errors in future network readability.")
+        addleaf!(net, net.node[speciesnodeindex], ind);
     end
     return net
 end
@@ -647,7 +649,7 @@ end
 """
     addleaf!(net::HybridNetwork, startingedge::Edge, ind::String, edgelength::Float64=-1.0)
 
-Add a new exterior edge and new leaf node to a specified edge.
+Add a new node on an edge. Attach a new exterior edge and new leaf node to this new node.
 
 ```jldoctest
 julia> str_species_net = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
@@ -656,7 +658,7 @@ julia> species_net = readTopology(str_species_net);
 
 julia> species_net.edge[4] #TODO
 
-julia> PhyloNetworks.addleafonedge!(species_net, species_net.edge[4], "1C")
+julia> PhyloNetworks.addleaf!(species_net, species_net.edge[4], "1C")
 HybridNetwork, Rooted Network
 22 edges
 21 nodes: 9 tips, 2 hybrid nodes, 10 internal tree nodes.
