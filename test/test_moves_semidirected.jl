@@ -337,7 +337,7 @@ net_nontreechild = readTopology(str_nontreechild);
 str_polytomy_species = "(((S8,S9),(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 net_species = readTopology(str_polytomy_species);
 
-@testset "clade contraints" begin
+# @testset "clade contraints" begin
 # # c_nontree_cladebelowhybrid = PhyloNetworks.TopologyConstraint(0x01, ["Az", "As"], net_nontreechild)
 
 # c_level1_clade = PhyloNetworks.TopologyConstraint(0x01, ["S1", "S2", "S3"], net_level1)
@@ -360,7 +360,7 @@ net_species = readTopology(str_polytomy_species);
 
 # # checkspeciesnetwork
 # @test PhyloNetworks.checkspeciesnetwork(net_nontreechild, [c_nontree_cladebelowhybrid])
-end # of testset on constraint functions
+# end # of testset on constraint functions
 
 @testset "species constraints" begin # multiple individuals from each species
 str_level1_s = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" # indviduals S1A S1B S1C go on leaf 1
@@ -419,18 +419,44 @@ c_species = PhyloNetworks.TopologyConstraint(0x02, ["S1A", "S1B", "S1C"], net_le
 @test c_species.edgenum == 4
 @test c_species.nodenum == 3
 
-# test no nni on stem edge for species example
-@test isnothing(PhyloNetworks.nni!(net_level1_i , net_level1_i.edge[4], [c_species]))
-#TODO @test !isnothing(PhyloNetworks.nni!(net_level1_i , net_level1_i.edge[8], [c_species]))
-
 # test errors in species constructor
-net_level1_s = readTopology(str_level1_s)
 @test_throws ErrorException PhyloNetworks.TopologyConstraint(0x02, ["S1A"], net_level1_i, "S1")
 @test_throws ErrorException PhyloNetworks.TopologyConstraint(0x02, ["S1A", "TypoTaxa"], net_level1_i, "S1")
 @test_throws ErrorException PhyloNetworks.TopologyConstraint(0x02, ["S1A", "8"], net_level1_i, "S1")
+end
 
+@testset "test nni functionality under species constraints" begin
+str_level1_s = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" # indviduals S1A S1B S1C go on leaf 1
+net_level1_s = readTopology(str_level1_s)
+filename = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "mappingIndividuals.csv"))
+net_level1_i, c_species = PhyloNetworks.mapindividuals(net_level1_s, filename)
+
+# no nni on stem edge for species example
+@test isnothing(PhyloNetworks.nni!(net_level1_i , net_level1_i.edge[4], true, c_species))
+
+# BR directed #TODO nni move 3 causes problems. hybrid node 6 has 0 or 2+ major hybrid parents. 2 edges named MAJOR hybrid parents
+net_level1_i, c_species = PhyloNetworks.mapindividuals(net_level1_s, filename)
+@test !isnothing(PhyloNetworks.nni!(net_level1_i , net_level1_i.edge[8], true, c_species))
+
+# BB undirected
+net_level1_i, c_species = PhyloNetworks.mapindividuals(net_level1_s, filename)
+@test !isnothing(PhyloNetworks.nni!(net_level1_i , net_level1_i.edge[3], true, c_species))
+
+# BB directed
+net_level1_i, c_species = PhyloNetworks.mapindividuals(net_level1_s, filename)
+@test !isnothing(PhyloNetworks.nni!(net_level1_i , net_level1_i.edge[9], true, c_species))
+
+# RB directed
+net_level1_i, c_species = PhyloNetworks.mapindividuals(net_level1_s, filename)
+@test !isnothing(PhyloNetworks.nni!(net_level1_i , net_level1_i.edge[15], true, c_species))
+
+# note: there are no cases of RR directed in net_level1_i
+end
+
+@testset "test rooting behavior under species constraints" begin
 # test rooting for species constrained tree #TODO
-#PhyloNetworks.rootonedge!(net_level1_i, 6); # root incorrectly. previously rooted at 22
+# TODO need to get a new network with reticulations above species constraint
+# PhyloNetworks.rootonedge!(net_level1_i, 6); # root incorrectly. previously rooted at
 #@test_throws PhyloNetworks.TopologyConstraint(0x02, ["S1A", "S1B", "S1C"], net_level1_i, "S1")
 end
 
