@@ -46,7 +46,15 @@ function addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge)
         gamma = rand()*0.5; #? Cécile, should we use chooseEdgesGamma() function here? Or is this sufficient since we're not using a blacklist?
         edge3, edge4 = parameters4createHybrid!(edge1, edge2, net)
         newhybridnode = createHybrid!(edge1, edge2, edge3, edge4, net, gamma)
-        #? Cécile, do we need to call the addHybridizationUpdateSmart!() function?
+        updateInCycle!(net, newhybridnode);
+        updateMajorHybrid!(net, newhybridnode);
+        updateContainRoot!(net, newhybridnode);
+        #updateAllNewHybrid!(newhybridnode, net, true, true, false) 
+            # has parts we dont need/seem broken? ERROR: no method matching getOtherNode(::Nothing, ::PhyloNetworks.Node)
+            # booleans: updatemajor (bool) to decide if we need to update major edge
+            # allow = true allows extreme/very bad triangles, needed when reading
+            # updatePart = true will update PArtition at this moment, it makes sense with a newly added hybrid
+        #? Cécile, are there other update functions from addHybrid.jl we should use?
         return net, newhybridnode
     end
 end
@@ -67,4 +75,4 @@ function hybridwouldcreate3cycle(net::HybridNetwork, e1::Edge, e2::Edge)
     end
 end
 
-# future todos: removeHybridEdge
+# future todos: create deleteHybrid_anylevel.jl based on deleteHybrid.jl

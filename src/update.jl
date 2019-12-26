@@ -208,7 +208,7 @@ end
 # updates net.numBad attribute when found a bad diamond I
 function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
     node.hybrid || error("node $(node.number) is not hybrid, cannot updategammaz")
-    node.k != -1 || error("udpate in cycle should have been run before: node.k not -1")
+    node.k != -1 || error("update in cycle should have been run before: node.k not -1")
     node.isExtBadTriangle = false
     node.isVeryBadTriangle = false
     node.isBadTriangle = false
