@@ -530,7 +530,6 @@ end
 
 Check if network violates user-given clade constraints. Return false if passes,
 return true if violates clades.
-TODO NOTE: previously cladeconstraints was a Dict
 """
 function cladesviolated(net::HybridNetwork, cladeconstraints::Vector{TopologyConstraint})
     for con in cladeconstraints # checks directionality of stem edge hasn't change
@@ -554,8 +553,15 @@ julia> str_species_net = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2
 
 julia> species_net = readTopology(str_species_net);
 
-julia> PhyloNetworks.mapindividuals(species_net, joinpath(@__DIR__, "..","examples","mappingIndividuals.csv"))
-#TODO fix after int to string problem fixed
+julia> filename = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "mappingIndividuals.csv"));
+
+julia> PhyloNetworks.mapindividuals(species_net, filename)
+(HybridNetwork, Rooted Network
+23 edges
+22 nodes: 10 tips, 2 hybrid nodes, 10 internal tree nodes.
+tip labels: S8, S9, S4, S5, ...
+(((S8,S9),(((((S1A,S1B,S1C),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));
+, PhyloNetworks.TopologyConstraint[PhyloNetworks.TopologyConstraint(0x02, ["S1A", "S1B", "S1C"], Set([13, 11, 12]), 4, 3, "S1")])
 ```
 """
 function mapindividuals(net::HybridNetwork, mappingFile::String)
@@ -618,16 +624,23 @@ julia> str_species_net = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2
 
 julia> species_net = readTopology(str_species_net);
 
-julia> species_net.node[4] #TODO
+julia> species_net.node[4]
+PhyloNetworks.Node:
+ number:3
+ name:S1
+ attached to 2 edges, numbered: 4 21
 
 julia> PhyloNetworks.addleaf!(species_net, species_net.node[4], "1A")
 HybridNetwork, Rooted Network
 21 edges
 20 nodes: 8 tips, 2 hybrid nodes, 10 internal tree nodes.
 tip labels: S8, S9, S4, S5, ...
-(((8,9),(((((1A),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));
+(((S8,S9),(((((1A),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));
 
-julia> writeTopology(species_net, internallabel=true) #TODO
+
+julia> writeTopology(species_net, internallabel=true)
+"(((S8,S9),(((((1A)S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
+
 ```
 """
 function addleaf!(net::HybridNetwork, speciesnode::Node, ind::String, edgelength::Float64=-1.0)
@@ -662,16 +675,24 @@ julia> str_species_net = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2
 
 julia> species_net = readTopology(str_species_net);
 
-julia> species_net.edge[4] #TODO
+julia> species_net.edge[4]
+PhyloNetworks.Edge:
+ number:4
+ length:-1.0
+ attached to 2 node(s) (parent first): -8 3
+
 
 julia> PhyloNetworks.addleaf!(species_net, species_net.edge[4], "1C")
 HybridNetwork, Rooted Network
 22 edges
 21 nodes: 9 tips, 2 hybrid nodes, 10 internal tree nodes.
-tip labels: 8, 9, 1, 4, ...
-(((8,9),(((((1,1C),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));
+tip labels: S8, S9, S1, S4, ...
+(((S8,S9),((((S4,(S1,1C)),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));
 
-julia> writeTopology(species_net, internallabel=true) #TODO
+
+julia> writeTopology(species_net, internallabel=true)
+"(((S8,S9),((((S4,(S1,1C)),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
+
 """
 function addleaf!(net::HybridNetwork, startingedge::Edge, ind::String, edgelength::Float64=-1.0)
     newnode, newedge = addnodeonedge!(net, startingedge, ind, edgelength)
@@ -693,16 +714,40 @@ julia> str_species_net = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2
 
 julia> species_net = readTopology(str_species_net);
 
-julia> legnth(species_net.node)
-
-julia> species_net.edge[4] #TODO
-
-julia> PhyloNetworks.addnodeonedge!(species_net, species_net.edge[4], "1C")
-#TODO
 julia> length(species_net.node)
-#TODO
-julia> species_net.edge[4].node
-#TODO
+19
+
+julia> species_net.edge[4]
+PhyloNetworks.Edge:
+ number:4
+ length:-1.0
+ attached to 2 node(s) (parent first): -8 3
+
+
+ julia> PhyloNetworks.addnodeonedge!(species_net, species_net.edge[4], "1C")
+ (PhyloNetworks.Node:
+  number:11
+  attached to 2 edges, numbered: 4 21
+ , PhyloNetworks.Edge:
+  number:21
+  length:-1.0
+  attached to 2 node(s) (parent first): -8 11
+ )
+ 
+ julia> length(species_net.node)
+ 20
+ 
+ julia> species_net.edge[4].node
+ 2-element Array{PhyloNetworks.ANode,1}:
+  PhyloNetworks.Node:
+  number:3
+  name:S1
+  leaf node
+  attached to 1 edges, numbered: 4
+ 
+  PhyloNetworks.Node:
+  number:11
+  attached to 2 edges, numbered: 4 21
 """
 
 function addnodeonedge!(net::HybridNetwork, startingedge::Edge, ind::String, edgelength::Float64=-1.0)
