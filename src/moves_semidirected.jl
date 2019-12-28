@@ -60,7 +60,6 @@ PhyloNetworks.TopologyConstraint(0x02, ["1A", "1B", "1C"], Set([4, 3, 5]), 7, -9
 julia> isnothing(PhyloNetworks.nni!(net_individual_level_net , net_individual_level_net.edge[4], [c_species]))
 true
 ```
-
 """
 function TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::HybridNetwork, 
     speciesname="na"::String)
@@ -71,7 +70,7 @@ function TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::Hybrid
     taxonnums = Set{Int}()
     indices = findall(in(taxonnames), [n.name for n in net.leaf]) 
     length(indices) == length(taxonnames) || error("taxa cannot be matched to node numbers. Check for typos.")
-    # TODO remove or use as check taxonnames = Set(net.leaf[i].name for i in indices)
+    #? remove or use as check? taxonnames = Set(net.leaf[i].name for i in indices)
     outsideclade = setdiff([n.name for n in net.leaf], taxonnames)
     for (i,taxa) in enumerate(taxonnames)
         index = findfirst(isequal(taxa), [n.name for n in net.leaf])
