@@ -144,7 +144,8 @@ end
     isdirectionaldescendant!(visited::Vector{Int}, des::Node, e::Edge)
 
 Return true if `des` node is directional descendant of `anc` node. 
-Uses `isChild1` attribute.
+Uses `isChild1` attribute. 
+#TODO needs to not use isChild attribute because this takes the rooting as fixed
 """
 function isdirectionaldescendant!(visited::Vector{Int}, des::Node, e::Edge)
     n = getChild(e)
@@ -152,10 +153,10 @@ function isdirectionaldescendant!(visited::Vector{Int}, des::Node, e::Edge)
         return true
     end
     if n.hybrid # only need to check this for hybrid nodes
-        push!(visited, n.number)
         if n.number in visited
             return false  # n was already visited: exit. avoid infinite loop is isChild1 was bad.
         end
+        push!(visited, n.number)
     end
     for ce in n.edge
         if !ce.containRoot && n == getParent(ce)
