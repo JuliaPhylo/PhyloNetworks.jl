@@ -370,7 +370,7 @@ plot(net_level1_s, :R, showNodeNumber=true, showEdgeNumber=true)
 =#
 
 # test addnodeonedge! function
-PhyloNetworks.addnodeonedge!(net_level1_s, net_level1_s.edge[4], "S1A");
+PhyloNetworks.addnodeonedge!(net_level1_s, net_level1_s.edge[4], false);
 @test length(net_level1_s.node) == 20
 @test length(net_level1_s.edge) == 21
 @test net_level1_s.node[20].edge[1].number == 4

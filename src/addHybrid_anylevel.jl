@@ -9,26 +9,14 @@
     addhybridedge!(net::HybridNetwork)
 
 Randomly choose two edge indices. If they pass constraint and 3- cycle checks,
-adds hybrid edge from edge 1 to edge 2. If needed, update containRoot attribute 
-below new hybrid node.
+adds hybrid edge from edge 1 to edge 2 by calling next version of `adddhybridedge!`. 
 
-If successful, return net, hybridedge, newhybridnode
-If not, return nothing.
-#? should we include an optional edgelength parameter here?
-```jldoctest
-julia> str_species_net = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
+If successful, return net, newhybridnode in tuple.
+If not, return nothing. #? Should return nothing or an error?
 
-julia> species_net = readTopology(str_species_net);
-
-julia> species_net, newhybridnode = PhyloNetworks.addhybridedge!(net_level1, net_level1.edge[3], net_level1.edge[9]);
-
-julia> newhybridnode #TODO
-
-julia> newhybridnode.edge #TODO
-
-julia> writeTopology(species_net) #TODO
-
-```
+semi-directed version modeled after approach in addHybrid.jl)
+#? should we include an optional edgelength parameter here? 
+#? Or perhaps its better to update branch lengths later after addhybrid step of optimization?
 """
 function addhybridedge!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     edgesfound = false
@@ -48,40 +36,99 @@ function addhybridedge!(net::HybridNetwork, constraints=TopologyConstraint[]::Ve
             edgesfound = false
         end
     end
-    addhybridedge!(net, edge1, edge2)
+
+        if rand() > 0.5
+            hybridpartnernew = true # the partner hybrid will be the new edge above edge 2 (returned by addnodeonedge)
+        else
+            hybridpartnernew = false #the partner hybrid will be existing edge "below" edge 2
+        end
+    addhybridedge!(net, edge1, edge2, hybridpartnernew)
 end
 
-function addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge)
+"""
+    addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpartnernew::Bool)
+
+Helper function for addhybridedge(net::HybridNework). Always called from above.
+If needed, updates containRoot attribute below new hybrid node.
+
+`hybridpartnernew` boolean indicates which half of `edge2` will be the partner hybrid edge 
+to the newly-added hybrid edge. This partner hybrid edge will point toward the 
+newly-created node on the middle of the original `edge2`.
+
+If successful, return net, newhybridnode in tuple.
+
+```jldoctest
+julia> str_species_net = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
+
+julia> species_net = readTopology(str_species_net);
+
+julia> species_net, newhybridnode = PhyloNetworks.addhybridedge!(species_net, species_net.edge[3], species_net.edge[9], true);
+
+julia> newhybridnode
+PhyloNetworks.Node:
+ number:12
+ hybrid node
+ attached to 3 edges, numbered: 9 22 23
+
+ julia> newhybridnode.edge
+ 3-element Array{PhyloNetworks.Edge,1}:
+  PhyloNetworks.Edge:
+  number:9
+  length:-1.0
+  attached to 2 node(s) (parent first): 12 -7
+ 
+  PhyloNetworks.Edge:
+  number:22
+  length:-1.0
+  major hybrid edge with gamma=0.7768082985204838
+  attached to 2 node(s) (parent first): -6 12
+ 
+  PhyloNetworks.Edge:
+  number:23
+  length:0.0
+  minor hybrid edge with gamma=0.22319170147951617
+  attached to 2 node(s) (parent first): 11 12
+ 
+ 
+ julia> writeTopology(species_net)
+ "(((((#H1,(S6,S7)),(((S1,S4),(S5)#H1))#:::0.7768082985204838))#H2,((S8,S9),#:0.0::0.22319170147951617)),(#H2,S10));"
+
+```
+"""
+function addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpartnernew::Bool)
     ## Check 3: Hybrid would not create directional conflict
-    if net.numHybrids > 0 && !directionalconflict(net, edge1, edge2) 
-        error("directional conflict: $edge1 is a directional descendant of $edge2.")
-        #return nothing # directional conflict: e1 is directed and e1 is a descendant of e2
-    ## Check 4: Hybrid would not create a 3-cycle
-    elseif hybridwouldcreate3cycle(net, edge1, edge2)
-        error("hybrid between $edge1 and $edge2 would create 3-cycle.")
+    if hybrid3cycle(net, edge1, edge2)
+        error("hybrid between edge $(edge1.number) and edge $(edge2.number) would create 3-cycle.")
         #return nothing
+    ## Check 4: Hybrid would not create a 3-cycle
+    elseif net.numHybrids > 0 && directionalconflict(net, edge1, edge2, hybridpartnernew) 
+        error("directional conflict: edge $(edge1.number) is a directional descendant of edge $(edge2.number).")
+        #return nothing 
     else # add hybridization
-        newnode1, edgeabovee1 = addnodeonedge!(edge1) #new nodes
-        newnode2, edgeabovee2 = addnodeonedge!(edge2)
+        newnode1_tree, edgeabovee1 = addnodeonedge!(net, edge1, false) # new tree node
+        newnode2_hybrid, edgeabovee2 = addnodeonedge!(net, edge2, true) # new hybrid node
         # new hybrid edge
-        newedge = Edge(maximum(e.number for e in net.edge) + 1) # isChild1 = true by default in edge creation        # connect new edge to node 1, node 2
-        setNode!(newedge, [newnode1, newnode2])
-        setEdge!(newnode1, newedge)
-        setEdge!(newnode2, newedge)
-        pushEdge!(net, newedge)
-
+        newgamma = rand()*0.5; #gamma should be between 0 and 0.5
+        hybrid_edge = Edge(maximum(e.number for e in net.edge) + 1, 0.0, true, newgamma, newgamma>=0.5) # isChild1 = true by default in edge creation        
         #update node and edgehybrid statuses
-        newnode2.hybrid = true
-        newedge.hybrid = true
-        edgeabovee2.hybrid = true
-
-        # update edge gammas #? should we do something more sophisticated here?
-        newedge.gamma = rand()*0.5;
-        edgeabovee2.gamma = 1-newedge.gamma
-        updateContainRoot!(net, newnode2);
+        newnode2_hybrid.hybrid = true
+        hybrid_edge.hybrid = true
+        if hybridpartnernew
+            edgeabovee2.hybrid = true
+        else
+            edge2.hybrid = true
+        end
+        # update edge gammas 
+        edgeabovee2.gamma = 1 - newgamma
+        updateContainRoot!(net, newnode2_hybrid);
+        setNode!(hybrid_edge, [newnode1_tree, newnode2_hybrid])
+        setEdge!(newnode1_tree, hybrid_edge)
+        setEdge!(newnode2_hybrid, hybrid_edge)
+        pushEdge!(net, hybrid_edge)
+        
         # updateInCycle!(net, newnode2); #? need this?
         # updateMajorHybrid!(net, newnode2); #? need this?
-        return net, newnode2
+        return net, newnode2_hybrid
     end
 end
 
@@ -91,7 +138,7 @@ end
 Check if proposed hybrid edge would create a 3 cycle. (Because we create new
 nodes, this move cannot create a 2-cycle.)
 """
-function hybridwouldcreate3cycle(net::HybridNetwork, edge1::Edge, edge2::Edge)
+function hybrid3cycle(net::HybridNetwork, edge1::Edge, edge2::Edge)
     # if node lists overlap, they share a node, so adding a hybrid between
     # them would create a 3-cycle.
     if !isempty(findall(in(edge1.node),edge2.node))
@@ -102,38 +149,42 @@ function hybridwouldcreate3cycle(net::HybridNetwork, edge1::Edge, edge2::Edge)
 end
 
 """
-    directionalconflict(net::HybridNetwork, edge1::Edge, edge2::Edge)
+    directionalconflict(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpartnernew::Bool)
 
-Check if proposed hybrid edge would create a non-DAG. Uses `isChild1` attribute.
+Check if proposed hybrid edge would create a non-DAG.
+
+Answers question: Is edge 1 a descendant of the newly-created node on edge 2?
+
 """
-function directionalconflict(net::HybridNetwork, edge1::Edge, edge2::Edge)
-    if !edge1.containRoot
-        if isdirectionaldescendant(getChild(edge1), getChild(edge2))
-            # edge 2 is a directional ancestor of edge 1 OR
-            # edge 2 is a hybrid & this hybrid flows into E1 
-            # (see "Checking for Directional Conflicts" case 2, case 6)
+function directionalconflict(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpartnernew::Bool)
+    # (see "Checking for Directional Conflicts")
+    if hybridpartnernew # after hybrid addition, edge 2 would flow toward isChild1(edge2)
+        if !edge1.containRoot && isdirectionaldescendant(getParent(edge1), getChild(edge2))
+            # we can trust getChild1 for edge1 because !edge1.containRoot #TODO confirm this
             return true
-        elseif any([n.hybrid for n in PhyloNetworks.getChildren(PhyloNetworks.getChild(edge2))]) &&
-            isdirectionaldescendant(getChild(edge1), getChild(edge2))
-            # edge 2 is the parent of a hybrid & this hybrid flows into E1
-            #? Do we want to allow this case? (see "Checking for Directional Conflicts" case 3, case 5)
-            return true
+        else
+            return false
         end
-    else
-        return false
+    else # after hybrid addition, edge 2 would flow toward getParent(edge2)
+        if !edge1.containRoot && isdirectionaldescendant(getParent(edge1), getParent(edge2)) 
+            # we can trust getChild1 for edge1 because !edge1.containRoot #TODO confirm this
+            return true
+        else
+            return false
+        end
     end
+    
 end
 
 """
     isdirectionaldescendant(des::Node, anc::Node)
 
 Check if, following only directional edges, `anc` node flows into `des` node.
-Uses `isChild1` attribute.
 """
 function isdirectionaldescendant(des::Node, anc::Node)
     visited = Int[]
     for e in anc.edge
-        if !e.containRoot && isdirectionaldescendant!(visited, des, e)
+        if isdirectionaldescendant!(visited, des, e)
             return true
         end
     end
@@ -144,26 +195,24 @@ end
     isdirectionaldescendant!(visited::Vector{Int}, des::Node, e::Edge)
 
 Return true if `des` node is directional descendant of `anc` node. 
-Uses `isChild1` attribute. 
-#TODO needs to not use isChild attribute because this takes the rooting as fixed
+Does not use isChild1 attribute because isChild takes rooting as fixed
 """
 function isdirectionaldescendant!(visited::Vector{Int}, des::Node, e::Edge)
-    n = getChild(e)
-    if n == des
-        return true
-    end
-    if n.hybrid # only need to check this for hybrid nodes
-        if n.number in visited
-            return false  # n was already visited: exit. avoid infinite loop is isChild1 was bad.
+    for n in e.node #check all nodes of e
+        if n == des
+            return true
         end
-        push!(visited, n.number)
-    end
-    for ce in n.edge
-        if !ce.containRoot && n == getParent(ce)
-            if isdirectionaldescendant!(visited, des, ce) return true; end
+        if n.hybrid # only need to check this for hybrid nodes
+            if n.number in visited
+                return false  # n was already visited: exit.
+            end
+            push!(visited, n.number)
         end
+        for ce in n.edge
+            if !ce.containRoot && n in ce.node
+                if isdirectionaldescendant!(visited, des, ce) return true; end
+            end
+        end
+        return false
     end
-    return false
 end
-
-# future todos: create deleteHybridedge.jl based on deleteHybrid.jl

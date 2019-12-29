@@ -694,19 +694,19 @@ julia> writeTopology(species_net, internallabel=true)
 
 """
 function addleaf!(net::HybridNetwork, startingedge::Edge, ind::String, edgelength::Float64=-1.0)
-    newnode, newedge = addnodeonedge!(net, startingedge, ind, edgelength)
+    newnode, newedge = addnodeonedge!(net, startingedge, false, edgelength)
     addleaf!(net, newnode, ind, edgelength)
     return net
 end
 
 """
-    addnodeonedge!(net::HybridNetwork, startingedge::Edge, ind::String, edgelength::Float64=-1.0)
+    addnodeonedge!(net::HybridNetwork, startingedge::Edge, hybrid::Bool, edgelength::Float64=-1.0)
 
 Add a new node on an existing starting edge. Return the new node and new edge in 
 a tuple.
 
 This function is used to add a leaf to an edge in the above addleaf! to edge 
-function. In future, this function will be used to add hybrid edges to a network.
+function. This function is also used to add hybrid edges to a network.
 
 New hybrid edge will be minor, with gamma between 0 and 0.5.
 
@@ -725,7 +725,7 @@ PhyloNetworks.Edge:
  attached to 2 node(s) (parent first): -8 3
 
 
- julia> PhyloNetworks.addnodeonedge!(species_net, species_net.edge[4], "1C")
+ julia> PhyloNetworks.addnodeonedge!(species_net, species_net.edge[4], false)
  (PhyloNetworks.Node:
   number:11
   attached to 2 edges, numbered: 4 21
@@ -751,7 +751,7 @@ PhyloNetworks.Edge:
   attached to 2 edges, numbered: 4 21
 """
 
-function addnodeonedge!(net::HybridNetwork, startingedge::Edge, ind::String, edgelength::Float64=-1.0)
+function addnodeonedge!(net::HybridNetwork, startingedge::Edge, hybrid::Bool, edgelength::Float64=-1.0)
     childnode = getChild(startingedge)
     parentnode = getParent(startingedge)
     # create new node
@@ -770,6 +770,11 @@ function addnodeonedge!(net::HybridNetwork, startingedge::Edge, ind::String, edg
     setNode!(startingedge, [childnode, newnode]) # retains hybrid status
 
     pushEdge!(net, edgeA)
-    pushNode!(net, newnode)
+    if hybrid
+        newnode.hybrid = true
+        pushHybrid!(net, newnode)
+    else
+        pushNode!(net, newnode)
+    end
     return newnode, edgeA
 end
