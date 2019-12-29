@@ -14,7 +14,7 @@ below new hybrid node.
 
 If successful, return net, hybridedge, newhybridnode
 If not, return nothing.
-
+#? should we include an optional edgelength parameter here?
 ```jldoctest
 julia> str_species_net = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
 
@@ -52,21 +52,36 @@ function addhybridedge!(net::HybridNetwork, constraints=TopologyConstraint[]::Ve
 end
 
 function addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge)
-    if !directionalconflict(net, edge1, edge2)
-        return nothing # directional conflict: e1 is directed and e1 is a descendant of e2
+    ## Check 3: Hybrid would not create directional conflict
+    if net.numHybrids > 0 && !directionalconflict(net, edge1, edge2) 
+        error("directional conflict: $edge1 is a directional descendant of $edge2.")
+        #return nothing # directional conflict: e1 is directed and e1 is a descendant of e2
+    ## Check 4: Hybrid would not create a 3-cycle
     elseif hybridwouldcreate3cycle(net, edge1, edge2)
-        return nothing
-    else # add hybrid edge
-        gamma = rand()*0.5; #TODO Should we use chooseEdgesGamma() function here? Or is this sufficient since we're not using a blacklist?
-        edge3, edge4 = parameters4createHybrid!(edge1, edge2, net)
-        newhybridnode = createHybrid!(edge1, edge2, edge3, edge4, net, gamma)
-        updateInCycle!(net, newhybridnode);
-        updateMajorHybrid!(net, newhybridnode);
-        updateContainRoot!(net, newhybridnode);
-        # TODO confirm that all steps from allHybrid.jl are included
-            # For example, are there other branch-length- or gamma-update functions we should use?
-            # Also, updateAllNewHybrid!(newhybridnode, net, true, true, false) appears to have has parts we dont need/seem broken? ERROR: no method matching getOtherNode(::Nothing, ::PhyloNetworks.Node)
-        return net, newhybridnode
+        error("hybrid between $edge1 and $edge2 would create 3-cycle.")
+        #return nothing
+    else # add hybridization
+        newnode1, edgeabovee1 = addnodeonedge!(edge1) #new nodes
+        newnode2, edgeabovee2 = addnodeonedge!(edge2)
+        # new hybrid edge
+        newedge = Edge(maximum(e.number for e in net.edge) + 1) # isChild1 = true by default in edge creation        # connect new edge to node 1, node 2
+        setNode!(newedge, [newnode1, newnode2])
+        setEdge!(newnode1, newedge)
+        setEdge!(newnode2, newedge)
+        pushEdge!(net, newedge)
+
+        #update node and edgehybrid statuses
+        newnode2.hybrid = true
+        newedge.hybrid = true
+        edgeabovee2.hybrid = true
+
+        # update edge gammas #? should we do something more sophisticated here?
+        newedge.gamma = rand()*0.5;
+        edgeabovee2.gamma = 1-newedge.gamma
+        updateContainRoot!(net, newnode2);
+        # updateInCycle!(net, newnode2); #? need this?
+        # updateMajorHybrid!(net, newnode2); #? need this?
+        return net, newnode2
     end
 end
 
@@ -92,7 +107,7 @@ end
 Check if proposed hybrid edge would create a non-DAG. Uses `isChild1` attribute.
 """
 function directionalconflict(net::HybridNetwork, edge1::Edge, edge2::Edge)
-    if !edge1.contraintRoot
+    if !edge1.containRoot
         if isdirectionaldescendant(getChild(edge1), getChild(edge2))
             # edge 2 is a directional ancestor of edge 1 OR
             # edge 2 is a hybrid & this hybrid flows into E1 

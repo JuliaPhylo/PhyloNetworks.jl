@@ -708,6 +708,8 @@ a tuple.
 This function is used to add a leaf to an edge in the above addleaf! to edge 
 function. In future, this function will be used to add hybrid edges to a network.
 
+New hybrid edge will be minor, with gamma between 0 and 0.5.
+
 ```jldoctest
 julia> str_species_net = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
 
