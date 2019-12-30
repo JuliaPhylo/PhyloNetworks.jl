@@ -5,8 +5,32 @@ using PhyloPlots
 using CSV
 =#
 
-@testset "addhybridedge" begin
-str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" # indviduals S1A S1B S1C go on leaf 1
+@testset "addhybridedge! top function" begin
+str_tree = "(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);";
+tree = readTopology(str_tree)
+@test !isnothing(PhyloNetworks.addhybridedge!(tree, true)) # should be able to add a hybrid
+@test tree.numHybrids == 1
+@test !isnothing(PhyloNetworks.addhybridedge!(tree, true)) # should be able to add a hybrid
+@test tree.numHybrids == 2
+@test !any([n.hybrid for n in PhyloNetworks.getParents(tree.hybrid[2])]) # tests if network is treechild
+
+tree = readTopology(str_tree)
+@test !isnothing(PhyloNetworks.addhybridedge!(tree, false)) # should be able to add a hybrid
+@test tree.numHybrids == 1
+
+str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" 
+net_level1 = readTopology(str_level1)
+@test !isnothing(PhyloNetworks.addhybridedge!(net_level1, true)) # should be able to add a hybrid
+@test net_level1.numHybrids == 3
+@test !any([n.hybrid for n in PhyloNetworks.getParents(net_level1.hybrid[3])]) # tests if network is treechild
+
+net_level1 = readTopology(str_level1)
+@test !isnothing(PhyloNetworks.addhybridedge!(net_level1, false)) # should be able to add a hybrid
+@test net_level1.numHybrids == 3
+end
+
+@testset "addhybridedge! helper function" begin
+str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" 
 net_level1 = readTopology(str_level1)
 
 # ALLOWED MOVES
@@ -32,30 +56,36 @@ net_level1 = readTopology(str_level1);
 @test net_level1.numHybrids == 3
 @test length(net_level1.edge) == 23
 
-# case 3 (good hybrid edge choice leads to a DAG)
+net_level1 = readTopology(str_level1); # case 3 (good hybrid edge choice leads to a DAG)
+@test !isnothing(PhyloNetworks.addhybridedge!(net_level1, net_level1.edge[6], net_level1.edge[20], false))
+
+# NEW HYBRID INTO AN EXISTING HYBRID EDGE 
 net_level1 = readTopology(str_level1);
-@test !isnothing(PhyloNetworks.addhybridedge!(net_level1, net_level1.edge[6], net_level1.edge[20], false)) 
+@test !isnothing(PhyloNetworks.addhybridedge!(net_level1, net_level1.edge[9], net_level1.edge[10], false))
+end
+
+@testset "edge checking functions" begin
+str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" 
+net_level1 = readTopology(str_level1)
+
+# 3-CYCLE ERRORS
+    # throws error if addhybridedge would create a 3 cycle
+net_level1 = readTopology(str_level1);
+@test PhyloNetworks.hybrid3cycle(net_level1, net_level1.edge[6], net_level1.edge[9])
+@test PhyloNetworks.hybrid3cycle(net_level1, net_level1.edge[3], net_level1.edge[17])
+@test PhyloNetworks.hybrid3cycle(net_level1, net_level1.edge[16], net_level1.edge[17])
+@test PhyloNetworks.hybrid3cycle(net_level1, net_level1.edge[16], net_level1.edge[3])
+@test PhyloNetworks.hybrid3cycle(net_level1, net_level1.edge[16], net_level1.edge[18])
 
 # DIRECTIONAL ERRORS
     # throws error if edge 1 is a directed descendant of edge 2
 net_level1 = readTopology(str_level1);
 # case 6
-@test_throws ErrorException("directional conflict: edge 6 is a directional descendant of edge 15.") PhyloNetworks.addhybridedge!(net_level1, net_level1.edge[6], net_level1.edge[15], true) 
+@test PhyloNetworks.directionalconflict(net_level1, net_level1.edge[6], net_level1.edge[15], true) 
 # case 2
-@test_throws ErrorException("directional conflict: edge 6 is a directional descendant of edge 18.") PhyloNetworks.addhybridedge!(net_level1, net_level1.edge[6], net_level1.edge[18], true)
+@test PhyloNetworks.directionalconflict(net_level1, net_level1.edge[6], net_level1.edge[18], true)
 # case 3 (bad hybrid edge choice leads to a nonDAG)
-@test_throws ErrorException("directional conflict: edge 6 is a directional descendant of edge 20.") PhyloNetworks.addhybridedge!(net_level1, net_level1.edge[6], net_level1.edge[20], true)
-
-# 3-CYCLE ERRORS
-    # throws error if addhybridedge would create a 3 cycle
-net_level1 = readTopology(str_level1);
-@test_throws ErrorException("hybrid between edge 6 and edge 9 would create 3-cycle.") PhyloNetworks.addhybridedge!(net_level1, net_level1.edge[6], net_level1.edge[9], true)
-@test_throws ErrorException("hybrid between edge 3 and edge 17 would create 3-cycle.") PhyloNetworks.addhybridedge!(net_level1, net_level1.edge[3], net_level1.edge[17], true)
-@test_throws ErrorException("hybrid between edge 16 and edge 17 would create 3-cycle.") PhyloNetworks.addhybridedge!(net_level1, net_level1.edge[16], net_level1.edge[17], true)
-@test_throws ErrorException("hybrid between edge 16 and edge 3 would create 3-cycle.") PhyloNetworks.addhybridedge!(net_level1, net_level1.edge[16], net_level1.edge[3], true)
-@test_throws ErrorException("hybrid between edge 16 and edge 18 would create 3-cycle.") PhyloNetworks.addhybridedge!(net_level1, net_level1.edge[16], net_level1.edge[18], true)
-
-# NEW HYBRID TO AN EXISTING HYBRID EDGE #? do we want to allow this?
-net_level1 = readTopology(str_level1);
-@test !isnothing(PhyloNetworks.addhybridedge!(net_level1, net_level1.edge[9], net_level1.edge[10], false)) 
+@test PhyloNetworks.directionalconflict(net_level1, net_level1.edge[6], net_level1.edge[20], true) 
 end
+
+

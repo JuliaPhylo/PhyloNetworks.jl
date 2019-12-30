@@ -1,55 +1,79 @@
-# functions to add hybridzation edges during optimization in all level networks
+# functions to add hybridizations during optimization of an any-level 
+# semi-directed network
 
-# add hybrid alternated with nni moves (see moves_semidirected.jl) as
-# part of discrete traits full likelihood network optimization.
-
-# uses parts of addHybrid.jl
+# addhybridedge! alternated with nni moves (see moves_semidirected.jl) and local
+# optimization as part of discrete traits full likelihood network optimization.
 
 """
-    addhybridedge!(net::HybridNetwork)
+    addhybridedge!(net::HybridNetwork, treechild::Bool, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
 Randomly choose two edge indices. If they pass constraint and 3- cycle checks,
 adds hybrid edge from edge 1 to edge 2 by calling next version of `adddhybridedge!`. 
 
-If successful, return net, newhybridnode in tuple.
-If not, return nothing. #? Should return nothing or an error?
+Randomly decides whether the new the partner hybrid will be the new edge above `edge2`
+or the partner hybrid will be existing edge below `edge 2`. This partner hybrid 
+edge will point toward the newly-created node on the middle of the original `edge2`.
 
-semi-directed version modeled after approach in addHybrid.jl)
-#? should we include an optional edgelength parameter here? 
-#? Or perhaps its better to update branch lengths later after addhybrid step of optimization?
+When testing the viability of an edge, it tries both `hybridpartnernew` equal to 
+`true` and equal to `false`.
+
+A version of addhybridization for semi-directed networks, modeled after 
+approach in addHybrid.jl.
+
+If successful, return net, newhybridnode in tuple.
+If not, adds edge pairs to the blacklist and tries with a new set of edges.
 """
-function addhybridedge!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+function addhybridedge!(net::HybridNetwork, treechild, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     edgesfound = false
+    Array{Array{Int64,1},1}
+    blacklist = Array{Array{Edge, 1}, 1}() # ordered Dict{Edge1,Edge2}
     while !edgesfound 
+        if length(blacklist) == Int(factorial(length(net.edge))/factorial(length(net.edge)-2)) # all permutations
+            break
+        end
         e1, e2 = Random.randperm(length(net.edge))[1:2] # randomly chooses two edges without replacement
-        edge1 = net.edge[e1]
-        edge2 = net.edge[e2]
-        edgesfound = true
-        ## Check 1: Check that these edges are not the top of a clade or species group
-        for con in constraints
-            if con.edgenum == edge1.number || con.edgenum == edge2.number
+            # fixit: if we could restrict to only interior edges, this while loop would be much faster
+        global edge1 = net.edge[e1]
+        global edge2 = net.edge[e2]
+        if !([edge1, edge2] in blacklist) # edges not in blacklist
+            edgesfound = true
+            ## Check 1: Check that these edges are not the top of a clade or species group
+            for con in constraints
+                if con.edgenum == edge1.number || con.edgenum == edge2.number
+                    edgesfound = false
+                end
+            end
+            global hybridpartnernew = (rand() > 0.5) # if true the partner hybrid will be new edge above edge 2
+            ## Check 2: Check that the edges are interior
+            if any([n.leaf for n in edge1.node]) || any([n.leaf for n in edge2.node])
                 edgesfound = false
+            ## Check 3: Hybrid would not create a 3-cycle 
+            elseif hybrid3cycle(net, edge1, edge2)
+                edgesfound = false
+            ## Check 4: if treechild, edge2 cannot be a hybrid
+            elseif treechild && edge2.hybrid
+                edgesfound = false
+            ## Check 5: Hybrid would not create directional conflict
+            elseif net.numHybrids > 0 && directionalconflict(net, edge1, edge2, hybridpartnernew) 
+                hybridpartnernew = !hybridpartnernew # try again with opposite
+                if directionalconflict(net, edge1, edge2, hybridpartnernew)
+                    edgesfound = false
+                end
+            end
+            if !edgesfound # add edges to blacklist
+                push!(blacklist, [edge1, edge2])
             end
         end
-        ## Check 2: Check that the edges are interior
-        if edge1.leaf || edge2.leaf
-            edgesfound = false
-        end
     end
-
-        if rand() > 0.5
-            hybridpartnernew = true # the partner hybrid will be the new edge above edge 2 (returned by addnodeonedge)
-        else
-            hybridpartnernew = false #the partner hybrid will be existing edge "below" edge 2
-        end
     addhybridedge!(net, edge1, edge2, hybridpartnernew)
 end
 
 """
     addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpartnernew::Bool)
 
-Helper function for addhybridedge(net::HybridNework). Always called from above.
-If needed, updates containRoot attribute below new hybrid node.
+Adds hybridization to `net`. Helper function for `addhybridedge(net::HybridNework)`. 
+Always called from above. Updates `containRoot` attributes for edges below 
+new hybrid node if applicable.
 
 `hybridpartnernew` boolean indicates which half of `edge2` will be the partner hybrid edge 
 to the newly-added hybrid edge. This partner hybrid edge will point toward the 
@@ -96,40 +120,31 @@ PhyloNetworks.Node:
 ```
 """
 function addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpartnernew::Bool)
-    ## Check 3: Hybrid would not create directional conflict
-    if hybrid3cycle(net, edge1, edge2)
-        error("hybrid between edge $(edge1.number) and edge $(edge2.number) would create 3-cycle.")
-        #return nothing
-    ## Check 4: Hybrid would not create a 3-cycle
-    elseif net.numHybrids > 0 && directionalconflict(net, edge1, edge2, hybridpartnernew) 
-        error("directional conflict: edge $(edge1.number) is a directional descendant of edge $(edge2.number).")
-        #return nothing 
-    else # add hybridization
-        newnode1_tree, edgeabovee1 = addnodeonedge!(net, edge1, false) # new tree node
-        newnode2_hybrid, edgeabovee2 = addnodeonedge!(net, edge2, true) # new hybrid node
-        # new hybrid edge
-        newgamma = rand()*0.5; #gamma should be between 0 and 0.5
-        hybrid_edge = Edge(maximum(e.number for e in net.edge) + 1, 0.0, true, newgamma, newgamma>=0.5) # isChild1 = true by default in edge creation        
-        #update node and edgehybrid statuses
-        newnode2_hybrid.hybrid = true
-        hybrid_edge.hybrid = true
-        if hybridpartnernew
-            edgeabovee2.hybrid = true
-        else
-            edge2.hybrid = true
-        end
-        # update edge gammas 
-        edgeabovee2.gamma = 1 - newgamma
-        updateContainRoot!(net, newnode2_hybrid);
-        setNode!(hybrid_edge, [newnode1_tree, newnode2_hybrid])
-        setEdge!(newnode1_tree, hybrid_edge)
-        setEdge!(newnode2_hybrid, hybrid_edge)
-        pushEdge!(net, hybrid_edge)
-        
-        # updateInCycle!(net, newnode2); #? need this?
-        # updateMajorHybrid!(net, newnode2); #? need this?
-        return net, newnode2_hybrid
+    newnode1_tree, edgeabovee1 = addnodeonedge!(net, edge1, false) # new tree node
+    newnode2_hybrid, edgeabovee2 = addnodeonedge!(net, edge2, true) # new hybrid node
+    # new hybrid edge
+    newgamma = rand()*0.5; #gamma should be between 0 and 0.5
+    hybrid_edge = Edge(maximum(e.number for e in net.edge) + 1, 0.0, true, newgamma, newgamma>=0.5) # isChild1 = true by default in edge creation        
+    #update node and edgehybrid statuses
+    newnode2_hybrid.hybrid = true
+    hybrid_edge.hybrid = true
+    if hybridpartnernew
+        edgeabovee2.hybrid = true
+    else
+        edge2.hybrid = true
     end
+    newnode2_hybrid.name = "H#$(net.numHybrids + 1)"
+    # update edge gammas 
+    edgeabovee2.gamma = 1 - newgamma
+    updateContainRoot!(net, newnode2_hybrid);
+    setNode!(hybrid_edge, [newnode1_tree, newnode2_hybrid])
+    setEdge!(newnode1_tree, hybrid_edge)
+    setEdge!(newnode2_hybrid, hybrid_edge)
+    pushEdge!(net, hybrid_edge)
+        
+    # updateInCycle!(net, newnode2); #? need this?
+    # updateMajorHybrid!(net, newnode2); #? need this?
+    return net, newnode2_hybrid
 end
 
 """
@@ -152,9 +167,7 @@ end
     directionalconflict(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpartnernew::Bool)
 
 Check if proposed hybrid edge would create a non-DAG.
-
-Answers question: Is edge 1 a descendant of the newly-created node on edge 2?
-
+Asks if edge 1 a descendant of the newly-created node on edge 2.
 """
 function directionalconflict(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpartnernew::Bool)
     # (see "Checking for Directional Conflicts")
@@ -218,3 +231,7 @@ function isdirectionaldescendant!(visited::Vector{Int}, des::Node, e::Edge)
         return false
     end
 end
+
+#TODOs
+# write a function to subset to only interior edges of a network
+# write a function to remove a hybrid
