@@ -5,8 +5,8 @@ move types:
    Rearrangement moves on rooted phylogenetic networks.
    PLOS Computational Biology 13(8):e1005611.
  - change the direction of a hybrid edge
- - add or remove a hybrid edge
-constrained to user-defined topological constraints (like an outgroup)
+ - add or remove a hybrid edgeconstrained to user-defined 
+ topological constraints (like an outgroup) (in addHybrid_anylevel.jl)
 
 in `moves.jl`, functions are tailored to level-1 networks;
 here, functions apply to semidirected networks of all levels.
@@ -105,10 +105,6 @@ function TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::Hybrid
     nodenum = getChild(mrcaedge).number
     TopologyConstraint(type, taxonnames, taxonnums, edgenum, nodenum, speciesname)
 end
-# fixit: use these constraints in the functions below,
-# to check that the proposed NNI move is acceptable
-
-#- see test_moves_semidirected.jl for test file with example uses
 
 #= TODO
 - add option to modify branch lengths during NNI:
@@ -121,8 +117,9 @@ end
 - add options to forbid non-tree-child networks
 - add moves that change the root position (and edge directions accordingly)
   without re-calculating the likelihood (accept the move): perhaps recalculate forward / direct likelihoods
-  why: the root position affects the feasibility of the NNIs starting from a BR configuration
-
+  why: 
+  the root position affects the feasibility of the NNIs starting from a BR configuration
+  
   when changing root position, be sure to check if the stem edge is still directed in the correct direction
   stemedge.isChild1() 
 =#

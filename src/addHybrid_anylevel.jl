@@ -354,6 +354,7 @@ function removehybridedge!(net::HybridNetwork, node::Node,minor::Bool, blacklist
         deleteEdge!(net,otheredge)
     end
 end
+
 #TODOs
 # write a function to subset to only interior edges of a network
-# test using deleteHybrid from deleteHybrid.jl to remove a hybridization
+
