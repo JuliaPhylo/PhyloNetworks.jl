@@ -58,5 +58,4 @@ net_level1 = readTopology(str_level1);
 # NEW HYBRID TO AN EXISTING HYBRID EDGE #? do we want to allow this?
 net_level1 = readTopology(str_level1);
 @test !isnothing(PhyloNetworks.addhybridedge!(net_level1, net_level1.edge[9], net_level1.edge[10], false)) 
-# TODO this currently creates a stack overflow error in isdirectionaldescendant!
 end

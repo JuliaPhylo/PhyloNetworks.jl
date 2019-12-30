@@ -209,7 +209,9 @@ function isdirectionaldescendant!(visited::Vector{Int}, des::Node, e::Edge)
             push!(visited, n.number)
         end
         for ce in n.edge
-            if !ce.containRoot && n in ce.node
+            if ce == e # avoids stack overflow error caused by calling with same arguments
+                return false # because e already checked
+            elseif !ce.containRoot && n in ce.node # replaces n == getParent(ce) to avoid isChild1
                 if isdirectionaldescendant!(visited, des, ce) return true; end
             end
         end
