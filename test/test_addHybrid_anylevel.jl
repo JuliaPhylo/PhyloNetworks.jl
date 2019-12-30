@@ -88,4 +88,22 @@ net_level1 = readTopology(str_level1);
 @test PhyloNetworks.directionalconflict(net_level1, net_level1.edge[6], net_level1.edge[20], true) 
 end
 
+@testset "delete a hybridization" begin
+str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" 
+
+net = readTopology(str_level1)
+net, newhybridnode = PhyloNetworks.addhybridedge!(net, net.edge[3], net.edge[9], true)
+# deletes hybrid, adds to blacklist $(treeedge1.number)
+PhyloNetworks.removehybridedge!(net, newhybridnode, true, true)
+@test net.numHybrids == 2
+@test 9 in net.blacklist # edge 9 should be in blacklist
+
+net = readTopology(str_level1)
+net, newhybridnode = PhyloNetworks.addhybridedge!(net, net.edge[3], net.edge[9], true)
+# deletes hybrid, does not add to blacklist
+PhyloNetworks.removehybridedge!(net, newhybridnode, true, false)
+@test net.numHybrids == 2
+@test !(9 in net.blacklist) # edge 9 should not be in blacklist
+end
+
 

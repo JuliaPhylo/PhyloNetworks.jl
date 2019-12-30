@@ -141,6 +141,7 @@ function addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpart
     setEdge!(newnode1_tree, hybrid_edge)
     setEdge!(newnode2_hybrid, hybrid_edge)
     pushEdge!(net, hybrid_edge)
+    #TODO need to push node to network?
         
     # updateInCycle!(net, newnode2); #? need this?
     # updateMajorHybrid!(net, newnode2); #? need this?
@@ -232,6 +233,127 @@ function isdirectionaldescendant!(visited::Vector{Int}, des::Node, e::Edge)
     end
 end
 
+"""
+    removehybridedge!(net::HybridNetwork, node::Node, minor::Bool, blacklist::Bool)
+
+Remove hybridization from network. Adapted from deleteHybrid in deleteHybrid.jl. 
+Do not update branch lengths. 
+
+If `minor = true`, deletes minor edge, else deletes major edge.
+
+If `blacklist`, add an edge a blacklist.
+
+Return net.
+
+```jldoctest
+#TODO
+````
+"""
+function removehybridedge!(net::HybridNetwork, node::Node,minor::Bool, blacklist::Bool)
+    node.hybrid || error("node $(node.number) has to be hybrid for deleteHybrid")
+    if(minor)
+        hybedge1,hybedge2,treeedge1 = hybridEdges(node);
+        other1 = getOtherNode(hybedge1,node);
+        other2 = getOtherNode(hybedge2,node);
+        other3 =  getOtherNode(treeedge1,node);
+        if(hybedge1.number > treeedge1.number)
+            removeNode!(node,treeedge1);
+            setNode!(treeedge1,other1);
+            setEdge!(other1,treeedge1);
+            removeEdge!(other1, hybedge1);
+            deleteEdge!(net,hybedge1);
+            #treeedge1.containRoot = (!treeedge1.containRoot || !hybedge1.containRoot) ? false : true #causes problems if hybrid.CR=false
+            if(blacklist)
+                println("put in blacklist edge $(treeedge1.number)")
+                push!(net.blacklist, treeedge1.number)
+            end
+        else
+            makeEdgeTree!(hybedge1,node)
+            other1.hasHybEdge = false;
+            removeNode!(node,hybedge1);
+            setNode!(hybedge1,other3);
+            setEdge!(other3,hybedge1);
+            removeEdge!(other3,treeedge1);
+            deleteEdge!(net,treeedge1);
+            hybedge1.containRoot = (!treeedge1.containRoot || !hybedge1.containRoot) ? false : true
+            if(blacklist)
+                println("put in blacklist edge $(hybedge1.number)")
+                push!(net.blacklist, hybedge1.number)
+            end
+        end
+        hybindex = findfirst([e.hybrid for e in other2.edge]);
+        hybindex != nothing || error("didn't find hybrid edge in other2")
+        if(hybindex == 1)
+            treeedge1 = other2.edge[2];
+            treeedge2 = other2.edge[3];
+        elseif(hybindex == 2)
+            treeedge1 = other2.edge[1];
+            treeedge2 = other2.edge[3];
+        elseif(hybindex == 3)
+            treeedge1 = other2.edge[1];
+            treeedge2 = other2.edge[2];
+        else
+            error("strange node has more than three edges")
+        end
+        treenode1 = getOtherNode(treeedge1,other2);
+        treenode2 = getOtherNode(treeedge2,other2);
+        if(abs(treeedge1.number) > abs(treeedge2.number))
+            removeNode!(other2,treeedge2);
+            setNode!(treeedge2,treenode1);
+            setEdge!(treenode1,treeedge2);
+            removeEdge!(treenode1,treeedge1);
+            deleteEdge!(net,treeedge1);
+            treeedge2.containRoot = (!treeedge1.containRoot || !treeedge2.containRoot) ? false : true
+            if(blacklist)
+                println("put in blacklist edge $(treeedge2.number)")
+                push!(net.blacklist, treeedge2.number)
+            end
+        else
+            removeNode!(other2,treeedge1);
+            setNode!(treeedge1,treenode2);
+            setEdge!(treenode2,treeedge1);
+            removeEdge!(treenode2,treeedge2);
+            deleteEdge!(net,treeedge2);
+            treeedge1.containRoot = (!treeedge1.containRoot || !treeedge2.containRoot) ? false : true
+            if(blacklist)
+                println("put in blacklist edge $(treeedge1.number)")
+                push!(net.blacklist, treeedge1.number)
+            end
+        end
+        #removeHybrid!(net,node);
+        deleteNode!(net,node);
+        deleteNode!(net,other2);
+        deleteEdge!(net,hybedge2);
+    else
+        hybedge1,hybedge2,treeedge1 = hybridEdges(node);
+        other1 = getOtherNode(hybedge1,node);
+        other2 = getOtherNode(hybedge2,node);
+        removeEdge!(other2,hybedge2)
+        removeNode!(node,treeedge1)
+        setEdge!(other2,treeedge1)
+        setNode!(treeedge1,other2)
+        #removeHybrid!(net,node)
+        deleteNode!(net,node)
+        deleteEdge!(net,hybedge1)
+        deleteEdge!(net,hybedge2)
+        removeEdge!(other1,hybedge1)
+        size(other1.edge,1) == 2 || error("strange node $(other1.number) had 4 edges")
+        if(abs(other1.edge[1].number) < abs(other1.edge[2].number))
+            edge = other1.edge[1]
+            otheredge = other1.edge[2]
+        else
+            edge = other1.edge[2]
+            otheredge = other1.edge[1]
+        end
+        other3 =  getOtherNode(otheredge,other1);
+        removeNode!(other1,edge)
+        removeEdge!(other3,otheredge)
+        setEdge!(other3,edge)
+        setNode!(edge,other3)
+        deleteNode!(net,other1)
+        deleteEdge!(net,otheredge)
+    end
+end
 #TODOs
 # write a function to subset to only interior edges of a network
-# write a function to remove a hybrid
+# test using deleteHybrid from deleteHybrid.jl to remove a hybridization

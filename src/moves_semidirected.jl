@@ -772,9 +772,7 @@ function addnodeonedge!(net::HybridNetwork, startingedge::Edge, hybrid::Bool, ed
     pushEdge!(net, edgeA)
     if hybrid
         newnode.hybrid = true
-        pushHybrid!(net, newnode)
-    else
-        pushNode!(net, newnode)
     end
+    pushNode!(net, newnode)
     return newnode, edgeA
 end
