@@ -119,7 +119,7 @@ end
   without re-calculating the likelihood (accept the move): perhaps recalculate forward / direct likelihoods
   why: 
   the root position affects the feasibility of the NNIs starting from a BR configuration
-  
+
   when changing root position, be sure to check if the stem edge is still directed in the correct direction
   stemedge.isChild1() 
 =#
@@ -236,11 +236,12 @@ On a semi-directed network, there might be a choice of how to direct
 the edges that may contain the root, e.g. choice of e=uv versus vu, and
 choice of labelling adjacent nodes as α/β (BB), or as α/γ (BR).
 
-`no3cycle` prevents moves that would make a 3-cycle by checking for problem 4 cycles.
+`no3cycle` = true prevents moves that would make a 3-cycle by checking for problem 4-cycles.
+`treechild` = true prevents moves that would create a non-treechild network.
 
 The edge field `isChild1` is assumed to be correct according to the `net.root`.
 """
-function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, no3cycle=true::Bool)
+function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, treechild::Bool, no3cycle=true::Bool)
     nmovemax = nnimax(uv)
     if nmovemax == 0x00 # uv not internal, or polytomy e.g. species represented by polytomy with >2 indiv
         return nothing
@@ -355,16 +356,21 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, no3cycle=true::Bool)
             end
             if nummove == 0x01 # graft γ onto α
                 if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
+                if treechild && α.hybrid return nothing; end
                 res = nni!(vδ, v, uv, u, αu)
             elseif nummove == 0x02 # graft γ onto β
                 if no3cycle && problem4cycle(β,γ, α,δ) return nothing; end
+                # no possibility of non-treechild network from this move
                 res = nni!(vδ, v, uv, u, βu)
             else # nummove == 0x03
                 if αparentu # if α->u: graft δ onto α
                     if no3cycle && problem4cycle(α,δ, β,γ) return nothing; end
+                    if treechild && α.hybrid return nothing; end
                     res = nni!(vγ, v, uv, u, αu)
                 else # if β->u: graft δ onto β
+                    #? can this case ever happen? Isn't α the parent by definition? (line 270)
                     if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
+                    if treechild && α.hybrid return nothing; end
                     res = nni!(vγ, v, uv, u, βu)
                 # case when u is root already excluded (not DAG)
                 end
