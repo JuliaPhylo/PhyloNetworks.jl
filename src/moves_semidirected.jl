@@ -368,7 +368,7 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, treechild::Bool, no3
                     if treechild && α.hybrid return nothing; end
                     res = nni!(vγ, v, uv, u, αu)
                 else # if β->u: graft δ onto β
-                    #? can this case ever happen? Isn't α the parent by definition? (line 270)
+                    #? can this case ever happen? Isn't α the parent by definition? (line 273)
                     if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
                     if treechild && α.hybrid return nothing; end
                     res = nni!(vγ, v, uv, u, βu)

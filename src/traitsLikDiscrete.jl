@@ -1059,7 +1059,7 @@ function startingBL!(net::HybridNetwork,
 end
 
 """
-    localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool)
+    localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool, lengthmax::Float64)
 
 Optimize branch lengths in `net` locally around `edge`. Update all edges that 
 share a node with `edge` (including itself). 
@@ -1068,22 +1068,25 @@ Return vector of updated `edges`.
 
 Used after `nni!` or `addhybridedge!` moves to update local branch lengths.
 """
-function localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool)
+function localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool, lengthmax::Float64)
     edges = Edge[]
     for n in edge.node
         for e in n.edge # all edges that share a node with `edge` (including self)
             push!(edges, e)
         end
     end
-    optimizeBL!(net, edges, unzip)
+    optimizeBL!(obj, net, edges, unzip, false, :LD_MMA, fRelBL, fAbsBL, xRelBL, 
+    xAbsBL, 0.0, lengthmax)
     return edges
 end
 
 """
     localgamma!(obj::SSM, net::HybridNetwork, edge::Edge)
     
-Optimize gammas in `net` locally around `edge`. 
-Update all edges that share a node with `edge` (including itself).
+Optimize gammas in `net` locally around `edge`. Update all edges that share a 
+node with `edge` (including itself). Does not include the edge's partner because 
+the `setGamma!` will update partners automatically.
+
 Return modified edges.
 
 Used after `nni!` or `addhybridedge!` moves to update local gammas.
@@ -1092,39 +1095,37 @@ Assumptions:
 - correct `isChild1` field for `edge` and for hybrid edges
 - no in-coming polytomy: a node has 0, 1 or 2 parents, no more
 """
-function localgamma!(obj::SSM, net::HybridNetwork, edge::Edge)
+function localgamma!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool)
     edges = Edge[]
     for n in edge.node
         for e in n.edge # all edges that share a node with `edge` (including self)
             if e.hybrid
-                if !(e in edges)
+                if !(e in edges) && !(getPartner(e) in edges)
                     push!(edges, e)
-                    push!(edges, getPartner(e))
                 end
             end
         end
     end
-    optimizegammas!(obj, net, edges)
+    optimizegammas!(obj, net, edges, unzip, false, :LD_MMA, fRelBL, fAbsBL, xRelBL, 
+    xAbsBL)
 end
 
 """
     optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::Bool, 
-    verbose=false::Bool, NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64, 
-    ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64, 
-    lengthmin::Float64, lengthmax::Float64)
+    verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64, ftolAbs::Float64, 
+    xtolRel::Float64, xtolAbs::Float64, lengthmin::Float64, lengthmax::Float64)
 
 Optimize branch lengths for edges in vector `edges`. 
 If `unzip = true`, constrain branch lengths to zero below hybrid edges. 
 Return vector of updated `edges`.
 """
 function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::Bool, 
-    verbose=false::Bool, NLoptMethod=:LD_MMA::Symbol, ftolRel::Float64, 
+    verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64, 
     ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, lengthmin::Float64, 
     lengthmax::Float64)
-    function loglikfunBL(alpha::Vector{Float64}, grad::Vector{Float64}) # modifies obj
+    function loglikfunBL(lengths::Vector{Float64}, grad::Vector{Float64}) # modifies obj
         counter[1] += 1
-        setlength!(edges, lengths) # TODO
-        # setalpha!(obj.ratemodel, alpha[1]) # obj.ratemodel.alpha is a scalar, alpha is a vector within here
+        setlengths!(edges, lengths)
         res = discrete_corelikelihood!(obj)
         verbose && println("loglik: $res, rate variation model shape parameter alpha: $(alpha[1])")
         length(grad) == 0 || error("gradient not implemented")
@@ -1133,7 +1134,7 @@ function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::B
     # set-up optimization object for BL parameter
     NLoptMethod=:LN_COBYLA # no gradient
     # :LN_COBYLA for (non)linear constraits, :LN_BOBYQA for bound constraints
-    nparBL = nparams(obj.ratemodel)
+    nparBL = length(edges)
     optBL = NLopt.Opt(NLoptMethod, nparBL)
     NLopt.ftol_rel!(optBL,ftolRel) # relative criterion
     NLopt.ftol_abs!(optBL,ftolAbs) # absolute criterion
@@ -1141,29 +1142,54 @@ function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::B
     NLopt.xtol_abs!(optBL,xtolAbs)
     NLopt.maxeval!(optBL,1000) # max number of iterations
     # NLopt.maxtime!(optBL, t::Real)
-    #? What do we want to set as edge length min and max?
-    NLopt.lower_bounds!(optBL, fill(lengthmin, (nparBL,)) ) # for 0 as lower bound: zeros(Float64, nparBL)
+    #? What do we want to set as edge length min and max? 0 and ?
+    NLopt.lower_bounds!(optBL, zeros(Float64, nparBL))
     NLopt.upper_bounds!(optBL, fill(lengthmax, (nparBL,)) ) # delete to remove upper bound
     counter[1] = 0
     NLopt.max_objective!(optBL, loglikfunBL)
-    fmax, xmax, ret = NLopt.optimize(optBL, [obj.ratemodel.alpha]) # optimization here!
+    fmax, xmax, ret = NLopt.optimize(optBL, getlengths(edges)) # optimization here!
     verbose && println("BL: got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
     return edges
 end
 
 """
-    optimizegammas(obj::SSM, net::HybridNetwork, hybridedges::Vector{Edge}, trait::AbstractVector{Vector{Union{Missings.Missing,Int}}},
-siteweight=ones(length(trait[1]))::AbstractVector{Float64})
+optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::Bool, 
+verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64, ftolAbs::Float64, 
+xtolRel::Float64, xtolAbs::Float64)
 
 Optimize gammas for hybrid edges in vector `edges`. 
 Return vector of updated `edges`.
 """
-function optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, trait::AbstractVector{Vector{Union{Missings.Missing,Int}}},
-    siteweight=ones(length(trait[1]))::AbstractVector{Float64})
-    #TODO see setGamma!()
+function optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::Bool, 
+    verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64, ftolAbs::Float64, 
+    xtolRel::Float64, xtolAbs::Float64)
+    function loglikfungamma(gammas::Vector{Float64}, grad::Vector{Float64}) # modifies obj
+        counter[1] += 1
+        setgammas!(edges, gammas)
+        res = discrete_corelikelihood!(obj)
+        verbose && println("loglik: $res, rate variation model shape parameter alpha: $(alpha[1])")
+        length(grad) == 0 || error("gradient not implemented")
+        return res
+    end
+    # set-up optimization object for gamma parameter
+    NLoptMethod=:LN_COBYLA # no gradient
+    # :LN_COBYLA for (non)linear constraits, :LN_BOBYQA for bound constraints
+    npargamma = length(edges)
+    optgamma = NLopt.Opt(NLoptMethod, npargamma)
+    NLopt.ftol_rel!(optgamma,ftolRel) # relative criterion
+    NLopt.ftol_abs!(optgamma,ftolAbs) # absolute criterion
+    NLopt.xtol_rel!(optgamma,xtolRel)
+    NLopt.xtol_abs!(optgamma,xtolAbs)
+    NLopt.maxeval!(optgamma,1000) # max number of iterations
+    # NLopt.maxtime!(optgamma, t::Real)
+    NLopt.lower_bounds!(optgamma, zeros(Float64, npargamma))
+    NLopt.upper_bounds!(optgamma, ones(Float64, npargamma))
+    counter[1] = 0
+    NLopt.max_objective!(optgamma, loglikfungamma)
+    fmax, xmax, ret = NLopt.optimize(optgamma, getgammas(edges)) # optimization here!
+    verbose && println("gamma: got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
     return edges
 end
-
 
 # ## Prep and Wrapper Functions ##
 

@@ -1431,6 +1431,59 @@ function sorttaxaCFperm!(pcf::Vector{Int8}, ptax::Vector{Int8})
     end
 end
 
+"""
+    setlengths!(edges::Vector{Edge}, lengths::Vector{Float64})
+
+Assign new lengths to a vector of `edges`.
+"""
+function setlengths!(edges::Vector{Edge}, lengths::Vector{Float64})
+    length(edges) == length(lengths) || error("edges and lengths vector must have same length.")
+    for i in 1:length(edges)
+        setLength!(edges[i], lengths[i])
+    end
+end
+
+"""
+    setgammas!(edges::Vector{Edge}, gammas::Vector{Float64})
+
+Assign new gammas to a vector of `edges` and their hybrid partners. 
+Also updates gammas of the edge's hybrid partner edges.
+
+We use this instead of setGammas!, which may assume a treechild network.
+"""
+function setgammas!(edges::Vector{Edge}, gammas::Vector{Float64})
+    length(edges) == length(gammas) || error("edges and gammas vector must have same length.")
+    for i in 1:length(edges)
+        setGamma!(edges[i], gammas[i])
+    end
+end
+
+"""
+    getlengths(edges::Vector{Edge})
+
+Return a vector of edge lengths for a set of `edges`.
+"""
+function getlengths(edges::Vector{Edge})
+    lengths = Float64[]
+    for e in edges
+        push!(lengths, e.length)
+    end
+    return lengths
+end
+
+"""
+    getgammas(edges::Vector{Edge})
+
+Return a vector of gammas for a set of `edges`.
+"""
+function getgammas(edges::Vector{Edge})
+    gammas = Float64[]
+    for e in edges
+        push!(gammas, e.gamma)
+    end
+    return gammas
+end
+
 
 #------------------------------------
 function citation()
