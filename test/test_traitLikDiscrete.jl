@@ -641,7 +641,7 @@ setGamma!(net.edge[58],0.6)
 obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69)
 
 ## Local BL ##
-@test typeof(PhyloNetworks.localBL!(obj, net, net.edge[76], true, 100.0)) == Vector{Float64}
+@test typeof(PhyloNetworks.localBL!(obj, net, net.edge[76], true, 100.0)) == Vector{PhyloNetworks.Edge}
 @test net.edge[76].length != 1.0
 @test net.edge[77].length != 1.0
 
@@ -653,7 +653,7 @@ setGamma!(net.edge[7],0.6)
 setGamma!(net.edge[58],0.6)
 obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69)
 
-@test typeof(PhyloNetworks.localBL!(obj, net, net.edge[59], false, 100.0)) == Vector{Float64}
+@test typeof(PhyloNetworks.localBL!(obj, net, net.edge[59], false, 100.0)) == Vector{PhyloNetworks.Edge}
 @test net.edge[59].length != 1.0
 @test net.edge[59].length != 1.0 #hybrid edge adjacent to 59
 
@@ -665,7 +665,7 @@ setGamma!(net.edge[6],0.6)
 setGamma!(net.edge[7],0.6)
 setGamma!(net.edge[58],0.6)
 obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69)
-@test typeof(PhyloNetworks.localgamma!(obj, net, net.edge[7], true)) == Vector{Float64}
+@test typeof(PhyloNetworks.localgamma!(obj, net, net.edge[7], true)) == Vector{PhyloNetworks.Edge}
 @test net.edge[7].gamma != 0.6
 @test net.edge[57].gamma != 0.4
 
@@ -673,7 +673,7 @@ setGamma!(net.edge[6],0.6)
 setGamma!(net.edge[7],0.6)
 setGamma!(net.edge[58],0.6)
 obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69)
-@test typeof(PhyloNetworks.localgamma!(obj, net, net.edge[6], false)) == Vector{Float64}
+@test typeof(PhyloNetworks.localgamma!(obj, net, net.edge[6], false)) == Vector{PhyloNetworks.Edge}
 @test net.edge[6].gamma != 0.6
 @test net.edge[14].gamma != 0.4
 end

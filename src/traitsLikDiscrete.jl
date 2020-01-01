@@ -1074,8 +1074,8 @@ function localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool, lengthm
         for e in n.edge # all edges that share a node with `edge` (including self)
             push!(edges, e)
         end
-    end
-    optimizeBL!(obj, net, edges, unzip, false, :LD_MMA, fRelBL, fAbsBL, xRelBL, 
+    end #TODO update verbose to false after debugging
+    optimizeBL!(obj, net, edges, unzip, true, :LD_MMA, fRelBL, fAbsBL, xRelBL, 
     xAbsBL, 0.0, lengthmax)
     return edges
 end
@@ -1105,8 +1105,8 @@ function localgamma!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool)
                 end
             end
         end
-    end
-    optimizegammas!(obj, net, edges, unzip, false, :LD_MMA, fRelBL, fAbsBL, xRelBL, 
+    end #TODO update verbose to false after debugging
+    optimizegammas!(obj, net, edges, unzip, true, :LD_MMA, fRelBL, fAbsBL, xRelBL, 
     xAbsBL)
 end
 
@@ -1123,6 +1123,7 @@ function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::B
     verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64, 
     ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, lengthmin::Float64, 
     lengthmax::Float64)
+    counter = [0]
     function loglikfunBL(lengths::Vector{Float64}, grad::Vector{Float64}) # modifies obj
         counter[1] += 1
         setlengths!(edges, lengths)
@@ -1153,9 +1154,9 @@ function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::B
 end
 
 """
-optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::Bool, 
-verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64, ftolAbs::Float64, 
-xtolRel::Float64, xtolAbs::Float64)
+    optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::Bool, 
+    verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64, ftolAbs::Float64, 
+    xtolRel::Float64, xtolAbs::Float64)
 
 Optimize gammas for hybrid edges in vector `edges`. 
 Return vector of updated `edges`.
@@ -1163,6 +1164,7 @@ Return vector of updated `edges`.
 function optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::Bool, 
     verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64, ftolAbs::Float64, 
     xtolRel::Float64, xtolAbs::Float64)
+    counter = [0]
     function loglikfungamma(gammas::Vector{Float64}, grad::Vector{Float64}) # modifies obj
         counter[1] += 1
         setgammas!(edges, gammas)
