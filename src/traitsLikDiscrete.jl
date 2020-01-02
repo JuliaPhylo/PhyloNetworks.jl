@@ -334,7 +334,7 @@ function fitdiscrete(net::HybridNetwork, modSymbol::Symbol,
         model = JC69([1.0], true) # 1.0 instead of rate because relative version
     elseif modSymbol == :HKY85
         model = HKY85([1.0], # transition/transversion rate ratio
-                       empiricalDNAfrequencies(dat, repeat([1.], inner=ncol(dat))),
+                       empiricalDNAfrequencies(dat, repeat([1.], inner=size(dat)[2])),
                        true)
     elseif modSymbol == :ERSM
         model = EqualRatesSubstitutionModel(length(labels), rate, labels);
@@ -380,7 +380,7 @@ function fitdiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame,
         model = JC69([1.0], true)  # 1.0 instead of rate because relative version (relative = true)
     elseif modSymbol == :HKY85
         model = HKY85([1.0], # transition/transversion rate ratio
-                      empiricalDNAfrequencies(view(dnadata, :, 2:ncol(dnadata)), dnapatternweights),
+                      empiricalDNAfrequencies(view(dnadata, :, 2:size(dnadata)[2]), dnapatternweights),
                       true)
     elseif modSymbol == :ERSM
         model = EqualRatesSubstitutionModel(4, rate, [BioSymbols.DNA_A, BioSymbols.DNA_C, BioSymbols.DNA_G, BioSymbols.DNA_T]);
@@ -777,7 +777,8 @@ function check_matchtaxonnames!(species::AbstractVector, dat::AbstractVector, ne
     if !isempty(indnotindat)
         @warn "the network contains taxa with no data: those will be pruned"
         for i in indnotindat
-            deleteleaf!(net, netlab[i])
+            leafnum = net.leaf[findfirst([n.name == netlab[i] for n in net.leaf])].number
+            deleteleaf!(net, leafnum) # the second argument should be a node number.
         end
     end
     # 3. calculate order of rows to have species with node.number i on ith row
@@ -1209,10 +1210,9 @@ function datatoSSM(net::HybridNetwork, fastafile::String, modsymbol::Symbol)
     data, siteweights = readfastatodna(fastafile, true)
     model = symboltomodel(net, modsymbol, data, siteweights)
     ratemodel = RateVariationAcrossSites(1.0, 1) #TODO add option for users
-
-    dat2 = traitlabels2indices(view(data, :, 2:ncol(data)), model)
-    o, net = check_matchtaxonnames!(data[:,1], dat2, net)
-    trait = dat2[o]
+    dat2 = traitlabels2indices(data[!,2:end], model)
+    o, net = check_matchtaxonnames!(data[1], dat2, net)
+    trait = view(dat2, o)
     startingBL!(net, trait, siteweights)
     obj = StatisticalSubstitutionModel(model, ratemodel, net, trait, siteweights)
 end
@@ -1228,9 +1228,9 @@ For DNA data, the relative rate model is returned, with a
 stationary distribution equal to empirical frequencies for DNA data.
 """
 function symboltomodel(net::HybridNetwork, modsymbol::Symbol, data::DataFrame,
-        siteweights=repeat([1.], inner=ncol(data))::AbstractVector)
+        siteweights=repeat([1.], inner=size(data)[2])::AbstractVector)
     rate = startingrate(net)
-    actualdat = view(data, :, 2:ncol(data))
+    actualdat = view(data, :, 2:size(data)[2])
     labels = learnlabels(modsymbol, actualdat)
     if modsymbol == :JC69
         return JC69([1.0], true) # 1.0 instead of rate because relative version

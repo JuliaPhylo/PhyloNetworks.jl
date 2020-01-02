@@ -149,6 +149,10 @@ module PhyloNetworks
         empiricalDNAfrequencies,
         nni!,
         mapindividuals,
+        getlengths,
+        setlengths!,
+        getgammas,
+        setgammas!,
         # neighbor joining
         nj
 
