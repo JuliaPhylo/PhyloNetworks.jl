@@ -6,6 +6,7 @@ using CSV
 =#
 
 @testset "addhybridedge! top function" begin
+# caution: this test has randomness in its choice of edges; may error sometimes and not others
 str_tree = "(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);";
 tree = readTopology(str_tree)
 @test !isnothing(PhyloNetworks.addhybridedge!(tree, true)) # should be able to add a hybrid
@@ -22,12 +23,12 @@ str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 net_level1 = readTopology(str_level1)
 @test !isnothing(PhyloNetworks.addhybridedge!(net_level1, true)) # should be able to add a hybrid
 @test net_level1.numHybrids == 3
-@test !any([n.hybrid for n in PhyloNetworks.getParents(net_level1.hybrid[3])]) # tests if network is treechild
+@test !any([n.hybrid for n in PhyloNetworks.getParents(net_level1.hybrid[3])]) # tests if network remains treechild
 
 net_level1 = readTopology(str_level1)
 @test !isnothing(PhyloNetworks.addhybridedge!(net_level1, false)) # should be able to add a hybrid
 @test net_level1.numHybrids == 3
-end
+end # of addhybridedge! top function
 
 @testset "addhybridedge! helper function" begin
 str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" 
@@ -62,7 +63,7 @@ net_level1 = readTopology(str_level1); # case 3 (good hybrid edge choice leads t
 # NEW HYBRID INTO AN EXISTING HYBRID EDGE 
 net_level1 = readTopology(str_level1);
 @test !isnothing(PhyloNetworks.addhybridedge!(net_level1, net_level1.edge[9], net_level1.edge[10], false))
-end
+end # of addhybridedge! helper function
 
 @testset "edge checking functions" begin
 str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" 
@@ -86,7 +87,7 @@ net_level1 = readTopology(str_level1);
 @test PhyloNetworks.directionalconflict(net_level1, net_level1.edge[6], net_level1.edge[18], true)
 # case 3 (bad hybrid edge choice leads to a nonDAG)
 @test PhyloNetworks.directionalconflict(net_level1, net_level1.edge[6], net_level1.edge[20], true) 
-end
+end # of edge checking functions
 
 @testset "delete a hybridization" begin
 str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" 
@@ -104,6 +105,6 @@ net, newhybridnode = PhyloNetworks.addhybridedge!(net, net.edge[3], net.edge[9],
 PhyloNetworks.removehybridedge!(net, newhybridnode, true, false)
 @test net.numHybrids == 2
 @test !(9 in net.blacklist) # edge 9 should not be in blacklist
-end
+end # of delete a hybridization
 
 

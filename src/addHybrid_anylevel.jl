@@ -130,19 +130,24 @@ function addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpart
     hybrid_edge.hybrid = true
     if hybridpartnernew
         edgeabovee2.hybrid = true
+        edgeabovee2.gamma = 1 - newgamma # update edge gammas 
     else
         edge2.hybrid = true
+        edge2.gamma = 1 - newgamma # update edge gammas 
+        if edge2.node[1] == newnode2_hybrid # update isChild1 for existing edge
+            edge2.isChild1 = true
+        else
+            edge2.isChild1 = false
+        end
     end
-    newnode2_hybrid.name = "H#$(net.numHybrids + 1)"
-    # update edge gammas 
-    edgeabovee2.gamma = 1 - newgamma
+    newnode2_hybrid.name = "H$(net.numHybrids)"
     updateContainRoot!(net, newnode2_hybrid);
     setNode!(hybrid_edge, [newnode1_tree, newnode2_hybrid])
     setEdge!(newnode1_tree, hybrid_edge)
     setEdge!(newnode2_hybrid, hybrid_edge)
     pushEdge!(net, hybrid_edge)
-    #TODO need to push node to network?
-        
+    # TODO need to update getChild1 attribute? 
+    # TODO not catching all tree-child problems?       
     # updateInCycle!(net, newnode2); #? need this?
     # updateMajorHybrid!(net, newnode2); #? need this?
     return net, newnode2_hybrid
@@ -172,22 +177,23 @@ Asks if edge 1 a descendant of the newly-created node on edge 2.
 """
 function directionalconflict(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpartnernew::Bool)
     # (see "Checking for Directional Conflicts")
-    if hybridpartnernew # after hybrid addition, edge 2 would flow toward isChild1(edge2)
+    if hybridpartnernew # after hybrid addition, edge 2 would flow "down" toward getChild1(edge2)
         if !edge1.containRoot && isdirectionaldescendant(getParent(edge1), getChild(edge2))
             # we can trust getChild1 for edge1 because !edge1.containRoot #TODO confirm this
             return true
         else
             return false
         end
-    else # after hybrid addition, edge 2 would flow toward getParent(edge2)
-        if !edge1.containRoot && isdirectionaldescendant(getParent(edge1), getParent(edge2)) 
+    else # after hybrid addition, edge 2 flow "up" toward getParent(edge2)
+        if edge2.containRoot == false # would flow against direction if edge2.containRoot == false
+            return true
+        elseif !edge1.containRoot && isdirectionaldescendant(getParent(edge1), getParent(edge2)) 
             # we can trust getChild1 for edge1 because !edge1.containRoot #TODO confirm this
             return true
         else
             return false
         end
     end
-    
 end
 
 """
