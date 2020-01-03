@@ -125,7 +125,7 @@ end
 =#
 
 """
-    nni!(net::HybridNetwork, e::Edge, no3cycle=true::Bool, 
+    nni!(net::HybridNetwork, e::Edge, no3cycle::Bool, 
     constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
 Attempt to perform a nearest neighbor interchange (NNI) around edge `e`,
@@ -171,7 +171,7 @@ writeTopology(net) == str_network
 true
 ```
 """
-function nni!(net::HybridNetwork, e::Edge, no3cycle=true::Bool, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+function nni!(net::HybridNetwork, e::Edge, no3cycle::Bool, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     for con in constraints
         if con.edgenum == e.number
             return nothing

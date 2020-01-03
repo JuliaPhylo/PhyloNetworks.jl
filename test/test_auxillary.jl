@@ -23,5 +23,7 @@ PhyloNetworks.setgammas!([net.edge[18]], [0.25])
 @test PhyloNetworks.getlengths([net.edge[1], net.edge[5]]) == [net.edge[1].length, net.edge[5].length]
 
 @test PhyloNetworks.getgammas([net.edge[18]]) == [net.edge[18].gamma]
-@test PhyloNetworks.getgammas([net.edge[18], net.edge[16]]) == [net.edge[18].gamma, net.edge[16].gamma]
+@test PhyloNetworks.getgammas(net.edge) == [net.edge[8].gamma, net.edge[16].gamma]
+@test length(PhyloNetworks.getgammas(net.edge)) == length(net.hybrid)
+
 end

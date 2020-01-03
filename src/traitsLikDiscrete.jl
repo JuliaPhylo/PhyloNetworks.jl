@@ -777,8 +777,7 @@ function check_matchtaxonnames!(species::AbstractVector, dat::AbstractVector, ne
     if !isempty(indnotindat)
         @warn "the network contains taxa with no data: those will be pruned"
         for i in indnotindat
-            leafnum = net.leaf[findfirst([n.name == netlab[i] for n in net.leaf])].number
-            deleteleaf!(net, leafnum) # the second argument should be a node number.
+            deleteleaf!(net, netlab[i])
         end
     end
     # 3. calculate order of rows to have species with node.number i on ith row
@@ -1075,9 +1074,9 @@ function localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool, lengthm
         for e in n.edge # all edges that share a node with `edge` (including self)
             push!(edges, e)
         end
-    end #TODO update verbose to false after debugging
+    end # TODO update verbose to false after debugging
     optimizeBL!(obj, net, edges, unzip, true, :LD_MMA, fRelBL, fAbsBL, xRelBL, 
-    xAbsBL, 0.0, lengthmax)
+    xAbsBL, -0.4054651081081644, lengthmax)
     return edges
 end
 
@@ -1100,10 +1099,8 @@ function localgamma!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool)
     edges = Edge[]
     for n in edge.node
         for e in n.edge # all edges that share a node with `edge` (including self)
-            if e.hybrid
-                if !(e in edges) && !(getPartner(e) in edges)
-                    push!(edges, e)
-                end
+            if e.hybrid && !(e in edges) && !(getPartner(e) in edges)
+                push!(edges, e)
             end
         end
     end #TODO update verbose to false after debugging
@@ -1177,7 +1174,7 @@ function optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzi
     # set-up optimization object for gamma parameter
     NLoptMethod=:LN_COBYLA # no gradient
     # :LN_COBYLA for (non)linear constraits, :LN_BOBYQA for bound constraints
-    npargamma = length(edges)
+    npargamma = length(obj.net.hybrid)
     optgamma = NLopt.Opt(NLoptMethod, npargamma)
     NLopt.ftol_rel!(optgamma,ftolRel) # relative criterion
     NLopt.ftol_abs!(optgamma,ftolAbs) # absolute criterion
@@ -1206,7 +1203,6 @@ Call [`readfastatodna`](@ref), [`startingrate`](@ref), [`startingBL!`](@ref).
 Similar to fitdiscrete()
 """
 function datatoSSM(net::HybridNetwork, fastafile::String, modsymbol::Symbol)
-
     data, siteweights = readfastatodna(fastafile, true)
     model = symboltomodel(net, modsymbol, data, siteweights)
     ratemodel = RateVariationAcrossSites(1.0, 1) #TODO add option for users

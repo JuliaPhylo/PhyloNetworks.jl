@@ -153,6 +153,8 @@ module PhyloNetworks
         setlengths!,
         getgammas,
         setgammas!,
+        optimizeBL!,
+        optimizegammas!,
         # neighbor joining
         nj
 

@@ -1477,11 +1477,13 @@ end
 Return a vector of gammas for a set of `edges`.
 """
 function getgammas(edges::Vector{Edge})
-    gammas = Float64[]
+    gammaedges = Edge[]
     for e in edges
-        push!(gammas, e.gamma)
+        if e.hybrid && !(e in gammaedges) && !(getPartner(e) in gammaedges)
+            push!(gammaedges, e)
+        end
     end
-    return gammas
+    return [e.gamma for e in gammaedges]
 end
 
 
