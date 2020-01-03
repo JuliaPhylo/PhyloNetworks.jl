@@ -25,11 +25,10 @@ If not, adds edge pairs to the blacklist and tries with a new set of edges.
 """
 function addhybridedge!(net::HybridNetwork, treechild, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     edgesfound = false
-    Array{Array{Int64,1},1}
-    blacklist = Array{Array{Edge, 1}, 1}() # ordered Dict{Edge1,Edge2}
+    blacklist = Array{Array{Edge, 1}, 1}()
     while !edgesfound 
         if length(blacklist) == Int(factorial(length(net.edge))/factorial(length(net.edge)-2)) # all permutations
-            break
+            return nothing
         end
         e1, e2 = Random.randperm(length(net.edge))[1:2] # randomly chooses two edges without replacement
             # fixit: if we could restrict to only interior edges, this while loop would be much faster

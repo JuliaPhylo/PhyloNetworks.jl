@@ -534,7 +534,7 @@ Check if network violates user-given clade constraints. Return false if passes,
 return true if violates clades.
 """
 function cladesviolated(net::HybridNetwork, cladeconstraints::Vector{TopologyConstraint})
-    for con in cladeconstraints # checks directionality of stem edge hasn't change
+    for con in cladeconstraints # checks directionality of stem edge hasn't changed
         if !(getChild(net.edge[con.edgenum]).number == con.nodenum) # root check
             return true
         end
@@ -778,4 +778,72 @@ function addnodeonedge!(net::HybridNetwork, startingedge::Edge, hybrid::Bool, ed
     end
     pushNode!(net, newnode)
     return newnode, edgeA
+end
+
+## Update net.root ##
+
+"""
+    randomlyupdateroot!(net::HybridNetwork)
+
+Randomly update root using rootatnode! as part of optimization. Check to ensure
+that the rooting will be valid.
+
+Return the network.
+
+Warnings:
+
+- If the node is a leaf, the root will be placed along
+  the edge adjacent to the leaf. This might add a new node.
+- If the desired root placement is incompatible with one or more hybrids, then
+
+  * a RootMismatch error is thrown; use `verbose=false` to silence
+    the root mismatch info printed before the error is thrown.
+  * the input network will still have some attributes modified.
+
+# TODO when changing root position, check if the stem edge is still directed in the correct direction
+# stemedge.isChild1() #? constrain stem edge?
+#? Relatedly, should we allow rootings within constraint groups? If not, add contraints
+#? as arguments here.
+"""
+function randomlyupdateroot!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    newrootfound = false
+    blacklist = Node[]
+    while !newrootfound
+        if length(blacklist) == length(net.node)
+            return nothing
+        end
+        #randomly choose node
+        newrootnodei = Random.rand(1:length(net.node))[1] # randomly chooses node
+        newrootnode = net.node[newrootnodei]
+        # perform checks
+        !(newrootnode in blacklist) # node not in blacklist
+        newrootfound = true
+        # Check 1: new root isn't current root
+        if newrootnode == net.root
+            newrootfound = false
+        end
+        # Check 2: Rooting isn't inside contraint
+        if newrootfound == true # the new root passes above tests
+            for con in constraints
+                if isdescendant(net.edge[con.edgenum], newrootnode)
+                    newrootfound = false
+                    break # break out of for loop
+                end
+            end
+        end
+        # Check 3: check that constraint stemedge will be directed correctly
+            #? only relevant if we allow rootings inside constraint groups, right?
+        # Check 4: Directional Conflict
+        if newrootfound == true # the new root passes above tests
+            try
+                rootatnode!(HybridNetwork, newrootnode)
+            catch e # a RootMismatch error will be thrown if root placement is incompatible hybrids
+                newrootfound = false
+            end
+        end
+        if !newrootfound # add node to blacklist
+            push!(blacklist, newrootnode)
+        end
+    end
+    return net
 end
