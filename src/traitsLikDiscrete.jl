@@ -334,7 +334,7 @@ function fitdiscrete(net::HybridNetwork, modSymbol::Symbol,
         model = JC69([1.0], true) # 1.0 instead of rate because relative version
     elseif modSymbol == :HKY85
         model = HKY85([1.0], # transition/transversion rate ratio
-                       empiricalDNAfrequencies(dat, repeat([1.], inner=size(dat)[2])),
+                       empiricalDNAfrequencies(dat, repeat([1.], inner=ncol(dat))),
                        true)
     elseif modSymbol == :ERSM
         model = EqualRatesSubstitutionModel(length(labels), rate, labels);
@@ -380,7 +380,7 @@ function fitdiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame,
         model = JC69([1.0], true)  # 1.0 instead of rate because relative version (relative = true)
     elseif modSymbol == :HKY85
         model = HKY85([1.0], # transition/transversion rate ratio
-                      empiricalDNAfrequencies(view(dnadata, :, 2:size(dnadata)[2]), dnapatternweights),
+                      empiricalDNAfrequencies(view(dnadata, :, 2:ncol(dnadata)), dnapatternweights),
                       true)
     elseif modSymbol == :ERSM
         model = EqualRatesSubstitutionModel(4, rate, [BioSymbols.DNA_A, BioSymbols.DNA_C, BioSymbols.DNA_G, BioSymbols.DNA_T]);
@@ -776,7 +776,6 @@ function check_matchtaxonnames!(species::AbstractVector, dat::AbstractVector, ne
     net = deepcopy(net)
     if !isempty(indnotindat)
         @warn "the network contains taxa with no data: those will be pruned"
-        @show [netlab[i] for i in indnotindat] #debug 
         for i in indnotindat
             deleteleaf!(net, netlab[i])
         end
@@ -1002,8 +1001,7 @@ function startingrate(net::HybridNetwork)
 end
 
 """
-    startingBL!(net::HybridNetwork, trait::AbstractVector{Vector{Union{Missings.Missing,Int}}},
-siteweight=ones(length(trait[1]))::AbstractVector{Float64})
+    startingBL!(net::HybridNetwork, trait::Vector{Vector} [, siteweight::Vector])
 
 Calibrate branch lengths in `net` by minimizing the mean squared error
 between the JC-adjusted pairwise distance between taxa, and network-predicted
@@ -1059,139 +1057,6 @@ function startingBL!(net::HybridNetwork,
     return net
 end
 
-"""
-    localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool, lengthmax::Float64)
-
-Optimize branch lengths in `net` locally around `edge`. Update all edges that 
-share a node with `edge` (including itself). 
-If `unzip = true`, constrain branch lengths to zero below hybrid edges. 
-Return vector of updated `edges`.
-
-Used after `nni!` or `addhybridedge!` moves to update local branch lengths.
-"""
-function localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool, lengthmax::Float64)
-    edges = Edge[]
-    for n in edge.node
-        for e in n.edge # all edges that share a node with `edge` (including self)
-            push!(edges, e)
-        end
-    end # TODO update verbose to false after debugging
-    optimizeBL!(obj, net, edges, unzip, true, :LD_MMA, fRelBL, fAbsBL, xRelBL, 
-    xAbsBL, -0.4054651081081644, lengthmax)
-    return edges
-end
-
-"""
-    localgamma!(obj::SSM, net::HybridNetwork, edge::Edge)
-    
-Optimize gammas in `net` locally around `edge`. Update all edges that share a 
-node with `edge` (including itself). Does not include the edge's partner because 
-the `setGamma!` will update partners automatically.
-
-Return modified edges.
-
-Used after `nni!` or `addhybridedge!` moves to update local gammas.
-
-Assumptions:
-- correct `isChild1` field for `edge` and for hybrid edges
-- no in-coming polytomy: a node has 0, 1 or 2 parents, no more
-"""
-function localgamma!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool)
-    edges = Edge[]
-    for n in edge.node
-        for e in n.edge # all edges that share a node with `edge` (including self)
-            if e.hybrid && !(e in edges) && !(getPartner(e) in edges)
-                push!(edges, e)
-            end
-        end
-    end #TODO update verbose to false after debugging
-    optimizegammas!(obj, net, edges, unzip, true, :LD_MMA, fRelBL, fAbsBL, xRelBL, 
-    xAbsBL)
-end
-
-"""
-    optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::Bool, 
-    verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64, ftolAbs::Float64, 
-    xtolRel::Float64, xtolAbs::Float64, lengthmin::Float64, lengthmax::Float64)
-
-Optimize branch lengths for edges in vector `edges`. 
-If `unzip = true`, constrain branch lengths to zero below hybrid edges. 
-Return vector of updated `edges`.
-"""
-function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::Bool, 
-    verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64, 
-    ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, lengthmin::Float64, 
-    lengthmax::Float64)
-    counter = [0]
-    function loglikfunBL(lengths::Vector{Float64}, grad::Vector{Float64}) # modifies obj
-        @show "entering loglikfunBL"
-        counter[1] += 1
-        setlengths!(edges, lengths)
-        res = discrete_corelikelihood!(obj)
-        verbose && println("loglik: $res, branch lengths: $(lengths)")
-        length(grad) == 0 || error("gradient not implemented")
-        return res
-    end
-    # set-up optimization object for BL parameter
-    NLoptMethod=:LN_COBYLA # no gradient
-    # :LN_COBYLA for (non)linear constraits, :LN_BOBYQA for bound constraints
-    nparBL = length(edges)
-    optBL = NLopt.Opt(NLoptMethod, nparBL)
-    NLopt.ftol_rel!(optBL,ftolRel) # relative criterion
-    NLopt.ftol_abs!(optBL,ftolAbs) # absolute criterion
-    NLopt.xtol_rel!(optBL,xtolRel)
-    NLopt.xtol_abs!(optBL,xtolAbs)
-    NLopt.maxeval!(optBL,1000) # max number of iterations
-    # NLopt.maxtime!(optBL, t::Real)
-    #? What do we want to set as edge length min and max? 0 and ?
-    NLopt.lower_bounds!(optBL, zeros(Float64, nparBL))
-    counter[1] = 0
-    NLopt.max_objective!(optBL, loglikfunBL)
-    fmax, xmax, ret = NLopt.optimize(optBL, getlengths(edges)) # optimization here!
-    verbose && println("BL: got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
-    return edges
-end
-
-"""
-    optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::Bool, 
-    verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64, ftolAbs::Float64, 
-    xtolRel::Float64, xtolAbs::Float64)
-
-Optimize gammas for hybrid edges in vector `edges`. 
-Return vector of updated `edges`.
-"""
-function optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::Bool, 
-    verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64, ftolAbs::Float64, 
-    xtolRel::Float64, xtolAbs::Float64)
-    counter = [0]
-    function loglikfungamma(gammas::Vector{Float64}, grad::Vector{Float64}) # modifies obj
-        counter[1] += 1
-        setgammas!(edges, gammas)
-        res = discrete_corelikelihood!(obj)
-        verbose && println("loglik: $res, gammas: $(gammas)")
-        length(grad) == 0 || error("gradient not implemented")
-        return res
-    end
-    # set-up optimization object for gamma parameter
-    NLoptMethod=:LN_COBYLA # no gradient
-    # :LN_COBYLA for (non)linear constraits, :LN_BOBYQA for bound constraints
-    npargamma = length(obj.net.hybrid)
-    optgamma = NLopt.Opt(NLoptMethod, npargamma)
-    NLopt.ftol_rel!(optgamma,ftolRel) # relative criterion
-    NLopt.ftol_abs!(optgamma,ftolAbs) # absolute criterion
-    NLopt.xtol_rel!(optgamma,xtolRel)
-    NLopt.xtol_abs!(optgamma,xtolAbs)
-    NLopt.maxeval!(optgamma,1000) # max number of iterations
-    # NLopt.maxtime!(optgamma, t::Real)
-    NLopt.lower_bounds!(optgamma, zeros(Float64, npargamma))
-    NLopt.upper_bounds!(optgamma, ones(Float64, npargamma))
-    counter[1] = 0
-    NLopt.max_objective!(optgamma, loglikfungamma)
-    fmax, xmax, ret = NLopt.optimize(optgamma, getgammas(edges)) # optimization here!
-    verbose && println("gamma: got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
-    return edges
-end
-
 # ## Prep and Wrapper Functions ##
 
 """
@@ -1204,14 +1069,48 @@ Call [`readfastatodna`](@ref), [`startingrate`](@ref), [`startingBL!`](@ref).
 Similar to fitdiscrete()
 """
 function datatoSSM(net::HybridNetwork, fastafile::String, modsymbol::Symbol)
+
     data, siteweights = readfastatodna(fastafile, true)
     model = symboltomodel(net, modsymbol, data, siteweights)
     ratemodel = RateVariationAcrossSites(1.0, 1) #TODO add option for users
-    dat2 = traitlabels2indices(data[!,2:end], model)
-    o, net = check_matchtaxonnames!(data[1], dat2, net)
-    trait = view(dat2, o)
+
+    dat2 = traitlabels2indices(view(data, :, 2:ncol(data)), model)
+    o, net = check_matchtaxonnames!(data[:,1], dat2, net)
+    trait = dat2[o]
     startingBL!(net, trait, siteweights)
     obj = StatisticalSubstitutionModel(model, ratemodel, net, trait, siteweights)
+end
+
+"""
+    addclades!(net::HybridNetwork, cladesDict::Dict{String, Vector{Int64}}
+
+Add clade designation according to an array of clade dictionaries, where the array
+has length equal to the number of species in the non-main clades 
+(e.g. outgroups, known clades, etc).
+note: all nodes start with clade designation "Main" or 1.
+TODO See how this is done in other software (raxML). 
+Maybe we force a polytomy at top of outgroup? Let users give us a tree?
+"""
+function addclades!(net::HybridNetwork, cladesDict::Dict{String,Vector{Int64}})
+    #adds clades for leaves not in main clade
+    #interate over items in input dictionary 
+
+    #compare keys with net.leaf
+    for key in keys(cladesDict)
+        for index in 1:length(net.leaf) #net.leaf is an array of the network's leaves
+            if net.leaf[index].name == key
+                #removes main clade designation
+                filter!(x->x≠1,net.leaf[index].clade)
+                #adds new clade membership
+                for i in 1:length(cladesDict[key])
+                    cladetoadd = cladesDict[key][i]
+                    push!(net.leaf[index].clade, cladetoadd)
+                    #removes duplicates to catche when funct run with same values
+                    net.leaf[index].clade = unique(net.leaf[index].clade) 
+                end
+            end
+        end
+    end
 end
 
 """
@@ -1225,9 +1124,9 @@ For DNA data, the relative rate model is returned, with a
 stationary distribution equal to empirical frequencies for DNA data.
 """
 function symboltomodel(net::HybridNetwork, modsymbol::Symbol, data::DataFrame,
-        siteweights=repeat([1.], inner=size(data)[2])::AbstractVector)
+        siteweights=repeat([1.], inner=ncol(data))::AbstractVector)
     rate = startingrate(net)
-    actualdat = view(data, :, 2:size(data)[2])
+    actualdat = view(data, :, 2:ncol(data))
     labels = learnlabels(modsymbol, actualdat)
     if modsymbol == :JC69
         return JC69([1.0], true) # 1.0 instead of rate because relative version
