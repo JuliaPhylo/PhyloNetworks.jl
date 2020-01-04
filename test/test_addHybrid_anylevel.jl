@@ -9,7 +9,11 @@ using CSV
 # caution: this test has randomness in its choice of edges; may error sometimes and not others
 str_tree = "(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);";
 tree = readTopology(str_tree)
-@test isnothing(PhyloNetworks.addhybridedge!(tree, true)) # should not be able to add a hybrid (too small, most edges exterior)
+@test !isnothing(PhyloNetworks.addhybridedge!(tree, true)) # should not be able to add a hybrid (too small, most edges exterior)
+@test tree.numHybrids == 1
+@test !isnothing(PhyloNetworks.addhybridedge!(tree, true)) # should be able to add a hybrid
+@test tree.numHybrids == 2
+@test !any([n.hybrid for n in PhyloNetworks.getParents(tree.hybrid[2])]) # tests if network is treechild
 
 str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" 
 net_level1 = readTopology(str_level1)

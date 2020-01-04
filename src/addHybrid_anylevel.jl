@@ -5,9 +5,9 @@
 # optimization as part of discrete traits full likelihood network optimization.
 
 """
-    addhybridedge!(net::HybridNetwork, treechild::Bool, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    addhybridedge!(net::HybridNetwork, nohybridladder::Bool, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
-Randomly choose two edge indices. If they pass constraint and 3- cycle checks,
+Randomly choose two edge indices in the network. If they pass constraint and 3- cycle checks,
 adds hybrid edge from edge 1 to edge 2 by calling next version of `adddhybridedge!`. 
 
 Randomly decides whether the new the partner hybrid will be the new edge above `edge2`
@@ -23,7 +23,7 @@ approach in addHybrid.jl.
 If successful, return net, newhybridnode in tuple.
 If not, adds edge pairs to the blacklist and tries with a new set of edges.
 """
-function addhybridedge!(net::HybridNetwork, treechild, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     edgesfound = false
     blacklist = Array{Array{Edge, 1}, 1}()
     while !edgesfound 
@@ -31,7 +31,6 @@ function addhybridedge!(net::HybridNetwork, treechild, constraints=TopologyConst
             return nothing
         end
         e1, e2 = Random.randperm(length(net.edge))[1:2] # randomly chooses two edges without replacement
-            # fixit: if we could restrict to only interior edges, this while loop would be much faster
         global edge1 = net.edge[e1]
         global edge2 = net.edge[e2]
         if !([edge1, edge2] in blacklist) # edges not in blacklist
@@ -41,16 +40,13 @@ function addhybridedge!(net::HybridNetwork, treechild, constraints=TopologyConst
                 if con.edgenum == edge1.number || con.edgenum == edge2.number
                     edgesfound = false
                 end
-            end
+            end # TODO make sure we dont add hybrid into or out of species contraint
             global hybridpartnernew = (rand() > 0.5) # if true the partner hybrid will be new edge above edge 2
-            ## Check 2: Check that the edges are interior
-            if any([n.leaf for n in edge1.node]) || any([n.leaf for n in edge2.node])
-                edgesfound = false
             ## Check 3: Hybrid would not create a 3-cycle 
-            elseif hybrid3cycle(net, edge1, edge2)
+            if hybrid3cycle(net, edge1, edge2)
                 edgesfound = false
-            ## Check 4: if treechild, edge2 cannot be a hybrid
-            elseif treechild && edge2.hybrid
+            ## Check 4: if nohybridladder, edge2 cannot be a hybrid
+            elseif nohybridladder && edge2.hybrid
                 edgesfound = false
             ## Check 5: Hybrid would not create directional conflict
             elseif net.numHybrids > 0 && directionalconflict(net, edge1, edge2, hybridpartnernew) 
@@ -241,20 +237,19 @@ end
 """
     removehybridedge!(net::HybridNetwork, node::Node, minor::Bool, blacklist::Bool)
 
-Remove hybridization from network. Adapted from deleteHybrid in deleteHybrid.jl. 
+Remove hybridization from network. Adapted from `deleteHybrid` in deleteHybrid.jl. 
 Do not update branch lengths. 
 
 If `minor = true`, deletes minor edge, else deletes major edge.
-
-If `blacklist`, add an edge a blacklist.
-
+If `blacklist` = true, adds edge to a blacklist.
 Return net.
 
 ```jldoctest
-#TODO
+#TODO finish this
 ````
+#TODO confirm that this update isChild1 attribute correctly
 """
-function removehybridedge!(net::HybridNetwork, node::Node,minor::Bool, blacklist::Bool)
+function removehybridedge!(net::HybridNetwork, node::Node, minor::Bool, blacklist::Bool)
     node.hybrid || error("node $(node.number) has to be hybrid for deleteHybrid")
     if(minor)
         hybedge1,hybedge2,treeedge1 = hybridEdges(node);
@@ -359,7 +354,3 @@ function removehybridedge!(net::HybridNetwork, node::Node,minor::Bool, blacklist
         deleteEdge!(net,otheredge)
     end
 end
-
-#TODOs
-# write a function to subset to only interior edges of a network
-

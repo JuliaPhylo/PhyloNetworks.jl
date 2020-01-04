@@ -44,6 +44,10 @@ end
 
 Create a topology constraint from user-given type, taxon names, and network.
 
+Warning: 
+Currently prevents hybridizations from being added in or out of a species group.
+For clades, may need to recalculate nodenum and edgenum if adding hybridizations within clade
+
 ```jldoctest
 julia> str_individual_level_net = "(((8,9),(((((1A,1B,1C),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));"
 
@@ -101,7 +105,7 @@ function TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::Hybrid
         end
         error("The taxa given are not a clade")
     end
-    mrcaedge = net.edge[edgenum] # TODO make sure this indexing is always right
+    mrcaedge = net.edge[edgenum] # TODO confirm that this indexing is always right.
     nodenum = getChild(mrcaedge).number
     TopologyConstraint(type, taxonnames, taxonnums, edgenum, nodenum, speciesname)
 end
@@ -109,19 +113,9 @@ end
 #= TODO
 - add option to modify branch lengths during NNI:
   `nni!` that take detailed input, and output of same signature
-- `unzip` (bool) to constrain branch lengths to 0 below a hybrid node:
-  make this part of the optimization process. Or option for `nni!` functions?
 - RR move, during optimization: avoid the re-optimization of the likelihood.
   accept the move, just change inheritance values to get same likelihood
   (still update direct / forward likelihoods and tree priors?)
-- add options to forbid non-tree-child networks
-- add moves that change the root position (and edge directions accordingly)
-  without re-calculating the likelihood (accept the move): perhaps recalculate forward / direct likelihoods
-  why: 
-  the root position affects the feasibility of the NNIs starting from a BR configuration
-
-  when changing root position, be sure to check if the stem edge is still directed in the correct direction
-  stemedge.isChild1() 
 =#
 
 """
@@ -176,15 +170,16 @@ function nni!(net::HybridNetwork, e::Edge, no3cycle::Bool, constraints=TopologyC
         if con.edgenum == e.number
             return nothing
         end
-        # TODO lower down, if u or v is the node num, recalculate the node num after nni move
+        # clade TODO lower down, with clades, if u or v is the node num, recalculate the node num after nni move
     end
     hybparent = getParent(e).hybrid
     nnirange = 0x01:nnimax(e) # 0x01 = 1 but UInt8 instead of Int
     nnis = Random.shuffle(nnirange)
     for nummove in nnis # iterate through all possible NNIs, but in random order
-        moveinfo = nni!(net, e, nummove, no3cycle) #TODO problem here
+        moveinfo = nni!(net, e, nummove, no3cycle)
         !isnothing(moveinfo) || continue # to next possible NNI
-        if checknetwork(net, constraints)
+        if checknetwork(net, constraints) 
+            # TODO can we remove this since we're only using species constraints for now?
             return moveinfo
         else nni!(moveinfo...); end # undo the previous NNI, try again
     end
@@ -237,11 +232,11 @@ the edges that may contain the root, e.g. choice of e=uv versus vu, and
 choice of labelling adjacent nodes as α/β (BB), or as α/γ (BR).
 
 `no3cycle` = true prevents moves that would make a 3-cycle by checking for problem 4-cycles.
-`treechild` = true prevents moves that would create a non-treechild network.
+`nohybridladder` = true prevents moves that would create a hybridladder network.
 
 The edge field `isChild1` is assumed to be correct according to the `net.root`.
 """
-function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, treechild::Bool, no3cycle=true::Bool)
+function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, nohybridladder::Bool, no3cycle=true::Bool)
     nmovemax = nnimax(uv)
     if nmovemax == 0x00 # uv not internal, or polytomy e.g. species represented by polytomy with >2 indiv
         return nothing
@@ -299,7 +294,7 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, treechild::Bool, no3
         if !v.hybrid # BB, uv and all adjacent edges are undirected: 8 moves
             if nummove > 0x04  # switch u & v with prob 1/2
                 nummove -= 0x04  # now in 1,2,3,4
-                (u,v) = (v,u) #?could this be combined with the line below?
+                (u,v) = (v,u)
                 (α,αu,β,βu,γ,vγ,δ,vδ) = (γ,vγ,δ,vδ,α,αu,β,βu)
             end
             nmoves = 0x02
@@ -356,21 +351,21 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8, treechild::Bool, no3
             end
             if nummove == 0x01 # graft γ onto α
                 if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
-                if treechild && α.hybrid return nothing; end
+                if nohybridladder && α.hybrid return nothing; end
                 res = nni!(vδ, v, uv, u, αu)
             elseif nummove == 0x02 # graft γ onto β
+                if nohybridladder && β.hybrid return nothing; end
                 if no3cycle && problem4cycle(β,γ, α,δ) return nothing; end
-                # no possibility of non-treechild network from this move
                 res = nni!(vδ, v, uv, u, βu)
             else # nummove == 0x03
                 if αparentu # if α->u: graft δ onto α
                     if no3cycle && problem4cycle(α,δ, β,γ) return nothing; end
-                    if treechild && α.hybrid return nothing; end
+                    if nohybridladder && α.hybrid return nothing; end
                     res = nni!(vγ, v, uv, u, αu)
                 else # if β->u: graft δ onto β
-                    #? can this case ever happen? Isn't α the parent by definition? (line 273)
                     if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
-                    if treechild && α.hybrid return nothing; end
+                    # we could check nohybridladder && β.hybrid but no need because 
+                    # we only get here if uv.containRoot so β cannot be hybrid
                     res = nni!(vγ, v, uv, u, βu)
                 # case when u is root already excluded (not DAG)
                 end
@@ -521,8 +516,7 @@ function checkspeciesnetwork(network::HybridNetwork, cladeconstraints::Vector{To
     return !cladesviolated(network, cladeconstraints)
 end
 
-# checknetwork for use in nni function
-# can we avoid ever using this? TODO
+# checknetwork for use in nni! function. Not currently used.
 function checknetwork(network::HybridNetwork, cladeconstraints::Vector{TopologyConstraint})
     return !cladesviolated(network, cladeconstraints)
 end
@@ -531,14 +525,14 @@ end
     cladesviolated(network::HybridNetwork, cladeconstraints::TopologyConstraint)
 
 Check if network violates user-given clade constraints. Return false if passes,
-return true if violates clades.
+return true if violates clades. Not currently used.
 """
 function cladesviolated(net::HybridNetwork, cladeconstraints::Vector{TopologyConstraint})
     for con in cladeconstraints # checks directionality of stem edge hasn't changed
         if !(getChild(net.edge[con.edgenum]).number == con.nodenum) # root check
             return true
         end
-        #TODO check that clades below the edge are correct
+        #check that clades below the edge are correct
     end
     return false
 end
@@ -783,10 +777,11 @@ end
 ## Update net.root ##
 
 """
-    randomlyupdateroot!(net::HybridNetwork)
+    randomlyupdaterootonnode!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
 Randomly update root using rootatnode! as part of optimization. Check to ensure
-that the rooting will be valid.
+that the rooting will be valid. Needed for optimization because the root position 
+affects the feasibility of the NNIs starting from a BR configuration.
 
 Return the network.
 
@@ -795,17 +790,18 @@ Warnings:
 - If the node is a leaf, the root will be placed along
   the edge adjacent to the leaf. This might add a new node.
 - If the desired root placement is incompatible with one or more hybrids, then
-
   * a RootMismatch error is thrown; use `verbose=false` to silence
     the root mismatch info printed before the error is thrown.
   * the input network will still have some attributes modified.
 
-# TODO when changing root position, check if the stem edge is still directed in the correct direction
-# stemedge.isChild1() #? constrain stem edge?
-#? Relatedly, should we allow rootings within constraint groups? If not, add contraints
-#? as arguments here.
+#? Should we write function to update root on edge? (allow rooting on clade stem edge, but not below.)
+
+# TODO when changing root position, check if the stem edge is still directed in the correct direction according to stemedge.isChild1()
+
+# TODO confirm that this move won't lead to re-calculating the likelihood (accept the move)
+  (perhaps recalculate forward / direct likelihoods)
 """
-function randomlyupdateroot!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+function randomlyupdaterootonnode!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     newrootfound = false
     blacklist = Node[]
     while !newrootfound
@@ -822,10 +818,10 @@ function randomlyupdateroot!(net::HybridNetwork, constraints=TopologyConstraint[
         if newrootnode == net.root
             newrootfound = false
         end
-        # Check 2: Rooting isn't inside contraint
+        # Check 2: Rooting isn't inside contraint group
         if newrootfound == true # the new root passes above tests
             for con in constraints
-                if isdescendant(net.edge[con.edgenum], newrootnode)
+                if isdescendant(net.edge[con.edgenum], newrootnode) # uses current rooting
                     newrootfound = false
                     break # break out of for loop
                 end

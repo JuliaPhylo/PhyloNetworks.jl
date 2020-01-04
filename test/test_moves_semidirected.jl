@@ -474,7 +474,7 @@ end # of testset on constrained NNI moves
 str_level1_s = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" # indviduals S1A S1B S1C go on leaf 1
 net = readTopology(str_level1_s)
 
-@test !isnothing(PhyloNetworks.randomlyupdateroot!(net)) # there are possible rerootings
+@test !isnothing(PhyloNetworks.randomlyupdaterootonnode!(net)) # there are possible rerootings
 
 #TODO test with constraints
 

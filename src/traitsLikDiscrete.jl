@@ -776,6 +776,7 @@ function check_matchtaxonnames!(species::AbstractVector, dat::AbstractVector, ne
     net = deepcopy(net)
     if !isempty(indnotindat)
         @warn "the network contains taxa with no data: those will be pruned"
+        @show [netlab[i] for i in indnotindat] #debug 
         for i in indnotindat
             deleteleaf!(net, netlab[i])
         end
@@ -1123,10 +1124,11 @@ function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::B
     lengthmax::Float64)
     counter = [0]
     function loglikfunBL(lengths::Vector{Float64}, grad::Vector{Float64}) # modifies obj
+        @show "entering loglikfunBL"
         counter[1] += 1
         setlengths!(edges, lengths)
         res = discrete_corelikelihood!(obj)
-        verbose && println("loglik: $res, rate variation model shape parameter alpha: $(alpha[1])")
+        verbose && println("loglik: $res, branch lengths: $(lengths)")
         length(grad) == 0 || error("gradient not implemented")
         return res
     end
@@ -1143,7 +1145,6 @@ function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::B
     # NLopt.maxtime!(optBL, t::Real)
     #? What do we want to set as edge length min and max? 0 and ?
     NLopt.lower_bounds!(optBL, zeros(Float64, nparBL))
-    NLopt.upper_bounds!(optBL, fill(lengthmax, (nparBL,)) ) # delete to remove upper bound
     counter[1] = 0
     NLopt.max_objective!(optBL, loglikfunBL)
     fmax, xmax, ret = NLopt.optimize(optBL, getlengths(edges)) # optimization here!
@@ -1167,7 +1168,7 @@ function optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzi
         counter[1] += 1
         setgammas!(edges, gammas)
         res = discrete_corelikelihood!(obj)
-        verbose && println("loglik: $res, rate variation model shape parameter alpha: $(alpha[1])")
+        verbose && println("loglik: $res, gammas: $(gammas)")
         length(grad) == 0 || error("gradient not implemented")
         return res
     end
