@@ -1060,7 +1060,7 @@ function startingBL!(net::HybridNetwork,
 end
 
 """
-    localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool, lengthmax::Float64)
+    localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool)
 
 Optimize branch lengths in `net` locally around `edge`. Update all edges that 
 share a node with `edge` (including itself). 
@@ -1069,7 +1069,7 @@ Return vector of updated `edges`.
 
 Used after `nni!` or `addhybridedge!` moves to update local branch lengths.
 """
-function localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool, lengthmax::Float64)
+function localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool)
     edges = Edge[]
     for n in edge.node
         for e in n.edge # all edges that share a node with `edge` (including self)
@@ -1077,7 +1077,7 @@ function localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool, lengthm
         end
     end # TODO update verbose to false after debugging
     optimizeBL!(obj, net, edges, unzip, true, :LD_MMA, fRelBL, fAbsBL, xRelBL, 
-    xAbsBL, -0.4054651081081644, lengthmax)
+    xAbsBL) #TODO set this tolerance high to just do a rough optimization
     return edges
 end
 
@@ -1105,6 +1105,7 @@ function localgamma!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool)
             end
         end
     end #TODO update verbose to false after debugging
+    @show edges
     optimizegammas!(obj, net, edges, unzip, true, :LD_MMA, fRelBL, fAbsBL, xRelBL, 
     xAbsBL)
 end
@@ -1112,7 +1113,7 @@ end
 """
     optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::Bool, 
     verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64, ftolAbs::Float64, 
-    xtolRel::Float64, xtolAbs::Float64, lengthmin::Float64, lengthmax::Float64)
+    xtolRel::Float64, xtolAbs::Float64)
 
 Optimize branch lengths for edges in vector `edges`. 
 If `unzip = true`, constrain branch lengths to zero below hybrid edges. 
@@ -1120,8 +1121,7 @@ Return vector of updated `edges`.
 """
 function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::Bool, 
     verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64, 
-    ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64, lengthmin::Float64, 
-    lengthmax::Float64)
+    ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64)
     counter = [0]
     function loglikfunBL(lengths::Vector{Float64}, grad::Vector{Float64}) # modifies obj
         @show "entering loglikfunBL"
@@ -1143,7 +1143,6 @@ function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::B
     NLopt.xtol_abs!(optBL,xtolAbs)
     NLopt.maxeval!(optBL,1000) # max number of iterations
     # NLopt.maxtime!(optBL, t::Real)
-    #? What do we want to set as edge length min and max? 0 and ?
     NLopt.lower_bounds!(optBL, zeros(Float64, nparBL))
     counter[1] = 0
     NLopt.max_objective!(optBL, loglikfunBL)
@@ -1165,6 +1164,7 @@ function optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzi
     xtolRel::Float64, xtolAbs::Float64)
     counter = [0]
     function loglikfungamma(gammas::Vector{Float64}, grad::Vector{Float64}) # modifies obj
+        @show "entering loglikfungamma"
         counter[1] += 1
         setgammas!(edges, gammas)
         res = discrete_corelikelihood!(obj)
@@ -1175,7 +1175,7 @@ function optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzi
     # set-up optimization object for gamma parameter
     NLoptMethod=:LN_COBYLA # no gradient
     # :LN_COBYLA for (non)linear constraits, :LN_BOBYQA for bound constraints
-    npargamma = length(obj.net.hybrid)
+    npargamma = length(edges)
     optgamma = NLopt.Opt(NLoptMethod, npargamma)
     NLopt.ftol_rel!(optgamma,ftolRel) # relative criterion
     NLopt.ftol_abs!(optgamma,ftolAbs) # absolute criterion
@@ -1184,7 +1184,7 @@ function optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzi
     NLopt.maxeval!(optgamma,1000) # max number of iterations
     # NLopt.maxtime!(optgamma, t::Real)
     NLopt.lower_bounds!(optgamma, zeros(Float64, npargamma))
-    NLopt.upper_bounds!(optgamma, ones(Float64, npargamma))
+    #NLopt.upper_bounds!(optgamma, ones(Float64, npargamma))
     counter[1] = 0
     NLopt.max_objective!(optgamma, loglikfungamma)
     fmax, xmax, ret = NLopt.optimize(optgamma, getgammas(edges)) # optimization here!
@@ -1242,4 +1242,20 @@ function symboltomodel(net::HybridNetwork, modsymbol::Symbol, data::DataFrame,
     else
         error("model $modsymbol is unknown or not implemented yet")
     end
+end
+
+"""
+    hashybridladder(net::HybridNetwork)
+
+Return true if network contains hybrid ladder, making it a non-treechild network. 
+"""
+function hashybridladder(net::HybridNetwork)
+    hybridladder = false
+    for h in net.hybrid
+        if any([n.hybrid for n in PhyloNetworks.getParents(h)])
+            hybridladder = true
+            break
+        end
+    end
+    return hybridladder
 end

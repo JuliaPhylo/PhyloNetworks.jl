@@ -615,6 +615,13 @@ end #of testing fit! functions for full network optimization
 
 end # of nested testsets
 
+@testset "local branch length and gamma optimization with localgamma! localBL! with simple example" begin
+net_dat = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
+dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"])
+simple_SSM = PhyloNetworks.datatoSSM(net_dat, fastafile, :JC69)
+# TODO make this simpler example work first
+end
+
 @testset "local branch length and gamma optimization with localgamma! localBL! with 8 sites" begin
 # fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_8sites.aln") # 8 sites only
 fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "Ae_bicornis_8sites.aln"))
@@ -632,14 +639,14 @@ obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69);
 ## Local BL: unzip = true
 lengthe = obj.net.edge[35].length
 lengthep = obj.net.edge[35].node[1].edge[1].length
-@test typeof(PhyloNetworks.localBL!(obj, obj.net, obj.net.edge[35], true, 2.0)) == Vector{PhyloNetworks.Edge}
+@test typeof(PhyloNetworks.localBL!(obj, obj.net, obj.net.edge[35], true)) == Vector{PhyloNetworks.Edge}
 @test obj.net.edge[35].length != lengthe
 @test obj.net.edge[35].node[1].edge[1].length != lengthep
 
 ## Local BL: unzip = false
 lengthe = obj.net.edge[12].length
 lengthep = obj.net.edge[12].node[1].edge[1].length
-@test typeof(PhyloNetworks.localBL!(obj, obj.net, obj.net.edge[12], false, 2.0)) == Vector{PhyloNetworks.Edge}
+@test typeof(PhyloNetworks.localBL!(obj, obj.net, obj.net.edge[12], false)) == Vector{PhyloNetworks.Edge}
 @test obj.net.edge[12].length != lengthe
 @test obj.net.edge[12].node[1].edge[1].length != lengthep
 
@@ -676,3 +683,12 @@ obj = PhyloNetworks.datatoSSM(obj.net, fastafile, :JC69);
 @test PhyloNetworks.getMajorParentEdge(obj.net.hybrid[1]).gamma != 0.6
 @test PhyloNetworks.getMinorParentEdge(obj.net.hybrid[1]).gamma != 0.4
 end
+
+@testset "hashybridladder" begin
+str_tree = "(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);";
+tree = readTopology(str_tree)
+@test !hashybridladder(tree)
+PhyloNetworks.addhybridedge!(tree, tree.edge[5], tree.edge[1], true)
+PhyloNetworks.addhybridedge!(tree, tree.edge[2], tree.edge[1], true)
+@test hashybridladder(tree)
+end # of testing hashybridladder
