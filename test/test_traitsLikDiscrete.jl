@@ -616,13 +616,41 @@ end #of testing fit! functions for full network optimization
 end # of nested testsets
 
 @testset "local branch length and gamma optimization with localgamma! localBL! with simple example" begin
-net_dat = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
-dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"])
-simple_SSM = PhyloNetworks.datatoSSM(net_dat, fastafile, :JC69)
-# TODO make this simpler example work first
+net_simple = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
+fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "simple.aln"))
+obj = PhyloNetworks.datatoSSM(net_simple, fastafile, :JC69)
+
+## Local BL: unzip = true
+lengthe = obj.net.edge[4].length
+lengthep = obj.net.edge[4].node[1].edge[1].length
+@test typeof(PhyloNetworks.localBL!(obj, obj.net, obj.net.edge[4], true)) == Vector{PhyloNetworks.Edge}
+@test obj.net.edge[4].length != lengthe
+@test obj.net.edge[4].node[1].edge[1].length != lengthep
+
+## Local BL: unzip = false
+lengthe = obj.net.edge[5].length
+lengthep = obj.net.edge[5].node[1].edge[1].length
+@test typeof(PhyloNetworks.localBL!(obj, obj.net, obj.net.edge[5], false)) == Vector{PhyloNetworks.Edge}
+@test obj.net.edge[5].length != lengthe
+@test obj.net.edge[5].node[1].edge[1].length != lengthep
+
+## Local Gamma: unzip = true
+hybridmajorparent = PhyloNetworks.getMajorParentEdge(obj.net.hybrid[1])
+@test typeof(PhyloNetworks.localgamma!(obj, obj.net, hybridmajorparent, true)) == Vector{PhyloNetworks.Edge}
+@test hybridmajorparent.gamma != 0.9
+@test PhyloNetworks.getMinorParentEdge(obj.net.hybrid[1]).gamma != 0.1
+
+## Local Gamma: unzip = false
+obj = PhyloNetworks.datatoSSM(net_simple, fastafile, :JC69)
+@test typeof(PhyloNetworks.localgamma!(obj, obj.net, hybridmajorparent, false)) == Vector{PhyloNetworks.Edge}
+@test hybridmajorparent.gamma != 0.9
+@test PhyloNetworks.getMinorParentEdge(obj.net.hybrid[1]).gamma != 0.1
 end
 
 @testset "local branch length and gamma optimization with localgamma! localBL! with 8 sites" begin
+#TODO something is wrong with this network -- the reticulations dont make sense after
+# its been pruned down to only nodes with data.
+
 # fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_8sites.aln") # 8 sites only
 fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "Ae_bicornis_8sites.aln"))
 dna_dat, dna_weights = readfastatodna(fastafile, true); # 22 species, 3 hybrid nodes, 103 edges

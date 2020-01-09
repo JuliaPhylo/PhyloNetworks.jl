@@ -1073,7 +1073,9 @@ function localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool)
     edges = Edge[]
     for n in edge.node
         for e in n.edge # all edges that share a node with `edge` (including self)
-            push!(edges, e)
+            if !(e in edges)
+                push!(edges, e)
+            end
         end
     end # TODO update verbose to false after debugging
     optimizeBL!(obj, net, edges, unzip, true, :LD_MMA, fRelBL, fAbsBL, xRelBL, 
@@ -1105,7 +1107,6 @@ function localgamma!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool)
             end
         end
     end #TODO update verbose to false after debugging
-    @show edges
     optimizegammas!(obj, net, edges, unzip, true, :LD_MMA, fRelBL, fAbsBL, xRelBL, 
     xAbsBL)
 end
@@ -1124,7 +1125,6 @@ function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::B
     ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64)
     counter = [0]
     function loglikfunBL(lengths::Vector{Float64}, grad::Vector{Float64}) # modifies obj
-        @show "entering loglikfunBL"
         counter[1] += 1
         setlengths!(edges, lengths)
         res = discrete_corelikelihood!(obj)
@@ -1164,7 +1164,6 @@ function optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzi
     xtolRel::Float64, xtolAbs::Float64)
     counter = [0]
     function loglikfungamma(gammas::Vector{Float64}, grad::Vector{Float64}) # modifies obj
-        @show "entering loglikfungamma"
         counter[1] += 1
         setgammas!(edges, gammas)
         res = discrete_corelikelihood!(obj)
