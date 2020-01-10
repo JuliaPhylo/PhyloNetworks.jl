@@ -282,7 +282,7 @@ function removehybridedge!(net::HybridNetwork, node::Node, minor::Bool, blacklis
             end
         end
         hybindex = findfirst([e.hybrid for e in other2.edge]);
-        hybindex != nothing || error("didn't find hybrid edge in other2")
+        hybindex !== nothing || error("didn't find hybrid edge in other2")
         if(hybindex == 1)
             treeedge1 = other2.edge[2];
             treeedge2 = other2.edge[3];
@@ -353,4 +353,5 @@ function removehybridedge!(net::HybridNetwork, node::Node, minor::Bool, blacklis
         deleteNode!(net,other1)
         deleteEdge!(net,otheredge)
     end
+    return net
 end

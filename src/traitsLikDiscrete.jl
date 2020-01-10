@@ -776,7 +776,6 @@ function check_matchtaxonnames!(species::AbstractVector, dat::AbstractVector, ne
     net = deepcopy(net)
     if !isempty(indnotindat)
         @warn "the network contains taxa with no data: those will be pruned"
-        @show [netlab[i] for i in indnotindat] #debug 
         for i in indnotindat
             deleteleaf!(net, netlab[i])
         end
@@ -1077,9 +1076,9 @@ function localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool)
                 push!(edges, e)
             end
         end
-    end # TODO update verbose to false after debugging
-    optimizeBL!(obj, net, edges, unzip, true, :LD_MMA, fRelBL, fAbsBL, xRelBL, 
-    xAbsBL) #TODO set this tolerance high to just do a rough optimization
+    end 
+    optimizeBL!(obj, net, edges, unzip, false, :LD_MMA, fRelBL, fAbsBL, xRelBL, 
+    xAbsBL) #TODO set this tolerance high to just a rough optimization
     return edges
 end
 
@@ -1257,4 +1256,80 @@ function hashybridladder(net::HybridNetwork)
         end
     end
     return hybridladder
+end
+
+# optimization wrapper functions #
+
+"""
+    optimizestructure(obj::SSM, hybridpercent::Float64, maxmoves::Int64, 
+    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool, 
+    constraints=TopologyConstraint[]::Vector{TopologyConstraint})  
+
+Alternate nni moves and hybrid moves in a user-provided ratio. Optimizes local 
+branch lengths and hybrid gammas after each move. Return object.
+
+`hybridpercent` gives percent of hybrid moves to be performed out of all moves.
+Must be between 0 and 1.
+`maxhybrid` gives the maximum number of hybrids in a network.
+
+Assumptions:
+- starts with a network without 2- and 3- cycles
+
+note: when removing a hybrid edge, always removes the minor edge.
+"""
+function optimizestructure(obj::SSM, hybridpercent::Float64, maxmoves::Int64, 
+    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool, 
+    constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    moves = 0
+    while moves <= maxmoves
+        #choose nni or hybrid randomly using user-given proportion
+        hybridpercent > 0 && hybridpercent < 1 || error("hybrid percent must be between 0 and 1.")
+        nni = (rand() > hybridpercent) # if true, performs nni move
+        if nni
+            # choose interior edge randomly
+            edgefound = false
+            blacklist = Array{Array{Edge, 1}, 1}()
+            while !edgefound 
+                if length(blacklist) == length(obj.net.edge)
+                    error("there are no nni moves possible in this network.")
+                end
+                eindex = Random.randperm(length(obj.net.edge))[1] 
+                if !getChild(obj.net.edge[eindex]).leaf # e1 is an interior edge
+                    global e1 = obj.net.edge[eindex]
+                    # perform move
+                    undoinfo = nni!(obj.net, e1, no3cycle, constraints)
+                    if !isnothing(undoinfo)
+                        moves += 1
+                        edgefound = true
+                    else # if move is unsuccessful, look for another edge until successful
+                        push!(blacklist, e1)
+                    end
+                else 
+                    push!(blacklist, e1)
+                end
+            end
+        else # perform hybrid move
+            # add or remove hybrid with 50% probability
+            add = (rand() > 0.5) # if true, attempts to add new hybrid
+            if add && length(obj.net.hybrid) < maxhybrid
+                net, newhybridnode = addhybridedge!(obj.net, nohybridladder, constraints)
+                moves += 1
+                e1 = getMinorParentEdge(newhybridnode)
+                #? for a hybrid move, should we optimize edges around both new nodes?
+                #? or just edges around the new hybrid edge? (as above)
+            elseif length(obj.net.hybrid) > 0 # delete hybrid
+                hybridindex = Random.randperm(length(obj.net.hybrid))[1]
+                e1 = getMajorParentEdge(obj.net.hybrid[hybridindex])
+                removehybridedge!(obj.net, obj.net.hybrid[hybridindex], true, false)
+                moves += 1
+            else
+                error("cannot perform a hybrid move because the network has reached max number of hybridizations or there are no hybrids to remove")
+            end
+        end
+        # optimize localBL! and localgamma! around chosen edge
+        localBL!(obj, obj.net, e1, unzip)
+        # TODO fix localgamma bug then uncomment 
+        # localgamma!(obj, obj.net, e1, unzip)
+    end
+    return obj
 end
