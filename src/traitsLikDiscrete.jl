@@ -1142,7 +1142,7 @@ function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::B
     NLopt.xtol_abs!(optBL,xtolAbs)
     NLopt.maxeval!(optBL,1000) # max number of iterations
     # NLopt.maxtime!(optBL, t::Real)
-    NLopt.lower_bounds!(optBL, zeros(Float64, nparBL))
+    # NLopt.lower_bounds!(optBL, zeros(Float64, nparBL))
     counter[1] = 0
     NLopt.max_objective!(optBL, loglikfunBL)
     fmax, xmax, ret = NLopt.optimize(optBL, getlengths(edges)) # optimization here!
@@ -1261,15 +1261,16 @@ end
 # optimization wrapper functions #
 
 """
-    optimizestructure(obj::SSM, hybridpercent::Float64, maxmoves::Int64, 
-    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool, 
+    optimizestructure!(obj::SSM, hybridpercent::Float64, maxmoves::Int64, 
+    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
     constraints=TopologyConstraint[]::Vector{TopologyConstraint})  
 
-Alternate nni moves and hybrid moves in a user-provided ratio. Optimizes local 
+Alternate nni moves, hybrid moves, and root changes in a user-provided ratio. Optimizes local 
 branch lengths and hybrid gammas after each move. Return object.
 
-`hybridpercent` gives percent of hybrid moves to be performed out of all moves.
-Must be between 0 and 1.
+`movepercentages` is a vector of percents, giving the percent of nni moves, 
+percent of hybrid moves, and root changes to be performed out of all moves.
+Must sum to 1.
 `maxhybrid` gives the maximum number of hybrids in a network.
 
 Assumptions:
@@ -1277,25 +1278,27 @@ Assumptions:
 
 note: when removing a hybrid edge, always removes the minor edge.
 """
-function optimizestructure(obj::SSM, hybridpercent::Float64, maxmoves::Int64, 
-    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool, 
+function optimizestructure!(obj::SSM, movepercentages::Vector{Float64}, maxmoves::Int64, 
+    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
     constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     moves = 0
+    movetype = "none"
     while moves <= maxmoves
-        #choose nni or hybrid randomly using user-given proportion
-        hybridpercent > 0 && hybridpercent < 1 || error("hybrid percent must be between 0 and 1.")
-        nni = (rand() > hybridpercent) # if true, performs nni move
-        if nni
+        #choose nni, hybrid or root change randomly using user-given proportions
+        sum(movepercentages) == 1 || error("The vector of move percentages must sum to one.")
+        movechoice = rand()
+        if movechoice >= movepercentages[2]
+            movetype = "nni"
             # choose interior edge randomly
             edgefound = false
-            blacklist = Array{Array{Edge, 1}, 1}()
+            blacklist = Edge[]
             while !edgefound 
                 if length(blacklist) == length(obj.net.edge)
                     error("there are no nni moves possible in this network.")
                 end
                 eindex = Random.randperm(length(obj.net.edge))[1] 
                 if !getChild(obj.net.edge[eindex]).leaf # e1 is an interior edge
-                    global e1 = obj.net.edge[eindex]
+                    e1 = obj.net.edge[eindex]
                     # perform move
                     undoinfo = nni!(obj.net, e1, no3cycle, constraints)
                     if !isnothing(undoinfo)
@@ -1305,10 +1308,11 @@ function optimizestructure(obj::SSM, hybridpercent::Float64, maxmoves::Int64,
                         push!(blacklist, e1)
                     end
                 else 
-                    push!(blacklist, e1)
+                    push!(blacklist, obj.net.edge[eindex])
                 end
             end
-        else # perform hybrid move
+        elseif movechoice >= movepercentages[1] # perform hybrid move
+            movetype = "hybrid"
             # add or remove hybrid with 50% probability
             add = (rand() > 0.5) # if true, attempts to add new hybrid
             if add && length(obj.net.hybrid) < maxhybrid
@@ -1323,13 +1327,23 @@ function optimizestructure(obj::SSM, hybridpercent::Float64, maxmoves::Int64,
                 removehybridedge!(obj.net, obj.net.hybrid[hybridindex], true, false)
                 moves += 1
             else
-                error("cannot perform a hybrid move because the network has reached max number of hybridizations or there are no hybrids to remove")
+                error("Cannot perform a hybrid move because the network has reached max number of hybridizations or there are no hybrids to remove.")
+            end
+        else # perform root change
+            movetype = "root"
+            changednet = randomlyupdaterootonnode!(obj.net, constraints)
+            if !isnothing(changednet)
+                moves +=1
+            else
+                error("Cannot perform a root change move. Rerun with root change percentage at zero.")
             end
         end
         # optimize localBL! and localgamma! around chosen edge
         localBL!(obj, obj.net, e1, unzip)
         # TODO fix localgamma bug then uncomment 
         # localgamma!(obj, obj.net, e1, unzip)
+        
+        verbose && println("loglik = $(loglikelihood(obj)) after movetype $movetype and $moves total moves")
     end
     return obj
 end
