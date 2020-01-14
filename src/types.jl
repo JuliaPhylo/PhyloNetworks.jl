@@ -89,8 +89,9 @@ end
 # warning: gammaz, inCycle, isBadTriangle/Diamond updated until the node is part of a network
 """
     Node(number, leaf)
+    Node(number, leaf, hybrid)
 
-Data structure for an edge and its various attributes. Most notably:
+Data structure for a node and its various attributes. Most notably:
 
 - `number` (integer): serves as unique identifier;
   remains unchanged when the network is modified,
@@ -98,7 +99,7 @@ Data structure for an edge and its various attributes. Most notably:
 - `leaf` (boolean): whether the node is a leaf (with data typically) or an
   internal node (no data typically)
 - `name` (string): taxon name for leaves; internal node may or may not have a name
-- `edge`: vector of [`Edge`]s that the node is attached to;
+- `edge`: vector of [`Edge`](@ref)s that the node is attached to;
   1 if the node is a leaf, 2 if the node is the root, 3 otherwise, and
   potentially more if the node has a polytomy
 - `hybrid` (boolean): whether the node is a hybrid node (with 2 or more parents)
@@ -173,8 +174,8 @@ abstract type Network end
 Subtype of abstract `Network` type.
 Explicit network or tree with the following attributes:
 
-- numTaxa
-- numNodes (total number of nodes)
+- numTaxa (taxa are tips, i.e. nodes attached to a single edge)
+- numNodes (total number of nodes: tips and internal nodes)
 - numEdges
 - numHybrids (number of hybrid nodes)
 - edge (array of Edges)
@@ -182,7 +183,7 @@ Explicit network or tree with the following attributes:
 - root (index of root in vector 'node'. May be artificial, for printing and traversal purposes only.)
 - hybrid (array of Nodes: those are are hybrid nodes)
 - leaf (array of Nodes: those that are leaves)
-- loglik (negative log pseudolik after estimation)
+- loglik (score after fitting network to data, i.e. negative log pseudolik for SNaQ)
 - isRooted (true or false)
 """
 mutable struct HybridNetwork <: Network

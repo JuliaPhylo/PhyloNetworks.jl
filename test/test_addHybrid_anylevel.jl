@@ -15,7 +15,7 @@ tree = readTopology(str_tree)
 @test tree.numHybrids == 2
 @test !any([n.hybrid for n in PhyloNetworks.getParents(tree.hybrid[2])]) # tests if network is treechild
 
-str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" 
+str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 net_level1 = readTopology(str_level1)
 @test !isnothing(PhyloNetworks.addhybridedge!(net_level1, true)) # should be able to add a hybrid
 @test net_level1.numHybrids == 3
@@ -27,7 +27,7 @@ net_level1 = readTopology(str_level1)
 end # of addhybridedge! top function
 
 @testset "addhybridedge! helper function" begin
-str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" 
+str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 net_level1 = readTopology(str_level1)
 
 # ALLOWED MOVES
@@ -56,13 +56,13 @@ net_level1 = readTopology(str_level1);
 net_level1 = readTopology(str_level1); # case 3 (good hybrid edge choice leads to a DAG)
 @test !isnothing(PhyloNetworks.addhybridedge!(net_level1, net_level1.edge[6], net_level1.edge[20], false))
 
-# NEW HYBRID INTO AN EXISTING HYBRID EDGE 
+# NEW HYBRID INTO AN EXISTING HYBRID EDGE
 net_level1 = readTopology(str_level1);
 @test !isnothing(PhyloNetworks.addhybridedge!(net_level1, net_level1.edge[9], net_level1.edge[10], false))
 end # of addhybridedge! helper function
 
 @testset "edge checking functions" begin
-str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" 
+str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 net_level1 = readTopology(str_level1)
 
 # 3-CYCLE ERRORS
@@ -78,29 +78,21 @@ net_level1 = readTopology(str_level1);
     # throws error if edge 1 is a directed descendant of edge 2
 net_level1 = readTopology(str_level1);
 # case 6
-@test PhyloNetworks.directionalconflict(net_level1, net_level1.edge[6], net_level1.edge[15], true) 
+@test PhyloNetworks.directionalconflict(net_level1, net_level1.edge[6], net_level1.edge[15], true)
 # case 2
 @test PhyloNetworks.directionalconflict(net_level1, net_level1.edge[6], net_level1.edge[18], true)
 # case 3 (bad hybrid edge choice leads to a nonDAG)
-@test PhyloNetworks.directionalconflict(net_level1, net_level1.edge[6], net_level1.edge[20], true) 
+@test PhyloNetworks.directionalconflict(net_level1, net_level1.edge[6], net_level1.edge[20], true)
 end # of edge checking functions
 
 @testset "delete a hybridization" begin
-str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" 
+str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 
 net = readTopology(str_level1)
 net, newhybridnode = PhyloNetworks.addhybridedge!(net, net.edge[3], net.edge[9], true)
 # deletes hybrid, adds to blacklist $(treeedge1.number)
-PhyloNetworks.removehybridedge!(net, newhybridnode, true, true)
+PhyloNetworks.deletehybridedge!(net, getMinorParentEdge(newhybridnode))
 @test net.numHybrids == 2
 @test 9 in net.blacklist # edge 9 should be in blacklist
 
-net = readTopology(str_level1)
-net, newhybridnode = PhyloNetworks.addhybridedge!(net, net.edge[3], net.edge[9], true)
-# deletes hybrid, does not add to blacklist
-PhyloNetworks.removehybridedge!(net, newhybridnode, true, false)
-@test net.numHybrids == 2
-@test !(9 in net.blacklist) # edge 9 should not be in blacklist
 end # of delete a hybridization
-
-

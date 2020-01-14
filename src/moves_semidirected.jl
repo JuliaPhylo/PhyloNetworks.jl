@@ -1,14 +1,26 @@
 #=
-move types:
- - NNI = nearest neighbor interchange, as defined in
-   Gambette, van Iersel, Jones, Lafond, Pardi and Scornavacca (2017).
-   Rearrangement moves on rooted phylogenetic networks.
-   PLOS Computational Biology 13(8):e1005611.
- - change the direction of a hybrid edge
- - add or remove a hybrid edgeconstrained to user-defined 
- topological constraints (like an outgroup) (in addHybrid_anylevel.jl)
+constraints:
+- clades in the major tree (type 1), or
+- species groups e.g. as polytomies (type 2), or
+- clades in *some* displayed tree (type 3, not implemented).
+outgroups "grades" can be coded as ingroup clades
 
-in `moves.jl`, functions are tailored to level-1 networks;
+move types, all under topological constraints:
+- NNI = nearest neighbor interchange for undirected network,
+  similar to NNIs for rooted networks defined in
+  Gambette, van Iersel, Jones, Lafond, Pardi and Scornavacca (2017),
+  Rearrangement moves on rooted phylogenetic networks.
+  PLOS Computational Biology 13(8):e1005611.
+- move the root: needed for optimization of a semi-directed network,
+  because the root position affects the feasibility of the
+  NNIs starting from a BR configuration (bifurcation -> reticulation).
+
+- remove a hybrid edge: `deletehybridedge!` in file deleteHybrid.jl,
+  but does not check for clade constraints
+- add a hybrid edge: in file addHybrid_anylevel.jl
+- change the direction of a hybrid edge
+
+in `moves_snaq.jl`, functions are tailored to level-1 networks;
 here, functions apply to semidirected networks of all levels.
 =#
 
@@ -17,97 +29,120 @@ Type for various topological constraints, such as:
 
 1. a set of taxa forming a clade in the major tree
 2. a set of individuals belonging to the same species
-    if u or v in a list of clade constraints where u or v is the node at top of star, then don't
-        allow nni and return nothing
 3. a set of taxa forming a clade in any one of the displayed trees
 """
 struct TopologyConstraint
     "type of constraint: 2 (Types 1 and 3 not yet implemented.)"
     type::UInt8
-    "names of taxa in the constraint (clade / species / outgroup members)"
+    "names of taxa in the constraint (clade / species members)"
     taxonnames::Vector{String}
     """
-    node numbers of taxa in the constraint (clade / species / outgroup members).
-    warning: interpretation will be network-dependent.
+    node numbers of taxa in the constraint (clade / species members).
+    warning: interpretation dependent on the internal network representation
     """
     taxonnums::Set{Int}
-    "number of the stem edge of the constrained group"
-    edgenum::Int
-    "child node of stem edge"
-    nodenum::Int
-    "for species constraints, name of species"
-    speciesname::String
+    "stem edge of the constrained group"
+    edge::Edge
+    "crown node, that is, child node of stem edge"
+    node::Node
 end
 
 """
     TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::HybridNetwork)
 
 Create a topology constraint from user-given type, taxon names, and network.
+There are 3 types of constraints:
 
-Warning: 
-Currently prevents hybridizations from being added in or out of a species group.
-For clades, may need to recalculate nodenum and edgenum if adding hybridizations within clade
+- type 1: A set of tips that forms a clade in the major tree.
+  Note that the root matters. Constraining a set of species to be an outgroup
+  is equivalent to constraining the ingroup to form a clade.
+- type 2: A set of tips that forms a species.
+- type 3: A set of tips that forms a clade in any one of the displayed trees.
+
+Note: currently, with type-2 constraints, hybridizations are prevented
+from coming into or going out of a species group.
 
 ```jldoctest
-julia> str_individual_level_net = "(((8,9),(((((1A,1B,1C),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));"
-
-julia> net_individual_level_net = readTopology(str_individual_level_net)
+julia> net = readTopology("(((8,9),(((((1A,1B,1C),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));")
 HybridNetwork, Rooted Network
 23 edges
 22 nodes: 10 tips, 2 hybrid nodes, 10 internal tree nodes.
 tip labels: 8, 9, 1A, 1B, ...
 (((8,9),(((((1A,1B,1C),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));
 
-c_species = PhyloNetworks.TopologyConstraint(0x02, ["1A", "1B", "1C"], net_individual_level_net, "1")
+julia> c_species = PhyloNetworks.TopologyConstraint(0x02, ["1A", "1B", "1C"], net)
 PhyloNetworks.TopologyConstraint(0x02, ["1A", "1B", "1C"], Set([4, 3, 5]), 7, -9, "1")
 
-julia> isnothing(PhyloNetworks.nni!(net_individual_level_net , net_individual_level_net.edge[4], [c_species]))
+julia> isnothing(PhyloNetworks.nni!(net , net.edge[4], [c_species]))
 true
 ```
 """
-function TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::HybridNetwork, 
-    speciesname="na"::String)
+function TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::HybridNetwork)
 
-    if length(taxonnames) < 2
-        error("For a clade or species constraint, there must be more than one taxon name given.")
-    end    
+    ntax_clade = length(taxonnames)
+    ntax_clade >= 2 ||
+        error("there must be 2 or more taxon name in a clade or species constraint.")
     taxonnums = Set{Int}()
-    indices = findall(in(taxonnames), [n.name for n in net.leaf]) 
-    length(indices) == length(taxonnames) || error("taxa cannot be matched to node numbers. Check for typos.")
+    indices = findall(in(taxonnames), [n.name for n in net.leaf])
+    length(indices) == ntax_clade || error("taxa cannot be matched to nodes. Check for typos.")
     #? remove or use as check? taxonnames = Set(net.leaf[i].name for i in indices)
     outsideclade = setdiff([n.name for n in net.leaf], taxonnames)
-    for (i,taxa) in enumerate(taxonnames)
-        index = findfirst(isequal(taxa), [n.name for n in net.leaf])
-        !isnothing(index) || error("taxon $taxa cannot be matched to node numbers. Check for typos.")
+    # find the set of node numbers that correspond to taxonnames
+    for (i,taxon) in enumerate(taxonnames)
+        index = findfirst(n -> n.name == taxon, net.leaf)
+        !isnothing(index) || error("taxon $taxon is not found in the network. Check for typos.")
         push!(taxonnums, net.leaf[index].number) # note: not ordered as in taxonnames
     end
-    matrix = hardwiredClusters(majorTree(net), vcat(taxonnames, outsideclade)) # get interior ancestor edges in major tree (no hybrids) 
+    # get interior ancestor edges in major tree (no hybrids)
+    matrix = hardwiredClusters(majorTree(net), vcat(taxonnames, outsideclade))
     # look for row with ones in relevant columns, zeros everywhere else (or zeros there and ones everywhere else)
-    # create comparitor
-    edgenum = 0
+    edgenum = 0 # 0 until we find the stem edge
     comparator = zeros(Int8, size(matrix)[2]-2)
-    comparator[1:length(taxonnames)] = ones(Int8, length(taxonnames))
+    comparator[1:ntax_clade] = ones(Int8, ntax_clade)
     # go through matrix row by row to find match with comparator. Return number
-    for i in 1:size(matrix)[1]
-        if matrix[i,2:size(matrix)[2]-1] == comparator
-            # found the mrca!
+    for i in 1:size(matrix, 1)
+        if matrix[i,2:size(matrix)[2]-1] == comparator # found the mrca!
             edgenum = matrix[i, 1]
             break
         end
     end
     if edgenum == 0
-        opp_comparator = ones(Int8, size(matrix)[2]-2)
-        comparator[1:length(taxonnames)] = zeros(Int8, length(taxonnames))
+        comparator .= 1 .- comparator
         for i in 1:size(matrix)[1]
-            if matrix[i,2:size(matrix)[2]-1] == opp_comparator
-                error("The clade given is not rooted correctly, making it a grade instead of a clade. Modify the rooting of your network.")
+            if matrix[i,2:size(matrix)[2]-1] == comparator
+                error("""The clade given is not rooted correctly, making it a grade instead of a clade.
+                You can re-try after modifying the root of your network.""")
             end
         end
-        error("The taxa given are not a clade")
+        error("The taxa given do not form a clade in the network")
     end
-    mrcaedge = net.edge[edgenum] # TODO confirm that this indexing is always right.
-    nodenum = getChild(mrcaedge).number
-    TopologyConstraint(type, taxonnames, taxonnums, edgenum, nodenum, speciesname)
+    edgei = findfirst(e -> e.number == edgenum, net.edge)
+    edgei !== nothing || error("hmm. hardwiredClusters on the major tree got an edge number not in the network")
+    stemedge = net.edge[edgei]
+    mrcanode = getChild(stemedge)
+    TopologyConstraint(type, taxonnames, taxonnums, stemedge, mrcanode)
+end
+
+"""
+    iscladeviolated(network::HybridNetwork, cladeconstraints::Vector{TopologyConstraint})
+
+True if `network` violates one (or more) of the constraints of type 1
+(must be clades in the major tree).
+"""
+function iscladeviolated(net::HybridNetwork, constraints::Vector{TopologyConstraint})
+    for con in constraints # checks directionality of stem edge hasn't changed
+        if con.type == 1
+            getChild(con.edge) === con.node || return true
+            tree = majorTree(net)
+            tei = findfirst(e -> e.number == con.edge.number, tree.edge)
+            tei !== nothing ||
+                error("hmm. edge number $(con.edge.number) was not found in the network's major tree")
+            treeedge = tree.edge[tei]
+            des = descendants(treeedge) # vector of node numbers
+            Set(des) == con.taxonnums || return true
+        end
+    end
+    return false
 end
 
 #= TODO
@@ -119,8 +154,8 @@ end
 =#
 
 """
-    nni!(net::HybridNetwork, e::Edge, no3cycle::Bool, 
-    constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    nni!(net::HybridNetwork, e::Edge, no3cycle::Bool,
+         constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
 Attempt to perform a nearest neighbor interchange (NNI) around edge `e`,
 randomly chosen among all possible NNIs (e.g 3, sometimes more depending on `e`)
@@ -150,18 +185,18 @@ information indicating how to undo the move or `nothing` if all NNIs failed.
 
 ```jldoctest
 # checks for 3cycle
-str_network = "(((S8,S9),(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
+julia> str_network = "(((S8,S9),(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
 
-net = readTopology(str_network);
-undoinfo = nni!(net, net.edge[3])
-nni!(undoinfo...)
-writeTopology(net) == str_network
+julia> net = readTopology(str_network);
+julia> undoinfo = nni!(net, net.edge[3])
+julia> nni!(undoinfo...)
+julia> writeTopology(net) == str_network
 true
 
 # does not check for 3cycle
-undoinfo = nni!(net, net.edge[3], no3cycle=false)
-nni!(undoinfo...)
-writeTopology(net) == str_network
+julia> undoinfo = nni!(net, net.edge[3], no3cycle=false)
+julia> nni!(undoinfo...)
+julia> writeTopology(net) == str_network
 true
 ```
 """
@@ -178,10 +213,12 @@ function nni!(net::HybridNetwork, e::Edge, no3cycle::Bool, constraints=TopologyC
     for nummove in nnis # iterate through all possible NNIs, but in random order
         moveinfo = nni!(net, e, nummove, no3cycle)
         !isnothing(moveinfo) || continue # to next possible NNI
-        if checknetwork(net, constraints) 
-            # TODO can we remove this since we're only using species constraints for now?
-            return moveinfo
-        else nni!(moveinfo...); end # undo the previous NNI, try again
+        if iscladeviolated(net, constraints)
+            nni!(moveinfo...) # undo the previous NNI
+            continue          # try again
+        end
+        # no need to check that species constraints are still met
+        return moveinfo
     end
     return nothing # if we get to this point, all NNIs failed
     # TODO go through case by case to make sure this is true in every case.
@@ -495,63 +532,54 @@ function problem4cycle(β::Node, δ::Node, α::Node, γ::Node)
     isconnected(β, δ) || isconnected(α, γ)
 end
 
-""" 
-    checkspeciesnetwork(network::HybridNetwork, cladeconstraints::TopologyConstraint)
+"""
+    checkspeciesnetwork(network::HybridNetwork, cladeconstraints::Vector{TopologyConstraint})
 
-Check user-provided species-level network for polytomies and unnecessary nodes 
-(nodes with degree two). Fuze edges at nodes with degree two.
+Check user-provided species-level network for polytomies and unnecessary nodes
+(nodes with degree two). Fuse edges at nodes with degree two.
 Return error for polytomies.
 """
-function checkspeciesnetwork(network::HybridNetwork, cladeconstraints::Vector{TopologyConstraint}) #? one or multiple in a vector?
-    for node in network.node
-        if length(node.edge) < 3 && !node.leaf && !(node == network.root)
-            fuseedgesat!(node,network)
-        elseif length(node.edge) > 3 #? allow polytomies at root?
-            error("node $node degree is too large: all interior nodes must have degree 3. A species level network is required.")
-            #if error, breaks to return error
+function checkspeciesnetwork(net::HybridNetwork, constraints::Vector{TopologyConstraint})
+    for n in net.node # check for no polytomies: all nodes should have up to 3 edges
+        if length(n.edge) > 3 # polytomies allowed at species constraints only
+            coni = findfirst(c -> c.type == 2 && c.node === n, constraints)
+            coni !== nothing ||
+                error("The network has a polytomy at node number $(n.number). Please resolve.")
         end
     end
-    # check if user-given clades violated by their own given network
-    # if the function runs to here, no errors above. return !cladesviolated()
-    return !cladesviolated(network, cladeconstraints)
-end
-
-# checknetwork for use in nni! function. Not currently used.
-function checknetwork(network::HybridNetwork, cladeconstraints::Vector{TopologyConstraint})
-    return !cladesviolated(network, cladeconstraints)
+    removedegree2nodes(net)
+    return !iscladeviolated(net, constraints)
 end
 
 """
-    cladesviolated(network::HybridNetwork, cladeconstraints::TopologyConstraint)
+    mapindividuals(net::HybridNetwork, mappingFile::String)
 
-Check if network violates user-given clade constraints. Return false if passes,
-return true if violates clades. Not currently used.
-"""
-function cladesviolated(net::HybridNetwork, cladeconstraints::Vector{TopologyConstraint})
-    for con in cladeconstraints # checks directionality of stem edge hasn't changed
-        if !(getChild(net.edge[con.edgenum]).number == con.nodenum) # root check
-            return true
-        end
-        #check that clades below the edge are correct
-    end
-    return false
-end
+Return a network expanded from `net`, where species listed in the mapping file
+are replaced by individuals mapped to that species.
+If a species has only 1 individual, the name of the leaf for that species is
+replaced by the name of its one individual representative.
+If a species has 2 or more individuals, the leaf for that species is
+expanded into a "star" (polytomy if 3 or more individuals) with a tip for each
+individual. If a species is in the network but not listed in the mapping file,
+the tip for that species is left as is. Species listed in the mapping file
+but not present in the network are ignored.
 
-"""
-    mapindividuals(network::HybridNetwork, mappingFile::String)
+The mapping file should be readable by `CSV.read` and contain two columns:
+one for the species names and one for the individual (or allele) names.
+fixit: make this function more flexible by accepting column names
 
-Identify individuals within species using a species-level tree and mapping csv file.
-Mapping file should provide individuals (two or more) belonging to 1 or more species. 
-Return tuple of individual-level network and species constraint(s).
+Output: individual-level network and vector of species constraint(s).
 
 ```jldoctest
-julia> str_species_net = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
+julia> species_net = readTopology("(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));");
 
-julia> species_net = readTopology(str_species_net);
+julia> filename = joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "mappingIndividuals.csv");
 
-julia> filename = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "mappingIndividuals.csv"));
+julia> # fixit: show the data in the mapping file
 
-julia> PhyloNetworks.mapindividuals(species_net, filename)
+julia> individual_net = PhyloNetworks.mapindividuals(species_net, filename);
+
+julia> writeTopology(individual_net, internallabel=true)
 (HybridNetwork, Rooted Network
 23 edges
 22 nodes: 10 tips, 2 hybrid nodes, 10 internal tree nodes.
@@ -567,27 +595,30 @@ function mapindividuals(net::HybridNetwork, mappingFile::String)
     constraints = TopologyConstraint[]
     for species in specieslist
         individuals = mappingDF[mappingDF.species .== species, 2]
-        if length(individuals) == 0
-            continue
-        end
-        addindividuals!(individualnet, species, individuals)
-        constraint = TopologyConstraint(0x02, mappingDF[mappingDF.species .== species, 2], 
-            individualnet, species)
-        push!(constraints, constraint)
+        res = addindividuals!(individualnet, species, individuals)
+        res === nothing || # nothing if species not found in the network, or 0,1 individuals
+            push!(constraints, res)
     end
     return individualnet, constraints
 end
 
 """
-    addindividuals!(net::HybridNetwork, species::AbstractString, individuals::Vector{String})
+    addindividuals!(net::HybridNetwork, species::AbstractString, individuals::Vector)
 
-Add individuals to their species leaf as a star. Called only through 
-mapindividuals function.
+Add individuals to their species leaf as a star, and return the
+corresponding species constraint. `nothing` is returned in 2 cases:
+
+- if `individuals` contains only 1 individual, in which case the
+  name of the leaf for that species is replaced by the name of
+  its one individual representative
+- if `species` is not found in the network
+
+Spaces in individuals' names are eliminated, see [`cleantaxonname`](@ref).
+
+Called by [`mapindividuals`](@ref).
 
 ```jldoctest
-julia> str_species_net = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
-
-julia> species_net = readTopology(str_species_net);
+julia> species_net = readTopology("(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));");
 
 julia> PhyloNetworks.addindividuals!(species_net, "S1", ["S1A", "S1B", "S1C"])
 HybridNetwork, Rooted Network
@@ -597,249 +628,78 @@ tip labels: S8, S9, S4, S5, ...
 (((S8,S9),(((((S1A,S1B,S1C),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));
 """
 function addindividuals!(net::HybridNetwork, species::AbstractString, individuals::Vector{String})
+    length(individuals) > 0 || return nothing
     species = strip(species)
-    isnothing(match(r"\s", species)) || error("Spaces in species name may cause errors in future network readability.")
     speciesnodeindex = findfirst(l -> l.name == species, net.node)
-    !isnothing(speciesnodeindex) || error("taxon $species cannot be matched to a node number. 
-    Check for typos in the species name.")
+    if speciesnodeindex === nothing
+        @warn "species $species not found in network (typo in mapping file?). will be ignored."
+        return nothing
+    end
+    if length(individuals) == 1 # change species name into name of individual representative
+        net.node[speciesnodeindex].name = cleantaxonname(individuals[1])
+        return nothing
+    end
+    # there are 2+ individuals: replace the species tip by a star, will need a species constraint
     for ind in individuals
-        ind = string(strip(ind))
-        isnothing(match(r"\s", ind)) || error("Spaces in individual names may cause errors in future network readability.")
-        addleaf!(net, net.node[speciesnodeindex], ind);
+        addleaf!(net, net.node[speciesnodeindex], cleantaxonname(ind));
     end
-    return net
+    return TopologyConstraint(0x02, individuals, net)
 end
 
 """
-    addleaf!(net::HybridNetwork, speciesnode::Node, ind::String, edgelength::Float64=-1.0)
+    cleantaxonname(taxonname::AbstractString)
 
-Add a new exterior edge and new leaf node to a specified node.
-
-```jldoctest
-julia> str_species_net = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
-
-julia> species_net = readTopology(str_species_net);
-
-julia> species_net.node[4]
-PhyloNetworks.Node:
- number:3
- name:S1
- attached to 2 edges, numbered: 4 21
-
-julia> PhyloNetworks.addleaf!(species_net, species_net.node[4], "1A")
-HybridNetwork, Rooted Network
-21 edges
-20 nodes: 8 tips, 2 hybrid nodes, 10 internal tree nodes.
-tip labels: S8, S9, S4, S5, ...
-(((S8,S9),(((((1A),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));
-
-
-julia> writeTopology(species_net, internallabel=true)
-"(((S8,S9),(((((1A)S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
-
-```
+Return a String with leading and trailing spaces removed, and interior spaces
+replaced by underscores: good for using as tip names in a network without
+causing future error when reading the newick description of the network.
 """
-function addleaf!(net::HybridNetwork, speciesnode::Node, ind::String, edgelength::Float64=-1.0)
-    # create connecting edge
-    exterioredge = Edge(maximum(e.number for e in net.edge) + 1, edgelength) # isChild1 = true by default in edge creation
-    pushEdge!(net, exterioredge)
-    setEdge!(speciesnode, exterioredge) 
-    if speciesnode.hybrid || (speciesnode != net.node[net.root] && !getMajorParentEdge(speciesnode).containRoot)
-        exterioredge.containRoot = false # TODO make sure exterior edges cannot contain root if they shouldn't
+function cleantaxonname(taxonname::AbstractString)
+    tname = string(strip(taxonname)) # SubString if we don't do string()
+    m = match(r"\s", tname)
+    if m !== nothing
+        @warn """Spaces in "$tname" may cause errors in future network readability: replaced by _"""
+        tname = replace(tname, r"\s+" => "_")
     end
-    # create individual's leaf
-    newleaf = Node(maximum(n.number for n in net.node) + 1, true, false, [exterioredge]) # Node(number::Int, leaf::Bool, hybrid::Bool, edge::Array{Edge,1})
-    newleaf.name = ind
-    # add nodes to exterior edge (see auxillary.jl)
-    setNode!(exterioredge, [newleaf, speciesnode])
-    if speciesnode.leaf 
-        deleteat!(net.leaf,findfirst(isequal(speciesnode), net.leaf))
-        speciesnode.leaf = false
-        net.numTaxa -= 1
-    end
-    pushNode!(net, newleaf) # push node into network (see auxillary.jl)
-    return net
+    return tname
 end
 
-"""
-    addleaf!(net::HybridNetwork, startingedge::Edge, ind::String, edgelength::Float64=-1.0)
-
-Add a new node on an edge. Attach a new exterior edge and new leaf node to this new node.
-
-```jldoctest
-julia> str_species_net = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
-
-julia> species_net = readTopology(str_species_net);
-
-julia> species_net.edge[4]
-PhyloNetworks.Edge:
- number:4
- length:-1.0
- attached to 2 node(s) (parent first): -8 3
-
-
-julia> PhyloNetworks.addleaf!(species_net, species_net.edge[4], "1C")
-HybridNetwork, Rooted Network
-22 edges
-21 nodes: 9 tips, 2 hybrid nodes, 10 internal tree nodes.
-tip labels: S8, S9, S1, S4, ...
-(((S8,S9),((((S4,(S1,1C)),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));
-
-
-julia> writeTopology(species_net, internallabel=true)
-"(((S8,S9),((((S4,(S1,1C)),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 
 """
-function addleaf!(net::HybridNetwork, startingedge::Edge, ind::String, edgelength::Float64=-1.0)
-    newnode, newedge = addnodeonedge!(net, startingedge, false, edgelength)
-    addleaf!(net, newnode, ind, edgelength)
-    return net
-end
+    moveroot!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
+Move the root to a randomly chosen non-leaf node that is different from
+the current root, and not within a constraint clade or species.
+Output: `true` if successul, `false` otherwise.
 """
-    addnodeonedge!(net::HybridNetwork, startingedge::Edge, hybrid::Bool, edgelength::Float64=-1.0)
-
-Add a new node on an existing starting edge. Return the new node and new edge in 
-a tuple.
-
-This function is used to add a leaf to an edge in the above addleaf! to edge 
-function. This function is also used to add hybrid edges to a network.
-
-New hybrid edge will be minor, with gamma between 0 and 0.5.
-
-```jldoctest
-julia> str_species_net = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
-
-julia> species_net = readTopology(str_species_net);
-
-julia> length(species_net.node)
-19
-
-julia> species_net.edge[4]
-PhyloNetworks.Edge:
- number:4
- length:-1.0
- attached to 2 node(s) (parent first): -8 3
-
-
- julia> PhyloNetworks.addnodeonedge!(species_net, species_net.edge[4], false)
- (PhyloNetworks.Node:
-  number:11
-  attached to 2 edges, numbered: 4 21
- , PhyloNetworks.Edge:
-  number:21
-  length:-1.0
-  attached to 2 node(s) (parent first): -8 11
- )
- 
- julia> length(species_net.node)
- 20
- 
- julia> species_net.edge[4].node
- 2-element Array{PhyloNetworks.ANode,1}:
-  PhyloNetworks.Node:
-  number:3
-  name:S1
-  leaf node
-  attached to 1 edges, numbered: 4
- 
-  PhyloNetworks.Node:
-  number:11
-  attached to 2 edges, numbered: 4 21
-"""
-
-function addnodeonedge!(net::HybridNetwork, startingedge::Edge, hybrid::Bool, edgelength::Float64=-1.0)
-    childnode = getChild(startingedge)
-    parentnode = getParent(startingedge)
-    # create new node
-    # bundle these together as addnodeonedge!()
-    # create new node, new edge, edit connections
-
-    newnode = Node(maximum(n.number for n in net.node) + 1, false, false, [startingedge])
-    #new edge A above newnode
-    edgeA = Edge(maximum(e.number for e in net.edge) + 1, edgelength) # isChild1 = true by default in edge creation
-    edgeA.containRoot = startingedge.containRoot
-    setNode!(edgeA, [newnode, parentnode])
-    setEdge!(newnode, edgeA)
-    removeEdge!(parentnode, startingedge)
-    setEdge!(parentnode, edgeA)
-    # update starting edge which is now below newnode
-    setNode!(startingedge, [childnode, newnode]) # retains hybrid status
-
-    pushEdge!(net, edgeA)
-    if hybrid
-        newnode.hybrid = true
-    end
-    pushNode!(net, newnode)
-    return newnode, edgeA
-end
-
-## Update net.root ##
-
-"""
-    randomlyupdaterootonnode!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
-
-Randomly update root using rootatnode! as part of optimization. Check to ensure
-that the rooting will be valid. Needed for optimization because the root position 
-affects the feasibility of the NNIs starting from a BR configuration.
-
-Return the network.
-
-Warnings:
-
-- If the node is a leaf, the root will be placed along
-  the edge adjacent to the leaf. This might add a new node.
-- If the desired root placement is incompatible with one or more hybrids, then
-  * a RootMismatch error is thrown; use `verbose=false` to silence
-    the root mismatch info printed before the error is thrown.
-  * the input network will still have some attributes modified.
-
-#? Should we write function to update root on edge? (allow rooting on clade stem edge, but not below.)
-
-# TODO when changing root position, check if the stem edge is still directed in the correct direction according to stemedge.isChild1()
-
-# TODO confirm that this move won't lead to re-calculating the likelihood (accept the move)
-  (perhaps recalculate forward / direct likelihoods)
-"""
-function randomlyupdaterootonnode!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
-    newrootfound = false
-    blacklist = Node[]
-    while !newrootfound
-        if length(blacklist) == length(net.node)
-            return nothing
-        end
-        #randomly choose node
-        newrootnodei = Random.rand(1:length(net.node))[1] # randomly chooses node
-        newrootnode = net.node[newrootnodei]
-        # perform checks
-        !(newrootnode in blacklist) # node not in blacklist
+function moveroot!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    newrootrandomorder = Random.shuffle(1:length(net.node))
+    oldroot = net.root
+    for newrooti in newrootrandomorder
+        newrooti != oldroot || continue
+        newrootnode = net.node[newrooti]
+        newrootnode.leaf && continue # try next potential new root if current is a leaf
+        # Check the new root is NOT at the top or inside contraint clade or within pecies
         newrootfound = true
-        # Check 1: new root isn't current root
-        if newrootnode == net.root
-            newrootfound = false
-        end
-        # Check 2: Rooting isn't inside contraint group
-        if newrootfound == true # the new root passes above tests
-            for con in constraints
-                if isdescendant(net.edge[con.edgenum], newrootnode) # uses current rooting
-                    newrootfound = false
-                    break # break out of for loop
-                end
-            end
-        end
-        # Check 3: check that constraint stemedge will be directed correctly
-            #? only relevant if we allow rootings inside constraint groups, right?
-        # Check 4: Directional Conflict
-        if newrootfound == true # the new root passes above tests
-            try
-                rootatnode!(HybridNetwork, newrootnode)
-            catch e # a RootMismatch error will be thrown if root placement is incompatible hybrids
+        for con in constraints
+            if con.node === newrootfound || isdescendant(newrootnode, con.node) # uses current rooting
                 newrootfound = false
+                break # out of constraint loop
             end
         end
-        if !newrootfound # add node to blacklist
-            push!(blacklist, newrootnode)
+        newrootfound || continue # to next potential new root
+        # Check for no directional conflict
+        try
+            net.root = newrooti
+            directEdges!(net)
+        catch e # RootMismatch error if root placement is below a hybrid
+            isa(e, RootMismatch) || rethrow(e)
+            net.root = oldroot
+            directEdges!(net) # revert edges' directions to match original rooting
+            continue # to next potential new root
         end
+        # if we get here: newrooti passed all the checks
+        return true
     end
-    return net
+    # if we get here: none of the root positions worked
+    return false
 end

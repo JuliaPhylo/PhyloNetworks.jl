@@ -64,7 +64,7 @@ PhyloNetworks.setCHECKNET(true)
     RootMismatch = PhyloNetworks.RootMismatch
     fuseedgesat! = PhyloNetworks.fuseedgesat!
     ## compareNetworks
-    deleteHybridEdge! = PhyloNetworks.deleteHybridEdge!
+    deletehybridedge! = PhyloNetworks.deletehybridedge!
     displayedNetworks! = PhyloNetworks.displayedNetworks!
     ## perfect data
     writeExpCF = PhyloNetworks.writeExpCF
@@ -75,8 +75,8 @@ PhyloNetworks.setCHECKNET(true)
 
 tests = [
     "test_auxillary.jl",
-    "test_addHybrid_anylevel.jl", 
-    "test_5taxon_readTopology.jl", 
+    "test_addHybrid_anylevel.jl",
+    "test_5taxon_readTopology.jl",
     "test_calculateExpCF.jl", "test_calculateExpCF2.jl",
     "test_hasEdge.jl", "test_parameters.jl", "test_correctLik.jl",
     "test_partition.jl", "test_partition2.jl", "test_deleteHybridizationUpdate.jl", "test_add2hyb.jl", "test_optBLparts.jl", "test_undirectedOtherNetworks.jl",
@@ -90,7 +90,7 @@ tests = [
     "test_parsimony.jl",
     "test_calibratePairwise.jl", "test_relaxed_reading.jl",
     "test_isMajor.jl", "test_interop.jl",
-    "test_traitsLikDiscrete.jl",
+    "test_traitLikDiscrete.jl",
     "test_readInputData.jl",
     "test_nj.jl"
 ]

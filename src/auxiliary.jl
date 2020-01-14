@@ -219,11 +219,11 @@ end
 
 function setEdge!(node::Node,edge::Edge)
    push!(node.edge,edge);
-   all((e->!e.hybrid), node.edge) ? node.hasHybEdge = false : node.hasHybEdge = true;
+   node.hasHybEdge = any(e -> e.hybrid, node.edge)
 end
 
-function getOtherNode(edge::Edge,node::Node)
-  isequal(edge.node[1],node) ? edge.node[2] : edge.node[1]
+function getOtherNode(edge::Edge, node::Node)
+  edge.node[1] === node ? edge.node[2] : edge.node[1]
 end
 
 # get[Major|Minor]ParentEdge and getChildren: defined in manipulateNet.jl
@@ -1228,7 +1228,7 @@ function assignhybridnames!(net::HybridNetwork)
     for n in net.node
         !n.hybrid || continue # do nothing if node n is hybrid
         m = match(rx, n.name)
-        m == nothing || push!(trenum, parse(Int, m[1]))
+        m === nothing || push!(trenum, parse(Int, m[1]))
     end
     # first: go through *all* existing non-empty names
     hybnum = Int[]  # indices 'i' in hybrid names: Hi
@@ -1242,7 +1242,7 @@ function assignhybridnames!(net::HybridNetwork)
             hnode.name = ""
         else # fill in list of existing indices "i" in Hi
             m = match(rx, lab)
-            m != nothing || continue # skip the rest if name is not of the form Hi
+            m !== nothing || continue # skip the rest if name is not of the form Hi
             ind = parse(Int, m[1])
             if ind in trenum
                 @warn "hybrid node $(hnode.number) had same label as a tree node: H$ind. Will change hybrid name."
@@ -1444,47 +1444,11 @@ function setlengths!(edges::Vector{Edge}, lengths::Vector{Float64})
 end
 
 """
-    setgammas!(edges::Vector{Edge}, gammas::Vector{Float64})
-
-Assign new gammas to a vector of `edges` and their hybrid partners. 
-Also updates gammas of the edge's hybrid partner edges.
-
-We use this instead of setGammas!, which may assume a treechild network.
-"""
-function setgammas!(edges::Vector{Edge}, gammas::Vector{Float64})
-    length(edges) == length(gammas) || error("edges and gammas vector must have same length.")
-    for i in 1:length(edges)
-        setGamma!(edges[i], gammas[i])
-    end
-end
-
-"""
     getlengths(edges::Vector{Edge})
 
-Return a vector of edge lengths for a set of `edges`.
+Vector of edge lengths for a vector of `edges`.
 """
-function getlengths(edges::Vector{Edge})
-    lengths = Float64[]
-    for e in edges
-        push!(lengths, e.length)
-    end
-    return lengths
-end
-
-"""
-    getgammas(edges::Vector{Edge})
-
-Return a vector of gammas for a set of `edges`.
-"""
-function getgammas(edges::Vector{Edge})
-    gammaedges = Edge[]
-    for e in edges
-        if e.hybrid && !(e in gammaedges) && !(getPartner(e) in gammaedges)
-            push!(gammaedges, e)
-        end
-    end
-    return [e.gamma for e in gammaedges]
-end
+getlengths(edges::Vector{Edge}) = [e.length for e in edges]
 
 
 #------------------------------------

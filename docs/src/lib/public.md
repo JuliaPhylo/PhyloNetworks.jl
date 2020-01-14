@@ -49,12 +49,6 @@ blobDecomposition
 getlabels
 nparams
 nni!
-getlengths
-setlengths!
-getgammas
-setgammas!
-optimizeBL!
-optimizegammas!
 ```
 
 ## data and topology read/write

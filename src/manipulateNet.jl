@@ -333,7 +333,8 @@ function rootonedge!(net::HybridNetwork, edgeNumber::Integer; index=false::Bool,
         error("edge index $ind too large: the network only has $(length(net.edge)) edges.")
     end
     rootsaved = net.root
-    net.root = breakedge!(net.edge[ind],net)
+    breakedge!(net.edge[ind],net) # returns new node, new edge (last ones pushed)
+    net.root = length(net.node)   # index of new node: was the last one pushed
     try
       directEdges!(net)
     catch e
@@ -341,6 +342,7 @@ function rootonedge!(net::HybridNetwork, edgeNumber::Integer; index=false::Bool,
         verbose && println("RootMismatch: reverting to old root position.")
         fuseedgesat!(net.root,net) # reverts breakedge!
         net.root = rootsaved
+        directEdges!(net)
       end
       rethrow(e)
     end
@@ -351,23 +353,55 @@ function rootonedge!(net::HybridNetwork, edgeNumber::Integer; index=false::Bool,
 end
 
 """
-    breakedge!(Edge, HybridNetwork)
+    breakedge!(edge::Edge, net::HybridNetwork)
 
-breaks an edge into 2 edges (each of length half that of original edge).
-creates new node of degree 2. Useful to root network along an edge.
+Break an edge into 2 edges, each of length half that of original edge,
+creating a new node of degree 2. Useful to root network along an edge.
+Return the new node and the new edge, which is the "top" half of the
+original starting edge.
 
-warning: updates `isChild1` and `containRoot`, but
-does NOT update attributes like: inCycle, partition, gammaz, etc.
+If the starting edge was: n1  --edge-->  n2 then we get this:
 
-returns the index of the newly created node in the network
+n1  --newedge-->  newnode  --edge-->  n2.
+
+`isChild1` and `containRoot` are updated, but *not* fields for level-1
+networks like `inCycle`, `partition`, `gammaz`, etc.
+
+Note that the new node & edge appear last in `net.node` and `net.edge`.
+
+fixitca: fix jldoctests below
+
+```jldoctest
+julia> net = readTopology("(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));");
+
+julia> length(net.node)
+19
+
+julia> net.edge[4].number
+4
+
+julia> [n.number for n in net.edge[4].node] # edge 4 attached to nodes 3 and fixitca
+
+julia> newnode, newedge = PhyloNetworks.breakedge!(net.edge[4], net);
+
+julia> length(net.node) # one more than before
+20
+
+julia> newnode.number
+11
+
+julia> [n.number for n in newedge.node] # new edge attached to nodes
+
+julia> [n.number for n in net.edge[4]]  # original edge attached to new node and node 3
+```
 """
 function breakedge!(edge::Edge, net::HybridNetwork)
     pn = getParent(edge) # parent node
     # new child edge = old edge, same hybrid attribute
     removeEdge!(pn,edge)
     removeNode!(pn,edge)
-    max_edge = maximum([e.number for e in net.edge]);
-    max_node = maximum([e.number for e in net.node]);
+    max_edge = maximum(e.number for e in net.edge)
+    max_node = maximum(n.number for n in net.node)
     newedge = Edge(max_edge+1) # create new parent (tree) edge
     newnode = Node(max_node+1,false,false,[edge,newedge]) # tree node
     setNode!(edge,newnode) # newnode comes 2nd, and parent node along 'edge'
@@ -385,7 +419,7 @@ function breakedge!(edge::Edge, net::HybridNetwork)
     newedge.containRoot = edge.containRoot
     pushEdge!(net,newedge)
     pushNode!(net,newnode)
-    return length(net.node) # index of newnode: last one pushed to net.node
+    return newnode, newedge
 end
 
 """
@@ -431,6 +465,84 @@ function fuseedgesat!(i::Integer, net::HybridNetwork)
     deleteEdge!(net,pe,part=false) # do not update partitions. irrelevant for networks of level>1.
     return ce
 end
+
+"""
+removedegree2nodes(net::HybridNetwork)
+
+Delete *all* nodes of degree two in `net`, fusing the two edges together each time.
+See [`fuseedgesat!`](@ref).
+"""
+function removedegree2nodes(net::HybridNetwork)
+    ndegree2nodes = sum(length(n.edge) == 2 for n in net.node)
+    # caution: nodes and their indices in the 'current' network may change some of them are removed
+    for ni in 1:ndegree2nodes # empty if 0 degree-2 nodes
+        i = findfirst(n -> length(n.edge) == 2, net.node)
+        i !== nothing || error("incorrect predicted number of degree-2 nodes to remove...")
+        fuseedgesat!(i, net)
+    end
+    return net
+end
+
+"""
+    addleaf!(net::HybridNetwork, node::Node, leafname::String, edgelength::Float64=-1.0)
+    addleaf!(net::HybridNetwork, edge::Edge, leafname::String, edgelength::Float64=-1.0)
+
+Add a new external edge between `node` or between the "middle" of `edge`
+and newly-created leaf, of name `leafname`.
+By default, the new edge length is missing (-1).
+
+```jldoctest
+julia> species_net = readTopology("(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));");
+
+julia> species_net.node[4] # leaf S1
+PhyloNetworks.Node:
+ number:3
+ name:S1
+ attached to 2 edges, numbered: 4 21
+
+julia> PhyloNetworks.addleaf!(species_net, species_net.node[4], "1A");
+
+julia> writeTopology(species_net, internallabel=true)
+"(((S8,S9),(((((1A)S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
+```
+"""
+function addleaf!(net::HybridNetwork, speciesnode::Node, leafname::String, edgelength::Float64=-1.0)
+    exterioredge = Edge(maximum(e.number for e in net.edge) + 1, edgelength) # isChild1 = true by default in edge creation
+    pushEdge!(net, exterioredge)
+    setEdge!(speciesnode, exterioredge)
+    if speciesnode.hybrid || (speciesnode != net.node[net.root] && !getMajorParentEdge(speciesnode).containRoot)
+        exterioredge.containRoot = false
+    end
+    newleaf = Node(maximum(n.number for n in net.node) + 1, true, false, [exterioredge]) # Node(number, leaf, hybrid, edge array)
+    newleaf.name = leafname
+    setNode!(exterioredge, [newleaf, speciesnode]) # [child, parent] to match isChild1 = true by default
+    if speciesnode.leaf
+        deleteat!(net.leaf,findfirst(isequal(speciesnode), net.leaf))
+        speciesnode.leaf = false
+        net.numTaxa -= 1
+    end
+    pushNode!(net, newleaf) # push node into network (see auxillary.jl)
+    return net
+end
+
+"""
+```jldoctest
+julia> net = readTopology("(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));");
+
+julia> net.edge[4].node[1] # edge attached to leaf S1
+
+julia> PhyloNetworks.addleaf!(net, net.edge[4], "1C");
+
+julia> writeTopology(net, internallabel=true)
+"(((S8,S9),((((S4,(S1,1C)),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
+```
+"""
+function addleaf!(net::HybridNetwork, startingedge::Edge, leafname::String, edgelength::Float64=-1.0)
+    newnode, newedge = breakedge!(startingedge, net)
+    addleaf!(net, newnode, leafname, edgelength)
+    return net
+end
+
 
 # Claudia SL & Paul Bastide: November 2015, Cecile: Feb 2016
 

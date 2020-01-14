@@ -8,7 +8,7 @@ using CSV
 @testset "unconstrained NNI moves" begin
 
 str_level1 = "(((S8,S9),(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
-net_level1 = readTopology(str_level1); # this network has a polytomy at node -9 
+net_level1 = readTopology(str_level1); # this network has a polytomy at node -9
 # same topology as: rootatnode!(net_level1, -3). edges 1:22
 str_nontreechild = "((((Ag,E))#H3,(#H1:7.159::0.056,((M:0.0)#H2:::0.996,(Ak,(#H3:0.08,#H2:0.0::0.004):0.023):0.078):2.49):2.214):0.026,((Az:2.13,As:2.027):1.697)#H1:0.0::0.944,Ap);"
 net_nontreechild = readTopology(str_nontreechild);
@@ -127,10 +127,10 @@ end #of level1 edge 16: BB directed
         # check directionality node -6 child of edge 17 in both cases
         @test PhyloNetworks.getChild(net_level1.edge[17]).number == -6
         PhyloNetworks.nni!(undoinfo...); # undo move
-        @test writeTopology(net_level1) == str_level1 #confirm we're back to original topology 
+        @test writeTopology(net_level1) == str_level1
     else
-        @test isnothing(PhyloNetworks.nni!(net_level1, net_level1.edge[17], move, true, true)) 
-        undoinfo = PhyloNetworks.nni!(net_level1, net_level1.edge[17], move, true, false) #should work if we dont check for 3cycles 
+        @test isnothing(PhyloNetworks.nni!(net_level1, net_level1.edge[17], move, true, true))
+        undoinfo = PhyloNetworks.nni!(net_level1, net_level1.edge[17], move, true, false) #should work if we dont check for 3cycles
         nodes = [n.number for n in net_level1.edge[12].node] #β's connections
         @test -6 in nodes #check β connected to u node (number -6)
         nodes = [n.number for n in net_level1.edge[13].node] #γ's connections
@@ -139,7 +139,7 @@ end #of level1 edge 16: BB directed
         # check directionality node -11 child of edge 17 in both cases
         @test PhyloNetworks.getChild(net_level1.edge[17]).number == -6
         PhyloNetworks.nni!(undoinfo...); # undo move
-        @test writeTopology(net_level1) == str_level1 #confirm we're back to original topology 
+        @test writeTopology(net_level1) == str_level1
     end
 end # of level1 edge 17: BB directed
 
@@ -188,7 +188,6 @@ end # of level1 edge 18: RR (directed)
     @test PhyloNetworks.getChild(net_nontreechild.edge[3]).number == 3
     #undo move
     PhyloNetworks.nni!(undoinfo...);
-    #confirm we're back to original topology 
     @test writeTopology(net_nontreechild) == str_nontreechild
 end #of non tree child net edge 5: RB (directed)
 
@@ -243,8 +242,7 @@ end # of hybrid ladder net edge 1: BR undirected
     #check directionality (should point toward u, node 1)
     @test PhyloNetworks.getChild(net_hybridladder.edge[4]).number == 1
     #undo move
-    PhyloNetworks.nni!(undoinfo...); 
-    #confirm we're back to original topology 
+    PhyloNetworks.nni!(undoinfo...);
     @test writeTopology(net_hybridladder) == str_hybridladder
 end #of hybrid ladder net edge 4: RR (directed)
 
@@ -282,7 +280,6 @@ end #of hybrid ladder net edge 4: RR (directed)
     end
     #undo move
     PhyloNetworks.nni!(undoinfo...);
-    #confirm we're back to original topology 
     @test writeTopology(net_hybridladder) == str_hybridladder
 end #of hybrid ladder net edge 5: BR undirected
 
@@ -311,7 +308,6 @@ end #of hybrid ladder net edge 5: BR undirected
     @test PhyloNetworks.getChild(net_hybridladder.edge[12]).number == -3
     #undo move
     PhyloNetworks.nni!(undoinfo...);
-    # confirm we're back to original topology 
     @test writeTopology(net_hybridladder) == str_hybridladder
 end # of hybrid ladder net edge 12: BB undirected (edge below root)
 
@@ -369,8 +365,8 @@ net_level1_s = readTopology(str_level1_s)
 plot(net_level1_s, :R, showNodeNumber=true, showEdgeNumber=true)
 =#
 
-# test addnodeonedge! function
-PhyloNetworks.addnodeonedge!(net_level1_s, net_level1_s.edge[4], false);
+# test breakedge! function
+PhyloNetworks.breakedge!(net_level1_s.edge[4], net_level1_s);
 @test length(net_level1_s.node) == 20
 @test length(net_level1_s.edge) == 21
 @test net_level1_s.node[20].edge[1].number == 4
@@ -474,7 +470,7 @@ end # of testset on constrained NNI moves
 str_level1_s = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" # indviduals S1A S1B S1C go on leaf 1
 net = readTopology(str_level1_s)
 
-@test !isnothing(PhyloNetworks.randomlyupdaterootonnode!(net)) # there are possible rerootings
+@test !isnothing(PhyloNetworks.moveroot!(net)) # there are possible rerootings
 
 #TODO test with constraints
 

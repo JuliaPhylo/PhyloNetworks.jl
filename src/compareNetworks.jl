@@ -141,8 +141,8 @@ end
 Calculate the hardwired cluster of `node`, coded a vector of booleans:
 true for taxa that are descendent of nodes, false for other taxa (including missing taxa).
 
-The node should belong in a rooted network for which isChild1 is up-to-date.
-Run directEdges! beforehand. This is very important, otherwise one might enter an infinite loop,
+The node should belong in a rooted network for which `isChild1` is up-to-date.
+Run `directEdges!` beforehand. This is very important, otherwise one might enter an infinite loop,
 and the function does not test for this.
 
 visited: vector of node numbers, of all visited nodes.
@@ -206,8 +206,8 @@ end
 
 Return the node numbers of all the descendants of a given edge.
 
-The node should belong in a rooted network for which isChild1 is up-to-date.
-Run directEdges! beforehand. This is very important, otherwise one might enter an infinite loop,
+The node should belong in a rooted network for which `isChild1` is up-to-date.
+Run `directEdges!` beforehand. This is very important, otherwise one might enter an infinite loop,
 and the function does not test for this.
 
 ## Examples
@@ -244,10 +244,12 @@ function descendants!(edge::Edge, visited::Vector{Int})
     end
     return nothing
 end
+
 """
     isdescendant(des:Node, anc::Node)
 
-Return true if `des` is descendant of `anc`. Uses `isChild1` attribute.
+Return true if `des` is a strict descendant of `anc`.
+Uses `isChild1` attribute.
 """
 function isdescendant(des::Node, anc::Node)
     visited = Int[]
@@ -258,7 +260,6 @@ function isdescendant(des::Node, anc::Node)
     end
     return false
 end
-
 function isdescendant!(visited::Vector{Int}, des::Node, e::Edge)
     n = getChild(e)
     if n == des
@@ -277,6 +278,43 @@ function isdescendant!(visited::Vector{Int}, des::Node, e::Edge)
     end
     return false
 end
+
+"""
+    isdescendant_undirected(des:Node, ancestor::Node, parentedge)
+
+Return true if `des` is a strict descendant of `ancestor` when starting
+from edge `parentedge` and going towards `ancestor` onward, regardless
+of the field `isChild1` of tree edges; `false` otherwise.
+
+This is useful to know how descendant relationships would change as a result
+of reverting the direction of a tree edge, without actually
+modifying the direction (`isChild1`) of any edge.
+
+`parentedge` should be connected to `ancestor` (not checked).
+The direction of hybrid edges is respected (via `isChild1`), that is,
+the traversal does not go from the child to the parent of a hybrid edge.
+"""
+function isdescendant_undirected(des::Node, anc::Node, parentedge::Edge)
+    visited = Int[]
+    isdescendant_undirected!(visited, des, anc, parentedge)
+end
+function isdescendant_undirected!(visited::Vector{Int}, des::Node, anc::Node, parentedge::Edge)
+    for e in anc.edge
+        e !== parentedge || continue # do not go back up where we came from
+        !e.hybrid || getParent(e) === anc || continue # do not go back up a parent hybrid edge of anc
+        n = getOtherNode(e, anc)
+        if n === des
+            return true
+        end
+        !(n.number in visited) || continue # skip to next edge is n already visited
+        push!(visited, n.number)
+        if isdescendant_undirected!(visited, des, n, e)
+            return true
+        end
+    end
+    return false
+end
+
 
 """
     ladderpartition(tree::HybridNetwork)
@@ -405,7 +443,7 @@ Warnings:
 
 - by default, `keepNodes` is false, and partner hybrid edges have their γ changed to 1.0.
   If `keepNodes` is true: the γ's of partner hybrid edges are unchanged.
-- assumes correct isMajor attributes.
+- assumes correct `isMajor` fields, and correct `isChild1` fields to update `containRoot`.
 """
 function deleteHybridThreshold!(net::HybridNetwork, gamma::Float64, keepNodes=false::Bool)
     gamma <= 0.5 || error("deleteHybridThreshold! called with gamma = $(gamma)>0.5")
@@ -417,7 +455,7 @@ function deleteHybridThreshold!(net::HybridNetwork, gamma::Float64, keepNodes=fa
         if e.gamma < gamma || gamma == 0.5 # note: γ=-1 if missing, so < gamma threshold
             # deleteHybrid!(net.hybrid[i],net,true,false) # requires non-missing edge lengths
             # deleteHybridizationUpdate! requires level-1 network with corresponding attributes
-            deleteHybridEdge!(net, e, keepNodes) # does not update inCycle, containRoot, etc.
+            deletehybridedge!(net, e, keepNodes) # does not update inCycle, etc.
         end
     end
     return net
@@ -439,9 +477,9 @@ function displayedNetworks!(net::HybridNetwork, node::Node, keepNodes=false::Boo
     ind !== nothing || error("node $(node.number) was not found in net")
     netmin = deepcopy(net)
     emin = getMinorParentEdge(node)
-    deleteHybridEdge!(net   , emin, keepNodes)  # *no* update of inCycle, containRoot, etc.
+    deletehybridedge!(net   , emin, keepNodes)  # *no* update of inCycle, etc.
     emaj = getMajorParentEdge(netmin.node[ind]) # hybrid node & edge in netmin
-    deleteHybridEdge!(netmin, emaj, keepNodes)
+    deletehybridedge!(netmin, emaj, keepNodes)
     return netmin
 end
 
@@ -505,14 +543,22 @@ function inheritanceWeight(tree::HybridNetwork)
 end
 
 """
-`majorTree(net::HybridNetwork)`
+    majorTree(net::HybridNetwork, keepNodes=false::Bool)
 
-Warning: assumes correct isMajor attributes.
+Extract the major tree displayed in a network, keeping the major edge
+and dropping the minor edge at each hybrid node.
 
-Extracts the major tree displayed in a network, keeping the major edge and dropping the minor edge at each hybrid node.
-Returns a HybridNetwork object.
+`keepNodes`: if true, all nodes are retained during edge removal.
+Otherwise, at each reticulation the child edge (below the hybrid node)
+is retained: the major hybrid edge is fused with it.
+
+Warnings:
+
+- if `keepNodes` is true: the hybrid edges that are retained (without fusing)
+  have their γ values unchanged, but their `isMajor` is changed to true
+- assume correct `isMajor` attributes.
 """
-majorTree(net::HybridNetwork) = displayedTrees(net,0.5)[1]
+majorTree(net::HybridNetwork, keepNodes=false::Bool) = displayedTrees(net,0.5,keepNodes)[1]
 
 
 # expands current list of trees, with trees displayed in a given network
@@ -541,7 +587,7 @@ function minorTreeAt(net::HybridNetwork, hybindex::Integer, keepNodes=false::Boo
     hybindex <= length(net.hybrid) || error("network has fewer hybrid nodes than index $(hybindex).")
     tree = deepcopy(net)
     hybedges = hybridEdges(tree.hybrid[hybindex])
-    deleteHybridEdge!(tree, hybedges[2], keepNodes)
+    deletehybridedge!(tree, hybedges[2], keepNodes)
     # majorgamma = hybedges[1].gamma
     # setGamma!(hybedges[2],majorgamma) # set major gamma to minor edge (to delete old major = new minor)
     # deleteHybrid!(tree.hybrid[hybindex],tree,true,false) # major edge at hybrid removed.
@@ -563,7 +609,7 @@ function displayedNetworkAt!(net::HybridNetwork, node::Node, keepNodes=false::Bo
     # starting from last because net.hybrid changes as hybrids are removed. Empty range if 0 hybrids.
         net.hybrid[i] != node || continue
         emin = getMinorParentEdge(net.hybrid[i])
-        deleteHybridEdge!(net, emin, keepNodes)
+        deletehybridedge!(net, emin, keepNodes)
     end
 end
 
