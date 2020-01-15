@@ -248,12 +248,14 @@ end
 """
     isdescendant(des:Node, anc::Node)
 
-Return true if `des` is a strict descendant of `anc`.
-Uses `isChild1` attribute.
+Return true if `des` is  strict descendant of `anc`, using `isChild1` fields
+to determine the direction of edges. See [`isdescendant_undirected`](@ref)
+for a version that does not use `isChild1`.
 """
 function isdescendant(des::Node, anc::Node)
     visited = Int[]
     for e in anc.edge
+        anc !== getChild(e) || continue # skip parents of anc
         if isdescendant!(visited, des, e)
             return true
         end
@@ -265,9 +267,9 @@ function isdescendant!(visited::Vector{Int}, des::Node, e::Edge)
     if n == des
         return true
     end
-    if n.hybrid #only need to check this for hybrid nodes
-        if n.number in visited
-            return false  # n was already visited: exit. avoid infinite loop is isChild1 was bad.
+    if n.hybrid # only need to check previous visits for hybrid nodes
+        if n.number in visited # n & its descendants were already visited: exit
+            return false
         end
         push!(visited, n.number)
     end
@@ -282,7 +284,7 @@ end
 """
     isdescendant_undirected(des:Node, ancestor::Node, parentedge)
 
-Return true if `des` is a strict descendant of `ancestor` when starting
+Return `true` if `des` is a strict descendant of `ancestor` when starting
 from edge `parentedge` and going towards `ancestor` onward, regardless
 of the field `isChild1` of tree edges; `false` otherwise.
 
@@ -306,8 +308,10 @@ function isdescendant_undirected!(visited::Vector{Int}, des::Node, anc::Node, pa
         if n === des
             return true
         end
-        !(n.number in visited) || continue # skip to next edge is n already visited
-        push!(visited, n.number)
+        if n.hybrid
+            !(n.number in visited) || continue # skip to next edge is n already visited
+            push!(visited, n.number)
+        end
         if isdescendant_undirected!(visited, des, n, e)
             return true
         end
@@ -543,7 +547,7 @@ function inheritanceWeight(tree::HybridNetwork)
 end
 
 """
-    majorTree(net::HybridNetwork, keepNodes=false::Bool)
+    majorTree(net::HybridNetwork; keepNodes=false::Bool)
 
 Extract the major tree displayed in a network, keeping the major edge
 and dropping the minor edge at each hybrid node.
@@ -558,7 +562,7 @@ Warnings:
   have their γ values unchanged, but their `isMajor` is changed to true
 - assume correct `isMajor` attributes.
 """
-majorTree(net::HybridNetwork, keepNodes=false::Bool) = displayedTrees(net,0.5,keepNodes)[1]
+majorTree(net::HybridNetwork; keepNodes=false::Bool) = displayedTrees(net,0.5; keepNodes=keepNodes)[1]
 
 
 # expands current list of trees, with trees displayed in a given network
@@ -586,12 +590,9 @@ Warning: assume correct `isMajor` fields.
 function minorTreeAt(net::HybridNetwork, hybindex::Integer, keepNodes=false::Bool)
     hybindex <= length(net.hybrid) || error("network has fewer hybrid nodes than index $(hybindex).")
     tree = deepcopy(net)
-    hybedges = hybridEdges(tree.hybrid[hybindex])
-    deletehybridedge!(tree, hybedges[2], keepNodes)
-    # majorgamma = hybedges[1].gamma
-    # setGamma!(hybedges[2],majorgamma) # set major gamma to minor edge (to delete old major = new minor)
-    # deleteHybrid!(tree.hybrid[hybindex],tree,true,false) # major edge at hybrid removed.
-    return majorTree(tree) # all remaining minor edges removed: now it's a tree.
+    hybedge = getMajorParentEdge(tree.hybrid[hybindex])
+    deletehybridedge!(tree, hybedge, keepNodes) # delete major hybrid edge at reticulation of interest
+    return majorTree(tree; keepNodes=keepNodes) # all remaining minor edges removed: now it's a tree.
 end
 
 """

@@ -27,6 +27,25 @@ as the partner hybrid edge with probability 0.8
 (to avoid changing the direction of edge2 with more than 50% chance).
 If this choice does not work, the "bottom" half of edge2 is proposed as
 the partner hybrid edge (which would require to flip the direction of edge 2).
+
+```jldoctest
+julia> net = readTopology("((S1,(((S2,(S3)#H1),(#H1,S4)))#H2),(#H2,S5));");
+
+julia> using Random
+
+julia> Random.seed!(134);
+
+julia> PhyloNetworks.addhybridedge!(net, true, true)
+PhyloNetworks.Node:
+ number:9
+ name:H3
+ hybrid node
+ attached to 3 edges, numbered: 5 16 17
+
+
+julia> writeTopology(net, round=true)
+"((S1,((((#H1,S4),((S2,(S3)#H1))#H3:::0.971))#H2,#H3:0.0::0.029)),(#H2,S5));"
+```
 """
 function addhybridedge!(net::HybridNetwork, no3cycle::Bool, nohybridladder::Bool,
         constraints=TopologyConstraint[]::Vector{TopologyConstraint};
@@ -77,81 +96,71 @@ function addhybridedge!(net::HybridNetwork, no3cycle::Bool, nohybridladder::Bool
                 continue
             end # else: switching hybridpartnernew worked
         end
-        return addhybridedge!(net, edge1, edge2, hybridpartnernew)
+        newgamma = rand()*0.5; # in (0,.5) to create a minor hybrid edge
+        return addhybridedge!(net, edge1, edge2, hybridpartnernew, 0.0, newgamma)
     end
     # error("tried max number of attempts, none worked!")
     return nothing
 end
 
 """
-    addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpartnernew::Bool)
+    addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpartnernew::Bool,
+                   edgelength=-1.0::Float64, gamma=-1.0::Float64)
 
 Add hybridization to `net` coming from `edge1` going into `edge2`.
 2 new nodes and 3 new edges are created: `edge1` are `edge2` are both cut into 2 edges,
 and a new edge is created linking the 2 new "middle" nodes, pointing from `edge1` to `edge2`.
 The new node in the middle of `edge1` is a tree node.
 The new node in the middle of `edge2` is a hybrid node.
-Its parent edges are the newly created hybrid edge (minor, with a random γ<0.5),
+Its parent edges are the newly created hybrid edge (with γ = gamma, missing by default),
 and either the newly edge "above" `edge2` if `hybridpartnernew=true`,
 or the old `edge2` otherwise (which would reverse the direction of `edge2` and others).
 
-Always called from the other function method, which performs a bunch of checks.
-Updates `containRoot` attributes for edges below
-new hybrid node if applicable.
+Should be called from the other method, which performs a bunch of checks.
+Updates `containRoot` attributes for edges below the new hybrid node.
 
 `net` is modified and the new hybrid node (middle of the old `edge2`) is returned.
 
 ```jldoctest
-julia> net = readTopology("(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));");
+julia> net = readTopology("((S8,(((S1,(S5)#H1),(#H1,S6)))#H2),(#H2,S10));");
 
-julia> hybnode = PhyloNetworks.addhybridedge!(net, net.edge[3], net.edge[9], true)
+julia> hybnode = PhyloNetworks.addhybridedge!(net, net.edge[13], net.edge[8], true, 0.0, 0.2)
 PhyloNetworks.Node:
-number:12
-hybrid node
-attached to 3 edges, numbered: 9 22 23
+ number:9
+ name:H3
+ hybrid node
+ attached to 3 edges, numbered: 8 16 17
 
-julia> hybnode.edge
-3-element Array{PhyloNetworks.Edge,1}:
-PhyloNetworks.Edge:
-number:9
-length:-1.0
-attached to 2 node(s) (parent first): 12 -7
-
-PhyloNetworks.Edge:
-number:22
-length:-1.0
-major hybrid edge with gamma=0.7768082985204838
-attached to 2 node(s) (parent first): -6 12
-
-PhyloNetworks.Edge:
-number:23
-length:0.0
-minor hybrid edge with gamma=0.22319170147951617
-attached to 2 node(s) (parent first): 11 12
 
 julia> writeTopology(net)
-"(((((#H1,(S6,S7)),(((S1,S4),(S5)#H1))#:::0.7768082985204838))#H2,((S8,S9),#:0.0::0.22319170147951617)),(#H2,S10));"
+"((S8,(((S1,(S5)#H1),((#H1,S6))#H3:::0.8))#H2),(#H2,(S10,#H3:0.0::0.2)));"
 
 ```
 """
-function addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpartnernew::Bool)
+function addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpartnernew::Bool,
+                        edgelength::Float64=-1.0, gamma::Float64=-1.0)
     newnode1_tree, edgeabovee1 = breakedge!(edge1, net) # new tree node
     newnode2_hybrid, edgeabovee2 = breakedge!(edge2, net) # new hybrid node
     newnode2_hybrid.hybrid = true
     pushHybrid!(net, newnode2_hybrid) # updates net.hybrid and net.numHybrids
     # new hybrid edge
-    newgamma = rand()*0.5; # should be between 0 and 0.5 to create a minor hybrid edge
-    hybrid_edge = Edge(maximum(e.number for e in net.edge) + 1, 0.0, true, newgamma, false) # number, length, hybrid, gamma, isMajor
+    hybrid_edge = Edge(maximum(e.number for e in net.edge) + 1, edgelength, true, gamma, gamma>0.5) # number, length, hybrid, gamma, isMajor
     # partner edge: update hybrid status, γ and direction
     if hybridpartnernew
         edgeabovee2.hybrid = true
-        edgeabovee2.gamma = 1.0 - newgamma
+        edgeabovee2.gamma = 1.0 - gamma
+        if gamma>0.5
+            edgeabovee2.isMajor = false
+        end
     else
         c2 = getChild(edge2) # child of edge2 before we switch its direction
         i2 = findfirst(isequal(c2), net.node)
         net.root = i2 # makes c2 the new root node
         edge2.hybrid = true
-        edge2.gamma = 1.0 - newgamma
+        edge2.gamma = 1.0 - gamma
+        if gamma>0.5
+            edge2.isMajor = false
+        end
         edge2.isChild1 =  !edge2.isChild1 # reverse the direction of edge2
         edgeabovee2.isChild1 = !edgeabovee2.isChild1
     end
@@ -216,48 +225,5 @@ function directionalconflict(net::HybridNetwork, parent::Node, edge2::Edge, hybr
             p2 = getParent(edge2)
             return parent === p2 || isdescendant_undirected(parent, p2, edge2)
         end
-    end
-end
-
-"""
-    isdirectionaldescendant(des::Node, anc::Node)
-
-Check if, following only directional edges, `anc` node flows into `des` node.
-"""
-function isdirectionaldescendant(des::Node, anc::Node)
-    visited = Int[]
-    for e in anc.edge
-        if isdirectionaldescendant!(visited, des, e)
-            return true
-        end
-    end
-    return false
-end
-
-"""
-    isdirectionaldescendant!(visited::Vector{Int}, des::Node, e::Edge)
-
-Return true if `des` node is directional descendant of `anc` node.
-Does not use isChild1 attribute because isChild takes rooting as fixed
-"""
-function isdirectionaldescendant!(visited::Vector{Int}, des::Node, e::Edge)
-    for n in e.node #check all nodes of e
-        if n == des
-            return true
-        end
-        if n.hybrid # only need to check this for hybrid nodes
-            if n.number in visited
-                return false  # n was already visited: exit.
-            end
-            push!(visited, n.number)
-        end
-        for ce in n.edge
-            if ce == e # avoids stack overflow error caused by calling with same arguments
-                return false # because e already checked
-            elseif !ce.containRoot && n in ce.node # replaces n == getParent(ce) to avoid isChild1
-                if isdirectionaldescendant!(visited, des, ce) return true; end
-            end
-        end
-        return false
     end
 end

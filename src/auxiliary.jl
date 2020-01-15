@@ -357,11 +357,12 @@ end
 
 
 # function that given a hybrid node, it gives you the minor hybrid edge
+# warning: assumes level-1 network: see getMinorParentEdge for a general network
 function getHybridEdge(node::Node)
     node.hybrid || error("node $(node.number) is not hybrid node, cannot get hybrid edges")
     a = nothing;
     for e in node.edge
-        (e.hybrid && !e.isMajor) ? a = e : nothing;
+        (e.hybrid && !e.isMajor) ? a = e : nothing; # assumes level-1: child of hybrid node must be a tree edge
     end
     isa(a,Nothing) ? error("hybrid node $(node.number) does not have minor hybrid edge, edges: $([e.number for e in node.edge])") : return a
 end

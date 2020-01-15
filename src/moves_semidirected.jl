@@ -63,17 +63,15 @@ Note: currently, with type-2 constraints, hybridizations are prevented
 from coming into or going out of a species group.
 
 ```jldoctest
-julia> net = readTopology("(((8,9),(((((1A,1B,1C),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));")
-HybridNetwork, Rooted Network
-23 edges
-22 nodes: 10 tips, 2 hybrid nodes, 10 internal tree nodes.
-tip labels: 8, 9, 1A, 1B, ...
-(((8,9),(((((1A,1B,1C),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));
+julia> net = readTopology("(((2a,2b),(((((1a,1b,1c),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));");
 
-julia> c_species = PhyloNetworks.TopologyConstraint(0x02, ["1A", "1B", "1C"], net)
-PhyloNetworks.TopologyConstraint(0x02, ["1A", "1B", "1C"], Set([4, 3, 5]), 7, -9, "1")
+julia> c_species1 = PhyloNetworks.TopologyConstraint(0x02, ["1a", "1b", "1c"], net)
 
-julia> isnothing(PhyloNetworks.nni!(net , net.edge[4], [c_species]))
+julia> c_species2 = PhyloNetworks.TopologyConstraint(0x02, ["2a", "2b"], net)
+
+julia> # plot(net, :R, showEdgeNumber=true) # edge 3 is the stem edge for species 2
+
+julia> PhyloNetworks.nni!(net , net.edge[3], true, [c_species2]) === nothing # we get nothing: would break species 2
 true
 ```
 """
@@ -200,9 +198,10 @@ julia> writeTopology(net) == str_network
 true
 ```
 """
-function nni!(net::HybridNetwork, e::Edge, no3cycle::Bool, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+function nni!(net::HybridNetwork, e::Edge, no3cycle::Bool,
+              constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     for con in constraints
-        if con.edgenum == e.number
+        if con.edge === e
             return nothing
         end
         # clade TODO lower down, with clades, if u or v is the node num, recalculate the node num after nni move
@@ -547,7 +546,7 @@ function checkspeciesnetwork(net::HybridNetwork, constraints::Vector{TopologyCon
                 error("The network has a polytomy at node number $(n.number). Please resolve.")
         end
     end
-    removedegree2nodes(net)
+    removedegree2nodes!(net)
     return !iscladeviolated(net, constraints)
 end
 
@@ -575,17 +574,16 @@ julia> species_net = readTopology("(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))
 
 julia> filename = joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "mappingIndividuals.csv");
 
-julia> # fixit: show the data in the mapping file
+julia> filename |> read |> string |> print # to see what the mapping file contains
+species,individuals
+S1,S1A
+S1,S1B
+S1,S1C
 
-julia> individual_net = PhyloNetworks.mapindividuals(species_net, filename);
+julia> individual_net, species_constraints = mapindividuals(species_net, filename);
 
 julia> writeTopology(individual_net, internallabel=true)
-(HybridNetwork, Rooted Network
-23 edges
-22 nodes: 10 tips, 2 hybrid nodes, 10 internal tree nodes.
-tip labels: S8, S9, S4, S5, ...
-(((S8,S9),(((((S1A,S1B,S1C),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));
-, PhyloNetworks.TopologyConstraint[PhyloNetworks.TopologyConstraint(0x02, ["S1A", "S1B", "S1C"], Set([13, 11, 12]), 4, 3, "S1")])
+"(((S8,S9),(((((S1A,S1B,S1C)S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 ```
 """
 function mapindividuals(net::HybridNetwork, mappingFile::String)

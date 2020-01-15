@@ -369,30 +369,40 @@ networks like `inCycle`, `partition`, `gammaz`, etc.
 
 Note that the new node & edge appear last in `net.node` and `net.edge`.
 
-fixitca: fix jldoctests below
-
 ```jldoctest
 julia> net = readTopology("(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));");
 
 julia> length(net.node)
 19
 
-julia> net.edge[4].number
-4
+julia> net.edge[4] # edge 4 goes from node -8 to 3
+PhyloNetworks.Edge:
+ number:4
+ length:-1.0
+ attached to 2 node(s) (parent first): -8 3
 
-julia> [n.number for n in net.edge[4].node] # edge 4 attached to nodes 3 and fixitca
 
 julia> newnode, newedge = PhyloNetworks.breakedge!(net.edge[4], net);
 
 julia> length(net.node) # one more than before
 20
 
-julia> newnode.number
-11
+julia> newedge # new edge 21 goes from node -8 and 11 (new)
+PhyloNetworks.Edge:
+ number:21
+ length:-1.0
+ attached to 2 node(s) (parent first): -8 11
 
-julia> [n.number for n in newedge.node] # new edge attached to nodes
 
-julia> [n.number for n in net.edge[4]]  # original edge attached to new node and node 3
+julia> net.edge[4] # original edge 4 now goes from node 11 (new) to 3
+PhyloNetworks.Edge:
+ number:4
+ length:-1.0
+ attached to 2 node(s) (parent first): 11 3
+
+
+julia> writeTopology(net) # note extra pair of parentheses around S1
+"(((S8,S9),((((S4,(S1)),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 ```
 """
 function breakedge!(edge::Edge, net::HybridNetwork)
@@ -467,12 +477,35 @@ function fuseedgesat!(i::Integer, net::HybridNetwork)
 end
 
 """
-removedegree2nodes(net::HybridNetwork)
+    removedegree2nodes!(net::HybridNetwork)
 
-Delete *all* nodes of degree two in `net`, fusing the two edges together each time.
+Delete *all* nodes of degree two in `net`, fusing the two adjacent edges
+together each time, and return the network.
+If the network has a degree-2 root, then the root is eliminated as well,
+leaving the network unrooted.
+
 See [`fuseedgesat!`](@ref).
+
+```jldoctest
+julia> net = readTopology("(((((S1,(S2)#H1),(#H1,S3)))#H2),(#H2,S4));");
+
+julia> PhyloNetworks.breakedge!(net.edge[3], net); # create a degree-2 node along hybrid edge
+
+julia> PhyloNetworks.breakedge!(net.edge[3], net); # another one: 2 in a row
+
+julia> PhyloNetworks.breakedge!(net.edge[10], net); # another one, elsewhere
+
+julia> writeTopology(net) # extra pairs of parentheses
+"((#H2,S4),(((((S1,(((S2)#H1))),(#H1,S3)))#H2)));"
+
+julia> PhyloNetworks.removedegree2nodes!(net);
+
+julia> writeTopology(net) # even the root is gone
+"(#H2,S4,(((S1,(S2)#H1),(#H1,S3)))#H2);"
+
+```
 """
-function removedegree2nodes(net::HybridNetwork)
+function removedegree2nodes!(net::HybridNetwork)
     ndegree2nodes = sum(length(n.edge) == 2 for n in net.node)
     # caution: nodes and their indices in the 'current' network may change some of them are removed
     for ni in 1:ndegree2nodes # empty if 0 degree-2 nodes
@@ -492,18 +525,25 @@ and newly-created leaf, of name `leafname`.
 By default, the new edge length is missing (-1).
 
 ```jldoctest
-julia> species_net = readTopology("(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));");
+julia> net = readTopology("((S1,(((S2,(S3)#H1),(#H1,S4)))#H2),(#H2,S5));");
 
-julia> species_net.node[4] # leaf S1
+julia> net.node[6] # leaf S4
 PhyloNetworks.Node:
- number:3
- name:S1
- attached to 2 edges, numbered: 4 21
+ number:5
+ name:S4
+ leaf node
+ attached to 1 edges, numbered: 7
 
-julia> PhyloNetworks.addleaf!(species_net, species_net.node[4], "1A");
 
-julia> writeTopology(species_net, internallabel=true)
-"(((S8,S9),(((((1A)S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
+julia> PhyloNetworks.addleaf!(net, net.node[6], "4a");
+
+julia> writeTopology(net, internallabel=true)
+"((S1,(((S2,(S3)#H1),(#H1,(4a)S4)))#H2),(#H2,S5));"
+
+julia> PhyloNetworks.addleaf!(net, net.node[6], "4b");
+
+julia> writeTopology(net, internallabel=true)
+"((S1,(((S2,(S3)#H1),(#H1,(4a,4b)S4)))#H2),(#H2,S5));"
 ```
 """
 function addleaf!(net::HybridNetwork, speciesnode::Node, leafname::String, edgelength::Float64=-1.0)
@@ -527,14 +567,17 @@ end
 
 """
 ```jldoctest
-julia> net = readTopology("(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));");
+julia> net = readTopology("((S1,(((S2,(S3)#H1),(#H1,S4)))#H2),(#H2,S5));");
 
-julia> net.edge[4].node[1] # edge attached to leaf S1
+julia> [n.name for n in net.edge[7].node] # external edge to S4
+2-element Array{String,1}:
+ "S4"
+ ""  
 
-julia> PhyloNetworks.addleaf!(net, net.edge[4], "1C");
+julia> PhyloNetworks.addleaf!(net, net.edge[7], "4a");
 
 julia> writeTopology(net, internallabel=true)
-"(((S8,S9),((((S4,(S1,1C)),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
+"((S1,(((S2,(S3)#H1),(#H1,(S4,4a))))#H2),(#H2,S5));"
 ```
 """
 function addleaf!(net::HybridNetwork, startingedge::Edge, leafname::String, edgelength::Float64=-1.0)
