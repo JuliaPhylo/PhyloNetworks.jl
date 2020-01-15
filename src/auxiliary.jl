@@ -933,6 +933,12 @@ function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool)
     return nothing
 end
 
+@inline function setmultiplegammas!(edges::Vector{Edge}, gammas::Vector{Float64})
+    for (e,g) in zip(edges, gammas)
+        setGamma!(e, g)
+    end
+end
+
 """
     setGammaBLfromGammaz!(node, network)
 

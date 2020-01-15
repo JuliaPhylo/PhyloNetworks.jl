@@ -1,8 +1,6 @@
 #= # for local testing, need this:
 using Test
 using PhyloNetworks
-using PhyloPlots
-using CSV
 =#
 
 @testset "unconstrained NNI moves" begin
@@ -18,6 +16,7 @@ str_hybridladder = "(#H2:::0.2,((C,((B)#H1)#H2:::0.8),(#H1,(A1,A2))),O);"
 net_hybridladder = readTopology(str_hybridladder);
 
 #=
+using PhyloPlots
 plot(net_level1, :R, showNodeNumber=true, showEdgeNumber=true)
 plot(net_nontreechild, :R, showNodeNumber=true, showEdgeNumber=true)
 plot(net_hybridladder, :R, showNodeNumber=true, showEdgeNumber=true)
@@ -198,13 +197,13 @@ end #of non tree child net edge 5: RB (directed)
         # moves 1 and 3 in the notes correspond to 1, 1' and 3, 3' (1, 4 and 3, 6)
     # 3cycle check: could create 3 cycle (α connected to γ) so moves 1 and 5 forbidden
     if move in [0x01, 0x03, 0x05, 0x06] # DAG check
-        @test isnothing(PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[1], move, true, false))
+        @test isnothing(PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[1], move, false, true))
     end
     if move in [0x01, 0x05] # 3cycle check
         @test isnothing(PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[1], move, true, true))
     end
     if move == 0x04
-        undoinfo = PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[1], move, true, false);
+        undoinfo = PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[1], move, false, true);
         nodes = [n.number for n in net_hybridladder.edge[12].node] # α
         @test !(1 in nodes) # check that edge α is connected to v
         nodes = [n.number for n in net_hybridladder.edge[4].node] # δ's connections
@@ -228,7 +227,7 @@ end # of hybrid ladder net edge 1: BR undirected
 
 @testset "hybrid ladder net edge 4: RR (directed) move $move" for move in 0x01:0x02
     # RR case, 2 moves. uv edge cannot contain the root (always directed)
-    undoinfo = PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[4], move, true, true);
+    undoinfo = PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[4], move, false, true);
     #test that move was made
     nodes = [n.number for n in net_hybridladder.edge[5].node] #α's connections
     if move == 0x01 #check that edge α connected to v
@@ -253,10 +252,10 @@ end #of hybrid ladder net edge 4: RR (directed)
     # DAG test:
     #   no path from α -> γ or β -> γ so all moves should work
     if move in [0x01, 0x05]
-        @test isnothing(PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[5], move, true, true)) #3cycle forbidden
-        undoinfo = PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[5], move, true, false) #3cycles allowed
+        @test isnothing(PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[5], move, false, true)) # 3-cycles forbidden
+        undoinfo = PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[5], move, false, false) # 3-cycles allowed
     else
-        undoinfo = PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[5], move, true, true);
+        undoinfo = PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[5], move, false, true);
     end
     #tests for all moves:
     nodes = [n.number for n in net_hybridladder.edge[6].node] #α
@@ -312,12 +311,19 @@ end #of hybrid ladder net edge 5: BR undirected
 end # of hybrid ladder net edge 12: BB undirected (edge below root)
 
 @testset "test isdescendant and isconnected functions" begin
-    net_level1 = readTopology(str_level1);
-    @test PhyloNetworks.isdescendant(net_level1.node[7], net_level1.node[17]) == true # nodes -9, -6
-    @test PhyloNetworks.isdescendant(net_level1.node[7], net_level1.node[3]) == false # nodes -9, -4
-    @test PhyloNetworks.isdescendant(net_level1.node[15], net_level1.node[17]) == true # node -12, -6
-    @test PhyloNetworks.isconnected(net_level1.node[12], net_level1.node[17]) == true #node -7, -6
-    @test PhyloNetworks.isconnected(net_level1.node[12], net_level1.node[19]) == false # node -7, -3 
+    netl1 = readTopology(str_level1);
+    @test  PhyloNetworks.isdescendant(netl1.node[7], netl1.node[17])  # nodes -9, -6
+    @test !PhyloNetworks.isdescendant(netl1.node[7], netl1.node[3])   # nodes -9, -4
+    @test  PhyloNetworks.isdescendant(netl1.node[15], netl1.node[17]) # nodes -12, -6
+    @test !PhyloNetworks.isdescendant(netl1.node[12], netl1.node[12])
+    @test  PhyloNetworks.isconnected(netl1.node[12], netl1.node[17])  # nodes -7, -6
+    @test !PhyloNetworks.isconnected(netl1.node[12], netl1.node[19])  # nodes -7, -3
+    # mess up the direction of some tree edges, then check descendence relationships with isdescendant_undirected
+    for i in [4,5,6,7,9,10,12,17,3,20] netl1.edge[i].isChild1 = !netl1.edge[i].isChild1; end
+    @test  PhyloNetworks.isdescendant_undirected(netl1.node[7], netl1.node[17], netl1.edge[18])
+    @test !PhyloNetworks.isdescendant_undirected(netl1.node[7], netl1.node[3], netl1.edge[3])
+    @test  PhyloNetworks.isdescendant_undirected(netl1.node[15], netl1.node[17], netl1.edge[18])
+    @test !PhyloNetworks.isdescendant_undirected(netl1.node[12], netl1.node[12], netl1.edge[12])
 end
 
 end # of testset on unconstrained NNIs

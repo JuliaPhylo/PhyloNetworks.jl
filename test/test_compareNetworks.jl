@@ -315,8 +315,8 @@ trunet = readTopology("((((1,2),((3,4))#H1),(#H1,5)),6);");
 @test hardwiredClusterDistance(majorTree(trunet), majorTree(estnet),false) == 0 # false: unrooted
 truminor = minorTreeAt(trunet, 1); # (1:1.0,2:1.0,((5:1.0,(3:1.0,4:1.0):2.0):1.0,6:1.0):2.0);
 estminor = minorTreeAt(estnet, 1); # (5:1.0,(3:1.0,4:1.0):1.069,(6:1.0,(1:1.0,2:1.0):10.0):8.735);
-@test writeTopology(truminor) == "((((1,2),(3,4)),5),6);"
-@test writeTopology(estminor) == "(6,(((1,2):6.107,(3,4):10.578):6.029,5):0.752);"
+@test writeTopology(truminor) == "(((5,(3,4)),(1,2)),6);"
+@test writeTopology(estminor) == "(6,((5,(3,4):1.069):8.735,(1,2):12.136):0.752);"
 @test hardwiredClusterDistance(truminor, estminor, false) == 0 # false: unrooted
 # so the hybrid edge was estimated correctly!!
 

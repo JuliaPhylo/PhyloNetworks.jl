@@ -15,7 +15,7 @@ PhyloNetworks.setlengths!([net.edge[3], net.edge[4]], [3.3, 4.4])
 @test net.edge[3].length == 3.3
 @test net.edge[4].length == 4.4
 
-PhyloNetworks.setgammas!([net.edge[18]], [0.25])
+PhyloNetworks.setmultiplegammas!([net.edge[18]], [0.25])
 @test net.edge[18].gamma == 0.25
 @test net.edge[16].gamma == 0.75
 

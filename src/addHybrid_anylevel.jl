@@ -2,7 +2,7 @@
 # subject to topological constraints; no level restriction
 
 """
-    addhybridedge!(net::HybridNetwork, no3cycle::Bool, nohybridladder::Bool,
+    addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
                    constraints=TopologyConstraint[]::Vector{TopologyConstraint};
                    maxattempts=10::Int)
 
@@ -47,10 +47,10 @@ julia> writeTopology(net, round=true)
 "((S1,((((#H1,S4),((S2,(S3)#H1))#H3:::0.971))#H2,#H3:0.0::0.029)),(#H2,S5));"
 ```
 """
-function addhybridedge!(net::HybridNetwork, no3cycle::Bool, nohybridladder::Bool,
+function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
         constraints=TopologyConstraint[]::Vector{TopologyConstraint};
         maxattempts=10::Int)
-    all(con.type == 2 for con in constraints) || error("only type-2 constraints implemented so far")
+    all(con.type == 1 for con in constraints) || error("only type-1 constraints implemented so far")
     numedges = length(net.edge)
     blacklist = Set{Tuple{Int,Int}}()
     nmax_blacklist = numedges * (numedges-1) # all sets of edge1 -> edge2
@@ -68,7 +68,7 @@ function addhybridedge!(net::HybridNetwork, no3cycle::Bool, nohybridladder::Bool
         p2 = getParent(edge2)
         constraintsmet = true
         for con in constraints
-            if con.type == 2 # forbid going out of (edge1) or into (edge2) the species group
+            if con.type == 1 # forbid going out of (edge1) or into (edge2) the species group
                 if con.nodenum == p1.number || con.edgenum == p2.number
                     push!(blacklist, (e1,e2))
                     constraintsmet = false
