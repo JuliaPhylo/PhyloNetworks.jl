@@ -1,6 +1,6 @@
 #= # for local testing, need this:
-using PhyloNetworks
 using Test
+using PhyloNetworks
 using Random
 =#
 
@@ -26,7 +26,7 @@ newhybridnode = PhyloNetworks.addhybridedge!(netl1, false, true)
 @test !isnothing(newhybridnode)
 @test netl1.numHybrids == 3
 PhyloNetworks.deletehybridedge!(netl1, PhyloNetworks.getMinorParentEdge(newhybridnode))
-@test writeTopology(netl1) == str_level1
+@test hardwiredClusterDistance(netl1, readTopology(str_level1), true) == 0
 end # of addhybridedge! top function
 
 @testset "addhybridedge! helper function" begin
