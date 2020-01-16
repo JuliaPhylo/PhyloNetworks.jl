@@ -248,7 +248,7 @@ end
 """
     isdescendant(des:Node, anc::Node)
 
-Return true if `des` is  strict descendant of `anc`, using `isChild1` fields
+Return true if `des` is a strict descendant of `anc`, using `isChild1` fields
 to determine the direction of edges. See [`isdescendant_undirected`](@ref)
 for a version that does not use `isChild1`.
 """

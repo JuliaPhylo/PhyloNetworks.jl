@@ -1443,10 +1443,9 @@ end
 
 Assign new lengths to a vector of `edges`.
 """
-function setlengths!(edges::Vector{Edge}, lengths::Vector{Float64})
-    length(edges) == length(lengths) || error("edges and lengths vector must have same length.")
-    for i in 1:length(edges)
-        setLength!(edges[i], lengths[i])
+@inline function setlengths!(edges::Vector{Edge}, lengths::Vector{Float64})
+    for (e,l) in zip(edges, lengths)
+        setLength!(e, l)
     end
 end
 
