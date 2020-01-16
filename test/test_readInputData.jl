@@ -81,6 +81,10 @@ df2 = writeTableCF(q) # 45×8 DataFrames.DataFrame
   CF14_23=[0,0,0,0,0,0.25,1,1,0,0,0],
   ngenes=Union{Missing,Float64}[5,4,5,4,5,4,5.5,5.5,5.5,5.5,6]
 )
+# basic tests for QuartetT type
+nCk = PhyloNetworks.nchoose1234(5)
+oneQ = PhyloNetworks.QuartetT(1,3,4,6, [.92,.04,.04, 100], nCk)
+@test string(oneQ) == "4-taxon set number 8; taxon numbers: 1,3,4,6\ndata: [0.92, 0.04, 0.04, 100.0]"
 end
 
 if false # was used to time `countquartetsintrees` vs `readTrees2CF`

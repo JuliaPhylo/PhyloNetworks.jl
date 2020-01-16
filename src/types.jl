@@ -223,17 +223,6 @@ mutable struct HybridNetwork <: Network
             [],[],[],[],leaf,[],[], #cladewiseorder,...,numht
             0,false,[],0,[],[],false,false) #numBad...
     end
-    function HybridNetwork(node::Array{Node,1},edge::Array{Edge,1},root::Int)
-        hybrid=Node[];
-        leaf=Node[];
-        for n in node
-            if n.hybrid push!(hybrid,n); end
-            if n.leaf   push!(leaf,  n); end
-        end
-        new(size(leaf,1),size(node,1),size(edge,1),node,edge,root,[],hybrid,size(hybrid,1), #numTaxa,...,numHybrids
-            [],[],[],[],leaf,[],[], #cladewiseorder,...,numht
-            0,false,[],0,[],[],false,false) #numBad...
-    end
     HybridNetwork() = new(0,0,0,[],[],0,[],[],0, # numTaxa ... numHybrid
                           [],[],[],[],[],[],[], # cladewiseorder...
                           0,false,[],0,[],[],false,false); # numBad ...
@@ -272,10 +261,6 @@ mutable struct QuartetNetwork <: Network
         net2 = deepcopy(net); #fixit: maybe we dont need deepcopy of all, maybe only arrays
         new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],[],-1,[], -1.,net2.names,Int8[-1,-1,-1,-1],Int8[-1,-1,-1],[0,0,0],[],true,[])
         #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],[],-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1],[],true,[])
-    end
-    function QuartetNetwork(net::HybridNetwork,quartet::Array{String,1})
-        net2 = deepcopy(net);
-        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],quartet,-1,[],-1.,net2.names,Int8[-1,-1,-1,-1],Int8[-1,-1,-1],[0,0,0],[],true,[])
     end
     QuartetNetwork() = new(0,0,0,[],[],[],[],0,[],[],-1,[],-1.0,[],[],[],[],[],true,[])
 end
