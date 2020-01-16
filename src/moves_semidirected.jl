@@ -97,7 +97,6 @@ function TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::Hybrid
     taxonnums = Set{Int}()
     indices = findall(in(taxonnames), [n.name for n in net.leaf])
     length(indices) == ntax_clade || error("taxa cannot be matched to nodes. Check for typos.")
-    #? remove or use as check? taxonnames = Set(net.leaf[i].name for i in indices)
     outsideclade = setdiff([n.name for n in net.leaf], taxonnames)
     # find the set of node numbers that correspond to taxonnames
     for (i,taxon) in enumerate(taxonnames)
@@ -156,7 +155,7 @@ function iscladeviolated(net::HybridNetwork, constraints::Vector{TopologyConstra
             tei !== nothing ||
                 error("hmm. edge number $(con.edge.number) was not found in the network's major tree")
             treeedge = tree.edge[tei]
-            des = descendants(treeedge) # vector of node numbers
+            des = descendants(treeedge) # vector of node numbers, descendant tips only by default
             Set(des) == con.taxonnums || return true
         end
     end
@@ -172,7 +171,7 @@ end
 =#
 
 """
-    nni!(net::HybridNetwork, e::Edge, nohybridladder::Bool, no3cycle::Bool,
+    nni!(net::HybridNetwork, e::Edge, nohybridladder::Bool=true, no3cycle::Bool=true,
          constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
 Attempt to perform a nearest neighbor interchange (NNI) around edge `e`,
@@ -220,7 +219,7 @@ julia> writeTopology(net) == str_network # net back to original topology: the NN
 true
 ```
 """
-function nni!(net::HybridNetwork, e::Edge, nohybridladder::Bool, no3cycle::Bool,
+function nni!(net::HybridNetwork, e::Edge, nohybridladder::Bool=true, no3cycle::Bool=true,
               constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     for con in constraints
         if con.edge === e
@@ -558,13 +557,17 @@ function problem4cycle(β::Node, δ::Node, α::Node, γ::Node)
 end
 
 """
-    checkspeciesnetwork(network::HybridNetwork, cladeconstraints::Vector{TopologyConstraint})
+    checkspeciesnetwork!(network::HybridNetwork, constraints::Vector{TopologyConstraint})
 
-Check user-provided species-level network for polytomies and unnecessary nodes
-(nodes with degree two). Fuse edges at nodes with degree two.
-Return error for polytomies.
+Check that the network satisfies a number of requirements:
+- no polytomies, other than at species constraints: throws an error otherwise
+- no unnecessary nodes: fuse edges at nodes with degree two, including at the root
+  (hence the bang: `net` may be modified)
+- clade constraints are met.
+
+Output: true if all is good, false if one or more clades are violated.
 """
-function checkspeciesnetwork(net::HybridNetwork, constraints::Vector{TopologyConstraint})
+function checkspeciesnetwork!(net::HybridNetwork, constraints::Vector{TopologyConstraint})
     for n in net.node # check for no polytomies: all nodes should have up to 3 edges
         if length(n.edge) > 3 # polytomies allowed at species constraints only
             coni = findfirst(c -> c.type == 1 && c.node === n, constraints)
@@ -713,7 +716,7 @@ function moveroot!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{
         # Check the new root is NOT at the top or inside contraint clade or within pecies
         newrootfound = true
         for con in constraints
-            if con.node === newrootfound || isdescendant(newrootnode, con.node) # uses current rooting
+            if con.node === newrootnode || isdescendant(newrootnode, con.node) # assumes the constraint is met
                 newrootfound = false
                 break # out of constraint loop
             end
@@ -723,6 +726,8 @@ function moveroot!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{
         try
             net.root = newrooti
             directEdges!(net)
+            # warning: assumes that the previous root has degree 3
+            # otherwise, need to delete previous root by fusing its 2 adjacent edges
         catch e # RootMismatch error if root placement is below a hybrid
             isa(e, RootMismatch) || rethrow(e)
             net.root = oldroot

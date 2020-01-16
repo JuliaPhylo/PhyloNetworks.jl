@@ -30,7 +30,10 @@ net = readTopology(netstr)
 #  3 edges below the root (1 of them hybrid):
 netstr = "((Adif:1.0,(Aech:0.122,#H6:10.0::0.047):10.0):1.614,Aten:1.0,((Asub:1.0,Agem:1.0):0.0)#H6:5.062::0.953);";
 net = readTopology(netstr);
-@test_logs PhyloNetworks.deletehybridedge!(net, net.edge[10]);
+@test_logs PhyloNetworks.deletehybridedge!(net, net.edge[10]); # will be rooted
+@test writeTopology(net) == "((Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0):1.614,Aten:1.0);"
+net = readTopology(netstr);
+@test_logs PhyloNetworks.deletehybridedge!(net, net.edge[10], false, true); # unrooted
 @test writeTopology(net) == "(Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0,Aten:2.614);"
 net = readTopology(netstr);
 @test_logs PhyloNetworks.deletehybridedge!(net, net.edge[3]);
@@ -114,17 +117,22 @@ net3  = readTopology(cui3str);
 @test_logs deleteleaf!(net3,"Xhellerii");
 @test_logs deleteleaf!(net3,"Xsignum");
 # earlier warning: """node 13 is a leaf. Will create a new node if needed, to set taxon "Xmayae" as outgroup."""
-@test_logs rootatnode!(net2,"Xmayae");
 @test hardwiredClusterDistance(net2, net3, true) == 3
-@test_logs deleteleaf!(net3,"Xmayae");    #plot(net3);
+@test_logs rootatnode!(net3,"Xmayae");
+@test hardwiredClusterDistance(net2, net3, true) == 4
+@test_logs deleteleaf!(net3,"Xmayae"; unroot=true);    #plot(net3);
 @test net3.numHybrids == 2
 # using simplify=false in deleteleaf!
 net3  = readTopology(cui3str);
 deleteleaf!(net3,"Xhellerii"); deleteleaf!(net3,"Xsignum");
 deleteleaf!(net3,"Xmayae", simplify=false);
-@test net3.numHybrids==3 # or: deleteleaf wrong on mayae with simplify=false
-# plot(net3); # looks weird though: k=2 cycle at the root. 3 root edges:
-# one to a leaf, 1 major & 1 minor hybrid edge to the same child.
+@test net3.numHybrids==3
+@test net3.numNodes == 47
+net3  = readTopology(cui3str);
+deleteleaf!(net3,"Xhellerii"); deleteleaf!(net3,"Xsignum");
+deleteleaf!(net3,"Xmayae", simplify=false, unroot=true);
+@test net3.numHybrids==3
+@test net3.numNodes == 46
 
 end # of testset for deleteleaf! and hardwiredClusterDistance
 
@@ -227,8 +235,10 @@ net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02:
 @test writeTopology(net5) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.7);"
 net = readTopology("((((B)#H1)#H2,((D,C,#H2)S1,(#H1,A)S2)S3)S4);") # missing γ's, level 2
 @test writeTopology(majorTree(net)) == "(((D,C)S1,A)S3,B)S4;"
+@test writeTopology(majorTree(net; keepNodes=true)) == "(((B)H1)H2,((D,C)S1,(A)S2)S3)S4;"
 setGamma!(net.edge[8], 0.8)
 @test writeTopology(majorTree(net)) == "((D,C)S1,(A,B)S2)S3;"
+# but: bug with writeTopology(majorTree(net; keepNodes=true))
 
 end # of testset, majorTree & displayedNetworkAt!
 

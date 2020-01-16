@@ -122,7 +122,7 @@ par_edge_2.gamma = 1.
 V_t_2 = sharedPathMatrix(net)
 
 ## Descendant indicatrice matrix
-des = PhyloNetworks.descendants(par_edge_1)
+des = PhyloNetworks.descendants(par_edge_1, true) # true to get internal nodes also
 mask = indexin(des, V_t_1.nodeNumbersTopOrder)
 D = zeros(net.numNodes, net.numNodes)
 D[mask, mask] .= 1.0

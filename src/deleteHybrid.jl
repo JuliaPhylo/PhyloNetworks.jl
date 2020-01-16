@@ -294,7 +294,7 @@ end
 deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool) = deleteHybrid!(node,net,minor, false)
 
 """
-    deletehybridedge!(net::HybridNetwork, edge::Edge, keepNodes=false)
+    deletehybridedge!(net::HybridNetwork, edge::Edge, keepNodes=false, unroot=false)
 
 Delete a hybrid `edge` from `net` and return the network.
 The network does not have to be of level 1 and may contain polytomies,
@@ -306,6 +306,9 @@ Otherwise, when `edge` is removed, its child (hybrid) node is removed, and
 its partner hybrid edge is removed. Its child edge is retained (below the hybrid node),
 with new length: old length + length of `edge`'s old partner.
 
+If `unroot` is false and if the root is up for deletion during the process,
+it will be kept if it's of degree 2 or more.
+
 Warnings:
 
 - `containRoot` is updated, but this requires correct `isChild1` fields
@@ -314,7 +317,8 @@ Warnings:
   is moved to keep the network unrooted with a root of degree two.
 - does *not* update attributes needed for snaq! (like inCycle, edge.z, edge.y etc.)
 """
-function deletehybridedge!(net::HybridNetwork, edge::Edge, keepNodes=false::Bool)
+function deletehybridedge!(net::HybridNetwork, edge::Edge,
+                           keepNodes=false::Bool, unroot=false::Bool)
     edge.hybrid || error("edge $(edge.number) has to be hybrid for deletehybridedge!")
     n1 = getChild(edge)  # child  of edge, to be deleted
     n1.hybrid || error("child node $(n1.number) of hybrid edge $(edge.number) should be a hybrid.")
@@ -331,7 +335,6 @@ function deletehybridedge!(net::HybridNetwork, edge::Edge, keepNodes=false::Bool
             if !e.hybrid || n1==getParent(e)  ce = e; end # does *not* assume correct isChild1 for tree edges :)
         end
         pn = getParent(pe); # parent node of n1, other than n2
-        pn ≢ n2 || error("k=2 cycle: 2 hybrid edges from node $(n2.number) to node $(n1.number)")
         atRoot = (net.node[net.root] ≡ n1) # n1 should not be root, but if so, pn will be new root
         # if pe may contain the root, then allow the root on ce and below
         if pe.containRoot
@@ -347,7 +350,6 @@ function deletehybridedge!(net::HybridNetwork, edge::Edge, keepNodes=false::Bool
         # if (pe.number<ce.number) ce.number = pe.number; end # bad to match edges between networks
         deleteEdge!(net,pe,part=false) # decreases net.numEdges   by 1
         deleteNode!(net,n1) # decreases net.numHybrids by 1, numNodes too.
-        # warning: containRoot could be updated in ce and down the tree.
         if atRoot
             i = findfirst(x -> x===pn, net.node)
             i !== nothing || error("node $(pn.number) not in net!")
@@ -367,13 +369,13 @@ function deletehybridedge!(net::HybridNetwork, edge::Edge, keepNodes=false::Bool
         end
     end
 
-    # next: keep n2 if it has 4+ edges (or if keepNodes). 2 or 1 edges should never occur.
+    # next: keep n2 if it has 4+ edges (or if keepNodes). 1 edge should never occur.
     #       If root, would have no parent: treat network as unrooted and change the root.
-    delete_n2_recursively = false # if case n2 is a hybrid itself, delete it at the very end
+    delete_n2_recursively = false # especially needed if case n2 is a hybrid itself, or if "edge" part of a 2-cycle
     if length(n2.edge) < 2
         error("node $(n2.number) (parent of hybrid edge $(edge.number) to be deleted) has 1 edge only!")
-    elseif length(n2.edge) == 2 && !keepNodes
-        # n2=root or degree-2 node: remove n2 and both of its edges (including 'edge')
+    elseif length(n2.edge) == 2 && !keepNodes # && (unroot || n2 !== net.node[net.root])
+        # n2=root or degree-2 node: remove n2, "edge" and the other adjacent edge
         pe = (edge ≡ n2.edge[1] ? n2.edge[2] : n2.edge[1]) #  <--edge-- n2 ---pe--- pn
         pn = (  n2 ≡ pe.node[1] ? pe.node[2] : pe.node[1])
         if net.node[net.root] ≡ n2 # if n2 was root, new root = pn
@@ -385,50 +387,15 @@ function deletehybridedge!(net::HybridNetwork, edge::Edge, keepNodes=false::Bool
         deleteNode!(net,n2)
         # note: do *not* remove pn (and so forth recursively): because the starting network
         # allowed for a node of degree 2 (n2). The new network will also have a node of degree 2 (pn)
-    elseif length(n2.edge) == 3 && !keepNodes && !n2.hybrid # delete n2, merge its 2 parent edges
-        # if n2 is hybrid: its 2 parents cannot be merged: direction conflict
-        ce, pe = [e for e in n2.edge if e != edge]
-        # ce will be kept. pe will be folded into new ce = pe+ce
-        switch = false
-        if getOtherNode(pe, n2).leaf # difficulty: isChild1 may be outdated for tree edges
-            !getOtherNode(ce, n2).leaf ||
-                error("root $(n2.number) connected to 1 hybrid and 2 leaves: edges $(pe.number) and $(ce.number).")
-            switch = true
-        elseif n2 ≡ getChild(ce) && n2 ≡ getParent(pe)
-            switch = true
-        end
-        if switch # to ensure correct direction isChild1 for new edges if the original was up-to-date
-            # but no error if original isChild1 was outdated
-            # and to ensure that pn can be the new root if needed.
-            ce,pe = pe,ce
-        end
-        atRoot = (net.node[net.root] ≡ n2) # if n2=root, new root will be 'pn' = other node of pe
-        # next: replace ce by pe+ce, remove n2 and pe from network.
-        pn = getOtherNode(pe,n2) # parent node of n2 if n2 not root. Otherwise, pn will be new root.
-        ce.length = addBL(ce.length, pe.length)
-        removeNode!(n2,ce) # ce now has 1 single node cn
-        setNode!(ce,pn)    # ce now has 2 nodes in this order: cn, pn
-        ce.isChild1 = true
-        setEdge!(pn,ce)
-        removeEdge!(pn,pe)
-        # if (pe.number<ce.number) ce.number = pe.number; end # bad to match edges between networks
-        deleteEdge!(net,pe,part=false)
-        deleteNode!(net,n2)
-        if atRoot
-            i = findfirst(x -> x===pn, net.node)
-            i !== nothing || error("node $(pn.number) not in net!")
-            net.root = i
-        end
-    elseif length(n2.edge) == 3 && !keepNodes # n2 is a hybrid node then. "edge" is its single child. Not level-1
-        delete_n2_recursively = true
+    else # keepNodes or n2 has 3+ edges (including the "edge" to delete)
+        # detact n2 from edge, and remove n2 as appropriate later (recursively)
         removeEdge!(n2,edge)
-    else # n2 has 4+ edges (polytomy) or keepNodes: keep n2 but detach it from 'edge'
-        removeEdge!(n2,edge)
+        delete_n2_recursively = !keepNodes
     end
     # finally: remove hybrid 'edge' from network
     deleteEdge!(net,edge,part=false)
     if delete_n2_recursively
-        deleteleaf!(net, n2.number; index=false, simplify=true)
+        deleteleaf!(net, n2.number; index=false, simplify=true, unroot=unroot)
     end
     return net
 end

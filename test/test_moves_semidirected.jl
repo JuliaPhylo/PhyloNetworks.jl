@@ -330,35 +330,8 @@ end
 end # of testset on unconstrained NNIs
 
 @testset "constrained NNI moves" begin
-
-str_level1 = "(((S8,S9),(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
-net_level1 = readTopology(str_level1); #polytomy at node -9 for leaves 3, 4, 5
-
-str_nontreechild = "((((Ag,E))#H3,(#H1:7.159::0.056,((M:0.0)#H2:::0.996,(Ak,(#H3:0.08,#H2:0.0::0.004):0.023):0.078):2.49):2.214):0.026,((Az:2.13,As:2.027):1.697)#H1:0.0::0.944,Ap);"
-net_nontreechild = readTopology(str_nontreechild);
-
-str_polytomy_species = "(((S8,S9),(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
-net_species = readTopology(str_polytomy_species);
-
-#=
-@testset "clade contraints" begin
-c_nontree_cladebelowhybrid = PhyloNetworks.TopologyConstraint(0x02, ["Az", "As"], net_nontreechild)
-c_level1_clade = PhyloNetworks.TopologyConstraint(0x02, ["S1", "S2", "S3"], net_level1)
-# this test below returns nothing but shouldn't
-PhyloNetworks.nni!(net_nontreechild, net_nontreechild.edge[20], true, [c_nontree_cladebelowhybrid])
-# this test errors
-@test isnothing(PhyloNetworks.nni!(net_nontreechild, net_nontreechild.edge[18], true, [c_nontree_cladebelowhybrid]))
-
-@test PhyloNetworks.checkspeciesnetwork(net_nontreechild, [c_nontree_cladebelowhybrid])
-
-PhyloNetworks.addindividuals!(net_level1_s, "S1", ["S1A", "S1B", "S1C"])
-@test_throws ErrorException PhyloNetworks.checkspeciesnetwork(net_level1_i, [c_species])
-@test PhyloNetworks.cladesviolated(net_level1_i, c_species)
-@test_throws ErrorException PhyloNetworks.checkspeciesnetwork(net_level1_s, [c_level1_species])
-@test PhyloNetworks.checknetwork(net_level1_i, c_species) #TODO will want to remove if we remove this function
-end # of testset on checknetwork functions for species constraints
-
-=#
+# subsets for: species constraints; move root (species & clade constraints);
+#              clade constraints (not yet: TODO)
 
 @testset "species constraints" begin # multiple individuals from each species
 str_level1_s = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" # indviduals S1A S1B S1C go on leaf 1
@@ -424,11 +397,9 @@ c_clade = PhyloNetworks.TopologyConstraint(0x02, ["S1A","S1B","S1C","S4"], net_l
 @test_throws ErrorException PhyloNetworks.TopologyConstraint(0x02, ["S1A", "S8"], net_level1_i) # not a clade
 
 # NNIs under species constraints
-
-using Random; Random.seed!(1234);
+Random.seed!(1234);
 # no nni on stem edge for species example
 @test isnothing(PhyloNetworks.nni!(net_level1_i , net_level1_i.edge[4], true, true, c_species))
-
 @testset "NNI, 1 species constraint, net level 1, edge $ei" for ei in [8,3,9,15]
     # 8: BR directed, 3: BB undirected, 9: BB directed, 15: RB directed
     # note: there are no cases of RR directed in net_level1_i
@@ -440,16 +411,64 @@ end
 # TODO: BR case edge 8: nni move 3 causes problems. hybrid node 6 has 0 or 2+ major hybrid parents
 end # of species constraints
 
-@testset "test move root under species & clade constraints" begin
+@testset "test move root & constraint checking under species & clade constraints" begin
 # "(((S8,S9),(((((S1A,S1B,S1C)S1,S4),#H1),((S5)#H1,(S6,S7))))#H2),(#H2,S10));"
-net_level1_i = readTopology("(((((S1A,S1B,S1C)S1,S4),#H1),((S5)#H1,(S6,S7))));")
-con = [PhyloNetworks.TopologyConstraint(0x01, ["S1A","S1B","S1C"], net_level1_i),
-       PhyloNetworks.TopologyConstraint(0x02, ["S5","S6","S7"], net_level1_i)]
-using Random; Random.seed!(765);
-@test PhyloNetworks.moveroot!(net_level1_i, con) # only 2 options
-writeTopology(net_level1_i) == "(((S1A,S1B,S1C)S1,S4),#H1,(((S5)#H1,(S6,S7))));" # now unrooted
-@test PhyloNetworks.moveroot!(net_level1_i, con) # only 1 option
-writeTopology(net_level1_i) == "((S1A,S1B,S1C)S1,S4,(#H1,(((S5)#H1,(S6,S7)))));"
+netl1_i = readTopology("(((((S1A,S1B,S1C)S1,S4),#H1),((S5)#H1,(S6,S7))));")
+con = [PhyloNetworks.TopologyConstraint(0x01, ["S1A","S1B","S1C"], netl1_i),
+       PhyloNetworks.TopologyConstraint(0x02, ["S5","S6","S7"], netl1_i)]
+Random.seed!(765);
+@test PhyloNetworks.moveroot!(netl1_i, con) # only 2 options
+writeTopology(netl1_i) == "(((S1A,S1B,S1C)S1,S4),#H1,(((S5)#H1,(S6,S7))));" # now unrooted
+@test PhyloNetworks.moveroot!(netl1_i, con) # only 1 option
+writeTopology(netl1_i) == "((S1A,S1B,S1C)S1,S4,(#H1,(((S5)#H1,(S6,S7)))));"
+netl1_i.root = 14 # back to original rooted network. This node is still of degree 2
+@test !PhyloNetworks.checkspeciesnetwork!(netl1_i, con) # false: root *at* clade crown
+@test netl1_i.root == 13 # now unrooted (via removedegree2nodes!), root was moved, con[2] stem edge was deleted too...
+netl1_i.root = 7; directEdges!(netl1_i) # move root strictly above clade crown
+con[2] = PhyloNetworks.TopologyConstraint(0x02, ["S5","S6","S7"], netl1_i)
+@test PhyloNetworks.checkspeciesnetwork!(netl1_i, con) # now fine: root *above* clade crown
+undoinfo = PhyloNetworks.nni!(netl1_i,netl1_i.edge[8],0x02,false,false);
+@test !PhyloNetworks.checkspeciesnetwork!(netl1_i, con)
+PhyloNetworks.nni!(undoinfo...);
+@test PhyloNetworks.checkspeciesnetwork!(netl1_i, con)
+undoinfo = PhyloNetworks.nni!(netl1_i,netl1_i.edge[8],0x03,false,false) # creates a 2-cycle
+@test netl1_i.numEdges == 13
+PhyloNetworks.deletehybridedge!(netl1_i, netl1_i.edge[10])
+@test netl1_i.numEdges == 10 # 2-cycle removed
+netl1_i = readTopology("(((S1A,S1B,S1C),S4),#H1,((S5)#H1,(S6,S7)));")
+undoinfo = PhyloNetworks.nni!(netl1_i,netl1_i.edge[12],0x03,false,false) # 4-cycle now
+@test PhyloNetworks.nni!(netl1_i,netl1_i.edge[12],0x02,true,true) === nothing # would create a 3-cycle
 end
+
+#=
+str_level1 = "(((S8,S9),(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
+net_level1 = readTopology(str_level1); #polytomy at node -9 for leaves 3, 4, 5
+
+str_nontreechild = "((((Ag,E))#H3,(#H1:7.159::0.056,((M:0.0)#H2:::0.996,(Ak,(#H3:0.08,#H2:0.0::0.004):0.023):0.078):2.49):2.214):0.026,((Az:2.13,As:2.027):1.697)#H1:0.0::0.944,Ap);"
+net_nontreechild = readTopology(str_nontreechild);
+
+str_polytomy_species = "(((S8,S9),(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
+net_species = readTopology(str_polytomy_species);
+=#
+
+#=
+@testset "clade contraints" begin
+c_nontree_cladebelowhybrid = PhyloNetworks.TopologyConstraint(0x02, ["Az", "As"], net_nontreechild)
+c_level1_clade = PhyloNetworks.TopologyConstraint(0x02, ["S1", "S2", "S3"], net_level1)
+# this test below returns nothing but shouldn't
+PhyloNetworks.nni!(net_nontreechild, net_nontreechild.edge[20], true, [c_nontree_cladebelowhybrid])
+# this test errors
+@test isnothing(PhyloNetworks.nni!(net_nontreechild, net_nontreechild.edge[18], true, [c_nontree_cladebelowhybrid]))
+
+@test PhyloNetworks.checkspeciesnetwork!(net_nontreechild, [c_nontree_cladebelowhybrid])
+
+PhyloNetworks.addindividuals!(net_level1_s, "S1", ["S1A", "S1B", "S1C"])
+@test_throws ErrorException PhyloNetworks.checkspeciesnetwork!(net_level1_i, [c_species])
+@test PhyloNetworks.cladesviolated(net_level1_i, c_species)
+@test_throws ErrorException PhyloNetworks.checkspeciesnetwork!(net_level1_s, [c_level1_species])
+@test PhyloNetworks.checknetwork(net_level1_i, c_species) #TODO will want to remove if we remove this function
+end # of testset on checknetwork functions for species constraints
+
+=#
 
 end # of constrained NNI moves
