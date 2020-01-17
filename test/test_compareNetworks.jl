@@ -143,12 +143,9 @@ end # of testset for deleteleaf! and hardwiredClusterDistance
 @testset "testing deleteHybridThreshold!" begin
 
 if doalltests
-net21 = readTopology("(A,((B,#H1),(C,(D)#H1)));");
-# manual bug fix to get good gamma's (0.5 not 1.0) and major/minor
-net21.edge[3].gamma = 0.5;
-net21.edge[7].gamma = 0.5;
+net21 = readTopology("(A,((B,#H1:::0.5),(C,(D)#H1)));");
 deleteHybridThreshold!(net21,0.2);
-writeTopologyLevel1(net21) == "(A,((B,#H1:::0.5),(C,(D)#H1:::0.5)));" ||
+writeTopology(net21) == "(A,((B,#H1:::0.5),(C,(D)#H1:::0.5)));" ||
  error("deleteHybridThreshold! didn't work on net21, gamma=0.2")
 deleteHybridThreshold!(net21,0.5);
 writeTopologyLevel1(net21) == "(A,((C,D),B));" ||

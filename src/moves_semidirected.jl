@@ -519,12 +519,20 @@ function nni!(αu::Edge, u::Node, uv::Edge, v::Node, vδ::Edge,
     if u.hybrid && !v.hybrid
         if flip # RB, BR 1 or BR 2': flip hybrid status of uv and (αu or vδ)
             if uv.hybrid # BR 1 or BR 2'
-                uv.hybrid = false
                 vδ.hybrid = true
+                vδ.gamma = uv.gamma
+                vδ.isMajor = uv.isMajor
+                uv.hybrid = false
+                uv.gamma = 1.0
+                uv.isMajor = true
                 norootbelow!(uv)
             else # RB
                 uv.hybrid = true
+                uv.gamma = αu.gamma
+                uv.isMajor = αu.isMajor
                 αu.hybrid = false
+                αu.gamma = 1.0
+                αu.isMajor = true
                 if αu.containRoot
                     allowrootbelow!(v, αu)
                 end
@@ -532,8 +540,12 @@ function nni!(αu::Edge, u::Node, uv::Edge, v::Node, vδ::Edge,
         else # assumes α<-u or v<-δ --- but not checked
             # not implemented: α->u<-v->δ: do uv.hybrid=false and γv.hybrid=true
             if inner # BR 3 or 4': α->u<-v<-δ: flip hybrid status of αu and vδ
-                αu.hybrid = false
                 vδ.hybrid = true
+                vδ.gamma = αu.gamma
+                vδ.isMajor = αu.isMajor
+                αu.hybrid = false
+                αu.gamma = 1.0
+                αu.isMajor = true
                 # containRoot: nothing to update
             else # BR 1' or 2: α<-u<-v->δ : hybrid status just fine
                 norootbelow!(vδ)
@@ -542,8 +554,12 @@ function nni!(αu::Edge, u::Node, uv::Edge, v::Node, vδ::Edge,
                 end
             end
         end
+    elseif u.hybrid && v.hybrid # RR: hybrid edges remain hybrids, but switch γs
+        # we could have -αu-> -uv-> -vδ-> or <-αu- <-uv- <-vδ-
+        hyb = ( getChild(αu) == v ? αu : vδ ) # uv's hybrid parent edge: either αu or vδ
+        (uv.gamma,   hyb.gamma)   = (hyb.gamma,   uv.gamma)
+        (uv.isMajor, hyb.isMajor) = (hyb.isMajor, uv.isMajor)
     end
-    ## TASK 4: update γ's and isMajor attributes --fixit: bug right now
     # throw error if u not hybrid & v hybrid? (does not need to be implemented) #?
     return vδ, u, uv, v, αu, flip, inner, v_in_vδ, αu_in_u, vδ_in_v, u_in_αu
 end
