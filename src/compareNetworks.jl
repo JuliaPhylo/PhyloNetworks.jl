@@ -226,7 +226,11 @@ julia> PhyloNetworks.descendants(net5.edge[12], true) # descendants of 12th edge
  -9
   7
 
-julia> PhyloNetworks.descendants(net5.edge[12]) # descendant leaves only fixitca
+julia> PhyloNetworks.descendants(net5.edge[12]) # descendant leaves only
+3-element Array{Int64,1}:
+ 4
+ 5
+ 7
 ```
 """
 function descendants(edge::Edge, internal::Bool=false)

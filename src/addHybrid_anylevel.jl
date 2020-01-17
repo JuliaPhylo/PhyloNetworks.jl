@@ -28,6 +28,8 @@ as the partner hybrid edge with probability 0.8
 If this choice does not work, the "bottom" half of edge2 is proposed as
 the partner hybrid edge (which would require to flip the direction of edge 2).
 
+# examples
+
 ```jldoctest
 julia> net = readTopology("((S1,(((S2,(S3)#H1),(#H1,S4)))#H2),(#H2,S5));");
 
@@ -120,6 +122,8 @@ Should be called from the other method, which performs a bunch of checks.
 Updates `containRoot` attributes for edges below the new hybrid node.
 
 `net` is modified and the new hybrid node (middle of the old `edge2`) is returned.
+
+# examples
 
 ```jldoctest
 julia> net = readTopology("((S8,(((S1,(S5)#H1),(#H1,S6)))#H2),(#H2,S10));");

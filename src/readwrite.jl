@@ -533,7 +533,7 @@ end
 readTopology(s::IO) = readTopology(s,true)
 
 """
-    `checkNumHybEdges!(net)`
+    checkNumHybEdges!(net)
 
 Check for consistency between hybrid-related attributes in the network:
 - for each hybrid node: 2 or more hybrid edges

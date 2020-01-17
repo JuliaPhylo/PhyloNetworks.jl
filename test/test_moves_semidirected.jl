@@ -23,10 +23,10 @@ plot(net_nontreechild, :R, showNodeNumber=true, showEdgeNumber=true)
 plot(net_hybridladder, :R, showNodeNumber=true, showEdgeNumber=true)
 =#
 
-@test isnothing(PhyloNetworks.nni!(net_level1, net_level1.edge[1], 0x01, true, true)) # external edge
+@test isnothing(nni!(net_level1, net_level1.edge[1], 0x01, true, true)) # external edge
 
 @testset "level1 edge 3: BB undirected move $move" for move in 0x01:0x08
-    undoinfo = PhyloNetworks.nni!(net_level1, net_level1.edge[3], move, true, true);
+    undoinfo = nni!(net_level1, net_level1.edge[3], move, true, true);
     #location of v node (number -4)
     nodes = [n.number for n in net_level1.edge[20].node] #α's connections
     if move in [1, 2, 6, 8] #check that edge α connected to v
@@ -50,7 +50,7 @@ plot(net_hybridladder, :R, showNodeNumber=true, showEdgeNumber=true)
         @test PhyloNetworks.getChild(net_level1.edge[3]).number == -3
     end
     # undo move
-    PhyloNetworks.nni!(undoinfo...);
+    nni!(undoinfo...);
     # confirm we're back to original topology 
     @test writeTopology(net_level1) == str_level1
 end # of level1 edge 3: BB undirected
@@ -59,18 +59,18 @@ end # of level1 edge 3: BB undirected
     # e.hybrid and tree parent:  BR case, 3 moves because e cannot contain the root
     # 3cycle test: α connected to γ so move 1 will create 3 cycles.
     if move == 0x01
-        @test isnothing(PhyloNetworks.nni!(net_level1, net_level1.edge[13], move, true, true)) # would create a 3cycle
+        @test isnothing(nni!(net_level1, net_level1.edge[13], move, true, true)) # would create a 3cycle
     # move 1 would create a 3 cycle, but should work if we don't forbid 3cycles
-        undoinfo = PhyloNetworks.nni!(net_level1, net_level1.edge[13], move, true, false); #no3cycle=false
+        undoinfo = nni!(net_level1, net_level1.edge[13], move, true, false); #no3cycle=false
         nodes = [n.number for n in net_level1.edge[17].node]
         @test 8 in nodes # check that edge α connected to v
         nodes = [n.number for n in net_level1.edge[11].node]
         @test !(-11 in nodes)
         @test PhyloNetworks.getChild(net_level1.edge[13]).number == -11
-        PhyloNetworks.nni!(undoinfo...); # undo move 
+        nni!(undoinfo...); # undo move
         @test writeTopology(net_level1) == str_level1 # confirm we're back to original topology
     else
-        undoinfo = PhyloNetworks.nni!(net_level1, net_level1.edge[13], move, true, false);
+        undoinfo = nni!(net_level1, net_level1.edge[13], move, true, false);
         # test that move was made
         nodes = [n.number for n in net_level1.edge[17].node]
         if move == 0x03
@@ -87,14 +87,14 @@ end # of level1 edge 3: BB undirected
         end
         # check directionality
         @test PhyloNetworks.getChild(net_level1.edge[13]).number == 8
-        PhyloNetworks.nni!(undoinfo...); # undo move
+        nni!(undoinfo...); # undo move
         @test writeTopology(net_level1) == str_level1 # confirm we're back to original topology
     end
 end # of level1 edge 13: BR directed
 
 @testset "level1 edge 16: BB directed move $move" for move in 0x01:0x02
     # e not hybrid, tree parent:  BB case, 2 NNIs if directed, 8 if undirected
-    undoinfo = PhyloNetworks.nni!(net_level1, net_level1.edge[16], move, true, true);
+    undoinfo = nni!(net_level1, net_level1.edge[16], move, true, true);
     nodes = [n.number for n in net_level1.edge[13].node] #β's connections
     @test -11 in nodes #check β connected to u node (number -11)
     nodes = [n.number for n in net_level1.edge[14].node] #γ's connections
@@ -105,12 +105,12 @@ end # of level1 edge 13: BR directed
     end
     # check directionality node -11 child of edge 16 in both cases
     @test PhyloNetworks.getChild(net_level1.edge[16]).number == -11
-    PhyloNetworks.nni!(undoinfo...); # undo move
+    nni!(undoinfo...); # undo move
     @test writeTopology(net_level1) == str_level1 #confirm we're back to original topology 
 end #of level1 edge 16: BB directed
 
 # BB directed has two allowed moves, so 0x03 should throw an exception
-@test_throws Exception PhyloNetworks.nni!(net_level1, net_level1.edge[16], 0x03);
+@test_throws Exception nni!(net_level1, net_level1.edge[16], 0x03);
 
 @testset "level1 edge 17: BB directed with 4cycle move $move" for move in 0x01:0x02
     # no3cycle test
@@ -118,7 +118,7 @@ end #of level1 edge 16: BB directed
         # β is connected in a 4 cycle with γ so a move that makes γ and β a pair
         # would create a 3 cycle 
     if move == 0x01
-        undoinfo = PhyloNetworks.nni!(net_level1, net_level1.edge[17], move, true, true);
+        undoinfo = nni!(net_level1, net_level1.edge[17], move, true, true);
         nodes = [n.number for n in net_level1.edge[12].node] #β's connections
         @test -6 in nodes #check β connected to u node (number -6)
         nodes = [n.number for n in net_level1.edge[13].node] #γ's connections
@@ -126,11 +126,11 @@ end #of level1 edge 16: BB directed
         @test -11 in nodes
         # check directionality node -6 child of edge 17 in both cases
         @test PhyloNetworks.getChild(net_level1.edge[17]).number == -6
-        PhyloNetworks.nni!(undoinfo...); # undo move
+        nni!(undoinfo...); # undo move
         @test writeTopology(net_level1) == str_level1
     else
-        @test isnothing(PhyloNetworks.nni!(net_level1, net_level1.edge[17], move, true, true))
-        undoinfo = PhyloNetworks.nni!(net_level1, net_level1.edge[17], move, true, false) #should work if we dont check for 3cycles
+        @test isnothing(nni!(net_level1, net_level1.edge[17], move, true, true))
+        undoinfo = nni!(net_level1, net_level1.edge[17], move, true, false) #should work if we dont check for 3cycles
         nodes = [n.number for n in net_level1.edge[12].node] #β's connections
         @test -6 in nodes #check β connected to u node (number -6)
         nodes = [n.number for n in net_level1.edge[13].node] #γ's connections
@@ -138,14 +138,14 @@ end #of level1 edge 16: BB directed
         @test -6 in nodes
         # check directionality node -11 child of edge 17 in both cases
         @test PhyloNetworks.getChild(net_level1.edge[17]).number == -6
-        PhyloNetworks.nni!(undoinfo...); # undo move
+        nni!(undoinfo...); # undo move
         @test writeTopology(net_level1) == str_level1
     end
 end # of level1 edge 17: BB directed
 
 @testset "level1 edge 18: RR (directed) move $move" for move in 0x01:0x04
     # RB case, 4 moves. uv edge cannot contain the root (always directed)
-    undoinfo = PhyloNetworks.nni!(net_level1, net_level1.edge[18], move, true, true);
+    undoinfo = nni!(net_level1, net_level1.edge[18], move, true, true);
     #test that move was made
     nodes = [n.number for n in net_level1.edge[19].node] #α's connections
     if move in [0x01, 0x03]
@@ -161,13 +161,13 @@ end # of level1 edge 17: BB directed
     end
     #check directionality (should point toward u, node 11)
     @test PhyloNetworks.getChild(net_level1.edge[18]).number == 11
-    PhyloNetworks.nni!(undoinfo...);
+    nni!(undoinfo...);
     @test writeTopology(net_level1) == str_level1
 end # of level1 edge 18: RR (directed)
 
 @testset "non tree child net edge 3: RB (directed) move $move" for move in 0x01:0x04
     # RB case, 4 moves. uv edge cannot contain the root
-    undoinfo = PhyloNetworks.nni!(net_nontreechild, net_nontreechild.edge[3], move, true, true);
+    undoinfo = nni!(net_nontreechild, net_nontreechild.edge[3], move, true, true);
     #test that move was made
     #location of v node (node -5)
     nodes = [n.number for n in net_nontreechild.edge[4].node] #α's connections
@@ -187,7 +187,7 @@ end # of level1 edge 18: RR (directed)
     #check directionality (should point toward u, node 3)
     @test PhyloNetworks.getChild(net_nontreechild.edge[3]).number == 3
     #undo move
-    PhyloNetworks.nni!(undoinfo...);
+    nni!(undoinfo...);
     @test writeTopology(net_nontreechild) == str_nontreechild
 end #of non tree child net edge 5: RB (directed)
 
@@ -198,37 +198,37 @@ end #of non tree child net edge 5: RB (directed)
         # moves 1 and 3 in the notes correspond to 1, 1' and 3, 3' (1, 4 and 3, 6)
     # 3cycle check: could create 3 cycle (α connected to γ) so moves 1 and 5 forbidden
     if move in [0x01, 0x03, 0x05, 0x06] # DAG check
-        @test isnothing(PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[1], move, false, true))
+        @test isnothing(nni!(net_hybridladder, net_hybridladder.edge[1], move, false, true))
     end
     if move in [0x01, 0x05] # 3cycle check
-        @test isnothing(PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[1], move, true, true))
+        @test isnothing(nni!(net_hybridladder, net_hybridladder.edge[1], move, true, true))
     end
     if move == 0x04
-        undoinfo = PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[1], move, false, true);
+        undoinfo = nni!(net_hybridladder, net_hybridladder.edge[1], move, false, true);
         nodes = [n.number for n in net_hybridladder.edge[12].node] # α
         @test !(1 in nodes) # check that edge α is connected to v
         nodes = [n.number for n in net_hybridladder.edge[4].node] # δ's connections
         @test -2 in nodes # check that edge δ is connected to u
         # check directionality (edge should point toward u, node -2)
         @test PhyloNetworks.getChild(net_hybridladder.edge[1]).number == 1
-        PhyloNetworks.nni!(undoinfo...);
+        nni!(undoinfo...);
         @test writeTopology(net_hybridladder) == str_hybridladder
     elseif move == 0x02
-        undoinfo = PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[1], move, true, true);
+        undoinfo = nni!(net_hybridladder, net_hybridladder.edge[1], move, true, true);
         nodes = [n.number for n in net_hybridladder.edge[12].node] # α
         @test !(1 in nodes) # check that edge α not connected to v
         nodes = [n.number for n in net_hybridladder.edge[4].node] # δ's connections
         @test -2 in nodes # δ connected to u
         # check directionality (edge should point toward u, node -2)
         @test PhyloNetworks.getChild(net_hybridladder.edge[1]).number == 1
-        PhyloNetworks.nni!(undoinfo...);
+        nni!(undoinfo...);
         @test writeTopology(net_hybridladder) == str_hybridladder
     end
 end # of hybrid ladder net edge 1: BR undirected
 
 @testset "hybrid ladder net edge 4: RR (directed) move $move" for move in 0x01:0x02
     # RR case, 2 moves. uv edge cannot contain the root (always directed)
-    undoinfo = PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[4], move, false, true);
+    undoinfo = nni!(net_hybridladder, net_hybridladder.edge[4], move, false, true);
     #test that move was made
     nodes = [n.number for n in net_hybridladder.edge[5].node] #α's connections
     if move == 0x01 #check that edge α connected to v
@@ -242,7 +242,7 @@ end # of hybrid ladder net edge 1: BR undirected
     #check directionality (should point toward u, node 1)
     @test PhyloNetworks.getChild(net_hybridladder.edge[4]).number == 1
     #undo move
-    PhyloNetworks.nni!(undoinfo...);
+    nni!(undoinfo...);
     @test writeTopology(net_hybridladder) == str_hybridladder
 end #of hybrid ladder net edge 4: RR (directed)
 
@@ -253,10 +253,10 @@ end #of hybrid ladder net edge 4: RR (directed)
     # DAG test:
     #   no path from α -> γ or β -> γ so all moves should work
     if move in [0x01, 0x05]
-        @test isnothing(PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[5], move, false, true)) # 3-cycles forbidden
-        undoinfo = PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[5], move, false, false) # 3-cycles allowed
+        @test isnothing(nni!(net_hybridladder, net_hybridladder.edge[5], move, false, true)) # 3-cycles forbidden
+        undoinfo = nni!(net_hybridladder, net_hybridladder.edge[5], move, false, false) # 3-cycles allowed
     else
-        undoinfo = PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[5], move, false, true);
+        undoinfo = nni!(net_hybridladder, net_hybridladder.edge[5], move, false, true);
     end
     #tests for all moves:
     nodes = [n.number for n in net_hybridladder.edge[6].node] #α
@@ -279,7 +279,7 @@ end #of hybrid ladder net edge 4: RR (directed)
         @test PhyloNetworks.getChild(net_hybridladder.edge[5]).number == 1
     end
     #undo move
-    PhyloNetworks.nni!(undoinfo...);
+    nni!(undoinfo...);
     @test writeTopology(net_hybridladder) == str_hybridladder
 end #of hybrid ladder net edge 5: BR undirected
 
@@ -287,10 +287,10 @@ end #of hybrid ladder net edge 5: BR undirected
     # BB case, 8 moves. uv edge can contain the root. no flip.
     # no3cycle: moves 1, 4, 5, 8 would create a 3 cycle because α is connected to γ
     if move in [0x01, 0x04, 0x05, 0x08]
-        @test isnothing(PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[12], move, true, true))
-        undoinfo = PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[12], move, true, false);
+        @test isnothing(nni!(net_hybridladder, net_hybridladder.edge[12], move, true, true))
+        undoinfo = nni!(net_hybridladder, net_hybridladder.edge[12], move, true, false);
     else
-        undoinfo = PhyloNetworks.nni!(net_hybridladder, net_hybridladder.edge[12], move, true, true);
+        undoinfo = nni!(net_hybridladder, net_hybridladder.edge[12], move, true, true);
     end
     nodes = [n.number for n in net_hybridladder.edge[1].node] #α
     if move in [0x01, 0x02, 0x06, 0x08]
@@ -307,7 +307,7 @@ end #of hybrid ladder net edge 5: BR undirected
     #check directionality
     @test PhyloNetworks.getChild(net_hybridladder.edge[12]).number == -3
     #undo move
-    PhyloNetworks.nni!(undoinfo...);
+    nni!(undoinfo...);
     @test writeTopology(net_hybridladder) == str_hybridladder
 end # of hybrid ladder net edge 12: BB undirected (edge below root)
 
@@ -399,13 +399,13 @@ c_clade = PhyloNetworks.TopologyConstraint(0x02, ["S1A","S1B","S1C","S4"], net_l
 # NNIs under species constraints
 Random.seed!(1234);
 # no nni on stem edge for species example
-@test isnothing(PhyloNetworks.nni!(net_level1_i , net_level1_i.edge[4], true, true, c_species))
+@test isnothing(nni!(net_level1_i , net_level1_i.edge[4], true, true, c_species))
 @testset "NNI, 1 species constraint, net level 1, edge $ei" for ei in [8,3,9,15]
     # 8: BR directed, 3: BB undirected, 9: BB directed, 15: RB directed
     # note: there are no cases of RR directed in net_level1_i
-    undoinfo = PhyloNetworks.nni!(net_level1_i , net_level1_i.edge[ei], true, true, c_species);
+    undoinfo = nni!(net_level1_i , net_level1_i.edge[ei], true, true, c_species);
     @test undoinfo !== nothing
-    PhyloNetworks.nni!(undoinfo...);
+    nni!(undoinfo...);
     @test writeTopology(net_level1_i) == "(((S8,S9),(((((S1A,S1B,S1C)S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 end
 # TODO: BR case edge 8: nni move 3 causes problems. hybrid node 6 has 0 or 2+ major hybrid parents
@@ -427,17 +427,17 @@ netl1_i.root = 14 # back to original rooted network. This node is still of degre
 netl1_i.root = 7; directEdges!(netl1_i) # move root strictly above clade crown
 con[2] = PhyloNetworks.TopologyConstraint(0x02, ["S5","S6","S7"], netl1_i)
 @test PhyloNetworks.checkspeciesnetwork!(netl1_i, con) # now fine: root *above* clade crown
-undoinfo = PhyloNetworks.nni!(netl1_i,netl1_i.edge[8],0x02,false,false);
+undoinfo = nni!(netl1_i,netl1_i.edge[8],0x02,false,false);
 @test !PhyloNetworks.checkspeciesnetwork!(netl1_i, con)
-PhyloNetworks.nni!(undoinfo...);
+nni!(undoinfo...);
 @test PhyloNetworks.checkspeciesnetwork!(netl1_i, con)
-undoinfo = PhyloNetworks.nni!(netl1_i,netl1_i.edge[8],0x03,false,false) # creates a 2-cycle
+undoinfo = nni!(netl1_i,netl1_i.edge[8],0x03,false,false) # creates a 2-cycle
 @test netl1_i.numEdges == 13
 PhyloNetworks.deletehybridedge!(netl1_i, netl1_i.edge[10])
 @test netl1_i.numEdges == 10 # 2-cycle removed
 netl1_i = readTopology("(((S1A,S1B,S1C),S4),#H1,((S5)#H1,(S6,S7)));")
-undoinfo = PhyloNetworks.nni!(netl1_i,netl1_i.edge[12],0x03,false,false) # 4-cycle now
-@test PhyloNetworks.nni!(netl1_i,netl1_i.edge[12],0x02,true,true) === nothing # would create a 3-cycle
+undoinfo = nni!(netl1_i,netl1_i.edge[12],0x03,false,false) # 4-cycle now
+@test nni!(netl1_i,netl1_i.edge[12],0x02,true,true) === nothing # would create a 3-cycle
 end
 
 #=
@@ -456,9 +456,9 @@ net_species = readTopology(str_polytomy_species);
 c_nontree_cladebelowhybrid = PhyloNetworks.TopologyConstraint(0x02, ["Az", "As"], net_nontreechild)
 c_level1_clade = PhyloNetworks.TopologyConstraint(0x02, ["S1", "S2", "S3"], net_level1)
 # this test below returns nothing but shouldn't
-PhyloNetworks.nni!(net_nontreechild, net_nontreechild.edge[20], true, [c_nontree_cladebelowhybrid])
+nni!(net_nontreechild, net_nontreechild.edge[20], true, [c_nontree_cladebelowhybrid])
 # this test errors
-@test isnothing(PhyloNetworks.nni!(net_nontreechild, net_nontreechild.edge[18], true, [c_nontree_cladebelowhybrid]))
+@test isnothing(nni!(net_nontreechild, net_nontreechild.edge[18], true, [c_nontree_cladebelowhybrid]))
 
 @test PhyloNetworks.checkspeciesnetwork!(net_nontreechild, [c_nontree_cladebelowhybrid])
 

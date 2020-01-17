@@ -1,6 +1,6 @@
 
 """
-`parsimonyBottomUpFitch!(node, states, score)`
+    parsimonyBottomUpFitch!(node, states, score)
 
 Bottom-up phase (from tips to root) of the Fitch algorithm:
 assign sets of character states to internal nodes based on
@@ -40,7 +40,7 @@ function parsimonyBottomUpFitch!(node::Node, possibleStates::Dict{Int64,Set{T}},
 end
 
 """
-`parsimonyTopDownFitch!(node, states)`
+    parsimonyTopDownFitch!(node, states)
 
 Top-down phase (root to tips) of the Fitch algorithm:
 constrains character states at internal nodes based on
@@ -63,7 +63,7 @@ function parsimonyTopDownFitch!(node::Node, possibleStates::Dict{Int64,Set{T}}) 
 end
 
 """
-`parsimonySummaryFitch(tree, nodestates)`
+    parsimonySummaryFitch(tree, nodestates)
 
 summarize character states at nodes, assuming a *tree*
 """
@@ -158,7 +158,7 @@ function parsimonyDiscreteFitch(net::HybridNetwork, dat::DataFrame)
 end
 
 """
-`parsimonyBottomUpSoftwired!(node, blobroot, states, w, scores)`
+    parsimonyBottomUpSoftwired!(node, blobroot, states, w, scores)
 
 Computing the MP scores (one for each assignment of the root state)
 of a swicthing as described in Algorithm 1 in the following paper:
@@ -824,8 +824,8 @@ function initializeWeightsFromLeaves!(w::AbstractArray, net::HybridNetwork, tips
 end
 
 """
-    `parsimonyBottomUpGF!(node, blobroot, nchar, w, scores,
-        costmatrix1, costmatrix2)`
+    parsimonyBottomUpGF!(node, blobroot, nchar, w, scores,
+                         costmatrix1, costmatrix2)
 
 Compute the MP scores (one for each assignment of the blob root state)
 given the descendants of a blob, conditional on the states at predefined parents
