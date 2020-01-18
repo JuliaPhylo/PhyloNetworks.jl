@@ -139,4 +139,5 @@ maxParsimonyNet
 nstates
 stationary
 empiricalDNAfrequencies
+mapindividuals
 ```

@@ -661,7 +661,6 @@ julia> pltw = PhyloNetworks.posterior_logtreeweight(fit)
  -2.523619878044531  
 
 julia> exp.(pltw) # posterior trees probabilities (sum up to 1)
-exp.(pltw)
 2-element Array{Float64,1}:
  0.9198311206979973 
  0.08016887930200293
@@ -670,6 +669,7 @@ julia> round.(exp.(fit.priorltw), digits=4) # the prior tree probabilities are s
 2-element Array{Float64,1}:
  0.9
  0.1
+```
 """
 function posterior_logtreeweight(obj::SSM, trait = 1)
     # ts[tree,site] = log P(data and tree) at site
@@ -944,7 +944,8 @@ end
 
 Return unique non-missing values in `dat`, and check that these labels
 can be used to construct of substitution model of type `model`.
-Examples:
+
+# examples:
 
 ```jldoctest
 julia> using DataFrames
@@ -961,7 +962,7 @@ julia> PhyloNetworks.learnlabels(:JC69, dat)
  "A"
  "C"
 ```
-`"""
+"""
 function learnlabels(modSymbol::Symbol, dat::AbstractDataFrame)
     labels = mapreduce(x -> unique(skipmissing(x)), union, eachcol(dat))
     if modSymbol == :BTSM
@@ -1079,38 +1080,6 @@ function datatoSSM(net::HybridNetwork, fastafile::String, modsymbol::Symbol)
     trait = dat2[o]
     startingBL!(net, trait, siteweights)
     obj = StatisticalSubstitutionModel(model, ratemodel, net, trait, siteweights)
-end
-
-"""
-    addclades!(net::HybridNetwork, cladesDict::Dict{String, Vector{Int64}}
-
-Add clade designation according to an array of clade dictionaries, where the array
-has length equal to the number of species in the non-main clades 
-(e.g. outgroups, known clades, etc).
-note: all nodes start with clade designation "Main" or 1.
-TODO See how this is done in other software (raxML). 
-Maybe we force a polytomy at top of outgroup? Let users give us a tree?
-"""
-function addclades!(net::HybridNetwork, cladesDict::Dict{String,Vector{Int64}})
-    #adds clades for leaves not in main clade
-    #interate over items in input dictionary 
-
-    #compare keys with net.leaf
-    for key in keys(cladesDict)
-        for index in 1:length(net.leaf) #net.leaf is an array of the network's leaves
-            if net.leaf[index].name == key
-                #removes main clade designation
-                filter!(x->x≠1,net.leaf[index].clade)
-                #adds new clade membership
-                for i in 1:length(cladesDict[key])
-                    cladetoadd = cladesDict[key][i]
-                    push!(net.leaf[index].clade, cladetoadd)
-                    #removes duplicates to catche when funct run with same values
-                    net.leaf[index].clade = unique(net.leaf[index].clade) 
-                end
-            end
-        end
-    end
 end
 
 """

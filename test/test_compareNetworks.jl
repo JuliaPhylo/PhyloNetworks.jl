@@ -1,4 +1,4 @@
-# test of deleteHybridEdge!, functions to extract displayed trees/subnetworks,
+# test of deletehybridedge!, functions to extract displayed trees/subnetworks,
 #      used to compare networks with the hardwired cluster distance.
 # Cecile March 2016
 
@@ -8,17 +8,17 @@ global net, tree
 #----------------------------------------------------------#
 #   testing functions to delete edges and nodes            #
 #----------------------------------------------------------#
-@testset "testing deleteHybridEdge!" begin
+@testset "testing deletehybridedge!" begin
 
 # with keepNodes=true
 netstr = "(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.0,D:5.0);"
 net = readTopology(netstr)
-@test_logs PhyloNetworks.deleteHybridEdge!(net, net.edge[6], true);
+@test_logs PhyloNetworks.deletehybridedge!(net, net.edge[6], true);
 @test writeTopology(net) == "(((A:4.0,(B:1.0)H1:1.1):0.5,(C:0.6):1.0):3.0,D:5.0);"
 @test net.edge[3].gamma == 0.9
 @test net.node[3].name == "H1"
 net = readTopology(netstr)
-@test_logs PhyloNetworks.deleteHybridEdge!(net, net.edge[3], true);
+@test_logs PhyloNetworks.deletehybridedge!(net, net.edge[3], true);
 @test writeTopology(net) == "(((A:4.0):0.5,(C:0.6,(B:1.0)H1:1.0):1.0):3.0,D:5.0);"
 @test  net.edge[5].gamma == 0.1
 @test !net.edge[5].hybrid
@@ -30,50 +30,53 @@ net = readTopology(netstr)
 #  3 edges below the root (1 of them hybrid):
 netstr = "((Adif:1.0,(Aech:0.122,#H6:10.0::0.047):10.0):1.614,Aten:1.0,((Asub:1.0,Agem:1.0):0.0)#H6:5.062::0.953);";
 net = readTopology(netstr);
-@test_logs PhyloNetworks.deleteHybridEdge!(net, net.edge[10]);
+@test_logs PhyloNetworks.deletehybridedge!(net, net.edge[10]); # will be rooted
+@test writeTopology(net) == "((Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0):1.614,Aten:1.0);"
+net = readTopology(netstr);
+@test_logs PhyloNetworks.deletehybridedge!(net, net.edge[10], false, true); # unrooted
 @test writeTopology(net) == "(Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0,Aten:2.614);"
 net = readTopology(netstr);
-@test_logs PhyloNetworks.deleteHybridEdge!(net, net.edge[3]);
+@test_logs PhyloNetworks.deletehybridedge!(net, net.edge[3]);
 @test writeTopology(net) == "((Adif:1.0,Aech:10.122):1.614,Aten:1.0,(Asub:1.0,Agem:1.0):5.062);"
 # 2 edges below the root (1 of them hybrid):
 netstr = "((Adif:1.0,(Aech:0.122,#H6:10.0::0.047):10.0):1.614,((Asub:1.0,Agem:1.0):0.0)#H6:5.062::0.953);";
 net = readTopology(netstr);
-@test_logs PhyloNetworks.deleteHybridEdge!(net, net.edge[9]);
+@test_logs PhyloNetworks.deletehybridedge!(net, net.edge[9]);
 @test writeTopology(net) == "(Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0);"
 net = readTopology(netstr);
-@test_logs PhyloNetworks.deleteHybridEdge!(net, net.edge[9], true);
+@test_logs PhyloNetworks.deletehybridedge!(net, net.edge[9], true);
 @test writeTopology(net) == "((Adif:1.0,(Aech:0.122,((Asub:1.0,Agem:1.0):0.0)H6:10.0):10.0):1.614);"
 
 if doalltests
 net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.1361111):10.0);");
 # plot(net, showEdgeNumber=true, showNodeNumber=true)
-deleteHybridEdge!(net, net.edge[11]);
+deletehybridedge!(net, net.edge[11]);
 writeTopologyLevel1(net) == "(4,((1,2):2.069,(6,5):3.423):0.265,3);" ||
- error("deleteHybridEdge! didn't work on 11th edge")
+ error("deletehybridedge! didn't work on 11th edge")
 net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.1361111):10.0);");
-deleteHybridEdge!(net, net.edge[4]);
+deletehybridedge!(net, net.edge[4]);
 writeTopologyLevel1(net) == "(4,((6,5):3.423,1):0.265,(3,2):10.0);" ||
- error("deleteHybridEdge! didn't work on 4th edge")
+ error("deletehybridedge! didn't work on 4th edge")
 end
 
 # example with wrong attributed inChild1
 net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.1361111):10.0);");
 net.edge[5].isChild1 = false;
-@test_logs deleteHybridEdge!(net, net.edge[4]);
+@test_logs deletehybridedge!(net, net.edge[4]);
 @test writeTopologyLevel1(net) == "(4,((6,5):3.423,1):0.265,(3,2):10.0);"
-# or: deleteHybridEdge! didn't work on 4th edge when isChild1 was outdated
+# or: deletehybridedge! didn't work on 4th edge when isChild1 was outdated
 
 if doalltests
 net = readTopology("((Adif:1.0,(Aech:0.122,#H6:10.0::0.047):10.0):1.614,Aten:1.0,((Asub:1.0,Agem:1.0):0.0)#H6:5.062::0.953);");
 net.edge[5].isChild1 = false # edge 5 from -1 to -2
-deleteHybridEdge!(net, net.edge[10]);
+deletehybridedge!(net, net.edge[10]);
 println("a warning is expected: \"node -1 being the root is contradicted by isChild1 of its edges.\"")
 writeTopologyLevel1(net) == "(Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0,Aten:2.614);" ||
- error("deleteHybridEdge! didn't work on 10th edge after isChild1 was changed")
+ error("deletehybridedge! didn't work on 10th edge after isChild1 was changed")
 # plot(net, showEdgeNumber=true, showNodeNumber=true)
 end
 
-end # of testing deleteHybridEdge!
+end # of testing deletehybridedge!
 
 @testset "testing deleteleaf! and hardwiredClusterDistance" begin
 
@@ -114,17 +117,22 @@ net3  = readTopology(cui3str);
 @test_logs deleteleaf!(net3,"Xhellerii");
 @test_logs deleteleaf!(net3,"Xsignum");
 # earlier warning: """node 13 is a leaf. Will create a new node if needed, to set taxon "Xmayae" as outgroup."""
-@test_logs rootatnode!(net2,"Xmayae");
 @test hardwiredClusterDistance(net2, net3, true) == 3
-@test_logs deleteleaf!(net3,"Xmayae");    #plot(net3);
+@test_logs rootatnode!(net3,"Xmayae");
+@test hardwiredClusterDistance(net2, net3, true) == 4
+@test_logs deleteleaf!(net3,"Xmayae"; unroot=true);    #plot(net3);
 @test net3.numHybrids == 2
 # using simplify=false in deleteleaf!
 net3  = readTopology(cui3str);
 deleteleaf!(net3,"Xhellerii"); deleteleaf!(net3,"Xsignum");
 deleteleaf!(net3,"Xmayae", simplify=false);
-@test net3.numHybrids==3 # or: deleteleaf wrong on mayae with simplify=false
-# plot(net3); # looks weird though: k=2 cycle at the root. 3 root edges:
-# one to a leaf, 1 major & 1 minor hybrid edge to the same child.
+@test net3.numHybrids==3
+@test net3.numNodes == 47
+net3  = readTopology(cui3str);
+deleteleaf!(net3,"Xhellerii"); deleteleaf!(net3,"Xsignum");
+deleteleaf!(net3,"Xmayae", simplify=false, unroot=true);
+@test net3.numHybrids==3
+@test net3.numNodes == 46
 
 end # of testset for deleteleaf! and hardwiredClusterDistance
 
@@ -135,12 +143,9 @@ end # of testset for deleteleaf! and hardwiredClusterDistance
 @testset "testing deleteHybridThreshold!" begin
 
 if doalltests
-net21 = readTopology("(A,((B,#H1),(C,(D)#H1)));");
-# manual bug fix to get good gamma's (0.5 not 1.0) and major/minor
-net21.edge[3].gamma = 0.5;
-net21.edge[7].gamma = 0.5;
+net21 = readTopology("(A,((B,#H1:::0.5),(C,(D)#H1)));");
 deleteHybridThreshold!(net21,0.2);
-writeTopologyLevel1(net21) == "(A,((B,#H1:::0.5),(C,(D)#H1:::0.5)));" ||
+writeTopology(net21) == "(A,((B,#H1:::0.5),(C,(D)#H1:::0.5)));" ||
  error("deleteHybridThreshold! didn't work on net21, gamma=0.2")
 deleteHybridThreshold!(net21,0.5);
 writeTopologyLevel1(net21) == "(A,((C,D),B));" ||
@@ -227,8 +232,10 @@ net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02:
 @test writeTopology(net5) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.7);"
 net = readTopology("((((B)#H1)#H2,((D,C,#H2)S1,(#H1,A)S2)S3)S4);") # missing γ's, level 2
 @test writeTopology(majorTree(net)) == "(((D,C)S1,A)S3,B)S4;"
+@test writeTopology(majorTree(net; keepNodes=true)) == "(((B)H1)H2,((D,C)S1,(A)S2)S3)S4;"
 setGamma!(net.edge[8], 0.8)
 @test writeTopology(majorTree(net)) == "((D,C)S1,(A,B)S2)S3;"
+# but: bug with writeTopology(majorTree(net; keepNodes=true))
 
 end # of testset, majorTree & displayedNetworkAt!
 
@@ -315,8 +322,8 @@ trunet = readTopology("((((1,2),((3,4))#H1),(#H1,5)),6);");
 @test hardwiredClusterDistance(majorTree(trunet), majorTree(estnet),false) == 0 # false: unrooted
 truminor = minorTreeAt(trunet, 1); # (1:1.0,2:1.0,((5:1.0,(3:1.0,4:1.0):2.0):1.0,6:1.0):2.0);
 estminor = minorTreeAt(estnet, 1); # (5:1.0,(3:1.0,4:1.0):1.069,(6:1.0,(1:1.0,2:1.0):10.0):8.735);
-@test writeTopology(truminor) == "((((1,2),(3,4)),5),6);"
-@test writeTopology(estminor) == "(6,(((1,2):6.107,(3,4):10.578):6.029,5):0.752);"
+@test writeTopology(truminor) == "(((5,(3,4)),(1,2)),6);"
+@test writeTopology(estminor) == "(6,((5,(3,4):1.069):8.735,(1,2):12.136):0.752);"
 @test hardwiredClusterDistance(truminor, estminor, false) == 0 # false: unrooted
 # so the hybrid edge was estimated correctly!!
 

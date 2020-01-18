@@ -219,11 +219,11 @@ end
 
 function setEdge!(node::Node,edge::Edge)
    push!(node.edge,edge);
-   all((e->!e.hybrid), node.edge) ? node.hasHybEdge = false : node.hasHybEdge = true;
+   node.hasHybEdge = any(e -> e.hybrid, node.edge)
 end
 
-function getOtherNode(edge::Edge,node::Node)
-  isequal(edge.node[1],node) ? edge.node[2] : edge.node[1]
+function getOtherNode(edge::Edge, node::Node)
+  edge.node[1] === node ? edge.node[2] : edge.node[1]
 end
 
 # get[Major|Minor]ParentEdge and getChildren: defined in manipulateNet.jl
@@ -357,11 +357,12 @@ end
 
 
 # function that given a hybrid node, it gives you the minor hybrid edge
+# warning: assumes level-1 network: see getMinorParentEdge for a general network
 function getHybridEdge(node::Node)
     node.hybrid || error("node $(node.number) is not hybrid node, cannot get hybrid edges")
     a = nothing;
     for e in node.edge
-        (e.hybrid && !e.isMajor) ? a = e : nothing;
+        (e.hybrid && !e.isMajor) ? a = e : nothing; # assumes level-1: child of hybrid node must be a tree edge
     end
     isa(a,Nothing) ? error("hybrid node $(node.number) does not have minor hybrid edge, edges: $([e.number for e in node.edge])") : return a
 end
@@ -932,6 +933,12 @@ function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool)
     return nothing
 end
 
+@inline function setmultiplegammas!(edges::Vector{Edge}, gammas::Vector{Float64})
+    for (e,g) in zip(edges, gammas)
+        setGamma!(e, g)
+    end
+end
+
 """
     setGammaBLfromGammaz!(node, network)
 
@@ -1228,7 +1235,7 @@ function assignhybridnames!(net::HybridNetwork)
     for n in net.node
         !n.hybrid || continue # do nothing if node n is hybrid
         m = match(rx, n.name)
-        m == nothing || push!(trenum, parse(Int, m[1]))
+        m === nothing || push!(trenum, parse(Int, m[1]))
     end
     # first: go through *all* existing non-empty names
     hybnum = Int[]  # indices 'i' in hybrid names: Hi
@@ -1242,7 +1249,7 @@ function assignhybridnames!(net::HybridNetwork)
             hnode.name = ""
         else # fill in list of existing indices "i" in Hi
             m = match(rx, lab)
-            m != nothing || continue # skip the rest if name is not of the form Hi
+            m !== nothing || continue # skip the rest if name is not of the form Hi
             ind = parse(Int, m[1])
             if ind in trenum
                 @warn "hybrid node $(hnode.number) had same label as a tree node: H$ind. Will change hybrid name."
@@ -1430,6 +1437,24 @@ function sorttaxaCFperm!(pcf::Vector{Int8}, ptax::Vector{Int8})
         end
     end
 end
+
+"""
+    setlengths!(edges::Vector{Edge}, lengths::Vector{Float64})
+
+Assign new lengths to a vector of `edges`.
+"""
+@inline function setlengths!(edges::Vector{Edge}, lengths::Vector{Float64})
+    for (e,l) in zip(edges, lengths)
+        setLength!(e, l)
+    end
+end
+
+"""
+    getlengths(edges::Vector{Edge})
+
+Vector of edge lengths for a vector of `edges`.
+"""
+getlengths(edges::Vector{Edge}) = [e.length for e in edges]
 
 
 #------------------------------------

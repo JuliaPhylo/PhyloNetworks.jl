@@ -36,5 +36,6 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/crsl4/PhyloNetworks.jl.git"
+    repo = "github.com/crsl4/PhyloNetworks.jl.git",
+    push_preview = true,
 )
