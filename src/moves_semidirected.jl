@@ -783,7 +783,7 @@ Randomly update root using rootatnode! as part of optimization. Check to ensure
 that the rooting will be valid. Needed for optimization because the root position 
 affects the feasibility of the NNIs starting from a BR configuration.
 
-Return the network.
+Return the network. If not successful, return nothing.
 
 Warnings:
 
@@ -794,7 +794,9 @@ Warnings:
     the root mismatch info printed before the error is thrown.
   * the input network will still have some attributes modified.
 
-#? Should we write function to update root on edge? (allow rooting on clade stem edge, but not below.)
+#? Is it necessary to we write a function to update root on edge? This wouldn't probably 
+#? improve our structure optimization much, right? 
+#? (note: if we do this, allow rooting on clade stem edge, but not below.)
 
 # TODO when changing root position, check if the stem edge is still directed in the correct direction according to stemedge.isChild1()
 
@@ -827,9 +829,7 @@ function randomlyupdaterootonnode!(net::HybridNetwork, constraints=TopologyConst
                 end
             end
         end
-        # Check 3: check that constraint stemedge will be directed correctly
-            #? only relevant if we allow rootings inside constraint groups, right?
-        # Check 4: Directional Conflict
+        # Check 3: Directional Conflict
         if newrootfound == true # the new root passes above tests
             try
                 rootatnode!(HybridNetwork, newrootnode)
