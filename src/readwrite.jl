@@ -1448,8 +1448,8 @@ function hybridlambdaformat(net::HybridNetwork; prefix="I")
   ## next: replace the γ2 of the second occurrence by γ1 from the first occurrence:
   ## this is what Hybrid-Lambda wants...
   nh = length(net.hybrid)
-  m = eachmatch(r"H[^#]*#", str2)
-  hboth = collect(h.match for h in m)
+  m = eachmatch(r"[)(,](H[^#)(,]*#)", str2)
+  hboth = collect(h.captures[1] for h in m)
   hone = unique(hboth)
   length(hboth) == 2length(hone) || error("did not find Hname# twice for some one (or more) of the hybrid names.")
   str3 = str2
