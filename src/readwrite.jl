@@ -1440,9 +1440,9 @@ function hybridlambdaformat(net::HybridNetwork; prefix="I")
   net = deepcopy(net) # binding to new object
   nameinternalnodes!(net, prefix)
   str1 = writeTopology(net, round=true, digits=15) # internallabels=true by default
-  rx_noBL = r"#(H[\w\d]+)::\d*\.?\d*:(\d*\.?\d*)"
+  rx_noBL = r"#(H[\w\d]+)::\d*\.?\d*(?:e[+-]?\d+)?:(\d*\.?\d*(?:e[+-]?\d+)?)"
   subst_noBL = s"\1#\2"
-  rx_withBL = r"#(H[\w\d]+):(\d*\.?\d*):\d*\.?\d*:(\d*\.?\d*)"
+  rx_withBL = r"#(H[\w\d]+):(\d*\.?\d*(?:e[+-]?\d+)?):\d*\.?\d*(?:e[+-]?\d+)?:(\d*\.?\d*(?:e[+-]?\d+)?)"
   subst_withBL = s"\1#\3:\2"
   str2 = replace(replace(str1, rx_noBL => subst_noBL), rx_withBL => subst_withBL)
   ## next: replace the γ2 of the second occurrence by γ1 from the first occurrence:
