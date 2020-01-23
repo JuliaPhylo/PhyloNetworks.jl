@@ -649,9 +649,6 @@ lengthep = obj.net.edge[9].node[1].edge[1].length
 end
 
 @testset "local branch length and gamma optimization with localgamma! localBL! with 8 sites" begin
-#TODO something is wrong with this network -- the reticulations dont make sense after
-# its been pruned down to only nodes with data.
-
 fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_8sites.aln") # 8 sites only
 fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "Ae_bicornis_8sites.aln"))
 dna_dat, dna_weights = readfastatodna(fastafile, true); # 22 species, 3 hybrid nodes, 103 edges
@@ -707,7 +704,7 @@ end
 obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69);
 
 ## optimizeBL: unzip = true
-@test typeof(optimizeBL!(obj, obj.net, obj.net.edge, true, true, :LD_MMA, 1.0e-12, 1.0e-12, 1.0e-12, 1.0e-12)) == Vector{PhyloNetworks.Edge}
+@test typeof(PhyloNetworks.optimizeBL!(obj, obj.net, obj.net.edge, true, true, :LD_MMA, 1.0e-12, 1.0e-12, 1.0e-12, 1.0e-12)) == Vector{PhyloNetworks.Edge}
 @test obj.net.edge[10] != 1.0
 @test obj.net.edge[40] != 1.0
 
@@ -730,7 +727,7 @@ end # of testing hashybridladder
 net_simple = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "simple_missingone.aln"))
 obj = PhyloNetworks.datatoSSM(net_simple, fastafile, :JC69)
-@test length(obj.net.edge) == 6
+@test length(obj.net.edge) == 7
 @test length(obj.net.hybrid) == 1
 @test length(obj.net.leaf) == 3
 @test !PhyloNetworks.hashybridladder(obj.net)
@@ -755,18 +752,18 @@ obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69);
 @test !PhyloNetworks.hashybridladder(obj.net)
 end
 
-@testset "optimizestructure with simple example" for nummoves in 5:5
+@testset "optimizestructure with simple example" for maxmoves in 2:2
 net_simple = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "simple_missingone.aln"))
 obj = PhyloNetworks.datatoSSM(net_simple, fastafile, :JC69)
-@test typeof(PhyloNetworks.optimizestructure!(obj, [0.75, 0.25, 0.00], 10, 3, true, true, true, true)) == PhyloNetworks.StatisticalSubstitutionModel
+@test typeof(PhyloNetworks.optimizestructure!(obj, maxmoves, 3, true, true, true, true)) == PhyloNetworks.StatisticalSubstitutionModel
 #@test length(obj.net.hybrid) > 1 #this might not be a good test bc it could have one hybrid, but most of the time the net will have more
 @test writeTopology(obj.net) != "(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);"
 
 # TODO is a root change possible in this net?
 # net_simple = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 # obj = PhyloNetworks.datatoSSM(net_simple, fastafile, :JC69)
-# @test typeof(PhyloNetworks.optimizestructure!(obj, [0.70, 0.25, 0.05], 10, 3, true, true, true)) == PhyloNetworks.StatisticalSubstitutionModel
+# @test typeof(PhyloNetworks.optimizestructure!(obj, maxmoves, 3, true, true, true, true)) == PhyloNetworks.StatisticalSubstitutionModel
 # @test writeTopology(obj.net) != "(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);"
 
 end # of optimizestructure with simple example

@@ -261,8 +261,7 @@ variable rates across sites ~ discretized gamma with
 on a network with 0 reticulations
 log-likelihood: -5.2568
 ```
-#TODO add option to allow users to specify root prior (either equal frequencies or stationary frequencies)
-for trait models
+#? add option to allow users to specify root prior (either equal frequencies or stationary frequencies) for trait models
 """
 function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, #tips::Dict no ratemodel version
     tips::Dict; kwargs...)
@@ -434,13 +433,7 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,verbose=fa
       alphamin=0.05, alphamax=500)
     all(x -> x >= 0.0, [e.length for e in obj.net.edge]) || error("branch lengths should be >= 0")
     all(x -> x >= 0.0, [e.gamma for e in obj.net.edge]) || error("gammas should be >= 0")
-    # if optimizeTOPO
-    #     obj.net = startingBL!(obj.net, Array(obj.trait), obj.siteweight) #TODO check if Array() conversion needed
-    #     # TODO obj.net = updateTopo!(obj.net, liketolAbs, Nfail, data, hmax,
-    #     #     ftolRel, ftolAbs, xtolRel, 
-    #     #     xtolAbs, verbose, closeN, NmovO,
-    #     #     logfile, writelog)
-    # end
+    # TODO add call to optimizestructure!() here after debugging?
     if optimizeQ && nparams(obj.model) <1
         @debug "The Q matrix for this model is fixed, so there are no rate parameters to optimize. optimizeQ will be set to false."
         optimizeQ = false
@@ -727,7 +720,7 @@ function traitlabels2indices(data::Union{AbstractMatrix,AbstractDataFrame},
                 vi = findfirst(isequal(l), labs) 
                 if vi === nothing
                     #FIXIT ideally, replace isambiguous with isgap and handle ambiguous DNA types
-                    #@show BioSymbols.isambiguous(l) #TODO this is false
+                    #@show BioSymbols.isambiguous(l) #note: this is false
                     if isDNA #&& BioSymbols.isambiguous(l)
                         vi = missing 
                     else
@@ -1070,7 +1063,7 @@ Return vector of updated `edges`.
 
 Used after `nni!` or `addhybridedge!` moves to update local branch lengths.
 """
-function localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool)
+function localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool, verbose=false::Bool)
     edges = Edge[]
     for n in edge.node
         for e in n.edge # all edges that share a node with `edge` (including self)
@@ -1079,8 +1072,8 @@ function localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool)
             end
         end
     end
-    optimizeBL!(obj, net, edges, unzip, false, :LD_MMA, fRelBL, fAbsBL, xRelBL,
-    xAbsBL) #TODO set this tolerance high to just a rough optimization
+    optimizeBL!(obj, net, edges, unzip, verbose, 0.001, 0.001, 0.001, 0.001,
+    0.001) # set tolerance high for a rough optimization
     return edges
 end
 
@@ -1099,7 +1092,7 @@ Assumptions:
 - correct `isChild1` field for `edge` and for hybrid edges
 - no in-coming polytomy: a node has 0, 1 or 2 parents, no more
 """
-function localgamma!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool)
+function localgamma!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool, verbose=false::Bool)
     edges = Edge[]
     for n in edge.node
         for e in n.edge # all edges that share a node with `edge` (including self)
@@ -1107,9 +1100,9 @@ function localgamma!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool)
                 push!(edges, e)
             end
         end
-    end #TODO update verbose to false after debugging
-    optimizegammas!(obj, net, edges, unzip, true, :LD_MMA, fRelBL, fAbsBL, xRelBL,
-    xAbsBL)
+    end
+    optimizegammas!(obj, net, edges, unzip, verbose, :LD_MMA, 0.1, 0.1, 0.1,
+    0.1)
 end
 
 """
@@ -1124,6 +1117,11 @@ Return vector of updated `edges`.
 function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::Bool,
     verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64,
     ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64)
+    if unzip == true
+        constrainededges = [hybridEdges(h)[3] for h in net.hybrid]
+        setlengths!(constrainededges, zeros(length(constrainededges)))
+        edges = setdiff(net.edges, constrainededges) # net.edges - constrainededges
+    end
     counter = [0]
     function loglikfunBL(lengths::Vector{Float64}, grad::Vector{Float64}) # modifies obj
         counter[1] += 1
@@ -1159,6 +1157,8 @@ end
 
 Optimize gammas for hybrid edges in vector `edges`.
 Return vector of updated `edges`.
+
+Warning: edges vector should not contain partners.
 """
 function optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::Bool,
     verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64, ftolAbs::Float64,
@@ -1206,7 +1206,7 @@ Similar to fitdiscrete()
 function datatoSSM(net::HybridNetwork, fastafile::String, modsymbol::Symbol)
     data, siteweights = readfastatodna(fastafile, true)
     model = symboltomodel(net, modsymbol, data, siteweights)
-    ratemodel = RateVariationAcrossSites(1.0, 1) #TODO add option for users
+    ratemodel = RateVariationAcrossSites(1.0, 1) #? add option for users here
     dat2 = traitlabels2indices(view(data, :, 2:size(data,2)), model)
     o, net = check_matchtaxonnames!(data[:,1], dat2, net)
     trait = dat2[o]
@@ -1284,72 +1284,86 @@ Assumptions:
 
 note: when removing a hybrid edge, always removes the minor edge.
 """
-function optimizestructure!(obj::SSM, movepercentages::Vector{Float64}, maxmoves::Int64,
+function optimizestructure!(obj::SSM, maxmoves::Int64,
     maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
     constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     moves = 0
-    movetype = "none"
+    moveweights = Distributions.aweights([0.6, 0.3, 0.1]) #TODO make constants in package for movepercentages
     while moves <= maxmoves
-        #choose nni, hybrid or root change randomly using user-given proportions
-        sum(movepercentages) == 1 || error("The vector of move percentages must sum to one.")
-        movechoice = rand()
-        if movechoice >= movepercentages[2]
-            movetype = "nni"
-            # choose interior edge randomly
+        currLik = loglikelihood(obj)
+        movechoice = sample(["nni", "hybrid", "root"], moveweights) 
+        if movechoice == "nni"
             edgefound = false
             blacklist = Edge[]
-            while !edgefound
+            while !edgefound # choose interior edge randomly
                 if length(blacklist) == length(obj.net.edge)
                     error("there are no nni moves possible in this network.")
                 end
                 eindex = Random.randperm(length(obj.net.edge))[1]
-                if !getChild(obj.net.edge[eindex]).leaf # e1 is an interior edge
-                    e1 = obj.net.edge[eindex]
-                    # perform move
-                    undoinfo = nni!(obj.net, e1, no3cycle, constraints)
-                    if !isnothing(undoinfo)
-                        moves += 1
-                        edgefound = true
-                    else # if move is unsuccessful, look for another edge until successful
-                        push!(blacklist, e1)
+                e1 = obj.net.edge[eindex]
+                undoinfo = nni!(obj.net, e1, nohybridladder, no3cycle, constraints) # perform move
+                if !isnothing(undoinfo)
+                    moves += 1
+                    edgefound = true
+                    if currLik < loglikelihood(obj)
+                        nni!(undoinfo...) # undo move
                     end
-                else
-                    push!(blacklist, obj.net.edge[eindex])
+                else # if move is unsuccessful, look for another edge until successful
+                    push!(blacklist, e1)
                 end
             end
-        elseif movechoice >= movepercentages[1] # perform hybrid move
-            movetype = "hybrid"
-            # add or remove hybrid with 50% probability
-            add = (rand() > 0.5) # if true, attempts to add new hybrid
-            if add && length(obj.net.hybrid) < maxhybrid
-                net, newhybridnode = addhybridedge!(obj.net, nohybridladder, constraints)
+        elseif movechoice == "hybrid" # perform hybrid move
+            if maxhybrid == 0
+                @debug("The maximum number of hybrids allowed is $maxhybrid, so hybrid moves are not legal on this network.")
+            elseif length(obj.net.hybrid) == 0
+                add = true # add hybrid
+            elseif length(obj.net.hybrid) == maxhybrid
+                add = false # remove hybrid
+            else  # meaning we can do either move
+                add = (rand() > 0.5) # add hybrid with 50% probability
+            end
+            if add
+                newhybridnode = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints)
+                #TODO return new hybrid edge instead?
                 moves += 1
                 e1 = getMinorParentEdge(newhybridnode)
-                #? for a hybrid move, should we optimize edges around both new nodes?
-                #? or just edges around the new hybrid edge? (as above)
-            elseif length(obj.net.hybrid) > 0 # delete hybrid
+                #todo optimize edges around the new hybrid edge (as above) (five)
+                if currLik < loglikelihood(obj)
+                    deleteHybridizationUpdate!(obj.net.hybrid[newhybridnode], obj.net, true, false)
+                end
+            else # delete hybrid
                 hybridindex = Random.randperm(length(obj.net.hybrid))[1]
-                e1 = getMajorParentEdge(obj.net.hybrid[hybridindex])
-                removehybridedge!(obj.net, obj.net.hybrid[hybridindex], true, false)
+                e1 = getMajorParentEdge(obj.net.hybrid[hybridindex]) # edge that will remain after removal
+                # origin of minor hybrid edge
+                edge1 = getMajorParentEdge(getParent(getMinorParentEdge(obj.net.hybrid[hybridindex]))) 
+                #? is this getting the correct edge?^
+                deleteHybridizationUpdate!(obj.net, obj.net.hybrid[hybridindex], true, false) #delete minor hybrid edge
+                #? should this be deleteHybrid?
                 moves += 1
-            else
-                error("Cannot perform a hybrid move because the network has reached max number of hybridizations or there are no hybrids to remove.")
+                if currLik < loglikelihood(obj)
+                    addhybridedge!(obj.net, edge1, e1, true) # hybridpartner above new hybrid node
+                end
             end
         else # perform root change
-            movetype = "root"
-            changednet = randomlyupdaterootonnode!(obj.net, constraints)
-            if !isnothing(changednet)
+            originalroot = obj.net.root
+            changednet = moveroot!(obj.net, constraints) # returns true if successful
+            #? if moveroot! deletes root node, need to keep node
+            if changednet
                 moves +=1
+                if currLik < loglikelihood(obj)
+                    rootatnode!(originalroot) # hybridpartner above new hybrid node
+                else
+                    e1 = obj.net.root.edge[1]
+                end
             else
-                error("Cannot perform a root change move. Rerun with root change percentage at zero.")
+                @debug("Cannot perform a root change move on the current network.")
             end
         end
-        # optimize localBL! and localgamma! around chosen edge
-        localBL!(obj, obj.net, e1, unzip)
+        #? optimize BL and gamma around edge near new root?
+        localBL!(obj, obj.net, e1, unzip, verbose)
         # TODO fix localgamma bug then uncomment
-        # localgamma!(obj, obj.net, e1, unzip)
-
-        verbose && println("loglik = $(loglikelihood(obj)) after movetype $movetype and $moves total moves")
+        # localgamma!(obj, obj.net, e1, unzip, verbose)
+        verbose && println("loglik = $(loglikelihood(obj)) after move of type $movechoice and $moves total moves")
     end
     return obj
 end
