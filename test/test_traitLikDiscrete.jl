@@ -206,13 +206,13 @@ hcat(log.(p), ll)
  -1.62173  -1.62184
  -3.00805  -3.00807
  -4.39506  -4.39436
- -3.00747  -3.0082 
+ -3.00747  -3.0082
  -3.70119  -3.70121
- -3.00759  -3.0082 
+ -3.00759  -3.0082
  -2.31516  -2.31505
  -2.31554  -2.31499
- -3.0083   -3.0082 
- -3.008    -3.0082 
+ -3.0083   -3.0082
+ -3.008    -3.0082
  -2.31475  -2.31505
  -3.702    -3.70135
  -3.00836  -3.00813
@@ -258,7 +258,7 @@ end
 # α=0.9801472136310236, β=0.4891696992781437, loglik=-255755.6 with ntraits=100000
 # time with ntraits=100000: 907.2s = 15min 7s (one single processor, no binning of traits with same pattern)
 
-# ancestral state reconstruction - fixit!! #TODO
+# ancestral state reconstruction - fixit!!
 fit1.model.rate[1] = 0.2722263130324768;
 fit1.model.rate[2] = 0.34981109618902395;
 @test_throws ErrorException ancestralStateReconstruction(fit1, 4) # 1 trait, not 4: error
@@ -558,7 +558,7 @@ end # of startingBL!
 
 @testset "testing prep and wrapper functions" begin
 # read in data #
-#test 
+#test
 #at home: fastafile = joinpath(@__DIR__, "../../dev/PhyloNetworks/", "examples", "Ae_bicornis_Tr406_Contig10132.aln") #small data
 fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_Tr406_Contig10132.aln")
 dna_dat, dna_weights = readfastatodna(fastafile, true);
@@ -591,13 +591,13 @@ bmod = PhyloNetworks.symboltomodel(dna_net_top, :BTSM, dat, [1.0, 1.0, 1.0, 1.0]
 test_SSM = PhyloNetworks.datatoSSM(dna_net_top, fastafile, :JC69)
 @test typeof(test_SSM.model) == JC69
 @test test_SSM.nsites == 209
-@test test_SSM.siteweight[1:5] == [23.0, 18.0, 13.0, 16.0, 1.0] 
+@test test_SSM.siteweight[1:5] == [23.0, 18.0, 13.0, 16.0, 1.0]
 
 end #of testing prep and wrapper functions
 
 @testset "testing fit! functions for full network optimization" begin
 # read in data #
-#test 
+#test
 #fastafile = joinpath(@__DIR__, "../../dev/PhyloNetworks/", "examples", "Ae_bicornis_Tr406_Contig10132.aln") #small data
 fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_Tr406_Contig10132.aln")
 dna_dat, dna_weights = readfastatodna(fastafile, true);

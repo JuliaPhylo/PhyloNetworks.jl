@@ -155,24 +155,30 @@ Data can given in one of the following:
   with rows in the order corresponding to the order of species names.
   Again, trait labels should be as they appear in `getlabels(model)`.
   All traits are assumed to follow the same model, with same parameters.
-- 'dnadata': the first part of the output of readfastatodna, 
-    a dataframe of BioSequence DNA sequences, with taxon in column 1 and a column for each site.
-- 'dnapatternweights': the second part of the output of readfastatodna, 
-    an array of weights, one weights for each of the site columns. The length of the weight is equal to nsites.
+- 'dnadata': the first part of the output of readfastatodna,
+    a dataframe of BioSequence DNA sequences, with taxon in column 1 and
+    a column for each site.
+- 'dnapatternweights': the second part of the output of readfastatodna,
+    an array of weights, one weights for each of the site columns.
+    The length of the weight is equal to nsites.
     If using dnapatternweights, must provide dnadata.
 - RateVariationAcrossSites: model for rate variation (optional)
 
 Optional arguments (default):
-- `optimizeQ` (true): should model rate parameters be fixed, or should they be optimized?
-- `optimizeRVAS` (true): should the model optimize the variable rates across sites?
-- `optimizeTOPO` (false): should the model optimize network topology and branch lengths?
+- `optimizeQ` (true): should model rate parameters be fixed,
+or should they be optimized?
+- `optimizeRVAS` (true): should the model optimize the
+variable rates across sites?
+- `optimizeTOPO` (false): should the model optimize network topology and
+branch lengths?
 - `NLoptMethod` (`:LN_COBYLA`, derivative-free) for the optimization algorithm.
   For other options, see the
   [NLopt](https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/).
 - tolerance values to control when the optimization is stopped:
   `ftolRel` (1e-12), `ftolAbs` (1e-10) on the likelihood, and
   `xtolRel` (1e-10), `xtolAbs` (1e-10) on the model parameters.
-- bounds for the alpha parameter of the Gamma distribution of rates across sites:
+- bounds for the alpha parameter of the Gamma distribution of
+rates across sites:
   `alphamin=0.05`, `alphamax=500`.
 - `verbose` (false): if true, more information is output.
 
@@ -261,16 +267,17 @@ variable rates across sites ~ discretized gamma with
 on a network with 0 reticulations
 log-likelihood: -5.2568
 ```
-#? add option to allow users to specify root prior (either equal frequencies or stationary frequencies) for trait models
+#? add option to allow users to specify root prior
+#? (either equal frequencies or stationary frequencies) for trait models?
 """
-function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, #tips::Dict no ratemodel version
-    tips::Dict; kwargs...)
+function fitdiscrete(net::HybridNetwork, model::SubstitutionModel,
+    tips::Dict; kwargs...) #tips::Dict no ratemodel version
     ratemodel = RateVariationAcrossSites(1.0, 1)
     fitdiscrete(net, model, ratemodel, tips; kwargs...)
 end
 
 #tips::Dict version with ratemodel
-function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites, 
+function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites,
     tips::Dict; kwargs...)
         species = String[]
     dat = Vector{Int}[] # indices of trait labels
@@ -286,23 +293,23 @@ function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::Ra
 end
 
 #dat::DataFrame, no rate model version
-function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, dat::DataFrame; kwargs...)
+function fitdiscrete(net::HybridNetwork, model::SubstitutionModel,
+    dat::DataFrame; kwargs...)
     ratemodel = RateVariationAcrossSites(1.0, 1)
     fitdiscrete(net, model, ratemodel, dat; kwargs...)
 end
 
 #dat::DataFrame with rate model version
-function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites,
-        dat::DataFrame; kwargs...)
+function fitdiscrete(net::HybridNetwork, model::SubstitutionModel,
+    ratemodel::RateVariationAcrossSites, dat::DataFrame; kwargs...)
     i = findfirst(isequal(:taxon), DataFrames.names(dat))
-    
     if i===nothing i = findfirst(isequal(:species), DataFrames.names(dat)); end
-    if i===nothing i=1; end # first column if no column named "taxon" or "species"
+    if i===nothing i=1; end # first column if no column "taxon" or "species"
     j = findfirst(isequal(:trait), DataFrames.names(dat))
     if j===nothing j=2; end
     if i==j
-        error("""expecting taxon names in column 'taxon', or 'species' or column 1,
-              and trait values in column 'trait' or column 2.""")
+        error("""expecting taxon names in column 'taxon', or 'species' or
+        column 1, and trait values in column 'trait' or column 2.""")
     end
     species = dat[:,i]    # modified in place later
     dat = traitlabels2indices(dat[!,j], model)   # vec of vec, indices
@@ -311,21 +318,23 @@ function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::Ra
 end
 
 #species, dat version, no ratemodel
-function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, species::Array{String}, dat::DataFrame; kwargs...)
+function fitdiscrete(net::HybridNetwork, model::SubstitutionModel,
+    species::Array{String}, dat::DataFrame; kwargs...)
     ratemodel = RateVariationAcrossSites(1.0, 1)
     fitdiscrete(net, model, ratemodel, species, dat; kwargs...)
 end
 
 #species, dat version with ratemodel
-function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites,
-        species::Array{String}, dat::DataFrame; kwargs...)
+function fitdiscrete(net::HybridNetwork, model::SubstitutionModel,
+    ratemodel::RateVariationAcrossSites, species::Array{String},
+    dat::DataFrame; kwargs...)
     dat2 = traitlabels2indices(dat, model) # vec of vec, indices
     o, net = check_matchtaxonnames!(copy(species), dat2, net)
     StatsBase.fit(StatisticalSubstitutionModel, net, model, ratemodel, view(dat2, o); kwargs...)
 end
 
 #wrapper: species, dat version with model symbol
-function fitdiscrete(net::HybridNetwork, modSymbol::Symbol,  
+function fitdiscrete(net::HybridNetwork, modSymbol::Symbol,
     species::Array{String}, dat::DataFrame, rvSymbol=:noRV::Symbol; kwargs...)
     rate = startingrate(net)
     labels = learnlabels(modSymbol, dat)
@@ -354,29 +363,29 @@ function fitdiscrete(net::HybridNetwork, modSymbol::Symbol,
 end
 
 #dnadata with dnapatternweights version, no ratemodel
-function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, dnadata::DataFrame, 
-    dnapatternweights::Array{Float64}; kwargs...)
+function fitdiscrete(net::HybridNetwork, model::SubstitutionModel,
+    dnadata::DataFrame, dnapatternweights::Array{Float64}; kwargs...)
     ratemodel = RateVariationAcrossSites(1.0, 1)
     fitdiscrete(net, model, ratemodel, dnadata, dnapatternweights; kwargs...)
 end
 
 #dnadata with dnapatternweights version with ratemodel
-function fitdiscrete(net::HybridNetwork, model::SubstitutionModel, ratemodel::RateVariationAcrossSites,
-    dnadata::DataFrame, dnapatternweights::Array{Float64}; kwargs...)
-    
+function fitdiscrete(net::HybridNetwork, model::SubstitutionModel,
+    ratemodel::RateVariationAcrossSites,dnadata::DataFrame,
+    dnapatternweights::Array{Float64}; kwargs...)
     dat2 = traitlabels2indices(dnadata[!,2:end], model)
     o, net = check_matchtaxonnames!(dnadata[:,1], dat2, net)
     kwargs = (:siteweights => dnapatternweights, kwargs...)
-    StatsBase.fit(StatisticalSubstitutionModel, net, model, ratemodel, view(dat2, o); 
+    StatsBase.fit(StatisticalSubstitutionModel, net, model, ratemodel, view(dat2, o);
         kwargs...)
 end
 
 #wrapper for dna data
-function fitdiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame, 
+function fitdiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame,
     dnapatternweights::Array{Float64}, rvSymbol=:noRV::Symbol; kwargs...)
     rate = startingrate(net)
     if modSymbol == :JC69
-        model = JC69([1.0], true)  # 1.0 instead of rate because relative version (relative = true)
+        model = JC69([1.0], true)  # 1.0 instead of rate because relative version
     elseif modSymbol == :HKY85
         model = HKY85([1.0], # transition/transversion rate ratio
                       empiricalDNAfrequencies(view(dnadata, :, 2:size(dnadata,2)), dnapatternweights),
@@ -396,7 +405,6 @@ function fitdiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame,
     else
         rvas = RateVariationAcrossSites(1.0, 1)
     end
-    
     fitdiscrete(net, model, rvas, dnadata, dnapatternweights; kwargs...)
 end
 
@@ -415,7 +423,7 @@ See [`traitlabels2indices`](@ref) to convert trait labels to trait indices.
 after doing checks, preordering nodes in the network, making sure nodes have
 consecutive numbers, species are matched between data and network etc.
 """
-function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::SubstitutionModel, 
+function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::SubstitutionModel,
     ratemodel::RateVariationAcrossSites, trait::AbstractVector; kwargs...)
 
     sw = nothing
@@ -473,13 +481,13 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,verbose=fa
         # fixit: set upper bound depending on branch lengths in network?
         counter[1] = 0
         NLopt.max_objective!(optQ, loglikfun)
-        fmax, xmax, ret = NLopt.optimize(optQ, obj.model.rate) # optimization here!
+        fmax, xmax, ret = NLopt.optimize(optQ, obj.model.rate)
         verbose && println("got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
     end
     if optimizeRVAS
-        function loglikfunRVAS(alpha::Vector{Float64}, grad::Vector{Float64}) # modifies obj
+        function loglikfunRVAS(alpha::Vector{Float64}, grad::Vector{Float64})
             counter[1] += 1
-            setalpha!(obj.ratemodel, alpha[1]) # obj.ratemodel.alpha is a scalar, alpha is a vector within here
+            setalpha!(obj.ratemodel, alpha[1])
             res = discrete_corelikelihood!(obj)
             verbose && println("loglik: $res, rate variation model shape parameter alpha: $(alpha[1])")
             length(grad) == 0 || error("gradient not implemented")
@@ -537,7 +545,7 @@ The object's partial likelihoods are updated:
 - forward and direct partial likelihoods are re-used, one trait at a time,
 - overall likelihoods on each displayed tree, given each rate category and for
   each given site/trait: are cached in `_loglikcache`.
-""" 
+"""
 function discrete_corelikelihood!(obj::SSM; whichtrait::AbstractVector{Int} = 1:obj.nsites)
     # fill _loglikcache
     nr = length(obj.ratemodel.ratemultiplier)
@@ -651,11 +659,11 @@ julia> fit = fitdiscrete(net, m1, dat); # optimized rates: α=0.27 and β=0.35
 julia> pltw = PhyloNetworks.posterior_logtreeweight(fit)
 2-element Array{Float64,1}:
  -0.08356519024776699
- -2.523619878044531  
+ -2.523619878044531
 
 julia> exp.(pltw) # posterior trees probabilities (sum up to 1)
 2-element Array{Float64,1}:
- 0.9198311206979973 
+ 0.9198311206979973
  0.08016887930200293
 
 julia> round.(exp.(fit.priorltw), digits=4) # the prior tree probabilities are similar here (tiny data set!)
@@ -680,7 +688,7 @@ Check that the character states in `data` are compatible with (i.e. subset of)
 the trait labels in `model`. All columns are used.
 `data` can be a DataFrame or a Matrix (multiple traits), or a Vector (one trait).
 Return a vector of vectors (one per species) with integer entries,
-where each state (label) is replaced by its index in `model`. 
+where each state (label) is replaced by its index in `model`.
 For DNA data, any ambiguous site is treated as missing.
 """
 function traitlabels2indices(data::AbstractVector, model::SubstitutionModel)
@@ -717,12 +725,12 @@ function traitlabels2indices(data::Union{AbstractMatrix,AbstractDataFrame},
                 l = convert(DNA, l)
             end
             if !ismissing(l)
-                vi = findfirst(isequal(l), labs) 
+                vi = findfirst(isequal(l), labs)
                 if vi === nothing
                     #FIXIT ideally, replace isambiguous with isgap and handle ambiguous DNA types
                     #@show BioSymbols.isambiguous(l) #note: this is false
                     if isDNA #&& BioSymbols.isambiguous(l)
-                        vi = missing 
+                        vi = missing
                     else
                         error("trait $l not found in model")
                     end
@@ -884,9 +892,8 @@ function ancestralStateReconstruction(obj::SSM, trait::Integer = 1)
 end
 
 """
-    discrete_backwardlikelihood_trait!(obj::SSM, tree::Integer, trait::Integer, ri::Integer = 1,
-                                       backwardlik = obj.backwardlik,
-                                       directlik   = obj.directlik)
+    discrete_backwardlikelihood_trait!(obj::SSM, tree::Integer, trait::Integer,
+    ri::Integer = 1, backwardlik = obj.backwardlik, directlik   = obj.directlik)
 
 Update and return the backward likelihood (last argument `backwardlik`)
 for trait index `trait`, assuming rate category `ri` and tree index `tree`.
@@ -902,7 +909,7 @@ function discrete_backwardlikelihood_trait!(obj::SSM, t::Integer, trait::Integer
     k = nstates(obj.model)
     fill!(backwardlik, 0.0) # re-initialize for each trait, each iteration
     bkwtmp = Vector{Float64}(undef, k) # to hold bkw lik without parent edge transition
-    if typeof(obj.model) == NASM 
+    if typeof(obj.model) == NASM
         logprior = log.(stationary(obj.model))
     else #trait models
         logprior = [-log(k) for i in 1:k] # uniform prior at root
@@ -1019,8 +1026,7 @@ function startingBL!(net::HybridNetwork,
         trait::AbstractVector{Vector{Union{Missings.Missing,Int}}},
         siteweight=ones(length(trait[1]))::AbstractVector{Float64})
     nspecies = net.numTaxa
-    M = zeros(Float64, nspecies, nspecies) # pairwise distances, initialized to zeros
-    
+    M = zeros(Float64, nspecies, nspecies) # pairwise distances initialized to 0
     # count pairwise differences, then multiply by pattern weight
     ncols = length(trait[1]) # assumption: all species have same # columns
     length(siteweight) == ncols ||
@@ -1030,7 +1036,8 @@ function startingBL!(net::HybridNetwork,
         for j in 1:(i-1)
             species2 = trait[j]
             for col in 1:ncols
-                if !(ismissing(species1[col]) || ismissing(species2[col])) && (species1[col] != species2[col])
+                if !(ismissing(species1[col]) || ismissing(species2[col])) &&
+                    (species1[col] != species2[col])
                     M[i, j] += siteweight[col]
                 end
             end
@@ -1063,10 +1070,11 @@ Return vector of updated `edges`.
 
 Used after `nni!` or `addhybridedge!` moves to update local branch lengths.
 """
-function localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool, verbose=false::Bool)
+function localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool,
+    verbose=false::Bool)
     edges = Edge[]
     for n in edge.node
-        for e in n.edge # all edges that share a node with `edge` (including self)
+        for e in n.edge # all edges sharing a node with `edge` (including self)
             if !(e in edges)
                 push!(edges, e)
             end
@@ -1092,10 +1100,11 @@ Assumptions:
 - correct `isChild1` field for `edge` and for hybrid edges
 - no in-coming polytomy: a node has 0, 1 or 2 parents, no more
 """
-function localgamma!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool, verbose=false::Bool)
+function localgamma!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool,
+    verbose=false::Bool)
     edges = Edge[]
     for n in edge.node
-        for e in n.edge # all edges that share a node with `edge` (including self)
+        for e in n.edge # edges that share a node with `edge` (including self)
             if e.hybrid && !(e in edges) && !(getPartner(e) in edges)
                 push!(edges, e)
             end
@@ -1114,16 +1123,16 @@ Optimize branch lengths for edges in vector `edges`.
 If `unzip = true`, constrain branch lengths to zero below hybrid edges.
 Return vector of updated `edges`.
 """
-function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::Bool,
-    verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64,
+function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge},
+    unzip::Bool, verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64,
     ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64)
-    if unzip == true
-        constrainededges = [hybridEdges(h)[3] for h in net.hybrid]
+    if unzip
+        constrainededges = [getChildEdge(h) for h in net.hybrid]
         setlengths!(constrainededges, zeros(length(constrainededges)))
-        edges = setdiff(net.edges, constrainededges) # net.edges - constrainededges
+        edges = setdiff(edges, constrainededges) # edges - constrainededges
     end
     counter = [0]
-    function loglikfunBL(lengths::Vector{Float64}, grad::Vector{Float64}) # modifies obj
+    function loglikfunBL(lengths::Vector{Float64}, grad::Vector{Float64})
         counter[1] += 1
         setlengths!(edges, lengths)
         res = discrete_corelikelihood!(obj)
@@ -1145,26 +1154,28 @@ function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::B
     # NLopt.lower_bounds!(optBL, zeros(Float64, nparBL))
     counter[1] = 0
     NLopt.max_objective!(optBL, loglikfunBL)
-    fmax, xmax, ret = NLopt.optimize(optBL, getlengths(edges)) # optimization here!
-    verbose && println("BL: got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
+    fmax, xmax, ret = NLopt.optimize(optBL, getlengths(edges))
+    verbose && println("BL: got $(round(fmax, digits=5)) at
+    $(round.(xmax, digits=5)) after $(counter[1]) iterations
+    (return code $(ret))")
     return edges
 end
 
 """
-    optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::Bool,
-    verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64, ftolAbs::Float64,
-    xtolRel::Float64, xtolAbs::Float64)
+    optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge},
+    unzip::Bool,verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64,
+    ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64)
 
 Optimize gammas for hybrid edges in vector `edges`.
 Return vector of updated `edges`.
 
 Warning: edges vector should not contain partners.
 """
-function optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::Bool,
-    verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64, ftolAbs::Float64,
-    xtolRel::Float64, xtolAbs::Float64)
+function optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge},
+    unzip::Bool, verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64,
+    ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64)
     counter = [0]
-    function loglikfungamma(gammas::Vector{Float64}, grad::Vector{Float64}) # modifies obj
+    function loglikfungamma(gammas::Vector{Float64}, grad::Vector{Float64})
         counter[1] += 1
         setmultiplegammas!(edges, gammas)
         res = discrete_corelikelihood!(obj)
@@ -1187,8 +1198,10 @@ function optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzi
     #NLopt.upper_bounds!(optgamma, ones(Float64, npargamma))
     counter[1] = 0
     NLopt.max_objective!(optgamma, loglikfungamma)
-    fmax, xmax, ret = NLopt.optimize(optgamma, [e.gamma for e in edges]) # optimization here!
-    verbose && println("gamma: got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
+    fmax, xmax, ret = NLopt.optimize(optgamma, [e.gamma for e in edges])
+    verbose && println("gamma: got $(round(fmax, digits=5)) at
+    $(round.(xmax, digits=5)) after $(counter[1])iterations
+    (return code $(ret))")
     return edges
 end
 
@@ -1197,9 +1210,9 @@ end
 """
     datatoSSM(net::HybridNetwork, dnadata::DataFrame, modsymbol::Symbol)
 
-Create an SSM object for use in wrapper function. This should include all actions 
-that can happen only once. Probably need different versions for different 
-kinds of data (snp, amino acids), but works for DNA now.
+Create an SSM object for use in wrapper function. This should include all
+actions that can happen only once. Probably need different versions for
+different kinds of data (snp, amino acids), but works for DNA now.
 Call [`readfastatodna`](@ref), [`startingrate`](@ref), [`startingBL!`](@ref).
 Similar to fitdiscrete()
 """
@@ -1215,14 +1228,17 @@ function datatoSSM(net::HybridNetwork, fastafile::String, modsymbol::Symbol)
     # o, net = check_matchtaxonnames!(data[1], dat2, net)
     # trait = view(dat2, o)
     startingBL!(net, trait, siteweights)
-    obj = StatisticalSubstitutionModel(model, ratemodel, net, trait, siteweights)
+    obj = StatisticalSubstitutionModel(model, ratemodel, net, trait,
+    siteweights)
 end
 
 """
-    symboltomodel(network, modsymbol::Symbol, data::DataFrame, siteweights::Vector)
+    symboltomodel(network, modsymbol::Symbol, data::DataFrame,
+    siteweights::Vector)
 
 Return a statistical substitution model (SSM) with appropriate state labels
-and a rate appropriate for the branch lengths in `net` (see [`startingrate`](@ref)).
+and a rate appropriate for the branch lengths in `net`
+(see [`startingrate`](@ref)).
 The `data` frame must have the actual trait/site data in columns 2 and up,
 as when the species names are in column 1.
 For DNA data, the relative rate model is returned, with a
@@ -1235,14 +1251,16 @@ function symboltomodel(net::HybridNetwork, modsymbol::Symbol, data::DataFrame,
     labels = learnlabels(modsymbol, actualdat)
     if modsymbol == :JC69
         return JC69([1.0], true) # 1.0 instead of rate because relative version
-    elseif modsymbol == :HKY85 # transition/transversion rate ratio 
-        return HKY85([1.0], empiricalDNAfrequencies(actualdat, siteweights), true)
+    elseif modsymbol == :HKY85 # transition/transversion rate ratio
+        return HKY85([1.0], empiricalDNAfrequencies(actualdat, siteweights),
+        true)
     elseif modsymbol == :ERSM
         return EqualRatesSubstitutionModel(length(labels), rate, labels);
     elseif modsymbol == :BTSM
         return BinaryTraitSubstitutionModel([rate, rate], labels)
     elseif modsymbol == :TBTSM
-        return TwoBinaryTraitSubstitutionModel([rate, rate, rate, rate, rate, rate, rate, rate], labels)
+        return TwoBinaryTraitSubstitutionModel([rate, rate, rate, rate, rate,
+        rate, rate, rate], labels)
     else
         error("model $modsymbol is unknown or not implemented yet")
     end
@@ -1268,11 +1286,11 @@ end
 
 """
     optimizestructure!(obj::SSM, hybridpercent::Float64, maxmoves::Int64,
-    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
-    constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
+    verbose::Bool, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
-Alternate nni moves, hybrid moves, and root changes in a user-provided ratio. Optimizes local
-branch lengths and hybrid gammas after each move. Return object.
+Alternate nni moves, hybrid moves, and root changes in a user-provided ratio.
+Optimizes local branch lengths and hybrid gammas after each move. Return object.
 
 `movepercentages` is a vector of percents, giving the percent of nni moves,
 percent of hybrid moves, and root changes to be performed out of all moves.
@@ -1285,13 +1303,12 @@ Assumptions:
 note: when removing a hybrid edge, always removes the minor edge.
 """
 function optimizestructure!(obj::SSM, maxmoves::Int64,
-    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
-    constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
+    verbose::Bool, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     moves = 0
-    moveweights = Distributions.aweights([0.6, 0.3, 0.1]) #TODO make constants in package for movepercentages
     while moves <= maxmoves
         currLik = loglikelihood(obj)
-        movechoice = sample(["nni", "hybrid", "root"], moveweights) 
+        movechoice = sample(["nni", "hybrid", "root"], moveweights)
         if movechoice == "nni"
             edgefound = false
             blacklist = Edge[]
@@ -1301,20 +1318,21 @@ function optimizestructure!(obj::SSM, maxmoves::Int64,
                 end
                 eindex = Random.randperm(length(obj.net.edge))[1]
                 e1 = obj.net.edge[eindex]
-                undoinfo = nni!(obj.net, e1, nohybridladder, no3cycle, constraints) # perform move
+                undoinfo = nni!(obj.net, e1,nohybridladder,no3cycle,constraints)
                 if !isnothing(undoinfo)
                     moves += 1
                     edgefound = true
                     if currLik < loglikelihood(obj)
                         nni!(undoinfo...) # undo move
                     end
-                else # if move is unsuccessful, look for another edge until successful
+                else # if move unsuccessful, search for edge until successful
                     push!(blacklist, e1)
                 end
             end
         elseif movechoice == "hybrid" # perform hybrid move
             if maxhybrid == 0
-                @debug("The maximum number of hybrids allowed is $maxhybrid, so hybrid moves are not legal on this network.")
+                @debug("The maximum number of hybrids allowed is $maxhybrid,
+                so hybrid moves are not legal on this network.")
             elseif length(obj.net.hybrid) == 0
                 add = true # add hybrid
             elseif length(obj.net.hybrid) == maxhybrid
@@ -1323,47 +1341,53 @@ function optimizestructure!(obj::SSM, maxmoves::Int64,
                 add = (rand() > 0.5) # add hybrid with 50% probability
             end
             if add
-                newhybridnode = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints)
+                newhybridnode = addhybridedge!(obj.net, nohybridladder,
+                no3cycle, constraints)
                 #TODO return new hybrid edge instead?
                 moves += 1
                 e1 = getMinorParentEdge(newhybridnode)
                 #todo optimize edges around the new hybrid edge (as above) (five)
                 if currLik < loglikelihood(obj)
-                    deleteHybridizationUpdate!(obj.net.hybrid[newhybridnode], obj.net, true, false)
+                    deleteHybridizationUpdate!(obj.net.hybrid[newhybridnode],
+                    obj.net, true, false)
                 end
             else # delete hybrid
                 hybridindex = Random.randperm(length(obj.net.hybrid))[1]
-                e1 = getMajorParentEdge(obj.net.hybrid[hybridindex]) # edge that will remain after removal
-                # origin of minor hybrid edge
-                edge1 = getMajorParentEdge(getParent(getMinorParentEdge(obj.net.hybrid[hybridindex]))) 
+                e1 = getMajorParentEdge(obj.net.hybrid[hybridindex])
+                edge1 = getMajorParentEdge(getParent(getMinorParentEdge(obj.net.hybrid[hybridindex])))
                 #? is this getting the correct edge?^
-                deleteHybridizationUpdate!(obj.net, obj.net.hybrid[hybridindex], true, false) #delete minor hybrid edge
+                deleteHybridizationUpdate!(obj.net, obj.net.hybrid[hybridindex],
+                true, false)
                 #? should this be deleteHybrid?
                 moves += 1
                 if currLik < loglikelihood(obj)
-                    addhybridedge!(obj.net, edge1, e1, true) # hybridpartner above new hybrid node
+                    addhybridedge!(obj.net, edge1, e1, true)
                 end
             end
         else # perform root change
             originalroot = obj.net.root
-            changednet = moveroot!(obj.net, constraints) # returns true if successful
+            changednet = moveroot!(obj.net, constraints)
             #? if moveroot! deletes root node, need to keep node
             if changednet
                 moves +=1
                 if currLik < loglikelihood(obj)
-                    rootatnode!(originalroot) # hybridpartner above new hybrid node
+                    rootatnode!(originalroot)
                 else
                     e1 = obj.net.root.edge[1]
                 end
             else
-                @debug("Cannot perform a root change move on the current network.")
+                @debug("Cannot perform a root change move on current network.")
             end
         end
         #? optimize BL and gamma around edge near new root?
         localBL!(obj, obj.net, e1, unzip, verbose)
         # TODO fix localgamma bug then uncomment
         # localgamma!(obj, obj.net, e1, unzip, verbose)
-        verbose && println("loglik = $(loglikelihood(obj)) after move of type $movechoice and $moves total moves")
+        verbose && println("loglik = $(loglikelihood(obj)) after move of
+        type $movechoice and $moves total moves")
     end
     return obj
 end
+
+const moveweights = Distributions.aweights([0.6, 0.3, 0.1])
+# TODO put this at top of new software-named file

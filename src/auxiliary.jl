@@ -252,6 +252,22 @@ end
     end
     error("could not find minor parent of node $(node.number)")
 end
+"""
+    getChildEdge(node)
+
+Return edge below a hybrid node.
+
+Warning: Does not check that the node is a hybrid.
+If not a hybrid, returns the first child edge.
+"""
+@inline function getChildEdge(node::Node)
+    for e in node.edge
+        if node == getParent(e)
+            return e
+        end
+    end
+    error("could not find child edge of node $(node.number)")
+end
 
 # -------------- NETWORK ----------------------- #
 
