@@ -1472,6 +1472,38 @@ Vector of edge lengths for a vector of `edges`.
 """
 getlengths(edges::Vector{Edge}) = [e.length for e in edges]
 
+## Network Checking Functions
+"""
+    hashybridladder(net::HybridNetwork)
+
+Return true if network contains hybrid ladder, making it a non-treechild network.
+"""
+function hashybridladder(net::HybridNetwork)
+    for h in net.hybrid
+        if any([n.hybrid for n in PhyloNetworks.getParents(h)])
+            return true
+        end
+    end
+    return false
+end
+
+"""
+    contains3cycles(net::HybridNetwork)
+
+Check for 3-cycles in a given network. Return true if contains 3-cycles. False
+otherwise.
+"""
+function contains3cycles(net::HybridNetwork)
+    # idea: Do major and minor edges share more than just their hybrid node?
+    for h in net.hybrid
+        major = PhyloNetworks.getMajorParentEdge(h)
+        minor = PhyloNetworks.getMinorParentEdge(h)
+        for e in setdiff(PhyloNetworks.getParent(minor).edge, [minor])
+            isempty(findall(in(major.node), e.node)) || return true
+        end
+    end
+    return false
+end
 
 #------------------------------------
 function citation()
