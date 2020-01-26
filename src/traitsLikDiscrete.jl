@@ -57,11 +57,9 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
 
     "inner (default) constructor: from model, rate model, network, trait and site weights"
     function StatisticalSubstitutionModel(model::SubstitutionModel,
-            ratemodel::RateVariationAcrossSites,
-            net::HybridNetwork,
-            trait::AbstractVector,
-            siteweight::Union{Nothing, Vector{Float64}}=nothing)
-
+        ratemodel::RateVariationAcrossSites,
+        net::HybridNetwork, trait::AbstractVector,
+        siteweight::Union{Nothing, Vector{Float64}}=nothing)
         length(trait) > 0 || error("no trait data!")
         nsites = length(trait[1])
         siteweight === nothing || length(siteweight) == nsites ||
@@ -135,7 +133,7 @@ end
     fitdiscrete(net, model, RateVariationAcrossSites, dnadata, dnapatternweights)
     fitdiscrete(net, modSymbol, species, traits)
     fitdiscrete(net, modSymbol, dnadata, dnapatternweights)
-    
+
 Calculate the maximum likelihood (ML) score of a network or tree given
 one or more discrete characters at the tips. Along each edge, transitions
 are modelled with a continous time Markov `model`, whose parameters are
@@ -435,13 +433,12 @@ function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::SubstitutionModel
     fit!(obj; kwargs...)
 end
 
-function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,verbose=false::Bool,
-      NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-      xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
-      alphamin=0.05, alphamax=500)
+function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
+    verbose=false::Bool, NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
+    ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
+    alphamin=0.05, alphamax=500)
     all(x -> x >= 0.0, [e.length for e in obj.net.edge]) || error("branch lengths should be >= 0")
     all(x -> x >= 0.0, [e.gamma for e in obj.net.edge]) || error("gammas should be >= 0")
-    # TODO add call to optimizestructure!() here after debugging?
     if optimizeQ && nparams(obj.model) <1
         @debug "The Q matrix for this model is fixed, so there are no rate parameters to optimize. optimizeQ will be set to false."
         optimizeQ = false
@@ -524,12 +521,19 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,verbose=fa
     return obj
 end
 
-# initialize/update logtrans
+"""
+    update_logtrans(obj::SSM)
+
+Initialize and update logtrans.
+
+Warning: Assumes that `edge.number` values staying consistent.
+"""
 function update_logtrans(obj::SSM)
     startingP = P(obj.model, 1.0) # same memory re-used for all branches below (t=1 arbitrary)
     for edge in obj.net.edge # update logtrans: same for all displayed trees, all traits
         for i = 1:length(obj.ratemodel.ratemultiplier)
-            obj.logtrans[:,:,edge.number, i] = log.(P!(startingP, obj.model, edge.length*obj.ratemodel.ratemultiplier[i])) # element-wise
+            obj.logtrans[:,:,edge.number, i] = log.(P!(startingP, obj.model,
+                edge.length*obj.ratemodel.ratemultiplier[i])) # element-wise
         end
     end
 end
@@ -937,6 +941,577 @@ function discrete_backwardlikelihood_trait!(obj::SSM, t::Integer, trait::Integer
     return backwardlik
 end
 
+##### TOP OF NEW FILE #####
+
+const moveweights = Distributions.aweights([0.6, 0.3, 0.1])
+
+# optimization wrapper functions #
+"""
+    PhyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
+    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
+    maxmoves::Int64, verbose::Bool, NLoptMethod=:LD_MMA::Symbol,
+    ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
+    xtolAbs=xAbsBL::Float64,
+    constraints=TopologyConstraint[]::Vector{TopologyConstraint},
+    alphamin=0.05::Float64, alphamax=500::Float64)
+
+Estimate phylogenetic network from concatenated fasta data.
+
+```jldoctest
+
+```
+#? Should we create constraints here or expect users to do so beforehand?
+"""
+function PhyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
+    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
+    maxmoves::Int64, verbose::Bool, NLoptMethod=:LD_MMA::Symbol,
+    ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
+    xtolAbs=xAbsBL::Float64,
+    constraints=TopologyConstraint[]::Vector{TopologyConstraint},
+    alphamin=0.05, alphamax=500)
+
+    obj = datatoSSM(net, fastafile, modSymbol)
+
+    checknetworkbeforeLiNC!(net, maxhybrid, no3cycle, unzip, nohybridladder,
+    constraints)
+
+    startingBL!(net, unzip, obj.trait, obj.siteweight)
+
+    PhyloNetworks.discrete_corelikelihood!(obj)
+
+    #rough optim of rates and alpha # kwargs include siteweights
+    # fit!(obj; verbose, unzip, NLoptMethod, ftolRel, ftolAbs,
+    # xtolRel, xtolAbs, alphamin, alphamax) #TODO
+
+    optimizestructure!(obj, maxmoves, maxhybrid, no3cycle, unzip,
+    nohybridladder, verbose, constraints) #TODO optimize rates in the middle of optimizestructure!
+
+    # fit!(obj; verbose, unzip, NLoptMethod, ftolRel, ftolAbs,
+    # xtolRel, xtolAbs, alphamin, alphamax) #TODO
+
+    optimizeBL!(obj, obj.net, obj.net.edge, unzip, verbose, NLoptMethod,
+    ftolRel, ftolAbs, xtolRel, xtolAbs)
+    optimizeallgammas!(obj, obj.net, unzip, verbose, NLoptMethod,
+    ftolRel, ftolAbs, xtolRel, xtolAbs)
+    return obj
+end
+
+"""
+    checknetworkbeforeLiNC!(net::HybridNetwork, maxhybrid::Int64, no3cycle::Bool,
+    unzip::Bool, nohybridladder::Bool,
+    constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+
+Remove nodes of degree 2, including root. According to user-given options, check
+for 3-cycles, hybrid ladders, max number of hybrids, and `unzip` (set all edges
+below hybrids to length zero).
+#TODO are there additional network checks to add?
+
+```jldoctest
+
+```
+"""
+function checknetworkbeforeLiNC!(net::HybridNetwork, maxhybrid::Int64, no3cycle::Bool,
+    nohybridladder::Bool, unzip::Bool,
+    constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    removedegree2nodes!(net) # removes all nodes of degree 2 including root
+    if no3cycle
+        !contains3cycles(net) || error("Options indicate there should be no 3-cycles
+        in the returned network, but the input network contains
+        one or more 3-cycles.")
+    end
+    if nohybridladder
+        !hashybridladder(net) || error("Options indicate there should be no
+        hybrid ladders in the returned network, but the input network contains
+        one or more hybrid ladders.")
+    end
+    if length(net.hybrid) > maxhybrid
+        error("Options indicate a maximum number of hybrids of $(maxhybrid), but
+        the input network contains $(length(net.hybrid)) hybrids. Please
+        increase maxhybrid to $(length(net.hybrid)) or provide input network
+        with fewer than $(maxhybrid) hybrids.")
+    end
+    if unzip && length(net.hybrid) > 0
+        constrainededges = [getChildEdge(h) for h in net.hybrid]
+        setlengths!(constrainededges, zeros(length(constrainededges)))
+    end
+    return net
+end
+
+"""
+    optimizestructure!(obj::SSM, maxmoves::Int64,
+    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
+    verbose::Bool, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+
+Alternate nni moves, hybrid moves, and root changes in a user-provided ratio.
+Optimizes local branch lengths and hybrid gammas after each move. Return object.
+
+`movepercentages` is a vector of percents, giving the percent of nni moves,
+percent of hybrid moves, and root changes to be performed out of all moves.
+Must sum to 1.
+`maxhybrid` gives the maximum number of hybrids in a network.
+Updates `SSM` object's displayed `trees` and their attributes in SSM object after add or remove
+hybrid.
+
+Assumptions:
+- starts with a network without 2- and 3- cycles
+
+note: when removing a hybrid edge, always removes the minor edge.
+
+```jldoctest
+
+```
+"""
+function optimizestructure!(obj::SSM, maxmoves::Int64,
+    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
+    verbose::Bool, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    moves = 0
+    while moves <= maxmoves
+        currLik = obj.loglik
+        movechoice = sample(["nni", "hybrid", "root"], moveweights)
+        if movechoice == "nni"
+            edgefound = false
+            blacklist = Edge[]
+            while !edgefound # choose interior edge randomly
+                if length(blacklist) == length(obj.net.edge)
+                    @debug @show blacklist
+                    @debug("there are no nni moves possible in this network.")
+                end
+                eindex = Random.randperm(length(obj.net.edge))[1]
+                e1 = obj.net.edge[eindex]
+                undoinfo = nni!(obj.net, e1,nohybridladder,no3cycle,constraints)
+                if !isnothing(undoinfo)
+                    moves += 1
+                    edgefound = true
+                    PhyloNetworks.discrete_corelikelihood!(obj) # update loglik
+                    if currLik < obj.loglik # do this instead? abs(currLik - obj.loglik) > likAbs
+                        nni!(undoinfo...) # undo move
+                    end
+                else # if move unsuccessful, search for edge until successful
+                    push!(blacklist, e1)
+                end
+            end
+        elseif movechoice == "hybrid" # perform hybrid move
+            if maxhybrid == 0
+                @debug("The maximum number of hybrids allowed is $maxhybrid,
+                so hybrid moves are not legal on this network.")
+            elseif length(obj.net.hybrid) == 0
+                add = true # add hybrid
+            elseif length(obj.net.hybrid) == maxhybrid
+                add = false # remove hybrid
+            else  # meaning we can do either move
+                add = (rand() > 0.5) # add hybrid with 50% probability
+            end
+            if add
+                newhybridnode = addhybridedge!(obj.net, nohybridladder,
+                no3cycle, constraints) #? return new hybrid edge instead?
+                updateSSM(obj)
+                moves += 1
+                PhyloNetworks.discrete_corelikelihood!(obj) # update loglik
+                e1 = getMinorParentEdge(newhybridnode)
+                #todo optimize edges around the new hybrid edge (as above) (five)
+                if currLik < obj.loglik
+                    deletehybridedge!(obj.net,
+                    getMinorParentEdge(obj.net.hybrid[newhybridnode]), false,
+                    false)
+                    updateSSM(obj)
+                end
+            else # delete hybrid
+                hybridindex = Random.randperm(length(obj.net.hybrid))[1]
+                e1 = getMajorParentEdge(obj.net.hybrid[hybridindex])
+                edge1 = getMajorParentEdge(getParent(getMinorParentEdge(obj.net.hybrid[hybridindex])))
+                # TODO confirm this is getting the correct edge^
+                deletehybridedge!(obj.net,
+                getMinorParentEdge(obj.net.hybrid[hybridindex]), false,
+                false)
+                updateSSM(obj)
+                moves += 1
+                PhyloNetworks.discrete_corelikelihood!(obj) # update loglik
+                if currLik < obj.loglik
+                    addhybridedge!(obj.net, edge1, e1, true)
+                    updateSSM(obj)
+                end
+            end
+        else # perform root change
+            originalroot = obj.net.root
+            changednet = moveroot!(obj.net, constraints)
+            #? if moveroot! deletes root node, need to keep node
+            if changednet
+                moves +=1
+                PhyloNetworks.discrete_corelikelihood!(obj) # update loglik
+                e1 = obj.net.node[obj.net.root].edge[1]
+                if currLik < obj.loglik
+                    rootatnode!(obj.net.node[originalroot])
+                    e1 = obj.net.node[obj.net.root].edge[1]
+                end
+            else
+                @debug("Cannot perform a root change move on current network.")
+            end
+        end
+        optimizelocalBL!(obj, obj.net, e1, unzip, verbose)
+        optimizelocalgammas!(obj, obj.net, e1, unzip, verbose)
+        verbose && println("loglik = $(loglikelihood(obj)) after move of
+        type $movechoice and $moves total moves")
+    end
+    return obj
+end
+
+"""
+    updateSSM(obj::SSM, addHybrid=true::Bool)
+
+After adding or removing a hybrid, displayed trees will change. Updates
+the displayed tree list.
+
+Warning:
+This allows arrays to grow with the number of attempted hybrid adds
+and never shrinks them, though they will become more sparse as they grow.
+# fixit: find a more memory-efficient way?
+
+# fixit: After adding a new root node, might need to change the size of some
+`SSM` arrays?
+"""
+function updateSSM(obj::SSM, addHybrid=true::Bool)
+    # extract displayed trees
+    obj.displayedtree = displayedTrees(obj.net, 0.0; keepNodes=true)
+    nnodes = length(obj.net.node)
+    for tree in obj.displayedtree
+        preorder!(tree) # no need to call directEdges! before: already done on net
+        length(tree.nodes_changed) == nnodes ||
+            error("displayed tree with too few nodes: $(writeTopology(tree))")
+        length(tree.edge) == length(obj.net.edge)-obj.net.numHybrids ||
+            error("displayed tree with too few edges: $(writeTopology(tree))")
+    end
+    ntrees = length(obj.displayedtree)
+    # log tree weights: sum log(γ) over edges, for each displayed tree
+    obj.priorltw = inheritanceWeight.(obj.displayedtree)
+    all(!ismissing, obj.priorltw) ||
+        error("one or more inheritance γ's are missing or negative. fix using setGamma!(network, edge)")
+    if addHybrid # increase size of some matrices to accomodate new edges and nodes
+        k = nstates(obj.model)
+        logtrans   = zeros(Float64, k,k,length(obj.net.edge), length(obj.ratemodel.ratemultiplier))
+        forwardlik = zeros(Float64, k, nnodes)
+        directlik  = zeros(Float64, k, length(obj.net.edge))
+        backwardlik= zeros(Float64, k, nnodes)
+        _loglikcache = zeros(Float64, ntrees, length(obj.ratemodel.ratemultiplier), obj.nsites)
+    end
+    return obj
+end
+
+## Optimize Branch Lengths and Gammas ##
+"""
+    startingBL!(net::HybridNetwork, unzip::Bool,
+                trait::AbstractVector{Vector{Union{Missings.Missing,Int}}},
+                siteweight=ones(length(trait[1]))::AbstractVector{Float64})
+
+Calibrate branch lengths in `net` by minimizing the mean squared error
+between the JC-adjusted pairwise distance between taxa, and network-predicted
+pairwise distances, using [`calibrateFromPairwiseDistances!`](@ref).
+`siteweight[k]` gives the weight of site (or site pattern) `k` (default: all 1s).
+`unzip` = true sets all edges below a hybrid node to length zero.
+
+Assumptions:
+
+- all species have the same number of traits (sites): `length(trait[i])` constant
+- `trait[i]` is for leaf with `node.number = i` in `net`, and
+  `trait[i][j] = k` means that leaf number `i` has state index `k` for trait `j`.
+  These indices are those used in a substitution model:
+  kth value of `getlabels(model)`.
+- Hamming distances are < 0.75 with four states, or < (n-1)/n for n states.
+  If not, all pairwise hamming distances are scaled by `.75/(m*1.01)` where `m`
+  is the maximum observed hamming distance, to make them all < 0.75.
+"""
+function startingBL!(net::HybridNetwork, unzip::Bool,
+        trait::AbstractVector{Vector{Union{Missings.Missing,Int}}},
+        siteweight=ones(length(trait[1]))::AbstractVector{Float64})
+    nspecies = net.numTaxa
+    M = zeros(Float64, nspecies, nspecies) # pairwise distances initialized to 0
+    # count pairwise differences, then multiply by pattern weight
+    ncols = length(trait[1]) # assumption: all species have same # columns
+    length(siteweight) == ncols ||
+      error("$(length(siteweight)) site weights but $ncols columns in the data")
+    for i in 2:nspecies
+        species1 = trait[i]
+        for j in 1:(i-1)
+            species2 = trait[j]
+            for col in 1:ncols
+                if !(ismissing(species1[col]) || ismissing(species2[col])) &&
+                    (species1[col] != species2[col])
+                    M[i, j] += siteweight[col]
+                end
+            end
+            M[j,i] = M[i,j]
+        end
+    end
+    Mp = M ./ sum(siteweight) # to get proportion of sites, for each pair
+
+    # estimate pairwise evolutionary distances using extended Jukes Cantor model
+    nstates = mapreduce(x -> maximum(skipmissing(x)), max, trait)
+    maxdist = (nstates-1)/nstates
+    Mp[:] = Mp ./ max(maxdist, maximum(Mp*1.01)) # values in [0,0.9901]: log(1-Mp) well defined
+    dhat = - maxdist .* log.( 1.0 .- Mp)
+
+    taxonnames = [net.leaf[i].name for i in sortperm([n.number for n in net.leaf])]
+    # taxon names: to tell the calibration that row i of dhat if for taxonnames[i]
+    # ASSUMPTION: trait[i][j] = trait j for taxon at node number i: 'node.number' = i
+    calibrateFromPairwiseDistances!(net, dhat, taxonnames,
+        forceMinorLength0=false, ultrametric=false)
+
+    if unzip && length(net.hybrid) > 0
+        constrainededges = [getChildEdge(h) for h in net.hybrid]
+        setlengths!(constrainededges, zeros(length(constrainededges)))
+    end
+    return net
+end
+
+"""
+    optimizelocalBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool)
+
+Optimize branch lengths in `net` locally around `edge`. Update all edges that
+share a node with `edge` (including itself).
+If `unzip = true`, constrain branch lengths to zero below hybrid edges.
+Return vector of updated `edges`.
+
+Used after `nni!` or `addhybridedge!` moves to update local branch lengths.
+
+```jldoctest
+julia> net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
+HybridNetwork, Rooted Network
+9 edges
+9 nodes: 4 tips, 1 hybrid nodes, 4 internal tree nodes.
+tip labels: A, B, C, D
+(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);
+
+
+julia> fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "simple.aln"));
+
+julia> obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69);
+
+julia> obj.net.edge[4]
+PhyloNetworks.Edge:
+ number:4
+ length:1.5
+ attached to 2 node(s) (parent first): 6 8
+
+
+julia> PhyloNetworks.optimizelocalBL!(obj, obj.net, obj.net.edge[4], true);
+
+julia> obj.net.edge[4]
+PhyloNetworks.Edge:
+ number:4
+ length:0.0
+ attached to 2 node(s) (parent first): 6 8
+```
+"""
+function optimizelocalBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool,
+    verbose=false::Bool)
+    edges = Edge[]
+    for n in edge.node
+        for e in n.edge # all edges sharing a node with `edge` (including self)
+            if !(e in edges)
+                push!(edges, e)
+            end
+        end
+    end
+    optimizeBL!(obj, net, edges, unzip, verbose, :LD_MMA, fRelBL, fAbsBL,
+    xRelBL, xAbsBL) #TODO tune these
+    return edges
+end
+
+"""
+    optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::Bool,
+    verbose::Bool, NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
+    ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
+
+Optimize branch lengths for edges in vector `edges`.
+If `unzip = true`, constrain branch lengths to zero below hybrid edges.
+Return vector of updated `edges`.
+"""
+function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge},
+    unzip::Bool, verbose::Bool, NLoptMethod=:LD_MMA::Symbol,
+    ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
+    xtolAbs=xAbsBL::Float64)
+    if unzip && length(net.hybrid) > 0
+        constrainededges = [getChildEdge(h) for h in net.hybrid]
+        setlengths!(constrainededges, zeros(length(constrainededges)))
+        edges = setdiff(edges, constrainededges) # edges - constrainededges
+    end
+    counter = [0]
+    function loglikfunBL(lengths::Vector{Float64}, grad::Vector{Float64})
+        counter[1] += 1
+        setlengths!(edges, lengths)
+        res = discrete_corelikelihood!(obj)
+        verbose && println("loglik: $res, branch lengths: $(lengths)")
+        length(grad) == 0 || error("gradient not implemented")
+        return res
+    end
+    # set-up optimization object for BL parameter
+    NLoptMethod=:LN_COBYLA # no gradient
+    # :LN_COBYLA for (non)linear constraits, :LN_BOBYQA for bound constraints
+    nparBL = length(edges)
+    optBL = NLopt.Opt(NLoptMethod, nparBL)
+    NLopt.ftol_rel!(optBL,ftolRel) # relative criterion
+    NLopt.ftol_abs!(optBL,ftolAbs) # absolute criterion
+    NLopt.xtol_rel!(optBL,xtolRel)
+    NLopt.xtol_abs!(optBL,xtolAbs)
+    NLopt.maxeval!(optBL,1000) # max number of iterations
+    # NLopt.maxtime!(optBL, t::Real)
+    NLopt.lower_bounds!(optBL, zeros(length(edges)))
+    counter[1] = 0
+    NLopt.max_objective!(optBL, loglikfunBL)
+    fmax, xmax, ret = NLopt.optimize(optBL, getlengths(edges))
+    verbose && println("BL: got $(round(fmax, digits=5)) at
+    BL = $(round.(xmax, digits=5)) after $(counter[1]) iterations
+    (return code $(ret))")
+    return edges
+end
+
+"""
+    optimizeallgammas!(obj::SSM, net::HybridNetwork, unzip::Bool,verbose::Bool,
+    NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
+    ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
+
+Optimize all gammas in a network. Creates a list of containing one parent edge
+per hybrid then calls optimizegammas! on that list.
+"""
+function optimizeallgammas!(obj::SSM, net::HybridNetwork, unzip::Bool,verbose::Bool,
+    NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
+    ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
+    edges = Edge[]
+    for h in net.hybrid
+        push!(edges, getMajorParentEdge(h))
+    end
+    optimizegammas!(obj, net, edges, unzip, verbose, :LD_MMA, fRelBL, fAbsBL,
+    xRelBL, xAbsBL)
+end
+
+"""
+    optimizelocalgammas!(obj::SSM, net::HybridNetwork, edge::Edge)
+
+Optimize gammas in `net` locally around `edge`. Update all edges that share a
+node with `edge` (including itself). Does not include the edge's partner because
+the `setGamma!` will update partners automatically.
+
+Return modified edges.
+
+Used after `nni!` or `addhybridedge!` moves to update local gammas.
+
+Assumptions:
+- correct `isChild1` field for `edge` and for hybrid edges
+- no in-coming polytomy: a node has 0, 1 or 2 parents, no more
+
+```jldoctest
+julia> net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
+
+julia> fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "simple.aln"));
+
+julia> obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69);
+
+julia> obj.net.hybrid[1].edge
+3-element Array{PhyloNetworks.Edge,1}:
+ PhyloNetworks.Edge:
+ number:2
+ length:1.0
+ attached to 2 node(s) (parent first): 9 2
+
+ PhyloNetworks.Edge:
+ number:3
+ length:0.1
+ major hybrid edge with gamma=0.9
+ attached to 2 node(s) (parent first): 8 9
+
+ PhyloNetworks.Edge:
+ number:6
+ length:1.0
+ minor hybrid edge with gamma=0.1
+ attached to 2 node(s) (parent first): 7 9
+
+julia> PhyloNetworks.optimizelocalgammas!(obj, net, obj.net.hybrid[1].edge[2], true);
+
+julia> obj.net.hybrid[1].edge
+3-element Array{PhyloNetworks.Edge,1}:
+ PhyloNetworks.Edge:
+ number:2
+ length:1.0
+ attached to 2 node(s) (parent first): 9 2
+
+ PhyloNetworks.Edge:
+ number:3
+ length:0.1
+ major hybrid edge with gamma=0.9000000000259154
+ attached to 2 node(s) (parent first): 8 9
+
+ PhyloNetworks.Edge:
+ number:6
+ length:1.0
+ minor hybrid edge with gamma=0.0999999999740846
+ attached to 2 node(s) (parent first): 7 9
+
+````
+"""
+function optimizelocalgammas!(obj::SSM, net::HybridNetwork, edge::Edge,
+    unzip::Bool, verbose=false::Bool)
+    edges = Edge[]
+    for n in edge.node
+        for e in n.edge # edges that share a node with `edge` (including self)
+            if e.hybrid && !(e in edges) && !(getPartner(e) in edges)
+                push!(edges, e)
+            end
+        end
+    end
+    optimizegammas!(obj, net, edges, unzip, verbose, :LD_MMA, fRelBL, fAbsBL,
+    xRelBL, xAbsBL) #TODO check these tolerances
+end
+
+"""
+    optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge},
+    unzip::Bool,verbose::Bool, NLoptMethod=:LD_MMA::Symbol,
+    ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
+    xtolAbs=xAbsBL::Float64)
+
+Optimize gammas for hybrid edges in vector `edges`.
+Return vector of updated `edges`.
+
+Warning: edges vector should not contain partners. Do not call directly:
+Use optimizelocalgammas! or optimizeallgamma! functions.
+"""
+function optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge},
+    unzip::Bool, verbose::Bool, NLoptMethod=:LD_MMA::Symbol,
+    ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
+    xtolAbs=xAbsBL::Float64)
+    counter = [0]
+    function loglikfungamma(gammas::Vector{Float64}, grad::Vector{Float64})
+        counter[1] += 1
+        setmultiplegammas!(edges, gammas)
+        res = discrete_corelikelihood!(obj)
+        verbose && println("loglik: $res, gammas: $(gammas)")
+        length(grad) == 0 || error("gradient not implemented")
+        @show res #This seems to solve the problem, but its a hack. Is the function not returning res?
+        return res
+    end
+    # set-up optimization object for gamma parameter
+    NLoptMethod=:LN_COBYLA # no gradient
+    # :LN_COBYLA for (non)linear constraits, :LN_BOBYQA for bound constraints
+    npargamma = length(edges)
+    optgamma = NLopt.Opt(NLoptMethod, npargamma)
+    NLopt.ftol_rel!(optgamma,ftolRel) # relative criterion
+    NLopt.ftol_abs!(optgamma,ftolAbs) # absolute criterion
+    NLopt.xtol_rel!(optgamma,xtolRel)
+    NLopt.xtol_abs!(optgamma,xtolAbs)
+    NLopt.maxeval!(optgamma,1000) # max number of iterations
+    #NLopt.initial_step!(optgamma, 0.05) # step size
+    # NLopt.maxtime!(optgamma, t::Real)
+    NLopt.lower_bounds!(optgamma, zeros(Float64, npargamma))
+    NLopt.upper_bounds!(optgamma, ones(Float64, npargamma))
+    counter[1] = 0
+    NLopt.max_objective!(optgamma, loglikfungamma)
+    fmax, xmax, ret = NLopt.optimize(optgamma, [e.gamma for e in edges])
+    verbose && println("gamma: got $(round(fmax, digits=5)) at
+    $(round.(xmax, digits=5)) after $(counter[1]) iterations
+    (return code $(ret))")
+    return edges
+end
+
+## Prep Functions ##
+
 # fixit: new type for two (dependent) binary traits
 # need new algorithm for model at hybrid nodes: displayed trees aren't enough
 """
@@ -1002,213 +1577,7 @@ function startingrate(net::HybridNetwork)
 end
 
 """
-    startingBL!(net::HybridNetwork,
-                trait::AbstractVector{Vector{Union{Missings.Missing,Int}}},
-                siteweight=ones(length(trait[1]))::AbstractVector{Float64})
-
-Calibrate branch lengths in `net` by minimizing the mean squared error
-between the JC-adjusted pairwise distance between taxa, and network-predicted
-pairwise distances, using [`calibrateFromPairwiseDistances!`](@ref).
-`siteweight[k]` gives the weight of site (or site pattern) `k` (default: all 1s).
-
-Assumptions:
-
-- all species have the same number of traits (sites): `length(trait[i])` constant
-- `trait[i]` is for leaf with `node.number = i` in `net`, and
-  `trait[i][j] = k` means that leaf number `i` has state index `k` for trait `j`.
-  These indices are those used in a substitution model:
-  kth value of `getlabels(model)`.
-- Hamming distances are < 0.75 with four states, or < (n-1)/n for n states.
-  If not, all pairwise hamming distances are scaled by `.75/(m*1.01)` where `m`
-  is the maximum observed hamming distance, to make them all < 0.75.
-"""
-function startingBL!(net::HybridNetwork,
-        trait::AbstractVector{Vector{Union{Missings.Missing,Int}}},
-        siteweight=ones(length(trait[1]))::AbstractVector{Float64})
-    nspecies = net.numTaxa
-    M = zeros(Float64, nspecies, nspecies) # pairwise distances initialized to 0
-    # count pairwise differences, then multiply by pattern weight
-    ncols = length(trait[1]) # assumption: all species have same # columns
-    length(siteweight) == ncols ||
-      error("$(length(siteweight)) site weights but $ncols columns in the data")
-    for i in 2:nspecies
-        species1 = trait[i]
-        for j in 1:(i-1)
-            species2 = trait[j]
-            for col in 1:ncols
-                if !(ismissing(species1[col]) || ismissing(species2[col])) &&
-                    (species1[col] != species2[col])
-                    M[i, j] += siteweight[col]
-                end
-            end
-            M[j,i] = M[i,j]
-        end
-    end
-    Mp = M ./ sum(siteweight) # to get proportion of sites, for each pair
-
-    # estimate pairwise evolutionary distances using extended Jukes Cantor model
-    nstates = mapreduce(x -> maximum(skipmissing(x)), max, trait)
-    maxdist = (nstates-1)/nstates
-    Mp[:] = Mp ./ max(maxdist, maximum(Mp*1.01)) # values in [0,0.9901]: log(1-Mp) well defined
-    dhat = - maxdist .* log.( 1.0 .- Mp)
-
-    taxonnames = [net.leaf[i].name for i in sortperm([n.number for n in net.leaf])]
-    # taxon names: to tell the calibration that row i of dhat if for taxonnames[i]
-    # ASSUMPTION: trait[i][j] = trait j for taxon at node number i: 'node.number' = i
-    calibrateFromPairwiseDistances!(net, dhat, taxonnames,
-        forceMinorLength0=false, ultrametric=false)
-    return net
-end
-
-"""
-    localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool)
-
-Optimize branch lengths in `net` locally around `edge`. Update all edges that
-share a node with `edge` (including itself).
-If `unzip = true`, constrain branch lengths to zero below hybrid edges.
-Return vector of updated `edges`.
-
-Used after `nni!` or `addhybridedge!` moves to update local branch lengths.
-"""
-function localBL!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool,
-    verbose=false::Bool)
-    edges = Edge[]
-    for n in edge.node
-        for e in n.edge # all edges sharing a node with `edge` (including self)
-            if !(e in edges)
-                push!(edges, e)
-            end
-        end
-    end
-    optimizeBL!(obj, net, edges, unzip, verbose, 0.001, 0.001, 0.001, 0.001,
-    0.001) # set tolerance high for a rough optimization
-    return edges
-end
-
-"""
-    localgamma!(obj::SSM, net::HybridNetwork, edge::Edge)
-
-Optimize gammas in `net` locally around `edge`. Update all edges that share a
-node with `edge` (including itself). Does not include the edge's partner because
-the `setGamma!` will update partners automatically.
-
-Return modified edges.
-
-Used after `nni!` or `addhybridedge!` moves to update local gammas.
-
-Assumptions:
-- correct `isChild1` field for `edge` and for hybrid edges
-- no in-coming polytomy: a node has 0, 1 or 2 parents, no more
-"""
-function localgamma!(obj::SSM, net::HybridNetwork, edge::Edge, unzip::Bool,
-    verbose=false::Bool)
-    edges = Edge[]
-    for n in edge.node
-        for e in n.edge # edges that share a node with `edge` (including self)
-            if e.hybrid && !(e in edges) && !(getPartner(e) in edges)
-                push!(edges, e)
-            end
-        end
-    end
-    optimizegammas!(obj, net, edges, unzip, verbose, :LD_MMA, 0.1, 0.1, 0.1,
-    0.1)
-end
-
-"""
-    optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge}, unzip::Bool,
-    verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64, ftolAbs::Float64,
-    xtolRel::Float64, xtolAbs::Float64)
-
-Optimize branch lengths for edges in vector `edges`.
-If `unzip = true`, constrain branch lengths to zero below hybrid edges.
-Return vector of updated `edges`.
-"""
-function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge},
-    unzip::Bool, verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64,
-    ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64)
-    if unzip
-        constrainededges = [getChildEdge(h) for h in net.hybrid]
-        setlengths!(constrainededges, zeros(length(constrainededges)))
-        edges = setdiff(edges, constrainededges) # edges - constrainededges
-    end
-    counter = [0]
-    function loglikfunBL(lengths::Vector{Float64}, grad::Vector{Float64})
-        counter[1] += 1
-        setlengths!(edges, lengths)
-        res = discrete_corelikelihood!(obj)
-        verbose && println("loglik: $res, branch lengths: $(lengths)")
-        length(grad) == 0 || error("gradient not implemented")
-        return res
-    end
-    # set-up optimization object for BL parameter
-    NLoptMethod=:LN_COBYLA # no gradient
-    # :LN_COBYLA for (non)linear constraits, :LN_BOBYQA for bound constraints
-    nparBL = length(edges)
-    optBL = NLopt.Opt(NLoptMethod, nparBL)
-    NLopt.ftol_rel!(optBL,ftolRel) # relative criterion
-    NLopt.ftol_abs!(optBL,ftolAbs) # absolute criterion
-    NLopt.xtol_rel!(optBL,xtolRel)
-    NLopt.xtol_abs!(optBL,xtolAbs)
-    NLopt.maxeval!(optBL,1000) # max number of iterations
-    # NLopt.maxtime!(optBL, t::Real)
-    # NLopt.lower_bounds!(optBL, zeros(Float64, nparBL))
-    counter[1] = 0
-    NLopt.max_objective!(optBL, loglikfunBL)
-    fmax, xmax, ret = NLopt.optimize(optBL, getlengths(edges))
-    verbose && println("BL: got $(round(fmax, digits=5)) at
-    $(round.(xmax, digits=5)) after $(counter[1]) iterations
-    (return code $(ret))")
-    return edges
-end
-
-"""
-    optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge},
-    unzip::Bool,verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64,
-    ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64)
-
-Optimize gammas for hybrid edges in vector `edges`.
-Return vector of updated `edges`.
-
-Warning: edges vector should not contain partners.
-"""
-function optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge},
-    unzip::Bool, verbose::Bool, NLoptMethod::Symbol, ftolRel::Float64,
-    ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64)
-    counter = [0]
-    function loglikfungamma(gammas::Vector{Float64}, grad::Vector{Float64})
-        counter[1] += 1
-        setmultiplegammas!(edges, gammas)
-        res = discrete_corelikelihood!(obj)
-        verbose && println("loglik: $res, gammas: $(gammas)")
-        length(grad) == 0 || error("gradient not implemented")
-        return res
-    end
-    # set-up optimization object for gamma parameter
-    NLoptMethod=:LN_COBYLA # no gradient
-    # :LN_COBYLA for (non)linear constraits, :LN_BOBYQA for bound constraints
-    npargamma = length(edges)
-    optgamma = NLopt.Opt(NLoptMethod, npargamma)
-    NLopt.ftol_rel!(optgamma,ftolRel) # relative criterion
-    NLopt.ftol_abs!(optgamma,ftolAbs) # absolute criterion
-    NLopt.xtol_rel!(optgamma,xtolRel)
-    NLopt.xtol_abs!(optgamma,xtolAbs)
-    NLopt.maxeval!(optgamma,1000) # max number of iterations
-    # NLopt.maxtime!(optgamma, t::Real)
-    NLopt.lower_bounds!(optgamma, zeros(Float64, npargamma))
-    #NLopt.upper_bounds!(optgamma, ones(Float64, npargamma))
-    counter[1] = 0
-    NLopt.max_objective!(optgamma, loglikfungamma)
-    fmax, xmax, ret = NLopt.optimize(optgamma, [e.gamma for e in edges])
-    verbose && println("gamma: got $(round(fmax, digits=5)) at
-    $(round.(xmax, digits=5)) after $(counter[1])iterations
-    (return code $(ret))")
-    return edges
-end
-
-# ## Prep and Wrapper Functions ##
-
-"""
-    datatoSSM(net::HybridNetwork, dnadata::DataFrame, modsymbol::Symbol)
+    datatoSSM(net::HybridNetwork, fastafile::String, modsymbol::Symbol)
 
 Create an SSM object for use in wrapper function. This should include all
 actions that can happen only once. Probably need different versions for
@@ -1223,13 +1592,7 @@ function datatoSSM(net::HybridNetwork, fastafile::String, modsymbol::Symbol)
     dat2 = traitlabels2indices(view(data, :, 2:size(data,2)), model)
     o, net = check_matchtaxonnames!(data[:,1], dat2, net)
     trait = dat2[o]
-    # CA: I prefer the memory handling above. why change to choices below?
-    # dat2 = traitlabels2indices(data[!,2:end], model)
-    # o, net = check_matchtaxonnames!(data[1], dat2, net)
-    # trait = view(dat2, o)
-    startingBL!(net, trait, siteweights)
-    obj = StatisticalSubstitutionModel(model, ratemodel, net, trait,
-    siteweights)
+    obj = StatisticalSubstitutionModel(model, ratemodel, net, trait, siteweights)
 end
 
 """
@@ -1265,129 +1628,3 @@ function symboltomodel(net::HybridNetwork, modsymbol::Symbol, data::DataFrame,
         error("model $modsymbol is unknown or not implemented yet")
     end
 end
-
-"""
-    hashybridladder(net::HybridNetwork)
-
-Return true if network contains hybrid ladder, making it a non-treechild network.
-"""
-function hashybridladder(net::HybridNetwork)
-    hybridladder = false
-    for h in net.hybrid
-        if any([n.hybrid for n in PhyloNetworks.getParents(h)])
-            hybridladder = true
-            break
-        end
-    end
-    return hybridladder
-end
-
-# optimization wrapper functions #
-
-"""
-    optimizestructure!(obj::SSM, hybridpercent::Float64, maxmoves::Int64,
-    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
-    verbose::Bool, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
-
-Alternate nni moves, hybrid moves, and root changes in a user-provided ratio.
-Optimizes local branch lengths and hybrid gammas after each move. Return object.
-
-`movepercentages` is a vector of percents, giving the percent of nni moves,
-percent of hybrid moves, and root changes to be performed out of all moves.
-Must sum to 1.
-`maxhybrid` gives the maximum number of hybrids in a network.
-
-Assumptions:
-- starts with a network without 2- and 3- cycles
-
-note: when removing a hybrid edge, always removes the minor edge.
-"""
-function optimizestructure!(obj::SSM, maxmoves::Int64,
-    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
-    verbose::Bool, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
-    moves = 0
-    while moves <= maxmoves
-        currLik = loglikelihood(obj)
-        movechoice = sample(["nni", "hybrid", "root"], moveweights)
-        if movechoice == "nni"
-            edgefound = false
-            blacklist = Edge[]
-            while !edgefound # choose interior edge randomly
-                if length(blacklist) == length(obj.net.edge)
-                    error("there are no nni moves possible in this network.")
-                end
-                eindex = Random.randperm(length(obj.net.edge))[1]
-                e1 = obj.net.edge[eindex]
-                undoinfo = nni!(obj.net, e1,nohybridladder,no3cycle,constraints)
-                if !isnothing(undoinfo)
-                    moves += 1
-                    edgefound = true
-                    if currLik < loglikelihood(obj)
-                        nni!(undoinfo...) # undo move
-                    end
-                else # if move unsuccessful, search for edge until successful
-                    push!(blacklist, e1)
-                end
-            end
-        elseif movechoice == "hybrid" # perform hybrid move
-            if maxhybrid == 0
-                @debug("The maximum number of hybrids allowed is $maxhybrid,
-                so hybrid moves are not legal on this network.")
-            elseif length(obj.net.hybrid) == 0
-                add = true # add hybrid
-            elseif length(obj.net.hybrid) == maxhybrid
-                add = false # remove hybrid
-            else  # meaning we can do either move
-                add = (rand() > 0.5) # add hybrid with 50% probability
-            end
-            if add
-                newhybridnode = addhybridedge!(obj.net, nohybridladder,
-                no3cycle, constraints)
-                #TODO return new hybrid edge instead?
-                moves += 1
-                e1 = getMinorParentEdge(newhybridnode)
-                #todo optimize edges around the new hybrid edge (as above) (five)
-                if currLik < loglikelihood(obj)
-                    deleteHybridizationUpdate!(obj.net.hybrid[newhybridnode],
-                    obj.net, true, false)
-                end
-            else # delete hybrid
-                hybridindex = Random.randperm(length(obj.net.hybrid))[1]
-                e1 = getMajorParentEdge(obj.net.hybrid[hybridindex])
-                edge1 = getMajorParentEdge(getParent(getMinorParentEdge(obj.net.hybrid[hybridindex])))
-                #? is this getting the correct edge?^
-                deleteHybridizationUpdate!(obj.net, obj.net.hybrid[hybridindex],
-                true, false)
-                #? should this be deleteHybrid?
-                moves += 1
-                if currLik < loglikelihood(obj)
-                    addhybridedge!(obj.net, edge1, e1, true)
-                end
-            end
-        else # perform root change
-            originalroot = obj.net.root
-            changednet = moveroot!(obj.net, constraints)
-            #? if moveroot! deletes root node, need to keep node
-            if changednet
-                moves +=1
-                if currLik < loglikelihood(obj)
-                    rootatnode!(originalroot)
-                else
-                    e1 = obj.net.root.edge[1]
-                end
-            else
-                @debug("Cannot perform a root change move on current network.")
-            end
-        end
-        #? optimize BL and gamma around edge near new root?
-        localBL!(obj, obj.net, e1, unzip, verbose)
-        # TODO fix localgamma bug then uncomment
-        # localgamma!(obj, obj.net, e1, unzip, verbose)
-        verbose && println("loglik = $(loglikelihood(obj)) after move of
-        type $movechoice and $moves total moves")
-    end
-    return obj
-end
-
-const moveweights = Distributions.aweights([0.6, 0.3, 0.1])
-# TODO put this at top of new software-named file

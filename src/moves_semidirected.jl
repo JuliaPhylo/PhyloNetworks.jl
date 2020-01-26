@@ -178,8 +178,8 @@ end
 
 Attempt to perform a nearest neighbor interchange (NNI) around edge `e`,
 randomly chosen among all possible NNIs (e.g 3, sometimes more depending on `e`)
-satisfying the constraints, and such that the new network is a DAG. The number of 
-possible NNI moves around an edge depends on whether the edge's parent/child nodes 
+satisfying the constraints, and such that the new network is a DAG. The number of
+possible NNI moves around an edge depends on whether the edge's parent/child nodes
 are tree or hybrid nodes. This is calculated by [`nnimax`](@ref).
 
 The option `no3cycle` forbids moves that would create a 3-cycle in the network.
@@ -191,19 +191,18 @@ nni!(net, e, nohybridladder),
 nni!(net, e, nohybridladder, no3cycle),
 nni!(net, e, nohybridladder, no3cycle, contraints).
 
-Assumptions:  
+Assumptions:
 - The starting network does not have 3-cycles, if `no3cycle=true`.
   No check for the presence of 2- and 3-cycles in the input network.
 - The edges' field `isChild1` is correct in the input network. (This field
   will be correct in the output network.)
 
-Output:  
+Output:
 information indicating how to undo the move or `nothing` if all NNIs failed.
 
 # examples
 
 ```jldoctest
-# checks for 3cycle
 julia> str_network = "(((S8,S9),(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
 
 julia> net = readTopology(str_network);
@@ -277,7 +276,7 @@ Return the information necessary to undo the NNI, or `nothing` if the move
 was not successful (such as if the resulting graph was not acyclic (not a DAG) or if
 the focus edge is adjacent to a polytomy). If the move fails, the network is not
 modified.
-`nummove` specifies which of the available NNIs is performed. 
+`nummove` specifies which of the available NNIs is performed.
 
 rooted-NNI options according to Gambette et al. (2017), fig. 8:
 * BB: 2 moves, both to BB, if directed edges. 8 moves if undirected.
@@ -318,7 +317,7 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8,
     else # u may not have any parent, e.g. if root node
         # pick αu = parent edge if possible, first edge of u (other than uv) otherwise
         labs = [edgerelation(e, u, uv) for e in u.edge]
-        pti = findfirst(isequal(:parent), labs) # parent index: there should be 1 or 0 
+        pti = findfirst(isequal(:parent), labs) # parent index: there should be 1 or 0
         ci = findall(  isequal(:child), labs)  # vector. there should be 1 or 2
         if pti === nothing
             length(ci) == 2 || error("node $(u.number) should have 2 children other than $(v.number)")
@@ -336,7 +335,7 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8,
     # δ = v's last child, γ = other child or v's parent other than u
     labs = [edgerelation(e, v, uv) for e in v.edge]
     if v.hybrid # then v must have another parent edge, other than uv
-        vγ = v.edge[findfirst(isequal(:parent), labs)] # γ = getParent(vδ) ?this should be vγ right? 
+        vγ = v.edge[findfirst(isequal(:parent), labs)] # γ = getParent(vδ) ?this should be vγ right?
             #on net_hybridladder edge 1 get ERROR: ArgumentError: invalid index: nothing of type Nothing
         vδ = v.edge[findfirst(isequal(:child), labs)]
         γ = getParent(vγ)
@@ -388,12 +387,12 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8,
             # detach β and graft onto vδ
             if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
             res = nni!(αu, u, uv, v, vδ)
-        else # case BR: 3 options 
+        else # case BR: 3 options
             # DAG check
             # if α parent of u, check if β -> γ (directed or undirected)
             # if undirected with β parent of u, check α -> γ
             # if undirected and u = root:
-            #   moves 1 and 3 will fail if α -> γ 
+            #   moves 1 and 3 will fail if α -> γ
             #   moves 2 and 3 will fail if β -> γ
             # nummove 3 always creates a nonDAG when u is the root
             αparentu = getChild(αu)===u
@@ -426,7 +425,7 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8,
                     res = nni!(vγ, v, uv, u, αu)
                 else # if β->u: graft δ onto β
                     if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
-                    # we could check nohybridladder && β.hybrid but no need because 
+                    # we could check nohybridladder && β.hybrid but no need because
                     # we only get here if uv.containRoot so β cannot be hybrid
                     res = nni!(vγ, v, uv, u, βu)
                 # case when u is root already excluded (not DAG)
@@ -478,11 +477,11 @@ Edge `uv` keeps its direction unchanged *unless* the directions were
 `α -> u -> v -> δ` or `α <- u <- v <- δ`,
 in which case the direction of `uv` is flipped.
 
-The second version's input has the same signature as the output, but 
-will undo the NNI more easily. This means that if `output = nni!(input)`, 
+The second version's input has the same signature as the output, but
+will undo the NNI more easily. This means that if `output = nni!(input)`,
 then `nni!(output...)` is valid and undoes the first operation.
 
-Right now, branch lengths are not modified. Future versions might implement 
+Right now, branch lengths are not modified. Future versions might implement
 options to modify branch lengths.
 """
 function nni!(αu::Edge, u::Node, uv::Edge, v::Node, vδ::Edge)
