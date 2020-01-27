@@ -636,14 +636,16 @@ lengthep = obj.net.edge[9].node[1].edge[1].length
 
 # ## Local Gamma: unzip = true
 hybridmajorparent = PhyloNetworks.getMajorParentEdge(obj.net.hybrid[1])
-@test typeof(PhyloNetworks.optimizelocalgammas!(obj, obj.net, hybridmajorparent, true)) == Vector{PhyloNetworks.Edge}
+@test typeof(PhyloNetworks.optimizelocalgammas!(obj, obj.net, hybridmajorparent,
+    true)) == Vector{PhyloNetworks.Edge}
 @test hybridmajorparent.gamma != 0.9
 @test PhyloNetworks.getMinorParentEdge(obj.net.hybrid[1]).gamma != 0.1
 
 # ## Local Gamma: unzip = false
 obj = PhyloNetworks.datatoSSM(net_simple, fastafile, :JC69)
 hybridmajorparent = PhyloNetworks.getMajorParentEdge(obj.net.hybrid[1])
-@test typeof(PhyloNetworks.optimizelocalgammas!(obj, obj.net, hybridmajorparent, false)) == Vector{PhyloNetworks.Edge}
+@test typeof(PhyloNetworks.optimizelocalgammas!(obj, obj.net, hybridmajorparent,
+    false)) == Vector{PhyloNetworks.Edge}
 @test hybridmajorparent.gamma != 0.9
 @test PhyloNetworks.getMinorParentEdge(obj.net.hybrid[1]).gamma != 0.1
 end
@@ -670,8 +672,9 @@ lengthep = obj.net.edge[48].node[1].edge[1].length
 @test obj.net.edge[48].length != lengthe
 @test obj.net.edge[48].node[1].edge[1].length == 0.0 # below hybrid node
 
-# ## Local Gamma: unzip = true
-@test typeof(PhyloNetworks.optimizelocalgammas!(obj, obj.net, PhyloNetworks.getMajorParentEdge(obj.net.hybrid[1]), true)) == Vector{PhyloNetworks.Edge}
+# ## Local Gamma: unzip = truE
+@test typeof(PhyloNetworks.optimizelocalgammas!(obj, obj.net,
+    PhyloNetworks.getMajorParentEdge(obj.net.hybrid[1]), true)) == Vector{PhyloNetworks.Edge}
 @test PhyloNetworks.getMajorParentEdge(obj.net.hybrid[1]).gamma != 0.7
 @test PhyloNetworks.getMinorParentEdge(obj.net.hybrid[1]).gamma != 0.3
 end #of local branch length and gamma optimization with localgamma! localBL! with 8 sites
@@ -690,13 +693,12 @@ end
 obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69);
 
 ## optimizeBL: unzip = true
-@test typeof(PhyloNetworks.optimizeBL!(obj, obj.net, obj.net.edge, true,
-    true)) == Vector{PhyloNetworks.Edge}
+@test typeof(PhyloNetworks.optimizeBL!(obj, obj.net, obj.net.edge, true)) == Vector{PhyloNetworks.Edge}
 @test obj.net.edge[10] != 1.0
 @test obj.net.edge[40] != 1.0
 
 ## optimizegammas: unzip = true
-@test typeof(PhyloNetworks.optimizeallgammas!(obj, obj.net, true, true)) == Vector{PhyloNetworks.Edge}
+@test typeof(PhyloNetworks.optimizeallgammas!(obj, obj.net, true)) == Vector{PhyloNetworks.Edge}
 @test PhyloNetworks.getMajorParentEdge(obj.net.hybrid[1]).gamma != 0.6
 @test PhyloNetworks.getMinorParentEdge(obj.net.hybrid[1]).gamma != 0.4
 end
@@ -743,14 +745,15 @@ PhyloNetworks.checknetworkbeforeLiNC!(net, 1, true, true, true)
 @test_throws ErrorException PhyloNetworks.checknetworkbeforeLiNC!(net, 0, true, true, true)
 end
 
-@testset "optimizestructure with simple example" for maxmoves in 3:3
+@testset "optimizestructure with simple example" begin
+maxmoves = 5
 maxhybrid = 3
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "simple.aln"))
 obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69)
 PhyloNetworks.checknetworkbeforeLiNC!(net, maxhybrid, true, true, true)
 PhyloNetworks.discrete_corelikelihood!(obj)
-@test typeof(PhyloNetworks.optimizestructure!(obj, maxmoves, maxhybrid, true, true, true, true)) == PhyloNetworks.StatisticalSubstitutionModel
+@test typeof(PhyloNetworks.optimizestructure!(obj, maxmoves, maxhybrid, true, true, true)) == PhyloNetworks.StatisticalSubstitutionModel
 @test writeTopology(obj.net) != "(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);"
 
 # allow 3-cycles
@@ -758,7 +761,7 @@ net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):
 obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69)
 PhyloNetworks.checknetworkbeforeLiNC!(net, maxhybrid, false, true, true)
 PhyloNetworks.discrete_corelikelihood!(obj)
-@test typeof(PhyloNetworks.optimizestructure!(obj, maxmoves, maxhybrid, false, true, true, false)) == PhyloNetworks.StatisticalSubstitutionModel
+@test typeof(PhyloNetworks.optimizestructure!(obj, maxmoves, maxhybrid, false, true, true)) == PhyloNetworks.StatisticalSubstitutionModel
 @test writeTopology(obj.net) != "(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);"
 
 # unzip = false
@@ -766,7 +769,7 @@ net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):
 obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69)
 PhyloNetworks.checknetworkbeforeLiNC!(net, maxhybrid, true, false, true)
 PhyloNetworks.discrete_corelikelihood!(obj)
-@test typeof(PhyloNetworks.optimizestructure!(obj, maxmoves, maxhybrid, true, false, true, false)) == PhyloNetworks.StatisticalSubstitutionModel
+@test typeof(PhyloNetworks.optimizestructure!(obj, maxmoves, maxhybrid, true, false, true)) == PhyloNetworks.StatisticalSubstitutionModel
 @test writeTopology(obj.net) != "(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);"
 
 # allow hybrid ladders
@@ -774,18 +777,20 @@ net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):
 obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69)
 PhyloNetworks.checknetworkbeforeLiNC!(net, maxhybrid, true, true, false)
 PhyloNetworks.discrete_corelikelihood!(obj)
-@test typeof(PhyloNetworks.optimizestructure!(obj, maxmoves, maxhybrid, true, true, false, false)) == PhyloNetworks.StatisticalSubstitutionModel
+@test typeof(PhyloNetworks.optimizestructure!(obj, maxmoves, maxhybrid, true, true, false)) == PhyloNetworks.StatisticalSubstitutionModel
 @test writeTopology(obj.net) != "(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);"
 end # of optimizestructure with simple example
 
-@testset "PhyLiNC with simple net, no constraints" for maxhybrid in 2:2
-
+@testset "PhyLiNC with simple net, no constraints" for maxhybrid in [0,2]
+maxmoves = 6
 #for no3cycle in [true, false] #TODO make loops for options to test all
 #for unzip in [true, false]
 #for nohybridladder in [true, false]
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..",
     "examples", "simple.aln"))
-PhyloNetworks.PhyLiNC!(net, fastafile, :JC69, maxhybrid, true, true, true,
-    5, true)
+obj = PhyloNetworks.PhyLiNC!(net, fastafile, :JC69, maxhybrid, true, true,
+    true, maxmoves, true)
+@test typeof(obj) == PhyloNetworks.StatisticalSubstitutionModel
+@test writeTopology(obj.net) != "(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);"
 end

@@ -320,13 +320,13 @@ Warnings:
 function deletehybridedge!(net::HybridNetwork, edge::Edge,
                            keepNodes=false::Bool, unroot=false::Bool)
     edge.hybrid || error("edge $(edge.number) has to be hybrid for deletehybridedge!")
-    n1 = getChild(edge)  # child  of edge, to be deleted
+    n1 = getChild(edge)  # child of edge, to be deleted
     n1.hybrid || error("child node $(n1.number) of hybrid edge $(edge.number) should be a hybrid.")
     n2 = getParent(edge)  # parent of edge, to be deleted too.
     # next: keep hybrid node n1 if it has 4+ edges (2 parents and 2+ children).
     #       2 or 1 edges should never occur.
     if length(n1.edge) < 3
-        error("node $(n1.number) has $length(n1.edge) edges instead of 3+");
+        error("node $(n1.number) has $(length(n1.edge)) edges instead of 3+");
     elseif length(n1.edge) == 3 && !keepNodes
         pe = nothing # will be other parent (hybrid) edge of n1
         ce = nothing # will be child edge of n1, to be merged with pe

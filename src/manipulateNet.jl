@@ -296,6 +296,7 @@ function rootatnode!(net::HybridNetwork, nodeNumber::Integer; index=false::Bool,
           rethrow(e)
         end
         if (net.root != rootsaved && length(net.node[rootsaved].edge)==2)
+            verbose && println("Saved root is of degree two. Fuzes edges to remove old root node.")
             fuseedgesat!(rootsaved,net) # remove old root node if degree 2
         end
         return net
@@ -562,7 +563,7 @@ julia> net = readTopology("((S1,(((S2,(S3)#H1),(#H1,S4)))#H2),(#H2,S5));");
 julia> [n.name for n in net.edge[7].node] # external edge to S4
 2-element Array{String,1}:
  "S4"
- ""  
+ ""
 
 julia> PhyloNetworks.addleaf!(net, net.edge[7], "4a"); # adding leaf to an edge
 
@@ -688,7 +689,7 @@ end
     getParents(node)
 
 Get vector of all parent nodes of `n`, based on `isChild1` field (for edges).
-To get the parent node of an edge: see [`getParent`](@ref).  
+To get the parent node of an edge: see [`getParent`](@ref).
 To get individual parent edges (rather than all parent *nodes*):
 see [`getMajorParentEdge`](@ref) and `getMinorParentEdge`.
 """
@@ -708,10 +709,10 @@ end
     getMajorParentEdge(node)
     getMinorParentEdge(node)
 
-return the parent edge of a given node: the major / minor if hybrid.  
+return the parent edge of a given node: the major / minor if hybrid.
 **warning**: assume isChild1 and isMajor attributes are correct
 
-To get all parent *nodes*: see [`getParents`](@ref).  
+To get all parent *nodes*: see [`getParents`](@ref).
 """
 @inline function getMajorParentEdge(n::Node)
     for ee in n.edge
@@ -734,10 +735,10 @@ end
 """
     getChildren(node)
 
-return a vector with all children *nodes* of `node`.  
+return a vector with all children *nodes* of `node`.
 **warning**: assume `isChild1` field (for edges) are correct
 
-To get all parent *nodes*: see [`getParents`](@ref).  
+To get all parent *nodes*: see [`getParents`](@ref).
 """
 function getChildren(node::Node)
     children = Node[]
@@ -1043,13 +1044,13 @@ julia> PhyloNetworks.resetNodeNumbers!(net)
 
 julia> printNodes(net) # first column "node": root is 5
 node leaf  hybrid hasHybEdge name inCycle edges'numbers
-1    true  false  false      A    -1      1   
-2    true  false  false      B    -1      2   
-3    true  false  false      C    -1      3   
-4    true  false  false      D    -1      4   
-7    false false  false           -1      3    4    5   
-6    false false  false           -1      2    5    6   
-5    false false  false           -1      1    6   
+1    true  false  false      A    -1      1
+2    true  false  false      B    -1      2
+3    true  false  false      C    -1      3
+4    true  false  false      D    -1      4
+7    false false  false           -1      3    4    5
+6    false false  false           -1      2    5    6
+5    false false  false           -1      1    6
 
 julia> net = readTopology("(A,(B,(C,D)));");
 
@@ -1057,13 +1058,13 @@ julia> PhyloNetworks.resetNodeNumbers!(net; ape=false)
 
 julia> printNodes(net) # first column "node": root is 7
 node leaf  hybrid hasHybEdge name inCycle edges'numbers
-1    true  false  false      A    -1      1   
-2    true  false  false      B    -1      2   
-3    true  false  false      C    -1      3   
-4    true  false  false      D    -1      4   
-5    false false  false           -1      3    4    5   
-6    false false  false           -1      2    5    6   
-7    false false  false           -1      1    6   
+1    true  false  false      A    -1      1
+2    true  false  false      B    -1      2
+3    true  false  false      C    -1      3
+4    true  false  false      D    -1      4
+5    false false  false           -1      3    4    5
+6    false false  false           -1      2    5    6
+7    false false  false           -1      1    6
 ```
 """
 function resetNodeNumbers!(net::HybridNetwork; checkPreorder=true::Bool, ape=true::Bool)

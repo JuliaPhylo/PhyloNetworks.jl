@@ -115,13 +115,13 @@ and a new edge is created linking the 2 new "middle" nodes, pointing from `edge1
 The new node in the middle of `edge1` is a tree node.
 The new node in the middle of `edge2` is a hybrid node.
 Its parent edges are the newly created hybrid edge (with γ = gamma, missing by default),
-and either the newly edge "above" `edge2` if `hybridpartnernew=true`,
-or the old `edge2` otherwise (which would reverse the direction of `edge2` and others).
+and either the newly edge "above" `edge2` if `hybridpartnernew=true`, or
+the old `edge2` otherwise (which would reverse the direction of `edge2` and others).
 
 Should be called from the other method, which performs a bunch of checks.
 Updates `containRoot` attributes for edges below the new hybrid node.
 
-`net` is modified and the new hybrid node (middle of the old `edge2`) is returned.
+Modifies `net`, returns the new hybrid node (middle of the old `edge2`)
 
 # examples
 
