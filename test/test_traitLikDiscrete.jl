@@ -781,11 +781,12 @@ PhyloNetworks.discrete_corelikelihood!(obj)
 @test writeTopology(obj.net) != "(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);"
 end # of optimizestructure with simple example
 
-@testset "PhyLiNC with simple net, no constraints" for maxhybrid in [0,2]
-maxmoves = 6
+@testset "PhyLiNC with simple net, no constraints" begin
 #for no3cycle in [true, false] #TODO make loops for options to test all
 #for unzip in [true, false]
 #for nohybridladder in [true, false]
+maxmoves = 6
+maxhybrid = 2
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..",
     "examples", "simple.aln"))
@@ -793,4 +794,10 @@ obj = PhyloNetworks.PhyLiNC!(net, fastafile, :JC69, maxhybrid, true, true,
     true, maxmoves, true)
 @test typeof(obj) == PhyloNetworks.StatisticalSubstitutionModel
 @test writeTopology(obj.net) != "(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);"
+
+maxhybrid = 0
+obj = PhyloNetworks.PhyLiNC!(net, fastafile, :JC69, maxhybrid, true, true,
+    true, maxmoves, true)
+@test_throws ErrorException PhyloNetworks.PhyLiNC!(net, fastafile, :JC69, maxhybrid, true, true,
+    true, maxmoves, true)
 end

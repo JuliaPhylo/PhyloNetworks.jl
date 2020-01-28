@@ -1126,7 +1126,7 @@ function optimizestructure!(obj::SSM, maxmoves::Int64,
                     if obj.loglik - currLik < likAbs
                         deletehybridedge!(obj.net,
                             getMinorParentEdge(newhybridnode), false, false)
-                        updateSSM!(obj)
+                        updateSSM!(obj, false)
                     end
                 else
                     @debug("Cannot add a hybrid to the network at move number $moves.")
@@ -1140,12 +1140,12 @@ function optimizestructure!(obj::SSM, maxmoves::Int64,
                 deletehybridedge!(obj.net,
                     getMinorParentEdge(obj.net.hybrid[hybridindex]), false,
                     false)
-                updateSSM!(obj)
+                updateSSM!(obj, false)
                 moves += 1
                 discrete_corelikelihood!(obj) # update loglik
                 if obj.loglik - currLik < likAbs
                     addhybridedge!(obj.net, edge1, e1, true)
-                    updateSSM!(obj) # no need to expand arrays because this hybrid already existed
+                    updateSSM!(obj)
                 end
             end
         else # perform root change
@@ -1172,7 +1172,7 @@ function optimizestructure!(obj::SSM, maxmoves::Int64,
 end
 
 """
-    updateSSM!(obj::SSM)
+    updateSSM!(obj::SSM, changearraysize=true::Bool)
 
 After adding or removing a hybrid, displayed trees will change. Updates
 the displayed tree list.
@@ -1180,7 +1180,7 @@ the displayed tree list.
 # fixit: After adding a new root node, might need to change the size of some
 `SSM` arrays?
 """
-function updateSSM!(obj::SSM)
+function updateSSM!(obj::SSM, changearraysize=true::Bool)
     # extract displayed trees
     obj.displayedtree = displayedTrees(obj.net, 0.0; keepNodes=true)
     nnodes = length(obj.net.node)
@@ -1196,16 +1196,16 @@ function updateSSM!(obj::SSM)
     obj.priorltw = inheritanceWeight.(obj.displayedtree)
     all(!ismissing, obj.priorltw) ||
         error("one or more inheritance γ's are missing or negative. fix using setGamma!(network, edge)")
-    # change size of some matrices to accomodate new edges and nodes
-    #TODO confirm that we can skip this step after deleting a hybrid then add an option
-    k = nstates(obj.model)
-    newedgesize = obj.net.edge[length(obj.net.edge)].number # TODO confirm edge numbers always ordered
-    newnodesize = maximum([n.number for n in obj.net.node]) # node numbers not ordered
-    obj.logtrans   = zeros(Float64, k, k, newedgesize, length(obj.ratemodel.ratemultiplier))
-    obj.forwardlik = zeros(Float64, k, newnodesize)
-    obj.directlik  = zeros(Float64, k, newedgesize)
-    obj.backwardlik= zeros(Float64, k, newnodesize)
-    obj._loglikcache = zeros(Float64, ntrees, length(obj.ratemodel.ratemultiplier), obj.nsites)
+    if changearraysize # change size of some arrays to accomodate new edges and nodes
+        k = nstates(obj.model)
+        newedgesize = obj.net.edge[length(obj.net.edge)].number # TODO confirm edge numbers always ordered
+        newnodesize = maximum([n.number for n in obj.net.node]) # node numbers not ordered
+        obj.logtrans   = zeros(Float64, k, k, newedgesize, length(obj.ratemodel.ratemultiplier))
+        obj.forwardlik = zeros(Float64, k, newnodesize)
+        obj.directlik  = zeros(Float64, k, newedgesize)
+        obj.backwardlik= zeros(Float64, k, newnodesize)
+        obj._loglikcache = zeros(Float64, ntrees, length(obj.ratemodel.ratemultiplier), obj.nsites)
+    end
     return obj
 end
 
@@ -1374,7 +1374,7 @@ function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge},
     NLopt.xtol_abs!(optBL,xtolAbs)
     NLopt.maxeval!(optBL,1000) # max number of iterations
     # NLopt.maxtime!(optBL, t::Real)
-    NLopt.lower_bounds!(optBL, zeros(length(edges))) #? does this length need to be size(obj.logtrans, 3)?
+    NLopt.lower_bounds!(optBL, zeros(length(edges)))
     counter[1] = 0
     NLopt.max_objective!(optBL, loglikfunBL)
     fmax, xmax, ret = NLopt.optimize(optBL, getlengths(edges))
@@ -1520,7 +1520,6 @@ function optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge},
         res = discrete_corelikelihood!(obj)
         verbose && println("loglik: $res, gammas: $(gammas)")
         length(grad) == 0 || error("gradient not implemented")
-        @show res #This seems to solve the problem, but its a hack. Is the function not returning res?
         return res
     end
     # set-up optimization object for gamma parameter
