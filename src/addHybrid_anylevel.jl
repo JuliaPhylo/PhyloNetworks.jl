@@ -121,19 +121,26 @@ the old `edge2` otherwise (which would reverse the direction of `edge2` and othe
 Should be called from the other method, which performs a bunch of checks.
 Updates `containRoot` attributes for edges below the new hybrid node.
 
-Modifies `net`, returns the new hybrid node (middle of the old `edge2`)
+Modifies `net`, returns tuple of new hybrid node (middle of the old `edge2`)
+    and new hybrid edge.
 
 # examples
 
 ```jldoctest
 julia> net = readTopology("((S8,(((S1,(S5)#H1),(#H1,S6)))#H2),(#H2,S10));");
 
-julia> hybnode = PhyloNetworks.addhybridedge!(net, net.edge[13], net.edge[8], true, 0.0, 0.2)
-PhyloNetworks.Node:
+julia> hybnode, hybedge = PhyloNetworks.addhybridedge!(net, net.edge[13], net.edge[8], true, 0.0, 0.2)
+(PhyloNetworks.Node:
  number:9
  name:H3
  hybrid node
  attached to 3 edges, numbered: 8 16 17
+, PhyloNetworks.Edge:
+ number:17
+ length:0.0
+ minor hybrid edge with gamma=0.2
+ attached to 2 node(s) (parent first): 8 9
+)
 
 
 julia> writeTopology(net)
@@ -190,7 +197,7 @@ function addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpart
         directEdges!(net)
         norootbelow!(edgeabovee2)
     end
-    return newnode2_hybrid
+    return newnode2_hybrid, hybrid_edge
 end
 
 """

@@ -329,7 +329,7 @@ mHKY85rel = HKY85(0.5, [0.25, 0.25, 0.25, 0.25])
                                         0.194217  0.417348  0.194217  0.194217;
                                         0.194217  0.194217  0.417348  0.194217;
                                         0.194217  0.194217  0.194217  0.417348] atol=1e-5
-                                        
+
 @test P!(P(mJC69, 1.0), mJC69, 3.5) ≈ [0.322729  0.225757  0.225757  0.225757;
                                         0.225757  0.322729  0.225757  0.225757;
                                         0.225757  0.225757  0.322729  0.225757;
@@ -715,7 +715,6 @@ end
 
 @testset "data to SSM pruning: complex network" begin
 fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "Ae_bicornis_8sites.aln"))
-dna_dat, dna_weights = readfastatodna(fastafile, true); # 22 species, 3 hybrid nodes, 103 edges
 net = readTopology("((((((((((((((Ae_caudata_Tr275,Ae_caudata_Tr276),Ae_caudata_Tr139))#H1,#H2),(((Ae_umbellulata_Tr266,Ae_umbellulata_Tr257),Ae_umbellulata_Tr268),#H1)),((Ae_comosa_Tr271,Ae_comosa_Tr272),(((Ae_uniaristata_Tr403,Ae_uniaristata_Tr357),Ae_uniaristata_Tr402),Ae_uniaristata_Tr404))),(((Ae_tauschii_Tr352,Ae_tauschii_Tr351),(Ae_tauschii_Tr180,Ae_tauschii_Tr125)),(((((((Ae_longissima_Tr241,Ae_longissima_Tr242),Ae_longissima_Tr355),(Ae_sharonensis_Tr265,Ae_sharonensis_Tr264)),((Ae_bicornis_Tr408,Ae_bicornis_Tr407),Ae_bicornis_Tr406)),((Ae_searsii_Tr164,Ae_searsii_Tr165),Ae_searsii_Tr161)))#H2,#H4))),(((T_boeoticum_TS8,(T_boeoticum_TS10,T_boeoticum_TS3)),T_boeoticum_TS4),((T_urartu_Tr315,T_urartu_Tr232),(T_urartu_Tr317,T_urartu_Tr309)))),(((((Ae_speltoides_Tr320,Ae_speltoides_Tr323),Ae_speltoides_Tr223),Ae_speltoides_Tr251))H3,((((Ae_mutica_Tr237,Ae_mutica_Tr329),Ae_mutica_Tr244),Ae_mutica_Tr332))#H4))),Ta_caputMedusae_TB2),S_vavilovii_Tr279),Er_bonaepartis_TB1),H_vulgare_HVens23);");
 PhyloNetworks.fuseedgesat!(93, net)
 for edge in net.edge # reset network
@@ -750,7 +749,7 @@ maxmoves = 5
 maxhybrid = 3
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "simple.aln"))
-obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69)
+obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69, maxhybrid)
 PhyloNetworks.checknetworkbeforeLiNC!(net, maxhybrid, true, true, true)
 PhyloNetworks.discrete_corelikelihood!(obj)
 @test typeof(PhyloNetworks.optimizestructure!(obj, maxmoves, maxhybrid, true, true, true)) == PhyloNetworks.StatisticalSubstitutionModel
@@ -758,7 +757,7 @@ PhyloNetworks.discrete_corelikelihood!(obj)
 
 # allow 3-cycles
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
-obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69)
+obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69, maxhybrid)
 PhyloNetworks.checknetworkbeforeLiNC!(net, maxhybrid, false, true, true)
 PhyloNetworks.discrete_corelikelihood!(obj)
 @test typeof(PhyloNetworks.optimizestructure!(obj, maxmoves, maxhybrid, false, true, true)) == PhyloNetworks.StatisticalSubstitutionModel
@@ -766,7 +765,7 @@ PhyloNetworks.discrete_corelikelihood!(obj)
 
 # unzip = false
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
-obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69)
+obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69, maxhybrid)
 PhyloNetworks.checknetworkbeforeLiNC!(net, maxhybrid, true, false, true)
 PhyloNetworks.discrete_corelikelihood!(obj)
 @test typeof(PhyloNetworks.optimizestructure!(obj, maxmoves, maxhybrid, true, false, true)) == PhyloNetworks.StatisticalSubstitutionModel
@@ -774,7 +773,7 @@ PhyloNetworks.discrete_corelikelihood!(obj)
 
 # allow hybrid ladders
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
-obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69)
+obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69, maxhybrid)
 PhyloNetworks.checknetworkbeforeLiNC!(net, maxhybrid, true, true, false)
 PhyloNetworks.discrete_corelikelihood!(obj)
 @test typeof(PhyloNetworks.optimizestructure!(obj, maxmoves, maxhybrid, true, true, false)) == PhyloNetworks.StatisticalSubstitutionModel

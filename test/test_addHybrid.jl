@@ -22,7 +22,7 @@ netl1 = readTopology(str_level1)
 @test !any([n.hybrid for n in PhyloNetworks.getParents(netl1.hybrid[3])]) # tests if network has no hybrid ladder
 
 netl1 = readTopology(str_level1)
-newhybridnode = PhyloNetworks.addhybridedge!(netl1, false, true)
+newhybridnode, newhybridedge = PhyloNetworks.addhybridedge!(netl1, false, true)
 @test !isnothing(newhybridnode)
 @test netl1.numHybrids == 3
 PhyloNetworks.deletehybridedge!(netl1, PhyloNetworks.getMinorParentEdge(newhybridnode))
@@ -33,7 +33,7 @@ end # of addhybridedge! top function
 str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 # allowed moves
 netl1 = readTopology(str_level1)
-newhybridnode = PhyloNetworks.addhybridedge!(netl1, netl1.edge[3], netl1.edge[9], true, 0.0, 0.2)
+newhybridnode, newhybridedge = PhyloNetworks.addhybridedge!(netl1, netl1.edge[3], netl1.edge[9], true, 0.0, 0.2)
 @test newhybridnode.hybrid
 @test PhyloNetworks.getMajorParentEdge(newhybridnode).gamma == 0.8
 @test PhyloNetworks.getMinorParentEdge(newhybridnode).gamma == 0.2
