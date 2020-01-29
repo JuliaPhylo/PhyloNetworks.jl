@@ -270,13 +270,13 @@ If not a hybrid, returns the first child edge.
 end
 
 """
-    getTreeChildEdge(node::Node)
+    getSpecificChildEdge(node::Node, notthis::Edge)
 
-Return the first tree child edge of a node.
+Return the first child edge of a node that is not equal to `notthis` edge.
 """
-@inline function getTreeChildEdge(node::Node)
+@inline function getSpecificChildEdge(node::Node, notthis::Edge)
     for e in node.edge
-        if node == getParent(e) && !e.hybrid
+        if node == getParent(e) && !(e == notthis)
             return e
         end
     end
