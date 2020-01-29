@@ -143,24 +143,31 @@ function Base.show(io::IO, obj::TopologyConstraint)
 end
 
 """
-    iscladeviolated(network::HybridNetwork, cladeconstraints::Vector{TopologyConstraint})
+    constraintsviolated(net::HybridNetwork, constraints::Vector{TopologyConstraint})
 
-True if `network` violates one (or more) of the constraints of type 2
-(must be clades in the major tree).
+True if `net` violates one (or more) given `TopologyConstraints`.
 """
-function iscladeviolated(net::HybridNetwork, constraints::Vector{TopologyConstraint})
+function constraintsviolated(net::HybridNetwork, constraints::Vector{TopologyConstraint})
+    all(con.type == 1 for con in constraints) || error("only type-1 constraints implemented so far")
     for con in constraints # checks directionality of stem edge hasn't changed
-        if con.type == 2
-            getChild(con.edge) === con.node || return true
-            tree = majorTree(net)
-            tei = findfirst(e -> e.number == con.edge.number, tree.edge)
-            tei !== nothing ||
-                error("hmm. edge number $(con.edge.number) was not found in the network's major tree")
-            treeedge = tree.edge[tei]
-            des = descendants(treeedge) # vector of node numbers, descendant tips only by default
-            Set(des) == con.taxonnums || return true
+        constrainedleaves = net.leaf[[l.name in con.taxonnames for l in net.leaf]]
+        for l in constrainedleaves
+            if length(l.edge) > 1 || getParent(l.edge[1]) != con.node
+                return true # @error("individuals specified in species constraint are not grouped together in one polytomy.")
+            end
         end
     end
+        # con.type == 2
+        #     error("only type-1 constraints implemented so far")
+        #     getChild(con.edge) === con.node || return true
+        #     tree = majorTree(net)
+        #     tei = findfirst(e -> e.number == con.edge.number, tree.edge)
+        #     tei !== nothing ||
+        #         error("hmm. edge number $(con.edge.number) was not found in the network's major tree")
+        #     treeedge = tree.edge[tei]
+        #     des = descendants(treeedge) # vector of node numbers, descendant tips only by default
+        #     Set(des) == con.taxonnums || return true
+        # end
     return false
 end
 
@@ -234,7 +241,7 @@ function nni!(net::HybridNetwork, e::Edge, nohybridladder::Bool=true, no3cycle::
     for nummove in nnis # iterate through all possible NNIs, but in random order
         moveinfo = nni!(net, e, nummove, nohybridladder, no3cycle)
         !isnothing(moveinfo) || continue # to next possible NNI
-        if iscladeviolated(net, constraints)
+        if constraintsviolated(net, constraints)
             nni!(moveinfo...) # undo the previous NNI
             continue          # try again
         end
@@ -580,7 +587,7 @@ Check that the network satisfies a number of requirements:
 - no polytomies, other than at species constraints: throws an error otherwise
 - no unnecessary nodes: fuse edges at nodes with degree two, including at the root
   (hence the bang: `net` may be modified)
-- clade constraints are met.
+- topology constraints are met.
 
 Output: true if all is good, false if one or more clades are violated.
 """
@@ -593,7 +600,7 @@ function checkspeciesnetwork!(net::HybridNetwork, constraints::Vector{TopologyCo
         end
     end
     removedegree2nodes!(net)
-    return !iscladeviolated(net, constraints)
+    return !constraintsviolated(net, constraints)
 end
 
 """

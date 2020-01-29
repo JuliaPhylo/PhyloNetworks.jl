@@ -795,8 +795,6 @@ obj = PhyloNetworks.PhyLiNC!(net, fastafile, :JC69, maxhybrid, true, true,
 @test writeTopology(obj.net) != "(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);"
 
 maxhybrid = 0
-obj = PhyloNetworks.PhyLiNC!(net, fastafile, :JC69, maxhybrid, true, true,
-    true, maxmoves, true)
 @test_throws ErrorException PhyloNetworks.PhyLiNC!(net, fastafile, :JC69, maxhybrid, true, true,
     true, maxmoves, true)
 end

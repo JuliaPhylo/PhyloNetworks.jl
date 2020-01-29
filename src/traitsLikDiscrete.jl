@@ -1038,8 +1038,11 @@ tip labels: A, B, C, D
 function checknetworkbeforeLiNC!(net::HybridNetwork, maxhybrid::Int64, no3cycle::Bool,
     nohybridladder::Bool, unzip::Bool,
     constraints=TopologyConstraint[]::Vector{TopologyConstraint})
-    # TODO are there additional network checks to add? constraints
-    removedegree2nodes!(net) # removes all nodes of degree 2 including root
+    # TODO are there additional network checks to add?
+    # checks for polytomies and constraint violations, removes nodes of degree 2
+        # including root
+    checkspeciesnetwork!(net, constraints) ||
+        error("individuals specified in species constraint are not grouped together in one polytomy.")
     if no3cycle
         !contains3cycles(net) || error("Options indicate there should be no 3-cycles
         in the returned network, but the input network contains
@@ -1054,7 +1057,7 @@ function checknetworkbeforeLiNC!(net::HybridNetwork, maxhybrid::Int64, no3cycle:
         error("Options indicate a maximum number of hybrids of $(maxhybrid), but
         the input network contains $(length(net.hybrid)) hybrids. Please
         increase maxhybrid to $(length(net.hybrid)) or provide input network
-        with fewer than $(maxhybrid) hybrids.")
+        with $(maxhybrid) (or fewer) hybrids.")
     end
     if unzip && length(net.hybrid) > 0
         constrainededges = [getChildEdge(h) for h in net.hybrid]
@@ -1122,6 +1125,8 @@ function optimizestructure!(obj::SSM, maxmoves::Int64,
                 add = true # add hybrid
             elseif length(obj.net.hybrid) == maxhybrid
                 add = false # remove hybrid
+            elseif length(obj.net.hybrid) > maxhybrid
+                error("the network has more hybrids than allowed with maxhybrid = $maxhybrid and current hybrids $(obj.net.hybrid)")
             else  # meaning we can do either move
                 add = (rand() > 0.4) # add hybrid with 60% probability
             end
@@ -1172,23 +1177,26 @@ Return tuple (false, getMajorParentEdge(newhybridnode)) if removed new hybrid
 function addhybridedge_LiNC!(obj::SSM, moves::Int64, currLik::Float64,
     maxhybrid::Int64, no3cycle::Bool, nohybridladder::Bool, verbose::Bool,
     constraints::Vector{TopologyConstraint})
-    newhybridnode, newhybridedge = addhybridedge!(obj.net, nohybridladder,
-        no3cycle, constraints) #? what should maxattempts be?
-    if !isnothing((newhybridnode, newhybridedge))
-        updateSSM!(obj, maxhybrid)
+    result = addhybridedge!(obj.net, nohybridladder,
+        no3cycle, constraints)
+    if !isnothing(result)
+        newhybridnode, newhybridedge = result
+        updateSSM!(obj, maxhybrid, true) #? is this calulating likelihood wrong?
+        println("after adding hybrid edge and running updateSSM, the loglik is $(obj.loglik).
+        displayed trees: $(obj.displayedtree)")
         moves += 1
-        discrete_corelikelihood!(obj) # update loglik
-        if obj.loglik - currLik < likAbs
-            verbose && println("deleting edge $newhybridedge because adding it did not increase
-                the likelihood enough")
+        if abs(obj.loglik - currLik) < likAbs
+            verbose && println("deleting edge $newhybridedge because adding it did not increase the likelihood enough.
+            Original likelihood: $currLik
+            Likelihood after adding hybrid: $(obj.loglik)")
             e1 = getMajorParentEdge(newhybridnode)
             deletehybridedge!(obj.net, newhybridedge, false, false)
-            updateSSM!(obj, maxhybrid) # deletes highest number edges, no need to renumber
+            println("after deleting new hybrid edge $newhybridedge, hybrid list is: $(obj.net.hybrid)") #TODO remove
+            updateSSM!(obj, maxhybrid, true) # deletes highest number edges, no need to renumber
             return false, e1
         end
     else
-        verbose && println("Cannot add a hybrid to the network
-            at move number $moves.")
+        verbose && println("Cannot add a hybrid to the network at move number $moves.")
     end
     return newhybridnode, newhybridedge
 end
@@ -1209,25 +1217,26 @@ function deletehybridedge_LiNC!(obj::SSM, moves::Int64, currLik::Float64,
     constraints::Vector{TopologyConstraint})
     # TODO will species constraint be affected by deleting a hybrid?
     hybridnode = obj.net.hybrid[Random.randperm(length(obj.net.hybrid))[1]]
-    minorhybridedge = getMinorParentEdge(hybridnode)
-    e1 = getChildEdge(hybridnode)
-    edge1 = getSpecificChildEdge(getParent(minorhybridedge), minorhybridedge)
+    minorhybridedge = PhyloNetworks.getMinorParentEdge(hybridnode)
+    e1 = PhyloNetworks.getChildEdge(hybridnode)
+    edge1 = PhyloNetworks.getSpecificChildEdge(PhyloNetworks.getParent(minorhybridedge), minorhybridedge)
     origlength = minorhybridedge.length
     origgamma= minorhybridedge.gamma
     deletehybridedge!(obj.net, minorhybridedge, false, false)
+    println("after deleting random minor hybrid edge $minorhybridedge, hybrid list is: $(obj.net.hybrid)") #TODO remove
     updateSSM!(obj, maxhybrid, true)
     moves += 1
-    discrete_corelikelihood!(obj) # update loglik
-    if (currLik - obj.loglik) > likAbs
+    if abs(currLik - obj.loglik) > 0.1
         verbose && println("adding hybrid edge back because removing it decreased the likelihood by too much.
         Original likelihood: $currLik
         Likelihood after removing hybrid: $(obj.loglik)
-        hybrid edge: from $edge1 to $e1")
-        results = addhybridedge!(obj.net, edge1, e1, true, origlength, origgamma)
+        hybrid edge: from edge $(edge1.number) to edge $(e1.number)")
+        #TODO confirm that all these edges still exist
+        results = PhyloNetworks.addhybridedge!(obj.net, edge1, e1, true, origlength, origgamma)
         if isnothing(results)
             @error("unable to add edge back after deleting a hybrid")
         end
-        updateSSM!(obj, maxhybrid)
+        updateSSM!(obj, maxhybrid, true)
     end
     return edge1, e1
 end
@@ -1269,6 +1278,17 @@ julia> writeTopology(obj.net)
 """
 function updateSSM!(obj::SSM, maxhybrid::Int64=length(obj.net.hybrid),
     renumber=false::Bool)
+    if renumber
+        resetEdgeNumbers!(obj.net, true) # renumbers and orders edge numbers
+        resetNodeNumbers!(obj.net; checkPreorder=true, ape=true)
+        maxedges = length(obj.net.edge) + 3*(maxhybrid-length(obj.net.hybrid))
+        maxnodes = length(obj.net.node) + 2*(maxhybrid-length(obj.net.hybrid))
+        k = nstates(obj.model)
+        obj.logtrans   = zeros(Float64, k, k, maxedges, length(obj.ratemodel.ratemultiplier))
+        obj.forwardlik = zeros(Float64, k, maxnodes)
+        obj.directlik  = zeros(Float64, k, maxedges)
+        obj.backwardlik= zeros(Float64, k, maxnodes)
+    end
     # extract displayed trees
     obj.displayedtree = displayedTrees(obj.net, 0.0; keepNodes=true)
     nnodes = length(obj.net.node)
@@ -1285,18 +1305,8 @@ function updateSSM!(obj::SSM, maxhybrid::Int64=length(obj.net.hybrid),
     all(!ismissing, obj.priorltw) ||
         error("one or more inheritance γ's are missing or negative. fix using setGamma!(network, edge)")
     obj._loglikcache = zeros(Float64, ntrees, length(obj.ratemodel.ratemultiplier), obj.nsites)
-    if renumber
-        resetEdgeNumbers!(obj.net)
-        resetNodeNumbers!(obj.net; checkPreorder=true, ape=true)
-        maxedges = length(obj.net.edge) + 3*(maxhybrid-length(obj.net.hybrid))
-        maxnodes = length(obj.net.node) + 2*(maxhybrid-length(obj.net.hybrid))
-        k = nstates(obj.model)
-        obj.logtrans   = zeros(Float64, k, k, maxedges, length(obj.ratemodel.ratemultiplier))
-        obj.forwardlik = zeros(Float64, k, maxnodes)
-        obj.directlik  = zeros(Float64, k, maxedges)
-        obj.backwardlik= zeros(Float64, k, maxnodes)
-    end
-    discrete_corelikelihood!(obj) # recalculate loglik
+    # recalculate loglik
+    discrete_corelikelihood!(obj)
     return obj
 end
 
