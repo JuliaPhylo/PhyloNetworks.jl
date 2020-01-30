@@ -77,7 +77,10 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
             length(tree.edge) == length(net.edge)-net.numHybrids ||
                 error("displayed tree with too few edges: $(writeTopology(tree))")
         end
-        ntrees = length(trees)
+        ntrees = 2^maxhybrid
+        ntrees >= length(trees) ||
+            error("""maxhybrid is too low.
+                    Call using maxhybrid >= current number of hybrids""")
         # log tree weights: sum log(γ) over edges, for each displayed tree
         priorltw = inheritanceWeight.(trees)
         all(!ismissing, priorltw) ||
@@ -535,10 +538,6 @@ function update_logtrans(obj::SSM)
     startingP = P(obj.model, 1.0) # same memory re-used for all branches below (t=1 arbitrary)
     for edge in obj.net.edge # update logtrans: same for all displayed trees, all traits
         for i = 1:length(obj.ratemodel.ratemultiplier)
-            if any(i->(i<0.0), P!(startingP, obj.model, edge.length*obj.ratemodel.ratemultiplier[i])) # TODO remove
-                @show P!(startingP, obj.model, edge.length*obj.ratemodel.ratemultiplier[i])
-                @show edge.length
-            end
             obj.logtrans[:,:,edge.number, i] = log.(P!(startingP, obj.model,
                 edge.length*obj.ratemodel.ratemultiplier[i])) # element-wise
         end
@@ -560,8 +559,9 @@ The object's partial likelihoods are updated:
 function discrete_corelikelihood!(obj::SSM; whichtrait::AbstractVector{Int} = 1:obj.nsites)
     # fill _loglikcache
     nr = length(obj.ratemodel.ratemultiplier)
+    nt = length(obj.displayedtree)
     update_logtrans(obj)
-    for t in 1:length(obj.displayedtree)
+    for t in 1:nt
         for ri in 1:nr
             for ci in whichtrait
                 obj._loglikcache[t,ri,ci] = discrete_corelikelihood_trait!(obj,t,ci,ri)
@@ -569,10 +569,11 @@ function discrete_corelikelihood!(obj::SSM; whichtrait::AbstractVector{Int} = 1:
         end
     end
     # aggregate over trees and rates
-    obj._loglikcache .+= obj.priorltw
+    obj._loglikcache[1:nt,:,:] .+= obj.priorltw
     # obj._loglikcache .-= log(nr)
     # done below in 1 instead ntrees x nrates x nsites calculations, but _loglikcache not modified
-    siteliks = dropdims(mapslices(logsumexp, obj._loglikcache, dims=[1,2]);dims=(1,2))
+    siteliks = dropdims(mapslices(logsumexp, view(obj._loglikcache, 1:nt, :,:),
+                                  dims=[1,2]); dims=(1,2))
     if obj.siteweight !== nothing
         siteliks .*= obj.siteweight
     end
@@ -869,9 +870,10 @@ function ancestralStateReconstruction(obj::SSM, trait::Integer = 1)
     # posterior probability of state i at node n: proportional to
     # sum_{tree t, rate r} exp( ltw[t] + backwardll[i,n] given t,r + forwardll[i,n] given t,r ) / nr
     trait <= obj.nsites || error("trait $trait is larger than the number of traits in the data")
+    nnodes = length(obj.net.node) # may be smaller than 2nd size of bkd or frd
     update_logtrans(obj)
-    bkd = obj.backwardlik
-    frd = obj.forwardlik
+    bkd = view(obj.backwardlik, :, 1:nnodes)
+    frd = view(obj.forwardlik, :, 1:nnodes)
     ltw = obj.priorltw
     res = similar(bkd) # first: hold the cumulative logsumexp of bkd + frd + ltw
     fill!(res, -Inf64)
@@ -891,7 +893,6 @@ function ancestralStateReconstruction(obj::SSM, trait::Integer = 1)
     # normalize the results at each node: p_i / sum(p_j over all states j)
     traitloglik = logsumexp(res[:,1]) # sum p_j at node 1 or at any node = loglikelihood + log(nr)
     res .= exp.(res .- traitloglik)
-    nnodes = length(obj.net.node)
     nodestringlabels = Vector{String}(undef, nnodes)
     for n in obj.net.node
         nodestringlabels[n.number] = (n.name == "" ? string(n.number) : n.name)
@@ -904,7 +905,7 @@ end
 
 """
     discrete_backwardlikelihood_trait!(obj::SSM, tree::Integer, trait::Integer,
-    ri::Integer = 1, backwardlik = obj.backwardlik, directlik   = obj.directlik)
+        ri::Integer=1, backwardlik=obj.backwardlik, directlik=obj.directlik)
 
 Update and return the backward likelihood (last argument `backwardlik`)
 for trait index `trait`, assuming rate category `ri` and tree index `tree`.
@@ -950,7 +951,7 @@ end
 
 ##### TOP OF NEW FILE #####
 
-const moveweights = Distributions.aweights([0.6, 0.3, 0.1])
+const moveweights = Distributions.aweights([0.5, 0.3, 0.2])
 
 # optimization wrapper functions #
 """
@@ -1177,13 +1178,14 @@ Return tuple (false, getMajorParentEdge(newhybridnode)) if removed new hybrid
 function addhybridedge_LiNC!(obj::SSM, moves::Int64, currLik::Float64,
     maxhybrid::Int64, no3cycle::Bool, nohybridladder::Bool, verbose::Bool,
     constraints::Vector{TopologyConstraint})
-    result = addhybridedge!(obj.net, nohybridladder,
-        no3cycle, constraints)
+    result = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints)
     if !isnothing(result)
         newhybridnode, newhybridedge = result
-        updateSSM!(obj, maxhybrid, true) #? is this calulating likelihood wrong?
+        ndegree2nodes = sum(length(n.edge) == 2 for n in obj.net.node)
+        ndegree2nodes == 0 || error("The network has $ndegree2nodes degree 2 nodes.")
+        updateSSM!(obj, maxhybrid, true)
         println("after adding hybrid edge and running updateSSM, the loglik is $(obj.loglik).
-        displayed trees: $(obj.displayedtree)")
+        displayed trees: $(obj.displayedtree)") # TODO remove
         moves += 1
         if abs(obj.loglik - currLik) < likAbs
             verbose && println("deleting edge $newhybridedge because adding it did not increase the likelihood enough.
@@ -1191,8 +1193,12 @@ function addhybridedge_LiNC!(obj::SSM, moves::Int64, currLik::Float64,
             Likelihood after adding hybrid: $(obj.loglik)")
             e1 = getMajorParentEdge(newhybridnode)
             deletehybridedge!(obj.net, newhybridedge, false, false)
-            println("after deleting new hybrid edge $newhybridedge, hybrid list is: $(obj.net.hybrid)") #TODO remove
+            ndegree2nodes = sum(length(n.edge) == 2 for n in obj.net.node)
+            ndegree2nodes == 0 || error("The network has $ndegree2nodes degree 2 nodes.")
             updateSSM!(obj, maxhybrid, true) # deletes highest number edges, no need to renumber
+            println("after deleting new hybrid edge $newhybridedge, hybrid list is: $(obj.net.hybrid)
+            displayed trees: $(obj.displayedtree)") # TODO remove
+
             return false, e1
         end
     else
@@ -1221,39 +1227,50 @@ function deletehybridedge_LiNC!(obj::SSM, moves::Int64, currLik::Float64,
     e1 = PhyloNetworks.getChildEdge(hybridnode)
     edge1 = PhyloNetworks.getSpecificChildEdge(PhyloNetworks.getParent(minorhybridedge), minorhybridedge)
     origlength = minorhybridedge.length
-    origgamma= minorhybridedge.gamma
+    origgamma = minorhybridedge.gamma
+    childlength = e1.length
+    majorlength = getMajorParentEdge(hybridnode).length
     deletehybridedge!(obj.net, minorhybridedge, false, false)
-    println("after deleting random minor hybrid edge $minorhybridedge, hybrid list is: $(obj.net.hybrid)") #TODO remove
+    ndegree2nodes = sum(length(n.edge) == 2 for n in obj.net.node)
+    ndegree2nodes == 0 || error("The network has $ndegree2nodes degree 2 nodes after deleting a random hybrid.")
     updateSSM!(obj, maxhybrid, true)
+    println("after deleting random minor hybrid edge $minorhybridedge, hybrid list is: $(obj.net.hybrid)") #TODO remove
     moves += 1
-    if abs(currLik - obj.loglik) > 0.1
+    if obj.loglik - currLik < -0.1 # then undo: add hybrid edge back
+        # -0.1: loglik can go down for the sake of parsimony
         verbose && println("adding hybrid edge back because removing it decreased the likelihood by too much.
         Original likelihood: $currLik
         Likelihood after removing hybrid: $(obj.loglik)
         hybrid edge: from edge $(edge1.number) to edge $(e1.number)")
-        #TODO confirm that all these edges still exist
         results = PhyloNetworks.addhybridedge!(obj.net, edge1, e1, true, origlength, origgamma)
+        getChildEdge(results[1]).length = childlength
+        getMajorParentEdge(results[1]).length = majorlength
+        ndegree2nodes = sum(length(n.edge) == 2 for n in obj.net.node)
+        ndegree2nodes == 0 || error("The network has $ndegree2nodes degree 2 nodes after adding hybrid back.")
         if isnothing(results)
             @error("unable to add edge back after deleting a hybrid")
         end
-        updateSSM!(obj, maxhybrid, true)
+        updateSSM!(obj, maxhybrid, true) #dont recalc lik here, add option
+        obj.loglik = currLik
     end
     return edge1, e1
 end
 """
-    updateSSM!(obj::SSM, maxhybrid::Int64=length(obj.net.hybrid),
-        renumber=false::Bool)
+    updateSSM!(obj::SSM, renumber=false::Bool)
 
 After adding or removing a hybrid, displayed trees will change. Updates
-    the displayed tree list and recalculates the network's likelihood.
+the displayed tree list and recalculates the network's likelihood.
 Return SSM object.
 
-`renumber` tells whether or not to reorder edge and node numbers and
-    reinitialize arrays. Only need to renumber after deleting a hybrid (which
-    could remove edges and nodes from the middle of the edge and node lists).
+if `renumber`, reorder edge and internal node numbers. Only need
+    to renumber after deleting a hybrid (which could remove edges and nodes
+    from the middle of the edge and node lists).
 
-# TODO After adding a new root, do displayed trees will change? If so, need to run this afterwards.
-(Don't need to change the size of some SSM arrays beause the number of edges and nodes will not change.)
+Assumptions:
+- The SSM object has cache arrays of size large enough, that is,
+  the constructor [`StatisticalSubstitutionModel`](@ref) was previously
+  called with maxhybrid equal or greater than in `obj.net`.
+  `obj.priorltw` is not part of the "cache" arrays.
 
 ```jldoctest
 julia> maxhybrid = 3;
@@ -1276,18 +1293,11 @@ julia> writeTopology(obj.net)
 "(((B:0.0)#H1:0.1::0.9,(A:1.0)#H2:1.0::0.6):1.5,(C:0.6,#H1:1.0::0.1):1.0,(D:1.25,#H2:0.0::0.4):1.25);"
 ```
 """
-function updateSSM!(obj::SSM, maxhybrid::Int64=length(obj.net.hybrid),
+function updateSSM!(obj::SSM, maxhybrid::Int64=length(obj.net.hybrid), #remove maxhybrid
     renumber=false::Bool)
     if renumber
-        resetEdgeNumbers!(obj.net, true) # renumbers and orders edge numbers
-        resetNodeNumbers!(obj.net; checkPreorder=true, ape=true)
-        maxedges = length(obj.net.edge) + 3*(maxhybrid-length(obj.net.hybrid))
-        maxnodes = length(obj.net.node) + 2*(maxhybrid-length(obj.net.hybrid))
-        k = nstates(obj.model)
-        obj.logtrans   = zeros(Float64, k, k, maxedges, length(obj.ratemodel.ratemultiplier))
-        obj.forwardlik = zeros(Float64, k, maxnodes)
-        obj.directlik  = zeros(Float64, k, maxedges)
-        obj.backwardlik= zeros(Float64, k, maxnodes)
+        resetNodeNumbers!(obj.net; checkPreorder=true, internalonly=true) #TODO add comment traits in specific order
+        resetEdgeNumbers!(obj.net) # renumber edge numbers #TODO reset this function to remove reordering
     end
     # extract displayed trees
     obj.displayedtree = displayedTrees(obj.net, 0.0; keepNodes=true)
@@ -1299,13 +1309,14 @@ function updateSSM!(obj::SSM, maxhybrid::Int64=length(obj.net.hybrid),
         length(tree.edge) == length(obj.net.edge)-obj.net.numHybrids ||
             error("displayed tree with too few edges: $(writeTopology(tree))")
     end
-    ntrees = length(obj.displayedtree)
     # log tree weights: sum log(γ) over edges, for each displayed tree
     obj.priorltw = inheritanceWeight.(obj.displayedtree)
-    all(!ismissing, obj.priorltw) ||
-        error("one or more inheritance γ's are missing or negative. fix using setGamma!(network, edge)")
-    obj._loglikcache = zeros(Float64, ntrees, length(obj.ratemodel.ratemultiplier), obj.nsites)
-    # recalculate loglik
+    @debug begin
+        all(!ismissing, obj.priorltw) ? "" :
+        "one or more inheritance γ's are missing or negative. fix using setGamma!(network, edge)"
+    end
+    # move this to constructor obj._loglikcache = zeros(Float64, ntrees, length(obj.ratemodel.ratemultiplier), obj.nsites)
+    # dont recreate this, just make ntrees = 2^maxhybrid
     discrete_corelikelihood!(obj)
     return obj
 end

@@ -1022,7 +1022,8 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
 end
 
 """
-    resetNodeNumbers!(net::HybridNetwork; checkPreorder=true, ape=true)
+    resetNodeNumbers!(net::HybridNetwork; checkPreorder=true, ape=true,
+                      internalonly=true)
 
 Change internal node numbers of `net` to consecutive numbers from 1 to the total
 number of nodes.
@@ -1034,6 +1035,7 @@ keyword arguments:
   with leaves from 1 to n (and the root last).
 - `checkPreorder`: if false, the `isChild1` edge field and the `net.nodes_changed`
   network field are supposed to be correct (to get nodes in preorder)
+- #TODO: internalonly
 
 # Examples
 
@@ -1067,16 +1069,21 @@ node leaf  hybrid hasHybEdge name inCycle edges'numbers
 7    false false  false           -1      1    6
 ```
 """
-function resetNodeNumbers!(net::HybridNetwork; checkPreorder=true::Bool, ape=true::Bool)
+function resetNodeNumbers!(net::HybridNetwork;
+    checkPreorder=true::Bool, ape=true::Bool, internalonly=false::Bool)
     if checkPreorder
       directEdges!(net)
       preorder!(net) # to create/update net.nodes_changed
     end
-    lnum = 1 # first number
-    for n in net.node
-        n.leaf || continue
-        n.number = lnum
-        lnum += 1
+    if internalonly
+        lnum = maximum(n.number for n in net.node if n.leaf) + 1
+    else
+        lnum = 1 # first number
+        for n in net.node
+            n.leaf || continue
+            n.number = lnum
+            lnum += 1
+        end
     end
     if ape
         nodelist = net.nodes_changed # pre-order: root first

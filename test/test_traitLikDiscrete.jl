@@ -745,6 +745,16 @@ PhyloNetworks.checknetworkbeforeLiNC!(net, 1, true, true, true)
 end
 
 @testset "optimizestructure with simple example" begin
+currLik = obj.loglik
+no3cycle=true
+nohybridladder = true
+verbose = true
+constraints=PhyloNetworks.TopologyConstraint[]
+moves = 0
+originedge, e1 = PhyloNetworks.deletehybridedge_LiNC!(obj, moves,
+                    currLik, maxhybrid, no3cycle, nohybridladder, verbose,
+                    constraints)
+
 maxmoves = 5
 maxhybrid = 3
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
