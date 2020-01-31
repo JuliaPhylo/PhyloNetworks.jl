@@ -1098,33 +1098,22 @@ function resetNodeNumbers!(net::HybridNetwork;
 end
 
 """
-    resetEdgeNumbers!(net::HybridNetwork, order=false::Bool)
-
+    resetEdgeNumbers!(net::HybridNetwork)
 Check that edge numbers of `net` are consecutive numbers from 1 to the total
 number of edges. If not, reset the edge numbers to be so.
-If `order`, check order of numbers in edge array. If net.edge array is not
-ordered by number, reassign edge numbers to all edges.
 """
-function resetEdgeNumbers!(net::HybridNetwork, order=false::Bool)
+function resetEdgeNumbers!(net::HybridNetwork)
     enum = [e.number for e in net.edge]
     ne = length(enum)
     unused = setdiff(1:ne, enum)
-    if isempty(unused) && !order
-        return nothing # all good and order = false
-    elseif order && enum != 1:ne # check order
-        enum = [e.number for e in net.edge]
-        @warn "ordering edge numbers from 1 to $ne"
-        for i in 1:ne
-            net.edge[i].number = i
-        end
-        return nothing; #no need to run code below
-    elseif !isempty(unused)
-        @warn "resetting edge numbers to be from 1 to $ne"
-        ind2change = findall(x -> x ∉ 1:ne, enum)
-        length(ind2change) == length(unused) || error("can't reset edge numbers")
-        for i in 1:length(unused)
-            net.edge[ind2change[i]].number = unused[i]
-        end
+    if isempty(unused)
+        return nothing # all good
+    end
+    @warn "resetting edge numbers to be from 1 to $ne"
+    ind2change = findall(x -> x ∉ 1:ne, enum)
+    length(ind2change) == length(unused) || error("can't reset edge numbers")
+    for i in 1:length(unused)
+        net.edge[ind2change[i]].number = unused[i]
     end
     return nothing;
 end

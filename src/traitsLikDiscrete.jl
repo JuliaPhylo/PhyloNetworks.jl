@@ -55,6 +55,20 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
     "log-likelihood of ith displayed tree t, given rate category j, of site k"
     _loglikcache::Array{Float64, 3} # size: ntrees, nrates, nsites
 
+    "fasta constructor: from net, fastafile name, modsymbol, and maxhybrid
+    Works for DNA in fasta format. Probably need different versions for
+    different kinds of data (snp, amino acids). Similar to fitdiscrete()"
+    function StatisticalSubstitutionModel(net::HybridNetwork, fastafile::String,
+        modsymbol::Symbol, maxhybrid::Int64=length(net.hybrid))
+        data, siteweights = readfastatodna(fastafile, true)
+        model = symboltomodel(net, modsymbol, data, siteweights)
+        ratemodel = RateVariationAcrossSites(1.0, 1) #? add option for users here
+        dat2 = traitlabels2indices(view(data, :, 2:size(data,2)), model)
+        o, net = check_matchtaxonnames!(data[:,1], dat2, net)
+        trait = dat2[o]
+        obj = StatisticalSubstitutionModel(model, ratemodel, net, trait,
+                                            siteweights, maxhybrid)
+    end
     "inner (default) constructor: from model, rate model, network, trait and site weights"
     function StatisticalSubstitutionModel(model::SubstitutionModel,
         ratemodel::RateVariationAcrossSites,
@@ -182,8 +196,7 @@ branch lengths?
   `ftolRel` (1e-12), `ftolAbs` (1e-10) on the likelihood, and
   `xtolRel` (1e-10), `xtolAbs` (1e-10) on the model parameters.
 - bounds for the alpha parameter of the Gamma distribution of
-rates across sites:
-  `alphamin=0.05`, `alphamax=500`.
+rates across sites: `alphamin=0.05`, `alphamax=500`.
 - `verbose` (false): if true, more information is output.
 
 # examples:
@@ -442,7 +455,7 @@ end
 function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
     verbose=false::Bool, maxeval=1000::Int64, NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
     ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
-    alphamin=0.05, alphamax=500)
+    alphamin=amin, alphamax=amax)
     all(x -> x >= 0.0, [e.length for e in obj.net.edge]) || error("branch lengths should be >= 0")
     all(x -> x >= 0.0, [e.gamma for e in obj.net.edge]) || error("gammas should be >= 0")
     if optimizeQ && nparams(obj.model) <1
@@ -754,7 +767,7 @@ function traitlabels2indices(data::Union{AbstractMatrix,AbstractDataFrame},
     end
     return A
 end
-#TODO for data with multiple traits, add test for 2 traits to test above function
+#TODO in future, for data with multiple traits, add test for 2 traits to test above function
 """
     check_matchtaxonnames!(species, data, net)
 
@@ -952,16 +965,20 @@ end
 ##### TOP OF NEW FILE #####
 
 const moveweights = Distributions.aweights([0.5, 0.3, 0.2])
+const likAbsHybLiNC = 0.1
+const amin = 0.05
+const amax = 500.0
 
 # optimization wrapper functions #
 """
     phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
-        maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
-        maxmoves::Int64, nreject=75::Int64, verbose=false::Bool,
-        NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
-        xtolAbs=xAbsBL::Float64,
+        maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
+        nohybridladder=true::Bool, maxmoves=100::Int64, nreject=75::Int64,
+        verbose=false::Bool, NLoptMethod=:LD_MMA::Symbol,
+        ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
+        xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
         constraints=TopologyConstraint[]::Vector{TopologyConstraint},
-        alphamin=0.05, alphamax=500)
+        alphamin=amin::Float64, alphamax=amax::Float64)
 
 Estimate a phylogenetic network (or tree) from concatenated fasta data using
 maximum likelihood. Any level network is accepted. The search starts from the
@@ -970,7 +987,7 @@ interchange moves, add hybridizations, and remove hybridizations) and non-linear
 optimization to optimize evolutionary rates, rate variation across sites, branch
 lengths and gammas.
 
-Output:
+Return a StatisticalSubstitutionModel object.
 
 There are many optional arguments, including
 
@@ -1010,48 +1027,41 @@ the current score by at least liktolAbs.
 Lower values of `nreject` and greater values of `liktolAbs` and `ftolAbs` would
 result in a less thorough but faster search.
 
-#TODO add independent starting runs
-At the end, branch lengths and γ's are optimized on the last "best" network
-with different and very thorough tolerance parameters: 1e-12 for ftolRel, 1e-10
-for ftolAbs, xtolRel, xtolAbs.
-runs (default 10): number of independent starting points for the search
-filename (default "snaq"): root name for the output files (.out, .err). If empty (""), files are not created, progress log goes to the screen only (standard out).
-
 #? Cécile, should we allow users to set a seed to replicate a search?
 seed (default 0 to get it from the clock): seed to replicate a given search
+
+#TODO in future, run independently with multiple starting topologies?
 """
 function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
-    maxhybrid=1::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
-    maxmoves::Int64, nreject=75::Int64, verbose=false::Bool,
-    NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
-    xtolAbs=xAbsBL::Float64,
+    maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
+    nohybridladder=true::Bool, maxmoves=100::Int64, nreject=75::Int64,
+    verbose=false::Bool, NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
+    ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
     constraints=TopologyConstraint[]::Vector{TopologyConstraint},
-    alphamin=0.05, alphamax=500)
+    alphamin=amin::Float64, alphamax=amax::Float64)
 
-    obj = datatoSSM(net, fastafile, modSymbol, maxhybrid)
+    obj = StatisticalSubstitutionModel(net, fastafile, modSymbol, maxhybrid)
 
     checknetworkbeforeLiNC!(obj.net, maxhybrid, no3cycle, unzip, nohybridladder,
     constraints)
 
     startingBL!(obj.net, unzip, obj.trait, obj.siteweight)
 
-    discrete_corelikelihood!(obj) #TODO check that this is necessary
+    discrete_corelikelihood!(obj)
 
     fit!(obj; optimizeQ=true, optimizeRVAS=true, maxeval=20) #rough optim of rates and alpha
 
     done = false
     while !done # break out of this loop only is if rejections = nreject.
         done = optimizestructure!(obj, maxmoves, maxhybrid, no3cycle, unzip,
-            nohybridladder, verbose, constraints)
-        fit!(obj; optimizeQ=true, optimizeRVAS=true) #TODO set larger tolerance here
+            nohybridladder, nreject, verbose, constraints)
+        fit!(obj; optimizeQ=true, optimizeRVAS=true, ftolRel=1e-2, fRel=1e-2,
+             xtolRel=1e-1, xtolAbs=1e-2)
         optimizeBL!(obj, obj.net, obj.net.edge, unzip, verbose, 1000, NLoptMethod,
                     ftolRel, ftolAbs, xtolRel, xtolAbs)
         optimizeallgammas!(obj, obj.net, unzip, verbose, 1000, NLoptMethod,
                            ftolRel, ftolAbs, xtolRel, xtolAbs)
-        # TODO optimize all branch lengths and gammas
     end
-
-
     return obj
 end
 
@@ -1071,7 +1081,7 @@ julia> net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1
 
 julia> fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "simple.aln"));
 
-julia> obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69, maxhybrid);
+julia> obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastafile, :JC69, maxhybrid);
 
 julia> PhyloNetworks.checknetworkbeforeLiNC!(obj.net, maxhybrid, true, true, true)
 HybridNetwork, Rooted Network
@@ -1086,7 +1096,6 @@ tip labels: A, B, C, D
 function checknetworkbeforeLiNC!(net::HybridNetwork, maxhybrid::Int64, no3cycle::Bool,
     nohybridladder::Bool, unzip::Bool,
     constraints=TopologyConstraint[]::Vector{TopologyConstraint})
-    # TODO are there additional network checks to add?
     # checks for polytomies and constraint violations.
     # also removes nodes of degree 2 including root
     checkspeciesnetwork!(net, constraints) ||
@@ -1116,17 +1125,16 @@ end
 
 """
     optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
-        no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
-        nreject=75::Int64, verbose=false::Bool,
+        no3cycle::Bool, unzip::Bool, nohybridladder::Bool, nreject=75::Int64,
+        verbose=false::Bool,
         constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
 Alternate nni moves, hybrid moves, and root changes in a user-provided ratio.
 Optimizes local branch lengths and hybrid gammas after each move.
 Return `done` boolean indicating if number of rejections was met.
 
-`movepercentages` is a vector of percents, giving the percent of nni moves,
-percent of hybrid moves, and root changes to be performed out of all moves.
-Must sum to 1. #TODO edit
+The percent of nni moves, hybrid moves, and root changes to be performed is
+0.5, 0.3, and 0.2 respectively.
 
 `maxhybrid` gives the maximum number of hybrids in a network.
 Updates `SSM` object's displayed `trees` and their attributes in SSM object after add or remove
@@ -1209,7 +1217,11 @@ function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
                 deleted = deletehybridedge_LiNC!(obj, currLik, maxhybrid,
                         no3cycle, unzip, nohybridladder, verbose, constraints)
                 nmoves += 1
-                if deleted
+                if isnothing(deleted)
+                    verbose && println("""Cannot delete a hybrid to the network
+                     without violating a topology constraint.""")
+                    movechoice = "delete hybrid (unsuccessful attempt)"
+                elseif deleted
                     movechoice = "delete hybrid"
                     rejections = 0 # reset
                 else
@@ -1245,7 +1257,13 @@ If cannot add a hybrid, return nothing.
 function addhybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
     constraints::Vector{TopologyConstraint})
+    # hold old topology, just in case we decide to remove hybrid edge
+    orignet = deepcopy(obj.net) # TODO can we use the same memory space for this every time?
     result = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints)
+    for h in obj.net.hybrid
+        !any([n.leaf for n in PhyloNetworks.getMajorParentEdge(h).node]) || println("edge $(PhyloNetworks.getMajorParentEdge(h).number) is a major hybrid edge and the stem edge of a leaf")
+        !any([n.leaf for n in PhyloNetworks.getMinorParentEdge(h).node]) || println("edge $(PhyloNetworks.getMinorParentEdge(h).number) is a minor hybrid edge and the stem edge of a leaf")
+    end
     if !isnothing(result)
         newhybridnode, newhybridedge = result
         updateSSM!(obj)
@@ -1254,8 +1272,11 @@ function addhybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
         newedges = sort([e.number for e in obj.net.edge])[length(obj.net.edge)-2:length(obj.net.edge)]
         optimizelocalBL!(obj, obj.net, newhybridedge, unzip, verbose) # updates obj.loglik
         optimizelocalgammas!(obj, obj.net, newhybridedge, unzip, verbose)
-        if obj.loglik - currLik < likAbs # improvement too small or negative: undo
+        @show obj.loglik
+        @show newhybridnode, newhybridedge
+        if obj.loglik - currLik < likAbsHybLiNC # improvement too small or negative: undo
             deletehybridedge!(obj.net, newhybridedge, false, false)
+            !any([length(n.edge) == 2 for n in obj.net.node]) || println("some nodes are of degree two")
             resetlocalBLgamma!(obj.net, savededges, savedhybridedges, newedges)
             updateSSM!(obj) # deletes highest number edges, no need to renumber
             return false
@@ -1279,14 +1300,32 @@ Return true if accepted delete hybrid move. If move not accepted, return false.
 function deletehybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
     constraints::Vector{TopologyConstraint})
-    # TODO will species constraint be affected by deleting a hybrid? yes, perhaps if stem edge could be removed
     hybridnode = obj.net.hybrid[Random.rand(1:length(obj.net.hybrid))]
     minorhybridedge = getMinorParentEdge(hybridnode)
+    if length(constraints) > 0
+        blacklist = Node[]
+        edgefound = false
+        while length(blacklist) < obj.net.numHybrids && !edgefound
+            hybridnode = obj.net.hybrid[Random.rand(1:length(obj.net.hybrid))]
+            hybridnode ∉ blacklist || continue # if node already attempted, jump to top of while
+            edgefound = true
+            for c in constraints
+                if minorhybridedge == c.edge # edge to remove is stem edge
+                    push!(blacklist, hybridnode)
+                    edgefound = false
+                    break # out of constraint loop
+                end
+            end
+        end
+        if !edgefound # tried to remove all hybrids
+            return nothing
+        end
+    end
     savededges, savedhybridedges = savelocalBLgamma(obj.net, minorhybridedge)
     setGamma!(minorhybridedge, 0.0)
     optimizelocalBL!(obj, obj.net, minorhybridedge, unzip, verbose) # updates loglik
     optimizelocalgammas!(obj, obj.net, minorhybridedge, unzip, verbose)
-    if obj.loglik - currLik > -0.1 # -0.1: loglik can decrease for parsimony
+    if obj.loglik - currLik > -likAbsHybLiNC # -0.1: loglik can decrease for parsimony
         e1 = getChildEdge(hybridnode)
         deletehybridedge!(obj.net, minorhybridedge, false, false)
         updateSSM!(obj, true)
@@ -1296,7 +1335,6 @@ function deletehybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
         obj.loglik = currLik
         return false
     end
-    return obj
 end
 """
     updateSSM!(obj::SSM, renumber=false::Bool)
@@ -1324,7 +1362,7 @@ julia> net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1
 
 julia> fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "simple.aln"));
 
-julia> obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69, maxhybrid);
+julia> obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastafile, :JC69, maxhybrid);
 
 julia> PhyloNetworks.checknetworkbeforeLiNC!(obj.net, maxhybrid, true, true, true);
 
@@ -1341,7 +1379,7 @@ julia> writeTopology(obj.net)
 function updateSSM!(obj::SSM, renumber=false::Bool)
     if renumber # traits are in leaf.number order, so leaf nodes not reordered
         resetNodeNumbers!(obj.net; checkPreorder=true, internalonly=true)
-        resetEdgeNumbers!(obj.net) # renumber edge numbers #TODO reset this function to remove reordering
+        resetEdgeNumbers!(obj.net)
     end
     # extract displayed trees
     obj.displayedtree = displayedTrees(obj.net, 0.0; keepNodes=true)
@@ -1449,7 +1487,7 @@ tip labels: A, B, C, D
 
 julia> fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "simple.aln"));
 
-julia> obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69);
+julia> obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastafile, :JC69);
 
 julia> obj.net.edge[4]
 PhyloNetworks.Edge:
@@ -1582,7 +1620,7 @@ julia> net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1
 
 julia> fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "simple.aln"));
 
-julia> obj = PhyloNetworks.datatoSSM(net, fastafile, :JC69);
+julia> obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastafile, :JC69);
 
 julia> obj.net.hybrid[1].edge
 3-element Array{PhyloNetworks.Edge,1}:
@@ -1763,27 +1801,6 @@ function startingrate(net::HybridNetwork)
         totaledgelength = net.numTaxa
     end
     return 1.0/totaledgelength
-end
-
-"""
-    datatoSSM(net::HybridNetwork, fastafile::String, modsymbol::Symbol)
-
-Create an SSM object for use in wrapper function. This should include all
-actions that can happen only once. Probably need different versions for
-different kinds of data (snp, amino acids), but works for DNA now.
-Call [`readfastatodna`](@ref), [`startingrate`](@ref), [`startingBL!`](@ref).
-Similar to fitdiscrete()
-"""
-function datatoSSM(net::HybridNetwork, fastafile::String, modsymbol::Symbol,
-    maxhybrid::Int64=length(net.hybrid))
-    data, siteweights = readfastatodna(fastafile, true)
-    model = symboltomodel(net, modsymbol, data, siteweights)
-    ratemodel = RateVariationAcrossSites(1.0, 1) #? add option for users here
-    dat2 = traitlabels2indices(view(data, :, 2:size(data,2)), model)
-    o, net = check_matchtaxonnames!(data[:,1], dat2, net)
-    trait = dat2[o]
-    obj = StatisticalSubstitutionModel(model, ratemodel, net, trait,
-        siteweights, maxhybrid)
 end
 
 """

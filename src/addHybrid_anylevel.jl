@@ -226,12 +226,12 @@ Does *not* modify the network.
 Output: `true` if a conflict would arise (non-DAG), `false` if no conflict.
 """
 function directionalconflict(net::HybridNetwork, parent::Node, edge2::Edge, hybridpartnernew::Bool)
-    if hybridpartnernew # all edges would retain theirs directions: use isChild1 fields
+    if hybridpartnernew # all edges would retain their directions: use isChild1 fields
         c2 = getChild(edge2)
         return parent === c2 || isdescendant(parent, c2)
     else # after hybrid addition, edge 2 would be reversed: "up" toward its own parent
-        if !edge2.containRoot || edge2.hybrid # direction of edge2 cannot be reversed
-            return true
+        if !edge2.containRoot || edge2.hybrid || !getChild(edge2).leaf # edge2 not stem edge of leaf
+            return true # direction of edge2 cannot be reversed
         else # net would be a DAG with reversed directions, could even be rooted on edge2
             p2 = getParent(edge2)
             return parent === p2 || isdescendant_undirected(parent, p2, edge2)
