@@ -149,6 +149,7 @@ module PhyloNetworks
         empiricalDNAfrequencies,
         nni!,
         mapindividuals,
+        phyLiNC!,
         # neighbor joining
         nj
 
@@ -179,5 +180,6 @@ module PhyloNetworks
     include("traitsLikDiscrete.jl")
     include("deprecated.jl")
     include("nj.jl")
+    include("phyLiNCoptimization.jl")
 
 end #module

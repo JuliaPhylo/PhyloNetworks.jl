@@ -93,7 +93,7 @@ function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool
         ## check that the new network will be a DAG: no directional conflict
         if net.numHybrids > 0 && directionalconflict(net, p1, edge2, hybridpartnernew)
             hybridpartnernew = !hybridpartnernew # try again with opposite
-            if directionalconflict(net, p1, edge2, !hybridpartnernew)
+            if directionalconflict(net, p1, edge2, hybridpartnernew)
                 push!(blacklist, (e1,e2))
                 continue
             end # else: switching hybridpartnernew worked
