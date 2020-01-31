@@ -956,20 +956,74 @@ const moveweights = Distributions.aweights([0.5, 0.3, 0.2])
 # optimization wrapper functions #
 """
     phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
-    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
-    maxmoves::Int64, verbose=false::Bool, NLoptMethod=:LD_MMA::Symbol,
-    ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
-    xtolAbs=xAbsBL::Float64,
-    constraints=TopologyConstraint[]::Vector{TopologyConstraint},
-    alphamin=0.05::Float64, alphamax=500::Float64)
+        maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
+        maxmoves::Int64, nreject=75::Int64, verbose=false::Bool,
+        NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
+        xtolAbs=xAbsBL::Float64,
+        constraints=TopologyConstraint[]::Vector{TopologyConstraint},
+        alphamin=0.05, alphamax=500)
 
-Estimate phylogenetic network from concatenated fasta data.
+Estimate a phylogenetic network (or tree) from concatenated fasta data using
+maximum likelihood. Any level network is accepted. The search starts from the
+given `net` topology, using local search to optimize structure (nearest-neighbor
+interchange moves, add hybridizations, and remove hybridizations) and non-linear
+optimization to optimize evolutionary rates, rate variation across sites, branch
+lengths and gammas.
+
+Output:
+
+There are many optional arguments, including
+
+`maxhybrid` (default = 1): maximum number of hybridizations allowed
+`no3cycle` (default = true): prevents 3-cycles to preserve the identifiability of
+the network structure
+`unzip` (default = true): sets edges below hybrid nodes to zero to preserve the
+identifiability of branch lengths.
+`nohybridladder` (default = true): prevents hybrid ladder in network. If this is
+true, input network must not have hybrid ladders.
+`maxmoves` (default = 100): maximum number of moves before branch lengths,
+hybrid gamma values, evolutionary rates, and rate variation parameters are
+reestimated.
+`verbose` (default = false): if true, print information about the numerical optimization
+`constraints` (default none): topology constraints to follow during structure
+optimization. Created using [`TopologyConstraint`] (@ref)
 #? Should we create constraints in this function or ask users to do so beforehand?
+
+The following optional arguments control when to stop the optimization of branch
+lengths and gamma values on each individual candidate network. Defaults in
+parentheses.
+ftolRel (1e-6) and ftolAbs (1e-6): relative and absolute differences of the
+network score between the current and proposed parameters
+xtolRel (1e-2) and xtolAbs (1e-3): relative and absolute differences between the
+current and proposed parameters.
+Greater values will result in a less thorough but faster search. These parameters
+are used when evaluating candidate networks only.
+
+The following optional arguments control when to stop proposing new
+network topologies:
+
+`nreject` (default = 75): the maximum number of times that new topologies are
+proposed and rejected in a row. As in snaq, optimize structure runs until
+rejections = nreject.
+liktolAbs (1e-6): the proposed network is accepted if its score is better than
+the current score by at least liktolAbs.
+Lower values of `nreject` and greater values of `liktolAbs` and `ftolAbs` would
+result in a less thorough but faster search.
+
+#TODO add independent starting runs
+At the end, branch lengths and γ's are optimized on the last "best" network
+with different and very thorough tolerance parameters: 1e-12 for ftolRel, 1e-10
+for ftolAbs, xtolRel, xtolAbs.
+runs (default 10): number of independent starting points for the search
+filename (default "snaq"): root name for the output files (.out, .err). If empty (""), files are not created, progress log goes to the screen only (standard out).
+
+#? Cécile, should we allow users to set a seed to replicate a search?
+seed (default 0 to get it from the clock): seed to replicate a given search
 """
-function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol, #TODO change name case
-    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
-    maxmoves::Int64, verbose=false::Bool, NLoptMethod=:LD_MMA::Symbol,
-    ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
+function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
+    maxhybrid=1::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
+    maxmoves::Int64, nreject=75::Int64, verbose=false::Bool,
+    NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
     xtolAbs=xAbsBL::Float64,
     constraints=TopologyConstraint[]::Vector{TopologyConstraint},
     alphamin=0.05, alphamax=500)
@@ -983,31 +1037,28 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol, #TOD
 
     discrete_corelikelihood!(obj) #TODO check that this is necessary
 
-    #rough optim of rates and alpha
-    fit!(obj; optimizeQ=true, optimizeRVAS=true, maxeval=20)
-    notdone = true
+    fit!(obj; optimizeQ=true, optimizeRVAS=true, maxeval=20) #rough optim of rates and alpha
 
-    while notdone
-        notdone = optimizestructure!(obj, maxmoves, maxhybrid, no3cycle, unzip,
+    done = false
+    while !done # break out of this loop only is if rejections = nreject.
+        done = optimizestructure!(obj, maxmoves, maxhybrid, no3cycle, unzip,
             nohybridladder, verbose, constraints)
-        # todo: make optimizestructure return "notdone"
-        # rough optim of rates and alphama
-        fit!(obj; optimizeQ=true, optimizeRVAS=true, maxeval=10)
-        # optimize all branch lengths and gammas
+        fit!(obj; optimizeQ=true, optimizeRVAS=true) #TODO set larger tolerance here
+        optimizeBL!(obj, obj.net, obj.net.edge, unzip, verbose, 1000, NLoptMethod,
+                    ftolRel, ftolAbs, xtolRel, xtolAbs)
+        optimizeallgammas!(obj, obj.net, unzip, verbose, 1000, NLoptMethod,
+                           ftolRel, ftolAbs, xtolRel, xtolAbs)
+        # TODO optimize all branch lengths and gammas
     end
 
-    fit!(obj; optimizeQ=true, optimizeRVAS=true) #TODO set larger tolerance here
-    optimizeBL!(obj, obj.net, obj.net.edge, unzip, verbose, 1000, NLoptMethod,
-                ftolRel, ftolAbs, xtolRel, xtolAbs)
-    optimizeallgammas!(obj, obj.net, unzip, verbose, 1000, NLoptMethod,
-                       ftolRel, ftolAbs, xtolRel, xtolAbs)
+
     return obj
 end
 
 """
     checknetworkbeforeLiNC!(net::HybridNetwork, maxhybrid::Int64, no3cycle::Bool,
-    unzip::Bool, nohybridladder::Bool,
-    constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+        unzip::Bool, nohybridladder::Bool,
+        constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
 Remove nodes of degree 2, including root. According to user-given options, check
 for 3-cycles, hybrid ladders, max number of hybrids, and `unzip` (set all edges
@@ -1036,8 +1087,8 @@ function checknetworkbeforeLiNC!(net::HybridNetwork, maxhybrid::Int64, no3cycle:
     nohybridladder::Bool, unzip::Bool,
     constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     # TODO are there additional network checks to add?
-    # checks for polytomies and constraint violations, removes nodes of degree 2
-        # including root
+    # checks for polytomies and constraint violations.
+    # also removes nodes of degree 2 including root
     checkspeciesnetwork!(net, constraints) ||
         error("individuals specified in species constraint are not grouped together in one polytomy.")
     if no3cycle
@@ -1064,51 +1115,62 @@ function checknetworkbeforeLiNC!(net::HybridNetwork, maxhybrid::Int64, no3cycle:
 end
 
 """
-    optimizestructure!(obj::SSM, maxmoves::Int64,
-    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
-    verbose=false::Bool, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
+        no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
+        nreject=75::Int64, verbose=false::Bool,
+        constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
 Alternate nni moves, hybrid moves, and root changes in a user-provided ratio.
-Optimizes local branch lengths and hybrid gammas after each move. Return object.
+Optimizes local branch lengths and hybrid gammas after each move.
+Return `done` boolean indicating if number of rejections was met.
 
 `movepercentages` is a vector of percents, giving the percent of nni moves,
 percent of hybrid moves, and root changes to be performed out of all moves.
-Must sum to 1.
+Must sum to 1. #TODO edit
+
 `maxhybrid` gives the maximum number of hybrids in a network.
 Updates `SSM` object's displayed `trees` and their attributes in SSM object after add or remove
 hybrid.
+`nreject` is the maximum number of times that new topologies are proposed and
+rejected in a row. Default set to 75. A lower value would result in a less
+thorough but faster search.
 
 Assumptions:
 - starts with a network without 2- and 3- cycles
 
 note: when removing a hybrid edge, always removes the minor edge.
 """
-function optimizestructure!(obj::SSM, maxmoves::Int64,
-    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
-    verbose=false::Bool, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
-    moves = 0
-    while moves < maxmoves
+function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
+    no3cycle::Bool, unzip::Bool, nohybridladder::Bool, nreject=75::Int64,
+    verbose=false::Bool,
+    constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    nmoves = 0
+    rejections = 0
+    while nmoves < maxmoves && rejections < nreject # both should be true to continue
         currLik = obj.loglik
         movechoice = sample(["nni", "hybrid", "root"], moveweights)
         if movechoice == "nni"
             edgefound = false
             blacklist = Edge[]
-            while !edgefound # choose interior edge randomly
+            while !edgefound # randomly select interior edge
                 if length(blacklist) == length(obj.net.edge)
-                    @show blacklist #TODO remove this after debugging
-                    @error("there are no nni moves possible in this network.")
+                    verbose &&
+                    println("There are no nni moves possible in this network.")
                 end
                 eindex = Random.randperm(length(obj.net.edge))[1]
                 e1 = obj.net.edge[eindex]
-                if !(e1 in blacklist) # else go back to top of while loop
+                if !(e1 in blacklist) # else go back to top of nni while loop
                     undoinfo = nni!(obj.net, e1,nohybridladder,no3cycle,constraints)
                     if !isnothing(undoinfo)
-                        moves += 1
+                        nmoves += 1
                         edgefound = true
                         #optimize BL and gamma locally
                         discrete_corelikelihood!(obj) # update loglik
                         if obj.loglik - currLik < likAbs
                             nni!(undoinfo...) # undo move
+                            rejections += 1
+                        else
+                            rejections = 0 # reset
                         end
                     else # if move unsuccessful, search for edge until successful
                         push!(blacklist, e1)
@@ -1124,48 +1186,55 @@ function optimizestructure!(obj::SSM, maxmoves::Int64,
             elseif length(obj.net.hybrid) == maxhybrid
                 add = false # remove hybrid
             elseif length(obj.net.hybrid) > maxhybrid
-                error("the network has more hybrids than allowed with maxhybrid = $maxhybrid and current hybrids $(obj.net.hybrid)")
+                error("""The network has more hybrids than allowed. maxhybrid =
+                 $maxhybrid, but network has $(obj.net.hybrid) hybrids.""")
             else  # meaning we can do either move
-                add = (rand() > 0.4) # add hybrid with 60% probability
+                add = (rand() > 0.3) # add hybrid with 70% probability
             end
             if add
-                added = addhybridedge_LiNC!(obj, moves, currLik,
-                maxhybrid, no3cycle, unzip, nohybridladder, verbose, constraints)
-                if added
+                added = addhybridedge_LiNC!(obj, currLik, maxhybrid, no3cycle,
+                        unzip, nohybridladder, verbose, constraints)
+                nmoves +=1
+                if isnothing(added)
+                    verbose && println("Cannot add a hybrid to the network.")
+                    movechoice = "add hybrid (unsuccessful attempt)"
+                elseif added
                     movechoice = "add hybrid"
+                    rejections = 0 # reset
                 else
                     movechoice = "add hybrid (but deleted afterward)"
+                    rejections += 1
                 end
             else # delete hybrid
-                deleted = deletehybridedge_LiNC!(obj, moves, currLik,
-                maxhybrid, no3cycle, unzip, nohybridladder, verbose, constraints)
+                deleted = deletehybridedge_LiNC!(obj, currLik, maxhybrid,
+                        no3cycle, unzip, nohybridladder, verbose, constraints)
+                nmoves += 1
                 if deleted
                     movechoice = "delete hybrid"
+                    rejections = 0 # reset
                 else
                     movechoice = "delete hybrid (but added back)"
+                    rejections += 1
                 end
             end
-        else # perform root change
+        else # change root (doesn't affect likelihood)
             originalroot = obj.net.root
             changednet = moveroot!(obj.net, constraints)
-            if changednet
-                moves +=1
-                # dont need to update loglik because changing the root doesnt not affect it.
-                # will affect displayed trees but not importantly
-            else
+            nmoves += 1
+            if !changednet
                 @debug("Cannot perform a root change move on current network.")
             end
         end
-        verbose && println("loglik = $(loglikelihood(obj)) after move of
-        type $movechoice and $moves total moves")
+        verbose && println("""loglik = $(loglikelihood(obj)) after move of type
+        $movechoice, $nmoves total moves, and $rejections rejected moves""")
     end
-    return obj
+    return rejections >= nreject # done if rejections >= nreject
 end
 
 """
-    addhybridedge_LiNC!(obj::SSM, moves::Int64, currLik::Float64,
-        maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
-        verbose::Bool, constraints::Vector{TopologyConstraint})
+    addhybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
+        no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
+        constraints::Vector{TopologyConstraint})
 
 Completes checks, adds hybrid in a random location, updates SSM object, and
 optimizes branch lengths and gammas locally as part of PhyLiNC optimization.
@@ -1173,74 +1242,57 @@ optimizes branch lengths and gammas locally as part of PhyLiNC optimization.
 Return true if accepted add hybrid move. If move not accepted, return false.
 If cannot add a hybrid, return nothing.
 """
-function addhybridedge_LiNC!(obj::SSM, moves::Int64, currLik::Float64,
-    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
+function addhybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
+    no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
     constraints::Vector{TopologyConstraint})
     result = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints)
     if !isnothing(result)
         newhybridnode, newhybridedge = result
-        # ndegree2nodes = sum(length(n.edge) == 2 for n in obj.net.node)
-        # ndegree2nodes == 0 || error("The network has $ndegree2nodes degree 2 nodes.")
         updateSSM!(obj)
-        # optimize BL and gamma locally, which updates discrete_corelikelihood!(obj)
-        optimizelocalBL!(obj, obj.net, newhybridedge, unzip, verbose)
+        savededges, savedhybridedges = savelocalBLgamma(obj.net, newhybridedge)
+        # new edges will be three edges with highest e.number
+        newedges = sort([e.number for e in obj.net.edge])[length(obj.net.edge)-2:length(obj.net.edge)]
+        optimizelocalBL!(obj, obj.net, newhybridedge, unzip, verbose) # updates obj.loglik
         optimizelocalgammas!(obj, obj.net, newhybridedge, unzip, verbose)
-        # println("after adding hybrid edge and running updateSSM, the loglik is $(obj.loglik).
-        # displayed trees: $(obj.displayedtree)") # TODO remove
-        moves += 1
         if obj.loglik - currLik < likAbs # improvement too small or negative: undo
-            # verbose && println("deleting edge $newhybridedge because adding it did not increase the likelihood enough.
-            # Original likelihood: $currLik
-            # Likelihood after adding hybrid: $(obj.loglik)")
-            e1 = getChildEdge(newhybridnode)
             deletehybridedge!(obj.net, newhybridedge, false, false)
-            # ndegree2nodes = sum(length(n.edge) == 2 for n in obj.net.node)
-            # ndegree2nodes == 0 || error("The network has $ndegree2nodes degree 2 nodes.")
+            resetlocalBLgamma!(obj.net, savededges, savedhybridedges, newedges)
             updateSSM!(obj) # deletes highest number edges, no need to renumber
-            # optimize BL and gamma locally
-            optimizelocalBL!(obj, obj.net, e1, unzip, verbose)
-            optimizelocalgammas!(obj, obj.net, e1, unzip, verbose)
-            # println("after deleting new hybrid edge $newhybridedge, hybrid list is: $(obj.net.hybrid)
-            # displayed trees: $(obj.displayedtree)") # TODO remove
             return false
         end
         return true
     else
-        verbose && println("Cannot add a hybrid to the network at move number $moves.")
         return nothing
     end
 end
 
 """
-    deletehybridedge_LiNC!(obj::SSM, moves::Int64, currLik::Float64,
-    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
-    constraints::Vector{TopologyConstraint})
+    deletehybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
+        no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
+        constraints::Vector{TopologyConstraint})
 
 Deletes a random hybrid edge, completes checks, and updates SSM object as part of
 PhyLiNC optimization.
 
 Return true if accepted delete hybrid move. If move not accepted, return false.
 """
-function deletehybridedge_LiNC!(obj::SSM, moves::Int64, currLik::Float64,
-    maxhybrid::Int64, no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
+function deletehybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
+    no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
     constraints::Vector{TopologyConstraint})
     # TODO will species constraint be affected by deleting a hybrid? yes, perhaps if stem edge could be removed
     hybridnode = obj.net.hybrid[Random.rand(1:length(obj.net.hybrid))]
     minorhybridedge = getMinorParentEdge(hybridnode)
-    # TODO save local edges and gammas
-    origgamma = minorhybridedge.gamma
+    savededges, savedhybridedges = savelocalBLgamma(obj.net, minorhybridedge)
     setGamma!(minorhybridedge, 0.0)
-    # optimize BL and gamma locally, which updates loglik
-    optimizelocalBL!(obj, obj.net, minorhybridedge, unzip, verbose)
+    optimizelocalBL!(obj, obj.net, minorhybridedge, unzip, verbose) # updates loglik
     optimizelocalgammas!(obj, obj.net, minorhybridedge, unzip, verbose)
-    if obj.loglik - currLik > -0.1 # -0.1: loglik can go down for the sake of parsimony
+    if obj.loglik - currLik > -0.1 # -0.1: loglik can decrease for parsimony
         e1 = getChildEdge(hybridnode)
         deletehybridedge!(obj.net, minorhybridedge, false, false)
         updateSSM!(obj, true)
         return true
     else # keep hybrid
-        setGamma!(minorhybridedge, origgamma)
-        # TODO reset local edges used saved values from above
+        resetlocalBLgamma!(obj.net, savededges, savedhybridedges)
         obj.loglik = currLik
         return false
     end
@@ -1514,8 +1566,8 @@ end
     verbose=false::Bool)
 
 Optimize gammas in `net` locally around `edge`. Update all edges that share a
-node with `edge` (including itself). Does not include the edge's partner because
-the `setGamma!` will update partners automatically.
+node with `edge` (including itself). Does not include edges' partners because
+the `setGamma!` updates partners automatically.
 
 Return modified edges.
 
@@ -1766,4 +1818,57 @@ function symboltomodel(net::HybridNetwork, modsymbol::Symbol, data::DataFrame,
     else
         error("model $modsymbol is unknown or not implemented yet")
     end
+end
+
+"""
+    savelocalBLgamma(net::HybridNetwork, edge::PhyloNetworks.Edge)
+
+Saves local branch lengths and gammas before they're optimized so they can be
+reset.
+"""
+function savelocalBLgamma(net::HybridNetwork, edge::PhyloNetworks.Edge)
+    localedges = Dict{PhyloNetworks.Edge, Float64}()
+    for n in edge.node
+        for e in n.edge # all edges sharing a node with `edge` (including self)
+            if !(haskey(localedges, e))
+                localedges[e] = e.length
+            end
+        end
+    end
+    localhybridedges = Dict{PhyloNetworks.Edge, Float64}()
+    for n in edge.node
+        for e in n.edge # edges that share a node with `edge` (including self)
+            if e.hybrid && !haskey(localhybridedges, e) && !haskey(localhybridedges, PhyloNetworks.getPartner(e))
+                localhybridedges[e] = e.gamma
+            end
+        end
+    end
+    return localedges, localhybridedges
+end
+
+"""
+    resetlocalBLgamma!(net::HybridNetwork, localedges::Dict{Edge, Float64},
+    localhybridedges::Dict{Edge, Float64}, removenewedges=false::Bool)
+
+Reset local branch lengths and gammas to undo a local optimization.
+Return net.
+
+if `removenewedges`, does not update edges that would be deleted from net if the
+center edge was deleted. (Set to true when a hybrid edge is added,
+savelocalBLgamma is called on this new hybrid edge, then this edge is deleted
+in addhybridedge_LiNC)
+"""
+function resetlocalBLgamma!(net::HybridNetwork, localedges::Dict{Edge, Float64},
+    localhybridedges::Dict{Edge, Float64}, removeedges=Edge[]::Array{Edge})
+    for e in removeedges # remove new edges from both dictionaries
+        pop!(localedges, e, nothing)
+        pop!(localhybridedges, e, nothing)
+    end
+    for edge in keys(localedges) # set lengths
+        edge.length = localedges[edge]
+    end
+    for hybridedge in keys(localhybridedges) # set gammas
+        hybridedge.gamma = localhybridedges[hybridedge]
+    end
+    return net
 end
