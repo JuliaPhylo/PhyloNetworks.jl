@@ -745,16 +745,16 @@ PhyloNetworks.checknetworkbeforeLiNC!(net, 1, true, true, true)
 end
 
 @testset "optimizestructure with simple example" begin
-currLik = obj.loglik
-no3cycle=true
-nohybridladder = true
-verbose = true
-constraints=PhyloNetworks.TopologyConstraint[]
-moves = 0
-originedge, e1 = PhyloNetworks.deletehybridedge_LiNC!(obj, moves,
-                    currLik, maxhybrid, no3cycle, nohybridladder, verbose,
-                    constraints)
-
+# currLik = obj.loglik
+# no3cycle=true
+# unzip = true
+# nohybridladder = true
+# verbose = true
+# constraints=PhyloNetworks.TopologyConstraint[]
+# moves = 0
+# PhyloNetworks.deletehybridedge_LiNC!(obj, moves,
+#                     currLik, maxhybrid, no3cycle, unzip, nohybridladder, verbose,
+#                     constraints)
 maxmoves = 5
 maxhybrid = 3
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
@@ -790,7 +790,7 @@ PhyloNetworks.discrete_corelikelihood!(obj)
 @test writeTopology(obj.net) != "(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);"
 end # of optimizestructure with simple example
 
-@testset "PhyLiNC with simple net, no constraints" begin
+@testset "phyLiNC with simple net, no constraints" begin
 #for no3cycle in [true, false] #TODO make loops for options to test all
 #for unzip in [true, false]
 #for nohybridladder in [true, false]
@@ -799,12 +799,12 @@ maxhybrid = 2
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..",
     "examples", "simple.aln"))
-obj = PhyloNetworks.PhyLiNC!(net, fastafile, :JC69, maxhybrid, true, true,
+obj = PhyloNetworks.phyLiNC!(net, fastafile, :JC69, maxhybrid, true, true,
     true, maxmoves, true)
 @test typeof(obj) == PhyloNetworks.StatisticalSubstitutionModel
 @test writeTopology(obj.net) != "(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);"
 
 maxhybrid = 0
-@test_throws ErrorException PhyloNetworks.PhyLiNC!(net, fastafile, :JC69, maxhybrid, true, true,
+@test_throws ErrorException PhyloNetworks.phyLiNC!(net, fastafile, :JC69, maxhybrid, true, true,
     true, maxmoves, true)
 end
