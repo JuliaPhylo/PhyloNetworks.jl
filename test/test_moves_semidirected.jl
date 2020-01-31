@@ -106,7 +106,7 @@ end # of level1 edge 13: BR directed
     # check directionality node -11 child of edge 16 in both cases
     @test PhyloNetworks.getChild(net_level1.edge[16]).number == -11
     nni!(undoinfo...); # undo move
-    @test writeTopology(net_level1) == str_level1 #confirm we're back to original topology 
+    @test writeTopology(net_level1) == str_level1 #confirm we're back to original topology
 end #of level1 edge 16: BB directed
 
 # BB directed has two allowed moves, so 0x03 should throw an exception
@@ -116,7 +116,7 @@ end #of level1 edge 16: BB directed
     # no3cycle test
         # move 2 should fail because of 3cycle problems
         # β is connected in a 4 cycle with γ so a move that makes γ and β a pair
-        # would create a 3 cycle 
+        # would create a 3 cycle
     if move == 0x01
         undoinfo = nni!(net_level1, net_level1.edge[17], move, true, true);
         nodes = [n.number for n in net_level1.edge[12].node] #β's connections
@@ -388,13 +388,14 @@ net_level1_i, c_species = PhyloNetworks.mapindividuals(net_level1_s, filename)
 @test writeTopology(net_level1_i) == "(((S8,S9),(((((S1A,S1B,S1C)S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 
 # test clade constraint contructor
-c_clade = PhyloNetworks.TopologyConstraint(0x02, ["S1A","S1B","S1C","S4"], net_level1_i)
-@test string(c_clade) == "Clade constraint, on tips: S1A, S1B, S1C, S4\n stem edge number 6\n crown node number -8"
+# clade type 0x02 not yet implemented
+#c_clade = PhyloNetworks.TopologyConstraint(0x02, ["S1A","S1B","S1C","S4"], net_level1_i)
+#@test string(c_clade) == "Clade constraint, on tips: S1A, S1B, S1C, S4\n stem edge number 6\n crown node number -8"
 
 # test errors in species constructor
-@test_throws ErrorException PhyloNetworks.TopologyConstraint(0x02, ["S1A"], net_level1_i) # only 1 tip
-@test_throws ErrorException PhyloNetworks.TopologyConstraint(0x02, ["S1A", "TypoTaxa"], net_level1_i) # typo
-@test_throws ErrorException PhyloNetworks.TopologyConstraint(0x02, ["S1A", "S8"], net_level1_i) # not a clade
+@test_throws ErrorException PhyloNetworks.TopologyConstraint(0x01, ["S1A"], net_level1_i) # only 1 tip
+@test_throws ErrorException PhyloNetworks.TopologyConstraint(0x01, ["S1A", "TypoTaxa"], net_level1_i) # typo
+@test_throws ErrorException PhyloNetworks.TopologyConstraint(0x01, ["S1A", "S8"], net_level1_i) # not a clade
 
 # NNIs under species constraints
 Random.seed!(1234);
@@ -414,8 +415,9 @@ end # of species constraints
 @testset "test move root & constraint checking under species & clade constraints" begin
 # "(((S8,S9),(((((S1A,S1B,S1C)S1,S4),#H1),((S5)#H1,(S6,S7))))#H2),(#H2,S10));"
 netl1_i = readTopology("(((((S1A,S1B,S1C)S1,S4),#H1),((S5)#H1,(S6,S7))));")
-con = [PhyloNetworks.TopologyConstraint(0x01, ["S1A","S1B","S1C"], netl1_i),
-       PhyloNetworks.TopologyConstraint(0x02, ["S5","S6","S7"], netl1_i)]
+con = [PhyloNetworks.TopologyConstraint(0x01, ["S1A","S1B","S1C"], netl1_i)]
+    # type 2 constraints not yet implemented
+    #,PhyloNetworks.TopologyConstraint(0x02, ["S5","S6","S7"], netl1_i)]
 Random.seed!(765);
 @test PhyloNetworks.moveroot!(netl1_i, con) # only 2 options
 writeTopology(netl1_i) == "(((S1A,S1B,S1C)S1,S4),#H1,(((S5)#H1,(S6,S7))));" # now unrooted
@@ -425,7 +427,7 @@ netl1_i.root = 14 # back to original rooted network. This node is still of degre
 @test !PhyloNetworks.checkspeciesnetwork!(netl1_i, con) # false: root *at* clade crown
 @test netl1_i.root == 13 # now unrooted (via removedegree2nodes!), root was moved, con[2] stem edge was deleted too...
 netl1_i.root = 7; directEdges!(netl1_i) # move root strictly above clade crown
-con[2] = PhyloNetworks.TopologyConstraint(0x02, ["S5","S6","S7"], netl1_i)
+#con[2] = PhyloNetworks.TopologyConstraint(0x02, ["S5","S6","S7"], netl1_i)
 @test PhyloNetworks.checkspeciesnetwork!(netl1_i, con) # now fine: root *above* clade crown
 undoinfo = nni!(netl1_i,netl1_i.edge[8],0x02,false,false);
 @test !PhyloNetworks.checkspeciesnetwork!(netl1_i, con)
