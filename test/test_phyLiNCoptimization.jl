@@ -128,7 +128,7 @@ PhyloNetworks.checknetworkbeforeLiNC!(net, 1, true, true, true)
 end
 
 @testset "optimizestructure with simple example" begin
-maxmoves = 20
+maxmoves = 5
 maxhybrid = 3
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "simple.aln"))

@@ -230,7 +230,7 @@ function directionalconflict(net::HybridNetwork, parent::Node, edge2::Edge, hybr
         c2 = getChild(edge2)
         return parent === c2 || isdescendant(parent, c2)
     else # after hybrid addition, edge 2 would be reversed: "up" toward its own parent
-        if !edge2.containRoot || edge2.hybrid || !getChild(edge2).leaf # edge2 not stem edge of leaf
+        if !edge2.containRoot || edge2.hybrid || getChild(edge2).leaf # edge2 external leaf
             return true # direction of edge2 cannot be reversed
         else # net would be a DAG with reversed directions, could even be rooted on edge2
             p2 = getParent(edge2)

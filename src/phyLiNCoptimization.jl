@@ -92,9 +92,9 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
             nohybridladder, nreject, verbose, constraints)
         fit!(obj; optimizeQ=true, optimizeRVAS=true, ftolRel=1e-2, ftolAbs=1e-2,
              xtolRel=1e-1, xtolAbs=1e-2)
-        optimizeBL!(obj, obj.net, obj.net.edge, unzip, verbose, 1000, NLoptMethod,
+        optimizeBL!(obj, obj.net, obj.net.edge, unzip, verbose, 100, NLoptMethod,
                     ftolRel, ftolAbs, xtolRel, xtolAbs)
-        optimizeallgammas!(obj, obj.net, unzip, verbose, 1000, NLoptMethod,
+        optimizeallgammas!(obj, obj.net, unzip, verbose, 100, NLoptMethod,
                            ftolRel, ftolAbs, xtolRel, xtolAbs)
     end
     return obj
@@ -339,22 +339,26 @@ function deletehybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     constraints::Vector{TopologyConstraint})
     hybridnode = obj.net.hybrid[Random.rand(1:length(obj.net.hybrid))]
     minorhybridedge = getMinorParentEdge(hybridnode)
-    if length(constraints) > 0
-        blacklist = Node[]
+    if length(constraints) > 0 # check constraints
         edgefound = false
-        while length(blacklist) < obj.net.numHybrids && !edgefound
+        blacklist = Node[]
+        while !edgefound
+            if length(blacklist) < obj.net.numHybrids
+                verbose && println("There are no delete hybrid moves possible in this network.")
+            end
             hybridnode = obj.net.hybrid[Random.rand(1:length(obj.net.hybrid))]
-            hybridnode ∉ blacklist || continue # if node already attempted, jump to top of while
-            edgefound = true
-            for c in constraints
-                if minorhybridedge == c.edge # edge to remove is stem edge
-                    push!(blacklist, hybridnode)
-                    edgefound = false
-                    break # out of constraint loop
+            if !(hybridnode in blacklist)
+                edgefound = true
+                for c in constraints
+                    if minorhybridedge == c.edge # edge to remove is stem edge
+                        push!(blacklist, hybridnode)
+                        edgefound = false
+                        break # out of constraint loop
+                    end
                 end
             end
         end
-        if !edgefound # tried to remove all hybrids
+        if !edgefound # tried all hybrids
             return nothing
         end
     end
