@@ -269,20 +269,6 @@ If not a hybrid, returns the first child edge.
     error("could not find child edge of node $(node.number)")
 end
 
-"""
-    getSpecificChildEdge(node::Node, notthis::Edge)
-
-Return the first child edge of a node that is not equal to `notthis` edge.
-"""
-@inline function getSpecificChildEdge(node::Node, notthis::Edge)
-    for e in node.edge
-        if node == getParent(e) && !(e == notthis)
-            return e
-        end
-    end
-    error("could not find a tree child edge of node $(node.number)")
-end
-
 # -------------- NETWORK ----------------------- #
 
 function getIndex(node::Node, net::Network)
