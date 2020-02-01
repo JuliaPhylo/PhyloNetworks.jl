@@ -425,7 +425,7 @@ writeTopology(netl1_i) == "(((S1A,S1B,S1C)S1,S4),#H1,(((S5)#H1,(S6,S7))));" # no
 writeTopology(netl1_i) == "((S1A,S1B,S1C)S1,S4,(#H1,(((S5)#H1,(S6,S7)))));"
 netl1_i.root = 14 # back to original rooted network. This node is still of degree 2
 #@test !PhyloNetworks.checkspeciesnetwork!(netl1_i, con) # false: root *at* clade crown
-@test netl1_i.root == 13 # now unrooted (via removedegree2nodes!), root was moved, con[2] stem edge was deleted too...
+#@test netl1_i.root == 13 # now unrooted (via removedegree2nodes!), root was moved, con[2] stem edge was deleted too...
 netl1_i.root = 7; directEdges!(netl1_i) # move root strictly above clade crown
 #con[2] = PhyloNetworks.TopologyConstraint(0x02, ["S5","S6","S7"], netl1_i)
 @test PhyloNetworks.checkspeciesnetwork!(netl1_i, con) # now fine: root *above* clade crown
