@@ -55,7 +55,7 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
     "log-likelihood of ith displayed tree t, given rate category j, of site k"
     _loglikcache::Array{Float64, 3} # size: ntrees, nrates, nsites
 
-    "fasta constructor: from net, fastafile name, modsymbol, and maxhybrid
+    "fasta constructor: from net, fasta filename, modsymbol, and maxhybrid
     Works for DNA in fasta format. Probably need different versions for
     different kinds of data (snp, amino acids). Similar to fitdiscrete()"
     function StatisticalSubstitutionModel(net::HybridNetwork, fastafile::String,

@@ -143,15 +143,15 @@ function Base.show(io::IO, obj::TopologyConstraint)
 end
 
 """
-    cladeviolated(network::HybridNetwork,
-                    cladeconstraints::Vector{TopologyConstraint})
+    constraintviolated(network::HybridNetwork,
+                       cladeconstraints::Vector{TopologyConstraint})
 
-True if `network` violates one (or more) of the constraints of type 2
-(must be clades in the major tree).
+True if `network` violates one (or more) of the constraints of type 1
+(individuals in a species group) or type 2 (must be clades in the major tree).
 """
-function cladeviolated(net::HybridNetwork, constraints::Vector{TopologyConstraint})
+function constraintviolated(net::HybridNetwork, constraints::Vector{TopologyConstraint})
     for con in constraints # checks directionality of stem edge hasn't changed
-        if con.type == 2
+        if con.type in [0x01, 0x02]
             getChild(con.edge) === con.node || return true
             tree = majorTree(net)
             tei = findfirst(e -> e.number == con.edge.number, tree.edge)
@@ -160,25 +160,6 @@ function cladeviolated(net::HybridNetwork, constraints::Vector{TopologyConstrain
             treeedge = tree.edge[tei]
             des = descendants(treeedge) # vector of node numbers, descendant tips only by default
             Set(des) == con.taxonnums || return true
-        end
-    end
-    return false
-end
-
-"""
-    speciesconstraintviolated(net::HybridNetwork, constraints::Vector{TopologyConstraint})
-
-True if `net` violates one (or more) given type 0x01 `TopologyConstraints`.
-"""
-function speciesconstraintviolated(net::HybridNetwork, constraints::Vector{TopologyConstraint})
-    for con in constraints # checks directionality of stem edge hasn't changed
-        if con.type == 1
-            constrainedleaves = net.leaf[[l.name in con.taxonnames for l in net.leaf]]
-            for l in constrainedleaves
-                if length(l.edge) > 1 || getParent(l.edge[1]) != con.node
-                    return true # @error("individuals specified in species constraint are not grouped together in one polytomy.")
-                end
-            end
         end
     end
     return false
@@ -254,8 +235,7 @@ function nni!(net::HybridNetwork, e::Edge, nohybridladder::Bool=true, no3cycle::
     for nummove in nnis # iterate through all possible NNIs, but in random order
         moveinfo = nni!(net, e, nummove, nohybridladder, no3cycle)
         !isnothing(moveinfo) || continue # to next possible NNI
-        if (speciesconstraintviolated(net, constraints) ||
-                cladeviolated(net, constraints))
+        if constraintviolated(net, constraints)
             nni!(moveinfo...) # undo the previous NNI
             continue          # try again
         end
@@ -615,7 +595,7 @@ function checkspeciesnetwork!(net::HybridNetwork, constraints::Vector{TopologyCo
         end
     end
     removedegree2nodes!(net)
-    return !cladeviolated(net, constraints) && !speciesconstraintviolated(net, constraints)
+    return !constraintviolated(net, constraints)
 end
 
 """

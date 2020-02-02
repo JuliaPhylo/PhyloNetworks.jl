@@ -294,7 +294,7 @@ Assumptions:
 function addhybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
     constraints::Vector{TopologyConstraint})
-    origobj = deepcopy(obj) # hold old SSM in case we remove new hybrid
+    orignet = deepcopy(obj.net) # hold old network in case we remove new hybrid
         # TODO can we use the same memory space for this every time?
     result = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints)
     for h in obj.net.hybrid # TODO in future, remove these debugging statements
@@ -311,7 +311,9 @@ function addhybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
         optimizelocalBL!(obj, obj.net, newhybridedge, unzip, verbose) # updates obj.loglik
         optimizelocalgammas!(obj, obj.net, newhybridedge, unzip, verbose)
         if obj.loglik - currLik < likAbsAddHybLiNC # improvement too small or negative: undo
-            obj = origobj
+            obj.net = orignet
+            updateSSM!(obj)
+            discrete_corelikelihood!(obj)
             return false
         else
             return true
