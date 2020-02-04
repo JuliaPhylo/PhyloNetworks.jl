@@ -163,21 +163,22 @@ PhyloNetworks.discrete_corelikelihood!(obj)
 @test writeTopology(obj.net) != "(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);"
 end # of optimizestructure with simple example
 
-@testset "phyLiNC with simple net, no constraints" begin
-#for no3cycle in [true, false] #TODO in future make loops for options to test all
-#for unzip in [true, false]
-#for nohybridladder in [true, false]
-maxhybrid = 2
-net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
+@testset "phyLiNC with simple net, no constraints" for no3cycle in [true, false]
 fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..",
-            "examples", "simple.aln"))
-obj = PhyloNetworks.phyLiNC!(net, fastafile, :JC69, maxhybrid, true, true,
-                            true, 20, 5, true) # maxmoves = 20, nreject = 5
-@test typeof(obj) == PhyloNetworks.StatisticalSubstitutionModel
-@test writeTopology(obj.net) != "(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);"
+            "examples", "simple.aln"));
+for unzip in [true, false]
+    for nohybridladder in [true, false]
+        maxhybrid = 2;
+        net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
+        @test typeof(PhyloNetworks.phyLiNC!(net, fastafile, :JC69, maxhybrid,
+                                        no3cycle, unzip, nohybridladder, 20, 5, # maxmoves = 20, nreject = 5
+                                        true)) == PhyloNetworks.StatisticalSubstitutionModel
 
-maxhybrid = 0
-@test_throws ErrorException PhyloNetworks.phyLiNC!(net, fastafile, :JC69,
-                                                maxhybrid, true, true, true, 20,
-                                                5, true) # maxmoves = 20, nreject = 5
+        maxhybrid = 0;
+        @test_throws ErrorException PhyloNetworks.phyLiNC!(net, fastafile,
+                                            :JC69, maxhybrid, no3cycle, unzip,
+                                            nohybridladder, 20, 5, true);
+                                            # maxmoves = 20, nreject = 5
+        end
+    end
 end

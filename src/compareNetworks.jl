@@ -462,7 +462,8 @@ Warnings:
   If `keepNodes` is true: the γ's of partner hybrid edges are unchanged.
 - assumes correct `isMajor` fields, and correct `isChild1` fields to update `containRoot`.
 """
-function deleteHybridThreshold!(net::HybridNetwork, gamma::Float64, keepNodes=false::Bool, unroot=false::Bool)
+function deleteHybridThreshold!(net::HybridNetwork, gamma::Float64,
+                                keepNodes=false::Bool, unroot=false::Bool)
     gamma <= 0.5 || error("deleteHybridThreshold! called with gamma = $(gamma)>0.5")
     for i = net.numHybrids:-1:1
     # starting from last because net.hybrid changes as hybrids are removed. Empty range if 0 hybrids.
@@ -479,7 +480,8 @@ function deleteHybridThreshold!(net::HybridNetwork, gamma::Float64, keepNodes=fa
 end
 
 """
-    displayedNetworks!(net::HybridNetwork, node::Node, keepNode=false, unroot=false)
+    displayedNetworks!(net::HybridNetwork, node::Node, keepNode=false,
+                       unroot=false)
 
 Extracts the two networks that simplify a given network at a given hybrid node:
 deleting either one or the other parent hybrid edge.
@@ -489,7 +491,8 @@ If `unroot` is true, the root will be deleted if it becomes of degree 2.
 - the original network is modified: the minor edge removed.
 - returns one HybridNetwork object: the network with the major edge removed
 """
-function displayedNetworks!(net::HybridNetwork, node::Node, keepNodes=false::Bool, unroot=false::Bool)
+function displayedNetworks!(net::HybridNetwork, node::Node,
+                            keepNodes=false::Bool, unroot=false::Bool)
     node.hybrid || error("will not extract networks from tree node $(node.number)")
     ind = findfirst(x -> x===node, net.node)
     ind !== nothing || error("node $(node.number) was not found in net")
@@ -502,7 +505,8 @@ function displayedNetworks!(net::HybridNetwork, node::Node, keepNodes=false::Boo
 end
 
 """
-    displayedTrees(net::HybridNetwork, gamma::Float64; keepNodes=false::Bool, unroot=false::Bool)
+    displayedTrees(net::HybridNetwork, gamma::Float64; keepNodes=false::Bool,
+                   unroot=false::Bool)
 
 Extracts all trees displayed in a network, following hybrid edges
 with heritability >= γ threshold (or >0.5 if threshold=0.5)
@@ -518,7 +522,8 @@ Warnings:
   their γ values unchanged, but their `isMajor` is changed to true
 - assume correct `isMajor` attributes.
 """
-function displayedTrees(net0::HybridNetwork, gamma::Float64; keepNodes=false::Bool, unroot=false::Bool)
+function displayedTrees(net0::HybridNetwork, gamma::Float64;
+                        keepNodes=false::Bool, unroot=false::Bool)
     trees = HybridNetwork[]
     net = deepcopy(net0)
     deleteHybridThreshold!(net,gamma,keepNodes,unroot)
@@ -584,7 +589,8 @@ majorTree(net::HybridNetwork; keepNodes=false::Bool, unroot=false::Bool) =
 
 
 # expands current list of trees, with trees displayed in a given network
-function displayedTrees!(trees::Array{HybridNetwork,1},net::HybridNetwork, keepNodes=false::Bool, unroot=false::Bool)
+function displayedTrees!(trees::Array{HybridNetwork,1}, net::HybridNetwork,
+                        keepNodes=false::Bool, unroot=false::Bool)
     if isTree(net)
         # warning: no update of edges' containRoot (true) or edges' and nodes' inCycle (-1)
         push!(trees, net)
@@ -615,7 +621,8 @@ function minorTreeAt(net::HybridNetwork, hybindex::Integer, keepNodes=false::Boo
 end
 
 """
-    displayedNetworkAt!(net::HybridNetwork, node::Node, keepNodes=false, unroot=false)
+    displayedNetworkAt!(net::HybridNetwork, node::Node, keepNodes=false,
+                        unroot=false)
 
 Delete all the minor hybrid edges, except at input node. The network is left
 with a single hybridization, and otherwise displays the same major tree as before.
@@ -623,7 +630,8 @@ If `keepNodes` is true, all nodes are kept during edge removal.
 
 Warning: assume correct `isMajor` fields.
 """
-function displayedNetworkAt!(net::HybridNetwork, node::Node, keepNodes=false::Bool, unroot=false::Bool)
+function displayedNetworkAt!(net::HybridNetwork, node::Node,
+                             keepNodes=false::Bool, unroot=false::Bool)
     node.hybrid || error("will not extract network from tree node $(node.number)")
     for i = net.numHybrids:-1:1
     # starting from last because net.hybrid changes as hybrids are removed. Empty range if 0 hybrids.

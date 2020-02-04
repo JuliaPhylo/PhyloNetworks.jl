@@ -57,23 +57,30 @@ network topologies:
 `nreject` (default = 75): the maximum number of times that new topologies are
 proposed and rejected in a row. As in snaq, optimize structure runs until
 rejections = nreject.
-liktolAbs (1e-6): the proposed network is accepted if its score is better than
+`liktolAbs` (1e-6): the proposed network is accepted if its score is better than
 the current score by at least liktolAbs.
 Lower values of `nreject` and greater values of `liktolAbs` and `ftolAbs` would
 result in a less thorough but faster search.
 
-#? Cécile, should we allow users to set a seed to replicate a search?
-seed (default 0 to get it from the clock): seed to replicate a given search
+`seed` (default 0 to get it from the clock): seed to replicate a given search
 
-#TODO in future, run independently with multiple starting topologies?
+# TODO in future, create wrapper to run multiple independent times
+# with different starting topologies
 """
 function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
     maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
     nohybridladder=true::Bool, maxmoves=100::Int64, nreject=75::Int64,
-    verbose=false::Bool, NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
+    verbose=false::Bool, seed=0::Int64, NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
     ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
     constraints=TopologyConstraint[]::Vector{TopologyConstraint},
     alphamin=amin::Float64, alphamax=amax::Float64)
+    if seed == 0
+        t = time()/1e9
+        a = split(string(t),".")
+        seed = parse(Int,a[2][end-4:end]) # better seed based on clock
+    end
+    print(stdout,"\nmain seed $seed\n")
+    Random.seed!(seed)
 
     obj = StatisticalSubstitutionModel(net, fastafile, modSymbol, maxhybrid)
 
@@ -197,10 +204,12 @@ function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
             while !edgefound # randomly select interior edge
                 if length(blacklist) == length(obj.net.edge)
                     verbose &&
-                    println("There are no nni moves possible in this network.")
+                        println("There are no nni moves possible in this network.")
+                    break
                 end
-                eindex = Random.randperm(length(obj.net.edge))[1]
-                e1 = obj.net.edge[eindex]
+                remainingedges = setdiff(obj.net.edge, blacklist) # remove already tried edges
+                eindex = Random.rand(1:length(remainingedges))
+                e1 = remainingedges[eindex]
                 if !(e1 in blacklist) # else go back to top of nni while loop
                     undoinfo = nni!(obj.net, e1,nohybridladder,no3cycle,constraints)
                     if !isnothing(undoinfo)
@@ -223,6 +232,7 @@ function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
             if maxhybrid == 0
                 @debug("The maximum number of hybrids allowed is $maxhybrid,
                 so hybrid moves are not legal on this network.")
+                #TODO in future update moveprobability here as in SNaQ
             elseif length(obj.net.hybrid) == 0
                 add = true # add hybrid
             elseif length(obj.net.hybrid) == maxhybrid
@@ -295,16 +305,8 @@ function addhybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
     constraints::Vector{TopologyConstraint})
     orignet = deepcopy(obj.net) # hold old network in case we remove new hybrid
-        # TODO can we use the same memory space for this every time?
+        # TODO in future use the same memory space for this every time?
     result = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints)
-    for h in obj.net.hybrid # TODO in future, remove these debugging statements
-        @debug !any([n.leaf for n in getMajorParentEdge(h).node]) ||
-            println("""edge $(getMajorParentEdge(h).number) is a major
-                    hybrid edge and the stem edge of a leaf""")
-        @debug !any([n.leaf for n in getMinorParentEdge(h).node]) ||
-            println("""edge $(getMinorParentEdge(h).number) is a minor hybrid
-                    edge and the stem edge of a leaf""")
-        end
     if !isnothing(result)
         newhybridnode, newhybridedge = result
         updateSSM!(obj)
@@ -334,7 +336,7 @@ PhyLiNC optimization.
 Return true if accepted delete hybrid move. If move not accepted, return false.
 
 Assumptions:
-- called by [`optimizestructure!`](@ref)
+- called by [`optimizestructure!`](@ref) which does some checks.
 """
 function deletehybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
@@ -615,9 +617,9 @@ function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge},
     counter[1] = 0
     NLopt.max_objective!(optBL, loglikfunBL)
     fmax, xmax, ret = NLopt.optimize(optBL, getlengths(edges))
-    verbose && println("BL: got $(round(fmax, digits=5)) at
-    BL = $(round.(xmax, digits=5)) after $(counter[1]) iterations
-    (return code $(ret))")
+    # verbose && println("BL: got $(round(fmax, digits=5)) at
+    # BL = $(round.(xmax, digits=5)) after $(counter[1]) iterations
+    # (return code $(ret))")
     return edges
 end
 
