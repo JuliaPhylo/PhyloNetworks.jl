@@ -1022,20 +1022,23 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
 end
 
 """
-    resetNodeNumbers!(net::HybridNetwork; checkPreorder=true, ape=true,
-                      internalonly=true)
+    resetNodeNumbers!(net::HybridNetwork; checkPreorder=true, type=:ape)
 
 Change internal node numbers of `net` to consecutive numbers from 1 to the total
 number of nodes.
 
 keyword arguments:
-- `ape`: if true, the new numbers satisfy the conditions assumed by the
+- `type`: default is `:ape`, to get numbers that satisfy the conditions assumed by the
   `ape` R package: leaves are 1 to n, the root is n+1, and internal nodes
-  are higher consecutive integers. If false, nodes are numbered in post-order,
+  are higher consecutive integers.
+  If `:postorder`, nodes are numbered in post-order,
   with leaves from 1 to n (and the root last).
+  If `:internalonly`, leaves are unchanged. Only internal nodes are modified,
+  to take consecutive numbers from (max leaf number)+1 and up. With this
+  last option, the post-ordering of nodes is by-passed.
 - `checkPreorder`: if false, the `isChild1` edge field and the `net.nodes_changed`
-  network field are supposed to be correct (to get nodes in preorder)
-- #TODO: internalonly
+  network field are supposed to be correct (to get nodes in preorder).
+  This is not needed when `type=:internalonly`.
 
 # Examples
 
@@ -1056,7 +1059,7 @@ node leaf  hybrid hasHybEdge name inCycle edges'numbers
 
 julia> net = readTopology("(A,(B,(C,D)));");
 
-julia> PhyloNetworks.resetNodeNumbers!(net; ape=false)
+julia> PhyloNetworks.resetNodeNumbers!(net; type=:postorder)
 
 julia> printNodes(net) # first column "node": root is 7
 node leaf  hybrid hasHybEdge name inCycle edges'numbers
@@ -1070,12 +1073,14 @@ node leaf  hybrid hasHybEdge name inCycle edges'numbers
 ```
 """
 function resetNodeNumbers!(net::HybridNetwork;
-    checkPreorder=true::Bool, ape=true::Bool, internalonly=false::Bool)
+    checkPreorder=true::Bool,
+    type::Symbol=:ape)
     if checkPreorder
       directEdges!(net)
       preorder!(net) # to create/update net.nodes_changed
     end
-    if internalonly
+    # first: re-number the leaves
+    if type == :internalonly
         lnum = maximum(n.number for n in net.node if n.leaf) + 1
     else
         lnum = 1 # first number
@@ -1085,10 +1090,13 @@ function resetNodeNumbers!(net::HybridNetwork;
             lnum += 1
         end
     end
-    if ape
+    # second: re-number internal nodes
+    if type == :ape
         nodelist = net.nodes_changed # pre-order: root first
-    else
+    elseif type == :postorder
         nodelist = reverse(net.nodes_changed) # post-order
+    elseif type == :internalonly
+        nodelist = net.node
     end
     for n in nodelist
         !n.leaf || continue

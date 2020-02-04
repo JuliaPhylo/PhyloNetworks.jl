@@ -695,7 +695,7 @@ function countquartetsintrees!(quartet::Vector{QuartetT{MVector{4,Float64}}},
             taxonnumber::Dict{String,Int64}, taxonmap::Dict{String,String})
     tree.numHybrids == 0 || error("input phylogenies must be trees")
     # next: reset node & edge numbers so that they can be used as indices: 1,2,3,...
-    resetNodeNumbers!(tree; checkPreorder=true, ape=false) # leaves first & post-order
+    resetNodeNumbers!(tree; checkPreorder=true, type=:postorder) # leaves first & post-order
     resetEdgeNumbers!(tree)
     # next: build list leaf number -> species ID, using the node name then taxon map
     nleaves = length(tree.leaf)

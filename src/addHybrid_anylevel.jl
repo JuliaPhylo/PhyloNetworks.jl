@@ -91,7 +91,7 @@ function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool
         end
         hybridpartnernew = (rand() > 0.2) # if true: partner hybrid = new edge above edge 2
         ## check that the new network will be a DAG: no directional conflict
-        if net.numHybrids > 0 && directionalconflict(net, p1, edge2, hybridpartnernew)
+        if directionalconflict(net, p1, edge2, hybridpartnernew)
             hybridpartnernew = !hybridpartnernew # try again with opposite
             if directionalconflict(net, p1, edge2, hybridpartnernew)
                 push!(blacklist, (e1,e2))
@@ -230,7 +230,7 @@ function directionalconflict(net::HybridNetwork, parent::Node, edge2::Edge, hybr
         c2 = getChild(edge2)
         return parent === c2 || isdescendant(parent, c2)
     else # after hybrid addition, edge 2 would be reversed: "up" toward its own parent
-        if !edge2.containRoot || edge2.hybrid || getChild(edge2).leaf # edge2 external leaf
+        if !edge2.containRoot || edge2.hybrid
             return true # direction of edge2 cannot be reversed
         else # net would be a DAG with reversed directions, could even be rooted on edge2
             p2 = getParent(edge2)

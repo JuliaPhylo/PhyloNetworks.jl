@@ -353,7 +353,7 @@ WARNING: assumes that
 ```jldoctest
 julia> tree = readTopology("(O,A,((B1,B2),(E,(C,D))));");
 
-julia> PhyloNetworks.resetNodeNumbers!(tree; checkPreorder=true, ape=false) # to number nodes in postorder, leaves first
+julia> PhyloNetworks.resetNodeNumbers!(tree; checkPreorder=true, type=:postorder)
 
 julia> printNodes(tree)
 node leaf  hybrid hasHybEdge name inCycle edges'numbers

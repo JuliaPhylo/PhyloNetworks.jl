@@ -370,7 +370,7 @@ function deletehybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     optimizelocalgammas!(obj, obj.net, minorhybridedge, unzip, verbose)
     if obj.loglik - currLik > likAbsDelHybLiNC # -0.1: loglik can decrease for parsimony
         e1 = getChildEdge(hybridnode)
-        deletehybridedge!(obj.net, minorhybridedge, false, false)
+        deletehybridedge!(obj.net, minorhybridedge, false, true) # don't keep nodes; unroot
         updateSSM!(obj, true)
         return true
     else # keep hybrid
@@ -421,7 +421,7 @@ julia> writeTopology(obj.net)
 """
 function updateSSM!(obj::SSM, renumber=false::Bool)
     if renumber # traits are in leaf.number order, so leaf nodes not reordered
-        resetNodeNumbers!(obj.net; checkPreorder=true, internalonly=true)
+        resetNodeNumbers!(obj.net; checkPreorder=false, type=:internalonly)
         resetEdgeNumbers!(obj.net)
     end
     # extract displayed trees
@@ -429,6 +429,7 @@ function updateSSM!(obj::SSM, renumber=false::Bool)
     nnodes = length(obj.net.node)
     for tree in obj.displayedtree
         preorder!(tree) # no need to call directEdges! before: already done on net
+        # core likelihood uses nodes_changed to traverse tree in post-order
         length(tree.nodes_changed) == nnodes ||
             error("displayed tree with too few nodes: $(writeTopology(tree))")
         length(tree.edge) == length(obj.net.edge)-obj.net.numHybrids ||
