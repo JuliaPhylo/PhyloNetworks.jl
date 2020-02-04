@@ -807,7 +807,7 @@ function check_matchtaxonnames!(species::AbstractVector, dat::AbstractVector, ne
         end
     end
     # 3. calculate order of rows to have species with node.number i on ith row
-    resetNodeNumbers!(net; checkPreorder=true, type=:postorder) # tip species: now with numbers 1:n
+    resetNodeNumbers!(net; checkPreorder=true, type=:ape) # tip species: now with numbers 1:n
     resetEdgeNumbers!(net) # to use edge as indices: 1:numEdges
     netlab = [n.name for n in sort(net.leaf, by = x -> x.number)]
     nspecies = length(netlab)
