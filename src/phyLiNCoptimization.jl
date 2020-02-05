@@ -5,6 +5,144 @@ const amin = 0.05
 const amax = 500.0
 
 # optimization wrapper functions #
+
+"""
+    multiphyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
+        maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
+        nohybridladder=true::Bool, maxmoves=100::Int64, nreject=75::Int64,
+        nruns=10::Int64, verbose=false::Bool, seed=0::Int64,
+        NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
+        ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,xtolAbs=xAbsBL::Float64,
+        constraints=TopologyConstraint[]::Vector{TopologyConstraint},
+        alphamin=amin::Float64, alphamax=amax::Float64)
+
+Estimate multiple networks using PhyLiNC.
+
+- `nruns` (default 10): number of independent starting points for the search
+`filename` (default "phyLiNC"): root name for the output files (`.out`, `.err`). If empty (""),
+  files are *not* created, progress log goes to the screen only (standard out).
+"""
+function multiphyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
+    maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
+    nohybridladder=true::Bool, maxmoves=100::Int64, nreject=75::Int64,
+    nruns=10::Int64, filename="phyLiNC"::AbstractString, verbose=false::Bool, seed=0::Int64,
+    NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
+    ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,xtolAbs=xAbsBL::Float64,
+    constraints=TopologyConstraint[]::Vector{TopologyConstraint},
+    alphamin=amin::Float64, alphamax=amax::Float64)
+
+    probST = 0.3 # TODO use this in future?
+    writelog = true
+    writelog_1proc = false
+    if filename != ""
+        julialog = string(filename,".log")
+        logfile = open(julialog,"w")
+        juliaout = string(filename,".out")
+        if Distributed.nprocs() == 1
+            writelog_1proc = true
+            juliaerr = string(filename,".err")
+            errfile = open(juliaerr,"w")
+        end
+    else
+      writelog = false
+      logfile = stdout # used in call to optTopRun1!
+    end
+    str = """optimization of topology, BL and inheritance probabilities using:
+              maxhybrid = $(maxhybrid),
+              tolerance parameters: ftolRel=$(ftolRel), ftolAbs=$(ftolAbs),
+                                    xtolAbs=$(xtolAbs), xtolRel=$(xtolRel).
+              max number of consecutive failed proposals = $(nreject)"
+             """
+    str *= (writelog ? "filename for files: $(filename)\n" : "no output files\n")
+    str *= "BEGIN: $(nruns) runs on starting tree $(writeTopology(net))\n"
+    if Distributed.nprocs()>1
+        str *= "       using $(Distributed.nprocs()) processors\n"
+    end
+    if writelog
+      write(logfile,str)
+      flush(logfile)
+    end
+    print(stdout,str)
+    print(stdout, Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s") * "\n")
+    # if 1 proc: time printed to logfile at start of every run, not here.
+
+    if seed == 0
+        t = time()/1e9
+        a = split(string(t),".")
+        seed = parse(Int,a[2][end-4:end]) #better seed based on clock
+    end
+    if (writelog)
+      write(logfile,"\nmain seed $(seed)\n")
+      flush(logfile)
+    else print(stdout,"\nmain seed $(seed)\n"); end
+    Random.seed!(seed)
+    seeds = [seed;round.(Integer,floor.(rand(nruns-1)*100000))]
+
+    if writelog && !writelog_1proc
+        for i in 1:nruns # workers won't write to logfile
+            write(logfile, "seed: $(seeds[i]) for run $(i)\n")
+        end
+        flush(logfile)
+    end
+
+    tstart = time_ns()
+    bestnet = Distributed.pmap(1:nruns) do i # for i in 1:nruns
+        logstr = "seed: $(seeds[i]) for run $(i), $(Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s"))\n"
+        print(stdout, logstr)
+        msg = "\nBEGIN PhyLiNC for run $(i), seed $(seeds[i]) and maxhybrid $(maxhybrid)"
+        if writelog_1proc # workers can't write on streams opened by master
+            write(logfile, logstr * msg)
+            flush(logfile)
+        end
+        verbose && print(stdout, msg)
+        GC.gc();
+        try
+            best = phyLiNC!(net, fastafile, modSymbol, maxhybrid, no3cycle,
+                            unzip, nohybridladder, maxmoves, nreject, verbose,
+                            seeds[i], NLoptMethod, ftolRel, ftolAbs, xtolRel,
+                            xtolAbs, constraints, alphamin, alphamax)
+            logstr *= "\nFINISHED PhyLiNC for run $(i), -loglik of best $(best.loglik)\n"
+            verbose && print(stdout, logstr)
+            if writelog_1proc
+                logstr = writeTopology(best.net)
+                logstr *= "\n---------------------\n"
+                write(logfile, logstr)
+                flush(logfile)
+            end
+            return best
+        catch(err)
+            msg = "\nERROR found on PhyLiNC for run $(i) seed $(seeds[i]): $(err)\n"
+            logstr = msg * "\n---------------------\n"
+            if writelog_1proc
+                write(logfile, logstr)
+                flush(logfile)
+                write(errfile, msg)
+                flush(errfile)
+            end
+            @warn msg # returns: nothing
+        end
+    end
+    tend = time_ns() # in nanoseconds
+    telapsed = round(convert(Int64, tend-tstart) * 1e-9, digits=2) # in seconds
+    writelog_1proc && close(errfile)
+    msg = "\n" * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s")
+    if writelog
+        write(logfile, msg)
+    elseif verbose
+        print(stdout, msg)
+    end
+    filter!(n -> n !== nothing, bestnet) # remove "nothing", failed runs
+    if length(bestnet) > 0
+        ind = sortperm([n.loglik for n in bestnet])
+        bestnet = bestnet[ind]
+        maxNet = bestnet[1]::StatisticalSubstitutionModel # tell type to compiler
+    else
+        error("all runs failed")
+    end
+end
+
+
+
 """
     phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
         maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
@@ -79,7 +217,6 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
         a = split(string(t),".")
         seed = parse(Int,a[2][end-4:end]) # better seed based on clock
     end
-    print(stdout,"\nmain seed $seed\n")
     Random.seed!(seed)
 
     obj = StatisticalSubstitutionModel(net, fastafile, modSymbol, maxhybrid)
@@ -138,7 +275,10 @@ tip labels: A, B, C, D
 function checknetworkbeforeLiNC!(net::HybridNetwork, maxhybrid::Int64, no3cycle::Bool,
     nohybridladder::Bool, unzip::Bool,
     constraints=TopologyConstraint[]::Vector{TopologyConstraint})
-
+    if maxhybrid > 0
+        net.numTaxa >= 4 ||
+            error("cannot estimate hybridizations in topologies with fewer than four taxa. This topology has $(net.numTaxa) taxa.")
+    end
     checkspeciesnetwork!(net, constraints) || # checks for polytomies, constraint violations, nodes of degree 2
         error("individuals specified in species constraint are not grouped together in one polytomy.")
     if no3cycle

@@ -166,10 +166,11 @@ end # of optimizestructure with simple example
 @testset "phyLiNC with simple net, no constraints" for no3cycle in [true, false]
 fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..",
             "examples", "simple.aln"));
+net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
+
 for unzip in [true, false]
     for nohybridladder in [true, false]
         maxhybrid = 2;
-        net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
         @test typeof(PhyloNetworks.phyLiNC!(net, fastafile, :JC69, maxhybrid,
                                         no3cycle, unzip, nohybridladder, 20, 5, # maxmoves = 20, nreject = 5
                                         true)) == PhyloNetworks.StatisticalSubstitutionModel
@@ -181,4 +182,12 @@ for unzip in [true, false]
                                             # maxmoves = 20, nreject = 5
         end
     end
+end
+
+@testset "multiphyLiNC" begin
+fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..",
+            "examples", "simple.aln"));
+net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
+PhyloNetworks.multiphyLiNC!(net, fastafile, :JC69, 2, true, true, true,
+                            20, 5, 2, "phyLiNC", true, 123)
 end
