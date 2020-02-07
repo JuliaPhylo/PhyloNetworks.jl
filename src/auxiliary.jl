@@ -74,6 +74,9 @@ end
 function addBL(x::Number,y::Number)
     (x==-1.0 || y==-1.0) ? -1.0 : x+y
 end
+function multiplygammas(x::Number,y::Number)
+    (x==-1.0 || y==-1.0) ? -1.0 : x * y
+end
 
 #------------- EDGE functions --------------------#
 

@@ -45,7 +45,7 @@ function multiphyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
         end
     else
       writelog = false
-      logfile = stdout # used in call to optTopRun1!
+      logfile = stdout
     end
     str = """optimization of topology, BL and inheritance probabilities using:
               maxhybrid = $(maxhybrid),
@@ -139,6 +139,7 @@ function multiphyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
     else
         error("all runs failed")
     end
+    return bestnet
 end
 
 
@@ -355,8 +356,9 @@ function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
                     if !isnothing(undoinfo)
                         nmoves += 1
                         edgefound = true
-                        #optimize BL and gamma locally
-                        discrete_corelikelihood!(obj) # update loglik
+                        discrete_corelikelihood!(obj)
+                        optimizelocalBL!(obj, obj.net, e1, unzip, verbose)
+                        optimizelocalgammas!(obj, obj.net, e1, unzip, verbose)
                         if obj.loglik - currLik < likAbs
                             nni!(undoinfo...) # undo move
                             rejections += 1
@@ -450,7 +452,8 @@ function addhybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     if !isnothing(result)
         newhybridnode, newhybridedge = result
         updateSSM!(obj)
-        optimizelocalBL!(obj, obj.net, newhybridedge, unzip, verbose) # updates obj.loglik
+        discrete_corelikelihood!(obj)
+        optimizelocalBL!(obj, obj.net, newhybridedge, unzip, verbose)
         optimizelocalgammas!(obj, obj.net, newhybridedge, unzip, verbose)
         if obj.loglik - currLik < likAbsAddHybLiNC # improvement too small or negative: undo
             obj.net = orignet
@@ -508,12 +511,14 @@ function deletehybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     end
     savededges, savedhybridedges = savelocalBLgamma(obj.net, minorhybridedge)
     setGamma!(minorhybridedge, 0.0)
-    optimizelocalBL!(obj, obj.net, minorhybridedge, unzip, verbose) # updates loglik
+    discrete_corelikelihood!(obj)
+    optimizelocalBL!(obj, obj.net, minorhybridedge, unzip, verbose)
     optimizelocalgammas!(obj, obj.net, minorhybridedge, unzip, verbose)
     if obj.loglik - currLik > likAbsDelHybLiNC # -0.1: loglik can decrease for parsimony
         e1 = getChildEdge(hybridnode)
         deletehybridedge!(obj.net, minorhybridedge, false, true) # don't keep nodes; unroot
         updateSSM!(obj, true)
+        discrete_corelikelihood!(obj)
         return true
     else # keep hybrid
         resetlocalBLgamma!(obj.net, savededges, savedhybridedges)
@@ -537,7 +542,7 @@ Assumptions:
   called with maxhybrid equal or greater than in `obj.net`.
   `obj.priorltw` is not part of the "cache" arrays.
 
-Warnings:
+Warning:
 Does not update the likelihood.
 
 ```jldoctest
@@ -571,9 +576,10 @@ function updateSSM!(obj::SSM, renumber=false::Bool)
     nnodes = length(obj.net.node)
     for tree in obj.displayedtree
         preorder!(tree) # no need to call directEdges! before: already done on net
-        # core likelihood uses nodes_changed to traverse tree in post-order
+        #core likelihood uses nodes_changed to traverse tree in post-order
         length(tree.nodes_changed) == nnodes ||
             error("displayed tree with too few nodes: $(writeTopology(tree))")
+        #? allow this because, in some cases, we remove a hybrid node during displayedtrees because it has no children.
         length(tree.edge) == length(obj.net.edge)-obj.net.numHybrids ||
             error("displayed tree with too few edges: $(writeTopology(tree))")
     end
@@ -757,9 +763,9 @@ function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge},
     counter[1] = 0
     NLopt.max_objective!(optBL, loglikfunBL)
     fmax, xmax, ret = NLopt.optimize(optBL, getlengths(edges))
-    # verbose && println("BL: got $(round(fmax, digits=5)) at
-    # BL = $(round.(xmax, digits=5)) after $(counter[1]) iterations
-    # (return code $(ret))")
+    verbose && println("""BL: got $(round(fmax, digits=5)) at
+    BL = $(round.(xmax, digits=5)) after $(counter[1]) iterations
+    (return code $(ret))""")
     return edges
 end
 

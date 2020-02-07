@@ -173,12 +173,12 @@ for unzip in [true, false]
         maxhybrid = 2;
         @test typeof(PhyloNetworks.phyLiNC!(net, fastafile, :JC69, maxhybrid,
                                         no3cycle, unzip, nohybridladder, 20, 5, # maxmoves = 20, nreject = 5
-                                        true)) == PhyloNetworks.StatisticalSubstitutionModel
+                                        false)) == PhyloNetworks.StatisticalSubstitutionModel
 
         maxhybrid = 0;
         @test_throws ErrorException PhyloNetworks.phyLiNC!(net, fastafile,
                                             :JC69, maxhybrid, no3cycle, unzip,
-                                            nohybridladder, 20, 5, true);
+                                            nohybridladder, 20, 5, false);
                                             # maxmoves = 20, nreject = 5
         end
     end
@@ -188,6 +188,6 @@ end
 fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..",
             "examples", "simple.aln"));
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
-PhyloNetworks.multiphyLiNC!(net, fastafile, :JC69, 2, true, true, true,
-                            20, 5, 2, "phyLiNC", true, 123)
+@test typeof(PhyloNetworks.multiphyLiNC!(net, fastafile, :JC69, 2, true, true, true,
+                            20, 5, 2, "phyLiNC", false, 123)) == PhyloNetworks.HybridNetwork
 end

@@ -441,7 +441,7 @@ function breakedge!(edge::Edge, net::HybridNetwork)
 end
 
 """
-    fuseedgesat!(i::Integer,net::HybridNetwork)
+    fuseedgesat!(i::Integer,net::HybridNetwork, multgammas=false::Bool)
 
 Removes `i`th node in net.node, if it is of degree 2.
 The parent and child edges of this node are fused.
@@ -449,7 +449,7 @@ Reverts the action of breakedge!.
 
 returns the fused edge.
 """
-function fuseedgesat!(i::Integer, net::HybridNetwork)
+function fuseedgesat!(i::Integer, net::HybridNetwork, multgammas=false::Bool)
     i <= length(net.node) ||
       error("node index $i too large: only $(length(net.node)) nodes in the network.")
     nodei = net.node[i]
@@ -459,11 +459,9 @@ function fuseedgesat!(i::Integer, net::HybridNetwork)
       error("can't fuse edges at node number $(nodei.number): connected to exactly 2 hybrid edges")
     j = argmax([e.number for e in nodei.edge])
     pe = nodei.edge[j] # edge to remove: pe.number > ce.number
-    if pe.hybrid       #                 unless it's a hybrid
-        ce = pe # keep ce, the hybrid edge -> keep its isMajor & gamma.
-        pe = nodei.edge[j==1 ? 2 : 1] # remove non-hybrid edge
-    else
-        ce = nodei.edge[j==1 ? 2 : 1] # edge to keep
+    ce = nodei.edge[j==1 ? 2 : 1]
+    if pe.hybrid       # unless it's a hybrid: should be --tree--> node i --hybrid-->
+        (ce,pe) = (pe,ce) # keep the hybrid edge: keep its isMajor
     end
     isnodeiparent = (nodei ≡ getParent(ce))
     (!ce.hybrid || isnodeiparent) ||
@@ -477,6 +475,9 @@ function fuseedgesat!(i::Integer, net::HybridNetwork)
     setNode!(ce,pn)       # pn comes 2nd in ce now: ce.node is: [original, pn]
     ce.isChild1 = isnodeiparent # to retain same direction as before.
     ce.length = addBL(ce.length, pe.length)
+    if multgammas
+        ce.gamma = multiplygammas(ce.gamma, pe.gamma)
+    end
     if net.root==i # isnodeiparent should be true, unless the root and ce's direction were not in sync
         newroot = pn
         if newroot.leaf && !ce.hybrid # then reverse ce's direction. pn.leaf and ce.hybrid should never both occur!
@@ -894,9 +895,9 @@ end
 #   on which parameters in the full network affect the quartet.
 # deleteIntLeaf! somewhat similar to fuseedgesat!
 """
-    deleteleaf!(HybridNetwork, leafName::AbstractString; simplify=true, unroot=false)
-    deleteleaf!(HybridNetwork, Node; simplify=true, unroot=false)
-    deleteleaf!(HybridNetwork, Integer; index=false, simplify=true, unroot=false)
+    deleteleaf!(HybridNetwork, leafName::AbstractString; simplify=true, unroot=false, multgammas=false)
+    deleteleaf!(HybridNetwork, Node; simplify=true, unroot=false, multgammas=false)
+    deleteleaf!(HybridNetwork, Integer; index=false, simplify=true, unroot=false, multgammas=false)
 
 Deletes a leaf node from the network, possibly from its name, number, or index
 in the network's array of nodes.
@@ -919,19 +920,21 @@ such as inCycle, partition, gammaz, etc.
 Does not require branch lengths, and designed to work on networks
 of all levels.
 """
-function deleteleaf!(net::HybridNetwork, node::Node; simplify=true::Bool, unroot=false::Bool)
+function deleteleaf!(net::HybridNetwork, node::Node;
+                     simplify=true::Bool, unroot=false::Bool, multgammas=false::Bool)
     node.leaf || error("node number $(node.number) is not a leaf.")
-    deleteleaf!(net, node.number, index=false; simplify=simplify, unroot=unroot)
+    deleteleaf!(net, node.number, index=false; simplify=simplify, unroot=unroot, multgammas=multgammas)
 end
 
-function deleteleaf!(net::HybridNetwork, nodeName::AbstractString; simplify=true::Bool, unroot=false::Bool)
+function deleteleaf!(net::HybridNetwork, nodeName::AbstractString;
+                     simplify=true::Bool, unroot=false::Bool, multgammas=false::Bool)
     tmp = findall(n -> n.name == nodeName, net.node)
     if length(tmp)==0
         error("node named $nodeName was not found in the network.")
     elseif length(tmp)>1
         error("several nodes were found with name $nodeName.")
     end
-    deleteleaf!(net, tmp[1], index=true; simplify=simplify, unroot=unroot)
+    deleteleaf!(net, tmp[1], index=true; simplify=simplify, unroot=unroot, multgammas=multgammas)
 end
 
 # recursive algorithm. nodes previously removed are all necessaily
@@ -942,7 +945,8 @@ end
 # hybrid edges from node to another node are not removed. fused instead.
 # consequence: node having 2 hybrid edges away from node should not occur.
 function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
-                     index=false::Bool, simplify=true::Bool, unroot=false::Bool)
+                     index=false::Bool, simplify=true::Bool, unroot=false::Bool,
+                     multgammas=false::Bool)
     i = nodeNumber # good if index=true
     if !index
       try
@@ -973,7 +977,7 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
             length(pn.edge)==0 || error("neighbor of leaf $(net.node[i].name) is another leaf, which had $(length(pn.edge)) edges (instead of 1)")
             return nothing # all done: exit function
         end
-        deleteleaf!(net, pn.number; simplify=simplify, unroot=unroot)
+        deleteleaf!(net, pn.number; simplify=simplify, unroot=unroot, multgammas=multgammas)
     elseif length(net.node[i].edge)==2 && (unroot || i != net.root)
         e1 = net.node[i].edge[1]
         e2 = net.node[i].edge[2]
@@ -990,10 +994,10 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
             if net.root==i net.root=getIndex(p1,net); end # should never occur though.
             deleteNode!(net,net.node[i])
             # recursive call on both p1 and p2.
-            deleteleaf!(net, p1.number; simplify=simplify, unroot=unroot)
-            sameparent || deleteleaf!(net, p2.number; simplify=simplify, unroot=unroot)
+            deleteleaf!(net, p1.number; simplify=simplify, unroot=unroot, multgammas=multgammas)
+            sameparent || deleteleaf!(net, p2.number; simplify=simplify, unroot=unroot, multgammas=multgammas)
         else
-            e1 = fuseedgesat!(i,net) # fused edge
+            e1 = fuseedgesat!(i,net, multgammas) # fused edge
             if simplify && e1.hybrid # check for cycle of k=2 nodes
                 cn = getChild(e1)
                 e2 = nothing
@@ -1007,11 +1011,12 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
                 if pn ≡ getParent(e2)
                     # e1 and e2 have same child and same parent. Remove e1.
                     e2.hybrid=false;
-                    e2.isMajor=true; e2.gamma += e1.gamma
+                    e2.isMajor=true;
+                    e2.gamma = addBL(e1.gamma, e2.gamma)
                     removeEdge!(pn,e1); removeEdge!(cn,e1)
                     deleteEdge!(net,e1,part=false)
                     # call recursion again because pn and/or cn might be of degree 2.
-                    deleteleaf!(net, cn.number; simplify=simplify, unroot=unroot)
+                    deleteleaf!(net, cn.number; simplify=simplify, unroot=unroot, multgammas=multgammas)
                 end
             end
         end

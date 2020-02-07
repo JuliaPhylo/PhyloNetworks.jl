@@ -445,7 +445,8 @@ function ladderpartition(net::HybridNetwork)
 end
 
 """
-    deleteHybridThreshold!(net::HybridNetwork, threshold::Float64, keepNodes=false, unroot=false)
+    deleteHybridThreshold!(net::HybridNetwork, threshold::Float64,
+                           keepNodes=false, unroot=false, multgammas=false)
 
 Deletes from a network all hybrid edges with heritability below a threshold gamma.
 Returns the network.
@@ -463,7 +464,8 @@ Warnings:
 - assumes correct `isMajor` fields, and correct `isChild1` fields to update `containRoot`.
 """
 function deleteHybridThreshold!(net::HybridNetwork, gamma::Float64,
-                                keepNodes=false::Bool, unroot=false::Bool)
+                                keepNodes=false::Bool, unroot=false::Bool,
+                                multgammas=false::Bool)
     gamma <= 0.5 || error("deleteHybridThreshold! called with gamma = $(gamma)>0.5")
     for i = net.numHybrids:-1:1
     # starting from last because net.hybrid changes as hybrids are removed. Empty range if 0 hybrids.
@@ -473,7 +475,7 @@ function deleteHybridThreshold!(net::HybridNetwork, gamma::Float64,
         if e.gamma < gamma || gamma == 0.5 # note: γ=-1 if missing, so < gamma threshold
             # deleteHybrid!(net.hybrid[i],net,true,false) # requires non-missing edge lengths
             # deleteHybridizationUpdate! requires level-1 network with corresponding attributes
-            deletehybridedge!(net, e, keepNodes, unroot) # does not update inCycle, etc.
+            deletehybridedge!(net, e, keepNodes, unroot, multgammas) # does not update inCycle, etc.
         end
     end
     return net
@@ -481,7 +483,7 @@ end
 
 """
     displayedNetworks!(net::HybridNetwork, node::Node, keepNode=false,
-                       unroot=false)
+                       unroot=false, multgammas=false)
 
 Extracts the two networks that simplify a given network at a given hybrid node:
 deleting either one or the other parent hybrid edge.
@@ -492,21 +494,22 @@ If `unroot` is true, the root will be deleted if it becomes of degree 2.
 - returns one HybridNetwork object: the network with the major edge removed
 """
 function displayedNetworks!(net::HybridNetwork, node::Node,
-                            keepNodes=false::Bool, unroot=false::Bool)
+                            keepNodes=false::Bool, unroot=false::Bool,
+                            multgammas=false::Bool)
     node.hybrid || error("will not extract networks from tree node $(node.number)")
     ind = findfirst(x -> x===node, net.node)
     ind !== nothing || error("node $(node.number) was not found in net")
     netmin = deepcopy(net)
     emin = getMinorParentEdge(node)
-    deletehybridedge!(net   , emin, keepNodes, unroot)  # *no* update of inCycle, etc.
+    deletehybridedge!(net   , emin, keepNodes, unroot, multgammas)  # *no* update of inCycle, etc.
     emaj = getMajorParentEdge(netmin.node[ind]) # hybrid node & edge in netmin
-    deletehybridedge!(netmin, emaj, keepNodes, unroot)
+    deletehybridedge!(netmin, emaj, keepNodes, unroot, multgammas)
     return netmin
 end
 
 """
     displayedTrees(net::HybridNetwork, gamma::Float64; keepNodes=false::Bool,
-                   unroot=false::Bool)
+                   unroot=false::Bool, multgammas=false::Bool)
 
 Extracts all trees displayed in a network, following hybrid edges
 with heritability >= γ threshold (or >0.5 if threshold=0.5)
@@ -515,6 +518,9 @@ Returns an array of trees, as HybridNetwork objects.
 
 `keepNodes`: if true, keep all nodes during hybrid edge removal.
 `unroot`: if false, the root will not be deleted if it becomes of degree 2.
+`multgammas`: if false, the edges in the displayed trees will keep their
+original γ's, such that their product represents the proportion of
+genes that the tree represents.
 
 Warnings:
 
@@ -523,11 +529,12 @@ Warnings:
 - assume correct `isMajor` attributes.
 """
 function displayedTrees(net0::HybridNetwork, gamma::Float64;
-                        keepNodes=false::Bool, unroot=false::Bool)
+                        keepNodes=false::Bool, unroot=false::Bool,
+                        multgammas=false::Bool)
     trees = HybridNetwork[]
     net = deepcopy(net0)
-    deleteHybridThreshold!(net,gamma,keepNodes,unroot)
-    displayedTrees!(trees,net,keepNodes,unroot)
+    deleteHybridThreshold!(net,gamma,keepNodes,unroot, multgammas)
+    displayedTrees!(trees,net,keepNodes,unroot, multgammas)
     return trees # should have length 2^net.numHybrids
 end
 
@@ -590,14 +597,15 @@ majorTree(net::HybridNetwork; keepNodes=false::Bool, unroot=false::Bool) =
 
 # expands current list of trees, with trees displayed in a given network
 function displayedTrees!(trees::Array{HybridNetwork,1}, net::HybridNetwork,
-                        keepNodes=false::Bool, unroot=false::Bool)
+                        keepNodes=false::Bool, unroot=false::Bool,
+                        multgammas=false::Bool)
     if isTree(net)
         # warning: no update of edges' containRoot (true) or edges' and nodes' inCycle (-1)
         push!(trees, net)
     else
-        netmin = displayedNetworks!(net, net.hybrid[1], keepNodes, unroot)
-        displayedTrees!(trees, net, keepNodes, unroot)
-        displayedTrees!(trees, netmin, keepNodes, unroot)
+        netmin = displayedNetworks!(net, net.hybrid[1], keepNodes, unroot, multgammas)
+        displayedTrees!(trees, net, keepNodes, unroot, multgammas)
+        displayedTrees!(trees, netmin, keepNodes, unroot, multgammas)
     end
 end
 
@@ -612,7 +620,8 @@ If `unroot` is true, the root will be deleted if it becomes of degree 2.
 
 Warning: assume correct `isMajor` fields.
 """
-function minorTreeAt(net::HybridNetwork, hybindex::Integer, keepNodes=false::Bool, unroot=false::Bool)
+function minorTreeAt(net::HybridNetwork, hybindex::Integer,
+            keepNodes=false::Bool, unroot=false::Bool)
     hybindex <= length(net.hybrid) || error("network has fewer hybrid nodes than index $(hybindex).")
     tree = deepcopy(net)
     hybedge = getMajorParentEdge(tree.hybrid[hybindex])
@@ -622,7 +631,7 @@ end
 
 """
     displayedNetworkAt!(net::HybridNetwork, node::Node, keepNodes=false,
-                        unroot=false)
+                        unroot=false, multgammas=false)
 
 Delete all the minor hybrid edges, except at input node. The network is left
 with a single hybridization, and otherwise displays the same major tree as before.
@@ -631,13 +640,14 @@ If `keepNodes` is true, all nodes are kept during edge removal.
 Warning: assume correct `isMajor` fields.
 """
 function displayedNetworkAt!(net::HybridNetwork, node::Node,
-                             keepNodes=false::Bool, unroot=false::Bool)
+                             keepNodes=false::Bool, unroot=false::Bool,
+                             multgammas=false::Bool)
     node.hybrid || error("will not extract network from tree node $(node.number)")
     for i = net.numHybrids:-1:1
     # starting from last because net.hybrid changes as hybrids are removed. Empty range if 0 hybrids.
         net.hybrid[i] != node || continue
         emin = getMinorParentEdge(net.hybrid[i])
-        deletehybridedge!(net, emin, keepNodes, unroot)
+        deletehybridedge!(net, emin, keepNodes, unroot, multgammas)
     end
 end
 
