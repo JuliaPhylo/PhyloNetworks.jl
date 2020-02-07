@@ -577,11 +577,11 @@ function updateSSM!(obj::SSM, renumber=false::Bool)
     for tree in obj.displayedtree
         preorder!(tree) # no need to call directEdges! before: already done on net
         #core likelihood uses nodes_changed to traverse tree in post-order
-        length(tree.nodes_changed) == nnodes ||
-            error("displayed tree with too few nodes: $(writeTopology(tree))")
-        #? allow this because, in some cases, we remove a hybrid node during displayedtrees because it has no children.
-        length(tree.edge) == length(obj.net.edge)-obj.net.numHybrids ||
-            error("displayed tree with too few edges: $(writeTopology(tree))")
+        # length(tree.nodes_changed) == nnodes ||
+        #     error("displayed tree with too few nodes: $(writeTopology(tree))")
+        # length(tree.edge) == length(obj.net.edge)-obj.net.numHybrids ||
+        #     error("displayed tree with too few edges: $(writeTopology(tree))")
+        # allow this because, in some cases, we remove a hybrid node during displayedtrees because it has no children.
     end
     # log tree weights: sum log(γ) over edges, for each displayed tree
     obj.priorltw = inheritanceWeight.(obj.displayedtree)

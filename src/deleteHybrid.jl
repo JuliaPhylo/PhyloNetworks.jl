@@ -331,6 +331,7 @@ function deletehybridedge!(net::HybridNetwork, edge::Edge,
     n1 = getChild(edge)  # child of edge, to be deleted
     n1.hybrid || error("child node $(n1.number) of hybrid edge $(edge.number) should be a hybrid.")
     n2 = getParent(edge)  # parent of edge, to be deleted too.
+    n2hadHybEdge = n2.hasHybEdge
     # next: keep hybrid node n1 if it has 4+ edges (2 parents and 2+ children).
     #       2 or 1 edges should never occur.
     if length(n1.edge) < 3
@@ -350,6 +351,7 @@ function deletehybridedge!(net::HybridNetwork, edge::Edge,
             allowrootbelow!(pe) # warning: assumes correct `isChild1` for pe and below
         end
         # delete n1 and its parent edge until reach a polytomy
+        # only want to do this if n1 (in its original state) had 2+ hybrid edges
         if !n1.leaf && length(n1.edge) == 1
             deleteleaf!(net, n1.number; index=false, simplify=true, unroot=unroot, multgammas=multgammas)
         end
@@ -397,7 +399,6 @@ function deletehybridedge!(net::HybridNetwork, edge::Edge,
             allowrootbelow!(pe) # warning: assumes correct `isChild1` for pe and below
         end
     end
-
     # next: keep n2 if it has 4+ edges (or if keepNodes). 1 edge should never occur.
     #       If root, would have no parent: treat network as unrooted and change the root.
     delete_n2_recursively = false # especially needed if case n2 is a hybrid itself, or if "edge" part of a 2-cycle
@@ -421,7 +422,9 @@ function deletehybridedge!(net::HybridNetwork, edge::Edge,
         removeEdge!(n2,edge)
         delete_n2_recursively = !keepNodes
         # delete n2 and its parent edge recursively
-        if !n2.leaf && length(n2.edge) == 1 && keepNodes
+        # only want to this if, in the full network, n2 has 2 or more hybrid edges
+        #? how to identify these?
+        if !n2.leaf && length(n2.edge) == 1 && keepNodes && n2hadHybEdge #TODO n2hadHybEdge isnt working: its too inclusive
             delete_n2_recursively = true
         end
     end

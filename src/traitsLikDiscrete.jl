@@ -86,10 +86,11 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
         nnodes = length(net.node)
         for tree in trees
             preorder!(tree) # no need to call directEdges! before: already done on net
-            length(tree.nodes_changed) == nnodes ||
-                error("displayed tree with too few nodes: $(writeTopology(tree))")
-            length(tree.edge) == length(net.edge)-net.numHybrids ||
-                error("displayed tree with too few edges: $(writeTopology(tree))")
+            # length(tree.nodes_changed) == nnodes ||
+            #     error("displayed tree with too few nodes: $(writeTopology(tree))")
+            # length(tree.edge) == length(net.edge)-net.numHybrids ||
+            #     error("displayed tree with too few edges: $(writeTopology(tree))")
+            # allow this because, in some cases, we remove a hybrid node during displayedtrees because it has no children.
         end
         ntrees = 2^maxhybrid
         ntrees >= length(trees) ||
