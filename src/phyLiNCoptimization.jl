@@ -232,7 +232,7 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
     fit!(obj; optimizeQ=true, optimizeRVAS=true, maxeval=20) #rough optim of rates and alpha
 
     done = false
-    while !done # break out of this loop only is if rejections = nreject.
+    while !done # break out of this loop only is if nnmoves < mmaxmoves and rejections < nreject.
         done = optimizestructure!(obj, maxmoves, maxhybrid, no3cycle, unzip,
             nohybridladder, nreject, verbose, constraints)
         fit!(obj; optimizeQ=true, optimizeRVAS=true, ftolRel=1e-2, ftolAbs=1e-2,
@@ -871,7 +871,7 @@ function optimizelocalgammas!(obj::SSM, net::HybridNetwork, edge::Edge,
     if length(edges) == 0
         @debug "no local gammas to optimize around edge $edge"
     else
-        optimizegammas!(obj, net, edges, unzip, verbose, 20, :LD_MMA, fRelBL,
+        optimizegammas!(obj, net, edges, unzip, verbose, 10, :LD_MMA, fRelBL,
             fAbsBL, xRelBL, xAbsBL) # maxeval = 20
     end
 end
@@ -922,7 +922,7 @@ function optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge},
     NLopt.xtol_rel!(optgamma,xtolRel)
     NLopt.xtol_abs!(optgamma,xtolAbs)
     NLopt.maxeval!(optgamma, maxeval) # max number of iterations
-    NLopt.initial_step!(optgamma, 0.05) # step size
+    # NLopt.initial_step!(optgamma, 0.05) # step size
     # NLopt.maxtime!(optgamma, t::Real)
     NLopt.lower_bounds!(optgamma, zeros(Float64, npargamma))
     NLopt.upper_bounds!(optgamma, ones(Float64, npargamma))
