@@ -33,7 +33,7 @@ function multiphyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
 
     probST = 0.3 # TODO use this in future?
     writelog = true
-    writelog_1proc = false
+    writelog_1proc = true
     if filename != ""
         julialog = string(filename,".log")
         logfile = open(julialog,"w")
@@ -871,8 +871,8 @@ function optimizelocalgammas!(obj::SSM, net::HybridNetwork, edge::Edge,
     if length(edges) == 0
         @debug "no local gammas to optimize around edge $edge"
     else
-        optimizegammas!(obj, net, edges, unzip, verbose, 10, :LD_MMA, fRelBL,
-            fAbsBL, xRelBL, xAbsBL) # maxeval = 10
+        optimizegammas!(obj, net, edges, unzip, verbose, 20, :LD_MMA, fRelBL,
+            fAbsBL, xRelBL, xAbsBL) # maxeval = 20
     end
 end
 
@@ -922,7 +922,7 @@ function optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge},
     NLopt.xtol_rel!(optgamma,xtolRel)
     NLopt.xtol_abs!(optgamma,xtolAbs)
     NLopt.maxeval!(optgamma, maxeval) # max number of iterations
-    #NLopt.initial_step!(optgamma, 0.05) # step size
+    NLopt.initial_step!(optgamma, 0.05) # step size
     # NLopt.maxtime!(optgamma, t::Real)
     NLopt.lower_bounds!(optgamma, zeros(Float64, npargamma))
     NLopt.upper_bounds!(optgamma, ones(Float64, npargamma))

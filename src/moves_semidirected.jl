@@ -321,7 +321,7 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8,
         pti = findfirst(isequal(:parent), labs) # parent index: there should be 1 or 0
         ci = findall(  isequal(:child), labs)  # vector. there should be 1 or 2
         if pti === nothing
-            length(ci) == 2 || error("node $(u.number) should have 2 children other than $(v.number)")
+            length(ci) == 2 || error("node $(u.number) should have 2 children other than node number $(v.number)")
             pti = popfirst!(ci)
             αu = u.edge[pti]
             α = getChild(αu)
