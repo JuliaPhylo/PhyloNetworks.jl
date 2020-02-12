@@ -515,6 +515,12 @@ function deletehybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     optimizelocalBL!(obj, obj.net, minorhybridedge, unzip, verbose)
     optimizelocalgammas!(obj, obj.net, minorhybridedge, unzip, verbose)
     if obj.loglik - currLik > likAbsDelHybLiNC # -0.1: loglik can decrease for parsimony
+        @info "hybrid node n1 in deletehybridedge_LiNC is $(hybridnode.number)"
+        @info "minor hybrid edge is edge number $(minorhybridedge.number)"
+        @info "length(n1.edge) is $(length(getChild(minorhybridedge).edge))"
+        @info "n2 is $(getParent(minorhybridedge))"  # parent of edge, to be deleted too.
+        @info "the length of n2 is $length(getParent(minorhybridedge).edge)"
+        @show writeTopology(obj.net)
         e1 = getChildEdge(hybridnode)
         deletehybridedge!(obj.net, minorhybridedge, false, true) # don't keep nodes; unroot
         updateSSM!(obj, true)
@@ -652,6 +658,10 @@ function startingBL!(net::HybridNetwork, unzip::Bool,
         forceMinorLength0=false, ultrametric=false)
 
     if unzip && length(net.hybrid) > 0
+        @info "hybrid nodes in obj are: $(net.hybrid)"
+        @show writeTopology(net)
+        @show printEdges(net)
+        @show printNodes(net)
         constrainededges = [getChildEdge(h) for h in net.hybrid]
         setlengths!(constrainededges, zeros(length(constrainededges)))
     end
@@ -727,6 +737,7 @@ function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge},
     unzip::Bool, verbose=false::Bool, maxeval=1000::Int64, NLoptMethod=:LD_MMA::Symbol,
     ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
     xtolAbs=xAbsBL::Float64)
+
     if unzip && length(net.hybrid) > 0
         constrainededges = [getChildEdge(h) for h in net.hybrid]
         setlengths!(constrainededges, zeros(length(constrainededges)))

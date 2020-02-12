@@ -983,7 +983,7 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
             length(pn.edge)==0 || error("neighbor of leaf $(net.node[i].name) is another leaf, which had $(length(pn.edge)) edges (instead of 1)")
             return nothing # all done: exit function
         end
-        deleteleaf!(net, pn.number; simplify=simplify, unroot=unroot, multgammas=multgammas)
+        deleteleaf!(net, pn.number; keepNodes = keepNodes, simplify=simplify, unroot=unroot, multgammas=multgammas)
     elseif length(net.node[i].edge)==2 && (unroot || i != net.root)
         e1 = net.node[i].edge[1]
         e2 = net.node[i].edge[2]
@@ -1000,9 +1000,9 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
             if net.root==i net.root=getIndex(p1,net); end # should never occur though.
             deleteNode!(net,net.node[i])
             # recursive call on both p1 and p2.
-            deleteleaf!(net, p1.number; simplify=simplify, unroot=unroot, multgammas=multgammas)
-            sameparent || deleteleaf!(net, p2.number; simplify=simplify, unroot=unroot, multgammas=multgammas)
-        else #todo: if keepNodes do not fuseedges?
+            deleteleaf!(net, p1.number; keepNodes = keepNodes, simplify=simplify, unroot=unroot, multgammas=multgammas)
+            sameparent || deleteleaf!(net, p2.number; keepNodes = keepNodes, simplify=simplify, unroot=unroot, multgammas=multgammas)
+        elseif !keepNodes #if keeepNodes, do not fuseedges. The recursion should stop.
             e1 = fuseedgesat!(i,net, multgammas) # fused edge
             if simplify && e1.hybrid # check for cycle of k=2 nodes
                 cn = getChild(e1)
@@ -1022,7 +1022,7 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
                     removeEdge!(pn,e1); removeEdge!(cn,e1)
                     deleteEdge!(net,e1,part=false)
                     # call recursion again because pn and/or cn might be of degree 2.
-                    deleteleaf!(net, cn.number; simplify=simplify, unroot=unroot, multgammas=multgammas)
+                    deleteleaf!(net, cn.number; keepNodes = keepNodes, simplify=simplify, unroot=unroot, multgammas=multgammas)
                 end
             end
         end
