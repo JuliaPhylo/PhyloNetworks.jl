@@ -197,7 +197,7 @@ branch lengths?
   `ftolRel` (1e-12), `ftolAbs` (1e-10) on the likelihood, and
   `xtolRel` (1e-10), `xtolAbs` (1e-10) on the model parameters.
 - bounds for the alpha parameter of the Gamma distribution of
-rates across sites: `alphamin=0.05`, `alphamax=500`.
+rates across sites: `alphamin=0.05`, `alphamax=50`.
 - `verbose` (false): if true, more information is output.
 
 # examples:
@@ -456,7 +456,7 @@ end
 function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
     verbose=false::Bool, maxeval=1000::Int64, NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
     ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
-    alphamin=amin, alphamax=amax)
+    alphamin=alphaRASmin, alphamax=alphaRASmax)
     all(x -> x >= 0.0, [e.length for e in obj.net.edge]) || error("branch lengths should be >= 0")
     all(x -> x >= 0.0, [e.gamma for e in obj.net.edge]) || error("gammas should be >= 0")
     if optimizeQ && nparams(obj.model) <1

@@ -186,7 +186,7 @@ When `node` is given, it is assumed to be the child of `edge`
 end
 @inline function getPartner(edge::Edge, node::Node)
     for e in node.edge
-        if e.hybrid && e != edge && node == getChild(e)
+        if e.hybrid && e !== edge && node === getChild(e)
             return e
         end
     end
@@ -828,8 +828,8 @@ function removeEdge!(node::Node,edge::Edge)
             error("edge $(edge.number) not in node $(node.number)")
         end
     end
-    deleteat!(node.edge,index);
-    all((e->!e.hybrid), node.edge) ? node.hasHybEdge = false : node.hasHybEdge = true;
+    deleteat!(node.edge,index)
+    node.hasHybEdge = any(e -> e.hybrid, node.edge)
 end
 
 # function to remove a node from a edge

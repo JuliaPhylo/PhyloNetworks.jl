@@ -240,6 +240,7 @@ function nni!(net::HybridNetwork, e::Edge, nohybridladder::Bool=true, no3cycle::
             continue          # try again
         end
         # no need to check that species constraints are still met
+        @show "proposed NNI move number: $(nummove)"
         return moveinfo
     end
     return nothing # if we get to this point, all NNIs failed
@@ -399,13 +400,13 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8,
             αparentu = getChild(αu)===u
             βparentu = getChild(βu)===u
             if αparentu
-                if isdescendant(γ, β) return nothing; end
+                if γ === β || isdescendant(γ, β) return nothing; end
             elseif βparentu
-                if isdescendant(γ, α) return nothing; end
+                if γ === α || isdescendant(γ, α) return nothing; end
             else # cases when u is root
-                if nummove == 0x01 && isdescendant(γ, α)
+                if nummove == 0x01 && (γ === α || isdescendant(γ, α))
                     return nothing
-                elseif nummove == 0x02 && isdescendant(γ, β)
+                elseif nummove == 0x02 && (γ === β || isdescendant(γ, β))
                     return nothing
                 elseif nummove == 0x03 # fail: not DAG
                     return nothing

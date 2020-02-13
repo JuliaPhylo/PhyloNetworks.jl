@@ -1,8 +1,9 @@
+# any change to these constants must be documented in phyLiNC!
 const moveweights = Distributions.aweights([0.5, 0.3, 0.2])
 const likAbsAddHybLiNC = 0.5
 const likAbsDelHybLiNC = -0.1
-const amin = 0.05
-const amax = 500.0
+const alphaRASmin = 0.05
+const alphaRASmax = 50.0
 
 # optimization wrapper functions #
 
@@ -14,9 +15,9 @@ const amax = 500.0
         NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
         ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,xtolAbs=xAbsBL::Float64,
         constraints=TopologyConstraint[]::Vector{TopologyConstraint},
-        alphamin=amin::Float64, alphamax=amax::Float64)
+        alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
 
-Estimate multiple networks using PhyLiNC.
+Estimate a phylogenetic networks using PhyLiNC, using multiple runs.
 
 - `nruns` (default 10): number of independent starting points for the search
 `filename` (default "phyLiNC"): root name for the output files (`.out`, `.err`). If empty (""),
@@ -29,7 +30,7 @@ function multiphyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
     NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
     ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,xtolAbs=xAbsBL::Float64,
     constraints=TopologyConstraint[]::Vector{TopologyConstraint},
-    alphamin=amin::Float64, alphamax=amax::Float64)
+    alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
 
     probST = 0.3 # TODO use this in future?
     writelog = true
@@ -152,7 +153,7 @@ end
         ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
         xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
         constraints=TopologyConstraint[]::Vector{TopologyConstraint},
-        alphamin=amin::Float64, alphamax=amax::Float64)
+        alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
 
 Estimate a phylogenetic network (or tree) from concatenated fasta data using
 maximum likelihood. Any level network is accepted. The search starts from the
@@ -212,7 +213,7 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
     verbose=false::Bool, seed=0::Int64, NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
     ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
     constraints=TopologyConstraint[]::Vector{TopologyConstraint},
-    alphamin=amin::Float64, alphamax=amax::Float64)
+    alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
     if seed == 0
         t = time()/1e9
         a = split(string(t),".")
@@ -356,6 +357,7 @@ function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
                     if !isnothing(undoinfo)
                         nmoves += 1
                         edgefound = true
+                        @info """nni proposed: around edge number $(e1.number)"""
                         discrete_corelikelihood!(obj)
                         optimizelocalBL!(obj, obj.net, e1, unzip, verbose)
                         optimizelocalgammas!(obj, obj.net, e1, unzip, verbose)
@@ -425,6 +427,12 @@ function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
         end
         verbose && println("""loglik = $(loglikelihood(obj)) after move of type
         $movechoice, $nmoves total moves, and $rejections rejected moves""")
+        verbose && @info "$(length(obj.net.edge)) edges:"
+        verbose && printEdges(obj.net)
+        verbose && println("root: node number $(obj.net.node[obj.net.root])")
+        verbose && @info "$(length(obj.net.node)) nodes:"
+        verbose && printNodes(obj.net)
+        verbose && @show writeTopology(obj.net)
     end
     return rejections >= nreject # done if rejections >= nreject
 end
@@ -515,13 +523,11 @@ function deletehybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     optimizelocalBL!(obj, obj.net, minorhybridedge, unzip, verbose)
     optimizelocalgammas!(obj, obj.net, minorhybridedge, unzip, verbose)
     if obj.loglik - currLik > likAbsDelHybLiNC # -0.1: loglik can decrease for parsimony
-        @info "hybrid node n1 in deletehybridedge_LiNC is $(hybridnode.number)"
-        @info "minor hybrid edge is edge number $(minorhybridedge.number)"
-        @info "length(n1.edge) is $(length(getChild(minorhybridedge).edge))"
-        @info "n2 is $(getParent(minorhybridedge))"  # parent of edge, to be deleted too.
-        @info "the length of n2 is $length(getParent(minorhybridedge).edge)"
+        @info """hybrid node n1 in deletehybridedge_LiNC is $(hybridnode.number)
+        minor hybrid edge is edge number $(minorhybridedge.number)
+        n1 of degree $(length(getChild(minorhybridedge).edge))
+        n2 is $(getParent(minorhybridedge)) of degree $(length(getParent(minorhybridedge).edge))"""
         @show writeTopology(obj.net)
-        e1 = getChildEdge(hybridnode)
         deletehybridedge!(obj.net, minorhybridedge, false, true) # don't keep nodes; unroot
         updateSSM!(obj, true)
         discrete_corelikelihood!(obj)
@@ -1022,7 +1028,7 @@ and a rate appropriate for the branch lengths in `net`
 The `data` frame must have the actual trait/site data in columns 2 and up,
 as when the species names are in column 1.
 For DNA data, the relative rate model is returned, with a
-stationary distribution equal to empirical frequencies for DNA data.
+stationary distribution equal to the empirical frequencies.
 """
 function symboltomodel(net::HybridNetwork, modsymbol::Symbol, data::DataFrame,
         siteweights=repeat([1.], inner=size(data,2))::AbstractVector)
