@@ -138,14 +138,6 @@ PhyloNetworks.discrete_corelikelihood!(obj)
 @test typeof(PhyloNetworks.optimizestructure!(obj, maxmoves, maxhybrid, true, true, true)) == Bool
 @test writeTopology(obj.net) != "(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);"
 
-# allow 3-cycles
-net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
-obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastafile, :JC69, maxhybrid)
-PhyloNetworks.checknetworkbeforeLiNC!(obj.net, maxhybrid, false, true, true)
-PhyloNetworks.discrete_corelikelihood!(obj)
-@test typeof(PhyloNetworks.optimizestructure!(obj, maxmoves, maxhybrid, false, true, true)) == Bool
-@test writeTopology(obj.net) != "(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);"
-
 # unzip = false
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastafile, :JC69, maxhybrid)
@@ -163,7 +155,8 @@ PhyloNetworks.discrete_corelikelihood!(obj)
 @test writeTopology(obj.net) != "(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);"
 end # of optimizestructure with simple example
 
-@testset "phyLiNC with simple net, no constraints" for no3cycle in [true, false]
+@testset "phyLiNC with simple net, no constraints" begin
+no3cycle = true
 fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..",
             "examples", "simple.aln"));
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
@@ -180,8 +173,8 @@ for unzip in [true, false]
                                             :JC69, maxhybrid, no3cycle, unzip,
                                             nohybridladder, 20, 5, false);
                                             # maxmoves = 20, nreject = 5
-        end
     end
+end
 end
 
 @testset "multiphyLiNC" begin
@@ -189,5 +182,5 @@ fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..",
             "examples", "simple.aln"));
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
 @test typeof(PhyloNetworks.multiphyLiNC!(net, fastafile, :JC69, 2, true, true, true,
-                            20, 5, 2, "phyLiNC", false, 123)) == PhyloNetworks.HybridNetwork
+                            20, 5, 2, "phyLiNC", false, 123)) == PhyloNetworks.StatisticalSubstitutionModel
 end

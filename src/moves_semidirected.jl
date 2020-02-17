@@ -240,7 +240,6 @@ function nni!(net::HybridNetwork, e::Edge, nohybridladder::Bool=true, no3cycle::
             continue          # try again
         end
         # no need to check that species constraints are still met
-        @show "proposed NNI move number: $(nummove)"
         return moveinfo
     end
     return nothing # if we get to this point, all NNIs failed

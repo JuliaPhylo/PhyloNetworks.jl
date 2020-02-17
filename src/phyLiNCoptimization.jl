@@ -140,7 +140,7 @@ function multiphyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
     else
         error("all runs failed")
     end
-    return bestnet
+    return maxNet
 end
 
 
@@ -357,7 +357,6 @@ function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
                     if !isnothing(undoinfo)
                         nmoves += 1
                         edgefound = true
-                        @info """nni proposed: around edge number $(e1.number)"""
                         discrete_corelikelihood!(obj)
                         optimizelocalBL!(obj, obj.net, e1, unzip, verbose)
                         optimizelocalgammas!(obj, obj.net, e1, unzip, verbose)
@@ -425,14 +424,12 @@ function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
                 @debug("Cannot perform a root change move on current network.")
             end
         end
-        verbose && println("""loglik = $(loglikelihood(obj)) after move of type
-        $movechoice, $nmoves total moves, and $rejections rejected moves""")
-        verbose && @info "$(length(obj.net.edge)) edges:"
-        verbose && printEdges(obj.net)
-        verbose && println("root: node number $(obj.net.node[obj.net.root])")
-        verbose && @info "$(length(obj.net.node)) nodes:"
-        verbose && printNodes(obj.net)
-        verbose && @show writeTopology(obj.net)
+        # println("""loglik = $(loglikelihood(obj)) after move of type #TODO remove
+        # $movechoice, $nmoves total moves, and $rejections rejected moves
+        # $(length(obj.net.edge)) edges: $(printEdges(obj.net))
+        # root: node number $(obj.net.node[obj.net.root])
+        # $(length(obj.net.node)) nodes: $(printNodes(obj.net))
+        # $(writeTopology(obj.net))""")
     end
     return rejections >= nreject # done if rejections >= nreject
 end
@@ -523,11 +520,6 @@ function deletehybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     optimizelocalBL!(obj, obj.net, minorhybridedge, unzip, verbose)
     optimizelocalgammas!(obj, obj.net, minorhybridedge, unzip, verbose)
     if obj.loglik - currLik > likAbsDelHybLiNC # -0.1: loglik can decrease for parsimony
-        @info """hybrid node n1 in deletehybridedge_LiNC is $(hybridnode.number)
-        minor hybrid edge is edge number $(minorhybridedge.number)
-        n1 of degree $(length(getChild(minorhybridedge).edge))
-        n2 is $(getParent(minorhybridedge)) of degree $(length(getParent(minorhybridedge).edge))"""
-        @show writeTopology(obj.net)
         deletehybridedge!(obj.net, minorhybridedge, false, true) # don't keep nodes; unroot
         updateSSM!(obj, true)
         discrete_corelikelihood!(obj)
@@ -664,10 +656,6 @@ function startingBL!(net::HybridNetwork, unzip::Bool,
         forceMinorLength0=false, ultrametric=false)
 
     if unzip && length(net.hybrid) > 0
-        @info "hybrid nodes in obj are: $(net.hybrid)"
-        @show writeTopology(net)
-        @show printEdges(net)
-        @show printNodes(net)
         constrainededges = [getChildEdge(h) for h in net.hybrid]
         setlengths!(constrainededges, zeros(length(constrainededges)))
     end
