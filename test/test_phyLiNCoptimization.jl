@@ -181,6 +181,8 @@ end
 fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..",
             "examples", "simple.aln"));
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
-@test typeof(PhyloNetworks.multiphyLiNC!(net, fastafile, :JC69, 2, true, true, true,
-                            20, 5, 2, "phyLiNC", false, 123)) == PhyloNetworks.StatisticalSubstitutionModel
+@test typeof(PhyloNetworks.multiphyLiNC!(net, fastafile, :JC69; maxhybrid=2,
+                    no3cycle=true, unzip=true, nohybridladder=true, maxmoves=20,
+                    nreject=5, nruns=2, filename="phyLiNC", verbose=false,
+                    seed=123)) == PhyloNetworks.StatisticalSubstitutionModel
 end

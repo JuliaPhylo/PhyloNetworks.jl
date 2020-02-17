@@ -1,5 +1,5 @@
 # any change to these constants must be documented in phyLiNC!
-const moveweights = Distributions.aweights([0.5, 0.3, 0.2])
+const moveweights = Distributions.aweights([0.4, 0.2, 0.2, 0.2])
 const likAbsAddHybLiNC = 0.5
 const likAbsDelHybLiNC = -0.1
 const alphaRASmin = 0.05
@@ -8,31 +8,38 @@ const alphaRASmax = 50.0
 # optimization wrapper functions #
 
 """
-    multiphyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
-        maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
-        nohybridladder=true::Bool, maxmoves=100::Int64, nreject=75::Int64,
-        nruns=10::Int64, verbose=false::Bool, seed=0::Int64,
-        NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
-        ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,xtolAbs=xAbsBL::Float64,
-        constraints=TopologyConstraint[]::Vector{TopologyConstraint},
-        alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
+    multiphyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
+                  maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
+                  nohybridladder=true::Bool, maxmoves=100::Int64,
+                  nreject=75::Int64, nruns=10::Int64,
+                  filename="phyLiNC"::AbstractString, verbose=false::Bool,
+                  seed=0::Int64, probST=0.3::Float64, NLoptMethod=:LD_MMA::Symbol,
+                  ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
+                  xtolAbs=xAbsBL::Float64,
+                  constraints=TopologyConstraint[]::Vector{TopologyConstraint},
+                  alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
 
 Estimate a phylogenetic networks using PhyLiNC, using multiple runs.
 
-- `nruns` (default 10): number of independent starting points for the search
-`filename` (default "phyLiNC"): root name for the output files (`.out`, `.err`). If empty (""),
-  files are *not* created, progress log goes to the screen only (standard out).
+`nruns`: number of independent starting points for the search
+`filename`: root name for the output files (`.out`, `.err`). If empty (""),
+files are *not* created, progress log goes to the screen only (standard out).
+`probST` is the probability of starting one run at the same input
+tree. So, with probability `1-probST`, we will change the topology by a NNI move
+on a tree edge without neighbor hybrid. If the starting topology is a network,
+then with probability `1-probST` it will also modify one randomly chosen hybrid
+edge: with prob 0.5, the function will move origin, with prob 0.5 will do move
+target.
 """
-function multiphyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
+function multiphyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
     maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
     nohybridladder=true::Bool, maxmoves=100::Int64, nreject=75::Int64,
-    nruns=10::Int64, filename="phyLiNC"::AbstractString, verbose=false::Bool, seed=0::Int64,
-    NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
-    ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,xtolAbs=xAbsBL::Float64,
+    nruns=10::Int64, filename="phyLiNC"::AbstractString, verbose=false::Bool,
+    seed=0::Int64, probST=0.3::Float64, NLoptMethod=:LD_MMA::Symbol,
+    ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
+    xtolAbs=xAbsBL::Float64,
     constraints=TopologyConstraint[]::Vector{TopologyConstraint},
     alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
-
-    probST = 0.3 # TODO use this in future?
     writelog = true
     writelog_1proc = true
     if filename != ""
@@ -100,8 +107,8 @@ function multiphyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
         try
             best = phyLiNC!(net, fastafile, modSymbol, maxhybrid, no3cycle,
                             unzip, nohybridladder, maxmoves, nreject, verbose,
-                            seeds[i], NLoptMethod, ftolRel, ftolAbs, xtolRel,
-                            xtolAbs, constraints, alphamin, alphamax)
+                            seeds[i], probST, NLoptMethod, ftolRel, ftolAbs,
+                            xtolRel, xtolAbs, constraints, alphamin, alphamax)
             logstr *= "\nFINISHED PhyLiNC for run $(i), -loglik of best $(best.loglik)\n"
             verbose && print(stdout, logstr)
             if writelog_1proc
@@ -143,17 +150,15 @@ function multiphyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
     return maxNet
 end
 
-
-
 """
     phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
-        maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
-        nohybridladder=true::Bool, maxmoves=100::Int64, nreject=75::Int64,
-        verbose=false::Bool, NLoptMethod=:LD_MMA::Symbol,
-        ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-        xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
-        constraints=TopologyConstraint[]::Vector{TopologyConstraint},
-        alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
+            maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
+            nohybridladder=true::Bool, maxmoves=100::Int64, nreject=75::Int64,
+            verbose=false::Bool, seed=0::Int64, probST=0.3::Float64,
+            NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
+            ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
+            constraints=TopologyConstraint[]::Vector{TopologyConstraint},
+            alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
 
 Estimate a phylogenetic network (or tree) from concatenated fasta data using
 maximum likelihood. Any level network is accepted. The search starts from the
@@ -161,7 +166,8 @@ given `net` topology, using local search to optimize structure (nearest-neighbor
 interchange moves, add hybridizations, and remove hybridizations) and non-linear
 optimization to optimize evolutionary rates, rate variation across sites, branch
 lengths and gammas.
-
+If probST > 0.0, then two NNI moves are attempted before
+optimization begins.
 Return a StatisticalSubstitutionModel object.
 
 There are many optional arguments, including
@@ -177,6 +183,11 @@ true, input network must not have hybrid ladders.
 hybrid gamma values, evolutionary rates, and rate variation parameters are
 reestimated.
 `verbose` (default = false): if true, print information about the numerical optimization
+`seed` (default 0 to get it from the clock): seed to replicate a given search
+`probST` (default 0.3): probability to start from `T` at each given run.
+  With problability 1-probST, the search is started from an NNI modification of `T`
+  along a tree edge with no hybrid neighbor,
+  with a possible modification of one reticulation if `T` has one.
 `constraints` (default none): topology constraints to follow during structure
 optimization. Created using [`TopologyConstraint`] (@ref)
 #? Should we create constraints in this function or ask users to do so beforehand?
@@ -201,16 +212,12 @@ rejections = nreject.
 the current score by at least liktolAbs.
 Lower values of `nreject` and greater values of `liktolAbs` and `ftolAbs` would
 result in a less thorough but faster search.
-
-`seed` (default 0 to get it from the clock): seed to replicate a given search
-
-# TODO in future, create wrapper to run multiple independent times
-# with different starting topologies
 """
 function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
     maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
     nohybridladder=true::Bool, maxmoves=100::Int64, nreject=75::Int64,
-    verbose=false::Bool, seed=0::Int64, NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
+    verbose=false::Bool, seed=0::Int64, probST=0.3::Float64,
+    NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
     ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
     constraints=TopologyConstraint[]::Vector{TopologyConstraint},
     alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
@@ -225,6 +232,19 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
 
     checknetworkbeforeLiNC!(obj.net, maxhybrid, no3cycle, unzip, nohybridladder,
     constraints)
+
+    discrete_corelikelihood!(obj)
+
+    if( probST < 1.0 && rand() < 1-probST) # modify starting tree by two nni moves (if possible)
+        nniLiNC!(obj, no3cycle, unzip, nohybridladder, verbose, constraints);
+        discrete_corelikelihood!(obj)
+        nniLiNC!(obj, no3cycle, unzip, nohybridladder, verbose, constraints);
+    end
+    # TODO add logfile here
+    # writelog && suc && write(logfile," changed starting topology by NNI move\n")
+    if(!isTree(obj.net))
+        # change hybrids in some way? snaq changes origin
+    end
 
     startingBL!(obj.net, unzip, obj.trait, obj.siteweight)
 
@@ -339,69 +359,47 @@ function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
     rejections = 0
     while nmoves < maxmoves && rejections < nreject # both should be true to continue
         currLik = obj.loglik
-        movechoice = sample(["nni", "hybrid", "root"], moveweights)
+        movechoice = sample(["nni", "addhybrid", "deletehybrid", "root"], moveweights)
         if movechoice == "nni"
-            edgefound = false
-            blacklist = Edge[]
-            while !edgefound # randomly select interior edge
-                if length(blacklist) == length(obj.net.edge)
-                    verbose &&
-                        println("There are no nni moves possible in this network.")
-                    break
-                end
-                remainingedges = setdiff(obj.net.edge, blacklist) # remove already tried edges
-                eindex = Random.rand(1:length(remainingedges))
-                e1 = remainingedges[eindex]
-                if !(e1 in blacklist) # else go back to top of nni while loop
-                    undoinfo = nni!(obj.net, e1,nohybridladder,no3cycle,constraints)
-                    if !isnothing(undoinfo)
-                        nmoves += 1
-                        edgefound = true
-                        discrete_corelikelihood!(obj)
-                        optimizelocalBL!(obj, obj.net, e1, unzip, verbose)
-                        optimizelocalgammas!(obj, obj.net, e1, unzip, verbose)
-                        if obj.loglik - currLik < likAbs
-                            nni!(undoinfo...) # undo move
-                            rejections += 1
-                        else
-                            rejections = 0 # reset
-                        end
-                    else # if move unsuccessful, search for edge until successful
-                        push!(blacklist, e1)
-                    end
-                end
+            nmoves += 1
+            verbose && println("There are no nni moves possible in this network.")
+            result = nniLiNC!(obj, no3cycle, unzip, nohybridladder, verbose,
+                              constraints)
+            if isnothing(result) # no nni moves possible
+                verbose && println("There are no nni moves possible in this network.")
+            elseif result # move successful and accepted
+                rejections = 0
+            else # move made, rejected, and undone
+                rejections += 1 # reset
             end
-        elseif movechoice == "hybrid" # perform hybrid move
+        elseif movechoice in ["addhybrid", "deletehybrid"]  # perform hybrid move
             if maxhybrid == 0
                 @debug("The maximum number of hybrids allowed is $maxhybrid,
                 so hybrid moves are not legal on this network.")
                 #TODO in future update moveprobability here as in SNaQ
             elseif length(obj.net.hybrid) == 0
-                add = true # add hybrid
+                movechoice = "addhybrid"
             elseif length(obj.net.hybrid) == maxhybrid
-                add = false # remove hybrid
-            elseif length(obj.net.hybrid) > maxhybrid
+                movechoice = "deletehybrid"
+            elseif length(obj.net.hybrid) > maxhybrid # this should never happen
                 error("""The network has more hybrids than allowed. maxhybrid =
                  $maxhybrid, but network has $(obj.net.hybrid) hybrids.""")
-            else  # meaning we can do either move
-                add = (rand() > 0.3) # add hybrid with 70% probability
-            end
-            if add
-                added = addhybridedge_LiNC!(obj, currLik, maxhybrid, no3cycle,
+            end # either move is possible
+            if movechoice == "addhybrid"
+                added = addhybridedgeLiNC!(obj, currLik, maxhybrid, no3cycle,
                         unzip, nohybridladder, verbose, constraints)
-                nmoves +=1
+                nmoves += 1
                 if isnothing(added)
                     verbose && println("Cannot add a hybrid to the network.")
                     movechoice = "add hybrid (unsuccessful attempt)"
                 elseif added
-                    movechoice = "add hybrid"
                     rejections = 0 # reset
                 else
                     movechoice = "add hybrid (but deleted afterward)"
                     rejections += 1
                 end
             else # delete hybrid
-                deleted = deletehybridedge_LiNC!(obj, currLik, maxhybrid,
+                deleted = deletehybridedgeLiNC!(obj, currLik, maxhybrid,
                         no3cycle, unzip, nohybridladder, verbose, constraints)
                 nmoves += 1
                 if isnothing(deleted)
@@ -409,7 +407,6 @@ function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
                      without violating a topology constraint.""")
                     movechoice = "delete hybrid (unsuccessful attempt)"
                 elseif deleted
-                    movechoice = "delete hybrid"
                     rejections = 0 # reset
                 else
                     movechoice = "delete hybrid (but added back)"
@@ -422,20 +419,68 @@ function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
             nmoves += 1
             if !changednet
                 @debug("Cannot perform a root change move on current network.")
+                #? reduce likelihood of root move?
             end
         end
-        # println("""loglik = $(loglikelihood(obj)) after move of type #TODO remove
-        # $movechoice, $nmoves total moves, and $rejections rejected moves
-        # $(length(obj.net.edge)) edges: $(printEdges(obj.net))
-        # root: node number $(obj.net.node[obj.net.root])
-        # $(length(obj.net.node)) nodes: $(printNodes(obj.net))
-        # $(writeTopology(obj.net))""")
+        verbose && println("""loglik = $(loglikelihood(obj)) after move of type
+        $movechoice, $nmoves total moves, and $rejections rejected moves
+        $(length(obj.net.edge)) edges: $(printEdges(obj.net))
+        root: node number $(obj.net.node[obj.net.root])
+        $(length(obj.net.node)) nodes: $(printNodes(obj.net))
+        $(writeTopology(obj.net))""")
     end
-    return rejections >= nreject # done if rejections >= nreject
+    return rejections >= nreject
 end
 
 """
-    addhybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
+    nniLiNC!(obj::SSM, no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
+             verbose::Bool,
+             constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+
+Loop over possible edges for a nearest-neighbor interchange move until one is
+found. Performs move and compares the original and modified likelihoods to
+decide whether to accept the move or not.
+Return true if move accepted, false if move rejected. Return nothing if there
+are no nni moves possible in the network.
+
+Assumptions:
+- called by [`optimizestructure!`](@ref) or [`phyLiNC!`](@ref)
+"""
+function nniLiNC!(obj::SSM, no3cycle::Bool, unzip::Bool, nohybridladder::Bool,
+                  verbose::Bool,
+                  constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    currLik = obj.loglik
+    edgefound = false
+    blacklist = Edge[]
+    while !edgefound # randomly select interior edge
+        if length(blacklist) == length(obj.net.edge)
+            return nothing
+        end
+        remainingedges = setdiff(obj.net.edge, blacklist) # remove already tried edges
+        eindex = Random.rand(1:length(remainingedges))
+        e1 = remainingedges[eindex]
+        if !(e1 in blacklist) # else go back to top of nni while loop
+            undoinfo = nni!(obj.net,e1,nohybridladder,no3cycle,constraints)
+            if !isnothing(undoinfo)
+                edgefound = true
+                discrete_corelikelihood!(obj)
+                optimizelocalBL!(obj, obj.net, e1, unzip, verbose)
+                optimizelocalgammas!(obj, obj.net, e1, unzip, verbose)
+                if obj.loglik - currLik < likAbs
+                    nni!(undoinfo...) # undo move
+                    return false # result = false
+                else
+                    return true # rejections = 0 # resets to zero
+                end
+            else # if move unsuccessful, search for edge until successful
+                push!(blacklist, e1)
+            end
+        end
+    end
+end
+
+"""
+    addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
         no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
         constraints::Vector{TopologyConstraint})
 
@@ -448,11 +493,11 @@ If cannot add a hybrid, return nothing.
 Assumptions:
 - called by [`optimizestructure!`](@ref)
 """
-function addhybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
+function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
     constraints::Vector{TopologyConstraint})
     orignet = deepcopy(obj.net) # hold old network in case we remove new hybrid
-        # TODO in future use the same memory space for this every time?
+        #? in future use the same memory space for this every time?
     result = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints)
     if !isnothing(result)
         newhybridnode, newhybridedge = result
@@ -474,7 +519,7 @@ function addhybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
 end
 
 """
-    deletehybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
+    deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
         no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
         constraints::Vector{TopologyConstraint})
 
@@ -486,7 +531,7 @@ Return true if accepted delete hybrid move. If move not accepted, return false.
 Assumptions:
 - called by [`optimizestructure!`](@ref) which does some checks.
 """
-function deletehybridedge_LiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
+function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     no3cycle::Bool, unzip::Bool, nohybridladder::Bool, verbose::Bool,
     constraints::Vector{TopologyConstraint})
     hybridnode = obj.net.hybrid[Random.rand(1:length(obj.net.hybrid))]
