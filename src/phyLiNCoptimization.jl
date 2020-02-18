@@ -107,8 +107,8 @@ function multiphyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
         try
             best = phyLiNC!(net, fastafile, modSymbol, maxhybrid, no3cycle,
                             unzip, nohybridladder, maxmoves, nreject, verbose,
-                            seeds[i], probST, NLoptMethod, ftolRel, ftolAbs,
-                            xtolRel, xtolAbs, constraints, alphamin, alphamax)
+                            seeds[i], probST, constraints, NLoptMethod, ftolRel, ftolAbs,
+                            xtolRel, xtolAbs, alphamin, alphamax)
             logstr *= "\nFINISHED PhyLiNC for run $(i), -loglik of best $(best.loglik)\n"
             verbose && print(stdout, logstr)
             if writelog_1proc
@@ -155,9 +155,9 @@ end
             maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
             nohybridladder=true::Bool, maxmoves=100::Int64, nreject=75::Int64,
             verbose=false::Bool, seed=0::Int64, probST=0.3::Float64,
+            constraints=TopologyConstraint[]::Vector{TopologyConstraint},
             NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
             ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
-            constraints=TopologyConstraint[]::Vector{TopologyConstraint},
             alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
 
 Estimate a phylogenetic network (or tree) from concatenated fasta data using
@@ -217,9 +217,9 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
     maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
     nohybridladder=true::Bool, maxmoves=100::Int64, nreject=75::Int64,
     verbose=false::Bool, seed=0::Int64, probST=0.3::Float64,
+    constraints=TopologyConstraint[]::Vector{TopologyConstraint},
     NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
     ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
-    constraints=TopologyConstraint[]::Vector{TopologyConstraint},
     alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
     if seed == 0
         t = time()/1e9
@@ -619,6 +619,7 @@ function updateSSM!(obj::SSM, renumber=false::Bool)
     if renumber # traits are in leaf.number order, so leaf nodes not reordered
         resetNodeNumbers!(obj.net; checkPreorder=false, type=:internalonly)
         resetEdgeNumbers!(obj.net)
+        #TODO update constraint crown node and stem edge numbers here when relevant
     end
     # extract displayed trees
     obj.displayedtree = displayedTrees(obj.net, 0.0; keepNodes=true)

@@ -60,6 +60,13 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
     different kinds of data (snp, amino acids). Similar to fitdiscrete()"
     function StatisticalSubstitutionModel(net::HybridNetwork, fastafile::String,
         modsymbol::Symbol, maxhybrid::Int64=length(net.hybrid))
+        if any([e.gamma < 0.0 for e in net.edge if e.hybrid]) # check for misssing gamma values
+            for i in 1:length([e for e in net.edge if e.hybrid])
+                if [e for e in net.edge if e.hybrid][i].gamma < 0.0
+                    setGamma!([e for e in net.edge if e.hybrid][i], 0.5)
+                end
+            end
+        end
         data, siteweights = readfastatodna(fastafile, true)
         model = symboltomodel(net, modsymbol, data, siteweights)
         ratemodel = RateVariationAcrossSites(1.0, 1) #? add option for users here

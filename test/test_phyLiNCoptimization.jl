@@ -128,8 +128,9 @@ PhyloNetworks.checknetworkbeforeLiNC!(net, 1, true, true, true)
 end
 
 @testset "optimizestructure with simple example" begin
-maxmoves = 5
-maxhybrid = 3
+maxmoves = 2
+maxhybrid = 1
+seed = 123
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "simple.aln"))
 obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastafile, :JC69, maxhybrid)
@@ -160,19 +161,19 @@ no3cycle = true
 fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..",
             "examples", "simple.aln"));
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
-
+seed = 123
 for unzip in [true, false]
     for nohybridladder in [true, false]
-        maxhybrid = 2;
+        maxhybrid = 1;
         @test typeof(PhyloNetworks.phyLiNC!(net, fastafile, :JC69, maxhybrid,
-                                        no3cycle, unzip, nohybridladder, 20, 5, # maxmoves = 20, nreject = 5
-                                        false)) == PhyloNetworks.StatisticalSubstitutionModel
+                                        no3cycle, unzip, nohybridladder, 5, 2, # maxmoves = 5, nreject = 2
+                                        false, seed)) == PhyloNetworks.StatisticalSubstitutionModel
 
         maxhybrid = 0;
         @test_throws ErrorException PhyloNetworks.phyLiNC!(net, fastafile,
                                             :JC69, maxhybrid, no3cycle, unzip,
-                                            nohybridladder, 20, 5, false);
-                                            # maxmoves = 20, nreject = 5
+                                            nohybridladder, 5, 2, false, seed);
+                                            # maxmoves = 5, nreject = 2
     end
 end
 end
@@ -182,7 +183,28 @@ fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..",
             "examples", "simple.aln"));
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
 @test typeof(PhyloNetworks.multiphyLiNC!(net, fastafile, :JC69; maxhybrid=2,
-                    no3cycle=true, unzip=true, nohybridladder=true, maxmoves=20,
-                    nreject=5, nruns=2, filename="phyLiNC", verbose=false,
+                    no3cycle=true, unzip=true, nohybridladder=true, maxmoves=5,
+                    nreject=2, nruns=1, filename="phyLiNC", verbose=false,
                     seed=123)) == PhyloNetworks.StatisticalSubstitutionModel
 end
+
+# @testset "multiphyLiNC with simple net and one constraint" begin
+# no3cycle = true
+# unzip = true
+# nohybridladder = true
+# seed = 123
+# fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..",
+#             "examples", "individuals.aln"));
+# maxhybrid = 1;
+# # constraint
+# str_level1_s = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" # indviduals S1A S1B S1C go on leaf 1
+# net_level1_s = readTopology(str_level1_s)
+# filename = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..",
+#             "examples", "mappingIndividuals.csv"));
+# #filename = joinpath(@__DIR__, "..","examples", "mappingIndividuals.csv")
+# net_level1_i, c_species = PhyloNetworks.mapindividuals(net_level1_s, filename)
+
+# @test typeof(phyLiNC!(net_level1_i, fastafile, :JC69, 2, no3cycle, unzip,
+#                       nohybridladder, 5, 2, true, seed, 0.5, c_species)
+#                       ) == PhyloNetworks.StatisticalSubstitutionModel
+# end
