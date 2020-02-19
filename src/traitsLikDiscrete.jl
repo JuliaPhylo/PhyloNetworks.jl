@@ -591,6 +591,7 @@ function discrete_corelikelihood!(obj::SSM; whichtrait::AbstractVector{Int} = 1:
     end
     # aggregate over trees and rates
     obj._loglikcache[1:nt,:,:] .+= obj.priorltw
+    #todo we could create a function for gamma optimization that reduces calculations here
     # obj._loglikcache .-= log(nr)
     # done below in 1 instead ntrees x nrates x nsites calculations, but _loglikcache not modified
     siteliks = dropdims(mapslices(logsumexp, view(obj._loglikcache, 1:nt, :,:),

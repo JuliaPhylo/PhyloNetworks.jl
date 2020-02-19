@@ -31,7 +31,7 @@ Type for various topological constraints, such as:
 2. a set of individuals belonging to the same species
 3. a set of taxa forming a clade in any one of the displayed trees
 """
-struct TopologyConstraint
+mutable struct TopologyConstraint
     "type of constraint: 1=species, 2=clade in major tree. 3=clade in some displayed tree: not yet implemented."
     type::UInt8
     "names of taxa in the constraint (clade / species members)"
@@ -155,14 +155,65 @@ function constraintviolated(net::HybridNetwork, constraints::Vector{TopologyCons
             getChild(con.edge) === con.node || return true
             tree = majorTree(net)
             tei = findfirst(e -> e.number == con.edge.number, tree.edge)
-            tei !== nothing ||
-                error("hmm. edge number $(con.edge.number) was not found in the network's major tree")
+            tei !== nothing || error("hmm. edge number $(con.edge.number) was not found in the network's major tree")
             treeedge = tree.edge[tei]
             des = descendants(treeedge) # vector of node numbers, descendant tips only by default
             Set(des) == con.taxonnums || return true
         end
     end
     return false
+end
+
+"""
+    updateconstraintnumbers!(net::HybridNetwork,
+                            constraints::Vector{TopologyConstraint})
+
+Update stem edge, crown node, and taxonnum numbers. Needed after using
+resetNodeNumbers! and resetEdgeNumbers!
+
+Return a vector of updated constraints.
+"""
+function updateconstraintnumbers!(net::HybridNetwork,
+                                 constraints::Vector{TopologyConstraint})
+    for c in constraints
+        ntax_clade = length(c.taxonnames)
+        outsideclade = setdiff([n.name for n in net.leaf], c.taxonnames)
+        c.taxonnums = Set{Int}() # empty list
+        # find set of node numbers corresponding to taxonnames
+        for (i,taxon) in enumerate(c.taxonnames)
+            index = findfirst(n -> n.name == taxon, net.leaf)
+            !isnothing(index) || error("taxon $taxon is not found in the network.")
+            push!(c.taxonnums, net.leaf[index].number) # note: not ordered as in taxonnames
+        end
+        # get interior ancestor edges in major tree (no hybrids)
+        matrix = hardwiredClusters(majorTree(net), vcat(c.taxonnames, outsideclade))
+        # look for row with ones in relevant columns, zeros everywhere else (or zeros there and ones everywhere else)
+        edgenum = 0 # 0 until we find the stem edge
+        comparator = zeros(Int8, size(matrix)[2]-2)
+        comparator[1:ntax_clade] = ones(Int8, ntax_clade)
+        # go through matrix row by row to find match with comparator. Return number
+        for i in 1:size(matrix, 1)
+            if matrix[i,2:size(matrix)[2]-1] == comparator # found the mrca!
+                edgenum = matrix[i, 1]
+                break
+            end
+        end
+        if edgenum == 0
+            comparator .= 1 .- comparator
+            for i in 1:size(matrix)[1]
+                if matrix[i,2:size(matrix)[2]-1] == comparator
+                    error("""The clade given is not rooted correctly, making it a grade instead of a clade.
+                    You can re-try after modifying the root of your network.""")
+                end
+            end
+            error("The taxa given do not form a clade in the network")
+        end
+        edgei = findfirst(e -> e.number == edgenum, net.edge)
+        edgei !== nothing || error("hmm. hardwiredClusters on the major tree got an edge number not in the network")
+        c.edge = net.edge[edgei]
+        c.node = getChild(c.edge)
+    end
+    return constraints
 end
 
 #= TODO
@@ -590,8 +641,7 @@ function checkspeciesnetwork!(net::HybridNetwork, constraints::Vector{TopologyCo
     for n in net.node # check for no polytomies: all nodes should have up to 3 edges
         if length(n.edge) > 3 # polytomies allowed at species constraints only
             coni = findfirst(c -> c.type == 1 && c.node === n, constraints)
-            coni !== nothing ||
-                error("The network has a polytomy at node number $(n.number). Please resolve.")
+            coni !== nothing || error("The network has a polytomy at node number $(n.number). Please resolve.")
         end
     end
     removedegree2nodes!(net)

@@ -13,29 +13,63 @@ const alphaRASmax = 50.0
                   nohybridladder=true::Bool, maxmoves=100::Int64,
                   nreject=75::Int64, nruns=10::Int64,
                   filename="phyLiNC"::AbstractString, verbose=false::Bool,
-                  seed=0::Int64, probST=0.3::Float64, NLoptMethod=:LD_MMA::Symbol,
+                  seed=0::Int64, probST=0.5::Float64, NLoptMethod=:LD_MMA::Symbol,
                   ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
                   xtolAbs=xAbsBL::Float64,
                   constraints=TopologyConstraint[]::Vector{TopologyConstraint},
                   alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
 
-Estimate a phylogenetic networks using PhyLiNC, using multiple runs.
+Estimate phylogenetic networks using PhyLiNC then choose the one with the largest
+likelihood.
 
+There are many optional arguments, including:
 `nruns`: number of independent starting points for the search
 `filename`: root name for the output files (`.out`, `.err`). If empty (""),
 files are *not* created, progress log goes to the screen only (standard out).
-`probST` is the probability of starting one run at the same input
-tree. So, with probability `1-probST`, we will change the topology by a NNI move
-on a tree edge without neighbor hybrid. If the starting topology is a network,
-then with probability `1-probST` it will also modify one randomly chosen hybrid
-edge: with prob 0.5, the function will move origin, with prob 0.5 will do move
-target.
+
+`maxhybrid` (default = 1): maximum number of hybridizations allowed
+`no3cycle` (default = true): prevents 3-cycles to preserve the identifiability of
+the network structure
+`unzip` (default = true): sets edges below hybrid nodes to zero to preserve the
+identifiability of branch lengths.
+`nohybridladder` (default = true): prevents hybrid ladder in network. If this is
+true, input network must not have hybrid ladders.
+`maxmoves` (default = 100): maximum number of moves before branch lengths,
+hybrid gamma values, evolutionary rates, and rate variation parameters are
+reestimated.
+`verbose` (default = false): if true, print information about the numerical optimization
+`seed` (default 0 to get it from the clock): seed to replicate a given search
+`probST` (default 0.3): probability to start from the starting topology for each
+run. If probST > 0, the number of NNI moves done at start follows a geometric distribution.
+`constraints` (default none): topology constraints to follow during structure
+optimization. Created using [`TopologyConstraint`] (@ref)
+
+The following optional arguments control when to stop the optimization of branch
+lengths and gamma values on each individual candidate network. Defaults in
+parentheses.
+ftolRel (1e-6) and ftolAbs (1e-6): relative and absolute differences of the
+network score between the current and proposed parameters
+xtolRel (1e-2) and xtolAbs (1e-3): relative and absolute differences between the
+current and proposed parameters.
+Greater values will result in a less thorough but faster search. These parameters
+are used when evaluating candidate networks only.
+
+The following optional arguments control when to stop proposing new
+network topologies:
+
+`nreject` (default = 75): the maximum number of times that new topologies are
+proposed and rejected in a row. As in snaq, optimize structure runs until
+rejections = nreject.
+`liktolAbs` (1e-6): the proposed network is accepted if its score is better than
+the current score by at least liktolAbs.
+Lower values of `nreject` and greater values of `liktolAbs` and `ftolAbs` would
+result in a less thorough but faster search.
 """
 function multiphyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
     maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
     nohybridladder=true::Bool, maxmoves=100::Int64, nreject=75::Int64,
     nruns=10::Int64, filename="phyLiNC"::AbstractString, verbose=false::Bool,
-    seed=0::Int64, probST=0.3::Float64, NLoptMethod=:LD_MMA::Symbol,
+    seed=0::Int64, probST=0.5::Float64, NLoptMethod=:LD_MMA::Symbol,
     ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
     xtolAbs=xAbsBL::Float64,
     constraints=TopologyConstraint[]::Vector{TopologyConstraint},
@@ -154,7 +188,7 @@ end
     phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
             maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
             nohybridladder=true::Bool, maxmoves=100::Int64, nreject=75::Int64,
-            verbose=false::Bool, seed=0::Int64, probST=0.3::Float64,
+            verbose=false::Bool, seed=0::Int64, probST=0.5::Float64,
             constraints=TopologyConstraint[]::Vector{TopologyConstraint},
             NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
             ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
@@ -166,8 +200,7 @@ given `net` topology, using local search to optimize structure (nearest-neighbor
 interchange moves, add hybridizations, and remove hybridizations) and non-linear
 optimization to optimize evolutionary rates, rate variation across sites, branch
 lengths and gammas.
-If probST > 0.0, then two NNI moves are attempted before
-optimization begins.
+
 Return a StatisticalSubstitutionModel object.
 
 There are many optional arguments, including
@@ -184,10 +217,8 @@ hybrid gamma values, evolutionary rates, and rate variation parameters are
 reestimated.
 `verbose` (default = false): if true, print information about the numerical optimization
 `seed` (default 0 to get it from the clock): seed to replicate a given search
-`probST` (default 0.3): probability to start from `T` at each given run.
-  With problability 1-probST, the search is started from an NNI modification of `T`
-  along a tree edge with no hybrid neighbor,
-  with a possible modification of one reticulation if `T` has one.
+`probST` (default 0.3): probability to start from the starting topology for each
+run. If probST > 0, the number of NNI moves done at start follows a geometric distribution.
 `constraints` (default none): topology constraints to follow during structure
 optimization. Created using [`TopologyConstraint`] (@ref)
 #? Should we create constraints in this function or ask users to do so beforehand?
@@ -216,7 +247,7 @@ result in a less thorough but faster search.
 function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
     maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
     nohybridladder=true::Bool, maxmoves=100::Int64, nreject=75::Int64,
-    verbose=false::Bool, seed=0::Int64, probST=0.3::Float64,
+    verbose=false::Bool, seed=0::Int64, probST=0.5::Float64,
     constraints=TopologyConstraint[]::Vector{TopologyConstraint},
     NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
     ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
@@ -229,16 +260,20 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
     Random.seed!(seed)
 
     obj = StatisticalSubstitutionModel(net, fastafile, modSymbol, maxhybrid)
-
+    # check_matchtaxonnames (inside constructor) renumbers nodes
+    # so we need to recalc constraint numbers
+    constraints = updateconstraintnumbers!(obj.net, constraints)
     checknetworkbeforeLiNC!(obj.net, maxhybrid, no3cycle, unzip, nohybridladder,
     constraints)
 
     discrete_corelikelihood!(obj)
 
     if( probST < 1.0 && rand() < 1-probST) # modify starting tree by two nni moves (if possible)
-        nniLiNC!(obj, no3cycle, unzip, nohybridladder, verbose, constraints);
-        discrete_corelikelihood!(obj)
-        nniLiNC!(obj, no3cycle, unzip, nohybridladder, verbose, constraints);
+        numNNI = rand(Geometric(probST)) # number of NNIs follows a geometric distribution
+        for i in 1:numNNI
+            nniLiNC!(obj, no3cycle, unzip, nohybridladder, verbose, constraints)
+            discrete_corelikelihood!(obj)
+        end
     end
     # TODO add logfile here
     # writelog && suc && write(logfile," changed starting topology by NNI move\n")
@@ -301,8 +336,8 @@ function checknetworkbeforeLiNC!(net::HybridNetwork, maxhybrid::Int64, no3cycle:
         net.numTaxa >= 4 ||
             error("cannot estimate hybridizations in topologies with fewer than four taxa. This topology has $(net.numTaxa) taxa.")
     end
-    checkspeciesnetwork!(net, constraints) || # checks for polytomies, constraint violations, nodes of degree 2
-        error("individuals specified in species constraint are not grouped together in one polytomy.")
+    # checks for polytomies, constraint violations, nodes of degree 2
+    checkspeciesnetwork!(net, constraints) || error("individuals specified in species constraint are not grouped together in one polytomy.")
     if no3cycle
         !contains3cycles(net) || error("Options indicate there should be no 3-cycles
         in the returned network, but the input network contains
@@ -362,7 +397,6 @@ function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
         movechoice = sample(["nni", "addhybrid", "deletehybrid", "root"], moveweights)
         if movechoice == "nni"
             nmoves += 1
-            verbose && println("There are no nni moves possible in this network.")
             result = nniLiNC!(obj, no3cycle, unzip, nohybridladder, verbose,
                               constraints)
             if isnothing(result) # no nni moves possible
@@ -423,11 +457,7 @@ function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
             end
         end
         verbose && println("""loglik = $(loglikelihood(obj)) after move of type
-        $movechoice, $nmoves total moves, and $rejections rejected moves
-        $(length(obj.net.edge)) edges: $(printEdges(obj.net))
-        root: node number $(obj.net.node[obj.net.root])
-        $(length(obj.net.node)) nodes: $(printNodes(obj.net))
-        $(writeTopology(obj.net))""")
+        $movechoice, $nmoves total moves, and $rejections rejected moves""")
     end
     return rejections >= nreject
 end
@@ -566,7 +596,7 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     optimizelocalgammas!(obj, obj.net, minorhybridedge, unzip, verbose)
     if obj.loglik - currLik > likAbsDelHybLiNC # -0.1: loglik can decrease for parsimony
         deletehybridedge!(obj.net, minorhybridedge, false, true) # don't keep nodes; unroot
-        updateSSM!(obj, true)
+        updateSSM!(obj, true; constraints=constraints)
         discrete_corelikelihood!(obj)
         return true
     else # keep hybrid
@@ -576,7 +606,8 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     end
 end
 """
-    updateSSM!(obj::SSM, renumber=false::Bool)
+    updateSSM!(obj::SSM, renumber=false::Bool;
+               constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
 After adding or removing a hybrid, displayed trees will change. Updates
 the displayed tree list. Return SSM object.
@@ -615,11 +646,12 @@ julia> writeTopology(obj.net)
 "(((B:0.0)#H1:0.1::0.9,(A:1.0)#H2:1.0::0.6):1.5,(C:0.6,#H1:1.0::0.1):1.0,(D:1.25,#H2:0.0::0.4):1.25);"
 ```
 """
-function updateSSM!(obj::SSM, renumber=false::Bool)
+function updateSSM!(obj::SSM, renumber=false::Bool;
+                   constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     if renumber # traits are in leaf.number order, so leaf nodes not reordered
         resetNodeNumbers!(obj.net; checkPreorder=false, type=:internalonly)
         resetEdgeNumbers!(obj.net)
-        #TODO update constraint crown node and stem edge numbers here when relevant
+        constraints = updateconstraintnumbers!(obj.net, constraints)
     end
     # extract displayed trees
     obj.displayedtree = displayedTrees(obj.net, 0.0; keepNodes=true)
@@ -942,6 +974,9 @@ Assumptions:
 
 Warning: Do not call directly. Instead use optimizelocalgammas!
 or optimizeallgamma! functions.
+#? Cécile, is the initial step size too small here? In cases where a hybrid
+    #? edge is not helpful, we would expect gammas to be optimized to zero, but I'm
+    #? not seeing this
 """
 function optimizegammas!(obj::SSM, net::HybridNetwork, edges::Vector{Edge},
     unzip::Bool, verbose=false::Bool, maxeval=1000::Int64,

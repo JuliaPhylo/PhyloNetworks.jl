@@ -201,10 +201,14 @@ end
 # net_level1_s = readTopology(str_level1_s)
 # filename = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..",
 #             "examples", "mappingIndividuals.csv"));
-# #filename = joinpath(@__DIR__, "..","examples", "mappingIndividuals.csv")
+# # for travis? filename = joinpath(@__DIR__, "..","examples", "mappingIndividuals.csv")
 # net_level1_i, c_species = PhyloNetworks.mapindividuals(net_level1_s, filename)
+# PhyloNetworks.deletehybridedge!(net_level1_i, net_level1_i.edge[18])
+# # ^this hybrid creates a three cycle after root node of degree two is removed
+#? how do we want to deal with this type of three cycle?
 
 # @test typeof(phyLiNC!(net_level1_i, fastafile, :JC69, 2, no3cycle, unzip,
 #                       nohybridladder, 5, 2, true, seed, 0.5, c_species)
 #                       ) == PhyloNetworks.StatisticalSubstitutionModel
+# #TODO ERROR: DomainError with -0.6984169736707944: log will only return a complex result if called with a complex argument. Try log(Complex(x)).
 # end
