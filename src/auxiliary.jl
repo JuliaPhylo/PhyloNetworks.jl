@@ -877,6 +877,9 @@ set a new length for an object Edge. The new length needs to be positive.
 For example, if you have a HybridNetwork object net, and do printEdges(net), you can see the list of Edges and their lengths. You can then change the length of the 3rd edge with setLength!(net.edge[3],1.2).
 If `new length` is above 10, the value 10 will be used, as an upper limit
 to coalescent units that can be reliably estimated.
+
+Warning:
+specific to SNaQ. For general length setting, use [`setlengths!`](@ref).
 """
 setLength!(edge::Edge, new_length::Number) = setLength!(edge, new_length, false)
 
@@ -1464,7 +1467,7 @@ Assign new lengths to a vector of `edges`.
 """
 @inline function setlengths!(edges::Vector{Edge}, lengths::Vector{Float64})
     for (e,l) in zip(edges, lengths)
-        setLength!(e, l)
+        e.length = l
     end
 end
 
@@ -1491,18 +1494,25 @@ function hashybridladder(net::HybridNetwork)
 end
 
 """
-    contains3cycles(net::HybridNetwork)
+    contains3cycles(net::HybridNetwork, remove3cycles=false::Bool)
 
 Check for 3-cycles in a given network. Return true if contains 3-cycles. False
 otherwise.
+
+Option `remove3cycles` deletes a minor hybrid edge to remove a 3-cycle.
 """
-function contains3cycles(net::HybridNetwork)
+function contains3cycles(net::HybridNetwork, remove3cycles=false::Bool)
     # idea: Do major and minor edges share more than just their hybrid node?
     for h in net.hybrid
         major = PhyloNetworks.getMajorParentEdge(h)
         minor = PhyloNetworks.getMinorParentEdge(h)
         for e in setdiff(PhyloNetworks.getParent(minor).edge, [minor])
-            isempty(findall(in(major.node), e.node)) || return true
+            sharednodes = findall(in(major.node), e.node)
+            if remove3cycles && !isempty(sharednodes) # delete minor edge
+                PhyloNetworks.deletehybridedge!(net, minor)
+            elseif !isempty(sharednodes)
+                return true
+            end
         end
     end
     return false

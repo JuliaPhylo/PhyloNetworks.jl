@@ -71,7 +71,7 @@ function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool
         constraintsmet = true
         for con in constraints
             if con.type == 1 # forbid going out of (edge1) or into (edge2) the species group
-                if con.nodenum == p1.number || con.edgenum == p2.number
+                if con.node == p1 || con.node == p2
                     push!(blacklist, (e1,e2))
                     constraintsmet = false
                     break # of constraint loop

@@ -645,6 +645,7 @@ function checkspeciesnetwork!(net::HybridNetwork, constraints::Vector{TopologyCo
         end
     end
     removedegree2nodes!(net)
+    # check if a 3-cycle has been created at the root here. If so, remove it.
     return !constraintviolated(net, constraints)
 end
 
@@ -784,57 +785,32 @@ function moveroot!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{
     oldroot = net.root
     for newrooti in newrootrandomorder
         newrooti != oldroot || continue
-        result = rootatnode_LiNC!(net, newrooti, constraints)
-        if result # newrooti passed all the checks
-            return true
-        else
-            continue # try another rooting
+        newrootnode = net.node[newrooti]
+        newrootnode.leaf && continue # try next potential new root if current is a leaf
+        # Check the new root is NOT at the top or inside contraint clade or within pecies
+        newrootfound = true
+        for con in constraints
+            if con.node === newrootnode || isdescendant(newrootnode, con.node) # assumes the constraint is met
+                newrootfound = false
+                break # out of constraint loop
+            end
         end
+        newrootfound || continue # to next potential new root
+        # Check for no directional conflict
+        try
+            net.root = newrooti
+            directEdges!(net)
+            # warning: assumes that the previous root has degree 3
+            # otherwise, need to delete previous root by fusing its 2 adjacent edges
+        catch e # RootMismatch error if root placement is below a hybrid
+            isa(e, RootMismatch) || rethrow(e)
+            net.root = oldroot
+            directEdges!(net) # revert edges' directions to match original rooting
+            continue # to next potential new root
+        end
+        # if we get here: newrooti passed all the checks
+        return true
     end
-    # none of the root positions worked
+    # if we get here: none of the root positions worked
     return false
-end
-
-"""
-    rootatnode_LiNC!(net::HybridNetwork, nodeindex::Int64,
-                constraints=TopologyConstraint[]::Vector{TopologyConstraint})
-
-Root the network/tree object at the node with index 'nodeindex'.
-Attributes isChild1 and containRoot are updated along the way. #?is this true here with directEdges?
-Considers species constraints in rooting.
-Does not root on leaves.
-
-Use `plot(net, showNodeNumber=true, showEdgeLength=false)` to
-visualize and identify a node of interest.
-(see package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl))
-
-Return true if successful, false if not.
-"""
-function rootatnode_LiNC!(net::HybridNetwork, nodeindex::Int64,
-                    constraints=TopologyConstraint[]::Vector{TopologyConstraint})
-    oldroot = net.root #keep old root in case we need to revert
-    newrootnode = net.node[nodeindex]
-    if newrootnode.leaf
-        return false
-    end
-    # Check the new root is NOT at the top or inside contraint clade or within pecies
-    newrootfound = true
-    for con in constraints
-        if con.node === newrootnode || isdescendant(newrootnode, con.node) # assumes the constraint is met
-            newrootfound = false
-            break # out of constraint loop
-        end
-    end
-    try # Check for directional conflict
-        net.root = nodeindex
-        directEdges!(net)
-        # warning: assumes that the previous root has degree 3
-        # otherwise, need to delete previous root by fusing its 2 adjacent edges
-    catch e # RootMismatch error if root placement is below a hybrid
-        isa(e, RootMismatch) || rethrow(e)
-        net.root = oldroot
-        directEdges!(net) # revert edges' directions to match original rooting
-        return false
-    end
-    return true
 end
