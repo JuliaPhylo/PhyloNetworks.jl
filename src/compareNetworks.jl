@@ -698,3 +698,91 @@ function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, root
     # so size(M2)[1] - (size(M1)[1] - dis) edges in net2 are not in net1.
     dis + dis + size(M2)[1] - size(M1)[1]
 end
+
+
+"""
+    computeDissimilarity(net1::HybridNetwork, net2::HybridNetwork,
+                         desiredroot::Int64)
+
+Compare two networks. If they cant be rooted at the desired root, find all
+possible same rootings and measure their dissimilarity. using moveroot
+
+Return the lowest dissimilarity measure for two networks rooted at the same node.
+If no matching network, return a warning and Inf64.
+
+Assumptions:
+- network nodes are indexed in the same order. #? What's the best way to do this?
+
+#todo in future, extend this for a list of networks compared with one correct network
+"""
+function computeDissimilarity(net1::HybridNetwork, net2::HybridNetwork,
+                              rootNodeNumber::Int64)
+    #? how will we get the networks to have the same node numbering?
+    dissimilarity = Float64[]
+    try # desired rooting
+        oldroot1 = net1.root
+        rootatnode!(net1, rootNodeNumber; index=false, verbose=false) # node index != node number
+        oldroot2 = net2.root
+        rootatnode!(net2, rootNodeNumber; index=false, verbose=false)
+    catch e
+        isa(e, RootMismatch) || rethrow(e)
+        net1.root = oldroot1 # revert edges' directions to match original rooting
+        directEdges!(net1)
+        net2.root = oldroot2
+        directEdges!(net2)
+        result = findmatchingroot!(net1, net2, [rootNodeNumber]) #pass attempted root as blacklist
+        if !result
+            @warn("There are no matching roots for these two networks. No dissimilarity calculated.")
+            return Inf64
+        else # measure dissimilarity, add to vector
+            # newdiss = ?what's the best way to calculate this? Is this coded?
+            # push!(newdiss, dissimilarity)
+        end
+    end
+    return min(dissimilarity)
+end
+
+"""
+    findmatchingroot!(net1::HybridNetwork, net2::HybridNetwork,
+            constraints1=::Vector{TopologyConstraint},
+            constraints2=::Vector{TopologyConstraint}, blacklist=Int64[])
+
+Move the root to a randomly chosen non-leaf node that is different from the
+current root, not on the blacklist, and not within a constraint clade or species.
+Output: `true` if successul, `false` otherwise.
+
+Assumptions:
+- network nodes are indexed in the same order. #? What's the best way to do this?
+"""
+function findmatchingroot!(net1::HybridNetwork, net2::HybridNetwork,
+    constraints1::Vector{TopologyConstraint},
+    constraints2::Vector{TopologyConstraint}, blacklist=Int64[])
+
+    possibleroots = setdiff(1:length(net1.node), blacklist)
+    oldroot1 = net1.root
+    oldroot2 = net2.root
+    for newrooti in possibleroots
+        if newrooti != oldroot1
+            # todo need node index NOT number for this
+            res1 = rootatnode_LiNC!(net1, newrooti, constraints1)
+        else
+            res1 = true # already rooted at newrooti
+        end
+        if !res1
+            push!(newrooti, blacklist)
+            continue
+        end
+        if newrooti != oldroot2
+            res2 = rootatnode_LiNC!(net2, newrooti, constraints2)
+        else
+            res2 = true # already rooted at newrooti
+        end
+        if !res2
+            push!(newrooti, blacklist)
+            continue
+        end
+        return true # newrooti worked for both networks
+    end
+    # none of the root positions worked
+    return false
+end
