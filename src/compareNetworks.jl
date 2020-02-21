@@ -702,87 +702,65 @@ end
 
 """
     computeDissimilarity(net1::HybridNetwork, net2::HybridNetwork,
-                         desiredroot::Int64)
+                         outgroup::AbstractString)
 
-Compare two networks. If they cant be rooted at the desired root, find all
-possible same rootings and measure their dissimilarity. using moveroot
+Root two networks using the given `outgroup` node name and return their
+[`hardwiredClusterDistance`](@ref).
 
-Return the lowest dissimilarity measure for two networks rooted at the same node.
-If no matching network, return a warning and Inf64.
+If they cannot both be rooted on the outgroup, try all rootings for each network
+and compute the [`hardwiredClusterDistance`](@ref) for all combinations.
+Return the smallest measure.
+
+Warning:
+If outgroup rooting is possible for both, the minimum dissimilarity is not
+necessarily returned. Instead, the dissimilarity for this rooting is returned.
 
 Assumptions:
-- network nodes are indexed in the same order. #? What's the best way to do this?
+- Outgroup is one species (one leaf node name).
 
-#todo in future, extend this for a list of networks compared with one correct network
+# todo in future, allow for an outgroup of more than one species
 """
 function computeDissimilarity(net1::HybridNetwork, net2::HybridNetwork,
-                              rootNodeNumber::Int64)
-    #? how will we get the networks to have the same node numbering?
-    dissimilarity = Float64[]
-    try # desired rooting
-        oldroot1 = net1.root
-        rootatnode!(net1, rootNodeNumber; index=false, verbose=false) # node index != node number
-        oldroot2 = net2.root
-        rootatnode!(net2, rootNodeNumber; index=false, verbose=false)
+                              outgroup::AbstractString)
+    try # desired root
+        rootatnode!(net1, outgroup; verbose=false)
+        rootatnode!(net2, outgroup; verbose=false)
     catch e
         isa(e, RootMismatch) || rethrow(e)
-        net1.root = oldroot1 # revert edges' directions to match original rooting
-        directEdges!(net1)
-        net2.root = oldroot2
-        directEdges!(net2)
-        result = findmatchingroot!(net1, net2, [rootNodeNumber]) #pass attempted root as blacklist
-        if !result
-            @warn("There are no matching roots for these two networks. No dissimilarity calculated.")
-            return Inf64
-        else # measure dissimilarity, add to vector
-            # newdiss = ?what's the best way to calculate this? Is this coded?
-            # push!(newdiss, dissimilarity)
+        dissimilarities = Int64[]
+        net1roots = Node[]
+        net2roots = Node[]
+        for n in net1.node
+            try
+                rootatnode!(net1, n; verbose=false)
+            catch e
+                isa(e, RootMismatch) || rethrow(e)
+                continue # dont add to list, try next possible root
+            end
+            push!(n, net1roots)
         end
+        for n in net2.node
+            try
+                rootatnode!(net2, n; verbose=false)
+            catch e
+                isa(e, RootMismatch) || rethrow(e)
+                continue # dont add to list, try next possible root
+            end
+            push!(n, net2roots)
+        end
+        for r1 in net1roots
+            for r2 in net2roots
+                rootatnode!(net1, r1; verbose=false)
+                rootatnode!(net2, r2; verbose=false)
+                #? should this be rooted or unrooted? for now, rooted=false
+                diss = hardwiredClusterDistance(net1, net2, false)
+                push!(dissimilarities, diss)
+            end
+        end
+        return min(dissimilarities)
     end
-    return min(dissimilarity)
-end
-
-"""
-    findmatchingroot!(net1::HybridNetwork, net2::HybridNetwork,
-            constraints1=::Vector{TopologyConstraint},
-            constraints2=::Vector{TopologyConstraint}, blacklist=Int64[])
-
-Move the root to a randomly chosen non-leaf node that is different from the
-current root, not on the blacklist, and not within a constraint clade or species.
-Output: `true` if successul, `false` otherwise.
-
-Assumptions:
-- network nodes are indexed in the same order. #? What's the best way to do this?
-"""
-function findmatchingroot!(net1::HybridNetwork, net2::HybridNetwork,
-    constraints1::Vector{TopologyConstraint},
-    constraints2::Vector{TopologyConstraint}, blacklist=Int64[])
-
-    possibleroots = setdiff(1:length(net1.node), blacklist)
-    oldroot1 = net1.root
-    oldroot2 = net2.root
-    for newrooti in possibleroots
-        if newrooti != oldroot1
-            # todo need node index NOT number for this
-            res1 = rootatnode_LiNC!(net1, newrooti, constraints1)
-        else
-            res1 = true # already rooted at newrooti
-        end
-        if !res1
-            push!(newrooti, blacklist)
-            continue
-        end
-        if newrooti != oldroot2
-            res2 = rootatnode_LiNC!(net2, newrooti, constraints2)
-        else
-            res2 = true # already rooted at newrooti
-        end
-        if !res2
-            push!(newrooti, blacklist)
-            continue
-        end
-        return true # newrooti worked for both networks
-    end
-    # none of the root positions worked
-    return false
+    # if we get here, no error was thrown from rootNodeNumber rooting
+    #? should this be rooted or unrooted? for now, rooted=false
+    dissimilarity = hardwiredClusterDistance(net1, net2, false)
+    return dissimilarity
 end

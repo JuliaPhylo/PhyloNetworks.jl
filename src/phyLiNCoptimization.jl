@@ -8,7 +8,7 @@ const alphaRASmax = 50.0
 # optimization wrapper functions #
 
 """
-    multiphyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
+    phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
                   maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
                   nohybridladder=true::Bool, maxmoves=100::Int64,
                   nreject=75::Int64, nruns=10::Int64,
@@ -65,7 +65,7 @@ the current score by at least liktolAbs.
 Lower values of `nreject` and greater values of `liktolAbs` and `ftolAbs` would
 result in a less thorough but faster search.
 """
-function multiphyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
+function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
     maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
     nohybridladder=true::Bool, maxmoves=100::Int64, nreject=75::Int64,
     nruns=10::Int64, filename="phyLiNC"::AbstractString, verbose=false::Bool,
@@ -128,6 +128,15 @@ function multiphyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
     end
 
     tstart = time_ns()
+
+    # create starting object for all runs
+    obj = StatisticalSubstitutionModel(net, fastafile, modSymbol, maxhybrid)
+    # check_matchtaxonnames (inside constructor) renumbers nodes so we recalc constraint numbers here
+    constraints = updateconstraintnumbers!(obj.net, constraints)
+    checknetworkbeforeLiNC!(obj.net, maxhybrid, no3cycle, unzip, nohybridladder,
+    constraints)
+    startingBL!(obj.net, unzip, obj.trait, obj.siteweight)
+
     bestnet = Distributed.pmap(1:nruns) do i # for i in 1:nruns
         logstr = "seed: $(seeds[i]) for run $(i), $(Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s"))\n"
         print(stdout, logstr)
@@ -139,7 +148,10 @@ function multiphyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
         verbose && print(stdout, msg)
         GC.gc();
         try
-            best = phyLiNC!(net, fastafile, modSymbol, maxhybrid, no3cycle,
+            objcopy = deepcopy(obj)
+            # todo in future, only deepcopy net and other fields of obj that could be modified by phyLiNCone!
+                # refactor to use SharedArrays for data?
+            best = phyLiNCone!(objcopy, maxhybrid, no3cycle,
                             unzip, nohybridladder, maxmoves, nreject, verbose,
                             seeds[i], probST, constraints, NLoptMethod, ftolRel, ftolAbs,
                             xtolRel, xtolAbs, alphamin, alphamax)
@@ -185,21 +197,22 @@ function multiphyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
 end
 
 """
-    phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
-            maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
-            nohybridladder=true::Bool, maxmoves=100::Int64, nreject=75::Int64,
-            verbose=false::Bool, seed=0::Int64, probST=0.5::Float64,
-            constraints=TopologyConstraint[]::Vector{TopologyConstraint},
-            NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
-            ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
-            alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
+    phyLiNCone!(obj::SSM, maxhybrid=1::Int64, no3cycle=true::Bool,
+                unzip=true::Bool, nohybridladder=true::Bool, maxmoves=100::Int64,
+                nreject=75::Int64, verbose=false::Bool, seed=0::Int64,
+                probST=0.5::Float64,
+                constraints=TopologyConstraint[]::Vector{TopologyConstraint},
+                NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
+                ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
+                xtolAbs=xAbsBL::Float64, alphamin=alphaRASmin::Float64,
+                alphamax=alphaRASmax::Float64)
 
-Estimate a phylogenetic network (or tree) from concatenated fasta data using
+Estimate one phylogenetic network (or tree) from concatenated fasta data using
 maximum likelihood. Any level network is accepted. The search starts from the
-given `net` topology, using local search to optimize structure (nearest-neighbor
-interchange moves, add hybridizations, and remove hybridizations) and non-linear
-optimization to optimize evolutionary rates, rate variation across sites, branch
-lengths and gammas.
+given net topology in `obj`, using local search to optimize structure
+(nearest-neighbor interchange moves, add hybridizations, and remove hybridizations)
+and optimization to optimize evolutionary rates, rate variation across sites,
+branch lengths and gammas.
 
 Return a StatisticalSubstitutionModel object.
 
@@ -207,7 +220,8 @@ There are many optional arguments, including
 
 `maxhybrid` (default = 1): maximum number of hybridizations allowed
 `no3cycle` (default = true): prevents 3-cycles to preserve the identifiability of
-the network structure
+the network structure. If no3cycle is true and the input network as 3-cycles,
+PhyLiNC will remove them before estimating the network.
 `unzip` (default = true): sets edges below hybrid nodes to zero to preserve the
 identifiability of branch lengths.
 `nohybridladder` (default = true): prevents hybrid ladder in network. If this is
@@ -244,44 +258,34 @@ the current score by at least liktolAbs.
 Lower values of `nreject` and greater values of `liktolAbs` and `ftolAbs` would
 result in a less thorough but faster search.
 """
-function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
-    maxhybrid=1::Int64, no3cycle=true::Bool, unzip=true::Bool,
-    nohybridladder=true::Bool, maxmoves=100::Int64, nreject=75::Int64,
-    verbose=false::Bool, seed=0::Int64, probST=0.5::Float64,
-    constraints=TopologyConstraint[]::Vector{TopologyConstraint},
-    NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
-    ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
-    alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
+function phyLiNCone!(obj::SSM, maxhybrid=1::Int64, no3cycle=true::Bool,
+                    unzip=true::Bool, nohybridladder=true::Bool,
+                    maxmoves=100::Int64, nreject=75::Int64, verbose=false::Bool,
+                    seed=0::Int64, probST=0.5::Float64,
+                    constraints=TopologyConstraint[]::Vector{TopologyConstraint},
+                    NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
+                    ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
+                    xtolAbs=xAbsBL::Float64, alphamin=alphaRASmin::Float64,
+                    alphamax=alphaRASmax::Float64)
     if seed == 0
         t = time()/1e9
         a = split(string(t),".")
         seed = parse(Int,a[2][end-4:end]) # better seed based on clock
     end
     Random.seed!(seed)
-
-    obj = StatisticalSubstitutionModel(net, fastafile, modSymbol, maxhybrid)
-    # check_matchtaxonnames (inside constructor) renumbers nodes
-    # so we need to recalc constraint numbers
-    constraints = updateconstraintnumbers!(obj.net, constraints)
-    checknetworkbeforeLiNC!(obj.net, maxhybrid, no3cycle, unzip, nohybridladder,
-    constraints)
-
-    discrete_corelikelihood!(obj)
-
-    if( probST < 1.0 && rand() < 1-probST) # modify starting tree by two nni moves (if possible)
+    if probST < 1.0 # modify starting tree by two nni moves (if possible)
+        discrete_corelikelihood!(obj)
         numNNI = rand(Geometric(probST)) # number of NNIs follows a geometric distribution
         for i in 1:numNNI
             nniLiNC!(obj, no3cycle, unzip, nohybridladder, verbose, constraints)
             discrete_corelikelihood!(obj)
         end
     end
-    # TODO add logfile here
+    # todo write to logfile here, pass logfile argument from phyLiNC! function
     # writelog && suc && write(logfile," changed starting topology by NNI move\n")
     if(!isTree(obj.net))
         # change hybrids in some way? snaq changes origin
     end
-
-    startingBL!(obj.net, unzip, obj.trait, obj.siteweight)
 
     discrete_corelikelihood!(obj)
 
@@ -339,9 +343,10 @@ function checknetworkbeforeLiNC!(net::HybridNetwork, maxhybrid::Int64, no3cycle:
     # checks for polytomies, constraint violations, nodes of degree 2
     checkspeciesnetwork!(net, constraints) || error("individuals specified in species constraint are not grouped together in one polytomy.")
     if no3cycle
-        !contains3cycles(net) || error("Options indicate there should be no 3-cycles
-        in the returned network, but the input network contains
-        one or more 3-cycles.")
+        !contains3cycles(net, no3cycle) || @warn("Options indicate there should
+        be no 3-cycles in the returned network, but the input network contains
+        one or more 3-cycles (after removing any nodes of degree 2 including the
+        root). These 3-cycles have been removed.")
     end
     if nohybridladder
         !hashybridladder(net) || error("Options indicate there should be no
@@ -804,6 +809,8 @@ end
 Optimize branch lengths for edges in vector `edges`.
 If `unzip = true`, constrain branch lengths to zero below hybrid edges.
 Return vector of updated `edges`.
+
+Assumption: None of the branch length are negative.
 """
 function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge},
     unzip::Bool, verbose=false::Bool, maxeval=1000::Int64, NLoptMethod=:LD_MMA::Symbol,
@@ -815,19 +822,12 @@ function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge},
         setlengths!(constrainededges, zeros(length(constrainededges)))
         edges = setdiff(edges, constrainededges) # edges - constrainededges
     end
-    if any([e.length < 0.0 for e in edges])
-        for e in edges #? is there a faster way to do this?
-            if e.length < 0.0
-                e.length = 0.0
-            end
-        end
-    end
     counter = [0]
     function loglikfunBL(lengths::Vector{Float64}, grad::Vector{Float64})
         counter[1] += 1
-        setlengths!(edges, lengths)
+        setlengths!(edges, lengths) # set lengths in order of vector `edges`
         res = discrete_corelikelihood!(obj)
-        # verbose && println("loglik: $res, branch lengths: $(lengths)")
+        verbose && println("loglik: $res, branch lengths: $(lengths)")
         length(grad) == 0 || error("gradient not implemented")
         return res
     end
@@ -843,9 +843,8 @@ function optimizeBL!(obj::SSM, net::HybridNetwork, edges::Vector{Edge},
     NLopt.maxeval!(optBL, maxeval) # max number of iterations
     # NLopt.maxtime!(optBL, t::Real)
     NLopt.lower_bounds!(optBL, zeros(length(edges)))
-    counter[1] = 0
     NLopt.max_objective!(optBL, loglikfunBL)
-    fmax, xmax, ret = NLopt.optimize(optBL, getlengths(edges))
+    fmax, xmax, ret = NLopt.optimize(optBL, getlengths(edges)) # get lengths in order of edges vector
     verbose && println("""BL: got $(round(fmax, digits=5)) at
     BL = $(round.(xmax, digits=5)) after $(counter[1]) iterations
     (return code $(ret))""")
