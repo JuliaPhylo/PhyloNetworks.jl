@@ -871,24 +871,28 @@ function setLength!(edge::Edge, new_length::Number, negative::Bool)
 end
 
 """
-`setLength!(Edge,new length)`
+    setLength!(edge, newlength)`
 
-set a new length for an object Edge. The new length needs to be positive.
-For example, if you have a HybridNetwork object net, and do printEdges(net), you can see the list of Edges and their lengths. You can then change the length of the 3rd edge with setLength!(net.edge[3],1.2).
-If `new length` is above 10, the value 10 will be used, as an upper limit
-to coalescent units that can be reliably estimated.
+Set the length of `edge`, and set `edge.y` and `edge.z` accordingly.
+Warning: specific to SNaQ. Use [`setlengths!`](@ref) or [`setBranchLength!`](@ref)
+for a more general tools.
 
-Warning:
-specific to SNaQ. For general length setting, use [`setlengths!`](@ref).
+- The new length is censored to 10: if the new length is above 10,
+  the edge's length will be set to 10. Lengths are interpreted in coalescent
+  units, and 10 is close to infinity: near perfect gene tree concordance.
+  10 is used as an upper limit to coalescent units that can be reliably estimated.
+- The new length is allowed to be negative, but must be greater than -log(1.5),
+  to ensure that the major quartet concordance factor (1 - 2/3 exp(-length)) is >= 0.
 """
 setLength!(edge::Edge, new_length::Number) = setLength!(edge, new_length, false)
 
 
 """
-`setBranchLength!(Edge,new length)`
+    setBranchLength!(Edge, newlength)
 
-sets the length of an Edge object. The new length needs to be non-negative, or -1.0 to be interpreted as missing.
-Example: if net is a HybridNetwork object, do printEdges(net) to see the list of all edges with their lengths. The length of the 3rd edge can be changed to 1.2 with setBranchLength!(net.edge[3],1.2). It can also be set to missing with setBranchLength!(net.edge[3],-1.0)
+Set the length of an Edge object. The new length needs to be non-negative,
+or -1.0 to be interpreted as missing. `edge.y` and `edge.z` are updated
+accordingly.
 """
 function setBranchLength!(edge::Edge, new_length::Number)
     (new_length >= 0 || new_length == -1.0) || error("length $(new_length) has to be nonnegative or -1.0 (for missing).")
@@ -900,7 +904,7 @@ end
 
 """
     setGamma!(Edge, new γ)
-    setGamma!(Edge, new γ, change other=true::Bool)
+    setGamma!(Edge, new γ, change_other=true::Bool)
 
 Set inheritance probability γ for an edge, which must be a hybrid edge.
 The new γ needs to be in [0,1]. The γ of the "partner" hybrid edge is changed
@@ -914,6 +918,8 @@ and their γ's. The γ of the third hybrid edge (say) can be changed to 0.2 with
 This will automatically set γ of the partner hybrid edge to 0.8.
 
 The last argument is true by default. If false: the partner edge is not updated.
+This is useful if the new γ is 0.5, and the partner's γ is already 0.5,
+in which case the `isMajor` attributes can remain unchanged.
 """
 setGamma!(edge::Edge, new_gamma::Float64) = setGamma!(edge, new_gamma, true)
 
@@ -924,8 +930,7 @@ function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool)
     new_gamma >= 0.0 || error("gamma has to be positive: $(new_gamma)")
     new_gamma <= 1.0 || error("gamma has to be less than 1: $(new_gamma)")
     edge.hybrid || error("cannot change gamma in a tree edge");
-    edge.isChild1 ? ind = 1 : ind = 2 ; # hybrid edge pointing at node 1 or 2
-    node = edge.node[ind] # child of hybrid edge
+    node = getChild(edge) # child of hybrid edge
     node.hybrid || @warn "hybrid edge $(edge.number) not pointing at hybrid node"
     @debug (node.isBadDiamondI ? "bad diamond situation: gamma not identifiable" : "")
     partner = Edge[] # list of other hybrid parents of node, other than edge
@@ -935,7 +940,7 @@ function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool)
         end
     end
     length(partner) == 1 ||
-      error("strange hybrid node $(node.number) with $(length(hybridparents)+1) hybrid parents")
+      error("strange hybrid node $(node.number) with $(length(partner)+1) hybrid parents")
     e2 = partner[1]
     onehalf = isapprox(new_gamma,0.5)
     if onehalf new_gamma=0.5; end
@@ -1478,15 +1483,17 @@ Vector of edge lengths for a vector of `edges`.
 """
 getlengths(edges::Vector{Edge}) = [e.length for e in edges]
 
-## Network Checking Functions
 """
     hashybridladder(net::HybridNetwork)
 
-Return true if network contains hybrid ladder, making it a non-treechild network.
+Return true if `net` contains a hybrid ladder: where a hybrid node's
+child is itself a hybrid node.
+This makes the network not treechild, assuming it is fully resolved.
+(One of the nodes does not have any tree-node child).
 """
 function hashybridladder(net::HybridNetwork)
     for h in net.hybrid
-        if any([n.hybrid for n in PhyloNetworks.getParents(h)])
+        if any(n.hybrid for n in getParents(h))
             return true
         end
     end
@@ -1494,28 +1501,40 @@ function hashybridladder(net::HybridNetwork)
 end
 
 """
-    contains3cycles(net::HybridNetwork, remove3cycles=false::Bool)
+    contain3cycles(net::HybridNetwork, removecycles=false::Bool)
 
-Check for 3-cycles in a given network. Return true if contains 3-cycles. False
-otherwise.
+Return true if `net` contains a 2-cycle or a 3-cycle; false otherwise.
+A 3-cycle (2-cycle) is a set of 3 (2) nodes that are all connected.
+One of them must be a hybrid node, since `net` is a DAG.
 
-Option `remove3cycles` deletes a minor hybrid edge to remove a 3-cycle.
+If `removecycles` is true, `net` is modified to contract all 2- and 3-cycles
+that have been found, by deleting the minor hybrid edge in these cycles.
 """
-function contains3cycles(net::HybridNetwork, remove3cycles=false::Bool)
-    # idea: Do major and minor edges share more than just their hybrid node?
-    for h in net.hybrid
-        major = PhyloNetworks.getMajorParentEdge(h)
-        minor = PhyloNetworks.getMinorParentEdge(h)
-        for e in setdiff(PhyloNetworks.getParent(minor).edge, [minor])
-            sharednodes = findall(in(major.node), e.node)
-            if remove3cycles && !isempty(sharednodes) # delete minor edge
-                PhyloNetworks.deletehybridedge!(net, minor)
-            elseif !isempty(sharednodes)
-                return true
+function contain3cycles(net::HybridNetwork, removecycles=false::Bool)
+    foundcycle = false
+    for ih in length(net.hybrid):-1:1 # hybrids deleted from the end
+        h = net.hybrid[ih]
+        minor = getMinorParentEdge(h)
+        pmin = getParent(minor)  # minor parent node
+        pmaj = getMajorParent(h) # major parent node
+        if pmin === pmaj # 2-cycle
+            foundcycle = true
+            removecycles || return true
+            deletehybridedge!(net, minor)
+        else # check if pmin <---> pmaj
+            for e in pmin.edge
+                e !== minor || continue
+                n = getOtherNode(e, pmin)
+                if n === pmaj
+                    foundcycle = true
+                    removecycles || return true
+                    deletehybridedge!(net, minor)
+                    break
+                end
             end
         end
     end
-    return false
+    return foundcycle
 end
 
 #------------------------------------

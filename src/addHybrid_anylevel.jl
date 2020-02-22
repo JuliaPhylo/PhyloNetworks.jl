@@ -71,7 +71,7 @@ function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool
         constraintsmet = true
         for con in constraints
             if con.type == 1 # forbid going out of (edge1) or into (edge2) the species group
-                if con.node == p1 || con.node == p2
+                if con.node === p1 || con.node === p2
                     push!(blacklist, (e1,e2))
                     constraintsmet = false
                     break # of constraint loop
@@ -115,14 +115,13 @@ and a new edge is created linking the 2 new "middle" nodes, pointing from `edge1
 The new node in the middle of `edge1` is a tree node.
 The new node in the middle of `edge2` is a hybrid node.
 Its parent edges are the newly created hybrid edge (with γ = gamma, missing by default),
-and either the newly edge "above" `edge2` if `hybridpartnernew=true`, or
-the old `edge2` otherwise (which would reverse the direction of `edge2` and others).
+and either the newly edge "above" `edge2` if `hybridpartnernew=true`,
+or the old `edge2` otherwise (which would reverse the direction of `edge2` and others).
 
 Should be called from the other method, which performs a bunch of checks.
 Updates `containRoot` attributes for edges below the new hybrid node.
 
-Modifies `net`, returns tuple of new hybrid node (middle of the old `edge2`)
-    and new hybrid edge.
+Output: new hybrid node (middle of the old `edge2`) and new hybrid edge.
 
 # examples
 

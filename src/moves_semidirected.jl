@@ -31,7 +31,7 @@ Type for various topological constraints, such as:
 2. a set of individuals belonging to the same species
 3. a set of taxa forming a clade in any one of the displayed trees
 """
-mutable struct TopologyConstraint
+struct TopologyConstraint
     "type of constraint: 1=species, 2=clade in major tree. 3=clade in some displayed tree: not yet implemented."
     type::UInt8
     "names of taxa in the constraint (clade / species members)"
@@ -144,18 +144,23 @@ end
 
 """
     constraintviolated(network::HybridNetwork,
-                       cladeconstraints::Vector{TopologyConstraint})
+                       constraints::Vector{TopologyConstraint})
 
 True if `network` violates one (or more) of the constraints of type 1
 (individuals in a species group) or type 2 (must be clades in the major tree).
+Warning: constraints of type 3 are not implemented.
 """
 function constraintviolated(net::HybridNetwork, constraints::Vector{TopologyConstraint})
+    if isempty(constraints)
+        return false
+    end # avoids extracting major tree when no constraint
+    tree = majorTree(net)
     for con in constraints # checks directionality of stem edge hasn't changed
         if con.type in [0x01, 0x02]
             getChild(con.edge) === con.node || return true
-            tree = majorTree(net)
             tei = findfirst(e -> e.number == con.edge.number, tree.edge)
-            tei !== nothing || error("hmm. edge number $(con.edge.number) was not found in the network's major tree")
+            tei !== nothing ||
+                error("hmm. edge number $(con.edge.number) was not found in the network's major tree")
             treeedge = tree.edge[tei]
             des = descendants(treeedge) # vector of node numbers, descendant tips only by default
             Set(des) == con.taxonnums || return true
@@ -165,55 +170,67 @@ function constraintviolated(net::HybridNetwork, constraints::Vector{TopologyCons
 end
 
 """
-    updateconstraintnumbers!(net::HybridNetwork,
-                            constraints::Vector{TopologyConstraint})
+    updateconstraints!(constraints::Vector{TopologyConstraint}, net::HybridNetwork)
 
-Update stem edge, crown node, and taxonnum numbers. Needed after using
-resetNodeNumbers! and resetEdgeNumbers!
+Update the set `taxonnum` in each constraint, assuming that the stem edge and
+the crown node are still correct, and that their descendants are still correct.
+May be needed if the node and edge numbers were modified by
+[`resetNodeNumbers!`](@ref) or [`resetEdgeNumbers!`](@ref).
 
-Return a vector of updated constraints.
+Warning: does *not* check that the names of leaves with numbers in `taxonnum`
+are `taxonnames`.
+
+```jldoctest
+julia> net = readTopology("(((2a,2b),(((((1a,1b,1c),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));");
+
+julia> c_species1 = PhyloNetworks.TopologyConstraint(0x01, ["1a","1b","1c"], net)
+Species constraint, on tips: 1a, 1b, 1c
+ stem edge number 7
+ crown node number -9
+
+julia> c_species1.taxonnums
+Set([4, 3, 5])
+
+julia> c_clade145 = PhyloNetworks.TopologyConstraint(0x02, ["1a","1b","1c","4","5"], net)
+Clade constraint, on tips: 1a, 1b, 1c, 4, 5
+ stem edge number 12
+ crown node number -7
+
+julia> PhyloNetworks.resetNodeNumbers!(net)
+
+julia> net.node[4].number = 111;
+
+julia> PhyloNetworks.updateconstraints!([c_species1, c_clade145], net)
+
+julia> c_species1
+Species constraint, on tips: 1a, 1b, 1c
+ stem edge number 7
+ crown node number 21
+
+julia> c_species1.taxonnums
+Set([4, 5, 111])
+```
 """
-function updateconstraintnumbers!(net::HybridNetwork,
-                                 constraints::Vector{TopologyConstraint})
-    for c in constraints
-        ntax_clade = length(c.taxonnames)
-        outsideclade = setdiff([n.name for n in net.leaf], c.taxonnames)
-        c.taxonnums = Set{Int}() # empty list
-        # find set of node numbers corresponding to taxonnames
-        for (i,taxon) in enumerate(c.taxonnames)
-            index = findfirst(n -> n.name == taxon, net.leaf)
-            !isnothing(index) || error("taxon $taxon is not found in the network.")
-            push!(c.taxonnums, net.leaf[index].number) # note: not ordered as in taxonnames
-        end
-        # get interior ancestor edges in major tree (no hybrids)
-        matrix = hardwiredClusters(majorTree(net), vcat(c.taxonnames, outsideclade))
-        # look for row with ones in relevant columns, zeros everywhere else (or zeros there and ones everywhere else)
-        edgenum = 0 # 0 until we find the stem edge
-        comparator = zeros(Int8, size(matrix)[2]-2)
-        comparator[1:ntax_clade] = ones(Int8, ntax_clade)
-        # go through matrix row by row to find match with comparator. Return number
-        for i in 1:size(matrix, 1)
-            if matrix[i,2:size(matrix)[2]-1] == comparator # found the mrca!
-                edgenum = matrix[i, 1]
-                break
-            end
-        end
-        if edgenum == 0
-            comparator .= 1 .- comparator
-            for i in 1:size(matrix)[1]
-                if matrix[i,2:size(matrix)[2]-1] == comparator
-                    error("""The clade given is not rooted correctly, making it a grade instead of a clade.
-                    You can re-try after modifying the root of your network.""")
-                end
-            end
-            error("The taxa given do not form a clade in the network")
-        end
-        edgei = findfirst(e -> e.number == edgenum, net.edge)
-        edgei !== nothing || error("hmm. hardwiredClusters on the major tree got an edge number not in the network")
-        c.edge = net.edge[edgei]
-        c.node = getChild(c.edge)
+function updateconstraints!(constraints::Vector{TopologyConstraint}, net::HybridNetwork)
+    if isempty(constraints)
+        return nothing
+    end # avoids extracting major tree when no constraint
+    tree = majorTree(net)
+    for con in constraints
+      if con.type in [0x01, 0x02]
+        getChild(con.edge) === con.node ||
+            error("the stem edge and crown node have been disconnected")
+        tei = findfirst(e -> e.number == con.edge.number, tree.edge)
+        tei !== nothing ||
+            error("stem edge number $(con.edge.number) was not found in the network's major tree")
+        des = descendants(tree.edge[tei]) # vector of node numbers, descendant tips only by default
+        d1 = setdiff(con.taxonnums, des)  # set
+        d2 = setdiff(des, con.taxonnums)  # array
+        length(d1) == length(d2) || error("missing or extra taxa in the clade / species.")
+        replace!(con.taxonnums, Dict(tn => d2[i] for (i,tn) in enumerate(d1))...)
+      end
     end
-    return constraints
+    return nothing
 end
 
 #= TODO
@@ -261,7 +278,7 @@ julia> net = readTopology(str_network);
 
 julia> using Random; Random.seed!(321);
 
-julia> undoinfo = nni!(net, net.edge[3], true, true); # true's to avoid 3-cycles or hybrid ladders
+julia> undoinfo = nni!(net, net.edge[3], true, true); # true's to avoid hybrid ladders and 3-cycles
 
 julia> writeTopology(net)
 "(((S8,(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),S9),(#H2,S10));"
@@ -275,10 +292,12 @@ true
 function nni!(net::HybridNetwork, e::Edge, nohybridladder::Bool=true, no3cycle::Bool=true,
               constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     for con in constraints
+        # reject NNI if the focus edge is the stem of a constraint.
+        # sufficient to maintain star species constraints
+        # but not sufficient for clades.
         if con.edge === e
             return nothing
         end
-        # clade TODO lower down, with clades, if u or v is the node num, recalculate the node num after nni move
     end
     hybparent = getParent(e).hybrid
     nnirange = 0x01:nnimax(e) # 0x01 = 1 but UInt8 instead of Int
@@ -287,10 +306,12 @@ function nni!(net::HybridNetwork, e::Edge, nohybridladder::Bool=true, no3cycle::
         moveinfo = nni!(net, e, nummove, nohybridladder, no3cycle)
         !isnothing(moveinfo) || continue # to next possible NNI
         if constraintviolated(net, constraints)
+            # fixit: not needed for species constraints,
+            # not sufficient for clades if γ / isMajor modified later, or if
+            # constraints met after NNI but stem / crows need to be moved
             nni!(moveinfo...) # undo the previous NNI
             continue          # try again
         end
-        # no need to check that species constraints are still met
         return moveinfo
     end
     return nothing # if we get to this point, all NNIs failed
@@ -344,7 +365,9 @@ choice of labelling adjacent nodes as α/β (BB), or as α/γ (BR).
 `nohybridladder` = true prevents moves that would create a hybrid ladder in
 the network, that is, 2 consecutive hybrid nodes (one parent of the other).
 `no3cycle` = true prevents NNI moves that would make a 3-cycle, and assumes
-that the input network does not have any 3-cycles.
+that the input network does not have any 2- or 3-cycles.
+If `no3cycle` is false, 3-cycles can be generated, but NNIs generating
+2-cycles are prevented.
 
 The edge field `isChild1` is assumed to be correct according to the `net.root`.
 """
@@ -354,7 +377,6 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8,
     if nmovemax == 0x00 # uv not internal, or polytomy e.g. species represented by polytomy with >2 indiv
         return nothing
     end
-    nummove > 0x00 || error("nummove $(nummove) must be >0")
     nummove <= nmovemax || error("nummove $(nummove) must be <= $nmovemax for edge number $(uv.number)")
     u = getParent(uv)
     v = getChild(uv)
@@ -429,7 +451,11 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8,
             (γ,vγ,vδ,δ) = (δ,vδ,vγ,γ)
         end
         # detach β and graft onto vδ
-        if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
+        if no3cycle # don't create a 3-cycle
+            if problem4cycle(α,γ, β,δ) return nothing; end
+        else # don't create a 2-cycle
+            if α === γ || β === δ return nothing; end
+        end
         res = nni!(αu, u, uv, v, vδ)
     else # u = bifurcation: BB or BR cases
         if !v.hybrid # case BB: 2 options
@@ -437,7 +463,10 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8,
                 (γ,vγ,vδ,δ) = (δ,vδ,vγ,γ)
             end
             # detach β and graft onto vδ
-            if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
+            if no3cycle
+                if problem4cycle(α,γ, β,δ) return nothing; end
+            elseif α === γ || β === δ return nothing
+            end
             res = nni!(αu, u, uv, v, vδ)
         else # case BR: 3 options
             # DAG check
@@ -463,20 +492,32 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8,
                 end
             end
             if nummove == 0x01 # graft γ onto α
-                if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
+                if no3cycle
+                    if problem4cycle(α,γ, β,δ) return nothing; end
+                elseif α === γ || β === δ return nothing
+                end
                 if nohybridladder && α.hybrid return nothing; end
                 res = nni!(vδ, v, uv, u, αu)
             elseif nummove == 0x02 # graft γ onto β
                 if nohybridladder && β.hybrid return nothing; end
-                if no3cycle && problem4cycle(β,γ, α,δ) return nothing; end
+                if no3cycle
+                    if problem4cycle(β,γ, α,δ) return nothing; end
+                elseif β === γ || α === δ return nothing
+                end
                 res = nni!(vδ, v, uv, u, βu)
             else # nummove == 0x03
                 if αparentu # if α->u: graft δ onto α
-                    if no3cycle && problem4cycle(α,δ, β,γ) return nothing; end
+                    if no3cycle
+                        if problem4cycle(α,δ, β,γ) return nothing; end
+                    elseif β === γ || α === δ return nothing
+                    end
                     if nohybridladder && α.hybrid return nothing; end
                     res = nni!(vγ, v, uv, u, αu)
                 else # if β->u: graft δ onto β
-                    if no3cycle && problem4cycle(α,γ, β,δ) return nothing; end
+                    if no3cycle
+                        if problem4cycle(α,γ, β,δ) return nothing; end
+                    elseif α === γ || β === δ return nothing
+                    end
                     # we could check nohybridladder && β.hybrid but no need because
                     # we only get here if uv.containRoot so β cannot be hybrid
                     res = nni!(vγ, v, uv, u, βu)
@@ -627,7 +668,7 @@ end
 
 """
     checkspeciesnetwork!(network::HybridNetwork,
-                        constraints::Vector{TopologyConstraint})
+                         constraints::Vector{TopologyConstraint})
 
 Check that the network satisfies a number of requirements:
 - no polytomies, other than at species constraints: throws an error otherwise
@@ -641,11 +682,11 @@ function checkspeciesnetwork!(net::HybridNetwork, constraints::Vector{TopologyCo
     for n in net.node # check for no polytomies: all nodes should have up to 3 edges
         if length(n.edge) > 3 # polytomies allowed at species constraints only
             coni = findfirst(c -> c.type == 1 && c.node === n, constraints)
-            coni !== nothing || error("The network has a polytomy at node number $(n.number). Please resolve.")
+            coni !== nothing ||
+                error("The network has a polytomy at node number $(n.number). Please resolve.")
         end
     end
     removedegree2nodes!(net)
-    # check if a 3-cycle has been created at the root here. If so, remove it.
     return !constraintviolated(net, constraints)
 end
 
@@ -772,6 +813,7 @@ function cleantaxonname(taxonname::AbstractString)
     end
     return tname
 end
+
 
 """
     moveroot!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{TopologyConstraint})

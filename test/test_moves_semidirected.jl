@@ -427,7 +427,7 @@ netl1_i.root = 14 # back to original rooted network. This node is still of degre
 netl1_i.root = 7; directEdges!(netl1_i) # move root strictly above clade crown
 con[2] = PhyloNetworks.TopologyConstraint(0x02, ["S5","S6","S7"], netl1_i)
 @test PhyloNetworks.checkspeciesnetwork!(netl1_i, con) # now fine: root *above* clade crown
-undoinfo = nni!(netl1_i,netl1_i.edge[8],0x02,false,false);
+undoinfo = nni!(netl1_i,netl1_i.edge[8],0x01,false,false);
 @test !PhyloNetworks.checkspeciesnetwork!(netl1_i, con)
 nni!(undoinfo...);
 @test PhyloNetworks.checkspeciesnetwork!(netl1_i, con)

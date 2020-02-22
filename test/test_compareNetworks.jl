@@ -10,7 +10,7 @@ global net, tree
 #----------------------------------------------------------#
 @testset "testing deletehybridedge!" begin
 
-# with keepNodes=true
+# with nofuse=true
 netstr = "(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.0,D:5.0);"
 net = readTopology(netstr)
 @test_logs PhyloNetworks.deletehybridedge!(net, net.edge[6], true);
@@ -221,7 +221,7 @@ a = displayedTrees(net5, 0.1);
 @test writeTopologyLevel1(a[4]) == "(A:1.0,((B:1.1,D:1.0):1.2,((F:0.7,E:0.51):0.8,C:1.12):2.2):0.7);"
 
 net = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.0,D:5.0);")
-trees = (@test_logs displayedTrees(net,0.0; keepNodes=true));
+trees = (@test_logs displayedTrees(net,0.0; nofuse=true));
 @test writeTopology(trees[1])=="(((A:4.0,(B:1.0)H1:1.1):0.5,(C:0.6):1.0):3.0,D:5.0);"
 @test writeTopology(trees[2])=="(((A:4.0):0.5,(C:0.6,(B:1.0)H1:1.0):1.0):3.0,D:5.0);"
 @test PhyloNetworks.inheritanceWeight.(trees) ≈ [log(0.9), log(0.1)]
@@ -236,10 +236,10 @@ net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02:
 @test writeTopology(net5) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.7);"
 net = readTopology("((((B)#H1)#H2,((D,C,#H2)S1,(#H1,A)S2)S3)S4);") # missing γ's, level 2
 @test writeTopology(majorTree(net)) == "(((D,C)S1,A)S3,B)S4;"
-@test writeTopology(majorTree(net; keepNodes=true)) == "(((B)H1)H2,((D,C)S1,(A)S2)S3)S4;"
+@test writeTopology(majorTree(net; nofuse=true)) == "(((B)H1)H2,((D,C)S1,(A)S2)S3)S4;"
 setGamma!(net.edge[8], 0.8)
 @test writeTopology(majorTree(net)) == "((D,C)S1,(A,B)S2)S3;"
-# but: bug with writeTopology(majorTree(net; keepNodes=true))
+# but: bug with writeTopology(majorTree(net; nofuse=true))
 
 end # of testset, majorTree & displayedNetworkAt!
 

@@ -296,7 +296,6 @@ function rootatnode!(net::HybridNetwork, nodeNumber::Integer; index=false::Bool,
           rethrow(e)
         end
         if (net.root != rootsaved && length(net.node[rootsaved].edge)==2)
-            # verbose && println("old root has degree two: delete it and fuse adjacent edges.")
             fuseedgesat!(rootsaved,net) # remove old root node if degree 2
         end
         return net
@@ -918,11 +917,11 @@ but is kept if it is of degree 2. Deleting all leaves in an outgroup
 clade or grade will leave the ingroup rooted
 (that is, the new root will be of degree 2).
 
-`keepNodes`: if true, keep nodes (and edges) provided that they have at least
+`nofuse`: if true, keep nodes (and edges) provided that they have at least
 one descendant leaf, even if they are of degree 2.
 This will keep two-cycles (forcing `simplify` to false).
 Nodes without any descendant leaves are deleted.
-If `keepNodes` is false, edges adjacent to degree-2 nodes are fused.
+If `nofuse` is false, edges adjacent to degree-2 nodes are fused.
 
 Warning: does **not** update attributes related to level-1 networks,
 such as inCycle, partition, gammaz, etc.
@@ -952,7 +951,7 @@ end
 # hybrid edges from node to another node are not removed. fused instead.
 # consequence: node having 2 hybrid edges away from node should not occur.
 function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
-                     index=false::Bool, keepNodes=false::Bool,
+                     index=false::Bool, nofuse=false::Bool,
                      simplify=true::Bool, unroot=false::Bool,
                      multgammas=false::Bool)
     i = nodeNumber # good if index=true
@@ -985,7 +984,7 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
             length(pn.edge)==0 || error("neighbor of leaf $(nodei.name) is another leaf, which had $(length(pn.edge)) edges (instead of 1)")
             return nothing # all done: exit function
         end
-        deleteleaf!(net, pn.number; keepNodes = keepNodes, simplify=simplify, unroot=unroot, multgammas=multgammas)
+        deleteleaf!(net, pn.number; nofuse = nofuse, simplify=simplify, unroot=unroot, multgammas=multgammas)
         return nothing
     elseif nodeidegree > 2
         # do nothing: nodei has degree 3+ (through recursive calling)
@@ -1010,9 +1009,9 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
         if net.root==i net.root=getIndex(p1,net); end # should never occur though.
         deleteNode!(net,nodei)
         # recursive call on both p1 and p2.
-        deleteleaf!(net, p1.number; keepNodes = keepNodes, simplify=simplify, unroot=unroot, multgammas=multgammas)
-        sameparent || deleteleaf!(net, p2.number; keepNodes=keepNodes, simplify=simplify, unroot=unroot, multgammas=multgammas)
-    elseif !keepNodes #if keeepNodes, do not fuseedges. The recursion should stop.
+        deleteleaf!(net, p1.number; nofuse = nofuse, simplify=simplify, unroot=unroot, multgammas=multgammas)
+        sameparent || deleteleaf!(net, p2.number; nofuse=nofuse, simplify=simplify, unroot=unroot, multgammas=multgammas)
+    elseif !nofuse #if keeepNodes, do not fuseedges. The recursion should stop.
         e1 = fuseedgesat!(i,net, multgammas) # fused edge
         if simplify && e1.hybrid # check for 2-cycle at new hybrid edge
             cn = getChild(e1)
@@ -1026,7 +1025,7 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
                 removeEdge!(pn,e1); removeEdge!(cn,e1)
                 deleteEdge!(net,e1,part=false)
                 # call recursion again because pn and/or cn might be of degree 2.
-                deleteleaf!(net, cn.number; keepNodes = keepNodes, simplify=simplify, unroot=unroot, multgammas=multgammas)
+                deleteleaf!(net, cn.number; nofuse = nofuse, simplify=simplify, unroot=unroot, multgammas=multgammas)
             end
         end
     end
@@ -1061,13 +1060,13 @@ julia> PhyloNetworks.resetNodeNumbers!(net)
 
 julia> printNodes(net) # first column "node": root is 5
 node leaf  hybrid hasHybEdge name inCycle edges'numbers
-1    true  false  false      A    -1      1
-2    true  false  false      B    -1      2
-3    true  false  false      C    -1      3
-4    true  false  false      D    -1      4
-7    false false  false           -1      3    4    5
-6    false false  false           -1      2    5    6
-5    false false  false           -1      1    6
+1    true  false  false      A    -1      1   
+2    true  false  false      B    -1      2   
+3    true  false  false      C    -1      3   
+4    true  false  false      D    -1      4   
+7    false false  false           -1      3    4    5   
+6    false false  false           -1      2    5    6   
+5    false false  false           -1      1    6   
 
 julia> net = readTopology("(A,(B,(C,D)));");
 
@@ -1075,13 +1074,13 @@ julia> PhyloNetworks.resetNodeNumbers!(net; type=:postorder)
 
 julia> printNodes(net) # first column "node": root is 7
 node leaf  hybrid hasHybEdge name inCycle edges'numbers
-1    true  false  false      A    -1      1
-2    true  false  false      B    -1      2
-3    true  false  false      C    -1      3
-4    true  false  false      D    -1      4
-5    false false  false           -1      3    4    5
-6    false false  false           -1      2    5    6
-7    false false  false           -1      1    6
+1    true  false  false      A    -1      1   
+2    true  false  false      B    -1      2   
+3    true  false  false      C    -1      3   
+4    true  false  false      D    -1      4   
+5    false false  false           -1      3    4    5   
+6    false false  false           -1      2    5    6   
+7    false false  false           -1      1    6   
 ```
 """
 function resetNodeNumbers!(net::HybridNetwork;
@@ -1119,6 +1118,7 @@ end
 
 """
     resetEdgeNumbers!(net::HybridNetwork)
+
 Check that edge numbers of `net` are consecutive numbers from 1 to the total
 number of edges. If not, reset the edge numbers to be so.
 """
@@ -1180,4 +1180,38 @@ function allowrootbelow!(n::Node, pe::Edge)
         allowrootbelow!(ce)
     end
     return nothing
+end
+
+"""
+unzip_canonical!(net::HybridNetwork)
+
+Unzip all reticulations: set the length of child edge to 0, and increase
+the length of both parent edges by the original child edge's length,
+to obtain the canonical version of the network according to
+Pardi & Scornavacca (2015).
+
+This needs to be done in postorder, in case there is a hybrid ladder.
+The preordering is supposed to have been done already,
+such that `net.nodes_changed` is up-to-date.
+
+Returned the vector of child edges whose length is constrained to be 0.
+"""
+function unzip_canonical!(net::HybridNetwork)
+    constrainededges = Edge[]
+    isempty(net.nodes_changed) && error("unzip_canonical! needs a preordering of nodes")
+    for i in reverse(1:length(net.nodes_changed)) # post-order
+        h = net.nodes_changed[i]
+        h.hybrid || continue
+        ce = getChildEdge(h)
+        clen = ce.length
+        for e in h.edge
+            if e === ce
+                e.length = 0.0
+            else
+                e.length += clen
+            end
+        end
+        push!(constrainededges, ce)
+    end
+    return constrainededges
 end

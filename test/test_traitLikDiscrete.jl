@@ -206,13 +206,13 @@ hcat(log.(p), ll)
  -1.62173  -1.62184
  -3.00805  -3.00807
  -4.39506  -4.39436
- -3.00747  -3.0082
+ -3.00747  -3.0082 
  -3.70119  -3.70121
- -3.00759  -3.0082
+ -3.00759  -3.0082 
  -2.31516  -2.31505
  -2.31554  -2.31499
- -3.0083   -3.0082
- -3.008    -3.0082
+ -3.0083   -3.0082 
+ -3.008    -3.0082 
  -2.31475  -2.31505
  -3.702    -3.70135
  -3.00836  -3.00813
@@ -557,8 +557,7 @@ PhyloNetworks.startingBL!(dna_net, false, trait, dna_weights)
 end # of startingBL!
 
 @testset "testing prep and wrapper functions" begin
-# read in data #
-#test
+# read in data
 #at home: fastafile = joinpath(@__DIR__, "../../dev/PhyloNetworks/", "examples", "Ae_bicornis_Tr406_Contig10132.aln") #small data
 fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_Tr406_Contig10132.aln")
 dna_dat, dna_weights = readfastatodna(fastafile, true);

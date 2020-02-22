@@ -55,33 +55,12 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
     "log-likelihood of ith displayed tree t, given rate category j, of site k"
     _loglikcache::Array{Float64, 3} # size: ntrees, nrates, nsites
 
-    "fasta constructor: from net, fasta filename, modsymbol, and maxhybrid
-    Works for DNA in fasta format. Probably need different versions for
-    different kinds of data (snp, amino acids). Similar to fitdiscrete()"
-    function StatisticalSubstitutionModel(net::HybridNetwork, fastafile::String,
-        modsymbol::Symbol, maxhybrid::Int64=length(net.hybrid))
-        if any([e.gamma < 0.0 for e in net.edge if e.hybrid]) # check for misssing gamma values
-            for i in 1:length([e for e in net.edge if e.hybrid])
-                if [e for e in net.edge if e.hybrid][i].gamma < 0.0
-                    setGamma!([e for e in net.edge if e.hybrid][i], 0.5)
-                end
-            end
-        end
-        data, siteweights = readfastatodna(fastafile, true)
-        model = symboltomodel(net, modsymbol, data, siteweights)
-        ratemodel = RateVariationAcrossSites(1.0, 1) #? add option for users here
-        dat2 = traitlabels2indices(view(data, :, 2:size(data,2)), model)
-        o, net = check_matchtaxonnames!(data[:,1], dat2, net)
-        trait = dat2[o]
-        obj = StatisticalSubstitutionModel(model, ratemodel, net, trait,
-                                            siteweights, maxhybrid)
-    end
     "inner (default) constructor: from model, rate model, network, trait and site weights"
     function StatisticalSubstitutionModel(model::SubstitutionModel,
-        ratemodel::RateVariationAcrossSites,
-        net::HybridNetwork, trait::AbstractVector,
-        siteweight=nothing::Union{Nothing, Vector{Float64}},
-        maxhybrid=length(net.hybrid)::Int64)
+            ratemodel::RateVariationAcrossSites,
+            net::HybridNetwork, trait::AbstractVector,
+            siteweight=nothing::Union{Nothing, Vector{Float64}},
+            maxhybrid=length(net.hybrid)::Int64)
         length(trait) > 0 || error("no trait data!")
         nsites = length(trait[1])
         siteweight === nothing || length(siteweight) == nsites ||
@@ -89,15 +68,10 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
         totalsiteweight = (siteweight === nothing ? float(nsites) : sum(siteweight))
         # T = eltype(getlabels(model))
         # extract displayed trees
-        trees = displayedTrees(net, 0.0; keepNodes=true)
+        trees = displayedTrees(net, 0.0; nofuse=true)
         nnodes = length(net.node)
         for tree in trees
             preorder!(tree) # no need to call directEdges! before: already done on net
-            # length(tree.nodes_changed) == nnodes ||
-            #     error("displayed tree with too few nodes: $(writeTopology(tree))")
-            # length(tree.edge) == length(net.edge)-net.numHybrids ||
-            #     error("displayed tree with too few edges: $(writeTopology(tree))")
-            # allow this because, in some cases, we remove a hybrid node during displayedtrees because it has no children.
         end
         ntrees = 2^maxhybrid
         ntrees >= length(trees) ||
@@ -108,7 +82,6 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
         all(!ismissing, priorltw) ||
           error("one or more inheritance γ's are missing or negative. fix using setGamma!(network, edge)")
         k = nstates(model)
-        # fixit: use SharedArray's below to parallelize things
         maxedges = length(net.edge) + 3*(maxhybrid-length(net.hybrid))
         maxnodes = length(net.node) + 2*(maxhybrid-length(net.hybrid))
         logtrans   = zeros(Float64, k,k, maxedges, length(ratemodel.ratemultiplier))
@@ -123,6 +96,30 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
     end
 end
 const SSM = StatisticalSubstitutionModel
+
+# fasta constructor: from net, fasta filename, modsymbol, and maxhybrid
+# Works for DNA in fasta format. Probably need different versions for
+# different kinds of data (snp, amino acids). Similar to fitdiscrete()
+function StatisticalSubstitutionModel(net::HybridNetwork, fastafile::String,
+    modsymbol::Symbol,
+    maxhybrid::Int64=length(net.hybrid))
+for e in net.edge # check for missing or inappropriate γ values
+if e.hybrid
+e.gamma > 0.0 && continue
+setGamma!(e, (e.isMajor ? 0.6 : 0.4)) # to maintain isMajor as is
+else
+e.gamma == 1.0 || error("tree edge number $(e.number) has γ not 1.0")
+end
+end
+data, siteweights = readfastatodna(fastafile, true)
+model = symboltomodel(net, modsymbol, data, siteweights)
+ratemodel = RateVariationAcrossSites(1.0, 1) #? add option for users here
+dat2 = traitlabels2indices(view(data, :, 2:size(data,2)), model)
+o, net = check_matchtaxonnames!(data[:,1], dat2, net) # calls resetNodeNumbers, which calls preorder!
+trait = dat2[o]
+obj = StatisticalSubstitutionModel(model, ratemodel, net, trait, siteweights,
+                           maxhybrid)
+end
 
 StatsBase.loglikelihood(obj::SSM) = obj.loglik
 StatsBase.islinear(SSM) = false
@@ -181,22 +178,20 @@ Data can given in one of the following:
   with rows in the order corresponding to the order of species names.
   Again, trait labels should be as they appear in `getlabels(model)`.
   All traits are assumed to follow the same model, with same parameters.
-- 'dnadata': the first part of the output of readfastatodna,
-    a dataframe of BioSequence DNA sequences, with taxon in column 1 and
-    a column for each site.
-- 'dnapatternweights': the second part of the output of readfastatodna,
-    an array of weights, one weights for each of the site columns.
-    The length of the weight is equal to nsites.
-    If using dnapatternweights, must provide dnadata.
+- `dnadata`: the first part of the output of readfastatodna,
+  a dataframe of BioSequence DNA sequences, with taxon in column 1 and
+  a column for each site.
+- `dnapatternweights`: the second part of the output of readfastatodna,
+  an array of weights, one weights for each of the site columns.
+  The length of the weight is equal to nsites.
+  If using dnapatternweights, must provide dnadata.
 - RateVariationAcrossSites: model for rate variation (optional)
 
 Optional arguments (default):
 - `optimizeQ` (true): should model rate parameters be fixed,
-or should they be optimized?
-- `optimizeRVAS` (true): should the model optimize the
-variable rates across sites?
-- `optimizeTOPO` (false): should the model optimize network topology and
-branch lengths?
+  or should they be optimized?
+- `optimizeRVAS` (true): should the model optimize the α parameter
+  for the variability of rates across sites?
 - `NLoptMethod` (`:LN_COBYLA`, derivative-free) for the optimization algorithm.
   For other options, see the
   [NLopt](https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/).
@@ -204,8 +199,13 @@ branch lengths?
   `ftolRel` (1e-12), `ftolAbs` (1e-10) on the likelihood, and
   `xtolRel` (1e-10), `xtolAbs` (1e-10) on the model parameters.
 - bounds for the alpha parameter of the Gamma distribution of
-rates across sites: `alphamin=0.05`, `alphamax=50`.
+  rates across sites: `alphamin=0.05`, `alphamax=50`.
 - `verbose` (false): if true, more information is output.
+
+**limitation**: the root is assumed to be in each displayed tree,
+unless the prior at the root is taken to be the stationary distribution.
+This leads to a wrong likelihood if the root had a hybrid child edge.
+fixit in the future, with new option in `deleteleaf!` and to extract displayed trees.
 
 # examples:
 
@@ -292,8 +292,8 @@ variable rates across sites ~ discretized gamma with
 on a network with 0 reticulations
 log-likelihood: -5.2568
 ```
-#? add option to allow users to specify root prior
-#? (either equal frequencies or stationary frequencies) for trait models?
+fixit: add option to allow users to specify root prior,
+using either equal frequencies or stationary frequencies for trait models.
 """
 function fitdiscrete(net::HybridNetwork, model::SubstitutionModel,
     tips::Dict; kwargs...) #tips::Dict no ratemodel version
@@ -551,9 +551,10 @@ end
 """
     update_logtrans(obj::SSM)
 
-Initialize and update logtrans.
-
-Warning: Assumes that `edge.number` values stay consistent.
+Initialize and update `obj.logtrans`, the log transition probabilities
+along each edge in the full network.
+They are re-used for each displayed tree, which is why edges are not fused
+around degree-2 nodes when extracting displayed trees. 
 """
 function update_logtrans(obj::SSM)
     startingP = P(obj.model, 1.0) # same memory re-used for all branches below (t=1 arbitrary)
@@ -591,7 +592,6 @@ function discrete_corelikelihood!(obj::SSM; whichtrait::AbstractVector{Int} = 1:
     end
     # aggregate over trees and rates
     obj._loglikcache[1:nt,:,:] .+= obj.priorltw
-    #todo we could create a function for gamma optimization that reduces calculations here
     # obj._loglikcache .-= log(nr)
     # done below in 1 instead ntrees x nrates x nsites calculations, but _loglikcache not modified
     siteliks = dropdims(mapslices(logsumexp, view(obj._loglikcache, 1:nt, :,:),
@@ -693,11 +693,11 @@ julia> fit = fitdiscrete(net, m1, dat); # optimized rates: α=0.27 and β=0.35
 julia> pltw = PhyloNetworks.posterior_logtreeweight(fit)
 2-element Array{Float64,1}:
  -0.08356519024776699
- -2.523619878044531
+ -2.523619878044531  
 
 julia> exp.(pltw) # posterior trees probabilities (sum up to 1)
 2-element Array{Float64,1}:
- 0.9198311206979973
+ 0.9198311206979973 
  0.08016887930200293
 
 julia> round.(exp.(fit.priorltw), digits=4) # the prior tree probabilities are similar here (tiny data set!)
@@ -761,8 +761,7 @@ function traitlabels2indices(data::Union{AbstractMatrix,AbstractDataFrame},
             if !ismissing(l)
                 vi = findfirst(isequal(l), labs)
                 if vi === nothing
-                    #FIXIT ideally, replace isambiguous with isgap and handle ambiguous DNA types
-                    #@show BioSymbols.isambiguous(l) #note: this is false
+                    # ideally, handle ambiguous DNA types optimally
                     if isDNA #&& BioSymbols.isambiguous(l)
                         vi = missing
                     else
@@ -776,7 +775,7 @@ function traitlabels2indices(data::Union{AbstractMatrix,AbstractDataFrame},
     end
     return A
 end
-#TODO in future, for data with multiple traits, add test for 2 traits to test above function
+
 """
     check_matchtaxonnames!(species, data, net)
 
@@ -851,6 +850,13 @@ warnings:
 - `obj` is modified: its likelihood fields (forward, directional & backward)
   are updated to make sure that they correspond to the current parameter values
   in `obj.model`, and to the `trait` of interest.
+
+limitations: the following are not checked.
+- Assumes that every node in the large network is also present
+  (with descendant leaves) in each displayed tree.
+  This is not true if the network is not tree-child...
+- Assumes that the root is also in each displayed tree, which
+  may not be the case if the root had a hybrid child edge.
 
 See also [`posterior_logtreeweight`](@ref) and
 [`discrete_backwardlikelihood_trait!`](@ref) to update `obj.backwardlik`.
@@ -970,3 +976,101 @@ function discrete_backwardlikelihood_trait!(obj::SSM, t::Integer, trait::Integer
     end
     return backwardlik
 end
+
+"""
+    learnlabels(model::Symbol, dat::DataFrame)
+
+Return unique non-missing values in `dat`, and check that these labels
+can be used to construct of substitution model of type `model`.
+
+# examples:
+
+```jldoctest
+julia> using DataFrames
+
+julia> dat = DataFrame(trait1 = ["A", "C", "A", missing]); # 4×1 DataFrame
+
+julia> PhyloNetworks.learnlabels(:BTSM, dat)
+2-element Array{String,1}:
+ "A"
+ "C"
+
+julia> PhyloNetworks.learnlabels(:JC69, dat)
+2-element Array{String,1}:
+ "A"
+ "C"
+```
+"""
+function learnlabels(modSymbol::Symbol, dat::AbstractDataFrame)
+    labels = mapreduce(x -> unique(skipmissing(x)), union, eachcol(dat))
+    if modSymbol == :BTSM
+        length(labels) == 2 || error("Binary Trait Substitution Model supports traits with two states. These data have do not have two states.")
+    elseif modSymbol == :TBTSM
+        unique(skipmissing(dat[!,1])) == 2 && unique(skipmissing(dat[!,2]) == 2) ||
+          error("Two Binary Trait Substitution Model supports two traits with two states each.")
+    elseif modSymbol in [:HKY85, :JC69]
+        typeof(labels) == Array{DNA,1} ||
+        (typeof(labels) == Array{Char,1}   &&       all(in.(uppercase.(labels), "-ABCDGHKMNRSTVWY"))) ||
+        (typeof(labels) == Array{String,1} && all(occursin.(uppercase.(labels), "-ABCDGHKMNRSTVWY"))) ||
+        # "ACGT" would dissallow ambiguous sites
+          error("$modSymbol requires that trait data are dna bases A, C, G, and T")
+    end
+    return labels
+end
+
+"""
+    startingrate(net)
+
+Estimate an evolutionary rate appropriate for the branch lengths in the network,
+which should be a good starting value before optimization in `fitdiscrete`,
+assuming approximately 1 change across the entire tree.
+If all edge lengths are missing, set starting rate to 1/(number of taxa).
+"""
+function startingrate(net::HybridNetwork)
+    totaledgelength = 0.0
+    for e in net.edge
+        if e.length > 0.0
+            totaledgelength += e.length
+        end
+    end
+    if totaledgelength == 0.0 # as when all edge lengths are missing
+        totaledgelength = net.numTaxa
+    end
+    return 1.0/totaledgelength
+end
+
+"""
+    symboltomodel(network, modsymbol::Symbol, data::DataFrame,
+                  siteweights::Vector)
+
+Return a statistical substitution model (SSM) with appropriate state labels
+and a rate appropriate for the branch lengths in `net`
+(see [`startingrate`](@ref)).
+The `data` frame must have the actual trait/site data in columns 2 and up,
+as when the species names are in column 1.
+For DNA data, the relative rate model is returned, with a
+stationary distribution equal to the empirical frequencies.
+"""
+function symboltomodel(net::HybridNetwork, modsymbol::Symbol, data::DataFrame,
+        siteweights=repeat([1.], inner=size(data,2))::AbstractVector)
+    rate = startingrate(net)
+    actualdat = view(data, :, 2:size(data,2))
+    labels = learnlabels(modsymbol, actualdat)
+    if modsymbol == :JC69
+        return JC69([1.0], true) # 1.0 instead of rate because relative version
+    elseif modsymbol == :HKY85 # transition/transversion rate ratio
+        return HKY85([1.0], empiricalDNAfrequencies(actualdat, siteweights), true)
+    elseif modsymbol == :ERSM
+        return EqualRatesSubstitutionModel(length(labels), rate, labels);
+    elseif modsymbol == :BTSM
+        return BinaryTraitSubstitutionModel([rate, rate], labels)
+    elseif modsymbol == :TBTSM
+        return TwoBinaryTraitSubstitutionModel([rate, rate, rate, rate, rate,
+                                                rate, rate, rate], labels)
+    else
+        error("model $modsymbol is unknown or not implemented yet")
+    end
+end
+
+# fixit: new type for two (dependent) binary traits
+# need new algorithm for model at hybrid nodes: displayed trees aren't enough
