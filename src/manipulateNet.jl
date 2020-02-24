@@ -1117,19 +1117,19 @@ function resetNodeNumbers!(net::HybridNetwork;
 end
 
 """
-    resetEdgeNumbers!(net::HybridNetwork)
+    resetEdgeNumbers!(net::HybridNetwork, verbose=true)
 
 Check that edge numbers of `net` are consecutive numbers from 1 to the total
 number of edges. If not, reset the edge numbers to be so.
 """
-function resetEdgeNumbers!(net::HybridNetwork)
+function resetEdgeNumbers!(net::HybridNetwork, verbose=true::Bool)
     enum = [e.number for e in net.edge]
     ne = length(enum)
     unused = setdiff(1:ne, enum)
     if isempty(unused)
         return nothing # all good
     end
-    @warn "resetting edge numbers to be from 1 to $ne"
+    verbose && @warn "resetting edge numbers to be from 1 to $ne"
     ind2change = findall(x -> x ∉ 1:ne, enum)
     length(ind2change) == length(unused) || error("can't reset edge numbers")
     for i in 1:length(unused)

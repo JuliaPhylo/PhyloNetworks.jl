@@ -665,11 +665,17 @@ But it is a distance on some network subspaces.
 
 If the 2 networks are trees, this is the Robinson-Foulds distance.
 If rooted=false, the trees are considered unrooted.
+
+If rooted is false and one of the phylogenies is not a tree (1+ reticulations),
+then all degree-2 nodes are removed before comparing the hardwired clusters,
+and the minimum distance is returned over all possible ways to root the
+networks. When trying to root a network at a leaf, the root is placed
+along the external branch to the leaf (creating a single degree-2 node).
 """
 function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, rooted::Bool)
     bothtrees = (net1.numHybrids == 0 && net2.numHybrids == 0)
     rooted || bothtrees ||
-        return hardwiredClusterDistance_unrooted(net1, net2) # tries all root positions
+        return hardwiredClusterDistance_unrooted(net1, net2) # tries all roots, but removes degree-2 nodes
     taxa = sort!(String[net1.leaf[i].name for i in 1:net1.numTaxa])
     length(setdiff(taxa, String[net2.leaf[i].name for i in 1:net2.numTaxa])) == 0 ||
         error("net1 and net2 do not share the same taxon set. Please prune networks first.")
@@ -706,52 +712,58 @@ end
 """
     hardwiredClusterDistance_unrooted(net1::HybridNetwork, net2::HybridNetwork)
 
-Miminum [`hardwiredClusterDistance`](@ref) between the two rooted networks,
-over all root positions that are compatible with the direction of hybrid edges.
+Miminum hardwired cluster dissimilarity between the two networks, considered as
+unrooted (or semi-directed). This dissimilarity is defined as the minimum
+rooted distance, over all root positions that are compatible with the direction
+of hybrid edges.
+Called by [`hardwiredClusterDistance`](@ref).
 
-Note: the networks are considered unrooted, so if the original root
-is of degree 2 in either `net1` or `net2`, then the hardwired cluster
-at this root node is ignored.
+Since rooting the network at a leaf creates a root node of degree 2 and may
+require to delete the previous node, if it was of degree 2, all degree-2 nodes
+are deleted before starting the comparison.
 """
 function hardwiredClusterDistance_unrooted(net1::HybridNetwork, net2::HybridNetwork)
     return hardwiredClusterDistance_unrooted!(deepcopy(net1), deepcopy(net2))
 end
 function hardwiredClusterDistance_unrooted!(net1::HybridNetwork, net2::HybridNetwork)
+    #= fixit: inefficient function, because r1 * r2 "M" matrices of
+      hardwiredClusters() are calculated, where ri = # root positions in neti.
+      Rewrite to calculate only r1 + r2 M's.
+    =#
+    removedegree2nodes!(net1) # because re-rooting would remove them in an
+    removedegree2nodes!(net2) # unpredictable order
     # find all permissible positions for the root
-    net1roots = Int[]
-    for i in length(net1.node):-1:1 # reverse order, in case degree-2 root node disappears
+    net1roots = [n.number for n in net1.node]
+    for i in length(net1roots):-1:1 # reverse order, to delete some of them
         try
-            rootatnode!(net1, i; index=true, verbose=false)
+            rootatnode!(net1, net1roots[i]; verbose=false)
+            # tricky: rootatnode adds a degree-2 node if i is a leaf,
+            #         and delete former root node if it's of degree 2.
         catch e
             isa(e, RootMismatch) || rethrow(e)
-            continue # dont add to list, try next possible root
+            deleteat!(net1roots, i)
         end
-        push!(i, net1roots)
     end
-    net2roots = Int[]
-    for i in length(net2.node):-1:1
+    net2roots = [n.number for n in net2.node]
+    for i in length(net2roots):-1:1
         try
-            rootatnode!(net2, i; index=true, verbose=false)
+            rootatnode!(net2, net2roots[i]; verbose=false)
         catch e
             isa(e, RootMismatch) || rethrow(e)
-            continue
+            deleteat!(net2roots, i)
         end
-        push!(i, net2roots)
     end
     bestdissimilarity = typemax(Int)
-    for i1 in net1roots
-        net1.root = i1
-        directEdges!(net1)
-        for i2 in net2roots
-            net2.root = i2
-            directEdges!(net2)
+    for n1 in net1roots
+        rootatnode!(net1, n1; verbose=false)
+        for n2 in net2roots
+            rootatnode!(net2, n2; verbose=false)
             diss = hardwiredClusterDistance(net1, net2, true) # rooted = true now
             if diss < bestdissimilarity
-                bestdissimilarity = diff
+                bestdissimilarity = diss
             end
         end
     end
-    # warning: original roots of net1 or net2 (and associated edge directions)
-    #          NOT restored. reason: roots of degree 2 disappeared.
-    return min(bestdissimilarity)
+    # warning: original roots (and edge directions) NOT restored
+    return bestdissimilarity
 end

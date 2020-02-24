@@ -177,18 +177,23 @@ no3cycle = true
 nohybridladder = true
 seed = 123
 maxhybrid = 2;
-# constraint
 str_level1_s = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" # indviduals S1A S1B S1C go on leaf 1
 net_level1_s = readTopology(str_level1_s)
+# 3-cycle at degree-2 root -> 2-cycle after root deletion, removed within LiNC
+# constraint
 net_level1_i, c_species = PhyloNetworks.mapindividuals(net_level1_s, mappingfile)
-# ^this hybrid creates a three cycle after root node of degree two is removed, so we remove it.
+PhyloNetworks.resetNodeNumbers!(net_level1_i)
+net_level1_i.node[22].number = 100
+PhyloNetworks.updateconstraints!(c_species, net_level1_i)
+@test c_species[1].taxonnums == Set([8,9,100])
 
 obj = PhyloNetworks.StatisticalSubstitutionModel(net_level1_i, fastaindiv, :JC69,
                                                 maxhybrid)
-# check_matchtaxonnames (inside constructor) renumbers nodes so we recalc constraint numbers here
-PhyloNetworks.updateconstraints!(c_species, obj.net)
-PhyloNetworks.checknetwork_LiNC!(obj.net, maxhybrid, no3cycle,
+# obj.net = deepcopy of input net, so we need to rebuild the constraints
+c_species[1] = PhyloNetworks.TopologyConstraint(0x01, c_species[1].taxonnames, obj.net)
+@test_logs (:warn, r"no 3-cycle") PhyloNetworks.checknetwork_LiNC!(obj.net, maxhybrid, no3cycle,
                                       nohybridladder, c_species)
+for e in obj.net.edge e.length = 0.1; end # was -1.0 for missing
 PhyloNetworks.startingBL!(obj.net, true, obj.trait, obj.siteweight)
 @test_nowarn PhyloNetworks.phyLiNCone!(obj, maxhybrid, no3cycle, nohybridladder, 5, 2,
                         false, seed, 0.5, c_species)

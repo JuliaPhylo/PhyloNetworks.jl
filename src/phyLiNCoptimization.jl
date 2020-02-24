@@ -17,21 +17,23 @@ const alphaRASmax = 50.0
              constraints=TopologyConstraint[]::Vector{TopologyConstraint},
              alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
 
-Estimate a phylogenetic networks using from concatenated DNA data using
-maximum likelihood, ignoring incomplete lineage sorting.
+Estimate a phylogenetic network from concatenated DNA data using
+maximum likelihood, ignoring incomplete lineage sorting
+(phyLiNC: phylogenetic Likelihood Network from Concatenated data).
 The network is constrained to have `maxhybrid` reticulations at most,
 but can be of any level.
-The search starts from the network `net`, using a local hill-climbing search to
-optimize the topology (nearest-neighbor interchange moves, add hybridizations,
+The search starts at (or near) the network `net`,
+using a local hill-climbing search to optimize the topology
+(nearest-neighbor interchange moves, add hybridizations,
 and remove hybridizations). Also optimized are evolutionary rates,
 amount of rate variation across sites, branch lengths and inheritance γs.
 This search strategy is run `nruns` times, and the best of the `nruns`
 networks is returned.
 
 Return a [`StatisticalSubstitutionModel`](@ref) object, say `obj`, which
-contains the estimated network: `obj.net`.
+contains the estimated network in `obj.net`.
 
-Note that the length of the edge below a reticulation is not identifiable.
+The length of the edge below a reticulation is not identifiable.
 Therefore, phyLiNC estimates the canonical version of the network: with
 reticulations **unzipped**: edges below reticulations are set to 0, and
 hybrid edges (parental lineages) have estimated lengths that are
@@ -630,7 +632,7 @@ function updateSSM!(obj::SSM, renumber=false::Bool;
                    constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     if renumber # traits are in leaf.number order, so leaf nodes not reordered
         resetNodeNumbers!(obj.net; checkPreorder=false, type=:internalonly)
-        resetEdgeNumbers!(obj.net)
+        resetEdgeNumbers!(obj.net, false) # verbose=false
         updateconstraints!(constraints, obj.net)
     end
     # extract displayed trees
