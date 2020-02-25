@@ -76,16 +76,15 @@ The following optional arguments control when to stop proposing new
 network topologies:
 
 - `nreject` (75): maximum number of times that new topologies are
-  proposed and rejected in a row.
-- `liktolAbs` (1e-6): the proposed network is accepted if its score is better
-  than the current score by at least `liktolAbs`.
-Lower values of `nreject` and greater values of `liktolAbs` would
-result in a less thorough but faster search.
-
-fixit: delete the description of liktolAbs: unused option
-fixit: add as options and describe `likAbsAddHybLiNC` and `likAbsDelHybLiNC`
-fixit: remove all defaults from phyLiNCone!, to avoid different defaults and
-to avoid an incorrect documentation about defaults.
+  proposed and rejected in a row. Lower values of `nreject` result in a less
+  thorough but faster search.
+- `likAbsAddHybLiNC`(0.5): the amount of improvement required to retain a proposed
+  new hybrid. Greater values of `likAbsAddHybLiNC` would raise the standard for
+  newly-proposed hybrids, leading to fewer proposed hybrids being accepted during
+  the search.
+- `likAbsDelHybLiNC`(-0.1): the amount of decrease in the likelihood allowed when
+  removing a hybrid. Lower (more negative) values of `likAbsDelHybLiNC` would
+  lead to more hybrids being removed during the search.
 """
 function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
                   maxhybrid=1::Int64, no3cycle=true::Bool,
@@ -231,15 +230,14 @@ function phyLiNC!(obj::SSM;
 end
 
 """
-    phyLiNCone!(obj::SSM, maxhybrid=1::Int64, no3cycle=true::Bool,
-                nohybridladder=true::Bool, maxmoves=100::Int64,
-                nreject=75::Int64, verbose=false::Bool, seed=0::Int64,
-                probST=0.5::Float64,
-                constraints=TopologyConstraint[]::Vector{TopologyConstraint},
-                NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
-                ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
-                xtolAbs=xAbsBL::Float64, alphamin=alphaRASmin::Float64,
-                alphamax=alphaRASmax::Float64)
+    phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
+                nohybridladder::Bool, maxmoves::Int64, nreject::Int64,
+                verbose::Bool, seed::Int64, probST::Float64,
+                constraints::Vector{TopologyConstraint},
+                NLoptMethod::Symbol,
+                ftolRel::Float64, ftolAbs::Float64,
+                xtolRel::Float64, xtolAbs::Float64,
+                alphamin::Float64, alphamax::Float64)
 
 Estimate one phylogenetic network (or tree) from concatenated DNA data,
 like [`phyLiNC!`](@ref), but doing one run only, and taking as input an
@@ -249,15 +247,14 @@ and is assumed to meet all the requirements.
 See [`phyLiNC!`](@ref) for optional arguments, which are positional arguments
 here, and keyword arguments in `phyLiNC!`.
 """
-function phyLiNCone!(obj::SSM, maxhybrid=1::Int64, no3cycle=true::Bool,
-                    nohybridladder=true::Bool,
-                    maxmoves=100::Int64, nreject=75::Int64, verbose=false::Bool,
-                    seed=0::Int64, probST=0.5::Float64,
-                    constraints=TopologyConstraint[]::Vector{TopologyConstraint},
-                    NLoptMethod=:LD_MMA::Symbol,
-                    ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-                    xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
-                    alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
+function phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
+                    nohybridladder::Bool, maxmoves::Int64, nreject::Int64,
+                    verbose::Bool, seed::Int64, probST::Float64,
+                    constraints::Vector{TopologyConstraint},
+                    NLoptMethod::Symbol,
+                    ftolRel::Float64, ftolAbs::Float64,
+                    xtolRel::Float64, xtolAbs::Float64,
+                    alphamin::Float64, alphamax::Float64)
 
     Random.seed!(seed)
     if probST < 1.0 # modify starting tree by k nni moves (if possible), k=0 or more
@@ -392,7 +389,6 @@ function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
             if maxhybrid == 0
                 @debug("The maximum number of hybrids allowed is $maxhybrid,
                 so hybrid moves are not legal on this network.")
-                #TODO in future update moveprobability here as in SNaQ
             elseif length(obj.net.hybrid) == 0
                 movechoice = "addhybrid"
             elseif length(obj.net.hybrid) == maxhybrid
