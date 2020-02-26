@@ -55,14 +55,6 @@ calibrateFromPairwiseDistances!(net, net2distances, taxa,
 est = pairwiseTaxonDistanceMatrix(net)
 @test est ≈ [0 1.663 2.9 2.8; 1.663 0 2.703 2.603; 2.9 2.703 0 .3;
              2.8 2.603 .3 0] atol=.00002
-
-# Test symbol input
-net = readTopology("((#H1:0.06::0.3,A:0.6):1.3,(B:0.1)#H1:0.7::0.7,(C,D):1.4);");
-taxa = [Symbol(t) for t in taxa]
-calibrateFromPairwiseDistances!(net, net2distances, taxa,
-  verbose=false, forceMinorLength0=false, ultrametric=false)
-estSymb = pairwiseTaxonDistanceMatrix(net)
-@test estSymb ≈ est atol=.00002
 end
 
 @testset "calibrate with distances: 5-cycle example (when unrooted)" begin

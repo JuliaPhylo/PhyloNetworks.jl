@@ -15,6 +15,13 @@ mappingfile   = joinpath(@__DIR__, "..", "examples", "mappingIndividuals.csv")
   fastaindiv    = abspath(joinpath(pkgpath, "..", "examples", "individuals.aln"))
   mappingfile   = abspath(joinpath(pkgpath, "..", "examples", "mappingIndividuals.csv"))
 =#
+fRelBL = PhyloNetworks.fRelBL
+fAbsBL = PhyloNetworks.fAbsBL
+TopologyConstraint = PhyloNetworks.TopologyConstraint
+xAbsBL = PhyloNetworks.xAbsBL
+xRelBL = PhyloNetworks.xRelBL
+alphaRASmin = PhyloNetworks.alphaRASmin
+alphaRASmax = PhyloNetworks.alphaRASmax
 
 @testset "optimize local BL & gammas, simple example" begin
 net_simple = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
@@ -81,7 +88,7 @@ obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastacontig, :JC69);
 @test obj.net.edge[40] != 1.0
 
 ## optimizegammas
-@test_nowarn PhyloNetworks.optimizeallgammas_LiNC!(obj,false,100,:LD_MMA,1e-6,1e-6,1e-2,1e-3)
+@test_nowarn PhyloNetworks.optimizeallgammas_LiNC!(obj,false,100,1e-6,1e-6,1e-2,1e-3)
 @test PhyloNetworks.getMajorParentEdge(obj.net.hybrid[1]).gamma != 0.6
 @test PhyloNetworks.getMinorParentEdge(obj.net.hybrid[1]).gamma != 0.4
 end
@@ -131,7 +138,7 @@ end
 @testset "optimizestructure with simple example" begin
 maxmoves = 2
 maxhybrid = 1
-seed = 123
+seed = 100
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69, maxhybrid)
 PhyloNetworks.checknetwork_LiNC!(obj.net, maxhybrid, true, true)
@@ -140,6 +147,7 @@ PhyloNetworks.optimizestructure!(obj, maxmoves, maxhybrid, true, true)
 # fixit: set seed and write better test: about improvement in likelihood?
 
 # allow hybrid ladders
+seed = 101
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69, maxhybrid)
 PhyloNetworks.checknetwork_LiNC!(obj.net, maxhybrid, true, false)
@@ -151,31 +159,58 @@ end # of optimizestructure with simple example
 @testset "phyLiNCone with simple net, no constraints" begin
 no3cycle = true
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
-seed = 123
+seed = 102
 # create starting object for all runs
 for nohybridladder in [true, false]
     maxhybrid = 1;
-    obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69, maxhybrid)
+    obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69,
+                                                     maxhybrid)
     PhyloNetworks.checknetwork_LiNC!(obj.net, maxhybrid, no3cycle, nohybridladder)
     PhyloNetworks.startingBL!(obj.net, true, obj.trait, obj.siteweight)
     @test_nowarn PhyloNetworks.phyLiNCone!(obj, maxhybrid, no3cycle,
-                                            nohybridladder, 5, 2, # maxmoves = 5, nreject = 2
-                                            false, seed)
+                                           nohybridladder, 3, 2, false, seed,
+                                           0.5, TopologyConstraint[], fRelBL,
+                                           fAbsBL, xRelBL, xAbsBL, alphaRASmin,
+                                           alphaRASmax)
 end
 end
 
 @testset "phyLiNC multiple runs" begin
+seed = 104
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
 @test_nowarn PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2,
-                    no3cycle=true, nohybridladder=true, maxmoves=5,
-                    nreject=2, nruns=1, filename="phyLiNC", verbose=false,
-                    seed=123)
+                    no3cycle=true, nohybridladder=true, maxmoves=2,
+                    nreject=1, nruns=1, filename="phyLiNC1", verbose=false,
+                    seed=seed)
+@test startswith(read("phyLiNC1.log", String), "optimization of topology")
+@test read("phyLiNC1.err", String) == ""
+rm("phyLiNC1.log")
+rm("phyLiNC1.err")
+
+seed = 105
+net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
+@test_nowarn PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2,
+                    no3cycle=true, nohybridladder=true, maxmoves=2,
+                    nreject=1, nruns=1, filename="", verbose=false,
+                    seed=seed)
+                    #TODO check that no files were created here
+
+seed = 0
+net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
+@test_nowarn PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2,
+                    no3cycle=true, nohybridladder=true, maxmoves=2,
+                    nreject=1, nruns=1, filename="phyLiNC2", verbose=false,
+                    seed=seed)
+@test read("phyLiNC2.err", String) == ""
+@test startswith(read("phyLiNC2.log", String), "optimization of topology")
+rm("phyLiNC2.log")
+rm("phyLiNC2.err")
 end
 
 @testset "phyLiNC with simple net and one constraint" begin
 no3cycle = true
 nohybridladder = true
-seed = 123
+seed = 103
 maxhybrid = 2;
 str_level1_s = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" # indviduals S1A S1B S1C go on leaf 1
 net_level1_s = readTopology(str_level1_s)
@@ -186,6 +221,13 @@ PhyloNetworks.resetNodeNumbers!(net_level1_i)
 net_level1_i.node[22].number = 100
 PhyloNetworks.updateconstraints!(c_species, net_level1_i)
 @test c_species[1].taxonnums == Set([8,9,100])
+@test c_species[1].node.number == 21
+@test PhyloNetworks.getParent(net_level1_i.node[22].edge[1]).number == 21
+
+@test_nowarn phyLiNC!(net_level1_i, fastaindiv, :JC69;
+                  maxhybrid=maxhybrid, no3cycle=no3cycle,
+                  nohybridladder=nohybridladder,
+                  constraints=c_species)
 
 obj = PhyloNetworks.StatisticalSubstitutionModel(net_level1_i, fastaindiv, :JC69,
                                                 maxhybrid)
@@ -195,8 +237,12 @@ c_species[1] = PhyloNetworks.TopologyConstraint(0x01, c_species[1].taxonnames, o
                                       nohybridladder, c_species)
 for e in obj.net.edge e.length = 0.1; end # was -1.0 for missing
 PhyloNetworks.startingBL!(obj.net, true, obj.trait, obj.siteweight)
-@test_nowarn PhyloNetworks.phyLiNCone!(obj, maxhybrid, no3cycle, nohybridladder, 5, 2,
-                        false, seed, 0.5, c_species)
+updateSSM!(obj)
+PhyloNetworks.discrete_corelikelihood!(obj) # calculate likelihood before starting
+@test_nowarn PhyloNetworks.phyLiNCone!(obj, maxhybrid, no3cycle, nohybridladder,
+                                       3, 2, false, seed, 0.5, c_species, fRelBL,
+                                       fAbsBL, xRelBL, xAbsBL, alphaRASmin,
+                                       alphaRASmax)
 end
 
 end # of overall phyLiNC test set
