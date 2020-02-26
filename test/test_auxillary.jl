@@ -44,8 +44,8 @@ net = readTopology("((((((((((((((Ae_caudata_Tr275,Ae_caudata_Tr276),Ae_caudata_
 end
 
 @testset "multiplygammas" begin
-@test multiplygammas(0.25, 0.3) == 0.075
-@test multiplygammas(-1.0, 0.3) == -1.0
-@test multiplygammas(0.3, -1.0) == -1.0
-@test multiplygammas(-1.0, -1.0) == -1.0
+@test PhyloNetworks.multiplygammas(0.25, 0.3) == 0.075
+@test PhyloNetworks.multiplygammas(-1.0, 0.3) == -1.0
+@test PhyloNetworks.multiplygammas(0.3, -1.0) == -1.0
+@test PhyloNetworks.multiplygammas(-1.0, -1.0) == -1.0
 end

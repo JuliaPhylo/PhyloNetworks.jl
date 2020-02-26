@@ -17,7 +17,7 @@ move types, all under topological constraints:
 
 - remove a hybrid edge: `deletehybridedge!` in file deleteHybrid.jl,
   but does not check for clade constraints
-- add a hybrid edge: in file addHybrid_anylevel.jl
+- add a hybrid edge: in file addHybrid.jl
 - change the direction of a hybrid edge
 
 in `moves_snaq.jl`, functions are tailored to level-1 networks;
@@ -151,6 +151,8 @@ True if `network` violates one (or more) of the constraints of type 1
 Warning: constraints of type 3 are not implemented.
 """
 function constraintviolated(net::HybridNetwork, constraints::Vector{TopologyConstraint})
+    # fixit next PR: add option to give a vector of constraint types to check,
+    #                then only check these constraint types
     if isempty(constraints)
         return false
     end # avoids extracting major tree when no constraint
@@ -176,6 +178,7 @@ Update the set `taxonnum` in each constraint, assuming that the stem edge and
 the crown node are still correct, and that their descendants are still correct.
 May be needed if the node and edge numbers were modified by
 [`resetNodeNumbers!`](@ref) or [`resetEdgeNumbers!`](@ref).
+#TODO the crown numbers do change, need to update
 
 Warning: does *not* check that the names of leaves with numbers in `taxonnum`
 are `taxonnames`.
@@ -305,13 +308,13 @@ function nni!(net::HybridNetwork, e::Edge, nohybridladder::Bool=true, no3cycle::
     for nummove in nnis # iterate through all possible NNIs, but in random order
         moveinfo = nni!(net, e, nummove, nohybridladder, no3cycle)
         !isnothing(moveinfo) || continue # to next possible NNI
-        if constraintviolated(net, constraints)
-            # fixit: not needed for species constraints,
-            # not sufficient for clades if γ / isMajor modified later, or if
-            # constraints met after NNI but stem / crows need to be moved
-            nni!(moveinfo...) # undo the previous NNI
-            continue          # try again
-        end
+        # if constraintviolated(net, constraints)
+        #     # fixit for next PR: not needed for species constraints,
+        #     # not sufficient for clades if γ / isMajor modified later, or if
+        #     # constraints met after NNI but stem / crows need to be moved
+        #     nni!(moveinfo...) # undo the previous NNI
+        #     continue          # try again
+        # end
         return moveinfo
     end
     return nothing # if we get to this point, all NNIs failed
@@ -682,6 +685,8 @@ function checkspeciesnetwork!(net::HybridNetwork, constraints::Vector{TopologyCo
     for n in net.node # check for no polytomies: all nodes should have up to 3 edges
         if length(n.edge) > 3 # polytomies allowed at species constraints only
             coni = findfirst(c -> c.type == 1 && c.node === n, constraints)
+            # printNodes(net) #todo remove
+            # @info "coni is: " coni " and constraints are: " constraints
             coni !== nothing ||
                 error("The network has a polytomy at node number $(n.number). Please resolve.")
         end

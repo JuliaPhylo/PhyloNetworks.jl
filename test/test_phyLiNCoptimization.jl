@@ -205,6 +205,24 @@ net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):
 @test startswith(read("phyLiNC2.log", String), "optimization of topology")
 rm("phyLiNC2.log")
 rm("phyLiNC2.err")
+
+# multiple cores
+addprocs(1)
+@everywhere using PhyloNetworks
+#using Distributed; @everywhere begin; using Pkg; Pkg.activate("."); using PhyloNetworks; end
+
+seed = 106
+net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
+PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2,
+                    no3cycle=true, nohybridladder=true, maxmoves=2,
+                    nreject=1, nruns=1, filename="phyLiNCmult", verbose=false,
+                    seed=seed)
+@test occursin("using 2 processors", read("phyLiNCmult.log", String))
+rm("phyLiNCmult.log")
+#? .err file not created in this case. Should the multiple core version make a .err file too?
+# @test read("phyLiNCmult.err", String) == ""
+# rm("phyLiNCmult.err")
+rmprocs(workers()) # remove extra processors
 end
 
 @testset "phyLiNC with simple net and one constraint" begin

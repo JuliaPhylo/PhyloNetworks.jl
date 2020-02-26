@@ -100,7 +100,7 @@ or interactively in `docs/`:
 pkg> activate .
 pkg> status # just to check
 pkg> status --manifest
-pkg> instantiate # after deleting Manifest.toml and undo changes to Project.toml
+pkg> instantiate # after this, delete Manifest.toml and undo changes to Project.toml
 pkg> # add RCall#master # in case some dependency causes an issue
 pkg> dev PhyloNetworks
 pkg> add PhyloPlots#master # to get the master branch: done by make.jl

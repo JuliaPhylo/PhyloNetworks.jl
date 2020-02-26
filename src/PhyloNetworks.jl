@@ -157,7 +157,7 @@ module PhyloNetworks
     include("update.jl")
     include("undo.jl")
     include("addHybrid_snaq.jl")
-    include("addHybrid_anylevel.jl")
+    include("addHybrid.jl")
     include("deleteHybrid.jl")
     include("moves_snaq.jl")
     include("moves_semidirected.jl")

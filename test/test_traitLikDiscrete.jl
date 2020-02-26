@@ -575,16 +575,16 @@ setGamma!(dna_net_top.edge[58],0.6)
 net_dat = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"])
 
-jmod = PhyloNetworks.symboltomodel(dna_net_top, :JC69, dna_dat, dna_weights)
+jmod = PhyloNetworks.defaultsubstitutionmodel(dna_net_top, :JC69, dna_dat, dna_weights)
 @test jmod.rate == [1.0]
-emod = PhyloNetworks.symboltomodel(dna_net_top, :ERSM, dna_dat, dna_weights)
+emod = PhyloNetworks.defaultsubstitutionmodel(dna_net_top, :ERSM, dna_dat, dna_weights)
 @test emod.rate[1] ≈ 0.009708737864077669
 @test typeof(emod) == EqualRatesSubstitutionModel{DNA}
-hmod = PhyloNetworks.symboltomodel(dna_net_top, :HKY85, dna_dat, dna_weights)
+hmod = PhyloNetworks.defaultsubstitutionmodel(dna_net_top, :HKY85, dna_dat, dna_weights)
 @test typeof(hmod) == HKY85
-bmod = PhyloNetworks.symboltomodel(dna_net_top, :BTSM, dat, [1.0, 1.0, 1.0, 1.0])
+bmod = PhyloNetworks.defaultsubstitutionmodel(dna_net_top, :BTSM, dat, [1.0, 1.0, 1.0, 1.0])
 @test typeof(bmod) == BinaryTraitSubstitutionModel{String}
-@test_throws ErrorException PhyloNetworks.symboltomodel(dna_net_top, :QR, dat, [1.0, 1.0, 1.0, 1.0])
+@test_throws ErrorException PhyloNetworks.defaultsubstitutionmodel(dna_net_top, :QR, dat, [1.0, 1.0, 1.0, 1.0])
 
 
 test_SSM = PhyloNetworks.StatisticalSubstitutionModel(dna_net_top, fastafile, :JC69)

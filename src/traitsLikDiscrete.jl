@@ -112,7 +112,7 @@ e.gamma == 1.0 || error("tree edge number $(e.number) has γ not 1.0")
 end
 end
 data, siteweights = readfastatodna(fastafile, true)
-model = symboltomodel(net, modsymbol, data, siteweights)
+model = defaultsubstitutionmodel(net, modsymbol, data, siteweights)
 ratemodel = RateVariationAcrossSites(1.0, 1) #? add option for users here
 dat2 = traitlabels2indices(view(data, :, 2:size(data,2)), model)
 o, net = check_matchtaxonnames!(data[:,1], dat2, net) # calls resetNodeNumbers, which calls preorder!
@@ -1040,7 +1040,7 @@ function startingrate(net::HybridNetwork)
 end
 
 """
-    symboltomodel(network, modsymbol::Symbol, data::DataFrame,
+    defaultsubstitutionmodel(network, modsymbol::Symbol, data::DataFrame,
                   siteweights::Vector)
 
 Return a statistical substitution model (SSM) with appropriate state labels
@@ -1051,7 +1051,7 @@ as when the species names are in column 1.
 For DNA data, the relative rate model is returned, with a
 stationary distribution equal to the empirical frequencies.
 """
-function symboltomodel(net::HybridNetwork, modsymbol::Symbol, data::DataFrame,
+function defaultsubstitutionmodel(net::HybridNetwork, modsymbol::Symbol, data::DataFrame,
         siteweights=repeat([1.], inner=size(data,2))::AbstractVector)
     rate = startingrate(net)
     actualdat = view(data, :, 2:size(data,2))
