@@ -177,6 +177,7 @@ end
 
 @testset "phyLiNC multiple runs" begin
 seed = 104
+# delete below? non-empty file name tested with multiple cores
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
 @test_nowarn PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2,
                     no3cycle=true, nohybridladder=true, maxmoves=2,
@@ -193,7 +194,6 @@ net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):
                     no3cycle=true, nohybridladder=true, maxmoves=2,
                     nreject=1, nruns=1, filename="", verbose=false,
                     seed=seed)
-                    #TODO check that no files were created here
 
 seed = 0
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");

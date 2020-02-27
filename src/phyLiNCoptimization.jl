@@ -11,9 +11,9 @@ const alphaRASmax = 50.0
              nohybridladder=true::Bool, maxmoves=100::Int64,
              nreject=75::Int64, nruns=10::Int64,
              filename="phyLiNC"::AbstractString, verbose=false::Bool,
-             seed=0::Int64, probST=0.5::Float64, ftolRel=fRelBL::Float64,
-             ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
-             xtolAbs=xAbsBL::Float64,
+             seed=0::Int64, probST=0.5::Float64,
+             ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
+             xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
              constraints=TopologyConstraint[]::Vector{TopologyConstraint},
              alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
 
@@ -373,8 +373,8 @@ function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
     no3cycle::Bool, nohybridladder::Bool, nreject=75::Int64,
     verbose=false::Bool,
     constraints=TopologyConstraint[]::Vector{TopologyConstraint},
-    ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
-    xtolAbs=xAbsBL::Float64)
+    ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
+    xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
     nmoves = 0
     rejections = 0
     while nmoves < maxmoves && rejections < nreject # both should be true to continue
@@ -797,15 +797,15 @@ function optimizelocalBL_LiNC!(obj::SSM, edge::Edge, verbose=false::Bool,
             end
         end
     end
-    optimizeBL_LiNC!(obj, edges, verbose, 10, fRelBL, fAbsBL, xRelBL, xAbsBL) # maxeval = 10
+    optimizeBL_LiNC!(obj, edges, verbose, 10, ftolRel, ftolAbs, xtolRel, xtolAbs) # maxeval = 10
     return edges
 end
 
 """
     optimizeBL_LiNC!(obj::SSM, edges::Vector{Edge},
-                verbose=false::Bool, maxeval=1000::Int64, ftolRel=fRelBL::Float64,
-                ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
-                xtolAbs=xAbsBL::Float64)
+                verbose=false::Bool, maxeval=1000::Int64,
+                ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
+                xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
 
 Optimize branch lengths for edges in vector `edges`.
 Constrains branch lengths to zero below hybrid nodes.
@@ -853,8 +853,8 @@ function optimizeBL_LiNC!(obj::SSM, edges::Vector{Edge},
 end
 
 """
-    optimizeallgammas_LiNC!(obj::SSM,
-                        verbose::Bool, ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
+    optimizeallgammas_LiNC!(obj::SSM, verbose::Bool, maxeval::Int64,
+                        ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
                         xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
 
 Optimize all gammas in a network. Creates a list containing one parent edge
@@ -863,7 +863,8 @@ per hybrid then calls optimizegammas_LiNC! on that list.
 For a description of optional arguments, see [`phyLiNC`](@ref).
 """
 function optimizeallgammas_LiNC!(obj::SSM,
-    verbose::Bool, maxeval::Int64, ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
+    verbose::Bool, maxeval::Int64,
+    ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
     xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
 
     edges = [getMajorParentEdge(h) for h in obj.net.hybrid]
@@ -957,8 +958,8 @@ function optimizelocalgammas_LiNC!(obj::SSM, edge::Edge, verbose=false::Bool,
     if isempty(edges)
         @debug "no local gammas to optimize around edge $edge"
     else
-        optimizegammas_LiNC!(obj, edges, verbose, 10, fRelBL, fAbsBL, xRelBL,
-                             xAbsBL)
+        optimizegammas_LiNC!(obj, edges, verbose, 10,
+                             ftolRel, ftolAbs, xtolRel, xtolAbs)
     end
 end
 
@@ -979,9 +980,9 @@ Warning: Do not call directly.
 Instead use [`optimizelocalgammas_LiNC!`](@ref) or [`optimizeallgamma!`](@ref).
 """
 function optimizegammas_LiNC!(obj::SSM, edges::Vector{Edge}, verbose=false::Bool,
-                              maxeval=1000::Int64, ftolRel=fRelBL::Float64,
-                              ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64,
-                              xtolAbs=xAbsBL::Float64)
+                              maxeval=1000::Int64,
+                              ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
+                              xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
 
     counter = [0]
     function loglikfungamma(gammas::Vector{Float64}, grad::Vector{Float64})
