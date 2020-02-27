@@ -135,7 +135,7 @@ function phyLiNC!(obj::SSM;
               maxhybrid = $(maxhybrid),
               tolerance parameters: ftolRel=$(ftolRel), ftolAbs=$(ftolAbs),
                                     xtolAbs=$(xtolAbs), xtolRel=$(xtolRel).
-              max number of consecutive failed proposals = $(nreject)"
+              max number of consecutive failed proposals = $(nreject)
              """
     str *= (writelog ? "filename for files: $(filename)\n" : "no output files\n")
     str *= "BEGIN: $(nruns) runs starting near $(writeTopology(obj.net))\n"
@@ -182,10 +182,7 @@ function phyLiNC!(obj::SSM;
         verbose && print(stdout, msg)
         GC.gc()
         try
-            objcopy = deepcopy(obj)
-            # todo in future, only deepcopy net and other fields of obj that could be modified by phyLiNCone!
-            # refactor to use SharedArrays for data?
-            best = phyLiNCone!(objcopy, maxhybrid, no3cycle,
+            best = phyLiNCone!(obj, maxhybrid, no3cycle,
                             nohybridladder, maxmoves, nreject, verbose,
                             seeds[i], probST, constraints, ftolRel, ftolAbs,
                             xtolRel, xtolAbs, alphamin, alphamax)
@@ -262,8 +259,10 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
             nni_LiNC!(obj, no3cycle, nohybridladder, verbose, constraints, ftolRel,
                       ftolAbs, xtolRel, xtolAbs)
         end
-        # todo write to logfile here, pass logfile argument from phyLiNC! function
+        # todo write to logfile here, pass logfile, writelog_1proc argument from phyLiNC! function
         # writelog && suc && write(logfile," changed starting topology by $numNNI attempted NNI move(s)\n")
+        # todo: also write the starting topology obj.net
+        # todo: make sure final topology from that run is written after newline
     end
     # rough optimization of rates and alpha:
     fit!(obj; optimizeQ=true, optimizeRVAS=true, verbose=verbose, maxeval=20,
@@ -378,6 +377,9 @@ function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
     nmoves = 0
     rejections = 0
     while nmoves < maxmoves && rejections < nreject # both should be true to continue
+        @info "optimizing structure, nmoves=$nmoves"
+        printEdges(obj.net)
+        printNodes(obj.net)
         currLik = obj.loglik
         movechoice = sample(["nni", "addhybrid", "deletehybrid", "root"], moveweights)
         if movechoice == "nni"
@@ -534,8 +536,9 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
         optimizelocalgammas_LiNC!(obj, newhybridedge, verbose, ftolRel, ftolAbs,
                                   xtolRel, xtolAbs)
         if obj.loglik - currLik < likAbsAddHybLiNC # improvement too small or negative: undo
+            # consider deleting newhybridedge instead of restoring a deepcopy?
             obj.net = orignet
-            updateSSM!(obj)
+            updateSSM!(obj) # no need renumber=true because original network
             discrete_corelikelihood!(obj)
             return false
         else
@@ -841,6 +844,9 @@ function optimizeBL_LiNC!(obj::SSM, edges::Vector{Edge},
     NLopt.ftol_abs!(optBL,ftolAbs) # absolute criterion
     NLopt.xtol_rel!(optBL,xtolRel)
     NLopt.xtol_abs!(optBL,xtolAbs)
+    defaultinstep = NLopt.initial_step(optBL, getlengths(edges))
+    replace!(x -> min(x,0.1), defaultinstep) # 0.1 substitutions / site is kinda large
+    NLopt.initial_step!(optBL, defaultinstep)
     NLopt.maxeval!(optBL, maxeval) # max number of iterations
     # NLopt.maxtime!(optBL, t::Real)
     NLopt.lower_bounds!(optBL, zeros(length(edges)))
@@ -1003,7 +1009,6 @@ function optimizegammas_LiNC!(obj::SSM, edges::Vector{Edge}, verbose=false::Bool
     NLopt.xtol_rel!(optgamma,xtolRel)
     NLopt.xtol_abs!(optgamma,xtolAbs)
     NLopt.maxeval!(optgamma, maxeval) # max number of iterations
-    # NLopt.initial_step!(optgamma, 0.05) # step size
     # NLopt.maxtime!(optgamma, t::Real)
     NLopt.lower_bounds!(optgamma, zeros(Float64, npargamma))
     NLopt.upper_bounds!(optgamma, ones(Float64, npargamma))
