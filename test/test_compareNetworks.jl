@@ -239,7 +239,19 @@ net = readTopology("((((B)#H1)#H2,((D,C,#H2)S1,(#H1,A)S2)S3)S4);") # missing γ'
 @test writeTopology(majorTree(net; nofuse=true)) == "(((B)H1)H2,((D,C)S1,(A)S2)S3)S4;"
 setGamma!(net.edge[8], 0.8)
 @test writeTopology(majorTree(net)) == "((D,C)S1,(A,B)S2)S3;"
-# but: bug with writeTopology(majorTree(net; nofuse=true))
+writeTopology(majorTree(net; nofuse=true)) == "((D,C)S1,((B)H1,A)S2)S3;"
+
+# net6 below: hybrid ladder H2 -> H1; and H2 child of root
+# using multgammas=true, to test multiplygammas and how it is used
+net6 = readTopology("(#H2:::0.2,((C,((B)#H1:::0.6)#H2:::0.8),(#H1,(A1,A2))),O);")
+tre6 = displayedTrees(net6, 0.5; nofuse=false, multgammas=true)[1]
+@test tre6.edge[2].gamma ≈ 0.48
+displayedNetworkAt!(net6, net6.node[4], false, false, true) # nofuse, unroot=false, multgammas=true
+@test net6.edge[3].gamma ≈ 0.6
+net6 = readTopology("(#H2:::0.2,((C,((B)#H1:::0.6)#H2:::0.8),(#H1,(A1,A2))),O);")
+displayedNetworkAt!(net6, net6.node[3], false, false, true) # nofuse, unroot=false, multgammas=true
+@test net6.edge[5].gamma ≈ 0.4
+@test net6.edge[3].gamma ≈ 0.48
 
 end # of testset, majorTree & displayedNetworkAt!
 
