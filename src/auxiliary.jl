@@ -363,18 +363,6 @@ function getIndexHybrid(node::Node, net::Network)
     return i
 end
 
-# function to find leaf index in qnet.leaf
-function getIndexLeaf(node::Node, net::Network)
-    node.leaf || error("node $(node.number) is not leaf so it cannot be in net.leaf")
-    i = 1;
-    while(i<= size(net.leaf,1) && !isEqual(node,net.leaf[i]))
-        i = i+1;
-    end
-    if i>size(net.leaf,1) error("leaf node not in network"); end
-    return i
-end
-
-
 # function that given a hybrid node, it gives you the minor hybrid edge
 # warning: assumes level-1 network: see getMinorParentEdge for a general network
 function getHybridEdge(node::Node)
@@ -468,26 +456,22 @@ function pushHybrid!(net::Network, n::Node)
 end
 
 """
-`deleteNode!(net::HybridNetwork, n::Node)`
+    deleteNode!(net::HybridNetwork, n::Node)
 
-
-deletes a Node from a network, i.e. removes it from
+Delete node `n` from a network, i.e. removes it from
 net.node, and from net.hybrid or net.leaf as appropriate.
-Updates attributes numNodes, numTaxa, numHybrids
-(it does not update net.names though).
+Update attributes `numNodes`, `numTaxa`, `numHybrids`.
+Warning: `net.names` is *not* updated.
 
 Warning: if the root is deleted, the new root is arbitrarily set to the
 first node in the list. This is intentional to save time because this function
 is used frequently in snaq!, which handles semi-directed (unrooted) networks.
 """
 function deleteNode!(net::HybridNetwork, n::Node)
-    index = 0
-    try
-        index = getIndex(n,net);
-    catch
-        error("Node $(n.number) not in network");
-    end
-    # println("deleting node $(n.number) from net, index $(index).")
+    index = findfirst(no -> no===n, net.node)
+    # warning: isequal does ===
+    #          isEqual (from above) could match nodes across different networks
+    index !== nothing || error("Node $(n.number) not in network");
     deleteat!(net.node,index);
     net.numNodes -= 1;
     if net.root == index  # do not check containRoot to save time in snaq!
@@ -511,22 +495,19 @@ end
 # accurate
 # if n is leaf, we delete from qnet.leaf
 function deleteNode!(net::QuartetNetwork, n::Node)
-    index=0
-    try
-        index = getIndex(n,net);
-    catch
-        error("Node $(n.number) not in network");
-    end
-    #println("deleting node $(n.number) from net")
+    index = findfirst(no -> no.number == n.number, net.node)
+    # isEqual (from above) checks for more than node number
+    index !== nothing || error("Node $(n.number) not in quartet network");
     deleteat!(net.node,index);
-    net.numNodes -= 1;
-    net.numTaxa -= n.leaf ? 1 : 0;
-    if(n.hybrid)
+    net.numNodes -= 1
+    if n.hybrid
        removeHybrid!(net,n)
     end
-    if(n.leaf)
-        index = getIndexLeaf(n,net)
+    if n.leaf
+        index = findfirst(no -> no === n, net.leaf)
+        index !== nothing || error("node $(n.number) not net.leaf")
         deleteat!(net.leaf,index)
+        net.numTaxa -= 1
     end
 end
 
@@ -554,13 +535,9 @@ end
 # function to delete an Edge in net.edge and
 # update numEdges from a QuartetNetwork
 function deleteEdge!(net::QuartetNetwork, e::Edge)
-    index=0
-    try
-        index = getIndex(e,net);
-    catch
-        error("Edge not in network");
-    end
-    #println("delete edge $(e.number) from net")
+    index = findfirst(x -> x.number == e.number, net.edge)
+    # isEqual (from above) checks for more than edge number
+    index !== nothing || error("edge not in quartet network");
     deleteat!(net.edge,index);
     net.numEdges -= 1;
 end
@@ -583,18 +560,11 @@ end
 # function to delete a leaf node in net.leaf
 # and update numTaxa
 function removeLeaf!(net::Network,n::Node)
-    if(n.leaf)
-        index = 0
-        try
-            index = getIndexLeaf(n,net)
-        catch
-            error("Leaf node $(n.number) not in network")
-        end
-        deleteat!(net.leaf,index)
-        net.numTaxa -= 1
-    else
-        error("cannot delete node $(n.number) from net.leaf because it is not leaf")
-    end
+    n.leaf || error("cannot delete node $(n.number) from net.leaf because it is not leaf")
+    index = findfirst(no -> no === n, net.leaf)
+    index !== nothing || error("leaf node $(n.number) not in network")
+    deleteat!(net.leaf,index)
+    net.numTaxa -= 1
 end
 
 # function to delete an internal node with only 2 edges
@@ -819,15 +789,9 @@ end
 #          node.hasHybEdge is set to false
 #          assuming any tree node can only have one
 #          one hybrid edge
-function removeEdge!(node::Node,edge::Edge)
-    index = 0
-    try
-        index = getIndexEdge(edge,node);
-    catch e
-        if isa(e, ErrorException)
-            error("edge $(edge.number) not in node $(node.number)")
-        end
-    end
+function removeEdge!(node::Node, edg::Edge)
+    index = findfirst(x -> x === edg, node.edge)
+    index !== nothing || error("edge $(edg.number) not in node $(node.number)")
     deleteat!(node.edge,index)
     node.hasHybEdge = any(e -> e.hybrid, node.edge)
 end
@@ -837,15 +801,9 @@ end
 #          have node back by pushing it again
 # warning: only removes node from edge, edge might still
 #          be in node.edge
-function removeNode!(node::Node,edge::Edge)
-    index = 0
-    try
-        index = getIndexNode(edge,node);
-    catch e
-        if isa(e, ErrorException)
-            error("node $(node.number) not in edge or strange edge with more than 2 nodes")
-        end
-    end
+function removeNode!(nod::Node, edge::Edge)
+    index = findfirst(x -> x === nod, edge.node)
+    index !== nothing || error("node $(nod.number) not in edge")
     deleteat!(edge.node,index);
 end
 
