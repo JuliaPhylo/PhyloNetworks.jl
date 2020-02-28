@@ -31,7 +31,7 @@ Type for various topological constraints, such as:
 2. a set of individuals belonging to the same species
 3. a set of taxa forming a clade in any one of the displayed trees
 """
-struct TopologyConstraint
+mutable struct TopologyConstraint
     "type of constraint: 1=species, 2=clade in major tree. 3=clade in some displayed tree: not yet implemented."
     type::UInt8
     "names of taxa in the constraint (clade / species members)"
@@ -178,7 +178,6 @@ Update the set `taxonnum` in each constraint, assuming that the stem edge and
 the crown node are still correct, and that their descendants are still correct.
 May be needed if the node and edge numbers were modified by
 [`resetNodeNumbers!`](@ref) or [`resetEdgeNumbers!`](@ref).
-#TODO the crown numbers do change, need to update
 
 Warning: does *not* check that the names of leaves with numbers in `taxonnum`
 are `taxonnames`.
@@ -235,6 +234,24 @@ function updateconstraints!(constraints::Vector{TopologyConstraint}, net::Hybrid
     end
     return nothing
 end
+
+"""
+    updateconstraintfields!(constraints::Vector{TopologyConstraint}, net::HybridNetwork)
+
+Update fields stem `edge` and crown `node` to match the given `net`.
+
+Assumes that `net` is numbered identically to the network used to create all
+constraints in vector `constraints`.
+"""
+function updateconstraintfields!(constraints::Vector{TopologyConstraint}, net::HybridNetwork)
+    for con in constraints
+        # find edge
+        con.edge = net.edge[findfirst([e.number == con.edge.number for e in net.edge])]
+        # find crown
+        con.node = net.node[findfirst([n.number == con.node.number for n in net.node])]
+    end
+end
+
 
 #= TODO
 - add option to modify branch lengths during NNI:

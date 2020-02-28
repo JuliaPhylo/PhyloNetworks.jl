@@ -15,15 +15,10 @@ mappingfile   = joinpath(@__DIR__, "..", "examples", "mappingIndividuals.csv")
   fastaindiv    = abspath(joinpath(pkgpath, "..", "examples", "individuals.aln"))
   mappingfile   = abspath(joinpath(pkgpath, "..", "examples", "mappingIndividuals.csv"))
 =#
-fRelBL = PhyloNetworks.fRelBL
-fAbsBL = PhyloNetworks.fAbsBL
 TopologyConstraint = PhyloNetworks.TopologyConstraint
-xAbsBL = PhyloNetworks.xAbsBL
-xRelBL = PhyloNetworks.xRelBL
-alphaRASmin = PhyloNetworks.alphaRASmin
-alphaRASmax = PhyloNetworks.alphaRASmax
 
 @testset "optimize local BL & gammas, simple example" begin
+Random.seed!(99)
 net_simple = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 obj = PhyloNetworks.StatisticalSubstitutionModel(net_simple, fastasimple, :JC69)
 
@@ -43,6 +38,7 @@ hybridmajorparent = PhyloNetworks.getMajorParentEdge(obj.net.hybrid[1])
 end
 
 @testset "optimize local BL & gammas, complex network and 8 sites" begin
+Random.seed!(98)
 dna_dat, dna_weights = readfastatodna(fasta8sites, true); # 22 species, 3 hybrid nodes, 103 edges
 net = readTopology("((((((((((((((Ae_caudata_Tr275,Ae_caudata_Tr276),Ae_caudata_Tr139))#H1,#H2),(((Ae_umbellulata_Tr266,Ae_umbellulata_Tr257),Ae_umbellulata_Tr268),#H1)),((Ae_comosa_Tr271,Ae_comosa_Tr272),(((Ae_uniaristata_Tr403,Ae_uniaristata_Tr357),Ae_uniaristata_Tr402),Ae_uniaristata_Tr404))),(((Ae_tauschii_Tr352,Ae_tauschii_Tr351),(Ae_tauschii_Tr180,Ae_tauschii_Tr125)),(((((((Ae_longissima_Tr241,Ae_longissima_Tr242),Ae_longissima_Tr355),(Ae_sharonensis_Tr265,Ae_sharonensis_Tr264)),((Ae_bicornis_Tr408,Ae_bicornis_Tr407),Ae_bicornis_Tr406)),((Ae_searsii_Tr164,Ae_searsii_Tr165),Ae_searsii_Tr161)))#H2,#H4))),(((T_boeoticum_TS8,(T_boeoticum_TS10,T_boeoticum_TS3)),T_boeoticum_TS4),((T_urartu_Tr315,T_urartu_Tr232),(T_urartu_Tr317,T_urartu_Tr309)))),(((((Ae_speltoides_Tr320,Ae_speltoides_Tr323),Ae_speltoides_Tr223),Ae_speltoides_Tr251))H3,((((Ae_mutica_Tr237,Ae_mutica_Tr329),Ae_mutica_Tr244),Ae_mutica_Tr332))#H4))),Ta_caputMedusae_TB2),S_vavilovii_Tr279),Er_bonaepartis_TB1),H_vulgare_HVens23);");
 PhyloNetworks.fuseedgesat!(93, net)
@@ -70,6 +66,7 @@ lengthep = obj.net.edge[48].node[1].edge[1].length
 end #of local branch length and gamma optimization with localgamma! localBL! with 8 sites
 
 @testset "global branch length and gamma optimization" begin
+Random.seed!(97)
 # to run locally on complex network:
 # net = readTopology("(H_vulgare_HVens23:0.5,(((Ae_speltoides_Tr251:0.5):0.5,(Ae_mutica_Tr237:0.0)#H4:1.0::0.7):0.5,((((((Ae_caudata_Tr139:0.5,Ae_caudata_Tr275:0.5):0.0)#H1:1.0::0.7,#H2:1.0::0.3):0.5,#H1:1.0::0.3):0.5,((Ae_comosa_Tr271:0.5,Ae_comosa_Tr272:0.5):0.5,((Ae_uniaristata_Tr403:0.5,Ae_uniaristata_Tr357:0.5):0.5,Ae_uniaristata_Tr402:0.5):0.5):0.5):0.5,(((Ae_tauschii_Tr352:0.5,Ae_tauschii_Tr351:0.5):0.5,Ae_tauschii_Tr125:0.5):0.5,(((((((Ae_longissima_Tr241:0.5,Ae_longissima_Tr242:0.5):0.5,Ae_longissima_Tr355:0.5):0.5,Ae_sharonensis_Tr265:0.5):0.5,((Ae_bicornis_Tr408:0.5,Ae_bicornis_Tr407:0.5):0.5,Ae_bicornis_Tr406:0.5):0.5):0.5,(Ae_searsii_Tr164:0.5,Ae_searsii_Tr165:0.5):0.5):0.0)#H2:1.0::0.7,#H4:1.0::0.3):0.5):0.5):0.5):0.5);");
 # obj = PhyloNetworks.StatisticalSubstitutionModel(net, fasta8sites, :JC69);
@@ -86,15 +83,6 @@ Random.seed!(5);
 @test_nowarn PhyloNetworks.optimizeallgammas_LiNC!(obj,false,100,1e-6,1e-6,1e-2,1e-3)
 @test PhyloNetworks.getMajorParentEdge(obj.net.hybrid[1]).gamma != 0.6
 @test PhyloNetworks.getMinorParentEdge(obj.net.hybrid[1]).gamma != 0.4
-end
-
-@testset "data to SSM pruning: simple example" begin
-net_simple = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
-obj = PhyloNetworks.StatisticalSubstitutionModel(net_simple, fasta1missing, :JC69)
-@test length(obj.net.edge) == 7
-@test length(obj.net.hybrid) == 1
-@test length(obj.net.leaf) == 3
-@test !PhyloNetworks.hashybridladder(obj.net)
 end
 
 @testset "data to SSM pruning: complex network" begin
@@ -164,9 +152,8 @@ for nohybridladder in [true, false]
     PhyloNetworks.startingBL!(obj.net, true, obj.trait, obj.siteweight)
     @test_nowarn PhyloNetworks.phyLiNCone!(obj, maxhybrid, no3cycle,
                                            nohybridladder, 3, 2, false, seed,
-                                           0.5, TopologyConstraint[], fRelBL,
-                                           fAbsBL, xRelBL, xAbsBL, alphaRASmin,
-                                           alphaRASmax)
+                                           0.5, TopologyConstraint[], 1e-2, 1e-2,
+                                           1e-2, 1e-2, 0.0, 25.0)
 end
 end
 
@@ -197,10 +184,9 @@ addprocs(1)
 
 seed = 106
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
-PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2,
-                    no3cycle=true, nohybridladder=true, maxmoves=2,
-                    nreject=1, nruns=1, filename="phyLiNCmult", verbose=false,
-                    seed=seed)
+PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2, no3cycle=true,
+                        nohybridladder=true, maxmoves=2, nreject=1, nruns=1,
+                        filename="phyLiNCmult", verbose=false, seed=seed)
 @test occursin("using 2 processors", read("phyLiNCmult.log", String))
 rm("phyLiNCmult.log")
 #? .err file not created in this case. Should the multiple core version make a .err file too?

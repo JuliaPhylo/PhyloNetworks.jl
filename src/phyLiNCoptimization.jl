@@ -8,13 +8,13 @@ const alphaRASmax = 50.0
 """
     phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
              maxhybrid=1::Int64, no3cycle=true::Bool,
-             nohybridladder=true::Bool, maxmoves=100::Int64,
+             nohybridladder=true::Bool, speciesfile=""::AbstractString,
+             cladefiles=""::AbstractString, maxmoves=100::Int64,
              nreject=75::Int64, nruns=10::Int64,
              filename="phyLiNC"::AbstractString, verbose=false::Bool,
              seed=0::Int64, probST=0.5::Float64,
              ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
              xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
-             constraints=TopologyConstraint[]::Vector{TopologyConstraint},
              alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
 
 Estimate a phylogenetic network from concatenated DNA data using
@@ -58,16 +58,19 @@ Optional arguments include (default value in parenthesis):
   for each given run. If probST < 1, the starting topology is k NNI moves
   away from `net`, where k is drawn from a geometric distribution: p (1-p)ᵏ,
   with success probability p = `probST`.
-- `constraints` (none): topology constraints to meet during the search,
-  such as constrained clades or species groups.
-  Created using [`TopologyConstraint`] (@ref)
+- `speciesfile` (""): path to a csv file containing two columns: species and individuals
+used to create one or more species topology constraints to meet during the search.
+Created using [`TopologyConstraint`] (@ref)
+- `cladefiles` (""): path to a csv file containing two columns: clades and individuals
+used to create one or more clade topology constraints to meet during the search.
+Created using [`TopologyConstraint`] (@ref) (NOTE: clade contraints not yet implemented.)
 
 The following optional arguments control when to stop the optimization of branch
 lengths and gamma values on each individual candidate network. Defaults in
 parentheses.
-- `ftolRel` (1e-6) and `ftolAbs` (1e-6): relative and absolute differences of the
+- `ftolRel` (1e-12) and `ftolAbs` (1e-10): relative and absolute differences of the
   network score between the current and proposed parameters
-- `xtolRel` (1e-2) and `xtolAbs` (1e-3): relative and absolute differences between the
+- `xtolRel` (1e-10) and `xtolAbs` (1e-10): relative and absolute differences between the
   current and proposed parameters.
 Greater values will result in a less thorough but faster search. These parameters
 are used when evaluating candidate networks only.
@@ -89,22 +92,27 @@ network topologies:
 function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
                   maxhybrid=1::Int64, no3cycle=true::Bool,
                   nohybridladder=true::Bool,
-                  constraints=TopologyConstraint[]::Vector{TopologyConstraint},
+                  speciesfile=""::AbstractString,
+                  cladefile=""::AbstractString,
                   kwargs...)
 
     # create starting object for all runs
     obj = StatisticalSubstitutionModel(net, fastafile, modSymbol, maxhybrid)
-    # check_matchtaxonnames (inside constructor) renumbers nodes so we recalc constraint numbers here
-    # fixit: let the user provide a data frame with 2 columns: species and individuals,
-    # perhaps another data frame for clade constraints,
-    # then build the constraints inside phyLiNC here.
-    updateconstraints!(constraints, obj.net)
+    # create constraints
+    if !isempty(speciesfile)
+        ind_net, constraints = mapindividuals(net, speciesfile)
+    else
+        constraints = TopologyConstraint[]
+    end
+    if !isempty(cladefile)
+        error("Clade constraints not yet implemented.")
+    end
     checknetwork_LiNC!(obj.net, maxhybrid, no3cycle, nohybridladder, constraints)
     startingBL!(obj.net, true, obj.trait, obj.siteweight) # true: to unzip
 
     discrete_corelikelihood!(obj)  # calculate likelihood before starting
     phyLiNC!(obj; maxhybrid=maxhybrid, no3cycle=no3cycle, nohybridladder=nohybridladder,
-                  kwargs...)
+            constraints=constraints, kwargs...)
 
 end
 function phyLiNC!(obj::SSM;
@@ -253,6 +261,8 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
                     alphamin::Float64, alphamax::Float64)
 
     Random.seed!(seed)
+    # update files inside topology constraint to match the deepcopied net in obj.net created by pmap
+    updateconstraintfields!(constraints, obj.net)
     if probST < 1.0 # modify starting tree by k nni moves (if possible), k=0 or more
         numNNI = rand(Geometric(probST)) # number of NNIs follows a geometric distribution: p (1 - p)^k
         for i in 1:numNNI
@@ -275,10 +285,19 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
                                   ftolAbs, xtolRel, xtolAbs)
         fit!(obj; optimizeQ=true, optimizeRVAS=true, ftolRel=ftolRel,
              ftolAbs=ftolAbs, xtolRel=xtolRel, xtolAbs=xtolAbs)
-        optimizeBL_LiNC!(obj, obj.net.edge, verbose, 100, ftolRel, ftolAbs,
-                         xtolRel, xtolAbs)
-        optimizeallgammas_LiNC!(obj, verbose, 100, ftolRel, ftolAbs, xtolRel, xtolAbs)
+        for e in Random.shuffle(obj.net.edge)
+            optimizelocalBL_LiNC!(obj, e, verbose, ftolRel, ftolAbs,
+                              xtolRel, xtolAbs)
+            if e.hybrid
+                optimizelocalgammas_LiNC!(obj, e1, verbose, ftolRel, ftolAbs,
+                                          xtolRel, xtolAbs)
+            end
+        end
     end
+    optimizeBL_LiNC!(obj, obj.net.edge, verbose, 10*length(obj.net.edge),
+                    ftolRel, ftolAbs, xtolRel, xtolAbs)
+    optimizeallgammas_LiNC!(obj, verbose, 10*length(obj.net.hybrid), ftolRel,
+                            ftolAbs, xtolRel, xtolAbs)
     return obj
 end
 
@@ -378,6 +397,13 @@ function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
     rejections = 0
     while nmoves < maxmoves && rejections < nreject # both should be true to continue
         @info "optimizing structure, nmoves=$nmoves"
+        @info "testing for consecutive edge and node lengths" # debug
+        if sort([e.number for e in obj.net.edge]) != 1:maximum([e.number for e in obj.net.edge])
+            println("edges are not numbered consecutively")
+        end
+        if sort([e.number for e in obj.net.node]) != 1:maximum([e.number for e in obj.net.node])
+            println("nodes are not numbered consecutively")
+        end
         printEdges(obj.net)
         printNodes(obj.net)
         currLik = obj.loglik
@@ -536,8 +562,9 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
         optimizelocalgammas_LiNC!(obj, newhybridedge, verbose, ftolRel, ftolAbs,
                                   xtolRel, xtolAbs)
         if obj.loglik - currLik < likAbsAddHybLiNC # improvement too small or negative: undo
-            # consider deleting newhybridedge instead of restoring a deepcopy?
+            # consider deleting newhybridedge instead of restoring a deepcopy? # TODO
             obj.net = orignet
+            updateconstraintfields!(constraints, obj.net)
             updateSSM!(obj) # no need renumber=true because original network
             discrete_corelikelihood!(obj)
             return false
@@ -800,7 +827,8 @@ function optimizelocalBL_LiNC!(obj::SSM, edge::Edge, verbose=false::Bool,
             end
         end
     end
-    optimizeBL_LiNC!(obj, edges, verbose, 10, ftolRel, ftolAbs, xtolRel, xtolAbs) # maxeval = 10
+    # remove max number of eval here
+    optimizeBL_LiNC!(obj, edges, verbose, ftolRel, ftolAbs, xtolRel, xtolAbs)
     return edges
 end
 
@@ -964,8 +992,7 @@ function optimizelocalgammas_LiNC!(obj::SSM, edge::Edge, verbose=false::Bool,
     if isempty(edges)
         @debug "no local gammas to optimize around edge $edge"
     else
-        optimizegammas_LiNC!(obj, edges, verbose, 10,
-                             ftolRel, ftolAbs, xtolRel, xtolAbs)
+        optimizegammas_LiNC!(obj, edges, verbose, ftolRel, ftolAbs, xtolRel, xtolAbs)
     end
 end
 
