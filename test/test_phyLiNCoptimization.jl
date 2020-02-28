@@ -114,7 +114,7 @@ net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):
 preorder!(net)
 PhyloNetworks.checknetwork_LiNC!(net, 1, true, true)
 @test all(length(n.edge) != 2 for n in net.node) # no nodes of degree 2
-@test all(PhyloNetworks.getChildEdge(h).length == 0.0 for h in net.hybrid) # unzipped
+# removed unzip from checknetwork_LiNC because its in startingBL! @test all(PhyloNetworks.getChildEdge(h).length == 0.0 for h in net.hybrid) # unzipped
 @test_throws ErrorException PhyloNetworks.checknetwork_LiNC!(net, 0, true, true)
 end
 
@@ -216,22 +216,27 @@ obj = PhyloNetworks.StatisticalSubstitutionModel(net_level1_i, fastaindiv, :JC69
                                                 maxhybrid)
 # obj.net = deepcopy of input net, so we need to rebuild the constraints
 c_species[1] = PhyloNetworks.TopologyConstraint(0x01, c_species[1].taxonnames, obj.net)
-@test_logs (:warn, r"no 3-cycle") PhyloNetworks.checknetwork_LiNC!(obj.net, maxhybrid, no3cycle,
-                                      nohybridladder, c_species)
+# obj.net = deepcopy of input net, so we need to rebuild the constraints if done after
+@test_logs (:warn, r"no 3-cycle") PhyloNetworks.checknetwork_LiNC!(obj.net, maxhybrid,
+                                                    no3cycle, nohybridladder, c_species)
 for e in obj.net.edge e.length = 0.1; end # was -1.0 for missing
-PhyloNetworks.startingBL!(obj.net, true, obj.trait, obj.siteweight)
-# sort([e.number for e in obj.net.edge])
+PhyloNetworks.startingBL!(obj.net, true, obj.trait, obj.siteweight) # true: to unzip
 PhyloNetworks.discrete_corelikelihood!(obj) # calculate likelihood before starting
 @test_nowarn PhyloNetworks.phyLiNCone!(obj, maxhybrid, no3cycle, nohybridladder,
                                        3, 2, false, seed, 0.5, c_species,
                                        1e-2, 1e-2, 1e-2, 1e-2, 0.0, 50.0)
-# error: node numbers end up 1:10, 12,13, 15:24. fixit!!
-# fixit: after refactoring of user input for constraint
-# test phyLiNC only, not phyLiNCone
-# @test_nowarn phyLiNC!(net_level1_i, fastaindiv, :JC69;
-#    maxhybrid=2, no3cycle=true, nohybridladder=true,
-#    constraints=c_species, seed=103)
 
+# # test phyLiNC only, not phyLiNCone
+@test_nowarn obj = phyLiNC!(net_level1_s, fastaindiv, :JC69; maxhybrid=2,
+                            no3cycle=true, nohybridladder=true, verbose=false,
+                            speciesfile=mappingfile, seed=106, nruns=1,
+                            maxmoves=10, nreject=2)
+# test that species stayed together after optimization
+@test for n in obj.net.node # check that the only polytomy: all nodes should have up to 3 edges
+    if length(n.edge) > 3 # polytomies allowed at species constraints only
+        return all([n.name in ["S1A", "S1B", "S1C"] for n in PhyloNetworks.getChildren(n)])
+    end
+end
 end
 
 end # of overall phyLiNC test set

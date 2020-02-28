@@ -242,6 +242,9 @@ Update fields stem `edge` and crown `node` to match the given `net`.
 
 Assumes that `net` is numbered identically to the network used to create all
 constraints in vector `constraints`.
+
+Warning: If we allow NNIs inside a clade constraint, the crown node and or edge node
+numbers might change (u and v exchange). We might want to check this. #fixit
 """
 function updateconstraintfields!(constraints::Vector{TopologyConstraint}, net::HybridNetwork)
     for con in constraints
@@ -702,8 +705,6 @@ function checkspeciesnetwork!(net::HybridNetwork, constraints::Vector{TopologyCo
     for n in net.node # check for no polytomies: all nodes should have up to 3 edges
         if length(n.edge) > 3 # polytomies allowed at species constraints only
             coni = findfirst(c -> c.type == 1 && c.node === n, constraints)
-            # printNodes(net) #todo remove
-            # @info "coni is: " coni " and constraints are: " constraints
             coni !== nothing ||
                 error("The network has a polytomy at node number $(n.number). Please resolve.")
         end

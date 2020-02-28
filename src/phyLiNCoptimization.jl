@@ -13,8 +13,8 @@ const alphaRASmax = 50.0
              nreject=75::Int64, nruns=10::Int64,
              filename="phyLiNC"::AbstractString, verbose=false::Bool,
              seed=0::Int64, probST=0.5::Float64,
-             ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-             xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
+             ftolRel=fRel::Float64, ftolAbs=fAbs::Float64,
+             xtolRel=xRel::Float64, xtolAbs=xAbs::Float64,
              alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
 
 Estimate a phylogenetic network from concatenated DNA data using
@@ -68,12 +68,14 @@ Created using [`TopologyConstraint`] (@ref) (NOTE: clade contraints not yet impl
 The following optional arguments control when to stop the optimization of branch
 lengths and gamma values on each individual candidate network. Defaults in
 parentheses.
-- `ftolRel` (1e-12) and `ftolAbs` (1e-10): relative and absolute differences of the
+- `ftolRel` (1e-6) and `ftolAbs` (1e-6): relative and absolute differences of the
   network score between the current and proposed parameters
-- `xtolRel` (1e-10) and `xtolAbs` (1e-10): relative and absolute differences between the
+- `xtolRel` (1e-2) and `xtolAbs` (1e-3): relative and absolute differences between the
   current and proposed parameters.
 Greater values will result in a less thorough but faster search. These parameters
 are used when evaluating candidate networks only.
+Regardless of these arguments, once a final topology is chosen, branch lenghts
+are optimized using stricter tolerances (1e-10, 1e-12, 1e-10, 1e-10).
 
 The following optional arguments control when to stop proposing new
 network topologies:
@@ -95,33 +97,44 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
                   speciesfile=""::AbstractString,
                   cladefile=""::AbstractString,
                   kwargs...)
-
-    # create starting object for all runs
-    obj = StatisticalSubstitutionModel(net, fastafile, modSymbol, maxhybrid)
-    # create constraints
+    # create constraints, new network if speciesfile
     if !isempty(speciesfile)
-        ind_net, constraints = mapindividuals(net, speciesfile)
+        net, constraints = mapindividuals(net, speciesfile)
     else
         constraints = TopologyConstraint[]
     end
     if !isempty(cladefile)
         error("Clade constraints not yet implemented.")
     end
+    # create starting object for all runs
+    obj = StatisticalSubstitutionModel(net, fastafile, modSymbol, maxhybrid)
+    # after SSM(), need to update constraint taxonnames, taxonnums, edge, and node because some
+        # leaves may be pruned and check_matchtaxonnames calls resetNodeNumbers! (changing leaf node
+        # numbers) and resetEdgeNumbers!
+    for i in 1:length(constraints)
+        constraints[i] = PhyloNetworks.TopologyConstraint(constraints[i].type, constraints[i].taxonnames, obj.net)
+    end
+    #updateconstraintfields!(constraints, obj.net)
+    #updateconstraints!(constraints, obj.net)
     checknetwork_LiNC!(obj.net, maxhybrid, no3cycle, nohybridladder, constraints)
+    # checknetwork removes degree-2 nodes (including root) and 2- and 3-cycles.
+        # and requires that the network is preordered.
+    updateSSM!(obj, true; constraints=constraints)
     startingBL!(obj.net, true, obj.trait, obj.siteweight) # true: to unzip
-
+    #todo remove
+    all(x -> x >= 0.0, [e.length for e in obj.net.edge]) || error("branch lengths should be >= 0")
     discrete_corelikelihood!(obj)  # calculate likelihood before starting
+    @info "before calling second phyLiNC: likelihood is: $(obj.loglik)" #todo remove after debug
     phyLiNC!(obj; maxhybrid=maxhybrid, no3cycle=no3cycle, nohybridladder=nohybridladder,
             constraints=constraints, kwargs...)
-
 end
 function phyLiNC!(obj::SSM;
                   maxhybrid=1::Int64, no3cycle=true::Bool,
                   nohybridladder=true::Bool, maxmoves=100::Int64, nreject=75::Int64,
                   nruns=10::Int64, filename="phyLiNC"::AbstractString,
                   verbose=false::Bool, seed=0::Int64, probST=0.5::Float64,
-                  ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-                  xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
+                  ftolRel=fRel::Float64, ftolAbs=fAbs::Float64,
+                  xtolRel=xRel::Float64, xtolAbs=xAbs::Float64,
                   constraints=TopologyConstraint[]::Vector{TopologyConstraint},
                   alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
     writelog = true
@@ -178,7 +191,8 @@ function phyLiNC!(obj::SSM;
     end
 
     tstart = time_ns()
-
+    startingnet = obj.net
+    startingconstraints = constraints
     bestnet = Distributed.pmap(1:nruns) do i # for i in 1:nruns
         logstr = "seed: $(seeds[i]) for run $(i), $(Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s"))\n"
         print(stdout, logstr)
@@ -190,19 +204,21 @@ function phyLiNC!(obj::SSM;
         verbose && print(stdout, msg)
         GC.gc()
         try
-            best = phyLiNCone!(obj, maxhybrid, no3cycle,
+            obj.net = deepcopy(startingnet)
+            constraints = deepcopy(startingconstraints)
+            phyLiNCone!(obj, maxhybrid, no3cycle,
                             nohybridladder, maxmoves, nreject, verbose,
                             seeds[i], probST, constraints, ftolRel, ftolAbs,
                             xtolRel, xtolAbs, alphamin, alphamax)
-            logstr *= "\nFINISHED PhyLiNC for run $(i), -loglik of best $(best.loglik)\n"
+            logstr *= "\nFINISHED PhyLiNC for run $(i), -loglik of best $(obj.loglik)\n"
             verbose && print(stdout, logstr)
             if writelog_1proc
-                logstr = writeTopology(best.net)
+                logstr = writeTopology(obj.net)
                 logstr *= "\n---------------------\n"
                 write(logfile, logstr)
                 flush(logfile)
             end
-            return best
+            return obj.net
         catch err
             msg = "\nERROR found on PhyLiNC for run $(i) seed $(seeds[i]): $(err)\n"
             logstr = msg * "\n---------------------\n"
@@ -215,6 +231,7 @@ function phyLiNC!(obj::SSM;
             @warn msg # returns: nothing
         end
     end
+    # post processing of the networks
     tend = time_ns() # in nanoseconds
     telapsed = round(convert(Int64, tend-tstart) * 1e-9, digits=2) # in seconds
     writelog_1proc && close(errfile)
@@ -225,14 +242,18 @@ function phyLiNC!(obj::SSM;
         print(stdout, msg)
     end
     filter!(n -> n !== nothing, bestnet) # remove "nothing", failed runs
-    if length(bestnet) > 0
-        ind = sortperm([n.loglik for n in bestnet])
-        bestnet = bestnet[ind]
-        maxNet = bestnet[1]::StatisticalSubstitutionModel # tell type to compiler
-    else
-        error("all runs failed")
-    end
-    return maxNet
+    !isempty(bestnet) || error("all runs failed")
+    sort!(bestnet, by = x -> x.loglik, rev=true) #TODO check that largest loglik is returned 
+    # @show all here
+    maxnet = bestnet[1]::HybridNetwork # tell type to compiler
+    obj.net = maxnet
+    msg = "final optimization of branch lengths and gammas on the best network"
+    # warning: tolerance values from constants, not user-specified
+    optimizeBL_LiNC!(obj, obj.net.edge, verbose, max(10*length(obj.net.edge), 1000),
+                     fRelBL, fAbsBL, xRelBL, xAbsBL)
+    optimizeallgammas_LiNC!(obj, verbose, max(10*length(obj.net.hybrid), 1000),
+                            fRelBL, fAbsBL, xRelBL, xAbsBL)
+    return obj
 end
 
 """
@@ -289,15 +310,11 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
             optimizelocalBL_LiNC!(obj, e, verbose, ftolRel, ftolAbs,
                               xtolRel, xtolAbs)
             if e.hybrid
-                optimizelocalgammas_LiNC!(obj, e1, verbose, ftolRel, ftolAbs,
+                optimizelocalgammas_LiNC!(obj, e, verbose, ftolRel, ftolAbs,
                                           xtolRel, xtolAbs)
             end
         end
     end
-    optimizeBL_LiNC!(obj, obj.net.edge, verbose, 10*length(obj.net.edge),
-                    ftolRel, ftolAbs, xtolRel, xtolAbs)
-    optimizeallgammas_LiNC!(obj, verbose, 10*length(obj.net.hybrid), ftolRel,
-                            ftolAbs, xtolRel, xtolAbs)
     return obj
 end
 
@@ -339,11 +356,13 @@ function checknetwork_LiNC!(net::HybridNetwork, maxhybrid::Int64, no3cycle::Bool
     # checks for polytomies, constraint violations, nodes of degree 2
     checkspeciesnetwork!(net, constraints) ||
         error("The species or clade constraints are not satisfied in the starting network.")
+        # checkspeciesnetwork removes nodes of degree 2, need to renumber with updateSSM
     if no3cycle
         !contain3cycles(net, no3cycle) || @warn("Options indicate there should
         be no 3-cycles in the returned network, but the input network contains
         one or more 3-cycles (after removing any nodes of degree 2 including the
         root). These 3-cycles have been removed.")
+        # if nodes removed, need to renumber with updateSSM
     end
     if nohybridladder
         !hashybridladder(net) || error("Options indicate there should be no
@@ -356,7 +375,6 @@ function checknetwork_LiNC!(net::HybridNetwork, maxhybrid::Int64, no3cycle::Bool
         increase maxhybrid to $(length(net.hybrid)) or provide an input network
         with $(maxhybrid) or fewer reticulations.")
     end
-    unzip_canonical!(net)
     return net
 end
 
@@ -365,8 +383,8 @@ end
                        no3cycle::Bool, nohybridladder::Bool, nreject=75::Int64,
                        verbose=false::Bool,
                        constraints=TopologyConstraint[]::Vector{TopologyConstraint},
-                       ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-                       xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
+                       ftolRel=fRel::Float64, ftolAbs=fAbs::Float64,
+                       xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
 
 Alternate nni moves, hybrid moves, and root changes. Optimizes local branch
 lengths and hybrid gammas after each move, then decides whether or not to accept
@@ -391,21 +409,12 @@ function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
     no3cycle::Bool, nohybridladder::Bool, nreject=75::Int64,
     verbose=false::Bool,
     constraints=TopologyConstraint[]::Vector{TopologyConstraint},
-    ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-    xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
+    ftolRel=fRel::Float64, ftolAbs=fAbs::Float64,
+    xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
     nmoves = 0
     rejections = 0
     while nmoves < maxmoves && rejections < nreject # both should be true to continue
-        @info "optimizing structure, nmoves=$nmoves"
-        @info "testing for consecutive edge and node lengths" # debug
-        if sort([e.number for e in obj.net.edge]) != 1:maximum([e.number for e in obj.net.edge])
-            println("edges are not numbered consecutively")
-        end
-        if sort([e.number for e in obj.net.node]) != 1:maximum([e.number for e in obj.net.node])
-            println("nodes are not numbered consecutively")
-        end
-        printEdges(obj.net)
-        printNodes(obj.net)
+        @info "optimizing structure, nmoves=$nmoves. The log likelihood is $(obj.loglik)"
         currLik = obj.loglik
         movechoice = sample(["nni", "addhybrid", "deletehybrid", "root"], moveweights)
         if movechoice == "nni"
@@ -480,8 +489,8 @@ end
 """
     nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool, verbose::Bool,
               constraints=TopologyConstraint[]::Vector{TopologyConstraint},
-              ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-              xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
+              ftolRel=fRel::Float64, ftolAbs=fAbs::Float64,
+              xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
 
 Loop over possible edges for a nearest-neighbor interchange move until one is
 found. Performs move and compares the original and modified likelihoods to
@@ -497,8 +506,8 @@ Assumptions:
 function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
                   verbose::Bool,
                   constraints=TopologyConstraint[]::Vector{TopologyConstraint},
-                  ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-                  xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
+                  ftolRel=fRel::Float64, ftolAbs=fAbs::Float64,
+                  xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
     currLik = obj.loglik
     edgefound = false
     blacklist = Edge[]
@@ -513,7 +522,6 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
             undoinfo = nni!(obj.net,e1,nohybridladder,no3cycle,constraints)
             if !isnothing(undoinfo)
                 edgefound = true
-                discrete_corelikelihood!(obj)
                 optimizelocalBL_LiNC!(obj, e1, verbose, ftolRel, ftolAbs,
                                       xtolRel, xtolAbs)
                 optimizelocalgammas_LiNC!(obj, e1, verbose, ftolRel, ftolAbs,
@@ -549,24 +557,21 @@ Assumptions:
 """
 function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     no3cycle::Bool, nohybridladder::Bool, verbose::Bool,
-    constraints::Vector{TopologyConstraint}, ftolRel=fRelBL::Float64,
-    ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
-    orignet = deepcopy(obj.net) # hold old network in case we remove new hybrid
+    constraints::Vector{TopologyConstraint}, ftolRel=fRel::Float64,
+    ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
+    #orignet = deepcopy(obj.net) # hold old network in case we remove new hybrid
     result = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints)
     if !isnothing(result)
         newhybridnode, newhybridedge = result
         updateSSM!(obj)
-        discrete_corelikelihood!(obj)
         optimizelocalBL_LiNC!(obj, newhybridedge, verbose, ftolRel, ftolAbs,
                               xtolRel, xtolAbs)
         optimizelocalgammas_LiNC!(obj, newhybridedge, verbose, ftolRel, ftolAbs,
                                   xtolRel, xtolAbs)
         if obj.loglik - currLik < likAbsAddHybLiNC # improvement too small or negative: undo
-            # consider deleting newhybridedge instead of restoring a deepcopy? # TODO
-            obj.net = orignet
-            updateconstraintfields!(constraints, obj.net)
-            updateSSM!(obj) # no need renumber=true because original network
-            discrete_corelikelihood!(obj)
+            deletehybridedge!(obj.net, newhybridedge, false, true) # don't keep nodes; unroot
+            updateSSM!(obj)
+            obj.loglik = currLik
             return false
         else
             return true
@@ -593,8 +598,8 @@ Assumptions:
 """
 function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     no3cycle::Bool, nohybridladder::Bool, verbose::Bool,
-    constraints::Vector{TopologyConstraint}, ftolRel=fRelBL::Float64,
-    ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
+    constraints::Vector{TopologyConstraint}, ftolRel=fRel::Float64,
+    ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
     hybridnode = obj.net.hybrid[Random.rand(1:length(obj.net.hybrid))]
     minorhybridedge = getMinorParentEdge(hybridnode)
     if length(constraints) > 0 # check constraints
@@ -620,9 +625,9 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
             return nothing
         end
     end
-    savededges, savedhybridedges = savelocalBLgamma(obj.net, minorhybridedge)
+    savededges = [e.length for e in obj.net.edge]
+    savedgammas = [e.gamma for e in obj.net.edge]
     setGamma!(minorhybridedge, 0.0)
-    discrete_corelikelihood!(obj)
     optimizelocalBL_LiNC!(obj, minorhybridedge, verbose, ftolRel, ftolAbs,
                           xtolRel, xtolAbs)
     optimizelocalgammas_LiNC!(obj, minorhybridedge, verbose, ftolRel, ftolAbs,
@@ -630,10 +635,12 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     if obj.loglik - currLik > likAbsDelHybLiNC # -0.1: loglik can decrease for parsimony
         deletehybridedge!(obj.net, minorhybridedge, false, true) # don't keep nodes; unroot
         updateSSM!(obj, true; constraints=constraints)
-        discrete_corelikelihood!(obj)
         return true
     else # keep hybrid
-        resetlocalBLgamma!(obj.net, savededges, savedhybridedges)
+        for (i,e) in enumerate(obj.net.edge)
+            e.length = savededges[i]
+            e.gamma = savedgammas[i]
+        end
         obj.loglik = currLik
         return false
     end
@@ -683,8 +690,9 @@ function updateSSM!(obj::SSM, renumber=false::Bool;
                    constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     if renumber # traits are in leaf.number order, so leaf nodes not reordered
         resetNodeNumbers!(obj.net; checkPreorder=false, type=:internalonly)
+            # preorder not used when type = internalonly
         resetEdgeNumbers!(obj.net, false) # verbose=false
-        updateconstraints!(constraints, obj.net)
+        updateconstraintfields!(constraints, obj.net)
     end
     # extract displayed trees
     obj.displayedtree = displayedTrees(obj.net, 0.0; nofuse=true)
@@ -775,8 +783,8 @@ end
 
 """
     optimizelocalBL_LiNC!(obj::SSM, edge::Edge, verbose::Bool,
-                          ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-                          xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
+                          ftolRel=fRel::Float64, ftolAbs=fAbs::Float64,
+                          xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
 
 Optimize branch lengths in `net` locally around `edge`. Update all edges that
 share a node with `edge` (including itself).
@@ -817,8 +825,8 @@ PhyloNetworks.Edge:
 ```
 """
 function optimizelocalBL_LiNC!(obj::SSM, edge::Edge, verbose=false::Bool,
-                               ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-                               xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
+                               ftolRel=fRel::Float64, ftolAbs=fAbs::Float64,
+                               xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
     edges = Edge[]
     for n in edge.node
         for e in n.edge # all edges sharing a node with `edge` (including self)
@@ -827,16 +835,15 @@ function optimizelocalBL_LiNC!(obj::SSM, edge::Edge, verbose=false::Bool,
             end
         end
     end
-    # remove max number of eval here
-    optimizeBL_LiNC!(obj, edges, verbose, ftolRel, ftolAbs, xtolRel, xtolAbs)
+    optimizeBL_LiNC!(obj, edges, verbose, 1000, ftolRel, ftolAbs, xtolRel, xtolAbs)
     return edges
 end
 
 """
     optimizeBL_LiNC!(obj::SSM, edges::Vector{Edge},
                 verbose=false::Bool, maxeval=1000::Int64,
-                ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-                xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
+                ftolRel=fRel::Float64, ftolAbs=fAbs::Float64,
+                xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
 
 Optimize branch lengths for edges in vector `edges`.
 Constrains branch lengths to zero below hybrid nodes.
@@ -847,8 +854,8 @@ For a description of optional arguments, see [`phyLiNC`](@ref).
 Assumption: None of the branch length are negative.
 """
 function optimizeBL_LiNC!(obj::SSM, edges::Vector{Edge},
-    verbose=false::Bool, maxeval=1000::Int64, ftolRel=fRelBL::Float64,
-    ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
+    verbose=false::Bool, maxeval=1000::Int64, ftolRel=fRel::Float64,
+    ftolAbs=fAbs::Float64, xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
 
     if !isempty(obj.net.hybrid)
         constrainededges = unzip_canonical!(obj.net)
@@ -888,8 +895,8 @@ end
 
 """
     optimizeallgammas_LiNC!(obj::SSM, verbose::Bool, maxeval::Int64,
-                        ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-                        xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
+                        ftolRel=fRel::Float64, ftolAbs=fAbs::Float64,
+                        xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
 
 Optimize all gammas in a network. Creates a list containing one parent edge
 per hybrid then calls optimizegammas_LiNC! on that list.
@@ -898,8 +905,8 @@ For a description of optional arguments, see [`phyLiNC`](@ref).
 """
 function optimizeallgammas_LiNC!(obj::SSM,
     verbose::Bool, maxeval::Int64,
-    ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-    xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
+    ftolRel=fRel::Float64, ftolAbs=fAbs::Float64,
+    xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
 
     edges = [getMajorParentEdge(h) for h in obj.net.hybrid]
     if isempty(edges)
@@ -912,8 +919,8 @@ end
 
 """
     optimizelocalgammas_LiNC!(obj::SSM, edge::Edge, verbose=false::Bool,
-                              ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-                              xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
+                              ftolRel=fRel::Float64, ftolAbs=fAbs::Float64,
+                              xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
 
 Optimize gammas in `net` locally around `edge`. Update all edges that share a
 node with `edge` (including itself). Does not include edges' partners because
@@ -979,8 +986,8 @@ julia> obj.net.hybrid[1].edge
 ````
 """
 function optimizelocalgammas_LiNC!(obj::SSM, edge::Edge, verbose=false::Bool,
-                                   ftolRel=fRelBL::Float64,ftolAbs=fAbsBL::Float64,
-                                   xtolRel=xRelBL::Float64,xtolAbs=xAbsBL::Float64)
+                                   ftolRel=fRel::Float64,ftolAbs=fAbs::Float64,
+                                   xtolRel=xRel::Float64,xtolAbs=xAbs::Float64)
     edges = Edge[]
     for n in edge.node
         for e in n.edge # edges that share a node with `edge` (including self)
@@ -992,15 +999,15 @@ function optimizelocalgammas_LiNC!(obj::SSM, edge::Edge, verbose=false::Bool,
     if isempty(edges)
         @debug "no local gammas to optimize around edge $edge"
     else
-        optimizegammas_LiNC!(obj, edges, verbose, ftolRel, ftolAbs, xtolRel, xtolAbs)
+        optimizegammas_LiNC!(obj, edges, verbose, 1000, ftolRel, ftolAbs, xtolRel, xtolAbs)
     end
 end
 
 """
     optimizegammas_LiNC!(obj::SSM, edges::Vector{Edge},
                     verbose=false::Bool, maxeval=1000::Int64,
-                    ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-                    xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
+                    ftolRel=fRel::Float64, ftolAbs=fAbs::Float64,
+                    xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
 
 Optimize gammas for hybrid edges in vector `edges`.
 Return vector of updated `edges`.
@@ -1014,8 +1021,8 @@ Instead use [`optimizelocalgammas_LiNC!`](@ref) or [`optimizeallgamma!`](@ref).
 """
 function optimizegammas_LiNC!(obj::SSM, edges::Vector{Edge}, verbose=false::Bool,
                               maxeval=1000::Int64,
-                              ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-                              xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
+                              ftolRel=fRel::Float64, ftolAbs=fAbs::Float64,
+                              xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
 
     counter = [0]
     function loglikfungamma(gammas::Vector{Float64}, grad::Vector{Float64})
