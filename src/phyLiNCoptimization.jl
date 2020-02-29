@@ -98,7 +98,7 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
                   speciesfile=""::AbstractString,
                   cladefile=""::AbstractString,
                   kwargs...)
-    # create constraints, new network if speciesfile
+    # create constraints and new network if speciesfile
     if !isempty(speciesfile)
         net, constraints = mapindividuals(net, speciesfile)
     else
@@ -113,19 +113,15 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
         # leaves may be pruned and check_matchtaxonnames calls resetNodeNumbers! (changing leaf node
         # numbers) and resetEdgeNumbers!
     for i in 1:length(constraints)
-        constraints[i] = PhyloNetworks.TopologyConstraint(constraints[i].type, constraints[i].taxonnames, obj.net)
+        constraints[i] = PhyloNetworks.TopologyConstraint(constraints[i].type,
+                                            constraints[i].taxonnames, obj.net)
     end
-    #updateconstraintfields!(constraints, obj.net)
-    #updateconstraints!(constraints, obj.net)
     checknetwork_LiNC!(obj.net, maxhybrid, no3cycle, nohybridladder, constraints)
     # checknetwork removes degree-2 nodes (including root) and 2- and 3-cycles.
         # and requires that the network is preordered.
-    updateSSM!(obj, true; constraints=constraints)
+    # updateSSM!(obj, true; constraints=constraints) #? remove this? Tests run fine without this
     startingBL!(obj.net, true, obj.trait, obj.siteweight) # true: to unzip
-    #todo remove
-    all(x -> x >= 0.0, [e.length for e in obj.net.edge]) || error("branch lengths should be >= 0")
-    discrete_corelikelihood!(obj)  # calculate likelihood before starting
-    @info "before calling second phyLiNC: likelihood is: $(obj.loglik)" #todo remove after debug
+    @info "before calling phyLiNC: likelihood = $(obj.loglik)" #todo remove after debug
     phyLiNC!(obj; maxhybrid=maxhybrid, no3cycle=no3cycle, nohybridladder=nohybridladder,
             constraints=constraints, kwargs...)
 end
@@ -192,7 +188,7 @@ function phyLiNC!(obj::SSM;
     end
 
     tstart = time_ns()
-    startingnet = obj.net
+    startingnet = obj.net #? is this needed? if so, shouldn't it be a deepcopy?
     startingconstraints = constraints
     bestnet = Distributed.pmap(1:nruns) do i # for i in 1:nruns
         logstr = "seed: $(seeds[i]) for run $(i), $(Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s"))\n"
@@ -211,7 +207,7 @@ function phyLiNC!(obj::SSM;
                             nohybridladder, maxmoves, nreject, verbose,
                             seeds[i], probST, constraints, ftolRel, ftolAbs,
                             xtolRel, xtolAbs, alphamin, alphamax)
-            logstr *= "\nFINISHED PhyLiNC for run $(i), -loglik of best $(obj.loglik)\n"
+            logstr *= "\nFINISHED PhyLiNC for run $(i), loglik of best $(obj.loglik)\n"
             verbose && print(stdout, logstr)
             if writelog_1proc
                 logstr = writeTopology(obj.net)
@@ -244,11 +240,16 @@ function phyLiNC!(obj::SSM;
     end
     filter!(n -> n !== nothing, bestnet) # remove "nothing", failed runs
     !isempty(bestnet) || error("all runs failed")
-    sort!(bestnet, by = x -> x.loglik, rev=true) #TODO check that largest loglik is returned 
+    sort!(bestnet, by = x -> x.loglik, rev=true) #TODO check that largest loglik is returned
     # @show all here
     maxnet = bestnet[1]::HybridNetwork # tell type to compiler
     obj.net = maxnet
-    msg = "final optimization of branch lengths and gammas on the best network"
+    logstr = "final optimization of branch lengths and gammas on the best network"
+    verbose && print(stdout, logstr)
+    if writelog_1proc
+        write(logfile, logstr)
+        flush(logfile)
+    end
     # warning: tolerance values from constants, not user-specified
     optimizeBL_LiNC!(obj, obj.net.edge, verbose, max(10*length(obj.net.edge), 1000),
                      fRelBL, fAbsBL, xRelBL, xAbsBL)
@@ -305,8 +306,10 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
         done = optimizestructure!(obj, maxmoves, maxhybrid, no3cycle, nohybridladder,
                                   nreject, verbose, constraints,ftolRel,
                                   ftolAbs, xtolRel, xtolAbs)
+        @info "after optimizestructure returns, the likelihood is $(obj.loglik)"
         fit!(obj; optimizeQ=true, optimizeRVAS=true, ftolRel=ftolRel,
              ftolAbs=ftolAbs, xtolRel=xtolRel, xtolAbs=xtolAbs)
+        @info "after fit! runs, the likelihood is $(obj.loglik)" #fixit: fit! isn't changing the likelihood at all
         for e in Random.shuffle(obj.net.edge)
             optimizelocalBL_LiNC!(obj, e, verbose, ftolRel, ftolAbs,
                               xtolRel, xtolAbs)
@@ -315,6 +318,8 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
                                           xtolRel, xtolAbs)
             end
         end
+        @info "after global BL and gamma optimization, the likelihood is $(obj.loglik)"
+
     end
     return obj
 end
@@ -447,7 +452,7 @@ function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
             # TODO do we want to optimize branch lengths after root move?
         end
         nmoves += 1
-        if isnothing(result) || movechoice == "root"
+        if isnothing(result) || movechoice == "root" #? should this be && not ||?
             # the move was not permissible (no option to get a DAG, or constraints violated)
             # or root change: ignore it for # rejections because loglik unchanged
             verbose && println(movechoice * " was not permissible.")
@@ -858,6 +863,8 @@ function optimizeBL_LiNC!(obj::SSM, edges::Vector{Edge},
     NLopt.lower_bounds!(optBL, zeros(length(edges)))
     NLopt.max_objective!(optBL, loglikfunBL)
     fmax, xmax, ret = NLopt.optimize(optBL, getlengths(edges)) # get lengths in order of edges vector
+    #? should we call nlopt_destroy(opt); to clean up the object here? (they recommend it here: https://nlopt.readthedocs.io/en/latest/NLopt_Tutorial/)
+        # (but they don't mention it in the julia version of the docs) Could speed up garbage collection?
     verbose && println("""BL: got $(round(fmax, digits=5)) at
     BL = $(round.(xmax, digits=5)) after $(counter[1]) iterations
     (return code $(ret))""")

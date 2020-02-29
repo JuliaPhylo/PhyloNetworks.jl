@@ -133,16 +133,14 @@ PhyloNetworks.optimizestructure!(obj, maxmoves, maxhybrid, true, true)
 # allow hybrid ladders
 seed = 101
 PhyloNetworks.optimizestructure!(obj, maxmoves, maxhybrid, true, false)
-obj.loglik > -30.16863160524078
+@test obj.loglik > -30.16863160524078
 end # of optimizestructure with simple example
 
 @testset "phyLiNCone with simple net, no constraints" begin
 no3cycle = true
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
-seed = 102
-# create starting object for all runs
+seed = 102; maxhybrid = 1;
 for nohybridladder in [true, false]
-    maxhybrid = 1;
     obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69,
                                                      maxhybrid)
     PhyloNetworks.checknetwork_LiNC!(obj.net, maxhybrid, no3cycle, nohybridladder)
@@ -151,18 +149,19 @@ for nohybridladder in [true, false]
                                            nohybridladder, 3, 2, false, seed,
                                            0.5, TopologyConstraint[], 1e-2, 1e-2,
                                            1e-2, 1e-2, 0.0, 25.0)
+    @test obj.loglik > -21.209048958984734
 end
 end
 
 @testset "phyLiNC multiple runs" begin
-
 seed = 105
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
 @test_nowarn PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2,
                     no3cycle=true, nohybridladder=true, maxmoves=2,
                     nreject=1, nruns=1, filename="", verbose=false,
                     seed=seed)
-
+#? why does this start with a much lower loglik than the previous example at line 144?
+    # "[ Info: before calling phyLiNC: likelihood is: -29.77658693411041"
 seed = 0
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
 @test_nowarn PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2,
@@ -174,8 +173,7 @@ net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):
 rm("phyLiNC2.log")
 rm("phyLiNC2.err")
 
-# multiple cores
-addprocs(1)
+addprocs(1)# multiple cores
 @everywhere using PhyloNetworks
 #using Distributed; @everywhere begin; using Pkg; Pkg.activate("."); using PhyloNetworks; end
 
