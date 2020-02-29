@@ -467,8 +467,8 @@ end
 
 nasm_model = JC69([0.3], false);       # relative=false: absolute version
 rv = RateVariationAcrossSites(1.0, 2); # 2 rates to go faster
-# below: error because missing gammas
-@test_throws ErrorException fitdiscrete(dna_net_top, nasm_model, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false)
+# below: error because missing gammas, after warning for extra taxa
+(@test_logs (:warn, r"pruned") @test_throws ErrorException fitdiscrete(dna_net_top, nasm_model, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false))
 # set gamma at the 3 reticulations, to fix error above
 setGamma!(dna_net_top.edge[6],0.6)
 setGamma!(dna_net_top.edge[7],0.6)
@@ -587,7 +587,7 @@ bmod = PhyloNetworks.defaultsubstitutionmodel(dna_net_top, :BTSM, dat, [1.0, 1.0
 @test_throws ErrorException PhyloNetworks.defaultsubstitutionmodel(dna_net_top, :QR, dat, [1.0, 1.0, 1.0, 1.0])
 
 
-test_SSM = PhyloNetworks.StatisticalSubstitutionModel(dna_net_top, fastafile, :JC69)
+test_SSM = (@test_logs (:warn, r"pruned") match_mode=:any PhyloNetworks.StatisticalSubstitutionModel(dna_net_top, fastafile, :JC69))
 @test typeof(test_SSM.model) == JC69
 @test test_SSM.nsites == 209
 @test test_SSM.siteweight[1:5] == [23.0, 18.0, 13.0, 16.0, 1.0]
@@ -609,7 +609,7 @@ end
 setGamma!(dna_net_top.edge[6],0.6)
 setGamma!(dna_net_top.edge[7],0.6)
 setGamma!(dna_net_top.edge[58],0.6)
-test_SSM = PhyloNetworks.StatisticalSubstitutionModel(dna_net_top, fastafile, :JC69)
+@test_logs (:warn, r"pruned") match_mode=:any PhyloNetworks.StatisticalSubstitutionModel(dna_net_top, fastafile, :JC69)
 end #of testing fit! functions for full network optimization
 
 end # of nested testsets

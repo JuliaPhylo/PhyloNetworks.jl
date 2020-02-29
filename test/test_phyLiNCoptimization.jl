@@ -76,7 +76,7 @@ obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69);
 
 ## optimizeBL
 Random.seed!(5);
-@time @test_nowarn PhyloNetworks.optimizeBL_LiNC!(obj, obj.net.edge, false,20,1e-2,1e-2,1e-2,1e-2);
+@test_nowarn PhyloNetworks.optimizeBL_LiNC!(obj, obj.net.edge, false,20,1e-2,1e-2,1e-2,1e-2);
 @test all(e.length != 1.0 for e in obj.net.edge)
 
 ## optimizegammas
@@ -126,17 +126,14 @@ net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):
 obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69, maxhybrid)
 PhyloNetworks.checknetwork_LiNC!(obj.net, maxhybrid, true, true)
 PhyloNetworks.discrete_corelikelihood!(obj)
+@test obj.loglik ≈ -32.934741316276956
 PhyloNetworks.optimizestructure!(obj, maxmoves, maxhybrid, true, true)
-# fixit: write better test: about improvement in likelihood?
+@test obj.loglik > -32.934741316276956 # should be ≈ -30.16863160524078
 
 # allow hybrid ladders
 seed = 101
-net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
-obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69, maxhybrid)
-PhyloNetworks.checknetwork_LiNC!(obj.net, maxhybrid, true, false)
-PhyloNetworks.discrete_corelikelihood!(obj)
 PhyloNetworks.optimizestructure!(obj, maxmoves, maxhybrid, true, false)
-# fixit: write test to check that loglik went up
+obj.loglik > -30.16863160524078
 end # of optimizestructure with simple example
 
 @testset "phyLiNCone with simple net, no constraints" begin
@@ -187,7 +184,7 @@ net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):
 PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2, no3cycle=true,
                         nohybridladder=true, maxmoves=2, nreject=1, nruns=1,
                         filename="phyLiNCmult", verbose=false, seed=seed)
-@test occursin("using 2 processors", read("phyLiNCmult.log", String))
+@test occursin("using 1 worker", read("phyLiNCmult.log", String))
 rm("phyLiNCmult.log")
 #? .err file not created in this case. Should the multiple core version make a .err file too?
 # @test read("phyLiNCmult.err", String) == ""

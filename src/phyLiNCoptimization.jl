@@ -160,9 +160,9 @@ function phyLiNC!(obj::SSM;
               max number of consecutive failed proposals = $(nreject)
              """
     str *= (writelog ? "filename for files: $(filename)\n" : "no output files\n")
-    str *= "BEGIN: $(nruns) runs starting near $(writeTopology(obj.net))\n"
+    str *= "$(nruns) runs starting near $(writeTopology(obj.net))\n"
     if Distributed.nprocs()>1
-        str *= "       using $(Distributed.nworkers()) worker processors\n"
+        str *= "using $(Distributed.nworkers()) worker processors\n"
     end
     if writelog
       write(logfile,str)
@@ -178,9 +178,9 @@ function phyLiNC!(obj::SSM;
         seed = parse(Int,a[2][end-4:end]) # seed based on clock
     end
     if writelog
-      write(logfile,"\nmain seed $(seed)\n")
+      write(logfile,"main seed $(seed)\n\n")
       flush(logfile)
-    else print(stdout,"\nmain seed $(seed)\n"); end
+    else print(stdout,"main seed $(seed)\n\n"); end
     Random.seed!(seed)
     seeds = [seed; round.(Integer,floor.(rand(nruns-1)*100000))]
 
@@ -236,7 +236,7 @@ function phyLiNC!(obj::SSM;
     tend = time_ns() # in nanoseconds
     telapsed = round(convert(Int64, tend-tstart) * 1e-9, digits=2) # in seconds
     writelog_1proc && close(errfile)
-    msg = "\n" * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s")
+    msg = "\n" * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s") * "\n"
     if writelog
         write(logfile, msg)
     elseif verbose
@@ -487,33 +487,27 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
                   xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
     currLik = obj.loglik
     edgefound = false
-    blacklist = Edge[]
-    while !edgefound # randomly select interior edge
-        if length(blacklist) == length(obj.net.edge)
-            return nothing
+    remainingedges = collect(1:length(obj.net.edge)) # indices in net.edge
+    while !edgefound
+        isempty(remainingedges) && return nothing
+        i_in_remaining = Random.rand(1:length(remainingedges))
+        e1 = obj.net.edge[remainingedges[i_in_remaining]]
+        undoinfo = nni!(obj.net,e1,nohybridladder,no3cycle,constraints)
+        if isnothing(undoinfo)
+            deleteat!(remainingedges, i_in_remaining)
+            continue # edge not found yet, try again
         end
-        remainingedges = setdiff(obj.net.edge, blacklist) # remove already tried edges
-        eindex = Random.rand(1:length(remainingedges))
-        e1 = remainingedges[eindex]
-        if !(e1 in blacklist) # else go back to top of nni while loop
-            undoinfo = nni!(obj.net,e1,nohybridladder,no3cycle,constraints)
-            if !isnothing(undoinfo)
-                edgefound = true
-                optimizelocalBL_LiNC!(obj, e1, verbose, ftolRel, ftolAbs,
-                                      xtolRel, xtolAbs)
-                optimizelocalgammas_LiNC!(obj, e1, verbose, ftolRel, ftolAbs,
-                                          xtolRel, xtolAbs)
-                if obj.loglik - currLik < likAbs
-                    nni!(undoinfo...) # undo move
-                    return false # result = false
-                else
-                    return true # rejections = 0 # resets to zero
-                end
-            else # if move unsuccessful, search for edge until successful
-                push!(blacklist, e1)
-            end
+        edgefound = true
+        optimizelocalBL_LiNC!(obj, e1, verbose, ftolRel,ftolAbs,xtolRel,xtolAbs)
+        optimizelocalgammas_LiNC!(obj, e1, verbose, ftolRel,ftolAbs,xtolRel,xtolAbs)
+        if obj.loglik - currLik < likAbs
+            nni!(undoinfo...) # undo move
+            return false # false means: move was rejected
+        else
+            return true # move was accepted: # rejections will be reset to zero
         end
     end
+    return nothing # no NNI were available: none were DAGs or met constraints
 end
 
 """
