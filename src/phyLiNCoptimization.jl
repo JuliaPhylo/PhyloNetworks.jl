@@ -1,5 +1,6 @@
 # any change to these constants must be documented in phyLiNC!
-const moveweights = Distributions.aweights([0.4, 0.2, 0.2, 0.2])
+const moveweights_LiNC = Distributions.aweights([0.4, 0.2, 0.2, 0.2])
+const movelist_LiNC = ["nni", "addhybrid", "deletehybrid", "root"]
 const likAbsAddHybLiNC = 0.5
 const likAbsDelHybLiNC = -0.1
 const alphaRASmin = 0.05
@@ -161,7 +162,7 @@ function phyLiNC!(obj::SSM;
     str *= (writelog ? "filename for files: $(filename)\n" : "no output files\n")
     str *= "BEGIN: $(nruns) runs starting near $(writeTopology(obj.net))\n"
     if Distributed.nprocs()>1
-        str *= "       using $(Distributed.nprocs()) processors\n"
+        str *= "       using $(Distributed.nworkers()) worker processors\n"
     end
     if writelog
       write(logfile,str)
@@ -413,75 +414,51 @@ function optimizestructure!(obj::SSM, maxmoves::Int64, maxhybrid::Int64,
     xtolRel=xRel::Float64, xtolAbs=xAbs::Float64)
     nmoves = 0
     rejections = 0
+    moveweights = copy(moveweights_LiNC)
+    if maxhybrid == 0 # prevent some moves, to avoid proposing non-admissible moves
+        moveweights[2] = 0.0 # addhybrid
+        moveweights[3] = 0.0 # deletehybrid
+        moveweights ./= sum(moveweights)
+    end
     while nmoves < maxmoves && rejections < nreject # both should be true to continue
         @info "optimizing structure, nmoves=$nmoves. The log likelihood is $(obj.loglik)"
         currLik = obj.loglik
-        movechoice = sample(["nni", "addhybrid", "deletehybrid", "root"], moveweights)
+        movechoice = sample(movelist_LiNC, moveweights_LiNC)
         if movechoice == "nni"
-            nmoves += 1
             result = nni_LiNC!(obj, no3cycle,  nohybridladder, verbose,
                                constraints, ftolRel, ftolAbs, xtolRel, xtolAbs)
-            if isnothing(result) # no nni moves possible
-                verbose && println("There are no nni moves possible in this network.")
-            elseif result # move successful and accepted
-                rejections = 0
-            else # move made, rejected, and undone
-                rejections += 1 # reset
-            end
-        elseif movechoice in ["addhybrid", "deletehybrid"]  # perform hybrid move
-            if maxhybrid == 0
-                @debug("The maximum number of hybrids allowed is $maxhybrid,
-                so hybrid moves are not legal on this network.")
-            elseif length(obj.net.hybrid) == 0
-                movechoice = "addhybrid"
-            elseif length(obj.net.hybrid) == maxhybrid
-                movechoice = "deletehybrid"
-            elseif length(obj.net.hybrid) > maxhybrid # this should never happen
-                error("""The network has more hybrids than allowed. maxhybrid =
-                 $maxhybrid, but network has $(obj.net.hybrid) hybrids.""")
-            end # either move is possible
-            if movechoice == "addhybrid"
-                added = addhybridedgeLiNC!(obj, currLik, maxhybrid, no3cycle,
+        elseif movechoice == "addhybrid"
+            nh = obj.net.numHybrids
+            nh == maxhybrid && continue # skip & don't count towards nmoves if enough hybrids in net
+            # alternative: switch "add" and "delete" as appropriate (not chosen)
+            #              would decrease the weight of NNIs compared to add/delete hybrid
+            nh <= maxhybrid || # nh > maxhybrid should never happen
+                error("The network has $nh hybrids: more than the allowed max of $maxhybrid")
+            result = addhybridedgeLiNC!(obj, currLik, maxhybrid, no3cycle,
                             nohybridladder, verbose, constraints, ftolRel, ftolAbs,
                             xtolRel, xtolAbs)
-                nmoves += 1
-                if isnothing(added)
-                    verbose && println("Cannot add a hybrid to the network.")
-                    movechoice = "add hybrid (unsuccessful attempt)"
-                elseif added
-                    rejections = 0 # reset
-                else
-                    movechoice = "add hybrid (but deleted afterward)"
-                    rejections += 1
-                end
-            else # delete hybrid
-                deleted = deletehybridedgeLiNC!(obj, currLik, maxhybrid,
+        elseif movechoice == "deletehybrid"
+            obj.net.numHybrids == 0  && continue # skip & don't count towards nmoves if no hybrid in net
+            result = deletehybridedgeLiNC!(obj, currLik, maxhybrid,
                         no3cycle, nohybridladder, verbose, constraints, ftolRel,
                         ftolAbs, xtolRel, xtolAbs)
-                nmoves += 1
-                if isnothing(deleted)
-                    verbose && println("""Cannot delete a hybrid to the network
-                     without violating a topology constraint.""")
-                    movechoice = "delete hybrid (unsuccessful attempt)"
-                elseif deleted
-                    rejections = 0 # reset
-                else
-                    movechoice = "delete hybrid (but added back)"
-                    rejections += 1
-                end
-            end
         else # change root (doesn't affect likelihood)
-            originalroot = obj.net.root
-            changednet = moveroot!(obj.net, constraints)
+            result = moveroot!(obj.net, constraints)
             # TODO do we want to optimize branch lengths after root move?
-            nmoves += 1
-            if !changednet
-                @debug("Cannot perform a root change move on current network.")
-                #? reduce likelihood of root move if no root moves possible to avoid trying again?
-            end
+        end
+        nmoves += 1
+        if isnothing(result) || movechoice == "root"
+            # the move was not permissible (no option to get a DAG, or constraints violated)
+            # or root change: ignore it for # rejections because loglik unchanged
+            verbose && println(movechoice * " was not permissible.")
+        elseif result # move successful and accepted (loglik increase)
+            rejections = 0  # reset
+        else # move made, rejected, and undone
+            rejections += 1
         end
         verbose && println("""loglik = $(loglikelihood(obj)) after move of type
-        $movechoice, $nmoves total moves, and $rejections rejected moves""")
+        $(movechoice), which was $(isnothing(result) ? "not permissible" : (result ? "accepted" : "rejected and undone")),
+        $nmoves total moves, and $rejections rejected moves""")
     end
     return rejections >= nreject
 end
@@ -1053,53 +1030,4 @@ function optimizegammas_LiNC!(obj::SSM, edges::Vector{Edge}, verbose=false::Bool
     $(round.(xmax, digits=5)) after $(counter[1]) iterations
     (return code $(ret))")
     return edges
-end
-
-## Prep Functions ##
-
-"""
-    savelocalBLgamma(net::HybridNetwork, edge::Edge)
-
-Saves local branch lengths and gammas before they're optimized so they can be
-reset.
-Return a tuple of two dictionaries holding edges and branch lengths
-and edges and gammas, respectively. Each dictionary is of this format:
-Dict{Edge, Float64}
-"""
-function savelocalBLgamma(net::HybridNetwork, edge::Edge)
-    localedges = Dict{Edge, Float64}()
-    for n in edge.node
-        for e in n.edge # all edges sharing a node with `edge` (including self)
-            if !(haskey(localedges, e))
-                localedges[e] = e.length
-            end
-        end
-    end
-    localhybridedges = Dict{Edge, Float64}()
-    for n in edge.node
-        for e in n.edge # edges that share a node with `edge` (including self)
-            if e.hybrid && !haskey(localhybridedges, e) && !haskey(localhybridedges, getPartner(e))
-                localhybridedges[e] = e.gamma
-            end
-        end
-    end
-    return localedges, localhybridedges
-end
-
-"""
-    resetlocalBLgamma!(net::HybridNetwork, localedges::Dict{Edge, Float64},
-                        localhybridedges::Dict{Edge, Float64})
-
-Reset local branch lengths and gammas to undo a local optimization.
-Return net.
-"""
-function resetlocalBLgamma!(net::HybridNetwork, localedges::Dict{Edge, Float64},
-    localhybridedges::Dict{Edge, Float64})
-    for edge in keys(localedges) # set lengths
-        edge.length = localedges[edge]
-    end
-    for hybridedge in keys(localhybridedges) # set gammas
-        hybridedge.gamma = localhybridedges[hybridedge]
-    end
-    return net
 end
