@@ -163,7 +163,7 @@ module PhyloNetworks
     include("moves_semidirected.jl")
     include("readwrite.jl")
     include("readData.jl")
-    include("optimization.jl")
+    include("snaq_optimization.jl")
     include("pseudolik.jl")
     include("descriptive.jl")
     include("manipulateNet.jl")

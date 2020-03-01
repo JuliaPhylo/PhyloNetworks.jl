@@ -5,6 +5,10 @@ const likAbsAddHybLiNC = 0.5
 const likAbsDelHybLiNC = -0.1
 const alphaRASmin = 0.05
 const alphaRASmax = 50.0
+const fAbsLiNC = 1e-6 # loglikelihood
+const fRelLiNC = 1e-6
+const xAbsLiNC = 1e-5 # in units of the parameter to be optimized
+const xRelLiNC = 1e-5
 
 """
     phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
@@ -14,8 +18,8 @@ const alphaRASmax = 50.0
              nreject=75::Int64, nruns=10::Int64,
              filename="phyLiNC"::AbstractString, verbose=false::Bool,
              seed=0::Int64, probST=0.5::Float64,
-             ftolRel=fRel::Float64, ftolAbs=fAbs::Float64,
-             xtolRel=xRel::Float64, xtolAbs=xAbs::Float64,
+             ftolRel=fRelLiNC::Float64, ftolAbs=fAbsLiNC::Float64,
+             xtolRel=xRelLiNC::Float64, xtolAbs=xAbsLiNC::Float64,
              alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
 
 Estimate a phylogenetic network from concatenated DNA data using
@@ -71,12 +75,13 @@ lengths and gamma values on each individual candidate network. Defaults in
 parentheses.
 - `ftolRel` (1e-6) and `ftolAbs` (1e-6): relative and absolute differences of the
   network score between the current and proposed parameters
-- `xtolRel` (1e-2) and `xtolAbs` (1e-3): relative and absolute differences between the
+- `xtolRel` (1e-5) and `xtolAbs` (1e-5): relative and absolute differences between the
   current and proposed parameters.
 Greater values will result in a less thorough but faster search. These parameters
 are used when evaluating candidate networks only.
 Regardless of these arguments, once a final topology is chosen, branch lenghts
-are optimized using stricter tolerances (1e-10, 1e-12, 1e-10, 1e-10).
+are optimized using stricter tolerances (1e-10, 1e-12, 1e-10, 1e-10) for better
+estimates.
 
 The following optional arguments control when to stop proposing new
 network topologies:
@@ -91,6 +96,9 @@ network topologies:
 - `likAbsDelHybLiNC`(-0.1): the amount of decrease in the likelihood allowed when
   removing a hybrid. Lower (more negative) values of `likAbsDelHybLiNC` would
   lead to more hybrids being removed during the search.
+
+For fastest optimization, first run phyLiNC with a small example to precompile
+all functions. After doing this, run with full data.
 """
 function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
                   maxhybrid=1::Int64, no3cycle=true::Bool,
@@ -130,8 +138,8 @@ function phyLiNC!(obj::SSM;
                   nohybridladder=true::Bool, maxmoves=100::Int64, nreject=75::Int64,
                   nruns=10::Int64, filename="phyLiNC"::AbstractString,
                   verbose=false::Bool, seed=0::Int64, probST=0.5::Float64,
-                  ftolRel=fRel::Float64, ftolAbs=fAbs::Float64,
-                  xtolRel=xRel::Float64, xtolAbs=xAbs::Float64,
+                  ftolRel=fRelLiNC::Float64, ftolAbs=fAbsLiNC::Float64,
+                  xtolRel=xRelLiNC::Float64, xtolAbs=xAbsLiNC::Float64,
                   constraints=TopologyConstraint[]::Vector{TopologyConstraint},
                   alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
     writelog = true
@@ -152,14 +160,19 @@ function phyLiNC!(obj::SSM;
     # rough optimization of rates and alpha, for better starting values used by all runs
     fit!(obj; optimizeQ=true, optimizeRVAS=true, verbose=verbose, maxeval=20,
          ftolRel=ftolRel, ftolAbs=ftolAbs, xtolRel=xtolRel, xtolAbs=xtolAbs)
-    str = """optimization of topology, BL and inheritance probabilities using:
-              maxhybrid = $(maxhybrid),
-              tolerance parameters: ftolRel=$(ftolRel), ftolAbs=$(ftolAbs),
-                                    xtolAbs=$(xtolAbs), xtolRel=$(xtolRel).
-              max number of consecutive failed proposals = $(nreject)
-             """
-    str *= (writelog ? "filename for files: $(filename)\n" : "no output files\n")
-    str *= "$(nruns) runs starting near $(writeTopology(obj.net))\nstarting model:\n" *
+    str = """---------------------
+             phyLiNC network estimation starting. Parameters:
+                maxhybrid = $(maxhybrid)
+                nohybridladder = $nohybridladder
+                no3cycle = $no3cycle
+                probST= $probST
+                max number of moves = $maxmoves
+                max number of consecutive failed proposals = $(nreject)
+                optimization tolerance: ftolRel=$(ftolRel), ftolAbs=$(ftolAbs),
+                                        xtolAbs=$(xtolAbs), xtolRel=$(xtolRel)."""
+    str *= (writelog ? "\nfilename for log and err files: $(filename)" : "no output files") *
+            "\n---------------------\n"
+    str *= "$(nruns) run(s) starting near network topology:\n$(writeTopology(obj.net))\nwith starting models:\n" *
             string(obj.model) * string(obj.ratemodel)
     if Distributed.nprocs()>1
         str *= "using $(Distributed.nworkers()) worker processors\n"
@@ -169,7 +182,7 @@ function phyLiNC!(obj::SSM;
       flush(logfile)
     end
     print(stdout,str)
-    print(stdout, Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s") * "\n")
+    print(stdout, "Time: " * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s") * "\n")
     # if 1 proc: time printed to logfile at start of every run, not here.
 
     if seed == 0
@@ -178,15 +191,15 @@ function phyLiNC!(obj::SSM;
         seed = parse(Int,a[2][end-4:end]) # seed based on clock
     end
     if writelog
-      write(logfile,"main seed $(seed)\n\n")
+      write(logfile,"\nmain seed = $(seed)\n---------------------\n")
       flush(logfile)
-    else print(stdout,"main seed $(seed)\n\n"); end
+    else print(stdout,"\nmain seed = $(seed)\n---------------------\n"); end
     Random.seed!(seed)
     seeds = [seed; round.(Integer,floor.(rand(nruns-1)*100000))]
 
     if writelog && !writelog_1proc
         for i in 1:nruns # workers won't write to logfile
-            write(logfile, "seed: $(seeds[i]) for run $(i)\n")
+            write(logfile, "For run $(i), seed = $(seeds[i])\n")
         end
         flush(logfile)
     end
@@ -195,11 +208,9 @@ function phyLiNC!(obj::SSM;
     startingnet = obj.net #? is this needed? if so, shouldn't it be a deepcopy?
     startingconstraints = constraints
     bestnet = Distributed.pmap(1:nruns) do i # for i in 1:nruns
-        logstr = "seed: $(seeds[i]) for run $(i), $(Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s"))\n"
-        print(stdout, logstr)
-        msg = "\nBEGIN PhyLiNC for run $(i), seed $(seeds[i]) and maxhybrid $(maxhybrid)"
+        msg = "BEGIN PhyLiNC run $(i). seed = $(seeds[i]) time = $(Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s"))\n"
         if writelog_1proc # workers can't write on streams opened by master
-            write(logfile, logstr * msg)
+            write(logfile, msg)
             flush(logfile)
         end
         verbose && print(stdout, msg)
@@ -211,10 +222,10 @@ function phyLiNC!(obj::SSM;
                             nohybridladder, maxmoves, nreject, verbose,
                             seeds[i], probST, constraints, ftolRel, ftolAbs,
                             xtolRel, xtolAbs, alphamin, alphamax)
-            logstr *= "\nFINISHED PhyLiNC for run $(i), loglik of best $(obj.loglik)\n"
+            logstr = "\nFINISHED PhyLiNC for run $(i), run 1 network loglik = $(obj.loglik)\n"
             verbose && print(stdout, logstr)
             if writelog_1proc
-                logstr = writeTopology(obj.net)
+                logstr *= "run $(i) topology:\n" * writeTopology(obj.net)
                 logstr *= "\n---------------------\n"
                 write(logfile, logstr)
                 flush(logfile)
@@ -236,7 +247,8 @@ function phyLiNC!(obj::SSM;
     tend = time_ns() # in nanoseconds
     telapsed = round(convert(Int64, tend-tstart) * 1e-9, digits=2) # in seconds
     writelog_1proc && close(errfile)
-    msg = "\n" * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s") * "\n"
+    msg = "All runs complete. End time: " * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s") *
+            "\nTime elapsed: $telapsed seconds\n"
     if writelog
         write(logfile, msg)
     elseif verbose
@@ -249,9 +261,10 @@ function phyLiNC!(obj::SSM;
     @info "loglik from all runs:" [n.loglik for n in bestnet]
     maxnet = bestnet[1]::HybridNetwork # tell type to compiler
     obj.net = maxnet
-    logstr = "best topology, after topology optimization: $(writeTopology(maxnet))\n" *
-              string(obj.model) * string(obj.ratemodel) *
-              "final optimization of branch lengths and gammas on that topology\n"
+    logstr = "After topology optimization, the best network topology is:\n$(writeTopology(maxnet))\n" *
+              "with substitution and rate variation models:\n" * string(obj.model) *
+              string(obj.ratemodel) * "---------------------\n" *
+              "Starting final optimization of branch lengths and gammas on this network.\n"
     verbose && print(stdout, logstr)
     if writelog
         write(logfile, logstr)
@@ -262,6 +275,20 @@ function phyLiNC!(obj::SSM;
                      fRelBL, fAbsBL, xRelBL, xAbsBL)
     optimizeallgammas_LiNC!(obj, verbose, max(10*length(obj.net.hybrid), 1000),
                             fRelBL, fAbsBL, xRelBL, xAbsBL)
+    toptimend = time_ns() # in nanoseconds
+    telapsed = round(convert(Int64, toptimend-tstart) * 1e-9, digits=2) # in seconds
+    logstr = "Final optimization of branch lengths and gamma inheritance weights complete." *
+             "\n---------------------\n" *
+             "Final network:\n" * "$(writeTopology(maxnet))\n\n" *
+             string(obj.model) * "\n" * string(obj.ratemodel) * "---------------------\n" *
+             "Total time elapsed: $telapsed seconds (includes final branch length and gamma optimization)\n" *
+             "Final time: " * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s") *
+             "\n---------------------\n"
+    verbose && print(stdout, logstr)
+    if writelog
+        write(logfile, logstr)
+        flush(logfile)
+    end
     return obj
 end
 
@@ -391,7 +418,7 @@ end
     optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
                        no3cycle::Bool, nohybridladder::Bool,
                        nreject::Integer, nrejectmax::Integer,
-                       verbose=false::Bool,
+                       verbose::Bool,
                        constraints::Vector{TopologyConstraint},
                        ftolRel::Float64, ftolAbs::Float64,
                        xtolRel::Float64, xtolAbs::Float64)
@@ -978,9 +1005,9 @@ julia> obj.net.hybrid[1].edge
 
 ````
 """
-function optimizelocalgammas_LiNC!(obj::SSM, edge::Edge, verbose=false::Bool,
-                                   ftolRel=fRel::Float64,ftolAbs=fAbs::Float64,
-                                   xtolRel=xRel::Float64,xtolAbs=xAbs::Float64)
+function optimizelocalgammas_LiNC!(obj::SSM, edge::Edge, verbose::Bool,
+                                   ftolRel::Float64,ftolAbs::Float64,
+                                   xtolRel::Float64,xtolAbs::Float64)
     edges = Edge[]
     for n in edge.node
         for e in n.edge # edges that share a node with `edge` (including self)
