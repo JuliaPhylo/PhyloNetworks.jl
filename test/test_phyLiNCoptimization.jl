@@ -158,13 +158,15 @@ end
 
 @testset "phyLiNC multiple runs" begin
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
-@test_nowarn PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2,
+@test_nowarn obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2,
                     no3cycle=true, nohybridladder=true, maxmoves=2,
                     nreject=1, nruns=1, filename="", verbose=false, seed=105)
+@test obj.loglik > -21.209048958984734
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
-@test_nowarn PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2,
+@test_nowarn obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2,
                     no3cycle=true, nohybridladder=true, maxmoves=2,
                     nreject=1, nruns=1, filename="phyLiNC2", verbose=false, seed=0)
+@test obj.loglik > -21.209048958984734
 @test read("phyLiNC2.err", String) == ""
 @test startswith(read("phyLiNC2.log", String), "optimization of topology")
 rm("phyLiNC2.log")
@@ -174,9 +176,10 @@ net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):
 addprocs(1) # multiple cores
 @everywhere using PhyloNetworks
 #using Distributed; @everywhere begin; using Pkg; Pkg.activate("."); using PhyloNetworks; end
-PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2, no3cycle=true,
+obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2, no3cycle=true,
                         nohybridladder=true, maxmoves=2, nreject=1, nruns=1,
                         filename="phyLiNCmult", verbose=false, seed=106)
+@test obj.loglik > -21.209048958984734
 rmprocs(workers()) # remove extra processors
 @test occursin("using 1 worker", read("phyLiNCmult.log", String))
 rm("phyLiNCmult.log")
@@ -213,6 +216,7 @@ obj = (@test_logs (:warn, r"no 3-cycle") match_mode=:any phyLiNC!(net_level1_s,
             fastaindiv, :JC69; maxhybrid=2, no3cycle=true, nohybridladder=true,
             verbose=false, filename="", speciesfile=mappingfile, seed=106, nruns=1,
             maxmoves=10, nreject=2))
+@test obj.loglik > -56.30702264264643
 # test that species stayed together after optimization, as the only polytomy
 function polytomyS1(node)
     length(node.edge) > 3 || return false

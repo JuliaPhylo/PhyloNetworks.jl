@@ -310,9 +310,9 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
                                   nrejected, nrejectmax, verbose, constraints,
                                   ftolRel,ftolAbs, xtolRel,xtolAbs)
         @info "after optimizestructure returns, the likelihood is $(obj.loglik)"
-        fit!(obj; optimizeQ=true, optimizeRVAS=true, ftolRel=ftolRel,
-             ftolAbs=ftolAbs, xtolRel=xtolRel, xtolAbs=xtolAbs)
-        @info "after fit! runs, the likelihood is $(obj.loglik)" #fixit: fit! isn't changing the likelihood at all
+        fit!(obj; optimizeQ=true, optimizeRVAS=true, verbose=verbose, maxeval=20,
+             ftolRel=ftolRel, ftolAbs=ftolAbs, xtolRel=xtolRel, xtolAbs=xtolAbs)
+        @info "after fit! runs, the likelihood is $(obj.loglik)" #fixit: fit! either doesnt change the likelihood or increases it
         for i in Random.shuffle(1:obj.net.numEdges)
             e = obj.net.edge[i]
             optimizelocalBL_LiNC!(obj, e, verbose, ftolRel,ftolAbs,xtolRel,xtolAbs)
@@ -521,6 +521,8 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
         optimizelocalgammas_LiNC!(obj, e1, verbose, ftolRel,ftolAbs,xtolRel,xtolAbs)
         if obj.loglik - currLik < likAbs
             nni!(undoinfo...) # undo move
+            #fixit: likelihood doesnt increase again after the rejected nni is undone.
+                # Instead, the likelihood stays the same going into the next move.
             return false # false means: move was rejected
         else
             return true # move was accepted: # rejections will be reset to zero
@@ -600,6 +602,7 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
                 verbose && println("There are no delete hybrid moves possible in this network.")
             end
             hybridnode = obj.net.hybrid[Random.rand(1:length(obj.net.hybrid))]
+            minorhybridedge = getMinorParentEdge(hybridnode)
             if !(hybridnode in blacklist)
                 edgefound = true
                 for c in constraints

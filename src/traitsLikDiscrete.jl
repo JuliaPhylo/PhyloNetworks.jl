@@ -475,7 +475,9 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
         optimizeRVAS = false
     end
     if !optimizeQ && !optimizeRVAS
+        @info "in fit! before discrete_corelikelihood, the likelihood = $(obj.loglik)"
         discrete_corelikelihood!(obj)
+        @info "in fit! after discrete_corelikelihood, the likelihood = $(obj.loglik)"
         verbose && println("loglik = $(loglikelihood(obj)) under fixed parameters, no optimization")
         return obj
     end
