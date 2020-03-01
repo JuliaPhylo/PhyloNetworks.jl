@@ -239,6 +239,18 @@ rm("phyLiNCratevariation.log")
 rm("phyLiNCratevariation.err")
 end
 
+@testset "phyLiNC with HKY model" begin
+net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
+@test_nowarn obj = PhyloNetworks.phyLiNC!(net, fastasimple, :HKY85; maxhybrid=2,
+                    no3cycle=true, nohybridladder=true, maxmoves=2,
+                    nreject=1, nruns=1, filename="phyLiNCHKY", verbose=false, seed=105)
+@test occursin("HKY85", read("phyLiNCHKY.log", String))
+@test obj.loglik > -21.209048958984734
+@test read("phyLiNCHKY.err", String) == ""
+rm("phyLiNCHKY.log")
+rm("phyLiNCHKY.err")
+end
+
 @testset "phyLiNC" begin
 @test !isempty("just to try")
 end
