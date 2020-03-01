@@ -168,7 +168,7 @@ net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):
                     nreject=1, nruns=1, filename="phyLiNC2", verbose=false, seed=0)
 @test obj.loglik > -21.209048958984734
 @test read("phyLiNC2.err", String) == ""
-@test startswith(read("phyLiNC2.log", String), "optimization of topology")
+@test startswith(read("phyLiNC2.log", String), "---------------------\nphyLiNC network estimation starting")
 rm("phyLiNC2.log")
 rm("phyLiNC2.err")
 
@@ -177,7 +177,7 @@ addprocs(1) # multiple cores
 @everywhere using PhyloNetworks
 #using Distributed; @everywhere begin; using Pkg; Pkg.activate("."); using PhyloNetworks; end
 obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2, no3cycle=true,
-                        nohybridladder=true, maxmoves=2, nreject=1, nruns=1,
+                        nohybridladder=true, maxmoves=2, nreject=1, nruns=2,
                         filename="phyLiNCmult", verbose=false, seed=106)
 @test obj.loglik > -21.209048958984734
 rmprocs(workers()) # remove extra processors
@@ -226,6 +226,18 @@ end
 end
 
 end # of overall phyLiNC test set
+
+@testset "phyLiNC with rate variation" begin
+net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
+@test_nowarn obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69, 4; maxhybrid=2,
+                    no3cycle=true, nohybridladder=true, maxmoves=2,
+                    nreject=1, nruns=1, filename="phyLiNCratevariation", verbose=false, seed=105)
+@test occursin("categories for Gamma discretization: 4", read("phyLiNCratevariation.log", String))
+@test obj.loglik > -21.209048958984734
+@test read("phyLiNCratevariation.err", String) == ""
+rm("phyLiNCratevariation.log")
+rm("phyLiNCratevariation.err")
+end
 
 @testset "phyLiNC" begin
 @test !isempty("just to try")

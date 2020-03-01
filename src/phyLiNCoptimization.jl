@@ -11,7 +11,8 @@ const xAbsLiNC = 1e-5 # in units of the parameter to be optimized
 const xRelLiNC = 1e-5
 
 """
-    phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
+    phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
+             rateCategories=1::Int64;
              maxhybrid=1::Int64, no3cycle=true::Bool,
              nohybridladder=true::Bool, speciesfile=""::AbstractString,
              cladefiles=""::AbstractString, maxmoves=100::Int64,
@@ -45,6 +46,10 @@ hybrid edges (parental lineages) have estimated lengths that are
 increased accordingly.
 
 Optional arguments include (default value in parenthesis):
+- `rateCategories` (1): number of categories to use in estimating variable evolutionary
+  rates using a discretized gamma model. If `rateCategories` = 1, no rate variation
+  is included. To allow for rate variation, four categories is typically used.
+  See [`RateVariationAcrossSites`] (@ref)
 - `nruns` (10): number of independent starting points for the search
 - `filename` ("phyLiNC"): root name for the output files (`.out`, `.err`).
   If empty (""), files are *not* created, progress log goes to the screen only
@@ -97,10 +102,11 @@ network topologies:
   removing a hybrid. Lower (more negative) values of `likAbsDelHybLiNC` would
   lead to more hybrids being removed during the search.
 
-For fastest optimization, first run phyLiNC with a small example to precompile
-all functions. After doing this, run with full data.
+For fastest optimization, first run phyLiNC with a small, fast example to precompile
+functions. After doing this, run with full data.
 """
-function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
+function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
+                  rateCategories=1::Int64;
                   maxhybrid=1::Int64, no3cycle=true::Bool,
                   nohybridladder=true::Bool,
                   speciesfile=""::AbstractString,
@@ -116,7 +122,7 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol;
         error("Clade constraints not yet implemented.")
     end
     # create starting object for all runs
-    obj = StatisticalSubstitutionModel(net, fastafile, modSymbol, maxhybrid)
+    obj = StatisticalSubstitutionModel(net, fastafile, modSymbol, rateCategories, maxhybrid)
     # after SSM(), need to update constraint taxonnames, taxonnums, edge, and node because some
         # leaves may be pruned and check_matchtaxonnames calls resetNodeNumbers! (changing leaf node
         # numbers) and resetEdgeNumbers!
@@ -251,7 +257,7 @@ function phyLiNC!(obj::SSM;
             "\nTime elapsed: $telapsed seconds\n"
     if writelog
         write(logfile, msg)
-    elseif verbose
+    else
         print(stdout, msg)
     end
     # post processing of the networks
@@ -265,10 +271,11 @@ function phyLiNC!(obj::SSM;
               "with substitution and rate variation models:\n" * string(obj.model) *
               string(obj.ratemodel) * "---------------------\n" *
               "Starting final optimization of branch lengths and gammas on this network.\n"
-    verbose && print(stdout, logstr)
     if writelog
         write(logfile, logstr)
         flush(logfile)
+    else
+        print(stdout,logstr)
     end
     # warning: tolerance values from constants, not user-specified
     optimizeBL_LiNC!(obj, obj.net.edge, verbose, max(10*length(obj.net.edge), 1000),
@@ -284,11 +291,10 @@ function phyLiNC!(obj::SSM;
              "Total time elapsed: $telapsed seconds (includes final branch length and gamma optimization)\n" *
              "Final time: " * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s") *
              "\n---------------------\n"
-    verbose && print(stdout, logstr)
     if writelog
         write(logfile, logstr)
         flush(logfile)
-    end
+    else print(stdout,logstr); end
     return obj
 end
 
