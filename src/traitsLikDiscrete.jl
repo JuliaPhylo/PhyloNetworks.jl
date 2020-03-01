@@ -644,7 +644,7 @@ function discrete_corelikelihood_trait!(obj::SSM, t::Integer, ci::Integer, ri::I
             end
         end
         if ni==1 # root is first index in nodes changed
-            if typeof(obj.model) == NASM
+            if typeof(obj.model) <: NASM
                 logprior = log.(stationary(obj.model))
             else #other trait models
                 logprior = [-log(k) for i in 1:k] # uniform prior at root
