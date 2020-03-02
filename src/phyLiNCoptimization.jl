@@ -133,9 +133,19 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
     checknetwork_LiNC!(obj.net, maxhybrid, no3cycle, nohybridladder, constraints)
     # checknetwork removes degree-2 nodes (including root) and 2- and 3-cycles.
         # and requires that the network is preordered.
-    # updateSSM!(obj, true; constraints=constraints) #? remove this? Tests run fine without this
+    resetNodeNumbers!(obj.net; checkPreorder=false, type=:internalonly)
+    #? when updateSSM! is run, the likelihood starts too high. Why?
+    # updateSSM!(obj, true; constraints=constraints)
     startingBL!(obj.net, true, obj.trait, obj.siteweight) # true: to unzip
     @info "before calling phyLiNC: likelihood = $(obj.loglik)" #todo remove after debug
+    @info "testing for consecutive edge and node lengths" # debug
+    if sort([e.number for e in obj.net.edge]) != 1:maximum([e.number for e in obj.net.edge])
+        println("edges are not numbered consecutively")
+    end
+    if sort([e.number for e in obj.net.node]) != 1:maximum([e.number for e in obj.net.node])
+        println("nodes are not numbered consecutively")
+        printNodes(obj.net)
+    end
     phyLiNC!(obj; maxhybrid=maxhybrid, no3cycle=no3cycle, nohybridladder=nohybridladder,
             constraints=constraints, kwargs...)
 end
@@ -164,6 +174,7 @@ function phyLiNC!(obj::SSM;
       logfile = stdout
     end
     # rough optimization of rates and alpha, for better starting values used by all runs
+    obj.loglik = -Inf
     fit!(obj; optimizeQ=true, optimizeRVAS=true, verbose=verbose, maxeval=20,
          ftolRel=ftolRel, ftolAbs=ftolAbs, xtolRel=xtolRel, xtolAbs=xtolAbs)
     str = """---------------------
@@ -187,8 +198,8 @@ function phyLiNC!(obj::SSM;
       write(logfile,str)
       flush(logfile)
     end
-    print(stdout,str)
-    print(stdout, "Time: " * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s") * "\n")
+    verbose && print(stdout,str)
+    verbose && print(stdout, "Time: " * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s") * "\n")
     # if 1 proc: time printed to logfile at start of every run, not here.
 
     if seed == 0
@@ -199,7 +210,7 @@ function phyLiNC!(obj::SSM;
     if writelog
       write(logfile,"\nmain seed = $(seed)\n---------------------\n")
       flush(logfile)
-    else print(stdout,"\nmain seed = $(seed)\n---------------------\n"); end
+    elseif verbose print(stdout,"\nmain seed = $(seed)\n---------------------\n"); end
     Random.seed!(seed)
     seeds = [seed; round.(Integer,floor.(rand(nruns-1)*100000))]
 
@@ -224,10 +235,14 @@ function phyLiNC!(obj::SSM;
         try
             obj.net = deepcopy(startingnet)
             constraints = deepcopy(startingconstraints) # problem: nodes were copied on previous line. when nodes copied again on this line, they are now different
-            phyLiNCone!(obj, maxhybrid, no3cycle,
-                            nohybridladder, maxmoves, nreject, verbose,
-                            seeds[i], probST, constraints, ftolRel, ftolAbs,
-                            xtolRel, xtolAbs, alphamin, alphamax)
+            if !writelog_1proc
+                logfile = open("/dev/null", "w") # send to null #? is this the best solution?
+            end
+            @info "logfile is $logfile"
+            phyLiNCone!(obj, maxhybrid, no3cycle, nohybridladder, maxmoves,
+                        nreject, verbose, writelog_1proc, logfile, seeds[i], probST,
+                        constraints, ftolRel, ftolAbs, xtolRel, xtolAbs,
+                        alphamin, alphamax)
             logstr = "\nFINISHED PhyLiNC for run $(i), run 1 network loglik = $(obj.loglik)\n"
             verbose && print(stdout, logstr)
             if writelog_1proc
@@ -257,9 +272,7 @@ function phyLiNC!(obj::SSM;
             "\nTime elapsed: $telapsed seconds\n"
     if writelog
         write(logfile, msg)
-    else
-        print(stdout, msg)
-    end
+    elseif verbose print(stdout, msg); end
     # post processing of the networks
     filter!(n -> n !== nothing, bestnet) # remove "nothing": failed runs
     !isempty(bestnet) || error("all runs failed")
@@ -274,9 +287,7 @@ function phyLiNC!(obj::SSM;
     if writelog
         write(logfile, logstr)
         flush(logfile)
-    else
-        print(stdout,logstr)
-    end
+    elseif verbose print(stdout,logstr); end
     # warning: tolerance values from constants, not user-specified
     optimizeBL_LiNC!(obj, obj.net.edge, verbose, max(10*length(obj.net.edge), 1000),
                      fRelBL, fAbsBL, xRelBL, xAbsBL)
@@ -294,14 +305,15 @@ function phyLiNC!(obj::SSM;
     if writelog
         write(logfile, logstr)
         flush(logfile)
-    else print(stdout,logstr); end
+    elseif verbose print(stdout,logstr); end
     return obj
 end
 
 """
     phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
-                nohybridladder::Bool, maxmoves::Int64, nreject::Int64,
-                verbose::Bool, seed::Int64, probST::Float64,
+                nohybridladder::Bool, maxmoves::Int64, nrejectmax::Int64,
+                verbose::Bool, writelog_1proc::Bool, logfile::IOStream,
+                seed::Int64, probST::Float64,
                 constraints::Vector{TopologyConstraint},
                 ftolRel::Float64, ftolAbs::Float64,
                 xtolRel::Float64, xtolAbs::Float64,
@@ -312,11 +324,17 @@ like [`phyLiNC!`](@ref), but doing one run only, and taking as input an
 StatisticalSubstitutionModel object `obj`. The starting network is `obj.net`
 and is assumed to meet all the requirements.
 
+`writelog_1proc` is passed by phyLiNC! an indicates if a log should be written.
+If the number of processors is > 1, this will be false because workers can't
+write on streams opened by master. `logfile` will be stdout if `writelog_1proc`
+is false. Otherwise, it will be the log file created by `phyLiNC!`.
+
 See [`phyLiNC!`](@ref) for other arguments.
 """
 function phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
                     nohybridladder::Bool, maxmoves::Int64, nrejectmax::Int64,
-                    verbose::Bool, seed::Int64, probST::Float64,
+                    verbose::Bool, writelog_1proc::Bool, logfile::IOStream,
+                    seed::Int64, probST::Float64,
                     constraints::Vector{TopologyConstraint},
                     ftolRel::Float64, ftolAbs::Float64,
                     xtolRel::Float64, xtolAbs::Float64,
@@ -331,12 +349,13 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
             nni_LiNC!(obj, no3cycle, nohybridladder, verbose, constraints, ftolRel,
                       ftolAbs, xtolRel, xtolAbs)
         end
-        # todo write to logfile here, pass logfile, writelog_1proc argument from phyLiNC! function
-        # writelog && suc && write(logfile," changed starting topology by $numNNI attempted NNI move(s)\n")
-        # todo: also write the starting topology obj.net
-        # todo: make sure final topology from that run is written after newline
+        if writelog_1proc
+            logstr = "Changed starting topology by $numNNI attempted NNI move(s)\n"
+            write(logfile, logstr)
+            flush(logfile)
+        end
+        verbose && print(stdout,logstr) # will only show up when running on master processor
     end
-
     nrejected = 0
     while nrejected < nrejectmax
         nrejected = optimizestructure!(obj, maxmoves, maxhybrid, no3cycle, nohybridladder,
