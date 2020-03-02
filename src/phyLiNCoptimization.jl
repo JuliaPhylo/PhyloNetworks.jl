@@ -383,7 +383,7 @@ HybridNetwork, Rooted Network
 8 edges
 8 nodes: 4 tips, 1 hybrid nodes, 3 internal tree nodes.
 tip labels: A, B, C, D
-((A:2.0,(B:0.0)#H1:1.1::0.9):1.5,(C:0.6,#H1:2.0::0.1):1.0,D:2.5);
+((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0,D:2.5);
 
 ```
 """
@@ -450,7 +450,7 @@ to be performed is in `PhyloNetworks.moveweights_LiNC`.
 - `nrejectmax`: the search stops when there has been this number of moves that
   have been rejected in a row (ignoring root changes)
 
-For a description of other arguments, see [`phyLiNC`](@ref).
+For a description of other arguments, see [`phyLiNC!`](@ref).
 
 Assumptions:
 - `checknetworkbeforeLiNC` and `discrete_corelikelihood!` have been called on
@@ -527,7 +527,7 @@ decide whether to accept the move or not.
 Return true if move accepted, false if move rejected. Return nothing if there
 are no nni moves possible in the network.
 
-For arguments, see [`phyLiNC`](@ref).
+For arguments, see [`phyLiNC!`](@ref).
 
 Assumptions:
 - called by [`optimizestructure!`](@ref) or [`phyLiNC!`](@ref)
@@ -575,7 +575,7 @@ optimizes branch lengths and gammas locally as part of PhyLiNC optimization.
 Return true if accepted add hybrid move. If move not accepted, return false.
 If cannot add a hybrid, return nothing.
 
-For arguments, see [`phyLiNC`](@ref).
+For arguments, see [`phyLiNC!`](@ref).
 
 Assumptions:
 - called by [`optimizestructure!`](@ref)
@@ -616,7 +616,7 @@ PhyLiNC optimization.
 
 Return true if accepted delete hybrid move. If move not accepted, return false.
 
-For a description of arguments, see [`phyLiNC`](@ref).
+For a description of arguments, see [`phyLiNC!`](@ref).
 
 Assumptions:
 - called by [`optimizestructure!`](@ref) which does some checks.
@@ -709,7 +709,8 @@ julia> PhyloNetworks.addhybridedge!(obj.net, obj.net.edge[8], obj.net.edge[1], t
 julia> PhyloNetworks.updateSSM!(obj);
 
 julia> writeTopology(obj.net)
-"(((B:0.0)#H1:1.1::0.9,(A:1.0)#H2:1.0::0.6):1.5,(C:0.6,#H1:2.0::0.1):1.0,(D:1.25,#H2:0.0::0.4):1.25);"
+"(((B:1.0)#H1:0.1::0.9,(A:1.0)#H2:1.0::0.6):1.5,(C:0.6,#H1:1.0::0.1):1.0,(D:1.25,#H2:0.0::0.4):1.25);"
+
 ```
 """
 function updateSSM!(obj::SSM, renumber=false::Bool;
@@ -819,7 +820,7 @@ Return vector of updated `edges`.
 
 Used after `nni!` or `addhybridedge!` moves to update local branch lengths.
 
-For other arguments, see [`phyLiNC`](@ref).
+For other arguments, see [`phyLiNC!`](@ref).
 
 ```jldoctest
 julia> net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
@@ -835,15 +836,17 @@ PhyloNetworks.Edge:
  attached to 2 node(s) (parent first): 6 8
 
 
-julia> using Random; Random.seed!(1234)
+julia> using Random; Random.seed!(1234);
 
-julia> PhyloNetworks.optimizelocalBL_LiNC!(obj, obj.net.edge[4], true, 1e-6,1e-6,1e-2,1e-2);
+julia> PhyloNetworks.optimizelocalBL_LiNC!(obj, obj.net.edge[4], false, 1e-6,1e-6,1e-2,1e-2);
 
 julia> obj.net.edge[4]
 PhyloNetworks.Edge:
  number:4
- length:0.0
+ length:3.76158192263132e-37
  attached to 2 node(s) (parent first): 6 8
+
+
 ```
 """
 function optimizelocalBL_LiNC!(obj::SSM, edge::Edge, verbose::Bool,
@@ -871,7 +874,7 @@ Optimize branch lengths for edges in vector `edges`.
 Constrains branch lengths to zero below hybrid nodes.
 Return vector of updated `edges`.
 
-For a description of arguments, see [`phyLiNC`](@ref).
+For a description of arguments, see [`phyLiNC!`](@ref).
 
 Assumption: None of the branch length are negative.
 """
@@ -925,7 +928,7 @@ end
 Optimize all gammas in a network. Creates a list containing one parent edge
 per hybrid then calls optimizegammas_LiNC! on that list.
 
-For a description of arguments, see [`phyLiNC`](@ref).
+For a description of arguments, see [`phyLiNC!`](@ref).
 """
 function optimizeallgammas_LiNC!(obj::SSM,
     verbose::Bool, maxeval::Int64,
@@ -954,7 +957,7 @@ Return modified edges.
 
 Used after `nni!` or `addhybridedge!` moves to update local gammas.
 
-For other arguments, see [`phyLiNC`](@ref).
+For other arguments, see [`phyLiNC!`](@ref).
 
 Assumptions:
 - correct `isChild1` field for `edge` and for hybrid edges
@@ -1038,12 +1041,12 @@ end
 Optimize gammas for hybrid edges in vector `edges`.
 Return vector of updated `edges`.
 
-For other arguments, see [`phyLiNC`](@ref).
+For other arguments, see [`phyLiNC!`](@ref).
 
 Assumption: `edges` vector does not contain hybrid partners.
 
 Warning: Do not call directly.
-Instead use [`optimizelocalgammas_LiNC!`](@ref) or [`optimizeallgamma!`](@ref).
+Instead use [`optimizelocalgammas_LiNC!`](@ref) or [`optimizeallgammas_LiNC!`](@ref).
 """
 function optimizegammas_LiNC!(obj::SSM, edges::Vector{Edge}, verbose::Bool,
                               maxeval::Int64,

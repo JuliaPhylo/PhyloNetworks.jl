@@ -38,12 +38,17 @@ julia> using Random
 julia> Random.seed!(134);
 
 julia> PhyloNetworks.addhybridedge!(net, true, true)
-PhyloNetworks.Node:
+(PhyloNetworks.Node:
  number:9
  name:H3
  hybrid node
  attached to 3 edges, numbered: 5 16 17
-
+, PhyloNetworks.Edge:
+ number:17
+ length:0.0
+ minor hybrid edge with gamma=0.028819678088948808
+ attached to 2 node(s) (parent first): 8 9
+)
 
 julia> writeTopology(net, round=true)
 "((S1,((((#H1,S4),((S2,(S3)#H1))#H3:::0.971))#H2,#H3:0.0::0.029)),(#H2,S5));"
