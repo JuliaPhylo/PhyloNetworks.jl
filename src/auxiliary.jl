@@ -1495,6 +1495,21 @@ function contain3cycles(net::HybridNetwork, removecycles=false::Bool)
     return foundcycle
 end
 
+```
+    adjacentedges(net::HybridNetwork, centeredge::Edge, partners=true::Bool)
+
+Return a vector of all edges that share a node with `centeredge`.
+```
+function adjacentedges(net::HybridNetwork, centeredge::Edge)
+    length(centeredge.node) == 2 || error("edge should be connected to 2 nodes, but is connected to $(length(centeredge.node)) nodes")
+    edges = copy(centeredge.node[1].edge)
+    for ei in centeredge.node[2].edge
+        ei !== centeredge || continue
+        push!(edges, ei)
+    end
+    return edges
+end
+
 #------------------------------------
 function citation()
     println("If you use PhyloNetworks, please cite:")

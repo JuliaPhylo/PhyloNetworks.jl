@@ -564,17 +564,27 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
         i_in_remaining = Random.rand(1:length(remainingedges))
         e1 = obj.net.edge[remainingedges[i_in_remaining]]
         undoinfo = nni!(obj.net,e1,nohybridladder,no3cycle,constraints)
+        #fixit: for clades, need to update cladeconstraints, then restore below
         if isnothing(undoinfo)
             deleteat!(remainingedges, i_in_remaining)
             continue # edge not found yet, try again
         end
+        # save info in case we need to undo move
+        saveddisplayedtree = obj.displayedtree
+        savedpriorltw = obj.priorltw
+        savededges = adjacentedges(obj.net, e1) # save edge lengths and gammas
         edgefound = true
+        updateSSM!(obj)
         optimizelocalBL_LiNC!(obj, e1, verbose, ftolRel,ftolAbs,xtolRel,xtolAbs)
         optimizelocalgammas_LiNC!(obj, e1, verbose, ftolRel,ftolAbs,xtolRel,xtolAbs)
         if obj.loglik - currLik < likAbs
             nni!(undoinfo...) # undo move
-            #fixit: likelihood doesnt increase again after the rejected nni is undone.
-                # Instead, the likelihood stays the same going into the next move.
+            obj.displayedtree = saveddisplayedtree # restore displayed trees and weights
+            obj.priorltw = savedpriorltw
+            for (i,e) in enumerate(savededges) # restore edge lengths and gammas
+                e.length = savededges[i].length
+                e.gamma = savededges[i].gamma
+            end
             return false # false means: move was rejected
         else
             return true # move was accepted: # rejections will be reset to zero
@@ -603,10 +613,13 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     no3cycle::Bool, nohybridladder::Bool, verbose::Bool,
     constraints::Vector{TopologyConstraint}, ftolRel::Float64,
     ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64)
-
     result = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints)
     if !isnothing(result)
         newhybridnode, newhybridedge = result
+        # save info in case we need to undo move
+        saveddisplayedtree = obj.displayedtree
+        savedpriorltw = obj.priorltw
+        savededges = adjacentedges(obj.net, newhybridedge)
         updateSSM!(obj)
         optimizelocalBL_LiNC!(obj, newhybridedge, verbose, ftolRel, ftolAbs,
                               xtolRel, xtolAbs)
@@ -614,8 +627,15 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
                                   xtolRel, xtolAbs)
         if obj.loglik - currLik < likAbsAddHybLiNC # improvement too small or negative: undo
             deletehybridedge!(obj.net, newhybridedge, false, true) # don't keep nodes; unroot
-            updateSSM!(obj)
+            saveddisplayedtree = obj.displayedtree # restore original displayed trees and weights
+            savedpriorltw = obj.priorltw
             obj.loglik = currLik
+            # restore edges and length
+            for (i,e) in enumerate(savededges)
+                # warning: some of theese edges won't exist after hybrid is removed
+                e.length = savededges[i].length
+                e.gamma = savededges[i].gamma
+            end
             return false
         else
             return true
@@ -670,8 +690,9 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
             return nothing
         end
     end
-    savededges = [e.length for e in obj.net.edge]
-    savedgammas = [e.gamma for e in obj.net.edge]
+    # save info in case we need to undo move
+    originalgamma = minorhybridedge.gamma
+    savededges = adjacentedges(obj.net, minorhybridedge)
     setGamma!(minorhybridedge, 0.0)
     optimizelocalBL_LiNC!(obj, minorhybridedge, verbose, ftolRel, ftolAbs,
                           xtolRel, xtolAbs)
@@ -682,14 +703,16 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
         updateSSM!(obj, true; constraints=constraints)
         return true
     else # keep hybrid
-        for (i,e) in enumerate(obj.net.edge)
-            e.length = savededges[i]
-            e.gamma = savedgammas[i]
+        setGamma!(minorhybridedge, originalgamma)
+        for (i,e) in enumerate(savededges)
+            e.length = savededges[i].length
+            e.gamma = savededges[i].gamma
         end
         obj.loglik = currLik
         return false
     end
 end
+
 """
     updateSSM!(obj::SSM, renumber=false::Bool;
                constraints=TopologyConstraint[]::Vector{TopologyConstraint})
@@ -742,15 +765,8 @@ function updateSSM!(obj::SSM, renumber=false::Bool;
     end
     # extract displayed trees
     obj.displayedtree = displayedTrees(obj.net, 0.0; nofuse=true)
-    nnodes = length(obj.net.node)
     for tree in obj.displayedtree
         preorder!(tree) # no need to call directEdges! before: already done on net
-        #core likelihood uses nodes_changed to traverse tree in post-order
-        # length(tree.nodes_changed) == nnodes ||
-        #     error("displayed tree with too few nodes: $(writeTopology(tree))")
-        # length(tree.edge) == length(obj.net.edge)-obj.net.numHybrids ||
-        #     error("displayed tree with too few edges: $(writeTopology(tree))")
-        # allow this because, in some cases, we remove a hybrid node during displayedtrees because it has no children.
     end
     # log tree weights: sum log(γ) over edges, for each displayed tree
     obj.priorltw = inheritanceWeight.(obj.displayedtree)
@@ -819,7 +835,6 @@ function startingBL!(net::HybridNetwork, unzip::Bool,
     # ASSUMPTION: trait[i][j] = trait j for taxon at node number i: 'node.number' = i
     calibrateFromPairwiseDistances!(net, dhat, taxonnames,
         forceMinorLength0=false, ultrametric=false)
-
     if unzip
         unzip_canonical!(net)
     end
@@ -871,14 +886,7 @@ PhyloNetworks.Edge:
 function optimizelocalBL_LiNC!(obj::SSM, edge::Edge, verbose::Bool,
                                ftolRel::Float64, ftolAbs::Float64,
                                xtolRel::Float64, xtolAbs::Float64)
-    edges = Edge[]
-    for n in edge.node
-        for e in n.edge # all edges sharing a node with `edge` (including self)
-            if !(e in edges)
-                push!(edges, e)
-            end
-        end
-    end
+    edges = adjacentedges(obj.net, edge)
     optimizeBL_LiNC!(obj, edges, verbose, 1000, ftolRel, ftolAbs, xtolRel, xtolAbs)
     return edges
 end
@@ -931,6 +939,8 @@ function optimizeBL_LiNC!(obj::SSM, edges::Vector{Edge},
     NLopt.lower_bounds!(optBL, zeros(length(edges)))
     NLopt.max_objective!(optBL, loglikfunBL)
     fmax, xmax, ret = NLopt.optimize(optBL, getlengths(edges)) # get lengths in order of edges vector
+    setlengths!(edges, xmax) # set lengths in order of vector `edges`
+    obj.loglik = fmax
     #? should we call nlopt_destroy(opt); to clean up the object here? (they recommend it here: https://nlopt.readthedocs.io/en/latest/NLopt_Tutorial/)
         # (but they don't mention it in the julia version of the docs) Could speed up garbage collection?
     verbose && println("""BL: got $(round(fmax, digits=5)) at
@@ -1097,6 +1107,8 @@ function optimizegammas_LiNC!(obj::SSM, edges::Vector{Edge}, verbose::Bool,
     counter[1] = 0
     NLopt.max_objective!(optgamma, loglikfungamma)
     fmax, xmax, ret = NLopt.optimize(optgamma, [e.gamma for e in edges])
+    setmultiplegammas!(edges, xmax)
+    obj.loglik = fmax
     verbose && println("gamma: got $(round(fmax, digits=5)) at
     $(round.(xmax, digits=5)) after $(counter[1]) iterations
     (return code $(ret))")

@@ -461,8 +461,9 @@ function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::SubstitutionModel
 end
 
 function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
-    verbose=false::Bool, maxeval=1000::Int64, NLoptMethod=:LD_MMA::Symbol, ftolRel=fRelBL::Float64,
-    ftolAbs=fAbsBL::Float64, xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
+    closeoptim=false::Bool, verbose=false::Bool, maxeval=1000::Int64,
+    ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
+    xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
     alphamin=alphaRASmin, alphamax=alphaRASmax)
     all(x -> x >= 0.0, [e.length for e in obj.net.edge]) || error("branch lengths should be >= 0")
     all(x -> x >= 0.0, [e.gamma for e in obj.net.edge]) || error("gammas should be >= 0")
@@ -508,6 +509,8 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
         counter[1] = 0
         NLopt.max_objective!(optQ, loglikfun)
         fmax, xmax, ret = NLopt.optimize(optQ, obj.model.rate)
+        setrates!(obj.model, xmax)
+        obj.loglik = fmax
         verbose && println("got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
     end
     if optimizeRVAS
@@ -535,16 +538,22 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
         counter[1] = 0
         NLopt.max_objective!(optRVAS, loglikfunRVAS)
         fmax, xmax, ret = NLopt.optimize(optRVAS, [obj.ratemodel.alpha]) # optimization here!
+        setalpha!(obj.ratemodel, xmax[1])
+        obj.loglik = fmax
         verbose && println("RVAS: got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
     end
-    if optimizeQ && optimizeRVAS
+    if optimizeQ && optimizeRVAS && closeoptim
         # optimize Q under fixed RVAS parameters: a second time
         counter[1] = 0
         fmax, xmax, ret = NLopt.optimize(optQ, obj.model.rate)
+        setrates!(obj.model, xmax)
+        obj.loglik = fmax
         verbose && println("got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
         # optimize RVAS under fixed Q: a second time
         counter[1] = 0
         fmax, xmax, ret = NLopt.optimize(optRVAS, [obj.ratemodel.alpha])
+        setalpha!(obj.ratemodel, xmax[1])
+        obj.loglik = fmax
         verbose && println("RVAS: got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
     end
     return obj
@@ -556,7 +565,7 @@ end
 Initialize and update `obj.logtrans`, the log transition probabilities
 along each edge in the full network.
 They are re-used for each displayed tree, which is why edges are not fused
-around degree-2 nodes when extracting displayed trees. 
+around degree-2 nodes when extracting displayed trees.
 """
 function update_logtrans(obj::SSM)
     startingP = P(obj.model, 1.0) # same memory re-used for all branches below (t=1 arbitrary)
