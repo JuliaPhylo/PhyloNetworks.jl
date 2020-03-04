@@ -133,9 +133,8 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
     checknetwork_LiNC!(obj.net, maxhybrid, no3cycle, nohybridladder, constraints)
     # checknetwork removes degree-2 nodes (including root) and 2- and 3-cycles.
         # and requires that the network is preordered.
-    resetNodeNumbers!(obj.net; checkPreorder=false, type=:internalonly)
     #? when updateSSM! is run, the likelihood starts too high. Why?
-    # updateSSM!(obj, true; constraints=constraints)
+    updateSSM!(obj, true; constraints=constraints)
     startingBL!(obj.net, true, obj.trait, obj.siteweight) # true: to unzip
     @info "before calling phyLiNC: likelihood = $(obj.loglik)" #todo remove after debug
     @info "testing for consecutive edge and node lengths" # debug
@@ -161,8 +160,7 @@ function phyLiNC!(obj::SSM;
     writelog = true
     writelog_1proc = false
     if filename != ""
-        julialog = string(filename,".log")
-        logfile = open(julialog,"w")
+        logfile = open(string(filename,".log"),"w")
         juliaout = string(filename,".out")
         if Distributed.nprocs() == 1
             writelog_1proc = true
@@ -236,7 +234,7 @@ function phyLiNC!(obj::SSM;
             obj.net = deepcopy(startingnet)
             constraints = deepcopy(startingconstraints) # problem: nodes were copied on previous line. when nodes copied again on this line, they are now different
             if !writelog_1proc
-                logfile = open("/dev/null", "w") # send to null #? is this the best solution?
+                logfile = open("/dev/null", "w") # null stream #? is this the best solution?
             end
             @info "logfile is $logfile"
             phyLiNCone!(obj, maxhybrid, no3cycle, nohybridladder, maxmoves,
@@ -312,7 +310,7 @@ end
 """
     phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
                 nohybridladder::Bool, maxmoves::Int64, nrejectmax::Int64,
-                verbose::Bool, writelog_1proc::Bool, logfile::IOStream,
+                verbose::Bool, writelog_1proc::Bool,
                 seed::Int64, probST::Float64,
                 constraints::Vector{TopologyConstraint},
                 ftolRel::Float64, ftolAbs::Float64,
@@ -354,7 +352,7 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
             write(logfile, logstr)
             flush(logfile)
         end
-        verbose && print(stdout,logstr) # will only show up when running on master processor
+        verbose && print(stdout, "Changed starting topology by $numNNI attempted NNI move(s)\n") # will only show up when running on master processor
     end
     nrejected = 0
     while nrejected < nrejectmax
@@ -364,7 +362,7 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
         @info "after optimizestructure returns, the likelihood is $(obj.loglik)"
         fit!(obj; optimizeQ=true, optimizeRVAS=true, verbose=verbose, maxeval=20,
              ftolRel=ftolRel, ftolAbs=ftolAbs, xtolRel=xtolRel, xtolAbs=xtolAbs)
-        @info "after fit! runs, the likelihood is $(obj.loglik)" #fixit: fit! either doesnt change the likelihood or increases it
+        @info "after fit! runs, the likelihood is $(obj.loglik)" #fixit: discrete_corelikelihood inside fit! decreases loglik
         for i in Random.shuffle(1:obj.net.numEdges)
             e = obj.net.edge[i]
             optimizelocalBL_LiNC!(obj, e, verbose, ftolRel,ftolAbs,xtolRel,xtolAbs)
