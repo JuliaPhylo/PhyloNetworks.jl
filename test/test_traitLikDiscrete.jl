@@ -168,7 +168,7 @@ fit3 = (@test_logs fitdiscrete(net, m2, species, dat2; optimizeQ=false, optimize
 
 @test fit3.loglik ≈ (-2.6754091090953693 - 2.1207856874033491)
 PhyloNetworks.fit!(fit3; optimizeQ=true, optimizeRVAS=false)
-@test fit3.model.rate ≈ [0.3245640354187991, 0.5079501745877728]
+@test fit3.model.rate ≈ [0.3245645980184735, 0.5079500171263976]
 PhyloNetworks.fit!(fit3; optimizeQ=true, optimizeRVAS=true)
 fit3.net = readTopology("(A,(B,(C,D):1.0):1.0);"); # no branch lengths
 @test_throws ErrorException PhyloNetworks.fit!(fit3; optimizeQ=true, optimizeRVAS=true)
@@ -490,7 +490,7 @@ dna_net_optRVAS = (@test_logs (:warn, r"^the network contains taxa with no data"
 originalstdout = stdout
 redirect_stdout(open("/dev/null", "w"))
 dna_net_opt_both = (@test_logs (:warn, r"^the network contains taxa with no data") fitdiscrete(dna_net_top,
-    nasm_model, rv, dna_dat, dna_weights; optimizeQ=true, optimizeRVAS=true, ftolRel=.1, ftolAbs=.2, xtolRel=.1, xtolAbs=.2, verbose=true))
+    nasm_model, rv, dna_dat, dna_weights; optimizeQ=true, optimizeRVAS=true, closeoptim=true, ftolRel=.1, ftolAbs=.2, xtolRel=.1, xtolAbs=.2, verbose=true))
 redirect_stdout(originalstdout)
 @test dna_net_opt_both.model.rate != nasm_model.rate
 @test dna_net_opt_both.ratemodel.alpha != 1.0

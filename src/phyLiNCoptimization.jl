@@ -362,7 +362,7 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
         @info "after optimizestructure returns, the likelihood is $(obj.loglik)"
         fit!(obj; optimizeQ=true, optimizeRVAS=true, verbose=verbose, maxeval=20,
              ftolRel=ftolRel, ftolAbs=ftolAbs, xtolRel=xtolRel, xtolAbs=xtolAbs)
-        @info "after fit! runs, the likelihood is $(obj.loglik)" #fixit: discrete_corelikelihood inside fit! decreases loglik
+        @info "after fit! runs, the likelihood is $(obj.loglik)" #todo: discrete_corelikelihood inside fit! decreases loglik
         for i in Random.shuffle(1:obj.net.numEdges)
             e = obj.net.edge[i]
             optimizelocalBL_LiNC!(obj, e, verbose, ftolRel,ftolAbs,xtolRel,xtolAbs)
@@ -627,7 +627,7 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
             deletehybridedge!(obj.net, newhybridedge, false, true) # don't keep nodes; unroot
             saveddisplayedtree = obj.displayedtree # restore original displayed trees and weights
             savedpriorltw = obj.priorltw
-            obj.loglik = currLik
+            obj.loglik = currLik # restore to loglik before move
             # restore edges and length
             for (i,e) in enumerate(savededges)
                 # warning: some of theese edges won't exist after hybrid is removed
@@ -688,9 +688,7 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
             return nothing
         end
     end
-    # save info in case we need to undo move
-    originalgamma = minorhybridedge.gamma
-    savededges = adjacentedges(obj.net, minorhybridedge)
+    savededges = adjacentedges(obj.net, minorhybridedge) # save info in case we need to undo move
     setGamma!(minorhybridedge, 0.0)
     optimizelocalBL_LiNC!(obj, minorhybridedge, verbose, ftolRel, ftolAbs,
                           xtolRel, xtolAbs)
@@ -701,12 +699,11 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
         updateSSM!(obj, true; constraints=constraints)
         return true
     else # keep hybrid
-        setGamma!(minorhybridedge, originalgamma)
-        for (i,e) in enumerate(savededges)
+        for (i,e) in enumerate(savededges) # restore edges and gammas
             e.length = savededges[i].length
             e.gamma = savededges[i].gamma
         end
-        obj.loglik = currLik
+        obj.loglik = currLik # restore to likelihood before move
         return false
     end
 end
@@ -911,9 +908,7 @@ function optimizeBL_LiNC!(obj::SSM, edges::Vector{Edge},
         constrainededges = unzip_canonical!(obj.net)
         edges = setdiff(edges, constrainededges) # edges - constrainededges
     end
-    counter = [0]
     function loglikfunBL(lengths::Vector{Float64}, grad::Vector{Float64})
-        counter[1] += 1
         setlengths!(edges, lengths) # set lengths in order of vector `edges`
         res = discrete_corelikelihood!(obj)
         verbose && println("loglik: $res, branch lengths: $(lengths)")
@@ -941,9 +936,8 @@ function optimizeBL_LiNC!(obj::SSM, edges::Vector{Edge},
     obj.loglik = fmax
     #? should we call nlopt_destroy(opt); to clean up the object here? (they recommend it here: https://nlopt.readthedocs.io/en/latest/NLopt_Tutorial/)
         # (but they don't mention it in the julia version of the docs) Could speed up garbage collection?
-    verbose && println("""BL: got $(round(fmax, digits=5)) at
-    BL = $(round.(xmax, digits=5)) after $(counter[1]) iterations
-    (return code $(ret))""")
+    verbose && println("""BL: got $(round(fmax, digits=5)) at BL =
+    $(round.(xmax, digits=5)) after $(optBL.numevals) iterations (return code $(ret))""")
     return edges
 end
 
@@ -1080,9 +1074,7 @@ function optimizegammas_LiNC!(obj::SSM, edges::Vector{Edge}, verbose::Bool,
                               ftolRel::Float64, ftolAbs::Float64,
                               xtolRel::Float64, xtolAbs::Float64)
 
-    counter = [0]
     function loglikfungamma(gammas::Vector{Float64}, grad::Vector{Float64})
-        counter[1] += 1
         setmultiplegammas!(edges, gammas)
         res = discrete_corelikelihood!(obj)
         # verbose && println("loglik: $res, gammas: $(gammas)")
@@ -1102,13 +1094,10 @@ function optimizegammas_LiNC!(obj::SSM, edges::Vector{Edge}, verbose::Bool,
     # NLopt.maxtime!(optgamma, t::Real)
     NLopt.lower_bounds!(optgamma, zeros(Float64, npargamma))
     NLopt.upper_bounds!(optgamma, ones(Float64, npargamma))
-    counter[1] = 0
     NLopt.max_objective!(optgamma, loglikfungamma)
     fmax, xmax, ret = NLopt.optimize(optgamma, [e.gamma for e in edges])
     setmultiplegammas!(edges, xmax)
     obj.loglik = fmax
-    verbose && println("gamma: got $(round(fmax, digits=5)) at
-    $(round.(xmax, digits=5)) after $(counter[1]) iterations
-    (return code $(ret))")
+    verbose && println("gamma: got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(optgamma.numevals) iterations (return code $(ret))")
     return edges
 end

@@ -476,16 +476,13 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
         optimizeRVAS = false
     end
     if !optimizeQ && !optimizeRVAS
-        @info "in fit! before discrete_corelikelihood, the likelihood = $(obj.loglik)"
+        # @info "in fit! before discrete_corelikelihood, the likelihood = $(obj.loglik)" #todo remove
         discrete_corelikelihood!(obj)
-        @info "in fit! after discrete_corelikelihood, the likelihood = $(obj.loglik)"
         verbose && println("loglik = $(loglikelihood(obj)) under fixed parameters, no optimization")
         return obj
     end
-    counter = [0]
     if optimizeQ
         function loglikfun(x::Vector{Float64}, grad::Vector{Float64}) # modifies obj
-            counter[1] += 1
             setrates!(obj.model, x)
             res = discrete_corelikelihood!(obj)
             verbose && println("loglik: $res, model rates: $x")
@@ -494,8 +491,7 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
         end
         # optimize Q under fixed RVAS parameters
         # set-up optimization object for Q
-        NLoptMethod=:LN_COBYLA # no gradient
-        # :LN_COBYLA for (non)linear constraits, :LN_BOBYQA for bound constraints
+        NLoptMethod=:LN_COBYLA # no gradient # :LN_COBYLA for (non)linear constraits, :LN_BOBYQA for bound constraints
         nparQ = nparams(obj.model)
         optQ = NLopt.Opt(NLoptMethod, nparQ)
         NLopt.ftol_rel!(optQ,ftolRel) # relative criterion
@@ -506,16 +502,14 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
         # NLopt.maxtime!(optQ, t::Real)
         NLopt.lower_bounds!(optQ, zeros(Float64, nparQ))
         # fixit: set upper bound depending on branch lengths in network?
-        counter[1] = 0
         NLopt.max_objective!(optQ, loglikfun)
         fmax, xmax, ret = NLopt.optimize(optQ, obj.model.rate)
         setrates!(obj.model, xmax)
         obj.loglik = fmax
-        verbose && println("got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
+        verbose && println("got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(optQ.numevals) iterations (return code $(ret))")
     end
     if optimizeRVAS
         function loglikfunRVAS(alpha::Vector{Float64}, grad::Vector{Float64})
-            counter[1] += 1
             setalpha!(obj.ratemodel, alpha[1])
             res = discrete_corelikelihood!(obj)
             verbose && println("loglik: $res, rate variation model shape parameter alpha: $(alpha[1])")
@@ -535,26 +529,23 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
         # NLopt.maxtime!(optRVAS, t::Real)
         NLopt.lower_bounds!(optRVAS, fill(alphamin, (nparRVAS,)) ) # for 0 as lower bound: zeros(Float64, nparRVAS)
         NLopt.upper_bounds!(optRVAS, fill(alphamax, (nparRVAS,)) ) # delete to remove upper bound
-        counter[1] = 0
         NLopt.max_objective!(optRVAS, loglikfunRVAS)
         fmax, xmax, ret = NLopt.optimize(optRVAS, [obj.ratemodel.alpha]) # optimization here!
         setalpha!(obj.ratemodel, xmax[1])
         obj.loglik = fmax
-        verbose && println("RVAS: got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
+        verbose && println("RVAS: got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(optRVAS.numevals) iterations (return code $(ret))")
     end
     if optimizeQ && optimizeRVAS && closeoptim
         # optimize Q under fixed RVAS parameters: a second time
-        counter[1] = 0
         fmax, xmax, ret = NLopt.optimize(optQ, obj.model.rate)
         setrates!(obj.model, xmax)
         obj.loglik = fmax
-        verbose && println("got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
+        verbose && println("got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(optQ.numevals) iterations (return code $(ret))")
         # optimize RVAS under fixed Q: a second time
-        counter[1] = 0
         fmax, xmax, ret = NLopt.optimize(optRVAS, [obj.ratemodel.alpha])
         setalpha!(obj.ratemodel, xmax[1])
         obj.loglik = fmax
-        verbose && println("RVAS: got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(counter[1]) iterations (return code $(ret))")
+        verbose && println("RVAS: got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(optRVAS.numevals) iterations (return code $(ret))")
     end
     return obj
 end
