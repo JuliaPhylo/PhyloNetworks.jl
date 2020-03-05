@@ -135,15 +135,6 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
         # and requires that the network is preordered.
     updateSSM!(obj, true; constraints=constraints)
     startingBL!(obj.net, true, obj.trait, obj.siteweight) # true: to unzip
-    @info "before calling phyLiNC: likelihood = $(obj.loglik)" #todo remove after debug
-    @info "testing for consecutive edge and node lengths" # debug
-    if sort([e.number for e in obj.net.edge]) != 1:maximum([e.number for e in obj.net.edge])
-        println("edges are not numbered consecutively")
-    end
-    if sort([e.number for e in obj.net.node]) != 1:maximum([e.number for e in obj.net.node])
-        println("nodes are not numbered consecutively")
-        printNodes(obj.net)
-    end
     phyLiNC!(obj; maxhybrid=maxhybrid, no3cycle=no3cycle, nohybridladder=nohybridladder,
             constraints=constraints, kwargs...)
 end
@@ -273,7 +264,7 @@ function phyLiNC!(obj::SSM;
     filter!(n -> n !== nothing, bestnet) # remove "nothing": failed runs
     !isempty(bestnet) || error("all runs failed")
     sort!(bestnet, by = x -> x.loglik, rev=true)
-    @info "loglik from all runs:" [n.loglik for n in bestnet]
+    @debug "loglik from all runs:" [n.loglik for n in bestnet]
     maxnet = bestnet[1]::HybridNetwork # tell type to compiler
     obj.net = maxnet
     logstr = "After topology optimization, the best network topology is:\n$(writeTopology(maxnet))\n" *
@@ -357,10 +348,10 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
         nrejected = optimizestructure!(obj, maxmoves, maxhybrid, no3cycle, nohybridladder,
                                   nrejected, nrejectmax, verbose, constraints,
                                   ftolRel,ftolAbs, xtolRel,xtolAbs)
-        @info "after optimizestructure returns, the likelihood is $(obj.loglik)"
+        @debug "after optimizestructure returns, the likelihood is $(obj.loglik)"
         fit!(obj; optimizeQ=true, optimizeRVAS=true, verbose=verbose, maxeval=20,
              ftolRel=ftolRel, ftolAbs=ftolAbs, xtolRel=xtolRel, xtolAbs=xtolAbs)
-        @info "after fit! runs, the likelihood is $(obj.loglik)" #todo: discrete_corelikelihood inside fit! decreases loglik
+        @debug "after fit! runs, the likelihood is $(obj.loglik)"
         for i in Random.shuffle(1:obj.net.numEdges)
             e = obj.net.edge[i]
             optimizelocalBL_LiNC!(obj, e, verbose, ftolRel,ftolAbs,xtolRel,xtolAbs)
@@ -369,7 +360,7 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
                                           xtolRel, xtolAbs)
             end
         end
-        @info "after global BL and gamma optimization, the likelihood is $(obj.loglik)"
+        @debug "after global BL and gamma optimization, the likelihood is $(obj.loglik)"
 
     end
     return obj
@@ -488,7 +479,7 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
         moveweights ./= sum(moveweights)
     end
     while nmoves < maxmoves && nreject < nrejectmax # both should be true to continue
-        @info "optimizing structure, nmoves=$nmoves. The log likelihood is $(obj.loglik)"
+        @debug "optimizing structure, nmoves=$nmoves. The log likelihood is $(obj.loglik)"
         currLik = obj.loglik
         movechoice = sample(movelist_LiNC, moveweights_LiNC)
         if movechoice == "nni"
@@ -511,7 +502,7 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
                         ftolAbs, xtolRel, xtolAbs)
         else # change root (doesn't affect likelihood)
             result = moveroot!(obj.net, constraints)
-            # TODO do we want to optimize branch lengths after root move?
+            # TODO do we want to optimize branch lengths after root move? (currently we dont do this)
         end
         nmoves += 1
         # next: update the number of consecutive rejections ignoring any root move
@@ -523,8 +514,8 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
                 nreject += 1
             end
         end
-        verbose && println("""loglik = $(loglikelihood(obj)) after move of type
-        $(movechoice), which was $(isnothing(result) ? "not permissible" : (result ? "accepted" : "rejected and undone")),
+        verbose && println("""loglik = $(loglikelihood(obj)) after move of type $(movechoice),
+        which was $(isnothing(result) ? "not permissible" : (result ? "accepted" : "rejected and undone")),
         $nmoves total moves, and $nreject rejected moves""")
     end
     return nreject
@@ -577,6 +568,7 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
             nni!(undoinfo...) # undo move
             obj.displayedtree = saveddisplayedtree # restore displayed trees and weights
             obj.priorltw = savedpriorltw
+            obj.loglik = currLik # restore to loglik before move
             for (i,e) in enumerate(savededges) # restore edge lengths and gammas
                 e.length = savededges[i].length
                 e.gamma = savededges[i].gamma
@@ -909,7 +901,7 @@ function optimizeBL_LiNC!(obj::SSM, edges::Vector{Edge},
     function loglikfunBL(lengths::Vector{Float64}, grad::Vector{Float64})
         setlengths!(edges, lengths) # set lengths in order of vector `edges`
         res = discrete_corelikelihood!(obj)
-        verbose && println("loglik: $res, branch lengths: $(lengths)")
+        # verbose && println("loglik: $res, branch lengths: $(lengths)")
         isempty(grad) || error("gradient not implemented")
         return res
     end
