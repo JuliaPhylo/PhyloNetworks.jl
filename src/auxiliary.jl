@@ -1495,16 +1495,19 @@ function contain3cycles(net::HybridNetwork, removecycles=false::Bool)
     return foundcycle
 end
 
-```
-    adjacentedges(net::HybridNetwork, centeredge::Edge, partners=true::Bool)
+"""
+    adjacentedges(centeredge::Edge)
 
-Return a vector of all edges that share a node with `centeredge`.
-```
-function adjacentedges(net::HybridNetwork, centeredge::Edge)
-    length(centeredge.node) == 2 || error("edge should be connected to 2 nodes, but is connected to $(length(centeredge.node)) nodes")
-    edges = copy(centeredge.node[1].edge)
-    for ei in centeredge.node[2].edge
-        ei !== centeredge || continue
+Vector of all edges that share a node with `centeredge`.
+Warning: assumes that there aren't "duplicated" edges, that is, no 2-cycles.
+"""
+function adjacentedges(centeredge::Edge)
+    n = centeredge.node
+    length(n) == 2 || error("center edge is connected to $(length(n)) nodes")
+    edges = copy(n[1].edge) # shallow copy, to avoid modifying the first node
+    for ei in n[2].edge
+        ei === centeredge && continue # don't add the center edge again
+        # a second edge between nodes n[1] and n[2] would appear twice
         push!(edges, ei)
     end
     return edges
