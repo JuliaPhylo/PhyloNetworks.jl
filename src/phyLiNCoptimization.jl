@@ -133,7 +133,6 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
     checknetwork_LiNC!(obj.net, maxhybrid, no3cycle, nohybridladder, constraints)
     # checknetwork removes degree-2 nodes (including root) and 2- and 3-cycles.
         # and requires that the network is preordered.
-    #? when updateSSM! is run, the likelihood starts too high. Why?
     updateSSM!(obj, true; constraints=constraints)
     startingBL!(obj.net, true, obj.trait, obj.siteweight) # true: to unzip
     @info "before calling phyLiNC: likelihood = $(obj.loglik)" #todo remove after debug
@@ -236,7 +235,6 @@ function phyLiNC!(obj::SSM;
             if !writelog_1proc
                 logfile = open("/dev/null", "w") # null stream #? is this the best solution?
             end
-            @info "logfile is $logfile"
             phyLiNCone!(obj, maxhybrid, no3cycle, nohybridladder, maxmoves,
                         nreject, verbose, writelog_1proc, logfile, seeds[i], probST,
                         constraints, ftolRel, ftolAbs, xtolRel, xtolAbs,
@@ -1092,6 +1090,9 @@ function optimizegammas_LiNC!(obj::SSM, edges::Vector{Edge}, verbose::Bool,
     NLopt.xtol_abs!(optgamma,xtolAbs)
     NLopt.maxeval!(optgamma, maxeval) # max number of iterations
     # NLopt.maxtime!(optgamma, t::Real)
+    defaultinstep = NLopt.initial_step(optgamma, getlengths(edges))
+    replace!(x -> max(x,0.2), defaultinstep)
+    NLopt.initial_step!(optgamma, defaultinstep)
     NLopt.lower_bounds!(optgamma, zeros(Float64, npargamma))
     NLopt.upper_bounds!(optgamma, ones(Float64, npargamma))
     NLopt.max_objective!(optgamma, loglikfungamma)
