@@ -69,7 +69,6 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
         # T = eltype(getlabels(model))
         # extract displayed trees
         trees = displayedTrees(net, 0.0; nofuse=true)
-        nnodes = length(net.node)
         for tree in trees
             preorder!(tree) # no need to call directEdges! before: already done on net
         end

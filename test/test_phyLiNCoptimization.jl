@@ -257,7 +257,3 @@ rm("phyLiNCHKY.err")
                     nreject=1, nruns=1, filename="", verbose=false, seed=108)
 @test obj.loglik > -21.209048958984734
 end
-
-@testset "phyLiNC" begin
-@test !isempty("just to try")
-end

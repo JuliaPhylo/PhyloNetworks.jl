@@ -194,7 +194,7 @@ function phyLiNC!(obj::SSM;
                 optimization tolerance: ftolRel=$(ftolRel), ftolAbs=$(ftolAbs),
                                         xtolAbs=$(xtolAbs), xtolRel=$(xtolRel)."""
     str *= (writelog ? "\n   filename for log and err files: $(filename)" :
-                       "\n   no output files") * "\n---------------------\n"
+                       "\n   no output files\n\n")
     str *= "$(nruns) run(s) starting near network topology:\n$(writeTopology(obj.net))\nwith starting models:\n" *
             string(obj.model) * string(obj.ratemodel)
     if Distributed.nprocs()>1
@@ -231,7 +231,7 @@ function phyLiNC!(obj::SSM;
     startingnet = obj.net #? is this needed? if so, shouldn't it be a deepcopy?
     startingconstraints = constraints
     bestnet = Distributed.pmap(1:nruns) do i # for i in 1:nruns
-        msg = "BEGIN PhyLiNC run $(i). seed = $(seeds[i]) time = $(Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s"))\n"
+        msg = "BEGIN PhyLiNC run $(i)\nseed = $(seeds[i])\ntime = $(Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s"))\n"
         if writelog_1proc # workers can't write on streams opened by master
             write(logfile, msg)
             flush(logfile)
@@ -241,9 +241,6 @@ function phyLiNC!(obj::SSM;
         try
             obj.net = deepcopy(startingnet)
             constraints = deepcopy(startingconstraints) # problem: nodes were copied on previous line. when nodes copied again on this line, they are now different
-            if !writelog_1proc
-                logfile = open("/dev/null", "w") # null stream #? is this the best solution?
-            end
             phyLiNCone!(obj, maxhybrid, no3cycle, nohybridladder, maxmoves,
                         nreject, verbose, writelog_1proc, logfile, seeds[i], probST,
                         constraints, ftolRel, ftolAbs, xtolRel, xtolAbs,
@@ -276,8 +273,8 @@ function phyLiNC!(obj::SSM;
     tend = time_ns() # in nanoseconds
     telapsed = round(convert(Int64, tend-tstart) * 1e-9, digits=2) # in seconds
     writelog_1proc && close(errfile)
-    msg = "All runs complete. End time: " * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s") *
-            "\nTime elapsed: $telapsed seconds\n"
+    msg = "\nAll runs complete.\nend time: " * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s") *
+            "\ntime elapsed: $telapsed seconds\n"
     if writelog
         write(logfile, msg)
     elseif verbose print(stdout, msg); end
@@ -288,7 +285,7 @@ function phyLiNC!(obj::SSM;
     @debug "loglik from all runs:" [n.loglik for n in bestnet]
     maxnet = bestnet[1]::HybridNetwork # tell type to compiler
     obj.net = maxnet
-    logstr = "After topology optimization, the best network topology is:\n$(writeTopology(maxnet))\n" *
+    logstr = "Best topology:\n$(writeTopology(maxnet))\n" *
               "with substitution and rate variation models:\n" * string(obj.model) *
               string(obj.ratemodel) * "---------------------\n" *
               "Starting final optimization of branch lengths and gammas on this network.\n"
@@ -302,13 +299,10 @@ function phyLiNC!(obj::SSM;
     optimizeallgammas_LiNC!(obj, verbose, fAbsBL, γcache, max(10*obj.net.numHybrids, 1000))
     toptimend = time_ns() # in nanoseconds
     telapsed = round(convert(Int64, toptimend-tstart) * 1e-9, digits=2) # in seconds
-    logstr = "Final optimization of branch lengths and gamma inheritance weights complete." *
-             "\n---------------------\n" *
+    logstr = "Final log-likelihood: $(obj.loglik)\n" *
              "Final network:\n" * "$(writeTopology(maxnet))\n\n" *
-             string(obj.model) * "\n" * string(obj.ratemodel) * "---------------------\n" *
              "Total time elapsed: $telapsed seconds (includes final branch length and gamma optimization)\n" *
-             "Final time: " * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s") *
-             "\n---------------------\n"
+             "Final time: " * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s") * "\n"
     if writelog
         write(logfile, logstr)
         flush(logfile)
@@ -319,7 +313,7 @@ end
 """
     phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
                 nohybridladder::Bool, maxmoves::Int64, nrejectmax::Int64,
-                verbose::Bool, writelog_1proc::Bool,
+                verbose::Bool, writelog_1proc::Bool, logfile::IO,
                 seed::Int64, probST::Float64,
                 constraints::Vector{TopologyConstraint},
                 ftolRel::Float64, ftolAbs::Float64,
@@ -341,7 +335,7 @@ See [`phyLiNC!`](@ref) for other arguments.
 """
 function phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
                     nohybridladder::Bool, maxmoves::Int64, nrejectmax::Int64,
-                    verbose::Bool, writelog_1proc::Bool, logfile::IOStream,
+                    verbose::Bool, writelog_1proc::Bool, logfile::IO,
                     seed::Int64, probST::Float64,
                     constraints::Vector{TopologyConstraint},
                     ftolRel::Float64, ftolAbs::Float64,
@@ -717,11 +711,11 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     savededges = adjacentedges(minorhybridedge) # save info to undo move
     savedlen = [e.length for e in savededges]
     # try gamma=0: update minor edge, and prior log tree weights in obj
-    nt, hase = updatecache_hase!(γcache, obj, minorhybridedge.number,
-                                getMajorParentEdge(hybridnode).number)
     γ0 = minorhybridedge.gamma
     setGamma!(minorhybridedge, 0.0)
     l1mγ = log(1.0-γ0)
+    nt, hase = updatecache_hase!(γcache, obj, minorhybridedge.number,
+                                getMajorParentEdge(hybridnode).number)
     for it in 1:nt
         @inbounds h = hase[it]
         ismissing(h) && continue # tree has unchanged weight: skip below
@@ -1236,9 +1230,10 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
     end
     # todo: also check that γ0 is not too close to 1
     # obj._loglikcache[tree,rate,site] = log P(site | tree,rate) + log gamma(tree)
-    cadjust = maximum(obj._loglikcache) # adjustment constant to avoid underflows
+    @info "loglik cache:" obj._loglikcache
+    cadjust = maximum(view(obj._loglikcache, 1:nt,:,:)) # to avoid underflows
     nr = length(obj.ratemodel.ratemultiplier)
-    @info "cadjust, log #rate categoies:" cadjust, log(nr), obj.totalsiteweight
+    @info "cadjust, log #rate categoies:" cadjust, log(nr)
     for it in 1:nt # sum likelihood over all displayed trees
         @inbounds h = hase[it]
         ismissing(h) && continue # skip below if tree doesn't have e or partner
@@ -1263,7 +1258,6 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
     if llg0 < 0
         γ = 0.0
         inside01 = false
-        # todo: check for boundary after this function is used, to delete edge or partner
     else
         ulik .= (clike .- clikp) ./ clike # at γ=1
         llg1 = (usesweights ? sum(ulik) : sum(obj.siteweight .* ulik))
@@ -1285,12 +1279,9 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
             @info "llcheck at current γ: $llcheck"
             ulik .= (clike .- clikp) ./ ulik
             llg = (usesweights ?  sum(ulik) :  sum(obj.siteweight .* ulik))
-            @info "(Ai - Bi)/Ui" ulik, llg
             map!(x -> x^2, ulik, ulik)
             llh = (usesweights ? -sum(ulik) : -sum(obj.siteweight .* ulik))
-            @info "((Ai - Bi)/Ui)^2" ulik, llh
             cγ = γ - llg/llh # candidate γ: will be new γ if inside (0,1)
-            @info "candidate gamma: $cγ"
             if cγ >= 1.0
                 γ = γ/2 + 0.5
             elseif cγ <= 0.0
@@ -1299,7 +1290,6 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
                 γ = cγ
             end
             ulik .= γ .* clike + (1.0-γ) .* clikp
-            @info "new:" γ, ulik
             ll_new = (usesweights ? sum(log.(ulik)) : sum(obj.siteweight .* log.(ulik)))
             @info "step $istep, γ=$γ," ll_new
             lldiff = ll_new - ll
