@@ -366,8 +366,7 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
     while nrejected < nrejectmax
         nrejected = optimizestructure!(obj, maxmoves, maxhybrid, no3cycle, nohybridladder,
                                   nrejected, nrejectmax, verbose, constraints,
-                                  ftolRel,ftolAbs, xtolRel,xtolAbs,
-                                  γcache)
+                                  ftolRel,ftolAbs, xtolRel,xtolAbs, γcache)
         @debug "after optimizestructure returns, the likelihood is $(obj.loglik)"
         fit!(obj; optimizeQ=true, optimizeRVAS=true, verbose=verbose, maxeval=20,
              ftolRel=ftolRel, ftolAbs=ftolAbs, xtolRel=xtolRel, xtolAbs=xtolAbs)
@@ -499,6 +498,7 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
         moveweights ./= sum(moveweights)
     end
     while nmoves < maxmoves && nreject < nrejectmax # both should be true to continue
+        obj.loglik = discrete_corelikelihood!(obj) #todo: remove, just checking if this changes things
         @debug "optimizing structure, nmoves=$nmoves. The log likelihood is $(obj.loglik)"
         currLik = obj.loglik
         movechoice = sample(movelist_LiNC, moveweights_LiNC)
@@ -536,8 +536,8 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
             end
         end
         verbose && println("""loglik = $(loglikelihood(obj)) after move of type $(movechoice),
-        which was $(isnothing(result) ? "not permissible" : (result ? "accepted" : "rejected and undone")),
-        $nmoves total moves, and $nreject rejected moves""")
+        which was $(isnothing(result) ? "not permissible" : (result ? "accepted" : "rejected and undone")).
+        $nmoves total moves, $nreject rejected moves""")
     end
     return nreject
 end
@@ -573,32 +573,47 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
         isempty(remainingedges) && return nothing
         i_in_remaining = Random.rand(1:length(remainingedges))
         e1 = obj.net.edge[remainingedges[i_in_remaining]]
+        @info "before doing nni:"
+        printEdges(obj.net)
+        printNodes(obj.net)
         undoinfo = nni!(obj.net,e1,nohybridladder,no3cycle,constraints)
         #fixit: for clades, need to update cladeconstraints, then restore below
         if isnothing(undoinfo)
             deleteat!(remainingedges, i_in_remaining)
             continue # edge not found yet, try again
         end
+        edgefound = true
         # save info in case we need to undo move
         saveddisplayedtree = obj.displayedtree
         savedpriorltw = obj.priorltw
+        savedlogtrans = obj.logtrans #? do we need to update forward and direct likelihood
+        savedlikcache = obj._loglikcache
         savededges = adjacentedges(e1) # save edge lengths and gammas
         savedlen = [e.length for e in savededges]
         savedgam = [e.gamma for e in savededges]
-        edgefound = true
         updateSSM!(obj)
         optimizelocalBL_LiNC!(obj, e1, verbose, ftolRel,ftolAbs,xtolRel,xtolAbs)
         optimizelocalgammas_LiNC!(obj, e1, verbose, ftolAbs, γcache)
         # todo: see if some gamma are 0, and delete those??
         if obj.loglik - currLik < likAbs
             nni!(undoinfo...) # undo move
+            # after nni!(undoinfo), the likelihood is wrong if we dont.
             obj.displayedtree = saveddisplayedtree # restore displayed trees and weights
             obj.priorltw = savedpriorltw
+            obj.logtrans = savedlogtrans #? need to save this? if not, remove below
+            obj._loglikcache = savedlikcache
             obj.loglik = currLik # restore to loglik before move
             for (i,e) in enumerate(savededges) # restore edge lengths and gammas
                 e.length = savedlen[i]
                 e.gamma  = savedgam[i]
             end
+            @info "after undoing nni and restoring parameters:"
+            printEdges(obj.net)
+            printNodes(obj.net)
+            obj.loglik = discrete_corelikelihood!(obj) #todo: remove, just checking if this matches currLik
+            #todo fixit: the likelihood isn't equal to currLik after a rejected nni
+                # hypothesis: restoring displayedtree and priotltw isn't enough
+            @debug "nni move was rejected. The likelihood is now $(obj.loglik). currLik is $currLik"
             return false # false means: move was rejected
         else
             return true # move was accepted: # rejections will be reset to zero
@@ -648,6 +663,8 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
             saveddisplayedtree = obj.displayedtree # restore original displayed trees and weights
             savedpriorltw = obj.priorltw
             obj.loglik = currLik # restore to loglik before move
+            #todo fixit: the likelihood isn't correct after a rejected addhybrid move
+                # hypothesis: restoring displayedtree and priotltw isn't enough
             # restore edges and length
             for (i,e) in enumerate(savededges)
                 # warning: some of these edges won't exist after hybrid is removed
@@ -728,7 +745,7 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     majhyb = getMajorParentEdge(hybridnode)
     len0 = majhyb.length # to restore later if deletion rejected
     optimizeBL_LiNC!(obj, [majhyb], verbose, ftolRel,ftolAbs,xtolRel,xtolAbs)
-    @info "SSM object:" obj.priorltw, obj._loglikcache
+    #@info "SSM object:" obj.priorltw, obj._loglikcache
     # don't optimize gammas: because we want to constrain one to 0
     if obj.loglik - currLik > likAbsDelHybLiNC # -0.1: loglik can decrease for parsimony
         deletehybridedge!(obj.net, minorhybridedge, false, true) # don't keep nodes; unroot
@@ -1001,7 +1018,7 @@ function optimizeallgammas_LiNC!(obj::SSM, verbose::Bool, ftolAbs::Float64,
     hybs = [getMinorParentEdge(h) for h in obj.net.hybrid]
     nh = length(hybs) # also = obj.net.numHybrids
     if nh==0
-        @debug "no gammas to optimize, $(obj.net.numHybrids)) hybrids"
+        @debug "no gammas to optimize, $(obj.net.numHybrids) hybrids"
         return nothing
     end
     discrete_corelikelihood!(obj) # prerequisite for optimizegamma_LiNC!
@@ -1138,19 +1155,19 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
     nt, hase = updatecache_hase!(cache, obj, edgenum, partnernum)
     γ0 = focusedge.gamma
     if γ0<1e-7 # then prior weight and loglikcachetoo small (-Inf if γ0=0)
-        @info "γ0 too small ($γ0): was changed to 1e-7 prior to optimization"
+        @debug "γ0 too small ($γ0): was changed to 1e-7 prior to optimization"
         γ0 = 1e-7
         setGamma!(focusedge, γ0)
         updateSSM_priorltw!(obj)
         discrete_corelikelihood!(obj) # to update obj._loglikcache
-        @info "after setting γ0 to 1e-7:" obj.loglik, obj.priorltw, obj._loglikcache
+        @debug "after setting γ0 to 1e-7:" obj.loglik, obj.priorltw, obj._loglikcache
     elseif γ0>0.9999999
-        @info "γ0 too large ($γ0): was changed to 1 - 1e-7 prior to optimization"
+        @debug "γ0 too large ($γ0): was changed to 1 - 1e-7 prior to optimization"
         γ0 = 0.9999999
         setGamma!(focusedge, γ0)
         updateSSM_priorltw!(obj)
         discrete_corelikelihood!(obj) # to update obj._loglikcache
-        @info "after setting γ0 to 1 - 1e-7:" obj.loglik, obj.priorltw, obj._loglikcache
+        @debug "after setting γ0 to 1 - 1e-7:" obj.loglik, obj.priorltw, obj._loglikcache
     end
     # obj._loglikcache[tree,rate,site] = log P(site | tree,rate) + log gamma(tree)
     cadjust = maximum(view(obj._loglikcache, 1:nt,:,:)) # to avoid underflows
@@ -1166,7 +1183,7 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
             end
         end
     end
-    @info "before taking out γ or 1-γ:" clike, clikp, hase
+    @debug "before taking out γ or 1-γ:" clike, clikp, hase
     ## step 2: Newton-Raphson
     clike ./= γ0
     clikp ./= 1.0 - γ0
@@ -1192,13 +1209,13 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
         γ = γ0
         ulik .= γ .* clike + (1.0-γ) .* clikp
         # ll: rescaled log likelihood. llg = gradient, llh = hessian below
-        @info "optimization of γ inside (0,1)\ncadjust = $cadjust, log #rate categories=$(log(nr))" obj._loglikcache
-        @info "after dividing by γ or 1-γ:" clike, clikp, ulik
-        @info "step 0, γ=$γ, starting log-likelihood = $ll"
+        @debug "optimization of γ inside (0,1)\ncadjust = $cadjust, log #rate categories=$(log(nr))" obj._loglikcache
+        @debug "after dividing by γ or 1-γ:" clike, clikp, ulik
+        @debug "step 0, γ=$γ, starting log-likelihood = $ll"
         for istep in 1:maxeval
             # todo: delete line below when sure llcheck = ll... they are not
             llcheck = (usesweights ? sum(log.(ulik)) : sum(obj.siteweight .* log.(ulik)))
-            @info "llcheck at current γ: $llcheck"
+            @debug "llcheck at current γ: $llcheck"
             ulik .= (clike .- clikp) ./ ulik
             llg = (usesweights ?  sum(ulik) :  sum(obj.siteweight .* ulik))
             map!(x -> x^2, ulik, ulik)
@@ -1213,7 +1230,7 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
             end
             ulik .= γ .* clike + (1.0-γ) .* clikp
             ll_new = (usesweights ? sum(log.(ulik)) : sum(obj.siteweight .* log.(ulik)))
-            @info "step $istep, γ=$γ," ll_new
+            @debug "step $istep, γ=$γ," ll_new
             lldiff = ll_new - ll
             ll = ll_new
             lldiff < ftolAbs && break
