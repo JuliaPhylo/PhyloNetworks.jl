@@ -588,9 +588,9 @@ function discrete_corelikelihood!(obj::SSM; whichtrait::AbstractVector{Int} = 1:
             for ci in whichtrait
                 obj._loglikcache[t,ri,ci] = discrete_corelikelihood_trait!(obj,t,ci,ri)
                 if obj._loglikcache[t,ri,ci] == -Inf
-                    #@warn "-Inf site likelihood: tree $t, rate $ri, site $ci"
-                    #printEdges(obj.displayedtree[t])
-                    #printNodes(obj.displayedtree[t])
+                    @warn "-Inf site likelihood: tree $t, rate $ri, site $ci"
+                    printEdges(obj.displayedtree[t])
+                    printNodes(obj.displayedtree[t])
                     # debug: fixithere
                 end
             end

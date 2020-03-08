@@ -2,9 +2,15 @@
 const moveweights_LiNC = Distributions.aweights([0.4, 0.2, 0.2, 0.2])
 const movelist_LiNC = ["nni", "addhybrid", "deletehybrid", "root"]
 const likAbsAddHybLiNC = 0.5
+# likAbsAddHybLiNC: the amount of improvement required to retain a proposed new hybrid.
+    # Greater values of would raise the standard for newly-proposed hybrids,
+    # leading to fewer proposed hybrids being accepted during the search.
 const likAbsDelHybLiNC = -0.1
+# likAbsDelHybLiNC: the amount of decrease in the likelihood allowed when
+    # removing a hybrid. Lower (more negative) values of would lead to more
+    # hybrids being removed during the search.
 const alphaRASmin = 0.05
-const alphaRASmax = 50.0
+const alphaRASmax = 50.0 #todo reduce this max? (if so, update docs)
 
 """
     CacheGammaLiNC
@@ -89,7 +95,10 @@ Optional arguments include (default value in parenthesis):
   clades and individuals used to create one or more clade topology
   constraints to meet during the search.
   (NOTE: clade contraints not yet implemented.)
-- TODO: describe `alphamin` and `alphamax`
+- `alphamin` (0.05): minimum value for shape parameter alpha in rate variation
+  across sites model.
+- `alphamax` (50.0): maximum value for shape parameter alpha in rate variation
+  across sites model.
 
 The following optional arguments control when to stop the optimization of branch
 lengths and gamma values on each individual candidate network. Defaults in
@@ -107,20 +116,9 @@ estimates.
 The following optional arguments control when to stop proposing new
 network topologies:
 
-TODO: not true below, likAbsAddHybLiNC and likAbsDelHybLiNC are not arguments,
-can't be modified by user. modify the documentation accordingly.
-
 - `nreject` (75): maximum number of times that new topologies are
   proposed and rejected in a row. Lower values of `nreject` result in a less
   thorough but faster search.
-- `likAbsAddHybLiNC`(0.5): the amount of improvement required to retain a proposed
-  new hybrid. Greater values of `likAbsAddHybLiNC` would raise the standard for
-  newly-proposed hybrids, leading to fewer proposed hybrids being accepted during
-  the search.
-- `likAbsDelHybLiNC`(-0.1): the amount of decrease in the likelihood allowed when
-  removing a hybrid. Lower (more negative) values of `likAbsDelHybLiNC` would
-  lead to more hybrids being removed during the search.
-
 """
 function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
                   rateCategories=1::Int64;
@@ -573,9 +571,6 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
         isempty(remainingedges) && return nothing
         i_in_remaining = Random.rand(1:length(remainingedges))
         e1 = obj.net.edge[remainingedges[i_in_remaining]]
-        @info "before doing nni:"
-        printEdges(obj.net)
-        printNodes(obj.net)
         undoinfo = nni!(obj.net,e1,nohybridladder,no3cycle,constraints)
         #fixit: for clades, need to update cladeconstraints, then restore below
         if isnothing(undoinfo)
@@ -583,12 +578,10 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
             continue # edge not found yet, try again
         end
         edgefound = true
-        # save info in case we need to undo move
-        saveddisplayedtree = obj.displayedtree
-        savedpriorltw = obj.priorltw
-        savedlogtrans = obj.logtrans #? do we need to update forward and direct likelihood
-        savedlikcache = obj._loglikcache
-        savededges = adjacentedges(e1) # save edge lengths and gammas
+        # save displayed trees, priorltw, BLs, and gammas in case we need to undo move
+        saveddisplayedtree = deepcopy(obj.displayedtree)
+        savedpriorltw = deepcopy(obj.priorltw)
+        savededges = adjacentedges(e1)
         savedlen = [e.length for e in savededges]
         savedgam = [e.gamma for e in savededges]
         updateSSM!(obj)
@@ -597,23 +590,13 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
         # todo: see if some gamma are 0, and delete those??
         if obj.loglik - currLik < likAbs
             nni!(undoinfo...) # undo move
-            # after nni!(undoinfo), the likelihood is wrong if we dont.
             obj.displayedtree = saveddisplayedtree # restore displayed trees and weights
             obj.priorltw = savedpriorltw
-            obj.logtrans = savedlogtrans #? need to save this? if not, remove below
-            obj._loglikcache = savedlikcache
             obj.loglik = currLik # restore to loglik before move
             for (i,e) in enumerate(savededges) # restore edge lengths and gammas
                 e.length = savedlen[i]
                 e.gamma  = savedgam[i]
             end
-            @info "after undoing nni and restoring parameters:"
-            printEdges(obj.net)
-            printNodes(obj.net)
-            obj.loglik = discrete_corelikelihood!(obj) #todo: remove, just checking if this matches currLik
-            #todo fixit: the likelihood isn't equal to currLik after a rejected nni
-                # hypothesis: restoring displayedtree and priotltw isn't enough
-            @debug "nni move was rejected. The likelihood is now $(obj.loglik). currLik is $currLik"
             return false # false means: move was rejected
         else
             return true # move was accepted: # rejections will be reset to zero
@@ -645,14 +628,17 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     constraints::Vector{TopologyConstraint}, ftolRel::Float64,
     ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
     γcache::CacheGammaLiNC)
-
+    # save displayed trees, priorltw, BLs, and gammas in case we need to undo move
+        # note: branch lengths are changed by addhybridedge. We can't use
+        # adjacentedges because newhybridedge is chosen randomly, so we
+        # save all branch lengths and gammas in this case
+    saveddisplayedtree = deepcopy(obj.displayedtree)
+    savedpriorltw = deepcopy(obj.priorltw)
+    savedlen = [e.length for e in obj.net.edge]
+    savedgam = [e.gamma for e in obj.net.edge]
     result = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints)
     if !isnothing(result)
         newhybridnode, newhybridedge = result
-        # save info in case we need to undo move
-        saveddisplayedtree = obj.displayedtree
-        savedpriorltw = obj.priorltw
-        savededges = adjacentedges(newhybridedge)
         updateSSM!(obj)
         optimizelocalBL_LiNC!(obj, newhybridedge, verbose, ftolRel, ftolAbs,
                               xtolRel, xtolAbs)
@@ -660,16 +646,12 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
         # todo: see if some gamma are 0, and delete those
         if obj.loglik - currLik < likAbsAddHybLiNC # improvement too small or negative: undo
             deletehybridedge!(obj.net, newhybridedge, false, true) # don't keep nodes; unroot
-            saveddisplayedtree = obj.displayedtree # restore original displayed trees and weights
-            savedpriorltw = obj.priorltw
+            obj.displayedtree = saveddisplayedtree # restore original displayed trees and weights
+            obj.priorltw = savedpriorltw
             obj.loglik = currLik # restore to loglik before move
-            #todo fixit: the likelihood isn't correct after a rejected addhybrid move
-                # hypothesis: restoring displayedtree and priotltw isn't enough
-            # restore edges and length
-            for (i,e) in enumerate(savededges)
-                # warning: some of these edges won't exist after hybrid is removed
-                e.length = savededges[i].length # todo: bug here. replacing a thing by itself
-                e.gamma = savededges[i].gamma
+            for (i,e) in enumerate(obj.net.edge) # restore edges and length
+                e.length = savedlen[i]
+                e.gamma = savedgam[i]
             end
             return false
         else
@@ -745,7 +727,6 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     majhyb = getMajorParentEdge(hybridnode)
     len0 = majhyb.length # to restore later if deletion rejected
     optimizeBL_LiNC!(obj, [majhyb], verbose, ftolRel,ftolAbs,xtolRel,xtolAbs)
-    #@info "SSM object:" obj.priorltw, obj._loglikcache
     # don't optimize gammas: because we want to constrain one to 0
     if obj.loglik - currLik > likAbsDelHybLiNC # -0.1: loglik can decrease for parsimony
         deletehybridedge!(obj.net, minorhybridedge, false, true) # don't keep nodes; unroot
