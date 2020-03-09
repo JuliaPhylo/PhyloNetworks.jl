@@ -583,34 +583,13 @@ function discrete_corelikelihood!(obj::SSM; whichtrait::AbstractVector{Int} = 1:
     nr = length(obj.ratemodel.ratemultiplier)
     nt = length(obj.displayedtree)
     update_logtrans(obj)
-    # todo: delete things with infloglik when bug is fixed
-    infloglik = ""
     for t in 1:nt
         for ri in 1:nr
             for ci in whichtrait
                 obj._loglikcache[t,ri,ci] = discrete_corelikelihood_trait!(obj,t,ci,ri)
-                if obj._loglikcache[t,ri,ci] == -Inf
-                    # @warn "-Inf site likelihood: tree $t, rate $ri, site $ci"
-                    infloglik *= "tree $t, rate $ri, site $ci\n"
-                end
+                # note: -Inf expected if 2 tips have different states, but separated by path of total length 0.0
             end
         end
-    end
-    if !isempty(infloglik)
-        @warn "-Inf site likelihood:\n" * infloglik
-        print("network:\n")
-        printEdges(obj.net)
-        printNodes(obj.net)
-        for t in 1:nt
-            print("tree $t:\n")
-            printEdges(obj.displayedtree[t])
-            printNodes(obj.displayedtree[t])
-            @show [n.number for n in obj.displayedtree[t].nodes_changed]
-        end
-        @show obj.priorltw
-        @show obj.forwardlik
-        @show obj.directlik
-        @show obj._loglikcache
     end
     # aggregate over trees and rates
     obj._loglikcache[1:nt,:,:] .+= obj.priorltw
