@@ -1083,7 +1083,6 @@ function optimizelocalgammas_LiNC!(obj::SSM, edge::Edge, verbose::Bool,
     end
     nh = length(neighborhybs)
     if nh==0
-        @debug "no local gammas to optimize around edge number $(edge.number)"
         return nothing
     end
     discrete_corelikelihood!(obj) # prerequisite for optimizegamma_LiNC!
@@ -1141,14 +1140,12 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
         setGamma!(focusedge, γ0)
         updateSSM_priorltw!(obj)
         discrete_corelikelihood!(obj) # to update obj._loglikcache
-        @debug "after setting γ0 to 1e-7:" obj.loglik, obj.priorltw, obj._loglikcache
     elseif γ0>0.9999999
         @debug "γ0 too large ($γ0): was changed to 1 - 1e-7 prior to optimization"
         γ0 = 0.9999999
         setGamma!(focusedge, γ0)
         updateSSM_priorltw!(obj)
         discrete_corelikelihood!(obj) # to update obj._loglikcache
-        @debug "after setting γ0 to 1 - 1e-7:" obj.loglik, obj.priorltw, obj._loglikcache
     end
     # obj._loglikcache[tree,rate,site] = log P(site | tree,rate) + log gamma(tree)
     cadjust = maximum(view(obj._loglikcache, 1:nt,:,:)) # to avoid underflows
@@ -1164,22 +1161,21 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
             end
         end
     end
-    @debug "before taking out γ or 1-γ:" clike, clikp, hase
     ## step 2: Newton-Raphson
     clike ./= γ0
     clikp ./= 1.0 - γ0
     ll = obj.loglik + obj.totalsiteweight * (log(nr) - cadjust)
-    usesweights = obj.siteweight !== nothing
+    noweights = obj.siteweight === nothing
     # evaluate if best γ is at the boundary: 0 or 1
     ulik .= (clike .- clikp) ./ clikp # at γ=0, get derivative of loglik
-    llg0 = (usesweights ? sum(ulik) : sum(obj.siteweight .* ulik))
+    llg0 = (noweights ? sum(ulik) : sum(obj.siteweight .* ulik))
     inside01 = true
     if llg0 < 0
         γ = 0.0
         inside01 = false
     else
         ulik .= (clike .- clikp) ./ clike # at γ=1
-        llg1 = (usesweights ? sum(ulik) : sum(obj.siteweight .* ulik))
+        llg1 = (noweights ? sum(ulik) : sum(obj.siteweight .* ulik))
         if llg1 > 0
             γ = 1.0
             inside01 = false
@@ -1190,17 +1186,12 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
         γ = γ0
         ulik .= γ .* clike + (1.0-γ) .* clikp
         # ll: rescaled log likelihood. llg = gradient, llh = hessian below
-        @debug "optimization of γ inside (0,1)\ncadjust = $cadjust, log #rate categories=$(log(nr))" obj._loglikcache
-        @debug "after dividing by γ or 1-γ:" clike, clikp, ulik
-        @debug "step 0, γ=$γ, starting log-likelihood = $ll"
         for istep in 1:maxeval
-            # todo: delete line below when sure llcheck = ll... they are not
-            llcheck = (usesweights ? sum(log.(ulik)) : sum(obj.siteweight .* log.(ulik)))
-            @debug "llcheck at current γ: $llcheck"
+            # ll from above is also: sum(obj.siteweight .* log.(ulik)))
             ulik .= (clike .- clikp) ./ ulik
-            llg = (usesweights ?  sum(ulik) :  sum(obj.siteweight .* ulik))
+            llg = (noweights ?  sum(ulik) :  sum(obj.siteweight .* ulik))
             map!(x -> x^2, ulik, ulik)
-            llh = (usesweights ? -sum(ulik) : -sum(obj.siteweight .* ulik))
+            llh = (noweights ? -sum(ulik) : -sum(obj.siteweight .* ulik))
             cγ = γ - llg/llh # candidate γ: will be new γ if inside (0,1)
             if cγ >= 1.0
                 γ = γ/2 + 0.5
@@ -1210,8 +1201,7 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
                 γ = cγ
             end
             ulik .= γ .* clike + (1.0-γ) .* clikp
-            ll_new = (usesweights ? sum(log.(ulik)) : sum(obj.siteweight .* log.(ulik)))
-            @debug "step $istep, γ=$γ," ll_new
+            ll_new = (noweights ? sum(log.(ulik)) : sum(obj.siteweight .* log.(ulik)))
             lldiff = ll_new - ll
             ll = ll_new
             lldiff < ftolAbs && break

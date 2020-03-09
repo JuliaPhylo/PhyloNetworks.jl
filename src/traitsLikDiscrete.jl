@@ -100,23 +100,23 @@ const SSM = StatisticalSubstitutionModel
 # Works for DNA in fasta format. Probably need different versions for
 # different kinds of data (snp, amino acids). Similar to fitdiscrete()
 function StatisticalSubstitutionModel(net::HybridNetwork, fastafile::String,
-    modsymbol::Symbol, ratecategories=1::Int64,
-    maxhybrid=length(net.hybrid)::Int64)
-for e in net.edge # check for missing or inappropriate γ values
-if e.hybrid
-e.gamma > 0.0 && continue
-setGamma!(e, (e.isMajor ? 0.6 : 0.4)) # to maintain isMajor as is
-else
-e.gamma == 1.0 || error("tree edge number $(e.number) has γ not 1.0")
-end
-end
-data, siteweights = readfastatodna(fastafile, true)
-model = defaultsubstitutionmodel(net, modsymbol, data, siteweights)
-ratemodel = RateVariationAcrossSites(1.0, ratecategories)
-dat2 = traitlabels2indices(view(data, :, 2:size(data,2)), model)
-o, net = check_matchtaxonnames!(data[:,1], dat2, net) # calls resetNodeNumbers, which calls preorder!
-trait = dat2[o]
-obj = StatisticalSubstitutionModel(model, ratemodel, net, trait, siteweights,
+        modsymbol::Symbol, ratecategories=1::Int64,
+        maxhybrid=length(net.hybrid)::Int64)
+    for e in net.edge # check for missing or inappropriate γ values
+        if e.hybrid
+            e.gamma > 0.0 && continue
+            setGamma!(e, (e.isMajor ? 0.6 : 0.4)) # to maintain isMajor as is
+        else
+            e.gamma == 1.0 || error("tree edge number $(e.number) has γ not 1.0")
+        end
+    end
+    data, siteweights = readfastatodna(fastafile, true)
+    model = defaultsubstitutionmodel(net, modsymbol, data, siteweights)
+    ratemodel = RateVariationAcrossSites(1.0, ratecategories)
+    dat2 = traitlabels2indices(view(data, :, 2:size(data,2)), model)
+    o, net = check_matchtaxonnames!(data[:,1], dat2, net) # calls resetNodeNumbers, which calls preorder!
+    trait = dat2[o]
+    obj = StatisticalSubstitutionModel(model, ratemodel, net, trait, siteweights,
                            maxhybrid)
 end
 
