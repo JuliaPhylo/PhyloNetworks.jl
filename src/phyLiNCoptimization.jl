@@ -579,8 +579,8 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
         end
         edgefound = true
         # save displayed trees, priorltw, BLs, and gammas in case we need to undo move
-        saveddisplayedtree = deepcopy(obj.displayedtree)
-        savedpriorltw = deepcopy(obj.priorltw)
+        saveddisplayedtree = obj.displayedtree
+        savedpriorltw = copy(obj.priorltw)
         savededges = adjacentedges(e1)
         savedlen = [e.length for e in savededges]
         savedgam = [e.gamma for e in savededges]
@@ -632,8 +632,8 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
         # note: branch lengths are changed by addhybridedge. We can't use
         # adjacentedges because newhybridedge is chosen randomly, so we
         # save all branch lengths and gammas in this case
-    saveddisplayedtree = deepcopy(obj.displayedtree)
-    savedpriorltw = deepcopy(obj.priorltw)
+    saveddisplayedtree = obj.displayedtree
+    savedpriorltw = copy(obj.priorltw)
     savedlen = [e.length for e in obj.net.edge]
     savedgam = [e.gamma for e in obj.net.edge]
     result = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints)
