@@ -179,8 +179,11 @@ function phyLiNC!(obj::SSM;
     γcache = CacheGammaLiNC(obj)
     # rough optimization of rates and alpha, for better starting values used by all runs
     obj.loglik = -Inf
-    fit!(obj; optimizeQ=true, optimizeRVAS=true, verbose=verbose, maxeval=20,
+    fit!(obj; optimizeQ=(nparams(obj.model) > 0),
+         optimizeRVAS=(nparams(obj.ratemodel) > 0),
+         verbose=false, maxeval=20,
          ftolRel=ftolRel, ftolAbs=ftolAbs, xtolRel=xtolRel, xtolAbs=xtolAbs)
+    @debug "loglik = $(loglikelihood(obj)) at the start"
     str = """---------------------
              phyLiNC network estimation starting. Parameters:
                 maxhybrid = $(maxhybrid)
@@ -360,13 +363,15 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
         flush(logfile)
     end
     verbose && print(stdout, logstr)
+    optQ =  nparams(obj.model) > 0
+    optRAS = nparams(obj.ratemodel) > 0
     nrejected = 0
     while nrejected < nrejectmax
         nrejected = optimizestructure!(obj, maxmoves, maxhybrid, no3cycle, nohybridladder,
                                   nrejected, nrejectmax, verbose, constraints,
                                   ftolRel,ftolAbs, xtolRel,xtolAbs, γcache)
         @debug "after optimizestructure returns, the likelihood is $(obj.loglik)"
-        fit!(obj; optimizeQ=true, optimizeRVAS=true, verbose=verbose, maxeval=20,
+        fit!(obj; optimizeQ=optQ, optimizeRVAS=optRAS, verbose=verbose, maxeval=20,
              ftolRel=ftolRel, ftolAbs=ftolAbs, xtolRel=xtolRel, xtolAbs=xtolAbs)
         @debug "after fit! runs, the likelihood is $(obj.loglik)"
         for i in Random.shuffle(1:obj.net.numEdges)
@@ -533,9 +538,9 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
                 nreject += 1
             end
         end
-        verbose && println("""loglik = $(loglikelihood(obj)) after move of type $(movechoice),
-        which was $(isnothing(result) ? "not permissible" : (result ? "accepted" : "rejected and undone")).
-        $nmoves total moves, $nreject rejected moves""")
+        verbose && println("$(movechoice) move was " *
+          (isnothing(result) ? "not permissible" : (result ? "accepted" : "rejected and undone")) *
+          ", $nmoves total moves, $nreject rejected,\nloglik = $(obj.loglik)")
     end
     return nreject
 end
