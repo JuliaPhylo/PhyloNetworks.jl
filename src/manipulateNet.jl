@@ -1183,35 +1183,97 @@ function allowrootbelow!(n::Node, pe::Edge)
 end
 
 """
-unzip_canonical!(net::HybridNetwork)
+    unzip_canonical!(net::HybridNetwork)
 
 Unzip all reticulations: set the length of child edge to 0, and increase
 the length of both parent edges by the original child edge's length,
 to obtain the canonical version of the network according to
 Pardi & Scornavacca (2015).
 
-This needs to be done in postorder, in case there is a hybrid ladder.
-The preordering is supposed to have been done already,
-such that `net.nodes_changed` is up-to-date.
+Output: vector of hybrid node in postorder, vector of child edges
+whose length is constrained to be 0, and vector of their original
+branch lengths to re-zip if needed using [`rezip_canonical!`](@ref).
 
-Returned the vector of child edges whose length is constrained to be 0.
+Assumption: `net.hybrid` is correct, but a preordering of all nodes
+is *not* assumed.
+
+Note: This unzipping is not as straightforward as it might seem, because
+of "nested" zippers: when the child of a hybrid node is itself a hybrid node.
+The unzipping is propagated all the way through.
 """
 function unzip_canonical!(net::HybridNetwork)
-    constrainededges = Edge[]
-    isempty(net.nodes_changed) && error("unzip_canonical! needs a preordering of nodes")
-    for i in reverse(1:length(net.nodes_changed)) # post-order
-        h = net.nodes_changed[i]
-        h.hybrid || continue
+    hybchild = Dict{Int,Tuple{Edge,Float64}}() # keys: hybrid node number (immutable)
+    hybladder = Dict{Int,Union{Nothing,Node}}()
+    for h in net.hybrid
         ce = getChildEdge(h)
-        clen = ce.length
+        hybchild[h.number] = (ce, ce.length) # original lengths before unzipping
+        hybladder[h.number] = (ce.hybrid ? getChild(ce) : nothing)
+    end
+    hybrid_po = Node[] # will list hybrid nodes with partial post-order
+    hybpriority = PriorityQueue(h => i for (i,h) in enumerate(net.hybrid))
+    nextpriority = length(hybpriority)+1
+    while !isempty(hybpriority)
+        h,p = peek(hybpriority)
+        hl = hybladder[h.number]
+        if isnothing(hl) || !haskey(hybpriority,hl)
+            # hl no longer key because had priority < p, so already dequeued
+            push!(hybrid_po, h)
+            delete!(hybpriority, h)
+        else
+            hybpriority[h] = nextpriority
+            nextpriority += 1
+        end
+    end
+    zeroedge = Edge[]
+    originallength = Float64[]
+    for h in hybrid_po # partial post-order: child < parent if hybrid ladder
+        ce, ol = hybchild[h.number] # child edge, original length
+        push!(zeroedge, ce)
+        push!(originallength, ol)
+        unzipat_canonical!(h,ce)
+    end
+    return hybrid_po, zeroedge, originallength
+end
+
+"""
+    unzipat_canonical!(hybnode::Node, childedge::Edge)
+
+Unzip the reticulation a node `hyb`. See [`unzip_canonical!`](ref).
+Warning: no check that `hyb` has a single child.
+
+Output: constrained edge (child of `hyb`) and its original length.
+"""
+function unzipat_canonical!(hybnode::Node, childedge::Edge)
+    clen = childedge.length # might be different from original if hybrid ladder
+    for e in hybnode.edge
+        if e === childedge
+            e.length = 0.0
+        else
+            e.length += clen
+        end
+    end
+    return clen
+end
+
+"""
+    rezip_canonical!(hybridnodes::Vector{Node}, childedges::Vector{Edge},
+                     originallengths::Vector{Float64})
+
+Undo [`unzip_canonical!`](@ref).
+"""
+function rezip_canonical!(hybridnode::Vector{Node}, childedge::Vector{Edge},
+                          originallength::Vector{Float64})
+    for (i,h) in enumerate(hybridnode) # assumed in post-order
+        ce = childedge[i]
+        ol = originallength[i]
+        lendiff = ol - ce.length # ce.length might be temporarily < 0 if hybrid ladder
         for e in h.edge
             if e === ce
-                e.length = 0.0
+                e.length = ol
             else
-                e.length += clen
+                e.length -= lendiff
             end
         end
-        push!(constrainededges, ce)
     end
-    return constrainededges
+    return nothing
 end

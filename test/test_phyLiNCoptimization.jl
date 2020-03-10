@@ -110,13 +110,20 @@ preorder!(tree)
 PhyloNetworks.checknetwork_LiNC!(tree, 1, true, true)
 @test all(length(n.edge) != 2 for n in tree.node) # no nodes of degree 2
 
+netstr = "(#H2:0.1::0.2,((C:0.2,((B:0.3)#H1:0.4)#H2:0.5::0.8):0.6,(#H1:0.7,((A1:0.8)#H3:0.01,(A2:0.9,#H3:0.02):0.03):1.0):1.1):1.2,O:1.3);"
+net = readTopology(netstr)
+# 2 reticulation in a hybrid ladder, and another isolated reticulation
+undoinfo = PhyloNetworks.unzip_canonical!(net)
+@test all(PhyloNetworks.getChildEdge(h).length == 0.0 for h in net.hybrid) # unzipped
+@test writeTopology(net, round=true) == "(#H2:0.8::0.2,((C:0.2,((B:0.0)#H1:0.0)#H2:1.2::0.8):0.6,(#H1:1.0,((A1:0.0)#H3:0.81,(A2:0.9,#H3:0.82):0.03):1.0):1.1):1.2,O:1.3);"
+PhyloNetworks.rezip_canonical!(undoinfo...)
+@test writeTopology(net, round=true) == netstr
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 @test any(length(n.edge) == 2 for n in net.node) # one node of degree 2
-@test_throws ErrorException PhyloNetworks.unzip_canonical!(net)
-preorder!(net)
 PhyloNetworks.checknetwork_LiNC!(net, 1, true, true)
 @test all(length(n.edge) != 2 for n in net.node) # no nodes of degree 2
-# removed unzip from checknetwork_LiNC because its in startingBL! @test all(PhyloNetworks.getChildEdge(h).length == 0.0 for h in net.hybrid) # unzipped
+# todo: re-add unzip into checknetwork_LiNC, take it out of startingBL!
+@test all(PhyloNetworks.getChildEdge(h).length == 0.0 for h in net.hybrid) # unzipped
 @test_throws ErrorException PhyloNetworks.checknetwork_LiNC!(net, 0, true, true)
 end
 
