@@ -56,7 +56,7 @@ julia> writeTopology(net, round=true)
 """
 function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
         constraints=TopologyConstraint[]::Vector{TopologyConstraint};
-        maxattempts=10::Int)
+        maxattempts=10::Int, fixroot=false::Bool)
     all(con.type == 1 for con in constraints) || error("only type-1 constraints implemented so far")
     numedges = length(net.edge)
     blacklist = Set{Tuple{Int,Int}}()
@@ -94,9 +94,13 @@ function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool
             push!(blacklist, (e1,e2))
             continue
         end
-        hybridpartnernew = (rand() > 0.2) # if true: partner hybrid = new edge above edge 2
+        hybridpartnernew = (fixroot ? true : rand() > 0.2) # if true: partner hybrid = new edge above edge 2
         ## check that the new network will be a DAG: no directional conflict
         if directionalconflict(net, p1, edge2, hybridpartnernew)
+            if fixroot # don't try to change the direction of edge2
+                push!(blacklist, (e1,e2))
+                continue
+            end # else: try harder: change direction of edge2 and move root
             hybridpartnernew = !hybridpartnernew # try again with opposite
             if directionalconflict(net, p1, edge2, hybridpartnernew)
                 push!(blacklist, (e1,e2))

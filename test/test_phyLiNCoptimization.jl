@@ -30,8 +30,9 @@ lengthep = obj.net.edge[4].node[1].edge[1].length
 @test obj.net.edge[4].node[1].edge[1].length != lengthep
 
 # ## Local Gamma
+γcache = PhyloNetworks.CacheGammaLiNC(obj)
 hybridmajorparent = PhyloNetworks.getMajorParentEdge(obj.net.hybrid[1])
-@test_nowarn PhyloNetworks.optimizelocalgammas_LiNC!(obj, hybridmajorparent, false, 1e-6,1e-6,1e-2,1e-3)
+@test_nowarn PhyloNetworks.optimizelocalgammas_LiNC!(obj, hybridmajorparent, false, 1e-6, γcache)
 @test hybridmajorparent.gamma != 0.9
 @test PhyloNetworks.getMinorParentEdge(obj.net.hybrid[1]).gamma != 0.1
 end
@@ -41,27 +42,29 @@ Random.seed!(98)
 dna_dat, dna_weights = readfastatodna(fasta8sites, true); # 22 species, 3 hybrid nodes, 103 edges
 net = readTopology("((((((((((((((Ae_caudata_Tr275,Ae_caudata_Tr276),Ae_caudata_Tr139))#H1,#H2),(((Ae_umbellulata_Tr266,Ae_umbellulata_Tr257),Ae_umbellulata_Tr268),#H1)),((Ae_comosa_Tr271,Ae_comosa_Tr272),(((Ae_uniaristata_Tr403,Ae_uniaristata_Tr357),Ae_uniaristata_Tr402),Ae_uniaristata_Tr404))),(((Ae_tauschii_Tr352,Ae_tauschii_Tr351),(Ae_tauschii_Tr180,Ae_tauschii_Tr125)),(((((((Ae_longissima_Tr241,Ae_longissima_Tr242),Ae_longissima_Tr355),(Ae_sharonensis_Tr265,Ae_sharonensis_Tr264)),((Ae_bicornis_Tr408,Ae_bicornis_Tr407),Ae_bicornis_Tr406)),((Ae_searsii_Tr164,Ae_searsii_Tr165),Ae_searsii_Tr161)))#H2,#H4))),(((T_boeoticum_TS8,(T_boeoticum_TS10,T_boeoticum_TS3)),T_boeoticum_TS4),((T_urartu_Tr315,T_urartu_Tr232),(T_urartu_Tr317,T_urartu_Tr309)))),(((((Ae_speltoides_Tr320,Ae_speltoides_Tr323),Ae_speltoides_Tr223),Ae_speltoides_Tr251))H3,((((Ae_mutica_Tr237,Ae_mutica_Tr329),Ae_mutica_Tr244),Ae_mutica_Tr332))#H4))),Ta_caputMedusae_TB2),S_vavilovii_Tr279),Er_bonaepartis_TB1),H_vulgare_HVens23);");
 PhyloNetworks.fuseedgesat!(93, net)
-for edge in net.edge # reset network
-    setLength!(edge,1.0)
-end
-for h in net.hybrid
-    setGamma!(PhyloNetworks.getMajorParentEdge(h),0.7)
-end
 obj = (@test_logs (:warn, r"taxa with no data") PhyloNetworks.StatisticalSubstitutionModel(net, fasta8sites, :JC69))
 @test length(obj.net.leaf) == 22
-
+preorder!(obj.net)
+PhyloNetworks.checknetwork_LiNC!(obj.net, 3, true, true, emptyconstraint)
+# checknetwork removes degree-2 nodes (including root) and 2- and 3-cycles.
+    # and requires that the network is preordered.
+PhyloNetworks.updateSSM!(obj, true; constraints=emptyconstraint)
+PhyloNetworks.startingBL!(obj.net, true, obj.trait, obj.siteweight)
 ## Local BL
-lengthe = obj.net.edge[48].length
-lengthep = obj.net.edge[48].node[1].edge[1].length
-@test_nowarn PhyloNetworks.optimizelocalBL_LiNC!(obj, obj.net.edge[48], false, 1e-6,1e-6,1e-2,1e-3)
-@test obj.net.edge[48].length != lengthe
-@test obj.net.edge[48].node[1].edge[1].length == 0.0 # below hybrid node
+lengthe = obj.net.edge[27].length
+@test_nowarn PhyloNetworks.optimizelocalBL_LiNC!(obj, obj.net.edge[27], false, 1e-6,1e-6,1e-2,1e-3)
+@test obj.net.edge[27].length != lengthe
+# Local BL constrained edge
+lengthe = obj.net.edge[44].length
+@test_nowarn PhyloNetworks.optimizelocalBL_LiNC!(obj, obj.net.edge[44], false, 1e-6,1e-6,1e-2,1e-3)
+@test obj.net.edge[44].length == 0.0
 
 # ## Local Gamma
 # edge[4] = major parent edge of hybrid[1]
 originalstdout = stdout  # verbose=true below
 redirect_stdout(open("/dev/null", "w")) # not portable to Windows
-@test_nowarn PhyloNetworks.optimizelocalgammas_LiNC!(obj, obj.net.edge[4], true, 1e-6,1e-6,1e-2,1e-3)
+γcache = PhyloNetworks.CacheGammaLiNC(obj)
+@test_nowarn PhyloNetworks.optimizelocalgammas_LiNC!(obj, obj.net.edge[4], true, 1e-6,γcache)
 redirect_stdout(originalstdout)
 @test obj.net.edge[4].gamma != 0.7
 @test PhyloNetworks.getMinorParentEdge(obj.net.hybrid[1]).gamma != 0.3
@@ -78,11 +81,12 @@ obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69);
 
 ## optimizeBL
 Random.seed!(5);
-@test_nowarn PhyloNetworks.optimizeBL_LiNC!(obj, obj.net.edge, false,20,1e-2,1e-2,1e-2,1e-2);
+@test_nowarn PhyloNetworks.optimizeBL_LiNC!(obj, obj.net.edge, false,1e-2,1e-2,1e-2,1e-2, 20);
 @test all(e.length != 1.0 for e in obj.net.edge)
 
 ## optimizegammas
-@test_nowarn PhyloNetworks.optimizeallgammas_LiNC!(obj,false,100,1e-6,1e-6,1e-2,1e-3)
+γcache = PhyloNetworks.CacheGammaLiNC(obj)
+@test_nowarn PhyloNetworks.optimizeallgammas_LiNC!(obj,false,1e-6,γcache,100)
 @test PhyloNetworks.getMajorParentEdge(obj.net.hybrid[1]).gamma != 0.6
 @test PhyloNetworks.getMinorParentEdge(obj.net.hybrid[1]).gamma != 0.4
 end
@@ -129,15 +133,18 @@ PhyloNetworks.checknetwork_LiNC!(obj.net, 1, true, true)
 PhyloNetworks.discrete_corelikelihood!(obj)
 @test obj.loglik ≈ -32.934741316276956
 maxmoves = 2
-Random.seed!(92) # fixit: error with nan loglik if we do instead: Random.seed!(100)
+Random.seed!(92)
+γcache = PhyloNetworks.CacheGammaLiNC(obj)
 PhyloNetworks.optimizestructure!(obj, maxmoves, 1, true, true, 0,100,false,
-                                emptyconstraint, 1e-6,1e-6, 1e-2,1e-3)
+                                emptyconstraint, 1e-6,1e-6, 1e-2,1e-3, γcache)
+
 @test obj.loglik > -32.934741316276956 # should be ≈ -28.596171545957727
+# fixit: the likelihood is -30.81795849647627 here
 
 # allow hybrid ladders
 Random.seed!(110)
 PhyloNetworks.optimizestructure!(obj, maxmoves, 1, true, false, 0,100,false,
-                                emptyconstraint, 1e-6,1e-6, 1e-2,1e-3)
+                                emptyconstraint, 1e-6,1e-6, 1e-2,1e-3, γcache)
 @test obj.loglik > -28.596171545957727
 end # of optimizestructure with simple example
 
@@ -151,11 +158,12 @@ for nohybridladder in [true, false]
     PhyloNetworks.startingBL!(obj.net, true, obj.trait, obj.siteweight)
     obj.loglik = -Inf # missing otherwise, which would cause an error below
     nullio = open("/dev/null", "w")
+    γcache = PhyloNetworks.CacheGammaLiNC(obj)
     @test_nowarn PhyloNetworks.phyLiNCone!(obj, 1, no3cycle,
                                            nohybridladder, 3, 2, false, false,
                                            nullio, seed, 0.5, emptyconstraint,
-                                           1e-2, 1e-2, 1e-2, 1e-2, 0.0, 25.0)
-    @test obj.loglik > -21.209048958984734
+                                           1e-2, 1e-2, 1e-2, 1e-2, 0.0, 25.0, γcache)
+    @test obj.loglik > -21.208147242207865
 end
 end
 
@@ -211,10 +219,11 @@ PhyloNetworks.startingBL!(obj.net, true, obj.trait, obj.siteweight) # true: to u
 obj.loglik = -Inf # actual likelihood -56.3068141288164. Need something non-missing
 seed = 103
 nullio = open("/dev/null", "w")
+γcache = PhyloNetworks.CacheGammaLiNC(obj)
 @test_nowarn PhyloNetworks.phyLiNCone!(obj, 2, true, true,
                                        3, 2, false, false, nullio,
                                        seed, 0.5, c_species, 1e-2, 1e-2,
-                                       1e-2, 1e-2, 0.0, 50.0)
+                                       1e-2, 1e-2, 0.0, 50.0, γcache)
 
 obj = (@test_logs (:warn, r"no 3-cycle") match_mode=:any phyLiNC!(net_level1_s,
             fastaindiv, :JC69; maxhybrid=2, no3cycle=true, nohybridladder=true,
