@@ -391,10 +391,12 @@ end
         constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
 Check that `net` is an adequate starting network before phyLiNC:
-Remove nodes of degree 2 (possibly including the root) and
-unzip the network: set all edges below hybrid nodes to length zero.
-According to user-given options, also check for 3-cycles, hybrid ladders,
-and max number of hybrids.
+remove nodes of degree 2 (possibly including the root);
+check that `net` meets the topological `constraints`,
+has no polytomies (except at species constraints),
+and `maxhybrid` of fewer reticulations.
+According to user-given options, also check for the absence of
+3-cycles and/or hybrid ladders.
 
 ```jldoctest
 julia> maxhybrid = 3;
@@ -881,7 +883,8 @@ function startingBL!(net::HybridNetwork, unzip::Bool,
     # taxon names: to tell the calibration that row i of dhat if for taxonnames[i]
     # ASSUMPTION: trait[i][j] = trait j for taxon at node number i: 'node.number' = i
     calibrateFromPairwiseDistances!(net, dhat, taxonnames,
-        forceMinorLength0=false, ultrametric=false)
+        forceMinorLength0=true, ultrametric=false)
+        # force minor length to 0 to avoid non-identifiability at zippers
     if unzip
         unzip_canonical!(net)
     end
