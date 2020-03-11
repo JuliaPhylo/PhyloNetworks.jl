@@ -380,6 +380,7 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
             e.hybrid || continue
             optimizelocalgammas_LiNC!(obj, e, verbose, ftolAbs, γcache)
         end
+        @debug "after global BL and gamma optimization, the likelihood is $(obj.loglik)"
         for h in obj.net.hybrid # check for gammas close to zero
             minorhybridedge = getMinorParentEdge(h)
             if minorhybridedge.gamma < 1e-7 # delete this edge, updateSSM!
@@ -387,9 +388,10 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int64, no3cycle::Bool,
                 updateSSM!(obj, true; constraints=constraints) # renumber = true
                 discrete_corelikelihood!(obj) # deleting hybrid changes likelihood
                 @warn "deleted minor hybrid edge for hybrid node number: $(h.number)"
+                @debug "the likelihood is $(obj.loglik)"
             end
         end
-        @debug "after global BL and gamma optimization, the likelihood is $(obj.loglik)"
+        @debug "after removing hybrids with small gammas, the likelihood is $(obj.loglik)"
     end
     return obj
 end
@@ -919,8 +921,9 @@ function startingBL!(net::HybridNetwork, unzip::Bool,
     # taxon names: to tell the calibration that row i of dhat if for taxonnames[i]
     # ASSUMPTION: trait[i][j] = trait j for taxon at node number i: 'node.number' = i
     calibrateFromPairwiseDistances!(net, dhat, taxonnames,
-        forceMinorLength0=true, ultrametric=false)
+        forceMinorLength0=false, ultrametric=false)
         # force minor length to 0 to avoid non-identifiability at zippers
+        #? aren't minor hybrid lengths identifiable if we unzip?
     if unzip
         unzip_canonical!(net)
     end
@@ -1277,6 +1280,10 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
         obj.priorltw[it] += (h ? lγdiff : l1mγdiff)
         obj._loglikcache[it,:,:] .+= (h ? lγdiff : l1mγdiff)
     end
+    #todo fixit: loglik before and after discrete_corelikelihood don't always match
+    @info "after optimizegamma, the loglik is $(obj.loglik)"
+    discrete_corelikelihood!(obj)
+    @info "after running discrete_corelikelihood, the loglik is $(obj.loglik)"
     return ll
 end
 
