@@ -133,20 +133,20 @@ PhyloNetworks.checknetwork_LiNC!(obj.net, 1, true, true)
 PhyloNetworks.updateSSM!(obj, true; constraints=emptyconstraint)
 PhyloNetworks.startingBL!(obj.net, true, obj.trait, obj.siteweight)
 PhyloNetworks.discrete_corelikelihood!(obj)
-@test obj.loglik ≈ -29.77658693411041
+@test obj.loglik ≈ -29.774768316929713
 maxmoves = 2
 Random.seed!(92)
 γcache = PhyloNetworks.CacheGammaLiNC(obj)
 PhyloNetworks.optimizestructure!(obj, maxmoves, 1, true, true, 0,100,false,
                                 emptyconstraint, 1e-6,1e-6, 1e-2,1e-3, γcache)
 
-@test obj.loglik > -29.77658693411041
+@test obj.loglik > -29.774768316929713
 
 # allow hybrid ladders
 Random.seed!(110)
 PhyloNetworks.optimizestructure!(obj, maxmoves, 1, true, false, 0,100,false,
                                 emptyconstraint, 1e-6,1e-6, 1e-2,1e-3, γcache)
-@test obj.loglik > -29.77658693411041
+@test obj.loglik > -29.774768316929713
 end # of optimizestructure with simple example
 
 @testset "phyLiNCone with simple net, no constraints" begin
@@ -165,7 +165,7 @@ for nohybridladder in [true, false]
                                            nohybridladder, 3, 2, false, false,
                                            nullio, seed, 0.5, emptyconstraint,
                                            1e-2, 1e-2, 1e-2, 1e-2, 0.0, 25.0, γcache)
-    @test obj.loglik > -29.77658693411041
+    @test obj.loglik > -29.774768316929713
 end
 end
 
@@ -174,12 +174,12 @@ net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):
 @test_nowarn obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2,
                     no3cycle=true, nohybridladder=true, maxmoves=2,
                     nreject=1, nruns=1, filename="", verbose=false, seed=105)
-@test obj.loglik > -29.77658693411041
+@test obj.loglik > -29.774768316929713
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
 @test_nowarn obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2,
                     no3cycle=true, nohybridladder=true, maxmoves=2, probST=1.0, # not enough moves to get back to a good topology
                     nreject=1, nruns=1, filename="phyLiNC2", verbose=false, seed=0)
-@test obj.loglik > -29.77658693411041
+@test obj.loglik > -29.774768316929713
 @test read("phyLiNC2.err", String) == ""
 @test startswith(read("phyLiNC2.log", String), "---------------------\nphyLiNC network estimation starting")
 rm("phyLiNC2.log")
@@ -192,7 +192,7 @@ addprocs(1) # multiple cores
 obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2, no3cycle=true,
                         nohybridladder=true, maxmoves=2, nreject=1, nruns=2,
                         filename="phyLiNCmult", verbose=false, seed=106)
-@test obj.loglik > -29.77658693411041
+@test obj.loglik > -29.774768316929713
 rmprocs(workers()) # remove extra processors
 @test occursin("using 1 worker", read("phyLiNCmult.log", String))
 rm("phyLiNCmult.log")
@@ -249,7 +249,7 @@ obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69, 4; maxhybrid=2,
                     no3cycle=true, nohybridladder=true, maxmoves=2,
                     nreject=1, nruns=1, filename="phyLiNCratevariation", verbose=false, seed=105)
 @test occursin("categories for Gamma discretization: 4", read("phyLiNCratevariation.log", String))
-@test obj.loglik > -29.77658693411041
+@test obj.loglik > -29.774768316929713
 @test read("phyLiNCratevariation.err", String) == ""
 rm("phyLiNCratevariation.log")
 rm("phyLiNCratevariation.err")
@@ -262,7 +262,7 @@ obj = PhyloNetworks.phyLiNC!(net, fastasimple, :HKY85; maxhybrid=2,
                     no3cycle=true, nohybridladder=true, maxmoves=2,
                     nreject=1, nruns=1, filename="phyLiNCHKY", verbose=false, seed=107)
 @test occursin("HKY85", read("phyLiNCHKY.log", String))
-@test obj.loglik > -29.77658693411041
+@test obj.loglik > -29.774768316929713
 @test read("phyLiNCHKY.err", String) == ""
 rm("phyLiNCHKY.log")
 rm("phyLiNCHKY.err")
@@ -271,7 +271,7 @@ rm("phyLiNCHKY.err")
 obj = PhyloNetworks.phyLiNC!(net, fastasimple, :HKY85, 4; maxhybrid=2,
                     no3cycle=true, nohybridladder=true, maxmoves=2,
                     nreject=1, nruns=1, filename="", verbose=false, seed=108)
-@test obj.loglik > -29.77658693411041
+@test obj.loglik > -29.774768316929713
 end
 
 end # of overall phyLiNC test set

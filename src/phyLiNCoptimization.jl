@@ -921,9 +921,11 @@ function startingBL!(net::HybridNetwork, unzip::Bool,
     # taxon names: to tell the calibration that row i of dhat if for taxonnames[i]
     # ASSUMPTION: trait[i][j] = trait j for taxon at node number i: 'node.number' = i
     calibrateFromPairwiseDistances!(net, dhat, taxonnames,
-        forceMinorLength0=false, ultrametric=false)
+        forceMinorLength0=true, ultrametric=false)
         # force minor length to 0 to avoid non-identifiability at zippers
-        #? aren't minor hybrid lengths identifiable if we unzip?
+        # works well if the true (or "the" best-fit) length of the minor parent
+        # edge is less than the true length of the parent edge.
+        # (zips all the way up instead of unzipping all the way down, as we do when the child edge = 0)
     if unzip
         unzip_canonical!(net)
     end
