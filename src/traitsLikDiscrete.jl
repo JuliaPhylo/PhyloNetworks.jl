@@ -10,6 +10,8 @@ functions can be applied, like `loglikelihood(object)`, `aic(object)` etc.
 mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
     model::SubstitutionModel
     ratemodel::RateVariationAcrossSites #allows rates to vary according to gamma
+    """stationary for NASM models (log(1/4)), uniform in all other cases"""
+    prioratroot::Vector{Float64}
     net::HybridNetwork
     """ data: trait[i] for leaf with n.number = i
         type Int: for indices of trait labels in getlabels(model)
@@ -66,6 +68,12 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
         siteweight === nothing || length(siteweight) == nsites ||
             error("siteweight must be of same length as the number of traits")
         totalsiteweight = (siteweight === nothing ? float(nsites) : sum(siteweight))
+        k = nstates(model)
+        if typeof(model) <: NASM
+            prioratroot = log.(stationary(model)) #refactor to save in obj
+        else # other trait models
+            prioratroot = [-log(k) for i in 1:k] # uniform prior at root
+        end
         # T = eltype(getlabels(model))
         # extract displayed trees
         trees = displayedTrees(net, 0.0; nofuse=true)
@@ -80,7 +88,6 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
         priorltw = inheritanceWeight.(trees)
         all(!ismissing, priorltw) ||
           error("one or more inheritance γ's are missing or negative. fix using setGamma!(network, edge)")
-        k = nstates(model)
         maxedges = length(net.edge) + 3*(maxhybrid-length(net.hybrid))
         maxnodes = length(net.node) + 2*(maxhybrid-length(net.hybrid))
         logtrans   = zeros(Float64, k,k, maxedges, length(ratemodel.ratemultiplier))
@@ -88,7 +95,7 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
         directlik  = zeros(Float64, k, maxedges)
         backwardlik= zeros(Float64, k, maxnodes)
         _loglikcache = zeros(Float64, ntrees, length(ratemodel.ratemultiplier), nsites)
-        new(deepcopy(model), deepcopy(ratemodel),
+        new(deepcopy(model), deepcopy(ratemodel), prioratroot,
             net, trait, nsites, siteweight, totalsiteweight, missing, # missing log likelihood
             logtrans, trees,
             priorltw, forwardlik, directlik, backwardlik, _loglikcache)
@@ -645,12 +652,7 @@ function discrete_corelikelihood_trait!(obj::SSM, t::Integer, ci::Integer, ri::I
             end
         end
         if ni==1 # root is first index in nodes changed
-            if typeof(obj.model) <: NASM
-                logprior = log.(stationary(obj.model))
-            else #other trait models
-                logprior = [-log(k) for i in 1:k] # uniform prior at root
-            end
-            loglik = logsumexp(logprior + view(forwardlik, :,nnum)) # log P{data for ci | tree t, rate ri}
+            loglik = logsumexp(obj.prioratroot + view(forwardlik, :,nnum)) # log P{data for ci | tree t, rate ri}
             break # out of loop over nodes
         end
         # if we keep going, n is not the root

@@ -673,9 +673,25 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
     # unzip just at new node and its child edge
     unzipat_canonical!(newhybridnode, getChildEdge(newhybridnode))
     updateSSM!(obj)
+    optimizelocalgammas_LiNC!(obj, newhybridedge, verbose, ftolRel, γcache)
+    if newhybridedge.gamma == 0.0 # doesnt add anything #TODO test
+        # delete the minor hybrid edge, do everything necessary to restore
+        # for h in obj.net.hybrid # check for gammas close to zero
+        #     minorhybridedge = getMinorParentEdge(h)
+        #     if minorhybridedge.gamma < 1e-7 # delete this edge, updateSSM!
+        #         deletehybridedge!(obj.net, minorhybridedge, false, true) # don't keep nodes; unroot
+        #         updateSSM!(obj, true; constraints=constraints) # renumber = true
+        #         discrete_corelikelihood!(obj) # deleting a hybrid can change likelihood
+        #         @warn "deleted minor hybrid edge for hybrid node number: $(h.number)"
+        #     end
+        # end
+        return false
+    elseif newhybridedge.gamma == 1.0 # sub-tree prune and regraft (SPR)
+        # delete the partner minor hybrid edge, do everything necessary
+        return true # maybe add note saying we did a SPR
+    end
     optimizelocalBL_LiNC!(obj, newhybridedge, verbose, ftolRel, ftolAbs,
                               xtolRel, xtolAbs)
-    optimizelocalgammas_LiNC!(obj, newhybridedge, verbose, ftolRel, γcache)
     if obj.loglik - currLik < likAbsAddHybLiNC # improvement too small or negative: undo
         deletehybridedge!(obj.net, newhybridedge, false, true) # don't keep nodes; unroot
         #= rezip not needed because likelihood unchanged.
@@ -695,15 +711,6 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int64,
         end
         return false
     else
-        for h in obj.net.hybrid # check for gammas close to zero
-            minorhybridedge = getMinorParentEdge(h)
-            if minorhybridedge.gamma < 1e-7 # delete this edge, updateSSM!
-                deletehybridedge!(obj.net, minorhybridedge, false, true) # don't keep nodes; unroot
-                updateSSM!(obj, true; constraints=constraints) # renumber = true
-                discrete_corelikelihood!(obj) # deleting a hybrid can change likelihood
-                @warn "deleted minor hybrid edge for hybrid node number: $(h.number)"
-            end
-        end
         return true
     end
 end
@@ -855,6 +862,7 @@ function updateSSM!(obj::SSM, renumber=false::Bool;
     return obj
 end
 
+# Warning: requires displayed trees are correct. if needed, call updatedisplayedtrees
 function updateSSM_priorltw!(obj::SSM)
     pltw = obj.priorltw
     resize!(pltw, length(obj.displayedtree))
@@ -862,6 +870,21 @@ function updateSSM_priorltw!(obj::SSM)
         @inbounds pltw[i] = inheritanceWeight(t)
     end
     return nothing
+end
+
+# updates displayed trees when one gamma changes
+function updatedisplayedtrees!(trees::Vector, enum::Int, pnum::Int, gammae::Float64, hase::Vector)
+    gammap = 1.0 - gammae
+    for (i,t) in enumerate(trees)
+        h = hase[i]
+        ismissing(h) && continue # tree doesn't either e nor partner
+        if h
+            ei = findfirst(e -> e.number == enum, t.edge)
+        else
+            ei = findfirst(e -> e.number == pnum, t.edge)
+        end
+        t.edge[ei].gamma = (h ? gammae : gammap)
+    end
 end
 
 ## Optimize Branch Lengths and Gammas ##
@@ -1190,15 +1213,17 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
     nt, hase = updatecache_hase!(cache, obj, edgenum, partnernum)
     γ0 = focusedge.gamma
     if γ0<1e-7 # then prior weight and loglikcachetoo small (-Inf if γ0=0)
-        @debug "γ0 too small ($γ0): was changed to 1e-7 prior to optimization"
+        @info "γ0 too small ($γ0): was changed to 1e-7 prior to optimization"
         γ0 = 1e-7
         setGamma!(focusedge, γ0)
+        updatedisplayedtrees!(obj.displayedtree, edgenum, partnernum, γ0, hase)
         updateSSM_priorltw!(obj)
         discrete_corelikelihood!(obj) # to update obj._loglikcache
     elseif γ0>0.9999999
-        @debug "γ0 too large ($γ0): was changed to 1 - 1e-7 prior to optimization"
+        @info "γ0 too large ($γ0): was changed to 1 - 1e-7 prior to optimization"
         γ0 = 0.9999999
         setGamma!(focusedge, γ0)
+        updatedisplayedtrees!(obj.displayedtree, edgenum, partnernum, γ0, hase)
         updateSSM_priorltw!(obj)
         discrete_corelikelihood!(obj) # to update obj._loglikcache
     end
@@ -1219,7 +1244,8 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
     ## step 2: Newton-Raphson
     clike ./= γ0
     clikp ./= 1.0 - γ0
-    ll = obj.loglik + obj.totalsiteweight * (log(nr) - cadjust)
+    adjustment = obj.totalsiteweight * (log(nr) - cadjust)
+    ll = obj.loglik + adjustment
     noweights = obj.siteweight === nothing
     # evaluate if best γ is at the boundary: 0 or 1
     ulik .= (clike .- clikp) ./ clikp # at γ=0, get derivative of loglik
@@ -1228,12 +1254,16 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
     if llg0 < 0
         γ = 0.0
         inside01 = false
+        ll = (noweights ? sum(log.(clikp)) : sum(obj.siteweight .* log.(clikp)))
+        @debug "before NR, saw that gamma = 0 best, gamma assigned to zero"
     else
         ulik .= (clike .- clikp) ./ clike # at γ=1
         llg1 = (noweights ? sum(ulik) : sum(obj.siteweight .* ulik))
         if llg1 > 0
             γ = 1.0
             inside01 = false
+            ll = (noweights ? sum(log.(clike)) : sum(obj.siteweight .* log.(clike)))
+            @debug "before NR, saw that gamma = 1 best, gamma assigned to 1"
         end
     end
     if inside01
@@ -1243,9 +1273,9 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
         # ll: rescaled log likelihood. llg = gradient, llh = hessian below
         for istep in 1:maxeval
             # ll from above is also: sum(obj.siteweight .* log.(ulik)))
-            ulik .= (clike .- clikp) ./ ulik
+            ulik .= (clike .- clikp) ./ ulik # gradient of unconditional lik
             llg = (noweights ?  sum(ulik) :  sum(obj.siteweight .* ulik))
-            map!(x -> x^2, ulik, ulik)
+            map!(x -> x^2, ulik, ulik) # now ulik = -hessian contributions
             llh = (noweights ? -sum(ulik) : -sum(obj.siteweight .* ulik))
             cγ = γ - llg/llh # candidate γ: will be new γ if inside (0,1)
             if cγ >= 1.0
@@ -1259,7 +1289,7 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
             ll_new = (noweights ? sum(log.(ulik)) : sum(obj.siteweight .* log.(ulik)))
             lldiff = ll_new - ll
             ll = ll_new
-            lldiff < ftolAbs && break
+            s && break
         end
     end
     ## step 3: update SSM object with new γ
@@ -1273,9 +1303,10 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
         # if this was problematic for constraints, restrict the search
         # to interval [0,0.5] or [0.5,1] as appropriate
     end
-    ll += obj.totalsiteweight * (cadjust - log(nr)) # remove adjustment
+    ll -= adjustment
     obj.loglik = ll
     lγdiff = log(γ) - log(γ0); l1mγdiff = log(1.0-γ) - log(1.0-γ0)
+    @show obj.priorltw, lγdiff, l1mγdiff
     for it in 1:nt
         @inbounds h = hase[it]
         ismissing(h) && continue # tree has unchanged weight: skip below
@@ -1283,9 +1314,9 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
         obj._loglikcache[it,:,:] .+= (h ? lγdiff : l1mγdiff)
     end
     #todo fixit: loglik before and after discrete_corelikelihood don't always match
-    @info "after optimizegamma, the loglik is $(obj.loglik)"
+    @info "after optimizegamma: loglik=$(obj.loglik), priorltw=$(obj.priorltw)"
     discrete_corelikelihood!(obj)
-    @info "after running discrete_corelikelihood, the loglik is $(obj.loglik)"
+    @info "after running discrete_corelikelihood, the loglik is $(obj.loglik), priorltw=$(obj.priorltw)"
     return ll
 end
 

@@ -1146,8 +1146,8 @@ Stationary distribution of a Markov model
 """
 stationary(mod::SM) = error("stationary not defined for $(typeof(mod)).")
 
-function stationary(mod::JC69)
-    return [0.25,0.25,0.25,0.25]  
+function stationary(mod::JC69) #for JC, stationary = uniform
+    return [0.25,0.25,0.25,0.25]
 end
 
 function stationary(mod::HKY85)

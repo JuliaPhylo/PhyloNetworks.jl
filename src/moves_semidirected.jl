@@ -630,13 +630,17 @@ function nni!(αu::Edge, u::Node, uv::Edge, v::Node, vδ::Edge,
     if flip
         uv.isChild1 = !uv.isChild1
     end
-    ## TASK 3: update hybrid status of nodes & edges, and edges containRoot field
+    ## TASK 3: update hybrid status of nodes (#? is it ever nodes?)
+             # & edges, and edges containRoot field
     if u.hybrid && !v.hybrid
         if flip # RB, BR 1 or BR 2': flip hybrid status of uv and (αu or vδ)
             if uv.hybrid # BR 1 or BR 2'
                 vδ.hybrid = true
                 vδ.gamma = uv.gamma
                 vδ.isMajor = uv.isMajor
+                # length switches: for keeping the network unzipped. could be option later
+                αu.length = uv.length
+                uv.length = 0.0
                 uv.hybrid = false
                 uv.gamma = 1.0
                 uv.isMajor = true
@@ -645,6 +649,9 @@ function nni!(αu::Edge, u::Node, uv::Edge, v::Node, vδ::Edge,
                 uv.hybrid = true
                 uv.gamma = αu.gamma
                 uv.isMajor = αu.isMajor
+                # length switches: for keeping the network unzipped. could be option later
+                uv.length = vδ.length
+                vδ.length = 0.0
                 αu.hybrid = false
                 αu.gamma = 1.0
                 αu.isMajor = true
@@ -655,6 +662,7 @@ function nni!(αu::Edge, u::Node, uv::Edge, v::Node, vδ::Edge,
         else # assumes α<-u or v<-δ --- but not checked
             # not implemented: α->u<-v->δ: do uv.hybrid=false and γv.hybrid=true
             if inner # BR 3 or 4': α->u<-v<-δ: flip hybrid status of αu and vδ
+                # no lengths to switch in these cases
                 vδ.hybrid = true
                 vδ.gamma = αu.gamma
                 vδ.isMajor = αu.isMajor
@@ -663,6 +671,9 @@ function nni!(αu::Edge, u::Node, uv::Edge, v::Node, vδ::Edge,
                 αu.isMajor = true
                 # containRoot: nothing to update
             else # BR 1' or 2: α<-u<-v->δ : hybrid status just fine
+                # length switches: for keeping the network unzipped. could be option later
+                αu.length = vδ.length
+                vδ.length = 0.0
                 norootbelow!(vδ)
                 if uv.containRoot
                     allowrootbelow!(αu)
@@ -675,7 +686,7 @@ function nni!(αu::Edge, u::Node, uv::Edge, v::Node, vδ::Edge,
         (uv.gamma,   hyb.gamma)   = (hyb.gamma,   uv.gamma)
         (uv.isMajor, hyb.isMajor) = (hyb.isMajor, uv.isMajor)
     end
-    # throw error if u not hybrid & v hybrid? (does not need to be implemented) #?
+    # throw error if u not hybrid & v hybrid? (does not need to be implemented)
     return vδ, u, uv, v, αu, flip, inner, v_in_vδ, αu_in_u, vδ_in_v, u_in_αu
 end
 
