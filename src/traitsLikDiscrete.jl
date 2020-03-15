@@ -62,7 +62,7 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
             ratemodel::RateVariationAcrossSites,
             net::HybridNetwork, trait::AbstractVector,
             siteweight=nothing::Union{Nothing, Vector{Float64}},
-            maxhybrid=length(net.hybrid)::Int64)
+            maxhybrid=length(net.hybrid)::Int)
         length(trait) > 0 || error("no trait data!")
         nsites = length(trait[1])
         siteweight === nothing || length(siteweight) == nsites ||
@@ -107,8 +107,8 @@ const SSM = StatisticalSubstitutionModel
 # Works for DNA in fasta format. Probably need different versions for
 # different kinds of data (snp, amino acids). Similar to fitdiscrete()
 function StatisticalSubstitutionModel(net::HybridNetwork, fastafile::String,
-        modsymbol::Symbol, ratecategories=1::Int64,
-        maxhybrid=length(net.hybrid)::Int64)
+        modsymbol::Symbol, ratecategories=1::Int,
+        maxhybrid=length(net.hybrid)::Int)
     for e in net.edge # check for missing or inappropriate γ values
         if e.hybrid
             e.gamma > 0.0 && continue
@@ -467,7 +467,7 @@ function StatsBase.fit(::Type{SSM}, net::HybridNetwork, model::SubstitutionModel
 end
 
 function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
-    closeoptim=false::Bool, verbose=false::Bool, maxeval=1000::Int64,
+    closeoptim=false::Bool, verbose=false::Bool, maxeval=1000::Int,
     ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
     xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
     alphamin=alphaRASmin, alphamax=alphaRASmax)
