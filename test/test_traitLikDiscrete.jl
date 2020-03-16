@@ -554,6 +554,15 @@ trait = view(dat2, o)
 PhyloNetworks.startingBL!(dna_net, false, trait, dna_weights)
 @test maximum(e.length for e in dna_net.edge) > 0.03
 @test_logs PhyloNetworks.startingBL!(dna_net, false, trait) # no dna_weights
+
+dna_dat, dna_weights = readfastatodna(fastafile, true);
+dna_net = readTopology("((((((((((((((Ae_caudata_Tr275,Ae_caudata_Tr276),Ae_caudata_Tr139))#H1,#H2),(((Ae_umbellulata_Tr266,Ae_umbellulata_Tr257),Ae_umbellulata_Tr268),#H1)),((Ae_comosa_Tr271,Ae_comosa_Tr272),(((Ae_uniaristata_Tr403,Ae_uniaristata_Tr357),Ae_uniaristata_Tr402),Ae_uniaristata_Tr404))),(((Ae_tauschii_Tr352,Ae_tauschii_Tr351),(Ae_tauschii_Tr180,Ae_tauschii_Tr125)),(((((((Ae_longissima_Tr241,Ae_longissima_Tr242),Ae_longissima_Tr355),(Ae_sharonensis_Tr265,Ae_sharonensis_Tr264)),((Ae_bicornis_Tr408,Ae_bicornis_Tr407),Ae_bicornis_Tr406)),((Ae_searsii_Tr164,Ae_searsii_Tr165),Ae_searsii_Tr161)))#H2,#H4))),(((T_boeoticum_TS8,(T_boeoticum_TS10,T_boeoticum_TS3)),T_boeoticum_TS4),((T_urartu_Tr315,T_urartu_Tr232),(T_urartu_Tr317,T_urartu_Tr309)))),(((((Ae_speltoides_Tr320,Ae_speltoides_Tr323),Ae_speltoides_Tr223),Ae_speltoides_Tr251))H3,((((Ae_mutica_Tr237,Ae_mutica_Tr329),Ae_mutica_Tr244),Ae_mutica_Tr332))#H4))),Ta_caputMedusae_TB2),S_vavilovii_Tr279),Er_bonaepartis_TB1),H_vulgare_HVens23);");
+dat2 = PhyloNetworks.traitlabels2indices(dna_dat[!,2:end], HKY85([0.5], [0.25, 0.25, 0.25, 0.25], true))
+o, dna_net = @test_logs (:warn, "the network contains taxa with no data: those will be pruned") match_mode=:any PhyloNetworks.check_matchtaxonnames!(copy(dna_dat[1]), dat2, dna_net)
+trait = view(dat2, o)
+PhyloNetworks.startingBL!(dna_net, false, trait, dna_weights)
+@test maximum(e.length for e in dna_net.edge) > 0.03
+@test_logs PhyloNetworks.startingBL!(dna_net, false, trait) # no dna_weights
 end # of startingBL!
 
 @testset "testing prep and wrapper functions" begin

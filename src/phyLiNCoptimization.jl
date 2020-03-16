@@ -960,6 +960,12 @@ function startingBL!(net::HybridNetwork, unzip::Bool,
         # works well if the true (or "the" best-fit) length of the minor parent
         # edge is less than the true length of the parent edge.
         # (zips all the way up instead of unzipping all the way down, as we do when the child edge = 0)
+    for e in net.edge #? this would reduce identifiability problems with edges == 0
+                      #? What do you think, Cécile?
+        if e.length == 0.0
+            e.length = 0.001
+        end
+    end
     if unzip
         unzip_canonical!(net)
     end
