@@ -377,6 +377,8 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
         for i in Random.shuffle(1:obj.net.numEdges)
             e = obj.net.edge[i]
             @debug "optimizing around edge number $(e.number)"
+            printEdges(obj.net)
+            printNodes(obj.net)
             optimizelocalBL_LiNC!(obj, e, verbose, ftolRel,ftolAbs,xtolRel,xtolAbs)
             e.hybrid || continue
             optimizelocalgammas_LiNC!(obj, e, verbose, ftolAbs, γcache)
@@ -1017,7 +1019,9 @@ end
 
 Optimize branch lengths for edges in vector `edges`.
 Constrains branch lengths to zero below hybrid nodes.
-Return vector of updated `edges`.
+
+Return vector of updated `edges` Warning: This vector does not include edges
+constrained to remain at zero.
 
 For a description of arguments, see [`phyLiNC!`](@ref).
 
@@ -1039,6 +1043,7 @@ function optimizeBL_LiNC!(obj::SSM, edges::Vector{Edge}, verbose::Bool,
             end
         end
     end
+    startingvalues = getlengths(edges)
     function loglikfunBL(lengths::Vector{Float64}, grad::Vector{Float64})
         setlengths!(edges, lengths) # set lengths in order of vector `edges`
         res = discrete_corelikelihood!(obj)
@@ -1068,10 +1073,15 @@ function optimizeBL_LiNC!(obj::SSM, edges::Vector{Edge}, verbose::Bool,
     setlengths!(edges, xmax) # set lengths in order of vector `edges`
     obj.loglik = fmax
     #? should we call nlopt_destroy(opt); to clean up the object here? (they recommend it here: https://nlopt.readthedocs.io/en/latest/NLopt_Tutorial/)
-    # (but they don't mention it in the julia version of the docs) Could speed up garbage collection?
+        #? (but they don't mention it in the julia version of the docs) Could speed up garbage collection?
     verbose && println("BL: got $(round(fmax, digits=5)) at BL = " *
      "$(round.(xmax, digits=5)) after $(optBL.numevals) iterations (return code $(ret))")
-    startlik < fmax || @warn "starting likelihood is greater than post-optimization likelihood."
+    if startlik > fmax
+        @warn "The starting likelihood was greater than the post-optimization likelihood.
+        Branch lengths will be reassigned to their starting values."
+        setlengths!(edges, startingvalues)
+        obj.loglik = startlik
+    end
     return edges
 end
 
