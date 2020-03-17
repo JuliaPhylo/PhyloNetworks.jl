@@ -1,7 +1,7 @@
 # any change to these constants must be documented in phyLiNC!
 const moveweights_LiNC = Distributions.aweights([0.4, 0.2, 0.2, 0.2])
 const movelist_LiNC = ["nni", "addhybrid", "deletehybrid", "root"]
-const likAbsAddHybLiNC = 0.5
+const likAbsAddHybLiNC = 0.5 # TODO relative increase might be a better measure, right?
 # likAbsAddHybLiNC: the amount of improvement required to retain a proposed new hybrid.
     # Greater values of would raise the standard for newly-proposed hybrids,
     # leading to fewer proposed hybrids being accepted during the search.
@@ -370,15 +370,12 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
         nrejected = optimizestructure!(obj, maxmoves, maxhybrid, no3cycle, nohybridladder,
                                   nrejected, nrejectmax, verbose, constraints,
                                   ftolRel,ftolAbs, xtolRel,xtolAbs, γcache)
-        @debug "after optimizestructure returns, the likelihood is $(obj.loglik)"
+        @debug "after optimizestructure returns, the likelihood is $(obj.loglik), nrejected = $nrejected"
         fit!(obj; optimizeQ=optQ, optimizeRVAS=optRAS, verbose=verbose, maxeval=20,
              ftolRel=ftolRel, ftolAbs=ftolAbs, xtolRel=xtolRel, xtolAbs=xtolAbs)
         @debug "after fit! runs, the likelihood is $(obj.loglik)"
         for i in Random.shuffle(1:obj.net.numEdges)
             e = obj.net.edge[i]
-            @debug "optimizing around edge number $(e.number)"
-            printEdges(obj.net)
-            printNodes(obj.net)
             optimizelocalBL_LiNC!(obj, e, verbose, ftolRel,ftolAbs,xtolRel,xtolAbs)
             e.hybrid || continue
             optimizelocalgammas_LiNC!(obj, e, verbose, ftolAbs, γcache)
@@ -389,7 +386,7 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
             if minorhybridedge.gamma < 1e-7 # delete this edge, updateSSM!
                 deletehybridedge!(obj.net, minorhybridedge, false, true) # don't keep nodes; unroot
                 updateSSM!(obj, true; constraints=constraints) # renumber = true
-                discrete_corelikelihood!(obj) # deleting hybrid changes likelihood
+                discrete_corelikelihood!(obj) # deletehybridedge changes likelihood
                 @warn "deleted minor hybrid edge for hybrid node number: $(h.number)"
                 @debug "the likelihood is now $(obj.loglik)"
             end
@@ -516,10 +513,6 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
         moveweights ./= sum(moveweights)
     end
     while nmoves < maxmoves && nreject < nrejectmax # both should be true to continue
-        obj.loglik = discrete_corelikelihood!(obj) #todo remove after debugging
-            # note: obj.loglik only updated if optimizeBL or gamma called, so need to called
-            # discrete_corelikelihood! in all other cases
-        @debug "optimizing structure, nmoves=$nmoves. The log likelihood is $(obj.loglik)"
         currLik = obj.loglik
         movechoice = sample(movelist_LiNC, moveweights_LiNC)
         if movechoice == "nni"
@@ -543,7 +536,6 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
                         ftolRel, ftolAbs, xtolRel, xtolAbs, γcache)
         else # change root (doesn't affect likelihood)
             result = moveroot!(obj.net, constraints)
-            # TODO do we want to optimize branch lengths after root move? (currently we dont do this)
         end
         nmoves += 1
         # next: update the number of consecutive rejections ignoring any root move
@@ -676,30 +668,31 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     unzipat_canonical!(newhybridnode, getChildEdge(newhybridnode))
     updateSSM!(obj)
     optimizelocalgammas_LiNC!(obj, newhybridedge, verbose, ftolRel, γcache)
-    if newhybridedge.gamma == 0.0 #TODO check and test this
+    if newhybridedge.gamma == 0.0
         deletehybridedge!(obj.net, newhybridedge, false, true) # don't keep nodes; unroot
-        obj.displayedtree = saveddisplayedtree # restore original displayed trees and weights
+        obj.displayedtree = saveddisplayedtree # restore displayed trees and tree weights
         obj.priorltw = savedpriorltw
         obj.loglik = currLik # restore to loglik before move
-        for (i,e) in enumerate(obj.net.edge) # edges unchanged, gammas may need to be restored
-            #? should we restore nearby gammas? or leave them as optimized?
-            @debug "restoring nearby gamma on edge number $(e.number)"
+        for (i,e) in enumerate(obj.net.edge) # restore
             e.gamma = savedgam[i]
         end
         return false
     elseif newhybridedge.gamma == 1.0 # equivalent to sub-tree prune and regraft (SPR) move
-        deletehybridedge!(obj.net, getMinorParentEdge(newhybridnode), false, true) # don't keep nodes; unroot
-        obj.displayedtree = saveddisplayedtree # restore original displayed trees and weights
-        obj.priorltw = savedpriorltw
-        obj.loglik = currLik # restore to loglik before move
-        for (i,e) in enumerate(obj.net.edge) # edges unchanged, gammas may need to be restored
-            #? should we restore any nearby gammas? or leave them as optimized?
-            @debug "restoring nearby gamma on edge number $(e.number)"
-            e.gamma = savedgam[i]
+        if getParent(getMinorParentEdge(newhybridnode)).hybrid
+            @warn "SPR move attempted but not allowed: The edge to be removed is
+            part of a hybrid ladder (the edge between two hybrid nodes) so its
+            branch length and gamma are not identifiable. We recommend setting
+            nohybridladder=true for optimal structure estimates."
+        else
+            deletehybridedge!(obj.net, getMinorParentEdge(newhybridnode), false, true) # don't keep nodes; unroot
+            updateSSM!(obj, true; constraints=constraints) # renumber, then obj.loglik updated by optimizeBL_LiNC below
+            discrete_corelikelihood!(obj)
+            optimizelocalBL_LiNC!(obj, obj.net.edge[length(obj.net.edge)], verbose, ftolRel, ftolAbs,
+                              xtolRel, xtolAbs) # optimize BL after SPR move, keep optimized nearby gammas
+            @debug "addhybrid move resulted in an SPR move:
+            the new hybrid edge was optimized to 1.0 and its partner was deleted from the network"
+            return true
         end
-        @debug "addhybrid move resulted in an SPR move:
-        new hybrid edge was optimized to 1.0 and its partner was deleted from the network"
-        return true # maybe add note saying we did a SPR
     end
     optimizelocalBL_LiNC!(obj, newhybridedge, verbose, ftolRel, ftolAbs,
                               xtolRel, xtolAbs)
@@ -798,7 +791,7 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     else # keep hybrid
         majhyb.length = len0
         setGamma!(minorhybridedge, γ0)
-        updateSSM_priorltw!(obj)
+        updateSSM_priorltw!(obj) # displayedtree will be correct here
         obj.loglik = currLik # restore to likelihood before move
         return false
     end
@@ -873,7 +866,8 @@ function updateSSM!(obj::SSM, renumber=false::Bool;
     return obj
 end
 
-# Warning: requires displayed trees are correct. if needed, call updatedisplayedtrees
+# Warning: requires displayed trees are correct.
+         # If they are not, call updatedisplayedtrees!() below
 function updateSSM_priorltw!(obj::SSM)
     pltw = obj.priorltw
     resize!(pltw, length(obj.displayedtree))
@@ -1038,9 +1032,7 @@ Warning: always pass a shallow copy of edges using copy().
 function optimizeBL_LiNC!(obj::SSM, edges::Vector{Edge}, verbose::Bool,
     ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
     maxeval=1000::Int)
-    @debug "at start of optimizeBL, loglik = $(obj.loglik)"
     startlik = discrete_corelikelihood!(obj)
-    @debug "after running discrete_corelikelihood, loglik = $(obj.loglik)"
     if !isempty(obj.net.hybrid)
         for i in length(edges):-1:1 # remove constrained edges from edges
             @inbounds e = edges[i]

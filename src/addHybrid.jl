@@ -89,8 +89,9 @@ function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool
             push!(blacklist, (e1,e2))
             continue
         end
-        ## check for no hybrid ladder, if requested: edge2 cannot be a hybrid
-        if nohybridladder && edge2.hybrid
+        ## check for no hybrid ladder, if requested:
+         # edge2 cannot be a hybrid edge or the child of a hybrid node
+        if nohybridladder && (edge2.hybrid || getParent(edge2).hybrid)
             push!(blacklist, (e1,e2))
             continue
         end
