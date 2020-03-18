@@ -231,7 +231,7 @@ function phyLiNC!(obj::SSM;
     tstart = time_ns()
     startingnet = obj.net #? is this needed? if so, shouldn't it be a deepcopy?
     startingconstraints = constraints
-    bestnet = Distributed.pmap(1:nruns) do i # for i in 1:nruns
+    netvector = Distributed.pmap(1:nruns) do i # for i in 1:nruns
         msg = "BEGIN PhyLiNC run $(i)\nseed = $(seeds[i])\ntime = $(Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s"))\n"
         if writelog_1proc # workers can't write on streams opened by master
             write(logfile, msg)
@@ -241,6 +241,8 @@ function phyLiNC!(obj::SSM;
         GC.gc()
         try
             obj.net = deepcopy(startingnet)
+            obj.model = deepcopy(obj.model)
+            obj.ratemodel = deepcopy(obj.ratemodel)
             constraints = deepcopy(startingconstraints) # problem: nodes were copied on previous line. when nodes copied again on this line, they are now different
             phyLiNCone!(obj, maxhybrid, no3cycle, nohybridladder, maxmoves,
                         nreject, verbose, writelog_1proc, logfile, seeds[i], probST,
@@ -255,7 +257,7 @@ function phyLiNC!(obj::SSM;
                 flush(logfile)
             end
             obj.net.loglik = obj.loglik
-            return obj.net
+            return [obj.net, obj.model, obj.ratemodel]
         catch err
             msg = "\nERROR found on PhyLiNC for run $(i) seed $(seeds[i]):\n" *
                   sprint(showerror,err)
@@ -279,16 +281,22 @@ function phyLiNC!(obj::SSM;
     if writelog
         write(logfile, msg)
     elseif verbose print(stdout, msg); end
+
     # post processing of the networks
-    filter!(n -> n !== nothing, bestnet) # remove "nothing": failed runs
-    !isempty(bestnet) || error("all runs failed")
-    sort!(bestnet, by = x -> x.loglik, rev=true)
-    @debug "loglik from all runs:" [n.loglik for n in bestnet]
-    maxnet = bestnet[1]::HybridNetwork # tell type to compiler
-    obj.net = maxnet
-    logstr = "Best topology:\n$(writeTopology(maxnet))\n" *
+        # netvector is vector of vectors where each vector holds [net, model, ratemodel] (sucessful) or nothing (failed)
+        # type = Array{Union{Nothing, Array{Int64,1}},1}
+    filter!(n -> n !== nothing, netvector) # remove "nothing": failed runs
+    !isempty(netvector) || error("all runs failed")
+    sort!(netvector, by = x -> x[1].loglik, rev=true)
+    @debug "loglik from all runs:" [n[1].loglik for n in netvector]
+    obj.net = netvector[1][1]::HybridNetwork # best network, tell type to compiler
+    obj.model = netvector[1][2]
+    obj.ratemodel = netvector[1][3]
+    obj.loglik = obj.net.loglik
+    updateSSM!(obj, true; constraints = constraints) # topology has changed, need to update displayedtree, priorltw
+    logstr = "Best topology:\n$(writeTopology(obj.net))\n" *
               "with substitution and rate variation models:\n" * string(obj.model) *
-              string(obj.ratemodel) * "---------------------\n" *
+              string(obj.ratemodel) * "---------------------\n" * "obj.loglik = $(obj.loglik)\n" *
               "Starting final optimization of branch lengths and gammas on this network.\n"
     if writelog
         write(logfile, logstr)
@@ -301,7 +309,7 @@ function phyLiNC!(obj::SSM;
     toptimend = time_ns() # in nanoseconds
     telapsed = round(convert(Int, toptimend-tstart) * 1e-9, digits=2) # in seconds
     logstr = "Final log-likelihood: $(obj.loglik)\n" *
-             "Final network:\n" * "$(writeTopology(maxnet))\n\n" *
+             "Final network:\n" * "$(writeTopology(obj.net))\n\n" *
              "Total time elapsed: $telapsed seconds (includes final branch length and gamma optimization)\n" *
              "Final time: " * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s") * "\n"
     if writelog
@@ -599,8 +607,8 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
         savedlen = [e.length for e in savededges]
         savedgam = [e.gamma for e in savededges]
         updateSSM!(obj)
-        optimizelocalBL_LiNC!(obj, e1, verbose, ftolRel,ftolAbs,xtolRel,xtolAbs)
         optimizelocalgammas_LiNC!(obj, e1, verbose, ftolAbs, γcache)
+        optimizelocalBL_LiNC!(obj, e1, verbose, ftolRel,ftolAbs,xtolRel,xtolAbs)
         if obj.loglik - currLik < likAbs
             nni!(undoinfo...) # undo move
             obj.displayedtree = saveddisplayedtree # restore displayed trees and weights
@@ -614,7 +622,7 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
         else
             for h in obj.net.hybrid # check for gammas close to zero
                 minorhybridedge = getMinorParentEdge(h)
-                if minorhybridedge.gamma < 1e-7 # delete this edge, updateSSM!
+                if minorhybridedge.gamma < 1e-7 # delete this edge, updateSSM
                     deletehybridedge!(obj.net, minorhybridedge, false, true) # don't keep nodes; unroot
                     updateSSM!(obj, true; constraints=constraints) # renumber = true
                     discrete_corelikelihood!(obj) # deleting hybrid may change likelihood
@@ -783,7 +791,7 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     majhyb = getMajorParentEdge(hybridnode)
     len0 = majhyb.length # to restore later if deletion rejected
     optimizeBL_LiNC!(obj, [majhyb], verbose, ftolRel,ftolAbs,xtolRel,xtolAbs)
-    # don't optimize gammas: because we want to constrain one to 0
+    # don't optimize gammas: because we want to constrain one of them to 0.0
     if obj.loglik - currLik > likAbsDelHybLiNC # -0.1: loglik can decrease for parsimony
         deletehybridedge!(obj.net, minorhybridedge, false, true) # don't keep nodes; unroot
         updateSSM!(obj, true; constraints=constraints) # obj.loglik updated by optimizeBL_LiNC above
