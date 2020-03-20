@@ -932,16 +932,16 @@ function P!(Pmat::AbstractMatrix, obj::HKY85, t::Float64)
     P_GG = piG + ((piG * piY)/piR) * e2 + (piA/piR) * e3
     P_TT = piT + ((piT * piR)/piY) * e2 + (piC/piY) * e4
 
-    P_TA_CA = piA * (1 - e2) #double name because TA and CA are equal
+    P_TA_CA = piA * (1.0 - e2) #double name because TA and CA are equal
     P_GA = piA + (piA*piY/piR)*e2 - (piA/piR)*e3 #P6
 
-    P_AC_GC = piC * (1 - e2) #double name because AC and GC are equal #p7
+    P_AC_GC = piC * (1.0 - e2) #double name because AC and GC are equal #p7
     P_TC = piC + ((piC * piR)/piY) * e2 - (piC/piY) * e4
 
     P_AG = piG + ((piG * piY)/piR) * e2 - (piG/piR) * e3 #p9
-    P_TG_CG = piG * (1 - e2) #double name because TG and CG are equal #p10
+    P_TG_CG = piG * (1.0 - e2) #double name because TG and CG are equal #p10
 
-    P_AT_GT = piT * (1 - e2) #double name because AT and GT are equal #P11
+    P_AT_GT = piT * (1.0 - e2) #double name because AT and GT are equal #P11
     P_CT = piT + ((piT * piR)/piY) * e2 - (piT/piY) * e4
 
     Pmat[1,1] = P_AA
@@ -964,6 +964,20 @@ function P!(Pmat::AbstractMatrix, obj::HKY85, t::Float64)
     Pmat[4,1] = P_AT_GT
     Pmat[4,2] = P_CT
     Pmat[4,3] = P_AT_GT
+
+    if any(Pmat .< 0.0) # check for negative values in matrix
+        for row in 1:4
+            for col in 1:4
+                if Pmat[row, col] < -10e-10
+                    @show Pmat[row, col]
+                    error("negative transition probability in HKY85 P matrix")
+                elseif Pmat[row, col] < 0.0
+                    @debug "replacing negative transition probability in HKY P matrix"
+                    Pmat[row, col] = 0.0
+                end
+            end
+        end
+    end
     return Pmat
 end
 

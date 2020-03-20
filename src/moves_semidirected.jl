@@ -587,6 +587,8 @@ These are interpreted as:
   * u hybrid, v not hybrid, α -> u <- v -> δ
 - Because of this, `nni(αu,u,uv,v,vδ, ...)` should not be used directly;
   use instead `nni!(net, uv, move_number)`.
+- nni!(undoinfo...) restores the topology, but edges below hybrid nodes will now
+have length 0.0 even if they didn't before.
 
 Node numbers and edge numbers are not modified.
 Edge `uv` keeps its direction unchanged *unless* the directions were
@@ -597,8 +599,8 @@ The second version's input has the same signature as the output, but
 will undo the NNI more easily. This means that if `output = nni!(input)`,
 then `nni!(output...)` is valid and undoes the first operation.
 
-Right now, branch lengths are not modified. Future versions might implement
-options to modify branch lengths.
+Right now, branch lengths are not modified except when below a hybrid node.
+Future versions might implement options to modify branch lengths.
 """
 function nni!(αu::Edge, u::Node, uv::Edge, v::Node, vδ::Edge)
     # find indices to detach αu from u, and to detach v from vδ

@@ -262,7 +262,7 @@ julia> fitJC69 = fitdiscrete(net, mJC69, tips)
 PhyloNetworks.StatisticalSubstitutionModel:
 Jukes and Cantor 69 Substitution Model,
 absolute rate version
-off-diagonal rates equal to 0.29234/3.
+off-diagonal rates equal to 0.29233/3.
 rate matrix Q:
                A       C       G       T
        A       *  0.0974  0.0974  0.0974
@@ -278,6 +278,7 @@ Rate Variation Across Sites using Discretized Gamma Model
 alpha: 1.0
 categories for Gamma discretization: 4
 ratemultiplier: [0.14578, 0.51313, 1.07083, 2.27025]
+
 
 julia> fitdiscrete(net, mJC69, rv, tips; optimizeQ=false, optimizeRVAS=false)
 PhyloNetworks.StatisticalSubstitutionModel:
@@ -297,6 +298,7 @@ variable rates across sites ~ discretized gamma with
  rate multipliers: [0.14578, 0.51313, 1.07083, 2.27025]
 on a network with 0 reticulations
 log-likelihood: -5.2568
+
 ```
 fixit: add option to allow users to specify root prior,
 using either equal frequencies or stationary frequencies for trait models.
@@ -878,7 +880,7 @@ julia> dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"]);
 julia> fit1 = fitdiscrete(net, m1, dat);
 
 julia> asr = ancestralStateReconstruction(fit1)
-9×4 DataFrames.DataFrame
+9×4 DataFrame
 │ Row │ nodenumber │ nodelabel │ lo       │ hi       │
 │     │ Int64      │ String    │ Float64  │ Float64  │
 ├─────┼────────────┼───────────┼──────────┼──────────┤
@@ -886,10 +888,10 @@ julia> asr = ancestralStateReconstruction(fit1)
 │ 2   │ 2          │ B         │ 1.0      │ 0.0      │
 │ 3   │ 3          │ C         │ 0.0      │ 1.0      │
 │ 4   │ 4          │ D         │ 0.0      │ 1.0      │
-│ 5   │ 5          │ 5         │ 0.286019 │ 0.713981 │
+│ 5   │ 5          │ 5         │ 0.286018 │ 0.713982 │
 │ 6   │ 6          │ 6         │ 0.319454 │ 0.680546 │
-│ 7   │ 7          │ 7         │ 0.168549 │ 0.831451 │
-│ 8   │ 8          │ 8         │ 0.76736  │ 0.23264  │
+│ 7   │ 7          │ 7         │ 0.168548 │ 0.831452 │
+│ 8   │ 8          │ 8         │ 0.767361 │ 0.232639 │
 │ 9   │ 9          │ H1        │ 0.782777 │ 0.217223 │
 
 julia> using PhyloPlots

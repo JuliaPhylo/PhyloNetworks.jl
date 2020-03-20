@@ -336,7 +336,7 @@ Warnings:
 function deletehybridedge!(net::HybridNetwork, edge::Edge,
                            nofuse=false::Bool, unroot=false::Bool,
                            multgammas=false::Bool)
-    #todo: if we want to keep a root of degree one, we would need to add an option
+    #fixit: if we want to keep a root of degree one, we would need to add an option
          # to deletehybridedge to truly keep all node. (Currently, it keeps all
          # nodes that have data below.)
     edge.hybrid || error("edge $(edge.number) has to be hybrid for deletehybridedge!")
