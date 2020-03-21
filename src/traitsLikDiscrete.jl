@@ -54,6 +54,8 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
     forwardlik::Array{Float64,2} # size: k, net.numNodes
     directlik::Array{Float64,2}  # size: k, net.numEdges
     backwardlik::Array{Float64,2}# size: k, net.numNodes
+    "log-likelihood of site k"
+    _sitecache::Array{Float64,1} # size: nsites
     "log-likelihood of ith displayed tree t, given rate category j, of site k"
     _loglikcache::Array{Float64, 3} # size: ntrees, nrates, nsites
 
@@ -94,11 +96,12 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
         forwardlik = zeros(Float64, k, maxnodes)
         directlik  = zeros(Float64, k, maxedges)
         backwardlik= zeros(Float64, k, maxnodes)
+        _sitecache = Vector{Float64}(undef, nsites)
         _loglikcache = zeros(Float64, ntrees, length(ratemodel.ratemultiplier), nsites)
         new(deepcopy(model), deepcopy(ratemodel), prioratroot,
             net, trait, nsites, siteweight, totalsiteweight, missing, # missing log likelihood
             logtrans, trees,
-            priorltw, forwardlik, directlik, backwardlik, _loglikcache)
+            priorltw, forwardlik, directlik, backwardlik,_sitecache,_loglikcache)
     end
 end
 const SSM = StatisticalSubstitutionModel
@@ -604,12 +607,14 @@ function discrete_corelikelihood!(obj::SSM; whichtrait::AbstractVector{Int} = 1:
     obj._loglikcache[1:nt,:,:] .+= obj.priorltw
     # obj._loglikcache .-= log(nr)
     # done below in 1 instead ntrees x nrates x nsites calculations, but _loglikcache not modified
-    siteliks = dropdims(mapslices(logsumexp, view(obj._loglikcache, 1:nt, :,:),
-                                  dims=[1,2]); dims=(1,2))
-    if obj.siteweight !== nothing
-        siteliks .*= obj.siteweight
+    for ci in whichtrait
+        obj._sitecache[ci] = logsumexp(view(obj._loglikcache, 1:nt,:,ci))
     end
-    loglik = sum(siteliks)
+    # siteliks = dropdims(mapslices(logsumexp, view(obj._loglikcache, 1:nt,:,:), dims=[1,2]); dims=(1,2))
+    if obj.siteweight !== nothing
+        obj._sitecache .*= obj.siteweight
+    end
+    loglik = sum(obj._sitecache)
     loglik -= log(nr) * obj.totalsiteweight
     obj.loglik = loglik
     return loglik

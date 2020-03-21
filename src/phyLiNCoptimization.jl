@@ -23,8 +23,6 @@ struct CacheGammaLiNC
     clike::Vector{Float64}
     "conditional likelihood under partner edge, length nsites"
     clikp::Vector{Float64}
-    "unconditional likelihood, length nsites"
-    ulik::Vector{Float64}
     """whether displayed trees have the focus hybrid edge (true)
        the partner edge (false) or none of them (missing),
        which can happen on non-tree-child networks"""
@@ -32,7 +30,6 @@ struct CacheGammaLiNC
 end
 function CacheGammaLiNC(obj::SSM)
     CacheGammaLiNC(
-        Vector{Float64}(undef, obj.nsites),
         Vector{Float64}(undef, obj.nsites),
         Vector{Float64}(undef, obj.nsites),
         Vector{Union{Missing, Bool}}(undef, length(obj.displayedtree))
@@ -1238,7 +1235,7 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
     partnernum = partner.number
     clike = cache.clike # conditional likelihood under focus edge
     clikp = cache.clikp # conditional likelihood under partner edge
-    ulik  = cache.ulik  # unconditional likelihood and more
+    ulik  = obj._sitecache  # unconditional likelihood and more
     fill!(clike, 0.0); fill!(clikp, 0.0)
     nt, hase = updatecache_hase!(cache, obj, edgenum, partnernum)
     γ0 = focusedge.gamma
