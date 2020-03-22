@@ -593,8 +593,13 @@ are no nni moves possible in the network.
 
 For arguments, see [`phyLiNC!`](@ref).
 
-Assumptions:
-- called by [`optimizestructure!`](@ref) or [`phyLiNC!`](@ref)
+Called by [`optimizestructure!`](@ref), which is called by [`phyLiNC!`](@ref).
+
+Note: an RR move does not change the best likelihood. RR means that there's
+a hybrid ladder, so it looks like a hard polytomy at the reticulation after
+unzipping. Theoretically, we could avoid the re-optimizing the likelihood
+accept the move: just change inheritance values to get same likelihood,
+and update the tree priors. *Not* done.
 """
 function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
                   verbose::Bool,

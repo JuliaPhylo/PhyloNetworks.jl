@@ -743,7 +743,7 @@ To get all parent *nodes*: see [`getParents`](@ref).
 function getChildren(node::Node)
     children = Node[]
     for e in node.edge
-        if node == getParent(e)
+        if node === getParent(e)
             push!(children, getChild(e))
         end
     end
@@ -922,6 +922,11 @@ one descendant leaf, even if they are of degree 2.
 This will keep two-cycles (forcing `simplify` to false).
 Nodes without any descendant leaves are deleted.
 If `nofuse` is false, edges adjacent to degree-2 nodes are fused.
+
+`multgammas`: if true, the fused edge has γ equal to the product of
+the hybrid edges that have been fused together, which may result in
+tree edges with γ<1, or with reticulations in which the two parent
+γ don't add up to 1.
 
 Warning: does **not** update attributes related to level-1 networks,
 such as inCycle, partition, gammaz, etc.

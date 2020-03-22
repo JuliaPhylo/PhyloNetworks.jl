@@ -303,26 +303,29 @@ The network does not have to be of level 1 and may contain polytomies,
 although each hybrid node must have exactly 2 parents.
 Branch lengths are updated, allowing for missing values.
 
-If `nofuse` is true, edges (with descendant leaves) are kept as is and are not fused.
-Nodes are retained during edge removal, provided that they have at least one descendant leaf.
-Otherwise, when `edge` is removed, its child (hybrid) node is removed, and
-its partner hybrid edge is removed. Its child edge is retained (below the hybrid node),
-fused with the former partner,
+If `nofuse` is false, when `edge` is removed, its child (hybrid) node is removed
+and its partner hybrid edge is removed.
+Its child edge is retained (below the hybrid node), fused with the former partner,
 with new length: old length + length of `edge`'s old partner.
+Any 2-cycle is simplified into a single tree edge.
 
-If `nofuse` is true, edges are kept as is, and 2-cycles are not simplified.
+If `nofuse` is true, edges with descendant leaves are kept as is,
+and are not fused. Nodes are retained during edge removal,
+provided that they have at least one descendant leaf.
+The hybrid edge that is partner to `edge` becomes a tree edge,
+but has its γ value unchanged (it is not set to 1), since it is not merged
+with its child edge after removal of the reticulation.  
+Also, 2-cycles are not simplified if `nofuse` is true.
 That is, if we get 2 hybrid edges both from the same parent to the same child,
 these hybrid edges are retained without being fused into a single tree edge.
-If `nofuse` is false, any 2-cycle is simplified into a single tree edge.
 
 If `unroot` is false and if the root is up for deletion during the process,
 it will be kept if it's of degree 2 or more.
 A root node of degree 1 will be deleted.
 
-If `multgammas` is false: inheritance weights are kept.
-If there is no hybrid ladder: the partner hybrid edge becomes a tree edge,
-but has its γ value unchanged (it is not set to 1).
-If there is a hybrid ladder, the partner hybrid edge remains a hybrid edge
+If `multgammas` is true: inheritance weights are kept by multiplying together
+the inheritance γ's of edges that are merged. For example,
+if there is a hybrid ladder, the partner hybrid edge remains a hybrid edge
 (with a new partner), and its γ is the product of the two hybrid edges
 that have been fused. So it won't add up to 1 with its new partner's γ.
 
@@ -353,13 +356,13 @@ function deletehybridedge!(net::HybridNetwork, edge::Edge,
     # alternatively: error if degree < 2 or leaf,
     #   warning if degree=2 and internal node, then
     #   delete_n1_recursively = true # n1 doesn't need to be detached first
-    elseif n1degree == 3 && !nofuse # then fuse 2 of the nodes and detach n1
+    elseif n1degree == 3 && !nofuse # then fuse 2 of the edges and detach n1
         delete_n1_recursively = true
         pe = nothing # will be other parent (hybrid) edge of n1
         ce = nothing # will be child edge of n1, to be merged with pe
         for e in n1.edge
-            if e.hybrid && e!==edge && n1==getChild(e) pe = e; end
-            if !e.hybrid || n1==getParent(e)  ce = e; end # does *not* assume correct isChild1 for tree edges :)
+            if e.hybrid && e!==edge && n1===getChild(e) pe = e; end
+            if !e.hybrid || n1===getParent(e)  ce = e; end # does *not* assume correct isChild1 for tree edges :)
         end
         pn = getParent(pe); # parent node of n1, other than n2
         atRoot = (net.node[net.root] ≡ n1) # n1 should not be root, but if so, pn will be new root

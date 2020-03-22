@@ -265,7 +265,7 @@ If not a hybrid, returns the first child edge.
 """
 @inline function getChildEdge(node::Node)
     for e in node.edge
-        if node == getParent(e)
+        if node === getParent(e)
             return e
         end
     end
@@ -833,7 +833,7 @@ end
 
 Set the length of `edge`, and set `edge.y` and `edge.z` accordingly.
 Warning: specific to SNaQ. Use [`setlengths!`](@ref) or [`setBranchLength!`](@ref)
-for a more general tools.
+for more general tools.
 
 - The new length is censored to 10: if the new length is above 10,
   the edge's length will be set to 10. Lengths are interpreted in coalescent
@@ -1465,6 +1465,7 @@ Return true if `net` contains a 2-cycle or a 3-cycle; false otherwise.
 A 3-cycle (2-cycle) is a set of 3 (2) nodes that are all connected.
 One of them must be a hybrid node, since `net` is a DAG.
 
+**Warning**: despite the name (not ending with !) `net` might be modified.
 If `removecycles` is true, `net` is modified to contract all 2- and 3-cycles
 that have been found, by deleting the minor hybrid edge in these cycles.
 """

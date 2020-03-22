@@ -4,29 +4,34 @@
 """
     addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
                    constraints=TopologyConstraint[]::Vector{TopologyConstraint};
-                   maxattempts=10::Int)
+                   maxattempts=10::Int, fixroot=false::Bool)
 
 Randomly choose two edges in `net` then: add hybrid edge from edge 1 to edge 2
-and randomly decide which "half" of edge 2 will serve as partner hybrid edge.
-This partner edge will point toward the newly-created node
-on the middle of the original edge 2.
+of length 0.01. The two halves of edge 1 (and of edge 2) have equal lengths.
+The hybrid partner edge (top half of edge 2, if fixroot is true) will point
+towards the newly-created node on the middle of the original edge 2.
 
 If the resulting network is a DAG, satisfies the constraint(s),
 does not contain any 3-cycle (if `no3cycle=true`), and does not have
 a hybrid ladder (if `nohybridladder=true`) then the proposal is successful:
-`net` is modified, and the function returns the newly created hybrid node.
+`net` is modified, and the function returns the newly created hybrid node and
+newly created hybrid edge.
 
 If the resulting network is not acceptable, then a new set of edges
-is proposed (using a blacklist), until one is found acceptable, or until
+is proposed (using a blacklist) until one is found acceptable, or until
 a maximum number of attempts have been made (`maxattempts`).
 If none of the attempted proposals are successful, `nothing` is returned
 (without causing an error).
 
 After a pair of edges is picked, the "top" half of edge2 is proposed
-as the partner hybrid edge with probability 0.8
-(to avoid changing the direction of edge2 with more than 50% chance).
-If this choice does not work, the "bottom" half of edge2 is proposed as
-the partner hybrid edge (which would require to flip the direction of edge 2).
+as the partner hybrid edge with probability 0.8 if `fixroot` is false,
+(to avoid changing the direction of edge2 with more than 50% chance)
+and with probability 1.0 if `fixroot` is true.
+If this choice does not work and if `fixroot` is false,
+the other half of edge2 is proposed as the partner hybrid edge.
+Note that choosing the "bottom" half of edge2 as the partner edge
+requires to flip the direction of edge 2, and to move the root accordingly
+(to the original child of edge2).
 
 # examples
 

@@ -456,6 +456,10 @@ Returns the network.
 - if threshold=0.5: delete all minor hybrid edges (i.e normally with γ < 0.5, if γ non-missing)
 - `nofuse`: if true, do not fuse edges and keep original nodes.
 - `unroot`: if false, the root will not be deleted if it becomes of degree 2.
+- `multgammas`: if true, the modified edges have γ values equal to the
+  proportion of genes that the extracted subnetwork represents. For an edge `e`
+  in the modified network, the inheritance γ for `e` is the product of γs
+  of all edges in the original network that have been merged into `e`.
 
 Warnings:
 
@@ -520,9 +524,12 @@ Returns an array of trees, as HybridNetwork objects.
 
 `nofuse`: if true, do not fuse edges (keep degree-2 nodes) during hybrid edge removal.
 `unroot`: if false, the root will not be deleted if it becomes of degree 2.
-`multgammas`: if false, the edges in the displayed trees will keep their
-original γ's, such that their product represents the proportion of
-genes that the tree represents.
+`multgammas`: if true, the edges in the displayed trees have γ values
+  equal to the proportion of genes that the edge represents, even though all
+  these edges are tree edges. The product of all the γ values across all edges
+  is the proportion of genes that the tree represents. More specifically,
+  edge `e` in a given displayed tree has γ equal to the product of γs
+  of all edges in the original network that have been merged into `e`.
 
 Warnings:
 
@@ -655,7 +662,7 @@ end
 
 
 """
-`hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, rooted::Bool)`
+    hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, rooted::Bool)
 
 Takes 2 networks and returns their hardwired cluster distance, that is,
 the number of hardwired clusters found in one network and not in the other.

@@ -240,28 +240,26 @@ end
 
 Update fields stem `edge` and crown `node` to match the given `net`.
 
-Assumes that `net` is numbered identically to the network used to create all
-constraints in vector `constraints`.
+Assumes that the constraints are still met in `net`,
+and that nodes & edges are numbered identically in `net` as in the network
+used to create all `constraints`.
 
-Warning: If we allow NNIs inside a clade constraint, the crown node and or edge node
-numbers might change (u and v exchange). We might want to check this. #fixit
+fixit: remove the assumption that constraints are still met, since
+an NNI near the crown of a constrained clade might change the crown node
+and / or the stem edge (u and v exchange).
 """
 function updateconstraintfields!(constraints::Vector{TopologyConstraint}, net::HybridNetwork)
     for con in constraints
-        # find edge
-        con.edge = net.edge[findfirst([e.number == con.edge.number for e in net.edge])]
-        # find crown
-        con.node = net.node[findfirst([n.number == con.node.number for n in net.node])]
+        num = con.edge.number
+        con.edge = net.edge[findfirst([e.number == num for e in net.edge])]
+        num = con.node.number
+        con.node = net.node[findfirst([n.number == num for n in net.node])]
     end
 end
 
 
-#= TODO
-- add option to modify branch lengths during NNI:
-  `nni!` that take detailed input, and output of same signature
-- RR move, during optimization: avoid the re-optimization of the likelihood.
-  accept the move, just change inheritance values to get same likelihood
-  (still update direct / forward likelihoods and tree priors?)
+#=
+nice to add: option to modify branch lengths during NNI
 =#
 
 """
