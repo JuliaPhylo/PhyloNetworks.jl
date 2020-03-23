@@ -1346,7 +1346,7 @@ function logLik_lam(lam::AbstractFloat,
     return res
 end
 
-# Code for optim taken from PhyloNetworks.jl/src/snaq_optimization.jl, lines 276 - 331
+# Code for optim taken from src/snaq_optimization.jl
 const fAbsTr = 1e-10
 const fRelTr = 1e-10
 const xAbsTr = 1e-10

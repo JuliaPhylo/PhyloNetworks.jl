@@ -204,13 +204,12 @@ rate matrix Q:
        T  0.3226  0.2419  0.4839       *
 
 
-
-julia> PhyloNetworks.P(m1, 3.0)
+julia> PhyloNetworks.P(m1, 0.2)
 4×4 StaticArrays.MArray{Tuple{4,4},Float64,2,16} with indices SOneTo(4)×SOneTo(4):
- 0.217509  0.198417  0.190967  0.198417
- 0.297625  0.312992  0.297625  0.28645
- 0.28645   0.297625  0.312992  0.297625
- 0.198417  0.190967  0.198417  0.217509
+ 0.81592    0.0827167  0.0462192  0.0551445
+ 0.0551445  0.831326   0.0827167  0.0308128
+ 0.0308128  0.0827167  0.831326   0.0551445
+ 0.0551445  0.0462192  0.0827167  0.81592  
 ```
 
 Juke-Cantor example:
@@ -245,10 +244,10 @@ Binary Trait Substitution Model:
 rate low→high α=1.0
 rate high→low β=2.0
 
-julia> PhyloNetworks.P!(Matrix{Float64}(undef,2,2), m1, 3.0) # fills an uninitialized 2x2 matrix of floats
+julia> PhyloNetworks.P!(Matrix{Float64}(undef,2,2), m1, 0.3) # fills an uninitialized 2x2 matrix of floats
 2×2 Array{Float64,2}:
- 0.666708  0.333292
- 0.666584  0.333416
+ 0.80219  0.19781
+ 0.39562  0.60438
 
 julia> m2 = JC69([1.]);
 
@@ -812,12 +811,12 @@ function seteigeninfo!(obj::HKY85)
     obj.eigeninfo[4] = piR
     obj.eigeninfo[5] = piY
 
-    a = obj.rate[1]
+    a = obj.rate[1] # relative: a = kappa. absolute: a = kappa*b
     if obj.relative
-        lambda = 2*a*(piT*piC + piA*piG) + 2*(piY*piR) #for sub/year interpretation
-        b = 1.0/lambda #scaling factor so that branch lengths can be interpreted as substitutions
-        obj.eigeninfo[2] = -((piR * a*b) + (piY * b))
-        obj.eigeninfo[3] = -((piY * a*b) + (piR * b))
+        # b=1/lambda: scaling factor to have branch lengths in substitutions/site
+        b = 1.0 / (2*a*(piT*piC + piA*piG) + 2*(piY*piR))
+        obj.eigeninfo[2] = - (piR * a + piY) * b # lambda_R
+        obj.eigeninfo[3] = - (piY * a + piR) * b # lambda_Y
     else
         b = obj.rate[2]
         obj.eigeninfo[2] = -((piR * a) + (piY * b))
@@ -922,62 +921,50 @@ function P!(Pmat::AbstractMatrix, obj::HKY85, t::Float64)
     piA = obj.pi[1]; piC = obj.pi[2]; piG = obj.pi[3]; piT = obj.pi[4]
     piR = obj.eigeninfo[4]
     piY = obj.eigeninfo[5]
-
-    e2 = exp(obj.eigeninfo[1] * t)
-    e3 = exp(obj.eigeninfo[2] * t)
-    e4 = exp(obj.eigeninfo[3] * t)
-
-    P_AA = piA + ((piA * piY)/piR) * e2 + (piG/piR) * e3
-    P_CC = piC + ((piC * piR)/piY) * e2 + (piT/piY) * e4
-    P_GG = piG + ((piG * piY)/piR) * e2 + (piA/piR) * e3
-    P_TT = piT + ((piT * piR)/piY) * e2 + (piC/piY) * e4
-
-    P_TA_CA = piA * (1.0 - e2) #double name because TA and CA are equal
-    P_GA = piA + (piA*piY/piR)*e2 - (piA/piR)*e3 #P6
-
-    P_AC_GC = piC * (1.0 - e2) #double name because AC and GC are equal #p7
-    P_TC = piC + ((piC * piR)/piY) * e2 - (piC/piY) * e4
-
-    P_AG = piG + ((piG * piY)/piR) * e2 - (piG/piR) * e3 #p9
-    P_TG_CG = piG * (1.0 - e2) #double name because TG and CG are equal #p10
-
-    P_AT_GT = piT * (1.0 - e2) #double name because AT and GT are equal #P11
-    P_CT = piT + ((piT * piR)/piY) * e2 - (piT/piY) * e4
-
+    # expm1(x) = e^x-1 accurately. important when t is small
+    ebm1 = expm1(obj.eigeninfo[1] * t) # -b eigevalue
+    eRm1 = expm1(obj.eigeninfo[2] * t) # lambda_R
+    eYm1 = expm1(obj.eigeninfo[3] * t) # lambda_Y
+    # transversions
+    P_TA_CA = - piA * ebm1 # C or T -> A: P{A|T} = P{A|C}
+    P_AC_GC = - piC * ebm1 # P{C|A} = P{C|G}
+    P_TG_CG = - piG * ebm1 # P{G|T} = P{G|C}
+    P_AT_GT = - piT * ebm1 # P{T|A} = P{T|G}
+    # transitions: A<->G (R) or C<->T (Y)
+    tmp = (ebm1 * piY - eRm1) / piR
+    P_GA = piA * tmp # P{A|G}
+    P_AG = piG * tmp # P{G|A}
+    tmp = (ebm1 * piR - eYm1) / piY
+    P_TC = piC * tmp # P{C|T}
+    P_CT = piT * tmp # P{T|C}
+    # no change
+    transv = P_AC_GC + P_AT_GT # transversion to Y: - piY * ebm1
+    P_AA = 1.0 - P_AG - transv
+    P_GG = 1.0 - P_GA - transv
+    transv = P_TA_CA + P_TG_CG # transversion to R
+    P_CC = 1.0 - P_CT - transv
+    P_TT = 1.0 - P_TC - transv
+    # fill in the P matrix
     Pmat[1,1] = P_AA
     Pmat[2,2] = P_CC
     Pmat[3,3] = P_GG
     Pmat[4,4] = P_TT
-
-    Pmat[1,2] = P_TA_CA
-    Pmat[1,3] = P_GA
-    Pmat[1,4] = P_TA_CA
-
-    Pmat[2,1] = P_AC_GC
-    Pmat[2,3] = P_AC_GC
-    Pmat[2,4] = P_TC
-
-    Pmat[3,1] = P_AG
-    Pmat[3,2] = P_TG_CG
-    Pmat[3,4] = P_TG_CG
-
-    Pmat[4,1] = P_AT_GT
-    Pmat[4,2] = P_CT
-    Pmat[4,3] = P_AT_GT
-
-    if any(Pmat .< 0.0) # check for negative values in matrix
-        for row in 1:4
-            for col in 1:4
-                if Pmat[row, col] < -10e-10
-                    @show Pmat[row, col]
-                    error("negative transition probability in HKY85 P matrix")
-                elseif Pmat[row, col] < 0.0
-                    @debug "replacing negative transition probability in HKY P matrix"
-                    Pmat[row, col] = 0.0
-                end
-            end
-        end
-    end
+    # to A: j=1
+    Pmat[2,1] = P_TA_CA
+    Pmat[3,1] = P_GA
+    Pmat[4,1] = P_TA_CA
+    # to C: j=2
+    Pmat[1,2] = P_AC_GC
+    Pmat[3,2] = P_AC_GC
+    Pmat[4,2] = P_TC
+    # to G: j=3
+    Pmat[1,3] = P_AG
+    Pmat[2,3] = P_TG_CG
+    Pmat[4,3] = P_TG_CG
+    # to T: j=4
+    Pmat[1,4] = P_AT_GT
+    Pmat[2,4] = P_CT
+    Pmat[3,4] = P_AT_GT
     return Pmat
 end
 

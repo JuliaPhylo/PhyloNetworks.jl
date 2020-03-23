@@ -395,10 +395,11 @@ function readFastaToArray(filename::String)
 end
 
 """
-    readfastatodna(filename::String)
+    readfastatodna(filename::String, countPatterns=false::Bool)
 
 Read a fasta file to a dataframe containing a column for each site.
-Calculate weights and remove matching site patterns to reduce matrix dimension.
+If `countPatterns` is true, calculate weights and remove identical
+site patterns to reduce matrix dimension.
 
 Return a tuple containing:
 1. data frame of BioSequence DNA sequences, with taxon names in column 1
