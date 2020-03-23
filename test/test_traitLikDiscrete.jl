@@ -365,6 +365,17 @@ fitJC69 = fitdiscrete(net, mJC69, tips; optimizeQ=true)
 
 # HKY without optimization
     # (confirmed with phangorn function)
+    # R code:
+    # library(phangorn)
+    # states = c(1,1,3,3)
+    # mytree = read.tree(text = "(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);")
+    # names(states)  = mytree$tip.label
+    # states_factor = factor(states, levels=c("1","2","3","4"))
+    # mydata <- as.phyDat(states_factor)
+    # likelihood without optimization
+    # fitHKY_phan <- pml(mytree, mydata, model = "HKY") #this is equivalent to rate = [4/3, 4/3]
+    # print(fitHKY_phan$logLik, digits = 10)
+    # fitHKY_phan$rate #rate = (1.497589, 0.000001)
 mHKY85 = HKY85([4.0/3, 4.0/3], [0.25, 0.25, 0.25, 0.25], false); # absolute
 fitHKY85 = fitdiscrete(net, mHKY85, tips; optimizeQ=false);
 @test loglikelihood(fitHKY85) ≈ -5.365777014 atol = 2e-8 # equivalent to phangorn $logLik
@@ -373,6 +384,20 @@ fitHKY85 = fitdiscrete(net, mHKY85, tips; optimizeQ=false);
 @test loglikelihood(fitHKY85) ≈ -5.365777014 atol = 2e-8 # equivalent to above b/c transversion/transition rates equal
 
 # HKY85 with optimization (confirmed with ape ace() function)
+# NOTE: ace does not include log(#states) in its log-likelihood
+    # R code:
+    # library(ape)
+    # mytree = read.tree(text = "(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);")
+    # states = c(1,1,3,3)
+    # names(states)  = mytree$tip.label
+    # states_factor = factor(states, levels=c("1","2","3","4"))
+    # HKYQ <- matrix(c(0, 2, 1, 2,  #HKY absolute
+    #                    2, 0, 2, 1,
+    #                    1, 2, 0, 2,
+    #                    2, 1, 2, 0), 4)
+    # fitHKY = ace(states_factor, mytree,  type = "discrete", model=HKYQ)
+    # print(fitHKY$loglik - log(4), digits=17) #-3.3569474489525244
+    # print(fitHKY$rates*4, digits=17)
 mHKY85 = HKY85([0.5, 0.1], [0.25, 0.25, 0.25, 0.25], false); # absolute
 fitHKY85 = fitdiscrete(net, mHKY85, tips; optimizeQ=true)
 @test fitHKY85.model.rate[1] ≈ 1.4975887229148119 atol = 2e-4 # equivalent to ape ace() rate * 4
