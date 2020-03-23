@@ -341,39 +341,42 @@ end # end of testing NASMs
 
 @testset "fitdiscrete for NucleicAcidSubsitutionModels & RateVariationAcrossSites" begin
 # test fitdiscrete with NASM #
-#there are 3 alignments in PhyloNetworks/examples
+    # based on 3 alignments in PhyloNetworks/examples
 net = readTopology("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);");
 tips = Dict("A" => BioSymbols.DNA_A, "B" => BioSymbols.DNA_A, "C" => BioSymbols.DNA_G, "D" => BioSymbols.DNA_G);
 
-#without optimization (confirmed with ape ace() function and phangorn)
+# JC without optimization (confirmed with ape ace() function and phangorn)
 mJC69 = JC69(0.2923350741254221, false) #ace() gives Q matrix cell, not rate. lambda = (1.0/3.0)*obj.rate[1] so rate = 3*0.097445024708474035 = 0.2923350741254221
+                                        #phangorn gives rate =  0.292336
 fitJC69 = fitdiscrete(net, mJC69, tips; optimizeQ=false);
-@test loglikelihood(fitJC69) ≈ -4.9927386890207304 atol=2e-6 #ace() from ape pkg and our method agree here. 
+@test loglikelihood(fitJC69) ≈ -4.9927386890207304 atol=2e-6 #ace() from ape pkg and our method agree here.
+                                #from ace() + log(4)
 
-##without optimize at 0.25
+# JC without optimize at 0.25
 mJC69 = JC69([0.25], false)
 fitJC69 = fitdiscrete(net, mJC69, tips; optimizeQ=false);
 @test loglikelihood(fitJC69) ≈ -4.99997 atol=2e-3 #from phangorn
 
-#with optimization (confirmed with ape ace() function and phangorn)
+# JC with optimization (confirmed with ape ace() function and phangorn)
 mJC69 = JC69([0.25], false)
 fitJC69 = fitdiscrete(net, mJC69, tips; optimizeQ=true)
-@test Q(fitJC69.model)[1,2] ≈ 0.097445024708474035 atol = 2e-3 #from ace() in ape pkg
-@test loglikelihood(fitJC69) ≈ -4.9927386890207304 atol=2e-6 #from ace() + log(4)
+@test Q(fitJC69.model)[1,2] ≈ 0.097445024708474035 atol = 2e-3 #confirmed with ace() in ape pkg (ace calls Q matrix rate)
+@test loglikelihood(fitJC69) ≈ -4.9927386890207304 atol=2e-6 #confirmed with ape pkg ace() + log(4) and phangorn optim.pml
 
-#without optimization (confirmed with phangorn function)
-mHKY85 = HKY85([4.0/3, 4.0/3], [0.25, 0.25, 0.25, 0.25], false); #absolute
+# HKY without optimization
+    # (confirmed with phangorn function)
+mHKY85 = HKY85([4.0/3, 4.0/3], [0.25, 0.25, 0.25, 0.25], false); # absolute
 fitHKY85 = fitdiscrete(net, mHKY85, tips; optimizeQ=false);
-@test loglikelihood(fitHKY85) ≈ -5.365777014 atol = 2e-8
-mHKY85 = HKY85([1.0], [0.25, 0.25, 0.25, 0.25], true); #relative
+@test loglikelihood(fitHKY85) ≈ -5.365777014 atol = 2e-8 # equivalent to phangorn $logLik
+mHKY85 = HKY85([1.0], [0.25, 0.25, 0.25, 0.25], true); # relative
 fitHKY85 = fitdiscrete(net, mHKY85, tips; optimizeQ=false);
-@test loglikelihood(fitHKY85) ≈ -5.365777014 atol = 2e-8
+@test loglikelihood(fitHKY85) ≈ -5.365777014 atol = 2e-8 # equivalent to above b/c transversion/transition rates equal
 
-#with optimization (confirmed with ape ace() function)
-mHKY85 = HKY85([0.5, 0.1], [0.25, 0.25, 0.25, 0.25], false); #absolute
+# HKY85 with optimization (confirmed with ape ace() function)
+mHKY85 = HKY85([0.5, 0.1], [0.25, 0.25, 0.25, 0.25], false); # absolute
 fitHKY85 = fitdiscrete(net, mHKY85, tips; optimizeQ=true)
-@test fitHKY85.model.rate[1] ≈ 1.4975887229148119 atol = 2e-4
-@test loglikelihood(fitHKY85) ≈ -3.3569474489525244 atol = 2e-8
+@test fitHKY85.model.rate[1] ≈ 1.4975887229148119 atol = 2e-4 # equivalent to ape ace() rate * 4
+@test loglikelihood(fitHKY85) ≈ -3.3569474489525244 atol = 2e-8 # equivalent to ape ace() fitHKY$loglik - log(4)
 
 # test RateVariationAcrossSites with NASM
 @test RateVariationAcrossSites(2.0, 4).ratemultiplier ≈ [0.3190650334827019,0.6833612017749638,1.108977045226681,1.888596719515653]
