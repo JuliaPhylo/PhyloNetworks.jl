@@ -1,14 +1,11 @@
 # any change to these constants must be documented in phyLiNC!
 const moveweights_LiNC = Distributions.aweights([0.4, 0.2, 0.2, 0.2])
 const movelist_LiNC = ["nni", "addhybrid", "deletehybrid", "root"]
-const likAbsAddHybLiNC = 0.5
-# likAbsAddHybLiNC: the amount of improvement required to retain a proposed new hybrid.
-    # Greater values of would raise the standard for newly-proposed hybrids,
-    # leading to fewer proposed hybrids being accepted during the search.
-const likAbsDelHybLiNC = -0.1
-# likAbsDelHybLiNC: the amount of decrease in the likelihood allowed when
-    # removing a hybrid. Lower (more negative) values of would lead to more
-    # hybrids being removed during the search.
+const likAbsAddHybLiNC = 0.5 #= loglik improvement required to retain a hybrid
+  greater values raise the standard for newly-proposed hybrids,
+  leading to fewer proposed hybrids accepted during the search =#
+const likAbsDelHybLiNC = -0.1 #= loglik decrease allowed when removing a hybrid
+  lower (more negative) values of lead to more hybrids removed during the search =#
 const alphaRASmin = 0.02
 const alphaRASmax = 50.0
 
@@ -79,7 +76,7 @@ Optional arguments include (default value in parenthesis):
 - `maxmoves` (100): maximum number of topology moves before branch lengths,
   hybrid γ values, evolutionary rates, and rate variation parameters are
   reestimated.
-- `verbose` (false): if true, print information about the numerical optimization
+- `verbose` (true): set to false to turn off screen output
 - `seed` (default 0 to get it from the clock): seed to replicate a given search
 - `probST` (0.5): probability to use `net` as the starting topology
   for each given run. If probST < 1, the starting topology is k NNI moves
@@ -92,7 +89,7 @@ Optional arguments include (default value in parenthesis):
   clades and individuals used to create one or more clade topology
   constraints to meet during the search.
   (NOTE: clade contraints not yet implemented.)
-- `alphamin` (0.05): minimum value for shape parameter alpha in rate variation
+- `alphamin` (0.02): minimum value for shape parameter alpha in rate variation
   across sites model.
 - `alphamax` (50.0): maximum value for shape parameter alpha in rate variation
   across sites model.
@@ -122,7 +119,7 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
                   maxhybrid=1::Int, no3cycle=true::Bool,
                   nohybridladder=true::Bool,
                   speciesfile=""::AbstractString,
-                  cladefile=""::AbstractString, verbose=false::Bool,
+                  cladefile=""::AbstractString, verbose=true::Bool,
                   kwargs...)
     # create constraints and new network if speciesfile
     if !isempty(speciesfile)
@@ -135,27 +132,27 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
     end
     # create starting object for all runs
     obj = StatisticalSubstitutionModel(net, fastafile, modSymbol, rateCategories, maxhybrid)
-    # after SSM(), need to update constraint taxonnames, taxonnums, edge, and node because some
-        # leaves may be pruned and check_matchtaxonnames calls resetNodeNumbers! (changing leaf node
-        # numbers) and resetEdgeNumbers!
+    #= after SSM(), update constraint taxon names, taxonnums, edge, and node
+       because some leaves may be pruned, and check_matchtaxonnames calls
+       resetNodeNumbers! (changing leaf node numbers) and resetEdgeNumbers! =#
     for i in 1:length(constraints)
         constraints[i] = PhyloNetworks.TopologyConstraint(constraints[i].type,
                                             constraints[i].taxonnames, obj.net)
     end
     checknetwork_LiNC!(obj.net, maxhybrid, no3cycle, nohybridladder, constraints, verbose)
-    # checknetwork removes degree-2 nodes (including root) and 2- and 3-cycles.
-        # and requires that the network is preordered.
-        # Warning: need to call updateSSM after using checknetwork_LiNC
+    #= checknetwork removes degree-2 nodes (including root) and 2- and 3-cycles
+       and requires that the network is preordered.
+       Warning: need to call updateSSM after using checknetwork_LiNC =#
     updateSSM!(obj, true; constraints=constraints)
     startingBL!(obj.net, true, obj.trait, obj.siteweight) # true: to unzip
     phyLiNC!(obj; maxhybrid=maxhybrid, no3cycle=no3cycle, nohybridladder=nohybridladder,
-            constraints=constraints, kwargs...)
+            constraints=constraints, verbose=verbose, kwargs...)
 end
 function phyLiNC!(obj::SSM;
                   maxhybrid=1::Int, no3cycle=true::Bool,
                   nohybridladder=true::Bool, maxmoves=100::Int, nreject=75::Int,
                   nruns=10::Int, filename="phyLiNC"::AbstractString,
-                  verbose=false::Bool, seed=0::Int, probST=0.5::Float64,
+                  verbose=true::Bool, seed=0::Int, probST=0.5::Float64,
                   ftolRel=1e-6::Float64, ftolAbs=1e-6::Float64,
                   xtolRel=1e-10::Float64, xtolAbs=1e-5::Float64,
                   constraints=TopologyConstraint[]::Vector{TopologyConstraint},
@@ -182,20 +179,21 @@ function phyLiNC!(obj::SSM;
          verbose=false, maxeval=20,
          ftolRel=ftolRel, ftolAbs=ftolAbs, xtolRel=xtolRel, xtolAbs=xtolAbs)
     @debug "loglik = $(loglikelihood(obj)) at the start"
-    str = """---------------------
-             phyLiNC network estimation starting. Parameters:
-                maxhybrid = $(maxhybrid)
-                nohybridladder = $nohybridladder
-                no3cycle = $no3cycle
-                probST= $probST
-                max number of moves = $maxmoves
-                max number of consecutive failed proposals = $(nreject)
-                optimization tolerance: ftolRel=$(ftolRel), ftolAbs=$(ftolAbs),
-                                        xtolAbs=$(xtolAbs), xtolRel=$(xtolRel)."""
+    str = """
+    PhyLiNC network estimation starting. Parameters:
+       maxhybrid = $(maxhybrid)
+       nohybridladder = $nohybridladder
+       no3cycle = $no3cycle
+       probST= $probST
+       max number of moves per cycle = $maxmoves
+       max number of consecutive failed proposals = $(nreject)
+       optimization tolerance: ftolRel=$(ftolRel), ftolAbs=$(ftolAbs),
+                               xtolAbs=$(xtolAbs), xtolRel=$(xtolRel)."""
     str *= (writelog ? "\n   filename for log and err files: $(filename)" :
                        "\n   no output files\n\n")
-    str *= "\n$(nruns) run(s) starting near network topology:\n$(writeTopology(obj.net))\nwith starting models:\n" *
+    str *= "\n$(nruns) run(s) starting near network topology:\n$(writeTopology(obj.net))\nstarting model:\n" *
             string(obj.model) * string(obj.ratemodel)
+    # fixit: add info about constraints: type and tip names for each constraint
     if Distributed.nprocs()>1
         str *= "using $(Distributed.nworkers()) worker processors\n"
     end
@@ -215,7 +213,8 @@ function phyLiNC!(obj::SSM;
     if writelog
       write(logfile,"main seed = $(seed)\n---------------------\n")
       flush(logfile)
-    elseif verbose print(stdout,"main seed = $(seed)\n---------------------\n"); end
+    end
+    verbose && print(stdout,"main seed = $(seed)\n---------------------\n")
     Random.seed!(seed)
     seeds = [seed; round.(Integer,floor.(rand(nruns-1)*100000))]
 
@@ -227,7 +226,7 @@ function phyLiNC!(obj::SSM;
     end
 
     tstart = time_ns()
-    startingnet = obj.net #? is this needed? if so, shouldn't it be a deepcopy?
+    startingnet = obj.net
     startingconstraints = constraints
     netvector = Distributed.pmap(1:nruns) do i # for i in 1:nruns
         msg = "BEGIN PhyLiNC run $(i)\nseed = $(seeds[i])\ntime = $(Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s"))\n"
@@ -246,10 +245,10 @@ function phyLiNC!(obj::SSM;
                         nreject, verbose, writelog_1proc, logfile, seeds[i], probST,
                         constraints, ftolRel, ftolAbs, xtolRel, xtolAbs,
                         alphamin, alphamax, γcache)
-            logstr = "\nFINISHED PhyLiNC for run $(i), run 1\nnetwork loglik = $(obj.loglik)\n"
+            logstr = "\nFINISHED. loglik = $(obj.loglik)\n"
             verbose && print(stdout, logstr)
             if writelog_1proc
-                logstr *= "run $(i) topology:\n" * writeTopology(obj.net)
+                logstr *= writeTopology(obj.net)
                 logstr *= "\n---------------------\n"
                 write(logfile, logstr)
                 flush(logfile)
@@ -276,44 +275,45 @@ function phyLiNC!(obj::SSM;
     writelog_1proc && close(errfile)
     msg = "All runs complete.\nend time: " * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s") *
             "\ntime elapsed: $telapsed seconds" *"\n---------------------\n"
-    if writelog
-        write(logfile, msg)
-    elseif verbose print(stdout, msg); end
+    writelog && write(logfile, msg)
+    verbose && print(stdout, msg)
 
-    # post processing of the networks
-        # netvector is vector of vectors where each vector holds [net, model, ratemodel] (sucessful) or nothing (failed)
-        # type = Array{Union{Nothing, Array{Int64,1}},1}
+    #= post processing of the networks
+      type of netvector: Array{Union{Nothing, Array{Int64,1}},1}
+      each item holds [net, model, ratemodel] if sucessful, nothing if failed =#
     filter!(n -> n !== nothing, netvector) # remove "nothing": failed runs
     !isempty(netvector) || error("all runs failed")
     sort!(netvector, by = x -> x[1].loglik, rev=true)
-    @debug "loglik from all runs:" [n[1].loglik for n in netvector]
+    # @debug "loglik from all runs:" [n[1].loglik for n in netvector]
     obj.net = netvector[1][1]::HybridNetwork # best network, tell type to compiler
     obj.model = netvector[1][2]
     obj.ratemodel = netvector[1][3]
     obj.loglik = obj.net.loglik
     updateSSM!(obj, true; constraints = constraints) # topology has changed, need to update displayedtree, priorltw
     logstr = "Best topology:\n$(writeTopology(obj.net))\n" *
-              "with substitution and rate variation models:\n" * string(obj.model) *
+              "with loglik $(obj.loglik) under:\n" * string(obj.model) *
               string(obj.ratemodel) * "---------------------\n" *
-              "Starting final optimization of branch lengths and gammas on this network.\n"
+              "Final optimization of branch lengths and gammas on this network... "
     if writelog
         write(logfile, logstr)
         flush(logfile)
-    elseif verbose print(stdout,logstr); end
+    end
+    verbose && print(stdout,logstr)
     # warning: tolerance values from constants, not user-specified
     optimizeBL_LiNC!(obj, copy(obj.net.edge), fRelBL, fAbsBL, xRelBL, xAbsBL,
                      max(10*length(obj.net.edge), 1000))
-    optimizeallgammas_LiNC!(obj, verbose, fAbsBL, γcache, max(10*obj.net.numHybrids, 1000))
+    optimizeallgammas_LiNC!(obj, fAbsBL, γcache, max(10*obj.net.numHybrids, 1000))
     toptimend = time_ns() # in nanoseconds
     telapsed = round(convert(Int, toptimend-tstart) * 1e-9, digits=2) # in seconds
-    logstr = "Final optimization complete.\nFinal log-likelihood: $(obj.loglik)\n" *
+    logstr = "complete.\nFinal log-likelihood: $(obj.loglik)\n" *
              "Final network:\n" * "$(writeTopology(obj.net))\n" *
              "Total time elapsed: $telapsed seconds (includes final branch length and gamma optimization)\n" *
              "Final time: " * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s") * "\n"
     if writelog
         write(logfile, logstr)
         flush(logfile)
-    elseif verbose print(stdout,logstr); end
+    end
+    verbose && print(stdout,logstr)
     return obj
 end
 
@@ -356,7 +356,7 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
     if probST < 1.0 # modify starting tree by k nni moves (if possible), k=0 or more
         numNNI = rand(Geometric(probST)) # number of NNIs follows a geometric distribution: p (1 - p)^k
         for i in 1:numNNI
-            nni_LiNC!(obj, no3cycle, nohybridladder, verbose, constraints, ftolRel,
+            nni_LiNC!(obj, no3cycle, nohybridladder, constraints, ftolRel,
                       ftolAbs, xtolRel, xtolAbs, γcache)
         end
         logstr = "changed starting topology by $numNNI attempted NNI move(s)\n"
@@ -374,17 +374,17 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
     nrejected = 0
     while nrejected < nrejectmax
         nrejected = optimizestructure!(obj, maxmoves, maxhybrid, no3cycle, nohybridladder,
-                                  nrejected, nrejectmax, verbose, constraints,
+                                  nrejected, nrejectmax, constraints,
                                   ftolRel,ftolAbs, xtolRel,xtolAbs, γcache)
         @debug "after optimizestructure returns, the likelihood is $(obj.loglik), nrejected = $nrejected"
-        fit!(obj; optimizeQ=optQ, optimizeRVAS=optRAS, verbose=verbose, maxeval=20,
+        fit!(obj; optimizeQ=optQ, optimizeRVAS=optRAS, maxeval=20,
              ftolRel=ftolRel, ftolAbs=ftolAbs, xtolRel=xtolRel, xtolAbs=xtolAbs)
         @debug "after fit! runs, the likelihood is $(obj.loglik)"
         for i in Random.shuffle(1:obj.net.numEdges)
             e = obj.net.edge[i]
             optimizelocalBL_LiNC!(obj, e, ftolRel,ftolAbs,xtolRel,xtolAbs)
             e.hybrid || continue
-            optimizelocalgammas_LiNC!(obj, e, verbose, ftolAbs, γcache)
+            optimizelocalgammas_LiNC!(obj, e, ftolAbs, γcache)
         end
         @debug "after global BL and gamma optimization, the likelihood is $(obj.loglik)"
         for h in obj.net.hybrid # check for gammas close to zero
@@ -467,7 +467,6 @@ end
     optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
                        no3cycle::Bool, nohybridladder::Bool,
                        nreject::Integer, nrejectmax::Integer,
-                       verbose::Bool,
                        constraints::Vector{TopologyConstraint},
                        ftolRel::Float64, ftolAbs::Float64,
                        xtolRel::Float64, xtolAbs::Float64,
@@ -507,7 +506,6 @@ Note: When removing a hybrid edge, always removes the minor edge.
 """
 function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
     no3cycle::Bool, nohybridladder::Bool, nreject::Integer, nrejectmax::Integer,
-    verbose::Bool,
     constraints::Vector{TopologyConstraint},
     ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
     γcache::CacheGammaLiNC)
@@ -523,7 +521,7 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
         currLik = obj.loglik
         movechoice = sample(movelist_LiNC, moveweights_LiNC)
         if movechoice == "nni"
-            result = nni_LiNC!(obj, no3cycle,  nohybridladder, verbose,
+            result = nni_LiNC!(obj, no3cycle,  nohybridladder,
                                constraints, ftolRel, ftolAbs, xtolRel, xtolAbs,
                                γcache)
         elseif movechoice == "addhybrid"
@@ -534,12 +532,12 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
             nh <= maxhybrid || # nh > maxhybrid should never happen
                 error("The network has $nh hybrids: more than the allowed max of $maxhybrid")
             result = addhybridedgeLiNC!(obj, currLik, maxhybrid, no3cycle,
-                            nohybridladder, verbose, constraints, ftolRel, ftolAbs,
+                            nohybridladder, constraints, ftolRel, ftolAbs,
                             xtolRel, xtolAbs, γcache)
         elseif movechoice == "deletehybrid"
             obj.net.numHybrids == 0  && continue # skip & don't count towards nmoves if no hybrid in net
             result = deletehybridedgeLiNC!(obj, currLik, maxhybrid,
-                        no3cycle, nohybridladder, verbose, constraints,
+                        no3cycle, nohybridladder, constraints,
                         ftolRel, ftolAbs, xtolRel, xtolAbs, γcache)
         else # change root (doesn't affect likelihood)
             result = moveroot!(obj.net, constraints)
@@ -547,7 +545,7 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
         # optimize gamma, optimize BL around random hybrid or edge in network
         if length(obj.net.hybrid) > 0 # only enter if net has hybrids
             he = getMinorParentEdge(obj.net.hybrid[Random.rand(1:length(obj.net.hybrid))])
-            optimizelocalgammas_LiNC!(obj, he, verbose, ftolAbs, γcache)
+            optimizelocalgammas_LiNC!(obj, he, ftolAbs, γcache)
             for h in obj.net.hybrid # check for gammas at zero
                 minorhybridedge = getMinorParentEdge(h)
                 if minorhybridedge.gamma == 0.0 # delete this edge, updateSSM!
@@ -557,7 +555,8 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
                 end
             end
         end
-        e = obj.net.edge[Random.rand(1:length(obj.net.edge))] # choose random edge
+        # pick a random edge (internal or external), optimize adjancent lengths
+        e = Random.rand(obj.net.edge)
         optimizelocalBL_LiNC!(obj, e, ftolRel,ftolAbs,xtolRel,xtolAbs)
         nmoves += 1
         # next: update the number of consecutive rejections ignoring any root move
@@ -569,15 +568,15 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
                 nreject += 1
             end
         end
-        verbose && println("$(movechoice) move was " *
+        @debug "$(movechoice) move was " *
           (isnothing(result) ? "not permissible" : (result ? "accepted" : "rejected and undone")) *
-          ", $nmoves total moves, $nreject rejected,\nloglik = $(obj.loglik)")
+          ", $nmoves total moves, $nreject rejected,\nloglik = $(obj.loglik)"
     end
     return nreject
 end
 
 """
-    nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool, verbose::Bool,
+    nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
               constraints::Vector{TopologyConstraint},
               ftolRel::Float64, ftolAbs::Float64,
               xtolRel::Float64, xtolAbs::Float64,
@@ -602,7 +601,6 @@ accept the move: just change inheritance values to get same likelihood,
 and update the tree priors. *Not* done.
 """
 function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
-                  verbose::Bool,
                   constraints::Vector{TopologyConstraint},
                   ftolRel::Float64, ftolAbs::Float64,
                   xtolRel::Float64, xtolAbs::Float64,
@@ -628,7 +626,7 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
         savedlen = [e.length for e in savededges]
         savedgam = [e.gamma for e in savededges]
         updateSSM!(obj)
-        optimizelocalgammas_LiNC!(obj, e1, verbose, ftolAbs, γcache)
+        optimizelocalgammas_LiNC!(obj, e1, ftolAbs, γcache)
         optimizelocalBL_LiNC!(obj, e1, ftolRel,ftolAbs,xtolRel,xtolAbs)
         if obj.loglik < currLik
             nni!(undoinfo...) # undo move
@@ -649,7 +647,7 @@ end
 
 """
     addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
-        no3cycle::Bool, nohybridladder::Bool, verbose::Bool,
+        no3cycle::Bool, nohybridladder::Bool,
         constraints::Vector{TopologyConstraint},
         ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
         γcache::CacheGammaLiNC)
@@ -666,14 +664,14 @@ Assumptions:
 - called by [`optimizestructure!`](@ref)
 """
 function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
-    no3cycle::Bool, nohybridladder::Bool, verbose::Bool,
+    no3cycle::Bool, nohybridladder::Bool,
     constraints::Vector{TopologyConstraint}, ftolRel::Float64,
     ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
     γcache::CacheGammaLiNC)
-    # save displayed trees, priorltw, BLs, and gammas in case we need to undo move
-        # note: branch lengths are changed by addhybridedge. We can't use
-        # adjacentedges because newhybridedge is chosen randomly, so we
-        # save all branch lengths and gammas in this case
+    #= save displayed trees, priorltw, BLs, and gammas in case we need to undo move
+      branch lengths are changed by addhybridedge. We can't use
+      adjacentedges because newhybridedge is chosen randomly, so we
+      save all branch lengths and gammas here =#
     saveddisplayedtree = obj.displayedtree
     savedpriorltw = copy(obj.priorltw)
     savedlen = [e.length for e in obj.net.edge]
@@ -687,7 +685,7 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     # unzip only at new node and its child edge
     unzipat_canonical!(newhybridnode, getChildEdge(newhybridnode))
     updateSSM!(obj)
-    optimizelocalgammas_LiNC!(obj, newhybridedge, verbose, ftolRel, γcache)
+    optimizelocalgammas_LiNC!(obj, newhybridedge, ftolRel, γcache)
     if newhybridedge.gamma == 0.0
         deletehybridedge!(obj.net, newhybridedge, false, true) # don't keep nodes; unroot
         obj.displayedtree = saveddisplayedtree # restore displayed trees and tree weights
@@ -699,7 +697,7 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
         return false
     elseif newhybridedge.gamma == 1.0 # equivalent to sub-tree prune and regraft (SPR) move
         if getParent(getMinorParentEdge(newhybridnode)).hybrid
-            !verbose || @warn "SPR move attempted but not allowed: The edge to be removed is
+            @debug "SPR move attempted but not allowed: The edge to be removed is # fixithere
             part of a hybrid ladder (the edge between two hybrid nodes) so its
             branch length and gamma are not identifiable. We recommend setting
             nohybridladder=true for optimal structure estimates."
@@ -738,7 +736,7 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
 end
 """
     deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
-        no3cycle::Bool, nohybridladder::Bool, verbose::Bool,
+        no3cycle::Bool, nohybridladder::Bool,
         constraints::Vector{TopologyConstraint},
         ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
         γcache::CacheGammaLiNC)
@@ -754,7 +752,7 @@ Assumptions:
 - called by [`optimizestructure!`](@ref) which does some checks.
 """
 function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
-        no3cycle::Bool, nohybridladder::Bool, verbose::Bool,
+        no3cycle::Bool, nohybridladder::Bool,
         constraints::Vector{TopologyConstraint}, ftolRel::Float64,
         ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
         γcache::CacheGammaLiNC)
@@ -762,25 +760,26 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     nh = length(obj.net.hybrid)
     hybridnode = obj.net.hybrid[Random.rand(1:nh)]
     minorhybridedge = getMinorParentEdge(hybridnode)
-    # if type-3 constraints: check that proposed deletion meets constraints
-        # the constraint's stem edge must be a tree edge -> not disrupted
-        # species (type 1) or clade type-2 constraints: no problem, because
-        #       the major tree displaying the constraint has major edges only
-        # type-3 constraints: problem if the tree displaying the constraint
-        #       has the minor hybrid edge to be deleted. Not implemented.
-    #    hybindices = Random.shuffle(1:nh)
-    #    edgenotfound = true
-    #    for hi in hybindices
-    #        hybridnode = obj.net.hybrid[hi]
-    #        minorhybridedge = getMinorParentEdge(hybridnode)
-    #        # edgenotfound = whether any type-3 constraints is violated
-    #        edgenotfound || break
-    #    end
-    #    if edgenotfound # tried all hybrids
-    #        return nothing
-    #    end
-
-    # try γ=0: update minor edge, and prior log tree weights in obj
+    #= if type-3 constraints: check that proposed deletion meets constraints
+      the constraint's stem edge must be a tree edge -> not disrupted
+      species (type 1) or clade type-2 constraints: no problem, because
+      the major tree displaying the constraint has major edges only
+      type-3 constraints: problem if the tree displaying the constraint
+      has the minor hybrid edge to be deleted. Not implemented.
+        hybindices = Random.shuffle(1:nh)
+        edgenotfound = true
+        for hi in hybindices
+            hybridnode = obj.net.hybrid[hi]
+            minorhybridedge = getMinorParentEdge(hybridnode)
+            # edgenotfound = whether any type-3 constraints is violated
+            edgenotfound || break
+        end
+        if edgenotfound # tried all hybrids
+            return nothing
+        end
+    =#
+    # set γ to 0 to delete the hybrid edge: makes it easy to undo.
+    # update minor edge, and prior log tree weights in obj
     γ0 = minorhybridedge.gamma
     setGamma!(minorhybridedge, 0.0)
     l1mγ = log(1.0-γ0)
@@ -793,11 +792,11 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
         else  obj.priorltw[it] -= l1mγ
         end
     end
-    # warning: after setting γ=0, the 2 other edges connected to the minor
-    #          parent are non-identifiable -> do not optimize them.
-    # if hybrid ladder (minor parent is hybrid node): not identifiable at all
-    # otherwise: only their sum is identifiable, but not individual lengths
-    # so: optimize length of major hybrid edge only
+    #= warning: after setting γ=0, the 2 other edges connected to the minor
+              parent are non-identifiable -> do not optimize them.
+     if hybrid ladder (minor parent is hybrid node): not identifiable at all
+     otherwise: only their sum is identifiable, but not individual lengths
+     so: optimize length of major hybrid edge only =#
     majhyb = getMajorParentEdge(hybridnode)
     len0 = majhyb.length # to restore later if deletion rejected
     optimizeBL_LiNC!(obj, [majhyb], ftolRel,ftolAbs,xtolRel,xtolAbs)
@@ -1096,7 +1095,7 @@ function optimizeBL_LiNC!(obj::SSM, edges::Vector{Edge},
 end
 
 """
-    optimizeallgammas_LiNC!(obj::SSM, verbose::Bool, ftolAbs::Float64,
+    optimizeallgammas_LiNC!(obj::SSM, ftolAbs::Float64,
                             γcache::CacheGammaLiNC, maxeval=1000::Int)
 
 Optimize all γ's in a network, one by one using [`optimizegamma_LiNC!`]
@@ -1104,7 +1103,7 @@ until `maxeval` γ's have been optimized or until the difference in
 log-likelihood falls below `ftolAbs`.
 Output: `nothing`.
 """
-function optimizeallgammas_LiNC!(obj::SSM, verbose::Bool, ftolAbs::Float64,
+function optimizeallgammas_LiNC!(obj::SSM, ftolAbs::Float64,
                                  γcache::CacheGammaLiNC, maxeval::Int)
     hybs = [getMinorParentEdge(h) for h in obj.net.hybrid]
     nh = length(hybs) # also = obj.net.numHybrids
@@ -1118,7 +1117,7 @@ function optimizeallgammas_LiNC!(obj::SSM, verbose::Bool, ftolAbs::Float64,
     llnew = +Inf; lldiff = +Inf
     while nevals < maxeval && lldiff > ftolAbs
         for he in hybs
-            llnew = optimizegamma_LiNC!(obj, he, verbose, ftolAbs, γcache)
+            llnew = optimizegamma_LiNC!(obj, he, ftolAbs, γcache)
         end
         lldiff = llnew - ll
         ll = llnew
@@ -1128,7 +1127,7 @@ function optimizeallgammas_LiNC!(obj::SSM, verbose::Bool, ftolAbs::Float64,
 end
 
 """
-    optimizelocalgammas_LiNC!(obj::SSM, edge::Edge, verbose::Bool,
+    optimizelocalgammas_LiNC!(obj::SSM, edge::Edge,
                               ftolAbs::Float64, γcache::CacheGammaLiNC,
                               maxeval=1000::Int)
 
@@ -1164,7 +1163,7 @@ julia> obj.net.edge[3].gamma
 0.0
 ````
 """
-function optimizelocalgammas_LiNC!(obj::SSM, edge::Edge, verbose::Bool,
+function optimizelocalgammas_LiNC!(obj::SSM, edge::Edge,
                                    ftolAbs::Float64, γcache::CacheGammaLiNC,
                                    maxeval=1000::Int)
     # get edges that are: hybrid and adjacent to edge
@@ -1201,7 +1200,7 @@ function optimizelocalgammas_LiNC!(obj::SSM, edge::Edge, verbose::Bool,
     llnew = +Inf; lldiff = +Inf
     while nevals < maxeval && lldiff > ftolAbs
         for he in neighborhybs
-            llnew = optimizegamma_LiNC!(obj, he, verbose, ftolAbs, γcache)
+            llnew = optimizegamma_LiNC!(obj, he, ftolAbs, γcache)
         end
         lldiff = llnew - ll
         ll = llnew
@@ -1211,7 +1210,7 @@ function optimizelocalgammas_LiNC!(obj::SSM, edge::Edge, verbose::Bool,
 end
 
 """
-    optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
+    optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
                     ftolAbs::Float64, cache::CacheGammaLiNC, maxeval=10::Int)
 
 Optimize γ on a single hybrid `edge` using the Newton-Raphson method
@@ -1231,7 +1230,7 @@ Warnings:
 Used by [`optimizelocalgammas_LiNC!`](@ref) and
 [`optimizeallgammas_LiNC!`](@ref).
 """
-function optimizegamma_LiNC!(obj::SSM, focusedge::Edge, verbose::Bool,
+function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
         ftolAbs::Float64, cache::CacheGammaLiNC, maxeval=3::Int)
 
     ## step 1: prepare vectors constant during the search

@@ -347,10 +347,6 @@ t 0.03418780 0.10359060 0.004623949 0.85759765
 @time dna_dat, dna_weights = readfastatodna("twotaxon_10000.fas", true);
 # 1000 sites: 0.009950 seconds. 10_000 sites: 0.272987 seconds
 # takes forever with 100_000_000 sites: far from linear
-tre = readTopology("(t1:0,t2:0.1);");
-modQ = HKY85([3.0],[.37,.40,.05,.18], true)
-modR = RateVariationAcrossSites(1.0, 1)
-d2 = fitdiscrete(tre, modQ, modR, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false)
 =#
 mHKY85 = HKY85([0.5, 0.5], [0.25, 0.25, 0.25, 0.25], false)
 @test Q(mHKY85) ≈ [ -0.375   0.125   0.125   0.125;

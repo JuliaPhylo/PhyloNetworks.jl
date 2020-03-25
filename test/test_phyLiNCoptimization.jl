@@ -32,7 +32,7 @@ lengthep = obj.net.edge[4].node[1].edge[1].length
 # ## Local Gamma
 γcache = PhyloNetworks.CacheGammaLiNC(obj)
 hybridmajorparent = PhyloNetworks.getMajorParentEdge(obj.net.hybrid[1])
-@test_nowarn PhyloNetworks.optimizelocalgammas_LiNC!(obj, hybridmajorparent, false, 1e-6, γcache)
+@test_nowarn PhyloNetworks.optimizelocalgammas_LiNC!(obj, hybridmajorparent, 1e-6, γcache)
 @test hybridmajorparent.gamma != 0.9
 @test PhyloNetworks.getMinorParentEdge(obj.net.hybrid[1]).gamma != 0.1
 end
@@ -46,8 +46,8 @@ obj = (@test_logs (:warn, r"taxa with no data") PhyloNetworks.StatisticalSubstit
 @test length(obj.net.leaf) == 22
 preorder!(obj.net)
 PhyloNetworks.checknetwork_LiNC!(obj.net, 3, true, true, emptyconstraint)
-# checknetwork removes degree-2 nodes (including root) and 2- and 3-cycles.
-    # and requires that the network is preordered.
+# checknetwork removes degree-2 nodes (including root) and 2- and 3-cycles
+# and requires that the network is preordered.
 PhyloNetworks.updateSSM!(obj, true; constraints=emptyconstraint)
 PhyloNetworks.startingBL!(obj.net, true, obj.trait, obj.siteweight)
 ## Local BL
@@ -61,11 +61,8 @@ lengthe = obj.net.edge[44].length
 
 # ## Local Gamma
 # edge[4] = major parent edge of hybrid[1]
-originalstdout = stdout  # verbose=true below
-redirect_stdout(open("/dev/null", "w")) # not portable to Windows
 γcache = PhyloNetworks.CacheGammaLiNC(obj)
-@test_nowarn PhyloNetworks.optimizelocalgammas_LiNC!(obj, obj.net.edge[4], true, 1e-6,γcache)
-redirect_stdout(originalstdout)
+@test_nowarn PhyloNetworks.optimizelocalgammas_LiNC!(obj, obj.net.edge[4], 1e-6,γcache)
 @test obj.net.edge[4].gamma != 0.7
 @test PhyloNetworks.getMinorParentEdge(obj.net.hybrid[1]).gamma != 0.3
 end #of local branch length and gamma optimization with localgamma! localBL! with 8 sites
@@ -86,7 +83,7 @@ Random.seed!(5);
 
 ## optimizegammas
 γcache = PhyloNetworks.CacheGammaLiNC(obj)
-@test_nowarn PhyloNetworks.optimizeallgammas_LiNC!(obj,false,1e-6,γcache,100)
+@test_nowarn PhyloNetworks.optimizeallgammas_LiNC!(obj,1e-6,γcache,100)
 @test PhyloNetworks.getMajorParentEdge(obj.net.hybrid[1]).gamma != 0.6
 @test PhyloNetworks.getMinorParentEdge(obj.net.hybrid[1]).gamma != 0.4
 end
@@ -107,7 +104,7 @@ obj = (@test_logs (:warn, r"pruned") PhyloNetworks.StatisticalSubstitutionModel(
 @test !PhyloNetworks.hashybridladder(obj.net)
 end
 
-@testset "checknetworkbeforeLiNC" begin
+@testset "checknetwork LiNC" begin
 tree = readTopology("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);");
 @test any(length(n.edge) == 2 for n in tree.node) # one node of degree 2
 preorder!(tree)
@@ -137,14 +134,14 @@ PhyloNetworks.discrete_corelikelihood!(obj)
 maxmoves = 2
 Random.seed!(92)
 γcache = PhyloNetworks.CacheGammaLiNC(obj)
-PhyloNetworks.optimizestructure!(obj, maxmoves, 1, true, true, 0,100,false,
+PhyloNetworks.optimizestructure!(obj, maxmoves, 1, true, true, 0,100,
                                 emptyconstraint, 1e-6,1e-6, 1e-2,1e-3, γcache)
 
 @test obj.loglik > -29.7762035
 
 # allow hybrid ladders
 Random.seed!(110)
-PhyloNetworks.optimizestructure!(obj, maxmoves, 1, true, false, 0,100,false,
+PhyloNetworks.optimizestructure!(obj, maxmoves, 1, true, false, 0,100,
                                 emptyconstraint, 1e-6,1e-6, 1e-2,1e-3, γcache)
 @test obj.loglik > -29.7762035
 end # of optimizestructure with simple example
@@ -181,7 +178,7 @@ net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):
                     nreject=1, nruns=1, filename="phyLiNC2", verbose=false, seed=0)
 @test obj.loglik > -29.7762035
 @test read("phyLiNC2.err", String) == ""
-@test startswith(read("phyLiNC2.log", String), "---------------------\nphyLiNC network estimation starting")
+@test startswith(read("phyLiNC2.log", String), "PhyLiNC network estimation starting")
 rm("phyLiNC2.log")
 rm("phyLiNC2.err")
 
@@ -189,9 +186,12 @@ net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):
 addprocs(1) # multiple cores
 @everywhere using PhyloNetworks
 #using Distributed; @everywhere begin; using Pkg; Pkg.activate("."); using PhyloNetworks; end
+originalstdout = stdout  # verbose=true below
+redirect_stdout(open("/dev/null", "w")) # not portable to Windows
 obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2, no3cycle=true,
                         nohybridladder=true, maxmoves=2, nreject=1, nruns=2,
-                        filename="phyLiNCmult", verbose=false, seed=106)
+                        filename="phyLiNCmult", verbose=true, seed=106)
+redirect_stdout(originalstdout)
 @test obj.loglik > -29.7762035
 rmprocs(workers()) # remove extra processors
 @test occursin("using 1 worker", read("phyLiNCmult.log", String))
@@ -214,7 +214,7 @@ obj = PhyloNetworks.StatisticalSubstitutionModel(net_level1_i,fastaindiv,:JC69,2
 # obj.net = deepcopy of input net, so we need to rebuild the constraints
 c_species[1] = PhyloNetworks.TopologyConstraint(0x01, c_species[1].taxonnames, obj.net)
 # obj.net = deepcopy of input net, so we need to rebuild the constraints if done after
-@test_logs (:warn, r"no 3-cycle") PhyloNetworks.checknetwork_LiNC!(obj.net, 2,
+@test_logs (:warn, r"no 3-cycle") match_mode=:any PhyloNetworks.checknetwork_LiNC!(obj.net, 2,
                                                     true, true, c_species, true)
 PhyloNetworks.updateSSM!(obj, true; constraints=emptyconstraint)
 
@@ -229,10 +229,10 @@ nullio = open("/dev/null", "w")
                                        seed, 0.5, c_species, 1e-2, 1e-2,
                                        1e-2, 1e-2, 0.0, 50.0, γcache)
 
-obj = (@test_logs (:warn, r"no 3-cycle") match_mode=:any phyLiNC!(net_level1_s,
+obj = phyLiNC!(net_level1_s,
             fastaindiv, :JC69; maxhybrid=2, no3cycle=true, nohybridladder=true,
-            verbose=true, filename="", speciesfile=mappingfile, seed=106, nruns=1,
-            maxmoves=10, nreject=2))
+            verbose=false, filename="", speciesfile=mappingfile, seed=106, nruns=1,
+            maxmoves=10, nreject=2)
 @test obj.loglik > -72.20449451336994
 # test that species stayed together after optimization, as the only polytomy
 function polytomyS1(node)
@@ -250,6 +250,7 @@ obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69, 4; maxhybrid=2,
                     nreject=1, nruns=1, filename="phyLiNCratevariation", verbose=false, seed=105)
 @test occursin("categories for Gamma discretization: 4", read("phyLiNCratevariation.log", String))
 @test obj.loglik > -29.7762035
+@test obj.ratemodel.alpha < 1.0
 @test read("phyLiNCratevariation.err", String) == ""
 rm("phyLiNCratevariation.log")
 rm("phyLiNCratevariation.err")
@@ -257,17 +258,10 @@ end
 
 @testset "phyLiNC with HKY model" begin
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
-#@test_nowarn
 obj = PhyloNetworks.phyLiNC!(net, fastasimple, :HKY85; maxhybrid=2,
                     no3cycle=true, nohybridladder=true, maxmoves=2,
-                    nreject=1, nruns=1, filename="phyLiNCHKY", verbose=false, seed=107)
-@test occursin("HKY85", read("phyLiNCHKY.log", String))
+                    nreject=1, nruns=1, filename="", verbose=false, seed=107)
 @test obj.loglik > -29.7762035
-@test read("phyLiNCHKY.err", String) == ""
-rm("phyLiNCHKY.log")
-rm("phyLiNCHKY.err")
-
-#@test_nowarn
 obj = PhyloNetworks.phyLiNC!(net, fastasimple, :HKY85, 4; maxhybrid=2,
                     no3cycle=true, nohybridladder=true, maxmoves=2,
                     nreject=1, nruns=1, filename="", verbose=false, seed=108)
