@@ -1471,7 +1471,9 @@ that have been found, by deleting the minor hybrid edge in these cycles.
 """
 function contain3cycles(net::HybridNetwork, removecycles=false::Bool)
     foundcycle = false
-    for ih in length(net.hybrid):-1:1 # hybrids deleted from the end
+    nh = length(net.hybrid)
+    ih = nh # hybrids deleted from the end
+    while ih > 0
         h = net.hybrid[ih]
         minor = getMinorParentEdge(h)
         pmin = getParent(minor)  # minor parent node
@@ -1480,6 +1482,7 @@ function contain3cycles(net::HybridNetwork, removecycles=false::Bool)
             foundcycle = true
             removecycles || return true
             deletehybridedge!(net, minor)
+            nh = length(net.hybrid)
         else # check if pmin <---> pmaj
             for e in pmin.edge
                 e !== minor || continue
@@ -1488,11 +1491,17 @@ function contain3cycles(net::HybridNetwork, removecycles=false::Bool)
                     foundcycle = true
                     removecycles || return true
                     deletehybridedge!(net, minor)
+                    nh = length(net.hybrid)
                     break
                 end
             end
         end
+        ih -= 1
+        if ih > nh hi=nh; end
     end
+    # todo: re-do if a cycle was removed: a new cycle might have appeared
+    # ? priority queue like in unzip_canonical! to go through hyb nodes in partial post-order
+    # ? list of "visited" good hybrid nodes without cycles: add to this list when needed
     return foundcycle
 end
 

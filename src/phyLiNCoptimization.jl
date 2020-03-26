@@ -393,7 +393,7 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
             if minorhybridedge.gamma == 0.0 # delete this edge, updateSSM!
                 deletehybridedge!(obj.net, minorhybridedge, false, true) # don't keep nodes; unroot
                 updateSSM!(obj, true; constraints=constraints) # renumber = true
-                @debug "deleted minor hybrid edge for hybrid node number: $(h.number). The likelihood is now $(obj.loglik)"
+                @debug "deleted hybrid edge with γ=0 at hybrid node number $(h.number)"
             end
         end
     end
@@ -1116,14 +1116,20 @@ function optimizeallgammas_LiNC!(obj::SSM, ftolAbs::Float64,
         nevals += nh
     end
     reduced = false
-    for hi in nh:-1:1
-        # todo: assumes that deleting a hybrid node doesn't delete another one
+    hi = nh
+    while hi > 0
         he = getMinorParentEdge(hybnodes[hi])
         if he.gamma == 0.0
             deletehybridedge!(obj.net, he, false, true) # don't keep nodes; unroot
             reduced = true
+            nh = length(hybnodes) # normally nh-1, but could be less: deleting
+            # one hybrid may delete others indirectly, e.g. if hybrid ladder
+            # or if generation of a 2-cycle
         end
+        hi -= 1
+        if hi>nh hi=nh; end
     end
+    # todo: check & delete 3-cycles
     return reduced
 end
 
