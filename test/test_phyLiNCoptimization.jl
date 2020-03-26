@@ -81,11 +81,10 @@ Random.seed!(5);
 @test_nowarn PhyloNetworks.optimizeBL_LiNC!(obj, obj.net.edge, 1e-2,1e-2,1e-2,1e-2, 20);
 @test all(e.length != 1.0 for e in obj.net.edge)
 
-## optimizegammas
+## optimizegammas -- and delete hybrid edges with γ=0
 γcache = PhyloNetworks.CacheGammaLiNC(obj)
 @test_nowarn PhyloNetworks.optimizeallgammas_LiNC!(obj,1e-6,γcache,100)
-@test PhyloNetworks.getMajorParentEdge(obj.net.hybrid[1]).gamma != 0.6
-@test PhyloNetworks.getMinorParentEdge(obj.net.hybrid[1]).gamma != 0.4
+@test obj.net.numHybrids == 0
 end
 
 @testset "data to SSM pruning: complex network" begin
@@ -166,14 +165,14 @@ for nohybridladder in [true, false]
 end
 end
 
-@testset "phyLiNC multiple runs, no constraints" begin
+@testset "phyLiNC no constraints: HKY, rate variation" begin
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
-@test_nowarn obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2,
+@test_nowarn obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69, 4; maxhybrid=2,
                     no3cycle=true, nohybridladder=true, maxmoves=2,
                     nreject=1, nruns=1, filename="", verbose=false, seed=105)
 @test obj.loglik > -29.7762035
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
-@test_nowarn obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2,
+@test_nowarn obj = PhyloNetworks.phyLiNC!(net, fastasimple, :HKY85; maxhybrid=2,
                     no3cycle=true, nohybridladder=true, maxmoves=2, probST=1.0, # not enough moves to get back to a good topology
                     nreject=1, nruns=1, filename="phyLiNC2", verbose=false, seed=0)
 @test obj.loglik > -29.7762035
@@ -240,32 +239,6 @@ function polytomyS1(node)
     return Set(n.name for n in PhyloNetworks.getChildren(node)) == Set(["S1A", "S1B", "S1C"])
 end
 @test sum(polytomyS1(nod) for nod in obj.net.node) == 1
-end
-
-@testset "phyLiNC with rate variation" begin
-net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
-#@test_nowarn
-obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69, 4; maxhybrid=2,
-                    no3cycle=true, nohybridladder=true, maxmoves=2,
-                    nreject=1, nruns=1, filename="phyLiNCratevariation", verbose=false, seed=105)
-@test occursin("categories for Gamma discretization: 4", read("phyLiNCratevariation.log", String))
-@test obj.loglik > -29.7762035
-@test obj.ratemodel.alpha < 1.0
-@test read("phyLiNCratevariation.err", String) == ""
-rm("phyLiNCratevariation.log")
-rm("phyLiNCratevariation.err")
-end
-
-@testset "phyLiNC with HKY model" begin
-net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
-obj = PhyloNetworks.phyLiNC!(net, fastasimple, :HKY85; maxhybrid=2,
-                    no3cycle=true, nohybridladder=true, maxmoves=2,
-                    nreject=1, nruns=1, filename="", verbose=false, seed=107)
-@test obj.loglik > -29.7762035
-obj = PhyloNetworks.phyLiNC!(net, fastasimple, :HKY85, 4; maxhybrid=2,
-                    no3cycle=true, nohybridladder=true, maxmoves=2,
-                    nreject=1, nruns=1, filename="", verbose=false, seed=108)
-@test obj.loglik > -29.7762035
 end
 
 end # of overall phyLiNC test set
