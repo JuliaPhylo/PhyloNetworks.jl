@@ -443,23 +443,26 @@ function checknetwork_LiNC!(net::HybridNetwork, maxhybrid::Int, no3cycle::Bool,
     checkspeciesnetwork!(net, constraints) ||
         error("The species or clade constraints are not satisfied in the starting network.")
         # checkspeciesnetwork removes nodes of degree 2, need to renumber with updateSSM
+    !shrink2cycles!(net) || (verbose && @warn("""The input network contains
+        one or more 2-cycles (after removing any nodes of degree 2 including the
+        root). These 2-cycles have been removed."""))
     if no3cycle
-        !contain3cycles(net, no3cycle) || (verbose && @warn("Options indicate there should
+        !shrink3cycles!(net) || (verbose && @warn("""Options indicate there should
         be no 3-cycles in the returned network, but the input network contains
         one or more 3-cycles (after removing any nodes of degree 2 including the
-        root). These 3-cycles have been removed."))
+        root). These 3-cycles have been removed."""))
         # if nodes removed, need to renumber with updateSSM
     end
     if nohybridladder
-        !hashybridladder(net) || error("Options indicate there should be no
+        !hashybridladder(net) || error("""Options indicate there should be no
         hybrid ladders in the returned network, but the input network contains
-        one or more hybrid ladders.")
+        one or more hybrid ladders.""")
     end
     if length(net.hybrid) > maxhybrid
-        error("Options indicate a maximum of $(maxhybrid) reticulations, but
+        error("""Options indicate a maximum of $(maxhybrid) reticulations, but
         the input network contains $(length(net.hybrid)) hybrid nodes. Please
         increase maxhybrid to $(length(net.hybrid)) or provide an input network
-        with $(maxhybrid) or fewer reticulations.")
+        with $(maxhybrid) or fewer reticulations.""")
     end
     return net
 end
@@ -599,10 +602,16 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
     currLik = obj.loglik
     edgefound = false
     remainingedges = collect(1:length(obj.net.edge)) # indices in net.edge
+    saveddisplayedtree = obj.displayedtree # save trees, priorltw in case we need to undo move
+    savedpriorltw = copy(obj.priorltw)
     while !edgefound
         isempty(remainingedges) && return nothing
         i_in_remaining = Random.rand(1:length(remainingedges))
         e1 = obj.net.edge[remainingedges[i_in_remaining]]
+        # save BLs and gammas in case we need to undo move
+        savededges = adjacentedges(e1)
+        savedlen = [e.length for e in savededges]
+        savedgam = [e.gamma for e in savededges]
         undoinfo = nni!(obj.net,e1,nohybridladder,no3cycle,constraints)
         #fixit: for clades, need to update cladeconstraints, then restore below
         if isnothing(undoinfo)
@@ -610,14 +619,6 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
             continue # edge not found yet, try again
         end
         edgefound = true
-        # save displayed trees, priorltw, BLs, and gammas in case we need to undo move
-        # todo: why saved here, and not before nni! (for lengths & gammas),
-        #       and before the while loop (for displayed trees and priorltw)
-        saveddisplayedtree = obj.displayedtree
-        savedpriorltw = copy(obj.priorltw)
-        savededges = adjacentedges(e1)
-        savedlen = [e.length for e in savededges]
-        savedgam = [e.gamma for e in savededges]
         updateSSM!(obj)
         optimizelocalgammas_LiNC!(obj, e1, ftolAbs, γcache)
         # don't delete a hybrid edge with γ=0: to be able to undo the NNI
@@ -684,8 +685,6 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
         deletehybridedge!(obj.net, newhybridedge, false, true) # don't keep nodes; unroot
         obj.displayedtree = saveddisplayedtree # restore displayed trees and tree weights
         obj.priorltw = savedpriorltw
-        obj.loglik = currLik # restore to loglik before move
-        # todo: why is this needed? optimizelocalgammas_LiNC! leaves obj.loglik up to date, correct?
         for (i,e) in enumerate(obj.net.edge) # restore
             e.gamma = savedgam[i]
         end
@@ -693,10 +692,9 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     elseif newhybridedge.gamma == 1.0 # ≃ subtree prune and regraft (SPR) move
         # loglik must be better, yet without any real new reticulation: accept
         deletehybridedge!(obj.net, getMinorParentEdge(newhybridnode), false, true)
+        # check for & delete 3-cycles
+        shrink3cycles!(obj.net)
         updateSSM!(obj, true; constraints=constraints)
-        optimizelocalBL_LiNC!(obj, obj.net.edge[end], ftolRel,ftolAbs,xtolRel,xtolAbs)
-        # optimize BL around... which edge? no guarantee that the last edge is the hybrid edge that had gamma=1: it was merged with the edge below.
-        #todo: delete call to optimizelocalBL_LiNC! above? would make it symmetric with case gamma=0.
         @debug "addhybrid resulted in SPR move: new hybrid edge had γ=1.0, its partner was deleted"
         return true
     end
@@ -792,6 +790,8 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     # don't optimize gammas: because we want to constrain one of them to 0.0
     if obj.loglik - currLik > likAbsDelHybLiNC # -0.1: loglik can decrease for parsimony
         deletehybridedge!(obj.net, minorhybridedge, false, true) # don't keep nodes; unroot
+        # check for & delete 3-cycles
+        shrink3cycles!(obj.net)
         updateSSM!(obj, true; constraints=constraints) # obj.loglik updated by optimizeBL_LiNC above
         return true
     else # keep hybrid
@@ -1129,7 +1129,8 @@ function optimizeallgammas_LiNC!(obj::SSM, ftolAbs::Float64,
         hi -= 1
         if hi>nh hi=nh; end
     end
-    # todo: check & delete 3-cycles
+    # check for & delete 3-cycles
+    shrink3cycles!(obj.net)
     return reduced
 end
 
