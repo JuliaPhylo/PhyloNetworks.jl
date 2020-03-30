@@ -5,8 +5,9 @@ using PhyloPlots
 using CSV
 =#
 
-@testset "setlengths and setgammas" begin
+@testset "auxiliary" begin
 
+@testset "setlengths and setgammas" begin
 originalstdout = stdout
 redirect_stdout(open("/dev/null", "w")) # not portable to Windows
 @test_nowarn PhyloNetworks.citation()
@@ -27,7 +28,6 @@ PhyloNetworks.setmultiplegammas!([net.edge[18]], [0.25])
 
 @test PhyloNetworks.getlengths([net.edge[1]]) == [net.edge[1].length]
 @test PhyloNetworks.getlengths([net.edge[1], net.edge[5]]) == [net.edge[1].length, net.edge[5].length]
-
 end
 
 @testset "hashybridladder" begin
@@ -38,13 +38,32 @@ PhyloNetworks.addhybridedge!(tree, tree.edge[2], tree.edge[1], true)
 @test PhyloNetworks.hashybridladder(tree)
 end # of testing hashybridladder
 
-@testset "shrink3cycles!" begin
-tree = readTopology("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);");
-@test !PhyloNetworks.shrink3cycles!(tree)
+@testset "shrink 2/3 cycles" begin
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
+@test !PhyloNetworks.shrink2cycles!(net)
 @test !PhyloNetworks.shrink3cycles!(net)
-PhyloNetworks.addhybridedge!(net, net.edge[7], net.edge[4], true)
+PhyloNetworks.addhybridedge!(net, net.edge[7], net.edge[4], true, 0.1, 0.2)
+@test !PhyloNetworks.shrink2cycles!(net)
+@test PhyloNetworks.shrink3cycles!(net) # tree case
+@test writeTopology(net) == "(((A:2.0,(B:1.0)#H1:0.1::0.9):1.37,(C:0.6,#H1:1.0::0.1):0.9):0.6,D:2.0);"
+PhyloNetworks.addhybridedge!(net, net.edge[3], net.edge[6], true, 0.3, 0.4)
+@test PhyloNetworks.shrink3cycles!(net) # hybrid case
+@test writeTopology(net, round=true, digits=5) == "(((A:2.0,(B:1.0)#H1:0.13191::0.94):1.37,(C:0.6,#H1:1.0::0.06):0.9):0.6,D:2.0);"
+net0 = readTopology("((((((a:1)#H1:1::.9)#H2:1::.8)#H3:1::.7,#H3:0.5):1,#H2:1):1,(#H1:1,b:1):1,c:1);")
+net = deepcopy(net0) # new 2/3 cycles appear when some are shrunk
+@test PhyloNetworks.shrink2cycles!(net)
+@test writeTopology(net, round=true) == "((#H1:1.0::0.1,b:1.0):1.0,c:1.0,(a:1.0)#H1:4.48::0.9);"
+@test PhyloNetworks.shrink3cycles!(net0)
+writeTopology(net0, round=true) == "(c:1.1,a:5.132,b:1.9);"
+net0 = readTopology("((a:1,#H1:.1::.1):1,(((b:.5)#H3:1)#H1:1,(#H3:0.8::.4)#H2:1):1,(#H2:.2::.0,c:1):1);")
+PhyloNetworks.deletehybridedge!(net0, net0.edge[2], false,true,false,false)
+net = deepcopy(net0) # delete edge 10 (with γ=0) then shrink 2-cycle
+PhyloNetworks.deletehybridedge!(net, net.edge[7], false,true,false,false)
 @test PhyloNetworks.shrink3cycles!(net)
-net = readTopology("((((((((((((((Ae_caudata_Tr275,Ae_caudata_Tr276),Ae_caudata_Tr139))#H1,#H2),(((Ae_umbellulata_Tr266,Ae_umbellulata_Tr257),Ae_umbellulata_Tr268),#H1)),((Ae_comosa_Tr271,Ae_comosa_Tr272),(((Ae_uniaristata_Tr403,Ae_uniaristata_Tr357),Ae_uniaristata_Tr402),Ae_uniaristata_Tr404))),(((Ae_tauschii_Tr352,Ae_tauschii_Tr351),(Ae_tauschii_Tr180,Ae_tauschii_Tr125)),(((((((Ae_longissima_Tr241,Ae_longissima_Tr242),Ae_longissima_Tr355),(Ae_sharonensis_Tr265,Ae_sharonensis_Tr264)),((Ae_bicornis_Tr408,Ae_bicornis_Tr407),Ae_bicornis_Tr406)),((Ae_searsii_Tr164,Ae_searsii_Tr165),Ae_searsii_Tr161)))#H2,#H4))),(((T_boeoticum_TS8,(T_boeoticum_TS10,T_boeoticum_TS3)),T_boeoticum_TS4),((T_urartu_Tr315,T_urartu_Tr232),(T_urartu_Tr317,T_urartu_Tr309)))),(((((Ae_speltoides_Tr320,Ae_speltoides_Tr323),Ae_speltoides_Tr223),Ae_speltoides_Tr251))H3,((((Ae_mutica_Tr237,Ae_mutica_Tr329),Ae_mutica_Tr244),Ae_mutica_Tr332))#H4))),Ta_caputMedusae_TB2),S_vavilovii_Tr279),Er_bonaepartis_TB1),H_vulgare_HVens23);");
-@test !PhyloNetworks.shrink3cycles!(net)
+@test writeTopology(net) == "(a:2.0,c:2.0,b:3.42);"
+# shrink 3-cycle, which deletes edge 10 (with γ=0) : same result in the end
+@test PhyloNetworks.shrink3cycles!(net0)
+@test writeTopology(net) == "(a:2.0,c:2.0,b:3.42);"
 end
+
+end # of set of auxiliary test sets

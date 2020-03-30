@@ -296,7 +296,7 @@ deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool) = deleteHybrid!(node,ne
 """
     deletehybridedge!(net::HybridNetwork, edge::Edge,
                       nofuse=false, unroot=false,
-                      multgammas=false)
+                      multgammas=false, simplify=true)
 
 Delete a hybrid `edge` from `net` and return the network.
 The network does not have to be of level 1 and may contain polytomies,
@@ -307,7 +307,7 @@ If `nofuse` is false, when `edge` is removed, its child (hybrid) node is removed
 and its partner hybrid edge is removed.
 Its child edge is retained (below the hybrid node), fused with the former partner,
 with new length: old length + length of `edge`'s old partner.
-Any 2-cycle is simplified into a single tree edge.
+Any 2-cycle is simplified into a single edge, unless `simplify` is false.
 
 If `nofuse` is true, edges with descendant leaves are kept as is,
 and are not fused. Nodes are retained during edge removal,
@@ -338,7 +338,8 @@ Warnings:
 """
 function deletehybridedge!(net::HybridNetwork, edge::Edge,
                            nofuse=false::Bool, unroot=false::Bool,
-                           multgammas=false::Bool)
+                           multgammas=false::Bool,
+                           simplify=true::Bool)
     #fixit: if we want to keep a root of degree one, we would need to add an option
          # to deletehybridedge to truly keep all node. (Currently, it keeps all
          # nodes that have data below.)
@@ -413,7 +414,7 @@ function deletehybridedge!(net::HybridNetwork, edge::Edge,
     #       If root, would have no parent: treat network as unrooted and change the root.
     if delete_n1_recursively
         deleteleaf!(net, n1.number; index=false, nofuse=nofuse,
-                    simplify=true, unroot=unroot, multgammas=multgammas)
+                    simplify=simplify, unroot=unroot, multgammas=multgammas)
     # else: delete "edge" then n2 as appropriate
     elseif n2degree == 1
         error("node $(n2.number) (parent of hybrid edge $(edge.number) to be deleted) has 1 edge only!")
@@ -425,7 +426,7 @@ function deletehybridedge!(net::HybridNetwork, edge::Edge,
         deleteEdge!(net,edge,part=false)
         # remove n2 as appropriate later (recursively)
         deleteleaf!(net, n2.number; index=false, nofuse=nofuse,
-                    simplify=true, unroot=unroot, multgammas=multgammas)
+                    simplify=simplify, unroot=unroot, multgammas=multgammas)
     end
     return net
 end

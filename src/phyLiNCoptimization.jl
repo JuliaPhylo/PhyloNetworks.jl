@@ -354,8 +354,8 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
     Random.seed!(seed)
     # update files inside topology constraint to match the deepcopied net in obj.net created by pmap
     updateconstraintfields!(constraints, obj.net)
-    if probST < 1.0 # modify starting tree by k nni moves (if possible), k=0 or more
-        numNNI = rand(Geometric(probST)) # number of NNIs follows a geometric distribution: p (1 - p)^k
+    numNNI = (probST < 1.0 ? rand(Geometric(probST)) : 0) # number NNIs ~ geometric: p (1-p)^k
+    if numNNI > 0 # modify starting tree by k nni moves (if possible)
         for i in 1:numNNI
             nni_LiNC!(obj, no3cycle, nohybridladder, constraints, ftolRel,
                       ftolAbs, xtolRel, xtolAbs, γcache)
@@ -388,13 +388,16 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
             optimizelocalgammas_LiNC!(obj, e, ftolAbs, γcache)
         end
         @debug "after global BL and gamma optimization, the likelihood is $(obj.loglik)"
+        ghosthybrid = false
         for h in obj.net.hybrid # check for gammas close to zero
             minorhybridedge = getMinorParentEdge(h)
-            if minorhybridedge.gamma == 0.0 # delete this edge, updateSSM!
-                deletehybridedge!(obj.net, minorhybridedge, false, true) # don't keep nodes; unroot
-                updateSSM!(obj, true; constraints=constraints) # renumber = true
-                @debug "deleted hybrid edge with γ=0 at hybrid node number $(h.number)"
-            end
+            minorhybridedge.gamma == 0.0 || continue
+            ghosthybrid = true
+            deletehybridedge!(obj.net, minorhybridedge, false,true,false,false) # nofuse,unroot,multgammas,simplify
+        end
+        if ghosthybrid # one or more hybrid edges with γ=0 were deleted
+            # shrink3cycles!(obj.net) # not done: to keep the likelihood exact in final network
+            updateSSM!(obj, true; constraints=constraints) # renumber = true
         end
     end
     return obj
@@ -600,10 +603,10 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
                   xtolRel::Float64, xtolAbs::Float64,
                   γcache::CacheGammaLiNC)
     currLik = obj.loglik
-    edgefound = false
-    remainingedges = collect(1:length(obj.net.edge)) # indices in net.edge
     saveddisplayedtree = obj.displayedtree # save trees, priorltw in case we need to undo move
     savedpriorltw = copy(obj.priorltw)
+    edgefound = false
+    remainingedges = collect(1:length(obj.net.edge)) # indices in net.edge
     while !edgefound
         isempty(remainingedges) && return nothing
         i_in_remaining = Random.rand(1:length(remainingedges))
@@ -633,7 +636,7 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
                 e.gamma  = savedgam[i]
             end
             return false # false means: move was rejected
-        else # keep nni move (note: if gammas now = zero, the edge will be removed after move in optimizestructure)
+        else # keep nni move. If a γ became 0, optimizestructure will remove the edge
             return true # move was accepted: # rejections will be reset to zero
         end
     end
@@ -673,16 +676,14 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     savedgam = [e.gamma for e in obj.net.edge]
     result = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints;fixroot=true)
     # fixroot=true: to restore edge2 if need be, with deletehybridedge!
-    if isnothing(result)
-        return nothing
-    end
+    isnothing(result) && return nothing
     newhybridnode, newhybridedge = result
     # unzip only at new node and its child edge
     unzipat_canonical!(newhybridnode, getChildEdge(newhybridnode))
     updateSSM!(obj)
     optimizelocalgammas_LiNC!(obj, newhybridedge, ftolRel, γcache)
     if newhybridedge.gamma == 0.0
-        deletehybridedge!(obj.net, newhybridedge, false, true) # don't keep nodes; unroot
+        deletehybridedge!(obj.net, newhybridedge, false,true) # nofuse,unroot
         obj.displayedtree = saveddisplayedtree # restore displayed trees and tree weights
         obj.priorltw = savedpriorltw
         for (i,e) in enumerate(obj.net.edge) # restore
@@ -690,17 +691,16 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
         end
         return false
     elseif newhybridedge.gamma == 1.0 # ≃ subtree prune and regraft (SPR) move
-        # loglik must be better, yet without any real new reticulation: accept
-        deletehybridedge!(obj.net, getMinorParentEdge(newhybridnode), false, true)
-        # check for & delete 3-cycles
-        shrink3cycles!(obj.net)
+        # loglik better because γ=1 better than γ=0, yet without new reticulation: accept
+        deletehybridedge!(obj.net, getMinorParentEdge(newhybridnode), false,true,false,false)
+        shrink3cycles!(obj.net) # delete any 2/3-cycles. change in loglik ignored...
         updateSSM!(obj, true; constraints=constraints)
         @debug "addhybrid resulted in SPR move: new hybrid edge had γ=1.0, its partner was deleted"
         return true
     end
     optimizelocalBL_LiNC!(obj, newhybridedge, ftolRel, ftolAbs, xtolRel, xtolAbs)
     if obj.loglik - currLik < likAbsAddHybLiNC # improvement too small or negative: undo
-        deletehybridedge!(obj.net, newhybridedge, false, true) # don't keep nodes; unroot
+        deletehybridedge!(obj.net, newhybridedge, false,true) # nofuse,unroot
         #= rezip not needed because likelihood unchanged.
         If hybrid edge addition used hybridpartnernew = false, the root was
         changed and direction of edge2 was changed: but that doesn't affect
@@ -789,15 +789,14 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     optimizeBL_LiNC!(obj, [majhyb], ftolRel,ftolAbs,xtolRel,xtolAbs)
     # don't optimize gammas: because we want to constrain one of them to 0.0
     if obj.loglik - currLik > likAbsDelHybLiNC # -0.1: loglik can decrease for parsimony
-        deletehybridedge!(obj.net, minorhybridedge, false, true) # don't keep nodes; unroot
-        # check for & delete 3-cycles
-        shrink3cycles!(obj.net)
+        deletehybridedge!(obj.net, minorhybridedge, false,true,false,false) # nofuse,unroot,multgammas,simplify
+        shrink3cycles!(obj.net) # delete any 2/3-cycles. loglik change ignored...
         updateSSM!(obj, true; constraints=constraints) # obj.loglik updated by optimizeBL_LiNC above
         return true
     else # keep hybrid
         majhyb.length = len0
         setGamma!(minorhybridedge, γ0)
-        updateSSM_priorltw!(obj) # displayedtree will be correct here
+        updateSSM_priorltw!(obj) # displayedtree already correct
         obj.loglik = currLik # restore to likelihood before move
         return false
     end
@@ -861,7 +860,7 @@ function updateSSM!(obj::SSM, renumber=false::Bool;
     # extract displayed trees
     obj.displayedtree = displayedTrees(obj.net, 0.0; nofuse=true)
     for tree in obj.displayedtree
-        preorder!(tree) # no need to call directEdges! before: already done on net
+        preorder!(tree) # no need to call directEdges!: already correct in net
     end
     # log tree weights: sum log(γ) over edges, for each displayed tree
     updateSSM_priorltw!(obj)
@@ -888,12 +887,9 @@ function updatedisplayedtrees!(trees::Vector, enum::Int, pnum::Int, gammae::Floa
     gammap = 1.0 - gammae
     for (i,t) in enumerate(trees)
         h = hase[i]
-        ismissing(h) && continue # tree doesn't either e nor partner
-        if h
-            ei = findfirst(e -> e.number == enum, t.edge)
-        else
-            ei = findfirst(e -> e.number == pnum, t.edge)
-        end
+        ismissing(h) && continue # tree doesn't have either e nor partner
+        ei = (h ? findfirst(e -> e.number == enum, t.edge) :
+                  findfirst(e -> e.number == pnum, t.edge))
         t.edge[ei].gamma = (h ? gammae : gammap)
     end
 end
@@ -960,7 +956,7 @@ function startingBL!(net::HybridNetwork, unzip::Bool,
         # works well if the true (or "the" best-fit) length of the minor parent
         # edge is less than the true length of the parent edge.
         # (zips all the way up instead of unzipping all the way down, as we do when the child edge = 0)
-    for e in net.edge # improve identifiability by not allowing very small lengths
+    for e in net.edge # improve identifiability by not allowing very small lengths todo: why??
         if e.length < 1.0e-10
             e.length = 0.0001
         end
@@ -1115,13 +1111,13 @@ function optimizeallgammas_LiNC!(obj::SSM, ftolAbs::Float64,
         ll = llnew
         nevals += nh
     end
-    reduced = false
+    ghosthybrid = false
     hi = nh
     while hi > 0
         he = getMinorParentEdge(hybnodes[hi])
         if he.gamma == 0.0
-            deletehybridedge!(obj.net, he, false, true) # don't keep nodes; unroot
-            reduced = true
+            deletehybridedge!(obj.net, he, false,true,false,false)
+            ghosthybrid = true
             nh = length(hybnodes) # normally nh-1, but could be less: deleting
             # one hybrid may delete others indirectly, e.g. if hybrid ladder
             # or if generation of a 2-cycle
@@ -1129,9 +1125,8 @@ function optimizeallgammas_LiNC!(obj::SSM, ftolAbs::Float64,
         hi -= 1
         if hi>nh hi=nh; end
     end
-    # check for & delete 3-cycles
-    shrink3cycles!(obj.net)
-    return reduced
+    ghosthybrid && shrink3cycles!(obj.net) # delete any 2/3-cycles. loglik change ignored...
+    return ghosthybrid
 end
 
 """

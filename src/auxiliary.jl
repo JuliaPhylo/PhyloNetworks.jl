@@ -1458,30 +1458,28 @@ function hashybridladder(net::HybridNetwork)
     return false
 end
 
-"""
+@doc raw"""
     shrink2cycles!(net::HybridNetwork)
 
-If `net` contains a 2-cycle, collapse the cycle into one edge and return true.
+If `net` contains a 2-cycle, collapse the cycle into one edge of length
+tA + γt1+(1-γ)t2 + tB (see below), and return true.
 Return false otherwise.
-
-A 2-cycle is a set of 2 hybrid edges that share a parent node and the
+A 2-cycle is a set of 2 parallel hybrid edges, from the same parent node to the
 same hybrid child node.
 
-    (node A)                    (node A)
-        | tA                        |
-    (parent node)                   |
-        | |                         |
-t2,1-γ  |  | t1,γ                   | tA + γ*t1 + (1-γ)*t2 + tB
-        | /                         |
-    (child hybrid node)             |
-        | tB                        |
-    (node B)                    (node B)
+           A                A
+           | tA             |
+         parent             |
+           | \              |
+    t2,1-γ |  | t1,γ        | tA + γ*t1 + (1-γ)*t2 + tB
+           | /              |
+         hybrid             |
+           | tB             |
+           B                B
 
-The new branch length between node A and node B will be of length:
-tA + γ*t1 + (1-γ)*t2 + tB
-
-Warning: If any of the lengths or gammas associated with a 2-cycle are missing,
-combined length will be missing.
+If any of the lengths or gammas associated with a 2-cycle are missing,
+the combined length is missing. If γ is missing, branch lengths
+are calculated using γ=0.5.
 """
 function shrink2cycles!(net::HybridNetwork)
     foundcycle = false
@@ -1494,18 +1492,35 @@ function shrink2cycles!(net::HybridNetwork)
         pmin = getParent(minor)  # minor parent node
         pmaj = getMajorParent(h) # major parent node
         if pmin !== pmaj # no 2-cycle
-            ih-=1
+            ih -= 1
             continue
         end
         # 2-cycle
         foundcycle = true
         shrink2cycleat!(net, minor, major)
         nh = length(net.hybrid)
-        ih = nh + 1
+        ih = nh
         # we re-do if a cycle was removed: a new cycle might have appeared
-        # by setting ih = nh + 1
     end
     return foundcycle
+end
+
+"""
+    shrink2cycleat!(net::HybridNetwork, minor::Edge, major::Edge)
+
+Remove `minor` edge then update the branch length of the remaining `major` edge,
+see [`shrink2cycles!`](@ref)
+
+Assumption: `minor` and `major` do form a 2-cycle, that is,
+start and end at same node.
+"""
+function shrink2cycleat!(net::HybridNetwork, minor::Edge, major::Edge)
+    g = minor.gamma
+    if g == -1.0 g=.5; end
+    major.length = addBL(multiplygammas(    g, minor.length),
+                         multiplygammas(1.0-g, major.length))
+    deletehybridedge!(net, minor, false,false,false,false) # nofuse,unroot,multgammas,simplify
+    return nothing
 end
 
 """
@@ -1517,8 +1532,8 @@ Return true if `net` contains a 2-cycle or a 3-cycle; false otherwise.
 A 3-cycle (2-cycle) is a set of 3 (2) nodes that are all connected.
 One of them must be a hybrid node, since `net` is a DAG.
 
-Warning: If any of the lengths or gammas associated with 2- and 3-cycles
-are missing, combined lengths and gammas will be missing.
+See [`shrink3cycleat!`](@ref) for details on branch lengths and
+inheritance values.
 """
 function shrink3cycles!(net::HybridNetwork)
     foundcycle = false
@@ -1549,68 +1564,62 @@ function shrink3cycles!(net::HybridNetwork)
     return foundcycle
 end
 
-"""
-    shrink2cycleat!(net::HybridNetwork, minor::Edge, major::Edge)
 
-Takes network and hybrid node. Removes `minor` edge then updates the
-branch length of the remaining `major` edge.
+@doc raw"""
+    shrink3cycleat!(net::HybridNetwork, hybrid::Node, edge1::Edge, edge2::Edge,
+                    node1::Node, node2::Node)
 
-Assumption:
-- minor and major start and end at same node. That is, they form a 2-cycle.
-"""
-function shrink2cycleat!(net::HybridNetwork, minor::Edge, major::Edge)
-    major.length = addBL(multiplygammas(minor.gamma, minor.length),
-                        multiplygammas(major.gamma, major.length))
-    setGamma!(major, 1.0)
-    deletehybridedge!(net, minor, true, false, # nofuse = true, unroot = false
-                      false) # multgammas = false (new gamma = 1.0)
-    return nothing
-end
+Replace a 3-cycle at a given `hybrid` node by a single node, if any.
+Assumption: `edge1` (`node1`) and `edge2` (`node2`) are the parent edges (nodes)
+of `hybrid`. Return true if a 3-cycle is found and removed, false otherwise.
+There is a 3-cycle if nodes 1 & 2 are connected, by an edge called `e3` below.
 
-"""
-    shrink3cycleat!(net::HybridNetwork, hybrid::Node, edge1::Edge,
-                      edge2::Edge, node1::Node, node2::Node)
-
-Remove a 3-cycle at a given `hybrid` node. `edge1` and `edge2` form two sides of
-the 3-cycle and both point into the `hybrid` node. The parent nodes of `edge1`
-and `edge2` are `node1` and `node2` respectively.
-
-Return true if cycle found and removed, false otherwise.
-
-There are two cases, with differing effects on the structure, gamma inheritance
+There are two cases, with differing effects on the γ inheritance
 values and branch lengths.
 
-Two hybrid case. Removes one hybrid, so one remains. Results in this structure:
-  edgeB  edgeA
-      |  /
-   (hybrid node)
+**Hybrid case**: the 3-cycle is shrunk to a hybrid node, which occurs if
+either node 1 or 2 is a hybrid node (that is, e3 is hybrid). If e3 goes
+from node 1 to node 2, the 3-cycle (left) is shrunk as on the right:
+
+    \eA      /eB           \eA  /eB
+     1--e3->2       γ1+γ2γ3 \  / γ2(1-γ3)
+      \    /               hybrid
+     γ1\  /γ2
+      hybrid
+
+with new branch lengths:
+new tA = tA + (γ1.t1 + γ2γ3.t3)/(γ1+γ2γ3),
+new tB = tB + t2,
+provided that γ1, γ2=1-γ1, and γ3 are not missing. If one of them is missing
+then γ1 and γ2 remain as is, and e3 is deleted naively,
+such that new tA = tA + t1 and new tB = tB + t2.
+If γ's are not missing but one of t1,t2,t3 is missing, then the γ's are
+updated to γ1+γ2γ3 and γ2(1-γ3), but t's are update naively.
+
+**Tree case**: the 3-cycle is shrunk to a tree node, which occurs if node 1 & 2
+are both tree nodes (that is, e3 is a tree edge). If eC is the child edge of
+`hybrid`, the 3-cycle (left) is shrunk as on the right:
+
+    \eA                  \eA
+     1--e3--2--eB--       \
+      \    /               n--eB--
+     γ1\  /γ2              |
+      hybrid               |eC
         |
-        | edgeC (unchanged)
+        |eC
 
-newedgeA.length = edgeA.length +
-    (edge1.gamma*edge1.length + edge2.gamma*edge3.gamma*edge3.length)/newedgeA.gamma
-newedgeB.length = edgeB.length + edge2.length
-newedgeB.gamma = edge2.gamma*edgeB.gamma = 1 - newedgeA.gamma
-newedgeA.gamma = (edge1.gamma + edge2.gamma*edge3.gamma)
-
-One hybrid case. Removes one hybrid, so none remain. Results in this structure:
-   edgeB  edgeA
-       |  /
-   (tree node)
-        |
-        | edgeC
-
-newedgeA.length = edgeA.length + edge2.gamma*edge3.length
-newedgeB.length = edgeB.length + edge1.gamma*edge3.length
-newedgeC.length = edgeC.length + edge1.gamma*edge1.length + edge2.gamma*edge2.length
+with new branch lengths:
+new tA = tA + γ2.t3,
+new tB = tB + γ1.t3,
+new tC = tC + γ1.t1 + γ2.t2,
+provided that γ1, γ2=1-γ1, t1, t2 and t3 are not missing.
+If one is missing, then e1 is deleted naively such that
+tB is unchanged, new tC = tC + t2 and new tA = tA + t3.
 """
 function shrink3cycleat!(net::HybridNetwork, hybrid::Node, edge1::Edge,
                         edge2::Edge, node1::Node, node2::Node)
-    # Warning: When called in PhyLiNC, edge kengths below hybrid nodes != zero
-
     # check for presence of 3 cycle
     edge3 = nothing
-    edgeB = nothing
     for e in node1.edge # find edge connecting node1 and node2
         e !== edge1 || continue
         n = getOtherNode(e, node1)
@@ -1621,51 +1630,48 @@ function shrink3cycleat!(net::HybridNetwork, hybrid::Node, edge1::Edge,
     end
     !isnothing(edge3) || return false # no 3-cycle at node h
     # identify case type
-    if edge3.hybrid # two-hybrid case: one of the parent nodes is a hybrid
+    if edge3.hybrid # one of the parent nodes is a hybrid
         # to shrink this, delete edge connecting these two nodes (edge3 here)
         if getChild(edge3) === node1
             node1, node2 = node2, node1
             edge1, edge2 = edge2, edge1
-        end # we can now assume hybrid edge 3 connects node 1 --> node 2
+        end # now: node1 --edge3--> node2
         edgeA = nothing
         for e in node1.edge
             if e!== edge1 && e !== edge2
                 edgeA = e
+                break
             end
         end
-        m1gamma1 = addBL(-1, edge1.gamma)
-        gammatilde = addBL(edge1.gamma, multiplygammas(m1gamma1, edge3.gamma))
-        m1gammatilde = addBL(-1, gammatilde) # 1 - gammatilde
-        edge1tilde = multiplygammas(edge1.gamma, edge1.length) # edge1 weighted length
-        if gammatilde == -1
-            edgeA.length == -1 #because we use 1/gammatilde, so need to catch missing -1 values
-        else
-            edgeA.length = edgeA.length +
-                multiplygammas(1/gammatilde, addBL(multiplygammas(edge1.length, edge1.gamma),
-                multiplygammas(edge3.length, multiplygammas(m1gamma1, edge3.gamma))))
+        g1 = edge1.gamma
+        g2g3 = multiplygammas(edge2.gamma, edge3.gamma)
+        g1tilde = addBL(g1, g2g3)
+        if g1tilde != -1.0 # else one of the γ is missing: do nothing with γs and ts
+            edge1.gamma = g1tilde
+            edge2.gamma = 1.0-g1tilde
+            edge1.isMajor = g1tilde >= 0.5
+            edge2.isMajor = !edge1.isMajor
+            if edge1.length != -1.0 && edge2.length != -1.0 && edge3.length != -1.0
+                edge1.length = (edge1.length *g1 + (edge3.length + edge2.length)*g2g3)/g1tilde
+            end
         end
-        edgeB.length = addBL(edgeB.length, edge2.length)
-        setGamma!(edgeA, gammatilde)
-        setGamma!(edgeB, m1gammatilde)
-        # For clarity, the above branch length formulas are complete.
-        # Statements below prevent incorrect summation of edge lengths in deletehybridedge!()
-        edge1.length = 0.0; edge2.length = 0.0; edge3.length = 0.0
-        deletehybridedge!(net, edge3) # delete edge3 (nofuse=false, unroot=false, multgammas=false)
-    else # one-hybrid case: parent nodes 1 and 2 are both tree nodes
+        deletehybridedge!(net, edge3, false,false,false,false) # nofuse,unroot,multgammas,simplify
+    else # parent nodes 1 and 2 are both tree nodes
+        edgeB = nothing
         for e in node2.edge
-            if e !== edge1 && e !==edge2
+            if e !== edge1 && e !==edge3
                 edgeB = e
+                break
             end
         end
-        edgeB.length = addBL(edgeB.length, multiplygammas(edge1.gamma, edge3.length)) # complete formula for new BL
-        edge2.length = addBL(multiplygammas(edge1.gamma, edge1.length), # for new edgeC length (see below)
-                                    multiplygammas(edge2.gamma, edge2.length))
-        edge1.length = 0.0 # for new edgeC length (see below)
-        edge3.length = multiplygammas(edge3.length, edge2.gamma) # for new edgeA length (see below)
-        deletehybridedge!(net, edge1)
-            # deletehybridedge! updates branch lengths this way:
-                # new edgeA.length = edgeA.length + edge3.length
-                # new edgeC.length = edgeC.length + edge1.length + edge2.length
+        g1t1 = multiplygammas(edge1.gamma, edge1.length)
+        t3 = edge3.length
+        if g1t1 != -1.0 && edge2.length != -1.0 && t3 != -1.0 # else do nothing: keep tA, tB, tC as is
+            edgeB.length = addBL(edgeB.length, edge1.gamma * t3)
+            edge3.length = t3 * edge2.gamma
+            edge2.length = g1t1 + edge2.gamma * edge2.length
+        end
+        deletehybridedge!(net, edge1, false,false,false,false) # nofuse,unroot,multgammas,simplify
     end
     return true
 end

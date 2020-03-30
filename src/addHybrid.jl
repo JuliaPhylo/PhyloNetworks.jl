@@ -165,16 +165,18 @@ julia> writeTopology(net)
 """
 function addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpartnernew::Bool,
                         edgelength::Float64=-1.0, gamma::Float64=-1.0)
+    gamma == -1.0 || (gamma <= 1.0 && gamma >= 0.0) || error("invalid γ to add a hybrid edge")
+    gbar = (gamma == -1.0 ? -1.0 : 1.0 - gamma) # 1-gamma, with γ=-1 as missing
     newnode1_tree, edgeabovee1 = breakedge!(edge1, net) # new tree node
     newnode2_hybrid, edgeabovee2 = breakedge!(edge2, net) # new hybrid node
     newnode2_hybrid.hybrid = true
     pushHybrid!(net, newnode2_hybrid) # updates net.hybrid and net.numHybrids
-    # new hybrid edge
+    # new hybrid edge, minor if γ missing (-1)
     hybrid_edge = Edge(maximum(e.number for e in net.edge) + 1, edgelength, true, gamma, gamma>0.5) # number, length, hybrid, gamma, isMajor
     # partner edge: update hybrid status, γ and direction
     if hybridpartnernew
         edgeabovee2.hybrid = true
-        edgeabovee2.gamma = 1.0 - gamma
+        edgeabovee2.gamma = gbar
         if gamma>0.5
             edgeabovee2.isMajor = false
         end
@@ -183,7 +185,7 @@ function addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpart
         i2 = findfirst(isequal(c2), net.node)
         net.root = i2 # makes c2 the new root node
         edge2.hybrid = true
-        edge2.gamma = 1.0 - gamma
+        edge2.gamma = gbar
         if gamma>0.5
             edge2.isMajor = false
         end
