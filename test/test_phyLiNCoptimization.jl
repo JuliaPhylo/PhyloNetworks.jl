@@ -167,7 +167,7 @@ end
 
 @testset "phyLiNC no constraints: HKY, rate variation" begin
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
-@test_nowarn obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69, 4; maxhybrid=2,
+@test_nowarn obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69, 2; maxhybrid=2,
                     no3cycle=true, nohybridladder=true, maxmoves=2,
                     nreject=1, nruns=1, filename="", verbose=false, seed=105)
 @test obj.loglik > -29.7762035

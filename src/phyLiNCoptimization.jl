@@ -299,14 +299,18 @@ function phyLiNC!(obj::SSM;
     end
     verbose && print(stdout,logstr)
     (no3cycle ? shrink3cycles!(obj.net) : shrink2cycles!(obj.net)) # not done in phyLiNCone
+    # loglik changes after shrinkage, but recalculated below by optimizeBL
     updateSSM!(obj, true; constraints = constraints)
     # warning: tolerance values from constants, not user-specified
     optimizeBL_LiNC!(obj, copy(obj.net.edge), fRelBL, fAbsBL, xRelBL, xAbsBL,
                      max(10*length(obj.net.edge), 1000))
-    optimizeallgammas_LiNC!(obj, fAbsBL, γcache, 100) &&
+    ghosthybrid = optimizeallgammas_LiNC!(obj, fAbsBL, γcache, 100)
+    if ghosthybrid
+        (no3cycle ? shrink3cycles!(obj.net) : shrink2cycles!(obj.net))
         updateSSM!(obj, true; constraints=constraints)
-    # 2/3 cycles not shrunk before updateSSM, in case there were ghosthybrid:
-    # to keep the likelihood exact in final network
+        discrete_corelikelihood!(obj) # to get likelihood exact, even if not optimum
+    end
+    obj.net.loglik = obj.loglik
     toptimend = time_ns() # in nanoseconds
     telapsed = round(convert(Int, toptimend-tstart) * 1e-9, digits=2) # in seconds
     logstr = "complete.\nFinal log-likelihood: $(obj.loglik)\n" *
@@ -702,7 +706,8 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     elseif newhybridedge.gamma == 1.0 # ≃ subtree prune and regraft (SPR) move
         # loglik better because γ=1 better than γ=0, yet without new reticulation: accept
         deletehybridedge!(obj.net, getMinorParentEdge(newhybridnode), false,true,false,false)
-        (no3cycle ? shrink3cycles!(obj.net) : shrink2cycles!(obj.net)) # change in loglik ignored...
+        (no3cycle ? shrink3cycles!(obj.net) : shrink2cycles!(obj.net))
+        # loglik will be updated in optimizeallgammas right after, in optimizestructure
         updateSSM!(obj, true; constraints=constraints)
         @debug "addhybrid resulted in SPR move: new hybrid edge had γ=1.0, its partner was deleted"
         return true
@@ -799,8 +804,9 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     # don't optimize gammas: because we want to constrain one of them to 0.0
     if obj.loglik - currLik > likAbsDelHybLiNC # -0.1: loglik can decrease for parsimony
         deletehybridedge!(obj.net, minorhybridedge, false,true,false,false) # nofuse,unroot,multgammas,simplify
-        (no3cycle ? shrink3cycles!(obj.net) : shrink2cycles!(obj.net)) # loglik change ignored...
-        updateSSM!(obj, true; constraints=constraints) # obj.loglik updated by optimizeBL_LiNC above
+        (no3cycle ? shrink3cycles!(obj.net) : shrink2cycles!(obj.net))
+        updateSSM!(obj, true; constraints=constraints)
+        # obj.loglik will be updated by optimizeallgammas within optimizestructure
         return true
     else # keep hybrid
         majhyb.length = len0
@@ -965,7 +971,7 @@ function startingBL!(net::HybridNetwork, unzip::Bool,
         # works well if the true (or "the" best-fit) length of the minor parent
         # edge is less than the true length of the parent edge.
         # (zips all the way up instead of unzipping all the way down, as we do when the child edge = 0)
-    for e in net.edge # improve identifiability by not allowing very small lengths todo: why??
+    for e in net.edge # avoid starting at the boundary
         if e.length < 1.0e-10
             e.length = 0.0001
         end
