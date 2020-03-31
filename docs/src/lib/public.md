@@ -54,7 +54,6 @@ nni!
 ## data and topology read/write
 
 ```@docs
-datatoSSM
 readfastatodna
 readTopology
 readTopologyLevel1
@@ -140,4 +139,5 @@ nstates
 stationary
 empiricalDNAfrequencies
 mapindividuals
+phyLiNC!
 ```

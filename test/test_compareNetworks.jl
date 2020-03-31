@@ -10,7 +10,7 @@ global net, tree
 #----------------------------------------------------------#
 @testset "testing deletehybridedge!" begin
 
-# with keepNodes=true
+# with nofuse=true
 netstr = "(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.0,D:5.0);"
 net = readTopology(netstr)
 @test_logs PhyloNetworks.deletehybridedge!(net, net.edge[6], true);
@@ -45,7 +45,11 @@ net = readTopology(netstr);
 @test writeTopology(net) == "(Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0);"
 net = readTopology(netstr);
 @test_logs PhyloNetworks.deletehybridedge!(net, net.edge[9], true);
-@test writeTopology(net) == "((Adif:1.0,(Aech:0.122,((Asub:1.0,Agem:1.0):0.0)H6:10.0):10.0):1.614);"
+#fixit: if we want to keep a root of degree one, we would need to add an option
+     # to deletehybridedge to truly keep all node. (Currently, it keeps all
+     # nodes that have data below.) If we do this, the correct topology would be:
+     # "((Adif:1.0,(Aech:0.122,((Asub:1.0,Agem:1.0):0.0)H6:10.0):10.0):1.614);"
+@test writeTopology(net) == "(Adif:1.0,(Aech:0.122,((Asub:1.0,Agem:1.0):0.0)H6:10.0):10.0);"
 
 if doalltests
 net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.1361111):10.0);");
@@ -76,6 +80,12 @@ writeTopologyLevel1(net) == "(Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.
 # plot(net, showEdgeNumber=true, showNodeNumber=true)
 end
 
+# example with simplify=false
+net0 = readTopology("((((((a:1)#H1:1::.9)#H2:1::.8)#H3:1::.7,#H3:0.5):1,#H2:1):1,(#H1:1,b:1):1,c:1);")
+net = deepcopy(net0)
+@test writeTopology(deletehybridedge!(net, net.edge[5]), round=true) == "(((a:1.0)#H1:2.0::0.9):1.0,(#H1:1.0::0.1,b:1.0):1.0,c:1.0);"
+@test writeTopology(deletehybridedge!(net0, net0.edge[5],false,true,false,false), round=true) ==
+  "((#H2:1.0::0.2,((a:1.0)#H1:1.0::0.9)#H2:3.0::0.8):1.0,(#H1:1.0::0.1,b:1.0):1.0,c:1.0);"
 end # of testing deletehybridedge!
 
 @testset "testing deleteleaf! and hardwiredClusterDistance" begin
@@ -83,10 +93,9 @@ end # of testing deletehybridedge!
 cui2str = "(Xgordoni,Xmeyeri,(Xcouchianus,(Xvariatus,(Xevelynae,((Xxiphidium,#H25:9.992::0.167):1.383,(Xmilleri,(Xandersi,(Xmaculatus,((((Xhellerii,(Xalvarezi,Xmayae):0.327):0.259,Xsignum):1.866,(Xclemenciae_F2,Xmonticolus):1.461):0.786,((((Xmontezumae,(Xnezahuacoyotl)#H26:0.247::0.807):0.372,((Xbirchmanni_GARC,Xmalinche_CHIC2):1.003,Xcortezi):0.454):0.63,((Xcontinens,Xpygmaeus):1.927,((Xnigrensis,Xmultilineatus):1.304,#H26:0.0::0.193):0.059):2.492):2.034)#H25:0.707::0.833):1.029):0.654):0.469):0.295):0.41):0.646):3.509):0.263);"
 cui3str = "(Xmayae,((Xhellerii,(((Xclemenciae_F2,Xmonticolus):1.458,(((((Xmontezumae,(Xnezahuacoyotl)#H26:0.247::0.804):0.375,((Xbirchmanni_GARC,Xmalinche_CHIC2):0.997,Xcortezi):0.455):0.63,(#H26:0.0::0.196,((Xcontinens,Xpygmaeus):1.932,(Xnigrensis,Xmultilineatus):1.401):0.042):2.439):2.0)#H7:0.787::0.835,(Xmaculatus,(Xandersi,(Xmilleri,((Xxiphidium,#H7:9.563::0.165):1.409,(Xevelynae,(Xvariatus,(Xcouchianus,(Xgordoni,Xmeyeri):0.263):3.532):0.642):0.411):0.295):0.468):0.654):1.022):0.788):1.917)#H27:0.149::0.572):0.668,Xalvarezi):0.257,(Xsignum,#H27:1.381::0.428):4.669);"
 
+if doalltests
 net3  = readTopology(cui3str);
 net2  = readTopology(cui2str);
-
-if doalltests
 # major tree, root with outgroup then delete 2 leaves:
 tree2 = majorTree(net2);        tree3 = majorTree(net3);
 rootatnode!(tree2,"Xmayae");    rootatnode!(tree3,"Xmayae");
@@ -120,6 +129,7 @@ net3  = readTopology(cui3str);
 @test hardwiredClusterDistance(net2, net3, true) == 3
 @test_logs rootatnode!(net3,"Xmayae");
 @test hardwiredClusterDistance(net2, net3, true) == 4
+@test hardwiredClusterDistance(net2, net3, false) == 3
 @test_logs deleteleaf!(net3,"Xmayae"; unroot=true);    #plot(net3);
 @test net3.numHybrids == 2
 # using simplify=false in deleteleaf!
@@ -217,7 +227,7 @@ a = displayedTrees(net5, 0.1);
 @test writeTopologyLevel1(a[4]) == "(A:1.0,((B:1.1,D:1.0):1.2,((F:0.7,E:0.51):0.8,C:1.12):2.2):0.7);"
 
 net = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.0,D:5.0);")
-trees = (@test_logs displayedTrees(net,0.0; keepNodes=true));
+trees = (@test_logs displayedTrees(net,0.0; nofuse=true));
 @test writeTopology(trees[1])=="(((A:4.0,(B:1.0)H1:1.1):0.5,(C:0.6):1.0):3.0,D:5.0);"
 @test writeTopology(trees[2])=="(((A:4.0):0.5,(C:0.6,(B:1.0)H1:1.0):1.0):3.0,D:5.0);"
 @test PhyloNetworks.inheritanceWeight.(trees) ≈ [log(0.9), log(0.1)]
@@ -232,10 +242,22 @@ net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02:
 @test writeTopology(net5) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.7);"
 net = readTopology("((((B)#H1)#H2,((D,C,#H2)S1,(#H1,A)S2)S3)S4);") # missing γ's, level 2
 @test writeTopology(majorTree(net)) == "(((D,C)S1,A)S3,B)S4;"
-@test writeTopology(majorTree(net; keepNodes=true)) == "(((B)H1)H2,((D,C)S1,(A)S2)S3)S4;"
+@test writeTopology(majorTree(net; nofuse=true)) == "(((B)H1)H2,((D,C)S1,(A)S2)S3)S4;"
 setGamma!(net.edge[8], 0.8)
 @test writeTopology(majorTree(net)) == "((D,C)S1,(A,B)S2)S3;"
-# but: bug with writeTopology(majorTree(net; keepNodes=true))
+writeTopology(majorTree(net; nofuse=true)) == "((D,C)S1,((B)H1,A)S2)S3;"
+
+# net6 below: hybrid ladder H2 -> H1; and H2 child of root
+# using multgammas=true, to test multiplygammas and how it is used
+net6 = readTopology("(#H2:::0.2,((C,((B)#H1:::0.6)#H2:::0.8),(#H1,(A1,A2))),O);")
+tre6 = displayedTrees(net6, 0.5; nofuse=false, multgammas=true)[1]
+@test tre6.edge[2].gamma ≈ 0.48
+displayedNetworkAt!(net6, net6.node[4], false, false, true) # nofuse, unroot=false, multgammas=true
+@test net6.edge[3].gamma ≈ 0.6
+net6 = readTopology("(#H2:::0.2,((C,((B)#H1:::0.6)#H2:::0.8),(#H1,(A1,A2))),O);")
+displayedNetworkAt!(net6, net6.node[3], false, false, true) # nofuse, unroot=false, multgammas=true
+@test net6.edge[5].gamma ≈ 0.4
+@test net6.edge[3].gamma ≈ 0.48
 
 end # of testset, majorTree & displayedNetworkAt!
 
@@ -326,6 +348,9 @@ estminor = minorTreeAt(estnet, 1); # (5:1.0,(3:1.0,4:1.0):1.069,(6:1.0,(1:1.0,2:
 @test writeTopology(estminor) == "(6,((5,(3,4):1.069):8.735,(1,2):12.136):0.752);"
 @test hardwiredClusterDistance(truminor, estminor, false) == 0 # false: unrooted
 # so the hybrid edge was estimated correctly!!
+rootatnode!(trunet, -8)
+@test hardwiredClusterDistance(estnet, trunet, true) == 3
+@test_broken hardwiredClusterDistance(estnet, trunet, false) == 0
 
 net5 = readTopology("(A,((B,#H1:::0.2),(((C,(E)#H2:::0.7),(#H2:::0.3,F)),(D)#H1:::0.8)));");
 tree = displayedTrees(net5, 0.0);

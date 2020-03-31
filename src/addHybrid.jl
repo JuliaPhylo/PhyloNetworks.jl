@@ -4,29 +4,34 @@
 """
     addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
                    constraints=TopologyConstraint[]::Vector{TopologyConstraint};
-                   maxattempts=10::Int)
+                   maxattempts=10::Int, fixroot=false::Bool)
 
 Randomly choose two edges in `net` then: add hybrid edge from edge 1 to edge 2
-and randomly decide which "half" of edge 2 will serve as partner hybrid edge.
-This partner edge will point toward the newly-created node
-on the middle of the original edge 2.
+of length 0.01. The two halves of edge 1 (and of edge 2) have equal lengths.
+The hybrid partner edge (top half of edge 2, if fixroot is true) will point
+towards the newly-created node on the middle of the original edge 2.
 
 If the resulting network is a DAG, satisfies the constraint(s),
 does not contain any 3-cycle (if `no3cycle=true`), and does not have
 a hybrid ladder (if `nohybridladder=true`) then the proposal is successful:
-`net` is modified, and the function returns the newly created hybrid node.
+`net` is modified, and the function returns the newly created hybrid node and
+newly created hybrid edge.
 
 If the resulting network is not acceptable, then a new set of edges
-is proposed (using a blacklist), until one is found acceptable, or until
+is proposed (using a blacklist) until one is found acceptable, or until
 a maximum number of attempts have been made (`maxattempts`).
 If none of the attempted proposals are successful, `nothing` is returned
 (without causing an error).
 
 After a pair of edges is picked, the "top" half of edge2 is proposed
-as the partner hybrid edge with probability 0.8
-(to avoid changing the direction of edge2 with more than 50% chance).
-If this choice does not work, the "bottom" half of edge2 is proposed as
-the partner hybrid edge (which would require to flip the direction of edge 2).
+as the partner hybrid edge with probability 0.8 if `fixroot` is false,
+(to avoid changing the direction of edge2 with more than 50% chance)
+and with probability 1.0 if `fixroot` is true.
+If this choice does not work and if `fixroot` is false,
+the other half of edge2 is proposed as the partner hybrid edge.
+Note that choosing the "bottom" half of edge2 as the partner edge
+requires to flip the direction of edge 2, and to move the root accordingly
+(to the original child of edge2).
 
 # examples
 
@@ -38,20 +43,26 @@ julia> using Random
 julia> Random.seed!(134);
 
 julia> PhyloNetworks.addhybridedge!(net, true, true)
-PhyloNetworks.Node:
+(PhyloNetworks.Node:
  number:9
  name:H3
  hybrid node
  attached to 3 edges, numbered: 5 16 17
-
+, PhyloNetworks.Edge:
+ number:17
+ length:0.01
+ minor hybrid edge with gamma=0.028819678088948808
+ attached to 2 node(s) (parent first): 8 9
+)
 
 julia> writeTopology(net, round=true)
-"((S1,((((#H1,S4),((S2,(S3)#H1))#H3:::0.971))#H2,#H3:0.0::0.029)),(#H2,S5));"
+"((S1,((((#H1,S4),((S2,(S3)#H1))#H3:::0.971))#H2,#H3:0.01::0.029)),(#H2,S5));"
+
 ```
 """
 function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
         constraints=TopologyConstraint[]::Vector{TopologyConstraint};
-        maxattempts=10::Int)
+        maxattempts=10::Int, fixroot=false::Bool)
     all(con.type == 1 for con in constraints) || error("only type-1 constraints implemented so far")
     numedges = length(net.edge)
     blacklist = Set{Tuple{Int,Int}}()
@@ -71,7 +82,7 @@ function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool
         constraintsmet = true
         for con in constraints
             if con.type == 1 # forbid going out of (edge1) or into (edge2) the species group
-                if con.nodenum == p1.number || con.edgenum == p2.number
+                if con.node === p1 || con.node === p2
                     push!(blacklist, (e1,e2))
                     constraintsmet = false
                     break # of constraint loop
@@ -84,22 +95,27 @@ function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool
             push!(blacklist, (e1,e2))
             continue
         end
-        ## check for no hybrid ladder, if requested: edge2 cannot be a hybrid
-        if nohybridladder && edge2.hybrid
+        ## check for no hybrid ladder, if requested:
+         # edge2 cannot be a hybrid edge or the child of a hybrid node
+        if nohybridladder && (edge2.hybrid || getParent(edge2).hybrid)
             push!(blacklist, (e1,e2))
             continue
         end
-        hybridpartnernew = (rand() > 0.2) # if true: partner hybrid = new edge above edge 2
+        hybridpartnernew = (fixroot ? true : rand() > 0.2) # if true: partner hybrid = new edge above edge 2
         ## check that the new network will be a DAG: no directional conflict
-        if net.numHybrids > 0 && directionalconflict(net, p1, edge2, hybridpartnernew)
+        if directionalconflict(net, p1, edge2, hybridpartnernew)
+            if fixroot # don't try to change the direction of edge2
+                push!(blacklist, (e1,e2))
+                continue
+            end # else: try harder: change direction of edge2 and move root
             hybridpartnernew = !hybridpartnernew # try again with opposite
-            if directionalconflict(net, p1, edge2, !hybridpartnernew)
+            if directionalconflict(net, p1, edge2, hybridpartnernew)
                 push!(blacklist, (e1,e2))
                 continue
             end # else: switching hybridpartnernew worked
         end
         newgamma = rand()*0.5; # in (0,.5) to create a minor hybrid edge
-        return addhybridedge!(net, edge1, edge2, hybridpartnernew, 0.0, newgamma)
+        return addhybridedge!(net, edge1, edge2, hybridpartnernew, 0.01, newgamma)
     end
     # error("tried max number of attempts, none worked!")
     return nothing
@@ -121,19 +137,25 @@ or the old `edge2` otherwise (which would reverse the direction of `edge2` and o
 Should be called from the other method, which performs a bunch of checks.
 Updates `containRoot` attributes for edges below the new hybrid node.
 
-`net` is modified and the new hybrid node (middle of the old `edge2`) is returned.
+Output: new hybrid node (middle of the old `edge2`) and new hybrid edge.
 
 # examples
 
 ```jldoctest
 julia> net = readTopology("((S8,(((S1,(S5)#H1),(#H1,S6)))#H2),(#H2,S10));");
 
-julia> hybnode = PhyloNetworks.addhybridedge!(net, net.edge[13], net.edge[8], true, 0.0, 0.2)
-PhyloNetworks.Node:
+julia> hybnode, hybedge = PhyloNetworks.addhybridedge!(net, net.edge[13], net.edge[8], true, 0.0, 0.2)
+(PhyloNetworks.Node:
  number:9
  name:H3
  hybrid node
  attached to 3 edges, numbered: 8 16 17
+, PhyloNetworks.Edge:
+ number:17
+ length:0.0
+ minor hybrid edge with gamma=0.2
+ attached to 2 node(s) (parent first): 8 9
+)
 
 
 julia> writeTopology(net)
@@ -143,16 +165,18 @@ julia> writeTopology(net)
 """
 function addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpartnernew::Bool,
                         edgelength::Float64=-1.0, gamma::Float64=-1.0)
+    gamma == -1.0 || (gamma <= 1.0 && gamma >= 0.0) || error("invalid γ to add a hybrid edge")
+    gbar = (gamma == -1.0 ? -1.0 : 1.0 - gamma) # 1-gamma, with γ=-1 as missing
     newnode1_tree, edgeabovee1 = breakedge!(edge1, net) # new tree node
     newnode2_hybrid, edgeabovee2 = breakedge!(edge2, net) # new hybrid node
     newnode2_hybrid.hybrid = true
     pushHybrid!(net, newnode2_hybrid) # updates net.hybrid and net.numHybrids
-    # new hybrid edge
+    # new hybrid edge, minor if γ missing (-1)
     hybrid_edge = Edge(maximum(e.number for e in net.edge) + 1, edgelength, true, gamma, gamma>0.5) # number, length, hybrid, gamma, isMajor
     # partner edge: update hybrid status, γ and direction
     if hybridpartnernew
         edgeabovee2.hybrid = true
-        edgeabovee2.gamma = 1.0 - gamma
+        edgeabovee2.gamma = gbar
         if gamma>0.5
             edgeabovee2.isMajor = false
         end
@@ -161,7 +185,7 @@ function addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpart
         i2 = findfirst(isequal(c2), net.node)
         net.root = i2 # makes c2 the new root node
         edge2.hybrid = true
-        edge2.gamma = 1.0 - gamma
+        edge2.gamma = gbar
         if gamma>0.5
             edge2.isMajor = false
         end
@@ -190,7 +214,7 @@ function addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpart
         directEdges!(net)
         norootbelow!(edgeabovee2)
     end
-    return newnode2_hybrid
+    return newnode2_hybrid, hybrid_edge
 end
 
 """
@@ -219,12 +243,12 @@ Does *not* modify the network.
 Output: `true` if a conflict would arise (non-DAG), `false` if no conflict.
 """
 function directionalconflict(net::HybridNetwork, parent::Node, edge2::Edge, hybridpartnernew::Bool)
-    if hybridpartnernew # all edges would retain theirs directions: use isChild1 fields
+    if hybridpartnernew # all edges would retain their directions: use isChild1 fields
         c2 = getChild(edge2)
         return parent === c2 || isdescendant(parent, c2)
     else # after hybrid addition, edge 2 would be reversed: "up" toward its own parent
-        if !edge2.containRoot || edge2.hybrid # direction of edge2 cannot be reversed
-            return true
+        if !edge2.containRoot || edge2.hybrid
+            return true # direction of edge2 cannot be reversed
         else # net would be a DAG with reversed directions, could even be rooted on edge2
             p2 = getParent(edge2)
             return parent === p2 || isdescendant_undirected(parent, p2, edge2)

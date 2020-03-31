@@ -74,6 +74,9 @@ end
 function addBL(x::Number,y::Number)
     (x==-1.0 || y==-1.0) ? -1.0 : x+y
 end
+function multiplygammas(x::Number,y::Number)
+    (x==-1.0 || y==-1.0) ? -1.0 : x * y
+end
 
 #------------- EDGE functions --------------------#
 
@@ -183,7 +186,7 @@ When `node` is given, it is assumed to be the child of `edge`
 end
 @inline function getPartner(edge::Edge, node::Node)
     for e in node.edge
-        if e.hybrid && e != edge && node == getChild(e)
+        if e.hybrid && e !== edge && node === getChild(e)
             return e
         end
     end
@@ -251,6 +254,22 @@ end
         end
     end
     error("could not find minor parent of node $(node.number)")
+end
+"""
+    getChildEdge(node::Node)
+
+Return child edge below a hybrid node.
+
+Warning: Does not check that the node is a hybrid.
+If not a hybrid, returns the first child edge.
+"""
+@inline function getChildEdge(node::Node)
+    for e in node.edge
+        if node === getParent(e)
+            return e
+        end
+    end
+    error("could not find child edge of node $(node.number)")
 end
 
 # -------------- NETWORK ----------------------- #
@@ -343,18 +362,6 @@ function getIndexHybrid(node::Node, net::Network)
     if i>size(net.hybrid,1) error("hybrid node not in network"); end
     return i
 end
-
-# function to find leaf index in qnet.leaf
-function getIndexLeaf(node::Node, net::Network)
-    node.leaf || error("node $(node.number) is not leaf so it cannot be in net.leaf")
-    i = 1;
-    while(i<= size(net.leaf,1) && !isEqual(node,net.leaf[i]))
-        i = i+1;
-    end
-    if i>size(net.leaf,1) error("leaf node not in network"); end
-    return i
-end
-
 
 # function that given a hybrid node, it gives you the minor hybrid edge
 # warning: assumes level-1 network: see getMinorParentEdge for a general network
@@ -449,26 +456,22 @@ function pushHybrid!(net::Network, n::Node)
 end
 
 """
-`deleteNode!(net::HybridNetwork, n::Node)`
+    deleteNode!(net::HybridNetwork, n::Node)
 
-
-deletes a Node from a network, i.e. removes it from
+Delete node `n` from a network, i.e. removes it from
 net.node, and from net.hybrid or net.leaf as appropriate.
-Updates attributes numNodes, numTaxa, numHybrids
-(it does not update net.names though).
+Update attributes `numNodes`, `numTaxa`, `numHybrids`.
+Warning: `net.names` is *not* updated.
 
 Warning: if the root is deleted, the new root is arbitrarily set to the
 first node in the list. This is intentional to save time because this function
 is used frequently in snaq!, which handles semi-directed (unrooted) networks.
 """
 function deleteNode!(net::HybridNetwork, n::Node)
-    index = 0
-    try
-        index = getIndex(n,net);
-    catch
-        error("Node $(n.number) not in network");
-    end
-    # println("deleting node $(n.number) from net, index $(index).")
+    index = findfirst(no -> no===n, net.node)
+    # warning: isequal does ===
+    #          isEqual (from above) could match nodes across different networks
+    index !== nothing || error("Node $(n.number) not in network");
     deleteat!(net.node,index);
     net.numNodes -= 1;
     if net.root == index  # do not check containRoot to save time in snaq!
@@ -492,22 +495,19 @@ end
 # accurate
 # if n is leaf, we delete from qnet.leaf
 function deleteNode!(net::QuartetNetwork, n::Node)
-    index=0
-    try
-        index = getIndex(n,net);
-    catch
-        error("Node $(n.number) not in network");
-    end
-    #println("deleting node $(n.number) from net")
+    index = findfirst(no -> no.number == n.number, net.node)
+    # isEqual (from above) checks for more than node number
+    index !== nothing || error("Node $(n.number) not in quartet network");
     deleteat!(net.node,index);
-    net.numNodes -= 1;
-    net.numTaxa -= n.leaf ? 1 : 0;
-    if(n.hybrid)
+    net.numNodes -= 1
+    if n.hybrid
        removeHybrid!(net,n)
     end
-    if(n.leaf)
-        index = getIndexLeaf(n,net)
+    if n.leaf
+        index = findfirst(no -> no === n, net.leaf)
+        index !== nothing || error("node $(n.number) not net.leaf")
         deleteat!(net.leaf,index)
+        net.numTaxa -= 1
     end
 end
 
@@ -535,13 +535,9 @@ end
 # function to delete an Edge in net.edge and
 # update numEdges from a QuartetNetwork
 function deleteEdge!(net::QuartetNetwork, e::Edge)
-    index=0
-    try
-        index = getIndex(e,net);
-    catch
-        error("Edge not in network");
-    end
-    #println("delete edge $(e.number) from net")
+    index = findfirst(x -> x.number == e.number, net.edge)
+    # isEqual (from above) checks for more than edge number
+    index !== nothing || error("edge not in quartet network");
     deleteat!(net.edge,index);
     net.numEdges -= 1;
 end
@@ -564,18 +560,11 @@ end
 # function to delete a leaf node in net.leaf
 # and update numTaxa
 function removeLeaf!(net::Network,n::Node)
-    if(n.leaf)
-        index = 0
-        try
-            index = getIndexLeaf(n,net)
-        catch
-            error("Leaf node $(n.number) not in network")
-        end
-        deleteat!(net.leaf,index)
-        net.numTaxa -= 1
-    else
-        error("cannot delete node $(n.number) from net.leaf because it is not leaf")
-    end
+    n.leaf || error("cannot delete node $(n.number) from net.leaf because it is not leaf")
+    index = findfirst(no -> no === n, net.leaf)
+    index !== nothing || error("leaf node $(n.number) not in network")
+    deleteat!(net.leaf,index)
+    net.numTaxa -= 1
 end
 
 # function to delete an internal node with only 2 edges
@@ -800,17 +789,11 @@ end
 #          node.hasHybEdge is set to false
 #          assuming any tree node can only have one
 #          one hybrid edge
-function removeEdge!(node::Node,edge::Edge)
-    index = 0
-    try
-        index = getIndexEdge(edge,node);
-    catch e
-        if isa(e, ErrorException)
-            error("edge $(edge.number) not in node $(node.number)")
-        end
-    end
-    deleteat!(node.edge,index);
-    all((e->!e.hybrid), node.edge) ? node.hasHybEdge = false : node.hasHybEdge = true;
+function removeEdge!(node::Node, edg::Edge)
+    index = findfirst(x -> x === edg, node.edge)
+    index !== nothing || error("edge $(edg.number) not in node $(node.number)")
+    deleteat!(node.edge,index)
+    node.hasHybEdge = any(e -> e.hybrid, node.edge)
 end
 
 # function to remove a node from a edge
@@ -818,15 +801,9 @@ end
 #          have node back by pushing it again
 # warning: only removes node from edge, edge might still
 #          be in node.edge
-function removeNode!(node::Node,edge::Edge)
-    index = 0
-    try
-        index = getIndexNode(edge,node);
-    catch e
-        if isa(e, ErrorException)
-            error("node $(node.number) not in edge or strange edge with more than 2 nodes")
-        end
-    end
+function removeNode!(nod::Node, edge::Edge)
+    index = findfirst(x -> x === nod, edge.node)
+    index !== nothing || error("node $(nod.number) not in edge")
     deleteat!(edge.node,index);
 end
 
@@ -852,21 +829,28 @@ function setLength!(edge::Edge, new_length::Number, negative::Bool)
 end
 
 """
-`setLength!(Edge,new length)`
+    setLength!(edge, newlength)`
 
-set a new length for an object Edge. The new length needs to be positive.
-For example, if you have a HybridNetwork object net, and do printEdges(net), you can see the list of Edges and their lengths. You can then change the length of the 3rd edge with setLength!(net.edge[3],1.2).
-If `new length` is above 10, the value 10 will be used, as an upper limit
-to coalescent units that can be reliably estimated.
+Set the length of `edge`, and set `edge.y` and `edge.z` accordingly.
+Warning: specific to SNaQ. Use [`setlengths!`](@ref) or [`setBranchLength!`](@ref)
+for more general tools.
+
+- The new length is censored to 10: if the new length is above 10,
+  the edge's length will be set to 10. Lengths are interpreted in coalescent
+  units, and 10 is close to infinity: near perfect gene tree concordance.
+  10 is used as an upper limit to coalescent units that can be reliably estimated.
+- The new length is allowed to be negative, but must be greater than -log(1.5),
+  to ensure that the major quartet concordance factor (1 - 2/3 exp(-length)) is >= 0.
 """
 setLength!(edge::Edge, new_length::Number) = setLength!(edge, new_length, false)
 
 
 """
-`setBranchLength!(Edge,new length)`
+    setBranchLength!(Edge, newlength)
 
-sets the length of an Edge object. The new length needs to be non-negative, or -1.0 to be interpreted as missing.
-Example: if net is a HybridNetwork object, do printEdges(net) to see the list of all edges with their lengths. The length of the 3rd edge can be changed to 1.2 with setBranchLength!(net.edge[3],1.2). It can also be set to missing with setBranchLength!(net.edge[3],-1.0)
+Set the length of an Edge object. The new length needs to be non-negative,
+or -1.0 to be interpreted as missing. `edge.y` and `edge.z` are updated
+accordingly.
 """
 function setBranchLength!(edge::Edge, new_length::Number)
     (new_length >= 0 || new_length == -1.0) || error("length $(new_length) has to be nonnegative or -1.0 (for missing).")
@@ -878,7 +862,7 @@ end
 
 """
     setGamma!(Edge, new γ)
-    setGamma!(Edge, new γ, change other=true::Bool)
+    setGamma!(Edge, new γ, change_other=true::Bool)
 
 Set inheritance probability γ for an edge, which must be a hybrid edge.
 The new γ needs to be in [0,1]. The γ of the "partner" hybrid edge is changed
@@ -892,6 +876,8 @@ and their γ's. The γ of the third hybrid edge (say) can be changed to 0.2 with
 This will automatically set γ of the partner hybrid edge to 0.8.
 
 The last argument is true by default. If false: the partner edge is not updated.
+This is useful if the new γ is 0.5, and the partner's γ is already 0.5,
+in which case the `isMajor` attributes can remain unchanged.
 """
 setGamma!(edge::Edge, new_gamma::Float64) = setGamma!(edge, new_gamma, true)
 
@@ -902,8 +888,7 @@ function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool)
     new_gamma >= 0.0 || error("gamma has to be positive: $(new_gamma)")
     new_gamma <= 1.0 || error("gamma has to be less than 1: $(new_gamma)")
     edge.hybrid || error("cannot change gamma in a tree edge");
-    edge.isChild1 ? ind = 1 : ind = 2 ; # hybrid edge pointing at node 1 or 2
-    node = edge.node[ind] # child of hybrid edge
+    node = getChild(edge) # child of hybrid edge
     node.hybrid || @warn "hybrid edge $(edge.number) not pointing at hybrid node"
     @debug (node.isBadDiamondI ? "bad diamond situation: gamma not identifiable" : "")
     partner = Edge[] # list of other hybrid parents of node, other than edge
@@ -913,7 +898,7 @@ function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool)
         end
     end
     length(partner) == 1 ||
-      error("strange hybrid node $(node.number) with $(length(hybridparents)+1) hybrid parents")
+      error("strange hybrid node $(node.number) with $(length(partner)+1) hybrid parents")
     e2 = partner[1]
     onehalf = isapprox(new_gamma,0.5)
     if onehalf new_gamma=0.5; end
@@ -1445,7 +1430,7 @@ Assign new lengths to a vector of `edges`.
 """
 @inline function setlengths!(edges::Vector{Edge}, lengths::Vector{Float64})
     for (e,l) in zip(edges, lengths)
-        setLength!(e, l)
+        e.length = l
     end
 end
 
@@ -1456,6 +1441,258 @@ Vector of edge lengths for a vector of `edges`.
 """
 getlengths(edges::Vector{Edge}) = [e.length for e in edges]
 
+"""
+    hashybridladder(net::HybridNetwork)
+
+Return true if `net` contains a hybrid ladder: where a hybrid node's
+child is itself a hybrid node.
+This makes the network not treechild, assuming it is fully resolved.
+(One of the nodes does not have any tree-node child).
+"""
+function hashybridladder(net::HybridNetwork)
+    for h in net.hybrid
+        if any(n.hybrid for n in getParents(h))
+            return true
+        end
+    end
+    return false
+end
+
+@doc raw"""
+    shrink2cycles!(net::HybridNetwork)
+
+If `net` contains a 2-cycle, collapse the cycle into one edge of length
+tA + γt1+(1-γ)t2 + tB (see below), and return true.
+Return false otherwise.
+A 2-cycle is a set of 2 parallel hybrid edges, from the same parent node to the
+same hybrid child node.
+
+           A                A
+           | tA             |
+         parent             |
+           | \              |
+    t2,1-γ |  | t1,γ        | tA + γ*t1 + (1-γ)*t2 + tB
+           | /              |
+         hybrid             |
+           | tB             |
+           B                B
+
+If any of the lengths or gammas associated with a 2-cycle are missing,
+the combined length is missing. If γ is missing, branch lengths
+are calculated using γ=0.5.
+"""
+function shrink2cycles!(net::HybridNetwork)
+    foundcycle = false
+    nh = length(net.hybrid)
+    ih = nh # hybrids deleted from the end
+    while ih > 0
+        h = net.hybrid[ih]
+        minor = getMinorParentEdge(h)
+        major = getMajorParentEdge(h)
+        pmin = getParent(minor)  # minor parent node
+        pmaj = getMajorParent(h) # major parent node
+        if pmin !== pmaj # no 2-cycle
+            ih -= 1
+            continue
+        end
+        # 2-cycle
+        foundcycle = true
+        shrink2cycleat!(net, minor, major)
+        nh = length(net.hybrid)
+        ih = nh
+        # we re-do if a cycle was removed: a new cycle might have appeared
+    end
+    return foundcycle
+end
+
+"""
+    shrink2cycleat!(net::HybridNetwork, minor::Edge, major::Edge)
+
+Remove `minor` edge then update the branch length of the remaining `major` edge,
+see [`shrink2cycles!`](@ref)
+
+Assumption: `minor` and `major` do form a 2-cycle, that is,
+start and end at same node.
+"""
+function shrink2cycleat!(net::HybridNetwork, minor::Edge, major::Edge)
+    g = minor.gamma
+    if g == -1.0 g=.5; end
+    major.length = addBL(multiplygammas(    g, minor.length),
+                         multiplygammas(1.0-g, major.length))
+    deletehybridedge!(net, minor, false,false,false,false) # nofuse,unroot,multgammas,simplify
+    return nothing
+end
+
+"""
+    shrink3cycles!(net::HybridNetwork)
+
+Remove all 2- and 3-cycles from a network.
+
+Return true if `net` contains a 2-cycle or a 3-cycle; false otherwise.
+A 3-cycle (2-cycle) is a set of 3 (2) nodes that are all connected.
+One of them must be a hybrid node, since `net` is a DAG.
+
+See [`shrink3cycleat!`](@ref) for details on branch lengths and
+inheritance values.
+"""
+function shrink3cycles!(net::HybridNetwork)
+    foundcycle = false
+    nh = length(net.hybrid)
+    ih = nh # hybrids deleted from the end
+    while ih > 0
+        h = net.hybrid[ih]
+        minor = getMinorParentEdge(h)
+        major = getMajorParentEdge(h)
+        pmin = getParent(minor)  # minor parent node
+        pmaj = getMajorParent(h) # major parent node
+        if pmin === pmaj # 2-cycle
+            foundcycle = true
+            shrink2cycleat!(net, minor, major)
+            nh = length(net.hybrid)
+            ih = nh + 1 # start over if a cycle was removed by setting ih = nh + 1.
+                        # Shrinking could have created a new cycle.
+        else # 3-cycle
+            result = shrink3cycleat!(net, h, minor, major, pmin, pmaj)
+            if result
+                foundcycle = true
+                nh = length(net.hybrid)
+                ih = nh + 1 # start over as above
+            end
+        end
+        ih -= 1
+    end
+    return foundcycle
+end
+
+
+@doc raw"""
+    shrink3cycleat!(net::HybridNetwork, hybrid::Node, edge1::Edge, edge2::Edge,
+                    node1::Node, node2::Node)
+
+Replace a 3-cycle at a given `hybrid` node by a single node, if any.
+Assumption: `edge1` (`node1`) and `edge2` (`node2`) are the parent edges (nodes)
+of `hybrid`. Return true if a 3-cycle is found and removed, false otherwise.
+There is a 3-cycle if nodes 1 & 2 are connected, by an edge called `e3` below.
+
+There are two cases, with differing effects on the γ inheritance
+values and branch lengths.
+
+**Hybrid case**: the 3-cycle is shrunk to a hybrid node, which occurs if
+either node 1 or 2 is a hybrid node (that is, e3 is hybrid). If e3 goes
+from node 1 to node 2, the 3-cycle (left) is shrunk as on the right:
+
+    \eA      /eB           \eA  /eB
+     1--e3->2       γ1+γ2γ3 \  / γ2(1-γ3)
+      \    /               hybrid
+     γ1\  /γ2
+      hybrid
+
+with new branch lengths:
+new tA = tA + (γ1.t1 + γ2γ3.t3)/(γ1+γ2γ3),
+new tB = tB + t2,
+provided that γ1, γ2=1-γ1, and γ3 are not missing. If one of them is missing
+then γ1 and γ2 remain as is, and e3 is deleted naively,
+such that new tA = tA + t1 and new tB = tB + t2.
+If γ's are not missing but one of t1,t2,t3 is missing, then the γ's are
+updated to γ1+γ2γ3 and γ2(1-γ3), but t's are update naively.
+
+**Tree case**: the 3-cycle is shrunk to a tree node, which occurs if node 1 & 2
+are both tree nodes (that is, e3 is a tree edge). If eC is the child edge of
+`hybrid`, the 3-cycle (left) is shrunk as on the right:
+
+    \eA                  \eA
+     1--e3--2--eB--       \
+      \    /               n--eB--
+     γ1\  /γ2              |
+      hybrid               |eC
+        |
+        |eC
+
+with new branch lengths:
+new tA = tA + γ2.t3,
+new tB = tB + γ1.t3,
+new tC = tC + γ1.t1 + γ2.t2,
+provided that γ1, γ2=1-γ1, t1, t2 and t3 are not missing.
+If one is missing, then e1 is deleted naively such that
+tB is unchanged, new tC = tC + t2 and new tA = tA + t3.
+"""
+function shrink3cycleat!(net::HybridNetwork, hybrid::Node, edge1::Edge,
+                        edge2::Edge, node1::Node, node2::Node)
+    # check for presence of 3 cycle
+    edge3 = nothing
+    for e in node1.edge # find edge connecting node1 and node2
+        e !== edge1 || continue
+        n = getOtherNode(e, node1)
+        if n === node2
+            edge3 = e
+            break
+        end
+    end
+    !isnothing(edge3) || return false # no 3-cycle at node h
+    # identify case type
+    if edge3.hybrid # one of the parent nodes is a hybrid
+        # to shrink this, delete edge connecting these two nodes (edge3 here)
+        if getChild(edge3) === node1
+            node1, node2 = node2, node1
+            edge1, edge2 = edge2, edge1
+        end # now: node1 --edge3--> node2
+        edgeA = nothing
+        for e in node1.edge
+            if e!== edge1 && e !== edge2
+                edgeA = e
+                break
+            end
+        end
+        g1 = edge1.gamma
+        g2g3 = multiplygammas(edge2.gamma, edge3.gamma)
+        g1tilde = addBL(g1, g2g3)
+        if g1tilde != -1.0 # else one of the γ is missing: do nothing with γs and ts
+            edge1.gamma = g1tilde
+            edge2.gamma = 1.0-g1tilde
+            edge1.isMajor = g1tilde >= 0.5
+            edge2.isMajor = !edge1.isMajor
+            if edge1.length != -1.0 && edge2.length != -1.0 && edge3.length != -1.0
+                edge1.length = (edge1.length *g1 + (edge3.length + edge2.length)*g2g3)/g1tilde
+            end
+        end
+        deletehybridedge!(net, edge3, false,false,false,false) # nofuse,unroot,multgammas,simplify
+    else # parent nodes 1 and 2 are both tree nodes
+        edgeB = nothing
+        for e in node2.edge
+            if e !== edge1 && e !==edge3
+                edgeB = e
+                break
+            end
+        end
+        g1t1 = multiplygammas(edge1.gamma, edge1.length)
+        t3 = edge3.length
+        if g1t1 != -1.0 && edge2.length != -1.0 && t3 != -1.0 # else do nothing: keep tA, tB, tC as is
+            edgeB.length = addBL(edgeB.length, edge1.gamma * t3)
+            edge3.length = t3 * edge2.gamma
+            edge2.length = g1t1 + edge2.gamma * edge2.length
+        end
+        deletehybridedge!(net, edge1, false,false,false,false) # nofuse,unroot,multgammas,simplify
+    end
+    return true
+end
+
+"""
+    adjacentedges(centeredge::Edge)
+
+Vector of all edges that share a node with `centeredge`.
+Warning: assumes that there aren't "duplicated" edges, that is, no 2-cycles.
+"""
+function adjacentedges(centeredge::Edge)
+    n = centeredge.node
+    length(n) == 2 || error("center edge is connected to $(length(n)) nodes")
+    edges = copy(n[1].edge) # shallow copy, to avoid modifying the first node
+    for ei in n[2].edge
+        ei === centeredge && continue # don't add the center edge again
+        # a second edge between nodes n[1] and n[2] would appear twice
+        push!(edges, ei)
+    end
+    return edges
+end
 
 #------------------------------------
 function citation()

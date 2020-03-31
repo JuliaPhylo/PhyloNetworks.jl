@@ -168,7 +168,7 @@ fit3 = (@test_logs fitdiscrete(net, m2, species, dat2; optimizeQ=false, optimize
 
 @test fit3.loglik ≈ (-2.6754091090953693 - 2.1207856874033491)
 PhyloNetworks.fit!(fit3; optimizeQ=true, optimizeRVAS=false)
-@test fit3.model.rate ≈ [0.3245640354187991, 0.5079501745877728]
+@test fit3.model.rate ≈ [0.3245645980184735, 0.5079500171263976]
 PhyloNetworks.fit!(fit3; optimizeQ=true, optimizeRVAS=true)
 fit3.net = readTopology("(A,(B,(C,D):1.0):1.0);"); # no branch lengths
 @test_throws ErrorException PhyloNetworks.fit!(fit3; optimizeQ=true, optimizeRVAS=true)
@@ -258,7 +258,7 @@ end
 # α=0.9801472136310236, β=0.4891696992781437, loglik=-255755.6 with ntraits=100000
 # time with ntraits=100000: 907.2s = 15min 7s (one single processor, no binning of traits with same pattern)
 
-# ancestral state reconstruction - fixit!! #TODO
+# ancestral state reconstruction - fixit!!
 fit1.model.rate[1] = 0.2722263130324768;
 fit1.model.rate[2] = 0.34981109618902395;
 @test_throws ErrorException ancestralStateReconstruction(fit1, 4) # 1 trait, not 4: error
@@ -282,7 +282,7 @@ fastafile = joinpath(@__DIR__, "..", "examples", "test_8_withrepeatingsites.aln"
 dat, weights = readfastatodna(fastafile, true);
 @test weights ==  [3.0, 1.0, 1.0, 2.0, 1.0]
 #check that no columns are repeated, only correct columns removed
-@test ncol(dat) == 6
+@test size(dat,2) == 6
 
 #test on data with no repeated site patterns
 fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_8sites.aln")
@@ -291,7 +291,7 @@ dat, weights = readfastatodna(fastafile, true);
 #check that weights are correct
 @test weights == ones(Float64, 8)
 #check that no columns are repeated, only correct columns removed
-@test ncol(dat) == 9
+@test size(dat,2) == 9
 end #testing readfastatodna
 
 @testset "NucleicAcidSubsitutionModels" begin
@@ -310,16 +310,49 @@ mJC69 = JC69(0.5, false);
 @test_throws ErrorException HKY85([0.5, 0.5], [0.25, 0.25, 0.25, 0.25], true)
 @test_throws ErrorException HKY85([.1,.1,.1], [0.25, 0.25, 0.25, 0.25], false)
 @test_throws ErrorException HKY85([0.5], [0.25, 0.25, 0.25, 0.25], false)
+#= HKY matrix from simulations with seq-gen
+echo '(t1:0,t2:0.1);' > twotaxon.phy
+seq-gen -m HKY -l 10000 -t 1.1145320197044333 -f 0.37 0.40 0.05 0.18 -of < twotaxon.phy > twotaxon_10000.fas
+seq-gen -m HKY -l 100000000 -t 1.1145320197044333 -f 0.37 0.40 0.05 0.18 -of < twotaxon.phy > twotaxon.fas
+# transition/transversion ratio = 1.11453 (K=3)
+# tstv = kappa (here we want 3) * (pa*pg + pc*pt)/(py*pr) = 1.1145320197044333
+system.time(dat <- phyDat(read.dna("twotaxon.fas", format="fasta"))) # 99 seconds
+bf = baseFreq(dat) # 0.36996372 0.40000796 0.04997551 0.18005282
+w = attr(dat, "weight")
+acgt = attr(dat, "levels")
+mat = matrix(NA,4,4, dimnames=list(acgt, acgt))
+for (pattern in 1:16){
+    i = dat[[1]][pattern]
+    j = dat[[2]][pattern]
+    mat[i,j] = w[pattern]
+}
+mat/sum(w) # joint probabilities
+           a          c          g          t
+a 0.34529570 0.01368654 0.00483382 0.00615715
+c 0.01366887 0.36582571 0.00185338 0.01864593
+g 0.00483558 0.00185214 0.04245549 0.00083627
+t 0.00615407 0.01865763 0.00082884 0.15441288
+m = (mat/sum(w) + t(mat/sum(w)))/2 # symmetric: we know it should be bc reversible
+           a          c           g           t
+a 0.34529570 0.01367771 0.004834700 0.006155610
+c 0.01367771 0.36582571 0.001852760 0.018651780
+g 0.00483470 0.00185276 0.042455490 0.000832555
+t 0.00615561 0.01865178 0.000832555 0.154412880
+m/bf # transition probabilities
+           a          c           g          t
+a 0.93332315 0.03697040 0.013068038 0.01663842
+c 0.03419358 0.91454609 0.004631808 0.04662852
+g 0.09674139 0.03707336 0.849525983 0.01665926
+t 0.03418780 0.10359060 0.004623949 0.85759765
+@time dna_dat, dna_weights = readfastatodna("twotaxon_10000.fas", true);
+# 1000 sites: 0.009950 seconds. 10_000 sites: 0.272987 seconds
+# takes forever with 100_000_000 sites: far from linear
+=#
 mHKY85 = HKY85([0.5, 0.5], [0.25, 0.25, 0.25, 0.25], false)
 @test Q(mHKY85) ≈ [ -0.375   0.125   0.125   0.125;
                     0.125  -0.375   0.125   0.125;
                     0.125   0.125  -0.375   0.125;
                     0.125   0.125   0.125  -0.375] atol=1e-5
-mHKY85rel = HKY85(0.5, [0.25, 0.25, 0.25, 0.25])
-@test Q(mHKY85rel) ≈ [-1.0   0.4   0.2   0.4;
-                        0.4  -1.0   0.4   0.2;
-                        0.2   0.4  -1.0   0.4;
-                        0.4   0.2   0.4  -1.0] atol=1e-3
 @test P(mHKY85, 1.0) ≈ [0.704898   0.0983673  0.0983673  0.0983673;
                         0.0983673  0.704898   0.0983673  0.0983673;
                         0.0983673  0.0983673  0.704898   0.0983673;
@@ -329,7 +362,18 @@ mHKY85rel = HKY85(0.5, [0.25, 0.25, 0.25, 0.25])
                                         0.194217  0.417348  0.194217  0.194217;
                                         0.194217  0.194217  0.417348  0.194217;
                                         0.194217  0.194217  0.194217  0.417348] atol=1e-5
-                                        
+
+mHKY85rel = HKY85(3.0, [.37,.40,.05,.18])
+@test Q(mHKY85rel) ≈ [-.7086 .388274 .145603 .174723;
+    .359154 -.931858  .0485343 .52417;
+    1.07746  .388274  -1.64046 .174723;
+    .359154  1.16482  .0485343 -1.57251] atol=1e-3
+@test PhyloNetworks.P(HKY85([3.0], [.37,.40,.05,.18]), 0.1) ≈
+  [.93332315 .03697040 .013068038 .01663842; # values: from seq-gen simulations
+   .03419358 .91454609 .004631808 .04662852;
+   .09674139 .03707336 .849525983 .01665926;
+   .03418780 .10359060 .004623949 .85759765] atol=1e-3
+
 @test P!(P(mJC69, 1.0), mJC69, 3.5) ≈ [0.322729  0.225757  0.225757  0.225757;
                                         0.225757  0.322729  0.225757  0.225757;
                                         0.225757  0.225757  0.322729  0.225757;
@@ -341,39 +385,61 @@ end # end of testing NASMs
 
 @testset "fitdiscrete for NucleicAcidSubsitutionModels & RateVariationAcrossSites" begin
 # test fitdiscrete with NASM #
-#there are 3 alignments in PhyloNetworks/examples
+    # based on 3 alignments in PhyloNetworks/examples
 net = readTopology("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);");
 tips = Dict("A" => BioSymbols.DNA_A, "B" => BioSymbols.DNA_A, "C" => BioSymbols.DNA_G, "D" => BioSymbols.DNA_G);
 
-#without optimization (confirmed with ape ace() function and phangorn)
+# JC without optimization (confirmed with ape ace() function and phangorn)
 mJC69 = JC69(0.2923350741254221, false) #ace() gives Q matrix cell, not rate. lambda = (1.0/3.0)*obj.rate[1] so rate = 3*0.097445024708474035 = 0.2923350741254221
+                                        #phangorn gives rate =  0.292336
 fitJC69 = fitdiscrete(net, mJC69, tips; optimizeQ=false);
-@test loglikelihood(fitJC69) ≈ -4.9927386890207304 atol=2e-6 #ace() from ape pkg and our method agree here. 
+@test loglikelihood(fitJC69) ≈ -4.9927386890207304 atol=2e-6 #ace() from ape pkg and our method agree here.
+                                #from ace() + log(4)
 
-##without optimize at 0.25
+# JC without optimize at 0.25
 mJC69 = JC69([0.25], false)
 fitJC69 = fitdiscrete(net, mJC69, tips; optimizeQ=false);
 @test loglikelihood(fitJC69) ≈ -4.99997 atol=2e-3 #from phangorn
 
-#with optimization (confirmed with ape ace() function and phangorn)
+# JC with optimization (confirmed with ape ace() function and phangorn)
 mJC69 = JC69([0.25], false)
 fitJC69 = fitdiscrete(net, mJC69, tips; optimizeQ=true)
-@test Q(fitJC69.model)[1,2] ≈ 0.097445024708474035 atol = 2e-3 #from ace() in ape pkg
-@test loglikelihood(fitJC69) ≈ -4.9927386890207304 atol=2e-6 #from ace() + log(4)
+@test Q(fitJC69.model)[1,2] ≈ 0.097445024708474035 atol = 2e-3 #confirmed with ace() in ape pkg (ace calls Q matrix rate)
+@test loglikelihood(fitJC69) ≈ -4.9927386890207304 atol=2e-6 #confirmed with ape pkg ace() + log(4) and phangorn optim.pml
 
-#without optimization (confirmed with phangorn function)
-mHKY85 = HKY85([4.0/3, 4.0/3], [0.25, 0.25, 0.25, 0.25], false); #absolute
+#= HKY without optimization, confirmed with phangorn R code:
+library(phangorn)
+mytree = read.tree(text = "(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);")
+states = factor(c(1,1,3,3), levels=c("1","2","3","4"))
+names(states)  = mytree$tip.label
+mydata <- as.phyDat(states)
+# likelihood without optimization
+fitHKY_phan <- pml(mytree, mydata, model = "HKY") #this is equivalent to rate = [4/3, 4/3]
+print(fitHKY_phan$logLik, digits = 10) # -5.365777014
+fitHKY_phan$rate # 1
+=#
+mHKY85 = HKY85([4.0/3, 4.0/3], [0.25, 0.25, 0.25, 0.25], false); # absolute
 fitHKY85 = fitdiscrete(net, mHKY85, tips; optimizeQ=false);
-@test loglikelihood(fitHKY85) ≈ -5.365777014 atol = 2e-8
-mHKY85 = HKY85([1.0], [0.25, 0.25, 0.25, 0.25], true); #relative
+@test loglikelihood(fitHKY85) ≈ -5.365777014 atol = 2e-8 # equivalent to phangorn $logLik
+mHKY85 = HKY85([1.0], [0.25, 0.25, 0.25, 0.25], true); # relative
 fitHKY85 = fitdiscrete(net, mHKY85, tips; optimizeQ=false);
-@test loglikelihood(fitHKY85) ≈ -5.365777014 atol = 2e-8
+@test loglikelihood(fitHKY85) ≈ -5.365777014 atol = 2e-8 # equivalent to above b/c transversion/transition rates equal
 
-#with optimization (confirmed with ape ace() function)
-mHKY85 = HKY85([0.5, 0.1], [0.25, 0.25, 0.25, 0.25], false); #absolute
+#= HKY85 with optimization, confirmed with ape ace() in R
+# NOTE: ace does not include log(#states) in its log-likelihood
+library(ape)
+mytree = read.tree(text = "(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);")
+states = factor(c(1,1,3,3), levels=c("1","2","3","4"))
+names(states)  = mytree$tip.label
+HKYQ <- matrix(c(0,2,1,2,  2,0,2,1, 1,2,0,2, 2,1,2,0), 4)
+fitHKY = ace(states, mytree,  type = "discrete", model=HKYQ)
+print(fitHKY$loglik - log(4), digits=17) # -3.3569474489525244
+print(fitHKY$rates*4, digits=17) # 1.4975887229148119 0.0
+=#
+mHKY85 = HKY85([0.5, 0.1], [0.25, 0.25, 0.25, 0.25], false); # absolute
 fitHKY85 = fitdiscrete(net, mHKY85, tips; optimizeQ=true)
-@test fitHKY85.model.rate[1] ≈ 1.4975887229148119 atol = 2e-4
-@test loglikelihood(fitHKY85) ≈ -3.3569474489525244 atol = 2e-8
+@test fitHKY85.model.rate[1] ≈ 1.4975887229148119 atol = 2e-4 # equivalent to ape ace() rate * 4
+@test loglikelihood(fitHKY85) ≈ -3.3569474489525244 atol = 2e-8 # equivalent to ape ace() fitHKY$loglik - log(4)
 
 # test RateVariationAcrossSites with NASM
 @test RateVariationAcrossSites(2.0, 4).ratemultiplier ≈ [0.3190650334827019,0.6833612017749638,1.108977045226681,1.888596719515653]
@@ -437,19 +503,19 @@ for edge in net_dna.edge # adds branch lengths
     end
 end
 
-d1 = (@test_logs (:warn, r"^the network contains taxa with no data") (:warn, r"^resetting edge numbers") fitdiscrete(net_dna,
+d1 = (@test_logs (:warn, r"^the network contains taxa with no data") fitdiscrete(net_dna,
   :ERSM, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false))
 @test_logs show(devnull, d1)
 @test_throws ErrorException fitdiscrete(net_dna, :BTSM, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
 @test_throws ErrorException fitdiscrete(net_dna, :TBTSM, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
 @test_throws ErrorException fitdiscrete(net_dna, :bogus, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false);
-d2 = (@test_logs (:warn, r"^the network contains taxa with no data") (:warn, r"^resetting edge numbers") fitdiscrete(net_dna,
+d2 = (@test_logs (:warn, r"^the network contains taxa with no data") fitdiscrete(net_dna,
   :JC69, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false))
 @test_logs show(devnull, d2)
-d2 = (@test_logs (:warn, r"^the network contains taxa with no data") (:warn, r"^resetting edge numbers") fitdiscrete(net_dna,
+d2 = (@test_logs (:warn, r"^the network contains taxa with no data") fitdiscrete(net_dna,
   :JC69, dna_dat, dna_weights, :RV; optimizeQ=false, optimizeRVAS=false))
 @test_logs show(devnull, d2)
-d3 = (@test_logs (:warn, r"^the network contains taxa with no data") (:warn, r"^resetting edge numbers") fitdiscrete(net_dna,
+d3 = (@test_logs (:warn, r"^the network contains taxa with no data") fitdiscrete(net_dna,
   :HKY85, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false))
 @test_logs show(devnull, d3)
 
@@ -467,30 +533,30 @@ end
 
 nasm_model = JC69([0.3], false);       # relative=false: absolute version
 rv = RateVariationAcrossSites(1.0, 2); # 2 rates to go faster
-# below: error because missing gammas
-@test_throws ErrorException fitdiscrete(dna_net_top, nasm_model, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false)
+# below: error because missing gammas, after warning for extra taxa
+(@test_logs (:warn, r"pruned") @test_throws ErrorException fitdiscrete(dna_net_top, nasm_model, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false))
 # set gamma at the 3 reticulations, to fix error above
 setGamma!(dna_net_top.edge[6],0.6)
 setGamma!(dna_net_top.edge[7],0.6)
 setGamma!(dna_net_top.edge[58],0.6)
 
-dna_net = (@test_logs (:warn, r"^the network contains taxa with no data") (:warn, r"^resetting edge numbers") fitdiscrete(dna_net_top,
+dna_net = (@test_logs (:warn, r"^the network contains taxa with no data") fitdiscrete(dna_net_top,
     nasm_model, dna_dat, dna_weights; optimizeQ=false))
 @test dna_net.model.rate == nasm_model.rate
 @test dna_net.ratemodel.ratemultiplier == [1.0]
-dna_net_optQ = (@test_logs (:warn, r"^the network contains taxa with no data") (:warn, r"^resetting edge numbers") fitdiscrete(dna_net_top,
+dna_net_optQ = (@test_logs (:warn, r"^the network contains taxa with no data") fitdiscrete(dna_net_top,
     nasm_model, rv, dna_dat, dna_weights; optimizeQ=true, optimizeRVAS=false, ftolRel=.1, ftolAbs=.2, xtolRel=.1, xtolAbs=.2))
 @test dna_net_optQ.model.rate != nasm_model.rate
 @test dna_net_optQ.ratemodel.alpha == 1.0
-dna_net_optRVAS = (@test_logs (:warn, r"^the network contains taxa with no data") (:warn, r"^resetting edge numbers") fitdiscrete(dna_net_top,
+dna_net_optRVAS = (@test_logs (:warn, r"^the network contains taxa with no data") fitdiscrete(dna_net_top,
     nasm_model, rv, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=true, ftolRel=.1, ftolAbs=.2, xtolRel=.1, xtolAbs=.2))
 @test dna_net_optRVAS.model.rate == nasm_model.rate
 @test dna_net_optRVAS.ratemodel.alpha != 1.0
 @test dna_net_optRVAS.ratemodel.ratemultiplier ≈ [0.02, 1.98] atol=0.05
 originalstdout = stdout
 redirect_stdout(open("/dev/null", "w"))
-dna_net_opt_both = (@test_logs (:warn, r"^the network contains taxa with no data") (:warn, r"^resetting edge numbers") fitdiscrete(dna_net_top,
-    nasm_model, rv, dna_dat, dna_weights; optimizeQ=true, optimizeRVAS=true, ftolRel=.1, ftolAbs=.2, xtolRel=.1, xtolAbs=.2, verbose=true))
+dna_net_opt_both = (@test_logs (:warn, r"^the network contains taxa with no data") fitdiscrete(dna_net_top,
+    nasm_model, rv, dna_dat, dna_weights; optimizeQ=true, optimizeRVAS=true, closeoptim=true, ftolRel=.1, ftolAbs=.2, xtolRel=.1, xtolAbs=.2, verbose=true))
 redirect_stdout(originalstdout)
 @test dna_net_opt_both.model.rate != nasm_model.rate
 @test dna_net_opt_both.ratemodel.alpha != 1.0
@@ -548,17 +614,25 @@ dna_dat, dna_weights = readfastatodna(fastafile, true);
 # 22 species, 3 hybrid nodes, 103 edges
 dna_net = readTopology("((((((((((((((Ae_caudata_Tr275,Ae_caudata_Tr276),Ae_caudata_Tr139))#H1,#H2),(((Ae_umbellulata_Tr266,Ae_umbellulata_Tr257),Ae_umbellulata_Tr268),#H1)),((Ae_comosa_Tr271,Ae_comosa_Tr272),(((Ae_uniaristata_Tr403,Ae_uniaristata_Tr357),Ae_uniaristata_Tr402),Ae_uniaristata_Tr404))),(((Ae_tauschii_Tr352,Ae_tauschii_Tr351),(Ae_tauschii_Tr180,Ae_tauschii_Tr125)),(((((((Ae_longissima_Tr241,Ae_longissima_Tr242),Ae_longissima_Tr355),(Ae_sharonensis_Tr265,Ae_sharonensis_Tr264)),((Ae_bicornis_Tr408,Ae_bicornis_Tr407),Ae_bicornis_Tr406)),((Ae_searsii_Tr164,Ae_searsii_Tr165),Ae_searsii_Tr161)))#H2,#H4))),(((T_boeoticum_TS8,(T_boeoticum_TS10,T_boeoticum_TS3)),T_boeoticum_TS4),((T_urartu_Tr315,T_urartu_Tr232),(T_urartu_Tr317,T_urartu_Tr309)))),(((((Ae_speltoides_Tr320,Ae_speltoides_Tr323),Ae_speltoides_Tr223),Ae_speltoides_Tr251))H3,((((Ae_mutica_Tr237,Ae_mutica_Tr329),Ae_mutica_Tr244),Ae_mutica_Tr332))#H4))),Ta_caputMedusae_TB2),S_vavilovii_Tr279),Er_bonaepartis_TB1),H_vulgare_HVens23);");
 # create trait object
-dat2 = PhyloNetworks.traitlabels2indices(dna_dat[!,2:end], JC69([0.5], false))
-o, dna_net = @test_logs (:warn, "the network contains taxa with no data: those will be pruned") (:warn, r"resetting edge numbers") match_mode=:any PhyloNetworks.check_matchtaxonnames!(copy(dna_dat[1]), dat2, dna_net)
+dat2 = PhyloNetworks.traitlabels2indices(dna_dat[!,2:end], JC69([0.5]))
+o, dna_net = @test_logs (:warn, "the network contains taxa with no data: those will be pruned") match_mode=:any PhyloNetworks.check_matchtaxonnames!(copy(dna_dat[1]), dat2, dna_net)
 trait = view(dat2, o)
-PhyloNetworks.startingBL!(dna_net, trait, dna_weights)
+PhyloNetworks.startingBL!(dna_net, false, trait, dna_weights)
 @test maximum(e.length for e in dna_net.edge) > 0.03
-@test_logs PhyloNetworks.startingBL!(dna_net, trait) # no dna_weights
+@test_logs PhyloNetworks.startingBL!(dna_net, false, trait) # no dna_weights
+
+dna_dat, dna_weights = readfastatodna(fastafile, true);
+dna_net = readTopology("((((((((((((((Ae_caudata_Tr275,Ae_caudata_Tr276),Ae_caudata_Tr139))#H1,#H2),(((Ae_umbellulata_Tr266,Ae_umbellulata_Tr257),Ae_umbellulata_Tr268),#H1)),((Ae_comosa_Tr271,Ae_comosa_Tr272),(((Ae_uniaristata_Tr403,Ae_uniaristata_Tr357),Ae_uniaristata_Tr402),Ae_uniaristata_Tr404))),(((Ae_tauschii_Tr352,Ae_tauschii_Tr351),(Ae_tauschii_Tr180,Ae_tauschii_Tr125)),(((((((Ae_longissima_Tr241,Ae_longissima_Tr242),Ae_longissima_Tr355),(Ae_sharonensis_Tr265,Ae_sharonensis_Tr264)),((Ae_bicornis_Tr408,Ae_bicornis_Tr407),Ae_bicornis_Tr406)),((Ae_searsii_Tr164,Ae_searsii_Tr165),Ae_searsii_Tr161)))#H2,#H4))),(((T_boeoticum_TS8,(T_boeoticum_TS10,T_boeoticum_TS3)),T_boeoticum_TS4),((T_urartu_Tr315,T_urartu_Tr232),(T_urartu_Tr317,T_urartu_Tr309)))),(((((Ae_speltoides_Tr320,Ae_speltoides_Tr323),Ae_speltoides_Tr223),Ae_speltoides_Tr251))H3,((((Ae_mutica_Tr237,Ae_mutica_Tr329),Ae_mutica_Tr244),Ae_mutica_Tr332))#H4))),Ta_caputMedusae_TB2),S_vavilovii_Tr279),Er_bonaepartis_TB1),H_vulgare_HVens23);");
+dat2 = PhyloNetworks.traitlabels2indices(dna_dat[!,2:end], HKY85([0.5], [0.25, 0.25, 0.25, 0.25], true))
+o, dna_net = @test_logs (:warn, "the network contains taxa with no data: those will be pruned") match_mode=:any PhyloNetworks.check_matchtaxonnames!(copy(dna_dat[1]), dat2, dna_net)
+trait = view(dat2, o)
+PhyloNetworks.startingBL!(dna_net, false, trait, dna_weights)
+@test maximum(e.length for e in dna_net.edge) > 0.03
+@test_logs PhyloNetworks.startingBL!(dna_net, false, trait) # no dna_weights
 end # of startingBL!
 
 @testset "testing prep and wrapper functions" begin
-# read in data #
-#test 
+# read in data
 #at home: fastafile = joinpath(@__DIR__, "../../dev/PhyloNetworks/", "examples", "Ae_bicornis_Tr406_Contig10132.aln") #small data
 fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_Tr406_Contig10132.aln")
 dna_dat, dna_weights = readfastatodna(fastafile, true);
@@ -576,31 +650,28 @@ setGamma!(dna_net_top.edge[58],0.6)
 net_dat = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"])
 
-jmod = PhyloNetworks.symboltomodel(dna_net_top, :JC69, dna_dat, dna_weights)
+jmod = PhyloNetworks.defaultsubstitutionmodel(dna_net_top, :JC69, dna_dat, dna_weights)
 @test jmod.rate == [1.0]
-emod = PhyloNetworks.symboltomodel(dna_net_top, :ERSM, dna_dat, dna_weights)
+emod = PhyloNetworks.defaultsubstitutionmodel(dna_net_top, :ERSM, dna_dat, dna_weights)
 @test emod.rate[1] ≈ 0.009708737864077669
 @test typeof(emod) == EqualRatesSubstitutionModel{DNA}
-hmod = PhyloNetworks.symboltomodel(dna_net_top, :HKY85, dna_dat, dna_weights)
+hmod = PhyloNetworks.defaultsubstitutionmodel(dna_net_top, :HKY85, dna_dat, dna_weights)
 @test typeof(hmod) == HKY85
-bmod = PhyloNetworks.symboltomodel(dna_net_top, :BTSM, dat, [1.0, 1.0, 1.0, 1.0])
+bmod = PhyloNetworks.defaultsubstitutionmodel(dna_net_top, :BTSM, dat, [1.0, 1.0, 1.0, 1.0])
 @test typeof(bmod) == BinaryTraitSubstitutionModel{String}
-@test_throws ErrorException PhyloNetworks.symboltomodel(dna_net_top, :QR, dat, [1.0, 1.0, 1.0, 1.0])
+@test_throws ErrorException PhyloNetworks.defaultsubstitutionmodel(dna_net_top, :QR, dat, [1.0, 1.0, 1.0, 1.0])
 
 
-test_SSM = PhyloNetworks.datatoSSM(dna_net_top, fastafile, :JC69)
+test_SSM = (@test_logs (:warn, r"pruned") match_mode=:any PhyloNetworks.StatisticalSubstitutionModel(dna_net_top, fastafile, :JC69))
 @test typeof(test_SSM.model) == JC69
 @test test_SSM.nsites == 209
-@test test_SSM.siteweight[1:5] == [23.0, 18.0, 13.0, 16.0, 1.0] 
+@test test_SSM.siteweight[1:5] == [23.0, 18.0, 13.0, 16.0, 1.0]
 
-#testwrapper = PhyloNetworks.wrapper(test_SSM, Dict("Ae_caudata_Tr275" => [3]), liktolabs = 1e-2)
-
-#@test_logs show(devnull, testwrapper)
 end #of testing prep and wrapper functions
 
 @testset "testing fit! functions for full network optimization" begin
 # read in data #
-#test 
+#test
 #fastafile = joinpath(@__DIR__, "../../dev/PhyloNetworks/", "examples", "Ae_bicornis_Tr406_Contig10132.aln") #small data
 fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_Tr406_Contig10132.aln")
 dna_dat, dna_weights = readfastatodna(fastafile, true);
@@ -613,7 +684,7 @@ end
 setGamma!(dna_net_top.edge[6],0.6)
 setGamma!(dna_net_top.edge[7],0.6)
 setGamma!(dna_net_top.edge[58],0.6)
-test_SSM = PhyloNetworks.datatoSSM(dna_net_top, fastafile, :JC69)
+@test_logs (:warn, r"pruned") match_mode=:any PhyloNetworks.StatisticalSubstitutionModel(dna_net_top, fastafile, :JC69)
 end #of testing fit! functions for full network optimization
 
 end # of nested testsets

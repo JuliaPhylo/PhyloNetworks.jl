@@ -22,7 +22,7 @@ netl1 = readTopology(str_level1)
 @test !any([n.hybrid for n in PhyloNetworks.getParents(netl1.hybrid[3])]) # tests if network has no hybrid ladder
 
 netl1 = readTopology(str_level1)
-newhybridnode = PhyloNetworks.addhybridedge!(netl1, false, true)
+newhybridnode, newhybridedge = PhyloNetworks.addhybridedge!(netl1, false, true)
 @test !isnothing(newhybridnode)
 @test netl1.numHybrids == 3
 PhyloNetworks.deletehybridedge!(netl1, PhyloNetworks.getMinorParentEdge(newhybridnode))
@@ -33,27 +33,27 @@ end # of addhybridedge! top function
 str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 # allowed moves
 netl1 = readTopology(str_level1)
-newhybridnode = PhyloNetworks.addhybridedge!(netl1, netl1.edge[3], netl1.edge[9], true, 0.0, 0.2)
+newhybridnode, newhybridedge = PhyloNetworks.addhybridedge!(netl1, netl1.edge[3], netl1.edge[9], true, 0.0, 0.2)
 @test newhybridnode.hybrid
 @test PhyloNetworks.getMajorParentEdge(newhybridnode).gamma == 0.8
 @test PhyloNetworks.getMinorParentEdge(newhybridnode).gamma == 0.2
 netl1 = readTopology(str_level1);
 @test !isnothing(PhyloNetworks.addhybridedge!(netl1, netl1.edge[15], netl1.edge[3], true))
-@test writeTopology(netl1) == "(((((((S1,S4),(S5)#H1),(#H1,(S6,S7))),#H3))#H2,((S8,S9))#H3:::2.0),(#H2,S10));"
+@test writeTopology(netl1) == "(((((((S1,S4),(S5)#H1),(#H1,(S6,S7))),#H3))#H2,((S8,S9))#H3),(#H2,S10));"
 netl1 = readTopology(str_level1);
 @test !isnothing(PhyloNetworks.addhybridedge!(netl1, netl1.edge[2], netl1.edge[17], true))
-@test writeTopology(netl1) == "((#H2,S10),(((S8,(S9,#H3)),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2))#H3:::2.0);"
+@test writeTopology(netl1) == "((#H2,S10),(((S8,(S9,#H3)),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2))#H3);"
 netl1 = readTopology(str_level1);
 @test !isnothing(PhyloNetworks.addhybridedge!(netl1, netl1.edge[20], netl1.edge[16], true))
-@test writeTopology(netl1) == "(((S8,S9),(((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2)#H3:::2.0),((#H2,S10),#H3));"
+@test writeTopology(netl1) == "(((S8,S9),(((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2)#H3),((#H2,S10),#H3));"
 netl1 = readTopology(str_level1); # good hybrid edge choice leads to a DAG when reverting the direction of edge2
 @test !isnothing(PhyloNetworks.addhybridedge!(netl1, netl1.edge[6], netl1.edge[20], false))
 @test netl1.root < 19 # the root must have been changed due to changing some edges' directions
-@test writeTopology(netl1) == "(#H2,S10,((((S8,S9),((((S5)#H1,((S1,S4),#H3)),(#H1,(S6,S7))))#H2)))#H3:::2.0);"
+@test writeTopology(netl1) == "(#H2,S10,((((S8,S9),((((S5)#H1,((S1,S4),#H3)),(#H1,(S6,S7))))#H2)))#H3);"
 # new hybrid into an existing hybrid edge
 netl1 = readTopology(str_level1);
 @test !isnothing(PhyloNetworks.addhybridedge!(netl1, netl1.edge[9], netl1.edge[10], true))
-@test writeTopology(netl1) == "(((S8,S9),((((S6,S7),(#H1)#H3:::2.0),(((S1,S4),(S5)#H1),#H3)))#H2),(#H2,S10));"
+@test writeTopology(netl1) == "(((S8,S9),((((S6,S7),(#H1)#H3),(((S1,S4),(S5)#H1),#H3)))#H2),(#H2,S10));"
 end # of addhybridedge! helper function
 
 @testset "edge checking functions" begin
