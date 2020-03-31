@@ -1108,7 +1108,7 @@ Output: true if reticulations have been deleted, false otherwise.
 If true, `updateSSM!` needs to be called afterwards, with constraints if any.
 (Constraints are not known here).
 Before updating the displayed trees in the SSM, [`shrink2cycles!`](@ref) or
-[`shrink3cycles`](@ref) could be called, if desired, despite the (slight?)
+[`shrink3cycles!`](@ref) could be called, if desired, despite the (slight?)
 change in likelihood that this shrinking would cause.
 2/3-cycles are *not* shrunk here.
 """
