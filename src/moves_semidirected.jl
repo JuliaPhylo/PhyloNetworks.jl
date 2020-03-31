@@ -191,7 +191,10 @@ Species constraint, on tips: 1a, 1b, 1c
  crown node number -9
 
 julia> c_species1.taxonnums
-Set([4, 3, 5])
+Set{Int64} with 3 elements:
+  4
+  3
+  5
 
 julia> c_clade145 = PhyloNetworks.TopologyConstraint(0x02, ["1a","1b","1c","4","5"], net)
 Clade constraint, on tips: 1a, 1b, 1c, 4, 5
@@ -210,7 +213,10 @@ Species constraint, on tips: 1a, 1b, 1c
  crown node number 21
 
 julia> c_species1.taxonnums
-Set([4, 5, 111])
+Set{Int64} with 3 elements:
+  4
+  5
+  111
 ```
 """
 function updateconstraints!(constraints::Vector{TopologyConstraint}, net::HybridNetwork)
