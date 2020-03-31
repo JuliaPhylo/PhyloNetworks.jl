@@ -55,6 +55,7 @@ net = deepcopy(net0) # new 2/3 cycles appear when some are shrunk
 @test writeTopology(net, round=true) == "((#H1:1.0::0.1,b:1.0):1.0,c:1.0,(a:1.0)#H1:4.48::0.9);"
 @test PhyloNetworks.shrink3cycles!(net0)
 writeTopology(net0, round=true) == "(c:1.1,a:5.132,b:1.9);"
+# non-tree-child network: w shape
 net0 = readTopology("((a:1,#H1:.1::.1):1,(((b:.5)#H3:1)#H1:1,(#H3:0.8::.4)#H2:1):1,(#H2:.2::.0,c:1):1);")
 PhyloNetworks.deletehybridedge!(net0, net0.edge[2], false,true,false,false)
 net = deepcopy(net0) # delete edge 10 (with γ=0) then shrink 2-cycle
