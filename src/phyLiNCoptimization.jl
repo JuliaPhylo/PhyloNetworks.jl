@@ -34,8 +34,8 @@ function CacheGammaLiNC(obj::SSM)
 end
 
 """
-    phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
-             rateCategories=1::Int)
+    phyLiNC!(net::HybridNetwork, fastafile::String, substitutionModel::Symbol,
+             numberofratecategories=1::Int)
 
 Estimate a phylogenetic network from concatenated DNA data using
 maximum likelihood, ignoring incomplete lineage sorting
@@ -53,21 +53,42 @@ networks is returned.
 Return a [`StatisticalSubstitutionModel`](@ref) object, say `obj`, which
 contains the estimated network in `obj.net`.
 
+Required arguments:
+- net: a network or tree of type `HybridNetwork`. Newick strings can be
+  converted to this format with [`readTopology`] (@ref).
+- fastafile: sequence data from individuals of interest in FASTA format.
+- substitutionModel: A symbol indicating which substitution model is used.
+  Choose ':JC69' f [`JC69`] (@ref) for the Jukes-Cantor model or ':HKY85' for
+  the Hasegawa, Kishino, Yano model [`HKY85`] (@ref).
+
 The length of the edge below a reticulation is not identifiable.
 Therefore, phyLiNC estimates the canonical version of the network: with
 reticulations **unzipped**: edges below reticulations are set to 0, and
 hybrid edges (parental lineages) have estimated lengths that are
 increased accordingly.
 
-Optional arguments include (default value in parenthesis):
-- `rateCategories` (1): number of categories to use in estimating variable evolutionary
-  rates using a discretized gamma model. If `rateCategories` = 1, no rate variation
-  is included. To allow for rate variation, four categories is typically used.
-  See [`RateVariationAcrossSites`] (@ref)
+Optional arguments (default value in parenthesis):
+- `numberofratecategories` (1): number of categories to use in estimating
+  evolutionary rates using a discretized gamma model. When allowing for rate
+  variation, four categories is typically used. If `numberofratecategories` = 1,
+  no rate variation is assumed. See [`RateVariationAcrossSites`] (@ref)
+
+Optional keyword arguments (default value in parenthesis):
+- `nreject` (75): maximum number of times that new topologies are
+  proposed and rejected in a row. Lower values of `nreject` result in a less
+  thorough but faster search. Controls when to stop proposing new
+  network topologies.
+- `speciesfile` (""): path to a csv file containing two columns:
+  species and individuals used to create one or more species topology
+  constraints to meet during the search.
+- `cladefile` (""): path to a csv file containing two columns:
+  clades and individuals used to create one or more clade topology
+  constraints to meet during the search. (NOTE: clade contraints not yet implemented.)
 - `nruns` (10): number of independent starting points for the search
-- `filename` ("phyLiNC"): root name for the output files (`.out`, `.err`).
-  If empty (""), files are *not* created, progress log goes to the screen only
-  (standard out).
+- `probST` (0.5): probability to use `net` as the starting topology
+  for each given run. If probST < 1, the starting topology is k NNI moves
+  away from `net`, where k is drawn from a geometric distribution: p (1-p)ᵏ,
+  with success probability p = `probST`.
 - `maxhybrid` (1): maximum number of hybridizations allowed
 - `no3cycle` (true): prevents 3-cycles, which are (almost) not
   identifiable
@@ -77,18 +98,10 @@ Optional arguments include (default value in parenthesis):
   hybrid γ values, evolutionary rates, and rate variation parameters are
   reestimated.
 - `verbose` (true): set to false to turn off screen output
+- `filename` ("phyLiNC"): root name for the output files (`.out`, `.err`).
+  If empty (""), files are *not* created, progress log goes to the screen only
+  (standard out).
 - `seed` (default 0 to get it from the clock): seed to replicate a given search
-- `probST` (0.5): probability to use `net` as the starting topology
-  for each given run. If probST < 1, the starting topology is k NNI moves
-  away from `net`, where k is drawn from a geometric distribution: p (1-p)ᵏ,
-  with success probability p = `probST`.
-- `speciesfile` (""): path to a csv file containing two columns:
-  species and individuals used to create one or more species topology
-  constraints to meet during the search.
-- `cladefile` (""): path to a csv file containing two columns:
-  clades and individuals used to create one or more clade topology
-  constraints to meet during the search.
-  (NOTE: clade contraints not yet implemented.)
 - `alphamin` (0.02): minimum value for shape parameter alpha in rate variation
   across sites model.
 - `alphamax` (50.0): maximum value for shape parameter alpha in rate variation
@@ -106,16 +119,9 @@ are used when evaluating candidate networks only.
 Regardless of these arguments, once a final topology is chosen, branch lenghts
 are optimized using stricter tolerances (1e-10, 1e-12, 1e-10, 1e-10) for better
 estimates.
-
-The following optional arguments control when to stop proposing new
-network topologies:
-
-- `nreject` (75): maximum number of times that new topologies are
-  proposed and rejected in a row. Lower values of `nreject` result in a less
-  thorough but faster search.
 """
-function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
-                  rateCategories=1::Int;
+function phyLiNC!(net::HybridNetwork, fastafile::String, substitutionModel::Symbol,
+                  numberofratecategories=1::Int;
                   maxhybrid=1::Int, no3cycle=true::Bool,
                   nohybridladder=true::Bool,
                   speciesfile=""::AbstractString,
@@ -131,7 +137,7 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
         error("Clade constraints not yet implemented.")
     end
     # create starting object for all runs
-    obj = StatisticalSubstitutionModel(net, fastafile, modSymbol, rateCategories, maxhybrid)
+    obj = StatisticalSubstitutionModel(net, fastafile, substitutionModel, numberofratecategories, maxhybrid)
     #= after SSM(), update constraint taxon names, taxonnums, edge, and node
        because some leaves may be pruned, and check_matchtaxonnames calls
        resetNodeNumbers! (changing leaf node numbers) and resetEdgeNumbers! =#
