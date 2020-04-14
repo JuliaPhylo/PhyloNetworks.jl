@@ -1,7 +1,7 @@
 # any change to these constants must be documented in phyLiNC!
 const moveweights_LiNC = Distributions.aweights([0.4, 0.2, 0.2, 0.2])
 const movelist_LiNC = ["nni", "addhybrid", "deletehybrid", "root"]
-const likAbsAddHybLiNC = 0.5 #= loglik improvement required to retain a hybrid
+const likAbsAddHybLiNC = 0.1 #= loglik improvement required to retain a hybrid
   greater values raise the standard for newly-proposed hybrids,
   leading to fewer proposed hybrids accepted during the search =#
 const likAbsDelHybLiNC = -0.1 #= loglik decrease allowed when removing a hybrid
