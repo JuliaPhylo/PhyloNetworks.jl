@@ -401,19 +401,25 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
             optimizelocalgammas_LiNC!(obj, e, ftolAbs, γcache)
         end
         @debug "after global BL and gamma optimization, the likelihood is $(obj.loglik)"
-        # ghosthybrid = false # find hybrid edges with γ=0, to delete them
+        ghosthybrid = false # find hybrid edges with γ=0, to delete them
         for h in obj.net.hybrid
             minorhybridedge = getMinorParentEdge(h)
             minorhybridedge.gamma == 0.0 || continue
-            # ghosthybrid = true
+            ghosthybrid = true
             deletehybridedge!(obj.net, minorhybridedge, false,true,false,false)
         end
-        #= not done: phyLiNC only keep net, model & likelihood; shrinking cycles would modify loglik
-        if ghosthybrid
-            # shrink3cycles!(obj.net)
+        #= warning: after this while loop is done, phyLiNC only keeps net, model & likelihood.
+        After shrinking cycles, the loglik would be slightly wrong because 3-cycles
+        are nearly non-identifiable, not fully non-identifiable. Due to this, we
+        shrink cycles only in the middle of optimization, not when optimization is
+        finished. By avoiding shrinking cycles at the end, the final loglik is correct.
+        This can lead to confusing results for users: They could choose no3cycle=true, but
+        still have a 3-cycle in the final network. Might want to add something to
+        docs about this. =#
+        if ghosthybrid && (nrejected < nrejectmax)
+            shrink3cycles!(obj.net)
             updateSSM!(obj, true; constraints=constraints)
         end
-        =#
     end
     return obj
 end
