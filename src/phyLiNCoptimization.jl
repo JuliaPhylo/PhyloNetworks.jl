@@ -1,7 +1,7 @@
 # any change to these constants must be documented in phyLiNC!
 const moveweights_LiNC = Distributions.aweights([0.4, 0.2, 0.2, 0.2])
 const movelist_LiNC = ["nni", "addhybrid", "deletehybrid", "root"]
-const likAbsAddHybLiNC = 0.1 #= loglik improvement required to retain a hybrid
+const likAbsAddHybLiNC = 0.0 #= loglik improvement required to retain a hybrid
   greater values raise the standard for newly-proposed hybrids,
   leading to fewer proposed hybrids accepted during the search =#
 const likAbsDelHybLiNC = -0.1 #= loglik decrease allowed when removing a hybrid
@@ -66,6 +66,11 @@ Therefore, phyLiNC estimates the canonical version of the network: with
 reticulations **unzipped**: edges below reticulations are set to 0, and
 hybrid edges (parental lineages) have estimated lengths that are
 increased accordingly.
+
+If any branch lengths are missing in the input network, phyLiNC estimates the
+starting branch lengths using pairwise distances. Otherwise, it uses the input branch
+lengths as starting branch lengths, only unzipping all reticulations, as
+described above.
 
 Optional arguments (default value in parenthesis):
 - `numberofratecategories` (1): number of categories to use in estimating
@@ -150,7 +155,11 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, substitutionModel::Symb
        and requires that the network is preordered.
        Warning: need to call updateSSM after using checknetwork_LiNC =#
     updateSSM!(obj, true; constraints=constraints)
-    startingBL!(obj.net, true, obj.trait, obj.siteweight) # true: to unzip
+    if any([e.length < 0.0 for e in obj.net.edge]) # check for missing branch lengths
+        startingBL!(obj.net, true, obj.trait, obj.siteweight) # true: to unzip
+    else # keep existing branch lengths in input network, only unzip reticulations
+        unzip_canonical!(obj.net)
+    end
     phyLiNC!(obj; maxhybrid=maxhybrid, no3cycle=no3cycle, nohybridladder=nohybridladder,
             constraints=constraints, verbose=verbose, kwargs...)
 end
