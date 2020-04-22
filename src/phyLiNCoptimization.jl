@@ -156,10 +156,9 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, substitutionModel::Symb
        Warning: need to call updateSSM after using checknetwork_LiNC =#
     updateSSM!(obj, true; constraints=constraints)
     if any([e.length < 0.0 for e in obj.net.edge]) # check for missing branch lengths
-        startingBL!(obj.net, true, obj.trait, obj.siteweight) # true: to unzip
-    else # keep existing branch lengths in input network, only unzip reticulations
-        unzip_canonical!(obj.net)
+        startingBL!(obj.net, obj.trait, obj.siteweight)
     end
+    unzip_canonical!(obj.net)
     phyLiNC!(obj; maxhybrid=maxhybrid, no3cycle=no3cycle, nohybridladder=nohybridladder,
             constraints=constraints, verbose=verbose, kwargs...)
 end
@@ -932,7 +931,7 @@ end
 
 ## Optimize Branch Lengths and Gammas ##
 """
-    startingBL!(net::HybridNetwork, unzip::Bool,
+    startingBL!(net::HybridNetwork,
                 trait::AbstractVector{Vector{Union{Missings.Missing,Int}}},
                 siteweight=ones(length(trait[1]))::AbstractVector{Float64})
 
@@ -940,7 +939,7 @@ Calibrate branch lengths in `net` by minimizing the mean squared error
 between the JC-adjusted pairwise distance between taxa, and network-predicted
 pairwise distances, using [`calibrateFromPairwiseDistances!`](@ref).
 `siteweight[k]` gives the weight of site (or site pattern) `k` (default: all 1s).
-`unzip` = true sets all edges below a hybrid node to length zero.
+Note: the network is not "unzipped", as required by PhyLiNC.
 
 Assumptions:
 
@@ -953,7 +952,7 @@ Assumptions:
   If not, all pairwise hamming distances are scaled by `.75/(m*1.01)` where `m`
   is the maximum observed hamming distance, to make them all < 0.75.
 """
-function startingBL!(net::HybridNetwork, unzip::Bool,
+function startingBL!(net::HybridNetwork,
         trait::AbstractVector{Vector{Union{Missings.Missing,Int}}},
         siteweight=ones(length(trait[1]))::AbstractVector{Float64})
     nspecies = net.numTaxa
@@ -996,9 +995,6 @@ function startingBL!(net::HybridNetwork, unzip::Bool,
         if e.length < 1.0e-10
             e.length = 0.0001
         end
-    end
-    if unzip
-        unzip_canonical!(net)
     end
     return net
 end
