@@ -8,6 +8,7 @@ const likAbsDelHybLiNC = -0.1 #= loglik decrease allowed when removing a hybrid
   lower (more negative) values of lead to more hybrids removed during the search =#
 const alphaRASmin = 0.02
 const alphaRASmax = 50.0
+const kappamax = 10.0
 
 """
     CacheGammaLiNC
@@ -713,7 +714,7 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     newhybridnode, newhybridedge = result
     # unzip only at new node and its child edge
     unzipat_canonical!(newhybridnode, getChildEdge(newhybridnode))
-    updateSSM!(obj)
+    updateSSM!(obj, true; constraints=constraints)
     optimizelocalgammas_LiNC!(obj, newhybridedge, ftolRel, γcache)
     if newhybridedge.gamma == 0.0
         deletehybridedge!(obj.net, newhybridedge, false,true) # nofuse,unroot
