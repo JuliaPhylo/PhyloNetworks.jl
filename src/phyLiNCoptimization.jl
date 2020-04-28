@@ -712,6 +712,9 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     # fixroot=true: to restore edge2 if need be, with deletehybridedge!
     isnothing(result) && return nothing
     newhybridnode, newhybridedge = result
+    if maximum([e.number for e in obj.net.edge]) > size(obj.logtrans)[3]
+        @debug "The new hybrid edge number is greater than the allowed maxedge in logtrans"
+    end
     # unzip only at new node and its child edge
     unzipat_canonical!(newhybridnode, getChildEdge(newhybridnode))
     updateSSM!(obj, true; constraints=constraints)
