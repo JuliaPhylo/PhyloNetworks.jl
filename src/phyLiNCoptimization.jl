@@ -656,7 +656,7 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
             continue # edge not found yet, try again
         end
         edgefound = true
-        updateSSM!(obj)
+        updateSSM!(obj, true; constraints=constraints)
         optimizelocalgammas_LiNC!(obj, e1, ftolAbs, γcache)
         # don't delete a hybrid edge with γ=0: to be able to undo the NNI
         optimizelocalBL_LiNC!(obj, e1, ftolRel,ftolAbs,xtolRel,xtolAbs)
@@ -713,11 +713,12 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     isnothing(result) && return nothing
     newhybridnode, newhybridedge = result
     if maximum([e.number for e in obj.net.edge]) > size(obj.logtrans)[3]
-        @debug "The new hybrid edge number is greater than the allowed maxedge in logtrans"
+        @debug """The new hybrid edge number is greater than the allowed maxedge in logtrans.
+        The number of hybrids in the network is now $(obj.net.numHybrids)"""
     end
     # unzip only at new node and its child edge
     unzipat_canonical!(newhybridnode, getChildEdge(newhybridnode))
-    updateSSM!(obj, true; constraints=constraints)
+    updateSSM!(obj) #, true; constraints=constraints)
     optimizelocalgammas_LiNC!(obj, newhybridedge, ftolRel, γcache)
     if newhybridedge.gamma == 0.0
         deletehybridedge!(obj.net, newhybridedge, false,true) # nofuse,unroot
