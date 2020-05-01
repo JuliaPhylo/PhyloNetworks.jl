@@ -8,7 +8,7 @@ const likAbsDelHybLiNC = -0.1 #= loglik decrease allowed when removing a hybrid
   lower (more negative) values of lead to more hybrids removed during the search =#
 const alphaRASmin = 0.02
 const alphaRASmax = 50.0
-const kappamax = 10.0
+const kappamax = 20.0
 
 """
     CacheGammaLiNC
@@ -602,6 +602,11 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
         @debug "$(movechoice) move was " *
           (isnothing(result) ? "not permissible" : (result ? "accepted" : "rejected and undone")) *
           ", $nmoves total moves, $nreject rejected,\nloglik = $(obj.loglik)"
+        ndegree2nodes = sum(length(n.edge) == 2 for n in obj.net.node) #TODO remove after debug
+        if ndegree2nodes > 0
+            error("There are $(ndegree2nodes) nodes of degree two and $(length(obj.net.edge)) edges in the network.")
+            printEdges(obj.net)
+        end
     end
     return nreject
 end
@@ -714,7 +719,8 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     newhybridnode, newhybridedge = result
     if maximum([e.number for e in obj.net.edge]) > size(obj.logtrans)[3]
         @debug """The new hybrid edge number is greater than the allowed maxedge in logtrans.
-        The number of hybrids in the network is now $(obj.net.numHybrids)"""
+        The number of hybrids in the network is now $(obj.net.numHybrids).
+        $(printEdges(obj.net))"""
     end
     # unzip only at new node and its child edge
     unzipat_canonical!(newhybridnode, getChildEdge(newhybridnode))
