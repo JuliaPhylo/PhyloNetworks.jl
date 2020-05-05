@@ -189,6 +189,7 @@ function phyLiNC!(obj::SSM;
     γcache = CacheGammaLiNC(obj)
     # rough optimization of rates and alpha, for better starting values used by all runs
     obj.loglik = -Inf
+    Random.seed!(0) # makes later runs reproducible
     fit!(obj; optimizeQ=(nparams(obj.model) > 0),
          optimizeRVAS=(nparams(obj.ratemodel) > 0),
          verbose=false, maxeval=20,

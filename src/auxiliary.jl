@@ -1514,12 +1514,12 @@ see [`shrink2cycles!`](@ref)
 Assumption: `minor` and `major` do form a 2-cycle, that is,
 start and end at same node.
 """
-function shrink2cycleat!(net::HybridNetwork, minor::Edge, major::Edge)
+function shrink2cycleat!(net::HybridNetwork, minor::Edge, major::Edge, unroot=true::Bool)
     g = minor.gamma
     if g == -1.0 g=.5; end
     major.length = addBL(multiplygammas(    g, minor.length),
                          multiplygammas(1.0-g, major.length))
-    deletehybridedge!(net, minor, false,false,false,false) # nofuse,unroot,multgammas,simplify
+    deletehybridedge!(net, minor, false,unroot,false,false) # nofuse,unroot,multgammas,simplify
     return nothing
 end
 
@@ -1617,7 +1617,7 @@ If one is missing, then e1 is deleted naively such that
 tB is unchanged, new tC = tC + t2 and new tA = tA + t3.
 """
 function shrink3cycleat!(net::HybridNetwork, hybrid::Node, edge1::Edge,
-                        edge2::Edge, node1::Node, node2::Node)
+                        edge2::Edge, node1::Node, node2::Node, unroot=true::Bool)
     # check for presence of 3 cycle
     edge3 = nothing
     for e in node1.edge # find edge connecting node1 and node2
@@ -1655,7 +1655,7 @@ function shrink3cycleat!(net::HybridNetwork, hybrid::Node, edge1::Edge,
                 edge1.length = (edge1.length *g1 + (edge3.length + edge2.length)*g2g3)/g1tilde
             end
         end
-        deletehybridedge!(net, edge3, false,false,false,false) # nofuse,unroot,multgammas,simplify
+        deletehybridedge!(net, edge3, false,unroot,false,false) # nofuse,unroot,multgammas,simplify
     else # parent nodes 1 and 2 are both tree nodes
         edgeB = nothing
         for e in node2.edge
@@ -1671,7 +1671,7 @@ function shrink3cycleat!(net::HybridNetwork, hybrid::Node, edge1::Edge,
             edge3.length = t3 * edge2.gamma
             edge2.length = g1t1 + edge2.gamma * edge2.length
         end
-        deletehybridedge!(net, edge1, false,false,false,false) # nofuse,unroot,multgammas,simplify
+        deletehybridedge!(net, edge1, false,unroot,false,false) # nofuse,unroot,multgammas,simplify
     end
     return true
 end
