@@ -314,7 +314,7 @@ function phyLiNC!(obj::SSM;
         flush(logfile)
     end
     verbose && print(stdout,logstr)
-    (no3cycle ? shrink3cycles!(obj.net) : shrink2cycles!(obj.net)) # not done in phyLiNCone
+    (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true)) # not done in phyLiNCone
     # loglik changes after shrinkage, but recalculated below by optimizeBL
     updateSSM!(obj, true; constraints = constraints)
     # warning: tolerance values from constants, not user-specified
@@ -322,7 +322,7 @@ function phyLiNC!(obj::SSM;
                      max(10*length(obj.net.edge), 1000))
     ghosthybrid = optimizeallgammas_LiNC!(obj, fAbsBL, γcache, 100)
     if ghosthybrid
-        (no3cycle ? shrink3cycles!(obj.net) : shrink2cycles!(obj.net))
+        (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
         updateSSM!(obj, true; constraints=constraints)
         discrete_corelikelihood!(obj) # to get likelihood exact, even if not optimum
     end
@@ -427,7 +427,7 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
         still have a 3-cycle in the final network. Might want to add something to
         docs about this. =#
         if ghosthybrid && (nrejected < nrejectmax)
-            shrink3cycles!(obj.net)
+            shrink3cycles!(obj.net, true)
             updateSSM!(obj, true; constraints=constraints)
         end
     end
@@ -477,11 +477,11 @@ function checknetwork_LiNC!(net::HybridNetwork, maxhybrid::Int, no3cycle::Bool,
     checkspeciesnetwork!(net, constraints) ||
         error("The species or clade constraints are not satisfied in the starting network.")
         # checkspeciesnetwork removes nodes of degree 2, need to renumber with updateSSM
-    !shrink2cycles!(net) || (verbose && @warn("""The input network contains
+    !shrink2cycles!(net, true) || (verbose && @warn("""The input network contains
         one or more 2-cycles (after removing any nodes of degree 2 including the
         root). These 2-cycles have been removed."""))
     if no3cycle
-        !shrink3cycles!(net) || (verbose && @warn("""Options indicate there should
+        !shrink3cycles!(net, true) || (verbose && @warn("""Options indicate there should
         be no 3-cycles in the returned network, but the input network contains
         one or more 3-cycles (after removing any nodes of degree 2 including the
         root). These 3-cycles have been removed."""))
@@ -583,7 +583,7 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
         # optimize γ's
         ghosthybrid = optimizeallgammas_LiNC!(obj, ftolAbs, γcache, 1)
         if ghosthybrid # delete hybrid edges with γ=0
-            (no3cycle ? shrink3cycles!(obj.net) : shrink2cycles!(obj.net))
+            (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
             # loglik change ignored, but loglik recalculated below by optimizelocalBL
             updateSSM!(obj, true; constraints=constraints)
         end
@@ -603,11 +603,6 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
         @debug "$(movechoice) move was " *
           (isnothing(result) ? "not permissible" : (result ? "accepted" : "rejected and undone")) *
           ", $nmoves total moves, $nreject rejected,\nloglik = $(obj.loglik)"
-        ndegree2nodes = sum(length(n.edge) == 2 for n in obj.net.node) #TODO remove after debug
-        if ndegree2nodes > 0
-            error("There are $(ndegree2nodes) nodes of degree two and $(length(obj.net.edge)) edges in the network.")
-            printEdges(obj.net)
-        end
     end
     return nreject
 end
@@ -738,7 +733,7 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     elseif newhybridedge.gamma == 1.0 # ≃ subtree prune and regraft (SPR) move
         # loglik better because γ=1 better than γ=0, yet without new reticulation: accept
         deletehybridedge!(obj.net, getMinorParentEdge(newhybridnode), false,true,false,false)
-        (no3cycle ? shrink3cycles!(obj.net) : shrink2cycles!(obj.net))
+        (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
         # loglik will be updated in optimizeallgammas right after, in optimizestructure
         updateSSM!(obj, true; constraints=constraints)
         @debug "addhybrid resulted in SPR move: new hybrid edge had γ=1.0, its partner was deleted"
@@ -836,7 +831,7 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     # don't optimize gammas: because we want to constrain one of them to 0.0
     if obj.loglik - currLik > likAbsDelHybLiNC # -0.1: loglik can decrease for parsimony
         deletehybridedge!(obj.net, minorhybridedge, false,true,false,false) # nofuse,unroot,multgammas,simplify
-        (no3cycle ? shrink3cycles!(obj.net) : shrink2cycles!(obj.net))
+        (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
         updateSSM!(obj, true; constraints=constraints)
         # obj.loglik will be updated by optimizeallgammas within optimizestructure
         return true
@@ -1246,6 +1241,7 @@ function optimizelocalgammas_LiNC!(obj::SSM, edge::Edge,
     nevals = 0
     ll = obj.loglik
     llnew = +Inf; lldiff = +Inf
+    #NaN bug introduced after this line #TODO remove after debug
     while nevals < maxeval && lldiff > ftolAbs
         for he in neighborhybs
             llnew = optimizegamma_LiNC!(obj, he, ftolAbs, γcache)
@@ -1289,8 +1285,16 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
     clikp = cache.clikp # conditional likelihood under partner edge
     ulik  = obj._sitecache  # unconditional likelihood and more
     fill!(clike, 0.0); fill!(clikp, 0.0)
+    if isnan(focusedge.gamma) || isnan(partner.gamma) #TODO remove after debug
+        show(stdout,printEdges(obj.net))
+        error("Focus edge gamma is $(focusedge.gamma). It's partner's gamma is $(partner.gamma).")
+    end
     nt, hase = updatecache_hase!(cache, obj, edgenum, partnernum)
     γ0 = focusedge.gamma
+    if isnan(focusedge.gamma) || isnan(partner.gamma) #TODO remove after debug
+        show(stdout,printEdges(obj.net))
+        error("Focus edge gamma is $(focusedge.gamma). It's partner's gamma is $(partner.gamma).")
+    end
     if γ0<1e-7 # then prior weight and loglikcachetoo small (-Inf if γ0=0)
         @debug "γ0 too small ($γ0): was changed to 1e-7 prior to optimization"
         γ0 = 1e-7

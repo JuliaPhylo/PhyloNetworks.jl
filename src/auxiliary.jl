@@ -1459,7 +1459,7 @@ function hashybridladder(net::HybridNetwork)
 end
 
 @doc raw"""
-    shrink2cycles!(net::HybridNetwork)
+    shrink2cycles!(net::HybridNetwork, unroot=false::Bool)
 
 If `net` contains a 2-cycle, collapse the cycle into one edge of length
 tA + γt1+(1-γ)t2 + tB (see below), and return true.
@@ -1480,8 +1480,13 @@ same hybrid child node.
 If any of the lengths or gammas associated with a 2-cycle are missing,
 the combined length is missing. If γ is missing, branch lengths
 are calculated using γ=0.5.
+
+If `unroot` is false and the root is up for deletion, it will be kept only if it
+is has degree 2 or more. If `unroot` is true and the root is up for deletion, it
+will be kept only if it has degree 3 or more. A root node with degree 1 will be
+deleted in both cases.
 """
-function shrink2cycles!(net::HybridNetwork)
+function shrink2cycles!(net::HybridNetwork, unroot=false::Bool)
     foundcycle = false
     nh = length(net.hybrid)
     ih = nh # hybrids deleted from the end
@@ -1497,7 +1502,7 @@ function shrink2cycles!(net::HybridNetwork)
         end
         # 2-cycle
         foundcycle = true
-        shrink2cycleat!(net, minor, major)
+        shrink2cycleat!(net, minor, major, unroot)
         nh = length(net.hybrid)
         ih = nh
         # we re-do if a cycle was removed: a new cycle might have appeared
@@ -1506,15 +1511,16 @@ function shrink2cycles!(net::HybridNetwork)
 end
 
 """
-    shrink2cycleat!(net::HybridNetwork, minor::Edge, major::Edge)
+    shrink2cycleat!(net::HybridNetwork, minor::Edge, major::Edge, unroot::Bool)
 
-Remove `minor` edge then update the branch length of the remaining `major` edge,
-see [`shrink2cycles!`](@ref)
+Remove `minor` edge then update the branch length of the remaining `major` edge.
+Called by [`shrink2cycles!`](@ref)
 
-Assumption: `minor` and `major` do form a 2-cycle, that is,
-start and end at same node.
+Assumption: `minor` and `major` do form a 2-cycle. That is, they start and end
+at the same node.
 """
-function shrink2cycleat!(net::HybridNetwork, minor::Edge, major::Edge, unroot=true::Bool)
+function shrink2cycleat!(net::HybridNetwork, minor::Edge, major::Edge,
+                         unroot::Bool)
     g = minor.gamma
     if g == -1.0 g=.5; end
     major.length = addBL(multiplygammas(    g, minor.length),
@@ -1524,7 +1530,7 @@ function shrink2cycleat!(net::HybridNetwork, minor::Edge, major::Edge, unroot=tr
 end
 
 """
-    shrink3cycles!(net::HybridNetwork)
+    shrink3cycles!(net::HybridNetwork, unroot=false::Bool)
 
 Remove all 2- and 3-cycles from a network.
 
@@ -1532,10 +1538,15 @@ Return true if `net` contains a 2-cycle or a 3-cycle; false otherwise.
 A 3-cycle (2-cycle) is a set of 3 (2) nodes that are all connected.
 One of them must be a hybrid node, since `net` is a DAG.
 
+If `unroot` is false and the root is up for deletion, it will be kept only if it
+is has degree 2 or more. If `unroot` is true and the root is up for deletion, it
+will be kept only if it has degree 3 or more. A root node with degree 1 will be
+deleted in both cases.
+
 See [`shrink3cycleat!`](@ref) for details on branch lengths and
 inheritance values.
 """
-function shrink3cycles!(net::HybridNetwork)
+function shrink3cycles!(net::HybridNetwork, unroot=false::Bool)
     foundcycle = false
     nh = length(net.hybrid)
     ih = nh # hybrids deleted from the end
@@ -1547,12 +1558,12 @@ function shrink3cycles!(net::HybridNetwork)
         pmaj = getMajorParent(h) # major parent node
         if pmin === pmaj # 2-cycle
             foundcycle = true
-            shrink2cycleat!(net, minor, major)
+            shrink2cycleat!(net, minor, major, unroot)
             nh = length(net.hybrid)
             ih = nh + 1 # start over if a cycle was removed by setting ih = nh + 1.
                         # Shrinking could have created a new cycle.
         else # 3-cycle
-            result = shrink3cycleat!(net, h, minor, major, pmin, pmaj)
+            result = shrink3cycleat!(net, h, minor, major, pmin, pmaj, unroot)
             if result
                 foundcycle = true
                 nh = length(net.hybrid)
@@ -1564,10 +1575,9 @@ function shrink3cycles!(net::HybridNetwork)
     return foundcycle
 end
 
-
 @doc raw"""
     shrink3cycleat!(net::HybridNetwork, hybrid::Node, edge1::Edge, edge2::Edge,
-                    node1::Node, node2::Node)
+                    node1::Node, node2::Node, unroot::Bool)
 
 Replace a 3-cycle at a given `hybrid` node by a single node, if any.
 Assumption: `edge1` (`node1`) and `edge2` (`node2`) are the parent edges (nodes)
@@ -1617,7 +1627,7 @@ If one is missing, then e1 is deleted naively such that
 tB is unchanged, new tC = tC + t2 and new tA = tA + t3.
 """
 function shrink3cycleat!(net::HybridNetwork, hybrid::Node, edge1::Edge,
-                        edge2::Edge, node1::Node, node2::Node, unroot=true::Bool)
+                         edge2::Edge, node1::Node, node2::Node, unroot::Bool)
     # check for presence of 3 cycle
     edge3 = nothing
     for e in node1.edge # find edge connecting node1 and node2
