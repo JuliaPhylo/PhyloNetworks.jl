@@ -514,7 +514,6 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
         if typeof(obj.model) == HKY85 # set an upper bound on kappa values
             NLopt.upper_bounds!(optQ, fill(kappamax,nparQ))
         end
-        # fixit: set upper bound depending on branch lengths in network?
         NLopt.max_objective!(optQ, loglikfun)
         fmax, xmax, ret = NLopt.optimize(optQ, obj.model.rate)
         setrates!(obj.model, xmax)

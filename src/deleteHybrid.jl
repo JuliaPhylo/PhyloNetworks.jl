@@ -314,7 +314,7 @@ and are not fused. Nodes are retained during edge removal,
 provided that they have at least one descendant leaf.
 The hybrid edge that is partner to `edge` becomes a tree edge,
 but has its γ value unchanged (it is not set to 1), since it is not merged
-with its child edge after removal of the reticulation.  
+with its child edge after removal of the reticulation.
 Also, 2-cycles are not simplified if `nofuse` is true.
 That is, if we get 2 hybrid edges both from the same parent to the same child,
 these hybrid edges are retained without being fused into a single tree edge.

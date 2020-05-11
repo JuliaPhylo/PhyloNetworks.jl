@@ -9,6 +9,10 @@ const likAbsDelHybLiNC = -0.1 #= loglik decrease allowed when removing a hybrid
 const alphaRASmin = 0.02
 const alphaRASmax = 50.0
 const kappamax = 20.0
+const BLmin = 1.0e-8
+    # min_branch_length = 1.0e-6 in most cases in IQ-TREE v2.0 (see main/phyloanalysis.cpp)
+const BLmax = 10.0
+    # max_branch_length = 10.0 used in IQ-TREE v2.0 (see utils/tools.cpp)
 
 """
     CacheGammaLiNC
@@ -158,6 +162,13 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, substitutionModel::Symb
     updateSSM!(obj, true; constraints=constraints)
     if any([e.length < 0.0 for e in obj.net.edge]) # check for missing branch lengths
         startingBL!(obj.net, obj.trait, obj.siteweight)
+    end
+    for e in obj.net.edge # confirm that starting branch lengths are in bounds
+        if e.length < BLmin
+            e.length = BLmin
+        elseif e.length > BLmax
+            e.length = BLmax
+        end
     end
     unzip_canonical!(obj.net)
     phyLiNC!(obj; maxhybrid=maxhybrid, no3cycle=no3cycle, nohybridladder=nohybridladder,
@@ -710,6 +721,15 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     savedlen = [e.length for e in obj.net.edge]
     savedgam = [e.gamma for e in obj.net.edge]
     result = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints;fixroot=true)
+    # result = newnode2_hybrid, hybrid_edge
+    splitedges = getParent(result[2]).edge # confirm that split edges on original e1 are > BLmin
+    if any([e.length < BLmin && !getParent(e).hybrid for e in splitedges]) # check for missing branch lengths
+        for e in splitedges
+            if e.length < BLmin && !getParent(e).hybrid
+                e.length = BLmin
+            end
+        end
+    end
     # fixroot=true: to restore edge2 if need be, with deletehybridedge!
     isnothing(result) && return nothing
     newhybridnode, newhybridedge = result
@@ -1101,9 +1121,8 @@ function optimizeBL_LiNC!(obj::SSM, edges::Vector{Edge},
     replace!(x -> min(x,0.1), defaultinstep) # 0.1 substitutions / site is kinda large
     NLopt.initial_step!(optBL, defaultinstep)
     NLopt.maxeval!(optBL, maxeval) # max number of iterations
-    NLopt.lower_bounds!(optBL, zeros(length(edges)))
-    NLopt.upper_bounds!(optBL, fill!(Vector{Float64}(undef, length(edges)), 10.0))
-        # max_branch_length = 10 used in IQ-TREE v2.0 (see utils/tools.cpp)
+    NLopt.lower_bounds!(optBL, fill!(Vector{Float64}(undef, length(edges)), BLmin))
+    NLopt.upper_bounds!(optBL, fill!(Vector{Float64}(undef, length(edges)), BLmax))
     NLopt.max_objective!(optBL, loglikfunBL)
     fmax, xmax, ret = NLopt.optimize(optBL, getlengths(edges)) # get lengths in order of edges vector
     setlengths!(edges, xmax) # set lengths in order of vector `edges`
@@ -1241,7 +1260,6 @@ function optimizelocalgammas_LiNC!(obj::SSM, edge::Edge,
     nevals = 0
     ll = obj.loglik
     llnew = +Inf; lldiff = +Inf
-    #NaN bug introduced after this line #TODO remove after debug
     while nevals < maxeval && lldiff > ftolAbs
         for he in neighborhybs
             llnew = optimizegamma_LiNC!(obj, he, ftolAbs, γcache)
@@ -1285,16 +1303,8 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
     clikp = cache.clikp # conditional likelihood under partner edge
     ulik  = obj._sitecache  # unconditional likelihood and more
     fill!(clike, 0.0); fill!(clikp, 0.0)
-    if isnan(focusedge.gamma) || isnan(partner.gamma) #TODO remove after debug
-        show(stdout,printEdges(obj.net))
-        error("Focus edge gamma is $(focusedge.gamma). It's partner's gamma is $(partner.gamma).")
-    end
     nt, hase = updatecache_hase!(cache, obj, edgenum, partnernum)
     γ0 = focusedge.gamma
-    if isnan(focusedge.gamma) || isnan(partner.gamma) #TODO remove after debug
-        show(stdout,printEdges(obj.net))
-        error("Focus edge gamma is $(focusedge.gamma). It's partner's gamma is $(partner.gamma).")
-    end
     if γ0<1e-7 # then prior weight and loglikcachetoo small (-Inf if γ0=0)
         @debug "γ0 too small ($γ0): was changed to 1e-7 prior to optimization"
         γ0 = 1e-7
