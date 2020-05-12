@@ -255,9 +255,9 @@ but the internal representation of the network may be different in
 ```jldoctest fitDiscrete_block
 julia> net = readTopology("(sp1:3.0,(sp2:2.0,(sp3:1.0,sp4:1.0):1.0):1.0);");
 
-julia> using BioSymbols
+julia> using BioSequences
 
-julia> tips = Dict("sp1" => BioSymbols.DNA_A, "sp2" => BioSymbols.DNA_A, "sp3" => BioSymbols.DNA_G, "sp4" => BioSymbols.DNA_G);
+julia> tips = Dict("sp1" => BioSequences.DNA_A, "sp2" => BioSequences.DNA_A, "sp3" => BioSequences.DNA_G, "sp4" => BioSequences.DNA_G);
 
 julia> mJC69 = JC69([0.25], false);
 
@@ -427,7 +427,7 @@ function fitdiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame,
                       empiricalDNAfrequencies(view(dnadata, :, 2:size(dnadata,2)), dnapatternweights),
                       true)
     elseif modSymbol == :ERSM
-        model = EqualRatesSubstitutionModel(4, rate, [BioSymbols.DNA_A, BioSymbols.DNA_C, BioSymbols.DNA_G, BioSymbols.DNA_T]);
+        model = EqualRatesSubstitutionModel(4, rate, [BioSequences.DNA_A, BioSequences.DNA_C, BioSequences.DNA_G, BioSequences.DNA_T]);
     elseif modSymbol == :BTSM
         error("Binary Trait Substitution Model supports only two trait states, but dna data has four states.")
     elseif modSymbol == :TBTSM
@@ -774,7 +774,7 @@ function traitlabels2indices(data::Union{AbstractMatrix,AbstractDataFrame},
                 vi = findfirst(isequal(l), labs)
                 if vi === nothing
                     # ideally, handle ambiguous DNA types optimally
-                    if isDNA #&& BioSymbols.isambiguous(l)
+                    if isDNA #&& BioSequences.isambiguous(l)
                         vi = missing
                     else
                         error("trait $l not found in model")

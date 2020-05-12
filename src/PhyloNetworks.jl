@@ -12,12 +12,12 @@ module PhyloNetworks
 
     # other libraries, indicate compatible version in Project.toml
     using BioSequences
-    using BioSymbols
     using Combinatorics: combinations
     using CSV
     using DataFrames
     using DataStructures # for updateInCycle with priority queue
-    using Distributions #for RateVariationAcrossSites
+    using Distributions # for RateVariationAcrossSites
+    using FASTX # to read in FASTA files
     using GLM # for the lm function
     using NLopt # for branch lengths optimization
     using StaticArrays
