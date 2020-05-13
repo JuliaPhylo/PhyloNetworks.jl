@@ -119,14 +119,14 @@ in the data would be treated as missing value).
 
 ```jldoctest
 julia> getlabels(JC69([0.03], false))
-4-element Array{BioSequences.DNA,1}:
+4-element Array{BioSymbols.DNA,1}:
  DNA_A
  DNA_C
  DNA_G
  DNA_T
 
 julia> getlabels(HKY85([.5], repeat([0.25], 4)))
-4-element Array{BioSequences.DNA,1}:
+4-element Array{BioSymbols.DNA,1}:
  DNA_A
  DNA_C
  DNA_G

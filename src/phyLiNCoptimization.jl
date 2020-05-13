@@ -328,14 +328,6 @@ function phyLiNC!(obj::SSM;
     (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true)) # not done in phyLiNCone
     # loglik changes after shrinkage, but recalculated below by optimizeBL
     updateSSM!(obj, true; constraints = constraints)
-    # confirm fused edges created by shrinking cycles are <= BLmax
-    if any([e.length > BLmax for e in obj.net.edge])
-        for e in obj.net.edge
-            if e.length > BLmax
-                e.length = BLmax
-            end
-        end
-    end
     # warning: tolerance values from constants, not user-specified
     optimizeBL_LiNC!(obj, copy(obj.net.edge), fRelBL, fAbsBL, xRelBL, xAbsBL,
                      max(10*length(obj.net.edge), 1000))
@@ -448,14 +440,6 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
         if ghosthybrid && (nrejected < nrejectmax)
             shrink3cycles!(obj.net, true)
             updateSSM!(obj, true; constraints=constraints)
-        end
-        # confirm fused edges created by deletehybridedge and shrink cycles are <= BLmax
-        if any([e.length > BLmax for e in obj.net.edge])
-            for e in obj.net.edge
-                if e.length > BLmax
-                    e.length = BLmax
-                end
-            end
         end
     end
     return obj
@@ -613,14 +597,6 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
             (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
             # loglik change ignored, but loglik recalculated below by optimizelocalBL
             updateSSM!(obj, true; constraints=constraints)
-            # confirm fused edges created by shrinking cycles are <= BLmax
-            if any([e.length > BLmax for e in obj.net.edge])
-                for e in obj.net.edge
-                    if e.length > BLmax
-                        e.length = BLmax
-                    end
-                end
-            end
         end
         # pick a random edge (internal or external), optimize adjancent lengths
         e = Random.rand(obj.net.edge)
@@ -745,10 +721,11 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     savedlen = [e.length for e in obj.net.edge]
     savedgam = [e.gamma for e in obj.net.edge]
     result = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints;fixroot=true)
-    # result = newnode2_hybrid, hybrid_edge
-    splitedges = getParent(result[2]).edge # confirm that split edges on original e1 are > BLmin
-    if any([e.length < BLmin && !getParent(e).hybrid for e in splitedges]) # check for missing branch lengths
-        for e in splitedges
+    # result = newnode2_hybrid, hybrid_edge. The new hybrid edge will be the third.
+    splitedges = getParent(result[2]).edge # confirm that split edges are > BLmin
+    if any([e.length < BLmin && !getParent(e).hybrid for e in splitedges[1:2]])
+        # If hybrid ladders allowed, need to check the top edge isnt below a hybrid
+        for e in splitedges[1:2]
             if e.length < BLmin && !getParent(e).hybrid
                 e.length = BLmin
             end
@@ -764,13 +741,6 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     end
     # unzip only at new node and its child edge
     unzipat_canonical!(newhybridnode, getChildEdge(newhybridnode))
-    # check that branch length above hybrid node is <= BLmax
-    if getMajorParentEdge(newhybridnode).length > BLmax
-        getMajorParentEdge(newhybridnode).length = BLmax
-    end
-    if getMinorParentEdge(newhybridnode).length > BLmax
-        getMinorParentEdge(newhybridnode).length = BLmax
-    end
     updateSSM!(obj) #, true; constraints=constraints)
     optimizelocalgammas_LiNC!(obj, newhybridedge, ftolRel, γcache)
     if newhybridedge.gamma == 0.0
@@ -780,14 +750,6 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
         for (i,e) in enumerate(obj.net.edge) # restore
             e.gamma = savedgam[i]
         end
-        # confirm fused edges created by deletehybridedge are <= BLmax
-        if any([e.length > BLmax for e in obj.net.edge])
-            for e in obj.net.edge
-                if e.length > BLmax
-                    e.length = BLmax
-                end
-            end
-        end
         return false
     elseif newhybridedge.gamma == 1.0 # ≃ subtree prune and regraft (SPR) move
         # loglik better because γ=1 better than γ=0, yet without new reticulation: accept
@@ -795,14 +757,6 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
         (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
         # loglik will be updated in optimizeallgammas right after, in optimizestructure
         updateSSM!(obj, true; constraints=constraints)
-        # confirm fused edges created by deletehybridedge and shrinking cycles are <= BLmax
-        if any([e.length > BLmax for e in obj.net.edge])
-            for e in obj.net.edge
-                if e.length > BLmax
-                    e.length = BLmax
-                end
-            end
-        end
         @debug "addhybrid resulted in SPR move: new hybrid edge had γ=1.0, its partner was deleted"
         return true
     end
@@ -817,14 +771,6 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
         to use, even though they don't use the same root as that in the restored rooted network.
         Further, fixroot=true so hybridpartnernew = true.
         =#
-        # confirm fused edges created by deletehybridedge are <= BLmax
-        if any([e.length > BLmax for e in obj.net.edge])
-            for e in obj.net.edge
-                if e.length > BLmax
-                    e.length = BLmax
-                end
-            end
-        end
         obj.displayedtree = saveddisplayedtree # restore original displayed trees and weights
         obj.priorltw = savedpriorltw
         obj.loglik = currLik # restore to loglik before move
@@ -907,14 +853,6 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     if obj.loglik - currLik > likAbsDelHybLiNC # -0.1: loglik can decrease for parsimony
         deletehybridedge!(obj.net, minorhybridedge, false,true,false,false) # nofuse,unroot,multgammas,simplify
         (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
-        # confirm fused edges created by deletehybridedge and shrinking cycles are <= BLmax
-        if any([e.length > BLmax for e in obj.net.edge])
-            for e in obj.net.edge
-                if e.length > BLmax
-                    e.length = BLmax
-                end
-            end
-        end
         updateSSM!(obj, true; constraints=constraints)
         # obj.loglik will be updated by optimizeallgammas within optimizestructure
         return true
@@ -1164,6 +1102,14 @@ function optimizeBL_LiNC!(obj::SSM, edges::Vector{Edge},
             end
         end
     end
+    # confirm fused edges created by deletehybridedge, shrink cycles, and unzip are <= BLmax
+    if any([e.length > BLmax for e in edges])
+        for e in edges
+            if e.length > BLmax
+                e.length = BLmax
+            end
+        end
+    end
     startingvalues = getlengths(edges)
     function loglikfunBL(lengths::Vector{Float64}, grad::Vector{Float64})
         setlengths!(edges, lengths) # set lengths in order of vector `edges`
@@ -1242,14 +1188,6 @@ function optimizeallgammas_LiNC!(obj::SSM, ftolAbs::Float64,
         he = getMinorParentEdge(hybnodes[hi])
         if he.gamma == 0.0
             deletehybridedge!(obj.net, he, false,true,false,false)
-            # confirm fused edges created by deletehybridedge are <= BLmax
-            if any([e.length > BLmax for e in obj.net.edge])
-                for e in obj.net.edge
-                    if e.length > BLmax
-                        e.length = BLmax
-                    end
-                end
-            end
             ghosthybrid = true
             nh = length(hybnodes) # normally nh-1, but could be less: deleting
             # one hybrid may delete others indirectly, e.g. if hybrid ladder
