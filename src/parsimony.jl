@@ -372,14 +372,14 @@ function initializeWeightsFromLeavesSoftwired!(w::AbstractArray, net::HybridNetw
 end
 
 function readFastaToArray(filename::String)
-    reader = FASTX.FASTA.Reader(open(filename))
+    reader = BioSequences.FASTA.Reader(open(filename))
     #dat = Dict{String, }()
     sequences = Array{BioSequences.BioSequence}(undef, 0)
     species = String[]
     for record in reader
-        #push!(dat, FASTA.identifier(record) => FASTX.FASTA.sequence(record))
-        push!(sequences, FASTX.FASTA.sequence(record))
-        push!(species, FASTX.FASTA.identifier(record))
+        #push!(dat, FASTA.identifier(record) => BioSequences.FASTA.sequence(record))
+        push!(sequences, BioSequences.FASTA.sequence(record))
+        push!(species, BioSequences.FASTA.identifier(record))
     end
     seqlengths = [length(s) for s in sequences] # values(dat)
     nsites, tmp = extrema(seqlengths)
@@ -408,24 +408,24 @@ Return a tuple containing:
    The length of the weight vector is equal to npatterns.
 """
 function readfastatodna(fastafile::String, countPatterns=false::Bool)
-    reader = FASTX.FASTA.Reader(open(fastafile))
+    reader = BioSequences.FASTA.Reader(open(fastafile))
     siteList = Vector{Vector}(undef, 0) #array of arrays, one array for each site (8 in example)
     species = String[]
     firstspecies = Bool(true)
     nsites = 0
     for record in reader #by species (row)
         if firstspecies
-            nsites = length(FASTX.FASTA.sequence(record))
+            nsites = length(BioSequences.FASTA.sequence(record))
             for site in 1:nsites # initialize an array for each site
                 push!(siteList, Vector{BioSequences.DNA}(undef, 0))
             end
             firstspecies = false
         end
-        push!(species, FASTX.FASTA.identifier(record)) #adds species name to end of species vector
-        length(FASTX.FASTA.sequence(record)) == nsites || error("sequences of different length: current sequences is ",
-            length(FASTX.FASTA.sequence(record)), " long while first sequence is ", nsites, " long")
+        push!(species, BioSequences.FASTA.identifier(record)) #adds species name to end of species vector
+        length(BioSequences.FASTA.sequence(record)) == nsites || error("sequences of different length: current sequences is ",
+            length(BioSequences.FASTA.sequence(record)), " long while first sequence is ", nsites, " long")
         for site in 1:nsites
-            push!(siteList[site], FASTX.FASTA.sequence(record)[site])
+            push!(siteList[site], BioSequences.FASTA.sequence(record)[site])
         end
     end
 

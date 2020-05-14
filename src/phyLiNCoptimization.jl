@@ -1057,10 +1057,10 @@ julia> using Random; Random.seed!(1234);
 julia> PhyloNetworks.optimizelocalBL_LiNC!(obj, obj.net.edge[4], 1e-6,1e-6,1e-2,1e-2);
 
 julia> obj.net.edge[4].length
-2.3780835440902453e-20
+1.0000000000030024e-8
 
 julia> writeTopology(obj.net; round=true)
-"(((A:0.22,(B:1.0)#H1:0.0::0.9):0.0,(C:0.6,#H1:1.0::0.1):0.0):0.0,D:2.0);"
+"(((A:0.214,(B:1.0)#H1:0.0::0.9):0.0,(C:0.6,#H1:1.0::0.1):0.0):0.0,D:2.0);"
 
 ```
 """

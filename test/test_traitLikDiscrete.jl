@@ -387,7 +387,7 @@ end # end of testing NASMs
 # test fitdiscrete with NASM #
     # based on 3 alignments in PhyloNetworks/examples
 net = readTopology("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);");
-tips = Dict("A" => BioSequences.DNA_A, "B" => BioSequences.DNA_A, "C" => BioSequences.DNA_G, "D" => BioSequences.DNA_G);
+tips = Dict("A" => BioSymbols.DNA_A, "B" => BioSymbols.DNA_A, "C" => BioSymbols.DNA_G, "D" => BioSymbols.DNA_G);
 
 # JC without optimization (confirmed with ape ace() function and phangorn)
 mJC69 = JC69(0.2923350741254221, false) #ace() gives Q matrix cell, not rate. lambda = (1.0/3.0)*obj.rate[1] so rate = 3*0.097445024708474035 = 0.2923350741254221
