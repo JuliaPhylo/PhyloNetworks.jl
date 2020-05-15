@@ -38,7 +38,7 @@ the number of times that each site pattern was observed.
 
 DNA-specific substitution models have 4 states: the 4 nucleotides from
 [BioSymbols](https://github.com/BioJulia/BioSymbols.jl)
-(listed [here](http://biojulia.net/BioSymbols.jl/stable/nucleicacids/)). (BioSymbols is bundeled into BioSequences package)
+(listed [here](http://biojulia.net/BioSymbols.jl/stable/nucleicacids/)).
 Each model has a relative and an absolute version.
 - `:JC69` Jukes & Cantor 1969 model: one single rate for all transitions.
   The relative version has values -1 along the diagonal of the rate matrix

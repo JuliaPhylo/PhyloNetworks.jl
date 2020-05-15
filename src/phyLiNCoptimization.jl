@@ -59,11 +59,12 @@ Return a [`StatisticalSubstitutionModel`](@ref) object, say `obj`, which
 contains the estimated network in `obj.net`.
 
 Required arguments:
-- net: a network or tree of type `HybridNetwork`. Newick strings can be
-  converted to this format with [`readTopology`] (@ref).
-- fastafile: sequence data from individuals of interest in FASTA format.
-- substitutionModel: A symbol indicating which substitution model is used.
-  Choose ':JC69' f [`JC69`] (@ref) for the Jukes-Cantor model or ':HKY85' for
+- `net`: a network or tree of type `HybridNetwork`, to serve as a starting point
+  in the search for the best network.
+  Newick strings can be converted to this format with [`readTopology`] (@ref).
+- `fastafile`: file with the sequence data in FASTA format.
+- `substitutionModel`: A symbol indicating which substitution model is used.
+  Choose `:JC69` f [`JC69`] (@ref) for the Jukes-Cantor model or `:HKY85` for
   the Hasegawa, Kishino, Yano model [`HKY85`] (@ref).
 
 The length of the edge below a reticulation is not identifiable.
@@ -80,38 +81,42 @@ described above.
 Optional arguments (default value in parenthesis):
 - `numberofratecategories` (1): number of categories to use in estimating
   evolutionary rates using a discretized gamma model. When allowing for rate
-  variation, four categories is typically used. If `numberofratecategories` = 1,
-  no rate variation is assumed. See [`RateVariationAcrossSites`] (@ref)
+  variation, four categories is standard. If `numberofratecategories` = 1,
+  no rate variation is assumed. See [`RateVariationAcrossSites`] (@ref).
 
-Optional keyword arguments (default value in parenthesis):
-- `nreject` (75): maximum number of times that new topologies are
-  proposed and rejected in a row. Lower values of `nreject` result in a less
-  thorough but faster search. Controls when to stop proposing new
-  network topologies.
+Main optional keyword arguments (default value in parenthesis):
 - `speciesfile` (""): path to a csv file containing two columns:
-  species and individuals used to create one or more species topology
-  constraints to meet during the search.
+  species (column 1) and individuals (column 2) used to create one or more
+  species topology constraints to meet during the search.
 - `cladefile` (""): path to a csv file containing two columns:
   clades and individuals used to create one or more clade topology
-  constraints to meet during the search. (NOTE: clade contraints not yet implemented.)
+  constraints to meet during the search.
+  (NOTE: clade contraints not yet implemented.)
+- `filename` ("phyLiNC"): root name for the output files (`.out`, `.err`).
+  If empty (""), files are *not* created, progress log goes to the screen only
+  (standard out).
+- `maxhybrid` (1): maximum number of hybridizations allowed.
+  `net` (starting network) must have `maxhybrid` or fewer reticulations.
 - `nruns` (10): number of independent starting points for the search
-- `probST` (0.5): probability to use `net` as the starting topology
-  for each given run. If probST < 1, the starting topology is k NNI moves
-  away from `net`, where k is drawn from a geometric distribution: p (1-p)ᵏ,
-  with success probability p = `probST`.
-- `maxhybrid` (1): maximum number of hybridizations allowed
 - `no3cycle` (true): prevents 3-cycles, which are (almost) not
   identifiable
 - `nohybridladder` (true): prevents hybrid ladder in network. If true,
   the input network must not have hybrid ladders.
+
+Optional arguments controlling the search:
+- `seed` (default 0 to get it from the clock): seed to replicate a given search
+- `nreject` (75): maximum number of times that new topologies are
+  proposed and rejected in a row. Lower values of `nreject` result in a less
+  thorough but faster search. Controls when to stop proposing new
+  network topologies.
+- `probST` (0.5): probability to use `net` as the starting topology
+  for each given run. If probST < 1, the starting topology is k NNI moves
+  away from `net`, where k is drawn from a geometric distribution: p (1-p)ᵏ,
+  with success probability p = `probST`.
 - `maxmoves` (100): maximum number of topology moves before branch lengths,
   hybrid γ values, evolutionary rates, and rate variation parameters are
   reestimated.
 - `verbose` (true): set to false to turn off screen output
-- `filename` ("phyLiNC"): root name for the output files (`.out`, `.err`).
-  If empty (""), files are *not* created, progress log goes to the screen only
-  (standard out).
-- `seed` (default 0 to get it from the clock): seed to replicate a given search
 - `alphamin` (0.02): minimum value for shape parameter alpha in rate variation
   across sites model.
 - `alphamax` (50.0): maximum value for shape parameter alpha in rate variation
@@ -130,8 +135,8 @@ Regardless of these arguments, once a final topology is chosen, branch lenghts
 are optimized using stricter tolerances (1e-10, 1e-12, 1e-10, 1e-10) for better
 estimates.
 """
-function phyLiNC!(net::HybridNetwork, fastafile::String, substitutionModel::Symbol,
-                  numberofratecategories=1::Int;
+function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
+                  rateCategories=1::Int;
                   maxhybrid=1::Int, no3cycle=true::Bool,
                   nohybridladder=true::Bool,
                   speciesfile=""::AbstractString,
@@ -147,7 +152,7 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, substitutionModel::Symb
         error("Clade constraints not yet implemented.")
     end
     # create starting object for all runs
-    obj = StatisticalSubstitutionModel(net, fastafile, substitutionModel, numberofratecategories, maxhybrid)
+    obj = StatisticalSubstitutionModel(net, fastafile, modSymbol, rateCategories, maxhybrid)
     #= after SSM(), update constraint taxon names, taxonnums, edge, and node
        because some leaves may be pruned, and check_matchtaxonnames calls
        resetNodeNumbers! (changing leaf node numbers) and resetEdgeNumbers! =#
@@ -160,11 +165,11 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, substitutionModel::Symb
        and requires that the network is preordered.
        Warning: need to call updateSSM after using checknetwork_LiNC =#
     updateSSM!(obj, true; constraints=constraints)
-    if any([e.length < 0.0 for e in obj.net.edge]) # check for missing branch lengths
+    if any(e.length < 0.0 for e in obj.net.edge) # check for missing branch lengths
         startingBL!(obj.net, obj.trait, obj.siteweight)
     end
     unzip_canonical!(obj.net)
-    for e in obj.net.edge # confirm that starting branch lengths are in bounds
+    for e in obj.net.edge # bring branch lengths inside bounds
         if e.length < BLmin && !getParent(e).hybrid
             e.length = BLmin
         elseif e.length > BLmax
@@ -200,7 +205,7 @@ function phyLiNC!(obj::SSM;
     γcache = CacheGammaLiNC(obj)
     # rough optimization of rates and alpha, for better starting values used by all runs
     obj.loglik = -Inf
-    Random.seed!(0) # makes later runs reproducible
+    Random.seed!(0) # to re-run a single run (out of several) reproducibly
     fit!(obj; optimizeQ=(nparams(obj.model) > 0),
          optimizeRVAS=(nparams(obj.ratemodel) > 0),
          verbose=false, maxeval=20,
@@ -435,8 +440,8 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
         shrink cycles only in the middle of optimization, not when optimization is
         finished. By avoiding shrinking cycles at the end, the final loglik is correct.
         This can lead to confusing results for users: They could choose no3cycle=true, but
-        still have a 3-cycle in the final network. Might want to add something to
-        docs about this. =#
+        still have a 3-cycle in the final network.
+        Might want to add something to docs about this. =#
         if ghosthybrid && (nrejected < nrejectmax)
             shrink3cycles!(obj.net, true)
             updateSSM!(obj, true; constraints=constraints)
@@ -721,20 +726,20 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     savedlen = [e.length for e in obj.net.edge]
     savedgam = [e.gamma for e in obj.net.edge]
     result = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints;fixroot=true)
-    # result = newnode2_hybrid, hybrid_edge. The new hybrid edge will be the third.
-    splitedges = getParent(result[2]).edge # confirm that split edges are > BLmin
-    if any([e.length < BLmin && !getParent(e).hybrid for e in splitedges[1:2]])
-        # If hybrid ladders allowed, need to check the top edge isnt below a hybrid
-        for e in splitedges[1:2]
-            if e.length < BLmin && !getParent(e).hybrid
-                e.length = BLmin
-            end
+    # next: increase length of split edges if they became < BLmin
+    # result = (newnode2_hybrid, hybrid_edge)
+    splitedges = getParent(result[2]).edge # new hybrid edge = splitedges[3]
+    # splitedges[1] and splitedges[2] have length 1/2 of original edge...
+    # except if hybrid ladder was created (and unzipped)
+    for e in splitedges[1:2]
+        if e.length < BLmin && !getParent(e).hybrid
+            e.length = BLmin
         end
     end
     # fixroot=true: to restore edge2 if need be, with deletehybridedge!
     isnothing(result) && return nothing
     newhybridnode, newhybridedge = result
-    if maximum([e.number for e in obj.net.edge]) > size(obj.logtrans)[3]
+    if maximum(e.number for e in obj.net.edge) > size(obj.logtrans)[3]
         @debug """The new hybrid edge number is greater than the allowed maxedge in logtrans.
         The number of hybrids in the network is now $(obj.net.numHybrids).
         $(printEdges(obj.net))"""
@@ -967,7 +972,7 @@ Calibrate branch lengths in `net` by minimizing the mean squared error
 between the JC-adjusted pairwise distance between taxa, and network-predicted
 pairwise distances, using [`calibrateFromPairwiseDistances!`](@ref).
 `siteweight[k]` gives the weight of site (or site pattern) `k` (default: all 1s).
-Note: the network is not "unzipped", as required by PhyLiNC.
+Note: the network is not "unzipped". PhyLiNC unzips reticulations later.
 
 Assumptions:
 
@@ -1056,8 +1061,8 @@ julia> using Random; Random.seed!(1234);
 
 julia> PhyloNetworks.optimizelocalBL_LiNC!(obj, obj.net.edge[4], 1e-6,1e-6,1e-2,1e-2);
 
-julia> obj.net.edge[4].length
-1.0000000000030024e-8
+julia> round(obj.net.edge[4].length, sigdigits=6) # we get the lower bound from PhyLiNC in this case
+1.0e-8
 
 julia> writeTopology(obj.net; round=true)
 "(((A:0.214,(B:1.0)#H1:0.0::0.9):0.0,(C:0.6,#H1:1.0::0.1):0.0):0.0,D:2.0);"
@@ -1102,13 +1107,9 @@ function optimizeBL_LiNC!(obj::SSM, edges::Vector{Edge},
             end
         end
     end
-    # confirm fused edges created by deletehybridedge, shrink cycles, and unzip are <= BLmax
-    if any([e.length > BLmax for e in edges])
-        for e in edges
-            if e.length > BLmax
-                e.length = BLmax
-            end
-        end
+    # reduce edge lengths beyond upper bounds: can appear from unzipping,
+    for e in edges #  cycle shrinking, and edges fused by deletehybridedge
+        if e.length > BLmax  e.length = BLmax; end
     end
     startingvalues = getlengths(edges)
     function loglikfunBL(lengths::Vector{Float64}, grad::Vector{Float64})

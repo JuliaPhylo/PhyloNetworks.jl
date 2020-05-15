@@ -17,7 +17,7 @@ module PhyloNetworks
     using CSV
     using DataFrames
     using DataStructures # for updateInCycle with priority queue
-    using Distributions # for RateVariationAcrossSites
+    using Distributions #for RateVariationAcrossSites
     using GLM # for the lm function
     using NLopt # for branch lengths optimization
     using StaticArrays

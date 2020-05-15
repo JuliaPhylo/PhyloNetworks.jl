@@ -296,9 +296,9 @@ function parsimonySoftwired(net::HybridNetwork, species::Array{String},
         nu = sequenceData[sp][isite] # nucleotide
         if checkGap &&
             (isgap(nu) ||
-             (sequenceType==BioSequences.DNA && nu == BioSequences.DNA_N) ||
-             (sequenceType==BioSequences.RNA && nu == BioSequences.RNA_N) ||
-             (sequenceType==BioSequences.AminoAcid && nu == BioSequences.AA_N) )
+             (sequenceType==BioSymbols.DNA && nu == BioSymbols.DNA_N) ||
+             (sequenceType==BioSymbols.RNA && nu == BioSymbols.RNA_N) ||
+             (sequenceType==BioSymbols.AminoAcid && nu == BioSymbols.AA_N) )
             delete!(tips, species[sp])
         else
             tips[species[sp]] = nu # fixit: allow for ambiguous nucleotides?
@@ -377,9 +377,9 @@ function readFastaToArray(filename::String)
     sequences = Array{BioSequences.BioSequence}(undef, 0)
     species = String[]
     for record in reader
-        #push!(dat, FASTA.identifier(record) => BioSequences.FASTA.sequence(record))
-        push!(sequences, BioSequences.FASTA.sequence(record))
-        push!(species, BioSequences.FASTA.identifier(record))
+        #push!(dat, FASTA.identifier(record) => sequence(record))
+        push!(sequences, sequence(record))
+        push!(species, FASTA.identifier(record))
     end
     seqlengths = [length(s) for s in sequences] # values(dat)
     nsites, tmp = extrema(seqlengths)
@@ -415,17 +415,17 @@ function readfastatodna(fastafile::String, countPatterns=false::Bool)
     nsites = 0
     for record in reader #by species (row)
         if firstspecies
-            nsites = length(BioSequences.FASTA.sequence(record))
+            nsites = length(sequence(record))
             for site in 1:nsites # initialize an array for each site
                 push!(siteList, Vector{BioSequences.DNA}(undef, 0))
             end
             firstspecies = false
         end
-        push!(species, BioSequences.FASTA.identifier(record)) #adds species name to end of species vector
-        length(BioSequences.FASTA.sequence(record)) == nsites || error("sequences of different length: current sequences is ",
-            length(BioSequences.FASTA.sequence(record)), " long while first sequence is ", nsites, " long")
+        push!(species, FASTA.identifier(record)) #adds species name to end of species vector
+        length(sequence(record)) == nsites || error("sequences of different length: current sequences is ", 
+            length(sequence(record)), " long while first sequence is ", nsites, " long")
         for site in 1:nsites
-            push!(siteList[site], BioSequences.FASTA.sequence(record)[site])
+            push!(siteList[site], sequence(record)[site])
         end
     end
 
@@ -435,7 +435,7 @@ function readfastatodna(fastafile::String, countPatterns=false::Bool)
         for c in nsites:-1:1
             target = siteList[c]
             for comparison in 1:(c-1)
-                if target == siteList[comparison]
+                if target == siteList[comparison] 
                     weights[comparison] += weights[c] #add c's weight to comparison's weight
                     deleteat!(siteList, c) # delete c in siteList
                     deleteat!(weights, c) #delete c in weights
@@ -611,9 +611,9 @@ function parsimonyGF(net::HybridNetwork, species::Array{String},
     elseif criterion == :parental
         error("parental parsimony not implemented yet")
         # costfunctionP = function(finalset, parentsets) # parentsets = array of sets: 0, 1, 2
-        #     # Input: node v in network N with at most one parent u not in P, set S in Y, set Sprime
+        #     # Input: node v in network N with at most one parent u not in P, set S in Y, set Sprime 
         #     #   in Y, assignment fprime.
-        #     # Return: cost on eduges entering v for any lineage function f that extends fprime and
+        #     # Return: cost on eduges entering v for any lineage function f that extends fprime and 
         #     #   assigns f(u) = S (if u exists) and f(v) = Sprime
         #     if node v is root of Network N
         #         return 0
@@ -717,9 +717,9 @@ function parsimonyGF(net::HybridNetwork, species::Array{String},
         nu = sequenceData[sp][isite] # nucleotide
         if checkGap &&
             (isgap(nu) ||
-             (sequenceType==BioSequences.DNA && nu == BioSequences.DNA_N) ||
-             (sequenceType==BioSequences.RNA && nu == BioSequences.RNA_N) ||
-             (sequenceType==BioSequences.AminoAcid && nu == BioSequences.AA_N) )
+             (sequenceType==BioSymbols.DNA && nu == BioSymbols.DNA_N) ||
+             (sequenceType==BioSymbols.RNA && nu == BioSymbols.RNA_N) ||
+             (sequenceType==BioSymbols.AminoAcid && nu == BioSymbols.AA_N) )
             delete!(tips, species[sp])
         else
             tips[species[sp]] = nu # fixit: allow for ambiguous nucleotides?

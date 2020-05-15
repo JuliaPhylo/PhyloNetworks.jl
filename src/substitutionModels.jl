@@ -135,7 +135,7 @@ julia> getlabels(HKY85([.5], repeat([0.25], 4)))
 ```
 """
 function getlabels(::NASM)
-    return [BioSequences.DNA_A, BioSequences.DNA_C, BioSequences.DNA_G, BioSequences.DNA_T]
+    return [BioSymbols.DNA_A, BioSymbols.DNA_C, BioSymbols.DNA_G, BioSymbols.DNA_T]
 end
 
 """
@@ -273,7 +273,7 @@ Model for binary traits, that is, with 2 states. Default labels are "0" and "1".
 """
 struct BinaryTraitSubstitutionModel{T} <: TraitSubstitutionModel{T} # fixit: back to mutable struct?
     rate::Vector{Float64}
-    label::Vector{T} # most often: T = String, but could be BioSequences.DNA
+    label::Vector{T} # most often: T = String, but could be BioSymbols.DNA
     eigeninfo::Vector{Float64}
     function BinaryTraitSubstitutionModel{T}(rate::Vector{Float64}, label::Vector{T}, eigeninfo::Vector{Float64}) where T
         #Warning: this constructor should not be used directly. Use it with the constructors below.
@@ -1062,7 +1062,7 @@ Estimate base frequencies in DNA data `DNAdata`, ordered ACGT.
 - `DNAdata`: data frame. All columns are used. If the first column
   gives species names, find a way to ignore it before calculating empirical
   frequencies, e.g. `empiricalDNAfrequencies(view(DNAdata, :, 2:size(DNAdata, 2)))`.
-  Data type must be `BioSequences.DNA` or `Char` or `String`.
+  Data type must be `BioSymbols.DNA` or `Char` or `String`.
   WARNING: this is checked on the first column only.
 - `DNAweights`: vector of weights, to weigh each column in `DNAdata`.
 - `correction`: if `true`, add 1 to each count and 4 to the denominator
@@ -1076,15 +1076,15 @@ function empiricalDNAfrequencies(dnaDat::AbstractDataFrame, dnaWeights::Vector,
 
     # warning: checking first column and first row only
     dnadat1type = eltype(dnaDat[!,1])
-    dnadat1type == BioSequences.DNA || dnadat1type == Char ||
-      dnaDat[1,1] ∈ string.(BioSequences.alphabet(DNA)) ||
-        error("empiricalDNAfrequencies requires data of type String, Char, or BioSequences.DNA")
+    dnadat1type == BioSymbols.DNA || dnadat1type == Char ||
+      dnaDat[1,1] ∈ string.(BioSymbols.alphabet(DNA)) ||
+        error("empiricalDNAfrequencies requires data of type String, Char, or BioSymbols.DNA")
 
-    # initialize counts: keys same as BioSequences.ACGT (which are ordered)
+    # initialize counts: keys same as BioSymbols.ACGT (which are ordered)
     prior = correctedestimate ? 1.0 : 0.0
     dnacounts = Dict(DNA_A=>prior, DNA_C=>prior, DNA_G=>prior, DNA_T=>prior)
 
-    convert2dna = dnadat1type != BioSequences.DNA
+    convert2dna = dnadat1type != BioSymbols.DNA
     for j in 1:size(dnaDat, 2) # for each column
         col = dnaDat[!,j]
         wt = dnaWeights[j]
@@ -1092,7 +1092,7 @@ function empiricalDNAfrequencies(dnaDat::AbstractDataFrame, dnaWeights::Vector,
             if convert2dna
                 nuc = convert(DNA, nuc[1]) # if nuc is a string, nuc[1] = 1st character
             end
-            if nuc ∈ BioSequences.ACGT
+            if nuc ∈ BioSymbols.ACGT
                 dnacounts[nuc] += wt
             elseif nuc == DNA_Gap || nuc == DNA_N || !useambiguous
                 continue # to next row
@@ -1135,7 +1135,7 @@ function empiricalDNAfrequencies(dnaDat::AbstractDataFrame, dnaWeights::Vector,
         end
     end
     totalweight = sum(values(dnacounts))
-    res = [dnacounts[key]/totalweight for key in BioSequences.ACGT] # to control the order
+    res = [dnacounts[key]/totalweight for key in BioSymbols.ACGT] # to control the order
     all(0. .<= res .<= 1.) || error("""weird: empirical base frequency < 0 or > 1""")
     return res
 end
