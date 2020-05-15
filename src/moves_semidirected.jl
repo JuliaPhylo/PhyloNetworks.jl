@@ -757,7 +757,7 @@ julia> species_net = readTopology("(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))
 julia> filename = joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "mappingIndividuals.csv");
 
 julia> filename |> read |> String |> print # to see what the mapping file contains
-species,individuals
+species,individual
 S1,S1A
 S1,S1B
 S1,S1C

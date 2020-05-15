@@ -5,6 +5,7 @@ Pkg.add(PackageSpec(name="PhyloPlots", rev="master"))
 
 using PhyloNetworks
 DocMeta.setdocmeta!(PhyloNetworks, :DocTestSetup, :(using PhyloNetworks); recursive=true)
+using PhyloPlots # to trigger any precompilation warning outside jldoctests
 
 makedocs(
     sitename = "PhyloNetworks.jl",

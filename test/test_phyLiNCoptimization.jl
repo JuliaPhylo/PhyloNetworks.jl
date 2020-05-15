@@ -49,7 +49,8 @@ PhyloNetworks.checknetwork_LiNC!(obj.net, 3, true, true, emptyconstraint)
 # checknetwork removes degree-2 nodes (including root) and 2- and 3-cycles
 # and requires that the network is preordered.
 PhyloNetworks.updateSSM!(obj, true; constraints=emptyconstraint)
-PhyloNetworks.startingBL!(obj.net, true, obj.trait, obj.siteweight)
+PhyloNetworks.startingBL!(obj.net, obj.trait, obj.siteweight)
+PhyloNetworks.unzip_canonical!(obj.net)
 ## Local BL
 lengthe = obj.net.edge[27].length
 @test_nowarn PhyloNetworks.optimizelocalBL_LiNC!(obj, obj.net.edge[27], 1e-6,1e-6,1e-2,1e-3)
@@ -127,7 +128,8 @@ net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):
 obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69, 1)
 PhyloNetworks.checknetwork_LiNC!(obj.net, 1, true, true)
 PhyloNetworks.updateSSM!(obj, true; constraints=emptyconstraint)
-PhyloNetworks.startingBL!(obj.net, true, obj.trait, obj.siteweight)
+PhyloNetworks.startingBL!(obj.net, obj.trait, obj.siteweight)
+PhyloNetworks.unzip_canonical!(obj.net)
 PhyloNetworks.discrete_corelikelihood!(obj)
 @test obj.loglik ≈ -29.7762035
 maxmoves = 2
@@ -153,7 +155,8 @@ for nohybridladder in [true, false]
     obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69, 1)
     PhyloNetworks.checknetwork_LiNC!(obj.net, 1, no3cycle, nohybridladder)
     PhyloNetworks.updateSSM!(obj, true; constraints=emptyconstraint)
-    PhyloNetworks.startingBL!(obj.net, true, obj.trait, obj.siteweight)
+    PhyloNetworks.startingBL!(obj.net, obj.trait, obj.siteweight)
+    PhyloNetworks.unzip_canonical!(obj.net)
     obj.loglik = -Inf # missing otherwise, which would cause an error below
     nullio = open("/dev/null", "w")
     γcache = PhyloNetworks.CacheGammaLiNC(obj)
@@ -167,7 +170,7 @@ end
 
 @testset "phyLiNC no constraints: HKY, rate variation" begin
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
-@test_nowarn obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69, 2; maxhybrid=2,
+@test_nowarn obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69, 2; maxhybrid=2, # no missing BLs, so they're not re-estimated
                     no3cycle=true, nohybridladder=true, maxmoves=2,
                     nreject=1, nruns=1, filename="", verbose=false, seed=105)
 @test obj.loglik > -29.7762035
@@ -218,7 +221,8 @@ c_species[1] = PhyloNetworks.TopologyConstraint(0x01, c_species[1].taxonnames, o
 PhyloNetworks.updateSSM!(obj, true; constraints=emptyconstraint)
 
 for e in obj.net.edge e.length = 0.1; end # was -1.0 for missing
-PhyloNetworks.startingBL!(obj.net, true, obj.trait, obj.siteweight) # true: to unzip
+PhyloNetworks.startingBL!(obj.net, obj.trait, obj.siteweight)
+PhyloNetworks.unzip_canonical!(obj.net)
 obj.loglik = -Inf # actual likelihood -56.3068141288164. Need something non-missing
 seed = 103
 nullio = open("/dev/null", "w")
@@ -228,7 +232,7 @@ nullio = open("/dev/null", "w")
                                        seed, 0.5, c_species, 1e-2, 1e-2,
                                        1e-2, 1e-2, 0.0, 50.0, γcache)
 
-obj = phyLiNC!(net_level1_s,
+obj = phyLiNC!(net_level1_s, # missing BLs, so BLs are re-estimated before starting
             fastaindiv, :JC69; maxhybrid=2, no3cycle=true, nohybridladder=true,
             verbose=false, filename="", speciesfile=mappingfile, seed=106, nruns=1,
             maxmoves=10, nreject=2)

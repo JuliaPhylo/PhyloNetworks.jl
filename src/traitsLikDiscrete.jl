@@ -511,7 +511,9 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
         NLopt.maxeval!(optQ, maxeval) # max number of iterations
         # NLopt.maxtime!(optQ, t::Real)
         NLopt.lower_bounds!(optQ, zeros(Float64, nparQ))
-        # fixit: set upper bound depending on branch lengths in network?
+        if typeof(obj.model) == HKY85 # set an upper bound on kappa values
+            NLopt.upper_bounds!(optQ, fill(kappamax,nparQ))
+        end
         NLopt.max_objective!(optQ, loglikfun)
         fmax, xmax, ret = NLopt.optimize(optQ, obj.model.rate)
         setrates!(obj.model, xmax)
