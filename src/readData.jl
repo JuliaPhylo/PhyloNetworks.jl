@@ -692,7 +692,7 @@ function countquartetsintrees(tree::Vector{HybridNetwork},
 end
 function countquartetsintrees!(quartet::Vector{QuartetT{MVector{4,Float64}}},
             tree::HybridNetwork, whichQ::Symbol, weight_byallele::Bool, nCk::Matrix,
-            taxonnumber::Dict{String,Int64}, taxonmap::Dict{String,String})
+            taxonnumber::Dict{String,Int}, taxonmap::Dict{String,String})
     tree.numHybrids == 0 || error("input phylogenies must be trees")
     # next: reset node & edge numbers so that they can be used as indices: 1,2,3,...
     resetNodeNumbers!(tree; checkPreorder=true, type=:postorder) # leaves first & post-order

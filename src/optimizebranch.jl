@@ -105,7 +105,7 @@ function updatecache_edge!(lcache::CacheLengthLiNC, obj::SSM, focusedge)
         if hase[it] # we do need flike and dblike
           for ir in 1:nr for is in 1:ns
             clik[it,ir,is] = discrete_corelikelihood_trait!(obj, it,is,ir, ftmp,dtmp)
-            discrete_backwardlikelihood_trait!(obj, it,is,ir, btmp,dtmp)
+            discrete_backwardlikelihood_trait!(obj, it,ir, btmp,dtmp)
             flike[:,is,ir,it]  .= ftmp[:,unum]
             dblike[:,is,ir,it] .= btmp[:,vnum]
             for isis in 1:nsis

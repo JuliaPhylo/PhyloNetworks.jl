@@ -9,7 +9,7 @@ Assumes a *tree* (no reticulation) and correct isChild1 attribute.
 
 output: dictionary with state sets and most parsimonious score
 """
-function parsimonyBottomUpFitch!(node::Node, possibleStates::Dict{Int64,Set{T}}, parsimonyscore::Array{Int64,1}) where {T}
+function parsimonyBottomUpFitch!(node::Node, possibleStates::Dict{Int,Set{T}}, parsimonyscore::Array{Int,1}) where {T}
     node.leaf && return # change nothing if leaf
     childrenStates = Set{T}[] # state sets for the 2 (or more) children
     for e in node.edge
@@ -48,7 +48,7 @@ the state of the root. Assumes a *tree*: no reticulation.
 
 output: dictionary with state sets
 """
-function parsimonyTopDownFitch!(node::Node, possibleStates::Dict{Int64,Set{T}}) where {T}
+function parsimonyTopDownFitch!(node::Node, possibleStates::Dict{Int,Set{T}}) where {T}
     for e in node.edge
         child = e.node[e.isChild1 ? 1 : 2]
         if child == node continue; end # exclude parent edges
@@ -67,7 +67,7 @@ end
 
 summarize character states at nodes, assuming a *tree*
 """
-function parsimonySummaryFitch(tree::HybridNetwork, nodestates::Dict{Int64,Set{T}}) where {T}
+function parsimonySummaryFitch(tree::HybridNetwork, nodestates::Dict{Int,Set{T}}) where {T}
     println("node number => character states on tree ",
             writeTopology(tree,di=true,round=true,digits=1))
     for n in tree.node
@@ -98,7 +98,7 @@ where the union is taken over displayed trees with the MP score.
 function parsimonyDiscreteFitch(net::HybridNetwork, tips::Dict{String,T}) where {T}
     # T = type of characters. Typically Int if data are binary 0-1
     # initialize dictionary: node number -> admissible character states
-    possibleStates = Dict{Int64,Set{T}}()
+    possibleStates = Dict{Int,Set{T}}()
     for l in net.leaf
         if haskey(tips, l.name)
             possibleStates[l.number] = Set(tips[l.name])
@@ -110,7 +110,7 @@ function parsimonyDiscreteFitch(net::HybridNetwork, tips::Dict{String,T}) where 
     directEdges!(net) # parsimonyBottomUpFitch! uses isChild1 attributes
     trees = displayedTrees(net, 0.0) # all displayed trees
     mpscore = Int[] # one score for each tree
-    statesets = Dict{Int64,Set{T}}[] # one state set dict per tree
+    statesets = Dict{Int,Set{T}}[] # one state set dict per tree
     for tree in trees
         statedict = deepcopy(possibleStates)
         parsimonyscore = [0] # initialization, mutable
@@ -1263,7 +1263,7 @@ function maxParsimonyNet(currT::HybridNetwork, df::DataFrame;
         end
     end
     tend = time_ns() # in nanoseconds
-    telapsed = round(convert(Int64, tend-tstart) * 1e-9, digits=2) # in seconds
+    telapsed = round(convert(Int, tend-tstart) * 1e-9, digits=2) # in seconds
     writelog_1proc && close(errfile)
     msg = "\n" * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s")
     if writelog

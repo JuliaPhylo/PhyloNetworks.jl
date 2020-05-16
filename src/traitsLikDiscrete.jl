@@ -924,7 +924,7 @@ function ancestralStateReconstruction(obj::SSM, trait::Integer = 1)
             # update forward & directional likelihoods
             discrete_corelikelihood_trait!(obj,t,trait,ri)
             # update backward likelihoods
-            discrete_backwardlikelihood_trait!(obj,t,trait,ri)
+            discrete_backwardlikelihood_trait!(obj,t,ri)
             # P{state i at node n} ∝ bkd[i,n] * frd[i,n] given tree & rate:
             # res = logaddexp(res, ltw[t] + bkd + frd)  ---   -log(nr) will cancel out
             broadcast!(logaddexp, res, res, ltprior .+ bkd + frd)
@@ -944,17 +944,19 @@ function ancestralStateReconstruction(obj::SSM, trait::Integer = 1)
 end
 
 """
-    discrete_backwardlikelihood_trait!(obj::SSM, tree::Integer, trait::Integer,
-        ri::Integer=1, backwardlik=obj.backwardlik, directlik=obj.directlik)
+    discrete_backwardlikelihood_trait!(obj::SSM, tree::Integer, ri::Integer,
+        backwardlik=obj.backwardlik, directlik=obj.directlik)
 
 Update and return the backward likelihood (last argument `backwardlik`)
-for trait index `trait`, assuming rate category `ri` and tree index `tree`.
+assuming rate category `ri` and tree index `tree`,
+using current forward and backwards likelihoods in `obj`:
+these depend on the trait (or site) given to the last call to
+`discrete_corelikelihood_trait!`.
 Used by `ancestralStateReconstruction`.
 
-**warning**: assume correct forward likelihood, directional likelihood
-and transition probabilities.
+**warning**: assume correct transition probabilities.
 """
-function discrete_backwardlikelihood_trait!(obj::SSM, t::Integer, trait::Integer, ri::Integer,
+function discrete_backwardlikelihood_trait!(obj::SSM, t::Integer, ri::Integer,
                                            backwardlik = obj.backwardlik,
                                            directlik = obj.directlik)
     tree = obj.displayedtree[t]
