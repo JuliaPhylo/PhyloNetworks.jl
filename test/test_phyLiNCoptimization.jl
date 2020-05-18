@@ -23,11 +23,12 @@ net_simple = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1
 obj = PhyloNetworks.StatisticalSubstitutionModel(net_simple, fastasimple, :JC69)
 
 ## Local BL
-lengthe = obj.net.edge[4].length
-lengthep = obj.net.edge[4].node[1].edge[1].length
-@test_nowarn PhyloNetworks.optimizelocalBL_LiNC!(obj, obj.net.edge[4], 1e-6,1e-6,1e-2,1e-3)
-@test obj.net.edge[4].length != lengthe
-@test obj.net.edge[4].node[1].edge[1].length != lengthep
+obj.loglik = -Inf64
+obj.net.edge[2].length= 0.0 # unzipping
+e = PhyloNetworks.optimizelocalBL_LiNC!(obj, obj.net.edge[6],
+        PhyloNetworks.CacheLengthLiNC(obj, 1e-6,1e-6,1e-2,1e-3, 10))
+@test length(e) == 4     # not 5: edge below hybrid was excluded
+@test obj.loglik > -40.0 # starting likelihood = -43.95468386633092
 
 # ## Local Gamma
 γcache = PhyloNetworks.CacheGammaLiNC(obj)
@@ -52,12 +53,16 @@ PhyloNetworks.updateSSM!(obj, true; constraints=emptyconstraint)
 PhyloNetworks.startingBL!(obj.net, obj.trait, obj.siteweight)
 PhyloNetworks.unzip_canonical!(obj.net)
 ## Local BL
+lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-6,1e-6,1e-2,1e-3, 5)
 lengthe = obj.net.edge[27].length
-@test_nowarn PhyloNetworks.optimizelocalBL_LiNC!(obj, obj.net.edge[27], 1e-6,1e-6,1e-2,1e-3)
+obj.loglik = +Inf64
+PhyloNetworks.optimizelocalBL_LiNC!(obj, obj.net.edge[27], lcache)
+obj.loglik = -Inf64
+@test_nowarn PhyloNetworks.optimizelocalBL_LiNC!(obj, obj.net.edge[27], lcache)
 @test obj.net.edge[27].length != lengthe
 # Local BL constrained edge
 lengthe = obj.net.edge[44].length
-@test_nowarn PhyloNetworks.optimizelocalBL_LiNC!(obj, obj.net.edge[44], 1e-6,1e-6,1e-2,1e-3)
+@test_nowarn PhyloNetworks.optimizelocalBL_LiNC!(obj, obj.net.edge[44], lcache)
 @test obj.net.edge[44].length == 0.0
 
 # ## Local Gamma
@@ -79,7 +84,9 @@ obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69);
 
 ## optimizeBL
 Random.seed!(5);
-@test_nowarn PhyloNetworks.optimizeBL_LiNC!(obj, obj.net.edge, 1e-2,1e-2,1e-2,1e-2, 20);
+lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-6,1e-6,1e-2,1e-3, 5)
+obj.loglik = -Inf64
+@test_nowarn PhyloNetworks.optimizealllengths_LiNC!(obj, lcache);
 @test all(e.length != 1.0 for e in obj.net.edge)
 
 ## optimizegammas -- and delete hybrid edges with γ=0
@@ -135,15 +142,15 @@ PhyloNetworks.discrete_corelikelihood!(obj)
 maxmoves = 2
 Random.seed!(92)
 γcache = PhyloNetworks.CacheGammaLiNC(obj)
+lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-6,1e-6,1e-2,1e-3, 5)
 PhyloNetworks.optimizestructure!(obj, maxmoves, 1, true, true, 0,100,
-                                emptyconstraint, 1e-6,1e-6, 1e-2,1e-3, γcache)
-
+                                emptyconstraint, 1e-6, γcache, lcache)
 @test obj.loglik > -29.7762035
 
 # allow hybrid ladders
 Random.seed!(110)
 PhyloNetworks.optimizestructure!(obj, maxmoves, 1, true, false, 0,100,
-                                emptyconstraint, 1e-6,1e-6, 1e-2,1e-3, γcache)
+                                emptyconstraint, 1e-6, γcache, lcache)
 @test obj.loglik > -29.7762035
 end # of optimizestructure with simple example
 
@@ -160,10 +167,12 @@ for nohybridladder in [true, false]
     obj.loglik = -Inf # missing otherwise, which would cause an error below
     nullio = open("/dev/null", "w")
     γcache = PhyloNetworks.CacheGammaLiNC(obj)
+    lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-6,1e-6,1e-2,1e-3, 5)
     @test_nowarn PhyloNetworks.phyLiNCone!(obj, 1, no3cycle,
                                            nohybridladder, 3, 2, false, false,
                                            nullio, seed, 0.5, emptyconstraint,
-                                           1e-2, 1e-2, 1e-2, 1e-2, 0.0, 25.0, γcache)
+                                           1e-2, 1e-2, 1e-2, 1e-2, 0.0, 25.0,
+                                           γcache, lcache)
     @test obj.loglik > -29.7762035
 end
 end
@@ -189,11 +198,12 @@ addprocs(1) # multiple cores
 @everywhere using PhyloNetworks
 #using Distributed; @everywhere begin; using Pkg; Pkg.activate("."); using PhyloNetworks; end
 originalstdout = stdout  # verbose=true below
-redirect_stdout(open("/dev/null", "w")) # not portable to Windows
+# fixit: uncomment below after debugging
+#redirect_stdout(open("/dev/null", "w")) # not portable to Windows
 obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2, no3cycle=true,
                         nohybridladder=true, maxmoves=2, nreject=1, nruns=2,
                         filename="phyLiNCmult", verbose=true, seed=106)
-redirect_stdout(originalstdout)
+#redirect_stdout(originalstdout)
 @test obj.loglik > -29.7762035
 rmprocs(workers()) # remove extra processors
 @test occursin("using 1 worker", read("phyLiNCmult.log", String))
@@ -227,10 +237,11 @@ obj.loglik = -Inf # actual likelihood -56.3068141288164. Need something non-miss
 seed = 103
 nullio = open("/dev/null", "w")
 γcache = PhyloNetworks.CacheGammaLiNC(obj)
+lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-2,1e-2,1e-2,1e-2, 5)
 @test_nowarn PhyloNetworks.phyLiNCone!(obj, 2, true, true,
                                        3, 2, false, false, nullio,
                                        seed, 0.5, c_species, 1e-2, 1e-2,
-                                       1e-2, 1e-2, 0.0, 50.0, γcache)
+                                       1e-2, 1e-2, 0.0, 50.0, γcache, lcache)
 
 obj = phyLiNC!(net_level1_s, # missing BLs, so BLs are re-estimated before starting
             fastaindiv, :JC69; maxhybrid=2, no3cycle=true, nohybridladder=true,

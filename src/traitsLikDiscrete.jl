@@ -581,6 +581,22 @@ function update_logtrans(obj::SSM)
 end
 
 """
+    update_logtrans(obj::SSM, edge::Edge)
+
+Update the log-transition probabilities associates to one particular `edge`
+in the network.
+"""
+function update_logtrans(obj::SSM, edge::Edge)
+    rates = obj.ratemodel.ratemultiplier
+    enum = edge.number
+    len = edge.length
+    for i in 1:length(rates)
+        pmat = view(obj.logtrans, :,:,enum,i)
+        @inbounds pmat .= log.(P!(pmat, obj.model, len * rates[i]))
+    end
+end
+
+"""
     discrete_corelikelihood!(obj::StatisticalSubstitutionModel;
                              whichtrait::AbstractVector{Int} = 1:obj.nsites)
 

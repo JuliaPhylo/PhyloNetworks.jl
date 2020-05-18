@@ -180,6 +180,5 @@ module PhyloNetworks
     include("deprecated.jl")
     include("nj.jl")
     include("phyLiNCoptimization.jl")
-    include("optimizebranch.jl")
 
 end #module
