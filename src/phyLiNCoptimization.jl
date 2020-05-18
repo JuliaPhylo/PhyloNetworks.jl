@@ -1152,8 +1152,8 @@ function updatecache_edge!(lcache::CacheLengthLiNC, obj::SSM, focusedge)
     for it in 1:nt
         if hase[it] # we do need flike and dblike
         for ir in 1:nr for is in 1:ns
-            clik[it,ir,is] = discrete_corelikelihood_trait!(obj, it,is,ir, ftmp,dtmp)
-            discrete_backwardlikelihood_trait!(obj, it,ir, btmp,dtmp)
+            clik[it,ir,is] = discrete_corelikelihood_trait!(obj, it,is,ir)
+            discrete_backwardlikelihood_trait!(obj, it,ir)
             flike[:,is,ir,it]  .= ftmp[:,unum]
             dblike[:,is,ir,it] .= btmp[:,vnum]
             for isis in 1:nsis
@@ -1164,7 +1164,7 @@ function updatecache_edge!(lcache::CacheLengthLiNC, obj::SSM, focusedge)
         end; end
         else # tree does't have the focus edge: use clik only
         for ir in 1:nr for is in 1:ns
-            clik[it,ir,is] = discrete_corelikelihood_trait!(obj, it,is,ir, ftmp,dtmp)
+            clik[it,ir,is] = discrete_corelikelihood_trait!(obj, it,is,ir)
         end; end
         end
     end
@@ -1352,7 +1352,7 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
     optBL = lcache.opt
     NLopt.max_objective!(optBL, objective)
     fmax, xmax, ret = NLopt.optimize(optBL, [focusedge.length])
-    @debug "BL: got $(round(fmax; digits=5)) at BL = $(round.(xmax, digits=5)) after $(optBL.numevals) iterations (return code $(ret))"
+    @debug "BL: got $(round(fmax; digits=5)) at BL = $(round.(xmax; sigdigits=3)) after $(optBL.numevals) iterations (return code $(ret))"
     newlik = fmax + adjustment
     if startlik > newlik
         @debug "starting likelihood better than after optimization. Skipping branch length update."

@@ -639,21 +639,18 @@ function discrete_corelikelihood!(obj::SSM; whichtrait::AbstractVector{Int} = 1:
 end
 
 """
-    discrete_corelikelihood_trait!(
-        obj::SSM, t::Integer, ci::Integer, ri::Integer,
-        forwardlik::AbstractArray{Float64, 2} = obj.forwardlik,
-        directlik::AbstractArray{Float64, 2} = obj.directlik)
+    discrete_corelikelihood_trait!(obj::SSM, t::Integer, ci::Integer, ri::Integer)
 
 Return the likelihood for tree `t`, trait (character/site) index `ci` and rate category `ri`.
-Update & modify the forward & directional log-likelihoods `forwardlik` and `directlik`
-(in `obj` by default), which are indexed by [state, node_number or edge_number].
+Update & modify the forward & directional log-likelihoods `obj.forwardlik`
+and `obj.directlik`, which are indexed by [state, node_number or edge_number].
 Used by [`discrete_corelikelihood!`](@ref).
 
 **Preconditions**: `obj.logtrans` updated, edges directed, nodes/edges preordered
 """
-function discrete_corelikelihood_trait!(obj::SSM, t::Integer, ci::Integer, ri::Integer,
-                                        forwardlik::AbstractArray{Float64, 2} = obj.forwardlik,
-                                        directlik::AbstractArray{Float64, 2} = obj.directlik)
+function discrete_corelikelihood_trait!(obj::SSM, t::Integer, ci::Integer, ri::Integer)
+    forwardlik = obj.forwardlik
+    directlik  = obj.directlik
     tree = obj.displayedtree[t]
     k = nstates(obj.model)   # also = size(logtrans,1) if not RateVariationAcrossSites
     fill!(forwardlik, 0.0) # re-initialize for each trait, each iteration
@@ -960,8 +957,7 @@ function ancestralStateReconstruction(obj::SSM, trait::Integer = 1)
 end
 
 """
-    discrete_backwardlikelihood_trait!(obj::SSM, tree::Integer, ri::Integer,
-        backwardlik=obj.backwardlik, directlik=obj.directlik)
+    discrete_backwardlikelihood_trait!(obj::SSM, tree::Integer, ri::Integer)
 
 Update and return the backward likelihood (last argument `backwardlik`)
 assuming rate category `ri` and tree index `tree`,
@@ -972,9 +968,9 @@ Used by `ancestralStateReconstruction`.
 
 **warning**: assume correct transition probabilities.
 """
-function discrete_backwardlikelihood_trait!(obj::SSM, t::Integer, ri::Integer,
-                                           backwardlik = obj.backwardlik,
-                                           directlik = obj.directlik)
+function discrete_backwardlikelihood_trait!(obj::SSM, t::Integer, ri::Integer)
+    backwardlik = obj.backwardlik
+    directlik  = obj.directlik
     tree = obj.displayedtree[t]
     k = nstates(obj.model)
     fill!(backwardlik, 0.0) # re-initialize for each trait, each iteration
