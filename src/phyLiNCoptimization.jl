@@ -616,7 +616,7 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
         elseif movechoice == "deletehybrid"
             obj.net.numHybrids == 0  && continue # skip & don't count towards nmoves if no hybrid in net
             result = deletehybridedgeLiNC!(obj, currLik, maxhybrid,
-                        no3cycle, nohybridladder, constraints, γcache, lcache)
+                        no3cycle, constraints, γcache, lcache)
         else # change root (doesn't affect likelihood)
             result = moveroot!(obj.net, constraints)
         end
@@ -806,20 +806,22 @@ end
 
 """
     deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
-        no3cycle::Bool, nohybridladder::Bool,
+        no3cycle::Bool,
         constraints::Vector{TopologyConstraint},
         γcache::CacheGammaLiNC, lcache::CacheLengthLiNC)
 
 Deletes a random hybrid edge and updates SSM object as part of
 PhyLiNC optimization.
+Return true if the move is accepted, false if not.
 
-Return true if accepted delete hybrid move. If move not accepted, return false.
+Note that if `net` has no hybrid ladders, then deleting an existing
+reticulation cannot create a hybrid ladder. (triple-check!)
 
 For a description of arguments, see [`phyLiNC!`](@ref).
 Called by [`optimizestructure!`](@ref), which does some checks.
 """
 function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
-        no3cycle::Bool, nohybridladder::Bool,
+        no3cycle::Bool,
         constraints::Vector{TopologyConstraint},
         γcache::CacheGammaLiNC, lcache::CacheLengthLiNC)
 
