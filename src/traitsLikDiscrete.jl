@@ -571,11 +571,14 @@ They are re-used for each displayed tree, which is why edges are not fused
 around degree-2 nodes when extracting displayed trees.
 """
 function update_logtrans(obj::SSM)
-    startingP = P(obj.model, 1.0) # same memory re-used for all branches below (t=1 arbitrary)
+    rates = obj.ratemodel.ratemultiplier
+    k = nstates(obj.model)
+    Ptmp = MMatrix{k,k,Float64}(undef) # memory to be re-used
     for edge in obj.net.edge # update logtrans: same for all displayed trees, all traits
-        for i = 1:length(obj.ratemodel.ratemultiplier)
-            obj.logtrans[:,:,edge.number, i] = log.(P!(startingP, obj.model,
-                edge.length*obj.ratemodel.ratemultiplier[i])) # element-wise
+        enum = edge.number
+        len = edge.length
+        for i = 1:length(rates)
+            obj.logtrans[:,:,enum, i] .= log.(P!(Ptmp, obj.model, len * rates[i]))
         end
     end
 end

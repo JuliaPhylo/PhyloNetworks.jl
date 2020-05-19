@@ -227,7 +227,7 @@ julia> PhyloNetworks.P(m1, 0.2)
 @inline function P(obj::SM, t::Float64)
     t >= 0.0 || error("substitution model: >=0 branch lengths are needed")
     k = nstates(obj)
-    Pmat = MMatrix{k,k}(repeat([0.0], k*k))
+    Pmat = MMatrix{k,k,Float64}(undef)
     return P!(Pmat, obj, t)
 end
 
@@ -911,8 +911,11 @@ end
 function P!(Pmat::AbstractMatrix, obj::JC69, t::Float64)
     P0 = 0.25 + 0.75 * exp(-t * obj.eigeninfo[1]) #lambda
     P1 = 0.25 - 0.25 * exp(-t * obj.eigeninfo[1])
-    Pmat[:,:] .= P1 # puts P1 on the off-diagonals (in particular)
-    for i in 1:4 Pmat[i,i]=P0; end # diagonal
+    # P1 off-diagonal and P0 on diagonal
+    Pmat[1,1] = P0; Pmat[2,1] = P1; Pmat[3,1] = P1; Pmat[4,1] = P1
+    Pmat[1,2] = P1; Pmat[2,2] = P0; Pmat[3,2] = P1; Pmat[4,2] = P1
+    Pmat[1,3] = P1; Pmat[2,3] = P1; Pmat[3,3] = P0; Pmat[4,3] = P1
+    Pmat[1,4] = P1; Pmat[2,4] = P1; Pmat[3,4] = P1; Pmat[4,4] = P0
     return Pmat
 end
 
