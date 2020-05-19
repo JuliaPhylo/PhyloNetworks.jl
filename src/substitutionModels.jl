@@ -1046,7 +1046,9 @@ end
 
 function Base.show(io::IO, obj::RateVariationAcrossSites)
     str = "Rate Variation Across Sites using Discretized Gamma Model\n"
-    str *= "alpha: $(round(obj.alpha, digits=5))\n"
+    if length(obj.ratemultiplier)>1
+        str *= "alpha: $(round(obj.alpha, digits=5))\n"
+    end
     str *= "categories for Gamma discretization: $(obj.ncat)\n"
     str *= "ratemultiplier: $(round.(obj.ratemultiplier, digits=5))\n"
     print(io, str)

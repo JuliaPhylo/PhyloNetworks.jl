@@ -228,7 +228,6 @@ function phyLiNC!(obj::SSM;
       logfile = stdout
     end
     γcache = CacheGammaLiNC(obj)
-    lcache = CacheLengthLiNC(obj, ftolRel,ftolAbs,xtolRel,xtolAbs, 20) # maxeval=20
     # rough optimization of rates and alpha, for better starting values used by all runs
     obj.loglik = -Inf
     Random.seed!(0) # to re-run a single run (out of several) reproducibly
@@ -303,7 +302,9 @@ function phyLiNC!(obj::SSM;
             phyLiNCone!(obj, maxhybrid, no3cycle, nohybridladder, maxmoves,
                         nreject, verbose, writelog_1proc, logfile, seeds[i], probST,
                         constraints, ftolRel, ftolAbs, xtolRel, xtolAbs,
-                        alphamin, alphamax, γcache, lcache)
+                        alphamin, alphamax, γcache,
+                        CacheLengthLiNC(obj, ftolRel,ftolAbs,xtolRel,xtolAbs, 20)) # 20=maxeval
+            # NLopt segfault if we pass a pre-allocated lcache to a worker
             logstr = "\nFINISHED. loglik = $(obj.loglik)\n"
             verbose && print(stdout, logstr)
             if writelog_1proc
@@ -361,7 +362,7 @@ function phyLiNC!(obj::SSM;
     # loglik changes after shrinkage, but recalculated below by optimizealllengths
     updateSSM!(obj, true; constraints = constraints)
     # warning: tolerance values from constants, not user-specified
-    updatecache_tolerance!(lcache, fRelBL, fAbsBL, xRelBL, xAbsBL, 1000)
+    lcache = CacheLengthLiNC(obj, fRelBL, fAbsBL, xRelBL, xAbsBL, 1000) # maxeval=1000
     optimizealllengths_LiNC!(obj, lcache)
     ghosthybrid = optimizeallgammas_LiNC!(obj, fAbsBL, γcache, 100)
     if ghosthybrid
@@ -1070,8 +1071,7 @@ function CacheLengthLiNC(obj::SSM,
     # defaultinstep = NLopt.initial_step(optBL, getlengths(edges))
     # replace!(x -> min(x,0.1), defaultinstep) # 0.1 substitutions / site is kinda large
     # NLopt.initial_step!(optBL, defaultinstep)
-    opt = NLopt.Opt(:LD_LBFGS, 1)
-    # :LD_SLSQP -> "Segmentation fault: 11" and "unknown function"
+    opt = NLopt.Opt(:LD_SLSQP, 1) # :LD_LBFGS would be another good choice
     NLopt.ftol_rel!(opt,ftolRel) # relative criterion
     NLopt.ftol_abs!(opt,ftolAbs) # absolute criterion
     NLopt.xtol_rel!(opt,xtolRel)

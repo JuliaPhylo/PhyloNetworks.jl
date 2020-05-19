@@ -197,12 +197,11 @@ addprocs(1) # multiple cores
 @everywhere using PhyloNetworks
 #using Distributed; @everywhere begin; using Pkg; Pkg.activate("."); using PhyloNetworks; end
 originalstdout = stdout  # verbose=true below
-# fixit: uncomment below after debugging
-#redirect_stdout(open("/dev/null", "w")) # not portable to Windows
+redirect_stdout(open("/dev/null", "w")) # not portable to Windows
 obj = PhyloNetworks.phyLiNC!(net, fastasimple, :JC69; maxhybrid=2, no3cycle=true,
                         nohybridladder=true, maxmoves=2, nreject=1, nruns=2,
                         filename="phyLiNCmult", verbose=true, seed=106)
-#redirect_stdout(originalstdout)
+redirect_stdout(originalstdout)
 @test obj.loglik > -29.7762035
 rmprocs(workers()) # remove extra processors
 @test occursin("using 1 worker", read("phyLiNCmult.log", String))
