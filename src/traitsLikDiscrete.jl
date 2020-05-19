@@ -57,7 +57,7 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
     "log-likelihood of site k"
     _sitecache::Array{Float64,1} # size: nsites
     "log-likelihood of ith displayed tree t, given rate category j, of site k"
-    _loglikcache::Array{Float64, 3} # size: ntrees, nrates, nsites
+    _loglikcache::Array{Float64, 3} # size: nsites, nrates, ntrees
 
     "inner (default) constructor: from model, rate model, network, trait and site weights"
     function StatisticalSubstitutionModel(model::SubstitutionModel,
@@ -97,7 +97,7 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
         directlik  = zeros(Float64, k, maxedges)
         backwardlik= zeros(Float64, k, maxnodes)
         _sitecache = Vector{Float64}(undef, nsites)
-        _loglikcache = zeros(Float64, ntrees, length(ratemodel.ratemultiplier), nsites)
+        _loglikcache = zeros(Float64, nsites, length(ratemodel.ratemultiplier), ntrees)
         new(deepcopy(model), deepcopy(ratemodel), prioratroot,
             net, trait, nsites, siteweight, totalsiteweight, missing, # missing log likelihood
             logtrans, trees,
@@ -616,19 +616,20 @@ function discrete_corelikelihood!(obj::SSM; whichtrait::AbstractVector{Int} = 1:
     for t in 1:nt
         for ri in 1:nr
             for ci in whichtrait
-                obj._loglikcache[t,ri,ci] = discrete_corelikelihood_trait!(obj,t,ci,ri)
+                obj._loglikcache[ci,ri,t] = discrete_corelikelihood_trait!(obj,t,ci,ri)
                 # note: -Inf expected if 2 tips have different states, but separated by path of total length 0.0
             end
         end
     end
     # aggregate over trees and rates
-    obj._loglikcache[1:nt,:,:] .+= obj.priorltw
-    # obj._loglikcache .-= log(nr)
-    # done below in 1 instead ntrees x nrates x nsites calculations, but _loglikcache not modified
-    for ci in whichtrait
-        obj._sitecache[ci] = logsumexp(view(obj._loglikcache, 1:nt,:,ci))
+    for ti in 1:nt
+        obj._loglikcache[:,:,ti] .+= obj.priorltw[ti]
     end
-    # siteliks = dropdims(mapslices(logsumexp, view(obj._loglikcache, 1:nt,:,:), dims=[1,2]); dims=(1,2))
+    # obj._loglikcache .-= log(nr)
+    # done below in 1 instead nsites x nrates x ntrees calculations, but _loglikcache not modified
+    for ci in whichtrait
+        obj._sitecache[ci] = logsumexp(view(obj._loglikcache, ci,:,1:nt))
+    end
     if obj.siteweight !== nothing
         obj._sitecache .*= obj.siteweight
     end
@@ -732,9 +733,12 @@ julia> round.(exp.(fit.priorltw), digits=4) # the prior tree probabilities are s
 ```
 """
 function posterior_logtreeweight(obj::SSM, trait = 1)
-    # ts[tree,site] = log P(data and tree) at site
-    ts = dropdims(mapslices(logsumexp, view(obj._loglikcache, :,:,trait), dims=2);dims=2)
-    siteliks = mapslices(logsumexp, ts, dims=[1]) # 1 x ntraits array (or 1-element vector)
+    # ts[site,tree] = log P(data and tree) at site, integrated over rates
+    d = length(size(trait)) # 0 if single trait, 1 if vector of several traits
+    ts = dropdims(mapslices(logsumexp, view(obj._loglikcache, trait,:,:),
+                            dims=d+1); dims=1)
+    if d>0 ts = permutedims(ts); end # now: ts[tree] or ts[tree,site]
+    siteliks = mapslices(logsumexp, ts, dims=1) # 1 x ntraits array (or 1-element vector)
     # -log(nr) missing from both ts and siteliks, but cancels out next
     ts .-= siteliks
     return ts

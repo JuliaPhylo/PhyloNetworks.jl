@@ -1062,7 +1062,7 @@ function CacheLengthLiNC(obj::SSM,
         ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
         maxeval::Int)
     k = nstates(obj.model)
-    nt = size(obj._loglikcache, 1) # but: there might be fewer displayed trees
+    nt = size(obj._loglikcache, 3) # but: there might be fewer displayed trees
     nr = length(obj.ratemodel.ratemultiplier)
     ns = obj.nsites
     Prt = [MMatrix{k,k, Float64}(undef) for i in 1:nr]
@@ -1152,7 +1152,7 @@ function updatecache_edge!(lcache::CacheLengthLiNC, obj::SSM, focusedge)
     for it in 1:nt
         if hase[it] # we do need flike and dblike
         for ir in 1:nr for is in 1:ns
-            clik[it,ir,is] = discrete_corelikelihood_trait!(obj, it,is,ir)
+            clik[is,ir,it] = discrete_corelikelihood_trait!(obj, it,is,ir)
             discrete_backwardlikelihood_trait!(obj, it,ir)
             flike[:,is,ir,it]  .= ftmp[:,unum]
             dblike[:,is,ir,it] .= btmp[:,vnum]
@@ -1164,7 +1164,7 @@ function updatecache_edge!(lcache::CacheLengthLiNC, obj::SSM, focusedge)
         end; end
         else # tree does't have the focus edge: use clik only
         for ir in 1:nr for is in 1:ns
-            clik[it,ir,is] = discrete_corelikelihood_trait!(obj, it,is,ir)
+            clik[is,ir,it] = discrete_corelikelihood_trait!(obj, it,is,ir)
         end; end
         end
     end
@@ -1331,7 +1331,7 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
             for is in 1:ns
                 u=0.0
                 for ir in 1:nr
-                    u += clik[it,ir,is] # already exp-ed inside updatecache_edge!
+                    u += clik[is,ir,it] # already exp-ed inside updatecache_edge!
                 end
                 ulik[is] += u * ltw[it]
             end
@@ -1354,8 +1354,8 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
     fmax, xmax, ret = NLopt.optimize(optBL, [focusedge.length])
     @debug "BL: got $(round(fmax; digits=5)) at BL = $(round.(xmax; sigdigits=3)) after $(optBL.numevals) iterations (return code $(ret))"
     newlik = fmax + adjustment
-    if startlik > newlik
-        @debug "starting likelihood better than after optimization. Skipping branch length update."
+    if ret == :FORCED_STOP || startlik > newlik
+        @debug "failed optimization: skipping branch length update."
         return nothing
     end
     focusedge.length = xmax[1]
@@ -1548,6 +1548,7 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
     clike = cache.clike # conditional likelihood under focus edge
     clikp = cache.clikp # conditional likelihood under partner edge
     ulik  = obj._sitecache  # unconditional likelihood and more
+    llca = obj._loglikcache
     fill!(clike, 0.0); fill!(clikp, 0.0)
     nt, hase = updatecache_hase!(cache, obj, edgenum, partnernum)
     γ0 = focusedge.gamma
@@ -1566,17 +1567,17 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
         updateSSM_priorltw!(obj)
         discrete_corelikelihood!(obj) # to update obj._loglikcache
     end
-    # obj._loglikcache[tree,rate,site] = log P(site | tree,rate) + log gamma(tree)
-    cadjust = maximum(view(obj._loglikcache, 1:nt,:,:)) # to avoid underflows
+    # obj._loglikcache[site,rate,tree] = log P(site | tree,rate) + log gamma(tree)
+    cadjust = maximum(view(llca, :,:,1:nt)) # to avoid underflows
     nr = length(obj.ratemodel.ratemultiplier)
     for it in 1:nt # sum likelihood over all displayed trees
         @inbounds h = hase[it]
         ismissing(h) && continue # skip below if tree doesn't have e or partner
         for ir in 1:nr # sum over all rate categories
             if h
-                clike .+= exp.(obj._loglikcache[it,ir,:] .- cadjust)
+                clike .+= exp.(llca[:,ir,it] .- cadjust)
             else
-                clikp .+= exp.(obj._loglikcache[it,ir,:] .- cadjust)
+                clikp .+= exp.(llca[:,ir,it] .- cadjust)
             end
         end
     end
@@ -1649,7 +1650,7 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
         @inbounds h = hase[it]
         ismissing(h) && continue # tree has unchanged weight: skip below
         obj.priorltw[it] += (h ? lγdiff : l1mγdiff)
-        obj._loglikcache[it,:,:] .+= (h ? lγdiff : l1mγdiff)
+        llca[:,:,it] .+= (h ? lγdiff : l1mγdiff)
     end
     return ll
 end
