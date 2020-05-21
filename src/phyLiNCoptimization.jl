@@ -620,6 +620,7 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
                         no3cycle, constraints, γcache, lcache)
         else # change root (doesn't affect likelihood)
             result = moveroot!(obj.net, constraints)
+            updateSSM_root!(obj) # edge direction used by updatecache_edge
         end
         # optimize γ's
         ghosthybrid = optimizeallgammas_LiNC!(obj, ftolAbs, γcache, 1)
@@ -677,8 +678,8 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
                   ftolAbs::Float64,
                   γcache::CacheGammaLiNC, lcache::CacheLengthLiNC)
     currLik = obj.loglik
-    saveddisplayedtree = obj.displayedtree # save trees, priorltw in case we need to undo move
-    savedpriorltw = copy(obj.priorltw)
+    savedpriorltw = copy(obj.priorltw) # in case we need to undo move
+    saveddisplayedtree = obj.displayedtree # updateSSM creates a new "pointer"
     edgefound = false
     remainingedges = collect(1:length(obj.net.edge)) # indices in net.edge
     while !edgefound
@@ -957,8 +958,7 @@ function updateSSM!(obj::SSM, renumber=false::Bool;
     return obj
 end
 
-# Warning: requires displayed trees are correct.
-         # If they are not, call updatedisplayedtrees!() below
+# ! requires correct displayed trees. If not, first call updatedisplayedtrees!
 function updateSSM_priorltw!(obj::SSM)
     pltw = obj.priorltw
     resize!(pltw, length(obj.displayedtree))
@@ -980,6 +980,16 @@ function updatedisplayedtrees!(trees::Vector, enum::Int, pnum::Int, gammae::Floa
     end
 end
 
+# update root and direction of edges in displayed trees,
+# to match the root in the network
+function updateSSM_root!(obj::SSM)
+    rnum = obj.net.node[obj.net.root].number
+    for tre in obj.displayedtree
+        tre.root = findfirst(n -> n.number == rnum, tre.node)
+        directEdges!(tre)
+        preorder!(tre)
+    end
+end
 
 """
     startingBL!(net::HybridNetwork,
@@ -1126,7 +1136,7 @@ function updatecache_edge!(lcache::CacheLengthLiNC, obj::SSM, focusedge)
     nt = length(tree) # could be less than dimensions in lcache
     # ! a sister edge in network may be absent in a displayed tree
     # but: edge & node numbers are the same in net and in trees
-    v = getParent(focusedge)
+    v = getParent(focusedge) # ! focus edge needs same direction in displayed trees
     vnum = v.number
     unum = getChild(focusedge).number
     enum = focusedge.number
@@ -1287,7 +1297,6 @@ Warnings:
 """
 function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
                           lcache::CacheLengthLiNC, qmat, ltw)
-    startlik = obj.loglik
     cfg = updatecache_edge!(lcache, obj, focusedge)
     flike  = lcache.flike
     dblike = lcache.dblike
@@ -1351,16 +1360,20 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
         #@show loglik + adjustment
         return loglik
     end
-    # ll = objective([focusedge.length], [0.0]) + adjustment
-    # ll ≈ startlik || @warn "ll = $ll is different from starting likelihood $startlik"
+    #=
+    oldlik = objective([focusedge.length], [0.0]) + adjustment
+    oldlik ≈ obj.loglik || @warn "oldlik $oldlik != stored lik $(obj.loglik): starting NNI?"
+    # obj.loglik outdated at the start of an NNI move:
+    # it is for the older, not the newly proposed topology
+    =#
     optBL = lcache.opt
     NLopt.max_objective!(optBL, objective)
     # @info "BL: edge $(focusedge.number)"
     fmax, xmax, ret = NLopt.optimize(optBL, [focusedge.length])
-    @debug "BL: got $(round(fmax; digits=5)) at BL = $(round.(xmax; sigdigits=3)) after $(optBL.numevals) iterations (return code $(ret))"
     newlik = fmax + adjustment
-    if ret == :FORCED_STOP || startlik > newlik
-        @debug "failed optimization, edge $(focusedge.number): skipping branch length update."
+    # @info "BL, edge $(focusedge.number): got $(round(fmax; digits=5)) (new lik = $newlik) at BL = $(round.(xmax; sigdigits=3)) after $(optBL.numevals) iterations (return code $(ret))"
+    if ret == :FORCED_STOP # || oldlik > newlik
+        @warn "failed optimization, edge $(focusedge.number): skipping branch length update."
         return nothing
     end
     focusedge.length = xmax[1]
@@ -1600,7 +1613,7 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
         γ = 0.0
         inside01 = false
         ll = (noweights ? sum(log.(clikp)) : sum(obj.siteweight .* log.(clikp)))
-        @debug "before NR, saw that gamma = 0 best, gamma assigned to zero"
+        @debug "γ = 0 best, skip Newton-Raphson"
     else
         ulik .= (clike .- clikp) ./ clike # at γ=1
         llg1 = (noweights ? sum(ulik) : sum(obj.siteweight .* ulik))
@@ -1608,7 +1621,7 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
             γ = 1.0
             inside01 = false
             ll = (noweights ? sum(log.(clike)) : sum(obj.siteweight .* log.(clike)))
-            @debug "before NR, saw that gamma = 1 best, gamma assigned to 1"
+            @debug "γ = 1 best, skip Newton-Raphson"
         end
     end
     if inside01
