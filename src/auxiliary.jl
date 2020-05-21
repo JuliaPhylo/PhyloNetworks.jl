@@ -409,10 +409,11 @@ function isconnected(node1, node2)
 end
 
 # function to check in an edge is in an array by comparing
-# the edges numbers (uses isEqual)
+# edge numbers (could use isEqual for adding comparisons of gammaz and inCycle)
 # needed for updateHasEdge
 function isEdgeNumIn(edge::Edge,array::Array{Edge,1})
-    return all((e->!isEqual(edge,e)), array) ? false : true
+    enum = edge.number
+    return any(e -> e.number == enum, array)
 end
 
 # function to check in a leaf is in an array by comparing
@@ -1695,8 +1696,8 @@ Warning: assumes that there aren't "duplicated" edges, that is, no 2-cycles.
 function adjacentedges(centeredge::Edge)
     n = centeredge.node
     length(n) == 2 || error("center edge is connected to $(length(n)) nodes")
-    edges = copy(n[1].edge) # shallow copy, to avoid modifying the first node
-    for ei in n[2].edge
+    @inbounds edges = copy(n[1].edge) # shallow copy, to avoid modifying the first node
+    @inbounds for ei in n[2].edge
         ei === centeredge && continue # don't add the center edge again
         # a second edge between nodes n[1] and n[2] would appear twice
         push!(edges, ei)

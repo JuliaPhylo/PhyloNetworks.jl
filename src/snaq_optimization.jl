@@ -1594,7 +1594,7 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
         end
     end
     tend = time_ns() # in nanoseconds
-    telapsed = round(convert(Int64, tend-tstart) * 1e-9, digits=2) # in seconds
+    telapsed = round(convert(Int, tend-tstart) * 1e-9, digits=2) # in seconds
     writelog_1proc && close(errfile)
     msg = "\n" * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s")
     if writelog

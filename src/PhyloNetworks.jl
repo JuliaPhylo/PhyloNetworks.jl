@@ -5,7 +5,7 @@ module PhyloNetworks
     # stdlib (standard libraries)
     using Dates
     using Distributed
-    using LinearAlgebra # for LowerTriangular, logdet, diag
+    using LinearAlgebra # for LowerTriangular, logdet, diag, mul!
     using Printf: @printf, @sprintf
     using Random
     using Statistics: mean, quantile, median
