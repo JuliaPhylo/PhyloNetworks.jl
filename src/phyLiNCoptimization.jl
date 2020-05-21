@@ -1320,9 +1320,13 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
             for is in 1:ns
                 u=0.0; g=0.0
                 for ir in 1:nr
-                    # dot(x,A,y) requires at least Julia 1.4
-                    u += dot(dblike[:,is,ir,it], Prt[ir], flike[:,is,ir,it])
-                    g += dot(dblike[:,is,ir,it], rQP[ir], flike[:,is,ir,it])
+                    # dot(x,A,y) requires Julia 1.4, and fails with Optim v0.19.3
+                    # u += dot(dblike[:,is,ir,it], Prt[ir], flike[:,is,ir,it])
+                    # g += dot(dblike[:,is,ir,it], rQP[ir], flike[:,is,ir,it])
+                    @inbounds for i in 1:k for j in 1:k
+                        u += dblike[i,is,ir,it] * Prt[ir][i,j] * flike[j,is,ir,it]
+                        g += dblike[i,is,ir,it] * rQP[ir][i,j] * flike[j,is,ir,it]
+                    end; end
                 end
                 ulik[is] += u * ltw[it]
                 glik[is] += g * ltw[it]
@@ -1351,11 +1355,12 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
     # ll ≈ startlik || @warn "ll = $ll is different from starting likelihood $startlik"
     optBL = lcache.opt
     NLopt.max_objective!(optBL, objective)
+    # @info "BL: edge $(focusedge.number)"
     fmax, xmax, ret = NLopt.optimize(optBL, [focusedge.length])
     @debug "BL: got $(round(fmax; digits=5)) at BL = $(round.(xmax; sigdigits=3)) after $(optBL.numevals) iterations (return code $(ret))"
     newlik = fmax + adjustment
     if ret == :FORCED_STOP || startlik > newlik
-        @debug "failed optimization: skipping branch length update."
+        @debug "failed optimization, edge $(focusedge.number): skipping branch length update."
         return nothing
     end
     focusedge.length = xmax[1]
