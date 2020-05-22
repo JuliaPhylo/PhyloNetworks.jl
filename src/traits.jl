@@ -2608,6 +2608,30 @@ function updateHybridSimulateMBD!(M::Matrix{Float64},
     # TODO: memory efficincy
 end
 
+function Base.show(io::IO, obj::ParamsMultiBM)
+    disp =  "$(typeof(obj)):\n"
+    pt = paramstable(obj)
+    if obj.randomRoot
+        disp = disp * "Parameters of a BM with random root:\n" * pt
+    else
+        disp = disp * "Parameters of a BM with fixed root:\n" * pt
+    end
+    println(io, disp)
+end
+
+function paramstable(obj::ParamsMultiBM)
+    disp = "mu: $(obj.mu)\nSigma: $(obj.sigma)"
+    if obj.randomRoot
+        disp = disp * "\nvarRoot: $(obj.varRoot)"
+    end
+    if anyShift(obj)
+        disp = disp * "\n\nThere are $(length(getShiftValue(obj.shift))) shifts on the network:\n"
+        disp = disp * "$(shiftTable(obj.shift))"
+    end
+    return(disp)
+end
+
+
 
 
 #################################################
