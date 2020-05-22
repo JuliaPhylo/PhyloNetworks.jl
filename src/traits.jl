@@ -277,7 +277,7 @@ end
 ###############################################################################
 ###############################################################################
 """
-    vcv(net::HybridNetwork; model="BM"::AbstractString, 
+    vcv(net::HybridNetwork; model="BM"::AbstractString,
                             corr=false::Bool,
                             checkPreorder=true::Bool)
 
@@ -978,22 +978,22 @@ Sigma2: 0.1
 
 julia> traits = sim[:Tips] # Extract simulated values at the tips.
 16-element Array{Float64,1}:
-  2.17618427971927   
-  1.0330846124205684 
-  3.048979175536912  
-  3.0379560744947876 
-  2.189704751299587  
-  4.031588898597555  
-  4.647725850651446  
- -0.8772851731182523 
-  4.625121065244063  
- -0.5111667949991542 
-  1.3560351170535228 
+  2.17618427971927
+  1.0330846124205684
+  3.048979175536912
+  3.0379560744947876
+  2.189704751299587
+  4.031588898597555
+  4.647725850651446
+ -0.8772851731182523
+  4.625121065244063
+ -0.5111667949991542
+  1.3560351170535228
  -0.10311152349323893
- -2.088472913751017  
-  2.6399137689702723 
-  2.8051193818084057 
-  3.1910928691142915 
+ -2.088472913751017
+  2.6399137689702723
+  2.8051193818084057
+  3.1910928691142915
 ```
 """
 function simulate(net::HybridNetwork,
@@ -1001,20 +1001,41 @@ function simulate(net::HybridNetwork,
                   checkPreorder=true::Bool)
     if isa(params, ParamsBM)
         model = "BM"
+    elseif isa(params, ParamsMultiBM)
+        model = "MBD"
     else
         error("The 'simulate' function only works for a BM process (for now).")
     end
     !ismissing(params.shift) || (params.shift = ShiftNet(net))
+
+    funcs = preorderFunctions(params)
     M = recursionPreOrder(net,
                           checkPreorder,
-                          initSimulateBM,
-                          updateRootSimulateBM!,
-                          updateTreeSimulateBM!,
-                          updateHybridSimulateBM!,
+                          funcs["init"],
+                          funcs["root"],
+                          funcs["tree"],
+                          funcs["hybrid"],
                           "c",
                           params)
     TraitSimulation(M, params, model)
 end
+
+
+function preorderFunctions(params::ParamsBM)
+    return Dict("init" => initSimulateBM,
+                "root" => updateRootSimulateBM!,
+                "tree" => updateTreeSimulateBM!,
+                "hybrid" => updateHybridSimulateBM!)
+end
+
+function preorderFunctions(params::ParamsMultiBM)
+    return Dict("init" => initSimulateMBD,
+                "root" => updateRootSimulateMBD!,
+                "tree" => updateTreeSimulateMBD!,
+                "hybrid" => updateHybridSimulateMBD!)
+end
+
+
 
 # Initialization of the structure
 function initSimulateBM(nodes::Vector{Node}, params::Tuple{ParamsBM})
@@ -2487,6 +2508,96 @@ function ancestralStateReconstruction(fr::AbstractDataFrame,
     reg = phyloNetworklm(f, fr, net; kwargs...)
     return ancestralStateReconstruction(reg)
 end
+
+
+
+## ParamsMultiBM
+
+mutable struct ParamsMultiBM <: ParamsProcess
+    mu::AbstractArray{Float64, 1}
+    sigma::AbstractArray{Float64, 2}
+    randomRoot::Bool
+    varRoot::AbstractArray{Float64, 2}
+    shift::Union{ShiftNet, Missing}
+    L::LowerTriangular{Float64}
+end
+
+ParamsMultiBM(mu::AbstractArray{Float64, 1},
+                sigma::AbstractArray{Float64, 2}) =
+        ParamsMultiBM(mu, sigma, false, Diagonal([NaN]), missing, cholesky(sigma).L)
+
+
+
+function process_dim(params::ParamsMultiBM)
+    return length(params.mu)
+end
+
+function anyShift(params::ParamsMultiBM)
+    # TODO
+    @warn "Shifts not currently implemented. Returning false."
+    return false
+end
+
+
+
+function initSimulateMBD(nodes::Vector{Node}, params::Tuple{ParamsMultiBM})
+    n = length(nodes)
+    p = process_dim(params[1])
+    vals = zeros(p, n) # random values
+    means = zeros(p, n) # means
+    return (means, vals)
+end
+
+function updateRootSimulateMBD!(X::Tuple{Matrix{Float64}, Matrix{Float64}},
+                                i::Int,
+                                params::Tuple{ParamsMultiBM})
+    params = params[1]
+    means = X[1]
+    vals = X[2]
+    if (params.randomRoot)
+        means[:, i] .= params.mu # expectation
+        vals[:, i] .= params.mu + params.L * randn(length(params.mu)) # random value #TODO: make memory efficient
+    else
+        means[:, i] .= params.mu # expectation
+        vals[:, i] .= params.mu # random value
+    end
+end
+
+# Going down to a tree node
+function updateTreeSimulateMBD!(X::Tuple{Matrix{Float64}, Matrix{Float64}},
+                               i::Int,
+                               parentIndex::Int,
+                               edge::Edge,
+                               params::Tuple{ParamsMultiBM})
+    params = params[1]
+    means = X[1]
+    vals = X[2]
+    means[:, i] .= means[:, parentIndex]# expectation
+    vals[:, i] .= vals[:, parentIndex] + sqrt(edge.length) * params.L * randn(length(params.mu)) # random value #TODO: make memory efficient
+    # TODO: add shifts
+end
+
+# Going down to an hybrid node
+function updateHybridSimulateMBD!(X::Tuple{Matrix{Float64}, Matrix{Float64}},
+                                 i::Int,
+                                 parentIndex1::Int,
+                                 parentIndex2::Int,
+                                 edge1::Edge,
+                                 edge2::Edge,
+                                 params::Tuple{ParamsMultiBM})
+
+    params = params[1]
+    means = X[1]
+    vals = X[2]
+    p = process_dim(params)
+    means[:, i] .= edge1.gamma * means[:, parentIndex1] + edge2.gamma * means[:, parentIndex2] # expectation
+    vals[:, i] .=  edge1.gamma * (vals[:, parentIndex1] + sqrt(edge1.length) * params.L * randn(p)) +
+                    edge2.gamma * (vals[:, parentIndex2] + sqrt(edge2.length) * params.L * randn(p)) # random value
+    # TODO: shifts?
+    # TODO: memory efficincy
+end
+
+
 
 #################################################
 ## Old version of phyloNetworklm (naive)
