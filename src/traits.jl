@@ -1122,11 +1122,34 @@ Getting submatrices of an object of type [`TraitSimulation`](@ref).
   * `:InternalNodes` columns and/or rows corresponding to the internal nodes
 """
 function Base.getindex(obj::TraitSimulation, d::Symbol, w=:Sim::Symbol)
-     if w == :Exp
-        return(getindex(obj.M, d)[1, :])
-     end
-    getindex(obj.M, d)[2, :]
+    inds = siminds(obj.params, w)
+    return getindex(obj.M, d)[inds, :]
 end
+
+function siminds(params::ParamsBM, w::Symbol)
+    if w == :Sim
+        return 2
+    elseif w == :Exp
+        return 1
+    else
+        error("The argument 'w' must be ':Sim' or ':Exp'. (':$w' was supplied)")
+    end
+end
+
+function siminds(params::ParamsMultiBM, w::Symbol)
+    p = process_dim(params)
+    if w == :Sim
+        return (p + 1):(2 * p)
+    elseif w == :Exp
+        return 1:p
+    else
+        error("The argument 'w' must be ':Sim' or ':Exp'. (':$w' was supplied)")
+    end
+end
+
+
+
+
 
 # function extractSimulateTips(sim::Matrix, net::HybridNetwork)
 #   mask = getTipsIndexes(net)
@@ -2538,10 +2561,10 @@ function anyShift(params::ParamsMultiBM)
     return false
 end
 
-function partitionMBDMatrix(M::Matrix{Float64})
-    n = size(M, 2) >> 1 # efficient divide by two with bitshift >>
-    means = @view M[:, 1:n]
-    vals = @view M[:, (n + 1):end]
+function partitionMBDMatrix(M::Matrix{Float64}, dim::Int)
+
+    means = @view M[1:dim, :]
+    vals = @view M[(dim + 1):(2 * dim), :]
     return means, vals
 end
 
@@ -2549,17 +2572,16 @@ end
 function initSimulateMBD(nodes::Vector{Node}, params::Tuple{ParamsMultiBM})
     n = length(nodes)
     p = process_dim(params[1])
-    return zeros(p, 2 * n) # [means vals]
+    return zeros(2 * p, n) # [means vals]
 end
 
 function updateRootSimulateMBD!(M::Matrix{Float64},
                                 i::Int,
                                 params::Tuple{ParamsMultiBM})
     params = params[1]
-
-    means, vals = partitionMBDMatrix(M)
-
     p = process_dim(params)
+
+    means, vals = partitionMBDMatrix(M, p)
 
     if (params.randomRoot)
         means[:, i] .= params.mu # expectation
@@ -2577,10 +2599,9 @@ function updateTreeSimulateMBD!(M::Matrix{Float64},
                                edge::Edge,
                                params::Tuple{ParamsMultiBM})
     params = params[1]
-
-    means, vals = partitionMBDMatrix(M)
-
     p = process_dim(params)
+
+    means, vals = partitionMBDMatrix(M, p)
 
     means[:, i] .= means[:, parentIndex]# expectation
     vals[:, i] .= vals[:, parentIndex] + sqrt(edge.length) * params.L * randn(p) # random value #TODO: make memory efficient
@@ -2597,10 +2618,10 @@ function updateHybridSimulateMBD!(M::Matrix{Float64},
                                  params::Tuple{ParamsMultiBM})
 
     params = params[1]
-
-    means, vals = partitionMBDMatrix(M)
-
     p = process_dim(params)
+
+    means, vals = partitionMBDMatrix(M, p)
+
     means[:, i] .= edge1.gamma * means[:, parentIndex1] + edge2.gamma * means[:, parentIndex2] # expectation
     vals[:, i] .=  edge1.gamma * (vals[:, parentIndex1] + sqrt(edge1.length) * params.L * randn(p)) +
                     edge2.gamma * (vals[:, parentIndex2] + sqrt(edge2.length) * params.L * randn(p)) # random value
