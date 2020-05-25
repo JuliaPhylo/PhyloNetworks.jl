@@ -905,6 +905,126 @@ function paramstable(obj::ParamsBM)
     return(disp)
 end
 
+## ParamsMultiBM
+
+mutable struct ParamsMultiBM <: ParamsProcess
+    mu::AbstractArray{Float64, 1}
+    sigma::AbstractArray{Float64, 2}
+    randomRoot::Bool
+    varRoot::AbstractArray{Float64, 2}
+    shift::Union{ShiftNet, Missing}
+    L::LowerTriangular{Float64}
+end
+
+ParamsMultiBM(mu::AbstractArray{Float64, 1},
+                sigma::AbstractArray{Float64, 2}) =
+        ParamsMultiBM(mu, sigma, false, Diagonal([NaN]), missing, cholesky(sigma).L)
+
+
+
+function process_dim(params::ParamsMultiBM)
+    return length(params.mu)
+end
+
+function anyShift(params::ParamsMultiBM)
+    # TODO
+    @warn "Shifts not currently implemented. Returning false."
+    return false
+end
+
+function partitionMBDMatrix(M::Matrix{Float64}, dim::Int)
+
+    means = @view M[1:dim, :]
+    vals = @view M[(dim + 1):(2 * dim), :]
+    return means, vals
+end
+
+
+function initSimulateMBD(nodes::Vector{Node}, params::Tuple{ParamsMultiBM})
+    n = length(nodes)
+    p = process_dim(params[1])
+    return zeros(2 * p, n) # [means vals]
+end
+
+function updateRootSimulateMBD!(M::Matrix{Float64},
+                                i::Int,
+                                params::Tuple{ParamsMultiBM})
+    params = params[1]
+    p = process_dim(params)
+
+    means, vals = partitionMBDMatrix(M, p)
+
+    if (params.randomRoot)
+        means[:, i] .= params.mu # expectation
+        vals[:, i] .= params.mu + params.L * randn(p) # random value #TODO: make memory efficient
+    else
+        means[:, i] .= params.mu # expectation
+        vals[:, i] .= params.mu # random value
+    end
+end
+
+# Going down to a tree node
+function updateTreeSimulateMBD!(M::Matrix{Float64},
+                               i::Int,
+                               parentIndex::Int,
+                               edge::Edge,
+                               params::Tuple{ParamsMultiBM})
+    params = params[1]
+    p = process_dim(params)
+
+    means, vals = partitionMBDMatrix(M, p)
+
+    means[:, i] .= means[:, parentIndex]# expectation
+    vals[:, i] .= vals[:, parentIndex] + sqrt(edge.length) * params.L * randn(p) # random value #TODO: make memory efficient
+    # TODO: add shifts
+end
+
+# Going down to an hybrid node
+function updateHybridSimulateMBD!(M::Matrix{Float64},
+                                 i::Int,
+                                 parentIndex1::Int,
+                                 parentIndex2::Int,
+                                 edge1::Edge,
+                                 edge2::Edge,
+                                 params::Tuple{ParamsMultiBM})
+
+    params = params[1]
+    p = process_dim(params)
+
+    means, vals = partitionMBDMatrix(M, p)
+
+    means[:, i] .= edge1.gamma * means[:, parentIndex1] + edge2.gamma * means[:, parentIndex2] # expectation
+    vals[:, i] .=  edge1.gamma * (vals[:, parentIndex1] + sqrt(edge1.length) * params.L * randn(p)) +
+                    edge2.gamma * (vals[:, parentIndex2] + sqrt(edge2.length) * params.L * randn(p)) # random value
+    # TODO: shifts?
+    # TODO: memory efficincy
+end
+
+function Base.show(io::IO, obj::ParamsMultiBM)
+    disp =  "$(typeof(obj)):\n"
+    pt = paramstable(obj)
+    if obj.randomRoot
+        disp = disp * "Parameters of a BM with random root:\n" * pt
+    else
+        disp = disp * "Parameters of a BM with fixed root:\n" * pt
+    end
+    println(io, disp)
+end
+
+function paramstable(obj::ParamsMultiBM)
+    disp = "mu: $(obj.mu)\nSigma: $(obj.sigma)"
+    if obj.randomRoot
+        disp = disp * "\nvarRoot: $(obj.varRoot)"
+    end
+    if anyShift(obj)
+        disp = disp * "\n\nThere are $(length(getShiftValue(obj.shift))) shifts on the network:\n"
+        disp = disp * "$(shiftTable(obj.shift))"
+    end
+    return(disp)
+end
+
+
+
 
 ###############################################################################
 ###############################################################################
@@ -2533,124 +2653,6 @@ function ancestralStateReconstruction(fr::AbstractDataFrame,
 end
 
 
-
-## ParamsMultiBM
-
-mutable struct ParamsMultiBM <: ParamsProcess
-    mu::AbstractArray{Float64, 1}
-    sigma::AbstractArray{Float64, 2}
-    randomRoot::Bool
-    varRoot::AbstractArray{Float64, 2}
-    shift::Union{ShiftNet, Missing}
-    L::LowerTriangular{Float64}
-end
-
-ParamsMultiBM(mu::AbstractArray{Float64, 1},
-                sigma::AbstractArray{Float64, 2}) =
-        ParamsMultiBM(mu, sigma, false, Diagonal([NaN]), missing, cholesky(sigma).L)
-
-
-
-function process_dim(params::ParamsMultiBM)
-    return length(params.mu)
-end
-
-function anyShift(params::ParamsMultiBM)
-    # TODO
-    @warn "Shifts not currently implemented. Returning false."
-    return false
-end
-
-function partitionMBDMatrix(M::Matrix{Float64}, dim::Int)
-
-    means = @view M[1:dim, :]
-    vals = @view M[(dim + 1):(2 * dim), :]
-    return means, vals
-end
-
-
-function initSimulateMBD(nodes::Vector{Node}, params::Tuple{ParamsMultiBM})
-    n = length(nodes)
-    p = process_dim(params[1])
-    return zeros(2 * p, n) # [means vals]
-end
-
-function updateRootSimulateMBD!(M::Matrix{Float64},
-                                i::Int,
-                                params::Tuple{ParamsMultiBM})
-    params = params[1]
-    p = process_dim(params)
-
-    means, vals = partitionMBDMatrix(M, p)
-
-    if (params.randomRoot)
-        means[:, i] .= params.mu # expectation
-        vals[:, i] .= params.mu + params.L * randn(p) # random value #TODO: make memory efficient
-    else
-        means[:, i] .= params.mu # expectation
-        vals[:, i] .= params.mu # random value
-    end
-end
-
-# Going down to a tree node
-function updateTreeSimulateMBD!(M::Matrix{Float64},
-                               i::Int,
-                               parentIndex::Int,
-                               edge::Edge,
-                               params::Tuple{ParamsMultiBM})
-    params = params[1]
-    p = process_dim(params)
-
-    means, vals = partitionMBDMatrix(M, p)
-
-    means[:, i] .= means[:, parentIndex]# expectation
-    vals[:, i] .= vals[:, parentIndex] + sqrt(edge.length) * params.L * randn(p) # random value #TODO: make memory efficient
-    # TODO: add shifts
-end
-
-# Going down to an hybrid node
-function updateHybridSimulateMBD!(M::Matrix{Float64},
-                                 i::Int,
-                                 parentIndex1::Int,
-                                 parentIndex2::Int,
-                                 edge1::Edge,
-                                 edge2::Edge,
-                                 params::Tuple{ParamsMultiBM})
-
-    params = params[1]
-    p = process_dim(params)
-
-    means, vals = partitionMBDMatrix(M, p)
-
-    means[:, i] .= edge1.gamma * means[:, parentIndex1] + edge2.gamma * means[:, parentIndex2] # expectation
-    vals[:, i] .=  edge1.gamma * (vals[:, parentIndex1] + sqrt(edge1.length) * params.L * randn(p)) +
-                    edge2.gamma * (vals[:, parentIndex2] + sqrt(edge2.length) * params.L * randn(p)) # random value
-    # TODO: shifts?
-    # TODO: memory efficincy
-end
-
-function Base.show(io::IO, obj::ParamsMultiBM)
-    disp =  "$(typeof(obj)):\n"
-    pt = paramstable(obj)
-    if obj.randomRoot
-        disp = disp * "Parameters of a BM with random root:\n" * pt
-    else
-        disp = disp * "Parameters of a BM with fixed root:\n" * pt
-    end
-    println(io, disp)
-end
-
-function paramstable(obj::ParamsMultiBM)
-    disp = "mu: $(obj.mu)\nSigma: $(obj.sigma)"
-    if obj.randomRoot
-        disp = disp * "\nvarRoot: $(obj.varRoot)"
-    end
-    if anyShift(obj)
-        disp = disp * "\n\nThere are $(length(getShiftValue(obj.shift))) shifts on the network:\n"
-        disp = disp * "$(shiftTable(obj.shift))"
-    end
-    return(disp)
-end
 
 
 
