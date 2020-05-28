@@ -73,6 +73,26 @@ lengthe = obj.net.edge[44].length
 @test_nowarn PhyloNetworks.optimizelocalgammas_LiNC!(obj, obj.net.edge[4], 1e-6,γcache)
 @test obj.net.edge[4].gamma == 0.0
 @test PhyloNetworks.getMajorParentEdge(obj.net.hybrid[1]).gamma == 1.0
+
+# gamma at a hybrid ladder: when some displayed trees don't have the focus edge
+# 2 unzipped reticulations in a hybrid ladder, reasonable (small) branch lengths
+net = readTopology("(#H2:0.0001::0.0244,((C:0.0262,((B:0.0)#H1:0.0::0.6)#H2:0.03::0.9756):0.4812,(#H1:0.0001::0.4,A:0.1274):0.0001):0.0274,D:0.151);")
+obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69)
+obj.trait[1][3] = 3 # to create discordance across sites
+obj.trait[4][4] = 2 #    for estimated γ to be within (0,1)
+γcache = PhyloNetworks.CacheGammaLiNC(obj)
+PhyloNetworks.discrete_corelikelihood!(obj) # -29.82754754416619
+ll = PhyloNetworks.optimizegamma_LiNC!(obj, obj.net.edge[4], .001, γcache, 3)
+@test ll ≈ -29.655467369763585
+@test obj.net.edge[4].gamma ≈ 0.8090635871910823
+@test γcache.hase == [true, true, false]
+@test all(γcache.clikn .== 0.0)
+ll = PhyloNetworks.optimizegamma_LiNC!(obj, obj.net.edge[1], .001, γcache, 3)
+@test ll ≈ -29.468517891012983
+@test obj.net.edge[1].gamma ≈ 0.19975558937688737
+@test γcache.hase[[1,2]] == [false,true]
+@test γcache.hase[3] === missing
+@test γcache.clikn[[6,7]] ≈ [0.25, 0.0007] rtol=0.01
 end #of local branch length and gamma optimization with localgamma! localBL! with 8 sites
 
 @testset "global branch length and gamma optimization" begin
