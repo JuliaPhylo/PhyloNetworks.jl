@@ -905,8 +905,17 @@ function paramstable(obj::ParamsBM)
     return(disp)
 end
 
-## ParamsMultiBM
 
+"""
+    ParamsMultiBM <: ParamsProcess
+
+Type for a multivariate Brownian diffusion (MBD) process on a network. Fields are `mu` (expectation),
+`sigma` (covariance matrix), `randomRoot` (whether the root is random, default to `false`),
+`varRoot` (if the root is random, the covariance matrix of the root, default to `[NaN]`),
+`shift` (a ShiftNet type, default to `missing`),
+and `L` (the lower triangular of the cholesky decomposition of `sigma`, computed automatically)
+
+"""
 mutable struct ParamsMultiBM <: ParamsProcess
     mu::AbstractArray{Float64, 1}
     sigma::AbstractArray{Float64, 2}

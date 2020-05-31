@@ -108,6 +108,7 @@ module PhyloNetworks
         simulate,
         TraitSimulation,
         ParamsBM,
+        ParamsMultiBM,
         ShiftNet,
         shiftHybrid,
         getShiftEdgeNumber,
