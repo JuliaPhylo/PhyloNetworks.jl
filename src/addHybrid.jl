@@ -118,6 +118,7 @@ function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool
         return addhybridedge!(net, edge1, edge2, hybridpartnernew, 0.01, newgamma)
     end
     # error("tried max number of attempts, none worked!")
+        # error is commented out because this case is now handled by addhybridedgeLiNC!
     return nothing
 end
 

@@ -752,9 +752,13 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     savedlen = [e.length for e in obj.net.edge]
     savedgam = [e.gamma for e in obj.net.edge]
     result = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints;fixroot=true)
+    # Before doing anything, first check that addhybrid edge was successful.
+        # If not successful, result isnothing, so return nothing.
+    isnothing(result) && return nothing
+    # fixroot=true: to restore edge2 if need be, with deletehybridedge!
+    newhybridnode, newhybridedge = result
     # next: increase length of split edges if they became < BLmin
-    # result = (newnode2_hybrid, hybrid_edge)
-    splitedges = getParent(result[2]).edge # new hybrid edge = splitedges[3]
+    splitedges = getParent(newhybridedge).edge # new hybrid edge = splitedges[3]
     # splitedges[1] and splitedges[2] have length 1/2 of original edge...
     # except if hybrid ladder was created (and unzipped)
     for e in splitedges[1:2]
@@ -762,9 +766,6 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
             e.length = BLmin
         end
     end
-    # fixroot=true: to restore edge2 if need be, with deletehybridedge!
-    isnothing(result) && return nothing
-    newhybridnode, newhybridedge = result
     # unzip only at new node and its child edge
     unzipat_canonical!(newhybridnode, getChildEdge(newhybridnode))
     updateSSM!(obj) #, true; constraints=constraints)
