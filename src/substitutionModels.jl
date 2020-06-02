@@ -790,7 +790,7 @@ struct HKY85 <: NucleicAcidSubstitutionModel
         end
         length(pi) == 4 || error("pi must be of length 4")
         all(0. .< pi.< 1.) || error("All base proportions must be between 0 and 1")
-        sum(pi) == 1. || error("Base proportions must sum to 1")
+        isapprox(sum(pi), 1.; atol = 1e-12) || error("Base proportions must sum to 1.")
         new(rate, pi, relative, eigeninfo)
     end
 end

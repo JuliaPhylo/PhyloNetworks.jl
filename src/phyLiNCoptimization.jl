@@ -751,7 +751,8 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     savedpriorltw = copy(obj.priorltw)
     savedlen = [e.length for e in obj.net.edge]
     savedgam = [e.gamma for e in obj.net.edge]
-    result = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints;fixroot=true)
+    result = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints;
+                    maxattempts=max(10,size(obj.directlik,2)), fixroot=true) # maxattempt ~ numEdges
     # Before doing anything, first check that addhybrid edge was successful.
         # If not successful, result isnothing, so return nothing.
     isnothing(result) && return nothing
