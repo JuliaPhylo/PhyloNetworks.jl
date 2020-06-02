@@ -614,13 +614,13 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
             nh == maxhybrid && continue # skip & don't count towards nmoves if enough hybrids in net
             # alternative: switch "add" and "delete" as appropriate (not chosen)
             #              would decrease the weight of NNIs compared to add/delete hybrid
-            nh <= maxhybrid || # nh > maxhybrid should never happen
+            nh < maxhybrid || # nh > maxhybrid should never happen
                 error("The network has $nh hybrids: more than the allowed max of $maxhybrid")
-            result = addhybridedgeLiNC!(obj, currLik, maxhybrid, no3cycle,
+            result = addhybridedgeLiNC!(obj, currLik, no3cycle,
                         nohybridladder, constraints, ftolAbs, γcache, lcache)
         elseif movechoice == "deletehybrid"
             obj.net.numHybrids == 0  && continue # skip & don't count towards nmoves if no hybrid in net
-            result = deletehybridedgeLiNC!(obj, currLik, maxhybrid,
+            result = deletehybridedgeLiNC!(obj, currLik,
                         no3cycle, constraints, γcache, lcache)
         else # change root (doesn't affect likelihood)
             result = moveroot!(obj.net, constraints)
@@ -723,7 +723,7 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
 end
 
 """
-    addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
+    addhybridedgeLiNC!(obj::SSM, currLik::Float64,
         no3cycle::Bool, nohybridladder::Bool,
         constraints::Vector{TopologyConstraint},
         ftolAbs::Float64,
@@ -738,7 +738,7 @@ If cannot add a hybrid, return nothing.
 For arguments, see [`phyLiNC!`](@ref).
 Called by [`optimizestructure!`](@ref).
 """
-function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
+function addhybridedgeLiNC!(obj::SSM, currLik::Float64,
     no3cycle::Bool, nohybridladder::Bool,
     constraints::Vector{TopologyConstraint},
     ftolAbs::Float64,
@@ -753,10 +753,10 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
     savedgam = [e.gamma for e in obj.net.edge]
     result = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints;
                     maxattempts=max(10,size(obj.directlik,2)), fixroot=true) # maxattempt ~ numEdges
+    # fixroot=true: to restore edge2 if need be, with deletehybridedge!
     # Before doing anything, first check that addhybrid edge was successful.
         # If not successful, result isnothing, so return nothing.
     isnothing(result) && return nothing
-    # fixroot=true: to restore edge2 if need be, with deletehybridedge!
     newhybridnode, newhybridedge = result
     # next: increase length of split edges if they became < BLmin
     splitedges = getParent(newhybridedge).edge # new hybrid edge = splitedges[3]
@@ -813,7 +813,7 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
 end
 
 """
-    deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
+    deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
         no3cycle::Bool,
         constraints::Vector{TopologyConstraint},
         γcache::CacheGammaLiNC, lcache::CacheLengthLiNC)
@@ -833,7 +833,7 @@ this request may not be met.
 For a description of arguments, see [`phyLiNC!`](@ref).
 Called by [`optimizestructure!`](@ref), which does some checks.
 """
-function deletehybridedgeLiNC!(obj::SSM, currLik::Float64, maxhybrid::Int,
+function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
         no3cycle::Bool,
         constraints::Vector{TopologyConstraint},
         γcache::CacheGammaLiNC, lcache::CacheLengthLiNC)
