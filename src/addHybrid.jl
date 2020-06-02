@@ -117,7 +117,8 @@ function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool
         newgamma = rand()*0.5; # in (0,.5) to create a minor hybrid edge
         return addhybridedge!(net, edge1, edge2, hybridpartnernew, 0.01, newgamma)
     end
-    # error("tried max number of attempts, none worked!")
+    # if we get here: none of the max number of attempts worked - return nothing.
+    # if an attempt had worked, we would have returned something.
     return nothing
 end
 
