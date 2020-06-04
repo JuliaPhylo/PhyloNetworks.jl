@@ -937,7 +937,6 @@ end
 
 function anyShift(params::ParamsMultiBM)
     # TODO
-    @warn "Shifts not currently implemented. Returning false."
     return false
 end
 
@@ -1168,7 +1167,7 @@ function updateTreeSimulateMBD!(M::Matrix{Float64},
 
     means[:, i] .= means[:, parentIndex]# expectation
     vals[:, i] .= vals[:, parentIndex] + sqrt(edge.length) * params.L * randn(p) # random value #TODO: make memory efficient
-    # TODO: add shifts
+    # TODO: shifts
 end
 
 
@@ -1202,7 +1201,7 @@ function updateHybridSimulateMBD!(M::Matrix{Float64},
     means[:, i] .= edge1.gamma * means[:, parentIndex1] + edge2.gamma * means[:, parentIndex2] # expectation
     vals[:, i] .=  edge1.gamma * (vals[:, parentIndex1] + sqrt(edge1.length) * params.L * randn(p)) +
                     edge2.gamma * (vals[:, parentIndex2] + sqrt(edge2.length) * params.L * randn(p)) # random value
-    # TODO: shifts?
+    # TODO: shifts
     # TODO: memory efficincy
 end
 
