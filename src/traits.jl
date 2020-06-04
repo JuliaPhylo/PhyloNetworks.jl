@@ -916,7 +916,7 @@ Type for a multivariate Brownian diffusion (MBD) process on a network. Fields ar
 and `L` (the lower triangular of the cholesky decomposition of `sigma`, computed automatically)
 
 """
-mutable struct ParamsMultiBM <: ParamsProcess
+struct ParamsMultiBM <: ParamsProcess
     mu::AbstractArray{Float64, 1}
     sigma::AbstractArray{Float64, 2}
     randomRoot::Bool
@@ -939,74 +939,6 @@ function anyShift(params::ParamsMultiBM)
     # TODO
     @warn "Shifts not currently implemented. Returning false."
     return false
-end
-
-function partitionMBDMatrix(M::Matrix{Float64}, dim::Int)
-
-    means = @view M[1:dim, :]
-    vals = @view M[(dim + 1):(2 * dim), :]
-    return means, vals
-end
-
-
-function initSimulateMBD(nodes::Vector{Node}, params::Tuple{ParamsMultiBM})
-    n = length(nodes)
-    p = process_dim(params[1])
-    return zeros(2 * p, n) # [means vals]
-end
-
-function updateRootSimulateMBD!(M::Matrix{Float64},
-                                i::Int,
-                                params::Tuple{ParamsMultiBM})
-    params = params[1]
-    p = process_dim(params)
-
-    means, vals = partitionMBDMatrix(M, p)
-
-    if (params.randomRoot)
-        means[:, i] .= params.mu # expectation
-        vals[:, i] .= params.mu + params.L * randn(p) # random value #TODO: make memory efficient
-    else
-        means[:, i] .= params.mu # expectation
-        vals[:, i] .= params.mu # random value
-    end
-end
-
-# Going down to a tree node
-function updateTreeSimulateMBD!(M::Matrix{Float64},
-                               i::Int,
-                               parentIndex::Int,
-                               edge::Edge,
-                               params::Tuple{ParamsMultiBM})
-    params = params[1]
-    p = process_dim(params)
-
-    means, vals = partitionMBDMatrix(M, p)
-
-    means[:, i] .= means[:, parentIndex]# expectation
-    vals[:, i] .= vals[:, parentIndex] + sqrt(edge.length) * params.L * randn(p) # random value #TODO: make memory efficient
-    # TODO: add shifts
-end
-
-# Going down to an hybrid node
-function updateHybridSimulateMBD!(M::Matrix{Float64},
-                                 i::Int,
-                                 parentIndex1::Int,
-                                 parentIndex2::Int,
-                                 edge1::Edge,
-                                 edge2::Edge,
-                                 params::Tuple{ParamsMultiBM})
-
-    params = params[1]
-    p = process_dim(params)
-
-    means, vals = partitionMBDMatrix(M, p)
-
-    means[:, i] .= edge1.gamma * means[:, parentIndex1] + edge2.gamma * means[:, parentIndex2] # expectation
-    vals[:, i] .=  edge1.gamma * (vals[:, parentIndex1] + sqrt(edge1.length) * params.L * randn(p)) +
-                    edge2.gamma * (vals[:, parentIndex2] + sqrt(edge2.length) * params.L * randn(p)) # random value
-    # TODO: shifts?
-    # TODO: memory efficincy
 end
 
 function Base.show(io::IO, obj::ParamsMultiBM)
@@ -1033,6 +965,12 @@ function paramstable(obj::ParamsMultiBM)
 end
 
 
+function partitionMBDMatrix(M::Matrix{Float64}, dim::Int)
+
+    means = @view M[1:dim, :]
+    vals = @view M[(dim + 1):(2 * dim), :]
+    return means, vals
+end
 
 
 ###############################################################################
@@ -1171,6 +1109,13 @@ function initSimulateBM(nodes::Vector{Node}, params::Tuple{ParamsBM})
     return(zeros(2, length(nodes)))
 end
 
+function initSimulateMBD(nodes::Vector{Node}, params::Tuple{ParamsMultiBM})
+    n = length(nodes)
+    p = process_dim(params[1])
+    return zeros(2 * p, n) # [means vals]
+end
+
+
 # Initialization of the root
 function updateRootSimulateBM!(M::Matrix, i::Int, params::Tuple{ParamsBM})
     params = params[1]
@@ -1180,6 +1125,23 @@ function updateRootSimulateBM!(M::Matrix, i::Int, params::Tuple{ParamsBM})
     else
         M[1, i] = params.mu # expectation
         M[2, i] = params.mu # random value (root fixed)
+    end
+end
+
+function updateRootSimulateMBD!(M::Matrix{Float64},
+                                i::Int,
+                                params::Tuple{ParamsMultiBM})
+    params = params[1]
+    p = process_dim(params)
+
+    means, vals = partitionMBDMatrix(M, p)
+
+    if (params.randomRoot)
+        means[:, i] .= params.mu # expectation
+        vals[:, i] .= params.mu + params.L * randn(p) # random value #TODO: make memory efficient
+    else
+        means[:, i] .= params.mu # expectation
+        vals[:, i] .= params.mu # random value
     end
 end
 
@@ -1194,6 +1156,23 @@ function updateTreeSimulateBM!(M::Matrix,
     M[2, i] = M[2, parentIndex] + params.shift.shift[i] + sqrt(params.sigma2 * edge.length) * randn() # random value
 end
 
+function updateTreeSimulateMBD!(M::Matrix{Float64},
+                               i::Int,
+                               parentIndex::Int,
+                               edge::Edge,
+                               params::Tuple{ParamsMultiBM})
+    params = params[1]
+    p = process_dim(params)
+
+    means, vals = partitionMBDMatrix(M, p)
+
+    means[:, i] .= means[:, parentIndex]# expectation
+    vals[:, i] .= vals[:, parentIndex] + sqrt(edge.length) * params.L * randn(p) # random value #TODO: make memory efficient
+    # TODO: add shifts
+end
+
+
+
 # Going down to an hybrid node
 function updateHybridSimulateBM!(M::Matrix,
                                  i::Int,
@@ -1207,6 +1186,25 @@ function updateHybridSimulateBM!(M::Matrix,
     M[2, i] =  edge1.gamma * (M[2, parentIndex1] + sqrt(params.sigma2 * edge1.length) * randn()) + edge2.gamma * (M[2, parentIndex2] + sqrt(params.sigma2 * edge2.length) * randn()) # random value
 end
 
+function updateHybridSimulateMBD!(M::Matrix{Float64},
+                                 i::Int,
+                                 parentIndex1::Int,
+                                 parentIndex2::Int,
+                                 edge1::Edge,
+                                 edge2::Edge,
+                                 params::Tuple{ParamsMultiBM})
+
+    params = params[1]
+    p = process_dim(params)
+
+    means, vals = partitionMBDMatrix(M, p)
+
+    means[:, i] .= edge1.gamma * means[:, parentIndex1] + edge2.gamma * means[:, parentIndex2] # expectation
+    vals[:, i] .=  edge1.gamma * (vals[:, parentIndex1] + sqrt(edge1.length) * params.L * randn(p)) +
+                    edge2.gamma * (vals[:, parentIndex2] + sqrt(edge2.length) * params.L * randn(p)) # random value
+    # TODO: shifts?
+    # TODO: memory efficincy
+end
 
 # function updateSimulateBM!(i::Int, nodes::Vector{Node}, M::Matrix, params::Tuple{ParamsBM})
 #     params = params[1]
