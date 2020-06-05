@@ -971,22 +971,34 @@ function P!(Pmat::AbstractMatrix, obj::HKY85, t::Float64)
     return Pmat
 end
 
+abstract type RateVariationAcrossSites end
+
 """
-    RateVariationAcrossSites(α=1.0, ncat=4)
+    RateVariationAcrossSites(; pinv=0.0, alpha=Inf, ncat=4)
 
 Model for variable substitution rates across sites (or across traits) using
-the discrete Gamma model (Yang 1994, Journal of Molecular Evolution).
-Turn any SM model to SM + Gamma.
-Using this model increases the number of parameters by one.
+the discrete Gamma model (+G, Yang 1994, Journal of Molecular Evolution) or
+the invariable-sites model (+I, Hasegawa, Kishino & Yano 1985 J Mol Evol).
+Both types of rate variation can be combined (+G+I, Gu, Fu & Li 1995, Mol Biol Evol)
+but this is discouraged (Jia, Lo & Ho 2014 PLOS One).
+Using rate variation increases the number of parameters by one (+G or +I)
+or by two (+G+I).
 
-Because the mean of the desired continuous Gamma distribution is 1, we use
-shape α and scale θ=1/α (e.g. rate β=α).
+Because the mean of the desired distribution or rates is 1, we use a Gamma
+distribution with shape α and scale θ=1/α (rate β=α) if no invariable sites,
+or scale θ=1/(α(1-pinv)), that is rate β=α(1-pinv) with a proportion pinv
+of invariable sites.
 The shape parameter is referred to as alpha here.
 The Gamma distribution is discretized into `ncat` categories.
 In each category, the category's rate multiplier is a normalized quantile of the gamma distribution.
 
 ```jldoctest
-julia> rv = RateVariationAcrossSites()
+julia> RateVariationAcrossSites(ncat=1)
+Rate Variation Across Sites using Discretized Gamma Model
+categories for Gamma discretization: 1
+ratemultiplier: [1.0]
+
+julia> rv = RateVariationAcrossSites(alpha=1.0)
 Rate Variation Across Sites using Discretized Gamma Model
 alpha: 1.0
 categories for Gamma discretization: 4
@@ -1000,31 +1012,34 @@ alpha: 2.0
 categories for Gamma discretization: 4
 ratemultiplier: [0.31907, 0.68336, 1.10898, 1.8886]
 
-julia> RateVariationAcrossSites(2.0, 4)
-Rate Variation Across Sites using Discretized Gamma Model
-alpha: 2.0
-categories for Gamma discretization: 4
-ratemultiplier: [0.31907, 0.68336, 1.10898, 1.8886]
+julia> RateVariationAcrossSites(pinv=0.3)
+fixit
 ```
 """
-mutable struct RateVariationAcrossSites
-    alpha::Float64
+struct RVASGamma{S} <: RateVariationAcrossSites
+    # S = ncat, and size of vectors
+    alpha::StaticArrays.MVector{1,Float64} # mutable
     ncat::Int
-    ratemultiplier::Array{Float64}
-    function RateVariationAcrossSites(alpha = 1.0::Float64, ncat = 4::Int)
-        @assert alpha >= 0.0 "alpha must be >= 0"
-        @assert ncat > 0 "ncat must be 1 or greater"
-        if ncat == 1
-            ratemultiplier = [1.0]
-        else
-            cuts = Vector((0:(ncat-1))/ncat) + repeat([1/(2ncat)], ncat)
-            ratemultiplier = quantile.(Distributions.Gamma(alpha, 1/alpha), cuts)
-            ratemultiplier ./= mean(ratemultiplier)
-        end
-        new(alpha, ncat, ratemultiplier)
-    end
+    ratemultiplier::StaticArrays.MVector{S,Float64}
+    lograteweight::StaticArrays.SVector{S,Float64} # will be uniform: log(1/ncat)
+    cumprob::StaticArrays.SVector{S,Float64} # cumulative prob to discretize Gamma
 end
-const RVAS = RateVariationAcrossSites
+function RVASGamma(alpha=1.0::Float64, ncat=4::Int)
+    @assert ncat > 0 "ncat must be 1 or greater"
+    cuts = StaticArrays.SVector{ncat,Float64}(1/(2ncat) .+ (0:(ncat-1))/ncat)
+    uniflw = -log(ncat) # = log(1/ncat)
+    obj = RVASGamma{ncat}(
+            StaticArrays.MVector{1,Float64}(alpha), ncat,
+            StaticArrays.MVector{ncat,Float64}(undef), # rates
+            StaticArrays.SVector{ncat,Float64}([uniflw for i in 1:ncat]),
+            cuts) # weight and cumweight
+    if ncat == 1
+        obj.ratemultiplier[1] = 1.0
+    else
+        setalpha!(obj, alpha) # checks for alpha >= 0
+    end
+    return obj
+end
 
 """
     setalpha!(obj, alpha)
@@ -1034,20 +1049,42 @@ and update the rate multipliers accordingly.
 """
 function setalpha!(obj::RateVariationAcrossSites, alpha::Float64)
     @assert alpha >= 0 "alpha must be a float >= 0"
-    obj.alpha = alpha
+    obj.alpha[1] = alpha
+    gammadist = Distributions.Gamma(alpha, 1/alpha)
     if obj.ncat > 1
         rv = obj.ratemultiplier
-        cuts = Vector((0:(obj.ncat-1))/obj.ncat) + repeat([1/(2*obj.ncat)], obj.ncat)
-        rv[:] = quantile.(Distributions.Gamma(alpha, 1/alpha), cuts)
+        for i in 1:obj.ncat
+            @inbounds rv[i] = quantile(gammadist, obj.cumprob[i])
+        end
         rv ./= mean(rv)
     end
     return nothing
 end
 
+function RateVariationAcrossSites(; pinv=0.0::Float64, alpha=Inf64::Float64, ncat=4::Int)
+    ncat>1 && alpha == Inf && error("use ncat=1 or α<Inf")
+    if pinv==0.0
+        return RVASGamma(alpha, ncat)
+    end
+    error("pinv>0 is not implemented")
+    if alpha == Inf
+        #return RVASInv(pinv)
+    end
+    #return RVASGammaInv(pinv, alpha, ncat)
+end
+
+# fixit:
+# use lograteweight in fitdiscrete and other functions
+# add setalpha! function for RVASInv: to return an error
+
+# add Inv model, then GammaInv model
+# make RateVariationAcrossSites() not error with pinv>0, and check 0<pinv<1
+# for GammaInv: take ratemultiplier from Gamma, divide them by 1-pinv.
+
 function Base.show(io::IO, obj::RateVariationAcrossSites)
     str = "Rate Variation Across Sites using Discretized Gamma Model\n"
     if length(obj.ratemultiplier)>1
-        str *= "alpha: $(round(obj.alpha, digits=5))\n"
+        str *= "alpha: $(round(obj.alpha[1], digits=5))\n"
     end
     str *= "categories for Gamma discretization: $(obj.ncat)\n"
     str *= "ratemultiplier: $(round.(obj.ratemultiplier, digits=5))\n"
