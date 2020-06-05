@@ -5,7 +5,7 @@ net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H
 P = 3
 
 
-@testset "Simulate function against fixed values" begin
+@testset "Simulate data and check means and dimensions" begin
 
 ## Simulate a MBD
 Random.seed!(17920921); # fix the seed
@@ -27,7 +27,6 @@ traitsNodes = sim[:InternalNodes];
 @test size(traitsNodes) == (P, net.numNodes - net.numTaxa)
 
 expectations = sim[:All, :Exp]
-@show size(expectations)
 
 # Check means (no shifts)
 max_diff = maximum(expectations - μ * ones(net.numNodes)')
