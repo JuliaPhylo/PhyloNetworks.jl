@@ -916,7 +916,7 @@ Type for a multivariate Brownian diffusion (MBD) process on a network. Fields ar
 and `L` (the lower triangular of the cholesky decomposition of `sigma`, computed automatically)
 
 """
-struct ParamsMultiBM <: ParamsProcess
+mutable struct ParamsMultiBM <: ParamsProcess
     mu::AbstractArray{Float64, 1}
     sigma::AbstractArray{Float64, 2}
     randomRoot::Bool
@@ -928,6 +928,8 @@ end
 ParamsMultiBM(mu::AbstractArray{Float64, 1},
                 sigma::AbstractArray{Float64, 2}) =
         ParamsMultiBM(mu, sigma, false, Diagonal([NaN]), missing, cholesky(sigma).L)
+
+# TODO: add more constructors
 
 
 
