@@ -624,7 +624,7 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
                         no3cycle, constraints, γcache, lcache)
         else # change root (doesn't affect likelihood)
             result = moveroot!(obj.net, constraints)
-            updateSSM_root!(obj) # edge direction used by updatecache_edge
+            isnothing(result) || updateSSM_root!(obj) # edge direction used by updatecache_edge
         end
         # optimize γ's
         ghosthybrid = optimizeallgammas_LiNC!(obj, ftolAbs, γcache, 1)
@@ -996,6 +996,16 @@ end
 function updateSSM_root!(obj::SSM)
     rnum = obj.net.node[obj.net.root].number
     for tre in obj.displayedtree
+        r = findfirst(n -> n.number == rnum, tre.node)
+        if isnothing(r)
+            @info "network, with root index $(obj.net.root), number $rnum:"
+            printEdges(obj.net)
+            printNodes(obj.net)
+            @info "displayed tree, with root index $(tre.root), number $(tre.node[tre.root].number):"
+            printEdges(tre)
+            printNodes(tre)
+            error("network root node number not found in displayed tree")
+        end
         tre.root = findfirst(n -> n.number == rnum, tre.node)
         directEdges!(tre)
         preorder!(tre)
