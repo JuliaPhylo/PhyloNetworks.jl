@@ -1313,6 +1313,12 @@ Warnings:
 """
 function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
                           lcache::CacheLengthLiNC, qmat, ltw)
+    # confirm branch lengths inside bounds #TODO needs to be tested
+    if focusedge.length < BLmin
+        focusedge.length = BLmin
+    elseif focusedge.length > BLmax
+        focusedge.length = BLmax
+    end
     cfg = updatecache_edge!(lcache, obj, focusedge)
     flike  = lcache.flike
     dblike = lcache.dblike
