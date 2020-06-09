@@ -646,6 +646,16 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
                 nreject += 1
             end
         end
+        if any(isnan(e.gamma) for e in obj.net.edge)
+            @info "Some gamma values are NaN"
+            printEdges(obj.net)
+            printNodes(obj.net)
+        end
+        if any(isnan(e.length) for e in obj.net.edge)
+            @info "Some length values are NaN"
+            printEdges(obj.net)
+            printNodes(obj.net)
+        end
         @debug "$(movechoice) move was " *
           (isnothing(result) ? "not permissible" : (result ? "accepted" : "rejected and undone")) *
           ", $nmoves total moves, $nreject rejected,\nloglik = $(obj.loglik)"
@@ -837,7 +847,6 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
         no3cycle::Bool,
         constraints::Vector{TopologyConstraint},
         γcache::CacheGammaLiNC, lcache::CacheLengthLiNC)
-
     nh = length(obj.net.hybrid)
     hybridnode = obj.net.hybrid[Random.rand(1:nh)]
     minorhybridedge = getMinorParentEdge(hybridnode)
@@ -862,6 +871,12 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
     # set γ to 0 to delete the hybrid edge: makes it easy to undo.
     # update minor edge, and prior log tree weights in obj
     γ0 = minorhybridedge.gamma
+    if isnan(γ0)
+        printEdges(obj.net)
+        printNodes(obj.net)
+        @show obj.net.hybrid
+        error("wants to keep hybrid, but the value of γ0 is now NaN: $γ0")
+    end
     setGamma!(minorhybridedge, 0.0)
     l1mγ = log(1.0-γ0)
     nt, hase = updatecache_hase!(γcache, obj, minorhybridedge.number,
@@ -891,6 +906,9 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
         return true
     else # keep hybrid
         majhyb.length = len0
+        if isnan(γ0)
+            error("keep hybrid, but the value of γ0 is now NaN: $γ0")
+        end
         setGamma!(minorhybridedge, γ0)
         # note: transition probability for majhyb not updated here, but could be
         #       if we wanted to avoid full update before each branch length optim
@@ -991,22 +1009,26 @@ function updatedisplayedtrees!(trees::Vector, enum::Int, pnum::Int, gammae::Floa
     end
 end
 
-# update root and direction of edges in displayed trees,
-# to match the root in the network
+
+"""
+    updateSSM_root!(obj::SSM)
+
+Update root and direction of edges in displayed trees to match
+the root in the network.
+
+If the displayed tree does not contain the root node, find the child of the
+network's root that is a tree node, then make this node the root of the displayed tree.
+"""
 function updateSSM_root!(obj::SSM)
     rnum = obj.net.node[obj.net.root].number
     for tre in obj.displayedtree
         r = findfirst(n -> n.number == rnum, tre.node)
         if isnothing(r)
-            @info "network, with root index $(obj.net.root), number $rnum:"
-            printEdges(obj.net)
-            printNodes(obj.net)
-            @info "displayed tree, with root index $(tre.root), number $(tre.node[tre.root].number):"
-            printEdges(tre)
-            printNodes(tre)
-            error("network root node number not found in displayed tree")
+            netrootnum = findfirst(n -> !n.hybrid, getChildren(obj.net.node[obj.net.root]))
+            tre.root = findfirst(n -> n.number == netrootnum, tre.node)
+        else
+            tre.root = findfirst(n -> n.number == rnum, tre.node)
         end
-        tre.root = findfirst(n -> n.number == rnum, tre.node)
         directEdges!(tre)
         preorder!(tre)
     end
@@ -1205,11 +1227,13 @@ Same assumptions as in [`optimizelocalBL_LiNC!`](@ref).
 """
 function optimizealllengths_LiNC!(obj::SSM, lcache::CacheLengthLiNC)
     edges = copy(obj.net.edge) # shallow copy
-    # remove constrained edges: to keep network unzipped
+    # remove from edges
+    #  - constrained edges: to keep network unzipped, add
+    #  - and any hybrid edge with γ=0
     if !isempty(obj.net.hybrid)
         @inbounds for i in length(edges):-1:1
             e = edges[i]
-            getParent(e).hybrid && deleteat!(edges, i) # shallow copy!!
+            (getParent(e).hybrid || e.gamma == 0.0) && deleteat!(edges, i)
         end
     end
     # reduce edge lengths beyond upper bounds
@@ -1271,11 +1295,13 @@ julia> writeTopology(obj.net; round=true)
 """
 function optimizelocalBL_LiNC!(obj::SSM, focusedge::Edge, lcache::CacheLengthLiNC)
     neighboredges = adjacentedges(focusedge)
-    # remove constrained edges: to keep network unzipped
+    # remove from neighboredges (shallow copy!)
+    #  - constrained edges: to keep network unzipped, add
+    #  - and any hybrid edge with γ=0
     if !isempty(obj.net.hybrid)
         @inbounds for i in length(neighboredges):-1:1
             e = neighboredges[i]
-            getParent(e).hybrid && deleteat!(neighboredges, i) # shallow copy!!
+            (getParent(e).hybrid || e.gamma == 0.0) && deleteat!(neighboredges, i)
         end
     end
     # reduce edge lengths beyond upper bounds: can appear from unzipping,
