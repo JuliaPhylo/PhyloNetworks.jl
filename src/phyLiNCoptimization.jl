@@ -646,16 +646,6 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
                 nreject += 1
             end
         end
-        if any(isnan(e.gamma) for e in obj.net.edge)
-            @info "Some gamma values are NaN"
-            printEdges(obj.net)
-            printNodes(obj.net)
-        end
-        if any(isnan(e.length) for e in obj.net.edge)
-            @info "Some length values are NaN"
-            printEdges(obj.net)
-            printNodes(obj.net)
-        end
         @debug "$(movechoice) move was " *
           (isnothing(result) ? "not permissible" : (result ? "accepted" : "rejected and undone")) *
           ", $nmoves total moves, $nreject rejected,\nloglik = $(obj.loglik)"
@@ -871,12 +861,6 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
     # set γ to 0 to delete the hybrid edge: makes it easy to undo.
     # update minor edge, and prior log tree weights in obj
     γ0 = minorhybridedge.gamma
-    if isnan(γ0)
-        printEdges(obj.net)
-        printNodes(obj.net)
-        @show obj.net.hybrid
-        error("wants to keep hybrid, but the value of γ0 is now NaN: $γ0")
-    end
     setGamma!(minorhybridedge, 0.0)
     l1mγ = log(1.0-γ0)
     nt, hase = updatecache_hase!(γcache, obj, minorhybridedge.number,
@@ -906,9 +890,6 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
         return true
     else # keep hybrid
         majhyb.length = len0
-        if isnan(γ0)
-            error("keep hybrid, but the value of γ0 is now NaN: $γ0")
-        end
         setGamma!(minorhybridedge, γ0)
         # note: transition probability for majhyb not updated here, but could be
         #       if we wanted to avoid full update before each branch length optim
