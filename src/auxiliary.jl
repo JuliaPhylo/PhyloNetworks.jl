@@ -891,7 +891,7 @@ function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool)
     edge.hybrid || error("cannot change gamma in a tree edge");
     node = getChild(edge) # child of hybrid edge
     node.hybrid || @warn "hybrid edge $(edge.number) not pointing at hybrid node"
-    @debug (node.isBadDiamondI ? "bad diamond situation: gamma not identifiable" : "")
+    # @debug (node.isBadDiamondI ? "bad diamond situation: gamma not identifiable" : "")
     partner = Edge[] # list of other hybrid parents of node, other than edge
     for e in node.edge
         if e.hybrid && e != edge && node == getChild(e)
