@@ -1139,7 +1139,7 @@ function updateRootSimulateMBD!(M::Matrix{Float64},
 
     if (params.randomRoot)
         means[:, i] .= params.mu # expectation
-        vals[:, i] .= params.mu + params.L * randn(p) # random value #TODO: make memory efficient
+        vals[:, i] .= params.mu + cholesky(params.varRoot).L * randn(p) # random value #TODO: make memory efficient
     else
         means[:, i] .= params.mu # expectation
         vals[:, i] .= params.mu # random value
