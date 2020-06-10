@@ -837,6 +837,7 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
         no3cycle::Bool,
         constraints::Vector{TopologyConstraint},
         γcache::CacheGammaLiNC, lcache::CacheLengthLiNC)
+
     nh = length(obj.net.hybrid)
     hybridnode = obj.net.hybrid[Random.rand(1:nh)]
     minorhybridedge = getMinorParentEdge(hybridnode)
@@ -1001,14 +1002,17 @@ If the displayed tree does not contain the root node, find the child of the
 network's root that is a tree node, then make this node the root of the displayed tree.
 """
 function updateSSM_root!(obj::SSM)
-    rnum = obj.net.node[obj.net.root].number
+    netroot = obj.net.node[obj.net.root]
+    rnum = netroot.number
     for tre in obj.displayedtree
         r = findfirst(n -> n.number == rnum, tre.node)
         if isnothing(r)
-            netrootnum = findfirst(n -> !n.hybrid, getChildren(obj.net.node[obj.net.root]))
-            tre.root = findfirst(n -> n.number == netrootnum, tre.node)
+            i = findfirst(e -> !getChild(e).hybrid, netroot.edge)
+            isnothing(i) && error("the root's children are all hybrids: there must be a 2-cycle...")
+            treechild = getChild(netroot.edge[i])
+            tre.root = findfirst(n -> n.number == treechild.number, tre.node)
         else
-            tre.root = findfirst(n -> n.number == rnum, tre.node)
+            tre.root = r
         end
         directEdges!(tre)
         preorder!(tre)

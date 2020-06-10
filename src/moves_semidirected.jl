@@ -890,7 +890,7 @@ function moveroot!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{
             directEdges!(net) # revert edges' directions to match original rooting
             continue # to next potential new root
         end
-        # If we get here newrooti passed all the checks
+        # if we get here: newrooti passed all the checks
         return true
     end
     # if we get here: none of the root positions worked

@@ -152,6 +152,22 @@ PhyloNetworks.rezip_canonical!(undoinfo...)
 @test writeTopology(net, round=true) == netstr
 end
 
+@testset "update root in SSM displayed trees" begin
+# W structure
+net = readTopology("(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.151::0.4):0.0274):0.4812);")
+# "((C:0.0262,(B:0.0)#H2:0.03::0.9756):0.4812,((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.151::0.4):0.0274);")
+obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69)
+@test [t.node[t.root].number for t in obj.displayedtree] == [5,5,5,5]
+# obj.displayedtree[1]: (C:0.026,(B:0.0):0.03,(((D:0.1,A:0.127):0.0):0.0):0.481);
+# move the root to place the W structure at the root:
+# the network's root node will be missing from some displayed trees.
+rootatnode!(obj.net, 7) # node 7 = tree node whose 2 children are both hybrids
+# "(#H2:0.0001::0.0244,((C:0.0262,(B:0.0)#H2:0.03::0.9756):0.4812,((D:0.1,A:0.1274):0.0)#H1:0.0::0.6):0.0274,#H1:0.151);"
+PhyloNetworks.updateSSM_root!(obj) # re-root displayed trees in the same way
+@test [t.node[t.root].number for t in obj.displayedtree] == [6,7,7,7]
+@test writeTopology(obj.displayedtree[1]) == "(((D:0.1,A:0.1274):0.0)H1:0.0,(C:0.0262,(B:0.0)H2:0.03):0.4812);"
+end
+
 @testset "optimizestructure with simple example" begin
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69, 1)
