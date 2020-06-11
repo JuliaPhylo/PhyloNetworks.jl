@@ -1526,7 +1526,7 @@ function shrink2cycleat!(net::HybridNetwork, minor::Edge, major::Edge,
     if g == -1.0 g=.5; end
     major.length = addBL(multiplygammas(    g, minor.length),
                          multiplygammas(1.0-g, major.length))
-    deletehybridedge!(net, minor, false,unroot,false,false) # nofuse,unroot,multgammas,simplify
+    deletehybridedge!(net, minor, false,unroot,false,false,false) # nofuse,unroot,multgammas,simplify
     return nothing
 end
 

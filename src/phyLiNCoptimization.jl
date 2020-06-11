@@ -465,7 +465,7 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
             minorhybridedge = getMinorParentEdge(h)
             minorhybridedge.gamma == 0.0 || continue
             ghosthybrid = true
-            deletehybridedge!(obj.net, minorhybridedge, false,true,false,false)
+            deletehybridedge!(obj.net, minorhybridedge, false,true,false,false,false)
         end
         #= warning: after this while loop is done, phyLiNC only keeps net, model & likelihood.
         After shrinking cycles, the loglik would be slightly wrong because 3-cycles
@@ -781,7 +781,7 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64,
         return false
     elseif newhybridedge.gamma == 1.0 # ≃ subtree prune and regraft (SPR) move
         # loglik better because γ=1 better than γ=0, yet without new reticulation: accept
-        deletehybridedge!(obj.net, getMinorParentEdge(newhybridnode), false,true,false,false)
+        deletehybridedge!(obj.net, getMinorParentEdge(newhybridnode), false,true,false,false,false)
         (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
         # loglik will be updated in optimizeallgammas right after, in optimizestructure
         updateSSM!(obj, true; constraints=constraints)
@@ -884,7 +884,7 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
     optimizelength_LiNC!(obj, majhyb, lcache, Q(obj.model), exp.(obj.priorltw))
     # don't optimize gammas: because we want to constrain one of them to 0.0
     if obj.loglik - currLik > likAbsDelHybLiNC # -0.1: loglik can decrease for parsimony
-        deletehybridedge!(obj.net, minorhybridedge, false,true,false,false) # nofuse,unroot,multgammas,simplify
+        deletehybridedge!(obj.net, minorhybridedge, false,true,false,false,false) # nofuse,unroot,multgammas,simplify
         (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
         updateSSM!(obj, true; constraints=constraints)
         # obj.loglik will be updated by optimizeallgammas within optimizestructure
@@ -956,7 +956,7 @@ function updateSSM!(obj::SSM, renumber=false::Bool;
         updateconstraintfields!(constraints, obj.net)
     end
     # extract displayed trees
-    obj.displayedtree = displayedTrees(obj.net, 0.0; nofuse=true)
+    obj.displayedtree = displayedTrees(obj.net, 0.0; nofuse=true, keeporiginalroot=true)
     for tree in obj.displayedtree
         preorder!(tree) # no need to call directEdges!: already correct in net
     end
@@ -1007,13 +1007,14 @@ function updateSSM_root!(obj::SSM)
     for tre in obj.displayedtree
         r = findfirst(n -> n.number == rnum, tre.node)
         if isnothing(r)
-            i = findfirst(e -> !getChild(e).hybrid, netroot.edge)
-            isnothing(i) && error("the root's children are all hybrids: there must be a 2-cycle...")
-            treechild = getChild(netroot.edge[i])
-            tre.root = findfirst(n -> n.number == treechild.number, tre.node)
-        else
-            tre.root = r
+            # a dangling node (normally deleted) can become the root of the network
+            obj.displayedtree = displayedTrees(obj.net, 0.0; nofuse=true, keeporiginalroot=true)
+            for tree in obj.displayedtree
+                preorder!(tree) # no need to call directEdges!: already correct in net
+            end
+            break
         end
+        tre.root = r
         directEdges!(tre)
         preorder!(tre)
     end
@@ -1319,8 +1320,12 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
                           lcache::CacheLengthLiNC, qmat, ltw)
     # confirm branch lengths inside bounds #TODO needs to be tested
     if focusedge.length < BLmin
+        printEdges(obj.net)
+        error("focus edge $(focusedge.number) has length < BLmin: $(focusedge.length)")
         focusedge.length = BLmin
     elseif focusedge.length > BLmax
+        printEdges(obj.net)
+        error("focus edge $(focusedge.number) has length > BLmax: $(focusedge.length)")
         focusedge.length = BLmax
     end
     cfg = updatecache_edge!(lcache, obj, focusedge)
@@ -1398,6 +1403,12 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
     fmax, xmax, ret = NLopt.optimize(optBL, [focusedge.length])
     newlik = fmax + adjustment
     # @info "BL, edge $(focusedge.number): got $(round(fmax; digits=5)) (new lik = $newlik) at BL = $(round.(xmax; sigdigits=3)) after $(optBL.numevals) iterations (return code $(ret))"
+    if isnan(xmax[1]) || xmax[1] < BLmin || xmax[1] > BLmax
+        @info "at end of optimizelength:"
+        printEdges(obj.net)
+        printNodes(obj.net)
+        error("at end of optimizelength, edge $(focusedge.number) BL is $(xmax[1])")
+    end
     if ret == :FORCED_STOP # || oldlik > newlik
         @warn "failed optimization, edge $(focusedge.number): skipping branch length update."
         return nothing
@@ -1468,7 +1479,7 @@ function optimizeallgammas_LiNC!(obj::SSM, ftolAbs::Float64,
     while hi > 0
         he = getMinorParentEdge(hybnodes[hi])
         if he.gamma == 0.0
-            deletehybridedge!(obj.net, he, false,true,false,false)
+            deletehybridedge!(obj.net, he, false,true,false,false,false)
             ghosthybrid = true
             nh = length(hybnodes) # normally nh-1, but could be less: deleting
             # one hybrid may delete others indirectly, e.g. if hybrid ladder
@@ -1584,7 +1595,6 @@ Used by [`optimizelocalgammas_LiNC!`](@ref) and
 """
 function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
         ftolAbs::Float64, cache::CacheGammaLiNC, maxNR=10::Int)
-
     ## step 1: prepare vectors constant during the search
     edgenum = focusedge.number
     partner = getPartner(focusedge)
@@ -1693,6 +1703,12 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
             ll = ll_new
             lldiff < ftolAbs && break
         end
+    end
+    if isnan(γ)
+        @info "at end of optimizegamma:"
+        printEdges(obj.net)
+        printNodes(obj.net)
+        error("at end of optimizegamma, edge $(focusedge.number) γ is $γ")
     end
     ## step 3: update SSM object with new γ
     focusedge.gamma = γ

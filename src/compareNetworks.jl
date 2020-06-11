@@ -446,7 +446,8 @@ end
 
 """
     deleteHybridThreshold!(net::HybridNetwork, threshold::Float64,
-                           nofuse=false, unroot=false, multgammas=false)
+                           nofuse=false, unroot=false, multgammas=false,
+                           keeporiginalroot=false)
 
 Deletes from a network all hybrid edges with heritability below a threshold gamma.
 Returns the network.
@@ -460,6 +461,7 @@ Returns the network.
   proportion of genes that the extracted subnetwork represents. For an edge `e`
   in the modified network, the inheritance γ for `e` is the product of γs
   of all edges in the original network that have been merged into `e`.
+-`keeporiginalroot`: if true, the root will be retained even if of degree 1.
 
 Warnings:
 
@@ -470,7 +472,7 @@ Warnings:
 """
 function deleteHybridThreshold!(net::HybridNetwork, gamma::Float64,
                                 nofuse=false::Bool, unroot=false::Bool,
-                                multgammas=false::Bool)
+                                multgammas=false::Bool, keeporiginalroot=false::Bool)
     gamma <= 0.5 || error("deleteHybridThreshold! called with gamma = $(gamma)>0.5")
     for i = net.numHybrids:-1:1
     # starting from last because net.hybrid changes as hybrids are removed. Empty range if 0 hybrids.
@@ -480,7 +482,7 @@ function deleteHybridThreshold!(net::HybridNetwork, gamma::Float64,
         if e.gamma < gamma || gamma == 0.5 # note: γ=-1 if missing, so < gamma threshold
             # deleteHybrid!(net.hybrid[i],net,true,false) # requires non-missing edge lengths
             # deleteHybridizationUpdate! requires level-1 network with corresponding attributes
-            deletehybridedge!(net, e, nofuse, unroot, multgammas) # does not update inCycle, etc.
+            deletehybridedge!(net, e, nofuse, unroot, multgammas, true, keeporiginalroot)
         end
     end
     return net
@@ -488,48 +490,52 @@ end
 
 """
     displayedNetworks!(net::HybridNetwork, node::Node, keepNode=false,
-                       unroot=false, multgammas=false)
+                       unroot=false, multgammas=false, keeporiginalroot=false)
 
 Extracts the two networks that simplify a given network at a given hybrid node:
 deleting either one or the other parent hybrid edge.
 If `nofuse` is true, the original edges (and nodes) are kept in both networks,
 provided that they have one or more descendant leaves.
 If `unroot` is true, the root will be deleted if it becomes of degree 2.
+If `keeporiginalroot` is true, the root is retained even if it is of degree 1.
 
 - the original network is modified: the minor edge removed.
 - returns one HybridNetwork object: the network with the major edge removed
 """
 function displayedNetworks!(net::HybridNetwork, node::Node,
                             nofuse=false::Bool, unroot=false::Bool,
-                            multgammas=false::Bool)
+                            multgammas=false::Bool, keeporiginalroot=false::Bool)
     node.hybrid || error("will not extract networks from tree node $(node.number)")
     ind = findfirst(x -> x===node, net.node)
     ind !== nothing || error("node $(node.number) was not found in net")
     netmin = deepcopy(net)
     emin = getMinorParentEdge(node)
-    deletehybridedge!(net   , emin, nofuse, unroot, multgammas)  # *no* update of inCycle, etc.
+    deletehybridedge!(net   , emin, nofuse, unroot, multgammas, true, keeporiginalroot)
     emaj = getMajorParentEdge(netmin.node[ind]) # hybrid node & edge in netmin
-    deletehybridedge!(netmin, emaj, nofuse, unroot, multgammas)
+    deletehybridedge!(netmin, emaj, nofuse, unroot, multgammas, true, keeporiginalroot)
     return netmin
 end
 
 """
     displayedTrees(net::HybridNetwork, gamma::Float64; nofuse=false::Bool,
-                   unroot=false::Bool, multgammas=false::Bool)
+                   unroot=false::Bool, multgammas=false::Bool,
+                   keeporiginalroot=false::Bool)
 
 Extracts all trees displayed in a network, following hybrid edges
 with heritability >= γ threshold (or >0.5 if threshold=0.5)
 and ignoring any hybrid edge with heritability lower than γ.
 Returns an array of trees, as HybridNetwork objects.
 
-`nofuse`: if true, do not fuse edges (keep degree-2 nodes) during hybrid edge removal.
-`unroot`: if false, the root will not be deleted if it becomes of degree 2.
+`nofuse`: if true, do not fuse edges (keep degree-2 nodes) during hybrid edge removal.  
+`unroot`: if false, the root will not be deleted if it becomes of degree 2 unless
+  keeporiginalroot is true.  
 `multgammas`: if true, the edges in the displayed trees have γ values
   equal to the proportion of genes that the edge represents, even though all
   these edges are tree edges. The product of all the γ values across all edges
   is the proportion of genes that the tree represents. More specifically,
   edge `e` in a given displayed tree has γ equal to the product of γs
-  of all edges in the original network that have been merged into `e`.
+  of all edges in the original network that have been merged into `e`.  
+`keeporiginalroot`: if true, keep root even if of degree 1.
 
 Warnings:
 
@@ -539,11 +545,11 @@ Warnings:
 """
 function displayedTrees(net0::HybridNetwork, gamma::Float64;
                         nofuse=false::Bool, unroot=false::Bool,
-                        multgammas=false::Bool)
+                        multgammas=false::Bool, keeporiginalroot=false::Bool)
     trees = HybridNetwork[]
     net = deepcopy(net0)
-    deleteHybridThreshold!(net,gamma,nofuse,unroot, multgammas)
-    displayedTrees!(trees,net,nofuse,unroot, multgammas)
+    deleteHybridThreshold!(net,gamma,nofuse,unroot, multgammas, keeporiginalroot)
+    displayedTrees!(trees,net,nofuse,unroot, multgammas, keeporiginalroot)
     return trees # should have length 2^net.numHybrids
 end
 
@@ -607,14 +613,14 @@ majorTree(net::HybridNetwork; nofuse=false::Bool, unroot=false::Bool) =
 # expands current list of trees, with trees displayed in a given network
 function displayedTrees!(trees::Array{HybridNetwork,1}, net::HybridNetwork,
                         nofuse=false::Bool, unroot=false::Bool,
-                        multgammas=false::Bool)
+                        multgammas=false::Bool, keeporiginalroot=false::Bool)
     if isTree(net)
         # warning: no update of edges' containRoot (true) or edges' and nodes' inCycle (-1)
         push!(trees, net)
     else
-        netmin = displayedNetworks!(net, net.hybrid[1], nofuse, unroot, multgammas)
-        displayedTrees!(trees, net, nofuse, unroot, multgammas)
-        displayedTrees!(trees, netmin, nofuse, unroot, multgammas)
+        netmin = displayedNetworks!(net, net.hybrid[1], nofuse, unroot, multgammas, keeporiginalroot)
+        displayedTrees!(trees, net, nofuse, unroot, multgammas, keeporiginalroot)
+        displayedTrees!(trees, netmin, nofuse, unroot, multgammas, keeporiginalroot)
     end
 end
 

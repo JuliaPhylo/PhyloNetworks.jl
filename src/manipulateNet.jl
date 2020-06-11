@@ -928,6 +928,8 @@ the hybrid edges that have been fused together, which may result in
 tree edges with γ<1, or with reticulations in which the two parent
 γ don't add up to 1.
 
+`keeporiginalroot`: if true, keep the root even if it is of degree one.
+
 Warning: does **not** update attributes related to level-1 networks,
 such as inCycle, partition, gammaz, etc.
 Does not require branch lengths, and designed to work on networks
@@ -958,7 +960,7 @@ end
 function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
                      index=false::Bool, nofuse=false::Bool,
                      simplify=true::Bool, unroot=false::Bool,
-                     multgammas=false::Bool)
+                     multgammas=false::Bool, keeporiginalroot=false::Bool)
     i = nodeNumber # good if index=true
     if !index
         i = findfirst(n -> n.number == nodeNumber, net.node)
@@ -976,6 +978,9 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
     elseif nodeidegree == 1
         pe = nodei.edge[1]
         pn = getOtherNode(pe, nodei) # parent node of leaf
+        if net.root == i && keeporiginalroot
+            return nothing
+        end
         # remove leaf and pe.
         removeNode!(pn,pe)  # perhaps useless. in case gc() on pe affects pn
         removeEdge!(pn,pe)
@@ -983,13 +988,14 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
         if net.root==i # if node was the root, new root = pn
             net.root = findfirst(x -> x===pn, net.node)
         end
-        deleteNode!(net,nodei)
+        deleteNode!(net,nodei) # this updates the index net.root
         if pn.leaf # network had 2 nodes only: pn and the leaf
             length(net.edge)==0 || error("neighbor of leaf $(nodei.name) is another leaf, but network had $(length(net.edge)) edges (instead of 1).")
             length(pn.edge)==0 || error("neighbor of leaf $(nodei.name) is another leaf, which had $(length(pn.edge)) edges (instead of 1)")
             return nothing # all done: exit function
         end
-        deleteleaf!(net, pn.number; nofuse = nofuse, simplify=simplify, unroot=unroot, multgammas=multgammas)
+        deleteleaf!(net, pn.number; nofuse = nofuse, simplify=simplify, unroot=unroot, multgammas=multgammas,
+                    keeporiginalroot=keeporiginalroot)
         return nothing
     elseif nodeidegree > 2
         # do nothing: nodei has degree 3+ (through recursive calling)
@@ -1014,8 +1020,11 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
         if net.root==i net.root=getIndex(p1,net); end # should never occur though.
         deleteNode!(net,nodei)
         # recursive call on both p1 and p2.
-        deleteleaf!(net, p1.number; nofuse = nofuse, simplify=simplify, unroot=unroot, multgammas=multgammas)
-        sameparent || deleteleaf!(net, p2.number; nofuse=nofuse, simplify=simplify, unroot=unroot, multgammas=multgammas)
+        deleteleaf!(net, p1.number; nofuse = nofuse, simplify=simplify, unroot=unroot,
+                    multgammas=multgammas, keeporiginalroot=keeporiginalroot)
+        sameparent ||
+            deleteleaf!(net, p2.number; nofuse=nofuse, simplify=simplify,
+                        unroot=unroot, multgammas=multgammas, keeporiginalroot=keeporiginalroot)
     elseif !nofuse #if keeepNodes, do not fuseedges. The recursion should stop.
         e1 = fuseedgesat!(i,net, multgammas) # fused edge
         if simplify && e1.hybrid # check for 2-cycle at new hybrid edge
@@ -1030,7 +1039,8 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
                 removeEdge!(pn,e1); removeEdge!(cn,e1)
                 deleteEdge!(net,e1,part=false)
                 # call recursion again because pn and/or cn might be of degree 2.
-                deleteleaf!(net, cn.number; nofuse = nofuse, simplify=simplify, unroot=unroot, multgammas=multgammas)
+                deleteleaf!(net, cn.number; nofuse = nofuse, simplify=simplify, unroot=unroot,
+                            multgammas=multgammas, keeporiginalroot=keeporiginalroot)
             end
         end
     end
