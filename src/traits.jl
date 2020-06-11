@@ -946,9 +946,9 @@ function Base.show(io::IO, obj::ParamsMultiBM)
     disp =  "$(typeof(obj)):\n"
     pt = paramstable(obj)
     if obj.randomRoot
-        disp = disp * "Parameters of a BM with random root:\n" * pt
+        disp = disp * "Parameters of a MBD with random root:\n" * pt
     else
-        disp = disp * "Parameters of a BM with fixed root:\n" * pt
+        disp = disp * "Parameters of a MBD with fixed root:\n" * pt
     end
     println(io, disp)
 end
@@ -1012,7 +1012,8 @@ end
     simulate(net::HybridNetwork, params::ParamsProcess, checkPreorder=true::Bool)
 
 Simulate traits on `net` using the parameters `params`. For now, only
-parameters of type [`ParamsBM`](@ref) (Brownian Motion) are accepted.
+parameters of type [`ParamsBM`](@ref) (univariate Brownian Motion) and
+[`ParamsMultiBM`](@ref) (multivariate Brownian motion) are accepted.
 
 The simulation using a recursion from the root to the tips of the network,
 therefore, a pre-ordering of nodes is needed. If `checkPreorder=true` (default),
@@ -1020,11 +1021,13 @@ therefore, a pre-ordering of nodes is needed. If `checkPreorder=true` (default),
 that the preordering has already been calculated.
 
 Returns an object of type [`TraitSimulation`](@ref),
-which has a matrix with two rows:
-row 1 for the trait expectations at all the nodes, and
-row 2 for the actual simulated trait values at all the nodes.
+which has a matrix with the trait expecations and simulated trait values at
+all the nodes.
+
+See examples below for accessing expectations and simulated trait values.
 
 # Examples
+## Univariate
 ```jldoctest
 julia> phy = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "carnivores_tree.txt"));
 
@@ -1062,6 +1065,106 @@ julia> traits = sim[:Tips] # Extract simulated values at the tips.
   2.6399137689702723
   2.8051193818084057
   3.1910928691142915
+
+julia> traits = sim[:InternalNodes] # Extract simulated values at internal nodes.
+15-element Array{Float64,1}:
+ 1.1754592873593104
+ 2.0953234045227083
+ 2.4026760531649423
+ 1.8143470622283222
+ 1.5958834784477616
+ 2.5535578380290103
+ 0.14811474751515852
+ 1.2168428692963675
+ 3.169431736805764
+ 2.906447201806521
+ 2.8191520015241545
+ 2.280632978157822
+ 2.5212485416800425
+ 2.4579867601968663
+ 1.0
+
+julia> traits = sim[:All] # Extract simulated values at all nodes in the network.
+31-element Array{Float64,1}:
+ 1.0
+ 2.4579867601968663
+ 2.5212485416800425
+ 2.280632978157822
+ 2.8191520015241545
+ 2.906447201806521
+ 3.169431736805764
+ 3.1910928691142915
+ 2.8051193818084057
+ 2.6399137689702723
+ ⋮
+ 2.4026760531649423
+ 4.031588898597555
+ 2.0953234045227083
+ 2.189704751299587
+ 3.0379560744947876
+ 3.048979175536912
+ 1.1754592873593104
+ 1.0330846124205684
+ 2.17618427971927
+
+julia> traits = sim[:Tips, :Exp] # Extract expected values at the tips (also works for sim[:All, :Exp] and sim[:InternalNodes, :Exp]).
+16-element Array{Float64,1}:
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+```
+
+## Multivariate
+```jldoctest
+julia> phy = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "carnivores_tree.txt"));
+
+julia> par = ParamsMultiBM([1.0, 2.0], [1.0 0.5; 0.5 1.0]) # BM with expectation [1.0, 2.0] and variance [1.0 0.5; 0.5 1.0].
+ParamsMultiBM:
+Parameters of a MBD with fixed root:
+mu: [1.0, 2.0]
+Sigma: [1.0 0.5; 0.5 1.0]
+
+julia> using Random; Random.seed!(17920921); # for reproducibility
+
+julia> sim = simulate(phy, par) # Simulate on the tree.
+TraitSimulation:
+Trait simulation results on a network with 16 tips, using a MBD model, with parameters:
+mu: [1.0, 2.0]
+Sigma: [1.0 0.5; 0.5 1.0]
+
+
+julia> traits = sim[:Tips] # Extract simulated values at the tips (each column contains the simulated traits for one node).
+2×16 Array{Float64,2}:
+ 5.39465  7.223     1.88036  -5.10491   …  -3.86504  0.133704  -2.44564
+ 7.29184  7.59947  -1.89206  -0.960013      3.86822  3.23285    1.93376
+
+julia> traits = sim[:InternalNodes] # Extract simulated values at internal nodes
+2×15 Array{Float64,2}:
+ 4.42499  -0.364198  0.71666   3.76669  …  4.57552  4.29265  5.61056  1.0
+ 6.24238   2.97237   0.698006  2.40122     5.92623  5.13753  4.5268   2.0
+
+julia> traits = sim[:All] # Extract simulated values at all nodes
+2×31 Array{Float64,2}:
+ 1.0  5.61056  4.29265  4.57552  …   1.88036  4.42499  7.223    5.39465
+ 2.0  4.5268   5.13753  5.92623     -1.89206  6.24238  7.59947  7.29184
+
+julia> sim[:Tips, :Exp] # Extract expected values (also works for sim[:All, :Exp] and sim[:InternalNodes, :Exp])
+2×16 Array{Float64,2}:
+ 1.0  1.0  1.0  1.0  1.0  1.0  1.0  1.0  …  1.0  1.0  1.0  1.0  1.0  1.0  1.0
+ 2.0  2.0  2.0  2.0  2.0  2.0  2.0  2.0     2.0  2.0  2.0  2.0  2.0  2.0  2.0
 ```
 """
 function simulate(net::HybridNetwork,
