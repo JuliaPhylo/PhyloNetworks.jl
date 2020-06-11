@@ -785,6 +785,19 @@ end
 ShiftNet(edge::Edge, value::Float64, net::HybridNetwork; checkPreorder=true::Bool) = ShiftNet([edge], [value], net; checkPreorder=checkPreorder)
 ShiftNet(node::Node, value::Float64, net::HybridNetwork; checkPreorder=true::Bool) = ShiftNet([node], [value], net; checkPreorder=checkPreorder)
 
+function ShiftNet(edge::Edge, value::AbstractVector{Float64},
+                  net::HybridNetwork; checkPreorder=true::Bool)
+    return ShiftNet([edge], reshape(value, (1, length(value))), net,
+                    checkPreorder = checkPreorder)
+end
+
+function ShiftNet(node::Node, value::AbstractVector{Float64},
+                  net::HybridNetwork; checkPreorder=true::Bool)
+    return ShiftNet([node], reshape(value, (1, length(value))), net,
+                    checkPreorder = checkPreorder)
+end
+
+
 """
     shiftHybrid(value::Vector{T} where T<:Real, net::HybridNetwork; checkPreorder=true::Bool)
 
@@ -793,9 +806,9 @@ hybrid nodes, with values provided. The vector of values must have the
 same length as the number of hybrids in the network.
 
 """
-function shiftHybrid(value::Vector{T} where T<:Real,
+function shiftHybrid(value::Union{Matrix{T}, Vector{T}} where T<:Real,
                      net::HybridNetwork; checkPreorder=true::Bool)
-    if length(net.hybrid) != length(value)
+    if length(net.hybrid) != size(value, 1)
         error("You must provide as many values as the number of hybrid nodes.")
     end
     childs = [getChildren(nn)[1] for nn in net.hybrid]
@@ -809,9 +822,10 @@ shiftHybrid(value::Real, net::HybridNetwork; checkPreorder=true::Bool) = shiftHy
 Get the edge numbers where the shifts are located, for an object [`ShiftNet`](@ref).
 """
 function getShiftEdgeNumber(shift::ShiftNet)
-    nodInd = findall(!iszero, shift.shift)
+    nodInd = getShiftRowInds(shift)
     [getMajorParentEdgeNumber(n) for n in shift.net.nodes_changed[nodInd]]
 end
+
 function getMajorParentEdgeNumber(n::Node)
     try
         getMajorParentEdge(n).number
@@ -819,20 +833,41 @@ function getMajorParentEdgeNumber(n::Node)
         -1
     end
 end
+
+function getShiftRowInds(shift::ShiftNet)
+    n, p = size(shift.shift)
+    inds = zeros(Int, n)
+    counter = 0
+    for i = 1:n
+        use_row = !all(iszero, @view shift.shift[i, :])
+        if use_row
+            counter += 1
+            inds[counter] = i
+        end
+    end
+
+    return inds[1:counter]
+end
 """
     getShiftValue(shift::ShiftNet)
 
 Get the values of the shifts, for an object [`ShiftNet`](@ref).
 """
 function getShiftValue(shift::ShiftNet)
-    shift.shift[shift.shift .!= 0]
+    rowInds = getShiftRowInds(shift)
+    shift.shift[rowInds, :]
 end
 
 function shiftTable(shift::ShiftNet)
     sv = getShiftValue(shift)
+    if size(sv, 2) == 1
+        shift_labels = ["Shift Value"]
+    else
+        shift_labels = ["Shift Value $i" for i = 1:size(sv, 2)]
+    end
     CoefTable(hcat(getShiftEdgeNumber(shift), sv),
-              ["Edge Number", "Shift Value"],
-              fill("", length(sv)))
+              ["Edge Number"; shift_labels],
+              fill("", size(sv, 1)))
 end
 
 function Base.show(io::IO, obj::ShiftNet)

@@ -1,7 +1,7 @@
 # Tests to simulate multivariate traits
 
-# using PhyloNetworks, LinearAlgebra, Test
-# import Random
+using PhyloNetworks, LinearAlgebra, Test
+import Random
 
 ## Get a network and make it ultrametric
 net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
@@ -128,5 +128,38 @@ end
 @show Σ_max
 @test Σ_max < 2e-1
 
+
+end
+
+
+################################################################################
+## With shifts
+################################################################################
+
+@testset "Simulate with Shifts" begin
+global net
+net = readTopology("(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6):1):0.5);")
+
+## Test construction function
+@test_throws ErrorException ShiftNet(net.edge[7], [1.0, 2.0],  net) # can't put a shift on hybrid branch
+@test_throws ErrorException ShiftNet(net.node[6], [1.0, 2.0],  net) # can't put a shift on hybrid branch
+@test ShiftNet(net.edge[8], [1.0, 2.0],  net).shift ≈ ShiftNet([net.edge[8]], [1.0 2.0],  net).shift
+@test ShiftNet(net.edge[8], [1.0, 2.0],  net).shift ≈ ShiftNet(net.node[7], [1.0, 2.0],  net).shift
+@test ShiftNet(net.node[7], [1.0, 2.0],  net).shift ≈ ShiftNet([net.node[7]], [1.0 2.0],  net).shift
+
+## Concatenate function
+sh1 = ShiftNet(net.node[7], [1.0, 2.0],  net)*ShiftNet(net.node[9], [3.0, -1.5],  net)
+@test sh1.shift ≈ ShiftNet([net.node[7], net.node[9]], [1.0 2.0; 3.0 -1.5],  net).shift
+@test_throws ErrorException sh1*ShiftNet(net.edge[7], [4.0, 3.5],  net) # can't concatenate if the two affect the same edges
+@test sh1.shift ≈ (sh1*ShiftNet([net.node[7]], [1.0 2.0],  net)).shift
+@test_throws ErrorException sh1*ShiftNet(net.edge[8], [4.0, 3.5, 5.0],  net) # can't concatenate if the two affect the same edges
+
+
+## Values and edge numbers functions
+@test getShiftEdgeNumber(sh1) == [-1, 8]
+@test getShiftValue(sh1) == [3.0 -1.5; 1.0 2.0]
+
+## Hybrid shifts
+@test shiftHybrid([4.5 2.0], net).shift ≈ ShiftNet(net.edge[6], [4.5, 2.0], net).shift
 
 end

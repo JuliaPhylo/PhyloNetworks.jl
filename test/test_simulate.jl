@@ -80,7 +80,7 @@ sh1 = ShiftNet(net.node[7], 3.0,  net)*ShiftNet(net.node[9], -2.1,  net)
 ## Values and edge numbers functions
 sh = ShiftNet(net.node[7], 3.0,  net)
 @test getShiftEdgeNumber(sh) == [8]
-@test getShiftValue(sh) == [3.0]
+@test all(getShiftValue(sh) .== [3.0])
 
 ## Hybrid shifts
 @test shiftHybrid([2.0], net).shift ≈ ShiftNet(net.edge[6], 2.0, net).shift
