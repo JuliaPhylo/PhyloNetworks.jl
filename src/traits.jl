@@ -741,32 +741,42 @@ Warning, shifts on hybrid edges are not allowed.
 Extractors: [`getShiftEdgeNumber`](@ref), [`getShiftValue`](@ref)
 """
 struct ShiftNet
-    shift::Vector{Float64}
+    shift::Matrix{Float64}
     net::HybridNetwork
 end
 
 # Default
-ShiftNet(net::HybridNetwork) = ShiftNet(zeros(length(net.node)), net)
+ShiftNet(net::HybridNetwork, dim::Int) = ShiftNet(zeros(length(net.node), dim), net)
+ShiftNet(net::HybridNetwork) = ShiftNet(net, 1)
 
-function ShiftNet(node::Vector{Node}, value::AbstractVector,
+function ShiftNet(node::Vector{Node}, value::AbstractMatrix,
                   net::HybridNetwork; checkPreorder=true::Bool)
-    if length(node) != length(value)
-        error("The vector of nodes/edges and of values must be of the same length.")
+
+    n_nodes, dim = size(value)
+    if length(node) != n_nodes
+        error("The vector of nodes/edges and of values must have the same number or rows.")
     end
     if checkPreorder
         preorder!(net)
     end
-    obj = ShiftNet(net)
+    obj = ShiftNet(net, dim)
     for i in 1:length(node)
         !node[i].hybrid || error("Shifts on hybrid edges are not allowed")
         ind = findfirst(x -> x===node[i], net.nodes_changed)
-        obj.shift[ind] = value[i]
+        obj.shift[ind, :] .= @view value[i, :]
     end
     return(obj)
 end
 
+function ShiftNet(node::Vector{Node}, value::AbstractVector,
+                  net::HybridNetwork; checkPreorder=true::Bool)
+    return ShiftNet(node, reshape(value, (length(value), 1)), net,
+                    checkPreorder = checkPreorder)
+end
+
 # Construct from edges and values
-function ShiftNet(edge::Vector{Edge}, value::AbstractVector,
+function ShiftNet(edge::Vector{Edge},
+                  value::Union{AbstractVector, AbstractMatrix},
                   net::HybridNetwork; checkPreorder=true::Bool)
     childs = [getChild(ee) for ee in edge]
     return(ShiftNet(childs, value, net; checkPreorder=checkPreorder))
@@ -832,8 +842,8 @@ end
 
 function Base.:*(sh1::ShiftNet, sh2::ShiftNet)
     isEqual(sh1.net, sh2.net) || error("Shifts to be concatenated must be defined on the same network.")
-    length(sh1.shift) == length(sh2.shift) || error("Shifts to be concatenated must have the same length.")
-    shiftNew = zeros(length(sh1.shift))
+    size(sh1.shift) == size(sh2.shift) || error("Shifts to be concatenated must have the same dimensions.")
+    shiftNew = zeros(size(sh1.shift))
     for i in 1:length(sh1.shift)
         if iszero(sh1.shift[i])
             shiftNew[i] = sh2.shift[i]
@@ -842,7 +852,8 @@ function Base.:*(sh1::ShiftNet, sh2::ShiftNet)
         elseif sh1.shift[i] == sh2.shift[i]
             shiftNew[i] = sh1.shift[i]
         else
-            error("The two shifts vectors you provided affect the same edges, so I cannot choose which one you want.")
+            error("The two shifts matrices you provided affect the same " *
+                  "trait for the same edge, so I cannot choose which one you want.")
         end
     end
     return(ShiftNet(shiftNew, sh1.net))
