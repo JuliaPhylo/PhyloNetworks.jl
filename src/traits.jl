@@ -1192,14 +1192,14 @@ function simulate(net::HybridNetwork,
 end
 
 
-function preorderFunctions(params::ParamsBM)
+function preorderFunctions(::ParamsBM)
     return Dict("init" => initSimulateBM,
                 "root" => updateRootSimulateBM!,
                 "tree" => updateTreeSimulateBM!,
                 "hybrid" => updateHybridSimulateBM!)
 end
 
-function preorderFunctions(params::ParamsMultiBM)
+function preorderFunctions(::ParamsMultiBM)
     return Dict("init" => initSimulateMBD,
                 "root" => updateRootSimulateMBD!,
                 "tree" => updateTreeSimulateMBD!,
@@ -1209,7 +1209,7 @@ end
 
 
 # Initialization of the structure
-function initSimulateBM(nodes::Vector{Node}, params::Tuple{ParamsBM})
+function initSimulateBM(nodes::Vector{Node}, ::Tuple{ParamsBM})
     return(zeros(2, length(nodes)))
 end
 
@@ -1357,7 +1357,7 @@ function Base.getindex(obj::TraitSimulation, d::Symbol, w=:Sim::Symbol)
     return getindex(obj.M, d)[inds, :]
 end
 
-function siminds(params::ParamsBM, w::Symbol)
+function siminds(::ParamsBM, w::Symbol)
     if w == :Sim
         return 2
     elseif w == :Exp
