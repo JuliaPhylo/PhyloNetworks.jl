@@ -1000,9 +1000,6 @@ end
 
 Update root and direction of edges in displayed trees to match
 the root in the network.
-
-If the displayed tree does not contain the root node, find the child of the
-network's root that is a tree node, then make this node the root of the displayed tree.
 """
 function updateSSM_root!(obj::SSM)
     netroot = obj.net.node[obj.net.root]
@@ -1618,6 +1615,9 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
     fill!(clikn, 0.0)
     nt, hase = updatecache_hase!(cache, obj, edgenum, partnernum)
     γ0 = focusedge.gamma
+    if isnan(γ0)
+        @info "starting gamma is nan: γ0 = $γ0"
+    end
     if γ0<1e-7 # then prior weight and loglikcachetoo small (-Inf if γ0=0)
         @debug "γ0 too small ($γ0): was changed to 1e-7 prior to optimization"
         γ0 = 1e-7
@@ -1659,6 +1659,11 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
     clikp ./= 1.0 - γ0
     adjustment = obj.totalsiteweight * (log(nr) - cadjust)
     ll = obj.loglik + adjustment
+    if isnan(ll) || isnan(γ0) || isnan(obj.loglik) || isnan(adjustment)
+        @info "after adjustment in optimizegamma:
+               edge $(focusedge.number) starting γ is $γ0. obj.loglik is $(obj.loglik),
+               adjustment is $adjustment, and ll is $ll."
+    end
     wsum = (obj.siteweight === nothing ? sum : x -> sum(obj.siteweight .* x))
     # evaluate if best γ is at the boundary: 0 or 1
     if visib # true most of the time (all the time if tree-child)
@@ -1672,6 +1677,10 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
         inside01 = false
         ll = wsum((visib ? log.(clikp) : log.(clikp .+ clikn)))
         @debug "γ = 0 best, skip Newton-Raphson"
+    elseif llg0 == 0.0 # if llg0 = 0, keep gamma (otherwise, llg0 = 0 leads to γ = NaN)
+        γ = γ0
+        inside01 = false
+        @debug "llg0 is $llg0, keep current γ, skip Newton-Raphson"
     else # at γ=1
         if visib
              ulik .= (clike .- clikp) ./ clike
@@ -1684,6 +1693,9 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
             @debug "γ = 1 best, skip Newton-Raphson"
         end
     end
+    @debug "before inside01 in optimizegamma:
+            edge $(focusedge.number) starting γ was $γ0. inside01 is $inside01.
+            ll is $ll and llg0 is $llg0 and ulik is $ulik."
     if inside01
     # use interpolation to get a good starting point? γ = llg0 / (llg0 - llg1) in [0,1]
         γ = γ0
@@ -1715,10 +1727,8 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
         end
     end
     if isnan(γ)
-        @info "at end of optimizegamma:"
-        printEdges(obj.net)
-        printNodes(obj.net)
-        error("at end of optimizegamma, edge $(focusedge.number) γ is $γ")
+        @info "at end of optimizegamma (before step 3):"
+        error("edge $(focusedge.number) γ is $γ. ll is $ll")
     end
     ## step 3: update SSM object with new γ
     focusedge.gamma = γ
