@@ -1,7 +1,7 @@
 # Tests to simulate multivariate traits
 
-using PhyloNetworks, LinearAlgebra, Test
-import Random
+# using PhyloNetworks, LinearAlgebra, Test
+# import Random
 
 ## Get a network and make it ultrametric
 net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
