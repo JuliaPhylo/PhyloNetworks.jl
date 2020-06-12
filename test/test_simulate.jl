@@ -118,6 +118,7 @@ traitsNodesExp = [1.50594336537754 3.296894371572107 4.346436961253621 1.3212328
 
 ## Generate some values
 Random.seed!(18480224); # fix the seed
+@test_throws ErrorException ParamsBM(1, 0.1, ShiftNet(net.edge[8], [3.0, 1.0],  net))
 pars = ParamsBM(1, 0.1, ShiftNet(net.edge[8], 3.0,  net)); # params of a BM
 N = 50000
 S = length(tipLabels(net));

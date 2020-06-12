@@ -914,18 +914,33 @@ mutable struct ParamsBM <: ParamsProcess
     randomRoot::Bool # Root is random ? default false
     varRoot::Real # root variance. Default NaN
     shift::Union{ShiftNet, Missing} # shifts
+
+    function ParamsBM(mu::Real,
+                      sigma2::Real,
+                      randomRoot::Bool,
+                      varRoot::Real,
+                      shift::Union{ShiftNet, Missing})
+        if !ismissing(shift) && size(shift.shift, 2) != 1
+            error("ShiftNet must have only a single shift dimension.")
+        end
+        return new(mu, sigma2, randomRoot, varRoot, shift)
+    end
 end
 # Constructor
 ParamsBM(mu::Real, sigma2::Real) = ParamsBM(mu, sigma2, false, NaN, missing) # default values
 ParamsBM(mu::Real, sigma2::Real, net::HybridNetwork) = ParamsBM(mu, sigma2, false, NaN, ShiftNet(net)) # default values
 ParamsBM(mu::Real, sigma2::Real, shift::ShiftNet) = ParamsBM(mu, sigma2, false, NaN, shift) # default values
 
-function anyShift(params::ParamsBM)
+function anyShift(params::ParamsProcess)
     if ismissing(params.shift) return(false) end
     for v in params.shift.shift
         if v != 0 return(true) end
     end
     return(false)
+end
+
+function process_dim(::ParamsBM)
+    return 1
 end
 
 function Base.show(io::IO, obj::ParamsBM)
@@ -969,24 +984,48 @@ mutable struct ParamsMultiBM <: ParamsProcess
     varRoot::AbstractArray{Float64, 2}
     shift::Union{ShiftNet, Missing}
     L::LowerTriangular{Float64}
+
+    function ParamsMultiBM(mu::AbstractArray{Float64, 1},
+                           sigma::AbstractArray{Float64, 2},
+                           randomRoot::Bool,
+                           varRoot::AbstractArray{Float64, 2},
+                           shift::Union{ShiftNet, Missing},
+                           L::LowerTriangular{Float64})
+        dim = length(mu)
+        if size(sigma) != (dim, dim)
+            error("The mean and variance do must have conforming dimensions.")
+        end
+        if randomRoot && size(sigma) != size(varRoot)
+            error("The root variance and process variance must have the same dimensions.")
+        end
+        if !ismissing(shift) && size(shift.shift, 2) != dim
+            error("The ShiftNet and diffusion process must have the same dimensions.")
+        end
+        return new(mu, sigma, randomRoot, varRoot, shift, L)
+    end
 end
 
 ParamsMultiBM(mu::AbstractArray{Float64, 1},
-                sigma::AbstractArray{Float64, 2}) =
+              sigma::AbstractArray{Float64, 2}) =
         ParamsMultiBM(mu, sigma, false, Diagonal([NaN]), missing, cholesky(sigma).L)
 
-# TODO: add more constructors
+function ParamsMultiBM(mu::AbstractArray{Float64, 1},
+                       sigma::AbstractArray{Float64, 2},
+                       shift::ShiftNet)
+    ParamsMultiBM(mu, sigma, false, Diagonal([NaN]), shift, cholesky(sigma).L)
+end
 
+function ParamsMultiBM(mu::AbstractArray{Float64, 1},
+                       sigma::AbstractArray{Float64, 2},
+                       net::HybridNetwork)
+    ParamsMultiBM(mu, sigma, ShiftNet(net, length(mu)))
+end
 
 
 function process_dim(params::ParamsMultiBM)
     return length(params.mu)
 end
 
-function anyShift(params::ParamsMultiBM)
-    # TODO
-    return false
-end
 
 function Base.show(io::IO, obj::ParamsMultiBM)
     disp =  "$(typeof(obj)):\n"
@@ -1223,7 +1262,7 @@ function simulate(net::HybridNetwork,
     else
         error("The 'simulate' function only works for a BM process (for now).")
     end
-    !ismissing(params.shift) || (params.shift = ShiftNet(net))
+    !ismissing(params.shift) || (params.shift = ShiftNet(net, process_dim(params)))
 
     funcs = preorderFunctions(params)
     M = recursionPreOrder(net,
@@ -1316,9 +1355,8 @@ function updateTreeSimulateMBD!(M::Matrix{Float64},
 
     means, vals = partitionMBDMatrix(M, p)
 
-    means[:, i] .= means[:, parentIndex]# expectation
-    vals[:, i] .= vals[:, parentIndex] + sqrt(edge.length) * params.L * randn(p) # random value #TODO: make memory efficient
-    # TODO: shifts
+    means[:, i] .= means[:, parentIndex] + params.shift.shift[i, :]
+    vals[:, i] .= vals[:, parentIndex] + params.shift.shift[i, :] + sqrt(edge.length) * params.L * randn(p) # random value #TODO: make memory efficient
 end
 
 
@@ -1352,7 +1390,6 @@ function updateHybridSimulateMBD!(M::Matrix{Float64},
     means[:, i] .= edge1.gamma * means[:, parentIndex1] + edge2.gamma * means[:, parentIndex2] # expectation
     vals[:, i] .=  edge1.gamma * (vals[:, parentIndex1] + sqrt(edge1.length) * params.L * randn(p)) +
                     edge2.gamma * (vals[:, parentIndex2] + sqrt(edge2.length) * params.L * randn(p)) # random value
-    # TODO: shifts
     # TODO: memory efficincy
 end
 
