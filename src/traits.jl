@@ -1355,7 +1355,7 @@ function updateRootSimulateMBD!(M::Matrix{Float64},
 
     if (params.randomRoot)
         means[:, i] .= params.mu # expectation
-        vals[:, i] .= params.mu + cholesky(params.varRoot).L * randn(p) # random value #TODO: make memory efficient
+        vals[:, i] .= params.mu + cholesky(params.varRoot).L * randn(p) # random value
     else
         means[:, i] .= params.mu # expectation
         vals[:, i] .= params.mu # random value
@@ -1425,10 +1425,29 @@ function updateHybridSimulateMBD!(M::Matrix{Float64},
 
     means, vals = partitionMBDMatrix(M, p)
 
-    means[:, i] .= edge1.gamma * means[:, parentIndex1] + edge2.gamma * means[:, parentIndex2] # expectation
-    vals[:, i] .=  edge1.gamma * (vals[:, parentIndex1] + sqrt(edge1.length) * params.L * randn(p)) +
-                    edge2.gamma * (vals[:, parentIndex2] + sqrt(edge2.length) * params.L * randn(p)) # random value
-    # TODO: memory efficincy
+    μ = @view means[:, i]
+    val = @view vals[:, i]
+
+    μ1 = @view means[:, parentIndex1]
+    μ2 = @view means[:, parentIndex2]
+
+    v1 = @view vals[:, parentIndex1]
+    v2 = @view vals[:, parentIndex2]
+
+    # means[:, i] .= edge1.gamma * μ1 + edge2.gamma * μ2
+    mul!(μ, μ1, edge1.gamma)
+    BLAS.axpy!(edge2.gamma, μ2, μ)  # expectation
+
+    # val .=  edge1.gamma * (v1 + sqrt(edge1.length) * params.L * r1) +
+    #                 edge2.gamma * (v2 + sqrt(edge2.length) * params.L * r2) # random value
+    mul!(val, params.L, randn(p))
+    val .*= sqrt(edge1.length)
+    val .+= v1
+
+    buffer = params.L * randn(p)
+    buffer .*= sqrt(edge2.length)
+    buffer .+= v2
+    BLAS.axpby!(edge2.gamma, buffer, edge1.gamma, val) # random value
 end
 
 # function updateSimulateBM!(i::Int, nodes::Vector{Node}, M::Matrix, params::Tuple{ParamsBM})
