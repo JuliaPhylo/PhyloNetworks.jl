@@ -1383,8 +1383,18 @@ function updateTreeSimulateMBD!(M::Matrix{Float64},
 
     means, vals = partitionMBDMatrix(M, p)
 
-    means[:, i] .= means[:, parentIndex] + params.shift.shift[i, :]
-    vals[:, i] .= vals[:, parentIndex] + params.shift.shift[i, :] + sqrt(edge.length) * params.L * randn(p) # random value #TODO: make memory efficient
+    μ = @view means[:, i]
+    val = @view vals[:, i]
+
+    # μ .= means[:, parentIndex] + params.shift.shift[i, :]
+    μ .= @view means[:, parentIndex]
+    μ .+= @view params.shift.shift[i, :]
+
+    # val .= sqrt(edge.length) * params.L * randn(p) + vals[:, parentIndex] + params.shift.shift[i, :]
+    mul!(val, params.L, randn(p))
+    val .*= sqrt(edge.length)
+    val .+= @view vals[:, parentIndex]
+    val .+= params.shift.shift[i, :]
 end
 
 
