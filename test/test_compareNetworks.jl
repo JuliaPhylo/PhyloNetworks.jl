@@ -48,7 +48,7 @@ net = readTopology(netstr);
 @test writeTopology(net) == "(Adif:1.0,(Aech:0.122,((Asub:1.0,Agem:1.0):0.0)H6:10.0):10.0);"
 net = readTopology(netstr);
 @test_logs PhyloNetworks.deletehybridedge!(net, net.edge[9], true, false, false,
-                                           true, true); #keeps root of degree 1
+    true, true); # last: keeporiginalroot=true to keep the root of degree 1
 @test writeTopology(net) == "((Adif:1.0,(Aech:0.122,((Asub:1.0,Agem:1.0):0.0)H6:10.0):10.0):1.614);"
 
 if doalltests

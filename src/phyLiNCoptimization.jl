@@ -955,8 +955,11 @@ function updateSSM!(obj::SSM, renumber=false::Bool;
         resetEdgeNumbers!(obj.net, false) # verbose=false
         updateconstraintfields!(constraints, obj.net)
     end
-    # extract displayed trees
-    obj.displayedtree = displayedTrees(obj.net, 0.0; nofuse=true, keeporiginalroot=true)
+    # extract displayed trees, with the default keeporiginalroot=false
+    # because PhyLiNC assumes a reversible model and moves the root around:
+    # displayed trees should not have any dangling node nor root of degree 1
+    # (which are equivalent via re-rooting)
+    obj.displayedtree = displayedTrees(obj.net, 0.0; nofuse=true)
     for tree in obj.displayedtree
         preorder!(tree) # no need to call directEdges!: already correct in net
     end
@@ -1004,19 +1007,26 @@ network's root that is a tree node, then make this node the root of the displaye
 function updateSSM_root!(obj::SSM)
     netroot = obj.net.node[obj.net.root]
     rnum = netroot.number
+    rootabsent = false
+    # The new root may have been a dangling node in one of the displayed trees,
+    # so would be absent. Dangling nodes need to be deleted (no data to
+    # initialize the tree traversal), so a root of degree 1 should be deleted
+    # too. Otherwise: could become a dangling node after re-rooting.
     for tre in obj.displayedtree
         r = findfirst(n -> n.number == rnum, tre.node)
         if isnothing(r)
-            # a dangling node (normally deleted) can become the root of the network
-            obj.displayedtree = displayedTrees(obj.net, 0.0; nofuse=true, keeporiginalroot=true)
-            for tree in obj.displayedtree
-                preorder!(tree) # no need to call directEdges!: already correct in net
-            end
+            rootabsent = true
             break
         end
         tre.root = r
         directEdges!(tre)
         preorder!(tre)
+    end
+    if rootabsent # then re-create all displayed trees: will be corrected rooted
+        obj.displayedtree = displayedTrees(obj.net, 0.0; nofuse=true)
+        for tree in obj.displayedtree
+            preorder!(tree) # no need to call directEdges!: already correct in net
+        end
     end
 end
 
