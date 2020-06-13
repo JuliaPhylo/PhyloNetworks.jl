@@ -97,6 +97,8 @@ Random.seed!(24452384); # fix the seed
 Σ = Σ * Σ' # needs to be positive definite
 pars = ParamsMultiBM(μ, Σ); # params of a MBD
 
+@test_logs show(devnull, pars)
+
 Σ_root = randn(trait_dim, trait_dim)
 Σ_root = Σ_root * Σ_root' / 10.0 # needs to be positive definite (and not too big to reduce variance in test)
 pars.varRoot = Σ_root
@@ -150,6 +152,7 @@ net = readTopology("(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6):1):0.
 ## Test construction function
 @test_throws ErrorException ShiftNet(net.edge[7], [1.0, 2.0],  net) # can't put a shift on hybrid branch
 @test_throws ErrorException ShiftNet(net.node[6], [1.0, 2.0],  net) # can't put a shift on hybrid branch
+@test_throws ErrorException ShiftNet([net.node[7], net.node[6]], [1.0 2.0], net) # dimensions don't match
 @test ShiftNet(net.edge[8], [1.0, 2.0],  net).shift ≈ ShiftNet([net.edge[8]], [1.0 2.0],  net).shift
 @test ShiftNet(net.edge[8], [1.0, 2.0],  net).shift ≈ ShiftNet(net.node[7], [1.0, 2.0],  net).shift
 @test ShiftNet(net.node[7], [1.0, 2.0],  net).shift ≈ ShiftNet([net.node[7]], [1.0 2.0],  net).shift
@@ -169,6 +172,7 @@ sh1 = ShiftNet(net.node[7], [1.0, 2.0],  net)*ShiftNet(net.node[9], [3.0, -1.5],
 
 ## Hybrid shifts
 @test shiftHybrid([4.5 2.0], net).shift ≈ ShiftNet(net.edge[6], [4.5, 2.0], net).shift
+@test_throws ErrorException shiftHybrid([4.5 2.0; 3.0 5.0], net) # dimension mismatch
 
 ## Distributions
 
