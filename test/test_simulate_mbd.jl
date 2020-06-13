@@ -97,12 +97,14 @@ Random.seed!(24452384); # fix the seed
 Σ = Σ * Σ' # needs to be positive definite
 pars = ParamsMultiBM(μ, Σ); # params of a MBD
 
-@test_logs show(devnull, pars)
 
 Σ_root = randn(trait_dim, trait_dim)
 Σ_root = Σ_root * Σ_root' / 10.0 # needs to be positive definite (and not too big to reduce variance in test)
 pars.varRoot = Σ_root
 pars.randomRoot = true
+
+@test_logs show(devnull, pars)
+show(pars)
 
 N = 50000
 S = length(tipLabels(net));
@@ -184,6 +186,9 @@ sh1 = ShiftNet(net.node[7], [1.0, 2.0],  net)*ShiftNet(net.node[9], [3.0, -1.5],
 @test_throws ErrorException ParamsMultiBM(μ, Σ, ShiftNet(net, 1))
 
 pars = ParamsMultiBM(μ, Σ, net)
+
+@test_logs show(devnull, pars)
+show(pars)
 
 N = 50000
 S = length(tipLabels(net));
