@@ -1677,10 +1677,15 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
         inside01 = false
         ll = wsum((visib ? log.(clikp) : log.(clikp .+ clikn)))
         @debug "γ = 0 best, skip Newton-Raphson"
-    elseif llg0 == 0.0 # if llg0 = 0, keep gamma (otherwise, llg0 = 0 leads to γ = NaN)
-        γ = γ0
-        inside01 = false
-        @debug "llg0 is $llg0, keep current γ, skip Newton-Raphson"
+    elseif llg0 == 0.0 # if llg0 = 0, something fishy is happening.
+        printEdges(obj.net)
+        printNodes(obj.net)
+        @show ulik
+        # γ = γ0
+        # inside01 = false
+        # is there a hybrid node with no tip below?
+        @info "hybrid nodes' children: $([getChildEdge(h) for h in obj.net.hybrid])"
+        @error("llg0 is $llg0. something is odd")
     else # at γ=1
         if visib
              ulik .= (clike .- clikp) ./ clike
