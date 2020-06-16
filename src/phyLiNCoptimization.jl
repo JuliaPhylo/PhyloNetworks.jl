@@ -1,8 +1,8 @@
 # any change to these constants must be documented in phyLiNC!
 const moveweights_LiNC = Distributions.aweights([0.4, 0.2, 0.2, 0.2])
 const movelist_LiNC = ["nni", "addhybrid", "deletehybrid", "root"]
-const likAbsAddHybLiNC = 0.0 #= loglik improvement required to retain a hybrid
-  greater values raise the standard for newly-proposed hybrids,
+const likAbsAddHybLiNC = 0.0 #= loglik improvement required to retain a hybrid.
+  Greater values would raise the standard for newly-proposed hybrids,
   leading to fewer proposed hybrids accepted during the search =#
 const likAbsDelHybLiNC = -0.1 #= loglik decrease allowed when removing a hybrid
   lower (more negative) values of lead to more hybrids removed during the search =#
@@ -1695,19 +1695,7 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
         ll = wsum((visib ? log.(clikp) : log.(clikp .+ clikn)))
         @debug "γ = 0 best, skip Newton-Raphson"
     elseif llg0 == 0.0 # if llg0 = 0, something fishy is happening.
-        @show ulik
-        @show visib
-        @show clike
-        @show clikn
-        printEdges(obj.net)
-        printNodes(obj.net)
-        @show hase
-        @show obj.priorltw
-        # γ = γ0
-        # inside01 = false
-        # is there a hybrid node with no tip below?
-        @info "hybrid nodes' children: $([getChildEdge(h) for h in obj.net.hybrid])"
-        @error("llg0 is $llg0. something is odd")
+        @error("llg0 is $llg0 and optimization is proceeding. Something is wrong.")
     else # at γ=1
         if visib
              ulik .= (clike .- clikp) ./ clike
@@ -1720,9 +1708,6 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
             @debug "γ = 1 best, skip Newton-Raphson"
         end
     end
-    @debug "before inside01 in optimizegamma:
-            edge $(focusedge.number) starting γ was $γ0. inside01 is $inside01.
-            ll is $ll and llg0 is $llg0 and ulik is $ulik."
     if inside01
     # use interpolation to get a good starting point? γ = llg0 / (llg0 - llg1) in [0,1]
         γ = γ0
