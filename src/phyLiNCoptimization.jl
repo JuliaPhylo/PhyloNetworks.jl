@@ -1004,26 +1004,25 @@ the root in the network.
 function updateSSM_root!(obj::SSM)
     netroot = obj.net.node[obj.net.root]
     rnum = netroot.number
-    rootabsent = false
     # The new root may have been a dangling node in one of the displayed trees,
     # so would be absent. Dangling nodes need to be deleted (no data to
     # initialize the tree traversal), so a root of degree 1 should be deleted
     # too. Otherwise: could become a dangling node after re-rooting.
     for tre in obj.displayedtree
-        r = findfirst(n -> n.number == rnum, tre.node)
-        if isnothing(r)
-            rootabsent = true
-            break
+        sroot = netroot # subnetwork root
+        while true
+            r = findfirst(n -> n.number == sroot.number, tre.node)
+            if !isnothing(r)
+                tre.root = r
+                break
+            end
+            sedges = sroot.edge
+            i = findfirst(e -> !e.hybrid && getParent(e) === sroot, sedges)
+            isnothing(i) && error("the root's children are all hybrids: there must be a 2-cycle...")
+            sroot = getChild(sedges[i])
         end
-        tre.root = r
         directEdges!(tre)
         preorder!(tre)
-    end
-    if rootabsent # then re-create all displayed trees: will be corrected rooted
-        obj.displayedtree = displayedTrees(obj.net, 0.0; nofuse=true)
-        for tree in obj.displayedtree
-            preorder!(tree) # no need to call directEdges!: already correct in net
-        end
     end
 end
 
@@ -1149,7 +1148,9 @@ Assumptions: the following fields of `obj` are up-to-date:
 - prior log tree weights in `.priorltw`
 - log transition probabilities in `.logtrans`
 
-Output: constant used to rescale each site, on the log scale.
+Output:
+- missing, if the edge length does not affect the likelihood,
+- constant used to rescale each site on the log scale, otherwise.
 """
 function updatecache_edge!(lcache::CacheLengthLiNC, obj::SSM, focusedge)
     flike  = lcache.flike
@@ -1177,6 +1178,13 @@ function updatecache_edge!(lcache::CacheLengthLiNC, obj::SSM, focusedge)
         for j in 1:nsis
             hassis[j,it] = any(x -> x.number == snum[j], tree[it].edge)
         end
+    end
+    # check if the edge affects the likelihood. It may not if:
+    # the displayed trees that have the edge have a prior weight of 0.
+    # Would pruning edges with weight 0 make the focus edge dangle?
+    if all(i -> !hase[i] || obj.priorltw[i] == -Inf, 1:nt)
+        @debug "edge $(focusedge.number) does not affect the likelihood: skip optimization"
+        return missing
     end
     ftmp = obj.forwardlik
     btmp = obj.backwardlik
@@ -1315,16 +1323,18 @@ end
     optimizelength_LiNC!(obj::SSM, edge::Edge, cache::CacheLengthLiNC,
                          Qmatrix, treeweights)
 
-Optimize the length of a single `edge` using a gradient method.
+Optimize the length of a single `edge` using a gradient method, if
+`edge` is not below a reticulation (the unzipped canonical version should
+have a length of 0 below reticulations).
 Output: nothing.
 
-Warnings:
-- displayed trees are assumed up-to-date, with nodes preordered
-- no check that `edge` is not below a reticulation (the unzipped canonical
-  version should have a length of 0 below reticulations).
+Warning: displayed trees are assumed up-to-date, with nodes preordered
 """
 function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
                           lcache::CacheLengthLiNC, qmat, ltw)
+    if getParent(focusedge).hybrid # keep the reticulation unzipped
+        return nothing # the length of focus edge should be 0. stay as is.
+    end
     # confirm branch lengths inside bounds #TODO needs to be tested
     if focusedge.length < BLmin
         printEdges(obj.net)
@@ -1336,6 +1346,7 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
         focusedge.length = BLmax
     end
     cfg = updatecache_edge!(lcache, obj, focusedge)
+    ismissing(cfg) && return nothing
     flike  = lcache.flike
     dblike = lcache.dblike
     hase   = lcache.hase
@@ -1618,6 +1629,14 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
     if isnan(γ0)
         @info "starting gamma is nan: γ0 = $γ0"
     end
+    visib = !any(ismissing, hase) # reticulation visible in *all* displayed trees?
+    # check that the likelihood depends on the edge's γ: may not be the case
+    # if displayed trees who have the edge or its partner have prior weight 0
+    # Would pruning edges with weight 0 make the focus edge dangle?
+    if all(i -> ismissing(hase[i]) || obj.priorltw[i] == -Inf, 1:nt)
+        @debug "γ does not affect the likelihood: skip optimization"
+        return obj.loglik
+    end
     if γ0<1e-7 # then prior weight and loglikcachetoo small (-Inf if γ0=0)
         @debug "γ0 too small ($γ0): was changed to 1e-7 prior to optimization"
         γ0 = 1e-7
@@ -1636,11 +1655,9 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
     # obj._loglikcache[site,rate,tree] = log P(site | tree,rate) + log gamma(tree)
     cadjust = maximum(view(llca, :,:,1:nt)) # to avoid underflows
     nr = length(obj.ratemodel.ratemultiplier)
-    visib = true # whether the reticulation is visible in *all* displayed trees
     for it in 1:nt # sum likelihood over all displayed trees
         @inbounds h = hase[it]
         if ismissing(h) # tree doesn't have e nor partner
-            visib = false
             for ir in 1:nr # sum over all rate categories
                 clikn .+= exp.(llca[:,ir,it] .- cadjust)
             end
@@ -1678,9 +1695,14 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
         ll = wsum((visib ? log.(clikp) : log.(clikp .+ clikn)))
         @debug "γ = 0 best, skip Newton-Raphson"
     elseif llg0 == 0.0 # if llg0 = 0, something fishy is happening.
+        @show ulik
+        @show visib
+        @show clike
+        @show clikn
         printEdges(obj.net)
         printNodes(obj.net)
-        @show ulik
+        @show hase
+        @show obj.priorltw
         # γ = γ0
         # inside01 = false
         # is there a hybrid node with no tip below?
