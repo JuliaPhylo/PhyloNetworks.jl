@@ -1,7 +1,7 @@
 # Tests to simulate multivariate traits
 
-# using PhyloNetworks, LinearAlgebra, Test
-# import Random
+using PhyloNetworks, LinearAlgebra, Test
+import Random
 
 ## Get a network and make it ultrametric
 net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
@@ -24,6 +24,7 @@ pars = ParamsMultiBM(μ, Σ); # params of a MBD
 
 sim = simulate(net, pars); # simulate according to a BM
 @test_logs show(devnull, sim)
+@test_throws ErrorException sim[:Tips, :Broken]
 
 # Extract simulated values
 traitsTips = sim[:Tips];
@@ -104,7 +105,7 @@ pars.varRoot = Σ_root
 pars.randomRoot = true
 
 @test_logs show(devnull, pars)
-show(pars)
+show(devnull, pars)
 
 N = 50000
 S = length(tipLabels(net));
@@ -133,7 +134,7 @@ end
 Ψ = Matrix(vcv(net))
 Σ_true = kron(Ψ, Σ) + kron(ones(S, S), pars.varRoot)
 Σ_max = maximum(abs.(Σ_true - Σ_sim))
-@show Σ_max
+# @show Σ_max
 @test Σ_max < 2e-1
 
 
@@ -185,10 +186,13 @@ sh1 = ShiftNet(net.node[7], [1.0, 2.0],  net)*ShiftNet(net.node[9], [3.0, -1.5],
 @test ParamsMultiBM(μ, Σ, net).shift.shift ≈ ParamsMultiBM(μ, Σ, ShiftNet(net, trait_dim)).shift.shift
 @test_throws ErrorException ParamsMultiBM(μ, Σ, ShiftNet(net, 1))
 
-pars = ParamsMultiBM(μ, Σ, net)
+sh = ShiftNet(net.node[7], [1.0, 2.0, -1.0],  net)*ShiftNet(net.node[9], [3.0, -1.5, 4.2],  net)
+
+
+pars = ParamsMultiBM(μ, Σ, sh)
 
 @test_logs show(devnull, pars)
-show(pars)
+show(devnull, pars)
 
 N = 50000
 S = length(tipLabels(net));
@@ -210,7 +214,7 @@ sim = simulate(net, pars)
 μ_true = sim[:Tips, :Exp]
 
 μ_max = maximum(abs.(μ_true - μ_sim))
-@show μ_max
+# @show μ_max
 @test μ_max < 1e-1
 
 ## Check covariance

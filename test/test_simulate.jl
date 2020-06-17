@@ -13,6 +13,7 @@ pars = ParamsBM(1, 0.1); # params of a BM
 
 sim = simulate(net, pars); # simulate according to a BM
 @test_logs show(devnull, sim)
+@test_throws ErrorException sim[:Tips, :Broken]
 
 # Extract simulated values
 traitsTips = sim[:Tips];
