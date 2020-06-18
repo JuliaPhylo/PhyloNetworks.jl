@@ -114,9 +114,10 @@ Optional arguments (default value in parenthesis):
   no rate variation is assumed. See [`RateVariationAcrossSites`] (@ref).
 
 Main optional keyword arguments (default value in parenthesis):
-- `speciesfile` (""): path to a csv file containing two columns:
-  species (column 1) and individuals (column 2) used to create one or more
-  species topology constraints to meet during the search.
+- `speciesfile` (""): path to a csv file with samples in rows and two columns:
+  species (column 1), individuals (column 2)
+  Used to group individuals by species (in a species constraint). Required if the
+  data contain more than one individual in at least one species.
 - `cladefile` (""): path to a csv file containing two columns:
   clades and individuals used to create one or more clade topology
   constraints to meet during the search.
@@ -131,6 +132,9 @@ Main optional keyword arguments (default value in parenthesis):
   identifiable
 - `nohybridladder` (true): prevents hybrid ladder in network. If true,
   the input network must not have hybrid ladders.
+  Warning: Setting this to true will avoid most hybrid ladders, but some can still
+  occur in some cases when deleting hybrid edges. This might be replaced with an
+  option to avoid all non-tree-child networks in the future.
 
 Optional arguments controlling the search:
 - `seed` (default 0 to get it from the clock): seed to replicate a given search
@@ -250,7 +254,10 @@ function phyLiNC!(obj::SSM;
        max number of moves per cycle = $maxmoves
        max number of consecutive failed proposals = $(nreject)
        optimization tolerance: ftolRel=$(ftolRel), ftolAbs=$(ftolAbs),
-                               xtolAbs=$(xtolAbs), xtolRel=$(xtolRel)."""
+                               xtolAbs=$(xtolAbs), xtolRel=$(xtolRel).
+    Data:
+       Total number of sites: $(sum(obj.siteweight))
+       Total number of distinct patterns: $(obj.nsites)"""
     str *= (writelog ? "\n   filename for log and err files: $(filename)" :
                        "\n   no output files\n\n")
     str *= "\n$(nruns) run(s) starting near network topology:\n$(writeTopology(obj.net))\nstarting model:\n" *
@@ -380,7 +387,9 @@ function phyLiNC!(obj::SSM;
     logstr = "complete.\nFinal log-likelihood: $(obj.loglik)\n" *
              "Final network:\n" * "$(writeTopology(obj.net))\n" *
              "Total time elapsed: $telapsed seconds (includes final branch length and gamma optimization)\n" *
-             "Final time: " * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s") * "\n"
+             "Final time: " * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s") * "\n---------------------\n" *
+             "NOTE: This network should be interpreted as unrooted, since a likelihood model cannot identify\nthe root. The network can be rooted with an outgroup or other external information." *
+             "\n---------------------\n"
     if writelog
         write(logfile, logstr)
         flush(logfile)
@@ -829,6 +838,7 @@ may create a hybrid ladder. It happens if there is a reticulation above a
 W structure (tree node whose children are both hybrid nodes).
 This creates a problem if the user asked for `nohybridladder`:
 this request may not be met.
+fixit: In future, we could check for this case and prevent it.
 
 For a description of arguments, see [`phyLiNC!`](@ref).
 Called by [`optimizestructure!`](@ref), which does some checks.
@@ -1004,25 +1014,28 @@ the root in the network.
 function updateSSM_root!(obj::SSM)
     netroot = obj.net.node[obj.net.root]
     rnum = netroot.number
+    rootabsent = false
     # The new root may have been a dangling node in one of the displayed trees,
     # so would be absent. Dangling nodes need to be deleted (no data to
     # initialize the tree traversal), so a root of degree 1 should be deleted
     # too. Otherwise: could become a dangling node after re-rooting.
     for tre in obj.displayedtree
-        sroot = netroot # subnetwork root
-        while true
-            r = findfirst(n -> n.number == sroot.number, tre.node)
-            if !isnothing(r)
-                tre.root = r
-                break
-            end
-            sedges = sroot.edge
-            i = findfirst(e -> !e.hybrid && getParent(e) === sroot, sedges)
-            isnothing(i) && error("the root's children are all hybrids: there must be a 2-cycle...")
-            sroot = getChild(sedges[i])
+        r = findfirst(n -> n.number == rnum, tre.node)
+        if isnothing(r)
+            rootabsent = true
+            break
         end
+        tre.root = r
         directEdges!(tre)
         preorder!(tre)
+    end
+    if rootabsent # then re-create all displayed trees: will be corrected rooted
+        obj.displayedtree = displayedTrees(obj.net, 0.0; nofuse=true)
+        for tree in obj.displayedtree
+            preorder!(tree) # no need to call directEdges!: already correct in net
+        end
+        # After re-extracting, the displayed trees come in the same order as before:
+        # no need to update the priorltw
     end
 end
 

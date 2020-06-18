@@ -136,7 +136,7 @@ StatsBase.dof(obj::SSM) = nparams(obj.model) + nparams(obj.ratemodel)
 function Base.show(io::IO, obj::SSM)
     disp =  "$(typeof(obj)):\n"
     disp *= string(obj.model)
-    disp *= "$(obj.nsites) traits, $(length(obj.trait)) species\n"
+    disp *= "$(length(obj.trait)) species, $(obj.totalsiteweight) sites, $(obj.nsites) distinct patterns\n"
     if obj.ratemodel.ncat != 1
         disp *= "variable rates across sites ~ discretized gamma with\n alpha=$(obj.ratemodel.alpha)"
         disp *= "\n $(obj.ratemodel.ncat) categories"
