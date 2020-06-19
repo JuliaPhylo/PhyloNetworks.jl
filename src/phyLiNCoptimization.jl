@@ -1423,12 +1423,6 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
     fmax, xmax, ret = NLopt.optimize(optBL, [focusedge.length])
     newlik = fmax + adjustment
     # @info "BL, edge $(focusedge.number): got $(round(fmax; digits=5)) (new lik = $newlik) at BL = $(round.(xmax; sigdigits=3)) after $(optBL.numevals) iterations (return code $(ret))"
-    if isnan(xmax[1]) || xmax[1] < BLmin || xmax[1] > BLmax
-        @info "at end of optimizelength:"
-        printEdges(obj.net)
-        printNodes(obj.net)
-        error("at end of optimizelength, edge $(focusedge.number) BL is $(xmax[1])")
-    end
     if ret == :FORCED_STOP # || oldlik > newlik
         @warn "failed optimization, edge $(focusedge.number): skipping branch length update."
         return nothing
@@ -1628,9 +1622,6 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
     fill!(clikn, 0.0)
     nt, hase = updatecache_hase!(cache, obj, edgenum, partnernum)
     γ0 = focusedge.gamma
-    if isnan(γ0)
-        @info "starting gamma is nan: γ0 = $γ0"
-    end
     visib = !any(ismissing, hase) # reticulation visible in *all* displayed trees?
     # check that the likelihood depends on the edge's γ: may not be the case
     # if displayed trees who have the edge or its partner have prior weight 0
@@ -1678,11 +1669,6 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
     clikp ./= 1.0 - γ0
     adjustment = obj.totalsiteweight * (log(nr) - cadjust)
     ll = obj.loglik + adjustment
-    if isnan(ll) || isnan(γ0) || isnan(obj.loglik) || isnan(adjustment)
-        @info "after adjustment in optimizegamma:
-               edge $(focusedge.number) starting γ is $γ0. obj.loglik is $(obj.loglik),
-               adjustment is $adjustment, and ll is $ll."
-    end
     wsum = (obj.siteweight === nothing ? sum : x -> sum(obj.siteweight .* x))
     # evaluate if best γ is at the boundary: 0 or 1
     if visib # true most of the time (all the time if tree-child)
@@ -1739,10 +1725,6 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
             ll = ll_new
             lldiff < ftolAbs && break
         end
-    end
-    if isnan(γ)
-        @info "at end of optimizegamma (before step 3):"
-        error("edge $(focusedge.number) γ is $γ. ll is $ll")
     end
     ## step 3: update SSM object with new γ
     focusedge.gamma = γ
