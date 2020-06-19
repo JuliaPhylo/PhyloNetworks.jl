@@ -1347,16 +1347,6 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
     if getParent(focusedge).hybrid # keep the reticulation unzipped
         return nothing # the length of focus edge should be 0. stay as is.
     end
-    # confirm branch lengths inside bounds #TODO needs to be tested
-    if focusedge.length < BLmin
-        printEdges(obj.net)
-        error("focus edge $(focusedge.number) has length < BLmin: $(focusedge.length)")
-        focusedge.length = BLmin
-    elseif focusedge.length > BLmax
-        printEdges(obj.net)
-        error("focus edge $(focusedge.number) has length > BLmax: $(focusedge.length)")
-        focusedge.length = BLmax
-    end
     cfg = updatecache_edge!(lcache, obj, focusedge)
     ismissing(cfg) && return nothing
     flike  = lcache.flike
