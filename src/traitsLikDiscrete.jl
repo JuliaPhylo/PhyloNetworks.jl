@@ -78,7 +78,7 @@ mutable struct StatisticalSubstitutionModel <: StatsBase.StatisticalModel
         end
         # T = eltype(getlabels(model))
         # extract displayed trees
-        trees = displayedTrees(net, 0.0; nofuse=true)
+        trees = displayedTrees(net, 0.0; nofuse=true, keeporiginalroot=true)
         for tree in trees
             preorder!(tree) # no need to call directEdges! before: already done on net
         end
@@ -136,7 +136,7 @@ StatsBase.dof(obj::SSM) = nparams(obj.model) + nparams(obj.ratemodel)
 function Base.show(io::IO, obj::SSM)
     disp =  "$(typeof(obj)):\n"
     disp *= string(obj.model)
-    disp *= "$(obj.nsites) traits, $(length(obj.trait)) species\n"
+    disp *= "$(length(obj.trait)) species, $(obj.totalsiteweight) sites, $(obj.nsites) distinct patterns\n"
     if obj.ratemodel.ncat != 1
         disp *= "variable rates across sites ~ discretized gamma with\n alpha=$(obj.ratemodel.alpha)"
         disp *= "\n $(obj.ratemodel.ncat) categories"
@@ -210,11 +210,6 @@ Optional arguments (default):
 - bounds for the alpha parameter of the Gamma distribution of
   rates across sites: `alphamin=0.05`, `alphamax=50`.
 - `verbose` (false): if true, more information is output.
-
-**limitation**: the root is assumed to be in each displayed tree,
-unless the prior at the root is taken to be the stationary distribution.
-This leads to a wrong likelihood if the root had a hybrid child edge.
-fixit in the future, with new option in `deleteleaf!` and to extract displayed trees.
 
 # examples:
 

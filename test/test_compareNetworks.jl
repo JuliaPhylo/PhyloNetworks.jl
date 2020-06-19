@@ -45,11 +45,11 @@ net = readTopology(netstr);
 @test writeTopology(net) == "(Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0);"
 net = readTopology(netstr);
 @test_logs PhyloNetworks.deletehybridedge!(net, net.edge[9], true);
-#fixit: if we want to keep a root of degree one, we would need to add an option
-     # to deletehybridedge to truly keep all node. (Currently, it keeps all
-     # nodes that have data below.) If we do this, the correct topology would be:
-     # "((Adif:1.0,(Aech:0.122,((Asub:1.0,Agem:1.0):0.0)H6:10.0):10.0):1.614);"
 @test writeTopology(net) == "(Adif:1.0,(Aech:0.122,((Asub:1.0,Agem:1.0):0.0)H6:10.0):10.0);"
+net = readTopology(netstr);
+@test_logs PhyloNetworks.deletehybridedge!(net, net.edge[9], true, false, false,
+    true, true); # last: keeporiginalroot=true to keep the root of degree 1
+@test writeTopology(net) == "((Adif:1.0,(Aech:0.122,((Asub:1.0,Agem:1.0):0.0)H6:10.0):10.0):1.614);"
 
 if doalltests
 net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.1361111):10.0);");

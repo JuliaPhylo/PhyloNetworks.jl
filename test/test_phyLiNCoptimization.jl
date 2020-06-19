@@ -152,6 +152,44 @@ PhyloNetworks.rezip_canonical!(undoinfo...)
 @test writeTopology(net, round=true) == netstr
 end
 
+@testset "update root in SSM displayed trees" begin
+# W structure
+net = readTopology("(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.151::0.4):0.0274):0.4812);")
+# "((C:0.0262,(B:0.0)#H2:0.03::0.9756):0.4812,((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.151::0.4):0.0274);")
+obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69)
+@test [t.node[t.root].number for t in obj.displayedtree] == [5,5,5,5]
+# obj.displayedtree[1]: (C:0.026,(B:0.0):0.03,(((D:0.1,A:0.127):0.0):0.0):0.481);
+# move the root to place the W structure at the root:
+# the network's root node will be missing from some displayed trees.
+rootatnode!(obj.net, 7) # node 7 = tree node whose 2 children are both hybrids
+# "(#H2:0.0001::0.0244,((C:0.0262,(B:0.0)#H2:0.03::0.9756):0.4812,((D:0.1,A:0.1274):0.0)#H1:0.0::0.6):0.0274,#H1:0.151);"
+PhyloNetworks.updateSSM_root!(obj) # re-root displayed trees in the same way
+@test [t.node[t.root].number for t in obj.displayedtree] == [6,7,7,7]
+@test writeTopology(obj.displayedtree[1]) == "(((D:0.1,A:0.1274):0.0)H1:0.0,(C:0.0262,(B:0.0)H2:0.03):0.4812);"
+end
+
+@testset "skip γ and lengths optimization when needed" begin
+# W structure, with middle γs = 0
+net = readTopology("(C:0.0262,(B:0.0)#H2:0.03::1,(((D:0.1,A:0.1274):0.0)#H1:0.004::1,(#H2:0.0001,#H1:0.151):0.0274):0.4812);")
+obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69)
+for i in [8,9] setGamma!(obj.net.edge[i], 0.0); end
+PhyloNetworks.updateSSM!(obj)
+lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-6,1e-6,1e-2,1e-3, 5);
+e = PhyloNetworks.optimizelocalBL_LiNC!(obj, obj.net.edge[10], lcache)
+@test length(e) == 3 # not 5: the 2 edges with γ = 0 were excluded
+@test obj.net.edge[10].length == 0.0274
+# hybrid ladder, with lower γ = 0
+net = readTopology("(#H2:0.0001::0.0244,((C:0.0262,((B:0.0)#H1:0.0::0.6)#H2:0.03::0.9756):0.4812,(#H1:0.0001::0.4,A:0.1274):0.0001):0.0274,D:0.151);")
+obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69)
+setGamma!(obj.net.edge[4], 0.0); PhyloNetworks.updateSSM!(obj)
+e = PhyloNetworks.optimizelocalBL_LiNC!(obj, obj.net.edge[5], lcache)
+@test length(e) == 4
+@test [obj.net.edge[i].length for i in [1,5]] == [0.0001, 0.03]
+γcache = PhyloNetworks.CacheGammaLiNC(obj);
+ll = PhyloNetworks.optimizegamma_LiNC!(obj, obj.net.edge[5], .001, γcache, 3)
+@test ll ≈ -31.124547305074074 # same as before optimization
+end
+
 @testset "optimizestructure with simple example" begin
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69, 1)
