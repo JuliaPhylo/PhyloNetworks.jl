@@ -29,7 +29,7 @@ even if the gene trees may have multiple alleles from the same species.
 For 4 distinct species `A,B,C,D`, all alleles from each species (`A` etc.)
 will be used to calculate the quartet CF. If a given gene tree has
 `n_a` alleles from `a`, `n_b` alleles from `b` etc., then
-each set of 4 alleles is given a weight of `1/(n_a n_b b_c n_c)`
+each set of 4 alleles is given a weight of `1/(n_a n_b n_c n_d)`
 to calculated of the CF for `A,B,C,D` (such that the total weight from
 this particular gene trees is 1).
 It is save to save this data frame, then use it for `snaq!` like this:

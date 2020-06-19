@@ -115,9 +115,8 @@ Optional arguments (default value in parenthesis):
 
 Main optional keyword arguments (default value in parenthesis):
 - `speciesfile` (""): path to a csv file with samples in rows and two columns:
-  species (column 1), individuals (column 2)
-  Used to group individuals by species (in a species constraint). Required if the
-  data contain more than one individual in at least one species.
+  species (column 1), individual (column 2)
+  Include this file to group individuals by species.
 - `cladefile` (""): path to a csv file containing two columns:
   clades and individuals used to create one or more clade topology
   constraints to meet during the search.
