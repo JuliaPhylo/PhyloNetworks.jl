@@ -820,6 +820,8 @@ shiftHybrid(value::Real, net::HybridNetwork; checkPreorder=true::Bool) = shiftHy
     getShiftEdgeNumber(shift::ShiftNet)
 
 Get the edge numbers where the shifts are located, for an object [`ShiftNet`](@ref).
+If a shift is placed at the root node with no parent edge, the edge number
+of a shift is set to -1 (as if missing).
 """
 function getShiftEdgeNumber(shift::ShiftNet)
     nodInd = getShiftRowInds(shift)
@@ -1179,7 +1181,26 @@ julia> traits = sim[:Tips] # Extract simulated values at the tips.
   2.8051193818084057
   3.1910928691142915
 
-julia> traits = sim[:InternalNodes] # Extract simulated values at internal nodes.
+julia> sim.M.tipNames # name of tips, in the same order as values above
+16-element Array{String,1}:
+ "Prionodontidae"
+ "Felidae"
+ "Viverridae"
+ "Herpestidae"
+ "Eupleridae"
+ "Hyaenidae"
+ "Nandiniidae"
+ "Canidae"
+ "Ursidae"
+ "Odobenidae"
+ "Otariidae"
+ "Phocidae"
+ "Mephitidae"
+ "Ailuridae"
+ "Mustelidae"
+ "Procyonidae"
+
+julia> traits = sim[:InternalNodes] # Extract simulated values at internal nodes. Order: as in sim.M.internalNodeNumbers
 15-element Array{Float64,1}:
  1.1754592873593104
  2.0953234045227083
@@ -1197,7 +1218,7 @@ julia> traits = sim[:InternalNodes] # Extract simulated values at internal nodes
  2.4579867601968663
  1.0
 
-julia> traits = sim[:All] # Extract simulated values at all nodes in the network.
+julia> traits = sim[:All] # simulated values at all nodes, ordered as in sim.M.nodeNumbersTopOrder
 31-element Array{Float64,1}:
  1.0
  2.4579867601968663
@@ -1264,12 +1285,12 @@ julia> traits = sim[:Tips] # Extract simulated values at the tips (each column c
  5.39465  7.223     1.88036  -5.10491   …  -3.86504  0.133704  -2.44564
  7.29184  7.59947  -1.89206  -0.960013      3.86822  3.23285    1.93376
 
-julia> traits = sim[:InternalNodes] # Extract simulated values at internal nodes
+julia> traits = sim[:InternalNodes] # simulated values at internal nodes. order: same as in sim.M.internalNodeNumbers
 2×15 Array{Float64,2}:
  4.42499  -0.364198  0.71666   3.76669  …  4.57552  4.29265  5.61056  1.0
  6.24238   2.97237   0.698006  2.40122     5.92623  5.13753  4.5268   2.0
 
-julia> traits = sim[:All] # Extract simulated values at all nodes
+julia> traits = sim[:All] # simulated values at all nodes, ordered as in sim.M.nodeNumbersTopOrder
 2×31 Array{Float64,2}:
  1.0  5.61056  4.29265  4.57552  …   1.88036  4.42499  7.223    5.39465
  2.0  4.5268   5.13753  5.92623     -1.89206  6.24238  7.59947  7.29184
