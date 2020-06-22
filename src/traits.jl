@@ -59,7 +59,7 @@ function recursionPreOrder(net::HybridNetwork,
                            updateHybrid=identity::Function,
                            indexation="b"::AbstractString,
                            params...)
-    net.isRooted || error("net needs to be rooted to get matrix of shared path lengths")
+    net.isRooted || error("net needs to be rooted for a pre-oreder recursion")
     if(checkPreorder)
         preorder!(net)
     end
@@ -139,7 +139,7 @@ function recursionPostOrder(net::HybridNetwork,
                             updateNode=identity::Function,
                             indexation="b"::AbstractString,
                             params...)
-    net.isRooted || error("net needs to be rooted to get matrix of shared path lengths")
+    net.isRooted || error("net needs to be rooted for a post-order recursion")
     if(checkPreorder)
         preorder!(net)
     end
@@ -1313,6 +1313,9 @@ function simulate(net::HybridNetwork,
     end
     !ismissing(params.shift) || (params.shift = ShiftNet(net, process_dim(params)))
 
+    net.isRooted || error("The net needs to be rooted for trait simulation.")
+    !anyShiftOnRootEdge(params.shift) || error("Shifts are not allowed above the root node. Please put all root specifications in the process parameter.")
+
     funcs = preorderFunctions(params)
     M = recursionPreOrder(net,
                           checkPreorder,
@@ -1341,6 +1344,13 @@ function preorderFunctions(::ParamsMultiBM)
 end
 
 
+function anyShiftOnRootEdge(shift::ShiftNet)
+    nodInd = getShiftRowInds(shift)
+    for n in shift.net.nodes_changed[nodInd]
+        !(getMajorParentEdgeNumber(n) == -1) || return(true)
+    end
+    return(false)
+end
 
 # Initialization of the structure
 function initSimulateBM(nodes::Vector{Node}, ::Tuple{ParamsBM})

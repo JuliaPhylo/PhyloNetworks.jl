@@ -90,6 +90,9 @@ sh = ShiftNet(net.node[7], 3.0,  net)
 
 ## Test simulate
 
+# No shift on root
+@test_throws ErrorException simulate(net, ParamsBM(1.0, 0.1, ShiftNet(net.node[9], 3.0,  net)))
+
 @test ParamsBM(1.0, 1.0, net).shift.shift ≈ ParamsBM(1.0, 1.0, ShiftNet(net)).shift.shift
 
 pars = ParamsBM(1, 0.1, ShiftNet(net.edge[8], 3.0,  net)); # params of a BM
@@ -117,6 +120,12 @@ traitsNodesExp = [1.50594336537754 3.296894371572107 4.346436961253621 1.3212328
 @test traitsNodes ≈ traitsNodesExp
 @test meansTips ≈ meansTipsExp
 @test meansNodes ≈ meansNodesExp
+
+# Test same as MultiBM
+pars = ParamsMultiBM([1.0], 0.1*ones(1,1), ShiftNet(net.edge[8], 3.0,  net));
+simMulti = simulate(net, pars); 
+@test simMulti[:Tips, :Exp] ≈ sim[:Tips, :Exp]'
+@test simMulti[:InternalNodes, :Exp] ≈ sim[:InternalNodes, :Exp]'
 
 ###############################################################################
 ## Test of distibution - with shifts

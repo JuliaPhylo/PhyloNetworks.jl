@@ -167,10 +167,14 @@ sh1 = ShiftNet(net.node[7], [1.0, 2.0],  net)*ShiftNet(net.node[9], [3.0, -1.5],
 
 @test ParamsMultiBM(μ, Σ, net).shift.shift ≈ ParamsMultiBM(μ, Σ, ShiftNet(net, trait_dim)).shift.shift
 @test_throws ErrorException ParamsMultiBM(μ, Σ, ShiftNet(net, 1))
-# below: the shift at the root, net.node[9], is not used by the simulation
-# It doesn't even affect the mean μ
-sh = ShiftNet(net.node[7], [1.0, 2.0, -1.0],  net)*ShiftNet(net.node[9], [3.0, -1.5, 4.2],  net)
 
+# Shift at root causes an error.
+sh = ShiftNet(net.node[7], [1.0, 2.0, -1.0],  net)*ShiftNet(net.node[9], [3.0, -1.5, 4.2],  net)
+pars = ParamsMultiBM(μ, Σ, sh)
+@test_throws ErrorException simulate(net, pars)
+
+# One shift, not at the root
+sh = ShiftNet(net.node[7], [1.0, 2.0, -1.0],  net)
 pars = ParamsMultiBM(μ, Σ, sh)
 
 @test_logs show(devnull, pars)
