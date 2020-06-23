@@ -1,10 +1,10 @@
 # any change to these constants must be documented in phyLiNC!
-const moveweights_LiNC = Distributions.aweights([0.4, 0.2, 0.2, 0.2])
+const moveweights_LiNC = Distributions.aweights([0.6, 0.25, 0.05, 0.1])
 const movelist_LiNC = ["nni", "addhybrid", "deletehybrid", "root"]
 const likAbsAddHybLiNC = 0.0 #= loglik improvement required to retain a hybrid.
   Greater values would raise the standard for newly-proposed hybrids,
   leading to fewer proposed hybrids accepted during the search =#
-const likAbsDelHybLiNC = -0.1 #= loglik decrease allowed when removing a hybrid
+const likAbsDelHybLiNC = 0.0 #= loglik decrease allowed when removing a hybrid
   lower (more negative) values of lead to more hybrids removed during the search =#
 const alphaRASmin = 0.02
 const alphaRASmax = 50.0
@@ -264,6 +264,13 @@ function phyLiNC!(obj::SSM;
          alphamin=alphamin, alphamax=alphamax,
          pinvmin=pinvmin, pinvmax=pinvmax)
     @debug "loglik = $(loglikelihood(obj)) at the start"
+    traitmat = hcat(obj.trait...); count = zeros(Int, 4) # to get % invariant sites
+    for row in 1:size(traitmat)[1]
+        nstates = length(unique(traitmat[row, :]))
+        nstates in [1, 2, 3, 4] ||
+            error("The number of states for each site should be 1, 2, 3, or 4, but is $nstates")
+        count[nstates] += obj.siteweight[row]
+    end
     str = """
     PhyLiNC network estimation starting. Parameters:
        maxhybrid = $(maxhybrid)
