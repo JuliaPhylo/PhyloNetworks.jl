@@ -434,6 +434,21 @@ end
 
 end # of testset: displayedTrees, hardwiredClusters, hardwiredClusterDistance, displayedNetworkAt!
 
+@testset "testing hardwiredClusterDistance_unrooted" begin
+h0est = readTopology("(((2:0.01,1:0.01):0.033,(3:0.0154,4:0.0149):0.0186):0.0113,6:0.0742,5:0.0465);")
+truenet = readTopology("((((1,2),((3,4))#H1),(#H1,5)),6);")
+@test PhyloNetworks.hardwiredClusterDistance_unrooted(h0est, truenet) == 1
+@test PhyloNetworks.hardwiredClusterDistance_unrooted(truenet, h0est) == 1
+
+h1est = readTopology("(5:0.0,6:0.0,(((2:0.0)#H1:0.0::0.95,1:0.0):0.0,((4:0.0,3:0.0):0.0,#H1:0.0::0.05):0.0):0.0);")
+@test PhyloNetworks.hardwiredClusterDistance_unrooted(h1est, truenet) == 4
+@test PhyloNetworks.hardwiredClusterDistance_unrooted(truenet, h1est) == 4
+rootatnode!(h1est, "5")
+rootatnode!(truenet, "5")
+@test hardwiredClusterDistance(truenet, h1est, true) == 4
+@test hardwiredClusterDistance(h1est, truenet, true) == 4
+end
+
 @testset "testing hardwiredCluster! on single nodes" begin
 
 net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readTopology |> directEdges! ;

@@ -702,14 +702,17 @@ function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, root
         #println("M1="); print(M1); println("\nM2="); print(M2); println("\n");
     end
     dis = 0
-
-    for i1=1:size(M1)[1]
+    n2ci = collect(1:size(M2, 1)) # cluster indices
+    for i1=1:size(M1,1)
         found = false
         m1 = 1 .- M1[i1,2:end] # going to the end: i.e. we want to match a tree edge with a tree edge
-        for i2=1:size(M2)[1]                                  # and hybrid edge with hybrid edge
+                                # and hybrid edge with hybrid edge
+        for j in length(n2ci):-1:1 # check only unmatched cluster indices, in reverse
+            i2 = n2ci[j]
             if (M1[i1,2:end] == M2[i2,2:end] ||
                   ( !rooted && m1 == M2[i2,2:end])     )
                 found = true
+                deleteat!(n2ci, j) # a cluster can be repeated
                 break
             end
         end
@@ -718,6 +721,7 @@ function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, root
         end
     end # (size(M1)[1] - dis) edges have been found in net2, dis edges have not.
     # so size(M2)[1] - (size(M1)[1] - dis) edges in net2 are not in net1.
+    @info "at end of hardwiredClusterDistance, dis = $dis, diff = $(size(M2)[1] - size(M1)[1])"
     dis + dis + size(M2)[1] - size(M1)[1]
 end
 
@@ -767,16 +771,22 @@ function hardwiredClusterDistance_unrooted!(net1::HybridNetwork, net2::HybridNet
         end
     end
     bestdissimilarity = typemax(Int)
+    bestn1 = missing
+    bestn2 = missing
     for n1 in net1roots
         rootatnode!(net1, n1; verbose=false)
         for n2 in net2roots
             rootatnode!(net2, n2; verbose=false)
             diss = hardwiredClusterDistance(net1, net2, true) # rooted = true now
+            @info "After calling hwcd, diss = $diss"
             if diss < bestdissimilarity
+                bestn1 = n1
+                bestn2 = n2
                 bestdissimilarity = diss
             end
         end
     end
+    @show bestn1, bestn2
     # warning: original roots (and edge directions) NOT restored
     return bestdissimilarity
 end
