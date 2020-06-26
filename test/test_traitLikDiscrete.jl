@@ -33,6 +33,51 @@ m3 = TwoBinaryTraitSubstitutionModel([2.0,1.2,1.1,2.2,1.0,3.1,2.0,1.1],
 
 end
 
+@testset "types of RVAS" begin
+# no rate variation
+rv = RateVariationAcrossSites()
+@test nparams(rv) == 0
+@test_logs show(devnull, rv)
+@test rv.ratemultiplier == [1.0]
+# +G model
+rv = RateVariationAcrossSites(alpha=1.0, ncat=4)
+@test nparams(rv) == 1
+@test_logs show(devnull, rv)
+@test rv.ratemultiplier ≈ [0.146, 0.513, 1.071, 2.27] atol=.002
+PhyloNetworks.setalpha!(rv, 2.0)
+@test rv.ratemultiplier ≈ [0.319, 0.683, 1.109, 1.889] atol=.002
+@test all(rv.lograteweight .≈ -1.3862943611198906)
+# +I model
+rv = RateVariationAcrossSites(pinv=0.3)
+@test nparams(rv) == 1
+@test_logs show(devnull, rv)
+@test rv.ratemultiplier ≈ [0, 1.429] atol=.002
+@test rv.lograteweight ≈ [-1.2039728043259361,-0.35667494393873245]
+PhyloNetworks.setpinv!(rv, 0.05)
+@test rv.ratemultiplier ≈ [0, 1.053] atol=.002
+@test rv.lograteweight ≈ [-2.995732273553991,-0.05129329438755058]
+# +G+I model
+rv = RateVariationAcrossSites(pinv=0.3, alpha=2.0, ncat=4)
+@test nparams(rv) == 2
+@test_logs show(devnull, rv)
+@test rv.ratemultiplier ≈ [0.0, 0.456, 0.976, 1.584, 2.698] atol=.002
+@test rv.lograteweight ≈ [-1.204, -1.743, -1.743, -1.743, -1.743] atol=.002
+PhyloNetworks.setalpha!(rv, 3.0)
+@test rv.ratemultiplier ≈ [0.0, 0.6, 1.077, 1.584, 2.454] atol=.002
+PhyloNetworks.setpinv!(rv, 0.05)
+@test rv.ratemultiplier ≈ [0.0, 0.442, 0.793, 1.167, 1.808] atol=.002
+@test rv.lograteweight ≈ [-2.996, -1.438, -1.438, -1.438, -1.438] atol=.002
+# test for errors
+@test_throws AssertionError PhyloNetworks.setalpha!(rv, -0.05)
+@test_throws AssertionError PhyloNetworks.setpinv!(rv, -0.05)
+@test_throws ErrorException RateVariationAcrossSites(ncat=4)
+@test_throws AssertionError RateVariationAcrossSites(alpha=-2.0, ncat=4)
+@test_throws AssertionError RateVariationAcrossSites(pinv=1.5)
+@test_throws AssertionError RateVariationAcrossSites(pinv=-0.01)
+@test_throws AssertionError RateVariationAcrossSites(pinv=0.5, alpha=-2., ncat=2)
+@test_throws AssertionError RateVariationAcrossSites(pinv=-0.1, alpha=2., ncat=2)
+end
+
 @testset "Testing random discrete trait simulation" begin
 
 m1 = BinaryTraitSubstitutionModel(1.0,2.0, ["carnivory", "non-carnivory"]);
@@ -442,12 +487,7 @@ fitHKY85 = fitdiscrete(net, mHKY85, tips; optimizeQ=true)
 @test loglikelihood(fitHKY85) ≈ -3.3569474489525244 atol = 2e-8 # equivalent to ape ace() fitHKY$loglik - log(4)
 
 # test RateVariationAcrossSites with NASM
-@test RateVariationAcrossSites(alpha=2.0).ratemultiplier ≈ [0.3190650334827019,0.6833612017749638,1.108977045226681,1.888596719515653]
-rv = RateVariationAcrossSites(alpha=1.0)
-@test rv.ratemultiplier ≈ [0.14578435573294748,0.5131315935152865,1.0708310452240655,2.270253005527701]
-PhyloNetworks.setalpha!(rv, 2.0)
-@test rv.ratemultiplier ≈ [0.3190650334827019,0.6833612017749638,1.108977045226681,1.888596719515653]
-@test_logs show(devnull, rv)
+rv = RateVariationAcrossSites(alpha=1.0, ncat=4)
 rv.ratemultiplier[:] = [0.1369538, 0.4767519, 1.0000000, 2.3862944] # NOTE: phangorn calculates gamma quantiles differently, so I assign them for testing
 mJC69 = JC69([1.0], true)
 fitJC69rv = fitdiscrete(net, mJC69, rv, tips; optimizeQ=false, optimizeRVAS=false, ftolRel=1e-20);

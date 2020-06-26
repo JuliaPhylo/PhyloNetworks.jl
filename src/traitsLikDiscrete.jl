@@ -271,12 +271,11 @@ rate matrix Q:
 on a network with 0 reticulations
 log-likelihood: -4.99274
 
-julia> rv = RateVariationAcrossSites(alpha=1.0)
-Rate Variation Across Sites using Discretized Gamma Model
+julia> rv = RateVariationAcrossSites(alpha=1.0, ncat=4)
+Rate variation across sites: discretized Gamma
 alpha: 1.0
 categories for Gamma discretization: 4
-ratemultiplier: [0.14578, 0.51313, 1.07083, 2.27025]
-
+rates: [0.146, 0.513, 1.071, 2.27]
 
 julia> fitdiscrete(net, mJC69, rv, tips; optimizeQ=false, optimizeRVAS=false)
 PhyloNetworks.StatisticalSubstitutionModel:

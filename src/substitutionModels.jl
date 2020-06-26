@@ -993,46 +993,118 @@ The Gamma distribution is discretized into `ncat` categories.
 In each category, the category's rate multiplier is a normalized quantile of the gamma distribution.
 
 ```jldoctest
-julia> RateVariationAcrossSites(ncat=1)
-Rate Variation Across Sites using Discretized Gamma Model
+julia> rv = RateVariationAcrossSites()
+Rate variation across sites: discretized Gamma
 categories for Gamma discretization: 1
-ratemultiplier: [1.0]
+rates: [1.0]
 
-julia> rv = RateVariationAcrossSites(alpha=1.0)
-Rate Variation Across Sites using Discretized Gamma Model
+julia> nparams(rv)
+0
+
+julia> typeof(rv)
+PhyloNetworks.RVASGamma{1}
+
+julia> rv = RateVariationAcrossSites(alpha=1.0, ncat=4)
+Rate variation across sites: discretized Gamma
 alpha: 1.0
 categories for Gamma discretization: 4
-ratemultiplier: [0.14578, 0.51313, 1.07083, 2.27025]
+rates: [0.146, 0.513, 1.071, 2.27]
+
+julia> typeof(rv)
+PhyloNetworks.RVASGamma{4}
 
 julia> PhyloNetworks.setalpha!(rv, 2.0)
-
-julia> rv
-Rate Variation Across Sites using Discretized Gamma Model
+Rate variation across sites: discretized Gamma
 alpha: 2.0
 categories for Gamma discretization: 4
-ratemultiplier: [0.31907, 0.68336, 1.10898, 1.8886]
+rates: [0.319, 0.683, 1.109, 1.889]
 
-julia> RateVariationAcrossSites(pinv=0.3)
-fixit
+julia> nparams(rv)
+1
+
+julia> rv = RateVariationAcrossSites(pinv=0.3)
+Rate variation across sites: +I (invariable sites)
+pinv: 0.3
+rates: [0.0, 1.429]
+
+julia> nparams(rv)
+1
+
+julia> typeof(rv)
+PhyloNetworks.RVASInv
+
+julia> PhyloNetworks.setpinv!(rv, 0.05)
+Rate variation across sites: +I (invariable sites)
+pinv: 0.05
+rates: [0.0, 1.053]
+
+julia> rv = RateVariationAcrossSites(pinv=0.3, alpha=2.0, ncat=4)
+Rate variation across sites: discretized Gamma+I
+pinv: 0.3
+alpha: 2.0
+categories for Gamma discretization: 4
+rates: [0.0, 0.456, 0.976, 1.584, 2.698]
+probabilities: [0.3, 0.175, 0.175, 0.175, 0.175]
+
+julia> nparams(rv)
+2
+
+julia> typeof(rv)
+PhyloNetworks.RVASGammaInv{5}
+
+julia> PhyloNetworks.setalpha!(rv, 3.0)
+Rate variation across sites: discretized Gamma+I
+pinv: 0.3
+alpha: 3.0
+categories for Gamma discretization: 4
+rates: [0.0, 0.6, 1.077, 1.584, 2.454]
+probabilities: [0.3, 0.175, 0.175, 0.175, 0.175]
+
+julia> PhyloNetworks.setpinv!(rv, 0.05)
+Rate variation across sites: discretized Gamma+I
+pinv: 0.05
+alpha: 3.0
+categories for Gamma discretization: 4
+rates: [0.0, 0.442, 0.793, 1.167, 1.808]
+probabilities: [0.05, 0.238, 0.238, 0.238, 0.238]
+
+julia> PhyloNetworks.setpinvalpha!(rv, 0.1, 5.0)
+Rate variation across sites: discretized Gamma+I
+pinv: 0.1
+alpha: 5.0
+categories for Gamma discretization: 4
+rates: [0.0, 0.593, 0.91, 1.221, 1.721]
+probabilities: [0.1, 0.225, 0.225, 0.225, 0.225]
 ```
 """
+function RateVariationAcrossSites(; pinv=0.0::Float64, alpha=Inf64::Float64, ncat=1::Int)
+    ncat>1 && alpha == Inf && error("please specify ncat=1 or alpha<Inf")
+    # ncat is 1 or α is finite here
+    if pinv==0.0 # if α is infinite: no rate variation, RVASGamma with ncat=1
+        return RVASGamma(alpha, ncat)
+    end
+    # pinv>0 here
+    if ncat == 1
+        return RVASInv(pinv)
+    end
+    # pinv>0, ncat>1 and α is finite here
+    return RVASGammaInv(pinv, alpha, ncat)
+end
+
 struct RVASGamma{S} <: RateVariationAcrossSites
     # S = ncat, and size of vectors
     alpha::StaticArrays.MVector{1,Float64} # mutable
     ncat::Int
     ratemultiplier::StaticArrays.MVector{S,Float64}
     lograteweight::StaticArrays.SVector{S,Float64} # will be uniform: log(1/ncat)
-    cumprob::StaticArrays.SVector{S,Float64} # cumulative prob to discretize Gamma
 end
 function RVASGamma(alpha=1.0::Float64, ncat=4::Int)
     @assert ncat > 0 "ncat must be 1 or greater"
-    cuts = StaticArrays.SVector{ncat,Float64}(1/(2ncat) .+ (0:(ncat-1))/ncat)
     uniflw = -log(ncat) # = log(1/ncat)
     obj = RVASGamma{ncat}(
             StaticArrays.MVector{1,Float64}(alpha), ncat,
             StaticArrays.MVector{ncat,Float64}(undef), # rates
-            StaticArrays.SVector{ncat,Float64}([uniflw for i in 1:ncat]),
-            cuts) # weight and cumweight
+            StaticArrays.SVector{ncat,Float64}([uniflw for i in 1:ncat]))
     if ncat == 1
         obj.ratemultiplier[1] = 1.0
     else
@@ -1041,59 +1113,156 @@ function RVASGamma(alpha=1.0::Float64, ncat=4::Int)
     return obj
 end
 
+struct RVASInv <: RateVariationAcrossSites
+    pinv::StaticArrays.MVector{1,Float64} # mutable
+    ratemultiplier::StaticArrays.MVector{2,Float64}
+    lograteweight::StaticArrays.MVector{2,Float64}
+end
+function RVASInv(pinv=0.05::Float64)
+    obj = RVASInv(StaticArrays.MVector{1,Float64}(pinv),
+            StaticArrays.MVector{2,Float64}(undef), # rates
+            StaticArrays.MVector{2,Float64}(undef)) # log weights
+    setpinv!(obj, pinv) # checks for 0 <= pinv < 1
+    return obj
+end
+
+struct RVASGammaInv{S} <: RateVariationAcrossSites
+    # S = ncat+1, and size of vectors
+    pinv::StaticArrays.MVector{1,Float64}  # mutable
+    alpha::StaticArrays.MVector{1,Float64} # mutable
+    ncat::Int
+    ratemultiplier::StaticArrays.MVector{S,Float64}
+    lograteweight::StaticArrays.MVector{S,Float64}
+end
+function RVASGammaInv(pinv::Float64, alpha::Float64, ncat::Int)
+    @assert ncat > 1 "ncat must be 2 or more for the Gamma+I model"
+    s = 1+ncat
+    obj = RVASGammaInv{s}(
+            StaticArrays.MVector{1,Float64}(pinv),
+            StaticArrays.MVector{1,Float64}(alpha), ncat,
+            StaticArrays.MVector{s,Float64}(undef), # rates
+            StaticArrays.MVector{s,Float64}(undef)) # log weights
+    setpinvalpha!(obj, pinv, alpha) # checks for α >= 0 and 0 <= pinv < 1
+    return obj
+end
+
 """
     setalpha!(obj, alpha)
 
 Set the shape parameter `alpha` in a RateVariationAcrossSites model `obj`,
 and update the rate multipliers accordingly.
+Return the modified object.
 """
-function setalpha!(obj::RateVariationAcrossSites, alpha::Float64)
-    @assert alpha >= 0 "alpha must be a float >= 0"
+function setalpha!(obj::RVASGamma{S}, alpha::Float64) where S
+    @assert alpha >= 0 "alpha must be >= 0"
     obj.alpha[1] = alpha
     gammadist = Distributions.Gamma(alpha, 1/alpha)
-    if obj.ncat > 1
-        rv = obj.ratemultiplier
-        for i in 1:obj.ncat
-            @inbounds rv[i] = quantile(gammadist, obj.cumprob[i])
-        end
-        rv ./= mean(rv)
+    cumprob = 1/(2obj.ncat) .+ (0:(obj.ncat-1))/obj.ncat # cumulative prob to discretize Gamma
+    obj.ncat > 1 || return obj
+    rv = obj.ratemultiplier
+    for (i,cp) in enumerate(cumprob)
+        @inbounds rv[i] = quantile(gammadist, cp)
     end
-    return nothing
+    rv ./= mean(rv)
+    return obj
+end
+function setalpha!(obj::RVASGammaInv{S}, alpha::Float64) where S
+    @assert alpha >= 0 "alpha must be >= 0"
+    obj.alpha[1] = alpha
+    ncat = obj.ncat
+    pvar = 1.0 - obj.pinv[1]
+    gammadist = Distributions.Gamma(alpha, 1/alpha)
+    r0 = quantile.(gammadist, 1/(2ncat) .+ (0:(ncat-1))/ncat)
+    r0 ./= mean(r0)
+    for i in 2:(ncat+1)
+        @inbounds obj.ratemultiplier[i] = r0[i-1]/pvar
+    end
+    return obj
 end
 
-function RateVariationAcrossSites(; pinv=0.0::Float64, alpha=Inf64::Float64, ncat=4::Int)
-    ncat>1 && alpha == Inf && error("use ncat=1 or α<Inf")
-    if pinv==0.0
-        return RVASGamma(alpha, ncat)
+"""
+    setpinv!(obj, pinv)
+
+Set the proportion of invariable sites `pinv` in a RateVariationAcrossSites
+model `obj`, and update the rate multipliers & weights accordingly.
+For `RVASInvGamma` objects, the original rate multipliers are assumed correct,
+according to the original `pinv` value.
+Return the modified object.
+"""
+function setpinv!(obj::RVASInv, pinv::Float64)
+    @assert 0.0 <= pinv < 1.0 "pinv must be in [0,1)"
+    obj.pinv[1] = pinv
+    pvar = 1.0-pinv # 0 not okay here: ratemultiplier would be infinite
+    obj.lograteweight[1] = log(pinv) # -Inf is okay
+    obj.lograteweight[2] = log(pvar)
+    obj.ratemultiplier[2] = 1.0/pvar # to get an average rate = 1
+    return obj
+end
+function setpinv!(obj::RVASGammaInv{S}, pinv::Float64) where S
+    @assert 0.0 <= pinv < 1.0 "pinv must be in [0,1)"
+    ncat = obj.ncat
+    pvar = 1.0-pinv # 0 not okay here: ratemultiplier would be infinite
+    pvarratio = (1.0-obj.pinv[1])/pvar # old p_variable / new p_variable
+    obj.pinv[1] = pinv
+    obj.lograteweight[1] = log(pinv) # -Inf is okay
+    uniflw = -log(ncat)+log(pvar)
+    for i in 2:(ncat+1)
+        @inbounds obj.lograteweight[i] = uniflw
+        @inbounds obj.ratemultiplier[i] *= pvarratio # gamma rate / p_variable
     end
-    error("pinv>0 is not implemented")
-    if alpha == Inf
-        #return RVASInv(pinv)
-    end
-    #return RVASGammaInv(pinv, alpha, ncat)
+    return obj
 end
 
-# fixit:
-# use lograteweight in fitdiscrete and other functions
-# add setalpha! function for RVASInv: to return an error
+function setpinvalpha!(obj::RVASGammaInv{S}, pinv::Float64, alpha::Float64) where S
+    @assert 0.0 <= pinv < 1.0 "pinv must be in [0,1)"
+    @assert alpha >= 0 "alpha must be >= 0"
+    obj.alpha[1] = alpha
+    obj.pinv[1] = pinv
+    obj.lograteweight[1] = log(pinv) # -Inf is okay
+    ncat = obj.ncat
+    gammadist = Distributions.Gamma(alpha, 1/alpha)
+    r0 = quantile.(gammadist, 1/(2ncat) .+ (0:(ncat-1))/ncat)
+    r0 ./= mean(r0)
+    pvar = 1.0-pinv # 0 not okay here: ratemultiplier would be infinite
+    uniflw = -log(ncat)+log(pvar)
+    for i in 2:(ncat+1)
+        @inbounds obj.lograteweight[i] = uniflw
+        @inbounds obj.ratemultiplier[i] = r0[i-1]/pvar
+    end
+    return obj
+end
 
-# add Inv model, then GammaInv model
-# make RateVariationAcrossSites() not error with pinv>0, and check 0<pinv<1
-# for GammaInv: take ratemultiplier from Gamma, divide them by 1-pinv.
-
-function Base.show(io::IO, obj::RateVariationAcrossSites)
-    str = "Rate Variation Across Sites using Discretized Gamma Model\n"
+function Base.show(io::IO, obj::RVASGamma{S})  where S
+    str = "Rate variation across sites: discretized Gamma\n"
     if length(obj.ratemultiplier)>1
         str *= "alpha: $(round(obj.alpha[1], digits=5))\n"
     end
     str *= "categories for Gamma discretization: $(obj.ncat)\n"
-    str *= "ratemultiplier: $(round.(obj.ratemultiplier, digits=5))\n"
+    str *= "rates: $(round.(obj.ratemultiplier, digits=3))"
+    print(io, str)
+end
+function Base.show(io::IO, obj::RVASInv)
+    str = "Rate variation across sites: +I (invariable sites)\n"
+    str *= "pinv: $(round(obj.pinv[1], digits=5))\n"
+    str *= "rates: $(round.(obj.ratemultiplier, digits=3))"
+    print(io, str)
+end
+function Base.show(io::IO, obj::RVASGammaInv{S})  where S
+    str = "Rate variation across sites: discretized Gamma+I\n"
+    str *= "pinv: $(round(obj.pinv[1], digits=5))\n"
+    str *= "alpha: $(round(obj.alpha[1], digits=5))\n"
+    str *= "categories for Gamma discretization: $(obj.ncat)\n"
+    str *= "rates: $(round.(obj.ratemultiplier, digits=3))\n"
+    str *= "probabilities: $(round.(exp.(obj.lograteweight), digits=3))"
     print(io, str)
 end
 
-function nparams(obj::RateVariationAcrossSites)
+function nparams(obj::RVASGamma{S})  where S
     return (obj.ncat == 1 ? 0 : 1)
 end
+nparams(::RVASInv) = 1::Int
+nparams(::RVASGammaInv{S}) where S = 2::Int # ncat must be >1
+
 
 """
     empiricalDNAfrequencies(DNAdata::AbstractDataFrame, DNAweights,
