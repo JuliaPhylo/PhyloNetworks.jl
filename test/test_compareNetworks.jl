@@ -108,7 +108,7 @@ tree2 = majorTree(net2);        tree3 = majorTree(net3);
 deleteleaf!(tree2,"Xhellerii"); deleteleaf!(tree3,"Xhellerii");
 deleteleaf!(tree2,"Xsignum");   deleteleaf!(tree3,"Xsignum");
 hardwiredClusterDistance(tree2, tree3, false) == 0 || error("HWD not 0, major tree - 2 taxa");
-hardwiredClusterDistance(tree2, tree3, true) == 20 || error("rooted RF dist not 20");
+@test hardwiredClusterDistance(tree2, tree3, true) == 21
 rootatnode!(tree3,"Xmaculatus");
 hardwiredClusterDistance(tree2, tree3, true) == 15 || error("rooted RF dist not 15");
 rootatnode!(tree2,"Xgordoni");
@@ -129,7 +129,7 @@ net3  = readTopology(cui3str);
 @test hardwiredClusterDistance(net2, net3, true) == 3
 @test_logs rootatnode!(net3,"Xmayae");
 @test hardwiredClusterDistance(net2, net3, true) == 4
-@test hardwiredClusterDistance(net2, net3, false) == 3
+@test hardwiredClusterDistance(net2, net3, false) == 4
 @test_logs deleteleaf!(net3,"Xmayae"; unroot=true);    #plot(net3);
 @test net3.numHybrids == 2
 # using simplify=false in deleteleaf!
@@ -355,8 +355,8 @@ rootatnode!(trunet, -8)
 h0est = readTopology("(((2:0.01,1:0.01):0.033,(3:0.0154,4:0.0149):0.0186):0.0113,6:0.0742,5:0.0465);")
 truenet = readTopology("((((1,2),((3,4))#H1),(#H1,5)),6);")
 h1est = readTopology("(5:0.0,6:0.0,(((2:0.0)#H1:0.0::0.95,1:0.0):0.0,((4:0.0,3:0.0):0.0,#H1:0.0::0.05):0.0):0.0);")
-@test hardwiredClusterDistance(h0est, truenet, false) == 1
-@test hardwiredClusterDistance(truenet, h0est, false) == 1
+@test hardwiredClusterDistance(h0est, truenet, false) == 2
+@test hardwiredClusterDistance(truenet, h0est, false) == 2
 @test hardwiredClusterDistance(h1est, truenet, false) == 4
 @test hardwiredClusterDistance(truenet, h1est, false) == 4
 

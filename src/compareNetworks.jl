@@ -720,7 +720,6 @@ function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, root
         end
     end # (size(M1)[1] - dis) edges have been found in net2, dis edges have not.
     # so size(M2)[1] - (size(M1)[1] - dis) edges in net2 are not in net1.
-    @info "at end of hardwiredClusterDistance, dis = $dis, diff = $(size(M2)[1] - size(M1)[1])"
     dis + dis + size(M2)[1] - size(M1)[1]
 end
 
@@ -774,22 +773,19 @@ function hardwiredClusterDistance_unrooted!(net1::HybridNetwork, net2::HybridNet
         end
     end
     bestdissimilarity = typemax(Int)
-    bestn1 = missing
-    bestn2 = missing
+    bestns = missing
     for n1 in net1roots
         rootatnode!(net1, n1; verbose=false)
         for n2 in net2roots
             rootatnode!(net2, n2; verbose=false)
             diss = hardwiredClusterDistance(net1, net2, true) # rooted = true now
-            @info "After calling hwcd, diss = $diss"
             if diss < bestdissimilarity
-                bestn1 = n1
-                bestn2 = n2
+                bestns = (n1, n2)
                 bestdissimilarity = diss
             end
         end
     end
-    @show bestn1, bestn2
+    # @info "best root nodes: $bestns"
     # warning: original roots (and edge directions) NOT restored
     return bestdissimilarity
 end
