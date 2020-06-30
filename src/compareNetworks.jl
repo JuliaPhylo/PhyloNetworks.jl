@@ -682,8 +682,7 @@ If rooted=false, the trees are considered unrooted.
 If rooted is false and one of the phylogenies is not a tree (1+ reticulations),
 then all degree-2 nodes are removed before comparing the hardwired clusters,
 and the minimum distance is returned over all possible ways to root the
-networks. When trying to root a network at a leaf, the root is placed
-along the external branch to the leaf (creating a single degree-2 node).
+networks at internal nodes.
 """
 function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, rooted::Bool)
     bothtrees = (net1.numHybrids == 0 && net2.numHybrids == 0)
@@ -702,14 +701,17 @@ function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, root
         #println("M1="); print(M1); println("\nM2="); print(M2); println("\n");
     end
     dis = 0
-
-    for i1=1:size(M1)[1]
+    n2ci = collect(1:size(M2, 1)) # cluster indices
+    for i1 in 1:size(M1,1)
         found = false
         m1 = 1 .- M1[i1,2:end] # going to the end: i.e. we want to match a tree edge with a tree edge
-        for i2=1:size(M2)[1]                                  # and hybrid edge with hybrid edge
+                                # and hybrid edge with hybrid edge
+        for j in length(n2ci):-1:1 # check only unmatched cluster indices, in reverse
+            i2 = n2ci[j]
             if (M1[i1,2:end] == M2[i2,2:end] ||
                   ( !rooted && m1 == M2[i2,2:end])     )
                 found = true
+                deleteat!(n2ci, j) # a cluster can be repeated
                 break
             end
         end
@@ -731,9 +733,10 @@ rooted distance, over all root positions that are compatible with the direction
 of hybrid edges.
 Called by [`hardwiredClusterDistance`](@ref).
 
-Since rooting the network at a leaf creates a root node of degree 2 and may
-require to delete the previous node, if it was of degree 2, all degree-2 nodes
+To avoid repeating identical clusters, all degree-2 nodes
 are deleted before starting the comparison.
+Since rooting the network at a leaf creates a root node of degree 2 and
+an extra cluster, leaves are excluded from possible rooting positions.
 """
 function hardwiredClusterDistance_unrooted(net1::HybridNetwork, net2::HybridNetwork)
     return hardwiredClusterDistance_unrooted!(deepcopy(net1), deepcopy(net2))
@@ -746,7 +749,10 @@ function hardwiredClusterDistance_unrooted!(net1::HybridNetwork, net2::HybridNet
     removedegree2nodes!(net1) # because re-rooting would remove them in an
     removedegree2nodes!(net2) # unpredictable order
     # find all permissible positions for the root
-    net1roots = [n.number for n in net1.node]
+    net1roots = [n.number for n in net1.node if !n.leaf]
+    #= disallow the root at a leaf: adding a degree-2 node adds a cluster
+       that could be artificially matched to a cluster from a degree-3 node
+       sister to a hybrid edge, when a the leaf edge is the donor. =#
     for i in length(net1roots):-1:1 # reverse order, to delete some of them
         try
             rootatnode!(net1, net1roots[i]; verbose=false)
@@ -757,7 +763,7 @@ function hardwiredClusterDistance_unrooted!(net1::HybridNetwork, net2::HybridNet
             deleteat!(net1roots, i)
         end
     end
-    net2roots = [n.number for n in net2.node]
+    net2roots = [n.number for n in net2.node if !n.leaf]
     for i in length(net2roots):-1:1
         try
             rootatnode!(net2, net2roots[i]; verbose=false)
@@ -767,16 +773,19 @@ function hardwiredClusterDistance_unrooted!(net1::HybridNetwork, net2::HybridNet
         end
     end
     bestdissimilarity = typemax(Int)
+    bestns = missing
     for n1 in net1roots
         rootatnode!(net1, n1; verbose=false)
         for n2 in net2roots
             rootatnode!(net2, n2; verbose=false)
             diss = hardwiredClusterDistance(net1, net2, true) # rooted = true now
             if diss < bestdissimilarity
+                bestns = (n1, n2)
                 bestdissimilarity = diss
             end
         end
     end
+    # @info "best root nodes: $bestns"
     # warning: original roots (and edge directions) NOT restored
     return bestdissimilarity
 end
