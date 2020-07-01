@@ -192,7 +192,7 @@ end
 
 @testset "optimizestructure with simple example" begin
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
-obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69, 1)
+obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69; maxhybrid=1)
 PhyloNetworks.checknetwork_LiNC!(obj.net, 1, true, true)
 PhyloNetworks.updateSSM!(obj, true; constraints=emptyconstraint)
 PhyloNetworks.startingBL!(obj.net, obj.trait, obj.siteweight)
@@ -219,7 +219,7 @@ no3cycle = true
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
 seed = 102
 for nohybridladder in [true, false]
-    obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69, 1)
+    obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69)
     PhyloNetworks.checknetwork_LiNC!(obj.net, 1, no3cycle, nohybridladder)
     PhyloNetworks.updateSSM!(obj, true; constraints=emptyconstraint)
     PhyloNetworks.startingBL!(obj.net, obj.trait, obj.siteweight)
@@ -229,17 +229,17 @@ for nohybridladder in [true, false]
     γcache = PhyloNetworks.CacheGammaLiNC(obj)
     lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-6,1e-6,1e-2,1e-3, 5)
     @test_nowarn PhyloNetworks.phyLiNCone!(obj, 1, no3cycle,
-                                           nohybridladder, 3, 2, false, false,
-                                           nullio, seed, 0.5, emptyconstraint,
-                                           1e-2, 1e-2, 1e-2, 1e-2, 0.0, 25.0,
-                                           γcache, lcache)
+            nohybridladder, 3, 2, false, false,
+            nullio, seed, 0.5, emptyconstraint,
+            1e-2, 1e-2, 1e-2, 1e-2, 0.0, 25.0, 0.01,0.9,
+            γcache, lcache)
     @test obj.loglik > -27.45
 end
 end
 
 @testset "phyLiNC no constraints: HKY, rate variation" begin
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
-obj = @test_nowarn PhyloNetworks.phyLiNC!(net, fastasimple, :JC69, 2; maxhybrid=2, # no missing BLs, so they're not re-estimated
+obj = @test_nowarn PhyloNetworks.phyLiNC!(net, fastasimple, :JC69, :G, 2; maxhybrid=2, # no missing BLs, so they're not re-estimated
                     no3cycle=true, nohybridladder=true, maxmoves=2,
                     nreject=1, nruns=1, filename="", verbose=false, seed=105)
 @test obj.loglik > -27.27
@@ -281,7 +281,7 @@ PhyloNetworks.updateconstraints!(c_species, net_level1_i)
 @test c_species[1].node.number == 21
 @test PhyloNetworks.getParent(net_level1_i.node[22].edge[1]).number == 21
 
-obj = PhyloNetworks.StatisticalSubstitutionModel(net_level1_i,fastaindiv,:JC69,2)
+obj = PhyloNetworks.StatisticalSubstitutionModel(net_level1_i,fastaindiv,:JC69,:GI,2)
 # obj.net = deepcopy of input net, so we need to rebuild the constraints
 c_species[1] = PhyloNetworks.TopologyConstraint(0x01, c_species[1].taxonnames, obj.net)
 # obj.net = deepcopy of input net, so we need to rebuild the constraints if done after
@@ -292,22 +292,24 @@ PhyloNetworks.updateSSM!(obj, true; constraints=emptyconstraint)
 for e in obj.net.edge e.length = 0.1; end # was -1.0 for missing
 PhyloNetworks.startingBL!(obj.net, obj.trait, obj.siteweight)
 PhyloNetworks.unzip_canonical!(obj.net)
+PhyloNetworks.setalpha!(obj.ratemodel, 0.48438)
 obj.loglik = -Inf # actual likelihood -56.3068141288164. Need something non-missing
 seed = 103
 nullio = open("/dev/null", "w")
 γcache = PhyloNetworks.CacheGammaLiNC(obj)
 lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-2,1e-2,1e-2,1e-2, 5)
 @test_nowarn PhyloNetworks.phyLiNCone!(obj, 2, true, true,
-                                       3, 2, false, false, nullio,
-                                       seed, 0.5, c_species, 1e-2, 1e-2,
-                                       1e-2, 1e-2, 0.0, 50.0, γcache, lcache)
-@test obj.loglik > -65.2
+        3, 2, false, false, nullio,
+        seed, 0.5, c_species, 1e-2, 1e-2,
+        1e-2, 1e-2, 0.0,50.0, 0.01,.9, γcache, lcache)
+@test obj.loglik > -65.0
 
 obj = phyLiNC!(net_level1_s, # missing BLs, so BLs are re-estimated before starting
-            fastaindiv, :JC69; maxhybrid=2, no3cycle=true, nohybridladder=true,
+            fastaindiv, :JC69, :Inv; maxhybrid=2, no3cycle=true, nohybridladder=true,
             verbose=false, filename="", speciesfile=mappingfile, seed=106, nruns=1,
             maxmoves=10, nreject=2)
-@test obj.loglik > -69.84 # -72.20449451336994
+@test obj.loglik > -67.7 # -69.83824 with :noRV
+@test obj.ratemodel.pinv[1] > 0.22 # 0.23753
 # test that species stayed together after optimization, as the only polytomy
 function polytomyS1(node)
     length(node.edge) > 3 || return false

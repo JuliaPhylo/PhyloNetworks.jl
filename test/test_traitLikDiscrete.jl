@@ -47,6 +47,9 @@ rv = RateVariationAcrossSites(alpha=1.0, ncat=4)
 PhyloNetworks.setalpha!(rv, 2.0)
 @test rv.ratemultiplier ≈ [0.319, 0.683, 1.109, 1.889] atol=.002
 @test all(rv.lograteweight .≈ -1.3862943611198906)
+@test_logs PhyloNetworks.setparameters!(rv, [10.])
+@test PhyloNetworks.getparameters(rv) == [10]
+@test PhyloNetworks.getparamindex(rv) == [2]
 # +I model
 rv = RateVariationAcrossSites(pinv=0.3)
 @test nparams(rv) == 1
@@ -56,6 +59,9 @@ rv = RateVariationAcrossSites(pinv=0.3)
 PhyloNetworks.setpinv!(rv, 0.05)
 @test rv.ratemultiplier ≈ [0, 1.053] atol=.002
 @test rv.lograteweight ≈ [-2.995732273553991,-0.05129329438755058]
+@test_logs PhyloNetworks.setparameters!(rv, [0.1])
+@test PhyloNetworks.getparameters(rv) == [0.1]
+@test PhyloNetworks.getparamindex(rv) == [1]
 # +G+I model
 rv = RateVariationAcrossSites(pinv=0.3, alpha=2.0, ncat=4)
 @test nparams(rv) == 2
@@ -67,6 +73,9 @@ PhyloNetworks.setalpha!(rv, 3.0)
 PhyloNetworks.setpinv!(rv, 0.05)
 @test rv.ratemultiplier ≈ [0.0, 0.442, 0.793, 1.167, 1.808] atol=.002
 @test rv.lograteweight ≈ [-2.996, -1.438, -1.438, -1.438, -1.438] atol=.002
+@test_logs PhyloNetworks.setparameters!(rv, [0.1,2.0])
+@test PhyloNetworks.getparameters(rv) == [0.1,2.0]
+@test PhyloNetworks.getparamindex(rv) == [1,2]
 # test for errors
 @test_throws AssertionError PhyloNetworks.setalpha!(rv, -0.05)
 @test_throws AssertionError PhyloNetworks.setpinv!(rv, -0.05)
@@ -76,6 +85,12 @@ PhyloNetworks.setpinv!(rv, 0.05)
 @test_throws AssertionError RateVariationAcrossSites(pinv=-0.01)
 @test_throws AssertionError RateVariationAcrossSites(pinv=0.5, alpha=-2., ncat=2)
 @test_throws AssertionError RateVariationAcrossSites(pinv=-0.1, alpha=2., ncat=2)
+# default object from symbol
+@test typeof(RateVariationAcrossSites(:noRV)) == PhyloNetworks.RVASGamma{1}
+@test typeof(RateVariationAcrossSites(:G)) == PhyloNetworks.RVASGamma{4}
+@test typeof(RateVariationAcrossSites(:I)) == PhyloNetworks.RVASInv
+@test typeof(RateVariationAcrossSites(:GI)) == PhyloNetworks.RVASGammaInv{5}
+@test_throws ErrorException RateVariationAcrossSites(:unknown)
 end
 
 @testset "Testing random discrete trait simulation" begin
@@ -514,17 +529,17 @@ net_tips = readTopology("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);");
 @test_throws ErrorException fitdiscrete(net_dat, BinaryTraitSubstitutionModel([1.,1.], ["lo","hi"]), dat_alone);
 s1 = fitdiscrete(net_dat, :ERSM, species_alone, dat_alone; optimizeQ=false)
 @test_logs show(devnull, s1)
-s1 = fitdiscrete(net_dat, :ERSM, species_alone, dat_alone, :RV; optimizeQ=false, optimizeRVAS=false)
+s1 = fitdiscrete(net_dat, :ERSM, species_alone, dat_alone, :G; optimizeQ=false, optimizeRVAS=false)
 @test_logs show(devnull, s1)
 s2 = fitdiscrete(net_dat, :BTSM, species_alone, dat_alone; optimizeQ=false, optimizeRVAS=false)
 @test_logs show(devnull, s2)
 @test_throws ErrorException fitdiscrete(net_dat, :TBTSM, species_alone, dat_alone; optimizeQ=false, optimizeRVAS=false)
 dna_alone = DataFrame(trait=['A','C','C','A'])
-s3 = fitdiscrete(net_dat, :JC69, species_alone, dna_alone, :RV; optimizeRVAS=false, ftolRel=.1,ftolAbs=.2,xtolRel=.1,xtolAbs=.2) # 1 site: no info to optimize RVAS
+s3 = fitdiscrete(net_dat, :JC69, species_alone, dna_alone, :G; optimizeRVAS=false, ftolRel=.1,ftolAbs=.2,xtolRel=.1,xtolAbs=.2) # 1 site: no info to optimize RVAS
 @test s3.model.relative
 @test s3.ratemodel.alpha == [1.0]
 @test_logs show(devnull, s3)
-s4 = fitdiscrete(net_dat, :HKY85, species_alone, dna_alone, :RV; optimizeRVAS=false, ftolRel=.1,ftolAbs=.2,xtolRel=.1,xtolAbs=.2)
+s4 = fitdiscrete(net_dat, :HKY85, species_alone, dna_alone, :G; optimizeRVAS=false, ftolRel=.1,ftolAbs=.2,xtolRel=.1,xtolAbs=.2)
 @test s4.model.relative
 @test s4.model.pi == [3,3,1,1]/8
 @test s4.ratemodel.alpha == [1.0]
@@ -553,7 +568,7 @@ d2 = (@test_logs (:warn, r"^the network contains taxa with no data") fitdiscrete
   :JC69, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false))
 @test_logs show(devnull, d2)
 d2 = (@test_logs (:warn, r"^the network contains taxa with no data") fitdiscrete(net_dna,
-  :JC69, dna_dat, dna_weights, :RV; optimizeQ=false, optimizeRVAS=false))
+  :JC69, dna_dat, dna_weights, :GI; optimizeQ=false, optimizeRVAS=false))
 @test_logs show(devnull, d2)
 d3 = (@test_logs (:warn, r"^the network contains taxa with no data") fitdiscrete(net_dna,
   :HKY85, dna_dat, dna_weights; optimizeQ=false, optimizeRVAS=false))

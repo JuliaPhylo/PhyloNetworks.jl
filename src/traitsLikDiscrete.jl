@@ -110,7 +110,7 @@ const SSM = StatisticalSubstitutionModel
 # Works for DNA in fasta format. Probably need different versions for
 # different kinds of data (snp, amino acids). Similar to fitdiscrete()
 function StatisticalSubstitutionModel(net::HybridNetwork, fastafile::String,
-        modsymbol::Symbol, ratecategories=1::Int,
+        modsymbol::Symbol, rvsymbol=:noRV::Symbol, ratecategories=4::Int;
         maxhybrid=length(net.hybrid)::Int)
     for e in net.edge # check for missing or inappropriate γ values
         if e.hybrid
@@ -122,7 +122,7 @@ function StatisticalSubstitutionModel(net::HybridNetwork, fastafile::String,
     end
     data, siteweights = readfastatodna(fastafile, true)
     model = defaultsubstitutionmodel(net, modsymbol, data, siteweights)
-    ratemodel = RateVariationAcrossSites(alpha=1.0, ncat=ratecategories)
+    ratemodel = RateVariationAcrossSites(rvsymbol, ratecategories)
     dat2 = traitlabels2indices(view(data, :, 2:size(data,2)), model)
     o, net = check_matchtaxonnames!(data[:,1], dat2, net) # calls resetNodeNumbers, which calls preorder!
     trait = dat2[o]
@@ -137,10 +137,8 @@ function Base.show(io::IO, obj::SSM)
     disp =  "$(typeof(obj)):\n"
     disp *= string(obj.model)
     disp *= "$(length(obj.trait)) species, $(obj.totalsiteweight) sites, $(obj.nsites) distinct patterns\n"
-    if obj.ratemodel.ncat != 1
-        disp *= "variable rates across sites ~ discretized gamma with\n alpha=$(obj.ratemodel.alpha[1])"
-        disp *= "\n $(obj.ratemodel.ncat) categories"
-        disp *= "\n rate multipliers: $(round.(obj.ratemodel.ratemultiplier, digits=5))\n"
+    if nparams(obj.ratemodel) > 0
+        disp *= replace(string(obj.ratemodel), r"\n" => "\n  ") * "\n"
     end
     disp *= "on a network with $(obj.net.numHybrids) reticulations"
     if !ismissing(obj.loglik)
@@ -199,8 +197,8 @@ Data can given in one of the following:
 Optional arguments (default):
 - `optimizeQ` (true): should model rate parameters be fixed,
   or should they be optimized?
-- `optimizeRVAS` (true): should the model optimize the α parameter
-  for the variability of rates across sites?
+- `optimizeRVAS` (true): should the model optimize the parameters
+  for the variability of rates across sites (α and/or p_invariable)?
 - `NLoptMethod` (`:LN_COBYLA`, derivative-free) for the optimization algorithm.
   For other options, see the
   [NLopt](https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/).
@@ -384,11 +382,7 @@ function fitdiscrete(net::HybridNetwork, modSymbol::Symbol,
         error("model $modSymbol is unknown or not implemented yet")
     end
 
-    if rvSymbol == :RV
-        rvas = RateVariationAcrossSites(alpha=1.0, ncat=4)
-    else
-        rvas = RateVariationAcrossSites(ncat=1)
-    end
+    rvas = RateVariationAcrossSites(rvSymbol)
     fitdiscrete(net, model, rvas, species, dat; kwargs...)
 end
 
@@ -430,11 +424,7 @@ function fitdiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame,
         error("model $modSymbol is unknown or not implemented yet")
     end
 
-    if rvSymbol == :RV
-        rvas = RateVariationAcrossSites(alpha=1.0, ncat=4)
-    else
-        rvas = RateVariationAcrossSites(ncat=1)
-    end
+    rvas = RateVariationAcrossSites(rvSymbol)
     fitdiscrete(net, model, rvas, dnadata, dnapatternweights; kwargs...)
 end
 
@@ -469,7 +459,9 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
     closeoptim=false::Bool, verbose=false::Bool, maxeval=1000::Int,
     ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
     xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64,
-    alphamin=alphaRASmin, alphamax=alphaRASmax)
+    alphamin=alphaRASmin, alphamax=alphaRASmax,
+    pinvmin=pinvRASmin, pinvmax=pinvRASmax)
+
     all(x -> x >= 0.0, [e.length for e in obj.net.edge]) || error("branch lengths should be >= 0")
     all(x -> x >= 0.0, [e.gamma for e in obj.net.edge]) || error("gammas should be >= 0")
     if optimizeQ && nparams(obj.model) <1
@@ -516,7 +508,7 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
     end
     if optimizeRVAS
         function loglikfunRVAS(alpha::Vector{Float64}, grad::Vector{Float64})
-            setalpha!(obj.ratemodel, alpha[1])
+            setparameters!(obj.ratemodel, alpha)
             res = discrete_corelikelihood!(obj)
             verbose && println("loglik: $res, rate variation model shape parameter alpha: $(alpha[1])")
             length(grad) == 0 || error("gradient not implemented")
@@ -533,11 +525,12 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
         NLopt.xtol_abs!(optRVAS,xtolAbs)
         NLopt.maxeval!(optRVAS,1000) # max number of iterations
         # NLopt.maxtime!(optRVAS, t::Real)
-        NLopt.lower_bounds!(optRVAS, fill(alphamin, (nparRVAS,)) ) # for 0 as lower bound: zeros(Float64, nparRVAS)
-        NLopt.upper_bounds!(optRVAS, fill(alphamax, (nparRVAS,)) ) # delete to remove upper bound
+        rvind = getparamindex(obj.ratemodel)
+        NLopt.lower_bounds!(optRVAS, [pinvmin,alphamin][rvind] )
+        NLopt.upper_bounds!(optRVAS, [pinvmax,alphamax][rvind] )
         NLopt.max_objective!(optRVAS, loglikfunRVAS)
-        fmax, xmax, ret = NLopt.optimize(optRVAS, [obj.ratemodel.alpha[1]]) # optimization here!
-        setalpha!(obj.ratemodel, xmax[1])
+        fmax, xmax, ret = NLopt.optimize(optRVAS, getparameters(obj.ratemodel)) # optimization here!
+        setparameters!(obj.ratemodel, xmax)
         obj.loglik = fmax
         verbose && println("RVAS: got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(optRVAS.numevals) iterations (return code $(ret))")
     end
@@ -548,8 +541,8 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
         obj.loglik = fmax
         verbose && println("got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(optQ.numevals) iterations (return code $(ret))")
         # optimize RVAS under fixed Q: a second time
-        fmax, xmax, ret = NLopt.optimize(optRVAS, [obj.ratemodel.alpha[1]])
-        setalpha!(obj.ratemodel, xmax[1])
+        fmax, xmax, ret = NLopt.optimize(optRVAS, getparameters(obj.ratemodel))
+        setparameters!(obj.ratemodel, xmax)
         obj.loglik = fmax
         verbose && println("RVAS: got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(optRVAS.numevals) iterations (return code $(ret))")
     end

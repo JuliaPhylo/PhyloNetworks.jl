@@ -8,6 +8,8 @@ const likAbsDelHybLiNC = -0.1 #= loglik decrease allowed when removing a hybrid
   lower (more negative) values of lead to more hybrids removed during the search =#
 const alphaRASmin = 0.02
 const alphaRASmax = 50.0
+const pinvRASmin = 1e-8
+const pinvRASmax = 0.99
 const kappamax = 20.0
 const BLmin = 1.0e-8
     # min_branch_length = 1.0e-6 in most cases in IQ-TREE v2.0 (see main/phyloanalysis.cpp)
@@ -68,8 +70,7 @@ struct CacheLengthLiNC
 end
 
 """
-    phyLiNC!(net::HybridNetwork, fastafile::String, substitutionModel::Symbol,
-             numberofratecategories=1::Int)
+    phyLiNC!(net::HybridNetwork, fastafile::String, substitutionModel::Symbol)
 
 Estimate a phylogenetic network from concatenated DNA data using
 maximum likelihood, ignoring incomplete lineage sorting
@@ -93,8 +94,8 @@ Required arguments:
   Newick strings can be converted to this format with [`readTopology`] (@ref).
 - `fastafile`: file with the sequence data in FASTA format.
 - `substitutionModel`: A symbol indicating which substitution model is used.
-  Choose `:JC69` f [`JC69`] (@ref) for the Jukes-Cantor model or `:HKY85` for
-  the Hasegawa, Kishino, Yano model [`HKY85`] (@ref).
+  Choose `:JC69` [`JC69`](@ref) for the Jukes-Cantor model or `:HKY85` for
+  the Hasegawa, Kishino, Yano model [`HKY85`](@ref).
 
 The length of the edge below a reticulation is not identifiable.
 Therefore, phyLiNC estimates the canonical version of the network: with
@@ -108,9 +109,14 @@ lengths as starting branch lengths, only unzipping all reticulations, as
 described above.
 
 Optional arguments (default value in parenthesis):
-- `numberofratecategories` (1): number of categories to use in estimating
+-  symbol for the model of rate variation across sites
+  (`:noRV` for no rate variation):
+  use `:G` or `:Gamma` for Gamma-distributed rates,
+  `:I` or `:Inv` for a proportion of invariable sites, and
+  `:GI` or `:GammaInv` for a combination (not recommended).
+- integer (4) for the number of categories to use in estimating
   evolutionary rates using a discretized gamma model. When allowing for rate
-  variation, four categories is standard. If `numberofratecategories` = 1,
+  variation, four categories is standard. With 1 category,
   no rate variation is assumed. See [`RateVariationAcrossSites`] (@ref).
 
 Main optional keyword arguments (default value in parenthesis):
@@ -149,10 +155,10 @@ Optional arguments controlling the search:
   hybrid γ values, evolutionary rates, and rate variation parameters are
   reestimated.
 - `verbose` (true): set to false to turn off screen output
-- `alphamin` (0.02): minimum value for shape parameter alpha in rate variation
-  across sites model.
-- `alphamax` (50.0): maximum value for shape parameter alpha in rate variation
-  across sites model.
+- `alphamin` (0.02) and `alphamax` (50.0): minimum and maximum values for
+  the shape parameter alpha for Gamma-distributed rates across sites.
+- `pinvmin` (1e-8) and `pinvmax` (0.99): minimum and maximum values for
+  the proportion of invariable sites, if included in the model.
 
 The following optional arguments control when to stop the optimization of branch
 lengths and gamma values on each individual candidate network. Defaults in
@@ -168,7 +174,7 @@ are optimized using stricter tolerances (1e-10, 1e-12, 1e-10, 1e-10) for better
 estimates.
 """
 function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
-                  rateCategories=1::Int;
+                  rvsymbol=:noRV::Symbol, rateCategories=4::Int;
                   maxhybrid=1::Int, no3cycle=true::Bool,
                   nohybridladder=true::Bool,
                   speciesfile=""::AbstractString,
@@ -184,7 +190,8 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
         error("Clade constraints not yet implemented.")
     end
     # create starting object for all runs
-    obj = StatisticalSubstitutionModel(net, fastafile, modSymbol, rateCategories, maxhybrid)
+    obj = StatisticalSubstitutionModel(net, fastafile, modSymbol,
+            rvsymbol, rateCategories; maxhybrid=maxhybrid)
     #= after SSM(), update constraint taxon names, taxonnums, edge, and node
        because some leaves may be pruned, and check_matchtaxonnames calls
        resetNodeNumbers! (changing leaf node numbers) and resetEdgeNumbers! =#
@@ -219,7 +226,8 @@ function phyLiNC!(obj::SSM;
                   ftolRel=1e-6::Float64, ftolAbs=1e-6::Float64,
                   xtolRel=1e-10::Float64, xtolAbs=1e-5::Float64,
                   constraints=TopologyConstraint[]::Vector{TopologyConstraint},
-                  alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64)
+                  alphamin=alphaRASmin::Float64, alphamax=alphaRASmax::Float64,
+                  pinvmin=pinvRASmin::Float64, pinvmax=pinvRASmax::Float64)
     writelog = true
     writelog_1proc = false
     if filename != ""
@@ -242,7 +250,8 @@ function phyLiNC!(obj::SSM;
          optimizeRVAS=(nparams(obj.ratemodel) > 0),
          verbose=false, maxeval=20,
          ftolRel=ftolRel, ftolAbs=ftolAbs, xtolRel=xtolRel, xtolAbs=xtolAbs,
-         alphamin=alphamin, alphamax=alphamax)
+         alphamin=alphamin, alphamax=alphamax,
+         pinvmin=pinvmin, pinvmax=pinvmax)
     @debug "loglik = $(loglikelihood(obj)) at the start"
     str = """
     PhyLiNC network estimation starting. Parameters:
@@ -312,7 +321,7 @@ function phyLiNC!(obj::SSM;
             phyLiNCone!(obj, maxhybrid, no3cycle, nohybridladder, maxmoves,
                         nreject, verbose, writelog_1proc, logfile, seeds[i], probST,
                         constraints, ftolRel, ftolAbs, xtolRel, xtolAbs,
-                        alphamin, alphamax, γcache,
+                        alphamin, alphamax, pinvmin, pinvmax, γcache,
                         CacheLengthLiNC(obj, ftolRel,ftolAbs,xtolRel,xtolAbs, 20)) # 20=maxeval
             # NLopt segfault if we pass a pre-allocated lcache to a worker
             logstr = "\nFINISHED. loglik = $(obj.loglik)\n"
@@ -406,6 +415,7 @@ end
                 ftolRel::Float64, ftolAbs::Float64,
                 xtolRel::Float64, xtolAbs::Float64,
                 alphamin::Float64, alphamax::Float64,
+                pinvmin::Float64, pinvmax::Float64,
                 γcache::CacheGammaLiNC)
 
 Estimate one phylogenetic network (or tree) from concatenated DNA data,
@@ -428,6 +438,7 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
                     ftolRel::Float64, ftolAbs::Float64,
                     xtolRel::Float64, xtolAbs::Float64,
                     alphamin::Float64, alphamax::Float64,
+                    pinvmin::Float64, pinvmax::Float64,
                     γcache::CacheGammaLiNC,
                     lcache::CacheLengthLiNC)
 
@@ -460,7 +471,7 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
         @debug "after optimizestructure returns, the likelihood is $(obj.loglik), nrejected = $nrejected"
         fit!(obj; optimizeQ=optQ, optimizeRVAS=optRAS, maxeval=20,
              ftolRel=ftolRel, ftolAbs=ftolAbs, xtolRel=xtolRel, xtolAbs=xtolAbs,
-             alphamin=alphamin, alphamax=alphamax)
+             alphamin=alphamin,alphamax=alphamax, pinvmin=pinvmin,pinvmax=pinvmax)
         @debug "after fit! runs, the likelihood is $(obj.loglik)"
         optimizealllengths_LiNC!(obj, lcache) # 1 edge at a time, random order
         for i in Random.shuffle(1:obj.net.numHybrids)
@@ -931,15 +942,13 @@ Warning:
 Does not update the likelihood.
 
 ```jldoctest
-julia> maxhybrid = 3;
-
 julia> net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
 
 julia> fastafile = abspath(joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "simple.aln"));
 
-julia> obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastafile, :JC69, maxhybrid);
+julia> obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastafile, :JC69; maxhybrid=3);
 
-julia> PhyloNetworks.checknetwork_LiNC!(obj.net, maxhybrid, true, true);
+julia> PhyloNetworks.checknetwork_LiNC!(obj.net, 3, true, true);
 
 julia> using Random; Random.seed!(432);
 

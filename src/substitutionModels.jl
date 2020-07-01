@@ -39,9 +39,6 @@ For subtypes, see [`JC69`](@ref), [`HKY85`](@ref)
 """
 abstract type NucleicAcidSubstitutionModel <: SubstitutionModel end
 const NASM = NucleicAcidSubstitutionModel
-function Base.show(io::IO, obj::SM)
-    error("show not defined for $(typeof(obj)).")
-end
 
 """
     nparams(model)
@@ -1090,6 +1087,28 @@ function RateVariationAcrossSites(; pinv=0.0::Float64, alpha=Inf64::Float64, nca
     # pinv>0, ncat>1 and α is finite here
     return RVASGammaInv(pinv, alpha, ncat)
 end
+"""
+    RateVariationAcrossSites(rvsymbol::Symbol, ncategories=4::Int)
+
+Default model for rate variation across site, specified by a symbol:
+- `:noRV` for no rate variation
+- `:G` or `:Gamma` for gamma-distributed rates
+- `:I` or `:Inv` for two categories: invariable and variable
+- `:GI` or `:GI` for both.
+"""
+function RateVariationAcrossSites(rvsymbol::Symbol, ncategories=4::Int)
+    if rvsymbol == :noRV
+        rvas = RateVariationAcrossSites()
+    elseif rvsymbol == :Gamma || rvsymbol == :G
+        rvas = RateVariationAcrossSites(alpha=1.0, ncat=ncategories)
+    elseif rvsymbol == :GammaInv || rvsymbol == :GI
+        rvas = RateVariationAcrossSites(pinv=0.05, alpha=1.0, ncat=ncategories)
+    elseif rvsymbol == :Inv || rvsymbol == :I
+        rvas = RateVariationAcrossSites(pinv=0.05)
+    else
+        error("model $rvsymbol unknown or not implemented yet:\nrate variation model needs to be :Gamma or :Inv or :GammaInv")
+    end
+end
 
 struct RVASGamma{S} <: RateVariationAcrossSites
     # S = ncat, and size of vectors
@@ -1257,12 +1276,42 @@ function Base.show(io::IO, obj::RVASGammaInv{S})  where S
     print(io, str)
 end
 
-function nparams(obj::RVASGamma{S})  where S
+function nparams(obj::RVASGamma{S}) where S
     return (obj.ncat == 1 ? 0 : 1)
 end
 nparams(::RVASInv) = 1::Int
 nparams(::RVASGammaInv{S}) where S = 2::Int # ncat must be >1
 
+"""
+    getparameters(obj::RateVariationAcrossSites)
+
+Return a copy of the alpha and/or pinv parameters of model `obj`,
+in a single vector.
+"""
+getparameters(obj::RVASInv) = copy(obj.pinv)
+getparameters(obj::RVASGamma{S}) where S = copy(obj.alpha)
+getparameters(obj::RVASGammaInv{S}) where S = [obj.pinv[1], obj.alpha[1]]
+
+"""
+    setparameters!(obj::RateVariationAcrossSites, par::AbstractVector)
+
+Set the values of the alpha and/or pinv parameters of model `obj`.
+See also [`setalpha!`](@ref), [`setpinv!`](@ref) and [`setpinvalpha!`](@ref)
+"""
+setparameters!(obj::RVASInv, par::AbstractVector) = setpinv!(obj, par[1])
+setparameters!(obj::RVASGamma{S}, par::AbstractVector) where S =
+    setalpha!(obj, par[1])
+setparameters!(obj::RVASGammaInv{S}, par::AbstractVector) where S =
+    setpinvalpha!(obj, par[1], par[2])
+
+"""
+    getparamindex(obj::RateVariationAcrossSites)
+
+Indices of parameters in (p_invariable, alpha).
+"""
+getparamindex(::RVASInv) = [1]
+getparamindex(::RVASGamma{S}) where S = [2]
+getparamindex(::RVASGammaInv{S}) where S = [1,2]
 
 """
     empiricalDNAfrequencies(DNAdata::AbstractDataFrame, DNAweights,
