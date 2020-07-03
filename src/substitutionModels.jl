@@ -156,8 +156,8 @@ function showQ(io::IO, obj::SM)
     for i = 1:size(M,2) # print the header
         print(io, lpad(getlabels(obj)[i],(i==1 ? 2*pad : pad), " "))
     end
-    print(io, "\n")
     for i = 1:size(M,1) # print one row per state
+        print(io, "\n")
         if getlabels(obj) != ""
             print(io, lpad(getlabels(obj)[i],pad," "))
         end
@@ -169,7 +169,6 @@ function showQ(io::IO, obj::SM)
                 @eval(@printf($io,$fmt,$(M[i,j])))
             end
         end
-        print(io, "\n")
     end
 end
 
@@ -199,7 +198,6 @@ rate matrix Q:
        C  0.3226       *  0.4839  0.1613
        G  0.1613  0.4839       *  0.3226
        T  0.3226  0.2419  0.4839       *
-
 
 julia> PhyloNetworks.P(m1, 0.2)
 4×4 StaticArrays.MArray{Tuple{4,4},Float64,2,16} with indices SOneTo(4)×SOneTo(4):
@@ -254,7 +252,6 @@ julia> PhyloNetworks.P!(Matrix{Float64}(undef,4,4), m2, 0.2)
  0.0585179  0.824446   0.0585179  0.0585179
  0.0585179  0.0585179  0.824446   0.0585179
  0.0585179  0.0585179  0.0585179  0.824446 
-
 ```
 """
 @inline function P!(Pmat::AbstractMatrix, obj::SM, t::Float64)
@@ -655,7 +652,6 @@ rate matrix Q:
        G  0.0833  0.0833       *  0.0833
        T  0.0833  0.0833  0.0833       *
 
-
 julia> nstates(m1)
 4
 
@@ -672,7 +668,6 @@ rate matrix Q:
        C  0.3333       *  0.3333  0.3333
        G  0.3333  0.3333       *  0.3333
        T  0.3333  0.3333  0.3333       *
-
 
 julia> nparams(m2)
 0
@@ -754,7 +749,6 @@ rate matrix Q:
        G  0.1613  0.4839       *  0.3226
        T  0.3226  0.2419  0.4839       *
 
-
 julia> nstates(m1)
 4
 
@@ -768,7 +762,6 @@ rate matrix Q:
        C  0.1000       *  0.1500  0.1000
        G  0.1000  0.1500       *  0.1000
        T  0.1000  0.1500  0.1500       *
-
 
 ```
 """

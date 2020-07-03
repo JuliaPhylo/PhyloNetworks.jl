@@ -269,7 +269,7 @@ function phyLiNC!(obj::SSM;
     str *= (writelog ? "\n   filename for log and err files: $(filename)" :
                        "\n   no output files\n\n")
     str *= "\n$(nruns) run(s) starting near network topology:\n$(writeTopology(obj.net))\nstarting model:\n" *
-            replace(string(obj.model),     r"\n" => "\n  ") *
+            replace(string(obj.model),     r"\n" => "\n  ") * "\n" *
             replace(string(obj.ratemodel), r"\n" => "\n  ") * "\n"
     # fixit: add info about constraints: type and tip names for each constraint
     if Distributed.nprocs()>1
@@ -371,7 +371,7 @@ function phyLiNC!(obj::SSM;
     obj.loglik = obj.net.loglik
     logstr = "Best topology:\n$(writeTopology(obj.net))\n" *
               "with loglik $(obj.loglik) under:\n" *
-              replace(string(obj.model),     r"\n" => "\n  ") *
+              replace(string(obj.model),     r"\n" => "\n  ") * "\n" *
               replace(string(obj.ratemodel), r"\n" => "\n  ") *
               "\n---------------------\n" *
               "Final optimization of branch lengths and gammas on this network... "
@@ -548,20 +548,22 @@ function checknetwork_LiNC!(net::HybridNetwork, maxhybrid::Int, no3cycle::Bool,
     checkspeciesnetwork!(net, constraints) ||
         error("The species or clade constraints are not satisfied in the starting network.")
         # checkspeciesnetwork removes nodes of degree 2, need to renumber with updateSSM
-    !shrink2cycles!(net, true) || (verbose && @warn("""The input network contains
-        one or more 2-cycles (after removing any nodes of degree 2 including the
-        root). These 2-cycles have been removed."""))
+    !shrink2cycles!(net, true) || (verbose && @warn(
+        """The input network contains one or more 2-cycles
+        (after removing any nodes of degree 2 including the root).
+        These 2-cycles have been removed."""))
     if no3cycle
-        !shrink3cycles!(net, true) || (verbose && @warn("""Options indicate there should
-        be no 3-cycles in the returned network, but the input network contains
-        one or more 3-cycles (after removing any nodes of degree 2 including the
-        root). These 3-cycles have been removed."""))
+        !shrink3cycles!(net, true) || (verbose && @warn(
+        """Options indicate there should be no 3-cycles in the returned network,
+        but the input network contains one or more 3-cycles
+        (after removing any nodes of degree 2 including the root).
+        These 3-cycles have been removed."""))
         # if nodes removed, need to renumber with updateSSM
     end
     if nohybridladder
-        !hashybridladder(net) || error("""Options indicate there should be no
-        hybrid ladders in the returned network, but the input network contains
-        one or more hybrid ladders.""")
+        !hashybridladder(net) || error(
+        """Options indicate there should be no hybrid ladders in the returned network,
+        but the input network contains one or more hybrid ladders.""")
     end
     if length(net.hybrid) > maxhybrid
         error("""Options indicate a maximum of $(maxhybrid) reticulations, but
