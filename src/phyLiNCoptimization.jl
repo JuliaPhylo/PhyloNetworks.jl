@@ -269,7 +269,8 @@ function phyLiNC!(obj::SSM;
     str *= (writelog ? "\n   filename for log and err files: $(filename)" :
                        "\n   no output files\n\n")
     str *= "\n$(nruns) run(s) starting near network topology:\n$(writeTopology(obj.net))\nstarting model:\n" *
-            string(obj.model) * string(obj.ratemodel)
+            replace(string(obj.model),     r"\n" => "\n  ") *
+            replace(string(obj.ratemodel), r"\n" => "\n  ") * "\n"
     # fixit: add info about constraints: type and tip names for each constraint
     if Distributed.nprocs()>1
         str *= "using $(Distributed.nworkers()) worker processors\n"
@@ -369,8 +370,10 @@ function phyLiNC!(obj::SSM;
     obj.ratemodel = netvector[1][3]
     obj.loglik = obj.net.loglik
     logstr = "Best topology:\n$(writeTopology(obj.net))\n" *
-              "with loglik $(obj.loglik) under:\n" * string(obj.model) *
-              string(obj.ratemodel) * "---------------------\n" *
+              "with loglik $(obj.loglik) under:\n" *
+              replace(string(obj.model),     r"\n" => "\n  ") *
+              replace(string(obj.ratemodel), r"\n" => "\n  ") *
+              "\n---------------------\n" *
               "Final optimization of branch lengths and gammas on this network... "
     if writelog
         write(logfile, logstr)
