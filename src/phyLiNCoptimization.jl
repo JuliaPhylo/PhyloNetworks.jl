@@ -263,11 +263,11 @@ function phyLiNC!(obj::SSM;
        max number of consecutive failed proposals = $(nreject)
        optimization tolerance: ftolRel=$(ftolRel), ftolAbs=$(ftolAbs),
                                xtolAbs=$(xtolAbs), xtolRel=$(xtolRel).
-    Data:
-       Total number of sites: $(sum(obj.siteweight))
-       Total number of distinct patterns: $(obj.nsites)"""
-    str *= (writelog ? "\n   filename for log and err files: $(filename)" :
-                       "\n   no output files\n\n")
+    """ *
+    (writelog ? "   filename for log and err files: $(filename)\n" :
+                "   no output files\n")
+    io = IOBuffer(); showdata(io, obj)
+    str *= String(take!(io)) * "\n"; close(io)
     str *= "\n$(nruns) run(s) starting near network topology:\n$(writeTopology(obj.net))\nstarting model:\n" *
             replace(string(obj.model),     r"\n" => "\n  ") * "\n" *
             replace(string(obj.ratemodel), r"\n" => "\n  ") * "\n"

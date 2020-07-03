@@ -332,7 +332,7 @@ end
 function Base.show(io::IO, obj::BTSM)
     str = "Binary Trait Substitution Model:\n"
     str *= "rate $(obj.label[1])→$(obj.label[2]) α=$(round(obj.rate[1], digits=5))\n"
-    str *= "rate $(obj.label[2])→$(obj.label[1]) β=$(round(obj.rate[2], digits=5))\n"
+    str *= "rate $(obj.label[2])→$(obj.label[1]) β=$(round(obj.rate[2], digits=5))"
     print(io, str)
 end
 
@@ -500,7 +500,6 @@ julia> m1 = BinaryTraitSubstitutionModel(1.0, 2.0)
 Binary Trait Substitution Model:
 rate 0→1 α=1.0
 rate 1→0 β=2.0
-
 
 julia> using Random; Random.seed!(12345);
 

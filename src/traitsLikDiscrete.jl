@@ -135,15 +135,27 @@ StatsBase.islinear(SSM) = false
 StatsBase.dof(obj::SSM) = nparams(obj.model) + nparams(obj.ratemodel)
 function Base.show(io::IO, obj::SSM)
     disp =  "$(typeof(obj)):\n"
-    disp *= string(obj.model)
-    disp *= "$(length(obj.trait)) species, $(obj.totalsiteweight) sites, $(obj.nsites) distinct patterns\n"
+    disp *= replace(string(obj.model), r"\n" => "\n  ") * "\n"
     if nparams(obj.ratemodel) > 0
         disp *= replace(string(obj.ratemodel), r"\n" => "\n  ") * "\n"
     end
-    disp *= "on a network with $(obj.net.numHybrids) reticulations"
+    disp *= "on a network with $(obj.net.numHybrids) reticulations\n"
+    print(io, disp)
+    showdata(io, obj)
     if !ismissing(obj.loglik)
-        disp *= "\nlog-likelihood: $(round(obj.loglik, digits=5))"
+        print(io, "\nlog-likelihood: $(round(obj.loglik, digits=5))")
     end
+end
+function showdata(io::IO, obj::SSM)
+    disp =  "data:\n  $(length(obj.trait)) species"
+    ns = round(obj.totalsiteweight)
+    ns = (isapprox(obj.totalsiteweight, ns, atol=1e-5) ? Int(ns) : ns)
+    disp *= (ns ≈ 1 ? "\n  $ns trait" : "\n  $ns sites")
+    if !isapprox(obj.nsites, obj.totalsiteweight)
+        disp *= "\n  $(obj.nsites) distinct patterns"
+    end
+    # fixit: add info about # sites with missing values, invariable sites, etc.
+    # but only if there are more than 1 site, e,g, if ns>1
     print(io, disp)
 end
 # nobs: nsites * nspecies, minus any missing, but ignores correlation between species
@@ -223,10 +235,12 @@ julia> dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"]);
 julia> fit1 = fitdiscrete(net, m1, dat)
 PhyloNetworks.StatisticalSubstitutionModel:
 Binary Trait Substitution Model:
-rate lo→hi α=0.27222
-rate hi→lo β=0.34981
-1 traits, 4 species
+  rate lo→hi α=0.27222
+  rate hi→lo β=0.34981
 on a network with 1 reticulations
+data:
+  4 species
+  1 trait
 log-likelihood: -2.7277
 
 julia> tips = Dict("A" => "lo", "B" => "lo", "C" => "hi", "D" => "hi");
@@ -234,10 +248,12 @@ julia> tips = Dict("A" => "lo", "B" => "lo", "C" => "hi", "D" => "hi");
 julia> fit2 = fitdiscrete(net, m1, tips; xtolRel=1e-16, xtolAbs=1e-16, ftolRel=1e-16)
 PhyloNetworks.StatisticalSubstitutionModel:
 Binary Trait Substitution Model:
-rate lo→hi α=0.27222
-rate hi→lo β=0.34981
-1 traits, 4 species
+  rate lo→hi α=0.27222
+  rate hi→lo β=0.34981
 on a network with 1 reticulations
+data:
+  4 species
+  1 trait
 log-likelihood: -2.7277
 ```
 
@@ -257,16 +273,18 @@ julia> mJC69 = JC69([0.25], false);
 julia> fitJC69 = fitdiscrete(net, mJC69, tips)
 PhyloNetworks.StatisticalSubstitutionModel:
 Jukes and Cantor 69 Substitution Model,
-absolute rate version
-off-diagonal rates equal to 0.29233/3.
-rate matrix Q:
-               A       C       G       T
-       A       *  0.0974  0.0974  0.0974
-       C  0.0974       *  0.0974  0.0974
-       G  0.0974  0.0974       *  0.0974
-       T  0.0974  0.0974  0.0974       *
-1 traits, 4 species
+  absolute rate version
+  off-diagonal rates equal to 0.29233/3.
+  rate matrix Q:
+                 A       C       G       T
+         A       *  0.0974  0.0974  0.0974
+         C  0.0974       *  0.0974  0.0974
+         G  0.0974  0.0974       *  0.0974
+         T  0.0974  0.0974  0.0974       *
 on a network with 0 reticulations
+data:
+  4 species
+  1 trait
 log-likelihood: -4.99274
 
 julia> rv = RateVariationAcrossSites(alpha=1.0, ncat=4)
@@ -278,20 +296,22 @@ rates: [0.146, 0.513, 1.071, 2.27]
 julia> fitdiscrete(net, mJC69, rv, tips; optimizeQ=false, optimizeRVAS=false)
 PhyloNetworks.StatisticalSubstitutionModel:
 Jukes and Cantor 69 Substitution Model,
-absolute rate version
-off-diagonal rates equal to 0.25/3.
-rate matrix Q:
-               A       C       G       T
-       A       *  0.0833  0.0833  0.0833
-       C  0.0833       *  0.0833  0.0833
-       G  0.0833  0.0833       *  0.0833
-       T  0.0833  0.0833  0.0833       *
-1 traits, 4 species
-variable rates across sites ~ discretized gamma with
- alpha=1.0
- 4 categories
- rate multipliers: [0.14578, 0.51313, 1.07083, 2.27025]
+  absolute rate version
+  off-diagonal rates equal to 0.25/3.
+  rate matrix Q:
+                 A       C       G       T
+         A       *  0.0833  0.0833  0.0833
+         C  0.0833       *  0.0833  0.0833
+         G  0.0833  0.0833       *  0.0833
+         T  0.0833  0.0833  0.0833       *
+Rate variation across sites: discretized Gamma
+  alpha: 1.0
+  categories for Gamma discretization: 4
+  rates: [0.146, 0.513, 1.071, 2.27]
 on a network with 0 reticulations
+data:
+  4 species
+  1 trait
 log-likelihood: -5.2568
 
 ```
