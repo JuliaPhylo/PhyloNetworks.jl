@@ -273,7 +273,7 @@ Only call this function to read a value when you know a numerical value exists!
 end
 
 """
-    parseEdgeData!(s::IO, edge, node, numberOfLeftParentheses::Array{Int,1})
+    parseEdgeData!(s::IO, edge, numberOfLeftParentheses::Array{Int,1})
 
 Helper function for readSubtree!, fixes a bug from using setGamma
 Modifies `e` according to the specified edge length and gamma values in the tree topology.
@@ -281,7 +281,7 @@ Advances the stream `s` past any existing edge data.
 Edges in a topology may optionally be followed by ":edgeLen:bootstrap:gamma"
 where edgeLen, bootstrap, and gamma are decimal values.
 """
-@inline function parseEdgeData!(s::IO, e::Edge, n::Node, numLeft::Array{Int,1})
+@inline function parseEdgeData!(s::IO, e::Edge, numLeft::Array{Int,1})
     read(s, Char); # to read the first ":"
     e.length = getDataValue!(s, 1, numLeft)
     bootstrap = nothing;
@@ -295,7 +295,7 @@ where edgeLen, bootstrap, and gamma are decimal values.
         e.gamma = getDataValue!(s, 3, numLeft)
     end
     if e.gamma != -1.0 && !e.hybrid && e.gamma != 1.0
-        @warn "γ read for edge $(e.number) but it is not hybrid, so γ=$(gamma) ignored"
+        @warn "γ read for edge $(e.number) but it is not hybrid, so γ=$(e.gamma) ignored"
         e.gamma = 1.0
     end
 end
@@ -421,7 +421,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
     c = peekskip(s);
     e.length = -1.0
     if c == ':'
-        parseEdgeData!(s, e, n, numLeft)
+        parseEdgeData!(s, e, numLeft)
     end
     if e.hybrid
         # if hybrid edge: 'e' might have no info, but its partner may have had info

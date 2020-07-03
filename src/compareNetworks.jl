@@ -589,7 +589,8 @@ function inheritanceWeight(tree::HybridNetwork)
 end
 
 """
-    majorTree(net::HybridNetwork; nofuse=false::Bool, unroot=false::Bool)
+    majorTree(net::HybridNetwork; nofuse=false::Bool, unroot=false::Bool,
+              keeporiginalroot=false::Bool)
 
 Extract the major tree displayed in a network, keeping the major edge
 and dropping the minor edge at each hybrid node.
@@ -600,14 +601,18 @@ is retained: the major hybrid edge is fused with it.
 
 `unroot`: is true, the root will be deleted if it becomes of degree 2.
 
+`keeporiginalroot`: the network's root is kept even if it becomes of degree 1.
+
 Warnings:
 
 - if `nofuse` is true: the hybrid edges that are retained (without fusing)
   have their γ values unchanged, but their `isMajor` is changed to true
 - assume correct `isMajor` attributes.
 """
-majorTree(net::HybridNetwork; nofuse=false::Bool, unroot=false::Bool) =
-    displayedTrees(net,0.5; nofuse=nofuse, unroot=unroot)[1]
+majorTree(net::HybridNetwork; nofuse=false::Bool, unroot=false::Bool,
+          keeporiginalroot=false::Bool) =
+    displayedTrees(net,0.5; nofuse=nofuse, unroot=unroot,
+                   keeporiginalroot=keeporiginalroot)[1]
 
 
 # expands current list of trees, with trees displayed in a given network

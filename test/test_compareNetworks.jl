@@ -245,7 +245,9 @@ net = readTopology("((((B)#H1)#H2,((D,C,#H2)S1,(#H1,A)S2)S3)S4);") # missing γ'
 @test writeTopology(majorTree(net; nofuse=true)) == "(((B)H1)H2,((D,C)S1,(A)S2)S3)S4;"
 setGamma!(net.edge[8], 0.8)
 @test writeTopology(majorTree(net)) == "((D,C)S1,(A,B)S2)S3;"
-writeTopology(majorTree(net; nofuse=true)) == "((D,C)S1,((B)H1,A)S2)S3;"
+@test writeTopology(majorTree(net; nofuse=true)) == "((D,C)S1,((B)H1,A)S2)S3;"
+@test writeTopology(majorTree(net; nofuse=true, keeporiginalroot=true)) == "(((D,C)S1,((B)H1,A)S2)S3)S4;"
+@test writeTopology(majorTree(net; keeporiginalroot=true)) == "(((D,C)S1,(A,B)S2)S3)S4;"
 
 # net6 below: hybrid ladder H2 -> H1; and H2 child of root
 # using multgammas=true, to test multiplygammas and how it is used
