@@ -350,10 +350,10 @@ end
 #dat::DataFrame with rate model version
 function fitdiscrete(net::HybridNetwork, model::SubstitutionModel,
     ratemodel::RateVariationAcrossSites, dat::DataFrame; kwargs...)
-    i = findfirst(isequal(:taxon), DataFrames.names(dat))
-    if i===nothing i = findfirst(isequal(:species), DataFrames.names(dat)); end
+    i = findfirst(isequal(:taxon), DataFrames.propertynames(dat))
+    if i===nothing i = findfirst(isequal(:species), DataFrames.propertynames(dat)); end
     if i===nothing i=1; end # first column if no column "taxon" or "species"
-    j = findfirst(isequal(:trait), DataFrames.names(dat))
+    j = findfirst(isequal(:trait), DataFrames.propertynames(dat))
     if j===nothing j=2; end
     if i==j
         error("""expecting taxon names in column 'taxon', or 'species' or

@@ -17,9 +17,9 @@ Optional arguments:
 - file name to write/save resulting CF table. If not specified, then the output
   data frame is not saved to a file.
 - column numbers for the taxon names. 1-4 by default.
-- any keyword arguments that `CSV.read` would accept.
+- any keyword arguments that `CSV.File` would accept.
   For example, delim=',' by default: columns are delimited by commas.
-  Unless specified otherwise by the user, `categorical`=false
+  Unless specified otherwise by the user, `pool`=false
   (to read taxon names as Strings, not levels of a categorical factor,
   for combining the 4 columns with taxon names more easily).
   The same CSV arguments are used to read both input file (mapping file and quartet file)
@@ -28,26 +28,23 @@ See also [`mapAllelesCFtable!`](@ref) to input DataFrames instead of file names.
 
 If a `filename` is specified, such as "quartetCF_speciesNames.csv"
 in the example below, this file is best read later with the option
-`categorical=false`. example:
+`pool=false`. example:
 
 ```julia
 mapAllelesCFtable("allele-species-map.csv", "allele-quartet-CF.csv";
                   filename = "quartetCF_speciesNames.csv")
-df_sp = CSV.read("quartetCF_speciesNames.csv"); # DataFrame object
+df_sp = DataFrame!(CSV.File("quartetCF_speciesNames.csv")); # DataFrame object
 dataCF_specieslevel = readTableCF!(df_sp); # DataCF object
 ```
 """
 function mapAllelesCFtable(alleleDF::AbstractString, cfDF::AbstractString;
         filename=""::AbstractString, columns=Int[]::Vector{Int}, CSVargs...)
-    # force categorical=false unless the user wants otherwise
-    if :categorical ∉ [pair[1] for pair in CSVargs]
-        CSVargs = (CSVargs..., :categorical=>false)
+    # force pool=false unless the user wants otherwise
+    if :pool ∉ [pair[1] for pair in CSVargs]
+        CSVargs = (CSVargs..., :pool=>false)
     end
-    # force :copycols = true in CSV arguments, even if user asks otherwise
-    CSVargs = [pair for pair in CSVargs if pair[1] != :copycols]
-    CSVargs = (CSVargs..., :copycols=>true)
-    d = CSV.read(alleleDF; CSVargs...)
-    d2 = CSV.read(cfDF; CSVargs...)
+    d = DataFrame!(CSV.File(alleleDF; CSVargs...))
+    d2 = DataFrame!(CSV.File(cfDF; CSVargs...))
     mapAllelesCFtable!(d2,d, columns, filename != "", filename)
 end
 
@@ -187,9 +184,11 @@ end
 # (if info on number of genes is provided) or simple average
 function mergeRows(df::DataFrame, cols::Vector{Int})
     sorttaxa!(df, cols) # sort taxa alphabetically within each row
-    colnam = names(df)[cols[5:end]]
-    df = aggregate(df, names(df)[cols[1:4]], mean);
-    rename!(df, Dict((Symbol(n, "_mean"), n) for n in colnam) )
+    colnamtax = DataFrames.propertynames(df)[cols[1:4]]
+    colnam = DataFrames.propertynames(df)[cols[5:end]]
+    df = combine(groupby(df, colnamtax, sort=false, skipmissing=false),
+                 colnam .=> mean .=> colnam)
+    # rename!(df, Dict((Symbol(n, "_mean"), n) for n in colnam) )
     n4tax = size(df,1) # total number of 4-taxon sets
     print("$n4tax unique 4-taxon sets were found. CF values of repeated 4-taxon sets will be averaged")
     println((length(cols)>7 ? " (ngenes too)." : "."))
@@ -267,8 +266,8 @@ end
 # function to check that the allele df has one column labelled alleles and one column labelled species
 function checkMapDF(alleleDF::DataFrame)
     size(alleleDF,2) >= 2 || error("Allele-Species matching Dataframe should have at least 2 columns")
-    :allele in names(alleleDF) || error("In allele mapping file there is no column named allele")
-    :species in names(alleleDF) || error("In allele mapping file there is no column named species")
+    :allele in DataFrames.propertynames(alleleDF) || error("In allele mapping file there is no column named allele")
+    :species in DataFrames.propertynames(alleleDF) || error("In allele mapping file there is no column named species")
 end
 
 

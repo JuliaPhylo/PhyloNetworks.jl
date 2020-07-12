@@ -61,7 +61,7 @@ C = vcv(readTopology(tree_str))
 # names_R = rcopy(R"colnames($C_R)")
 names_R = ["t2", "t4", "t3", "t5", "t1"]
 
-@test names(C) == map(Symbol, names_R)
+@test DataFrames.names(C) == names_R
 
 ########################
 ## Descendence Matrix Test

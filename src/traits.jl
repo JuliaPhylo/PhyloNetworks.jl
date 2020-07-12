@@ -531,7 +531,7 @@ julia> dfr_shift = regressorShift(net.node[nodes_shifts], net) # the regressors 
 │ 3   │ 0.0     │ 1.0     │ C        │
 │ 4   │ 0.0     │ 0.6     │ D        │
 
-julia> dfr = join(dat, dfr_shift, on=:tipNames); # join data and regressors in a single dataframe
+julia> dfr = innerjoin(dat, dfr_shift, on=:tipNames); # join data and regressors in a single dataframe
 
 julia> using StatsModels # for statistical model formulas
 
@@ -671,7 +671,7 @@ julia> dfr_hybrid = regressorHybrid(net) # the reressors matching the hybrids.
 │ 3   │ 0.0     │ C        │ 0.0     │
 │ 4   │ 1.0     │ D        │ 1.0     │
 
-julia> dfr = join(dat, dfr_hybrid, on=:tipNames); # join data and regressors in a single dataframe
+julia> dfr = innerjoin(dat, dfr_hybrid, on=:tipNames); # join data and regressors in a single dataframe
 
 julia> using StatsModels
 
@@ -1948,7 +1948,7 @@ julia> phy = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..", "exampl
 
 julia> using CSV # to read data file, next
 
-julia> dat = CSV.read(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "caudata_trait.txt"));
+julia> dat = DataFrame!(CSV.File(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "caudata_trait.txt")));
 
 julia> using StatsModels # for stat model formulas
 
@@ -2100,8 +2100,9 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
         ind = [0]
         @info """As requested (no_names=true), I am ignoring the tips names
              in the network and in the dataframe."""
-    elseif (any(tipLabels(net) == "") || !any(DataFrames.names(fr) .== :tipNames))
-        if (any(tipLabels(net) == "") && !any(DataFrames.names(fr) .== :tipNames))
+    else
+        nodatanames = !any(DataFrames.propertynames(fr) .== :tipNames)
+        if nodatanames && any(tipLabels(net) == "")
             error("""The network provided has no tip names, and the input dataframe has
                   no column labelled tipNames, so I can't match the data on the network
                   unambiguously. If you are sure that the tips of the network are in the
@@ -2114,20 +2115,17 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
                   network are in the same order as the values of the dataframe provided,
                   then please re-run this function with argument no_name=true.""")
         end
-        if !any(DataFrames.names(fr) .== :tipNames)
+        if nodatanames
             error("""The input dataframe has no column labelled tipNames, so I can't
                   match the data on the network unambiguously. If you are sure that the
                   tips of the network are in the same order as the values of the dataframe
                   provided, then please re-run this function with argument no_name=true.""")
         end
-    else
-        #        ind = indexin(V.tipNames, fr[:tipNames])
         ind = indexin(fr[!,:tipNames], tipLabels(net))
-        if any(ind == 0) || length(unique(ind)) != length(ind)
+        if any(isnothing, ind) || length(unique(ind)) != length(ind)
             error("""Tips names of the network and names provided in column tipNames
                   of the dataframe do not match.""")
         end
-        #   fr = fr[ind, :]
     end
     # Find the regression matrix and response vector
     data, nonmissing = StatsModels.missing_omit(StatsModels.columntable(fr), f)
@@ -2634,7 +2632,7 @@ julia> using CSV # to read data file
 
 julia> phy = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "carnivores_tree.txt"));
 
-julia> dat = CSV.read(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "carnivores_trait.txt"));
+julia> dat = DataFrame!(CSV.File(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "carnivores_trait.txt")));
 
 julia> using StatsModels # for statistical model formulas
 
@@ -2923,7 +2921,7 @@ Returns an object of type [`ReconstructedStates`](@ref).
 function ancestralStateReconstruction(fr::AbstractDataFrame,
                                       net::HybridNetwork;
                                       kwargs...)
-    nn = names(fr)
+    nn = DataFrames.propertynames(fr)
     datpos = nn .!= :tipNames
     if sum(datpos) > 1
         error("""Besides one column labelled 'tipNames', the dataframe fr should have

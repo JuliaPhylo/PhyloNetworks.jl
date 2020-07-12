@@ -19,7 +19,7 @@ if not given as absolute paths.
 """
 function readBootstrapTrees(filelist::AbstractString; relative2listfile=true::Bool)
     filelistdir = dirname(filelist)
-    bootfiles = CSV.read(filelist, header=false, types=Dict(1=>String))
+    bootfiles = DataFrame!(CSV.File(filelist, header=false, types=Dict(1=>String)))
     size(bootfiles)[2] > 0 ||
         error("there should be a column in file $filelist: with a single bootstrap file name on each row (no header)")
     ngenes = size(bootfiles)[1]
@@ -113,9 +113,9 @@ optional argument: `delim=','` by default: how columns are delimited.
 function sampleCFfromCI(df::DataFrame, seed=0::Integer)
     @debug "order of columns should be: t1,t2,t3,t4,cf1234,cf1324,cf1423,cf1234LO,cf1234HI,..."
     size(df,2) == 13 || size(df,2) == 14 || @warn "sampleCFfromCI function assumes table from TICR: CF, CFlo, CFhi"
-    obsCFcol = [findfirst(isequal(:CF12_34), DataFrames.names(df)),
-                findfirst(isequal(:CF13_24), DataFrames.names(df)),
-                findfirst(isequal(:CF14_23), DataFrames.names(df))]
+    obsCFcol = [findfirst(isequal(:CF12_34), DataFrames.propertynames(df)),
+                findfirst(isequal(:CF13_24), DataFrames.propertynames(df)),
+                findfirst(isequal(:CF14_23), DataFrames.propertynames(df))]
     nothing ∉ obsCFcol || error("""CF columns were not found: should be named like 'CF12_34'""")
     obsCFcol == [5,8,11] ||
         @warn """CF columns were found, but not in the expected columns.
@@ -154,7 +154,8 @@ function sampleCFfromCI!(df::DataFrame, seed=0::Integer)
     return df
 end
 
-sampleCFfromCI(file::AbstractString; delim=','::Char,seed=0::Integer) = sampleCFfromCI(CSV.read(file, delim=delim),seed)
+sampleCFfromCI(file::AbstractString; delim=','::Char,seed=0::Integer) =
+    sampleCFfromCI(DataFrame!(CSV.File(file, delim=delim)),seed)
 
 # function that will do bootstrap of snaq estimation in series
 # it repeats optTopRuns nrep times
@@ -345,7 +346,7 @@ function bootsnaq(startnet::HybridNetwork, data::Union{DataFrame,Vector{Vector{H
         error("Input data not recognized: $(typeof(data))")
 
     if !inputastrees
-    (DataFrames.names(data)[[6,7,9,10,12,13]] == [:CF12_34_lo,:CF12_34_hi,:CF13_24_lo,:CF13_24_hi,:CF14_23_lo,:CF14_23_hi]) ||
+    (DataFrames.propertynames(data)[[6,7,9,10,12,13]] == [:CF12_34_lo,:CF12_34_hi,:CF13_24_lo,:CF13_24_hi,:CF14_23_lo,:CF14_23_hi]) ||
       @warn """assume table with CI from TICR: CFlo, CFhi in columns 6,7; 9,10; and 12,13.
               Found different column names: $(DataFrames.names(data)[[6,7,9,10,12,13]])"""
     else # check 1+ genes, each with 1+ trees, all with h=0.

@@ -89,7 +89,7 @@ The last version modifies the input data frame, if species are represented by mu
 for instance (see [`readTableCF!`](@ref)(data frame, columns)).
 """
 function readTableCF(file::AbstractString; delim=','::Char, summaryfile=""::AbstractString)
-    df = CSV.read(file, delim=delim)
+    df = DataFrame!(CSV.File(file, delim=delim))
     readTableCF!(df, summaryfile=summaryfile)
 end
 
@@ -105,10 +105,10 @@ function readTableCF!(df::DataFrames.DataFrame; summaryfile=""::AbstractString)
         [:CF13_24, Symbol("CF13.24"), :obsCF13],
         [:CF14_23, Symbol("CF14.23"), :obsCF14]
     ]
-    obsCFcol = [findfirst(x-> x ∈ alternativecolnames[1], DataFrames.names(df)),
-                findfirst(x-> x ∈ alternativecolnames[2], DataFrames.names(df)),
-                findfirst(x-> x ∈ alternativecolnames[3], DataFrames.names(df))]
-    ngenecol =  findfirst(isequal(:ngenes), DataFrames.names(df))
+    obsCFcol = [findfirst(x-> x ∈ alternativecolnames[1], DataFrames.propertynames(df)),
+                findfirst(x-> x ∈ alternativecolnames[2], DataFrames.propertynames(df)),
+                findfirst(x-> x ∈ alternativecolnames[3], DataFrames.propertynames(df))]
+    ngenecol =  findfirst(isequal(:ngenes), DataFrames.propertynames(df))
     withngenes = ngenecol !== nothing
     if nothing in obsCFcol # one or more col names for CFs were not found
         size(df,2) == (withngenes ? 8 : 7) ||
@@ -1092,9 +1092,8 @@ function updateBL!(net::HybridNetwork,d::DataCF)
     end
     parts = edgesParts(net)
     df = makeTable(net,parts,d)
-    x = by(df, :edge, Nquartets= :CF => length,
-                      edgeL = :CF => x -> -log(3/2*(1. - mean(x))))
-    # ommitting columns: meanCF= :CF => mean, sdCF= :CF => std
+    x = combine(groupby(df, :edge), nrow => :Nquartets,
+                :CF => (x -> -log(3/2*(1. - mean(x)))) => :edgeL)
     edges = x[!,:edge]
     lengths = x[!,:edgeL]
     for i in 1:length(edges)

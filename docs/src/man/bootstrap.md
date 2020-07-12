@@ -12,7 +12,7 @@ There are two ways to do a bootstrap analysis.
 - From quartet CFs with credibility intervals, such as if we used BUCKy. The [TICR pipeline](@ref) outputs a CF table with extra columns for credibility intervals. We could then read that table and get bootstrap networks like this, and tweak options as needed:
 ```julia
 using CSV
-df = CSV.read("tableCF_withCI.csv")
+df = DataFrame!(CSV.File("tableCF_withCI.csv"))
 bootnet = bootsnaq(startnetwork, df, hmax=1, filename="bootstrap")
 ```
 
