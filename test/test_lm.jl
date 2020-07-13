@@ -150,7 +150,7 @@ Y = sim[:Tips]
 
 ## Construct regression matrix
 dfr_shift = regressorShift(net.edge[[8,17]], net)
-dfr_shift[!,:sum] = vec(sum(Matrix(dfr_shift[:,findall(names(dfr_shift) .!= :tipNames)]), dims=2))
+dfr_shift[!,:sum] = vec(sum(Matrix(dfr_shift[:,findall(DataFrames.propertynames(dfr_shift) .!= :tipNames)]), dims=2))
 dfr_hybrid = regressorHybrid(net)
 
 @test dfr_shift[!,:shift_8] ≈ dfr_hybrid[!,:shift_8]
@@ -159,7 +159,7 @@ dfr_hybrid = regressorHybrid(net)
 
 ## Data
 dfr = DataFrame(trait = Y, tipNames = sim.M.tipNames)
-dfr = join(dfr, dfr_hybrid, on=:tipNames)
+dfr = innerjoin(dfr, dfr_hybrid, on=:tipNames)
 
 ## Simple BM
 fitShift = phyloNetworklm(@formula(trait ~ shift_8 + shift_17), dfr, net)

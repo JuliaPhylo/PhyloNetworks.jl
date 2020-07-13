@@ -107,6 +107,11 @@ pkg> add PhyloPlots#master # to get the master branch: done by make.jl
 julia> include("make.jl")
 ```
 
+or, after project & manifest setup:
+```shell
+julia --project --color=yes -e 'include("make.jl")'
+```
+
 it will:
 - test the `jldoctest` blocks of examples in the docstrings
 - create or update a `build/` directory with html files.

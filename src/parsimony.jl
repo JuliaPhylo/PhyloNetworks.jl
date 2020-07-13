@@ -140,10 +140,10 @@ function parsimonyDiscreteFitch(net::HybridNetwork, tips::Dict{String,T}) where 
 end
 
 function parsimonyDiscreteFitch(net::HybridNetwork, dat::DataFrame)
-    i = findfirst(isequal(:taxon), DataFrames.names(dat))
-    if i===nothing i = findfirst(isequal(:species), DataFrames.names(dat)); end
+    i = findfirst(isequal(:taxon), DataFrames.propertynames(dat))
+    if i===nothing i = findfirst(isequal(:species), DataFrames.propertynames(dat)); end
     if i===nothing i=1; end # first column if no column named "taxon" or "species"
-    j = findfirst(isequal(:trait), DataFrames.names(dat))
+    j = findfirst(isequal(:trait), DataFrames.propertynames(dat))
     if j===nothing j=2; end
     if i==j
         error("""expecting taxon names in column 'taxon', or 'species' or column 1,
@@ -252,10 +252,10 @@ function parsimonySoftwired(net::HybridNetwork, tips::Dict{String,T}) where {T}
 end
 
 function parsimonySoftwired(net::HybridNetwork, dat::DataFrame)
-    i = findfirst(isequal(:taxon), DataFrames.names(dat))
-    if i===nothing i = findfirst(isequal(:species), DataFrames.names(dat)); end
+    i = findfirst(isequal(:taxon), DataFrames.propertynames(dat))
+    if i===nothing i = findfirst(isequal(:species), DataFrames.propertynames(dat)); end
     if i===nothing i=1; end # first column if no column named "taxon" or "species"
-    j = findfirst(isequal(:trait), DataFrames.names(dat))
+    j = findfirst(isequal(:trait), DataFrames.propertynames(dat))
     if j===nothing j=2; end
     if i==j
         error("""expecting taxon names in column 'taxon', or 'species' or column 1,
@@ -447,7 +447,7 @@ function readfastatodna(fastafile::String, countPatterns=false::Bool)
 
     #create dat here
     dat = DataFrame(siteList)
-    insertcols!(dat, 1, taxon = species)
+    insertcols!(dat, 1, :taxon => species)
     return (dat, weights)
 end
 
@@ -465,8 +465,8 @@ Warning:
 - will use all other columns as characters
 """
 function readCSVtoArray(dat::DataFrame)
-    i = findfirst(isequal(:taxon), DataFrames.names(dat))
-    if i===nothing i = findfirst(isequal(:species), DataFrames.names(dat)); end
+    i = findfirst(isequal(:taxon), DataFrames.propertynames(dat))
+    if i===nothing i = findfirst(isequal(:species), DataFrames.propertynames(dat)); end
     if i===nothing
         @warn "expecting taxon names in column 'taxon', or 'species', so will assume column 1"
         i = 1
@@ -494,7 +494,7 @@ function readCSVtoArray(dat::DataFrame)
 end
 
 function readCSVtoArray(filename::String)
-    dat = CSV.read(filename)
+    dat = DataFrame!(CSV.File(filename))
     readCSVtoArray(dat)
 end
 

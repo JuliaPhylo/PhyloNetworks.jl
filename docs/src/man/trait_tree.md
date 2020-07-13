@@ -485,7 +485,7 @@ We can use this dataframe as regressors in the `phyloNetworklm` function.
 
 ```@example tree_trait
 dat = DataFrame(trait = trait_sh, tipNames = tipLabels(sim_sh))  # Data
-dat = join(dat, df_shift, on=:tipNames)                          # join the two
+dat = innerjoin(dat, df_shift, on=:tipNames)                     # join the two
 fit_sh = phyloNetworklm(@formula(trait ~ shift_6), dat, truenet) # fit
 ```
 Here, because there is only one hybrid in the network, we can directly

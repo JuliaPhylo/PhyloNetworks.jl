@@ -69,7 +69,7 @@ rm.(["tmp_qCF.csv","tmp_map.csv"]);
 q = readTableCF!(df2_byallele);
 df2 = writeTableCF(q) # 45×8 DataFrames.DataFrame
 # df2[7:11,:]
-# df12 = join(df1, df2, on=[:t1,:t2,:t3,:t4], makeunique=true)
+# df12 = innerjoin(df1, df2, on=[:t1,:t2,:t3,:t4], makeunique=true)
 # all([df12[:,4+i] ≈ df12[:,8+i] for i in 1:4]) # false: because averaging done differently by the 2 functions
 @test df2 == DataFrame(
   t1=["AB","AB","AB","AB","AB","AB","AB","AB","AB","AB","C"],
@@ -96,7 +96,7 @@ tree = readMultiTopology(treefile); # 1387 trees
 # 0.139761 seconds (900.12 k allocations: 52.000 MiB, 11.52% gc time). 3876×8 DataFrames.DataFrame
 @time df2 = writeTableCF(readTrees2CF(tree, writeTab=false, writeSummary=false))
 # 13.154085 seconds (84.86 M allocations: 10.010 GiB, 7.21% gc time).  3876×8 DataFrames.DataFrame
-df12 = join(df1, df2, on=[:t1,:t2,:t3,:t4], makeunique=true)
+df12 = innerjoin(df1, df2, on=[:t1,:t2,:t3,:t4], makeunique=true)
 @test all([df12[:,4+i] == df12[:,8+i] for i in 1:4])
 # using BenchmarkTools
 # @benchmark countquartetsintrees(tree)
@@ -128,7 +128,7 @@ BenchmarkTools.Trial:
 =#
 mappingfile = joinpath(dir, "strain2bin_map.csv")
 using CSV
-taxonmap = CSV.read(mappingfile) # 110×3 DataFrames.DataFrame
+taxonmap = DataFrame!(CSV.File(mappingfile)) # 110×3 DataFrames.DataFrame
 taxonmap = Dict(taxonmap[i,:allele] => taxonmap[i,:species] for i in 1:110)
 @time df1 = writeTableCF(countquartetsintrees(tree, taxonmap; weight_byallele=true)...)
 # 0.119289 seconds (698.57 k allocations: 43.305 MiB, 17.40% gc time). 5×8 DataFrames.DataFrame
@@ -143,7 +143,7 @@ tree = readMultiTopology(joinpath(dir, "raxml_1387_sample_13species4alleles.tre"
 # ~ 600 times faster
 @time df2 = writeTableCF(readTrees2CF(tree, writeTab=false, writeSummary=false))
 # 3365.783672 seconds = 50.1 min (13.43 G allocations: 2.665 TiB, 21.33% gc time). 292825×8 DataFrame
-df12 = join(df1, df2, on=[:t1,:t2,:t3,:t4], makeunique=true)
+df12 = innerjoin(df1, df2, on=[:t1,:t2,:t3,:t4], makeunique=true)
 @test df12[!,8] ≈ df12[!,12] # number of genes
 hasdata = map(iszero, df12[!,8]) # sum: 34 four-taxon sets have data for 0 genes
 df12[hasdata,5:12] # countquartetsintrees gives 0s, readTrees2CF gives NaN

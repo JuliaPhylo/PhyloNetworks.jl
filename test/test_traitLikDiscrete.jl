@@ -323,7 +323,7 @@ fit1.model.rate[1] = 0.2722263130324768;
 fit1.model.rate[2] = 0.34981109618902395;
 @test_throws ErrorException ancestralStateReconstruction(fit1, 4) # 1 trait, not 4: error
 asr = ancestralStateReconstruction(fit1)
-@test names(asr) == [:nodenumber, :nodelabel, :lo, :hi]
+@test DataFrames.propertynames(asr) == [:nodenumber, :nodelabel, :lo, :hi]
 @test asr[!,:nodenumber] == collect(1:9)
 @test asr[!,:nodelabel] == ["A","B","C","D","5","6","7","8","H1"]
 @test asr[!,:lo] ≈ [1.,1.,0.,0., 0.28602239466671175, 0.31945742289603263,

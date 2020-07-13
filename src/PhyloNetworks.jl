@@ -15,7 +15,7 @@ module PhyloNetworks
     using BioSymbols
     using Combinatorics: combinations
     using CSV
-    using DataFrames
+    using DataFrames # innerjoin new in v0.21
     using DataStructures # for updateInCycle with priority queue
     using Distributions #for RateVariationAcrossSites
     using GLM # for the lm function
