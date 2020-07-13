@@ -597,7 +597,7 @@ data: [1.0, 0.0, 0.0, 0.5]
 julia> df = writeTableCF(q,t); # to get a DataFrame that can be saved to a file later
 
 julia> show(df, allcols=true, splitcols=false)
-5×8 DataFrames.DataFrame
+5×8 DataFrame
 │ Row │ t1     │ t2     │ t3     │ t4     │ CF12_34 │ CF13_24 │ CF14_23 │ ngenes  │
 │     │ String │ String │ String │ String │ Float64 │ Float64 │ Float64 │ Float64 │
 ├─────┼────────┼────────┼────────┼────────┼─────────┼─────────┼─────────┼─────────┤
@@ -617,7 +617,7 @@ Reading in trees, looking at 5 quartets in each...
   **
 
 julia> show(writeTableCF(q,t), allcols=true, splitcols=false)
-5×8 DataFrames.DataFrame
+5×8 DataFrame
 │ Row │ t1     │ t2     │ t3     │ t4     │ CF12_34  │ CF13_24  │ CF14_23  │ ngenes  │
 │     │ String │ String │ String │ String │ Float64  │ Float64  │ Float64  │ Float64 │
 ├─────┼────────┼────────┼────────┼────────┼──────────┼──────────┼──────────┼─────────┤

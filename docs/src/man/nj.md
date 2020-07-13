@@ -1,6 +1,6 @@
 ```@setup nj
 using PhyloNetworks
-using CSV
+using DataFrames, CSV
 ```
 # Neighbor joining
 
