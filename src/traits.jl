@@ -2102,25 +2102,22 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
              in the network and in the dataframe."""
     else
         nodatanames = !any(DataFrames.propertynames(fr) .== :tipNames)
-        if nodatanames && any(tipLabels(net) == "")
+        nodatanames && any(tipLabels(net) == "") &&
             error("""The network provided has no tip names, and the input dataframe has
                   no column labelled tipNames, so I can't match the data on the network
                   unambiguously. If you are sure that the tips of the network are in the
                   same order as the values of the dataframe provided, then please re-run
                   this function with argument no_name=true.""")
-        end
-        if any(tipLabels(net) == "")
+        any(tipLabels(net) == "") &&
             error("""The network provided has no tip names, so I can't match the data
                   on the network unambiguously. If you are sure that the tips of the
                   network are in the same order as the values of the dataframe provided,
                   then please re-run this function with argument no_name=true.""")
-        end
-        if nodatanames
+        nodatanames &&
             error("""The input dataframe has no column labelled tipNames, so I can't
                   match the data on the network unambiguously. If you are sure that the
                   tips of the network are in the same order as the values of the dataframe
                   provided, then please re-run this function with argument no_name=true.""")
-        end
         ind = indexin(fr[!,:tipNames], tipLabels(net))
         if any(isnothing, ind) || length(unique(ind)) != length(ind)
             error("""Tips names of the network and names provided in column tipNames
