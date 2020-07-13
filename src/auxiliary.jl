@@ -1599,7 +1599,7 @@ from node 1 to node 2, the 3-cycle (left) is shrunk as on the right:
       hybrid
 
 with new branch lengths:
-new tA = tA + (γ1.t1 + γ2γ3.t3)/(γ1+γ2γ3),
+new tA = tA + (γ1.t1 + γ2γ3.(t2+t3))/(γ1+γ2γ3),
 new tB = tB + t2,
 provided that γ1, γ2=1-γ1, and γ3 are not missing. If one of them is missing
 then γ1 and γ2 remain as is, and e3 is deleted naively,

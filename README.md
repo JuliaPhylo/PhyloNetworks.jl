@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/crsl4/PhyloNetworks.jl.svg)](https://travis-ci.org/crsl4/PhyloNetworks.jl)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://crsl4.github.io/PhyloNetworks.jl/stable)
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://crsl4.github.io/PhyloNetworks.jl/dev)
-[![codecov.io](http://codecov.io/github/crsl4/PhyloNetworks.jl/coverage.svg?branch=master)](http://codecov.io/github/crsl4/PhyloNetworks.jl?branch=master)
+[![codecov](https://codecov.io/gh/crsl4/PhyloNetworks.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/crsl4/PhyloNetworks.jl)
 [![Coverage Status](https://coveralls.io/repos/crsl4/PhyloNetworks.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/crsl4/PhyloNetworks?branch=master)
 
 ## Overview
