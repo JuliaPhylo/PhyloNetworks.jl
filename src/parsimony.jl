@@ -372,7 +372,7 @@ function initializeWeightsFromLeavesSoftwired!(w::AbstractArray, net::HybridNetw
 end
 
 function readFastaToArray(filename::String)
-    reader = BioSequences.FASTA.Reader(open(filename))
+    reader = FASTX.FASTA.Reader(open(filename))
     #dat = Dict{String, }()
     sequences = Array{BioSequences.BioSequence}(undef, 0)
     species = String[]
@@ -408,7 +408,7 @@ Return a tuple containing:
    The length of the weight vector is equal to npatterns.
 """
 function readfastatodna(fastafile::String, countPatterns=false::Bool)
-    reader = BioSequences.FASTA.Reader(open(fastafile))
+    reader = FASTX.FASTA.Reader(open(fastafile))
     siteList = Vector{Vector}(undef, 0) #array of arrays, one array for each site (8 in example)
     species = String[]
     firstspecies = Bool(true)

@@ -1224,6 +1224,16 @@ function setpinv!(obj::RVASGammaInv{S}, pinv::Float64) where S
     return obj
 end
 
+"""
+    setpinvalpha!(obj, pinv, alpha)
+
+Set the proportion of invariable sites `pinv` and the `alpha` parameter for
+the discretized gamma distribution in a model `obj` of type `RVASGammaInv{S}`.
+Update the rate multipliers & weights accordingly.
+The mean of the distribution is constrained to 1.
+
+Return the modified object.
+"""
 function setpinvalpha!(obj::RVASGammaInv{S}, pinv::Float64, alpha::Float64) where S
     @assert 0.0 <= pinv < 1.0 "pinv must be in [0,1)"
     @assert alpha >= 0 "alpha must be >= 0"

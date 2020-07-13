@@ -18,6 +18,7 @@ module PhyloNetworks
     using DataFrames # innerjoin new in v0.21
     using DataStructures # for updateInCycle with priority queue
     using Distributions #for RateVariationAcrossSites
+    using FASTX
     using GLM # for the lm function
     using NLopt # for branch lengths optimization
     using StaticArrays
