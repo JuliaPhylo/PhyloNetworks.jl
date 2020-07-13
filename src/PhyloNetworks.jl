@@ -150,7 +150,7 @@ module PhyloNetworks
         empiricalDNAfrequencies,
         nni!,
         mapindividuals,
-        phyLiNC!,
+        # phyLiNC!,
         # neighbor joining
         nj
 

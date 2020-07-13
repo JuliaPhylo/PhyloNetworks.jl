@@ -139,5 +139,4 @@ nstates
 stationary
 empiricalDNAfrequencies
 mapindividuals
-phyLiNC!
 ```

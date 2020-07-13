@@ -72,6 +72,7 @@ PhyloNetworks.setCHECKNET(true)
     ## traitLikDiscrete
     P = PhyloNetworks.P
     P! = PhyloNetworks.P!
+    phyLiNC! = PhyloNetworks.phyLiNC!
 
 tests = [
     "test_auxillary.jl",
