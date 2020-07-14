@@ -70,7 +70,7 @@ struct CacheLengthLiNC
 end
 
 """
-    phyLiNC!(net::HybridNetwork, fastafile::String, substitutionModel::Symbol)
+    phyLiNC(net::HybridNetwork, fastafile::String, substitutionModel::Symbol)
 
 Estimate a phylogenetic network from concatenated DNA data using
 maximum likelihood, ignoring incomplete lineage sorting
@@ -173,7 +173,7 @@ Regardless of these arguments, once a final topology is chosen, branch lenghts
 are optimized using stricter tolerances (1e-10, 1e-12, 1e-10, 1e-10) for better
 estimates.
 """
-function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
+function phyLiNC(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
                   rvsymbol=:noRV::Symbol, rateCategories=4::Int;
                   maxhybrid=1::Int, no3cycle=true::Bool,
                   nohybridladder=true::Bool,
@@ -218,6 +218,15 @@ function phyLiNC!(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
     phyLiNC!(obj; maxhybrid=maxhybrid, no3cycle=no3cycle, nohybridladder=nohybridladder,
             constraints=constraints, verbose=verbose, kwargs...)
 end
+
+"""
+    phyLiNC!(obj::SSM; kwargs...)
+
+Called by [`phyLiNC`](@ref) after `obj` is created (containing both the data
+and the model) and after checks are made to start from a network that satisfies
+all the constraints. Different runs are distributed to different processors,
+if more than one are available.
+"""
 function phyLiNC!(obj::SSM;
                   maxhybrid=1::Int, no3cycle=true::Bool,
                   nohybridladder=true::Bool, maxmoves=100::Int, nreject=75::Int,
@@ -431,7 +440,7 @@ If the number of processors is > 1, this will be false because workers can't
 write on streams opened by master. `logfile` will be stdout if `writelog_1proc`
 is false. Otherwise, it will be the log file created by `phyLiNC!`.
 
-See [`phyLiNC!`](@ref) for other arguments.
+See [`phyLiNC`](@ref) for other arguments.
 """
 function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
                     nohybridladder::Bool, maxmoves::Int, nrejectmax::Int,
@@ -511,7 +520,7 @@ end
         constraints=TopologyConstraint[]::Vector{TopologyConstraint},
         verbose::Bool=false)
 
-Check that `net` is an adequate starting network before phyLiNC:
+Check that `net` is an adequate starting network before `phyLiNC!`:
 remove nodes of degree 2 (possibly including the root);
 check that `net` meets the topological `constraints`,
 has no polytomies (except at species constraints),
@@ -604,7 +613,7 @@ to be performed is in `PhyloNetworks.moveweights_LiNC`.
 - `nrejectmax`: the search stops when there has been this number of moves that
   have been rejected in a row (ignoring root changes)
 
-For a description of other arguments, see [`phyLiNC!`](@ref).
+For a description of other arguments, see [`phyLiNC`](@ref).
 
 Assumptions:
 - `checknetworkbeforeLiNC` and `discrete_corelikelihood!` have been called on
@@ -691,7 +700,7 @@ is accepted.
 Return true if move accepted, false if move rejected. Return nothing if there
 are no nni moves possible in the network.
 
-For arguments, see [`phyLiNC!`](@ref).
+For arguments, see [`phyLiNC`](@ref).
 
 Called by [`optimizestructure!`](@ref), which is called by [`phyLiNC!`](@ref).
 
@@ -760,7 +769,7 @@ optimizes branch lengths and gammas locally as part of PhyLiNC optimization.
 Return true if accepted add hybrid move. If move not accepted, return false.
 If cannot add a hybrid, return nothing.
 
-For arguments, see [`phyLiNC!`](@ref).
+For arguments, see [`phyLiNC`](@ref).
 Called by [`optimizestructure!`](@ref).
 """
 function addhybridedgeLiNC!(obj::SSM, currLik::Float64,
@@ -856,7 +865,7 @@ This creates a problem if the user asked for `nohybridladder`:
 this request may not be met.
 fixit: In future, we could check for this case and prevent it.
 
-For a description of arguments, see [`phyLiNC!`](@ref).
+For a description of arguments, see [`phyLiNC`](@ref).
 Called by [`optimizestructure!`](@ref), which does some checks.
 """
 function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
