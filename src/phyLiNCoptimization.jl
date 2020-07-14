@@ -184,6 +184,7 @@ function phyLiNC(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
     if !isempty(speciesfile)
         net, constraints = mapindividuals(net, speciesfile)
     else
+        net = deepcopy(net)
         constraints = TopologyConstraint[]
     end
     if !isempty(cladefile)

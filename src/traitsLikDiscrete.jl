@@ -109,6 +109,30 @@ const SSM = StatisticalSubstitutionModel
 # fasta constructor: from net, fasta filename, modsymbol, and maxhybrid
 # Works for DNA in fasta format. Probably need different versions for
 # different kinds of data (snp, amino acids). Similar to fitdiscrete()
+"""
+    StatisticalSubstitutionModel(model::SubstitutionModel,
+            ratemodel::RateVariationAcrossSites,
+            net::HybridNetwork, trait::AbstractVector,
+            siteweight=nothing::Union{Nothing, Vector{Float64}},
+            maxhybrid=length(net.hybrid)::Int)
+
+Inner constructor. Makes a deep copy of the input model, rate model.
+Warning: does *not* make a deep copy of the network:
+modification of the `object.net` would modify the input `net`.
+Assumes that the network has valid gamma values (to extract displayed trees).
+
+    StatisticalSubstitutionModel(net::HybridNetwork, fastafile::String,
+            modsymbol::Symbol, rvsymbol=:noRV::Symbol,
+            ratecategories=4::Int;
+            maxhybrid=length(net.hybrid)::Int)
+
+Constructor from a network and a fasta file.
+The model symbol should be one of `:JC69`, `:HKY85`, `:ERSM` or `:BTSM`.
+The `rvsymbol` should be as required by [`RateVariationAcrossSites`](@ref).
+
+The network's gamma values are modified if they are missing. After that,
+a deep copy of the network is passed to the inner constructor.
+"""
 function StatisticalSubstitutionModel(net::HybridNetwork, fastafile::String,
         modsymbol::Symbol, rvsymbol=:noRV::Symbol, ratecategories=4::Int;
         maxhybrid=length(net.hybrid)::Int)
@@ -124,6 +148,7 @@ function StatisticalSubstitutionModel(net::HybridNetwork, fastafile::String,
     model = defaultsubstitutionmodel(net, modsymbol, data, siteweights)
     ratemodel = RateVariationAcrossSites(rvsymbol, ratecategories)
     dat2 = traitlabels2indices(view(data, :, 2:size(data,2)), model)
+    # check_matchtaxonnames makes a deep copy of the network
     o, net = check_matchtaxonnames!(data[:,1], dat2, net) # calls resetNodeNumbers, which calls preorder!
     trait = dat2[o]
     obj = StatisticalSubstitutionModel(model, ratemodel, net, trait, siteweights,
