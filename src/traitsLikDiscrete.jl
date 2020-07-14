@@ -179,6 +179,21 @@ function showdata(io::IO, obj::SSM)
     if !isapprox(obj.nsites, obj.totalsiteweight)
         disp *= "\n  $(obj.nsites) distinct patterns"
     end
+    if ns > 1
+        traitmat = hcat(obj.trait...); totalStates = length(unique(traitmat))
+        stateN = zeros(totalStates); nsM = 0.0
+        for row in 1:size(traitmat)[1]
+            nstates = length(unique(traitmat[row, :]))
+            stateN[nstates] += obj.siteweight[row]
+            nsM += (isequal(length(collect(skipmissing(traitmat[row, :]))), length(obj.trait)) ? 0 : obj.siteweight[row])
+        end
+        ns1 = round(Int, stateN[1]); ns2 = round(Int, stateN[2])
+        ns34 = round(Int, stateN[3]+stateN[4]); nsM = round(Int, nsM)
+        disp *= "\n  $ns1 invariant $(ns1 == 1 ? "site" : "sites") ($(round(100*ns1/ns, digits=2))%)"
+        disp *= "\n  $ns2 $(ns2 == 1 ? "site" : "sites") with 2 states ($(round(100*ns2/ns, digits=2))%)"
+        disp *= "\n  $ns34 $(ns34 == 1 ? "site" : "sites") with 3 or more states ($(round(100*ns34/ns, digits=2))%)"
+        disp *= "\n  $nsM $(nsM == 1 ? "site" : "sites") with missing data ($(round(100*nsM/ns, digits=2))%)"
+    end
     # fixit: add info about # sites with missing values, invariable sites, etc.
     # but only if there are more than 1 site, e,g, if ns>1
     print(io, disp)
