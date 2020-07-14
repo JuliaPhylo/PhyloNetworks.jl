@@ -1130,8 +1130,10 @@ struct RVASInv <: RateVariationAcrossSites
     lograteweight::StaticArrays.MVector{2,Float64}
 end
 function RVASInv(pinv=0.05::Float64)
+    r = StaticArrays.MVector{2,Float64}(undef) # rates
+    r[1] = 0.0 # invariable category
     obj = RVASInv(StaticArrays.MVector{1,Float64}(pinv),
-            StaticArrays.MVector{2,Float64}(undef), # rates
+            r,
             StaticArrays.MVector{2,Float64}(undef)) # log weights
     setpinv!(obj, pinv) # checks for 0 <= pinv < 1
     return obj
@@ -1148,10 +1150,12 @@ end
 function RVASGammaInv(pinv::Float64, alpha::Float64, ncat::Int)
     @assert ncat > 1 "ncat must be 2 or more for the Gamma+I model"
     s = 1+ncat
+    r = StaticArrays.MVector{s,Float64}(undef) # rates
+    r[1] = 0.0 # invariable category
     obj = RVASGammaInv{s}(
             StaticArrays.MVector{1,Float64}(pinv),
             StaticArrays.MVector{1,Float64}(alpha), ncat,
-            StaticArrays.MVector{s,Float64}(undef), # rates
+            r,
             StaticArrays.MVector{s,Float64}(undef)) # log weights
     setpinvalpha!(obj, pinv, alpha) # checks for α >= 0 and 0 <= pinv < 1
     return obj
