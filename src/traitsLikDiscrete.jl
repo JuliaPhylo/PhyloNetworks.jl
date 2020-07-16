@@ -171,6 +171,16 @@ function Base.show(io::IO, obj::SSM)
         print(io, "\nlog-likelihood: $(round(obj.loglik, digits=5))")
     end
 end
+"""
+    showdata(io::IO, obj::SSM)
+
+Return information about species, distinct patterns, invariant sites, and
+missing data in SSM object.
+
+Note: Missing is not considered an additional state. If a site only has missing
+values, it is not included in the state counts. In this case, invariate, 2-state,
+and 3+ site counts are not exptected to sum to the total number of sites.
+"""
 function showdata(io::IO, obj::SSM)
     disp =  "data:\n  $(length(obj.trait)) species"
     ns = round(obj.totalsiteweight)
@@ -180,22 +190,38 @@ function showdata(io::IO, obj::SSM)
         disp *= "\n  $(obj.nsites) distinct patterns"
     end
     if ns > 1
-        traitmat = hcat(obj.trait...); totalStates = length(unique(traitmat))
-        stateN = zeros(totalStates); nsM = 0.0
-        for row in 1:size(traitmat)[1]
-            nstates = length(unique(traitmat[row, :]))
-            stateN[nstates] += obj.siteweight[row]
-            nsM += (isequal(length(collect(skipmissing(traitmat[row, :]))), length(obj.trait)) ? 0 : obj.siteweight[row])
+        nsDict = Dict("1"=>0.0, "2"=>0.0, "3+"=>0.0, "M"=>0.0)
+        for i in 1:(obj.nsites) # over sites
+            missdata = false
+            trackstates = zeros(Int, nstates(obj.model)) # states seen at site
+            for j in 1:length(obj.trait) # over taxa
+                if ismissing(obj.trait[j][i])
+                    if !missdata # mark if missing has not yet been seen at this site
+                        nsDict["M"] += obj.siteweight[i]
+                        missdata = true
+                    end
+                else # mark state seen
+                    trackstates[obj.trait[j][i]] += 1
+                end
+                # if all states and missing data seen, then break out of loop over taxa
+                !(all(trackstates .> 0) && missdata) || break
+            end
+            # add site's weight to appropriate nstates
+            if sum((trackstates .> 0)) == 0 # all missing for this site
+                @debug "a site has all missing values"
+            elseif sum((trackstates .> 0)) <= 2
+                nsDict["$(sum((trackstates .> 0)))"] += obj.siteweight[i]
+            else # 3 or more states at this site
+                nsDict["3+"] += obj.siteweight[i]
+            end
         end
-        ns1 = round(Int, stateN[1]); ns2 = round(Int, stateN[2])
-        ns34 = round(Int, stateN[3]+stateN[4]); nsM = round(Int, nsM)
+        ns1 = round(Int, nsDict["1"]); ns2 = round(Int, nsDict["2"])
+        ns34 = round(Int, nsDict["3+"]); nsM = round(Int, nsDict["M"])
         disp *= "\n  $ns1 invariant $(ns1 == 1 ? "site" : "sites") ($(round(100*ns1/ns, digits=2))%)"
         disp *= "\n  $ns2 $(ns2 == 1 ? "site" : "sites") with 2 states ($(round(100*ns2/ns, digits=2))%)"
         disp *= "\n  $ns34 $(ns34 == 1 ? "site" : "sites") with 3 or more states ($(round(100*ns34/ns, digits=2))%)"
         disp *= "\n  $nsM $(nsM == 1 ? "site" : "sites") with missing data ($(round(100*nsM/ns, digits=2))%)"
     end
-    # fixit: add info about # sites with missing values, invariable sites, etc.
-    # but only if there are more than 1 site, e,g, if ns>1
     print(io, disp)
 end
 # nobs: nsites * nspecies, minus any missing, but ignores correlation between species
