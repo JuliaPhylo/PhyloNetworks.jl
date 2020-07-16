@@ -196,7 +196,7 @@ function showdata(io::IO, obj::SSM, fullsiteinfo=false::Bool)
         disp *= "\n  $(obj.nsites) distinct patterns"
     end
     print(io, disp)
-    fullsiteinfo || obj.nsites == 1 || return nothing
+    (fullsiteinfo && obj.nsites != 1) || return nothing
     # if more than 1 trait and if the user wants full information:
     nsv = MVector{6,Float64}(undef) # vector to count number of
     # sites with: 0, 1, 2 states, parsimony informative, with 1+ missing value,
