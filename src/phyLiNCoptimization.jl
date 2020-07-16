@@ -92,7 +92,8 @@ Required arguments:
 - `net`: a network or tree of type `HybridNetwork`, to serve as a starting point
   in the search for the best network.
   Newick strings can be converted to this format with [`readTopology`] (@ref).
-- `fastafile`: file with the sequence data in FASTA format.
+- `fastafile`: file with the sequence data in FASTA format. Ambiguous states are
+  treated as missing.
 - `substitutionModel`: A symbol indicating which substitution model is used.
   Choose `:JC69` [`JC69`](@ref) for the Jukes-Cantor model or `:HKY85` for
   the Hasegawa, Kishino, Yano model [`HKY85`](@ref).
