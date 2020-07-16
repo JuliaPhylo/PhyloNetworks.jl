@@ -45,6 +45,22 @@ net = readTopology("((((((((((((((Ae_caudata_Tr275,Ae_caudata_Tr276),Ae_caudata_
 PhyloNetworks.fuseedgesat!(93, net)
 obj = (@test_logs (:warn, r"taxa with no data") PhyloNetworks.StatisticalSubstitutionModel(net, fasta8sites, :JC69))
 @test length(obj.net.leaf) == 22
+io = IOBuffer();
+PhyloNetworks.showdata(io, obj)
+@test String(take!(io)) == "data:\n  22 species\n  8 sites"
+PhyloNetworks.showdata(io, obj, true)
+@test String(take!(io)) ==
+"data:
+  22 species
+  8 sites
+  0 sites with no data (0.0%)
+  2 invariant sites (25.0%)
+  6 sites with 2 distinct states (75.0%)
+  6 parsimony-informative sites (75.0%)
+  6 sites with 1 or more missing values (75.0%)
+  3.41% missing values overall"
+close(io)
+
 preorder!(obj.net)
 PhyloNetworks.checknetwork_LiNC!(obj.net, 3, true, true, emptyconstraint)
 # checknetwork removes degree-2 nodes (including root) and 2- and 3-cycles
