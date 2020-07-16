@@ -172,57 +172,73 @@ function Base.show(io::IO, obj::SSM)
     end
 end
 """
-    showdata(io::IO, obj::SSM)
+    showdata(io::IO, obj::SSM, fullsiteinfo=false::Bool)
 
-Return information about species, distinct patterns, invariant sites, and
-missing data in SSM object.
+Return information about the data in an SSM object:
+number of species, number or traits or sites, number of distinct patterns,
+and more information if `fullsiteinfo` is true:
+number sites with missing data only,
+number of invariant sites, number of sites with 2 distinct states,
+number of parsimony-informative sites (with 2+ states being observed in 2+ tips),
+number of sites with some missing data, and
+overall proportion of entries with missing data.
 
-Note: Missing is not considered an additional state. If a site only has missing
-values, it is not included in the state counts. In this case, invariate, 2-state,
-and 3+ site counts are not exptected to sum to the total number of sites.
+Note: Missing is not considered an additional state. For example,
+if a site contains some missing data, but all non-missing values take the same
+state, then this site is counted in the category "invariant".
 """
-function showdata(io::IO, obj::SSM)
+function showdata(io::IO, obj::SSM, fullsiteinfo=false::Bool)
     disp =  "data:\n  $(length(obj.trait)) species"
-    ns = round(obj.totalsiteweight)
-    ns = (isapprox(obj.totalsiteweight, ns, atol=1e-5) ? Int(ns) : ns)
+    ns = obj.totalsiteweight
+    ns = (isapprox(ns, round(ns), atol=1e-5) ? Int(round(ns)) : ns)
     disp *= (ns ≈ 1 ? "\n  $ns trait" : "\n  $ns sites")
-    if !isapprox(obj.nsites, obj.totalsiteweight)
+    if !isapprox(obj.nsites, ns, atol=1e-5)
         disp *= "\n  $(obj.nsites) distinct patterns"
     end
-    if ns > 1
-        nsDict = Dict("1"=>0.0, "2"=>0.0, "3+"=>0.0, "M"=>0.0)
-        for i in 1:(obj.nsites) # over sites
-            missdata = false
-            trackstates = zeros(Int, nstates(obj.model)) # states seen at site
-            for j in 1:length(obj.trait) # over taxa
-                if ismissing(obj.trait[j][i])
-                    if !missdata # mark if missing has not yet been seen at this site
-                        nsDict["M"] += obj.siteweight[i]
-                        missdata = true
-                    end
-                else # mark state seen
-                    trackstates[obj.trait[j][i]] += 1
-                end
-                # if all states and missing data seen, then break out of loop over taxa
-                !(all(trackstates .> 0) && missdata) || break
-            end
-            # add site's weight to appropriate nstates
-            if sum((trackstates .> 0)) == 0 # all missing for this site
-                @debug "a site has all missing values"
-            elseif sum((trackstates .> 0)) <= 2
-                nsDict["$(sum((trackstates .> 0)))"] += obj.siteweight[i]
-            else # 3 or more states at this site
-                nsDict["3+"] += obj.siteweight[i]
+    print(io, disp)
+    fullsiteinfo || obj.nsites == 1 || return nothing
+    # if more than 1 trait and if the user wants full information:
+    nsv = MVector{6,Float64}(undef) # vector to count number of
+    # sites with: 0, 1, 2 states, parsimony informative, with 1+ missing value,
+    # missing values across all sites.
+    fill!(nsv, 0.0)
+    text = ["sites with no data", "invariant sites",
+            "sites with 2 distinct states", "parsimony-informative sites",
+            "sites with 1 or more missing values", "missing values overall"]
+    trackstates = zeros(Int, nstates(obj.model)) # states seen at a given site
+    ntaxa = length(obj.trait)
+    for i in 1:(obj.nsites) # over sites
+        sweight = (isnothing(obj.siteweight) ? 1.0 : obj.siteweight[i])
+        missone = false
+        fill!(trackstates, 0)
+        for j in 1:ntaxa # over taxa
+            data = obj.trait[j][i]
+            if ismissing(data)
+                nsv[6] += sweight # total number of missing values
+                missone && continue
+                nsv[5] += sweight # sites with 1+ missing values
+                missone = true
+            else # mark state seen
+                trackstates[data] += 1 # 1 more taxon
             end
         end
-        ns1 = round(Int, nsDict["1"]); ns2 = round(Int, nsDict["2"])
-        ns34 = round(Int, nsDict["3+"]); nsM = round(Int, nsDict["M"])
-        disp *= "\n  $ns1 invariant $(ns1 == 1 ? "site" : "sites") ($(round(100*ns1/ns, digits=2))%)"
-        disp *= "\n  $ns2 $(ns2 == 1 ? "site" : "sites") with 2 states ($(round(100*ns2/ns, digits=2))%)"
-        disp *= "\n  $ns34 $(ns34 == 1 ? "site" : "sites") with 3 or more states ($(round(100*ns34/ns, digits=2))%)"
-        disp *= "\n  $nsM $(nsM == 1 ? "site" : "sites") with missing data ($(round(100*nsM/ns, digits=2))%)"
+        # add site's weight to appropriate nstates
+        nstates = sum(trackstates .> 0)
+        if nstates < 3
+            nsv[nstates+1] += sweight
+        end
+        if nstates>1 # are there 2 states observed at 2+ taxa each?
+            nstates_2taxa = sum(trackstates .> 1)
+            if nstates_2taxa>1
+                nsv[4] += sweight
+            end
+        end
     end
-    print(io, disp)
+    nsv_r = map(x -> begin y=round(x); (isapprox(y,x,atol=1e-5) ? Int(y) : x); end, nsv)
+    for i in 1:5
+        print(io, "\n  $(nsv_r[i]) $(text[i]) ($(round(100*nsv[i]/ns, digits=2))%)")
+    end
+    print(io, "\n  $(round(100*nsv[6]/(ns*ntaxa), digits=2))% $(text[6])")
 end
 # nobs: nsites * nspecies, minus any missing, but ignores correlation between species
 # fixit: extend the StatsBase methods

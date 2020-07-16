@@ -276,7 +276,7 @@ function phyLiNC!(obj::SSM;
     """ *
     (writelog ? "   filename for log and err files: $(filename)\n" :
                 "   no output files\n")
-    io = IOBuffer(); showdata(io, obj)
+    io = IOBuffer(); showdata(io, obj, true) # true for full site information
     str *= String(take!(io)) * "\n"; close(io)
     str *= "\n$(nruns) run(s) starting near network topology:\n$(writeTopology(obj.net))\nstarting model:\n" *
             replace(string(obj.model),     r"\n" => "\n  ") * "\n" *
