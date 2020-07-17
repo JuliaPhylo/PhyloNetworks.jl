@@ -264,13 +264,6 @@ function phyLiNC!(obj::SSM;
          alphamin=alphamin, alphamax=alphamax,
          pinvmin=pinvmin, pinvmax=pinvmax)
     @debug "loglik = $(loglikelihood(obj)) at the start"
-    traitmat = hcat(obj.trait...); count = zeros(Int, 4) # to get % invariant sites
-    for row in 1:size(traitmat)[1]
-        nstates = length(unique(traitmat[row, :]))
-        nstates in [1, 2, 3, 4] ||
-            error("The number of states for each site should be 1, 2, 3, or 4, but is $nstates")
-        count[nstates] += obj.siteweight[row]
-    end
     str = """
     PhyLiNC network estimation starting. Parameters:
        maxhybrid = $(maxhybrid)

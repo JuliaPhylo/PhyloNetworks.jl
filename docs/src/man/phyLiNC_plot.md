@@ -318,6 +318,3 @@ probabilities: [0.3, 0.175, 0.175, 0.175, 0.175]
 julia> nparams(ratemodel)
 2
 ```
-
-## Limitations
-TODO
