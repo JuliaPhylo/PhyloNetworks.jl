@@ -1654,9 +1654,6 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     end
 
     setNonIdBL!(maxNet)
-    writelog &&
-    write(logfile,"\nMaxNet is $(writeTopologyLevel1(maxNet,printID=true, multall=!isempty(d.repSpecies))) \nwith -loglik $(maxNet.loglik)\n")
-    print(stdout,"\nMaxNet is $(writeTopologyLevel1(maxNet,printID=true, multall=!isempty(d.repSpecies))) \nwith -loglik $(maxNet.loglik)\n")
 
     if outgroup != "none"
         try
@@ -1675,6 +1672,11 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     else
         checkRootPlace!(maxNet,verbose=false) #leave root in good place after snaq
     end
+
+    writelog &&
+    write(logfile,"\nMaxNet is $(writeTopologyLevel1(maxNet,printID=true, multall=!isempty(d.repSpecies))) \nwith -loglik $(maxNet.loglik)\n")
+    print(stdout,"\nMaxNet is $(writeTopologyLevel1(maxNet,printID=true, multall=!isempty(d.repSpecies))) \nwith -loglik $(maxNet.loglik)\n")
+
     s = writelog ? open(juliaout,"w") : stdout
     str = writeTopologyLevel1(maxNet, printID=true,multall=!isempty(d.repSpecies)) * """
      -Ploglik = $(maxNet.loglik)
@@ -1857,7 +1859,7 @@ See also: [`topologyMaxQPseudolik!`](@ref) to optimize parameters on a fixed top
 and [`topologyQPseudolik!`](@ref) to get the deviance (pseudo log-likelihood up to a constant)
 of a fixed topology with fixed parameters.
 
-Reference:  
+Reference:
 Claudia Solís-Lemus and Cécile Ané (2016).
 Inferring phylogenetic networks with maximum pseudolikelihood under incomplete lineage sorting.
 [PLoS Genetics](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896)
@@ -1907,6 +1909,26 @@ function snaq!(currT0::HybridNetwork, d::DataCF;
                       verbose, closeN, Nmov0, runs, outgroup, filename,seed,probST)
     if(!isempty(d.repSpecies))
         mergeLeaves!(net)
+    end
+
+    # checking root again after merging leaves. This is a band aid.
+    # To-do: rethink order of check root and merge leaves inside optTopRuns
+    if outgroup != "none"
+        try
+            checkRootPlace!(net,outgroup=outgroup) ## keeps all attributes
+        catch err
+            if isa(err, RootMismatch)
+                 println("RootMismatch: ", err.msg,
+                 """\nThe estimated network has hybrid edges that are incompatible with the desired outgroup.
+                    Reverting to an admissible root position.
+                    """)
+            else
+                println("error trying to reroot: ", err.msg);
+            end
+            checkRootPlace!(net,verbose=false) # message about problem already printed above
+        end
+    else
+        checkRootPlace!(net,verbose=false) #leave root in good place after snaq
     end
     return net
 end

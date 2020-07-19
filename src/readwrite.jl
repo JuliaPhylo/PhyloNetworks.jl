@@ -1060,8 +1060,27 @@ function writeTopologyLevel1(net0::HybridNetwork, s::IO, di::Bool, namelabel::Bo
         CHECKNET && canBeRoot(net.node[net.root])
         if(multall)
             mergeLeaves!(net)
+            ## make sure the root is not on a leaf
+            ## This is a band aid: need to check the order of write/root/merge leaves on multiple allele cases
+            if outgroup != "none"
+                try
+                    checkRootPlace!(net,outgroup=outgroup) ## keeps all attributes
+                catch err
+                    if isa(err, RootMismatch)
+                        println("RootMismatch: ", err.msg,
+                                """\nThe estimated network has hybrid edges that are incompatible with the desired outgroup.
+                        Reverting to an admissible root position.
+                        """)
+                    else
+                        println("error trying to reroot: ", err.msg);
+                    end
+                    checkRootPlace!(net,verbose=false) # message about problem already printed above
+                end
+            else
+                checkRootPlace!(net,verbose=false) #leave root in good place after snaq
+            end
         end
-        writeSubTree!(s, net, di,namelabel, roundBL,digits,false)
+        writeSubTree!(s, net, di,namelabel, roundBL,digits,true)
     end
     # outgroup != "none" && undoRoot!(net) # not needed because net is deepcopy of net0
     # to delete 2-degree node, for snaq.
@@ -1108,6 +1127,7 @@ writeTopologyLevel1(net, di, string, namelabel, outgroup, printID, round, digits
 # and look for a better place if not
 # searches on net.node because net.root is the index in net.node
 # if we search in net.edge, we then need to search in net.node
+# this function is only used inside writeTopologyLevel1
 function updateRoot!(net::HybridNetwork, outgroup::AbstractString)
     checkroot = false
     if(outgroup == "none")
@@ -1385,6 +1405,11 @@ function writeTopology(net::HybridNetwork, s::IO,
             throw(RootMismatch("Could not find admissible root. Cannot write topology."))
             changeroot=false # safety exit of while (but useless)
         end
+    end
+    if net.node[net.root].leaf
+        @warn """Root is placed at a leaf node, so the parenthetical format will look strange.
+                 Use rootatnode! or rootonedge! to change the root position
+              """
     end
     # finally, write parenthetical format
     writeSubTree!(s,net,di,true,round,digits,internallabel)
