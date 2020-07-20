@@ -334,4 +334,28 @@ end
 @test sum(polytomyS1(nod) for nod in obj.net.node) == 1
 end
 
+@testset "optimizeparameters" begin
+
+net_simple = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
+
+obj = PhyloNetworks.optimizeparameters(net_simple, fastasimple, :HKY85, :G, "", 123) # no file created
+
+# confirm topology does not change
+@test PhyloNetworks.hardwiredClusterDistance(obj.net, net_simple, true) == 0 # rooted
+
+# confirm branch lengths and gammas and models have been optimized
+@test obj.net.edge[1].length == 0.5198602843876398
+@test obj.net.edge[5].gamma == 0.1
+@test obj.net.model.alpha == 20.0
+@test obj.net.ratemodel.alpha == 0.20166
+
+# compare likelihoods
+@test obj.lik == 500
+
+obj = optimizeparameters(net_simple, fastasimple, :HKY85, :I, "", 123) # no file created
+# confirm topology doens't change
+@test PhyloNetworks.hardwiredClusterDistance(obj.net, net_simple, true) == 0 # rooted
+
+end
+
 end # of overall phyLiNC test set

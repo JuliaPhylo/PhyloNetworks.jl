@@ -160,6 +160,11 @@ Optional arguments controlling the search:
   the shape parameter alpha for Gamma-distributed rates across sites.
 - `pinvmin` (1e-8) and `pinvmax` (0.99): minimum and maximum values for
   the proportion of invariable sites, if included in the model.
+- `removeGhostHybrids` (true): By default, hybrid edges with inheritance weights
+of zero will be removed and their partner edges will become tree edges. When this
+is false, hybrid edges with inheritance weights of zero are retained. Setting
+this to false is not recommended, as it may cause identifiability problems during
+branch lengths and inheritance weight optimization.
 
 The following optional arguments control when to stop the optimization of branch
 lengths and gamma values on each individual candidate network. Defaults in
@@ -234,6 +239,7 @@ function phyLiNC!(obj::SSM;
                   nohybridladder=true::Bool, maxmoves=100::Int, nreject=75::Int,
                   nruns=10::Int, filename="phyLiNC"::AbstractString,
                   verbose=true::Bool, seed=0::Int, probST=0.5::Float64,
+                  removeGhostHybrids=true::Bool,
                   ftolRel=1e-6::Float64, ftolAbs=1e-6::Float64,
                   xtolRel=1e-10::Float64, xtolAbs=1e-5::Float64,
                   constraints=TopologyConstraint[]::Vector{TopologyConstraint},
@@ -332,7 +338,8 @@ function phyLiNC!(obj::SSM;
             constraints = deepcopy(startingconstraints) # problem: nodes were copied on previous line. when nodes copied again on this line, they are now different
             phyLiNCone!(obj, maxhybrid, no3cycle, nohybridladder, maxmoves,
                         nreject, verbose, writelog_1proc, logfile, seeds[i], probST,
-                        constraints, ftolRel, ftolAbs, xtolRel, xtolAbs,
+                        removeGhostHybrids, constraints,
+                        ftolRel, ftolAbs, xtolRel, xtolAbs,
                         alphamin, alphamax, pinvmin, pinvmax, γcache,
                         CacheLengthLiNC(obj, ftolRel,ftolAbs,xtolRel,xtolAbs, 20)) # 20=maxeval
             # NLopt segfault if we pass a pre-allocated lcache to a worker
@@ -398,7 +405,8 @@ function phyLiNC!(obj::SSM;
     lcache = CacheLengthLiNC(obj, fRelBL, fAbsBL, xRelBL, xAbsBL, 1000) # maxeval=1000
     optimizealllengths_LiNC!(obj, lcache)
     ghosthybrid = optimizeallgammas_LiNC!(obj, fAbsBL, γcache, 100)
-    if ghosthybrid
+    if ghosthybrid && removeGhostHybrids
+        @debug "removing ghost hybrids"
         (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
         updateSSM!(obj, true; constraints=constraints)
         discrete_corelikelihood!(obj) # to get likelihood exact, even if not optimum
@@ -424,7 +432,7 @@ end
     phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
                 nohybridladder::Bool, maxmoves::Int, nrejectmax::Int,
                 verbose::Bool, writelog_1proc::Bool, logfile::IO,
-                seed::Int, probST::Float64,
+                seed::Int, probST::Float64, removeGhostHybrids::Bool,
                 constraints::Vector{TopologyConstraint},
                 ftolRel::Float64, ftolAbs::Float64,
                 xtolRel::Float64, xtolAbs::Float64,
@@ -447,7 +455,7 @@ See [`phyLiNC`](@ref) for other arguments.
 function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
                     nohybridladder::Bool, maxmoves::Int, nrejectmax::Int,
                     verbose::Bool, writelog_1proc::Bool, logfile::IO,
-                    seed::Int, probST::Float64,
+                    seed::Int, probST::Float64, removeGhostHybrids::Bool,
                     constraints::Vector{TopologyConstraint},
                     ftolRel::Float64, ftolAbs::Float64,
                     xtolRel::Float64, xtolAbs::Float64,
@@ -480,8 +488,8 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
     nrejected = 0
     while nrejected < nrejectmax
         nrejected = optimizestructure!(obj, maxmoves, maxhybrid, no3cycle, nohybridladder,
-                                  nrejected, nrejectmax, constraints,
-                                  ftolAbs, γcache, lcache)
+                                  nrejected, nrejectmax, removeGhostHybrids,
+                                  constraints, ftolAbs, γcache, lcache)
         @debug "after optimizestructure returns, the likelihood is $(obj.loglik), nrejected = $nrejected"
         fit!(obj; optimizeQ=optQ, optimizeRVAS=optRAS, maxeval=20,
              ftolRel=ftolRel, ftolAbs=ftolAbs, xtolRel=xtolRel, xtolAbs=xtolAbs,
@@ -508,7 +516,8 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
         This can lead to confusing results for users: They could choose no3cycle=true, but
         still have a 3-cycle in the final network.
         Might want to add something to docs about this. =#
-        if ghosthybrid && (nrejected < nrejectmax)
+        if ghosthybrid && removeGhostHybrids && (nrejected < nrejectmax)
+            @debug "removing ghost hybrids"
             shrink3cycles!(obj.net, true)
             updateSSM!(obj, true; constraints=constraints)
         end
@@ -627,7 +636,7 @@ Note: When removing a hybrid edge, always removes the minor edge.
 """
 function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
     no3cycle::Bool, nohybridladder::Bool, nreject::Integer, nrejectmax::Integer,
-    constraints::Vector{TopologyConstraint},
+    removeGhostHybrids::Bool, constraints::Vector{TopologyConstraint},
     ftolAbs::Float64,
     γcache::CacheGammaLiNC, lcache::CacheLengthLiNC)
 
@@ -663,7 +672,8 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
         end
         # optimize γ's
         ghosthybrid = optimizeallgammas_LiNC!(obj, ftolAbs, γcache, 1)
-        if ghosthybrid # delete hybrid edges with γ=0
+        if ghosthybrid && removeGhostHybrids # delete hybrid edges with γ=0
+            @debug "removing ghost hybrids"
             (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
             # loglik change ignored, but loglik recalculated below by optimizelocalBL
             updateSSM!(obj, true; constraints=constraints)
@@ -1792,4 +1802,35 @@ function updatecache_hase!(cache::CacheGammaLiNC, obj::SSM,
         end
     end
     return nt, hase
+end
+
+"""
+    optimizeparameters(obj::SSM, net::HybridNetwork, alignmentfile::String)
+
+Given a network and data set, optimize only branch lengths, inheritance weights,
+and subsitution model parameters. One run only. Return full network object, which
+includes network, parameters, and likelihood.
+
+Starts with the given topology 100% of the time, never makes any topology change
+proposals.
+
+Used in testing for local optima in topology estimation.
+Answers the question: Are we at a local optima or at a place greater than the best
+network's likelihood?
+"""
+function optimizeparameters(net::HybridNetwork, alignmentfile::String,
+                            modSymbol::Symbol, rvsymbol::Symbol,
+                            outputfilename::String, seed::Int,
+                            rateCategories=4::Int, removeGhostHybrids=false::Bool)
+    obj = phyLiNC(net, alignmentfile, modSymbol, rvsymbol, rateCategories;
+                  maxhybrid=net.numHybrids, no3cycle=false, verbose=true,
+                  maxmoves=50, probST=1.0, nreject=0, nruns=1,
+                  removeGhostHybrids=removeGhostHybrids,
+                  ftolRel=1e-10, ftolAbs=1e-10, xtolRel=1e-10, xtolAbs=1e-6,
+                  filename=outputfilename, seed=seed)
+    # no3cycle = false so existing 3-cycles wont be removed by phyLiNC, which
+        # would change the topology
+    # does not remove ghost hybrids, which would change the topology
+    # TODO this might cause bugs in optimization. need to test thoroughly
+    return obj
 end
