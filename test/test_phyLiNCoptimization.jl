@@ -345,4 +345,13 @@ obj = PhyloNetworks.optimizeparameters(net_simple, fastasimple, :HKY85, :I, "", 
 @test obj.loglik ≈ -23.04696 atol=.0001 # better because :I is a better fit for this data (50% invariant sites)
 end
 
+@testset "neighborNets" begin
+seed = 123
+n6h1 = readTopology("(((1:0.013635011856564799,2:0.013337412436279021):0.02379142358426221,((3:0.014458424150016028,4:0.015899483647102967):0.0)#H1:0.01602497696107314::0.7876602143873201):0.01491008237330521,(#H1:0.014834901504447811::0.2123397856126799,5:0.005527884554698987):0.055340371373774774,6:0.0620387315019168);")
+neighbors, distances = PhyloNetworks.neighborNets(n6h1, true, true)
+# confirm that the arrays have the same order
+@test hardwiredClusterDistance(n6h1, readTopology(neighbors[2]), true) == distances[2]
+@test hardwiredClusterDistance(n6h1, readTopology(neighbors[4]), true) == distances[4]
+end
+
 end # of overall phyLiNC test set

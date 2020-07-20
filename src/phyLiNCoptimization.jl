@@ -1798,7 +1798,10 @@ function updatecache_hase!(cache::CacheGammaLiNC, obj::SSM,
 end
 
 """
-    optimizeparameters(obj::SSM, net::HybridNetwork, alignmentfile::String)
+    optimizeparameters(net::HybridNetwork, alignmentfile::String,
+                       modSymbol::Symbol, rvsymbol::Symbol,
+                       outputfilename::String, seed::Int,
+                       rateCategories=4::Int)
 
 Given a network and data set, optimize only branch lengths, inheritance weights,
 and subsitution model parameters. One run only. Return full network object, which
@@ -1827,4 +1830,38 @@ function optimizeparameters(net::HybridNetwork, alignmentfile::String,
     # no3cycle = false so existing 3-cycles wont be removed by phyLiNC, which
         # would change the topology
     return obj
+end
+
+"""
+    neighborNets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+                 constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+
+Find NNI neighbors of a particular topology and output tuple of two arrays of all their
+Newick strings and distances from the original net.
+"""
+function neighborNets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+                      constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    neighbors = String[]
+    distances = Float64[]
+    for e in net.edge
+        # reject NNI if the focus edge is the stem of a constraint
+        if any(con.edge === e for con in constraints)
+            break # skip to next edge
+        end
+        hybparent = getParent(e).hybrid
+        @show nnimax(e)
+        # TODO fixit the moves are going out of range
+        nnirange = 0x01:nnimax(e) # 0x01 = 1 but UInt8 instead of Int
+        nnis = Random.shuffle(nnirange)
+        @show nnis
+        for nummove in nnis # iterate through all possible NNIs, but in random order
+            neighbornet = deepcopy(net)
+            moveinfo = nni!(neighbornet, e, nummove, nohybridladder, no3cycle)
+            !isnothing(moveinfo) || continue # to next possible NNI
+            push!(neighbors, writeTopology(neighbornet))
+            neighbornet.root == net.root || error("roots do not match")
+            push!(distances, hardwiredClusterDistance(neighbornet, net, true))
+        end
+    end
+    return neighbors, distances
 end
