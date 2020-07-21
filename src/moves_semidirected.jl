@@ -326,7 +326,7 @@ function nni!(net::HybridNetwork, e::Edge, nohybridladder::Bool=true, no3cycle::
             return nothing
         end
     end
-    hybparent = getParent(e).hybrid
+    hybparent = getParent(e).hybrid #? is this needed? # TODO remove if not
     nnirange = 0x01:nnimax(e) # 0x01 = 1 but UInt8 instead of Int
     nnis = Random.shuffle(nnirange)
     for nummove in nnis # iterate through all possible NNIs, but in random order

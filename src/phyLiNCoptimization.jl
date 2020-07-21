@@ -1838,30 +1838,59 @@ end
 
 Find NNI neighbors of a particular topology and output tuple of two arrays of all their
 Newick strings and distances from the original net.
+
+Warning: The list of neighbors will likely contain multiple copies of the same
+neighbor, so the length of the list should not be taken as the number of neighbors.
+To get this list, see neighborCount below.
 """
 function neighborNets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
                       constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     neighbors = String[]
-    distances = Float64[]
+    distances = Int[]
+    originalnet = deepcopy(net)
     for e in net.edge
         # reject NNI if the focus edge is the stem of a constraint
         if any(con.edge === e for con in constraints)
+            @debug "skipping to next edge"
             break # skip to next edge
         end
         hybparent = getParent(e).hybrid
-        @show nnimax(e)
-        # TODO fixit the moves are going out of range
-        nnirange = 0x01:nnimax(e) # 0x01 = 1 but UInt8 instead of Int
-        nnis = Random.shuffle(nnirange)
-        @show nnis
-        for nummove in nnis # iterate through all possible NNIs, but in random order
-            neighbornet = deepcopy(net)
-            moveinfo = nni!(neighbornet, e, nummove, nohybridladder, no3cycle)
-            !isnothing(moveinfo) || continue # to next possible NNI
-            push!(neighbors, writeTopology(neighbornet))
-            neighbornet.root == net.root || error("roots do not match")
-            push!(distances, hardwiredClusterDistance(neighbornet, net, true))
+        nnimax(e) > 0x00 || continue
+        nnis = 0x01:nnimax(e) # 0x01 = 1 but UInt8 instead of Int
+        for nummove in nnis # iterate through all possible NNIs
+            nummove <= nnimax(e) || error("move $nummove out of bounds here. max = $nnimax(e)")
+            moveinfo = nni!(net, e, nummove, nohybridladder, no3cycle)
+            !isnothing(moveinfo) || continue # move didn't work, skip to next possible NNI
+            net.root == originalnet.root || error("roots do not match")
+            push!(neighbors, writeTopology(net)) # TODO are these orders correct?
+            push!(distances, hardwiredClusterDistance(net, originalnet, true))
+            # undo this nni
+            nni!(moveinfo...)
+            # after undoingnni, confirm that net is unchanged
+            hardwiredClusterDistance(net, originalnet, true) == 0 || error("original net changed")
         end
     end
     return neighbors, distances
+end
+
+"""
+    uniqueNeighborNets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+                 constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+
+Return unique NNI neighbors of a particular topology based on the function
+neighborNets above.
+"""
+function neighborcount(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+                       constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    neighbors, distances = neighborNets(net, nohybridladder, no3cycle, constraints)
+    # TODO find identical networks in neighbors
+    singularNeighbors = String[]
+    for in in length(neighbors):1 # for in reverse to avoid skipping
+        for jn in length(neighbors):1
+            if hardwiredClusterDistance(readTopology(neighbors[in]), readTopology(neighbors[jn]), true) == 0
+                # remove n
+            end
+        end
+    end
+    return singularNeighbors
 end

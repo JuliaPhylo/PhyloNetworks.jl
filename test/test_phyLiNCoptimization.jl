@@ -346,12 +346,40 @@ obj = PhyloNetworks.optimizeparameters(net_simple, fastasimple, :HKY85, :I, "", 
 end
 
 @testset "neighborNets" begin
-seed = 123
+seed = 1234
 n6h1 = readTopology("(((1:0.013635011856564799,2:0.013337412436279021):0.02379142358426221,((3:0.014458424150016028,4:0.015899483647102967):0.0)#H1:0.01602497696107314::0.7876602143873201):0.01491008237330521,(#H1:0.014834901504447811::0.2123397856126799,5:0.005527884554698987):0.055340371373774774,6:0.0620387315019168);")
 neighbors, distances = PhyloNetworks.neighborNets(n6h1, true, true)
 # confirm that the arrays have the same order
 @test hardwiredClusterDistance(n6h1, readTopology(neighbors[2]), true) == distances[2]
 @test hardwiredClusterDistance(n6h1, readTopology(neighbors[4]), true) == distances[4]
+@test length(neighbors) == 28
+# confirm that the first neighbor is as expected
+nni!(n6h1, n6h1.edge[3], 0x01, true, true)
+@test hardwiredClusterDistance(n6h1, readTopology(neighbors[1]), true) == 0
+
+n6h1 = readTopology("(((1:0.013635011856564799,2:0.013337412436279021):0.02379142358426221,((3:0.014458424150016028,4:0.015899483647102967):0.0)#H1:0.01602497696107314::0.7876602143873201):0.01491008237330521,(#H1:0.014834901504447811::0.2123397856126799,5:0.005527884554698987):0.055340371373774774,6:0.0620387315019168);")
+neighbors, distances = PhyloNetworks.neighborNets(n6h1, true, false)
+# confirm that the arrays have the same order
+@test hardwiredClusterDistance(n6h1, readTopology(neighbors[5]), true) == distances[5]
+@test hardwiredClusterDistance(n6h1, readTopology(neighbors[6]), true) == distances[6]
+@test length(neighbors) == 40 # more neighbors because 3-cycles are allowed
+
+n6h2 = readTopology("(((((1:1.4,#H1:0.7::0.2):1.3,((2:0.7)#H1:1.1,3:1.8):0.9):1.2,(4:3.4)#H2:0.5::0.7):2.0,(#H2:0.5,5:3.9):2.0):1.5,6:7.4);")
+neighbors, distances = PhyloNetworks.neighborNets(n6h2, true, true)
+# confirm that the arrays have the same order
+@test hardwiredClusterDistance(n6h2, readTopology(neighbors[10]), true) == distances[10]
+@test hardwiredClusterDistance(n6h2, readTopology(neighbors[11]), true) == distances[11]
+@test length(neighbors) == 40
+# confirm that the first neighbor is as expected
+nni!(n6h2, n6h2.edge[2], 0x02, true, true)
+@test hardwiredClusterDistance(n6h2, readTopology(neighbors[1]), true) == 0
+
+n6h2 = readTopology("(((((1:1.4,#H1:0.7::0.2):1.3,((2:0.7)#H1:1.1,3:1.8):0.9):1.2,(4:3.4)#H2:0.5::0.7):2.0,(#H2:0.5,5:3.9):2.0):1.5,6:7.4);")
+neighbors, distances = PhyloNetworks.neighborNets(n6h2, false, false)
+# confirm that the arrays have the same order
+@test hardwiredClusterDistance(n6h2, readTopology(neighbors[5]), true) == distances[5]
+@test hardwiredClusterDistance(n6h2, readTopology(neighbors[6]), true) == distances[6]
+@test length(neighbors) == 64 # multiple hybrids, so allowing hybrid ladders should increase the number of neighbors
 end
 
 end # of overall phyLiNC test set
