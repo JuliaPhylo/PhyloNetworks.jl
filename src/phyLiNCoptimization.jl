@@ -1833,7 +1833,7 @@ function optimizeparameters(net::HybridNetwork, alignmentfile::String,
 end
 
 """
-    neighborNets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+    neighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
                  constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
 Find NNI neighbors of a particular topology and output tuple of two arrays of all their
@@ -1843,7 +1843,7 @@ Warning: The list of neighbors will likely contain multiple copies of the same
 neighbor, so the length of the list should not be taken as the number of neighbors.
 To get this list, see neighborCount below.
 """
-function neighborNets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+function neighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
                       constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     neighbors = String[]
     distances = Int[]
@@ -1874,23 +1874,65 @@ function neighborNets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
 end
 
 """
-    uniqueNeighborNets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+    uniqueneighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
                  constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
 Return unique NNI neighbors of a particular topology based on the function
-neighborNets above.
+`neighbornets` above.
 """
-function neighborcount(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
-                       constraints=TopologyConstraint[]::Vector{TopologyConstraint})
-    neighbors, distances = neighborNets(net, nohybridladder, no3cycle, constraints)
-    # TODO find identical networks in neighbors
-    singularNeighbors = String[]
-    for in in length(neighbors):1 # for in reverse to avoid skipping
-        for jn in length(neighbors):1
-            if hardwiredClusterDistance(readTopology(neighbors[in]), readTopology(neighbors[jn]), true) == 0
-                # remove n
+function uniqueneighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+                       constraints=PhyloNetworks.TopologyConstraint[]::Vector{TopologyConstraint})
+    neighbors, distances = PhyloNetworks.neighbornets(net, nohybridladder, no3cycle, constraints)
+    hwcds = zeros(Int, length(neighbors), length(neighbors))
+    for i in 1:length(neighbors)
+        for j in 1:length(neighbors)
+            hwcds[i, j] = hardwiredClusterDistance(readTopology(neighbors[i]), readTopology(neighbors[j]), true)
+        end
+    end
+    # remove nets at extra zeros that are not in [i,i]
+    matchindices = Int[]
+    for i in 1:size(hwcds)[1]
+        # TODO a more efficient idea:
+            # if a row is identical to another row, we can just collapse it:
+            # these topologies are the same. use nonunique from DataFrames
+        topomatches = findall(x->x==0, hwcds[i,:])
+        while length(topomatches) > 1 # row has more than one zero (more than one topology match)
+            match = pop!(topomatches)
+            if !(match in matchindices) # if already in list, already removed
+                matchindices = push!(matchindices, match)
             end
         end
     end
-    return singularNeighbors
+    # sort matchindices and remove matches from back to front
+    matchindices = sort!(matchindices, rev=true)
+    for mi in matchindices
+        deleteat!(neighbors, mi)
+        deleteat!(distances, mi)
+    end
+    # for i in 1:length(neighbors)
+    #     jn = deleteat!(collect(length(neighbors):-1:1), i) # for in reverse to avoid missing
+    #     for j in jn # remove network i
+    #         i < j || continue # skip to next j
+    #         @show j
+    #         hwcd = hardwiredClusterDistance(readTopology(neighbors[i]), readTopology(neighbors[j]), true)
+    #         @show hwcd
+    #         if hwcd == 0 # need to figure out this
+    #             @info "deleting $j, removing it from $jn"
+    #             #deleteat!(neighbors, j)
+    #             deleteat!(jn, findall(x->x==j, jn))
+    #             @show length(neighbors)
+    #             @show jn
+    #         end
+    #     end
+    # end
+        # @show length(neighbors)
+        # @show i
+        # jn = deleteat!(collect(length(neighbors):-1:1), i) # remove itself
+        # @show jn
+        # #if any([hardwiredClusterDistance(readTopology(neighbors[i]), readTopology(neighbors[j]), true) == 0 for j in jn])
+        #     deleteat!(neighbors, i)
+        #     deleteat!(distances, i)
+        #     @info "deleted neighbor net $i"
+        #end
+    return neighbors, distances
 end
