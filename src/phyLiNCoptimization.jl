@@ -1936,3 +1936,34 @@ function uniqueneighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::
         #end
     return neighbors, distances
 end
+
+"""
+    nnistotruenet(estnet::HybridNetwork, net::HybridNetwork, maxmoves=10::Int)
+
+Return the minimum number of NNI moves to get from `estnet` to `net`.
+"""
+function nnistotruenet(estnet::HybridNetwork, truenet::HybridNetwork, maxmoves=10::Int,
+                        nohybridladder::Bool, no3cycle::Bool,
+                        constraints=PhyloNetworks.TopologyConstraint[]::Vector{TopologyConstraint})
+    notfound = true
+    nmoves = 0
+    startingnets = [writeTopology(estnet)]
+    while notfound & nmoves < maxmoves
+        allneighbors = String[] # reset to zero
+        for s in startingnets # for each of the starting nets created by the last round
+            # find all neighbors
+            neighbors, distances = uniqueneighbornets(estnet, nohybridladder, no3cycle, constraints)
+            for n in neighbors # for each of these neighbors, see if we found truenet
+                if hardwiredClusterDistance(readTopology(n), truenet, true) == 0
+                    notfound = false
+                end
+            end
+            # add neighbors to allneighbors
+            allneighbors = vcat(allneighbors, neighbors)
+        end
+        # if not yet found, use these neighbors as the next startingnets
+        startingnets = allneighbors
+        nmoves += 1
+    end
+    return nmoves
+end
