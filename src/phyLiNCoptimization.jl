@@ -1885,7 +1885,7 @@ function uniqueneighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::
     neighbors, distances = PhyloNetworks.neighbornets(net, nohybridladder, no3cycle, constraints)
     hwcds = zeros(Int, length(neighbors), length(neighbors))
     for i in 1:length(neighbors)
-        for j in 1:length(neighbors)
+        for j in 1:length(neighbors) #! requires rooting not to change from NNIs
             hwcds[i, j] = hardwiredClusterDistance(readTopology(neighbors[i]), readTopology(neighbors[j]), true)
         end
     end
@@ -1938,24 +1938,40 @@ function uniqueneighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::
 end
 
 """
-    nnistotruenet(estnet::HybridNetwork, net::HybridNetwork, maxmoves=10::Int)
+    nnistotruenet(startingnet::HybridNetwork, truenet::HybridNetwork,
+                  maxmoves=10::Int, nohybridladder::Bool, no3cycle::Bool,
+                  constraints=PhyloNetworks.TopologyConstraint[]::Vector{TopologyConstraint})
 
-Return the minimum number of NNI moves to get from `estnet` to `net`.
+Return the minimum number of NNI moves to get from `startingnet` to `truenet`. If net
+cannot be found in `maxmoves` NNI moves, returns a message and 0.
+
+Assumptions:
+- `truenet` is already be rooted at the given outgroup.
+- `trunet` does not have any nodes of degree two, including the root.
 """
-function nnistotruenet(estnet::HybridNetwork, truenet::HybridNetwork, maxmoves=10::Int,
-                        nohybridladder::Bool, no3cycle::Bool,
-                        constraints=PhyloNetworks.TopologyConstraint[]::Vector{TopologyConstraint})
+function nnistotruenet(startingnet::HybridNetwork, truenet::HybridNetwork,
+                       outgroup::String, nohybridladder::Bool, no3cycle::Bool,
+                       maxmoves=10::Int,
+                       constraints=PhyloNetworks.TopologyConstraint[]::Vector{TopologyConstraint})
+    rootatnode!(startingnet, outgroup) # confirm startingnet is rooted at outgroup
+    PhyloNetworks.removedegree2nodes!(startingnet) # rooting adds a node of degree two. This removes it.
     notfound = true
     nmoves = 0
-    startingnets = [writeTopology(estnet)]
-    while notfound & nmoves < maxmoves
+    startingnets = [writeTopology(startingnet)]
+    while notfound && nmoves < maxmoves
+        nmoves += 1
         allneighbors = String[] # reset to zero
         for s in startingnets # for each of the starting nets created by the last round
             # find all neighbors
-            neighbors, distances = uniqueneighbornets(estnet, nohybridladder, no3cycle, constraints)
+            neighbors, distances = PhyloNetworks.uniqueneighbornets(startingnet, nohybridladder, no3cycle, constraints)
+            @info "uniqueneighbornets found $(length(neighbors)) neighbors.
+                move number = $nmoves. Length of startingnets is $(length(startingnets))"
             for n in neighbors # for each of these neighbors, see if we found truenet
+                @show hardwiredClusterDistance(readTopology(n), truenet, true)
                 if hardwiredClusterDistance(readTopology(n), truenet, true) == 0
-                    notfound = false
+                    @show "s is $s"
+                    println("After $nmoves move(s), startingnet was transformed into truenet.")
+                    return nmoves
                 end
             end
             # add neighbors to allneighbors
@@ -1963,7 +1979,7 @@ function nnistotruenet(estnet::HybridNetwork, truenet::HybridNetwork, maxmoves=1
         end
         # if not yet found, use these neighbors as the next startingnets
         startingnets = allneighbors
-        nmoves += 1
     end
-    return nmoves
+    println("After $nmoves move(s), startingnet could not be transformed into truenet.")
+    return 0
 end
