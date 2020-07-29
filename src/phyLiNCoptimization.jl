@@ -1806,7 +1806,7 @@ end
                         rateCategories=4::Int)
 
 Given a network and data set, optimize only branch lengths, inheritance weights,
-and subsitution model parameters. One run only. Return full network object, which
+and substitution model parameters. One run only. Return full network object, which
 includes network, parameters, and likelihood.
 
 Starts with the given topology 100% of the time, never makes any topology change
@@ -1929,31 +1929,35 @@ function nnistotruenet(startingnet::HybridNetwork, truenet::HybridNetwork,
                        outgroup::String, nohybridladder::Bool, no3cycle::Bool,
                        maxmoves=10::Int,
                        constraints=PhyloNetworks.TopologyConstraint[]::Vector{TopologyConstraint})
-    rootatnode!(startingnet, outgroup) # confirm startingnet is rooted at outgroup
+    # confirm startingnet is rooted at outgroup
+    rootatnode!(startingnet, outgroup)
     PhyloNetworks.removedegree2nodes!(startingnet) # rooting adds a node of degree two. This removes it.
-    notfound = true
+
     nmoves = 0
+    if hardwiredClusterDistance(startingnet, truenet, true) == 0
+        println("After rerooting, startingnet and truenet match. No NNI moves were needed.")
+        return nmoves
+    end
+
     startingnets = [writeTopology(startingnet)]
-    while notfound && nmoves < maxmoves
+    while nmoves < maxmoves
         nmoves += 1
-        allneighbors = String[] # reset to zero
+        allneighbors = String[] # reset to zero to create new set of neighbors
         for s in startingnets # for each of the starting nets created by the last round
             # find all neighbors
-            # creates a deep copy of net each time. Do we want to stop this?
             neighbors, distances = PhyloNetworks.uniqueneighbornets(startingnet, nohybridladder, no3cycle, constraints)
-            @info "uniqueneighbornets found $(length(neighbors)) neighbors.
+            @debug "uniqueneighbornets found $(length(neighbors)) neighbors.
                 move number = $nmoves. Length of startingnets is $(length(startingnets))"
             for n in neighbors # for each of these neighbors, see if we found truenet
                 if hardwiredClusterDistance(readTopology(n), truenet, true) == 0
-                    @show "s is $s"
-                    println("After $nmoves move(s), startingnet was transformed into truenet.")
+                    println("After $nmoves move(s), startingnet $s was transformed into truenet.")
                     return nmoves
                 end
             end
-            # add neighbors to allneighbors
-            allneighbors = vcat(allneighbors, neighbors)
+            allneighbors = vcat(allneighbors, neighbors) # add neighbors to allneighbors
         end
-        # if not yet found, use these neighbors as the next startingnets
+        # use these neighbors as the next startingnets
+        @debug "After $nmoves, the list of neighbors is $(length(allneighbors)) long."
         startingnets = allneighbors
     end
     println("After $nmoves move(s), startingnet could not be transformed into truenet.")
