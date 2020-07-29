@@ -1797,11 +1797,13 @@ function updatecache_hase!(cache::CacheGammaLiNC, obj::SSM,
     return nt, hase
 end
 
+## Functions to Explore Topology Estimation ##
+
 """
     optimizeparameters(net::HybridNetwork, alignmentfile::String,
-                       modSymbol::Symbol, rvsymbol::Symbol,
-                       outputfilename::String, seed::Int,
-                       rateCategories=4::Int)
+                        modSymbol::Symbol, rvsymbol::Symbol,
+                        outputfilename::String, seed::Int,
+                        rateCategories=4::Int)
 
 Given a network and data set, optimize only branch lengths, inheritance weights,
 and subsitution model parameters. One run only. Return full network object, which
@@ -1827,8 +1829,9 @@ function optimizeparameters(net::HybridNetwork, alignmentfile::String,
                   maxmoves=50, probST=1.0, nreject=0, nruns=1,
                   ftolRel=1e-10, ftolAbs=1e-10, xtolRel=1e-10, xtolAbs=1e-6,
                   filename=outputfilename, seed=seed)
-    # no3cycle = false so existing 3-cycles wont be removed by phyLiNC, which
-        # would change the topology
+                  # no3cycle = false so existing 3-cycles will not be removed
+                  # by phyLiNC, which would change the topology. 2-cycles will
+                  # still be removed when they appear
     return obj
 end
 
@@ -1836,38 +1839,42 @@ end
     neighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
                  constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
-Find NNI neighbors of a particular topology and output tuple of two arrays of all their
-Newick strings and distances from the original net.
+Find NNI neighbors of a particular topology. Return a tuple of two arrays:
+neighbor Newick strings and their distances from the original net.
 
-Warning: The list of neighbors will likely contain multiple copies of the same
-neighbor, so the length of the list should not be taken as the number of neighbors.
-To get this list, see neighborCount below.
+Warning:
+- Because different NNIs can lead to the same topology, the list of
+neighbors may contain multiple copies of the same network. Therefore, the length
+of the list should not be taken as the number of neighbors. For the unique
+neighbors, see uniqueneighbornets below.
+- Returns the rooted ['hardwiredClusterDistance'](@ref). This may be larger than
+the [`hardwiredClusterDistance_unrooted`](@ref).
+- creates one deep copy of net.
 """
 function neighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
                       constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     neighbors = String[]
     distances = Int[]
-    originalnet = deepcopy(net)
+    originalnet = deepcopy(net) # keep original net for HWCD comparison
     for e in net.edge
-        # reject NNI if the focus edge is the stem of a constraint
-        if any(con.edge === e for con in constraints)
+        if any(con.edge === e for con in constraints) # if edge is the stem of a constraint, skip
             @debug "skipping to next edge"
-            break # skip to next edge
+            continue # skip to next edge
         end
-        hybparent = getParent(e).hybrid
-        nnimax(e) > 0x00 || continue
-        nnis = 0x01:nnimax(e) # 0x01 = 1 but UInt8 instead of Int
-        for nummove in nnis # iterate through all possible NNIs
-            nummove <= nnimax(e) || error("move $nummove out of bounds here. max = $nnimax(e)")
+        nnimax(e) > 0x00 || continue # if no NNIs possible, skip to next edge
+        nnis = 0x01:nnimax(e)
+        for nummove in nnis
+            nummove <= nnimax(e) || error("move $nummove out of bounds here. max = $nnimax(e)") #TODO remove after testing
             moveinfo = nni!(net, e, nummove, nohybridladder, no3cycle)
-            !isnothing(moveinfo) || continue # move didn't work, skip to next possible NNI
-            net.root == originalnet.root || error("roots do not match")
-            push!(neighbors, writeTopology(net)) # TODO are these orders correct?
+            !isnothing(moveinfo) || continue # move didn't work, skip to next NNI
+            # if NNI changed rooting, need to call hwcd with rooted = false
+            net.root == originalnet.root || error("root changed by NNI")
+            push!(neighbors, writeTopology(net))
             push!(distances, hardwiredClusterDistance(net, originalnet, true))
-            # undo this nni
-            nni!(moveinfo...)
-            # after undoingnni, confirm that net is unchanged
-            hardwiredClusterDistance(net, originalnet, true) == 0 || error("original net changed")
+            nni!(moveinfo...) # undo this nni
+            # confirm that net is unchanged after undoing nni
+            hardwiredClusterDistance(net, originalnet, true) == 0 ||
+                error("original net changed")
         end
     end
     return neighbors, distances
@@ -1878,62 +1885,31 @@ end
                  constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
 Return unique NNI neighbors of a particular topology based on the function
-`neighbornets` above.
+`neighbornets` above. Neighbors with identical pa
+
+Assumptions: rooting will not change during an NNI
 """
 function uniqueneighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
                        constraints=PhyloNetworks.TopologyConstraint[]::Vector{TopologyConstraint})
     neighbors, distances = PhyloNetworks.neighbornets(net, nohybridladder, no3cycle, constraints)
-    hwcds = zeros(Int, length(neighbors), length(neighbors))
-    for i in 1:length(neighbors)
-        for j in 1:length(neighbors) #! requires rooting not to change from NNIs
-            hwcds[i, j] = hardwiredClusterDistance(readTopology(neighbors[i]), readTopology(neighbors[j]), true)
+    ncount = length(neighbors)
+    # matrix of rooted distances between neighbors
+    hwcds = zeros(Int, ncount, ncount);
+    for i in 1:ncount
+        for j in 1:ncount
+            hwcds[i,j] = hardwiredClusterDistance(readTopology(neighbors[i]), readTopology(neighbors[j]), true)
         end
     end
-    # remove nets at extra zeros that are not in [i,i]
-    matchindices = Int[]
-    for i in 1:size(hwcds)[1]
-        # TODO a more efficient idea:
-            # if a row is identical to another row, we can just collapse it:
-            # these topologies are the same. use nonunique from DataFrames
-        topomatches = findall(x->x==0, hwcds[i,:])
-        while length(topomatches) > 1 # row has more than one zero (more than one topology match)
-            match = pop!(topomatches)
-            if !(match in matchindices) # if already in list, already removed
-                matchindices = push!(matchindices, match)
-            end
-        end
+    # find rows with duplicate HWCD patterns with all other nets
+    duplicates = nonunique(DataFrame(hwcds)) # true entries indicate duplicate rows
+    duplicateindices = findall(x->x==1, duplicates)
+    # confirm that this guarantees they are identical
+    for di in duplicateindices # confirm duplicate net has hwcd = 0 with >= 1 other net
+        any(i-> i == 0, hwcds[di, 1:end .!= di]) ||
+            error("duplicate net does not have a HWCD of zero with another net")
     end
-    # sort matchindices and remove matches from back to front
-    matchindices = sort!(matchindices, rev=true)
-    for mi in matchindices
-        deleteat!(neighbors, mi)
-        deleteat!(distances, mi)
-    end
-    # for i in 1:length(neighbors)
-    #     jn = deleteat!(collect(length(neighbors):-1:1), i) # for in reverse to avoid missing
-    #     for j in jn # remove network i
-    #         i < j || continue # skip to next j
-    #         @show j
-    #         hwcd = hardwiredClusterDistance(readTopology(neighbors[i]), readTopology(neighbors[j]), true)
-    #         @show hwcd
-    #         if hwcd == 0 # need to figure out this
-    #             @info "deleting $j, removing it from $jn"
-    #             #deleteat!(neighbors, j)
-    #             deleteat!(jn, findall(x->x==j, jn))
-    #             @show length(neighbors)
-    #             @show jn
-    #         end
-    #     end
-    # end
-        # @show length(neighbors)
-        # @show i
-        # jn = deleteat!(collect(length(neighbors):-1:1), i) # remove itself
-        # @show jn
-        # #if any([hardwiredClusterDistance(readTopology(neighbors[i]), readTopology(neighbors[j]), true) == 0 for j in jn])
-        #     deleteat!(neighbors, i)
-        #     deleteat!(distances, i)
-        #     @info "deleted neighbor net $i"
-        #end
+    deleteat!(neighbors, duplicateindices)
+    deleteat!(distances, duplicateindices)
     return neighbors, distances
 end
 
@@ -1963,11 +1939,11 @@ function nnistotruenet(startingnet::HybridNetwork, truenet::HybridNetwork,
         allneighbors = String[] # reset to zero
         for s in startingnets # for each of the starting nets created by the last round
             # find all neighbors
+            # creates a deep copy of net each time. Do we want to stop this?
             neighbors, distances = PhyloNetworks.uniqueneighbornets(startingnet, nohybridladder, no3cycle, constraints)
             @info "uniqueneighbornets found $(length(neighbors)) neighbors.
                 move number = $nmoves. Length of startingnets is $(length(startingnets))"
             for n in neighbors # for each of these neighbors, see if we found truenet
-                @show hardwiredClusterDistance(readTopology(n), truenet, true)
                 if hardwiredClusterDistance(readTopology(n), truenet, true) == 0
                     @show "s is $s"
                     println("After $nmoves move(s), startingnet was transformed into truenet.")
@@ -1982,4 +1958,33 @@ function nnistotruenet(startingnet::HybridNetwork, truenet::HybridNetwork,
     end
     println("After $nmoves move(s), startingnet could not be transformed into truenet.")
     return 0
+end
+
+"""
+    nnifliphybrid()
+
+Return boolean indicating if `maxmoves` NNIs can flip a hybrid in the given `net`.
+#TODO model after above
+"""
+function nnifliphybrid(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+    maxmoves=1::Int,
+    constraints=PhyloNetworks.TopologyConstraint[]::Vector{TopologyConstraint})
+
+    neighbors, distances = PhyloNetworks.uniqueneighbornets(startingnet, true, true)
+
+    for n in neighbors # for each of these neighbors, see if hybrid edge is flipped
+        nnet = readTopology(n)
+        if PhyloNetworks.getChild(nnet.edge[6]).number == -5 ||
+            PhyloNetworks.getParent(nnet.edge[6]).number == 5
+            @info "major hybrid edge flipped after one NNI in neighbor $n"
+            @show PhyloNetworks.getChild(nnet.edge[6])
+            @show PhyloNetworks.getParent(nnet.edge[6])
+        end
+        if PhyloNetworks.getChild(nnet.edge[11]).number == -7 ||
+            PhyloNetworks.getParent(nnet.edge[11]).number == 5
+            @info "minor hybrid edge flipped after one NNI in neighbor $n"
+            @show PhyloNetworks.getChild(nnet.edge[11])
+            @show PhyloNetworks.getParent(nnet.edge[11])
+        end
+    end
 end
