@@ -407,13 +407,14 @@ nmoves = PhyloNetworks.nnistotruenet(startingnet, truenet, "6", true, true, 2)
 end
 
 @testset "hybridschangedbynnis" begin
-nchanged, nflipped = PhyloNetworks.hybridschangedbynnis(startingnet, true, true, 2)
-@test nchanged = 2860
-@test nflipped = 0
+startingnet = readTopology("(((1:0.009221630571539522,2:0.01090284156388857):0.03072521643460218,(3:1.0e-8,(4:0.0)#H1:0.01133912873252381::0.7292558128341733):0.030320601757657505):0.013615526953203836,6:0.07418479480620778,(5:0.016527926411687346,#H1:1.0000000050247593e-8::0.2707441871658267):0.026214884034880433);")
+nflipped, nchanged = PhyloNetworks.hybridschangedbynnis(startingnet, true, true, 1)
+@test nchanged == 15
+@test nflipped == 0
 
-nchanged, nflipped = PhyloNetworks.hybridschangedbynnis(startingnet, false, false, 2)
-@test nchanged = 4824
-@test nflipped = 0
+nflipped, nchanged = PhyloNetworks.hybridschangedbynnis(startingnet, false, false, 2)
+@test nchanged == 286
+@test nflipped == 0
 end
 
 end # of overall phyLiNC test set
