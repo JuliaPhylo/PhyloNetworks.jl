@@ -1944,7 +1944,6 @@ function nnistotruenet(startingnet::HybridNetwork, truenet::HybridNetwork,
         println("After rerooting, startingnet and truenet match. No NNI moves were needed.")
         return nmoves
     end
-
     startingnets = [writeTopology(startingnet)]
     while nmoves < maxmoves
         nmoves += 1
@@ -1966,6 +1965,90 @@ function nnistotruenet(startingnet::HybridNetwork, truenet::HybridNetwork,
         startingnets = allneighbors
     end
     println("After $nmoves move(s), startingnet could not be transformed into truenet using NNIs.")
+    return 0
+end
+
+"""
+    nnistotruenet(startingnet::HybridNetwork, truenet::HybridNetwork,
+                    outgroup::String, nohybridladder::Bool, no3cycle::Bool,
+                    alignmentfile::String, modSymbol::Symbol, rvsymbol::Symbol,
+                    outputfilename::String, seed::Int, rateCategories=4::Int,
+                    maxmoves=2::Int,
+                    constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+
+Return the minimum number of NNI moves to get from `startingnet` to `truenet`,
+moving only uphill, following non-decreasing loglikelihoods. If net
+cannot be found in `maxmoves` NNI moves, returns a message and 0.
+
+Additional functionality in this version: Only includes neighbors that would
+be accepted in a likelihood-based hill-climbing algorithm. Uses
+[`optimizeparameters`](@ref) to optimize parameters and calculate the likelihood
+of each net. Only includes a network in the next set of neighbors if its
+likelihood is equal to or greater than its parent's likelihood.
+
+Warning: Choose a small `maxmoves` to start. Because the neighbor count increases
+exponentially, even with small `maxmoves`, this function is time-consuming. After
+nmoves, size of the neighbor set is (startingnet's immediate neighbors)^nmoves.
+e.g. If `startingnet` has 10 immediate neighbors, then after 3 moves, it will have
+1000 neighbors.
+
+Assumptions:
+- `truenet` is already be rooted at the given outgroup.
+- `trunet` does not have any nodes of degree two, including the root.
+"""
+function nnistotruenet(startingnet::HybridNetwork, truenet::HybridNetwork,
+                       outgroup::String, nohybridladder::Bool, no3cycle::Bool,
+                       alignmentfile::String, modSymbol::Symbol, rvsymbol::Symbol,
+                       outputfilename::String, seed::Int, rateCategories=4::Int,
+                       maxmoves=2::Int,
+                       constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    # confirm startingnet is rooted at outgroup
+    rootatnode!(startingnet, outgroup)
+    removedegree2nodes!(startingnet) # rooting adds a node of degree two. This removes it.
+    df = DataFrame(loglik=Float64[], hwcd=Int[], net=String[], nnicount=Int[], parentpathis=Array{Int64, 1}[])
+    nmoves = 0
+    if hardwiredClusterDistance(startingnet, truenet, true) == 0
+        println("After rerooting, startingnet and truenet match. No NNI moves were needed.")
+        return nmoves
+    end
+    startingnets = [writeTopology(startingnet)]
+    while nmoves < maxmoves
+        nmoves += 1
+        allneighbors = String[] # reset to zero to create new set of neighbors
+        for s in startingnets # for each of the starting nets created by the last round
+            # find all neighbors
+            snet = readTopology(s)
+            snetloglik = optimizeparameters(snet, alignmentfile, modSymbol,
+                                rvsymbol, outputfilename, seed,rateCategories)
+            neighbors, distances = uniqueneighbornets(snet, nohybridladder, no3cycle, constraints)
+            for n in neighbors # for each of these neighbors, see if we found truenet
+                # calculate likelihood of network n
+                nnet = readTopology(n)
+                # add new row to df
+                nnetloglik = optimizeparameters(nnet, alignmentfile, modSymbol,
+                                rvsymbol, outputfilename, seed,rateCategories)
+                    # nnethwcd = hardwiredClusterDistance(nnet, truenet, true)
+                    # push!(df, [nnetloglik, nnethwcd, n, nmoves, [s, n]])
+                    # if using htis method, check this s and n. Are they the indices we need? We probably need to keep track another way
+                # OR we could proceed ONLY if the loglik is > than the previous loglik!
+                # This would be much easier. I've proceeded with this idea.
+                if nnetloglik >= snnetloglik # would be accepted by our algorithm
+                    # add it to the list of neighbors to include in the search.
+                    push!(nextneighborset, n)
+                end
+                if nnethwcd == 0
+                    println("After $nmoves move(s), startingnet was transformed into truenet with NNIs.")
+                    return nmoves
+                end
+            end
+        allneighbors = vcat(allneighbors, nextneighborset)
+        end
+        # use these neighbors as the next startingnets
+        @debug "After $nmoves moves, the list of hill-climbing neighbors is $(length(allneighbors)) long."
+        startingnets = allneighbors
+    end
+    println("After $nmoves moves, startingnet could not be transformed into truenet
+    using NNIs following a likelihood-based hill-climbing method.")
     return 0
 end
 
