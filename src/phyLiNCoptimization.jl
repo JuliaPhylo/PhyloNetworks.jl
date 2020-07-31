@@ -1890,8 +1890,8 @@ Return unique NNI neighbors of a particular topology based on the function
 Assumptions: rooting will not change during an NNI
 """
 function uniqueneighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
-                       constraints=PhyloNetworks.TopologyConstraint[]::Vector{TopologyConstraint})
-    neighbors, distances = PhyloNetworks.neighbornets(net, nohybridladder, no3cycle, constraints)
+                       constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    neighbors, distances = neighbornets(net, nohybridladder, no3cycle, constraints)
     ncount = length(neighbors)
     # matrix of rooted distances between neighbors
     hwcds = zeros(Int, ncount, ncount);
@@ -1906,7 +1906,7 @@ function uniqueneighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::
     # confirm that this guarantees they are identical
     for di in duplicateindices # confirm duplicate net has hwcd = 0 with >= 1 other net
         any(i-> i == 0, hwcds[di, 1:end .!= di]) ||
-            error("duplicate net does not have a HWCD of zero with another net")
+            error("Duplicate net does not have a HWCD of zero with another net")
     end
     deleteat!(neighbors, duplicateindices)
     deleteat!(distances, duplicateindices)
@@ -1915,11 +1915,17 @@ end
 
 """
     nnistotruenet(startingnet::HybridNetwork, truenet::HybridNetwork,
-                  maxmoves=10::Int, nohybridladder::Bool, no3cycle::Bool,
-                  constraints=PhyloNetworks.TopologyConstraint[]::Vector{TopologyConstraint})
+                  maxmoves=3::Int, nohybridladder::Bool, no3cycle::Bool,
+                  constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
 Return the minimum number of NNI moves to get from `startingnet` to `truenet`. If net
 cannot be found in `maxmoves` NNI moves, returns a message and 0.
+
+Warning: Choose a small `maxmoves` to start. Because the neighbor count increases
+exponentially, even with small `maxmoves`, this function is time-consuming. After
+nmoves, size of the neighbor set is (startingnet's immediate neighbors)^nmoves.
+e.g. If `startingnet` has 10 immediate neighbors, then after 3 moves, it will have
+1000 neighbors.
 
 Assumptions:
 - `truenet` is already be rooted at the given outgroup.
@@ -1927,11 +1933,11 @@ Assumptions:
 """
 function nnistotruenet(startingnet::HybridNetwork, truenet::HybridNetwork,
                        outgroup::String, nohybridladder::Bool, no3cycle::Bool,
-                       maxmoves=10::Int,
-                       constraints=PhyloNetworks.TopologyConstraint[]::Vector{TopologyConstraint})
+                       maxmoves=2::Int,
+                       constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     # confirm startingnet is rooted at outgroup
     rootatnode!(startingnet, outgroup)
-    PhyloNetworks.removedegree2nodes!(startingnet) # rooting adds a node of degree two. This removes it.
+    removedegree2nodes!(startingnet) # rooting adds a node of degree two. This removes it.
 
     nmoves = 0
     if hardwiredClusterDistance(startingnet, truenet, true) == 0
@@ -1945,50 +1951,85 @@ function nnistotruenet(startingnet::HybridNetwork, truenet::HybridNetwork,
         allneighbors = String[] # reset to zero to create new set of neighbors
         for s in startingnets # for each of the starting nets created by the last round
             # find all neighbors
-            neighbors, distances = PhyloNetworks.uniqueneighbornets(startingnet, nohybridladder, no3cycle, constraints)
-            @debug "uniqueneighbornets found $(length(neighbors)) neighbors.
-                move number = $nmoves. Length of startingnets is $(length(startingnets))"
+            snet = readTopology(s)
+            neighbors, distances = uniqueneighbornets(snet, nohybridladder, no3cycle, constraints)
             for n in neighbors # for each of these neighbors, see if we found truenet
                 if hardwiredClusterDistance(readTopology(n), truenet, true) == 0
-                    println("After $nmoves move(s), startingnet $s was transformed into truenet.")
+                    println("After $nmoves move(s), startingnet was transformed into truenet with NNIs.")
                     return nmoves
                 end
             end
             allneighbors = vcat(allneighbors, neighbors) # add neighbors to allneighbors
         end
         # use these neighbors as the next startingnets
-        @debug "After $nmoves, the list of neighbors is $(length(allneighbors)) long."
+        @debug "After $nmoves moves, the list of neighbors is $(length(allneighbors)) long."
         startingnets = allneighbors
     end
-    println("After $nmoves move(s), startingnet could not be transformed into truenet.")
+    println("After $nmoves move(s), startingnet could not be transformed into truenet using NNIs.")
     return 0
 end
 
 """
-    nnifliphybrid()
+    hybridschangedbynnis(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+                  maxmoves=3::Int,
+                  constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
-Return boolean indicating if `maxmoves` NNIs can flip a hybrid in the given `net`.
-#TODO model after above
+Return the number of neighbors of `net` in `maxmoves` with modified and flipped
+hybrid edges in a tuple: (modifiedhybrids, flippedhybrids)
+
+Warning: Choose a small `maxmoves` to start. Because the neighbor count increases
+exponentially, even with small `maxmoves`, this function is time-consuming. After
+nmoves, size of the neighbor set is (startingnet's immediate neighbors)^nmoves.
+e.g. If `startingnet` has 10 immediate neighbors, then after 3 moves, it will have
+1000 neighbors.
 """
-function nnifliphybrid(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
-    maxmoves=1::Int,
-    constraints=PhyloNetworks.TopologyConstraint[]::Vector{TopologyConstraint})
-
-    neighbors, distances = PhyloNetworks.uniqueneighbornets(startingnet, true, true)
-
-    for n in neighbors # for each of these neighbors, see if hybrid edge is flipped
-        nnet = readTopology(n)
-        if PhyloNetworks.getChild(nnet.edge[6]).number == -5 ||
-            PhyloNetworks.getParent(nnet.edge[6]).number == 5
-            @info "major hybrid edge flipped after one NNI in neighbor $n"
-            @show PhyloNetworks.getChild(nnet.edge[6])
-            @show PhyloNetworks.getParent(nnet.edge[6])
-        end
-        if PhyloNetworks.getChild(nnet.edge[11]).number == -7 ||
-            PhyloNetworks.getParent(nnet.edge[11]).number == 5
-            @info "minor hybrid edge flipped after one NNI in neighbor $n"
-            @show PhyloNetworks.getChild(nnet.edge[11])
-            @show PhyloNetworks.getParent(nnet.edge[11])
-        end
+function hybridschangedbynnis(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+    maxmoves=3::Int, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    # vector of tuples (parentnodenum, childnodenum). 2 for each hybrid node
+    hybridnodesets = Tuple{Int, Int}[]
+    for h in net.hybrid
+        parents = PhyloNetworks.getParents(h)
+        push!(hybridnodesets, (parents[1].number, h.number))
+        push!(hybridnodesets, (parents[2].number, h.number))
     end
+    @show hybridnodesets
+    nmoves = 0
+    neighborcount = 0
+    hybridsflipped = 0
+    hybridschanged = 0
+    startingnets = [writeTopology(net)]
+    while nmoves < maxmoves
+        nmoves += 1
+        allneighbors = String[] # reset to zero to create new set of neighbors
+        for s in startingnets # for each of the starting nets created by the last round
+            # find all neighbors
+            snet = readTopology(s)
+            neighbors, distances = uniqueneighbornets(snet, nohybridladder, no3cycle, constraints)
+            for n in neighbors # for each neighbor, see if a hybrid edge is flipped
+                neighborcount += 1
+                nnet = readTopology(n)
+                shybridnodesets = Tuple{Int, Int}[]
+                for sh in nnet.hybrid
+                    parents = PhyloNetworks.getParents(sh)
+                    push!(shybridnodesets, (parents[1].number, sh.number))
+                    push!(shybridnodesets, (parents[2].number, sh.number))
+                end
+                @debug shybridnodesets
+                if !isequal(shybridnodesets, hybridnodesets)
+                    hybridschanged += 1
+                    if any(reverse(set) in shybridnodesets for set in hybridnodesets)
+                        hybridsflipped += 1
+                    end
+                end
+            end
+            allneighbors = vcat(allneighbors, neighbors) # add neighbors to allneighbors
+        end
+        # use these neighbors as the next startingnets
+        @debug "After $nmoves moves, the list of neighbors is $(length(allneighbors)) long."
+        startingnets = allneighbors
+    end
+
+    @debug "The hybrid edges in net were flipped in $hybridsflipped of $neighborcount neighbors.
+    The hybrids were changed from the original net in $hybridschanged of $neighborcount neighbors."
+    return (hybridsflipped, hybridschanged)
 end
