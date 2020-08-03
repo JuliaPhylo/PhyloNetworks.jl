@@ -1859,7 +1859,7 @@ See also: [`topologyMaxQPseudolik!`](@ref) to optimize parameters on a fixed top
 and [`topologyQPseudolik!`](@ref) to get the deviance (pseudo log-likelihood up to a constant)
 of a fixed topology with fixed parameters.
 
-Reference:
+Reference:  
 Claudia Solís-Lemus and Cécile Ané (2016).
 Inferring phylogenetic networks with maximum pseudolikelihood under incomplete lineage sorting.
 [PLoS Genetics](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896)
