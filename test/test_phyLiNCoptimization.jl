@@ -404,6 +404,17 @@ PhyloNetworks.removedegree2nodes!(startingnet)
 startingnet = readTopology("(((1:0.009221630571539522,2:0.01090284156388857):0.03072521643460218,(3:1.0e-8,(4:0.0)#H1:0.01133912873252381::0.7292558128341733):0.030320601757657505):0.013615526953203836,6:0.07418479480620778,(5:0.016527926411687346,#H1:1.0000000050247593e-8::0.2707441871658267):0.026214884034880433);")
 nmoves = PhyloNetworks.nnistotruenet(startingnet, truenet, "6", true, true, 2)
 @test nmoves == 1
+
+# hill-climbing method
+pkgpath = dirname(Base.find_package("PhyloNetworks"))
+fastasimple = abspath(joinpath(pkgpath, "..", "examples", "simple.aln"))
+net_simple = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
+neighbors, distances = PhyloNetworks.uniqueneighbornets(net_simple, true, true)
+@test PhyloNetworks.optimizeparameters(readTopology(neighbors[2]), fastasimple, :HKY85, :G,"", 123).loglik ≈ -23.89325 atol=.0001
+@test PhyloNetworks.optimizeparameters(net_simple, fastasimple, :HKY85, :G,"", 123).loglik ≈ -24.01889 atol=.0001
+nmoves = PhyloNetworks.nnistotruenet(net_simple, readTopology(neighbors[2]), "D", true, true,
+                                fastasimple, :HKY85, :G, "", 123);
+@test nmoves == 1
 end
 
 @testset "hybridschangedbynnis" begin

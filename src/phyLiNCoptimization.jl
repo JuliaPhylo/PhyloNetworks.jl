@@ -1925,11 +1925,7 @@ Warning: Choose a small `maxmoves` to start. Because the neighbor count increase
 exponentially, even with small `maxmoves`, this function is time-consuming. After
 nmoves, size of the neighbor set is (startingnet's immediate neighbors)^nmoves.
 e.g. If `startingnet` has 10 immediate neighbors, then after 3 moves, it will have
-1000 neighbors.
-
-Assumptions:
-- `truenet` is already be rooted at the given outgroup.
-- `trunet` does not have any nodes of degree two, including the root.
+~1000 neighbors.
 """
 function nnistotruenet(startingnet::HybridNetwork, truenet::HybridNetwork,
                        outgroup::String, nohybridladder::Bool, no3cycle::Bool,
@@ -1970,85 +1966,86 @@ end
 
 """
     nnistotruenet(startingnet::HybridNetwork, truenet::HybridNetwork,
-                    outgroup::String, nohybridladder::Bool, no3cycle::Bool,
-                    alignmentfile::String, modSymbol::Symbol, rvsymbol::Symbol,
-                    outputfilename::String, seed::Int, rateCategories=4::Int,
-                    maxmoves=2::Int,
-                    constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+                outgroup::String, nohybridladder::Bool, no3cycle::Bool,
+                alignmentfile::String, modSymbol::Symbol, rvsymbol::Symbol,
+                outputfilename::String, seed::Int;
+                rateCategories=4::Int, maxmoves=2::Int,
+                constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
 Return the minimum number of NNI moves to get from `startingnet` to `truenet`,
 moving only uphill, following non-decreasing loglikelihoods. If net
 cannot be found in `maxmoves` NNI moves, returns a message and 0.
 
-Additional functionality in this version: Only includes neighbors that would
-be accepted in a likelihood-based hill-climbing algorithm. Uses
-[`optimizeparameters`](@ref) to optimize parameters and calculate the likelihood
-of each net. Only includes a network in the next set of neighbors if its
-likelihood is equal to or greater than its parent's likelihood.
+Additional functionality in this version compared with first:
+Only includes a network in the next set of neighbors
+if its likelihood is equal to or greater than its parent's likelihood. Calculates
+the likelihood using [`optimizeparameters`](@ref). In this version,
+`truenet` and `startingnet` must have branch lengths and gammas.
 
-Warning: Choose a small `maxmoves` to start. Because the neighbor count increases
-exponentially, even with small `maxmoves`, this function is time-consuming. After
-nmoves, size of the neighbor set is (startingnet's immediate neighbors)^nmoves.
-e.g. If `startingnet` has 10 immediate neighbors, then after 3 moves, it will have
-1000 neighbors.
-
-Assumptions:
-- `truenet` is already be rooted at the given outgroup.
-- `trunet` does not have any nodes of degree two, including the root.
+Because this function only searches a network's NNI neighbors if its likelihood
+is greater than or equal to the previous likelihood, slightly larger `maxmoves`
+values are safe here (in contrast to the first version of this function, above).
+However, large data will still lead to long runtimes.
 """
 function nnistotruenet(startingnet::HybridNetwork, truenet::HybridNetwork,
                        outgroup::String, nohybridladder::Bool, no3cycle::Bool,
                        alignmentfile::String, modSymbol::Symbol, rvsymbol::Symbol,
-                       outputfilename::String, seed::Int, rateCategories=4::Int,
-                       maxmoves=2::Int,
+                       outputfilename::String, seed::Int;
+                       rateCategories=4::Int, maxmoves=2::Int,
                        constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    # check for missing branch lengths and gammas
+    if any(!(e.length >= 0.0) for e in startingnet.edge) || any(!(e.length >= 0.0) for e in truenet.edge)
+        error("Both networks must have branch lengths and gammas. At least one
+        or more branch lengths is missing.")
+    elseif any([any([e.gamma < 0.0 for e in h.edge]) for h in startingnet.hybrid]) ||
+           any([any([e.gamma < 0.0 for e in h.edge]) for h in truenet.hybrid])
+        error("Both networks must have branch lengths and gammas. At least one
+        or more gammas is missing.")
+    end
     # confirm startingnet is rooted at outgroup
     rootatnode!(startingnet, outgroup)
     removedegree2nodes!(startingnet) # rooting adds a node of degree two. This removes it.
-    df = DataFrame(loglik=Float64[], hwcd=Int[], net=String[], nnicount=Int[], parentpathis=Array{Int64, 1}[])
     nmoves = 0
     if hardwiredClusterDistance(startingnet, truenet, true) == 0
         println("After rerooting, startingnet and truenet match. No NNI moves were needed.")
         return nmoves
     end
+    # find neighbors, compare likelihoods, return truenet if found
     startingnets = [writeTopology(startingnet)]
     while nmoves < maxmoves
         nmoves += 1
-        allneighbors = String[] # reset to zero to create new set of neighbors
-        for s in startingnets # for each of the starting nets created by the last round
-            # find all neighbors
+        newneighbors = String[] # reset to empty at the beginning of each move
+        for s in startingnets # for each snet created by the last round
+            nextneighborset = [] # reset to empty for each snet
             snet = readTopology(s)
-            snetloglik = optimizeparameters(snet, alignmentfile, modSymbol,
-                                rvsymbol, outputfilename, seed,rateCategories)
+            snetobj = optimizeparameters(snet, alignmentfile, modSymbol,
+                                rvsymbol, outputfilename, seed, rateCategories)
+            snetloglik = snetobj.loglik
             neighbors, distances = uniqueneighbornets(snet, nohybridladder, no3cycle, constraints)
             for n in neighbors # for each of these neighbors, see if we found truenet
-                # calculate likelihood of network n
                 nnet = readTopology(n)
-                # add new row to df
-                nnetloglik = optimizeparameters(nnet, alignmentfile, modSymbol,
+                nnetobj = optimizeparameters(nnet, alignmentfile, modSymbol,
                                 rvsymbol, outputfilename, seed,rateCategories)
-                    # nnethwcd = hardwiredClusterDistance(nnet, truenet, true)
-                    # push!(df, [nnetloglik, nnethwcd, n, nmoves, [s, n]])
-                    # if using htis method, check this s and n. Are they the indices we need? We probably need to keep track another way
-                # OR we could proceed ONLY if the loglik is > than the previous loglik!
-                # This would be much easier. I've proceeded with this idea.
-                if nnetloglik >= snnetloglik # would be accepted by our algorithm
-                    # add it to the list of neighbors to include in the search.
-                    push!(nextneighborset, n)
-                end
-                if nnethwcd == 0
-                    println("After $nmoves move(s), startingnet was transformed into truenet with NNIs.")
-                    return nmoves
+                nnetloglik = nnetobj.loglik
+                @debug "nnetloglik is $nnetloglik, snetloglik is $snetloglik"
+                nnethwcd = hardwiredClusterDistance(nnet, truenet, false)
+                @debug "new net's unrooted hwcd from truenet is $nnethwcd"
+                if nnetloglik >= snetloglik # hill-climbing
+                    if nnethwcd == 0
+                        println("startingnet was transformed into truenet using NNIs in $nmoves moves when following a likelihood-based hill-climbing method.")
+                        return nmoves
+                    else # add it to list of neighbors for next round
+                        @debug "pushed nnet to nextneighborset"
+                        push!(nextneighborset, n)
+                    end
                 end
             end
-        allneighbors = vcat(allneighbors, nextneighborset)
+        newneighbors = vcat(newneighbors, nextneighborset) # use these neighbors as next startingnets
         end
-        # use these neighbors as the next startingnets
-        @debug "After $nmoves moves, the list of hill-climbing neighbors is $(length(allneighbors)) long."
-        startingnets = allneighbors
+        @debug "After $nmoves moves, the list of hill-climbing neighbors is $(length(newneighbors)) long."
+        startingnets = newneighbors
     end
-    println("After $nmoves moves, startingnet could not be transformed into truenet
-    using NNIs following a likelihood-based hill-climbing method.")
+    println("startingnet could not be transformed into truenet using NNIs in $nmoves moves when following a likelihood-based hill-climbing method.")
     return 0
 end
 
@@ -2059,6 +2056,13 @@ end
 
 Return the number of neighbors of `net` in `maxmoves` with modified and flipped
 hybrid edges in a tuple: (modifiedhybrids, flippedhybrids)
+
+A hybrid edge will be considered flipped only if the parent and child node numbers
+are switched. If either of the node numbers does not match (because of another
+NNI move), but the edge is flipped relative to its neighbors, this function will
+not count it as a flipped edge.
+potential fixit: In future, could be better to use the species clusters above and
+below a hybrid edge instead of the edge's node numbers to identify flipped edges.
 
 Warning: Choose a small `maxmoves` to start. Because the neighbor count increases
 exponentially, even with small `maxmoves`, this function is time-consuming. After
@@ -2075,7 +2079,6 @@ function hybridschangedbynnis(net::HybridNetwork, nohybridladder::Bool, no3cycle
         push!(hybridnodesets, (parents[1].number, h.number))
         push!(hybridnodesets, (parents[2].number, h.number))
     end
-    @show hybridnodesets
     nmoves = 0
     neighborcount = 0
     hybridsflipped = 0
