@@ -1827,7 +1827,7 @@ function optimizeparameters(net::HybridNetwork, alignmentfile::String,
     obj = phyLiNC(net, alignmentfile, modSymbol, rvsymbol, rateCategories;
                   maxhybrid=net.numHybrids, no3cycle=false, verbose=false,
                   maxmoves=50, probST=1.0, nreject=0, nruns=1,
-                  ftolRel=1e-10, ftolAbs=1e-10, xtolRel=1e-10, xtolAbs=1e-6,
+                  ftolRel=1e-12, ftolAbs=1e-12, xtolRel=1e-12, xtolAbs=1e-12,
                   filename=outputfilename, seed=seed)
                   # no3cycle = false so existing 3-cycles will not be removed
                   # by phyLiNC, which would change the topology. 2-cycles will
@@ -1993,14 +1993,16 @@ function nnistotruenet(startingnet::HybridNetwork, truenet::HybridNetwork,
                        outputfilename::String, seed::Int;
                        rateCategories=4::Int, maxmoves=2::Int,
                        constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    truenetobj = optimizeparameters(truenet, alignmentfile, modSymbol, rvsymbol,
+                                        outputfilename, seed, rateCategories)
+    trueloglik = truenetobj.loglik
+    println("After optimizing parameters, the true network's loglikelihood is $trueloglik")
     # check for missing branch lengths and gammas
     if any(!(e.length >= 0.0) for e in startingnet.edge) || any(!(e.length >= 0.0) for e in truenet.edge)
-        error("Both networks must have branch lengths and gammas. At least one
-        or more branch lengths is missing.")
+        error("Both networks must have branch lengths and gammas. At least one or more branch lengths is missing.")
     elseif any([any([e.gamma < 0.0 for e in h.edge]) for h in startingnet.hybrid]) ||
            any([any([e.gamma < 0.0 for e in h.edge]) for h in truenet.hybrid])
-        error("Both networks must have branch lengths and gammas. At least one
-        or more gammas is missing.")
+        error("Both networks must have branch lengths and gammas. At least one or more gammas is missing.")
     end
     # confirm startingnet is rooted at outgroup
     rootatnode!(startingnet, outgroup)
@@ -2021,6 +2023,9 @@ function nnistotruenet(startingnet::HybridNetwork, truenet::HybridNetwork,
             snetobj = optimizeparameters(snet, alignmentfile, modSymbol,
                                 rvsymbol, outputfilename, seed, rateCategories)
             snetloglik = snetobj.loglik
+            if snetloglik >= trueloglik
+                println("Network s's loglikelihood ($snetloglik) is equal to or greater than the true network's ($trueloglik). Network s: $s")
+            end
             neighbors, distances = uniqueneighbornets(snet, nohybridladder, no3cycle, constraints)
             for n in neighbors # for each of these neighbors, see if we found truenet
                 nnet = readTopology(n)
@@ -2030,6 +2035,9 @@ function nnistotruenet(startingnet::HybridNetwork, truenet::HybridNetwork,
                 @debug "nnetloglik is $nnetloglik, snetloglik is $snetloglik"
                 nnethwcd = hardwiredClusterDistance(nnet, truenet, false)
                 @debug "new net's unrooted hwcd from truenet is $nnethwcd"
+                if nnetloglik < snetloglik && nnethwcd == 0
+                    println("The target network has been found, but its likelihood ($nnetloglik) is lower than its parent's likelihood ($snetloglik).")
+                end
                 if nnetloglik >= snetloglik # hill-climbing
                     if nnethwcd == 0
                         println("startingnet was transformed into truenet using NNIs in $nmoves moves when following a likelihood-based hill-climbing method.")
@@ -2068,7 +2076,7 @@ Warning: Choose a small `maxmoves` to start. Because the neighbor count increase
 exponentially, even with small `maxmoves`, this function is time-consuming. After
 nmoves, size of the neighbor set is (startingnet's immediate neighbors)^nmoves.
 e.g. If `startingnet` has 10 immediate neighbors, then after 3 moves, it will have
-1000 neighbors.
+~1000 neighbors.
 """
 function hybridschangedbynnis(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
     maxmoves=3::Int, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
