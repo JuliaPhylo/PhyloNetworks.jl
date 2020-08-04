@@ -2065,18 +2065,14 @@ end
 Return the number of neighbors of `net` in `maxmoves` with modified and flipped
 hybrid edges in a tuple: (modifiedhybrids, flippedhybrids)
 
-A hybrid edge will be considered flipped only if the parent and child node numbers
-are switched. If either of the node numbers does not match (because of another
-NNI move), but the edge is flipped relative to its neighbors, this function will
-not count it as a flipped edge.
-potential fixit: In future, could be better to use the species clusters above and
-below a hybrid edge instead of the edge's node numbers to identify flipped edges.
-
 Warning: Choose a small `maxmoves` to start. Because the neighbor count increases
 exponentially, even with small `maxmoves`, this function is time-consuming. After
 nmoves, size of the neighbor set is (startingnet's immediate neighbors)^nmoves.
 e.g. If `startingnet` has 10 immediate neighbors, then after 3 moves, it will have
 ~1000 neighbors.
+
+Assumptions:
+- For the flippededge test, this assumes there is only one hybrid node in the network.
 """
 function hybridschangedbynnis(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
     maxmoves=3::Int, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
@@ -2087,6 +2083,16 @@ function hybridschangedbynnis(net::HybridNetwork, nohybridladder::Bool, no3cycle
         push!(hybridnodesets, (parents[1].number, h.number))
         push!(hybridnodesets, (parents[2].number, h.number))
     end
+    # flip hybrid edge 1, edge 2
+    # edge 1
+    flippedhybrid1 = deepcopy(net)
+    flippedhybrid1 = majorTree(flippedhybrid1)
+    addhybridedge!(flippedhybrid1, flippedhybrid1.edge[5], flippedhybrid1.edge[10], true, 0.01, 0.5)
+    # edge 2
+    flippedhybrid2 = deepcopy(net)
+    setGamma!(flippedhybrid2.edge[11], 0.6)
+    flippedhybrid2 = majorTree(flippedhybrid2)
+    addhybridedge!(flippedhybrid2, flippedhybrid2.edge[5], flippedhybrid2.edge[4], true, 0.01, 0.5)
     nmoves = 0
     neighborcount = 0
     hybridsflipped = 0
@@ -2111,9 +2117,11 @@ function hybridschangedbynnis(net::HybridNetwork, nohybridladder::Bool, no3cycle
                 @debug shybridnodesets
                 if !isequal(shybridnodesets, hybridnodesets)
                     hybridschanged += 1
-                    if any(reverse(set) in shybridnodesets for set in hybridnodesets)
-                        hybridsflipped += 1
-                    end
+                end
+                flippedhwcd1 = hardwiredClusterDistance(flippedhybrid1, nnet, true)
+                flippedhwcd2 = hardwiredClusterDistance(flippedhybrid2, nnet, true)
+                if flippedhwcd1 == 0 || flippedhwcd2 == 0
+                    hybridsflipped += 1
                 end
             end
             allneighbors = vcat(allneighbors, neighbors) # add neighbors to allneighbors
