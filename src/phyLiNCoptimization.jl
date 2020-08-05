@@ -2083,16 +2083,32 @@ function hybridschangedbynnis(net::HybridNetwork, nohybridladder::Bool, no3cycle
         push!(hybridnodesets, (parents[1].number, h.number))
         push!(hybridnodesets, (parents[2].number, h.number))
     end
-    # flip hybrid edge 1, edge 2
+    # flip hybrid edge 1 and edge 2 to create two new networks
     # edge 1
     flippedhybrid1 = deepcopy(net)
-    flippedhybrid1 = majorTree(flippedhybrid1)
-    addhybridedge!(flippedhybrid1, flippedhybrid1.edge[5], flippedhybrid1.edge[10], true, 0.01, 0.5)
+    newE1 = PhyloNetworks.getChildEdge(flippedhybrid1.hybrid[1])
+    parent2 = PhyloNetworks.getParents(flippedhybrid1.hybrid[1])[2]
+    newE2 = flippedhybrid1.edge[1]
+    for e in parent2.edge
+        if !e.hybrid && parent2 === PhyloNetworks.getParent(e)
+            newE2 = e
+        end
+    end
+    PhyloNetworks.deletehybridedge!(flippedhybrid1,
+                    PhyloNetworks.getMinorParentEdge(flippedhybrid1.hybrid[1]))
+    PhyloNetworks.addhybridedge!(flippedhybrid1, newE1, newE2, true, 0.01, 0.5)
     # edge 2
     flippedhybrid2 = deepcopy(net)
-    setGamma!(flippedhybrid2.edge[11], 0.6)
-    flippedhybrid2 = majorTree(flippedhybrid2)
-    addhybridedge!(flippedhybrid2, flippedhybrid2.edge[5], flippedhybrid2.edge[4], true, 0.01, 0.5)
+    newE1 = PhyloNetworks.getChildEdge(flippedhybrid2.hybrid[1])
+    parent2 = PhyloNetworks.getParents(flippedhybrid2.hybrid[1])[1]
+    for e in parent2.edge
+        if !e.hybrid && parent2 === PhyloNetworks.getParent(e)
+            newE2 = e
+        end
+    end
+    PhyloNetworks.deletehybridedge!(flippedhybrid2,
+                        PhyloNetworks.getMajorParentEdge(flippedhybrid2.hybrid[1]))
+    PhyloNetworks.addhybridedge!(flippedhybrid2, newE1, newE2, true, 0.01, 0.5)
     nmoves = 0
     neighborcount = 0
     hybridsflipped = 0
@@ -2131,7 +2147,7 @@ function hybridschangedbynnis(net::HybridNetwork, nohybridladder::Bool, no3cycle
         startingnets = allneighbors
     end
 
-    @debug "The hybrid edges in net were flipped in $hybridsflipped of $neighborcount neighbors.
-    The hybrids were changed from the original net in $hybridschanged of $neighborcount neighbors."
+    println("The hybrid edges in net were flipped in $hybridsflipped of $neighborcount neighbors.
+    The hybrids were changed from the original net in $hybridschanged of $neighborcount neighbors.")
     return (hybridsflipped, hybridschanged)
 end

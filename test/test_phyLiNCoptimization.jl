@@ -425,7 +425,7 @@ nflipped, nchanged = PhyloNetworks.hybridschangedbynnis(startingnet, true, true,
 
 nflipped, nchanged = PhyloNetworks.hybridschangedbynnis(startingnet, false, false, 2)
 @test nchanged == 286
-@test nflipped == 0
+@test nflipped == 6
 end
 
 end # of overall phyLiNC test set
