@@ -1832,6 +1832,16 @@ function optimizeparameters(net::HybridNetwork, alignmentfile::String,
                   # no3cycle = false so existing 3-cycles will not be removed
                   # by phyLiNC, which would change the topology. 2-cycles will
                   # still be removed when they appear
+    # optimize BLs and gammas one more time here
+    # warning: tolerance values from constants, not user-specified
+    @debug "after overall optimization (before gamma and BL specific), the logliklihood is $(obj.loglik)"
+    γcache = CacheGammaLiNC(obj)
+    ghosthybrid = optimizeallgammas_LiNC!(obj, fAbsBL, γcache, 1000)
+    @debug "after optimizing gammas, the logliklihood is $(obj.loglik). ghosthybrid is $ghosthybrid"
+    lcache = CacheLengthLiNC(obj, fRelBL, fAbsBL, xRelBL, xAbsBL, 1000) # maxeval=1000
+    optimizealllengths_LiNC!(obj, lcache)
+    @debug "after optimizing branch lengths, the logliklihood is $(obj.loglik)"
+    obj.net.loglik = obj.loglik
     return obj
 end
 
@@ -1986,6 +1996,8 @@ Because this function only searches a network's NNI neighbors if its likelihood
 is greater than or equal to the previous likelihood, slightly larger `maxmoves`
 values are safe here (in contrast to the first version of this function, above).
 However, large data will still lead to long runtimes.
+
+This shouldn't lead to networks with worse lieklihoods than the starting network.
 """
 function nnistotruenet(startingnet::HybridNetwork, truenet::HybridNetwork,
                        outgroup::String, nohybridladder::Bool, no3cycle::Bool,
@@ -2029,14 +2041,15 @@ function nnistotruenet(startingnet::HybridNetwork, truenet::HybridNetwork,
             neighbors, distances = uniqueneighbornets(snet, nohybridladder, no3cycle, constraints)
             for n in neighbors # for each of these neighbors, see if we found truenet
                 nnet = readTopology(n)
-                nnetobj = optimizeparameters(nnet, alignmentfile, modSymbol,
-                                rvsymbol, outputfilename, seed,rateCategories)
+                nnetobj = optimizeparameters(nnet, alignmentfile, modSymbol, rvsymbol,
+                                             outputfilename, seed,rateCategories)
                 nnetloglik = nnetobj.loglik
                 @debug "nnetloglik is $nnetloglik, snetloglik is $snetloglik"
                 nnethwcd = hardwiredClusterDistance(nnet, truenet, false)
                 @debug "new net's unrooted hwcd from truenet is $nnethwcd"
                 if nnetloglik < snetloglik && nnethwcd == 0
-                    println("The target network has been found, but its likelihood ($nnetloglik) is lower than its parent's likelihood ($snetloglik).")
+                    println("The target network has been found, but its likelihood ($nnetloglik) is lower than its parent's likelihood ($snetloglik).
+                    Its topology is $n")
                 end
                 if nnetloglik >= snetloglik # hill-climbing
                     if nnethwcd == 0
@@ -2073,6 +2086,9 @@ e.g. If `startingnet` has 10 immediate neighbors, then after 3 moves, it will ha
 
 Assumptions:
 - For the flippededge test, this assumes there is only one hybrid node in the network.
+
+Warning:
+- Target net is measured by unrooted hardwiredClusterDistance.
 """
 function hybridschangedbynnis(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
     maxmoves=3::Int, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
@@ -2086,29 +2102,29 @@ function hybridschangedbynnis(net::HybridNetwork, nohybridladder::Bool, no3cycle
     # flip hybrid edge 1 and edge 2 to create two new networks
     # edge 1
     flippedhybrid1 = deepcopy(net)
-    newE1 = PhyloNetworks.getChildEdge(flippedhybrid1.hybrid[1])
-    parent2 = PhyloNetworks.getParents(flippedhybrid1.hybrid[1])[2]
+    newE1 = getChildEdge(flippedhybrid1.hybrid[1])
+    parent = getParents(flippedhybrid1.hybrid[1])[2]
     newE2 = flippedhybrid1.edge[1]
-    for e in parent2.edge
-        if !e.hybrid && parent2 === PhyloNetworks.getParent(e)
+    for e in parent.edge
+        if !e.hybrid && parent === getParent(e)
             newE2 = e
         end
     end
-    PhyloNetworks.deletehybridedge!(flippedhybrid1,
-                    PhyloNetworks.getMinorParentEdge(flippedhybrid1.hybrid[1]))
-    PhyloNetworks.addhybridedge!(flippedhybrid1, newE1, newE2, true, 0.01, 0.5)
+    deletehybridedge!(flippedhybrid1,
+                    getMinorParentEdge(flippedhybrid1.hybrid[1]))
+    addhybridedge!(flippedhybrid1, newE1, newE2, true, 0.01, 0.5)
     # edge 2
     flippedhybrid2 = deepcopy(net)
-    newE1 = PhyloNetworks.getChildEdge(flippedhybrid2.hybrid[1])
-    parent2 = PhyloNetworks.getParents(flippedhybrid2.hybrid[1])[1]
-    for e in parent2.edge
-        if !e.hybrid && parent2 === PhyloNetworks.getParent(e)
+    newE1 = getChildEdge(flippedhybrid2.hybrid[1])
+    parent = getParents(flippedhybrid2.hybrid[1])[1]
+    for e in parent.edge
+        if !e.hybrid && parent === getParent(e)
             newE2 = e
         end
     end
-    PhyloNetworks.deletehybridedge!(flippedhybrid2,
-                        PhyloNetworks.getMajorParentEdge(flippedhybrid2.hybrid[1]))
-    PhyloNetworks.addhybridedge!(flippedhybrid2, newE1, newE2, true, 0.01, 0.5)
+    deletehybridedge!(flippedhybrid2,
+                        getMajorParentEdge(flippedhybrid2.hybrid[1]))
+    addhybridedge!(flippedhybrid2, newE1, newE2, true, 0.01, 0.5)
     nmoves = 0
     neighborcount = 0
     hybridsflipped = 0
@@ -2126,7 +2142,7 @@ function hybridschangedbynnis(net::HybridNetwork, nohybridladder::Bool, no3cycle
                 nnet = readTopology(n)
                 shybridnodesets = Tuple{Int, Int}[]
                 for sh in nnet.hybrid
-                    parents = PhyloNetworks.getParents(sh)
+                    parents = getParents(sh)
                     push!(shybridnodesets, (parents[1].number, sh.number))
                     push!(shybridnodesets, (parents[2].number, sh.number))
                 end
