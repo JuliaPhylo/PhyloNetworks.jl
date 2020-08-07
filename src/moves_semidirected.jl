@@ -896,3 +896,50 @@ function moveroot!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{
     # if we get here: none of the root positions worked
     return nothing
 end
+
+"""
+    fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
+                constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+
+Flip a hybrid edge so that the parent node is the new hybrid node. The former
+hybrid edge partner is converted to a tree edge. By default, flips the minor
+hybrid edge.
+
+Note: The edge not modified in place: it is deleted and recreated, so it will have
+a new index in the vector net.hybrid after flipping.
+#? Would modifying in place be faster? Likely would require less renumbering in `fliphybrid_LiNC!`
+
+Output: `true` if successful, `false` otherwise.
+
+Called by [`fliphybridedgeLiNC!`](@ref)
+"""
+function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
+                     constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    for con in constraints
+        if con.node === h # if crown node is the hybrid node, then flipping would add to the constraint group
+            return false    #todo explore other ways this could violate species constraints
+        end
+    end
+    newE1 = getChildEdge(hybridnode)
+    edgetoflip = (minor ? getMinorParentEdge(hybridnode) : getMajorParentEdge(hybridnode))
+    !edgetoflip.containRoot && return false # if edgetoflip is below a hybrid node, can't flip
+    newE2 = net.edge[1] # placeholder #todo find a better way to do this
+    parentnode = getParent(edgetoflip)
+    for e in parentnode.edge
+        if e != edgetoflip && parentnode == getParent(e)
+            newE2 = e
+        end
+    end
+    edgetoflipgamma = edgetoflip.gamma
+    edgetofliplength = edgetoflip.length
+    # This works, but modifying in place would likely be more efficient and cleaner (if longer) #todo
+    deletehybridedge!(net, edgetoflip)
+    addhybridedge!(net, newE1, newE2, true, edgetofliplength, edgetoflipgamma)
+    try # check that network can still be directed from current root
+        directEdges!(net)
+    catch # if current root doesn't work, root at new parent of edgetoflip
+        net.root = hybridnode # root at old hybridnode
+        directEdges!(net) # Because edgetoflip.containRoot is true, this shouldn't error
+    end
+    return true
+end

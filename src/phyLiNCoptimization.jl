@@ -941,6 +941,55 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
 end
 
 """
+    fliphybridedgeLiNC!(obj::SSM, currLik::Float64, no3cycle::Bool,
+                        constraints::Vector{TopologyConstraint},
+                        γcache::CacheGammaLiNC, lcache::CacheLengthLiNC)
+
+Randomly chooses a minor hybrid edge and tries to flip using [`fliphybrid!`](@ref).
+If the flip fails, it looks for the next minor hybrid edge. If all minor edges
+fail, tries major edges in random order.
+
+After a successful flip, optimize branch lengths and gammas, then compare
+the likelihood of the previous network with the new one.
+
+Return true if a flip hybrid move was completed and improved the likelihood.
+If move was completed but did not improve the likelihoood, return false.
+Return nothing if hybrid flip move not possible in this network.
+
+For arguments, see [`phyLiNC`](@ref).
+Called by [`optimizestructure!`](@ref). #todo
+"""
+function fliphybridedgeLiNC!(obj::SSM, currLik::Float64,
+    constraints::Vector{TopologyConstraint}, γcache::CacheGammaLiNC,
+    lcache::CacheLengthLiNC)
+    # randomly choose a minor hybrid edge
+    minor = true
+    remainingnodes = collect(1:length(obj.net.hybrid)) # indices in net.hybrid
+    while !edgefound
+        if isempty(remainingnodes) && minor # try major edges
+            minor = false
+            remainingnodes = collect(1:length(obj.net.hybrid))
+        elseif isempty(remainingnodes) && !minor
+            return nothing # tried all hybrid edges, major and minor
+        end
+        i_in_remaining = Random.rand(1:length(remainingnodes))
+        h = obj.net.hybrid[remainingnodess[i_in_remaining]]
+        #? Could this create violations to no3cycle and nohybridladder? #todo
+        if fliphybrid!(net, h, minor, constraints)
+            edgefound = true # break out of loop
+        else # this edge didn't work
+            deleteat!(remainingnodes, i_in_remaining)
+        end
+    end
+    # after a successful flip, optimize branch lengths and gammas #todo
+        # because fliphybrid deleted and added edges, probably need to renumber (unless modify in place)
+    if newLik >= currLik # compare new likelihood to currLik
+        return true
+    else
+        return false
+    end
+end
+"""
     updateSSM!(obj::SSM, renumber=false::Bool;
                constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
@@ -1376,9 +1425,11 @@ Warning: displayed trees are assumed up-to-date, with nodes preordered
 """
 function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
                               lcache::CacheLengthLiNC, qmat)
+    @debug "At optimizelength start for edge num $(focusedge.number), obj.loglik = $(obj.loglik)"
     if getParent(focusedge).hybrid # keep the reticulation unzipped
         return nothing # the length of focus edge should be 0. stay as is.
     end
+    @debug "current BL = $(focusedge.length). P matrix in obj.logtrans: $(exp.(obj.logtrans[:,:,focusedge.number,1]))"
     cfg = updatecache_edge!(lcache, obj, focusedge)
     ismissing(cfg) && return nothing
     flike  = lcache.flike  # P(descendants of e | state at child, rate, tree)
@@ -1404,9 +1455,10 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
     function objective(t::Vector, grad::Vector)
         len = t[1] # candidate branch length
         @inbounds for ir in 1:nr
-            P!(Prt[ir], obj.model, len * rates[ir])
+            P!(Prt[ir], obj.model, len * rates[ir]) # we update P in obj.logtrans below
             lmul!(rates[ir], mul!(rQP[ir], qmat, Prt[ir])) # in-place multiplication
         end
+        @debug "current BL = $len. P matrix in Prt: $(Prt[1])"
         # integrate over trees & rates
         fill!(ulik, 0.0); fill!(glik, 0.0)
         for it in 1:nt
@@ -1440,19 +1492,17 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
         #@show loglik + adjustment
         return loglik
     end
-    #=
     oldlik = objective([focusedge.length], [0.0]) + adjustment
     oldlik ≈ obj.loglik || @warn "oldlik $oldlik != stored lik $(obj.loglik): starting NNI?"
     # obj.loglik outdated at the start of an NNI move:
     # it is for the older, not the newly proposed topology
-    =#
     optBL = lcache.opt
     NLopt.max_objective!(optBL, objective)
-    # @info "BL: edge $(focusedge.number)"
+    @info "BL: edge $(focusedge.number)"
     fmax, xmax, ret = NLopt.optimize(optBL, [focusedge.length])
     newlik = fmax + adjustment
-    # @info "BL, edge $(focusedge.number): got $(round(fmax; digits=5)) (new lik = $newlik) at BL = $(round.(xmax; sigdigits=3)) after $(optBL.numevals) iterations (return code $(ret))"
-    if ret == :FORCED_STOP # || oldlik > newlik
+    @info "BL, edge $(focusedge.number): got $(round(fmax; digits=5)) (new lik = $newlik) at BL = $(round.(xmax; sigdigits=3)) after $(optBL.numevals) iterations (return code $(ret))"
+    if ret == :FORCED_STOP || oldlik > newlik
         @warn "failed optimization, edge $(focusedge.number): skipping branch length update."
         return nothing
     end
@@ -1463,6 +1513,7 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
 end
 
 #=
+Note: This is an unused attempt to use the hessian and the Optim package.
 function optimizelength_LiNC!(obj::SSM, focusedge::Edge, lcache::CacheLengthLiNC)
     fun = objective(t) # returns vector [loglik,gradient,hessian]
     f = x::Vector -> -fun(x[1])[1] # minimize -loglik
@@ -1834,12 +1885,18 @@ function optimizeparameters(net::HybridNetwork, alignmentfile::String,
                   # still be removed when they appear
     # optimize BLs and gammas one more time here
     # warning: tolerance values from constants, not user-specified
+    printEdges(obj.net)
+    printEdges(net)
+    if obj.net.loglik != obj.loglik
+        error("obj.net has a different loglik than object.")
+        @debug "obj.net.log is $(obj.net.loglik) and obj.loglik is $(obj.loglik)"
+    end
     @debug "after overall optimization (before gamma and BL specific), the logliklihood is $(obj.loglik)"
     γcache = CacheGammaLiNC(obj)
     ghosthybrid = optimizeallgammas_LiNC!(obj, fAbsBL, γcache, 1000)
     @debug "after optimizing gammas, the logliklihood is $(obj.loglik). ghosthybrid is $ghosthybrid"
     lcache = CacheLengthLiNC(obj, fRelBL, fAbsBL, xRelBL, xAbsBL, 1000) # maxeval=1000
-    optimizealllengths_LiNC!(obj, lcache)
+    optimizealllengths_LiNC!(obj, lcache) # fixit: this makes the likelihood worse. why?
     @debug "after optimizing branch lengths, the logliklihood is $(obj.loglik)"
     obj.net.loglik = obj.loglik
     return obj
