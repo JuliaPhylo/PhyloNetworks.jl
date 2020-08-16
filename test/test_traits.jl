@@ -61,7 +61,7 @@ C = vcv(readTopology(tree_str))
 # names_R = rcopy(R"colnames($C_R)")
 names_R = ["t2", "t4", "t3", "t5", "t1"]
 
-@test names(C) == map(Symbol, names_R)
+@test DataFrames.names(C) == names_R
 
 ########################
 ## Descendence Matrix Test
@@ -122,7 +122,7 @@ par_edge_2.gamma = 1.
 V_t_2 = sharedPathMatrix(net)
 
 ## Descendant indicatrice matrix
-des = PhyloNetworks.descendants(par_edge_1)
+des = PhyloNetworks.descendants(par_edge_1, true) # true to get internal nodes also
 mask = indexin(des, V_t_1.nodeNumbersTopOrder)
 D = zeros(net.numNodes, net.numNodes)
 D[mask, mask] .= 1.0
