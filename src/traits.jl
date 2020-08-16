@@ -1817,17 +1817,17 @@ function mu_estim(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T}
 end
 # Lambda read
 """
-    lambda_read(m<:PhyloNetworkLinearModel)
+    lambda_read(m::PhyloNetworkLinearModel)
 Reads the value assigned to the lambda parameter of the PhyloNetworkLinearModel object.
 """
-lambda_read(m<:PhyloNetworkLinearModel) = error("lambda_read is not defined for m::$(typeof(m)).")
+lambda_read(m::PhyloNetworkLinearModel) = error("lambda_read is not defined for m::$(typeof(m)).")
 lambda_read(m::PhyloNetworkLinearModel{Float64}) = m.lambda
 # Lambda write
 """
-    lambda_write!(m<:PhyloNetworkLinearModel, lambda_new) 
+    lambda_write!(m::PhyloNetworkLinearModel, lambda_new) 
 Writes a value to the lambda parameter of the PhyloNetworkLinearModel object.
 """
-lambda_write!(m<:PhyloNetworkLinearModel, lambda_new) = error("lambda_write! is not defined for (m::$(typeof(m)), lambda_new::$(typeof(lambda_new))).")
+lambda_write!(m::PhyloNetworkLinearModel, lambda_new) = error("lambda_write! is not defined for (m::$(typeof(m)), lambda_new::$(typeof(lambda_new))).")
 lambda_write!(m::PhyloNetworkLinearModel{T}, lambda_new::T) where {T} = (m.lambda = lambda_new)
 # Lambda estim
 """
@@ -1835,8 +1835,8 @@ lambda_write!(m::PhyloNetworkLinearModel{T}, lambda_new::T) where {T} = (m.lambd
 
 Estimated lambda parameter for a fitted object.
 """
-lambda_estim(m<:PhyloNetworkLinearModel) = lambda_read(m)
-lambda_estim(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T) = lambda_estim(m.model)
+lambda_estim(m::PhyloNetworkLinearModel) = lambda_read(m)
+lambda_estim(m::StatsModels.TableRegressionModel{::PhyloNetworkLinearModel,T} where T) = lambda_estim(m.model)
 
 ### Print the results
 # Variance
