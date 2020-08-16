@@ -1789,7 +1789,7 @@ Estimated variance for a fitted object.
 """
 sigma2_estim(m::PhyloNetworkLinearModel) = deviance(m.lm) / nobs(m)
 # Need to be adapted manually to TableRegressionModel beacouse it's a new function
-sigma2_estim(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T) =
+sigma2_estim(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T) =
   sigma2_estim(m.model)
 # ML estimate for ancestral state of the BM
 """
@@ -1809,7 +1809,7 @@ function mu_estim(m::PhyloNetworkLinearModel)
     end
 end
 # Need to be adapted manually to TableRegressionModel beacouse it's a new function
-function mu_estim(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T)
+function mu_estim(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T)
     if m.mf.f.rhs.terms[1] != StatsModels.InterceptTerm{true}()
         error("The fit was done without intercept, so I cannot estimate mu")
     end
@@ -1836,7 +1836,7 @@ lambda_write!(m::PhyloNetworkLinearModel{T}, lambda_new::T) where {T} = (m.lambd
 Estimated lambda parameter for a fitted object.
 """
 lambda_estim(m::PhyloNetworkLinearModel) = lambda_read(m)
-lambda_estim(m::StatsModels.TableRegressionModel{::PhyloNetworkLinearModel,T} where T) = lambda_estim(m.model)
+lambda_estim(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T) = lambda_estim(m.model)
 
 ### Print the results
 # Variance
@@ -1854,7 +1854,7 @@ function Base.show(io::IO, obj::PhyloNetworkLinearModel)
 end
 # For DataFrameModel. see also Base.show in
 # https://github.com/JuliaStats/StatsModels.jl/blob/master/src/statsmodel.jl
-function Base.show(io::IO, model::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T)
+function Base.show(io::IO, model::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T)
     ct = coeftable(model)
     println(io, "$(typeof(model))")
     print(io, "\nFormula: ")
@@ -1878,7 +1878,7 @@ end
 ###############################################################################
 ###############################################################################
 
-function GLM.ftest(objs::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T}...)  where T
+function GLM.ftest(objs::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T}...)  where T
     objsModels = [obj.model for obj in objs]
     return ftest(objsModels...)
 end
@@ -1905,7 +1905,7 @@ data, for models that have more and more effects.
 
 Returns a DataFrame object with the anova table.
 """
-function anova(objs::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T}...) where T
+function anova(objs::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T}...) where T
     objsModels = [obj.model for obj in objs]
     return(anova(objsModels...))
 end
@@ -2468,10 +2468,10 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel)
     ancestralStateReconstruction(obj, X_n)
 end
 # For a TableRegressionModel
-function ancestralStateReconstruction(obj::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T)
+function ancestralStateReconstruction(obj::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T)
     ancestralStateReconstruction(obj.model)
 end
-function ancestralStateReconstruction(obj::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T, X_n::Matrix)
+function ancestralStateReconstruction(obj::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T, X_n::Matrix)
     ancestralStateReconstruction(obj.model, X_n)
 end
 
