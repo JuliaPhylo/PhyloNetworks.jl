@@ -1835,8 +1835,8 @@ lambda_write!(m::PhyloNetworkLinearModel{T}, lambda_new::T) where {T} = (m.lambd
 
 Estimated lambda parameter for a fitted object.
 """
-lambda_estim(m::PhyloNetworkLinearModel) = m.lambda
-lambda_estim(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T) = lambda_estim(m.model)
+lambda_estim(m<:PhyloNetworkLinearModel) = lambda_read(m)
+lambda_estim(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T) = lambda_estim(m.model)
 
 ### Print the results
 # Variance
