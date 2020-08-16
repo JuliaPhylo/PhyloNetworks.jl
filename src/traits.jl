@@ -1463,7 +1463,7 @@ function phyloNetworklm_scalingHybrid(X::Matrix,
     end
     V = matrix_scalingHybrid(net, res_lam, gammas)
     res = phyloNetworklm_BM(X, Y, V; nonmissing=nonmissing, ind=ind)
-    res.lambda = res_lam
+    lambda_write!(res, res_lam)
     res.model = "scalingHybrid"
     return res
 end
