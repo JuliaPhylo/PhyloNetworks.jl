@@ -1114,6 +1114,34 @@ end
 
 ###############################################################################
 ###############################################################################
+## Types for Continuous Trait Evolution Models
+###############################################################################
+###############################################################################
+
+# The types defined here may eventually lead to the redundancy of: 
+# 1) 'ParamsProcess' abstract type and its concrete subtypes
+# 2) One out of the two fields - 'params', 'model' - of the 
+# 'TraitSimulation' datatype
+
+# Abstract type for the `model` field of the `PhyloNetworkLinearModel` type
+# ContinuousTraitEM stands for ContinuousTraitEvolutionModel
+abstract type ContinuousTraitEM end
+
+# Concrete subtypes of `ContinuousTraitEM`
+# These subtypes currently include BM, PLambda, ScalingHybrid. Possible future
+# additions include OU (i.e. Ornstein-Uhlenbeck).
+struct BM <: ContinuousTraitEM end
+
+mutable struct PLambda <: ContinuousTraitEM
+    lambda::Float64
+end
+
+mutable struct ScalingHybrid <: ContinuousTraitEM
+    lambda::Float64
+end
+
+###############################################################################
+###############################################################################
 ## Functions for Phylgenetic Network regression
 ###############################################################################
 ###############################################################################
