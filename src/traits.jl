@@ -1176,7 +1176,7 @@ An ancestral state reconstruction can be performed from this fitted object using
 The `PhyloNetworkLinearModel` object has fields: `lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `ind`, `nonmissing`, `model`, `lambda`.
 Type in "?PhyloNetworkLinearModel.field" to get help on a specific field.
 """
-mutable struct PhyloNetworkLinearModel{T} <: GLM.LinPredModel
+mutable struct PhyloNetworkLinearModel{T<:ContinuousTraitEM} <: GLM.LinPredModel
     "lm: a GLM.LinearModel object, fitted on the cholesky-tranformend problem"
     lm::GLM.LinearModel # result of a lm on a matrix
     "V: a MatrixTopologicalOrder object of the network-induced correlations"
@@ -1196,9 +1196,9 @@ mutable struct PhyloNetworkLinearModel{T} <: GLM.LinPredModel
     "nonmissing: vector indicating which tips have non-missing data"
     nonmissing::BitArray{1}
     "model: the model used for the fit"
-    model::String
-    "If applicable, value of lambda (default to 1)."
-    lambda::T
+    model::T
+    #"If applicable, value of lambda (default to 1)."
+    #lambda::T
 end
 
 PhyloNetworkLinearModel(lm_fit, V, Vy, RL, Y, X, logdetVy, ind, nonmissing, model) =
