@@ -1463,7 +1463,7 @@ function phyloNetworklm_scalingHybrid(X::Matrix,
     end
     V = matrix_scalingHybrid(net, res_lam, gammas)
     res = phyloNetworklm_BM(X, Y, V; nonmissing=nonmissing, ind=ind)
-    lambda_write!(res, res_lam)
+    lambda!(res, res_lam)
     res.model = "scalingHybrid"
     return res
 end
@@ -1815,27 +1815,27 @@ function mu_estim(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,
     end
     return coef(m)[1]
 end
-# Lambda read
+# Lambda
 """
-    lambda_read(m::PhyloNetworkLinearModel)
+    lambda(m::PhyloNetworkLinearModel)
 Reads the value assigned to the lambda parameter of the PhyloNetworkLinearModel object.
 """
-lambda_read(m::PhyloNetworkLinearModel) = error("lambda_read is not defined for m::$(typeof(m)).")
-lambda_read(m::PhyloNetworkLinearModel{Float64}) = m.lambda
-# Lambda write
+lambda(m::PhyloNetworkLinearModel) = error("lambda is not defined for m::$(typeof(m)).")
+lambda(m::PhyloNetworkLinearModel{Float64}) = m.lambda
+# Lambda!
 """
-    lambda_write!(m::PhyloNetworkLinearModel, lambda_new) 
+    lambda!(m::PhyloNetworkLinearModel, lambda_new) 
 Writes a value to the lambda parameter of the PhyloNetworkLinearModel object.
 """
-lambda_write!(m::PhyloNetworkLinearModel, lambda_new) = error("lambda_write! is not defined for (m::$(typeof(m)), lambda_new::$(typeof(lambda_new))).")
-lambda_write!(m::PhyloNetworkLinearModel{T}, lambda_new::T) where {T} = (m.lambda = lambda_new)
+lambda!(m::PhyloNetworkLinearModel, lambda_new) = error("lambda! is not defined for (m::$(typeof(m)), lambda_new::$(typeof(lambda_new))).")
+lambda!(m::PhyloNetworkLinearModel{T}, lambda_new::T) where {T} = (m.lambda = lambda_new)
 # Lambda estim
 """
     lambda_estim(m::PhyloNetworkLinearModel)
 
 Estimated lambda parameter for a fitted object.
 """
-lambda_estim(m::PhyloNetworkLinearModel) = lambda_read(m)
+lambda_estim(m::PhyloNetworkLinearModel) = lambda(m)
 lambda_estim(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T) = lambda_estim(m.model)
 
 ### Print the results
