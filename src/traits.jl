@@ -1130,15 +1130,21 @@ abstract type ContinuousTraitEM end
 # Concrete subtypes of `ContinuousTraitEM`
 # These subtypes currently include BM, PLambda, ScalingHybrid. Possible future
 # additions include OU (i.e. Ornstein-Uhlenbeck).
-struct BM <: ContinuousTraitEM end
+mutable struct BM <: ContinuousTraitEM
+    lambda::Float64
+end
+# Outer constructor method provides a default value for 'lambda'
+BM() = BM(1.0)
 
 mutable struct PLambda <: ContinuousTraitEM
     lambda::Float64
 end
+PLambda() = PLambda(1.0)
 
 mutable struct ScalingHybrid <: ContinuousTraitEM
     lambda::Float64
 end
+ScalingHybrid() = ScalingHybrid(1.0)
 
 ###############################################################################
 ###############################################################################
@@ -1209,54 +1215,71 @@ end
 #  PhyloNetworkLinearModel(lm_fit,V,Vy, RL, Y, X, logdetVy, ind, nonmissing, model, 1.0)
 
 # Function for lm with net residuals
+
+# The default model has type 'BM'. 
+# Should include a catch-all method for unimplemented subtypes of ContinuousTraitEM?  
 function phyloNetworklm(X::Matrix,
                         Y::Vector,
                         net::HybridNetwork;
                         nonmissing=trues(length(Y))::BitArray{1},
-                        model="BM"::AbstractString,
+                        model::ContinuousTraitEM,
                         ind=[0]::Vector{Int},
                         startingValue=0.5::Real,
                         fixedValue=missing::Union{Real,Missing})
-    ## Choose Model
-    if model == "BM"
-        # Geting variance covariance
-        V = sharedPathMatrix(net)
-        # Fit
-        return phyloNetworklm_BM(X, Y, V;
-                                 nonmissing=nonmissing, ind=ind)
-    end
-    if model == "lambda"
-        # Geting variance covariance
-        V = sharedPathMatrix(net)
-        # Get gammas and heights
-        gammas = getGammas(net)
-        times = getHeights(net)
-        # Fit
-        return phyloNetworklm_lambda(X, Y, V, gammas, times;
-                                     nonmissing=nonmissing, ind=ind,
-                                     startingValue=startingValue, fixedValue=fixedValue)
-    end
-    if (model == "scalingHybrid")
-        # Get gammas
-        preorder!(net)
-        gammas = getGammas(net)
-        # Fit
-        return phyloNetworklm_scalingHybrid(X, Y, net, gammas;
-                                            nonmissing=nonmissing, ind=ind,
-                                            startingValue=startingValue, fixedValue=fixedValue)
-    end
+    # Getting variance covariance
+    V = sharedPathMatrix(net)
+    # Fit
+    phyloNetworklm(X, Y, V;
+                  nonmissing=nonmissing, ind=ind)
+end
+
+function phyloNetworklm(X::Matrix,
+                        Y::Vector,
+                        net::HybridNetwork;
+                        nonmissing=trues(length(Y))::BitArray{1},
+                        model::PLambda,
+                        ind=[0]::Vector{Int},
+                        startingValue=0.5::Real,
+                        fixedValue=missing::Union{Real,Missing})
+    # Gettting variance covariance
+    V = sharedPathMatrix(net)
+    # Get gammas and heights
+    gammas = getGammas(net)
+    times = getHeights(net)
+    # Fit
+    phyloNetworklm_lambda(X, Y, V, gammas, times;
+                          nonmissing=nonmissing, ind=ind,
+                          startingValue=startingValue, fixedValue=fixedValue)
+end
+
+function phyloNetworklm(X::Matrix,
+                        Y::Vector,
+                        net::HybridNetwork;
+                        nonmissing=trues(length(Y))::BitArray{1},
+                        model::ScalingHybrid,
+                        ind=[0]::Vector{Int},
+                        startingValue=0.5::Real,
+                        fixedValue=missing::Union{Real,Missing})
+    # Get gammas
+    preorder!(net)
+    gammas = getGammas(net)
+    # Fit
+    phyloNetworklm_scalingHybrid(X, Y, net, gammas;
+                                 nonmissing=nonmissing, ind=ind,
+                                 startingValue=startingValue, fixedValue=fixedValue)
 end
 
 ###############################################################################
 ## Fit BM
 
-function phyloNetworklm_BM(X::Matrix,
-                           Y::Vector,
-                           V::MatrixTopologicalOrder;
-                           nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
-                           ind=[0]::Vector{Int},
-                           model="BM"::AbstractString,
-                           lambda=1.0::Real)
+# This function takes over the role of 'phyloNetworklm_BM'
+function phyloNetworklm(X::Matrix,
+                        Y::Vector,
+                        V::MatrixTopologicalOrder;
+                        nonmissing=trues(length(Y))::BitArray{1}, # which tips are not missing?
+                        ind=[0]::Vector{Int},
+                        model=BM()::ContinuousTraitEM,
+                        lambda=1.0::Real)
     # Extract tips matrix
     Vy = V[:Tips]
     # Re-order if necessary
@@ -1266,8 +1289,13 @@ function phyloNetworklm_BM(X::Matrix,
     # Cholesky decomposition
     R = cholesky(Vy)
     RL = R.L
-    # Fit
-    PhyloNetworkLinearModel(lm(RL\X, RL\Y), V, Vy, RL, Y, X, LinearAlgebra.logdet(Vy), ind, nonmissing, model, lambda)
+    # Fit 
+    m = PhyloNetworkLinearModel(lm(RL\X, RL\Y), V, Vy, RL, Y, X, 
+                                LinearAlgebra.logdet(Vy), ind, nonmissing, 
+                                model)
+    # Update lambda
+    lambda!(m, lambda)
+    return m
 end
 
 ###############################################################################
@@ -1371,7 +1399,7 @@ function logLik_lam(lam::AbstractFloat,
     Vp = deepcopy(V)
     transform_matrix_lambda!(Vp, lam, gammas, times)
     # Fit and take likelihood
-    fit_lam = phyloNetworklm_BM(X, Y, Vp; nonmissing=nonmissing, ind=ind)
+    fit_lam = phyloNetworklm(X, Y, Vp; nonmissing=nonmissing, ind=ind)
     res = - loglikelihood(fit_lam)
     # Go back to original V
     # transform_matrix_lambda!(V, 1/lam, gammas, times)
@@ -1427,7 +1455,9 @@ function phyloNetworklm_lambda(X::Matrix,
         res_lam = fixedValue
     end
     transform_matrix_lambda!(V, res_lam, gammas, times)
-    res = phyloNetworklm_BM(X, Y, V; nonmissing=nonmissing, ind=ind, model="lambda", lambda=res_lam)
+    res = phyloNetworklm(X, Y, V; 
+                         nonmissing=nonmissing, ind=ind, 
+                         model=lambda(), lambda=res_lam)
 #    res.lambda = res_lam
 #    res.model = "lambda"
     return res
@@ -1452,7 +1482,7 @@ function logLik_lam_hyb(lam::AbstractFloat,
     # Transform V according to lambda
     V = matrix_scalingHybrid(net, lam, gammas)
     # Fit and take likelihood
-    fit_lam = phyloNetworklm_BM(X, Y, V; nonmissing=nonmissing, ind=ind)
+    fit_lam = phyloNetworklm(X, Y, V; nonmissing=nonmissing, ind=ind)
     return -loglikelihood(fit_lam)
 end
 
@@ -1494,9 +1524,9 @@ function phyloNetworklm_scalingHybrid(X::Matrix,
         res_lam = fixedValue
     end
     V = matrix_scalingHybrid(net, res_lam, gammas)
-    res = phyloNetworklm_BM(X, Y, V; nonmissing=nonmissing, ind=ind)
-    lambda!(res, res_lam)
-    res.model = "scalingHybrid"
+    res = phyloNetworklm(X, Y, V; 
+                         nonmissing=nonmissing, ind=ind, 
+                         model=ScalingHybrid(), res_lam)
     return res
 end
 
@@ -1671,7 +1701,7 @@ julia> round.(predict(fitBM), digits=5)
 function phyloNetworklm(f::StatsModels.FormulaTerm,
                         fr::AbstractDataFrame,
                         net::HybridNetwork;
-                        model="BM"::AbstractString,
+                        model=BM()::ContinuousTraitEM,
                         no_names=false::Bool,
                         ftolRel=fRelTr::AbstractFloat,
                         xtolRel=xRelTr::AbstractFloat,
@@ -1853,14 +1883,15 @@ end
 Reads the value assigned to the lambda parameter of the PhyloNetworkLinearModel object.
 """
 lambda(m::PhyloNetworkLinearModel) = error("lambda is not defined for m::$(typeof(m)).")
-lambda(m::PhyloNetworkLinearModel{Float64}) = m.lambda
+lambda(m::Union{BM,PLambda,ScalingHybrid}) = m.model.lambda
 # Lambda!
 """
     lambda!(m::PhyloNetworkLinearModel, lambda_new) 
 Writes a value to the lambda parameter of the PhyloNetworkLinearModel object.
 """
 lambda!(m::PhyloNetworkLinearModel, lambda_new) = error("lambda! is not defined for (m::$(typeof(m)), lambda_new::$(typeof(lambda_new))).")
-lambda!(m::PhyloNetworkLinearModel{T}, lambda_new::T) where {T} = (m.lambda = lambda_new)
+lambda!(m::Union{BM,PLambda,ScalingHybrid}, lambda_new::Real) =
+    (m.model.lambda = lambda_new)
 # Lambda estim
 """
     lambda_estim(m::PhyloNetworkLinearModel)
