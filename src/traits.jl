@@ -1201,8 +1201,12 @@ mutable struct PhyloNetworkLinearModel{T<:ContinuousTraitEM} <: GLM.LinPredModel
     #lambda::T
 end
 
-PhyloNetworkLinearModel(lm_fit, V, Vy, RL, Y, X, logdetVy, ind, nonmissing, model) =
-  PhyloNetworkLinearModel(lm_fit,V,Vy, RL, Y, X, logdetVy, ind, nonmissing, model, 1.0)
+# Remove this constructor method since `model` objects now already have to be 
+# initialized with a value for their `lambda` field. We might consider setting 
+# the default value of `lambda` to be 1.0 for the concrete subtypes of 
+# `ContinuousTraitEM`.
+#PhyloNetworkLinearModel(lm_fit, V, Vy, RL, Y, X, logdetVy, ind, nonmissing, model) =
+#  PhyloNetworkLinearModel(lm_fit,V,Vy, RL, Y, X, logdetVy, ind, nonmissing, model, 1.0)
 
 # Function for lm with net residuals
 function phyloNetworklm(X::Matrix,
