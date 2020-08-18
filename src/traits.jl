@@ -1457,7 +1457,7 @@ function phyloNetworklm_lambda(X::Matrix,
     transform_matrix_lambda!(V, res_lam, gammas, times)
     res = phyloNetworklm(X, Y, V; 
                          nonmissing=nonmissing, ind=ind, 
-                         model=lambda(), lambda=res_lam)
+                         model=PLambda(), lambda=res_lam)
 #    res.lambda = res_lam
 #    res.model = "lambda"
     return res
@@ -1790,7 +1790,7 @@ StatsBase.dof_residual(m::PhyloNetworkLinearModel) =  nobs(m) - length(coef(m))
 # Degrees of freedom consumed in the model
 function StatsBase.dof(m::PhyloNetworkLinearModel)
     res = length(coef(m)) + 1 # (+1: dispersion parameter)
-    if any(m.model .== ["lambda", "scalingHybrid"])
+    if any(typeof(m.model) .== [PLambda, ScalingHybrid])
         res += 1 # lambda is one parameter
     end
     return res
@@ -1883,15 +1883,17 @@ end
 Reads the value assigned to the lambda parameter of the PhyloNetworkLinearModel object.
 """
 lambda(m::PhyloNetworkLinearModel) = error("lambda is not defined for m::$(typeof(m)).")
-lambda(m::Union{BM,PLambda,ScalingHybrid}) = m.model.lambda
+lambda(m::PhyloNetworkLinearModel{<:Union{BM,PLambda,ScalingHybrid}}) = 
+    m.model.lambda
 # Lambda!
 """
     lambda!(m::PhyloNetworkLinearModel, lambda_new) 
 Writes a value to the lambda parameter of the PhyloNetworkLinearModel object.
 """
-lambda!(m::PhyloNetworkLinearModel, lambda_new) = error("lambda! is not defined for (m::$(typeof(m)), lambda_new::$(typeof(lambda_new))).")
-lambda!(m::Union{BM,PLambda,ScalingHybrid}, lambda_new::Real) =
-    (m.model.lambda = lambda_new)
+lambda!(m::PhyloNetworkLinearModel, lambda_new) = 
+    error("lambda! is not defined for (m::$(typeof(m)), lambda_new::$(typeof(lambda_new))).")
+lambda!(m::PhyloNetworkLinearModel{<:Union{BM,PLambda,ScalingHybrid}}, 
+        lambda_new::Real) = (m.model.lambda = lambda_new)
 # Lambda estim
 """
     lambda_estim(m::PhyloNetworkLinearModel)
@@ -1906,7 +1908,7 @@ lambda_estim(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} wh
 function paramstable(m::PhyloNetworkLinearModel)
     Sig = sigma2_estim(m)
     res = "Sigma2: " * @sprintf("%.6g", Sig)
-    if any(m.model .== ["lambda", "scalingHybrid"])
+    if any(typeof(m.model) .== [PLambda, ScalingHybrid])
         Lamb = lambda_estim(m)
         res = res*"\nLambda: " * @sprintf("%.6g", Lamb)
     end
@@ -1923,7 +1925,7 @@ function Base.show(io::IO, model::StatsModels.TableRegressionModel{<:PhyloNetwor
     print(io, "\nFormula: ")
     println(io, string(model.mf.f)) # formula
     println(io)
-    println(io, "Model: $(model.model.model)")
+    println(io, "Model: $(typeof(model.model.model))")
     println(io)
     println(io,"Parameter(s) Estimates:")
     println(io, paramstable(model.model))
