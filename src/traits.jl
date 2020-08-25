@@ -351,7 +351,7 @@ function vcv(net::HybridNetwork;
     C = V[:Tips]
     corr && StatsBase.cov2cor!(C, sqrt.(LinearAlgebra.diag(C)))
     Cd = convert(DataFrame, C)
-    names!(Cd, map(Symbol, V.tipNames))
+    rename!(Cd, map(Symbol, V.tipNames))
     return(Cd)
 end
 
@@ -591,7 +591,7 @@ function regressorShift(node::Vector{Node},
     function tmp_fun(x::Int)
         return(Symbol("shift_$(x)"))
     end
-    names!(df, [tmp_fun(num) for num in eNum])
+    rename!(df, [tmp_fun(num) for num in eNum])
     df[!,:tipNames]=T.tipNames
     return(df)
 end
@@ -1216,13 +1216,16 @@ end
 
 # Function for lm with net residuals
 
-# The default model has type 'BM'. 
-# Should include a catch-all method for unimplemented subtypes of ContinuousTraitEM?  
+# The default model has type 'BM' (this choice is made in the internal call to 
+# another `phyloNetworklm` method). 
+# Should include a catch-all method for unimplemented subtypes of ContinuousTraitEM?
+# Make `model` a positional (as opposed to keyword) argument so that we can 
+# dispatch on the type of `model`. 
 function phyloNetworklm(X::Matrix,
                         Y::Vector,
-                        net::HybridNetwork;
+                        net::HybridNetwork,
+                        model::ContinuousTraitEM;
                         nonmissing=trues(length(Y))::BitArray{1},
-                        model::ContinuousTraitEM,
                         ind=[0]::Vector{Int},
                         startingValue=0.5::Real,
                         fixedValue=missing::Union{Real,Missing})
@@ -1235,9 +1238,9 @@ end
 
 function phyloNetworklm(X::Matrix,
                         Y::Vector,
-                        net::HybridNetwork;
+                        net::HybridNetwork,
+                        model::PLambda;
                         nonmissing=trues(length(Y))::BitArray{1},
-                        model::PLambda,
                         ind=[0]::Vector{Int},
                         startingValue=0.5::Real,
                         fixedValue=missing::Union{Real,Missing})
@@ -1254,9 +1257,9 @@ end
 
 function phyloNetworklm(X::Matrix,
                         Y::Vector,
-                        net::HybridNetwork;
+                        net::HybridNetwork,
+                        model::ScalingHybrid;
                         nonmissing=trues(length(Y))::BitArray{1},
-                        model::ScalingHybrid,
                         ind=[0]::Vector{Int},
                         startingValue=0.5::Real,
                         fixedValue=missing::Union{Real,Missing})
@@ -1526,7 +1529,7 @@ function phyloNetworklm_scalingHybrid(X::Matrix,
     V = matrix_scalingHybrid(net, res_lam, gammas)
     res = phyloNetworklm(X, Y, V; 
                          nonmissing=nonmissing, ind=ind, 
-                         model=ScalingHybrid(), res_lam)
+                         model=ScalingHybrid(), lambda=res_lam)
     return res
 end
 
@@ -1755,7 +1758,7 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
     # Y = convert(Vector{Float64}, StatsModels.response(mf))
     # Y, pred = StatsModels.modelcols(f, fr)
     StatsModels.TableRegressionModel(
-        phyloNetworklm(mm.m, Y, net; nonmissing=nonmissing, model=model, ind=ind,
+        phyloNetworklm(mm.m, Y, net, model; nonmissing=nonmissing, ind=ind,
                        startingValue=startingValue, fixedValue=fixedValue),
         mf, mm)
 end
@@ -1983,7 +1986,7 @@ function anova(objs::PhyloNetworkLinearModel...)
     end
     ## Transform into a DataFrame
     anovaTable = DataFrame(anovaTable)
-    names!(anovaTable, [:dof_res, :RSS, :dof, :SS, :F, Symbol("Pr(>F)")])
+    rename!(anovaTable, [:dof_res, :RSS, :dof, :SS, :F, Symbol("Pr(>F)")])
     return(anovaTable)
 end
 
