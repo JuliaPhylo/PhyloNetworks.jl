@@ -1,6 +1,6 @@
 
 """
-`parsimonyBottomUpFitch!(node, states, score)`
+    parsimonyBottomUpFitch!(node, states, score)
 
 Bottom-up phase (from tips to root) of the Fitch algorithm:
 assign sets of character states to internal nodes based on
@@ -9,7 +9,7 @@ Assumes a *tree* (no reticulation) and correct isChild1 attribute.
 
 output: dictionary with state sets and most parsimonious score
 """
-function parsimonyBottomUpFitch!(node::Node, possibleStates::Dict{Int64,Set{T}}, parsimonyscore::Array{Int64,1}) where {T}
+function parsimonyBottomUpFitch!(node::Node, possibleStates::Dict{Int,Set{T}}, parsimonyscore::Array{Int,1}) where {T}
     node.leaf && return # change nothing if leaf
     childrenStates = Set{T}[] # state sets for the 2 (or more) children
     for e in node.edge
@@ -40,7 +40,7 @@ function parsimonyBottomUpFitch!(node::Node, possibleStates::Dict{Int64,Set{T}},
 end
 
 """
-`parsimonyTopDownFitch!(node, states)`
+    parsimonyTopDownFitch!(node, states)
 
 Top-down phase (root to tips) of the Fitch algorithm:
 constrains character states at internal nodes based on
@@ -48,7 +48,7 @@ the state of the root. Assumes a *tree*: no reticulation.
 
 output: dictionary with state sets
 """
-function parsimonyTopDownFitch!(node::Node, possibleStates::Dict{Int64,Set{T}}) where {T}
+function parsimonyTopDownFitch!(node::Node, possibleStates::Dict{Int,Set{T}}) where {T}
     for e in node.edge
         child = e.node[e.isChild1 ? 1 : 2]
         if child == node continue; end # exclude parent edges
@@ -63,11 +63,11 @@ function parsimonyTopDownFitch!(node::Node, possibleStates::Dict{Int64,Set{T}}) 
 end
 
 """
-`parsimonySummaryFitch(tree, nodestates)`
+    parsimonySummaryFitch(tree, nodestates)
 
 summarize character states at nodes, assuming a *tree*
 """
-function parsimonySummaryFitch(tree::HybridNetwork, nodestates::Dict{Int64,Set{T}}) where {T}
+function parsimonySummaryFitch(tree::HybridNetwork, nodestates::Dict{Int,Set{T}}) where {T}
     println("node number => character states on tree ",
             writeTopology(tree,di=true,round=true,digits=1))
     for n in tree.node
@@ -98,7 +98,7 @@ where the union is taken over displayed trees with the MP score.
 function parsimonyDiscreteFitch(net::HybridNetwork, tips::Dict{String,T}) where {T}
     # T = type of characters. Typically Int if data are binary 0-1
     # initialize dictionary: node number -> admissible character states
-    possibleStates = Dict{Int64,Set{T}}()
+    possibleStates = Dict{Int,Set{T}}()
     for l in net.leaf
         if haskey(tips, l.name)
             possibleStates[l.number] = Set(tips[l.name])
@@ -110,7 +110,7 @@ function parsimonyDiscreteFitch(net::HybridNetwork, tips::Dict{String,T}) where 
     directEdges!(net) # parsimonyBottomUpFitch! uses isChild1 attributes
     trees = displayedTrees(net, 0.0) # all displayed trees
     mpscore = Int[] # one score for each tree
-    statesets = Dict{Int64,Set{T}}[] # one state set dict per tree
+    statesets = Dict{Int,Set{T}}[] # one state set dict per tree
     for tree in trees
         statedict = deepcopy(possibleStates)
         parsimonyscore = [0] # initialization, mutable
@@ -140,16 +140,16 @@ function parsimonyDiscreteFitch(net::HybridNetwork, tips::Dict{String,T}) where 
 end
 
 function parsimonyDiscreteFitch(net::HybridNetwork, dat::DataFrame)
-    i = findfirst(isequal(:taxon), DataFrames.names(dat))
-    if i===nothing i = findfirst(isequal(:species), DataFrames.names(dat)); end
+    i = findfirst(isequal(:taxon), DataFrames.propertynames(dat))
+    if i===nothing i = findfirst(isequal(:species), DataFrames.propertynames(dat)); end
     if i===nothing i=1; end # first column if no column named "taxon" or "species"
-    j = findfirst(isequal(:trait), DataFrames.names(dat))
+    j = findfirst(isequal(:trait), DataFrames.propertynames(dat))
     if j===nothing j=2; end
     if i==j
         error("""expecting taxon names in column 'taxon', or 'species' or column 1,
               and trait values in column 'trait' or column 2.""")
     end
-    tips = Dict{String,eltypes(dat)[j]}()
+    tips = Dict{String,eltype(dat[!,j])}()
     for r in 1:nrow(dat)
         if ismissing(dat[r,j]) continue; end
         tips[dat[r,i]] = dat[r,j]
@@ -158,7 +158,7 @@ function parsimonyDiscreteFitch(net::HybridNetwork, dat::DataFrame)
 end
 
 """
-`parsimonyBottomUpSoftwired!(node, blobroot, states, w, scores)`
+    parsimonyBottomUpSoftwired!(node, blobroot, states, w, scores)
 
 Computing the MP scores (one for each assignment of the root state)
 of a swicthing as described in Algorithm 1 in the following paper:
@@ -252,10 +252,10 @@ function parsimonySoftwired(net::HybridNetwork, tips::Dict{String,T}) where {T}
 end
 
 function parsimonySoftwired(net::HybridNetwork, dat::DataFrame)
-    i = findfirst(isequal(:taxon), DataFrames.names(dat))
-    if i===nothing i = findfirst(isequal(:species), DataFrames.names(dat)); end
+    i = findfirst(isequal(:taxon), DataFrames.propertynames(dat))
+    if i===nothing i = findfirst(isequal(:species), DataFrames.propertynames(dat)); end
     if i===nothing i=1; end # first column if no column named "taxon" or "species"
-    j = findfirst(isequal(:trait), DataFrames.names(dat))
+    j = findfirst(isequal(:trait), DataFrames.propertynames(dat))
     if j===nothing j=2; end
     if i==j
         error("""expecting taxon names in column 'taxon', or 'species' or column 1,
@@ -372,7 +372,7 @@ function initializeWeightsFromLeavesSoftwired!(w::AbstractArray, net::HybridNetw
 end
 
 function readFastaToArray(filename::String)
-    reader = BioSequences.FASTA.Reader(open(filename))
+    reader = FASTX.FASTA.Reader(open(filename))
     #dat = Dict{String, }()
     sequences = Array{BioSequences.BioSequence}(undef, 0)
     species = String[]
@@ -395,10 +395,11 @@ function readFastaToArray(filename::String)
 end
 
 """
-    readfastatodna(filename::String)
+    readfastatodna(filename::String, countPatterns=false::Bool)
 
 Read a fasta file to a dataframe containing a column for each site.
-Calculate weights and remove matching site patterns to reduce matrix dimension.
+If `countPatterns` is true, calculate weights and remove identical
+site patterns to reduce matrix dimension.
 
 Return a tuple containing:
 1. data frame of BioSequence DNA sequences, with taxon names in column 1
@@ -407,7 +408,7 @@ Return a tuple containing:
    The length of the weight vector is equal to npatterns.
 """
 function readfastatodna(fastafile::String, countPatterns=false::Bool)
-    reader = BioSequences.FASTA.Reader(open(fastafile))
+    reader = FASTX.FASTA.Reader(open(fastafile))
     siteList = Vector{Vector}(undef, 0) #array of arrays, one array for each site (8 in example)
     species = String[]
     firstspecies = Bool(true)
@@ -446,7 +447,7 @@ function readfastatodna(fastafile::String, countPatterns=false::Bool)
 
     #create dat here
     dat = DataFrame(siteList)
-    insertcols!(dat, 1, taxon = species)
+    insertcols!(dat, 1, :taxon => species)
     return (dat, weights)
 end
 
@@ -464,8 +465,8 @@ Warning:
 - will use all other columns as characters
 """
 function readCSVtoArray(dat::DataFrame)
-    i = findfirst(isequal(:taxon), DataFrames.names(dat))
-    if i===nothing i = findfirst(isequal(:species), DataFrames.names(dat)); end
+    i = findfirst(isequal(:taxon), DataFrames.propertynames(dat))
+    if i===nothing i = findfirst(isequal(:species), DataFrames.propertynames(dat)); end
     if i===nothing
         @warn "expecting taxon names in column 'taxon', or 'species', so will assume column 1"
         i = 1
@@ -493,7 +494,7 @@ function readCSVtoArray(dat::DataFrame)
 end
 
 function readCSVtoArray(filename::String)
-    dat = CSV.read(filename)
+    dat = DataFrame!(CSV.File(filename))
     readCSVtoArray(dat)
 end
 
@@ -824,8 +825,8 @@ function initializeWeightsFromLeaves!(w::AbstractArray, net::HybridNetwork, tips
 end
 
 """
-    `parsimonyBottomUpGF!(node, blobroot, nchar, w, scores,
-        costmatrix1, costmatrix2)`
+    parsimonyBottomUpGF!(node, blobroot, nchar, w, scores,
+                         costmatrix1, costmatrix2)
 
 Compute the MP scores (one for each assignment of the blob root state)
 given the descendants of a blob, conditional on the states at predefined parents
@@ -1262,7 +1263,7 @@ function maxParsimonyNet(currT::HybridNetwork, df::DataFrame;
         end
     end
     tend = time_ns() # in nanoseconds
-    telapsed = round(convert(Int64, tend-tstart) * 1e-9, digits=2) # in seconds
+    telapsed = round(convert(Int, tend-tstart) * 1e-9, digits=2) # in seconds
     writelog_1proc && close(errfile)
     msg = "\n" * Dates.format(Dates.now(), "yyyy-mm-dd H:M:S.s")
     if writelog

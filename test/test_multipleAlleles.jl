@@ -8,7 +8,7 @@ global tree, df, d, net, currT
     PhyloNetworks.mergeLeaves!(tree)
     @test writeTopology(tree) == "(6,(5,(7:1.0,(3,4))));"
     alleleDF=DataFrame(allele=["1","2"], species=["7","7"])
-    # df = CSV.read(joinpath(@__DIR__, "..", "examples", "tableCFCI.csv"))
+    # df = DataFrame!(CSV.File(joinpath(@__DIR__, "..", "examples", "tableCFCI.csv")))
     # PhyloNetworks.mapAllelesCFtable!(df,alleleDF,[1,2,3,4],true,"CFmapped.csv")
     CSV.write("tmp.csv", alleleDF);
     df = (@test_logs (:warn, r"^not all alleles were mapped") mapAllelesCFtable("tmp.csv",

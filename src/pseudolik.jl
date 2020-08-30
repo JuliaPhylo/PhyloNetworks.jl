@@ -506,7 +506,7 @@ function extractQuartet!(net::HybridNetwork, quartet::Vector{Quartet})
         extractQuartet!(net,q)
         qnet = deepcopy(q.qnet); #there is a reason not to mess up with the original q.qnet, i believe to keep ht consistent
         calculateExpCFAll!(qnet);
-        q.qnet.expCF = qnet.expCF
+        q.qnet.expCF[:] = qnet.expCF
     end
 end
 
@@ -1267,7 +1267,7 @@ function calculateExpCFAll!(data::DataCF)
         if(q.qnet.changed)
             qnet = deepcopy(q.qnet);
             calculateExpCFAll!(qnet);
-            q.qnet.expCF = qnet.expCF
+            q.qnet.expCF[:] = qnet.expCF
         end
     end
 end
@@ -1287,7 +1287,7 @@ function calculateExpCFAll!(data::DataCF, x::Vector{Float64},net::HybridNetwork)
             #println("enters to recalculate expCF for some quartet")
             qnet = deepcopy(q.qnet);
             calculateExpCFAll!(qnet);
-            q.qnet.expCF = qnet.expCF
+            q.qnet.expCF[:] = qnet.expCF
         end
     end
 end
@@ -1329,10 +1329,10 @@ function topologyQPseudolik!(net0::HybridNetwork,d::DataCF; verbose=false::Bool)
     all((q->(q.qnet.numTaxa != 0)), d.quartet) || error("qnet in quartets on data are not correctly updated with extractQuartet")
     for q in d.quartet
         if verbose println("computing expCF for quartet $(q.taxon)") # to stdout
-        else @debug        "computing expCF for quartet $(q.taxon)"; end # to logger if debug turned on by user 
+        else @debug        "computing expCF for quartet $(q.taxon)"; end # to logger if debug turned on by user
         qnet = deepcopy(q.qnet);
         calculateExpCFAll!(qnet);
-        q.qnet.expCF = qnet.expCF
+        q.qnet.expCF[:] = qnet.expCF
         if verbose println("$(qnet.expCF)") # to stdout
         else @debug        "$(qnet.expCF)"; end # to logger
     end

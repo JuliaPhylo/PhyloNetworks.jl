@@ -126,9 +126,9 @@ this is done by [`readSubtree!`](@ref)
 """
 @inline function parseRemainingSubtree!(s::IO, numLeft::Array{Int,1}, net::HybridNetwork, hybrids::Vector{String})
     numLeft[1] += 1
-    DEBUGC && @debug "" numLeft
+    # DEBUGC && @debug "" numLeft
     n = Node(-1*numLeft[1],false);
-    @debug "creating node $(n.number)"
+    # @debug "creating node $(n.number)"
     keepon = true;
     c = readskip!(s)
     while (keepon)
@@ -154,49 +154,49 @@ Handles any type of given hybrid node.
 Called after a `#` has been found in a tree topology.
 """
 @inline function parseHybridNode!(n::Node, parent::Node, name::String, net::HybridNetwork, hybrids::Vector{String})
-    @debug "found pound in $(name)"
+    # @debug "found pound in $(name)"
     n.hybrid = true;
-    DEBUGC && @debug "got hybrid $(name)"
-    DEBUGC && @debug "hybrids list has length $(length(hybrids))"
+    # DEBUGC && @debug "got hybrid $(name)"
+    # DEBUGC && @debug "hybrids list has length $(length(hybrids))"
     ind = findfirst(isequal(name), hybrids) # index of 'name' in the list 'hybrid'. nothing if not found
     e = Edge(net.numEdges+1) # isMajor = true by default
     if n.leaf e.isMajor = false; end
     e.hybrid = true
     e.gamma = -1.0
     if ind !== nothing # the hybrid name was seen before
-        @debug "$(name) was found in hybrids list"
+        # @debug "$(name) was found in hybrids list"
         ni = findfirst(isequal(name), [no.name for no in net.node])
         ni !== nothing || error("hybrid name $name was supposed to be in the network, but not found")
         other = net.node[ni]
-        @debug "other is $(other.number)"
-        DEBUGC && @debug "other is leaf? $(other.leaf), n is leaf? $(n.leaf)"
+        # @debug "other is $(other.number)"
+        # DEBUGC && @debug "other is leaf? $(other.leaf), n is leaf? $(n.leaf)"
         if !n.leaf && !other.leaf
             error("both hybrid nodes are internal nodes: successors of the hybrid node must only be included in the node list of a single occurrence of the hybrid node.")
         elseif n.leaf
-            @debug "n is leaf"
-            @debug "creating hybrid edge $(e.number) attached to other $(other.number) and parent $(parent.number)"
+            # @debug "n is leaf"
+            # @debug "creating hybrid edge $(e.number) attached to other $(other.number) and parent $(parent.number)"
             pushEdge!(net,e);
             setNode!(e,[other,parent]); # isChild1 = true by default constructor
             setEdge!(other,e);
             setEdge!(parent,e);
             n = other # original 'n' dropped, 'other' retained: 'n' output to modify 'n' outside
-            @debug "e $(e.number )istIdentifiable? $(e.istIdentifiable)"
+            # @debug "e $(e.number )istIdentifiable? $(e.istIdentifiable)"
         else # !n.leaf : delete 'other' from the network
-            @debug "n is not leaf, other is leaf"
+            # @debug "n is not leaf, other is leaf"
             size(other.edge,1) == 1 || # other should be a leaf
                error("strange: node $(other.number) is a leaf hybrid node. should have only 1 edge but has $(size(other.edge,1))")
-            DEBUGC && @debug "other is $(other.number), n is $(n.number), edge of other is $(other.edge[1].number)"
+            # DEBUGC && @debug "other is $(other.number), n is $(n.number), edge of other is $(other.edge[1].number)"
             otheredge = other.edge[1];
             otherparent = getOtherNode(otheredge,other);
-            @debug "otheredge is $(otheredge.number)"
-            @debug "parent of other is $(otherparent.number)"
+            # @debug "otheredge is $(otheredge.number)"
+            # @debug "parent of other is $(otherparent.number)"
             removeNode!(other,otheredge);
             deleteNode!(net,other);
             setNode!(otheredge,n);
             setEdge!(n,otheredge);
             ## otheredge.istIdentifiable = true ## setNode should catch this, but when fixed, causes a lot of problems
-            @debug "setting otheredge to n $(n.number)"
-            @debug "creating hybrid edge $(e.number) between n $(n.number) and parent $(parent.number)"
+            # @debug "setting otheredge to n $(n.number)"
+            # @debug "creating hybrid edge $(e.number) between n $(n.number) and parent $(parent.number)"
             setNode!(e,[n,parent]);
             setEdge!(n,e);
             setEdge!(parent,e);
@@ -204,25 +204,25 @@ Called after a `#` has been found in a tree topology.
             pushEdge!(net,e);
             n.number = other.number; # modifies original negative node number, to positive node #
             n.name = other.name;
-            @debug "edge $(e.number) istIdentifiable? $(e.istIdentifiable)"
-            @debug "otheredge $(otheredge.number) istIdentifiable? $(otheredge.istIdentifiable)"
+            # @debug "edge $(e.number) istIdentifiable? $(e.istIdentifiable)"
+            # @debug "otheredge $(otheredge.number) istIdentifiable? $(otheredge.istIdentifiable)"
         end
     else # ind==nothing: hybrid name not seen before
-        @debug "$(name) not found in hybrids list"
-        @debug "$(name) is leaf? $(n.leaf)"
+        # @debug "$(name) not found in hybrids list"
+        # @debug "$(name) is leaf? $(n.leaf)"
         n.hybrid = true;
         nam = string(name)
         push!(net.names, nam);
         n.name = nam;
-        DEBUGC && @debug "put $(nam) in hybrids name list"
+        # DEBUGC && @debug "put $(nam) in hybrids name list"
         push!(hybrids, nam);
         pushNode!(net,n);
-        @debug "creating hybrid edge $(e.number)"
+        # @debug "creating hybrid edge $(e.number)"
         pushEdge!(net,e);
         setNode!(e,[n,parent]);
         setEdge!(n,e);
         setEdge!(parent,e);
-        @debug "edge $(e.number) istIdentifiable? $(e.istIdentifiable)"
+        # @debug "edge $(e.number) istIdentifiable? $(e.istIdentifiable)"
     end
     e.containRoot = !e.hybrid # not good: but necessay for SNaQ functions
     return (e,n)
@@ -273,7 +273,7 @@ Only call this function to read a value when you know a numerical value exists!
 end
 
 """
-    parseEdgeData!(s::IO, edge, node, numberOfLeftParentheses::Array{Int,1})
+    parseEdgeData!(s::IO, edge, numberOfLeftParentheses::Array{Int,1})
 
 Helper function for readSubtree!, fixes a bug from using setGamma
 Modifies `e` according to the specified edge length and gamma values in the tree topology.
@@ -281,7 +281,7 @@ Advances the stream `s` past any existing edge data.
 Edges in a topology may optionally be followed by ":edgeLen:bootstrap:gamma"
 where edgeLen, bootstrap, and gamma are decimal values.
 """
-@inline function parseEdgeData!(s::IO, e::Edge, n::Node, numLeft::Array{Int,1})
+@inline function parseEdgeData!(s::IO, e::Edge, numLeft::Array{Int,1})
     read(s, Char); # to read the first ":"
     e.length = getDataValue!(s, 1, numLeft)
     bootstrap = nothing;
@@ -295,7 +295,7 @@ where edgeLen, bootstrap, and gamma are decimal values.
         e.gamma = getDataValue!(s, 3, numLeft)
     end
     if e.gamma != -1.0 && !e.hybrid && e.gamma != 1.0
-        @warn "γ read for edge $(e.number) but it is not hybrid, so γ=$(gamma) ignored"
+        @warn "γ read for edge $(e.number) but it is not hybrid, so γ=$(e.gamma) ignored"
         e.gamma = 1.0
     end
 end
@@ -406,7 +406,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
         hasname = true;
         num, name, pound = readnodename(s, c, net, numLeft)
         n = Node(num, true); # positive node number to leaves in the newick-tree description
-        @debug "creating node $(n.number)"
+        # @debug "creating node $(n.number)"
     end
     if pound # found pound sign in name
         # merge the 2 nodes corresponding the hybrid: make n the node that is retained
@@ -421,7 +421,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
     c = peekskip(s);
     e.length = -1.0
     if c == ':'
-        parseEdgeData!(s, e, n, numLeft)
+        parseEdgeData!(s, e, numLeft)
     end
     if e.hybrid
         # if hybrid edge: 'e' might have no info, but its partner may have had info
@@ -506,8 +506,8 @@ function readTopology(s::IO,verbose::Bool)
                 end
             end
         end
-        @debug "after readsubtree:"
-        @debug begin printEdges(net); "printed edges" end
+        # @debug "after readsubtree:"
+        # @debug begin printEdges(net); "printed edges" end
         # delete the root edge, if present
         if size(n.edge,1) == 1 # root node n has only one edge
             edge = n.edge[1]
@@ -525,9 +525,7 @@ function readTopology(s::IO,verbose::Bool)
     end
     storeHybrids!(net)
     checkNumHybEdges!(net)
-       ## if(verbose)
-       ##     any([(e.length == -1.0 && e.istIdentifiable) for e in net.edge]) && println("edges lengths missing, so assigned default value of -1.0") #fixit: not best approach, better to add a flag inside readSubTree, careful bool not modified inside function, need bool array
-       ## end
+    directEdges!(net; checkMajor=true) # to update edges containRoot: true until hybrid, false below hybrid
     net.isRooted = true
     return net
 end
@@ -535,7 +533,7 @@ end
 readTopology(s::IO) = readTopology(s,true)
 
 """
-    `checkNumHybEdges!(net)`
+    checkNumHybEdges!(net)
 
 Check for consistency between hybrid-related attributes in the network:
 - for each hybrid node: 2 or more hybrid edges
@@ -696,6 +694,8 @@ end
 #   default values of 0.1,0.9 if not present
 # leaveRoot=true: leaves the root even if it has only 2 edges (for plotting), default=false
 function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
+    # set e.containRoot to !e.hybrid: updated later by updateAllReadTopology as required by snaq!
+    for e in net.edge e.containRoot = !e.hybrid; end
     nodes = copy(net.node)
     for n in nodes
         if isNodeNumIn(n,net.node) # very important to check
@@ -1060,8 +1060,27 @@ function writeTopologyLevel1(net0::HybridNetwork, s::IO, di::Bool, namelabel::Bo
         CHECKNET && canBeRoot(net.node[net.root])
         if(multall)
             mergeLeaves!(net)
+            ## make sure the root is not on a leaf
+            ## This is a band aid: need to check the order of write/root/merge leaves on multiple allele cases
+            if outgroup != "none"
+                try
+                    checkRootPlace!(net,outgroup=outgroup) ## keeps all attributes
+                catch err
+                    if isa(err, RootMismatch)
+                        println("RootMismatch: ", err.msg,
+                                """\nThe estimated network has hybrid edges that are incompatible with the desired outgroup.
+                        Reverting to an admissible root position.
+                        """)
+                    else
+                        println("error trying to reroot: ", err.msg);
+                    end
+                    checkRootPlace!(net,verbose=false) # message about problem already printed above
+                end
+            else
+                checkRootPlace!(net,verbose=false) #leave root in good place after snaq
+            end
         end
-        writeSubTree!(s, net, di,namelabel, roundBL,digits,false)
+        writeSubTree!(s, net, di,namelabel, roundBL,digits,true)
     end
     # outgroup != "none" && undoRoot!(net) # not needed because net is deepcopy of net0
     # to delete 2-degree node, for snaq.
@@ -1108,6 +1127,7 @@ writeTopologyLevel1(net, di, string, namelabel, outgroup, printID, round, digits
 # and look for a better place if not
 # searches on net.node because net.root is the index in net.node
 # if we search in net.edge, we then need to search in net.node
+# this function is only used inside writeTopologyLevel1
 function updateRoot!(net::HybridNetwork, outgroup::AbstractString)
     checkroot = false
     if(outgroup == "none")
@@ -1386,6 +1406,11 @@ function writeTopology(net::HybridNetwork, s::IO,
             changeroot=false # safety exit of while (but useless)
         end
     end
+    if net.node[net.root].leaf
+        @warn """Root is placed at a leaf node, so the parenthetical format will look strange.
+                 Use rootatnode! or rootonedge! to change the root position
+              """
+    end
     # finally, write parenthetical format
     writeSubTree!(s,net,di,true,round,digits,internallabel)
     # namelabel = true: to print leaf & node names (labels), not numbers
@@ -1440,16 +1465,16 @@ function hybridlambdaformat(net::HybridNetwork; prefix="I")
   net = deepcopy(net) # binding to new object
   nameinternalnodes!(net, prefix)
   str1 = writeTopology(net, round=true, digits=15) # internallabels=true by default
-  rx_noBL = r"#(H[\w\d]+)::\d*\.?\d*:(\d*\.?\d*)"
+  rx_noBL = r"#(H[\w\d]+)::\d*\.?\d*(?:e[+-]?\d+)?:(\d*\.?\d*(?:e[+-]?\d+)?)"
   subst_noBL = s"\1#\2"
-  rx_withBL = r"#(H[\w\d]+):(\d*\.?\d*):\d*\.?\d*:(\d*\.?\d*)"
+  rx_withBL = r"#(H[\w\d]+):(\d*\.?\d*(?:e[+-]?\d+)?):\d*\.?\d*(?:e[+-]?\d+)?:(\d*\.?\d*(?:e[+-]?\d+)?)"
   subst_withBL = s"\1#\3:\2"
   str2 = replace(replace(str1, rx_noBL => subst_noBL), rx_withBL => subst_withBL)
   ## next: replace the γ2 of the second occurrence by γ1 from the first occurrence:
   ## this is what Hybrid-Lambda wants...
   nh = length(net.hybrid)
-  m = eachmatch(r"H[^#]*#", str2)
-  hboth = collect(h.match for h in m)
+  m = eachmatch(r"[)(,](H[^#)(,]*#)", str2)
+  hboth = collect(h.captures[1] for h in m)
   hone = unique(hboth)
   length(hboth) == 2length(hone) || error("did not find Hname# twice for some one (or more) of the hybrid names.")
   str3 = str2

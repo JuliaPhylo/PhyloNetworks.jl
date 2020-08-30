@@ -228,8 +228,8 @@ This function will output *one* of these equally good calibrations.
 optional arguments (default):
 - checkPreorder (true)
 - forceMinorLength0 (false) to force minor hybrid edges to have a length of 0
-- NLoptMethod (:LD_MMA) for the optimization algorithm.
-  Other options include :LN_COBYLA (derivative-free); see NLopt package.
+- NLoptMethod (`:LD_MMA`) for the optimization algorithm.
+  Other options include `:LN_COBYLA` (derivative-free); see NLopt package.
 - tolerance values to control when the optimization is stopped:
   ftolRel (1e-12), ftolAbs (1e-10) on the criterion, and
   xtolRel (1e-10), xtolAbs (1e-10) on branch lengths / divergence times.
@@ -243,11 +243,12 @@ function calibrateFromPairwiseDistances!(net::HybridNetwork,
       xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
 
     checkPreorder && preorder!(net)
-    # fixit: remove root node if of degree 2, and if BL optimized
+    # fixit: remove root node if of degree 2, and if ultrametric=false
+    defaultedgelength = median(D)/(length(net.edge)/2)
     for e in net.edge
-        if e.length == -1.0 e.length=0.0; end
+        if e.length == -1.0 e.length=defaultedgelength; end
+        # get smarter starting values: NJ? fast dating?
     end
-    # fixit: get smart starting values: NJ? fast dating?
     if ultrametric # get all node ages in pre-order
         na = getNodeAges(net)
     else na = Float64[]; end
@@ -415,21 +416,4 @@ function calibrateFromPairwiseDistances!(net::HybridNetwork,
     fmin, xmin, ret = NLopt.optimize(opt,par) # optimization here!
     verbose && println("got $(round(fmin, digits=5)) at $(round.(xmin, digits=5)) after $(counter[1]) iterations (return code $(ret))")
     return fmin,xmin,ret
-end
-
-# This is a helper function to accept symbols instead of strings
-function calibrateFromPairwiseDistances!(net::HybridNetwork,
-      D::Array{Float64,2}, taxNames::Vector{Symbol};
-      checkPreorder=true::Bool, forceMinorLength0=false::Bool, verbose=false::Bool,
-      ultrametric=true::Bool, NLoptMethod=:LD_MMA::Symbol,
-      ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-      xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
-    taxNames = String.(taxNames)
-    calibrateFromPairwiseDistances!(net, D, taxNames;
-                                    checkPreorder=checkPreorder,
-                                    forceMinorLength0=forceMinorLength0,
-                                    verbose=verbose, ultrametric=ultrametric,
-                                    NLoptMethod=NLoptMethod, ftolRel=ftolRel,
-                                    ftolAbs=ftolAbs, xtolRel=xtolRel,
-                                    xtolAbs=xtolAbs)
 end

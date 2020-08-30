@@ -1,443 +1,258 @@
-# functions to add a hybridization
-# originally in functions.jl
-# Claudia March 2015
+# functions to add hybridizations to a semi-directed network
+# subject to topological constraints; no level restriction
 
-
-# ------------------------------------------------ add new hybridization------------------------------------
-
-# function to add hybridization event
-# input: edge1, edge2 are the edges to remove
-#        edge3, edge4, edge5 are the new tree edges to add
-#        net is the network
-#        gamma is the gamma for the hybridization
-# warning: assumes that edge1, edge2 are tree edges with inCycle=-1
-#          assumes the hybrid edge goes from edge1 to edge2
-#          sets minor hybrid edge length to zero
-# this function create the hybrid node/edges and connect everything
-# and deletes edge1,2 from the nodes, and removes the nodes from edge1,2
-# returns the hybrid node to start future updates there
-function createHybrid!(edge1::Edge, edge2::Edge, edge3::Edge, edge4::Edge, net::HybridNetwork, gamma::Float64)
-    0 < gamma < 1 || error("gamma must be between 0 and 1: $(gamma)")
-    (edge1.hybrid || edge2.hybrid) ? error("edges to delete must be tree edges") : nothing
-    (edge3.hybrid || edge4.hybrid) ? error("edges to add must be tree edges") : nothing
-    pushEdge!(net,edge3);
-    pushEdge!(net,edge4);
-    # create hybridization
-    max_node = maximum([e.number for e in net.node]);
-    max_edge = maximum([e.number for e in net.edge]);
-    gamma < 0.5 || @warn "adding a major hybrid edge with gamma $(gamma), this can cause problems when updating incycle"
-    hybrid_edge = Edge(max_edge+1,0.0,true,gamma,gamma>=0.5);
-    pushEdge!(net,hybrid_edge);
-    hybrid_node = Node(max_node+1,false,true,[edge2,hybrid_edge,edge4]);
-    tree_node = Node(max_node+2,false,false,[edge1,edge3,hybrid_edge]);
-    setNode!(hybrid_edge,[tree_node,hybrid_node]);
-    setNode!(edge3,[tree_node,edge1.node[2]]);
-    setNode!(edge4,[hybrid_node,edge2.node[2]]);
-    setEdge!(edge1.node[2],edge3);
-    setEdge!(edge2.node[2],edge4);
-    removeEdge!(edge2.node[2],edge2);
-    removeEdge!(edge1.node[2],edge1);
-    removeNode!(edge1.node[2],edge1);
-    setNode!(edge1,tree_node);
-    removeNode!(edge2.node[2],edge2);
-    #[n.number for n in edge2.node]
-    setNode!(edge2,hybrid_node)
-    pushNode!(net,hybrid_node);
-    pushNode!(net,tree_node);
-    #pushHybrid!(net,hybrid_node);
-    return hybrid_node
-end
-
-# aux function for chooseEdgesGamma to identify
-# if two edges are sisters and if they are cherry
-# (have leaves)
-# returns true/false for sisters, true/false for cherry
-#         true/false for nonidentifiable (two leaves, k=1 node crossed by hybridization)
-function sisterOrCherry(edge1::Edge,edge2::Edge)
-    sisters = false
-    cherry = false
-    nonidentifiable = false
-    node = nothing;
-    if isEqual(edge1.node[1],edge2.node[1]) || isEqual(edge1.node[1],edge2.node[2])
-        node = edge1.node[1];
-    elseif isEqual(edge1.node[2],edge2.node[1]) || isEqual(edge1.node[2],edge2.node[2])
-        node = edge1.node[2];
-    end
-    if node !== nothing
-        size(node.edge,1) == 3 || error("node found $(node.number) that does not have exactly 3 edges, it has $(size(node.edge,1)) edges instead.")
-        sisters = true
-        if getOtherNode(edge1,node).leaf && getOtherNode(edge2,node).leaf
-            cherry = true
-        elseif getOtherNode(edge1,node).leaf || getOtherNode(edge2,node).leaf
-            edge = nothing
-            for e in node.edge
-                if(!isEqual(e,edge1) && !isEqual(e,edge2))
-                    edge = e
-                end
-            end
-            if getOtherNode(edge,node).leaf
-                nonidentifiable = true
-            end
-        end
-    end
-    return sisters, cherry, nonidentifiable
-end
-
-# aux function to addHybridization
-# it chooses the edges in the network and the gamma value
-# warning: chooses edge1, edge2, gamma randomly, but
-#          we could do better later
-# check: gamma is uniform(0,1/2) to avoid big gammas
-# fixit: add different function to choose gamma
-# fixit: how to stop from infinite loop if there are no options
-# blacklist used for afterOptBLAll
-# input: edges, list of edges from which to choose, default is net.edge
-# warning: if edges is not net.edge, it still need to contain Edge objects from net (not deepcopies)
-function chooseEdgesGamma(net::HybridNetwork, blacklist::Bool, edges::Vector{Edge})
-    index1 = 1;
-    index2 = 1;
-    inlimits = false
-    inblack = true
-    cherry = false
-    nonidentifiable = false
-    while !inlimits || edges[index1].inCycle != -1 || edges[index2].inCycle != -1 || inblack || cherry || nonidentifiable
-        index1 = round(Integer,rand()*size(edges,1));
-        index2 = round(Integer,rand()*size(edges,1));
-        if index1 != index2 && index1 != 0 && index2 != 0 && index1 <= size(edges,1) && index2 <= size(edges,1)
-            inlimits = true
-            sisters, cherry, nonidentifiable = sisterOrCherry(edges[index1],edges[index2]);
-        else
-            inlimits = false
-        end
-        if blacklist && !isempty(net.blacklist)
-            length(net.blacklist) % 2 == 0 || error("net.blacklist should have even number of entries, not length: $(length(net.blacklist))")
-            i = 1
-            while i < length(net.blacklist)
-                if edges[index1].number == net.blacklist[i]
-                    if edges[index2].number == net.blacklist[i+1]
-                        inblack = true
-                    else
-                        inblack = false
-                    end
-                elseif edges[index2].number == net.blacklist[i]
-                    if edges[index1].number == net.blacklist[i+1]
-                        inblack = true
-                    else
-                        inblack = false
-                    end
-                end
-                i += 2
-            end
-        else
-            inblack = false
-        end
-    end
-    gamma = rand()*0.5;
-    @debug "choose edges and gamma: from $(edges[index1].number) to $(edges[index2].number), $(gamma)"
-    return edges[index1],edges[index2],gamma
-end
-
-chooseEdgesGamma(net::HybridNetwork) = chooseEdgesGamma(net, false, net.edge)
-chooseEdgesGamma(net::HybridNetwork, blacklist::Bool) = chooseEdgesGamma(net, blacklist, net.edge)
-
-# aux function for addHybridization
-# that takes the output edge1, edge2, gamma from
-# chooseEdgesGamma and created necessary edges
-# returns edge3, edge4, and adjusts edge1, edge2 to shorter length
-function parameters4createHybrid!(edge1::Edge, edge2::Edge,net::HybridNetwork)
-    max_edge = maximum([e.number for e in net.edge]);
-    t1 = rand()*edge1.length;
-    t3 = edge1.length - t1;
-    edge3 = Edge(max_edge+1,t3);
-    edge1.length = t1;
-    t1 = rand()*edge2.length;
-    t3 = edge2.length - t1;
-    edge4 = Edge(max_edge+2,t3);
-    edge2.length = t1;
-    edge3.containRoot = edge1.containRoot
-    edge4.containRoot = edge2.containRoot
-    return edge3, edge4
-end
-
-# aux function to add the hybridization
-# without checking all the updates
-# returns the hybrid node of the new hybridization
-# calls chooseEdgesGamma, parameter4createHybrid and createHybrid
-# blacklist used in afterOptBLAll
-# usePartition=true if we use the information on net.partition, default true
-function addHybridization!(net::HybridNetwork, blacklist::Bool, usePartition::Bool)
-    if(net.numHybrids > 0 && usePartition)
-        !isempty(net.partition) || error("net has $(net.numHybrids) but net.partition is empty")
-        index = choosePartition(net)
-        if(index == 0) #no place for new hybrid
-            @debug "no partition suitable to place new hybridization"
-            return nothing
-        end
-        partition = splice!(net.partition,index) #type partition
-        @debug "add hybrid with partition $([n.number for n in partition.edges])"
-        edge1, edge2, gamma = chooseEdgesGamma(net, blacklist,partition.edges);
-    else
-        edge1, edge2, gamma = chooseEdgesGamma(net, blacklist);
-    end
-    @debug "add hybridization between edge1, $(edge1.number) and edge2 $(edge2.number) with gamma $(gamma)"
-    edge3, edge4 = parameters4createHybrid!(edge1,edge2,net);
-    hybrid = createHybrid!(edge1, edge2, edge3, edge4, net, gamma);
-    return hybrid
-end
-
-addHybridization!(net::HybridNetwork) = addHybridization!(net, false, true)
-
-# function to update who is the major hybrid
-# after a new hybridization is added and
-# inCycle is updated
-# warning: needs updateInCycle! run first
-# can return the updated edge for when undoing network moves, not needed now
-function updateMajorHybrid!(net::HybridNetwork, node::Node)
-    node.hybrid || error("node $(node.number) is not hybrid, cannot update major hybrid after updateInCycle")
-    length(node.edge) == 3 || error("hybrid node $(node.number) has $(length(node.edge)) edges, should have 3")
-    hybedge = nothing
-    edgecycle = nothing
-    for e in node.edge
-        if(e.hybrid)
-            hybedge = e
-        elseif(e.inCycle != -1 && !e.hybrid)
-            edgecycle = e
-        end
-    end
-    !isa(hybedge,Nothing) || error("hybrid node $(node.number) does not have hybrid edge")
-    !isa(edgecycle,Nothing) || error("hybrid node $(node.number) does not have tree edge in cycle to update to hybrid edge after updateInCycle")
-    #println("updating hybrid status to edgeincycle $(edgecycle.number) for hybedge $(hybedge.number)")
-    makeEdgeHybrid!(edgecycle,node,1-hybedge.gamma)
-end
-
-# function to update everything of a new hybridization
-# it follows the flow diagram in ipad
-# input: new added hybrid, network,
-#        updatemajor (bool) to decide if we need to update major edge
-#        only need to update if new hybrid added, if read from file not needed
-#        allow=true allows extreme/very bad triangles, needed when reading
-#        updatePart = true will update PArtition at this moment, it makes sense with a newly added hybrid
-#        but not if net just read (because in this case it needs all inCycle updated before)
-# returns: success bool, hybrid, flag, nocycle, flag2, flag3
-function updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool, allow::Bool, updatePart::Bool)
-    flag, nocycle, edgesInCycle, nodesInCycle = updateInCycle!(net,hybrid);
-    if(nocycle)
-        return false, hybrid, flag, nocycle, false, false
-    else
-        if(flag)
-            if(updatemajor)
-                updateMajorHybrid!(net,hybrid);
-            end
-            flag2, edgesGammaz = updateGammaz!(net,hybrid,allow);
-            if(flag2)
-                flag3, edgesRoot = updateContainRoot!(net,hybrid);
-                if(updatePart)
-                    updatePartition!(net,nodesInCycle)
-                end
-                if(flag3)
-                    parameters!(net)
-                    return true, hybrid, flag, nocycle, flag2, flag3
-                else
-                    #undoContainRoot!(edgesRoot);
-                    #undoistIdentifiable!(edgesGammaz);
-                    #undoGammaz!(hybrid,net);
-                    #undoInCycle!(edgesInCycle, nodesInCycle);
-                    return false, hybrid, flag, nocycle, flag2, flag3
-                end
-            else
-                if(updatePart)
-                    updatePartition!(net,nodesInCycle)
-                end
-                flag3, edgesRoot = updateContainRoot!(net,hybrid); #update contain root even if it is bad triangle to writeTopologyLevel1 correctly
-                #undoistIdentifiable!(edgesGammaz);
-                #undoGammaz!(hybrid,net);
-                #undoInCycle!(edgesInCycle, nodesInCycle);
-                return false, hybrid, flag, nocycle, flag2, flag3
-            end
-        else
-            # no need to do updatePartition in this case, because we only call deleteHybrid after
-            undoInCycle!(edgesInCycle, nodesInCycle);
-            return false, hybrid, flag, nocycle, true, true
-        end
-    end
-end
-
-updateAllNewHybrid!(hybrid::Node,net::HybridNetwork, updatemajor::Bool) = updateAllNewHybrid!(hybrid,net, updatemajor, false, true)
-
-# function to add a new hybridization event
-# it calls chooseEdgesGamma and createHybrid!
-# input: network
-# check: assumes that one of the two possibilities for
-#        major hybrid edge gives you a cycle, true?
-# warning: "while" removed, it does not attempt to add until
-#          success, it attempts to add once
-# returns: success (bool), hybrid, flag, nocycle, flag2, flag3
-# blacklist used in afterOptBLAll
-function addHybridizationUpdate!(net::HybridNetwork, blacklist::Bool, usePartition::Bool)
-    hybrid = addHybridization!(net,blacklist, usePartition);
-    isa(hybrid,Nothing) && return false,nothing,false,false,false,false
-    updateAllNewHybrid!(hybrid,net,true)
-end
-
-addHybridizationUpdate!(net::HybridNetwork) = addHybridizationUpdate!(net, false, true)
-addHybridizationUpdate!(net::HybridNetwork, blacklist::Bool) = addHybridizationUpdate!(net, blacklist::Bool, true)
-
-
-
-
-# function that will add a hybridization with addHybridizationUpdate,
-# if success=false, it will try to move the hybridization before
-# declaring failure
-# blacklist used in afterOptBLAll
-function addHybridizationUpdateSmart!(net::HybridNetwork, blacklist::Bool, N::Integer)
-    global CHECKNET
-    @debug "MOVE: addHybridizationUpdateSmart"
-    success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
-    @debug begin
-        printEverything(net)
-        "success $(success), flag $(flag), flag2 $(flag2), flag3 $(flag3)"
-    end
-    i = 0
-    if !success
-        if isa(hybrid,Nothing)
-            @debug "MOVE: could not add hybrid by any means"
-        else
-            while((nocycle || !flag) && i < N) #incycle failed
-                @debug "MOVE: added hybrid causes conflict with previous cycle, need to delete and add another"
-                deleteHybrid!(hybrid,net,true)
-                success, hybrid, flag, nocycle, flag2, flag3 = addHybridizationUpdate!(net, blacklist)
-            end
-            if(nocycle || !flag)
-                @debug "MOVE: added hybridization $(i) times trying to avoid incycle conflicts, but failed"
-            else
-                if(!flag3 && flag2) #containRoot failed
-                    @debug "MOVE: added hybrid causes problems with containRoot, will change the direction to fix it"
-                    success = changeDirectionUpdate!(net,hybrid) #change dir of minor
-                elseif(!flag2 && flag3) #gammaz failed
-                    @debug "MOVE: added hybrid has problem with gammaz (not identifiable bad triangle)"
-                    if(flag3)
-                        @debug "MOVE: we will move origin to fix the gammaz situation"
-                        success = moveOriginUpdateRepeat!(net,hybrid,true)
-                    else
-                        @debug "MOVE: we will move target to fix the gammaz situation"
-                        success = moveTargetUpdateRepeat!(net,hybrid,true)
-                    end
-                elseif(!flag2 && !flag3) #containRoot AND gammaz failed
-                    @debug "MOVE: containRoot and gammaz both fail"
-                end
-            end
-            if !success
-                @debug "MOVE: could not fix the added hybrid by any means, we will delete it now"
-                CHECKNET && checkNet(net)
-                @debug begin printEverything(net); "printed everything" end
-                deleteHybridizationUpdate!(net,hybrid)
-                @debug begin printEverything(net); "printed everything" end
-                CHECKNET && checkNet(net)
-            end
-        end
-    end
-    success && @debug "MOVE: added hybridization SUCCESSFUL: new hybrid $(hybrid.number)"
-    return success
-end
-
-addHybridizationUpdateSmart!(net::HybridNetwork, N::Integer) = addHybridizationUpdateSmart!(net, false,N)
-
-
-# ----------------------------------- add alternative hybridizations found in bootstrap ------------------------------------
-## function to add the top hybridizations (not in best network)
-## found in bootstrap networks
-## it modifies the network and BSe to add the new edge number,
-## it also adds a new column 0/1, with 1 if the edge is not present in the original estimated network
-## cutoff=10, only show hybridizations with bootstrap support>10%
-## top=3, only show the top three alternative hybridizations (sorted by bootstrap support)
-## can we put in a different color in the plot?
-## Cecile: you could add a new option to our RCall-based plot function to take a vector of colors.
 """
-    addAlternativeHybridizations!(net::HybridNetwork, BSe::DataFrame;
-                                  cutoff=10::Number, top=3::Int)
+    addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+                   constraints=TopologyConstraint[]::Vector{TopologyConstraint};
+                   maxattempts=10::Int, fixroot=false::Bool)
 
-Modify the network `net` (the best network estimated with snaq) by adding other hybridizations
-that are present in the bootstrap networks. By default, it will only consider hybrid edges with
-more than 10% bootstrap support (`cutoff`) and it will only include the three top hybridizations
-(`top`) sorted by bootstrap support.
-The function also modifies the dataframe `BSe` obtained with `hybridBootstrapSupport`. In the original
-`BSe` dataframe, hybrid edges that do not appear in the best network have a missing number.
-After the hybrid edges are added with `addAlternativeHybridizations`, `BSe` is modified to include the
-edge numbers of the newly added hybrid edges. Note that the function only adds the hybrid edges as minor to
-keep the underlying tree topology.
+Randomly choose two edges in `net` then: add hybrid edge from edge 1 to edge 2
+of length 0.01. The two halves of edge 1 (and of edge 2) have equal lengths.
+The hybrid partner edge (top half of edge 2, if fixroot is true) will point
+towards the newly-created node on the middle of the original edge 2.
 
-# example
+If the resulting network is a DAG, satisfies the constraint(s),
+does not contain any 3-cycle (if `no3cycle=true`), and does not have
+a hybrid ladder (if `nohybridladder=true`) then the proposal is successful:
+`net` is modified, and the function returns the newly created hybrid node and
+newly created hybrid edge.
 
-```julia
-bootnet = readMultiTopology("bootstrap-networks.txt")
-bestnet = readTopology("best.tre")
-BSn, BSe, BSc, BSgam, BSedgenum = hybridBootstrapSupport(bootnet, bestnet);
-addAlternativeHybridizations!(bestnet,BSe)
-using PhyloPlots
-plot(bestnet, edgeLabel=BSe[[:edge,:BS_hybrid_edge]])
+If the resulting network is not acceptable, then a new set of edges
+is proposed (using a blacklist) until one is found acceptable, or until
+a maximum number of attempts have been made (`maxattempts`).
+If none of the attempted proposals are successful, `nothing` is returned
+(without causing an error).
+
+After a pair of edges is picked, the "top" half of edge2 is proposed
+as the partner hybrid edge with probability 0.8 if `fixroot` is false,
+(to avoid changing the direction of edge2 with more than 50% chance)
+and with probability 1.0 if `fixroot` is true.
+If this choice does not work and if `fixroot` is false,
+the other half of edge2 is proposed as the partner hybrid edge.
+Note that choosing the "bottom" half of edge2 as the partner edge
+requires to flip the direction of edge 2, and to move the root accordingly
+(to the original child of edge2).
+
+# examples
+
+```jldoctest
+julia> net = readTopology("((S1,(((S2,(S3)#H1),(#H1,S4)))#H2),(#H2,S5));");
+
+julia> using Random
+
+julia> Random.seed!(134);
+
+julia> PhyloNetworks.addhybridedge!(net, true, true)
+(PhyloNetworks.Node:
+ number:9
+ name:H3
+ hybrid node
+ attached to 3 edges, numbered: 5 16 17
+, PhyloNetworks.Edge:
+ number:17
+ length:0.01
+ minor hybrid edge with gamma=0.028819678088948808
+ attached to 2 node(s) (parent first): 8 9
+)
+
+julia> writeTopology(net, round=true)
+"((S1,((((#H1,S4),((S2,(S3)#H1))#H3:::0.971))#H2,#H3:0.01::0.029)),(#H2,S5));"
+
 ```
 """
-function addAlternativeHybridizations!(net::HybridNetwork,BSe::DataFrame; cutoff=10::Number,top=3::Int)
-    top > 0 || error("top must be greater than 0")
-    BSe[:alternative] = falses(length(BSe[:hybrid]))
-    newBSe = BSe[BSe[:BS_hybrid_edge] .> cutoff,:]
-    newBSe = newBSe[.!ismissing.(newBSe[:hybrid]) & .!ismissing.(newBSe[:sister]),:]
-    newBSe = newBSe[ismissing.(newBSe[:edge]),:]
-    newHyb = newBSe[1:top,:]
-
-    if(size(newHyb,1) == 0)
-        @warn "Did not find any alternative hybridizations with bootstrap support greater than the cutoff, so nothign added"
-        return
+function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+        constraints=TopologyConstraint[]::Vector{TopologyConstraint};
+        maxattempts=10::Int, fixroot=false::Bool)
+    all(con.type == 1 for con in constraints) || error("only type-1 constraints implemented so far")
+    numedges = length(net.edge)
+    blacklist = Set{Tuple{Int,Int}}()
+    nmax_blacklist = numedges * (numedges-1) # all sets of edge1 -> edge2
+    nattempts = 0
+    while nattempts < maxattempts && length(blacklist) < nmax_blacklist
+        e1 = Random.rand(1:numedges) # presumably faster than Random.randperm or Random.shuffle
+        edge1 = net.edge[e1]
+        e2 = Random.rand(1:(numedges-1)) # e2 must be different from e1: only numedges-1 options
+        edge2 = net.edge[(e2<e1 ? e2 : e2+1)]
+        (e1,e2) ∉ blacklist || # try another pair without adding to the # of attempts
+            continue           # if (e1,e2) was already attempted
+        nattempts += 1
+        ## check that constraints are met
+        p1 = getParent(edge1)
+        p2 = getParent(edge2)
+        constraintsmet = true
+        for con in constraints
+            if con.type == 1 # forbid going out of (edge1) or into (edge2) the species group
+                if con.node === p1 || con.node === p2
+                    push!(blacklist, (e1,e2))
+                    constraintsmet = false
+                    break # of constraint loop
+                end
+            end
+        end
+        constraintsmet || continue # try another pair if constraints not met
+        ## check for no 3-cycle, if no3cycle is requested
+        if no3cycle && hybrid3cycle(edge1, edge2) # does not depend on which partner edge is chosen
+            push!(blacklist, (e1,e2))
+            continue
+        end
+        ## check for no hybrid ladder, if requested:
+         # edge2 cannot be a hybrid edge or the child of a hybrid node
+        if nohybridladder && (edge2.hybrid || getParent(edge2).hybrid)
+            push!(blacklist, (e1,e2))
+            continue
+        end
+        hybridpartnernew = (fixroot ? true : rand() > 0.2) # if true: partner hybrid = new edge above edge 2
+        ## check that the new network will be a DAG: no directional conflict
+        if directionalconflict(net, p1, edge2, hybridpartnernew)
+            if fixroot # don't try to change the direction of edge2
+                push!(blacklist, (e1,e2))
+                continue
+            end # else: try harder: change direction of edge2 and move root
+            hybridpartnernew = !hybridpartnernew # try again with opposite
+            if directionalconflict(net, p1, edge2, hybridpartnernew)
+                push!(blacklist, (e1,e2))
+                continue
+            end # else: switching hybridpartnernew worked
+        end
+        newgamma = rand()*0.5; # in (0,.5) to create a minor hybrid edge
+        return addhybridedge!(net, edge1, edge2, hybridpartnernew, 0.01, newgamma)
     end
-
-    for i in 1:top
-        hybnum = newHyb[:hybrid][i]
-        sisnum = newHyb[:sister][i]
-        edgenum = addHybridBetweenClades!(hybnum,sisnum,net)
-        ind1 = findall(x->!ismissing(x) && x==hybnum,BSe[:hybrid])
-        ind2 = findall(x->!ismissing(x) && x==sisnum,BSe[:sister])
-        ind = intersect(ind1,ind2)
-        BSe[ind,:edge] = edgenum
-        BSe[ind,:alternative] = true
-    end
+    # if we get here: none of the max number of attempts worked - return nothing.
+    # if an attempt had worked, we would have returned something.
+    return nothing
 end
 
+"""
+    addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpartnernew::Bool,
+                   edgelength=-1.0::Float64, gamma=-1.0::Float64)
 
-## function to a hybrid edge between hybrid clade (hybnum = node number) and sister clade (sisnum = node number)
-## the function finds the parent edges to these nodes, and puts a hybrid edge between them
-## the function modifies net, and it returns the number of the minor hybrid edge added
-function addHybridBetweenClades!(hybnum::Number,sisnum::Number,net::HybridNetwork)
-    hybind = getIndexNode(hybnum,net)
-    sisind = getIndexNode(sisnum,net)
+Add hybridization to `net` coming from `edge1` going into `edge2`.
+2 new nodes and 3 new edges are created: `edge1` are `edge2` are both cut into 2 edges,
+and a new edge is created linking the 2 new "middle" nodes, pointing from `edge1` to `edge2`.
+The new node in the middle of `edge1` is a tree node.
+The new node in the middle of `edge2` is a hybrid node.
+Its parent edges are the newly created hybrid edge (with γ = gamma, missing by default),
+and either the newly edge "above" `edge2` if `hybridpartnernew=true`,
+or the old `edge2` otherwise (which would reverse the direction of `edge2` and others).
 
-    ## hybridization ed1->ed2
-    edge1 = getMajorParentEdge(net.node[sisind])
-    edge2 = getMajorParentEdge(net.node[hybind])
+Should be called from the other method, which performs a bunch of checks.
+Updates `containRoot` attributes for edges below the new hybrid node.
 
-    edge3,edge4 = parameters4createHybrid!(edge1, edge2,net)
-    hybridnode = createHybrid!(edge1, edge2, edge3, edge4, net, 0.1) ## gamma=0.1, fixed later
-    if(edge1.length < 0)
-        setBranchLength!(edge1,-1.0)
-        setBranchLength!(edge3,-1.0)
-    end
-    if(edge2.length < 0)
-        setBranchLength!(edge2,-1.0)
-        setBranchLength!(edge4,-1.0)
-    end
+Output: new hybrid node (middle of the old `edge2`) and new hybrid edge.
 
-    if(edge2.isChild1)
-        edge4.hybrid = true
-        setGamma!(edge4,0.9)
-        edge4.isChild1 = true
+# examples
+
+```jldoctest
+julia> net = readTopology("((S8,(((S1,(S5)#H1),(#H1,S6)))#H2),(#H2,S10));");
+
+julia> hybnode, hybedge = PhyloNetworks.addhybridedge!(net, net.edge[13], net.edge[8], true, 0.0, 0.2)
+(PhyloNetworks.Node:
+ number:9
+ name:H3
+ hybrid node
+ attached to 3 edges, numbered: 8 16 17
+, PhyloNetworks.Edge:
+ number:17
+ length:0.0
+ minor hybrid edge with gamma=0.2
+ attached to 2 node(s) (parent first): 8 9
+)
+
+
+julia> writeTopology(net)
+"((S8,(((S1,(S5)#H1),((#H1,S6))#H3:::0.8))#H2),(#H2,(S10,#H3:0.0::0.2)));"
+
+```
+"""
+function addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpartnernew::Bool,
+                        edgelength::Float64=-1.0, gamma::Float64=-1.0)
+    gamma == -1.0 || (gamma <= 1.0 && gamma >= 0.0) || error("invalid γ to add a hybrid edge")
+    gbar = (gamma == -1.0 ? -1.0 : 1.0 - gamma) # 1-gamma, with γ=-1 as missing
+    newnode1_tree, edgeabovee1 = breakedge!(edge1, net) # new tree node
+    newnode2_hybrid, edgeabovee2 = breakedge!(edge2, net) # new hybrid node
+    newnode2_hybrid.hybrid = true
+    pushHybrid!(net, newnode2_hybrid) # updates net.hybrid and net.numHybrids
+    # new hybrid edge, minor if γ missing (-1)
+    hybrid_edge = Edge(maximum(e.number for e in net.edge) + 1, edgelength, true, gamma, gamma>0.5) # number, length, hybrid, gamma, isMajor
+    # partner edge: update hybrid status, γ and direction
+    if hybridpartnernew
+        edgeabovee2.hybrid = true
+        edgeabovee2.gamma = gbar
+        if gamma>0.5
+            edgeabovee2.isMajor = false
+        end
     else
+        c2 = getChild(edge2) # child of edge2 before we switch its direction
+        i2 = findfirst(isequal(c2), net.node)
+        net.root = i2 # makes c2 the new root node
         edge2.hybrid = true
-        setGamma!(edge2,0.9)
-        edge2.isChild1 = false
+        edge2.gamma = gbar
+        if gamma>0.5
+            edge2.isMajor = false
+        end
+        edge2.isChild1 =  !edge2.isChild1 # reverse the direction of edge2
+        edgeabovee2.isChild1 = !edgeabovee2.isChild1
     end
-    ## used gamma=0.1 to make the new edge a minor edge, but we really do not have gamma value:
-    emaj = getMajorParentEdge(hybridnode)
-    emaj.gamma = -1
-    e = getMinorParentEdge(hybridnode)
-    e.gamma = -1
-    return e.number
+    # parse hyb names to find the next available. assignhybridnames! would do them all
+    rx = r"^H(\d+)$"
+    hnum = net.numHybrids # to name the new hybrid, potentially
+    for n in net.node
+        m = match(rx, n.name)
+        if m !== nothing
+            hi = parse(Int, m[1])
+            hnum > hi || (hnum = hi+1)
+        end
+    end
+    newnode2_hybrid.name = "H$hnum"
+    setNode!(hybrid_edge, [newnode2_hybrid, newnode1_tree]) # [child node, parent node] to match isChild1=true
+    setEdge!(newnode1_tree, hybrid_edge)
+    setEdge!(newnode2_hybrid, hybrid_edge)
+    pushEdge!(net, hybrid_edge)
+    if hybridpartnernew
+        # @debug "triple-check it's a DAG" directEdges!(net)
+        norootbelow!(edge2)
+    else
+        directEdges!(net)
+        norootbelow!(edgeabovee2)
+    end
+    return newnode2_hybrid, hybrid_edge
+end
+
+"""
+    hybrid3cycle(edge1::Edge, edge2::Edge)
+
+Check if proposed hybrid edge from `edge1` into `edge2` would create a 3 cycle,
+that is, if `edge1` and `edge2` have a node in common.
+(This move cannot create a 2-cycles because new nodes would be created in the
+middle of edges 1 and 2.)
+"""
+function hybrid3cycle(edge1::Edge, edge2::Edge)
+    !isempty(findall(in(edge1.node), edge2.node))
+end
+
+"""
+    directionalconflict(net::HybridNetwork, parent::Node, edge::Edge,
+                        hybridpartnernew::Bool)
+
+Check if creating a hybrid edge down of `parent` node into the middle of `edge`
+would create a directed cycle in `net`, i.e. not a DAG. The proposed hybrid
+would go in the direction of `edge` down its child node if `hybridpartnernew`
+is true. Otherwise, both halves of `edge` would have their direction reversed,
+for the hybrid to go towards the original parent node of `edge`.
+Does *not* modify the network.
+
+Output: `true` if a conflict would arise (non-DAG), `false` if no conflict.
+"""
+function directionalconflict(net::HybridNetwork, parent::Node, edge2::Edge, hybridpartnernew::Bool)
+    if hybridpartnernew # all edges would retain their directions: use isChild1 fields
+        c2 = getChild(edge2)
+        return parent === c2 || isdescendant(parent, c2)
+    else # after hybrid addition, edge 2 would be reversed: "up" toward its own parent
+        if !edge2.containRoot || edge2.hybrid
+            return true # direction of edge2 cannot be reversed
+        else # net would be a DAG with reversed directions, could even be rooted on edge2
+            p2 = getParent(edge2)
+            return parent === p2 || isdescendant_undirected(parent, p2, edge2)
+        end
+    end
 end

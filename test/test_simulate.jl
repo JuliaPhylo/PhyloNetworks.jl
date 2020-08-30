@@ -13,6 +13,7 @@ pars = ParamsBM(1, 0.1); # params of a BM
 
 sim = simulate(net, pars); # simulate according to a BM
 @test_logs show(devnull, sim)
+@test_throws ErrorException sim[:Tips, :Broken]
 
 # Extract simulated values
 traitsTips = sim[:Tips];
@@ -67,6 +68,7 @@ net = readTopology("(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6):1):0.
 ## Test construction function
 @test_throws ErrorException ShiftNet(net.edge[7], 3.0,  net) # can't put a shift on hybrid branch
 @test_throws ErrorException ShiftNet(net.node[6], 3.0,  net) # can't put a shift on hybrid branch
+@test ShiftNet(net).shift ≈ zeros(length(net.node))
 @test ShiftNet(net.edge[8], 3.0,  net).shift ≈ ShiftNet([net.edge[8]], [3.0],  net).shift
 @test ShiftNet(net.edge[8], 3.0,  net).shift ≈ ShiftNet(net.node[7], 3.0,  net).shift
 @test ShiftNet(net.node[7], 3.0,  net).shift ≈ ShiftNet([net.node[7]], [3.0],  net).shift
@@ -80,12 +82,19 @@ sh1 = ShiftNet(net.node[7], 3.0,  net)*ShiftNet(net.node[9], -2.1,  net)
 ## Values and edge numbers functions
 sh = ShiftNet(net.node[7], 3.0,  net)
 @test getShiftEdgeNumber(sh) == [8]
-@test getShiftValue(sh) == [3.0]
+@test all(getShiftValue(sh) .== [3.0])
 
 ## Hybrid shifts
 @test shiftHybrid([2.0], net).shift ≈ ShiftNet(net.edge[6], 2.0, net).shift
+@test shiftHybrid(2.0, net).shift ≈ shiftHybrid([2.0], net).shift
 
 ## Test simulate
+
+# No shift on root
+@test_throws ErrorException simulate(net, ParamsBM(1.0, 0.1, ShiftNet(net.node[9], 3.0,  net)))
+
+@test ParamsBM(1.0, 1.0, net).shift.shift ≈ ParamsBM(1.0, 1.0, ShiftNet(net)).shift.shift
+
 pars = ParamsBM(1, 0.1, ShiftNet(net.edge[8], 3.0,  net)); # params of a BM
 @test_logs show(devnull, pars)
 @test_logs show(devnull, pars.shift)
@@ -112,12 +121,19 @@ traitsNodesExp = [1.50594336537754 3.296894371572107 4.346436961253621 1.3212328
 @test meansTips ≈ meansTipsExp
 @test meansNodes ≈ meansNodesExp
 
+# Test same as MultiBM
+pars = ParamsMultiBM([1.0], 0.1*ones(1,1), ShiftNet(net.edge[8], 3.0,  net));
+simMulti = simulate(net, pars); 
+@test simMulti[:Tips, :Exp] ≈ sim[:Tips, :Exp]'
+@test simMulti[:InternalNodes, :Exp] ≈ sim[:InternalNodes, :Exp]'
+
 ###############################################################################
 ## Test of distibution - with shifts
 ###############################################################################
 
 ## Generate some values
 Random.seed!(18480224); # fix the seed
+@test_throws ErrorException ParamsBM(1, 0.1, ShiftNet(net.edge[8], [3.0, 1.0],  net))
 pars = ParamsBM(1, 0.1, ShiftNet(net.edge[8], 3.0,  net)); # params of a BM
 N = 50000
 S = length(tipLabels(net));

@@ -168,7 +168,7 @@ end
 
 @testset "data from CSV, parsimony search" begin
 originalstdout = stdout
-dat = CSV.read(joinpath(@__DIR__, "..","examples","Swadesh.csv"));
+dat = DataFrame!(CSV.File(joinpath(@__DIR__, "..","examples","Swadesh.csv")))
 # net = readTopology("(((English,German),Norwegian),(Spanish,Portuguese));")
 # species, sequences = PhyloNetworks.readCSVtoArray(dat)
 # @test parsimonyGF(net, species, sequences) == 17.0

@@ -47,7 +47,8 @@ res = plot(net, :R; tipOffset=0.3); # the results "res" provides point coordinat
 o = [findfirst(isequal(tax), species) for tax in tipLabels(net)] # 5,2,4,1,3,6: order to match taxa from "species" to tip labels
 isequal(species[o], tipLabels(net)) # true :)
 traitcolor = map(x -> (x=="lo" ? "grey" : "red"), dat.trait[o])
-R"points"(x=res[13].x .+0.1, y=res[13].y, pch=16, col=traitcolor, cex=1.5); # adds grey & red points
+leaves = res[13][!,:lea]
+R"points"(x=res[13][leaves,:x] .+0.1, y=res[13][leaves,:y], pch=16, col=traitcolor, cex=1.5); # adds grey & red points
 R"legend"(x=1, y=2, legend=["hi","lo"], pch=16, col=["red","grey"],
           title="my trait", bty="n",var"title.adj"=0);
 # next: add arrow to show gene flow edge, and proportion γ of genes affected
@@ -177,9 +178,11 @@ to compare the two hypotheses: gene flow vs. vertical inheritance.
 ```@repl fitdiscrete_trait
 exp(s3.priorltw[1]) # prior: for vertical inheritance. "ltw" = log tree weight
 exp(s3.priorltw[2]) # prior: for gene flow inheritance, same as γ above
-exp(s3.postltw[2])  # posterior: for gene flow inheritance
+postltw = PhyloNetworks.posterior_logtreeweight(s3)
+exp(postltw[2])     # posterior: for gene flow inheritance
 function geneflowBF(fit)
-    exp(fit.postltw[2] - fit.postltw[1] + fit.priorltw[1] - fit.priorltw[2])
+    postltw = PhyloNetworks.posterior_logtreeweight(fit)
+    exp(postltw[2] - postltw[1] + fit.priorltw[1] - fit.priorltw[2])
 end
 geneflowBF(s3)
 ```

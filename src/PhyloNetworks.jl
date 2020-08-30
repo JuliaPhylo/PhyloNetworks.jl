@@ -5,19 +5,20 @@ module PhyloNetworks
     # stdlib (standard libraries)
     using Dates
     using Distributed
-    using LinearAlgebra # for LowerTriangular, logdet, diag
+    using LinearAlgebra # for LowerTriangular, logdet, diag, mul!
     using Printf: @printf, @sprintf
     using Random
-    using Statistics: mean, quantile
+    using Statistics: mean, quantile, median
 
     # other libraries, indicate compatible version in Project.toml
     using BioSequences
     using BioSymbols
     using Combinatorics: combinations
     using CSV
-    using DataFrames
+    using DataFrames # innerjoin new in v0.21
     using DataStructures # for updateInCycle with priority queue
     using Distributions #for RateVariationAcrossSites
+    using FASTX
     using GLM # for the lm function
     using NLopt # for branch lengths optimization
     using StaticArrays
@@ -108,6 +109,7 @@ module PhyloNetworks
         simulate,
         TraitSimulation,
         ParamsBM,
+        ParamsMultiBM,
         ShiftNet,
         shiftHybrid,
         getShiftEdgeNumber,
@@ -146,6 +148,9 @@ module PhyloNetworks
         readfastatodna,
         stationary,
         empiricalDNAfrequencies,
+        nni!,
+        mapindividuals,
+        # phyLiNC,
         # neighbor joining
         nj
 
@@ -153,12 +158,14 @@ module PhyloNetworks
     include("auxiliary.jl")
     include("update.jl")
     include("undo.jl")
+    include("addHybrid_snaq.jl")
     include("addHybrid.jl")
     include("deleteHybrid.jl")
-    include("moves.jl")
+    include("moves_snaq.jl")
+    include("moves_semidirected.jl")
     include("readwrite.jl")
     include("readData.jl")
-    include("optimization.jl")
+    include("snaq_optimization.jl")
     include("pseudolik.jl")
     include("descriptive.jl")
     include("manipulateNet.jl")
@@ -174,5 +181,6 @@ module PhyloNetworks
     include("traitsLikDiscrete.jl")
     include("deprecated.jl")
     include("nj.jl")
+    include("phyLiNCoptimization.jl")
 
 end #module

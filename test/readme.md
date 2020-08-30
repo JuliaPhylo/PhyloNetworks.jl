@@ -58,7 +58,7 @@ test_orderings_plot.jl tests functions in manipulateNet.jl and plotsGadfly.jl
 - plot rotate!
 
 test_compareNetworks.jl tests:
- - deleteHybridEdge!
+ - deletehybridedge!
  - functions to extract displayed trees/subnetworks,
  - hardwiredClusterDistance (which uses functions above)
 

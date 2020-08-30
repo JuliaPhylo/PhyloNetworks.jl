@@ -89,8 +89,9 @@ end
 # warning: gammaz, inCycle, isBadTriangle/Diamond updated until the node is part of a network
 """
     Node(number, leaf)
+    Node(number, leaf, hybrid)
 
-Data structure for an edge and its various attributes. Most notably:
+Data structure for a node and its various attributes. Most notably:
 
 - `number` (integer): serves as unique identifier;
   remains unchanged when the network is modified,
@@ -98,7 +99,7 @@ Data structure for an edge and its various attributes. Most notably:
 - `leaf` (boolean): whether the node is a leaf (with data typically) or an
   internal node (no data typically)
 - `name` (string): taxon name for leaves; internal node may or may not have a name
-- `edge`: vector of [`Edge`]s that the node is attached to;
+- `edge`: vector of [`Edge`](@ref)s that the node is attached to;
   1 if the node is a leaf, 2 if the node is the root, 3 otherwise, and
   potentially more if the node has a polytomy
 - `hybrid` (boolean): whether the node is a hybrid node (with 2 or more parents)
@@ -147,7 +148,7 @@ mutable struct Node <: ANode
     k::Int # num nodes in cycle, only stored in hybrid node, updated after node becomes part of network
            # default -1
     typeHyb::Int8 # type of hybridization (1,2,3,4, or 5), needed for quartet network only. default -1
-    name::String
+    name::AbstractString
     # inner constructor: set hasHybEdge depending on edge
     Node() = new(-1,false,false,-1.,Edge[],false,false,false,false,false,false,-1,nothing,-1,-1,"")
     Node(number::Int, leaf::Bool) = new(number,leaf,false,-1.,[],false,false,false,false,false,false,-1.,nothing,-1,-1,"")
@@ -173,8 +174,8 @@ abstract type Network end
 Subtype of abstract `Network` type.
 Explicit network or tree with the following attributes:
 
-- numTaxa
-- numNodes (total number of nodes)
+- numTaxa (taxa are tips, i.e. nodes attached to a single edge)
+- numNodes (total number of nodes: tips and internal nodes)
 - numEdges
 - numHybrids (number of hybrid nodes)
 - edge (array of Edges)
@@ -182,7 +183,7 @@ Explicit network or tree with the following attributes:
 - root (index of root in vector 'node'. May be artificial, for printing and traversal purposes only.)
 - hybrid (array of Nodes: those are are hybrid nodes)
 - leaf (array of Nodes: those that are leaves)
-- loglik (negative log pseudolik after estimation)
+- loglik (score after fitting network to data, i.e. negative log pseudolik for SNaQ)
 - isRooted (true or false)
 """
 mutable struct HybridNetwork <: Network
@@ -219,17 +220,6 @@ mutable struct HybridNetwork <: Network
             if n.leaf   push!(leaf,  n); end
         end
         new(size(leaf,1),size(node,1),size(edge,1),node,edge,1,[],hybrid,size(hybrid,1), #numTaxa,...,numHybrids
-            [],[],[],[],leaf,[],[], #cladewiseorder,...,numht
-            0,false,[],0,[],[],false,false) #numBad...
-    end
-    function HybridNetwork(node::Array{Node,1},edge::Array{Edge,1},root::Int)
-        hybrid=Node[];
-        leaf=Node[];
-        for n in node
-            if n.hybrid push!(hybrid,n); end
-            if n.leaf   push!(leaf,  n); end
-        end
-        new(size(leaf,1),size(node,1),size(edge,1),node,edge,root,[],hybrid,size(hybrid,1), #numTaxa,...,numHybrids
             [],[],[],[],leaf,[],[], #cladewiseorder,...,numht
             0,false,[],0,[],[],false,false) #numBad...
     end
@@ -271,10 +261,6 @@ mutable struct QuartetNetwork <: Network
         net2 = deepcopy(net); #fixit: maybe we dont need deepcopy of all, maybe only arrays
         new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],[],-1,[], -1.,net2.names,Int8[-1,-1,-1,-1],Int8[-1,-1,-1],[0,0,0],[],true,[])
         #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],[],-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1],[],true,[])
-    end
-    function QuartetNetwork(net::HybridNetwork,quartet::Array{String,1})
-        net2 = deepcopy(net);
-        new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],quartet,-1,[],-1.,net2.names,Int8[-1,-1,-1,-1],Int8[-1,-1,-1],[0,0,0],[],true,[])
     end
     QuartetNetwork() = new(0,0,0,[],[],[],[],0,[],[],-1,[],-1.0,[],[],[],[],[],true,[])
 end

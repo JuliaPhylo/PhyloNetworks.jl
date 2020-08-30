@@ -8,7 +8,7 @@
 phy = readTopology(joinpath(@__DIR__, "..", "examples", "caudata_tree.txt"));
 
 V = sharedPathMatrix(phy);
-VR = CSV.read(joinpath(@__DIR__, "..", "examples", "caudata_shared_paths.txt"));
+VR = DataFrame!(CSV.File(joinpath(@__DIR__, "..", "examples", "caudata_shared_paths.txt")))
 VR = convert(Matrix, VR);
 
 # Tips
@@ -43,7 +43,7 @@ VR = convert(Matrix, VR);
 
 ## Export "caudata" dataset (from geiger)
 phy = readTopology(joinpath(@__DIR__, "..", "examples", "caudata_tree.txt"));
-dat = CSV.read(joinpath(@__DIR__, "..", "examples", "caudata_trait.txt"));
+dat = DataFrame!(CSV.File(joinpath(@__DIR__, "..", "examples", "caudata_trait.txt")));
 
 ## Fit a BM
 fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy)
@@ -79,7 +79,7 @@ tmp = predict(fitBM);
 
 ### Ancestral state reconstruction (with Rphylopars)
 anc = (@test_logs (:warn, r"^These prediction intervals show uncertainty in ancestral values") ancestralStateReconstruction(fitBM));
-ancR = CSV.read(joinpath(@__DIR__, "..", "examples", "caudata_Rphylopars.txt"))
+ancR = DataFrame!(CSV.File(joinpath(@__DIR__, "..", "examples", "caudata_Rphylopars.txt")))
 
 ## Expectations
 expe = expectations(anc)
@@ -105,7 +105,7 @@ nodesR = varsR[-expe[1:196, :nodeNumber] .+ 196]
 @test nodesR ≈ vars atol=1e-3 ## RK: Small tol !!
 
 ### Ancestral state reconstruction (with Phytools)
-ancRt = CSV.read(joinpath(@__DIR__, "..", "examples", "caudata_Phytools.txt"));
+ancRt = DataFrame!(CSV.File(joinpath(@__DIR__, "..", "examples", "caudata_Phytools.txt")));
 
 ## Expectations
 expe = expectations(anc)
@@ -291,11 +291,11 @@ tmp = predict(fitLambda);
 
 ## Export "caudata" dataset (from geiger)
 phy = readTopology(joinpath(@__DIR__, "..", "examples", "caudata_tree.txt"));
-dat = CSV.read(joinpath(@__DIR__, "..", "examples", "caudata_trait.txt"));
+dat = DataFrame!(CSV.File(joinpath(@__DIR__, "..", "examples", "caudata_trait.txt")));
 
 ## Add some shifts in the model
 df_shift = regressorShift(phy.edge[[98, 326, 287]], phy)
-dat = join(dat, df_shift, on=:tipNames)
+dat = innerjoin(dat, df_shift, on=:tipNames)
 ## Fit a BM
 fitBM = phyloNetworklm(@formula(trait ~ shift_98 + shift_326 + shift_287), dat, phy)
 
@@ -365,7 +365,7 @@ end
 
 ## Export "lizard" dataset (Mahler et al 2013)
 phy = readTopology(joinpath(@__DIR__, "..", "examples", "lizard_tree.txt"));
-dat = CSV.read(joinpath(@__DIR__, "..", "examples", "lizard_trait.txt"));
+dat = DataFrame!(CSV.File(joinpath(@__DIR__, "..", "examples", "lizard_trait.txt")));
 categorical!(dat, :region)
 
 ## Fit a BM

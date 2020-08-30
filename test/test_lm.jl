@@ -150,7 +150,7 @@ Y = sim[:Tips]
 
 ## Construct regression matrix
 dfr_shift = regressorShift(net.edge[[8,17]], net)
-dfr_shift[!,:sum] = vec(sum(Matrix(dfr_shift[:,findall(names(dfr_shift) .!= :tipNames)]), dims=2))
+dfr_shift[!,:sum] = vec(sum(Matrix(dfr_shift[:,findall(DataFrames.propertynames(dfr_shift) .!= :tipNames)]), dims=2))
 dfr_hybrid = regressorHybrid(net)
 
 @test dfr_shift[!,:shift_8] ≈ dfr_hybrid[!,:shift_8]
@@ -159,7 +159,7 @@ dfr_hybrid = regressorHybrid(net)
 
 ## Data
 dfr = DataFrame(trait = Y, tipNames = sim.M.tipNames)
-dfr = join(dfr, dfr_hybrid, on=:tipNames)
+dfr = innerjoin(dfr, dfr_hybrid, on=:tipNames)
 
 ## Simple BM
 fitShift = phyloNetworklm(@formula(trait ~ shift_8 + shift_17), dfr, net)
@@ -203,10 +203,10 @@ modhet = phyloNetworklm(@formula(trait ~ sum + shift_8), dfr, net)
 table1 = ftest(modhet, modhom, modnull)
 table2 = PhyloNetworks.anova(modnull, modhom, modhet)
 
-@test table1.fstat[1] ≈ table2[2,:F]
-@test table1.fstat[2] ≈ table2[1,:F]
-@test table1.pval[1].v ≈ table2[2,Symbol("Pr(>F)")]
-@test table1.pval[2].v ≈ table2[1,Symbol("Pr(>F)")]
+@test table1.fstat[2] ≈ table2[2,:F]
+@test table1.fstat[3] ≈ table2[1,:F]
+@test table1.pval[2] ≈ table2[2,Symbol("Pr(>F)")]
+@test table1.pval[3] ≈ table2[1,Symbol("Pr(>F)")]
 # ## Replace next 4 lines with previous ones when GLM.ftest available
 # @test table1[:F][2] ≈ table2[:F][2]
 # @test table1[:F][1] ≈ table2[:F][1]

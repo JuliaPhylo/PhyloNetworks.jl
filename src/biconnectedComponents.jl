@@ -122,9 +122,9 @@ Calculate the biconnected components (blobs) using function
   (a better name for the field would be something like "isBlobRoot".)
 - output:
   1. array of nodes that are the roots of each non-trivial blob,
-    and the network root. If the root of the full network is
-    not part of a non-trivial blob, a corresponding blob is
-    added to the list.
+     and the network root. If the root of the full network is
+     not part of a non-trivial blob, a corresponding blob is
+     added to the list.
   2. array of arrays: for each non-trivial blob,
      array of major hybrid edges in that blob.
   3. array of arrays: same as #2 but for minor hybrid edges,
