@@ -1662,15 +1662,17 @@ end
 
 # Function for lm with net residuals
 
-# The default model has type 'BM' (this choice is made in the internal call to 
-# another `phyloNetworklm` method). 
-# Should include a catch-all method for unimplemented subtypes of ContinuousTraitEM?
+# The default model has type 'BM'. Although this default value is also supplied
+# in the subsequent internal call to another `phyloNetworklm` method. We supply
+# it here so that phyloNetworklm(X::Matrix, Y::Vector, net::HybridNetwork) is
+# a valid method call, in accordance with the current top-level API of
+# phyloNetworklm.
 # Make `model` a positional (as opposed to keyword) argument so that we can 
 # dispatch on the type of `model`. 
 function phyloNetworklm(X::Matrix,
                         Y::Vector,
                         net::HybridNetwork,
-                        model::ContinuousTraitEM;
+                        model::ContinuousTraitEM=BM();
                         nonmissing=trues(length(Y))::BitArray{1},
                         ind=[0]::Vector{Int},
                         startingValue=0.5::Real,
@@ -2150,7 +2152,7 @@ julia> round.(predict(fitBM), digits=5)
 function phyloNetworklm(f::StatsModels.FormulaTerm,
                         fr::AbstractDataFrame,
                         net::HybridNetwork;
-                        model=BM()::ContinuousTraitEM,
+                        model="BM"::AbstractString,
                         no_names=false::Bool,
                         ftolRel=fRelTr::AbstractFloat,
                         xtolRel=xRelTr::AbstractFloat,
@@ -2198,8 +2200,17 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
     Y = StatsModels.response(mf)
     # Y = convert(Vector{Float64}, StatsModels.response(mf))
     # Y, pred = StatsModels.modelcols(f, fr)
+    if model == "BM"
+        modelobj = BM() # model object (as opposed to model string)
+    elseif model == "lambda"
+        modelobj = PLambda()
+    elseif model == "scalingHybrid"
+        modelobj = ScalingHybrid()
+    else
+        error("phyloNetworklm is not defined for model::$(typeof(model)).")
+    end
     StatsModels.TableRegressionModel(
-        phyloNetworklm(mm.m, Y, net, model; nonmissing=nonmissing, ind=ind,
+        phyloNetworklm(mm.m, Y, net, modelobj; nonmissing=nonmissing, ind=ind,
                        startingValue=startingValue, fixedValue=fixedValue),
         mf, mm)
 end
