@@ -1739,9 +1739,9 @@ function phyloNetworklm(X::Matrix,
     R = cholesky(Vy)
     RL = R.L
     # Fit 
-    m = PhyloNetworkLinearModel(lm(RL\X, RL\Y), V, Vy, RL, Y, X, 
-                                LinearAlgebra.logdet(Vy), ind, nonmissing, 
-                                model)
+    m = PhyloNetworkLinearModel{typeof(model)}(lm(RL\X, RL\Y), V, Vy, RL, Y, X, 
+                                               LinearAlgebra.logdet(Vy), ind, 
+                                               nonmissing, model)
     # Update lambda
     lambda!(m, lambda)
     return m
