@@ -1560,6 +1560,19 @@ end
 
 ###############################################################################
 ###############################################################################
+## Types for Measurement Error Models
+###############################################################################
+###############################################################################
+
+# WithinSpeciesCTM stands for WithinSpeciesContinuousTraitModel
+# Make WithinSpeciesCTM 'mutable struct' since concrete instances of
+# 'ContinuousUnivariateDistribution' are immutable.
+mutable struct WithinSpeciesCTM
+    error_distr::Distributions.ContinuousUnivariateDistribution
+end
+
+###############################################################################
+###############################################################################
 ## Types for Continuous Trait Evolution Models
 ###############################################################################
 ###############################################################################
@@ -1578,18 +1591,25 @@ abstract type ContinuousTraitEM end
 # additions include OU (i.e. Ornstein-Uhlenbeck).
 mutable struct BM <: ContinuousTraitEM
     lambda::Float64
+    model_within::Union{Nothing, WithinSpeciesCTM}
 end
-# Outer constructor method provides a default value for 'lambda'
+# Outer constructor methods provides default values for 'lambda' and
+# 'model_within'
+BM(lambda::Float64) = BM(lambda, nothing)
 BM() = BM(1.0)
 
 mutable struct PLambda <: ContinuousTraitEM
     lambda::Float64
+    model_within::Union{Nothing, WithinSpeciesCTM}
 end
+PLambda(lambda::Float64) = PLambda(lambda, nothing)
 PLambda() = PLambda(1.0)
 
 mutable struct ScalingHybrid <: ContinuousTraitEM
     lambda::Float64
+    model_within::Union{Nothing, WithinSpeciesCTM}
 end
+ScalingHybrid(lambda::Float64) = ScalingHybrid(lambda, nothing)
 ScalingHybrid() = ScalingHybrid(1.0)
 
 ###############################################################################
@@ -1649,8 +1669,6 @@ mutable struct PhyloNetworkLinearModel{T<:ContinuousTraitEM} <: GLM.LinPredModel
     nonmissing::BitArray{1}
     "model: the model used for the fit"
     model::T
-    #"If applicable, value of lambda (default to 1)."
-    #lambda::T
 end
 
 # Remove this constructor method since `model` objects now already have to be 
