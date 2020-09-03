@@ -907,7 +907,7 @@ hybrid edge.
 
 Note: The edge not modified in place: it is deleted and recreated, so it will have
 a new index in the vector net.hybrid after flipping.
-#? Would modifying in place be faster? Likely would require less renumbering in `fliphybrid_LiNC!`
+#? Would modifying in place be faster? Likely would require less renumbering in `fliphybridedgeLiNC!`
 
 Output: `true` if successful, `false` otherwise.
 
@@ -923,7 +923,7 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     newE1 = getChildEdge(hybridnode)
     edgetoflip = (minor ? getMinorParentEdge(hybridnode) : getMajorParentEdge(hybridnode))
     !edgetoflip.containRoot && return false # if edgetoflip is below a hybrid node, can't flip
-    newE2 = net.edge[1] # placeholder #todo find a better way to do this
+    newE2 = net.edge[1] # placeholder # todo find a better way to do this
     parentnode = getParent(edgetoflip)
     for e in parentnode.edge
         if e != edgetoflip && parentnode == getParent(e)
@@ -932,7 +932,8 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     end
     edgetoflipgamma = edgetoflip.gamma
     edgetofliplength = edgetoflip.length
-    # This works, but modifying in place would likely be more efficient and cleaner (if longer) #todo
+    # This works, but modifying the edges and nodes in place would likely be
+    # more efficient and cleaner (if longer) # todo
     deletehybridedge!(net, edgetoflip)
     addhybridedge!(net, newE1, newE2, true, edgetofliplength, edgetoflipgamma)
     try # check that network can still be directed from current root

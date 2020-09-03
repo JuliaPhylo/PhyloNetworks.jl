@@ -495,8 +495,14 @@ net_hybridladder = readTopology("(#H2:::0.2,((C,((B)#H1)#H2:::0.8),(#H1,(A1,A2))
 net_hybridladder = readTopology("(#H2:::0.2,((C,((B)#H1)#H2:::0.8),(#H1,(A1,A2))),O);");
 # fails because this edge is below a hybrid node
 @test !PhyloNetworks.fliphybrid!(net_hybridladder, net_hybridladder.hybrid[1], false)
-@test net_hybridladder.hybrid[1].number == 4 #unchanged
+@test net_hybridladder.hybrid[1].number == 4 # unchanged
 
-# todo test with W structure network
+# test with W structure network
+net_W = readTopology("(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.151::0.4):0.0274):0.4812);")
+@test net_W.hybrid[1].number == 3
+@test PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[1]) # flips minor by default
+@test net_W.hybrid[1].number == 9 #TODO update this after editing how hybrid flip works
+
 # todo test with case where root must be moved
+
 end
