@@ -917,29 +917,58 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
                      constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     for con in constraints
         if con.node === h # if crown node is the hybrid node, then flipping would add to the constraint group
-            return false    #todo explore other ways this could violate species constraints
+            return false # todo explore other ways this could violate species constraints
         end
     end
-    newE1 = getChildEdge(hybridnode)
-    edgetoflip = (minor ? getMinorParentEdge(hybridnode) : getMajorParentEdge(hybridnode))
+    edgetoflip, edgetokeep = (PhyloNetworks.getMinorParentEdge(hybridnode), PhyloNetworks.getMajorParentEdge(hybridnode))
+    if !minor (edgetoflip, edgetokeep) = (edgetokeep, edgetoflip); end;
     !edgetoflip.containRoot && return false # if edgetoflip is below a hybrid node, can't flip
-    newE2 = net.edge[1] # placeholder # todo find a better way to do this
-    parentnode = getParent(edgetoflip)
-    for e in parentnode.edge
-        if e != edgetoflip && parentnode == getParent(e)
-            newE2 = e
+    newhybridnode = PhyloNetworks.getParent(edgetoflip)
+    # if root, need to move root. Move root to old hybridnode
+    if newhybridnode === net.node[net.root]
+        # if newhybridnode has no parents, need to pick one of the children.
+        # pick one of the children to become the new root and the parent of the new hybrid
+        net.root = 0 # get index for hybridnode TODO
+        # make all changes first then test
+        # loop until you run out of children. if none work, return false
+        try # use directEdges as a way to test new edges
+            directEdges!(net) # only change isChild1 attribute
+        catch
+            # change root then rerun direct edges
         end
     end
-    edgetoflipgamma = edgetoflip.gamma
-    edgetofliplength = edgetoflip.length
-    # This works, but modifying the edges and nodes in place would likely be
-    # more efficient and cleaner (if longer) # todo
-    deletehybridedge!(net, edgetoflip)
-    addhybridedge!(net, newE1, newE2, true, edgetofliplength, edgetoflipgamma)
+    newhybridedge = getMajorParentEdge(newhybridnode)
+    println("edgetoflip is $edgetoflip, edgetokeep is $edgetokeep, newhybridedge is $newhybridedge")
+    # change hybrid status and major status for nodes and edges
+    hybridnode.hybrid = false
+    edgetokeep.hybrid = false
+    newhybridnode.hybrid = true
+    newhybridedge.hybrid = true
+    newhybridedge.isMajor = true # these shouldnt need to be updated
+    edgetoflip.isMajor = false
+    edgetokeep.isMajor = true
+    # update node order to keep isChild1 attribute of hybrid edges true
+    edgetoflip.isChild1 = !edgetoflip.isChild1 # just switch
+    newhybridedge.isChild1 = true # should to true by default, but could have been changed
+    if newhybridedge.node[1].number != newhybridnode.number
+        newhybridedge.isChild1 = false
+    end
+    # update gammas
+    newhybridedge.gamma = edgetokeep.gamma
+    edgetokeep.gamma = 1
+    println("Major hybrid parent is $(PhyloNetworks.getMajorParentEdge(newhybridnode))
+    Minor hybrid parent is $(PhyloNetworks.getMinorParentEdge(newhybridnode))")
+    # update hybrids in network
+    hybridindex = findfirst([node.number == hybridnode.number for node in net.hybrid])
+    net.hybrid[hybridindex] = newhybridnode
+    #TODO missing an update here
     try # check that network can still be directed from current root
         directEdges!(net)
     catch # if current root doesn't work, root at new parent of edgetoflip
-        net.root = hybridnode # root at old hybridnode
+        @debug "Rerooting at old hybrid node number $(hybridnode.number)"
+        #? will this ever happen? # todo confirm
+        printEdges(net)
+        net.root = hybridnode.number # root at old hybridnode
         directEdges!(net) # Because edgetoflip.containRoot is true, this shouldn't error
     end
     return true

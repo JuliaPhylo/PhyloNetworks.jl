@@ -1437,12 +1437,12 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
     # if γ=0 then dblike starts as all -Inf because P(tree) = 0 -> problem
     # this problem is caught earlier: cfg would have been missing.
     hase   = lcache.hase
-    Prt    = lcache.Prt
-    rQP    = lcache.rQP
-    glik   = lcache.glik   # glik = d(ulik)/dt
+    Prt    = lcache.Prt # 4x4 transition matrix = exp(rtQ). modified in place during lik calc
+    rQP    = lcache.rQP # 4x4 matrix. derivative of Prt wrt T
+    glik   = lcache.glik   # glik = d(ulik)/dt (gradient of likelihood of a given site). length = # sites
     tree   = obj.displayedtree
     k, ns, nr, nt = size(flike)
-    nt = length(tree) # could be less than dimension in lcache
+    nt = length(tree) # could be less than dimension in lcache (if network isn't tree-child)
     rates = obj.ratemodel.ratemultiplier
     ulik  = obj._sitecache   # will hold P(site): depends on length of e
     clik  = obj._loglikcache # P(site & rate, tree) using old length of e
