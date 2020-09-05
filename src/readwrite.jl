@@ -1502,10 +1502,10 @@ HybridNetwork, Rooted Network
 7 edges
 7 nodes: 3 tips, 1 hybrid nodes, 3 internal tree nodes.
 tip labels: a, b, c
-((a:1.0,(b:1.0)#H1:1.0::0.8):5.0,(#H1:0.0::0.2,c:1.0):1.0);
+((a:1.0,(b:1.0)#H1:1.0::0.8)I1:5.0,(#H1:0.0::0.2,c:1.0)I2:1.0)I3;
 
-julia> writeTopology(net) # by default, writeTopology shows internal names if they exist
-"((a:1.0,(b:1.0)#H1:1.0::0.8)I1:5.0,(#H1:0.0::0.2,c:1.0)I2:1.0)I3;"
+julia> writeTopology(net; internallabel=false) # by default, writeTopology shows internal names if they exist
+"((a:1.0,(b:1.0)#H1:1.0::0.8):5.0,(#H1:0.0::0.2,c:1.0):1.0);"
 
 julia> net = readTopology("((int5:1,(b:1)#H1:1::0.8):5,(#H1:0::0.2,c:1):1);"); # one taxon name starts with "int"
 
@@ -1522,7 +1522,7 @@ function nameinternalnodes!(net::HybridNetwork, prefix)
   for node in net.node
     node.name != "" || continue # skip nodes with empty names
     m = match(rx, node.name)
-    m != nothing || continue
+    m !== nothing || continue
     nexti = max(nexti, parse(Int, m.captures[1])+1)
   end
   # assign names like: prefixI for I = nexti, nexti+1, etc.

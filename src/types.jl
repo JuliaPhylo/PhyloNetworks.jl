@@ -233,43 +233,69 @@ end
     QuartetNetwork(net::HybridNetwork)
 
 Subtype of `Network` abstract type.
-A `QuartetNetwork` object is an internal type used to calculate the expected CFs of quartets on a given network. Attributes of the `QuartetNetwork` objects need not be updated at a given time (see below).
+A `QuartetNetwork` object is an internal type used to calculate the
+expected CFs of quartets on a given network.
+Attributes of the `QuartetNetwork` objects need not be updated at a given time (see below).
 
 The procedure to calculate expected CFs for a given network is as follows:
-1. A `QuartetNetwork` object is created for each `Quartet` using `extractQuartet!(net,d)` for `net::HybridNetwork` and `d::DataCF`
-2. The vector `d.quartet` has all the `Quartet` objects, each with a `QuartetNetwork` object (`q.qnet`). Attibutes in `QuartetNetwork` are not updated at this point
-3. Attributes in `QuartetNetwork` are partially updated when calculating the expected CF (`calculateExpCFAll!`). To calculate the expected CF for this quartet, we need to update the attributes: `which, typeHyb, t1, split, formula, expCF`, and to do this, we need to modify the `QuartetNetwork` object (i.e. merge edges,...). But we do not want to modify it directly because it is connected to the original `net::HybridNetworks` via a map of the edges and nodes, so we use a deep copy: `qnet=deepcopy(q.qnet)` and then `calculateExpCFAll!(qnet)`. Attributes that are updated on the original `QuartetNetwork` object `q.qnet` are:
+1. A `QuartetNetwork` object is created for each `Quartet` using
+   `extractQuartet!(net,d)` for `net::HybridNetwork` and `d::DataCF`
+2. The vector `d.quartet` has all the `Quartet` objects, each with a `QuartetNetwork`
+   object (`q.qnet`). Attibutes in `QuartetNetwork` are not updated at this point
+3. Attributes in `QuartetNetwork` are partially updated when calculating the
+   expected CF (`calculateExpCFAll!`). To calculate the expected CF for this quartet,
+   we need to update the attributes: `which`, `typeHyb`, `t1`, `split`, `formula`, `expCF`.
+   To do this, we need to modify the `QuartetNetwork` object (i.e. merge edges,...).
+   But we do not want to modify it directly because it is connected to the original
+   `net` via a map of the edges and nodes, so we use a deep copy:
+   `qnet=deepcopy(q.qnet)` and then `calculateExpCFAll!(qnet)`.
+   Attributes that are updated on the original `QuartetNetwork` object `q.qnet` are:
     - `q.qnet.hasEdge`: array of booleans of length equal to `net.edge` that shows which identifiable edges and gammas of `net` (`net.ht`) are in `qnet` (and still identifiable). Note that the first elements of the vector correspond to the gammas.
     - `q.qnet.index`: length should match the number of trues in `qnet.hasEdge`. It has the indexes in `qnet.edge` from the edges in `qnet.hasEdge`. Note that the first elements of the vector correspond to the gammas.
     - `q.qnet.edge`: list of edges in `QuartetNetwork`. Note that external edges in `net` are collapsed when they appear in `QuartetNetwork`, so only internal edges map directly to edges in `net`
     - `q.qnet.expCF`: expected CF for this `Quartet`
 
 
-Why not modify the original `QuartetNetwork`? We wanted to keep the original `QuartetNetwork` stored in `DataCF` with all the identifiable edges to be able to determine if this object had been changed or not after a certain optimization.
+Why not modify the original `QuartetNetwork`? We wanted to keep the original
+`QuartetNetwork` stored in `DataCF` with all the identifiable edges, to be able
+to determine if this object had been changed or not after a certain optimization.
 
 The process is:
 
-1. Deep copy of full network is done to create `q.qnet` for `Quartet q`. This `QuartetNetwork` object has only 4 leaves now, but does not have merged edges (the identifiable ones) so that we can correspond to the edges in net. This `QuartetNetwork` does not have other attributes updated.
-2. For the current set of branch lengths and gammas, we can update the attributes in q.qnet to compute the expected CF. The functions that do this will "destroy" the `QuartetNetwork` object by merging edges, removing nodes, etc... So, we do this process in `qnet=deepcopy(q.qnet)`, and at the end, only update `q.qnet.expCF`.
-3. After we optimize branch lengths in the full network, we want to update the branch lengths in `q.qnet`. The edges need to be there (which is why we do not want to modify this `QuartetNetwork` object by merging edges), and we do not do a deep-copy of the full network again. We only change the values of branch lengths and gammas in `q.qnet`, and we can re-calculate the expCF by creating a deep copy `qnet=deepcopy(q.qnet)` and run the other functions (which merge edges, etc) to get the expCF.
+1. Deep copy of full network to create `q.qnet` for `Quartet q`.
+   This `QuartetNetwork` object has only 4 leaves now, but does not have merged edges
+   (the identifiable ones) so that we can correspond to the edges in net.
+   This `QuartetNetwork` does not have other attributes updated.
+2. For the current set of branch lengths and gammas, we can update the attributes
+   in `q.qnet` to compute the expected CF. The functions that do this will "destroy"
+   the `QuartetNetwork` object by merging edges, removing nodes, etc... So, we do
+   this process in `qnet=deepcopy(q.qnet)`, and at the end, only update `q.qnet.expCF`.
+3. After we optimize branch lengths in the full network, we want to update the
+   branch lengths in `q.qnet`. The edges need to be there (which is why we do
+   not want to modify this `QuartetNetwork` object by merging edges), and
+   we do not do a deep-copy of the full network again. We only change the values
+   of branch lengths and gammas in `q.qnet`, and we can re-calculate the expCF
+   by creating a deep copy `qnet=deepcopy(q.qnet)` and run the other functions
+   (which merge edges, etc) to get the `expCF`.
 
-Future work: there are definitely more efficient ways to do this (without the deep copies). In addition, currently edges that are no longer identifiable in `QuartetNetwork` do not appear in `hasEdge` nor `index`. Need to study this.
-
+Future work: there are definitely more efficient ways to do this (without the deep copies).
+In addition, currently edges that are no longer identifiable in `QuartetNetwork`
+do not appear in `hasEdge` nor `index`. Need to study this.
 
 ```jldoctest
-julia> net0 = readTopology("(s17:13.765659574468085,(((s3:10.980829787234043,(s4:8.98882978723404,s5:8.98882978723404)I1:1.992)I2:0.471,(((s6:2.307829787234041,s7:2.307829787234041)I3:4.026,(s8:4.974829787234041,#H24:0.0::0.279)I4:1.3589999999999995)I5:3.6390000000000002,((s9:8.28982978723404,((s10:2.3768297872340414,s11:2.3768297872340414)I6:3.018,(s12:2.6768297872340416,s13:2.6768297872340416)I7:2.718)I8:2.895)I9:0.21000000000000002,((s14:2.8328297872340418,(s15:1.0568297872340429,s16:1.0568297872340429)I10:1.7759999999999998)I11:2.142)#H24:3.5250000000000004::0.721)I12:1.4729999999999999)I13:1.479)I14:1.257,(((s18:5.46082978723404,s19:5.46082978723404)I15:0.5880000000000001,(s20:4.725829787234041,(s21:2.4008297872340414,s22:2.4008297872340414)I16:2.325)I17:1.323)I18:2.682,(s23:8.56582978723404,(s1:4.641829787234041,s2:4.641829787234041)I19:3.9240000000000004)I20:0.165)I21:3.978)I22:1.0568297872340426);");
+julia> net0 = readTopology("(s17:13.76,(((s3:10.98,(s4:8.99,s5:8.99)I1:1.99)I2:0.47,(((s6:2.31,s7:2.31)I3:4.02,(s8:4.97,#H24:0.0::0.279)I4:1.36)I5:3.64,((s9:8.29,((s10:2.37,s11:2.37)I6:3.02,(s12:2.67,s13:2.67)I7:2.72)I8:2.89)I9:0.21,((s14:2.83,(s15:1.06,s16:1.06)I10:1.78)I11:2.14)#H24:3.52::0.72)I12:1.47)I13:1.48)I14:1.26,(((s18:5.46,s19:5.46)I15:0.59,(s20:4.72,(s21:2.40,s22:2.40)I16:2.32)I17:1.32)I18:2.68,(s23:8.56,(s1:4.64,s2:4.64)I19:3.92)I20:0.16)I21:3.98)I22:1.05);");
 
 julia> net = readTopologyLevel1(writeTopology(net0)) ## need level1 attributes for functions below
 HybridNetwork, Un-rooted Network
 46 edges
 46 nodes: 23 tips, 1 hybrid nodes, 22 internal tree nodes.
 tip labels: s17, s3, s4, s5, ...
-(s4:8.989,s5:8.989,(s3:10.0,((((s6:2.308,s7:2.308)I3:4.026,(s8:4.975,#H24:0.0::0.279)I4:1.359)I5:3.639,((s9:8.29,((s10:2.377,s11:2.377)I6:3.018,(s12:2.677,s13:2.677)I7:2.718)I8:2.895)I9:0.21,((s14:2.833,(s15:1.057,s16:1.057)I10:1.776)I11:2.142)#H24:3.525::0.721)I12:1.473)I13:1.479,((((s18:5.461,s19:5.461)I15:0.588,(s20:4.726,(s21:2.401,s22:2.401)I16:2.325)I17:1.323)I18:2.682,(s23:8.566,(s1:4.642,s2:4.642)I19:3.924)I20:0.165)I21:3.978,s17:10.0)I22:1.257)I14:0.471)I2:1.992)I1;
+(s4:8.99,s5:8.99,(s3:10.0,((((s6:2.31,s7:2.31)I3:4.02,(s8:4.97,#H24:0.0::0.279)I4:1.36)I5:3.64,((s9:8.29,((s10:2.37,s11:2.37)I6:3.02,(s12:2.67,s13:2.67)I7:2.72)I8:2.89)I9:0.21,((s14:2.83,(s15:1.06,s16:1.06)I10:1.78)I11:2.14)#H24:3.52::0.721)I12:1.47)I13:1.48,((((s18:5.46,s19:5.46)I15:0.59,(s20:4.72,(s21:2.4,s22:2.4)I16:2.32)I17:1.32)I18:2.68,(s23:8.56,(s1:4.64,s2:4.64)I19:3.92)I20:0.16)I21:3.98,s17:10.0)I22:1.26)I14:0.47)I2:1.99)I1;
 
-julia> q1 = Quartet(1,["s1", "s16", "s18", "s23"],[0.29605,0.305921,0.398026])
+julia> q1 = Quartet(1,["s1", "s16", "s18", "s23"],[0.296,0.306,0.398])
 number: 1
 taxon names: ["s1", "s16", "s18", "s23"]
-observed CF: [0.29605, 0.305921, 0.398026]
+observed CF: [0.296, 0.306, 0.398]
 pseudo-deviance under last used network: 0.0 (meaningless before estimation)
 expected CF under last used network: Float64[] (meaningless before estimation)
 
