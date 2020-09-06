@@ -69,15 +69,10 @@ bootnet = bootsnaq(T,boottrees,nrep=2,runs=2,otherNet=net1,seed=1234,
 redirect_stdout(originalstdout)
 rmprocs(workers())
 @test size(bootnet)==(2,)
-@test writeTopology(bootnet[1], round=true, digits=1) == "((((2,(1)#H7:::0.6):8.7,4):0.3,(6,#H7:::0.4):0.6):0.0,3,5);"
+@test writeTopology(bootnet[1], round=true, digits=1) == "((((2,(1)#H7:::0.7):9.8,4):0.3,(6,#H7:::0.3):0.2):0.0,3,5);"
 #  but random generator changed between julia 0.6 and julia 0.7
-# "((((2,(1)#H7:::0.597):10.0,4):0.407,(6,#H7:::0.403):0.307):0.0,3,5);"
-# "((5,((2,(1)#H7:::0.629):2.374,4):0.487):0.0,(6,#H7:::0.371):1.409,3);"
-# "((((2,(1)#H7:::0.678):1.774,4):0.235,3):0.899,5,(6,#H7:::0.322):10.0);"
-@test writeTopology(bootnet[2], round=true, digits=1) == "(5,(((2,(1)#H7:::0.8):0.5,3):0.2,4):0.2,(6,#H7:::0.2):10.0);"
-# "(5,(((2,(1)#H7:::0.751):1.559,4):0.373,3):0.688,(6,#H7:::0.249):10.0);"
-# "(((5,(6,#H7:::0.249):10.0):0.688,3):0.373,(2,(1)#H7:::0.751):1.559,4);"
-
+#  and then again between julia 1.4 and 1.5
+@test writeTopology(bootnet[2], round=true, digits=1) == "(5,(((2,(1)#H7:::0.7):9.1,4):0.9,3):0.2,(6,#H7:::0.3):2.6);"
 filelist = joinpath(exdir, "treefilelist.txt")
 boottrees = readBootstrapTrees(filelist)
 @test length(boottrees) == 2

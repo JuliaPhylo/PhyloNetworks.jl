@@ -216,7 +216,7 @@ PhyloNetworks.unzip_canonical!(obj.net)
 PhyloNetworks.discrete_corelikelihood!(obj)
 @test obj.loglik ≈ -29.7762035
 maxmoves = 2
-Random.seed!(92)
+Random.seed!(96)
 γcache = PhyloNetworks.CacheGammaLiNC(obj)
 lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-6,1e-6,1e-2,1e-3, 5)
 PhyloNetworks.optimizestructure!(obj, maxmoves, 1, true, true, 0,100,
@@ -257,7 +257,7 @@ end
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
 obj = @test_nowarn PhyloNetworks.phyLiNC(net, fastasimple, :JC69, :G, 2; maxhybrid=2, # no missing BLs, so they're not re-estimated
                     no3cycle=true, nohybridladder=true, maxmoves=2,
-                    nreject=1, nruns=1, filename="", verbose=false, seed=105)
+                    nreject=1, nruns=1, filename="", verbose=false, seed=108)
 @test obj.loglik > -27.27
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
 obj = @test_nowarn PhyloNetworks.phyLiNC(net, fastasimple, :HKY85; maxhybrid=2,
@@ -322,7 +322,7 @@ lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-2,1e-2,1e-2,1e-2, 5)
 
 obj = PhyloNetworks.phyLiNC(net_level1_s, # missing BLs, so BLs are re-estimated before starting
             fastaindiv, :JC69, :Inv; maxhybrid=2, no3cycle=true, nohybridladder=true,
-            verbose=false, filename="", speciesfile=mappingfile, seed=106, nruns=1,
+            verbose=false, filename="", speciesfile=mappingfile, seed=138, nruns=1,
             maxmoves=10, nreject=2)
 @test obj.loglik > -67.7 # -69.83824 with :noRV
 @test obj.ratemodel.pinv[1] > 0.22 # 0.23753

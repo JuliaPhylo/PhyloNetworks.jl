@@ -97,7 +97,7 @@ nodesJulia = expe[1:196, :condExpectation]
 @test isapprox(nodesR, nodesJulia)
 
 ## Variances
-vars = LinearAlgebra.diag(anc.variances_nodes)
+vars = diag(anc.variances_nodes)
 # Rphylopars
 varsR = ancR[!,:var]
 # Matching nodes ?
@@ -119,7 +119,7 @@ nodesJulia = expe[1:196, :condExpectation]
 @test isapprox(nodesRt, nodesJulia)
 
 ## Variances
-vars = LinearAlgebra.diag(anc.variances_nodes)
+vars = diag(anc.variances_nodes)
 # Rphylopars
 varsRt = ancRt[!,:var]
 # Matching nodes ?
@@ -232,7 +232,7 @@ tmp = predict(fitLambda);
 #@show tmp[1:6], tmp[190:end] # all 4.66893 except for last 5: 8.42676, 8.44585, etc.
 #println("are they all 4.66893?")
 # next: looks random. sometimes passes, most times fails
-@test predict(fitLambda) ≈ [4.66893 for i in 1:197] atol=1e-5 norm=x->LinearAlgebra.norm(x,Inf)
+@test predict(fitLambda) ≈ [4.66893 for i in 1:197] atol=1e-5 norm=x->norm(x,Inf)
 
 ### R script to get the above values:
 # library(geiger)
@@ -395,7 +395,7 @@ vcovR =  [0.0200086273  -0.0136717540 0.0084815090  -0.0093192029 -0.0114417825 
 @test dof_residual(fitBM) ≈ 91.0 atol=1e-10
 @test sigma2_estim(fitBM) ≈ 0.0003025014 atol=1e-10
 @test stderror(fitBM) ≈ [0.1414518551,0.1361605540,0.1321542330,0.1295968341,0.2214683008,0.1820427154,0.0672106202,0.0965879311,0.0864973651] atol=1e-10
-@test confint(fitBM)[:,1] ≈ [2.5115945339,-0.4715366529,0.7207474097,-0.3595508202,-0.8102854443,-0.2058583178,-0.0960507369,-0.0112932922,-0.2213931131] atol=1e-10 norm=x->LinearAlgebra.norm(x,Inf)
+@test confint(fitBM)[:,1] ≈ [2.5115945339,-0.4715366529,0.7207474097,-0.3595508202,-0.8102854443,-0.2058583178,-0.0960507369,-0.0112932922,-0.2213931131] atol=1e-10 norm=x->norm(x,Inf)
 @test confint(fitBM)[:,2] ≈ [3.0735480006,0.0693957746,1.2457637082,0.1553055609,0.0695537019,0.5173526640,0.1709605441,0.3724268272,0.1222396666] atol=1e-10
 # @test_approx_eq_eps predict(fitBM)[fitbis.model.ind] predict(fitbis)
 # @test_approx_eq_eps deviance(fitBM)  deviance(fitbis)

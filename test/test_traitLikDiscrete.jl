@@ -104,15 +104,15 @@ Random.seed!(12345);
 @test randomTrait(m2, 0.05, [1,3,4,2,1]) == [1,3,4,2,1]
 # on a network
 net = readTopology("(A:1.0,(B:1.0,(C:1.0,D:1.0):1.0):1.0);")
-Random.seed!(12345);
+Random.seed!(21);
 a,b = randomTrait(m1, net)
 @test a == [1 2 1 1 1 1 2]
 @test b == ["-2", "-3", "-4", "D", "C", "B", "A"]
 if runall
     for e in net.edge e.length = 10.0; end
     @time a,b = randomTrait(m1, net; ntraits=100000) # ~ 0.014 seconds
-    mean(a[:,1]) # expect 1.5 at root
-    mean(a[:,2]) # expect 1.333 at other nodes
+    sum(a[:,1])/100000 # expect 1.5 at root
+    sum(a[:,2])/100000 # expect 1.333 at other nodes
     @time a,b = randomTrait(m2, net; ntraits=100000) # ~ 0.02 seconds
     length([x for x in a[:,1] if x==4])/length(a[:,1]) # expect 0.25
     length([x for x in a[:,2] if x==4])/length(a[:,2])
@@ -124,11 +124,11 @@ if runall
 end
 
 net2 = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0):1.0):3.0,D:5.0);")
-Random.seed!(12345);
+Random.seed!(496);
 a,b = randomTrait(m1, net2; keepInternal=false)
 @test a == [1  1  1  2]
 @test b == ["D", "C", "B", "A"]
-Random.seed!(12345);
+Random.seed!(496);
 a,b = randomTrait(m1, net2; keepInternal=true)
 @test a == [1  2  1  1  1  1  1  1  1]
 @test b == ["-2", "D", "-3", "-6", "C", "-4", "H1", "B", "A"]
@@ -152,7 +152,7 @@ if runall
     a,b = randomTrait(m1, net2; ntraits=100000);
     a[:, 1] == a[:, 2]  # true: root = leaf D, as expected
     a[:, 1] == a[:, 5]  # true: root = leaf C
-    mean(a[:, 6]) # expected 1.3333
+    sum(a[:, 6])/100000 # expected 1.3333
     a[:, 6] == a[:, 9] # true: major hybrid parent node = leaf A
 end
 

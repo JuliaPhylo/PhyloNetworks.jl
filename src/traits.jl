@@ -349,7 +349,7 @@ function vcv(net::HybridNetwork;
     @assert (model == "BM") "The 'vcv' function only works for a BM process (for now)."
     V = sharedPathMatrix(net; checkPreorder=checkPreorder)
     C = V[:Tips]
-    corr && StatsBase.cov2cor!(C, sqrt.(LinearAlgebra.diag(C)))
+    corr && StatsBase.cov2cor!(C, sqrt.(diag(C)))
     Cd = convert(DataFrame, C)
     rename!(Cd, map(Symbol, V.tipNames))
     return(Cd)
@@ -456,7 +456,7 @@ end
 
 function initDescendenceMatrix(nodes::Vector{Node}, params)
     n = length(nodes)
-    return(Matrix{Float64}(LinearAlgebra.I, n, n)) # identity matrix
+    return(Matrix{Float64}(I, n, n)) # identity matrix
 end
 
 ###############################################################################
@@ -1681,7 +1681,7 @@ function phyloNetworklm_BM(X::Matrix,
     R = cholesky(Vy)
     RL = R.L
     # Fit
-    PhyloNetworkLinearModel(lm(RL\X, RL\Y), V, Vy, RL, Y, X, LinearAlgebra.logdet(Vy), ind, nonmissing, model, lambda)
+    PhyloNetworkLinearModel(lm(RL\X, RL\Y), V, Vy, RL, Y, X, logdet(Vy), ind, nonmissing, model, lambda)
 end
 
 ###############################################################################
@@ -1749,7 +1749,7 @@ function getHeights(net::HybridNetwork)
     setGammas!(net, ones(net.numNodes))
     V = sharedPathMatrix(net)
     setGammas!(net, gammas)
-    return(LinearAlgebra.diag(V[:All]))
+    return(diag(V[:All]))
 end
 
 function maxLambda(times::Vector, V::MatrixTopologicalOrder)
@@ -2435,7 +2435,7 @@ function expectationsPlot(obj::ReconstructedStates; markMissing="*"::AbstractStr
     return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], PredInt = expetxt)
 end
 
-StatsBase.stderror(obj::ReconstructedStates) = sqrt.(LinearAlgebra.diag(obj.variances_nodes))
+StatsBase.stderror(obj::ReconstructedStates) = sqrt.(diag(obj.variances_nodes))
 
 """
     predint(obj::ReconstructedStates; level=0.95::Real)

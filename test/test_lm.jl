@@ -52,7 +52,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test sigma2_estim(phynetlm) ≈ sigma2hat
 @test loglikelihood(phynetlm) ≈ loglik
 @test vcov(phynetlm) ≈ sigma2hat*ntaxa/(ntaxa-length(betahat))*inv(XtVyinv * X)
-@test stderror(phynetlm) ≈ sqrt.(LinearAlgebra.diag(sigma2hat*ntaxa/(ntaxa-length(betahat))*inv(XtVyinv * X)))
+@test stderror(phynetlm) ≈ sqrt.(diag(sigma2hat*ntaxa/(ntaxa-length(betahat))*inv(XtVyinv * X)))
 @test dof(phynetlm) ≈ length(betahat)+1
 @test deviance(phynetlm) ≈ sigma2hat * ntaxa
 @test nulldeviance(phynetlm) ≈ nullsigma2hat * ntaxa
@@ -277,7 +277,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test sigma2_estim(fit_mat) ≈ sigma2hat
 @test loglikelihood(fit_mat) ≈ loglik
 @test vcov(fit_mat) ≈ sigma2hat*ntaxa/(ntaxa-length(betahat)).*inv(XtVyinv * X)
-@test stderror(fit_mat) ≈ sqrt.(LinearAlgebra.diag(sigma2hat*ntaxa/(ntaxa-length(betahat)).*inv(XtVyinv * X)))
+@test stderror(fit_mat) ≈ sqrt.(diag(sigma2hat*ntaxa/(ntaxa-length(betahat)).*inv(XtVyinv * X)))
 @test dof(fit_mat) ≈ length(betahat)+1
 @test deviance(fit_mat) ≈ sigma2hat * ntaxa
 @test nulldeviance(fit_mat) ≈ nullsigma2hat * ntaxa
