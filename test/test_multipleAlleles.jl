@@ -116,4 +116,12 @@ net = topologyMaxQPseudolik!(net,d,  # loose tolerance for faster test
 @test net.loglik > 174.5
 end # test of snaq on multiple alleles
 
+#----------------------------------------------------------#
+#   testing writeTopologyLevel1 with multiple alleles      #
+#----------------------------------------------------------#
+@testset "writeTopologyLevel1 multiall=true" begin
+net = readTopologyLevel1("(A,(((B,B__2),E),(C,D)));")
+@test writeTopologyLevel1(net, false, true, true,"D", false, true, 2, true) == "(D:0.5,(C:1.0,((B:1.0,E:1.0):1.0,A:1.0):1.0):0.5);"
+end # test of writeTopologyLevel1
+
 end # overall multiple allele sets of testests
