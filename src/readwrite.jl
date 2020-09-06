@@ -1036,6 +1036,7 @@ function writeTopologyLevel1(net0::HybridNetwork, di::Bool, str::Bool, namelabel
 end
 
 # warning: I do not want writeTopologyLevel1 to modify the network if outgroup is given! thus, we have updateRoot, and undoRoot
+# note that if printID is true, the function is modifying the network
 function writeTopologyLevel1(net0::HybridNetwork, s::IO, di::Bool, namelabel::Bool,
            outgroup::AbstractString, printID::Bool, roundBL::Bool, digits::Integer, multall::Bool)
     global CHECKNET
@@ -1162,8 +1163,13 @@ function updateRoot!(net::HybridNetwork, outgroup::AbstractString)
             pushEdge!(net,newedge)
             pushNode!(net,newnode)
             t = edge.length
+            if t == -1
+                edge.length = -1
+                newedge.length = -1
+            else    
                 setLength!(edge,t/2)
                 setLength!(newedge,t/2)
+            end
             net.root = length(net.node) #last node is root
        else
             @warn "external edge $(net.node[index].edge[1].number) leading to outgroup $(outgroup) cannot contain root, root placed wherever"

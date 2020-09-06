@@ -114,6 +114,14 @@ net = readTopology("(((4,#H1),10),(7,(6)#H1),8);")
 net = topologyMaxQPseudolik!(net,d,  # loose tolerance for faster test
         ftolRel=1e-2,ftolAbs=1e-2,xtolAbs=1e-2,xtolRel=1e-2)
 @test net.loglik > 174.5
+
+# testing root checks at the end when outgroup!="none"
+redirect_stdout(open("/dev/null", "w")) # not portable to Windows
+estNet = snaq!(currT,d,hmax=1,seed=6355, runs=1, filename="", Nfail=10,
+               ftolAbs=1e-6,ftolRel=1e-5,xtolAbs=1e-4,xtolRel=1e-3,
+               outgroup="10")
+redirect_stdout(originalstdout)
+@test writeTopology(estNet) == "(((7:0.0,(6)#H7:::0.525890924314677):0.3635580295664692,8):0.09463962885239555,10,(4,#H7:::0.474109075685323):0.6360284203077362);"
 end # test of snaq on multiple alleles
 
 #----------------------------------------------------------#
