@@ -1564,12 +1564,82 @@ end
 ###############################################################################
 ###############################################################################
 
+# Summary of an `NLopt` optimization. Idea borrowed from `MixedModels`.
+# The 'OptSummary' type should eventually be moved to its own file, but we
+# will keep it here for now.
+mutable struct OptSummary{T<:AbstractFloat}
+    initial::Vector{T} # copy of initial param values in the optimization
+    lowerbd::Vector{T} # lower bounds on the param values
+    ftol_rel::T # as in NLopt
+    ftol_abs::T # as in NLopt
+    xtol_rel::T # as in NLopt
+    xtol_abs::Vector{T} # as in NLopt
+    initial_step::Vector{T} # as in NLopt
+    maxfeval::Int # as in NLopt ... max no. of function evaluations
+    final::Vector{T} # copy of final param values from the optimization
+    fmin::T # final value of the objective
+    feval::Int # no. of function evaluations
+    algorithm::Symbol # name of algorithm used, as a `Symbol`
+    returnvalue::Symbol # return value, as a `Symbol`
+end
+
+function OptSummary(initial::Vector{T},
+                    lowerbd::Vector{T},
+                    algorithm::Symbol;
+                    ftol_rel::T=fRelTr,
+                    ftol_abs::T=fAbsTr,
+                    xtol_rel::T=xRelTr,
+                    initial_step::Vector{T} = T[]) where {T<:AbstractFloat}
+    OptSummary(initial,
+               lowerbd,
+               ftol_rel,
+               ftol_abs,
+               xtol_rel,
+               fill(xtol_abs, length(initial)),
+               initial_step,
+               -1, # maxeval: 0 or negative for no limit
+               copy(initial), # final
+               T(Inf), # fmin
+               -1, # feval
+               algorithm,
+               :FAILURE)
+end
+
+function NLopt.Opt(optsum::OptSummary)
+    opt = NLopt.Opt(optsum.algorithm, length(initial))
+    NLopt.ftol_rel!(opt, optsum.ftol_rel) # relative criterion on objective
+    NLopt.ftol_abs!(opt, optsum.ftol_abs) # absolute criterion on objective
+    NLopt.xtol_rel!(opt, optsum.xtol_rel) # relative criterion on parameters
+    NLopt.xtol_abs!(opt, optsum.xtol_abs) # absolute criterion on parameters
+    NLopt.lower_bounds!(opt, optsum.lowerbd)
+    NLopt.maxeval!(opt, optsum.maxfeval)
+    
+    if isempty(optsum.initial_step)
+        optsum.initial_step = NLopt.initial_step(opt, optsum.initial)
+    else
+        NLopt.initial_step!(opt, optsum.initial_step)
+    end
+
+    return opt
+end
+
 # WithinSpeciesCTM stands for WithinSpeciesContinuousTraitModel
 # Make WithinSpeciesCTM 'mutable struct' since concrete instances of
 # 'ContinuousUnivariateDistribution' are immutable.
 mutable struct WithinSpeciesCTM
-    error_distr::Distributions.ContinuousUnivariateDistribution
+    error_distr::ContinuousUnivariateDistribution
+    coeff::Union{Nothing, Vector{Float64}} # β
+    noise_var::Union{Nothing, Float64} # η*σ²
+    ev_var::Union{Nothing, Float64} # σ²
+    Vm::Union{Nothing, Matrix} # adjusted covariance matrix for species-level means
+    optsum::OptSummary
 end
+WithinSpeciesCTM(optsum::OptSummary) = WithinSpeciesCTM(Normal(), 
+                                                        nothing, 
+                                                        nothing, 
+                                                        nothing, 
+                                                        nothing,
+                                                        optsum)
 
 ###############################################################################
 ###############################################################################
@@ -2408,6 +2478,103 @@ function Base.show(io::IO, model::StatsModels.TableRegressionModel{<:PhyloNetwor
     println(io)
     println(io, "Log Likelihood: "*"$(round(loglikelihood(model), digits=10))")
     println(io, "AIC: "*"$(round(aic(model), digits=10))")
+end
+
+###############################################################################
+###############################################################################
+# Functions for Measurement Error Models
+###############################################################################
+###############################################################################
+
+# Only uses REML criterion for now
+function getVarianceComponents!(X::Matrix, Ysp::Vector, 
+                                V::MatrixTopologicalOrder, Dinv::Matrix,
+                                RSS::Float64, n::Int, p::Int, a::Int,
+                                model::ContinuousTraitEM)
+    # Fit phyloNetworklm on species-level mean responses
+    m = phyloNetworklm(X, Ysp, V; model=model)
+
+    if (typeof(model.model_within) == Nothing)
+        model.model_within = WithinSpeciesCTM(
+                                OptSummary([RSS/(n-a), sigma2_estim(m)],
+                                           [1e-100, 1e-100],
+                                           :LN_BOBYQA;
+                                           initial_step=[0.01, 0.01])
+                               )
+    end
+
+    optsum = (model.model_within).optsum
+    opt.maxfeval = 1000
+    opt = Opt(optsum)
+ 
+    Vsp = V[:Tips]
+    function obj(x, g)
+        (η, σ²) = x
+
+        Vm = Vsp+η*Dinv
+        Q = X'*(Vm\X)
+        β = Q\(X'*(Vm\Y))
+        res = Ysp-X*β
+
+        val = (n-p)*log(σ²)+(n-a)*log(η)+logabsdet(Vm)+logabsdet(Q)
+        val += ((RSS/η)+res'*(Vm\res))/σ²
+        return val
+    end
+
+    NLopt.min_objective!(opt, obj)
+    fmin, xmin, ret = NLopt.optimize(opt, optsum.initial) 
+    
+    optsum.final = xmin
+    optsum.fmin = fmin
+    optsum.returnvalue = ret
+
+    return m
+end
+
+function phyloNetworkmem(X::Matrix,
+                         Y::Vector,
+                         net::HybridNetwork,
+                         labels::Vector,
+                         model::ContinuousTraitEM)
+    
+    # Compute constants: Vsp, Dinv, RSS, Ysp 
+    V = sharedPathMatrix(net)
+    Vsp = V[:Tips] # variance-covariance matrix for species means
+    n = length(Y) # total no. of obs
+    a = length(net.names) # no. of species
+    p = size(X, 2) # no. of predictors (including intercept)
+    Dinv = fill(0.0, (a, a))
+    Ysp = fill(0.0, a) # species-level mean response
+    RSS = 0
+
+    for i in 1:a
+        ind = (labels .== net.names[i]) # indicator vector
+        # no. of obs for species i
+        n_i = sum(ind)
+        Dinv[i,i] = 1/n_i
+        Ysp[i] = mean(Y[ind])
+        RSS += norm(Y[ind].-Ysp[i])^2
+    end
+
+    # Estimate variance components by REML
+    # Borrow the idea of storing all the info related to an NLopt optimization
+    # in a mutable struct, as done in the MixedModels pkg. 
+    # E.g. optsum::OptSummary{T}, where OptSummary{T} is a mutable, parametric,
+    # struct
+    m = getVarianceComponents!(X, Ysp, V, Dinv, RSS, n, p, a, 
+                               model) # update optsum within model.model_within
+
+    # Plug in REML variance components estimate into GLS coefficients estimate
+    (η, σ²) = ((model.model_within).optsum).final
+    Vm = Vsp + η*Dinv
+    β = (X'*(Vm\X))*(X'*(Vm\Ysp))
+
+    (model.model_within).coeff = β
+    (model.model_within).noise_var = η*σ²
+    (model.model_within).ev_var = σ²
+    (model.model_within).Vm = Vm
+
+    return m
 end
 
 ###############################################################################
