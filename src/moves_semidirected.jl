@@ -921,11 +921,11 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
         end
     end
     edgetoflip, edgetokeep = (PhyloNetworks.getMinorParentEdge(hybridnode), PhyloNetworks.getMajorParentEdge(hybridnode))
-    if !minor (edgetoflip, edgetokeep) = (edgetokeep, edgetoflip); end;
+    if !minor; (edgetoflip, edgetokeep) = (edgetokeep, edgetoflip); end;
     !edgetoflip.containRoot && return false # if edgetoflip is below a hybrid node, can't flip
     newhybridnode = PhyloNetworks.getParent(edgetoflip)
     # if root, need to move root. Move root to old hybridnode
-    if newhybridnode === net.node[net.root]
+    if newhybridnode === net.node[net.root] #TODO finish this
         # if newhybridnode has no parents, need to pick one of the children.
         # pick one of the children to become the new root and the parent of the new hybrid
         net.root = 0 # get index for hybridnode TODO
@@ -958,7 +958,8 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     edgetokeep.gamma = 1
     println("Major hybrid parent is $(PhyloNetworks.getMajorParentEdge(newhybridnode))
     Minor hybrid parent is $(PhyloNetworks.getMinorParentEdge(newhybridnode))")
-    # update hybrids in network
+    # update hybrids in network (cant do this after directEdges!)
+    # todo look at function that adds a hybrid to a network (when read from a file.)
     hybridindex = findfirst([node.number == hybridnode.number for node in net.hybrid])
     net.hybrid[hybridindex] = newhybridnode
     #TODO missing an update here
