@@ -349,7 +349,7 @@ function vcv(net::HybridNetwork;
     @assert (model == "BM") "The 'vcv' function only works for a BM process (for now)."
     V = sharedPathMatrix(net; checkPreorder=checkPreorder)
     C = V[:Tips]
-    corr && StatsBase.cov2cor!(C, sqrt.(LinearAlgebra.diag(C)))
+    corr && StatsBase.cov2cor!(C, sqrt.(diag(C)))
     Cd = convert(DataFrame, C)
     rename!(Cd, map(Symbol, V.tipNames))
     return(Cd)
@@ -456,7 +456,7 @@ end
 
 function initDescendenceMatrix(nodes::Vector{Node}, params)
     n = length(nodes)
-    return(Matrix{Float64}(LinearAlgebra.I, n, n)) # identity matrix
+    return(Matrix{Float64}(I, n, n)) # identity matrix
 end
 
 ###############################################################################
@@ -546,13 +546,13 @@ Parameter(s) Estimates:
 Sigma2: 0.0112618
 
 Coefficients:
-───────────────────────────────────────────────────────────────────────────
-             Estimate  Std. Error   t value  Pr(>|t|)  Lower 95%  Upper 95%
-───────────────────────────────────────────────────────────────────────────
-(Intercept)   9.48238    0.327089  28.9902     0.0220    5.32632   13.6384
-shift_1       3.9096     0.46862    8.34279    0.0759   -2.04479    9.86399
-shift_8      -2.4179     0.422825  -5.71843    0.1102   -7.7904     2.95461
-───────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────
+                Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
+────────────────────────────────────────────────────────────────────────
+(Intercept)   9.48238    0.327089  28.99    0.0220    5.32632   13.6384
+shift_1       3.9096     0.46862    8.34    0.0759   -2.04479    9.86399
+shift_8      -2.4179     0.422825  -5.72    0.1102   -7.7904     2.95461
+────────────────────────────────────────────────────────────────────────
 Log Likelihood: 1.8937302027
 AIC: 4.2125395947
 
@@ -661,7 +661,7 @@ julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
 │ 3   │ 10.177  │ C        │
 │ 4   │ 12.6891 │ D        │
 
-julia> dfr_hybrid = regressorHybrid(net) # the reressors matching the hybrids.
+julia> dfr_hybrid = regressorHybrid(net) # the regressors matching the hybrids.
 4×3 DataFrame
 │ Row │ shift_6 │ tipNames │ sum     │
 │     │ Float64 │ String   │ Float64 │
@@ -686,12 +686,12 @@ Parameter(s) Estimates:
 Sigma2: 0.041206
 
 Coefficients:
-───────────────────────────────────────────────────────────────────────────
-             Estimate  Std. Error   t value  Pr(>|t|)  Lower 95%  Upper 95%
-───────────────────────────────────────────────────────────────────────────
-(Intercept)  10.064      0.277959  36.2068     0.0008    8.86805   11.26
-shift_6       2.72526    0.315456   8.63912    0.0131    1.36796    4.08256
-───────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────
+                Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
+────────────────────────────────────────────────────────────────────────
+(Intercept)  10.064      0.277959  36.21    0.0008    8.86805   11.26
+shift_6       2.72526    0.315456   8.64    0.0131    1.36796    4.08256
+────────────────────────────────────────────────────────────────────────
 Log Likelihood: -0.7006021946
 AIC: 7.4012043891
 
@@ -1742,7 +1742,7 @@ function phyloNetworklm(X::Matrix,
     RL = R.L
     # Fit 
     m = PhyloNetworkLinearModel{typeof(model)}(lm(RL\X, RL\Y), V, Vy, RL, Y, X, 
-                                               LinearAlgebra.logdet(Vy), ind, 
+                                               logdet(Vy), ind, 
                                                nonmissing, model)
     # Update lambda
     lambda!(m, lambda)
@@ -1814,7 +1814,7 @@ function getHeights(net::HybridNetwork)
     setGammas!(net, ones(net.numNodes))
     V = sharedPathMatrix(net)
     setGammas!(net, gammas)
-    return(LinearAlgebra.diag(V[:All]))
+    return(diag(V[:All]))
 end
 
 function maxLambda(times::Vector, V::MatrixTopologicalOrder)
@@ -2032,11 +2032,11 @@ Parameter(s) Estimates:
 Sigma2: 0.00294521
 
 Coefficients:
-──────────────────────────────────────────────────────────────────────────
-             Estimate  Std. Error  t value  Pr(>|t|)  Lower 95%  Upper 95%
-──────────────────────────────────────────────────────────────────────────
-(Intercept)     4.679    0.330627  14.1519    <1e-31    4.02696    5.33104
-──────────────────────────────────────────────────────────────────────────
+─────────────────────────────────────────────────────────────────────
+             Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
+─────────────────────────────────────────────────────────────────────
+(Intercept)  4.679    0.330627  14.15    <1e-31    4.02696    5.33104
+─────────────────────────────────────────────────────────────────────
 Log Likelihood: -78.9611507833
 AIC: 161.9223015666
 
@@ -2528,7 +2528,7 @@ function expectationsPlot(obj::ReconstructedStates; markMissing="*"::AbstractStr
     return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], PredInt = expetxt)
 end
 
-StatsBase.stderror(obj::ReconstructedStates) = sqrt.(LinearAlgebra.diag(obj.variances_nodes))
+StatsBase.stderror(obj::ReconstructedStates) = sqrt.(diag(obj.variances_nodes))
 
 """
     predint(obj::ReconstructedStates; level=0.95::Real)

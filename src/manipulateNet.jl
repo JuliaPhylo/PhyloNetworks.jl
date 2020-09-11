@@ -852,6 +852,10 @@ julia> plot(net, showNodeNumber=true, showEdgeNumber=true)
 julia> rotate!(net, -3)
 julia> plot(net)
 ```
+
+Note that `LinearAlgebra` also exports a function named `rotate!` in Julia v1.5.
+If both packages need to be used in Julia v1.5 or higher,
+usage of `rotate!` needs to be qualified, such as with `PhyloNetworks.rotate!`.
 """
 function rotate!(net::HybridNetwork, nnum::Integer; orderedEdgeNum=Int[]::Array{Int,1})
     nind = 0

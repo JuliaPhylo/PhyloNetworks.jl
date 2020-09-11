@@ -46,7 +46,7 @@ V2 = V2[ind, ind]
 ## Simple test
 C = convert(Matrix, vcv(net))
 @test C ≈ V1[:Tips]
-vv = LinearAlgebra.diag(C)
+vv = diag(C)
 for i in 1:4
     for j in 1:4
         C[i, j] = C[i, j] / sqrt(vv[i] * vv[j])
