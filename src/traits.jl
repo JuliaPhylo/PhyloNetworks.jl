@@ -1583,6 +1583,12 @@ mutable struct OptSummary{T<:AbstractFloat}
     returnvalue::Symbol # return value, as a `Symbol`
 end
 
+# Code for optim taken from src/snaq_optimization.jl
+const fAbsTr = 1e-10
+const fRelTr = 1e-10
+const xAbsTr = 1e-10
+const xRelTr = 1e-10
+
 function OptSummary(initial::Vector{T},
                     lowerbd::Vector{T},
                     algorithm::Symbol;
@@ -1595,7 +1601,7 @@ function OptSummary(initial::Vector{T},
                ftol_rel,
                ftol_abs,
                xtol_rel,
-               fill(xtol_abs, length(initial)),
+               fill(xAbsTr, length(initial)),
                initial_step,
                -1, # maxeval: 0 or negative for no limit
                copy(initial), # final
@@ -1606,7 +1612,7 @@ function OptSummary(initial::Vector{T},
 end
 
 function NLopt.Opt(optsum::OptSummary)
-    opt = NLopt.Opt(optsum.algorithm, length(initial))
+    opt = NLopt.Opt(optsum.algorithm, length(optsum.initial))
     NLopt.ftol_rel!(opt, optsum.ftol_rel) # relative criterion on objective
     NLopt.ftol_abs!(opt, optsum.ftol_abs) # absolute criterion on objective
     NLopt.xtol_rel!(opt, optsum.xtol_rel) # relative criterion on parameters
@@ -1945,11 +1951,12 @@ function logLik_lam(lam::AbstractFloat,
     return res
 end
 
-# Code for optim taken from src/snaq_optimization.jl
-const fAbsTr = 1e-10
-const fRelTr = 1e-10
-const xAbsTr = 1e-10
-const xRelTr = 1e-10
+# Shifted these const definitions to section definition OptSummary type
+## Code for optim taken from src/snaq_optimization.jl
+#const fAbsTr = 1e-10
+#const fRelTr = 1e-10
+#const xAbsTr = 1e-10
+#const xRelTr = 1e-10
 
 function phyloNetworklm_lambda(X::Matrix,
                                Y::Vector,
@@ -2493,7 +2500,6 @@ function getVarianceComponents!(X::Matrix, Ysp::Vector,
                                 model::ContinuousTraitEM)
     # Fit phyloNetworklm on species-level mean responses
     m = phyloNetworklm(X, Ysp, V; model=model)
-
     if (typeof(model.model_within) == Nothing)
         model.model_within = WithinSpeciesCTM(
                                 OptSummary([RSS/(n-a), sigma2_estim(m)],
@@ -2502,28 +2508,30 @@ function getVarianceComponents!(X::Matrix, Ysp::Vector,
                                            initial_step=[0.01, 0.01])
                                )
     end
-
+    
     optsum = (model.model_within).optsum
-    opt.maxfeval = 1000
+    optsum.maxfeval = 1000
     opt = Opt(optsum)
  
     Vsp = V[:Tips]
     function obj(x, g)
-        (η, σ²) = x
+        #(η, σ²) = x
+        η = x[1]; σ² = x[2]
 
         Vm = Vsp+η*Dinv
         Q = X'*(Vm\X)
-        β = Q\(X'*(Vm\Y))
+        β = Q\(X'*(Vm\Ysp))
         res = Ysp-X*β
 
-        val = (n-p)*log(σ²)+(n-a)*log(η)+logabsdet(Vm)+logabsdet(Q)
+        val = (n-p)*log(σ²)+(n-a)*log(η)+logabsdet(Vm)[1]+logabsdet(Q)[1]
         val += ((RSS/η)+res'*(Vm\res))/σ²
         return val
     end
 
     NLopt.min_objective!(opt, obj)
     fmin, xmin, ret = NLopt.optimize(opt, optsum.initial) 
-    
+   
+    optsum.feval = opt.numevals
     optsum.final = xmin
     optsum.fmin = fmin
     optsum.returnvalue = ret
@@ -2567,7 +2575,7 @@ function phyloNetworkmem(X::Matrix,
     # Plug in REML variance components estimate into GLS coefficients estimate
     (η, σ²) = ((model.model_within).optsum).final
     Vm = Vsp + η*Dinv
-    β = (X'*(Vm\X))*(X'*(Vm\Ysp))
+    β = (X'*(Vm\X))\(X'*(Vm\Ysp))
 
     (model.model_within).coeff = β
     (model.model_within).noise_var = η*σ²
