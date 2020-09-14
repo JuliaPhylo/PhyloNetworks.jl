@@ -896,3 +896,77 @@ function moveroot!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{
     # if we get here: none of the root positions worked
     return nothing
 end
+
+"""
+    neighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+                 constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+Find NNI neighbors of a particular topology. Return an array of neighbor network
+Newick strings.
+Warning:
+- Because different NNIs can lead to the same topology, the list of
+neighbors may contain multiple copies of the same network. Therefore, the length
+of the list should not be taken as the number of neighbors. For the unique
+neighbors, see uniqueneighbornets below.
+- creates one deep copy of net.
+"""
+function neighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+                      constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    neighbors = String[]
+    # distances = Int[]
+    originalnet = deepcopy(net) # keep original net for HWCD comparison
+    for e in net.edge
+        if any(con.edge === e for con in constraints) # if edge is the stem of a constraint, skip
+            @debug "skipping to next edge"
+            continue # skip to next edge
+        end
+        nnimax(e) > 0x00 || continue # if no NNIs possible, skip to next edge
+        nnis = 0x01:nnimax(e)
+        for nummove in nnis
+            nummove <= nnimax(e) || error("move $nummove out of bounds here. max = $nnimax(e)") #TODO remove after testing
+            moveinfo = nni!(net, e, nummove, nohybridladder, no3cycle)
+            !isnothing(moveinfo) || continue # move didn't work, skip to next NNI
+            # if NNI changed rooting, need to call hwcd with rooted = false
+            net.root == originalnet.root || error("root changed by NNI")
+            push!(neighbors, writeTopology(net))
+            # push!(distances, hardwiredClusterDistance(net, originalnet, true))
+            nni!(moveinfo...) # undo this nni
+            # confirm that net is unchanged after undoing nni
+            hardwiredClusterDistance(net, originalnet, true) == 0 ||
+                error("original net changed")
+        end
+    end
+    return neighbors#, distances
+end
+
+"""
+    uniqueneighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+                 constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+
+Return tuple of arrays: unique NNI neighbors of a particular topology and their
+hardwired cluster distances from the original net.
+Assumptions: rooting will not change during an NNI
+"""
+function uniqueneighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+                       constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    neighbors = neighbornets(net, nohybridladder, no3cycle, constraints)
+    ncount = length(neighbors)
+    # matrix of rooted distances between neighbors
+    hwcds = zeros(Int, ncount, ncount);
+    for i in 1:ncount
+        for j in 1:ncount
+            hwcds[i,j] = hardwiredClusterDistance(readTopology(neighbors[i]),
+                                            readTopology(neighbors[j]), true)
+        end
+    end
+    # find rows with duplicate HWCD patterns with all other nets
+    duplicates = nonunique(DataFrame(hwcds)) # true entries indicate duplicate rows
+    duplicateindices = findall(x->x==1, duplicates)
+    # confirm that this guarantees they are identical
+    for di in duplicateindices # confirm duplicate net has hwcd = 0 with >= 1 other net
+        any(i-> i == 0, hwcds[di, 1:end .!= di]) ||
+            error("Duplicate net does not have a HWCD of zero with another net")
+    end
+    deleteat!(neighbors, duplicateindices)
+    deleteat!(distances, duplicateindices)
+    return neighbors, distances
+end

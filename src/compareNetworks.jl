@@ -794,3 +794,53 @@ function hardwiredClusterDistance_unrooted!(net1::HybridNetwork, net2::HybridNet
     # warning: original roots (and edge directions) NOT restored
     return bestdissimilarity
 end
+
+"""
+    nnidistance(startingnet::HybridNetwork, truenet::HybridNetwork,
+                  maxmoves=3::Int, nohybridladder::Bool, no3cycle::Bool,
+                  constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+Return the minimum number of NNI moves to get from `startingnet` to `truenet`. If net
+cannot be found in `maxmoves` NNI moves, returns a message and 0.
+Warning: Choose a small `maxmoves` to start. Because the neighbor count increases
+exponentially, even with small `maxmoves`, this function is time-consuming. After
+nmoves, size of the neighbor set is (startingnet's immediate neighbors)^nmoves.
+(This problem is fixed-parameter tractable with `maxmoves` fixed.)
+e.g. If `startingnet` has 10 immediate neighbors, then after 3 moves, it will have
+~1000 neighbors.
+"""
+function nnidistance(startingnet::HybridNetwork, truenet::HybridNetwork,
+                       outgroup::String, nohybridladder::Bool, no3cycle::Bool,
+                       maxmoves=2::Int,
+                       constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    # confirm startingnet is rooted at outgroup
+    rootatnode!(startingnet, outgroup)
+    removedegree2nodes!(startingnet) # rooting adds a node of degree two. This removes it.
+
+    nmoves = 0
+    if hardwiredClusterDistance(startingnet, truenet, true) == 0
+        println("After rerooting, startingnet and truenet match. No NNI moves were needed.")
+        return nmoves
+    end
+    startingnets = [writeTopology(startingnet)]
+    while nmoves < maxmoves
+        nmoves += 1
+        allneighbors = String[] # reset to zero to create new set of neighbors
+        for s in startingnets # for each of the starting nets created by the last round
+            # find all neighbors
+            snet = readTopology(s)
+            neighbors, distances = uniqueneighbornets(snet, nohybridladder, no3cycle, constraints)
+            for n in neighbors # for each of these neighbors, see if we found truenet
+                if hardwiredClusterDistance(readTopology(n), truenet, true) == 0
+                    println("After $nmoves move(s), startingnet was transformed into truenet with NNIs.")
+                    return nmoves
+                end
+            end
+            allneighbors = vcat(allneighbors, neighbors) # add neighbors to allneighbors
+        end
+        # use these neighbors as the next startingnets
+        @debug "After $nmoves moves, the list of neighbors is $(length(allneighbors)) long."
+        startingnets = allneighbors
+    end
+    println("After $nmoves move(s), startingnet could not be transformed into truenet using NNIs.")
+    return 0
+end
