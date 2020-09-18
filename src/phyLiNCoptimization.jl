@@ -1437,10 +1437,12 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
         #@show loglik + adjustment
         return loglik
     end
+    #=
     oldlik = objective([focusedge.length], [0.0]) + adjustment
     oldlik ≈ obj.loglik || @warn "oldlik $oldlik != stored lik $(obj.loglik): starting NNI?"
     # obj.loglik outdated at the start of an NNI move:
     # it is for the older, not the newly proposed topology
+    =#
     optBL = lcache.opt
     NLopt.max_objective!(optBL, objective)
     # @info "BL: edge $(focusedge.number)"
