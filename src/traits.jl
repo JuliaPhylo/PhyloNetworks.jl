@@ -1634,17 +1634,13 @@ end
 # 'ContinuousUnivariateDistribution' are immutable.
 mutable struct WithinSpeciesCTM
     error_distr::ContinuousUnivariateDistribution
-    coeff::Union{Nothing, Vector{Float64}} # β
-    noise_var::Union{Nothing, Float64} # η*σ²
-    ev_var::Union{Nothing, Float64} # σ²
-    Vm::Union{Nothing, Matrix} # adjusted covariance matrix for species-level means
+    wsp_var::Union{Nothing, Float64} # η*σ² (within-species variance)
+    bsp_var::Union{Nothing, Float64} # σ² (between-species variance)
     optsum::OptSummary
 end
 WithinSpeciesCTM(optsum::OptSummary) = WithinSpeciesCTM(Normal(), 
                                                         nothing, 
                                                         nothing, 
-                                                        nothing, 
-                                                        nothing,
                                                         optsum)
 
 ###############################################################################
@@ -2498,8 +2494,9 @@ function getVarianceComponents!(X::Matrix, Ysp::Vector,
                                 V::MatrixTopologicalOrder, Dinv::Matrix,
                                 RSS::Float64, n::Int, p::Int, a::Int,
                                 model::ContinuousTraitEM)
-    # Fit phyloNetworklm on species-level mean responses
-    m = phyloNetworklm(X, Ysp, V; model=model)
+    # fit phyloNetworklm on species-level mean responses while neglecting
+    # measurement error
+    m = phyloNetworklm(X, Ysp, V)
     if (typeof(model.model_within) == Nothing)
         model.model_within = WithinSpeciesCTM(
                                 OptSummary([RSS/(n-a), sigma2_estim(m)],
@@ -2535,8 +2532,6 @@ function getVarianceComponents!(X::Matrix, Ysp::Vector,
     optsum.final = xmin
     optsum.fmin = fmin
     optsum.returnvalue = ret
-
-    return m
 end
 
 function phyloNetworkmem(X::Matrix,
@@ -2569,18 +2564,30 @@ function phyloNetworkmem(X::Matrix,
     # in a mutable struct, as done in the MixedModels pkg. 
     # E.g. optsum::OptSummary{T}, where OptSummary{T} is a mutable, parametric,
     # struct
-    m = getVarianceComponents!(X, Ysp, V, Dinv, RSS, n, p, a, 
-                               model) # update optsum within model.model_within
+    getVarianceComponents!(X, Ysp, V, Dinv, RSS, n, p, a, 
+                           model) # update optsum within model.model_within
 
     # Plug in REML variance components estimate into GLS coefficients estimate
     (η, σ²) = ((model.model_within).optsum).final
     Vm = Vsp + η*Dinv
-    β = (X'*(Vm\X))\(X'*(Vm\Ysp))
 
-    (model.model_within).coeff = β
-    (model.model_within).noise_var = η*σ²
-    (model.model_within).ev_var = σ²
-    (model.model_within).Vm = Vm
+    # Package Vm in 'MatrixTopologicalOrder' type. Have to create a new object
+    # since 'MatrixTopologicalOrder' is not mutable.
+    # Need to pad with additional empty top row and leftmost col
+    Vm_ = fill(0.0, (a+1, a+1)); Vm_[2:end, 2:end] = Vm
+    Vm = MatrixTopologicalOrder(Vm_,
+                                V.nodeNumbersTopOrder,
+                                V.internalNodeNumbers,
+                                V.tipNumbers,
+                                V.tipNames,
+                                V.indexation)
+
+    (model.model_within).wsp_var = η*σ²
+    (model.model_within).bsp_var = σ²
+
+    # Fit phyloNetworklm on species-level data, taking into account
+    # measurement error
+    m = phyloNetworklm(X, Ysp, Vm; model=model)
 
     return m
 end
