@@ -2514,8 +2514,8 @@ function getVarianceComponents!(X::Matrix, Ysp::Vector,
     Vsp = V[:Tips]
     function obj(x, g)
         #(η, σ²) = x
-        η = x[1]; σ² = x[2]
-
+        η = x[1]; σ² = x[2]        
+        
         Vm = Vsp+η*Dinv
         Q = X'*(Vm\X)
         β = Q\(X'*(Vm\Ysp))

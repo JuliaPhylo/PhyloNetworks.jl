@@ -1,11 +1,11 @@
 __precompile__()
 
 module PhyloNetworks
-
+    
     # stdlib (standard libraries)
     using Dates
     using Distributed
-    using LinearAlgebra: diag, I, logdet, norm, LowerTriangular, mul!, lmul!, Diagonal, cholesky, BLAS
+    using LinearAlgebra: diag, I, logdet, logabsdet, norm, LowerTriangular, mul!, lmul!, Diagonal, cholesky, BLAS
     # alternative: drop support for julia v1.4, because LinearAlgebra.rotate! requires julia v1.5
     # using LinearAlgebra # bring all of LinearAlgebra into scope
     # import LinearAlgebra.rotate! # allow re-definition of rotate!
