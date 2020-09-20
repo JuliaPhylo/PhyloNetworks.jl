@@ -155,7 +155,8 @@ module PhyloNetworks
         mapindividuals,
         # phyLiNC,
         # neighbor joining
-        nj
+        nj,
+        findrootcomponent!
 
     include("types.jl")
     include("auxiliary.jl")
@@ -185,5 +186,6 @@ module PhyloNetworks
     include("deprecated.jl")
     include("nj.jl")
     include("phyLiNCoptimization.jl")
+    include("check_sdn.jl")
 
 end #module
