@@ -1779,12 +1779,20 @@ function phyloNetworklm(X::Matrix,
                         nonmissing=trues(length(Y))::BitArray{1},
                         ind=[0]::Vector{Int},
                         startingValue=0.5::Real,
-                        fixedValue=missing::Union{Real,Missing})
+                        fixedValue=missing::Union{Real,Missing},
+                        msr_err::Bool=false,
+                        labels::Union{Nothing, Vector}=nothing)
+
     # Getting variance covariance
     V = sharedPathMatrix(net)
+    
     # Fit
-    phyloNetworklm(X, Y, V;
-                  nonmissing=nonmissing, ind=ind)
+    if msr_err
+        phyloNetworkmem(X, Y, V, labels, net.names, model, nothing)
+    else
+        phyloNetworklm(X, Y, V;
+                       nonmissing=nonmissing, ind=ind)
+    end
 end
 
 function phyloNetworklm(X::Matrix,
@@ -2263,7 +2271,8 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
                         ftolAbs=fAbsTr::AbstractFloat,
                         xtolAbs=xAbsTr::AbstractFloat,
                         startingValue=0.5::Real,
-                        fixedValue=missing::Union{Real,Missing})
+                        fixedValue=missing::Union{Real,Missing},
+                        msr_err::Bool=false)
     # Match the tips names: make sure that the data provided by the user will
     # be in the same order as the ordered tips in matrix V.
     preorder!(net)
@@ -2291,8 +2300,11 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
                   provided, then please re-run this function with argument no_name=true.""")
         ind = indexin(fr[!,:tipNames], tipLabels(net))
         if any(isnothing, ind) || length(unique(ind)) != length(ind)
-            error("""Tips names of the network and names provided in column tipNames
-                  of the dataframe do not match.""")
+            # length(unique(ind)) != length(ind) for measurement error models
+            if !msr_err
+                error("""Tips names of the network and names provided in column tipNames
+                      of the dataframe do not match.""")
+            end
         end
     end
     # Find the regression matrix and response vector
@@ -2306,6 +2318,17 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
     # Y, pred = StatsModels.modelcols(f, fr)
     if model == "BM"
         modelobj = BM() # model object (as opposed to model string)
+        
+        # Measurement error model is only implemented for "BM" CTEMs for now.
+        # Eventually should get rid of this return statement after they are
+        # implemented for all CTEMs. 
+        labels = msr_err ? fr[!,:tipNames] : nothing
+        return StatsModels.TableRegressionModel(
+                phyloNetworklm(mm.m, Y, net, modelobj; nonmissing=nonmissing,
+                               ind=ind, startingValue=startingValue,
+                               fixedValue=fixedValue, msr_err=msr_err,
+                               labels=labels),
+                mf, mm)
     elseif model == "lambda"
         modelobj = PLambda()
     elseif model == "scalingHybrid"
@@ -2542,34 +2565,37 @@ end
 
 function phyloNetworkmem(X::Matrix,
                          Y::Vector,
-                         net::HybridNetwork,
+                         V::MatrixTopologicalOrder,
                          labels::Vector,
+                         netnames::Vector,
                          model::ContinuousTraitEM,
                          model_within::Union{Nothing, 
                                              WithinSpeciesCTM}=nothing)
     
     # Compute constants: Vsp, Dinv, RSS, Ysp 
-    V = sharedPathMatrix(net)
     Vsp = V[:Tips] # variance-covariance matrix for species means
     n = length(Y) # total no. of obs
-    a = length(net.names) # no. of species
+    a = length(netnames) # no. of species
     p = size(X, 2) # no. of predictors (including intercept)
     Dinv = fill(0.0, (a, a))
     Ysp = fill(0.0, a) # species-level mean response
     RSS = 0
-
+    Xr = fill(0.0, (a, p)) # reduced predictor matrix (without repeated rows)
+    
+    idx = 1 # counter used when filling in Xr from X
     for i in 1:a
-        ind = (labels .== net.names[i]) # indicator vector
+        ind = (labels .== netnames[i]) # indicator vector
         # no. of obs for species i
         n_i = sum(ind)
         Dinv[i,i] = 1/n_i
+        Xr[i, :] = X[idx, :]; idx += n_i
         Ysp[i] = mean(Y[ind])
         RSS += norm(Y[ind].-Ysp[i])^2
     end
 
     # fit phyloNetworklm on species-level mean responses without taking 
     # measurement error into account
-    m = phyloNetworklm(X, Ysp, V)
+    m = phyloNetworklm(Xr, Ysp, V)
 
     if model_within == nothing
         # default if model_within is not specified
@@ -2586,7 +2612,7 @@ function phyloNetworkmem(X::Matrix,
     # E.g. optsum::OptSummary{T}, where OptSummary{T} is a mutable, parametric,
     # struct
     # Estimate variance components by REML
-    getVarianceComponents!(X, Ysp, V, Dinv, RSS, n, p, a, 
+    getVarianceComponents!(Xr, Ysp, V, Dinv, RSS, n, p, a, 
                            model_within) # update model_within.optsum
 
     # Plug in REML variance components estimate into GLS coefficients estimate
@@ -2609,7 +2635,7 @@ function phyloNetworkmem(X::Matrix,
 
     # Fit phyloNetworklm on species-level data, now taking measurement error
     # into account
-    m = phyloNetworklm(X, Ysp, Vm; model=model)
+    m = phyloNetworklm(Xr, Ysp, Vm; model=model)
     m.model_within = model_within
 
     return m
