@@ -10,7 +10,7 @@ using CSV # for reading files
 using DataFrames
 using Distributed # parallel in test_correctLik.jl and test_bootstrap.jl
 using GLM # for coef, nobs, residuals etc.
-using LinearAlgebra
+using LinearAlgebra: norm, diag, logdet # LinearAlgebra.rotate! not brought into scope
 using Random
 using StaticArrays # for rate substitution matrices
 using Statistics
