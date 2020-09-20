@@ -2471,6 +2471,11 @@ function paramstable(m::PhyloNetworkLinearModel)
         Lamb = lambda_estim(m)
         res = res*"\nLambda: " * @sprintf("%.6g", Lamb)
     end
+    mw = m.model_within
+    if (typeof(mw) == WithinSpeciesCTM)
+        res = res*"\nSigma2 (NLopt): " * @sprintf("%.6g", mw.bsp_var)
+        res = res*"\nWithin-Species Variance: " * @sprintf("%.6g", mw.wsp_var)
+    end
     return(res)
 end
 function Base.show(io::IO, obj::PhyloNetworkLinearModel)
