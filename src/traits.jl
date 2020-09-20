@@ -1663,25 +1663,18 @@ abstract type ContinuousTraitEM end
 # additions include OU (i.e. Ornstein-Uhlenbeck).
 mutable struct BM <: ContinuousTraitEM
     lambda::Float64
-    model_within::Union{Nothing, WithinSpeciesCTM}
 end
-# Outer constructor methods provides default values for 'lambda' and
-# 'model_within'
-BM(lambda::Float64) = BM(lambda, nothing)
+# Outer constructor methods provides default values for 'lambda'
 BM() = BM(1.0)
 
 mutable struct PLambda <: ContinuousTraitEM
     lambda::Float64
-    model_within::Union{Nothing, WithinSpeciesCTM}
 end
-PLambda(lambda::Float64) = PLambda(lambda, nothing)
 PLambda() = PLambda(1.0)
 
 mutable struct ScalingHybrid <: ContinuousTraitEM
     lambda::Float64
-    model_within::Union{Nothing, WithinSpeciesCTM}
 end
-ScalingHybrid(lambda::Float64) = ScalingHybrid(lambda, nothing)
 ScalingHybrid() = ScalingHybrid(1.0)
 
 ###############################################################################
@@ -1741,7 +1734,27 @@ mutable struct PhyloNetworkLinearModel{T<:ContinuousTraitEM} <: GLM.LinPredModel
     nonmissing::BitArray{1}
     "model: the model used for the fit"
     model::T
+    "model_within: the model used for describing measurement error (if needed)"
+    model_within::Union{Nothing, WithinSpeciesCTM}
 end
+
+# Constructor method for inferring the type T from 'model'
+PhyloNetworkLinearModel(
+    lm, V, Vy, RL, Y, X, 
+    logdetVy, ind, nonmissing, 
+    model, model_within) = PhyloNetworkLinearModel{typeof(model)}(
+                                lm, V, Vy, RL, Y, X,
+                                logdetVy, ind, nonmissing, 
+                                model, model_within)
+
+# Constructor method for ignoring the 'model_within' field
+PhyloNetworkLinearModel(
+    lm, V, Vy, RL, Y, X,
+    logdetVy, ind, nonmissing,
+    model) = PhyloNetworkLinearModel(
+                lm, V, Vy, RL, Y, X,
+                logdetVy, ind, nonmissing,
+                model, nothing)
 
 # Remove this constructor method since `model` objects now already have to be 
 # initialized with a value for their `lambda` field. We might consider setting 
@@ -1831,9 +1844,9 @@ function phyloNetworklm(X::Matrix,
     R = cholesky(Vy)
     RL = R.L
     # Fit 
-    m = PhyloNetworkLinearModel{typeof(model)}(lm(RL\X, RL\Y), V, Vy, RL, Y, X, 
-                                               LinearAlgebra.logdet(Vy), ind, 
-                                               nonmissing, model)
+    m = PhyloNetworkLinearModel(lm(RL\X, RL\Y), V, Vy, RL, Y, X, 
+                                LinearAlgebra.logdet(Vy), ind, 
+                                nonmissing, model)
     # Update lambda
     lambda!(m, lambda)
     return m
@@ -2493,20 +2506,8 @@ end
 function getVarianceComponents!(X::Matrix, Ysp::Vector, 
                                 V::MatrixTopologicalOrder, Dinv::Matrix,
                                 RSS::Float64, n::Int, p::Int, a::Int,
-                                model::ContinuousTraitEM)
-    # fit phyloNetworklm on species-level mean responses while neglecting
-    # measurement error
-    m = phyloNetworklm(X, Ysp, V)
-    if (typeof(model.model_within) == Nothing)
-        model.model_within = WithinSpeciesCTM(
-                                OptSummary([RSS/(n-a), sigma2_estim(m)],
-                                           [1e-100, 1e-100],
-                                           :LN_BOBYQA;
-                                           initial_step=[0.01, 0.01])
-                               )
-    end
-    
-    optsum = (model.model_within).optsum
+                                model_within::WithinSpeciesCTM)
+    optsum = model_within.optsum
     optsum.maxfeval = 1000
     opt = Opt(optsum)
  
@@ -2538,7 +2539,9 @@ function phyloNetworkmem(X::Matrix,
                          Y::Vector,
                          net::HybridNetwork,
                          labels::Vector,
-                         model::ContinuousTraitEM)
+                         model::ContinuousTraitEM,
+                         model_within::Union{Nothing, 
+                                             WithinSpeciesCTM}=nothing)
     
     # Compute constants: Vsp, Dinv, RSS, Ysp 
     V = sharedPathMatrix(net)
@@ -2559,16 +2562,30 @@ function phyloNetworkmem(X::Matrix,
         RSS += norm(Y[ind].-Ysp[i])^2
     end
 
-    # Estimate variance components by REML
+    # fit phyloNetworklm on species-level mean responses without taking 
+    # measurement error into account
+    m = phyloNetworklm(X, Ysp, V)
+
+    if model_within == nothing
+        # default if model_within is not specified
+        model_within = WithinSpeciesCTM(
+                            OptSummary([RSS/(n-a), sigma2_estim(m)],
+                                       [1e-100, 1e-100],
+                                       :LN_BOBYQA;
+                                       initial_step=[0.01, 0.01])
+                           )
+    end
+
     # Borrow the idea of storing all the info related to an NLopt optimization
     # in a mutable struct, as done in the MixedModels pkg. 
     # E.g. optsum::OptSummary{T}, where OptSummary{T} is a mutable, parametric,
     # struct
+    # Estimate variance components by REML
     getVarianceComponents!(X, Ysp, V, Dinv, RSS, n, p, a, 
-                           model) # update optsum within model.model_within
+                           model_within) # update model_within.optsum
 
     # Plug in REML variance components estimate into GLS coefficients estimate
-    (η, σ²) = ((model.model_within).optsum).final
+    (η, σ²) = (model_within.optsum).final
     Vm = Vsp + η*Dinv
 
     # Package Vm in 'MatrixTopologicalOrder' type. Have to create a new object
@@ -2582,12 +2599,13 @@ function phyloNetworkmem(X::Matrix,
                                 V.tipNames,
                                 V.indexation)
 
-    (model.model_within).wsp_var = η*σ²
-    (model.model_within).bsp_var = σ²
+    model_within.wsp_var = η*σ²
+    model_within.bsp_var = σ²
 
-    # Fit phyloNetworklm on species-level data, taking into account
-    # measurement error
+    # Fit phyloNetworklm on species-level data, now taking measurement error
+    # into account
     m = phyloNetworklm(X, Ysp, Vm; model=model)
+    m.model_within = model_within
 
     return m
 end
