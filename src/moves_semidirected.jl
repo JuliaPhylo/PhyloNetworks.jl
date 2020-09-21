@@ -942,8 +942,8 @@ end
     uniqueneighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
                  constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
-Return tuple of arrays: unique NNI neighbors of a particular topology and their
-hardwired cluster distances from the original net.
+Return unique NNI neighbors of topology `net`.
+
 Assumptions: rooting will not change during an NNI
 """
 function uniqueneighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
@@ -967,6 +967,5 @@ function uniqueneighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::
             error("Duplicate net does not have a HWCD of zero with another net")
     end
     deleteat!(neighbors, duplicateindices)
-    deleteat!(distances, duplicateindices)
-    return neighbors, distances
+    return neighbors
 end
