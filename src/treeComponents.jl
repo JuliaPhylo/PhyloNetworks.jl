@@ -42,7 +42,8 @@ function findrootcomponent!(net::HybridNetwork)
                     # parent), then the UC has cycle
                     if nextnode != dfs_parent[curnode]
                         if !in(nextnode, unvisited)
-                            throw(RootMismatch("Undirected cycle exists"))
+                            throw(RootMismatch(
+                                "Undirected cycle exists, starting at node:\n $nextnode"))
                         else
                             dfs_parent[nextnode] = curnode
                             push!(dfs_stack, nextnode)
@@ -56,7 +57,10 @@ function findrootcomponent!(net::HybridNetwork)
                         if isnothing(entrynode)
                             entrynode = curnode
                         elseif entrynode != curnode
-                            throw(RootMismatch("Multiple entry nodes for one component"))
+                            throw(RootMismatch(
+                                """Multiple entry nodes for undirected component:
+                                $entrynode
+                                $curnode"""))
                         end
                     end
                 end
@@ -76,9 +80,14 @@ function findrootcomponent!(net::HybridNetwork)
         end
     end
     if sum(noparent) == 0
-        throw(RootMismatch("Semidirected cycle exists"))
+        throw(RootMismatch(
+            "Semidirected cycle exists, starting at UC containing node:\n $(nodes[1])"))
     elseif sum(noparent) > 1
-        throw(RootMismatch("No possible common root"))
+        r1 = findfirst(noparent)
+        r2 = findlast(noparent)
+        nr1 = findfirst([membership[n] == r1 for n in nodes])
+        nr2 = findfirst([membership[n] == r2 for n in nodes])
+        throw(RootMismatch("Nodes have no common ancestor:\n $nodes[nr1] \n $nodes[nr2]"))
     end
     root = findfirst(noparent)
 
@@ -100,7 +109,10 @@ function findrootcomponent!(net::HybridNetwork)
             end
         end
     end
-    all(indeg .== -1) || throw(RootMismatch("Semidirected cycle exists"))
+    cyclehead = findfirst(indeg .!= 1)
+    isnothing(cyclehead) || throw(RootMismatch(
+        """Semidirected cycle exists, starting at UC containing node:
+         $(nodes[findfirst([membership[n] == cyclehead for n in nodes])])"""))
 
     rootcomp = Set(node for node = nodes if membership[node] == root)
     # mark all edges in first component as contain root
