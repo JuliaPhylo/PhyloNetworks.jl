@@ -271,7 +271,7 @@ function treecomponentroot!(net::HybridNetwork)
             for e in curnode.edge
                 if !e.hybrid
                     # for undirected edge, do DFS, check for undirected cycles
-                    nextnode = curnode == e.node[1] ? e.node[2] : e.node[1]
+                    nextnode = getOtherNode(e, curnode)
                     # if run into visited node (that is not the
                     # parent), then the UC has cycle
                     if nextnode != dfs_parent[curnode]
@@ -286,8 +286,7 @@ function treecomponentroot!(net::HybridNetwork)
                 else
                     # for directed edge, check there is at most one
                     # entry node for the UC
-                    child = e.node[e.isChild1 ? 1 : 2]
-                    if curnode == child 
+                    if curnode === getChild(e)
                         if isnothing(entrynode)
                             entrynode = curnode
                         elseif entrynode != curnode
