@@ -81,19 +81,26 @@ function findrootcomponent!(net::HybridNetwork)
         throw(RootMismatch("No possible common root"))
     end
     root = findfirst(noparent)
-    # DFS from root
-    stack = [root]
-    compvisited = falses(cur_id)
-    while !isempty(stack)
-        uc = pop!(stack)
-        !compvisited[uc] || throw(RootMismatch("Semidirected cycle exists"))
-        compvisited[uc] = true
-        for comp in ucg[uc]
-            if !compvisited[comp]
-                push!(stack, comp)
+
+    # topological sort: check there are no cycles in the UC graph
+    indeg = zeros(Int, cur_id)
+    for uc in ucg
+        for i in uc
+            indeg[i] += 1
+        end
+    end
+    headstack = [root]
+    while !isempty(headstack)
+        uc = pop!(headstack)
+        indeg[uc] -= 1
+        for i in ucg[uc]
+            indeg[i] -= 1
+            if indeg[i] == 0
+                push!(headstack, i)
             end
         end
     end
+    all(indeg .== -1) || throw(RootMismatch("Semidirected cycle exists"))
 
     rootcomp = Set(node for node = nodes if membership[node] == root)
     # mark all edges in first component as contain root
