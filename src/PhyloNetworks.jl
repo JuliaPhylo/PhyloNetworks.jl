@@ -186,6 +186,6 @@ module PhyloNetworks
     include("deprecated.jl")
     include("nj.jl")
     include("phyLiNCoptimization.jl")
-    include("check_sdn.jl")
+    include("treeComponents.jl")
 
 end #module

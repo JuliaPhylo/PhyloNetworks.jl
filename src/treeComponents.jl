@@ -1,3 +1,15 @@
+"""
+    findrootcomponent!(net::HybridNetwork)
+
+Check that the semidirected graph is a semidirected network (i.e. it
+is possible to root the network such that the rooted network, once
+unrooted, gives the original semidirected graph), throw a
+`RootMismatch` exception if this is not the case. 
+
+If the graph is indeed a semidirected network, return the set of nodes
+in the root tree component.  The function also modifies the edge
+attribute `containRoot` appropriately along the way.
+"""
 function findrootcomponent!(net::HybridNetwork)
     # partition nodes into undirected components (UCs)
     nodes = net.node
