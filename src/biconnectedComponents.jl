@@ -320,7 +320,7 @@ function treecomponentroot!(net::HybridNetwork)
         r2 = findlast(noparent)
         nr1 = findfirst([membership[n] == r1 for n in nodes])
         nr2 = findfirst([membership[n] == r2 for n in nodes])
-        throw(RootMismatch("Nodes have no common ancestor:\n $nodes[nr1] \n $nodes[nr2]"))
+        throw(RootMismatch("Nodes have no common ancestor:\n $(nodes[nr1]) \n $(nodes[nr2])"))
     end
     root = findfirst(noparent)
 
@@ -342,7 +342,7 @@ function treecomponentroot!(net::HybridNetwork)
             end
         end
     end
-    cyclehead = findfirst(indeg .!= 1)
+    cyclehead = findfirst(indeg .!= -1)
     isnothing(cyclehead) || throw(RootMismatch(
         """Semidirected cycle exists, starting at UC containing node:
          $(nodes[findfirst([membership[n] == cyclehead for n in nodes])])"""))
