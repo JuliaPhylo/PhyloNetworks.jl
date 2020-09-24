@@ -249,8 +249,8 @@ function treecomponentroot!(net::HybridNetwork)
     nodes = net.node
     n = length(nodes)
     unvisited = Set(nodes)
-    dfs_stack = Vector{Node}()
-    dfs_parent = Dict{Node, Node}()
+    dfs_stack = Vector{Node}()  # depth-first search over tree edges
+    dfs_parent = Dict{Node, Node}() 
     membership = Dict{Node, Int}()
     cur_id = 0
 
@@ -273,7 +273,7 @@ function treecomponentroot!(net::HybridNetwork)
                     # for undirected edge, do DFS, check for undirected cycles
                     nextnode = getOtherNode(e, curnode)
                     # if run into visited node (that is not the
-                    # parent), then the UC has cycle
+                    #membership parent), then the UC has cycle
                     if nextnode != dfs_parent[curnode]
                         if !in(nextnode, unvisited)
                             throw(RootMismatch(

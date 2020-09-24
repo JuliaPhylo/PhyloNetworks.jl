@@ -3,7 +3,6 @@
 treestr = "(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);"
 tree = readTopology(treestr)
 rcomp = treecomponentroot!(tree)
-# @enter treecomponentroot!(tree)
 @test length(rcomp) == 7
 
 netstr = "(#H1:::0.1,#H2:::0.2,(((b)#H1)#H2,a));"
@@ -28,6 +27,7 @@ net.hybrid[1] = net.node[6]
 # test multiple entry points case
 str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 netl1 = readTopology(str_level1)
+    # TODO rename P
 P = PhyloNetworks
 root = netl1.node[P.getIndexNode(-2, netl1)]
 e1 = netl1.edge[P.getIndexEdge(20, netl1)]
