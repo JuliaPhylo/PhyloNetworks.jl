@@ -230,10 +230,10 @@ end
 
 Find the root tree component of the semidirected network.
 
-The tree components of a network are the connected components of a
-network when all hybrid/directed edges are removed.  The root tree
-component is the tree component which the root of the network must
-belong to.
+The tree components (also called undirected components) of a network
+are the connected components of a network when all hybrid/directed
+edges are removed.  The root tree component is the tree component
+which the root of the network must belong to.
 
 Check that the semidirected graph is a semidirected network (i.e. it
 is possible to root the network such that the rooted network, once
@@ -249,10 +249,14 @@ function treecomponentroot!(net::HybridNetwork)
     nodes = net.node
     n = length(nodes)
     unvisited = Set(nodes)
-    dfs_stack = Vector{Node}()  # depth-first search over tree edges
-    dfs_parent = Dict{Node, Node}() 
+    dfs_stack = Vector{Node}()  # stack for iterative depth-first search over tree edges
+    dfs_parent = Dict{Node, Node}() # dfs_parent[node] = the parent of
+    # node in the DFS tree membership[node] = the id of undirected
+    # component the node is in
+    # Since Node is mutable, we cannot modify
+    # the network until we are done with the Dict membership
     membership = Dict{Node, Int}()
-    cur_id = 0
+    cur_id = 0                  # undirected component id
 
     while !isempty(unvisited)
         # loop over undirected components
@@ -325,13 +329,13 @@ function treecomponentroot!(net::HybridNetwork)
     root = findfirst(noparent)
 
     # topological sort: check there are no cycles in the UC graph
-    indeg = zeros(Int, cur_id)
+    indeg = zeros(Int, cur_id)  # in-degree of vertex in UC graph
     for uc in ucg
         for i in uc
             indeg[i] += 1
         end
     end
-    headstack = [root]
+    headstack = [root]          # stack of verteces of degree 0 in topological sort
     while !isempty(headstack)
         uc = pop!(headstack)
         indeg[uc] -= 1
