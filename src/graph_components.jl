@@ -355,7 +355,7 @@ function treecomponentroot!(net::HybridNetwork)
     # mark all edges in first component as contain root
     for e in net.edge
         up, down = e.isChild1 ? (e.node[2], e.node[1]) : (e.node[1], e.node[2])
-        e.containRoot = in(up, root) && (e.hybrid || in(down, root))
+        e.containRoot = in(up, rootcomp) && (e.hybrid || in(down, rootcomp))
     end
     return rootcomp
 end
