@@ -2453,6 +2453,9 @@ sigma2_estim(m::PhyloNetworkLinearModel) = deviance(m.lm) / nobs(m)
 # Need to be adapted manually to TableRegressionModel beacouse it's a new function
 sigma2_estim(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T) =
   sigma2_estim(m.model)
+# REML estimate of within-species variance for measurement error models
+wspvar_estim(m::PhyloNetworkLinearModel) = m.model_within.wsp_var
+wspvar_estim(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T) = wspvar_estim(m.model)
 # ML estimate for ancestral state of the BM
 """
     mu_estim(m::PhyloNetworkLinearModel)
