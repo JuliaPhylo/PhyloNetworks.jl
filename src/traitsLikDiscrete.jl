@@ -1074,7 +1074,7 @@ function discrete_backwardlikelihood_trait!(obj::SSM, t::Integer, ri::Integer)
     k = nstates(obj.model)
     fill!(backwardlik, 0.0) # re-initialize for each trait, each iteration
     bkwtmp = Vector{Float64}(undef, k) # to hold bkw lik without parent edge transition
-    if typeof(obj.model) == NASM
+    if typeof(obj.model) <: NASM
         logprior = log.(stationary(obj.model))
     else #trait models
         logprior = [-log(k) for i in 1:k] # uniform prior at root

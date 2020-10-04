@@ -1703,19 +1703,17 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
     # derivative of loglik at γ=0
     llg0 = wsum(ulik)
     inside01 = true
-    if llg0 < 0
+    if llg0 <= 0.0 # if llg0 = 0, something fishy is happening or data has no variation
         γ = 0.0
         inside01 = false
         ll = wsum((visib ? log.(clikp) : log.(clikp .+ clikn)))
         @debug "γ = 0 best, skip Newton-Raphson"
-    elseif llg0 == 0.0 # if llg0 = 0, something fishy is happening.
-        @error("llg0 is $llg0 and optimization is proceeding. Something is wrong.")
     else # at γ=1
         if visib
              ulik .= (clike .- clikp) ./ clike
         else ulik .= (clike .- clikp) ./ (clike .+ clikn); end
         llg1 = wsum(ulik)
-        if llg1 > 0
+        if llg1 >= 0.0 # if llg1 = 0.0, data has no variation
             γ = 1.0
             inside01 = false
             ll = wsum((visib ? log.(clike) : log.(clike .+ clikn)))
