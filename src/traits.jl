@@ -1781,14 +1781,18 @@ function phyloNetworklm(X::Matrix,
                         startingValue=0.5::Real,
                         fixedValue=missing::Union{Real,Missing},
                         msr_err::Bool=false,
-                        labels::Union{Nothing, Vector}=nothing)
+                        labels::Union{Nothing, Vector}=nothing,
+                        counts::Union{Nothing, Vector}=nothing,
+                        rspvar_sds::Union{Nothing, Vector}=nothing)
 
     # Getting variance covariance
     V = sharedPathMatrix(net)
     
     # Fit
     if msr_err
-        phyloNetworkmem(X, Y, V, labels, net.names, model, nothing)
+        phyloNetworkmem(X, Y, V, labels, 
+                        counts, rspvar_sds,
+                        net.names, model, nothing)
     else
         phyloNetworklm(X, Y, V;
                        nonmissing=nonmissing, ind=ind)
@@ -2299,11 +2303,14 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
                   tips of the network are in the same order as the values of the dataframe
                   provided, then please re-run this function with argument no_name=true.""")
         ind = indexin(fr[!,:tipNames], tipLabels(net))
-        if any(isnothing, ind) || length(unique(ind)) != length(ind)
-            # length(unique(ind)) != length(ind) for measurement error models
+        if any(isnothing, ind)
+            # possible that length(unique(ind)) != length(ind) for measurement error 
+            # models
             if !msr_err
-                error("""Tips names of the network and names provided in column tipNames
-                      of the dataframe do not match.""")
+                if length(unique(ind)) != length(ind)
+                    error("""Tips names of the network and names provided in column 
+                          tipNames of the dataframe do not match.""")
+                end
             end
         end
     end
@@ -2323,11 +2330,20 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
         # Eventually should get rid of this return statement after they are
         # implemented for all CTEMs. 
         labels = msr_err ? fr[!,:tipNames] : nothing
+        if :speciescts in propertynames(fr)
+            counts = fr[!,:speciescts]
+            # Extract the sample sds corresponding to the response means
+            rspvar_sds = fr[!,Symbol(String(mf.f.lhs.sym)*"_sd")]
+        else
+            counts = nothing
+            rspvar_sds = nothing
+        end
+
         return StatsModels.TableRegressionModel(
                 phyloNetworklm(mm.m, Y, net, modelobj; nonmissing=nonmissing,
                                ind=ind, startingValue=startingValue,
                                fixedValue=fixedValue, msr_err=msr_err,
-                               labels=labels),
+                               labels=labels, counts=counts, rspvar_sds=rspvar_sds),
                 mf, mm)
     elseif model == "lambda"
         modelobj = PLambda()
@@ -2567,32 +2583,55 @@ function phyloNetworkmem(X::Matrix,
                          Y::Vector,
                          V::MatrixTopologicalOrder,
                          labels::Vector,
+                         counts::Union{Nothing, Vector},
+                         rspvar_sds::Union{Nothing, Vector},
                          netnames::Vector,
                          model::ContinuousTraitEM,
                          model_within::Union{Nothing, 
                                              WithinSpeciesCTM}=nothing)
     
-    # Compute constants: Vsp, Dinv, RSS, Ysp 
-    Vsp = V[:Tips] # variance-covariance matrix for species means
-    n = length(Y) # total no. of obs
+    # Compute constants: Xr, Ysp, Dinv, RSS, n, p, a
     a = length(netnames) # no. of species
-    p = size(X, 2) # no. of predictors (including intercept)
-    Dinv = fill(0.0, (a, a))
-    Ysp = fill(0.0, a) # species-level mean response
-    RSS = 0
-    Xr = fill(0.0, (a, p)) # reduced predictor matrix (without repeated rows)
+    p = size(X, 2) # no. of predictors
     
-    idx = 1 # counter used when filling in Xr from X
-    for i in 1:a
-        ind = (labels .== netnames[i]) # indicator vector
-        # no. of obs for species i
-        n_i = sum(ind)
-        Dinv[i,i] = 1/n_i
-        Xr[i, :] = X[idx, :]; idx += n_i
-        Ysp[i] = mean(Y[ind])
-        RSS += norm(Y[ind].-Ysp[i])^2
+    if (counts == nothing) || (rspvar_sds == nothing)
+        n = length(Y) # total no. of obs
+        Dinv = fill(0.0, (a, a))
+        Ysp = fill(0.0, a) # species-level mean response
+        RSS = 0 # 1-way ANOVA residual sum-of-squares for predictor variable
+        # reduce predictor matrix: same no. of rows as no. of species
+        Xr = fill(0.0, (a, p))
+
+        idx = 1 # counter used when filling in Xr from X
+        for i in 1:a
+            ind = (labels .== netnames[i]) # indicator vector
+            # no. of obs for species i
+            n_i = sum(ind)
+            Dinv[i,i] = 1/n_i
+            Xr[i, :] = X[idx, :]; idx += n_i
+            Ysp[i] = mean(Y[ind])
+            RSS += norm(Y[ind].-Ysp[i])^2
+        end
+    else # group means and sds for response variable were passed in
+        n = sum(counts)
+        Dinv = convert(Matrix, Diagonal(1 ./ counts))
+        Ysp = Y
+        Xr = X
+        RSS = sum((rspvar_sds .^ 2) .* (counts .- 1))
     end
 
+    phyloNetworkmem(Xr, Ysp, V, Dinv, RSS, n, p, a, model, model_within)
+end
+
+function phyloNetworkmem(Xr::Matrix, 
+                         Ysp::Vector, 
+                         V::MatrixTopologicalOrder, 
+                         Dinv::Matrix, RSS::Float64,
+                         n::Int64, p::Int64, a::Int64,
+                         model::ContinuousTraitEM, 
+                         model_within::Union{Nothing, 
+                                             WithinSpeciesCTM}=nothing)
+    
     # fit phyloNetworklm on species-level mean responses without taking 
     # measurement error into account
     m = phyloNetworklm(Xr, Ysp, V)
@@ -2617,6 +2656,7 @@ function phyloNetworkmem(X::Matrix,
 
     # Plug in REML variance components estimate into GLS coefficients estimate
     (η, σ²) = (model_within.optsum).final
+    Vsp = V[:Tips] # variance-covariance matrix for species means
     Vm = Vsp + η*Dinv
 
     # Package Vm in 'MatrixTopologicalOrder' type. Have to create a new object
