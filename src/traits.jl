@@ -1783,7 +1783,7 @@ function phyloNetworklm(X::Matrix,
                         msr_err::Bool=false,
                         labels::Union{Nothing, Vector}=nothing,
                         counts::Union{Nothing, Vector}=nothing,
-                        rspvar_sds::Union{Nothing, Vector}=nothing)
+                        rsp_std::Union{Nothing, Vector}=nothing)
 
     # Getting variance covariance
     V = sharedPathMatrix(net)
@@ -1791,7 +1791,7 @@ function phyloNetworklm(X::Matrix,
     # Fit
     if msr_err
         phyloNetworkmem(X, Y, V, labels, 
-                        counts, rspvar_sds,
+                        counts, rsp_std,
                         net.names, model, nothing)
     else
         phyloNetworklm(X, Y, V;
@@ -2269,6 +2269,7 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
                         fr::AbstractDataFrame,
                         net::HybridNetwork;
                         model="BM"::AbstractString,
+                        tipnames::Symbol=:tipNames, 
                         no_names=false::Bool,
                         ftolRel=fRelTr::AbstractFloat,
                         xtolRel=xRelTr::AbstractFloat,
@@ -2276,7 +2277,8 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
                         xtolAbs=xAbsTr::AbstractFloat,
                         startingValue=0.5::Real,
                         fixedValue=missing::Union{Real,Missing},
-                        msr_err::Bool=false)
+                        msr_err::Bool=false,
+                        response_std::Bool=false)
     # Match the tips names: make sure that the data provided by the user will
     # be in the same order as the ordered tips in matrix V.
     preorder!(net)
@@ -2285,7 +2287,7 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
         @info """As requested (no_names=true), I am ignoring the tips names
              in the network and in the dataframe."""
     else
-        nodatanames = !any(DataFrames.propertynames(fr) .== :tipNames)
+        nodatanames = !any(DataFrames.propertynames(fr) .== tipnames)
         nodatanames && any(tipLabels(net) == "") &&
             error("""The network provided has no tip names, and the input dataframe has
                   no column labelled tipNames, so I can't match the data on the network
@@ -2302,7 +2304,7 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
                   match the data on the network unambiguously. If you are sure that the
                   tips of the network are in the same order as the values of the dataframe
                   provided, then please re-run this function with argument no_name=true.""")
-        ind = indexin(fr[!,:tipNames], tipLabels(net))
+        ind = indexin(fr[!, tipnames], tipLabels(net))
         if any(isnothing, ind)
             # possible that length(unique(ind)) != length(ind) for measurement error 
             # models
@@ -2329,21 +2331,21 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
         # Measurement error model is only implemented for "BM" CTEMs for now.
         # Eventually should get rid of this return statement after they are
         # implemented for all CTEMs. 
-        labels = msr_err ? fr[!,:tipNames] : nothing
-        if :speciescts in propertynames(fr)
+        labels = msr_err ? fr[!,tipnames] : nothing
+        if response_std
             counts = fr[!,:speciescts]
             # Extract the sample sds corresponding to the response means
-            rspvar_sds = fr[!,Symbol(String(mf.f.lhs.sym)*"_sd")]
+            rsp_std = fr[!,Symbol(String(mf.f.lhs.sym)*"_sd")]
         else
             counts = nothing
-            rspvar_sds = nothing
+            rsp_std = nothing
         end
 
         return StatsModels.TableRegressionModel(
                 phyloNetworklm(mm.m, Y, net, modelobj; nonmissing=nonmissing,
                                ind=ind, startingValue=startingValue,
                                fixedValue=fixedValue, msr_err=msr_err,
-                               labels=labels, counts=counts, rspvar_sds=rspvar_sds),
+                               labels=labels, counts=counts, rsp_std=rsp_std),
                 mf, mm)
     elseif model == "lambda"
         modelobj = PLambda()
@@ -2584,7 +2586,7 @@ function phyloNetworkmem(X::Matrix,
                          V::MatrixTopologicalOrder,
                          labels::Vector,
                          counts::Union{Nothing, Vector},
-                         rspvar_sds::Union{Nothing, Vector},
+                         rsp_std::Union{Nothing, Vector},
                          netnames::Vector,
                          model::ContinuousTraitEM,
                          model_within::Union{Nothing, 
@@ -2594,7 +2596,7 @@ function phyloNetworkmem(X::Matrix,
     a = length(netnames) # no. of species
     p = size(X, 2) # no. of predictors
     
-    if (counts == nothing) || (rspvar_sds == nothing)
+    if (counts == nothing) || (rsp_std == nothing)
         n = length(Y) # total no. of obs
         Dinv = fill(0.0, (a, a))
         Ysp = fill(0.0, a) # species-level mean response
@@ -2617,7 +2619,7 @@ function phyloNetworkmem(X::Matrix,
         Dinv = convert(Matrix, Diagonal(1 ./ counts))
         Ysp = Y
         Xr = X
-        RSS = sum((rspvar_sds .^ 2) .* (counts .- 1))
+        RSS = sum((rsp_std .^ 2) .* (counts .- 1))
     end
 
     phyloNetworkmem(Xr, Ysp, V, Dinv, RSS, n, p, a, model, model_within)
