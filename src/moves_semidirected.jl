@@ -907,7 +907,7 @@ hybrid edge.
 
 Note: The edge not modified in place: it is deleted and recreated, so it will have
 a new index in the vector net.hybrid after flipping.
-#? Would modifying in place be faster? Likely would require less renumbering in `fliphybridedgeLiNC!`
+#? Would modifying in place be faster? This likely would require less renumbering in `fliphybridedgeLiNC!`
 
 Output: `true` if successful, `false` otherwise.
 
@@ -922,7 +922,7 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     end
     edgetoflip, edgetokeep = (PhyloNetworks.getMinorParentEdge(hybridnode), PhyloNetworks.getMajorParentEdge(hybridnode))
     if !minor; (edgetoflip, edgetokeep) = (edgetokeep, edgetoflip); end;
-    !edgetoflip.containRoot && return false # if edgetoflip is below a hybrid node, can't flip
+    if !edgetoflip.containRoot; return false; end; # if edgetoflip below a hybrid node, can't flip
     newhybridnode = PhyloNetworks.getParent(edgetoflip)
     # if root, need to move root. Move root to old hybridnode
     if newhybridnode === net.node[net.root] #TODO finish this
@@ -937,7 +937,15 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
             # change root then rerun direct edges
         end
     end
-    newhybridedge = getMajorParentEdge(newhybridnode)
+    newhybridedge = PhyloNetworks.getMajorParentEdge(newhybridnode)
+    # # check that the new network will be a DAG: no directional conflict
+    # todo this check doesn't work because the hybrid is here
+    # if PhyloNetworks.directionalconflict(net, hybridnode, newhybridedge, true) # true to fix root
+    #     return false
+    # end
+    #if newhybridedge is already a hybrid, then directional conflict
+    if newhybridedge.hybrid; return false; end;
+    # If edgetokeep is already hybrid, edgetoflip was the bottom rung of a hybrid ladder.
     println("edgetoflip is $edgetoflip, edgetokeep is $edgetokeep, newhybridedge is $newhybridedge")
     # change hybrid status and major status for nodes and edges
     hybridnode.hybrid = false
@@ -950,6 +958,7 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     # update node order to keep isChild1 attribute of hybrid edges true
     edgetoflip.isChild1 = !edgetoflip.isChild1 # just switch
     newhybridedge.isChild1 = true # should to true by default, but could have been changed
+    #TODO give new hybridnode a name
     if newhybridedge.node[1].number != newhybridnode.number
         newhybridedge.isChild1 = false
     end
