@@ -931,7 +931,14 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
         # pick one of the children to become the new root and the parent of the new hybrid
         # make root equal to old hybrid node
         net.root = findfirst([n.number == hybridnode.number for n in net.node]) # get index for hybridnode
-        newhybridedge = newhybridnode.edge[findfirst([e.number != edgetoflip.number for e in newhybridnode.edge])] # choose first edge
+        # cycle through child edges of root to find newhybridedge
+        newhybridedgei = 1:length(newhybridnode.edge)
+        for i in newhybridedgei
+            if newhybridnode.edge[i].number != edgetoflip.number && !any(n.leaf for n in newhybridnode.edge[i].node)
+                newhybridedge = newhybridnode.edge[i]
+                break # out of loop
+            end
+        end
     else
         newhybridedge = PhyloNetworks.getMajorParentEdge(newhybridnode)
     end

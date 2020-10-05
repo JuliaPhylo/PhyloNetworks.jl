@@ -521,4 +521,12 @@ net_hybridladder = readTopology("(#H2:::0.2,((C,((B)#H1)#H2:::0.8),(#H1,(A1,A2))
 @test PhyloNetworks.fliphybrid!(net_hybridladder, net_hybridladder.hybrid[2], true)
 @test net_hybridladder.hybrid[2].number == -2 # this is the former root
 @test net_hybridladder.root == 4 # new root index is as expected
+
+# simple network that requires moving the root
+n6h1 = readTopology("((((1:0.2,2:0.2):2.4,((3:0.4,4:0.4):1.1)#H1:1.1):2.0,(#H1:0.0::0.3,5:1.5):3.1):1.0,6:5.6);")
+n6h1.root = 10
+directEdges!(n6h1)
+@test n6h1.hybrid[1].number == 5
+@test PhyloNetworks.fliphybrid!(n6h1, n6h1.hybrid[1]) # flips minor by default
+@test n6h1.hybrid[1].number == -8
 end
