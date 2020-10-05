@@ -925,25 +925,23 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     if !edgetoflip.containRoot; return false; end; # if edgetoflip below a hybrid node, can't flip
     newhybridnode = PhyloNetworks.getParent(edgetoflip)
     # if root, need to move root. Move root to old hybridnode
-    if newhybridnode === net.node[net.root] #TODO finish this
+    if newhybridnode === net.node[net.root] #TODO check this
+        oldroot = net.root
         # if newhybridnode has no parents, need to pick one of the children.
         # pick one of the children to become the new root and the parent of the new hybrid
-        net.root = 0 # get index for hybridnode TODO
-        # make all changes first then test
-        # loop until you run out of children. if none work, return false
-        try # use directEdges as a way to test new edges
-            directEdges!(net) # only change isChild1 attribute
-        catch
-            # change root then rerun direct edges
-        end
+        # make root equal to old hybrid node
+        net.root = findfirst([n.number == hybridnode.number for n in net.node]) # get index for hybridnode
+        newhybridedge = newhybridnode.edge[findfirst([e.number != edgetoflip.number for e in newhybridnode.edge])] # choose first edge
+    else
+        newhybridedge = PhyloNetworks.getMajorParentEdge(newhybridnode)
     end
-    newhybridedge = PhyloNetworks.getMajorParentEdge(newhybridnode)
-    # # check that the new network will be a DAG: no directional conflict
-    # todo this check doesn't work because the hybrid is here
-    # if PhyloNetworks.directionalconflict(net, hybridnode, newhybridedge, true) # true to fix root
-    #     return false
-    # end
-    #if newhybridedge is already a hybrid, then directional conflict
+    ## check that the new network will be a DAG: no directional conflict
+        # this check doesn't work because the hybrid is in the network
+        # if we want to use this, nsremove hybrid edge first
+        # if PhyloNetworks.directionalconflict(net, hybridnode, newhybridedge, true) # true to fix root
+        #     return false
+        # end
+    # if newhybridedge is already a hybrid, then the flip will cause a directional conflict
     if newhybridedge.hybrid; return false; end;
     # If edgetokeep is already hybrid, edgetoflip was the bottom rung of a hybrid ladder.
     println("edgetoflip is $edgetoflip, edgetokeep is $edgetokeep, newhybridedge is $newhybridedge")
@@ -958,28 +956,44 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     # update node order to keep isChild1 attribute of hybrid edges true
     edgetoflip.isChild1 = !edgetoflip.isChild1 # just switch
     newhybridedge.isChild1 = true # should to true by default, but could have been changed
-    #TODO give new hybridnode a name
+    # give new hybridnode a name
+    newhybridnode.name = hybridnode.name
+    hybridnode.name = "" # remove name from former hybrid node
     if newhybridedge.node[1].number != newhybridnode.number
         newhybridedge.isChild1 = false
     end
     # update gammas
     newhybridedge.gamma = edgetokeep.gamma
     edgetokeep.gamma = 1
-    println("Major hybrid parent is $(PhyloNetworks.getMajorParentEdge(newhybridnode))
-    Minor hybrid parent is $(PhyloNetworks.getMinorParentEdge(newhybridnode))")
-    # update hybrids in network (cant do this after directEdges!)
-    # todo look at function that adds a hybrid to a network (when read from a file.)
+    # update hybrids in network (before directEdges!)
     hybridindex = findfirst([node.number == hybridnode.number for node in net.hybrid])
     net.hybrid[hybridindex] = newhybridnode
-    #TODO missing an update here
     try # check that network can still be directed from current root
         directEdges!(net)
     catch # if current root doesn't work, root at new parent of edgetoflip
         @debug "Rerooting at old hybrid node number $(hybridnode.number)"
         #? will this ever happen? # todo confirm
         printEdges(net)
-        net.root = hybridnode.number # root at old hybridnode
+        # root at old hybridnode
+        net.root = findfirst([n.number == hybridnode.number for n in net.node])
         directEdges!(net) # Because edgetoflip.containRoot is true, this shouldn't error
     end
     return true
 end
+
+# notes on moving root:
+# try # use directEdges as a way to test new edges
+#     directEdges!(net) # only change isChild1 attribute
+# catch
+#     net.root = oldroot #reset
+#     children = getChildren(net.node[net.root])
+#     for c in children # loop until you run out of children. if none work, return false
+#         net.root = oldroot #reset
+#         try
+#             directEdges!(net)
+#         catch
+#             continue
+#         end
+#     end
+#     # change root then rerun direct edges
+# end
