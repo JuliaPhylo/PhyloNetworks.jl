@@ -898,6 +898,30 @@ function moveroot!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{
 end
 
 """
+    fliphybrid!(net::HybridNetwork, minor=true::Bool, nohybridladder=true::Bool,
+                constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+
+Cycle through hybrid nodes in random order until admissible flip found. Flip
+the `hybridnode`'s indicated hybrid edge (minor or major).
+
+If an admissible flip is found, return the tuple: newhybridnode, flippededge, oldchildedge
+Otherwise, return nothing.
+"""
+function fliphybrid!(net::HybridNetwork, minor=true::Bool,
+                     nohybridladder=true::Bool,
+                     constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    hybridindex = Random.shuffle(1:length(net.hybrid)) # indices in net.hybrid
+    while !isempty(hybridindex) # all minor edges
+        i = pop!(hybridindex)
+        undoinfo = fliphybrid!(net, net.hybrid[i], minor, nohybridladder, constraints)
+        if !isnothing(undoinfo) # if it failed, the network was not changed
+            return undoinfo
+        end # else, continue until explored all i in hybridindex
+    end
+    return nothing
+end
+
+"""
     fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
                 constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
@@ -905,7 +929,11 @@ Flip a hybrid edge so that the parent node is the new hybrid node. The former
 hybrid edge partner is converted to a tree edge. By default, flips the minor
 hybrid edge.
 
-Output: `true` if successful, `false` otherwise.
+The identity of the hybrid node changes, but the index in net.hybrid
+remains constant.
+
+If found an admissible flip, return a tuple: newhybridnode, flippededge, oldchildedge
+Otherwise, return nothing.
 
 Called by [`fliphybridedgeLiNC!`](@ref)
 """
@@ -914,13 +942,14 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
                      constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     for con in constraints
         if con.node === h # if crown node is the hybrid node, then flipping would add to the constraint group
-            return false # todo explore other ways this could violate species constraints
+            return nothing # todo explore other ways this could violate species constraints
         end
     end
-    edgetoflip, edgetokeep = (PhyloNetworks.getMinorParentEdge(hybridnode), PhyloNetworks.getMajorParentEdge(hybridnode))
+    oldchildedge = getChildEdge(hybridnode)
+    edgetoflip, edgetokeep = (getMinorParentEdge(hybridnode), getMajorParentEdge(hybridnode))
     if !minor; (edgetoflip, edgetokeep) = (edgetokeep, edgetoflip); end;
-    if !edgetoflip.containRoot; @debug "edgetoflip cannot contain root"; return false; end; # if edgetoflip below a hybrid node, can't flip
-    newhybridnode = PhyloNetworks.getParent(edgetoflip)
+    if !edgetoflip.containRoot; @debug "edgetoflip cannot contain root"; return nothing; end; # if edgetoflip below a hybrid node, can't flip
+    newhybridnode = getParent(edgetoflip)
     if newhybridnode === net.node[net.root]
         oldroot = net.root
         # if newhybridnode has no parents, need to pick one of the children.
@@ -939,17 +968,17 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
         end
         if !nhefound # no possible edges to become newhybridedge, flip not possible
             @debug "tried to find a newhybridedge, none possible"
-            return false
+            return nothing
         end
     else # new hybrid node != root
-        newhybridedge = PhyloNetworks.getMajorParentEdge(newhybridnode)
+        newhybridedge = getMajorParentEdge(newhybridnode)
     end
     @debug "edgetoflip is $edgetoflip, edgetokeep is $edgetokeep, newhybridedge is $newhybridedge"
     if nohybridladder
         for hyb in net.hybrid # case when edgetoflip would be bottom rung of ladder
             if getChildEdge(hyb) == newhybridedge
                 @debug "caught at first nohybridladder check"
-                return false
+                return nothing
             end
         end
         # if nohybridladder, only one edge connected to newhybridnode should be hybrid initially
@@ -957,7 +986,7 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
             # (this happens when newhybridnode initially was the center point of a W structure)
             if e.number != edgetoflip.number && e.hybrid
                 @debug "caught at second nohybridladder check"
-                return false
+                return nothing
             end
         end
         # OR new child edge below new hybrid node does not have a node connected to another hybrid
@@ -966,11 +995,11 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     ## check that the new network will be a DAG: no directional conflict
         # this check doesn't work because the hybrid is in the network
         # if we want to use this, nsremove hybrid edge first
-        # if PhyloNetworks.directionalconflict(net, hybridnode, newhybridedge, true) # true to fix root
-        #     return false
+        # if directionalconflict(net, hybridnode, newhybridedge, true) # true to fix root
+        #     return nothing
         # end
     # if newhybridedge is already a hybrid, then the flip will cause a directional conflict
-    if newhybridedge.hybrid; @debug "caught at newhybridedgehybrid check"; return false; end;
+    if newhybridedge.hybrid; @debug "caught at newhybridedgehybrid check"; return nothing; end;
     # If edgetokeep is already hybrid, edgetoflip was the bottom rung of a hybrid ladder.
     # change hybrid status and major status for nodes and edges
     hybridnode.hybrid = false
@@ -991,7 +1020,7 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     end
     # update gammas
     newhybridedge.gamma = edgetokeep.gamma
-    edgetokeep.gamma = 1
+    edgetokeep.gamma = 1.0
     # update hybrids in network (before directEdges!)
     hybridindex = findfirst([node.number == hybridnode.number for node in net.hybrid])
     net.hybrid[hybridindex] = newhybridnode
@@ -1005,5 +1034,5 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
         net.root = findfirst([n.number == hybridnode.number for n in net.node])
         directEdges!(net) # Because edgetoflip.containRoot is true, this shouldn't error
     end
-    return true
+    return newhybridnode, edgetoflip, oldchildedge
 end

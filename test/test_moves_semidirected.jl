@@ -478,47 +478,46 @@ end # of testset on checknetwork functions for species constraints
 
 end # of constrained NNI moves
 
-@testset "test fliphybrid!" begin
+@testset "test fliphybrid! inner function" begin
 # simple network
 n6h1 = readTopology("((((1:0.2,2:0.2):2.4,((3:0.4,4:0.4):1.1)#H1:1.1):2.0,(#H1:0.0::0.3,5:1.5):3.1):1.0,6:5.6);")
 @test n6h1.hybrid[1].number == 5
-@test PhyloNetworks.fliphybrid!(n6h1, n6h1.hybrid[1]) # flips minor by default
+@test !isnothing(PhyloNetworks.fliphybrid!(n6h1, n6h1.hybrid[1])) # flips minor by default
 @test n6h1.hybrid[1].number == -8
 n6h1 = readTopology("((((1:0.2,2:0.2):2.4,((3:0.4,4:0.4):1.1)#H1:1.1):2.0,(#H1:0.0::0.3,5:1.5):3.1):1.0,6:5.6);")
 @test n6h1.hybrid[1].number == 5
-@test PhyloNetworks.fliphybrid!(n6h1, n6h1.hybrid[1], false) # flips major edge
+@test !isnothing(PhyloNetworks.fliphybrid!(n6h1, n6h1.hybrid[1], false)) # flips major edge
 @test n6h1.hybrid[1].number == -4
 @test n6h1.hybrid[1].name == "H1"
 
 # hybrid ladder network
 net_hybridladder = readTopology("(#H2:::0.2,((C,((B)#H1)#H2:::0.8),(#H1,(A1,A2))),O);");
 @test net_hybridladder.hybrid[1].number == 4
-# this flip is possible, doesn't create conflict
-@test PhyloNetworks.fliphybrid!(net_hybridladder, net_hybridladder.hybrid[1], true, false)
+@test !isnothing(PhyloNetworks.fliphybrid!(net_hybridladder, net_hybridladder.hybrid[1], true, false))
 @test net_hybridladder.hybrid[1].number == -7
 net_hybridladder = readTopology("(#H2:::0.2,((C,((B)#H1)#H2:::0.8),(#H1,(A1,A2))),O);");
 # fails because edgetoflip is below a hybrid node
-@test !PhyloNetworks.fliphybrid!(net_hybridladder, net_hybridladder.hybrid[1], false, false)
+@test isnothing(PhyloNetworks.fliphybrid!(net_hybridladder, net_hybridladder.hybrid[1], false, false))
 @test net_hybridladder.hybrid[1].number == 4 # unchanged
-# flipping the major hybrid edge of hybrid 1 creates a W structure
+# flipping the major hybrid edge of hybrid 1 creates a W structure, which is allowed
 net_hybridladder = readTopology("(#H2:::0.2,((C,((B)#H1)#H2:::0.8),(#H1,(A1,A2))),O);");
 @test net_hybridladder.hybrid[2].number == 1
-@test PhyloNetworks.fliphybrid!(net_hybridladder, net_hybridladder.hybrid[2], false, false)
+@test !isnothing(PhyloNetworks.fliphybrid!(net_hybridladder, net_hybridladder.hybrid[2], false, false))
 @test net_hybridladder.hybrid[2].number == -4
 @test net_hybridladder.hybrid[2].name == "H2"
 
 # test with W structure network (nohybridladder and hybrid ladders allowed)
 net_W = readTopology("(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.151::0.4):0.0274):0.4812);")
 @test net_W.hybrid[1].number == 3
-@test !PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[1]) # not allowed, creates a hybrid ladder
+@test isnothing(PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[1])) # not allowed, creates a hybrid ladder
 net_W = readTopology("(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.151::0.4):0.0274):0.4812);")
-@test PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[1], true, false) # hybrid ladders allowed
+@test !isnothing(PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[1], true, false)) # hybrid ladders allowed
 @test net_W.hybrid[1].number == -7
 net_W = readTopology("(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.151::0.4):0.0274):0.4812);")
 @test net_W.hybrid[2].number == 6
-@test !PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[2]) # not allowed, creates a hybrid ladder
+@test isnothing(PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[2])) # not allowed, creates a hybrid ladder
 net_W = readTopology("(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.151::0.4):0.0274):0.4812);")
-@test PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[2], true, false) # hybrid ladders allowed
+@test !isnothing(PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[2], true, false)) # hybrid ladders allowed
 @test net_W.hybrid[2].number == -7
 
 ## newhybridnode is current root, need to move root ##
@@ -526,7 +525,7 @@ net_W = readTopology("(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0)#
     # because it's a hybrid ladder, the only safe place to root is the edge between the two new hybrid nodes
 net_hybridladder = readTopology("(#H2:::0.2,((C,((B)#H1)#H2:::0.8),(#H1,(A1,A2))),O);");
 @test net_hybridladder.hybrid[2].number == 1
-@test PhyloNetworks.fliphybrid!(net_hybridladder, net_hybridladder.hybrid[2], true, false)
+@test !isnothing(PhyloNetworks.fliphybrid!(net_hybridladder, net_hybridladder.hybrid[2], true, false))
 @test net_hybridladder.hybrid[2].number == -2 # this is the former root
 @test net_hybridladder.root == 4 # new root index is as expected
 # simple network that requires moving the root
@@ -534,14 +533,33 @@ n6h1 = readTopology("((((1:0.2,2:0.2):2.4,((3:0.4,4:0.4):1.1)#H1:1.1):2.0,(#H1:0
 n6h1.root = 10
 directEdges!(n6h1)
 @test n6h1.hybrid[1].number == 5
-@test PhyloNetworks.fliphybrid!(n6h1, n6h1.hybrid[1]) # flips minor by default
+@test !isnothing(PhyloNetworks.fliphybrid!(n6h1, n6h1.hybrid[1])) # flips minor by default
 @test n6h1.hybrid[1].number == -8
 # W structure
 net_W = readTopology("(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.151::0.4):0.0274):0.4812);")
-@test PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[1], false, true) # move major edge, nohybridladder
+@test !isnothing(PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[1], false, true)) # move major edge, nohybridladder
 # this moves root to node number -4
 @test net_W.root == 3 # index
 net_W = readTopology("(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.151::0.4):0.0274):0.4812);")
-@test PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[1], false, false) # move major edge, hybridladder
+@test !isnothing(PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[1], false, false)) # move major edge, hybridladder
 @test net_W.root == 3 # index
+
+# todo flip hybrid would create a directed cycle where root is in cycle
+net_hybridladder = readTopology("(#H2:::0.2,((C,((B)#H1)#H2:::0.8),(#H1,(A1,A2))),O);");
+
+# todo flip hybrid would create a directed cycle with root is outside cycle
+net_hybridladder = readTopology("(#H2:::0.2,((C,((B)#H1)#H2:::0.8),(#H1,(A1,A2))),O);");
+
+end
+
+@testset "test fliphybrid! randomly choose node function" begin
+Random.seed!(123)
+n6h1 = readTopology("((((1:0.2,2:0.2):2.4,((3:0.4,4:0.4):1.1)#H1:1.1):2.0,(#H1:0.0::0.3,5:1.5):3.1):1.0,6:5.6);")
+@test n6h1.hybrid[1].number == 5
+@test !isnothing(PhyloNetworks.fliphybrid!(n6h1))
+@test n6h1.hybrid[1].number == -8
+
+net_W = readTopology("(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.151::0.4):0.0274):0.4812);")
+@test isnothing(PhyloNetworks.fliphybrid!(net_W)) # all minor edge flips create a hybridladder
+@test net_W.hybrid[1].number == 3 # unchanged
 end
