@@ -919,7 +919,7 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     end
     edgetoflip, edgetokeep = (PhyloNetworks.getMinorParentEdge(hybridnode), PhyloNetworks.getMajorParentEdge(hybridnode))
     if !minor; (edgetoflip, edgetokeep) = (edgetokeep, edgetoflip); end;
-    if !edgetoflip.containRoot; return false; end; # if edgetoflip below a hybrid node, can't flip
+    if !edgetoflip.containRoot; @debug "edgetoflip cannot contain root"; return false; end; # if edgetoflip below a hybrid node, can't flip
     newhybridnode = PhyloNetworks.getParent(edgetoflip)
     if newhybridnode === net.node[net.root]
         oldroot = net.root
@@ -938,30 +938,25 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
             nhei += 1
         end
         if !nhefound # no possible edges to become newhybridedge, flip not possible
+            @debug "tried to find a newhybridedge, none possible"
             return false
         end
     else # new hybrid node != root
         newhybridedge = PhyloNetworks.getMajorParentEdge(newhybridnode)
     end
+    @debug "edgetoflip is $edgetoflip, edgetokeep is $edgetokeep, newhybridedge is $newhybridedge"
     if nohybridladder
-        for hyb in net.hybrid
+        for hyb in net.hybrid # case when edgetoflip would be bottom rung of ladder
             if getChildEdge(hyb) == newhybridedge
+                @debug "caught at first nohybridladder check"
                 return false
             end
         end
-        # need to confirm that newhybridedge does not become the top rung in a hybrid ladder
-        for e in newhybridnode.edge # todo this would catch W structures too
-            #? how to catch only hybrid ladders without using directEdges?
-            if e.number != edgetoflip.number
-                if e.hybrid; return false; end;
-            end
-        end
-        if any([n.hybrid for n in newhybridedge.node]) # newhybridedge already connected to a hybrid node
-            return false
-        end
-        # if nohybridladder, only one edge connected to newhybridnode should be hybrid
-        for e in newhybridnode.edge # if
-            if e.number != edgetoflip && e.hybrid
+        # if nohybridladder, only one edge connected to newhybridnode should be hybrid initially
+        for e in newhybridnode.edge # case when edgetoflip would be the top rung
+            # (this happens when newhybridnode initially was the center point of a W structure)
+            if e.number != edgetoflip.number && e.hybrid
+                @debug "caught at second nohybridladder check"
                 return false
             end
         end
@@ -975,9 +970,8 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
         #     return false
         # end
     # if newhybridedge is already a hybrid, then the flip will cause a directional conflict
-    if newhybridedge.hybrid; return false; end;
+    if newhybridedge.hybrid; @debug "caught at newhybridedgehybrid check"; return false; end;
     # If edgetokeep is already hybrid, edgetoflip was the bottom rung of a hybrid ladder.
-    @debug "edgetoflip is $edgetoflip, edgetokeep is $edgetokeep, newhybridedge is $newhybridedge"
     # change hybrid status and major status for nodes and edges
     hybridnode.hybrid = false
     edgetokeep.hybrid = false
