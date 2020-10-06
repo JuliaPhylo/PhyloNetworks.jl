@@ -494,16 +494,16 @@ n6h1 = readTopology("((((1:0.2,2:0.2):2.4,((3:0.4,4:0.4):1.1)#H1:1.1):2.0,(#H1:0
 net_hybridladder = readTopology("(#H2:::0.2,((C,((B)#H1)#H2:::0.8),(#H1,(A1,A2))),O);");
 @test net_hybridladder.hybrid[1].number == 4
 # this flip is possible, doesn't create conflict
-@test PhyloNetworks.fliphybrid!(net_hybridladder, net_hybridladder.hybrid[1], true)
+@test PhyloNetworks.fliphybrid!(net_hybridladder, net_hybridladder.hybrid[1], true, false)
 @test net_hybridladder.hybrid[1].number == -7
 net_hybridladder = readTopology("(#H2:::0.2,((C,((B)#H1)#H2:::0.8),(#H1,(A1,A2))),O);");
 # fails because edgetoflip is below a hybrid node
-@test !PhyloNetworks.fliphybrid!(net_hybridladder, net_hybridladder.hybrid[1], false)
+@test !PhyloNetworks.fliphybrid!(net_hybridladder, net_hybridladder.hybrid[1], false, false)
 @test net_hybridladder.hybrid[1].number == 4 # unchanged
 # flipping the major hybrid edge of hybrid 1 creates a W structure
 net_hybridladder = readTopology("(#H2:::0.2,((C,((B)#H1)#H2:::0.8),(#H1,(A1,A2))),O);");
 @test net_hybridladder.hybrid[2].number == 1
-@test PhyloNetworks.fliphybrid!(net_hybridladder, net_hybridladder.hybrid[2], false)
+@test PhyloNetworks.fliphybrid!(net_hybridladder, net_hybridladder.hybrid[2], false, false)
 @test net_hybridladder.hybrid[2].number == -4
 @test net_hybridladder.hybrid[2].name == "H2"
 
@@ -518,7 +518,7 @@ net_W = readTopology("(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0)#
 # because it's a hybrid ladder, the only safe place to root is the edge between the two new hybrid nodes
 net_hybridladder = readTopology("(#H2:::0.2,((C,((B)#H1)#H2:::0.8),(#H1,(A1,A2))),O);");
 @test net_hybridladder.hybrid[2].number == 1
-@test PhyloNetworks.fliphybrid!(net_hybridladder, net_hybridladder.hybrid[2], true)
+@test PhyloNetworks.fliphybrid!(net_hybridladder, net_hybridladder.hybrid[2], true, false)
 @test net_hybridladder.hybrid[2].number == -2 # this is the former root
 @test net_hybridladder.root == 4 # new root index is as expected
 
