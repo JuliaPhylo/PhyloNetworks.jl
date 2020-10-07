@@ -1577,44 +1577,36 @@ mutable struct PhyloNetworkLinearModel{T<:ContinuousTraitEM} <: GLM.LinPredModel
     model_within::Union{Nothing, WithinSpeciesCTM}
 end
 
-# Constructor method for inferring the type T from 'model'
-PhyloNetworkLinearModel(
-    lm, V, Vy, RL, Y, X, 
-    logdetVy, ind, nonmissing, 
-    model, model_within) = PhyloNetworkLinearModel{typeof(model)}(
-                                lm, V, Vy, RL, Y, X,
-                                logdetVy, ind, nonmissing, 
-                                model, model_within)
+# Constructor that: infers type T from 'model', and default model_within=nothing
+PhyloNetworkLinearModel(lm, V,Vy,RL,Y,X, logdetVy, ind,nonmissing,
+                        model, model_within = nothing) =
+    PhyloNetworkLinearModel{typeof(model)}(lm, V,Vy,RL,Y,X, logdetVy, ind,nonmissing,
+                        model, model_within)
 
-# Constructor method for ignoring the 'model_within' field
-PhyloNetworkLinearModel(
-    lm, V, Vy, RL, Y, X,
-    logdetVy, ind, nonmissing,
-    model) = PhyloNetworkLinearModel(
-                lm, V, Vy, RL, Y, X,
-                logdetVy, ind, nonmissing,
-                model, nothing)
 
-# Remove this constructor method since `model` objects now already have to be 
-# initialized with a value for their `lambda` field. We might consider setting 
-# the default value of `lambda` to be 1.0 for the concrete subtypes of 
-# `ContinuousTraitEM`.
-#PhyloNetworkLinearModel(lm_fit, V, Vy, RL, Y, X, logdetVy, ind, nonmissing, model) =
-#  PhyloNetworkLinearModel(lm_fit,V,Vy, RL, Y, X, logdetVy, ind, nonmissing, model, 1.0)
+#= ------ roadmap of phyloNetworklm methods --------------
 
-# Function for lm with net residuals
+with or without measurement error:
+- phyloNetworklm(X,Y,net, model::ContinuousTraitEM=BM(); kwargs...)
+- phyloNetworklm(formula, dataframe, net; model="BM",...,msr_err=false,...)
 
-# The default model has type 'BM'. Although this default value is also supplied
-# in the subsequent internal call to another `phyloNetworklm` method. We supply
-# it here so that phyloNetworklm(X::Matrix, Y::Vector, net::HybridNetwork) is
-# a valid method call, in accordance with the current top-level API of
-# phyloNetworklm.
-# Make `model` a positional (as opposed to keyword) argument so that we can 
-# dispatch on the type of `model`. 
-function phyloNetworklm(X::Matrix,
+no measurement error:
+- phyloNetworklm(X,Y,V; kwargs...) for vanilla BM only
+- phyloNetworklm(model::ContinuousTraitEM, X,Y,net; ...)
+- phyloNetworklm_lambda(X,Y,V, gammas,times; ...)
+- phyloNetworklm_scalingHybrid(X,Y,net,gammas; ...)
+
+helpers, that call the vanilla phyloNetworklm(X,Y,V):
+- logLik_lam(lambda, X,Y,V,gammas,times; ...)
+- logLik_lam_hyb(lambda, X,Y,net,gammas; ...)
+
+with within-species variation (measurement error):
+- phyloNetworkmem(X,Y,V,labels,counts,rsp_std,netnames,model,model_within)
+=#
+function phyloNetworklm(model::ContinuousTraitEM=BM(),
+                        X::Matrix,
                         Y::Vector,
-                        net::HybridNetwork,
-                        model::ContinuousTraitEM=BM();
+                        net::HybridNetwork;
                         nonmissing=trues(length(Y))::BitArray{1},
                         ind=[0]::Vector{Int},
                         startingValue=0.5::Real,
@@ -1624,51 +1616,49 @@ function phyloNetworklm(X::Matrix,
                         counts::Union{Nothing, Vector}=nothing,
                         rsp_std::Union{Nothing, Vector}=nothing)
 
-    # Getting variance covariance
+    # V_ij = expected shared time for independent genes in i & j (BM covariance)
     V = sharedPathMatrix(net)
-    
-    # Fit
     if msr_err
-        phyloNetworkmem(X, Y, V, labels, 
+        phyloNetworkmem(model, X, Y, V, labels,
                         counts, rsp_std,
-                        net.names, model, nothing)
+                        net.names, nothing)
     else
-        phyloNetworklm(X, Y, V;
-                       nonmissing=nonmissing, ind=ind)
+        phyloNetworklm(model, X, Y, V;
+                       nonmissing=nonmissing, ind=ind,
+                       startingValue=startingValue,
+                       fixedValue=fixedValue)
     end
 end
 
-function phyloNetworklm(X::Matrix,
+function phyloNetworklm(::PLambda,
+                        X::Matrix,
                         Y::Vector,
-                        net::HybridNetwork,
-                        model::PLambda;
+                        net::HybridNetwork;
                         nonmissing=trues(length(Y))::BitArray{1},
                         ind=[0]::Vector{Int},
                         startingValue=0.5::Real,
                         fixedValue=missing::Union{Real,Missing})
-    # Gettting variance covariance
+    # BM variance covariance
     V = sharedPathMatrix(net)
-    # Get gammas and heights
     gammas = getGammas(net)
     times = getHeights(net)
-    # Fit
     phyloNetworklm_lambda(X, Y, V, gammas, times;
                           nonmissing=nonmissing, ind=ind,
                           startingValue=startingValue, fixedValue=fixedValue)
 end
 
-function phyloNetworklm(X::Matrix,
+#= ScalingHybrid = BM but with optimized weights of hybrid edges:
+   minor edges have their original γ's changed to λγ. Same λ at all hybrids. =#
+function phyloNetworklm(::ScalingHybrid,
+                        X::Matrix,
                         Y::Vector,
-                        net::HybridNetwork,
-                        model::ScalingHybrid;
+                        net::HybridNetwork;
                         nonmissing=trues(length(Y))::BitArray{1},
                         ind=[0]::Vector{Int},
                         startingValue=0.5::Real,
                         fixedValue=missing::Union{Real,Missing})
-    # Get gammas
     preorder!(net)
     gammas = getGammas(net)
-    # Fit
     phyloNetworklm_scalingHybrid(X, Y, net, gammas;
                                  nonmissing=nonmissing, ind=ind,
                                  startingValue=startingValue, fixedValue=fixedValue)
@@ -1677,14 +1667,12 @@ end
 ###############################################################################
 ## Fit BM
 
-# This function takes over the role of 'phyloNetworklm_BM'
+# Vanilla BM using covariance V. used for other models: V calculated beforehand
 function phyloNetworklm(X::Matrix,
                         Y::Vector,
                         V::MatrixTopologicalOrder;
                         nonmissing=trues(length(Y))::BitArray{1}, # which tips are not missing?
-                        ind=[0]::Vector{Int},
-                        model=BM()::ContinuousTraitEM,
-                        lambda=1.0::Real)
+                        ind=[0]::Vector{Int})
     # Extract tips matrix
     Vy = V[:Tips]
     # Re-order if necessary
@@ -1697,14 +1685,14 @@ function phyloNetworklm(X::Matrix,
     # Fit 
     m = PhyloNetworkLinearModel(lm(RL\X, RL\Y), V, Vy, RL, Y, X, 
                                 logdet(Vy), ind, 
-                                nonmissing, model)
-    # Update lambda
-    lambda!(m, lambda)
+                                nonmissing, BM())
+    # warning: m.model will need to be updated by the higher-level function,
+    #          depending on the model used to calculate the input V
     return m
 end
 
 ###############################################################################
-## Fit Pagel's Lambda
+## helper functions for lambda models
 
 """
     getGammas(net)
@@ -1811,13 +1799,6 @@ function logLik_lam(lam::AbstractFloat,
     return res
 end
 
-# Shifted these const definitions to section definition OptSummary type
-## Code for optim taken from src/snaq_optimization.jl
-#const fAbsTr = 1e-10
-#const fRelTr = 1e-10
-#const xAbsTr = 1e-10
-#const xRelTr = 1e-10
-
 function phyloNetworklm_lambda(X::Matrix,
                                Y::Vector,
                                V::MatrixTopologicalOrder,
@@ -1862,10 +1843,8 @@ function phyloNetworklm_lambda(X::Matrix,
     end
     transform_matrix_lambda!(V, res_lam, gammas, times)
     res = phyloNetworklm(X, Y, V; 
-                         nonmissing=nonmissing, ind=ind, 
-                         model=PLambda(), lambda=res_lam)
-#    res.lambda = res_lam
-#    res.model = "lambda"
+                         nonmissing=nonmissing, ind=ind)
+    res.model = PLambda(res_lam)
     return res
 end
 
@@ -1931,16 +1910,16 @@ function phyloNetworklm_scalingHybrid(X::Matrix,
     end
     V = matrix_scalingHybrid(net, res_lam, gammas)
     res = phyloNetworklm(X, Y, V; 
-                         nonmissing=nonmissing, ind=ind, 
-                         model=ScalingHybrid(), lambda=res_lam)
+                         nonmissing=nonmissing, ind=ind)
+    res.model = ScalingHybrid(res_lam)
     return res
 end
 
 
 """
-    phyloNetworklm(f, fr, net, model="BM",
+    phyloNetworklm(f, fr, net; model="BM",
         fTolRel=1e^-10, fTolAbs=1e^-10, xTolRel=1e^-10, xTolAbs=1e^-10,
-        startingValue=0.5)`
+        startingValue=0.5)
 
 Phylogenetic regression, using the correlation structure induced by the network.
 
@@ -2103,6 +2082,10 @@ julia> round.(predict(fitBM), digits=5)
  4.679
 
 ```
+
+fixit: fix the function signature,
+add documentation on the model with within-species variation
+(aka measurement error), with examples for each of the 2 input format.
 """
 function phyloNetworklm(f::StatsModels.FormulaTerm,
                         fr::AbstractDataFrame,
@@ -2480,7 +2463,7 @@ function phyloNetworkmem(Xr::Matrix,
     # measurement error into account
     m = phyloNetworklm(Xr, Ysp, V)
 
-    if model_within == nothing
+    if model_within === nothing
         # default if model_within is not specified
         model_within = WithinSpeciesCTM(
                             OptSummary([RSS/(n-a), sigma2_estim(m)],
@@ -2521,16 +2504,15 @@ function phyloNetworkmem(Xr::Matrix,
 
     # Fit phyloNetworklm on species-level data, now taking measurement error
     # into account
-    m = phyloNetworklm(Xr, Ysp, Vm; model=model)
+    m = phyloNetworklm(Xr, Ysp, Vm) # m.model = BM() at this point
+    # to extend to non-BM models: modify m.model here
     m.model_within = model_within
 
     return m
 end
 
 ###############################################################################
-###############################################################################
 ## Anova - using ftest from GLM - Need version 0.8.1
-###############################################################################
 ###############################################################################
 
 function GLM.ftest(objs::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T}...)  where T
@@ -2544,9 +2526,7 @@ function GLM.ftest(objs::PhyloNetworkLinearModel...)
 end
 
 ###############################################################################
-###############################################################################
 ## Anova - old version - kept for tests purposes - do not export
-###############################################################################
 ###############################################################################
 
 """
@@ -2592,11 +2572,8 @@ function anovaBin(obj1::PhyloNetworkLinearModel, obj2::PhyloNetworkLinearModel)
 end
 
 ###############################################################################
-###############################################################################
 ## Ancestral State Reconstruction
 ###############################################################################
-###############################################################################
-# Class for reconstructed states on a network
 """
     ReconstructedStates
 
@@ -2848,7 +2825,6 @@ many columns as the number of predictors used, and as many lines as the number
 of unknown nodes or tips.
 
 Returns an object of type [`ReconstructedStates`](@ref).
-See documentation for this type and examples for functions that can be applied to it.
 
 # Examples
 
@@ -3131,10 +3107,9 @@ end
 """
     ancestralStateReconstruction(fr::AbstractDataFrame, net::HybridNetwork; kwargs...)
 
-Function to find the ancestral traits reconstruction on a network, given some data at the tips.
+Estimate the ancestral traits on a network, given some data at the tips.
 Uses function [`phyloNetworklm`](@ref) to perform a phylogenetic regression of the data against an
-intercept (amounts to fitting an evolutionary model on the network, BM being the only option
-available for now).
+intercept (amounts to fitting an evolutionary model on the network).
 
 See documentation on [`phyloNetworklm`](@ref) and `ancestralStateReconstruction(obj::PhyloNetworkLinearModel[, X_n::Matrix])`
 for further details.
