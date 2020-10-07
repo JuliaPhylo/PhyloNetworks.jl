@@ -941,7 +941,7 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
                      nohybridladder=true::Bool,
                      constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     for con in constraints
-        if con.node === h # if crown node is the hybrid node, then flipping would add to the constraint group
+        if con.node === hybridnode # if crown node is the hybrid node, then flipping would add to the constraint group
             return nothing # todo explore other ways this could violate species constraints
         end
     end
