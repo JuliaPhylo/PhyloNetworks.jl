@@ -158,7 +158,7 @@ If you're unsure how many you've added, youcan check how many processors Julia
 currently has using `nprocs()`.
 
 ```julia
-nprocs()
+nworkers()
 ```
 
 After adding processors, whether with `-p` or `addprocs()`, be sure to reload any
@@ -175,9 +175,7 @@ net = PhyloNetworks.phyLiNC!(startingtree, fastafile, :JC69)
 
 TODO show output?
 
-## Network Vizualization
-To plot your estimated networksm you can use the visualization package, PhyloPlots.
-
+To plot your estimated networks you can use the visualization package, PhyloPlots.
 ```@example snaqplot
 using PhyloPlots
 using RCall # hide
