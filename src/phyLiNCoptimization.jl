@@ -1,6 +1,6 @@
 # any change to these constants must be documented in phyLiNC!
-const moveweights_LiNC = Distributions.aweights([0.6, 0.25, 0.05, 0.1])
-const movelist_LiNC = ["nni", "addhybrid", "deletehybrid", "root"]
+const moveweights_LiNC = Distributions.aweights([0.6, 0.2, 0.05, 0.05, 0.1])
+const movelist_LiNC = ["nni", "addhybrid", "deletehybrid", "fliphybrid", "root"]
 const likAbsAddHybLiNC = 0.0 #= loglik improvement required to retain a hybrid.
   Greater values would raise the standard for newly-proposed hybrids,
   leading to fewer proposed hybrids accepted during the search =#
@@ -638,6 +638,7 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
     if maxhybrid == 0 # prevent some moves, to avoid proposing non-admissible moves
         moveweights[2] = 0.0 # addhybrid
         moveweights[3] = 0.0 # deletehybrid
+        moveweights[4] = 0.0 # fliphybrid
         moveweights ./= sum(moveweights)
     end
     while nmoves < maxmoves && nreject < nrejectmax # both should be true to continue
@@ -659,6 +660,10 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
             obj.net.numHybrids == 0  && continue # skip & don't count towards nmoves if no hybrid in net
             result = deletehybridedgeLiNC!(obj, currLik,
                         no3cycle, constraints, γcache, lcache)
+        elseif movechoice == "fliphybrid"
+            obj.net.numHybrids == 0  && continue # skip & don't count towards nmoves if no hybrid in net
+            result = fliphybridedgeLiNC!(obj, currLik,
+                        nohybridladder, constraints, ftolAbs, γcache, lcache)
         else # change root (doesn't affect likelihood)
             result = moveroot!(obj.net, constraints)
             isnothing(result) || updateSSM_root!(obj) # edge direction used by updatecache_edge
@@ -742,7 +747,7 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
         updateSSM!(obj, true; constraints=constraints)
         optimizelocalgammas_LiNC!(obj, e1, ftolAbs, γcache)
         # don't delete a hybrid edge with γ=0: to be able to undo the NNI
-        # but: there's no point in optimizing the length of such an edge
+        # but: there's no point in optimizing the length of such an edge (caught inside optimizelocalBL)
         optimizelocalBL_LiNC!(obj, e1, lcache)
         if obj.loglik < currLik
             nni!(undoinfo...) # undo move
@@ -751,7 +756,12 @@ function nni_LiNC!(obj::SSM, no3cycle::Bool, nohybridladder::Bool,
             obj.loglik = currLik # restore to loglik before move
             for (i,e) in enumerate(savededges) # restore edge lengths and gammas
                 e.length = savedlen[i]
-                e.gamma  = savedgam[i]
+                if e.hybrid
+                    setGamma!(e, savedgam[i]) # some hybrid partners are not adjacent to focus edge
+                else
+                    savedgam[i] == 1.0 || @warn "A tree edge had saved gamma != 1.0. Something fishy has happened."
+                    e.gamma = 1.0 # savedgam[i] should be 1.0
+                end
             end
             return false # false means: move was rejected
         else # keep nni move. If a γ became 0, optimizestructure will remove the edge
@@ -941,9 +951,9 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
 end
 
 """
-    fliphybridedgeLiNC!(obj::SSM, currLik::Float64, no3cycle::Bool,
-                        constraints::Vector{TopologyConstraint},
-                        γcache::CacheGammaLiNC, lcache::CacheLengthLiNC)
+    fliphybridedgeLiNC!(obj::SSM, currLik::Float64, nohybridladder::Bool,
+                    constraints::Vector{TopologyConstraint}, ftolAbs::Float64,
+                    γcache::CacheGammaLiNC, lcache::CacheLengthLiNC)
 
 Randomly chooses a minor hybrid edge and tries to flip using [`fliphybrid!`](@ref).
 If the flip fails, it looks for the next minor hybrid edge. If all minor edges
@@ -959,35 +969,57 @@ Return nothing if hybrid flip move not possible in this network.
 For arguments, see [`phyLiNC`](@ref).
 Called by [`optimizestructure!`](@ref). #todo
 """
-function fliphybridedgeLiNC!(obj::SSM, currLik::Float64,
-    constraints::Vector{TopologyConstraint}, γcache::CacheGammaLiNC,
+function fliphybridedgeLiNC!(obj::SSM, currLik::Float64, nohybridladder::Bool,
+    constraints::Vector{TopologyConstraint}, ftolAbs::Float64, γcache::CacheGammaLiNC,
     lcache::CacheLengthLiNC)
-    # randomly choose a minor hybrid edge
-    minor = true
-    remainingnodes = collect(1:length(obj.net.hybrid)) # indices in net.hybrid
-    while !edgefound
-        if isempty(remainingnodes) && minor # try major edges
-            minor = false
-            remainingnodes = collect(1:length(obj.net.hybrid))
-        elseif isempty(remainingnodes) && !minor
-            return nothing # tried all hybrid edges, major and minor
-        end
-        i_in_remaining = Random.rand(1:length(remainingnodes))
-        h = obj.net.hybrid[remainingnodess[i_in_remaining]]
-        if fliphybrid!(net, h, minor, constraints)
-            edgefound = true # break out of loop
-        else # this edge didn't work
-            deleteat!(remainingnodes, i_in_remaining)
-        end
+    ## find admissible move ##
+    minor = true # randomly choose a minor hybrid edge
+    undoinfo = fliphybrid!(obj.net, minor, nohybridladder, constraints) # cycle through all hybrid nodes
+    if isnothing(undoinfo)
+        minor = false
+        undoinfo = fliphybrid!(obj.net, minor, nohybridladder, constraints)
     end
-    # after a successful flip, optimize branch lengths and gammas #todo
-        # because fliphybrid deleted and added edges, probably need to renumber (unless modify in place)
-    if newLik >= currLik # compare new likelihood to currLik
-        return true
-    else
-        return false
+    if isnothing(undoinfo) # no edges can be flipped
+        return nothing
+    end
+    newhybridnode, flippededge, oldchildedge = undoinfo
+    #= after we know flipped edge, save displayed trees, priorltw, BLs, and
+      gammas in case we need to undo move =#
+    saveddisplayedtree = obj.displayedtree
+    savedpriorltw = copy(obj.priorltw)
+    savededges = adjacentedges(flippededge)
+    savedlen = [e.length for e in savededges]
+    savedgam = [e.gamma for e in savededges]
+    ## after an admissible flip, optimize branch lengths and gammas ##
+    # reassign old child edge to BLmin (was zero)
+    oldchildedge.length = BLmin # adjacent to flippedge, saved above
+    # unzip only at new node and its child edge
+    getChildEdge(newhybridnode).length = 0.0 # adjacent to flippedge, saved above
+    updateSSM!(obj) #, true; constraints=constraints) # displayed trees have changed
+    optimizelocalgammas_LiNC!(obj, flippededge, ftolAbs, γcache)
+    # don't delete a flipped edge with γ=0: to be able to undo the flip
+    # but: there's no point in optimizing the length of such an edge (caught in optimizelocalBL_LiNC)
+    optimizelocalBL_LiNC!(obj, flippededge, lcache)
+    if obj.loglik < currLik
+        fliphybrid!(obj.net, newhybridnode, !flippededge.isMajor, nohybridladder, constraints) # undo move
+        obj.displayedtree = saveddisplayedtree # restore displayed trees and weights
+        obj.priorltw = savedpriorltw
+        obj.loglik = currLik # restore to loglik before move
+        for (i,e) in enumerate(savededges) # restore edge lengths and gammas
+            e.length = savedlen[i]
+            if e.hybrid
+                setGamma!(e, savedgam[i]) # some hybrid partners are not adjacent to flippededge
+            else
+                savedgam[i] == 1.0 || @warn "A tree edge had saved gamma != 1.0. Something fishy has happened."
+                e.gamma = 1.0 # savedgam[i] should be 1.0
+            end
+        end
+        return false # move was rejected: # rejections incremented
+    else # keep hybrid flip move. If a γ became 0, optimizestructure will remove the edge
+        return true # move was accepted: # rejections will be reset to zero
     end
 end
+
 """
     updateSSM!(obj::SSM, renumber=false::Bool;
                constraints=TopologyConstraint[]::Vector{TopologyConstraint})
@@ -1491,17 +1523,17 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
         #@show loglik + adjustment
         return loglik
     end
+    #=
     oldlik = objective([focusedge.length], [0.0]) + adjustment
     oldlik ≈ obj.loglik || @warn "oldlik $oldlik != stored lik $(obj.loglik): starting NNI?"
     # obj.loglik outdated at the start of an NNI move:
     # it is for the older, not the newly proposed topology
+    =#
     optBL = lcache.opt
     NLopt.max_objective!(optBL, objective)
-    @info "BL: edge $(focusedge.number)"
     fmax, xmax, ret = NLopt.optimize(optBL, [focusedge.length])
     newlik = fmax + adjustment
-    @info "BL, edge $(focusedge.number): got $(round(fmax; digits=5)) (new lik = $newlik) at BL = $(round.(xmax; sigdigits=3)) after $(optBL.numevals) iterations (return code $(ret))"
-    if ret == :FORCED_STOP || oldlik > newlik
+    if ret == :FORCED_STOP # || oldlik > newlik
         @warn "failed optimization, edge $(focusedge.number): skipping branch length update."
         return nothing
     end

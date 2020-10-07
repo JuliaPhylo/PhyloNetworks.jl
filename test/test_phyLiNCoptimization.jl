@@ -258,7 +258,7 @@ net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):
 obj = @test_nowarn PhyloNetworks.phyLiNC(net, fastasimple, :JC69, :G, 2; maxhybrid=2, # no missing BLs, so they're not re-estimated
                     no3cycle=true, nohybridladder=true, maxmoves=2,
                     nreject=1, nruns=1, filename="", verbose=false, seed=108)
-@test obj.loglik > -27.27
+@test obj.loglik > -27.4 # previously, > -27.27
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
 obj = @test_nowarn PhyloNetworks.phyLiNC(net, fastasimple, :HKY85; maxhybrid=2,
                     no3cycle=true, nohybridladder=true, maxmoves=2, probST=1.0, # not enough moves to get back to a good topology
@@ -325,7 +325,7 @@ obj = PhyloNetworks.phyLiNC(net_level1_s, # missing BLs, so BLs are re-estimated
             verbose=false, filename="", speciesfile=mappingfile, seed=138, nruns=1,
             maxmoves=10, nreject=2)
 @test obj.loglik > -67.7 # -69.83824 with :noRV
-@test obj.ratemodel.pinv[1] > 0.22 # 0.23753
+@test obj.ratemodel.pinv[1] > 0.21 # previously > 0.22 # 0.23753
 # test that species stayed together after optimization, as the only polytomy
 function polytomyS1(node)
     length(node.edge) > 3 || return false
@@ -336,6 +336,23 @@ end
 
 # hybrid flip tests
 @testset "hybrid flip basics" begin
+Random.seed!(123)
+no3cycle = true
+net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
+seed = 102
+for nohybridladder in [true, false]
+    obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69)
+    PhyloNetworks.checknetwork_LiNC!(obj.net, 1, no3cycle, nohybridladder)
+    PhyloNetworks.updateSSM!(obj, true; constraints=emptyconstraint)
+    PhyloNetworks.startingBL!(obj.net, obj.trait, obj.siteweight)
+    PhyloNetworks.unzip_canonical!(obj.net)
+    obj.loglik = -Inf # missing otherwise, which would cause an error below
+    nullio = open("/dev/null", "w")
+    γcache = PhyloNetworks.CacheGammaLiNC(obj)
+    lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-6,1e-6,1e-2,1e-3, 5)
+    @test !isnothing(PhyloNetworks.fliphybridedgeLiNC!(obj, obj.loglik, nohybridladder, emptyconstraint, 1e-6, γcache, lcache))
+    @test obj.loglik ≈ -27.727300374716734 atol=.0001
+end
 
 end # hybrid flip basics
 
