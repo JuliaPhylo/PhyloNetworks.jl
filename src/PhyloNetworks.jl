@@ -159,6 +159,7 @@ module PhyloNetworks
         nj
 
     include("types.jl")
+    include("nloptsummary.jl")
     include("auxiliary.jl")
     include("update.jl")
     include("undo.jl")

@@ -1,17 +1,17 @@
-# functions for trait evolution on network
-# Claudia & Paul Bastide: November 2015
+# Continuous trait evolution on network
 
-###############################################################################
-###############################################################################
-## Function to traverse the network in the pre-order, updating a matrix
-###############################################################################
-###############################################################################
+# default tolerances to optimize parameters in continuous trait evolution models
+# like lambda, sigma2_withinspecies / sigma2_BM, etc.
+const fAbsTr = 1e-10
+const fRelTr = 1e-10
+const xAbsTr = 1e-10
+const xRelTr = 1e-10
 
-# Matrix with rows and/or columns in topological order of the net.
 """
     MatrixTopologicalOrder
 
-Matrix associated to an [`HybridNetwork`](@ref) sorted in topological order.
+Matrix associated to an [`HybridNetwork`](@ref) in which rows/columns
+correspond to nodes in the network, sorted in topological order.
 
 The following functions and extractors can be applied to it: [`tipLabels`](@ref), `obj[:Tips]`, `obj[:InternalNodes]`, `obj[:TipsNodes]` (see documentation for function [`getindex(::MatrixTopologicalOrder, ::Symbol)`](@ref)).
 
@@ -104,8 +104,6 @@ function recursionPreOrder!(nodes::Vector{Node},
     return M
 end
 
-# Update on the network
-# Takes three function as arguments : updateRoot, updateTree, updateHybrid
 @doc (@doc recursionPreOrder) updatePreOrder!
 function updatePreOrder!(i::Int,
                          nodes::Vector{Node},
@@ -131,7 +129,7 @@ function updatePreOrder!(i::Int,
     end
 end
 
-## Same, but in post order (tips to root)
+## Same, but in post order (tips to root). see docstring below
 function recursionPostOrder(net::HybridNetwork,
                             checkPreorder=true::Bool,
                             init=identity::Function,
@@ -152,12 +150,16 @@ function recursionPostOrder(net::HybridNetwork,
 end
 
 """
+    recursionPostOrder(net::HybridNetwork, checkPreorder::Bool,
+                       init_function, tip_function, node_function,
+                       indexation="b", parameters...)
     recursionPostOrder(nodes, init_function, tip_function, node_function,
                        parameters)
-    updatePostOrder(index, nodes, updated_matrix, tip_function, node_function,
+    updatePostOrder!(index, nodes, updated_matrix, tip_function, node_function,
                     parameters)
 
-Generic tool to apply a post-order (or topological ordering) algorithm.
+Generic tool to apply a post-order (or topological ordering) algorithm,
+acting on a matrix where rows & columns correspond to nodes.
 Used by `descendenceMatrix`.
 """
 function recursionPostOrder(nodes::Vector{Node},
@@ -190,36 +192,7 @@ function updatePostOrder!(i::Int,
 end
 
 # Extract the right part of a matrix in topological order
-# Tips : submatrix corresponding to tips
-# InternalNodes : submatrix corresponding to internal nodes
-# TipsNodes : submatrix nTips x nNodes of interactions
 # !! Extract sub-matrices in the original net nodes numbers !!
-# function Base.getindex(obj::MatrixTopologicalOrder, d::Symbol)
-#   if d == :Tips # Extract rows and/or columns corresponding to the tips
-#       mask = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
-#       obj.indexation == "b" && return obj.V[mask, mask] # both columns and rows are indexed by nodes
-#       obj.indexation == "c" && return obj.V[:, mask] # Only the columns
-#       obj.indexation == "r" && return obj.V[mask, :] # Only the rows
-#   end
-#   if d == :InternalNodes # Idem, for internal nodes
-#       mask = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
-#       obj.indexation == "b" && return obj.V[mask, mask]
-#       obj.indexation == "c" && return obj.V[:, mask]
-#       obj.indexation == "r" && return obj.V[mask, :]
-#   end
-#   if d == :TipsNodes
-#       maskNodes = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
-#       maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder,)
-#       obj.indexation == "b" && return obj.V[maskTips, maskNodes]
-#       obj.indexation == "c" && error("Both rows and columns must be net
-#       ordered to take the submatrix tips vs internal nodes.")
-#       obj.indexation == "r" && error("Both rows and columns must be net
-#       ordered to take the submatrix tips vs internal nodes.")
-#   end
-#   d == :All && return obj.V
-# end
-
-# If some tips are missing, treat them as "internal nodes"
 """
     getindex(obj, d,[ indTips, nonmissing])
 
@@ -233,7 +206,7 @@ Getting submatrices of an object of type [`MatrixTopologicalOrder`](@ref).
   * `:TipsNodes` columns corresponding to internal nodes, and row to tips (works only is indexation="b")
 * `indTips::Vector{Int}`: optional argument precising a specific order for the tips (internal use).
 * `nonmissing::BitArray{1}`: optional argument saying which tips have data (internal use).
-
+   Tips with missing data are treated as internal nodes.
 """
 function Base.getindex(obj::MatrixTopologicalOrder,
                        d::Symbol,
@@ -272,9 +245,7 @@ function Base.getindex(obj::MatrixTopologicalOrder,
 end
 
 ###############################################################################
-###############################################################################
-## Functions to compute the variance-covariance between Node and its parents
-###############################################################################
+## phylogenetic variance-covariance between tips
 ###############################################################################
 """
     vcv(net::HybridNetwork; model="BM"::AbstractString,
@@ -291,7 +262,7 @@ The calculation of the covariance matrix requires a pre-ordering of nodes to be 
 If `checkPreorder` is true (default), then [`preorder!`](@ref) is run on the network beforehand.
 Otherwise, the network is assumed to be already in pre-order.
 
-This function internally calls [`sharedPathMatrix`](@ref), that computes the variance
+This function internally calls [`sharedPathMatrix`](@ref), which computes the variance
 matrix between all the nodes of the network.
 
 # Examples
@@ -328,7 +299,7 @@ t1 0.00 0.00 0.00 0.9 1.08
 ```
 
 The covariance can also be calculated on a network
-(for the model, see for Bastide et al. 2018)
+(for the model, see Bastide et al. 2018)
 ```jldoctest
 julia> net = readTopology("((t1:1.0,#H1:0.1::0.30):0.5,((t2:0.9)#H1:0.2::0.70,t3:1.1):0.4);");
 
@@ -414,19 +385,16 @@ function initsharedPathMatrix(nodes::Vector{Node}, params)
 end
 
 ###############################################################################
-###############################################################################
-## Functions to compute the network matrix
-###############################################################################
-###############################################################################
 """
     descendenceMatrix(net::HybridNetwork; checkPreorder=true::Bool)
 
-This function computes the inciednce matrix between all the nodes of a
-network. It assumes that the network is in the pre-order. If checkPreorder is
-true (default), then it runs function `preoder` on the network beforehand.
-
-Returns an object of type [`MatrixTopologicalOrder`](@ref).
-
+Compute the descendence matrix between all the nodes of a network:
+an object `D` of type [`MatrixTopologicalOrder`](@ref) in which
+`D[i,j]` is the proportion of genetic material in node `i` that can be traced
+back to node `j`. If `D[i,j]>0` then `j` is a descendent of `i` (and `j` is
+an ancestor of `i`).
+The network is assumed to be pre-ordered if `checkPreorder` is false.
+If `checkPreorder` is true (default), `preorder` is run on the network beforehand.
 """
 function descendenceMatrix(net::HybridNetwork;
                          checkPreorder=true::Bool)
@@ -438,9 +406,7 @@ function descendenceMatrix(net::HybridNetwork;
                        "r")
 end
 
-function updateTipDescendenceMatrix!(V::Matrix,
-                                   i::Int,
-                                   params)
+function updateTipDescendenceMatrix!(::Matrix, ::Int, params)
     return
 end
 
@@ -460,14 +426,9 @@ function initDescendenceMatrix(nodes::Vector{Node}, params)
 end
 
 ###############################################################################
-###############################################################################
-## Function to get the regressor out of a shift
-###############################################################################
-###############################################################################
 """
     regressorShift(node::Vector{Node}, net::HybridNetwork; checkPreorder=true::Bool)
-
-`regressorShift(edge::Vector{Edge}, net::HybridNetwork; checkPreorder=true::Bool)`
+    regressorShift(edge::Vector{Edge}, net::HybridNetwork; checkPreorder=true::Bool)
 
 Compute the regressor vectors associated with shifts on edges that are above nodes
 `node`, or on edges `edge`, on a network `net`. It uses function [`descendenceMatrix`](@ref), so
@@ -707,15 +668,6 @@ function regressorHybrid(net::HybridNetwork; checkPreorder=true::Bool)
     return(dfr)
 end
 
-###############################################################################
-###############################################################################
-## Types for params process
-###############################################################################
-###############################################################################
-
-# Abstract type of all the (future) types (BM, OU, ...)
-abstract type ParamsProcess end
-
 # Type for shifts
 """
     ShiftNet
@@ -901,6 +853,12 @@ end
 #     sh1.shift == sh2.shift || return(false)
 #     return(true)
 # end
+
+###################################################
+# types to hold parameters for evolutionary process
+# like scalar BM, multivariate BM, OU?
+
+abstract type ParamsProcess end
 
 """
     ParamsBM <: ParamsProcess
@@ -1090,9 +1048,7 @@ end
 
 
 ###############################################################################
-###############################################################################
-## Simulation Function
-###############################################################################
+## Simulation of continuous traits
 ###############################################################################
 
 """
@@ -1428,8 +1384,6 @@ function updateTreeSimulateMBD!(M::Matrix{Float64},
     val .+= params.shift.shift[i, :]
 end
 
-
-
 # Going down to an hybrid node
 function updateHybridSimulateBM!(M::Matrix,
                                  i::Int,
@@ -1481,36 +1435,6 @@ function updateHybridSimulateMBD!(M::Matrix{Float64},
     BLAS.axpby!(edge2.gamma, buffer, edge1.gamma, val) # random value
 end
 
-# function updateSimulateBM!(i::Int, nodes::Vector{Node}, M::Matrix, params::Tuple{ParamsBM})
-#     params = params[1]
-#     parent = getParents(nodes[i]) #array of nodes (empty, size 1 or 2)
-#     if(isempty(parent)) #nodes[i] is root
-#         if (params.randomRoot)
-#       M[1, i] = params.mu # expectation
-#       M[2, i] = params.mu + sqrt(params.varRoot) * randn() # random value
-#   else
-#       M[1, i] = params.mu # expectation
-#       M[2, i] = params.mu # random value (root fixed)
-#   end
-#
-#     elseif(length(parent) == 1) #nodes[i] is tree
-#         parentIndex = getIndex(parent[1],nodes)
-#   l = getConnectingEdge(nodes[i],parent[1]).length
-#   M[1, i] = params.mu  # expectation
-#   M[2, i] = M[2, parentIndex] + sqrt(params.sigma2 * l) * randn() # random value
-#
-#     elseif(length(parent) == 2) #nodes[i] is hybrid
-#         parentIndex1 = getIndex(parent[1],nodes)
-#         parentIndex2 = getIndex(parent[2],nodes)
-#         edge1 = getConnectingEdge(nodes[i],parent[1])
-#         edge2 = getConnectingEdge(nodes[i],parent[2])
-#         edge1.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[1].number) should be a hybrid egde")
-#         edge2.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[2].number) should be a hybrid egde")
-#   M[1, i] = params.mu  # expectation
-#   M[2, i] =  edge1.gamma * (M[2, parentIndex1] + sqrt(params.sigma2 * edge1.length) * randn()) + edge2.gamma * (M[2, parentIndex2] + sqrt(params.sigma2 * edge2.length) * randn()) # random value
-#     end
-# end
-
 # Extract the vector of simulated values at the tips
 """
     getindex(obj, d)
@@ -1549,91 +1473,13 @@ function siminds(params::ParamsMultiBM, w::Symbol)
     end
 end
 
-
-
-
-
-# function extractSimulateTips(sim::Matrix, net::HybridNetwork)
-#   mask = getTipsIndexes(net)
-#   return(squeeze(sim[2, mask], 1))
-# end
-
 ###############################################################################
-###############################################################################
-## Types for Measurement Error Models
-###############################################################################
+## Type for models with within-species variation (or measurement error)
 ###############################################################################
 
-# Summary of an `NLopt` optimization. Idea borrowed from `MixedModels`.
-# The 'OptSummary' type should eventually be moved to its own file, but we
-# will keep it here for now.
-mutable struct OptSummary{T<:AbstractFloat}
-    initial::Vector{T} # copy of initial param values in the optimization
-    lowerbd::Vector{T} # lower bounds on the param values
-    ftol_rel::T # as in NLopt
-    ftol_abs::T # as in NLopt
-    xtol_rel::T # as in NLopt
-    xtol_abs::Vector{T} # as in NLopt
-    initial_step::Vector{T} # as in NLopt
-    maxfeval::Int # as in NLopt ... max no. of function evaluations
-    final::Vector{T} # copy of final param values from the optimization
-    fmin::T # final value of the objective
-    feval::Int # no. of function evaluations
-    algorithm::Symbol # name of algorithm used, as a `Symbol`
-    returnvalue::Symbol # return value, as a `Symbol`
-end
-
-# Code for optim taken from src/snaq_optimization.jl
-const fAbsTr = 1e-10
-const fRelTr = 1e-10
-const xAbsTr = 1e-10
-const xRelTr = 1e-10
-
-function OptSummary(initial::Vector{T},
-                    lowerbd::Vector{T},
-                    algorithm::Symbol;
-                    ftol_rel::T=fRelTr,
-                    ftol_abs::T=fAbsTr,
-                    xtol_rel::T=xRelTr,
-                    initial_step::Vector{T} = T[]) where {T<:AbstractFloat}
-    OptSummary(initial,
-               lowerbd,
-               ftol_rel,
-               ftol_abs,
-               xtol_rel,
-               fill(xAbsTr, length(initial)),
-               initial_step,
-               -1, # maxeval: 0 or negative for no limit
-               copy(initial), # final
-               T(Inf), # fmin
-               -1, # feval
-               algorithm,
-               :FAILURE)
-end
-
-function NLopt.Opt(optsum::OptSummary)
-    opt = NLopt.Opt(optsum.algorithm, length(optsum.initial))
-    NLopt.ftol_rel!(opt, optsum.ftol_rel) # relative criterion on objective
-    NLopt.ftol_abs!(opt, optsum.ftol_abs) # absolute criterion on objective
-    NLopt.xtol_rel!(opt, optsum.xtol_rel) # relative criterion on parameters
-    NLopt.xtol_abs!(opt, optsum.xtol_abs) # absolute criterion on parameters
-    NLopt.lower_bounds!(opt, optsum.lowerbd)
-    NLopt.maxeval!(opt, optsum.maxfeval)
-    
-    if isempty(optsum.initial_step)
-        optsum.initial_step = NLopt.initial_step(opt, optsum.initial)
-    else
-        NLopt.initial_step!(opt, optsum.initial_step)
-    end
-
-    return opt
-end
-
-# WithinSpeciesCTM stands for WithinSpeciesContinuousTraitModel
-# Make WithinSpeciesCTM 'mutable struct' since concrete instances of
-# 'ContinuousUnivariateDistribution' are immutable.
+# WithinSpeciesCTM stands for "within species continuous trait model"
 mutable struct WithinSpeciesCTM
-    error_distr::ContinuousUnivariateDistribution
+    error_distr::ContinuousUnivariateDistribution # immutable
     wsp_var::Union{Nothing, Float64} # η*σ² (within-species variance)
     bsp_var::Union{Nothing, Float64} # σ² (between-species variance)
     optsum::OptSummary
@@ -1644,31 +1490,27 @@ WithinSpeciesCTM(optsum::OptSummary) = WithinSpeciesCTM(Normal(),
                                                         optsum)
 
 ###############################################################################
-###############################################################################
 ## Types for Continuous Trait Evolution Models
-###############################################################################
 ###############################################################################
 
 # The types defined here may eventually lead to the redundancy of: 
 # 1) 'ParamsProcess' abstract type and its concrete subtypes
 # 2) One out of the two fields - 'params', 'model' - of the 
-# 'TraitSimulation' datatype
+#    'TraitSimulation' datatype
 
-# Abstract type for the `model` field of the `PhyloNetworkLinearModel` type
-# ContinuousTraitEM stands for ContinuousTraitEvolutionModel
+# Abstract type for the `model` field of `PhyloNetworkLinearModel`s
+# ContinuousTraitEM stands for "continuous trait evolutionary model"
 abstract type ContinuousTraitEM end
 
-# Concrete subtypes of `ContinuousTraitEM`
-# These subtypes currently include BM, PLambda, ScalingHybrid. Possible future
-# additions include OU (i.e. Ornstein-Uhlenbeck).
-mutable struct BM <: ContinuousTraitEM
-    lambda::Float64
+# current concrete subtypes: BM, PLambda, ScalingHybrid
+# possible future additions: OU (Ornstein-Uhlenbeck)?
+struct BM <: ContinuousTraitEM
+    lambda::Float64 # immutable
 end
-# Outer constructor methods provides default values for 'lambda'
 BM() = BM(1.0)
 
 mutable struct PLambda <: ContinuousTraitEM
-    lambda::Float64
+    lambda::Float64 # mutable: can be optimized
 end
 PLambda() = PLambda(1.0)
 
@@ -1678,12 +1520,9 @@ end
 ScalingHybrid() = ScalingHybrid(1.0)
 
 ###############################################################################
-###############################################################################
-## Functions for Phylgenetic Network regression
-###############################################################################
+##     phylogenetic network regression
 ###############################################################################
 
-# New type for phyloNetwork regression
 """
     PhyloNetworkLinearModel<:GLM.LinPredModel
 
@@ -2647,6 +2486,8 @@ function phyloNetworkmem(Xr::Matrix,
                             OptSummary([RSS/(n-a), sigma2_estim(m)],
                                        [1e-100, 1e-100],
                                        :LN_BOBYQA;
+                                       ftol_rel=fRelTr, ftol_abs=fAbsTr,
+                                       xtol_rel=xRelTr, xtol_abs=xAbsTr,
                                        initial_step=[0.01, 0.01])
                            )
     end
