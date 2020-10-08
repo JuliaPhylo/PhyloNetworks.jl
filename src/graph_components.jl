@@ -226,23 +226,19 @@ function blobDecomposition!(net)
 end
 
 """
-    treecomponentroot!(net::HybridNetwork)
+    tree_edge_components(net::HybridNetwork)
 
-Find the root tree component of the semidirected network.
+Find the tree-edge components of the semidirected network.  Returns a
+`Dict{Node, Int}` `membership`; nodes with the same `membership[node]`
+value are in the same tree-edge component.
 
-The tree components (also called undirected components) of a network
-are the connected components of a network when all hybrid/directed
-edges are removed.  The root tree component is the tree component
-which the root of the network must belong to.
+The tree-edge components of a network are the connected components of
+a network when all hybrid edges are removed.  The root tree-edge
+component is the tree-edge component which the root of the network
+must belong to.
 
-Check that the semidirected graph is a semidirected network (i.e. it
-is possible to root the network such that the rooted network, once
-unrooted, gives the original semidirected graph), throw a
-`RootMismatch` exception if this is not the case.
-
-If the graph is indeed a semidirected network, return the set of nodes
-in the root tree component.  The function also modifies the edge
-attribute `containRoot` appropriately along the way.
+Throws `RootMismatch` if there exists cycles in any of the tree-edge
+components.
 """
 function tree_edge_components(net::HybridNetwork)
     # partition nodes into undirected components (UCs)
@@ -309,6 +305,21 @@ function tree_edge_components(net::HybridNetwork)
 end
 
 
+"""
+    updateroot!(net::HybridNetwork, membership::Dict{Node, Int})
+
+Update the root location, as well as the `.containRoot` attributes of
+the edges in the network `net`, using the output `membership` from
+`tree_edge_components(net)`.  The root is chosen to be an arbitrary
+node in the root tree-edge component.
+
+Throws `RootMismatch` if the network given is not a valid semidirected
+network (i.e. it is not possible to root the network in a way
+compatible with the given hybrid edges).
+
+Returns the set of nodes (`Set{Nodes}`) in the root tree-edge
+component.
+"""
 function updateroot!(net::HybridNetwork, membership::Dict{Node, Int})
     nodes = net.node
     ncomp = maximum(values(membership))
