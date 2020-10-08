@@ -156,7 +156,8 @@ module PhyloNetworks
         # phyLiNC,
         # neighbor joining
         nj,
-        treecomponentroot!
+        updateroot!,
+        tree_edge_components
 
     include("types.jl")
     include("auxiliary.jl")

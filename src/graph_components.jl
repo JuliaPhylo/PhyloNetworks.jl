@@ -244,7 +244,7 @@ If the graph is indeed a semidirected network, return the set of nodes
 in the root tree component.  The function also modifies the edge
 attribute `containRoot` appropriately along the way.
 """
-function treecomponentroot!(net::HybridNetwork)
+function tree_edge_components(net::HybridNetwork)
     # partition nodes into undirected components (UCs)
     nodes = net.node
     n = length(nodes)
@@ -304,10 +304,17 @@ function treecomponentroot!(net::HybridNetwork)
             end
         end
     end
-    
+
+    return membership
+end
+
+
+function updateroot!(net::HybridNetwork, membership::Dict{Node, Int})
+    nodes = net.node
+    ncomp = maximum(values(membership))
     # construct UC graph and check it's rooted DAG
-    ucg = [Set{Int}() for comp in 1:cur_id] # ucg[i] = set of children of ith UC
-    noparent = trues(cur_id)
+    ucg = [Set{Int}() for comp in 1:ncomp] # ucg[i] = set of children of ith UC
+    noparent = trues(ncomp)
     for e in net.edge
         if e.hybrid
             edge = e.isChild1 ? (e.node[2], e.node[1]) : (e.node[1], e.node[2])
@@ -329,7 +336,7 @@ function treecomponentroot!(net::HybridNetwork)
     root = findfirst(noparent)
 
     # topological sort: check there are no cycles in the UC graph
-    indeg = zeros(Int, cur_id)  # in-degree of vertex in UC graph
+    indeg = zeros(Int, ncomp)  # in-degree of vertex in UC graph
     for uc in ucg
         for i in uc
             indeg[i] += 1
@@ -351,12 +358,15 @@ function treecomponentroot!(net::HybridNetwork)
         """Semidirected cycle exists, starting at UC containing node:
          $(nodes[findfirst([membership[n] == cyclehead for n in nodes])])"""))
 
-    rootcomp = keys(filter(p -> p.second == root, membership))
+    rootcomp = Set(node for node = nodes if membership[node] == root)
     # mark all edges in first component as contain root
     for e in net.edge
         up, down = e.isChild1 ? (e.node[2], e.node[1]) : (e.node[1], e.node[2])
         e.containRoot = in(up, rootcomp)
     end
+    r = pop!(rootcomp)
+    net.root = getIndex(r, nodes)
+    push!(rootcomp, r)
     return rootcomp
 end
 
