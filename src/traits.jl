@@ -1592,7 +1592,7 @@ with or without measurement error:
 
 no measurement error:
 - phyloNetworklm(X,Y,V; kwargs...) for vanilla BM only
-- phyloNetworklm(model::ContinuousTraitEM, X,Y,net; ...)
+- phyloNetworklm(model, X,Y,net; ...) dispatches based on model
 - phyloNetworklm_lambda(X,Y,V, gammas,times; ...)
 - phyloNetworklm_scalingHybrid(X,Y,net,gammas; ...)
 
@@ -1603,7 +1603,7 @@ helpers, that call the vanilla phyloNetworklm(X,Y,V):
 with within-species variation (measurement error):
 - phyloNetworkmem(X,Y,V,labels,counts,rsp_std,netnames,model,model_within)
 =#
-function phyloNetworklm(model::ContinuousTraitEM=BM(),
+function phyloNetworklm(model::BM,
                         X::Matrix,
                         Y::Vector,
                         net::HybridNetwork;
@@ -1624,9 +1624,7 @@ function phyloNetworklm(model::ContinuousTraitEM=BM(),
                         net.names, nothing)
     else
         phyloNetworklm(model, X, Y, V;
-                       nonmissing=nonmissing, ind=ind,
-                       startingValue=startingValue,
-                       fixedValue=fixedValue)
+                       nonmissing=nonmissing, ind=ind)
     end
 end
 
@@ -2127,16 +2125,11 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
                   tips of the network are in the same order as the values of the dataframe
                   provided, then please re-run this function with argument no_name=true.""")
         ind = indexin(fr[!, tipnames], tipLabels(net))
-        if any(isnothing, ind)
-            # possible that length(unique(ind)) != length(ind) for measurement error 
-            # models
-            if !msr_err
-                if length(unique(ind)) != length(ind)
-                    error("""Tips names of the network and names provided in column 
-                          tipNames of the dataframe do not match.""")
-                end
-            end
-        end
+        any(isnothing, ind) &&
+            error("""Tips with data are not in the network: $(fr[isnothing.(ind), tipnames])
+                  please provide a larger network including these tips.""")
+        !msr_err && length(unique(ind)) != length(ind) &&
+            error("""Some tips have data on multiple rows.""")
     end
     # Find the regression matrix and response vector
     data, nonmissing = StatsModels.missing_omit(StatsModels.columntable(fr), f)
@@ -2147,6 +2140,7 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
     Y = StatsModels.response(mf)
     # Y = convert(Vector{Float64}, StatsModels.response(mf))
     # Y, pred = StatsModels.modelcols(f, fr)
+
     if model == "BM"
         modelobj = BM() # model object (as opposed to model string)
         
