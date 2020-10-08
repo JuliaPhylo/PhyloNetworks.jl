@@ -351,11 +351,11 @@ function treecomponentroot!(net::HybridNetwork)
         """Semidirected cycle exists, starting at UC containing node:
          $(nodes[findfirst([membership[n] == cyclehead for n in nodes])])"""))
 
-    rootcomp = Set(node for node = nodes if membership[node] == root)
+    rootcomp = keys(filter(p -> p.second == root, membership))
     # mark all edges in first component as contain root
     for e in net.edge
         up, down = e.isChild1 ? (e.node[2], e.node[1]) : (e.node[1], e.node[2])
-        e.containRoot = in(up, rootcomp) && (e.hybrid || in(down, rootcomp))
+        e.containRoot = in(up, rootcomp)
     end
     return rootcomp
 end
