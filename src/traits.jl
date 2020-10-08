@@ -1587,26 +1587,31 @@ PhyloNetworkLinearModel(lm, V,Vy,RL,Y,X, logdetVy, ind,nonmissing,
 #= ------ roadmap of phyloNetworklm methods --------------
 
 with or without measurement error:
-- phyloNetworklm(X,Y,net, model::ContinuousTraitEM=BM(); kwargs...)
 - phyloNetworklm(formula, dataframe, net; model="BM",...,msr_err=false,...)
+- phyloNetworklm(X,Y,net, model::ContinuousTraitEM; kwargs...)
+  calls a function with or without measurement error.
 
-no measurement error:
-- phyloNetworklm(X,Y,V; kwargs...) for vanilla BM only
-- phyloNetworklm(model, X,Y,net; ...) dispatches based on model
-- phyloNetworklm_lambda(X,Y,V, gammas,times; ...)
-- phyloNetworklm_scalingHybrid(X,Y,net,gammas; ...)
+1. no measurement error:
+   - phyloNetworklm(model, X,Y,net; kwargs...) dispatches based on model type
+   - phyloNetworklm(X,Y,V; kwargs...) for vanilla BM only
+   - phyloNetworklm_lambda(X,Y,V, gammas,times; ...)
+   - phyloNetworklm_scalingHybrid(X,Y,net,gammas; ...)
 
-helpers, that call the vanilla phyloNetworklm(X,Y,V):
-- logLik_lam(lambda, X,Y,V,gammas,times; ...)
-- logLik_lam_hyb(lambda, X,Y,net,gammas; ...)
+   helpers, that call the vanilla phyloNetworklm(X,Y,V):
+   - logLik_lam(lambda, X,Y,V,gammas,times; ...)
+   - logLik_lam_hyb(lambda, X,Y,net,gammas; ...)
 
-with within-species variation (measurement error):
-- phyloNetworkmem(X,Y,V,labels,counts,ySD,netnames,model,model_within)
+2. with measurement error (within-species variation):
+   - phyloNetworkmem(model, X,Y,net; kwargs...) dispatch based on model
+     implemented for model <: BM only
+
+   - phyloNetworkmem(X,Y,V, labels,counts,ySD,netnames, reml, model_within)
+   - phyloNetworkmem(Xr,Ysp,V, Dinv,RSS,n,p,a, reml,model_within)
 =#
-function phyloNetworklm(model::BM,
-                        X::Matrix,
+function phyloNetworklm(X::Matrix,
                         Y::Vector,
-                        net::HybridNetwork;
+                        net::HybridNetwork,
+                        model::ContinuousTraitEM = BM();
                         nonmissing=trues(length(Y))::BitArray{1},
                         ind=[0]::Vector{Int},
                         startingValue=0.5::Real,
@@ -1615,17 +1620,23 @@ function phyloNetworklm(model::BM,
                         labels::Union{Nothing, Vector}=nothing,
                         counts::Union{Nothing, Vector}=nothing,
                         ySD::Union{Nothing, Vector}=nothing)
-
-    # V_ij = expected shared time for independent genes in i & j (BM covariance)
-    V = sharedPathMatrix(net)
     if msr_err
-        phyloNetworkmem(model, X, Y, V, labels,
-                        counts, ySD,
-                        net.names, nothing)
+        phyloNetworkmem(model, X,Y,net; labels=labels,
+                        counts=counts, ySD=ySD) # fixit: add reml?
     else
-        phyloNetworklm(model, X, Y, V;
-                       nonmissing=nonmissing, ind=ind)
+        phyloNetworklm(model, X,Y,net; nonmissing=nonmissing, ind=ind,
+                       startingValue=startingValue, fixedValue=fixedValue)
     end
+end
+
+function phyloNetworklm(::BM, X::Matrix, Y::Vector, net::HybridNetwork;
+                        nonmissing=trues(length(Y))::BitArray{1},
+                        ind=[0]::Vector{Int},
+                        kwargs...)
+    # BM variance covariance:
+    # V_ij = expected shared time for independent genes in i & j
+    V = sharedPathMatrix(net)
+    phyloNetworklm(X, Y, V; nonmissing=nonmissing, ind=ind)
 end
 
 function phyloNetworklm(::PLambda,
@@ -2362,10 +2373,17 @@ function Base.show(io::IO, model::StatsModels.TableRegressionModel{<:PhyloNetwor
 end
 
 ###############################################################################
+#  within-species variation (including measurement error)
 ###############################################################################
-# Functions for Measurement Error Models
-###############################################################################
-###############################################################################
+
+function phyloNetworkmem(::BM, X::Matrix, Y::Vector, net::HybridNetwork;
+                        labels::Union{Nothing, Vector}=nothing,
+                        counts::Union{Nothing, Vector}=nothing,
+                        ySD::Union{Nothing, Vector}=nothing,
+                        reml::Bool = true)
+    V = sharedPathMatrix(net)
+    phyloNetworkmem(X,Y,V, labels,counts,ySD, net.names, reml)
+end
 
 # Only uses REML criterion for now
 function getVarianceComponents!(X::Matrix, Ysp::Vector, 
@@ -2407,7 +2425,7 @@ function phyloNetworkmem(X::Matrix,
                          counts::Union{Nothing, Vector},
                          ySD::Union{Nothing, Vector},
                          netnames::Vector,
-                         model::ContinuousTraitEM,
+                         reml::Bool,
                          model_within::Union{Nothing, 
                                              WithinSpeciesCTM}=nothing)
     
@@ -2441,7 +2459,7 @@ function phyloNetworkmem(X::Matrix,
         RSS = sum((ySD .^ 2) .* (counts .- 1))
     end
 
-    phyloNetworkmem(Xr, Ysp, V, Dinv, RSS, n, p, a, model, model_within)
+    phyloNetworkmem(Xr, Ysp, V, Dinv, RSS, n, p, a, reml, model_within)
 end
 
 function phyloNetworkmem(Xr::Matrix, 
@@ -2449,7 +2467,7 @@ function phyloNetworkmem(Xr::Matrix,
                          V::MatrixTopologicalOrder, 
                          Dinv::Matrix, RSS::Float64,
                          n::Int64, p::Int64, a::Int64,
-                         model::ContinuousTraitEM, 
+                         reml::Bool,
                          model_within::Union{Nothing, 
                                              WithinSpeciesCTM}=nothing)
     
