@@ -1601,7 +1601,7 @@ helpers, that call the vanilla phyloNetworklm(X,Y,V):
 - logLik_lam_hyb(lambda, X,Y,net,gammas; ...)
 
 with within-species variation (measurement error):
-- phyloNetworkmem(X,Y,V,labels,counts,rsp_std,netnames,model,model_within)
+- phyloNetworkmem(X,Y,V,labels,counts,ySD,netnames,model,model_within)
 =#
 function phyloNetworklm(model::BM,
                         X::Matrix,
@@ -1614,13 +1614,13 @@ function phyloNetworklm(model::BM,
                         msr_err::Bool=false,
                         labels::Union{Nothing, Vector}=nothing,
                         counts::Union{Nothing, Vector}=nothing,
-                        rsp_std::Union{Nothing, Vector}=nothing)
+                        ySD::Union{Nothing, Vector}=nothing)
 
     # V_ij = expected shared time for independent genes in i & j (BM covariance)
     V = sharedPathMatrix(net)
     if msr_err
         phyloNetworkmem(model, X, Y, V, labels,
-                        counts, rsp_std,
+                        counts, ySD,
                         net.names, nothing)
     else
         phyloNetworklm(model, X, Y, V;
@@ -2141,27 +2141,27 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
     # Y = convert(Vector{Float64}, StatsModels.response(mf))
     # Y, pred = StatsModels.modelcols(f, fr)
 
+    labels = msr_err ? fr[!,tipnames] : nothing
+    if response_std
+        counts  = fr[!,Symbol(String(mf.f.lhs.sym)*"_n")]
+        # Extract the sample sds corresponding to the response means
+        ySD = fr[!,Symbol(String(mf.f.lhs.sym)*"_sd")]
+    else
+        counts = nothing
+        ySD = nothing
+    end
+
+    msr_err && model != "BM" &&
+        error("within-species variation is not implemented for non-BM models")
     if model == "BM"
         modelobj = BM() # model object (as opposed to model string)
-        
-        # Measurement error model is only implemented for "BM" CTEMs for now.
-        # Eventually should get rid of this return statement after they are
-        # implemented for all CTEMs. 
-        labels = msr_err ? fr[!,tipnames] : nothing
-        if response_std
-            counts = fr[!,:speciescts]
-            # Extract the sample sds corresponding to the response means
-            rsp_std = fr[!,Symbol(String(mf.f.lhs.sym)*"_sd")]
-        else
-            counts = nothing
-            rsp_std = nothing
-        end
-
+        # Eventually: get rid of this return statement after within-species
+        # variation is implemented for all models of continuous trait evolution
         return StatsModels.TableRegressionModel(
-                phyloNetworklm(mm.m, Y, net, modelobj; nonmissing=nonmissing,
+                phyloNetworklm(modelobj, mm.m, Y, net; nonmissing=nonmissing,
                                ind=ind, startingValue=startingValue,
                                fixedValue=fixedValue, msr_err=msr_err,
-                               labels=labels, counts=counts, rsp_std=rsp_std),
+                               labels=labels, counts=counts, ySD=ySD),
                 mf, mm)
     elseif model == "lambda"
         modelobj = PLambda()
@@ -2171,7 +2171,7 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
         error("phyloNetworklm is not defined for model::$(typeof(model)).")
     end
     StatsModels.TableRegressionModel(
-        phyloNetworklm(mm.m, Y, net, modelobj; nonmissing=nonmissing, ind=ind,
+        phyloNetworklm(modelobj, mm.m, Y, net; nonmissing=nonmissing, ind=ind,
                        startingValue=startingValue, fixedValue=fixedValue),
         mf, mm)
 end
@@ -2405,7 +2405,7 @@ function phyloNetworkmem(X::Matrix,
                          V::MatrixTopologicalOrder,
                          labels::Vector,
                          counts::Union{Nothing, Vector},
-                         rsp_std::Union{Nothing, Vector},
+                         ySD::Union{Nothing, Vector},
                          netnames::Vector,
                          model::ContinuousTraitEM,
                          model_within::Union{Nothing, 
@@ -2415,7 +2415,7 @@ function phyloNetworkmem(X::Matrix,
     a = length(netnames) # no. of species
     p = size(X, 2) # no. of predictors
     
-    if (counts == nothing) || (rsp_std == nothing)
+    if isnothing(counts) || isnothing(ySD)
         n = length(Y) # total no. of obs
         Dinv = fill(0.0, (a, a))
         Ysp = fill(0.0, a) # species-level mean response
@@ -2438,7 +2438,7 @@ function phyloNetworkmem(X::Matrix,
         Dinv = convert(Matrix, Diagonal(1 ./ counts))
         Ysp = Y
         Xr = X
-        RSS = sum((rsp_std .^ 2) .* (counts .- 1))
+        RSS = sum((ySD .^ 2) .* (counts .- 1))
     end
 
     phyloNetworkmem(Xr, Ysp, V, Dinv, RSS, n, p, a, model, model_within)
