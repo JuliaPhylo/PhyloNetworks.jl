@@ -7,13 +7,13 @@
 
     treestr = "(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);"
     tree = readTopology(treestr)
-    rcomp = updateroot!(tree, treeedgecomponents(tree))
+    rcomp = checkroot!(tree, treeedgecomponents(tree))
     @test length(rcomp) == 7
     @test all([e.containRoot for e = tree.edge])
 
     netstr = "(#H1:::0.1,#H2:::0.2,(((b)#H1)#H2,a));"
     net = readTopology(netstr)
-    rcomp = updateroot!(net, treeedgecomponents(net))
+    rcomp = checkroot!(net, treeedgecomponents(net))
     # plot(net, :R, showNodeNumber=true, showEdgeNumber=true);
     @test Set(n.number for n in rcomp) == Set([-2 -3 4])
     @test Set(e.number for e in net.edge if e.containRoot) == Set([7 6 5 2 1])
@@ -31,8 +31,8 @@
     net.node[2].hybrid = false
     net.hybrid[1] = net.node[6]
     mem = treeedgecomponents(net)
-    @test_throws PhyloNetworks.RootMismatch updateroot!(net, mem)
-    try updateroot!(net, mem)
+    @test_throws PhyloNetworks.RootMismatch checkroot!(net, mem)
+    try checkroot!(net, mem)
     catch e
         @test occursin("Semidirected cycle", sprint(showerror, e))
     end
@@ -51,8 +51,8 @@
     P.removeEdge!(netl1.node[P.getIndexNode(-12, netl1)], e1)
     P.removeEdge!(netl1.node[P.getIndexNode(-3, netl1)], e2)
     mem = treeedgecomponents(netl1)
-    @test_throws PhyloNetworks.RootMismatch updateroot!(netl1, mem)
-    try updateroot!(netl1, mem)
+    @test_throws PhyloNetworks.RootMismatch checkroot!(netl1, mem)
+    try checkroot!(netl1, mem)
     catch e
         @test occursin("common ancestor", sprint(showerror, e))
     end

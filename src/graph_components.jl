@@ -306,7 +306,7 @@ end
 
 
 """
-    updateroot!(net::HybridNetwork, membership::Dict{Node, Int})
+    checkroot!(net::HybridNetwork, membership::Dict{Node, Int})
 
 Update the root location, as well as the `.containRoot` attributes of
 the edges in the network `net`, using the output `membership` from
@@ -320,7 +320,7 @@ compatible with the given hybrid edges).
 Returns the set of nodes (`Set{Nodes}`) in the root tree-edge
 component.
 """
-function updateroot!(net::HybridNetwork, membership::Dict{Node, Int})
+function checkroot!(net::HybridNetwork, membership::Dict{Node, Int})
     nodes = net.node
     ncomp = maximum(values(membership))
     # construct UC graph and check it's rooted DAG
