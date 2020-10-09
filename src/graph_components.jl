@@ -375,9 +375,13 @@ function updateroot!(net::HybridNetwork, membership::Dict{Node, Int})
         up, down = e.isChild1 ? (e.node[2], e.node[1]) : (e.node[1], e.node[2])
         e.containRoot = in(up, rootcomp)
     end
-    r = pop!(rootcomp)
-    net.root = getIndex(r, nodes)
-    push!(rootcomp, r)
+    curroot = nodes[net.root]
+    if !in(curroot, rootcomp)
+        r = pop!(rootcomp)
+        net.root = getIndex(r, nodes)
+        push!(rootcomp, r)
+        directEdges!(net)
+    end
     return rootcomp
 end
 
