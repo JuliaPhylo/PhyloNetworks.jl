@@ -1457,9 +1457,8 @@ Warning: displayed trees are assumed up-to-date, with nodes preordered
 function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
                               lcache::CacheLengthLiNC, qmat)
     @debug "At optimizelength start for edge num $(focusedge.number), obj.loglik = $(obj.loglik)"
-    if getParent(focusedge).hybrid # keep the reticulation unzipped
-        return nothing # the length of focus edge should be 0. stay as is.
-    end
+    getParent(focusedge).hybrid && return nothing # keep the reticulation unzipped
+        # the length of focus edge should be 0. stay as is.
     @debug "current BL = $(focusedge.length). P matrix in obj.logtrans: $(exp.(obj.logtrans[:,:,focusedge.number,1]))"
     cfg = updatecache_edge!(lcache, obj, focusedge)
     ismissing(cfg) && return nothing

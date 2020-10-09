@@ -283,6 +283,13 @@ redirect_stdout(originalstdout)
 rmprocs(workers()) # remove extra processors
 @test occursin("using 1 worker", read("phyLiNCmult.log", String))
 rm("phyLiNCmult.log")
+
+# phyLiNC w/ maxhybrid = 0
+net_h0 = readTopology("(((A:2.0,B:1.0):1.5,C:0.6):0.5,D:2.0);");
+obj = @test_nowarn PhyloNetworks.phyLiNC(net_h0, fastasimple, :JC69, :G, 2; maxhybrid=0,
+                    no3cycle=true, nohybridladder=true, maxmoves=2,
+                    nreject=1, nruns=1, filename="", verbose=false, seed=108)
+@test obj.loglik > -27.4 # previously, > -27.27
 end
 
 @testset "phyLiNC with simple net and one constraint" begin
@@ -353,7 +360,6 @@ for nohybridladder in [true, false]
     @test !isnothing(PhyloNetworks.fliphybridedgeLiNC!(obj, obj.loglik, nohybridladder, emptyconstraint, 1e-6, γcache, lcache))
     @test obj.loglik ≈ -27.727300374716734 atol=.0001
 end
-
 end # hybrid flip basics
 
 end # of overall phyLiNC test set

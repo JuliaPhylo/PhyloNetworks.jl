@@ -482,6 +482,7 @@ end # of constrained NNI moves
 # simple network
 n6h1 = readTopology("((((1:0.2,2:0.2):2.4,((3:0.4,4:0.4):1.1)#H1:1.1):2.0,(#H1:0.0::0.3,5:1.5):3.1):1.0,6:5.6);")
 @test n6h1.hybrid[1].number == 5
+#! currently, rejects an allowable newhybridedge in the following call
 @test !isnothing(PhyloNetworks.fliphybrid!(n6h1, n6h1.hybrid[1])) # flips minor by default
 @test n6h1.hybrid[1].number == -8
 n6h1 = readTopology("((((1:0.2,2:0.2):2.4,((3:0.4,4:0.4):1.1)#H1:1.1):2.0,(#H1:0.0::0.3,5:1.5):3.1):1.0,6:5.6);")
@@ -511,12 +512,16 @@ net_W = readTopology("(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0)#
 @test net_W.hybrid[1].number == 3
 @test isnothing(PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[1])) # not allowed, creates a hybrid ladder
 net_W = readTopology("(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.151::0.4):0.0274):0.4812);")
+#! problem: the isdecendant_undirected method of section isn't working here. it's choosing the wrong newhybridedge
+    #! it should choose edge 10, instead chooses edge 9
 @test !isnothing(PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[1], true, false)) # hybrid ladders allowed
 @test net_W.hybrid[1].number == -7
 net_W = readTopology("(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.151::0.4):0.0274):0.4812);")
 @test net_W.hybrid[2].number == 6
 @test isnothing(PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[2])) # not allowed, creates a hybrid ladder
 net_W = readTopology("(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.151::0.4):0.0274):0.4812);")
+#! same problem as above: the isdecendant_undirected method of section isn't working here. it's choosing the wrong newhybridedge
+    #! it should choose edge 10, instead chooses edge 8
 @test !isnothing(PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[2], true, false)) # hybrid ladders allowed
 @test net_W.hybrid[2].number == -7
 
