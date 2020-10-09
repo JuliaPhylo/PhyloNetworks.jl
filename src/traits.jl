@@ -1478,28 +1478,17 @@ end
 ###############################################################################
 
 # WithinSpeciesCTM stands for "within species continuous trait model"
-mutable struct WithinSpeciesCTM
-    error_distr::ContinuousUnivariateDistribution # immutable
-    wsp_var::Union{Nothing, Float64} # η*σ² (within-species variance)
-    bsp_var::Union{Nothing, Float64} # σ² (between-species variance)
+struct WithinSpeciesCTM
+    # error_distr::ContinuousUnivariateDistribution # immutable, e.g: Normal()
+    "within-species variance η*σ², assumes Normal distribution"
+    wsp_var::Vector{Float64} # vector to make it mutable
+    "between-species variance rate σ², such as from Brownian motion"
+    bsp_var::Vector{Float64}
+    "NLopt & NLopt summary object"
     optsum::OptSummary
 end
-WithinSpeciesCTM(optsum::OptSummary) = WithinSpeciesCTM(Normal(), 
-                                                        nothing, 
-                                                        nothing, 
-                                                        optsum)
+WithinSpeciesCTM(optsum::OptSummary) = WithinSpeciesCTM([0.5], [1.0], optsum)
 
-###############################################################################
-## Types for Continuous Trait Evolution Models
-###############################################################################
-
-# The types defined here may eventually lead to the redundancy of: 
-# 1) 'ParamsProcess' abstract type and its concrete subtypes
-# 2) One out of the two fields - 'params', 'model' - of the 
-#    'TraitSimulation' datatype
-
-# Abstract type for the `model` field of `PhyloNetworkLinearModel`s
-# ContinuousTraitEM stands for "continuous trait evolutionary model"
 abstract type ContinuousTraitEM end
 
 # current concrete subtypes: BM, PLambda, ScalingHybrid
@@ -1552,7 +1541,7 @@ An ancestral state reconstruction can be performed from this fitted object using
 The `PhyloNetworkLinearModel` object has fields: `lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `ind`, `nonmissing`, `model`, `lambda`.
 Type in "?PhyloNetworkLinearModel.field" to get help on a specific field.
 """
-mutable struct PhyloNetworkLinearModel{T<:ContinuousTraitEM} <: GLM.LinPredModel
+mutable struct PhyloNetworkLinearModel <: GLM.LinPredModel
     "lm: a GLM.LinearModel object, fitted on the cholesky-tranformend problem"
     lm::GLM.LinearModel # result of a lm on a matrix
     "V: a MatrixTopologicalOrder object of the network-induced correlations"
@@ -1572,16 +1561,14 @@ mutable struct PhyloNetworkLinearModel{T<:ContinuousTraitEM} <: GLM.LinPredModel
     "nonmissing: vector indicating which tips have non-missing data"
     nonmissing::BitArray{1}
     "model: the model used for the fit"
-    model::T
+    model::ContinuousTraitEM
     "model_within: the model used for describing measurement error (if needed)"
     model_within::Union{Nothing, WithinSpeciesCTM}
 end
 
-# Constructor that: infers type T from 'model', and default model_within=nothing
-PhyloNetworkLinearModel(lm, V,Vy,RL,Y,X, logdetVy, ind,nonmissing,
-                        model, model_within = nothing) =
-    PhyloNetworkLinearModel{typeof(model)}(lm, V,Vy,RL,Y,X, logdetVy, ind,nonmissing,
-                        model, model_within)
+# default model_within=nothing
+PhyloNetworkLinearModel(lm,  V,Vy,RL,Y,X,logdetVy, ind,nonmissing, model) =
+  PhyloNetworkLinearModel(lm,V,Vy,RL,Y,X,logdetVy, ind,nonmissing, model,nothing)
 
 
 #= ------ roadmap of phyloNetworklm methods --------------
@@ -2281,7 +2268,7 @@ sigma2_estim(m::PhyloNetworkLinearModel) = deviance(m.lm) / nobs(m)
 sigma2_estim(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T) =
   sigma2_estim(m.model)
 # REML estimate of within-species variance for measurement error models
-wspvar_estim(m::PhyloNetworkLinearModel) = m.model_within.wsp_var
+wspvar_estim(m::PhyloNetworkLinearModel) = m.model_within.wsp_var[1]
 wspvar_estim(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T) = wspvar_estim(m.model)
 # ML estimate for ancestral state of the BM
 """
@@ -2310,21 +2297,22 @@ end
 # Lambda
 """
     lambda(m::PhyloNetworkLinearModel)
-Reads the value assigned to the lambda parameter of the PhyloNetworkLinearModel object.
+    lambda(m::ContinuousTraitEM)
+
+Value assigned to the lambda parameter, if appropriate.
 """
-lambda(m::PhyloNetworkLinearModel) = error("lambda is not defined for m::$(typeof(m)).")
-lambda(m::PhyloNetworkLinearModel{<:Union{BM,PLambda,ScalingHybrid}}) = 
-    m.model.lambda
-# Lambda!
+lambda(m::PhyloNetworkLinearModel) = lambda(m.model)
+lambda(m::Union{BM,PLambda,ScalingHybrid}) = m.lambda
+
 """
-    lambda!(m::PhyloNetworkLinearModel, lambda_new) 
-Writes a value to the lambda parameter of the PhyloNetworkLinearModel object.
+    lambda!(m::PhyloNetworkLinearModel, newlambda)
+    lambda!(m::ContinuousTraitEM, newlambda)
+
+Assign a new value to the lambda parameter.
 """
-lambda!(m::PhyloNetworkLinearModel, lambda_new) = 
-    error("lambda! is not defined for (m::$(typeof(m)), lambda_new::$(typeof(lambda_new))).")
-lambda!(m::PhyloNetworkLinearModel{<:Union{BM,PLambda,ScalingHybrid}}, 
-        lambda_new::Real) = (m.model.lambda = lambda_new)
-# Lambda estim
+lambda!(m::PhyloNetworkLinearModel, lambda_new) = lambda!(m.model, lambda_new)
+lambda!(m::Union{BM,PLambda,ScalingHybrid}, lambda_new::Real) = (m.lambda = lambda_new)
+
 """
     lambda_estim(m::PhyloNetworkLinearModel)
 
@@ -2344,8 +2332,8 @@ function paramstable(m::PhyloNetworkLinearModel)
     end
     mw = m.model_within
     if (typeof(mw) == WithinSpeciesCTM)
-        res = res*"\nSigma2 (NLopt): " * @sprintf("%.6g", mw.bsp_var)
-        res = res*"\nWithin-Species Variance: " * @sprintf("%.6g", mw.wsp_var)
+        res = res*"\nSigma2 (NLopt): " * @sprintf("%.6g", mw.bsp_var[1])
+        res = res*"\nWithin-Species Variance: " * @sprintf("%.6g", mw.wsp_var[1])
     end
     return(res)
 end
@@ -2487,10 +2475,6 @@ function phyloNetworkmem(Xr::Matrix,
                            )
     end
 
-    # Borrow the idea of storing all the info related to an NLopt optimization
-    # in a mutable struct, as done in the MixedModels pkg. 
-    # E.g. optsum::OptSummary{T}, where OptSummary{T} is a mutable, parametric,
-    # struct
     # Estimate variance components by REML
     getVarianceComponents!(Xr, Ysp, V, Dinv, RSS, n, p, a, 
                            model_within) # update model_within.optsum
@@ -2511,8 +2495,8 @@ function phyloNetworkmem(Xr::Matrix,
                                 V.tipNames,
                                 V.indexation)
 
-    model_within.wsp_var = η*σ²
-    model_within.bsp_var = σ²
+    model_within.wsp_var[1] = η*σ²
+    model_within.bsp_var[1] = σ²
 
     # Fit phyloNetworklm on species-level data, now taking measurement error
     # into account

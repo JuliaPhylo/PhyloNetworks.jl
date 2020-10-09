@@ -161,6 +161,7 @@ module PhyloNetworks
     include("types.jl")
     include("nloptsummary.jl")
     include("auxiliary.jl")
+    include("generate_topology.jl")
     include("update.jl")
     include("undo.jl")
     include("addHybrid_snaq.jl")

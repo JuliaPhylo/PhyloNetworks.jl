@@ -75,6 +75,7 @@ PhyloNetworks.setCHECKNET(true)
 
 tests = [
     "test_auxillary.jl",
+    "test_generatetopology.jl",
     "test_addHybrid.jl",
     "test_5taxon_readTopology.jl",
     "test_calculateExpCF.jl", "test_calculateExpCF2.jl",
