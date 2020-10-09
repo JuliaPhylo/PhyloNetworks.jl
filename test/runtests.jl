@@ -93,7 +93,8 @@ tests = [
     "test_traitLikDiscrete.jl",
     "test_phyLiNCoptimization.jl",
     "test_readInputData.jl",
-    "test_nj.jl"
+    "test_nj.jl",
+    "test_graph_components.jl"
 ]
 
 @show PhyloNetworks.CHECKNET

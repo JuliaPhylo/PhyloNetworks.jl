@@ -226,7 +226,7 @@ function blobDecomposition!(net)
 end
 
 """
-    tree_edge_components(net::HybridNetwork)
+    treeedgecomponents(net::HybridNetwork)
 
 Find the tree-edge components of the semidirected network.  Returns a
 `Dict{Node, Int}` `membership`; nodes with the same `membership[node]`
@@ -240,7 +240,7 @@ must belong to.
 Throws `RootMismatch` if there exists cycles in any of the tree-edge
 components.
 """
-function tree_edge_components(net::HybridNetwork)
+function treeedgecomponents(net::HybridNetwork)
     # partition nodes into undirected components (UCs)
     nodes = net.node
     n = length(nodes)
@@ -310,7 +310,7 @@ end
 
 Update the root location, as well as the `.containRoot` attributes of
 the edges in the network `net`, using the output `membership` from
-`tree_edge_components(net)`.  The root is chosen to be an arbitrary
+`treeedgecomponents(net)`.  The root is chosen to be an arbitrary
 node in the root tree-edge component.
 
 Throws `RootMismatch` if the network given is not a valid semidirected
