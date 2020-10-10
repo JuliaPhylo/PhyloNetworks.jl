@@ -12,6 +12,7 @@
   and has no reticulation. too easy.
 - check the estimation with independent implementation, like on a tree with
   pgls.SEy in the R package phytools. document here the R code (within comment block)
+- check & update functions like: nobs, dof, dof_residual, deviance, residuals, sigma2_estim, etc.
 - allow for missing data: both within a species, and if a species missing entirely
 - add documentation for within-species variation, including assumptions on X
   (no variation in X! but what if variation seen in practice, and what if
@@ -19,9 +20,6 @@
 =#
 
 @testset "phyloNetworklm with measurement error on Star-topology" begin
-
-n = 4; m = 3
-starnet = readTopology(PhyloNetworks.startree_newick(n))
 
 #= simulation of data used below (test more reproducible when using fixed data)
 # simulate traits at the species-level, then
@@ -31,6 +29,9 @@ function simTraits(net, m, paramsprocess)
     trait = sim[:Tips] # simple vector now
     return repeat(trait, inner=m)
 end
+
+n = 4; m = 3
+starnet = readTopology(PhyloNetworks.startree_newick(n))
 Random.seed!(6591)
 trait1 = simTraits(starnet, m, ParamsBM(2, 0.5)) # var: 0.5
 trait2 = simTraits(starnet, m, ParamsBM(-2, 1))
@@ -44,6 +45,8 @@ labels = repeat(starnet.names, inner=m)
 df = DataFrame(trait1=trait1, trait2=trait2, trait3=trait3,tipNames=labels)
 =#
 
+n = 4; m = 3
+starnet = readTopology(PhyloNetworks.startree_newick(n))
 netnames = ["t1","t2","t3","t4"] # = tipLabels(starnet) # was generated to have length n
 df = DataFrame(
     species = repeat(netnames, inner=m),

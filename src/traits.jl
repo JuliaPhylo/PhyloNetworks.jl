@@ -1478,8 +1478,8 @@ end
 ###############################################################################
 
 # WithinSpeciesCTM stands for "within species continuous trait model"
+# error_distr::ContinuousUnivariateDistribution # immutable, e.g: Normal()
 struct WithinSpeciesCTM
-    # error_distr::ContinuousUnivariateDistribution # immutable, e.g: Normal()
     "within-species variance η*σ², assumes Normal distribution"
     wsp_var::Vector{Float64} # vector to make it mutable
     "between-species variance rate σ², such as from Brownian motion"
@@ -1592,8 +1592,8 @@ with or without measurement error:
    - phyloNetworkmem(model, X,Y,net; kwargs...) dispatch based on model
      implemented for model <: BM only
 
-   - phyloNetworkmem(X,Y,V, labels,counts,ySD,netnames, reml, model_within)
-   - phyloNetworkmem(Xr,Ysp,V, Dinv,RSS,n,p,a, reml,model_within)
+   - phyloNetworkmem(X,Y,V, nonmissing,ind, counts,ySD, reml, model_within)
+   - phyloNetworkmem(Xsp,Ysp,Vsp, d_inv,RSS, n,p,a, reml, model_within)
 =#
 function phyloNetworklm(X::Matrix,
                         Y::Vector,
@@ -1604,11 +1604,10 @@ function phyloNetworklm(X::Matrix,
                         startingValue=0.5::Real,
                         fixedValue=missing::Union{Real,Missing},
                         msr_err::Bool=false,
-                        labels::Union{Nothing, Vector}=nothing,
                         counts::Union{Nothing, Vector}=nothing,
                         ySD::Union{Nothing, Vector}=nothing)
     if msr_err
-        phyloNetworkmem(model, X,Y,net; labels=labels,
+        phyloNetworkmem(model, X,Y,net; nonmissing=nonmissing, ind=ind,
                         counts=counts, ySD=ySD) # fixit: add reml?
     else
         phyloNetworklm(model, X,Y,net; nonmissing=nonmissing, ind=ind,
@@ -2096,7 +2095,7 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
                         startingValue=0.5::Real,
                         fixedValue=missing::Union{Real,Missing},
                         msr_err::Bool=false,
-                        response_std::Bool=false)
+                        y_mean_std::Bool=false)
     # Match the tips names: make sure that the data provided by the user will
     # be in the same order as the ordered tips in matrix V.
     preorder!(net)
@@ -2126,8 +2125,14 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
         any(isnothing, ind) &&
             error("""Tips with data are not in the network: $(fr[isnothing.(ind), tipnames])
                   please provide a larger network including these tips.""")
-        !msr_err && length(unique(ind)) != length(ind) &&
+        ind = convert(Vector{Int}, ind) # Int, not Union{Nothing, Int}
+        if length(unique(ind)) == length(ind)
+            msr_err && !y_mean_std &&
+            error("for within-species variation, at least 1 species must have at least 2 individuals")
+        else
+            (!msr_err || y_mean_std) &&
             error("""Some tips have data on multiple rows.""")
+        end
     end
     # Find the regression matrix and response vector
     data, nonmissing = StatsModels.missing_omit(StatsModels.columntable(fr), f)
@@ -2139,10 +2144,10 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
     # Y = convert(Vector{Float64}, StatsModels.response(mf))
     # Y, pred = StatsModels.modelcols(f, fr)
 
-    labels = msr_err ? fr[!,tipnames] : nothing
-    if response_std
+    if msr_err && y_mean_std
+        # find columns in data frame for: # of individuals from each species
         counts  = fr[!,Symbol(String(mf.f.lhs.sym)*"_n")]
-        # Extract the sample sds corresponding to the response means
+        # and sample SDs corresponding to the response mean in each species
         ySD = fr[!,Symbol(String(mf.f.lhs.sym)*"_sd")]
     else
         counts = nothing
@@ -2151,26 +2156,16 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
 
     msr_err && model != "BM" &&
         error("within-species variation is not implemented for non-BM models")
-    if model == "BM"
-        modelobj = BM() # model object (as opposed to model string)
-        # Eventually: get rid of this return statement after within-species
-        # variation is implemented for all models of continuous trait evolution
-        return StatsModels.TableRegressionModel(
-                phyloNetworklm(modelobj, mm.m, Y, net; nonmissing=nonmissing,
-                               ind=ind, startingValue=startingValue,
-                               fixedValue=fixedValue, msr_err=msr_err,
-                               labels=labels, counts=counts, ySD=ySD),
-                mf, mm)
-    elseif model == "lambda"
-        modelobj = PLambda()
-    elseif model == "scalingHybrid"
-        modelobj = ScalingHybrid()
-    else
-        error("phyloNetworklm is not defined for model::$(typeof(model)).")
-    end
+    modeldic = Dict("BM" => BM(),
+                    "lambda" => PLambda(),
+                    "scalingHybrid" => ScalingHybrid())
+    haskey(modeldic, model) || error("phyloNetworklm is not defined for model $model.")
+    modelobj = modeldic[model]
+
     StatsModels.TableRegressionModel(
-        phyloNetworklm(modelobj, mm.m, Y, net; nonmissing=nonmissing, ind=ind,
-                       startingValue=startingValue, fixedValue=fixedValue),
+        phyloNetworklm(mm.m, Y, net, modelobj; nonmissing=nonmissing, ind=ind,
+                    startingValue=startingValue, fixedValue=fixedValue,
+                    msr_err=msr_err, counts=counts, ySD=ySD),
         mf, mm)
 end
 
@@ -2331,7 +2326,7 @@ function paramstable(m::PhyloNetworkLinearModel)
         res = res*"\nLambda: " * @sprintf("%.6g", Lamb)
     end
     mw = m.model_within
-    if (typeof(mw) == WithinSpeciesCTM)
+    if !isnothing(mw)
         res = res*"\nSigma2 (NLopt): " * @sprintf("%.6g", mw.bsp_var[1])
         res = res*"\nWithin-Species Variance: " * @sprintf("%.6g", mw.wsp_var[1])
     end
@@ -2365,29 +2360,30 @@ end
 ###############################################################################
 
 function phyloNetworkmem(::BM, X::Matrix, Y::Vector, net::HybridNetwork;
-                        labels::Union{Nothing, Vector}=nothing,
+                        nonmissing=trues(length(Y))::BitArray{1}, # which individuals have non-missing data?
+                        ind=[0]::Vector{Int},
                         counts::Union{Nothing, Vector}=nothing,
                         ySD::Union{Nothing, Vector}=nothing,
-                        reml::Bool = true)
+                        reml::Bool = true,
+                        model_within::Union{Nothing, WithinSpeciesCTM}=nothing)
     V = sharedPathMatrix(net)
-    phyloNetworkmem(X,Y,V, labels,counts,ySD, net.names, reml)
+    phyloNetworkmem(X,Y,V, nonmissing,ind, counts,ySD, reml, model_within)
 end
 
 # Only uses REML criterion for now
 function getVarianceComponents!(X::Matrix, Ysp::Vector, 
-                                V::MatrixTopologicalOrder, Dinv::Matrix,
+                                Vsp::Matrix, d_inv::Vector,
                                 RSS::Float64, n::Int, p::Int, a::Int,
                                 model_within::WithinSpeciesCTM)
     optsum = model_within.optsum
     optsum.maxfeval = 1000
     opt = Opt(optsum)
  
-    Vsp = V[:Tips]
     function obj(x, g)
         #(η, σ²) = x
         η = x[1]; σ² = x[2]        
         
-        Vm = Vsp+η*Dinv
+        Vm = Vsp + η * Diagonal(d_inv)
         Q = X'*(Vm\X)
         β = Q\(X'*(Vm\Ysp))
         res = Ysp-X*β
@@ -2406,62 +2402,79 @@ function getVarianceComponents!(X::Matrix, Ysp::Vector,
     optsum.returnvalue = ret
 end
 
+#= notes about missing data: after X and Y produced by stat formula:
+- individuals with missing data (in response or any predictor)
+  already removed from both X and Y
+- V has all species: some not listed, some listed but without any data
+- nonmissing and ind correspond to the original rows in the data frame,
+  including those with some missing data, so:
+  * nonmissing has length >= length of Y
+  * sum(nonmissing) = length of Y
+- V[:Tips][ind,ind][nonmissing,nonmissing] correspond to the data rows
+
+extra problems:
+- a species may be listed 1+ times in ind, but not in ind[nonmissing]
+- ind and nonmissing need to be converted to the species level, alongside Y
+=#
 function phyloNetworkmem(X::Matrix,
                          Y::Vector,
                          V::MatrixTopologicalOrder,
-                         labels::Vector,
+                         nonmissing::BitArray{1}, ind::Vector{Int},
                          counts::Union{Nothing, Vector},
                          ySD::Union{Nothing, Vector},
-                         netnames::Vector,
                          reml::Bool,
-                         model_within::Union{Nothing, 
-                                             WithinSpeciesCTM}=nothing)
-    
-    # Compute constants: Xr, Ysp, Dinv, RSS, n, p, a
-    a = length(netnames) # no. of species
-    p = size(X, 2) # no. of predictors
-    
-    if isnothing(counts) || isnothing(ySD)
-        n = length(Y) # total no. of obs
-        Dinv = fill(0.0, (a, a))
-        Ysp = fill(0.0, a) # species-level mean response
-        RSS = 0 # 1-way ANOVA residual sum-of-squares for predictor variable
-        # reduce predictor matrix: same no. of rows as no. of species
-        Xr = fill(0.0, (a, p))
-
-        idx = 1 # counter used when filling in Xr from X
-        for i in 1:a
-            ind = (labels .== netnames[i]) # indicator vector
-            # no. of obs for species i
-            n_i = sum(ind)
-            Dinv[i,i] = 1/n_i
-            Xr[i, :] = X[idx, :]; idx += n_i
-            Ysp[i] = mean(Y[ind])
-            RSS += norm(Y[ind].-Ysp[i])^2
+                         model_within::Union{Nothing, WithinSpeciesCTM}=nothing)
+    n_coef = size(X, 2) # no. of predictors
+    individualdata = isnothing(counts)
+    xor(individualdata, isnothing(ySD)) &&
+        error("counts and ySD must be both nothing, or both vectors")
+    if individualdata
+        # get species means for Y and X, the within-species residual ss
+        ind_nm = ind[nonmissing] # same length as Y
+        ind_sp = unique(ind_nm)
+        n_sp = length(ind_sp) # number of species with data
+        n_tot = length(Y)     # total number of individuals with data
+        d_inv = zeros(n_sp)
+        Ysp = Vector{Float64}(undef,n_sp) # species-level mean Y response
+        Xsp = Matrix{Float64}(undef,n_sp,n_coef)
+        RSS_within = 0.0  # residual sum-of-squares within-species
+        for (i0,iV) in enumerate(ind_sp)
+            iii = findall(isequal(iV), ind_nm)
+            n_i = length(iii) # number of obs for species of index iV in V
+            d_inv[i0] = 1/n_i
+            Xsp[i0, :] = mean(X[iii, :], dims=1) # ideally, all have same Xs
+            ymean = mean(Y[iii])
+            Ysp[i0] = ymean
+            RSS += sum((Y[iii] .- ymean).^2)
         end
+        Vsp = V[:Tips][ind_sp,ind_sp]
     else # group means and sds for response variable were passed in
-        n = sum(counts)
-        Dinv = convert(Matrix, Diagonal(1 ./ counts))
+        n_sp = length(Y)
+        n_tot = sum(counts)
+        d_inv = 1.0 ./ counts
         Ysp = Y
-        Xr = X
-        RSS = sum((ySD .^ 2) .* (counts .- 1))
+        Xsp = X
+        RSS = sum((ySD .^ 2) .* (counts .- 1.0))
+        ind_nm = ind[nonmissing]
+        Vsp = V[:Tips][ind_nm,ind_nm]
     end
 
-    phyloNetworkmem(Xr, Ysp, V, Dinv, RSS, n, p, a, reml, model_within)
+    phyloNetworkmem(Xsp,Ysp,Vsp, d_inv,RSS, n_tot,n_coef,n_sp,
+                    reml, model_within)
 end
 
-function phyloNetworkmem(Xr::Matrix, 
-                         Ysp::Vector, 
-                         V::MatrixTopologicalOrder, 
-                         Dinv::Matrix, RSS::Float64,
+function phyloNetworkmem(Xr::Matrix, Ysp::Vector, V::Matrix,
+                         d_inv::Vector,
+                         RSS::Float64,
                          n::Int64, p::Int64, a::Int64,
                          reml::Bool,
-                         model_within::Union{Nothing, 
-                                             WithinSpeciesCTM}=nothing)
+                         model_within::Union{Nothing, WithinSpeciesCTM}=nothing)
     
-    # fit phyloNetworklm on species-level mean responses without taking 
-    # measurement error into account
-    m = phyloNetworklm(Xr, Ysp, V)
+    # fit species-level mean responses ignoring within-species variation
+    #R = cholesky(V)
+    #RL = R.L
+    #lm_sp = lm(RL\X, RL\Y)
+    m = phyloNetworklm(Xr,Ysp,V)
 
     if model_within === nothing
         # default if model_within is not specified
@@ -2476,13 +2489,13 @@ function phyloNetworkmem(Xr::Matrix,
     end
 
     # Estimate variance components by REML
-    getVarianceComponents!(Xr, Ysp, V, Dinv, RSS, n, p, a, 
+    getVarianceComponents!(Xr, Ysp, V, d_inv, RSS, n, p, a,
                            model_within) # update model_within.optsum
 
     # Plug in REML variance components estimate into GLS coefficients estimate
     (η, σ²) = (model_within.optsum).final
     Vsp = V[:Tips] # variance-covariance matrix for species means
-    Vm = Vsp + η*Dinv
+    Vm = Vsp + η * Diagonal(d_inv)
 
     # Package Vm in 'MatrixTopologicalOrder' type. Have to create a new object
     # since 'MatrixTopologicalOrder' is not mutable.
