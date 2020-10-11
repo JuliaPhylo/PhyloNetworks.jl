@@ -963,11 +963,15 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
             #! 3. in hybrid ladder case: chooses leaf edges as newhybridedge
                 # CAS note: I added additional leaf check to prevent this.
         @debug "$(e !== edgetoflip), $(PhyloNetworks.isdescendant_undirected(p2, newhybridnode, e)), $(!any(n.leaf for n in e.node))"
-        if e !== edgetoflip && PhyloNetworks.isdescendant_undirected(p2, newhybridnode, e) && !any(n.leaf for n in e.node)
-            push!(isdesc, true)
-        else
-            push!(isdesc, false)
+        isp2desc = false
+        if e !== edgetoflip
+            neibr = getOtherNode(e, newhybridnode) # neighbor of new hybrid node via e
+            if !neibr.leaf && (p2 === neibr ||
+                PhyloNetworks.isdescendant_undirected(p2, neibr, e))
+                isp2desc = true
+            end
         end
+        push!(isdesc, isp2desc)
     end
     @debug "isdesc has $(length(isdesc))"
     if sum(isdesc) != 1 # if >1 one edge is an ancestor, flipping would create a cycle

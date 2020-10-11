@@ -478,10 +478,10 @@ end # of testset on checknetwork functions for species constraints
 
 end # of constrained NNI moves
 
-@testset "test fliphybrid! inner function" begin
+@testset "test fliphybrid!" begin
 # simple network
 n6h1 = readTopology("((((1:0.2,2:0.2):2.4,((3:0.4,4:0.4):1.1)#H1:1.1):2.0,(#H1:0.0::0.3,5:1.5):3.1):1.0,6:5.6);")
-@test n6h1.hybrid[1].number == 5
+# @test n6h1.hybrid[1].number == 5
 #! currently, rejects an allowable newhybridedge in the following call
 @test !isnothing(PhyloNetworks.fliphybrid!(n6h1, n6h1.hybrid[1])) # flips minor by default
 @test n6h1.hybrid[1].number == -8
