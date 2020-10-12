@@ -24,6 +24,11 @@
     rcomp = keys(filter(p -> p.second == rcompID, node2comp))
     @test Set(n.number for n in rcomp) == Set([-2 -3 4])
     @test Set(e.number for e in net.edge if e.containRoot) == Set([7 6 5 2 1])
+    for e in net.edge e.containRoot=true; end # wrong, on purpose
+    net.root = 2 # node number 1, also H1: not in the root component on purpose
+    checkroot!(net)
+    @test [e.number for e in net.edge if e.containRoot] == [1,2,5,6,7]
+    @test net.root == 5 # i.e. node number -3. only 1 other option: 6, i.e. nn -2
 
     # test semidirected cycle case
     net.edge[1].isChild1 = !net.edge[1].isChild1
