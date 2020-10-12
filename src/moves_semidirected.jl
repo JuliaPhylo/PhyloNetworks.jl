@@ -925,15 +925,29 @@ end
     fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
                 constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
-Flip a hybrid edge so that the parent node is the new hybrid node. The former
-hybrid edge partner is converted to a tree edge. By default, flips the minor
-hybrid edge.
+Flip the direction of a single hybrid edge:
+the minor parent edge of `hybridnode` by default,
+or the major parent edge if `minor=false`.
+The parent node of the hybrid edge becomes the new hybrid node.
+The former hybrid edge partner is converted to a tree edge (with γ=1),
+and `hybridnode` becomes a tree node.
 
-The identity of the hybrid node changes, but the index in net.hybrid
-remains constant.
+For the flip to be admissible, the new network must be a semi-directed
+phylogenetic network: with a root such that the rooted version is a DAG.
 
-If found an admissible flip, return a tuple: newhybridnode, flippededge, oldchildedge
-Otherwise, return nothing.
+The new hybrid partner is an edge adjacent to the new hybrid node,
+such that the flip is admissible (so it must be a tree edge).
+The flipped edge retains its original γ.
+The new hybrid edge is assigned inheritance 1-γ.
+
+Output:
+`(newhybridnode, flippededge, oldchildedge)` if the flip is admissible,
+`nothing` otherwise.
+
+The network is unchanged if the flip is not admissible.
+If the flip is admissible, the root position may be modified, and
+the direction of tree edges (via `isChild1`) is modified accordingly.
+The index of nodes in in `net.hybrid` remains constant.
 
 Called by [`fliphybridedgeLiNC!`](@ref)
 """
@@ -964,7 +978,14 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
                 # CAS note: I added additional leaf check to prevent this.
         @debug "$(e !== edgetoflip), $(PhyloNetworks.isdescendant_undirected(p2, newhybridnode, e)), $(!any(n.leaf for n in e.node))"
         isp2desc = false
-        if e !== edgetoflip
+        #= isp2desc = true means:
+        there is a semi-directed path  newhybridnode -e-> neighbor --...-> p2
+        so: flipping hybridedge without making e the new partner would:
+        - make e a child of newhybridnode, and
+        - create a directed cycle: p2 -hybridedge-> newhybridnode -e-> neibr --...-> p2
+        so we HAVE to make e the new partner hybrid edge if its "isp2desc" is true
+        =#
+        if e !== edgetoflip && !e.hybrid # cannot flip another hybrid edge
             neibr = getOtherNode(e, newhybridnode) # neighbor of new hybrid node via e
             if !neibr.leaf && (p2 === neibr ||
                 PhyloNetworks.isdescendant_undirected(p2, neibr, e))
@@ -974,15 +995,13 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
         push!(isdesc, isp2desc)
     end
     @debug "isdesc has $(length(isdesc))"
-    if sum(isdesc) != 1 # if >1 one edge is an ancestor, flipping would create a cycle
+    if sum(isdesc) != 1 # if 2+ edges have a semi-directed path to p2,
+        # flipping either would create a semi-directed cycle via the other(s)
         return nothing
     end
     newhybridedge = newhybridnode.edge[findfirst(isdesc)]
-    if newhybridedge.hybrid # if this edge is a hybrid, flip move would remove another existing hybrid
-        return nothing
-    end
     if newhybridnode === net.node[net.root] # if newhybridnode is current root, set root as hybridnode
-        net.root = findfirst([n.number == hybridnode.number for n in net.node])
+        net.root = findfirst(n === hybridnode for n in net.node)
         runDirectEdges = true
     end
     @debug "edgetoflip is $edgetoflip, edgetokeep is $edgetokeep, newhybridedge is $newhybridedge"
@@ -1011,25 +1030,37 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     edgetokeep.hybrid = false
     newhybridnode.hybrid = true
     newhybridedge.hybrid = true
-    newhybridedge.isMajor = true # these shouldnt need to be updated
-    edgetoflip.isMajor = false
+    newhybridedge.isMajor = minor
+    # edgetoflip.isMajor = !minor # fixit: delete this line, because gamma unchanged
     edgetokeep.isMajor = true
     # update node order to keep isChild1 attribute of hybrid edges true
     edgetoflip.isChild1 = !edgetoflip.isChild1 # just switch
-    newhybridedge.isChild1 = true # should to true by default, but could have been changed
+    if getChild(newhybridedge) !== newhybridnode
+        # then flip newhybridedge too: make it point towards newhybridnode
+        newhybridedge.isChild1 = !newhybridedge.isChild1
+        #= fixit: bug around here
+        If we need to flip newhybridedge, then the root needs to be moved.
+        getChild(newhybridedge) should be able to be the new root: because
+        newhybridedge should be able to contain the root.
+        This includes the case when the root was newhybridnode, but other cases too.
+        I propose that we delete the block checking newhybridnode === net.node[net.root]
+        and instead move the actions in this block here.
+        =#
+    end
     # give new hybridnode a name
     newhybridnode.name = hybridnode.name
     hybridnode.name = "" # remove name from former hybrid node
-    if newhybridedge.node[1].number != newhybridnode.number
-        newhybridedge.isChild1 = false
-    end
     # update gammas
     newhybridedge.gamma = edgetokeep.gamma
     edgetokeep.gamma = 1.0
     # update hybrids in network (before directEdges!)
-    hybridindex = findfirst([node.number == hybridnode.number for node in net.hybrid])
+    hybridindex = findfirst(node === hybridnode for node in net.hybrid)
     net.hybrid[hybridindex] = newhybridnode
-    if runDirectEdges # DirectEdges only if root is moved
+    if runDirectEdges # direct edges only if root is moved
+        # fixit: bug here I think. We need to re-direct edges away from the root
+        # if the newhybridedge was initially a child of newhybridnode.
+        # see note above for a potential fix.
+        # in the tests: include a case with: root --...--> nhn -> hn and also nhn --...--> p2 --> nh
         PhyloNetworks.directEdges!(net)
     else # if not, only update containRoot attributes
         # norootbelow in child edges of newhybridedge
