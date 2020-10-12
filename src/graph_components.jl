@@ -84,8 +84,8 @@ function biconnectedComponents(node, index, S, blobs, ignoreTrivial)
             #print(" case 1, low=$(node.inCycle) for node $(node.number); ")
             #println("low=$(w.inCycle) for w $(w.number)")
             # if node is an articulation point: pop until e
-            if (node.prev == nothing && children > 1) ||
-               (node.prev != nothing && w.inCycle >= node.k)
+            if (node.prev === nothing && children > 1) ||
+               (node.prev !== nothing && w.inCycle >= node.k)
                 # node is either root or an articulation point
                 # start a new strongly connected component
                 bb = Edge[]
@@ -228,29 +228,29 @@ end
 """
     treeedgecomponents(net::HybridNetwork)
 
-Find the tree-edge components of the semidirected network.  Returns a
-`Dict{Node, Int}` `membership`; nodes with the same `membership[node]`
+Return the tree-edge components of the semidirected network as a `membership`
+dictionary `Node => Int`. Nodes with the same membership integer
 value are in the same tree-edge component.
-
 The tree-edge components of a network are the connected components of
-a network when all hybrid edges are removed.  The root tree-edge
-component is the tree-edge component which the root of the network
-must belong to.
+the network when all hybrid edges are removed.
 
-Throws `RootMismatch` if there exists cycles in any of the tree-edge
-components.
+A `RootMismatch` error is thrown if there exists a cycle in any of the tree-edge
+components, or if a tree-edge component has more than one "entry" hybrid node.
+
+Warnings:
+- since `Node`s are mutable, the network should not be modified
+  until usage of the output `membership` dictionary is over.
+- the component IDs are not predicable, but will be consecutive integers
+  from 1 to the number of components.
 """
 function treeedgecomponents(net::HybridNetwork)
-    # partition nodes into undirected components (UCs)
+    # partition nodes into tree-edge components (TECs)
     nodes = net.node
     n = length(nodes)
     unvisited = Set(nodes)
     dfs_stack = Vector{Node}()  # stack for iterative depth-first search over tree edges
-    dfs_parent = Dict{Node, Node}() # dfs_parent[node] = the parent of
-    # node in the DFS tree membership[node] = the id of undirected
-    # component the node is in
-    # Since Node is mutable, we cannot modify
-    # the network until we are done with the Dict membership
+    dfs_parent = Dict{Node, Node}() # dfs_parent[node] = node's parent in DFS tree
+    # membership[node] = id of undirected component that the node belongs to
     membership = Dict{Node, Int}()
     cur_id = 0                  # undirected component id
 
@@ -258,42 +258,38 @@ function treeedgecomponents(net::HybridNetwork)
         # loop over undirected components
         # start with an unvisited node, DFS with undirected edges
         cur_id += 1
-        node = pop!(unvisited)
+        node = pop!(unvisited) # unpredictable ordering: because unvisited is a set
         push!(dfs_stack, node)
         curnode = node
         dfs_parent[curnode] = curnode
         entrynode = nothing
         while !isempty(dfs_stack)
-            # DFS loop over one UC
+            # DFS loop over one tree-edge component
             curnode = pop!(dfs_stack)
             delete!(unvisited, curnode)
             membership[curnode] = cur_id
             for e in curnode.edge
                 if !e.hybrid
-                    # for undirected edge, do DFS, check for undirected cycles
+                    # for tree edge, do DFS, check for undirected cycles
                     nextnode = getOtherNode(e, curnode)
-                    # if run into visited node (that is not the
-                    #membership parent), then the UC has cycle
-                    if nextnode != dfs_parent[curnode]
+                    # if run into visited node (other than parent), then component has cycle
+                    if nextnode !== dfs_parent[curnode]
                         if !in(nextnode, unvisited)
                             throw(RootMismatch(
-                                "Undirected cycle exists, starting at node:\n $nextnode"))
+                                "Undirected cycle exists, starting at node number $(nextnode.number)"))
                         else
                             dfs_parent[nextnode] = curnode
                             push!(dfs_stack, nextnode)
                         end
                     end
-                else
-                    # for directed edge, check there is at most one
-                    # entry node for the UC
+                else # for hybrid edge, check there is at most one entry node into the TEC
                     if curnode === getChild(e)
                         if isnothing(entrynode)
                             entrynode = curnode
-                        elseif entrynode != curnode
+                        elseif entrynode !== curnode
                             throw(RootMismatch(
-                                """Multiple entry nodes for undirected component:
-                                $entrynode
-                                $curnode"""))
+                                """Multiple entry nodes for tree-edge component, numbered:
+                                $(entrynode.number) and $(curnode.number)"""))
                         end
                     end
                 end
@@ -306,58 +302,91 @@ end
 
 
 """
+    checkroot!(net)
     checkroot!(net::HybridNetwork, membership::Dict{Node, Int})
 
-Update the root location, as well as the `.containRoot` attributes of
-the edges in the network `net`, using the output `membership` from
-`treeedgecomponents(net)`.  The root is chosen to be an arbitrary
-node in the root tree-edge component.
+Set the root of `net` to an appropriate node and update the edges `containRoot`
+field appropriately, using the `membership` output by [`treeedgecomponents`](@ref).
+A node is appropriate to serve as root if it belongs in the
+root tree-edge component, that is, the root of the tree-edge component graph.
 
-Throws `RootMismatch` if the network given is not a valid semidirected
-network (i.e. it is not possible to root the network in a way
+- If the current root is appropriate, it is left as is. The direction of
+  edges (via `isChild1`) is also left as is, assuming it was in synch with
+  the existing root.
+- Otherwise, the root is set to the first appropriate node in `net.node`,
+  that is not a leaf. Then edges are directed away from this root.
+
+A `RootMismatch` error is thrown if `net` is not a valid semidirected
+phylogenetic network (i.e. it is not possible to root the network in a way
 compatible with the given hybrid edges).
 
-Returns the set of nodes (`Set{Nodes}`) in the root tree-edge
-component.
+Output: the `membership` ID of the root component.
+The full set of nodes in the root component can be obtained as shown below.
+Warning: only use the output component ID after calling the second version
+`checkroot!(net, membership)`.
+
+```jldoctest
+julia> net = readTopology("(#H1:::0.1,#H2:::0.2,(((b)#H1)#H2,a));");
+
+julia> membership = treeedgecomponents(net);
+
+julia> rootcompID = checkroot!(net, membership);
+
+julia> rootcomp = keys(filter(p -> p.second == rootcompID, membership));
+
+julia> sort([n.number for n in rootcomp]) # number of nodes in the root component
+3-element Array{Int64,1}:
+ -3
+ -2
+  4
+```
 """
-function checkroot!(net::HybridNetwork, membership::Dict{Node, Int})
+function checkroot!(net::HybridNetwork)
+    membership = treeedgecomponents(net) # dict Node => Int
+    return checkroot!(net, membership)
+end
+function checkroot!(net::HybridNetwork, membership::Dict{Node,Int})
+    # do not modify nodes or edges until we are done with membership
     nodes = net.node
-    ncomp = maximum(values(membership))
-    # construct UC graph and check it's rooted DAG
-    ucg = [Set{Int}() for comp in 1:ncomp] # ucg[i] = set of children of ith UC
-    noparent = trues(ncomp)
+    ncomp = maximum(values(membership)) # TECs are numbered 1,2,...,ncomp
+    #= 1. construct TEC graph: directed graph in which
+    vertices = TECs of original network, and
+    edge Ci --> Cj for each original hybrid edge: node in Ci --> node in Cj.
+    =#
+    tecG = [Set{Int}() for comp in 1:ncomp] # tecG[i] = set of children of ith TEC
+    noparent = trues(ncomp) # will stay true for TECs with no parent
     for e in net.edge
-        if e.hybrid
-            edge = e.isChild1 ? (e.node[2], e.node[1]) : (e.node[1], e.node[2])
-            ucedge = (membership[edge[1]], membership[edge[2]])
-            noparent[ucedge[2]] = false
-            push!(ucg[ucedge[1]], ucedge[2])
-        end
+        e.hybrid || continue # skip tree edges
+        up, down = e.isChild1 ? (e.node[2], e.node[1]) : (e.node[1], e.node[2])
+        uc_up, uc_down = membership[up], membership[down]
+        noparent[uc_down] = false
+        push!(tecG[uc_up], uc_down)
     end
-    if sum(noparent) == 0
+    # 2. check that the TEC graph has a single root
+    tec_root = findfirst(noparent)
+    if isnothing(tec_root) # all TECs have a parent: noparent are all false
         throw(RootMismatch(
-            "Semidirected cycle exists, starting at UC containing node:\n $(nodes[1])"))
+            "Semidirected cycle exists: no component has in-degree 0"))
     elseif sum(noparent) > 1
         r1 = findfirst(noparent)
         r2 = findlast(noparent)
-        nr1 = findfirst([membership[n] == r1 for n in nodes])
-        nr2 = findfirst([membership[n] == r2 for n in nodes])
-        throw(RootMismatch("Nodes have no common ancestor:\n $(nodes[nr1]) \n $(nodes[nr2])"))
+        nr1 = findfirst(n -> membership[n] == r1, nodes)
+        nr2 = findfirst(n -> membership[n] == r2, nodes)
+        throw(RootMismatch("nodes number $(nodes[nr1].number) and $(nodes[nr2].number) have no common ancestor"))
     end
-    root = findfirst(noparent)
 
-    # topological sort: check there are no cycles in the UC graph
-    indeg = zeros(Int, ncomp)  # in-degree of vertex in UC graph
-    for uc in ucg
+    # 3. topological sort: check the TEC graph has no cycles, that is, is a DAG
+    indeg = zeros(Int, ncomp)  # in-degree of vertex in TEC graph
+    for uc in tecG
         for i in uc
             indeg[i] += 1
         end
     end
-    headstack = [root]          # stack of verteces of degree 0 in topological sort
+    headstack = [tec_root] # stack of TEC vertices of degree 0 in topological sort
     while !isempty(headstack)
         uc = pop!(headstack)
         indeg[uc] -= 1
-        for i in ucg[uc]
+        for i in tecG[uc]
             indeg[i] -= 1
             if indeg[i] == 0
                 push!(headstack, i)
@@ -366,22 +395,24 @@ function checkroot!(net::HybridNetwork, membership::Dict{Node, Int})
     end
     cyclehead = findfirst(indeg .!= -1)
     isnothing(cyclehead) || throw(RootMismatch(
-        """Semidirected cycle exists, starting at UC containing node:
-         $(nodes[findfirst([membership[n] == cyclehead for n in nodes])])"""))
+        """Semidirected cycle exists, starting at TEC containing node number $(nodes[findfirst(n -> membership[n] == cyclehead, nodes)].number)"""))
 
-    rootcomp = Set(node for node = nodes if membership[node] == root)
-    # mark all edges in first component as contain root
-    for e in net.edge
-        up, down = e.isChild1 ? (e.node[2], e.node[1]) : (e.node[1], e.node[2])
-        e.containRoot = in(up, rootcomp)
-    end
+    # 4. original network: reset the network root if needed,
+    #    and update the edges' containRoot accordingly.
+    # NOT done: build the root component to return it. Instead: return tec_root
+    #   Set(node for node = nodes if membership[node] == tec_root)
+    #   Set(node for (node,comp) in membership if comp == tec_root)
+    #rootcomp = keys(filter(p -> p.second == tec_root, membership))
     curroot = nodes[net.root]
-    if !in(curroot, rootcomp)
-        r = pop!(rootcomp)
-        net.root = getIndex(r, nodes)
-        push!(rootcomp, r)
-        directEdges!(net)
+    if membership[curroot] == tec_root
+        # update containRoot only: true for edges in or out of the root TEC
+        for e in net.edge
+            e.containRoot = (membership[getParent(e)] == tec_root)
+        end
+    else
+        net.root = findfirst(n -> (!n.leaf && membership[n] == tec_root), nodes)
+        directEdges!(net) # also updates containRoot of all edges
     end
-    return rootcomp
+    return tec_root # return rootcomp
 end
 

@@ -90,6 +90,8 @@ module PhyloNetworks
         biconnectedComponents,
         blobDecomposition!,
         blobDecomposition,
+        checkroot!,
+        treeedgecomponents,
         ## Network Bootstrap
         treeEdgesBootstrap,
         hybridDetection,
@@ -155,9 +157,7 @@ module PhyloNetworks
         mapindividuals,
         # phyLiNC,
         # neighbor joining
-        nj,
-        checkroot!,
-        treeedgecomponents
+        nj
 
     include("types.jl")
     include("auxiliary.jl")
