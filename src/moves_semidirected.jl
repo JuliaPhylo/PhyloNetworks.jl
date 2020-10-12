@@ -985,7 +985,7 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
         - create a directed cycle: p2 -hybridedge-> newhybridnode -e-> neibr --...-> p2
         so we HAVE to make e the new partner hybrid edge if its "isp2desc" is true
         =#
-        if e !== edgetoflip && !e.hybrid # cannot flip another hybrid edge
+        if e !== edgetoflip
             neibr = getOtherNode(e, newhybridnode) # neighbor of new hybrid node via e
             if !neibr.leaf && (p2 === neibr ||
                 PhyloNetworks.isdescendant_undirected(p2, neibr, e))
@@ -1000,6 +1000,9 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
         return nothing
     end
     newhybridedge = newhybridnode.edge[findfirst(isdesc)]
+    if newhybridedge.hybrid  # cannot flip another hybrid edge, but we needed
+        return nothing       # to calculate its isp2desc for total # of true's
+    end
     if newhybridnode === net.node[net.root] # if newhybridnode is current root, set root as hybridnode
         net.root = findfirst(n === hybridnode for n in net.node)
         runDirectEdges = true
