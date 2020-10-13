@@ -966,8 +966,11 @@ Return true if a flip hybrid move was completed and improved the likelihood.
 If move was completed but did not improve the likelihoood, return false.
 Return nothing if hybrid flip move not possible in this network.
 
+Warning: Undoing this move will not recover the original root in cases where
+the root position was modified.
+
 For arguments, see [`phyLiNC`](@ref).
-Called by [`optimizestructure!`](@ref). #todo
+Called by [`optimizestructure!`](@ref).
 """
 function fliphybridedgeLiNC!(obj::SSM, currLik::Float64, nohybridladder::Bool,
     constraints::Vector{TopologyConstraint}, ftolAbs::Float64, γcache::CacheGammaLiNC,

@@ -558,14 +558,11 @@ net_cycle = readTopology("((a:0.01,((b:0.01,(c:0.005)#H2:0.005):0.01)#H1:0.01::0
 net_cycle = readTopology("((a:0.01,((b:0.01,(c:0.005)#H2:0.005):0.01)#H1:0.01::0.8):0.01,e:0.01,((#H1:0.01::0.2,d:0.01):0.005,#H2):0.005);")
 @test isnothing(PhyloNetworks.fliphybrid!(net_cycle, net_cycle.hybrid[1], false, true)) # hybridladders allowed
 
-# test case when the new hybrid partner is a child edge of the new hybrid node,
-# but the root is not the old hybrid node
-net_cycle = readTopology("((a:0.01,((b:0.01,(c:0.005)#H2:0.005):0.01)#H1:0.01::0.8):0.01,e:0.01,((#H1:0.01::0.2,d:0.01):0.005,#H2):0.005);")
-@test isnothing(PhyloNetworks.fliphybrid!(net_cycle, net_cycle.hybrid[2])) # flip major or minor?
-
-# case: root --...--> nhn -> hn
-
-# case: nhn --...--> p2 --> nh
+# test case when the new hybrid partner is a child edge of the new hybrid node
+net_ex = readTopology("(((c:0.01,(a:0.005,#H1):0.005):0.01,(b:0.005)#H1:0.005):0.01,d:0.01);")
+@test !isnothing(PhyloNetworks.fliphybrid!(net_ex, net_ex.hybrid[1], false)) # flip major edge
+@test net_ex.root == 6 # index
+@test net_ex.hybrid[1].number == -3
 end
 
 @testset "test fliphybrid! randomly choose node function" begin

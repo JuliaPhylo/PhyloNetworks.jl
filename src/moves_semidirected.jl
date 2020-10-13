@@ -326,7 +326,6 @@ function nni!(net::HybridNetwork, e::Edge, nohybridladder::Bool=true, no3cycle::
             return nothing
         end
     end
-    hybparent = getParent(e).hybrid #? is this needed? # TODO remove if not
     nnirange = 0x01:nnimax(e) # 0x01 = 1 but UInt8 instead of Int
     nnis = Random.shuffle(nnirange)
     for nummove in nnis # iterate through all possible NNIs, but in random order
@@ -906,6 +905,9 @@ the `hybridnode`'s indicated hybrid edge (minor or major).
 
 If an admissible flip is found, return the tuple: newhybridnode, flippededge, oldchildedge
 Otherwise, return nothing.
+
+Warning: Undoing this move will not recover the original root in cases where
+the root position was modified.
 """
 function fliphybrid!(net::HybridNetwork, minor=true::Bool,
                      nohybridladder=true::Bool,
@@ -946,8 +948,12 @@ Output:
 
 The network is unchanged if the flip is not admissible.
 If the flip is admissible, the root position may be modified, and
-the direction of tree edges (via `isChild1`) is modified accordingly.
-The index of nodes in in `net.hybrid` remains constant.
+the direction of tree edges (via `isChild1`) is modified accordingly. If the
+root need to be modified, then the new root is set to the old hybrid node.
+The index of nodes in `net.hybrid` remains constant.
+
+Warning: Undoing this move will not recover the original root in cases where
+the root position was modified.
 
 Called by [`fliphybridedgeLiNC!`](@ref)
 """
@@ -965,7 +971,8 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     edgetoflip, edgetokeep = (getMinorParentEdge(hybridnode), getMajorParentEdge(hybridnode))
     oldchildedge = getChildEdge(hybridnode)
     if !minor; (edgetoflip, edgetokeep) = (edgetokeep, edgetoflip); end;
-    if !edgetoflip.containRoot; @debug "edgetoflip cannot contain root"; return nothing; end; # if edgetoflip below a hybrid node, can't flip
+    if !edgetoflip.containRoot; @debug "edgetoflip cannot contain root"; return nothing; end;
+        # if edgetoflip below a hybrid node, can't flip
     newhybridnode = getParent(edgetoflip)
     ## choose newhybridedge ##
     p2 = getParent(edgetokeep) # parent node of edgetokeep
@@ -989,7 +996,6 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
         end
         push!(isdesc, isp2desc)
     end
-    @debug "isdesc has $(length(isdesc))"
     if sum(isdesc) != 1 # if 2+ edges have a semi-directed path to p2,
         # flipping either would create a semi-directed cycle via the other(s)
         return nothing
@@ -998,21 +1004,14 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     if newhybridedge.hybrid  # cannot flip another hybrid edge, but we needed
         return nothing       # to calculate its isp2desc for total # of true's
     end
-    if newhybridnode === net.node[net.root] # if newhybridnode is current root, set root as hybridnode
-        net.root = findfirst([n === hybridnode for n in net.node])
-        runDirectEdges = true
-    end
     @debug "edgetoflip is $edgetoflip, edgetokeep is $edgetokeep, newhybridedge is $newhybridedge"
     if nohybridladder
-        #if getParent(newhybridedge).hybrid # edgetoflip would be bottom rung of ladder
-            # If edgetokeep is already hybrid, edgetoflip was the bottom rung of a hybrid ladder.
         for hyb in net.hybrid # case when edgetoflip would be bottom rung of ladder
             if getChildEdge(hyb) === newhybridedge
                 @debug "caught at first nohybridladder check"
                 return nothing
             end
         end
-        # if nohybridladder, only one edge connected to newhybridnode should be hybrid initially
         for e in newhybridnode.edge # case when edgetoflip would be the top rung
             # (this happens when newhybridnode initially was the center point of a W structure)
             if e !== edgetoflip && e.hybrid
@@ -1022,28 +1021,20 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
         end
         # OR new child edge below new hybrid node does not have a node connected to another hybrid
     end
-
     # change hybrid status and major status for nodes and edges
     hybridnode.hybrid = false
     edgetokeep.hybrid = false
     newhybridnode.hybrid = true
     newhybridedge.hybrid = true
     newhybridedge.isMajor = minor
-    # edgetoflip.isMajor = !minor # fixit: delete this line, because gamma unchanged
     edgetokeep.isMajor = true
     # update node order to keep isChild1 attribute of hybrid edges true
     edgetoflip.isChild1 = !edgetoflip.isChild1 # just switch
-    if getChild(newhybridedge) !== newhybridnode
+    if getChild(newhybridedge) !== newhybridnode # includes the case when the newhybridnode was the root
         # then flip newhybridedge too: make it point towards newhybridnode
         newhybridedge.isChild1 = !newhybridedge.isChild1
-        #= fixit: bug around here
-        If we need to flip newhybridedge, then the root needs to be moved.
-        getChild(newhybridedge) should be able to be the new root: because
-        newhybridedge should be able to contain the root.
-        This includes the case when the root was newhybridnode, but other cases too.
-        I propose that we delete the block checking newhybridnode === net.node[net.root]
-        and instead move the actions in this block here.
-        =#
+        net.root = findfirst(n -> n === hybridnode, net.node)
+        runDirectEdges = true # many edges are likely to need to have directions flipped here
     end
     # give new hybridnode a name
     newhybridnode.name = hybridnode.name
@@ -1052,13 +1043,9 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     newhybridedge.gamma = edgetokeep.gamma
     edgetokeep.gamma = 1.0
     # update hybrids in network (before directEdges!)
-    hybridindex = findfirst([node === hybridnode for node in net.hybrid])
+    hybridindex = findfirst(n -> n === hybridnode, net.hybrid)
     net.hybrid[hybridindex] = newhybridnode
     if runDirectEdges # direct edges only if root is moved
-        # fixit: bug here I think. We need to re-direct edges away from the root
-        # if the newhybridedge was initially a child of newhybridnode.
-        # see note above for a potential fix.
-        # in the tests: include a case with: root --...--> nhn -> hn and also nhn --...--> p2 --> nh
         directEdges!(net)
     else # if not, only update containRoot attributes
         # norootbelow in child edges of newhybridedge
