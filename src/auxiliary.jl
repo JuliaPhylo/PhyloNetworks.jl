@@ -98,7 +98,7 @@ function setNode!(edge::Edge, node::Node)
             edge.istIdentifiable = false;
         else
           if edge.hybrid
-            if node.hybrid #TODO line 102 creates a repetitive empty debug message
+            if node.hybrid
                 # @debug (edge.node[1].hybrid ? "hybrid edge $(edge.number) has two hybrid nodes" : "")
                 edge.isChild1 = false;
 	        else

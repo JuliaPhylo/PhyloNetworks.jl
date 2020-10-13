@@ -900,14 +900,16 @@ end
     fliphybrid!(net::HybridNetwork, minor=true::Bool, nohybridladder=true::Bool,
                 constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
-Cycle through hybrid nodes in random order until admissible flip found. Flip
-the `hybridnode`'s indicated hybrid edge (minor or major).
+Cycle through hybrid nodes in random order until an admissible flip is found.
+At this hybrid node, flip the indicated hybrid parent edge (minor or major).
 
-If an admissible flip is found, return the tuple: newhybridnode, flippededge, oldchildedge
+If an admissible flip is found, return the tuple: newhybridnode, flippededge, oldchildedge.
 Otherwise, return nothing.
 
-Warning: Undoing this move will not recover the original root in cases where
-the root position was modified.
+The flip can later be undone with
+`fliphybrid!(net, newhybridnode, minor, constraints)`.
+*Warning*: undoing the flip may not recover the original root in case
+the root position was modified during the original flip.
 """
 function fliphybrid!(net::HybridNetwork, minor=true::Bool,
                      nohybridladder=true::Bool,
@@ -929,7 +931,7 @@ end
 
 Flip the direction of a single hybrid edge:
 the minor parent edge of `hybridnode` by default,
-or the major parent edge if `minor=false`.
+or the major parent edge if `minor` is false.
 The parent node of the hybrid edge becomes the new hybrid node.
 The former hybrid edge partner is converted to a tree edge (with γ=1),
 and `hybridnode` becomes a tree node.
@@ -949,13 +951,13 @@ Output:
 The network is unchanged if the flip is not admissible.
 If the flip is admissible, the root position may be modified, and
 the direction of tree edges (via `isChild1`) is modified accordingly. If the
-root need to be modified, then the new root is set to the old hybrid node.
-The index of nodes in `net.hybrid` remains constant.
+root needs to be modified, then the new root is set to the old hybrid node.
 
-Warning: Undoing this move will not recover the original root in cases where
+The index of the new hybrid node in `net.hybrid` is equal to that of the
+old `hybridnode`.
+
+Warning: Undoing this move may not recover the original root if
 the root position was modified.
-
-Called by [`fliphybridedgeLiNC!`](@ref)
 """
 function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
                      nohybridladder=true::Bool,
@@ -968,14 +970,17 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     end
     =#
     runDirectEdges = false
-    edgetoflip, edgetokeep = (getMinorParentEdge(hybridnode), getMajorParentEdge(hybridnode))
+    edgetoflip, edgetokeep = minor ?
+        (getMinorParentEdge(hybridnode), getMajorParentEdge(hybridnode)) :
+        (getMajorParentEdge(hybridnode), getMinorParentEdge(hybridnode))
     oldchildedge = getChildEdge(hybridnode)
-    if !minor; (edgetoflip, edgetokeep) = (edgetokeep, edgetoflip); end;
-    if !edgetoflip.containRoot; @debug "edgetoflip cannot contain root"; return nothing; end;
-        # if edgetoflip below a hybrid node, can't flip
+    if !edgetoflip.containRoot # if downstream of some hybrid node: direction conflict. not admissible
+        # @debug "edgetoflip cannot contain root"
+        return nothing
+    end
     newhybridnode = getParent(edgetoflip)
     ## choose newhybridedge ##
-    p2 = getParent(edgetokeep) # parent node of edgetokeep
+    p2 = getParent(edgetokeep) # parent node
     isdesc = Bool[]
     for e in newhybridnode.edge # is p2 undirected descendant of nhn via this edge?
         @debug "$(e !== edgetoflip), $(isdescendant_undirected(p2, newhybridnode, e)), $(!any(n.leaf for n in e.node))"
