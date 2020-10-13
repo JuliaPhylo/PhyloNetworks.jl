@@ -1,19 +1,13 @@
-## tests of phyloNetworkmem
+## tests of phyloNetworklm_wsp
 
 #= to work on:
-- find better name, for functions and for file. mem = ? (mem = memory for me)
-  file: rename "test_traits.jl" to something else and add to it?
-        e.g. "test_lm_traits.jl"?
-  function: rename "phyloNetworkmem" to "phyloNetworklm_wsp"?
-  variables:
 - hard-code the data for the tests: avoid randomness
-- check errors below. one says "PosDefException: matrix is not positive definite; Cholesky factorization failed."
 - use some other network: star tree is an edge case with V=Identity,
   and has no reticulation. too easy.
 - check the estimation with independent implementation, like on a tree with
   pgls.SEy in the R package phytools. document here the R code (within comment block)
 - check & update functions like: nobs, dof, dof_residual, deviance, residuals, sigma2_estim, etc.
-- allow for missing data: both within a species, and if a species missing entirely
+- finish handling of missing data: both within a species, and if a species missing entirely
 - add documentation for within-species variation, including assumptions on X
   (no variation in X! but what if variation seen in practice, and what if
   missing in X but not Y for some individuals, or missing Y but not X in other individuals?)

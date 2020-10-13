@@ -1491,17 +1491,17 @@ WithinSpeciesCTM(optsum::OptSummary) = WithinSpeciesCTM([0.5], [1.0], optsum)
 
 abstract type ContinuousTraitEM end
 
-# current concrete subtypes: BM, PLambda, ScalingHybrid
+# current concrete subtypes: BM, PagelLambda, ScalingHybrid
 # possible future additions: OU (Ornstein-Uhlenbeck)?
 struct BM <: ContinuousTraitEM
     lambda::Float64 # immutable
 end
 BM() = BM(1.0)
 
-mutable struct PLambda <: ContinuousTraitEM
+mutable struct PagelLambda <: ContinuousTraitEM
     lambda::Float64 # mutable: can be optimized
 end
-PLambda() = PLambda(1.0)
+PagelLambda() = PagelLambda(1.0)
 
 mutable struct ScalingHybrid <: ContinuousTraitEM
     lambda::Float64
@@ -1589,11 +1589,11 @@ with or without measurement error:
    - logLik_lam_hyb(lambda, X,Y,net,gammas; ...)
 
 2. with measurement error (within-species variation):
-   - phyloNetworkmem(model, X,Y,net; kwargs...) dispatch based on model
+   - phyloNetworklm_wsp(model, X,Y,net; kwargs...) dispatch based on model
      implemented for model <: BM only
 
-   - phyloNetworkmem(X,Y,V, nonmissing,ind, counts,ySD, reml, model_within)
-   - phyloNetworkmem(Xsp,Ysp,Vsp, d_inv,RSS, n,p,a, reml, model_within)
+   - phyloNetworklm_wsp(X,Y,V, nonmissing,ind, counts,ySD, reml, model_within)
+   - phyloNetworklm_wsp(Xsp,Ysp,Vsp, d_inv,RSS, n,p,a, reml, model_within)
 =#
 function phyloNetworklm(X::Matrix,
                         Y::Vector,
@@ -1607,7 +1607,7 @@ function phyloNetworklm(X::Matrix,
                         counts::Union{Nothing, Vector}=nothing,
                         ySD::Union{Nothing, Vector}=nothing)
     if msr_err
-        phyloNetworkmem(model, X,Y,net; nonmissing=nonmissing, ind=ind,
+        phyloNetworklm_wsp(model, X,Y,net; nonmissing=nonmissing, ind=ind,
                         counts=counts, ySD=ySD) # fixit: add reml?
     else
         phyloNetworklm(model, X,Y,net; nonmissing=nonmissing, ind=ind,
@@ -1625,7 +1625,7 @@ function phyloNetworklm(::BM, X::Matrix, Y::Vector, net::HybridNetwork;
     phyloNetworklm(X, Y, V; nonmissing=nonmissing, ind=ind)
 end
 
-function phyloNetworklm(::PLambda,
+function phyloNetworklm(::PagelLambda,
                         X::Matrix,
                         Y::Vector,
                         net::HybridNetwork;
@@ -1839,7 +1839,7 @@ function phyloNetworklm_lambda(X::Matrix,
     transform_matrix_lambda!(V, res_lam, gammas, times)
     res = phyloNetworklm(X, Y, V; 
                          nonmissing=nonmissing, ind=ind)
-    res.model = PLambda(res_lam)
+    res.model = PagelLambda(res_lam)
     return res
 end
 
@@ -2157,7 +2157,7 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
     msr_err && model != "BM" &&
         error("within-species variation is not implemented for non-BM models")
     modeldic = Dict("BM" => BM(),
-                    "lambda" => PLambda(),
+                    "lambda" => PagelLambda(),
                     "scalingHybrid" => ScalingHybrid())
     haskey(modeldic, model) || error("phyloNetworklm is not defined for model $model.")
     modelobj = modeldic[model]
@@ -2199,7 +2199,7 @@ StatsBase.dof_residual(m::PhyloNetworkLinearModel) =  nobs(m) - length(coef(m))
 # Degrees of freedom consumed in the model
 function StatsBase.dof(m::PhyloNetworkLinearModel)
     res = length(coef(m)) + 1 # (+1: dispersion parameter)
-    if any(typeof(m.model) .== [PLambda, ScalingHybrid])
+    if any(typeof(m.model) .== [PagelLambda, ScalingHybrid])
         res += 1 # lambda is one parameter
     end
     return res
@@ -2297,7 +2297,7 @@ end
 Value assigned to the lambda parameter, if appropriate.
 """
 lambda(m::PhyloNetworkLinearModel) = lambda(m.model)
-lambda(m::Union{BM,PLambda,ScalingHybrid}) = m.lambda
+lambda(m::Union{BM,PagelLambda,ScalingHybrid}) = m.lambda
 
 """
     lambda!(m::PhyloNetworkLinearModel, newlambda)
@@ -2306,7 +2306,7 @@ lambda(m::Union{BM,PLambda,ScalingHybrid}) = m.lambda
 Assign a new value to the lambda parameter.
 """
 lambda!(m::PhyloNetworkLinearModel, lambda_new) = lambda!(m.model, lambda_new)
-lambda!(m::Union{BM,PLambda,ScalingHybrid}, lambda_new::Real) = (m.lambda = lambda_new)
+lambda!(m::Union{BM,PagelLambda,ScalingHybrid}, lambda_new::Real) = (m.lambda = lambda_new)
 
 """
     lambda_estim(m::PhyloNetworkLinearModel)
@@ -2321,7 +2321,7 @@ lambda_estim(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} wh
 function paramstable(m::PhyloNetworkLinearModel)
     Sig = sigma2_estim(m)
     res = "Sigma2: " * @sprintf("%.6g", Sig)
-    if any(typeof(m.model) .== [PLambda, ScalingHybrid])
+    if any(typeof(m.model) .== [PagelLambda, ScalingHybrid])
         Lamb = lambda_estim(m)
         res = res*"\nLambda: " * @sprintf("%.6g", Lamb)
     end
@@ -2359,7 +2359,7 @@ end
 #  within-species variation (including measurement error)
 ###############################################################################
 
-function phyloNetworkmem(::BM, X::Matrix, Y::Vector, net::HybridNetwork;
+function phyloNetworklm_wsp(::BM, X::Matrix, Y::Vector, net::HybridNetwork;
                         nonmissing=trues(length(Y))::BitArray{1}, # which individuals have non-missing data?
                         ind=[0]::Vector{Int},
                         counts::Union{Nothing, Vector}=nothing,
@@ -2367,7 +2367,7 @@ function phyloNetworkmem(::BM, X::Matrix, Y::Vector, net::HybridNetwork;
                         reml::Bool = true,
                         model_within::Union{Nothing, WithinSpeciesCTM}=nothing)
     V = sharedPathMatrix(net)
-    phyloNetworkmem(X,Y,V, nonmissing,ind, counts,ySD, reml, model_within)
+    phyloNetworklm_wsp(X,Y,V, nonmissing,ind, counts,ySD, reml, model_within)
 end
 
 # Only uses REML criterion for now
@@ -2416,7 +2416,7 @@ extra problems:
 - a species may be listed 1+ times in ind, but not in ind[nonmissing]
 - ind and nonmissing need to be converted to the species level, alongside Y
 =#
-function phyloNetworkmem(X::Matrix,
+function phyloNetworklm_wsp(X::Matrix,
                          Y::Vector,
                          V::MatrixTopologicalOrder,
                          nonmissing::BitArray{1}, ind::Vector{Int},
@@ -2459,11 +2459,11 @@ function phyloNetworkmem(X::Matrix,
         Vsp = V[:Tips][ind_nm,ind_nm]
     end
 
-    phyloNetworkmem(Xsp,Ysp,Vsp, d_inv,RSS, n_tot,n_coef,n_sp,
+    phyloNetworklm_wsp(Xsp,Ysp,Vsp, d_inv,RSS, n_tot,n_coef,n_sp,
                     reml, model_within)
 end
 
-function phyloNetworkmem(Xr::Matrix, Ysp::Vector, V::Matrix,
+function phyloNetworklm_wsp(Xr::Matrix, Ysp::Vector, V::Matrix,
                          d_inv::Vector,
                          RSS::Float64,
                          n::Int64, p::Int64, a::Int64,
