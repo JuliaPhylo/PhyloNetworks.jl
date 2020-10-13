@@ -80,6 +80,7 @@ tests = [
     "test_calculateExpCF.jl", "test_calculateExpCF2.jl",
     "test_hasEdge.jl", "test_parameters.jl", "test_correctLik.jl",
     "test_partition.jl", "test_partition2.jl", "test_deleteHybridizationUpdate.jl", "test_add2hyb.jl", "test_optBLparts.jl", "test_undirectedOtherNetworks.jl",
+    "test_graph_components.jl",
     "test_manipulateNet.jl", "test_compareNetworks.jl",
     "test_badDiamII.jl",
     "test_multipleAlleles.jl",
@@ -93,7 +94,7 @@ tests = [
     "test_traitLikDiscrete.jl",
     "test_phyLiNCoptimization.jl",
     "test_readInputData.jl",
-    "test_nj.jl"
+    "test_nj.jl",
 ]
 
 @show PhyloNetworks.CHECKNET
