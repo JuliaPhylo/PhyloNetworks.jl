@@ -962,21 +962,16 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     end
     =#
     runDirectEdges = false
-    edgetoflip, edgetokeep = (PhyloNetworks.getMinorParentEdge(hybridnode), PhyloNetworks.getMajorParentEdge(hybridnode))
-    oldchildedge = PhyloNetworks.getChildEdge(hybridnode)
+    edgetoflip, edgetokeep = (getMinorParentEdge(hybridnode), getMajorParentEdge(hybridnode))
+    oldchildedge = getChildEdge(hybridnode)
     if !minor; (edgetoflip, edgetokeep) = (edgetokeep, edgetoflip); end;
     if !edgetoflip.containRoot; @debug "edgetoflip cannot contain root"; return nothing; end; # if edgetoflip below a hybrid node, can't flip
-    newhybridnode = PhyloNetworks.getParent(edgetoflip)
+    newhybridnode = getParent(edgetoflip)
     ## choose newhybridedge ##
-    p2 = PhyloNetworks.getParent(edgetokeep) # parent node of edgetokeep
+    p2 = getParent(edgetokeep) # parent node of edgetokeep
     isdesc = Bool[]
     for e in newhybridnode.edge # is p2 undirected descendant of nhn via this edge?
-        #! not working as intended:
-            #! 1. in simple hybrid case: rejects an allowable newhybridedge
-            #! 2. in W structure case: chooses incorrect newhybridedge
-            #! 3. in hybrid ladder case: chooses leaf edges as newhybridedge
-                # CAS note: I added additional leaf check to prevent this.
-        @debug "$(e !== edgetoflip), $(PhyloNetworks.isdescendant_undirected(p2, newhybridnode, e)), $(!any(n.leaf for n in e.node))"
+        @debug "$(e !== edgetoflip), $(isdescendant_undirected(p2, newhybridnode, e)), $(!any(n.leaf for n in e.node))"
         isp2desc = false
         #= isp2desc = true means:
         there is a semi-directed path  newhybridnode -e-> neighbor --...-> p2
@@ -988,7 +983,7 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
         if e !== edgetoflip
             neibr = getOtherNode(e, newhybridnode) # neighbor of new hybrid node via e
             if !neibr.leaf && (p2 === neibr ||
-                PhyloNetworks.isdescendant_undirected(p2, neibr, e))
+                isdescendant_undirected(p2, neibr, e))
                 isp2desc = true
             end
         end
@@ -1004,7 +999,7 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
         return nothing       # to calculate its isp2desc for total # of true's
     end
     if newhybridnode === net.node[net.root] # if newhybridnode is current root, set root as hybridnode
-        net.root = findfirst(n === hybridnode for n in net.node)
+        net.root = findfirst([n === hybridnode for n in net.node])
         runDirectEdges = true
     end
     @debug "edgetoflip is $edgetoflip, edgetokeep is $edgetokeep, newhybridedge is $newhybridedge"
@@ -1012,7 +1007,7 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
         #if getParent(newhybridedge).hybrid # edgetoflip would be bottom rung of ladder
             # If edgetokeep is already hybrid, edgetoflip was the bottom rung of a hybrid ladder.
         for hyb in net.hybrid # case when edgetoflip would be bottom rung of ladder
-            if PhyloNetworks.getChildEdge(hyb) === newhybridedge
+            if getChildEdge(hyb) === newhybridedge
                 @debug "caught at first nohybridladder check"
                 return nothing
             end
@@ -1057,24 +1052,24 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     newhybridedge.gamma = edgetokeep.gamma
     edgetokeep.gamma = 1.0
     # update hybrids in network (before directEdges!)
-    hybridindex = findfirst(node === hybridnode for node in net.hybrid)
+    hybridindex = findfirst([node === hybridnode for node in net.hybrid])
     net.hybrid[hybridindex] = newhybridnode
     if runDirectEdges # direct edges only if root is moved
         # fixit: bug here I think. We need to re-direct edges away from the root
         # if the newhybridedge was initially a child of newhybridnode.
         # see note above for a potential fix.
         # in the tests: include a case with: root --...--> nhn -> hn and also nhn --...--> p2 --> nh
-        PhyloNetworks.directEdges!(net)
+        directEdges!(net)
     else # if not, only update containRoot attributes
         # norootbelow in child edges of newhybridedge
         for ce in newhybridnode.edge
             ce !== newhybridedge || continue # skip e
-            PhyloNetworks.getParent(ce) === newhybridnode || continue # skip edges that aren't children of cn
-            PhyloNetworks.norootbelow!(ce)
+            getParent(ce) === newhybridnode || continue # skip edges that aren't children of cn
+            norootbelow!(ce)
         end
         # allow root for edges below old hybrid node
         if edgetokeep.containRoot #else, already forbidden below due to hybrid above
-            PhyloNetworks.allowrootbelow!(hybridnode, edgetokeep) # old hybrid node
+            allowrootbelow!(hybridnode, edgetokeep) # old hybrid node
         end
     end
     return newhybridnode, edgetoflip, oldchildedge
