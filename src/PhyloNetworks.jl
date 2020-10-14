@@ -92,6 +92,8 @@ module PhyloNetworks
         blobDecomposition,
         mapindividuals,
         nni!,
+        checkroot!,
+        treeedgecomponents,
         ## Network Bootstrap
         treeEdgesBootstrap,
         hybridDetection,
@@ -180,7 +182,7 @@ module PhyloNetworks
     include("pairwiseDistanceLS.jl")
     include("interop.jl")
     include("substitutionModels.jl")
-    include("biconnectedComponents.jl")
+    include("graph_components.jl")
     include("traitsLikDiscrete.jl")
     include("deprecated.jl")
     include("nj.jl")
