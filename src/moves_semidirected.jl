@@ -983,7 +983,7 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     p2 = getParent(edgetokeep) # parent node
     isdesc = Bool[]
     for e in newhybridnode.edge # is p2 undirected descendant of nhn via this edge?
-        @debug "$(e !== edgetoflip), $(isdescendant_undirected(p2, newhybridnode, e)), $(!any(n.leaf for n in e.node))"
+        # @debug "$(e !== edgetoflip), $(isdescendant_undirected(p2, newhybridnode, e)), $(!any(n.leaf for n in e.node))"
         isp2desc = false
         #= isp2desc = true means:
         there is a semi-directed path  newhybridnode -e-> neighbor --...-> p2
@@ -1009,18 +1009,16 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     if newhybridedge.hybrid  # cannot flip another hybrid edge, but we needed
         return nothing       # to calculate its isp2desc for total # of true's
     end
-    @debug "edgetoflip is $edgetoflip, edgetokeep is $edgetokeep, newhybridedge is $newhybridedge"
+    # @debug "edgetoflip is $edgetoflip, edgetokeep is $edgetokeep, newhybridedge is $newhybridedge"
     if nohybridladder
         for hyb in net.hybrid # case when edgetoflip would be bottom rung of ladder
             if getChildEdge(hyb) === newhybridedge
-                @debug "caught at first nohybridladder check"
                 return nothing
             end
         end
         for e in newhybridnode.edge # case when edgetoflip would be the top rung
             # (this happens when newhybridnode initially was the center point of a W structure)
             if e !== edgetoflip && e.hybrid
-                @debug "caught at second nohybridladder check"
                 return nothing
             end
         end
