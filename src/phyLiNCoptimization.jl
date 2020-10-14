@@ -331,8 +331,8 @@ function phyLiNC!(obj::SSM;
             obj.ratemodel = deepcopy(obj.ratemodel)
             constraints = deepcopy(startingconstraints) # problem: nodes were copied on previous line. when nodes copied again on this line, they are now different
             phyLiNCone!(obj, maxhybrid, no3cycle, nohybridladder, maxmoves,
-                        nreject, verbose, writelog_1proc, logfile, seeds[i],
-                        probST, constraints, ftolRel, ftolAbs, xtolRel, xtolAbs,
+                        nreject, verbose, writelog_1proc, logfile, seeds[i], probST,
+                        constraints, ftolRel, ftolAbs, xtolRel, xtolAbs,
                         alphamin, alphamax, pinvmin, pinvmax, γcache,
                         CacheLengthLiNC(obj, ftolRel,ftolAbs,xtolRel,xtolAbs, 20)) # 20=maxeval
             # NLopt segfault if we pass a pre-allocated lcache to a worker
@@ -481,8 +481,8 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
     nrejected = 0
     while nrejected < nrejectmax
         nrejected = optimizestructure!(obj, maxmoves, maxhybrid, no3cycle, nohybridladder,
-                                  nrejected, nrejectmax,
-                                  constraints, ftolAbs, γcache, lcache)
+                                  nrejected, nrejectmax, constraints,
+                                  ftolAbs, γcache, lcache)
         @debug "after optimizestructure returns, the likelihood is $(obj.loglik), nrejected = $nrejected"
         fit!(obj; optimizeQ=optQ, optimizeRVAS=optRAS, maxeval=20,
              ftolRel=ftolRel, ftolAbs=ftolAbs, xtolRel=xtolRel, xtolAbs=xtolAbs,
@@ -955,18 +955,20 @@ end
                     constraints::Vector{TopologyConstraint}, ftolAbs::Float64,
                     γcache::CacheGammaLiNC, lcache::CacheLengthLiNC)
 
-Randomly chooses a minor hybrid edge and tries to flip using [`fliphybrid!`](@ref).
+Randomly chooses a minor hybrid edge and tries to flip its direction (that is,
+reverse the direction of gene flow) using [`fliphybrid!`](@ref).
 If the flip fails, it looks for the next minor hybrid edge. If all minor edges
-fail, tries major edges in random order.
+fail, tries to flip major edges in random order.
 
 After a successful flip, optimize branch lengths and gammas, then compare
 the likelihood of the previous network with the new one.
 
-Return true if a flip hybrid move was completed and improved the likelihood.
-If move was completed but did not improve the likelihoood, return false.
-Return nothing if hybrid flip move not possible in this network.
+Return:
+- true if a flip hybrid move was completed and improved the likelihood
+- false if a move was completed but did not improve the likelihoood
+- nothing if no hybrid flip move was admissible in this network.
 
-Warning: Undoing this move will not recover the original root in cases where
+Warning: Undoing this move may not recover the original root if
 the root position was modified.
 
 For arguments, see [`phyLiNC`](@ref).
@@ -1001,10 +1003,10 @@ function fliphybridedgeLiNC!(obj::SSM, currLik::Float64, nohybridladder::Bool,
     updateSSM!(obj) #, true; constraints=constraints) # displayed trees have changed
     optimizelocalgammas_LiNC!(obj, flippededge, ftolAbs, γcache)
     # don't delete a flipped edge with γ=0: to be able to undo the flip
-    # but: there's no point in optimizing the length of such an edge (caught in optimizelocalBL_LiNC)
+    # but: no point in optimizing the length of such an edge. optimizelocalBL_LiNC won't.
     optimizelocalBL_LiNC!(obj, flippededge, lcache)
-    if obj.loglik < currLik
-        fliphybrid!(obj.net, newhybridnode, !flippededge.isMajor, nohybridladder, constraints) # undo move
+    if obj.loglik < currLik # then: undo the move
+        fliphybrid!(obj.net, newhybridnode, !flippededge.isMajor, nohybridladder, constraints)
         obj.displayedtree = saveddisplayedtree # restore displayed trees and weights
         obj.priorltw = savedpriorltw
         obj.loglik = currLik # restore to loglik before move
@@ -1470,9 +1472,9 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
     # if γ=0 then dblike starts as all -Inf because P(tree) = 0 -> problem
     # this problem is caught earlier: cfg would have been missing.
     hase   = lcache.hase
-    Prt    = lcache.Prt # 4x4 transition matrix = exp(rtQ). modified in place during lik calc
-    rQP    = lcache.rQP # 4x4 matrix. derivative of Prt wrt T
-    glik   = lcache.glik   # glik = d(ulik)/dt (gradient of likelihood of a given site). length = # sites
+    Prt    = lcache.Prt  # to hold exp(rtQ) matrices (one matrix for each r)
+    rQP    = lcache.rQP  # d/dt of exp(rtQ) = rQ * Prt
+    glik   = lcache.glik # d/dt of site likelihoods ulik. length: # sites
     tree   = obj.displayedtree
     k, ns, nr, nt = size(flike)
     nt = length(tree) # could be less than dimension in lcache (if network isn't tree-child)
@@ -1488,7 +1490,7 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
     function objective(t::Vector, grad::Vector)
         len = t[1] # candidate branch length
         @inbounds for ir in 1:nr
-            P!(Prt[ir], obj.model, len * rates[ir]) # we update P in obj.logtrans below
+            P!(Prt[ir], obj.model, len * rates[ir])
             lmul!(rates[ir], mul!(rQP[ir], qmat, Prt[ir])) # in-place multiplication
         end
         @debug "current BL = $len. P matrix in Prt: $(Prt[1])"
@@ -1541,7 +1543,7 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
     end
     focusedge.length = xmax[1]
     obj.loglik = newlik
-    update_logtrans(obj, focusedge) # obj ready for optimizing another edge length
+    update_logtrans(obj, focusedge) # obj.logtrans updated according to new edge length
     return nothing
 end
 
