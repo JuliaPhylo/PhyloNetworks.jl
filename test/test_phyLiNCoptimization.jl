@@ -288,8 +288,24 @@ rm("phyLiNCmult.log")
 net_h0 = readTopology("(((A:2.0,B:1.0):1.5,C:0.6):0.5,D:2.0);");
 obj = @test_nowarn PhyloNetworks.phyLiNC(net_h0, fastasimple, :JC69, :G, 2; maxhybrid=0,
                     no3cycle=true, nohybridladder=true, maxmoves=2,
-                    nreject=1, nruns=1, filename="", verbose=false, seed=108)
-@test obj.loglik > -27.4 # previously, > -27.27
+                    nreject=1, nruns=1, filename="", verbose=false, seed=115)
+@test obj.loglik > -27.4
+
+# phyLiNC w/ W structure
+wstring = "(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.151::0.4):0.0274):0.4812);"
+net_W = readTopology(wstring)
+obj = @test_nowarn PhyloNetworks.phyLiNC(net_W, fastasimple, :JC69, :G, 2; maxhybrid=3,
+                    no3cycle=true, nohybridladder=true, maxmoves=2, # no hybrid flips possible here
+                    nreject=1, nruns=1, filename="", verbose=false, seed=109)
+@test obj.loglik > -27.4
+
+# phyLiNC w/ optimized branch lengths
+net = readTopology("((C:0.0,B:0.0):2.265,D:1.189,A:2.24);"); # optimized BLs
+obj = @test_nowarn PhyloNetworks.phyLiNC(net, fastasimple, :JC69, :G, 2; maxhybrid=2, # no missing BLs, so they're not re-estimated
+                    no3cycle=true, nohybridladder=true, maxmoves=4,
+                    nreject=5, nruns=1, filename="", verbose=false, seed=126,
+                    ftolRel=1e-2, ftolAbs=1e-2, xtolRel=1e-2, xtolAbs=1e-2)
+@test obj.loglik > -27.4
 end
 
 @testset "phyLiNC with simple net and one constraint" begin

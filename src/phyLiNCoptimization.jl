@@ -399,7 +399,6 @@ function phyLiNC!(obj::SSM;
     optimizealllengths_LiNC!(obj, lcache)
     ghosthybrid = optimizeallgammas_LiNC!(obj, fAbsBL, γcache, 100)
     if ghosthybrid
-        @debug "removing ghost hybrids"
         (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
         updateSSM!(obj, true; constraints=constraints)
         discrete_corelikelihood!(obj) # to get likelihood exact, even if not optimum
@@ -483,17 +482,14 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
         nrejected = optimizestructure!(obj, maxmoves, maxhybrid, no3cycle, nohybridladder,
                                   nrejected, nrejectmax, constraints,
                                   ftolAbs, γcache, lcache)
-        @debug "after optimizestructure returns, the likelihood is $(obj.loglik), nrejected = $nrejected"
         fit!(obj; optimizeQ=optQ, optimizeRVAS=optRAS, maxeval=20,
              ftolRel=ftolRel, ftolAbs=ftolAbs, xtolRel=xtolRel, xtolAbs=xtolAbs,
              alphamin=alphamin,alphamax=alphamax, pinvmin=pinvmin,pinvmax=pinvmax)
-        @debug "after fit! runs, the likelihood is $(obj.loglik)"
         optimizealllengths_LiNC!(obj, lcache) # 1 edge at a time, random order
         for i in Random.shuffle(1:obj.net.numHybrids)
             e = getMajorParentEdge(obj.net.hybrid[i])
             optimizelocalgammas_LiNC!(obj, e, ftolAbs, γcache)
         end
-        @debug "after global BL and gamma optimization, the likelihood is $(obj.loglik)"
         ghosthybrid = false # find hybrid edges with γ=0, to delete them
         for h in obj.net.hybrid
             minorhybridedge = getMinorParentEdge(h)
@@ -510,7 +506,6 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
         still have a 3-cycle in the final network.
         Might want to add something to docs about this. =#
         if ghosthybrid && (nrejected < nrejectmax)
-            @debug "removing ghost hybrids"
             shrink3cycles!(obj.net, true)
             updateSSM!(obj, true; constraints=constraints)
         end
@@ -671,7 +666,6 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
         # optimize γ's
         ghosthybrid = optimizeallgammas_LiNC!(obj, ftolAbs, γcache, 1)
         if ghosthybrid # delete hybrid edges with γ=0
-            @debug "removing ghost hybrids"
             (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
             # loglik change ignored, but loglik recalculated below by optimizelocalBL
             updateSSM!(obj, true; constraints=constraints)
@@ -1015,7 +1009,7 @@ function fliphybridedgeLiNC!(obj::SSM, currLik::Float64, nohybridladder::Bool,
             if e.hybrid
                 setGamma!(e, savedgam[i]) # some hybrid partners are not adjacent to flippededge
             else
-                savedgam[i] == 1.0 || @warn "A tree edge had saved gamma != 1.0. Something fishy has happened."
+                savedgam[i] == 1.0 || @warn "A tree edge had saved gamma != 1.0: gamma = $(e.gamma). nohybridladder = $nohybridladder. Something fishy has happened."
                 e.gamma = 1.0 # savedgam[i] should be 1.0
             end
         end
@@ -1309,7 +1303,7 @@ function updatecache_edge!(lcache::CacheLengthLiNC, obj::SSM, focusedge)
     # the displayed trees that have the edge have a prior weight of 0.
     # Would pruning edges with weight 0 make the focus edge dangle?
     if all(i -> !hase[i] || obj.priorltw[i] == -Inf, 1:nt)
-        @debug "edge $(focusedge.number) does not affect the likelihood: skip optimization"
+        # @debug "edge $(focusedge.number) does not affect the likelihood: skip optimization"
         return missing
     end
     lrw  = obj.ratemodel.lograteweight
@@ -1461,10 +1455,8 @@ Warning: displayed trees are assumed up-to-date, with nodes preordered
 """
 function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
                               lcache::CacheLengthLiNC, qmat)
-    @debug "At optimizelength start for edge num $(focusedge.number), obj.loglik = $(obj.loglik)"
     getParent(focusedge).hybrid && return nothing # keep the reticulation unzipped
         # the length of focus edge should be 0. stay as is.
-    @debug "current BL = $(focusedge.length). P matrix in obj.logtrans: $(exp.(obj.logtrans[:,:,focusedge.number,1]))"
     cfg = updatecache_edge!(lcache, obj, focusedge)
     ismissing(cfg) && return nothing
     flike  = lcache.flike  # P(descendants of e | state at child, rate, tree)
@@ -1493,7 +1485,6 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
             P!(Prt[ir], obj.model, len * rates[ir])
             lmul!(rates[ir], mul!(rQP[ir], qmat, Prt[ir])) # in-place multiplication
         end
-        @debug "current BL = $len. P matrix in Prt: $(Prt[1])"
         # integrate over trees & rates
         fill!(ulik, 0.0); fill!(glik, 0.0)
         for it in 1:nt
@@ -1742,18 +1733,18 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
     # if displayed trees who have the edge or its partner have prior weight 0
     # Would pruning edges with weight 0 make the focus edge dangle?
     if all(i -> ismissing(hase[i]) || obj.priorltw[i] == -Inf, 1:nt)
-        @debug "γ does not affect the likelihood: skip optimization"
+        # @debug "γ does not affect the likelihood: skip optimization"
         return obj.loglik
     end
     if γ0<1e-7 # then prior weight and loglikcachetoo small (-Inf if γ0=0)
-        @debug "γ0 too small ($γ0): was changed to 1e-7 prior to optimization"
+        # @debug "γ0 too small ($γ0): was changed to 1e-7 prior to optimization"
         γ0 = 1e-7
         setGamma!(focusedge, γ0)
         updatedisplayedtrees!(obj.displayedtree, edgenum, partnernum, γ0, hase)
         updateSSM_priorltw!(obj)
         discrete_corelikelihood!(obj) # to update obj._loglikcache
     elseif γ0>0.9999999
-        @debug "γ0 too large ($γ0): was changed to 1 - 1e-7 prior to optimization"
+        # @debug "γ0 too large ($γ0): was changed to 1 - 1e-7 prior to optimization"
         γ0 = 0.9999999
         setGamma!(focusedge, γ0)
         updatedisplayedtrees!(obj.displayedtree, edgenum, partnernum, γ0, hase)
@@ -1796,7 +1787,7 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
         γ = 0.0
         inside01 = false
         ll = wsum((visib ? log.(clikp) : log.(clikp .+ clikn)))
-        @debug "γ = 0 best, skip Newton-Raphson"
+        # @debug "γ = 0 best, skip Newton-Raphson"
     else # at γ=1
         if visib
              ulik .= (clike .- clikp) ./ clike
@@ -1806,7 +1797,7 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
             γ = 1.0
             inside01 = false
             ll = wsum((visib ? log.(clike) : log.(clike .+ clikn)))
-            @debug "γ = 1 best, skip Newton-Raphson"
+            # @debug "γ = 1 best, skip Newton-Raphson"
         end
     end
     if inside01
