@@ -797,6 +797,8 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64,
     result = addhybridedge!(obj.net, nohybridladder, no3cycle, constraints;
                     maxattempts=max(10,size(obj.directlik,2)), fixroot=true) # maxattempt ~ numEdges
     # fixroot=true: to restore edge2 if need be, with deletehybridedge!
+        # so hybridpartnernew is always true. This means that the order of edges
+        # in obj.net.edge can be restored by deletehybridedge below.
     # Before doing anything, first check that addhybrid edge was successful.
         # If not successful, result isnothing, so return nothing.
     isnothing(result) && return nothing
@@ -845,7 +847,7 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64,
         obj.displayedtree = saveddisplayedtree # restore original displayed trees and weights
         obj.priorltw = savedpriorltw
         obj.loglik = currLik # restore to loglik before move
-        for (i,e) in enumerate(obj.net.edge) # restore edges and length
+        for (i,e) in enumerate(obj.net.edge) # restore edges and length (assumes same order)
             e.length = savedlen[i]
             e.gamma = savedgam[i]
         end
@@ -971,6 +973,11 @@ Called by [`optimizestructure!`](@ref).
 function fliphybridedgeLiNC!(obj::SSM, currLik::Float64, nohybridladder::Bool,
     constraints::Vector{TopologyConstraint}, ftolAbs::Float64, γcache::CacheGammaLiNC,
     lcache::CacheLengthLiNC)
+    # save displayed trees, priorltw, BLs, and gammas in case we need to undo move
+    saveddisplayedtree = obj.displayedtree
+    savedpriorltw = copy(obj.priorltw)
+    savedlen = [e.length for e in obj.net.edge]
+    savedgam = [e.gamma for e in obj.net.edge]
     ## find admissible move ##
     minor = true # randomly choose a minor hybrid edge
     undoinfo = fliphybrid!(obj.net, minor, nohybridladder, constraints) # cycle through all hybrid nodes
@@ -982,13 +989,6 @@ function fliphybridedgeLiNC!(obj::SSM, currLik::Float64, nohybridladder::Bool,
         return nothing
     end
     newhybridnode, flippededge, oldchildedge = undoinfo
-    #= after we know flipped edge, save displayed trees, priorltw, BLs, and
-      gammas in case we need to undo move =#
-    saveddisplayedtree = obj.displayedtree
-    savedpriorltw = copy(obj.priorltw)
-    savededges = adjacentedges(flippededge)
-    savedlen = [e.length for e in savededges]
-    savedgam = [e.gamma for e in savededges]
     ## after an admissible flip, optimize branch lengths and gammas ##
     # reassign old child edge to BLmin (was zero)
     oldchildedge.length = BLmin # adjacent to flippedge, saved above
@@ -1004,14 +1004,9 @@ function fliphybridedgeLiNC!(obj::SSM, currLik::Float64, nohybridladder::Bool,
         obj.displayedtree = saveddisplayedtree # restore displayed trees and weights
         obj.priorltw = savedpriorltw
         obj.loglik = currLik # restore to loglik before move
-        for (i,e) in enumerate(savededges) # restore edge lengths and gammas
+        for (i,e) in enumerate(obj.net.edge) # restore edges and length (assumes same order)
             e.length = savedlen[i]
-            if e.hybrid
-                setGamma!(e, savedgam[i]) # some hybrid partners are not adjacent to flippededge
-            else
-                savedgam[i] == 1.0 || @warn "A tree edge had saved gamma != 1.0: gamma = $(e.gamma). nohybridladder = $nohybridladder. Something fishy has happened."
-                e.gamma = 1.0 # savedgam[i] should be 1.0
-            end
+            e.gamma = savedgam[i]
         end
         return false # move was rejected: # rejections incremented
     else # keep hybrid flip move. If a γ became 0, optimizestructure will remove the edge
