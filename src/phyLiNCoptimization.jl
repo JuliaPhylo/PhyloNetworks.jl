@@ -929,7 +929,7 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
     update_logtrans(obj) # fixit: is that really needed?
     optimizelength_LiNC!(obj, majhyb, lcache, Q(obj.model))
     # don't optimize gammas: because we want to constrain one of them to 0.0
-    if obj.loglik - currLik > likAbsDelHybLiNC # -0.1: loglik can decrease for parsimony
+    if obj.loglik - currLik > likAbsDelHybLiNC # -0.0: loglik can decrease for parsimony
         deletehybridedge!(obj.net, minorhybridedge, false,true,false,false,false) # nofuse,unroot,multgammas,simplify
         (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
         updateSSM!(obj, true; constraints=constraints)
@@ -981,12 +981,10 @@ function fliphybridedgeLiNC!(obj::SSM, currLik::Float64, nohybridladder::Bool,
     ## find admissible move ##
     minor = true # randomly choose a minor hybrid edge
     undoinfo = fliphybrid!(obj.net, minor, nohybridladder, constraints) # cycle through all hybrid nodes
-    if isnothing(undoinfo)
+    if isnothing(undoinfo) # then try flipping a major edge
         minor = false
         undoinfo = fliphybrid!(obj.net, minor, nohybridladder, constraints)
-    end
-    if isnothing(undoinfo) # no edges can be flipped
-        return nothing
+        isnothing(undoinfo) && return nothing # no edge can be flipped
     end
     newhybridnode, flippededge, oldchildedge = undoinfo
     ## after an admissible flip, optimize branch lengths and gammas ##

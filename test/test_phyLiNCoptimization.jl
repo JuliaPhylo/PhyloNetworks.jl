@@ -207,12 +207,17 @@ ll = PhyloNetworks.optimizegamma_LiNC!(obj, obj.net.edge[5], .001, γcache, 3)
 end
 
 @testset "optimizestructure with simple example" begin
+#= network pre-processing: resulting net hard-coded below.
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69; maxhybrid=1)
 PhyloNetworks.checknetwork_LiNC!(obj.net, 1, true, true)
 PhyloNetworks.updateSSM!(obj, true; constraints=emptyconstraint)
 PhyloNetworks.startingBL!(obj.net, obj.trait, obj.siteweight)
 PhyloNetworks.unzip_canonical!(obj.net)
+writeTopology(obj.net)
+=#
+net = readTopology("((A:0.3399824481995197,(B:0.0)#H1:0.08353360676474617::0.9):0.0001,(C:0.0001,#H1:0.048844990600034506::0.1):0.10871530327558311,D:0.33998306091744424);")
+obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69; maxhybrid=1)
 PhyloNetworks.discrete_corelikelihood!(obj)
 @test obj.loglik ≈ -29.7762035
 maxmoves = 2
@@ -232,14 +237,19 @@ end # of optimizestructure with simple example
 
 @testset "phyLiNCone with simple net, no constraints" begin
 no3cycle = true
-net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
+net = readTopology("((A:0.3399824481995197,(B:0.0)#H1:0.08353360676474617::0.9):0.0001,(C:0.0001,#H1:0.048844990600034506::0.1):0.10871530327558311,D:0.33998306091744424);")
 seed = 102
 for nohybridladder in [true, false]
+    #=
+    net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
     obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69)
     PhyloNetworks.checknetwork_LiNC!(obj.net, 1, no3cycle, nohybridladder)
     PhyloNetworks.updateSSM!(obj, true; constraints=emptyconstraint)
     PhyloNetworks.startingBL!(obj.net, obj.trait, obj.siteweight)
     PhyloNetworks.unzip_canonical!(obj.net)
+    writeTopology(obj.net) # result hard-coded above. independent of nohybridladder
+    =#
+    obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69)
     obj.loglik = -Inf # missing otherwise, which would cause an error below
     nullio = open("/dev/null", "w")
     γcache = PhyloNetworks.CacheGammaLiNC(obj)
@@ -312,9 +322,16 @@ c_species[1] = PhyloNetworks.TopologyConstraint(0x01, c_species[1].taxonnames, o
                                                     true, true, c_species, true)
 PhyloNetworks.updateSSM!(obj, true; constraints=emptyconstraint)
 
+#= assign good starting branch lengths: find them outside of tests
 for e in obj.net.edge e.length = 0.1; end # was -1.0 for missing
 PhyloNetworks.startingBL!(obj.net, obj.trait, obj.siteweight)
 PhyloNetworks.unzip_canonical!(obj.net)
+print([e.length for e in obj.net.edge])
+=#
+startingbl = [0.07817851911808402, 0.16346448006948466, 0.007466318403444228, 0.34338840607739174, 0.17023758685593676, 0.03060241610507292, 0.0, 0.5775895221009606, 0.05156530617279971, 0.33292850647444944, 0.13056644275564092, 0.27314259657043044, 0.07441709795812174, 0.0001, 0.0909334086743112, 0.017615628089233237, 0.13268439288408584, 0.14375488372292924, 0.3199334263745607]
+for (i,e) in enumerate(obj.net.edge)
+  e.length = startingbl[i]
+end
 PhyloNetworks.setalpha!(obj.ratemodel, 0.48438)
 obj.loglik = -Inf # actual likelihood -56.3068141288164. Need something non-missing
 seed = 103
@@ -345,37 +362,30 @@ end
 @testset "hybrid flip basics" begin
 no3cycle = true
 # nohybridladder = true w/ simple 1 hybrid starting network
-nohybridladder = true
 Random.seed!(123)
-net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
+# below: net already checked for PhyLiNC, startingBL and unzipped
+net = readTopology("((A:0.3399824481995197,(B:0.0)#H1:0.08353360676474617::0.9):0.0001,(C:0.0001,#H1:0.048844990600034506::0.1):0.10871530327558311,D:0.33998306091744424);")
 obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69)
-PhyloNetworks.checknetwork_LiNC!(obj.net, 1, no3cycle, nohybridladder)
-PhyloNetworks.updateSSM!(obj, true; constraints=emptyconstraint)
-PhyloNetworks.startingBL!(obj.net, obj.trait, obj.siteweight)
-PhyloNetworks.unzip_canonical!(obj.net)
 obj.loglik = -Inf # loglik missing otherwise, which would cause an error below
 γcache = PhyloNetworks.CacheGammaLiNC(obj)
 lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-6,1e-6,1e-2,1e-3, 5)
-@test PhyloNetworks.fliphybridedgeLiNC!(obj, obj.loglik, nohybridladder, emptyconstraint, 1e-6, γcache, lcache)
+@test PhyloNetworks.fliphybridedgeLiNC!(obj, obj.loglik, true, emptyconstraint, 1e-6, γcache, lcache)
 @test obj.loglik ≈ -27.7273003 atol=.0001
 @test !PhyloNetworks.deletehybridedgeLiNC!(obj, obj.loglik, no3cycle, emptyconstraint, γcache, lcache)
 @test obj.loglik ≈ -27.7273003 atol=.0001
 
 # nohybridladder = false w/ hybrid ladder starting network
-nohybridladder = false
 Random.seed!(2)
-net = readTopology("(#H2:0.02495259889870113::0.0244,((C:9.999999999988859e-5,((B:0.0)#H1:0.0::0.6)#H2:0.034190897863530335::0.9756):0.24434924848805456,(#H1:0.01539513240840275::0.4,A:0.2864250860992079):1.0e-8):9.999999999993228e-5,D:0.2716998373895161);")
+# below: net already checked for PhyLiNC and unzipped
+net = readTopology("(#H2:0.02495259889870113::0.0244,((C:1e-4,((B:0.0)#H1:0.0::0.6)#H2:0.034190897863530335::0.9756):0.24434924848805456,(#H1:0.01539513240840275::0.4,A:0.2864250860992079):1.0e-8):1e-4,D:0.2716998373895161);")
 obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69)
-PhyloNetworks.checknetwork_LiNC!(obj.net, 2, no3cycle, nohybridladder)
-PhyloNetworks.updateSSM!(obj, true; constraints=emptyconstraint)
-PhyloNetworks.startingBL!(obj.net, obj.trait, obj.siteweight)
-PhyloNetworks.unzip_canonical!(obj.net)
 obj.loglik = -Inf # loglik missing otherwise, which would cause an error below
 γcache = PhyloNetworks.CacheGammaLiNC(obj);
 lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-6,1e-6,1e-2,1e-3, 5);
-@test PhyloNetworks.fliphybridedgeLiNC!(obj, obj.loglik, nohybridladder, emptyconstraint, 1e-6, γcache, lcache)
-@test obj.loglik ≈ -29.4291865 atol=.0001
+@test PhyloNetworks.fliphybridedgeLiNC!(obj, obj.loglik, false, emptyconstraint, 1e-6, γcache, lcache)
+@test obj.loglik ≈ -29.36982 atol=.01
 @test PhyloNetworks.deletehybridedgeLiNC!(obj, obj.loglik, no3cycle, emptyconstraint, γcache, lcache)
-@test obj.loglik ≈ -28.3368733 atol=.0001
+@test obj.loglik ≈ -28.30294 atol=.01
+@test !PhyloNetworks.fliphybridedgeLiNC!(obj, obj.loglik, false, emptyconstraint, 1e-6, γcache, lcache)
 end # hybrid flip basics
 end # of overall phyLiNC test set
