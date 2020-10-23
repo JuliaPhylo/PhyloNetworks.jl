@@ -57,6 +57,7 @@ module PhyloNetworks
         readTableCF,
         readTableCF!,
         writeTableCF,
+        mapAllelesCFtable,
         readInputTrees,
         readNexusTrees,
         summarizeDataCF,
@@ -77,7 +78,6 @@ module PhyloNetworks
         rotate!,
         setLength!,
         setGamma!,
-        mapAllelesCFtable,
         deleteHybridThreshold!,
         displayedTrees,
         majorTree,
@@ -90,6 +90,8 @@ module PhyloNetworks
         biconnectedComponents,
         blobDecomposition!,
         blobDecomposition,
+        mapindividuals,
+        nni!,
         checkroot!,
         treeedgecomponents,
         ## Network Bootstrap
@@ -153,8 +155,6 @@ module PhyloNetworks
         readfastatodna,
         stationary,
         empiricalDNAfrequencies,
-        nni!,
-        mapindividuals,
         # phyLiNC,
         # neighbor joining
         nj

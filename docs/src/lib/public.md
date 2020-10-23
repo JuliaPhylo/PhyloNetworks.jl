@@ -50,6 +50,7 @@ blobDecomposition
 treeedgecomponents
 getlabels
 nparams
+mapindividuals
 nni!
 ```
 
@@ -140,5 +141,4 @@ maxParsimonyNet
 nstates
 stationary
 empiricalDNAfrequencies
-mapindividuals
 ```

@@ -444,6 +444,9 @@ end
 
 Removes `i`th node in net.node, if it is of degree 2.
 The parent and child edges of this node are fused.
+If either of the edges is hybrid, the hybrid edge is retained. Otherwise, the
+edge with the lower edge number is retained.
+
 Reverts the action of breakedge!.
 
 returns the fused edge.
@@ -612,8 +615,10 @@ compatible with the direction of existing hybrid edges.
 Relies on hybrid nodes having exactly 1 major hybrid parent edge,
 but checks for that if checkMajor=true.
 
-Warning: Assumes that isChild1 is correct on hybrid edges
+Warnings:
+1. Assumes that isChild1 is correct on hybrid edges
 (to avoid changing the identity of which nodes are hybrids and which are not).
+2. Does not check for cycles (to maintain a network's DAG status)
 
 Returns the network. Throws a 'RootMismatch' Exception if the root was found to
 conflict with the direction of any hybrid edge.
