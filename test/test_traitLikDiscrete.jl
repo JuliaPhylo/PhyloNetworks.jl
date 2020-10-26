@@ -15,6 +15,8 @@ m2 = EqualRatesSubstitutionModel(4, 3.0);
 @test PhyloNetworks.nparams(m2)==1
 m2 = EqualRatesSubstitutionModel(4, 3.0, ["S1","S2","S3","S4"]);
 @test_logs show(devnull, m2)
+@test_throws AssertionError PhyloNetworks.EqualRatesSubstitutionModel(2, 0.001, ["abs"]);
+@test_throws AssertionError PhyloNetworks.EqualRatesSubstitutionModel(1, 0.001, ["abs"]);
 m3 = TwoBinaryTraitSubstitutionModel([2.0,1.2,1.1,2.2,1.0,3.1,2.0,1.1],
 ["carnivory", "noncarnivory", "wet", "dry"]);
 @test_logs show(devnull, m3)
