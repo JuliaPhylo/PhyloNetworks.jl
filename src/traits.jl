@@ -1484,10 +1484,11 @@ struct WithinSpeciesCTM
     wsp_var::Vector{Float64} # vector to make it mutable
     "between-species variance rate σ², such as from Brownian motion"
     bsp_var::Vector{Float64}
+    "inverse sample sizes (or precision): 1/#individuals within each species"
+    wsp_ninv::Vector{Float64}
     "NLopt & NLopt summary object"
     optsum::OptSummary
 end
-WithinSpeciesCTM(optsum::OptSummary) = WithinSpeciesCTM([0.5], [1.0], optsum)
 
 abstract type ContinuousTraitEM end
 
@@ -2216,9 +2217,34 @@ StatsBase.response(m::PhyloNetworkLinearModel) = m.Y
 # Predicted values at the tips
 # (rescaled by cholesky of tips variances)
 StatsBase.predict(m::PhyloNetworkLinearModel) = m.RL * predict(m.lm)
-#Log likelihood of the fitted linear model
-StatsBase.loglikelihood(m::PhyloNetworkLinearModel) =  loglikelihood(m.lm) - 1/2 * m.logdetVy
-# - 0.5*(nobs + nobs * log(2pi) + nobs * log(sigma2_estim) + logdetVy)
+
+# log likelihood of the fitted linear model
+function StatsBase.loglikelihood(m::PhyloNetworkLinearModel; reml=false)
+    if isnothing(m.model_within)
+        ll = loglikelihood(m.lm) - m.logdetVy/2
+        # - 0.5*(nobs + nobs * log(2pi) + nobs * log(sigma2_estim) + logdetVy)
+        reml && error("REML not implemented without within-species variance yet")
+        # fixit: if reml: use a different value for sigma2_estim,
+        #        and use dof_residual(m.lm) instead of nobs
+    else
+        modwsp = m.model_within
+        ntot = sum(1.0 ./ modwsp.wsp_ninv) # total number of individuals
+        nsp = nobs(m.lm)                   # number of species
+        ncoef = length(coef(m.lm))
+        bdof = (reml ? nsp - ncoef : nsp )
+        wdof = ntot - nsp
+        N = wdof + bdof # ntot or ntot - ncoef
+        σ²  = modwsp.bsp_var[1]
+        σw² = modwsp.wsp_var[1]
+        ll = sum(log.(modwsp.wsp_ninv)) -
+             (N + N * log2π + bdof * log(σ²) + wdof * log(σw²) + m.logdetVy)
+        ll /= 2
+    end
+    if reml
+        ll -= logdet(lm_sp.pp.chol)/2 # -1/2 log|X'Vm^{-1}X|
+    end
+    return ll
+end
 # Null  Deviance (sum of squared residuals with metric V)
 # REMARK Not just the null deviance of the cholesky regression
 # Might be something better to do than this, though.
@@ -2370,38 +2396,6 @@ function phyloNetworklm_wsp(::BM, X::Matrix, Y::Vector, net::HybridNetwork;
     phyloNetworklm_wsp(X,Y,V, nonmissing,ind, counts,ySD, reml, model_within)
 end
 
-# Only uses REML criterion for now
-function getVarianceComponents!(X::Matrix, Ysp::Vector, 
-                                Vsp::Matrix, d_inv::Vector,
-                                RSS::Float64, n::Int, p::Int, a::Int,
-                                model_within::WithinSpeciesCTM)
-    optsum = model_within.optsum
-    optsum.maxfeval = 1000
-    opt = Opt(optsum)
- 
-    function obj(x, g)
-        #(η, σ²) = x
-        η = x[1]; σ² = x[2]        
-        
-        Vm = Vsp + η * Diagonal(d_inv)
-        Q = X'*(Vm\X)
-        β = Q\(X'*(Vm\Ysp))
-        res = Ysp-X*β
-
-        val = (n-p)*log(σ²)+(n-a)*log(η)+logabsdet(Vm)[1]+logabsdet(Q)[1]
-        val += ((RSS/η)+res'*(Vm\res))/σ²
-        return val
-    end
-
-    NLopt.min_objective!(opt, obj)
-    fmin, xmin, ret = NLopt.optimize(opt, optsum.initial) 
-   
-    optsum.feval = opt.numevals
-    optsum.final = xmin
-    optsum.fmin = fmin
-    optsum.returnvalue = ret
-end
-
 #= notes about missing data: after X and Y produced by stat formula:
 - individuals with missing data (in response or any predictor)
   already removed from both X and Y
@@ -2437,7 +2431,7 @@ function phyloNetworklm_wsp(X::Matrix,
         d_inv = zeros(n_sp)
         Ysp = Vector{Float64}(undef,n_sp) # species-level mean Y response
         Xsp = Matrix{Float64}(undef,n_sp,n_coef)
-        RSS_within = 0.0  # residual sum-of-squares within-species
+        RSS = 0.0  # residual sum-of-squares within-species
         for (i0,iV) in enumerate(ind_sp)
             iii = findall(isequal(iV), ind_nm)
             n_i = length(iii) # number of obs for species of index iV in V
@@ -2459,65 +2453,77 @@ function phyloNetworklm_wsp(X::Matrix,
         Vsp = V[:Tips][ind_nm,ind_nm]
     end
 
-    phyloNetworklm_wsp(Xsp,Ysp,Vsp, d_inv,RSS, n_tot,n_coef,n_sp,
-                    reml, model_within)
+    model_within, RL = withinsp_varianceratio(Xsp,Ysp,Vsp, d_inv,RSS,
+        n_tot,n_coef,n_sp, reml, model_within)
+    η = model_within.optsum.final[1]
+    Vm = Vsp + η * Diagonal(d_inv)
+    m = PhyloNetworkLinearModel(lm(RL\Xsp, RL\Ysp), V, Vm, RL, Y, X,
+        2*logdet(RL), ind, nonmissing, BM(), model_within)
+    return m
 end
 
-function phyloNetworklm_wsp(Xr::Matrix, Ysp::Vector, V::Matrix,
-                         d_inv::Vector,
-                         RSS::Float64,
-                         n::Int64, p::Int64, a::Int64,
-                         reml::Bool,
-                         model_within::Union{Nothing, WithinSpeciesCTM}=nothing)
-    
-    # fit species-level mean responses ignoring within-species variation
-    #R = cholesky(V)
-    #RL = R.L
-    #lm_sp = lm(RL\X, RL\Y)
-    m = phyloNetworklm(Xr,Ysp,V)
+# the method below takes in "clean" X,Y,V: species-level means, no missing data,
+#     matching order of species in X,Y and V, no extra species in V.
+# given V & η: analytical formula for σ² estimate
+# numerical optimization of η = σ²within / σ²
+function withinsp_varianceratio(X::Matrix, Y::Vector, V::Matrix,
+        d_inv::Vector, RSS::Float64, ntot::Int64, ncoef::Int64, nsp::Int64,
+        reml::Bool,
+        model_within::Union{Nothing, WithinSpeciesCTM}=nothing)
 
     if model_within === nothing
+        RL = cholesky(V).L
+        lm_sp = lm(RL\X, RL\Y)
+        s2start = GLM.dispersion(lm_sp, false) # sqr=false: deviance/dof_residual
+        # this is the REML, not ML estimate, which would be deviance/nobs
+        s2withinstart = RSS/(ntot-nsp)
+        ηstart = s2withinstart / s2start
+        optsum = OptSummary([ηstart], [1e-100], :LN_BOBYQA; initial_step=[0.01],
+            ftol_rel=fRelTr, ftol_abs=fAbsTr, xtol_rel=xRelTr, xtol_abs=[xAbsTr])
+        optsum.maxfeval = 1000
         # default if model_within is not specified
-        model_within = WithinSpeciesCTM(
-                            OptSummary([RSS/(n-a), sigma2_estim(m)],
-                                       [1e-100, 1e-100],
-                                       :LN_BOBYQA;
-                                       ftol_rel=fRelTr, ftol_abs=fAbsTr,
-                                       xtol_rel=xRelTr, xtol_abs=xAbsTr,
-                                       initial_step=[0.01, 0.01])
-                           )
+        model_within = WithinSpeciesCTM([s2withinstart], [s2start], d_inv, optsum)
+    else
+        optsum = model_within.optsum
+        # fixit: I find this option dangerous (and not used). what if the
+        # current optsum has 2 parameters instead of 1, or innapropriate bounds, etc.?
+        # We could remove the option to provide a pre-built model_within
     end
-
-    # Estimate variance components by REML
-    getVarianceComponents!(Xr, Ysp, V, d_inv, RSS, n, p, a,
-                           model_within) # update model_within.optsum
-
-    # Plug in REML variance components estimate into GLS coefficients estimate
-    (η, σ²) = (model_within.optsum).final
-    Vsp = V[:Tips] # variance-covariance matrix for species means
-    Vm = Vsp + η * Diagonal(d_inv)
-
-    # Package Vm in 'MatrixTopologicalOrder' type. Have to create a new object
-    # since 'MatrixTopologicalOrder' is not mutable.
-    # Need to pad with additional empty top row and leftmost col
-    Vm_ = fill(0.0, (a+1, a+1)); Vm_[2:end, 2:end] = Vm
-    Vm = MatrixTopologicalOrder(Vm_,
-                                V.nodeNumbersTopOrder,
-                                V.internalNodeNumbers,
-                                V.tipNumbers,
-                                V.tipNames,
-                                V.indexation)
-
+    opt = Opt(optsum)
+    Ndof = (reml ? ntot - ncoef : ntot )
+    wdof = ntot - nsp
+    Vm = similar(V) # scratch space for repeated usage
+    function logliksigma(η) # returns: -2loglik, estimated sigma2, and more
+        Vm .= V + η * Diagonal(d_inv)
+        Vmchol = cholesky(Vm) # LL' = Vm
+        RL = Vmchol.L
+        lm_sp = lm(RL\X, RL\Y)
+        σ² = (RSS/η + deviance(lm_sp))/Ndof
+        # n2ll = -2 loglik except for Ndof*log(2pi) + sum log(di) + Ndof
+        n2ll = Ndof * log(σ²) + wdof * log(η) + logdet(Vmchol)
+        if reml
+            n2ll += logdet(lm_sp.pp.chol) # log|X'Vm^{-1}X|
+        end
+        #= manual calculations without cholesky
+        Q = X'*(Vm\X);  β = Q\(X'*(Vm\Ysp));  r = Y-X*β
+        val =  Ndof*log(σ²) + ((RSS/η) + r'*(Vm\r))/σ² +
+            (ntot-ncoef)*log(η) + logabsdet(Vm)[1] + logabsdet(Q)[1]
+        =#
+        return (n2ll, σ², Vmchol)
+    end
+    obj(x, g) = logliksigma(x[1])[1] # x = [η]
+    NLopt.min_objective!(opt, obj)
+    fmin, xmin, ret = NLopt.optimize(opt, optsum.initial)
+    optsum.feval = opt.numevals
+    optsum.final = xmin
+    optsum.fmin = fmin
+    optsum.returnvalue = ret
+    # save the results
+    η = xmin[1]
+    (n2ll, σ², Vmchol) = logliksigma(η)
     model_within.wsp_var[1] = η*σ²
     model_within.bsp_var[1] = σ²
-
-    # Fit phyloNetworklm on species-level data, now taking measurement error
-    # into account
-    m = phyloNetworklm(Xr, Ysp, Vm) # m.model = BM() at this point
-    # to extend to non-BM models: modify m.model here
-    m.model_within = model_within
-
-    return m
+    return model_within, Vmchol.L
 end
 
 ###############################################################################

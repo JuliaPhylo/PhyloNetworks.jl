@@ -51,34 +51,30 @@ df = DataFrame(
 )
 Y = df[!,:trait3] # nm vector
 X = fill(1.0, (n,2)); X[:,2] = df[1:m:n*m,:trait1] # nx2 matrix
-
+#= reduced data: one row per species, extra columns for SD and n of trait 3
 gdf = groupby(df, :species)
-# line below: does not handle missing values
-# combine(gdf, nrow, valuecols(gdf) .=> mean, valuecols(gdf) .=> std)
-# so doing more by hand:
 df_r = combine(gdf, :trait1 => (x -> mean(skipmissing(x))) => :trait1,
                     :trait2 => (x -> mean(skipmissing(x))) => :trait2,
                     :trait3 => (x -> mean(skipmissing(x))) => :trait3,
                     :trait3 => (x ->  std(skipmissing(x))) => :trait3_sd,
                     :trait3 => (x -> sum(.!ismissing.(x))) => :trait3_n)
-#=
-4×6 DataFrame
-│ Row │ species │ trait1  │ trait2  │ trait3  │ trait3_sd │ trait3_n │
-│     │ String  │ Float64 │ Float64 │ Float64 │ Float64   │ Int64    │
-├─────┼─────────┼─────────┼─────────┼─────────┼───────────┼──────────┤
-│ 1   │ t1      │ 2.8564  │ -2.0935 │ 14.9242 │ 1.22004   │ 2        │
-│ 2   │ t2      │ 2.8457  │ 0.4955  │ 14.4777 │ 1.1719    │ 3        │
-│ 3   │ t3      │ 0.4197  │ -2.1977 │ 8.9648  │ 0.273797  │ 3        │
-│ 4   │ t4      │ 2.2359  │ -2.618  │ 15.3935 │ 0.402418  │ 3        │
 =#
-fit = phyloNetworklm(@formula(trait3 ~ trait1), df, starnet;
+df_r = DataFrame(
+  species = ["t1","t2","t3","t4"],
+  trait1 = [2.8564, 2.8457, 0.4197, 2.2359],
+  trait2 = [-2.0935,0.4955,-2.1977,-2.618],
+  trait3 = [14.9242, 14.477666666666666, 8.9648, 15.393466666666667],
+  trait3_sd = [1.2200420402592675,1.1718985891848046,.2737966581242371,.4024181076111425],
+  trait3_n = [2,3,3,3])
+
+m1 = phyloNetworklm(@formula(trait3 ~ trait1), df, starnet;
                         tipnames=:species, msr_err=true)
-fit_r = phyloNetworklm(@formula(trait3 ~ trait1), df_r, starnet;
+m2 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, starnet;
                         tipnames=:species,
-                        msr_err=true, response_std=true)
+                        msr_err=true, y_mean_std=true)
 # relative tolerance for inexact equality comparison set to 1%
-@test isapprox(coef(fit), coef(fit_r), rtol=0.01)
-@test isapprox(sigma2_estim(fit), sigma2_estim(fit_r), rtol=0.01)
-@test isapprox(wspvar_estim(fit), wspvar_estim(fit_r), rtol=0.01)
+@test isapprox(coef(m1), coef(m2), rtol=0.01)
+@test isapprox(sigma2_estim(m1), sigma2_estim(m2), rtol=0.01)
+@test isapprox(wspvar_estim(m1), wspvar_estim(m2), rtol=0.01)
 
 end
