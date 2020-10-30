@@ -1557,6 +1557,8 @@ mutable struct PhyloNetworkLinearModel <: GLM.LinPredModel
     X::Matrix
     "logdetVy: the log-determinent of Vy"
     logdetVy::Float64
+    "criterion: REML if reml is true, ML otherwise"
+    reml::Bool
     "ind: vector matching the tips of the network against the names of the dataframe provided. 0 if the match could not be performed."
     ind::Vector{Int}
     "nonmissing: vector indicating which tips have non-missing data"
@@ -1568,8 +1570,8 @@ mutable struct PhyloNetworkLinearModel <: GLM.LinPredModel
 end
 
 # default model_within=nothing
-PhyloNetworkLinearModel(lm,  V,Vy,RL,Y,X,logdetVy, ind,nonmissing, model) =
-  PhyloNetworkLinearModel(lm,V,Vy,RL,Y,X,logdetVy, ind,nonmissing, model,nothing)
+PhyloNetworkLinearModel(lm,  V,Vy,RL,Y,X,logdetVy, reml,ind,nonmissing, model) =
+  PhyloNetworkLinearModel(lm,V,Vy,RL,Y,X,logdetVy, reml,ind,nonmissing, model,nothing)
 
 
 #= ------ roadmap of phyloNetworklm methods --------------
@@ -1580,26 +1582,27 @@ with or without measurement error:
   calls a function with or without measurement error.
 
 1. no measurement error:
-   - phyloNetworklm(model, X,Y,net; kwargs...) dispatches based on model type
-   - phyloNetworklm(X,Y,V; kwargs...) for vanilla BM only
-   - phyloNetworklm_lambda(X,Y,V, gammas,times; ...)
-   - phyloNetworklm_scalingHybrid(X,Y,net,gammas; ...)
+   - phyloNetworklm(model, X,Y,net, reml; kwargs...) dispatches based on model type
+   - phyloNetworklm_lambda(X,Y,V,reml, gammas,times; ...)
+   - phyloNetworklm_scalingHybrid(X,Y,net,reml, gammas; ...)
 
-   helpers, that call the vanilla phyloNetworklm(X,Y,V):
+   helpers:
+   - pgls(X,Y,V; ...) for vanilla BM, but called by others with fixed V_theta
    - logLik_lam(lambda, X,Y,V,gammas,times; ...)
    - logLik_lam_hyb(lambda, X,Y,net,gammas; ...)
 
 2. with measurement error (within-species variation):
-   - phyloNetworklm_wsp(model, X,Y,net; kwargs...) dispatch based on model
+   - phyloNetworklm_wsp(model, X,Y,net, reml; kwargs...) dispatch based on model
      implemented for model <: BM only
 
-   - phyloNetworklm_wsp(X,Y,V, nonmissing,ind, counts,ySD, reml, model_within)
-   - phyloNetworklm_wsp(Xsp,Ysp,Vsp, d_inv,RSS, n,p,a, reml, model_within)
+   - phyloNetworklm_wsp(X,Y,V,reml, nonmissing,ind, counts,ySD, model_within)
+   - phyloNetworklm_wsp(Xsp,Ysp,Vsp,reml, d_inv,RSS, n,p,a, model_within)
 =#
 function phyloNetworklm(X::Matrix,
                         Y::Vector,
                         net::HybridNetwork,
                         model::ContinuousTraitEM = BM();
+                        reml=false::Bool,
                         nonmissing=trues(length(Y))::BitArray{1},
                         ind=[0]::Vector{Int},
                         startingValue=0.5::Real,
@@ -1608,28 +1611,31 @@ function phyloNetworklm(X::Matrix,
                         counts::Union{Nothing, Vector}=nothing,
                         ySD::Union{Nothing, Vector}=nothing)
     if msr_err
-        phyloNetworklm_wsp(model, X,Y,net; nonmissing=nonmissing, ind=ind,
-                        counts=counts, ySD=ySD) # fixit: add reml?
+        phyloNetworklm_wsp(model, X,Y,net, reml; nonmissing=nonmissing, ind=ind,
+                        counts=counts, ySD=ySD)
     else
-        phyloNetworklm(model, X,Y,net; nonmissing=nonmissing, ind=ind,
+        phyloNetworklm(model, X,Y,net, reml; nonmissing=nonmissing, ind=ind,
                        startingValue=startingValue, fixedValue=fixedValue)
     end
 end
 
-function phyloNetworklm(::BM, X::Matrix, Y::Vector, net::HybridNetwork;
+function phyloNetworklm(::BM, X::Matrix, Y::Vector, net::HybridNetwork, reml::Bool;
                         nonmissing=trues(length(Y))::BitArray{1},
                         ind=[0]::Vector{Int},
                         kwargs...)
     # BM variance covariance:
     # V_ij = expected shared time for independent genes in i & j
     V = sharedPathMatrix(net)
-    phyloNetworklm(X, Y, V; nonmissing=nonmissing, ind=ind)
+    linmod, Vy, RL, logdetVy = pgls(X,Y,V; nonmissing=nonmissing, ind=ind)
+    return PhyloNetworkLinearModel(linmod, V, Vy, RL, Y, X,
+                logdetVy, reml, ind, nonmissing, BM())
 end
 
 function phyloNetworklm(::PagelLambda,
                         X::Matrix,
                         Y::Vector,
-                        net::HybridNetwork;
+                        net::HybridNetwork,
+                        reml::Bool;
                         nonmissing=trues(length(Y))::BitArray{1},
                         ind=[0]::Vector{Int},
                         startingValue=0.5::Real,
@@ -1638,37 +1644,39 @@ function phyloNetworklm(::PagelLambda,
     V = sharedPathMatrix(net)
     gammas = getGammas(net)
     times = getHeights(net)
-    phyloNetworklm_lambda(X, Y, V, gammas, times;
-                          nonmissing=nonmissing, ind=ind,
-                          startingValue=startingValue, fixedValue=fixedValue)
+    phyloNetworklm_lambda(X,Y,V,reml, gammas, times;
+            nonmissing=nonmissing, ind=ind,
+            startingValue=startingValue, fixedValue=fixedValue)
 end
 
 #= ScalingHybrid = BM but with optimized weights of hybrid edges:
-   minor edges have their original γ's changed to λγ. Same λ at all hybrids. =#
+minor edges have their original γ's changed to λγ. Same λ at all hybrids.
+see Bastide (2017) dissertation, section 4.3.2 p.175, at
+https://tel.archives-ouvertes.fr/tel-01629648
+=#
 function phyloNetworklm(::ScalingHybrid,
                         X::Matrix,
                         Y::Vector,
-                        net::HybridNetwork;
+                        net::HybridNetwork,
+                        reml::Bool;
                         nonmissing=trues(length(Y))::BitArray{1},
                         ind=[0]::Vector{Int},
                         startingValue=0.5::Real,
                         fixedValue=missing::Union{Real,Missing})
     preorder!(net)
     gammas = getGammas(net)
-    phyloNetworklm_scalingHybrid(X, Y, net, gammas;
-                                 nonmissing=nonmissing, ind=ind,
-                                 startingValue=startingValue, fixedValue=fixedValue)
+    phyloNetworklm_scalingHybrid(X, Y, net, reml, gammas;
+            nonmissing=nonmissing, ind=ind,
+            startingValue=startingValue, fixedValue=fixedValue)
 end
 
 ###############################################################################
 ## Fit BM
 
 # Vanilla BM using covariance V. used for other models: V calculated beforehand
-function phyloNetworklm(X::Matrix,
-                        Y::Vector,
-                        V::MatrixTopologicalOrder;
-                        nonmissing=trues(length(Y))::BitArray{1}, # which tips are not missing?
-                        ind=[0]::Vector{Int})
+function pgls(X::Matrix, Y::Vector, V::MatrixTopologicalOrder;
+        nonmissing=trues(length(Y))::BitArray{1}, # which tips are not missing?
+        ind=[0]::Vector{Int})
     # Extract tips matrix
     Vy = V[:Tips]
     # Re-order if necessary
@@ -1678,13 +1686,8 @@ function phyloNetworklm(X::Matrix,
     # Cholesky decomposition
     R = cholesky(Vy)
     RL = R.L
-    # Fit 
-    m = PhyloNetworkLinearModel(lm(RL\X, RL\Y), V, Vy, RL, Y, X, 
-                                logdet(Vy), ind, 
-                                nonmissing, BM())
-    # warning: m.model will need to be updated by the higher-level function,
-    #          depending on the model used to calculate the input V
-    return m
+    # Fit with GLM.lm, and return quantities needed downstream
+    return lm(RL\X, RL\Y), Vy, RL, logdet(R)
 end
 
 ###############################################################################
@@ -1781,6 +1784,7 @@ end
 function logLik_lam(lam::AbstractFloat,
                     X::Matrix, Y::Vector,
                     V::MatrixTopologicalOrder,
+                    reml::Bool,
                     gammas::Vector, times::Vector;
                     nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                     ind=[0]::Vector{Int})
@@ -1788,16 +1792,17 @@ function logLik_lam(lam::AbstractFloat,
     Vp = deepcopy(V)
     transform_matrix_lambda!(Vp, lam, gammas, times)
     # Fit and take likelihood
-    fit_lam = phyloNetworklm(X, Y, Vp; nonmissing=nonmissing, ind=ind)
-    res = - loglikelihood(fit_lam)
-    # Go back to original V
-    # transform_matrix_lambda!(V, 1/lam, gammas, times)
+    linmod, Vy, RL, logdetVy = pgls(X,Y,Vp; nonmissing=nonmissing, ind=ind)
+    n = (reml ? dof_residual(linmod) : nobs(linmod))
+    res = n*log(deviance(linmod)) + logdetVy
+    if reml res += logdet(linmod.pp.chol); end
     return res
 end
 
 function phyloNetworklm_lambda(X::Matrix,
                                Y::Vector,
                                V::MatrixTopologicalOrder,
+                               reml::Bool,
                                gammas::Vector,
                                times::Vector;
                                nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
@@ -1825,7 +1830,7 @@ function phyloNetworklm_lambda(X::Matrix,
         count = 0
         function fun(x::Vector{Float64}, g::Vector{Float64})
             x = convert(AbstractFloat, x[1])
-            res = logLik_lam(x, X, Y, V, gammas, times; nonmissing=nonmissing, ind=ind)
+            res = logLik_lam(x, X,Y,V, reml, gammas, times; nonmissing=nonmissing, ind=ind)
             count =+ 1
             #println("f_$count: $(round(res, digits=5)), x: $(x)")
             return res
@@ -1838,9 +1843,9 @@ function phyloNetworklm_lambda(X::Matrix,
         res_lam = fixedValue
     end
     transform_matrix_lambda!(V, res_lam, gammas, times)
-    res = phyloNetworklm(X, Y, V; 
-                         nonmissing=nonmissing, ind=ind)
-    res.model = PagelLambda(res_lam)
+    linmod, Vy, RL, logdetVy = pgls(X,Y,V; nonmissing=nonmissing, ind=ind)
+    res = PhyloNetworkLinearModel(linmod, V, Vy, RL, Y, X,
+                logdetVy, reml, ind, nonmissing, PagelLambda(res_lam))
     return res
 end
 
@@ -1857,19 +1862,23 @@ end
 
 function logLik_lam_hyb(lam::AbstractFloat,
                         X::Matrix, Y::Vector,
-                        net::HybridNetwork, gammas::Vector;
+                        net::HybridNetwork, reml::Bool, gammas::Vector;
                         nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                         ind=[0]::Vector{Int})
     # Transform V according to lambda
     V = matrix_scalingHybrid(net, lam, gammas)
     # Fit and take likelihood
-    fit_lam = phyloNetworklm(X, Y, V; nonmissing=nonmissing, ind=ind)
-    return -loglikelihood(fit_lam)
+    linmod, Vy, RL, logdetVy = pgls(X,Y,V; nonmissing=nonmissing, ind=ind)
+    n = (reml ? dof_residual(linmod) : nobs(linmod))
+    res = n*log(deviance(linmod)) + logdetVy
+    if reml res += logdet(linmod.pp.chol); end
+    return res
 end
 
 function phyloNetworklm_scalingHybrid(X::Matrix,
                                       Y::Vector,
                                       net::HybridNetwork,
+                                      reml::Bool,
                                       gammas::Vector;
                                       nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                                       ind=[0]::Vector{Int},
@@ -1892,7 +1901,7 @@ function phyloNetworklm_scalingHybrid(X::Matrix,
         count = 0
         function fun(x::Vector{Float64}, g::Vector{Float64})
             x = convert(AbstractFloat, x[1])
-            res = logLik_lam_hyb(x, X, Y, net, gammas; nonmissing=nonmissing, ind=ind)
+            res = logLik_lam_hyb(x, X, Y, net, reml, gammas; nonmissing=nonmissing, ind=ind)
             #count =+ 1
             #println("f_$count: $(round(res, digits=5)), x: $(x)")
             return res
@@ -1905,9 +1914,9 @@ function phyloNetworklm_scalingHybrid(X::Matrix,
         res_lam = fixedValue
     end
     V = matrix_scalingHybrid(net, res_lam, gammas)
-    res = phyloNetworklm(X, Y, V; 
-                         nonmissing=nonmissing, ind=ind)
-    res.model = ScalingHybrid(res_lam)
+    linmod, Vy, RL, logdetVy = pgls(X,Y,V; nonmissing=nonmissing, ind=ind)
+    res = PhyloNetworkLinearModel(linmod, V, Vy, RL, Y, X,
+                logdetVy, reml, ind, nonmissing, ScalingHybrid(res_lam))
     return res
 end
 
@@ -2089,6 +2098,7 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
                         model="BM"::AbstractString,
                         tipnames::Symbol=:tipNames, 
                         no_names=false::Bool,
+                        reml=false::Bool,
                         ftolRel=fRelTr::AbstractFloat,
                         xtolRel=xRelTr::AbstractFloat,
                         ftolAbs=fAbsTr::AbstractFloat,
@@ -2164,7 +2174,7 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
     modelobj = modeldic[model]
 
     StatsModels.TableRegressionModel(
-        phyloNetworklm(mm.m, Y, net, modelobj; nonmissing=nonmissing, ind=ind,
+        phyloNetworklm(mm.m, Y, net, modelobj; reml=reml, nonmissing=nonmissing, ind=ind,
                     startingValue=startingValue, fixedValue=fixedValue,
                     msr_err=msr_err, counts=counts, ySD=ySD),
         mf, mm)
@@ -2219,19 +2229,18 @@ StatsBase.response(m::PhyloNetworkLinearModel) = m.Y
 StatsBase.predict(m::PhyloNetworkLinearModel) = m.RL * predict(m.lm)
 
 # log likelihood of the fitted linear model
-function StatsBase.loglikelihood(m::PhyloNetworkLinearModel; reml=false)
+function StatsBase.loglikelihood(m::PhyloNetworkLinearModel)
+    linmod = m.lm
     if isnothing(m.model_within)
-        ll = loglikelihood(m.lm) - m.logdetVy/2
-        # - 0.5*(nobs + nobs * log(2pi) + nobs * log(sigma2_estim) + logdetVy)
-        reml && error("REML not implemented without within-species variance yet")
-        # fixit: if reml: use a different value for sigma2_estim,
-        #        and use dof_residual(m.lm) instead of nobs
+        n = (m.reml ? dof_residual(linmod) : nobs(linmod) )
+        σ² = deviance(linmod)/n
+        ll = - n * (1. + log2π + log(σ²))/2 - m.logdetVy/2
     else
         modwsp = m.model_within
         ntot = sum(1.0 ./ modwsp.wsp_ninv) # total number of individuals
-        nsp = nobs(m.lm)                   # number of species
-        ncoef = length(coef(m.lm))
-        bdof = (reml ? nsp - ncoef : nsp )
+        nsp = nobs(linmod)                   # number of species
+        ncoef = length(coef(linmod))
+        bdof = (m.reml ? nsp - ncoef : nsp )
         wdof = ntot - nsp
         N = wdof + bdof # ntot or ntot - ncoef
         σ²  = modwsp.bsp_var[1]
@@ -2240,8 +2249,8 @@ function StatsBase.loglikelihood(m::PhyloNetworkLinearModel; reml=false)
              (N + N * log2π + bdof * log(σ²) + wdof * log(σw²) + m.logdetVy)
         ll /= 2
     end
-    if reml
-        ll -= logdet(lm_sp.pp.chol)/2 # -1/2 log|X'Vm^{-1}X|
+    if m.reml
+        ll -= logdet(linmod.pp.chol)/2 # -1/2 log|X'Vm^{-1}X|
     end
     return ll
 end
@@ -2284,8 +2293,18 @@ end
 
 Estimated variance for a fitted object.
 """
-sigma2_estim(m::PhyloNetworkLinearModel) = deviance(m.lm) / nobs(m)
-# Need to be adapted manually to TableRegressionModel beacouse it's a new function
+function sigma2_estim(m::PhyloNetworkLinearModel)
+    linmod = m.lm
+    if isnothing(m.model_within)
+        n = (m.reml ? dof_residual(linmod) : nobs(linmod) )
+        σ² = deviance(linmod)/n
+    else
+        σ²  = m.model_within.bsp_var[1]
+    end
+    return σ²
+end
+
+# adapt to TableRegressionModel because sigma2_estim is a new function
 sigma2_estim(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T) =
   sigma2_estim(m.model)
 # REML estimate of within-species variance for measurement error models
@@ -2385,15 +2404,14 @@ end
 #  within-species variation (including measurement error)
 ###############################################################################
 
-function phyloNetworklm_wsp(::BM, X::Matrix, Y::Vector, net::HybridNetwork;
-                        nonmissing=trues(length(Y))::BitArray{1}, # which individuals have non-missing data?
-                        ind=[0]::Vector{Int},
-                        counts::Union{Nothing, Vector}=nothing,
-                        ySD::Union{Nothing, Vector}=nothing,
-                        reml::Bool = true,
-                        model_within::Union{Nothing, WithinSpeciesCTM}=nothing)
+function phyloNetworklm_wsp(::BM, X::Matrix, Y::Vector, net::HybridNetwork, reml::Bool;
+        nonmissing=trues(length(Y))::BitArray{1}, # which individuals have non-missing data?
+        ind=[0]::Vector{Int},
+        counts::Union{Nothing, Vector}=nothing,
+        ySD::Union{Nothing, Vector}=nothing,
+        model_within::Union{Nothing, WithinSpeciesCTM}=nothing)
     V = sharedPathMatrix(net)
-    phyloNetworklm_wsp(X,Y,V, nonmissing,ind, counts,ySD, reml, model_within)
+    phyloNetworklm_wsp(X,Y,V, reml, nonmissing,ind, counts,ySD, model_within)
 end
 
 #= notes about missing data: after X and Y produced by stat formula:
@@ -2410,14 +2428,11 @@ extra problems:
 - a species may be listed 1+ times in ind, but not in ind[nonmissing]
 - ind and nonmissing need to be converted to the species level, alongside Y
 =#
-function phyloNetworklm_wsp(X::Matrix,
-                         Y::Vector,
-                         V::MatrixTopologicalOrder,
-                         nonmissing::BitArray{1}, ind::Vector{Int},
-                         counts::Union{Nothing, Vector},
-                         ySD::Union{Nothing, Vector},
-                         reml::Bool,
-                         model_within::Union{Nothing, WithinSpeciesCTM}=nothing)
+function phyloNetworklm_wsp(X::Matrix, Y::Vector, V::MatrixTopologicalOrder,
+        reml::Bool, nonmissing::BitArray{1}, ind::Vector{Int},
+        counts::Union{Nothing, Vector},
+        ySD::Union{Nothing, Vector},
+        model_within::Union{Nothing, WithinSpeciesCTM}=nothing)
     n_coef = size(X, 2) # no. of predictors
     individualdata = isnothing(counts)
     xor(individualdata, isnothing(ySD)) &&
@@ -2453,12 +2468,12 @@ function phyloNetworklm_wsp(X::Matrix,
         Vsp = V[:Tips][ind_nm,ind_nm]
     end
 
-    model_within, RL = withinsp_varianceratio(Xsp,Ysp,Vsp, d_inv,RSS,
-        n_tot,n_coef,n_sp, reml, model_within)
+    model_within, RL = withinsp_varianceratio(Xsp,Ysp,Vsp, reml, d_inv,RSS,
+        n_tot,n_coef,n_sp, model_within)
     η = model_within.optsum.final[1]
     Vm = Vsp + η * Diagonal(d_inv)
     m = PhyloNetworkLinearModel(lm(RL\Xsp, RL\Ysp), V, Vm, RL, Y, X,
-        2*logdet(RL), ind, nonmissing, BM(), model_within)
+            2*logdet(RL), reml, ind, nonmissing, BM(), model_within)
     return m
 end
 
@@ -2466,9 +2481,8 @@ end
 #     matching order of species in X,Y and V, no extra species in V.
 # given V & η: analytical formula for σ² estimate
 # numerical optimization of η = σ²within / σ²
-function withinsp_varianceratio(X::Matrix, Y::Vector, V::Matrix,
+function withinsp_varianceratio(X::Matrix, Y::Vector, V::Matrix, reml::Bool,
         d_inv::Vector, RSS::Float64, ntot::Int64, ncoef::Int64, nsp::Int64,
-        reml::Bool,
         model_within::Union{Nothing, WithinSpeciesCTM}=nothing)
 
     if model_within === nothing

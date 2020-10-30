@@ -1,19 +1,20 @@
-## tests of phyloNetworklm_wsp
+## traits.jl : tools for within-species variation, continuous traits
 
 #= to work on:
-- hard-code the data for the tests: avoid randomness
-- use some other network: star tree is an edge case with V=Identity,
-  and has no reticulation. too easy.
+- add tests with reml=true with no within-species variation
+- use some other network: on a tree (checked with pgls.SEy),
+  and on a network with 1+ reticulation.
 - check the estimation with independent implementation, like on a tree with
   pgls.SEy in the R package phytools. document here the R code (within comment block)
-- check & update functions like: nobs, dof, dof_residual, deviance, residuals, sigma2_estim, etc.
-- finish handling of missing data: both within a species, and if a species missing entirely
+- check & update functions like: nobs, dof, dof_residual, deviance, residuals,
+  sigma2 used to scale confidence intervals, etc.
 - add documentation for within-species variation, including assumptions on X
   (no variation in X! but what if variation seen in practice, and what if
   missing in X but not Y for some individuals, or missing Y but not X in other individuals?)
+- revise all docstrings: make sure signatures, options lists & jldoctest examples are correct
 =#
 
-@testset "phyloNetworklm with measurement error on Star-topology" begin
+@testset "phyloNetworklm: within-species variation, star" begin
 
 #= simulation of data used below (test more reproducible when using fixed data)
 # simulate traits at the species-level, then
@@ -60,21 +61,48 @@ df_r = combine(gdf, :trait1 => (x -> mean(skipmissing(x))) => :trait1,
                     :trait3 => (x -> sum(.!ismissing.(x))) => :trait3_n)
 =#
 df_r = DataFrame(
-  species = ["t1","t2","t3","t4"],
-  trait1 = [2.8564, 2.8457, 0.4197, 2.2359],
+  species = ["t1","t2","t3","t4"], trait1 = [2.8564,2.8457,.4197,2.2359],
   trait2 = [-2.0935,0.4955,-2.1977,-2.618],
-  trait3 = [14.9242, 14.477666666666666, 8.9648, 15.393466666666667],
-  trait3_sd = [1.2200420402592675,1.1718985891848046,.2737966581242371,.4024181076111425],
-  trait3_n = [2,3,3,3])
+  trait3 = [14.0615, 14.477666666666666, 8.9648, 15.393466666666667],
+  #        [14.9242,... if we include ind 2
+  trait3_sd = [0,1.1718985891848046,.2737966581242371,.4024181076111425],
+  # [1.2200420402592675,... if we include ind 2
+  trait3_n = [1,3,3,3]) # [2,3,3,3]
 
-m1 = phyloNetworklm(@formula(trait3 ~ trait1), df, starnet;
-                        tipnames=:species, msr_err=true)
-m2 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, starnet;
-                        tipnames=:species,
-                        msr_err=true, y_mean_std=true)
-# relative tolerance for inexact equality comparison set to 1%
-@test isapprox(coef(m1), coef(m2), rtol=0.01)
-@test isapprox(sigma2_estim(m1), sigma2_estim(m2), rtol=0.01)
-@test isapprox(wspvar_estim(m1), wspvar_estim(m2), rtol=0.01)
+#= star tree: R code to check
+df = data.frame(species = rep(c("t1","t2","t3","t4"), each=3),
+  trait1 = c(2.8564,NA,2.8564,2.8457,2.8457,2.8457,.4197,.4197,.4197,2.2359,2.2359,2.2359),
+  trait2 = c(-2.0935,-2.0935,-2.0935,.4955,.4955,.4955,-2.1977,-2.1977,-2.1977, -2.618,-2.618,-2.618),
+  trait3 = c(NA,15.7869,14.0615,14.3547,13.3721,15.7062,9.2764,8.8553,8.7627,15.0298,15.8258,15.3248))
+mR = lmer(trait3 ~ trait1 + (1|species), df)
+fixef(mR) # 8.457020 2.296978
+print(mR, digits=7, ranef.comp="Var") # variances: 2.1216068,0.5332865
+logLik(mR) # -13.37294
+logLik(mR, REML=FALSE) # -14.57265
+mR = lmer(trait3 ~ trait1 + (1|species), df, REML=FALSE)
+fixef(mR) # 8.439909 2.318488
+print(mR, digits=7, ranef.comp="Var") # variances: 0.9470427,0.5299540
+logLik(mR) # -14.30235
+=#
+m1 = phyloNetworklm(@formula(trait3 ~ trait1), df, starnet; reml=true,
+      tipnames=:species, msr_err=true)
+m2 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, starnet; reml=true,
+      tipnames=:species, msr_err=true, y_mean_std=true)
+@test m1.model.reml && m2.model.reml
+@test coef(m1) ≈ [8.457020,2.296978] rtol=1e-5 # fixef(mR)
+@test coef(m2) ≈ [8.457020,2.296978] rtol=1e-5
+@test sigma2_estim(m1) ≈ 2.1216068 rtol=1e-5 # print(mR, digits=7, ranef.comp="Var")
+@test sigma2_estim(m2) ≈ 2.1216068 rtol=1e-5
+@test wspvar_estim(m1) ≈ 0.5332865 rtol=1e-5
+@test wspvar_estim(m2) ≈ 0.5332865 rtol=1e-5
+@test loglikelihood(m1) ≈ -13.37294 rtol=1e-5
+@test loglikelihood(m2) ≈ -13.37294 rtol=1e-5
+m3 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, starnet; # reml=false
+      tipnames=:species, msr_err=true, y_mean_std=true)
+@test !m3.model.reml
+@test coef(m3) ≈ [8.439909,2.318488] rtol=1e-5
+@test sigma2_estim(m3) ≈ 0.9470427 rtol=1e-5
+@test wspvar_estim(m3) ≈ 0.5299540 rtol=1e-5
+@test loglikelihood(m3) ≈ -14.30235 rtol=1e-5
 
 end
