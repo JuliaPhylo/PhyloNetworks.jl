@@ -1874,9 +1874,8 @@ end
 ## Functions to Explore PhyLiNC Estimation ##
 """
     phyLiNC_fixednetwork(net::HybridNetwork, alignmentfile::String,
-                        modSymbol::Symbol, rvsymbol::Symbol,
-                        outputfilename::String, seed::Int,
-                        rateCategories=4::Int)
+                         modSymbol::Symbol, rvsymbol::Symbol, nohybridladder::Bool,
+                         outputfilename::String, seed::Int, rateCategories=4::Int)
 
 Given a network and data set, optimize only branch lengths, inheritance weights,
 and substitution model parameters. Return full network object, which
@@ -1890,30 +1889,26 @@ optimized to zero, that edge will be removed. If this change creates a 2-cycle,
 it will be shrunk.
 """
 function phyLiNC_fixednetwork(net::HybridNetwork, alignmentfile::String,
-                            modSymbol::Symbol, rvsymbol::Symbol,
-                            outputfilename::String, seed::Int,
-                            rateCategories=4::Int)
+                              modSymbol::Symbol, rvsymbol::Symbol,
+                              nohybridladder::Bool, outputfilename::String,
+                              seed::Int, rateCategories=4::Int)
     obj = phyLiNC(net, alignmentfile, modSymbol, rvsymbol, rateCategories;
-                  maxhybrid=net.numHybrids, no3cycle=false, verbose=false,
-                  maxmoves=50, probST=1.0, nreject=0, nruns=1,
+                  maxhybrid=net.numHybrids, no3cycle=false, nohybridladder,
+                  verbose=false, maxmoves=50, probST=1.0, nreject=0, nruns=1,
                   ftolRel=1e-12, ftolAbs=1e-12, xtolRel=1e-12, xtolAbs=1e-12,
                   filename=outputfilename, seed=seed)
                   # no3cycle = false so existing 3-cycles will not be removed
                   # by phyLiNC, which would change the topology. 2-cycles will
                   # still be removed when they appear
-    # optimize BLs and gammas one more time here
+                  # nohybridladder needed to pass phyLiNC's checks
     # warning: tolerance values from constants, not user-specified
     if obj.net.loglik != obj.loglik
         error("obj.net has a different loglik than object.")
-        @debug "obj.net.log is $(obj.net.loglik) and obj.loglik is $(obj.loglik)"
     end
-    @debug "after overall optimization (before gamma and BL specific), the logliklihood is $(obj.loglik)"
     γcache = CacheGammaLiNC(obj)
     ghosthybrid = optimizeallgammas_LiNC!(obj, fAbsBL, γcache, 1000)
-    @debug "after optimizing gammas, the logliklihood is $(obj.loglik). ghosthybrid is $ghosthybrid"
     lcache = CacheLengthLiNC(obj, fRelBL, fAbsBL, xRelBL, xAbsBL, 1000) # maxeval=1000
-    optimizealllengths_LiNC!(obj, lcache) # fixit: this makes the likelihood worse. why?
-    @debug "after optimizing branch lengths, the logliklihood is $(obj.loglik)"
+    optimizealllengths_LiNC!(obj, lcache)
     obj.net.loglik = obj.loglik
     return obj
 end

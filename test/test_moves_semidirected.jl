@@ -568,6 +568,11 @@ netl3 = readTopology(level3string)
 @test isnothing(PhyloNetworks.fliphybrid!(netl3, netl3.hybrid[2]))
 # hybrid 3 = H2: can flip its minor parent but creates hybrid ladder
 #                cannot flip major parent: creates a cycle
+
+# when root must be moved but it cannot be the original hybrid node
+trickyrootnet = readTopology("(4:0.028549439384874944,((1:0.028914563433818073,((2:0.024136300971752945,(3:0.0)#H1:0.025248911082064646::0.8796149596027563):0.0)#H2:0.005720170209281829::0.9982670333221647):0.020303091738583207,(5:0.058669912247338814,(6:0.04122431297394082,#H2:0.11748476941614301::0.001732966677835242):0.04113540596688673):0.01095767892877917):0.01735023090983463,#H1:0.048168324466899::0.12038504039724372);")
+@test !isnothing(PhyloNetworks.fliphybrid!(trickyrootnet, trickyrootnet.hybrid[1]))
+@test trickyrootnet.root == 13
 end
 
 @testset "test fliphybrid! randomly choose node function" begin

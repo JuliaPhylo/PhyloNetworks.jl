@@ -371,7 +371,7 @@ end
          nohybridladder::Bool, no3cycle::Bool)
 
 Modify `net` with a semi-directed nearest neighbor interchange (sNNI) around
-edge `uv`. Return the information necessary to undo the sNNI, or `nothing` if \
+edge `uv`. Return the information necessary to undo the sNNI, or `nothing` if
 the move was not successful (such as if the resulting graph was not acyclic
 (not a DAG) or if the focus edge is adjacent to a polytomy). If the move fails,
 the network is not modified.

@@ -388,4 +388,11 @@ lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-6,1e-6,1e-2,1e-3, 5);
 @test obj.loglik ≈ -28.30294 atol=.01
 @test !PhyloNetworks.fliphybridedgeLiNC!(obj, obj.loglik, false, emptyconstraint, 1e-6, γcache, lcache)
 end # hybrid flip basics
+
+@testset "fixed network optimization" begin
+net = readTopology("(#H2:0.02495259889870113::0.0244,((C:1e-4,((B:0.0)#H1:0.0::0.6)#H2:0.034190897863530335::0.9756):0.24434924848805456,(#H1:0.01539513240840275::0.4,A:0.2864250860992079):1.0e-8):1e-4,D:0.2716998373895161);")
+obj = PhyloNetworks.phyLiNC_fixednetwork(net, fastasimple, :HKY85, :Inv, false, "", 543)
+@test obj.loglik ≈ -23.38354 atol=.0001
+end # fixed network optimization
+
 end # of overall phyLiNC test set
