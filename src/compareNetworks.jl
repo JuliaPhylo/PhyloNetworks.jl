@@ -692,7 +692,7 @@ networks at internal nodes.
 function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, rooted::Bool)
     bothtrees = (net1.numHybrids == 0 && net2.numHybrids == 0)
     rooted || bothtrees ||
-        return hardwiredClusterDistance_unrooted(net1, net2) # tries all roots, but removes degree-2 nodes
+        return hardwiredClusterDistance_semirooted(net1, net2) # tries all roots, but removes degree-2 nodes
     taxa = sort!(String[net1.leaf[i].name for i in 1:net1.numTaxa])
     length(setdiff(taxa, String[net2.leaf[i].name for i in 1:net2.numTaxa])) == 0 ||
         error("net1 and net2 do not share the same taxon set. Please prune networks first.")
@@ -730,10 +730,10 @@ end
 
 
 """
-    hardwiredClusterDistance_unrooted(net1::HybridNetwork, net2::HybridNetwork)
+    hardwiredClusterDistance_semirooted(net1::HybridNetwork, net2::HybridNetwork)
 
-Miminum hardwired cluster dissimilarity between the two networks, considered as
-unrooted (or semi-directed). This dissimilarity is defined as the minimum
+Miminum hardwired cluster dissimilarity between the two networks when considered
+semi-rooted (aka semi-directed). This dissimilarity is defined as the minimum
 rooted distance, over all root positions that are compatible with the direction
 of hybrid edges.
 Called by [`hardwiredClusterDistance`](@ref).
@@ -743,10 +743,10 @@ are deleted before starting the comparison.
 Since rooting the network at a leaf creates a root node of degree 2 and
 an extra cluster, leaves are excluded from possible rooting positions.
 """
-function hardwiredClusterDistance_unrooted(net1::HybridNetwork, net2::HybridNetwork)
-    return hardwiredClusterDistance_unrooted!(deepcopy(net1), deepcopy(net2))
+function hardwiredClusterDistance_semirooted(net1::HybridNetwork, net2::HybridNetwork)
+    return hardwiredClusterDistance_semirooted!(deepcopy(net1), deepcopy(net2))
 end
-function hardwiredClusterDistance_unrooted!(net1::HybridNetwork, net2::HybridNetwork)
+function hardwiredClusterDistance_semirooted!(net1::HybridNetwork, net2::HybridNetwork)
     #= fixit: inefficient function, because r1 * r2 "M" matrices of
       hardwiredClusters() are calculated, where ri = # root positions in neti.
       Rewrite to calculate only r1 + r2 M's.
@@ -793,4 +793,58 @@ function hardwiredClusterDistance_unrooted!(net1::HybridNetwork, net2::HybridNet
     # @info "best root nodes: $bestns"
     # warning: original roots (and edge directions) NOT restored
     return bestdissimilarity
+end
+
+"""
+    nnidistance(startingnet::HybridNetwork, truenet::HybridNetwork,
+                outgroup::String, nohybridladder::Bool, no3cycle::Bool,
+                maxmoves=2::Int,
+                constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+
+Return the minimum number of NNI moves to get from `startingnet` to `truenet`.
+If no moves needed, return 0. If net cannot be found in `maxmoves` NNI moves,
+return Inf. Networks must have the same taxa. If not, will return an error.
+
+To avoid a very long run, choose a small `maxmoves` to start. Because the
+number of neighbors increases exponentially, this function is time-consuming
+even with small `maxmoves`. After nmoves, size of the neighbor set is
+(startingnet's immediate neighbors)^nmoves.
+(In other words, this problem is fixed-parameter tractable with `maxmoves` fixed.)
+e.g. If `startingnet` has 10 immediate neighbors, then after 3 moves, it will have
+~1000 neighbors.
+"""
+function nnidistance(startingnet::HybridNetwork, truenet::HybridNetwork,
+                     outgroup::String, nohybridladder::Bool, no3cycle::Bool,
+                     maxmoves=2::Int,
+                     constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    if sort([l.name for l in truenet.leaf]) != sort([l.name for l in startingnet.leaf])
+        error("Networks have different taxa. Cannot compute an nni distance between networks with different taxa.")
+    end
+    rootatnode!(startingnet, outgroup) # confirm startingnet is rooted at outgroup
+    removedegree2nodes!(startingnet) # rooting adds a node of degree two. This removes it.
+    nmoves = 0
+    if hardwiredClusterDistance(startingnet, truenet, true) == 0
+        @debug "After rerooting, startingnet and truenet match. No NNI moves were needed."
+        return nmoves
+    end
+    startingnets = [writeTopology(startingnet)]
+    while nmoves < maxmoves
+        nmoves += 1
+        allneighbors = String[] # reset to zero to create new set of neighbors
+        for s in 1:length(startingnets)
+            snet = readTopology(startingnets[s])
+            neighbors = uniqueneighbornets(snet, nohybridladder, no3cycle, constraints)
+            for n in 1:length(neighbors) # see if we found truenet
+                if hardwiredClusterDistance(readTopology(neighbors[n]), truenet, true) == 0
+                    @debug "After $nmoves move(s), startingnet was transformed into truenet with NNIs."
+                    return nmoves
+                end
+            end
+            allneighbors = vcat(allneighbors, neighbors)
+        end
+        # use these neighbors as the next startingnets
+        startingnets = allneighbors
+    end
+    @debug "After $nmoves move(s), startingnet could not be transformed into truenet using NNIs."
+    return Inf
 end

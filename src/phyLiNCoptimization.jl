@@ -1,4 +1,4 @@
-# any change to these constants must be documented in phyLiNC!
+# any change to these constants must be documented in function docstrings
 const moveweights_LiNC = Distributions.aweights([0.6, 0.2, 0.05, 0.05, 0.1])
 const movelist_LiNC = ["nni", "addhybrid", "deletehybrid", "fliphybrid", "root"]
 const likAbsAddHybLiNC = 0.0 #= loglik improvement required to retain a hybrid.
@@ -590,21 +590,25 @@ end
                        ftolAbs::Float64,
                        γcache::CacheGammaLiNC, lcache::CacheLengthLiNC)
 
-Alternate NNI moves, hybrid additions / deletions, and root changes based on their
-respective weights in `moveweights_LiNC` ([0.4, 0.2, 0.2, 0.2]).
+Alternate NNI moves, hybrid additions / deletions / flips, and root changes.
+The percent of sNNI moves, hybrid additions, hybrid deletions, hybrid flips, and
+root changes performed is `PhyloNetworks.moveweights_LiNC`:
+[0.6, 0.2, 0.05, 0.05, 0.1].
+
+The proposed network is accepted if its likelihood is greater than or equal to
+the original likelihood. Root moves cannot change the network's likelihood, so
+they are always accepted.
+
 Branch lengths and hybrid γs around the NNI focal edge or around the
-added / deleted hybrid edge are optimized (roughly) on the proposed
-network. Each proposed network is accepted --or not-- if the likelihood
-improves (or doesn't decrease much for hybrid deletion).
-After adding or removing a hybrid, `obj` is updated, to have correct
-displayed `trees` and node/edge numberings: done by [`nni_LiNC!`](@ref),
-[`addhybridedgeLiNC!`](@ref) and [`deletehybridedgeLiNC!`](@ref).
+altered hybrid edge are optimized (roughly) on the proposed network.
+After sNNI or adding, removing, flipping a hybrid, `obj` is updated to have correct
+displayed `trees` and node/edge numberings (done by [`nni_LiNC!`](@ref),
+[`addhybridedgeLiNC!`](@ref), [`deletehybridedgeLiNC!`](@ref), and
+[`fliphybridedgeLiNC!`](@ref)).
 
 Output: number of consecutive rejections so far.
 
-The percent of nni moves, hybrid additions, hybrid deletions, and root changes
-to be performed is in `PhyloNetworks.moveweights_LiNC`.
-
+Arguments:
 - `maxmoves`: maximum number of moves to be performed, including root changes,
   which don't actually change the semi-directed topology and likelihood.
 - `nreject`: number of consecutive rejections (ignoring root changes), prior
@@ -620,7 +624,7 @@ Assumptions:
 - starting with a network without 2- and 3- cycles
   (checked by `checknetworkbeforeLiNC`)
 
-Note: When removing a hybrid edge, always removes the minor edge.
+Note: When removing or flipping a hybrid edge, always removes the minor edge.
 """
 function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
     no3cycle::Bool, nohybridladder::Bool, nreject::Integer, nrejectmax::Integer,
@@ -698,8 +702,8 @@ end
 
 Loop over possible edges for a nearest-neighbor interchange move until one is
 found. Performs move and compares the original and modified likelihoods. If the
-modified likelihood is greater than the original by `likAbs`, the move
-is accepted.
+modified network's likelihood is greater than or equal to the original likelihood,
+the move is accepted.
 
 Return true if move accepted, false if move rejected. Return nothing if there
 are no nni moves possible in the network.
@@ -1865,4 +1869,51 @@ function updatecache_hase!(cache::CacheGammaLiNC, obj::SSM,
         end
     end
     return nt, hase
+end
+
+## Functions to Explore PhyLiNC Estimation ##
+"""
+    phyLiNC_fixednetwork(net::HybridNetwork, alignmentfile::String,
+                        modSymbol::Symbol, rvsymbol::Symbol,
+                        outputfilename::String, seed::Int,
+                        rateCategories=4::Int)
+
+Given a network and data set, optimize only branch lengths, inheritance weights,
+and substitution model parameters. Return full network object, which
+includes network, parameters, and likelihood.
+
+Starts with the given topology 100% of the time and never makes any topology
+change proposals. Used in testing for local optima in topology estimation.
+
+Warning: This can change the topology in one way: When an inheritance weight is
+optimized to zero, that edge will be removed. If this change creates a 2-cycle,
+it will be shrunk.
+"""
+function phyLiNC_fixednetwork(net::HybridNetwork, alignmentfile::String,
+                            modSymbol::Symbol, rvsymbol::Symbol,
+                            outputfilename::String, seed::Int,
+                            rateCategories=4::Int)
+    obj = phyLiNC(net, alignmentfile, modSymbol, rvsymbol, rateCategories;
+                  maxhybrid=net.numHybrids, no3cycle=false, verbose=false,
+                  maxmoves=50, probST=1.0, nreject=0, nruns=1,
+                  ftolRel=1e-12, ftolAbs=1e-12, xtolRel=1e-12, xtolAbs=1e-12,
+                  filename=outputfilename, seed=seed)
+                  # no3cycle = false so existing 3-cycles will not be removed
+                  # by phyLiNC, which would change the topology. 2-cycles will
+                  # still be removed when they appear
+    # optimize BLs and gammas one more time here
+    # warning: tolerance values from constants, not user-specified
+    if obj.net.loglik != obj.loglik
+        error("obj.net has a different loglik than object.")
+        @debug "obj.net.log is $(obj.net.loglik) and obj.loglik is $(obj.loglik)"
+    end
+    @debug "after overall optimization (before gamma and BL specific), the logliklihood is $(obj.loglik)"
+    γcache = CacheGammaLiNC(obj)
+    ghosthybrid = optimizeallgammas_LiNC!(obj, fAbsBL, γcache, 1000)
+    @debug "after optimizing gammas, the logliklihood is $(obj.loglik). ghosthybrid is $ghosthybrid"
+    lcache = CacheLengthLiNC(obj, fRelBL, fAbsBL, xRelBL, xAbsBL, 1000) # maxeval=1000
+    optimizealllengths_LiNC!(obj, lcache) # fixit: this makes the likelihood worse. why?
+    @debug "after optimizing branch lengths, the logliklihood is $(obj.loglik)"
+    obj.net.loglik = obj.loglik
+    return obj
 end

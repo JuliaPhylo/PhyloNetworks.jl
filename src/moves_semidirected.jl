@@ -1026,7 +1026,6 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
             return nothing      # to calculate its isp2desc for total # of true's
         end
     end
-    # @debug "edgetoflip is $edgetoflip, edgetokeep is $edgetokeep, newhybridedge is $newhybridedge"
     if nohybridladder
         # case when edgetoflip would be bottom rung of ladder
         if getOtherNode(newhybridedge, newhybridnode).hybrid
@@ -1040,6 +1039,23 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
             end
         end
     end
+    # check if newhybridedge's direction needs to be flipped. If so, reroot.
+        # includes case when newhybridnode was the original root
+    if getChild(newhybridedge) !== newhybridnode
+        # choose a new root: after the flip, all edges connected to the root
+            # must be able to containRoot
+        if edgetoflip.containRoot && edgetokeep.containRoot
+            newroot = hybridnode
+        else # set parent node of newhybridedge as new root
+            p3 = getOtherNode(newhybridedge, newhybridnode)
+            all(e.containRoot for e in p3.edge) || return nothing
+            newroot = p3
+        end
+        net.root = findfirst(n -> n === newroot, net.node)
+        # then flip newhybridedge, make it point towards newhybridnode
+        newhybridedge.isChild1 = !newhybridedge.isChild1
+        runDirectEdges = true # in most cases, many edges will need to be flipped
+    end
     # change hybrid status and major status for nodes and edges
     hybridnode.hybrid = false
     edgetokeep.hybrid = false
@@ -1049,12 +1065,6 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     edgetokeep.isMajor = true
     # update node order to keep isChild1 attribute of hybrid edges true
     edgetoflip.isChild1 = !edgetoflip.isChild1 # just switch
-    if getChild(newhybridedge) !== newhybridnode # includes the case when the newhybridnode was the root
-        # then flip newhybridedge too: make it point towards newhybridnode
-        newhybridedge.isChild1 = !newhybridedge.isChild1
-        net.root = findfirst(n -> n === hybridnode, net.node)
-        runDirectEdges = true # many edges are likely to need to have directions flipped here
-    end
     # give new hybridnode a name
     newhybridnode.name = hybridnode.name
     hybridnode.name = "" # remove name from former hybrid node
@@ -1079,4 +1089,75 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
         end
     end
     return newhybridnode, edgetoflip, oldchildedge
+end
+
+"""
+    neighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+                 constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+Find the immediate sNNI neighborhood of a particular topology. Return an array
+of the neighbor networks' Newick strings.
+
+Warning:
+- Because different NNIs can lead to the same topology, the list of
+neighbors may contain duplicates. Therefore, the length of the list should not
+be taken as the number of neighbors. For the unique neighbors, see
+`uniqueneighbornets` function below.
+- creates one deep copy of net
+"""
+function neighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+                      constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    neighbors = String[]
+    # distances = Int[]
+    originalnet = deepcopy(net) # keep original net for HWCD comparison
+    for e in net.edge
+        if any(con.edge === e for con in constraints) # if edge is a stem
+            continue # skip to next edge
+        end
+        nnimax(e) > 0x00 || continue # if no NNIs possible, skip to next edge
+        nnis = 0x01:nnimax(e)
+        for nummove in nnis
+            nummove <= nnimax(e) || error("move $nummove out of bounds here. max = $nnimax(e)")
+            moveinfo = nni!(net, e, nummove, nohybridladder, no3cycle)
+            !isnothing(moveinfo) || continue # move didn't work, skip to next NNI
+            net.root == originalnet.root || error("root changed by NNI")
+            push!(neighbors, writeTopology(net))
+            # push!(distances, hardwiredClusterDistance(net, originalnet, true))
+            nni!(moveinfo...) # undo this nni
+            # confirm that net is unchanged after undoing nni
+            hardwiredClusterDistance(net, originalnet, true) == 0 ||
+                error("original net changed")
+        end
+    end
+    return neighbors#, distances
+end
+
+"""
+    uniqueneighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+                 constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+
+Return unique NNI neighbors of topology `net`.
+
+Assumes that rooting will not change during an NNI
+"""
+function uniqueneighbornets(net::HybridNetwork, nohybridladder::Bool,
+                            no3cycle::Bool,
+                            constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    neighbors = neighbornets(net, nohybridladder, no3cycle, constraints)
+    ncount = length(neighbors)
+    hwcds = zeros(Int, ncount, ncount) # rooted distances between neighbors
+    for i in 1:ncount
+        for j in 1:ncount
+            hwcds[i,j] = hardwiredClusterDistance(readTopology(neighbors[i]),
+                                            readTopology(neighbors[j]), true)
+        end
+    end
+    # find rows with duplicate HWCD patterns
+    duplicates = nonunique(DataFrame(hwcds)) # true entries indicate duplicate rows
+    duplicateindices = findall(x->x==1, duplicates)
+    for di in duplicateindices # confirm duplicate net has hwcd == 0 with >= 1 other net
+        any(i-> i == 0, hwcds[di, 1:end .!= di]) ||
+            error("Duplicate net does not have a HWCD of zero with another net")
+    end
+    deleteat!(neighbors, duplicateindices)
+    return neighbors
 end
