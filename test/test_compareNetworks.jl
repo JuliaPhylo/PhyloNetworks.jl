@@ -352,7 +352,7 @@ estminor = minorTreeAt(estnet, 1); # (5:1.0,(3:1.0,4:1.0):1.069,(6:1.0,(1:1.0,2:
 # so the hybrid edge was estimated correctly!!
 rootatnode!(trunet, -8)
 @test hardwiredClusterDistance(estnet, trunet, true) == 3
-# next: testing hardwiredClusterDistance_semirooted, via the option rooted=false
+# next: testing hardwiredClusterDistance_semidirected, via the option rooted=false
 @test hardwiredClusterDistance(estnet, trunet, false) == 0
 h0est = readTopology("(((2:0.01,1:0.01):0.033,(3:0.0154,4:0.0149):0.0186):0.0113,6:0.0742,5:0.0465);")
 truenet = readTopology("((((1,2),((3,4))#H1),(#H1,5)),6);")

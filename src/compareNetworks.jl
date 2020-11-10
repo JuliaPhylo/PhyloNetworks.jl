@@ -692,7 +692,7 @@ networks at internal nodes.
 function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, rooted::Bool)
     bothtrees = (net1.numHybrids == 0 && net2.numHybrids == 0)
     rooted || bothtrees ||
-        return hardwiredClusterDistance_semirooted(net1, net2) # tries all roots, but removes degree-2 nodes
+        return hardwiredClusterDistance_semidirected(net1, net2) # tries all roots, but removes degree-2 nodes
     taxa = sort!(String[net1.leaf[i].name for i in 1:net1.numTaxa])
     length(setdiff(taxa, String[net2.leaf[i].name for i in 1:net2.numTaxa])) == 0 ||
         error("net1 and net2 do not share the same taxon set. Please prune networks first.")
@@ -730,10 +730,11 @@ end
 
 
 """
-    hardwiredClusterDistance_semirooted(net1::HybridNetwork, net2::HybridNetwork)
+    hardwiredClusterDistance_semidirected(net1::HybridNetwork, net2::HybridNetwork)
 
 Miminum hardwired cluster dissimilarity between the two networks when considered
-semi-rooted (aka semi-directed). This dissimilarity is defined as the minimum
+semidirected (only hybrid edges are directed), that is, when the root is unknown.
+This dissimilarity is defined as the minimum
 rooted distance, over all root positions that are compatible with the direction
 of hybrid edges.
 Called by [`hardwiredClusterDistance`](@ref).
@@ -743,10 +744,10 @@ are deleted before starting the comparison.
 Since rooting the network at a leaf creates a root node of degree 2 and
 an extra cluster, leaves are excluded from possible rooting positions.
 """
-function hardwiredClusterDistance_semirooted(net1::HybridNetwork, net2::HybridNetwork)
-    return hardwiredClusterDistance_semirooted!(deepcopy(net1), deepcopy(net2))
+function hardwiredClusterDistance_semidirected(net1::HybridNetwork, net2::HybridNetwork)
+    return hardwiredClusterDistance_semidirected!(deepcopy(net1), deepcopy(net2))
 end
-function hardwiredClusterDistance_semirooted!(net1::HybridNetwork, net2::HybridNetwork)
+function hardwiredClusterDistance_semidirected!(net1::HybridNetwork, net2::HybridNetwork)
     #= fixit: inefficient function, because r1 * r2 "M" matrices of
       hardwiredClusters() are calculated, where ri = # root positions in neti.
       Rewrite to calculate only r1 + r2 M's.

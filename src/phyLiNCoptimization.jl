@@ -602,7 +602,7 @@ they are always accepted.
 Branch lengths and hybrid γs around the NNI focal edge or around the
 altered hybrid edge are optimized (roughly) on the proposed network.
 After sNNI or adding, removing, flipping a hybrid, `obj` is updated to have correct
-displayed `trees` and node/edge numberings (done by [`nni_LiNC!`](@ref),
+displayed trees and node/edge numberings (done by [`nni_LiNC!`](@ref),
 [`addhybridedgeLiNC!`](@ref), [`deletehybridedgeLiNC!`](@ref), and
 [`fliphybridedgeLiNC!`](@ref)).
 
@@ -624,7 +624,7 @@ Assumptions:
 - starting with a network without 2- and 3- cycles
   (checked by `checknetworkbeforeLiNC`)
 
-Note: When removing or flipping a hybrid edge, always removes the minor edge.
+Note: When removing or flipping a hybrid, the minor edge is removed or flipped.
 """
 function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
     no3cycle::Bool, nohybridladder::Bool, nreject::Integer, nrejectmax::Integer,
@@ -1877,12 +1877,15 @@ end
                          modSymbol::Symbol, rvsymbol::Symbol, nohybridladder::Bool,
                          outputfilename::String, seed::Int, rateCategories=4::Int)
 
-Given a network and data set, optimize only branch lengths, inheritance weights,
-and substitution model parameters. Return full network object, which
-includes network, parameters, and likelihood.
+Given a network and data set, optimize branch lengths, γ inheritance weights,
+and substitution model parameters.
+Return a [`StatisticalSubstitutionModel`](@ref) object, which
+includes the network with estimated branch lengths & γs, parameters, and likelihood.
 
-Starts with the given topology 100% of the time and never makes any topology
-change proposals. Used in testing for local optima in topology estimation.
+The given topology is fixed. The starting branch lengths are taken from
+`net` is *all* of them are provided.
+For options, see [`phyLiNC`](@ref).
+Tolerance values `ftolRel` etc. are all set to `1e-12`.
 
 Warning: This can change the topology in one way: When an inheritance weight is
 optimized to zero, that edge will be removed. If this change creates a 2-cycle,
@@ -1902,9 +1905,8 @@ function phyLiNC_fixednetwork(net::HybridNetwork, alignmentfile::String,
                   # still be removed when they appear
                   # nohybridladder needed to pass phyLiNC's checks
     # warning: tolerance values from constants, not user-specified
-    if obj.net.loglik != obj.loglik
+    obj.net.loglik == obj.loglik ||
         error("obj.net has a different loglik than object.")
-    end
     γcache = CacheGammaLiNC(obj)
     ghosthybrid = optimizeallgammas_LiNC!(obj, fAbsBL, γcache, 1000)
     lcache = CacheLengthLiNC(obj, fRelBL, fAbsBL, xRelBL, xAbsBL, 1000) # maxeval=1000

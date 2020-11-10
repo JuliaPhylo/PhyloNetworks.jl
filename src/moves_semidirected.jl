@@ -383,7 +383,7 @@ Expanded from the rooted-NNI (rNNI) options in Gambette et al. (2017), fig. 8:
 * RR: 2 moves, both to RR.
 * BR: 3 moves, 1 RB & 2 BRs, if directed. 6 moves if e is undirected.
 * RB: 4 moves, all 4 BRs.
-Our extra sNNI options come from assuming a semi-directed network, in
+The extra sNNI options come from assuming a semi-directed network, in
 constrast to Gambette et al (2017)'s rooted networks. On a semi-directed network,
 there may be a choice in how to direct the edges that may contain the root:
 e.g. choice of e=uv versus vu and choice of labelling adjacent nodes as
