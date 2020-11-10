@@ -796,38 +796,40 @@ function hardwiredClusterDistance_semirooted!(net1::HybridNetwork, net2::HybridN
 end
 
 """
-    nnidistance(startingnet::HybridNetwork, truenet::HybridNetwork,
+    nnidistance(net1::HybridNetwork, net2::HybridNetwork,
                 outgroup::String, nohybridladder::Bool, no3cycle::Bool,
                 maxmoves=2::Int,
                 constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
-Return the minimum number of NNI moves to get from `startingnet` to `truenet`.
-If no moves needed, return 0. If net cannot be found in `maxmoves` NNI moves,
+Return the minimum number of NNI moves to get from `net1` to `net2`.
+If no moves are needed, return 0. If `net2` cannot be found in `maxmoves` NNI moves,
 return Inf. Networks must have the same taxa. If not, will return an error.
 
-To avoid a very long run, choose a small `maxmoves` to start. Because the
-number of neighbors increases exponentially, this function is time-consuming
-even with small `maxmoves`. After nmoves, size of the neighbor set is
-(startingnet's immediate neighbors)^nmoves.
-(In other words, this problem is fixed-parameter tractable with `maxmoves` fixed.)
-e.g. If `startingnet` has 10 immediate neighbors, then after 3 moves, it will have
-~1000 neighbors.
+**Warning**: assumes that N=N' if and only if networks N and N' have a
+hard-wired cluster distance of 0. This is true for certain classes of network,
+but not in general.
+(give ref with examples of complicated N and N' for which this is false.)
+
+To avoid a very long run, choose a small `maxmoves` to start. Because
+calculating the NNI distance is a hard problem and the current implementation
+is basic, this function is time-consuming even with a small `maxmoves`.
 """
 function nnidistance(startingnet::HybridNetwork, truenet::HybridNetwork,
                      outgroup::String, nohybridladder::Bool, no3cycle::Bool,
                      maxmoves=2::Int,
                      constraints=TopologyConstraint[]::Vector{TopologyConstraint})
-    if sort([l.name for l in truenet.leaf]) != sort([l.name for l in startingnet.leaf])
+    sort!(tipLabels(truenet)) == sort!(tipLabels(startingnet)) ||
         error("Networks have different taxa. Cannot compute an nni distance between networks with different taxa.")
-    end
     rootatnode!(startingnet, outgroup) # confirm startingnet is rooted at outgroup
     removedegree2nodes!(startingnet) # rooting adds a node of degree two. This removes it.
     nmoves = 0
-    if hardwiredClusterDistance(startingnet, truenet, true) == 0
+    equalnets(n1,n2) = hardwiredClusterDistance(n1, n2, true) == 0
+    if equalnets(startingnet,truenet)
         @debug "After rerooting, startingnet and truenet match. No NNI moves were needed."
         return nmoves
     end
     startingnets = [writeTopology(startingnet)]
+    # cecile: why strings??
     while nmoves < maxmoves
         nmoves += 1
         allneighbors = String[] # reset to zero to create new set of neighbors
@@ -835,16 +837,29 @@ function nnidistance(startingnet::HybridNetwork, truenet::HybridNetwork,
             snet = readTopology(startingnets[s])
             neighbors = uniqueneighbornets(snet, nohybridladder, no3cycle, constraints)
             for n in 1:length(neighbors) # see if we found truenet
-                if hardwiredClusterDistance(readTopology(neighbors[n]), truenet, true) == 0
+                if equalnets(readTopology(neighbors[n]), truenet)
                     @debug "After $nmoves move(s), startingnet was transformed into truenet with NNIs."
                     return nmoves
                 end
             end
             allneighbors = vcat(allneighbors, neighbors)
+            #= why not: append!(allneighbors, neighbors) ?
+               why not: remove duplicate neighbors in this "all" list, and
+                   also remove any startingnets?
+            example:
+            duplicate = findfirst(net -> equalnets(net,neighbors[n]), allneighbors))
+            if isnothing(duplicate) then push!(allneighbors, neighbors[n])
+            else: don't push it, and don't even check if it's equal to truenet.
+
+            or: only check if neighbors[n] is the same as truenet.
+            then later, go through the neighbors list and only push those
+            that are not found in allneighbors already, and not found in
+            startingnets either.
+            =#
         end
         # use these neighbors as the next startingnets
         startingnets = allneighbors
     end
-    @debug "After $nmoves move(s), startingnet could not be transformed into truenet using NNIs."
+    @debug "the input networks are at NNI-distance greater than $nmoves."
     return Inf
 end

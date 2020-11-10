@@ -590,8 +590,8 @@ end
 @testset "neighbor networks" begin
 truenet = readTopology("(((1:0.013635011856564799,2:0.013337412436279021):0.02379142358426221,((3:0.014458424150016028,4:0.015899483647102967):0.0)#H1:0.01602497696107314::0.7876602143873201):0.01491008237330521,(#H1:0.014834901504447811::0.2123397856126799,5:0.005527884554698987):0.055340371373774774,6:0.0620387315019168);")
 startingnet = readTopology("(((1:0.009221630571539522,2:0.01090284156388857):0.03072521643460218,(3:1.0e-8,(4:0.0)#H1:0.01133912873252381::0.7292558128341733):0.030320601757657505):0.013615526953203836,6:0.07418479480620778,(5:0.016527926411687346,#H1:1.0000000050247593e-8::0.2707441871658267):0.026214884034880433);")
-@test length(PhyloNetworks.neighbornets(truenet, false, false)) == 40
+@test length(PhyloNetworks.nnineighbors(truenet, false, false)) == 40
 @test length(PhyloNetworks.uniqueneighbornets(truenet, true, true)) == 12
-@test length(PhyloNetworks.neighbornets(startingnet, true, true)) == 44
+@test length(PhyloNetworks.nnineighbors(startingnet, true, true)) == 44
 @test length(PhyloNetworks.uniqueneighbornets(startingnet, false, true)) == 18
 end # testset "neighbor networks"

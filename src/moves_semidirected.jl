@@ -1093,9 +1093,10 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
 end
 
 """
-    neighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+    nnineighbors(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
                  constraints=TopologyConstraint[]::Vector{TopologyConstraint})
-Find the immediate sNNI neighborhood of a particular topology. Return an array
+
+Return the immediate sNNI neighborhood of `net` as an array
 of the neighbor networks' Newick strings.
 
 Warning:
@@ -1104,46 +1105,65 @@ neighbors may contain duplicates. Therefore, the length of the list should not
 be taken as the number of neighbors. For the unique neighbors, see
 `uniqueneighbornets` function below.
 - creates one deep copy of net
+- clade constraints are not fully implemented yet --species constraints only.
+
 """
-function neighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
+function nnineighbors(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
                       constraints=TopologyConstraint[]::Vector{TopologyConstraint})
     neighbors = String[]
-    # distances = Int[]
-    originalnet = deepcopy(net) # keep original net for HWCD comparison
-    for e in net.edge
+    neibr = deepcopy(net) # do NOT modify the input network
+    for e in neibr.edge
         if any(con.edge === e for con in constraints) # if edge is a stem
             continue # skip to next edge
         end
-        nnimax(e) > 0x00 || continue # if no NNIs possible, skip to next edge
-        nnis = 0x01:nnimax(e)
-        for nummove in nnis
-            nummove <= nnimax(e) || error("move $nummove out of bounds here. max = $nnimax(e)")
-            moveinfo = nni!(net, e, nummove, nohybridladder, no3cycle)
+        for nummove in 0x01:nnimax(e) # empty if nnimax(e) <= 0x00
+            moveinfo = nni!(neibr, e, nummove, nohybridladder, no3cycle)
             !isnothing(moveinfo) || continue # move didn't work, skip to next NNI
-            net.root == originalnet.root || error("root changed by NNI")
-            push!(neighbors, writeTopology(net))
-            # push!(distances, hardwiredClusterDistance(net, originalnet, true))
+            neibr.root == net.root || error("root changed by NNI")
+            #= cecile:
+            did you check that NNIs don't never move the root?
+
+            why have keep the multiple occurences of the same neighbor?
+                why not remove the duplicates here, and
+                delete the function uniqueneighbornets? example:
+            duplicate = findlast(n -> hardwiredClusterDistance(n,neibr,true)==0, neighbors)
+            if isnothing(duplicate) then push!(neighbors, deepcopy(neibr)).
+            else don't push the duplicate.
+            findlast: because the last neighbors pushed were from NNIs along
+            the same edge, so most likely to match the duplicate.
+            =#
+            push!(neighbors, writeTopology(neibr))
+            #= cecile: why push the string version? Every downstream use
+                       transforms it back to a HybridNetwork object.
+            =#
             nni!(moveinfo...) # undo this nni
-            # confirm that net is unchanged after undoing nni
-            hardwiredClusterDistance(net, originalnet, true) == 0 ||
-                error("original net changed")
+            # not done: confirm that neibr is unchanged after undoing nni
+            # hardwiredClusterDistance(neibr, net, true) == 0 || error("original net changed")
         end
     end
-    return neighbors#, distances
+    return neighbors
 end
 
 """
     uniqueneighbornets(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
                  constraints=TopologyConstraint[]::Vector{TopologyConstraint})
 
-Return unique NNI neighbors of topology `net`.
+Return all networks obtained by applying to `net` one
+nearest neighbor interchange (NNI). If the same topology can be obtained
+by several NNIs (possibly with different sets of branch lengths),
+it is listed once only.
 
-Assumes that rooting will not change during an NNI
+Assumes that rooting does not change during an NNI.
 """
 function uniqueneighbornets(net::HybridNetwork, nohybridladder::Bool,
                             no3cycle::Bool,
                             constraints=TopologyConstraint[]::Vector{TopologyConstraint})
-    neighbors = neighbornets(net, nohybridladder, no3cycle, constraints)
+    neighbors = nnineighbors(net, nohybridladder, no3cycle, constraints)
+    # cecile: why not do this below?
+    # function isequal(n1, n2)
+    #     hardwiredClusterDistance(n1,n2,true) == 0
+    # end
+    # return unique(neighbors)
     ncount = length(neighbors)
     hwcds = zeros(Int, ncount, ncount) # rooted distances between neighbors
     for i in 1:ncount
