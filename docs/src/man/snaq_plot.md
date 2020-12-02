@@ -222,7 +222,7 @@ addprocs(nruns)
 @everywhere using PhyloNetworks
 net0 = readTopology("astraltree.tre");
 using DataFrames, CSV
-df_sp = DataFrame!(CSV.File("tableCF_speciesNames.csv", pool=false));
+df_sp = DataFrame(CSV.File("tableCF_speciesNames.csv", pool=false); copycols=false);
 d_sp = readTableCF!(df_sp);
 net = snaq!(net0, d_sp, hmax=h, filename=outputfile, seed=seed, runs=nruns)
 ```

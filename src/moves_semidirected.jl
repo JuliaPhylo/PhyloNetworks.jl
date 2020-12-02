@@ -774,7 +774,7 @@ julia> species_constraints
 ```
 """
 function mapindividuals(net::HybridNetwork, mappingFile::String)
-    mappingDF = DataFrame!(CSV.File(mappingFile))
+    mappingDF = DataFrame(CSV.File(mappingFile); copycols=false)
     specieslist = unique(mappingDF[:, 1])
     individualnet = deepcopy(net)
     constraints = TopologyConstraint[]

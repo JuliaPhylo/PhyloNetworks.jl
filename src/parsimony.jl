@@ -409,7 +409,7 @@ Return a tuple containing:
 """
 function readfastatodna(fastafile::String, countPatterns=false::Bool)
     reader = FASTX.FASTA.Reader(open(fastafile))
-    siteList = Vector{Vector}(undef, 0) #array of arrays, one array for each site (8 in example)
+    siteList = Vector{Vector}(undef, 0) # vector of vectors: one for each site
     species = String[]
     firstspecies = Bool(true)
     nsites = 0
@@ -445,8 +445,8 @@ function readfastatodna(fastafile::String, countPatterns=false::Bool)
         end
     end
 
-    #create dat here
-    dat = DataFrame(siteList)
+    # column names: x1 through xn where n = # distinct sites
+    dat = DataFrame(siteList, ["x$i" for i in 1:length(siteList)], copycols=false)
     insertcols!(dat, 1, :taxon => species)
     return (dat, weights)
 end
@@ -494,7 +494,7 @@ function readCSVtoArray(dat::DataFrame)
 end
 
 function readCSVtoArray(filename::String)
-    dat = DataFrame!(CSV.File(filename))
+    dat = DataFrame(CSV.File(filename); copycols=false)
     readCSVtoArray(dat)
 end
 

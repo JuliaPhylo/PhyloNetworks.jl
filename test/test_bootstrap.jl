@@ -39,7 +39,7 @@ end # of testset, hybridBootstrapSupport
 
 @testset "bootsnaq from quartet CF intervals" begin
 T=readTopology(joinpath(exdir,"startTree.txt"))
-datf=DataFrame!(CSV.File(joinpath(exdir,"tableCFCI.csv")))
+datf=DataFrame(CSV.File(joinpath(exdir,"tableCFCI.csv")); copycols=false)
 originalstdout = stdout
 redirect_stdout(open("/dev/null", "w")) # not portable to Windows
 bootnet = bootsnaq(T,datf,nrep=2,runs=1,seed=1234,filename="",Nfail=2,

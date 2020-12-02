@@ -350,8 +350,7 @@ function vcv(net::HybridNetwork;
     V = sharedPathMatrix(net; checkPreorder=checkPreorder)
     C = V[:Tips]
     corr && StatsBase.cov2cor!(C, sqrt.(diag(C)))
-    Cd = convert(DataFrame, C)
-    rename!(Cd, map(Symbol, V.tipNames))
+    Cd = DataFrame(C, map(Symbol, V.tipNames))
     return(Cd)
 end
 
@@ -578,20 +577,12 @@ function regressorShift(node::Vector{Node},
         !node[i].hybrid || error("Shifts on hybrid edges are not allowed")
         ind[i] = getIndex(node[i], net.nodes_changed)
     end
-    df = DataFrame(T_t[:, ind])
-    ## Get the names of the columns
+    ## get column names
     eNum = [getMajorParentEdgeNumber(n) for n in net.nodes_changed[ind]]
-    # function tmp_fun(x::Int)
-    #     if x<0
-    #         return(Symbol("shift_m$(-x)"))
-    #     else
-    #         return(Symbol("shift_$(x)"))
-    #     end
-    # end
     function tmp_fun(x::Int)
         return(Symbol("shift_$(x)"))
     end
-    rename!(df, [tmp_fun(num) for num in eNum])
+    df = DataFrame(T_t[:, ind], [tmp_fun(num) for num in eNum])
     df[!,:tipNames]=T.tipNames
     return(df)
 end
@@ -1948,7 +1939,7 @@ julia> phy = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..", "exampl
 
 julia> using DataFrames, CSV # to read data file, next
 
-julia> dat = DataFrame!(CSV.File(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "caudata_trait.txt")));
+julia> dat = CSV.File(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "caudata_trait.txt")) |> DataFrame;
 
 julia> using StatsModels # for stat model formulas
 
@@ -2344,8 +2335,8 @@ function anova(objs::PhyloNetworkLinearModel...)
       anovaTable[i, :] = anovaBin(objs[i], objs[i+1])
     end
     ## Transform into a DataFrame
-    anovaTable = DataFrame(anovaTable)
-    rename!(anovaTable, [:dof_res, :RSS, :dof, :SS, :F, Symbol("Pr(>F)")])
+    anovaTable = DataFrame(anovaTable,
+        [:dof_res, :RSS, :dof, :SS, :F, Symbol("Pr(>F)")])
     return(anovaTable)
 end
 
@@ -2629,7 +2620,7 @@ julia> using DataFrames, CSV # to read data file
 
 julia> phy = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "carnivores_tree.txt"));
 
-julia> dat = DataFrame!(CSV.File(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "carnivores_trait.txt")));
+julia> dat = CSV.File(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "carnivores_trait.txt")) |> DataFrame;
 
 julia> using StatsModels # for statistical model formulas
 

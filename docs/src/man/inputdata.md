@@ -136,7 +136,7 @@ first to read the file and convert it to a 'DataFrame' object,
 and then to convert this DataFrame into a DataCF object.
 ```@repl qcf
 using CSV, DataFrames
-dat = DataFrame!(CSV.File(buckyCFfile));
+dat = DataFrame(CSV.File(buckyCFfile); copycols=false);
 first(dat, 6) # to see the first 6 rows
 buckyCF = readTableCF(dat)
 writeTableCF(buckyCF)

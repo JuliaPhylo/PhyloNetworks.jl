@@ -89,7 +89,7 @@ The last version modifies the input data frame, if species are represented by mu
 for instance (see [`readTableCF!`](@ref)(data frame, columns)).
 """
 function readTableCF(file::AbstractString; delim=','::Char, summaryfile=""::AbstractString)
-    df = DataFrame!(CSV.File(file, delim=delim))
+    df = DataFrame(CSV.File(file, delim=delim); copycols=false)
     readTableCF!(df, summaryfile=summaryfile)
 end
 

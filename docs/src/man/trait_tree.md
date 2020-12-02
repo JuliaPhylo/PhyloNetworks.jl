@@ -354,12 +354,13 @@ trait3 # changed: +5 was added by the previous loop to A and B
 ```
 The categorical variable `underHyb` separates tips "A" and "B" from the others.
 We need to mark it as a categorical variable, not a numerical variable,
-i.e. as a `PooledDataArray`.
+i.e. as a `CategoricalArray`.
 ```@example tree_trait
 dat = DataFrame(trait1 = trait1, trait2 = trait2, trait3 = trait3,
                 underHyb = underHyb,
                 tipNames = tipLabels(sim1))
-categorical!(dat, :underHyb)
+transform!(dat, :underHyb => categorical, renamecols=false)
+
 nothing # hide
 ```
 ```@repl tree_trait

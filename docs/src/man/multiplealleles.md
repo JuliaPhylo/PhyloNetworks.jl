@@ -8,7 +8,7 @@ to a species, and if only the species-level network needs to be estimated,
 then the following functions can be used:
 
 ```julia
-tm = DataFrame!(CSV.File(mappingFile) # taxon map as a data frame
+tm = DataFrame(CSV.File(mappingFile)) # taxon map as a data frame
 taxonmap = Dict(tm[i,:allele] => tm[i,:species] for i in 1:110) # taxon map as a dictionary
 ```
 
