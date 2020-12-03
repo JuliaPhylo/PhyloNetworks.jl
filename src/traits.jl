@@ -302,14 +302,14 @@ julia> tree = readTopology(tree_str);
 
 julia> C = vcv(tree)
 5×5 DataFrame
-│ Row │ t2      │ t4      │ t3      │ t5      │ t1      │
-│     │ Float64 │ Float64 │ Float64 │ Float64 │ Float64 │
-├─────┼─────────┼─────────┼─────────┼─────────┼─────────┤
-│ 1   │ 0.87    │ 0.73    │ 0.14    │ 0.0     │ 0.0     │
-│ 2   │ 0.73    │ 1.06    │ 0.14    │ 0.0     │ 0.0     │
-│ 3   │ 0.14    │ 0.14    │ 1.1     │ 0.0     │ 0.0     │
-│ 4   │ 0.0     │ 0.0     │ 0.0     │ 1.6     │ 0.9     │
-│ 5   │ 0.0     │ 0.0     │ 0.0     │ 0.9     │ 1.08    │
+ Row │ t2       t4       t3       t5       t1      
+     │ Float64  Float64  Float64  Float64  Float64 
+─────┼─────────────────────────────────────────────
+   1 │    0.87     0.73     0.14      0.0     0.0
+   2 │    0.73     1.06     0.14      0.0     0.0
+   3 │    0.14     0.14     1.1       0.0     0.0
+   4 │    0.0      0.0      0.0       1.6     0.9
+   5 │    0.0      0.0      0.0       0.9     1.08
 
 ```
 The following block needs `ape` to be installed (not run):
@@ -334,12 +334,12 @@ julia> net = readTopology("((t1:1.0,#H1:0.1::0.30):0.5,((t2:0.9)#H1:0.2::0.70,t3
 
 julia> C = vcv(net)
 3×3 DataFrame
-│ Row │ t1      │ t2      │ t3      │
-│     │ Float64 │ Float64 │ Float64 │
-├─────┼─────────┼─────────┼─────────┤
-│ 1   │ 1.5     │ 0.15    │ 0.0     │
-│ 2   │ 0.15    │ 1.248   │ 0.28    │
-│ 3   │ 0.0     │ 0.28    │ 1.5     │
+ Row │ t1       t2       t3      
+     │ Float64  Float64  Float64 
+─────┼───────────────────────────
+   1 │    1.5     0.15      0.0
+   2 │    0.15    1.248     0.28
+   3 │    0.0     0.28      1.5
 ```
 """
 function vcv(net::HybridNetwork;
@@ -350,8 +350,7 @@ function vcv(net::HybridNetwork;
     V = sharedPathMatrix(net; checkPreorder=checkPreorder)
     C = V[:Tips]
     corr && StatsBase.cov2cor!(C, sqrt.(diag(C)))
-    Cd = convert(DataFrame, C)
-    rename!(Cd, map(Symbol, V.tipNames))
+    Cd = DataFrame(C, map(Symbol, V.tipNames))
     return(Cd)
 end
 
@@ -465,9 +464,8 @@ end
 ###############################################################################
 ###############################################################################
 """
-    regressorShift(node::Vector{Node}, net::HybridNetwork; checkPreorder=true::Bool)
-
-`regressorShift(edge::Vector{Edge}, net::HybridNetwork; checkPreorder=true::Bool)`
+    regressorShift(node::Vector{Node}, net::HybridNetwork; checkPreorder=true)
+    regressorShift(edge::Vector{Edge}, net::HybridNetwork; checkPreorder=true)
 
 Compute the regressor vectors associated with shifts on edges that are above nodes
 `node`, or on edges `edge`, on a network `net`. It uses function [`descendenceMatrix`](@ref), so
@@ -513,23 +511,23 @@ julia> using DataFrames # to handle data frames
 
 julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
 4×2 DataFrame
-│ Row │ trait   │ tipNames │
-│     │ Float64 │ String   │
-├─────┼─────────┼──────────┤
-│ 1   │ 13.392  │ A        │
-│ 2   │ 9.55741 │ B        │
-│ 3   │ 7.17704 │ C        │
-│ 4   │ 7.88906 │ D        │
+ Row │ trait     tipNames 
+     │ Float64   String   
+─────┼────────────────────
+   1 │ 13.392    A
+   2 │  9.55741  B
+   3 │  7.17704  C
+   4 │  7.88906  D
 
 julia> dfr_shift = regressorShift(net.node[nodes_shifts], net) # the regressors matching the shifts.
 4×3 DataFrame
-│ Row │ shift_1 │ shift_8 │ tipNames │
-│     │ Float64 │ Float64 │ String   │
-├─────┼─────────┼─────────┼──────────┤
-│ 1   │ 1.0     │ 0.0     │ A        │
-│ 2   │ 0.0     │ 0.0     │ B        │
-│ 3   │ 0.0     │ 1.0     │ C        │
-│ 4   │ 0.0     │ 0.6     │ D        │
+ Row │ shift_1  shift_8  tipNames 
+     │ Float64  Float64  String   
+─────┼────────────────────────────
+   1 │     1.0      0.0  A
+   2 │     0.0      0.0  B
+   3 │     0.0      1.0  C
+   4 │     0.0      0.6  D
 
 julia> dfr = innerjoin(dat, dfr_shift, on=:tipNames); # join data and regressors in a single dataframe
 
@@ -578,20 +576,12 @@ function regressorShift(node::Vector{Node},
         !node[i].hybrid || error("Shifts on hybrid edges are not allowed")
         ind[i] = getIndex(node[i], net.nodes_changed)
     end
-    df = DataFrame(T_t[:, ind])
-    ## Get the names of the columns
+    ## get column names
     eNum = [getMajorParentEdgeNumber(n) for n in net.nodes_changed[ind]]
-    # function tmp_fun(x::Int)
-    #     if x<0
-    #         return(Symbol("shift_m$(-x)"))
-    #     else
-    #         return(Symbol("shift_$(x)"))
-    #     end
-    # end
     function tmp_fun(x::Int)
         return(Symbol("shift_$(x)"))
     end
-    rename!(df, [tmp_fun(num) for num in eNum])
+    df = DataFrame(T_t[:, ind], [tmp_fun(num) for num in eNum])
     df[!,:tipNames]=T.tipNames
     return(df)
 end
@@ -653,23 +643,23 @@ julia> sim = simulate(net, params); # simulate a dataset with shifts
 
 julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
 4×2 DataFrame
-│ Row │ trait   │ tipNames │
-│     │ Float64 │ String   │
-├─────┼─────────┼──────────┤
-│ 1   │ 10.392  │ A        │
-│ 2   │ 9.55741 │ B        │
-│ 3   │ 10.177  │ C        │
-│ 4   │ 12.6891 │ D        │
+ Row │ trait     tipNames 
+     │ Float64   String   
+─────┼────────────────────
+   1 │ 10.392    A
+   2 │  9.55741  B
+   3 │ 10.177    C
+   4 │ 12.6891   D
 
 julia> dfr_hybrid = regressorHybrid(net) # the regressors matching the hybrids.
 4×3 DataFrame
-│ Row │ shift_6 │ tipNames │ sum     │
-│     │ Float64 │ String   │ Float64 │
-├─────┼─────────┼──────────┼─────────┤
-│ 1   │ 0.0     │ A        │ 0.0     │
-│ 2   │ 0.0     │ B        │ 0.0     │
-│ 3   │ 0.0     │ C        │ 0.0     │
-│ 4   │ 1.0     │ D        │ 1.0     │
+ Row │ shift_6  tipNames  sum     
+     │ Float64  String    Float64 
+─────┼────────────────────────────
+   1 │     0.0  A             0.0
+   2 │     0.0  B             0.0
+   3 │     0.0  C             0.0
+   4 │     1.0  D             1.0
 
 julia> dfr = innerjoin(dat, dfr_hybrid, on=:tipNames); # join data and regressors in a single dataframe
 
@@ -1916,8 +1906,8 @@ end
 
 
 """
-    phyloNetworklm(f, fr, net, model="BM",
-        fTolRel=1e^-10, fTolAbs=1e^-10, xTolRel=1e^-10, xTolAbs=1e^-10,
+    phyloNetworklm(f::StatsModels.FormulaTerm, dataframe, net, model="BM",
+        fTolRel=1e-10, fTolAbs=1e-10, xTolRel=1e-10, xTolAbs=1e-10,
         startingValue=0.5)`
 
 Phylogenetic regression, using the correlation structure induced by the network.
@@ -1925,16 +1915,17 @@ Phylogenetic regression, using the correlation structure induced by the network.
 Returns an object of class [`PhyloNetworkLinearModel`](@ref). See documentation for this type and example to see all the functions that can be applied to it.
 
 # Arguments
-* `f::StatsModels.FormulaTerm`: formula to use for the regression
-* `fr::AbstractDataFrame`: DataFrame containing the data and regressors at the tips. It should have an extra column labelled "tipNames", that gives the names of the taxa for each observation.
-* `net::HybridNetwork`: phylogenetic network to use. Should have labelled tips.
+* `f`: formula to use for the regression
+* `dataframe`: DataFrame containing the data and regressors at the tips.
+   It should have a column labelled "tipNames", that gives the names of the taxa for each observation.
+* `net`: phylogenetic network to use. Should have labelled tips.
 * `model::AbstractString="BM"`: the model to use, "BM" (default) or "lambda" (for Pagel's lambda).
 * `no_names::Bool=false`: if `true`, force the function to ignore the tips names. The data is then assumed to be in the same order as the tips of the network. Default to false, setting it to true is dangerous, and strongly discouraged.
 If `model="lambda"`, these parameters control the optimization of lambda:
-* `fTolRel::AbstractFloat=1e-10`: relative tolerance on the likelihood value for the optimization in lambda.
-* `fTolAbs::AbstractFloat=1e-10`: absolute tolerance on the likelihood value for the optimization in lambda.
-* `xTolRel::AbstractFloat=1e-10`: relative tolerance on the parameter value for the optimization in lambda.
-* `xTolAbs::AbstractFloat=1e-10`: absolute tolerance on the parameter value for the optimization in lambda.
+* `fTolRel=1e-10`: relative tolerance on the likelihood value for the optimization in lambda.
+* `fTolAbs=1e-10`: absolute tolerance on the likelihood value for the optimization in lambda.
+* `xTolRel=1e-10`: relative tolerance on the parameter value for the optimization in lambda.
+* `xTolAbs=1e-10`: absolute tolerance on the parameter value for the optimization in lambda.
 * `startingValue::Real=0.5`: the starting value for the parameter in the optimization in lambda.
 
 # See also
@@ -1948,7 +1939,7 @@ julia> phy = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..", "exampl
 
 julia> using DataFrames, CSV # to read data file, next
 
-julia> dat = DataFrame!(CSV.File(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "caudata_trait.txt")));
+julia> dat = CSV.File(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "caudata_trait.txt")) |> DataFrame;
 
 julia> using StatsModels # for stat model formulas
 
@@ -2344,8 +2335,8 @@ function anova(objs::PhyloNetworkLinearModel...)
       anovaTable[i, :] = anovaBin(objs[i], objs[i+1])
     end
     ## Transform into a DataFrame
-    anovaTable = DataFrame(anovaTable)
-    rename!(anovaTable, [:dof_res, :RSS, :dof, :SS, :F, Symbol("Pr(>F)")])
+    anovaTable = DataFrame(anovaTable,
+        [:dof_res, :RSS, :dof, :SS, :F, Symbol("Pr(>F)")])
     return(anovaTable)
 end
 
@@ -2629,7 +2620,7 @@ julia> using DataFrames, CSV # to read data file
 
 julia> phy = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "carnivores_tree.txt"));
 
-julia> dat = DataFrame!(CSV.File(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "carnivores_trait.txt")));
+julia> dat = CSV.File(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "carnivores_trait.txt")) |> DataFrame;
 
 julia> using StatsModels # for statistical model formulas
 
@@ -2680,25 +2671,26 @@ ReconstructedStates:
 
 julia> expectations(ancStates)
 31×2 DataFrame
-│ Row │ nodeNumber │ condExpectation │
-│     │ Int64      │ Float64         │
-├─────┼────────────┼─────────────────┤
-│ 1   │ -5         │ 1.32139         │
-│ 2   │ -8         │ 1.03258         │
-│ 3   │ -7         │ 1.41575         │
-│ 4   │ -6         │ 1.39417         │
-│ 5   │ -4         │ 1.39961         │
-│ 6   │ -3         │ 1.51341         │
-│ 7   │ -13        │ 5.3192          │
-⋮
-│ 24  │ 7          │ 0.773436        │
-│ 25  │ 10         │ 6.94985         │
-│ 26  │ 11         │ 4.78323         │
-│ 27  │ 12         │ 5.33016         │
-│ 28  │ 1          │ -0.122604       │
-│ 29  │ 16         │ 0.73989         │
-│ 30  │ 9          │ 4.84236         │
-│ 31  │ 3          │ 1.0695          │
+ Row │ nodeNumber  condExpectation
+     │ Int64       Float64
+─────┼─────────────────────────────
+   1 │         -5         1.32139
+   2 │         -8         1.03258
+   3 │         -7         1.41575
+   4 │         -6         1.39417
+   5 │         -4         1.39961
+   6 │         -3         1.51341
+   7 │        -13         5.3192
+   8 │        -12         4.51176
+  ⋮  │     ⋮              ⋮
+  25 │         10         6.94985
+  26 │         11         4.78323
+  27 │         12         5.33016
+  28 │          1        -0.122604
+  29 │         16         0.73989
+  30 │          9         4.84236
+  31 │          3         1.0695
+                    16 rows omitted
 
 julia> predint(ancStates)
 31×2 Array{Float64,2}:
@@ -2725,51 +2717,53 @@ julia> predint(ancStates)
 
 julia> expectationsPlot(ancStates) # format the ancestral states
 31×2 DataFrame
-│ Row │ nodeNumber │ PredInt  │
-│     │ Int64      │ Abstrac… │
-├─────┼────────────┼──────────┤
-│ 1   │ -5         │ 1.32     │
-│ 2   │ -8         │ 1.03     │
-│ 3   │ -7         │ 1.42     │
-│ 4   │ -6         │ 1.39     │
-│ 5   │ -4         │ 1.4      │
-│ 6   │ -3         │ 1.51     │
-│ 7   │ -13        │ 5.32     │
-⋮
-│ 24  │ 7          │ 0.77     │
-│ 25  │ 10         │ 6.95     │
-│ 26  │ 11         │ 4.78     │
-│ 27  │ 12         │ 5.33     │
-│ 28  │ 1          │ -0.12    │
-│ 29  │ 16         │ 0.74     │
-│ 30  │ 9          │ 4.84     │
-│ 31  │ 3          │ 1.07     │
+ Row │ nodeNumber  PredInt
+     │ Int64       Abstract… 
+─────┼───────────────────────
+   1 │         -5  1.32
+   2 │         -8  1.03
+   3 │         -7  1.42
+   4 │         -6  1.39
+   5 │         -4  1.4
+   6 │         -3  1.51
+   7 │        -13  5.32
+   8 │        -12  4.51
+  ⋮  │     ⋮           ⋮
+  25 │         10  6.95
+  26 │         11  4.78
+  27 │         12  5.33
+  28 │          1  -0.12
+  29 │         16  0.74
+  30 │          9  4.84
+  31 │          3  1.07
+              16 rows omitted
 
 julia> using PhyloPlots # next: plot ancestral states on the tree
 
 julia> plot(phy, :RCall, nodeLabel = expectationsPlot(ancStates));
 
-julia> predintPlot(ancStates)
+julia> predintPlot(ancStates) # prediction intervals, in data frame, useful to plot
 31×2 DataFrame
-│ Row │ nodeNumber │ PredInt       │
-│     │ Int64      │ AbstractStri… │
-├─────┼────────────┼───────────────┤
-│ 1   │ -5         │ [-0.29, 2.93] │
-│ 2   │ -8         │ [-0.54, 2.6]  │
-│ 3   │ -7         │ [-0.09, 2.92] │
-│ 4   │ -6         │ [-0.06, 2.85] │
-│ 5   │ -4         │ [-0.06, 2.86] │
-│ 6   │ -3         │ [-0.18, 3.21] │
-│ 7   │ -13        │ [3.97, 6.67]  │
-⋮
-│ 24  │ 7          │ 0.77          │
-│ 25  │ 10         │ 6.95          │
-│ 26  │ 11         │ 4.78          │
-│ 27  │ 12         │ 5.33          │
-│ 28  │ 1          │ -0.12         │
-│ 29  │ 16         │ 0.74          │
-│ 30  │ 9          │ 4.84          │
-│ 31  │ 3          │ 1.07          │
+ Row │ nodeNumber  PredInt
+     │ Int64       Abstract…
+─────┼───────────────────────────
+   1 │         -5  [-0.29, 2.93]
+   2 │         -8  [-0.54, 2.6]
+   3 │         -7  [-0.09, 2.92]
+   4 │         -6  [-0.06, 2.85]
+   5 │         -4  [-0.06, 2.86]
+   6 │         -3  [-0.18, 3.21]
+   7 │        -13  [3.97, 6.67]
+   8 │        -12  [2.94, 6.08]
+  ⋮  │     ⋮             ⋮
+  25 │         10  6.95
+  26 │         11  4.78
+  27 │         12  5.33
+  28 │          1  -0.12
+  29 │         16  0.74
+  30 │          9  4.84
+  31 │          3  1.07
+                  16 rows omitted
 
 julia> plot(phy, :RCall, nodeLabel = predintPlot(ancStates));
 
@@ -2786,96 +2780,41 @@ julia> ancStates = ancestralStateReconstruction(fitBM);
 │ ignored, so prediction intervals should be larger.
 └ @ PhyloNetworks ~/build/crsl4/PhyloNetworks.jl/src/traits.jl:2163
 
-julia> expectations(ancStates)
-31×2 DataFrame
-│ Row │ nodeNumber │ condExpectation │
-│     │ Int64      │ Float64         │
-├─────┼────────────┼─────────────────┤
-│ 1   │ -5         │ 1.42724         │
-│ 2   │ -8         │ 1.35185         │
-│ 3   │ -7         │ 1.61993         │
-│ 4   │ -6         │ 1.54198         │
-│ 5   │ -4         │ 1.53916         │
-│ 6   │ -3         │ 1.64984         │
-│ 7   │ -13        │ 5.33508         │
-⋮
-│ 24  │ 7          │ 0.773436        │
-│ 25  │ 10         │ 6.94985         │
-│ 26  │ 11         │ 4.78323         │
-│ 27  │ 12         │ 5.33016         │
-│ 28  │ 1          │ -0.122604       │
-│ 29  │ 16         │ 0.73989         │
-│ 30  │ 9          │ 4.84236         │
-│ 31  │ 3          │ 1.0695          │
+julia> first(expectations(ancStates), 3) # looking at first 3 nodes only
+3×2 DataFrame
+ Row │ nodeNumber  condExpectation 
+     │ Int64       Float64         
+─────┼─────────────────────────────
+   1 │         -5          1.42724
+   2 │         -8          1.35185
+   3 │         -7          1.61993
 
-julia> predint(ancStates)
-31×2 Array{Float64,2}:
- -0.31245     3.16694
- -0.625798    3.3295
- -0.110165    3.35002
- -0.0710391   3.15501
- -0.0675924   3.14591
- -0.197236    3.49692
-  3.89644     6.77373
-  2.8741      6.22808
- -0.0358627   3.12834
-  0.182594    3.2534
-  ⋮
-  0.542565    0.542565
-  0.773436    0.773436
-  6.94985     6.94985
-  4.78323     4.78323
-  5.33016     5.33016
- -0.122604   -0.122604
-  0.73989     0.73989
-  4.84236     4.84236
-  1.0695      1.0695
+julia> predint(ancStates)[1:3,:] # just first 3 nodes again
+3×2 Array{Float64,2}:
+ -0.31245   3.16694
+ -0.625798  3.3295
+ -0.110165  3.35002
 
-julia> expectationsPlot(ancStates) # format node <-> ancestral state
-31×2 DataFrame
-│ Row │ nodeNumber │ PredInt  │
-│     │ Int64      │ Abstrac… │
-├─────┼────────────┼──────────┤
-│ 1   │ -5         │ 1.43     │
-│ 2   │ -8         │ 1.35     │
-│ 3   │ -7         │ 1.62     │
-│ 4   │ -6         │ 1.54     │
-│ 5   │ -4         │ 1.54     │
-│ 6   │ -3         │ 1.65     │
-│ 7   │ -13        │ 5.34     │
-⋮
-│ 24  │ 7          │ 0.77     │
-│ 25  │ 10         │ 6.95     │
-│ 26  │ 11         │ 4.78     │
-│ 27  │ 12         │ 5.33     │
-│ 28  │ 1          │ -0.12    │
-│ 29  │ 16         │ 0.74     │
-│ 30  │ 9          │ 4.84     │
-│ 31  │ 3          │ 1.07     │
+   
+julia> first(expectationsPlot(ancStates),3) # format node <-> ancestral state
+3×2 DataFrame
+ Row │ nodeNumber  PredInt   
+     │ Int64       Abstract… 
+─────┼───────────────────────
+   1 │         -5  1.43
+   2 │         -8  1.35
+   3 │         -7  1.62
 
 julia> plot(phy, :RCall, nodeLabel = expectationsPlot(ancStates));
 
-julia> predintPlot(ancStates) # prediction intervals, in data frame, useful to plot
-31×2 DataFrame
-│ Row │ nodeNumber │ PredInt       │
-│     │ Int64      │ AbstractStri… │
-├─────┼────────────┼───────────────┤
-│ 1   │ -5         │ [-0.31, 3.17] │
-│ 2   │ -8         │ [-0.63, 3.33] │
-│ 3   │ -7         │ [-0.11, 3.35] │
-│ 4   │ -6         │ [-0.07, 3.16] │
-│ 5   │ -4         │ [-0.07, 3.15] │
-│ 6   │ -3         │ [-0.2, 3.5]   │
-│ 7   │ -13        │ [3.9, 6.77]   │
-⋮
-│ 24  │ 7          │ 0.77          │
-│ 25  │ 10         │ 6.95          │
-│ 26  │ 11         │ 4.78          │
-│ 27  │ 12         │ 5.33          │
-│ 28  │ 1          │ -0.12         │
-│ 29  │ 16         │ 0.74          │
-│ 30  │ 9          │ 4.84          │
-│ 31  │ 3          │ 1.07          │
+julia> first(predintPlot(ancStates),3) # prediction intervals, useful to plot
+3×2 DataFrame
+ Row │ nodeNumber  PredInt       
+     │ Int64       Abstract…     
+─────┼───────────────────────────
+   1 │         -5  [-0.31, 3.17]
+   2 │         -8  [-0.63, 3.33]
+   3 │         -7  [-0.11, 3.35]
 
 julia> plot(phy, :RCall, nodeLabel = predintPlot(ancStates));
 ```

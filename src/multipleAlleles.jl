@@ -33,7 +33,7 @@ in the example below, this file is best read later with the option
 ```julia
 mapAllelesCFtable("allele-species-map.csv", "allele-quartet-CF.csv";
                   filename = "quartetCF_speciesNames.csv")
-df_sp = DataFrame!(CSV.File("quartetCF_speciesNames.csv")); # DataFrame object
+df_sp = DataFrame(CSV.File("quartetCF_speciesNames.csv"); copycols=false); # DataFrame object
 dataCF_specieslevel = readTableCF!(df_sp); # DataCF object
 ```
 """
@@ -43,8 +43,8 @@ function mapAllelesCFtable(alleleDF::AbstractString, cfDF::AbstractString;
     if :pool ∉ [pair[1] for pair in CSVargs]
         CSVargs = (CSVargs..., :pool=>false)
     end
-    d = DataFrame!(CSV.File(alleleDF; CSVargs...))
-    d2 = DataFrame!(CSV.File(cfDF; CSVargs...))
+    d = DataFrame(CSV.File(alleleDF; CSVargs...); copycols=false)
+    d2 = DataFrame(CSV.File(cfDF; CSVargs...); copycols=false)
     mapAllelesCFtable!(d2,d, columns, filename != "", filename)
 end
 

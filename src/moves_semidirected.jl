@@ -576,12 +576,14 @@ i.e. α->u<-v<-δ. If this is true, we flip the hybrid status of αu and vδ.
 
 `indices` give indices for nodes and edges u_in_αu, αu_in_u, vδ_in_v, and v_in_vδ.
 These are interpreted as:
+
     u_in_αu: the index for u in the edge αu
     αu_in_u: the index for αu in node u
     vδ_in_v: the index for vδ in node v
     v_in_vδ: the index for v in edge vδ
 
 **Warnings**:
+
 - *No* check of assumed adjacencies
 - Not implemented for cases that are not necessary thanks to symmetry,
   such as cases covered by `nni!(vδ, v, uv, u, αu)` or `nni!(βu, u, v, vγ)`.
@@ -590,8 +592,8 @@ These are interpreted as:
   * u hybrid, v not hybrid, α -> u <- v -> δ
 - Because of this, `nni(αu,u,uv,v,vδ, ...)` should not be used directly;
   use instead `nni!(net, uv, move_number)`.
-- nni!(undoinfo...) restores the topology, but edges below hybrid nodes will now
-have length 0.0 even if they didn't before.
+- nni!(undoinfo...) restores the topology, but edges below hybrid nodes
+  will have length 0.0 even if they didn't before.
 
 Node numbers and edge numbers are not modified.
 Edge `uv` keeps its direction unchanged *unless* the directions were
@@ -774,7 +776,7 @@ julia> species_constraints
 ```
 """
 function mapindividuals(net::HybridNetwork, mappingFile::String)
-    mappingDF = DataFrame!(CSV.File(mappingFile))
+    mappingDF = DataFrame(CSV.File(mappingFile); copycols=false)
     specieslist = unique(mappingDF[:, 1])
     individualnet = deepcopy(net)
     constraints = TopologyConstraint[]
