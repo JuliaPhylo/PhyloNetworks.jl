@@ -596,17 +596,16 @@ data: [1.0, 0.0, 0.0, 0.5]
 
 julia> df = writeTableCF(q,t); # to get a DataFrame that can be saved to a file later
 
-julia> show(df, allcols=true, splitcols=false)
+julia> show(df, allcols=true)
 5×8 DataFrame
-│ Row │ t1     │ t2     │ t3     │ t4     │ CF12_34 │ CF13_24 │ CF14_23 │ ngenes  │
-│     │ String │ String │ String │ String │ Float64 │ Float64 │ Float64 │ Float64 │
-├─────┼────────┼────────┼────────┼────────┼─────────┼─────────┼─────────┼─────────┤
-│ 1   │ A      │ B      │ D      │ E      │ 0.25    │ 0.25    │ 0.5     │ 2.0     │
-│ 2   │ A      │ B      │ D      │ O      │ 0.5     │ 0.5     │ 0.0     │ 1.0     │
-│ 3   │ A      │ B      │ E      │ O      │ 1.0     │ 0.0     │ 0.0     │ 0.5     │
-│ 4   │ A      │ D      │ E      │ O      │ 1.0     │ 0.0     │ 0.0     │ 0.5     │
-│ 5   │ B      │ D      │ E      │ O      │ 0.0     │ 0.0     │ 0.0     │ 0.0     │
-
+ Row │ t1      t2      t3      t4      CF12_34  CF13_24  CF14_23  ngenes  
+     │ String  String  String  String  Float64  Float64  Float64  Float64 
+─────┼────────────────────────────────────────────────────────────────────
+   1 │ A       B       D       E          0.25     0.25      0.5      2.0
+   2 │ A       B       D       O          0.5      0.5       0.0      1.0
+   3 │ A       B       E       O          1.0      0.0       0.0      0.5
+   4 │ A       D       E       O          1.0      0.0       0.0      0.5
+   5 │ B       D       E       O          0.0      0.0       0.0      0.0
 julia> # using CSV; CSV.write(df, "filename.csv");
 
 julia> tree2 = readTopology("((A,(B,D)),E);");
@@ -616,16 +615,16 @@ Reading in trees, looking at 5 quartets in each...
 0+--+100%
   **
 
-julia> show(writeTableCF(q,t), allcols=true, splitcols=false)
+julia> show(writeTableCF(q,t), allcols=true)
 5×8 DataFrame
-│ Row │ t1     │ t2     │ t3     │ t4     │ CF12_34  │ CF13_24  │ CF14_23  │ ngenes  │
-│     │ String │ String │ String │ String │ Float64  │ Float64  │ Float64  │ Float64 │
-├─────┼────────┼────────┼────────┼────────┼──────────┼──────────┼──────────┼─────────┤
-│ 1   │ A      │ B      │ D      │ E      │ 0.333333 │ 0.333333 │ 0.333333 │ 3.0     │
-│ 2   │ A      │ B      │ D      │ O      │ 0.5      │ 0.5      │ 0.0      │ 2.0     │
-│ 3   │ A      │ B      │ E      │ O      │ 1.0      │ 0.0      │ 0.0      │ 1.0     │
-│ 4   │ A      │ D      │ E      │ O      │ 1.0      │ 0.0      │ 0.0      │ 1.0     │
-│ 5   │ B      │ D      │ E      │ O      │ 0.0      │ 0.0      │ 0.0      │ 0.0     │
+ Row │ t1      t2      t3      t4      CF12_34   CF13_24   CF14_23   ngenes  
+     │ String  String  String  String  Float64   Float64   Float64   Float64 
+─────┼───────────────────────────────────────────────────────────────────────
+   1 │ A       B       D       E       0.333333  0.333333  0.333333      3.0
+   2 │ A       B       D       O       0.5       0.5       0.0           2.0
+   3 │ A       B       E       O       1.0       0.0       0.0           1.0
+   4 │ A       D       E       O       1.0       0.0       0.0           1.0
+   5 │ B       D       E       O       0.0       0.0       0.0           0.0
 ```
 """
 function countquartetsintrees(tree::Vector{HybridNetwork},

@@ -811,15 +811,12 @@ julia> dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"]);
 
 julia> fit = fitdiscrete(net, m1, dat); # optimized rates: α=0.27 and β=0.35
 
-julia> pltw = PhyloNetworks.posterior_logtreeweight(fit)
-2-element Array{Float64,1}:
- -0.08356519024776699
- -2.523619878044531  
+julia> pltw = PhyloNetworks.posterior_logtreeweight(fit);
 
-julia> exp.(pltw) # posterior trees probabilities (sum up to 1)
+julia> round.(exp.(pltw), digits=5) # posterior trees probabilities (sum up to 1)
 2-element Array{Float64,1}:
- 0.9198311206979973 
- 0.08016887930200293
+ 0.91983
+ 0.08017
 
 julia> round.(exp.(fit.priorltw), digits=4) # the prior tree probabilities are similar here (tiny data set!)
 2-element Array{Float64,1}:
@@ -999,18 +996,18 @@ julia> fit1 = fitdiscrete(net, m1, dat);
 
 julia> asr = ancestralStateReconstruction(fit1)
 9×4 DataFrame
-│ Row │ nodenumber │ nodelabel │ lo       │ hi       │
-│     │ Int64      │ String    │ Float64  │ Float64  │
-├─────┼────────────┼───────────┼──────────┼──────────┤
-│ 1   │ 1          │ A         │ 1.0      │ 0.0      │
-│ 2   │ 2          │ B         │ 1.0      │ 0.0      │
-│ 3   │ 3          │ C         │ 0.0      │ 1.0      │
-│ 4   │ 4          │ D         │ 0.0      │ 1.0      │
-│ 5   │ 5          │ 5         │ 0.286018 │ 0.713982 │
-│ 6   │ 6          │ 6         │ 0.319454 │ 0.680546 │
-│ 7   │ 7          │ 7         │ 0.168548 │ 0.831452 │
-│ 8   │ 8          │ 8         │ 0.767361 │ 0.232639 │
-│ 9   │ 9          │ H1        │ 0.782777 │ 0.217223 │
+ Row │ nodenumber  nodelabel  lo        hi
+     │ Int64       String     Float64   Float64
+─────┼───────────────────────────────────────────
+   1 │          1  A          1.0       0.0
+   2 │          2  B          1.0       0.0
+   3 │          3  C          0.0       1.0
+   4 │          4  D          0.0       1.0
+   5 │          5  5          0.286021  0.713979
+   6 │          6  6          0.319456  0.680544
+   7 │          7  7          0.16855   0.83145
+   8 │          8  8          0.767359  0.232641
+   9 │          9  H1         0.782776  0.217224
 
 julia> using PhyloPlots
 
