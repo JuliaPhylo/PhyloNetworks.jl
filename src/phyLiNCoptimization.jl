@@ -683,10 +683,17 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
             printEdges(obj.net)
             (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
             # loglik change ignored, but loglik recalculated below by optimizelocalBL
-            unzip_canonical!(obj.net)
+            @debug "after shrinking, edges:"
+            printEdges(obj.net)
             updateSSM!(obj, true; constraints=constraints)
             discrete_corelikelihood!(obj) #TODO remove this line after debugging
             @debug "after shrinking: loglik is $(obj.loglik)"
+            unzip_canonical!(obj.net)
+            @debug "after unzipping, edges:"
+            printEdges(obj.net)
+            updateSSM!(obj, true; constraints=constraints)
+            discrete_corelikelihood!(obj) #TODO remove this line after debugging
+            @debug "after unzipping: loglik is $(obj.loglik)"
         end
         # pick a random edge (internal or external), optimize adjancent lengths
         e = Random.rand(obj.net.edge)
@@ -1625,8 +1632,6 @@ function optimizeallgammas_LiNC!(obj::SSM, ftolAbs::Float64,
             nh = length(hybnodes) # normally nh-1, but could be less: deleting
             # one hybrid may delete others indirectly, e.g. if hybrid ladder
             # or if generation of a 2-cycle
-            discrete_corelikelihood!(obj)
-            # TODO need to add unzip_canonical! here?
             @debug "after deleting the ghost hybrid, loglik = $(obj.loglik)"
         end
         hi -= 1
