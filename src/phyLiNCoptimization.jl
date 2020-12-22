@@ -644,6 +644,7 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
         currLik = obj.loglik
         movechoice = sample(movelist_LiNC, moveweights_LiNC)
         if movechoice == "nni"
+            @debug "starting NNI"
             result = nni_LiNC!(obj, no3cycle,  nohybridladder,
                                constraints, ftolAbs, γcache, lcache)
         elseif movechoice == "addhybrid"
@@ -653,30 +654,40 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
             #              would decrease the weight of NNIs compared to add/delete hybrid
             nh < maxhybrid || # nh > maxhybrid should never happen
                 error("The network has $nh hybrids: more than the allowed max of $maxhybrid")
+            @debug "starting add hybrid"
             result = addhybridedgeLiNC!(obj, currLik, no3cycle,
                         nohybridladder, constraints, ftolAbs, γcache, lcache)
         elseif movechoice == "deletehybrid"
             obj.net.numHybrids == 0  && continue # skip & don't count towards nmoves if no hybrid in net
+            @debug "starting delete hybrid"
             result = deletehybridedgeLiNC!(obj, currLik,
                         no3cycle, constraints, γcache, lcache)
         elseif movechoice == "fliphybrid"
             obj.net.numHybrids == 0  && continue # skip & don't count towards nmoves if no hybrid in net
+            @debug "startin flip hybrid"
             result = fliphybridedgeLiNC!(obj, currLik,
                         nohybridladder, constraints, ftolAbs, γcache, lcache)
         else # change root (doesn't affect likelihood)
+            @debug "starting move root"
             result = moveroot!(obj.net, constraints)
             isnothing(result) || updateSSM_root!(obj) # edge direction used by updatecache_edge
         end
+        @debug "before optimizeallgammas, loglik = $(obj.loglik)"
         # optimize γ's
         ghosthybrid = optimizeallgammas_LiNC!(obj, ftolAbs, γcache, 1)
         if ghosthybrid # delete hybrid edges with γ=0
+            @debug "before shrinking: loglik is $(obj.loglik)\n gammas: $([e.gamma for e in obj.net.edge if e.hybrid])"
+            printEdges(obj.net)
             (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
             # loglik change ignored, but loglik recalculated below by optimizelocalBL
             updateSSM!(obj, true; constraints=constraints)
+            discrete_corelikelihood!(obj) #TODO remove this line after debugging
+            @debug "after shrinking: loglik is $(obj.loglik)"
         end
         # pick a random edge (internal or external), optimize adjancent lengths
         e = Random.rand(obj.net.edge)
         optimizelocalBL_LiNC!(obj, e, lcache)
+        ghosthybrid && @debug "after optimizelocalBL, loglik = $(obj.loglik)"
         nmoves += 1
         # next: update the number of consecutive rejections ignoring any root move
         #       (which don't change the semi-directed topology or loglik)
@@ -887,7 +898,9 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
         no3cycle::Bool,
         constraints::Vector{TopologyConstraint},
         γcache::CacheGammaLiNC, lcache::CacheLengthLiNC)
-
+    obj.loglik ≈ currLik || @debug "The currlik is not correct: currLik = $currLik, obj.loglik = $(obj.loglik)"
+    @debug "at start of delete hybrid, log lik = $(obj.loglik). currLik = $currLik"
+    @debug "lengths: $([e.length for e in obj.net.edge])\n gammas: $([e.gamma for e in obj.net.edge if e.hybrid])"
     nh = length(obj.net.hybrid)
     hybridnode = obj.net.hybrid[Random.rand(1:nh)]
     minorhybridedge = getMinorParentEdge(hybridnode)
@@ -912,6 +925,7 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
     # set γ to 0 to delete the hybrid edge: makes it easy to undo.
     # update minor edge, and prior log tree weights in obj
     γ0 = minorhybridedge.gamma
+    @debug "γ0 is $γ0"
     setGamma!(minorhybridedge, 0.0)
     l1mγ = log(1.0-γ0)
     nt, hase = updatecache_hase!(γcache, obj, minorhybridedge.number,
@@ -938,6 +952,7 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
         (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
         updateSSM!(obj, true; constraints=constraints)
         # obj.loglik will be updated by optimizeallgammas within optimizestructure
+
         return true
     else # keep hybrid
         majhyb.length = len0
@@ -946,6 +961,8 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
         #       if we wanted to avoid full update before each branch length optim
         updateSSM_priorltw!(obj) # displayedtree already correct
         obj.loglik = currLik # restore to likelihood before move
+        @debug "obj.loglik is $(obj.loglik)"
+        @debug "lengths: $([e.length for e in obj.net.edge])\n gammas: $([e.gamma for e in obj.net.edge if e.hybrid])"
         return false
     end
 end
@@ -1515,21 +1532,22 @@ function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
         #@show loglik + adjustment
         return loglik
     end
-    #=
-    oldlik = objective([focusedge.length], [0.0]) + adjustment
-    oldlik ≈ obj.loglik || @warn "oldlik $oldlik != stored lik $(obj.loglik): starting NNI?"
+    f0 = objective([focusedge.length], [0.0])
+    oldlik = f0 + adjustment
+    # oldlik ≈ obj.loglik || @warn "oldlik $oldlik != stored lik $(obj.loglik): starting NNI?"
     # obj.loglik outdated at the start of an NNI move:
     # it is for the older, not the newly proposed topology
-    =#
     optBL = lcache.opt
     NLopt.max_objective!(optBL, objective)
     fmax, xmax, ret = NLopt.optimize(optBL, [focusedge.length])
+    #f0 <= fmax || @debug "during optimizelength: f0 is $f0, fmax is $fmax"
     newlik = fmax + adjustment
     if ret == :FORCED_STOP # || oldlik > newlik
         @warn "failed optimization, edge $(focusedge.number): skipping branch length update."
         return nothing
     end
     focusedge.length = xmax[1]
+    # obj.loglik < newlik || @debug "during optimizelength, new loglik < old loglik"
     obj.loglik = newlik
     update_logtrans(obj, focusedge) # obj.logtrans updated according to new edge length
     return nothing
@@ -1596,11 +1614,15 @@ function optimizeallgammas_LiNC!(obj::SSM, ftolAbs::Float64,
     while hi > 0
         he = getMinorParentEdge(hybnodes[hi])
         if he.gamma == 0.0
+            printEdges(obj.net)
             deletehybridedge!(obj.net, he, false,true,false,false,false)
             ghosthybrid = true
             nh = length(hybnodes) # normally nh-1, but could be less: deleting
             # one hybrid may delete others indirectly, e.g. if hybrid ladder
             # or if generation of a 2-cycle
+            discrete_corelikelihood!(obj)
+            # TODO need to add unzip_canonical! here?
+            @debug "after deleting the ghost hybrid, loglik = $(obj.loglik)"
         end
         hi -= 1
         if hi>nh hi=nh; end
@@ -1839,6 +1861,7 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
         # to interval [0,0.5] or [0.5,1] as appropriate
     end
     ll += adjustment
+    obj.loglik - ll < 0.00001 || error("during optimizegamma, new loglik ($ll) < old loglik ($obj.loglik))")
     obj.loglik = ll
     lγdiff = log(γ) - log(γ0); l1mγdiff = log(1.0-γ) - log(1.0-γ0)
     for it in 1:nt
