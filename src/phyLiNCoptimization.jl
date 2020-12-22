@@ -392,6 +392,7 @@ function phyLiNC!(obj::SSM;
     end
     verbose && print(stdout,logstr)
     (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true)) # not done in phyLiNCone
+    unzip_canonical!(obj.net)
     # loglik changes after shrinkage, but recalculated below by optimizealllengths
     updateSSM!(obj, true; constraints = constraints)
     # warning: tolerance values from constants, not user-specified
@@ -400,6 +401,7 @@ function phyLiNC!(obj::SSM;
     ghosthybrid = optimizeallgammas_LiNC!(obj, fAbsBL, γcache, 100)
     if ghosthybrid
         (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
+        unzip_canonical!(obj.net)
         updateSSM!(obj, true; constraints=constraints)
         discrete_corelikelihood!(obj) # to get likelihood exact, even if not optimum
     end
@@ -507,6 +509,7 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
         Might want to add something to docs about this. =#
         if ghosthybrid && (nrejected < nrejectmax)
             shrink3cycles!(obj.net, true)
+            unzip_canonical!(obj.net)
             updateSSM!(obj, true; constraints=constraints)
         end
     end
@@ -680,6 +683,7 @@ function optimizestructure!(obj::SSM, maxmoves::Integer, maxhybrid::Integer,
             printEdges(obj.net)
             (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
             # loglik change ignored, but loglik recalculated below by optimizelocalBL
+            unzip_canonical!(obj.net)
             updateSSM!(obj, true; constraints=constraints)
             discrete_corelikelihood!(obj) #TODO remove this line after debugging
             @debug "after shrinking: loglik is $(obj.loglik)"
@@ -844,6 +848,7 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64,
         deletehybridedge!(obj.net, getMinorParentEdge(newhybridnode), false,true,false,false,false)
         (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
         # loglik will be updated in optimizeallgammas right after, in optimizestructure
+        unzip_canonical!(obj.net)
         updateSSM!(obj, true; constraints=constraints)
         @debug "addhybrid resulted in SPR move: new hybrid edge had γ=1.0, its partner was deleted"
         return true
@@ -950,9 +955,9 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
     if obj.loglik - currLik > likAbsDelHybLiNC # -0.0: loglik can decrease for parsimony
         deletehybridedge!(obj.net, minorhybridedge, false,true,false,false,false) # nofuse,unroot,multgammas,simplify
         (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
+        unzip_canonical!(obj.net)
         updateSSM!(obj, true; constraints=constraints)
         # obj.loglik will be updated by optimizeallgammas within optimizestructure
-
         return true
     else # keep hybrid
         majhyb.length = len0
@@ -1584,7 +1589,7 @@ log-likelihood falls below `ftolAbs`.
 At the end: hybrid edges with γ=0 are deleted (if any).
 
 Output: true if reticulations have been deleted, false otherwise.
-If true, `updateSSM!` needs to be called afterwards, with constraints if any.
+If true, `unzip_canonical!` and `updateSSM!` needs to be called afterwards, with constraints if any.
 (Constraints are not known here).
 Before updating the displayed trees in the SSM, [`shrink2cycles!`](@ref) or
 [`shrink3cycles!`](@ref) could be called, if desired, despite the (slight?)
@@ -1932,6 +1937,7 @@ function phyLiNC_fixednetwork(net::HybridNetwork, alignmentfile::String,
         error("obj.net has a different loglik than object.")
     γcache = CacheGammaLiNC(obj)
     ghosthybrid = optimizeallgammas_LiNC!(obj, fAbsBL, γcache, 1000)
+    unzip_canonical!(obj.net)
     lcache = CacheLengthLiNC(obj, fRelBL, fAbsBL, xRelBL, xAbsBL, 1000) # maxeval=1000
     optimizealllengths_LiNC!(obj, lcache)
     obj.net.loglik = obj.loglik
