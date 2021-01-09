@@ -2308,7 +2308,7 @@ end
 sigma2_estim(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T) =
   sigma2_estim(m.model)
 # REML estimate of within-species variance for measurement error models
-wspvar_estim(m::PhyloNetworkLinearModel) = m.model_within.wsp_var[1]
+wspvar_estim(m::PhyloNetworkLinearModel) = (isnothing(m.model_within) ? nothing : m.model_within.wsp_var[1])
 wspvar_estim(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T) = wspvar_estim(m.model)
 # ML estimate for ancestral state of the BM
 """

@@ -106,3 +106,52 @@ m3 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, starnet; # reml=false
 @test loglikelihood(m3) ≈ -14.30235 rtol=1e-5
 
 end
+
+@testset "phyloNetworklm: reml=true/false, msr_err=false, binary tree" begin
+
+#= Rcode to generate the newick string and dataset:
+library(phytools)
+set.seed(1)
+tree <- pbtree(n=5,scale=1) # topology and branch lengths
+X <- fastBM(tree,sig2=2,nsim=2); colnames(X) <- c("x1","x2") # non-intercept predictors
+wsperr <- fastBM(tree) # phylogenetic variation, true BM variance-rate is 1
+y <- cbind(rep(1,5),X)%*%(1:3)+wsperr # response, true beta vector is c(1,2,3)
+df <- data.frame(y,X,species=tree$tip.label)
+tree.newick <- write.tree(tree) # newick format
+=#
+net = readTopology("((t1:0.8121974445,(t2:0.4806586387,t3:0.4806586387):0.3315388057):0.1878025555,(t4:0.1206907041,t5:0.1206907041):0.8793092959);")
+df = DataFrame(
+      y = [-4.18366,0.625801,-0.307011,2.612,2.2391],
+      x1 = [-0.550371,-0.750359,-0.759922,-0.421798,-0.983923],
+      x2 = [-1.31025,0.45442,0.215127,1.0384,1.31388],
+      species = net.names # ["t1","t2","t3","t4","t5"]
+)
+
+#= Rcode to check model fit:
+library(nlme)
+m1 = gls(y~x1+x2,data=df,
+        correlation=corBrownian(1,tree,form=~species),method="REML")
+coef(m1) # coefficients estimates: c(0.6469652,2.0420889,2.8285257)
+sigma(m1)^2 # reml BM variance-rate estimate: 0.0438973
+logLik(m1) # restricted log-likelihood: -0.07529961
+
+m2 = gls(y~x1+x2,data=df,
+        correlation=corBrownian(1,tree,form=~species),method="ML")
+coef(m2) # coefficients estimates: c(0.6469652,2.0420889,2.8285257)
+sigma(m2)^2 # ml BM variance-rate estimate: 0.01755892
+logLik(m2) # log-likelihood: 3.933531
+=#
+m1 = phyloNetworklm(@formula(y~x1+x2),df,net;tipnames=:species,reml=true)
+m2 = phyloNetworklm(@formula(y~x1+x2),df,net;tipnames=:species,reml=false)
+@test m1.model.reml
+@test coef(m1) ≈ [0.6469652,2.0420889,2.8285257] rtol=1e-5
+@test sigma2_estim(m1) ≈ 0.0438973 rtol=1e-4
+@test isnothing(wspvar_estim(m1))
+@test loglikelihood(m1) ≈ -0.07529961 rtol=1e-3
+@test !m2.model.reml
+@test coef(m2) ≈ [0.6469652,2.0420889,2.8285257] rtol=1e-5
+@test sigma2_estim(m2) ≈ 0.01755892 rtol=1e-4
+@test isnothing(wspvar_estim(m2))
+@test loglikelihood(m2) ≈ 3.933531 rtol=1e-4
+
+end
