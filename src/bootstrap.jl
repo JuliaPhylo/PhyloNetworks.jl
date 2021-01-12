@@ -697,8 +697,8 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
           for ce in pn.edge    # important if polytomy
             if ce ≢ he && pn ≡ getParent(ce)
                 hw = hardwiredCluster(ce,taxa)
-                if atroot && any(hw & clade[ic]) # sister clade intersects child clade
-                    (hw & clade[ic]) == clade[ic] ||
+                if atroot && any(hw .& clade[ic]) # sister clade intersects child clade
+                    (hw .& clade[ic]) == clade[ic] ||
                         @warn "weird clusters at the root in reference, hybrid node $(hn.number)"
                 else
                     hwc .|= hw
