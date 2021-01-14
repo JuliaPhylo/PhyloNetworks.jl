@@ -95,15 +95,15 @@ m2 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, starnet; reml=true,
 @test sigma2_estim(m2) ≈ 2.1216068 rtol=1e-5
 @test wspvar_estim(m1) ≈ 0.5332865 rtol=1e-5
 @test wspvar_estim(m2) ≈ 0.5332865 rtol=1e-5
-@test loglikelihood(m1) ≈ -13.37294 rtol=1e-5
-@test loglikelihood(m2) ≈ -13.37294 rtol=1e-5
+@test loglikelihood(m1; indiv=true) ≈ -13.37294 rtol=1e-5
+@test loglikelihood(m2; indiv=true) ≈ -13.37294 rtol=1e-5
 m3 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, starnet; # reml=false
       tipnames=:species, msr_err=true, y_mean_std=true)
 @test !m3.model.reml
 @test coef(m3) ≈ [8.439909,2.318488] rtol=1e-5
 @test sigma2_estim(m3) ≈ 0.9470427 rtol=1e-5
 @test wspvar_estim(m3) ≈ 0.5299540 rtol=1e-5
-@test loglikelihood(m3) ≈ -14.30235 rtol=1e-5
+@test loglikelihood(m3; indiv=true) ≈ -14.30235 rtol=1e-5
 
 end
 
@@ -114,8 +114,8 @@ library(phytools)
 set.seed(1)
 tree <- pbtree(n=5,scale=1) # topology and branch lengths
 X <- fastBM(tree,sig2=2,nsim=2); colnames(X) <- c("x1","x2") # non-intercept predictors
-wsperr <- fastBM(tree) # phylogenetic variation, true BM variance-rate is 1
-y <- cbind(rep(1,5),X)%*%(1:3)+wsperr # response, true beta vector is c(1,2,3)
+bsperr <- fastBM(tree) # phylogenetic variation, true BM variance-rate is 1
+y <- cbind(rep(1,5),X)%*%(1:3)+bsperr # response, true beta vector is c(1,2,3)
 df <- data.frame(y,X,species=tree$tip.label)
 tree.newick <- write.tree(tree) # newick format
 =#
@@ -129,13 +129,13 @@ df = DataFrame(
 
 #= Rcode to check model fit:
 library(nlme)
-m1 = gls(y~x1+x2,data=df,
+m1 <- gls(y~x1+x2,data=df,
         correlation=corBrownian(1,tree,form=~species),method="REML")
 coef(m1) # coefficients estimates: c(0.6469652,2.0420889,2.8285257)
 sigma(m1)^2 # reml BM variance-rate estimate: 0.0438973
 logLik(m1) # restricted log-likelihood: -0.07529961
 
-m2 = gls(y~x1+x2,data=df,
+m2 <- gls(y~x1+x2,data=df,
         correlation=corBrownian(1,tree,form=~species),method="ML")
 coef(m2) # coefficients estimates: c(0.6469652,2.0420889,2.8285257)
 sigma(m2)^2 # ml BM variance-rate estimate: 0.01755892
@@ -154,4 +154,87 @@ m2 = phyloNetworklm(@formula(y~x1+x2),df,net;tipnames=:species,reml=false)
 @test isnothing(wspvar_estim(m2))
 @test loglikelihood(m2) ≈ 3.933531 rtol=1e-4
 
+end
+
+@testset "phyloNetworklm: reml=true/false, msr_err=true, binary tree" begin
+
+# NOTE: This testset DOES NOT check for similarity of the variance-components 
+# estimates from 'pgls.SEy' (phytools) and 'phyloNetworklm' (PhyloNetworks). It
+# checks for similarity of the coefficient estimates and the loglikelihood and
+# restricted loglikelihood evaluated by the two implementations, given particular 
+# values for the ml/reml variance-components estimates.
+
+#= Rcode to generate the newick string and dataset:
+library(phytools)
+set.seed(2)
+m <- 5 # sample-size per taxa
+n <- 5 # no. of taxa
+tree <- pbtree(n=n,scale=1) # topology and branch lengths
+X <- fastBM(tree,sig2=2,nsim=2); colnames(X) <- c("x1","x2") # non-intercept predictors
+bsperr <- fastBM(tree) # phylogenetic variation, true BM variance-rate is 1
+wspvar <- 0.1 # measurement-error variance is 0.1
+msrerr <- rnorm(n=n,sd=sqrt(wspvar/m)) # msr error in species-level mean responses
+y_sd <- sqrt(wspvar*rchisq(n=n,df=m-1)/m-1) # sd in individual responses per species 
+y <- cbind(rep(1,5),X)%*%(1:3)+bsperr+msrerr # response, true beta vector is c(1,2,3)
+df <- data.frame(y,y_sd,X,species=tree$tip.label)
+tree.newick <- write.tree(tree) # newick format
+=#
+net = readTopology("(((t4:0.2537636499,t5:0.2537636499):0.2103870459,t3:0.4641506959):0.5358493041,(t1:0.4807642475,t2:0.4807642475):0.5192357525);")
+df = DataFrame(
+      y=[11.399108,3.216645,13.648011,4.851454,-4.922803],
+      y_sd=[0.2463003,0.3236629,0.2458547,0.4866844,0.3434582],
+      y_n=fill(5,5),
+      x1=[0.7894387,0.3285286,2.1495131,-1.4935665,-2.3199935],
+      x2=[2.8184268,0.4740687,2.5801004,1.9967379,-0.4121874],
+      species=net.names
+)
+
+#= R/Julia code to check model fit:
+(1) Julia code:
+round(wspvar_estim(m1),sigdigits=6) # reml estimate for msrerr variance: 0.116721
+round(wspvar_estim(m2),sigdigits=6) # ml estimate for msrerr variance: 0.125628
+round(sigma2_estim(m1),sigdigits=6) # reml estimate for BM variance-rate: 0.120746
+round(sigma2_estim(m2),sigdigits=6) # ml estimate for BM variance-rate: 0.000399783
+
+(2) R code:
+## To check phyloNetworklm reml fit 
+library(nlme)
+T1 <- tree
+sigma2_1 <- 0.120746 # reml estimate for BM variance-rate
+wspvar_1 <- 0.116721 # reml estimate for msrerr variance
+se_1 <- setNames(rep(sqrt(wspvar_1/m),n),T1$tip.label) # msrerr sd of species-level means
+
+T1$edge.length <- T1$edge.length*sigma2_1 # scale all edge lengths by BM variance-rate estimate
+ii <- sapply(1:Ntip(T1),function(x,e) which(e==x),e=T1$edge[,2]) # indices of pendant edges
+# extend pendant edge lengths by msrerr sd  
+T1$edge.length[ii] <- T1$edge.length[ii]+se_1[T1$tip.label]^2 
+vf <- diag(vcv(T1)) # extract variance estimates of species-level responses
+w <- varFixed(~vf) # variances estimates stored in `vf` column of the data
+COR <- corBrownian(1,T1) # cov-mat of species-level responses ∝ vcv(T1)
+# Do not try to find a scaling-parameter for the covariance matrix, vcv(T1)
+m1 <- gls(y~x1+x2,data=cbind(df,vf),correlation=COR,method="REML",weights=w)
+logLik(m1) # loglikelihood of reml parameter estimates: -3.26788
+coef(m1) # reml coefficient estimates: c(1.079839,1.976719,3.217391)
+
+## To check phyloNetworklm ml fit
+# Repeat the above steps except with different estimates for the BM variance-rate and 
+# mserr variance.
+T2 <- tree
+sigma2_2 <- 0.000399783 # ml estimate for BM variance-rate
+wspvar_2 <- 0.125628 # ml estimate for msrerr variance
+se_2 <- setNames(rep(sqrt(wspvar_2/m),n),T2$tip.label) # msrerr sd of species-level means
+⋮
+m2 <- gls(y~x1+x2,data=cbind(df,vf),correlation=COR,method="ML",weights=w)
+logLik(m2) # loglikelihood of ml parameter estimates: 1.415653
+coef(m2) # ml coefficient estimates: c(0.9767352,1.9155142,3.2661862)
+=#
+m1 = phyloNetworklm(@formula(y~x1+x2),df,net;
+                    tipnames=:species,reml=true,msr_err=true,y_mean_std=true)
+m2 = phyloNetworklm(@formula(y~x1+x2),df,net;
+                    tipnames=:species,reml=false,msr_err=true,y_mean_std=true)
+
+@test coef(m1) ≈ [1.079839,1.976719,3.217391] rtol=1e-6
+@test loglikelihood(m1) ≈ -3.26788 rtol=1e-6
+@test coef(m2) ≈ [0.9767352,1.9155142,3.2661862] rtol=1e-7
+@test loglikelihood(m2) ≈ 1.415653 rtol=1e-5
 end
