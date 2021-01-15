@@ -158,12 +158,6 @@ end
 
 @testset "phyloNetworklm: reml=true/false, msr_err=true, binary tree" begin
 
-# NOTE: This testset DOES NOT check for similarity of the variance-components 
-# estimates from 'pgls.SEy' (phytools) and 'phyloNetworklm' (PhyloNetworks). It
-# checks for similarity of the coefficient estimates and the loglikelihood and
-# restricted loglikelihood evaluated by the two implementations, given particular 
-# values for the ml/reml variance-components estimates.
-
 #= Rcode to generate the newick string and dataset:
 library(phytools)
 set.seed(2)
@@ -174,7 +168,7 @@ X <- fastBM(tree,sig2=2,nsim=2); colnames(X) <- c("x1","x2") # non-intercept pre
 bsperr <- fastBM(tree) # phylogenetic variation, true BM variance-rate is 1
 wspvar <- 0.1 # measurement-error variance is 0.1
 msrerr <- rnorm(n=n,sd=sqrt(wspvar/m)) # msr error in species-level mean responses
-y_sd <- sqrt(wspvar*rchisq(n=n,df=m-1)/m-1) # sd in individual responses per species 
+y_sd <- sqrt(wspvar*rchisq(n=n,df=m-1)/(m-1)) # sd in individual responses per species 
 y <- cbind(rep(1,5),X)%*%(1:3)+bsperr+msrerr # response, true beta vector is c(1,2,3)
 df <- data.frame(y,y_sd,X,species=tree$tip.label)
 tree.newick <- write.tree(tree) # newick format
@@ -189,52 +183,64 @@ df = DataFrame(
       species=net.names
 )
 
-#= R/Julia code to check model fit:
+#= R/Julia code to compare model fit:
 (1) Julia code:
+## To extract reml/ml msrerr variance estimates fitted by phyloNetworklm
 round(wspvar_estim(m1),sigdigits=6) # reml estimate for msrerr variance: 0.116721
 round(wspvar_estim(m2),sigdigits=6) # ml estimate for msrerr variance: 0.125628
-round(sigma2_estim(m1),sigdigits=6) # reml estimate for BM variance-rate: 0.120746
-round(sigma2_estim(m2),sigdigits=6) # ml estimate for BM variance-rate: 0.000399783
 
 (2) R code:
-## To check phyloNetworklm reml fit 
-library(nlme)
-T1 <- tree
-sigma2_1 <- 0.120746 # reml estimate for BM variance-rate
-wspvar_1 <- 0.116721 # reml estimate for msrerr variance
-se_1 <- setNames(rep(sqrt(wspvar_1/m),n),T1$tip.label) # msrerr sd of species-level means
+## To compare reml/ml fit between phyloNetworklm and pgls.SEy  
+wspvar_1 <- 0.116721 # reml msrerr variance estimate from phyloNetworklm
+se_1 <- setNames(rep(sqrt(wspvar_1/m),n),tree$tip.label) # assumed msrerr sd of species-level means
+m1 <- pgls.SEy(y~x1+x2,data=df,tree=tree,se=se_1,method="REML")
+T1 <- attr(m1$modelStruct$corStruct,"tree") # "effective" tree after considering msrerr
+sigma2_1 <- diag(vcv(T1))[1]-(se_1^2)[1] # conditional reml estimate for BM variance-rate
+Vy_1 <- vcv(T1)/sigma2_1
+p <- 3 # no. of predictors
+Xp <- as.matrix(cbind(rep(1,5),df[3:4])) # predictor matrix (including intercept)
+# conditional reml, ll_1: -4.428059 (DON'T USE logLik(m1)!)
+ll_1 <- (-t(resid(m1))%*%solve(vcv(T1))%*%resid(m1)/2 - (n-p)*(log(2*pi)+log(sigma2_1))/2 
+      -log(det(Vy_1))/2 - log(det(t(Xp)%*%solve(Vy_1)%*%Xp))/2)
+coef(m1) # c(0.9757873,1.9149066,3.2666015)
 
-T1$edge.length <- T1$edge.length*sigma2_1 # scale all edge lengths by BM variance-rate estimate
-ii <- sapply(1:Ntip(T1),function(x,e) which(e==x),e=T1$edge[,2]) # indices of pendant edges
-# extend pendant edge lengths by msrerr sd  
-T1$edge.length[ii] <- T1$edge.length[ii]+se_1[T1$tip.label]^2 
-vf <- diag(vcv(T1)) # extract variance estimates of species-level responses
-w <- varFixed(~vf) # variances estimates stored in `vf` column of the data
-COR <- corBrownian(1,T1) # cov-mat of species-level responses ∝ vcv(T1)
-# Do not try to find a scaling-parameter for the covariance matrix, vcv(T1)
-m1 <- gls(y~x1+x2,data=cbind(df,vf),correlation=COR,method="REML",weights=w)
-logLik(m1) # loglikelihood of reml parameter estimates: -3.26788
-coef(m1) # reml coefficient estimates: c(1.079839,1.976719,3.217391)
-
-## To check phyloNetworklm ml fit
-# Repeat the above steps except with different estimates for the BM variance-rate and 
-# mserr variance.
-T2 <- tree
-sigma2_2 <- 0.000399783 # ml estimate for BM variance-rate
-wspvar_2 <- 0.125628 # ml estimate for msrerr variance
-se_2 <- setNames(rep(sqrt(wspvar_2/m),n),T2$tip.label) # msrerr sd of species-level means
-⋮
-m2 <- gls(y~x1+x2,data=cbind(df,vf),correlation=COR,method="ML",weights=w)
-logLik(m2) # loglikelihood of ml parameter estimates: 1.415653
-coef(m2) # ml coefficient estimates: c(0.9767352,1.9155142,3.2661862)
+wspvar_2 <- 0.125628 # ml msrerr variance estimate from phyloNetworklm
+se_2 <- setNames(rep(sqrt(wspvar_2/m),n),tree$tip.label) # msrerr sd of species-level means
+m2 <- pgls.SEy(y~x1+x2,data=df,tree=tree,se=se_2,method="ML")
+T2 <- attr(m2$modelStruct$corStruct,"tree")
+sigma2_2 <- diag(vcv(T2))[1]-(se_2^2)[1] # conditional ml estimate for BM variance-rate
+Vy_2 <- vcv(T2)/sigma2_2
+# conditional ml, ll_2: 1.331464 (DON'T USE logLik(m2)!)
+ll_2 <- -t(resid(m2))%*%solve(vcv(T2))%*%resid(m2)/2 - n*(log(2*pi)+log(sigma2_2))/2 - log(det(Vy_2))/2
+coef(m2) # c(0.9757692,1.9148950,3.2666095)
 =#
 m1 = phyloNetworklm(@formula(y~x1+x2),df,net;
                     tipnames=:species,reml=true,msr_err=true,y_mean_std=true)
 m2 = phyloNetworklm(@formula(y~x1+x2),df,net;
                     tipnames=:species,reml=false,msr_err=true,y_mean_std=true)
 
-@test coef(m1) ≈ [1.079839,1.976719,3.217391] rtol=1e-6
-@test loglikelihood(m1) ≈ -3.26788 rtol=1e-6
-@test coef(m2) ≈ [0.9767352,1.9155142,3.2661862] rtol=1e-7
-@test loglikelihood(m2) ≈ 1.415653 rtol=1e-5
+# Generally, we expect greater discrepancy between the reml coef estimates than
+# ml coef estimates given how pgls.SEy is implemented (in short: maximizing the 
+# conditional ml is more "similar" to maximizing the full ml, than maximizing
+# the conditional reml is to maximizing the full reml).
+@test coef(m1) ≈ [0.9757873,1.9149066,3.2666015] rtol=1e-1
+@test coef(m2) ≈ [0.9757692,1.9148950,3.2666095] rtol=1e-3
+
+#=
+For pgls.SEy:
+(1) When method='REML', the reml, conditional on values supplied for msrerr 
+variance, is returned. This differs from the restricted likelihood maximized over
+possible values for BM variance-rate and msrerr variance (i.e. what we want).
+(2) When method='ML', the ml, conditional on values supplied for msrerr variance,
+is returned. This differs from the full likelihood maximized over possible values  
+for BM variance-rate and msrerr variance. The two quantities should agree if the msrerr
+variances provided to pgls.SEy equal the mle's of the msrerr variances GIVEN THE DATA, 
+and IF the optimization error in both implementations is negligible.
+=#
+
+# The reml/ml values for the phyloNetworklm fit should be close to or greater than the
+# (non-conditional) reml/ml values (reminder: this is calculated manually, and not using 
+# logLik) for the pgls.SEy fit. 
+@test (loglikelihood(m1) >= -4.428059) || isapprox(loglikelihood(m1), -4.428059; rtol=1e-6) 
+@test (loglikelihood(m2) >= 1.415653) || isapprox(loglikelihood(m2), 1.415653; rtol=1e-1)
 end
