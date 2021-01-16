@@ -244,3 +244,74 @@ and IF the optimization error in both implementations is negligible.
 @test (loglikelihood(m1) >= -4.428059) || isapprox(loglikelihood(m1), -4.428059; rtol=1e-6) 
 @test (loglikelihood(m2) >= 1.415653) || isapprox(loglikelihood(m2), 1.415653; rtol=1e-1)
 end
+
+@testset "phyloNetworklm: within-species variation, network (1 reticulation)" begin
+
+#= Simulation of data used below:
+(1) Individual-level data
+function simTraits(net, m, paramsprocess)
+      sim = simulate(net, paramsprocess)
+      trait = sim[:Tips]
+      return repeat(trait, inner=m)
+end
+n = 6; m = 3 # 6 species, 3 individuals per species 
+net = readTopology("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.0,(#H1:0::0.3,E:3.0):6.2):2.0,O:11.2);");
+Random.seed!(18480224);
+trait1 = simTraits(net, m, ParamsBM(2, 0.5)) # simulate a BM with mean 2 and variance 0.5 on net
+trait2 = simTraits(net, m, ParamsBM(-2, 1.0)) # simulate a BM with mean -2 and variance 1.0 on net
+phylo_noise_var = 0.1 # BM variance-rate
+meas_noise_var = 0.01 # individual-level msrerr variance 
+phylo_noise = simTraits(net, m, ParamsBM(0, phylo_noise_var))
+meas_noise = randn(n*m)*sqrt(meas_noise_var)
+trait3 = 10 .+ 2 * trait1 + phylo_noise + meas_noise
+labels = repeat(names(vcv(net)), inner=m)
+df = DataFrame(trait1=trait1, trait2=trait2, trait3=trait3, tipNames=labels)
+
+(2) Species-level data (extra columns for SD and n of trait3)
+gdf = groupby(df, :species)
+df_r = combine(gdf, :trait1 => (x -> mean(x)) => :trait1,
+                    :trait2 => (x -> mean(x)) => :trait2,
+                    :trait3 => (x -> mean(x)) => :trait3,
+                    :trait3 => (x -> std(x)) => :trait3_sd,
+                    :trait3 => (x -> length(x)) => :trait3_n)
+=#
+n = 6; m = 3
+net = readTopology("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.0,(#H1:0::0.3,E:3.0):6.2):2.0,O:11.2);");
+df = DataFrame(
+      species = repeat(["D","C","A","B","E","O"],inner=m),
+      trait1 = [4.08298,4.08298,4.08298,3.10782,3.10782,3.10782,2.17078,2.17078,2.17078,1.87333,1.87333,1.87333,2.8445,
+                2.8445,2.8445,5.88204,5.88204,5.88204],
+      trait2 = [-7.34186,-7.34186,-7.34186,-7.45085,-7.45085,-7.45085,-3.32538,-3.32538,-3.32538,-4.26472,-4.26472,
+                -4.26472,-5.96857,-5.96857,-5.96857,-1.99388,-1.99388,-1.99388],
+      trait3 = [18.8101,18.934,18.9438,17.0687,17.0639,17.0732,14.4818,14.1112,14.2817,13.0842,12.9562,12.9019,15.4373,
+                15.4075,15.4317,24.2249,24.1449,24.1302]
+)
+df_r = DataFrame(
+      species = ["D","C","A","B","E","O"],
+      trait1 = [4.08298,3.10782,2.17078,1.87333,2.8445,5.88204],
+      trait2 = [-7.34186,-7.45085,-3.32538,-4.26472,-5.96857,-1.99388],
+      trait3 = [18.896,17.0686,14.2916,12.9808,15.4255,24.1667],
+      trait3_sd = [0.074524,0.00465081,0.185497,0.0936,0.0158379,0.0509643],
+      trait3_n = [3, 3, 3, 3, 3, 3]
+)
+
+# Check for agreement in fit when individual-level data is supplied vs when the
+# corresponding species-level data is supplied.
+m1 = phyloNetworklm(@formula(trait3 ~ trait1), df, net; reml=true, 
+      tipnames=:species, msr_err=true)
+m2 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, net; reml=true,
+      tipnames=:species, msr_err=true, y_mean_std=true)
+@test coef(m1) ≈ coef(m2) rtol=1e-5
+@test sigma2_estim(m1) ≈ sigma2_estim(m2) rtol=1e-4
+@test wspvar_estim(m1) ≈ wspvar_estim(m2) rtol=1e-6
+@test loglikelihood(m1) ≈ loglikelihood(m2) rtol=1e-4
+
+m3 = phyloNetworklm(@formula(trait3 ~ trait1), df, net; reml=false, 
+      tipnames=:species, msr_err=true)
+m4 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, net; reml=false,
+      tipnames=:species, msr_err=true, y_mean_std=true)
+@test coef(m3) ≈ coef(m4) rtol=1e-5
+@test sigma2_estim(m3) ≈ sigma2_estim(m4) rtol=1e-4
+@test wspvar_estim(m3) ≈ wspvar_estim(m4) rtol=1e-5
+@test loglikelihood(m3) ≈ loglikelihood(m4) rtol=1e-4
+end
