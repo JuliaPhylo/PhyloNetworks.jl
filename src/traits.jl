@@ -2229,17 +2229,13 @@ StatsBase.response(m::PhyloNetworkLinearModel) = m.Y
 StatsBase.predict(m::PhyloNetworkLinearModel) = m.RL * predict(m.lm)
 
 # log likelihood of the fitted linear model
-function StatsBase.loglikelihood(m::PhyloNetworkLinearModel; indiv::Bool=false)
+function StatsBase.loglikelihood(m::PhyloNetworkLinearModel)
     linmod = m.lm
-    n = (m.reml ? dof_residual(linmod) : nobs(linmod) )
-    σ² = sigma2_estim(m)
-    # ll = - n * (1. + log2π + log(σ²))/2 - m.logdetVy/2
-    # For msrerr models, deviance(linmod)/σ² == n theoretically only.
-    ll = - deviance(linmod)/(2*σ²) - n * (log2π + log(σ²))/2 - m.logdetVy/2
-    # If !isnothing(m.model_within == true, return either the loglikelihood of
-    # the individual-level data by setting 'indiv=true', or the loglikelihood 
-    # of the species-level data by default.
-    if indiv && !isnothing(m.model_within)
+    if isnothing(m.model_within) # not a msrerr model
+        n = (m.reml ? dof_residual(linmod) : nobs(linmod) )
+        σ² = deviance(linmod)/n
+        ll =  - n * (1. + log2π + log(σ²))/2 - m.logdetVy/2
+    else # if msrerr model, return loglikelihood of individual-level data
         modwsp = m.model_within
         ntot = sum(1.0 ./ modwsp.wsp_ninv) # total number of individuals
         nsp = nobs(linmod)                   # number of species
