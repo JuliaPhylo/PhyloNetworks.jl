@@ -2188,21 +2188,37 @@ StatsBase.coef(m::PhyloNetworkLinearModel) = coef(m.lm)
 # Number of observations
 StatsBase.nobs(m::PhyloNetworkLinearModel) = nobs(m.lm)
 # vcov matrix: sigma2_estim * inv(X' * X)
-StatsBase.vcov(m::PhyloNetworkLinearModel) = vcov(m.lm)
+# Based on GLM.vcov, GLM.jl/src/linpred.jl, ln 216
+StatsBase.vcov(m::PhyloNetworkLinearModel) = GLM.rmul!(GLM.invchol(m.lm.pp), sigma2_estim(m))
 # standard error of coefficients: sqrt(diag(vcov))
-StatsBase.stderror(m::PhyloNetworkLinearModel) = stderror(m.lm)
+# Based on GLM.stderror, GLM.jl/src/linpred.jl, ln 224
+StatsBase.stderror(m::PhyloNetworkLinearModel) = sqrt.(diag(vcov(m)))
 # confidence Intervals for coefficients:
-#  hcat(coef,coef) + stderror * quantile(TDist(dof_residual, (1.-level)/2.) * [1. -1.]
-StatsBase.confint(m::PhyloNetworkLinearModel; level=0.95::Real) = confint(m.lm, level=level)
+# hcat(coef,coef) + stderror * quantile(TDist(dof_residual, (1.-level)/2.) * [1. -1.]
+# Based on GLM.confint, GLM.jl/src/lm.jl, ln 240 (Deprecated!!)
+function StatsBase.confint(m::PhyloNetworkLinearModel; level::Real=0.95)
+    hcat(coef(m),coef(m)) + stderror(m) *
+    quantile(TDist(dof_residual(m)), (1. - level)/2.) * [1. -1.]
+end
 # coef table: t-values t=coef/se
 #    CoefTable(hcat(coef,se,t,ccdf(FDist(1, dof_residual), abs2(t))),
 #              ["Estimate","Std.Error","t value", "Pr(>|t|)"],
 #              ["x$i" for i = 1:size(X, 2)], 4)
-function StatsBase.coeftable(m::PhyloNetworkLinearModel)
-    if size(m.lm.pp.X, 2) == 0
+# Based on GLM.coeftable, GLM.jl/src/lm.jl, ln 193
+function StatsBase.coeftable(m::PhyloNetworkLinearModel; level::Real=0.95)
+    n_coef = size(m.lm.pp.X, 2) # no. of predictors
+    if n_coef == 0
         return CoefTable([0], ["Fixed Value"], ["(Intercept)"])
     else
-        coeftable(m.lm)
+        cc = coef(m)
+        se = stderror(m)
+        tt = cc ./ se
+        p = ccdf.(Ref(FDist(1, dof_residual(m))), abs2.(tt))
+        ci = se*quantile(TDist(dof_residual(m)), (1-level)/2)
+        levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
+        CoefTable(hcat(cc,se,tt,p,cc+ci,cc-ci),
+                  ["Coef.","Std. Error","t","Pr(>|t|)","Lower $levstr%","Upper $levstr%"],
+                  ["x$i" for i = 1:n_coef], 4, 3)
     end
 end
 # Degrees of freedom for residuals

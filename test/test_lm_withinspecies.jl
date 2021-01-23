@@ -249,7 +249,7 @@ sigm2 <- sigma(m2) # this is not bspvar2!, but rather the best "scaling" for cov
 RSS <- sum((m-1)*(df$y_sd^2)) # residual sum-of-squares wrt to the species means
 # indiv-lvl cond ll
 # "+ n*(2*log(sigm2)-sigm2^2+1)/2" un-scales the species-lvl ll returned by logLik
-# "- n*(m-1)*(log(wspvar2)+log(2*pi))/2 - (n*log(n)+RSS/wspvar2)/2" corrects to indiv-lvl ll
+# "- n*(m-1)*(log(wspvar2)+log(2*pi))/2 - (n*log(m)+RSS/wspvar2)/2" corrects to indiv-lvl ll
 ll.indiv <- (ll.species 
              + n*(2*log(sigm2)-sigm2^2+1)/2 
              - n*(m-1)*(log(wspvar2)+log(2*pi))/2 - (n*log(m)+RSS/wspvar2)/2
