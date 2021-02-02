@@ -2498,7 +2498,7 @@ end
 # given V & η: analytical formula for σ² estimate
 # numerical optimization of η = σ²within / σ²
 function withinsp_varianceratio(X::Matrix, Y::Vector, V::Matrix, reml::Bool,
-        d_inv::Vector, RSS::Float64, ntot::Int64, ncoef::Int64, nsp::Int64,
+        d_inv::Vector, RSS::Float64, ntot::Real, ncoef::Int64, nsp::Int64,
         model_within::Union{Nothing, WithinSpeciesCTM}=nothing)
 
     if model_within === nothing
