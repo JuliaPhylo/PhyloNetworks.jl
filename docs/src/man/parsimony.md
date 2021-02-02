@@ -34,7 +34,7 @@ First, we need to read the trait table as a DataFrame object:
 ```@repl parsimony
 using CSV, DataFrames
 csvfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","Swadesh.csv");
-dat = DataFrame!(CSV.File(csvfile);
+dat = CSV.File(csvfile) |> DataFrame;
 first(dat, 6) # to see the first 6 rows
 ```
 

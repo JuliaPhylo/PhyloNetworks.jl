@@ -1,7 +1,7 @@
 __precompile__()
 
 module PhyloNetworks
-    
+
     # stdlib (standard libraries)
     using Dates
     using Distributed
@@ -58,6 +58,7 @@ module PhyloNetworks
         readTableCF,
         readTableCF!,
         writeTableCF,
+        mapAllelesCFtable,
         readInputTrees,
         readNexusTrees,
         summarizeDataCF,
@@ -78,7 +79,6 @@ module PhyloNetworks
         rotate!,
         setLength!,
         setGamma!,
-        mapAllelesCFtable,
         deleteHybridThreshold!,
         displayedTrees,
         majorTree,
@@ -91,6 +91,10 @@ module PhyloNetworks
         biconnectedComponents,
         blobDecomposition!,
         blobDecomposition,
+        mapindividuals,
+        nni!,
+        checkroot!,
+        treeedgecomponents,
         ## Network Bootstrap
         treeEdgesBootstrap,
         hybridDetection,
@@ -153,8 +157,6 @@ module PhyloNetworks
         readfastatodna,
         stationary,
         empiricalDNAfrequencies,
-        nni!,
-        mapindividuals,
         # phyLiNC,
         # neighbor joining
         nj
@@ -184,7 +186,7 @@ module PhyloNetworks
     include("pairwiseDistanceLS.jl")
     include("interop.jl")
     include("substitutionModels.jl")
-    include("biconnectedComponents.jl")
+    include("graph_components.jl")
     include("traitsLikDiscrete.jl")
     include("deprecated.jl")
     include("nj.jl")

@@ -438,10 +438,10 @@ struct EqualRatesSubstitutionModel{T} <: TraitSubstitutionModel{T}
     eigeninfo::Vector{Float64}
     function EqualRatesSubstitutionModel{T}(k::Int, rate::Vector{Float64},
         label::Vector{T}, eigeninfo::Vector{Float64}) where T
-        k >= 2 || error("parameter k must be greater than or equal to 2")
+        @assert length(label)==k "incorrect number of labels: k=$k, labels: $label"
+        @assert k >= 2 "need k >= 2 category labels. labels: $label"
         @assert length(rate)==1 "rate must be a vector of length 1"
         rate[1] > 0 || error("parameter α (rate) must be positive")
-        @assert length(label)==k "label vector of incorrect length"
         new(k, rate, label, eigeninfo)
     end
 end

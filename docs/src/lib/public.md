@@ -31,6 +31,7 @@ printEdges
 printNodes
 summarizeDataCF
 directEdges!
+checkroot!
 preorder!
 cladewiseorder!
 rootatnode!
@@ -46,8 +47,10 @@ getNodeAges
 pairwiseTaxonDistanceMatrix
 biconnectedComponents
 blobDecomposition
+treeedgecomponents
 getlabels
 nparams
+mapindividuals
 nni!
 ```
 
@@ -138,5 +141,4 @@ maxParsimonyNet
 nstates
 stationary
 empiricalDNAfrequencies
-mapindividuals
 ```

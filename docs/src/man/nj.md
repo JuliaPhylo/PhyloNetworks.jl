@@ -14,7 +14,7 @@ names (headers) are used as taxon names.  Rows are assumed to
 correspond to taxa in the same order as they do in columns.
 
 ```@repl nj
-D = DataFrame!(CSV.File(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","caudata_dist.txt")));
+D = DataFrame(CSV.File(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","caudata_dist.txt")); copycols=false);
 tree = nj(D)
 ```
 

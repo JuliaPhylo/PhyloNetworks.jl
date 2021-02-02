@@ -99,7 +99,7 @@ function setNode!(edge::Edge, node::Node)
         else
           if edge.hybrid
             if node.hybrid
-                @debug (edge.node[1].hybrid ? "hybrid edge $(edge.number) has two hybrid nodes" : "")
+                # @debug (edge.node[1].hybrid ? "hybrid edge $(edge.number) has two hybrid nodes" : "")
                 edge.isChild1 = false;
 	        else
 	            edge.node[1].hybrid || error("hybrid edge $(edge.number) has no hybrid nodes");
