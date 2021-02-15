@@ -2308,9 +2308,14 @@ end
 StatsBase.coef(m::PhyloNetworkLinearModel) = coef(m.lm)
 # Number of observations
 StatsBase.nobs(m::PhyloNetworkLinearModel) = nobs(m.lm)
-# vcov matrix: multiplier * inv(X' * X)
-# TBD: How should this multiplier be defined for msrerr models?
-StatsBase.vcov(m::PhyloNetworkLinearModel) = vcov(m.lm)
+# (1) If the regression problem is to fit Y|X∼N(Xβ,V(σ²ₛ)) (i.e. neglecting msrerr)
+# then vcov matrix = (X'·̂V·X)⁻¹, where ̂V = V(̂σ²ₛ), and ̂σ²ₛ is the REML estimate of 
+# σ²ₛ. This follows the conventions of `gls`{nlme} and `glm`{stats} in R.
+# (2) If the regression problem is to fit Y|X∼N(Xβ,W(σ²ₛ,η)) (i.e. a msrerr model) 
+# then vcov matrix = (X'·Ŵ⁻¹·X)⁻¹, where Ŵ = W(̂σ̂²ₛ,̂η), and ̂σ²ₛ, ̂η are either the ML
+# or REML estimates of σ²ₛ, η. This follows the convention of `fit`{MixedModels} in
+# Julia.
+StatsBase.vcov(m::PhyloNetworkLinearModel) = isnothing(m.model_within) ? vcov(m.lm) : sigma2_estim(m)*vcov(m.lm)/dispersion(m.lm,true)
 # standard error of coefficients
 StatsBase.stderror(m::PhyloNetworkLinearModel) = sqrt.(diag(vcov(m)))
 # confidence Intervals for coefficients:
