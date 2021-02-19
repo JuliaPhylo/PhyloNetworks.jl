@@ -1473,26 +1473,25 @@ end
 """
     WithinSpeciesCTM
 
-CTM stands for "continuous trait model". Contains the estimated variance components for a  
-measurement error model, and output from the `NLopt` optimization used in the estimation.
+CTM stands for "continuous trait model". Contains the estimated variance components 
+for a measurement error model, and output from the `NLopt` optimization used in 
+the estimation.
 
 ## Fields
 
-- `wsp_var`: within-species measurement-error variance
-- `bsp_var`: between-species variance-rate
-- `wsp_ninv`: vector of the inverse sample sizes (e.g. [1/n₁,...,1/nₖ], where there are k  
-species in the phylogeny represented without missing predictor values in the dataset, and  
-nᵢ is the no. of observations for the ith of those k species encountered as row number  
-increases) 
-- `optsum`: an [`OptSummary`](@ref) object
-
+- `wsp_var`: intra/within-species measurement-error variance.
+- `bsp_var`: inter/between-species variance-rate.
+- `wsp_ninv`: vector of the inverse sample sizes (e.g. [1/n₁, ..., 1/nₖ], where 
+data from k species was used to fit the model and nᵢ is the no. of observations
+for the ith species). 
+- `optsum`: an [`OptSummary`](@ref) object.
 """
 struct WithinSpeciesCTM
     "within-species variance η*σ², assumes Normal distribution"
     wsp_var::Vector{Float64} # vector to make it mutable
     "between-species variance rate σ², such as from Brownian motion"
     bsp_var::Vector{Float64}
-    "inverse sample sizes (or precision): 1/#individuals within each species"
+    "inverse sample sizes (or precision): 1/(no. of individuals) within each species"
     wsp_ninv::Vector{Float64}
     "NLopt & NLopt summary object"
     optsum::OptSummary
@@ -1504,10 +1503,10 @@ end
 Abstract type for evolutionary models for continuous traits, using a continuous-time
 stochastic process on a phylogeny. 
 
-For sub types, see [`BM`](@ref), [`PagelLambda`](@ref), [`ScalingHybrid`](@ref)
+For subtypes, see [`BM`](@ref), [`PagelLambda`](@ref), [`ScalingHybrid`](@ref).
 
-Each of these models has the field `lambda`, corresponding to a variance-rate. Default  
-value for `lambda` is 1.0.
+Each of these subtypes/models has the field `lambda`, whose default value is 1.0.
+However, the interpretation of this field differs across models.
 """
 abstract type ContinuousTraitEM end
 
@@ -1516,8 +1515,18 @@ abstract type ContinuousTraitEM end
 """
     BM 
 
-Brownian Motion model. Independent Gaussian increments with mean=0 and variance=`lambda` ⋅ t,  
-where t is the length of the increment.
+Brownian Motion model. 
+
+fixitCecile: We could say that the species-level mean response (conditional on
+the predictors), in the absence of measurement error, is modeled as multivariate
+normal with covariance matrix = σ²·(`lambda`·V), where σ² is the between-species
+variance-rate (to be estimated), and V = [`sharedPathMatrix`](@ref)(net)[:Tips].
+`lambda` ∈ (0,∞) can be set and controls the scale for σ².
+
+fixitCecile: For consistency, shouldn't we allow for "scaling" of σ² in the
+PagelLambda, ScalingHybrid models as well? Or are we treating the PagelLambda,
+ScalingHybrid models more as diagnostic tools for the "informativeness" of the
+network?
 """
 struct BM <: ContinuousTraitEM
     lambda::Float64 # immutable
@@ -1528,6 +1537,15 @@ BM() = BM(1.0)
     PagelLambda
 
 Pagel's Lambda model.
+
+fixitCecile: We could say that the species-level mean response (conditional on
+the predictors), in the absence of measurement error, is modeled as multivariate
+normal with covariance matrix = σ²·(`lambda`·V + (1-`lambda`)·Diagonal(V)),
+where σ² is the between-species variance-rate (to be estimated), and
+V = [`sharedPathMatrix`](@ref)(net)[:Tips].
+`lambda` ∈ [0,1] gets optimized and is a measure of how important (0 being "not
+important") the given network structure is for explaining variation in the
+response.
 """
 mutable struct PagelLambda <: ContinuousTraitEM
     lambda::Float64 # mutable: can be optimized
@@ -1538,6 +1556,17 @@ PagelLambda() = PagelLambda(1.0)
     ScalingHybrid
 
 Scaling Hybrid model.
+
+fixitCecile: We could say that the species-level mean response (conditional on
+the predictors), in the absence of measurement error, is modeled as multivariate
+normal with covariance matrix = σ²·V(`lambda`), where σ² is the between-species
+variance-rate (to be estimated), and V(`lambda`) is a modified version of
+V = [`sharedPathMatrix`](@ref)(net)[:Tips], where the inheritance γ's for the 
+minor hybrid edges and major hybrid edges have been uniformly scaled by `lambda`
+and (1-`lambda`) respectively.
+`lambda` ∈ [0,1] gets optimized and is a measure of how important (0 being "not
+important") the given hybridization events in the network are for explaining
+variation in the response.
 """
 mutable struct ScalingHybrid <: ContinuousTraitEM
     lambda::Float64
@@ -2315,17 +2344,23 @@ StatsBase.nobs(m::PhyloNetworkLinearModel) = nobs(m.lm)
 # then vcov matrix = (X'·Ŵ⁻¹·X)⁻¹, where Ŵ = W(̂σ̂²ₛ,̂η), and ̂σ²ₛ, ̂η are either the ML
 # or REML estimates of σ²ₛ, η. This follows the convention of `fit`{MixedModels} in
 # Julia.
-StatsBase.vcov(m::PhyloNetworkLinearModel) = isnothing(m.model_within) ? vcov(m.lm) : sigma2_estim(m)*vcov(m.lm)/dispersion(m.lm,true)
+function StatsBase.vcov(m::PhyloNetworkLinearModel)
+    (isnothing(m.model_within) ? 1 : sigma2_estim(m)/GLM.dispersion(m.lm,true)) * vcov(m.lm)
+end
 # standard error of coefficients
 StatsBase.stderror(m::PhyloNetworkLinearModel) = sqrt.(diag(vcov(m)))
 # confidence Intervals for coefficients:
-# Based on: (https://github.com/JuliaStats/GLM.jl/blob/d1ccc9abcc9c7ca6f640c13ff535ee8383e8f808/src/lm.jl#L240-L243)
+# Based on: https://github.com/JuliaStats/GLM.jl/blob/d1ccc9abcc9c7ca6f640c13ff535ee8383e8f808/src/lm.jl#L240-L243
 function StatsBase.confint(m::PhyloNetworkLinearModel; level::Real=0.95)
     hcat(coef(m),coef(m)) + stderror(m) *
     quantile(TDist(dof_residual(m)), (1. - level)/2.) * [1. -1.]
 end
 # Table of estimated coefficients, standard errors, t-values, p-values, CIs
 # Based on: https://github.com/JuliaStats/GLM.jl/blob/d1ccc9abcc9c7ca6f640c13ff535ee8383e8f808/src/lm.jl#L193-L203
+# However, MixedModels.jl uses Wald confidence intervals instead.
+# See: https://github.com/JuliaStats/MixedModels.jl/blob/49d2cd59849a9c0fea2952673b9e412ab62000a9/src/linearmixedmodel.jl#L253-L258
+# fixitCecile: Do we want to case on msrerr for both confint and coeftable? If msrerr=false then use t-intervals (GLM), 
+# and if msrerr=true then use Wald/Z-intervals (MixedModels)?
 function StatsBase.coeftable(m::PhyloNetworkLinearModel; level::Real=0.95)
     n_coef = size(m.lm.pp.X, 2) # no. of predictors
     if n_coef == 0
