@@ -79,10 +79,24 @@ fixef(mR) # 8.457020 2.296978
 print(mR, digits=7, ranef.comp="Var") # variances: 2.1216068,0.5332865
 logLik(mR) # -13.37294
 logLik(mR, REML=FALSE) # -14.57265
+vcov(mR) # matrix(c(3.111307,-1.219935,-1.219935,0.5913808), nrow=2)
 mR = lmer(trait3 ~ trait1 + (1|species), df, REML=FALSE)
 fixef(mR) # 8.439909 2.318488
 print(mR, digits=7, ranef.comp="Var") # variances: 0.9470427,0.5299540
 logLik(mR) # -14.30235
+vcov(mR) # matrix(c(1.5237486,-0.6002803,-0.6002803,0.2941625), nrow=2)
+=#
+
+#= Alternatively: Julia code to check 
+using MixedModels
+mm1 = fit(MixedModel, @formula(trait3 ~ trait1 + (1|species)), df, REML=true) # compare with m1
+mm3 = fit(MixedModel, @formula(trait3 ~ trait1 + (1|species)), df) # compare with m3
+fixef(mm1) # fixed-effect param estimates: 8.45702,2.29698
+VarCorr(mm1) # estimated variance-components: species-variance=2.121607, residual-variance=0.533287
+# `objective(m)` returns -2 * (log-likelihood of model m)
+objective(mm1)/(-2) # -13.3729434, `loglikelihood` not available for models fit by REML
+loglikelihood(mm3) # -14.3023458
+vcov(mm1) # var-cov matrix for fixef coeffs: [3.11131 -1.21993; -1.21993 0.591381]
 =#
 m1 = phyloNetworklm(@formula(trait3 ~ trait1), df, starnet; reml=true,
       tipnames=:species, msr_err=true)
@@ -97,6 +111,8 @@ m2 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, starnet; reml=true,
 @test wspvar_estim(m2) ≈ 0.5332865 rtol=1e-5
 @test loglikelihood(m1) ≈ -13.37294 rtol=1e-5
 @test loglikelihood(m2) ≈ -13.37294 rtol=1e-5
+@test vcov(m1) ≈ [3.111307 -1.219935; -1.219935 0.5913808] rtol=1e-5
+@test vcov(m2) ≈ [3.111307 -1.219935; -1.219935 0.5913808] rtol=1e-5
 m3 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, starnet; # reml=false
       tipnames=:species, msr_err=true, y_mean_std=true)
 @test !m3.model.reml
@@ -104,6 +120,7 @@ m3 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, starnet; # reml=false
 @test sigma2_estim(m3) ≈ 0.9470427 rtol=1e-5
 @test wspvar_estim(m3) ≈ 0.5299540 rtol=1e-5
 @test loglikelihood(m3) ≈ -14.30235 rtol=1e-5
+@test vcov(m3) ≈ [1.5237486 -0.6002803; -0.6002803 0.2941625] rtol=1e-5
 
 end
 
