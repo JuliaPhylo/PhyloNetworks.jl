@@ -1481,7 +1481,7 @@ the estimation.
 
 - `wsp_var`: intra/within-species measurement-error variance.
 - `bsp_var`: inter/between-species variance-rate.
-- `wsp_ninv`: vector of the inverse sample sizes (e.g. [1/n₁, ..., 1/nₖ], where 
+- `wsp_ninv`: vector of the inverse sample-sizes (e.g. [1/n₁, ..., 1/nₖ], where 
 data from k species was used to fit the model and nᵢ is the no. of observations
 for the ith species). 
 - `optsum`: an [`OptSummary`](@ref) object.
@@ -1546,6 +1546,13 @@ V = [`sharedPathMatrix`](@ref)(net)[:Tips].
 `lambda` ∈ [0,1] gets optimized and is a measure of how important (0 being "not
 important") the given network structure is for explaining variation in the
 response.
+Note that the `PagelLambda` model is an extension of the `BM` model, except that
+now two covariance-related parameters (σ²,`lambda`) are estimated. 
+
+fixitCecile: In principle, `PagelLambda` and `ScalingHybrid` models are a supersets
+of `BM` models, and should not be on the same "level" in the type hierarchy as `BM`?
+This might be an issue when other evolutionary models like `OU` are introduced, and
+we want PagelLambda-OU or ScalingHybrid-OU, or even different types of ScalingHybrid.
 """
 mutable struct PagelLambda <: ContinuousTraitEM
     lambda::Float64 # mutable: can be optimized
@@ -1567,6 +1574,8 @@ and (1-`lambda`) respectively.
 `lambda` ∈ [0,1] gets optimized and is a measure of how important (0 being "not
 important") the given hybridization events in the network are for explaining
 variation in the response.
+Note that the `ScalingHybrid` model is an extension of the `BM` model, except 
+that now two covariance-related parameters (σ²,`lambda`) are estimated.
 """
 mutable struct ScalingHybrid <: ContinuousTraitEM
     lambda::Float64
@@ -1578,43 +1587,71 @@ ScalingHybrid() = ScalingHybrid(1.0)
 ###############################################################################
 
 """
-    PhyloNetworkLinearModel<:GLM.LinPredModel
+    PhyloNetworkLinearModel <: GLM.LinPredModel
 
-Regression object for a phylogenetic regression. Result of fitting [`phyloNetworklm(::Matrix,::Vector,::HybridNetwork)`](@ref).
+Phylogenetic linear model representation.
+A `PhyloNetworkLinearModel` object is returned by calling [`phyloNetworklm(::Matrix,::Vector,::HybridNetwork)`](@ref),
+or by extracting the `model` field after calling [`phyloNetworklm(::FormulaTerm,::AbstractDataFrame,::HybridNetwork)`](@ref).
 
-The following StatsBase functions can be applied to it:  
-`coef`, `nobs`, `vcov`, `stderror`, `confint`, `coeftable`, `dof_residual`, `dof`, `deviance`,  
-`residuals`, `response`, `predict`, `loglikelihood`, `nulldeviance`, `nullloglikelihood`,  
+## Fields
+
+`lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `reml`, `ind`, `nonmissing`, `model`, `model_within`.
+The following syntax pattern can be used to get more information on a specific field: 
+E.g. To find out about the `lm` field, type "?PhyloNetworkLinearModel.lm". 
+
+## Methods applied to fitted models
+
+The following StatsBase functions can be applied:
+`coef`, `nobs`, `vcov`, `stderror`, `confint`, `coeftable`, `dof_residual`, `dof`, `deviance`,
+`residuals`, `response`, `predict`, `loglikelihood`, `nulldeviance`, `nullloglikelihood`,
 `r2`, `adjr2`, `aic`, `aicc`, `bic`.
 
-Estimated variance and mean of the BM process used can be retrieved with
-functions [`sigma2_estim`](@ref) and [`mu_estim`](@ref).
+The estimated variance and mean of the [`BM`](@ref) process used can be retrieved using
+[`sigma2_estim`](@ref) and [`mu_estim`](@ref) respectively.
 
-If a Pagel's lambda model is fitted, the parameter can be retrieved with function
-[`lambda_estim`](@ref).
+The estimated measurement-error variance for measurement-error models can be retrieved
+using [`wspvar_estim`](@ref).
 
-An ancestral state reconstruction can be performed from this fitted object using function:
-[`ancestralStateReconstruction`](@ref).
+The optimized `lambda` parameter for Pagel's Lambda models (see [`PagelLambda`](@ref)) can
+be retrieved using [`lambda_estim`](@ref).
 
-The `PhyloNetworkLinearModel` object has fields: `lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`,  
-`reml`, `ind`, `nonmissing`, `model`, `model_within`.  
-Type in "?PhyloNetworkLinearModel.field" to get help on a specific field (e.g. "?PhyloNetworkLinearModel.lm"  
-for help on the `lm` field of the object).
+An ancestral state reconstruction can be performed using [`ancestralStateReconstruction`](@ref).
+
+## Measurement-error models
+
+As described in [`ContinuousTraitEM`](@ref), the species-level mean response (conditional on
+the predictors), in the absence of measurement-error, is modeled as 𝒩(·,σ²ₛV), where V is
+inferred from the species-tree/network and σ²ₛ is the between-species variance-rate.
+
+Fitting a measurement-error model amounts to modeling measurement-error in the individual-
+level responses as iid 𝒩(0,σ²ₑ), so that the conditional species-level mean response is now
+modeled as 𝒩(·,σ²ₛV + σ²ₑD⁻¹), where σ²ₑ is the measurement-error variance and D⁻¹ is a diagonal
+matrix whose entries are the inverse sample-sizes (see [`WithinSpeciesCTM`](@ref)). 
+
+Although both non-measurement-error models and measurement-error models can be expressed in terms
+of a distribution for the conditional species-level mean response, it is important to note that
+more data is required to fit a measurement-error model. To fit a non-measurement-error model, 
+knowing "mean response" by species suffices. To fit a measurement-error model, "standard deviation
+in response" by species also has to be computable.
+See [`phyloNetworklm(::FormulaTerm,::AbstractDataFrame,::HybridNetwork)`](@ref).
+
+fixitCecile: Info on measurement-error models has been split between [`PhyloNetworkLinearModel`](@ref)
+and [`phyloNetworklm(::FormulaTerm,::AbstractDataFrame,::HybridNetwork)`](@ref).
 """
 mutable struct PhyloNetworkLinearModel <: GLM.LinPredModel
-    "lm: a GLM.LinearModel object, fitted on the cholesky-tranformend problem"
+    "lm: a GLM.LinearModel object, fitted on the cholesky-tranformed problem"
     lm::GLM.LinearModel # result of a lm on a matrix
     "V: a MatrixTopologicalOrder object of the network-induced correlations"
     V::MatrixTopologicalOrder
     "Vy: the sub matrix corresponding to the tips and actually used for the correction"
     Vy::Matrix
-    "RL: a LowerTriangular matrix, Cholesky transform of Vy=RL*RL'"
+    "RL: a LowerTriangular matrix, the lower Cholesky factor of Vy=RL*RL'"
     RL::LowerTriangular
     "Y: the vector of data"
     Y::Vector
     "X: the matrix of regressors"
     X::Matrix
-    "logdetVy: the log-determinent of Vy"
+    "logdetVy: the log-determinant of Vy"
     logdetVy::Float64
     "criterion: REML if reml is true, ML otherwise"
     reml::Bool
@@ -1983,52 +2020,83 @@ end
 """
     phyloNetworklm(f, dataframe, net; model="BM", ...)
 
-Phylogenetic regression, using the correlation structure induced by the network.
+Fit a phylogenetic linear regression model to data.
 
-Returns an object of type [`StatsModels.TableRegressionModel`](@ref). The wrapped [`PhyloNetworkLinearModel`]   
-object, can be accessed by `object.model`. For accessing the model matrix (`object.mm` and `object.mm.m`),  
-the model frame (`object.mf`) or formula (`object.mf.f`), refer to [StatsModels](https://juliastats.github.io/StatsModels.jl/stable/) functions, like `show(object.mf.f)`,  
-`terms(object.mf.f)`, `coefnames(object.mf.f)`, `terms(object.mf.f.rhs)`, `response(object)` etc.
+Return a [`PhyloNetworkLinearModel`](@ref), wrapped as a [`StatsModels.TableRegressionModel`](@ref).
+The wrapped `PhyloNetworkLinearModel` can be accessed by `object.model`. For
+further information on the other fields (`mf::ModelFrame`, `mm::ModelMatrix{T}`)
+refer to [StatsModels](https://juliastats.github.io/StatsModels.jl/stable/).
 
-# Arguments
-* `f`: formula to use for the regression
-* `fr`: DataFrame containing the response values, predictor values, species/tip labels for each observation/row.  
-If `msr_err=true` and `y_mean_std=true` (i.e. we want to fit a measurement error model by supplying species-level  
-statistics rather than individual-level observations), then two additional columns have to be provided:  
-  (1) species sample sizes (i.e. no. of observations for each species)  
-  (2) species standard deviations (i.e. standard deviations of the response values for each species sample)  
-By default, the column name for species/tip labels is assumed to be "tipNames", though this can be changed  
-by setting the `tipnames` argument.  
-By default, the column names for species sample sizes and species standard deviations are "[response column name]_n"  
-and "[response column name]_sd".
-* `net`: phylogenetic network to use. Should have labelled tips.
-* `model`: model for trait evolution. "BM" (default), "lambda" (for Pagel's lambda), "scalingHybrid"
-* `tipnames=:tipNames`: column name for species/tip labels represented as a symbol (i.e. if the desired column name  
-is "species", then do `tipnames=:species`)
-* `no_names=false`: if `true`, force the function to ignore the tips names. The data is then assumed to be in the  
-same order as the tips of the network. Default is false, setting it to true is dangerous, and strongly discouraged.
-* `reml=false`: if `true`, use REML estimation for variance components
+## Arguments
 
-The following tolerance parameters control the optimization of lambda if `model="lambda"` or `model="scalingHybrid"`,  
-and control the optimization of the variance components if `model="BM"` and `msr_err=true`. 
-* `fTolRel=fRelTr`: relative tolerance on the likelihood value for the optimization
-* `fTolAbs=xRelTr`: absolute tolerance on the likelihood value for the optimization
-* `xTolRel=fAbsTr`: relative tolerance on the parameter value for the optimization
-* `xTolAbs=xAbsTr`: absolute tolerance on the parameter value for the optimization
+* `f`: Formula to use for the regression.
+* `fr`: DataFrame containing the response values, predictor values, species/tip
+labels for each observation/row.
+* `net`: Phylogenetic network to use. Should have labelled tips.
+* `model`: Model for trait evolution. "BM" (default), "lambda" (Pagel's lambda),
+"scalingHybrid". See [`ContinuousTraitEM`](@ref).
+* `tipnames=:tipNames`: Column name for species/tip-labels represented as a
+symbol (i.e. if the column name in `fr` used for species/tip-labels is
+"Species", then do `tipnames=:Species`).
+* `no_names=false`: If `true`, force the function to ignore the tips names.
+The data is then assumed to be in the same order as the tips of the network.
+Default is false, setting it to true is dangerous, and strongly discouraged.
+* `reml=false`: If `true`, use REML estimation for variance components.
 
+The following tolerance parameters control the optimization of lambda if `model="lambda"`
+or `model="scalingHybrid"`, and control the optimization of the variance components if 
+`model="BM"` and `msr_err=true`.
+* `fTolRel=fRelTr`: Relative tolerance on the likelihood value.
+* `fTolAbs=xRelTr`: Absolute tolerance on the likelihood value.
+* `xTolRel=fAbsTr`: Relative tolerance on the parameter value.
+* `xTolAbs=xAbsTr`: Absolute tolerance on the parameter value.
 
-* `startingValue=0.5`: starting value for the optimization in lambda, if `model="lambda"` or `model="scalingHybrid"`
-* `fixedValue=missing`: if `fixedValue::Real` and either `model="lambda"` or `model="scalingHybrid"`, then lambda  
-is set to fixedValue and is not optimized. 
-* `msr_err=false`: if `true`, then fits a measurement error model. Currently only implemented for `model="BM"`
-* `y_mean_std=false`: if `true`, and `msr_err=true`, then fits a measurement error model using species-level  
-statistics provided in `fr`.
+* `startingValue=0.5`: If `model="lambda"` or `model="scalingHybrid"`, this
+provides the starting value for the optimization in lambda.
+* `fixedValue=missing`: If `model="lambda"` or `model="scalingHybrid"`, and
+`fixedValue::Real`, then lambda is set to fixedValue and is not optimized. 
+* `msr_err=false`: If `true`, fits a measurement-error model. Currently only
+implemented for `model="BM"`.
+* `y_mean_std=false`: If `true`, and `msr_err=true`, then fits a measurement-error
+model using species-level statistics provided in `fr`.
 
-# See also
+## Methods applied to fitted models
+
+To display the response values, do `response(object)`.
+To display the model matrix, do `object.mm.m`.
+To display the model formula, do `show(object.mf.f)`.
+
+All of the StatsBase methods that can be applied to a `PhyloNetworkLinearModel`
+can also be applied to a `StatsModels.TableRegressionModel` to the same effect.
+
+FixitCecile: The original docstring referred to functions like `terms(object.mf.f)`,
+`coefnames(object.mf.f)`, `terms(object.mf.f.rhs)`, but I removed them in this 
+iteration because they did not seem relevant.
+
+## Measurement-error models
+
+For a high-level explanation of measurement-error models, refer to [`PhyloNetworkLinearModel`](@ref).
+To fit a measurement-error model, either of the following must be provided in `fr`:
+
+(1) Individual-level data: There should be columns for response, predictors, and
+species/tip-labels. Every row should correspond to an individual observation.
+
+(2) Species-level statistics: There should be columns for mean response, predictors,
+species/tip-labels, species sample-sizes (i.e. no. of observations for each species),
+and species standard deviations (i.e. standard deviations of the response values
+by species). Every row should correspond to a unique species. The column names for
+species sample-sizes and species standard deviations are expected to be "[response column name]_n"
+and "[response column name]_sd". E.g If the response column name is "y", then do "y_n" and "y_sd".
+
+Regardless of whether the data provided follows (1) or (2), `msr_err` should be
+set to true. If the data provided follows (2), then `y_mean_std` should be set
+to false. 
+
+## See also
 
 Type [`PhyloNetworkLinearModel`](@ref), Function [`ancestralStateReconstruction`](@ref)
 
-# Examples
+## Examples
 
 ```jldoctest
 julia> phy = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "caudata_tree.txt"));
@@ -2166,7 +2234,9 @@ julia> round.(predict(fitBM), digits=5)
  4.679
  4.679
  4.679
+ ```
 
+ ```jldoctest
 julia> net = readTopology("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.0,(#H1:0::0.3,E:3.0):6.2):2.0,O:11.2);");
 
 julia> df = DataFrame(
