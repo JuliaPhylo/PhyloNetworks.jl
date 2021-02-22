@@ -2092,6 +2092,21 @@ Regardless of whether the data provided follows (1) or (2), `msr_err` should be
 set to true. If the data provided follows (2), then `y_mean_std` should be set
 to false. 
 
+## Multiple predictor value sets within the same species
+
+This only applies for measurement-error models fitted on individual-level data.
+If there are multiple predictor value combinations observed within a species,
+these are replaced by the predictor-wise means within that species. E.g. Let 
+x1 and x2 be two predictors, and suppose that (x1=3,x2=6) and (x1=4,x2=8) are
+observed within some species. These two combinations will each be replaced by 
+(x1=3.5,x2=7) before model fitting.
+
+## Missing data
+
+Rows with missing data are omitted from the model-fitting. There should minimally
+be columns for response, predictors, species/tip-labels. As detailed in the above
+sections, additional columns may be required for fitting a measurement-error model.
+
 ## See also
 
 Type [`PhyloNetworkLinearModel`](@ref), Function [`ancestralStateReconstruction`](@ref)
@@ -2407,20 +2422,50 @@ end
 StatsBase.coef(m::PhyloNetworkLinearModel) = coef(m.lm)
 # Number of observations
 StatsBase.nobs(m::PhyloNetworkLinearModel) = nobs(m.lm)
-# (1) If the regression problem is to fit Y|X∼N(Xβ,V(σ²ₛ)) (i.e. neglecting msrerr)
-# then vcov matrix = (X'·̂V·X)⁻¹, where ̂V = V(̂σ²ₛ), and ̂σ²ₛ is the REML estimate of 
-# σ²ₛ. This follows the conventions of `gls`{nlme} and `glm`{stats} in R.
-# (2) If the regression problem is to fit Y|X∼N(Xβ,W(σ²ₛ,η)) (i.e. a msrerr model) 
-# then vcov matrix = (X'·Ŵ⁻¹·X)⁻¹, where Ŵ = W(̂σ̂²ₛ,̂η), and ̂σ²ₛ, ̂η are either the ML
-# or REML estimates of σ²ₛ, η. This follows the convention of `fit`{MixedModels} in
-# Julia.
+
+"""
+    vcov(m::PhyloNetworkLinearModel)
+
+Return the variance-covariance matrix of the coefficient estimates.
+
+For the continuous trait evolutionary models currently implemented, species-level
+mean response (conditional on the predictors), Y|X is modeled as:
+(1) Y|X ∼ 𝒩(Xβ,σ²ₛV(λ)) for non-measurement-error models
+(2) Y|X ∼ 𝒩(Xβ,σ²ₛV(λ) + σ²ₑD⁻¹) for measurement-error models
+See [`ContinuousTraitEM`](@ref), [`PhyloNetworkLinearModel`](@ref) for more details.
+
+If (1), then return ̂σ²ₛ(X'V(λ)⁻¹X)⁻¹, where ̂σ²ₛ is the REML estimate given λ.
+This follows the conventions of `nlme::gls` (https://www.rdocumentation.org/packages/nlme/versions/3.1-152)
+and `stats::glm` (https://www.rdocumentation.org/packages/stats/versions/3.6.2) in R.
+
+If (2), then return ̂σ²ₛ(X'W(λ,̂σ²ₛ,̂σ²ₑ)⁻¹X)⁻¹, where W = V(λ)+(σ²ₑ/σ²ₛ)D⁻¹ and
+(̂σ²ₛ,̂σₑ) are either the ML or REML estimates given λ. This follows the convention
+of `MixedModels.fit` (https://juliastats.org/MixedModels.jl/stable/)} in Julia.
+
+FixitCecile: Any suggestions? I'm trying to avoid explaining the λ parameter here.
+"""
 function StatsBase.vcov(m::PhyloNetworkLinearModel)
     (isnothing(m.model_within) ? 1 : sigma2_estim(m)/GLM.dispersion(m.lm,true)) * vcov(m.lm)
 end
 # standard error of coefficients
+"""
+    stderror(m::PhyloNetworkLinearModel)
+
+Return the standard errors of the coefficient estimates. See [`vcov`](@ref)
+for related information on how these are computed. 
+"""
 StatsBase.stderror(m::PhyloNetworkLinearModel) = sqrt.(diag(vcov(m)))
 # confidence Intervals for coefficients:
 # Based on: https://github.com/JuliaStats/GLM.jl/blob/d1ccc9abcc9c7ca6f640c13ff535ee8383e8f808/src/lm.jl#L240-L243
+"""
+    confint(m::PhyloNetworkLinearModel; level::Real=0.95)
+
+Return t-intervals for coefficients, with confidence level `level`.
+
+fixitCecile: GLM uses t-intervals, but MixedModels uses z-intervals. Should we
+keep t-intervals as the default, but compute z-intervals for measurement-error
+models? Same issue for `coeftable`.
+"""
 function StatsBase.confint(m::PhyloNetworkLinearModel; level::Real=0.95)
     hcat(coef(m),coef(m)) + stderror(m) *
     quantile(TDist(dof_residual(m)), (1. - level)/2.) * [1. -1.]
@@ -2431,6 +2476,12 @@ end
 # See: https://github.com/JuliaStats/MixedModels.jl/blob/49d2cd59849a9c0fea2952673b9e412ab62000a9/src/linearmixedmodel.jl#L253-L258
 # fixitCecile: Do we want to case on msrerr for both confint and coeftable? If msrerr=false then use t-intervals (GLM), 
 # and if msrerr=true then use Wald/Z-intervals (MixedModels)?
+"""
+    coeftable(m::PhyloNetworkLinearModel; level::Real=0.95)
+
+Return coefficient estimates, standard errors, t-values, p-values, and t-intervals
+as a `StatsBase.CoefTable`.
+"""
 function StatsBase.coeftable(m::PhyloNetworkLinearModel; level::Real=0.95)
     n_coef = size(m.lm.pp.X, 2) # no. of predictors
     if n_coef == 0
@@ -2471,6 +2522,17 @@ StatsBase.response(m::PhyloNetworkLinearModel) = m.Y
 StatsBase.predict(m::PhyloNetworkLinearModel) = m.RL * predict(m.lm)
 
 # log likelihood of the fitted linear model
+"""
+    loglikelihood(m::PhyloNetworkLinearModel)
+
+For non-measurement-error models, the loglikelihood is calculated based on the
+joint density for species-level mean responses.
+
+For measurement-error models, the loglikelihood is calculated based on the joint
+density for individual-level responses. This can be calculated from individual-level
+data, but also by providing species-level means and standard deviations which is
+accepted by [`phyloNetworklm(::FormulaTerm,::AbstractDataFrame,::HybridNetwork)`](@ref).
+"""
 function StatsBase.loglikelihood(m::PhyloNetworkLinearModel)
     linmod = m.lm
     if isnothing(m.model_within) # not a msrerr model
