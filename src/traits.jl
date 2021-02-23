@@ -1619,21 +1619,30 @@ An ancestral state reconstruction can be performed using [`ancestralStateReconst
 
 ## Measurement-error models
 
-As described in [`ContinuousTraitEM`](@ref), the species-level mean response (conditional on
-the predictors), in the absence of measurement-error, is modeled as 𝒩(·,σ²ₛV), where V is
-inferred from the species-tree/network and σ²ₛ is the between-species variance-rate.
+As described in [`ContinuousTraitEM`](@ref), the species-level mean responses
+(conditional on the predictors), in the absence of measurement-error, are jointly
+modeled as 𝒩(·,σ²ₛV), where V is inferred from the species-tree/network and σ²ₛ
+is the between-species variance-rate. For convenience, we shall refer to such a
+model as a non-measurement-error model.
 
-Fitting a measurement-error model amounts to modeling measurement-error in the individual-
-level responses as iid 𝒩(0,σ²ₑ), so that the conditional species-level mean response is now
-modeled as 𝒩(·,σ²ₛV + σ²ₑD⁻¹), where σ²ₑ is the measurement-error variance and D⁻¹ is a diagonal
-matrix whose entries are the inverse sample-sizes (see [`WithinSpeciesCTM`](@ref)). 
+Fitting a measurement-error model amounts to modeling measurement-error in the
+individual-level responses as iid 𝒩(0,σ²ₑ), so that the species-level mean responses
+(conditional on the predictors) are now jointly modeled as 𝒩(·,σ²ₛV + σ²ₑD⁻¹),
+where σ²ₑ is the measurement-error variance and D⁻¹ is a diagonal matrix whose
+entries are the inverse sample-sizes (see [`WithinSpeciesCTM`](@ref)).
 
-Although both non-measurement-error models and measurement-error models can be expressed in terms
-of a distribution for the conditional species-level mean response, it is important to note that
-more data is required to fit a measurement-error model. To fit a non-measurement-error model, 
-knowing "mean response" by species suffices. To fit a measurement-error model, "standard deviation
-in response" by species also has to be computable.
-See [`phyloNetworklm(::FormulaTerm,::AbstractDataFrame,::HybridNetwork)`](@ref).
+Although both non-measurement-error models and measurement-error models can be
+expressed in terms of a joint distribution for the species-level mean responses
+(conditional on the predictors), it is important to note that more data is
+required to fit a measurement-error model. To fit a non-measurement-error model,
+knowing "mean response" by species suffices. To fit a measurement-error model,
+both "mean response" and "standard deviation in response" by species need to be
+computable. `phyloNetworklm` can fit a measurement-error model either from
+species-level statistics ("mean response" and "standard deviation in response")
+or individual-level data (in which case it will compute the species-level
+statistics internally).
+See [`phyloNetworklm(::FormulaTerm,::AbstractDataFrame,::HybridNetwork)`](@ref) for
+more details on these two input choices.
 
 fixitCecile: Info on measurement-error models has been split between [`PhyloNetworkLinearModel`](@ref)
 and [`phyloNetworklm(::FormulaTerm,::AbstractDataFrame,::HybridNetwork)`](@ref).
@@ -2069,7 +2078,7 @@ To display the model formula, do `show(object.mf.f)`.
 All of the StatsBase methods that can be applied to a `PhyloNetworkLinearModel`
 can also be applied to a `StatsModels.TableRegressionModel` to the same effect.
 
-FixitCecile: The original docstring referred to functions like `terms(object.mf.f)`,
+fixitCecile: The original docstring referred to functions like `terms(object.mf.f)`,
 `coefnames(object.mf.f)`, `terms(object.mf.f.rhs)`, but I removed them in this 
 iteration because they did not seem relevant.
 
@@ -2095,11 +2104,13 @@ to false.
 ## Multiple predictor value sets within the same species
 
 This only applies for measurement-error models fitted on individual-level data.
-If there are multiple predictor value combinations observed within a species,
-these are replaced by the predictor-wise means within that species. E.g. Let 
-x1 and x2 be two predictors, and suppose that (x1=3,x2=6) and (x1=4,x2=8) are
-observed within some species. These two combinations will each be replaced by 
-(x1=3.5,x2=7) before model fitting.
+If there are indivduals within the same species with different values for
+the same predictor, these values are all replaced by the mean predictor value
+for all the individuals in that species.
+E.g. Suppose there are 3 individuals in a given species, and that their
+predictor values are (x1=3,x2=6), (x1=4,x2=8), (x1=2,x2=1). Then the predictor
+values for these 3 individuals will each be replaced by (x1=(3+4+2)/3,x2=(6+8+1)/3)
+before model fitting.
 
 ## Missing data
 
@@ -2420,7 +2431,7 @@ end
 ## Un-changed Quantities
 # Coefficients of the regression
 StatsBase.coef(m::PhyloNetworkLinearModel) = coef(m.lm)
-# Number of observations
+# Number of observations for species-level data (so effectively no. of species)
 StatsBase.nobs(m::PhyloNetworkLinearModel) = nobs(m.lm)
 
 """
@@ -2430,19 +2441,21 @@ Return the variance-covariance matrix of the coefficient estimates.
 
 For the continuous trait evolutionary models currently implemented, species-level
 mean response (conditional on the predictors), Y|X is modeled as:
-(1) Y|X ∼ 𝒩(Xβ,σ²ₛV(λ)) for non-measurement-error models
-(2) Y|X ∼ 𝒩(Xβ,σ²ₛV(λ) + σ²ₑD⁻¹) for measurement-error models
-See [`ContinuousTraitEM`](@ref), [`PhyloNetworkLinearModel`](@ref) for more details.
+(1) Y|X ∼ 𝒩(Xβ,σ²ₛV) for non-measurement-error models
+(2) Y|X ∼ 𝒩(Xβ,σ²ₛV + σ²ₑD⁻¹) for measurement-error models
+The matrix V is inferred from the phylogeny, but may also depend on additional
+parameters to be estimated (e.g. `lambda` for Pagel's Lambda models). See
+[`ContinuousTraitEM`](@ref), [`PhyloNetworkLinearModel`](@ref) for more details.
 
-If (1), then return ̂σ²ₛ(X'V(λ)⁻¹X)⁻¹, where ̂σ²ₛ is the REML estimate given λ.
+If (1), then return ̂σ²ₛ(X'V⁻¹X)⁻¹, where ̂σ²ₛ is the REML estimate.
 This follows the conventions of `nlme::gls` (https://www.rdocumentation.org/packages/nlme/versions/3.1-152)
 and `stats::glm` (https://www.rdocumentation.org/packages/stats/versions/3.6.2) in R.
 
-If (2), then return ̂σ²ₛ(X'W(λ,̂σ²ₛ,̂σ²ₑ)⁻¹X)⁻¹, where W = V(λ)+(σ²ₑ/σ²ₛ)D⁻¹ and
-(̂σ²ₛ,̂σₑ) are either the ML or REML estimates given λ. This follows the convention
+If (2), then return ̂σ²ₛ(X'W(̂σ²ₛ,̂σ²ₑ)⁻¹X)⁻¹, where W = V+(σ²ₑ/σ²ₛ)D⁻¹ and
+(̂σ²ₛ,̂σₑ) are either the ML or REML estimates. This follows the convention
 of `MixedModels.fit` (https://juliastats.org/MixedModels.jl/stable/)} in Julia.
 
-FixitCecile: Any suggestions? I'm trying to avoid explaining the λ parameter here.
+fixitCecile: For review.
 """
 function StatsBase.vcov(m::PhyloNetworkLinearModel)
     (isnothing(m.model_within) ? 1 : sigma2_estim(m)/GLM.dispersion(m.lm,true)) * vcov(m.lm)
@@ -2462,9 +2475,8 @@ StatsBase.stderror(m::PhyloNetworkLinearModel) = sqrt.(diag(vcov(m)))
 
 Return t-intervals for coefficients, with confidence level `level`.
 
-fixitCecile: GLM uses t-intervals, but MixedModels uses z-intervals. Should we
-keep t-intervals as the default, but compute z-intervals for measurement-error
-models? Same issue for `coeftable`.
+fixitCecile: Will stick to t-intervals because the coefficients are at the
+species-level, and the residual degrees-of-freedom is clear. For review.
 """
 function StatsBase.confint(m::PhyloNetworkLinearModel; level::Real=0.95)
     hcat(coef(m),coef(m)) + stderror(m) *
@@ -2472,10 +2484,6 @@ function StatsBase.confint(m::PhyloNetworkLinearModel; level::Real=0.95)
 end
 # Table of estimated coefficients, standard errors, t-values, p-values, CIs
 # Based on: https://github.com/JuliaStats/GLM.jl/blob/d1ccc9abcc9c7ca6f640c13ff535ee8383e8f808/src/lm.jl#L193-L203
-# However, MixedModels.jl uses Wald confidence intervals instead.
-# See: https://github.com/JuliaStats/MixedModels.jl/blob/49d2cd59849a9c0fea2952673b9e412ab62000a9/src/linearmixedmodel.jl#L253-L258
-# fixitCecile: Do we want to case on msrerr for both confint and coeftable? If msrerr=false then use t-intervals (GLM), 
-# and if msrerr=true then use Wald/Z-intervals (MixedModels)?
 """
     coeftable(m::PhyloNetworkLinearModel; level::Real=0.95)
 
