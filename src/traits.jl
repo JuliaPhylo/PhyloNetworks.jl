@@ -1513,20 +1513,23 @@ abstract type ContinuousTraitEM end
 # current concrete subtypes: BM, PagelLambda, ScalingHybrid
 # possible future additions: OU (Ornstein-Uhlenbeck)?
 """
-    BM 
+    BM(λ)
 
-Brownian Motion model. 
+Brownian Motion, subtype of `ContinuousTraitEM`, to model the population mean
+of a trait (or of the residuals from a linear model). Under the BM model,
+the population (or species) means have a multivariate normal distribution with
+covariance matrix = σ²λV, where σ² is the between-species
+variance-rate (to be estimated), and the matrix V is obtained from
+[`sharedPathMatrix`](@ref)(net)[:Tips].
 
-fixitCecile: We could say that the species-level mean response (conditional on
-the predictors), in the absence of measurement error, is modeled as multivariate
-normal with covariance matrix = σ²·(`lambda`·V), where σ² is the between-species
-variance-rate (to be estimated), and V = [`sharedPathMatrix`](@ref)(net)[:Tips].
-`lambda` ∈ (0,∞) can be set and controls the scale for σ².
+λ is set to 1 by default, and is immutable.
+In future versions, λ may be used to control the scale for σ².
 
-fixitCecile: For consistency, shouldn't we allow for "scaling" of σ² in the
-PagelLambda, ScalingHybrid models as well? Or are we treating the PagelLambda,
-ScalingHybrid models more as diagnostic tools for the "informativeness" of the
-network?
+On a tree, V is the length of shared ancestry.
+On a network, the BM model assumes that the trait at a hybrid node
+is the weighted average of its immediate parents (plus possibly a fixed shift).
+The weights are the proportion of genes inherited from each parent:
+the γ parameters of hybrid edges.
 """
 struct BM <: ContinuousTraitEM
     lambda::Float64 # immutable
@@ -1534,25 +1537,19 @@ end
 BM() = BM(1.0)
 
 """
-    PagelLambda
+    PagelLambda(λ)
 
-Pagel's Lambda model.
+Pagel's λ model, subtype of `ContinuousTraitEM`, with covariance matrix σ²V(λ)
+where σ² is the between-species variance-rate (to be estimated),
+V(λ) = λV + (1-λ)T, V is the covariance under a Brownian motion [`BM`](@ref)
+and T is a diagonal matrix containing the total branch length elapsed from the
+root to each leaf (if the phylogeny is a tree, or more generally if the network
+is time consistent: the time from the root to a given node does not depend on
+the path).
 
-fixitCecile: We could say that the species-level mean response (conditional on
-the predictors), in the absence of measurement error, is modeled as multivariate
-normal with covariance matrix = σ²·(`lambda`·V + (1-`lambda`)·Diagonal(V)),
-where σ² is the between-species variance-rate (to be estimated), and
-V = [`sharedPathMatrix`](@ref)(net)[:Tips].
-`lambda` ∈ [0,1] gets optimized and is a measure of how important (0 being "not
-important") the given network structure is for explaining variation in the
-response.
-Note that the `PagelLambda` model is an extension of the `BM` model, except that
-now two covariance-related parameters (σ²,`lambda`) are estimated. 
-
-fixitCecile: In principle, `PagelLambda` and `ScalingHybrid` models are a supersets
-of `BM` models, and should not be on the same "level" in the type hierarchy as `BM`?
-This might be an issue when other evolutionary models like `OU` are introduced, and
-we want PagelLambda-OU or ScalingHybrid-OU, or even different types of ScalingHybrid.
+λ ∈ [0,1] is mutable and may be optimized. It is a measure of phylogenetic
+signal, that is, how important the given network is for explaining variation in
+the response. When λ=1, the `PagelLambda` model reduced to the `BM` model.
 """
 mutable struct PagelLambda <: ContinuousTraitEM
     lambda::Float64 # mutable: can be optimized
@@ -1560,22 +1557,22 @@ end
 PagelLambda() = PagelLambda(1.0)
 
 """
-    ScalingHybrid
+    ScalingHybrid(λ)
 
-Scaling Hybrid model.
+Scaling Hybrid model, subtype of `ContinuousTraitEM`, with covariance matrix
+σ²V(N(λ)) where σ² is the between-species variance-rate (to be estimated),
+V(N) is the Brownian motion [`BM`](@ref) covariance obtained from network N,
+and N(λ) is a obtained from the input network by rescaling the inheritance
+parameter γ of all minor edges by the same λ: a minor edge has its original γ
+changed to λγ. A major edge has its original γ changed to λγ+1-λ,
+using the same λ at all reticulations.
 
-fixitCecile: We could say that the species-level mean response (conditional on
-the predictors), in the absence of measurement error, is modeled as multivariate
-normal with covariance matrix = σ²·V(`lambda`), where σ² is the between-species
-variance-rate (to be estimated), and V(`lambda`) is a modified version of
-V = [`sharedPathMatrix`](@ref)(net)[:Tips], where the inheritance γ's for the 
-minor hybrid edges and major hybrid edges have been uniformly scaled by `lambda`
-and (1-`lambda`) respectively.
-`lambda` ∈ [0,1] gets optimized and is a measure of how important (0 being "not
-important") the given hybridization events in the network are for explaining
-variation in the response.
-Note that the `ScalingHybrid` model is an extension of the `BM` model, except 
-that now two covariance-related parameters (σ²,`lambda`) are estimated.
+For more information: see Bastide (2017) dissertation, section 4.3.2 p.175,
+available at https://tel.archives-ouvertes.fr/tel-01629648
+
+λ ∈ [0,1] is mutable and may be optimized. It is a measure of how important the
+reticulations are for explaining variation in the response.
+When λ=1, the `ScalingHybrid` model reduced to the `BM` model.
 """
 mutable struct ScalingHybrid <: ContinuousTraitEM
     lambda::Float64
@@ -1590,14 +1587,16 @@ ScalingHybrid() = ScalingHybrid(1.0)
     PhyloNetworkLinearModel <: GLM.LinPredModel
 
 Phylogenetic linear model representation.
-A `PhyloNetworkLinearModel` object is returned by calling [`phyloNetworklm(::Matrix,::Vector,::HybridNetwork)`](@ref),
-or by extracting the `model` field after calling [`phyloNetworklm(::FormulaTerm,::AbstractDataFrame,::HybridNetwork)`](@ref).
+A `PhyloNetworkLinearModel` object is returned by calling
+[`phyloNetworklm(::Matrix,::Vector,::HybridNetwork)`](@ref),
+or by extracting the `model` field after calling
+[`phyloNetworklm(::FormulaTerm,::AbstractDataFrame,::HybridNetwork)`](@ref).
 
 ## Fields
 
 `lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `reml`, `ind`, `nonmissing`, `model`, `model_within`.
 The following syntax pattern can be used to get more information on a specific field: 
-E.g. To find out about the `lm` field, type "?PhyloNetworkLinearModel.lm". 
+e.g. to find out about the `lm` field, type "?PhyloNetworkLinearModel.lm".
 
 ## Methods applied to fitted models
 
@@ -1606,46 +1605,45 @@ The following StatsBase functions can be applied:
 `residuals`, `response`, `predict`, `loglikelihood`, `nulldeviance`, `nullloglikelihood`,
 `r2`, `adjr2`, `aic`, `aicc`, `bic`.
 
-The estimated variance and mean of the [`BM`](@ref) process used can be retrieved using
+The estimated evolutionary variance rate and the estimated mean of the process
+can be retrieved using
 [`sigma2_estim`](@ref) and [`mu_estim`](@ref) respectively.
 
-The estimated measurement-error variance for measurement-error models can be retrieved
+If relevant, the estimated within-species variance for can be retrieved
 using [`wspvar_estim`](@ref).
 
-The optimized `lambda` parameter for Pagel's Lambda models (see [`PagelLambda`](@ref)) can
+The optimized λ parameter for Pagel's λ model (see [`PagelLambda`](@ref)) can
 be retrieved using [`lambda_estim`](@ref).
 
 An ancestral state reconstruction can be performed using [`ancestralStateReconstruction`](@ref).
 
-## Measurement-error models
+## Within-species variation
 
-As described in [`ContinuousTraitEM`](@ref), the species-level mean responses
-(conditional on the predictors), in the absence of measurement-error, are jointly
-modeled as 𝒩(·,σ²ₛV), where V is inferred from the species-tree/network and σ²ₛ
-is the between-species variance-rate. For convenience, we shall refer to such a
-model as a non-measurement-error model.
+The true population means (or the residuals: conditional on the predictors)
+are jointly modeled as 𝒩(·,σ²ₛV) where V depends on the trait model
+(see [`ContinuousTraitEM`](@ref)) and on the species network.
+σ²ₛ is the between-species variance-rate.
 
-Fitting a measurement-error model amounts to modeling measurement-error in the
-individual-level responses as iid 𝒩(0,σ²ₑ), so that the species-level mean responses
+Within-species variation is modeled by assuming that the individual-level
+responses are iid 𝒩(0,σ²ₑ), so that the species-level sample means
 (conditional on the predictors) are now jointly modeled as 𝒩(·,σ²ₛV + σ²ₑD⁻¹),
-where σ²ₑ is the measurement-error variance and D⁻¹ is a diagonal matrix whose
+where σ²ₑ is the within-species variance and D⁻¹ is a diagonal matrix whose
 entries are the inverse sample-sizes (see [`WithinSpeciesCTM`](@ref)).
 
-Although both non-measurement-error models and measurement-error models can be
-expressed in terms of a joint distribution for the species-level mean responses
-(conditional on the predictors), it is important to note that more data is
-required to fit a measurement-error model. To fit a non-measurement-error model,
-knowing "mean response" by species suffices. To fit a measurement-error model,
-both "mean response" and "standard deviation in response" by species need to be
-computable. `phyloNetworklm` can fit a measurement-error model either from
+Although both models can be expressed in terms of a joint distribution
+for the species-level sample means (or residuals conditional on the predictors),
+more data are required to fit a model accounting for within-species variation,
+that is, a model recognizing that the sample means are estimates of the true
+population means. To fit a model *without* within-species variance, data on the
+species means are sufficient. To fit a model *with* within-species variance,
+we need to have the species means and the standard deviation
+of the response variable for each species.
+`phyloNetworklm` can fit a model with within-species variation either from
 species-level statistics ("mean response" and "standard deviation in response")
-or individual-level data (in which case it will compute the species-level
-statistics internally).
+or from individual-level data (in which case the species-level statistics are
+computed internally).
 See [`phyloNetworklm(::FormulaTerm,::AbstractDataFrame,::HybridNetwork)`](@ref) for
 more details on these two input choices.
-
-fixitCecile: Info on measurement-error models has been split between [`PhyloNetworkLinearModel`](@ref)
-and [`phyloNetworklm(::FormulaTerm,::AbstractDataFrame,::HybridNetwork)`](@ref).
 """
 mutable struct PhyloNetworkLinearModel <: GLM.LinPredModel
     "lm: a GLM.LinearModel object, fitted on the cholesky-tranformed problem"
@@ -2031,9 +2029,14 @@ end
 
 Fit a phylogenetic linear regression model to data.
 
-Return a [`PhyloNetworkLinearModel`](@ref), wrapped as a [`StatsModels.TableRegressionModel`](@ref).
-The wrapped `PhyloNetworkLinearModel` can be accessed by `object.model`. For
-further information on the other fields (`mf::ModelFrame`, `mm::ModelMatrix{T}`)
+Return a [`PhyloNetworkLinearModel`](@ref) object, wrapped as a [`StatsModels.TableRegressionModel`](@ref).
+fixitBen: really? what do you mean by "wrapped"?
+The wrapped `PhyloNetworkLinearModel` can be accessed by `object.model`.
+fixitBen: really? Is `object` the output of phyloNetworklm? So there's a
+PhyloNetworkLinearModel inside of a PhyloNetworkLinearModel?
+Below: I like what you wrote, but it's unclear what `mf` or `mm` should be
+applied to. `object.mf`? `object.model.mf`?
+For further information on the other fields (`mf::ModelFrame`, `mm::ModelMatrix{T}`)
 refer to [StatsModels](https://juliastats.github.io/StatsModels.jl/stable/).
 
 ## Arguments
@@ -2055,19 +2058,19 @@ Default is false, setting it to true is dangerous, and strongly discouraged.
 The following tolerance parameters control the optimization of lambda if `model="lambda"`
 or `model="scalingHybrid"`, and control the optimization of the variance components if 
 `model="BM"` and `msr_err=true`.
-* `fTolRel=fRelTr`: Relative tolerance on the likelihood value.
+* `fTolRel=fRelTr`: Relative tolerance on the likelihood value. fixitBen: give the actual value, not fRelTr
 * `fTolAbs=xRelTr`: Absolute tolerance on the likelihood value.
 * `xTolRel=fAbsTr`: Relative tolerance on the parameter value.
 * `xTolAbs=xAbsTr`: Absolute tolerance on the parameter value.
 
 * `startingValue=0.5`: If `model="lambda"` or `model="scalingHybrid"`, this
-provides the starting value for the optimization in lambda.
+  provides the starting value for the optimization in lambda.
 * `fixedValue=missing`: If `model="lambda"` or `model="scalingHybrid"`, and
-`fixedValue::Real`, then lambda is set to fixedValue and is not optimized. 
+  `fixedValue::Real`, then lambda is set to fixedValue and is not optimized.
 * `msr_err=false`: If `true`, fits a measurement-error model. Currently only
-implemented for `model="BM"`.
-* `y_mean_std=false`: If `true`, and `msr_err=true`, then fits a measurement-error
-model using species-level statistics provided in `fr`.
+  implemented for `model="BM"`.
+* `y_mean_std=false`: If `true`, and `msr_err=true`, then accounts for
+  within-species variation, using species-level statistics provided in `fr`.
 
 ## Methods applied to fitted models
 
@@ -2076,47 +2079,56 @@ To display the model matrix, do `object.mm.m`.
 To display the model formula, do `show(object.mf.f)`.
 
 All of the StatsBase methods that can be applied to a `PhyloNetworkLinearModel`
-can also be applied to a `StatsModels.TableRegressionModel` to the same effect.
+can also be applied to a `StatsModels.TableRegressionModel`.
+fixitBen: say the reverse?
 
 fixitCecile: The original docstring referred to functions like `terms(object.mf.f)`,
 `coefnames(object.mf.f)`, `terms(object.mf.f.rhs)`, but I removed them in this 
 iteration because they did not seem relevant.
 
-## Measurement-error models
+## Within-species variation
 
-For a high-level explanation of measurement-error models, refer to [`PhyloNetworkLinearModel`](@ref).
-To fit a measurement-error model, either of the following must be provided in `fr`:
+For a high-level description, see [`PhyloNetworkLinearModel`](@ref).
+To fit a model with within-species variation,
+either of the following must be provided in `fr`:
 
 (1) Individual-level data: There should be columns for response, predictors, and
 species/tip-labels. Every row should correspond to an individual observation.
+At least one species must be represented by two or more individuals.
 
 (2) Species-level statistics: There should be columns for mean response, predictors,
-species/tip-labels, species sample-sizes (i.e. no. of observations for each species),
-and species standard deviations (i.e. standard deviations of the response values
-by species). Every row should correspond to a unique species. The column names for
-species sample-sizes and species standard deviations are expected to be "[response column name]_n"
-and "[response column name]_sd". E.g If the response column name is "y", then do "y_n" and "y_sd".
+species/tip-labels, species sample-sizes (number of individuals for each species),
+and species standard deviations (standard deviations of the response values
+by species). Every row should correspond to a species: each species should be
+represented by a unique row. The column names for species sample-sizes and
+species standard deviations are expected to be "[response column name]_n"
+and "[response column name]_sd". For example, if the response column name is "y",
+then the column names should be "y_n" and "y_sd" for the sample sizes and SDs.
 
 Regardless of whether the data provided follows (1) or (2), `msr_err` should be
 set to true. If the data provided follows (2), then `y_mean_std` should be set
 to false. 
 
-## Multiple predictor value sets within the same species
+## Within-species variation in predictors
 
-This only applies for measurement-error models fitted on individual-level data.
-If there are indivduals within the same species with different values for
+This only applies to within-species variation fitted on individual-level data.
+If there are individuals within the same species with different values for
 the same predictor, these values are all replaced by the mean predictor value
 for all the individuals in that species.
-E.g. Suppose there are 3 individuals in a given species, and that their
+For example, suppose there are 3 individuals in a given species, and that their
 predictor values are (x1=3,x2=6), (x1=4,x2=8), (x1=2,x2=1). Then the predictor
 values for these 3 individuals will each be replaced by (x1=(3+4+2)/3,x2=(6+8+1)/3)
 before model fitting.
 
+If a fourth individual had data (x1=10, x2 missing), then that individual would
+be ignored for any model using x2, and would not contribute any information
+to its species data for these models.
+
 ## Missing data
 
 Rows with missing data are omitted from the model-fitting. There should minimally
-be columns for response, predictors, species/tip-labels. As detailed in the above
-sections, additional columns may be required for fitting a measurement-error model.
+be columns for response, predictors, species/tip-labels. As detailed above,
+additional columns may be required for fitting within-species variation.
 
 ## See also
 
