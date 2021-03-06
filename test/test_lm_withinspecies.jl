@@ -129,12 +129,21 @@ end
 #= Rcode to generate the newick string and dataset:
 library(phytools)
 set.seed(1)
+
 tree <- pbtree(n=5,scale=1) # topology and branch lengths
+tree.newick <- write.tree(tree) # newick format
+# tree.newick <- "((t1:0.8121974445,(t2:0.4806586387,t3:0.4806586387):0.3315388057):0.1878025555,(t4:0.1206907041,t5:0.1206907041):0.8793092959);"
+
 X <- fastBM(tree,sig2=2,nsim=2); colnames(X) <- c("x1","x2") # non-intercept predictors
+# X <- matrix(c(-0.5503706,-0.7503593,-0.7599224,-0.4217977,-0.9839226,-1.3102488,0.4544195,0.2151272,1.0384023,1.3138847),nrow=5)
+# colnames(X) <- c("x1","x2"); rownames(X) <- c("t1","t2","t3","t4","t5")
+
 bsperr <- fastBM(tree) # phylogenetic variation, true BM variance-rate is 1
 y <- cbind(rep(1,5),X)%*%(1:3)+bsperr # response, true beta vector is c(1,2,3)
+# y <- matrix(c(-4.1836578,0.6258014,-0.3070109,2.6120026,2.2391044),nrow=5)
+# rownames(y) <- c("t1","t2","t3","t4","t5")
+
 df <- data.frame(y,X,species=tree$tip.label)
-tree.newick <- write.tree(tree) # newick format
 =#
 net = readTopology("((t1:0.8121974445,(t2:0.4806586387,t3:0.4806586387):0.3315388057):0.1878025555,(t4:0.1206907041,t5:0.1206907041):0.8793092959);")
 df = DataFrame(
@@ -151,12 +160,21 @@ m1 <- gls(y~x1+x2,data=df,
 coef(m1) # coefficients estimates: c(0.6469652,2.0420889,2.8285257)
 sigma(m1)^2 # reml BM variance-rate estimate: 0.0438973
 logLik(m1) # restricted log-likelihood: -0.07529961
+vcov(m1) # cov mat for coef estimates
+# matrix(c(0.030948901,0.024782246,0.003569513,0.024782246,0.039001092,0.009137043,0.003569513,0.009137043,0.013366014),nrow=3)
+summary(m1)$tTable[,"t-value"] # t-values for coef estimates: c(3.677548,10.340374,24.465786)
+summary(m1)$tTable[,"p-value"] # p-values for coef estimates: c(0.066635016,0.009223303,0.001666460)
 
 m2 <- gls(y~x1+x2,data=df,
         correlation=corBrownian(1,tree,form=~species),method="ML")
 coef(m2) # coefficients estimates: c(0.6469652,2.0420889,2.8285257)
 sigma(m2)^2 # ml BM variance-rate estimate: 0.01755892
 logLik(m2) # log-likelihood: 3.933531
+vcov(m2) # cov mat for coef estimates, this evaluates to the same value as vcov(m1)
+# Note: vcov(gls(...,method="REML)) == vcov(gls(...,method="ML"))
+# The same holds for t/p-values for the coef estimates
+summary(m2)$tTable[,"t-value"] # t-values for coef estimates: c(3.677548,10.340374,24.465786)
+summary(m2)$tTable[,"p-value"] # p-values for coef estimates: c(0.066635016,0.009223303,0.001666460)
 =#
 m1 = phyloNetworklm(@formula(y~x1+x2),df,net;tipnames=:species,reml=true)
 m2 = phyloNetworklm(@formula(y~x1+x2),df,net;tipnames=:species,reml=false)
@@ -165,11 +183,17 @@ m2 = phyloNetworklm(@formula(y~x1+x2),df,net;tipnames=:species,reml=false)
 @test sigma2_estim(m1) ≈ 0.0438973 rtol=1e-4
 @test isnothing(wspvar_estim(m1))
 @test loglikelihood(m1) ≈ -0.07529961 rtol=1e-3
+@test vcov(m1) ≈ [0.030948901 0.024782246 0.003569513;0.024782246 0.039001092 0.009137043;0.003569513 0.009137043 0.013366014] rtol=1e-4
+@test coeftable(m1).cols[coeftable(m1).teststatcol] ≈ [3.677548,10.340374,24.465786] rtol=1e-4
+@test coeftable(m1).cols[coeftable(m1).pvalcol] ≈ [0.066635016,0.009223303,0.001666460] rtol=1e-4
 @test !m2.model.reml
 @test coef(m2) ≈ [0.6469652,2.0420889,2.8285257] rtol=1e-5
 @test sigma2_estim(m2) ≈ 0.01755892 rtol=1e-4
 @test isnothing(wspvar_estim(m2))
 @test loglikelihood(m2) ≈ 3.933531 rtol=1e-4
+@test vcov(m2) ≈ [0.030948901 0.024782246 0.003569513;0.024782246 0.039001092 0.009137043;0.003569513 0.009137043 0.013366014] rtol=1e-4
+@test coeftable(m2).cols[coeftable(m2).teststatcol] ≈ [3.677548,10.340374,24.465786] rtol=1e-4
+@test coeftable(m2).cols[coeftable(m2).pvalcol] ≈ [0.066635016,0.009223303,0.001666460] rtol=1e-4
 
 end
 
@@ -177,10 +201,13 @@ end
 
 #= NOTE: 
 This testset DOES NOT check for similarity of the variance-components estimates
-from 'pgls.SEy' (phytools) and 'phyloNetworklm' (PhyloNetworks). It checks for 
-similarity of the coefficient estimates and the loglikelihood and restricted-
-loglikelihood evaluated by the two packages, given particular values for the 
-ml/reml variance-components estimates.
+from 'pgls.SEy' (phytools) and 'phyloNetworklm' (PhyloNetworks). In fact, 
+'pgls.SEy' and 'phyloNetworklm' solve different problems! 
+ML/REML variance-component estimates are obtained by running 'phyloNetworklm'.
+The code for 'pgls.SEy' is adapted to calculate coef estimates, cov matrix for
+coef estimates, t/p-values for coef estimates, and full/restricted-loglikelihood, 
+given these variance-components estimates. These values are then compared against
+those extracted from the output of 'phyloNetworklm'.
 =#
 
 #= Rcode to generate the newick string and dataset:
@@ -189,15 +216,24 @@ set.seed(2)
 m <- 5 # sample-size per taxa
 n <- 5 # no. of taxa
 p <- 3 # no. of predictors (including intercept)
+
 tree <- pbtree(n=n,scale=1) # topology and branch lengths
+tree.newick <- write.tree(tree) # newick format
+# tree.newick <- "(((t4:0.2537636499,t5:0.2537636499):0.2103870459,t3:0.4641506959):0.5358493041,(t1:0.4807642475,t2:0.4807642475):0.5192357525);"
+
 X <- fastBM(tree,sig2=2,nsim=2); colnames(X) <- c("x1","x2") # non-intercept predictors
+# X <- matrix(c(0.7894387,0.3285286,2.1495131,-1.4935665,-2.3199935,2.8184268,0.4740687,2.5801004,1.9967379,-0.4121874),nrow=5)
+# colnames(X) <- c("x1","x2"); rownames(X) <- c("t4","t5","t3","t1","t2")
+
 bsperr <- fastBM(tree) # phylogenetic variation, true BM variance-rate is 1
 wspvar <- 0.1 # measurement-error variance is 0.1
 msrerr <- rnorm(n=n,sd=sqrt(wspvar/m)) # msr error in species-level mean responses
 y_sd <- sqrt(wspvar*rchisq(n=n,df=m-1)/(m-1)) # sd in individual responses per species 
+# y_sd <- c(0.2463003,0.3236629,0.2458547,0.4866844,0.3434582); 
 y <- cbind(rep(1,5),X)%*%(1:3)+bsperr+msrerr # response, true beta vector is c(1,2,3)
+# y <- matrix(c(11.399108,3.216645,13.648011,4.851454,-4.922803),nrow=5); rownames(y) <- c("t4","t5","t3","t1","t2")
+
 df <- data.frame(y,y_sd,X,species=tree$tip.label)
-tree.newick <- write.tree(tree) # newick format
 =#
 net = readTopology("(((t4:0.2537636499,t5:0.2537636499):0.2103870459,t3:0.4641506959):0.5358493041,(t1:0.4807642475,t2:0.4807642475):0.5192357525);")
 df = DataFrame(
@@ -218,7 +254,7 @@ m1 |> sigma2_estim |> x -> round(x,sigdigits=6) # reml est BM var: 0.120746
 m2 |> sigma2_estim |> x -> round(x,sigdigits=6) # ml est BM var: 0.000399783
 
 (2) R code:
-## To check phyloNetworklm reml fit 
+## To check phyloNetworklm REML fit 
 library(nlme)
 T1 <- tree
 wspvar1 <- 0.116721 # reml est msrerr var of indiv-lvl rsps 
@@ -233,10 +269,20 @@ m1 <- gls(y~x1+x2,data=cbind(df,vf=diag(covmat1)),
           correlation=corBrownian(1,T1,form=~species),
           method="REML",
           weights=varFixed(~vf))
+
+coef(m1) # reml coefficient estimates: c(1.079839,1.976719,3.217391)
+
+Xp <- model.matrix(m1,df) # predictor matrix
+vcov1 <- solve(t(Xp)%*%solve(covmat1)%*%Xp) # cov mat for coef estimates
+# matrix(c(0.09386431,0.02273458,-0.02602937,0.02273458,0.02172123,-0.01133032,-0.02602937,-0.01133032,0.01584198),nrow=3)
+
+teststat1 <- coef(m1)/sqrt(diag(vcov1)) # test stat for coef estimates: c(3.524591,13.412285,25.562252)
+pval1 <- sapply(X=pt(teststat1,n-p),FUN=function(p) 2*min(p,1-p)) # pval for coef est:
+# c(0.071921276,0.005513044,0.001526885)
+
 RSS <- sum((m-1)*(df$y_sd^2)) # residual sum-of-squares wrt to the species means
 logLik(m1) # species-lvl cond restricted-ll: -3.26788
 sigm1 <- sigma(m1) # this is not bspvar1!, but rather the best "scaling" for covmat1
-Xp <- model.matrix(m1,df) # predictor matrix
 # indiv-lvl cond restricted ll 
 # "+ (n-p)*(2*log(sigm1)-sigm1^2+1)/2" un-scales the species-lvl rll returned by logLik
 # "- n*(m-1)*(log(wspvar1)+log(2*pi))/2 - (n*log(m)+RSS/wspvar1)/2" corrects to indiv-lvl rll
@@ -246,9 +292,8 @@ rll.indiv <- (rll.species
               - n*(m-1)*(log(wspvar1)+log(2*pi))/2 - (n*log(m)+RSS/wspvar1)/2
               )
 round(rll.indiv,digits=6) # indiv-lvl rll of remles: -14.14184
-coef(m1) # reml coefficient estimates: c(1.079839,1.976719,3.217391)
 
-## To check phyloNetworklm ml fit
+## To check phyloNetworklm ML fit
 T2 <- tree
 wspvar2 <- 0.125628 # ml est msrerr var of indiv-lvl rsps 
 bspvar2 <- 0.000399783 # ml est BM var
@@ -261,6 +306,17 @@ m2 <- gls(y~x1+x2,data=cbind(df,vf=diag(covmat2)),
           correlation=corBrownian(1,T2,form=~species),
           method="ML",
           weights=varFixed(~vf))
+
+coef(m2) # ml coefficient estimates: c(0.9767352,1.9155142,3.2661862)
+
+Xp <- model.matrix(m2,df) # predictor matrix
+vcov2 <- solve(t(Xp)%*%solve(covmat2)%*%Xp) # cov mat for coef estimates
+# matrix(c(0.019118171,0.004924625,-0.008977541,0.004924625,0.003577654,-0.003028413,-0.008977541,-0.003028413,0.005793475),nrow=3)
+
+teststat2 <- coef(m2)/sqrt(diag(vcov2)) # test stat for coef est: c(7.064049,32.024784,42.911270)
+pval2 <- sapply(X=pt(teststat2,n-p),FUN=function(p) 2*min(p,1-p)) # pval for coef est:
+# c(0.0194568147,0.0009736278,0.0005426298)
+
 ll.species <- logLik(m2) # species-lvl cond ll: 1.415653
 sigm2 <- sigma(m2) # this is not bspvar2!, but rather the best "scaling" for covmat2 
 RSS <- sum((m-1)*(df$y_sd^2)) # residual sum-of-squares wrt to the species means
@@ -272,7 +328,6 @@ ll.indiv <- (ll.species
              - n*(m-1)*(log(wspvar2)+log(2*pi))/2 - (n*log(m)+RSS/wspvar2)/2
              )
 round(ll.indiv,digits=6) # indiv-lvl ll of mles: -9.582357
-coef(m2) # ml coefficient estimates: c(0.9767352,1.9155142,3.2661862)
 =#
 m1 = phyloNetworklm(@formula(y~x1+x2),df,net;
                     tipnames=:species,reml=true,msr_err=true,y_mean_std=true)
@@ -283,6 +338,12 @@ m2 = phyloNetworklm(@formula(y~x1+x2),df,net;
 @test coef(m2) ≈ [0.9767352,1.9155142,3.2661862] rtol=1e-7
 @test loglikelihood(m1) ≈ -14.14184 rtol=1e-6
 @test loglikelihood(m2) ≈ -9.582357 rtol=1e-6
+@test vcov(m1) ≈ [0.09386431 0.02273458 -0.02602937;0.02273458 0.02172123 -0.01133032;-0.02602937 -0.01133032 0.01584198] rtol=1e-5
+@test vcov(m2) ≈ [0.019118171 0.004924625 -0.008977541;0.004924625 0.003577654 -0.003028413;-0.008977541 -0.003028413 0.005793475] rtol=1e-5
+@test coeftable(m1).cols[coeftable(m1).teststatcol] ≈ [3.524591,13.412285,25.562252] rtol=1e-6
+@test coeftable(m2).cols[coeftable(m2).teststatcol] ≈ [7.064049,32.024784,42.911270] rtol=1e-5
+@test coeftable(m1).cols[coeftable(m1).pvalcol] ≈ [0.071921276,0.005513044,0.001526885] rtol=1e-6
+@test coeftable(m2).cols[coeftable(m2).pvalcol] ≈ [0.0194568147,0.0009736278,0.0005426298] rtol=1e-5
 end
 
 @testset "phyloNetworklm: within-species variation, network (1 reticulation)" begin

@@ -2032,10 +2032,8 @@ Fit a phylogenetic linear regression model to data.
 Return a [`PhyloNetworkLinearModel`](@ref) object, wrapped as a [`StatsModels.TableRegressionModel`](@ref).
 fixitBen: really? what do you mean by "wrapped"?
 The wrapped `PhyloNetworkLinearModel` can be accessed by `object.model`.
-fixitBen: really? Is `object` the output of phyloNetworklm? So there's a
-PhyloNetworkLinearModel inside of a PhyloNetworkLinearModel?
-Below: I like what you wrote, but it's unclear what `mf` or `mm` should be
-applied to. `object.mf`? `object.model.mf`?
+See [`StatsModels.TableRegressionModel`](https://juliastats.org/StatsModels.jl/stable/api/#StatsModels.TableRegressionModel)
+for a description of the type.
 For further information on the other fields (`mf::ModelFrame`, `mm::ModelMatrix{T}`)
 refer to [StatsModels](https://juliastats.github.io/StatsModels.jl/stable/).
 
@@ -2058,10 +2056,10 @@ Default is false, setting it to true is dangerous, and strongly discouraged.
 The following tolerance parameters control the optimization of lambda if `model="lambda"`
 or `model="scalingHybrid"`, and control the optimization of the variance components if 
 `model="BM"` and `msr_err=true`.
-* `fTolRel=fRelTr`: Relative tolerance on the likelihood value. fixitBen: give the actual value, not fRelTr
-* `fTolAbs=xRelTr`: Absolute tolerance on the likelihood value.
-* `xTolRel=fAbsTr`: Relative tolerance on the parameter value.
-* `xTolAbs=xAbsTr`: Absolute tolerance on the parameter value.
+* `fTolRel=1e-10`: Relative tolerance on the likelihood value.
+* `fTolAbs=1e-10`: Absolute tolerance on the likelihood value.
+* `xTolRel=1e-10`: Relative tolerance on the parameter value.
+* `xTolAbs=1e-10`: Absolute tolerance on the parameter value. 
 
 * `startingValue=0.5`: If `model="lambda"` or `model="scalingHybrid"`, this
   provides the starting value for the optimization in lambda.
