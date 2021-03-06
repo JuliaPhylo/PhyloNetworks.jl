@@ -164,6 +164,8 @@ vcov(m1) # cov mat for coef estimates
 # matrix(c(0.030948901,0.024782246,0.003569513,0.024782246,0.039001092,0.009137043,0.003569513,0.009137043,0.013366014),nrow=3)
 summary(m1)$tTable[,"t-value"] # t-values for coef estimates: c(3.677548,10.340374,24.465786)
 summary(m1)$tTable[,"p-value"] # p-values for coef estimates: c(0.066635016,0.009223303,0.001666460)
+coef(m1) + qt(p=0.025,df=5-3)*sqrt(diag(vcov(m1))) # lower limit 95%-CI: c(-0.1099703,1.1923712,2.3310897)
+coef(m1) + qt(p=0.975,df=5-3)*sqrt(diag(vcov(m1))) # upper limit 95%-CI: c(1.403901,2.891807,3.325962)
 
 m2 <- gls(y~x1+x2,data=df,
         correlation=corBrownian(1,tree,form=~species),method="ML")
@@ -172,9 +174,11 @@ sigma(m2)^2 # ml BM variance-rate estimate: 0.01755892
 logLik(m2) # log-likelihood: 3.933531
 vcov(m2) # cov mat for coef estimates, this evaluates to the same value as vcov(m1)
 # Note: vcov(gls(...,method="REML)) == vcov(gls(...,method="ML"))
-# The same holds for t/p-values for the coef estimates
+# The same holds for t/p-values and CIs for the coef estimates
 summary(m2)$tTable[,"t-value"] # t-values for coef estimates: c(3.677548,10.340374,24.465786)
 summary(m2)$tTable[,"p-value"] # p-values for coef estimates: c(0.066635016,0.009223303,0.001666460)
+coef(m2) + qt(p=0.025,df=5-3)*sqrt(diag(vcov(m2))) # lower limit 95%-CI: c(-0.1099703,1.1923712,2.3310897)
+coef(m2) + qt(p=0.975,df=5-3)*sqrt(diag(vcov(m2))) # upper limit 95%-CI: c(1.403901,2.891807,3.325962)
 =#
 m1 = phyloNetworklm(@formula(y~x1+x2),df,net;tipnames=:species,reml=true)
 m2 = phyloNetworklm(@formula(y~x1+x2),df,net;tipnames=:species,reml=false)
@@ -186,6 +190,8 @@ m2 = phyloNetworklm(@formula(y~x1+x2),df,net;tipnames=:species,reml=false)
 @test vcov(m1) ≈ [0.030948901 0.024782246 0.003569513;0.024782246 0.039001092 0.009137043;0.003569513 0.009137043 0.013366014] rtol=1e-4
 @test coeftable(m1).cols[coeftable(m1).teststatcol] ≈ [3.677548,10.340374,24.465786] rtol=1e-4
 @test coeftable(m1).cols[coeftable(m1).pvalcol] ≈ [0.066635016,0.009223303,0.001666460] rtol=1e-4
+@test coeftable(m1).cols[findall(coeftable(m1).colnms .== "Lower 95%")[1]] ≈ [-0.1099703,1.1923712,2.3310897] rtol=1e-5
+@test coeftable(m1).cols[findall(coeftable(m1).colnms .== "Upper 95%")[1]] ≈ [1.403901,2.891807,3.325962] rtol=1e-5
 @test !m2.model.reml
 @test coef(m2) ≈ [0.6469652,2.0420889,2.8285257] rtol=1e-5
 @test sigma2_estim(m2) ≈ 0.01755892 rtol=1e-4
@@ -194,6 +200,8 @@ m2 = phyloNetworklm(@formula(y~x1+x2),df,net;tipnames=:species,reml=false)
 @test vcov(m2) ≈ [0.030948901 0.024782246 0.003569513;0.024782246 0.039001092 0.009137043;0.003569513 0.009137043 0.013366014] rtol=1e-4
 @test coeftable(m2).cols[coeftable(m2).teststatcol] ≈ [3.677548,10.340374,24.465786] rtol=1e-4
 @test coeftable(m2).cols[coeftable(m2).pvalcol] ≈ [0.066635016,0.009223303,0.001666460] rtol=1e-4
+@test coeftable(m2).cols[findall(coeftable(m2).colnms .== "Lower 95%")[1]] ≈ [-0.1099703,1.1923712,2.3310897] rtol=1e-5
+@test coeftable(m2).cols[findall(coeftable(m2).colnms .== "Upper 95%")[1]] ≈ [1.403901,2.891807,3.325962] rtol=1e-5
 
 end
 
@@ -279,6 +287,8 @@ vcov1 <- solve(t(Xp)%*%solve(covmat1)%*%Xp) # cov mat for coef estimates
 teststat1 <- coef(m1)/sqrt(diag(vcov1)) # test stat for coef estimates: c(3.524591,13.412285,25.562252)
 pval1 <- sapply(X=pt(teststat1,n-p),FUN=function(p) 2*min(p,1-p)) # pval for coef est:
 # c(0.071921276,0.005513044,0.001526885)
+lowerci1 <- coef(m1) + qt(p=0.025,df=n-p)*sqrt(diag(vcov1)) # lower limit 95%-CI: c(-0.2383769,1.3425890,2.6758379)
+upperci1 <- coef(m1) + qt(p=0.975,df=n-p)*sqrt(diag(vcov1)) # upper limit 95%-CI: c(2.398055,2.610850,3.758944)
 
 RSS <- sum((m-1)*(df$y_sd^2)) # residual sum-of-squares wrt to the species means
 logLik(m1) # species-lvl cond restricted-ll: -3.26788
@@ -316,6 +326,8 @@ vcov2 <- solve(t(Xp)%*%solve(covmat2)%*%Xp) # cov mat for coef estimates
 teststat2 <- coef(m2)/sqrt(diag(vcov2)) # test stat for coef est: c(7.064049,32.024784,42.911270)
 pval2 <- sapply(X=pt(teststat2,n-p),FUN=function(p) 2*min(p,1-p)) # pval for coef est:
 # c(0.0194568147,0.0009736278,0.0005426298)
+lowerci2 <- coef(m2) + qt(p=0.025,df=n-p)*sqrt(diag(vcov2)) # lower limit 95%-CI: c(0.381814,1.658158,2.938690)
+upperci2 <- coef(m2) + qt(p=0.975,df=n-p)*sqrt(diag(vcov2)) # upper limit 95%-CI: c(1.571656,2.172871,3.593682)
 
 ll.species <- logLik(m2) # species-lvl cond ll: 1.415653
 sigm2 <- sigma(m2) # this is not bspvar2!, but rather the best "scaling" for covmat2 
@@ -344,6 +356,10 @@ m2 = phyloNetworklm(@formula(y~x1+x2),df,net;
 @test coeftable(m2).cols[coeftable(m2).teststatcol] ≈ [7.064049,32.024784,42.911270] rtol=1e-5
 @test coeftable(m1).cols[coeftable(m1).pvalcol] ≈ [0.071921276,0.005513044,0.001526885] rtol=1e-6
 @test coeftable(m2).cols[coeftable(m2).pvalcol] ≈ [0.0194568147,0.0009736278,0.0005426298] rtol=1e-5
+@test coeftable(m1).cols[findall(coeftable(m1).colnms .== "Lower 95%")[1]] ≈ [-0.2383769,1.3425890,2.6758379] rtol=1e-6
+@test coeftable(m2).cols[findall(coeftable(m2).colnms .== "Lower 95%")[1]] ≈ [0.381814,1.658158,2.938690] rtol=1e-6
+@test coeftable(m1).cols[findall(coeftable(m1).colnms .== "Upper 95%")[1]] ≈ [2.398055,2.610850,3.758944] rtol=1e-6
+@test coeftable(m2).cols[findall(coeftable(m2).colnms .== "Upper 95%")[1]] ≈ [1.571656,2.172871,3.593682] rtol=1e-6
 end
 
 @testset "phyloNetworklm: within-species variation, network (1 reticulation)" begin
