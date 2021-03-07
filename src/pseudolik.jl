@@ -1380,7 +1380,7 @@ end
 #          calculateExpCF for all quartets
 function logPseudoLik(quartet::Array{Quartet,1})
     suma = 0
-    for q in quartet
+    Threads.@threads for q in quartet
         suma += logPseudoLik(q)
     end
     return -suma

@@ -1509,7 +1509,7 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
         julialog = string(rootname,".log")
         logfile = open(julialog,"w")
         juliaout = string(rootname,".out")
-        if Distributed.nprocs() == 1
+        if Distributed.nprocs() == 1 || runs == 1
             writelog_1proc = true
             juliaerr = string(rootname,".err")
             errfile = open(juliaerr,"w")
