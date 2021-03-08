@@ -13,7 +13,6 @@ module PhyloNetworks
     using Random
     using Statistics: mean, quantile, median
     
-    using TimerOutputs
     using Base.Threads
 
     # other libraries, indicate compatible version in Project.toml
