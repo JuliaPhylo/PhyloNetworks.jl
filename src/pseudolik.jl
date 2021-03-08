@@ -1372,6 +1372,27 @@ function logPseudoLik(quartet::Quartet)
     quartet.logPseudoLik = suma
     return suma
 end
+function logPseudoLik(quartet::Quartet, lock::Threads.SpinLock)
+    sum(quartet.qnet.expCF) != 0.0 || error("expCF not updated for quartet $(quartet.number)")
+    #@debug "quartet= $(quartet.taxon), obsCF = $(quartet.obsCF), expCF = $(quartet.qnet.expCF)"
+    suma = 0
+    for i in 1:3
+        if(quartet.qnet.expCF[i] < 0)
+            @debug "found expCF negative $(quartet.qnet.expCF[i]), will set loglik=-1.e15"
+            suma += -1.e15
+        else
+            suma += quartet.obsCF[i] == 0 ? 0.0 : 100*quartet.obsCF[i]*log(quartet.qnet.expCF[i]/quartet.obsCF[i])
+            # WARNING: 100 should be replaced by -2*ngenes to get the deviance.
+            # below: negative sign used below in logPseudoLik() when summing up across 4-taxon sets
+        end
+    end
+    ## to account for missing data:
+    ## if(quartet.ngenes > 0)
+    ##     suma = quartet.ngenes*suma
+    ## end
+    quartet.logPseudoLik = suma
+    return suma
+end
 
 # function to calculate the -log pseudolikelihood function for array of
 # quartets
@@ -1379,14 +1400,15 @@ end
 # warning: assumes that quartet.qnet is already updated with extractQuartet and
 #          calculateExpCF for all quartets
 function logPseudoLik(quartet::Array{Quartet,1})
-    suma = 0
+    suma = Threads.Atomic{Float64}(0)
+    l = Threads.SpinLock()
+    l2 = Threads.SpinLock()
     Threads.@threads for q in quartet
-        a = logPseudoLik(q)
-        lock(cond::Threads.Condition)
-        suma += a
-        unlock(cond)
+        a = logPseudoLik(q, l2)
+        Threads.atomic_add!(suma, a)
+        #suma += a
     end
-    return -suma
+    return -suma[]
 end
 
 logPseudoLik(d::DataCF) = logPseudoLik(d.quartet)
