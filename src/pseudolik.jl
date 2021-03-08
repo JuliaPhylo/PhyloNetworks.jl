@@ -502,7 +502,7 @@ end
 # it updates expCF, hasEdge, indexht
 function extractQuartet!(net::HybridNetwork, quartet::Vector{Quartet})
     @debug "EXTRACT: begins extract quartets for network"
-    Threads.@threads for q in quartet
+    for q in quartet
         extractQuartet!(net,q)
         qnet = deepcopy(q.qnet); #there is a reason not to mess up with the original q.qnet, i believe to keep ht consistent
         calculateExpCFAll!(qnet);
@@ -1263,7 +1263,7 @@ end
 function calculateExpCFAll!(data::DataCF)
     !all((q->(q.qnet.numTaxa != 0)), data.quartet) ? error("qnet in quartets on data are not correctly updated with extractQuartet") : nothing
     #@warn "assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network"
-    Threads.@threads for q in data.quartet
+    for q in data.quartet
         if(q.qnet.changed)
             qnet = deepcopy(q.qnet);
             calculateExpCFAll!(qnet);
@@ -1327,7 +1327,7 @@ function topologyQPseudolik!(net0::HybridNetwork,d::DataCF; verbose=false::Bool)
     end
     extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
     all((q->(q.qnet.numTaxa != 0)), d.quartet) || error("qnet in quartets on data are not correctly updated with extractQuartet")
-    Threads.@threads for q in d.quartet
+    for q in d.quartet
         if verbose println("computing expCF for quartet $(q.taxon)") # to stdout
         else @debug        "computing expCF for quartet $(q.taxon)"; end # to logger if debug turned on by user
         qnet = deepcopy(q.qnet);
@@ -1381,7 +1381,10 @@ end
 function logPseudoLik(quartet::Array{Quartet,1})
     suma = 0
     Threads.@threads for q in quartet
-        suma += logPseudoLik(q)
+        a = logPseudoLik(q)
+        lock(cond::Threads.Condition)
+        suma += a
+        unlock(cond)
     end
     return -suma
 end
