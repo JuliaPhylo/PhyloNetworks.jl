@@ -1263,7 +1263,7 @@ end
 function calculateExpCFAll!(data::DataCF)
     !all((q->(q.qnet.numTaxa != 0)), data.quartet) ? error("qnet in quartets on data are not correctly updated with extractQuartet") : nothing
     #@warn "assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network"
-    for q in data.quartet
+    Threads.@threads for q in data.quartet
         if(q.qnet.changed)
             qnet = deepcopy(q.qnet);
             calculateExpCFAll!(qnet);
@@ -1281,7 +1281,7 @@ end
 function calculateExpCFAll!(data::DataCF, x::Vector{Float64},net::HybridNetwork)
     !all((q->(q.qnet.numTaxa != 0)), data.quartet) ? error("qnet in quartets on data are not correctly updated with extractQuartet") : nothing
     #println("calculateExpCFAll in x: $(x) with net.ht $(net.ht)")
-    for q in data.quartet
+    Threads.@threads for q in data.quartet
         update!(q.qnet,x,net)
         if(q.qnet.changed)
             #println("enters to recalculate expCF for some quartet")
@@ -1327,7 +1327,7 @@ function topologyQPseudolik!(net0::HybridNetwork,d::DataCF; verbose=false::Bool)
     end
     extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
     all((q->(q.qnet.numTaxa != 0)), d.quartet) || error("qnet in quartets on data are not correctly updated with extractQuartet")
-    for q in d.quartet
+    Threads.@threads for q in d.quartet
         if verbose println("computing expCF for quartet $(q.taxon)") # to stdout
         else @debug        "computing expCF for quartet $(q.taxon)"; end # to logger if debug turned on by user
         qnet = deepcopy(q.qnet);
