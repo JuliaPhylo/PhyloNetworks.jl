@@ -12,8 +12,8 @@ module PhyloNetworks
     using Printf: @printf, @sprintf
     using Random
     using Statistics: mean, quantile, median
-
-    #tkc experimenting 
+    
+    using TimerOutputs
     using Base.Threads
 
     # other libraries, indicate compatible version in Project.toml
