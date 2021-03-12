@@ -623,5 +623,5 @@ fitbis = phyloNetworklm(@formula(trait ~ -1), dfr, net)
 @test aicc(phynetlm) ≈ aicc(fitbis)
 @test bic(phynetlm) ≈ bic(fitbis)
 #@test mu_estim(phynetlm)  mu_estim(fitbis)
-=#
 end
+=#
