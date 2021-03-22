@@ -114,6 +114,7 @@ getShiftEdgeNumber
 getShiftValue
 phyloNetworklm
 sigma2_estim
+wspvar_estim
 mu_estim
 lambda_estim
 ancestralStateReconstruction
