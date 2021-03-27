@@ -130,7 +130,7 @@ module PhyloNetworks
         ReconstructedStates,
         sigma2_phylo,
         sigma2_within,
-        mu_estim,
+        mu_phylo,
         lambda_estim,
         expectations,
         expectationsPlot,

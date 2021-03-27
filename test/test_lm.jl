@@ -90,8 +90,8 @@ fitbis = phyloNetworklm(@formula(trait ~ 1), dfr, net)
 @test aic(phynetlm) ≈ aic(fitbis)
 @test aicc(phynetlm) ≈ aicc(fitbis)
 @test bic(phynetlm) ≈ bic(fitbis)
-tmp = (@test_logs (:warn, r"^You fitted the data against a custom matrix") mu_estim(phynetlm))
-@test tmp ≈ mu_estim(fitbis)
+tmp = (@test_logs (:warn, r"^You fitted the data against a custom matrix") mu_phylo(phynetlm))
+@test tmp ≈ mu_phylo(fitbis)
 
 ## fixed values parameters
 fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedValue=1.0)
@@ -118,7 +118,7 @@ fitlam = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedVa
 @test aic(fitlam) ≈ aic(fitbis) + 2
 #@test aicc(fitlam) ≈ aicc(fitbis)
 @test bic(fitlam) ≈ bic(fitbis) + log(nobs(fitbis))
-@test mu_estim(fitlam) ≈ mu_estim(fitbis)
+@test mu_phylo(fitlam) ≈ mu_phylo(fitbis)
 
 fitSH = phyloNetworklm(@formula(trait ~ 1), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
 @test loglikelihood(fitlam) ≈ loglikelihood(fitSH)
@@ -189,7 +189,7 @@ fitlam = phyloNetworklm(@formula(trait ~ shift_8 + shift_17), dfr, net, model = 
 @test aic(fitlam) ≈ aic(fitShift) + 2
 #@test aicc(fitlam)  ≈ aicc(fitShift)
 @test bic(fitlam) ≈ bic(fitShift) + log(nobs(fitShift))
-@test mu_estim(fitlam)  ≈ mu_estim(fitShift)
+@test mu_phylo(fitlam)  ≈ mu_phylo(fitShift)
 
 fitSH = phyloNetworklm(@formula(trait ~ shift_8 + shift_17), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
 @test loglikelihood(fitlam) ≈ loglikelihood(fitSH)
@@ -339,7 +339,7 @@ fitbis = phyloNetworklm(@formula(trait ~ pred), dfr, net)
 @test aic(phynetlm) ≈ aic(fitbis)
 @test aicc(phynetlm) ≈ aicc(fitbis)
 @test bic(phynetlm) ≈ bic(fitbis)
-@test mu_estim(phynetlm) ≈ mu_estim(fitbis)
+@test mu_phylo(phynetlm) ≈ mu_phylo(fitbis)
 
 # unnamed ordered data
 dfr = DataFrame(trait = B, pred = A)
@@ -426,7 +426,7 @@ fitlam = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "lambda", fixe
 @test aic(fitlam) ≈ aic(fitnabis) + 2
 #@test aicc(fitlam) ≈ aicc(fitnabis)
 @test bic(fitlam) ≈ bic(fitnabis) + log(nobs(fitnabis))
-@test mu_estim(fitlam) ≈ mu_estim(fitnabis)
+@test mu_phylo(fitlam) ≈ mu_phylo(fitnabis)
 
 fitSH = phyloNetworklm(@formula(trait ~ pred), dfr, net, model = "scalingHybrid", fixedValue = 1.0)
 @test loglikelihood(fitlam) ≈ loglikelihood(fitSH)

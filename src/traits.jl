@@ -1605,7 +1605,7 @@ The following StatsBase functions can be applied:
 
 The estimated variance-rate and estimated mean of the species-level trait model 
 (see [`ContinuousTraitEM`](@ref)) can be retrieved using [`sigma2_phylo`](@ref) 
-and [`mu_estim`](@ref) respectively.
+and [`mu_phylo`](@ref) respectively.
 
 If relevant, the estimated individual-level/within-species variance can be retrieved 
 using [`sigma2_within`](@ref).
@@ -2161,7 +2161,7 @@ AIC: 161.9223015666
 julia> round(sigma2_phylo(fitBM), digits=6) # rounding for jldoctest convenience
 0.002945
 
-julia> round(mu_estim(fitBM), digits=4)
+julia> round(mu_phylo(fitBM), digits=4)
 4.679
 
 julia> using StatsBase # for aic() stderror() loglikelihood() etc.
@@ -2627,11 +2627,11 @@ sigma2_within(m::PhyloNetworkLinearModel) = (isnothing(m.model_within) ? nothing
 sigma2_within(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T) = sigma2_within(m.model)
 # ML estimate for ancestral state of the BM
 """
-    mu_estim(m::PhyloNetworkLinearModel)
+    mu_phylo(m::PhyloNetworkLinearModel)
 
 Estimated root value for a fitted object.
 """
-function mu_estim(m::PhyloNetworkLinearModel)
+function mu_phylo(m::PhyloNetworkLinearModel)
     @warn """You fitted the data against a custom matrix, so I have no way
          to know which column is your intercept (column of ones).
          I am using the first coefficient for ancestral mean mu by convention,
@@ -2643,7 +2643,7 @@ function mu_estim(m::PhyloNetworkLinearModel)
     end
 end
 # Need to be adapted manually to TableRegressionModel beacouse it's a new function
-function mu_estim(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T)
+function mu_phylo(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T)
     if m.mf.f.rhs.terms[1] != StatsModels.InterceptTerm{true}()
         error("The fit was done without intercept, so I cannot estimate mu")
     end

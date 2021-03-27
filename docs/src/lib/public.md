@@ -115,7 +115,7 @@ getShiftValue
 phyloNetworklm
 sigma2_phylo
 sigma2_within
-mu_estim
+mu_phylo
 lambda_estim
 ancestralStateReconstruction
 expectations
