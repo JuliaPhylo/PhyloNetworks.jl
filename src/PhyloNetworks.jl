@@ -129,7 +129,7 @@ module PhyloNetworks
         ancestralStateReconstruction,
         ReconstructedStates,
         sigma2_phylo,
-        wspvar_estim,
+        sigma2_within,
         mu_estim,
         lambda_estim,
         expectations,

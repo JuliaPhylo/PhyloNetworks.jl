@@ -1608,7 +1608,7 @@ The estimated variance-rate and estimated mean of the species-level trait model
 and [`mu_estim`](@ref) respectively.
 
 If relevant, the estimated individual-level/within-species variance can be retrieved 
-using [`wspvar_estim`](@ref).
+using [`sigma2_within`](@ref).
 
 The optimized λ parameter for Pagel's λ model (see [`PagelLambda`](@ref)) can
 be retrieved using [`lambda_estim`](@ref).
@@ -2619,12 +2619,12 @@ sigma2_phylo(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} wh
   sigma2_phylo(m.model)
 # REML estimate of within-species variance for measurement error models
 """
-    wspvar_estim(m::PhyloNetworkLinearModel)
+    sigma2_within(m::PhyloNetworkLinearModel)
 
 Estimated within-species variance for a fitted object.
 """
-wspvar_estim(m::PhyloNetworkLinearModel) = (isnothing(m.model_within) ? nothing : m.model_within.wsp_var[1])
-wspvar_estim(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T) = wspvar_estim(m.model)
+sigma2_within(m::PhyloNetworkLinearModel) = (isnothing(m.model_within) ? nothing : m.model_within.wsp_var[1])
+sigma2_within(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T) = sigma2_within(m.model)
 # ML estimate for ancestral state of the BM
 """
     mu_estim(m::PhyloNetworkLinearModel)

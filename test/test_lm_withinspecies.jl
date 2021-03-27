@@ -107,8 +107,8 @@ m2 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, starnet; reml=true,
 @test coef(m2) ≈ [8.457020,2.296978] rtol=1e-5
 @test sigma2_phylo(m1) ≈ 2.1216068 rtol=1e-5 # print(mR, digits=7, ranef.comp="Var")
 @test sigma2_phylo(m2) ≈ 2.1216068 rtol=1e-5
-@test wspvar_estim(m1) ≈ 0.5332865 rtol=1e-5
-@test wspvar_estim(m2) ≈ 0.5332865 rtol=1e-5
+@test sigma2_within(m1) ≈ 0.5332865 rtol=1e-5
+@test sigma2_within(m2) ≈ 0.5332865 rtol=1e-5
 @test loglikelihood(m1) ≈ -13.37294 rtol=1e-5
 @test loglikelihood(m2) ≈ -13.37294 rtol=1e-5
 @test vcov(m1) ≈ [3.111307 -1.219935; -1.219935 0.5913808] rtol=1e-5
@@ -118,7 +118,7 @@ m3 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, starnet; # reml=false
 @test !m3.model.reml
 @test coef(m3) ≈ [8.439909,2.318488] rtol=1e-5
 @test sigma2_phylo(m3) ≈ 0.9470427 rtol=1e-5
-@test wspvar_estim(m3) ≈ 0.5299540 rtol=1e-5
+@test sigma2_within(m3) ≈ 0.5299540 rtol=1e-5
 @test loglikelihood(m3) ≈ -14.30235 rtol=1e-5
 @test vcov(m3) ≈ [1.5237486 -0.6002803; -0.6002803 0.2941625] rtol=1e-5
 
@@ -185,7 +185,7 @@ m2 = phyloNetworklm(@formula(y~x1+x2),df,net;tipnames=:species,reml=false)
 @test m1.model.reml
 @test coef(m1) ≈ [0.6469652,2.0420889,2.8285257] rtol=1e-5
 @test sigma2_phylo(m1) ≈ 0.0438973 rtol=1e-4
-@test isnothing(wspvar_estim(m1))
+@test isnothing(sigma2_within(m1))
 @test loglikelihood(m1) ≈ -0.07529961 rtol=1e-3
 @test vcov(m1) ≈ [0.030948901 0.024782246 0.003569513;0.024782246 0.039001092 0.009137043;0.003569513 0.009137043 0.013366014] rtol=1e-4
 @test coeftable(m1).cols[coeftable(m1).teststatcol] ≈ [3.677548,10.340374,24.465786] rtol=1e-4
@@ -195,7 +195,7 @@ m2 = phyloNetworklm(@formula(y~x1+x2),df,net;tipnames=:species,reml=false)
 @test !m2.model.reml
 @test coef(m2) ≈ [0.6469652,2.0420889,2.8285257] rtol=1e-5
 @test sigma2_phylo(m2) ≈ 0.01755892 rtol=1e-4
-@test isnothing(wspvar_estim(m2))
+@test isnothing(sigma2_within(m2))
 @test loglikelihood(m2) ≈ 3.933531 rtol=1e-4
 @test vcov(m2) ≈ [0.030948901 0.024782246 0.003569513;0.024782246 0.039001092 0.009137043;0.003569513 0.009137043 0.013366014] rtol=1e-4
 @test coeftable(m2).cols[coeftable(m2).teststatcol] ≈ [3.677548,10.340374,24.465786] rtol=1e-4
@@ -256,8 +256,8 @@ df = DataFrame(
 #= R/Julia code to check model fit:
 (1) Julia code:
 ## To extract reml/ml msrerr variance estimates fitted by phyloNetworklm
-m1 |> wspvar_estim |> x -> round(x,sigdigits=6) # reml est msrerr var: 0.116721
-m2 |> wspvar_estim |> x -> round(x,sigdigits=6) # ml est msrerr var: 0.125628
+m1 |> sigma2_within |> x -> round(x,sigdigits=6) # reml est msrerr var: 0.116721
+m2 |> sigma2_within |> x -> round(x,sigdigits=6) # ml est msrerr var: 0.125628
 m1 |> sigma2_phylo |> x -> round(x,sigdigits=6) # reml est BM var: 0.120746
 m2 |> sigma2_phylo |> x -> round(x,sigdigits=6) # ml est BM var: 0.000399783
 
@@ -422,8 +422,8 @@ m2 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, net; reml=true,
 @test coef(m2) ≈ [9.65347,2.30357] rtol=1e-4
 @test sigma2_phylo(m1) ≈ 0.156188 rtol=1e-4
 @test sigma2_phylo(m2) ≈ 0.156188 rtol=1e-4
-@test wspvar_estim(m1) ≈ 0.008634 rtol=1e-4
-@test wspvar_estim(m2) ≈ 0.008634 rtol=1e-4
+@test sigma2_within(m1) ≈ 0.008634 rtol=1e-4
+@test sigma2_within(m2) ≈ 0.008634 rtol=1e-4
 @test loglikelihood(m1) ≈ 1.944626 rtol=1e-4
 @test loglikelihood(m2) ≈ 1.944626 rtol=1e-4
 
@@ -435,8 +435,8 @@ m4 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, net; reml=false,
 @test coef(m4) ≈ [9.63523,2.30832] rtol=1e-4
 @test sigma2_phylo(m3) ≈ 0.102255 rtol=1e-4
 @test sigma2_phylo(m4) ≈ 0.102255 rtol=1e-4
-@test wspvar_estim(m3) ≈ 0.008677 rtol=1e-4
-@test wspvar_estim(m4) ≈ 0.008677 rtol=1e-4
+@test sigma2_within(m3) ≈ 0.008677 rtol=1e-4
+@test sigma2_within(m4) ≈ 0.008677 rtol=1e-4
 @test loglikelihood(m3) ≈ 1.876606 rtol=1e-4
 @test loglikelihood(m4) ≈ 1.876606 rtol=1e-4
 end
