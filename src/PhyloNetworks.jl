@@ -128,7 +128,7 @@ module PhyloNetworks
         regressorHybrid,
         ancestralStateReconstruction,
         ReconstructedStates,
-        sigma2_estim,
+        sigma2_phylo,
         wspvar_estim,
         mu_estim,
         lambda_estim,

@@ -113,7 +113,7 @@ shiftHybrid
 getShiftEdgeNumber
 getShiftValue
 phyloNetworklm
-sigma2_estim
+sigma2_phylo
 wspvar_estim
 mu_estim
 lambda_estim

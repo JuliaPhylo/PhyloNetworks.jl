@@ -1604,7 +1604,7 @@ The following StatsBase functions can be applied:
 `r2`, `adjr2`, `aic`, `aicc`, `bic`.
 
 The estimated variance-rate and estimated mean of the species-level trait model 
-(see [`ContinuousTraitEM`](@ref)) can be retrieved using [`sigma2_estim`](@ref) 
+(see [`ContinuousTraitEM`](@ref)) can be retrieved using [`sigma2_phylo`](@ref) 
 and [`mu_estim`](@ref) respectively.
 
 If relevant, the estimated individual-level/within-species variance can be retrieved 
@@ -2116,9 +2116,11 @@ information to its species data for these models.
 
 ## Missing data
 
-Rows with missing data are omitted from the model-fitting. There should minimally
-be columns for response, predictors, species/tip-labels. As detailed above,
-additional columns may be required for fitting within-species variation.
+Rows with missing data for either the response or the predictors will be omitted from 
+the model-fitting. There should minimally be columns for response, predictors, 
+species/tip-labels. As detailed above, additional columns may be required for fitting 
+within-species variation. Missing data in non-response/predictor columns will throw 
+an error.
 
 ## See also
 
@@ -2156,7 +2158,7 @@ Coefficients:
 Log Likelihood: -78.9611507833
 AIC: 161.9223015666
 
-julia> round(sigma2_estim(fitBM), digits=6) # rounding for jldoctest convenience
+julia> round(sigma2_phylo(fitBM), digits=6) # rounding for jldoctest convenience
 0.002945
 
 julia> round(mu_estim(fitBM), digits=4)
@@ -2290,7 +2292,6 @@ Model: PhyloNetworks.BM
 
 Parameter(s) Estimates:
 Sigma2: 0.156188
-Sigma2 (NLopt): 0.156188
 Within-Species Variance: 0.0086343
 
 Coefficients:
@@ -2322,7 +2323,6 @@ Model: PhyloNetworks.BM
 
 Parameter(s) Estimates:
 Sigma2: 0.15618
-Sigma2 (NLopt): 0.15618
 Within-Species Variance: 0.0086343
 
 Coefficients:
@@ -2361,8 +2361,8 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
     else
         nodatanames = !any(DataFrames.propertynames(fr) .== tipnames)
         nodatanames && any(tipLabels(net) == "") &&
-            error("""The network provided has no tip names, and the input dataframe has
-                  no column labelled tipNames, so I can't match the data on the network
+            error("""The network provided has no tip names, and the input dataframe has no 
+                  column for species/tip names, so I can't match the data on the network
                   unambiguously. If you are sure that the tips of the network are in the
                   same order as the values of the dataframe provided, then please re-run
                   this function with argument no_name=true.""")
@@ -2372,7 +2372,7 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
                   network are in the same order as the values of the dataframe provided,
                   then please re-run this function with argument no_name=true.""")
         nodatanames &&
-            error("""The input dataframe has no column labelled tipNames, so I can't
+            error("""The input dataframe has no column for species/tip names, so I can't 
                   match the data on the network unambiguously. If you are sure that the
                   tips of the network are in the same order as the values of the dataframe
                   provided, then please re-run this function with argument no_name=true.""")
@@ -2456,7 +2456,7 @@ of `MixedModels.fit` (https://juliastats.org/MixedModels.jl/stable/)} in Julia.
 fixitCecile: For review.
 """
 function StatsBase.vcov(m::PhyloNetworkLinearModel)
-    (isnothing(m.model_within) ? 1 : sigma2_estim(m)/GLM.dispersion(m.lm,true)) * vcov(m.lm)
+    (isnothing(m.model_within) ? 1 : sigma2_phylo(m)/GLM.dispersion(m.lm,true)) * vcov(m.lm)
 end
 # standard error of coefficients
 """
@@ -2599,11 +2599,11 @@ end
 ## New quantities
 # ML estimate for variance of the BM
 """
-    sigma2_estim(m::PhyloNetworkLinearModel)
+    sigma2_phylo(m::PhyloNetworkLinearModel)
 
 Estimated between-species variance-rate for a fitted object.
 """
-function sigma2_estim(m::PhyloNetworkLinearModel)
+function sigma2_phylo(m::PhyloNetworkLinearModel)
     linmod = m.lm
     if isnothing(m.model_within)
         n = (m.reml ? dof_residual(linmod) : nobs(linmod) )
@@ -2614,9 +2614,9 @@ function sigma2_estim(m::PhyloNetworkLinearModel)
     return σ²
 end
 
-# adapt to TableRegressionModel because sigma2_estim is a new function
-sigma2_estim(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T) =
-  sigma2_estim(m.model)
+# adapt to TableRegressionModel because sigma2_phylo is a new function
+sigma2_phylo(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} where T) =
+  sigma2_phylo(m.model)
 # REML estimate of within-species variance for measurement error models
 """
     wspvar_estim(m::PhyloNetworkLinearModel)
@@ -2679,7 +2679,7 @@ lambda_estim(m::StatsModels.TableRegressionModel{<:PhyloNetworkLinearModel,T} wh
 ### Print the results
 # Variance
 function paramstable(m::PhyloNetworkLinearModel)
-    Sig = sigma2_estim(m)
+    Sig = sigma2_phylo(m)
     res = "Sigma2: " * @sprintf("%.6g", Sig)
     if any(typeof(m.model) .== [PagelLambda, ScalingHybrid])
         Lamb = lambda_estim(m)
@@ -2687,7 +2687,6 @@ function paramstable(m::PhyloNetworkLinearModel)
     end
     mw = m.model_within
     if !isnothing(mw)
-        res = res*"\nSigma2 (NLopt): " * @sprintf("%.6g", mw.bsp_var[1])
         res = res*"\nWithin-Species Variance: " * @sprintf("%.6g", mw.wsp_var[1])
     end
     return(res)
@@ -3153,7 +3152,7 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)
                                  m_z,
                                  [obj.V.internalNodeNumbers; missingTipNumbers],
                                  nmTipNumbers,
-                                 sigma2_estim(obj),
+                                 sigma2_phylo(obj),
                                  add_var,
                                  obj)
 end

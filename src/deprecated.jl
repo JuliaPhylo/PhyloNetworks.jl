@@ -1,1 +1,2 @@
 @deprecate fitDiscrete fitdiscrete
+@deprecate sigma2_within sigma2_phylo
