@@ -112,7 +112,7 @@ simulate
 shiftHybrid
 getShiftEdgeNumber
 getShiftValue
-phyloNetworklm
+phylolm
 sigma2_phylo
 sigma2_within
 mu_phylo

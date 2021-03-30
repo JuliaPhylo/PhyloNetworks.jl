@@ -1,15 +1,15 @@
-# Test of PhyloNetworklm on trees
+# Test of phylolm on trees
 
 ###############################################################################
 ## Caudata dataset - shared paths matrix
 ###############################################################################
-@testset "phyloNetworklm: Caudata Dataset" begin
+@testset "phylolm: Caudata Dataset" begin
 ## Export "caudata" dataset (from geiger)
 phy = readTopology(joinpath(@__DIR__, "..", "examples", "caudata_tree.txt"));
 
 V = sharedPathMatrix(phy);
 VR = DataFrame(CSV.File(joinpath(@__DIR__,"..","examples","caudata_shared_paths.txt")); copycols=false)
-VR = convert(Matrix, VR);
+VR = Matrix(VR);
 
 # Tips
 @test V[:Tips] ≈ VR[1:197, 1:197]
@@ -46,7 +46,7 @@ phy = readTopology(joinpath(@__DIR__, "..", "examples", "caudata_tree.txt"));
 dat = DataFrame(CSV.File(joinpath(@__DIR__,"..","examples","caudata_trait.txt")); copycols=false);
 
 ## Fit a BM
-fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy)
+fitBM = phylolm(@formula(trait ~ 1), dat, phy; reml=false)
 
 # Tests against results obtained with geiger::fitContinuous or phylolm::phylolm
 @test loglikelihood(fitBM) ≈ -78.9611507833 atol=1e-10
@@ -75,7 +75,7 @@ tmp = predict(fitBM);
 # @test_approx_eq_eps r2(fitBM)  r2(fitbis)
 # @test_approx_eq_eps adjr2(fitBM)  adjr2(fitbis)
 # @test_approx_eq_eps bic(fitBM)  bic(fitbis)
-# @test_approx_eq_eps mu_estim(fitBM)  mu_estim(fitbis)
+# @test_approx_eq_eps mu_phylo(fitBM)  mu_phylo(fitbis)
 
 ### Ancestral state reconstruction (with Rphylopars)
 anc = (@test_logs (:warn, r"^These prediction intervals show uncertainty in ancestral values") ancestralStateReconstruction(fitBM));
@@ -207,7 +207,7 @@ nodesRt = varsRt[-expe[1:196, :nodeNumber] .+ (196 - 197)]
 ###############################################################################
 
 ## Fit Pagel's lambda
-fitLambda = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(@formula(trait ~ 1), dat, phy, model = "lambda"));
+fitLambda = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phylolm(@formula(trait ~ 1), dat, phy, model = "lambda", reml=false));
 
 @test lambda_estim(fitLambda) ≈ 0.9193 atol=1e-4 # Due to convergence issues, tolerance is lower.
 @test loglikelihood(fitLambda) ≈ -51.684379 atol=1e-6
@@ -297,7 +297,7 @@ dat = DataFrame(CSV.File(joinpath(@__DIR__,"..","examples","caudata_trait.txt"))
 df_shift = regressorShift(phy.edge[[98, 326, 287]], phy)
 dat = innerjoin(dat, df_shift, on=:tipNames)
 ## Fit a BM
-fitBM = phyloNetworklm(@formula(trait ~ shift_98 + shift_326 + shift_287), dat, phy)
+fitBM = phylolm(@formula(trait ~ shift_98 + shift_326 + shift_287), dat, phy; reml=false)
 
 # Tests against results obtained with geiger::fitContinuous or phylolm::phylolm
 @test loglikelihood(fitBM) ≈ -76.1541605207 atol=1e-10 
@@ -361,7 +361,7 @@ end
 ## Lizard dataset - BM
 ###############################################################################
 
-@testset "phyloNetworklm: Lizard Dataset" begin
+@testset "phylolm: Lizard Dataset" begin
 
 ## Export "lizard" dataset (Mahler et al 2013)
 phy = readTopology(joinpath(@__DIR__, "..", "examples", "lizard_tree.txt"));
@@ -369,7 +369,7 @@ dat = DataFrame(CSV.File(joinpath(@__DIR__,"..","examples","lizard_trait.txt"));
 transform!(dat, :region => categorical, renamecols=false)
 
 ## Fit a BM
-fitBM = phyloNetworklm(@formula(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region), dat, phy)
+fitBM = phylolm(@formula(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region), dat, phy; reml=false)
 
 # Tests against results obtained with geiger::fitContinuous or phylolm::phylolm
 @test loglikelihood(fitBM) ≈ 105.17337853473711 atol=1e-10 
@@ -404,7 +404,7 @@ vcovR =  [0.0200086273  -0.0136717540 0.0084815090  -0.0093192029 -0.0114417825 
 # @test_approx_eq_eps r2(fitBM)  r2(fitbis)
 # @test_approx_eq_eps adjr2(fitBM)  adjr2(fitbis)
 # @test_approx_eq_eps bic(fitBM)  bic(fitbis)
-# @test_approx_eq_eps mu_estim(fitBM)  mu_estim(fitbis)
+# @test_approx_eq_eps mu_phylo(fitBM)  mu_phylo(fitbis)
 
 
 ### R script to get the above values
@@ -452,7 +452,7 @@ vcovR =  [0.0200086273  -0.0136717540 0.0084815090  -0.0093192029 -0.0114417825 
 ###############################################################################
 
 ## Fit lambda
-fitLambda = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phyloNetworklm(@formula(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region), dat, phy, model = "lambda"))
+fitLambda = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phylolm(@formula(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region), dat, phy, model = "lambda",  reml=false))
 
 # Tests against results obtained with geiger::fitContinuous or phylolm::phylolm
 @test lambda_estim(fitLambda) ≈ 0.9982715594 atol=1e-5
@@ -488,7 +488,7 @@ vcovR =  [0.0200251600  -0.0137474015 0.0085637021  -0.0092973836 -0.0114259722 
 # @test_approx_eq_eps r2(fitLambda)  r2(fitbis)
 # @test_approx_eq_eps adjr2(fitLambda)  adjr2(fitbis)
 # @test_approx_eq_eps bic(fitLambda)  bic(fitbis)
-# @test_approx_eq_eps mu_estim(fitLambda)  mu_estim(fitbis)
+# @test_approx_eq_eps mu_phylo(fitLambda)  mu_phylo(fitbis)
 
 
 ### R script to get the above values

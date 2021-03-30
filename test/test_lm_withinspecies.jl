@@ -1,20 +1,6 @@
-## traits.jl : tools for within-species variation, continuous traits
+## traits.jl : phylolm for within-species variation, continuous traits
 
-#= to work on:
-- add tests with reml=true with no within-species variation
-- use some other network: on a tree (checked with pgls.SEy),
-  and on a network with 1+ reticulation.
-- check the estimation with independent implementation, like on a tree with
-  pgls.SEy in the R package phytools. document here the R code (within comment block)
-- check & update functions like: nobs, dof, dof_residual, deviance, residuals,
-  sigma2 used to scale confidence intervals, etc.
-- add documentation for within-species variation, including assumptions on X
-  (no variation in X! but what if variation seen in practice, and what if
-  missing in X but not Y for some individuals, or missing Y but not X in other individuals?)
-- revise all docstrings: make sure signatures, options lists & jldoctest examples are correct
-=#
-
-@testset "phyloNetworklm: within-species variation, star" begin
+@testset "phylolm: within-species variation, star" begin
 
 #= simulation of data used below (test more reproducible when using fixed data)
 # simulate traits at the species-level, then
@@ -87,7 +73,7 @@ logLik(mR) # -14.30235
 vcov(mR) # matrix(c(1.5237486,-0.6002803,-0.6002803,0.2941625), nrow=2)
 =#
 
-#= Alternatively: Julia code to check 
+#= Alternatively: Julia code to check
 using MixedModels
 mm1 = fit(MixedModel, @formula(trait3 ~ trait1 + (1|species)), df, REML=true) # compare with m1
 mm3 = fit(MixedModel, @formula(trait3 ~ trait1 + (1|species)), df) # compare with m3
@@ -98,10 +84,10 @@ objective(mm1)/(-2) # -13.3729434, `loglikelihood` not available for models fit 
 loglikelihood(mm3) # -14.3023458
 vcov(mm1) # var-cov matrix for fixef coeffs: [3.11131 -1.21993; -1.21993 0.591381]
 =#
-m1 = phyloNetworklm(@formula(trait3 ~ trait1), df, starnet; reml=true,
-      tipnames=:species, msr_err=true)
-m2 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, starnet; reml=true,
-      tipnames=:species, msr_err=true, y_mean_std=true)
+m1 = phylolm(@formula(trait3 ~ trait1), df, starnet; reml=true,
+      tipnames=:species, withinspecies_var=true)
+m2 = phylolm(@formula(trait3 ~ trait1), df_r, starnet; reml=true,
+      tipnames=:species, withinspecies_var=true, y_mean_std=true)
 @test m1.model.reml && m2.model.reml
 @test coef(m1) ≈ [8.457020,2.296978] rtol=1e-5 # fixef(mR)
 @test coef(m2) ≈ [8.457020,2.296978] rtol=1e-5
@@ -113,8 +99,8 @@ m2 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, starnet; reml=true,
 @test loglikelihood(m2) ≈ -13.37294 rtol=1e-5
 @test vcov(m1) ≈ [3.111307 -1.219935; -1.219935 0.5913808] rtol=1e-5
 @test vcov(m2) ≈ [3.111307 -1.219935; -1.219935 0.5913808] rtol=1e-5
-m3 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, starnet; # reml=false
-      tipnames=:species, msr_err=true, y_mean_std=true)
+m3 = phylolm(@formula(trait3 ~ trait1), df_r, starnet; reml=false,
+      tipnames=:species, withinspecies_var=true, y_mean_std=true)
 @test !m3.model.reml
 @test coef(m3) ≈ [8.439909,2.318488] rtol=1e-5
 @test sigma2_phylo(m3) ≈ 0.9470427 rtol=1e-5
@@ -124,7 +110,7 @@ m3 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, starnet; # reml=false
 
 end
 
-@testset "phyloNetworklm: reml=true/false, msr_err=false, binary tree" begin
+@testset "phylolm: binary tree, no withinspecies var" begin
 
 #= Rcode to generate the newick string and dataset:
 library(phytools)
@@ -180,8 +166,8 @@ summary(m2)$tTable[,"p-value"] # p-values for coef estimates: c(0.066635016,0.00
 coef(m2) + qt(p=0.025,df=5-3)*sqrt(diag(vcov(m2))) # lower limit 95%-CI: c(-0.1099703,1.1923712,2.3310897)
 coef(m2) + qt(p=0.975,df=5-3)*sqrt(diag(vcov(m2))) # upper limit 95%-CI: c(1.403901,2.891807,3.325962)
 =#
-m1 = phyloNetworklm(@formula(y~x1+x2),df,net;tipnames=:species,reml=true)
-m2 = phyloNetworklm(@formula(y~x1+x2),df,net;tipnames=:species,reml=false)
+m1 = phylolm(@formula(y~x1+x2),df,net; tipnames=:species, reml=true)
+m2 = phylolm(@formula(y~x1+x2),df,net; tipnames=:species, reml=false)
 @test m1.model.reml
 @test coef(m1) ≈ [0.6469652,2.0420889,2.8285257] rtol=1e-5
 @test sigma2_phylo(m1) ≈ 0.0438973 rtol=1e-4
@@ -205,17 +191,17 @@ m2 = phyloNetworklm(@formula(y~x1+x2),df,net;tipnames=:species,reml=false)
 
 end
 
-@testset "phyloNetworklm: reml=true/false, msr_err=true, binary tree" begin
+@testset "phylolm: binary tree, withinspecies var" begin
 
-#= NOTE: 
+#= NOTE:
 This testset DOES NOT check for similarity of the variance-components estimates
-from 'pgls.SEy' (phytools) and 'phyloNetworklm' (PhyloNetworks). In fact, 
-'pgls.SEy' and 'phyloNetworklm' solve different problems! 
-ML/REML variance-component estimates are obtained by running 'phyloNetworklm'.
+from 'pgls.SEy' (phytools) and 'phylolm' (PhyloNetworks). In fact,
+'pgls.SEy' and 'phylolm' solve different problems!
+ML/REML variance-component estimates are obtained by running 'phylolm'.
 The code for 'pgls.SEy' is adapted to calculate coef estimates, cov matrix for
-coef estimates, t/p-values for coef estimates, and full/restricted-loglikelihood, 
+coef estimates, t/p-values for coef estimates, and full/restricted-loglikelihood,
 given these variance-components estimates. These values are then compared against
-those extracted from the output of 'phyloNetworklm'.
+those extracted from the output of 'phylolm'.
 =#
 
 #= Rcode to generate the newick string and dataset:
@@ -234,10 +220,10 @@ X <- fastBM(tree,sig2=2,nsim=2); colnames(X) <- c("x1","x2") # non-intercept pre
 # colnames(X) <- c("x1","x2"); rownames(X) <- c("t4","t5","t3","t1","t2")
 
 bsperr <- fastBM(tree) # phylogenetic variation, true BM variance-rate is 1
-wspvar <- 0.1 # measurement-error variance is 0.1
+wspvar <- 0.1 # within-species variance is 0.1
 msrerr <- rnorm(n=n,sd=sqrt(wspvar/m)) # msr error in species-level mean responses
-y_sd <- sqrt(wspvar*rchisq(n=n,df=m-1)/(m-1)) # sd in individual responses per species 
-# y_sd <- c(0.2463003,0.3236629,0.2458547,0.4866844,0.3434582); 
+y_sd <- sqrt(wspvar*rchisq(n=n,df=m-1)/(m-1)) # sd in individual responses per species
+# y_sd <- c(0.2463003,0.3236629,0.2458547,0.4866844,0.3434582);
 y <- cbind(rep(1,5),X)%*%(1:3)+bsperr+msrerr # response, true beta vector is c(1,2,3)
 # y <- matrix(c(11.399108,3.216645,13.648011,4.851454,-4.922803),nrow=5); rownames(y) <- c("t4","t5","t3","t1","t2")
 
@@ -255,22 +241,22 @@ df = DataFrame(
 
 #= R/Julia code to check model fit:
 (1) Julia code:
-## To extract reml/ml msrerr variance estimates fitted by phyloNetworklm
+## To extract reml/ml msrerr variance estimates fitted by phylolm
 m1 |> sigma2_within |> x -> round(x,sigdigits=6) # reml est msrerr var: 0.116721
 m2 |> sigma2_within |> x -> round(x,sigdigits=6) # ml est msrerr var: 0.125628
 m1 |> sigma2_phylo |> x -> round(x,sigdigits=6) # reml est BM var: 0.120746
 m2 |> sigma2_phylo |> x -> round(x,sigdigits=6) # ml est BM var: 0.000399783
 
 (2) R code:
-## To check phyloNetworklm REML fit 
+## To check phylolm REML fit
 library(nlme)
 T1 <- tree
-wspvar1 <- 0.116721 # reml est msrerr var of indiv-lvl rsps 
+wspvar1 <- 0.116721 # reml est msrerr var of indiv-lvl rsps
 bspvar1 <- 0.120746 # reml est BM var
 se1 <- setNames(rep(sqrt(wspvar1/m),n),T1$tip.label) # msrerr sd of species-lvl mean rsp
 T1$edge.length <- T1$edge.length*bspvar1 # scale all edges by est BM var
 ii <- sapply(1:Ntip(T1),function(x,e) which(e==x),e=T1$edge[,2]) # indices of pendant edges
-# extend pendant edges by msrerr sd  
+# extend pendant edges by msrerr sd
 T1$edge.length[ii] <- T1$edge.length[ii]+se1[T1$tip.label]^2
 covmat1 <- vcv(T1) # extract est vars of species-lvl mean rsp
 m1 <- gls(y~x1+x2,data=cbind(df,vf=diag(covmat1)),
@@ -293,7 +279,7 @@ upperci1 <- coef(m1) + qt(p=0.975,df=n-p)*sqrt(diag(vcov1)) # upper limit 95%-CI
 RSS <- sum((m-1)*(df$y_sd^2)) # residual sum-of-squares wrt to the species means
 logLik(m1) # species-lvl cond restricted-ll: -3.26788
 sigm1 <- sigma(m1) # this is not bspvar1!, but rather the best "scaling" for covmat1
-# indiv-lvl cond restricted ll 
+# indiv-lvl cond restricted ll
 # "+ (n-p)*(2*log(sigm1)-sigm1^2+1)/2" un-scales the species-lvl rll returned by logLik
 # "- n*(m-1)*(log(wspvar1)+log(2*pi))/2 - (n*log(m)+RSS/wspvar1)/2" corrects to indiv-lvl rll
 rll.species <- logLik(m1)
@@ -303,13 +289,13 @@ rll.indiv <- (rll.species
               )
 round(rll.indiv,digits=6) # indiv-lvl rll of remles: -14.14184
 
-## To check phyloNetworklm ML fit
+## To check phylolm ML fit
 T2 <- tree
-wspvar2 <- 0.125628 # ml est msrerr var of indiv-lvl rsps 
+wspvar2 <- 0.125628 # ml est msrerr var of indiv-lvl rsps
 bspvar2 <- 0.000399783 # ml est BM var
 se2 <- setNames(rep(sqrt(wspvar2/m),n),T2$tip.label)
 T2$edge.length <- T2$edge.length*bspvar2
-ii <- sapply(1:Ntip(T2),function(x,e) which(e==x),e=T2$edge[,2])  
+ii <- sapply(1:Ntip(T2),function(x,e) which(e==x),e=T2$edge[,2])
 T2$edge.length[ii] <- T2$edge.length[ii]+se2[T2$tip.label]^2
 covmat2 <- vcv(T2)
 m2 <- gls(y~x1+x2,data=cbind(df,vf=diag(covmat2)),
@@ -330,21 +316,21 @@ lowerci2 <- coef(m2) + qt(p=0.025,df=n-p)*sqrt(diag(vcov2)) # lower limit 95%-CI
 upperci2 <- coef(m2) + qt(p=0.975,df=n-p)*sqrt(diag(vcov2)) # upper limit 95%-CI: c(1.571656,2.172871,3.593682)
 
 ll.species <- logLik(m2) # species-lvl cond ll: 1.415653
-sigm2 <- sigma(m2) # this is not bspvar2!, but rather the best "scaling" for covmat2 
+sigm2 <- sigma(m2) # this is not bspvar2!, but rather the best "scaling" for covmat2
 RSS <- sum((m-1)*(df$y_sd^2)) # residual sum-of-squares wrt to the species means
 # indiv-lvl cond ll
 # "+ n*(2*log(sigm2)-sigm2^2+1)/2" un-scales the species-lvl ll returned by logLik
 # "- n*(m-1)*(log(wspvar2)+log(2*pi))/2 - (n*log(m)+RSS/wspvar2)/2" corrects to indiv-lvl ll
-ll.indiv <- (ll.species 
-             + n*(2*log(sigm2)-sigm2^2+1)/2 
+ll.indiv <- (ll.species
+             + n*(2*log(sigm2)-sigm2^2+1)/2
              - n*(m-1)*(log(wspvar2)+log(2*pi))/2 - (n*log(m)+RSS/wspvar2)/2
              )
 round(ll.indiv,digits=6) # indiv-lvl ll of mles: -9.582357
 =#
-m1 = phyloNetworklm(@formula(y~x1+x2),df,net;
-                    tipnames=:species,reml=true,msr_err=true,y_mean_std=true)
-m2 = phyloNetworklm(@formula(y~x1+x2),df,net;
-                    tipnames=:species,reml=false,msr_err=true,y_mean_std=true)
+m1 = phylolm(@formula(y~x1+x2),df,net;
+      tipnames=:species, reml=true, withinspecies_var=true, y_mean_std=true)
+m2 = phylolm(@formula(y~x1+x2),df,net;
+      tipnames=:species, reml=false, withinspecies_var=true, y_mean_std=true)
 
 @test coef(m1) ≈ [1.079839,1.976719,3.217391] rtol=1e-4
 @test coef(m2) ≈ [0.9767352,1.9155142,3.2661862] rtol=1e-4
@@ -360,9 +346,37 @@ m2 = phyloNetworklm(@formula(y~x1+x2),df,net;
 @test coeftable(m2).cols[findall(coeftable(m2).colnms .== "Lower 95%")[1]] ≈ [0.381814,1.658158,2.938690] rtol=1e-4
 @test coeftable(m1).cols[findall(coeftable(m1).colnms .== "Upper 95%")[1]] ≈ [2.398055,2.610850,3.758944] rtol=1e-4
 @test coeftable(m2).cols[findall(coeftable(m2).colnms .== "Upper 95%")[1]] ≈ [1.571656,2.172871,3.593682] rtol=1e-4
+
+# missing y (but y_n/SD present); missing/infinite sample size; missing/infinite y_SD
+df = df[[1,2,3,4],:] # delete t2
+allowmissing!(df, [:y,:y_n,:y_sd])
+# m0 = phylolm(@formula(y~1),df,net;  tipnames=:species, withinspecies_var=true, y_mean_std=true)
+df1 = DataFrame(df) # makes a copy
+push!(df1, (missing,0.,0,0.,0.,"t2"))
+m1 = phylolm(@formula(y~1),df1,net; tipnames=:species, withinspecies_var=true, y_mean_std=true)
+@test coef(m1) ≈ [7.8116494901242195] atol=1e-6 # same as m0
+@test sigma2_within(m1) ≈ 0.11568962074173368 atol=1e-6
+@test nobs(m1) == 4
+@test dof_residual(m1) == 3
+# sample sizes y_n: 1, 0, infinite
+@test_broken dof(m1) == 3 # intercept, s2phylo, s2within --fixithere: 2 instead of 3
+df1[5,:] .= (0.,0.,1,0.,0.,"t2") # then almost same within-sp variation
+m1 = phylolm(@formula(y~1),df1,net; tipnames=:species, withinspecies_var=true, y_mean_std=true)
+@test sigma2_within(m1) ≈ 0.11569 atol=1e-4
+@test nobs(m1) == 5
+df1[5,:] .= (0.,0.,0,0.,0.,"t2") # some species have 0 or <0 num_individuals, column y_n
+@test_throws ErrorException phylolm(@formula(y~1),df1,net; tipnames=:species, withinspecies_var=true, y_mean_std=true)
+df1[!,:y_n] = Float64.(df1[!,:y_n])
+df1[5,:] .= (0.,0.,Inf,0.,0.,"t2")#some species have infinite num_individuals, column y_n
+@test_throws ErrorException phylolm(@formula(y~1),df1,net; tipnames=:species, withinspecies_var=true, y_mean_std=true)
+df1[5,:] .= (0.,missing,1,0.,0.,"t2") # some SD values are missing, column y_sd
+@test_throws ErrorException phylolm(@formula(y~1),df1,net; tipnames=:species, withinspecies_var=true, y_mean_std=true)
+df1[5,:] .= (0.0,Inf,1,0.,0.,"t2")   # some SD values are infinite, column y_sd
+@test_throws ErrorException phylolm(@formula(y~1),df1,net; tipnames=:species, withinspecies_var=true, y_mean_std=true)
+
 end
 
-@testset "phyloNetworklm: within-species variation, network (1 reticulation)" begin
+@testset "phylolm: within-species variation, network (1 reticulation)" begin
 
 #= Simulation of data used below:
 (1) Individual-level data
@@ -371,13 +385,13 @@ function simTraits(net, m, paramsprocess)
       trait = sim[:Tips]
       return repeat(trait, inner=m)
 end
-n = 6; m = 3 # 6 species, 3 individuals per species 
+n = 6; m = 3 # 6 species, 3 individuals per species
 net = readTopology("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.0,(#H1:0::0.3,E:3.0):6.2):2.0,O:11.2);");
 Random.seed!(18480224);
 trait1 = simTraits(net, m, ParamsBM(2, 0.5)) # simulate a BM with mean 2 and variance 0.5 on net
 trait2 = simTraits(net, m, ParamsBM(-2, 1.0)) # simulate a BM with mean -2 and variance 1.0 on net
 phylo_noise_var = 0.1 # BM variance-rate
-meas_noise_var = 0.01 # individual-level msrerr variance 
+meas_noise_var = 0.01 # individual-level msrerr variance
 phylo_noise = simTraits(net, m, ParamsBM(0, phylo_noise_var))
 meas_noise = randn(n*m)*sqrt(meas_noise_var)
 trait3 = 10 .+ 2 * trait1 + phylo_noise + meas_noise
@@ -407,17 +421,17 @@ df_r = DataFrame(
       species = ["D","C","A","B","E","O"],
       trait1 = [4.08298,3.10782,2.17078,1.87333,2.8445,5.88204],
       trait2 = [-7.34186,-7.45085,-3.32538,-4.26472,-5.96857,-1.99388],
-      trait3 = [18.896,17.0686,14.2916,12.9808,15.4255,24.1667],
-      trait3_sd = [0.074524,0.00465081,0.185497,0.0936,0.0158379,0.0509643],
+      trait3 = [18.895966666666666,17.0686,14.291566666666668,12.980766666666666,15.4255,24.166666666666668],
+      trait3_sd = [0.07452397824414288,0.004650806381693211,0.18549690922851855,0.09360001780626576,0.01583792915756317,0.05096433393397276],
       trait3_n = [3, 3, 3, 3, 3, 3]
 )
 
 # Check for agreement in fit when individual-level data is supplied vs when the
 # corresponding species-level data is supplied.
-m1 = phyloNetworklm(@formula(trait3 ~ trait1), df, net; reml=true, 
-      tipnames=:species, msr_err=true)
-m2 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, net; reml=true,
-      tipnames=:species, msr_err=true, y_mean_std=true)
+m1 = phylolm(@formula(trait3 ~ trait1), df, net; reml=true,
+      tipnames=:species, withinspecies_var=true)
+m2 = phylolm(@formula(trait3 ~ trait1), df_r, net; reml=true,
+      tipnames=:species, withinspecies_var=true, y_mean_std=true)
 @test coef(m1) ≈ [9.65347,2.30357] rtol=1e-4
 @test coef(m2) ≈ [9.65347,2.30357] rtol=1e-4
 @test sigma2_phylo(m1) ≈ 0.156188 rtol=1e-4
@@ -426,11 +440,19 @@ m2 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, net; reml=true,
 @test sigma2_within(m2) ≈ 0.008634 rtol=1e-4
 @test loglikelihood(m1) ≈ 1.944626 rtol=1e-4
 @test loglikelihood(m2) ≈ 1.944626 rtol=1e-4
+@test stderror(m1) ≈ [1.3065987324433421,0.27616258597477233] atol=1e-6
+@test stderror(m2) ≈ [1.3065987324433421,0.27616258597477233] atol=1e-6
+# only 6 observations & residuals despite 18 individuals: at the species level
+@test nobs(m1) == 6
+@test residuals(m1) ≈ [-0.16295769587309603,0.2560302141911026,-0.36246083625543507,-0.9880623366773218,-0.78049231427113,0.9634719640663754] atol=1e-6
+@test residuals(m2) ≈ [-0.16295769587309603,0.2560302141911026,-0.36246083625543507,-0.9880623366773218,-0.78049231427113,0.9634719640663754] atol=1e-6
+@test dof_residual(m1) == 4
+@test_broken dof(m1) == 4
 
-m3 = phyloNetworklm(@formula(trait3 ~ trait1), df, net; reml=false, 
-      tipnames=:species, msr_err=true)
-m4 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, net; reml=false,
-      tipnames=:species, msr_err=true, y_mean_std=true)
+m3 = phylolm(@formula(trait3 ~ trait1), df, net; reml=false,
+      tipnames=:species, withinspecies_var=true)
+m4 = phylolm(@formula(trait3 ~ trait1), df_r, net; reml=false,
+      tipnames=:species, withinspecies_var=true, y_mean_std=true)
 @test coef(m3) ≈ [9.63523,2.30832] rtol=1e-4
 @test coef(m4) ≈ [9.63523,2.30832] rtol=1e-4
 @test sigma2_phylo(m3) ≈ 0.102255 rtol=1e-4
@@ -439,4 +461,6 @@ m4 = phyloNetworklm(@formula(trait3 ~ trait1), df_r, net; reml=false,
 @test sigma2_within(m4) ≈ 0.008677 rtol=1e-4
 @test loglikelihood(m3) ≈ 1.876606 rtol=1e-4
 @test loglikelihood(m4) ≈ 1.876606 rtol=1e-4
+@test stderror(m3) ≈ [1.0619360781577734, 0.22496955609230126] atol=1e-6
+@test stderror(m4) ≈ [1.0619360781577734, 0.22496955609230126] atol=1e-6
 end

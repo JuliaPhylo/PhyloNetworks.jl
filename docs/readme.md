@@ -89,6 +89,8 @@ to look different (across the whole site).
 
 ## to make a local version of the website
 
+generally: to see deprecation warnings, add the option `--depwarn=yes`.
+
 ```shell
 julia --project=docs/ -e 'using Pkg; Pkg.instantiate(); Pkg.develop(PackageSpec(path=pwd()))'
 julia --project=docs/ --color=yes docs/make.jl

@@ -5,7 +5,7 @@ module PhyloNetworks
     # stdlib (standard libraries)
     using Dates
     using Distributed
-    using LinearAlgebra: diag, I, logdet, norm, LowerTriangular, mul!, lmul!,
+    using LinearAlgebra: diag, I, logdet, norm, LowerTriangular, mul!, lmul!, rmul!,
             Diagonal, cholesky, BLAS
     # alternative: drop support for julia v1.4, because LinearAlgebra.rotate! requires julia v1.5
     # using LinearAlgebra # bring all of LinearAlgebra into scope
@@ -112,7 +112,7 @@ module PhyloNetworks
         pairwiseTaxonDistanceMatrix,
         calibrateFromPairwiseDistances!,
         ## Network PCM
-        phyloNetworklm,
+        phylolm,
         PhyloNetworkLinearModel,
         simulate,
         TraitSimulation,
