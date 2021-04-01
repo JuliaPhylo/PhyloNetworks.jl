@@ -468,11 +468,11 @@ m4 = phylolm(@formula(trait3 ~ trait1), df_r, net; reml=false,
 allowmissing!(df,  [:trait3]); df[4:6,:trait3] .= missing # species C missing
 allowmissing!(df_r,[:trait3]); df_r[2,:trait3] = missing  # to check imputation
 m1 = phylolm(@formula(trait3 ~ 1), df_r, net; tipnames=:species, withinspecies_var=true, y_mean_std=true)
-ar = ancestralStateReconstruction(m1)
+ar = (@test_logs (:warn, r"^T") ancestralStateReconstruction(m1))
 # @test ar.traits_nodes[8] ≈ ?? # masked sampled C_bar was 17.0686
 # @test predint(ar)[8,:] ≈ [?,?]
 m1 = phylolm(@formula(trait3 ~ 1), df, net; tipnames=:species, withinspecies_var=true)
-# ar = ancestralStateReconstruction(m1) # error to be fixed: nonmissing and ind of the wrong size
+# ar = (@test_logs (:warn, r"^T") ancestralStateReconstruction(m1)) # error to be fixed: nonmissing and ind of the wrong size
 # @test ar.traits_nodes[8] ≈  # same as above
 # @test predint(ar)[8,:] ≈
 

@@ -2537,8 +2537,29 @@ function StatsBase.dof(m::PhyloNetworkLinearModel)
     # bic uses −2logL+ dof log(nobs), so we might want to revise nobs too...
     return res
 end
-# Deviance (sum of squared residuals with metric V)
-StatsBase.deviance(m::PhyloNetworkLinearModel) = deviance(m.lm)
+"""
+    StatsBase.deviance(m::PhyloNetworkLinearModel)
+
+Sum of squared residuals with metric V, the estimated phylogenetic variance
+(which may depend on a parameter, like lambda).
+
+**Warning**: this is not -2loglikelihood, even up to some constant, as documented
+by [StatsBase](https://juliastats.org/StatsBase.jl/stable/statmodels/#StatsBase.deviance),
+to follow the convention for linear models, as does
+[GLM](https://juliastats.org/GLM.jl/v1.3/manual/#Methods-applied-to-fitted-models-1).
+
+For this reason, `deviance` is not implemented when within-species variation is
+modelled, as this leads to a mixed model.
+
+To get -2loglik, use [`loglikelihood`](@ref).
+"""
+function StatsBase.deviance(m::PhyloNetworkLinearModel)
+    isnothing(m.model_within) ||
+        error("""deviance not implemented for within-species variation:
+        "the" sum of squares is not a good measure for mixed model.
+        Depending on your purpose, you could use -2*loglikelihood() instead.""")
+    deviance(m.lm)
+end
 
 ## Changed Quantities
 # Compute the residuals
@@ -2602,6 +2623,9 @@ end
 # REMARK Not just the null deviance of the cholesky regression
 # Might be something better to do than this, though.
 function StatsBase.nulldeviance(m::PhyloNetworkLinearModel)
+    isnothing(m.model_within) ||
+        error("""null loglik / deviance not implemented for within-species variation (mixed model):
+        please fit the model with an intercept only instead.""")
     vo = ones(length(m.Y), 1)
     vo = m.RL \ vo
     bo = inv(vo'*vo)*vo'*response(m.lm)
@@ -2611,12 +2635,18 @@ end
 # Null Log likelihood (null model with only the intercept)
 # Same remark
 function StatsBase.nullloglikelihood(m::PhyloNetworkLinearModel)
+    nulldev = nulldeviance(m) # error & exit if within-species variation
+    m.reml && @warn "ML null loglik: do not compare with REML on model with predictors"
     n = length(m.Y)
-    return -n/2 * (log(2*pi * nulldeviance(m)/n) + 1) - 1/2 * m.logdetVy
+    return -n/2 * (log(2*pi * nulldev/n) + 1) - 1/2 * m.logdetVy
 end
 # coefficient of determination (1 - SS_res/SS_null)
 # Copied from GLM.jl/src/lm.jl, line 139
-StatsBase.r2(m::PhyloNetworkLinearModel) = 1 - deviance(m)/nulldeviance(m)
+function StatsBase.r2(m::PhyloNetworkLinearModel)
+    isnothing(m.model_within) ||
+        error("r2 and adjusted r2 not implemented for within-species variation (mixed model)")
+    1 - deviance(m)/nulldeviance(m)
+end
 # adjusted coefficient of determination
 # in GLM.jl/src/lm.jl: p = dof-1 and dof(x::LinearModel) = length(coef(x))+1, +1 for the dispersion parameter
 function StatsBase.adjr2(obj::PhyloNetworkLinearModel)

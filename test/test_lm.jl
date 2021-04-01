@@ -397,7 +397,7 @@ fitnabis = phylolm(@formula(trait ~ pred), dfr, net)
 @test dof(fitna) ≈ dof(fitnabis)
 @test deviance(fitna) ≈ deviance(fitnabis)
 @test nulldeviance(fitna) ≈ nulldeviance(fitnabis)
-@test nullloglikelihood(fitna) ≈ nullloglikelihood(fitnabis)
+@test (@test_logs (:warn, r"^ML") nullloglikelihood(fitna)) ≈ (@test_logs (:warn, r"^ML") nullloglikelihood(fitnabis))
 @test r2(fitna) ≈ r2(fitnabis)
 @test adjr2(fitna) ≈ adjr2(fitnabis)
 @test aic(fitna) ≈ aic(fitnabis)
@@ -423,7 +423,7 @@ fitlam = phylolm(@formula(trait ~ pred), dfr, net, model="lambda", fixedValue=1.
 @test dof(fitlam) ≈ dof(fitnabis) + 1
 @test deviance(fitlam) ≈ deviance(fitnabis)
 @test nulldeviance(fitlam) ≈ nulldeviance(fitnabis)
-@test nullloglikelihood(fitlam) ≈ nullloglikelihood(fitnabis)
+@test (@test_logs (:warn, r"^ML") nullloglikelihood(fitlam)) ≈ (@test_logs (:warn, r"^ML") nullloglikelihood(fitnabis))
 @test r2(fitlam) ≈ r2(fitnabis) atol=1e-15
 @test adjr2(fitlam)-1 ≈ (adjr2(fitnabis)-1)*(nobs(fitnabis)-dof(fitnabis)+1)/(nobs(fitnabis)-dof(fitlam)+1) atol=1e-15
 @test aic(fitlam) ≈ aic(fitnabis) + 2
