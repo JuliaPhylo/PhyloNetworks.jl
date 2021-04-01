@@ -2383,7 +2383,8 @@ function phylolm(f::StatsModels.FormulaTerm,
         ind = convert(Vector{Int}, ind) # Int, not Union{Nothing, Int}
         if length(unique(ind)) == length(ind)
             withinspecies_var && !y_mean_std &&
-            error("for within-species variation, at least 1 species must have at least 2 individuals")
+            error("""for within-species variation, at least 1 species must have at least 2 individuals.
+                  did you mean to use option "y_mean_std=true" perhaps?""")
         else
             (!withinspecies_var || y_mean_std) &&
             error("""Some tips have data on multiple rows.""")

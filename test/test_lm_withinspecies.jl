@@ -463,4 +463,17 @@ m4 = phylolm(@formula(trait3 ~ trait1), df_r, net; reml=false,
 @test loglikelihood(m4) ≈ 1.876606 rtol=1e-4
 @test stderror(m3) ≈ [1.0619360781577734, 0.22496955609230126] atol=1e-6
 @test stderror(m4) ≈ [1.0619360781577734, 0.22496955609230126] atol=1e-6
+
+# ancestral state prediction ("reconstruction")
+allowmissing!(df,  [:trait3]); df[4:6,:trait3] .= missing # species C missing
+allowmissing!(df_r,[:trait3]); df_r[2,:trait3] = missing  # to check imputation
+m1 = phylolm(@formula(trait3 ~ 1), df_r, net; tipnames=:species, withinspecies_var=true, y_mean_std=true)
+ar = ancestralStateReconstruction(m1)
+# @test ar.traits_nodes[8] ≈ ?? # masked sampled C_bar was 17.0686
+# @test predint(ar)[8,:] ≈ [?,?]
+m1 = phylolm(@formula(trait3 ~ 1), df, net; tipnames=:species, withinspecies_var=true)
+# ar = ancestralStateReconstruction(m1) # error to be fixed: nonmissing and ind of the wrong size
+# @test ar.traits_nodes[8] ≈  # same as above
+# @test predint(ar)[8,:] ≈
+
 end
