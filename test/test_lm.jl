@@ -54,11 +54,11 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test vcov(phynetlm) ≈ sigma2hat*ntaxa/(ntaxa-length(betahat))*inv(XtVyinv * X)
 @test stderror(phynetlm) ≈ sqrt.(diag(sigma2hat*ntaxa/(ntaxa-length(betahat))*inv(XtVyinv * X)))
 @test dof(phynetlm) ≈ length(betahat)+1
-@test deviance(phynetlm) ≈ sigma2hat * ntaxa
+@test deviance(phynetlm, Val(true)) ≈ sigma2hat * ntaxa
 @test nulldeviance(phynetlm) ≈ nullsigma2hat * ntaxa
 @test nullloglikelihood(phynetlm) ≈ nullloglik
 @test loglikelihood(phynetlm) ≈ nullloglikelihood(phynetlm)
-@test deviance(phynetlm) ≈ nulldeviance(phynetlm)
+@test deviance(phynetlm, Val(true)) ≈ nulldeviance(phynetlm)
 @test r2(phynetlm) ≈ 1-sigma2hat / nullsigma2hat atol=1e-15
 @test adjr2(phynetlm) ≈ 1 - (1 - (1-sigma2hat/nullsigma2hat))*(ntaxa-1)/(ntaxa-length(betahat)) atol=1e-15
 @test aic(phynetlm) ≈ -2*loglik+2*(length(betahat)+1)
@@ -82,7 +82,7 @@ fitbis = phylolm(@formula(trait ~ 1), dfr, net; reml=false)
 @test confint(phynetlm) ≈ confint(fitbis)
 @test loglikelihood(phynetlm) ≈ loglikelihood(fitbis)
 @test dof(phynetlm) ≈ dof(fitbis)
-@test deviance(phynetlm) ≈ deviance(fitbis)
+@test deviance(phynetlm, Val(true)) ≈ deviance(fitbis, Val(true))
 @test nulldeviance(phynetlm) ≈ nulldeviance(fitbis)
 @test nullloglikelihood(phynetlm) ≈ nullloglikelihood(fitbis)
 @test r2(phynetlm) ≈ r2(fitbis) atol=1e-15
@@ -110,7 +110,7 @@ fitlam = phylolm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedValue=1.0
 @test confint(fitlam) ≈ confint(fitbis)
 @test loglikelihood(fitlam) ≈ loglikelihood(fitbis)
 @test dof(fitlam) ≈ dof(fitbis) + 1
-@test deviance(fitlam) ≈ deviance(fitbis)
+@test deviance(fitlam, Val(true)) ≈ deviance(fitbis, Val(true))
 @test nulldeviance(fitlam) ≈ nulldeviance(fitbis)
 @test nullloglikelihood(fitlam) ≈ nullloglikelihood(fitbis)
 @test r2(fitlam) ≈ r2(fitbis) atol=1e-15
@@ -181,7 +181,7 @@ fitlam = phylolm(@formula(trait ~ shift_8 + shift_17), dfr, net, model="lambda",
 @test confint(fitlam) ≈ confint(fitShift)
 @test loglikelihood(fitlam) ≈ loglikelihood(fitShift)
 @test dof(fitlam) ≈ dof(fitShift) + 1
-@test deviance(fitlam)  ≈ deviance(fitShift)
+@test deviance(fitlam, Val(true))  ≈ deviance(fitShift, Val(true))
 @test nulldeviance(fitlam)  ≈ nulldeviance(fitShift)
 @test nullloglikelihood(fitlam)  ≈ nullloglikelihood(fitShift)
 @test r2(fitlam) ≈ r2(fitShift) atol=1e-15
@@ -284,7 +284,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test vcov(fit_mat) ≈ sigma2hat*ntaxa/(ntaxa-length(betahat)).*inv(XtVyinv * X)
 @test stderror(fit_mat) ≈ sqrt.(diag(sigma2hat*ntaxa/(ntaxa-length(betahat)).*inv(XtVyinv * X)))
 @test dof(fit_mat) ≈ length(betahat)+1
-@test deviance(fit_mat) ≈ sigma2hat * ntaxa
+@test deviance(fit_mat, Val(true)) ≈ sigma2hat * ntaxa
 @test nulldeviance(fit_mat) ≈ nullsigma2hat * ntaxa
 @test nullloglikelihood(fit_mat) ≈ nullloglik
 @test r2(fit_mat) ≈ 1-sigma2hat / nullsigma2hat atol=1e-15
@@ -310,7 +310,7 @@ phynetlm = phylolm(@formula(trait ~ pred), dfr, net; reml=false)
 @test confint(phynetlm) ≈ confint(fit_mat)
 @test loglikelihood(phynetlm) ≈ loglikelihood(fit_mat)
 @test dof(phynetlm) ≈ dof(fit_mat)
-@test deviance(phynetlm) ≈ deviance(fit_mat)
+@test deviance(phynetlm, Val(true)) ≈ deviance(fit_mat, Val(true))
 @test nulldeviance(phynetlm) ≈ nulldeviance(fit_mat)
 @test nullloglikelihood(phynetlm) ≈ nullloglikelihood(fit_mat)
 @test r2(phynetlm) ≈ r2(fit_mat)
@@ -335,7 +335,7 @@ fitbis = phylolm(@formula(trait ~ pred), dfr, net; reml=false)
 @test confint(phynetlm) ≈ confint(fitbis)
 @test loglikelihood(phynetlm) ≈ loglikelihood(fitbis)
 @test dof(phynetlm) ≈ dof(fitbis)
-@test deviance(phynetlm) ≈ deviance(fitbis)
+@test deviance(phynetlm, Val(true)) ≈ deviance(fitbis, Val(true))
 @test nulldeviance(phynetlm) ≈ nulldeviance(fitbis)
 @test nullloglikelihood(phynetlm) ≈ nullloglikelihood(fitbis)
 @test r2(phynetlm) ≈ r2(fitbis)
@@ -361,7 +361,7 @@ fitter = (@test_logs (:info, r"^As requested \(no_names=true\)") match_mode=:any
 @test confint(phynetlm) ≈ confint(fitter)
 @test loglikelihood(phynetlm) ≈ loglikelihood(fitter)
 @test dof(phynetlm) ≈ dof(fitter)
-@test deviance(phynetlm) ≈ deviance(fitter)
+@test deviance(phynetlm, Val(true)) ≈ deviance(fitter, Val(true))
 @test nulldeviance(phynetlm) ≈ nulldeviance(fitter)
 @test nullloglikelihood(phynetlm) ≈ nullloglikelihood(fitter)
 @test r2(phynetlm) ≈ r2(fitter)
@@ -395,7 +395,7 @@ fitnabis = phylolm(@formula(trait ~ pred), dfr, net)
 @test confint(fitna) ≈ confint(fitnabis)
 @test loglikelihood(fitna) ≈ loglikelihood(fitnabis)
 @test dof(fitna) ≈ dof(fitnabis)
-@test deviance(fitna) ≈ deviance(fitnabis)
+@test deviance(fitna, Val(true)) ≈ deviance(fitnabis, Val(true))
 @test nulldeviance(fitna) ≈ nulldeviance(fitnabis)
 @test (@test_logs (:warn, r"^ML") nullloglikelihood(fitna)) ≈ (@test_logs (:warn, r"^ML") nullloglikelihood(fitnabis))
 @test r2(fitna) ≈ r2(fitnabis)
@@ -421,7 +421,7 @@ fitlam = phylolm(@formula(trait ~ pred), dfr, net, model="lambda", fixedValue=1.
 @test confint(fitlam) ≈ confint(fitnabis)
 @test loglikelihood(fitlam) ≈ loglikelihood(fitnabis)
 @test dof(fitlam) ≈ dof(fitnabis) + 1
-@test deviance(fitlam) ≈ deviance(fitnabis)
+@test deviance(fitlam, Val(true)) ≈ deviance(fitnabis, Val(true))
 @test nulldeviance(fitlam) ≈ nulldeviance(fitnabis)
 @test (@test_logs (:warn, r"^ML") nullloglikelihood(fitlam)) ≈ (@test_logs (:warn, r"^ML") nullloglikelihood(fitnabis))
 @test r2(fitlam) ≈ r2(fitnabis) atol=1e-15
@@ -601,7 +601,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test dof_residual(phynetlm) ≈ ntaxa
 @test sigma2_phylo(phynetlm) ≈ sigma2hat
 @test loglikelihood(phynetlm) ≈ loglik
-@test deviance(phynetlm) ≈ sigma2hat * ntaxa
+@test deviance(phynetlm, Val(true)) ≈ sigma2hat * ntaxa
 @test nulldeviance(phynetlm) ≈ nullsigma2hat * ntaxa
 @test nullloglikelihood(phynetlm) ≈ nullloglik
 @test r2(phynetlm) ≈ 1-sigma2hat / nullsigma2hat atol=1e-14
@@ -626,7 +626,7 @@ fitbis = phylolm(@formula(trait ~ -1), dfr, net)
 #@test confint(phynetlm) ≈ confint(fitbis)
 @test loglikelihood(phynetlm) ≈ loglikelihood(fitbis)
 #@test dof(phynetlm) ≈ dof(fitbis)
-@test deviance(phynetlm) ≈ deviance(fitbis)
+@test deviance(phynetlm, Val(true)) ≈ deviance(fitbis, Val(true))
 @test nulldeviance(phynetlm) ≈ nulldeviance(fitbis)
 @test nullloglikelihood(phynetlm) ≈ nullloglikelihood(fitbis)
 @test r2(phynetlm) ≈ r2(fitbis) atol=1e-15

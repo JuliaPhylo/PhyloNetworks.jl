@@ -62,20 +62,7 @@ fitBM = phylolm(@formula(trait ~ 1), dat, phy; reml=false)
 @test stderror(fitBM) ≈ [0.3306272978] atol=1e-10
 @test confint(fitBM)[1] ≈ 4.0269551772 atol=1e-10
 @test confint(fitBM)[2] ≈ 5.3310426231 atol=1e-10
-tmp = predict(fitBM);
-# below: print for when the test was broken
-#@show length(tmp) # fixit: tests fail here
-#@show tmp[1:6], tmp[190:end] # 4.679 except for last 5: 9.31707, 9.33832, 9.33052, 9.34356, 9.31707
-#println("are they all 4.6789989001?")
-# next: looks random. sometimes passes, most times fails
 @test predict(fitBM) ≈ [4.6789989001 for i in 1:197] atol=1e-8
-# @test_approx_eq_eps deviance(fitBM)  deviance(fitbis)
-# @test_approx_eq_eps nulldeviance(fitBM)  nulldeviance(fitbis)
-# @test_approx_eq_eps nullloglikelihood(fitBM)  nullloglikelihood(fitbis)
-# @test_approx_eq_eps r2(fitBM)  r2(fitbis)
-# @test_approx_eq_eps adjr2(fitBM)  adjr2(fitbis)
-# @test_approx_eq_eps bic(fitBM)  bic(fitbis)
-# @test_approx_eq_eps mu_phylo(fitBM)  mu_phylo(fitbis)
 
 ### Ancestral state reconstruction (with Rphylopars)
 anc = (@test_logs (:warn, r"^These prediction intervals show uncertainty in ancestral values") ancestralStateReconstruction(fitBM));
@@ -397,14 +384,6 @@ vcovR =  [0.0200086273  -0.0136717540 0.0084815090  -0.0093192029 -0.0114417825 
 @test stderror(fitBM) ≈ [0.1414518551,0.1361605540,0.1321542330,0.1295968341,0.2214683008,0.1820427154,0.0672106202,0.0965879311,0.0864973651] atol=1e-10
 @test confint(fitBM)[:,1] ≈ [2.5115945339,-0.4715366529,0.7207474097,-0.3595508202,-0.8102854443,-0.2058583178,-0.0960507369,-0.0112932922,-0.2213931131] atol=1e-10 norm=x->norm(x,Inf)
 @test confint(fitBM)[:,2] ≈ [3.0735480006,0.0693957746,1.2457637082,0.1553055609,0.0695537019,0.5173526640,0.1709605441,0.3724268272,0.1222396666] atol=1e-10
-# @test_approx_eq_eps predict(fitBM)[fitbis.model.ind] predict(fitbis)
-# @test_approx_eq_eps deviance(fitBM)  deviance(fitbis)
-# @test_approx_eq_eps nulldeviance(fitBM)  nulldeviance(fitbis)
-# @test_approx_eq_eps nullloglikelihood(fitBM)  nullloglikelihood(fitbis)
-# @test_approx_eq_eps r2(fitBM)  r2(fitbis)
-# @test_approx_eq_eps adjr2(fitBM)  adjr2(fitbis)
-# @test_approx_eq_eps bic(fitBM)  bic(fitbis)
-# @test_approx_eq_eps mu_phylo(fitBM)  mu_phylo(fitbis)
 
 
 ### R script to get the above values
@@ -472,23 +451,12 @@ vcovR =  [0.0200251600  -0.0137474015 0.0085637021  -0.0092973836 -0.0114259722 
           0.0050429112  -0.0014743137 -0.0005457420 -0.0039275469 -0.0040017905 -0.0145663751 0.0020823721  0.0020404652  0.0074600880]
 @test vcov(fitLambda) ≈ vcovR atol=3e-7 
 @test nobs(fitLambda) ≈ 100.0 atol=1e-10
-# below: print for when the test was broken (with @test_skip)
-#@show sum(residuals(fitLambda)) # looks random, eg 0.033126277561337916 or 0.644941961666333
-#println("is this equal to 0.6369008979?")
 @test sum(residuals(fitLambda)) ≈ 0.6369008979 atol=1e-5
 @test dof_residual(fitLambda) ≈ 91.0 atol=1e-10
 @test sigma2_phylo(fitLambda) ≈ 0.0003009914 atol=1e-9
 @test stderror(fitLambda) ≈ [0.1415102824,0.1367059706,0.1327404019,0.1294070617,0.2213803048,0.1817274626,0.0671133793,0.0966096332,0.0863718011] atol=1e-6
 @test confint(fitLambda)[:,1] ≈ [2.5129645499,-0.4782080775,0.7260358930,-0.3575353260,-0.8075438955,-0.2033049779,-0.0965491169,-0.0126529301,-0.2220960868] atol=1e-5
 @test confint(fitLambda)[:,2] ≈ [3.0751501341,0.0648911562,1.2533808968,0.1565671360,0.0719456641,0.5186535822,0.1700758500,0.3711534067,0.1210378584] atol=1e-5
-# @test_approx_eq_eps predict(fitLambda)[fitbis.model.ind] predict(fitbis)
-# @test_approx_eq_eps deviance(fitLambda)  deviance(fitbis)
-# @test_approx_eq_eps nulldeviance(fitLambda)  nulldeviance(fitbis)
-# @test_approx_eq_eps nullloglikelihood(fitLambda)  nullloglikelihood(fitbis)
-# @test_approx_eq_eps r2(fitLambda)  r2(fitbis)
-# @test_approx_eq_eps adjr2(fitLambda)  adjr2(fitbis)
-# @test_approx_eq_eps bic(fitLambda)  bic(fitbis)
-# @test_approx_eq_eps mu_phylo(fitLambda)  mu_phylo(fitbis)
 
 
 ### R script to get the above values

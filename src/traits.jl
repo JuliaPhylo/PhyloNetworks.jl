@@ -2540,24 +2540,24 @@ end
 """
     StatsBase.deviance(m::PhyloNetworkLinearModel)
 
-Sum of squared residuals with metric V, the estimated phylogenetic variance
-(which may depend on a parameter, like lambda).
+-2 loglikelihood of the fitted model. See also  [`loglikelihood`](@ref).
 
-**Warning**: this is not -2loglikelihood, even up to some constant, as documented
-by [StatsBase](https://juliastats.org/StatsBase.jl/stable/statmodels/#StatsBase.deviance),
-to follow the convention for linear models, as does
-[GLM](https://juliastats.org/GLM.jl/v1.3/manual/#Methods-applied-to-fitted-models-1).
-
-For this reason, `deviance` is not implemented when within-species variation is
-modelled, as this leads to a mixed model.
-
-To get -2loglik, use [`loglikelihood`](@ref).
+Note: this is not the residual-sum-of-squares deviance as output by GLM,
+such as one would get with `deviance(m.model)`.
 """
-function StatsBase.deviance(m::PhyloNetworkLinearModel)
+function StatsBase.deviance(m::PhyloNetworkLinearModel, ::Val{false}=Val(false))
+    -2*loglikelihood(m)
+end
+
+"""
+    StatsBase.deviance(m::PhyloNetworkLinearModel, Val(true))
+
+Residual sum of squares with metric V, the estimated phylogenetic covariance,
+if the model is appropriate.
+"""
+function StatsBase.deviance(m::PhyloNetworkLinearModel, ::Val{true})
     isnothing(m.model_within) ||
-        error("""deviance not implemented for within-species variation:
-        "the" sum of squares is not a good measure for mixed model.
-        Depending on your purpose, you could use -2*loglikelihood() instead.""")
+        error("deviance measured as SSR not implemented for within-species variation")
     deviance(m.lm)
 end
 
@@ -2619,9 +2619,17 @@ function StatsBase.loglikelihood(m::PhyloNetworkLinearModel)
     end
     return ll
 end
-# Null  Deviance (sum of squared residuals with metric V)
+
 # REMARK Not just the null deviance of the cholesky regression
 # Might be something better to do than this, though.
+"""
+    StatsBase.nulldeviance(m::PhyloNetworkLinearModel)
+
+Residual sums of squares of the null model, that is when including only
+the intercept, if the model is appropriate.
+The residual sums of squares is taken with metric V, the estimated phylogenetic
+covariance matrix.
+"""
 function StatsBase.nulldeviance(m::PhyloNetworkLinearModel)
     isnothing(m.model_within) ||
         error("""null loglik / deviance not implemented for within-species variation (mixed model):
@@ -2645,7 +2653,7 @@ end
 function StatsBase.r2(m::PhyloNetworkLinearModel)
     isnothing(m.model_within) ||
         error("r2 and adjusted r2 not implemented for within-species variation (mixed model)")
-    1 - deviance(m)/nulldeviance(m)
+    1 - deviance(m, Val(true))/nulldeviance(m)
 end
 # adjusted coefficient of determination
 # in GLM.jl/src/lm.jl: p = dof-1 and dof(x::LinearModel) = length(coef(x))+1, +1 for the dispersion parameter
@@ -2970,10 +2978,10 @@ function anovaBin(obj1::PhyloNetworkLinearModel, obj2::PhyloNetworkLinearModel)
     length(coef(obj1)) < length(coef(obj2)) || error("Models must be nested, from the smallest to the largest.")
     ## residuals
     dof2 = dof_residual(obj2)
-    dev2 = deviance(obj2)
+    dev2 = deviance(obj2, Val(true))
     ## reducted residuals
     dof1 = dof_residual(obj1) - dof2
-    dev1 = deviance(obj1) - dev2
+    dev1 = deviance(obj1, Val(true)) - dev2
     ## Compute statistic
     F = (dev1 / dof1) / (dev2 / dof2)
     pval = GLM.ccdf.(GLM.FDist(dof1, dof2), F) # ccdf and FDist from Distributions, used by GLM
