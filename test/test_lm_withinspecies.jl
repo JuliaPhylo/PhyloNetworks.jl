@@ -356,14 +356,15 @@ push!(df1, (missing,0.,0,0.,0.,"t2"))
 m1 = phylolm(@formula(y~1),df1,net; tipnames=:species, withinspecies_var=true, y_mean_std=true)
 @test coef(m1) ≈ [7.8116494901242195] atol=1e-6 # same as m0
 @test sigma2_within(m1) ≈ 0.11568962074173368 atol=1e-6
-@test nobs(m1) == 4
+@test nobs(m1) == 20        # 4 species x 5 indiv/species
 @test dof_residual(m1) == 3
 # sample sizes y_n: 1, 0, infinite
-@test_broken dof(m1) == 3 # intercept, s2phylo, s2within --fixithere: 2 instead of 3
+@test dof(m1) == 3 # intercept, s2phylo, s2within
 df1[5,:] .= (0.,0.,1,0.,0.,"t2") # then almost same within-sp variation
 m1 = phylolm(@formula(y~1),df1,net; tipnames=:species, withinspecies_var=true, y_mean_std=true)
 @test sigma2_within(m1) ≈ 0.11569 atol=1e-4
-@test nobs(m1) == 5
+@test nobs(m1) == 21
+@test dof_residual(m1) == 4
 df1[5,:] .= (0.,0.,0,0.,0.,"t2") # some species have 0 or <0 num_individuals, column y_n
 @test_throws ErrorException phylolm(@formula(y~1),df1,net; tipnames=:species, withinspecies_var=true, y_mean_std=true)
 df1[!,:y_n] = Float64.(df1[!,:y_n])
@@ -442,12 +443,11 @@ m2 = phylolm(@formula(trait3 ~ trait1), df_r, net; reml=true,
 @test loglikelihood(m2) ≈ 1.944626 rtol=1e-4
 @test stderror(m1) ≈ [1.3065987324433421,0.27616258597477233] atol=1e-6
 @test stderror(m2) ≈ [1.3065987324433421,0.27616258597477233] atol=1e-6
-# only 6 observations & residuals despite 18 individuals: at the species level
-@test nobs(m1) == 6
+@test nobs(m1) == 18 # 6 species, 18 ind
 @test residuals(m1) ≈ [-0.16295769587309603,0.2560302141911026,-0.36246083625543507,-0.9880623366773218,-0.78049231427113,0.9634719640663754] atol=1e-6
 @test residuals(m2) ≈ [-0.16295769587309603,0.2560302141911026,-0.36246083625543507,-0.9880623366773218,-0.78049231427113,0.9634719640663754] atol=1e-6
 @test dof_residual(m1) == 4
-@test_broken dof(m1) == 4
+@test dof(m1) == 4
 
 m3 = phylolm(@formula(trait3 ~ trait1), df, net; reml=false,
       tipnames=:species, withinspecies_var=true)
@@ -463,6 +463,29 @@ m4 = phylolm(@formula(trait3 ~ trait1), df_r, net; reml=false,
 @test loglikelihood(m4) ≈ 1.876606 rtol=1e-4
 @test stderror(m3) ≈ [1.0619360781577734, 0.22496955609230126] atol=1e-6
 @test stderror(m4) ≈ [1.0619360781577734, 0.22496955609230126] atol=1e-6
+
+# model comparison & likelihood ratio test
+m3null = phylolm(@formula(trait3 ~ 1), df, net; reml=false, tipnames=:species, withinspecies_var=true)
+m3full = phylolm(@formula(trait3 ~ trait1 + trait2), df, net; reml=false, tipnames=:species, withinspecies_var=true)
+@test StatsModels.isnested(m3null, m3full)
+tab = (@test_logs lrtest(m3null, m3, m3full))
+@test all(isapprox.(tab.deviance, (13.720216379785523,-3.75321128763398,-4.243488375445074), atol=1e-6))
+@test tab.dof == (3, 4, 5)
+@test all(isapprox.(tab.pval[2:end], (2.9135155795020905e-5,0.4838037279625203), atol=1e-6))
+m1null = phylolm(@formula(trait3 ~ 1), df, net; tipnames=:species, withinspecies_var=true) # REML
+@test !(@test_logs (:error, r"fitted with ML") StatsModels.isnested(m1null, m1)) # REML, different FEs
+@test_logs (:error, r"same criterion") (@test_throws ArgumentError lrtest(m3null, m1)) # ML and REML
+m2w = phylolm(@formula(trait3 ~ trait1), df_r, net; tipnames=:species)
+m5w = phylolm(@formula(trait3 ~ trait1), df[[1,2,4,7,13,18],:], net; tipnames=:species, withinspecies_var=true)
+@test !(@test_logs (:error, r"same number of obs") StatsModels.isnested(m2, m2w))
+@test !(@test_logs (:error, r"same assumption about species means") StatsModels.isnested(m5w,m2w))
+m6w = (@test_logs (:info,r"^Maximum lambda") phylolm(@formula(trait3 ~ trait1), df_r, net; tipnames=:species, model="lambda"))
+tab = lrtest(m2w, m6w) # both REML, but same predictors
+@test tab.pval[2] ≈ 0.03928341265297505 atol=1e-6
+@test !PhyloNetworks.isnested(PhyloNetworks.PagelLambda(0.1),PhyloNetworks.BM())
+@test !PhyloNetworks.isnested(PhyloNetworks.PagelLambda(),PhyloNetworks.ScalingHybrid())
+@test !PhyloNetworks.isnested(PhyloNetworks.ScalingHybrid(2.0),PhyloNetworks.PagelLambda())
+@test_throws ArgumentError ftest(m3null, m3, m3full) # not the same Y after transformation
 
 # ancestral state prediction ("reconstruction")
 allowmissing!(df,  [:trait3]); df[4:6,:trait3] .= missing # species C missing

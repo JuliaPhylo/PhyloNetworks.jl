@@ -1482,6 +1482,7 @@ and output from the `NLopt` optimization used in the estimation.
 - `wsp_ninv`: vector of the inverse sample-sizes (e.g. [1/n₁, ..., 1/nₖ], where
   data from k species was used to fit the model and nᵢ is the no. of observations
   for the ith species).
+- `rss`: within-species sum of squares
 - `optsum`: an [`OptSummary`](@ref) object.
 """
 struct WithinSpeciesCTM
@@ -1491,6 +1492,8 @@ struct WithinSpeciesCTM
     bsp_var::Vector{Float64}
     "inverse sample sizes (or precision): 1/(no. of individuals) within each species"
     wsp_ninv::Vector{Float64}
+    "within-species sum of squares"
+    rss::Float64
     "NLopt & NLopt summary object"
     optsum::OptSummary
 end
@@ -1601,7 +1604,7 @@ e.g. to find out about the `lm` field, do `?PhyloNetworkLinearModel.lm`.
 The following StatsBase functions can be applied:
 `coef`, `nobs`, `vcov`, `stderror`, `confint`, `coeftable`, `dof_residual`, `dof`, `deviance`,
 `residuals`, `response`, `predict`, `loglikelihood`, `nulldeviance`, `nullloglikelihood`,
-`r2`, `adjr2`, `aic`, `aicc`, `bic`.
+`r2`, `adjr2`, `aic`, `aicc`, `bic`, `ftest`, `lrtest` etc.
 
 The estimated variance-rate and estimated mean of the species-level trait model
 (see [`ContinuousTraitEM`](@ref)) can be retrieved using [`sigma2_phylo`](@ref)
@@ -2442,8 +2445,21 @@ end
 ## Un-changed Quantities
 # Coefficients of the regression
 StatsBase.coef(m::PhyloNetworkLinearModel) = coef(m.lm)
-# Number of observations for species-level data: number of species with data
-StatsBase.nobs(m::PhyloNetworkLinearModel) = nobs(m.lm)
+
+"""
+    StatsBase.nobs(m::PhyloNetworkLinearModel)
+
+Number of observations: number of species with data, if the model assumes
+known species means, and number of individuals with data, if the model
+accounts for within-species variation.
+"""
+function StatsBase.nobs(m::PhyloNetworkLinearModel)
+    if isnothing(m.model_within)
+        return nobs(m.lm)
+    else
+        return sum(1.0 ./ m.model_within.wsp_ninv)
+    end
+end
 
 """
     vcov(m::PhyloNetworkLinearModel)
@@ -2521,20 +2537,21 @@ function StatsBase.coeftable(m::PhyloNetworkLinearModel; level::Real=0.95)
                   ["x$i" for i = 1:n_coef], 4, 3)
     end
 end
+
 # degrees of freedom for residuals: at the species level, for coefficients of
-# the phylogenetic regression (*not* for the within-species variance)
-StatsBase.dof_residual(m::PhyloNetworkLinearModel) =  nobs(m) - length(coef(m))
+# the phylogenetic regression, assuming known co-variance between species means.
+# used for F and T degrees of freedom, instead of more conservative Z
+StatsBase.dof_residual(m::PhyloNetworkLinearModel) =  nobs(m.lm) - length(coef(m))
+
 # degrees of freedom consumed by the species-level model
 function StatsBase.dof(m::PhyloNetworkLinearModel)
     res = length(coef(m)) + 1 # +1: phylogenetic variance
     if any(typeof(m.model) .== [PagelLambda, ScalingHybrid])
         res += 1 # lambda is one parameter
     end
-    # fixithere: +1 if m.model_within is not nothing (within-species variance)
-    # why not: nobs, residuals, dof_residual, deviance, etc. are based on species-level fit
-    # why: loglikelihood is for the full data at individual level, used for model comparisons
-    # aic uses −2logL + 2 dof
-    # bic uses −2logL+ dof log(nobs), so we might want to revise nobs too...
+    if !isnothing(m.model_within)
+        res += 1 # within-species variance
+    end
     return res
 end
 """
@@ -2603,7 +2620,7 @@ function StatsBase.loglikelihood(m::PhyloNetworkLinearModel)
     else # if msrerr model, return loglikelihood of individual-level data
         modwsp = m.model_within
         ntot = sum(1.0 ./ modwsp.wsp_ninv) # total number of individuals
-        nsp = nobs(linmod)                   # number of species
+        nsp = nobs(linmod)                 # number of species
         ncoef = length(coef(linmod))
         bdof = (m.reml ? nsp - ncoef : nsp )
         wdof = ntot - nsp
@@ -2884,7 +2901,7 @@ function withinsp_varianceratio(X::Matrix, Y::Vector, V::Matrix, reml::Bool,
             ftol_rel=fRelTr, ftol_abs=fAbsTr, xtol_rel=xRelTr, xtol_abs=[xAbsTr])
         optsum.maxfeval = 1000
         # default if model_within is not specified
-        model_within = WithinSpeciesCTM([s2withinstart], [s2start], d_inv, optsum)
+        model_within = WithinSpeciesCTM([s2withinstart], [s2start], d_inv, RSS, optsum)
     else
         optsum = model_within.optsum
         # fixit: I find this option dangerous (and not used). what if the
@@ -2929,9 +2946,58 @@ function withinsp_varianceratio(X::Matrix, Y::Vector, V::Matrix, reml::Bool,
 end
 
 ###############################################################################
-## Anova - using ftest from GLM - Need version 0.8.1
-###############################################################################
+#= Model comparisons
 
+When isnested() is defined in GLM, check to see if we can improve this below
+=#
+"""
+    isnested(m1::PhyloNetworkLinearModel, m2::PhyloNetworkLinearModel)
+    isnested(m1::ContinuousTraitEM, m2::ContinuousTraitEM)
+
+True if `m1` is nested in `m2`, false otherwise.
+Models fitted with different criteria (ML and REML) are not nested.
+Models with different predictors (fixed effects) must be fitted with ML to be
+considered nested.
+"""
+function StatsModels.isnested(
+        m1::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T},
+        m2::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T}; atol::Real=0.0) where T
+    m1m = m1.model
+    m2m = m2.model
+    if !(nobs(m1m) ≈ nobs(m2m))
+        @error "Models must have the same number of observations"
+        return false
+    end
+    # same data? check if original (not transformed) Y is the same
+    # same criterion?
+    if xor(m1m.reml, m2m.reml)
+        @error "Models must be fitted with same criterion (both ML or both REML)"
+        return false
+    end
+    # same within-species variation? same assumption of perfectly known (!) species means
+    if xor(isnothing(m1m.model_within), isnothing(m2m.model_within))
+        @error "Models must make the same assumption about species means: perfectly known or not"
+        return false
+    end
+    # nesting of fixed effects. coef names are not in PhyloNetworkLinearModel
+    all(in.(coefnames(m1),  Ref(coefnames(m2)))) || return false
+    # ML (not REML) if different fixed effects
+    sameFE = all(in.(coefnames(m2),  Ref(coefnames(m1))))
+    if !sameFE && (m1m.reml || m2m.reml)
+        @error "Models should be fitted with ML to do a likelihood ratio test with different predictors"
+        return false
+    end
+    # nesting of phylogenetic variance models
+    return isnested(m1m.model, m2m.model)
+end
+
+isnested(::T,::T) where T <: ContinuousTraitEM = true
+isnested(::BM,::Union{PagelLambda,ScalingHybrid}) = true
+isnested(::Union{PagelLambda,ScalingHybrid}, ::BM) = false
+isnested(::ScalingHybrid,::PagelLambda) = false
+isnested(::PagelLambda,::ScalingHybrid) = false
+
+## ANOVA using ftest from GLM - need version 0.8.1
 function GLM.ftest(objs::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T}...)  where T
     objsModels = [obj.model for obj in objs]
     return ftest(objsModels...)
@@ -2941,11 +3007,7 @@ function GLM.ftest(objs::PhyloNetworkLinearModel...)
     objslm = [obj.lm for obj in objs]
     return ftest(objslm...)
 end
-
-###############################################################################
-## Anova - old version - kept for tests purposes - do not export
-###############################################################################
-
+## ANOVA: old version - kept for tests purposes - do not export
 """
     anova(objs::PhyloNetworkLinearModel...)
 

@@ -409,6 +409,14 @@ estimated λ should be close to 1. It can be extracted with function
 lambda_estim(fitPagel)
 ```
 
+For models in which the covariance is estimated, like Pagel's lambda,
+model comparisons should use a likelihood ratio test with the function `lrtest`,
+because the f-test (see below) is not applicable.
+
+If the models being compared have different predictors, then models
+should be fit with maximum likelihood instead of the default REML criterion
+in order to do a likelihood ratio test: use option `reml=false` for this.
+
 ## Shifts and transgressive evolution
 
 In the ANOVA section above, we showed how to include transgressive evolution
@@ -498,15 +506,16 @@ complex cases, it is possible to do a Fisher F test, thanks to the `GLM`
 function `ftest`.
 ```@example tree_trait
 fit_null = phylolm(@formula(trait ~ 1), dat, truenet) # fit against the null (no shift)
-ftest(fit_sh, fit_null)                                      # nested models, from more complex to most simple
+ftest(fit_sh, fit_null)  # nested models
 ```
 Here, this test is equivalent to the Fisher F test, and gives the same p-value.
 
-Note that, for conventional reasons, the `ftest` function always takes the
-*most complex* model as the first one. This means that, in the table of
-results, the models are actually named in a reverse order, so that "Model 2" is
-actually our model under H₀ (null model), and "Model 1" the one under H₁
-(model with shifts).
+Note that models need to be ordered by complexity, when given to `ftest`:
+either from most complex to most simple, or from most simple to most complex.
+In the output table, models are listed in the order in which they were given.
+If the most complex model is given first, as done above, the table
+lists the most complex H₁ (with shifts) first, and the null model H₀
+is listed as the second model.
 
 ---
 

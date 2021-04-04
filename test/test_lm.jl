@@ -215,15 +215,22 @@ table2 = PhyloNetworks.anova(modnull, modhom, modhet)
 
 # Check that it is the same as doing shift_8 + shift_17
 modhetbis = phylolm(@formula(trait ~ shift_8 + shift_17), dfr, net)
-
 table2bis = PhyloNetworks.anova(modnull, modhom, modhetbis)
-
 @test table2[!,:F] ≈ table2bis[!,:F]
 @test table2[!,Symbol("Pr(>F)")] ≈ table2bis[!,Symbol("Pr(>F)")]
 @test table2[!,:dof_res] ≈ table2bis[!,:dof_res]
 @test table2[!,:RSS] ≈ table2bis[!,:RSS]
 @test table2[!,:dof] ≈ table2bis[!,:dof]
 @test table2[!,:SS] ≈ table2bis[!,:SS]
+
+# re-fit with ML to do likelihood ratio test
+modnull = phylolm(@formula(trait ~ 1), dfr, net; reml=false)
+modhom = phylolm(@formula(trait ~ sum), dfr, net; reml=false)
+modhet = phylolm(@formula(trait ~ sum + shift_8), dfr, net; reml=false)
+table3 = (@test_logs lrtest(modhet, modhom, modnull))
+@test all(isapprox.(table3.deviance, (25.10067039653046,47.00501928245542,47.0776339693065), atol=1e-6))
+@test table3.dof == (4, 3, 2)
+@test all(isapprox.(table3.pval[2:end], (2.865837220526082e-6,0.7875671600772386), atol=1e-6))
 
 end
 
