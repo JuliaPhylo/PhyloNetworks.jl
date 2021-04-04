@@ -2858,6 +2858,11 @@ function phylolm_wsp(X::Matrix, Y::Vector, V::MatrixTopologicalOrder,
             RSS += sum((Y[iii] .- ymean).^2)
         end
         Vsp = V[:Tips][ind_sp,ind_sp]
+        # redefine "ind" and "nonmissing" at species level. ind = index of species
+        # in tipLabels(net), in same order in which species come in means Ysp.
+        # nonmissing: no need to list species with no data
+        ind = ind_sp
+        nonmissing = BitArray(true for i in 1:n_sp)
     else # group means and sds for response variable were passed in
         n_sp = length(Y)
         n_tot = sum(counts)
