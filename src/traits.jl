@@ -2811,10 +2811,9 @@ function phylolm_wsp(::BM, X::Matrix, Y::Vector, net::HybridNetwork, reml::Bool;
         nonmissing=trues(length(Y))::BitArray{1}, # which individuals have non-missing data?
         ind=[0]::Vector{Int},
         counts::Union{Nothing, Vector}=nothing,
-        ySD::Union{Nothing, Vector}=nothing,
-        model_within::Union{Nothing, WithinSpeciesCTM}=nothing)
+        ySD::Union{Nothing, Vector}=nothing)
     V = sharedPathMatrix(net)
-    phylolm_wsp(X,Y,V, reml, nonmissing,ind, counts,ySD, model_within)
+    phylolm_wsp(X,Y,V, reml, nonmissing,ind, counts,ySD)
 end
 
 #= notes about missing data: after X and Y produced by stat formula:
@@ -2834,8 +2833,7 @@ extra problems:
 function phylolm_wsp(X::Matrix, Y::Vector, V::MatrixTopologicalOrder,
         reml::Bool, nonmissing::BitArray{1}, ind::Vector{Int},
         counts::Union{Nothing, Vector},
-        ySD::Union{Nothing, Vector},
-        model_within::Union{Nothing, WithinSpeciesCTM}=nothing)
+        ySD::Union{Nothing, Vector})
     n_coef = size(X, 2) # no. of predictors
     individualdata = isnothing(counts)
     xor(individualdata, isnothing(ySD)) &&
@@ -2872,10 +2870,10 @@ function phylolm_wsp(X::Matrix, Y::Vector, V::MatrixTopologicalOrder,
     end
 
     model_within, RL = withinsp_varianceratio(Xsp,Ysp,Vsp, reml, d_inv,RSS,
-        n_tot,n_coef,n_sp, model_within)
+        n_tot,n_coef,n_sp)
     η = model_within.optsum.final[1]
     Vm = Vsp + η * Diagonal(d_inv)
-    m = PhyloNetworkLinearModel(lm(RL\Xsp, RL\Ysp), V, Vm, RL, Y, X,
+    m = PhyloNetworkLinearModel(lm(RL\Xsp, RL\Ysp), V, Vm, RL, Ysp, Xsp,
             2*logdet(RL), reml, ind, nonmissing, BM(), model_within)
     return m
 end
@@ -2888,9 +2886,10 @@ function withinsp_varianceratio(X::Matrix, Y::Vector, V::Matrix, reml::Bool,
         d_inv::Vector, RSS::Float64, ntot::Real, ncoef::Int64, nsp::Int64,
         model_within::Union{Nothing, WithinSpeciesCTM}=nothing)
 
+    RL = cholesky(V).L
+    lm_sp = lm(RL\X, RL\Y)
     if model_within === nothing
-        RL = cholesky(V).L
-        lm_sp = lm(RL\X, RL\Y)
+        # create model_within with good starting values
         s2start = GLM.dispersion(lm_sp, false) # sqr=false: deviance/dof_residual
         # this is the REML, not ML estimate, which would be deviance/nobs
         s2withinstart = RSS/(ntot-nsp)
@@ -2898,7 +2897,6 @@ function withinsp_varianceratio(X::Matrix, Y::Vector, V::Matrix, reml::Bool,
         optsum = OptSummary([ηstart], [1e-100], :LN_BOBYQA; initial_step=[0.01],
             ftol_rel=fRelTr, ftol_abs=fAbsTr, xtol_rel=xRelTr, xtol_abs=[xAbsTr])
         optsum.maxfeval = 1000
-        # default if model_within is not specified
         model_within = WithinSpeciesCTM([s2withinstart], [s2start], d_inv, RSS, optsum)
     else
         optsum = model_within.optsum
