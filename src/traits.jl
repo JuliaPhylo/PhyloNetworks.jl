@@ -1903,20 +1903,19 @@ function logLik_lam(lam::AbstractFloat,
     return res
 end
 
-function phylolm_lambda(X::Matrix,
-                               Y::Vector,
-                               V::MatrixTopologicalOrder,
-                               reml::Bool,
-                               gammas::Vector,
-                               times::Vector;
-                               nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
-                               ind=[0]::Vector{Int},
-                               ftolRel=fRelTr::AbstractFloat,
-                               xtolRel=xRelTr::AbstractFloat,
-                               ftolAbs=fAbsTr::AbstractFloat,
-                               xtolAbs=xAbsTr::AbstractFloat,
-                               startingValue=0.5::Real,
-                               fixedValue=missing::Union{Real,Missing})
+function phylolm_lambda(X::Matrix,Y::Vector,
+                    V::MatrixTopologicalOrder,
+                    reml::Bool,
+                    gammas::Vector,
+                    times::Vector;
+                    nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
+                    ind=[0]::Vector{Int},
+                    ftolRel=fRelTr::AbstractFloat,
+                    xtolRel=xRelTr::AbstractFloat,
+                    ftolAbs=fAbsTr::AbstractFloat,
+                    xtolAbs=xAbsTr::AbstractFloat,
+                    startingValue=0.5::Real,
+                    fixedValue=missing::Union{Real,Missing})
     if ismissing(fixedValue)
         # Find Best lambda using optimize from package NLopt
         opt = NLopt.Opt(:LN_BOBYQA, 1)
@@ -1979,19 +1978,18 @@ function logLik_lam_hyb(lam::AbstractFloat,
     return res
 end
 
-function phylolm_scalingHybrid(X::Matrix,
-                                      Y::Vector,
-                                      net::HybridNetwork,
-                                      reml::Bool,
-                                      gammas::Vector;
-                                      nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
-                                      ind=[0]::Vector{Int},
-                                      ftolRel=fRelTr::AbstractFloat,
-                                      xtolRel=xRelTr::AbstractFloat,
-                                      ftolAbs=fAbsTr::AbstractFloat,
-                                      xtolAbs=xAbsTr::AbstractFloat,
-                                      startingValue=0.5::Real,
-                                      fixedValue=missing::Union{Real,Missing})
+function phylolm_scalingHybrid(X::Matrix,Y::Vector,
+                    net::HybridNetwork,
+                    reml::Bool,
+                    gammas::Vector;
+                    nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
+                    ind=[0]::Vector{Int},
+                    ftolRel=fRelTr::AbstractFloat,
+                    xtolRel=xRelTr::AbstractFloat,
+                    ftolAbs=fAbsTr::AbstractFloat,
+                    xtolAbs=xAbsTr::AbstractFloat,
+                    startingValue=0.5::Real,
+                    fixedValue=missing::Union{Real,Missing})
     if ismissing(fixedValue)
         # Find Best lambda using optimize from package NLopt
         opt = NLopt.Opt(:LN_BOBYQA, 1)

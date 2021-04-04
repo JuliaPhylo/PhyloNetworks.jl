@@ -108,10 +108,6 @@ hybridBootstrapSupport
 ## continuous trait evolution
 
 ```@docs
-simulate
-shiftHybrid
-getShiftEdgeNumber
-getShiftValue
 phylolm
 sigma2_phylo
 sigma2_within
@@ -122,6 +118,10 @@ expectations
 predint
 expectationsPlot
 predintPlot
+simulate
+shiftHybrid
+getShiftEdgeNumber
+getShiftValue
 descendenceMatrix
 regressorShift
 regressorHybrid
