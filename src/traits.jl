@@ -223,8 +223,11 @@ function Base.getindex(obj::MatrixTopologicalOrder,
     if d == :InternalNodes # Idem, for internal nodes
         maskNodes = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
         maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
-        maskTips = maskTips[indTips]
-        maskNodes = [maskNodes; maskTips[.!nonmissing]]
+        # fixitCecile: To me, this is the most direct fix. Base Julia doesn't have negative indexing like R, hence
+        # the use of setdiff.
+        missingTips = maskTips[setdiff(1:length(obj.tipNumbers),indTips)] # indices for tips not found in dataframe
+        maskTips = maskTips[indTips] # indices for tips found in dataframe
+        maskNodes = [maskNodes; missingTips; maskTips[.!nonmissing]]
         obj.indexation == "b" && return obj.V[maskNodes, maskNodes]
         obj.indexation == "c" && return obj.V[:, maskNodes]
         obj.indexation == "r" && return obj.V[maskNodes, :]
@@ -232,8 +235,9 @@ function Base.getindex(obj::MatrixTopologicalOrder,
     if d == :TipsNodes
         maskNodes = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
         maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
+        missingTips = maskTips[setdiff(1:length(obj.tipNumbers),indTips)] # indices for tips not found in dataframe
         maskTips = maskTips[indTips]
-        maskNodes = [maskNodes; maskTips[.!nonmissing]]
+        maskNodes = [maskNodes; missingTips; maskTips[.!nonmissing]]
         maskTips = maskTips[nonmissing]
         obj.indexation == "b" && return obj.V[maskTips, maskNodes]
         obj.indexation == "c" && error("""Both rows and columns must be net
@@ -3214,6 +3218,8 @@ function ancestralStateReconstruction(V::MatrixTopologicalOrder,
 end
 
 # Reconstruction from all the needed quantities
+# fixitCecile: Should the parameter "VyzVyinvchol" be renamed as "VyinvcholVyz" or
+# "VycholinvVyz" since it equals (cholesky(Vy).L) \ Vyz?
 function ancestralStateReconstruction(Vz::Matrix,
                                       VyzVyinvchol::Matrix,
                                       RL::LowerTriangular,
@@ -3223,9 +3229,22 @@ function ancestralStateReconstruction(Vz::Matrix,
                                       sigma2::Real,
                                       add_var=zeros(size(Vz))::Matrix, # Additional variance for BLUP
                                       model=missing::Union{PhyloNetworkLinearModel,Missing})
-    m_z_cond_y = m_z + VyzVyinvchol' * (RL \ (Y - m_y))
-    V_z_cond_y = sigma2 .* (Vz - VyzVyinvchol' * VyzVyinvchol)
-    ReconstructedStates(m_z_cond_y, V_z_cond_y + add_var, NodeNumbers, Y, TipNumbers, model)
+    m_z_cond_y = m_z + VyzVyinvchol' * (RL \ (Y - m_y)) # E[z∣y+ϵ] = E[z∣X] + Cov(z,y+ϵ)⋅Var(y+ϵ)⁻¹⋅(y+ϵ-E[y+ϵ∣X])
+    V_z_cond_y = sigma2 .* (Vz - VyzVyinvchol' * VyzVyinvchol) 
+    if (!ismissing(model) && !isnothing(model.model_within)) # within-species error model
+        # E[y∣y+ϵ] = E[y∣X] + Cov(y,y+ϵ)⋅Var(y+ϵ)⁻¹⋅(y+ϵ-E[y+ϵ∣X])
+        # E[y∣X] = E[y+ϵ∣X] = PhyloNetworks.predict(model)
+        # Cov(y,y+ϵ)⋅Var(y+ϵ)⁻¹ = model.V[:Tips, model.ind, model.nonmissing]⋅(model.Vy)⁻¹
+        m_y_cond_y = m_y + model.V[:Tips, model.ind, model.nonmissing] * (model.Vy \ (Y - m_y))
+        # fixitCecile: Perhaps 'm_z_cond_y' should be renamed 'm_z_cond_Y', where 'Y' indicates that 
+        # we are conditioning on an observed value (which we may decide to treat as "true" or "noisy"). 
+        # This would be consistent with the current 'Y' argument storing the observed response values. 
+        # The meaning of 'y' is slightly confusing here, because model.Vy ∝ Var(y+ϵ) but m_y = E[y∣X].
+    else
+        # E[y∣y+ϵ], ϵ=0 ⇒ E[y∣y+ϵ] = y
+        m_y_cond_y = Y # default (assume no within-species error)
+    end
+    ReconstructedStates(m_z_cond_y, V_z_cond_y + add_var, NodeNumbers, m_y_cond_y, TipNumbers, model)
 end
 
 # """
@@ -3243,12 +3262,12 @@ end
 
 # Empirical reconstruciton from a fitted object
 # TO DO: Handle the order of internal nodes for matrix X_n
-function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)
+function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix; kriging="universal")
     if (size(X_n)[2] != length(coef(obj)))
         error("""The number of predictors for the ancestral states (number of columns of X_n)
               does not match the number of predictors at the tips.""")
     end
-    if size(X_n)[1] != length(obj.V.internalNodeNumbers) + sum(.!obj.nonmissing)
+    if size(X_n)[1] != length(obj.V.internalNodeNumbers) + length(obj.V.tipNumbers)-length(obj.ind) + sum(.!obj.nonmissing)
         error("""The number of lines of the predictors does not match
               the number of nodes plus the number of missing tips.""")
     end
@@ -3261,20 +3280,34 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)
 #       jjj = [1:length(obj.V.internalNodeNumbers); indexin(1:length(obj.nonmissing), obj.ind[!obj.nonmissing])]
 #       jjj = jjj[jjj .> 0]
 #       Vyz = Vyz[iii, jjj]
-        Vyz = obj.V[:TipsNodes, obj.ind, obj.nonmissing]
-        missingTipNumbers = obj.V.tipNumbers[obj.ind][.!obj.nonmissing]
-        nmTipNumbers = obj.V.tipNumbers[obj.ind][obj.nonmissing]
+        Vyz = obj.V[:TipsNodes, obj.ind, obj.nonmissing] # sharedPath(tips w/ data, [internal nodes, tips w/o data])
+        missingTipNumbers = [obj.V.tipNumbers[setdiff(1:length(obj.V.tipNumbers),obj.ind)]; # node no.'s for tips w/ whole row missing
+                             obj.V.tipNumbers[obj.ind][.!obj.nonmissing]] # node no.'s for tips w/ missing row entries
+        nmTipNumbers = obj.V.tipNumbers[obj.ind][obj.nonmissing] # node no.'s for tips w/ data
     else
         @warn """There were no indication for the position of the tips on the network.
              I am assuming that they are given in the same order.
              Please check that this is what you intended."""
         Vyz = obj.V[:TipsNodes, collect(1:length(obj.V.tipNumbers)), obj.nonmissing]
+        # fixitCecile: What if no tipnames column, but more tips than df rows? (Edge case)
         missingTipNumbers = obj.V.tipNumbers[.!obj.nonmissing]
         nmTipNumbers = obj.V.tipNumbers[obj.nonmissing]
     end
     temp = obj.RL \ Vyz
-    U = X_n - temp' * (obj.RL \ obj.X)
-    add_var = U * vcov(obj) * U'
+
+    # fixitCecile: There probably is a better kwarg name than kriging. For now, I can't think of 
+    # another that would be as concise. Also, what should be the default for add_var? Based on 
+    # the comparisons with Rphylopars and Phytools in test_lm_withinspecies.jl, the default
+    # is kriging == "universal".
+    if kriging == "simple" # assume E[Y∣X] = Xβ, β is known, variance-components known
+        add_var = zeros(size(X_n)[1], size(X_n)[1])
+    elseif kriging == "universal" # assume E[Y∣X] = Xβ, β is estimated, variance-components known
+        U = X_n - temp' * (obj.RL \ obj.X)
+        add_var = U * vcov(obj) * U'
+    else
+        @error """kriging == "$kriging" is not implemented. Defaulting to kriging == "simple"."""
+        add_var = zeros(size(X_n)[1], size(X_n)[1])
+    end
     # Warn about the prediction intervals
     @warn """These prediction intervals show uncertainty in ancestral values,
          assuming that the estimated variance rate of evolution is correct.
@@ -3521,7 +3554,8 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel)
     are known, please provide them as a matrix argument to the function.
     Otherwise, you might consider doing a multivariate linear regression (not implemented yet).""")
     end
-  X_n = ones((length(obj.V.internalNodeNumbers) + sum(.!obj.nonmissing), 1))
+    #   X_n = ones((length(obj.V.internalNodeNumbers) + sum(.!obj.nonmissing), 1))
+    X_n = ones((length(obj.V.internalNodeNumbers) + length(obj.V.tipNumbers)-length(obj.ind) + sum(.!obj.nonmissing), 1))
     ancestralStateReconstruction(obj, X_n)
 end
 # For a TableRegressionModel
@@ -3546,11 +3580,12 @@ Returns an object of type [`ReconstructedStates`](@ref).
 """
 function ancestralStateReconstruction(fr::AbstractDataFrame,
                                       net::HybridNetwork;
+                                      tipnames::Symbol=:tipNames,
                                       kwargs...)
     nn = DataFrames.propertynames(fr)
-    datpos = nn .!= :tipNames
+    datpos = nn .!= tipnames
     if sum(datpos) > 1
-        error("""Besides one column labelled 'tipNames', the dataframe fr should have
+        error("""Besides one column labelled '$tipnames', the dataframe fr should have
               only one column, corresponding to the data at the tips of the network.""")
     end
     f = @eval(@formula($(nn[datpos][1]) ~ 1))

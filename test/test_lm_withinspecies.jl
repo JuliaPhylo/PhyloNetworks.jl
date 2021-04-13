@@ -493,10 +493,23 @@ allowmissing!(df_r,[:trait3]); df_r[2,:trait3] = missing  # to check imputation
 m1 = phylolm(@formula(trait3 ~ 1), df_r, net; tipnames=:species, withinspecies_var=true, y_mean_std=true)
 ar = (@test_logs (:warn, r"^T") ancestralStateReconstruction(m1))
 # @test ar.traits_nodes[8] ≈ ?? # masked sampled C_bar was 17.0686
+@test ar.traits_nodes[8] ≈ 18.744 rtol=1e-4
 # @test predint(ar)[8,:] ≈ [?,?]
+@test predint(ar)[8,:] ≈ [15.24,22.24] rtol=1e-3
 m1 = phylolm(@formula(trait3 ~ 1), df, net; tipnames=:species, withinspecies_var=true)
 ar = (@test_logs (:warn, r"^T") ancestralStateReconstruction(m1)) # error to be fixed: nonmissing and ind of the wrong size
 # @test ar.traits_nodes[8] ≈  # same as above
+@test ar.traits_nodes[8] ≈ 18.744 rtol=1e-4
 # @test predint(ar)[8,:] ≈
+@test predint(ar)[8,:] ≈ [15.24,22.24] rtol=1e-3
+
+# # ancestral state prediction (beyond just intercept)
+# X_n = fill(0.5,(length(m1.model.V.internalNodeNumbers)+sum(.!m1.model.nonmissing),1))
+# ancestralStateReconstruction(m1, X_n)
+# # ancestral state prediction 
+# X_n = fill(1,(length(m2.model.V.internalNodeNumbers)+sum(.!m2.model.nonmissing),1))
+# ancestralStateReconstruction(m2, X_n)
+# ancestralStateReconstruction(m2.model, X_n; kriging="simple")
+# ancestralStateReconstruction(m2.model, X_n; kriging="universal")
 
 end
