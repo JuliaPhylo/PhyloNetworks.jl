@@ -329,6 +329,14 @@ function getIndexEdge(number::Integer,net::Network)
     return ind
 end
 
+function getIndexEdge(number::Integer,edge::Vector{Edge})
+    ind = findfirst(x -> x.number == number, edge)
+    if ind === nothing
+        error("edge number not in net.edge")
+    end
+    return ind
+end
+
 # find the index of an edge in node.edge
 function getIndexEdge(edge::Edge,node::Node)
     findfirst(e -> isequal(edge,e), node.edge)
