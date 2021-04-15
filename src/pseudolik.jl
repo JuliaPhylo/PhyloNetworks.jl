@@ -496,6 +496,17 @@ function extractQuartet!(net::HybridNetwork, quartet::Quartet)
     #return qnet
 end
 
+# function to calculate deltaCF, which is the sum 
+# of | obsCF(i) - expCF(i) |, where i is one of 
+# the possible quartet topologies 12|34, 13|24, 14|23
+function calculateDeltaCF(obs::Array{Float64}, exp::Array{Float64})
+    sum=0.0
+    for i in 1:3
+        diff = abs(obs[i]-exp[i])
+        sum += abs(obs[i]-exp[i])
+    end
+    return sum
+end
 
 # function to extract all quartets from net according
 # to the array of quartets of a Data object
@@ -507,6 +518,7 @@ function extractQuartet!(net::HybridNetwork, quartet::Vector{Quartet})
         qnet = deepcopy(q.qnet); #there is a reason not to mess up with the original q.qnet, i believe to keep ht consistent
         calculateExpCFAll!(qnet);
         q.qnet.expCF[:] = qnet.expCF
+        q.deltaCF = calculateDeltaCF(q.obsCF, q.qnet.expCF)
     end
 end
 
