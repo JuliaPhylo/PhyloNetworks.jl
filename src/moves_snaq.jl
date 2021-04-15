@@ -1331,3 +1331,44 @@ function NNIRepeat!(net::HybridNetwork,N::Integer)
     return true
 end
 
+# function to choose an edge from a network using quartet ranks 
+# quartet ranks are stored in quartet.deltaCF, and they represent 
+# weights for weighted random sampling, calculated as the sum of differences 
+# of the observed vs. expected CFs (updated in pseudolik.jl -> extractQuartet -> calculateDeltaCF)
+# Input: HybridNetwork and a vector of possible edges which can be chosen 
+# Output: Index mapping an edge from edges::Vector{Edge}
+function sampleEdgeQuartetWeighted(net::HybridNetwork, edges::Vector{Edge}, d::DataCF)
+    index = 1
+    index = round(Integer,rand()*size(edges,1));
+    #to do: 1) Weighted sample of quartets in net
+    #       2) Sample an edge (randomly) from quartet that is in edges
+    #       3) If no edges match, then try again (?)
+    goodEdge = false
+    
+    while !goodEdge
+        #idx = rand(1:d.numQuartets)
+
+        #get quartet weights
+        weights = [ q.deltaCF for q in d.quartet ]
+        
+        #weighted sample quartet
+        indices = collect(1:length(weights))
+        idx = sample(indices, Weights(weights), 1)[1]
+        
+        #Get edges in quartet that are in supplied vector of edges to choose from 
+        edge_numbers = [ e.number for e in edges ]
+        q_edges = [ e.number for e in d.quartet[idx].qnet.edge if e.number in edge_numbers ]
+        
+        #if no edges remain, try again 
+        if length(q_edges) < 1
+            goodEdge = false
+        else
+            edge = sample(q_edges, 1)[1]
+            index = getIndexEdge(edge, edges)
+            goodEdge=true
+        end
+    end
+    return(index)
+end
+
+sampleEdgeQuartetWeighted(net::HybridNetwork, d::DataCF) = sampleEdgeQuartetWeighted(net, net.edge, d)
