@@ -379,6 +379,7 @@ mutable struct Quartet <: AQuartet
     qnet::QuartetNetwork # quartet network for the current network (want to keep as if private attribute)
     logPseudoLik::Float64 # log pseudolik value for the quartet. 0.0 by default
     ngenes::Float64 # number of gene trees used to compute the obsCV, default -1.; Float in case ngenes is average
+    deltaCF::Float64
     # inner constructor: to guarantee obsCF are only three and add up to 1
     function Quartet(number::Integer,t1::AbstractString,t2::AbstractString,t3::AbstractString,t4::AbstractString,obsCF::Array{Float64,1})
         size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing
