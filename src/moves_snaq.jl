@@ -297,6 +297,24 @@ function chooseEdgeOriginTarget!(net::HybridNetwork, neighbor::Vector{Edge}, nod
     return false, nothing, nothing
 end
 
+function chooseEdgeOriginTarget!(net::HybridNetwork, neighbor::Vector{Edge}, node::Node, d::DataCF)
+    length(neighbor) < 5 || error("aux vector a should have only 4 entries: $([n.number for n in neighbor])")
+    while(!isempty(neighbor))
+        ind = 0
+        while(ind == 0 || ind > length(neighbor))
+            ind = sampleEdgeQuartetWeighted(neighbor, d);
+            #ind = round(Integer,rand()*length(neighbor));
+        end
+        #println("ind es $(ind), neighbor edge $(neighbor[ind].number)")
+        if(!neighbor[ind].hybrid && (neighbor[ind].inCycle == -1 || neighbor[ind].inCycle == node.number))
+            return true, neighbor[ind], ind
+        else
+            deleteat!(neighbor,ind)
+        end
+    end
+    return false, nothing, nothing
+end
+
 
 
 # function to move the origin of a hybrid edge
@@ -674,7 +692,7 @@ function moveOriginUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
     #println("neighbors list is $([n.number for n in neighbor])")
     success = false
     while(!isempty(neighbor) && !success)
-        success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor,node)
+        success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor, node)
         !isa(newedge,Nothing) || return false
         success1 || return false
         #println("newedge is $(newedge.number), success1 is $(success1)")
@@ -691,6 +709,34 @@ function moveOriginUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
     return true
 end
 
+function moveOriginUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool, probQR::Float64, d::DataCF)
+    node.hybrid || error("cannot move origin because node $(node.number) is not hybrid")
+    othermin = chooseMinorMajor(node,random)
+    #println("othermin is $(othermin.number) with edges $([e.number for e in othermin.edge])")
+    neighbor = getNeighborsOrigin(othermin)
+    #println("neighbors list is $([n.number for n in neighbor])")
+    success = false
+    while(!isempty(neighbor) && !success)
+        if(probQR>0.0 && rand() < probQR)
+            success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor, node, d)
+        else
+            success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor, node)
+        end
+        !isa(newedge,Nothing) || return false
+        success1 || return false
+        #println("newedge is $(newedge.number), success1 is $(success1)")
+        in(newedge,net.edge) || error("newedge $(newedge.number) is not in net.edge")
+        success,flag2 = moveOriginUpdate!(net, node, othermin, newedge)
+        #println("after update, success is $(success)")
+        if(!success)
+            @debug "move origin failed, will delete that neighbor and try new one"
+            deleteat!(neighbor,ind)
+        end
+        #println("neighbor list is $([n.number for n in neighbor])")
+    end
+    success || return false
+    return true
+end
 # ------------------------------ move target of hybridization -------------------------------
 
 
@@ -1105,6 +1151,33 @@ function moveTargetUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
     success || return false
     return true
 end
+function moveTargetUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool, probQR::Float64, d::DataCF)
+    node.hybrid || error("cannot move origin because node $(node.number) is not hybrid")
+    othermin,majoredge = chooseMinorMajor(node,random, true)
+    #println("othermin is $(othermin.number), will move edge: majoredge $(majoredge.number)")
+    neighbor = getNeighborsTarget(node,majoredge)
+    #println("neighbors list is $([n.number for n in neighbor])")
+    success = false
+    while(!isempty(neighbor) && !success)
+        if(probQR>0.0 && rand() < probQR)
+            success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor,node, d);
+        else
+            success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor,node);
+        end
+        success1 || return false
+        #println("newedge is $(newedge.number), success1 is $(success1)")
+        in(newedge,net.edge) || error("newedge $(newedge.number) not in net.edge")
+        success,flag2 = moveTargetUpdate!(net, node, othermin, majoredge,newedge)
+        #println("after update, success is $(success)")
+        if(!success)
+            @debug "move target failed, will delete neighbor and try new one"
+            deleteat!(neighbor,ind)
+        end
+        #println("neighbor list is $([n.number for n in neighbor])")
+    end
+    success || return false
+    return true
+end
 
 
 # ------------------------------------- tree move NNI -------------------------------------------
@@ -1139,7 +1212,26 @@ function chooseEdgeNNI(net::Network,N::Integer)
         return false,nothing
     end
 end
-
+function chooseEdgeNNI(net::Network,N::Integer, probQR::Float64, d::DataCF)
+    N > 0 || error("N must be positive: $(N)")
+    index1 = 0
+    i = 0
+    while((index1 == 0 || index1 > size(net.edge,1) || net.edge[index1].hybrid || hasNeighborHybrid(net.edge[index1]) || !isInternalEdge(net.edge[index1])) && i < N)
+        if(probQR>0.0 && rand() < probQR)
+            println("NNI sampleEdgeQuartetWeighted")
+            index1 = sampleEdgeQuartetWeighted(net.edge, d);
+        else
+            index1 = round(Integer,rand()*size(net.edge,1));
+            i += 1
+        end
+    end
+    if(i < N)
+        return true,net.edge[index1]
+    else
+        @debug "cannot find suitable tree edge for NNI after $(N) attempts"
+        return false,nothing
+    end
+end
 
 # tree move NNI
 # it does not consider keeping the same setup
@@ -1330,24 +1422,35 @@ function NNIRepeat!(net::HybridNetwork,N::Integer)
     success || return false
     return true
 end
-
+function NNIRepeat!(net::HybridNetwork,N::Integer, probQR::Float64, d::DataCF)
+    N > 0 || error("N must be positive: $(N)")
+    flag,edge = chooseEdgeNNI(net,N)
+    flag || return false
+    i = 0
+    success = false
+    while(!success && i < N)
+        success = NNI!(net,edge)
+        i += 1
+    end
+    success || return false
+    return true
+end
 # function to choose an edge from a network using quartet ranks 
 # quartet ranks are stored in quartet.deltaCF, and they represent 
 # weights for weighted random sampling, calculated as the sum of differences 
 # of the observed vs. expected CFs (updated in pseudolik.jl -> extractQuartet -> calculateDeltaCF)
 # Input: HybridNetwork and a vector of possible edges which can be chosen 
 # Output: Index mapping an edge from edges::Vector{Edge}
-function sampleEdgeQuartetWeighted(net::HybridNetwork, edges::Vector{Edge}, d::DataCF)
+function sampleEdgeQuartetWeighted(edges::Vector{Edge}, d::DataCF)
     index = 1
     index = round(Integer,rand()*size(edges,1));
-    #to do: 1) Weighted sample of quartets in net
-    #       2) Sample an edge (randomly) from quartet that is in edges
-    #       3) If no edges match, then try again (?)
+    #1) Weighted sample of quartets in net
+    #2) Get edges in quartet that are in edges vector
+    #3) If no edges match, then try again
+    #4) If edges match, choose one randomly and return index (mapping to edges vector)
     goodEdge = false
-    
     while !goodEdge
         #idx = rand(1:d.numQuartets)
-
         #get quartet weights
         weights = [ q.deltaCF for q in d.quartet ]
         
