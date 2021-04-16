@@ -103,12 +103,12 @@ function chooseEdgesGamma(net::HybridNetwork, blacklist::Bool, edges::Vector{Edg
     while !inlimits || edges[index1].inCycle != -1 || edges[index2].inCycle != -1 || inblack || cherry || nonidentifiable
         #choose edge w/ quartet-weighted sampling with probability probQR, otherwise choose random edge
         if(probQR>0.0 && rand() < probQR)
-            index1 = sampleEdgeQuartetWeighted(net, edges, d)
+            index1 = sampleEdgeQuartetWeighted(edges, d)
         else
             index1 = round(Integer,rand()*size(edges,1));
         end
         if(probQR>0.0 && rand() < probQR)
-            index2 = sampleEdgeQuartetWeighted(net, edges, d)
+            index2 = sampleEdgeQuartetWeighted(edges, d)
         else
             index2 = round(Integer,rand()*size(edges,1));
         end
@@ -117,7 +117,6 @@ function chooseEdgesGamma(net::HybridNetwork, blacklist::Bool, edges::Vector{Edg
             sisters, cherry, nonidentifiable = sisterOrCherry(edges[index1],edges[index2]);
         else
             inlimits = false
-            println("bad")
             @goto outer
         end
         if blacklist && !isempty(net.blacklist)
@@ -129,7 +128,6 @@ function chooseEdgesGamma(net::HybridNetwork, blacklist::Bool, edges::Vector{Edg
                         inblack = true
                     else
                         inblack = false
-                        println("bad")
                         @goto outer
                     end
                 elseif edges[index2].number == net.blacklist[i]
@@ -137,7 +135,6 @@ function chooseEdgesGamma(net::HybridNetwork, blacklist::Bool, edges::Vector{Edg
                         inblack = true
                     else
                         inblack = false
-                        println("bad")
                         @goto outer
                     end
                 end
