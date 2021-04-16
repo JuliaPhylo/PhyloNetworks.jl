@@ -1118,10 +1118,12 @@ function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::In
         success = addHybridizationUpdateSmart!(newT, N, probQR, d)
     elseif(move == 2)
         node = chooseHybrid(newT)
+        #success = moveOriginUpdateRepeat!(newT,node,random, probQR, d)
         success = moveOriginUpdateRepeat!(newT,node,random)
         CHECKNET && isBadTriangle(node) && success && error("success is $(success) in proposedTop, but node $(node.number) is very bad triangle")
     elseif(move == 3)
         node = chooseHybrid(newT)
+        #success = moveTargetUpdateRepeat!(newT,node,random, probQR, d)
         success = moveTargetUpdateRepeat!(newT,node,random)
         CHECKNET && isBadTriangle(node) && success && error("success is $(success) in proposedTop, but node $(node.number) is very bad triangle")
     elseif(move == 4)
@@ -1133,6 +1135,7 @@ function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::In
         deleteHybridizationUpdate!(newT,node)
         success = true
     elseif(move == 6)
+        #success = NNIRepeat!(newT,N,probQR, d)
         success = NNIRepeat!(newT,N)
     end
     if(multall)
@@ -1334,11 +1337,13 @@ function optTopLevel!(currT::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
                     failures = 0
                     movescount[move2int[move]+12] += 1
                     movesfail = zeros(Int,6) #count of failed moves for current topology
+                    println("accept: ",newT.loglik) #**TEMP**
                 else
                     @debug "rejected new topology with worse loglik in step $(count): currloglik=$(round(currT.loglik, digits=3)), newloglik=$(round(newT.loglik, digits=3)), with $(failures) failures"
                     failures += 1
                     movesfail[move2int[move]] += 1
                     newT = deepcopy(currT)
+                    println("reject",newT.loglik) #**TEMP**
                 end
                 @debug begin
                     printEdges(newT)
