@@ -428,41 +428,78 @@ df_r = DataFrame(
 )
 
 # Check for agreement in fit when individual-level data is supplied vs when the
-# corresponding species-level data is supplied.
+# corresponding species-level data is supplied (see m1, m2, m3, m4).
+# Check that the same output is returned when the data rows are permuted (see m1permute, m2permute).
+# When withinspecies_var=false (data has one row per species), check that the same
+# output is returned when a species row has missing entries vs when the same row is 
+# completely absent from the data (see m3missingentry, m4missingrow). 
 m1 = phylolm(@formula(trait3 ~ trait1), df, net; reml=true,
       tipnames=:species, withinspecies_var=true)
+m1permute = phylolm(@formula(trait3 ~ trait1), df[[1,6,11,17,16,18,8,5,9,3,12,7,13,10,2,14,4,15],:], # permute predictor rows
+                  net; reml=true,tipnames=:species, withinspecies_var=true)
 m2 = phylolm(@formula(trait3 ~ trait1), df_r, net; reml=true,
       tipnames=:species, withinspecies_var=true, y_mean_std=true)
+m2permute = phylolm(@formula(trait3 ~ trait1), df_r[[5,2,3,1,6,4],:], net; reml=true, # permute predictor rows
+                  tipnames=:species, withinspecies_var=true, y_mean_std=true) 
 @test coef(m1) ≈ [9.65347,2.30357] rtol=1e-4
+@test coef(m1permute) ≈ [9.65347,2.30357] rtol=1e-4
 @test coef(m2) ≈ [9.65347,2.30357] rtol=1e-4
+@test coef(m2permute) ≈ [9.65347,2.30357] rtol=1e-4
 @test sigma2_phylo(m1) ≈ 0.156188 rtol=1e-4
+@test sigma2_phylo(m1permute) ≈ 0.156188 rtol=1e-4
 @test sigma2_phylo(m2) ≈ 0.156188 rtol=1e-4
+@test sigma2_phylo(m2permute) ≈ 0.156188 rtol=1e-4
 @test sigma2_within(m1) ≈ 0.008634 rtol=1e-4
+@test sigma2_within(m1permute) ≈ 0.008634 rtol=1e-4
 @test sigma2_within(m2) ≈ 0.008634 rtol=1e-4
+@test sigma2_within(m2permute) ≈ 0.008634 rtol=1e-4
 @test loglikelihood(m1) ≈ 1.944626 rtol=1e-4
+@test loglikelihood(m1permute) ≈ 1.944626 rtol=1e-4
 @test loglikelihood(m2) ≈ 1.944626 rtol=1e-4
+@test loglikelihood(m2permute) ≈ 1.944626 rtol=1e-4
 @test stderror(m1) ≈ [1.3065987324433421,0.27616258597477233] atol=1e-6
+@test stderror(m1permute) ≈ [1.3065987324433421,0.27616258597477233] atol=1e-6
 @test stderror(m2) ≈ [1.3065987324433421,0.27616258597477233] atol=1e-6
+@test stderror(m2permute) ≈ [1.3065987324433421,0.27616258597477233] atol=1e-6
 @test nobs(m1) == 18 # 6 species, 18 ind
+@test nobs(m1permute) == 18
 @test residuals(m1) ≈ [-0.16295769587309603,0.2560302141911026,-0.36246083625543507,-0.9880623366773218,-0.78049231427113,0.9634719640663754] atol=1e-6
+# indexin(df[[1,6,11,17,16,18,8,5,9,3,12,7,13,10,2,14,4,15],:].species |> unique, df.species |> unique) == [1,2,4,6,3,5]
+@test residuals(m1permute) ≈ [-0.16295769587309603,0.2560302141911026,-0.36246083625543507,
+                              -0.9880623366773218,-0.78049231427113,0.9634719640663754][[1,2,4,6,3,5]] atol=1e-6
 @test residuals(m2) ≈ [-0.16295769587309603,0.2560302141911026,-0.36246083625543507,-0.9880623366773218,-0.78049231427113,0.9634719640663754] atol=1e-6
+@test residuals(m2permute) ≈ [-0.16295769587309603,0.2560302141911026,-0.36246083625543507,
+                              -0.9880623366773218,-0.78049231427113,0.9634719640663754][[5,2,3,1,6,4]] atol=1e-6
 @test dof_residual(m1) == 4
+@test dof_residual(m1permute) == 4
 @test dof(m1) == 4
 
 m3 = phylolm(@formula(trait3 ~ trait1), df, net; reml=false,
       tipnames=:species, withinspecies_var=true)
+dfmissingentry = allowmissing(df); dfmissingentry.trait1[1:3] .= missing # remove entire trait1 col for species D
+m3missingentry = phylolm(@formula(trait3 ~ trait1), dfmissingentry, net; reml=false, # not using data from species D
+                        tipnames=:species, withinspecies_var=true)
 m4 = phylolm(@formula(trait3 ~ trait1), df_r, net; reml=false,
       tipnames=:species, withinspecies_var=true, y_mean_std=true)
+df_rmissingrow = copy(df_r); df_rmissingrow = df_rmissingrow[2:6,:] # remove entire row for species D
+m4missingrow = phylolm(@formula(trait3 ~ trait1), df_rmissingrow, net; reml=false, # not using data from species D
+                        tipnames=:species, withinspecies_var=true, y_mean_std=true)
 @test coef(m3) ≈ [9.63523,2.30832] rtol=1e-4
 @test coef(m4) ≈ [9.63523,2.30832] rtol=1e-4
+@test coef(m3missingentry) ≈ coef(m4missingrow) rtol=1e-4
 @test sigma2_phylo(m3) ≈ 0.102255 rtol=1e-4
 @test sigma2_phylo(m4) ≈ 0.102255 rtol=1e-4
+@test sigma2_phylo(m3missingentry) ≈ sigma2_phylo(m4missingrow) rtol=1e-4
 @test sigma2_within(m3) ≈ 0.008677 rtol=1e-4
 @test sigma2_within(m4) ≈ 0.008677 rtol=1e-4
+@test sigma2_within(m3missingentry) ≈ sigma2_within(m4missingrow) rtol=1e-4
 @test loglikelihood(m3) ≈ 1.876606 rtol=1e-4
 @test loglikelihood(m4) ≈ 1.876606 rtol=1e-4
+@test loglikelihood(m3missingentry) ≈ loglikelihood(m4missingrow) rtol=1e-4
 @test stderror(m3) ≈ [1.0619360781577734, 0.22496955609230126] atol=1e-6
 @test stderror(m4) ≈ [1.0619360781577734, 0.22496955609230126] atol=1e-6
+@test stderror(m3missingentry) ≈ stderror(m4missingrow) atol=1e-6
+@test residuals(m3missingentry) ≈ residuals(m4missingrow) atol=1e-6
 
 # model comparison & likelihood ratio test
 m3null = phylolm(@formula(trait3 ~ 1), df, net; reml=false, tipnames=:species, withinspecies_var=true)
@@ -487,29 +524,40 @@ tab = lrtest(m2w, m6w) # both REML, but same predictors
 @test !PhyloNetworks.isnested(PhyloNetworks.ScalingHybrid(2.0),PhyloNetworks.PagelLambda())
 @test_throws ArgumentError ftest(m3null, m3, m3full) # not the same Y after transformation
 
-# ancestral state prediction ("reconstruction")
+# ancestral state prediction (intercept-only)
 allowmissing!(df,  [:trait3]); df[4:6,:trait3] .= missing # species C missing
 allowmissing!(df_r,[:trait3]); df_r[2,:trait3] = missing  # to check imputation
 m1 = phylolm(@formula(trait3 ~ 1), df_r, net; tipnames=:species, withinspecies_var=true, y_mean_std=true)
-ar = (@test_logs (:warn, r"^T") ancestralStateReconstruction(m1))
-# @test ar.traits_nodes[8] ≈ ?? # masked sampled C_bar was 17.0686
-@test ar.traits_nodes[8] ≈ 18.744 rtol=1e-4
-# @test predint(ar)[8,:] ≈ [?,?]
-@test predint(ar)[8,:] ≈ [15.24,22.24] rtol=1e-3
-m1 = phylolm(@formula(trait3 ~ 1), df, net; tipnames=:species, withinspecies_var=true)
-ar = (@test_logs (:warn, r"^T") ancestralStateReconstruction(m1)) # error to be fixed: nonmissing and ind of the wrong size
-# @test ar.traits_nodes[8] ≈  # same as above
-@test ar.traits_nodes[8] ≈ 18.744 rtol=1e-4
-# @test predint(ar)[8,:] ≈
-@test predint(ar)[8,:] ≈ [15.24,22.24] rtol=1e-3
+ar1 = (@test_logs (:warn, r"^T") ancestralStateReconstruction(m1))
+# ar.NodeNumbers[8] == 2 (looking at node #2), m1.model.V.tipNames[indexin([2],m1.model.V.tipNumbers)[1]] == "C" (looking at tip "C")
+@test ar1.traits_nodes[8] ≈ 18.744 rtol=1e-4 # masked sampled C_bar was 17.0686
+@test predint(ar1)[8,:] ≈ [15.24,22.24] rtol=1e-3 
 
-# # ancestral state prediction (beyond just intercept)
-# X_n = fill(0.5,(length(m1.model.V.internalNodeNumbers)+sum(.!m1.model.nonmissing),1))
-# ancestralStateReconstruction(m1, X_n)
-# # ancestral state prediction 
-# X_n = fill(1,(length(m2.model.V.internalNodeNumbers)+sum(.!m2.model.nonmissing),1))
-# ancestralStateReconstruction(m2, X_n)
-# ancestralStateReconstruction(m2.model, X_n; kriging="simple")
-# ancestralStateReconstruction(m2.model, X_n; kriging="universal")
+m2 = phylolm(@formula(trait3 ~ 1), df, net; tipnames=:species, withinspecies_var=true)
+ar2 = (@test_logs (:warn, r"^T") ancestralStateReconstruction(m2))
+@test ar2.traits_nodes[8] ≈ 18.744 rtol=1e-4
+@test predint(ar2)[8,:] ≈ [15.24,22.24] rtol=1e-3
+
+@test ar1.traits_nodes == ar2.traits_nodes
+@test predint(ar1) == predint(ar2)
+
+# When withinspecies_var == true, predicted values at the tips are not equal to observed values at the tips. 
+@test abs(ar1.traits_tips[1]-df_r.trait3[1]) > 1e-4
+@test abs(ar1.traits_tips[1]-df_r.trait3[1]) < 1e-3
+
+# ancestral state prediction (more than intercept)
+m3 = phylolm(@formula(trait3 ~ trait1 + trait2), df[[1,6,11,17,16,18,8,5,9,3,12,7,13,10,2,14,4,15],:], net; tipnames=:species, withinspecies_var=true)
+X_n = [m3.model.X;m3.model.X[1:3,:]] # 8x3 Array
+ar3 = (@test_logs (:warn, r"^T") ancestralStateReconstruction(m3, X_n))
+m4 = phylolm(@formula(trait3 ~ trait1 + trait2), df_r[[5,2,3,1,6,4],:], net; tipnames=:species, withinspecies_var=true, y_mean_std=true)
+ar4 = (@test_logs (:warn, r"^T") ancestralStateReconstruction(m4, X_n))
+
+@test ar3.traits_nodes ≈ ar4.traits_nodes rtol=1e-5
+@test ar3.variances_nodes ≈ ar4.variances_nodes rtol=1e-5
+@test expectations(ar4).condExpectation[indexin(expectations(ar3).nodeNumber,
+                                        expectations(ar4).nodeNumber)] ≈ expectations(ar3).condExpectation rtol=1e-5
+@test norm(expectations(ar4).condExpectation-expectations(ar3).condExpectation) > 10
+@test norm(expectations(ar4).condExpectation[indexin(expectations(ar3).nodeNumber,expectations(ar4).nodeNumber)]-
+           expectations(ar3).condExpectation) < 1e-8
 
 end
