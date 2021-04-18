@@ -3175,6 +3175,58 @@ function predintPlot(obj::ReconstructedStates; level=0.95::Real, withExp=false::
     return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], PredInt = pritxt)
 end
 
+#= ---------- Roadmap of ancestralStateReconstruction methods (for continuous traits) ----------
+0. Called by every ancestralStateReconstruction method.
+
+- ancestralStateReconstruction(Vz, VyzVyinvchol, RL, Y, m_y, m_z,
+                               NodeNumbers, TipNumbers, sigma2, add_var, model)
+"Computes predicted values for all network nodes. Computes prediction variance for missing-data nodes.
+Returns a ReconstructedStates object. Every ancestralStateReconstruction method ends up calling this 
+method to produce a ReconstructedStates object."
+
+1. Ancestral state reconstruction based on PhyloNetworkLinearModel and network.
+
+- ancestralStateReconstruction(dataframe, net; tipnames=:tipNames, kwargs...) # intercept-only
+"Takes in a single-column dataframe of tip response values, and a network. Models the evolution
+of response values by a fixed-mean BM down the network. The estimated response (w/o within-species variation)
+at the root is the GLS estimate for β."
+
+- ancestralStateReconstruction(TableRegressionModel) # intercept-only
+"Wrapper for ancestralStateReconstruction(PhyloNetworkLinearModel)."
+
+- ancestralStateReconstruction(TableRegressionModel, Matrix)
+"Wrapper for ancestralStateReconstruction(PhyloNetworkLinearModel, Matrix)."
+
+- ancestralStateReconstruction(PhyloNetworkLinearModel) # intercept-only
+"Checks that the model matrix includes only the intercept column. Creates intercept column with length 
+equal to (no. of internal nodes + no. of tip nodes missing data). Note that the full set of nodes is
+defined by the network supplied. Calls ancestralStateReconstruction(PhyloNetworkLinearModel, Matrix)."
+
+- ancestralStateReconstruction(PhyloNetworkLinearModel, Matrix; kriging="universal")
+"Checks that the (predictor) Matrix supplied has the same no. of columns as the model matrix. Also
+checks that it has the same no. of rows as (no. of internal nodes + no. of tip nodes missing data).
+Extracts the predicted values for all network nodes, and the unscaled covariance matrices for
+(missing-data nodes, not-missing-data tip nodes), (missing-data nodes, missing-data nodes),
+and (not-missing-data tip nodes, not-missing-data tip nodes). Depending on the value of the kwarg
+'kriging', computes an additive correction to the prediction variance for missing-data nodes to
+account for the estimation of β for computing predicted values. 
+Calls ancestralStateReconstruction(Vz, VyzVyinvchol, RL, Y, m_y, m_z,
+                                   NodeNumbers, TipNumbers, sigma2, add_var, model). 
+"
+
+2. Ancestral state reconstruction based on ParamsProcess, tip response values, and network.
+
+- ancestralStateReconstruction(net::HybridNetwork, Y::Vector, params::ParamsBM) # intercept-only
+"Wrapper for ancestralStateReconstruction(V::MatrixTopologicalOrder, Y::Vector, params::ParamsBM)."
+
+- ancestralStateReconstruction(V::MatrixTopologicalOrder, Y::Vector, params::ParamsBM) # intercept-only
+"Takes in a vector of response values for the tip nodes, and a network. Models the evolution of response
+values by a fixed-mean BM down the network. 
+Calls ancestralStateReconstruction(Vz, VyzVyinvchol, RL, Y, m_y, m_z,
+                                   NodeNumbers, TipNumbers, sigma2, add_var, model) to return a 
+ReconstructedStates object.
+"
+=#
 
 """
     ancestralStateReconstruction(net::HybridNetwork, Y::Vector, params::ParamsBM)
@@ -3578,6 +3630,11 @@ for further details.
 
 Returns an object of type [`ReconstructedStates`](@ref).
 """
+# fixitCecile: I think "kwargs..." is generally not being used correctly in the signature of methods (in many places).
+# Suppose we supplied the keyword arguments model="BM" and reml=true to the method below, these values
+# would have to be accessed by kwargs[:model] and kwargs[:reml], which is not what is done. If we want
+# to keep this method for intercept-only models, then we should get rid of "kwargs...", add additional
+# keyword arguments like withinspecies_var and y_mean_std, and pass these along during the call to phylolm().
 function ancestralStateReconstruction(fr::AbstractDataFrame,
                                       net::HybridNetwork;
                                       tipnames::Symbol=:tipNames,
