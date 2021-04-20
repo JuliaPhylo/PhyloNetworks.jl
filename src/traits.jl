@@ -203,6 +203,7 @@ Getting submatrices of an object of type [`MatrixTopologicalOrder`](@ref).
 * `d::Symbol`: a symbol precising which sub-matrix to extract. Can be:
   * `:Tips` columns and/or rows corresponding to the tips
   * `:InternalNodes` columns and/or rows corresponding to the internal nodes
+    Includes tips not listed in `indTips` or missing data according to `nonmissing`.
   * `:TipsNodes` columns corresponding to internal nodes, and row to tips (works only is indexation="b")
 * `indTips::Vector{Int}`: optional argument precising a specific order for the tips (internal use).
 * `nonmissing::BitArray{1}`: optional argument saying which tips have data (internal use).
@@ -212,33 +213,27 @@ function Base.getindex(obj::MatrixTopologicalOrder,
                        d::Symbol,
                        indTips=collect(1:length(obj.tipNumbers))::Vector{Int},
                        nonmissing=trues(length(obj.tipNumbers))::BitArray{1})
+    tipnums = obj.tipNumbers[indTips][nonmissing]
+    maskTips = indexin(tipnums, obj.nodeNumbersTopOrder)
     if d == :Tips # Extract rows and/or columns corresponding to the tips with data
-        maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
-        maskTips = maskTips[indTips]
-        maskTips = maskTips[nonmissing]
         obj.indexation == "b" && return obj.V[maskTips, maskTips] # both columns and rows are indexed by nodes
         obj.indexation == "c" && return obj.V[:, maskTips] # Only the columns
         obj.indexation == "r" && return obj.V[maskTips, :] # Only the rows
     end
+    intnodenums = [obj.internalNodeNumbers ; setdiff(obj.tipNumbers, tipnums)]
+    maskNodes = indexin(intnodenums, obj.nodeNumbersTopOrder)
+    #= indices in obj.nodeNumbersTopOrder, in this order:
+    1. internal nodes, in the same order as in obj.internalNodeNumbers,
+       that is, same order as in net.node (excluding leaves)
+    2. tips absent from indTips or missing data according to nonmissing,
+       in the same order as in obj.tipNumbers.
+    =#
     if d == :InternalNodes # Idem, for internal nodes
-        maskNodes = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
-        maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
-        # fixitCecile: To me, this is the most direct fix. Base Julia doesn't have negative indexing like R, hence
-        # the use of setdiff.
-        missingTips = maskTips[setdiff(1:length(obj.tipNumbers),indTips)] # indices for tips not found in dataframe
-        maskTips = maskTips[indTips] # indices for tips found in dataframe
-        maskNodes = [maskNodes; missingTips; maskTips[.!nonmissing]]
         obj.indexation == "b" && return obj.V[maskNodes, maskNodes]
         obj.indexation == "c" && return obj.V[:, maskNodes]
         obj.indexation == "r" && return obj.V[maskNodes, :]
     end
     if d == :TipsNodes
-        maskNodes = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
-        maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
-        missingTips = maskTips[setdiff(1:length(obj.tipNumbers),indTips)] # indices for tips not found in dataframe
-        maskTips = maskTips[indTips]
-        maskNodes = [maskNodes; missingTips; maskTips[.!nonmissing]]
-        maskTips = maskTips[nonmissing]
         obj.indexation == "b" && return obj.V[maskTips, maskNodes]
         obj.indexation == "c" && error("""Both rows and columns must be net
                                        ordered to take the submatrix tips vs internal nodes.""")
@@ -1657,7 +1652,9 @@ mutable struct PhyloNetworkLinearModel <: GLM.LinPredModel
     V::MatrixTopologicalOrder
     "Vy: the sub matrix corresponding to the tips and actually used for the correction"
     Vy::Matrix
-    "RL: a LowerTriangular matrix, the lower Cholesky factor of Vy=RL*RL'"
+    """RL: a LowerTriangular matrix, the lower Cholesky factor of Vy=RL*RL'
+    obtained with `cholesky(Vy).L`. The data stored in `lm` are RL⁻¹Y and RL⁻¹X.
+    """
     RL::LowerTriangular
     "Y: the vector of data"
     Y::Vector
@@ -2308,7 +2305,7 @@ Coefficients:
 trait1       2.30358    0.276163  8.34    0.0011    1.53683    3.07033
 ──────────────────────────────────────────────────────────────────────
 Log Likelihood: 1.9446255188
-AIC: 2.1107489623
+AIC: 4.1107489623
 
 julia> df_r = DataFrame( # species-level statistics (sample means, standard deviations)
            species = ["D","C","A","B","E","O"],
@@ -2338,7 +2335,7 @@ Coefficients:
 trait1       2.30359    0.276156  8.34    0.0011    1.53686    3.07032
 ──────────────────────────────────────────────────────────────────────
 Log Likelihood: 1.9447243714
-AIC: 2.1105512573
+AIC: 4.1105512573
 ```
 """
 function phylolm(f::StatsModels.FormulaTerm,
@@ -2866,7 +2863,7 @@ function phylolm_wsp(X::Matrix, Y::Vector, V::MatrixTopologicalOrder,
         # in tipLabels(net), in same order in which species come in means Ysp.
         # nonmissing: no need to list species with no data
         ind = ind_sp
-        nonmissing = BitArray(true for i in 1:n_sp)
+        nonmissing = trues(n_sp)
     else # group means and sds for response variable were passed in
         n_sp = length(Y)
         n_tot = sum(counts)
@@ -3113,12 +3110,14 @@ function expectationsPlot(obj::ReconstructedStates; markMissing="*"::AbstractStr
     for i=1:size(expe, 1)
         expetxt[i] = string(round(expe[i, 2], digits=2))
     end
-    # Find missing values
+    # find tips absent from dataframe or with missing data: add a mark
     if !ismissing(obj.model)
         nonmissing = obj.model.nonmissing
         ind = obj.model.ind
-        missingTipNumbers = obj.model.V.tipNumbers[ind][.!nonmissing]
-        indexMissing = indexin(missingTipNumbers, expe[!,:nodeNumber])
+        tipnumbers = obj.model.V.tipNumbers # all tips, even those absent from dataframe
+        tipnumbers_data = tipnumbers[ind][nonmissing] # listed and data non-missing
+        tipnumbers_imputed = setdiff(tipnumbers, tipnumbers_data)
+        indexMissing = indexin(tipnumbers_imputed, expe[!,:nodeNumber])
         expetxt[indexMissing] .*= markMissing
     end
     return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], PredInt = expetxt)
@@ -3175,57 +3174,45 @@ function predintPlot(obj::ReconstructedStates; level=0.95::Real, withExp=false::
     return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], PredInt = pritxt)
 end
 
-#= ---------- Roadmap of ancestralStateReconstruction methods (for continuous traits) ----------
-0. Called by every ancestralStateReconstruction method.
+#= ----- roadmap of ancestralStateReconstruction, continuous traits ------
 
-- ancestralStateReconstruction(Vz, VyzVyinvchol, RL, Y, m_y, m_z,
-                               NodeNumbers, TipNumbers, sigma2, add_var, model)
-"Computes predicted values for all network nodes. Computes prediction variance for missing-data nodes.
-Returns a ReconstructedStates object. Every ancestralStateReconstruction method ends up calling this 
-method to produce a ReconstructedStates object."
+all methods return a ReconstructedStates object.
+core method called by every other method:
 
-1. Ancestral state reconstruction based on PhyloNetworkLinearModel and network.
+1. ancestralStateReconstruction(Vzz, VzyVyinvchol, RL, Y, m_y, m_z,
+                                NodeNumbers, TipNumbers, sigma2, add_var, model)
 
-- ancestralStateReconstruction(dataframe, net; tipnames=:tipNames, kwargs...) # intercept-only
-"Takes in a single-column dataframe of tip response values, and a network. Models the evolution
-of response values by a fixed-mean BM down the network. The estimated response (w/o within-species variation)
-at the root is the GLS estimate for β."
+higher-level methods, for real data:
 
-- ancestralStateReconstruction(TableRegressionModel) # intercept-only
-"Wrapper for ancestralStateReconstruction(PhyloNetworkLinearModel)."
+2. ancestralStateReconstruction(dataframe, net; tipnames=:tipNames, kwargs...)
+   - dataframe: 2 columns only, species names & tip response values
+   - fits an intercept-only model, then calls #3
+   - by default without kwargs: model = BM w/o within-species variation
 
-- ancestralStateReconstruction(TableRegressionModel, Matrix)
-"Wrapper for ancestralStateReconstruction(PhyloNetworkLinearModel, Matrix)."
+3. ancestralStateReconstruction(TableRegressionModel[, Matrix]) which calls:
+   ancestralStateReconstruction(PhyloNetworkLinearModel[, Matrix])
+   - takes a model already fitted
+   - if no matrix given: the model must be intercept-only. An expanded intercept
+     column is created with length = # nodes with *no* data
+   - matrix: if given, must have same # of columns as the model matrix, and
+     must contain the predictor(s) at nodes with *no* data, with nodes listed in
+     the following order:
+     * internal nodes first, in the same order in which they appear in net.node,
+       i.e in V.internalNodeNumbers
+     * then leaves with no data, in the same order in which they appear in
+       tipLabels(net), i.e. in V.tipNumbers.
+   - extracts the predicted values for all network nodes, and the unscaled
+     3 covariance matrices of interest (nodes with data, nodes w/o, crossed)
+   - computes "universal" kriging (as opposed to "simple" kriging, which would
+     simply plug-in estimates into the prediction variance formula): a term is
+     added to the prediction variance, to account for the estimation of β.
 
-- ancestralStateReconstruction(PhyloNetworkLinearModel) # intercept-only
-"Checks that the model matrix includes only the intercept column. Creates intercept column with length 
-equal to (no. of internal nodes + no. of tip nodes missing data). Note that the full set of nodes is
-defined by the network supplied. Calls ancestralStateReconstruction(PhyloNetworkLinearModel, Matrix)."
+methods based on simulations with a ParamsProcess "params":
 
-- ancestralStateReconstruction(PhyloNetworkLinearModel, Matrix; kriging="universal")
-"Checks that the (predictor) Matrix supplied has the same no. of columns as the model matrix. Also
-checks that it has the same no. of rows as (no. of internal nodes + no. of tip nodes missing data).
-Extracts the predicted values for all network nodes, and the unscaled covariance matrices for
-(missing-data nodes, not-missing-data tip nodes), (missing-data nodes, missing-data nodes),
-and (not-missing-data tip nodes, not-missing-data tip nodes). Depending on the value of the kwarg
-'kriging', computes an additive correction to the prediction variance for missing-data nodes to
-account for the estimation of β for computing predicted values. 
-Calls ancestralStateReconstruction(Vz, VyzVyinvchol, RL, Y, m_y, m_z,
-                                   NodeNumbers, TipNumbers, sigma2, add_var, model). 
-"
-
-2. Ancestral state reconstruction based on ParamsProcess, tip response values, and network.
-
-- ancestralStateReconstruction(net::HybridNetwork, Y::Vector, params::ParamsBM) # intercept-only
-"Wrapper for ancestralStateReconstruction(V::MatrixTopologicalOrder, Y::Vector, params::ParamsBM)."
-
-- ancestralStateReconstruction(V::MatrixTopologicalOrder, Y::Vector, params::ParamsBM) # intercept-only
-"Takes in a vector of response values for the tip nodes, and a network. Models the evolution of response
-values by a fixed-mean BM down the network. 
-Calls ancestralStateReconstruction(Vz, VyzVyinvchol, RL, Y, m_y, m_z,
-                                   NodeNumbers, TipNumbers, sigma2, add_var, model) to return a 
-ReconstructedStates object.
-"
+4. ancestralStateReconstruction(net, Y, params) which calls:
+   ancestralStateReconstruction(V::MatrixTopologicalOrder, Y, params)
+   - intercept-only: known β and known variance: "simple" kriging is correct
+   - BM only: params must be of type ParamsBM
 =#
 
 """
@@ -3257,12 +3244,12 @@ function ancestralStateReconstruction(V::MatrixTopologicalOrder,
     Vyz = V[:TipsNodes]
     R = cholesky(Vy)
     RL = R.L
-    temp = RL \ Vyz
+    VzyVyinvchol = (RL \ Vyz)'
     # Vectors of means
     m_y = ones(size(Vy)[1]) .* params.mu # !! correct only if no predictor.
     m_z = ones(size(Vz)[1]) .* params.mu # !! works if BM no shift.
     # Actual computation
-    ancestralStateReconstruction(Vz, temp, RL,
+    ancestralStateReconstruction(Vz, VzyVyinvchol, RL,
                                  Y, m_y, m_z,
                                  V.internalNodeNumbers,
                                  V.tipNumbers,
@@ -3270,51 +3257,30 @@ function ancestralStateReconstruction(V::MatrixTopologicalOrder,
 end
 
 # Reconstruction from all the needed quantities
-# fixitCecile: Should the parameter "VyzVyinvchol" be renamed as "VyinvcholVyz" or
-# "VycholinvVyz" since it equals (cholesky(Vy).L) \ Vyz?
 function ancestralStateReconstruction(Vz::Matrix,
-                                      VyzVyinvchol::Matrix,
-                                      RL::LowerTriangular,
-                                      Y::Vector, m_y::Vector, m_z::Vector,
-                                      NodeNumbers::Vector,
-                                      TipNumbers::Vector,
-                                      sigma2::Real,
-                                      add_var=zeros(size(Vz))::Matrix, # Additional variance for BLUP
-                                      model=missing::Union{PhyloNetworkLinearModel,Missing})
-    m_z_cond_y = m_z + VyzVyinvchol' * (RL \ (Y - m_y)) # E[z∣y+ϵ] = E[z∣X] + Cov(z,y+ϵ)⋅Var(y+ϵ)⁻¹⋅(y+ϵ-E[y+ϵ∣X])
-    V_z_cond_y = sigma2 .* (Vz - VyzVyinvchol' * VyzVyinvchol) 
-    if (!ismissing(model) && !isnothing(model.model_within)) # within-species error model
-        # E[y∣y+ϵ] = E[y∣X] + Cov(y,y+ϵ)⋅Var(y+ϵ)⁻¹⋅(y+ϵ-E[y+ϵ∣X])
-        # E[y∣X] = E[y+ϵ∣X] = PhyloNetworks.predict(model)
-        # Cov(y,y+ϵ)⋅Var(y+ϵ)⁻¹ = model.V[:Tips, model.ind, model.nonmissing]⋅(model.Vy)⁻¹
-        m_y_cond_y = m_y + model.V[:Tips, model.ind, model.nonmissing] * (model.Vy \ (Y - m_y))
-        # fixitCecile: Perhaps 'm_z_cond_y' should be renamed 'm_z_cond_Y', where 'Y' indicates that 
-        # we are conditioning on an observed value (which we may decide to treat as "true" or "noisy"). 
-        # This would be consistent with the current 'Y' argument storing the observed response values. 
-        # The meaning of 'y' is slightly confusing here, because model.Vy ∝ Var(y+ϵ) but m_y = E[y∣X].
-    else
-        # E[y∣y+ϵ], ϵ=0 ⇒ E[y∣y+ϵ] = y
-        m_y_cond_y = Y # default (assume no within-species error)
+            VzyVyinvchol::AbstractMatrix,
+            RL::LowerTriangular,
+            Y::Vector, m_y::Vector, m_z::Vector,
+            NodeNumbers::Vector, TipNumbers::Vector,
+            sigma2::Real,
+            add_var=zeros(size(Vz))::Matrix, # Additional variance for BLUP
+            model=missing::Union{PhyloNetworkLinearModel,Missing})
+    # E[z∣y] = E[z∣X] + Cov(z,y)⋅Var(y)⁻¹⋅(y-E[y∣X])
+    m_z_cond_y = m_z + VzyVyinvchol * (RL \ (Y - m_y))
+    V_z_cond_y = sigma2 .* (Vz - VzyVyinvchol * VzyVyinvchol')
+    if !ismissing(model) && !isnothing(model.model_within) # y = last part of z
+        Y = similar(Y, 0) # empty vector of similar type as Y
     end
-    ReconstructedStates(m_z_cond_y, V_z_cond_y + add_var, NodeNumbers, m_y_cond_y, TipNumbers, model)
+    ReconstructedStates(m_z_cond_y, V_z_cond_y + add_var, NodeNumbers, Y, TipNumbers, model)
 end
 
-# """
-# `ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)`
-# Function to find the ancestral traits reconstruction on a network, given an
-# object fitted by function phylolm, and some predictors expressed at all the nodes of the network.
-#
-# - obj: a PhyloNetworkLinearModel object, or a
-# TableRegressionModel{PhyloNetworkLinearModel}, if data frames were used.
-# - X_n a matrix with as many columns as the number of predictors used, and as
-# many lines as the number of unknown nodes or tips.
-#
-# Returns an object of type ancestralStateReconstruction.
-# """
+#= from a fitted object: see high-level docstring below
+X_n: matrix with as many columns as the number of predictors used,
+     and as many rows as the number of unknown nodes or tips.
 
-# Empirical reconstruciton from a fitted object
-# TO DO: Handle the order of internal nodes for matrix X_n
-function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix; kriging="universal")
+TO DO: Handle the order of internal nodes and no-data tips for matrix X_n
+=#
+function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)
     if (size(X_n)[2] != length(coef(obj)))
         error("""The number of predictors for the ancestral states (number of columns of X_n)
               does not match the number of predictors at the tips.""")
@@ -3323,56 +3289,55 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix;
         error("""The number of lines of the predictors does not match
               the number of nodes plus the number of missing tips.""")
     end
+    #= y: observed species means at some tips
+       z: trait (true species mean) at nodes to be predicted:
+          - at nodes without data, i.e. internal nodes & no-data tips
+          - at tips with data if within-species variation: y=ytrue+ϵ
+       Vy,y = Vy,ytrue = Vytrue,y and Vytrue,z = Vyz
+    =#
     m_y = predict(obj)
     m_z = X_n * coef(obj)
     # If the tips were re-organized, do the same for Vyz
-    if (obj.ind != [0])
-#       iii = indexin(1:length(obj.nonmissing), obj.ind[obj.nonmissing])
-#       iii = iii[iii .> 0]
-#       jjj = [1:length(obj.V.internalNodeNumbers); indexin(1:length(obj.nonmissing), obj.ind[!obj.nonmissing])]
-#       jjj = jjj[jjj .> 0]
-#       Vyz = Vyz[iii, jjj]
-        Vyz = obj.V[:TipsNodes, obj.ind, obj.nonmissing] # sharedPath(tips w/ data, [internal nodes, tips w/o data])
-        missingTipNumbers = [obj.V.tipNumbers[setdiff(1:length(obj.V.tipNumbers),obj.ind)]; # node no.'s for tips w/ whole row missing
-                             obj.V.tipNumbers[obj.ind][.!obj.nonmissing]] # node no.'s for tips w/ missing row entries
-        nmTipNumbers = obj.V.tipNumbers[obj.ind][obj.nonmissing] # node no.'s for tips w/ data
-    else
+    if obj.ind == [0]
         @warn """There were no indication for the position of the tips on the network.
              I am assuming that they are given in the same order.
              Please check that this is what you intended."""
-        Vyz = obj.V[:TipsNodes, collect(1:length(obj.V.tipNumbers)), obj.nonmissing]
-        # fixitCecile: What if no tipnames column, but more tips than df rows? (Edge case)
-        missingTipNumbers = obj.V.tipNumbers[.!obj.nonmissing]
-        nmTipNumbers = obj.V.tipNumbers[obj.nonmissing]
-    end
-    temp = obj.RL \ Vyz
-
-    # fixitCecile: There probably is a better kwarg name than kriging. For now, I can't think of 
-    # another that would be as concise. Also, what should be the default for add_var? Based on 
-    # the comparisons with Rphylopars and Phytools in test_lm_withinspecies.jl, the default
-    # is kriging == "universal".
-    if kriging == "simple" # assume E[Y∣X] = Xβ, β is known, variance-components known
-        add_var = zeros(size(X_n)[1], size(X_n)[1])
-    elseif kriging == "universal" # assume E[Y∣X] = Xβ, β is estimated, variance-components known
-        U = X_n - temp' * (obj.RL \ obj.X)
-        add_var = U * vcov(obj) * U'
+        ind = collect(1:length(obj.V.tipNumbers))
     else
-        @error """kriging == "$kriging" is not implemented. Defaulting to kriging == "simple"."""
-        add_var = zeros(size(X_n)[1], size(X_n)[1])
+        ind = obj.ind
     end
-    # Warn about the prediction intervals
+    # Vyz: sharedpath. rows y: tips w/ data. cols z: internal nodes & tips w/o data
+    Vyz = obj.V[:TipsNodes, ind, obj.nonmissing]
+    Vzz = obj.V[:InternalNodes, ind, obj.nonmissing]
+    nmTipNumbers = obj.V.tipNumbers[ind][obj.nonmissing] # tips w/ data
+    # no-data node numbers: for nodes (internal or tips) with no data
+    ndNodeNumbers = [obj.V.internalNodeNumbers; setdiff(obj.V.tipNumbers, nmTipNumbers)]
+    if !isnothing(obj.model_within) # add tips with data to z
+        Vtips = obj.V[:Tips, ind, obj.nonmissing]
+        Vzz = [Vzz Vyz'; Vyz Vtips]
+        Vyz = [Vyz Vtips]
+        append!(m_z, m_y)
+        append!(ndNodeNumbers, nmTipNumbers)
+        empty!(nmTipNumbers)
+        X_n = vcat(X_n, obj.X)
+    end
+    VzyVyinvchol = (obj.RL \ Vyz)'
+    # add_var = zeros corresponds to "simple" kriging: E[Y∣X]=Xβ with known β & variance components
+    # below: "universal" kriging: β estimated, variance components known
+    U = X_n - VzyVyinvchol * (obj.RL \ obj.X)
+    add_var = U * vcov(obj) * U'
     @warn """These prediction intervals show uncertainty in ancestral values,
          assuming that the estimated variance rate of evolution is correct.
          Additional uncertainty in the estimation of this variance rate is
          ignored, so prediction intervals should be larger."""
     # Actual reconstruction
-    ancestralStateReconstruction(obj.V[:InternalNodes, obj.ind, obj.nonmissing],
-                                 temp,
+    ancestralStateReconstruction(Vzz,
+                                 VzyVyinvchol,
                                  obj.RL,
                                  obj.Y,
                                  m_y,
                                  m_z,
-                                 [obj.V.internalNodeNumbers; missingTipNumbers],
+                                 ndNodeNumbers,
                                  nmTipNumbers,
                                  sigma2_phylo(obj),
                                  add_var,
@@ -3409,7 +3374,7 @@ julia> ancStates = ancestralStateReconstruction(fitBM) # Should produce a warnin
 │ assuming that the estimated variance rate of evolution is correct.
 │ Additional uncertainty in the estimation of this variance rate is
 │ ignored, so prediction intervals should be larger.
-└ @ PhyloNetworks ~/build/crsl4/PhyloNetworks.jl/src/traits.jl:3166
+└ @ PhyloNetworks ~/build/crsl4/PhyloNetworks.jl/src/traits.jl:3359
 ReconstructedStates:
 ───────────────────────────────────────────────
   Node index      Pred.        Min.  Max. (95%)
@@ -3606,8 +3571,7 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel)
     are known, please provide them as a matrix argument to the function.
     Otherwise, you might consider doing a multivariate linear regression (not implemented yet).""")
     end
-    #   X_n = ones((length(obj.V.internalNodeNumbers) + sum(.!obj.nonmissing), 1))
-    X_n = ones((length(obj.V.internalNodeNumbers) + length(obj.V.tipNumbers)-length(obj.ind) + sum(.!obj.nonmissing), 1))
+    X_n = ones((length(obj.V.nodeNumbersTopOrder) - sum(obj.nonmissing), 1))
     ancestralStateReconstruction(obj, X_n)
 end
 # For a TableRegressionModel
@@ -3630,11 +3594,6 @@ for further details.
 
 Returns an object of type [`ReconstructedStates`](@ref).
 """
-# fixitCecile: I think "kwargs..." is generally not being used correctly in the signature of methods (in many places).
-# Suppose we supplied the keyword arguments model="BM" and reml=true to the method below, these values
-# would have to be accessed by kwargs[:model] and kwargs[:reml], which is not what is done. If we want
-# to keep this method for intercept-only models, then we should get rid of "kwargs...", add additional
-# keyword arguments like withinspecies_var and y_mean_std, and pass these along during the call to phylolm().
 function ancestralStateReconstruction(fr::AbstractDataFrame,
                                       net::HybridNetwork;
                                       tipnames::Symbol=:tipNames,
@@ -3646,7 +3605,7 @@ function ancestralStateReconstruction(fr::AbstractDataFrame,
               only one column, corresponding to the data at the tips of the network.""")
     end
     f = @eval(@formula($(nn[datpos][1]) ~ 1))
-    reg = phylolm(f, fr, net; kwargs...)
+    reg = phylolm(f, fr, net; tipnames=tipnames, kwargs...)
     return ancestralStateReconstruction(reg)
 end
 

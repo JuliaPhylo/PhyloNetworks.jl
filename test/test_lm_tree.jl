@@ -15,10 +15,10 @@ VR = Matrix(VR);
 @test V[:Tips] ≈ VR[1:197, 1:197]
 
 # Internal nodes
-@test V[:InternalNodes] ≈ VR[-V.internalNodeNumbers .+ 196, -V.internalNodeNumbers .+ 196]
-
-# Tips Nodes
-@test V[:TipsNodes] ≈ VR[1:197, -V.internalNodeNumbers .+ 196]
+intnodes_in_VR = -V.internalNodeNumbers .+ 196
+@test V[:InternalNodes] ≈ VR[intnodes_in_VR, intnodes_in_VR]
+# tips in rows, internal nodes in columns
+@test V[:TipsNodes] ≈ VR[1:197, intnodes_in_VR]
 
 ### R Code to get those results
 # library(geiger)
