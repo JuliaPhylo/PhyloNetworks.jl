@@ -1337,13 +1337,11 @@ function optTopLevel!(currT::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
                     failures = 0
                     movescount[move2int[move]+12] += 1
                     movesfail = zeros(Int,6) #count of failed moves for current topology
-                    println("accept: ",newT.loglik) #**TEMP**
                 else
                     @debug "rejected new topology with worse loglik in step $(count): currloglik=$(round(currT.loglik, digits=3)), newloglik=$(round(newT.loglik, digits=3)), with $(failures) failures"
                     failures += 1
                     movesfail[move2int[move]] += 1
                     newT = deepcopy(currT)
-                    println("reject",newT.loglik) #**TEMP**
                 end
                 @debug begin
                     printEdges(newT)
