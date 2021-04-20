@@ -515,7 +515,7 @@ m1null = phylolm(@formula(trait3 ~ 1), df, net; tipnames=:species, withinspecies
 m2w = phylolm(@formula(trait3 ~ trait1), df_r, net; tipnames=:species)
 m5w = phylolm(@formula(trait3 ~ trait1), df[[1,2,4,7,13,18],:], net; tipnames=:species, withinspecies_var=true)
 @test !(@test_logs (:error, r"same number of obs") StatsModels.isnested(m2, m2w))
-@test !(@test_logs (:error, r"same assumption about species means") StatsModels.isnested(m5w,m2w))
+@test !(@test_logs (:error, r"same response") StatsModels.isnested(m5w,m2w))
 m6w = (@test_logs (:info,r"^Maximum lambda") phylolm(@formula(trait3 ~ trait1), df_r, net; tipnames=:species, model="lambda"))
 tab = lrtest(m2w, m6w) # both REML, but same predictors
 @test tab.pval[2] ≈ 0.03928341265297505 atol=1e-6

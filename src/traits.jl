@@ -1644,6 +1644,9 @@ species-level statistics ("mean response" and "standard deviation in response")
 or from individual-level data (in which case the species-level statistics are
 computed internally). See [`phylolm`](@ref) for more details on these two
 input choices.
+
+In the object, `obj.Y` and `obj.X` are the observed species means.
+`predict`, `residuals` and `response` return the values at the species level.
 """
 mutable struct PhyloNetworkLinearModel <: GLM.LinPredModel
     "lm: a GLM.LinearModel object, fitted on the cholesky-tranformed problem"
@@ -2082,7 +2085,7 @@ can also be applied to a `StatsModels.TableRegressionModel`.
 ## Within-species variation
 
 For a high-level description, see [`PhyloNetworkLinearModel`](@ref).
-To fit a model with within-species variation,
+To fit a model with within-species variation in the response variable,
 either of the following must be provided in the data frame `fr`:
 
 (1) Individual-level data: There should be columns for response, predictors, and
@@ -2105,16 +2108,20 @@ If the data provided follows (2), then `y_mean_std` should be set to false.
 
 ## Within-species variation in predictors
 
-This only applies to within-species variation fitted on individual-level data.
-If there are individuals within the same species with different values for
+The model assumes *no* within-species variation in predictors, because it aims to
+capture the evolutionary (historical, phylogenetic) relationship between the
+predictors and the response, not the within-species (present-day, or phenotypic)
+relationship.
+
+If a within-species variation model is fitted on individual-level data, and
+if there are individuals within the same species with different values for
 the same predictor, these values are all replaced by the mean predictor value
 for all the individuals in that species.
-
 For example, suppose there are 3 individuals in a given species, and that their
-predictor values are (x1=3, x2=6), (x1=4, x2=8), (x1=2, x2=1). Then the predictor
-values for these 3 individuals will each be replaced by (x1=(3+4+2)/3, x2=(6+8+1)/3)
-before model fitting. If a fourth individual had data (x1=10, x2=missing), then that
-individual would be ignored for any model using x2, and would not contribute any
+predictor values are (x₁=3, x₂=6), (x₁=4, x₂=8) and (x₁=2, x₂=1). Then the predictor
+values for these 3 individuals are each replaced by (x₁=(3+4+2)/3, x₂=(6+8+1)/3)
+before model fitting. If a fourth individual had data (x₁=10, x₂=missing), then that
+individual would be ignored for any model using x₂, and would not contribute any
 information to its species data for these models.
 
 ## Missing data
@@ -2950,7 +2957,15 @@ end
 ###############################################################################
 #= Model comparisons
 
-When isnested() is defined in GLM, check to see if we can improve this below
+isnested: borrowed from GLM.issubmodel (as of commit 504e5186c87)
+https://github.com/JuliaStats/GLM.jl/blob/master/src/ftest.jl#L11
+To avoid comparing the coefnames and to be less restrictive, we compare the
+design matrices. For example: Xsmall = [x1-x2 x1-x3] is nested in Xbig = [x1 x2 x3].
+We check that there exists B such that Xsmall = Xbig * B, or rather, that
+min_B norm(Xbig*B - Xsmall) ≈ 0 . For the math of this minimization problem,
+see https://github.com/JuliaStats/GLM.jl/pull/197#issuecomment-331136617
+
+When isnested() exists in GLM, check to see if we should improve further.
 =#
 """
     isnested(m1::PhyloNetworkLinearModel, m2::PhyloNetworkLinearModel)
@@ -2961,30 +2976,38 @@ Models fitted with different criteria (ML and REML) are not nested.
 Models with different predictors (fixed effects) must be fitted with ML to be
 considered nested.
 """
-function StatsModels.isnested(
-        m1::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T},
-        m2::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T}; atol::Real=0.0) where T
-    m1m = m1.model
-    m2m = m2.model
+function isnested(m1m::PhyloNetworkLinearModel, m2m::PhyloNetworkLinearModel; atol::Real=0.0)
     if !(nobs(m1m) ≈ nobs(m2m))
         @error "Models must have the same number of observations"
         return false
     end
-    # same data? check if original (not transformed) Y is the same
+    # exact same response? (before phylogenetic transformation)
+    if m1m.Y != m2m.Y
+        @error "Models must fit the same response"
+        return false
+    end
     # same criterion?
     if xor(m1m.reml, m2m.reml)
         @error "Models must be fitted with same criterion (both ML or both REML)"
         return false
     end
-    # same within-species variation? same assumption of perfectly known (!) species means
-    if xor(isnothing(m1m.model_within), isnothing(m2m.model_within))
-        @error "Models must make the same assumption about species means: perfectly known or not"
+    # same within-species variation? e.g. same assumption of species means
+    # this check should be useless, because same Y so same # species, and same
+    # nobs so same # individuals. But 1 ind/species w/o within-species variation,
+    # and at least 1 species with 2+ inds/species w/ within-species variation.
+    xor(isnothing(m1m.model_within), isnothing(m2m.model_within)) && return false
+    # nesting of fixed effects: is X1 = X2*B for some B?
+    X1 = m1m.X
+    np1 = size(X1, 2)
+    X2 = m2m.X
+    np2 = size(X2, 2)
+    np1 > np2 && return false # if X1 has more predictors, can't be nested in X2
+    # is mininum_B norm X2*B - X1 ≈ 0 ?
+    rtol = Base.rtoldefault(eltype(X1))
+    norm(view(qr(X2).Q' * X1, np2 + 1:size(X2,1), :)) < max(atol, rtol*norm(X1)) ||
         return false
-    end
-    # nesting of fixed effects. coef names are not in PhyloNetworkLinearModel
-    all(in.(coefnames(m1),  Ref(coefnames(m2)))) || return false
     # ML (not REML) if different fixed effects
-    sameFE = all(in.(coefnames(m2),  Ref(coefnames(m1))))
+    sameFE = (X1 == X2) # exact equality okay here
     if !sameFE && (m1m.reml || m2m.reml)
         @error "Models should be fitted with ML to do a likelihood ratio test with different predictors"
         return false
@@ -2998,6 +3021,9 @@ isnested(::BM,::Union{PagelLambda,ScalingHybrid}) = true
 isnested(::Union{PagelLambda,ScalingHybrid}, ::BM) = false
 isnested(::ScalingHybrid,::PagelLambda) = false
 isnested(::PagelLambda,::ScalingHybrid) = false
+StatsModels.isnested(m1::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T},
+    m2::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T}; atol::Real=0.0) where T =
+    isnested(m1.model, m2.model; atol=atol)
 
 ## ANOVA using ftest from GLM - need version 0.8.1
 function GLM.ftest(objs::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T}...)  where T
@@ -3006,6 +3032,10 @@ function GLM.ftest(objs::StatsModels.TableRegressionModel{PhyloNetworkLinearMode
 end
 
 function GLM.ftest(objs::PhyloNetworkLinearModel...)
+    if !all( isa(o.model,BM) && isnothing(o.model_within) for o in objs)
+        throw(ArgumentError("""F test is only valid for the vanilla BM model.
+        Use a likelihood ratio test instead with function `lrtest`."""))
+    end
     objslm = [obj.lm for obj in objs]
     return ftest(objslm...)
 end
