@@ -108,19 +108,20 @@ hybridBootstrapSupport
 ## continuous trait evolution
 
 ```@docs
-simulate
-shiftHybrid
-getShiftEdgeNumber
-getShiftValue
-phyloNetworklm
-sigma2_estim
-mu_estim
+phylolm
+sigma2_phylo
+sigma2_within
+mu_phylo
 lambda_estim
 ancestralStateReconstruction
 expectations
 predint
 expectationsPlot
 predintPlot
+simulate
+shiftHybrid
+getShiftEdgeNumber
+getShiftValue
 descendenceMatrix
 regressorShift
 regressorHybrid

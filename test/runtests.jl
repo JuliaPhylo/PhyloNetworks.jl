@@ -75,6 +75,7 @@ PhyloNetworks.setCHECKNET(true)
 
 tests = [
     "test_auxillary.jl",
+    "test_generatetopology.jl",
     "test_addHybrid.jl",
     "test_5taxon_readTopology.jl",
     "test_calculateExpCF.jl", "test_calculateExpCF2.jl",
@@ -88,6 +89,7 @@ tests = [
     "test_perfectData.jl", # "test_readme.jl"
     "test_moves_semidirected.jl",
     "test_lm.jl", "test_lm_tree.jl", "test_traits.jl", "test_simulate.jl", "test_simulate_mbd.jl",
+    "test_lm_withinspecies.jl",
     "test_parsimony.jl",
     "test_calibratePairwise.jl", "test_relaxed_reading.jl",
     "test_isMajor.jl", "test_interop.jl",
