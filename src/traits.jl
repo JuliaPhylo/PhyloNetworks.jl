@@ -1,17 +1,17 @@
-# functions for trait evolution on network
-# Claudia & Paul Bastide: November 2015
+# Continuous trait evolution on network
 
-###############################################################################
-###############################################################################
-## Function to traverse the network in the pre-order, updating a matrix
-###############################################################################
-###############################################################################
+# default tolerances to optimize parameters in continuous trait evolution models
+# like lambda, sigma2_withinspecies / sigma2_BM, etc.
+const fAbsTr = 1e-10
+const fRelTr = 1e-10
+const xAbsTr = 1e-10
+const xRelTr = 1e-10
 
-# Matrix with rows and/or columns in topological order of the net.
 """
     MatrixTopologicalOrder
 
-Matrix associated to an [`HybridNetwork`](@ref) sorted in topological order.
+Matrix associated to an [`HybridNetwork`](@ref) in which rows/columns
+correspond to nodes in the network, sorted in topological order.
 
 The following functions and extractors can be applied to it: [`tipLabels`](@ref), `obj[:Tips]`, `obj[:InternalNodes]`, `obj[:TipsNodes]` (see documentation for function [`getindex(::MatrixTopologicalOrder, ::Symbol)`](@ref)).
 
@@ -104,8 +104,6 @@ function recursionPreOrder!(nodes::Vector{Node},
     return M
 end
 
-# Update on the network
-# Takes three function as arguments : updateRoot, updateTree, updateHybrid
 @doc (@doc recursionPreOrder) updatePreOrder!
 function updatePreOrder!(i::Int,
                          nodes::Vector{Node},
@@ -131,7 +129,7 @@ function updatePreOrder!(i::Int,
     end
 end
 
-## Same, but in post order (tips to root)
+## Same, but in post order (tips to root). see docstring below
 function recursionPostOrder(net::HybridNetwork,
                             checkPreorder=true::Bool,
                             init=identity::Function,
@@ -152,12 +150,16 @@ function recursionPostOrder(net::HybridNetwork,
 end
 
 """
+    recursionPostOrder(net::HybridNetwork, checkPreorder::Bool,
+                       init_function, tip_function, node_function,
+                       indexation="b", parameters...)
     recursionPostOrder(nodes, init_function, tip_function, node_function,
                        parameters)
-    updatePostOrder(index, nodes, updated_matrix, tip_function, node_function,
+    updatePostOrder!(index, nodes, updated_matrix, tip_function, node_function,
                     parameters)
 
-Generic tool to apply a post-order (or topological ordering) algorithm.
+Generic tool to apply a post-order (or topological ordering) algorithm,
+acting on a matrix where rows & columns correspond to nodes.
 Used by `descendenceMatrix`.
 """
 function recursionPostOrder(nodes::Vector{Node},
@@ -190,36 +192,7 @@ function updatePostOrder!(i::Int,
 end
 
 # Extract the right part of a matrix in topological order
-# Tips : submatrix corresponding to tips
-# InternalNodes : submatrix corresponding to internal nodes
-# TipsNodes : submatrix nTips x nNodes of interactions
 # !! Extract sub-matrices in the original net nodes numbers !!
-# function Base.getindex(obj::MatrixTopologicalOrder, d::Symbol)
-#   if d == :Tips # Extract rows and/or columns corresponding to the tips
-#       mask = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
-#       obj.indexation == "b" && return obj.V[mask, mask] # both columns and rows are indexed by nodes
-#       obj.indexation == "c" && return obj.V[:, mask] # Only the columns
-#       obj.indexation == "r" && return obj.V[mask, :] # Only the rows
-#   end
-#   if d == :InternalNodes # Idem, for internal nodes
-#       mask = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
-#       obj.indexation == "b" && return obj.V[mask, mask]
-#       obj.indexation == "c" && return obj.V[:, mask]
-#       obj.indexation == "r" && return obj.V[mask, :]
-#   end
-#   if d == :TipsNodes
-#       maskNodes = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
-#       maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder,)
-#       obj.indexation == "b" && return obj.V[maskTips, maskNodes]
-#       obj.indexation == "c" && error("Both rows and columns must be net
-#       ordered to take the submatrix tips vs internal nodes.")
-#       obj.indexation == "r" && error("Both rows and columns must be net
-#       ordered to take the submatrix tips vs internal nodes.")
-#   end
-#   d == :All && return obj.V
-# end
-
-# If some tips are missing, treat them as "internal nodes"
 """
     getindex(obj, d,[ indTips, nonmissing])
 
@@ -230,38 +203,37 @@ Getting submatrices of an object of type [`MatrixTopologicalOrder`](@ref).
 * `d::Symbol`: a symbol precising which sub-matrix to extract. Can be:
   * `:Tips` columns and/or rows corresponding to the tips
   * `:InternalNodes` columns and/or rows corresponding to the internal nodes
+    Includes tips not listed in `indTips` or missing data according to `nonmissing`.
   * `:TipsNodes` columns corresponding to internal nodes, and row to tips (works only is indexation="b")
 * `indTips::Vector{Int}`: optional argument precising a specific order for the tips (internal use).
 * `nonmissing::BitArray{1}`: optional argument saying which tips have data (internal use).
-
+   Tips with missing data are treated as internal nodes.
 """
 function Base.getindex(obj::MatrixTopologicalOrder,
                        d::Symbol,
                        indTips=collect(1:length(obj.tipNumbers))::Vector{Int},
                        nonmissing=trues(length(obj.tipNumbers))::BitArray{1})
+    tipnums = obj.tipNumbers[indTips][nonmissing]
+    maskTips = indexin(tipnums, obj.nodeNumbersTopOrder)
     if d == :Tips # Extract rows and/or columns corresponding to the tips with data
-        maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
-        maskTips = maskTips[indTips]
-        maskTips = maskTips[nonmissing]
         obj.indexation == "b" && return obj.V[maskTips, maskTips] # both columns and rows are indexed by nodes
         obj.indexation == "c" && return obj.V[:, maskTips] # Only the columns
         obj.indexation == "r" && return obj.V[maskTips, :] # Only the rows
     end
+    intnodenums = [obj.internalNodeNumbers ; setdiff(obj.tipNumbers, tipnums)]
+    maskNodes = indexin(intnodenums, obj.nodeNumbersTopOrder)
+    #= indices in obj.nodeNumbersTopOrder, in this order:
+    1. internal nodes, in the same order as in obj.internalNodeNumbers,
+       that is, same order as in net.node (excluding leaves)
+    2. tips absent from indTips or missing data according to nonmissing,
+       in the same order as in obj.tipNumbers.
+    =#
     if d == :InternalNodes # Idem, for internal nodes
-        maskNodes = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
-        maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
-        maskTips = maskTips[indTips]
-        maskNodes = [maskNodes; maskTips[.!nonmissing]]
         obj.indexation == "b" && return obj.V[maskNodes, maskNodes]
         obj.indexation == "c" && return obj.V[:, maskNodes]
         obj.indexation == "r" && return obj.V[maskNodes, :]
     end
     if d == :TipsNodes
-        maskNodes = indexin(obj.internalNodeNumbers, obj.nodeNumbersTopOrder)
-        maskTips = indexin(obj.tipNumbers, obj.nodeNumbersTopOrder)
-        maskTips = maskTips[indTips]
-        maskNodes = [maskNodes; maskTips[.!nonmissing]]
-        maskTips = maskTips[nonmissing]
         obj.indexation == "b" && return obj.V[maskTips, maskNodes]
         obj.indexation == "c" && error("""Both rows and columns must be net
                                        ordered to take the submatrix tips vs internal nodes.""")
@@ -272,9 +244,7 @@ function Base.getindex(obj::MatrixTopologicalOrder,
 end
 
 ###############################################################################
-###############################################################################
-## Functions to compute the variance-covariance between Node and its parents
-###############################################################################
+## phylogenetic variance-covariance between tips
 ###############################################################################
 """
     vcv(net::HybridNetwork; model="BM"::AbstractString,
@@ -291,7 +261,7 @@ The calculation of the covariance matrix requires a pre-ordering of nodes to be 
 If `checkPreorder` is true (default), then [`preorder!`](@ref) is run on the network beforehand.
 Otherwise, the network is assumed to be already in pre-order.
 
-This function internally calls [`sharedPathMatrix`](@ref), that computes the variance
+This function internally calls [`sharedPathMatrix`](@ref), which computes the variance
 matrix between all the nodes of the network.
 
 # Examples
@@ -328,7 +298,7 @@ t1 0.00 0.00 0.00 0.9 1.08
 ```
 
 The covariance can also be calculated on a network
-(for the model, see for Bastide et al. 2018)
+(for the model, see Bastide et al. 2018)
 ```jldoctest
 julia> net = readTopology("((t1:1.0,#H1:0.1::0.30):0.5,((t2:0.9)#H1:0.2::0.70,t3:1.1):0.4);");
 
@@ -360,7 +330,7 @@ end
 
 This function computes the shared path matrix between all the nodes of a
 network. It assumes that the network is in the pre-order. If checkPreorder is
-true (default), then it runs function `preoder` on the network beforehand.
+true (default), then it runs function `preorder!` on the network beforehand.
 
 Returns an object of type [`MatrixTopologicalOrder`](@ref).
 
@@ -413,19 +383,16 @@ function initsharedPathMatrix(nodes::Vector{Node}, params)
 end
 
 ###############################################################################
-###############################################################################
-## Functions to compute the network matrix
-###############################################################################
-###############################################################################
 """
     descendenceMatrix(net::HybridNetwork; checkPreorder=true::Bool)
 
-This function computes the inciednce matrix between all the nodes of a
-network. It assumes that the network is in the pre-order. If checkPreorder is
-true (default), then it runs function `preoder` on the network beforehand.
-
-Returns an object of type [`MatrixTopologicalOrder`](@ref).
-
+Descendence matrix between all the nodes of a network:
+object `D` of type [`MatrixTopologicalOrder`](@ref) in which
+`D[i,j]` is the proportion of genetic material in node `i` that can be traced
+back to node `j`. If `D[i,j]>0` then `j` is a descendent of `i` (and `j` is
+an ancestor of `i`).
+The network is assumed to be pre-ordered if `checkPreorder` is false.
+If `checkPreorder` is true (default), `preorder!` is run on the network beforehand.
 """
 function descendenceMatrix(net::HybridNetwork;
                          checkPreorder=true::Bool)
@@ -437,9 +404,7 @@ function descendenceMatrix(net::HybridNetwork;
                        "r")
 end
 
-function updateTipDescendenceMatrix!(V::Matrix,
-                                   i::Int,
-                                   params)
+function updateTipDescendenceMatrix!(::Matrix, ::Int, params)
     return
 end
 
@@ -458,10 +423,6 @@ function initDescendenceMatrix(nodes::Vector{Node}, params)
     return(Matrix{Float64}(I, n, n)) # identity matrix
 end
 
-###############################################################################
-###############################################################################
-## Function to get the regressor out of a shift
-###############################################################################
 ###############################################################################
 """
     regressorShift(node::Vector{Node}, net::HybridNetwork; checkPreorder=true)
@@ -533,15 +494,15 @@ julia> dfr = innerjoin(dat, dfr_shift, on=:tipNames); # join data and regressors
 
 julia> using StatsModels # for statistical model formulas
 
-julia> fitBM = phyloNetworklm(@formula(trait ~ shift_1 + shift_8), dfr, net) # actual fit
+julia> fitBM = phylolm(@formula(trait ~ shift_1 + shift_8), dfr, net; reml=false) # actual fit
 StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
 
 Formula: trait ~ 1 + shift_1 + shift_8
 
-Model: BM
+Model: Brownian motion
 
-Parameter(s) Estimates:
-Sigma2: 0.0112618
+Parameter Estimates, using ML:
+phylogenetic variance rate: 0.0112618
 
 Coefficients:
 ────────────────────────────────────────────────────────────────────────
@@ -557,7 +518,7 @@ AIC: 4.2125395947
 ```
 
 # See also
-[`phyloNetworklm`](@ref), [`descendenceMatrix`](@ref), [`regressorHybrid`](@ref).
+[`phylolm`](@ref), [`descendenceMatrix`](@ref), [`regressorHybrid`](@ref).
 """
 function regressorShift(node::Vector{Node},
                         net::HybridNetwork; checkPreorder=true::Bool)
@@ -665,15 +626,15 @@ julia> dfr = innerjoin(dat, dfr_hybrid, on=:tipNames); # join data and regressor
 
 julia> using StatsModels
 
-julia> fitBM = phyloNetworklm(@formula(trait ~ shift_6), dfr, net) # actual fit
+julia> fitBM = phylolm(@formula(trait ~ shift_6), dfr, net; reml=false) # actual fit
 StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
 
 Formula: trait ~ 1 + shift_6
 
-Model: BM
+Model: Brownian motion
 
-Parameter(s) Estimates:
-Sigma2: 0.041206
+Parameter Estimates, using ML:
+phylogenetic variance rate: 0.041206
 
 Coefficients:
 ────────────────────────────────────────────────────────────────────────
@@ -688,7 +649,7 @@ AIC: 7.4012043891
 ```
 
 # See also
-[`phyloNetworklm`](@ref), [`descendenceMatrix`](@ref), [`regressorShift`](@ref).
+[`phylolm`](@ref), [`descendenceMatrix`](@ref), [`regressorShift`](@ref).
 """
 function regressorHybrid(net::HybridNetwork; checkPreorder=true::Bool)
     childs = [getChildren(nn)[1] for nn in net.hybrid]
@@ -696,15 +657,6 @@ function regressorHybrid(net::HybridNetwork; checkPreorder=true::Bool)
     dfr[!,:sum] = sum.(eachrow(select(dfr, Not(:tipNames), copycols=false)))
     return(dfr)
 end
-
-###############################################################################
-###############################################################################
-## Types for params process
-###############################################################################
-###############################################################################
-
-# Abstract type of all the (future) types (BM, OU, ...)
-abstract type ParamsProcess end
 
 # Type for shifts
 """
@@ -891,6 +843,12 @@ end
 #     sh1.shift == sh2.shift || return(false)
 #     return(true)
 # end
+
+###################################################
+# types to hold parameters for evolutionary process
+# like scalar BM, multivariate BM, OU?
+
+abstract type ParamsProcess end
 
 """
     ParamsBM <: ParamsProcess
@@ -1080,9 +1038,7 @@ end
 
 
 ###############################################################################
-###############################################################################
-## Simulation Function
-###############################################################################
+## Simulation of continuous traits
 ###############################################################################
 
 """
@@ -1418,8 +1374,6 @@ function updateTreeSimulateMBD!(M::Matrix{Float64},
     val .+= params.shift.shift[i, :]
 end
 
-
-
 # Going down to an hybrid node
 function updateHybridSimulateBM!(M::Matrix,
                                  i::Int,
@@ -1471,36 +1425,6 @@ function updateHybridSimulateMBD!(M::Matrix{Float64},
     BLAS.axpby!(edge2.gamma, buffer, edge1.gamma, val) # random value
 end
 
-# function updateSimulateBM!(i::Int, nodes::Vector{Node}, M::Matrix, params::Tuple{ParamsBM})
-#     params = params[1]
-#     parent = getParents(nodes[i]) #array of nodes (empty, size 1 or 2)
-#     if(isempty(parent)) #nodes[i] is root
-#         if (params.randomRoot)
-#       M[1, i] = params.mu # expectation
-#       M[2, i] = params.mu + sqrt(params.varRoot) * randn() # random value
-#   else
-#       M[1, i] = params.mu # expectation
-#       M[2, i] = params.mu # random value (root fixed)
-#   end
-#
-#     elseif(length(parent) == 1) #nodes[i] is tree
-#         parentIndex = getIndex(parent[1],nodes)
-#   l = getConnectingEdge(nodes[i],parent[1]).length
-#   M[1, i] = params.mu  # expectation
-#   M[2, i] = M[2, parentIndex] + sqrt(params.sigma2 * l) * randn() # random value
-#
-#     elseif(length(parent) == 2) #nodes[i] is hybrid
-#         parentIndex1 = getIndex(parent[1],nodes)
-#         parentIndex2 = getIndex(parent[2],nodes)
-#         edge1 = getConnectingEdge(nodes[i],parent[1])
-#         edge2 = getConnectingEdge(nodes[i],parent[2])
-#         edge1.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[1].number) should be a hybrid egde")
-#         edge2.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[2].number) should be a hybrid egde")
-#   M[1, i] = params.mu  # expectation
-#   M[2, i] =  edge1.gamma * (M[2, parentIndex1] + sqrt(params.sigma2 * edge1.length) * randn()) + edge2.gamma * (M[2, parentIndex2] + sqrt(params.sigma2 * edge2.length) * randn()) # random value
-#     end
-# end
-
 # Extract the vector of simulated values at the tips
 """
     getindex(obj, d)
@@ -1539,128 +1463,328 @@ function siminds(params::ParamsMultiBM, w::Symbol)
     end
 end
 
-
-
-
-
-# function extractSimulateTips(sim::Matrix, net::HybridNetwork)
-#   mask = getTipsIndexes(net)
-#   return(squeeze(sim[2, mask], 1))
-# end
-
 ###############################################################################
-###############################################################################
-## Functions for Phylgenetic Network regression
-###############################################################################
+## Type for models with within-species variation (including measurement error)
 ###############################################################################
 
-# New type for phyloNetwork regression
 """
-    PhyloNetworkLinearModel<:GLM.LinPredModel
+    WithinSpeciesCTM
 
-Regression object for a phylogenetic regression. Result of fitting function [`phyloNetworklm`](@ref).
-Dominated by the `GLM.LinPredModel` class, from package `GLM`.
+CTM stands for "continuous trait model". Contains the estimated variance components
+(between-species phylogenetic variance rate and within-species variance)
+and output from the `NLopt` optimization used in the estimation.
 
-The following StatsBase functions can be applied to it:
+## Fields
+
+- `wsp_var`: intra/within-species variance.
+- `bsp_var`: inter/between-species variance-rate.
+- `wsp_ninv`: vector of the inverse sample-sizes (e.g. [1/n₁, ..., 1/nₖ], where
+  data from k species was used to fit the model and nᵢ is the no. of observations
+  for the ith species).
+- `rss`: within-species sum of squares
+- `optsum`: an [`OptSummary`](@ref) object.
+"""
+struct WithinSpeciesCTM
+    "within-species variance η*σ², assumes Normal distribution"
+    wsp_var::Vector{Float64} # vector to make it mutable
+    "between-species variance rate σ², such as from Brownian motion"
+    bsp_var::Vector{Float64}
+    "inverse sample sizes (or precision): 1/(no. of individuals) within each species"
+    wsp_ninv::Vector{Float64}
+    "within-species sum of squares"
+    rss::Float64
+    "NLopt & NLopt summary object"
+    optsum::OptSummary
+end
+
+"""
+    ContinuousTraitEM
+
+Abstract type for evolutionary models for continuous traits, using a continuous-time
+stochastic process on a phylogeny.
+
+For subtypes, see [`BM`](@ref), [`PagelLambda`](@ref), [`ScalingHybrid`](@ref).
+
+Each of these subtypes/models has the field `lambda`, whose default value is 1.0.
+However, the interpretation of this field differs across models.
+"""
+abstract type ContinuousTraitEM end
+
+# current concrete subtypes: BM, PagelLambda, ScalingHybrid
+# possible future additions: OU (Ornstein-Uhlenbeck)?
+"""
+    BM(λ)
+
+Brownian Motion, subtype of [`ContinuousTraitEM`](@ref), to model the population mean
+of a trait (or of the residuals from a linear model). Under the BM model,
+the population (or species) means have a multivariate normal distribution with
+covariance matrix = σ²λV, where σ² is the between-species
+variance-rate (to be estimated), and the matrix V is obtained from
+[`sharedPathMatrix`](@ref)(net)[:Tips].
+
+λ is set to 1 by default, and is immutable.
+In future versions, λ may be used to control the scale for σ².
+
+On a tree, V is the length of shared ancestry.
+On a network, the BM model assumes that the trait at a hybrid node
+is the weighted average of its immediate parents (plus possibly a fixed shift).
+The weights are the proportion of genes inherited from each parent:
+the γ parameters of hybrid edges.
+"""
+struct BM <: ContinuousTraitEM
+    lambda::Float64 # immutable
+end
+BM() = BM(1.0)
+evomodelname(::BM) = "Brownian motion"
+
+"""
+    PagelLambda(λ)
+
+Pagel's λ model, subtype of [`ContinuousTraitEM`](@ref), with covariance matrix σ²V(λ).
+σ² is the between-species variance-rate (to be estimated), and V(λ) = λV + (1-λ)T,
+where V is the covariance under a Brownian motion [`BM`](@ref) and T is a diagonal
+matrix containing the total branch length elapsed from the root to each leaf (if
+the phylogeny is a tree, or more generally if the network is time consistent: the
+time from the root to a given node does not depend on the path).
+
+λ ∈ [0,1] is mutable and may be optimized. It is a measure of phylogenetic
+signal, that is, how important the given network is for explaining variation in
+the response. When λ=1, the `PagelLambda` model reduces to the `BM` model.
+"""
+mutable struct PagelLambda <: ContinuousTraitEM
+    lambda::Float64 # mutable: can be optimized
+end
+PagelLambda() = PagelLambda(1.0)
+evomodelname(::PagelLambda) = "Pagel's lambda"
+
+"""
+    ScalingHybrid(λ)
+
+Scaling Hybrid model, subtype of [`ContinuousTraitEM`](@ref), with covariance matrix
+σ²V(N(λ)). σ² is the between-species variance-rate (to be estimated),
+V(N) is the Brownian motion [`BM`](@ref) covariance obtained from network N,
+and N(λ) is a obtained from the input network by rescaling the inheritance
+parameter γ of all minor edges by the same λ: a minor edge has its original γ
+changed to λγ, using the same λ at all reticulations.
+Note that for a major edge with original inheritance γ, the partner minor edge
+has inheritance γ_minor = 1-γ, so the major edge's inheritance is changed to
+1-λγ_minor = λγ+1-λ.
+
+For more information: see Bastide (2017) dissertation, section 4.3.2 p.175,
+available at https://tel.archives-ouvertes.fr/tel-01629648
+
+λ ∈ [0,1] is mutable and may be optimized. It is a measure of how important the
+reticulations are for explaining variation in the response.
+When λ=1, the `ScalingHybrid` model reduces to the `BM` model.
+"""
+mutable struct ScalingHybrid <: ContinuousTraitEM
+    lambda::Float64
+end
+ScalingHybrid() = ScalingHybrid(1.0)
+evomodelname(::ScalingHybrid) = "Lambda's scaling hybrid"
+
+###############################################################################
+##     phylogenetic network regression
+###############################################################################
+
+"""
+    PhyloNetworkLinearModel <: GLM.LinPredModel
+
+Phylogenetic linear model representation.
+
+## Fields
+
+`lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `reml`, `ind`, `nonmissing`, `model`, `model_within`.
+The following syntax pattern can be used to get more information on a specific field:
+e.g. to find out about the `lm` field, do `?PhyloNetworkLinearModel.lm`.
+
+## Methods applied to fitted models
+
+The following StatsBase functions can be applied:
 `coef`, `nobs`, `vcov`, `stderror`, `confint`, `coeftable`, `dof_residual`, `dof`, `deviance`,
 `residuals`, `response`, `predict`, `loglikelihood`, `nulldeviance`, `nullloglikelihood`,
-`r2`, `adjr2`, `aic`, `aicc`, `bic`.
+`r2`, `adjr2`, `aic`, `aicc`, `bic`, `ftest`, `lrtest` etc.
 
-For accessing the model matrix (`object.mm` and `object.mm.m`),
-the model frame (`object.mf`) or formula (`object.mf.f`), refer to
-[StatsModels](https://juliastats.github.io/StatsModels.jl/stable/) functions,
-like `show(object.mf.f)`, `terms(object.mf.f)`, `coefnames(object.mf.f)`,
-`terms(object.mf.f.rhs)`, `response(object)` etc.
+The estimated variance-rate and estimated mean of the species-level trait model
+(see [`ContinuousTraitEM`](@ref)) can be retrieved using [`sigma2_phylo`](@ref)
+and [`mu_phylo`](@ref) respectively.
 
-Estimated variance and mean of the BM process used can be retrieved with
-functions [`sigma2_estim`](@ref) and [`mu_estim`](@ref).
+If relevant, the estimated individual-level/within-species variance can be retrieved
+using [`sigma2_within`](@ref).
 
-If a Pagel's lambda model is fitted, the parameter can be retrieved with function
-[`lambda_estim`](@ref).
+The optimized λ parameter for Pagel's λ model (see [`PagelLambda`](@ref)) can
+be retrieved using [`lambda_estim`](@ref).
 
-An ancestral state reconstruction can be performed from this fitted object using function:
-[`ancestralStateReconstruction`](@ref).
+An ancestral state reconstruction can be performed using [`ancestralStateReconstruction`](@ref).
 
-The `PhyloNetworkLinearModel` object has fields: `lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `ind`, `nonmissing`, `model`, `lambda`.
-Type in "?PhyloNetworkLinearModel.field" to get help on a specific field.
+## Within-species variation
+
+The true species/population means for the response trait/variable (or the residuals:
+conditional on the predictors) are jointly modeled as 𝒩(·, σ²ₛV) where V depends on
+the trait model (see [`ContinuousTraitEM`](@ref)) and on the species network.
+σ²ₛ is the between-species variance-rate.
+
+Within-species variation is modeled by assuming that the individual-level
+responses are iid 𝒩(0, σ²ₑ) about the true species means, so that the
+species-level sample means (conditional on the predictors) are jointly modeled
+as 𝒩(·, σ²ₛV + σ²ₑD⁻¹), where σ²ₑ is the within-species variance and D⁻¹ is a
+diagonal matrix whose entries are the inverse sample-sizes (see [`WithinSpeciesCTM`](@ref)).
+
+Although the above two models can be expressed in terms of a joint distribution
+for the species-level sample means (or residuals conditional on the predictors),
+more data are required to fit a model accounting for within-species variation,
+that is, a model recognizing that the sample means are estimates of the true
+population means. To fit a model *without* within-species variation, data on the
+species means are sufficient. To fit a model *with* within-species variation,
+we need to have the species means and the standard deviations of the response
+variable for each species.
+
+`phylolm` can fit a model with within-species variation either from
+species-level statistics ("mean response" and "standard deviation in response")
+or from individual-level data (in which case the species-level statistics are
+computed internally). See [`phylolm`](@ref) for more details on these two
+input choices.
+
+In the object, `obj.Y` and `obj.X` are the observed species means.
+`predict`, `residuals` and `response` return the values at the species level.
 """
 mutable struct PhyloNetworkLinearModel <: GLM.LinPredModel
-    "lm: a GLM.LinearModel object, fitted on the cholesky-tranformend problem"
+    "lm: a GLM.LinearModel object, fitted on the cholesky-tranformed problem"
     lm::GLM.LinearModel # result of a lm on a matrix
     "V: a MatrixTopologicalOrder object of the network-induced correlations"
     V::MatrixTopologicalOrder
     "Vy: the sub matrix corresponding to the tips and actually used for the correction"
     Vy::Matrix
-    "RL: a LowerTriangular matrix, Cholesky transform of Vy=RL*RL'"
+    """RL: a LowerTriangular matrix, the lower Cholesky factor of Vy=RL*RL'
+    obtained with `cholesky(Vy).L`. The data stored in `lm` are RL⁻¹Y and RL⁻¹X.
+    """
     RL::LowerTriangular
     "Y: the vector of data"
     Y::Vector
     "X: the matrix of regressors"
     X::Matrix
-    "logdetVy: the log-determinent of Vy"
+    "logdetVy: the log-determinant of Vy"
     logdetVy::Float64
+    "criterion: REML if reml is true, ML otherwise"
+    reml::Bool
     "ind: vector matching the tips of the network against the names of the dataframe provided. 0 if the match could not be performed."
     ind::Vector{Int}
     "nonmissing: vector indicating which tips have non-missing data"
     nonmissing::BitArray{1}
     "model: the model used for the fit"
-    model::String
-    "If applicable, value of lambda (default to 1)."
-    lambda::Float64
+    model::ContinuousTraitEM
+    # ContinuousTraitEM is abstract: not efficient. parametrize PhyloNetworkLinearModel?
+    # but the types for Vy, Y and X are also abstract.
+    "model_within: the model used for within-species variation (if needed)"
+    model_within::Union{Nothing, WithinSpeciesCTM}
 end
 
-PhyloNetworkLinearModel(lm_fit, V, Vy, RL, Y, X, logdetVy, ind, nonmissing, model) =
-  PhyloNetworkLinearModel(lm_fit,V,Vy, RL, Y, X, logdetVy, ind, nonmissing, model, 1.0)
+# default model_within=nothing
+PhyloNetworkLinearModel(lm,  V,Vy,RL,Y,X,logdetVy, reml,ind,nonmissing, model) =
+  PhyloNetworkLinearModel(lm,V,Vy,RL,Y,X,logdetVy, reml,ind,nonmissing, model,nothing)
 
-# Function for lm with net residuals
-function phyloNetworklm(X::Matrix,
-                        Y::Vector,
-                        net::HybridNetwork;
-                        nonmissing=trues(length(Y))::BitArray{1},
-                        model="BM"::AbstractString,
-                        ind=[0]::Vector{Int},
-                        startingValue=0.5::Real,
-                        fixedValue=missing::Union{Real,Missing})
-    ## Choose Model
-    if model == "BM"
-        # Geting variance covariance
-        V = sharedPathMatrix(net)
-        # Fit
-        return phyloNetworklm_BM(X, Y, V;
-                                 nonmissing=nonmissing, ind=ind)
+
+#= ------ roadmap of phylolm methods --------------
+
+with or without within-species variation:
+- phylolm(formula, dataframe, net; model="BM",...,withinspecies_var=false,...)
+- phylolm(X,Y,net, model::ContinuousTraitEM; kwargs...)
+  calls a function with or without within-species variation.
+
+1. no measurement error in species means:
+   - phylolm(model, X,Y,net, reml; kwargs...) dispatches based on model type
+   - phylolm_lambda(X,Y,V,reml, gammas,times; ...)
+   - phylolm_scalingHybrid(X,Y,net,reml, gammas; ...)
+
+   helpers:
+   - pgls(X,Y,V; ...) for vanilla BM, but called by others with fixed V_theta
+   - logLik_lam(lambda, X,Y,V,gammas,times; ...)
+   - logLik_lam_hyb(lambda, X,Y,net,gammas; ...)
+
+2. with measurement error (within-species variation):
+   - phylolm_wsp(model, X,Y,net, reml; kwargs...) dispatch based on model
+     implemented for model <: BM only
+
+   - phylolm_wsp(X,Y,V,reml, nonmissing,ind, counts,ySD, model_within)
+   - phylolm_wsp(Xsp,Ysp,Vsp,reml, d_inv,RSS, n,p,a, model_within)
+=#
+"""
+    phylolm(X::Matrix, Y::Vector, net::HybridNetwork, model::ContinuousTraitEM=BM(); kwargs...)
+
+Return a [`PhyloNetworkLinearModel`](@ref) object.
+This method is called by `phylolm(formula, data, network; kwargs...)`.
+"""
+function phylolm(X::Matrix, Y::Vector, net::HybridNetwork,
+                model::ContinuousTraitEM = BM();
+                reml::Bool=true,
+                nonmissing=trues(length(Y))::BitArray{1},
+                ind=[0]::Vector{Int},
+                startingValue=0.5::Real,
+                fixedValue=missing::Union{Real,Missing},
+                withinspecies_var::Bool=false,
+                counts::Union{Nothing, Vector}=nothing,
+                ySD::Union{Nothing, Vector}=nothing)
+    if withinspecies_var
+        phylolm_wsp(model, X,Y,net, reml; nonmissing=nonmissing, ind=ind,
+                    counts=counts, ySD=ySD)
+    else
+        phylolm(model, X,Y,net, reml; nonmissing=nonmissing, ind=ind,
+                startingValue=startingValue, fixedValue=fixedValue)
     end
-    if model == "lambda"
-        # Geting variance covariance
-        V = sharedPathMatrix(net)
-        # Get gammas and heights
-        gammas = getGammas(net)
-        times = getHeights(net)
-        # Fit
-        return phyloNetworklm_lambda(X, Y, V, gammas, times;
-                                     nonmissing=nonmissing, ind=ind,
-                                     startingValue=startingValue, fixedValue=fixedValue)
-    end
-    if (model == "scalingHybrid")
-        # Get gammas
-        preorder!(net)
-        gammas = getGammas(net)
-        # Fit
-        return phyloNetworklm_scalingHybrid(X, Y, net, gammas;
-                                            nonmissing=nonmissing, ind=ind,
-                                            startingValue=startingValue, fixedValue=fixedValue)
-    end
+end
+
+function phylolm(::BM, X::Matrix, Y::Vector, net::HybridNetwork,reml::Bool;
+                nonmissing=trues(length(Y))::BitArray{1},
+                ind=[0]::Vector{Int},
+                kwargs...)
+    # BM variance covariance:
+    # V_ij = expected shared time for independent genes in i & j
+    V = sharedPathMatrix(net)
+    linmod, Vy, RL, logdetVy = pgls(X,Y,V; nonmissing=nonmissing, ind=ind)
+    return PhyloNetworkLinearModel(linmod, V, Vy, RL, Y, X,
+                logdetVy, reml, ind, nonmissing, BM())
+end
+
+function phylolm(::PagelLambda, X::Matrix, Y::Vector, net::HybridNetwork,
+                reml::Bool;
+                nonmissing=trues(length(Y))::BitArray{1},
+                ind=[0]::Vector{Int},
+                startingValue=0.5::Real,
+                fixedValue=missing::Union{Real,Missing})
+    # BM variance covariance
+    V = sharedPathMatrix(net)
+    gammas = getGammas(net)
+    times = getHeights(net)
+    phylolm_lambda(X,Y,V,reml, gammas, times;
+            nonmissing=nonmissing, ind=ind,
+            startingValue=startingValue, fixedValue=fixedValue)
+end
+
+#= ScalingHybrid = BM but with optimized weights of hybrid edges:
+minor edges have their original γ's changed to λγ. Same λ at all hybrids.
+see Bastide (2017) dissertation, section 4.3.2 p.175, at
+https://tel.archives-ouvertes.fr/tel-01629648
+=#
+function phylolm(::ScalingHybrid, X::Matrix, Y::Vector, net::HybridNetwork,
+                reml::Bool;
+                nonmissing=trues(length(Y))::BitArray{1},
+                ind=[0]::Vector{Int},
+                startingValue=0.5::Real,
+                fixedValue=missing::Union{Real,Missing})
+    preorder!(net)
+    gammas = getGammas(net)
+    phylolm_scalingHybrid(X, Y, net, reml, gammas;
+            nonmissing=nonmissing, ind=ind,
+            startingValue=startingValue, fixedValue=fixedValue)
 end
 
 ###############################################################################
 ## Fit BM
 
-function phyloNetworklm_BM(X::Matrix,
-                           Y::Vector,
-                           V::MatrixTopologicalOrder;
-                           nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
-                           ind=[0]::Vector{Int},
-                           model="BM"::AbstractString,
-                           lambda=1.0::Real)
+# Vanilla BM using covariance V. used for other models: V calculated beforehand
+function pgls(X::Matrix, Y::Vector, V::MatrixTopologicalOrder;
+        nonmissing=trues(length(Y))::BitArray{1}, # which tips are not missing?
+        ind=[0]::Vector{Int})
     # Extract tips matrix
     Vy = V[:Tips]
     # Re-order if necessary
@@ -1670,12 +1794,12 @@ function phyloNetworklm_BM(X::Matrix,
     # Cholesky decomposition
     R = cholesky(Vy)
     RL = R.L
-    # Fit
-    PhyloNetworkLinearModel(lm(RL\X, RL\Y), V, Vy, RL, Y, X, logdet(Vy), ind, nonmissing, model, lambda)
+    # Fit with GLM.lm, and return quantities needed downstream
+    return lm(RL\X, RL\Y), Vy, RL, logdet(R)
 end
 
 ###############################################################################
-## Fit Pagel's Lambda
+## helper functions for lambda models
 
 """
     getGammas(net)
@@ -1768,6 +1892,7 @@ end
 function logLik_lam(lam::AbstractFloat,
                     X::Matrix, Y::Vector,
                     V::MatrixTopologicalOrder,
+                    reml::Bool,
                     gammas::Vector, times::Vector;
                     nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                     ind=[0]::Vector{Int})
@@ -1775,32 +1900,26 @@ function logLik_lam(lam::AbstractFloat,
     Vp = deepcopy(V)
     transform_matrix_lambda!(Vp, lam, gammas, times)
     # Fit and take likelihood
-    fit_lam = phyloNetworklm_BM(X, Y, Vp; nonmissing=nonmissing, ind=ind)
-    res = - loglikelihood(fit_lam)
-    # Go back to original V
-    # transform_matrix_lambda!(V, 1/lam, gammas, times)
+    linmod, Vy, RL, logdetVy = pgls(X,Y,Vp; nonmissing=nonmissing, ind=ind)
+    n = (reml ? dof_residual(linmod) : nobs(linmod))
+    res = n*log(deviance(linmod)) + logdetVy
+    if reml res += logdet(linmod.pp.chol); end
     return res
 end
 
-# Code for optim taken from src/snaq_optimization.jl
-const fAbsTr = 1e-10
-const fRelTr = 1e-10
-const xAbsTr = 1e-10
-const xRelTr = 1e-10
-
-function phyloNetworklm_lambda(X::Matrix,
-                               Y::Vector,
-                               V::MatrixTopologicalOrder,
-                               gammas::Vector,
-                               times::Vector;
-                               nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
-                               ind=[0]::Vector{Int},
-                               ftolRel=fRelTr::AbstractFloat,
-                               xtolRel=xRelTr::AbstractFloat,
-                               ftolAbs=fAbsTr::AbstractFloat,
-                               xtolAbs=xAbsTr::AbstractFloat,
-                               startingValue=0.5::Real,
-                               fixedValue=missing::Union{Real,Missing})
+function phylolm_lambda(X::Matrix,Y::Vector,
+                    V::MatrixTopologicalOrder,
+                    reml::Bool,
+                    gammas::Vector,
+                    times::Vector;
+                    nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
+                    ind=[0]::Vector{Int},
+                    ftolRel=fRelTr::AbstractFloat,
+                    xtolRel=xRelTr::AbstractFloat,
+                    ftolAbs=fAbsTr::AbstractFloat,
+                    xtolAbs=xAbsTr::AbstractFloat,
+                    startingValue=0.5::Real,
+                    fixedValue=missing::Union{Real,Missing})
     if ismissing(fixedValue)
         # Find Best lambda using optimize from package NLopt
         opt = NLopt.Opt(:LN_BOBYQA, 1)
@@ -1818,7 +1937,7 @@ function phyloNetworklm_lambda(X::Matrix,
         count = 0
         function fun(x::Vector{Float64}, g::Vector{Float64})
             x = convert(AbstractFloat, x[1])
-            res = logLik_lam(x, X, Y, V, gammas, times; nonmissing=nonmissing, ind=ind)
+            res = logLik_lam(x, X,Y,V, reml, gammas, times; nonmissing=nonmissing, ind=ind)
             count =+ 1
             #println("f_$count: $(round(res, digits=5)), x: $(x)")
             return res
@@ -1831,9 +1950,9 @@ function phyloNetworklm_lambda(X::Matrix,
         res_lam = fixedValue
     end
     transform_matrix_lambda!(V, res_lam, gammas, times)
-    res = phyloNetworklm_BM(X, Y, V; nonmissing=nonmissing, ind=ind, model="lambda", lambda=res_lam)
-#    res.lambda = res_lam
-#    res.model = "lambda"
+    linmod, Vy, RL, logdetVy = pgls(X,Y,V; nonmissing=nonmissing, ind=ind)
+    res = PhyloNetworkLinearModel(linmod, V, Vy, RL, Y, X,
+                logdetVy, reml, ind, nonmissing, PagelLambda(res_lam))
     return res
 end
 
@@ -1850,28 +1969,31 @@ end
 
 function logLik_lam_hyb(lam::AbstractFloat,
                         X::Matrix, Y::Vector,
-                        net::HybridNetwork, gammas::Vector;
+                        net::HybridNetwork, reml::Bool, gammas::Vector;
                         nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
                         ind=[0]::Vector{Int})
     # Transform V according to lambda
     V = matrix_scalingHybrid(net, lam, gammas)
     # Fit and take likelihood
-    fit_lam = phyloNetworklm_BM(X, Y, V; nonmissing=nonmissing, ind=ind)
-    return -loglikelihood(fit_lam)
+    linmod, Vy, RL, logdetVy = pgls(X,Y,V; nonmissing=nonmissing, ind=ind)
+    n = (reml ? dof_residual(linmod) : nobs(linmod))
+    res = n*log(deviance(linmod)) + logdetVy
+    if reml res += logdet(linmod.pp.chol); end
+    return res
 end
 
-function phyloNetworklm_scalingHybrid(X::Matrix,
-                                      Y::Vector,
-                                      net::HybridNetwork,
-                                      gammas::Vector;
-                                      nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
-                                      ind=[0]::Vector{Int},
-                                      ftolRel=fRelTr::AbstractFloat,
-                                      xtolRel=xRelTr::AbstractFloat,
-                                      ftolAbs=fAbsTr::AbstractFloat,
-                                      xtolAbs=xAbsTr::AbstractFloat,
-                                      startingValue=0.5::Real,
-                                      fixedValue=missing::Union{Real,Missing})
+function phylolm_scalingHybrid(X::Matrix,Y::Vector,
+                    net::HybridNetwork,
+                    reml::Bool,
+                    gammas::Vector;
+                    nonmissing=trues(length(Y))::BitArray{1}, # Which tips are not missing ?
+                    ind=[0]::Vector{Int},
+                    ftolRel=fRelTr::AbstractFloat,
+                    xtolRel=xRelTr::AbstractFloat,
+                    ftolAbs=fAbsTr::AbstractFloat,
+                    xtolAbs=xAbsTr::AbstractFloat,
+                    startingValue=0.5::Real,
+                    fixedValue=missing::Union{Real,Missing})
     if ismissing(fixedValue)
         # Find Best lambda using optimize from package NLopt
         opt = NLopt.Opt(:LN_BOBYQA, 1)
@@ -1885,7 +2007,7 @@ function phyloNetworklm_scalingHybrid(X::Matrix,
         count = 0
         function fun(x::Vector{Float64}, g::Vector{Float64})
             x = convert(AbstractFloat, x[1])
-            res = logLik_lam_hyb(x, X, Y, net, gammas; nonmissing=nonmissing, ind=ind)
+            res = logLik_lam_hyb(x, X, Y, net, reml, gammas; nonmissing=nonmissing, ind=ind)
             #count =+ 1
             #println("f_$count: $(round(res, digits=5)), x: $(x)")
             return res
@@ -1898,41 +2020,123 @@ function phyloNetworklm_scalingHybrid(X::Matrix,
         res_lam = fixedValue
     end
     V = matrix_scalingHybrid(net, res_lam, gammas)
-    res = phyloNetworklm_BM(X, Y, V; nonmissing=nonmissing, ind=ind)
-    res.lambda = res_lam
-    res.model = "scalingHybrid"
+    linmod, Vy, RL, logdetVy = pgls(X,Y,V; nonmissing=nonmissing, ind=ind)
+    res = PhyloNetworkLinearModel(linmod, V, Vy, RL, Y, X,
+                logdetVy, reml, ind, nonmissing, ScalingHybrid(res_lam))
     return res
 end
 
 
 """
-    phyloNetworklm(f::StatsModels.FormulaTerm, dataframe, net, model="BM",
-        fTolRel=1e-10, fTolAbs=1e-10, xTolRel=1e-10, xTolAbs=1e-10,
-        startingValue=0.5)`
+    phylolm(f::StatsModels.FormulaTerm, fr::AbstractDataFrame, net::HybridNetwork; kwargs...)
 
-Phylogenetic regression, using the correlation structure induced by the network.
+Fit a phylogenetic linear regression model to data.
 
-Returns an object of class [`PhyloNetworkLinearModel`](@ref). See documentation for this type and example to see all the functions that can be applied to it.
+Return a [`StatsModels.TableRegressionModel`](https://juliastats.org/StatsModels.jl/stable/api/#StatsModels.TableRegressionModel) object.
+This object has three fields: `model`, `mf`, `mm` (see [StatsModels](https://juliastats.github.io/StatsModels.jl/stable/)).
+To access the fitted [`PhyloNetworkLinearModel`](@ref), do `object.model`.
 
-# Arguments
-* `f`: formula to use for the regression
-* `dataframe`: DataFrame containing the data and regressors at the tips.
-   It should have a column labelled "tipNames", that gives the names of the taxa for each observation.
+## Arguments
+
+* `f`: formula to use for the regression.
+* `fr`: DataFrame containing the response values, predictor values, species/tip labels for each observation/row.
 * `net`: phylogenetic network to use. Should have labelled tips.
-* `model::AbstractString="BM"`: the model to use, "BM" (default) or "lambda" (for Pagel's lambda).
-* `no_names::Bool=false`: if `true`, force the function to ignore the tips names. The data is then assumed to be in the same order as the tips of the network. Default to false, setting it to true is dangerous, and strongly discouraged.
-If `model="lambda"`, these parameters control the optimization of lambda:
-* `fTolRel=1e-10`: relative tolerance on the likelihood value for the optimization in lambda.
-* `fTolAbs=1e-10`: absolute tolerance on the likelihood value for the optimization in lambda.
-* `xTolRel=1e-10`: relative tolerance on the parameter value for the optimization in lambda.
-* `xTolAbs=1e-10`: absolute tolerance on the parameter value for the optimization in lambda.
-* `startingValue::Real=0.5`: the starting value for the parameter in the optimization in lambda.
 
-# See also
+Keyword arguments
 
-Type [`PhyloNetworkLinearModel`](@ref), Function [`ancestralStateReconstruction`](@ref)
+* `model="BM"`: model for trait evolution (as a string)
+  "lambda" (Pagel's lambda), "scalingHybrid" are other possible values
+  (see [`ContinuousTraitEM`](@ref))
+* `tipnames=:tipNames`: column name for species/tip-labels, represented
+  as a symbol. For example, if the column containing the species/tip labels in
+  `fr` is named "Species", then do `tipnames=:Species`.
+* `no_names=false`: If `true`, force the function to ignore the tips names.
+  The data is then assumed to be in the same order as the tips of the network.
+  Default is false, setting it to true is dangerous, and strongly discouraged.
+* `reml=true`: if `true`, use REML criterion ("restricted maximum likelihood")
+  for estimating variance components, else use ML criterion.
 
-# Examples
+The following tolerance parameters control the optimization of lambda if
+`model="lambda"` or `model="scalingHybrid"`, and control the optimization of the
+variance components if `model="BM"` and `withinspecies_var=true`.
+* `fTolRel=1e-10`: relative tolerance on the likelihood value
+* `fTolAbs=1e-10`: absolute tolerance on the likelihood value
+* `xTolRel=1e-10`: relative tolerance on the parameter value
+* `xTolAbs=1e-10`: absolute tolerance on the parameter value
+
+* `startingValue=0.5`: If `model`="lambda" or "scalingHybrid", this
+  provides the starting value for the optimization in lambda.
+* `fixedValue=missing`: If `model`="lambda" or "scalingHybrid", and
+  `fixedValue` is a number, then lambda is set to this number and is not optimized.
+* `withinspecies_var=false`: If `true`, fits a within-species variation model.
+  Currently only implemented for `model`="BM".
+* `y_mean_std::Bool=false`: If `true`, and `withinspecies_var=true`, then accounts for
+  within-species variation, using species-level statistics provided in `fr`.
+
+## Methods applied to fitted models
+
+To access the response values, do `response(object)`.
+To access the model matrix, do `object.mm.m`.
+To access the model formula, do `show(object.mf.f)`.
+
+All of the StatsBase methods that can be applied to a `PhyloNetworkLinearModel`
+can also be applied to a `StatsModels.TableRegressionModel`.
+
+## Within-species variation
+
+For a high-level description, see [`PhyloNetworkLinearModel`](@ref).
+To fit a model with within-species variation in the response variable,
+either of the following must be provided in the data frame `fr`:
+
+(1) Individual-level data: There should be columns for response, predictors, and
+species/tip-labels. Every row should correspond to an individual observation.
+At least one species must be represented by two or more individuals.
+
+(2) Species-level statistics: There should be columns for mean response, predictors,
+species/tip-labels, species sample-sizes (number of individuals for each species),
+and species standard deviations (standard deviations of the response values
+by species). Every row should correspond to a species: each species should be
+represented by a unique row. The column names for species sample-sizes and
+species standard deviations are expected to be "[response column name]\\_n"
+and "[response column name]\\_sd". For example, if the response column name is "y",
+then the column names should be "y\\_n" and "y\\_sd" for the sample-sizes and
+standard deviations.
+
+Regardless of whether the data provided follows (1) or (2),
+`withinspecies_var` should be set to true.
+If the data provided follows (2), then `y_mean_std` should be set to false.
+
+## Within-species variation in predictors
+
+The model assumes *no* within-species variation in predictors, because it aims to
+capture the evolutionary (historical, phylogenetic) relationship between the
+predictors and the response, not the within-species (present-day, or phenotypic)
+relationship.
+
+If a within-species variation model is fitted on individual-level data, and
+if there are individuals within the same species with different values for
+the same predictor, these values are all replaced by the mean predictor value
+for all the individuals in that species.
+For example, suppose there are 3 individuals in a given species, and that their
+predictor values are (x₁=3, x₂=6), (x₁=4, x₂=8) and (x₁=2, x₂=1). Then the predictor
+values for these 3 individuals are each replaced by (x₁=(3+4+2)/3, x₂=(6+8+1)/3)
+before model fitting. If a fourth individual had data (x₁=10, x₂=missing), then that
+individual would be ignored for any model using x₂, and would not contribute any
+information to its species data for these models.
+
+## Missing data
+
+Rows with missing data for either the response or the predictors are omitted from
+the model-fitting. There should minimally be columns for response, predictors,
+species/tip-labels. As detailed above, additional columns may be required for fitting
+within-species variation. Missing data in the columns for species names,
+species standard deviation / sample sizes (if used) will throw an error.
+
+## See also
+
+[`PhyloNetworkLinearModel`](@ref), [`ancestralStateReconstruction`](@ref)
+
+## Examples: Without within-species variation
 
 ```jldoctest
 julia> phy = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "caudata_tree.txt"));
@@ -1943,17 +2147,17 @@ julia> dat = CSV.File(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples",
 
 julia> using StatsModels # for stat model formulas
 
-julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
+julia> fitBM = phylolm(@formula(trait ~ 1), dat, phy; reml=false);
 
 julia> fitBM # Shows a summary
 StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
 
 Formula: trait ~ 1
 
-Model: BM
+Model: Brownian motion
 
-Parameter(s) Estimates:
-Sigma2: 0.00294521
+Parameter Estimates, using ML:
+phylogenetic variance rate: 0.00294521
 
 Coefficients:
 ─────────────────────────────────────────────────────────────────────
@@ -1964,10 +2168,10 @@ Coefficients:
 Log Likelihood: -78.9611507833
 AIC: 161.9223015666
 
-julia> round(sigma2_estim(fitBM), digits=6) # rounding for jldoctest convenience
+julia> round(sigma2_phylo(fitBM), digits=6) # rounding for jldoctest convenience
 0.002945
 
-julia> round(mu_estim(fitBM), digits=4)
+julia> round(mu_phylo(fitBM), digits=4)
 4.679
 
 julia> using StatsBase # for aic() stderror() loglikelihood() etc.
@@ -2070,20 +2274,92 @@ julia> round.(predict(fitBM), digits=5)
  4.679
  4.679
  4.679
+```
 
+## Examples: With within-species variation (two different input formats shown)
+
+```jldoctest
+julia> using DataFrames, StatsModels # for statistical model formulas
+
+julia> net = readTopology("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.0,(#H1:0::0.3,E:3.0):6.2):2.0,O:11.2);");
+
+julia> df = DataFrame( # individual-level observations
+           species = repeat(["D","C","A","B","E","O"],inner=3),
+           trait1 = [4.08298,4.08298,4.08298,3.10782,3.10782,3.10782,2.17078,2.17078,2.17078,1.87333,1.87333,
+              1.87333,2.8445,2.8445,2.8445,5.88204,5.88204,5.88204],
+           trait2 = [-7.34186,-7.34186,-7.34186,-7.45085,-7.45085,-7.45085,-3.32538,-3.32538,-3.32538,-4.26472,
+              -4.26472,-4.26472,-5.96857,-5.96857,-5.96857,-1.99388,-1.99388,-1.99388],
+           trait3 = [18.8101,18.934,18.9438,17.0687,17.0639,17.0732,14.4818,14.1112,14.2817,13.0842,12.9562,
+              12.9019,15.4373,15.4075,15.4317,24.2249,24.1449,24.1302]);
+
+julia> m1 = phylolm(@formula(trait3 ~ trait1), df, net;
+                    tipnames=:species, withinspecies_var=true)
+StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
+
+Formula: trait3 ~ 1 + trait1
+
+Model: Brownian motion
+
+Parameter Estimates, using REML:
+phylogenetic variance rate: 0.156188
+within-species variance: 0.0086343
+
+Coefficients:
+──────────────────────────────────────────────────────────────────────
+               Coef.  Std. Error     t  Pr(>|t|)  Lower 95%  Upper 95%
+──────────────────────────────────────────────────────────────────────
+(Intercept)  9.65347    1.3066    7.39    0.0018    6.02577   13.2812
+trait1       2.30358    0.276163  8.34    0.0011    1.53683    3.07033
+──────────────────────────────────────────────────────────────────────
+Log Likelihood: 1.9446255188
+AIC: 4.1107489623
+
+julia> df_r = DataFrame( # species-level statistics (sample means, standard deviations)
+           species = ["D","C","A","B","E","O"],
+           trait1 = [4.08298,3.10782,2.17078,1.87333,2.8445,5.88204],
+           trait2 = [-7.34186,-7.45085,-3.32538,-4.26472,-5.96857,-1.99388],
+           trait3 = [18.896,17.0686,14.2916,12.9808,15.4255,24.1667],
+           trait3_sd = [0.074524,0.00465081,0.185497,0.0936,0.0158379,0.0509643],
+           trait3_n = [3, 3, 3, 3, 3, 3]);
+
+julia> m2 = phylolm(@formula(trait3 ~ trait1), df_r, net;
+                tipnames=:species, withinspecies_var=true, y_mean_std=true)
+StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
+
+Formula: trait3 ~ 1 + trait1
+
+Model: Brownian motion
+
+Parameter Estimates, using REML:
+phylogenetic variance rate: 0.15618
+within-species variance: 0.0086343
+
+Coefficients:
+──────────────────────────────────────────────────────────────────────
+               Coef.  Std. Error     t  Pr(>|t|)  Lower 95%  Upper 95%
+──────────────────────────────────────────────────────────────────────
+(Intercept)  9.65342    1.30657   7.39    0.0018    6.02582   13.281
+trait1       2.30359    0.276156  8.34    0.0011    1.53686    3.07032
+──────────────────────────────────────────────────────────────────────
+Log Likelihood: 1.9447243714
+AIC: 4.1105512573
 ```
 """
-function phyloNetworklm(f::StatsModels.FormulaTerm,
-                        fr::AbstractDataFrame,
-                        net::HybridNetwork;
-                        model="BM"::AbstractString,
-                        no_names=false::Bool,
-                        ftolRel=fRelTr::AbstractFloat,
-                        xtolRel=xRelTr::AbstractFloat,
-                        ftolAbs=fAbsTr::AbstractFloat,
-                        xtolAbs=xAbsTr::AbstractFloat,
-                        startingValue=0.5::Real,
-                        fixedValue=missing::Union{Real,Missing})
+function phylolm(f::StatsModels.FormulaTerm,
+                fr::AbstractDataFrame,
+                net::HybridNetwork;
+                model::AbstractString="BM",
+                tipnames::Symbol=:tipNames,
+                no_names::Bool=false,
+                reml::Bool=true,
+                ftolRel::AbstractFloat=fRelTr,
+                xtolRel::AbstractFloat=xRelTr,
+                ftolAbs::AbstractFloat=fAbsTr,
+                xtolAbs::AbstractFloat=xAbsTr,
+                startingValue::Real=0.5,
+                fixedValue::Union{Real,Missing}=missing,
+                withinspecies_var::Bool=false,
+                y_mean_std::Bool=false)
     # Match the tips names: make sure that the data provided by the user will
     # be in the same order as the ordered tips in matrix V.
     preorder!(net)
@@ -2092,10 +2368,10 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
         @info """As requested (no_names=true), I am ignoring the tips names
              in the network and in the dataframe."""
     else
-        nodatanames = !any(DataFrames.propertynames(fr) .== :tipNames)
+        nodatanames = !any(DataFrames.propertynames(fr) .== tipnames)
         nodatanames && any(tipLabels(net) == "") &&
-            error("""The network provided has no tip names, and the input dataframe has
-                  no column labelled tipNames, so I can't match the data on the network
+            error("""The network provided has no tip names, and the input dataframe has no
+                  column "$tipnames" for species names, so I can't match the data on the network
                   unambiguously. If you are sure that the tips of the network are in the
                   same order as the values of the dataframe provided, then please re-run
                   this function with argument no_name=true.""")
@@ -2105,14 +2381,22 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
                   network are in the same order as the values of the dataframe provided,
                   then please re-run this function with argument no_name=true.""")
         nodatanames &&
-            error("""The input dataframe has no column labelled tipNames, so I can't
+            error("""The input dataframe has no column "$tipnames" for species names, so I can't
                   match the data on the network unambiguously. If you are sure that the
                   tips of the network are in the same order as the values of the dataframe
                   provided, then please re-run this function with argument no_name=true.""")
-        ind = indexin(fr[!,:tipNames], tipLabels(net))
-        if any(isnothing, ind) || length(unique(ind)) != length(ind)
-            error("""Tips names of the network and names provided in column tipNames
-                  of the dataframe do not match.""")
+        ind = indexin(fr[!, tipnames], tipLabels(net))
+        any(isnothing, ind) &&
+            error("""Tips with data are not in the network: $(fr[isnothing.(ind), tipnames])
+                  please provide a larger network including these tips.""")
+        ind = convert(Vector{Int}, ind) # Int, not Union{Nothing, Int}
+        if length(unique(ind)) == length(ind)
+            withinspecies_var && !y_mean_std &&
+            error("""for within-species variation, at least 1 species must have at least 2 individuals.
+                  did you mean to use option "y_mean_std=true" perhaps?""")
+        else
+            (!withinspecies_var || y_mean_std) &&
+            error("""Some tips have data on multiple rows.""")
         end
     end
     # Find the regression matrix and response vector
@@ -2124,9 +2408,41 @@ function phyloNetworklm(f::StatsModels.FormulaTerm,
     Y = StatsModels.response(mf)
     # Y = convert(Vector{Float64}, StatsModels.response(mf))
     # Y, pred = StatsModels.modelcols(f, fr)
+
+    if withinspecies_var && y_mean_std
+        # find columns in data frame for: # of individuals from each species
+        colname = Symbol(String(mf.f.lhs.sym)*"_n")
+        any(DataFrames.propertynames(fr) .== colname) ||
+            error("expected # of individuals in column $colname, but no such column was found")
+        counts  = fr[nonmissing,colname]
+        all(!ismissing, counts) || error("some num_individuals values are missing, column $colname")
+        all(x -> x>0, counts) || error("some species have 0 or <0 num_individuals, column $colname")
+        all(isfinite.(counts))|| error("some species have infinite num_individuals, column $colname")
+        # find sample SDs corresponding to the response mean in each species
+        colname = Symbol(String(mf.f.lhs.sym)*"_sd")
+        any(DataFrames.propertynames(fr) .== colname) ||
+            error("expected the response's SD (per species) in column $colname, but no such column was found")
+        ySD = fr[nonmissing,colname]
+        all(!ismissing, ySD) || error("some SD values are missing, column $colname")
+        all(x -> x≥0, ySD) || error("some SD values are negative, column $colname")
+        all(isfinite.(ySD))|| error("some SD values are infinite, column $colname")
+    else
+        counts = nothing
+        ySD = nothing
+    end
+
+    withinspecies_var && model != "BM" &&
+        error("within-species variation is not implemented for non-BM models")
+    modeldic = Dict("BM" => BM(),
+                    "lambda" => PagelLambda(),
+                    "scalingHybrid" => ScalingHybrid())
+    haskey(modeldic, model) || error("phylolm is not defined for model $model.")
+    modelobj = modeldic[model]
+
     StatsModels.TableRegressionModel(
-        phyloNetworklm(mm.m, Y, net; nonmissing=nonmissing, model=model, ind=ind,
-                       startingValue=startingValue, fixedValue=fixedValue),
+        phylolm(mm.m, Y, net, modelobj; reml=reml, nonmissing=nonmissing, ind=ind,
+                    startingValue=startingValue, fixedValue=fixedValue,
+                    withinspecies_var=withinspecies_var, counts=counts, ySD=ySD),
         mf, mm)
 end
 
@@ -2135,38 +2451,138 @@ end
 ## Un-changed Quantities
 # Coefficients of the regression
 StatsBase.coef(m::PhyloNetworkLinearModel) = coef(m.lm)
-# Number of observations
-StatsBase.nobs(m::PhyloNetworkLinearModel) = nobs(m.lm)
-# vcov matrix: sigma2_estim * inv(X' * X)
-StatsBase.vcov(m::PhyloNetworkLinearModel) = vcov(m.lm)
-# standard error of coefficients: sqrt(diag(vcov))
-StatsBase.stderror(m::PhyloNetworkLinearModel) = stderror(m.lm)
-# confidence Intervals for coefficients:
-#  hcat(coef,coef) + stderror * quantile(TDist(dof_residual, (1.-level)/2.) * [1. -1.]
-StatsBase.confint(m::PhyloNetworkLinearModel; level=0.95::Real) = confint(m.lm, level=level)
-# coef table: t-values t=coef/se
-#    CoefTable(hcat(coef,se,t,ccdf(FDist(1, dof_residual), abs2(t))),
-#              ["Estimate","Std.Error","t value", "Pr(>|t|)"],
-#              ["x$i" for i = 1:size(X, 2)], 4)
-function StatsBase.coeftable(m::PhyloNetworkLinearModel)
-    if size(m.lm.pp.X, 2) == 0
-        return CoefTable([0], ["Fixed Value"], ["(Intercept)"])
+
+"""
+    StatsBase.nobs(m::PhyloNetworkLinearModel)
+
+Number of observations: number of species with data, if the model assumes
+known species means, and number of individuals with data, if the model
+accounts for within-species variation.
+"""
+function StatsBase.nobs(m::PhyloNetworkLinearModel)
+    if isnothing(m.model_within)
+        return nobs(m.lm)
     else
-        coeftable(m.lm)
+        return sum(1.0 ./ m.model_within.wsp_ninv)
     end
 end
-# Degrees of freedom for residuals
-StatsBase.dof_residual(m::PhyloNetworkLinearModel) =  nobs(m) - length(coef(m))
-# Degrees of freedom consumed in the model
+
+"""
+    vcov(m::PhyloNetworkLinearModel)
+
+Return the variance-covariance matrix of the coefficient estimates.
+
+For the continuous trait evolutionary models currently implemented, species-level
+mean response (conditional on the predictors), Y|X is modeled as:
+
+1. Y|X ∼ 𝒩(Xβ, σ²ₛV) for models assuming known species mean values (no within-species variation)
+2. Y|X ∼ 𝒩(Xβ, σ²ₛV + σ²ₑD⁻¹) for models with information from multiple individuals
+   and assuming within-species variation
+
+The matrix V is inferred from the phylogeny, but may also depend on additional
+parameters to be estimated (e.g. `lambda` for Pagel's Lambda model). See
+[`ContinuousTraitEM`](@ref), [`PhyloNetworkLinearModel`](@ref) for more details.
+
+If (1), then return σ²ₛ(X'V⁻¹X)⁻¹, where σ²ₛ is estimated with REML, even if
+the model was fitted with `reml=false`.
+This follows the conventions of [`nlme::gls`](https://www.rdocumentation.org/packages/nlme/versions/3.1-152)
+and [`stats::glm`](https://www.rdocumentation.org/packages/stats/versions/3.6.2) in R.
+
+If (2), then return σ²ₛ(X'W⁻¹X)⁻¹, where W = V+(σ²ₑ/σ²ₛ)D⁻¹ is estimated, and
+σ²ₛ & σₑ are the estimates obtained with ML or REML, depending on the `reml`
+option used to fit the model `m`. This follows the convention
+of [`MixedModels.fit`](https://juliastats.org/MixedModels.jl/stable/) in Julia.
+"""
+function StatsBase.vcov(m::PhyloNetworkLinearModel)
+    # GLM.vcov(x::LinPredModel) = rmul!(invchol(x.pp), dispersion(x, true))
+    # GLM.dispersion (sqrt=true): sqrt(sum of working residuals / dof_residual): forces "REML"
+    (isnothing(m.model_within) ? vcov(m.lm) :
+                                 rmul!(GLM.invchol(m.lm.pp), sigma2_phylo(m)) )
+end
+"""
+    stderror(m::PhyloNetworkLinearModel)
+
+Return the standard errors of the coefficient estimates. See [`vcov`](@ref)
+for related information on how these are computed.
+"""
+StatsBase.stderror(m::PhyloNetworkLinearModel) = sqrt.(diag(vcov(m)))
+# confidence Intervals for coefficients: GLM uses normal quantiles
+# Based on: https://github.com/JuliaStats/GLM.jl/blob/d1ccc9abcc9c7ca6f640c13ff535ee8383e8f808/src/lm.jl#L240-L243
+"""
+    confint(m::PhyloNetworkLinearModel; level::Real=0.95)
+
+Return confidence intervals for coefficients, with confidence level `level`,
+based on the t-distribution whose degree of freedom is determined by the
+number of species (as returned by `dof_residual`)
+"""
+function StatsBase.confint(m::PhyloNetworkLinearModel; level::Real=0.95)
+    hcat(coef(m),coef(m)) + stderror(m) *
+    quantile(TDist(dof_residual(m)), (1. - level)/2.) * [1. -1.]
+end
+# Table of estimated coefficients, standard errors, t-values, p-values, CIs
+# Based on: https://github.com/JuliaStats/GLM.jl/blob/d1ccc9abcc9c7ca6f640c13ff535ee8383e8f808/src/lm.jl#L193-L203
+"""
+    coeftable(m::PhyloNetworkLinearModel; level::Real=0.95)
+
+Return coefficient estimates, standard errors, t-values, p-values, and t-intervals
+as a `StatsBase.CoefTable`.
+"""
+function StatsBase.coeftable(m::PhyloNetworkLinearModel; level::Real=0.95)
+    n_coef = size(m.lm.pp.X, 2) # no. of predictors
+    if n_coef == 0
+        return CoefTable([0], ["Fixed Value"], ["(Intercept)"])
+    else
+        cc = coef(m)
+        se = stderror(m)
+        tt = cc ./ se
+        p = ccdf.(Ref(FDist(1, dof_residual(m))), abs2.(tt))
+        ci = se*quantile(TDist(dof_residual(m)), (1-level)/2)
+        levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
+        CoefTable(hcat(cc,se,tt,p,cc+ci,cc-ci),
+                  ["Coef.","Std. Error","t","Pr(>|t|)","Lower $levstr%","Upper $levstr%"],
+                  ["x$i" for i = 1:n_coef], 4, 3)
+    end
+end
+
+# degrees of freedom for residuals: at the species level, for coefficients of
+# the phylogenetic regression, assuming known co-variance between species means.
+# used for F and T degrees of freedom, instead of more conservative Z
+StatsBase.dof_residual(m::PhyloNetworkLinearModel) =  nobs(m.lm) - length(coef(m))
+
+# degrees of freedom consumed by the species-level model
 function StatsBase.dof(m::PhyloNetworkLinearModel)
-    res = length(coef(m)) + 1 # (+1: dispersion parameter)
-    if any(m.model .== ["lambda", "scalingHybrid"])
+    res = length(coef(m)) + 1 # +1: phylogenetic variance
+    if any(typeof(m.model) .== [PagelLambda, ScalingHybrid])
         res += 1 # lambda is one parameter
+    end
+    if !isnothing(m.model_within)
+        res += 1 # within-species variance
     end
     return res
 end
-# Deviance (sum of squared residuals with metric V)
-StatsBase.deviance(m::PhyloNetworkLinearModel) = deviance(m.lm)
+"""
+    StatsBase.deviance(m::PhyloNetworkLinearModel)
+
+-2 loglikelihood of the fitted model. See also  [`loglikelihood`](@ref).
+
+Note: this is not the residual-sum-of-squares deviance as output by GLM,
+such as one would get with `deviance(m.model)`.
+"""
+function StatsBase.deviance(m::PhyloNetworkLinearModel, ::Val{false}=Val(false))
+    -2*loglikelihood(m)
+end
+
+"""
+    StatsBase.deviance(m::PhyloNetworkLinearModel, Val(true))
+
+Residual sum of squares with metric V, the estimated phylogenetic covariance,
+if the model is appropriate.
+"""
+function StatsBase.deviance(m::PhyloNetworkLinearModel, ::Val{true})
+    isnothing(m.model_within) ||
+        error("deviance measured as SSR not implemented for within-species variation")
+    deviance(m.lm)
+end
 
 ## Changed Quantities
 # Compute the residuals
@@ -2177,13 +2593,70 @@ StatsBase.response(m::PhyloNetworkLinearModel) = m.Y
 # Predicted values at the tips
 # (rescaled by cholesky of tips variances)
 StatsBase.predict(m::PhyloNetworkLinearModel) = m.RL * predict(m.lm)
-#Log likelihood of the fitted linear model
-StatsBase.loglikelihood(m::PhyloNetworkLinearModel) =  loglikelihood(m.lm) - 1/2 * m.logdetVy
-# - 0.5*(nobs + nobs * log(2pi) + nobs * log(sigma2_estim) + logdetVy)
-# Null  Deviance (sum of squared residuals with metric V)
+
+# log likelihood of the fitted linear model
+"""
+    loglikelihood(m::PhyloNetworkLinearModel)
+
+Log likelihood, or log restricted likelihood (REML), depending on `m.reml`.
+
+For models with no within-species variation, the likelihood (or REML) is
+calculated based on the joint density for species-level mean responses.
+
+For within-species variation models, the likelihood is calculated based on the joint
+density for individual-level responses. This can be calculated from individual-level
+data, but also by providing species-level means and standard deviations which is
+accepted by [`phylolm`](@ref).
+
+**Warning**: many summaries are based on the species-level model, like
+"dof_residual", "residuals", "predict" or "deviance".
+So `deviance` is innapropriate to compare models with within-species variation.
+Use `loglikelihood` to compare models based on data at the individual level.
+
+Reminder: do not compare ML or REML values across models fit on different data.
+Do not compare REML values across models that do not have the same predictors
+(fixed effects): use ML instead, for that purpose.
+"""
+function StatsBase.loglikelihood(m::PhyloNetworkLinearModel)
+    linmod = m.lm
+    if isnothing(m.model_within) # not a msrerr model
+        n = (m.reml ? dof_residual(linmod) : nobs(linmod) )
+        σ² = deviance(linmod)/n
+        ll =  - n * (1. + log2π + log(σ²))/2 - m.logdetVy/2
+    else # if msrerr model, return loglikelihood of individual-level data
+        modwsp = m.model_within
+        ntot = sum(1.0 ./ modwsp.wsp_ninv) # total number of individuals
+        nsp = nobs(linmod)                 # number of species
+        ncoef = length(coef(linmod))
+        bdof = (m.reml ? nsp - ncoef : nsp )
+        wdof = ntot - nsp
+        N = wdof + bdof # ntot or ntot - ncoef
+        σ²  = modwsp.bsp_var[1]
+        σw² = modwsp.wsp_var[1]
+        ll = sum(log.(modwsp.wsp_ninv)) -
+             (N + N * log2π + bdof * log(σ²) + wdof * log(σw²) + m.logdetVy)
+        ll /= 2
+    end
+    if m.reml
+        ll -= logdet(linmod.pp.chol)/2 # -1/2 log|X'Vm^{-1}X|
+    end
+    return ll
+end
+
 # REMARK Not just the null deviance of the cholesky regression
 # Might be something better to do than this, though.
+"""
+    StatsBase.nulldeviance(m::PhyloNetworkLinearModel)
+
+Residual sums of squares of the null model, that is when including only
+the intercept, if the model is appropriate.
+The residual sums of squares is taken with metric V, the estimated phylogenetic
+covariance matrix.
+"""
 function StatsBase.nulldeviance(m::PhyloNetworkLinearModel)
+    isnothing(m.model_within) ||
+        error("""null loglik / deviance not implemented for within-species variation (mixed model):
+        please fit the model with an intercept only instead.""")
     vo = ones(length(m.Y), 1)
     vo = m.RL \ vo
     bo = inv(vo'*vo)*vo'*response(m.lm)
@@ -2193,18 +2666,25 @@ end
 # Null Log likelihood (null model with only the intercept)
 # Same remark
 function StatsBase.nullloglikelihood(m::PhyloNetworkLinearModel)
+    nulldev = nulldeviance(m) # error & exit if within-species variation
+    m.reml && @warn "ML null loglik: do not compare with REML on model with predictors"
     n = length(m.Y)
-    return -n/2 * (log(2*pi * nulldeviance(m)/n) + 1) - 1/2 * m.logdetVy
+    return -n/2 * (log(2*pi * nulldev/n) + 1) - 1/2 * m.logdetVy
 end
 # coefficient of determination (1 - SS_res/SS_null)
 # Copied from GLM.jl/src/lm.jl, line 139
-StatsBase.r2(m::PhyloNetworkLinearModel) = 1 - deviance(m)/nulldeviance(m)
+function StatsBase.r2(m::PhyloNetworkLinearModel)
+    isnothing(m.model_within) ||
+        error("r2 and adjusted r2 not implemented for within-species variation (mixed model)")
+    1 - deviance(m, Val(true))/nulldeviance(m)
+end
 # adjusted coefficient of determination
-# Copied from GLM.jl/src/lm.jl, lines 141-146
+# in GLM.jl/src/lm.jl: p = dof-1 and dof(x::LinearModel) = length(coef(x))+1, +1 for the dispersion parameter
 function StatsBase.adjr2(obj::PhyloNetworkLinearModel)
     n = nobs(obj)
-    # dof() includes the dispersion parameter
-    p = dof(obj) - 1
+    # dof() includes the dispersion parameter sigma2, and lambda if relevant
+    p = dof(obj)-1 # like in GLM
+    # one could argue to use this: p = length(coef(obj)), to ignore lambda or other parameters
     1 - (1 - r2(obj))*(n-1)/(n-p)
 end
 
@@ -2215,21 +2695,39 @@ end
 ## New quantities
 # ML estimate for variance of the BM
 """
-    sigma2_estim(m::PhyloNetworkLinearModel)
+    sigma2_phylo(m::PhyloNetworkLinearModel)
 
-Estimated variance for a fitted object.
+Estimated between-species variance-rate for a fitted object.
 """
-sigma2_estim(m::PhyloNetworkLinearModel) = deviance(m.lm) / nobs(m)
-# Need to be adapted manually to TableRegressionModel beacouse it's a new function
-sigma2_estim(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T) =
-  sigma2_estim(m.model)
+function sigma2_phylo(m::PhyloNetworkLinearModel)
+    linmod = m.lm
+    if isnothing(m.model_within)
+        n = (m.reml ? dof_residual(linmod) : nobs(linmod) )
+        σ² = deviance(linmod)/n
+    else
+        σ²  = m.model_within.bsp_var[1]
+    end
+    return σ²
+end
+
+# adapt to TableRegressionModel because sigma2_phylo is a new function
+sigma2_phylo(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T) =
+  sigma2_phylo(m.model)
+
+"""
+    sigma2_within(m::PhyloNetworkLinearModel)
+
+Estimated within-species variance for a fitted object.
+"""
+sigma2_within(m::PhyloNetworkLinearModel) = (isnothing(m.model_within) ? nothing : m.model_within.wsp_var[1])
+sigma2_within(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T) = sigma2_within(m.model)
 # ML estimate for ancestral state of the BM
 """
-    mu_estim(m::PhyloNetworkLinearModel)
+    mu_phylo(m::PhyloNetworkLinearModel)
 
 Estimated root value for a fitted object.
 """
-function mu_estim(m::PhyloNetworkLinearModel)
+function mu_phylo(m::PhyloNetworkLinearModel)
     @warn """You fitted the data against a custom matrix, so I have no way
          to know which column is your intercept (column of ones).
          I am using the first coefficient for ancestral mean mu by convention,
@@ -2241,84 +2739,314 @@ function mu_estim(m::PhyloNetworkLinearModel)
     end
 end
 # Need to be adapted manually to TableRegressionModel beacouse it's a new function
-function mu_estim(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T)
+function mu_phylo(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T)
     if m.mf.f.rhs.terms[1] != StatsModels.InterceptTerm{true}()
         error("The fit was done without intercept, so I cannot estimate mu")
     end
     return coef(m)[1]
 end
-# Lambda estim
+
+"""
+    lambda(m::PhyloNetworkLinearModel)
+    lambda(m::ContinuousTraitEM)
+
+Value assigned to the lambda parameter, if appropriate.
+"""
+lambda(m::PhyloNetworkLinearModel) = lambda(m.model)
+lambda(m::Union{BM,PagelLambda,ScalingHybrid}) = m.lambda
+
+"""
+    lambda!(m::PhyloNetworkLinearModel, newlambda)
+    lambda!(m::ContinuousTraitEM, newlambda)
+
+Assign a new value to the lambda parameter.
+"""
+lambda!(m::PhyloNetworkLinearModel, lambda_new) = lambda!(m.model, lambda_new)
+lambda!(m::Union{BM,PagelLambda,ScalingHybrid}, lambda_new::Real) = (m.lambda = lambda_new)
+
 """
     lambda_estim(m::PhyloNetworkLinearModel)
 
 Estimated lambda parameter for a fitted object.
 """
-lambda_estim(m::PhyloNetworkLinearModel) = m.lambda
+lambda_estim(m::PhyloNetworkLinearModel) = lambda(m)
 lambda_estim(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T) = lambda_estim(m.model)
 
 ### Print the results
 # Variance
 function paramstable(m::PhyloNetworkLinearModel)
-    Sig = sigma2_estim(m)
-    res = "Sigma2: " * @sprintf("%.6g", Sig)
-    if any(m.model .== ["lambda", "scalingHybrid"])
+    Sig = sigma2_phylo(m)
+    res = "phylogenetic variance rate: " * @sprintf("%.6g", Sig)
+    if any(typeof(m.model) .== [PagelLambda, ScalingHybrid])
         Lamb = lambda_estim(m)
         res = res*"\nLambda: " * @sprintf("%.6g", Lamb)
+    end
+    mw = m.model_within
+    if !isnothing(mw)
+        res = res*"\nwithin-species variance: " * @sprintf("%.6g", mw.wsp_var[1])
     end
     return(res)
 end
 function Base.show(io::IO, obj::PhyloNetworkLinearModel)
-    println(io, "$(typeof(obj)):\n\nParameter(s) Estimates:\n", paramstable(obj), "\n\nCoefficients:\n", coeftable(obj))
+    println(io, "$(typeof(obj.model)):\n\nParameter Estimates, using ", (obj.reml ? "REML" : "ML"),":\n",
+            paramstable(obj), "\n\nCoefficients:\n", coeftable(obj))
 end
 # For DataFrameModel. see also Base.show in
 # https://github.com/JuliaStats/StatsModels.jl/blob/master/src/statsmodel.jl
-function Base.show(io::IO, model::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T)
-    ct = coeftable(model)
-    println(io, "$(typeof(model))")
+function Base.show(io::IO, obj::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T)
+    ct = coeftable(obj)
+    println(io, "$(typeof(obj))")
     print(io, "\nFormula: ")
-    println(io, string(model.mf.f)) # formula
+    println(io, string(obj.mf.f)) # formula
     println(io)
-    println(io, "Model: $(model.model.model)")
+    println(io, "Model: $(evomodelname(obj.model.model))")
     println(io)
-    println(io,"Parameter(s) Estimates:")
-    println(io, paramstable(model.model))
+    println(io,"Parameter Estimates, using ", (obj.model.reml ? "REML" : "ML"),":")
+    println(io, paramstable(obj.model))
     println(io)
     println(io,"Coefficients:")
     show(io, ct)
     println(io)
-    println(io, "Log Likelihood: "*"$(round(loglikelihood(model), digits=10))")
-    println(io, "AIC: "*"$(round(aic(model), digits=10))")
+    println(io, "Log Likelihood: "*"$(round(loglikelihood(obj), digits=10))")
+    println(io, "AIC: "*"$(round(aic(obj), digits=10))")
 end
 
 ###############################################################################
-###############################################################################
-## Anova - using ftest from GLM - Need version 0.8.1
-###############################################################################
+#  within-species variation (including measurement error)
 ###############################################################################
 
+function phylolm_wsp(::BM, X::Matrix, Y::Vector, net::HybridNetwork, reml::Bool;
+        nonmissing=trues(length(Y))::BitArray{1}, # which individuals have non-missing data?
+        ind=[0]::Vector{Int},
+        counts::Union{Nothing, Vector}=nothing,
+        ySD::Union{Nothing, Vector}=nothing)
+    V = sharedPathMatrix(net)
+    phylolm_wsp(X,Y,V, reml, nonmissing,ind, counts,ySD)
+end
+
+#= notes about missing data: after X and Y produced by stat formula:
+- individuals with missing data (in response or any predictor)
+  already removed from both X and Y
+- V has all species: some not listed, some listed but without any data
+- nonmissing and ind correspond to the original rows in the data frame,
+  including those with some missing data, so:
+  * nonmissing has length >= length of Y
+  * sum(nonmissing) = length of Y
+- V[:Tips][ind,ind][nonmissing,nonmissing] correspond to the data rows
+
+extra problems:
+- a species may be listed 1+ times in ind, but not in ind[nonmissing]
+- ind and nonmissing need to be converted to the species level, alongside Y
+=#
+function phylolm_wsp(X::Matrix, Y::Vector, V::MatrixTopologicalOrder,
+        reml::Bool, nonmissing::BitArray{1}, ind::Vector{Int},
+        counts::Union{Nothing, Vector},
+        ySD::Union{Nothing, Vector})
+    n_coef = size(X, 2) # no. of predictors
+    individualdata = isnothing(counts)
+    xor(individualdata, isnothing(ySD)) &&
+        error("counts and ySD must be both nothing, or both vectors")
+    if individualdata
+        # get species means for Y and X, the within-species residual ss
+        ind_nm = ind[nonmissing] # same length as Y
+        ind_sp = unique(ind_nm)
+        n_sp = length(ind_sp) # number of species with data
+        n_tot = length(Y)     # total number of individuals with data
+        d_inv = zeros(n_sp)
+        Ysp = Vector{Float64}(undef,n_sp) # species-level mean Y response
+        Xsp = Matrix{Float64}(undef,n_sp,n_coef)
+        RSS = 0.0  # residual sum-of-squares within-species
+        for (i0,iV) in enumerate(ind_sp)
+            iii = findall(isequal(iV), ind_nm)
+            n_i = length(iii) # number of obs for species of index iV in V
+            d_inv[i0] = 1/n_i
+            Xsp[i0, :] = mean(X[iii, :], dims=1) # ideally, all have same Xs
+            ymean = mean(Y[iii])
+            Ysp[i0] = ymean
+            RSS += sum((Y[iii] .- ymean).^2)
+        end
+        Vsp = V[:Tips][ind_sp,ind_sp]
+        # redefine "ind" and "nonmissing" at species level. ind = index of species
+        # in tipLabels(net), in same order in which species come in means Ysp.
+        # nonmissing: no need to list species with no data
+        ind = ind_sp
+        nonmissing = trues(n_sp)
+    else # group means and sds for response variable were passed in
+        n_sp = length(Y)
+        n_tot = sum(counts)
+        d_inv = 1.0 ./ counts
+        Ysp = Y
+        Xsp = X
+        RSS = sum((ySD .^ 2) .* (counts .- 1.0))
+        ind_nm = ind[nonmissing]
+        Vsp = V[:Tips][ind_nm,ind_nm]
+    end
+
+    model_within, RL = withinsp_varianceratio(Xsp,Ysp,Vsp, reml, d_inv,RSS,
+        n_tot,n_coef,n_sp)
+    η = model_within.optsum.final[1]
+    Vm = Vsp + η * Diagonal(d_inv)
+    m = PhyloNetworkLinearModel(lm(RL\Xsp, RL\Ysp), V, Vm, RL, Ysp, Xsp,
+            2*logdet(RL), reml, ind, nonmissing, BM(), model_within)
+    return m
+end
+
+# the method below takes in "clean" X,Y,V: species-level means, no missing data,
+#     matching order of species in X,Y and V, no extra species in V.
+# given V & η: analytical formula for σ² estimate
+# numerical optimization of η = σ²within / σ²
+function withinsp_varianceratio(X::Matrix, Y::Vector, V::Matrix, reml::Bool,
+        d_inv::Vector, RSS::Float64, ntot::Real, ncoef::Int64, nsp::Int64,
+        model_within::Union{Nothing, WithinSpeciesCTM}=nothing)
+
+    RL = cholesky(V).L
+    lm_sp = lm(RL\X, RL\Y)
+    if model_within === nothing
+        # create model_within with good starting values
+        s2start = GLM.dispersion(lm_sp, false) # sqr=false: deviance/dof_residual
+        # this is the REML, not ML estimate, which would be deviance/nobs
+        s2withinstart = RSS/(ntot-nsp)
+        ηstart = s2withinstart / s2start
+        optsum = OptSummary([ηstart], [1e-100], :LN_BOBYQA; initial_step=[0.01],
+            ftol_rel=fRelTr, ftol_abs=fAbsTr, xtol_rel=xRelTr, xtol_abs=[xAbsTr])
+        optsum.maxfeval = 1000
+        model_within = WithinSpeciesCTM([s2withinstart], [s2start], d_inv, RSS, optsum)
+    else
+        optsum = model_within.optsum
+        # fixit: I find this option dangerous (and not used). what if the
+        # current optsum has 2 parameters instead of 1, or innapropriate bounds, etc.?
+        # We could remove the option to provide a pre-built model_within
+    end
+    opt = Opt(optsum)
+    Ndof = (reml ? ntot - ncoef : ntot )
+    wdof = ntot - nsp
+    Vm = similar(V) # scratch space for repeated usage
+    function logliksigma(η) # returns: -2loglik, estimated sigma2, and more
+        Vm .= V + η * Diagonal(d_inv)
+        Vmchol = cholesky(Vm) # LL' = Vm
+        RL = Vmchol.L
+        lm_sp = lm(RL\X, RL\Y)
+        σ² = (RSS/η + deviance(lm_sp))/Ndof
+        # n2ll = -2 loglik except for Ndof*log(2pi) + sum log(di) + Ndof
+        n2ll = Ndof * log(σ²) + wdof * log(η) + logdet(Vmchol)
+        if reml
+            n2ll += logdet(lm_sp.pp.chol) # log|X'Vm^{-1}X|
+        end
+        #= manual calculations without cholesky
+        Q = X'*(Vm\X);  β = Q\(X'*(Vm\Ysp));  r = Y-X*β
+        val =  Ndof*log(σ²) + ((RSS/η) + r'*(Vm\r))/σ² +
+            (ntot-ncoef)*log(η) + logabsdet(Vm)[1] + logabsdet(Q)[1]
+        =#
+        return (n2ll, σ², Vmchol)
+    end
+    obj(x, g) = logliksigma(x[1])[1] # x = [η]
+    NLopt.min_objective!(opt, obj)
+    fmin, xmin, ret = NLopt.optimize(opt, optsum.initial)
+    optsum.feval = opt.numevals
+    optsum.final = xmin
+    optsum.fmin = fmin
+    optsum.returnvalue = ret
+    # save the results
+    η = xmin[1]
+    (n2ll, σ², Vmchol) = logliksigma(η)
+    model_within.wsp_var[1] = η*σ²
+    model_within.bsp_var[1] = σ²
+    return model_within, Vmchol.L
+end
+
+###############################################################################
+#= Model comparisons
+
+isnested: borrowed from GLM.issubmodel (as of commit 504e5186c87)
+https://github.com/JuliaStats/GLM.jl/blob/master/src/ftest.jl#L11
+To avoid comparing the coefnames and to be less restrictive, we compare the
+design matrices. For example: Xsmall = [x1-x2 x1-x3] is nested in Xbig = [x1 x2 x3].
+We check that there exists B such that Xsmall = Xbig * B, or rather, that
+min_B norm(Xbig*B - Xsmall) ≈ 0 . For the math of this minimization problem,
+see https://github.com/JuliaStats/GLM.jl/pull/197#issuecomment-331136617
+
+When isnested() exists in GLM, check to see if we should improve further.
+=#
+"""
+    isnested(m1::PhyloNetworkLinearModel, m2::PhyloNetworkLinearModel)
+    isnested(m1::ContinuousTraitEM, m2::ContinuousTraitEM)
+
+True if `m1` is nested in `m2`, false otherwise.
+Models fitted with different criteria (ML and REML) are not nested.
+Models with different predictors (fixed effects) must be fitted with ML to be
+considered nested.
+"""
+function isnested(m1m::PhyloNetworkLinearModel, m2m::PhyloNetworkLinearModel; atol::Real=0.0)
+    if !(nobs(m1m) ≈ nobs(m2m))
+        @error "Models must have the same number of observations"
+        return false
+    end
+    # exact same response? (before phylogenetic transformation)
+    if m1m.Y != m2m.Y
+        @error "Models must fit the same response"
+        return false
+    end
+    # same criterion?
+    if xor(m1m.reml, m2m.reml)
+        @error "Models must be fitted with same criterion (both ML or both REML)"
+        return false
+    end
+    # same within-species variation? e.g. same assumption of species means
+    # this check should be useless, because same Y so same # species, and same
+    # nobs so same # individuals. But 1 ind/species w/o within-species variation,
+    # and at least 1 species with 2+ inds/species w/ within-species variation.
+    xor(isnothing(m1m.model_within), isnothing(m2m.model_within)) && return false
+    # nesting of fixed effects: is X1 = X2*B for some B?
+    X1 = m1m.X
+    np1 = size(X1, 2)
+    X2 = m2m.X
+    np2 = size(X2, 2)
+    np1 > np2 && return false # if X1 has more predictors, can't be nested in X2
+    # is mininum_B norm X2*B - X1 ≈ 0 ?
+    rtol = Base.rtoldefault(eltype(X1))
+    norm(view(qr(X2).Q' * X1, np2 + 1:size(X2,1), :)) < max(atol, rtol*norm(X1)) ||
+        return false
+    # ML (not REML) if different fixed effects
+    sameFE = (X1 == X2) # exact equality okay here
+    if !sameFE && (m1m.reml || m2m.reml)
+        @error "Models should be fitted with ML to do a likelihood ratio test with different predictors"
+        return false
+    end
+    # nesting of phylogenetic variance models
+    return isnested(m1m.model, m2m.model)
+end
+
+isnested(::T,::T) where T <: ContinuousTraitEM = true
+isnested(::BM,::Union{PagelLambda,ScalingHybrid}) = true
+isnested(::Union{PagelLambda,ScalingHybrid}, ::BM) = false
+isnested(::ScalingHybrid,::PagelLambda) = false
+isnested(::PagelLambda,::ScalingHybrid) = false
+StatsModels.isnested(m1::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T},
+    m2::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T}; atol::Real=0.0) where T =
+    isnested(m1.model, m2.model; atol=atol)
+
+## ANOVA using ftest from GLM - need version 0.8.1
 function GLM.ftest(objs::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T}...)  where T
     objsModels = [obj.model for obj in objs]
     return ftest(objsModels...)
 end
 
 function GLM.ftest(objs::PhyloNetworkLinearModel...)
+    if !all( isa(o.model,BM) && isnothing(o.model_within) for o in objs)
+        throw(ArgumentError("""F test is only valid for the vanilla BM model.
+        Use a likelihood ratio test instead with function `lrtest`."""))
+    end
     objslm = [obj.lm for obj in objs]
     return ftest(objslm...)
 end
-
-###############################################################################
-###############################################################################
-## Anova - old version - kept for tests purposes - do not export
-###############################################################################
-###############################################################################
-
+## ANOVA: old version - kept for tests purposes - do not export
 """
     anova(objs::PhyloNetworkLinearModel...)
 
 Takes several nested fits of the same data, and computes the F statistic for each
 pair of models.
 
-The fits must be results of function [`phyloNetworklm`](@ref) called on the same
+The fits must be results of function [`phylolm`](@ref) called on the same
 data, for models that have more and more effects.
 
 Returns a DataFrame object with the anova table.
@@ -2344,10 +3072,10 @@ function anovaBin(obj1::PhyloNetworkLinearModel, obj2::PhyloNetworkLinearModel)
     length(coef(obj1)) < length(coef(obj2)) || error("Models must be nested, from the smallest to the largest.")
     ## residuals
     dof2 = dof_residual(obj2)
-    dev2 = deviance(obj2)
+    dev2 = deviance(obj2, Val(true))
     ## reducted residuals
     dof1 = dof_residual(obj1) - dof2
-    dev1 = deviance(obj1) - dev2
+    dev1 = deviance(obj1, Val(true)) - dev2
     ## Compute statistic
     F = (dev1 / dof1) / (dev2 / dof2)
     pval = GLM.ccdf.(GLM.FDist(dof1, dof2), F) # ccdf and FDist from Distributions, used by GLM
@@ -2355,11 +3083,8 @@ function anovaBin(obj1::PhyloNetworkLinearModel, obj2::PhyloNetworkLinearModel)
 end
 
 ###############################################################################
-###############################################################################
 ## Ancestral State Reconstruction
 ###############################################################################
-###############################################################################
-# Class for reconstructed states on a network
 """
     ReconstructedStates
 
@@ -2415,12 +3140,14 @@ function expectationsPlot(obj::ReconstructedStates; markMissing="*"::AbstractStr
     for i=1:size(expe, 1)
         expetxt[i] = string(round(expe[i, 2], digits=2))
     end
-    # Find missing values
+    # find tips absent from dataframe or with missing data: add a mark
     if !ismissing(obj.model)
         nonmissing = obj.model.nonmissing
         ind = obj.model.ind
-        missingTipNumbers = obj.model.V.tipNumbers[ind][.!nonmissing]
-        indexMissing = indexin(missingTipNumbers, expe[!,:nodeNumber])
+        tipnumbers = obj.model.V.tipNumbers # all tips, even those absent from dataframe
+        tipnumbers_data = tipnumbers[ind][nonmissing] # listed and data non-missing
+        tipnumbers_imputed = setdiff(tipnumbers, tipnumbers_data)
+        indexMissing = indexin(tipnumbers_imputed, expe[!,:nodeNumber])
         expetxt[indexMissing] .*= markMissing
     end
     return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], PredInt = expetxt)
@@ -2477,6 +3204,46 @@ function predintPlot(obj::ReconstructedStates; level=0.95::Real, withExp=false::
     return DataFrame(nodeNumber = [obj.NodeNumbers; obj.TipNumbers], PredInt = pritxt)
 end
 
+#= ----- roadmap of ancestralStateReconstruction, continuous traits ------
+
+all methods return a ReconstructedStates object.
+core method called by every other method:
+
+1. ancestralStateReconstruction(Vzz, VzyVyinvchol, RL, Y, m_y, m_z,
+                                NodeNumbers, TipNumbers, sigma2, add_var, model)
+
+higher-level methods, for real data:
+
+2. ancestralStateReconstruction(dataframe, net; tipnames=:tipNames, kwargs...)
+   - dataframe: 2 columns only, species names & tip response values
+   - fits an intercept-only model, then calls #3
+   - by default without kwargs: model = BM w/o within-species variation
+
+3. ancestralStateReconstruction(TableRegressionModel[, Matrix]) which calls:
+   ancestralStateReconstruction(PhyloNetworkLinearModel[, Matrix])
+   - takes a model already fitted
+   - if no matrix given: the model must be intercept-only. An expanded intercept
+     column is created with length = # nodes with *no* data
+   - matrix: if given, must have same # of columns as the model matrix, and
+     must contain the predictor(s) at nodes with *no* data, with nodes listed in
+     the following order:
+     * internal nodes first, in the same order in which they appear in net.node,
+       i.e in V.internalNodeNumbers
+     * then leaves with no data, in the same order in which they appear in
+       tipLabels(net), i.e. in V.tipNumbers.
+   - extracts the predicted values for all network nodes, and the unscaled
+     3 covariance matrices of interest (nodes with data, nodes w/o, crossed)
+   - computes "universal" kriging (as opposed to "simple" kriging, which would
+     simply plug-in estimates into the prediction variance formula): a term is
+     added to the prediction variance, to account for the estimation of β.
+
+methods based on simulations with a ParamsProcess "params":
+
+4. ancestralStateReconstruction(net, Y, params) which calls:
+   ancestralStateReconstruction(V::MatrixTopologicalOrder, Y, params)
+   - intercept-only: known β and known variance: "simple" kriging is correct
+   - BM only: params must be of type ParamsBM
+=#
 
 """
     ancestralStateReconstruction(net::HybridNetwork, Y::Vector, params::ParamsBM)
@@ -2507,12 +3274,12 @@ function ancestralStateReconstruction(V::MatrixTopologicalOrder,
     Vyz = V[:TipsNodes]
     R = cholesky(Vy)
     RL = R.L
-    temp = RL \ Vyz
+    VzyVyinvchol = (RL \ Vyz)'
     # Vectors of means
     m_y = ones(size(Vy)[1]) .* params.mu # !! correct only if no predictor.
     m_z = ones(size(Vz)[1]) .* params.mu # !! works if BM no shift.
     # Actual computation
-    ancestralStateReconstruction(Vz, temp, RL,
+    ancestralStateReconstruction(Vz, VzyVyinvchol, RL,
                                  Y, m_y, m_z,
                                  V.internalNodeNumbers,
                                  V.tipNumbers,
@@ -2521,81 +3288,88 @@ end
 
 # Reconstruction from all the needed quantities
 function ancestralStateReconstruction(Vz::Matrix,
-                                      VyzVyinvchol::Matrix,
-                                      RL::LowerTriangular,
-                                      Y::Vector, m_y::Vector, m_z::Vector,
-                                      NodeNumbers::Vector,
-                                      TipNumbers::Vector,
-                                      sigma2::Real,
-                                      add_var=zeros(size(Vz))::Matrix, # Additional variance for BLUP
-                                      model=missing::Union{PhyloNetworkLinearModel,Missing})
-    m_z_cond_y = m_z + VyzVyinvchol' * (RL \ (Y - m_y))
-    V_z_cond_y = sigma2 .* (Vz - VyzVyinvchol' * VyzVyinvchol)
+            VzyVyinvchol::AbstractMatrix,
+            RL::LowerTriangular,
+            Y::Vector, m_y::Vector, m_z::Vector,
+            NodeNumbers::Vector, TipNumbers::Vector,
+            sigma2::Real,
+            add_var=zeros(size(Vz))::Matrix, # Additional variance for BLUP
+            model=missing::Union{PhyloNetworkLinearModel,Missing})
+    # E[z∣y] = E[z∣X] + Cov(z,y)⋅Var(y)⁻¹⋅(y-E[y∣X])
+    m_z_cond_y = m_z + VzyVyinvchol * (RL \ (Y - m_y))
+    V_z_cond_y = sigma2 .* (Vz - VzyVyinvchol * VzyVyinvchol')
+    if !ismissing(model) && !isnothing(model.model_within) # y = last part of z
+        Y = similar(Y, 0) # empty vector of similar type as Y
+    end
     ReconstructedStates(m_z_cond_y, V_z_cond_y + add_var, NodeNumbers, Y, TipNumbers, model)
 end
 
-# """
-# `ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)`
-# Function to find the ancestral traits reconstruction on a network, given an
-# object fitted by function phyloNetworklm, and some predictors expressed at all the nodes of the network.
-#
-# - obj: a PhyloNetworkLinearModel object, or a
-# TableRegressionModel{PhyloNetworkLinearModel}, if data frames were used.
-# - X_n a matrix with as many columns as the number of predictors used, and as
-# many lines as the number of unknown nodes or tips.
-#
-# Returns an object of type ancestralStateReconstruction.
-# """
+#= from a fitted object: see high-level docstring below
+X_n: matrix with as many columns as the number of predictors used,
+     and as many rows as the number of unknown nodes or tips.
 
-# Empirical reconstruciton from a fitted object
-# TO DO: Handle the order of internal nodes for matrix X_n
+TO DO: Handle the order of internal nodes and no-data tips for matrix X_n
+=#
 function ancestralStateReconstruction(obj::PhyloNetworkLinearModel, X_n::Matrix)
     if (size(X_n)[2] != length(coef(obj)))
         error("""The number of predictors for the ancestral states (number of columns of X_n)
               does not match the number of predictors at the tips.""")
     end
-    if size(X_n)[1] != length(obj.V.internalNodeNumbers) + sum(.!obj.nonmissing)
+    if size(X_n)[1] != length(obj.V.internalNodeNumbers) + length(obj.V.tipNumbers)-length(obj.ind) + sum(.!obj.nonmissing)
         error("""The number of lines of the predictors does not match
               the number of nodes plus the number of missing tips.""")
     end
+    #= y: observed species means at some tips
+       z: trait (true species mean) at nodes to be predicted:
+          - at nodes without data, i.e. internal nodes & no-data tips
+          - at tips with data if within-species variation: y=ytrue+ϵ
+       Vy,y = Vy,ytrue = Vytrue,y and Vytrue,z = Vyz
+    =#
     m_y = predict(obj)
     m_z = X_n * coef(obj)
     # If the tips were re-organized, do the same for Vyz
-    if (obj.ind != [0])
-#       iii = indexin(1:length(obj.nonmissing), obj.ind[obj.nonmissing])
-#       iii = iii[iii .> 0]
-#       jjj = [1:length(obj.V.internalNodeNumbers); indexin(1:length(obj.nonmissing), obj.ind[!obj.nonmissing])]
-#       jjj = jjj[jjj .> 0]
-#       Vyz = Vyz[iii, jjj]
-        Vyz = obj.V[:TipsNodes, obj.ind, obj.nonmissing]
-        missingTipNumbers = obj.V.tipNumbers[obj.ind][.!obj.nonmissing]
-        nmTipNumbers = obj.V.tipNumbers[obj.ind][obj.nonmissing]
-    else
+    if obj.ind == [0]
         @warn """There were no indication for the position of the tips on the network.
              I am assuming that they are given in the same order.
              Please check that this is what you intended."""
-        Vyz = obj.V[:TipsNodes, collect(1:length(obj.V.tipNumbers)), obj.nonmissing]
-        missingTipNumbers = obj.V.tipNumbers[.!obj.nonmissing]
-        nmTipNumbers = obj.V.tipNumbers[obj.nonmissing]
+        ind = collect(1:length(obj.V.tipNumbers))
+    else
+        ind = obj.ind
     end
-    temp = obj.RL \ Vyz
-    U = X_n - temp' * (obj.RL \ obj.X)
+    # Vyz: sharedpath. rows y: tips w/ data. cols z: internal nodes & tips w/o data
+    Vyz = obj.V[:TipsNodes, ind, obj.nonmissing]
+    Vzz = obj.V[:InternalNodes, ind, obj.nonmissing]
+    nmTipNumbers = obj.V.tipNumbers[ind][obj.nonmissing] # tips w/ data
+    # no-data node numbers: for nodes (internal or tips) with no data
+    ndNodeNumbers = [obj.V.internalNodeNumbers; setdiff(obj.V.tipNumbers, nmTipNumbers)]
+    if !isnothing(obj.model_within) # add tips with data to z
+        Vtips = obj.V[:Tips, ind, obj.nonmissing]
+        Vzz = [Vzz Vyz'; Vyz Vtips]
+        Vyz = [Vyz Vtips]
+        append!(m_z, m_y)
+        append!(ndNodeNumbers, nmTipNumbers)
+        empty!(nmTipNumbers)
+        X_n = vcat(X_n, obj.X)
+    end
+    VzyVyinvchol = (obj.RL \ Vyz)'
+    # add_var = zeros corresponds to "simple" kriging: E[Y∣X]=Xβ with known β & variance components
+    # below: "universal" kriging: β estimated, variance components known
+    U = X_n - VzyVyinvchol * (obj.RL \ obj.X)
     add_var = U * vcov(obj) * U'
-    # Warn about the prediction intervals
     @warn """These prediction intervals show uncertainty in ancestral values,
          assuming that the estimated variance rate of evolution is correct.
          Additional uncertainty in the estimation of this variance rate is
          ignored, so prediction intervals should be larger."""
     # Actual reconstruction
-    ancestralStateReconstruction(obj.V[:InternalNodes, obj.ind, obj.nonmissing],
-                                 temp,
+    ancestralStateReconstruction(Vzz,
+                                 VzyVyinvchol,
                                  obj.RL,
                                  obj.Y,
                                  m_y,
                                  m_z,
-                                 [obj.V.internalNodeNumbers; missingTipNumbers],
+                                 ndNodeNumbers,
                                  nmTipNumbers,
-                                 sigma2_estim(obj),
+                                 sigma2_phylo(obj),
                                  add_var,
                                  obj)
 end
@@ -2604,14 +3378,13 @@ end
     ancestralStateReconstruction(obj::PhyloNetworkLinearModel[, X_n::Matrix])
 
 Function to find the ancestral traits reconstruction on a network, given an
-object fitted by function [`phyloNetworklm`](@ref). By default, the function assumes
+object fitted by function [`phylolm`](@ref). By default, the function assumes
 that the regressor is just an intercept. If the value of the regressor for
 all the ancestral states is known, it can be entered in X_n, a matrix with as
 many columns as the number of predictors used, and as many lines as the number
 of unknown nodes or tips.
 
 Returns an object of type [`ReconstructedStates`](@ref).
-See documentation for this type and examples for functions that can be applied to it.
 
 # Examples
 
@@ -2624,32 +3397,32 @@ julia> dat = CSV.File(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples",
 
 julia> using StatsModels # for statistical model formulas
 
-julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
+julia> fitBM = phylolm(@formula(trait ~ 1), dat, phy);
 
 julia> ancStates = ancestralStateReconstruction(fitBM) # Should produce a warning, as variance is unknown.
 ┌ Warning: These prediction intervals show uncertainty in ancestral values,
 │ assuming that the estimated variance rate of evolution is correct.
 │ Additional uncertainty in the estimation of this variance rate is
 │ ignored, so prediction intervals should be larger.
-└ @ PhyloNetworks ~/build/crsl4/PhyloNetworks.jl/src/traits.jl:2163
+└ @ PhyloNetworks ~/build/crsl4/PhyloNetworks.jl/src/traits.jl:3359
 ReconstructedStates:
 ───────────────────────────────────────────────
   Node index      Pred.        Min.  Max. (95%)
 ───────────────────────────────────────────────
-        -5.0   1.32139   -0.288423     2.9312
-        -8.0   1.03258   -0.539072     2.60423
-        -7.0   1.41575   -0.0934395    2.92495
-        -6.0   1.39417   -0.0643135    2.85265
-        -4.0   1.39961   -0.0603343    2.85955
-        -3.0   1.51341   -0.179626     3.20644
-       -13.0   5.3192     3.96695      6.67145
-       -12.0   4.51176    2.94268      6.08085
-       -16.0   1.50947    0.0290151    2.98992
-       -15.0   1.67425    0.241696     3.10679
-       -14.0   1.80309    0.355568     3.2506
-       -11.0   2.7351     1.21896      4.25123
-       -10.0   2.73217    1.16545      4.29889
-        -9.0   2.41132    0.639075     4.18357
+        -5.0   1.32139   -0.33824      2.98102
+        -8.0   1.03258   -0.589695     2.65485
+        -7.0   1.41575   -0.140705     2.97221
+        -6.0   1.39417   -0.107433     2.89577
+        -4.0   1.39961   -0.102501     2.90171
+        -3.0   1.51341   -0.220523     3.24733
+       -13.0   5.3192     3.92279      6.71561
+       -12.0   4.51176    2.89222      6.13131
+       -16.0   1.50947   -0.0186118    3.03755
+       -15.0   1.67425    0.196069     3.15242
+       -14.0   1.80309    0.309992     3.29618
+       -11.0   2.7351     1.17608      4.29412
+       -10.0   2.73217    1.12361      4.34073
+        -9.0   2.41132    0.603932     4.21871
         -2.0   2.04138   -0.0340955    4.11686
         14.0   1.64289    1.64289      1.64289
          8.0   1.67724    1.67724      1.67724
@@ -2694,16 +3467,16 @@ julia> expectations(ancStates)
 
 julia> predint(ancStates)
 31×2 Array{Float64,2}:
- -0.288423    2.9312
- -0.539072    2.60423
- -0.0934395   2.92495
- -0.0643135   2.85265
- -0.0603343   2.85955
- -0.179626    3.20644
-  3.96695     6.67145
-  2.94268     6.08085
-  0.0290151   2.98992
-  0.241696    3.10679
+ -0.33824     2.98102
+ -0.589695    2.65485
+ -0.140705    2.97221
+ -0.107433    2.89577
+ -0.102501    2.90171
+ -0.220523    3.24733
+  3.92279     6.71561
+  2.89222     6.13131
+ -0.0186118   3.03755
+  0.196069    3.15242
   ⋮
   0.542565    0.542565
   0.773436    0.773436
@@ -2747,14 +3520,14 @@ julia> predintPlot(ancStates) # prediction intervals, in data frame, useful to p
  Row │ nodeNumber  PredInt
      │ Int64       Abstract…
 ─────┼───────────────────────────
-   1 │         -5  [-0.29, 2.93]
-   2 │         -8  [-0.54, 2.6]
-   3 │         -7  [-0.09, 2.92]
-   4 │         -6  [-0.06, 2.85]
-   5 │         -4  [-0.06, 2.86]
-   6 │         -3  [-0.18, 3.21]
-   7 │        -13  [3.97, 6.67]
-   8 │        -12  [2.94, 6.08]
+   1 │         -5  [-0.34, 2.98]
+   2 │         -8  [-0.59, 2.65]
+   3 │         -7  [-0.14, 2.97]
+   4 │         -6  [-0.11, 2.9]
+   5 │         -4  [-0.1, 2.9]
+   6 │         -3  [-0.22, 3.25]
+   7 │        -13  [3.92, 6.72]
+   8 │        -12  [2.89, 6.13]
   ⋮  │     ⋮             ⋮
   25 │         10  6.95
   26 │         11  4.78
@@ -2771,14 +3544,14 @@ julia> allowmissing!(dat, :trait);
 
 julia> dat[[2, 5], :trait] .= missing; # missing values allowed to fit model
 
-julia> fitBM = phyloNetworklm(@formula(trait ~ 1), dat, phy);
+julia> fitBM = phylolm(@formula(trait ~ 1), dat, phy);
 
 julia> ancStates = ancestralStateReconstruction(fitBM);
 ┌ Warning: These prediction intervals show uncertainty in ancestral values,
 │ assuming that the estimated variance rate of evolution is correct.
 │ Additional uncertainty in the estimation of this variance rate is
 │ ignored, so prediction intervals should be larger.
-└ @ PhyloNetworks ~/build/crsl4/PhyloNetworks.jl/src/traits.jl:2163
+└ @ PhyloNetworks ~/build/crsl4/PhyloNetworks.jl/src/traits.jl:3166
 
 julia> first(expectations(ancStates), 3) # looking at first 3 nodes only
 3×2 DataFrame
@@ -2791,9 +3564,9 @@ julia> first(expectations(ancStates), 3) # looking at first 3 nodes only
 
 julia> predint(ancStates)[1:3,:] # just first 3 nodes again
 3×2 Array{Float64,2}:
- -0.31245   3.16694
- -0.625798  3.3295
- -0.110165  3.35002
+ -0.373749  3.22824
+ -0.698432  3.40214
+ -0.17179   3.41165
 
    
 julia> first(expectationsPlot(ancStates),3) # format node <-> ancestral state
@@ -2812,9 +3585,9 @@ julia> first(predintPlot(ancStates),3) # prediction intervals, useful to plot
  Row │ nodeNumber  PredInt       
      │ Int64       Abstract…     
 ─────┼───────────────────────────
-   1 │         -5  [-0.31, 3.17]
-   2 │         -8  [-0.63, 3.33]
-   3 │         -7  [-0.11, 3.35]
+   1 │         -5  [-0.37, 3.23]
+   2 │         -8  [-0.7, 3.4]
+   3 │         -7  [-0.17, 3.41]
 
 julia> plot(phy, :RCall, nodeLabel = predintPlot(ancStates));
 ```
@@ -2828,7 +3601,7 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel)
     are known, please provide them as a matrix argument to the function.
     Otherwise, you might consider doing a multivariate linear regression (not implemented yet).""")
     end
-  X_n = ones((length(obj.V.internalNodeNumbers) + sum(.!obj.nonmissing), 1))
+    X_n = ones((length(obj.V.nodeNumbersTopOrder) - sum(obj.nonmissing), 1))
     ancestralStateReconstruction(obj, X_n)
 end
 # For a TableRegressionModel
@@ -2842,27 +3615,27 @@ end
 """
     ancestralStateReconstruction(fr::AbstractDataFrame, net::HybridNetwork; kwargs...)
 
-Function to find the ancestral traits reconstruction on a network, given some data at the tips.
-Uses function [`phyloNetworklm`](@ref) to perform a phylogenetic regression of the data against an
-intercept (amounts to fitting an evolutionary model on the network, BM being the only option
-available for now).
+Estimate the ancestral traits on a network, given some data at the tips.
+Uses function [`phylolm`](@ref) to perform a phylogenetic regression of the data against an
+intercept (amounts to fitting an evolutionary model on the network).
 
-See documentation on [`phyloNetworklm`](@ref) and `ancestralStateReconstruction(obj::PhyloNetworkLinearModel[, X_n::Matrix])`
+See documentation on [`phylolm`](@ref) and `ancestralStateReconstruction(obj::PhyloNetworkLinearModel[, X_n::Matrix])`
 for further details.
 
 Returns an object of type [`ReconstructedStates`](@ref).
 """
 function ancestralStateReconstruction(fr::AbstractDataFrame,
                                       net::HybridNetwork;
+                                      tipnames::Symbol=:tipNames,
                                       kwargs...)
     nn = DataFrames.propertynames(fr)
-    datpos = nn .!= :tipNames
+    datpos = nn .!= tipnames
     if sum(datpos) > 1
-        error("""Besides one column labelled 'tipNames', the dataframe fr should have
+        error("""Besides one column labelled '$tipnames', the dataframe fr should have
               only one column, corresponding to the data at the tips of the network.""")
     end
     f = @eval(@formula($(nn[datpos][1]) ~ 1))
-    reg = phyloNetworklm(f, fr, net; kwargs...)
+    reg = phylolm(f, fr, net; tipnames=tipnames, kwargs...)
     return ancestralStateReconstruction(reg)
 end
 
@@ -2872,10 +3645,10 @@ end
 
 
 #################################################
-## Old version of phyloNetworklm (naive)
+## Old version of phylolm (naive)
 #################################################
 
-# function phyloNetworklmNaive(X::Matrix, Y::Vector, net::HybridNetwork, model="BM"::AbstractString)
+# function phylolmNaive(X::Matrix, Y::Vector, net::HybridNetwork, model="BM"::AbstractString)
 #   # Geting variance covariance
 #   V = sharedPathMatrix(net)
 #   Vy = extractVarianceTips(V, net)

@@ -160,5 +160,5 @@ For the algorithm, see
 See [`nj!`](@ref) for using a matrix as input.
 """
 function nj(D::DataFrame; force_nonnegative_edges::Bool=false)
-    nj!(convert(Matrix{Float64}, D), names(D); force_nonnegative_edges=force_nonnegative_edges)
+    nj!(Matrix{Float64}(D), names(D); force_nonnegative_edges=force_nonnegative_edges)
 end

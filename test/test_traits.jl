@@ -44,7 +44,7 @@ V2 = V2[ind, ind]
 ########################
 
 ## Simple test
-C = convert(Matrix, vcv(net))
+C = Matrix(vcv(net))
 @test C ≈ V1[:Tips]
 vv = diag(C)
 for i in 1:4
@@ -52,7 +52,7 @@ for i in 1:4
         C[i, j] = C[i, j] / sqrt(vv[i] * vv[j])
     end
 end
-@test convert(Matrix, vcv(net; corr = true)) ≈ C
+@test Matrix(vcv(net; corr = true)) ≈ C
 
 ## Test names with tree
 tree_str = "(((t2:0.1491947961,t4:0.3305515735):0.5953111246,t3:0.9685578963):0.1415281736,(t5:0.7093406462,t1:0.1888024569):0.9098094522);"
