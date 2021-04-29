@@ -814,12 +814,12 @@ julia> fit = fitdiscrete(net, m1, dat); # optimized rates: α=0.27 and β=0.35
 julia> pltw = PhyloNetworks.posterior_logtreeweight(fit);
 
 julia> round.(exp.(pltw), digits=5) # posterior trees probabilities (sum up to 1)
-2-element Array{Float64,1}:
+2-element Vector{Float64}:
  0.91983
  0.08017
 
 julia> round.(exp.(fit.priorltw), digits=4) # the prior tree probabilities are similar here (tiny data set!)
-2-element Array{Float64,1}:
+2-element Vector{Float64}:
  0.9
  0.1
 ```
@@ -1113,12 +1113,12 @@ julia> using DataFrames
 julia> dat = DataFrame(trait1 = ["A", "C", "A", missing]); # 4×1 DataFrame
 
 julia> PhyloNetworks.learnlabels(:BTSM, dat)
-2-element Array{String,1}:
+2-element Vector{String}:
  "A"
  "C"
 
 julia> PhyloNetworks.learnlabels(:JC69, dat)
-2-element Array{String,1}:
+2-element Vector{String}:
  "A"
  "C"
 ```

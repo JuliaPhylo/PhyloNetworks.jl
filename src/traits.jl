@@ -446,7 +446,7 @@ julia> using PhyloPlots
 julia> plot(net, :RCall, showNodeNumber=true); # to locate nodes
 
 julia> nodes_shifts = indexin([1,-5], [n.number for n in net.node]) # Put a shift on edges ending at nodes 1 and -5
-2-element Array{Union{Nothing, Int64},1}:
+2-element Vector{Union{Nothing, Int64}}:
  1
  7
 
@@ -495,7 +495,7 @@ julia> dfr = innerjoin(dat, dfr_shift, on=:tipNames); # join data and regressors
 julia> using StatsModels # for statistical model formulas
 
 julia> fitBM = phylolm(@formula(trait ~ shift_1 + shift_8), dfr, net; reml=false) # actual fit
-StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
+StatsModels.TableRegressionModel{PhyloNetworkLinearModel, Matrix{Float64}}
 
 Formula: trait ~ 1 + shift_1 + shift_8
 
@@ -581,7 +581,7 @@ julia> using PhyloPlots
 julia> plot(net, :RCall, showNodeNumber=true); # to locate nodes: node 5 is child of hybrid node
 
 julia> nodes_hybrids = indexin([5], [n.number for n in net.node]) # Put a shift on edges below hybrids
-1-element Array{Union{Nothing, Int64},1}:
+1-element Vector{Union{Nothing, Int64}}:
  5
 
 julia> params = ParamsBM(10, 0.1, ShiftNet(net.node[nodes_hybrids], [3.0],  net))
@@ -627,7 +627,7 @@ julia> dfr = innerjoin(dat, dfr_hybrid, on=:tipNames); # join data and regressor
 julia> using StatsModels
 
 julia> fitBM = phylolm(@formula(trait ~ shift_6), dfr, net; reml=false) # actual fit
-StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
+StatsModels.TableRegressionModel{PhyloNetworkLinearModel, Matrix{Float64}}
 
 Formula: trait ~ 1 + shift_6
 
@@ -1109,7 +1109,7 @@ Sigma2: 0.1
 
 
 julia> traits = sim[:Tips] # Extract simulated values at the tips.
-16-element Array{Float64,1}:
+16-element Vector{Float64}:
   2.17618427971927
   1.0330846124205684
   3.048979175536912
@@ -1128,7 +1128,7 @@ julia> traits = sim[:Tips] # Extract simulated values at the tips.
   3.1910928691142915
 
 julia> sim.M.tipNames # name of tips, in the same order as values above
-16-element Array{String,1}:
+16-element Vector{String}:
  "Prionodontidae"
  "Felidae"
  "Viverridae"
@@ -1147,7 +1147,7 @@ julia> sim.M.tipNames # name of tips, in the same order as values above
  "Procyonidae"
 
 julia> traits = sim[:InternalNodes] # Extract simulated values at internal nodes. Order: as in sim.M.internalNodeNumbers
-15-element Array{Float64,1}:
+15-element Vector{Float64}:
  1.1754592873593104
  2.0953234045227083
  2.4026760531649423
@@ -1165,7 +1165,7 @@ julia> traits = sim[:InternalNodes] # Extract simulated values at internal nodes
  1.0
 
 julia> traits = sim[:All] # simulated values at all nodes, ordered as in sim.M.nodeNumbersTopOrder
-31-element Array{Float64,1}:
+31-element Vector{Float64}:
  1.0
  2.4579867601968663
  2.5212485416800425
@@ -1188,7 +1188,7 @@ julia> traits = sim[:All] # simulated values at all nodes, ordered as in sim.M.n
  2.17618427971927
 
 julia> traits = sim[:Tips, :Exp] # Extract expected values at the tips (also works for sim[:All, :Exp] and sim[:InternalNodes, :Exp]).
-16-element Array{Float64,1}:
+16-element Vector{Float64}:
  1.0
  1.0
  1.0
@@ -1227,22 +1227,22 @@ Sigma: [1.0 0.5; 0.5 1.0]
 
 
 julia> traits = sim[:Tips] # Extract simulated values at the tips (each column contains the simulated traits for one node).
-2×16 Array{Float64,2}:
+2×16 Matrix{Float64}:
  5.39465  7.223     1.88036  -5.10491   …  -3.86504  0.133704  -2.44564
  7.29184  7.59947  -1.89206  -0.960013      3.86822  3.23285    1.93376
 
 julia> traits = sim[:InternalNodes] # simulated values at internal nodes. order: same as in sim.M.internalNodeNumbers
-2×15 Array{Float64,2}:
+2×15 Matrix{Float64}:
  4.42499  -0.364198  0.71666   3.76669  …  4.57552  4.29265  5.61056  1.0
  6.24238   2.97237   0.698006  2.40122     5.92623  5.13753  4.5268   2.0
 
 julia> traits = sim[:All] # simulated values at all nodes, ordered as in sim.M.nodeNumbersTopOrder
-2×31 Array{Float64,2}:
+2×31 Matrix{Float64}:
  1.0  5.61056  4.29265  4.57552  …   1.88036  4.42499  7.223    5.39465
  2.0  4.5268   5.13753  5.92623     -1.89206  6.24238  7.59947  7.29184
 
 julia> sim[:Tips, :Exp] # Extract expected values (also works for sim[:All, :Exp] and sim[:InternalNodes, :Exp])
-2×16 Array{Float64,2}:
+2×16 Matrix{Float64}:
  1.0  1.0  1.0  1.0  1.0  1.0  1.0  1.0  …  1.0  1.0  1.0  1.0  1.0  1.0  1.0
  2.0  2.0  2.0  2.0  2.0  2.0  2.0  2.0     2.0  2.0  2.0  2.0  2.0  2.0  2.0
 ```
@@ -2150,7 +2150,7 @@ julia> using StatsModels # for stat model formulas
 julia> fitBM = phylolm(@formula(trait ~ 1), dat, phy; reml=false);
 
 julia> fitBM # Shows a summary
-StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
+StatsModels.TableRegressionModel{PhyloNetworkLinearModel, Matrix{Float64}}
 
 Formula: trait ~ 1
 
@@ -2189,11 +2189,11 @@ julia> round(bic(fitBM), digits=10)
 168.4887090241
 
 julia> round.(coef(fitBM), digits=4)
-1-element Array{Float64,1}:
+1-element Vector{Float64}:
  4.679
 
 julia> confint(fitBM)
-1×2 Array{Float64,2}:
+1×2 Matrix{Float64}:
  4.02696  5.33104
 
 julia> abs(round(r2(fitBM), digits=10)) # absolute value for jldoctest convenience
@@ -2203,11 +2203,11 @@ julia> abs(round(adjr2(fitBM), digits=10))
 0.0
 
 julia> round.(vcov(fitBM), digits=6)
-1×1 Array{Float64,2}:
+1×1 Matrix{Float64}:
  0.109314
 
 julia> round.(residuals(fitBM), digits=6)
-197-element Array{Float64,1}:
+197-element Vector{Float64}:
  -0.237648
  -0.357937
  -0.159387
@@ -2230,7 +2230,7 @@ julia> round.(residuals(fitBM), digits=6)
  -0.439833
 
 julia> round.(response(fitBM), digits=5)
-197-element Array{Float64,1}:
+197-element Vector{Float64}:
  4.44135
  4.32106
  4.51961
@@ -2253,7 +2253,7 @@ julia> round.(response(fitBM), digits=5)
  4.23917
 
 julia> round.(predict(fitBM), digits=5)
-197-element Array{Float64,1}:
+197-element Vector{Float64}:
  4.679
  4.679
  4.679
@@ -2294,7 +2294,7 @@ julia> df = DataFrame( # individual-level observations
 
 julia> m1 = phylolm(@formula(trait3 ~ trait1), df, net;
                     tipnames=:species, withinspecies_var=true)
-StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
+StatsModels.TableRegressionModel{PhyloNetworkLinearModel, Matrix{Float64}}
 
 Formula: trait3 ~ 1 + trait1
 
@@ -2324,7 +2324,7 @@ julia> df_r = DataFrame( # species-level statistics (sample means, standard devi
 
 julia> m2 = phylolm(@formula(trait3 ~ trait1), df_r, net;
                 tipnames=:species, withinspecies_var=true, y_mean_std=true)
-StatsModels.TableRegressionModel{PhyloNetworkLinearModel,Array{Float64,2}}
+StatsModels.TableRegressionModel{PhyloNetworkLinearModel, Matrix{Float64}}
 
 Formula: trait3 ~ 1 + trait1
 
@@ -3466,7 +3466,7 @@ julia> expectations(ancStates)
                     16 rows omitted
 
 julia> predint(ancStates)
-31×2 Array{Float64,2}:
+31×2 Matrix{Float64}:
  -0.33824     2.98102
  -0.589695    2.65485
  -0.140705    2.97221
@@ -3563,7 +3563,7 @@ julia> first(expectations(ancStates), 3) # looking at first 3 nodes only
    3 │         -7          1.61993
 
 julia> predint(ancStates)[1:3,:] # just first 3 nodes again
-3×2 Array{Float64,2}:
+3×2 Matrix{Float64}:
  -0.373749  3.22824
  -0.698432  3.40214
  -0.17179   3.41165

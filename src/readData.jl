@@ -551,7 +551,7 @@ Reading in trees, looking at 15 quartets in each...
   **
 
 julia> t # taxon order: t[i] = name of taxon number i
-6-element Array{String,1}:
+6-element Vector{String}:
  "A"
  "B"
  "C"
@@ -579,7 +579,7 @@ julia> tree1 = readTopology("(E,(a1,B),(a2,D),O);"); tree2 = readTopology("(((a1
 julia> q,t = countquartetsintrees([tree1, tree2], Dict("a1"=>"A", "a2"=>"A"); showprogressbar=false);
 
 julia> t
-5-element Array{String,1}:
+5-element Vector{String}:
  "A"
  "B"
  "D"
