@@ -218,7 +218,7 @@ fit2 = (@test_logs fitdiscrete(net, m2, dat1; optimizeQ=false, optimizeRVAS=fals
 @test fit2.trait == [[1],[1],[2],[2]]
 @test StatsBase.loglikelihood(fit2) ≈ -2.6754091090953693 atol=2e-4
 originalstdout = stdout
-redirect_stdout(open("/dev/null", "w"))
+redirect_stdout(devnull)
 #OPTIMIZES RATES
 fit2 = @test_logs fitdiscrete(net, m2, dat1; optimizeQ=true, optimizeRVAS=false, verbose=true) # 65 iterations
 redirect_stdout(originalstdout)
@@ -611,7 +611,7 @@ dna_net_optRVAS = (@test_logs (:warn, r"^the network contains taxa with no data"
 @test dna_net_optRVAS.ratemodel.alpha[1] != 1.0
 @test dna_net_optRVAS.ratemodel.ratemultiplier ≈ [0.02, 1.98] atol=0.05
 originalstdout = stdout
-redirect_stdout(open("/dev/null", "w"))
+redirect_stdout(devnull)
 dna_net_opt_both = (@test_logs (:warn, r"^the network contains taxa with no data") fitdiscrete(dna_net_top,
     nasm_model, rv, dna_dat, dna_weights; optimizeQ=true, optimizeRVAS=true, closeoptim=true, ftolRel=.1, ftolAbs=.2, xtolRel=.1, xtolAbs=.2, verbose=true))
 redirect_stdout(originalstdout)

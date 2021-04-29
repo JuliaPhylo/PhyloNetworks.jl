@@ -355,14 +355,16 @@ nothing # hide
 trait3 # changed: +5 was added by the previous loop to A and B
 ```
 The categorical variable `underHyb` separates tips "A" and "B" from the others.
-We need to mark it as a categorical variable, not a numerical variable,
-i.e. as a `CategoricalArray`.
+We need to consider it as a factor, not a numerical variable.
+One way is to make it a vector of strings, as done below.
+An alternative way would be to add and use the `CategoricalArrays` package,
+then transform the column `underHyb` to be `categorical` (shown in commments).
 ```@example tree_trait
 dat = DataFrame(trait1 = trait1, trait2 = trait2, trait3 = trait3,
-                underHyb = underHyb,
+                underHyb = string.(underHyb),
                 tipNames = tipLabels(sim1))
-transform!(dat, :underHyb => categorical, renamecols=false)
-
+# using CategoricalArrays
+# transform!(dat, :underHyb => categorical, renamecols=false)
 nothing # hide
 ```
 ```@repl tree_trait

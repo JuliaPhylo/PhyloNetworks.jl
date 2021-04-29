@@ -335,7 +335,7 @@ julia> rootcompID = checkroot!(net, membership);
 julia> rootcomp = keys(filter(p -> p.second == rootcompID, membership));
 
 julia> sort([n.number for n in rootcomp]) # number of nodes in the root component
-3-element Array{Int64,1}:
+3-element Vector{Int64}:
  -3
  -2
   4

@@ -9,7 +9,7 @@ using CSV
 
 @testset "setlengths and setgammas" begin
 originalstdout = stdout
-redirect_stdout(open("/dev/null", "w")) # not portable to Windows
+redirect_stdout(devnull) # requires julia v1.6
 @test_nowarn PhyloNetworks.citation()
 redirect_stdout(originalstdout)
 

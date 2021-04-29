@@ -15,6 +15,6 @@ StatsModels = "3eaba693-59b7-5ba5-a881-562e759f1c8d"
 [compat]
 BioSymbols = "4.0"
 CSV = "0.4, 0.5, 0.6, 0.7, 0.8"
-DataFrames = "0.22"
+DataFrames = "1.0"
 Documenter = "~0.26"
 RCall = "0.13"

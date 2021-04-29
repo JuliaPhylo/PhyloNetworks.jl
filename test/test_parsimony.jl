@@ -8,7 +8,7 @@ originalstdout = stdout
 # on a tree:
 net = readTopology("(A,(B,(C,D)));")
 tips = Dict("A" => 0, "B" => 0, "C" => 1, "D" => 1)
-redirect_stdout(open("/dev/null", "w")) # not portable to Windows
+redirect_stdout(devnull) # requires julia v1.6
 score, states = PhyloNetworks.parsimonyDiscreteFitch(net, tips)
 redirect_stdout(originalstdout)
 @test score==1
@@ -17,7 +17,7 @@ redirect_stdout(originalstdout)
 
 # on a network:
 net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
-redirect_stdout(open("/dev/null", "w"))
+redirect_stdout(devnull)
 score, states = PhyloNetworks.parsimonyDiscreteFitch(net, tips)
 redirect_stdout(originalstdout)
 @test score==1
@@ -25,7 +25,7 @@ redirect_stdout(originalstdout)
          2=>Set([0]),-2=>Set([1]),5=>Set([1]),1=>Set([0]))
 
 tips = Dict("A" => 0, "B" => 1, "C" => 0, "D" => 1)
-redirect_stdout(open("/dev/null", "w"))
+redirect_stdout(devnull)
 score, states = PhyloNetworks.parsimonyDiscreteFitch(net, tips)
 redirect_stdout(originalstdout)
 @test score==2
@@ -34,7 +34,7 @@ redirect_stdout(originalstdout)
 
 # from a data frame and with missing data:
 dat = DataFrame(taxon=["A","E","B","C","D"], trait=[missing,2,0,1,1])
-redirect_stdout(open("/dev/null", "w"))
+redirect_stdout(devnull)
 score, states = PhyloNetworks.parsimonyDiscreteFitch(net, dat)
 redirect_stdout(originalstdout)
 @test score==1
@@ -173,7 +173,7 @@ dat = DataFrame(CSV.File(joinpath(@__DIR__,"..","examples","Swadesh.csv")); copy
 # species, sequences = PhyloNetworks.readCSVtoArray(dat)
 # @test parsimonyGF(net, species, sequences) == 17.0
 # arguments chosen for a very short run
-redirect_stdout(open("/dev/null", "w"))
+redirect_stdout(devnull)
 @test_logs maxParsimonyNet(readTopology("(((English,Spanish),Norwegian),(German,Portuguese));"),
     dat, hmax=1, runs=1, Nfail=2, outgroup="Spanish", rootname="", seed=6)
 redirect_stdout(originalstdout)

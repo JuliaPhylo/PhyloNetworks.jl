@@ -353,7 +353,7 @@ end
 ## Export "lizard" dataset (Mahler et al 2013)
 phy = readTopology(joinpath(@__DIR__, "..", "examples", "lizard_tree.txt"));
 dat = DataFrame(CSV.File(joinpath(@__DIR__,"..","examples","lizard_trait.txt")); copycols=false);
-transform!(dat, :region => categorical, renamecols=false)
+dat[!,:region] = string.(dat[:,:region]) # avoid CategoricalArrays.categorical dependency
 
 ## Fit a BM
 fitBM = phylolm(@formula(AVG_SVL ~ AVG_ltoe_IV + AVG_lfing_IV * region), dat, phy; reml=false)

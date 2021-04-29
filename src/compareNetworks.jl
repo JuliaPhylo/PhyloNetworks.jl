@@ -152,7 +152,7 @@ visited: vector of node numbers, of all visited nodes.
 julia> net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readTopology |> directEdges! ;
 
 julia> taxa = net5 |> tipLabels # ABC EF D
-6-element Array{String,1}:
+6-element Vector{String}:
  "A"
  "B"
  "C"
@@ -161,7 +161,7 @@ julia> taxa = net5 |> tipLabels # ABC EF D
  "D"
 
 julia> hardwiredCluster(net5.edge[12], taxa) # descendants of 12th edge = CEF
-6-element Array{Bool,1}:
+6-element Vector{Bool}:
  0
  0
  1
@@ -217,7 +217,7 @@ and the function does not test for this.
 julia> net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readTopology |> directEdges! ;
 
 julia> PhyloNetworks.descendants(net5.edge[12], true) # descendants of 12th edge: all of them
-7-element Array{Int64,1}:
+7-element Vector{Int64}:
  -6
  -7
   4
@@ -227,7 +227,7 @@ julia> PhyloNetworks.descendants(net5.edge[12], true) # descendants of 12th edge
   7
 
 julia> PhyloNetworks.descendants(net5.edge[12]) # descendant leaves only
-3-element Array{Int64,1}:
+3-element Vector{Int64}:
  4
  5
  7
@@ -373,7 +373,7 @@ node leaf  hybrid hasHybEdge name inCycle edges'numbers
 julia> below, above = PhyloNetworks.ladderpartition(tree);
 
 julia> below
-12-element Array{Array{Array{Int64,1},1},1}:
+12-element Vector{Vector{Vector{Int64}}}:
  [[1]]                      
  [[2]]                      
  [[3]]                      
@@ -397,7 +397,7 @@ clades below node 11: [3, 4] [5, 6, 7]
 clades below node 12: [1] [2] [3, 4, 5, 6, 7]
 
 julia> above[8:12] # clades sister to and above nodes 8 through 12:
-5-element Array{Array{Array{Int64,1},1},1}:
+5-element Vector{Vector{Vector{Int64}}}:
  [[5, 6, 7], [1], [2]]
  [[5], [3, 4], [1], [2]]
  [[3, 4], [1], [2]]     
@@ -573,7 +573,7 @@ julia> net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);");
 julia> trees = displayedTrees(net,0.0; nofuse=true);
 
 julia> PhyloNetworks.inheritanceWeight.(trees)
-2-element Array{Float64,1}:
+2-element Vector{Float64}:
  -0.105361
  -2.30259 
 ```

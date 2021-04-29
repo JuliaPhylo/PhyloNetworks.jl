@@ -414,7 +414,7 @@ rank-1 = (t1-1) choose 1 + (t2-1) choose 2 + (t3-1) choose 3 + (t4-1) choose 4
 
 ```jldoctest
 julia> nCk = PhyloNetworks.nchoose1234(5)
-6×4 Array{Int64,2}:
+6×4 Matrix{Int64}:
  0   0   0  0
  1   0   0  0
  2   1   0  0
@@ -460,7 +460,7 @@ see [`nchoose1234`](@ref).
 
 ```jldoctest
 julia> nCk = PhyloNetworks.nchoose1234(5)
-6×4 Array{Int64,2}:
+6×4 Matrix{Int64}:
  0   0   0  0
  1   0   0  0
  2   1   0  0

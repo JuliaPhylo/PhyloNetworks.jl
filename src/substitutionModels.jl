@@ -116,14 +116,14 @@ in the data would be treated as missing value).
 
 ```jldoctest
 julia> getlabels(JC69([0.03], false))
-4-element Array{BioSymbols.DNA,1}:
+4-element Vector{BioSymbols.DNA}:
  DNA_A
  DNA_C
  DNA_G
  DNA_T
 
 julia> getlabels(HKY85([.5], repeat([0.25], 4)))
-4-element Array{BioSymbols.DNA,1}:
+4-element Vector{BioSymbols.DNA}:
  DNA_A
  DNA_C
  DNA_G
@@ -200,7 +200,7 @@ rate matrix Q:
        T  0.3226  0.2419  0.4839       *
 
 julia> PhyloNetworks.P(m1, 0.2)
-4×4 StaticArrays.MArray{Tuple{4,4},Float64,2,16} with indices SOneTo(4)×SOneTo(4):
+4×4 StaticArrays.MMatrix{4, 4, Float64, 16} with indices SOneTo(4)×SOneTo(4):
  0.81592    0.0827167  0.0462192  0.0551445
  0.0551445  0.831326   0.0827167  0.0308128
  0.0308128  0.0827167  0.831326   0.0551445
@@ -212,7 +212,7 @@ Juke-Cantor example:
 julia> m1 = JC69([1.]);
 
 julia> PhyloNetworks.P(m1, 0.2)
-4×4 StaticArrays.MArray{Tuple{4,4},Float64,2,16} with indices SOneTo(4)×SOneTo(4):
+4×4 StaticArrays.MMatrix{4, 4, Float64, 16} with indices SOneTo(4)×SOneTo(4):
  0.824446   0.0585179  0.0585179  0.0585179
  0.0585179  0.824446   0.0585179  0.0585179
  0.0585179  0.0585179  0.824446   0.0585179
@@ -240,14 +240,14 @@ rate low→high α=1.0
 rate high→low β=2.0
 
 julia> PhyloNetworks.P!(Matrix{Float64}(undef,2,2), m1, 0.3) # fills an uninitialized 2x2 matrix of floats
-2×2 Array{Float64,2}:
+2×2 Matrix{Float64}:
  0.80219  0.19781
  0.39562  0.60438
 
 julia> m2 = JC69([1.]);
 
 julia> PhyloNetworks.P!(Matrix{Float64}(undef,4,4), m2, 0.2)
-4×4 Array{Float64,2}:
+4×4 Matrix{Float64}:
  0.824446   0.0585179  0.0585179  0.0585179
  0.0585179  0.824446   0.0585179  0.0585179
  0.0585179  0.0585179  0.824446   0.0585179
@@ -504,7 +504,7 @@ rate 1→0 β=2.0
 julia> using Random; Random.seed!(12345);
 
 julia> randomTrait(m1, 0.2, [1,2,1,2,2])
-5-element Array{Int64,1}:
+5-element Vector{Int64}:
  1
  2
  1
@@ -554,17 +554,17 @@ julia> m1 = BinaryTraitSubstitutionModel(1.0, 2.0, ["low","high"]);
 
 julia> net = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.0,D:5.0);");
 
-julia> using Random; Random.seed!(47);
+julia> using Random; Random.seed!(235);
 
 julia> trait, lab = randomTrait(m1, net)
 ([1 2 … 1 1], ["-2", "D", "-3", "-6", "C", "-4", "H1", "B", "A"])
 
 julia> trait
-1×9 Array{Int64,2}:
+1×9 Matrix{Int64}:
  1  2  1  1  2  2  1  1  1
 
 julia> lab
-9-element Array{String,1}:
+9-element Vector{String}:
  "-2" 
  "D"  
  "-3" 
