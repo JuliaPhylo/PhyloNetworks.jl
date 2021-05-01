@@ -35,6 +35,7 @@ const fAbs = 1e-6
 const fRel = 1e-6
 const xAbs = 1e-3
 const xRel = 1e-2
+const qAbs = 1e-4
 const numFails = 75 # number of failed proposals allowed before stopping the procedure (like phylonet)
 const numMoves = Int[] #empty to be calculated inside based on coupon's collector
 const likAbs = 1e-6 # loglik absolute tolerance to accept new topology
@@ -1924,7 +1925,7 @@ function snaq!(currT0::HybridNetwork, d::DataCF;
       verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int},
       runs=10::Integer, outgroup="none"::AbstractString, filename="snaq"::AbstractString,
       seed=0::Integer, probST=0.3::Float64, updateBL=true::Bool, probQR=0.0::Float64, 
-      qinfTol=0.0::Float64, qinfTest=false::Bool, propQuartets=1.0::Float64)
+      qtolAbs=qAbs::Float64, qinfTest=false::Bool, propQuartets=1.0::Float64)
     0.0<=probST<=1.0 || error("probability to keep the same starting topology should be between 0 and 1: $(probST)")
     0.0<=probQR<=1.0 || error("probability to guide proposals by quartet-ranking should be betweel 0 and 1: $(probQR)")
     currT0.numTaxa >= 5 || error("cannot estimate hybridizations in topologies with fewer than 5 taxa, this topology has $(currT0.numTaxa) taxa")
@@ -1960,6 +1961,17 @@ function snaq!(currT0::HybridNetwork, d::DataCF;
         expandLeaves!(d.repSpecies,startnet)
         startnet = readTopologyLevel1(writeTopologyLevel1(startnet)) # dirty fix to multiple alleles problem with expandLeaves
     end
+    # check for uninformative quartets, if qinfTest == true
+    # these are defined as quartets where observed CFs are all within qinfTol
+    # if qinfTol == 0.0, then 'uninformative' quartets are those where CFs are all the same (e.g., == 0.33)
+    if qinfTest == true
+        #NOTE: This function modifies supplied network
+        uninformative = updateUninformativeQuartets!(d, qtolAbs)
+        if uninformative > 0
+            println("Excluding ",uninformative," uninformative/ inconclusive quartets")
+        end
+    end
+    
     net = optTopRuns!(startnet, liktolAbs, Nfail, d, hmax, ftolRel,ftolAbs, xtolRel,xtolAbs,
                       verbose, closeN, Nmov0, runs, outgroup, filename,seed,probST,probQR)
     if(!isempty(d.repSpecies))
