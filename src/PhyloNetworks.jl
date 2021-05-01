@@ -5,7 +5,8 @@ module PhyloNetworks
     # stdlib (standard libraries)
     using Dates
     using Distributed
-    using LinearAlgebra: diag, I, logdet, norm, LowerTriangular, mul!, lmul!, Diagonal, cholesky, BLAS
+    using LinearAlgebra: diag, I, logdet, norm, LowerTriangular, mul!, lmul!, rmul!,
+            Diagonal, cholesky, qr, BLAS
     # alternative: drop support for julia v1.4, because LinearAlgebra.rotate! requires julia v1.5
     # using LinearAlgebra # bring all of LinearAlgebra into scope
     # import LinearAlgebra.rotate! # allow re-definition of rotate!
@@ -28,7 +29,7 @@ module PhyloNetworks
     using NLopt # for branch lengths optimization
     using StaticArrays
     using StatsBase # sample, coef etc.
-    using StatsFuns # logsumexp, logaddexp, various cdf
+    using StatsFuns # logsumexp, logaddexp, log2π, various cdf
     using StatsModels # re-exported by GLM. for ModelFrame ModelMatrix Formula etc
 
     import Base: show
@@ -113,7 +114,7 @@ module PhyloNetworks
         pairwiseTaxonDistanceMatrix,
         calibrateFromPairwiseDistances!,
         ## Network PCM
-        phyloNetworklm,
+        phylolm,
         PhyloNetworkLinearModel,
         simulate,
         TraitSimulation,
@@ -129,8 +130,9 @@ module PhyloNetworks
         regressorHybrid,
         ancestralStateReconstruction,
         ReconstructedStates,
-        sigma2_estim,
-        mu_estim,
+        sigma2_phylo,
+        sigma2_within,
+        mu_phylo,
         lambda_estim,
         expectations,
         expectationsPlot,
@@ -162,7 +164,9 @@ module PhyloNetworks
         nj
 
     include("types.jl")
+    include("nloptsummary.jl")
     include("auxiliary.jl")
+    include("generate_topology.jl")
     include("update.jl")
     include("undo.jl")
     include("addHybrid_snaq.jl")

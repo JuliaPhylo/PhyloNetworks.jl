@@ -226,13 +226,13 @@ Random.seed!(96)
 lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-6,1e-6,1e-2,1e-3, 5)
 PhyloNetworks.optimizestructure!(obj, maxmoves, 1, true, true, 0,100,
                                 emptyconstraint, 1e-6, γcache, lcache)
-@test obj.loglik > -27.42
+@test obj.loglik > -27.6 # -27.42 with RNG from julia 1.5
 
 # allow hybrid ladders
 Random.seed!(110)
 PhyloNetworks.optimizestructure!(obj, maxmoves, 1, true, false, 0,100,
                                 emptyconstraint, 1e-6, γcache, lcache)
-@test obj.loglik > -27.42
+@test obj.loglik > -27.5 # -27.42 with RNG from julia 1.5
 end # of optimizestructure with simple example
 
 @testset "phyLiNCone with simple net, no constraints" begin
@@ -268,7 +268,7 @@ net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):
 obj = @test_nowarn PhyloNetworks.phyLiNC(net, fastasimple, :JC69, :G, 2; maxhybrid=2, # no missing BLs, so they're not re-estimated
                     no3cycle=true, nohybridladder=true, maxmoves=2,
                     nreject=1, nruns=1, filename="", verbose=false, seed=108)
-@test obj.loglik > -27.4 # previously, > -27.27
+@test obj.loglik > -27.5 # depends on RNG. -27.4 with julia 1.5, -27.27 earlier
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
 obj = @test_nowarn PhyloNetworks.phyLiNC(net, fastasimple, :HKY85; maxhybrid=2,
                     no3cycle=true, nohybridladder=true, maxmoves=2, probST=1.0, # not enough moves to get back to a good topology
@@ -284,7 +284,7 @@ addprocs(1) # multiple cores
 @everywhere using PhyloNetworks
 #using Distributed; @everywhere begin; using Pkg; Pkg.activate("."); using PhyloNetworks; end
 originalstdout = stdout  # verbose=true below
-redirect_stdout(open("/dev/null", "w")) # not portable to Windows
+redirect_stdout(devnull)
 obj = PhyloNetworks.phyLiNC(net, fastasimple, :JC69; maxhybrid=2, no3cycle=true,
                         nohybridladder=true, maxmoves=2, nreject=1, nruns=2,
                         filename="phyLiNCmult", verbose=true, seed=106)
@@ -342,14 +342,14 @@ lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-2,1e-2,1e-2,1e-2, 5)
         3, 2, false, false, nullio,
         seed, 0.5, c_species, 1e-2, 1e-2,
         1e-2, 1e-2, 0.0,50.0, 0.01,.9, γcache, lcache)
-@test obj.loglik > -65.0
+@test obj.loglik > -65.4 # -65.0 with RNG from julia 1.5
 
 obj = PhyloNetworks.phyLiNC(net_level1_s, # missing BLs, so BLs are re-estimated before starting
             fastaindiv, :JC69, :Inv; maxhybrid=2, no3cycle=true, nohybridladder=true,
             verbose=false, filename="", speciesfile=mappingfile, seed=138, nruns=1,
             maxmoves=10, nreject=2)
 @test obj.loglik > -67.7 # -69.83824 with :noRV
-@test obj.ratemodel.pinv[1] > 0.21 # previously > 0.22 # 0.23753
+@test 0.19 < obj.ratemodel.pinv[1] < 0.3
 # test that species stayed together after optimization, as the only polytomy
 function polytomyS1(node)
     length(node.edge) > 3 || return false

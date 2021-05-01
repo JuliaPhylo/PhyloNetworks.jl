@@ -192,9 +192,9 @@ Species constraint, on tips: 1a, 1b, 1c
 
 julia> c_species1.taxonnums
 Set{Int64} with 3 elements:
+  5
   4
   3
-  5
 
 julia> c_clade145 = PhyloNetworks.TopologyConstraint(0x02, ["1a","1b","1c","4","5"], net)
 Clade constraint, on tips: 1a, 1b, 1c, 4, 5
@@ -214,8 +214,8 @@ Species constraint, on tips: 1a, 1b, 1c
 
 julia> c_species1.taxonnums
 Set{Int64} with 3 elements:
-  4
   5
+  4
   111
 ```
 """
@@ -769,7 +769,7 @@ julia> writeTopology(individual_net, internallabel=true)
 "(((S8,S9),(((((S1A,S1B,S1C)S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 
 julia> species_constraints
-1-element Array{PhyloNetworks.TopologyConstraint,1}:
+1-element Vector{PhyloNetworks.TopologyConstraint}:
  Species constraint, on tips: S1A, S1B, S1C
  stem edge number 4
  crown node number 3

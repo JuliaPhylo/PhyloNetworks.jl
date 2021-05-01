@@ -31,7 +31,7 @@ julia> net = readTopology("(A,(B,(C,D)));");
 julia> PhyloNetworks.resetNodeNumbers!(net);
 
 julia> PhyloNetworks.majoredgematrix(net)
-6×2 Array{Int64,2}:
+6×2 Matrix{Int64}:
  5  1
  5  6
  6  2
@@ -75,7 +75,7 @@ julia> net = readTopology("(((A:3.1,(B:0.2)#H1:0.3::0.9),(C,#H1:0.3::0.1):1.1),D
 julia> directEdges!(net); preorder!(net);
 
 julia> PhyloNetworks.majoredgelength(net)
-8-element Array{Union{Missing, Float64},1}:
+8-element Vector{Union{Missing, Float64}}:
   missing
  0.7     
   missing
@@ -118,7 +118,7 @@ Assumes correct `isChild1` fields.
 ```julia-repl
 julia> net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);");
 julia> PhyloNetworks.minorreticulationmatrix(net)
-1×2 Array{Int64,2}:
+1×2 Matrix{Int64}:
  -6  3
 ```
 """ #"
@@ -149,7 +149,7 @@ Output: vector allowing for missing values.
 julia> net = readTopology("(((A:3.1,(B:0.2)#H1:0.4::0.9),(C,#H1:0.3::0.1):1.1),D:0.7);");
 
 julia> PhyloNetworks.minorreticulationlength(net)
-1-element Array{Union{Missing, Float64},1}:
+1-element Vector{Union{Missing, Float64}}:
  0.3
 ```
 """ #"
@@ -178,7 +178,7 @@ Output: vector allowing for missing values.
 julia> net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);");
 
 julia> PhyloNetworks.minorreticulationgamma(net)
-1-element Array{Union{Float64, Missings.Missing},1}:
+1-element Vector{Union{Float64, Missings.Missing}}:
  0.1
 ```
  """ #"

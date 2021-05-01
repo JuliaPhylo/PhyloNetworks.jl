@@ -27,7 +27,7 @@ end
 	net = readTopologyLevel1("(E,((B)#H1:::.5,((D,C),(#H1:::.5,A))));");
 	@test writeTopology(net) == "(D:1.0,C:1.0,((#H1:1.0::0.5,A:1.0):1.0,((B:1.0)#H1:1.0::0.5,E:1.0):1.0):1.0);"
     originalstdout = stdout
-	redirect_stdout(open("/dev/null", "w")) # not portable to Windows
+	redirect_stdout(devnull) # requires julia v1.6
 	@test_logs PhyloNetworks.printEverything(net)
 	redirect_stdout(originalstdout)
 end
@@ -42,7 +42,7 @@ end
 	# writeMultiTopology([n1,n2], stdout)
 	n11.root = 2 # below the hybrid node: will trigger RootMismatch and message below
 	originalstdout = stdout
-	redirect_stdout(open("/dev/null", "w"))
+	redirect_stdout(devnull)
 	writeMultiTopology([n11,n12], "test_relaxedreading.net")
 	rm("test_relaxedreading.net")
 	redirect_stdout(originalstdout)

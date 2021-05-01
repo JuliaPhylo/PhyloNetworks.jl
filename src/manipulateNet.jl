@@ -564,7 +564,7 @@ julia> writeTopology(net, internallabel=true)
 julia> net = readTopology("((S1,(((S2,(S3)#H1),(#H1,S4)))#H2),(#H2,S5));");
 
 julia> [n.name for n in net.edge[7].node] # external edge to S4
-2-element Array{String,1}:
+2-element Vector{String}:
  "S4"
  ""  
 

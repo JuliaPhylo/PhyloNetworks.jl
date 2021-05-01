@@ -415,6 +415,7 @@ function phyLiNC!(obj::SSM;
     if writelog
         write(logfile, logstr)
         flush(logfile)
+        close(logfile)
     end
     verbose && print(stdout,logstr)
     return obj
