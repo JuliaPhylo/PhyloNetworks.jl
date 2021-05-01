@@ -514,11 +514,13 @@ end
 function extractQuartet!(net::HybridNetwork, quartet::Vector{Quartet})
     @debug "EXTRACT: begins extract quartets for network"
     Threads.@threads for q in quartet
-        extractQuartet!(net,q)
-        qnet = deepcopy(q.qnet); #there is a reason not to mess up with the original q.qnet, i believe to keep ht consistent
-        calculateExpCFAll!(qnet);
-        q.qnet.expCF[:] = qnet.expCF
-        q.deltaCF = calculateDeltaCF(q.obsCF, q.qnet.expCF)
+        if q.sampled
+            extractQuartet!(net,q)
+            qnet = deepcopy(q.qnet); #there is a reason not to mess up with the original q.qnet, i believe to keep ht consistent
+            calculateExpCFAll!(qnet);
+            q.qnet.expCF[:] = qnet.expCF
+            q.deltaCF = calculateDeltaCF(q.obsCF, q.qnet.expCF)
+        end
     end
 end
 
@@ -1276,10 +1278,12 @@ function calculateExpCFAll!(data::DataCF)
     !all((q->(q.qnet.numTaxa != 0)), data.quartet) ? error("qnet in quartets on data are not correctly updated with extractQuartet") : nothing
     #@warn "assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network"
     Threads.@threads for q in data.quartet
-        if(q.qnet.changed)
-            qnet = deepcopy(q.qnet);
-            calculateExpCFAll!(qnet);
-            q.qnet.expCF[:] = qnet.expCF
+        if q.sampled
+            if(q.qnet.changed)
+                qnet = deepcopy(q.qnet);
+                calculateExpCFAll!(qnet);
+                q.qnet.expCF[:] = qnet.expCF
+            end
         end
     end
 end
@@ -1294,12 +1298,14 @@ function calculateExpCFAll!(data::DataCF, x::Vector{Float64},net::HybridNetwork)
     !all((q->(q.qnet.numTaxa != 0)), data.quartet) ? error("qnet in quartets on data are not correctly updated with extractQuartet") : nothing
     #println("calculateExpCFAll in x: $(x) with net.ht $(net.ht)")
     Threads.@threads for q in data.quartet
-        update!(q.qnet,x,net)
-        if(q.qnet.changed)
-            #println("enters to recalculate expCF for some quartet")
-            qnet = deepcopy(q.qnet);
-            calculateExpCFAll!(qnet);
-            q.qnet.expCF[:] = qnet.expCF
+        if q.sampled
+            update!(q.qnet,x,net)
+            if(q.qnet.changed)
+                #println("enters to recalculate expCF for some quartet")
+                qnet = deepcopy(q.qnet);
+                calculateExpCFAll!(qnet);
+                q.qnet.expCF[:] = qnet.expCF
+            end
         end
     end
 end
@@ -1340,13 +1346,15 @@ function topologyQPseudolik!(net0::HybridNetwork,d::DataCF; verbose=false::Bool)
     extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
     all((q->(q.qnet.numTaxa != 0)), d.quartet) || error("qnet in quartets on data are not correctly updated with extractQuartet")
     Threads.@threads for q in d.quartet
-        if verbose println("computing expCF for quartet $(q.taxon)") # to stdout
-        else @debug        "computing expCF for quartet $(q.taxon)"; end # to logger if debug turned on by user
-        qnet = deepcopy(q.qnet);
-        calculateExpCFAll!(qnet);
-        q.qnet.expCF[:] = qnet.expCF
-        if verbose println("$(qnet.expCF)") # to stdout
-        else @debug        "$(qnet.expCF)"; end # to logger
+        if q.sampled
+            if verbose println("computing expCF for quartet $(q.taxon)") # to stdout
+            else @debug        "computing expCF for quartet $(q.taxon)"; end # to logger if debug turned on by user
+            qnet = deepcopy(q.qnet);
+            calculateExpCFAll!(qnet);
+            q.qnet.expCF[:] = qnet.expCF
+            if verbose println("$(qnet.expCF)") # to stdout
+            else @debug        "$(qnet.expCF)"; end # to logger
+        end
     end
     val = logPseudoLik(d)
     if verbose println("$the value of pseudolikelihood is $(val)") # to stdout
@@ -1393,7 +1401,9 @@ end
 function logPseudoLik(quartet::Array{Quartet,1})
     suma=0
     for q in quartet
-        suma += logPseudoLik(q)
+        if q.sampled
+            suma += logPseudoLik(q)
+        end
     end
     return -suma
 end
