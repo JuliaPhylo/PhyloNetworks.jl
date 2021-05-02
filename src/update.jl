@@ -432,7 +432,7 @@ Checks for quartets classified as 'uninformative' given a tolerance to define CF
     if all CFs in quartet.obsCF are equal within 'tol' tolerance, 
     quartet.sampled is set to 'false'
 
-Output: Updates quartet.sampled in-place
+Output: Updates quartet.sampled in-place for all quartets 
 """
 function updateUninformativeQuartets!(quartets::Vector{Quartet}, atol::Float64)
     i = Threads.Atomic{Int}(0);
@@ -440,9 +440,21 @@ function updateUninformativeQuartets!(quartets::Vector{Quartet}, atol::Float64)
         q.sampled = updateUninformativeQuartets(q, atol)
         if !(q.sampled)
             #println("bad")
+            q.uninformative = true
             Threads.atomic_add!(i, 1)
         end
     end
     return(i[])
 end
 updateUninformativeQuartets!(d::DataCF, atol::Float64) = updateUninformativeQuartets!(d.quartet, atol)
+
+function updateResetSampledQuartets!(quartets::Vector{Quartet}, toset::Bool)
+    Threads.@threads for q in quartets
+        if !q.uninformative
+            q.sampled=toset
+        end
+    end
+end
+updateResetSampledQuartets!(quartets::Vector{Quartet}) = updateResetSampledQuartets!(quartets, true)
+updateResetSampledQuartets!(d::DataCF, toset::Bool) = updateResetSampledQuartets!(d.quartet, true)
+updateResetSampledQuartets!(d::DataCF) = updateResetSampledQuartets!(d.quartet, true)
