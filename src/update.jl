@@ -414,17 +414,15 @@ end
 """
 updateUninformativeQuartets(obsCF::Array{Float64}, tol::Float64)
 
-Output: Updates quartet.sampled in-place 
-Returns value of quartet.sampled
+Returns value to place in quartet.sampled
 """
-function updateUninformativeQuartets!(quartet::Quartet, atol::Float64)
+function updateUninformativeQuartets(quartet::Quartet, atol::Float64)
     allcomp = [(abs(a-b)<=atol) for a in quartet.obsCF', b in quartet.obsCF]
     if false in allcomp
-        quartet.sampled=true
+        return(true)
     else
-        quartet.sampled=false
+        return(false)
     end
-    return(quartet.sampled)
 end
 
 """
@@ -439,7 +437,8 @@ Output: Updates quartet.sampled in-place
 function updateUninformativeQuartets!(quartets::Vector{Quartet}, atol::Float64)
     i = Threads.Atomic{Int}(0);
     Threads.@threads for q in quartets
-        if !(updateUninformativeQuartets!(q, atol))
+        q.sampled = updateUninformativeQuartets(q, atol)
+        if !(q.sampled)
             #println("bad")
             Threads.atomic_add!(i, 1)
         end

@@ -348,7 +348,7 @@ function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool, ftolRel::Float64, 
     if verbose println("OPTBL: begin branch lengths and gammas optimization, ftolAbs $(ftolAbs), ftolRel $(ftolRel), xtolAbs $(xtolAbs), xtolRel $(xtolRel)");
     else @debug        "OPTBL: begin branch lengths and gammas optimization, ftolAbs $(ftolAbs), ftolRel $(ftolRel), xtolAbs $(xtolAbs), xtolRel $(xtolRel)"; end
     ht = parameters!(net); # branches/gammas to optimize: net.ht, net.numht
-    extractQuartet!(net,d) # quartets are all updated: hasEdge, expCF, indexht
+    extractQuartet!(net, d) # quartets are all updated: hasEdge, expCF, indexht
     k = length(net.ht)
     net.numBad >= 0 || error("network has negative number of bad hybrids")
     #opt = NLopt.Opt(net.numBad == 0 ? :LN_BOBYQA : :LN_COBYLA,k) # :LD_MMA if use gradient, :LN_COBYLA for nonlinear/linear constrained optimization derivative-free, :LN_BOBYQA for bound constrained derivative-free
@@ -369,7 +369,10 @@ function optBL!(net::HybridNetwork, d::DataCF, verbose::Bool, ftolRel::Float64, 
         count += 1
         calculateExpCFAll!(d,x,net) # update qnet branches and calculate expCF
         update!(net,x) # update net.ht
+        #println("optBL, calling logPseudoLik")
         val = logPseudoLik(d)
+        #println("Returned: ", val, " - ",typeof(val))
+        
         if verbose #|| net.numBad > 0)#we want to see what happens with bad diamond I
             println("f_$count: $(round(val, digits=5)), x: $(x)")
         end
@@ -1971,7 +1974,7 @@ function snaq!(currT0::HybridNetwork, d::DataCF;
             println("Excluding ",uninformative," uninformative/ inconclusive quartets")
         end
     end
-    
+
     net = optTopRuns!(startnet, liktolAbs, Nfail, d, hmax, ftolRel,ftolAbs, xtolRel,xtolAbs,
                       verbose, closeN, Nmov0, runs, outgroup, filename,seed,probST,probQR)
     if(!isempty(d.repSpecies))
