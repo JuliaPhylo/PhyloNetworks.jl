@@ -1,6 +1,6 @@
 # PhyloNetworks: analysis for phylogenetic networks <img src="docs/src/logo_text.png" align=right>
 
-[![Build Status](https://travis-ci.com/crsl4/PhyloNetworks.jl.svg?branch=master)](https://travis-ci.com/crsl4/PhyloNetworks.jl)
+[![Build status](https://github.com/crsl4/PhyloNetworks.jl/workflows/CI/badge.svg?branch=master)](https://github.com/crsl4/PhyloNetworks.jl/actions/workflows/ci.yml)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://crsl4.github.io/PhyloNetworks.jl/stable)
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://crsl4.github.io/PhyloNetworks.jl/dev)
 [![codecov](https://codecov.io/gh/crsl4/PhyloNetworks.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/crsl4/PhyloNetworks.jl)
