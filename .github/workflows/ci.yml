@@ -63,12 +63,6 @@ jobs:
             using Pkg
             Pkg.develop(PackageSpec(path=pwd()))
             Pkg.instantiate()'
-      - name: run doctest
-        run: |
-          julia --project=docs -e '
-            using Documenter: doctest
-            using PhyloNetworks
-            doctest(PhyloNetworks)'
       - name: make docs
         run: julia --project=docs docs/make.jl
         env:

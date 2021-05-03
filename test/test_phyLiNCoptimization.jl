@@ -251,12 +251,11 @@ for nohybridladder in [true, false]
     =#
     obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69)
     obj.loglik = -Inf # missing otherwise, which would cause an error below
-    nullio = open("/dev/null", "w")
     γcache = PhyloNetworks.CacheGammaLiNC(obj)
     lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-6,1e-6,1e-2,1e-3, 5)
     @test_nowarn PhyloNetworks.phyLiNCone!(obj, 1, no3cycle,
             nohybridladder, 3, 2, false, false,
-            nullio, seed, 0.5, emptyconstraint,
+            devnull, seed, 0.5, emptyconstraint,
             1e-2, 1e-2, 1e-2, 1e-2, 0.0, 25.0, 0.01,0.9,
             γcache, lcache)
     @test obj.loglik > -27.45
@@ -335,11 +334,10 @@ end
 PhyloNetworks.setalpha!(obj.ratemodel, 0.48438)
 obj.loglik = -Inf # actual likelihood -56.3068141288164. Need something non-missing
 seed = 103
-nullio = open("/dev/null", "w")
 γcache = PhyloNetworks.CacheGammaLiNC(obj)
 lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-2,1e-2,1e-2,1e-2, 5)
 @test_nowarn PhyloNetworks.phyLiNCone!(obj, 2, true, true,
-        3, 2, false, false, nullio,
+        3, 2, false, false, devnull,
         seed, 0.5, c_species, 1e-2, 1e-2,
         1e-2, 1e-2, 0.0,50.0, 0.01,.9, γcache, lcache)
 @test obj.loglik > -65.4 # -65.0 with RNG from julia 1.5
