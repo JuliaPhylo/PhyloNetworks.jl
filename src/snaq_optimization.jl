@@ -1559,7 +1559,7 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
                      ftolRel::Float64, ftolAbs::Float64, xtolRel::Float64, xtolAbs::Float64,
                      verbose::Bool, closeN ::Bool, Nmov0::Vector{Int}, runs::Integer,
                      outgroup::AbstractString, rootname::AbstractString, seed::Integer, probST::Float64,
-                     probQR::Float64)
+                     probQR::Float64, propQuartets::Float64)
     writelog = true
     writelog_1proc = false
     if (rootname != "")
@@ -1627,6 +1627,12 @@ function optTopRuns!(currT0::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
         verbose && print(stdout, msg)
         GC.gc();
         try
+            #subsample quartets (done for each separate run)
+            if propQuartets < 1.0
+                #sample propQuartets*(numQuartets-numUninformative) quartets 
+                updateSubsetQuartets!(d, propQuartets)
+            end
+            
             best = optTopRun1!(currT0, liktolAbs, Nfail, d, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs,
                        verbose, closeN , Nmov0,seeds[i],logfile,writelog_1proc,probST,probQR);
             logstr *= "\nFINISHED SNaQ for run $(i), -loglik of best $(best.loglik)\n"
@@ -1930,7 +1936,8 @@ function snaq!(currT0::HybridNetwork, d::DataCF;
       seed=0::Integer, probST=0.3::Float64, updateBL=true::Bool, probQR=0.0::Float64, 
       qtolAbs=qAbs::Float64, qinfTest=false::Bool, propQuartets=1.0::Float64)
     0.0<=probST<=1.0 || error("probability to keep the same starting topology should be between 0 and 1: $(probST)")
-    0.0<=probQR<=1.0 || error("probability to guide proposals by quartet-ranking should be betweel 0 and 1: $(probQR)")
+    0.0<=probQR<=1.0 || error("probability to guide proposals by quartet-ranking should be between 0 and 1: $(probQR)")
+    0.0<propQuartets<=1.0 || error("proportion of sampled quartets must be between 0 and 1: $(propQuartets)")
     currT0.numTaxa >= 5 || error("cannot estimate hybridizations in topologies with fewer than 5 taxa, this topology has $(currT0.numTaxa) taxa")
     typemax(Int) > length(d.quartet) ||
     @warn "the number of rows / 4-taxon sets exceeds the max integer of type $Int ($(typemax(Int))). High risk of overflow errors..."
@@ -1974,9 +1981,10 @@ function snaq!(currT0::HybridNetwork, d::DataCF;
             println("Excluding ",uninformative," uninformative/ inconclusive quartets")
         end
     end
-
     net = optTopRuns!(startnet, liktolAbs, Nfail, d, hmax, ftolRel,ftolAbs, xtolRel,xtolAbs,
-                      verbose, closeN, Nmov0, runs, outgroup, filename,seed,probST,probQR)
+                      verbose, closeN, Nmov0, runs, outgroup, filename,seed,probST,probQR, 
+                      propQuartets)
+    
     if(!isempty(d.repSpecies))
         mergeLeaves!(net)
     end
