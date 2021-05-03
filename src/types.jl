@@ -381,11 +381,12 @@ mutable struct Quartet <: AQuartet
     ngenes::Float64 # number of gene trees used to compute the obsCV, default -1.; Float in case ngenes is average
     deltaCF::Float64 # sum of absolute differences of obsCF - expCF 
     sampled::Bool # false if quartet is not sampled for network optimization, default true
+    uninformative::Bool # true if quartet is not sampled because it failed qinfTest, default false
     # inner constructor: to guarantee obsCF are only three and add up to 1
     function Quartet(number::Integer,t1::AbstractString,t2::AbstractString,t3::AbstractString,t4::AbstractString,obsCF::Array{Float64,1})
         size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing
         0.99 < sum(obsCF) < 1.02 || @warn "observed CF should add up to 1, not $(sum(obsCF))"
-        new(number,[t1,t2,t3,t4],obsCF,QuartetNetwork(),0.0,-1.0, 0.0, true);
+        new(number,[t1,t2,t3,t4],obsCF,QuartetNetwork(),0.0,-1.0, 0.0, true, false);
     end
     function Quartet(number::Integer,t1::Array{String,1},obsCF::Array{Float64,1})
         size(obsCF,1) != 3 ? error("observed CF vector should have size 3, not $(size(obsCF,1))") : nothing
@@ -394,9 +395,9 @@ mutable struct Quartet <: AQuartet
         0.0 <= obsCF[1] <= 1.0 || error("obsCF must be between (0,1), but it is $(obsCF[1]) for $(t1)")
         0.0 <= obsCF[2] <= 1.0 || error("obsCF must be between (0,1), but it is $(obsCF[2]) for $(t1)")
         0.0 <= obsCF[3] <= 1.0 || error("obsCF must be between (0,1), but it is $(obsCF[3]) for $(t1)")
-        new(number,t1,obsCF,QuartetNetwork(),0.0,-1.0, 0.0, true);
+        new(number,t1,obsCF,QuartetNetwork(),0.0,-1.0, 0.0, true, false);
     end
-    Quartet() = new(0,[],[],QuartetNetwork(),0.0,-1.0, 0.0, true)
+    Quartet() = new(0,[],[],QuartetNetwork(),0.0,-1.0, 0.0, true, false)
 end
 
 """
