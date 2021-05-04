@@ -1315,3 +1315,75 @@ function readNexusTrees(file::AbstractString, treereader=readTopology::Function,
     return vnet # consistent output type: HybridNetwork vector. might be of length 0.
 end
 
+"""
+    readPhylip(file::AbstractString)
+
+Reads a PHYLIP-formatted DNA sequence alignment. Genotypes coded using 
+    IUPAC ambiguity codes are treated as missing if the number of possible 
+    nucleotides is greater than the value provided using the ploidy argument. 
+    
+    e.g., if ploidy==1, then genotype of "M" (=A or C) is treated as missing, 
+    whereas if ploidy==2, then this will be expanded to [A, C]
+
+Output: Returns a dictionary of 2D-arrays, with dimensions 
+    I x L x A where I=number of individuals in Phylip file, 
+    L=number of columns in DNA sequence alignment, and A=number 
+    of alleles per individual (=1 if expand==false). 
+"""
+
+function readPhylip(file::AbstractString, ploidy::Integer)
+    firstline = true
+    gen = Dict()
+    open(file) do line 
+        if firstline
+            firstline = false
+        else
+            ind = split(line)
+            gen[ind[1]] = [iupac(char) for char in collect(ind[2])]
+    end
+end
+
+"""
+    iupac(genotype::AbstractString)
+
+Expands a provided IUPAC code into a vector of nucleotide characters 
+    Nucleotides (ACGT) are simply returned as a 1-element vector. 
+    'N' or any invalid ambiguity character (e.g., '-') will return as 
+    ['A', 'C', 'T', 'G']
+
+Output: Vector of nucleotide characters 
+"""
+function iupac(genotype::AbstractString)
+    upper = uppercase(genotype)
+    if upper == "A"
+        return ["A"]
+    else if upper == "C"
+        return ["C"]
+    else if upper == "G"
+        return ["G"]
+    else if upper == "T"
+        return ["T"]
+    else if upper == "M"
+        return ["A", "C"]
+    else if upper == "R"
+        return ["A", "G"]
+    else if upper == "W"
+        return ["A", "T"]
+    else if upper == "S"
+        return ["C", "G"]
+    else if upper == "Y"
+        return ["C", "T"]
+    else if upper == "K"
+        return ["G", "T"]
+    else if upper == "V"
+        return ["A", "C", "G"]
+    else if upper == "H"
+        return ["A", "C", "T"]
+    else if upper == "D"
+        return ["A", "G", "T"]
+    else if upper == "B"
+        return ["C", "G", "T"]
+    else
+        return ["A", "C", "G", "T"]
+    end
+end
