@@ -464,7 +464,7 @@ end
 
 function calculateObsCFAll!(quartets::Vector{Quartet}, trees::Vector{HybridNetwork}, taxa::Union{Vector{String}, Vector{Int}})
     calculateObsCFAll_noDataCF!(quartets, trees, taxa)
-    d = DataCF(quartets,trees)
+    d = DataCF(quartets, trees)
     return d
 end
 
@@ -513,6 +513,132 @@ function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{Hy
     end
     println("  ")
     return nothing
+end
+
+"""
+Version of calculateObsCFAll from SNP data
+calculateObsCFAll!(dat::DataCF, 
+    genotypes::Dict{String, Array{Array{String,1}, 1}}, 
+    ploidy::Integer, partial::Bool)
+    
+    Calculates SNP-CFs (sCF) values from a DNA sequence 
+        alignment 
+    
+    Options:
+    - resolve=true: Randomly resolves heterozygotes (default=false)
+    
+    Notes for if partial==false:
+        if partial=false and ploidy=2:
+            heterogyotes w/ #alleles <= ploidy are randomly resolved
+        elseif partial=false and ploidy=1:
+            ambiguities are skipped
+
+"""
+function calculateObsCFAll_SNP!(quartets::Array{Quartet,1}, 
+    genotypes::Dict{String, Array{Array{Char,1}, 1}}, 
+    resolve::Bool)
+    total_snps = 0
+    
+    for (k, v) in genotypes
+        if total_snps == 0
+            total_snps = length(v)
+        else
+            if total_snps != length(v)
+                error("sample has wrong number of SNPs: $(k)")
+            end
+        end
+    end
+    println("calculating obsCF from $(total_snps) SNPs and for $(length(quartets)) quartets")
+    #index = 1
+    totalq = length(quartets)
+    #println("Reading in quartets...")
+    r = round(1/totalq, digits=2)
+    numq = (r > 0.02 ? totalq : 50)
+    print("0+")
+    for i in 1:numq
+        print("-")
+    end
+    print("+100%")
+    println("  ")
+    print("  ")
+    for q in quartets
+        if round(index/totalq, digits=2) > 0.02
+            print("*")
+            index = 1
+        end
+        suma = 0
+        sum12 = 0
+        sum13 = 0
+        sum14 = 0
+        println([q.taxon[1],q.taxon[2],q.taxon[3],q.taxon[4]])
+        for i in 1:total_snps
+            snp = [genotypes[q.taxon[1]][i],genotypes[q.taxon[2]][i],
+                   genotypes[q.taxon[3]][i],genotypes[q.taxon[4]][i]]
+            #println(snp)
+            freq = Dict{Char, Integer}('A'=>0, 'G' => 0, 'C' => 0, 'T'=> 0)
+            for (i, ind) in enumerate(snp) 
+                if 'N' in ind
+                    @goto nextSNP
+                elseif length(ind) > 1
+                    if resolve
+                        picked = ind[rand(1:length(ind))]
+                        freq[picked] += 1
+                        snp[i] = [picked]
+                    else
+                        @goto nextSNP
+                    end
+                elseif length(ind) == 1
+                    freq[ind[1]] += 1
+                else
+                    @goto nextSNP
+                end
+            end
+            nonzero = [v for (k,v) in freq if v > 0]
+            if length(nonzero) != 2 || minimum(nonzero) <= 1
+                @goto nextSNP
+            else
+                #To get here: 
+                # - no missing genotypes 
+                # - bi-allelic 
+                # - minor allele not a singleton
+                suma += 1
+                sum12 += getSNPCF(snp[1], snp[2])
+                sum13 += getSNPCF(snp[1], snp[3])
+                sum14 += getSNPCF(snp[1], snp[4])
+            end
+            @label nextSNP
+        end
+        if suma > 0
+            q.obsCF = [sum12/suma, sum13/suma, sum14/suma]
+            q.ngenes = suma
+        else
+            q.obsCF = [1.0/3.0, 1.0/3.0, 1.0/3.0]
+            q.ngenes = 0
+        end
+        println(index," : ", q.obsCF, " - ", q.ngenes)
+        index += 1
+    end
+    #println("  ")
+    return nothing
+end
+
+calculateObsCFAll_SNP!(quartets::Array{Quartet,1}, genotypes::Dict{String, Array{Array{Char,1}, 1}}) = calculateObsCFAll_SNP!(quartets, genotypes, false)
+
+"""
+    getSNPCF(ind1::Array{Char, 1}, ind2::Array{Char,1}, partial::Bool)
+
+    Utility function for calculateObsCFAll_SNP
+"""
+function getSNPCF(ind1::Array{Char, 1}, ind2::Array{Char,1})
+    if length(ind1) == length(ind2) == 1
+        if ind1[1] == ind2[1]
+            return(1)
+        else
+            return(0)
+        end
+    else
+        return(0)
+    end
 end
 
 """
@@ -1318,12 +1444,7 @@ end
 """
     readPhylip(file::AbstractString)
 
-Reads a PHYLIP-formatted DNA sequence alignment. Genotypes coded using 
-    IUPAC ambiguity codes are treated as missing if the number of possible 
-    nucleotides is greater than the value provided using the ploidy argument. 
-    
-    e.g., if ploidy==1, then genotype of "M" (=A or C) is treated as missing, 
-    whereas if ploidy==2, then this will be expanded to [A, C]
+Reads a PHYLIP-formatted DNA sequence alignment
 
 Output: Returns a dictionary of 2D-arrays, with dimensions 
     I x L x A where I=number of individuals in Phylip file, 
@@ -1331,16 +1452,27 @@ Output: Returns a dictionary of 2D-arrays, with dimensions
     of alleles per individual (=1 if expand==false). 
 """
 
-function readPhylip(file::AbstractString, ploidy::Integer)
+function readPhylip(file::AbstractString, ploidy=2::Integer)
     firstline = true
-    gen = Dict()
-    open(file) do line 
-        if firstline
-            firstline = false
-        else
-            ind = split(line)
-            gen[ind[1]] = [iupac(char) for char in collect(ind[2])]
+    gen = Dict{String, Array{Array{Char,1}, 1}}()
+    open(file) do f
+        while !eof(f)
+            line = readline(f)
+            if firstline #skip header information
+                firstline = false
+            else
+                line = strip(line)
+                if isempty(line)
+                    continue
+                end
+                ind = split(line)
+                #println(ind[1])
+                gen[ind[1]] = [iupac(char, ploidy) for char in collect(ind[2])]
+                #println(gen[ind[1]])
+            end
+        end
     end
+    return(gen)
 end
 
 """
@@ -1353,37 +1485,146 @@ Expands a provided IUPAC code into a vector of nucleotide characters
 
 Output: Vector of nucleotide characters 
 """
-function iupac(genotype::AbstractString)
+function iupac(genotype::Char, ploidy=2::Integer)
     upper = uppercase(genotype)
-    if upper == "A"
-        return ["A"]
-    else if upper == "C"
-        return ["C"]
-    else if upper == "G"
-        return ["G"]
-    else if upper == "T"
-        return ["T"]
-    else if upper == "M"
-        return ["A", "C"]
-    else if upper == "R"
-        return ["A", "G"]
-    else if upper == "W"
-        return ["A", "T"]
-    else if upper == "S"
-        return ["C", "G"]
-    else if upper == "Y"
-        return ["C", "T"]
-    else if upper == "K"
-        return ["G", "T"]
-    else if upper == "V"
-        return ["A", "C", "G"]
-    else if upper == "H"
-        return ["A", "C", "T"]
-    else if upper == "D"
-        return ["A", "G", "T"]
-    else if upper == "B"
-        return ["C", "G", "T"]
+    ret = ['N']
+    if upper == 'A'
+        ret = ['A']
+    elseif upper == 'C'
+        ret = ['C']
+    elseif upper == 'G'
+        ret = ['G']
+    elseif upper == 'T'
+        ret = ['T']
+    elseif upper == 'M'
+        ret = ['A', 'C']
+    elseif upper == 'R'
+        ret = ['A', 'G']
+    elseif upper == 'W'
+        ret = ['A', 'T']
+    elseif upper == 'S'
+        ret = ['C', 'G']
+    elseif upper == 'Y'
+        ret = ['C', 'T']
+    elseif upper == 'K'
+        ret = ['G', 'T']
+    elseif upper == 'V'
+        ret = ['A', 'C', 'G']
+    elseif upper == 'H'
+        ret = ['A', 'C', 'T']
+    elseif upper == 'D'
+        ret = ['A', 'G', 'T']
+    elseif upper == 'B'
+        ret = ['C', 'G', 'T']
     else
-        return ["A", "C", "G", "T"]
+        ret = ['A', 'C', 'G', 'T']
+    end
+    if length(ret) > ploidy
+        return ['N']
+    else
+        return ret
     end
 end
+
+function readPhylip2CF(file::AbstractString,
+    quartetfile="none"::AbstractString, ploidy=2::Integer,
+    whichQ="all"::AbstractString, numQ=0::Integer,
+    writeTab=true::Bool, CFfile="none"::AbstractString,
+    writeQ=false::Bool)
+    
+    gen=readPhylip(file, ploidy)
+    
+    readPhylip2CF(gen, quartetfile, ploidy, whichQ, numQ, writeTab, CFfile, writeQ)
+end
+
+"""
+    readPhylip2CF(gen::Dict{Vector{AbstractString}}, ploidy::Integer, 
+        whichQ="all"::AbstractString, numQ=0::Integer,
+        writeTab=true::Bool, CFfile="none"::AbstractString,
+        taxa=Vector{String}()::Union{Vector{String},Vector{Int}},
+        writeQ=false::Bool)
+
+Reads a PHYLIP-formatted DNA sequence alignment and calculates SNP concordance
+    factors. Genotypes coded using IUPAC ambiguity codes are treated 
+    as missing if the number of possible nucleotides is greater than 
+    the value provided using the ploidy argument. 
+    
+    e.g., if ploidy==1, then genotype of "M" (=A or C) is treated as missing, 
+    whereas if ploidy==2, then this will be expanded to [A, C]
+    
+    Optional arguments include:
+
+    - writeTab=false: does not write the observedCF to a table (default true)
+    - CFfile name of file to save the observedCF (default tableCF.txt)
+    - quartetfile: name of text file with list of 4-taxon subsets to be analyzed. If none is specified, the function will list all possible 4-taxon subsets.
+    - whichQ="rand": to choose a random sample of 4-taxon subsets (default "all")
+    - numQ: size of random sample (ignored if whichQ is not set to "rand")
+    - writeQ=true: save intermediate files with the list of all 4-taxon subsets and chosen random sample (default false).
+
+    
+    Not implemented yet:
+    #- bootstrap=true: Performs bootstrapping (default false)
+    #- nboots: Number of bootstraps to perform if bootstrap=true
+
+Output: 
+"""
+function readPhylip2CF(gen::Dict{String, Array{Array{Char,1}, 1}}, 
+    quartetfile="none"::AbstractString, ploidy=2::Integer, 
+    whichQ="all"::AbstractString, numQ=0::Integer,
+    writeTab=true::Bool, CFfile="none"::AbstractString,
+    writeQ=false::Bool)
+    
+    taxa = [k for k in keys(gen)]
+    println(typeof(taxa))
+
+    #taxonnumber = Dict(taxa[i] => i for i in eachindex(taxa))
+    #ntax = length(taxa)
+    #nCk = nchoose1234(ntax) # matrix used to ranks 4-taxon sets
+    #qtype = MVector{4,Float64} # 4 floats: CF12_34, CF13_24, CF14_23, ngenes; initialized at 0.0
+
+    if(whichQ == "all")
+        numQ == 0 || @warn "set numQ=$(numQ) but whichQ is not rand, so all quartets will be used and numQ will be ignored. If you want a specific number of 4-taxon subsets not random, you can input with the quartetfile option"
+        if (quartetfile != "none")
+            println("will use all quartets in file $(quartetfile)")
+            quartets = readListQuartets(quartetfile)
+        else
+            println("will use all quartets of $(length(taxa)) taxa")
+            quartets = allQuartets(taxa, writeQ)
+        end
+    elseif(whichQ == "rand")
+        if(numQ == 0)
+            @warn "not specified numQ but whichQ=rand, so 10% of quartets will be sampled" #handled inside randQuartets
+        end
+        if (quartetfile != "none")
+            println("will take a random sample of $(numQ) 4-taxon sets from file $(quartetfile)")
+            allquartets = readListQuartets(quartetfile)
+            quartets = randQuartets(allquartets,numQ,writeFile)
+        else
+            println("will use a random sample of $(numQ) 4-taxon sets ($(round((100*numQ)/binomial(length(taxa),4), digits=2)) percent) on $(length(taxa)) taxa")
+            quartets = randQuartets(taxa,numQ, writeFile)
+        end
+    else
+        error("unknown symbol for whichQ $(whichQ), should be either all or rand")
+    end
+    
+    #calculate ObsCF values 
+    calculateObsCFAll_SNP!(quartets, gen)
+    
+    # if(writetab)
+    #     if(filename == "none")
+    #         filename = "tableCF.txt" # "tableCF$(string(integer(time()/1000))).txt"
+    #     end
+    #     if (isfile(filename) && filesize(filename) > 0)
+    #        error("""file $(filename) already exists and is non-empty. Cannot risk to erase data.
+    #                 Choose a different CFfile name, use writeTab=false, or read the existing file
+    #                 with readTableCF(\"$(filename)\")""")
+    #     end
+    #     println("\ntable of obsCF printed to file $(filename)")
+    #     df = writeTableCF(d)
+    #     CSV.write(filename,df)
+    # end
+    # #descData(d,"summaryTreesQuartets$(string(integer(time()/1000))).txt")
+    # writeSummary && descData(d,"summaryTreesQuartets.txt")
+    # return d
+
+end 

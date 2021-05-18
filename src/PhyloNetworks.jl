@@ -60,6 +60,7 @@ module PhyloNetworks
         readTableCF,
         readTableCF!,
         writeTableCF,
+        readPhylip2CF,
         mapAllelesCFtable,
         readInputTrees,
         readNexusTrees,

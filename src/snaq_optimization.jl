@@ -197,7 +197,7 @@ function update!(qnet::QuartetNetwork,x::Vector{Float64}, net::HybridNetwork)
     qnet.changed = false
     k = sum([e.istIdentifiable ? 1 : 0 for e in net.edge])
     for i in 1:length(ch)
-        qnet.changed |= (ch[i] & qnet.hasEdge[i])
+        qnet.changed |= (ch[i] && qnet.hasEdge[i])
     end
     #DEBUGC && @debug "inside update!, qnet.changed is $(qnet.changed), ch $(ch) and qnet.hasEdge $(qnet.hasEdge), $(qnet.quartetTaxon), numHyb $(qnet.numHybrids)"
     if(qnet.changed)
