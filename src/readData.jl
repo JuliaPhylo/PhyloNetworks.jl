@@ -561,8 +561,8 @@ function calculateObsCFAll_SNP!(quartets::Array{Quartet,1},
     print("+100%")
     println("  ")
     print("  ")
-    index = 1
-    for q in quartets
+    #index = 1
+    Threads.@threads for q in quartets
         # if round(index/totalq, digits=2) > 0.02
         #     print("*")
         #     index = 1
@@ -571,7 +571,7 @@ function calculateObsCFAll_SNP!(quartets::Array{Quartet,1},
         sum12 = 0
         sum13 = 0
         sum14 = 0
-        println([q.taxon[1],q.taxon[2],q.taxon[3],q.taxon[4]])
+        #println([q.taxon[1],q.taxon[2],q.taxon[3],q.taxon[4]])
         for i in 1:total_snps
             snp = [genotypes[q.taxon[1]][i],genotypes[q.taxon[2]][i],
                    genotypes[q.taxon[3]][i],genotypes[q.taxon[4]][i]]
@@ -616,8 +616,8 @@ function calculateObsCFAll_SNP!(quartets::Array{Quartet,1},
             q.obsCF = [1.0/3.0, 1.0/3.0, 1.0/3.0]
             q.ngenes = 0
         end
-        println(index," : ", q.obsCF, " - ", q.ngenes)
-        index += 1
+        #println(index," : ", q.obsCF, " - ", q.ngenes)
+        #index += 1
     end
     #println("  ")
     return nothing
