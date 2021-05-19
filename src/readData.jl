@@ -1611,18 +1611,18 @@ function readPhylip2CF(gen::Dict{String, Array{Array{Char,1}, 1}},
     #calculate ObsCF values 
     calculateObsCFAll_SNP!(quartets, gen)
     
-    if(writetab)
-        if(filename == "none")
-            filename = "tableCF.txt" # "tableCF$(string(integer(time()/1000))).txt"
+    if(writeTab)
+        if(CFfile == "none")
+            CFfile = "tableCF.txt" # "tableCF$(string(integer(time()/1000))).txt"
         end
-        if(isfile(filename) && filesize(filename) > 0)
-           error("""file $(filename) already exists and is non-empty. Cannot risk to erase data.
+        if(isfile(CFfile) && filesize(CFfile) > 0)
+           error("""file $(CFfile) already exists and is non-empty. Cannot risk to erase data.
                     Choose a different CFfile name, use writeTab=false, or read the existing file
-                    with readTableCF(\"$(filename)\")""")
+                    with readTableCF(\"$(CFfile)\")""")
         end
-        println("\ntable of obsCF printed to file $(filename)")
+        println("\ntable of obsCF printed to file $(CFfile)")
         df = writeTableCF(quartets)
-        CSV.write(filename,df)
+        CSV.write(CFfile,df)
     end
     return(quartets)
 end 
