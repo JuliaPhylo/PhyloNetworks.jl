@@ -1611,21 +1611,21 @@ function readPhylip2CF(gen::Dict{String, Array{Array{Char,1}, 1}},
     #calculate ObsCF values 
     calculateObsCFAll_SNP!(quartets, gen)
     
-    # if(writetab)
-    #     if(filename == "none")
-    #         filename = "tableCF.txt" # "tableCF$(string(integer(time()/1000))).txt"
-    #     end
-    #     if (isfile(filename) && filesize(filename) > 0)
-    #        error("""file $(filename) already exists and is non-empty. Cannot risk to erase data.
-    #                 Choose a different CFfile name, use writeTab=false, or read the existing file
-    #                 with readTableCF(\"$(filename)\")""")
-    #     end
-    #     println("\ntable of obsCF printed to file $(filename)")
-    #     df = writeTableCF(d)
-    #     CSV.write(filename,df)
+    if(writetab)
+        if(filename == "none")
+            filename = "tableCF.txt" # "tableCF$(string(integer(time()/1000))).txt"
+        end
+        if (isfile(filename) && filesize(filename) > 0)
+           error("""file $(filename) already exists and is non-empty. Cannot risk to erase data.
+                    Choose a different CFfile name, use writeTab=false, or read the existing file
+                    with readTableCF(\"$(filename)\")""")
+        end
+        println("\ntable of obsCF printed to file $(filename)")
+        df = writeTableCF(quartets)
+        CSV.write(filename,df)
     # end
     # #descData(d,"summaryTreesQuartets$(string(integer(time()/1000))).txt")
     # writeSummary && descData(d,"summaryTreesQuartets.txt")
     # return d
-
+    return(quartets)
 end 
