@@ -561,11 +561,12 @@ function calculateObsCFAll_SNP!(quartets::Array{Quartet,1},
     print("+100%")
     println("  ")
     print("  ")
+    index = 1
     for q in quartets
-        if round(index/totalq, digits=2) > 0.02
-            print("*")
-            index = 1
-        end
+        # if round(index/totalq, digits=2) > 0.02
+        #     print("*")
+        #     index = 1
+        # end
         suma = 0
         sum12 = 0
         sum13 = 0
