@@ -27,7 +27,7 @@ StatsModels = "3eaba693-59b7-5ba5-a881-562e759f1c8d"
 
 [compat]
 BioSequences = "2.0"
-BioSymbols = "4.0"
+BioSymbols = "4.0, 5"
 CSV = "0.4, 0.5, 0.6, 0.7, 0.8"
 Combinatorics = "0.7, 1.0"
 DataFrames = "0.21, 0.22, 1.0"
