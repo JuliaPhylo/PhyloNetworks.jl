@@ -248,7 +248,7 @@ end
 # function to list all quartets for a set of taxa names
 # return a vector of quartet objects, and if writeFile=true, writes a file
 # warning: taxon has to be vector of String, vector of AbstractString do not work
-function allQuartets(taxon::Union{Vector{String},Vector{Int}}, writeFile::Bool)
+function allQuartets(taxon::Union{Vector{<:AbstractString},Vector{Int}}, writeFile::Bool)
     quartets = combinations(taxon,4)
     vquartet = Quartet[];
     if(writeFile)
@@ -306,7 +306,7 @@ end
 # function that will not use randQuartets(list of quartets,...)
 # this function uses whichQuartet to avoid making the list of all quartets
 # fixit: i think we should write always the file, but not sure
-function randQuartets(taxon::Union{Vector{String},Vector{Int}},num::Integer, writeFile::Bool)
+function randQuartets(taxon::Union{Vector{<:AbstractString},Vector{Int}},num::Integer, writeFile::Bool)
     randquartets = Quartet[]
     n = length(taxon)
     ntotal = binom(n,4)
@@ -437,7 +437,7 @@ tipLabels(q::Vector{Quartet}) = unionTaxa(q)
 tipLabels(d::DataCF) = unionTaxa(d.quartet)
 
 """
-    calculateObsCFAll!(DataCF, taxa::Union{Vector{String}, Vector{Int}})
+    calculateObsCFAll!(DataCF, taxa::Union{Vector{<:AbstractString}, Vector{Int}})
 
 Calculate observed concordance factors:
 update the `.quartet[i].obsCF` values of the `DataCF` object based on its .tree vector.
@@ -458,17 +458,17 @@ See also: [`countquartetsintrees`](@ref), which uses a faster algorithm,
 processing each input tree only once.
 `calculateObsCFAll_noDataCF!` processes each input tree `# quartet` times.
 """
-function calculateObsCFAll!(dat::DataCF, taxa::Union{Vector{String}, Vector{Int}})
+function calculateObsCFAll!(dat::DataCF, taxa::Union{Vector{<:AbstractString}, Vector{Int}})
     calculateObsCFAll_noDataCF!(dat.quartet, dat.tree, taxa)
 end
 
-function calculateObsCFAll!(quartets::Vector{Quartet}, trees::Vector{HybridNetwork}, taxa::Union{Vector{String}, Vector{Int}})
+function calculateObsCFAll!(quartets::Vector{Quartet}, trees::Vector{HybridNetwork}, taxa::Union{Vector{<:AbstractString}, Vector{Int}})
     calculateObsCFAll_noDataCF!(quartets, trees, taxa)
     d = DataCF(quartets,trees)
     return d
 end
 
-function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{HybridNetwork}, taxa::Union{Vector{String}, Vector{Int}})
+function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{HybridNetwork}, taxa::Union{Vector{<:AbstractString}, Vector{Int}})
     println("calculating obsCF from $(length(trees)) gene trees and for $(length(quartets)) quartets")
     index = 1
     totalq = length(quartets)
@@ -875,7 +875,7 @@ function readInputData(trees::Vector{HybridNetwork}, quartetfile::AbstractString
 end
 
 
-function readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Integer, taxa::Union{Vector{String}, Vector{Int}}, writetab::Bool, filename::AbstractString, writeFile::Bool, writeSummary::Bool)
+function readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Integer, taxa::Union{Vector{<:AbstractString}, Vector{Int}}, writetab::Bool, filename::AbstractString, writeFile::Bool, writeSummary::Bool)
     if writetab
         if(filename == "none")
             filename = "tableCF.txt" # "tableCF$(string(integer(time()/1000))).txt"
