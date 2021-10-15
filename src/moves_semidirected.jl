@@ -818,7 +818,7 @@ julia> writeTopology(net) # 3 new nodes, S1 now internal: not a tip
 "(S8,((((S1A,S1B,S1C)S1,S4),(S5)#H1),(#H1,S6)));"
 ```
 """
-function addindividuals!(net::HybridNetwork, species::AbstractString, individuals::Vector{String})
+function addindividuals!(net::HybridNetwork, species::AbstractString, individuals::Vector{<:AbstractString})
     length(individuals) > 0 || return nothing
     species = strip(species)
     speciesnodeindex = findfirst(l -> l.name == species, net.node)
@@ -846,7 +846,7 @@ replaced by underscores: good for using as tip names in a network without
 causing future error when reading the newick description of the network.
 """
 function cleantaxonname(taxonname::AbstractString)
-    tname = string(strip(taxonname)) # SubString if we don't do string()
+    tname = String(strip(taxonname)) # SubString if we don't do string()
     m = match(r"\s", tname)
     if m !== nothing
         @warn """Spaces in "$tname" may cause errors in future network readability: replaced by _"""

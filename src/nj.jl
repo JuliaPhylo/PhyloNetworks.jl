@@ -10,7 +10,7 @@ end
 
 
 """
-    nj!(D::Matrix{Float64}, names::AbstractVector{String}=String[];
+    nj!(D::Matrix{Float64}, names::AbstractVector{<:AbstractString}=String[];
         force_nonnegative_edges::Bool=false)
 
 Construct a phylogenetic tree from the input distance matrix and
@@ -23,7 +23,7 @@ is changed to 0.0 (with a message).
 
 Warning: `D` is modified.
 """
-function nj!(D::Matrix{Float64}, names::AbstractVector{String}=String[];
+function nj!(D::Matrix{Float64}, names::AbstractVector{<:AbstractString}=String[];
              force_nonnegative_edges::Bool=false)
 
     check_distance_matrix(D)

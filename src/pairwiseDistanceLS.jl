@@ -210,7 +210,7 @@ end
 
 """
     calibrateFromPairwiseDistances!(net, distances::Matrix{Float64},
-        taxon_names::Vector{String})
+        taxon_names::Vector{<:AbstractString})
 
 Calibrate the network to match (as best as possible) input
 pairwise distances between taxa, such as observed from sequence data.
@@ -236,7 +236,7 @@ optional arguments (default):
 - verbose (false)
 """
 function calibrateFromPairwiseDistances!(net::HybridNetwork,
-      D::Array{Float64,2}, taxNames::Vector{String};
+      D::Array{Float64,2}, taxNames::Vector{<:AbstractString};
       checkPreorder=true::Bool, forceMinorLength0=false::Bool, verbose=false::Bool,
       ultrametric=true::Bool, NLoptMethod=:LD_MMA::Symbol,
       ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
