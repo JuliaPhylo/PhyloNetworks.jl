@@ -628,7 +628,7 @@ julia> show(writeTableCF(q,t), allcols=true)
 ```
 """
 function countquartetsintrees(tree::Vector{HybridNetwork},
-                           taxonmap=Dict{String,String}()::Dict{String,String};
+                           taxonmap=Dict{String,String}()::Dict{<:AbstractString,<:AbstractString};
                            whichQ=:all::Symbol, weight_byallele=false::Bool,
                            showprogressbar=true::Bool)
     whichQ in [:all, :intrees] || error("whichQ must be either :all or :intrees, but got $whichQ")
@@ -691,7 +691,7 @@ function countquartetsintrees(tree::Vector{HybridNetwork},
 end
 function countquartetsintrees!(quartet::Vector{QuartetT{MVector{4,Float64}}},
             tree::HybridNetwork, whichQ::Symbol, weight_byallele::Bool, nCk::Matrix,
-            taxonnumber::Dict{String,Int}, taxonmap::Dict{String,String})
+            taxonnumber::Dict{<:AbstractString,Int}, taxonmap::Dict{<:AbstractString,<:AbstractString})
     tree.numHybrids == 0 || error("input phylogenies must be trees")
     # next: reset node & edge numbers so that they can be used as indices: 1,2,3,...
     resetNodeNumbers!(tree; checkPreorder=true, type=:postorder) # leaves first & post-order
