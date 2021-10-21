@@ -7,6 +7,7 @@ astralfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","astral.tr
 astraltree = readMultiTopology(astralfile)[102] # 102th tree = last tree here
 net0 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net0.out"))
 net1 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net1.out"))
+rotate!(net1, -6)
 net2 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net2.out"))
 net3 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net3.out"))
 net0.loglik = 53.53150526187732
@@ -66,8 +67,8 @@ We can visualize the estimated network and its inheritance values γ, which
 measure the proportion of genes inherited via each parent at a reticulation event
 (e.g. proportion of genes inherited via gene flow).
 ```@example snaqplot
-R"svg(name('snaqplot_net1_1.svg'), width=4, height=3)" # hide
-R"par"(mar=[0,0,0,0]) # hide
+R"svg(name('snaqplot_net1_1.svg'), width=4, height=3)"; # hide
+R"par"(mar=[0,0,0,0]); # hide
 plot(net1, :R, showGamma=true);
 R"dev.off()"; # hide
 nothing # hide
@@ -306,8 +307,8 @@ then we tell R to wrap up and save its image file.
 ```@example snaqplot
 using PhyloPlots # to visualize networks
 using RCall      # to send additional commands to R like this: R"..."
-R"name = function(x) file.path('..', 'assets', 'figures', x)" # function to create file name in appropriate folder
-R"svg(name('snaqplot_net1_2.svg'), width=4, height=3)" # starts image file
+imagefilename = "../assets/figures/snaqplot_net1_2.svg"
+R"svg"(imagefilename, width=4, height=3) # starts image file
 R"par"(mar=[0,0,0,0]) # to reduce margins (no margins at all here)
 plot(net1, :R, showGamma=true, showEdgeNumber=true); # network is plotted & sent to file
 R"dev.off()"; # wrap up and save image file
@@ -322,11 +323,17 @@ major edge with γ>0.5), and edges were annotated with their internal numbers.
 
 Type `?` to switch to the help mode
 of Julia, then type the name of the function, here `plot`.
-Edge colors can be modified, for instance.
+Below are two visualizations.
+The first uses the default style (`:fulltree`) and modified edge colors.
+The second uses the `:majortree` style.
+That style doesn't have an arrow by default for minor hybrid edges,
+but we can ask for one by specifying a positive arrow length.
 ```@example snaqplot
-R"svg(name('snaqplot_net1_3.svg'), width=4, height=3)" # hide
+R"svg(name('snaqplot_net1_3.svg'), width=7, height=3)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net1, :R, showEdgeLength=true, minorHybridEdgeColor="tan")
+R"layout(matrix(1:2,1,2))";
+plot(net1, :R, showEdgeLength=true, minorHybridEdgeColor="tan");
+plot(net1, :R, style=:majortree, arrowlen=0.07);
 R"dev.off()"; # hide
 nothing # hide
 ```

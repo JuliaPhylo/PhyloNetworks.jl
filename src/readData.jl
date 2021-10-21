@@ -47,7 +47,7 @@ end
 writeTableCF(d::DataCF) = writeTableCF(d.quartet)
 
 function writeTableCF(quartets::Vector{QuartetT{T}},
-                      taxa=Vector{String}()::AbstractVector{String}) where T<:AbstractVector
+                      taxa::AbstractVector{<:AbstractString}=Vector{String}()) where T<:AbstractVector
     V = eltype(T) # would expect Float64, but Int would be reasonable if counts are not normalized
     V <: Real || error("CFs need to take real values")
     df = DataFrames.DataFrame(t1=String[],t2=String[],t3=String[],t4=String[],
@@ -247,7 +247,6 @@ end
 
 # function to list all quartets for a set of taxa names
 # return a vector of quartet objects, and if writeFile=true, writes a file
-# warning: taxon has to be vector of String, vector of AbstractString do not work
 function allQuartets(taxon::Union{Vector{<:AbstractString},Vector{Int}}, writeFile::Bool)
     quartets = combinations(taxon,4)
     vquartet = Quartet[];
@@ -305,7 +304,7 @@ end
 
 # function that will not use randQuartets(list of quartets,...)
 # this function uses whichQuartet to avoid making the list of all quartets
-# fixit: i think we should write always the file, but not sure
+# fixit: writeFile is not used. remove the option?
 function randQuartets(taxon::Union{Vector{<:AbstractString},Vector{Int}},num::Integer, writeFile::Bool)
     randquartets = Quartet[]
     n = length(taxon)
@@ -516,10 +515,10 @@ function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{Hy
 end
 
 """
-    countquartetsintrees(trees [, taxonmap=Dict{String,String}]; which=:all, weight_byallele=true)
+    countquartetsintrees(trees [, taxonmap]; which=:all, weight_byallele=true)
 
 Calculate the quartet concordance factors (CF) observed in the `trees` vector.
-If present, `taxonmap` should map each allele name to it's species name.
+If present, `taxonmap` should be a dictionary that maps each allele name to it's species name.
 To save to a file, first convert to a data frame using [`writeTableCF`](@ref).
 When `which=:all`, quartet CFs are calculated for all 4-taxon sets.
 (Other options are not implemented yet.)
@@ -628,9 +627,9 @@ julia> show(writeTableCF(q,t), allcols=true)
 ```
 """
 function countquartetsintrees(tree::Vector{HybridNetwork},
-                           taxonmap=Dict{String,String}()::Dict{<:AbstractString,<:AbstractString};
-                           whichQ=:all::Symbol, weight_byallele=false::Bool,
-                           showprogressbar=true::Bool)
+                           taxonmap::Dict=Dict{String,String}();
+                           whichQ::Symbol=:all, weight_byallele::Bool=false,
+                           showprogressbar::Bool=true)
     whichQ in [:all, :intrees] || error("whichQ must be either :all or :intrees, but got $whichQ")
     if isempty(taxonmap)
         taxa = unionTaxa(tree)
@@ -875,7 +874,10 @@ function readInputData(trees::Vector{HybridNetwork}, quartetfile::AbstractString
 end
 
 
-function readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Integer, taxa::Union{Vector{<:AbstractString}, Vector{Int}}, writetab::Bool, filename::AbstractString, writeFile::Bool, writeSummary::Bool)
+function readInputData(treefile::AbstractString, whichQ::Symbol=:all, numQ::Integer=0,
+        taxa::Union{Vector{<:AbstractString}, Vector{Int}}=unionTaxaTree(treefile),
+        writetab::Bool=true, filename::AbstractString="none",
+        writeFile::Bool=false, writeSummary::Bool=true)
     if writetab
         if(filename == "none")
             filename = "tableCF.txt" # "tableCF$(string(integer(time()/1000))).txt"
@@ -891,18 +893,13 @@ function readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Integer, 
     readInputData(trees, whichQ, numQ, taxa, writetab, filename, writeFile, writeSummary)
 end
 
-readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Integer, taxa::Union{Vector{String}, Vector{Int}}, writetab::Bool) = readInputData(treefile, whichQ, numQ, taxa, writetab, "none", false, true)
-readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Integer, taxa::Union{Vector{String}, Vector{Int}}) = readInputData(treefile, whichQ, numQ, taxa, true, "none",false, true)
-readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Integer, writetab::Bool, filename::AbstractString) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), writetab, filename,false, true)
 readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Integer, writetab::Bool) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), writetab, "none",false, true)
-readInputData(treefile::AbstractString, whichQ::Symbol, numQ::Integer) = readInputData(treefile, whichQ, numQ, unionTaxaTree(treefile), true, "none",false, true)
-readInputData(treefile::AbstractString) = readInputData(treefile, :all, 0, unionTaxaTree(treefile), true, "none",false, true)
-readInputData(treefile::AbstractString,taxa::Union{Vector{String}, Vector{Int}}) = readInputData(treefile, :all, 0, taxa, true, "none",false, true)
+readInputData(treefile::AbstractString, taxa::Union{Vector{<:AbstractString}, Vector{Int}}) = readInputData(treefile, :all, 0, taxa, true, "none",false, true)
 # above: the use of unionTaxaTree to set the taxon set
 #        is not good: need to read the tree file twice: get the taxa, then get the trees
 #        this inefficiency was fixed in readTrees2CF
 
-function readInputData(trees::Vector{HybridNetwork}, whichQ::Symbol, numQ::Integer, taxa::Union{Vector{String}, Vector{Int}}, writetab::Bool, filename::AbstractString, writeFile::Bool, writeSummary::Bool)
+function readInputData(trees::Vector{HybridNetwork}, whichQ::Symbol, numQ::Integer, taxa::Union{Vector{<:AbstractString}, Vector{Int}}, writetab::Bool, filename::AbstractString, writeFile::Bool, writeSummary::Bool)
     if(whichQ == :all)
         numQ == 0 || @warn "set numQ=$(numQ) but whichQ=all, so all quartets will be used and numQ will be ignored. If you want a specific number of 4-taxon subsets not random, you can input with the quartetfile option"
         quartets = allQuartets(taxa,writeFile)
@@ -958,7 +955,7 @@ See also:
 """
 function readTrees2CF(treefile::AbstractString; quartetfile="none"::AbstractString, whichQ="all"::AbstractString, numQ=0::Integer,
                       writeTab=true::Bool, CFfile="none"::AbstractString,
-                      taxa=Vector{String}()::Union{Vector{String},Vector{Int}},
+                      taxa::AbstractVector=Vector{String}(),
                       writeQ=false::Bool, writeSummary=true::Bool, nexus=false::Bool)
     trees = (nexus ? readNexusTrees(treefile, readTopologyUpdate, false, false) : readInputTrees(treefile))
     if length(taxa)==0        # unionTaxa(trees) NOT default argument:
@@ -969,7 +966,11 @@ function readTrees2CF(treefile::AbstractString; quartetfile="none"::AbstractStri
 end
 
 # same as before, but with input vector of HybridNetworks
-function readTrees2CF(trees::Vector{HybridNetwork}; quartetfile="none"::AbstractString, whichQ="all"::AbstractString, numQ=0::Integer, writeTab=true::Bool, CFfile="none"::AbstractString, taxa=unionTaxa(trees)::Union{Vector{String},Vector{Int}}, writeQ=false::Bool, writeSummary=true::Bool)
+function readTrees2CF(trees::Vector{HybridNetwork};
+        quartetfile="none"::AbstractString, whichQ="all"::AbstractString, numQ=0::Integer,
+        writeTab=true::Bool, CFfile="none"::AbstractString,
+        taxa::AbstractVector=unionTaxa(trees),
+        writeQ=false::Bool, writeSummary=true::Bool)
     whichQ == "all" || whichQ == "rand" ||
         error("whichQ should be all or rand, not $(whichQ)")
     if(quartetfile == "none")
@@ -1185,7 +1186,7 @@ end
 # function to determine the resolution of taxa picked from part1,2,3,4 and DataCF
 # names: taxa from part1,2,3,4
 # rownames: taxa from table of obsCF
-function resolution(names::Vector{String},rownames::Vector{String})
+function resolution(names::Vector{<:AbstractString},rownames::Vector{<:AbstractString})
     length(names) == length(rownames) || error("names and rownames should have the same length")
     length(names) == 4 || error("names should have 4 entries, not $(length(names))")
     bin = [n == names[1] || n == names[2] ? 1 : 0 for n in rownames]
@@ -1206,7 +1207,7 @@ end
 # this function is meant to replace extractQuartet! in calculateObsCFAll
 # input: Quartet, Matrix, vector of taxa names
 # returns 1 if quartet found is 12|34, 2 if 13|24, 3 if 14|23, and 0 if not found
-function extractQuartetTree(q::Quartet, M::Matrix{Int},S::Union{Vector{String},Vector{Int}})
+function extractQuartetTree(q::Quartet, M::Matrix{Int},S::Union{Vector{<:AbstractString},Vector{Int}})
     @debug "extractQuartet: $(q.taxon)"
     @debug "matrix: $(M)"
     inds = indexin(q.taxon, S)
@@ -1260,7 +1261,7 @@ end
 # input: list of taxa names, vector of integers (each integer corresponds to a taxon name),
 # num is the number of the Quartet
 # assumes taxa is sorted already
-function createQuartet(taxa::Union{Vector{String},Vector{Int}},qvec::Vector{Int}, num::Int)
+function createQuartet(taxa::Union{Vector{<:AbstractString},Vector{Int}}, qvec::Vector{Int}, num::Int)
     length(qvec) == 4 || error("a quartet should have only 4 taxa, not $(length(qvec))")
     names = String[]
     for i in qvec
