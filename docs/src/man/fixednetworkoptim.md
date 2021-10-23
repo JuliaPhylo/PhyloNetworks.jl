@@ -147,7 +147,7 @@ Now imagine that our outgroup is taxon A.
   (rooted network on the left below).
 - For the second best network in our list, there are 2 ways to root it
   with A: on the external edge 8 to A (top right), or on its parent edge 10
-  (bottom right). These 2 options give quite different rooted versions
+  These 2 options give quite different rooted versions
   of the network, one of which requires the existence of an unsampled taxon,
   sister to BOECD, that would have contributed to introgression into
   an ancestor of E. The second rooted version says that an ancestor of
@@ -162,14 +162,18 @@ R"par"(mar=[0,0,0.5,0]) # hide
 rootonedge!(netlist[1], 10); # root best net to make A outgroup
 rotate!(netlist[1], -4); # to 'un-cross' edges
 rotate!(netlist[1], -6);
+rotate!(netlist[1], -5);
 plot(netlist[1], :R, showGamma=true, tipOffset=0.1);
 R"mtext"("best net, score=28.3", line=-1);
 global_logger(NullLogger()); # hide
 rootatnode!(netlist[2], "A"); # net with modified direction: first way to make A outgroup
 global_logger(baselogger);   # hide
+rotate!(netlist[2], -4) # to 'un-cross' edges
+rotate!(netlist[2], -6)
 plot(netlist[2], :R, showGamma=true, tipOffset=0.1);
 R"mtext"("second best in list, score=31.5\nrequires unsampled population", line=-2);
 rootonedge!(netlist[2], 10) # net with modified direction: second way to make A outgroup
+for i in [9,-7] rotate!(netlist[2], i); end; # to 'un-cross' edges
 plot(netlist[2], :R, showGamma=true, tipOffset=0.1);
 R"mtext"("second best in list, score=31.5\ndifferent root position", line=-2);
 R"dev.off()"; # hide
