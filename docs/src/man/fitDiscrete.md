@@ -51,9 +51,9 @@ leaves = res[13][!,:lea]
 R"points"(x=res[13][leaves,:x] .+0.1, y=res[13][leaves,:y], pch=16, col=traitcolor, cex=1.5); # adds grey & red points
 R"legend"(x=1, y=7, legend=["hi","lo"], pch=16, col=["red","grey"],
           title="my trait", bty="n",var"title.adj"=0);
-# next: add arrow to show gene flow edge, and proportion γ of genes affected
-hi = findfirst([!e.isMajor for e in net.edge]) # 6 : "h"ybrid "i"ndex: index of gene flow edge (minor hybrid) in net
-R"text"(res[14][hi,:x]-0.2, res[14][hi,:y]-0.1, res[14][hi,:gam], col="deepskyblue", cex=0.75); # add the γ value
+# next: add to gene flow edge the proportion γ of genes affected
+hi = findfirst([!e.isMajor for e in net.edge]) # 6 : "h"ybrid "i"ndex: index of gene flow edge (minor hybrid) in net: horizontal segment
+R"text"(res[14][hi,:x]-0.3, res[14][hi,:y]-0.1, res[14][hi,:gam], col="deepskyblue", cex=0.75); # add the γ value
 R"dev.off"(); # hide
 nothing # hide
 ```
