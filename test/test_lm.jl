@@ -17,9 +17,9 @@ preorder!(net)
 
 # Ancestral state reconstruction with ready-made matrices
 params = ParamsBM(10, 1)
-Random.seed!(2468); # sets the seed for reproducibility, to debug potential error
-sim = simulate(net, params)
-Y = sim[:Tips]
+Random.seed!(2468); # simulates the Y values below under julia v1.6
+sim = simulate(net, params) # tests that the simulation runs, but results not used
+Y = [11.239539657364706,8.600423079191044,10.559841251147608,9.965748423156297] # sim[:Tips]
 X = ones(4, 1)
 phynetlm = phylolm(X, Y, net; reml=false)
 @test_logs show(devnull, phynetlm)
@@ -66,7 +66,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test bic(phynetlm) ≈ -2*loglik+(length(betahat)+1)*log(ntaxa)
 
 # with data frames
-dfr = DataFrame(trait = Y, tipNames = sim.M.tipNames)
+dfr = DataFrame(trait = Y, tipNames = ["A","B","C","D"]) # sim.M.tipNames
 fitbis = phylolm(@formula(trait ~ 1), dfr, net; reml=false)
 #@show fitbis
 
@@ -145,8 +145,10 @@ preorder!(net)
 ## Simulate
 params = ParamsBM(10, 0.1, shiftHybrid([3.0, -3.0],  net))
 Random.seed!(2468); # sets the seed for reproducibility, to debug potential error
-sim = simulate(net, params)
-Y = sim[:Tips]
+sim = simulate(net, params) # checks for no error, but not used.
+# values simulated using julia v1.6.4's RNG hardcoded below.
+# Y = sim[:Tips]
+Y = [11.640085037749985, 9.498284887480622, 9.568813792749083, 13.036916724865296, 6.873936265709946, 6.536647349405742, 5.95771939864956, 10.517318306450647, 9.34927049737206, 10.176238483133424, 10.760099940744308, 8.955543827353837]
 
 ## Construct regression matrix
 dfr_shift = regressorShift(net.edge[[8,17]], net)
@@ -158,7 +160,7 @@ dfr_hybrid = regressorHybrid(net)
 @test dfr_shift[!,:sum] ≈ dfr_hybrid[!,:sum]
 
 ## Data
-dfr = DataFrame(trait = Y, tipNames = sim.M.tipNames)
+dfr = DataFrame(trait = Y, tipNames = ["Ag","Ak","E","M","Az","Ag2","As","Ap","Ar","P","20","165"]) # sim.M.tipNames
 dfr = innerjoin(dfr, dfr_hybrid, on=:tipNames)
 
 ## Simple BM

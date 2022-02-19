@@ -64,7 +64,7 @@ end
 
 @testset "network estimation h=1" begin
 estNet = optTopRun1!(currT, 0.01,75, d,1, 1e-5,1e-6,1e-3,1e-4,
-                     false,true,Int[], 5454, stdout,false,0.3)
+                     false,true,Int[], 54, stdout,false,0.3)
 # topology, likAbs,Nfail, data,hmax, fRel,fAbs,xRel,xAbs,
 # verbose,closeN,numMoves, seed, logfile,writelog,probST,sout)
 @test estNet.loglik < 0.00217
@@ -78,12 +78,12 @@ end
   global net = readTopology("((((6:0.1,4:1.5)1:0.2,((7,60))11#H1)5:0.1,(11#H1,8)),10:0.1);")
   @test_logs (:warn, r"^these taxa will be deleted") snaq!(net, d, # taxon "60" in net: not in quartets
     hmax=1, runs=1, Nfail=1, seed=1234, ftolRel=1e-2,ftolAbs=1e-2,xtolAbs=1e-2,xtolRel=1e-2)
-  global n1 = snaq!(currT, d, hmax=1, runs=1, Nfail=1, seed=1234,
+  global n1 = snaq!(currT, d, hmax=1, runs=1, Nfail=1, seed=123,
              ftolRel=1e-2,ftolAbs=1e-2,xtolAbs=1e-2,xtolRel=1e-2,
              verbose=true)
   addprocs(1)
   @everywhere using PhyloNetworks
-  global n2 = snaq!(currT, d, hmax=1, runs=2, Nfail=1, seed=1234,
+  global n2 = snaq!(currT, d, hmax=1, runs=2, Nfail=1, seed=123,
              ftolRel=1e-2,ftolAbs=1e-2,xtolAbs=1e-2,xtolRel=1e-2)
   redirect_stdout(originalstdout)
   rmprocs(workers())
