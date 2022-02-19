@@ -125,7 +125,9 @@ lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-6,1e-6,1e-2,1e-3, 5)
 obj.loglik = -Inf64
 @test_nowarn PhyloNetworks.optimizealllengths_LiNC!(obj, lcache);
 @test all(e.length != 1.0 for e in obj.net.edge)
-@test [e.length for e in obj.net.edge] ≈ [0.3727, 0.0, 1.0e-8, 1.0e-8, 1.0e-8, 1.0e-8, 1.0e-8, 0.5201, 1.0e-8] rtol=.001
+@test sum(e.length == 1.0e-8 for e in obj.net.edge) >= 2
+@test sum(e.length == 0.0 for e in obj.net.edge) == 1
+@test sum(e.length for e in obj.net.edge) > 0.7
 
 ## optimizegammas -- and delete hybrid edges with γ=0
 γcache = PhyloNetworks.CacheGammaLiNC(obj)
@@ -221,7 +223,7 @@ obj = PhyloNetworks.StatisticalSubstitutionModel(net, fastasimple, :JC69; maxhyb
 PhyloNetworks.discrete_corelikelihood!(obj)
 @test obj.loglik ≈ -29.7762035
 maxmoves = 2
-Random.seed!(96)
+Random.seed!(90)
 γcache = PhyloNetworks.CacheGammaLiNC(obj)
 lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-6,1e-6,1e-2,1e-3, 5)
 PhyloNetworks.optimizestructure!(obj, maxmoves, 1, true, true, 0,100,
@@ -381,9 +383,10 @@ obj.loglik = -Inf # loglik missing otherwise, which would cause an error below
 γcache = PhyloNetworks.CacheGammaLiNC(obj);
 lcache = PhyloNetworks.CacheLengthLiNC(obj, 1e-6,1e-6,1e-2,1e-3, 5);
 @test PhyloNetworks.fliphybridedgeLiNC!(obj, obj.loglik, false, emptyconstraint, 1e-6, γcache, lcache)
-@test obj.loglik ≈ -29.36982 atol=.01
+@test obj.loglik ≈ -29.05 atol=.1
+previousloglik = obj.loglik
 @test PhyloNetworks.deletehybridedgeLiNC!(obj, obj.loglik, no3cycle, emptyconstraint, γcache, lcache)
-@test obj.loglik ≈ -28.30294 atol=.01
+@test obj.loglik > previousloglik + 0.1
 @test !PhyloNetworks.fliphybridedgeLiNC!(obj, obj.loglik, false, emptyconstraint, 1e-6, γcache, lcache)
 end # hybrid flip basics
 end # of overall phyLiNC test set

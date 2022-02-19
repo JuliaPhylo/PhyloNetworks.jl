@@ -16,15 +16,16 @@ sim = simulate(net, pars); # simulate according to a BM
 @test_throws ErrorException sim[:Tips, :Broken]
 
 # Extract simulated values
-traitsTips = sim[:Tips];
-traitsNodes = sim[:InternalNodes];
-
-# Expected values
-traitsTipsExp = [0.6455995230091043,-0.22588106270381064,0.05703904710270408,-0.692650796714688,1.578622599565194,1.4106438068675058,1.9166557600811194,1.0579005662214953,1.2340762902144904,1.4130757789427886,0.7115737497673081,2.201943319276716];
-traitsNodesExp = [-0.3481603206484607,-0.6698437934551933,-0.018135478212541654,-0.33844527112230455,-0.0717742134084467,0.19417331380691694,1.3919535151447147,1.5106942025265466,1.2526948727806593,1.1552248152172964,1.224823113083187,1.0617270280846993,1.0436547766241817,1.0];
-
-@test traitsTips ≈ traitsTipsExp
-@test traitsNodes ≈ traitsNodesExp
+traitsTips = sim[:Tips]
+traitsNodes = sim[:InternalNodes]
+# values simulated under julia v1.6.4
+#traitsTipsExp = [0.6455995230091043,-0.22588106270381064,0.05703904710270408,-0.692650796714688,1.578622599565194,1.4106438068675058,1.9166557600811194,1.0579005662214953,1.2340762902144904,1.4130757789427886,0.7115737497673081,2.201943319276716];
+#traitsNodesExp = [-0.3481603206484607,-0.6698437934551933,-0.018135478212541654,-0.33844527112230455,-0.0717742134084467,0.19417331380691694,1.3919535151447147,1.5106942025265466,1.2526948727806593,1.1552248152172964,1.224823113083187,1.0617270280846993,1.0436547766241817,1.0];
+@test length(traitsTips) == 12
+@test length(traitsNodes) == 14
+@test traitsNodes[end] == 1.0 # ancestral state
+@test 0 < sum(traitsNodes)/14 < 2
+@test 0 < sum(traitsTips)/14 < 2
 
 end
 
@@ -105,21 +106,15 @@ sim = simulate(net, pars); # simulate according to a BM
 
 traitsTips = sim[:Tips];
 traitsNodes = sim[:InternalNodes];
-
 meansTips = sim[:Tips, :Exp];
 meansNodes = sim[:InternalNodes, :Exp];
-
-# Expected values
-meansTipsExp = [1.0 1.0 1.0+3.0 1.0+3.0*0.6]';
-traitsTipsExp = [0.9230584254019785 1.4363450675116494 4.180396447825185 3.299820483104897]';
-
-meansNodesExp = [1.0 1.0+3.0*0.6 1.0+3.0 1.0 1.0]';
-traitsNodesExp = [1.50594336537754 3.296894371572107 4.346436961253621 1.3212328642182367 1.0]';
-
-@test traitsTips ≈ traitsTipsExp
-@test traitsNodes ≈ traitsNodesExp
-@test meansTips ≈ meansTipsExp
-@test meansNodes ≈ meansNodesExp
+@test meansTips == [1.,1.,1.0+3,1.0+3.0*0.6]
+@test meansNodes == [1., 1.0+3.0*0.6, 1.0+3, 1., 1.]
+@test length(traitsTips)  == 4
+@test length(traitsNodes) == 5
+@test traitsNodes[end] == 1.0 # ancestral state
+@test all(-1.0 .< traitsNodes-meansNodes .< 1.0)
+@test all(-1.0 .< traitsTips-meansTips .< 1.0)
 
 # Test same as MultiBM
 pars = ParamsMultiBM([1.0], 0.1*ones(1,1), ShiftNet(net.edge[8], 3.0,  net));

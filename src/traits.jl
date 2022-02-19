@@ -470,7 +470,10 @@ julia> sim = simulate(net, params); # simulate a dataset with shifts
 
 julia> using DataFrames # to handle data frames
 
-julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
+julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames);
+
+julia> dat = DataFrame(trait = [13.391976856737717, 9.55741491696386, 7.17703734817448, 7.889062527849697],
+        tipNames = ["A","B","C","D"]) # hard-coded, to be independent of random number generator
 4×2 DataFrame
  Row │ trait     tipNames 
      │ Float64   String   
@@ -602,7 +605,10 @@ julia> using Random; Random.seed!(2468); # sets the seed for reproducibility
 
 julia> sim = simulate(net, params); # simulate a dataset with shifts
 
-julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames)
+julia> dat = DataFrame(trait = sim[:Tips], tipNames = sim.M.tipNames);
+
+julia> dat = DataFrame(trait = [10.391976856737717, 9.55741491696386, 10.17703734817448, 12.689062527849698],
+          tipNames = ["A","B","C","D"]) # hard-code values for more reproducibility
 4×2 DataFrame
  Row │ trait     tipNames 
      │ Float64   String   
@@ -1090,7 +1096,7 @@ See examples below for accessing expectations and simulated trait values.
 # Examples
 ## Univariate
 ```jldoctest
-julia> phy = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "carnivores_tree.txt"));
+julia> phy = readTopology("(A:2.5,((U:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6):1):0.5);");
 
 julia> par = ParamsBM(1, 0.1) # BM with expectation 1 and variance 0.1.
 ParamsBM:
@@ -1103,104 +1109,47 @@ julia> using Random; Random.seed!(17920921); # for reproducibility
 
 julia> sim = simulate(phy, par) # Simulate on the tree.
 TraitSimulation:
-Trait simulation results on a network with 16 tips, using a BM model, with parameters:
+Trait simulation results on a network with 4 tips, using a BM model, with parameters:
 mu: 1
 Sigma2: 0.1
 
 
 julia> traits = sim[:Tips] # Extract simulated values at the tips.
-16-element Vector{Float64}:
-  2.17618427971927
-  1.0330846124205684
-  3.048979175536912
-  3.0379560744947876
-  2.189704751299587
-  4.031588898597555
-  4.647725850651446
- -0.8772851731182523
-  4.625121065244063
- -0.5111667949991542
-  1.3560351170535228
- -0.10311152349323893
- -2.088472913751017
-  2.6399137689702723
-  2.8051193818084057
-  3.1910928691142915
+4-element Vector{Float64}:
+ 0.9664650558470932
+ 0.4104321932336118
+ 0.2796524923704289
+ 0.7306692819731366
 
 julia> sim.M.tipNames # name of tips, in the same order as values above
-16-element Vector{String}:
- "Prionodontidae"
- "Felidae"
- "Viverridae"
- "Herpestidae"
- "Eupleridae"
- "Hyaenidae"
- "Nandiniidae"
- "Canidae"
- "Ursidae"
- "Odobenidae"
- "Otariidae"
- "Phocidae"
- "Mephitidae"
- "Ailuridae"
- "Mustelidae"
- "Procyonidae"
+4-element Vector{String}:
+ "A"
+ "U"
+ "C"
+ "D"
 
 julia> traits = sim[:InternalNodes] # Extract simulated values at internal nodes. Order: as in sim.M.internalNodeNumbers
-15-element Vector{Float64}:
- 1.1754592873593104
- 2.0953234045227083
- 2.4026760531649423
- 1.8143470622283222
- 1.5958834784477616
- 2.5535578380290103
- 0.14811474751515852
- 1.2168428692963675
- 3.169431736805764
- 2.906447201806521
- 2.8191520015241545
- 2.280632978157822
- 2.5212485416800425
- 2.4579867601968663
+5-element Vector{Float64}:
+ 0.5200361297500204
+ 0.8088890626285765
+ 0.9187604100796469
+ 0.711921371091375
  1.0
 
 julia> traits = sim[:All] # simulated values at all nodes, ordered as in sim.M.nodeNumbersTopOrder
-31-element Vector{Float64}:
+9-element Vector{Float64}:
  1.0
- 2.4579867601968663
- 2.5212485416800425
- 2.280632978157822
- 2.8191520015241545
- 2.906447201806521
- 3.169431736805764
- 3.1910928691142915
- 2.8051193818084057
- 2.6399137689702723
- ⋮
- 2.4026760531649423
- 4.031588898597555
- 2.0953234045227083
- 2.189704751299587
- 3.0379560744947876
- 3.048979175536912
- 1.1754592873593104
- 1.0330846124205684
- 2.17618427971927
+ 0.711921371091375
+ 0.9187604100796469
+ 0.2796524923704289
+ 0.5200361297500204
+ 0.8088890626285765
+ 0.7306692819731366
+ 0.4104321932336118
+ 0.9664650558470932
 
 julia> traits = sim[:Tips, :Exp] # Extract expected values at the tips (also works for sim[:All, :Exp] and sim[:InternalNodes, :Exp]).
-16-element Vector{Float64}:
- 1.0
- 1.0
- 1.0
- 1.0
- 1.0
- 1.0
- 1.0
- 1.0
- 1.0
- 1.0
- 1.0
- 1.0
+4-element Vector{Float64}:
  1.0
  1.0
  1.0
@@ -1209,7 +1158,7 @@ julia> traits = sim[:Tips, :Exp] # Extract expected values at the tips (also wor
 
 ## Multivariate
 ```jldoctest
-julia> phy = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "carnivores_tree.txt"));
+julia> phy = readTopology("(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(V:0.5)#H1:0.5::0.6):1):0.5);");
 
 julia> par = ParamsMultiBM([1.0, 2.0], [1.0 0.5; 0.5 1.0]) # BM with expectation [1.0, 2.0] and variance [1.0 0.5; 0.5 1.0].
 ParamsMultiBM:
@@ -1219,32 +1168,29 @@ Sigma: [1.0 0.5; 0.5 1.0]
 
 julia> using Random; Random.seed!(17920921); # for reproducibility
 
-julia> sim = simulate(phy, par) # Simulate on the tree.
+julia> sim = simulate(phy, par) # simulate on the phylogeny
 TraitSimulation:
-Trait simulation results on a network with 16 tips, using a MBD model, with parameters:
+Trait simulation results on a network with 4 tips, using a MBD model, with parameters:
 mu: [1.0, 2.0]
 Sigma: [1.0 0.5; 0.5 1.0]
 
 
 julia> traits = sim[:Tips] # Extract simulated values at the tips (each column contains the simulated traits for one node).
-2×16 Matrix{Float64}:
- 5.39465  7.223     1.88036  -5.10491   …  -3.86504  0.133704  -2.44564
- 7.29184  7.59947  -1.89206  -0.960013      3.86822  3.23285    1.93376
+2×4 Matrix{Float64}:
+ 2.99232  -0.548734  -1.79191  -0.773613
+ 4.09575   0.712958   0.71848   2.00343
 
 julia> traits = sim[:InternalNodes] # simulated values at internal nodes. order: same as in sim.M.internalNodeNumbers
-2×15 Matrix{Float64}:
- 4.42499  -0.364198  0.71666   3.76669  …  4.57552  4.29265  5.61056  1.0
- 6.24238   2.97237   0.698006  2.40122     5.92623  5.13753  4.5268   2.0
+2×5 Matrix{Float64}:
+ -0.260794  -1.61135  -1.93202   0.0890154  1.0
+  1.46998    1.28614   0.409032  1.94505    2.0
 
-julia> traits = sim[:All] # simulated values at all nodes, ordered as in sim.M.nodeNumbersTopOrder
-2×31 Matrix{Float64}:
- 1.0  5.61056  4.29265  4.57552  …   1.88036  4.42499  7.223    5.39465
- 2.0  4.5268   5.13753  5.92623     -1.89206  6.24238  7.59947  7.29184
+julia> traits = sim[:All]; # 2×9 Matrix: values at all nodes, ordered as in sim.M.nodeNumbersTopOrder
 
 julia> sim[:Tips, :Exp] # Extract expected values (also works for sim[:All, :Exp] and sim[:InternalNodes, :Exp])
-2×16 Matrix{Float64}:
- 1.0  1.0  1.0  1.0  1.0  1.0  1.0  1.0  …  1.0  1.0  1.0  1.0  1.0  1.0  1.0
- 2.0  2.0  2.0  2.0  2.0  2.0  2.0  2.0     2.0  2.0  2.0  2.0  2.0  2.0  2.0
+2×4 Matrix{Float64}:
+ 1.0  1.0  1.0  1.0
+ 2.0  2.0  2.0  2.0
 ```
 """
 function simulate(net::HybridNetwork,

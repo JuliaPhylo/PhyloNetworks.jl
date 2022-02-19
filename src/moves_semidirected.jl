@@ -303,7 +303,7 @@ julia> str_network = "(((S8,S9),(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),
 
 julia> net = readTopology(str_network);
 
-julia> using Random; Random.seed!(321);
+julia> using Random; Random.seed!(3);
 
 julia> undoinfo = nni!(net, net.edge[3], true, true); # true's to avoid hybrid ladders and 3-cycles
 
