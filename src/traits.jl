@@ -1185,10 +1185,7 @@ julia> traits = sim[:InternalNodes] # simulated values at internal nodes. order:
  -0.260794  -1.61135  -1.93202   0.0890154  1.0
   1.46998    1.28614   0.409032  1.94505    2.0
 
-julia> traits = sim[:All] # simulated values at all nodes, ordered as in sim.M.nodeNumbersTopOrder
-2×9 Matrix{Float64}:
- 1.0  0.0890154  -1.93202   -1.79191  …  -1.61135  -0.773613  -0.548734  2.99232
- 2.0  1.94505     0.409032   0.71848      1.28614   2.00343    0.712958  4.09575
+julia> traits = sim[:All]; # 2×9 Matrix: values at all nodes, ordered as in sim.M.nodeNumbersTopOrder
 
 julia> sim[:Tips, :Exp] # Extract expected values (also works for sim[:All, :Exp] and sim[:InternalNodes, :Exp])
 2×4 Matrix{Float64}:
