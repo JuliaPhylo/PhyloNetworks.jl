@@ -1298,24 +1298,11 @@ Read topologies from either a vector of type String with
 trees or networks in parenthetical format (one per line) 
 using fmap in the Functors package. This method is faster 
 than readMultiTopology.
-Each network is read with [`readTopology`](@ref).
+Each network is read with `readTopology`.
 Return an array of HybridNetwork object.
-
-# Examples
-```
-julia> multitreepath = joinpath("examples", "multitrees.newick")
-julia> multitree = readlines(multitreepath)
-julia> multi = readMultiTopologyFast(multitree)
-julia> typeof(multi)
-25
-julia> length(multi)
-Vector{HybridNetwork} (alias for Array{HybridNetwork, 1})
-```
 """
-function readMultiTopologyFast(trees::Vector{String})
-    
+function readMultiTopologyFast(trees::Vector{String})    
     trees = Functors.fmap(readTopology, trees)
-
     return trees
 end
 
