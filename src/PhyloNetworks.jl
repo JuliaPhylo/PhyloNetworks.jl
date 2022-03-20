@@ -105,6 +105,7 @@ module PhyloNetworks
         writeMultiTopology,
         readMultiTopologyLevel1,
         readMultiTopology,
+        readMultiTopologyFast,
         hybridatnode!,
         undirectedOtherNetworks,
         ## Network Calibration

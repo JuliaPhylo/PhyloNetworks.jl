@@ -1310,6 +1310,7 @@ julia> typeof(multi)
 25
 julia> length(multi)
 Vector{HybridNetwork} (alias for Array{HybridNetwork, 1})
+```
 """
 function readMultiTopologyFast(trees::Vector{String})
     
