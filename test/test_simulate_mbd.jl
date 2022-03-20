@@ -70,12 +70,12 @@ end
 
 ## Check means
 μ_true = μ * ones(S)'
-@test isapprox(μ_sim, μ_true, atol=0.2)
+@test isapprox(μ_sim, μ_true, atol=0.3)
 
 ## Check covariance
 Ψ = Matrix(vcv(net))
-Σ_true = kron(Ψ, Σ)
-@test isapprox(Σ_sim, Σ_true, atol=3.0) # norm L2 of 36x36 matrix
+Σ_true = kron(Ψ, Σ) # 36x36 matrix
+@test isapprox(Σ_sim, Σ_true, atol=0.5, norm= x -> maximum(abs.(x)))
 
 end
 
@@ -203,5 +203,5 @@ sim = simulate(net, pars)
 ## Check covariance
 Ψ = Matrix(vcv(net))
 Σ_true = kron(Ψ, Σ)
-@test isapprox(Σ_sim, Σ_true, norm = x -> maximum(abs.(x)), atol=0.4)
+@test isapprox(Σ_sim, Σ_true, norm = x -> maximum(abs.(x)), atol=0.5) # 12x12 matrix
 end

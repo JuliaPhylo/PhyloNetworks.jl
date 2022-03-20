@@ -57,7 +57,7 @@ it. You can always free a pinned package with
 The PhyloNetworks package has dependencies like
 [NLopt](https://github.com/JuliaOpt/NLopt.jl) and
 [DataFrames](http://juliadata.github.io/DataFrames.jl/stable/)
-(see the REQUIRE file for the full list), but everything is installed automatically.
+(see the `Project.toml` file for the full list), but everything is installed automatically.
 
 The companion package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl)
 has utilities to visualize networks, and for interoperability,

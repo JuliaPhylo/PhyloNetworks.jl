@@ -501,7 +501,7 @@ Binary Trait Substitution Model:
 rate 0→1 α=1.0
 rate 1→0 β=2.0
 
-julia> using Random; Random.seed!(12345);
+julia> using Random; Random.seed!(13);
 
 julia> randomTrait(m1, 0.2, [1,2,1,2,2])
 5-element Vector{Int64}:
@@ -554,7 +554,7 @@ julia> m1 = BinaryTraitSubstitutionModel(1.0, 2.0, ["low","high"]);
 
 julia> net = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.0,D:5.0);");
 
-julia> using Random; Random.seed!(235);
+julia> using Random; Random.seed!(95);
 
 julia> trait, lab = randomTrait(m1, net)
 ([1 2 … 1 1], ["-2", "D", "-3", "-6", "C", "-4", "H1", "B", "A"])

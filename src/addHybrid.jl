@@ -40,7 +40,7 @@ julia> net = readTopology("((S1,(((S2,(S3)#H1),(#H1,S4)))#H2),(#H2,S5));");
 
 julia> using Random
 
-julia> Random.seed!(75);
+julia> Random.seed!(170);
 
 julia> PhyloNetworks.addhybridedge!(net, true, true)
 (PhyloNetworks.Node:
@@ -51,7 +51,7 @@ julia> PhyloNetworks.addhybridedge!(net, true, true)
 , PhyloNetworks.Edge:
  number:17
  length:0.01
- minor hybrid edge with gamma=0.32946795808423734
+ minor hybrid edge with gamma=0.32771460911632916
  attached to 2 node(s) (parent first): 8 9
 )
 

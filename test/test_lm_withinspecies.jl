@@ -336,12 +336,12 @@ m2 = phylolm(@formula(y~x1+x2),df,net;
 @test coef(m2) ≈ [0.9767352,1.9155142,3.2661862] rtol=1e-4
 @test loglikelihood(m1) ≈ -14.14184 rtol=1e-4
 @test loglikelihood(m2) ≈ -9.582357 rtol=1e-4
-@test vcov(m1) ≈ [0.09386431 0.02273458 -0.02602937;0.02273458 0.02172123 -0.01133032;-0.02602937 -0.01133032 0.01584198] rtol=1e-4
-@test vcov(m2) ≈ [0.019118171 0.004924625 -0.008977541;0.004924625 0.003577654 -0.003028413;-0.008977541 -0.003028413 0.005793475] rtol=1e-4
+@test vcov(m1) ≈ [0.09386431 0.02273458 -0.02602937;0.02273458 0.02172123 -0.01133032;-0.02602937 -0.01133032 0.01584198] rtol=1e-3
+@test vcov(m2) ≈ [0.019118171 0.004924625 -0.008977541;0.004924625 0.003577654 -0.003028413;-0.008977541 -0.003028413 0.005793475] rtol=1e-3
 @test coeftable(m1).cols[coeftable(m1).teststatcol] ≈ [3.524591,13.412285,25.562252] rtol=1e-4
 @test coeftable(m2).cols[coeftable(m2).teststatcol] ≈ [7.064049,32.024784,42.911270] rtol=1e-4
-@test coeftable(m1).cols[coeftable(m1).pvalcol] ≈ [0.071921276,0.005513044,0.001526885] rtol=1e-4
-@test coeftable(m2).cols[coeftable(m2).pvalcol] ≈ [0.0194568147,0.0009736278,0.0005426298] rtol=1e-4
+@test coeftable(m1).cols[coeftable(m1).pvalcol] ≈ [0.071921276,0.005513044,0.001526885] rtol=1e-3
+@test coeftable(m2).cols[coeftable(m2).pvalcol] ≈ [0.0194568147,0.0009736278,0.0005426298] rtol=1e-3
 @test coeftable(m1).cols[findall(coeftable(m1).colnms .== "Lower 95%")[1]] ≈ [-0.2383769,1.3425890,2.6758379] rtol=1e-4
 @test coeftable(m2).cols[findall(coeftable(m2).colnms .== "Lower 95%")[1]] ≈ [0.381814,1.658158,2.938690] rtol=1e-4
 @test coeftable(m1).cols[findall(coeftable(m1).colnms .== "Upper 95%")[1]] ≈ [2.398055,2.610850,3.758944] rtol=1e-4
