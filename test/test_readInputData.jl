@@ -40,7 +40,7 @@ vnet = readNexusTrees(nexusfile, PhyloNetworks.readTopologyUpdate, false, false)
 end
 
 @testset "Reading with readMultiTopology and readMultiTopologyFast is equivalent" begin
-    multitreepath = joinpath(@__DIR__, "examples", "multitrees.newick")
+    multitreepath = joinpath(@__DIR__, "..", "examples", "multitrees.newick")
     multitree = readlines(multitreepath)
     multi1 = readMultiTopology(multitreepath)
     multi2 = readMultiTopologyFast(multitree)
