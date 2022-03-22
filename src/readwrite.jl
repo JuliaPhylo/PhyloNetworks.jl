@@ -1302,7 +1302,7 @@ Each network is read with `readTopology`.
 Return an array of HybridNetwork object.
 """
 function readMultiTopologyFast(trees::Vector{String})    
-    trees = Functors.fmap(readTopology, trees)
+    trees = fmap(readTopology, trees)
     return trees
 end
 
