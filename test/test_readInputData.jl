@@ -51,6 +51,24 @@ end
     @test vectrees1 == vectrees2
 end
 
+@testset "Reading from a vector of newick strings is equivalent to reading from a connection" begin
+    multitreepath = joinpath(@__DIR__, "..", "examples", "multitrees.newick")
+    multitree = readlines(multitreepath)
+    multi1 = readMultiTopology(multitreepath, fast=true)
+    multi2 = readMultiTopology(multitree, fast=true)    
+    vectrees1 = writeMultiTopology(multi1, stdout);
+    vectrees2 = writeMultiTopology(multi2, stdout);
+    multi3 = readMultiTopology(multitreepath, fast=false)
+    multi4 = readMultiTopology(multitree, fast=false)    
+    vectrees3 = writeMultiTopology(multi1, stdout);
+    vectrees4 = writeMultiTopology(multi2, stdout);
+    @test length(multi1) == length(multi2)
+    @test typeof(multi1) == typeof(multi2)
+    @test vectrees1 == vectrees2
+    @test length(multi3) == length(multi4)
+    @test typeof(multi3) == typeof(multi4)
+    @test vectrees3 == vectrees4
+end
 
 @testset "test: calculate quartet CF from input gene trees" begin
 sixtreestr = ["(E,((A,B),(C,D)),O);","(((A,B),(C,D)),(E,O));","(A,B,((C,D),(E,O)));",

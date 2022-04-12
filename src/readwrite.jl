@@ -1270,6 +1270,7 @@ Read a text file with a list of networks in parenthetical format (one per line).
 uses Functors.fmap for reading the newick trees into HybridNetwork
 type objects. The original version of this function can be used setting
 `fast=false`.
+Methods for reading newick strings from vectors are also available if the type is Vector{<:AbstractString}.
 Each network is read with [`readTopology`](@ref).
 Return an array of HybridNetwork object.
 
@@ -1285,20 +1286,21 @@ julia> length(multitree)
 ```
 
 """
-function readMultiTopology(file::AbstractString; fast=true)
+# method for reading from a filename
+function readMultiTopology(topologies::AbstractString; fast=true)
     trees_newick = readlines(file)
     trees = fmap(readTopology, trees_newick)
     return trees
 end
 
-"""
-`readMultiTopology(file, fast=false)`
+# method for reading from a vector of newick stgrings
+function readMultiTopology(topologies::Vector{<:AbstractString}; fast=true)
+    trees_newick = readlines(file)
+    trees = fmap(readTopology, trees_newick)
+    return trees
+end
 
-Read a text file with a list of networks in parenthetical format (one per line).
-Each network is read with [`readTopology`](@ref).
-Return an array of HybridNetwork object.
-"""
-function readMultiTopology(file::AbstractString; fast=false)
+function readMultiTopology(topologies::AbstractString; fast=false)
     s = open(file)
     numl = 1
     vnet = HybridNetwork[];
@@ -1318,6 +1320,30 @@ function readMultiTopology(file::AbstractString; fast=false)
     close(s)
     return vnet
 end
+
+# method for reading from a vector of newick strings
+function readMultiTopology(topologies::Vector{<:AbstractString}; fast=false)
+    s = open(file)
+    numl = 1
+    vnet = HybridNetwork[];
+    for line in eachline(s)
+        line = strip(line) # remove spaces
+        c = isempty(line) ? "" : line[1]
+        if(c == '(')
+           try
+               push!(vnet, readTopology(line,false)) # false for non-verbose
+           catch err
+               print("skipped phylogeny on line $(numl) of file $file: ")
+               if :msg in fieldnames(typeof(err)) println(err.msg); else println(typeof(err)); end
+           end
+        end
+        numl += 1
+    end
+    close(s)
+    return vnet
+end
+
+
 
 """
     writeMultiTopology(nets, file_name; append=false)
