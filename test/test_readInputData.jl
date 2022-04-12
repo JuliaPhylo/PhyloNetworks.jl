@@ -39,13 +39,13 @@ vnet = readNexusTrees(nexusfile, PhyloNetworks.readTopologyUpdate, false, false)
 @test vnet[10].edge[7].length ≈ 0.00035
 end
 
-@testset "Reading with readMultiTopology and readMultiTopologyFast is equivalent" begin
+@testset "Reading with the different methods of readMultiTopology is equivalent" begin
     multitreepath = joinpath(@__DIR__, "..", "examples", "multitrees.newick")
-    multitree = readlines(multitreepath)
-    multi1 = readMultiTopology(multitreepath)
-    multi2 = readMultiTopologyFast(multitree)
-    vectrees1 = writeMultiTopology(multi1, stdout)
-    vectrees2 = writeMultiTopology(multi2, stdout)
+    #multitree = readlines(multitreepath)
+    multi1 = readMultiTopology(multitreepath, fast=false)
+    multi2 = readMultiTopology(multitreepath, fast=true)
+    vectrees1 = writeMultiTopology(multi1, stdout);
+    vectrees2 = writeMultiTopology(multi2, stdout);
     @test length(multi1) == length(multi2)
     @test typeof(multi1) == typeof(multi2)
     @test vectrees1 == vectrees2

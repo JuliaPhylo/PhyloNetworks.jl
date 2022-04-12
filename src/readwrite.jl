@@ -1264,13 +1264,41 @@ function readMultiTopologyLevel1(file::AbstractString)
 end
 
 """
-`readMultiTopology(file)`
+`readMultiTopology(file, fast=true)`
+
+Read a text file with a list of networks in parenthetical format (one per line). The default uses the argument `fast=true` which
+uses Functors.fmap for reading the newick trees into HybridNetwork
+type objects. The original version of this function can be used setting
+`fast=false`.
+Each network is read with [`readTopology`](@ref).
+Return an array of HybridNetwork object.
+
+# Examples
+
+```jldoctest
+julia> multitreepath = joinpath("examples", "multitrees.newick")
+julia> multitree = readMultiTopology(multitreepath, fast=true);
+julia> typeof(multitree)
+Vector{HybridNetwork} (alias for Array{HybridNetwork, 1})
+julia> length(multitree)
+25
+```
+
+"""
+function readMultiTopology(file::AbstractString, fast=true)
+    trees_newick = readlines(file)
+    trees = fmap(readTopology, trees_newick)
+    return trees
+end
+
+"""
+`readMultiTopology(file, fast=false)`
 
 Read a text file with a list of networks in parenthetical format (one per line).
 Each network is read with [`readTopology`](@ref).
 Return an array of HybridNetwork object.
 """
-function readMultiTopology(file::AbstractString)
+function readMultiTopology(file::AbstractString, fast=false)
     s = open(file)
     numl = 1
     vnet = HybridNetwork[];
@@ -1289,34 +1317,6 @@ function readMultiTopology(file::AbstractString)
     end
     close(s)
     return vnet
-end
-
-"""
-`readMultiTopologyFast(trees)`
-
-Read topologies from either a vector of type String with 
-trees or networks in parenthetical format (one per line) 
-using fmap in the Functors package. This method is faster 
-than readMultiTopology.
-Each network is read with `readTopology`.
-Return an array of HybridNetwork object.
-
-# Examples
-
-```jldoctest
-julia> multitreepath = joinpath("examples", "multitrees.newick")
-julia> multitree = readlines(multitreepath);
-julia> multi = readMultiTopologyFast(multitree);
-julia> typeof(multi)
-Vector{HybridNetwork} (alias for Array{HybridNetwork, 1})
-julia> length(multi)
-25
-```
-
-"""
-function readMultiTopologyFast(trees::Vector{String})    
-    trees = fmap(readTopology, trees)
-    return trees
 end
 
 """
