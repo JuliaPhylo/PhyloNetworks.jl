@@ -103,7 +103,7 @@ end
 if false # was used to time `countquartetsintrees` vs `readTrees2CF`
 dir = "/Users/ane/Documents/private/concordance/quartetNetwork/multiind/data"
 treefile = joinpath(dir, "raxml_1387_sample_5species4alleles.tre")
-tree = readMultiTopology(treefile); # 1387 trees
+tree = readMultiTopology(treefile, fast=false); # 1387 trees
 # extrema([t.numTaxa for t in tree]) # 4-16 taxa in each
 @time df1 = writeTableCF(countquartetsintrees(tree)...)
 # 0.139761 seconds (900.12 k allocations: 52.000 MiB, 11.52% gc time). 3876×8 DataFrames.DataFrame
@@ -146,11 +146,11 @@ taxonmap = Dict(taxonmap[i,:allele] => taxonmap[i,:species] for i in 1:110)
 @time df1 = writeTableCF(countquartetsintrees(tree, taxonmap; weight_byallele=true)...)
 # 0.119289 seconds (698.57 k allocations: 43.305 MiB, 17.40% gc time). 5×8 DataFrames.DataFrame
 ## larger examples: 98 to 110 taxa, 1387 trees
-tree = readMultiTopology(joinpath(dir, "raxml_1387.tre")) # 1387 trees, 98-110 taxa in each
+tree = readMultiTopology(joinpath(dir, "raxml_1387.tre"), fast=false) # 1387 trees, 98-110 taxa in each
 @time df1 = writeTableCF(countquartetsintrees(tree)...)
 # 1219.94 seconds = 20.3 min (298.45 M allocations: 8.509 GiB, 0.79% gc time). 5773185×8 DataFrames.DataFrame
 ## mid-size example: to be able to run the slower algorithm and compare times
-tree = readMultiTopology(joinpath(dir, "raxml_1387_sample_13species4alleles.tre")); # 1387 trees, 19-40 taxa in each
+tree = readMultiTopology(joinpath(dir, "raxml_1387_sample_13species4alleles.tre"), fast=false); # 1387 trees, 19-40 taxa in each
 @time df1 = writeTableCF(countquartetsintrees(tree)...)
 # 5.639443 seconds (16.84 M allocations: 568.496 MiB, 7.50% gc time). 292825×8 DataFrame
 # ~ 600 times faster
