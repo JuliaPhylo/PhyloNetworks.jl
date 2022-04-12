@@ -1285,7 +1285,7 @@ julia> length(multitree)
 ```
 
 """
-function readMultiTopology(file::AbstractString, fast=true)
+function readMultiTopology(file::AbstractString; fast=true)
     trees_newick = readlines(file)
     trees = fmap(readTopology, trees_newick)
     return trees
@@ -1298,7 +1298,7 @@ Read a text file with a list of networks in parenthetical format (one per line).
 Each network is read with [`readTopology`](@ref).
 Return an array of HybridNetwork object.
 """
-function readMultiTopology(file::AbstractString, fast=false)
+function readMultiTopology(file::AbstractString; fast=false)
     s = open(file)
     numl = 1
     vnet = HybridNetwork[];
