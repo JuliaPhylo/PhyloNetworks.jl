@@ -1300,6 +1300,19 @@ using fmap in the Functors package. This method is faster
 than readMultiTopology.
 Each network is read with `readTopology`.
 Return an array of HybridNetwork object.
+
+# Examples
+
+```jldoctest
+julia> multitreepath = joinpath("examples", "multitrees.newick")
+julia> multitree = readlines(multitreepath);
+julia> multi = readMultiTopologyFast(multitree);
+julia> typeof(multi)
+Vector{HybridNetwork} (alias for Array{HybridNetwork, 1})
+julia> length(multi)
+25
+```
+
 """
 function readMultiTopologyFast(trees::Vector{String})    
     trees = fmap(readTopology, trees)
