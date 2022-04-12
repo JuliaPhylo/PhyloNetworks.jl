@@ -5,7 +5,7 @@ exdir = joinpath(@__DIR__,"..","examples")
 
 @testset "testing hybridBootstrapSupport" begin
 bestnet = readTopology(joinpath(exdir,"fish2hyb.net"));
-bootnet = readMultiTopology(joinpath(exdir,"fish3hyb_20boostrap.net"));
+bootnet = readMultiTopology(joinpath(exdir,"fish3hyb_20boostrap.net"), fast=false);
 # issues with bootstrap networks 12, 21, 42, 96
 # plot(bootnet[20], showEdgeNumber=true)
 # include(string(home, "bootstrap.jl"))
@@ -56,7 +56,7 @@ treefile = joinpath(exdir,"treefile.txt") # pretending these are bootstrap trees
 boottrees = Vector{HybridNetwork}[]
 T=readTopology(joinpath(exdir,"startTree.txt"))
 net1 = readTopology("(5,(((2,(1)#H7:::0.7143969494428192):1.5121337017411736,4):0.4894187322508883,3):0.519160762355313,(6,#H7:::0.2856030505571808):10.0);")
-for i=1:13 push!(boottrees, readMultiTopology(treefile)) end
+for i=1:13 push!(boottrees, readMultiTopology(treefile, fast=false)) end
 for i=1:13 @test size(boottrees[i])==(10,) end # 10 bootstrap trees for each of 13 "genes"
 addprocs(1)
 @everywhere using PhyloNetworks
