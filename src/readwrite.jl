@@ -1288,20 +1288,20 @@ julia> length(multitree)
 """
 # method for reading from a filename
 function readMultiTopology(topologies::AbstractString; fast=true)
-    trees_newick = readlines(file)
+    trees_newick = readlines(topologies)
     trees = fmap(readTopology, trees_newick)
     return trees
 end
 
 # method for reading from a vector of newick stgrings
 function readMultiTopology(topologies::Vector{<:AbstractString}; fast=true)
-    trees_newick = readlines(file)
+    trees_newick = readlines(topologies)
     trees = fmap(readTopology, trees_newick)
     return trees
 end
 
 function readMultiTopology(topologies::AbstractString; fast=false)
-    s = open(file)
+    s = open(topologies)
     numl = 1
     vnet = HybridNetwork[];
     for line in eachline(s)
@@ -1311,7 +1311,7 @@ function readMultiTopology(topologies::AbstractString; fast=false)
            try
                push!(vnet, readTopology(line,false)) # false for non-verbose
            catch err
-               print("skipped phylogeny on line $(numl) of file $file: ")
+               print("skipped phylogeny on line $(numl) of file $topologies: ")
                if :msg in fieldnames(typeof(err)) println(err.msg); else println(typeof(err)); end
            end
         end
@@ -1323,7 +1323,7 @@ end
 
 # method for reading from a vector of newick strings
 function readMultiTopology(topologies::Vector{<:AbstractString}; fast=false)
-    s = open(file)
+    s = open(topologies)
     numl = 1
     vnet = HybridNetwork[];
     for line in eachline(s)
@@ -1333,7 +1333,7 @@ function readMultiTopology(topologies::Vector{<:AbstractString}; fast=false)
            try
                push!(vnet, readTopology(line,false)) # false for non-verbose
            catch err
-               print("skipped phylogeny on line $(numl) of file $file: ")
+               print("skipped phylogeny on line $(numl) of file $topologies: ")
                if :msg in fieldnames(typeof(err)) println(err.msg); else println(typeof(err)); end
            end
         end
