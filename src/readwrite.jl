@@ -1287,7 +1287,6 @@ Return an array of HybridNetwork objects.
 julia> multitreepath = joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "multitrees.newick");
 julia> multitree = readMultiTopology(multitreepath) # vector of 25 HybridNetworks
 julia> multitree = readMultiTopology(multitreepath, false) # same but slower & safer
-[ Info: safe version
 julia> treestrings = readlines(multitreepath) # vector of 25 strings
 julia> multitree = readMultiTopology(treestrings)
 julia> readMultiTopology(treestrings, false) # same, but slower
@@ -1303,7 +1302,6 @@ function readMultiTopology(file::AbstractString, fast::Bool=true)
     if fast
         return readMultiTopology(readlines(file), true)
     end
-    @info "safe version"
     s = open(file)
     numl = 1
     vnet = HybridNetwork[];
