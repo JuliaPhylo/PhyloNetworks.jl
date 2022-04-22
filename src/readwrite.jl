@@ -1264,50 +1264,47 @@ function readMultiTopologyLevel1(file::AbstractString)
 end
 
 """
-`readMultiTopology(file, fast=true)`
+    readMultiTopology(filename::AbstractString, fast=true)
+    readMultiTopology(newicktrees_list::Vector{<:AbstractString})
 
-Read a text file with a list of networks in parenthetical format (one per line). 
-The input can be either a string with the path to a file, or a vector 
-of string elements corresponding to newick-formatted topologies.
-The default uses the argument `fast=true` which
-uses Functors.fmap for reading the newick trees into HybridNetwork
-type objects. The original version of this function can be used setting
-`fast=false` if the input is a path of type String rathern than 
-a vector.
-Methods for reading newick strings from vectors are also available if the type is Vector{<:AbstractString}.
+
+Read a list of networks in parenthetical format, either from a file
+(one network per line) if the input is a string giving the path
+to the file, or from a vector of strings with each string corresponding to
+a newick-formatted topology.
+By default (`fast=true`), `Functors.fmap` is used for repeatedly
+reading the newick trees into of HybridNetwork-type objects.
+The option `fast=false` corresponds to the behavior up until v0.14.3:
+with a file name as input, it prints a message (without failing) when a
+phylogeny cannot be parsed, and allows for empty lines.
 Each network is read with [`readTopology`](@ref).
-Return an array of HybridNetwork object.
+
+Return an array of HybridNetwork objects.
 
 # Examples
 
-```jldoctest
-julia> multitreepath = joinpath("examples", "multitrees.newick")
-julia> multitree = readMultiTopology(multitreepath, fast=true);
-julia> trees = readlines(multitreepath);
-julia> multitree_path = readMultiTopology(multitreepath, fast=true);
-julia> multitree_vector = readMultiTopology(trees, fast=true);
-julia> typeof(multitree_path)
-Vector{HybridNetwork} (alias for Array{HybridNetwork, 1})
-julia> length(multitree_vector)
-25
+```julia
+julia> multitreepath = joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "multitrees.newick");
+julia> multitree = readMultiTopology(multitreepath) # vector of 25 HybridNetworks
+julia> multitree = readMultiTopology(multitreepath, false) # same but slower & safer
+[ Info: safe version
+julia> treestrings = readlines(multitreepath) # vector of 25 strings
+julia> multitree = readMultiTopology(treestrings)
+julia> readMultiTopology(treestrings, false) # same, but slower
 ```
 
 """
-# method for reading from a filename
-function readMultiTopology(topologies::AbstractString; fast=true)
-    net_newick = readlines(topologies)
-    networks = fmap(readTopology, net_newick)
-    return networks
+# method for reading from a vector of newick strings
+function readMultiTopology(topologies::Vector{<:AbstractString}, fast::Bool=true)
+    return (fast ? fmap(readTopology, topologies) : map(readTopology, topologies))
 end
-
-# method for reading from a vector of newick stgrings
-function readMultiTopology(topologies::Vector{<:AbstractString}; fast=true)
-    networks = fmap(readTopology, topologies)
-    return networks
-end
-
-function readMultiTopology(topologies::AbstractString; fast=false)
-    s = open(topologies)
+# methods with a file name as input
+function readMultiTopology(file::AbstractString, fast::Bool=true)
+    if fast
+        return readMultiTopology(readlines(file), true)
+    end
+    @info "safe version"
+    s = open(file)
     numl = 1
     vnet = HybridNetwork[];
     for line in eachline(s)
@@ -1317,7 +1314,7 @@ function readMultiTopology(topologies::AbstractString; fast=false)
            try
                push!(vnet, readTopology(line,false)) # false for non-verbose
            catch err
-               print("skipped phylogeny on line $(numl) of file $topologies: ")
+               print("skipped phylogeny on line $(numl) of file $file: ")
                if :msg in fieldnames(typeof(err)) println(err.msg); else println(typeof(err)); end
            end
         end
@@ -1326,14 +1323,6 @@ function readMultiTopology(topologies::AbstractString; fast=false)
     close(s)
     return vnet
 end
-
-# method for reading from a vector of newick strings
-function readMultiTopology(topologies::Vector{<:AbstractString}; fast=false)
-    networks = map(readTopology, topologies)
-    return networks
-end
-
-
 
 """
     writeMultiTopology(nets, file_name; append=false)
@@ -1345,7 +1334,7 @@ file or overwrite it, if it already existed.
 Each network is written with `writeTopology`.
 
 # Examples
-```
+```julia
 julia> net = [readTopology("(D,((A,(B)#H7:::0.864):2.069,(F,E):3.423):0.265,(C,#H7:::0.1361111):10);"),
               readTopology("(A,(B,C));"),readTopology("(E,F);"),readTopology("(G,H,F);")];
 

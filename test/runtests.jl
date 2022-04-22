@@ -16,7 +16,7 @@ using StaticArrays # for rate substitution matrices
 using Statistics
 using StatsBase # for aic etc., stderr
 using BioSymbols
-using Functors
+
 
 PhyloNetworks.setCHECKNET(true)
 

@@ -39,35 +39,21 @@ vnet = readNexusTrees(nexusfile, PhyloNetworks.readTopologyUpdate, false, false)
 @test vnet[10].edge[7].length ≈ 0.00035
 end
 
-@testset "Reading with the different methods of readMultiTopology is equivalent" begin
+@testset "readMultiTopology" begin
     multitreepath = joinpath(@__DIR__, "..", "examples", "multitrees.newick")
-    #multitree = readlines(multitreepath)
-    multi1 = readMultiTopology(multitreepath, fast=false)
-    multi2 = readMultiTopology(multitreepath, fast=true)
-    vectrees1 = writeMultiTopology(multi1, stdout);
-    vectrees2 = writeMultiTopology(multi2, stdout);
-    @test length(multi1) == length(multi2)
+    # methods that take a file name
+    multi1 = readMultiTopology(multitreepath, false) # slow but safe
+    multi2 = readMultiTopology(multitreepath)
     @test typeof(multi1) == typeof(multi2)
-    @test vectrees1 == vectrees2
-end
-
-@testset "Reading from a vector of newick strings is equivalent to reading from a connection" begin
-    multitreepath = joinpath(@__DIR__, "..", "examples", "multitrees.newick")
+    @test writeTopology.(multi1) == writeTopology.(multi2)
+    # methods that take newick strings
     multitree = readlines(multitreepath)
-    multi1 = readMultiTopology(multitreepath, fast=true)
-    multi2 = readMultiTopology(multitree, fast=true)    
-    vectrees1 = writeMultiTopology(multi1, stdout);
-    vectrees2 = writeMultiTopology(multi2, stdout);
-    multi3 = readMultiTopology(multitreepath, fast=false)
-    multi4 = readMultiTopology(multitree, fast=false)    
-    vectrees3 = writeMultiTopology(multi1, stdout);
-    vectrees4 = writeMultiTopology(multi2, stdout);
-    @test length(multi1) == length(multi2)
-    @test typeof(multi1) == typeof(multi2)
-    @test vectrees1 == vectrees2
-    @test length(multi3) == length(multi4)
-    @test typeof(multi3) == typeof(multi4)
-    @test vectrees3 == vectrees4
+    multi1s = readMultiTopology(multitree, false)
+    multi2s = readMultiTopology(multitree)
+    @test writeTopology.(multi1s) == writeTopology.(multi1)
+    @test writeTopology.(multi1s) == writeTopology.(multi2s)
+    @test typeof(multi1s) == typeof(multi1)
+    @test typeof(multi1s) == typeof(multi2s)
 end
 
 @testset "test: calculate quartet CF from input gene trees" begin
@@ -121,7 +107,7 @@ end
 if false # was used to time `countquartetsintrees` vs `readTrees2CF`
 dir = "/Users/ane/Documents/private/concordance/quartetNetwork/multiind/data"
 treefile = joinpath(dir, "raxml_1387_sample_5species4alleles.tre")
-tree = readMultiTopology(treefile, fast=false); # 1387 trees
+tree = readMultiTopology(treefile); # 1387 trees
 # extrema([t.numTaxa for t in tree]) # 4-16 taxa in each
 @time df1 = writeTableCF(countquartetsintrees(tree)...)
 # 0.139761 seconds (900.12 k allocations: 52.000 MiB, 11.52% gc time). 3876×8 DataFrames.DataFrame
@@ -164,11 +150,11 @@ taxonmap = Dict(taxonmap[i,:allele] => taxonmap[i,:species] for i in 1:110)
 @time df1 = writeTableCF(countquartetsintrees(tree, taxonmap; weight_byallele=true)...)
 # 0.119289 seconds (698.57 k allocations: 43.305 MiB, 17.40% gc time). 5×8 DataFrames.DataFrame
 ## larger examples: 98 to 110 taxa, 1387 trees
-tree = readMultiTopology(joinpath(dir, "raxml_1387.tre"), fast=false) # 1387 trees, 98-110 taxa in each
+tree = readMultiTopology(joinpath(dir, "raxml_1387.tre")) # 1387 trees, 98-110 taxa in each
 @time df1 = writeTableCF(countquartetsintrees(tree)...)
 # 1219.94 seconds = 20.3 min (298.45 M allocations: 8.509 GiB, 0.79% gc time). 5773185×8 DataFrames.DataFrame
 ## mid-size example: to be able to run the slower algorithm and compare times
-tree = readMultiTopology(joinpath(dir, "raxml_1387_sample_13species4alleles.tre"), fast=false); # 1387 trees, 19-40 taxa in each
+tree = readMultiTopology(joinpath(dir, "raxml_1387_sample_13species4alleles.tre")); # 1387 trees, 19-40 taxa in each
 @time df1 = writeTableCF(countquartetsintrees(tree)...)
 # 5.639443 seconds (16.84 M allocations: 568.496 MiB, 7.50% gc time). 292825×8 DataFrame
 # ~ 600 times faster
