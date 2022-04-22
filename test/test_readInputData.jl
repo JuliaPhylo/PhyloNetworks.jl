@@ -39,6 +39,23 @@ vnet = readNexusTrees(nexusfile, PhyloNetworks.readTopologyUpdate, false, false)
 @test vnet[10].edge[7].length ≈ 0.00035
 end
 
+@testset "readMultiTopology" begin
+    multitreepath = joinpath(@__DIR__, "..", "examples", "multitrees.newick")
+    # methods that take a file name
+    multi1 = readMultiTopology(multitreepath, false) # slow but safe
+    multi2 = readMultiTopology(multitreepath)
+    @test typeof(multi1) == typeof(multi2)
+    @test writeTopology.(multi1) == writeTopology.(multi2)
+    # methods that take newick strings
+    multitree = readlines(multitreepath)
+    multi1s = readMultiTopology(multitree, false)
+    multi2s = readMultiTopology(multitree)
+    @test writeTopology.(multi1s) == writeTopology.(multi1)
+    @test writeTopology.(multi1s) == writeTopology.(multi2s)
+    @test typeof(multi1s) == typeof(multi1)
+    @test typeof(multi1s) == typeof(multi2s)
+end
+
 @testset "test: calculate quartet CF from input gene trees" begin
 sixtreestr = ["(E,((A,B),(C,D)),O);","(((A,B),(C,D)),(E,O));","(A,B,((C,D),(E,O)));",
               "(B,((C,D),(E,O)));","((C,D),(A,(B,E)),O);","((C,D),(A,B,E),O);"]

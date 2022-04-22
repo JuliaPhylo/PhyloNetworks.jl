@@ -29,6 +29,7 @@ module PhyloNetworks
     using StatsBase # sample, coef etc.
     using StatsFuns # logsumexp, logaddexp, log2π, various cdf
     using StatsModels # re-exported by GLM. for ModelFrame ModelMatrix Formula etc
+    using Functors: fmap # for the fmap function in readMultiTopologyFast
 
     import Base: show
     import GLM: ftest

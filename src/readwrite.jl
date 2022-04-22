@@ -1264,13 +1264,44 @@ function readMultiTopologyLevel1(file::AbstractString)
 end
 
 """
-`readMultiTopology(file)`
+    readMultiTopology(filename::AbstractString, fast=true)
+    readMultiTopology(newicktrees_list::Vector{<:AbstractString})
 
-Read a text file with a list of networks in parenthetical format (one per line).
+
+Read a list of networks in parenthetical format, either from a file
+(one network per line) if the input is a string giving the path
+to the file, or from a vector of strings with each string corresponding to
+a newick-formatted topology.
+By default (`fast=true`), `Functors.fmap` is used for repeatedly
+reading the newick trees into of HybridNetwork-type objects.
+The option `fast=false` corresponds to the behavior up until v0.14.3:
+with a file name as input, it prints a message (without failing) when a
+phylogeny cannot be parsed, and allows for empty lines.
 Each network is read with [`readTopology`](@ref).
-Return an array of HybridNetwork object.
+
+Return an array of HybridNetwork objects.
+
+# Examples
+
+```julia
+julia> multitreepath = joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "multitrees.newick");
+julia> multitree = readMultiTopology(multitreepath) # vector of 25 HybridNetworks
+julia> multitree = readMultiTopology(multitreepath, false) # same but slower & safer
+julia> treestrings = readlines(multitreepath) # vector of 25 strings
+julia> multitree = readMultiTopology(treestrings)
+julia> readMultiTopology(treestrings, false) # same, but slower
+```
+
 """
-function readMultiTopology(file::AbstractString)
+# method for reading from a vector of newick strings
+function readMultiTopology(topologies::Vector{<:AbstractString}, fast::Bool=true)
+    return (fast ? fmap(readTopology, topologies) : map(readTopology, topologies))
+end
+# methods with a file name as input
+function readMultiTopology(file::AbstractString, fast::Bool=true)
+    if fast
+        return readMultiTopology(readlines(file), true)
+    end
     s = open(file)
     numl = 1
     vnet = HybridNetwork[];
@@ -1301,7 +1332,7 @@ file or overwrite it, if it already existed.
 Each network is written with `writeTopology`.
 
 # Examples
-```
+```julia
 julia> net = [readTopology("(D,((A,(B)#H7:::0.864):2.069,(F,E):3.423):0.265,(C,#H7:::0.1361111):10);"),
               readTopology("(A,(B,C));"),readTopology("(E,F);"),readTopology("(G,H,F);")];
 
