@@ -23,13 +23,13 @@ module PhyloNetworks
     using DataStructures # for updateInCycle with priority queue
     using Distributions #for RateVariationAcrossSites
     using FASTX
+    using Functors: fmap
     using GLM # for the lm function
     using NLopt # for branch lengths optimization
     using StaticArrays
     using StatsBase # sample, coef etc.
     using StatsFuns # logsumexp, logaddexp, log2π, various cdf
     using StatsModels # re-exported by GLM. for ModelFrame ModelMatrix Formula etc
-    using Functors: fmap # for the fmap function in readMultiTopologyFast
 
     import Base: show
     import GLM: ftest

@@ -1293,11 +1293,9 @@ julia> readMultiTopology(treestrings, false) # same, but slower
 ```
 
 """
-# method for reading from a vector of newick strings
 function readMultiTopology(topologies::Vector{<:AbstractString}, fast::Bool=true)
     return (fast ? fmap(readTopology, topologies) : map(readTopology, topologies))
 end
-# methods with a file name as input
 function readMultiTopology(file::AbstractString, fast::Bool=true)
     if fast
         return readMultiTopology(readlines(file), true)

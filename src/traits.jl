@@ -1700,7 +1700,7 @@ function phylolm(::PagelLambda, X::Matrix, Y::Vector, net::HybridNetwork,
     # BM variance covariance
     V = sharedPathMatrix(net)
     gammas = getGammas(net)
-    times = getHeights(net)
+    times = getHeights(net, false) # false: no need to preorder again
     phylolm_lambda(X,Y,V,reml, gammas, times;
             nonmissing=nonmissing, ind=ind,
             startingValue=startingValue, fixedValue=fixedValue)
@@ -1797,17 +1797,54 @@ function setGammas!(net::HybridNetwork, gammas::Vector)
 end
 
 """
-    getHeights(net)
+    getHeights(net, checkpreorder::Bool=true)
 
 Return the height (distance to the root) of all nodes, assuming a time-consistent network
-(where all paths from the root to a given hybrid node have the same length).
-Also assumes that the network has been preordered, because it uses
+(where all paths from the root to a given hybrid node have the same length)
+but not necessarily ultrametric: tips need not all be at the same distance from the root.
+If `checkpreorder=false`, assumes the network has already been preordered
+with [`preorder!`](@ref), because it uses
 [`getGammas`](@ref) and [`setGammas!`](@ref)).
+
+Output: vector of node heights, one per node, in the same order as in
+`net.nodes_changed`. Examples:
+
+```jldoctest
+julia> net = readTopology("(((C:1,(A:1)#H1:1.5::0.7):1,(#H1:0.3::0.3,E:2.0):2.2):1.0,O:5.2);");
+
+julia> # using PhyloPlots; plot(net, :R, useEdgeLength=true, showEdgeLength=true, showNodeNumber=true); # to see
+
+julia> nodeheight = PhyloNetworks.getHeights(net)
+9-element Vector{Float64}:
+ 0.0
+ 5.2
+ 1.0
+ 3.2
+ 5.2
+ 2.0
+ 3.5
+ 4.5
+ 3.0
+
+julia> [node.number => (nodeheight[i], node.name) for (i,node) in enumerate(net.nodes_changed)]
+9-element Vector{Pair{Int64, Tuple{Float64, String}}}:
+ -2 => (0.0, "")
+  5 => (5.2, "O")
+ -3 => (1.0, "")
+ -6 => (3.2, "")
+  4 => (5.2, "E")
+ -4 => (2.0, "")
+  3 => (3.5, "H1")
+  2 => (4.5, "A")
+  1 => (3.0, "C")
+
+```
 """
-function getHeights(net::HybridNetwork)
-    gammas = getGammas(net)
+function getHeights(net::HybridNetwork, checkpreorder::Bool=true)
+    checkpreorder && preorder!(net)
+    gammas = getGammas(net) # uses net.nodes_changed
     setGammas!(net, ones(net.numNodes))
-    V = sharedPathMatrix(net)
+    V = sharedPathMatrix(net; checkPreorder=false) # no need to preorder again
     setGammas!(net, gammas)
     return(diag(V[:All]))
 end

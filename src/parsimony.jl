@@ -371,26 +371,31 @@ function initializeWeightsFromLeavesSoftwired!(w::AbstractArray, net::HybridNetw
     end
 end
 
-function readFastaToArray(filename::String)
+"""
+    readFastaToArray(filename::AbstractString, sequencetype=BioSequences.LongDNA{4})
+
+Read a fasta-formatted file. Return a tuple `species, sequences`
+where `species` is a vector of Strings with identifier names, and
+`sequences` is a vector of BioSequences, each of type `sequencetype`
+(DNA by default).
+
+**Warnings**:
+- assumes a *semi-sequential* format, *not interleaved*. More specifically,
+  each taxon name should appear only once. For this one time, the corresponding
+  sequence may be broken across several lines though.
+- fails if all sequences aren't of the same length
+"""
+function readFastaToArray(filename::AbstractString, sequencetype=BioSequences.LongDNA{4})
     reader = FASTX.FASTA.Reader(open(filename))
-    #dat = Dict{String, }()
     sequences = Array{BioSequences.BioSequence}(undef, 0)
     species = String[]
     for record in reader
-        #push!(dat, FASTA.identifier(record) => sequence(record))
-        push!(sequences, sequence(record))
-        push!(species, FASTA.identifier(record))
+        push!(sequences, FASTX.sequence(sequencetype, record))
+        push!(species, FASTX.identifier(record))
     end
     seqlengths = [length(s) for s in sequences] # values(dat)
     nsites, tmp = extrema(seqlengths)
     nsites == tmp || error("sequences not of same lengths: from $nsites to $tmp sites")
-    """
-    fixit:
-    - deleteat!(seq::BioSequence, i::Integer) to delete all but 1 site with identical patterns
-    - calculate and output the weights
-    - also delete invariant sites
-    - clever: change AACC to 0011 because score AACC=AATT=CCTT etc. Sort, keep uniques.
-    """
     return species, sequences
 end
 
@@ -406,6 +411,10 @@ Return a tuple containing:
    followed by a column for each site pattern, in columns 2-npatterns;
 2. array of weights, one weight for each of the site columns.
    The length of the weight vector is equal to npatterns.
+
+**Warning**: assumes a *semi-sequential* format, *not interleaved*,
+where each taxon name appears only once. For this one time, the corresponding
+sequence may be broken across several lines though.
 """
 function readfastatodna(fastafile::String, countPatterns=false::Bool)
     reader = FASTX.FASTA.Reader(open(fastafile))
@@ -414,18 +423,20 @@ function readfastatodna(fastafile::String, countPatterns=false::Bool)
     firstspecies = Bool(true)
     nsites = 0
     for record in reader #by species (row)
+        myseq = FASTX.sequence(BioSequences.LongDNA{4}, record)
+        seqlen = length(myseq)
         if firstspecies
-            nsites = length(sequence(record))
-            for site in 1:nsites # initialize an array for each site
+            nsites = seqlen
+            for _ in 1:nsites # initialize an array for each site
                 push!(siteList, Vector{BioSequences.DNA}(undef, 0))
             end
             firstspecies = false
         end
-        push!(species, FASTA.identifier(record)) #adds species name to end of species vector
-        length(sequence(record)) == nsites || error("sequences of different length: current sequences is ", 
-            length(sequence(record)), " long while first sequence is ", nsites, " long")
+        push!(species, FASTA.identifier(record))
+        seqlen == nsites || error("sequences of different length: current sequences is ",
+                seqlen, " long while first sequence is ", nsites, " long")
         for site in 1:nsites
-            push!(siteList[site], sequence(record)[site])
+            push!(siteList[site], myseq[site])
         end
     end
 
