@@ -48,9 +48,13 @@ end
 	redirect_stdout(originalstdout)
 end
 @testset "write for hybrid-lambda" begin
-	net = readTopology("((a:1,(bH:1)#H1:1::0.8)H2:5,(#H1:0::0.2,c:1):1);");
-	@test hybridlambdaformat(net) == "((a:1.0,(bH:1.0)H1#0.8:1.0)H2:5.0,(H1#0.8:0.0,c:1.0)I1:1.0)I2;"
-	net = readTopology("((#H1:::0.2,c),(I3,(b)#H1:::0.8):5);")
-	@test hybridlambdaformat(net) == "((H1#0.2,c)I4,(I3,(b)H1#0.2)I5:5.0)I6;"
+    net = readTopology("((a:1,(bH:1)#H1:1::0.8)H2:5,(#H1:0::0.2,c:1):1);");
+    @test hybridlambdaformat(net) == "((a:1.0,(bH:1.0)H1#0.8:1.0)I1:5.0,(H1#0.8:0.0,c:1.0)I2:1.0)I3;"
+    net = readTopology("((#H1:::0.2,c),(I3,(b)#H1:::0.8):5);")
+    @test hybridlambdaformat(net) == "((H1#0.2,c)I4,(I3,(b)H1#0.2)I5:5.0)I6;"
+    net = readTopology("((((B)#H1:::0.7,D)100:4,(#H1:::0.3,E)98:6.2):2,O);") # bootstrap values
+    @test hybridlambdaformat(net) == "((((B)H1#0.7,D)I1:4.0,(H1#0.7,E)I2:6.2)I3:2.0,O)I4;"
+    net = readTopology("((((D)#H1:::0.7,D)1:4,(#H1:::0.3,E)1:6.2):2,O);") # 2 tips named D
+    @test_throws Exception hybridlambdaformat(net)
 end
 end

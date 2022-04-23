@@ -1457,7 +1457,8 @@ end
 Output `net` as a string in the format that the
 [Hybrid-Lambda](https://github.com/hybridLambda/hybrid-Lambda)
 simulator expects, namely:
-- all internal nodes are named, including the root
+- all internal nodes are named, including the root, with names
+  that are unique and start with a letter.
 - hybrid nodes are written as `H6#γ1:length1` and `H6#γ1:length2`
   instead of `#H6:length1::γ1` and `#H6:length2::γ2`
   (note the samme γ value expected by Hybrid-Lambda)
@@ -1465,9 +1466,11 @@ simulator expects, namely:
 This is a modified version of the
 [extended Newick](https://doi.org/10.1186/1471-2105-9-532) format.
 
-Optional keyword argument: `prefix`, "I" by default.
-Internal nodes without a name will be given names like "I1", "I2", etc.
-See [`nameinternalnodes!`](@ref) to add node names (modifies the input network).
+Optional keyword argument `prefix`: must start with a letter, other than "H".
+Internal nodes are given names like "I1", "I2", etc. Existing internal non-hybrid
+node names are **replaced**, which is crucial if some of them don't start with a
+letter (e.g. in case node names are bootstrap values).
+See [`nameinternalnodes!`](@ref) to add node names.
 
 # examples
 
@@ -1497,7 +1500,14 @@ julia> hybridlambdaformat(net; prefix="int")
 ```
 """
 function hybridlambdaformat(net::HybridNetwork; prefix="I")
+  startswith(prefix, r"[a-zA-GI-Z]") || error("unsafe prefix $prefix: please start with a letter, but not H")
+  leafnames = tipLabels(net)
+  length(Set(leafnames)) == length(leafnames) || error("taxon names must be unique: $(sort(leafnames))")
   net = deepcopy(net) # binding to new object
+  for no in net.node
+    (no.leaf || no.hybrid) && continue # skip leaves & hybrid nodes
+    no.name = "" # erase any exisiting name: especially bootstrap values
+  end
   nameinternalnodes!(net, prefix)
   str1 = writeTopology(net, round=true, digits=15) # internallabels=true by default
   rx_noBL = r"#(H[\w\d]+)::\d*\.?\d*(?:e[+-]?\d+)?:(\d*\.?\d*(?:e[+-]?\d+)?)"
@@ -1525,7 +1535,7 @@ end
     nameinternalnodes!(net::HybridNetwork, prefix)
 
 Add names to nodes in `net` that don't already have a name.
-Leaves already have names; but if not, they will be give names as well.
+Leaves already have names; but if not, they will be given names as well.
 New node names will be of the form "prefixI" where I is an integer.
 
 # examples
