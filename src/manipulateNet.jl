@@ -1031,9 +1031,13 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
         # recursive call on both p1 and p2.
         deleteleaf!(net, p1.number; nofuse = nofuse, simplify=simplify, unroot=unroot,
                     multgammas=multgammas, keeporiginalroot=keeporiginalroot)
-        sameparent ||
-            deleteleaf!(net, p2.number; nofuse=nofuse, simplify=simplify,
+        # p2 may have already been deleted: e.g. if sameparent, or other scenarios
+        if !sameparent
+          p2idx = findfirst(n -> n.number == p2.number, net.node)
+          isnothing(p2idx) ||
+            deleteleaf!(net, p2idx; index=true, nofuse=nofuse, simplify=simplify,
                         unroot=unroot, multgammas=multgammas, keeporiginalroot=keeporiginalroot)
+        end
     elseif !nofuse #if keeepNodes, do not fuseedges. The recursion should stop.
         e1 = fuseedgesat!(i,net, multgammas) # fused edge
         if simplify && e1.hybrid # check for 2-cycle at new hybrid edge

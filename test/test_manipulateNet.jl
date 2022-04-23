@@ -61,6 +61,20 @@ n = deepcopy(net)
 @test_logs deleteleaf!(net, net.node[7], simplify=false)
 deleteleaf!(net, 4, simplify=false); deleteleaf!(net, 5, simplify=false)
 @test net.numNodes == 5; @test net.numEdges == 6;
+
+# below: 3 taxa, h=2, hybrid ladder but no 2-cycle. pruning t9 removes both hybrids.
+nwkstring = "((t7:0.23,#H19:0.29::0.47):0.15,(((#H23:0.02::0.34)#H19:0.15::0.53,(t9:0.06)#H23:0.02::0.66):0.09,t6:0.17):0.21);"
+net = readTopology(nwkstring)
+@test_throws Exception deleteleaf!(net, "t1") # no leaf named t1
+net.node[1].name = "t9"
+@test_throws Exception deleteleaf!(net, "t9") # 2+ leaves named t1
+@test_throws Exception deleteleaf!(net, 10, index=true) # <10 nodes
+net.node[1].name = "t7" # back to original name
+deleteleaf!(net, "t9", nofuse=true)
+@test writeTopology(net) == "((t7:0.23):0.15,(t6:0.17):0.21);"
+deleteleaf!(net, "t7")
+@test (@test_logs (:warn, r"Root") writeTopology(net)) == "t6;"
+deleteleaf!(net, "t6")
 end
 
 @testset "testing directEdges! and re-rootings" begin
