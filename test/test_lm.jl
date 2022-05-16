@@ -241,70 +241,52 @@ table3 = (@test_logs lrtest(modhet, modhom, modnull))
 
 end
 
-###############################################################################
+#################
 ### No intercept
-###############################################################################
+#################
 @testset "No Intercept" begin
 global net
 net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
 preorder!(net)
 
-## Simulate
-params = ParamsBM(10, 0.1, shiftHybrid([3.0, -3.0],  net))
-Random.seed!(2468); # sets the seed for reproducibility, to debug potential error
-sim = simulate(net, params) # checks for no error, but not used.
-# values simulated using julia v1.6.4's RNG hardcoded below.
-# Y = sim[:Tips]
+## data
 Y = [11.640085037749985, 9.498284887480622, 9.568813792749083, 13.036916724865296, 6.873936265709946, 6.536647349405742, 5.95771939864956, 10.517318306450647, 9.34927049737206, 10.176238483133424, 10.760099940744308, 8.955543827353837]
-
-Random.seed!(051622); # sets the seed for reproducibility, to debug potential error
-# simX = simulate(net, params) 
-# values simulated using julia v1.7.2's RNG hardcoded below.
-# X = simX[:Tips]
 X = [9.199418112245104, 8.641506886650749, 8.827105915999073, 11.198420342332025, 5.8212242346434655, 6.130520100788492, 5.846098148463377, 9.125593652542882, 10.575371612483897, 9.198463833849347, 9.090317561636194, 9.603570747653789]
-
-## Data
 dfr = DataFrame(trait = Y, reg = X, tipNames = ["Ag","Ak","E","M","Az","Ag2","As","Ap","Ar","P","20","165"]) # sim.M.tipNames
 phynetlm = phylolm(@formula(trait ~ -1 + reg), dfr, net; reml=false)
-# Naive version (GLS)
-X = phynetlm.model.X
+# Naive version (GLS): most of it hard-coded, but code shown below
 ntaxa = length(Y)
-Vy = phynetlm.model.Vy
-Vyinv = inv(Vy)
-XtVyinv = X' * Vyinv
-logdetVy = logdet(Vy)
-betahat = inv(XtVyinv * X) * XtVyinv * Y
+X = phynetlm.model.X
+# Vy = phynetlm.model.Vy; Vyinv = inv(Vy); XtVyinv = X' * Vyinv; logdetVy = logdet(Vy)
+betahat = [1.073805579608655] # inv(XtVyinv * X) * XtVyinv * Y
 fittedValues =  X * betahat
 resids = Y - fittedValues
-sigma2hat = 1/ntaxa * (resids' * Vyinv * resids)
-# log likelihood
-loglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(sigma2hat) + logdetVy)
-# null version
-nullX = zeros(ntaxa, 1)
-nullXtVyinv = nullX' * Vyinv
-nullresids = Y
-nullsigma2hat = 1/ntaxa * (nullresids' * Vyinv * nullresids)
-nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat) + logdetVy)
-
+# sigma2hat = 1/ntaxa * (resids' * Vyinv * resids)
+# loglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(sigma2hat) + logdetVy)
+#= null model: no X, and not even an intercept
+nullX = zeros(ntaxa, 1); nullresids = Y; nullXtVyinv = nullX' * Vyinv
+nullsigma2hat = 1/ntaxa * (nullresids' * Vyinv * nullresids) # 6.666261935713196
+nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat) + logdetVy) # -38.01145980802529
+=#
 @test coef(phynetlm) ≈ betahat
-@test nobs(phynetlm) ≈ ntaxa
+@test nobs(phynetlm) ≈ 12 # ntaxa
 @test residuals(phynetlm) ≈ resids
 @test response(phynetlm) ≈ Y
 @test predict(phynetlm) ≈ fittedValues
-@test dof_residual(phynetlm) ≈ ntaxa-length(betahat)
-@test sigma2_phylo(phynetlm) ≈ sigma2hat
-@test loglikelihood(phynetlm) ≈ loglik
-@test vcov(phynetlm) ≈ sigma2hat*ntaxa/(ntaxa-length(betahat))*inv(XtVyinv * X)
-@test stderror(phynetlm) ≈ sqrt.(diag(sigma2hat*ntaxa/(ntaxa-length(betahat))*inv(XtVyinv * X)))
-@test dof(phynetlm) ≈ length(betahat)+1
-@test deviance(phynetlm, Val(true)) ≈ sigma2hat * ntaxa
-@test nulldeviance(phynetlm) ≈ nullsigma2hat * ntaxa
-@test nullloglikelihood(phynetlm) ≈ nullloglik
-@test r2(phynetlm) ≈ 1-sigma2hat / nullsigma2hat atol=1e-1
-@test adjr2(phynetlm) ≈ 1 - (1 - (1-sigma2hat/nullsigma2hat))*(ntaxa-1)/(ntaxa-length(betahat)) atol=1e-15
-@test aic(phynetlm) ≈ -2*loglik+2*(length(betahat)+1)
-@test aicc(phynetlm) ≈ -2*loglik+2*(length(betahat)+1)+2(length(betahat)+1)*((length(betahat)+1)+1)/(ntaxa-(length(betahat)+1)-1)
-@test bic(phynetlm) ≈ -2*loglik+(length(betahat)+1)*log(ntaxa)
+@test dof_residual(phynetlm) ≈ 11 # ntaxa-length(betahat)
+@test sigma2_phylo(phynetlm) ≈ 0.1887449836519979 # sigma2hat
+@test loglikelihood(phynetlm) ≈ -16.6249533603196 # loglik
+@test vcov(phynetlm) ≈ [0.003054397019042955;;] # sigma2hat*ntaxa/(ntaxa-length(betahat))*inv(XtVyinv * X)
+@test stderror(phynetlm) ≈ [0.05526659948868715] # sqrt.(diag(sigma2hat*ntaxa/(ntaxa-length(betahat))*inv(XtVyinv * X)))
+@test dof(phynetlm) ≈ 2 # length(betahat)+1
+@test deviance(phynetlm, Val(true)) ≈ 2.264939803823975 # sigma2hat * ntaxa
+@test nulldeviance(phynetlm) ≈ 79.99514322855836 # nullsigma2hat * ntaxa
+@test nullloglikelihood(phynetlm) ≈ -38.01145980802529 # nullloglik
+@test r2(phynetlm) ≈ 0.9716865335517596 # 1-sigma2hat / nullsigma2hat
+@test adjr2(phynetlm) ≈ 0.9716865335517596  atol=1e-15 # 1 - (1 - (1-sigma2hat/nullsigma2hat))*(ntaxa-1)/(ntaxa-length(betahat))
+@test aic(phynetlm) ≈ 37.2499067206392 # -2*loglik+2*(length(betahat)+1)
+@test aicc(phynetlm) ≈ 38.58324005397254 # -2*loglik+2*(length(betahat)+1)+2(length(betahat)+1)*((length(betahat)+1)+1)/(ntaxa-(length(betahat)+1)-1)
+@test bic(phynetlm) ≈ 38.219720020215206 # -2*loglik+(length(betahat)+1)*log(ntaxa)
 @test !hasintercept(phynetlm)
 
 end
