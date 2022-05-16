@@ -2631,7 +2631,7 @@ end
 """
     StatsBase.nulldeviance(m::PhyloNetworkLinearModel)
 
-For appropriate phylogenetic linear models, the deviance or the null model 
+For appropriate phylogenetic linear models, the deviance of the null model 
 is the total sum of square with respect to the metric V,
 the estimated phylogenetic covariance matrix.
 """
