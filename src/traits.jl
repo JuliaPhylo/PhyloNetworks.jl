@@ -2631,21 +2631,25 @@ end
 """
     StatsBase.nulldeviance(m::PhyloNetworkLinearModel)
 
-Residual sums of squares of the null model, that is when including only
-the intercept, if the model is appropriate.
-The residual sums of squares is taken with metric V, the estimated phylogenetic
-covariance matrix.
+For appropriate phylogenetic linear models, the deviance of the null model 
+is the total sum of square with respect to the metric V,
+the estimated phylogenetic covariance matrix.
 """
 function StatsBase.nulldeviance(m::PhyloNetworkLinearModel)
     isnothing(m.model_within) ||
         error("""null loglik / deviance not implemented for within-species variation (mixed model):
         please fit the model with an intercept only instead.""")
-    vo = ones(length(m.Y), 1)
-    vo = m.RL \ vo
-    bo = inv(vo'*vo)*vo'*response(m.lm)
-    ro = response(m.lm) - vo*bo
+    ro = response(m.lm) 
+    if hasintercept(m)
+        vo = ones(length(m.Y), 1)
+        vo = m.RL \ vo
+        bo = inv(vo'*vo)*vo'*ro
+        ro = ro - vo*bo
+    end
     return sum(ro.^2)
 end
+StatsModels.hasintercept(m::PhyloNetworkLinearModel) = any(i -> all(==(1), view(m.X , :, i)), 1:size(m.X, 2))
+StatsModels.hasintercept(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T) = StatsModels.hasintercept(m.model)
 # Null Log likelihood (null model with only the intercept)
 # Same remark
 function StatsBase.nullloglikelihood(m::PhyloNetworkLinearModel)

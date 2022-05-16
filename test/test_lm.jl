@@ -64,6 +64,7 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test aic(phynetlm) ≈ -2*loglik+2*(length(betahat)+1)
 @test aicc(phynetlm) ≈ -2*loglik+2*(length(betahat)+1)+2(length(betahat)+1)*((length(betahat)+1)+1)/(ntaxa-(length(betahat)+1)-1)
 @test bic(phynetlm) ≈ -2*loglik+(length(betahat)+1)*log(ntaxa)
+@test hasintercept(phynetlm)
 
 # with data frames
 dfr = DataFrame(trait = Y, tipNames = ["A","B","C","D"]) # sim.M.tipNames
@@ -92,6 +93,7 @@ fitbis = phylolm(@formula(trait ~ 1), dfr, net; reml=false)
 @test bic(phynetlm) ≈ bic(fitbis)
 tmp = (@test_logs (:warn, r"^You fitted the data against a custom matrix") mu_phylo(phynetlm))
 @test tmp ≈ mu_phylo(fitbis)
+@test hasintercept(phynetlm)
 
 ## fixed values parameters
 fitlam = phylolm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedValue=1.0, reml=false)
@@ -119,6 +121,7 @@ fitlam = phylolm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedValue=1.0
 #@test aicc(fitlam) ≈ aicc(fitbis)
 @test bic(fitlam) ≈ bic(fitbis) + log(nobs(fitbis))
 @test mu_phylo(fitlam) ≈ mu_phylo(fitbis)
+@test hasintercept(fitlam)
 
 fitSH = phylolm(@formula(trait ~ 1), dfr, net, model="scalingHybrid", fixedValue=1.0, reml=false)
 @test loglikelihood(fitlam) ≈ loglikelihood(fitSH)
@@ -192,6 +195,7 @@ fitlam = phylolm(@formula(trait ~ shift_8 + shift_17), dfr, net, model="lambda",
 #@test aicc(fitlam)  ≈ aicc(fitShift)
 @test bic(fitlam) ≈ bic(fitShift) + log(nobs(fitShift))
 @test mu_phylo(fitlam)  ≈ mu_phylo(fitShift)
+@test hasintercept(fitlam)
 
 fitSH = phylolm(@formula(trait ~ shift_8 + shift_17), dfr, net, model="scalingHybrid", fixedValue=1.0, reml=false)
 @test loglikelihood(fitlam) ≈ loglikelihood(fitSH)
@@ -209,6 +213,7 @@ table2 = PhyloNetworks.anova(modnull, modhom, modhet)
 @test table1.fstat[3] ≈ table2[1,:F]
 @test table1.pval[2] ≈ table2[2,Symbol("Pr(>F)")]
 @test table1.pval[3] ≈ table2[1,Symbol("Pr(>F)")]
+@test hasintercept(modnull) && hasintercept(modhom) && hasintercept(modhet)
 # ## Replace next 4 lines with previous ones when GLM.ftest available
 # @test table1[:F][2] ≈ table2[:F][2]
 # @test table1[:F][1] ≈ table2[:F][1]
@@ -233,6 +238,56 @@ table3 = (@test_logs lrtest(modhet, modhom, modnull))
 @test all(isapprox.(table3.deviance, (25.10067039653046,47.00501928245542,47.0776339693065), atol=1e-6))
 @test table3.dof == (4, 3, 2)
 @test all(isapprox.(table3.pval[2:end], (2.865837220526082e-6,0.7875671600772386), atol=1e-6))
+
+end
+
+#################
+### No intercept
+#################
+@testset "No Intercept" begin
+global net
+net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
+preorder!(net)
+
+## data
+Y = [11.640085037749985, 9.498284887480622, 9.568813792749083, 13.036916724865296, 6.873936265709946, 6.536647349405742, 5.95771939864956, 10.517318306450647, 9.34927049737206, 10.176238483133424, 10.760099940744308, 8.955543827353837]
+X = [9.199418112245104, 8.641506886650749, 8.827105915999073, 11.198420342332025, 5.8212242346434655, 6.130520100788492, 5.846098148463377, 9.125593652542882, 10.575371612483897, 9.198463833849347, 9.090317561636194, 9.603570747653789]
+dfr = DataFrame(trait = Y, reg = X, tipNames = ["Ag","Ak","E","M","Az","Ag2","As","Ap","Ar","P","20","165"]) # sim.M.tipNames
+phynetlm = phylolm(@formula(trait ~ -1 + reg), dfr, net; reml=false)
+# Naive version (GLS): most of it hard-coded, but code shown below
+ntaxa = length(Y)
+X = phynetlm.model.X
+# Vy = phynetlm.model.Vy; Vyinv = inv(Vy); XtVyinv = X' * Vyinv; logdetVy = logdet(Vy)
+betahat = [1.073805579608655] # inv(XtVyinv * X) * XtVyinv * Y
+fittedValues =  X * betahat
+resids = Y - fittedValues
+# sigma2hat = 1/ntaxa * (resids' * Vyinv * resids)
+# loglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(sigma2hat) + logdetVy)
+#= null model: no X, and not even an intercept
+nullX = zeros(ntaxa, 1); nullresids = Y; nullXtVyinv = nullX' * Vyinv
+nullsigma2hat = 1/ntaxa * (nullresids' * Vyinv * nullresids) # 6.666261935713196
+nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat) + logdetVy) # -38.01145980802529
+=#
+@test coef(phynetlm) ≈ betahat
+@test nobs(phynetlm) ≈ 12 # ntaxa
+@test residuals(phynetlm) ≈ resids
+@test response(phynetlm) ≈ Y
+@test predict(phynetlm) ≈ fittedValues
+@test dof_residual(phynetlm) ≈ 11 # ntaxa-length(betahat)
+@test sigma2_phylo(phynetlm) ≈ 0.1887449836519979 # sigma2hat
+@test loglikelihood(phynetlm) ≈ -16.6249533603196 # loglik
+@test vcov(phynetlm) ≈ [0.003054397019042955;;] # sigma2hat*ntaxa/(ntaxa-length(betahat))*inv(XtVyinv * X)
+@test stderror(phynetlm) ≈ [0.05526659948868715] # sqrt.(diag(sigma2hat*ntaxa/(ntaxa-length(betahat))*inv(XtVyinv * X)))
+@test dof(phynetlm) ≈ 2 # length(betahat)+1
+@test deviance(phynetlm, Val(true)) ≈ 2.264939803823975 # sigma2hat * ntaxa
+@test nulldeviance(phynetlm) ≈ 79.99514322855836 # nullsigma2hat * ntaxa
+@test nullloglikelihood(phynetlm) ≈ -38.01145980802529 # nullloglik
+@test r2(phynetlm) ≈ 0.9716865335517596 # 1-sigma2hat / nullsigma2hat
+@test adjr2(phynetlm) ≈ 0.9716865335517596  atol=1e-15 # 1 - (1 - (1-sigma2hat/nullsigma2hat))*(ntaxa-1)/(ntaxa-length(betahat))
+@test aic(phynetlm) ≈ 37.2499067206392 # -2*loglik+2*(length(betahat)+1)
+@test aicc(phynetlm) ≈ 38.58324005397254 # -2*loglik+2*(length(betahat)+1)+2(length(betahat)+1)*((length(betahat)+1)+1)/(ntaxa-(length(betahat)+1)-1)
+@test bic(phynetlm) ≈ 38.219720020215206 # -2*loglik+(length(betahat)+1)*log(ntaxa)
+@test !hasintercept(phynetlm)
 
 end
 
