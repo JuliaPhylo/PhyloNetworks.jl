@@ -1504,6 +1504,12 @@ function hybridlambdaformat(net::HybridNetwork; prefix="I")
   leafnames = tipLabels(net)
   length(Set(leafnames)) == length(leafnames) || error("taxon names must be unique: $(sort(leafnames))")
   net = deepcopy(net) # binding to new object
+  for e in net.edge
+    if e.hybrid && e.isMajor && e.gamma == -1.0
+      @error("edge number $(e.number) is missing gamma: will use 0.5")
+      setGamma!(e, 0.5)
+    end
+  end
   for no in net.node
     (no.leaf || no.hybrid) && continue # skip leaves & hybrid nodes
     no.name = "" # erase any exisiting name: especially bootstrap values

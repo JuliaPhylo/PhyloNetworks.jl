@@ -1,8 +1,12 @@
 """
     biconnectedComponents(network, ignoreTrivial=false)
 
-Calculate biconnected components (aka "blobs") using Tarjan's algorithm:
-the output is an array of arrays of edges.
+Calculate biconnected components (aka "blobs") using Tarjan's algorithm.
+
+Output: array of arrays of edges.
+- the length of the array is the number of blobs
+- each element is an array of all the edges inside a given blob.
+
 These blobs are returned in post-order, but within a blob,
 edges are *not* necessarily sorted in topological order.
 If `ignoreTrivial` is true, trivial components (of a single edge)
@@ -137,6 +141,9 @@ If `ignoreTrivial` is true, trivial components are ignored.
 keyword argument: `checkPreorder`, true by default. If false,
 the `isChild1` edge field and the `net.nodes_changed` network field
 are supposed to be correct.
+
+**warning**: see [`biconnectedComponents`](@ref) for node
+attributes modified during the algorithm.
 """
 function blobInfo(net, ignoreTrivial=true::Bool;
     checkPreorder=true::Bool)
@@ -197,7 +204,15 @@ the number of the blob's root is given to the newly created leaf.
 
 The first (bang) version modifies the network and returns
 the array of blob roots. The second version copies the network
-then returns a tuple: the forest and the blob roots.
+then returns a tuple: the forest and the array of blob roots.
+
+Warnings:
+- the forest is represented by a single HybridNetwork object,
+  on which most functions don't work (like `writeTopology`, plotting etc.)
+  because the network is disconnected (to make the forest).
+  Revert back to low-level functions, e.g. `printEdges` and `printNodes`.
+- see [`biconnectedComponents`](@ref) for node
+  attributes modified during the algorithm.
 """
 function blobDecomposition(net)
     net2 = deepcopy(net)

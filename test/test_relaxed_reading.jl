@@ -56,5 +56,7 @@ end
     @test hybridlambdaformat(net) == "((((B)H1#0.7,D)I1:4.0,(H1#0.7,E)I2:6.2)I3:2.0,O)I4;"
     net = readTopology("((((D)#H1:::0.7,D)1:4,(#H1:::0.3,E)1:6.2):2,O);") # 2 tips named D
     @test_throws Exception hybridlambdaformat(net)
+	net = readTopology("((((B)#H1,D)1:4,(#H1,E)1:6.2):2,O);") # missing gamma
+    @test_logs (:error, r"^edge.*0.5$") (@test hybridlambdaformat(net) == "((((B)H1#0.5,D)I1:4.0,(H1#0.5,E)I2:6.2)I3:2.0,O)I4;")
 end
 end
