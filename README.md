@@ -4,7 +4,6 @@
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://crsl4.github.io/PhyloNetworks.jl/stable)
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://crsl4.github.io/PhyloNetworks.jl/dev)
 [![codecov](https://codecov.io/gh/crsl4/PhyloNetworks.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/crsl4/PhyloNetworks.jl)
-[![Coverage Status](https://coveralls.io/repos/crsl4/PhyloNetworks.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/crsl4/PhyloNetworks.jl?branch=master)
 
 ## Overview
 

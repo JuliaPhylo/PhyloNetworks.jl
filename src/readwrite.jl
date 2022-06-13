@@ -4,7 +4,9 @@
 # removes white spaces from the IOStream/IOBuffer
 # see skipchars(predicate, io::IO; linecomment=nothing) in io.jl
 # https://github.com/JuliaLang/julia/blob/3b02991983dd47313776091720871201f75f644a/base/io.jl#L971
-ncodeunits(c::Char) = write(devnull, c) # for Julia v0.7. Remove for Julia v1.0.3+
+# replace "while !eof ... read(io, Char)" by readeach(io, Char)
+# when ready to require Julia v1.6
+# https://docs.julialang.org/en/v1/base/io-network/#Base.skipchars
 function peekskip(io::IO, linecomment=nothing)
     c = missing
     while !eof(io)
@@ -42,16 +44,44 @@ function advance!(s::IO, numLeft::Array{Int,1})
     return c
 end
 
+"""
+    readnexuscomment(s::IO, c::Char)
 
-# auxiliary function to read a taxon name.
-# allows names with letters and numbers: treats numbers as strings
-# it also reads # as part of the name and returns pound=true
-# it returns the node name as string as well to check if it exists already (as hybrid)
-function readnodename(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int,1})
-    if !isValidSymbol(c)
-        a = read(s, String);
-        error("Expected digit, alphanum or # at the start of taxon name, but received $(c). remaining: $(a).");
+Read (and do nothing with) nexus-style comments: `[& ... ]`  
+Assumption: 'c' is the next character to be read from s.  
+Output: nothing.
+
+Comments can appear after (or instead of) a node or leaf name,
+before or after an edge length, and after another comment.
+"""
+function readnexuscomment(s::IO, c::Char)
+    while c == '[' # a comment could be followed by another
+        # [ should be followed by &, otherwise bad newick string
+        # read [ and next character: don't skip spaces
+        read(s, Char) == '[' || error("I was supposed to read '['")
+        read(s, Char) == '&' || error("read '[' but not followed by &")
+        skipchars(!isequal(']'), s)
+        eof(s) && error("comment without ] to end it")
+        read(s, Char) # to read ] and advance s
+        c = peekskip(s)
     end
+    return
+end
+
+"""
+    readnodename(s::IO, c::Char, net, numLeft)
+
+Auxiliary function to read a taxon name during newick parsing.
+output: tuple (number, name, pound_boolean)
+
+Names may have numbers: numbers are treated as strings.
+Accepts `#` as part of the name (but excludes it from the name), in which
+case `pound_boolean` is true. `#` is used in extended newick to flag
+hybrid nodes.
+
+Nexus-style comments following the node name, if any, are read and ignored.
+"""
+function readnodename(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int,1})
     pound = 0
     name = ""
     while isValidSymbol(c)
@@ -76,6 +106,7 @@ function readnodename(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int,1})
         a = read(s, String);
         error("strange node name with $(pound) # signs: $name. remaining: $(a).")
     end
+    readnexuscomment(s,c)
     return size(net.names,1)+1, name, pound == 1
 end
 
@@ -249,6 +280,9 @@ end
 
 Helper function for `parseEdgeData!`.
 Read a single floating point edge data value in a tree topology.
+Ignore (and skip) nexus-style comments before & after the value
+(see [`readnexuscomment`](@ref)).
+
 Return -1.0 if no value exists before the next colon, return the value as a float otherwise.
 Modifies s by advancing past the next colon character.
 Only call this function to read a value when you know a numerical value exists!
@@ -258,10 +292,18 @@ Only call this function to read a value when you know a numerical value exists!
               "second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.",
               "third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored"]
     c = peekskip(s)
-
-    # Value is present
-    if isdigit(c) || c == '.'
+    if c == '[' # e.g. comments only, no value, but : after
+        readnexuscomment(s,c)
+        c = peekskip(s)
+    end
+    if isdigit(c) || c == '.' || c == '-'
+        # value is present: read it, and any following comment(s)
         val = readFloat(s, c)
+        if val < 0.0
+            @error "expecting non-negative value but read '-', left parenthesis $(numLeft[1]-1). will set to 0."
+            val = 0.0
+        end
+        readnexuscomment(s,peekskip(s))
         return val
     # No value
     elseif c == ':'
@@ -275,11 +317,12 @@ end
 """
     parseEdgeData!(s::IO, edge, numberOfLeftParentheses::Array{Int,1})
 
-Helper function for readSubtree!, fixes a bug from using setGamma
+Helper function for readSubtree!.
 Modifies `e` according to the specified edge length and gamma values in the tree topology.
 Advances the stream `s` past any existing edge data.
 Edges in a topology may optionally be followed by ":edgeLen:bootstrap:gamma"
 where edgeLen, bootstrap, and gamma are decimal values.
+Nexus-style comments `[&...]`, if any, are ignored.
 """
 @inline function parseEdgeData!(s::IO, e::Edge, numLeft::Array{Int,1})
     read(s, Char); # to read the first ":"
@@ -396,15 +439,19 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
         # read the rest of the subtree (perform the recursive step!)
         n = parseRemainingSubtree!(s, numLeft, net, hybrids)
         c = peekskip(s);
-        if isValidSymbol(c) # internal node has name
+        # read potential internal node name (and skip comments)
+        num, name, pound = readnodename(s, c, net, numLeft);
+        if name != ""
             hasname = true;
-            num, name, pound = readnodename(s, c, net, numLeft);
             n.number = num; # n was given <0 number by parseRemainingSubtree!, now >0
-            c = peekskip(s);
         end
     else # leaf, it should have a name
         hasname = true;
         num, name, pound = readnodename(s, c, net, numLeft)
+        if name == ""
+            a = read(s, String);
+            error("Expected digit, alphanum or # at the start of taxon name, but received $(c). remaining: $(a).");
+        end
         n = Node(num, true); # positive node number to leaves in the newick-tree description
         # @debug "creating node $(n.number)"
     end
@@ -453,6 +500,7 @@ end
 """
     readTopology(file name)
     readTopology(parenthetical description)
+    readTopology(IO)
 
 Read tree or network topology from parenthetical format (extended Newick).
 If the root node has a single child: ignore (i.e. delete from the topology)
@@ -461,6 +509,8 @@ the root node and its child edge.
 Input: text file or parenthetical format directly.
 The file name may not start with a left parenthesis, otherwise the file
 name itself would be interpreted as the parenthetical description.
+Nexus-style comments (`[&...]`) are ignored, and may be placed
+after (or instead) of a node name, and before/after an edge length.
 
 A root edge, not enclosed within a pair a parentheses, is ignored.
 If the root node has a single edge, this one edge is removed.
@@ -491,13 +541,14 @@ function readTopology(s::IO,verbose::Bool)
             elseif c == ','
                 continue;
             elseif c == ')'
+                # read potential root name (or comments)
                 c = peekskip(s);
-                if isValidSymbol(c) # the root has a name
-                    num, name, pound = readnodename(s, c, net, numLeft);
+                num, name, pound = readnodename(s, c, net, numLeft)
+                if name != ""
                     n.name = name
                     # log warning or error if pound > 0?
-                    c = peekskip(s);
                 end
+                c = peekskip(s)
                 if(c == ':') # skip information on the root edge, if it exists
                     # @warn "root edge ignored"
                     while c != ';'
