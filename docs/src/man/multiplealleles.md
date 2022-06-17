@@ -32,7 +32,7 @@ will be used to calculate the quartet CF. If a given gene tree has
 each set of 4 alleles is given a weight of `1/(n_a n_b n_c n_d)`
 to calculated of the CF for `A,B,C,D` (such that the total weight from
 this particular gene trees is 1).
-It is save to save this data frame, then use it for `snaq!` like this:
+It is safe to save this data frame, then use it for `snaq!` like this:
 
 ```julia
 CSV.write("tableCF_species.csv", df)      # to save the data frame to a file
@@ -67,7 +67,7 @@ species level: with the allele names replaced by the appropriate species names.
   individual are given the same name (the individual's 'name') across
   all genes for which that individual was sequenced.
 - For a four-taxon set `A,B,C,D`, all the individuals from `A`, `B`, `C` and `D`
-  are considered, say `a1,b1,c1,d1`, `a2,b1,c1,d1`, `a1,b2,c1,d1`, `a2,b2,c1,d1`
+  are considered, say `(a1,b1,c1,d1)`, `(a2,b1,c1,d1)`, `(a1,b2,c1,d1)`, `(a2,b2,c1,d1)`
   and so on. The CFs of these 4-taxon sets are averaged together to obtain the
   CFs at the species level. This procedures gives more weight to genes that have
   many alleles (because they contribute to more sets of 4 individuals) and less
@@ -92,6 +92,12 @@ These quartets, with repeated species, are informative about the population
 size of extant populations, i.e. about the lengths of external branches in
 coalescent units.
 
+The main difference between this section compared to the previous section
+("between-species 4-taxon sets") is that quartets with 2 individuals from
+the same species are included here, such as `a1,a2,b1,c1`.
+Also, the weighting of quartets is different. Here, genes with more alleles
+are given more weight.
+
 now we can run snaq:
 
 ```julia
@@ -104,7 +110,10 @@ If `snaq!` takes too long that way, we can try a less ambitious estimation
 that does not estimate the external branch lengths, that is,
 *without* using quartets that have 2 individuals from the same species.
 To do so, we can use the quartet concordance factors at the species level,
-but filter out the quartets with one (or more) species repeated:
+but filter out the quartets with one (or more) species repeated.
+This can be done as in the first section ("between-species 4-taxon sets")
+to give equal weight to all genes,
+or as shown below to give more weight to genes that have more alleles:
 
 ```julia
 df_sp = writeTableCF(d_sp) # some quartets have the same species twice
