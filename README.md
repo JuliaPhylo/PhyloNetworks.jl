@@ -72,4 +72,19 @@ with or without transgressive evolution after reticulations:
   SI on [dryad](http://dx.doi.org/10.5061/dryad.nt2g6)
   including a [tutorial for trait evolution](https://datadryad.org/bitstream/handle/10255/dryad.177752/xiphophorus_PCM_analysis.html?sequence=1)
   and a [tutorial for network calibration](https://datadryad.org/bitstream/handle/10255/dryad.177754/xiphophorus_networks_calibration.html?sequence=1).
-  
+
+Continuous traits, accounting for within-species variation:
+
+- Benjamin Teo, Jeffrey P. Rose, Paul Bastide & Cécile Ané (2022).
+  Accounting for intraspecific variation in continuous trait evolution
+  on a reticulate phylogeny.
+  [bioRxiv](https://doi.org/10.1101/2022.05.12.490814)
+
+For a discrete trait (influence of gene flow on the trait,
+ancestral state reconstruction, rates):
+
+- Karimi, Grover, Gallagher, Wendel, Ané & Baum (2020). Reticulate evolution
+  helps explain apparent homoplasy in floral biology and pollination in baobabs
+  (*Adansonia*; Bombacoideae; Malvaceae).
+  [Systematic Biology](https://academic.oup.com/sysbio/advance-article/doi/10.1093/sysbio/syz073/5613901?guestAccessKey=a32e7dd3-27fd-4a13-b171-7ff5d6da0e01),
+  69(3):462-478. doi: 10.1093/sysbio/syz073.
