@@ -386,7 +386,7 @@ end
 function checkBranchLengths(net::HybridNetwork)
     branches = [e.number for e in net.edge]
     undefined = branches[[e.length == -1.0 for e in net.edge]]
-    negatives = branches[[e.length <= 0 for e in net.edge]]
+    negatives = branches[[e.length < 0 for e in net.edge]]
     str = "The variance-covariance matrix of the network is not defined, and the phylogenetic regression cannot be done."
     if (length(undefined) > 0)
         error(string("Branches ", undefined, " have no length in the network. ", str))
