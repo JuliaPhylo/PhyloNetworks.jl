@@ -624,6 +624,26 @@ lmSH = phylolm(@formula(trait ~ pred), dfr, net, model="scalingHybrid")
 # λ so large?? largest γ = 0.056, so λγ = 1.34 is > 1...
 end
 
+###############################################################################
+### Undefined branch lengths
+###############################################################################
+@testset "Undefined branch length" begin
+    ## No branch length
+    net = readTopology("(A,((B:1,#H1:1::0.1):1,(C:1,(D:1)#H1:1::0.9):1):0.5);");
+    dfr = DataFrame(trait = [11.6,8.1,10.3,9.1], tipNames = ["A","B","C","D"]);
+    @test_throws ErrorException("Branches [1] have no length in the network. The variance-covariance matrix of the network is not defined, and the phylogenetic regression cannot be done.") phylolm(@formula(trait ~ 1), dfr, net);
+    ## Negative branch length
+    net.edge[1].length = -0.5;
+    @test_throws ErrorException("Branches [1] have a negative or zero length in the network. The variance-covariance matrix of the network is not defined, and the phylogenetic regression cannot be done.") phylolm(@formula(trait ~ 1), dfr, net);
+    ## Zero branch length
+    net.edge[1].length = 0.0;
+    @test_throws ErrorException("Branches [1] have a negative or zero length in the network. The variance-covariance matrix of the network is not defined, and the phylogenetic regression cannot be done.") phylolm(@formula(trait ~ 1), dfr, net);
+    ## Non zero branch length
+    net.edge[1].length = 0.1;
+    fit = phylolm(@formula(trait ~ 1), dfr, net);
+    @test loglikelihood(fit) ≈ -6.522868090996417
+end
+
 ############################
 ## Against no regressor
 ###########################
