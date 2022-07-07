@@ -631,19 +631,20 @@ end
     ## No branch length
     net = readTopology("(A:2.5,((B,#H1:1::0.1):1,(C:1,(D:1)#H1:1::0.9):1):0.5);");
     dfr = DataFrame(trait = [11.6,8.1,10.3,9.1], tipNames = ["A","B","C","D"]);
-    @test_throws ErrorException("Branches [2] have no length in the network. The variance-covariance matrix of the network is not defined, and the phylogenetic regression cannot be done.") phylolm(@formula(trait ~ 1), dfr, net);
+    @test_throws ErrorException("""Branch(es) number 2 have no length.
+        The variance-covariance matrix of the network is not defined.
+        A phylogenetic regression cannot be done.""") phylolm(@formula(trait ~ 1), dfr, net);
     ## Negative branch length
     net.edge[2].length = -0.5;
-    @test_throws ErrorException("Branches [2] have a negative or zero length in the network. The variance-covariance matrix of the network is not defined, and the phylogenetic regression cannot be done.") phylolm(@formula(trait ~ 1), dfr, net);
-    ## Zero branch length
+    @test_throws ErrorException("""Branch(es) number 2 have negative length.
+        The variance-covariance matrix of the network is not defined.
+        A phylogenetic regression cannot be done.""") phylolm(@formula(trait ~ 1), dfr, net);
+    ## Zero branch length: allowed
     net.edge[2].length = 0.0;
     fit = phylolm(@formula(trait ~ 1), dfr, net);
     @test loglikelihood(fit) ≈ -6.245746681512051
-    ## Non zero branch length
-    net.edge[2].length = 0.1;
-    fit = phylolm(@formula(trait ~ 1), dfr, net);
-    @test loglikelihood(fit) ≈ -6.2197697662066815
-    ## Illicit zero branch length
+    net.edge[2].length = 0.1; # back to non-zero
+    ## Illicit zero length for 1st edge: from root to single "outgroup" taxon
     net.edge[1].length = 0.0;
     @test_throws PosDefException phylolm(@formula(trait ~ 1), dfr, net);
 end

@@ -337,7 +337,9 @@ Returns an object of type [`MatrixTopologicalOrder`](@ref).
 """
 function sharedPathMatrix(net::HybridNetwork;
                           checkPreorder=true::Bool)
-    checkBranchLengths(net::HybridNetwork)
+    check_nonmissing_nonnegative_edgelengths(net,
+        """The variance-covariance matrix of the network is not defined.
+           A phylogenetic regression cannot be done.""")
     recursionPreOrder(net,
                       checkPreorder,
                       initsharedPathMatrix,
@@ -383,16 +385,21 @@ function initsharedPathMatrix(nodes::Vector{Node}, params)
     return(zeros(Float64,n,n))
 end
 
-function checkBranchLengths(net::HybridNetwork)
-    branches = [e.number for e in net.edge]
-    undefined = branches[[e.length == -1.0 for e in net.edge]]
-    negatives = branches[[e.length < 0 for e in net.edge]]
-    str = "The variance-covariance matrix of the network is not defined, and the phylogenetic regression cannot be done."
-    if (length(undefined) > 0)
-        error(string("Branches ", undefined, " have no length in the network. ", str))
+"""
+    check_nonmissing_nonnegative_edgelengths(net, str="")
+
+Throw an Exception if `net` has undefined edge lengths (coded as -1.0) or
+negative edge lengths. The error message indicates the number of the offending
+edge(s), followed by `str`.
+"""
+function check_nonmissing_nonnegative_edgelengths(net::HybridNetwork, str="")
+    if any(e.length == -1.0 for e in net.edge)
+        undefined = [e.number for e in net.edge if e.length == -1.0]
+        error(string("Branch(es) number ", join(undefined,","), " have no length.\n", str))
     end
-    if (length(negatives) > 0)
-        error(string("Branches ", negatives, " have a negative or zero length in the network. ", str))
+    if any(e.length < 0 for e in net.edge)
+        negatives = [e.number for e in net.edge if e.length < 0.0]
+        error(string("Branch(es) number ", join(negatives,","), " have negative length.\n", str))
     end
 end
 
