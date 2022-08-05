@@ -494,12 +494,13 @@ function fuseedgesat!(i::Integer, net::HybridNetwork, multgammas=false::Bool)
 end
 
 """
-    removedegree2nodes!(net::HybridNetwork)
+    removedegree2nodes!(net::HybridNetwork, keeproot=false::Bool)
 
 Delete *all* nodes of degree two in `net`, fusing the two adjacent edges
 together each time, and return the network.
-If the network has a degree-2 root, then the root is eliminated as well,
-leaving the network unrooted.
+If the network has a degree-2 root and `keeproot` is false,
+then the root is eliminated as well, leaving the network unrooted.
+If `keeproot` is true, then the root is kept even if it's of degree 2.
 
 See [`fuseedgesat!`](@ref).
 
@@ -520,13 +521,23 @@ julia> PhyloNetworks.removedegree2nodes!(net);
 julia> writeTopology(net) # even the root is gone
 "(#H2,S4,(((S1,(S2)#H1),(#H1,S3)))#H2);"
 
+julia> net = readTopology("((((C:0.9)I1:0.1)I3:0.1,((A:1.0)I2:0.4)I3:0.6):1.4,(((B:0.2)H1:0.6)I2:0.5)I3:2.1);");
+
+julia> PhyloNetworks.removedegree2nodes!(net, true);
+
+julia> writeTopology(net, round=true) # the root was kept
+"((C:1.1,A:2.0):1.4,B:3.4);"
+
 ```
 """
-function removedegree2nodes!(net::HybridNetwork)
-    ndegree2nodes = sum(length(n.edge) == 2 for n in net.node)
-    # caution: nodes and their indices in the 'current' network may change some of them are removed
-    for ni in 1:ndegree2nodes # empty if 0 degree-2 nodes
-        i = findfirst(n -> length(n.edge) == 2, net.node)
+function removedegree2nodes!(net::HybridNetwork, keeproot=false::Bool)
+    rootnode = net.node[net.root]
+    toberemoved(nn) = (keeproot ? length(nn.edge) == 2 && nn !== rootnode :
+                                  length(nn.edge) == 2 )
+    ndegree2nodes = sum(toberemoved.(net.node))
+    # caution: nodes and their indices in the 'current' network may change when some of them are removed
+    for _ in 1:ndegree2nodes # empty if 0 degree-2 nodes
+        i = findfirst(toberemoved, net.node)
         i !== nothing || error("incorrect predicted number of degree-2 nodes to remove...")
         fuseedgesat!(i, net)
     end
