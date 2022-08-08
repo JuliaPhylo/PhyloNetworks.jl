@@ -19,6 +19,8 @@ and their use for trait evolution.
 
 ## References
 
+See their [bibtex format](https://github.com/crsl4/PhyloNetworks.jl/blob/master/CITATION.bib).
+
 for the package:
 - Claudia Solís-Lemus, Paul Bastide and Cécile Ané (2017).
   PhyloNetworks: a package for phylogenetic networks.

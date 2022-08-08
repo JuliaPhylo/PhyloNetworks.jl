@@ -33,7 +33,7 @@ To get help, check
   for common questions. Join the group to post/email your questions,
   or to receive information on new versions, bugs fixed, etc.
 
-If you use the package, please cite
+If you use the package, please cite ([bibtex format here](CITATION.bib))
 
 - Claudia Sol&iacute;s-Lemus, Paul Bastide and C&eacute;cile An&eacute; (2017).
   PhyloNetworks: a package for phylogenetic networks.
@@ -86,5 +86,5 @@ ancestral state reconstruction, rates):
 - Karimi, Grover, Gallagher, Wendel, Ané & Baum (2020). Reticulate evolution
   helps explain apparent homoplasy in floral biology and pollination in baobabs
   (*Adansonia*; Bombacoideae; Malvaceae).
-  [Systematic Biology](https://academic.oup.com/sysbio/advance-article/doi/10.1093/sysbio/syz073/5613901?guestAccessKey=a32e7dd3-27fd-4a13-b171-7ff5d6da0e01),
-  69(3):462-478. doi: 10.1093/sysbio/syz073.
+  Systematic Biology,
+  69(3):462-478. doi: [10.1093/sysbio/syz073](https://academic.oup.com/sysbio/advance-article/doi/10.1093/sysbio/syz073/5613901?guestAccessKey=a32e7dd3-27fd-4a13-b171-7ff5d6da0e01).
