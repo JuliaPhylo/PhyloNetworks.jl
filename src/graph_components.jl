@@ -111,6 +111,81 @@ function biconnectedComponents(node, index, S, blobs, ignoreTrivial)
 end
 
 """
+    biconnectedcomponent_entrynodes(net, bcc, preorder=true)
+
+Array containing the entry node of the each biconnected component in `bcc`.
+`bcc` is supposed to contain the biconnected components as output by
+[`biconnectedComponents`](@ref), that is, an array of array of edges.
+
+These entry nodes depend on the rooting (whereas the BCC only depend on the
+unrooted graph). They are either the root of the network or cut node
+(articulation points).
+"""
+function biconnectedcomponent_entrynodes(net, bcc, preorder=true::Bool)
+    if preorder
+        directEdges!(net)
+        preorder!(net)
+    end
+    entrynode = Node[] # one entry node for each blob: cut node or root
+    for bicomp in bcc
+        jmin = length(net.node)
+        for edge in bicomp
+            n = getParent(edge)
+            j = findfirst(x -> x===n, net.nodes_changed)
+            isnothing(j) && error("node not found in net's pre-ordering 'nodes_changed'")
+            jmin = min(j, jmin)
+        end
+        push!(entrynode, net.nodes_changed[jmin])
+    end
+    return entrynode
+end
+
+"""
+    biconnectedcomponent_exitnodes(net, bcc, preorder=true)
+
+Array containing an array of the exit node(s) of the each biconnected component
+in `bcc`. `bcc` is supposed to contain the biconnected components as output by
+[`biconnectedComponents`](@ref), that is, an array of array of edges.
+
+These exit nodes depend on the rooting (whereas the BCC only depend on the
+unrooted graph). The degree of a blob is the number of exit nodes + 1 if
+the blob doesn't contain the root (its entry node is a cut node), or + 0 if
+the blob contains the root (which enters into the blob but isn't a cut node).
+
+**Warning** (or positive side effect?): the edge `.inCycle` attribute is modified.
+It stores the index (in `bcc`) of the biconnected component that an edge belongs to.
+If an edge doesn't belong in any (e.g. if trivial blobs are ignored),
+then its `.inCycle` is set to -1.
+"""
+function biconnectedcomponent_exitnodes(net, bcc, preorder=true::Bool)
+    if preorder
+        directEdges!(net)
+        preorder!(net)
+    end
+    exitnode = Vector{Node}[]  # one array of exit cut nodes for each blob
+    for edge in net.edge edge.inCycle = -1; end # in case trivial blobs are ignored
+    for (i,bicomp) in enumerate(bcc)
+        for edge in bicomp edge.inCycle = i; end
+    end
+    for (i,bicomp) in enumerate(bcc)
+        exitnode_blobi = Node[]
+        for edge in bicomp
+            edge.isMajor || continue # skip minor edges to avoid duplicating exit node
+            n = getChild(edge)
+            for e in n.edge
+                e !== edge || continue
+                if e.inCycle != i # then n is a cut point, incident to another blob
+                    push!(exitnode_blobi, n)
+                    break
+                end
+            end
+        end
+        push!(exitnode, exitnode_blobi)
+    end
+    return exitnode
+end
+
+"""
     blobInfo(network, ignoreTrivial=true)
 
 Calculate the biconnected components (blobs) using function
@@ -146,34 +221,27 @@ function blobInfo(net, ignoreTrivial=true::Bool;
       preorder!(net) # creates / updates net.nodes_changed
     end
     bcc = biconnectedComponents(net, ignoreTrivial)
-    bccRoots = Node[]         # one root node for each blob
+    bccRoots = biconnectedcomponent_entrynodes(net, bcc, false) # 1 entry node for each blob
     bccMajor = Vector{Edge}[] # one array for each blob
     bccMinor = Vector{Edge}[]
     for bicomp in bcc
         bccMa = Edge[]
-        jmin = length(net.node)
+        bccmi = Edge[] # find minor hybrid edges, in same order
         for edge in bicomp
-            n = getParent(edge)
-            j = something(findfirst(x -> x===n, net.nodes_changed), 0)
-            jmin = min(j, jmin)
             if edge.hybrid && edge.isMajor
                 push!(bccMa, edge)
+                e = getPartner(edge)
+                !e.isMajor || @warn "major edge $(edge.number) has a major partner: edge $(e.number)"
+                push!(bccmi, e)
             end
         end
-        push!(bccRoots, net.nodes_changed[jmin])
         push!(bccMajor, bccMa)
-        bccmi = Edge[] # find minor hybrid edges, in same order
-        for edge in bccMa
-            e = getPartner(edge)
-            !e.isMajor || @warn "major edge $(edge.number) has a major partner: edge $(e.number)"
-            push!(bccmi, e)
-        end
         push!(bccMinor, bccmi)
     end
     # add the network root, if it was in a trivial bi-component (no hybrids)
-    # blobs in post-order, so if there the root is there, it's the last blob
-    if length(bcc)==0 || bccRoots[end]!=net.node[net.root]
-        push!(bccRoots,net.node[net.root])
+    rootnode = net.node[net.root]
+    if !any(n -> n === rootnode, bccRoots)
+        push!(bccRoots, rootnode)
         push!(bccMajor, Edge[])
         push!(bccMinor, Edge[])
     end
@@ -232,6 +300,45 @@ function blobDecomposition!(net)
         end
     end
     return blobR
+end
+
+"""
+    leaststableancestor(net, preorder=true::Bool)
+
+Tuple `(lsa, lsa_index)` where `lsa` is the least stable ancestor node
+in `net`, that is, the lowest node among all nodes `n` such that *any* path
+between *any* leaf and the root must go through `n`.
+`lsa_index` is the index of `lsa` in `net.nodes_changed`.
+By the way, all nodes with the property above must have an index that is lower
+or equal to `lsa_index`.
+
+*Warning*:
+uses [`biconnectedComponents`](@ref) and [`biconnectedcomponent_exitnodes`](@ref),
+therefore share the same caveats regarding the use of
+fields `.inCycle` (for edges and nodes), `.k` (for nodes) etc.
+As a positivie side effect, the biconnected components can be recovered
+via the edges' `.inCycle` field --including the trivial blobs (cut edges).
+"""
+function leaststableancestor(net, preorder=true::Bool)
+    if preorder
+        directEdges!(net)
+        preorder!(net)
+    end
+    bcc = biconnectedComponents(net, false)
+    entry = biconnectedcomponent_entrynodes(net, bcc, false)
+    entryindex = indexin(entry, net.nodes_changed)
+    exitnodes = biconnectedcomponent_exitnodes(net, bcc, false)
+    bloborder = sortperm(entryindex) # pre-ordering for blobs in their own blob tree
+    blobs2delete = Int[]
+    for ibj in 1:length(bcc)
+        ib = bloborder[ibj] # should we delete bcc[ib]?
+        if length(exitnodes[ib]) == 1
+            push!(blobs2delete, ib)
+        else # trivial blob to a leaf (0 exits) or blob with 2+ exits
+            return entry[ib], entryindex[ib]
+            break
+        end
+    end
 end
 
 """
