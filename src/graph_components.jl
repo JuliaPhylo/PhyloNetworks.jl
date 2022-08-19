@@ -13,10 +13,12 @@ If `ignoreTrivial` is true, trivial components (of a single edge)
 are not returned.
 The network is assumed to be connected.
 
-**Warnings**: for nodes, fields `k`, `inCycle`, and `prev`
+**Warnings**: for nodes, fields `k` and `inCycle`
 are modified during the algorithm. They are used to store the
 node's "index" (time of visitation), "lowpoint", and the node's
 "parent", as defined by the order in which nodes are visited.
+For edges, field `fromBadDiamondI` is modified, to store whether
+the edge has been already been visited or not.
 
 References:
 - p. 153 of [Tarjan (1972)](http://epubs.siam.org/doi/pdf/10.1137/0201010).
@@ -32,25 +34,17 @@ References:
 """
 function biconnectedComponents(net, ignoreTrivial=false::Bool)
     for n in net.node
-        n.inCycle = -1 # -1 for missing, node not visited yet
-        n.k = -1       # inCycle = lowpoint
-        n.prev = nothing # parent: will be a node later
+        n.inCycle = -1 # inCycle = lowpoint. -1 for missing, until the node is visited
+        n.k = -1       # k = index, order of visit during depth-first search
+    end
+    for e in net.edge
+        e.fromBadDiamondI = false # true after edge is visited, during depth-first search
     end
     S = Edge[] # temporary stack
     blobs = Vector{Edge}[] # will contain the blobs
     biconnectedComponents(net.node[net.root], [0], S, blobs, ignoreTrivial)
     # if stack not empty: create last connected component
-    if length(S)>0
-        #println("stack not empty at the end.")
-        bb = Edge[]
-        while length(S)>0
-            e2 = pop!(S)
-            push!(bb, e2)
-        end
-        if !ignoreTrivial || length(bb)>1
-            push!(blobs, bb)
-        end
-    end
+    length(S) == 0 || @error("stack of edges not empty at the end: $S")
     return blobs
 end
 
@@ -74,9 +68,9 @@ function biconnectedComponents(node, index, S, blobs, ignoreTrivial)
     for e in node.edge # each (v, w) in E do
         w = (e.node[1] == node) ? e.node[2] : e.node[1]
         #println(" w: $(w.number) along edge $(e.number)")
-        if w.k == -1 # w not yet visited
-            w.prev = node # set parent of w to current node
-            #println(" w's parent = $(w.prev.number)")
+        if w.k == -1 # w not yet visited, therefore e not yet visited either
+            #println(" w's parent = $(node.number)")
+            e.fromBadDiamondI = true
             children += 1
             push!(S, e)
             #println(" edge $(e.number) on stack, intermediate step for node=$(node.number)")
@@ -88,23 +82,23 @@ function biconnectedComponents(node, index, S, blobs, ignoreTrivial)
             #print(" case 1, low=$(node.inCycle) for node $(node.number); ")
             #println("low=$(w.inCycle) for w $(w.number)")
             # if node is an articulation point: pop until e
-            if (node.prev === nothing && children > 1) ||
-               (node.prev !== nothing && w.inCycle >= node.k)
-                # node is either root or an articulation point
+            if w.inCycle >= node.k
+                # @info "found root or articulation: node number $(node.number), entry to new blob."
                 # start a new strongly connected component
                 bb = Edge[]
                 while length(S)>0
                     e2 = pop!(S)
                     #println(" popping: edge $(e2.number)")
                     push!(bb, e2)
-                    e2 != e || break
+                    e2 !== e || break
                 end
                 if !ignoreTrivial || length(bb)>1
                     push!(blobs, bb)
                 end
             end
-        elseif w != node.prev && node.k > w.k
+        elseif !e.fromBadDiamondI && node.k > w.k
             # e is a back edge, not cross edge. Case 2 in article.
+            e.fromBadDiamondI = true
             node.inCycle = min(node.inCycle, w.k)
             #println(" case 2, node $(node.number): low=$(node.inCycle)")
             push!(S, e)
