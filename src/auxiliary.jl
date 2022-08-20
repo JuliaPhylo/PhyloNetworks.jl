@@ -513,7 +513,7 @@ function deleteNode!(net::QuartetNetwork, n::Node)
 end
 
 """
-    deleteEdge!(net::HybridNetwork,  e::Edge, part=true)
+    deleteEdge!(net::HybridNetwork,  e::Edge; part=true)
     deleteEdge!(net::QuartetNetwork, e::Edge)
 
 Delete edge `e` from `net.edge` and update `net.numEdges`.

@@ -1072,6 +1072,41 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
 end
 
 """
+deleteaboveLSA!(net, preorder=true::Bool)
+
+Delete edges and nodes above (ancestral to) the least stable ancestor (LSA)
+of the leaves in `net`. See [`leaststableancestor`](@ref) for the definition
+of the LSA.
+Returns the modified network `net`.
+"""
+function deleteaboveLSA!(net::HybridNetwork, preorder=true::Bool)
+    lsa, lsaindex = leaststableancestor(net, preorder)
+    for _ in 1:(lsaindex-1)
+        # the network may temporarily have multiple "roots"
+        nodei = popfirst!(net.nodes_changed)
+        for e in nodei.edge
+            # delete all of nodei's edges (which much be outgoing)
+            cn = getChild(e)
+            removeEdge!(cn, e) # also updates cn.hasHybEdge
+            empty!(e.node)
+            deleteEdge!(net, e; part=false)
+        end
+        empty!(nodei.edge)
+        deleteNode!(net, nodei) # resets net.root
+        if nodei.name != ""
+            j = findfirst(isequal(nodei.name), net.names)
+            isnothing(j) || deleteat!(net.names, j)
+        end
+    end
+    net.root = findfirst( n -> n===lsa, net.node)
+    if lsa.hybrid # edge case: LSA may be hybrid if 1 single leaf in network
+        removeHybrid!(net, lsa)
+        lsa.hybrid = false
+    end
+    return net
+end
+
+"""
     resetNodeNumbers!(net::HybridNetwork; checkPreorder=true, type=:ape)
 
 Change internal node numbers of `net` to consecutive numbers from 1 to the total

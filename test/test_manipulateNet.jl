@@ -1,7 +1,6 @@
-# changed node numbering on 5/28 when readSubTree will start internal
-# node numbers at -2 to avoid error in undirectedOtherNetworks
-
 if !(@isdefined doalltests) doalltests = false; end
+
+@testset "manipulateNet" begin
 
 @testset "test: auxiliary" begin
 global net
@@ -224,4 +223,22 @@ net0 = readTopology("((((C:0.9)I1:0.1)I3:0.1,((A:1.0)I2:0.4)I3:0.6):1.4,(((B:0.2
 PhyloNetworks.removedegree2nodes!(net0, true) # true: to keep the root of degree-2
 @test writeTopology(net0, round=true) == "((C:1.1,A:2.0):1.4,B:3.4);"
 
+#--- delete above least stable ancestor ---#
+# 3 blobs above LSA: cut edge + level-2 blob + cut edge.
+net = readTopology("(((((#H25)#H22:::0.8,#H22),((t2:0.1,t1))#H25:::0.7)));")
+PhyloNetworks.deleteaboveLSA!(net)
+@test writeTopology(net) == "(t2:0.1,t1);"
+# 2 separate non-trivial clades + root edge
+net = readTopology("((((t1,t2):0.1,(t3:0.3,t4)):0.4));")
+PhyloNetworks.deleteaboveLSA!(net)
+@test writeTopology(net) == "((t1,t2):0.1,(t3:0.3,t4));"
+# 1 tip + 2-cycle above it, no extra root edge above, hybrid LSA
+net = readTopology("((t1)#H22:::0.8,#H22);")
+PhyloNetworks.deleteaboveLSA!(net)
+@test writeTopology(net) == "(t1)H22;"
+@test isempty(net.hybrid)
+@test [n.name for n in net.nodes_changed] == ["H22","t1"]
+
 end # of testset for other functions in manipulateNet
+
+end # of overall testset for this file
