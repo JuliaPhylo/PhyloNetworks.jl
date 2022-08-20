@@ -16,13 +16,6 @@ net_nontreechild = readTopology(str_nontreechild);
 str_hybridladder = "(#H2:::0.2,((C,((B)#H1)#H2:::0.8),(#H1,(A1,A2))),O);"
 net_hybridladder = readTopology(str_hybridladder);
 
-#=
-using PhyloPlots
-plot(net_level1, :R, showNodeNumber=true, showEdgeNumber=true)
-plot(net_nontreechild, :R, showNodeNumber=true, showEdgeNumber=true)
-plot(net_hybridladder, :R, showNodeNumber=true, showEdgeNumber=true)
-=#
-
 @test isnothing(nni!(net_level1, net_level1.edge[1], 0x01, true, true)) # external edge
 
 @testset "level1 edge 3: BB undirected move $move" for move in 0x01:0x08
@@ -340,9 +333,6 @@ end # of testset on unconstrained NNIs
 @testset "species constraints" begin # multiple individuals from each species
 str_level1_s = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" # indviduals S1A S1B S1C go on leaf 1
 net_level1_s = readTopology(str_level1_s)
-#=
-plot(net_level1_s, :R, showNodeNumber=true, showEdgeNumber=true)
-=#
 
 # test breakedge! function
 newnode, newedge = PhyloNetworks.breakedge!(net_level1_s.edge[4], net_level1_s);
@@ -549,7 +539,6 @@ netc = readTopology(tangledstring) # hybrid 1: H2, number 4
 @test  isnothing(PhyloNetworks.fliphybrid!(netc, netc.hybrid[1],false, true))
 @test !isnothing(PhyloNetworks.fliphybrid!(netc, netc.hybrid[1],false))
 @test writeTopology(netc) == "((a:0.01,(#H2:0.01)#H1:0.01::0.8):0.01,e:0.01,((#H1:0.01::0.2,d:0.01):0.005,(c:0.005,(b:0.01)#H2:0.005)):0.005);"
-# plot(netc, :R, showEdgeNumber=true, showNodeNumber=true);
 
 # case when the new hybrid edge = child edge of the new hybrid node
 net_ex = readTopology("(((c:0.01,(a:0.005,#H1):0.005):0.01,(b:0.005)#H1:0.005):0.01,d:0.01);")

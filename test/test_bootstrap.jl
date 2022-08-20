@@ -7,7 +7,7 @@ exdir = joinpath(@__DIR__,"..","examples")
 bestnet = readTopology(joinpath(exdir,"fish2hyb.net"));
 bootnet = readMultiTopology(joinpath(exdir,"fish3hyb_20boostrap.net"));
 # issues with bootstrap networks 12, 21, 42, 96
-# plot(bootnet[20], showEdgeNumber=true)
+# plot(bootnet[20], showedgenumber=true)
 # include(string(home, "bootstrap.jl"))
 resn, rese, resc, gam, edgenum = hybridBootstrapSupport(bootnet,bestnet);
 #@show resn; @show rese; showall(gam); @show edgenum; resc

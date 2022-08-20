@@ -53,7 +53,6 @@ net = readTopology(netstr);
 
 if doalltests
 net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.1361111):10.0);");
-# plot(net, showEdgeNumber=true, showNodeNumber=true)
 deletehybridedge!(net, net.edge[11]);
 writeTopologyLevel1(net) == "(4,((1,2):2.069,(6,5):3.423):0.265,3);" ||
  error("deletehybridedge! didn't work on 11th edge")
@@ -77,7 +76,6 @@ deletehybridedge!(net, net.edge[10]);
 println("a warning is expected: \"node -1 being the root is contradicted by isChild1 of its edges.\"")
 writeTopologyLevel1(net) == "(Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0,Aten:2.614);" ||
  error("deletehybridedge! didn't work on 10th edge after isChild1 was changed")
-# plot(net, showEdgeNumber=true, showNodeNumber=true)
 end
 
 # example with simplify=false

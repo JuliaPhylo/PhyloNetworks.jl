@@ -36,7 +36,7 @@ using PhyloPlots, RCall
 R"name <- function(x) file.path('..', 'assets', 'figures', x)" # hide
 R"svg(name('truenet_opt.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0])
-plot(net1alt, :R, showGamma=true);
+plot(net1alt, showgamma=true);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -129,9 +129,9 @@ to re-root the networks.
 R"svg(name('fixednetworkoptim_othernets1.svg'), width=7, height=4)" # hide
 R"layout(matrix(1:2,1,2))"; # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(netlist[1], :R, showGamma=true, showEdgeNumber=true, tipOffset=0.1);
+plot(netlist[1], showgamma=true, showedgenumber=true, tipoffset=0.1);
 R"mtext"("best net, score=28.3", line=-1);
-plot(netlist[2], :R, showGamma=true, showEdgeNumber=true, tipOffset=0.1);
+plot(netlist[2], showgamma=true, showedgenumber=true, tipoffset=0.1);
 R"mtext"("direction modified, score=31.5", line=-1);
 R"dev.off()"; # hide
 nothing # hide
@@ -163,18 +163,18 @@ rootonedge!(netlist[1], 10); # root best net to make A outgroup
 rotate!(netlist[1], -4); # to 'un-cross' edges
 rotate!(netlist[1], -6);
 rotate!(netlist[1], -5);
-plot(netlist[1], :R, showGamma=true, tipOffset=0.1);
+plot(netlist[1], showgamma=true, tipoffset=0.1);
 R"mtext"("best net, score=28.3", line=-1);
 global_logger(NullLogger()); # hide
 rootatnode!(netlist[2], "A"); # net with modified direction: first way to make A outgroup
 global_logger(baselogger);   # hide
 rotate!(netlist[2], -4) # to 'un-cross' edges
 rotate!(netlist[2], -6)
-plot(netlist[2], :R, showGamma=true, tipOffset=0.1);
+plot(netlist[2], showgamma=true, tipoffset=0.1);
 R"mtext"("second best in list, score=31.5\nrequires unsampled population", line=-2);
 rootonedge!(netlist[2], 10) # net with modified direction: second way to make A outgroup
 for i in [9,-7] rotate!(netlist[2], i); end; # to 'un-cross' edges
-plot(netlist[2], :R, showGamma=true, tipOffset=0.1);
+plot(netlist[2], showgamma=true, tipoffset=0.1);
 R"mtext"("second best in list, score=31.5\ndifferent root position", line=-2);
 R"dev.off()"; # hide
 nothing # hide

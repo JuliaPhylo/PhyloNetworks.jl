@@ -110,9 +110,9 @@ Check and update the nodes' field `inCycle`.
 ```julia
 net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 using PhyloPlots
-plot(net, :R, showNodeNumber=true); # to locate nodes and their numbers. D of hybrid origin
+plot(net, shownodenumber=true); # to locate nodes and their numbers. D of hybrid origin
 hybridatnode!(net, -4)
-plot(net, :R, showNodeNumber=true); # hybrid direction reversed: now 2B of hybrid origin
+plot(net, shownodenumber=true); # hybrid direction reversed: now 2B of hybrid origin
 ```
 """
 function hybridatnode!(net::HybridNetwork, nodeNumber::Integer)
@@ -231,7 +231,7 @@ end
 Root the network/tree object at the node with name 'nodeName' or
 number 'nodeNumber' (by default) or with index 'nodeNumber' if index=true.
 Attributes isChild1 and containRoot are updated along the way.
-Use `plot(net, showNodeNumber=true, showEdgeLength=false)` to
+Use `plot(net, shownodenumber=true, showedgelength=false)` to
 visualize and identify a node of interest.
 (see package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl))
 
@@ -312,7 +312,7 @@ or with index `edgeNumber` if `index=true`.
 Attributes `isChild1` and `containRoot` are updated along the way.
 
 This adds a new node and a new edge to the network.
-Use `plot(net, showEdgeNumber=true, showEdgeLength=false)` to
+Use `plot(net, showedgenumber=true, showedgelength=false)` to
 visualize and identify an edge of interest.
 (see package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl))
 
@@ -846,7 +846,7 @@ to remove crossing edges.
 If `node` is a tree node with no polytomy, the 2 children edges are switched
 and the optional argument `orderedEdgeNum` is ignored.
 
-Use `plot(net, showNodeNumber=true, showEdgeNumber=false)` to map node and edge numbers
+Use `plot(net, shownodenumber=true, showedgenumber=false)` to map node and edge numbers
 on the network, as shown in the examples below.
 (see package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl))
 
@@ -858,13 +858,13 @@ by `plot(net)`. Otherwise run `directEdges!(net)`.
 ```julia
 julia> net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 julia> using PhyloPlots
-julia> plot(net, showNodeNumber=true)
+julia> plot(net, shownodenumber=true)
 julia> rotate!(net, -4)
 julia> plot(net)
 julia> net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.136):10.0);");
-julia> plot(net, showNodeNumber=true, showEdgeNumber=true)
+julia> plot(net, shownodenumber=true, showedgenumber=true)
 julia> rotate!(net, -1, orderedEdgeNum=[1,12,9])
-julia> plot(net, showNodeNumber=true, showEdgeNumber=true)
+julia> plot(net, shownodenumber=true, showedgenumber=true)
 julia> rotate!(net, -3)
 julia> plot(net)
 ```

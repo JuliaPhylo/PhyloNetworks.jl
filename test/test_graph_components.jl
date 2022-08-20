@@ -94,7 +94,6 @@ end
     @test sort(compsize) == [1,2,3]
     rcompID = checkroot!(net, node2comp)
     @test compsize[rcompID] == 3
-    # plot(net, :R, showNodeNumber=true, showEdgeNumber=true);
     rcomp = keys(filter(p -> p.second == rcompID, node2comp))
     @test Set(n.number for n in rcomp) == Set([-2 -3 4])
     @test Set(e.number for e in net.edge if e.containRoot) == Set([7 6 5 2 1])

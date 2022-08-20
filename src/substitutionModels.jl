@@ -200,7 +200,7 @@ rate matrix Q:
        T  0.3226  0.2419  0.4839       *
 
 julia> PhyloNetworks.P(m1, 0.2)
-4×4 StaticArrays.MMatrix{4, 4, Float64, 16} with indices SOneTo(4)×SOneTo(4):
+4×4 StaticArraysCore.MMatrix{4, 4, Float64, 16} with indices SOneTo(4)×SOneTo(4):
  0.81592    0.0827167  0.0462192  0.0551445
  0.0551445  0.831326   0.0827167  0.0308128
  0.0308128  0.0827167  0.831326   0.0551445
@@ -212,7 +212,7 @@ Juke-Cantor example:
 julia> m1 = JC69([1.]);
 
 julia> PhyloNetworks.P(m1, 0.2)
-4×4 StaticArrays.MMatrix{4, 4, Float64, 16} with indices SOneTo(4)×SOneTo(4):
+4×4 StaticArraysCore.MMatrix{4, 4, Float64, 16} with indices SOneTo(4)×SOneTo(4):
  0.824446   0.0585179  0.0585179  0.0585179
  0.0585179  0.824446   0.0585179  0.0585179
  0.0585179  0.0585179  0.824446   0.0585179

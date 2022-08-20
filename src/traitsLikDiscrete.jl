@@ -1011,7 +1011,7 @@ julia> asr = ancestralStateReconstruction(fit1)
 
 julia> using PhyloPlots
 
-julia> plot(fit1.net, :R, nodeLabel = asr[!,[:nodenumber, :lo]], tipOffset=0.2); # pp for "lo" state
+julia> plot(fit1.net, nodelabel = asr[!,[:nodenumber, :lo]], tipoffset=0.2); # pp for "lo" state
 ```
 """
 function ancestralStateReconstruction(obj::SSM, trait::Integer = 1)

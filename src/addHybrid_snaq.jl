@@ -374,7 +374,7 @@ bestnet = readTopology("best.tre")
 BSn, BSe, BSc, BSgam, BSedgenum = hybridBootstrapSupport(bootnet, bestnet);
 addAlternativeHybridizations!(bestnet,BSe)
 using PhyloPlots
-plot(bestnet, edgeLabel=BSe[[:edge,:BS_hybrid_edge]])
+plot(bestnet, edgelabel=BSe[[:edge,:BS_hybrid_edge]])
 ```
 """
 function addAlternativeHybridizations!(net::HybridNetwork,BSe::DataFrame; cutoff=10::Number,top=3::Int)

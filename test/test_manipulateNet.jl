@@ -5,7 +5,6 @@ if !(@isdefined doalltests) doalltests = false; end
 @testset "test: auxiliary" begin
 global net
 net = readTopology("((((B:102.3456789)#H1)#H2,((D:0.00123456789,C,#H2:::0.123456789)S1,(#H1,A_coolname)S2)S3)S4);")
-# using PhyloPlots; plot(net, :R, showEdgeNumber=true, showNodeNumber=true);
 s = IOBuffer()
 @test_logs printEdges(s, net)
 @test String(take!(s)) == """
@@ -107,7 +106,6 @@ net.root = 5
 # or: "directEdges! didn't correct containRoot below a hyb node, $(i)th edge."
 @test [net.edge[i].containRoot for i in [9,5,18,2]] == [true for i in 1:4]
 # or: "directEdges! didn't correct containRoot of hyb edges."
-# plot(net, showNodeNumber=true, showEdgeLength=false, showEdgeNumber=true)
 @test_logs rootatnode!(net, -10); # or: rootatnode! complained, node -10
 @test_throws PhyloNetworks.RootMismatch rootatnode!(net, "M"; verbose=false);
 # println("the rootmismatch about node 5 is good and expected.")
@@ -131,7 +129,7 @@ net = readTopology("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10))
 directEdges!(net); # or error("directEdges! says that the root position is incompatible with hybrids")
 sum([!e.containRoot for e in net.edge]) == 16 ||
  error("directEdges! wrong on net with 2 stacked hybrids");
-plot(net, showEdgeNumber=true, showEdgeLength=false, showNodeNumber=true);
+plot(net, showedgenumber=true, showedgelength=false, shownodenumber=true);
 net = readTopology("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
 net.root=19; # node number -13 (clau: previously -12)
 directEdges!(net); # or error("directEdges! says that the root position is incompatible with hybrids");

@@ -166,7 +166,7 @@ astralfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","astral.tr
 astraltree = readMultiTopology(astralfile)[102] # 102th tree: last tree here
 R"svg(name('inputdata_astraltree.svg'), width=4, height=3)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(astraltree, :R, showEdgeLength=true);
+plot(astraltree, showedgelength=true);
 R"dev.off()"; # hide
 nothing # hide
 ```
