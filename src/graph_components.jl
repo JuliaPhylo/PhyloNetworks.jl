@@ -312,6 +312,9 @@ between *any* leaf and the root must go through `n`.
 By the way, all nodes with the property above must have an index that is lower
 or equal to `lsa_index`.
 
+Exception: if the network has a single leaf, the identified LSA will be the
+leaf's parent node, to maintain 1 edge between the LSA and the leaf.
+
 *Warning*:
 uses [`biconnectedComponents`](@ref) and [`biconnectedcomponent_exitnodes`](@ref),
 therefore share the same caveats regarding the use of
@@ -320,6 +323,7 @@ As a positivie side effect, the biconnected components can be recovered
 via the edges' `.inCycle` field --including the trivial blobs (cut edges).
 """
 function leaststableancestor(net, preorder=true::Bool)
+    net.node[net.root].leaf && error("The root can't be a leaf to find the LSA.")
     if preorder
         directEdges!(net)
         preorder!(net)
@@ -329,16 +333,15 @@ function leaststableancestor(net, preorder=true::Bool)
     entryindex = indexin(entry, net.nodes_changed)
     exitnodes = biconnectedcomponent_exitnodes(net, bcc, false)
     bloborder = sortperm(entryindex) # pre-ordering for blobs in their own blob tree
-    blobs2delete = Int[]
-    for ibj in 1:length(bcc)
-        ib = bloborder[ibj] # should we delete bcc[ib]?
-        if length(exitnodes[ib]) == 1
-            push!(blobs2delete, ib)
-        else # trivial blob to a leaf (0 exits) or blob with 2+ exits
-            return entry[ib], entryindex[ib]
-            break
-        end
+    function atlsa(ib) # is bcc[ib] below the LSA?
+        # above LSA if 1 exit and 1 entry that's not an entry to another blob
+        # (0 exits: trivial blob (cut-edge) to a leaf)
+        length(exitnodes[ib]) != 1 || sum(isequal(entryindex[ib]), entryindex) > 1
     end
+    lsaindex_j = findfirst(atlsa, bloborder)
+    isnothing(lsaindex_j) && error("strange: couldn't find the LSA...")
+    ib = bloborder[lsaindex_j]
+    return entry[ib], entryindex[ib]
 end
 
 """

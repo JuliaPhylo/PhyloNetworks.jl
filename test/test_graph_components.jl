@@ -53,10 +53,27 @@ writeSubTree!(s, blobs[3], nothing, false, true)
 net = readTopology("((((t1)#H22:::0.8,#H22))#H10:::0.7,#H10);")
 a = biconnectedComponents(net,true);
 @test [[e.number for e in b] for b in a] == [[3,2], [6,5]]
+lsa, lsaind = PhyloNetworks.leaststableancestor(net)
+@test (lsa.number,lsaind) == (2,4)
+
 # h=3, one level-1 blob above the LSA, one level-2 blob below including a 2-cycle
 net = readTopology("((((((t2,#H25:::0.3))#H22:::0.8,#H22),(t1)#H25:::0.7))#H10:::0.6,#H10);")
 a = biconnectedComponents(net,true);
 [[e.number for e in b] for b in a] == [ [5,8,2,3,4,6], [11,10]]
+
+aentry = PhyloNetworks.biconnectedcomponent_entrynodes(net, a)
+@test [n.number for n in aentry] == [-4,-2]
+aexit = PhyloNetworks.biconnectedcomponent_exitnodes(net, a)
+@test [[n.number for n in ae] for ae in aexit] == [[2,-7],[5]]
+
+# balanced tree + extra root edge
+net = readTopology("((((t1,t2),(t3,t4))));")
+_, lsaindex = PhyloNetworks.leaststableancestor(net)
+@test net.nodes_changed[lsaindex].number == -4
+# LSA = root & entry to non-trivial blob
+lsa, _ = PhyloNetworks.leaststableancestor(readTopology("(#H2:::0.2,((b)#H2,a));"))
+@test lsa.number == -2
+
 end
 
 @testset "tree component" begin
