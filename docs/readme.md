@@ -73,7 +73,7 @@ master. The typical commands to save and display a plot should hence be:
 
     ```@example name
     R"svg(name('my_useful_name.svg'), width=4, height=4)" # hide
-    plot(net, :R);
+    plot(net);
     R"dev.off()" # hide
     nothing # hide
     ```

@@ -46,7 +46,7 @@ using RCall # hide
 R"name <- function(x) file.path('..', 'assets', 'figures', x)" # hide
 R"svg(name('snaqplot_net0_1.svg'), width=4, height=3)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net0, :R);
+plot(net0);
 R"dev.off()"; # hide
 nothing # hide
 ```
