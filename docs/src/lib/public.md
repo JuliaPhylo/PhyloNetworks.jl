@@ -40,6 +40,10 @@ hybridatnode!
 setLength!
 setGamma!
 deleteleaf!
+deleteaboveLSA!
+removedegree2nodes!
+shrink2cycles!
+shrink3cycles!
 deleteHybridThreshold!
 rotate!
 getindex(::TraitSimulation, ::Symbol)

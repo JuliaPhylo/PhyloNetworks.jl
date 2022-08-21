@@ -236,7 +236,7 @@ end
 
 Return major or minor parent of a node using the `isChild1` field of edges
 (and assuming correct `isMajor` field).
-See also [`getMajorParentEdge`](@ref) and [`getMinorParentEdge`](@ref)
+See also [`getMajorParentEdge`](@ref PhyloNetworks.getMajorParentEdge) and `getMinorParentEdge`.
 """
 @inline function getMajorParent(node::Node)
     for e in node.edge

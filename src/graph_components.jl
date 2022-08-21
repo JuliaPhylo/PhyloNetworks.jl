@@ -13,7 +13,7 @@ If `ignoreTrivial` is true, trivial components (of a single edge)
 are not returned.
 The network is assumed to be connected.
 
-**Warnings**: for nodes, fields `k` and `inCycle`
+*Warnings*: for nodes, fields `k` and `inCycle`
 are modified during the algorithm. They are used to store the
 node's "index" (time of visitation), "lowpoint", and the node's
 "parent", as defined by the order in which nodes are visited.
@@ -152,7 +152,7 @@ unrooted graph). The degree of a blob is the number of exit nodes + 1 if
 the blob doesn't contain the root (its entry node is a cut node), or + 0 if
 the blob contains the root (which enters into the blob but isn't a cut node).
 
-**Warning** (or positive side effect?): the edge `.inCycle` attribute is modified.
+*Warning* (or positive side effect?): the edge `.inCycle` attribute is modified.
 It stores the index (in `bcc`) of the biconnected component that an edge belongs to.
 If an edge doesn't belong in any (e.g. if trivial blobs are ignored),
 then its `.inCycle` is set to -1.
@@ -305,15 +305,15 @@ end
 """
     leaststableancestor(net, preorder=true::Bool)
 
-Tuple `(lsa, lsa_index)` where `lsa` is the least stable ancestor node
-in `net`, that is, the lowest node among all nodes `n` such that *any* path
-between *any* leaf and the root must go through `n`.
-`lsa_index` is the index of `lsa` in `net.nodes_changed`.
-By the way, all nodes with the property above must have an index that is lower
-or equal to `lsa_index`.
+Return `(lsa, lsa_index)` where `lsa` is the least stable ancestor node (LSA)
+in `net`, and `lsa_index` is the index of `lsa` in `net.nodes_changed`.
+The LSA the lowest node `n` with the following property: *any* path
+between *any* leaf and the root must go through `n`. All such nodes with this
+property are ancestral to the LSA (and therefore must have an index that is
+lower or equal to `lsa_index`).
 
-Exception: if the network has a single leaf, the identified LSA will be the
-leaf's parent node, to maintain 1 edge between the LSA and the leaf.
+Exception: if the network has a single leaf, the output `lsa` is the
+leaf's parent node, to maintain one external edge between the root and the leaf.
 
 *Warning*:
 uses [`biconnectedComponents`](@ref) and [`biconnectedcomponent_exitnodes`](@ref),
@@ -321,6 +321,8 @@ therefore share the same caveats regarding the use of
 fields `.inCycle` (for edges and nodes), `.k` (for nodes) etc.
 As a positivie side effect, the biconnected components can be recovered
 via the edges' `.inCycle` field --including the trivial blobs (cut edges).
+
+See also: [`deleteaboveLSA!`](@ref)
 """
 function leaststableancestor(net, preorder=true::Bool)
     net.node[net.root].leaf && error("The root can't be a leaf to find the LSA.")

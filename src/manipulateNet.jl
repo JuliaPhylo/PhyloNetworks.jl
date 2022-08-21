@@ -516,14 +516,14 @@ julia> PhyloNetworks.breakedge!(net.edge[10], net); # another one, elsewhere
 julia> writeTopology(net) # extra pairs of parentheses
 "((#H2,S4),(((((S1,(((S2)#H1))),(#H1,S3)))#H2)));"
 
-julia> PhyloNetworks.removedegree2nodes!(net);
+julia> removedegree2nodes!(net);
 
 julia> writeTopology(net) # even the root is gone
 "(#H2,S4,(((S1,(S2)#H1),(#H1,S3)))#H2);"
 
 julia> net = readTopology("((((C:0.9)I1:0.1)I3:0.1,((A:1.0)I2:0.4)I3:0.6):1.4,(((B:0.2)H1:0.6)I2:0.5)I3:2.1);");
 
-julia> PhyloNetworks.removedegree2nodes!(net, true);
+julia> removedegree2nodes!(net, true);
 
 julia> writeTopology(net, round=true) # the root was kept
 "((C:1.1,A:2.0):1.4,B:3.4);"
@@ -707,7 +707,7 @@ end
 Get vector of all parent nodes of `n`, based on `isChild1` field (for edges).
 To get the parent node of an edge: see [`getParent`](@ref).
 To get individual parent edges (rather than all parent *nodes*):
-see [`getMajorParentEdge`](@ref) and `getMinorParentEdge`.
+see [`getMajorParentEdge`](@ref PhyloNetworks.getMajorParentEdge) and `getMinorParentEdge`.
 """
 @inline function getParents(node::Node)
     parents = Node[]
@@ -754,7 +754,7 @@ end
 return a vector with all children *nodes* of `node`.
 **warning**: assume `isChild1` field (for edges) are correct
 
-To get all parent *nodes*: see [`getParents`](@ref).
+To get all parent *nodes*: see [`PhyloNetworks.getParents`](@ref).
 """
 function getChildren(node::Node)
     children = Node[]
@@ -1072,12 +1072,12 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
 end
 
 """
-deleteaboveLSA!(net, preorder=true::Bool)
+    deleteaboveLSA!(net, preorder=true::Bool)
 
 Delete edges and nodes above (ancestral to) the least stable ancestor (LSA)
 of the leaves in `net`. See [`leaststableancestor`](@ref) for the definition
 of the LSA.
-Returns the modified network `net`.
+Output: modified network `net`.
 """
 function deleteaboveLSA!(net::HybridNetwork, preorder=true::Bool)
     lsa, lsaindex = leaststableancestor(net, preorder)
@@ -1310,7 +1310,7 @@ function unzip_canonical!(net::HybridNetwork)
 end
 
 """
-    unzipat_canonical!(hybnode::Node, childedge::Edge)
+    unzipat_canonical!(hyb::Node, childedge::Edge)
 
 Unzip the reticulation a node `hyb`. See [`unzip_canonical!`](ref).
 Warning: no check that `hyb` has a single child.

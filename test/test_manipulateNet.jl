@@ -218,7 +218,7 @@ end # of testset for rotate
 @testset "other in manipulateNet" begin
 
 net0 = readTopology("((((C:0.9)I1:0.1)I3:0.1,((A:1.0)I2:0.4)I3:0.6):1.4,(((B:0.2)H1:0.6)I2:0.5)I3:2.1);");
-PhyloNetworks.removedegree2nodes!(net0, true) # true: to keep the root of degree-2
+removedegree2nodes!(net0, true) # true: to keep the root of degree-2
 @test writeTopology(net0, round=true) == "((C:1.1,A:2.0):1.4,B:3.4);"
 
 #--- delete above least stable ancestor ---#

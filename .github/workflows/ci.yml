@@ -57,7 +57,7 @@ jobs:
       - uses: julia-actions/setup-julia@v1
         with:
           version: '1'
-      - name: install dependencie
+      - name: install dependencies
         run: |
           julia --project=docs -e '
             using Pkg
