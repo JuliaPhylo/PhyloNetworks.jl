@@ -6,14 +6,12 @@ global net
 tree_str= "(A:2.5,((B:1,#H1:0.5::0.1):1,(C:1,(D:0.5)#H1:0.5::0.9):1):0.5);"
 net = readTopology(tree_str)
 preorder!(net)
-# printEdges(net)
-# plot(net, useEdgeLength = true,  showEdgeLength=true, showGamma=true)
 
 # Rk: Is there a way to check that the branch length are coherent with
 # one another (Especialy for hybrids) ?
-# Not yet (CA, 2016-12-01).
-# Would be great to add functions to calculate distance node - root.
-# several such distances depending on path: 2 parent choices at each hybrid
+# see QuartetNetworkGoodnessFit.ultrametrize! which can detect if the network is
+# time-consistent: all paths from the root to a given node have the same length
+# https://github.com/cecileane/QuartetNetworkGoodnessFit.jl
 
 # Ancestral state reconstruction with ready-made matrices
 params = ParamsBM(10, 1)
@@ -299,7 +297,6 @@ global net
 # originally: "(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);"
 # followed by changes in net.edge[?].length values to make the network ultrametric
 net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
-# plot(net, useEdgeLength = true,  showEdgeNumber=true)
 
 #= Simulate correlated data in data frames
 b0 = 1
@@ -581,7 +578,6 @@ end
 @testset "lambda when no signal" begin
 global net
 net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
-# plot(net, useEdgeLength = true,  showEdgeNumber=true)
 
 #= Simulate correlated data in data frames
 b0 = 1

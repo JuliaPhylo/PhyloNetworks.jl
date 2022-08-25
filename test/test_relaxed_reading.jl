@@ -28,7 +28,9 @@ global net
     # edge cases that should error
     @test_throws Exception readTopology("(E,((B)#3,((D,C),(#3,A))));") # name not starting with letter
     @test_logs (:warn,r"^Expected H") (:warn,r"^Expected H") readTopology("(E,((B)#P1,((D,C),(#P1,A))));")
+    @test_logs (:warn,r"received h") (
     @test_throws Exception readTopology("(E,((B)#H#h,((D,C),(#H#h,A))));") # 2 # sign in the name
+    )
     @test_throws Exception readTopology("(E,((B)#H1,((D,C),((F)#H1,A))));") # both H1 internal
     @test_throws Exception readTopology("(E,((B)#H1") # doesn't end with ;
     @test_throws Exception readTopology(IOBuffer("E;")) # Expected beginning of tree with (

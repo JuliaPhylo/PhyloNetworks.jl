@@ -1531,7 +1531,7 @@ julia> net = readTopology("((a:1,(b:1)#H1:1::0.8):5,(#H1:0::0.2,c:1):1);");
 julia> hybridlambdaformat(net) # net is unchanged here
 "((a:1.0,(b:1.0)H1#0.8:1.0)I1:5.0,(H1#0.8:0.0,c:1.0)I2:1.0)I3;"
 
-julia> # using PhyloPlots; plot(net, :R, showNodeNumber=true) # shows that node -2 is the root
+julia> # using PhyloPlots; plot(net, shownodenumber=true) # shows that node -2 is the root
 
 julia> rotate!(net, -2)
 

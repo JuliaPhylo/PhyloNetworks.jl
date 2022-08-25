@@ -236,7 +236,7 @@ end
 
 Return major or minor parent of a node using the `isChild1` field of edges
 (and assuming correct `isMajor` field).
-See also [`getMajorParentEdge`](@ref) and [`getMinorParentEdge`](@ref)
+See also [`getMajorParentEdge`](@ref PhyloNetworks.getMajorParentEdge) and `getMinorParentEdge`.
 """
 @inline function getMajorParent(node::Node)
     for e in node.edge
@@ -513,7 +513,7 @@ function deleteNode!(net::QuartetNetwork, n::Node)
 end
 
 """
-    deleteEdge!(net::HybridNetwork,  e::Edge, part=true)
+    deleteEdge!(net::HybridNetwork,  e::Edge; part=true)
     deleteEdge!(net::QuartetNetwork, e::Edge)
 
 Delete edge `e` from `net.edge` and update `net.numEdges`.

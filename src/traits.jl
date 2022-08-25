@@ -457,14 +457,14 @@ each shift, each labelled according to the pattern shift_{number_of_edge}. It ha
 an aditional column labelled `tipNames` to allow easy fitting afterward (see example).
 
 # Examples
-```jldoctest; filter = r"Info: Loading DataFrames support into Gadfly"
+```jldoctest
 julia> net = readTopology("(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6):1):0.5);");
 
 julia> preorder!(net)
 
 julia> using PhyloPlots
 
-julia> plot(net, :RCall, showNodeNumber=true); # to locate nodes
+julia> plot(net, shownodenumber=true); # to locate nodes
 
 julia> nodes_shifts = indexin([1,-5], [n.number for n in net.node]) # Put a shift on edges ending at nodes 1 and -5
 2-element Vector{Union{Nothing, Int64}}:
@@ -593,7 +593,7 @@ an aditional column labelled `tipNames` to allow easy fitting afterward (see exa
 This function can be used to test for heterosis.
 
 # Examples
-```jldoctest; filter = r"Info: Loading DataFrames support into Gadfly"
+```jldoctest
 julia> using DataFrames # Needed to handle data frames.
 
 julia> net = readTopology("(A:2.5,((B:1,#H1:0.5::0.4):1,(C:1,(D:0.5)#H1:0.5::0.6):1):0.5);");
@@ -602,7 +602,7 @@ julia> preorder!(net)
 
 julia> using PhyloPlots
 
-julia> plot(net, :RCall, showNodeNumber=true); # to locate nodes: node 5 is child of hybrid node
+julia> plot(net, shownodenumber=true); # to locate nodes: node 5 is child of hybrid node
 
 julia> nodes_hybrids = indexin([5], [n.number for n in net.node]) # Put a shift on edges below hybrids
 1-element Vector{Union{Nothing, Int64}}:
@@ -1833,7 +1833,7 @@ Output: vector of node heights, one per node, in the same order as in
 ```jldoctest
 julia> net = readTopology("(((C:1,(A:1)#H1:1.5::0.7):1,(#H1:0.3::0.3,E:2.0):2.2):1.0,O:5.2);");
 
-julia> # using PhyloPlots; plot(net, :R, useEdgeLength=true, showEdgeLength=true, showNodeNumber=true); # to see
+julia> # using PhyloPlots; plot(net, useedgelength=true, showedgelength=true, shownodenumber=true); # to see
 
 julia> nodeheight = PhyloNetworks.getHeights(net)
 9-element Vector{Float64}:
@@ -3134,7 +3134,7 @@ end
     expectationsPlot(obj::ReconstructedStates)
 
 Compute and format the expected reconstructed states for the plotting function.
-The resulting dataframe can be readily used as a `nodeLabel` argument to
+The resulting dataframe can be readily used as a `nodelabel` argument to
 `plot` from package [`PhyloPlots`](https://github.com/cecileane/PhyloPlots.jl).
 Keyword argument `markMissing` is a string that is appended to predicted
 tip values, so that they can be distinguished from the actual datapoints. Default to
@@ -3190,7 +3190,7 @@ end
     predintPlot(obj::ReconstructedStates; level=0.95::Real, withExp=false::Bool)
 
 Compute and format the prediction intervals for the plotting function.
-The resulting dataframe can be readily used as a `nodeLabel` argument to
+The resulting dataframe can be readily used as a `nodelabel` argument to
 `plot` from package [`PhyloPlots`](https://github.com/cecileane/PhyloPlots.jl).
 Keyworks argument `level` control the confidence level of the
 prediction interval. If `withExp` is set to true, then the best
@@ -3396,7 +3396,7 @@ Returns an object of type [`ReconstructedStates`](@ref).
 
 # Examples
 
-```jldoctest; filter = [r" PhyloNetworks .*:\d+", r"Info: Loading DataFrames support into Gadfly"]
+```jldoctest; filter = [r" PhyloNetworks .*:\d+", ]
 julia> using DataFrames, CSV # to read data file
 
 julia> phy = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "carnivores_tree.txt"));
@@ -3521,7 +3521,7 @@ julia> expectationsPlot(ancStates) # format the ancestral states
 
 julia> using PhyloPlots # next: plot ancestral states on the tree
 
-julia> plot(phy, :RCall, nodeLabel = expectationsPlot(ancStates));
+julia> plot(phy, nodelabel = expectationsPlot(ancStates));
 
 julia> predintPlot(ancStates) # prediction intervals, in data frame, useful to plot
 31×2 DataFrame
@@ -3546,7 +3546,7 @@ julia> predintPlot(ancStates) # prediction intervals, in data frame, useful to p
   31 │          3  1.07
                   16 rows omitted
 
-julia> plot(phy, :RCall, nodeLabel = predintPlot(ancStates));
+julia> plot(phy, nodelabel = predintPlot(ancStates));
 
 julia> allowmissing!(dat, :trait);
 
@@ -3586,7 +3586,7 @@ julia> first(expectationsPlot(ancStates),3) # format node <-> ancestral state
    2 │         -8  1.35
    3 │         -7  1.62
 
-julia> plot(phy, :RCall, nodeLabel = expectationsPlot(ancStates));
+julia> plot(phy, nodelabel = expectationsPlot(ancStates));
 
 julia> first(predintPlot(ancStates),3) # prediction intervals, useful to plot
 3×2 DataFrame
@@ -3597,7 +3597,7 @@ julia> first(predintPlot(ancStates),3) # prediction intervals, useful to plot
    2 │         -8  [-0.7, 3.4]
    3 │         -7  [-0.17, 3.41]
 
-julia> plot(phy, :RCall, nodeLabel = predintPlot(ancStates));
+julia> plot(phy, nodelabel = predintPlot(ancStates));
 ```
 """
 function ancestralStateReconstruction(obj::PhyloNetworkLinearModel)

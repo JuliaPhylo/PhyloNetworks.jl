@@ -1,5 +1,4 @@
 ```@setup bootstrap
-# using Gadfly
 using PhyloNetworks
 mkpath("../assets/figures")
 ```
@@ -82,12 +81,12 @@ using PhyloPlots, RCall
 R"name <- function(x) file.path('..', 'assets', 'figures', x)" # hide
 R"svg(name('net1_rotate1_1.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net1, :R, showEdgeNumber=true); # edge 7 leads to O+E
+plot(net1, showedgenumber=true); # edge 7 leads to O+E
 R"dev.off()" # hide
 rootonedge!(net1, 7) # makes (O,E) outgroup clade
 R"svg(name('net1_rotate1_2.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net1, :R, showNodeNumber=true);
+plot(net1, shownodenumber=true);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -102,7 +101,7 @@ rotate!(net1, -6)
 ```@example bootstrap
 R"svg(name('net1_rotate2.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net1, :R, showGamma=true);
+plot(net1, showgamma=true);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -121,7 +120,7 @@ This tree can be visualized like this, with edge numbers shown for later use.
 ```@example bootstrap
 R"svg(name('major_tree.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(tree1, :R, showEdgeNumber=true);
+plot(tree1, showedgenumber=true);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -140,15 +139,15 @@ show(BSe_tree, allrows=true, allcols=true)
 filter(row -> row[:proportion] < 100, BSe_tree)
 ```
 Finally, we can map the bootstrap proportions onto the network or its main tree
-by passing the bootstrap table to the `edgeLabel` option of `plot`:
+by passing the bootstrap table to the `edgelabel` option of `plot`:
 ```@example bootstrap
 R"svg(name('boot_tree_net_1.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(tree1, :R, edgeLabel=BSe_tree);
+plot(tree1, edgelabel=BSe_tree);
 R"dev.off()" # hide
 R"svg(name('boot_tree_net_2.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net1, :R, edgeLabel=BSe_tree);
+plot(net1, edgelabel=BSe_tree);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -163,7 +162,7 @@ output file of `snaq!` earlier, for consistency across different Julia sessions.
 If we wanted to plot only certain bootstrap values, like those below 100% (1.0),
 we could do this:
 ```julia
-plot(net1, :R, edgeLabel=filter(row -> row[:proportion] < 100, BSe_tree));
+plot(net1, edgelabel=filter(row -> row[:proportion] < 100, BSe_tree));
 ```
 
 ## support for hybrid edges and hybrid nodes
@@ -226,7 +225,7 @@ We can plot the bootstrap values of the 2 hybrid edges in the best network:
 ```@example bootstrap
 R"svg(name('boot_net_net.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net1, :R, edgeLabel=BSe[!,[:edge,:BS_hybrid_edge]]);
+plot(net1, edgelabel=BSe[!,[:edge,:BS_hybrid_edge]]);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -241,7 +240,7 @@ of bootstrap networks. In another 1% bootstrap, A received gene flow from anothe
 ```@example bootstrap
 R"svg(name('boot_net_ret.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net1, :R, nodeLabel=BSn[!,[:hybridnode,:BS_hybrid_samesisters]]);
+plot(net1, nodelabel=BSn[!,[:hybridnode,:BS_hybrid_samesisters]]);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -256,7 +255,7 @@ select!(tmp, [:edge,:BS_hybrid_edge])            # select 2 columns only
 rename!(tmp, :BS_hybrid_edge => :proportion)     # rename those columns, to match names in BSe_tree
 rename!(tmp, :edge => :edgeNumber)
 tmp = vcat(BSe_tree, tmp)
-plot(net1, edgeLabel=tmp, nodeLabel=BSn[!, [:hybridnode,:BS_hybrid_samesisters]])
+plot(net1, edgelabel=tmp, nodelabel=BSn[!, [:hybridnode,:BS_hybrid_samesisters]])
 ```
 
 ### Who are the hybrids in bootstrap networks?
@@ -270,12 +269,12 @@ being of hybrid origin.
 ```@example bootstrap
 R"svg(name('boot_net_hyb_1.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net1, :R, nodeLabel=filter(row->row[:BS_hybrid]>0, BSn)[!,[:hybridnode,:BS_hybrid]]);
+plot(net1, nodelabel=filter(row->row[:BS_hybrid]>0, BSn)[!,[:hybridnode,:BS_hybrid]]);
 R"dev.off()" # hide
 nothing # hide
 R"svg(name('boot_net_hyb_2.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net1, :R, edgeLabel=filter(row->row[:BS_hybrid]>0, BSn)[!,[:edge,:BS_hybrid]]);
+plot(net1, edgelabel=filter(row->row[:BS_hybrid]>0, BSn)[!,[:edge,:BS_hybrid]]);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -292,12 +291,12 @@ We filtered clades to show those with sister support > 5%:
 ```@example bootstrap
 R"svg(name('boot_net_clade_1.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net1, :R, nodeLabel=filter(r->r[:BS_minor_sister]>5, BSn)[!,[:node,:BS_minor_sister]]);
+plot(net1, nodelabel=filter(r->r[:BS_minor_sister]>5, BSn)[!,[:node,:BS_minor_sister]]);
 R"dev.off()" # hide
 nothing # hide
 R"svg(name('boot_net_clade_2.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net1, :R, edgeLabel=filter(r->r[:BS_minor_sister]>5, BSn)[!,[:edge,:BS_minor_sister]]);
+plot(net1, edgelabel=filter(r->r[:BS_minor_sister]>5, BSn)[!,[:edge,:BS_minor_sister]]);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -313,7 +312,7 @@ but there is much uncertainty about its exact placement and about its direction.
 
 Mapping the support for major sister clades might be interesting too:
 ```julia
-plot(net1, nodeLabel=filter(r->r[:BS_major_sister]>5, BSn)[!,[:node,:BS_major_sister]])
+plot(net1, nodelabel=filter(r->r[:BS_major_sister]>5, BSn)[!,[:node,:BS_major_sister]])
 ```
 
 The estimated heritability γ on hybrid edges in the reference network, when present in a

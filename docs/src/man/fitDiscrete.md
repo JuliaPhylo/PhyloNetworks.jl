@@ -43,7 +43,7 @@ Let's plot the network and map the data onto it:
 using RCall, PhyloPlots
 R"svg"(figname("fitdiscrete_trait_net_1.svg"), width=4, height=3); # hide
 R"par"(mar=[0,0,0,0]); # to reduce margins
-res = plot(net, :R; tipOffset=0.3); # the results "res" provides point coordinates, to use for data annotation
+res = plot(net, tipoffset=0.3); # the results "res" provides point coordinates, to use for data annotation
 o = [findfirst(isequal(tax), species) for tax in tipLabels(net)] # 5,2,4,1,3,6: order to match taxa from "species" to tip labels
 isequal(species[o], tipLabels(net)) # true :)
 traitcolor = map(x -> (x=="lo" ? "grey" : "red"), dat.trait[o])
@@ -144,7 +144,7 @@ taxa with missing data where pruned, and with edges possibly renumbered.
 ```@example fitdiscrete_trait
 R"svg"(figname("fitdiscrete_trait_net_2.svg"), width=4, height=3); # hide
 R"par"(mar=[0,0,0,0]); # hide
-plot(s3.net, :R, showNodeNumber=true, showIntNodeLabel=true, tipOffset=0.2);
+plot(s3.net, shownodenumber=true, shownodelabel=true, tipoffset=0.2);
 R"dev.off"(); # hide
 nothing # hide
 ```

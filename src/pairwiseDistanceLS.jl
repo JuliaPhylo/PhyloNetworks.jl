@@ -1,8 +1,12 @@
 """
     getNodeAges(net)
 
-vector of node ages in pre-order, as in `nodes_changed`,
-which is assumed to have been calculated before.
+vector of node ages in pre-order, as in `nodes_changed`.
+
+*Warnings*: `net` is assumed to
+- have been preordered before (to calculate `nodes_changed`)
+- be time-consistent (all paths to the root to a given hybrid have the same length)
+- be ultrametric (all leaves have the same age: 0)
 """
 function getNodeAges(net::HybridNetwork)
     x = Vector{Float64}(undef, length(net.nodes_changed))

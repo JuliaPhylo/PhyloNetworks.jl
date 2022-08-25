@@ -23,7 +23,7 @@
 for now, docstrings are automatically used to build an entry for
 - each internal thing that has a docstring (e.g. not exported in `src/PhyloNetworks.jl`)
 - each public *type*
-Therefore: any public *function* needs to be manually listed in `docs/src/man/public.md`,
+Therefore: any public *function* needs to be manually listed in `docs/src/lib/public.md`,
 in a section to get a nice organization of all these manual entries.
 
 ## The "Documenter md" format
@@ -73,7 +73,7 @@ master. The typical commands to save and display a plot should hence be:
 
     ```@example name
     R"svg(name('my_useful_name.svg'), width=4, height=4)" # hide
-    plot(net, :R);
+    plot(net);
     R"dev.off()" # hide
     nothing # hide
     ```

@@ -453,7 +453,7 @@ function treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)
     @info """edge numbers in the data frame correspond to the current edge numbers in the network.
        If the network is modified, the edge numbers in the (modified) network might not correspond
        to those in the bootstrap table. Plot the bootstrap values onto the current network with
-       plot(network_name, edgeLabel=bootstrap_table_name)"""
+       plot(network_name, edgelabel=bootstrap_table_name)"""
     return df, tree0
 end
 

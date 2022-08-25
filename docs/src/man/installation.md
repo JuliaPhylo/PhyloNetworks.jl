@@ -70,7 +70,7 @@ Pkg.add("PhyloPlots")
 ```
 
 PhyloPlots depends on PhyloNetworks, and has further dependencies
-like [Gadfly](http://gadflyjl.org/stable/) and
+like
 [RCall](https://github.com/JuliaInterop/RCall.jl)
 
 ## Test example

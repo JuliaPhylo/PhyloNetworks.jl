@@ -1,6 +1,5 @@
 @testset "calibrate with distances: 3-cycle, non-identifiable example" begin
 net2 = readTopology("((((D:0.1,C:0.2):1.5,(B:0.1)#H1:0.9::0.7):0.1,(#H1:0.01::0.3,A:0.3):0.8):0.1);")
-# plot(net2, :RCall, useEdgeLength=true, showNodeNumber=true, showGamma=true);
 dAll = pairwiseTaxonDistanceMatrix(net2, keepInternal=true)
 @test dAll ≈ [0.0 .8 1.1 .1 .943 1.043 1.6 1.8 1.7
  0.8   0.0   0.3   0.9   1.263 1.363 2.4   2.6   2.5
@@ -19,7 +18,6 @@ net2distances = pairwiseTaxonDistanceMatrix(net2)
  2.8   2.9   1.663 0.0]
 g = PhyloNetworks.pairwiseTaxonDistanceGrad(net2);
 @test size(g) == (9,9,9)
-# plot(net2, :RCall, useEdgeLength=true, showEdgeNumber=true);
 na = getNodeAges(net2);
 @test na ≈ [1.7,0.11,0.0,1.6,0.1,0.0,0.1,0.0,0.0]
 g = PhyloNetworks.pairwiseTaxonDistanceGrad(net2, nodeAges=na);
@@ -27,16 +25,13 @@ g = PhyloNetworks.pairwiseTaxonDistanceGrad(net2, nodeAges=na);
 @test g[:,:,1] ≈ [0 1 1 1 1 1 1 1 1;1 0 0 2 1.4 1.4 2 2 2; 1 0 0 2 1.4 1.4 2 2 2
  1 2 2 0 .6 .6 0 0 0; 1 1.4 1.4 .6 0 0 .6 .6 .6; 1 1.4 1.4 .6 0 0 .6 .6 .6
  1 2 2 0 .6 .6 0 0 0; 1 2 2 0 .6 .6 0 0 0; 1 2 2 0 .6 .6 0 0 0]
-# plot(net2, :RCall, useEdgeLength=true, showEdgeNumber=true);
 
 global net
 net  = readTopology("((#H1:0.06::0.3,A:0.6):1.3,(B:0.1)#H1:0.7::0.7,(C,D):1.4);");
 # same topology, unrooted, different BL, leaves ordered differently
 # here: branch lengths not identifiable, even if minor fixed to 0
-# plot(net, :RCall, showEdgeLength=true);
 calibrateFromPairwiseDistances!(net, net2distances, taxa, #verbose=true,
   forceMinorLength0=true, ultrametric=false)
-# plot(net, :RCall, showEdgeLength=true, useEdgeLength=true);
 est = pairwiseTaxonDistanceMatrix(net, checkPreorder=false)
 @test est ≈ [0 1.663 2.9 2.8; 1.663 0 2.703 2.603; 2.9 2.703 0 .3;
              2.8 2.603 .3 0] atol=.00002
@@ -51,7 +46,6 @@ est = pairwiseTaxonDistanceMatrix(net, checkPreorder=false)
 net = readTopology("((#H1:0.06::0.3,A:0.6):1.3,(B:0.1)#H1:0.7::0.7,(C,D):1.4);");
 calibrateFromPairwiseDistances!(net, net2distances, taxa,
   verbose=false, forceMinorLength0=false, ultrametric=false)
-# plot(net, :RCall, showEdgeLength=true, useEdgeLength=true);
 est = pairwiseTaxonDistanceMatrix(net)
 @test est ≈ [0 1.663 2.9 2.8; 1.663 0 2.703 2.603; 2.9 2.703 0 .3;
              2.8 2.603 .3 0] atol=.00002
@@ -63,18 +57,15 @@ end
 # not identifiable otherwise
 global net
 net = readTopology("((Ag:3.0,(#H1:0.0::0.2,Ak:2.5):0.5):0.5,(((((Az:0.2,Ag2:0.2):1.3,As:1.5):1.0)#H1:0.3::0.8,Ap:2.8):0.2,Ar:3.0):0.5);");
-#plot(net, :RCall, useEdgeLength=true, showNodeNumber=true, showGamma=true);
 taxa = [l.name for l in net.leaf];
 netdist = pairwiseTaxonDistanceMatrix(net);
 @test getNodeAges(net) ≈ [3.5,3,0,2.8,0,3,2.5,0,2.5,1.5,0,.2,0,0,0]
 net = readTopology("((((((Ag2,Az),As))#H1:::0.8,Ap),Ar),(Ag,(#H1:::0.2,Ak)));");
 # same topology, no BL, leaves ordered differently
-#plot(net, :RCall, showGamma=true);
 o = [4,3,5,6,7,1,2]; # to get leaves in same order as in taxa. inverse: [6,7,2,1,3,4,5]
 calibrateFromPairwiseDistances!(net, netdist, taxa,
   forceMinorLength0=true, ultrametric=false)
 # got 0.0 at [0.19998, 0.19998, 1.30003, 1.5, 0.6802, 0.69964, 2.79995, 0.20002, 2.99995, 0.50006, 2.9999, 2.49952, 0.50049, 0.50006] after 1000 iterations (returned MAXEVAL_REACHED)
-# plot(net, :RCall, showEdgeLength=true, useEdgeLength=true);
 est = pairwiseTaxonDistanceMatrix(net, checkPreorder=false)
 @test est ≈ netdist[o,o] atol=.0005
 # most edge lengths are correct, except for 5 edges:
@@ -88,12 +79,9 @@ for e in net.edge e.length=1.0; end
 preorder!(net)
 na = getNodeAges(net);
 @test na ≈ [6.,1,4,0,0,5,0,4,0,3,2,0,1,0,0]
-#plot(net, :RCall, useEdgeLength=true, showEdgeNumber=true);
 pairwiseTaxonDistanceMatrix(net, nodeAges=na); # update edge lengths in net
-# plot(net, :RCall, showEdgeLength=true, useEdgeLength=true);
 @test [e.length for e in net.edge] ≈ [1.,1,1,2,1,1,4,1,5,1,1,1,4,-3,5]
 g = PhyloNetworks.pairwiseTaxonDistanceGrad(net, nodeAges=na);
-#plot(net, :RCall, useEdgeLength=true, showEdgeNumber=true);
 net.edge[11].length = 4.; # to respect constraints
 net.edge[14].length = 0.;
 net.edge[15].length = 2.;
@@ -103,7 +91,6 @@ fmin, na = calibrateFromPairwiseDistances!(net1, netdist, taxa, #verbose=true,
 # got 0.0 at [3.5, 3.0, 2.50001, 3.0, 2.8, 1.95797, 1.5, 0.2] after 58 iterations (returned FTOL_REACHED)
 est = pairwiseTaxonDistanceMatrix(net1)
 @test est ≈ netdist[o,o] atol=.0005
-# plot(net1, :RCall, useEdgeLength=true, showEdgeLength=true);
 # still not identifiable: all good but the 3 edges adjacent to hybrid node
 # only the age of the hybrid node is wrong: zipped down nearer tips
 
@@ -116,7 +103,6 @@ calibrateFromPairwiseDistances!(net, netdist, taxa, #verbose=true,
   forceMinorLength0=true, ultrametric=true)
 est = pairwiseTaxonDistanceMatrix(net)
 @test est ≈ netdist[o,o] atol=.06
-# plot(net, :RCall, showEdgeLength=true, useEdgeLength=true);
 est = [e.length for e in net.edge]
 el = [.2,.2,1.3,1.5,1,.3,2.8,.2,3,.5,3,0,2.5,.5,.5]
 @test est ≈ el atol=0.06

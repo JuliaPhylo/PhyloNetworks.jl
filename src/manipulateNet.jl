@@ -110,9 +110,9 @@ Check and update the nodes' field `inCycle`.
 ```julia
 net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 using PhyloPlots
-plot(net, :R, showNodeNumber=true); # to locate nodes and their numbers. D of hybrid origin
+plot(net, shownodenumber=true); # to locate nodes and their numbers. D of hybrid origin
 hybridatnode!(net, -4)
-plot(net, :R, showNodeNumber=true); # hybrid direction reversed: now 2B of hybrid origin
+plot(net, shownodenumber=true); # hybrid direction reversed: now 2B of hybrid origin
 ```
 """
 function hybridatnode!(net::HybridNetwork, nodeNumber::Integer)
@@ -231,7 +231,7 @@ end
 Root the network/tree object at the node with name 'nodeName' or
 number 'nodeNumber' (by default) or with index 'nodeNumber' if index=true.
 Attributes isChild1 and containRoot are updated along the way.
-Use `plot(net, showNodeNumber=true, showEdgeLength=false)` to
+Use `plot(net, shownodenumber=true, showedgelength=false)` to
 visualize and identify a node of interest.
 (see package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl))
 
@@ -312,7 +312,7 @@ or with index `edgeNumber` if `index=true`.
 Attributes `isChild1` and `containRoot` are updated along the way.
 
 This adds a new node and a new edge to the network.
-Use `plot(net, showEdgeNumber=true, showEdgeLength=false)` to
+Use `plot(net, showedgenumber=true, showedgelength=false)` to
 visualize and identify an edge of interest.
 (see package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl))
 
@@ -516,14 +516,14 @@ julia> PhyloNetworks.breakedge!(net.edge[10], net); # another one, elsewhere
 julia> writeTopology(net) # extra pairs of parentheses
 "((#H2,S4),(((((S1,(((S2)#H1))),(#H1,S3)))#H2)));"
 
-julia> PhyloNetworks.removedegree2nodes!(net);
+julia> removedegree2nodes!(net);
 
 julia> writeTopology(net) # even the root is gone
 "(#H2,S4,(((S1,(S2)#H1),(#H1,S3)))#H2);"
 
 julia> net = readTopology("((((C:0.9)I1:0.1)I3:0.1,((A:1.0)I2:0.4)I3:0.6):1.4,(((B:0.2)H1:0.6)I2:0.5)I3:2.1);");
 
-julia> PhyloNetworks.removedegree2nodes!(net, true);
+julia> removedegree2nodes!(net, true);
 
 julia> writeTopology(net, round=true) # the root was kept
 "((C:1.1,A:2.0):1.4,B:3.4);"
@@ -707,7 +707,7 @@ end
 Get vector of all parent nodes of `n`, based on `isChild1` field (for edges).
 To get the parent node of an edge: see [`getParent`](@ref).
 To get individual parent edges (rather than all parent *nodes*):
-see [`getMajorParentEdge`](@ref) and `getMinorParentEdge`.
+see [`getMajorParentEdge`](@ref PhyloNetworks.getMajorParentEdge) and `getMinorParentEdge`.
 """
 @inline function getParents(node::Node)
     parents = Node[]
@@ -754,7 +754,7 @@ end
 return a vector with all children *nodes* of `node`.
 **warning**: assume `isChild1` field (for edges) are correct
 
-To get all parent *nodes*: see [`getParents`](@ref).
+To get all parent *nodes*: see [`PhyloNetworks.getParents`](@ref).
 """
 function getChildren(node::Node)
     children = Node[]
@@ -846,7 +846,7 @@ to remove crossing edges.
 If `node` is a tree node with no polytomy, the 2 children edges are switched
 and the optional argument `orderedEdgeNum` is ignored.
 
-Use `plot(net, showNodeNumber=true, showEdgeNumber=false)` to map node and edge numbers
+Use `plot(net, shownodenumber=true, showedgenumber=false)` to map node and edge numbers
 on the network, as shown in the examples below.
 (see package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl))
 
@@ -858,13 +858,13 @@ by `plot(net)`. Otherwise run `directEdges!(net)`.
 ```julia
 julia> net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 julia> using PhyloPlots
-julia> plot(net, showNodeNumber=true)
+julia> plot(net, shownodenumber=true)
 julia> rotate!(net, -4)
 julia> plot(net)
 julia> net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.136):10.0);");
-julia> plot(net, showNodeNumber=true, showEdgeNumber=true)
+julia> plot(net, shownodenumber=true, showedgenumber=true)
 julia> rotate!(net, -1, orderedEdgeNum=[1,12,9])
-julia> plot(net, showNodeNumber=true, showEdgeNumber=true)
+julia> plot(net, shownodenumber=true, showedgenumber=true)
 julia> rotate!(net, -3)
 julia> plot(net)
 ```
@@ -1072,6 +1072,41 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
 end
 
 """
+    deleteaboveLSA!(net, preorder=true::Bool)
+
+Delete edges and nodes above (ancestral to) the least stable ancestor (LSA)
+of the leaves in `net`. See [`leaststableancestor`](@ref) for the definition
+of the LSA.
+Output: modified network `net`.
+"""
+function deleteaboveLSA!(net::HybridNetwork, preorder=true::Bool)
+    lsa, lsaindex = leaststableancestor(net, preorder)
+    for _ in 1:(lsaindex-1)
+        # the network may temporarily have multiple "roots"
+        nodei = popfirst!(net.nodes_changed)
+        for e in nodei.edge
+            # delete all of nodei's edges (which much be outgoing)
+            cn = getChild(e)
+            removeEdge!(cn, e) # also updates cn.hasHybEdge
+            empty!(e.node)
+            deleteEdge!(net, e; part=false)
+        end
+        empty!(nodei.edge)
+        deleteNode!(net, nodei) # resets net.root
+        if nodei.name != ""
+            j = findfirst(isequal(nodei.name), net.names)
+            isnothing(j) || deleteat!(net.names, j)
+        end
+    end
+    net.root = findfirst( n -> n===lsa, net.node)
+    if lsa.hybrid # edge case: LSA may be hybrid if 1 single leaf in network
+        removeHybrid!(net, lsa)
+        lsa.hybrid = false
+    end
+    return net
+end
+
+"""
     resetNodeNumbers!(net::HybridNetwork; checkPreorder=true, type=:ape)
 
 Change internal node numbers of `net` to consecutive numbers from 1 to the total
@@ -1275,7 +1310,7 @@ function unzip_canonical!(net::HybridNetwork)
 end
 
 """
-    unzipat_canonical!(hybnode::Node, childedge::Edge)
+    unzipat_canonical!(hyb::Node, childedge::Edge)
 
 Unzip the reticulation a node `hyb`. See [`unzip_canonical!`](ref).
 Warning: no check that `hyb` has a single child.

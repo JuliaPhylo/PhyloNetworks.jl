@@ -146,7 +146,7 @@ if runall
         end
     end
     a,b = randomTrait(m1, net2; ntraits=100000)
-    # plot(net2, showNodeNumber=true) shows: H1 listed 7th, parents listed 4th and 6th
+    # plot(net2, shownodenumber=true) shows: H1 listed 7th, parents listed 4th and 6th
     c = map( != , a[:, 4],a[:, 6] ); # traits when parents have different traits
     n1 = sum(map( ==, a[c,7],a[c,6] )) # 39644 traits: hybrid ≠ major parent
     n2 = sum(map( ==, a[c,7],a[c,4] )) #  4401 traits: hybrid ≠ minor parent
