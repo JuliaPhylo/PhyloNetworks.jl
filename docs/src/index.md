@@ -14,8 +14,9 @@ and their use for trait evolution.
   explanations.
 - the [google group](https://groups.google.com/forum/#!forum/phylonetworks-users)
   has answers to common questions.
-- the Manual below has a quick tutorial (navigation on the left).
-- the [Index](@ref main-index) further below has the full list of documented functions.
+- the [Manual](@ref) below has a quick tutorial (navigation on the left).
+- the [Library](@ref) and
+  and [Index](@ref main-index) further below has the full list of documented functions.
 
 ## References
 
@@ -49,12 +50,12 @@ for network inference:
   [PLoS Genet](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896)
   12(3):e1005896. [doi:10.1371/journal.pgen.1005896](https://doi.org/10.1371/journal.pgen.1005896)
 
-## Manual Outline
+## Manual
 
 ```@contents
 Pages = [
     "man/installation.md",
-    "man/netmanipulation.md",
+    # "man/netmanipulation.md",
     "man/inputdata.md",
     "man/ticr_howtogetQuartetCFs.md",
     "man/snaq_plot.md",
@@ -71,7 +72,7 @@ Pages = [
 Depth = 3
 ```
 
-## Library Outline
+## Library
 
 ```@contents
 Pages = ["lib/public.md", "lib/internals.md"]

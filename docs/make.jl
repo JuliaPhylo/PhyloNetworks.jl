@@ -16,7 +16,7 @@ makedocs(
         "Home" => "index.md",
         "Manual" => [
             "Installation" => "man/installation.md",
-            "Network manipulation" => "man/netmanipulation.md",
+            #"Network manipulation" => "man/netmanipulation.md",
             "Input Data for SNaQ" => "man/inputdata.md",
             "TICR pipeline" => "man/ticr_howtogetQuartetCFs.md",
             "Network estimation and display" => "man/snaq_plot.md",
