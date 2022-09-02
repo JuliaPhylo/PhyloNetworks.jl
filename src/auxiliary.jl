@@ -1463,19 +1463,26 @@ end
 """
     shrinkedge!(net::HybridNetwork, edge::Edge)
 
-Delete tree `edge` from net: delete its child node (as determined by `isChild1`)
-and connect all edges formerly incident to this child node to the parent node of
-`edge`, thus creating a polytomy (unless the child was of degree 2).
+Delete `edge` from net, provided that it is a non-external tree edge.
+Specifically: delete its child node (as determined by `isChild1`) and connect
+all edges formerly incident to this child node to the parent node of `edge`,
+thus creating a new polytomy, unless the child was of degree 2.
 
 Warning: it's best for `isChild1` to be in sync with the root for this. If not,
 the shrinking may fail (if `edge` is a tree edge but its "child" is a hybrid)
 or the root may change arbitrarily (if the child of `edge` is the root).
+
+Output: true if the remaining node (parent of `edge`) becomes a hybrid node with
+more than 1 child after the shrinking; false otherwise (e.g. no polytomy was
+created, or the new polytomy is below a tree node)
 """
 function shrinkedge!(net::HybridNetwork, edge2shrink::Edge)
     edge2shrink.hybrid && error("cannot shrink hybrid edge number $(edge2shrink.number)")
     cn = getChild(edge2shrink)
     cn.hybrid && error("cannot shrink tree edge number $(edge2shrink.number): its child node is a hybrid. run directEdges! ?")
     pn = getParent(edge2shrink)
+    (cn.leaf || pn.leaf) &&
+      error("won't shrink edge number $(edge2shrink.number): it is incident to a leaf")
     removeEdge!(pn,edge2shrink)
     empty!(edge2shrink.node) # should help gc
     for ee in cn.edge
@@ -1488,7 +1495,12 @@ function shrinkedge!(net::HybridNetwork, edge2shrink::Edge)
     empty!(cn.edge) # should help to garbage-collect cn
     deleteEdge!(net, edge2shrink; part=false)
     deleteNode!(net, cn)
-    return net
+    badpolytomy = false
+    if pn.hybrid # count the number of pn's children, without relying on isChild1 of tree edges
+        nc = sum((!e.hybrid || getChild(e) !== pn) for e in pn.edge)
+        badpolytomy = (nc > 1)
+    end
+    return badpolytomy
 end
 
 @doc raw"""
