@@ -260,8 +260,9 @@ end
 
 Return child edge below a hybrid node.
 
-Warning: Does not check that the node is a hybrid.
-If not a hybrid, returns the first child edge.
+Warning: Does not check that the node is a hybrid, or that the node has a single
+child edge. If not a hybrid or if there's a polytomy (hybrid with 2 children),
+returns the first child edge.
 """
 @inline function getChildEdge(node::Node)
     for e in node.edge
@@ -1459,6 +1460,37 @@ function hashybridladder(net::HybridNetwork)
     return false
 end
 
+"""
+    shrinkedge!(net::HybridNetwork, edge::Edge)
+
+Delete tree `edge` from net: delete its child node (as determined by `isChild1`)
+and connect all edges formerly incident to this child node to the parent node of
+`edge`, thus creating a polytomy (unless the child was of degree 2).
+
+Warning: it's best for `isChild1` to be in sync with the root for this. If not,
+the shrinking may fail (if `edge` is a tree edge but its "child" is a hybrid)
+or the root may change arbitrarily (if the child of `edge` is the root).
+"""
+function shrinkedge!(net::HybridNetwork, edge2shrink::Edge)
+    edge2shrink.hybrid && error("cannot shrink hybrid edge number $(edge2shrink.number)")
+    cn = getChild(edge2shrink)
+    cn.hybrid && error("cannot shrink tree edge number $(edge2shrink.number): its child node is a hybrid. run directEdges! ?")
+    pn = getParent(edge2shrink)
+    removeEdge!(pn,edge2shrink)
+    empty!(edge2shrink.node) # should help gc
+    for ee in cn.edge
+        ee !== edge2shrink || continue
+        cn_index = findfirst(x -> x === cn, ee.node)
+        ee.node[cn_index] = pn # ee.isChild1 remains synchronized
+        push!(pn.edge, ee)
+    end
+    pn.hasHybEdge = any(e -> e.hybrid, pn.edge)
+    empty!(cn.edge) # should help to garbage-collect cn
+    deleteEdge!(net, edge2shrink; part=false)
+    deleteNode!(net, cn)
+    return net
+end
+
 @doc raw"""
     shrink2cycles!(net::HybridNetwork, unroot=false::Bool)
 
@@ -1691,7 +1723,6 @@ end
     adjacentedges(centeredge::Edge)
 
 Vector of all edges that share a node with `centeredge`.
-Warning: assumes that there aren't "duplicated" edges, that is, no 2-cycles.
 """
 function adjacentedges(centeredge::Edge)
     n = centeredge.node
@@ -1699,7 +1730,7 @@ function adjacentedges(centeredge::Edge)
     @inbounds edges = copy(n[1].edge) # shallow copy, to avoid modifying the first node
     @inbounds for ei in n[2].edge
         ei === centeredge && continue # don't add the center edge again
-        # a second edge between nodes n[1] and n[2] would appear twice
+        getOtherNode(ei, n[2]) === n[1] && continue # any parallel edge would have been in `edges` already
         push!(edges, ei)
     end
     return edges

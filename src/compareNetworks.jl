@@ -55,7 +55,7 @@ function tree2Matrix(T::HybridNetwork, S::Union{Vector{String},Vector{Int}}; roo
 end
 
 """
-`hardwiredClusters(net::HybridNetwork, S::Union{Vector{String},Vector{Int}})`
+`hardwiredClusters(net::HybridNetwork, S::Union{AbstractVector{String},AbstractVector{Int}})`
 
 
 Returns a matrix describing all the hardwired clusters in a network.
@@ -70,7 +70,7 @@ Both parent hybrid edges to a given hybrid node only contribute a single row (th
 - next columns: 0/1. 1=descendant of edge, 0=not a descendant, or missing taxon.
 - last column:  10/11 values. 10=tree edge, 11=hybrid edge
 """
-function hardwiredClusters(net::HybridNetwork, S::Union{Vector{String},Vector{Int}})
+function hardwiredClusters(net::HybridNetwork, S::Union{AbstractVector{String},AbstractVector{Int}})
     ne = length(net.edge)-net.numTaxa # number of internal branch lengths
     ne -= length(net.hybrid)          # to remove duplicate rows for the 2 parent edges of each hybrid
     if (net.node[net.root].leaf)      # root is leaf: the 1 edge stemming from the root is an external edge
@@ -84,8 +84,8 @@ function hardwiredClusters(net::HybridNetwork, S::Union{Vector{String},Vector{In
     return M
 end
 
-function hardwiredClusters!(node::Node, edge::Edge, ie::Vector{Int}, M::Matrix{Int},
-                            S::Union{Vector{String},Vector{Int}})
+function hardwiredClusters!(node::Node, edge::Edge, ie::AbstractVector{Int}, M::Matrix{Int},
+                            S::Union{AbstractVector{String},AbstractVector{Int}})
     child = getOtherNode(edge,node)
 
     !child.leaf || return 0 # do nothing if child is a leaf.
@@ -133,15 +133,14 @@ end
 
 
 """
-    hardwiredCluster(edge::Edge,taxa::Union{Vector{String},Vector{Int}})
-    hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{String},Vector{Int}})
-    hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{String},Vector{Int}},
-                      visited::Vector{Int})
+    hardwiredCluster(edge::Edge, taxa::Union{AbstractVector{String},AbstractVector{Int}})
+    hardwiredCluster!(v::Vector{Bool}, edge::Edge, taxa)
+    hardwiredCluster!(v::Vector{Bool}, edge::Edge, taxa, visited::Vector{Int})
 
-Calculate the hardwired cluster of `node`, coded a vector of booleans:
-true for taxa that are descendent of nodes, false for other taxa (including missing taxa).
+Calculate the hardwired cluster of `edge`, coded as a vector of booleans:
+true for taxa that are descendent of the edge, false for other taxa (including missing taxa).
 
-The node should belong in a rooted network for which `isChild1` is up-to-date.
+The edge should belong in a rooted network for which `isChild1` is up-to-date.
 Run `directEdges!` beforehand. This is very important, otherwise one might enter an infinite loop,
 and the function does not test for this.
 
@@ -170,16 +169,16 @@ julia> hardwiredCluster(net5.edge[12], taxa) # descendants of 12th edge = CEF
  0
 ```
 """
-function hardwiredCluster(edge::Edge,taxa::Union{Vector{String},Vector{Int}})
+function hardwiredCluster(edge::Edge,taxa::Union{AbstractVector{String},AbstractVector{Int}})
     v = zeros(Bool,length(taxa))
     hardwiredCluster!(v,edge,taxa)
     return v
 end
 
-hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{String},Vector{Int}}) =
+hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{AbstractVector{String},AbstractVector{Int}}) =
     hardwiredCluster!(v,edge,taxa,Int[])
 
-function hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{String},Vector{Int}},
+function hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{AbstractVector{String},AbstractVector{Int}},
                            visited::Vector{Int})
     n = getChild(edge)
     if n.leaf
@@ -193,7 +192,7 @@ function hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{Vector{String}
     end
     push!(visited, n.number)
     for ce in n.edge
-        if n == getParent(ce)
+        if n === getParent(ce)
             hardwiredCluster!(v,ce,taxa,visited)
         end
     end
