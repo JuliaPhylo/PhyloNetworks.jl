@@ -224,9 +224,9 @@ end
 
 
 """
-    rootatnode!(HybridNetwork, nodeNumber::Integer; index=false::Bool, verbose=true::Bool)
-    rootatnode!(HybridNetwork, Node; verbose=true)
-    rootatnode!(HybridNetwork, nodeName::AbstractString; verbose=true)
+    rootatnode!(HybridNetwork, nodeNumber::Integer; index=false::Bool)
+    rootatnode!(HybridNetwork, Node)
+    rootatnode!(HybridNetwork, nodeName::AbstractString)
 
 Root the network/tree object at the node with name 'nodeName' or
 number 'nodeNumber' (by default) or with index 'nodeNumber' if index=true.
@@ -243,9 +243,8 @@ Warnings:
   the edge adjacent to the leaf. This might add a new node.
 - If the desired root placement is incompatible with one or more hybrids, then
 
-  * a RootMismatch error is thrown; use `verbose=false` to silence
-    the root mismatch info printed before the error is thrown.
-  * the input network will still have some attributes modified.
+  * the original network is restored with its old root and edges' direction.
+  * a RootMismatch error is thrown.
 
 See also: [`rootonedge!`](@ref).
 """
@@ -263,7 +262,7 @@ function rootatnode!(net::HybridNetwork, nodeName::AbstractString; kwargs...)
     rootatnode!(net, tmp[1]; kwargs..., index=true)
 end
 
-function rootatnode!(net::HybridNetwork, nodeNumber::Integer; index=false::Bool, verbose=true::Bool)
+function rootatnode!(net::HybridNetwork, nodeNumber::Integer; index=false::Bool)
     ind = nodeNumber # good if index=true
     if !index
       try
@@ -279,9 +278,9 @@ function rootatnode!(net::HybridNetwork, nodeNumber::Integer; index=false::Bool,
         length(net.node[ind].edge)==1 || error("leaf has $(length(net.node[ind].edge)) edges!")
         pn = getOtherNode(net.node[ind].edge[1], net.node[ind])
         if length(pn.edge) <= 2 # if parent of leaf has degree 2, use it as new root
-            rootatnode!(net, pn.number; verbose=verbose)
+            rootatnode!(net, pn.number)
         else # otherwise, create a new node between leaf and its parent
-            rootonedge!(net,net.node[ind].edge[1]; verbose=verbose)
+            rootonedge!(net,net.node[ind].edge[1])
         end
     else
         rootsaved = net.root
@@ -290,10 +289,11 @@ function rootatnode!(net::HybridNetwork, nodeNumber::Integer; index=false::Bool,
           directEdges!(net)
         catch e
           if isa(e, RootMismatch) # new root incompatible with hybrid directions: revert back
-            verbose && println("RootMismatch: reverting to old root position.")
             net.root = rootsaved
+            directEdges!(net)
           end
-          rethrow(e)
+          throw(RootMismatch("""the desired root is below a reticulation,
+                                reverting to old root position."""))
         end
         if (net.root != rootsaved && length(net.node[rootsaved].edge)==2)
             fuseedgesat!(rootsaved,net) # remove old root node if degree 2
@@ -304,8 +304,8 @@ end
 
 
 """
-    rootonedge!(HybridNetwork, edgeNumber::Integer; index=false::Bool, verbose=true::Bool)
-    rootonedge!(HybridNetwork, Edge; verbose=true::Bool)
+    rootonedge!(HybridNetwork, edgeNumber::Integer; index=false::Bool)
+    rootonedge!(HybridNetwork, Edge)
 
 Root the network/tree along an edge with number `edgeNumber` (by default)
 or with index `edgeNumber` if `index=true`.
@@ -322,7 +322,7 @@ function rootonedge!(net::HybridNetwork, edge::Edge; kwargs...)
     rootonedge!(net, edge.number, index=false; kwargs...)
 end
 
-function rootonedge!(net::HybridNetwork, edgeNumber::Integer; index=false::Bool, verbose=true::Bool)
+function rootonedge!(net::HybridNetwork, edgeNumber::Integer; index=false::Bool)
     ind = edgeNumber # good if index=true
     if !index
       try
@@ -340,12 +340,12 @@ function rootonedge!(net::HybridNetwork, edgeNumber::Integer; index=false::Bool,
       directEdges!(net)
     catch e
       if isa(e, RootMismatch) # new root incompatible with hybrid directions: revert back
-        verbose && println("RootMismatch: reverting to old root position.")
         fuseedgesat!(net.root,net) # reverts breakedge!
         net.root = rootsaved
         directEdges!(net)
       end
-      rethrow(e)
+      throw(RootMismatch("""the desired root is below a reticulation,
+                                reverting to old root position."""))
     end
     if (net.root != rootsaved && length(net.node[rootsaved].edge)==2)
         fuseedgesat!(rootsaved,net) # remove old root node if degree 2

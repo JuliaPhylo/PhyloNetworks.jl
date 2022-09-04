@@ -1055,7 +1055,7 @@ function maxParsimonyNetRun1!(currT::HybridNetwork, tolAbs::Float64, Nfail::Inte
             flag = proposedTop!(move,newT,true, count,10, movescount,movesfail,false) #N=10 because with 1 it never finds an edge for nni
             newTr = deepcopy(newT) ##rooted version only to compute parsimony
             try
-                rootatnode!(newTr,outgroup; verbose=false)
+                rootatnode!(newTr,outgroup)
             catch
                 flag = false
             end

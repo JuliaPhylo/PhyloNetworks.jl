@@ -759,7 +759,7 @@ function hardwiredClusterDistance_unrooted!(net1::HybridNetwork, net2::HybridNet
        sister to a hybrid edge, when a the leaf edge is the donor. =#
     for i in length(net1roots):-1:1 # reverse order, to delete some of them
         try
-            rootatnode!(net1, net1roots[i]; verbose=false)
+            rootatnode!(net1, net1roots[i])
             # tricky: rootatnode adds a degree-2 node if i is a leaf,
             #         and delete former root node if it's of degree 2.
         catch e
@@ -770,7 +770,7 @@ function hardwiredClusterDistance_unrooted!(net1::HybridNetwork, net2::HybridNet
     net2roots = [n.number for n in net2.node if !n.leaf]
     for i in length(net2roots):-1:1
         try
-            rootatnode!(net2, net2roots[i]; verbose=false)
+            rootatnode!(net2, net2roots[i])
         catch e
             isa(e, RootMismatch) || rethrow(e)
             deleteat!(net2roots, i)
@@ -779,9 +779,9 @@ function hardwiredClusterDistance_unrooted!(net1::HybridNetwork, net2::HybridNet
     bestdissimilarity = typemax(Int)
     bestns = missing
     for n1 in net1roots
-        rootatnode!(net1, n1; verbose=false)
+        rootatnode!(net1, n1)
         for n2 in net2roots
-            rootatnode!(net2, n2; verbose=false)
+            rootatnode!(net2, n2)
             diss = hardwiredClusterDistance(net1, net2, true) # rooted = true now
             if diss < bestdissimilarity
                 bestns = (n1, n2)
