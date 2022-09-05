@@ -38,7 +38,15 @@ PhyloNetworks.addhybridedge!(tree, tree.edge[2], tree.edge[1], true)
 @test PhyloNetworks.hashybridladder(tree)
 end # of testing hashybridladder
 
-@testset "shrink 2/3 cycles" begin
+@testset "shrink edges and cycles" begin
+# shrink 1 edge
+net = readTopology("((A:2.0,(((B1,B2):1.0)0.01)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5);")
+@test !PhyloNetworks.shrinkedge!(net, net.edge[10])
+@test_throws Exception PhyloNetworks.shrinkedge!(net, net.edge[6]) # hybrid edge
+@test_throws Exception PhyloNetworks.shrinkedge!(net, net.edge[3]) # external edge
+@test !PhyloNetworks.shrinkedge!(net, net.edge[5])
+@test  PhyloNetworks.shrinkedge!(net, net.edge[4])
+# shrink cycles
 net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 @test !shrink2cycles!(net)
 @test !shrink3cycles!(net)

@@ -107,7 +107,7 @@ net.root = 5
 @test [net.edge[i].containRoot for i in [9,5,18,2]] == [true for i in 1:4]
 # or: "directEdges! didn't correct containRoot of hyb edges."
 @test_logs rootatnode!(net, -10); # or: rootatnode! complained, node -10
-@test_throws PhyloNetworks.RootMismatch rootatnode!(net, "M"; verbose=false);
+@test_throws PhyloNetworks.RootMismatch rootatnode!(net, "M");
 # println("the rootmismatch about node 5 is good and expected.")
 @test_logs rootonedge!(net, 9); # or: rootonedge! complained, edge 9
 @test_logs PhyloNetworks.fuseedgesat!(27, net);
@@ -140,9 +140,9 @@ net.root=15; # node number -5 (clau: previously -4)
 @test_throws PhyloNetworks.RootMismatch directEdges!(net);
 # occursin(r"non-leaf node 9 had 0 children",e.msg))
 @test_logs rootatnode!(net, -13); # or: rootatnode complained...
-@test_throws PhyloNetworks.RootMismatch rootatnode!(net, -5); # verbose = true this time
+@test_throws PhyloNetworks.RootMismatch rootatnode!(net, -5);
 # occursin(r"non-leaf node 9 had 0 children", e.msg))
-@test_throws PhyloNetworks.RootMismatch rootatnode!(net,"H2"; verbose=false); #try rethrow();
+@test_throws PhyloNetworks.RootMismatch rootatnode!(net,"H2"); #try rethrow();
 # occursin(r"hybrid edge 17 conflicts", e.msg))
 # earlier: """node 12 is a leaf. Will create a new node if needed, to set taxon "10" as outgroup."""
 @test_logs rootatnode!(net,"10");

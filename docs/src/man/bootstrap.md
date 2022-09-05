@@ -35,7 +35,7 @@ bootnet = bootsnaq(net0, bootTrees, hmax=1, nrep=10, runs=3,
 
 The bootstrap networks are saved in the `boostrap.out` file, so they
 can be read in a new session with
-`bootnet = readMultiTopology("bootsnap.out")`. To save the bootstrap networks to
+`bootnet = readMultiTopology("bootsnaq.out")`. To save the bootstrap networks to
 a different file (perhaps after having re-rooted them with an
 outgroup), we could do this: `writeMultiTopology(bootnet, "bootstrapNets.tre")`.
 
@@ -225,7 +225,7 @@ We can plot the bootstrap values of the 2 hybrid edges in the best network:
 ```@example bootstrap
 R"svg(name('boot_net_net.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net1, edgelabel=BSe[!,[:edge,:BS_hybrid_edge]]);
+plot(net1, edgelabel=BSe[:,[:edge,:BS_hybrid_edge]]);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -255,7 +255,7 @@ select!(tmp, [:edge,:BS_hybrid_edge])            # select 2 columns only
 rename!(tmp, :BS_hybrid_edge => :proportion)     # rename those columns, to match names in BSe_tree
 rename!(tmp, :edge => :edgeNumber)
 tmp = vcat(BSe_tree, tmp)
-plot(net1, edgelabel=tmp, nodelabel=BSn[!, [:hybridnode,:BS_hybrid_samesisters]])
+plot(net1, edgelabel=tmp, nodelabel=BSn[:, [:hybridnode,:BS_hybrid_samesisters]])
 ```
 
 ### Who are the hybrids in bootstrap networks?
