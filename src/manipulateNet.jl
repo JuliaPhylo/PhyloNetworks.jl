@@ -500,6 +500,10 @@ Delete *all* nodes of degree two in `net`, fusing the two adjacent edges
 together each time, and return the network.
 If the network has a degree-2 root and `keeproot` is false,
 then the root is eliminated as well, leaving the network unrooted.
+The only exception to this rule is if the root is incident to 2 (outgoing)
+hybrid edges. Removing the root should leave a loop-edge (equal end point),
+which we don't want to do, to preserve the paths in the original network.
+In this case, the root is maintained even if `keeproot` is false.
 If `keeproot` is true, then the root is kept even if it's of degree 2.
 
 See [`fuseedgesat!`](@ref).
@@ -532,14 +536,17 @@ julia> writeTopology(net, round=true) # the root was kept
 """
 function removedegree2nodes!(net::HybridNetwork, keeproot=false::Bool)
     rootnode = net.node[net.root]
+    # caution: the root and its incident edges may change when degree-2 nodes
+    #          are removed. Indices of nodes to be removed would change too.
+    rootin2cycle(nn) = nn ≡ net.node[net.root] && all(e.hybrid for e in nn.edge)
     toberemoved(nn) = (keeproot ? length(nn.edge) == 2 && nn !== rootnode :
-                                  length(nn.edge) == 2 )
+                                  length(nn.edge) == 2 && !rootin2cycle(nn))
     ndegree2nodes = sum(toberemoved.(net.node))
-    # caution: nodes and their indices in the 'current' network may change when some of them are removed
     for _ in 1:ndegree2nodes # empty if 0 degree-2 nodes
         i = findfirst(toberemoved, net.node)
-        i !== nothing || error("incorrect predicted number of degree-2 nodes to remove...")
-        fuseedgesat!(i, net)
+        # i may be 'nothing' if the root was initially thought to be removed
+        # but later its edges turned to be hybrids, so should not be removed
+        isnothing(i) || fuseedgesat!(i, net)
     end
     return net
 end

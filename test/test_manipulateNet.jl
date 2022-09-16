@@ -237,6 +237,16 @@ PhyloNetworks.deleteaboveLSA!(net)
 @test isempty(net.hybrid)
 @test [n.name for n in net.nodes_changed] == ["H22","t1"]
 
+# deleteleaf! and removedegree2nodes! when the root starts a 2-cycle
+net = readTopology("((a,(((b)#H1,#H1))#H2),(#H2));")
+deleteleaf!(net, "a")
+@test writeTopology(net) == "((#H2),(((b)#H1,#H1))#H2);"
+removedegree2nodes!(net)
+@test writeTopology(net) == "((((b)#H1,#H1))#H2,#H2);"
+net = readTopology("((a,(((b)#H1,#H1))#H2),#H2);") # no degree-2 node adjacent to root this time
+deleteleaf!(net, "a", unroot=true)
+@test_broken writeTopology(net) == "((b)#H1,#H1);"
+
 end # of testset for other functions in manipulateNet
 
 end # of overall testset for this file
