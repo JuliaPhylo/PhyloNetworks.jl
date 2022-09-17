@@ -1001,7 +1001,7 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
     nodeidegree = length(nodei.edge)
     if nodeidegree == 0
         length(net.node)==1 || error("leaf $(nodei.name) has no edge but network has $(length(net.node)) nodes (instead of 1).")
-        println("Only 1 node. Removing it: the network will be empty")
+        @warn "Only 1 node. Removing it: the network will be empty"
         deleteNode!(net,nodei) # empties the network
     elseif nodeidegree == 1
         pe = nodei.edge[1]
@@ -1009,7 +1009,14 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
         if net.root == i && keeporiginalroot
             return nothing
         end
-        # remove leaf and pe.
+        # keep nodei if pn is a leaf: keep 1 edge for the single remaining leaf
+        if pn.leaf
+            net.root = i # it should have been i before anyway
+            length(net.edge)==1 || error("neighbor of degree-1 node $(nodei.name) is a leaf, but network had $(length(net.edge)) edges (instead of 1).")
+            length(pn.edge)==1 || error("neighbor of $(nodei.name) is a leaf, incident to $(length(pn.edge)) edges (instead of 1)")
+            return nothing
+        end
+        # remove nodei and pe.
         removeNode!(pn,pe)  # perhaps useless. in case gc() on pe affects pn
         removeEdge!(pn,pe)
         deleteEdge!(net,pe,part=false)
@@ -1017,11 +1024,6 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
             net.root = findfirst(x -> x===pn, net.node)
         end
         deleteNode!(net,nodei) # this updates the index net.root
-        if pn.leaf # network had 2 nodes only: pn and the leaf
-            length(net.edge)==0 || error("neighbor of leaf $(nodei.name) is another leaf, but network had $(length(net.edge)) edges (instead of 1).")
-            length(pn.edge)==0 || error("neighbor of leaf $(nodei.name) is another leaf, which had $(length(pn.edge)) edges (instead of 1)")
-            return nothing # all done: exit function
-        end
         deleteleaf!(net, pn.number; nofuse = nofuse, simplify=simplify, unroot=unroot, multgammas=multgammas,
                     keeporiginalroot=keeporiginalroot)
         return nothing
@@ -1054,9 +1056,10 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
             deleteEdge!(net,e1,part=false); deleteEdge!(net,e2,part=false)
             empty!(nodei.edge)
             deleteNode!(net,nodei)
-            net.root=getIndex(cn,net)
+            net.root = findfirst(x -> x ≡ cn, net.node)
             deleteleaf!(net, net.root; index=true, nofuse=nofuse, simplify=simplify,
                 unroot=unroot, multgammas=multgammas, keeporiginalroot=keeporiginalroot)
+            return nothing
         end
         # by now, nodei is the child of both e1 and e2
         p1 = getParent(e1) # find both parents of hybrid leaf
@@ -1078,7 +1081,7 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
             deleteleaf!(net, p2idx; index=true, nofuse=nofuse, simplify=simplify,
                         unroot=unroot, multgammas=multgammas, keeporiginalroot=keeporiginalroot)
         end
-    elseif !nofuse #if keeepNodes, do not fuseedges. The recursion should stop.
+    elseif !nofuse
         e1 = fuseedgesat!(i,net, multgammas) # fused edge
         if simplify && e1.hybrid # check for 2-cycle at new hybrid edge
             cn = getChild(e1)
@@ -1091,9 +1094,13 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
                 e2.gamma = addBL(e1.gamma, e2.gamma)
                 removeEdge!(pn,e1); removeEdge!(cn,e1)
                 deleteEdge!(net,e1,part=false)
-                # call recursion again because pn and/or cn might be of degree 2.
+                # call recursion again because pn and/or cn might be of degree 2 (or even 1).
                 deleteleaf!(net, cn.number; nofuse = nofuse, simplify=simplify, unroot=unroot,
                             multgammas=multgammas, keeporiginalroot=keeporiginalroot)
+                pnidx = findfirst(n -> n.number == pn.number, net.node)
+                isnothing(pnidx) ||
+                deleteleaf!(net, pnidx; index=true, nofuse=nofuse, simplify=simplify,
+                    unroot=unroot, multgammas=multgammas, keeporiginalroot=keeporiginalroot)
             end
         end
     end

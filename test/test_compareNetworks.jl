@@ -81,7 +81,7 @@ end
 # example with simplify=false
 net0 = readTopology("((((((a:1)#H1:1::.9)#H2:1::.8)#H3:1::.7,#H3:0.5):1,#H2:1):1,(#H1:1,b:1):1,c:1);")
 net = deepcopy(net0)
-@test writeTopology(deletehybridedge!(net, net.edge[5]), round=true) == "(((a:1.0)#H1:2.0::0.9):1.0,(#H1:1.0::0.1,b:1.0):1.0,c:1.0);"
+@test writeTopology(deletehybridedge!(net, net.edge[5]), round=true) == "((#H1:1.0::0.1,b:1.0):1.0,c:1.0,(a:1.0)#H1:3.0::0.9);"
 @test writeTopology(deletehybridedge!(net0, net0.edge[5],false,true,false,false), round=true) ==
   "((#H2:1.0::0.2,((a:1.0)#H1:1.0::0.9)#H2:3.0::0.8):1.0,(#H1:1.0::0.1,b:1.0):1.0,c:1.0);"
 end # of testing deletehybridedge!
@@ -118,12 +118,10 @@ end
 net2  = readTopology(cui2str);
 @test_logs deleteleaf!(net2,"Xhellerii");
 @test_logs deleteleaf!(net2,"Xsignum");
-# earlier warning: """node 13 is a leaf. Will create a new node if needed, to set taxon "Xmayae" as outgroup."""
 @test_logs rootatnode!(net2,"Xmayae");
 net3  = readTopology(cui3str);
 @test_logs deleteleaf!(net3,"Xhellerii");
 @test_logs deleteleaf!(net3,"Xsignum");
-# earlier warning: """node 13 is a leaf. Will create a new node if needed, to set taxon "Xmayae" as outgroup."""
 @test hardwiredClusterDistance(net2, net3, true) == 3
 @test_logs rootatnode!(net3,"Xmayae");
 @test hardwiredClusterDistance(net2, net3, true) == 4

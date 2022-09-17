@@ -36,6 +36,7 @@ node leaf  hybrid hasHybEdge name       inCycle edges'numbers
 9    false false  false      S3         -1      7    10   11  
 10   false false  true       S4         -1      3    11  
 """
+close(s);
 @test_throws ErrorException PhyloNetworks.getMinorParent(net.node[1])
 @test PhyloNetworks.getMajorParent(net.node[1]).number == 2
 @test PhyloNetworks.getMinorParent(net.node[3]).number == 6
@@ -71,8 +72,10 @@ net.node[1].name = "t7" # back to original name
 deleteleaf!(net, "t9", nofuse=true)
 @test writeTopology(net) == "((t7:0.23):0.15,(t6:0.17):0.21);"
 deleteleaf!(net, "t7")
-@test (@test_logs (:warn, r"Root") writeTopology(net)) == "t6;"
-deleteleaf!(net, "t6")
+@test writeTopology(net) == "(t6:0.17);"
+@test_logs (:warn, r"^Only 1 node") deleteleaf!(net, "t6")
+@test isempty(net.edge)
+@test isempty(net.node)
 end
 
 @testset "testing directEdges! and re-rootings" begin
@@ -245,7 +248,7 @@ removedegree2nodes!(net)
 @test writeTopology(net) == "((((b)#H1,#H1))#H2,#H2);"
 net = readTopology("((a,(((b)#H1,#H1))#H2),#H2);") # no degree-2 node adjacent to root this time
 deleteleaf!(net, "a", unroot=true)
-@test_broken writeTopology(net) == "((b)#H1,#H1);"
+@test writeTopology(net) == "(b)H1;"
 
 end # of testset for other functions in manipulateNet
 
