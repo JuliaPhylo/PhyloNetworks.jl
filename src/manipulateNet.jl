@@ -500,6 +500,10 @@ Delete *all* nodes of degree two in `net`, fusing the two adjacent edges
 together each time, and return the network.
 If the network has a degree-2 root and `keeproot` is false,
 then the root is eliminated as well, leaving the network unrooted.
+The only exception to this rule is if the root is incident to 2 (outgoing)
+hybrid edges. Removing the root should leave a loop-edge (equal end point),
+which we don't want to do, to preserve the paths in the original network.
+In this case, the root is maintained even if `keeproot` is false.
 If `keeproot` is true, then the root is kept even if it's of degree 2.
 
 See [`fuseedgesat!`](@ref).
@@ -532,14 +536,17 @@ julia> writeTopology(net, round=true) # the root was kept
 """
 function removedegree2nodes!(net::HybridNetwork, keeproot=false::Bool)
     rootnode = net.node[net.root]
+    # caution: the root and its incident edges may change when degree-2 nodes
+    #          are removed. Indices of nodes to be removed would change too.
+    rootin2cycle(nn) = nn ≡ net.node[net.root] && all(e.hybrid for e in nn.edge)
     toberemoved(nn) = (keeproot ? length(nn.edge) == 2 && nn !== rootnode :
-                                  length(nn.edge) == 2 )
+                                  length(nn.edge) == 2 && !rootin2cycle(nn))
     ndegree2nodes = sum(toberemoved.(net.node))
-    # caution: nodes and their indices in the 'current' network may change when some of them are removed
     for _ in 1:ndegree2nodes # empty if 0 degree-2 nodes
         i = findfirst(toberemoved, net.node)
-        i !== nothing || error("incorrect predicted number of degree-2 nodes to remove...")
-        fuseedgesat!(i, net)
+        # i may be 'nothing' if the root was initially thought to be removed
+        # but later its edges turned to be hybrids, so should not be removed
+        isnothing(i) || fuseedgesat!(i, net)
     end
     return net
 end
@@ -948,7 +955,8 @@ the hybrid edges that have been fused together, which may result in
 tree edges with γ<1, or with reticulations in which the two parent
 γ don't add up to 1.
 
-`keeporiginalroot`: if true, keep the root even if it is of degree one.
+`keeporiginalroot`: if true, keep the root even if it is of degree one
+(forcing `unroot` to be false).
 
 Warning: does **not** update attributes related to level-1 networks,
 such as inCycle, partition, gammaz, etc.
@@ -993,7 +1001,7 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
     nodeidegree = length(nodei.edge)
     if nodeidegree == 0
         length(net.node)==1 || error("leaf $(nodei.name) has no edge but network has $(length(net.node)) nodes (instead of 1).")
-        println("Only 1 node. Removing it: the network will be empty")
+        @warn "Only 1 node. Removing it: the network will be empty"
         deleteNode!(net,nodei) # empties the network
     elseif nodeidegree == 1
         pe = nodei.edge[1]
@@ -1001,7 +1009,14 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
         if net.root == i && keeporiginalroot
             return nothing
         end
-        # remove leaf and pe.
+        # keep nodei if pn is a leaf: keep 1 edge for the single remaining leaf
+        if pn.leaf
+            net.root = i # it should have been i before anyway
+            length(net.edge)==1 || error("neighbor of degree-1 node $(nodei.name) is a leaf, but network had $(length(net.edge)) edges (instead of 1).")
+            length(pn.edge)==1 || error("neighbor of $(nodei.name) is a leaf, incident to $(length(pn.edge)) edges (instead of 1)")
+            return nothing
+        end
+        # remove nodei and pe.
         removeNode!(pn,pe)  # perhaps useless. in case gc() on pe affects pn
         removeEdge!(pn,pe)
         deleteEdge!(net,pe,part=false)
@@ -1009,11 +1024,6 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
             net.root = findfirst(x -> x===pn, net.node)
         end
         deleteNode!(net,nodei) # this updates the index net.root
-        if pn.leaf # network had 2 nodes only: pn and the leaf
-            length(net.edge)==0 || error("neighbor of leaf $(nodei.name) is another leaf, but network had $(length(net.edge)) edges (instead of 1).")
-            length(pn.edge)==0 || error("neighbor of leaf $(nodei.name) is another leaf, which had $(length(pn.edge)) edges (instead of 1)")
-            return nothing # all done: exit function
-        end
         deleteleaf!(net, pn.number; nofuse = nofuse, simplify=simplify, unroot=unroot, multgammas=multgammas,
                     keeporiginalroot=keeporiginalroot)
         return nothing
@@ -1022,14 +1032,36 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
         return nothing
     end
     # if we get to here, nodei has degree 2 exactly: --e1-- nodei --e2--
-    if !unroot && i==net.root
-        return nothing # node = root of degree 2 and we don't want to unroot
+    if i==net.root && (keeporiginalroot || !unroot)
+        return nothing # node = root of degree 2 and we want to keep it
     end
     e1 = nodei.edge[1]
     e2 = nodei.edge[2]
     if e1.hybrid && e2.hybrid
-        (nodei ≡ getChild(e1) && nodei ≡ getChild(e2)) ||
-            error("after removing descendants, node $(nodei.number) has 2 hybrid edges but is not the child of both.")
+        cn  = getChild(e1)
+        cn2 = getChild(e2)
+        if !(nodei ≡ cn && nodei ≡ cn2) # nodei *not* the child of both e1 and e2
+            # possible at the root, in which case e1,e2 should have same child
+            (i==net.root && cn ≡ cn2) ||
+                error("after removing descendants, node $(nodei.number) has 2 hybrid edges but is not the child of both.")
+            # delete e1,e2,nodei and move the root to their child cn
+            cn.hybrid || error("child node $(cn.number) of hybrid edges $(e1.number) and $(e2.number) should be a hybrid.")
+            # check that cn doesn't have any other parent than e1 and e2
+            any(getChild(e) ≡ cn && e !== e1 && e !==e2 for e in cn.edge) &&
+                error("root has 2 hybrid edges, but their common child has an extra parent")
+            removeEdge!(cn,e1); removeEdge!(cn,e2)
+            removeHybrid!(net,cn) # removes n1 from net.hybrid, updates net.numHybrids
+            cn.hybrid = false
+            empty!(e1.node); empty!(e2.node)
+            deleteEdge!(net,e1,part=false); deleteEdge!(net,e2,part=false)
+            empty!(nodei.edge)
+            deleteNode!(net,nodei)
+            net.root = findfirst(x -> x ≡ cn, net.node)
+            deleteleaf!(net, net.root; index=true, nofuse=nofuse, simplify=simplify,
+                unroot=unroot, multgammas=multgammas, keeporiginalroot=keeporiginalroot)
+            return nothing
+        end
+        # by now, nodei is the child of both e1 and e2
         p1 = getParent(e1) # find both parents of hybrid leaf
         p2 = getParent(e2)
         # remove node1 and both e1, e2
@@ -1049,7 +1081,7 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
             deleteleaf!(net, p2idx; index=true, nofuse=nofuse, simplify=simplify,
                         unroot=unroot, multgammas=multgammas, keeporiginalroot=keeporiginalroot)
         end
-    elseif !nofuse #if keeepNodes, do not fuseedges. The recursion should stop.
+    elseif !nofuse
         e1 = fuseedgesat!(i,net, multgammas) # fused edge
         if simplify && e1.hybrid # check for 2-cycle at new hybrid edge
             cn = getChild(e1)
@@ -1062,9 +1094,13 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
                 e2.gamma = addBL(e1.gamma, e2.gamma)
                 removeEdge!(pn,e1); removeEdge!(cn,e1)
                 deleteEdge!(net,e1,part=false)
-                # call recursion again because pn and/or cn might be of degree 2.
+                # call recursion again because pn and/or cn might be of degree 2 (or even 1).
                 deleteleaf!(net, cn.number; nofuse = nofuse, simplify=simplify, unroot=unroot,
                             multgammas=multgammas, keeporiginalroot=keeporiginalroot)
+                pnidx = findfirst(n -> n.number == pn.number, net.node)
+                isnothing(pnidx) ||
+                deleteleaf!(net, pnidx; index=true, nofuse=nofuse, simplify=simplify,
+                    unroot=unroot, multgammas=multgammas, keeporiginalroot=keeporiginalroot)
             end
         end
     end
