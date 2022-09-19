@@ -475,6 +475,7 @@ function deleteHybridThreshold!(net::HybridNetwork, gamma::Float64,
     gamma <= 0.5 || error("deleteHybridThreshold! called with gamma = $(gamma)>0.5")
     for i = net.numHybrids:-1:1
     # starting from last because net.hybrid changes as hybrids are removed. Empty range if 0 hybrids.
+        i > lastindex(net.hybrid) && continue # removing 1 hybrid could remove several, if non-tree child net
         e = getMinorParentEdge(net.hybrid[i])
         # remove minor edge e if γ < threshold OR threshold=0.5
         # warning: no check if γ and isMajor are in conflict
