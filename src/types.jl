@@ -50,23 +50,29 @@ mutable struct EdgeT{T<:ANode}
     istIdentifiable::Bool # true if the parameter t (length) for this edge is identifiable as part of a network
                           # updated after part of a network
     fromBadDiamondI::Bool # true if the edge came from deleting a bad diamond I hybridization
-    # inner constructors: ensure congruence among (length, y, z) and (gamma, hybrid, isMajor), and size(node)=2
-    EdgeT{T}(number::Int, length::Float64=1.0) where {T<:ANode} =
-        new{T}(number,length,false,exp(-length),1-exp(-length),1.,T[],true,true,-1,true,true,false)
-    EdgeT{T}(number::Int, length::Float64,hybrid::Bool,gamma::Float64,isMajor::Bool=(!hybrid || gamma>0.5)) where {T<:ANode} =
-        new{T}(number,length,hybrid,exp(-length),1-exp(-length), hybrid ? gamma : 1.,T[],true,isMajor,-1,!hybrid,true,false)
-    function EdgeT{T}(number::Int, length::Float64,hybrid::Bool,gamma::Float64,node::Vector{T}) where {T<:ANode}
-        size(node,1) == 2 || error("vector of nodes must have exactly 2 values")
-        new{T}(number,length,hybrid,exp(-length),1-exp(-length),
-            hybrid ? gamma : 1., node,true, !hybrid || gamma>0.5,
-            -1,!hybrid,true,false)
-    end
-    function EdgeT{T}(number::Int, length::Float64,hybrid::Bool,gamma::Float64,node::Vector{T},isChild1::Bool, inCycle::Int, containRoot::Bool, istIdentifiable::Bool) where {T<:ANode}
-        size(node,1) == 2 || error("vector of nodes must have exactly 2 values")
-        new{T}(number,length,hybrid,exp(-length),1-exp(-length),
-            hybrid ? gamma : 1., node,isChild1, !hybrid || gamma>0.5,
-            inCycle,containRoot,istIdentifiable,false)
-    end
+end
+# outer constructors: ensure congruence among (length, y, z) and (gamma, hybrid, isMajor), and size(node)=2
+function EdgeT{T}(number::Int, length::Float64=1.0) where {T<:ANode}
+    y = exp(-length)
+    EdgeT{T}(number,length,false,y,1.0-y,1.,T[],true,true,-1,true,true,false)
+end
+function EdgeT{T}(number::Int, length::Float64,hybrid::Bool,gamma::Float64,isMajor::Bool=(!hybrid || gamma>0.5)) where {T<:ANode}
+    y = exp(-length)
+    EdgeT{T}(number,length,hybrid,y,1.0-y, hybrid ? gamma : 1.,T[],true,isMajor,-1,!hybrid,true,false)
+end
+function EdgeT{T}(number::Int, length::Float64,hybrid::Bool,gamma::Float64,node::Vector{T}) where {T<:ANode}
+    size(node,1) == 2 || error("vector of nodes must have exactly 2 values")
+    y = exp(-length)
+    Edge{T}(number,length,hybrid,y,1.0-y,
+        hybrid ? gamma : 1., node,true, !hybrid || gamma>0.5,
+        -1,!hybrid,true,false)
+end
+function EdgeT{T}(number::Int, length::Float64,hybrid::Bool,gamma::Float64,node::Vector{T},isChild1::Bool, inCycle::Int, containRoot::Bool, istIdentifiable::Bool) where {T<:ANode}
+    size(node,1) == 2 || error("vector of nodes must have exactly 2 values")
+    y = exp(-length)
+    Edge{T}(number,length,hybrid,y,1.0-y,
+        hybrid ? gamma : 1., node,isChild1, !hybrid || gamma>0.5,
+        inCycle,containRoot,istIdentifiable,false)
 end
 
 # warning: gammaz, inCycle, isBadTriangle/Diamond updated until the node is part of a network
@@ -132,14 +138,15 @@ mutable struct Node <: ANode
            # default -1
     typeHyb::Int8 # type of hybridization (1,2,3,4, or 5), needed for quartet network only. default -1
     name::AbstractString
-    # inner constructor: set hasHybEdge depending on edge
-    Node() = new(-1,false,false,-1.,EdgeT{Node}[],false,false,false,false,false,false,-1,nothing,-1,-1,"")
-    Node(number::Int, leaf::Bool, hybrid::Bool=false) = new(number,leaf,hybrid,-1.,[],hybrid,false,false,false,false,false,-1.,nothing,-1,-1,"")
-    Node(number::Int, leaf::Bool, hybrid::Bool, edge::Vector{EdgeT{Node}})=new(number,leaf,hybrid,-1.,edge,any(e->e.hybrid,edge),false,false,false,false,false,-1.,nothing,-1,-1,"")
-    Node(number::Int, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Vector{EdgeT{Node}}) = new(number,leaf,hybrid,gammaz,edge,any(e->e.hybrid, edge),false,false,false,false,false,-1.,nothing,-1,-1,"")
 end
 
 const Edge = EdgeT{Node}
+
+Node() = Node(-1,false,false,-1.,Edge[],false,false,false,false,false,false,-1,nothing,-1,-1,"")
+Node(number::Int, leaf::Bool, hybrid::Bool=false) = Node(number,leaf,hybrid,-1.,Edge[],hybrid,false,false,false,false,false,-1.,nothing,-1,-1,"")
+# set hasHybEdge depending on edge:
+Node(number::Int, leaf::Bool, hybrid::Bool, edge::Vector{Edge}) = Node(number,leaf,hybrid,-1.,edge,any(e->e.hybrid,edge),false,false,false,false,false,-1.,nothing,-1,-1,"")
+Node(number::Int, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Vector{Edge}) = Node(number,leaf,hybrid,gammaz,edge,any(e->e.hybrid, edge),false,false,false,false,false,-1.,nothing,-1,-1,"")
 
 # partition type
 mutable struct Partition
