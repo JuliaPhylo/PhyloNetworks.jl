@@ -53,9 +53,7 @@ mutable struct EdgeT{T<:ANode}
     # inner constructors: ensure congruence among (length, y, z) and (gamma, hybrid, isMajor), and size(node)=2
     EdgeT{T}(number::Int, length::Float64=1.0) where {T<:ANode} =
         new{T}(number,length,false,exp(-length),1-exp(-length),1.,T[],true,true,-1,true,true,false)
-    EdgeT{T}(number::Int, length::Float64,hybrid::Bool,gamma::Float64) where {T<:ANode} =
-        new{T}(number,length,hybrid,exp(-length),1-exp(-length), hybrid ? gamma : 1.,T[],true, !hybrid || gamma>0.5 ,-1,!hybrid,true,false)
-    EdgeT{T}(number::Int, length::Float64,hybrid::Bool,gamma::Float64,isMajor::Bool) where {T<:ANode} =
+    EdgeT{T}(number::Int, length::Float64,hybrid::Bool,gamma::Float64,isMajor::Bool=(!hybrid || gamma>0.5)) where {T<:ANode} =
         new{T}(number,length,hybrid,exp(-length),1-exp(-length), hybrid ? gamma : 1.,T[],true,isMajor,-1,!hybrid,true,false)
     function EdgeT{T}(number::Int, length::Float64,hybrid::Bool,gamma::Float64,node::Vector{T}) where {T<:ANode}
         size(node,1) == 2 || error("vector of nodes must have exactly 2 values")
@@ -129,17 +127,16 @@ mutable struct Node <: ANode
     isVeryBadTriangle::Bool # for hybrid node, is it very bad triangle, udpate in updateGammaz!
     isBadTriangle::Bool # for hybrid node, is it very bad triangle, udpate in updateGammaz!
     inCycle::Int # = hybrid node if this node is part of a cycle created by such hybrid node, -1 if not part of cycle
-    prev::Union{Nothing,ANode} # previous node in cycle, used in updateInCycle. set to "nothing" to begin with
+    prev::Union{Nothing,Node} # previous node in cycle, used in updateInCycle. set to "nothing" to begin with
     k::Int # num nodes in cycle, only stored in hybrid node, updated after node becomes part of network
            # default -1
     typeHyb::Int8 # type of hybridization (1,2,3,4, or 5), needed for quartet network only. default -1
     name::AbstractString
     # inner constructor: set hasHybEdge depending on edge
     Node() = new(-1,false,false,-1.,EdgeT{Node}[],false,false,false,false,false,false,-1,nothing,-1,-1,"")
-    Node(number::Int, leaf::Bool) = new(number,leaf,false,-1.,[],false,false,false,false,false,false,-1.,nothing,-1,-1,"")
-    Node(number::Int, leaf::Bool, hybrid::Bool) = new(number,leaf,hybrid,-1.,[],hybrid,false,false,false,false,false,-1.,nothing,-1,-1,"")
-    Node(number::Int, leaf::Bool, hybrid::Bool, edge::Vector{EdgeT{Node}})=new(number,leaf,hybrid,-1.,edge,!all((e->!e.hybrid),edge),false,false,false,false,false,-1.,nothing,-1,-1,"")
-    Node(number::Int, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Vector{EdgeT{Node}}) = new(number,leaf,hybrid,gammaz,edge,!all((e->!e.hybrid), edge),false,false,false,false,false,-1.,nothing,-1,-1,"")
+    Node(number::Int, leaf::Bool, hybrid::Bool=false) = new(number,leaf,hybrid,-1.,[],hybrid,false,false,false,false,false,-1.,nothing,-1,-1,"")
+    Node(number::Int, leaf::Bool, hybrid::Bool, edge::Vector{EdgeT{Node}})=new(number,leaf,hybrid,-1.,edge,any(e->e.hybrid,edge),false,false,false,false,false,-1.,nothing,-1,-1,"")
+    Node(number::Int, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Vector{EdgeT{Node}}) = new(number,leaf,hybrid,gammaz,edge,any(e->e.hybrid, edge),false,false,false,false,false,-1.,nothing,-1,-1,"")
 end
 
 const Edge = EdgeT{Node}
