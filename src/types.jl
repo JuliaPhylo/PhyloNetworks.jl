@@ -1,26 +1,13 @@
+# circularity: a node has a vector of edges, and an edge has a vector of nodes
 
-# Types for Julia implementation of pseudolikelihood estimation (Stage2)
-# Claudia August 2014
-# in julia: include("types.jl")
-#
-# Types: Edge, Node, HybridNetwork
-################################################################
-
-# procedure to create hybrid network:
-# 1) create edges defined as hybrid or not
-# 2) create nodes with such edges
-# 3) setNode! to add nodes into edges
-# 4) create hybrid network
-# 5) updateGammaz!
-
-# -------------- EDGE -------------------------#
 """
- `ANode`
+    ANode
 
-Abstract node. An object of type [`Edge`](@ref) has a `node` attribute,
-which is an vector of 2 `ANode` objects.
-The object of type [`Node`](@ref) is an `ANode`, and has an `edge` attribute,
-which is vector of `Edge` objects.
+Abstract node. An object of type [`EdgeT`](@ref) has a `node` attribute,
+which is an vector of 2 objects of some subtype of `ANode`.
+The concrete type [`Node`](@ref) is a subtype of `ANode`,
+and has an `edge` attribute, which is vector of [`Edge`](@ref) objects
+(where Edge is an alias for EdgeT{Node}).
 """
 abstract type ANode end
 
@@ -31,7 +18,7 @@ Data structure for an edge and its various attributes. Most notably:
 - `number` (integer): serves as unique identifier;
   remains unchanged when the network is modified,
   with a nearest neighbor interchange for example
-- `node`: a vector of [`Node`]s, normally just 2 of them
+- `node`: vector of [`Node`](@ref)s, normally just 2 of them
 - `isChild1` (boolean): `true` if `node[1]` is the child node of the edge,
   false if `node[1]` is the parent node of the edge
 - `length`: branch length
@@ -45,14 +32,14 @@ Data structure for an edge and its various attributes. Most notably:
 
 and other fields, used very internally
 """
-mutable struct Edge
+mutable struct EdgeT{T<:ANode}
     number::Int
     length::Float64 #default 1.0
     hybrid::Bool
     y::Float64 # exp(-t), cannot set in constructor for congruence
     z::Float64 # 1-y , cannot set in constructor for congruence
     gamma::Float64 # set to 1.0 for tree edges, hybrid?gamma:1.0
-    node::Array{ANode,1}
+    node::Vector{T}
     isChild1::Bool # used for hybrid edges to set the direction (default true)
     isMajor::Bool  # major edge treated as tree edge for network traversal
                    # true if gamma>.5, or if it is the original tree edge
@@ -63,27 +50,29 @@ mutable struct Edge
     istIdentifiable::Bool # true if the parameter t (length) for this edge is identifiable as part of a network
                           # updated after part of a network
     fromBadDiamondI::Bool # true if the edge came from deleting a bad diamond I hybridization
-    # inner constructors: ensure congruence among (length, y, z) and (gamma, hybrid, isMajor), and size(node)=2
-    Edge(number::Int) = new(number,1.0,false,exp(-1.0),1-exp(-1.0),1.,[],true,true,-1,true,true,false)
-    Edge(number::Int, length::Float64) = new(number,length,false,exp(-length),1-exp(-length),1.,[],true,true,-1,true,true,false)
-    Edge(number::Int, length::Float64,hybrid::Bool,gamma::Float64) =
-        new(number,length,hybrid,exp(-length),1-exp(-length), hybrid ? gamma : 1.,[],true, !hybrid || gamma>0.5 ,-1,!hybrid,true,false)
-    Edge(number::Int, length::Float64,hybrid::Bool,gamma::Float64,isMajor::Bool) =
-        new(number,length,hybrid,exp(-length),1-exp(-length), hybrid ? gamma : 1.,[],true,isMajor,-1,!hybrid,true,false)
-    function Edge(number::Int, length::Float64,hybrid::Bool,gamma::Float64,node::Array{ANode,1})
-        size(node,1) != 2 ?
-        error("vector of nodes must have exactly 2 values") :
-        new(number,length,hybrid,exp(-length),1-exp(-length),
-            hybrid ? gamma : 1., node,true, !hybrid || gamma>0.5,
-            -1,!hybrid,true,false)
-    end
-    function Edge(number::Int, length::Float64,hybrid::Bool,gamma::Float64,node::Array{ANode,1},isChild1::Bool, inCycle::Int, containRoot::Bool, istIdentifiable::Bool)
-        size(node,1) != 2 ?
-        error("vector of nodes must have exactly 2 values") :
-        new(number,length,hybrid,exp(-length),1-exp(-length),
-            hybrid ? gamma : 1., node,isChild1, !hybrid || gamma>0.5,
-            inCycle,containRoot,istIdentifiable,false)
-    end
+end
+# outer constructors: ensure congruence among (length, y, z) and (gamma, hybrid, isMajor), and size(node)=2
+function EdgeT{T}(number::Int, length::Float64=1.0) where {T<:ANode}
+    y = exp(-length)
+    EdgeT{T}(number,length,false,y,1.0-y,1.,T[],true,true,-1,true,true,false)
+end
+function EdgeT{T}(number::Int, length::Float64,hybrid::Bool,gamma::Float64,isMajor::Bool=(!hybrid || gamma>0.5)) where {T<:ANode}
+    y = exp(-length)
+    EdgeT{T}(number,length,hybrid,y,1.0-y, hybrid ? gamma : 1.,T[],true,isMajor,-1,!hybrid,true,false)
+end
+function EdgeT{T}(number::Int, length::Float64,hybrid::Bool,gamma::Float64,node::Vector{T}) where {T<:ANode}
+    size(node,1) == 2 || error("vector of nodes must have exactly 2 values")
+    y = exp(-length)
+    Edge{T}(number,length,hybrid,y,1.0-y,
+        hybrid ? gamma : 1., node,true, !hybrid || gamma>0.5,
+        -1,!hybrid,true,false)
+end
+function EdgeT{T}(number::Int, length::Float64,hybrid::Bool,gamma::Float64,node::Vector{T},isChild1::Bool, inCycle::Int, containRoot::Bool, istIdentifiable::Bool) where {T<:ANode}
+    size(node,1) == 2 || error("vector of nodes must have exactly 2 values")
+    y = exp(-length)
+    Edge{T}(number,length,hybrid,y,1.0-y,
+        hybrid ? gamma : 1., node,isChild1, !hybrid || gamma>0.5,
+        inCycle,containRoot,istIdentifiable,false)
 end
 
 # warning: gammaz, inCycle, isBadTriangle/Diamond updated until the node is part of a network
@@ -136,7 +125,7 @@ mutable struct Node <: ANode
     hybrid::Bool
     gammaz::Float64  # notes file for explanation. gammaz if tree node, gamma2z if hybrid node.
                      # updated after node is part of network with updateGammaz!
-    edge::Array{Edge,1}
+    edge::Vector{EdgeT{Node}}
     hasHybEdge::Bool #is there a hybrid edge in edge? only needed when hybrid=false (tree node)
     isBadDiamondI::Bool # for hybrid node, is it bad diamond case I, update in updateGammaz!
     isBadDiamondII::Bool # for hybrid node, is it bad diamond case II, update in updateGammaz!
@@ -144,18 +133,20 @@ mutable struct Node <: ANode
     isVeryBadTriangle::Bool # for hybrid node, is it very bad triangle, udpate in updateGammaz!
     isBadTriangle::Bool # for hybrid node, is it very bad triangle, udpate in updateGammaz!
     inCycle::Int # = hybrid node if this node is part of a cycle created by such hybrid node, -1 if not part of cycle
-    prev::Union{Nothing,ANode} # previous node in cycle, used in updateInCycle. set to "nothing" to begin with
+    prev::Union{Nothing,Node} # previous node in cycle, used in updateInCycle. set to "nothing" to begin with
     k::Int # num nodes in cycle, only stored in hybrid node, updated after node becomes part of network
            # default -1
     typeHyb::Int8 # type of hybridization (1,2,3,4, or 5), needed for quartet network only. default -1
     name::AbstractString
-    # inner constructor: set hasHybEdge depending on edge
-    Node() = new(-1,false,false,-1.,Edge[],false,false,false,false,false,false,-1,nothing,-1,-1,"")
-    Node(number::Int, leaf::Bool) = new(number,leaf,false,-1.,[],false,false,false,false,false,false,-1.,nothing,-1,-1,"")
-    Node(number::Int, leaf::Bool, hybrid::Bool) = new(number,leaf,hybrid,-1.,[],hybrid,false,false,false,false,false,-1.,nothing,-1,-1,"")
-    Node(number::Int, leaf::Bool, hybrid::Bool, edge::Array{Edge,1})=new(number,leaf,hybrid,-1.,edge,!all((e->!e.hybrid),edge),false,false,false,false,false,-1.,nothing,-1,-1,"")
-    Node(number::Int, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Array{Edge,1}) = new(number,leaf,hybrid,gammaz,edge,!all((e->!e.hybrid), edge),false,false,false,false,false,-1.,nothing,-1,-1,"")
 end
+
+const Edge = EdgeT{Node}
+
+Node() = Node(-1,false,false,-1.,Edge[],false,false,false,false,false,false,-1,nothing,-1,-1,"")
+Node(number::Int, leaf::Bool, hybrid::Bool=false) = Node(number,leaf,hybrid,-1.,Edge[],hybrid,false,false,false,false,false,-1.,nothing,-1,-1,"")
+# set hasHybEdge depending on edge:
+Node(number::Int, leaf::Bool, hybrid::Bool, edge::Vector{Edge}) = Node(number,leaf,hybrid,-1.,edge,any(e->e.hybrid,edge),false,false,false,false,false,-1.,nothing,-1,-1,"")
+Node(number::Int, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Vector{Edge}) = Node(number,leaf,hybrid,gammaz,edge,any(e->e.hybrid, edge),false,false,false,false,false,-1.,nothing,-1,-1,"")
 
 # partition type
 mutable struct Partition
