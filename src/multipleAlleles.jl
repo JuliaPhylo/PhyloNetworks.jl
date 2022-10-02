@@ -173,7 +173,7 @@ function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int};keepOne=false::Bool)
               These 4-taxon sets will be deleted from the data frame. $nkeep informative 4-taxon sets will be used.
               """)
         nkeep > 0 || @warn "All 4-taxon subsets are uninformative, so the dataframe will be left empty"
-        deleterows!(newdf, delrows)
+        deleteat!(newdf, delrows) # deleteat! requires DataFrames 1.3
     end
     # @show size(newdf)
     return unique(repSpecies)
