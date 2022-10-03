@@ -1,3 +1,7 @@
+```@setup multialleles
+using PhyloNetworks
+```
+
 # Multiple alleles per species
 
 ## between-species 4-taxon sets
