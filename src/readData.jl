@@ -84,21 +84,24 @@ Optional arguments:
 - summaryfile: if specified, a summary file will be created with that name.
 - delim (for the first form only): to specify how columns are delimited,
   with single quotes: delim=';'. Default is a `csv` file, i.e. `delim=','`.
+- `mergerows`: false by default. When true, will attempt to merge multiple rows
+  corresponding to the same four-taxon set (by averaging their quartet CFs) even
+  if none of the species is repeated within any row (that is, in any set of 4 taxa)
 
 The last version modifies the input data frame, if species are represented by multiple alleles
 for instance (see [`readTableCF!`](@ref)(data frame, columns)).
 """
-function readTableCF(file::AbstractString; delim=','::Char, summaryfile=""::AbstractString)
+function readTableCF(file::AbstractString; delim=','::Char, summaryfile=""::AbstractString, kwargs...)
     df = DataFrame(CSV.File(file, delim=delim); copycols=false)
-    readTableCF!(df, summaryfile=summaryfile)
+    readTableCF!(df; summaryfile=summaryfile, kwargs...)
 end
 
-function readTableCF(df0::DataFrames.DataFrame; summaryfile=""::AbstractString)
+function readTableCF(df0::DataFrames.DataFrame; summaryfile=""::AbstractString, kwargs...)
     df = deepcopy(df0)
-    readTableCF!(df, summaryfile=summaryfile)
+    readTableCF!(df; summaryfile=summaryfile, kwargs...)
 end
 
-function readTableCF!(df::DataFrames.DataFrame; summaryfile=""::AbstractString)
+function readTableCF!(df::DataFrames.DataFrame; summaryfile=""::AbstractString, kwargs...)
     @debug "assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network"
     alternativecolnames = [ # obsCF12 is as exported by fittedQuartetCF()
         [:CF12_34, Symbol("CF12.34"), :obsCF12],
@@ -124,7 +127,7 @@ function readTableCF!(df::DataFrames.DataFrame; summaryfile=""::AbstractString)
     columns = [[1,2,3,4]; obsCFcol]
     if withngenes  push!(columns, ngenecol)  end
 
-    d = readTableCF!(df, columns)
+    d = readTableCF!(df, columns; kwargs...)
 
     if withngenes # && d.numTrees == -1
         m1 = minimum([q.ngenes for q in d.quartet])
@@ -141,13 +144,14 @@ end
 
 # see docstring below, for readTableCF!
 # takes in df and 7 or 8 column numbers (4 labels + 3 CFs + ngenes possibly)
-function readTableCF!(df::DataFrames.DataFrame, co::Vector{Int})
+function readTableCF!(df::DataFrames.DataFrame, co::Vector{Int}; mergerows=false)
     withngenes = (length(co)==8) # true if column :ngenes exists, false ow
     repSpecies = cleanAlleleDF!(df,co) # removes uninformative rows from df (not df0)
     # fixit: cleanAlleleDF! is time consuming but many times not needed
     # add option to skip it, if the user knows that each tip appears once only?
-    if !isempty(repSpecies)
+    if mergerows || !isempty(repSpecies)
         df = mergeRows(df,co)   # warning: this 'df' is *not* changed externally
+        co = collect(eachindex(co)) # 1:7 or 1:8
     end                         # we cannot move to mapAllelesCFtable because we need repSpecies in here
     quartets = Quartet[]
     for i in 1:size(df,1)
@@ -165,7 +169,7 @@ function readTableCF!(df::DataFrames.DataFrame, co::Vector{Int})
 end
 
 """
-    readTableCF!(data frame, columns)
+    readTableCF!(data frame, columns; mergerows=false)
 
 Read in quartet CFs from data frame, assuming information is in columns numbered `columns`,
 of length **7 or 8**: 4 taxon labels then 3 CFs then ngenes possibly.
@@ -179,6 +183,8 @@ The list of species appearing twice in some 4-taxon sets is stored in the output
 For these species, the length of their external edge is identifiable (in coalescent units).
 If multiple rows correspond to the same 4-taxon set, these rows are merged and their CF values
 (and number of genes) are averaged.
+If none of the species is repeated within any 4-taxon set, then this averaging
+is attempted only if `mergerows` is true.
 
     readTableCF!(DataCF, data frame, columns)
 
@@ -1055,8 +1061,7 @@ function descData(d::DataCF, filename::AbstractString,pc::Float64)
     close(s)
 end
 
-descData(d::DataCF, sout::IO) = descData(d, sout,0.7)
-descData(d::DataCF) = descData(d, stdout,0.7)
+descData(d::DataCF, sout::IO=stdout) = descData(d, sout,0.7)
 descData(d::DataCF,pc::Float64) = descData(d, stdout,pc)
 descData(d::DataCF, filename::AbstractString) = descData(d, filename,0.7)
 
