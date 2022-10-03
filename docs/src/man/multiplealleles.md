@@ -128,7 +128,7 @@ This can be done as in the first section ("between-species 4-taxon sets")
 to give equal weight to all genes,
 or as shown below to give more weight to genes that have more alleles:
 
-```@repl multialleleslia
+```@repl multialleles
 first(df_sp, 3) # some quartets have the same species twice
 function hasrep(row) # see if a row (4-taxon set) has a species name ending with "__2": repeated species
     occursin(r"__2$", row[:t1]) || occursin(r"__2$", row[:t2]) || # replace :t1 :t2 etc. by appropriate column names in your data,
