@@ -85,6 +85,10 @@ d = readTableCF(df, mergerows=true)
 @test length(d.quartet) == 1
 @test d.quartet[1].obsCF ≈ [0.3, 0.5, 0.2]
 @test d.quartet[1].ngenes ≈ 15
+PhyloNetworks.descData(d, devnull)
+PhyloNetworks.descData(d, "tmp.log")
+summarizeDataCF(d, filename="tmp.log")
+rm("tmp.log")
 
 df=DataFrame(t1=["6","6","10","6","6","7","7","7","7","7",  "3", "7", "7"], # rows 11 & 13 (last & third to last): non-informative
              t2=["7","7","7","10","7","7","7","7","7","7",  "7", "7", "7"],

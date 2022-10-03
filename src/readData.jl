@@ -84,6 +84,9 @@ Optional arguments:
 - summaryfile: if specified, a summary file will be created with that name.
 - delim (for the first form only): to specify how columns are delimited,
   with single quotes: delim=';'. Default is a `csv` file, i.e. `delim=','`.
+- `mergerows`: false by default. When true, will attempt to merge multiple rows
+  corresponding to the same four-taxon set (by averaging their quartet CFs) even
+  if none of the species is repeated within any row (that is, in any set of 4 taxa)
 
 The last version modifies the input data frame, if species are represented by multiple alleles
 for instance (see [`readTableCF!`](@ref)(data frame, columns)).
@@ -166,7 +169,7 @@ function readTableCF!(df::DataFrames.DataFrame, co::Vector{Int}; mergerows=false
 end
 
 """
-    readTableCF!(data frame, columns)
+    readTableCF!(data frame, columns; mergerows=false)
 
 Read in quartet CFs from data frame, assuming information is in columns numbered `columns`,
 of length **7 or 8**: 4 taxon labels then 3 CFs then ngenes possibly.
@@ -180,6 +183,8 @@ The list of species appearing twice in some 4-taxon sets is stored in the output
 For these species, the length of their external edge is identifiable (in coalescent units).
 If multiple rows correspond to the same 4-taxon set, these rows are merged and their CF values
 (and number of genes) are averaged.
+If none of the species is repeated within any 4-taxon set, then this averaging
+is attempted only if `mergerows` is true.
 
     readTableCF!(DataCF, data frame, columns)
 
@@ -1056,8 +1061,7 @@ function descData(d::DataCF, filename::AbstractString,pc::Float64)
     close(s)
 end
 
-descData(d::DataCF, sout::IO) = descData(d, sout,0.7)
-descData(d::DataCF) = descData(d, stdout,0.7)
+descData(d::DataCF, sout::IO=stdout) = descData(d, sout,0.7)
 descData(d::DataCF,pc::Float64) = descData(d, stdout,pc)
 descData(d::DataCF, filename::AbstractString) = descData(d, filename,0.7)
 
