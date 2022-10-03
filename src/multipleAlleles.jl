@@ -65,12 +65,12 @@ as its first argument.
 function mapAllelesCFtable!(cfDF::DataFrame, alleleDF::DataFrame, co::Vector{Int},write::Bool,filename::AbstractString)
     size(cfDF,2) >= 7 || error("CF DataFrame should have 7+ columns: 4taxa, 3CF, and possibly ngenes")
     if length(co)==0 co=[1,2,3,4]; end
-    compareTaxaNames(alleleDF,cfDF,co)
+    allelecol, speciescol = compareTaxaNames(alleleDF,cfDF,co)
     for j in 1:4
         for ia in 1:size(alleleDF,1) # for all alleles
             cfDF[!,co[j]] = map(x->replace(string(x),
-                                         Regex("^$(string(alleleDF[ia,:allele]))\$") =>
-                                         alleleDF[ia,:species]),
+                                         Regex("^$(string(alleleDF[ia,allelecol]))\$") =>
+                                         alleleDF[ia,speciescol]),
                                 cfDF[!,co[j]])
         end
     end
@@ -192,10 +192,9 @@ end
 # function to compare the taxon names in the allele-species matching table
 # and the CF table
 function compareTaxaNames(alleleDF::DataFrame, cfDF::DataFrame, co::Vector{Int})
-    checkMapDF(alleleDF)
-    #println("found $(length(alleleDF[1])) allele-species matches")
+    allelecol, speciescol = checkMapDF(alleleDF)
     CFtaxa = string.(mapreduce(x -> unique(skipmissing(x)), union, eachcol(cfDF[!,co[1:4]])))
-    alleleTaxa = map(string, alleleDF[!,:allele]) # as string, too
+    alleleTaxa = map(string, alleleDF[!,allelecol]) # as string, too
     sizeCF = length(CFtaxa)
     sizeAllele = length(alleleTaxa)
     if sizeAllele > sizeCF
@@ -212,14 +211,26 @@ function compareTaxaNames(alleleDF::DataFrame, cfDF::DataFrame, co::Vector{Int})
         for n in unchanged warnmsg *= " $n"; end
         @warn warnmsg
     end
-    return nothing
+    return allelecol, speciescol
 end
 
-# function to check that the allele df has one column labelled alleles and one column labelled species
+"""
+    checkMapDF(mapping_allele2species::DataFrame)
+
+Check that the data frame has one column named "allele" or "individual",
+and one column named "species". Output: indices of these column.
+"""
 function checkMapDF(alleleDF::DataFrame)
     size(alleleDF,2) >= 2 || error("Allele-Species matching Dataframe should have at least 2 columns")
-    :allele in DataFrames.propertynames(alleleDF) || error("In allele mapping file there is no column named allele")
-    :species in DataFrames.propertynames(alleleDF) || error("In allele mapping file there is no column named species")
+    colnames = DataFrames.propertynames(alleleDF)
+    allelecol = findfirst(x -> x == :allele, colnames)
+    if isnothing(allelecol)
+        allelecol = findfirst(x -> x == :individual, colnames)
+    end
+    isnothing(allelecol) && error("In allele mapping file there is no column named 'allele' or 'individual'")
+    speciescol = findfirst(x -> x == :species, colnames)
+    isnothing(speciescol) && error("In allele mapping file there is no column named species")
+    return allelecol, speciescol
 end
 
 
