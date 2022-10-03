@@ -52,7 +52,7 @@ should be used:
 df_ind = writeTableCF(countquartetsintrees(genetrees)...) # no mapping here: so quartet CFs across individuals
 CSV.write("tableCF_individuals.csv", df)               # to save to a file
 df_sp = mapAllelesCFtable(mappingFile, "tableCF_individuals.csv");
-d_sp = readTableCF!(df_sp);
+d_sp = readTableCF!(df_sp, mergerows=true);
 ```
 where the mapping file can be a text (or `csv`) file with two columns
 named `allele` and `species`, mapping each allele name to a species name.

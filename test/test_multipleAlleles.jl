@@ -74,6 +74,18 @@ sorttaxa!(dat)
 end # of testset: sorttaxa!
 
 @testset "snaq on multiple alleles" begin
+
+df = DataFrame(t1=["6","7"], t2=["7","6"], t3=["4","4"], t4=["8","8"],
+    a=[true,true], # to test recognition of columns
+    CF12_34=[0.25, 0.15], ngenes=[10,20],
+    CF13_24=[0.3,0.55], b=[false,false], CF14_23=[0.45,0.3])
+@test length(readTableCF(df).quartet) == 2
+d = readTableCF(df, mergerows=true)
+@test isempty(d.repSpecies)
+@test length(d.quartet) == 1
+@test d.quartet[1].obsCF ≈ [0.3, 0.5, 0.2]
+@test d.quartet[1].ngenes ≈ 15
+
 df=DataFrame(t1=["6","6","10","6","6","7","7","7","7","7",  "3", "7", "7"], # rows 11 & 13 (last & third to last): non-informative
              t2=["7","7","7","10","7","7","7","7","7","7",  "7", "7", "7"],
              t3=["4","10","4","4","4","8","8","8","10","10","7", "6", "7"],
