@@ -344,14 +344,6 @@ addHybridizationUpdateSmart!(net::HybridNetwork, N::Integer) = addHybridizationU
 
 
 # ----------------------------------- add alternative hybridizations found in bootstrap ------------------------------------
-## function to add the top hybridizations (not in best network)
-## found in bootstrap networks
-## it modifies the network and BSe to add the new edge number,
-## it also adds a new column 0/1, with 1 if the edge is not present in the original estimated network
-## cutoff=10, only show hybridizations with bootstrap support>10%
-## top=3, only show the top three alternative hybridizations (sorted by bootstrap support)
-## can we put in a different color in the plot?
-## Cecile: you could add a new option to our RCall-based plot function to take a vector of colors.
 """
     addAlternativeHybridizations!(net::HybridNetwork, BSe::DataFrame;
                                   cutoff=10::Number, top=3::Int)
@@ -360,11 +352,18 @@ Modify the network `net` (the best network estimated with snaq) by adding other 
 that are present in the bootstrap networks. By default, it will only consider hybrid edges with
 more than 10% bootstrap support (`cutoff`) and it will only include the three top hybridizations
 (`top`) sorted by bootstrap support.
-The function also modifies the dataframe `BSe` obtained with `hybridBootstrapSupport`. In the original
-`BSe` dataframe, hybrid edges that do not appear in the best network have a missing number.
+
+The function also modifies the dataframe `BSe`. In the original `BSe`,
+supposedly obtained with `hybridBootstrapSupport`, hybrid edges that do not
+appear in the best network have a missing number.
 After the hybrid edges are added with `addAlternativeHybridizations`, `BSe` is modified to include the
-edge numbers of the newly added hybrid edges. Note that the function only adds the hybrid edges as minor to
-keep the underlying tree topology.
+edge numbers of the newly added hybrid edges.
+To distinguish hybrid edges present in the original network versus new edges,
+an extra column of true/false values is also added to `BSe`, named "alternative",
+with true for newly added edges absent from the original network.
+
+The hybrid edges added to `net` are added as minor edges, to keep the underlying
+major tree topology.
 
 # example
 
