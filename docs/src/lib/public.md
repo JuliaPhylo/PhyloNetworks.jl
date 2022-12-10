@@ -22,14 +22,22 @@ Private = false
 Order   = [:type]
 ```
 
-## utilities
+## basic utilities
 
 ```@docs
 tipLabels
-sorttaxa!
 printEdges
 printNodes
-summarizeDataCF
+hassinglechild
+singlechildedge
+getNodeAges
+pairwiseTaxonDistanceMatrix
+```
+
+## utilities to manipulate networks
+
+```@docs
+sorttaxa!
 directEdges!
 checkroot!
 preorder!
@@ -46,15 +54,9 @@ shrink2cycles!
 shrink3cycles!
 deleteHybridThreshold!
 rotate!
-getindex(::TraitSimulation, ::Symbol)
-getNodeAges
-pairwiseTaxonDistanceMatrix
 biconnectedComponents
 blobDecomposition
 treeedgecomponents
-getlabels
-nparams
-mapindividuals
 nni!
 ```
 
@@ -87,6 +89,7 @@ mapAllelesCFtable
 snaq!
 topologyMaxQPseudolik!
 topologyQPseudolik!
+summarizeDataCF
 fittedQuartetCF
 bootsnaq
 calibrateFromPairwiseDistances!
@@ -131,6 +134,7 @@ regressorShift
 regressorHybrid
 sharedPathMatrix
 vcv
+getindex(::TraitSimulation, ::Symbol)
 ```
 
 ## discrete trait evolution
@@ -143,7 +147,9 @@ randomTrait
 randomTrait!
 fitdiscrete
 maxParsimonyNet
+getlabels
 nstates
+nparams
 stationary
 empiricalDNAfrequencies
 ```

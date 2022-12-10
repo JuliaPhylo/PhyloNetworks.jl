@@ -370,7 +370,7 @@ net_level1_s = readTopology(str_level1_s)
 @test writeTopology(net_level1_s) == str_level1_s # network unchanged
 @test_logs (:warn, r"^Spaces in \"S1 A\" may cause errors") PhyloNetworks.addindividuals!(net_level1_s, "S1", ["S1 A", "S1B", "S1C"])
 @test writeTopology(net_level1_s) == "(((S8,S9),(((((S1_A,S1B,S1C)S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
-# # test mapindividuals! function
+# test mapindividuals function
 net_level1_s = readTopology(str_level1_s)
 # in net env
 filename = joinpath(@__DIR__, "..","examples","mappingIndividuals.csv")

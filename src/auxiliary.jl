@@ -273,6 +273,25 @@ returns the first child edge.
     error("could not find child edge of node $(node.number)")
 end
 
+"""
+    hassinglechild(node)
+
+Boolean: `true` if `node` has a single child edge,
+based on the edge's `isChild1` attribute.
+"""
+hassinglechild(node::PN.Node) = sum(e -> PN.getParent(e) === node, node.edge) == 1
+
+"""
+    singlechildedge(node)
+
+Child edge of `node`. Checks that it's a single child.
+"""
+function singlechildedge(node::PN.Node)
+    ce_ind = findall(e -> PN.getParent(e) === node, node.edge)
+    length(ce_ind) == 1 || error("node number $(node.number) has $(length(ce_ind)) children instead of 1 child")
+    return node.edge[ce_ind[1]]
+end
+
 # -------------- NETWORK ----------------------- #
 
 function getIndex(node::Node, net::Network)
