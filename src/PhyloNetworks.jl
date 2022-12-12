@@ -72,11 +72,20 @@ module PhyloNetworks
         topologyMaxQPseudolik!,
         topologyQPseudolik!,
         ## getters
-        # getParent, getParents, getMajorParentEdge, getMinorParentEdge, getChildren,
-        # functions above: first rename them throughout to be consistent with other packages, like:
+        # getMinorParentEdge. fixit: add isleaf, isroot
+        # functions above: rename them before exporting, like:
         # parent child parents children parentmajor parentminor ancestor sibling offspring
+        isparent,
+        ischild,
         hassinglechild,
-        singlechildedge,
+        getchild,
+        getchildren,
+        getchildedge,
+        getparent,
+        getparents,
+        getparentminor,
+        getparentedge,
+        getpartner,
         ## Network Manipulation
         rootatnode!,
         rootonedge!,

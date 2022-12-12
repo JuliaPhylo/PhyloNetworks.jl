@@ -111,7 +111,7 @@ function updatePreOrder!(i::Int,
                          updateTree::Function,
                          updateHybrid::Function,
                          params)
-    parent = getParents(nodes[i]) #array of nodes (empty, size 1 or 2)
+    parent = getparents(nodes[i]) # vector of nodes (empty, size 1 or 2)
     if(isempty(parent)) #nodes[i] is root
         updateRoot(V, i, params)
     elseif(length(parent) == 1) #nodes[i] is tree
@@ -181,7 +181,7 @@ function updatePostOrder!(i::Int,
                           updateTip::Function,
                           updateNode::Function,
                           params)
-    children = getChildren(nodes[i]) #array of nodes (empty, size 1 or 2)
+    children = getchildren(nodes[i]) # vector of nodes (empty, size 1 or 2)
     if(isempty(children)) #nodes[i] is a tip
         updateTip(V, i, params)
     else
@@ -573,7 +573,7 @@ end
 
 function regressorShift(edge::Vector{Edge},
                         net::HybridNetwork; checkPreorder=true::Bool)
-    childs = [getChild(ee) for ee in edge]
+    childs = [getchild(ee) for ee in edge]
     return(regressorShift(childs, net; checkPreorder=checkPreorder))
 end
 
@@ -679,7 +679,7 @@ AIC: 7.4012043891
 [`phylolm`](@ref), [`descendenceMatrix`](@ref), [`regressorShift`](@ref).
 """
 function regressorHybrid(net::HybridNetwork; checkPreorder=true::Bool)
-    childs = [getChildren(nn)[1] for nn in net.hybrid]
+    childs = [getchild(nn) for nn in net.hybrid] # checks that each hybrid node has a single child
     dfr = regressorShift(childs, net; checkPreorder=checkPreorder)
     dfr[!,:sum] = sum.(eachrow(select(dfr, Not(:tipNames), copycols=false)))
     return(dfr)
@@ -747,7 +747,7 @@ end
 function ShiftNet(edge::Vector{Edge},
                   value::Union{AbstractVector, AbstractMatrix},
                   net::HybridNetwork; checkPreorder=true::Bool)
-    childs = [getChild(ee) for ee in edge]
+    childs = [getchild(ee) for ee in edge]
     return(ShiftNet(childs, value, net; checkPreorder=checkPreorder))
 end
 
@@ -780,7 +780,7 @@ function shiftHybrid(value::Union{Matrix{T}, Vector{T}} where T<:Real,
     if length(net.hybrid) != size(value, 1)
         error("You must provide as many values as the number of hybrid nodes.")
     end
-    childs = [getChildren(nn)[1] for nn in net.hybrid]
+    childs = [getchild(nn) for nn in net.hybrid] # checks for single child
     return(ShiftNet(childs, value, net; checkPreorder=checkPreorder))
 end
 shiftHybrid(value::Real, net::HybridNetwork; checkPreorder=true::Bool) = shiftHybrid([value], net; checkPreorder=checkPreorder)
@@ -799,7 +799,7 @@ end
 
 function getMajorParentEdgeNumber(n::Node)
     try
-        getMajorParentEdge(n).number
+        getparentedge(n).number
     catch
         -1
     end
@@ -1804,7 +1804,12 @@ function setGammas!(net::HybridNetwork, gammas::Vector)
         if isHybrid[i]
             nod = net.nodes_changed[i]
             majorHybrid = [edg.hybrid &  edg.isMajor for edg in nod.edge]
-            # worry: assume tree-child network? getMajorParent and getMinorParent would be safer
+            #= worry: assume tree-child network? getMajorParent and getMinorParent would be safer
+             fixit fixit fixit!
+            use getparentedge(nod) and getparentedgeminor instead;
+            change & to && . ex: check impact on [isodd(x) & x<3 for x in [4,3,2,1]]
+            don't do if/else below: !any is different from !all. Or if unsyncing major & minor is intentional: then document it.
+            =#
             minorHybrid = [edg.hybrid & !edg.isMajor for edg in nod.edge]
             nod.edge[majorHybrid][1].gamma = gammas[i]
             if any(minorHybrid) # case where gamma = 0.5 exactly

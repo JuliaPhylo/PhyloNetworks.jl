@@ -343,10 +343,10 @@ function deletehybridedge!(net::HybridNetwork, edge::Edge,
                            multgammas=false::Bool,
                            simplify=true::Bool, keeporiginalroot=false::Bool)
     edge.hybrid || error("edge $(edge.number) has to be hybrid for deletehybridedge!")
-    n1 = getChild(edge)  # child of edge, to be deleted unless nofuse
+    n1 = getchild(edge)  # child of edge, to be deleted unless nofuse
     n1.hybrid || error("child node $(n1.number) of hybrid edge $(edge.number) should be a hybrid.")
     n1degree = length(n1.edge)
-    n2 = getParent(edge)  # parent of edge, to be deleted too
+    n2 = getparent(edge)  # parent of edge, to be deleted too
     n2degree = length(n2.edge)
     # next: keep hybrid node n1 if it has 4+ edges or if keepNode.
     #       otherwise: detach n1, then delete recursively
@@ -361,10 +361,10 @@ function deletehybridedge!(net::HybridNetwork, edge::Edge,
         pe = nothing # will be other parent (hybrid) edge of n1
         ce = nothing # will be child edge of n1, to be merged with pe
         for e in n1.edge
-            if e.hybrid && e!==edge && n1===getChild(e) pe = e; end
-            if !e.hybrid || n1===getParent(e)  ce = e; end # does *not* assume correct isChild1 for tree edges :)
+            if e.hybrid && e!==edge && n1===getchild(e) pe = e; end
+            if !e.hybrid || n1===getparent(e)  ce = e; end # does *not* assume correct isChild1 for tree edges :)
         end
-        pn = getParent(pe); # parent node of n1, other than n2
+        pn = getparent(pe); # parent node of n1, other than n2
         atRoot = (net.node[net.root] ≡ n1) # n1 should not be root, but if so, pn will be new root
         # if pe may contain the root, then allow the root on ce and below
         if pe.containRoot
@@ -395,7 +395,7 @@ function deletehybridedge!(net::HybridNetwork, edge::Edge,
         # below: we will need to delete n1 recursively (hence edge)
     else # n1 has 4+ edges (polytomy) or 3 edges but we want to keep it anyway:
         # keep n1 but detach it from 'edge', set its remaining parent to major tree edge
-        pe = getPartner(edge, n1) # partner edge: keep it this time
+        pe = getpartner(edge, n1) # partner edge: keep it this time
         if !pe.isMajor pe.isMajor=true; end
         pe.hybrid = false
         # note: pe.gamma *not* set to 1.0 here

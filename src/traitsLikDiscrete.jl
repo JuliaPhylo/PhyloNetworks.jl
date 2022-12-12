@@ -765,7 +765,7 @@ function discrete_corelikelihood_trait!(obj::SSM, t::Integer, ci::Integer, ri::I
             end
         else # forward likelihood = product of direct likelihood over all children edges
             for e in n.edge
-                n == getParent(e) || continue # to next edge if n is not parent of e
+                n == getparent(e) || continue # to next edge if n is not parent of e
                 forwardlik[:,nnum] .+= view(directlik, :,e.number)
             end
         end
@@ -776,7 +776,7 @@ function discrete_corelikelihood_trait!(obj::SSM, t::Integer, ci::Integer, ri::I
         # if we keep going, n is not the root
         # calculate direct likelihood on the parent edge of n
         for e in n.edge
-            if n == getChild(e)
+            if n == getchild(e)
                 lt = view(obj.logtrans, :,:,e.number, ri)
                 for i in 1:k # state at parent node
                     directlik[i,e.number] = logsumexp(view(lt,i,:) + view(forwardlik,:,nnum))
@@ -1082,11 +1082,11 @@ function discrete_backwardlikelihood_trait!(obj::SSM, t::Integer, ri::Integer)
         if ni == 1 # n is the root
             backwardlik[:,nnum] = logprior
         else
-            pe = getMajorParentEdge(n)
-            pn = getParent(pe)
+            pe = getparentedge(n)
+            pn = getparent(pe)
             bkwtmp[:] = backwardlik[:,pn.number] # use bktmp's original memory
             for se in pn.edge
-                if se != pe && pn == getParent(se) # then se is sister edge to pe
+                if se != pe && pn == getparent(se) # then se is sister edge to pe
                     bkwtmp .+= view(directlik, :,se.number)
                 end
             end

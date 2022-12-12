@@ -180,7 +180,7 @@ hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{AbstractVector{String},
 
 function hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{AbstractVector{String},AbstractVector{Int}},
                            visited::Vector{Int})
-    n = getChild(edge)
+    n = getchild(edge)
     if n.leaf
         j = findall(isequal(n.name), taxa)
         length(j)==1 || error("taxon $(n.name) was not found in taxon list, or more than once")
@@ -192,7 +192,7 @@ function hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{AbstractVector
     end
     push!(visited, n.number)
     for ce in n.edge
-        if n === getParent(ce)
+        if n === getparent(ce)
             hardwiredCluster!(v,ce,taxa,visited)
         end
     end
@@ -240,7 +240,7 @@ function descendants(edge::Edge, internal::Bool=false)
 end
 
 function descendants!(des::Vector{Int}, visited::Vector{Int}, edge::Edge, internal::Bool=false)
-    n = getChild(edge)
+    n = getchild(edge)
     if n.hybrid # only need to check previous visits for hybrid nodes
         n.number in visited && return nothing
         push!(visited, n.number)
@@ -249,7 +249,7 @@ function descendants!(des::Vector{Int}, visited::Vector{Int}, edge::Edge, intern
         push!(des, n.number)
     end
     for ce in n.edge
-        if n == getParent(ce)
+        if isparent(n, ce)
             descendants!(des, visited, ce, internal)
         end
     end
@@ -266,7 +266,7 @@ for a version that does not use `isChild1`.
 function isdescendant(des::Node, anc::Node)
     visited = Int[]
     for e in anc.edge
-        anc !== getChild(e) || continue # skip parents of anc
+        anc !== getchild(e) || continue # skip parents of anc
         if isdescendant!(visited, des, e)
             return true
         end
@@ -274,7 +274,7 @@ function isdescendant(des::Node, anc::Node)
     return false
 end
 function isdescendant!(visited::Vector{Int}, des::Node, e::Edge)
-    n = getChild(e)
+    n = getchild(e)
     if n == des
         return true
     end
@@ -285,7 +285,7 @@ function isdescendant!(visited::Vector{Int}, des::Node, e::Edge)
         push!(visited, n.number)
     end
     for ce in n.edge
-        if n == getParent(ce)
+        if isparent(n, ce)
             if isdescendant!(visited, des, ce) return true; end
         end
     end
@@ -314,7 +314,7 @@ end
 function isdescendant_undirected!(visited::Vector{Int}, des::Node, anc::Node, parentedge::Edge)
     for e in anc.edge
         e !== parentedge || continue # do not go back up where we came from
-        !e.hybrid || getParent(e) === anc || continue # do not go back up a parent hybrid edge of anc
+        !e.hybrid || getparent(e) === anc || continue # do not go back up a parent hybrid edge of anc
         n = getOtherNode(e, anc)
         if n === des
             return true
@@ -422,7 +422,7 @@ function ladderpartition(net::HybridNetwork)
         end
         below[nn.number]  = Vector{Vector{Int}}(undef,0) # initialize
         !nn.hybrid || error("ladder partitions not implemented for non-tree networks")
-        children = [getChild(e) for e in nn.edge]
+        children = [getchild(e) for e in nn.edge]
         filter!(n -> n!=nn, children)
         for cc in children
             allbelowc = union(below[cc.number]...)
@@ -437,7 +437,7 @@ function ladderpartition(net::HybridNetwork)
     #         add those above = any above n's parent, using pre-order this time.
     for nni in 2:nnodes # avoid 1: it's the root, no parent, nothing to update
         nn = net.nodes_changed[nni]
-        pn = getMajorParent(nn).number # parent number
+        pn = getparent(nn).number # major parent number
         for clade in above[pn]  push!(above[nn.number], clade); end
     end
     return below,above
@@ -511,7 +511,7 @@ function displayedNetworks!(net::HybridNetwork, node::Node,
     netmin = deepcopy(net)
     emin = getMinorParentEdge(node)
     deletehybridedge!(net   , emin, nofuse, unroot, multgammas, true, keeporiginalroot)
-    emaj = getMajorParentEdge(netmin.node[ind]) # hybrid node & edge in netmin
+    emaj = getparentedge(netmin.node[ind]) # hybrid node & edge in netmin
     deletehybridedge!(netmin, emaj, nofuse, unroot, multgammas, true, keeporiginalroot)
     return netmin
 end
@@ -644,7 +644,7 @@ function minorTreeAt(net::HybridNetwork, hybindex::Integer,
             nofuse=false::Bool, unroot=false::Bool)
     hybindex <= length(net.hybrid) || error("network has fewer hybrid nodes than index $(hybindex).")
     tree = deepcopy(net)
-    hybedge = getMajorParentEdge(tree.hybrid[hybindex])
+    hybedge = getparentedge(tree.hybrid[hybindex])   # major parent
     deletehybridedge!(tree, hybedge, nofuse, unroot) # delete major hybrid edge at reticulation of interest
     return majorTree(tree; nofuse=nofuse, unroot=unroot) # all remaining minor edges removed: now it's a tree.
 end

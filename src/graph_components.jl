@@ -130,7 +130,7 @@ function biconnectedcomponent_entrynodes(net, bcc, preorder=true::Bool)
     for bicomp in bcc
         jmin = length(net.node)
         for edge in bicomp
-            n = getParent(edge)
+            n = getparent(edge)
             j = findfirst(x -> x===n, net.nodes_changed)
             isnothing(j) && error("node not found in net's pre-ordering 'nodes_changed'")
             jmin = min(j, jmin)
@@ -171,7 +171,7 @@ function biconnectedcomponent_exitnodes(net, bcc, preorder=true::Bool)
         exitnode_blobi = Node[]
         for edge in bicomp
             edge.isMajor || continue # skip minor edges to avoid duplicating exit node
-            n = getChild(edge)
+            n = getchild(edge)
             for e in n.edge
                 e !== edge || continue
                 if e.inCycle != i # then n is a cut point, incident to another blob
@@ -230,7 +230,7 @@ function blobInfo(net, ignoreTrivial=true::Bool;
         for edge in bicomp
             if edge.hybrid && edge.isMajor
                 push!(bccMa, edge)
-                e = getPartner(edge)
+                e = getpartner(edge)
                 !e.isMajor || @warn "major edge $(edge.number) has a major partner: edge $(e.number)"
                 push!(bccmi, e)
             end
@@ -404,7 +404,7 @@ function treeedgecomponents(net::HybridNetwork)
                         end
                     end
                 else # for hybrid edge, check there is at most one entry node into the TEC
-                    if curnode === getChild(e)
+                    if curnode === getchild(e)
                         if isnothing(entrynode)
                             entrynode = curnode
                         elseif entrynode !== curnode
@@ -528,7 +528,7 @@ function checkroot!(net::HybridNetwork, membership::Dict{Node,Int})
     if membership[curroot] == tec_root
         # update containRoot only: true for edges in or out of the root TEC
         for e in net.edge
-            e.containRoot = (membership[getParent(e)] == tec_root)
+            e.containRoot = (membership[getparent(e)] == tec_root)
         end
     else
         net.root = findfirst(n -> (!n.leaf && membership[n] == tec_root), nodes)

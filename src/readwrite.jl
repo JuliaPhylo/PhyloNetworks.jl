@@ -359,7 +359,7 @@ nor that `n` is the child of `e`.
 @inline function synchronizePartnersData!(e::Edge, n::Node)
     partners = Edge[] # The edges having n as a child, other than e
     for e2 in n.edge
-        if e2.hybrid && e2!=e && n==getChild(e2)
+        if e2.hybrid && e2!=e && n==getchild(e2)
             push!(partners, e2)
         end
     end
@@ -615,7 +615,7 @@ function checkNumHybEdges!(net::HybridNetwork)
         elseif hyb >=2 # check: exactly 2 incoming, no more.
             nhybparents = 0
             for e in n.edge
-                if n == getChild(e)
+                if n == getchild(e)
                     if e.hybrid
                         nhybparents += 1
                     else @error "node $(n.number) has parent tree edge $(e.number): wrong isChild1 for this edge?"
@@ -1039,9 +1039,9 @@ function writeSubTree!(s::IO, n::Node, parent::Union{Edge,Nothing},
         for e in n.edge
             e != parent || continue # skip parent edge where we come from
             if parent == nothing    # skip if n = child of e
-                n != getChild(e) || continue
+                n != getchild(e) || continue
             end
-            (e.hybrid && getChild(e)==n) && continue # no going up minor hybrid
+            (e.hybrid && getchild(e)==n) && continue # no going up minor hybrid
             firstchild || print(s, ",")
             firstchild = false
             child = getOtherNode(e,n)
@@ -1473,7 +1473,7 @@ function writeTopology(net::HybridNetwork, s::IO,
         for e in net.edge
           # parents of hybrid edges should be sufficient, but gives weird look
           #if e.hybrid
-            i = getIndex(getParent(e), net)
+            i = getIndex(getparent(e), net)
             net.root = i
             try
                 directEdges!(net)
