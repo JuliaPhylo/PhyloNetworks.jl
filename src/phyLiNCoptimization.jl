@@ -493,7 +493,7 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
         end
         ghosthybrid = false # find hybrid edges with γ=0, to delete them
         for h in obj.net.hybrid
-            minorhybridedge = getMinorParentEdge(h)
+            minorhybridedge = getparentedgeminor(h)
             minorhybridedge.gamma == 0.0 || continue
             ghosthybrid = true
             deletehybridedge!(obj.net, minorhybridedge, false,true,false,false,false)
@@ -827,7 +827,7 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64,
         return false
     elseif newhybridedge.gamma == 1.0 # ≃ subtree prune and regraft (SPR) move
         # loglik better because γ=1 better than γ=0, yet without new reticulation: accept
-        deletehybridedge!(obj.net, getMinorParentEdge(newhybridnode), false,true,false,false,false)
+        deletehybridedge!(obj.net, getparentedgeminor(newhybridnode), false,true,false,false,false)
         (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
         # loglik will be updated in optimizeallgammas right after, in optimizestructure
         updateSSM!(obj, true; constraints=constraints)
@@ -887,7 +887,7 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
 
     nh = length(obj.net.hybrid)
     hybridnode = obj.net.hybrid[Random.rand(1:nh)]
-    minorhybridedge = getMinorParentEdge(hybridnode)
+    minorhybridedge = getparentedgeminor(hybridnode)
     #= if type-3 constraints: check that proposed deletion meets constraints
       the constraint's stem edge must be a tree edge -> not disrupted
       species (type 1) or clade type-2 constraints: no problem, because
@@ -898,7 +898,7 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
         edgenotfound = true
         for hi in hybindices
             hybridnode = obj.net.hybrid[hi]
-            minorhybridedge = getMinorParentEdge(hybridnode)
+            minorhybridedge = getparentedgeminor(hybridnode)
             # edgenotfound = whether any type-3 constraints is violated
             edgenotfound || break
         end
@@ -1575,7 +1575,7 @@ function optimizeallgammas_LiNC!(obj::SSM, ftolAbs::Float64,
     hybnodes = obj.net.hybrid
     nh = length(hybnodes)      # also = obj.net.numHybrids
     if nh==0 return false; end # no gammas to optimize
-    hybs = [getMinorParentEdge(h) for h in hybnodes]
+    hybs = [getparentedgeminor(h) for h in hybnodes]
     discrete_corelikelihood!(obj) # prerequisite for optimizegamma_LiNC!
     nevals = 0
     ll = obj.loglik
@@ -1591,7 +1591,7 @@ function optimizeallgammas_LiNC!(obj::SSM, ftolAbs::Float64,
     ghosthybrid = false
     hi = nh
     while hi > 0
-        he = getMinorParentEdge(hybnodes[hi])
+        he = getparentedgeminor(hybnodes[hi])
         if he.gamma == 0.0
             deletehybridedge!(obj.net, he, false,true,false,false,false)
             ghosthybrid = true

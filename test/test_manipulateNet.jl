@@ -42,9 +42,9 @@ close(s);
 @test PhyloNetworks.getparentminor(net.node[3]).number == 6
 @test PhyloNetworks.getparent(net.node[3]).number == 10
 @test PhyloNetworks.getparentedge(net.node[6]).number == 7
-@test_throws ErrorException PhyloNetworks.getMinorParentEdge(net.node[6])
+@test_throws ErrorException PhyloNetworks.getparentedgeminor(net.node[6])
 @test PhyloNetworks.getparentedge(net.node[2]).number == 2
-@test PhyloNetworks.getMinorParentEdge(net.node[2]).number == 8
+@test PhyloNetworks.getparentedgeminor(net.node[2]).number == 8
 @test [n.number for n in PhyloNetworks.getchildren(net.node[4])] == [] # leaf
 @test [n.number for n in PhyloNetworks.getchildren(net.node[2])] == [1] # hybrid node
 @test [n.number for n in PhyloNetworks.getchildren(net.node[9])] == [6,8] # tree node

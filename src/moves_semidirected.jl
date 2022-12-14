@@ -411,7 +411,7 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8,
     # α = u's major parent if it exists, β = u's last child or minor parent
     if u.hybrid
         αu = getparentedge(u)
-        βu = getMinorParentEdge(u)
+        βu = getparentedgeminor(u)
         α = getparent(αu)
         β = getparent(βu)
     else # u may not have any parent, e.g. if root node
@@ -869,7 +869,7 @@ function moveroot!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{
     for newrooti in newrootrandomorder
         newrooti != oldroot || continue
         newrootnode = net.node[newrooti]
-        newrootnode.leaf && continue # try next potential new root if current is a leaf
+        isleaf(newrootnode) && continue # try next potential new root if current is a leaf
         # Check the new root is NOT at the top or inside contraint clade or within pecies
         newrootfound = true
         for con in constraints
@@ -985,8 +985,8 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     =#
     runDirectEdges = false
     edgetoflip, edgetokeep = minor ?
-        (getMinorParentEdge(hybridnode), getparentedge(hybridnode)) :
-        (getparentedge(hybridnode), getMinorParentEdge(hybridnode))
+        (getparentedgeminor(hybridnode), getparentedge(hybridnode)) :
+        (getparentedge(hybridnode), getparentedgeminor(hybridnode))
     oldchildedge = getchildedge(hybridnode)
     newhybridnode = getparent(edgetoflip)
     if newhybridnode.hybrid # already has 2 parents: cannot had a third.
@@ -1006,7 +1006,7 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
         =#
         if e !== edgetoflip # e cannot be hybrid --e-> nhn because earlier check
             neibr = getOtherNode(e, newhybridnode) # neighbor of new hybrid node via e
-            if !neibr.leaf && (p2 === neibr ||
+            if !isleaf(neibr) && (p2 === neibr ||
                 isdescendant_undirected(p2, neibr, e))
                 isp2desc = true
             end

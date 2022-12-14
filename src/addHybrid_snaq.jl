@@ -436,7 +436,7 @@ function addHybridBetweenClades!(hybnum::Number,sisnum::Number,net::HybridNetwor
     ## used gamma=0.1 to make the new edge a minor edge, but we really do not have gamma value:
     emaj = getparentedge(hybridnode)
     emaj.gamma = -1
-    e = getMinorParentEdge(hybridnode)
+    e = getparentedgeminor(hybridnode)
     e.gamma = -1
     return e.number
 end

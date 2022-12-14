@@ -28,8 +28,12 @@ Order   = [:type]
 tipLabels
 printEdges
 printNodes
-isparent
-ischild
+getroot
+isrootof
+isleaf
+isexternal
+isparentof
+ischildof
 hassinglechild
 getchild
 getchildren
@@ -38,6 +42,7 @@ getparent
 getparents
 getparentminor
 getparentedge
+getparentedgeminor
 getpartner
 getNodeAges
 pairwiseTaxonDistanceMatrix

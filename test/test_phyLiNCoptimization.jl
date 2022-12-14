@@ -35,7 +35,7 @@ e = PhyloNetworks.optimizelocalBL_LiNC!(obj, obj.net.edge[6],
 hybridmajorparent = PhyloNetworks.getparentedge(obj.net.hybrid[1])
 @test_nowarn PhyloNetworks.optimizelocalgammas_LiNC!(obj, hybridmajorparent, 1e-6, γcache)
 @test hybridmajorparent.gamma != 0.9
-@test PhyloNetworks.getMinorParentEdge(obj.net.hybrid[1]).gamma != 0.1
+@test PhyloNetworks.getparentedgeminor(obj.net.hybrid[1]).gamma != 0.1
 end
 
 @testset "optimize local BL & gammas, complex network and 8 sites" begin

@@ -25,7 +25,7 @@ netl1 = readTopology(str_level1)
 newhybridnode, newhybridedge = PhyloNetworks.addhybridedge!(netl1, false, true)
 @test !isnothing(newhybridnode)
 @test netl1.numHybrids == 3
-PhyloNetworks.deletehybridedge!(netl1, PhyloNetworks.getMinorParentEdge(newhybridnode))
+PhyloNetworks.deletehybridedge!(netl1, PhyloNetworks.getparentedgeminor(newhybridnode))
 @test hardwiredClusterDistance(netl1, readTopology(str_level1), true) == 0
 end # of addhybridedge! top function
 
@@ -36,7 +36,7 @@ netl1 = readTopology(str_level1)
 newhybridnode, newhybridedge = PhyloNetworks.addhybridedge!(netl1, netl1.edge[3], netl1.edge[9], true, 0.0, 0.2)
 @test newhybridnode.hybrid
 @test PhyloNetworks.getparentedge(newhybridnode).gamma == 0.8
-@test PhyloNetworks.getMinorParentEdge(newhybridnode).gamma == 0.2
+@test PhyloNetworks.getparentedgeminor(newhybridnode).gamma == 0.2
 netl1 = readTopology(str_level1);
 @test !isnothing(PhyloNetworks.addhybridedge!(netl1, netl1.edge[15], netl1.edge[3], true))
 @test writeTopology(netl1) == "(((((((S1,S4),(S5)#H1),(#H1,(S6,S7))),#H3))#H2,((S8,S9))#H3),(#H2,S10));"

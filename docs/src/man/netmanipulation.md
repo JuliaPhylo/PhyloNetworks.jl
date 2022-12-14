@@ -17,11 +17,13 @@ To traverse or learn something about a network, node or edge, see for example:
 - [`displayedTrees`](@ref), [`majorTree`](@ref),
   [`biconnectedComponents`](@ref), [`PhyloNetworks.blobInfo`](@ref)
 - [`hardwiredCluster`](@ref), [`hardwiredClusters`](@ref)
-- [`isparent`](@ref), [`ischild`](@ref), [`hassinglechild`](@ref),
-  [`getpartner`](@ref),
-  [`getchild`](@ref), [`getchildren`](@ref), [`getchildedge`](@ref)
+- [`getroot`](@ref), [`isrootof`](@ref),
+  [`isleaf`](@ref), [`isexternal`](@ref), [`isparentof`](@ref), [`ischildof`](@ref),
+  [`hassinglechild`](@ref),
+- [`getchild`](@ref), [`getchildren`](@ref), [`getchildedge`](@ref)
   [`getparent`](@ref), [`getparents`](@ref),
-  [`getparentminor`](@ref), [`getparentedge`](@ref)
+  [`getparentminor`](@ref), [`getparentedge`](@ref), [`getparentedgeminor`](@ref),
+  [`getpartner`](@ref)
 
 To modify a network, for example:
 - [`rootonedge!`](@ref), [`rootatnode!`](@ref):

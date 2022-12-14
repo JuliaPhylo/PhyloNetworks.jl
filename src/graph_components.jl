@@ -239,7 +239,7 @@ function blobInfo(net, ignoreTrivial=true::Bool;
         push!(bccMinor, bccmi)
     end
     # add the network root, if it was in a trivial bi-component (no hybrids)
-    rootnode = net.node[net.root]
+    rootnode = getroot(net)
     if !any(n -> n === rootnode, bccRoots)
         push!(bccRoots, rootnode)
         push!(bccMajor, Edge[])

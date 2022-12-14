@@ -984,7 +984,7 @@ Use `internallabel=false` to suppress the labels of internal nodes.
 """
 function writeSubTree!(s::IO, net::HybridNetwork, di::Bool, namelabel::Bool,
                        roundBL::Bool, digits::Integer, internallabel::Bool)
-    rootnode = net.node[net.root]
+    rootnode = getroot(net)
     if net.numNodes > 1
         print(s,"(")
         degree = length(rootnode.edge)

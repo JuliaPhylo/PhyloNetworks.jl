@@ -535,10 +535,10 @@ julia> writeTopology(net, round=true) # the root was kept
 ```
 """
 function removedegree2nodes!(net::HybridNetwork, keeproot=false::Bool)
-    rootnode = net.node[net.root]
+    rootnode = getroot(net)
     # caution: the root and its incident edges may change when degree-2 nodes
     #          are removed. Indices of nodes to be removed would change too.
-    rootin2cycle(nn) = nn ≡ net.node[net.root] && all(e.hybrid for e in nn.edge)
+    rootin2cycle(nn) = isrootof(nn,net) && all(e.hybrid for e in nn.edge)
     toberemoved(nn) = (keeproot ? length(nn.edge) == 2 && nn !== rootnode :
                                   length(nn.edge) == 2 && !rootin2cycle(nn))
     ndegree2nodes = sum(toberemoved.(net.node))
@@ -596,7 +596,7 @@ function addleaf!(net::HybridNetwork, speciesnode::Node, leafname::String, edgel
     exterioredge = Edge(maximum(e.number for e in net.edge) + 1, edgelength) # isChild1 = true by default in edge creation
     pushEdge!(net, exterioredge)
     setEdge!(speciesnode, exterioredge)
-    if speciesnode.hybrid || (speciesnode != net.node[net.root] && !getparentedge(speciesnode).containRoot)
+    if speciesnode.hybrid || (!isrootof(speciesnode, net) && !getparentedge(speciesnode).containRoot)
         exterioredge.containRoot = false
     end
     newleaf = Node(maximum(n.number for n in net.node) + 1, true, false, [exterioredge]) # Node(number, leaf, hybrid, edge array)

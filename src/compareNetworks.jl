@@ -42,7 +42,7 @@ function tree2Matrix(T::HybridNetwork, S::Union{Vector{String},Vector{Int}}; roo
     ie = [1] # index of next edge to be documented: row index in M
     for e in T.node[T.root].edge
         child = getOtherNode(e,T.node[T.root])
-        if (!child.leaf)
+        if !isleaf(child)
             traverseTree2Matrix!(T.node[T.root],e,ie,M,S)
         end
     end
@@ -249,7 +249,7 @@ function descendants!(des::Vector{Int}, visited::Vector{Int}, edge::Edge, intern
         push!(des, n.number)
     end
     for ce in n.edge
-        if isparent(n, ce)
+        if isparentof(n, ce)
             descendants!(des, visited, ce, internal)
         end
     end
@@ -285,7 +285,7 @@ function isdescendant!(visited::Vector{Int}, des::Node, e::Edge)
         push!(visited, n.number)
     end
     for ce in n.edge
-        if isparent(n, ce)
+        if isparentof(n, ce)
             if isdescendant!(visited, des, ce) return true; end
         end
     end
@@ -476,7 +476,7 @@ function deleteHybridThreshold!(net::HybridNetwork, gamma::Float64,
     for i = net.numHybrids:-1:1
     # starting from last because net.hybrid changes as hybrids are removed. Empty range if 0 hybrids.
         i > lastindex(net.hybrid) && continue # removing 1 hybrid could remove several, if non-tree child net
-        e = getMinorParentEdge(net.hybrid[i])
+        e = getparentedgeminor(net.hybrid[i])
         # remove minor edge e if γ < threshold OR threshold=0.5
         # warning: no check if γ and isMajor are in conflict
         if e.gamma < gamma || gamma == 0.5 # note: γ=-1 if missing, so < gamma threshold
@@ -509,7 +509,7 @@ function displayedNetworks!(net::HybridNetwork, node::Node,
     ind = findfirst(x -> x===node, net.node)
     ind !== nothing || error("node $(node.number) was not found in net")
     netmin = deepcopy(net)
-    emin = getMinorParentEdge(node)
+    emin = getparentedgeminor(node)
     deletehybridedge!(net   , emin, nofuse, unroot, multgammas, true, keeporiginalroot)
     emaj = getparentedge(netmin.node[ind]) # hybrid node & edge in netmin
     deletehybridedge!(netmin, emaj, nofuse, unroot, multgammas, true, keeporiginalroot)
@@ -666,7 +666,7 @@ function displayedNetworkAt!(net::HybridNetwork, node::Node,
     for i = net.numHybrids:-1:1
     # starting from last because net.hybrid changes as hybrids are removed. Empty range if 0 hybrids.
         net.hybrid[i] != node || continue
-        emin = getMinorParentEdge(net.hybrid[i])
+        emin = getparentedgeminor(net.hybrid[i])
         deletehybridedge!(net, emin, nofuse, unroot, multgammas)
     end
 end
