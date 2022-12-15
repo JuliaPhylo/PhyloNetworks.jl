@@ -230,7 +230,7 @@ function blobInfo(net, ignoreTrivial=true::Bool;
         for edge in bicomp
             if edge.hybrid && edge.isMajor
                 push!(bccMa, edge)
-                e = getpartner(edge)
+                e = getpartneredge(edge)
                 !e.isMajor || @warn "major edge $(edge.number) has a major partner: edge $(e.number)"
                 push!(bccmi, e)
             end

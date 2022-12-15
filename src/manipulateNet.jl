@@ -737,7 +737,7 @@ function preorder!(net::HybridNetwork)
                     push!(queue,other)
                     # print("queuing: "); @show other.number
                 else
-                    e2 = getpartner(e, other)
+                    e2 = getpartneredge(e, other)
                     parent = getparent(e2)
                     if net.visited[findfirst(x -> x===parent, net.node)]
                       push!(queue,other)
@@ -1020,7 +1020,7 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
         e1 = fuseedgesat!(i,net, multgammas) # fused edge
         if simplify && e1.hybrid # check for 2-cycle at new hybrid edge
             cn = getchild(e1)
-            e2 = getpartner(e1, cn) # companion hybrid edge
+            e2 = getpartneredge(e1, cn) # companion hybrid edge
             pn  = getparent(e1)
             if pn ≡ getparent(e2)
                 # e1 and e2 have same child and same parent. Remove e1.

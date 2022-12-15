@@ -395,7 +395,7 @@ function deletehybridedge!(net::HybridNetwork, edge::Edge,
         # below: we will need to delete n1 recursively (hence edge)
     else # n1 has 4+ edges (polytomy) or 3 edges but we want to keep it anyway:
         # keep n1 but detach it from 'edge', set its remaining parent to major tree edge
-        pe = getpartner(edge, n1) # partner edge: keep it this time
+        pe = getpartneredge(edge, n1) # partner edge: keep it this time
         if !pe.isMajor pe.isMajor=true; end
         pe.hybrid = false
         # note: pe.gamma *not* set to 1.0 here

@@ -320,23 +320,22 @@ end
 end
 
 """
-    getpartner(edge::Edge)
-    getpartner(edge::Edge, node::Node)
+    getpartneredge(edge::Edge)
+    getpartneredge(edge::Edge, node::Node)
 
-Return hybrid partner of edge, that is, hybrid edge pointing to the same
-child as `edge`. Assumptions (not checked):
+Edge that is the hybrid partner of `edge`, meaning that is has the same child
+`node` as `edge`. This child `node` is given as an argument in the second version.
+Assumptions, not checked:
 
-- correct `isChild1` field for `edge` and for hybrid edges
 - no in-coming polytomy: a node has 0, 1 or 2 parents, no more
-
-When `node` is given, it is assumed to be the child of `edge`
-(the first form calls the second).
+- when `node` is given, it is assumed to be the child of `edge`
+  (the first method calls the second).
 """
-@inline function getpartner(edge)
+@inline function getpartneredge(edge)
     node = getchild(edge)
-    getpartner(edge, node)
+    getpartneredge(edge, node)
 end
-@inline function getpartner(edge::Edge, node::Node)
+@inline function getpartneredge(edge::Edge, node::Node)
     for e in node.edge
         if e.hybrid && e !== edge && node === getchild(e)
             return e

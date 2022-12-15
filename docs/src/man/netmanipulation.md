@@ -23,7 +23,7 @@ To traverse or learn something about a network, node or edge, see for example:
 - [`getchild`](@ref), [`getchildren`](@ref), [`getchildedge`](@ref)
   [`getparent`](@ref), [`getparents`](@ref),
   [`getparentminor`](@ref), [`getparentedge`](@ref), [`getparentedgeminor`](@ref),
-  [`getpartner`](@ref)
+  [`getpartneredge`](@ref)
 
 To modify a network, for example:
 - [`rootonedge!`](@ref), [`rootatnode!`](@ref):

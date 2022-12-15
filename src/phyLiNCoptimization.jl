@@ -1659,7 +1659,7 @@ function optimizelocalgammas_LiNC!(obj::SSM, edge::Edge,
     for i in length(neighborhybs):-1:1
         e = neighborhybs[i]
         e.isMajor || continue # skip below for minor edges
-        p = getpartner(e)     # minor partner
+        p = getpartneredge(e) # minor partner
         j = findfirst(x -> x===p, neighborhybs)
         if isnothing(j)
             neighborhybs[i] = p # replace major e by its minor partner
@@ -1711,7 +1711,7 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
         ftolAbs::Float64, cache::CacheGammaLiNC, maxNR=10::Int)
     ## step 1: prepare vectors constant during the search
     edgenum = focusedge.number
-    partner = getpartner(focusedge)
+    partner = getpartneredge(focusedge)
     partnernum = partner.number
     clike = cache.clike # conditional likelihood under focus edge
     clikp = cache.clikp # conditional likelihood under partner edge

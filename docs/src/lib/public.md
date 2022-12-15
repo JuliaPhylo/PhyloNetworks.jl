@@ -43,7 +43,7 @@ getparents
 getparentminor
 getparentedge
 getparentedgeminor
-getpartner
+getpartneredge
 getNodeAges
 pairwiseTaxonDistanceMatrix
 ```

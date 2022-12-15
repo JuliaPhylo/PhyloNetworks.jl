@@ -72,8 +72,7 @@ module PhyloNetworks
         topologyMaxQPseudolik!,
         topologyQPseudolik!,
         ## getters
-        # fixit: add isroot, getpartneredge
-        # ancestors sibling offspring
+        # fixit: add ancestors? getsibling? getdescendants (currently descendants)?
         getroot,
         isrootof,
         isleaf,
@@ -89,7 +88,7 @@ module PhyloNetworks
         getparentminor,
         getparentedge,
         getparentedgeminor,
-        getpartner,
+        getpartneredge,
         ## Network Manipulation
         rootatnode!,
         rootonedge!,
