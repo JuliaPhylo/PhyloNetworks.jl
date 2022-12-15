@@ -148,7 +148,7 @@ which must in the same cycle. `net` is assumed to be of level 1,
 but **no checks** are made and fields are supposed up-to-date.
 
 Called by `hybridatnode!(net, node number)`, which is itself
-called by [`undirectedOtherNetworks`](@ref).
+called by [`undirectedOtherNetworks`](@ref PhyloNetworks.undirectedOtherNetworks).
 """
 function hybridatnode!(net::HybridNetwork, hybrid::Node, newNode::Node)
     hybrid.hybrid || error("node $(hybrid.number) should be hybrid, but it is not")
@@ -383,7 +383,7 @@ julia> length(net.node)
 19
 
 julia> net.edge[4] # edge 4 goes from node -8 to 3
-PhyloNetworks.Edge:
+PhyloNetworks.EdgeT{PhyloNetworks.Node}:
  number:4
  length:-1.0
  attached to 2 node(s) (parent first): -8 3
@@ -395,14 +395,14 @@ julia> length(net.node) # one more than before
 20
 
 julia> newedge # new edge 21 goes from node -8 and 11 (new)
-PhyloNetworks.Edge:
+PhyloNetworks.EdgeT{PhyloNetworks.Node}:
  number:21
  length:-1.0
  attached to 2 node(s) (parent first): -8 11
 
 
 julia> net.edge[4] # original edge 4 now goes from node 11 (new) to 3
-PhyloNetworks.Edge:
+PhyloNetworks.EdgeT{PhyloNetworks.Node}:
  number:4
  length:-1.0
  attached to 2 node(s) (parent first): 11 3
@@ -1283,7 +1283,7 @@ end
 """
     unzipat_canonical!(hyb::Node, childedge::Edge)
 
-Unzip the reticulation a node `hyb`. See [`unzip_canonical!`](ref).
+Unzip the reticulation a node `hyb`. See [`unzip_canonical!`](@ref PhyloNetworks.unzip_canonical!).
 Warning: no check that `hyb` has a single child.
 
 Output: constrained edge (child of `hyb`) and its original length.

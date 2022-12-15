@@ -763,7 +763,7 @@ S1,S1A
 S1,S1B
 S1,S1C
 
-julia> individual_net, species_constraints = mapindividuals(species_net, filename);
+julia> individual_net, species_constraints = PhyloNetworks.mapindividuals(species_net, filename);
 
 julia> writeTopology(individual_net, internallabel=true)
 "(((S8,S9),(((((S1A,S1B,S1C)S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"

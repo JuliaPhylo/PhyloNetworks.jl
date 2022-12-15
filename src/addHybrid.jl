@@ -48,7 +48,7 @@ julia> PhyloNetworks.addhybridedge!(net, true, true)
  name:H3
  hybrid node
  attached to 3 edges, numbered: 5 16 17
-, PhyloNetworks.Edge:
+, PhyloNetworks.EdgeT{PhyloNetworks.Node}:
  number:17
  length:0.01
  minor hybrid edge with gamma=0.32771460911632916
@@ -151,7 +151,7 @@ julia> hybnode, hybedge = PhyloNetworks.addhybridedge!(net, net.edge[13], net.ed
  name:H3
  hybrid node
  attached to 3 edges, numbered: 8 16 17
-, PhyloNetworks.Edge:
+, PhyloNetworks.EdgeT{PhyloNetworks.Node}:
  number:17
  length:0.0
  minor hybrid edge with gamma=0.2
