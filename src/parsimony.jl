@@ -1003,7 +1003,7 @@ All return their optimized network. Only maxParsimonyNet returns a rooted networ
   to modify the topology according to random NNI/move origin/move target moves. It then calls maxParsimonyNetRun1!
   on the modified network
 - maxParsimonyNetRun1! proposes new network with various moves (same moves as snaq), and stops when it finds the
-  most parsimonious network, using [`parsimonyGF`](@ref).
+  most parsimonious network, using [`parsimonyGF`](@ref PhyloNetworks.parsimonyGF).
 
 None of these functions allow for multiple alleles yet.
 

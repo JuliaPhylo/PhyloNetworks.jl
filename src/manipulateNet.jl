@@ -148,7 +148,7 @@ which must in the same cycle. `net` is assumed to be of level 1,
 but **no checks** are made and fields are supposed up-to-date.
 
 Called by `hybridatnode!(net, node number)`, which is itself
-called by [`undirectedOtherNetworks`](@ref PhyloNetworks.undirectedOtherNetworks).
+called by [`undirectedOtherNetworks`](@ref).
 """
 function hybridatnode!(net::HybridNetwork, hybrid::Node, newNode::Node)
     hybrid.hybrid || error("node $(hybrid.number) should be hybrid, but it is not")

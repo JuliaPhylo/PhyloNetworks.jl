@@ -153,6 +153,8 @@ end
 Node used to root `net`. If `net` is to be considered as semi-directed or
 unrooted, this root node is used to write the networks' Newick parenthetical
 description or for network traversals.
+
+See also: [`isrootof`](@ref)
 """
 getroot(net::HybridNetwork) = net.node[net.root]
 
@@ -161,21 +163,21 @@ getroot(net::HybridNetwork) = net.node[net.root]
 
 `true` if `node` is the root of `net` (or used as such for network traversals
 in case the network is considered as semi-directed); `false` otherwise.
+
+    isleaf(node)
+    isexternal(edge)
+
+`true` if `node` is a leaf or `edge` is adjacent to a leaf, `false` otherwise.
+
+See also: [`getroot`](@ref),
+[`getparent`](@ref), [`getchild`](@ref)
 """
 isrootof(node::Node, net::HybridNetwork) = node === getroot(net)
 
-"""
-    isleaf(node)
-
-`true` if `node` is a leaf, `false` otherwise.
-"""
+@doc (@doc isrootof) isleaf
 isleaf(node::Node) = node.leaf
 
-"""
-    isexternal(edge)
-
-`true` if `edge` is adjacent to a leaf, `false` otherwise.
-"""
+@doc (@doc isrootof) isexternal
 isexternal(edge::Edge) = any(isleaf.(edge.node))
 
 """
@@ -185,6 +187,8 @@ isexternal(edge::Edge) = any(isleaf.(edge.node))
 `true` if `node` is the tail / head, or parent / child, of `edge`; `false` otherwise.
 Assumes that the edge's direction is correct, meaning it's field `isChild1` is
 reliable (in sync with the rooting).
+
+See also: [`getparent`](@ref), [`getchild`](@ref), [`isrootof`](@ref)
 """
 isparentof(node::Node, edge::Edge) = node === getparent(edge)
 @doc (@doc isparentof) ischildof
@@ -193,30 +197,40 @@ ischildof( node::Node, edge::Edge) = node === getchild(edge)
 """
     hassinglechild(node)
 
-`true` if `node` has a single child, based on the edges `isChild1` field;
+`true` if `node` has a single child, based on the edges' `isChild1` field;
 `false` otherwise.
+
+See also: [`getchild`](@ref), [`getparent`](@ref)
 """
 hassinglechild(node::Node) = sum(e -> getparent(e) === node, node.edge) == 1
 
 """
     getchild(edge)
     getchild(node)
+    getchildren(node)
 
-Child node of `edge`; or
-single child node of `node` after checking that `node` has a single child.
-Relies on the edges direction (from their `isChild1` field).
+Get child(ren) **node(s)**.
+- `getchild`: single child node of `edge`, or of `node` after checking that
+  `node` has a single child.
+- `getchildren`: vector of all children *nodes* of `node`.
+
+
+    getchildedge(node)
+
+Single child **edge** of `node`. Checks that it's a single child.
+
+*Warning*: these functions rely on correct edge direction, via their `isChild1` field.
+
+See also:
+[`getparent`](@ref),
+[`getpartneredge`](@ref),
+[`isparentof`](@ref),
+[`hassinglechild`](@ref).
 """
 getchild(edge::Edge) = edge.node[edge.isChild1 ? 1 : 2]
 getchild(node::Node) = getchild(getchildedge(node))
 
-"""
-    getchildren(node)
-
-Vector of all children *nodes* of `node`.
-**warning**: assume `isChild1` field (for edges) are correct
-
-To get all parent *nodes*: see [`getparents`](@ref PhyloNetworks.getparents).
-"""
+@doc (@doc getchild) getchildren
 function getchildren(node::Node)
     children = Node[]
     for e in node.edge
@@ -227,11 +241,7 @@ function getchildren(node::Node)
     return children
 end
 
-"""
-    getchildedge(node)
-
-Single child edge of `node`. Checks that it's a single child.
-"""
+@doc (@doc getchild) getchildedge
 function getchildedge(node::Node)
     ce_ind = findall(e -> isparentof(node, e), node.edge)
     length(ce_ind) == 1 || error("node number $(node.number) has $(length(ce_ind)) children instead of 1 child")
@@ -241,11 +251,29 @@ end
 """
     getparent(edge)
     getparent(node)
+    getparentminor(node)
+    getparents(node)
 
-Parent node of `edge`, or **major** parent node of `node`.
-Warning: usies the `isChild1` attribute of edges.
+Get parental **node(s)**.
+- `getparent`: **major** (or only) parent node of `edge` or `node`
+- `getparentminor`: minor parent node of `node`
+- `getparents`: vector of all parent nodes of `node`.
 
-See also: [`getparents`](@ref) [`getparentminor`](@ref).
+
+    getparentedge(node)
+    getparentedgeminor(node)
+
+Get one parental **edge** of a `node`.
+- `getparentedge`: major parent edge. For a tree node, it's its only parent edge.
+- `getparentedgeminor`: minor parent edge, if `node` is hybrid
+  (with an error if `node` has no minor parent).
+If `node` has multiple major (resp. minor) parent edges, the first one would be
+returned without any warning or error.
+
+*Warning*: these functions use the field `isChild1` of edges.
+
+See also: [`getchild`](@ref),
+[`getpartneredge`](@ref).
 """
 getparent(edge::Edge) = edge.node[edge.isChild1 ? 2 : 1]
 @inline function getparent(node::Node)
@@ -257,13 +285,7 @@ getparent(edge::Edge) = edge.node[edge.isChild1 ? 2 : 1]
     error("could not find major parent of node $(node.number)")
 end
 
-"""
-    getparentminor(node)
-
-Minor parent node of `node` using the `isChild1` field of edges
-(and assuming correct `isMajor` field).
-See also [`getparentedge`](@ref) and [`getparentedgeminor`](@ref).
-"""
+@doc (@doc getparent) getparentminor
 @inline function getparentminor(node::Node)
     for e in node.edge
         if !e.isMajor && node == getchild(e)
@@ -273,15 +295,7 @@ See also [`getparentedge`](@ref) and [`getparentedgeminor`](@ref).
     error("could not find minor parent of node $(node.number)")
 end
 
-"""
-    getparents(node)
-
-Vector of all parent nodes of `node`, based on `isChild1` field (for edges).
-
-See also: [`getparent`](@ref) to get the (major) parent node,
-[`getparentedge`](@ref) for the (major) parent edge and
-[`getparentedgeminor`](@ref).
-"""
+@doc (@doc getparent) getparents
 @inline function getparents(node::Node)
     parents = Node[]
     for e in node.edge
@@ -292,15 +306,7 @@ See also: [`getparent`](@ref) to get the (major) parent node,
     return parents
 end
 
-"""
-    getparentedge(node)
-    getparentedgeminor(node)
-
-return the parent edge of `node`: the major / minor if hybrid.
-**warning**: assume isChild1 and isMajor attributes are correct
-
-To get all parent *nodes*: see [`getparents`](@ref).
-"""
+@doc (@doc getparent) getparentedge
 @inline function getparentedge(n::Node)
     for ee in n.edge
         if ee.isMajor && ischildof(n,ee)
@@ -309,7 +315,7 @@ To get all parent *nodes*: see [`getparents`](@ref).
     end
     error("node $(n.number) has no major parent")
 end
-@doc (@doc getparentedge) getparentedgeminor
+@doc (@doc getparent) getparentedgeminor
 @inline function getparentedgeminor(n::Node)
     for ee in n.edge
         if !ee.isMajor && n == ee.node[(ee.isChild1 ? 1 : 2)]
@@ -324,12 +330,14 @@ end
     getpartneredge(edge::Edge, node::Node)
 
 Edge that is the hybrid partner of `edge`, meaning that is has the same child
-`node` as `edge`. This child `node` is given as an argument in the second version.
+`node` as `edge`. This child `node` is given as an argument in the second method.
 Assumptions, not checked:
 
 - no in-coming polytomy: a node has 0, 1 or 2 parents, no more
 - when `node` is given, it is assumed to be the child of `edge`
   (the first method calls the second).
+
+See also: [`getparent`](@ref), [`getchild`](@ref)
 """
 @inline function getpartneredge(edge)
     node = getchild(edge)

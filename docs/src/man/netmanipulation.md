@@ -18,11 +18,15 @@ To traverse or learn something about a network, node or edge, see for example:
   [`biconnectedComponents`](@ref), [`PhyloNetworks.blobInfo`](@ref)
 - [`hardwiredCluster`](@ref), [`hardwiredClusters`](@ref)
 - [`getroot`](@ref), [`isrootof`](@ref),
-  [`isleaf`](@ref), [`isexternal`](@ref), [`isparentof`](@ref), [`ischildof`](@ref),
+  [`isleaf`](@ref PhyloNetworks.isrootof), [`isexternal`](@ref PhyloNetworks.isrootof),
+  [`isparentof`](@ref), [`ischildof`](@ref PhyloNetworks.isparentof),
   [`hassinglechild`](@ref),
-- [`getchild`](@ref), [`getchildren`](@ref), [`getchildedge`](@ref)
-  [`getparent`](@ref), [`getparents`](@ref),
-  [`getparentminor`](@ref), [`getparentedge`](@ref), [`getparentedgeminor`](@ref),
+- [`getchild`](@ref), [`getchildren`](@ref PhyloNetworks.getchild),
+  [`getchildedge`](@ref PhyloNetworks.getchild)
+  [`getparent`](@ref), [`getparents`](@ref PhyloNetworks.getparent),
+  [`getparentminor`](@ref PhyloNetworks.getparent),
+  [`getparentedge`](@ref PhyloNetworks.getparent),
+  [`getparentedgeminor`](@ref PhyloNetworks.getparent),
   [`getpartneredge`](@ref)
 
 To modify a network, for example:
