@@ -1771,17 +1771,21 @@ end
 """
     getGammas(net)
 
-Get inheritance γ's of major hybrid edges. Assume pre-order calculated already
-(with up-to-date field `nodes_changed`). See [`setGammas!`](@ref)
+Vector of inheritance γ's of all major edges (tree edges and major hybrid edges),
+ordered according to the pre-order index of their child node,
+assuming this pre-order is already calculated
+(with up-to-date field `nodes_changed`).
+Here, a "major" edge is an edge with field `isMajor` set to true,
+regardless of its actual γ (below, at or above 0.5).
+
+See [`setGammas!`](@ref)
 """
 function getGammas(net::HybridNetwork)
-    isHybrid = [n.hybrid for n in net.nodes_changed]
-    gammas = ones(size(isHybrid))
-    for i in 1:size(isHybrid, 1)
-        if isHybrid[i]
-            majorHybrid = [n.hybrid & n.isMajor for n in net.nodes_changed[i].edge]
-            gammas[i] = net.nodes_changed[i].edge[majorHybrid][1].gamma
-        end
+    gammas = ones(length(net.nodes_changed))
+    for (i,node) in enumerate(net.nodes_changed)
+        node.hybrid || continue # skip tree nodes: their gamma is already set to 1
+        majorhybedge = getparentedge(node) # major
+        gammas[i] = majorhybedge.gamma
     end
     return gammas
 end
@@ -1793,31 +1797,20 @@ Set inheritance γ's of hybrid edges, using input vector for *major* edges.
 Assume pre-order calculated already, with up-to-date field `nodes_changed`.
 See [`getGammas`](@ref).
 
-Very different from [`setGamma!`](@ref), which focuses on a single hybrid event,
+**Warning**: very different from [`setGamma!`](@ref), which focuses on a
+single hybrid event,
 updates the field `isMajor` according to the new γ, and is not used here.
 
-May assume a tree-child network.
+**Assumption**: each hybrid node has only 2 parents, a major and a minor parent
+(according to the edges' field `isMajor`).
 """
 function setGammas!(net::HybridNetwork, gammas::Vector)
-    isHybrid = [n.hybrid for n in net.nodes_changed]
-    for i in 1:size(isHybrid, 1)
-        if isHybrid[i]
-            nod = net.nodes_changed[i]
-            majorHybrid = [edg.hybrid &  edg.isMajor for edg in nod.edge]
-            #= worry: assume tree-child network? getMajorParent and getMinorParent would be safer
-             fixit fixit fixit!
-            use getparentedge(nod) and getparentedgeminor instead;
-            change & to && . ex: check impact on [isodd(x) & x<3 for x in [4,3,2,1]]
-            don't do if/else below: !any is different from !all. Or if unsyncing major & minor is intentional: then document it.
-            =#
-            minorHybrid = [edg.hybrid & !edg.isMajor for edg in nod.edge]
-            nod.edge[majorHybrid][1].gamma = gammas[i]
-            if any(minorHybrid) # case where gamma = 0.5 exactly
-                nod.edge[minorHybrid][1].gamma = 1 - gammas[i]
-            else
-                nod.edge[majorHybrid][2].gamma = 1 - gammas[i]
-            end
-        end
+    for (i,nod) in enumerate(net.nodes_changed)
+        nod.hybrid || continue # skip tree nodes: nothing to do
+        majorhyb = getparentedge(nod) # major
+        minorhyb = getparentedgeminor(nod) # error if doesn't exit
+        majorhyb.gamma = gammas[i]
+        minorhyb.gamma = 1 - gammas[i]
     end
     return nothing
 end
