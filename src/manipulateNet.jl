@@ -95,11 +95,14 @@ end
 
 """
     hybridatnode!(net::HybridNetwork, nodeNumber::Integer)
+    hybridatnode(net, nodeNumber)
 
 Change the status of edges in network `net`,
 to move the hybrid node in a cycle to the node with number `nodeNumber`.
 This node must be in one (and only one) cycle, otherwise an error will be thrown.
 
+The second method does not modify `net`, checks that it's of level 1, and
+returns the new network after hybrid modification.
 
 `net` is assumed to be of level 1, that is, each blob has a
 single cycle with a single reticulation.
@@ -175,11 +178,10 @@ function hybridatnode!(net::HybridNetwork, hybrid::Node, newNode::Node)
     end
 end
 
-# function to change the hybrid node in a cycle
-# does not assume that the network was read with readTopologyUpdate
-# does not modify net0 because it needs to update all attributes
-# so, it returns the new network
 # Not used anywhere, but tested
+# does not call hybridatnode! but repeats its code: oops! violates DRY principle
+# nodeNumber should correspond to the number assigned by readTopologyLevel1,
+# and the node numbers in `net` are irrelevant.
 @doc (@doc hybridatnode!) hybridatnode
 function hybridatnode(net0::HybridNetwork, nodeNumber::Integer)
     net = readTopologyLevel1(writeTopologyLevel1(net0)) # we need inCycle attributes
@@ -411,6 +413,8 @@ PhyloNetworks.EdgeT{PhyloNetworks.Node}:
 julia> writeTopology(net) # note extra pair of parentheses around S1
 "(((S8,S9),((((S4,(S1)),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 ```
+
+See also: [`fuseedgesat!`](@ref)
 """
 function breakedge!(edge::Edge, net::HybridNetwork)
     pn = getparent(edge) # parent node
@@ -447,7 +451,7 @@ The parent and child edges of this node are fused.
 If either of the edges is hybrid, the hybrid edge is retained. Otherwise, the
 edge with the lower edge number is retained.
 
-Reverts the action of breakedge!.
+Reverts the action of [`breakedge!`](@ref).
 
 returns the fused edge.
 """
