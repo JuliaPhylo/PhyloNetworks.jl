@@ -6,13 +6,15 @@
 Abstract node. An object of type [`EdgeT`](@ref) has a `node` attribute,
 which is an vector of 2 objects of some subtype of `ANode`.
 The concrete type [`Node`](@ref) is a subtype of `ANode`,
-and has an `edge` attribute, which is vector of [`Edge`](@ref) objects
+and has an `edge` attribute, which is vector of [`Edge`](@ref PhyloNetworks.EdgeT) objects
 (where Edge is an alias for EdgeT{Node}).
 """
 abstract type ANode end
 
 """
-    Edge(number)
+    EdgeT{node type}
+    Edge = EdgeT{Node}
+    Edge(number, length=1.0)
 
 Data structure for an edge and its various attributes. Most notably:
 - `number` (integer): serves as unique identifier;
@@ -88,7 +90,7 @@ Data structure for a node and its various attributes. Most notably:
 - `leaf` (boolean): whether the node is a leaf (with data typically) or an
   internal node (no data typically)
 - `name` (string): taxon name for leaves; internal node may or may not have a name
-- `edge`: vector of [`Edge`](@ref)s that the node is attached to;
+- `edge`: vector of [`Edge`](@ref PhyloNetworks.EdgeT)s that the node is attached to;
   1 if the node is a leaf, 2 if the node is the root, 3 otherwise, and
   potentially more if the node has a polytomy
 - `hybrid` (boolean): whether the node is a hybrid node (with 2 or more parents)

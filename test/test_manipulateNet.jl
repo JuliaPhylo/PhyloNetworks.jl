@@ -37,22 +37,31 @@ node leaf  hybrid hasHybEdge name       inCycle edges'numbers
 10   false false  true       S4         -1      3    11  
 """
 close(s);
-@test_throws ErrorException PhyloNetworks.getMinorParent(net.node[1])
-@test PhyloNetworks.getMajorParent(net.node[1]).number == 2
-@test PhyloNetworks.getMinorParent(net.node[3]).number == 6
-@test PhyloNetworks.getMajorParent(net.node[3]).number == 10
-@test PhyloNetworks.getMajorParentEdge(net.node[6]).number == 7
-@test_throws ErrorException PhyloNetworks.getMinorParentEdge(net.node[6])
-@test PhyloNetworks.getMajorParentEdge(net.node[2]).number == 2
-@test PhyloNetworks.getMinorParentEdge(net.node[2]).number == 8
-@test [n.number for n in PhyloNetworks.getChildren(net.node[4])] == [] # leaf
-@test [n.number for n in PhyloNetworks.getChildren(net.node[2])] == [1] # hybrid node
-@test [n.number for n in PhyloNetworks.getChildren(net.node[9])] == [6,8] # tree node
-@test [n.number for n in PhyloNetworks.getChildren(net.node[10])] == [3,9] # at root
-@test [n.number for n in PhyloNetworks.getChildren(net.node[6])] == [4,5,3] # polytomy
-@test PhyloNetworks.getParent(net.edge[8]).number == 8
-@test [n.number for n in PhyloNetworks.getParents(net.node[3])] == [10, 6]
-@test [n.number for n in PhyloNetworks.getParents(net.node[6])] == [9]
+originalstdout = stdout
+redirect_stdout(devnull)
+printEdges(net) # method without io argument
+printNodes(net)
+redirect_stdout(originalstdout)
+
+@test_throws ErrorException getparent(net.node[net.root])
+@test_throws ErrorException getparentedge(net.node[net.root])
+@test_throws ErrorException getparentedgeminor(net.node[net.root])
+@test_throws ErrorException getparentminor(net.node[1])
+@test getparent(net.node[1]).number == 2
+@test getparentminor(net.node[3]).number == 6
+@test getparent(net.node[3]).number == 10
+@test getparentedge(net.node[6]).number == 7
+@test_throws ErrorException getparentedgeminor(net.node[6])
+@test getparentedge(net.node[2]).number == 2
+@test getparentedgeminor(net.node[2]).number == 8
+@test [n.number for n in getchildren(net.node[4])] == [] # leaf
+@test [n.number for n in getchildren(net.node[2])] == [1] # hybrid node
+@test [n.number for n in getchildren(net.node[9])] == [6,8] # tree node
+@test [n.number for n in getchildren(net.node[10])] == [3,9] # at root
+@test [n.number for n in getchildren(net.node[6])] == [4,5,3] # polytomy
+@test getparent(net.edge[8]).number == 8
+@test [n.number for n in getparents(net.node[3])] == [10, 6]
+@test [n.number for n in getparents(net.node[6])] == [9]
 @test_throws ErrorException deleteleaf!(net, net.node[9])
 n = deepcopy(net)
 @test_logs deleteleaf!(n, n.node[7])

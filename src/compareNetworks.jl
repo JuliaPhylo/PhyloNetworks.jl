@@ -42,7 +42,7 @@ function tree2Matrix(T::HybridNetwork, S::Union{Vector{String},Vector{Int}}; roo
     ie = [1] # index of next edge to be documented: row index in M
     for e in T.node[T.root].edge
         child = getOtherNode(e,T.node[T.root])
-        if (!child.leaf)
+        if !isleaf(child)
             traverseTree2Matrix!(T.node[T.root],e,ie,M,S)
         end
     end
@@ -55,12 +55,16 @@ function tree2Matrix(T::HybridNetwork, S::Union{Vector{String},Vector{Int}}; roo
 end
 
 """
-`hardwiredClusters(net::HybridNetwork, S::Union{AbstractVector{String},AbstractVector{Int}})`
+    hardwiredClusters(net::HybridNetwork, taxon_labels)
 
 
-Returns a matrix describing all the hardwired clusters in a network.
-Warnings: Clusters are rooted, so the root must be correct.
-          Allows for missing taxa, with entries all 0.
+Returns a matrix describing all the hardwired clusters in a network, with
+taxa listed in same order as in `taxon_labels` to describe their membership
+in each cluster. Allows for missing taxa, with entries all 0.
+
+Warnings:
+- clusters are rooted, so the root must be correct.
+- each hybrid node is assumed to have exactly 2 parents (no more).
 
 Each row corresponds to one internal edge, that is, external edges are excluded.
 If the root is a leaf node, the external edge to that leaf is included (first row).
@@ -69,6 +73,8 @@ Both parent hybrid edges to a given hybrid node only contribute a single row (th
 - first column: edge number
 - next columns: 0/1. 1=descendant of edge, 0=not a descendant, or missing taxon.
 - last column:  10/11 values. 10=tree edge, 11=hybrid edge
+
+See also [`hardwiredClusterDistance`](@ref) and [`hardwiredCluster`](@ref).
 """
 function hardwiredClusters(net::HybridNetwork, S::Union{AbstractVector{String},AbstractVector{Int}})
     ne = length(net.edge)-net.numTaxa # number of internal branch lengths
@@ -168,6 +174,8 @@ julia> hardwiredCluster(net5.edge[12], taxa) # descendants of 12th edge = CEF
  1
  0
 ```
+
+See also [`hardwiredClusterDistance`](@ref) and [`hardwiredClusters`](@ref)
 """
 function hardwiredCluster(edge::Edge,taxa::Union{AbstractVector{String},AbstractVector{Int}})
     v = zeros(Bool,length(taxa))
@@ -180,7 +188,7 @@ hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{AbstractVector{String},
 
 function hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{AbstractVector{String},AbstractVector{Int}},
                            visited::Vector{Int})
-    n = getChild(edge)
+    n = getchild(edge)
     if n.leaf
         j = findall(isequal(n.name), taxa)
         length(j)==1 || error("taxon $(n.name) was not found in taxon list, or more than once")
@@ -192,7 +200,7 @@ function hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{AbstractVector
     end
     push!(visited, n.number)
     for ce in n.edge
-        if n === getParent(ce)
+        if n === getparent(ce)
             hardwiredCluster!(v,ce,taxa,visited)
         end
     end
@@ -240,7 +248,7 @@ function descendants(edge::Edge, internal::Bool=false)
 end
 
 function descendants!(des::Vector{Int}, visited::Vector{Int}, edge::Edge, internal::Bool=false)
-    n = getChild(edge)
+    n = getchild(edge)
     if n.hybrid # only need to check previous visits for hybrid nodes
         n.number in visited && return nothing
         push!(visited, n.number)
@@ -249,7 +257,7 @@ function descendants!(des::Vector{Int}, visited::Vector{Int}, edge::Edge, intern
         push!(des, n.number)
     end
     for ce in n.edge
-        if n == getParent(ce)
+        if isparentof(n, ce)
             descendants!(des, visited, ce, internal)
         end
     end
@@ -266,7 +274,7 @@ for a version that does not use `isChild1`.
 function isdescendant(des::Node, anc::Node)
     visited = Int[]
     for e in anc.edge
-        anc !== getChild(e) || continue # skip parents of anc
+        anc !== getchild(e) || continue # skip parents of anc
         if isdescendant!(visited, des, e)
             return true
         end
@@ -274,7 +282,7 @@ function isdescendant(des::Node, anc::Node)
     return false
 end
 function isdescendant!(visited::Vector{Int}, des::Node, e::Edge)
-    n = getChild(e)
+    n = getchild(e)
     if n == des
         return true
     end
@@ -285,7 +293,7 @@ function isdescendant!(visited::Vector{Int}, des::Node, e::Edge)
         push!(visited, n.number)
     end
     for ce in n.edge
-        if n == getParent(ce)
+        if isparentof(n, ce)
             if isdescendant!(visited, des, ce) return true; end
         end
     end
@@ -314,7 +322,7 @@ end
 function isdescendant_undirected!(visited::Vector{Int}, des::Node, anc::Node, parentedge::Edge)
     for e in anc.edge
         e !== parentedge || continue # do not go back up where we came from
-        !e.hybrid || getParent(e) === anc || continue # do not go back up a parent hybrid edge of anc
+        !e.hybrid || getparent(e) === anc || continue # do not go back up a parent hybrid edge of anc
         n = getOtherNode(e, anc)
         if n === des
             return true
@@ -422,7 +430,7 @@ function ladderpartition(net::HybridNetwork)
         end
         below[nn.number]  = Vector{Vector{Int}}(undef,0) # initialize
         !nn.hybrid || error("ladder partitions not implemented for non-tree networks")
-        children = [getChild(e) for e in nn.edge]
+        children = [getchild(e) for e in nn.edge]
         filter!(n -> n!=nn, children)
         for cc in children
             allbelowc = union(below[cc.number]...)
@@ -437,7 +445,7 @@ function ladderpartition(net::HybridNetwork)
     #         add those above = any above n's parent, using pre-order this time.
     for nni in 2:nnodes # avoid 1: it's the root, no parent, nothing to update
         nn = net.nodes_changed[nni]
-        pn = getMajorParent(nn).number # parent number
+        pn = getparent(nn).number # major parent number
         for clade in above[pn]  push!(above[nn.number], clade); end
     end
     return below,above
@@ -476,7 +484,7 @@ function deleteHybridThreshold!(net::HybridNetwork, gamma::Float64,
     for i = net.numHybrids:-1:1
     # starting from last because net.hybrid changes as hybrids are removed. Empty range if 0 hybrids.
         i > lastindex(net.hybrid) && continue # removing 1 hybrid could remove several, if non-tree child net
-        e = getMinorParentEdge(net.hybrid[i])
+        e = getparentedgeminor(net.hybrid[i])
         # remove minor edge e if γ < threshold OR threshold=0.5
         # warning: no check if γ and isMajor are in conflict
         if e.gamma < gamma || gamma == 0.5 # note: γ=-1 if missing, so < gamma threshold
@@ -509,9 +517,9 @@ function displayedNetworks!(net::HybridNetwork, node::Node,
     ind = findfirst(x -> x===node, net.node)
     ind !== nothing || error("node $(node.number) was not found in net")
     netmin = deepcopy(net)
-    emin = getMinorParentEdge(node)
+    emin = getparentedgeminor(node)
     deletehybridedge!(net   , emin, nofuse, unroot, multgammas, true, keeporiginalroot)
-    emaj = getMajorParentEdge(netmin.node[ind]) # hybrid node & edge in netmin
+    emaj = getparentedge(netmin.node[ind]) # hybrid node & edge in netmin
     deletehybridedge!(netmin, emaj, nofuse, unroot, multgammas, true, keeporiginalroot)
     return netmin
 end
@@ -644,7 +652,7 @@ function minorTreeAt(net::HybridNetwork, hybindex::Integer,
             nofuse=false::Bool, unroot=false::Bool)
     hybindex <= length(net.hybrid) || error("network has fewer hybrid nodes than index $(hybindex).")
     tree = deepcopy(net)
-    hybedge = getMajorParentEdge(tree.hybrid[hybindex])
+    hybedge = getparentedge(tree.hybrid[hybindex])   # major parent
     deletehybridedge!(tree, hybedge, nofuse, unroot) # delete major hybrid edge at reticulation of interest
     return majorTree(tree; nofuse=nofuse, unroot=unroot) # all remaining minor edges removed: now it's a tree.
 end
@@ -666,7 +674,7 @@ function displayedNetworkAt!(net::HybridNetwork, node::Node,
     for i = net.numHybrids:-1:1
     # starting from last because net.hybrid changes as hybrids are removed. Empty range if 0 hybrids.
         net.hybrid[i] != node || continue
-        emin = getMinorParentEdge(net.hybrid[i])
+        emin = getparentedgeminor(net.hybrid[i])
         deletehybridedge!(net, emin, nofuse, unroot, multgammas)
     end
 end
@@ -675,19 +683,105 @@ end
 """
     hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, rooted::Bool)
 
-Takes 2 networks and returns their hardwired cluster distance, that is,
-the number of hardwired clusters found in one network and not in the other.
-Note that this is not a distance per se on the full space of hybrid networks:
-there are pairs of different networks for which this measure is 0.
-But it is a distance on some network subspaces.
+Hardwired cluster distance between the topologies of `net1` and `net2`, that is,
+the number of hardwired clusters found in one network and not in the other
+(with multiplicity, see below).
 
 If the 2 networks are trees, this is the Robinson-Foulds distance.
-If rooted=false, the trees are considered unrooted.
+If rooted=false, then both networks are considered as semi-directed.
 
-If rooted is false and one of the phylogenies is not a tree (1+ reticulations),
+Networks are assumed bicombining (each hybrid has exactly 2 parents, no more).
+
+## Dissimilarity vs distance
+
+This is *not* a distance per se on the full space of phylogenetic networks:
+there are pairs of distinct networks for which this dissimilarity is 0.
+But it is a distance on some classes of networks, such as the class of
+tree-child networks that are "normal" (without shortcuts), or the class of
+tree-child networks that can be assigned node ages such that hybrid edges
+have length 0 and tree edges have non-negative lengths. See
+[Cardona, Rossello & Valiente (2008)](https://doi.org/10.1016/j.mbs.2007.11.003),
+[Cardona, Llabres, Rossello & Valiente (2008)](https://doi.org/10.1109/TCBB.2008.70),
+and [Huson, Rupp, Scornavacca (2010)](https://doi.org/10.1017/CBO9780511974076).
+
+## Example
+
+```jldoctest
+julia> net1 = readTopology("(t6,(t5,((t4,(t3,((t2,t1))#H1)),#H1)));");
+
+julia> taxa = sort(tipLabels(net1)); # t1 through t6, sorted alphabetically
+
+julia> # using PhyloPlots; plot(net1, showedgenumber=true);
+
+julia> # in matrix below: column 1: edge number. last column: tree (10) vs hybrid (11) edge
+       # middle columns: for 'taxa': t1,...t6. 1=descendant, 0=not descendant
+       hardwiredClusters(net1, taxa)
+6×8 Matrix{Int64}:
+ 13  1  1  1  1  1  0  10
+ 12  1  1  1  1  0  0  10
+ 10  1  1  1  1  0  0  10
+  9  1  1  1  0  0  0  10
+  8  1  1  0  0  0  0  11
+  7  1  1  0  0  0  0  10
+
+julia> net2 = readTopology("(t6,(t5,((t4,(t3)#H1),(#H1,(t1,t2)))));");
+
+julia> hardwiredClusters(net2, taxa)
+6×8 Matrix{Int64}:
+ 13  1  1  1  1  1  0  10
+ 12  1  1  1  1  0  0  10
+  6  0  0  1  1  0  0  10
+  5  0  0  1  0  0  0  11
+ 11  1  1  1  0  0  0  10
+ 10  1  1  0  0  0  0  10
+
+julia> hardwiredClusterDistance(net1, net2, true) # true: as rooted networks
+4
+```
+
+## What is a hardwired cluster?
+
+Each edge in a network is associated with its *hardwired cluster*, that is,
+the set of all its descendant taxa (leaves). The set of hardwired cluster
+of a network is the set of its edges' hardwired clusters. The dissimilarity
+`d_hard` defined in [Huson, Rupp, Scornavacca (2010)](https://doi.org/10.1017/CBO9780511974076)
+is the number of hardwired clusters that are in one network but not in the other.
+
+This implementation is a slightly more discriminative version of `d_hard`, where
+each cluster is counted with multiplicity and annotated with its edge's hybrid
+status, as follows:
+- External edges are not counted (they are tree edges to a leaf, shared by all
+  phylogenetic networks).
+- A cluster is counted for each edge for which it's the hardwired cluster.
+- At a given hybrid node, both hybrid partner edges have the same cluster,
+  so this cluster is only counted once for both partners.
+- A given cluster is matched between the two networks only if it's the cluster
+  from a tree edge in both networks, or from a hybrid edge in both networks.
+
+In the example above, `net1` has a shortcut (hybrid edge 11) resulting in 2 tree
+edges (12 and 10) with the same cluster {t1,t2,t3,t4}. So cluster {t1,t2,t3,t4}
+has multiplicity 2 in `net1`. `net2` also has this cluster, but only associated
+with 1 tree edge, so this cluster contributes (2-1)=1 towards the hardwired cluster
+distance between the two networks. The distance of 4 corresponds to these 4 clusters:
+- {t1,t2,t3,t4}: twice in net1, once in net2
+- {t3,t4}: absent in net1, once in net2
+- {t1,t2}: twice in net1 (from a hybrid edge & a tree edge), once in net2
+- {t3}: absent in net1 (because external edges are not counted),
+  once in net2 (from a hybrid edge).
+
+Degree-2 nodes cause multiple edges to have the same cluster, so counting
+clusters with multiplicity distinguishes a network with extra degree-2 nodes
+from the "same" network after these nodes have been suppressed
+(e.g. with [`PhyloNetworks.fuseedgesat!`](@ref) or [`PhyloNetworks.shrinkedge!`](@ref)).
+
+## Networks as semi-directed
+
+If `rooted` is false and one of the phylogenies is not a tree (1+ reticulations),
 then all degree-2 nodes are removed before comparing the hardwired clusters,
 and the minimum distance is returned over all possible ways to root the
 networks at internal nodes.
+
+See also: [`hardwiredClusters`](@ref), [`hardwiredCluster`](@ref)
 """
 function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, rooted::Bool)
     bothtrees = (net1.numHybrids == 0 && net2.numHybrids == 0)

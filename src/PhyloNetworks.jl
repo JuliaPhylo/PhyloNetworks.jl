@@ -71,10 +71,25 @@ module PhyloNetworks
         readSnaqNetwork,
         topologyMaxQPseudolik!,
         topologyQPseudolik!,
+        ## getters
+        # fixit: add ancestors? getsibling? getdescendants (currently descendants)?
+        getroot,
+        isrootof,
+        isleaf,
+        isexternal,
+        isparentof,
+        ischildof,
+        hassinglechild,
+        getchild,
+        getchildren,
+        getchildedge,
+        getparent,
+        getparents,
+        getparentminor,
+        getparentedge,
+        getparentedgeminor,
+        getpartneredge,
         ## Network Manipulation
-        # getParent, getParents, getMajorParentEdge, getMinorParentEdge, getChildren,
-        # functions above: first rename them throughout to be consistent with other packages, like:
-        # parent child parents children parentmajor parentminor ancestor sibling offspring
         rootatnode!,
         rootonedge!,
         directEdges!,
@@ -96,7 +111,6 @@ module PhyloNetworks
         biconnectedComponents,
         blobDecomposition!,
         blobDecomposition,
-        mapindividuals,
         nni!,
         checkroot!,
         treeedgecomponents,

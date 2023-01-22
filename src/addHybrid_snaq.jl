@@ -410,8 +410,8 @@ function addHybridBetweenClades!(hybnum::Number,sisnum::Number,net::HybridNetwor
     sisind = getIndexNode(sisnum,net)
 
     ## hybridization ed1->ed2
-    edge1 = getMajorParentEdge(net.node[sisind])
-    edge2 = getMajorParentEdge(net.node[hybind])
+    edge1 = getparentedge(net.node[sisind]) # major parent edges
+    edge2 = getparentedge(net.node[hybind])
 
     edge3,edge4 = parameters4createHybrid!(edge1, edge2,net)
     hybridnode = createHybrid!(edge1, edge2, edge3, edge4, net, 0.1) ## gamma=0.1, fixed later
@@ -434,9 +434,9 @@ function addHybridBetweenClades!(hybnum::Number,sisnum::Number,net::HybridNetwor
         edge2.isChild1 = false
     end
     ## used gamma=0.1 to make the new edge a minor edge, but we really do not have gamma value:
-    emaj = getMajorParentEdge(hybridnode)
+    emaj = getparentedge(hybridnode)
     emaj.gamma = -1
-    e = getMinorParentEdge(hybridnode)
+    e = getparentedgeminor(hybridnode)
     e.gamma = -1
     return e.number
 end

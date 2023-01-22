@@ -17,10 +17,17 @@ To traverse or learn something about a network, node or edge, see for example:
 - [`displayedTrees`](@ref), [`majorTree`](@ref),
   [`biconnectedComponents`](@ref), [`PhyloNetworks.blobInfo`](@ref)
 - [`hardwiredCluster`](@ref), [`hardwiredClusters`](@ref)
-- [`PhyloNetworks.getPartner`](@ref),
-  [`PhyloNetworks.getChild`](@ref), [`PhyloNetworks.getChildren`](@ref), [`PhyloNetworks.getChildEdge`](@ref)
-  [`PhyloNetworks.getParent`](@ref), [`PhyloNetworks.getParents`](@ref),
-  [`PhyloNetworks.getMajorParent`](@ref), [`PhyloNetworks.getMajorParentEdge`](@ref),
+- [`getroot`](@ref), [`isrootof`](@ref),
+  [`isleaf`](@ref PhyloNetworks.isrootof), [`isexternal`](@ref PhyloNetworks.isrootof),
+  [`isparentof`](@ref), [`ischildof`](@ref PhyloNetworks.isparentof),
+  [`hassinglechild`](@ref),
+- [`getchild`](@ref), [`getchildren`](@ref PhyloNetworks.getchild),
+  [`getchildedge`](@ref PhyloNetworks.getchild)
+  [`getparent`](@ref), [`getparents`](@ref PhyloNetworks.getparent),
+  [`getparentminor`](@ref PhyloNetworks.getparent),
+  [`getparentedge`](@ref PhyloNetworks.getparent),
+  [`getparentedgeminor`](@ref PhyloNetworks.getparent),
+  [`getpartneredge`](@ref)
 
 To modify a network, for example:
 - [`rootonedge!`](@ref), [`rootatnode!`](@ref):

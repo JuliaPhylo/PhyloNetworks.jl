@@ -211,7 +211,7 @@ function phyLiNC(net::HybridNetwork, fastafile::String, modSymbol::Symbol,
     end
     unzip_canonical!(obj.net)
     for e in obj.net.edge # bring branch lengths inside bounds
-        if e.length < BLmin && !getParent(e).hybrid
+        if e.length < BLmin && !getparent(e).hybrid
             e.length = BLmin
         elseif e.length > BLmax
             e.length = BLmax
@@ -488,12 +488,12 @@ function phyLiNCone!(obj::SSM, maxhybrid::Int, no3cycle::Bool,
              alphamin=alphamin,alphamax=alphamax, pinvmin=pinvmin,pinvmax=pinvmax)
         optimizealllengths_LiNC!(obj, lcache) # 1 edge at a time, random order
         for i in Random.shuffle(1:obj.net.numHybrids)
-            e = getMajorParentEdge(obj.net.hybrid[i])
+            e = getparentedge(obj.net.hybrid[i])
             optimizelocalgammas_LiNC!(obj, e, ftolAbs, γcache)
         end
         ghosthybrid = false # find hybrid edges with γ=0, to delete them
         for h in obj.net.hybrid
-            minorhybridedge = getMinorParentEdge(h)
+            minorhybridedge = getparentedgeminor(h)
             minorhybridedge.gamma == 0.0 || continue
             ghosthybrid = true
             deletehybridedge!(obj.net, minorhybridedge, false,true,false,false,false)
@@ -805,16 +805,16 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64,
     isnothing(result) && return nothing
     newhybridnode, newhybridedge = result
     # next: increase length of split edges if they became < BLmin
-    splitedges = getParent(newhybridedge).edge # new hybrid edge = splitedges[3]
+    splitedges = getparent(newhybridedge).edge # new hybrid edge = splitedges[3]
     # splitedges[1] and splitedges[2] have length 1/2 of original edge...
     # except if hybrid ladder was created (and unzipped)
     for e in splitedges[1:2]
-        if e.length < BLmin && !getParent(e).hybrid
+        if e.length < BLmin && !getparent(e).hybrid
             e.length = BLmin
         end
     end
     # unzip only at new node and its child edge
-    unzipat_canonical!(newhybridnode, getChildEdge(newhybridnode))
+    unzipat_canonical!(newhybridnode, getchildedge(newhybridnode))
     updateSSM!(obj) #, true; constraints=constraints)
     optimizelocalgammas_LiNC!(obj, newhybridedge, ftolAbs, γcache)
     if newhybridedge.gamma == 0.0
@@ -827,7 +827,7 @@ function addhybridedgeLiNC!(obj::SSM, currLik::Float64,
         return false
     elseif newhybridedge.gamma == 1.0 # ≃ subtree prune and regraft (SPR) move
         # loglik better because γ=1 better than γ=0, yet without new reticulation: accept
-        deletehybridedge!(obj.net, getMinorParentEdge(newhybridnode), false,true,false,false,false)
+        deletehybridedge!(obj.net, getparentedgeminor(newhybridnode), false,true,false,false,false)
         (no3cycle ? shrink3cycles!(obj.net, true) : shrink2cycles!(obj.net, true))
         # loglik will be updated in optimizeallgammas right after, in optimizestructure
         updateSSM!(obj, true; constraints=constraints)
@@ -887,7 +887,7 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
 
     nh = length(obj.net.hybrid)
     hybridnode = obj.net.hybrid[Random.rand(1:nh)]
-    minorhybridedge = getMinorParentEdge(hybridnode)
+    minorhybridedge = getparentedgeminor(hybridnode)
     #= if type-3 constraints: check that proposed deletion meets constraints
       the constraint's stem edge must be a tree edge -> not disrupted
       species (type 1) or clade type-2 constraints: no problem, because
@@ -898,7 +898,7 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
         edgenotfound = true
         for hi in hybindices
             hybridnode = obj.net.hybrid[hi]
-            minorhybridedge = getMinorParentEdge(hybridnode)
+            minorhybridedge = getparentedgeminor(hybridnode)
             # edgenotfound = whether any type-3 constraints is violated
             edgenotfound || break
         end
@@ -912,7 +912,7 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
     setGamma!(minorhybridedge, 0.0)
     l1mγ = log(1.0-γ0)
     nt, hase = updatecache_hase!(γcache, obj, minorhybridedge.number,
-                                getMajorParentEdge(hybridnode).number)
+                                getparentedge(hybridnode).number)
     for it in 1:nt
         @inbounds h = hase[it]
         ismissing(h) && continue # tree has unchanged weight: skip below
@@ -925,7 +925,7 @@ function deletehybridedgeLiNC!(obj::SSM, currLik::Float64,
      if hybrid ladder (minor parent is hybrid node): not identifiable at all
      otherwise: only their sum is identifiable, but not individual lengths
      so: optimize length of major hybrid edge only =#
-    majhyb = getMajorParentEdge(hybridnode)
+    majhyb = getparentedge(hybridnode)
     len0 = majhyb.length # to restore later if deletion rejected
     update_logtrans(obj) # fixit: is that really needed?
     optimizelength_LiNC!(obj, majhyb, lcache, Q(obj.model))
@@ -992,7 +992,7 @@ function fliphybridedgeLiNC!(obj::SSM, currLik::Float64, nohybridladder::Bool,
     # reassign old child edge to BLmin (was zero)
     oldchildedge.length = BLmin # adjacent to flippedge, saved above
     # unzip only at new node and its child edge
-    getChildEdge(newhybridnode).length = 0.0 # adjacent to flippedge, saved above
+    getchildedge(newhybridnode).length = 0.0 # adjacent to flippedge, saved above
     updateSSM!(obj) #, true; constraints=constraints) # displayed trees have changed
     optimizelocalgammas_LiNC!(obj, flippededge, ftolAbs, γcache)
     # don't delete a flipped edge with γ=0: to be able to undo the flip
@@ -1275,13 +1275,13 @@ function updatecache_edge!(lcache::CacheLengthLiNC, obj::SSM, focusedge)
     nt = length(tree) # could be less than dimensions in lcache
     # ! a sister edge in network may be absent in a displayed tree
     # but: edge & node numbers are the same in net and in trees
-    v = getParent(focusedge) # ! focus edge needs same direction in displayed trees
+    v = getparent(focusedge) # ! focus edge needs same direction in displayed trees
     vnum = v.number
-    unum = getChild(focusedge).number
+    unum = getchild(focusedge).number
     enum = focusedge.number
     snum = Int[]
     for e in v.edge
-        if e !== focusedge && v == getParent(e) # then e sister to focus edge
+        if e !== focusedge && v == getparent(e) # then e sister to focus edge
             push!(snum, e.number)
         end
     end
@@ -1354,7 +1354,7 @@ function optimizealllengths_LiNC!(obj::SSM, lcache::CacheLengthLiNC)
     if !isempty(obj.net.hybrid)
         @inbounds for i in length(edges):-1:1
             e = edges[i]
-            (getParent(e).hybrid || e.gamma == 0.0) && deleteat!(edges, i)
+            (getparent(e).hybrid || e.gamma == 0.0) && deleteat!(edges, i)
         end
     end
     # reduce edge lengths beyond upper bounds
@@ -1421,7 +1421,7 @@ function optimizelocalBL_LiNC!(obj::SSM, focusedge::Edge, lcache::CacheLengthLiN
     if !isempty(obj.net.hybrid)
         @inbounds for i in length(neighboredges):-1:1
             e = neighboredges[i]
-            (getParent(e).hybrid || e.gamma == 0.0) && deleteat!(neighboredges, i)
+            (getparent(e).hybrid || e.gamma == 0.0) && deleteat!(neighboredges, i)
         end
     end
     # reduce edge lengths beyond upper bounds: can appear from unzipping,
@@ -1449,7 +1449,7 @@ Warning: displayed trees are assumed up-to-date, with nodes preordered
 """
 function optimizelength_LiNC!(obj::SSM, focusedge::Edge,
                               lcache::CacheLengthLiNC, qmat)
-    getParent(focusedge).hybrid && return nothing # keep the reticulation unzipped
+    getparent(focusedge).hybrid && return nothing # keep the reticulation unzipped
         # the length of focus edge should be 0. stay as is.
     cfg = updatecache_edge!(lcache, obj, focusedge)
     ismissing(cfg) && return nothing
@@ -1575,7 +1575,7 @@ function optimizeallgammas_LiNC!(obj::SSM, ftolAbs::Float64,
     hybnodes = obj.net.hybrid
     nh = length(hybnodes)      # also = obj.net.numHybrids
     if nh==0 return false; end # no gammas to optimize
-    hybs = [getMinorParentEdge(h) for h in hybnodes]
+    hybs = [getparentedgeminor(h) for h in hybnodes]
     discrete_corelikelihood!(obj) # prerequisite for optimizegamma_LiNC!
     nevals = 0
     ll = obj.loglik
@@ -1591,7 +1591,7 @@ function optimizeallgammas_LiNC!(obj::SSM, ftolAbs::Float64,
     ghosthybrid = false
     hi = nh
     while hi > 0
-        he = getMinorParentEdge(hybnodes[hi])
+        he = getparentedgeminor(hybnodes[hi])
         if he.gamma == 0.0
             deletehybridedge!(obj.net, he, false,true,false,false,false)
             ghosthybrid = true
@@ -1659,7 +1659,7 @@ function optimizelocalgammas_LiNC!(obj::SSM, edge::Edge,
     for i in length(neighborhybs):-1:1
         e = neighborhybs[i]
         e.isMajor || continue # skip below for minor edges
-        p = getPartner(e)     # minor partner
+        p = getpartneredge(e) # minor partner
         j = findfirst(x -> x===p, neighborhybs)
         if isnothing(j)
             neighborhybs[i] = p # replace major e by its minor partner
@@ -1711,7 +1711,7 @@ function optimizegamma_LiNC!(obj::SSM, focusedge::Edge,
         ftolAbs::Float64, cache::CacheGammaLiNC, maxNR=10::Int)
     ## step 1: prepare vectors constant during the search
     edgenum = focusedge.number
-    partner = getPartner(focusedge)
+    partner = getpartneredge(focusedge)
     partnernum = partner.number
     clike = cache.clike # conditional likelihood under focus edge
     clikp = cache.clikp # conditional likelihood under partner edge

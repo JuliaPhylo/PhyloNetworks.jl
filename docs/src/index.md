@@ -55,7 +55,7 @@ for network inference:
 ```@contents
 Pages = [
     "man/installation.md",
-    # "man/netmanipulation.md",
+    "man/netmanipulation.md",
     "man/inputdata.md",
     "man/ticr_howtogetQuartetCFs.md",
     "man/snaq_plot.md",

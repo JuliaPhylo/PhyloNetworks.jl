@@ -127,8 +127,8 @@ function minorreticulationmatrix(net::HybridNetwork)
     j = 1 # row index, row = reticulate edge
     for e in net.edge
         if !e.isMajor # minor (hybrid) edges only
-            reticulation[j,1] = getParent(e).number
-            reticulation[j,2] = getChild(e).number
+            reticulation[j,1] = getparent(e).number
+            reticulation[j,2] = getchild(e).number
             j += 1
         end
     end

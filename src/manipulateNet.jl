@@ -95,11 +95,14 @@ end
 
 """
     hybridatnode!(net::HybridNetwork, nodeNumber::Integer)
+    hybridatnode(net, nodeNumber)
 
 Change the status of edges in network `net`,
 to move the hybrid node in a cycle to the node with number `nodeNumber`.
 This node must be in one (and only one) cycle, otherwise an error will be thrown.
 
+The second method does not modify `net`, checks that it's of level 1, and
+returns the new network after hybrid modification.
 
 `net` is assumed to be of level 1, that is, each blob has a
 single cycle with a single reticulation.
@@ -175,11 +178,10 @@ function hybridatnode!(net::HybridNetwork, hybrid::Node, newNode::Node)
     end
 end
 
-# function to change the hybrid node in a cycle
-# does not assume that the network was read with readTopologyUpdate
-# does not modify net0 because it needs to update all attributes
-# so, it returns the new network
 # Not used anywhere, but tested
+# does not call hybridatnode! but repeats its code: oops! violates DRY principle
+# nodeNumber should correspond to the number assigned by readTopologyLevel1,
+# and the node numbers in `net` are irrelevant.
 @doc (@doc hybridatnode!) hybridatnode
 function hybridatnode(net0::HybridNetwork, nodeNumber::Integer)
     net = readTopologyLevel1(writeTopologyLevel1(net0)) # we need inCycle attributes
@@ -383,7 +385,7 @@ julia> length(net.node)
 19
 
 julia> net.edge[4] # edge 4 goes from node -8 to 3
-PhyloNetworks.Edge:
+PhyloNetworks.EdgeT{PhyloNetworks.Node}:
  number:4
  length:-1.0
  attached to 2 node(s) (parent first): -8 3
@@ -395,14 +397,14 @@ julia> length(net.node) # one more than before
 20
 
 julia> newedge # new edge 21 goes from node -8 and 11 (new)
-PhyloNetworks.Edge:
+PhyloNetworks.EdgeT{PhyloNetworks.Node}:
  number:21
  length:-1.0
  attached to 2 node(s) (parent first): -8 11
 
 
 julia> net.edge[4] # original edge 4 now goes from node 11 (new) to 3
-PhyloNetworks.Edge:
+PhyloNetworks.EdgeT{PhyloNetworks.Node}:
  number:4
  length:-1.0
  attached to 2 node(s) (parent first): 11 3
@@ -411,9 +413,11 @@ PhyloNetworks.Edge:
 julia> writeTopology(net) # note extra pair of parentheses around S1
 "(((S8,S9),((((S4,(S1)),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 ```
+
+See also: [`fuseedgesat!`](@ref)
 """
 function breakedge!(edge::Edge, net::HybridNetwork)
-    pn = getParent(edge) # parent node
+    pn = getparent(edge) # parent node
     # new child edge = old edge, same hybrid attribute
     removeEdge!(pn,edge)
     removeNode!(pn,edge)
@@ -447,7 +451,7 @@ The parent and child edges of this node are fused.
 If either of the edges is hybrid, the hybrid edge is retained. Otherwise, the
 edge with the lower edge number is retained.
 
-Reverts the action of breakedge!.
+Reverts the action of [`breakedge!`](@ref).
 
 returns the fused edge.
 """
@@ -465,7 +469,7 @@ function fuseedgesat!(i::Integer, net::HybridNetwork, multgammas=false::Bool)
     if pe.hybrid       # unless it's a hybrid: should be --tree--> node i --hybrid-->
         (ce,pe) = (pe,ce) # keep the hybrid edge: keep its isMajor
     end
-    isnodeiparent = (nodei ≡ getParent(ce))
+    isnodeiparent = (nodei ≡ getparent(ce))
     (!ce.hybrid || isnodeiparent) ||
       error("node $(nodei.number) has 1 tree edge ($(pe.number)) and 1 hybrid edge ($(ce.number)), but is child of the hybrid edge.")
     pn = getOtherNode(pe,nodei)
@@ -535,10 +539,10 @@ julia> writeTopology(net, round=true) # the root was kept
 ```
 """
 function removedegree2nodes!(net::HybridNetwork, keeproot=false::Bool)
-    rootnode = net.node[net.root]
+    rootnode = getroot(net)
     # caution: the root and its incident edges may change when degree-2 nodes
     #          are removed. Indices of nodes to be removed would change too.
-    rootin2cycle(nn) = nn ≡ net.node[net.root] && all(e.hybrid for e in nn.edge)
+    rootin2cycle(nn) = isrootof(nn,net) && all(e.hybrid for e in nn.edge)
     toberemoved(nn) = (keeproot ? length(nn.edge) == 2 && nn !== rootnode :
                                   length(nn.edge) == 2 && !rootin2cycle(nn))
     ndegree2nodes = sum(toberemoved.(net.node))
@@ -596,7 +600,7 @@ function addleaf!(net::HybridNetwork, speciesnode::Node, leafname::String, edgel
     exterioredge = Edge(maximum(e.number for e in net.edge) + 1, edgelength) # isChild1 = true by default in edge creation
     pushEdge!(net, exterioredge)
     setEdge!(speciesnode, exterioredge)
-    if speciesnode.hybrid || (speciesnode != net.node[net.root] && !getMajorParentEdge(speciesnode).containRoot)
+    if speciesnode.hybrid || (!isrootof(speciesnode, net) && !getparentedge(speciesnode).containRoot)
         exterioredge.containRoot = false
     end
     newleaf = Node(maximum(n.number for n in net.node) + 1, true, false, [exterioredge]) # Node(number, leaf, hybrid, edge array)
@@ -647,7 +651,7 @@ function directEdges!(net::HybridNetwork; checkMajor=true::Bool)
             nparents = 0 # 0 or 2 normally, but could be >2 if polytomy.
             nmajor = 0   # there should be exactly 1 major parent if nparents>0
             for e in n.edge
-                if e.hybrid && n == getChild(e)
+                if e.hybrid && n == getchild(e)
                     nparents += 1
                     if (e.isMajor) nmajor +=1; end
                 end
@@ -673,7 +677,7 @@ end
 # containroot = true until the path goes through a hybrid node, below which
 # containroot is turned to false.
 function traverseDirectEdges!(node::Node, edge::Edge, containroot::Bool)
-    if edge.hybrid && node==getChild(edge)
+    if edge.hybrid && node==getchild(edge)
         throw(RootMismatch(
 "direction (isChild1) of hybrid edge $(edge.number) conflicts with the root.
 isChild1 and containRoot were updated for a subset of edges in the network only."))
@@ -691,7 +695,7 @@ isChild1 and containRoot were updated for a subset of edges in the network only.
         nchildren=0
         for e in cn.edge
             if e==edge continue; end
-            if (e.hybrid && cn == getChild(e)) continue; end
+            if (e.hybrid && cn == getchild(e)) continue; end
             traverseDirectEdges!(cn,e,containroot)
             nchildren += 1
         end
@@ -707,71 +711,6 @@ end
 #################################################
 ## Topological sorting
 #################################################
-
-"""
-    getParents(node)
-
-Get vector of all parent nodes of `n`, based on `isChild1` field (for edges).
-To get the parent node of an edge: see [`getParent`](@ref).
-To get individual parent edges (rather than all parent *nodes*):
-see [`getMajorParentEdge`](@ref PhyloNetworks.getMajorParentEdge) and `getMinorParentEdge`.
-"""
-@inline function getParents(node::Node)
-    parents = Node[]
-    for e in node.edge
-            if node == getChild(e)
-                push!(parents, getParent(e))
-            end
-    end
-    return parents
-end
-
-# getParent, getMajorParent, getMinorParent: defined in auxiliary.jl
-
-"""
-    getMajorParentEdge(node)
-    getMinorParentEdge(node)
-
-return the parent edge of a given node: the major / minor if hybrid.
-**warning**: assume isChild1 and isMajor attributes are correct
-
-To get all parent *nodes*: see [`getParents`](@ref).
-"""
-@inline function getMajorParentEdge(n::Node)
-    for ee in n.edge
-        if n == ee.node[(ee.isChild1 ? 1 : 2)] && ee.isMajor
-            return ee
-        end
-    end
-    error("node $(n.number) has no major parent")
-end
-@doc (@doc getMajorParentEdge) getMinorParentEdge
-@inline function getMinorParentEdge(n::Node)
-    for ee in n.edge
-        if !ee.isMajor && n == ee.node[(ee.isChild1 ? 1 : 2)]
-            return ee
-        end
-    end
-    error("node $(n.number) has no minor parent")
-end
-
-"""
-    getChildren(node)
-
-return a vector with all children *nodes* of `node`.
-**warning**: assume `isChild1` field (for edges) are correct
-
-To get all parent *nodes*: see [`PhyloNetworks.getParents`](@ref).
-"""
-function getChildren(node::Node)
-    children = Node[]
-    for e in node.edge
-        if node === getParent(e)
-            push!(children, getChild(e))
-        end
-    end
-    return children
-end
 
 """
     preorder!(net::HybridNetwork)
@@ -796,14 +735,14 @@ function preorder!(net::HybridNetwork)
         net.visited[currind] = true # visit curr node
         push!(net.nodes_changed,curr) #push curr into path
         for e in curr.edge
-            if curr == getParent(e)
-                other = getChild(e)
+            if curr == getparent(e)
+                other = getchild(e)
                 if !e.hybrid
                     push!(queue,other)
                     # print("queuing: "); @show other.number
                 else
-                    e2 = getPartner(e, other)
-                    parent = getParent(e2)
+                    e2 = getpartneredge(e, other)
+                    parent = getparent(e2)
                     if net.visited[findfirst(x -> x===parent, net.node)]
                       push!(queue,other)
                       # warning: if simple loop, the same node will be pushed twice: child of "curr" via 2 edges
@@ -835,9 +774,9 @@ function cladewiseorder!(net::HybridNetwork)
         # @show net.node[ni].number
         push!(net.cladewiseorder_nodeIndex, ni)
         for e in net.node[ni].edge
-            if net.node[ni] ≡ getParent(e) # net.node[ni] is parent node of e
+            if net.node[ni] ≡ getparent(e) # net.node[ni] is parent node of e
                 if e.isMajor
-                    push!(queue, findfirst(isequal(getChild(e)), net.node))
+                    push!(queue, findfirst(isequal(getchild(e)), net.node))
                     # print("queuing: "); @show other.number
                 end
             end
@@ -887,7 +826,7 @@ function rotate!(net::HybridNetwork, nnum::Integer; orderedEdgeNum=Int[]::Array{
     n = net.node[nind]
     ci = Int[] # children edge indices
     for i = 1:length(n.edge)
-        if n == getParent(n.edge[i])
+        if n == getparent(n.edge[i])
             push!(ci,i)
         end
     end
@@ -1038,8 +977,8 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
     e1 = nodei.edge[1]
     e2 = nodei.edge[2]
     if e1.hybrid && e2.hybrid
-        cn  = getChild(e1)
-        cn2 = getChild(e2)
+        cn  = getchild(e1)
+        cn2 = getchild(e2)
         if !(nodei ≡ cn && nodei ≡ cn2) # nodei *not* the child of both e1 and e2
             # possible at the root, in which case e1,e2 should have same child
             (i==net.root && cn ≡ cn2) ||
@@ -1047,7 +986,7 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
             # delete e1,e2,nodei and move the root to their child cn
             cn.hybrid || error("child node $(cn.number) of hybrid edges $(e1.number) and $(e2.number) should be a hybrid.")
             # check that cn doesn't have any other parent than e1 and e2
-            any(getChild(e) ≡ cn && e !== e1 && e !==e2 for e in cn.edge) &&
+            any(getchild(e) ≡ cn && e !== e1 && e !==e2 for e in cn.edge) &&
                 error("root has 2 hybrid edges, but their common child has an extra parent")
             removeEdge!(cn,e1); removeEdge!(cn,e2)
             removeHybrid!(net,cn) # removes n1 from net.hybrid, updates net.numHybrids
@@ -1062,8 +1001,8 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
             return nothing
         end
         # by now, nodei is the child of both e1 and e2
-        p1 = getParent(e1) # find both parents of hybrid leaf
-        p2 = getParent(e2)
+        p1 = getparent(e1) # find both parents of hybrid leaf
+        p2 = getparent(e2)
         # remove node1 and both e1, e2
         sameparent = (p1≡p2) # 2-cycle
         removeNode!(p1,e1);  removeNode!(p2,e2) # perhaps useless
@@ -1084,10 +1023,10 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
     elseif !nofuse
         e1 = fuseedgesat!(i,net, multgammas) # fused edge
         if simplify && e1.hybrid # check for 2-cycle at new hybrid edge
-            cn = getChild(e1)
-            e2 = getPartner(e1, cn) # companion hybrid edge
-            pn  = getParent(e1)
-            if pn ≡ getParent(e2)
+            cn = getchild(e1)
+            e2 = getpartneredge(e1, cn) # companion hybrid edge
+            pn  = getparent(e1)
+            if pn ≡ getparent(e2)
                 # e1 and e2 have same child and same parent. Remove e1.
                 e2.hybrid=false;
                 e2.isMajor=true;
@@ -1122,7 +1061,7 @@ function deleteaboveLSA!(net::HybridNetwork, preorder=true::Bool)
         nodei = popfirst!(net.nodes_changed)
         for e in nodei.edge
             # delete all of nodei's edges (which much be outgoing)
-            cn = getChild(e)
+            cn = getchild(e)
             removeEdge!(cn, e) # also updates cn.hasHybEdge
             empty!(e.node)
             deleteEdge!(net, e; part=false)
@@ -1259,10 +1198,10 @@ function norootbelow!(e::Edge)
     e.containRoot || return nothing # if already false: stop
     # if true: turn to false then move down to e's children
     e.containRoot = false
-    cn = getChild(e) # cn = child node
+    cn = getchild(e) # cn = child node
     for ce in cn.edge
         ce !== e || continue # skip e
-        getParent(ce) === cn || continue # skip edges that aren't children of cn
+        getparent(ce) === cn || continue # skip edges that aren't children of cn
         norootbelow!(ce)
     end
     return nothing
@@ -1280,13 +1219,13 @@ or if `n` is a hybrid node, then the edges below `e` or `n` are *not* traversed.
 function allowrootbelow!(e::Edge)
     e.containRoot = true
     e.hybrid && return nothing # e hybrid edge <=> its child hybrid node: stop
-    allowrootbelow!(getChild(e), e)
+    allowrootbelow!(getchild(e), e)
 end
 function allowrootbelow!(n::Node, pe::Edge)
     # pe assumed to be the parent of n
     for ce in n.edge
         ce !== pe || continue # skip parent edge of n
-        getParent(ce) === n || continue # skip edges that aren't children of n
+        getparent(ce) === n || continue # skip edges that aren't children of n
         allowrootbelow!(ce)
     end
     return nothing
@@ -1315,9 +1254,9 @@ function unzip_canonical!(net::HybridNetwork)
     hybchild = Dict{Int,Tuple{Edge,Float64}}() # keys: hybrid node number (immutable)
     hybladder = Dict{Int,Union{Nothing,Node}}()
     for h in net.hybrid
-        ce = getChildEdge(h)
+        ce = getchildedge(h)
         hybchild[h.number] = (ce, ce.length) # original lengths before unzipping
-        hybladder[h.number] = (ce.hybrid ? getChild(ce) : nothing)
+        hybladder[h.number] = (ce.hybrid ? getchild(ce) : nothing)
     end
     hybrid_po = Node[] # will list hybrid nodes with partial post-order
     hybpriority = PriorityQueue(h => i for (i,h) in enumerate(net.hybrid))
@@ -1348,7 +1287,7 @@ end
 """
     unzipat_canonical!(hyb::Node, childedge::Edge)
 
-Unzip the reticulation a node `hyb`. See [`unzip_canonical!`](ref).
+Unzip the reticulation a node `hyb`. See [`unzip_canonical!`](@ref PhyloNetworks.unzip_canonical!).
 Warning: no check that `hyb` has a single child.
 
 Output: constrained edge (child of `hyb`) and its original length.

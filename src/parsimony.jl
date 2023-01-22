@@ -179,14 +179,14 @@ function parsimonyBottomUpSoftwired!(node::Node, blobroot::Node, nchar::Integer,
         return nothing # isExtBadTriangle=dummy leaf: root of another blob
     end
     for e in node.edge
-        if (e.hybrid && e.fromBadDiamondI) || getChild(e) == node continue; end # fromBadDiamondI= edge switched off
-        son = getChild(e)
+        if (e.hybrid && e.fromBadDiamondI) || getchild(e) == node continue; end # fromBadDiamondI= edge switched off
+        son = getchild(e)
         parsimonyBottomUpSoftwired!(son, blobroot, nchar, w, parsimonyscore)
     end
     for s in 1:nchar
         for e in node.edge
-            if (e.hybrid && e.fromBadDiamondI) || getChild(e) == node continue; end
-            son = getChild(e)
+            if (e.hybrid && e.fromBadDiamondI) || getchild(e) == node continue; end
+            son = getchild(e)
             bestMin = Inf # best score from to this one child starting from s at the node
             for sf in 1:nchar # best assignement for the son
                 minpars = parsimonyscore[son.number,sf]
@@ -681,11 +681,11 @@ function parsimonyGF(net::HybridNetwork, species::Array{String},
     for melist in minorEdges # minor edge list for one single blob + loop over blobs
         guessedparentBlob = Node[]
         for e in melist
-            p = getParent(e)
+            p = getparent(e)
             if p ∉ guessedparentBlob
               push!(guessedparentBlob, p)
               for e2 in p.edge
-                p == getParent(e2) || continue
+                p == getparent(e2) || continue
                 e2.fromBadDiamondI = true # cut the edge: not followed in recursive call
               end
             end
@@ -707,14 +707,14 @@ function parsimonyGF(net::HybridNetwork, species::Array{String},
     # first: calculate inCycle = # of detached parents
     for e in net.edge
         e.fromBadDiamondI || continue # to next edge if current edge not cut
-        n = getChild(e)
+        n = getchild(e)
         n.inCycle += 1
     end
     # second: make inCycle = 0 if node has a non-detached parent
     for n in net.node
         n.inCycle > 0 || continue # to next node if inCycle = 0 already
         for e in n.edge
-            n == getChild(e) || continue
+            n == getchild(e) || continue
             !e.fromBadDiamondI || continue
             n.inCycle = 0 # if e parent of n and e not cut: make inCycle 0
             break
@@ -879,14 +879,14 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
     if !node.leaf && (!node.isExtBadTriangle || node == blobroot)
     # isExtBadTriangle=dummy leaf: root of another blob
     for e in node.edge # post-order traversal according to major tree: detached edges were minor.
-        if !e.isMajor || getChild(e) == node continue; end # Even if we didn't visit one parent (yet),
-        son = getChild(e) # that parent is a minor parent with an assigned guessed state.
+        if !e.isMajor || getchild(e) == node continue; end # Even if we didn't visit one parent (yet),
+        son = getchild(e) # that parent is a minor parent with an assigned guessed state.
         parsimonyBottomUpGF!(son, blobroot, nchar, w, parsimonyscore, costmatrix1, costmatrix2)
     end
     # check to see if "node" has guessed value: by checking to see if all its children edges were cut
     cutparent = false
     for e in node.edge
-        if getChild(e) == node continue; end
+        if getchild(e) == node continue; end
         if e.fromBadDiamondI # if true: one child edge is cut, so all are cut
             cutparent = true
             break
@@ -894,13 +894,13 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
     end
     if !cutparent # look at best assignment of children, to score each assignment at node
         for e in node.edge # avoid edges that were cut: those for which fromBadDiamondI is true
-            son = getChild(e)
+            son = getchild(e)
             if son == node continue; end
             bestpars = [Inf for s in 1:nchar] # best score, so far, for state s at node.
             # calculate cost to go from each s (and from parents' guesses, stored in w) to son state:
             if son.hybrid
                 # find potential other parent of son, detached with guessed states
-                p2 = getMinorParent(son)
+                p2 = getparentminor(son)
                 k = findfirst(isequal(0.0), w[p2.number, 1:nchar]) # guess made for parent p2
                 for sfinal in 1:nchar
                     pars = parsimonyscore[son.number, sfinal] .+ costmatrix2[k][1:nchar,sfinal]
@@ -937,7 +937,7 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
     cost = 0.0 # variable external to 'for' loops below
     if node.inCycle == 1 # 1 detached parent, no non-detached parents
         for e in node.edge
-            par = getParent(e)
+            par = getparent(e)
             if par == node continue; end
             # now 'par' is the single detached parent
             k = findfirst(isequal(0.0), w[par.number, 1:nchar]) # guess at parent
@@ -949,7 +949,7 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
     else # node.inCycle should be 2: 2 detached parents
         k1 = 0 # guess made on first detached parent
         for e in node.edge
-            par = getParent(e)
+            par = getparent(e)
             if par == node continue; end
             # now 'par' is one of the 2 guessed parents
             if k1 == 0
@@ -1003,7 +1003,7 @@ All return their optimized network. Only maxParsimonyNet returns a rooted networ
   to modify the topology according to random NNI/move origin/move target moves. It then calls maxParsimonyNetRun1!
   on the modified network
 - maxParsimonyNetRun1! proposes new network with various moves (same moves as snaq), and stops when it finds the
-  most parsimonious network, using [`parsimonyGF`](@ref).
+  most parsimonious network, using [`parsimonyGF`](@ref PhyloNetworks.parsimonyGF).
 
 None of these functions allow for multiple alleles yet.
 
